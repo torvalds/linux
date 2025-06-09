@@ -1334,6 +1334,7 @@ static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 	 * A group with FAN_UNLIMITED_MARKS does not contribute to mark count
 	 * in the limited groups account.
 	 */
+	BUILD_BUG_ON(!(FANOTIFY_ADMIN_INIT_FLAGS & FAN_UNLIMITED_MARKS));
 	if (!FAN_GROUP_FLAG(group, FAN_UNLIMITED_MARKS) &&
 	    !inc_ucount(ucounts->ns, ucounts->uid, UCOUNT_FANOTIFY_MARKS))
 		return ERR_PTR(-ENOSPC);
@@ -1498,6 +1499,7 @@ static struct hlist_head *fanotify_alloc_merge_hash(void)
 /* fanotify syscalls */
 SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 {
+	struct user_namespace *user_ns = current_user_ns();
 	struct fsnotify_group *group;
 	int f_flags, fd;
 	unsigned int fid_mode = flags & FANOTIFY_FID_BITS;
@@ -1512,10 +1514,11 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		/*
 		 * An unprivileged user can setup an fanotify group with
 		 * limited functionality - an unprivileged group is limited to
-		 * notification events with file handles and it cannot use
-		 * unlimited queue/marks.
+		 * notification events with file handles or mount ids and it
+		 * cannot use unlimited queue/marks.
 		 */
-		if ((flags & FANOTIFY_ADMIN_INIT_FLAGS) || !fid_mode)
+		if ((flags & FANOTIFY_ADMIN_INIT_FLAGS) ||
+		    !(flags & (FANOTIFY_FID_BITS | FAN_REPORT_MNT)))
 			return -EPERM;
 
 		/*
@@ -1594,8 +1597,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	}
 
 	/* Enforce groups limits per user in all containing user ns */
-	group->fanotify_data.ucounts = inc_ucount(current_user_ns(),
-						  current_euid(),
+	group->fanotify_data.ucounts = inc_ucount(user_ns, current_euid(),
 						  UCOUNT_FANOTIFY_GROUPS);
 	if (!group->fanotify_data.ucounts) {
 		fd = -EMFILE;
@@ -1604,6 +1606,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 
 	group->fanotify_data.flags = flags | internal_flags;
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
+	group->user_ns = get_user_ns(user_ns);
 
 	group->fanotify_data.merge_hash = fanotify_alloc_merge_hash();
 	if (!group->fanotify_data.merge_hash) {
@@ -1637,19 +1640,11 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		goto out_destroy_group;
 	}
 
+	BUILD_BUG_ON(!(FANOTIFY_ADMIN_INIT_FLAGS & FAN_UNLIMITED_QUEUE));
 	if (flags & FAN_UNLIMITED_QUEUE) {
-		fd = -EPERM;
-		if (!capable(CAP_SYS_ADMIN))
-			goto out_destroy_group;
 		group->max_events = UINT_MAX;
 	} else {
 		group->max_events = fanotify_max_queued_events;
-	}
-
-	if (flags & FAN_UNLIMITED_MARKS) {
-		fd = -EPERM;
-		if (!capable(CAP_SYS_ADMIN))
-			goto out_destroy_group;
 	}
 
 	if (flags & FAN_ENABLE_AUDIT) {
@@ -1811,6 +1806,8 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	struct fsnotify_group *group;
 	struct path path;
 	struct fan_fsid __fsid, *fsid = NULL;
+	struct user_namespace *user_ns = NULL;
+	struct mnt_namespace *mntns;
 	u32 valid_mask = FANOTIFY_EVENTS | FANOTIFY_EVENT_FLAGS;
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
 	unsigned int mark_cmd = flags & FANOTIFY_MARK_CMD_BITS;
@@ -1904,12 +1901,10 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	}
 
 	/*
-	 * An unprivileged user is not allowed to setup mount nor filesystem
-	 * marks.  This also includes setting up such marks by a group that
-	 * was initialized by an unprivileged user.
+	 * A user is allowed to setup sb/mount/mntns marks only if it is
+	 * capable in the user ns where the group was created.
 	 */
-	if ((!capable(CAP_SYS_ADMIN) ||
-	     FAN_GROUP_FLAG(group, FANOTIFY_UNPRIV)) &&
+	if (!ns_capable(group->user_ns, CAP_SYS_ADMIN) &&
 	    mark_type != FAN_MARK_INODE)
 		return -EPERM;
 
@@ -1988,17 +1983,30 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		fsid = &__fsid;
 	}
 
-	/* inode held in place by reference to path; group by fget on fd */
+	/*
+	 * In addition to being capable in the user ns where group was created,
+	 * the user also needs to be capable in the user ns associated with
+	 * the filesystem or in the user ns associated with the mntns
+	 * (when marking mntns).
+	 */
 	if (obj_type == FSNOTIFY_OBJ_TYPE_INODE) {
 		inode = path.dentry->d_inode;
 		obj = inode;
 	} else if (obj_type == FSNOTIFY_OBJ_TYPE_VFSMOUNT) {
+		user_ns = path.mnt->mnt_sb->s_user_ns;
 		obj = path.mnt;
 	} else if (obj_type == FSNOTIFY_OBJ_TYPE_SB) {
+		user_ns = path.mnt->mnt_sb->s_user_ns;
 		obj = path.mnt->mnt_sb;
 	} else if (obj_type == FSNOTIFY_OBJ_TYPE_MNTNS) {
-		obj = mnt_ns_from_dentry(path.dentry);
+		mntns = mnt_ns_from_dentry(path.dentry);
+		user_ns = mntns->user_ns;
+		obj = mntns;
 	}
+
+	ret = -EPERM;
+	if (user_ns && !ns_capable(user_ns, CAP_SYS_ADMIN))
+		goto path_put_and_out;
 
 	ret = -EINVAL;
 	if (!obj)

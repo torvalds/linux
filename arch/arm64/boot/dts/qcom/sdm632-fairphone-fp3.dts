@@ -45,10 +45,11 @@
 };
 
 &hsusb_phy {
-	status = "okay";
 	vdd-supply = <&pm8953_l3>;
 	vdda-pll-supply = <&pm8953_l7>;
 	vdda-phy-dpdm-supply = <&pm8953_l13>;
+
+	status = "okay";
 };
 
 &i2c_3 {
@@ -81,12 +82,22 @@
 };
 
 &lpass {
+	firmware-name = "qcom/msm8953/fairphone/fp3/adsp.mbn";
+
+	status = "okay";
+};
+
+&mpss {
+	firmware-name = "qcom/msm8953/fairphone/fp3/mba.mbn",
+			"qcom/msm8953/fairphone/fp3/modem.mbn";
+	pll-supply = <&pm8953_l7>;
+
 	status = "okay";
 };
 
 &pm8953_resin {
-	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &pmi632_lpg {
@@ -148,17 +159,19 @@
 };
 
 &sdhc_1 {
-	status = "okay";
 	vmmc-supply = <&pm8953_l8>;
 	vqmmc-supply = <&pm8953_l5>;
+
+	status = "okay";
 };
 
 &sdhc_2 {
-	status = "okay";
 	vmmc-supply = <&pm8953_l11>;
 	vqmmc-supply = <&pm8953_l12>;
 
 	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
 };
 
 &rpm_requests {
@@ -175,10 +188,12 @@
 			regulator-min-microvolt = <984000>;
 			regulator-max-microvolt = <1240000>;
 		};
+
 		pm8953_s4: s4 {
 			regulator-min-microvolt = <1036000>;
 			regulator-max-microvolt = <2040000>;
 		};
+
 		pm8953_s5: s5 {
 			regulator-min-microvolt = <1036000>;
 			regulator-max-microvolt = <2040000>;
@@ -188,66 +203,82 @@
 			regulator-min-microvolt = <975000>;
 			regulator-max-microvolt = <1050000>;
 		};
+
 		pm8953_l2: l2 {
 			regulator-min-microvolt = <975000>;
 			regulator-max-microvolt = <1175000>;
 		};
+
 		pm8953_l3: l3 {
 			regulator-min-microvolt = <925000>;
 			regulator-max-microvolt = <925000>;
 		};
+
 		pm8953_l5: l5 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		pm8953_l6: l6 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		pm8953_l7: l7 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1900000>;
 		};
+
 		pm8953_l8: l8 {
 			regulator-min-microvolt = <2900000>;
 			regulator-max-microvolt = <2900000>;
 		};
+
 		pm8953_l9: l9 {
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3300000>;
 		};
+
 		pm8953_l10: l10 {
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <3000000>;
 		};
+
 		pm8953_l11: l11 {
 			regulator-min-microvolt = <2950000>;
 			regulator-max-microvolt = <2950000>;
 		};
+
 		pm8953_l12: l12 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2950000>;
 		};
+
 		pm8953_l13: l13 {
 			regulator-min-microvolt = <3125000>;
 			regulator-max-microvolt = <3125000>;
 		};
+
 		pm8953_l16: l16 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		pm8953_l17: l17 {
 			regulator-min-microvolt = <2850000>;
 			regulator-max-microvolt = <2850000>;
 		};
+
 		pm8953_l19: l19 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1350000>;
 		};
+
 		pm8953_l22: l22 {
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
 		};
+
 		pm8953_l23: l23 {
 			regulator-min-microvolt = <975000>;
 			regulator-max-microvolt = <1225000>;
@@ -276,9 +307,14 @@
 };
 
 &wcnss {
-	status = "okay";
-
+	firmware-name = "qcom/msm8953/fairphone/fp3/wcnss.mbn";
 	vddpx-supply = <&pm8953_l5>;
+
+	status = "okay";
+};
+
+&wcnss_ctrl {
+	firmware-name = "qcom/msm8953/fairphone/fp3/WCNSS_qcom_wlan_nv.bin";
 };
 
 &wcnss_iris {

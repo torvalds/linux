@@ -8,19 +8,19 @@ intel_qat-y := adf_accel_engine.o \
 	adf_cfg_services.o \
 	adf_clock.o \
 	adf_ctl_drv.o \
+	adf_dc.o \
 	adf_dev_mgr.o \
 	adf_gen2_config.o \
-	adf_gen2_dc.o \
 	adf_gen2_hw_csr_data.o \
 	adf_gen2_hw_data.o \
 	adf_gen4_config.o \
-	adf_gen4_dc.o \
 	adf_gen4_hw_csr_data.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \
 	adf_gen4_ras.o \
-	adf_gen4_timer.o \
 	adf_gen4_vf_mig.o \
+	adf_gen6_ras.o \
+	adf_gen6_shared.o \
 	adf_hw_arbiter.o \
 	adf_init.o \
 	adf_isr.o \
@@ -30,6 +30,7 @@ intel_qat-y := adf_accel_engine.o \
 	adf_sysfs.o \
 	adf_sysfs_ras_counters.o \
 	adf_sysfs_rl.o \
+	adf_timer.o \
 	adf_transport.o \
 	qat_algs.o \
 	qat_algs_send.o \

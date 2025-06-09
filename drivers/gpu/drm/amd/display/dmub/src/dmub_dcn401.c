@@ -66,23 +66,19 @@ void dmub_dcn401_reset(struct dmub_srv *dmub)
 	const uint32_t timeout_us = 1 * 1000 * 1000; //1s
 	const uint32_t poll_delay_us = 1; //1us
 	uint32_t i = 0;
-	uint32_t in_reset, scratch, pwait_mode;
+	uint32_t enabled, in_reset, scratch, pwait_mode;
 
-	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &in_reset);
+	REG_GET(DMCUB_CNTL,
+			DMCUB_ENABLE, &enabled);
+	REG_GET(DMCUB_CNTL2,
+			DMCUB_SOFT_RESET, &in_reset);
 
-	if (in_reset == 0) {
+	if (enabled && in_reset == 0) {
 		cmd.bits.status = 1;
 		cmd.bits.command_code = DMUB_GPINT__STOP_FW;
 		cmd.bits.param = 0;
 
 		dmub->hw_funcs.set_gpint(dmub, cmd);
-
-		for (i = 0; i < timeout_us; i++) {
-			if (dmub->hw_funcs.is_gpint_acked(dmub, cmd))
-				break;
-
-			udelay(poll_delay_us);
-		}
 
 		for (; i < timeout_us; i++) {
 			scratch = dmub->hw_funcs.get_gpint_response(dmub);

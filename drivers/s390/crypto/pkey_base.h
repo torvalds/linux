@@ -159,29 +159,33 @@ struct pkey_handler {
 	bool (*is_supported_keytype)(enum pkey_key_type);
 	int (*key_to_protkey)(const struct pkey_apqn *apqns, size_t nr_apqns,
 			      const u8 *key, u32 keylen,
-			      u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+			      u8 *protkey, u32 *protkeylen, u32 *protkeytype,
+			      u32 xflags);
 	int (*slowpath_key_to_protkey)(const struct pkey_apqn *apqns,
 				       size_t nr_apqns,
 				       const u8 *key, u32 keylen,
 				       u8 *protkey, u32 *protkeylen,
-				       u32 *protkeytype);
+				       u32 *protkeytype, u32 xflags);
 	int (*gen_key)(const struct pkey_apqn *apqns, size_t nr_apqns,
 		       u32 keytype, u32 keysubtype,
 		       u32 keybitsize, u32 flags,
-		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo);
+		       u8 *keybuf, u32 *keybuflen, u32 *keyinfo, u32 xflags);
 	int (*clr_to_key)(const struct pkey_apqn *apqns, size_t nr_apqns,
 			  u32 keytype, u32 keysubtype,
 			  u32 keybitsize, u32 flags,
 			  const u8 *clrkey, u32 clrkeylen,
-			  u8 *keybuf, u32 *keybuflen, u32 *keyinfo);
+			  u8 *keybuf, u32 *keybuflen, u32 *keyinfo, u32 xflags);
 	int (*verify_key)(const u8 *key, u32 keylen,
 			  u16 *card, u16 *dom,
-			  u32 *keytype, u32 *keybitsize, u32 *flags);
+			  u32 *keytype, u32 *keybitsize, u32 *flags,
+			  u32 xflags);
 	int (*apqns_for_key)(const u8 *key, u32 keylen, u32 flags,
-			     struct pkey_apqn *apqns, size_t *nr_apqns);
+			     struct pkey_apqn *apqns, size_t *nr_apqns,
+			     u32 xflags);
 	int (*apqns_for_keytype)(enum pkey_key_type ktype,
 				 u8 cur_mkvp[32], u8 alt_mkvp[32], u32 flags,
-				 struct pkey_apqn *apqns, size_t *nr_apqns);
+				 struct pkey_apqn *apqns, size_t *nr_apqns,
+				 u32 xflags);
 	/* used internal by pkey base */
 	struct list_head list;
 };
@@ -199,29 +203,34 @@ void pkey_handler_put(const struct pkey_handler *handler);
 
 int pkey_handler_key_to_protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 				const u8 *key, u32 keylen,
-				u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+				u8 *protkey, u32 *protkeylen, u32 *protkeytype,
+				u32 xflags);
 int pkey_handler_slowpath_key_to_protkey(const struct pkey_apqn *apqns,
 					 size_t nr_apqns,
 					 const u8 *key, u32 keylen,
 					 u8 *protkey, u32 *protkeylen,
-					 u32 *protkeytype);
+					 u32 *protkeytype, u32 xflags);
 int pkey_handler_gen_key(const struct pkey_apqn *apqns, size_t nr_apqns,
 			 u32 keytype, u32 keysubtype,
 			 u32 keybitsize, u32 flags,
-			 u8 *keybuf, u32 *keybuflen, u32 *keyinfo);
+			 u8 *keybuf, u32 *keybuflen, u32 *keyinfo, u32 xflags);
 int pkey_handler_clr_to_key(const struct pkey_apqn *apqns, size_t nr_apqns,
 			    u32 keytype, u32 keysubtype,
 			    u32 keybitsize, u32 flags,
 			    const u8 *clrkey, u32 clrkeylen,
-			    u8 *keybuf, u32 *keybuflen, u32 *keyinfo);
+			    u8 *keybuf, u32 *keybuflen, u32 *keyinfo,
+			    u32 xflags);
 int pkey_handler_verify_key(const u8 *key, u32 keylen,
 			    u16 *card, u16 *dom,
-			    u32 *keytype, u32 *keybitsize, u32 *flags);
+			    u32 *keytype, u32 *keybitsize, u32 *flags,
+			    u32 xflags);
 int pkey_handler_apqns_for_key(const u8 *key, u32 keylen, u32 flags,
-			       struct pkey_apqn *apqns, size_t *nr_apqns);
+			       struct pkey_apqn *apqns, size_t *nr_apqns,
+			       u32 xflags);
 int pkey_handler_apqns_for_keytype(enum pkey_key_type ktype,
 				   u8 cur_mkvp[32], u8 alt_mkvp[32], u32 flags,
-				   struct pkey_apqn *apqns, size_t *nr_apqns);
+				   struct pkey_apqn *apqns, size_t *nr_apqns,
+				   u32 xflags);
 
 /*
  * Unconditional try to load all handler modules

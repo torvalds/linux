@@ -264,7 +264,7 @@ static int wdtpci_get_status(int *status)
 	return 0;
 }
 
-/**
+/*
  *	wdtpci_get_temperature:
  *
  *	Reports the temperature in degrees Fahrenheit. The API is in

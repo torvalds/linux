@@ -39,7 +39,7 @@ static const struct dmi_system_id inv_mpu_dev_list[] = {
 		},
 	},
 	/* Add more matching tables here..*/
-	{}
+	{ }
 };
 
 static int asus_acpi_get_sensor_info(struct acpi_device *adev,

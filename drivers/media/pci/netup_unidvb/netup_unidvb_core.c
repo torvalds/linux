@@ -637,7 +637,7 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma)
 
 static void netup_unidvb_dma_timeout(struct timer_list *t)
 {
-	struct netup_dma *dma = from_timer(dma, t, timeout);
+	struct netup_dma *dma = timer_container_of(dma, t, timeout);
 	struct netup_unidvb_dev *ndev = dma->ndev;
 
 	dev_dbg(&ndev->pci_dev->dev, "%s()\n", __func__);

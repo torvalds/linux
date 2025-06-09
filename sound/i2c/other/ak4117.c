@@ -504,7 +504,7 @@ int snd_ak4117_check_rate_and_errors(struct ak4117 *ak4117, unsigned int flags)
 
 static void snd_ak4117_timer(struct timer_list *t)
 {
-	struct ak4117 *chip = from_timer(chip, t, timer);
+	struct ak4117 *chip = timer_container_of(chip, t, timer);
 
 	if (chip->init)
 		return;

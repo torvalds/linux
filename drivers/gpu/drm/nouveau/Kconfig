@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_NOUVEAU
 	tristate "Nouveau (NVIDIA) cards"
-	depends on DRM && PCI && MMU
+	depends on DRM && PCI
 	select IOMMU_API
 	select FW_LOADER
 	select FW_CACHE if PM_SLEEP
@@ -94,7 +94,6 @@ config DRM_NOUVEAU_SVM
 	bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) support"
 	depends on DEVICE_PRIVATE
 	depends on DRM_NOUVEAU
-	depends on MMU
 	depends on STAGING
 	select HMM_MIRROR
 	select MMU_NOTIFIER

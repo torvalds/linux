@@ -1563,7 +1563,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	else
 		emu->gpr_base = FXGPREGBASE;
 
-	err = pci_request_regions(pci, "EMU10K1");
+	err = pcim_request_all_regions(pci, "EMU10K1");
 	if (err < 0)
 		return err;
 	emu->port = pci_resource_start(pci, 0);

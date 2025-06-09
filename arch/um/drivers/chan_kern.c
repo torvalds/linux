@@ -212,7 +212,7 @@ int enable_chan(struct line *line)
  * be permanently disabled.  This is discovered in IRQ context, but
  * the freeing of the IRQ must be done later.
  */
-static DEFINE_SPINLOCK(irqs_to_free_lock);
+static DEFINE_RAW_SPINLOCK(irqs_to_free_lock);
 static LIST_HEAD(irqs_to_free);
 
 void free_irqs(void)
@@ -222,9 +222,9 @@ void free_irqs(void)
 	struct list_head *ele;
 	unsigned long flags;
 
-	spin_lock_irqsave(&irqs_to_free_lock, flags);
+	raw_spin_lock_irqsave(&irqs_to_free_lock, flags);
 	list_splice_init(&irqs_to_free, &list);
-	spin_unlock_irqrestore(&irqs_to_free_lock, flags);
+	raw_spin_unlock_irqrestore(&irqs_to_free_lock, flags);
 
 	list_for_each(ele, &list) {
 		chan = list_entry(ele, struct chan, free_list);
@@ -246,9 +246,9 @@ static void close_one_chan(struct chan *chan, int delay_free_irq)
 		return;
 
 	if (delay_free_irq) {
-		spin_lock_irqsave(&irqs_to_free_lock, flags);
+		raw_spin_lock_irqsave(&irqs_to_free_lock, flags);
 		list_add(&chan->free_list, &irqs_to_free);
-		spin_unlock_irqrestore(&irqs_to_free_lock, flags);
+		raw_spin_unlock_irqrestore(&irqs_to_free_lock, flags);
 	} else {
 		if (chan->input && chan->enabled)
 			um_free_irq(chan->line->read_irq, chan);

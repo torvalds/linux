@@ -47,7 +47,7 @@ int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = sync_file_range(req->file, sync->off, sync->len, sync->flags);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -79,7 +79,7 @@ int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 	ret = vfs_fsync_range(req->file, sync->off, end > 0 ? end : LLONG_MAX,
 				sync->flags & IORING_FSYNC_DATASYNC);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 int io_fallocate_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -108,5 +108,5 @@ int io_fallocate(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret >= 0)
 		fsnotify_modify(req->file);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }

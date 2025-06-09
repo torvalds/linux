@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2019-2021, 2024 Intel Corporation
+ * Copyright (C) 2019-2021, 2024-2025 Intel Corporation
  */
 #include "iwl-drv.h"
 #include "runtime.h"
@@ -72,7 +72,7 @@ int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt)
 	 * values in VER_1, this is backwards-compatible with VER_2,
 	 * as long as we don't set any other bits.
 	 */
-	if (!fwrt->trans->trans_cfg->integrated)
+	if (!fwrt->trans->mac_cfg->integrated)
 		cmd.flags = cpu_to_le32(SOC_CONFIG_CMD_FLAGS_DISCRETE);
 
 	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_NONE !=
@@ -84,17 +84,17 @@ int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt)
 	BUILD_BUG_ON(IWL_CFG_TRANS_LTR_DELAY_1820US !=
 		     SOC_FLAGS_LTR_APPLY_DELAY_1820);
 
-	if (fwrt->trans->trans_cfg->ltr_delay != IWL_CFG_TRANS_LTR_DELAY_NONE &&
-	    !WARN_ON(!fwrt->trans->trans_cfg->integrated))
-		cmd.flags |= le32_encode_bits(fwrt->trans->trans_cfg->ltr_delay,
+	if (fwrt->trans->mac_cfg->ltr_delay != IWL_CFG_TRANS_LTR_DELAY_NONE &&
+	    !WARN_ON(!fwrt->trans->mac_cfg->integrated))
+		cmd.flags |= le32_encode_bits(fwrt->trans->mac_cfg->ltr_delay,
 					      SOC_FLAGS_LTR_APPLY_DELAY_MASK);
 
 	if (iwl_fw_lookup_cmd_ver(fwrt->fw, SCAN_REQ_UMAC,
 				  IWL_FW_CMD_VER_UNKNOWN) >= 2 &&
-	    fwrt->trans->trans_cfg->low_latency_xtal)
+	    fwrt->trans->mac_cfg->low_latency_xtal)
 		cmd.flags |= cpu_to_le32(SOC_CONFIG_CMD_FLAGS_LOW_LATENCY);
 
-	cmd.latency = cpu_to_le32(fwrt->trans->trans_cfg->xtal_latency);
+	cmd.latency = cpu_to_le32(fwrt->trans->mac_cfg->xtal_latency);
 
 	ret = iwl_trans_send_cmd(fwrt->trans, &hcmd);
 	if (ret)
@@ -116,14 +116,14 @@ int iwl_configure_rxq(struct iwl_fw_runtime *fwrt)
 	 * The default queue is configured via context info, so if we
 	 * have a single queue, there's nothing to do here.
 	 */
-	if (fwrt->trans->num_rx_queues == 1)
+	if (fwrt->trans->info.num_rxqs == 1)
 		return 0;
 
-	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_22000)
+	if (fwrt->trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_22000)
 		return 0;
 
 	/* skip the default queue */
-	num_queues = fwrt->trans->num_rx_queues - 1;
+	num_queues = fwrt->trans->info.num_rxqs - 1;
 
 	size = struct_size(cmd, data, num_queues);
 

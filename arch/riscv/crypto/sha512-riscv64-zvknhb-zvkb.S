@@ -43,7 +43,7 @@
 // - RISC-V Vector SHA-2 Secure Hash extension ('Zvknhb')
 // - RISC-V Vector Cryptography Bit-manipulation extension ('Zvkb')
 
-#include <linux/cfi_types.h>
+#include <linux/linkage.h>
 
 .text
 .option arch, +zvknhb, +zvkb
@@ -95,7 +95,7 @@
 
 // void sha512_transform_zvknhb_zvkb(u64 state[8], const u8 *data,
 //				     int num_blocks);
-SYM_TYPED_FUNC_START(sha512_transform_zvknhb_zvkb)
+SYM_FUNC_START(sha512_transform_zvknhb_zvkb)
 
 	// Setup mask for the vmerge to replace the first word (idx==0) in
 	// message scheduling.  There are 4 words, so an 8-bit mask suffices.

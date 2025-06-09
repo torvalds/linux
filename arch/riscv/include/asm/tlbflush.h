@@ -56,6 +56,8 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end);
 #define __HAVE_ARCH_FLUSH_PMD_TLB_RANGE
 void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
 			unsigned long end);
+void flush_pud_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			 unsigned long end);
 #endif
 
 bool arch_tlbbatch_should_defer(struct mm_struct *mm);

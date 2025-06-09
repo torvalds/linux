@@ -173,7 +173,7 @@ static int sh_wdt_set_heartbeat(struct watchdog_device *wdt_dev, unsigned t)
 
 static void sh_wdt_ping(struct timer_list *t)
 {
-	struct sh_wdt *wdt = from_timer(wdt, t, timer);
+	struct sh_wdt *wdt = timer_container_of(wdt, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&wdt->lock, flags);

@@ -160,8 +160,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
-	if (!test_tsk_thread_flag(prev_p, TIF_NEED_FPU_LOAD))
-		switch_fpu_prepare(prev_p, cpu);
+	switch_fpu(prev_p, cpu);
 
 	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
@@ -208,10 +207,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	raw_cpu_write(current_task, next_p);
 
-	switch_fpu_finish(next_p);
-
 	/* Load the Intel cache allocation PQR MSR. */
-	resctrl_sched_in(next_p);
+	resctrl_arch_sched_in(next_p);
 
 	return prev_p;
 }

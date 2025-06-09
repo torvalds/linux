@@ -256,13 +256,13 @@ static int veml6040_probe(struct i2c_client *client)
 
 static const struct i2c_device_id veml6040_id_table[] = {
 	{"veml6040"},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, veml6040_id_table);
 
 static const struct of_device_id veml6040_of_match[] = {
 	{.compatible = "vishay,veml6040"},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, veml6040_of_match);
 

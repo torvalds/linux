@@ -1,10 +1,24 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="v2reportleave_test v3include_test v3inc_allow_test v3inc_is_include_test \
-	   v3inc_is_exclude_test v3inc_to_exclude_test v3exc_allow_test v3exc_is_include_test \
-	   v3exc_is_exclude_test v3exc_to_exclude_test v3inc_block_test v3exc_block_test \
-	   v3exc_timeout_test v3star_ex_auto_add_test"
+ALL_TESTS="
+	v2reportleave_test
+	v3include_test
+	v3inc_allow_test
+	v3inc_is_include_test
+	v3inc_is_exclude_test
+	v3inc_to_exclude_test
+	v3exc_allow_test
+	v3exc_is_include_test
+	v3exc_is_exclude_test
+	v3exc_to_exclude_test
+	v3inc_block_test
+	v3exc_block_test
+	v3exc_timeout_test
+	v3star_ex_auto_add_test
+	v2per_vlan_snooping_port_stp_test
+	v2per_vlan_snooping_vlan_stp_test
+"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="239.10.10.10"
@@ -552,6 +566,64 @@ v3star_ex_auto_add_test()
 
 	v3cleanup $swp1 $TEST_GROUP
 	v3cleanup $swp2 $TEST_GROUP
+}
+
+v2per_vlan_snooping_stp_test()
+{
+	local is_port=$1
+
+	local msg="port"
+	[[ $is_port -ne 1 ]] && msg="vlan"
+
+	ip link set br0 up type bridge vlan_filtering 1 \
+					mcast_igmp_version 2 \
+					mcast_snooping 1 \
+					mcast_vlan_snooping 1 \
+					mcast_querier 1 \
+					mcast_stats_enabled 1
+	bridge vlan global set vid 1 dev br0 \
+					mcast_snooping 1 \
+					mcast_querier 1 \
+					mcast_query_interval 100 \
+					mcast_startup_query_count 0
+	[[ $is_port -eq 1 ]] && bridge link set dev $swp1 state 0
+	[[ $is_port -ne 1 ]] && bridge vlan set vid 1 dev $swp1 state 4
+	sleep 5
+	local tx_s=$(ip -j -p stats show dev $swp1 \
+			group xstats_slave subgroup bridge suite mcast \
+			| jq '.[]["multicast"]["igmp_queries"]["tx_v2"]')
+
+	[[ $is_port -eq 1 ]] && bridge link set dev $swp1 state 3
+	[[ $is_port -ne 1 ]] && bridge vlan set vid 1 dev $swp1 state 3
+	sleep 5
+	local tx_e=$(ip -j -p stats show dev $swp1 \
+			group xstats_slave subgroup bridge suite mcast \
+			| jq '.[]["multicast"]["igmp_queries"]["tx_v2"]')
+
+	RET=0
+	local tx=$(expr $tx_e - $tx_s)
+	test $tx -gt 0
+	check_err $? "No IGMP queries after STP state becomes forwarding"
+	log_test "per vlan snooping with $msg stp state change"
+
+	# restore settings
+	bridge vlan global set vid 1 dev br0 \
+					mcast_querier 0 \
+					mcast_query_interval 12500 \
+					mcast_startup_query_count 2
+	ip link set br0 up type bridge vlan_filtering 0 \
+					mcast_vlan_snooping 0 \
+					mcast_stats_enabled 0
+}
+
+v2per_vlan_snooping_port_stp_test()
+{
+	v2per_vlan_snooping_stp_test 1
+}
+
+v2per_vlan_snooping_vlan_stp_test()
+{
+	v2per_vlan_snooping_stp_test 0
 }
 
 trap cleanup EXIT

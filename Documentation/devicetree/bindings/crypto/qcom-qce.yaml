@@ -45,6 +45,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcs615-qce
               - qcom,qcs8300-qce
               - qcom,sa8775p-qce
               - qcom,sc7280-qce

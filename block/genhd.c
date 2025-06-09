@@ -125,37 +125,46 @@ static void part_stat_read_all(struct block_device *part,
 	}
 }
 
-unsigned int part_in_flight(struct block_device *part)
-{
-	unsigned int inflight = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		inflight += part_stat_local_read_cpu(part, in_flight[0], cpu) +
-			    part_stat_local_read_cpu(part, in_flight[1], cpu);
-	}
-	if ((int)inflight < 0)
-		inflight = 0;
-
-	return inflight;
-}
-
-static void part_in_flight_rw(struct block_device *part,
-		unsigned int inflight[2])
+static void bdev_count_inflight_rw(struct block_device *part,
+		unsigned int inflight[2], bool mq_driver)
 {
 	int cpu;
 
-	inflight[0] = 0;
-	inflight[1] = 0;
-	for_each_possible_cpu(cpu) {
-		inflight[0] += part_stat_local_read_cpu(part, in_flight[0], cpu);
-		inflight[1] += part_stat_local_read_cpu(part, in_flight[1], cpu);
+	if (mq_driver) {
+		blk_mq_in_driver_rw(part, inflight);
+	} else {
+		for_each_possible_cpu(cpu) {
+			inflight[READ] += part_stat_local_read_cpu(
+						part, in_flight[READ], cpu);
+			inflight[WRITE] += part_stat_local_read_cpu(
+						part, in_flight[WRITE], cpu);
+		}
 	}
-	if ((int)inflight[0] < 0)
-		inflight[0] = 0;
-	if ((int)inflight[1] < 0)
-		inflight[1] = 0;
+
+	if (WARN_ON_ONCE((int)inflight[READ] < 0))
+		inflight[READ] = 0;
+	if (WARN_ON_ONCE((int)inflight[WRITE] < 0))
+		inflight[WRITE] = 0;
 }
+
+/**
+ * bdev_count_inflight - get the number of inflight IOs for a block device.
+ *
+ * @part: the block device.
+ *
+ * Inflight here means started IO accounting, from bdev_start_io_acct() for
+ * bio-based block device, and from blk_account_io_start() for rq-based block
+ * device.
+ */
+unsigned int bdev_count_inflight(struct block_device *part)
+{
+	unsigned int inflight[2] = {0};
+
+	bdev_count_inflight_rw(part, inflight, false);
+
+	return inflight[READ] + inflight[WRITE];
+}
+EXPORT_SYMBOL_GPL(bdev_count_inflight);
 
 /*
  * Can be deleted altogether. Later.
@@ -389,19 +398,35 @@ int disk_scan_partitions(struct gendisk *disk, blk_mode_t mode)
 	return ret;
 }
 
-/**
- * add_disk_fwnode - add disk information to kernel list with fwnode
- * @parent: parent device for the disk
- * @disk: per-device partitioning information
- * @groups: Additional per-device sysfs groups
- * @fwnode: attached disk fwnode
- *
- * This function registers the partitioning information in @disk
- * with the kernel. Also attach a fwnode to the disk device.
- */
-int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
-				 const struct attribute_group **groups,
-				 struct fwnode_handle *fwnode)
+static void add_disk_final(struct gendisk *disk)
+{
+	struct device *ddev = disk_to_dev(disk);
+
+	if (!(disk->flags & GENHD_FL_HIDDEN)) {
+		/* Make sure the first partition scan will be proceed */
+		if (get_capacity(disk) && disk_has_partscan(disk))
+			set_bit(GD_NEED_PART_SCAN, &disk->state);
+
+		bdev_add(disk->part0, ddev->devt);
+		if (get_capacity(disk))
+			disk_scan_partitions(disk, BLK_OPEN_READ);
+
+		/*
+		 * Announce the disk and partitions after all partitions are
+		 * created. (for hidden disks uevents remain suppressed forever)
+		 */
+		dev_set_uevent_suppress(ddev, 0);
+		disk_uevent(disk, KOBJ_ADD);
+	}
+
+	blk_apply_bdi_limits(disk->bdi, &disk->queue->limits);
+	disk_add_events(disk);
+	set_bit(GD_ADDED, &disk->state);
+}
+
+static int __add_disk(struct device *parent, struct gendisk *disk,
+		      const struct attribute_group **groups,
+		      struct fwnode_handle *fwnode)
 
 {
 	struct device *ddev = disk_to_dev(disk);
@@ -416,12 +441,6 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 		 */
 		if (disk->fops->submit_bio || disk->fops->poll_bio)
 			return -EINVAL;
-
-		/*
-		 * Initialize the I/O scheduler code and pick a default one if
-		 * needed.
-		 */
-		elevator_init_mq(disk->queue);
 	} else {
 		if (!disk->fops->submit_bio)
 			return -EINVAL;
@@ -438,7 +457,7 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 	ret = -EINVAL;
 	if (disk->major) {
 		if (WARN_ON(!disk->minors))
-			goto out_exit_elevator;
+			goto out;
 
 		if (disk->minors > DISK_MAX_PARTS) {
 			pr_err("block: can't allocate more than %d partitions\n",
@@ -448,14 +467,14 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 		if (disk->first_minor > MINORMASK ||
 		    disk->minors > MINORMASK + 1 ||
 		    disk->first_minor + disk->minors > MINORMASK + 1)
-			goto out_exit_elevator;
+			goto out;
 	} else {
 		if (WARN_ON(disk->minors))
-			goto out_exit_elevator;
+			goto out;
 
 		ret = blk_alloc_ext_minor();
 		if (ret < 0)
-			goto out_exit_elevator;
+			goto out;
 		disk->major = BLOCK_EXT_MAJOR;
 		disk->first_minor = ret;
 	}
@@ -516,21 +535,6 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 					&disk->bdi->dev->kobj, "bdi");
 		if (ret)
 			goto out_unregister_bdi;
-
-		/* Make sure the first partition scan will be proceed */
-		if (get_capacity(disk) && disk_has_partscan(disk))
-			set_bit(GD_NEED_PART_SCAN, &disk->state);
-
-		bdev_add(disk->part0, ddev->devt);
-		if (get_capacity(disk))
-			disk_scan_partitions(disk, BLK_OPEN_READ);
-
-		/*
-		 * Announce the disk and partitions after all partitions are
-		 * created. (for hidden disks uevents remain suppressed forever)
-		 */
-		dev_set_uevent_suppress(ddev, 0);
-		disk_uevent(disk, KOBJ_ADD);
 	} else {
 		/*
 		 * Even if the block_device for a hidden gendisk is not
@@ -539,10 +543,6 @@ int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
 		 */
 		disk->part0->bd_dev = MKDEV(disk->major, disk->first_minor);
 	}
-
-	blk_apply_bdi_limits(disk->bdi, &disk->queue->limits);
-	disk_add_events(disk);
-	set_bit(GD_ADDED, &disk->state);
 	return 0;
 
 out_unregister_bdi:
@@ -564,12 +564,46 @@ out_device_del:
 out_free_ext_minor:
 	if (disk->major == BLOCK_EXT_MAJOR)
 		blk_free_ext_minor(disk->first_minor);
-out_exit_elevator:
-	if (disk->queue->elevator) {
-		mutex_lock(&disk->queue->elevator_lock);
-		elevator_exit(disk->queue);
-		mutex_unlock(&disk->queue->elevator_lock);
+out:
+	return ret;
+}
+
+/**
+ * add_disk_fwnode - add disk information to kernel list with fwnode
+ * @parent: parent device for the disk
+ * @disk: per-device partitioning information
+ * @groups: Additional per-device sysfs groups
+ * @fwnode: attached disk fwnode
+ *
+ * This function registers the partitioning information in @disk
+ * with the kernel. Also attach a fwnode to the disk device.
+ */
+int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups,
+				 struct fwnode_handle *fwnode)
+{
+	struct blk_mq_tag_set *set;
+	unsigned int memflags;
+	int ret;
+
+	if (queue_is_mq(disk->queue)) {
+		set = disk->queue->tag_set;
+		memflags = memalloc_noio_save();
+		down_read(&set->update_nr_hwq_lock);
+		ret = __add_disk(parent, disk, groups, fwnode);
+		up_read(&set->update_nr_hwq_lock);
+		memalloc_noio_restore(memflags);
+	} else {
+		ret = __add_disk(parent, disk, groups, fwnode);
 	}
+
+	/*
+	 * add_disk_final() needn't to read `nr_hw_queues`, so move it out
+	 * of read lock `set->update_nr_hwq_lock` for avoiding unnecessary
+	 * lock dependency on `disk->open_mutex` from scanning partition.
+	 */
+	if (!ret)
+		add_disk_final(disk);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(add_disk_fwnode);
@@ -652,26 +686,7 @@ void blk_mark_disk_dead(struct gendisk *disk)
 }
 EXPORT_SYMBOL_GPL(blk_mark_disk_dead);
 
-/**
- * del_gendisk - remove the gendisk
- * @disk: the struct gendisk to remove
- *
- * Removes the gendisk and all its associated resources. This deletes the
- * partitions associated with the gendisk, and unregisters the associated
- * request_queue.
- *
- * This is the counter to the respective __device_add_disk() call.
- *
- * The final removal of the struct gendisk happens when its refcount reaches 0
- * with put_disk(), which should be called after del_gendisk(), if
- * __device_add_disk() was used.
- *
- * Drivers exist which depend on the release of the gendisk to be synchronous,
- * it should not be deferred.
- *
- * Context: can sleep
- */
-void del_gendisk(struct gendisk *disk)
+static void __del_gendisk(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 	struct block_device *part;
@@ -743,14 +758,7 @@ void del_gendisk(struct gendisk *disk)
 	if (queue_is_mq(q))
 		blk_mq_cancel_work_sync(q);
 
-	blk_mq_quiesce_queue(q);
-	if (q->elevator) {
-		mutex_lock(&q->elevator_lock);
-		elevator_exit(q);
-		mutex_unlock(&q->elevator_lock);
-	}
 	rq_qos_exit(q);
-	blk_mq_unquiesce_queue(q);
 
 	/*
 	 * If the disk does not own the queue, allow using passthrough requests
@@ -763,6 +771,55 @@ void del_gendisk(struct gendisk *disk)
 
 	if (start_drain)
 		blk_unfreeze_release_lock(q);
+}
+
+static void disable_elv_switch(struct request_queue *q)
+{
+	struct blk_mq_tag_set *set = q->tag_set;
+	WARN_ON_ONCE(!queue_is_mq(q));
+
+	down_write(&set->update_nr_hwq_lock);
+	blk_queue_flag_set(QUEUE_FLAG_NO_ELV_SWITCH, q);
+	up_write(&set->update_nr_hwq_lock);
+}
+
+/**
+ * del_gendisk - remove the gendisk
+ * @disk: the struct gendisk to remove
+ *
+ * Removes the gendisk and all its associated resources. This deletes the
+ * partitions associated with the gendisk, and unregisters the associated
+ * request_queue.
+ *
+ * This is the counter to the respective __device_add_disk() call.
+ *
+ * The final removal of the struct gendisk happens when its refcount reaches 0
+ * with put_disk(), which should be called after del_gendisk(), if
+ * __device_add_disk() was used.
+ *
+ * Drivers exist which depend on the release of the gendisk to be synchronous,
+ * it should not be deferred.
+ *
+ * Context: can sleep
+ */
+void del_gendisk(struct gendisk *disk)
+{
+	struct blk_mq_tag_set *set;
+	unsigned int memflags;
+
+	if (!queue_is_mq(disk->queue)) {
+		__del_gendisk(disk);
+	} else {
+		set = disk->queue->tag_set;
+
+		disable_elv_switch(disk->queue);
+
+		memflags = memalloc_noio_save();
+		down_read(&set->update_nr_hwq_lock);
+		__del_gendisk(disk);
+		up_read(&set->update_nr_hwq_lock);
+		memalloc_noio_restore(memflags);
+	}
 }
 EXPORT_SYMBOL(del_gendisk);
 
@@ -1005,7 +1062,7 @@ ssize_t part_stat_show(struct device *dev,
 	struct disk_stats stat;
 	unsigned int inflight;
 
-	inflight = part_in_flight(bdev);
+	inflight = bdev_count_inflight(bdev);
 	if (inflight) {
 		part_stat_lock();
 		update_io_ticks(bdev, jiffies, true);
@@ -1042,19 +1099,21 @@ ssize_t part_stat_show(struct device *dev,
 		(unsigned int)div_u64(stat.nsecs[STAT_FLUSH], NSEC_PER_MSEC));
 }
 
+/*
+ * Show the number of IOs issued to driver.
+ * For bio-based device, started from bdev_start_io_acct();
+ * For rq-based device, started from blk_mq_start_request();
+ */
 ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct block_device *bdev = dev_to_bdev(dev);
 	struct request_queue *q = bdev_get_queue(bdev);
-	unsigned int inflight[2];
+	unsigned int inflight[2] = {0};
 
-	if (queue_is_mq(q))
-		blk_mq_in_flight_rw(q, bdev, inflight);
-	else
-		part_in_flight_rw(bdev, inflight);
+	bdev_count_inflight_rw(bdev, inflight, queue_is_mq(q));
 
-	return sysfs_emit(buf, "%8u %8u\n", inflight[0], inflight[1]);
+	return sysfs_emit(buf, "%8u %8u\n", inflight[READ], inflight[WRITE]);
 }
 
 static ssize_t disk_capability_show(struct device *dev,
@@ -1307,7 +1366,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		if (bdev_is_partition(hd) && !bdev_nr_sectors(hd))
 			continue;
 
-		inflight = part_in_flight(hd);
+		inflight = bdev_count_inflight(hd);
 		if (inflight) {
 			part_stat_lock();
 			update_io_ticks(hd, jiffies, true);
@@ -1422,6 +1481,7 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 #ifdef CONFIG_BLOCK_HOLDER_DEPRECATED
 	INIT_LIST_HEAD(&disk->slave_bdevs);
 #endif
+	mutex_init(&disk->rqos_state_mutex);
 	return disk;
 
 out_erase_part0:

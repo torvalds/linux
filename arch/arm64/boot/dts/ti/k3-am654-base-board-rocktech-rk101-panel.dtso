@@ -15,8 +15,20 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 &{/} {
+	vcc_5v0: lcd-regulator {
+		/* Output of LM5140 */
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&evm_12v0>;
+	};
+
 	display0 {
 		compatible = "rocktech,rk101ii01d-ct";
+		power-supply = <&vcc_5v0>;
 		backlight = <&lcd_bl>;
 		enable-gpios = <&pca9555 8 GPIO_ACTIVE_HIGH>;
 		port {

@@ -597,7 +597,7 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
 
 	dev_dbg(dev, "%s is connected to io (%s)\n",
 		rsnd_mod_name(mod),
-		rsnd_io_is_play(io) ? "Playback" : "Capture");
+		snd_pcm_direction_name(io->substream->stream));
 
 	return 0;
 }
@@ -1482,8 +1482,13 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	int dai_i;
 
 	nr = rsnd_dai_of_node(priv, &is_graph);
+
+	/*
+	 * There is a case that it is used only for ADG (Sound Clock).
+	 * No DAI is not error
+	 */
 	if (!nr)
-		return -EINVAL;
+		return 0;
 
 	rdrv = devm_kcalloc(dev, nr, sizeof(*rdrv), GFP_KERNEL);
 	rdai = devm_kcalloc(dev, nr, sizeof(*rdai), GFP_KERNEL);

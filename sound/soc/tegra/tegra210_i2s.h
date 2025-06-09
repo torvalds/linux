@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only
- * SPDX-FileCopyrightText: Copyright (c) 2020-2024 NVIDIA CORPORATION & AFFILIATES.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2025 NVIDIA CORPORATION & AFFILIATES.
  * All rights reserved.
  *
  * tegra210_i2s.h - Definitions for Tegra210 I2S driver
@@ -47,9 +47,38 @@
 #define TEGRA210_I2S_CLK_TRIM			0xac
 #define TEGRA210_I2S_CYA			0xb0
 
+/* T264 specific registers */
+#define TEGRA264_I2S_RX_FIFO_WR_ACCESS_MODE	0x30
+#define TEGRA264_I2S_RX_CYA			0x3c
+#define TEGRA264_I2S_RX_CIF_FIFO_STATUS		0x40
+#define TEGRA264_I2S_TX_ENABLE			0x80
+#define TEGRA264_I2S_TX_SOFT_RESET		0x84
+#define TEGRA264_I2S_TX_STATUS			0x8c
+#define TEGRA264_I2S_TX_INT_STATUS		0x90
+#define TEGRA264_I2S_TX_INT_MASK		0x94
+#define TEGRA264_I2S_TX_CIF_CTRL		0xa0
+#define TEGRA264_I2S_TX_FIFO_RD_ACCESS_MODE	0xb0
+#define TEGRA264_I2S_TX_FIFO_RD_DATA		0xb4
+#define TEGRA264_I2S_TX_FIFO_THRESHOLD		0xb8
+#define TEGRA264_I2S_TX_CYA			0xbc
+#define TEGRA264_I2S_TX_CIF_FIFO_STATUS		0xc0
+#define TEGRA264_I2S_ENABLE			0x100
+#define TEGRA264_I2S_CG				0x108
+#define TEGRA264_I2S_STATUS			0x10c
+#define TEGRA264_I2S_INT_STATUS			0x110
+#define TEGRA264_I2S_INT_SET			0x114
+#define TEGRA264_I2S_INT_MASK			0x11c
+#define TEGRA264_I2S_CTRL			0x12c
+#define TEGRA264_I2S_TIMING			0x130
+#define TEGRA264_I2S_CYA			0x13c
+#define TEGRA264_I2S_PIO_MODE_ENABLE		0x140
+#define TEGRA264_I2S_PAD_MACRO_STATUS		0x144
+
 /* Bit fields, shifts and masks */
 #define I2S_DATA_SHIFT				8
 #define I2S_CTRL_DATA_OFFSET_MASK		(0x7ff << I2S_DATA_SHIFT)
+#define TEGRA264_I2S_FSYNC_WIDTH_SHIFT		23
+#define TEGRA264_I2S_CTRL_FSYNC_WIDTH_MASK	(0x1ff << TEGRA264_I2S_FSYNC_WIDTH_SHIFT)
 
 #define I2S_EN_SHIFT				0
 #define I2S_EN_MASK				BIT(I2S_EN_SHIFT)
@@ -102,6 +131,14 @@
 #define DEFAULT_I2S_RX_FIFO_THRESHOLD		3
 
 #define DEFAULT_I2S_SLOT_MASK			0xffff
+#define TEGRA210_I2S_TX_OFFSET			0
+#define TEGRA210_I2S_CTRL_OFFSET		0
+#define TEGRA210_I2S_MAX_CHANNEL		16
+
+#define TEGRA264_DEFAULT_I2S_SLOT_MASK		0xffffffff
+#define TEGRA264_I2S_TX_OFFSET			0x40
+#define TEGRA264_I2S_CTRL_OFFSET		0x8c
+#define TEGRA264_I2S_MAX_CHANNEL		32
 
 enum tegra210_i2s_path {
 	I2S_RX_PATH,
@@ -109,7 +146,19 @@ enum tegra210_i2s_path {
 	I2S_PATHS,
 };
 
+struct tegra_i2s_soc_data {
+	const struct regmap_config *regmap_conf;
+	const struct snd_soc_component_driver *i2s_cmpnt;
+	unsigned int max_ch;
+	unsigned int tx_offset;
+	unsigned int i2s_ctrl_offset;
+	unsigned int fsync_width_mask;
+	unsigned int fsync_width_shift;
+	unsigned int slot_mask;
+};
+
 struct tegra210_i2s {
+	const struct tegra_i2s_soc_data *soc_data;
 	struct clk *clk_i2s;
 	struct clk *clk_sync_input;
 	struct regmap *regmap;

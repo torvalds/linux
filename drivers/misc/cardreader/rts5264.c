@@ -605,6 +605,22 @@ static int rts5264_extra_init_hw(struct rtsx_pcr *pcr)
 	return 0;
 }
 
+static int rts5264_optimize_phy(struct rtsx_pcr *pcr)
+{
+	u16 subvendor, subdevice, val;
+
+	subvendor = pcr->pci->subsystem_vendor;
+	subdevice = pcr->pci->subsystem_device;
+
+	if ((subvendor == 0x1028) && (subdevice == 0x0CE1)) {
+		rtsx_pci_read_phy_register(pcr, _PHY_REV0, &val);
+		if ((val & 0xFE00) > 0x3800)
+			rtsx_pci_update_phy(pcr, _PHY_REV0, 0x1FF, 0x3800);
+	}
+
+	return 0;
+}
+
 static void rts5264_enable_aspm(struct rtsx_pcr *pcr, bool enable)
 {
 	u8 val = FORCE_ASPM_CTL0 | FORCE_ASPM_CTL1;
@@ -682,6 +698,7 @@ static const struct pcr_ops rts5264_pcr_ops = {
 	.turn_on_led = rts5264_turn_on_led,
 	.turn_off_led = rts5264_turn_off_led,
 	.extra_init_hw = rts5264_extra_init_hw,
+	.optimize_phy = rts5264_optimize_phy,
 	.enable_auto_blink = rts5264_enable_auto_blink,
 	.disable_auto_blink = rts5264_disable_auto_blink,
 	.card_power_on = rts5264_card_power_on,

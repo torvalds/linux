@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2025, Luca Weiss <luca@lucaweiss.eu>
+ */
+
+#include "qcom-msm8226.dtsi"
+
+&modem {
+	compatible = "qcom,msm8926-mss-pil";
+	/delete-property/ qcom,ext-bhs-reg;
+};

@@ -1191,7 +1191,7 @@ static int snd_fm801_create(struct snd_card *card,
 	chip->dev = &pci->dev;
 	chip->irq = -1;
 	chip->tea575x_tuner = tea575x_tuner;
-	err = pci_request_regions(pci, "FM801");
+	err = pcim_request_all_regions(pci, "FM801");
 	if (err < 0)
 		return err;
 	chip->port = pci_resource_start(pci, 0);

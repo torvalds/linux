@@ -182,7 +182,7 @@ we have a dedicated glossary for Display Core at
     SMU/SMC
       System Management Unit / System Management Controller
 
-    SPI
+    SPI (AMDGPU)
       Shader Processor Input
 
     SRLC

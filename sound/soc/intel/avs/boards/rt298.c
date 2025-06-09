@@ -199,6 +199,7 @@ static int avs_rt298_probe(struct platform_device *pdev)
 {
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_acpi_mach *mach;
+	struct avs_mach_pdata *pdata;
 	struct snd_soc_card *card;
 	struct snd_soc_jack *jack;
 	struct device *dev = &pdev->dev;
@@ -207,6 +208,7 @@ static int avs_rt298_probe(struct platform_device *pdev)
 
 	mach = dev_get_platdata(dev);
 	pname = mach->mach_params.platform;
+	pdata = mach->pdata;
 
 	ret = avs_mach_get_ssp_tdm(dev, mach, &ssp_port, &tdm_slot);
 	if (ret)
@@ -223,7 +225,12 @@ static int avs_rt298_probe(struct platform_device *pdev)
 	if (!jack || !card)
 		return -ENOMEM;
 
-	card->name = "avs_rt298";
+	if (pdata->obsolete_card_names) {
+		card->name = "avs_rt298";
+	} else {
+		card->driver_name = "avs_rt298";
+		card->long_name = card->name = "AVS I2S ALC298";
+	}
 	card->dev = dev;
 	card->owner = THIS_MODULE;
 	card->suspend_pre = avs_card_suspend_pre;
@@ -243,7 +250,7 @@ static int avs_rt298_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return devm_snd_soc_register_card(dev, card);
+	return devm_snd_soc_register_deferrable_card(dev, card);
 }
 
 static const struct platform_device_id avs_rt298_driver_ids[] = {

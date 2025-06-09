@@ -17,34 +17,6 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 __printf(3, 4)
 void bch2_write_op_error(struct bch_write_op *op, u64, const char *, ...);
 
-#define BCH_WRITE_FLAGS()		\
-	x(alloc_nowait)			\
-	x(cached)			\
-	x(data_encoded)			\
-	x(pages_stable)			\
-	x(pages_owned)			\
-	x(only_specified_devs)		\
-	x(wrote_data_inline)		\
-	x(check_enospc)			\
-	x(sync)				\
-	x(move)				\
-	x(in_worker)			\
-	x(submitted)			\
-	x(io_error)			\
-	x(convert_unwritten)
-
-enum __bch_write_flags {
-#define x(f)	__BCH_WRITE_##f,
-	BCH_WRITE_FLAGS()
-#undef x
-};
-
-enum bch_write_flags {
-#define x(f)	BCH_WRITE_##f = BIT(__BCH_WRITE_##f),
-	BCH_WRITE_FLAGS()
-#undef x
-};
-
 static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 {
 	return op->watermark == BCH_WATERMARK_copygc

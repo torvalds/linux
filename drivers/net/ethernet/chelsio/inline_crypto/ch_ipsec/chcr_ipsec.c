@@ -75,9 +75,12 @@ static int ch_ipsec_uld_state_change(void *handle, enum cxgb4_state new_state);
 static int ch_ipsec_xmit(struct sk_buff *skb, struct net_device *dev);
 static void *ch_ipsec_uld_add(const struct cxgb4_lld_info *infop);
 static void ch_ipsec_advance_esn_state(struct xfrm_state *x);
-static void ch_ipsec_xfrm_free_state(struct xfrm_state *x);
-static void ch_ipsec_xfrm_del_state(struct xfrm_state *x);
-static int ch_ipsec_xfrm_add_state(struct xfrm_state *x,
+static void ch_ipsec_xfrm_free_state(struct net_device *dev,
+				     struct xfrm_state *x);
+static void ch_ipsec_xfrm_del_state(struct net_device *dev,
+				    struct xfrm_state *x);
+static int ch_ipsec_xfrm_add_state(struct net_device *dev,
+				   struct xfrm_state *x,
 				   struct netlink_ext_ack *extack);
 
 static const struct xfrmdev_ops ch_ipsec_xfrmdev_ops = {
@@ -223,7 +226,8 @@ out:
  * returns 0 on success, negative error if failed to send message to FPGA
  * positive error if FPGA returned a bad response
  */
-static int ch_ipsec_xfrm_add_state(struct xfrm_state *x,
+static int ch_ipsec_xfrm_add_state(struct net_device *dev,
+				   struct xfrm_state *x,
 				   struct netlink_ext_ack *extack)
 {
 	struct ipsec_sa_entry *sa_entry;
@@ -302,14 +306,16 @@ out:
 	return res;
 }
 
-static void ch_ipsec_xfrm_del_state(struct xfrm_state *x)
+static void ch_ipsec_xfrm_del_state(struct net_device *dev,
+				    struct xfrm_state *x)
 {
 	/* do nothing */
 	if (!x->xso.offload_handle)
 		return;
 }
 
-static void ch_ipsec_xfrm_free_state(struct xfrm_state *x)
+static void ch_ipsec_xfrm_free_state(struct net_device *dev,
+				     struct xfrm_state *x)
 {
 	struct ipsec_sa_entry *sa_entry;
 

@@ -72,7 +72,6 @@ int __ref cb_alloc(struct pcmcia_socket *s)
 	pci_lock_rescan_remove();
 
 	s->functions = pci_scan_slot(bus, PCI_DEVFN(0, 0));
-	pci_fixup_cardbus(bus);
 
 	max = bus->busn_res.start;
 	for (pass = 0; pass < 2; pass++)

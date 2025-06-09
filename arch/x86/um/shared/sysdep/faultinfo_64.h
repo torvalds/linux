@@ -31,8 +31,8 @@ struct faultinfo {
 
 #define ___backtrack_faulted(_faulted)					\
 	asm volatile (							\
-		"mov $0, %0\n"						\
 		"movq $__get_kernel_nofault_faulted_%=,%1\n"		\
+		"mov $0, %0\n"						\
 		"jmp _end_%=\n"						\
 		"__get_kernel_nofault_faulted_%=:\n"			\
 		"mov $1, %0;"						\

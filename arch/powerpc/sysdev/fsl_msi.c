@@ -412,7 +412,7 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	}
 	platform_set_drvdata(dev, msi);
 
-	msi->irqhost = irq_domain_add_linear(dev->dev.of_node,
+	msi->irqhost = irq_domain_create_linear(of_fwnode_handle(dev->dev.of_node),
 				      NR_MSI_IRQS_MAX, &fsl_msi_host_ops, msi);
 
 	if (msi->irqhost == NULL) {

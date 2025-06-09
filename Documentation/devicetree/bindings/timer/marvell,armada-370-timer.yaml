@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/marvell,armada-370-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 370, 375, 380 and XP Timers
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: marvell,armada-380-timer
+          - const: marvell,armada-xp-timer
+      - items:
+          - const: marvell,armada-375-timer
+          - const: marvell,armada-370-timer
+      - enum:
+          - marvell,armada-370-timer
+          - marvell,armada-xp-timer
+
+  reg:
+    items:
+      - description: Global timer registers
+      - description: Local/private timer registers
+
+  interrupts:
+    items:
+      - description: Global timer interrupt 0
+      - description: Global timer interrupt 1
+      - description: Global timer interrupt 2
+      - description: Global timer interrupt 3
+      - description: First private timer interrupt
+      - description: Second private timer interrupt
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: nbclk
+      - const: fixed
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - marvell,armada-375-timer
+              - marvell,armada-xp-timer
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+      required:
+        - clock-names
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          maxItems: 1
+
+examples:
+  - |
+    timer@20300 {
+        compatible = "marvell,armada-xp-timer";
+        reg = <0x20300 0x30>, <0x21040 0x30>;
+        interrupts = <37>, <38>, <39>, <40>, <5>, <6>;
+        clocks = <&coreclk 2>, <&refclk>;
+        clock-names = "nbclk", "fixed";
+    };

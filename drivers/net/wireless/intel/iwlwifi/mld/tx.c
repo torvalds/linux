@@ -76,14 +76,14 @@ static int iwl_mld_allocate_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 	 */
 	unsigned int watchdog_timeout = txq->vif->type == NL80211_IFTYPE_AP ?
 				IWL_WATCHDOG_DISABLED :
-				mld->trans->trans_cfg->base_params->wd_timeout;
+				mld->trans->mac_cfg->base->wd_timeout;
 	int queue, size;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
 	if (tid == IWL_MGMT_TID)
 		size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
-			     mld->trans->cfg->min_txq_size);
+			     mld->trans->mac_cfg->base->min_txq_size);
 	else
 		size = iwl_mld_get_queue_size(mld, txq);
 
@@ -391,9 +391,9 @@ static u32 iwl_mld_mac80211_rate_idx_to_fw(struct iwl_mld *mld,
 
 	/* Set CCK or OFDM flag */
 	if (rate_idx <= IWL_LAST_CCK_RATE)
-		rate_flags |= RATE_MCS_CCK_MSK;
+		rate_flags |= RATE_MCS_MOD_TYPE_CCK;
 	else
-		rate_flags |= RATE_MCS_LEGACY_OFDM_MSK;
+		rate_flags |= RATE_MCS_MOD_TYPE_LEGACY_OFDM;
 
 	/* Legacy rates are indexed:
 	 * 0 - 3 for CCK and 0 - 7 for OFDM
@@ -425,47 +425,40 @@ static u32 iwl_mld_get_inject_tx_rate(struct iwl_mld *mld,
 	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	u32 result;
 
-	/* we only care about legacy/HT/VHT so far, so we can
-	 * build in v1 and use iwl_new_rate_from_v1()
-	 * FIXME: in newer devices we only support the new rates, build
-	 * the rate_n_flags in the new format here instead of using v1 and
-	 * converting it.
-	 */
-
 	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
 		u8 mcs = ieee80211_rate_get_vht_mcs(rate);
 		u8 nss = ieee80211_rate_get_vht_nss(rate);
 
-		result = RATE_MCS_VHT_MSK_V1;
-		result |= u32_encode_bits(mcs, RATE_VHT_MCS_RATE_CODE_MSK);
+		result = RATE_MCS_MOD_TYPE_VHT;
+		result |= u32_encode_bits(mcs, RATE_MCS_CODE_MSK);
 		result |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
 
 		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-			result |= RATE_MCS_SGI_MSK_V1;
+			result |= RATE_MCS_SGI_MSK;
 
 		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_40;
 		else if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-			result |= u32_encode_bits(2, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_80;
 		else if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
-			result |= u32_encode_bits(3, RATE_MCS_CHAN_WIDTH_MSK_V1);
-
-		result = iwl_new_rate_from_v1(result);
+			result |= RATE_MCS_CHAN_WIDTH_160;
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
-		result = RATE_MCS_HT_MSK_V1;
-		result |= u32_encode_bits(rate->idx,
-					  RATE_HT_MCS_RATE_CODE_MSK_V1 |
-					  RATE_HT_MCS_NSS_MSK_V1);
+		/* only MCS 0-15 are supported */
+		u8 mcs = rate->idx & 7;
+		u8 nss = rate->idx > 7;
+
+		result = RATE_MCS_MOD_TYPE_HT;
+		result |= u32_encode_bits(mcs, RATE_MCS_CODE_MSK);
+		result |= u32_encode_bits(nss, RATE_MCS_NSS_MSK);
+
 		if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-			result |= RATE_MCS_SGI_MSK_V1;
+			result |= RATE_MCS_SGI_MSK;
 		if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			result |= u32_encode_bits(1, RATE_MCS_CHAN_WIDTH_MSK_V1);
+			result |= RATE_MCS_CHAN_WIDTH_40;
 		if (info->flags & IEEE80211_TX_CTL_LDPC)
-			result |= RATE_MCS_LDPC_MSK_V1;
+			result |= RATE_MCS_LDPC_MSK;
 		if (u32_get_bits(info->flags, IEEE80211_TX_CTL_STBC))
 			result |= RATE_MCS_STBC_MSK;
-
-		result = iwl_new_rate_from_v1(result);
 	} else {
 		result = iwl_mld_mac80211_rate_idx_to_fw(mld, info, rate->idx);
 	}
@@ -479,19 +472,23 @@ static u32 iwl_mld_get_inject_tx_rate(struct iwl_mld *mld,
 	return result;
 }
 
-static u32 iwl_mld_get_tx_rate_n_flags(struct iwl_mld *mld,
-				       struct ieee80211_tx_info *info,
-				       struct ieee80211_sta *sta, __le16 fc)
+static __le32 iwl_mld_get_tx_rate_n_flags(struct iwl_mld *mld,
+					  struct ieee80211_tx_info *info,
+					  struct ieee80211_sta *sta, __le16 fc)
 {
-	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
-		return iwl_mld_get_inject_tx_rate(mld, info, sta, fc);
+	u32 rate;
 
-	return iwl_mld_mac80211_rate_idx_to_fw(mld, info, -1) |
-		iwl_mld_get_tx_ant(mld, info, sta, fc);
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
+		rate = iwl_mld_get_inject_tx_rate(mld, info, sta, fc);
+	else
+		rate = iwl_mld_mac80211_rate_idx_to_fw(mld, info, -1) |
+		       iwl_mld_get_tx_ant(mld, info, sta, fc);
+
+	return iwl_v3_rate_to_v2_v3(rate, mld->fw_rates_ver_3);
 }
 
 static void
-iwl_mld_fill_tx_cmd_hdr(struct iwl_tx_cmd_gen3 *tx_cmd,
+iwl_mld_fill_tx_cmd_hdr(struct iwl_tx_cmd *tx_cmd,
 			struct sk_buff *skb, bool amsdu)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -537,11 +534,11 @@ iwl_mld_fill_tx_cmd(struct iwl_mld *mld, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct iwl_mld_sta *mld_sta = sta ? iwl_mld_sta_from_mac80211(sta) :
 					    NULL;
-	struct iwl_tx_cmd_gen3 *tx_cmd;
+	struct iwl_tx_cmd *tx_cmd;
 	bool amsdu = ieee80211_is_data_qos(hdr->frame_control) &&
 		     (*ieee80211_get_qos_ctl(hdr) &
 		      IEEE80211_QOS_CTL_A_MSDU_PRESENT);
-	u32 rate_n_flags = 0;
+	__le32 rate_n_flags = 0;
 	u16 flags = 0;
 
 	dev_tx_cmd->hdr.cmd = TX_CMD;
@@ -576,7 +573,7 @@ iwl_mld_fill_tx_cmd(struct iwl_mld *mld, struct sk_buff *skb,
 
 	tx_cmd->flags = cpu_to_le16(flags);
 
-	tx_cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+	tx_cmd->rate_n_flags = rate_n_flags;
 }
 
 /* Caller of this need to check that info->control.vif is not NULL */
@@ -641,16 +638,36 @@ iwl_mld_get_tx_queue_id(struct iwl_mld *mld, struct ieee80211_txq *txq,
 	case NL80211_IFTYPE_P2P_DEVICE:
 		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
 
-		if (mld_vif->roc_activity == ROC_NUM_ACTIVITIES) {
-			IWL_DEBUG_DROP(mld, "Drop tx outside ROC\n");
+		if (mld_vif->roc_activity != ROC_ACTIVITY_P2P_DISC &&
+		    mld_vif->roc_activity != ROC_ACTIVITY_P2P_NEG) {
+			IWL_DEBUG_DROP(mld,
+				       "Drop tx outside ROC with activity %d\n",
+				       mld_vif->roc_activity);
 			return IWL_MLD_INVALID_DROP_TX;
 		}
 
 		WARN_ON(!ieee80211_is_mgmt(fc));
 
-		return mld_vif->deflink.aux_sta.queue_id;
+		return mld_vif->aux_sta.queue_id;
+	case NL80211_IFTYPE_MONITOR:
+		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
+		return mld_vif->deflink.mon_sta.queue_id;
+	case NL80211_IFTYPE_STATION:
+		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
+
+		if (!(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)) {
+			IWL_DEBUG_DROP(mld, "Drop tx not off-channel\n");
+			return IWL_MLD_INVALID_DROP_TX;
+		}
+
+		if (mld_vif->roc_activity != ROC_ACTIVITY_HOTSPOT) {
+			IWL_DEBUG_DROP(mld, "Drop tx outside ROC\n");
+			return IWL_MLD_INVALID_DROP_TX;
+		}
+
+		WARN_ON(!ieee80211_is_mgmt(fc));
+		return mld_vif->aux_sta.queue_id;
 	default:
-		/* TODO: consider monitor (task=monitor) */
 		WARN_ONCE(1, "Unsupported vif type\n");
 		break;
 	}
@@ -831,7 +848,7 @@ static int iwl_mld_tx_tso_segment(struct iwl_mld *mld, struct sk_buff *skb,
 	 *	1 more for the potential data in the header
 	 */
 	if ((num_subframes * 2 + skb_shinfo(skb)->nr_frags + 1) >
-	    mld->trans->max_skb_frags)
+	    mld->trans->info.max_skb_frags)
 		num_subframes = 1;
 
 	if (num_subframes > 1)
@@ -977,11 +994,14 @@ void iwl_mld_tx_from_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 	rcu_read_unlock();
 }
 
-static void iwl_mld_hwrate_to_tx_rate(u32 rate_n_flags,
+static void iwl_mld_hwrate_to_tx_rate(struct iwl_mld *mld,
+				      __le32 rate_n_flags_fw,
 				      struct ieee80211_tx_info *info)
 {
 	enum nl80211_band band = info->band;
 	struct ieee80211_tx_rate *tx_rate = &info->status.rates[0];
+	u32 rate_n_flags = iwl_v3_rate_from_v2_v3(rate_n_flags_fw,
+						  mld->fw_rates_ver_3);
 	u32 sgi = rate_n_flags & RATE_MCS_SGI_MSK;
 	u32 chan_width = rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK;
 	u32 format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
@@ -1006,18 +1026,19 @@ static void iwl_mld_hwrate_to_tx_rate(u32 rate_n_flags,
 	}
 
 	switch (format) {
-	case RATE_MCS_HT_MSK:
+	case RATE_MCS_MOD_TYPE_HT:
 		tx_rate->flags |= IEEE80211_TX_RC_MCS;
 		tx_rate->idx = RATE_HT_MCS_INDEX(rate_n_flags);
 		break;
-	case RATE_MCS_VHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
 		ieee80211_rate_set_vht(tx_rate,
 				       rate_n_flags & RATE_MCS_CODE_MSK,
-				       FIELD_GET(RATE_MCS_NSS_MSK,
-						 rate_n_flags) + 1);
+				       u32_get_bits(rate_n_flags,
+						    RATE_MCS_NSS_MSK) + 1);
 		tx_rate->flags |= IEEE80211_TX_RC_VHT_MCS;
 		break;
-	case RATE_MCS_HE_MSK:
+	case RATE_MCS_MOD_TYPE_HE:
+	case RATE_MCS_MOD_TYPE_EHT:
 		/* mac80211 cannot do this without ieee80211_tx_status_ext()
 		 * but it only matters for radiotap
 		 */
@@ -1111,8 +1132,7 @@ void iwl_mld_handle_tx_resp_notif(struct iwl_mld *mld,
 			iwl_dbg_tlv_time_point(&mld->fwrt, tp, NULL);
 		}
 
-		iwl_mld_hwrate_to_tx_rate(le32_to_cpu(tx_resp->initial_rate),
-					  info);
+		iwl_mld_hwrate_to_tx_rate(mld, tx_resp->initial_rate, info);
 
 		if (likely(!iwl_mld_time_sync_frame(mld, skb, hdr->addr1)))
 			ieee80211_tx_status_skb(mld->hw, skb);

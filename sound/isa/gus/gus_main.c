@@ -22,18 +22,6 @@ MODULE_LICENSE("GPL");
 
 static int snd_gus_init_dma_irq(struct snd_gus_card * gus, int latches);
 
-int snd_gus_use_inc(struct snd_gus_card * gus)
-{
-	if (!try_module_get(gus->card->module))
-		return 0;
-	return 1;
-}
-
-void snd_gus_use_dec(struct snd_gus_card * gus)
-{
-	module_put(gus->card->module);
-}
-
 static int snd_gus_joystick_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
@@ -443,8 +431,6 @@ EXPORT_SYMBOL(snd_gf1_new_mixer);
   /* gus_pcm.c */
 EXPORT_SYMBOL(snd_gf1_pcm_new);
   /* gus.c */
-EXPORT_SYMBOL(snd_gus_use_inc);
-EXPORT_SYMBOL(snd_gus_use_dec);
 EXPORT_SYMBOL(snd_gus_create);
 EXPORT_SYMBOL(snd_gus_initialize);
   /* gus_irq.c */

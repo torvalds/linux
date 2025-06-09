@@ -382,7 +382,7 @@ static void arcdev_setup(struct net_device *dev)
 
 static void arcnet_timer(struct timer_list *t)
 {
-	struct arcnet_local *lp = from_timer(lp, t, timer);
+	struct arcnet_local *lp = timer_container_of(lp, t, timer);
 	struct net_device *dev = lp->dev;
 
 	spin_lock_irq(&lp->lock);

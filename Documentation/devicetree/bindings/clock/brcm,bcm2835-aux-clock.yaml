@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/brcm,bcm2835-aux-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM2835 auxiliary peripheral clock
+
+maintainers:
+  - Stefan Wahren <wahrenst@gmx.net>
+  - Raspberry Pi Kernel Maintenance <kernel-list@raspberrypi.com>
+
+description:
+  The auxiliary peripherals (UART, SPI1, and SPI2) have a small register
+  area controlling clock gating to the peripherals, and providing an IRQ
+  status register.
+
+properties:
+  compatible:
+    const: brcm,bcm2835-aux
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - "#clock-cells"
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm2835.h>
+    clock@7e215000 {
+        compatible = "brcm,bcm2835-aux";
+        reg = <0x7e215000 0x8>;
+        #clock-cells = <1>;
+        clocks = <&clocks BCM2835_CLOCK_VPU>;
+    };

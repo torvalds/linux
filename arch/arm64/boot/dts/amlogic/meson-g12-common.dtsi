@@ -1503,7 +1503,7 @@
 							groups = "uart_a_tx",
 								 "uart_a_rx";
 							function = "uart_a";
-							bias-disable;
+							bias-pull-up;
 						};
 					};
 
@@ -1521,7 +1521,7 @@
 							groups = "uart_b_tx",
 								 "uart_b_rx";
 							function = "uart_b";
-							bias-disable;
+							bias-pull-up;
 						};
 					};
 
@@ -1918,7 +1918,7 @@
 						groups = "uart_ao_a_tx",
 							 "uart_ao_a_rx";
 						function = "uart_ao_a";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1936,7 +1936,7 @@
 						groups = "uart_ao_b_tx_2",
 							 "uart_ao_b_rx_3";
 						function = "uart_ao_b";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -1945,7 +1945,7 @@
 						groups = "uart_ao_b_tx_8",
 							 "uart_ao_b_rx_9";
 						function = "uart_ao_b";
-						bias-disable;
+						bias-pull-up;
 					};
 				};
 
@@ -2313,7 +2313,7 @@
 					     "amlogic,meson8-pwm-v2";
 				reg = <0x0 0x19000 0x0 0x20>;
 				clocks = <&xtal>,
-					 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+					 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 					 <&clkc CLKID_FCLK_DIV4>,
 					 <&clkc CLKID_FCLK_DIV3>;
 				#pwm-cells = <3>;
@@ -2325,7 +2325,7 @@
 					     "amlogic,meson8-pwm-v2";
 				reg = <0x0 0x1a000 0x0 0x20>;
 				clocks = <&xtal>,
-					 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+					 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 					 <&clkc CLKID_FCLK_DIV4>,
 					 <&clkc CLKID_FCLK_DIV3>;
 				#pwm-cells = <3>;
@@ -2337,7 +2337,7 @@
 					     "amlogic,meson8-pwm-v2";
 				reg = <0x0 0x1b000 0x0 0x20>;
 				clocks = <&xtal>,
-					 <>, /* unknown/untested, the datasheet calls it "vid_pll" */
+					 <0>, /* unknown/untested, the datasheet calls it "vid_pll" */
 					 <&clkc CLKID_FCLK_DIV4>,
 					 <&clkc CLKID_FCLK_DIV3>;
 				#pwm-cells = <3>;

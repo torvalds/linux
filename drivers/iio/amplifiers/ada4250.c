@@ -378,13 +378,13 @@ static int ada4250_probe(struct spi_device *spi)
 
 static const struct spi_device_id ada4250_id[] = {
 	{ "ada4250", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ada4250_id);
 
 static const struct of_device_id ada4250_of_match[] = {
 	{ .compatible = "adi,ada4250" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ada4250_of_match);
 

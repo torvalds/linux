@@ -44,6 +44,24 @@ properties:
   '#clock-cells':
     const: 0
 
+  adi,lpf-margin-mhz:
+    description:
+      Sets the minimum distance between the fundamental frequency of `rf_in`
+      and the corner frequency of the low-pass, output filter when operated in
+      'auto' mode. The selected low-pass corner frequency will be greater than,
+      or equal to, `rf_in` + `lpf-margin-hz`. If not setting is found that
+      satisfies this relationship the filter will be put into 'bypass'.
+    default: 0
+
+  adi,hpf-margin-mhz:
+    description:
+      Sets the minimum distance between the fundamental frequency of `rf_in`
+      and the corner frequency of the high-pass, input filter when operated in
+      'auto' mode. The selected high-pass corner frequency will be less than,
+      or equal to, `rf_in` - `hpf-margin-hz`. If not setting is found that
+      satisfies this relationship the filter will be put into 'bypass'.
+    default: 0
+
 required:
   - compatible
   - reg
@@ -61,6 +79,8 @@ examples:
         spi-max-frequency = <10000000>;
         clocks = <&admv8818_rfin>;
         clock-names = "rf_in";
+        adi,lpf-margin-mhz = <300>;
+        adi,hpf-margin-mhz = <300>;
       };
     };
 ...

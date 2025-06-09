@@ -356,7 +356,7 @@ bool bch2_bkey_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 	return ops->key_merge &&
 		bch2_bkey_maybe_mergable(l.k, r.k) &&
 		(u64) l.k->size + r.k->size <= KEY_SIZE_MAX &&
-		!bch2_key_merging_disabled &&
+		!static_branch_unlikely(&bch2_key_merging_disabled) &&
 		ops->key_merge(c, l, r);
 }
 

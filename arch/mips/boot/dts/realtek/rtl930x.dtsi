@@ -69,6 +69,39 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		mdio_controller: mdio-controller@ca00 {
+			compatible = "realtek,rtl9301-mdio";
+			reg = <0xca00 0x200>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			mdio0: mdio-bus@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+			mdio1: mdio-bus@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+			mdio2: mdio-bus@2 {
+				reg = <2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+			mdio3: mdio-bus@3 {
+				reg = <3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+		};
 	};
 
 	soc: soc@18000000 {

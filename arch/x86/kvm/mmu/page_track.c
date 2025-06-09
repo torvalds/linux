@@ -172,6 +172,9 @@ static int kvm_enable_external_write_tracking(struct kvm *kvm)
 	struct kvm_memory_slot *slot;
 	int r = 0, i, bkt;
 
+	if (kvm->arch.vm_type == KVM_X86_TDX_VM)
+		return -EOPNOTSUPP;
+
 	mutex_lock(&kvm->slots_arch_lock);
 
 	/*

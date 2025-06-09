@@ -273,8 +273,8 @@ static int __init mst_intc_of_init(struct device_node *dn,
 	raw_spin_lock_init(&cd->lock);
 	cd->irq_start = irq_start;
 	cd->nr_irqs = irq_end - irq_start + 1;
-	domain = irq_domain_add_hierarchy(domain_parent, 0, cd->nr_irqs, dn,
-					  &mst_intc_domain_ops, cd);
+	domain = irq_domain_create_hierarchy(domain_parent, 0, cd->nr_irqs, of_fwnode_handle(dn),
+					     &mst_intc_domain_ops, cd);
 	if (!domain) {
 		iounmap(cd->base);
 		kfree(cd);

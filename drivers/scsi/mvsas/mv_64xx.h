@@ -101,8 +101,8 @@ enum sas_sata_vsp_regs {
 	VSR_PHY_MODE9		= 0x09, /* Test */
 	VSR_PHY_MODE10		= 0x0A, /* Power */
 	VSR_PHY_MODE11		= 0x0B, /* Phy Mode */
-	VSR_PHY_VS0		= 0x0C, /* Vednor Specific 0 */
-	VSR_PHY_VS1		= 0x0D, /* Vednor Specific 1 */
+	VSR_PHY_VS0		= 0x0C, /* Vendor Specific 0 */
+	VSR_PHY_VS1		= 0x0D, /* Vendor Specific 1 */
 };
 
 enum chip_register_bits {

@@ -445,6 +445,8 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*emul_get_inbox1_rptr)(struct dmub_srv *dmub);
 
+	uint32_t (*emul_get_inbox1_wptr)(struct dmub_srv *dmub);
+
 	void (*emul_set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
 
 	bool (*is_supported)(struct dmub_srv *dmub);
@@ -1052,5 +1054,17 @@ enum dmub_status dmub_srv_sync_inboxes(struct dmub_srv *dmub);
 enum dmub_status dmub_srv_wait_for_inbox_free(struct dmub_srv *dmub,
 		uint32_t timeout_us,
 		uint32_t num_free_required);
+
+/**
+ * dmub_srv_update_inbox_status() - Updates pending status for inbox & reg inbox0
+ * @dmub: the dmub service
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_TIMEOUT - wait for buffer to flush timed out
+ *   DMUB_STATUS_HW_FAILURE - issue with HW programming
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub);
 
 #endif /* _DMUB_SRV_H_ */

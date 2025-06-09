@@ -201,6 +201,7 @@ struct xfrm_state *ixgbevf_ipsec_find_rx_state(struct ixgbevf_ipsec *ipsec,
 
 /**
  * ixgbevf_ipsec_parse_proto_keys - find the key and salt based on the protocol
+ * @dev: pointer to net device to program
  * @xs: pointer to xfrm_state struct
  * @mykey: pointer to key array to populate
  * @mysalt: pointer to salt value to populate
@@ -208,10 +209,10 @@ struct xfrm_state *ixgbevf_ipsec_find_rx_state(struct ixgbevf_ipsec *ipsec,
  * This copies the protocol keys and salt to our own data tables.  The
  * 82599 family only supports the one algorithm.
  **/
-static int ixgbevf_ipsec_parse_proto_keys(struct xfrm_state *xs,
+static int ixgbevf_ipsec_parse_proto_keys(struct net_device *dev,
+					  struct xfrm_state *xs,
 					  u32 *mykey, u32 *mysalt)
 {
-	struct net_device *dev = xs->xso.real_dev;
 	unsigned char *key_data;
 	char *alg_name = NULL;
 	int key_len;
@@ -256,13 +257,14 @@ static int ixgbevf_ipsec_parse_proto_keys(struct xfrm_state *xs,
 
 /**
  * ixgbevf_ipsec_add_sa - program device with a security association
+ * @dev: pointer to net device to program
  * @xs: pointer to transformer state struct
  * @extack: extack point to fill failure reason
  **/
-static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs,
+static int ixgbevf_ipsec_add_sa(struct net_device *dev,
+				struct xfrm_state *xs,
 				struct netlink_ext_ack *extack)
 {
-	struct net_device *dev = xs->xso.real_dev;
 	struct ixgbevf_adapter *adapter;
 	struct ixgbevf_ipsec *ipsec;
 	u16 sa_idx;
@@ -310,7 +312,8 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs,
 			rsa.decrypt = xs->ealg || xs->aead;
 
 		/* get the key and salt */
-		ret = ixgbevf_ipsec_parse_proto_keys(xs, rsa.key, &rsa.salt);
+		ret = ixgbevf_ipsec_parse_proto_keys(dev, xs, rsa.key,
+						     &rsa.salt);
 		if (ret) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for Rx SA table");
 			return ret;
@@ -363,7 +366,8 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs,
 		if (xs->id.proto & IPPROTO_ESP)
 			tsa.encrypt = xs->ealg || xs->aead;
 
-		ret = ixgbevf_ipsec_parse_proto_keys(xs, tsa.key, &tsa.salt);
+		ret = ixgbevf_ipsec_parse_proto_keys(dev, xs, tsa.key,
+						     &tsa.salt);
 		if (ret) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to get key data for Tx SA table");
 			memset(&tsa, 0, sizeof(tsa));
@@ -388,11 +392,12 @@ static int ixgbevf_ipsec_add_sa(struct xfrm_state *xs,
 
 /**
  * ixgbevf_ipsec_del_sa - clear out this specific SA
+ * @dev: pointer to net device to program
  * @xs: pointer to transformer state struct
  **/
-static void ixgbevf_ipsec_del_sa(struct xfrm_state *xs)
+static void ixgbevf_ipsec_del_sa(struct net_device *dev,
+				 struct xfrm_state *xs)
 {
-	struct net_device *dev = xs->xso.real_dev;
 	struct ixgbevf_adapter *adapter;
 	struct ixgbevf_ipsec *ipsec;
 	u16 sa_idx;

@@ -115,7 +115,7 @@ auto_link_downgrade_capable_show(struct device *dev, struct device_attribute *at
 	xe_pm_runtime_put(xe);
 
 	cap = REG_FIELD_GET(LINK_DOWNGRADE, val);
-	return sysfs_emit(buf, "%u\n", cap == DOWNGRADE_CAPABLE ? true : false);
+	return sysfs_emit(buf, "%u\n", cap == DOWNGRADE_CAPABLE);
 }
 static DEVICE_ATTR_ADMIN_RO(auto_link_downgrade_capable);
 
@@ -124,7 +124,8 @@ auto_link_downgrade_status_show(struct device *dev, struct device_attribute *att
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct xe_device *xe = pdev_to_xe_device(pdev);
-	u32 val;
+	/* default the auto_link_downgrade status to 0 */
+	u32 val = 0;
 	int ret;
 
 	xe_pm_runtime_get(xe);

@@ -16,7 +16,7 @@
 #define L1_CACHE_BYTES 16
 #define L1_CACHE_SHIFT 4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 
@@ -66,7 +66,7 @@ void parisc_setup_cache_timing(void);
 			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) :::"memory")
 #define asm_syncdma()	asm volatile("syncdma" :::"memory")
 
-#endif /* ! __ASSEMBLY__ */
+#endif /* ! __ASSEMBLER__ */
 
 /* Classes of processor wrt: disabling space register hashing */
 

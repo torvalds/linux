@@ -28,6 +28,17 @@ properties:
   i2c-mux:
     type: object
 
+  fan:
+    $ref: fan-common.yaml#
+    unevaluatedProperties: false
+
+  "#pwm-cells":
+    const: 2
+    description: |
+      Number of cells in a PWM specifier.
+      - cell 0: PWM period in nanoseconds
+      - cell 1: PWM polarity: 0 or PWM_POLARITY_INVERTED
+
 required:
   - compatible
   - reg
@@ -50,9 +61,14 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        fan@18 {
+        fan_controller: fan@18 {
             compatible = "ti,amc6821";
             reg = <0x18>;
+            #pwm-cells = <2>;
+
+            fan {
+                pwms = <&fan_controller 40000 0>;
+            };
         };
     };
 

@@ -32,6 +32,7 @@ bch2_str_hash_opt_to_type(struct bch_fs *c, enum bch_str_hash_opts opt)
 }
 
 struct bch_hash_info {
+	u32			inum_snapshot;
 	u8			type;
 	struct unicode_map	*cf_encoding;
 	/*
@@ -45,11 +46,12 @@ static inline struct bch_hash_info
 bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 {
 	struct bch_hash_info info = {
-		.type = INODE_STR_HASH(bi),
+		.inum_snapshot	= bi->bi_snapshot,
+		.type		= INODE_STR_HASH(bi),
 #ifdef CONFIG_UNICODE
-		.cf_encoding = bch2_inode_casefold(c, bi) ? c->cf_encoding : NULL,
+		.cf_encoding	= bch2_inode_casefold(c, bi) ? c->cf_encoding : NULL,
 #endif
-		.siphash_key = { .k0 = bi->bi_hash_seed }
+		.siphash_key	= { .k0 = bi->bi_hash_seed }
 	};
 
 	if (unlikely(info.type == BCH_STR_HASH_siphash_old)) {
@@ -259,6 +261,7 @@ struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
 			   struct bkey_i *insert,
 			   enum btree_iter_update_trigger_flags flags)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter slot = {};
 	struct bkey_s_c k;
 	bool found = false;
@@ -286,7 +289,7 @@ struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
 	}
 
 	if (!ret)
-		ret = -BCH_ERR_ENOSPC_str_hash_create;
+		ret = bch_err_throw(c, ENOSPC_str_hash_create);
 out:
 	bch2_trans_iter_exit(trans, &slot);
 	bch2_trans_iter_exit(trans, iter);
@@ -298,7 +301,7 @@ not_found:
 		bch2_trans_iter_exit(trans, &slot);
 		return k;
 	} else if (!found && (flags & STR_HASH_must_replace)) {
-		ret = -BCH_ERR_ENOENT_str_hash_set_must_replace;
+		ret = bch_err_throw(c, ENOENT_str_hash_set_must_replace);
 	} else {
 		if (!found && slot.path)
 			swap(*iter, slot);
@@ -326,7 +329,7 @@ int bch2_hash_set_in_snapshot(struct btree_trans *trans,
 		return ret;
 	if (k.k) {
 		bch2_trans_iter_exit(trans, &iter);
-		return -BCH_ERR_EEXIST_str_hash_set;
+		return bch_err_throw(trans->c, EEXIST_str_hash_set);
 	}
 
 	return 0;
@@ -392,18 +395,30 @@ int bch2_hash_delete(struct btree_trans *trans,
 	return ret;
 }
 
+int bch2_repair_inode_hash_info(struct btree_trans *, struct bch_inode_unpacked *);
+
 struct snapshots_seen;
+int bch2_str_hash_repair_key(struct btree_trans *,
+			     struct snapshots_seen *,
+			     const struct bch_hash_desc *,
+			     struct bch_hash_info *,
+			     struct btree_iter *, struct bkey_s_c,
+			     struct btree_iter *, struct bkey_s_c,
+			     bool *);
+
 int __bch2_str_hash_check_key(struct btree_trans *,
 			      struct snapshots_seen *,
 			      const struct bch_hash_desc *,
 			      struct bch_hash_info *,
-			      struct btree_iter *, struct bkey_s_c);
+			      struct btree_iter *, struct bkey_s_c,
+			      bool *);
 
 static inline int bch2_str_hash_check_key(struct btree_trans *trans,
 			    struct snapshots_seen *s,
 			    const struct bch_hash_desc *desc,
 			    struct bch_hash_info *hash_info,
-			    struct btree_iter *k_iter, struct bkey_s_c hash_k)
+			    struct btree_iter *k_iter, struct bkey_s_c hash_k,
+			    bool *updated_before_k_pos)
 {
 	if (hash_k.k->type != desc->key_type)
 		return 0;
@@ -411,7 +426,8 @@ static inline int bch2_str_hash_check_key(struct btree_trans *trans,
 	if (likely(desc->hash_bkey(hash_info, hash_k) == hash_k.k->p.offset))
 		return 0;
 
-	return __bch2_str_hash_check_key(trans, s, desc, hash_info, k_iter, hash_k);
+	return __bch2_str_hash_check_key(trans, s, desc, hash_info, k_iter, hash_k,
+					 updated_before_k_pos);
 }
 
 #endif /* _BCACHEFS_STR_HASH_H */

@@ -1431,7 +1431,7 @@ static int tps6598x_probe(struct i2c_client *client)
 
 	tps->wakeup = device_property_read_bool(tps->dev, "wakeup-source");
 	if (tps->wakeup && client->irq) {
-		device_init_wakeup(&client->dev, true);
+		devm_device_init_wakeup(&client->dev);
 		enable_irq_wake(client->irq);
 	}
 

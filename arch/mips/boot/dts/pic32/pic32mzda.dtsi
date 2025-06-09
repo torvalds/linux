@@ -225,7 +225,7 @@
 		gpio-ranges = <&pic32_pinctrl 0 144 16>;
 	};
 
-	sdhci: sdhci@1f8ec000 {
+	sdhci: mmc@1f8ec000 {
 		compatible = "microchip,pic32mzda-sdhci";
 		reg = <0x1f8ec000 0x100>;
 		interrupts = <191 IRQ_TYPE_LEVEL_HIGH>;

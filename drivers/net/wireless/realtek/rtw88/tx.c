@@ -178,7 +178,8 @@ static void rtw_tx_report_enable(struct rtw_dev *rtwdev,
 
 void rtw_tx_report_purge_timer(struct timer_list *t)
 {
-	struct rtw_dev *rtwdev = from_timer(rtwdev, t, tx_report.purge_timer);
+	struct rtw_dev *rtwdev = timer_container_of(rtwdev, t,
+						    tx_report.purge_timer);
 	struct rtw_tx_report *tx_report = &rtwdev->tx_report;
 	unsigned long flags;
 

@@ -31,7 +31,7 @@
 #define EXT_ILP_HZ 32768
 
 /*
- * Duration for ILP clock frequency measurment in milliseconds
+ * Duration for ILP clock frequency measurement in milliseconds
  *
  * remark: 1000 must be an integer multiple of this duration
  */

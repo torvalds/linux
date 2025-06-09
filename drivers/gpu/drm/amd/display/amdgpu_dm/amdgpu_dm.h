@@ -619,6 +619,13 @@ struct amdgpu_display_manager {
 	bool aux_hpd_discon_quirk;
 
 	/**
+	 * @edp0_on_dp1_quirk:
+	 *
+	 * quirk for platforms that put edp0 on DP1.
+	 */
+	bool edp0_on_dp1_quirk;
+
+	/**
 	 * @dpia_aux_lock:
 	 *
 	 * Guards access to DPIA AUX
@@ -1067,5 +1074,7 @@ bool amdgpu_dm_is_headless(struct amdgpu_device *adev);
 void hdmi_cec_set_edid(struct amdgpu_dm_connector *aconnector);
 void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector);
 int amdgpu_dm_initialize_hdmi_connector(struct amdgpu_dm_connector *aconnector);
+
+void retrieve_dmi_info(struct amdgpu_display_manager *dm);
 
 #endif /* __AMDGPU_DM_H__ */

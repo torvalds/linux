@@ -99,7 +99,7 @@ static const struct iio_enum vf610_conversion_mode = {
 static const struct iio_chan_spec_ext_info vf610_ext_info[] = {
 	IIO_ENUM("conversion_mode", IIO_SHARED_BY_DIR,
 		&vf610_conversion_mode),
-	{},
+	{ }
 };
 
 #define VF610_DAC_CHAN(_chan_type) { \
@@ -166,7 +166,7 @@ static const struct iio_info vf610_dac_iio_info = {
 
 static const struct of_device_id vf610_dac_match[] = {
 	{ .compatible = "fsl,vf610-dac", },
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, vf610_dac_match);
 

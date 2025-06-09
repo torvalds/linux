@@ -48,6 +48,9 @@ enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link);
 /* Convert PHY repeater count read from DPCD uint8_t. */
 uint8_t dp_parse_lttpr_repeater_count(uint8_t lttpr_repeater_count);
 
+/* Calculate embedded LTTPR address offset for vendor-specific behaviour */
+uint32_t dp_get_closest_lttpr_offset(uint8_t lttpr_count);
+
 bool dp_is_sink_present(struct dc_link *link);
 
 bool dp_is_lttpr_present(struct dc_link *link);

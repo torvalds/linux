@@ -5,6 +5,7 @@
  *
  * Copyright (C) 2014-2016 Zi Shen Lim <zlim.lnx@gmail.com>
  */
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/printk.h>
@@ -1500,45 +1501,58 @@ u32 aarch64_insn_gen_extr(enum aarch64_insn_variant variant,
 	return aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RM, insn, Rm);
 }
 
+static u32 __get_barrier_crm_val(enum aarch64_insn_mb_type type)
+{
+	switch (type) {
+	case AARCH64_INSN_MB_SY:
+		return 0xf;
+	case AARCH64_INSN_MB_ST:
+		return 0xe;
+	case AARCH64_INSN_MB_LD:
+		return 0xd;
+	case AARCH64_INSN_MB_ISH:
+		return 0xb;
+	case AARCH64_INSN_MB_ISHST:
+		return 0xa;
+	case AARCH64_INSN_MB_ISHLD:
+		return 0x9;
+	case AARCH64_INSN_MB_NSH:
+		return 0x7;
+	case AARCH64_INSN_MB_NSHST:
+		return 0x6;
+	case AARCH64_INSN_MB_NSHLD:
+		return 0x5;
+	default:
+		pr_err("%s: unknown barrier type %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+}
+
 u32 aarch64_insn_gen_dmb(enum aarch64_insn_mb_type type)
 {
 	u32 opt;
 	u32 insn;
 
-	switch (type) {
-	case AARCH64_INSN_MB_SY:
-		opt = 0xf;
-		break;
-	case AARCH64_INSN_MB_ST:
-		opt = 0xe;
-		break;
-	case AARCH64_INSN_MB_LD:
-		opt = 0xd;
-		break;
-	case AARCH64_INSN_MB_ISH:
-		opt = 0xb;
-		break;
-	case AARCH64_INSN_MB_ISHST:
-		opt = 0xa;
-		break;
-	case AARCH64_INSN_MB_ISHLD:
-		opt = 0x9;
-		break;
-	case AARCH64_INSN_MB_NSH:
-		opt = 0x7;
-		break;
-	case AARCH64_INSN_MB_NSHST:
-		opt = 0x6;
-		break;
-	case AARCH64_INSN_MB_NSHLD:
-		opt = 0x5;
-		break;
-	default:
-		pr_err("%s: unknown dmb type %d\n", __func__, type);
+	opt = __get_barrier_crm_val(type);
+	if (opt == AARCH64_BREAK_FAULT)
 		return AARCH64_BREAK_FAULT;
-	}
 
 	insn = aarch64_insn_get_dmb_value();
+	insn &= ~GENMASK(11, 8);
+	insn |= (opt << 8);
+
+	return insn;
+}
+
+u32 aarch64_insn_gen_dsb(enum aarch64_insn_mb_type type)
+{
+	u32 opt, insn;
+
+	opt = __get_barrier_crm_val(type);
+	if (opt == AARCH64_BREAK_FAULT)
+		return AARCH64_BREAK_FAULT;
+
+	insn = aarch64_insn_get_dsb_base_value();
 	insn &= ~GENMASK(11, 8);
 	insn |= (opt << 8);
 

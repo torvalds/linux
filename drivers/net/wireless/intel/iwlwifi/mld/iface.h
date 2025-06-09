@@ -10,6 +10,7 @@
 #include "link.h"
 #include "session-protect.h"
 #include "d3.h"
+#include "fw/api/time-event.h"
 
 enum iwl_mld_cca_40mhz_wa_status {
 	CCA_40_MHZ_WA_NONE,
@@ -59,6 +60,7 @@ enum iwl_mld_emlsr_blocked {
  *	loaded enough to justify EMLSR.
  * @IWL_MLD_EMLSR_EXIT_RFI: Exit EMLSR due to RFI
  * @IWL_MLD_EMLSR_EXIT_FW_REQUEST: Exit EMLSR because the FW requested it
+ * @IWL_MLD_EMLSR_EXIT_INVALID: internal exit reason due to invalid data
  */
 enum iwl_mld_emlsr_exit {
 	IWL_MLD_EMLSR_EXIT_BLOCK		= 0x1,
@@ -72,6 +74,7 @@ enum iwl_mld_emlsr_exit {
 	IWL_MLD_EMLSR_EXIT_CHAN_LOAD		= 0x100,
 	IWL_MLD_EMLSR_EXIT_RFI			= 0x200,
 	IWL_MLD_EMLSR_EXIT_FW_REQUEST		= 0x400,
+	IWL_MLD_EMLSR_EXIT_INVALID		= 0x800,
 };
 
 /**
@@ -123,8 +126,6 @@ struct iwl_mld_emlsr {
  *	Only valid for STA. (FIXME: needs to be per link)
  * @num_associated_stas: number of associated STAs. Relevant only for AP mode.
  * @ap_ibss_active: whether the AP/IBSS was started
- * @roc_activity: the id of the roc_activity running. Relevant for p2p device
- *	only. Set to %ROC_NUM_ACTIVITIES when not in use.
  * @cca_40mhz_workaround: When we are connected in 2.4 GHz and 40 MHz, and the
  *	environment is too loaded, we work around this by reconnecting to the
  *	same AP with 20 MHz. This manages the status of the workaround.
@@ -140,6 +141,9 @@ struct iwl_mld_emlsr {
  * @use_ps_poll: use ps_poll frames
  * @disable_bf: disable beacon filter
  * @dbgfs_slink: debugfs symlink for this interface
+ * @roc_activity: the id of the roc_activity running. Relevant for STA and
+ *	p2p device only. Set to %ROC_NUM_ACTIVITIES when not in use.
+ * @aux_sta: station used for remain on channel. Used in P2P device.
  */
 struct iwl_mld_vif {
 	/* Add here fields that need clean up on restart */
@@ -151,7 +155,6 @@ struct iwl_mld_vif {
 		struct ieee80211_key_conf __rcu *bigtks[2];
 		u8 num_associated_stas;
 		bool ap_ibss_active;
-		u32 roc_activity;
 		enum iwl_mld_cca_40mhz_wa_status cca_40mhz_workaround;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		bool beacon_inject_active;
@@ -174,6 +177,8 @@ struct iwl_mld_vif {
 	bool disable_bf;
 	struct dentry *dbgfs_slink;
 #endif
+	enum iwl_roc_activity roc_activity;
+	struct iwl_mld_int_sta aux_sta;
 };
 
 static inline struct iwl_mld_vif *

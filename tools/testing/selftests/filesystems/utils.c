@@ -18,7 +18,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
+#include <sys/mount.h>
 
+#include "../kselftest.h"
+#include "wrappers.h"
 #include "utils.h"
 
 #define MAX_USERNS_LEVEL 32
@@ -447,6 +450,71 @@ out_close:
 	return fret;
 }
 
+static int write_file(const char *path, const char *val)
+{
+	int fd = open(path, O_WRONLY);
+	size_t len = strlen(val);
+	int ret;
+
+	if (fd == -1) {
+		ksft_print_msg("opening %s for write: %s\n", path, strerror(errno));
+		return -1;
+	}
+
+	ret = write(fd, val, len);
+	if (ret == -1) {
+		ksft_print_msg("writing to %s: %s\n", path, strerror(errno));
+		return -1;
+	}
+	if (ret != len) {
+		ksft_print_msg("short write to %s\n", path);
+		return -1;
+	}
+
+	ret = close(fd);
+	if (ret == -1) {
+		ksft_print_msg("closing %s\n", path);
+		return -1;
+	}
+
+	return 0;
+}
+
+int setup_userns(void)
+{
+	int ret;
+	char buf[32];
+	uid_t uid = getuid();
+	gid_t gid = getgid();
+
+	ret = unshare(CLONE_NEWNS|CLONE_NEWUSER|CLONE_NEWPID);
+	if (ret) {
+		ksft_exit_fail_msg("unsharing mountns and userns: %s\n",
+				   strerror(errno));
+		return ret;
+	}
+
+	sprintf(buf, "0 %d 1", uid);
+	ret = write_file("/proc/self/uid_map", buf);
+	if (ret)
+		return ret;
+	ret = write_file("/proc/self/setgroups", "deny");
+	if (ret)
+		return ret;
+	sprintf(buf, "0 %d 1", gid);
+	ret = write_file("/proc/self/gid_map", buf);
+	if (ret)
+		return ret;
+
+	ret = mount("", "/", NULL, MS_REC|MS_PRIVATE, NULL);
+	if (ret) {
+		ksft_print_msg("making mount tree private: %s\n", strerror(errno));
+		return ret;
+	}
+
+	return 0;
+}
+
 /* caps_down - lower all effective caps */
 int caps_down(void)
 {
@@ -498,4 +566,24 @@ int cap_down(cap_value_t down)
 out:
 	cap_free(caps);
 	return fret;
+}
+
+uint64_t get_unique_mnt_id(const char *path)
+{
+	struct statx sx;
+	int ret;
+
+	ret = statx(AT_FDCWD, path, 0, STATX_MNT_ID_UNIQUE, &sx);
+	if (ret == -1) {
+		ksft_print_msg("retrieving unique mount ID for %s: %s\n", path,
+			 strerror(errno));
+		return 0;
+	}
+
+	if (!(sx.stx_mask & STATX_MNT_ID_UNIQUE)) {
+		ksft_print_msg("no unique mount ID available for %s\n", path);
+		return 0;
+	}
+
+	return sx.stx_mnt_id;
 }

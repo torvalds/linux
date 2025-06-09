@@ -270,9 +270,10 @@ static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, 
 static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 						 uint8_t *binary)
 {
+	bool sz_valid = true;
 	uint64_t vram_size;
-	u32 msg;
 	int i, ret = 0;
+	u32 msg;
 
 	if (!amdgpu_sriov_vf(adev)) {
 		/* It can take up to a second for IFWI init to complete on some dGPUs,
@@ -291,15 +292,24 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 		}
 	}
 
-	vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
+	vram_size = RREG32(mmRCC_CONFIG_MEMSIZE);
+	if (!vram_size || vram_size == U32_MAX)
+		sz_valid = false;
+	else
+		vram_size <<= 20;
 
-	if (vram_size) {
+	if (sz_valid) {
 		uint64_t pos = vram_size - DISCOVERY_TMR_OFFSET;
 		amdgpu_device_vram_access(adev, pos, (uint32_t *)binary,
 					  adev->mman.discovery_tmr_size, false);
 	} else {
 		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 	}
+
+	if (ret)
+		dev_err(adev->dev,
+			"failed to read discovery info from memory, vram size read: %llx",
+			vram_size);
 
 	return ret;
 }

@@ -100,6 +100,12 @@
 	};
 };
 
+&venus {
+	firmware-name = "qcom/msm8998/LENOVO/81F1/qcvss8998.mbn";
+
+	status = "okay";
+};
+
 &wifi {
-	qcom,ath10k-calibration-variant = "Lenovo_Miix630";
+	qcom,calibration-variant = "Lenovo_Miix630";
 };

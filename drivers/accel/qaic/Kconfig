@@ -8,7 +8,6 @@ config DRM_ACCEL_QAIC
 	depends on DRM_ACCEL
 	depends on PCI && HAS_IOMEM
 	depends on MHI_BUS
-	depends on MMU
 	select CRC32
 	help
 	  Enables driver for Qualcomm's Cloud AI accelerator PCIe cards that are

@@ -240,9 +240,6 @@ static void vgic_v3_create_shadow_lr(struct kvm_vcpu *vcpu,
 			goto next;
 		}
 
-		/* It is illegal to have the EOI bit set with HW */
-		lr &= ~ICH_LR_EOI;
-
 		/* Translate the virtual mapping to the real one */
 		lr &= ~ICH_LR_PHYS_ID_MASK;
 		lr |= FIELD_PREP(ICH_LR_PHYS_ID_MASK, (u64)irq->hwintid);

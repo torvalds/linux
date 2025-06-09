@@ -58,6 +58,7 @@ struct mlx5_flow_definer {
 enum mlx5_flow_resource_owner {
 	MLX5_FLOW_RESOURCE_OWNER_FW,
 	MLX5_FLOW_RESOURCE_OWNER_SW,
+	MLX5_FLOW_RESOURCE_OWNER_HWS,
 };
 
 struct mlx5_modify_hdr {
@@ -385,6 +386,9 @@ void mlx5_fs_ingress_acls_cleanup(struct mlx5_core_dev *dev);
 u32 mlx5_fs_get_capabilities(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type type);
 
 struct mlx5_flow_root_namespace *find_root(struct fs_node *node);
+
+int mlx5_fs_get_packet_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
+				   u32 *id);
 
 #define fs_get_obj(v, _node)  {v = container_of((_node), typeof(*v), node); }
 

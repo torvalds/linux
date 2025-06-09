@@ -1531,7 +1531,7 @@ static int snd_es1938_create(struct snd_card *card,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	err = pci_request_regions(pci, "ESS Solo-1");
+	err = pcim_request_all_regions(pci, "ESS Solo-1");
 	if (err < 0)
 		return err;
 	chip->io_port = pci_resource_start(pci, 0);

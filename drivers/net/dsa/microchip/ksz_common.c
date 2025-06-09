@@ -2,7 +2,7 @@
 /*
  * Microchip switch driver main logic
  *
- * Copyright (C) 2017-2024 Microchip Technology Inc.
+ * Copyright (C) 2017-2025 Microchip Technology Inc.
  */
 
 #include <linux/delay.h>
@@ -265,16 +265,70 @@ static void ksz_phylink_mac_link_down(struct phylink_config *config,
 				      unsigned int mode,
 				      phy_interface_t interface);
 
+/**
+ * ksz_phylink_mac_disable_tx_lpi() - Callback to signal LPI support (Dummy)
+ * @config: phylink config structure
+ *
+ * This function is a dummy handler. See ksz_phylink_mac_enable_tx_lpi() for
+ * a detailed explanation of EEE/LPI handling in KSZ switches.
+ */
+static void ksz_phylink_mac_disable_tx_lpi(struct phylink_config *config)
+{
+}
+
+/**
+ * ksz_phylink_mac_enable_tx_lpi() - Callback to signal LPI support (Dummy)
+ * @config: phylink config structure
+ * @timer: timer value before entering LPI (unused)
+ * @tx_clock_stop: whether to stop the TX clock in LPI mode (unused)
+ *
+ * This function signals to phylink that the driver architecture supports
+ * LPI management, enabling phylink to control EEE advertisement during
+ * negotiation according to IEEE Std 802.3 (Clause 78).
+ *
+ * Hardware Management of EEE/LPI State:
+ * For KSZ switch ports with integrated PHYs (e.g., KSZ9893R ports 1-2),
+ * observation and testing suggest that the actual EEE / Low Power Idle (LPI)
+ * state transitions are managed autonomously by the hardware based on
+ * the auto-negotiation results. (Note: While the datasheet describes EEE
+ * operation based on negotiation, it doesn't explicitly detail the internal
+ * MAC/PHY interaction, so autonomous hardware management of the MAC state
+ * for LPI is inferred from observed behavior).
+ * This hardware control, consistent with the switch's ability to operate
+ * autonomously via strapping, means MAC-level software intervention is not
+ * required or exposed for managing the LPI state once EEE is negotiated.
+ * (Ref: KSZ9893R Data Sheet DS00002420D, primarily Section 4.7.5 explaining
+ * EEE, also Sections 4.1.7 on Auto-Negotiation and 3.2.1 on Configuration
+ * Straps).
+ *
+ * Additionally, ports configured as MAC interfaces (e.g., KSZ9893R port 3)
+ * lack documented MAC-level LPI control.
+ *
+ * Therefore, this callback performs no action and serves primarily to inform
+ * phylink of LPI awareness and to document the inferred hardware behavior.
+ *
+ * Returns: 0 (Always success)
+ */
+static int ksz_phylink_mac_enable_tx_lpi(struct phylink_config *config,
+					 u32 timer, bool tx_clock_stop)
+{
+	return 0;
+}
+
 static const struct phylink_mac_ops ksz88x3_phylink_mac_ops = {
 	.mac_config	= ksz88x3_phylink_mac_config,
 	.mac_link_down	= ksz_phylink_mac_link_down,
 	.mac_link_up	= ksz8_phylink_mac_link_up,
+	.mac_disable_tx_lpi = ksz_phylink_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi = ksz_phylink_mac_enable_tx_lpi,
 };
 
 static const struct phylink_mac_ops ksz8_phylink_mac_ops = {
 	.mac_config	= ksz_phylink_mac_config,
 	.mac_link_down	= ksz_phylink_mac_link_down,
 	.mac_link_up	= ksz8_phylink_mac_link_up,
+	.mac_disable_tx_lpi = ksz_phylink_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi = ksz_phylink_mac_enable_tx_lpi,
 };
 
 static const struct ksz_dev_ops ksz88xx_dev_ops = {
@@ -354,10 +408,29 @@ static void ksz9477_phylink_mac_link_up(struct phylink_config *config,
 					int speed, int duplex, bool tx_pause,
 					bool rx_pause);
 
+static struct phylink_pcs *
+ksz_phylink_mac_select_pcs(struct phylink_config *config,
+			   phy_interface_t interface)
+{
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ksz_device *dev = dp->ds->priv;
+	struct ksz_port *p = &dev->ports[dp->index];
+
+	if (ksz_is_sgmii_port(dev, dp->index) &&
+	    (interface == PHY_INTERFACE_MODE_SGMII ||
+	    interface == PHY_INTERFACE_MODE_1000BASEX))
+		return p->pcs;
+
+	return NULL;
+}
+
 static const struct phylink_mac_ops ksz9477_phylink_mac_ops = {
 	.mac_config	= ksz_phylink_mac_config,
 	.mac_link_down	= ksz_phylink_mac_link_down,
 	.mac_link_up	= ksz9477_phylink_mac_link_up,
+	.mac_disable_tx_lpi = ksz_phylink_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi = ksz_phylink_mac_enable_tx_lpi,
+	.mac_select_pcs	= ksz_phylink_mac_select_pcs,
 };
 
 static const struct ksz_dev_ops ksz9477_dev_ops = {
@@ -395,12 +468,15 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.reset = ksz9477_reset_switch,
 	.init = ksz9477_switch_init,
 	.exit = ksz9477_switch_exit,
+	.pcs_create = ksz9477_pcs_create,
 };
 
 static const struct phylink_mac_ops lan937x_phylink_mac_ops = {
 	.mac_config	= ksz_phylink_mac_config,
 	.mac_link_down	= ksz_phylink_mac_link_down,
 	.mac_link_up	= ksz9477_phylink_mac_link_up,
+	.mac_disable_tx_lpi = ksz_phylink_mac_disable_tx_lpi,
+	.mac_enable_tx_lpi = ksz_phylink_mac_enable_tx_lpi,
 };
 
 static const struct ksz_dev_ops lan937x_dev_ops = {
@@ -1035,8 +1111,7 @@ static const struct regmap_range ksz9477_valid_regs[] = {
 	regmap_reg_range(0x701b, 0x701b),
 	regmap_reg_range(0x701f, 0x7020),
 	regmap_reg_range(0x7030, 0x7030),
-	regmap_reg_range(0x7200, 0x7203),
-	regmap_reg_range(0x7206, 0x7207),
+	regmap_reg_range(0x7200, 0x7207),
 	regmap_reg_range(0x7300, 0x7301),
 	regmap_reg_range(0x7400, 0x7401),
 	regmap_reg_range(0x7403, 0x7403),
@@ -1552,6 +1627,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, false, false},
 		.gbit_capable	= {true, true, true, true, true, true, true},
 		.ptp_capable = true,
+		.sgmii_port = 7,
 		.wr_table = &ksz9477_register_set,
 		.rd_table = &ksz9477_register_set,
 	},
@@ -1944,6 +2020,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
 		.gbit_capable	= {true, true, true, true, true, true, true},
+		.sgmii_port = 7,
 		.wr_table = &ksz9477_register_set,
 		.rd_table = &ksz9477_register_set,
 	},
@@ -2016,6 +2093,18 @@ static void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
 
 	if (dev->dev_ops->get_caps)
 		dev->dev_ops->get_caps(dev, port, config);
+
+	if (ds->ops->support_eee && ds->ops->support_eee(ds, port)) {
+		memcpy(config->lpi_interfaces, config->supported_interfaces,
+		       sizeof(config->lpi_interfaces));
+
+		config->lpi_capabilities = MAC_100FD;
+		if (dev->info->gbit_capable[port])
+			config->lpi_capabilities |= MAC_1000FD;
+
+		/* EEE is fully operational */
+		config->eee_enabled_default = true;
+	}
 }
 
 void ksz_r_mib_stats64(struct ksz_device *dev, int port)
@@ -2067,7 +2156,7 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 
 	spin_unlock(&mib->stats64_lock);
 
-	if (dev->info->phy_errata_9477) {
+	if (dev->info->phy_errata_9477 && !ksz_is_sgmii_port(dev, port)) {
 		ret = ksz9477_errata_monitor(dev, port, raw->tx_late_col);
 		if (ret)
 			dev_err(dev->dev, "Failed to monitor transmission halt\n");
@@ -2697,8 +2786,9 @@ static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
 	kirq->dev = dev;
 	kirq->masked = ~0;
 
-	kirq->domain = irq_domain_add_simple(dev->dev->of_node, kirq->nirqs, 0,
-					     &ksz_irq_domain_ops, kirq);
+	kirq->domain = irq_domain_create_simple(of_fwnode_handle(dev->dev->of_node),
+						kirq->nirqs, 0,
+						&ksz_irq_domain_ops, kirq);
 	if (!kirq->domain)
 		return -ENOMEM;
 
@@ -2774,6 +2864,12 @@ static int ksz_setup(struct dsa_switch *ds)
 	ret = ksz_parse_drive_strength(dev);
 	if (ret)
 		return ret;
+
+	if (ksz_has_sgmii_port(dev) && dev->dev_ops->pcs_create) {
+		ret = dev->dev_ops->pcs_create(dev);
+		if (ret)
+			return ret;
+	}
 
 	/* set broadcast storm protection 10% rate */
 	regmap_update_bits(ksz_regmap_16(dev), regs[S_BROADCAST_CTRL],
@@ -3008,31 +3104,6 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 		if (!port)
 			return MICREL_KSZ8_P1_ERRATA;
 		break;
-	case KSZ8567_CHIP_ID:
-		/* KSZ8567R Errata DS80000752C Module 4 */
-	case KSZ8765_CHIP_ID:
-	case KSZ8794_CHIP_ID:
-	case KSZ8795_CHIP_ID:
-		/* KSZ879x/KSZ877x/KSZ876x Errata DS80000687C Module 2 */
-	case KSZ9477_CHIP_ID:
-		/* KSZ9477S Errata DS80000754A Module 4 */
-	case KSZ9567_CHIP_ID:
-		/* KSZ9567S Errata DS80000756A Module 4 */
-	case KSZ9896_CHIP_ID:
-		/* KSZ9896C Errata DS80000757A Module 3 */
-	case KSZ9897_CHIP_ID:
-	case LAN9646_CHIP_ID:
-		/* KSZ9897R Errata DS80000758C Module 4 */
-		/* Energy Efficient Ethernet (EEE) feature select must be manually disabled
-		 *   The EEE feature is enabled by default, but it is not fully
-		 *   operational. It must be manually disabled through register
-		 *   controls. If not disabled, the PHY ports can auto-negotiate
-		 *   to enable EEE, and this feature can cause link drops when
-		 *   linked to another device supporting EEE.
-		 *
-		 * The same item appears in the errata for all switches above.
-		 */
-		return MICREL_NO_EEE;
 	}
 
 	return 0;
@@ -3466,6 +3537,20 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 	return -EOPNOTSUPP;
 }
 
+/**
+ * ksz_support_eee - Determine Energy Efficient Ethernet (EEE) support for a
+ *                   port
+ * @ds: Pointer to the DSA switch structure
+ * @port: Port number to check
+ *
+ * This function also documents devices where EEE was initially advertised but
+ * later withdrawn due to reliability issues, as described in official errata
+ * documents. These devices are explicitly listed to record known limitations,
+ * even if there is no technical necessity for runtime checks.
+ *
+ * Returns: true if the internal PHY on the given port supports fully
+ * operational EEE, false otherwise.
+ */
 static bool ksz_support_eee(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
@@ -3475,15 +3560,35 @@ static bool ksz_support_eee(struct dsa_switch *ds, int port)
 
 	switch (dev->chip_id) {
 	case KSZ8563_CHIP_ID:
-	case KSZ8567_CHIP_ID:
-	case KSZ9477_CHIP_ID:
 	case KSZ9563_CHIP_ID:
-	case KSZ9567_CHIP_ID:
 	case KSZ9893_CHIP_ID:
+		return true;
+	case KSZ8567_CHIP_ID:
+		/* KSZ8567R Errata DS80000752C Module 4 */
+	case KSZ8765_CHIP_ID:
+	case KSZ8794_CHIP_ID:
+	case KSZ8795_CHIP_ID:
+		/* KSZ879x/KSZ877x/KSZ876x Errata DS80000687C Module 2 */
+	case KSZ9477_CHIP_ID:
+		/* KSZ9477S Errata DS80000754A Module 4 */
+	case KSZ9567_CHIP_ID:
+		/* KSZ9567S Errata DS80000756A Module 4 */
 	case KSZ9896_CHIP_ID:
+		/* KSZ9896C Errata DS80000757A Module 3 */
 	case KSZ9897_CHIP_ID:
 	case LAN9646_CHIP_ID:
-		return true;
+		/* KSZ9897R Errata DS80000758C Module 4 */
+		/* Energy Efficient Ethernet (EEE) feature select must be
+		 * manually disabled
+		 *   The EEE feature is enabled by default, but it is not fully
+		 *   operational. It must be manually disabled through register
+		 *   controls. If not disabled, the PHY ports can auto-negotiate
+		 *   to enable EEE, and this feature can cause link drops when
+		 *   linked to another device supporting EEE.
+		 *
+		 * The same item appears in the errata for all switches above.
+		 */
+		break;
 	}
 
 	return false;
@@ -3611,6 +3716,10 @@ static void ksz_phylink_mac_config(struct phylink_config *config,
 
 	/* Internal PHYs */
 	if (dev->info->internal_phy[port])
+		return;
+
+	/* No need to configure XMII control register when using SGMII. */
+	if (ksz_is_sgmii_port(dev, port))
 		return;
 
 	if (phylink_autoneg_inband(mode)) {
@@ -3999,6 +4108,89 @@ static int ksz_ets_band_to_queue(struct tc_ets_qopt_offload_replace_params *p,
 	return p->bands - 1 - band;
 }
 
+/**
+ * ksz88x3_tc_ets_add - Configure ETS (Enhanced Transmission Selection)
+ *                      for a port on KSZ88x3 switch
+ * @dev: Pointer to the KSZ switch device structure
+ * @port: Port number to configure
+ * @p: Pointer to offload replace parameters describing ETS bands and mapping
+ *
+ * The KSZ88x3 supports two scheduling modes: Strict Priority and
+ * Weighted Fair Queuing (WFQ). Both modes have fixed behavior:
+ *   - No configurable queue-to-priority mapping
+ *   - No weight adjustment in WFQ mode
+ *
+ * This function configures the switch to use strict priority mode by
+ * clearing the WFQ enable bit for all queues associated with ETS bands.
+ * If strict priority is not explicitly requested, the switch will default
+ * to WFQ mode.
+ *
+ * Return: 0 on success, or a negative error code on failure
+ */
+static int ksz88x3_tc_ets_add(struct ksz_device *dev, int port,
+			      struct tc_ets_qopt_offload_replace_params *p)
+{
+	int ret, band;
+
+	/* Only strict priority mode is supported for now.
+	 * WFQ is implicitly enabled when strict mode is disabled.
+	 */
+	for (band = 0; band < p->bands; band++) {
+		int queue = ksz_ets_band_to_queue(p, band);
+		u8 reg;
+
+		/* Calculate TXQ Split Control register address for this
+		 * port/queue
+		 */
+		reg = KSZ8873_TXQ_SPLIT_CTRL_REG(port, queue);
+
+		/* Clear WFQ enable bit to select strict priority scheduling */
+		ret = ksz_rmw8(dev, reg, KSZ8873_TXQ_WFQ_ENABLE, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * ksz88x3_tc_ets_del - Reset ETS (Enhanced Transmission Selection) config
+ *                      for a port on KSZ88x3 switch
+ * @dev: Pointer to the KSZ switch device structure
+ * @port: Port number to reset
+ *
+ * The KSZ88x3 supports only fixed scheduling modes: Strict Priority or
+ * Weighted Fair Queuing (WFQ), with no reconfiguration of weights or
+ * queue mapping. This function resets the port’s scheduling mode to
+ * the default, which is WFQ, by enabling the WFQ bit for all queues.
+ *
+ * Return: 0 on success, or a negative error code on failure
+ */
+static int ksz88x3_tc_ets_del(struct ksz_device *dev, int port)
+{
+	int ret, queue;
+
+	/* Iterate over all transmit queues for this port */
+	for (queue = 0; queue < dev->info->num_tx_queues; queue++) {
+		u8 reg;
+
+		/* Calculate TXQ Split Control register address for this
+		 * port/queue
+		 */
+		reg = KSZ8873_TXQ_SPLIT_CTRL_REG(port, queue);
+
+		/* Set WFQ enable bit to revert back to default scheduling
+		 * mode
+		 */
+		ret = ksz_rmw8(dev, reg, KSZ8873_TXQ_WFQ_ENABLE,
+			       KSZ8873_TXQ_WFQ_ENABLE);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int ksz_queue_set_strict(struct ksz_device *dev, int port, int queue)
 {
 	int ret;
@@ -4080,6 +4272,7 @@ static int ksz_tc_ets_del(struct ksz_device *dev, int port)
 	for (queue = 0; queue < dev->info->num_tx_queues; queue++) {
 		ret = ksz_queue_set_wrr(dev, port, queue,
 					KSZ9477_DEFAULT_WRR_WEIGHT);
+
 		if (ret)
 			return ret;
 	}
@@ -4132,7 +4325,7 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	int ret;
 
-	if (is_ksz8(dev))
+	if (is_ksz8(dev) && !ksz_is_ksz88x3(dev))
 		return -EOPNOTSUPP;
 
 	if (qopt->parent != TC_H_ROOT) {
@@ -4146,9 +4339,16 @@ static int ksz_tc_setup_qdisc_ets(struct dsa_switch *ds, int port,
 		if (ret)
 			return ret;
 
-		return ksz_tc_ets_add(dev, port, &qopt->replace_params);
+		if (ksz_is_ksz88x3(dev))
+			return ksz88x3_tc_ets_add(dev, port,
+						  &qopt->replace_params);
+		else
+			return ksz_tc_ets_add(dev, port, &qopt->replace_params);
 	case TC_ETS_DESTROY:
-		return ksz_tc_ets_del(dev, port);
+		if (ksz_is_ksz88x3(dev))
+			return ksz88x3_tc_ets_del(dev, port);
+		else
+			return ksz_tc_ets_del(dev, port);
 	case TC_ETS_STATS:
 	case TC_ETS_GRAFT:
 		return -EOPNOTSUPP;

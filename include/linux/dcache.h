@@ -57,7 +57,8 @@ struct qstr {
 };
 
 #define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
-#define QSTR(n) (struct qstr)QSTR_INIT(n, strlen(n))
+#define QSTR_LEN(n,l) (struct qstr)QSTR_INIT(n,l)
+#define QSTR(n) QSTR_LEN(n, strlen(n))
 
 extern const struct qstr empty_name;
 extern const struct qstr slash_name;
@@ -281,7 +282,6 @@ extern void d_exchange(struct dentry *, struct dentry *);
 extern struct dentry *d_ancestor(struct dentry *, struct dentry *);
 
 extern struct dentry *d_lookup(const struct dentry *, const struct qstr *);
-extern struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
 
 static inline unsigned d_count(const struct dentry *dentry)
 {

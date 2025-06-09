@@ -1587,7 +1587,7 @@ static void ns83820_tx_timeout(struct net_device *ndev, unsigned int txqueue)
 
 static void ns83820_tx_watch(struct timer_list *t)
 {
-	struct ns83820 *dev = from_timer(dev, t, tx_watchdog);
+	struct ns83820 *dev = timer_container_of(dev, t, tx_watchdog);
 	struct net_device *ndev = dev->ndev;
 
 #if defined(DEBUG)

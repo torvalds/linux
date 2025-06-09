@@ -3179,7 +3179,7 @@ no_dma:
 
 static void dw_mci_cmd11_timer(struct timer_list *t)
 {
-	struct dw_mci *host = from_timer(host, t, cmd11_timer);
+	struct dw_mci *host = timer_container_of(host, t, cmd11_timer);
 
 	if (host->state != STATE_SENDING_CMD11) {
 		dev_warn(host->dev, "Unexpected CMD11 timeout\n");
@@ -3193,7 +3193,7 @@ static void dw_mci_cmd11_timer(struct timer_list *t)
 
 static void dw_mci_cto_timer(struct timer_list *t)
 {
-	struct dw_mci *host = from_timer(host, t, cto_timer);
+	struct dw_mci *host = timer_container_of(host, t, cto_timer);
 	unsigned long irqflags;
 	u32 pending;
 
@@ -3248,7 +3248,7 @@ exit:
 
 static void dw_mci_dto_timer(struct timer_list *t)
 {
-	struct dw_mci *host = from_timer(host, t, dto_timer);
+	struct dw_mci *host = timer_container_of(host, t, dto_timer);
 	unsigned long irqflags;
 	u32 pending;
 
@@ -3622,7 +3622,7 @@ int dw_mci_runtime_suspend(struct device *dev)
 	clk_disable_unprepare(host->ciu_clk);
 
 	if (host->slot &&
-	    (mmc_can_gpio_cd(host->slot->mmc) ||
+	    (mmc_host_can_gpio_cd(host->slot->mmc) ||
 	     !mmc_card_is_removable(host->slot->mmc)))
 		clk_disable_unprepare(host->biu_clk);
 
@@ -3636,7 +3636,7 @@ int dw_mci_runtime_resume(struct device *dev)
 	struct dw_mci *host = dev_get_drvdata(dev);
 
 	if (host->slot &&
-	    (mmc_can_gpio_cd(host->slot->mmc) ||
+	    (mmc_host_can_gpio_cd(host->slot->mmc) ||
 	     !mmc_card_is_removable(host->slot->mmc))) {
 		ret = clk_prepare_enable(host->biu_clk);
 		if (ret)
@@ -3690,7 +3690,7 @@ int dw_mci_runtime_resume(struct device *dev)
 
 err:
 	if (host->slot &&
-	    (mmc_can_gpio_cd(host->slot->mmc) ||
+	    (mmc_host_can_gpio_cd(host->slot->mmc) ||
 	     !mmc_card_is_removable(host->slot->mmc)))
 		clk_disable_unprepare(host->biu_clk);
 

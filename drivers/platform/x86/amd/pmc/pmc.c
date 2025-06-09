@@ -28,7 +28,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #include "pmc.h"
 

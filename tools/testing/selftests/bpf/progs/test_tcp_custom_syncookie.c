@@ -294,7 +294,9 @@ static int tcp_validate_sysctl(struct tcp_syncookie *ctx)
 	    (ctx->ipv6 && ctx->attrs.mss != MSS_LOCAL_IPV6))
 		goto err;
 
-	if (!ctx->attrs.wscale_ok || ctx->attrs.snd_wscale != 7)
+	if (!ctx->attrs.wscale_ok ||
+	    !ctx->attrs.snd_wscale ||
+	    ctx->attrs.snd_wscale >= BPF_SYNCOOKIE_WSCALE_MASK)
 		goto err;
 
 	if (!ctx->attrs.tstamp_ok)

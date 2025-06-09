@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/devm-helpers.h>
 #include <linux/errno.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -195,7 +196,7 @@ static const struct omnia_gpio omnia_gpios[64] = {
 };
 
 /* mapping from interrupts to indexes of GPIOs in the omnia_gpios array */
-const u8 omnia_int_to_gpio_idx[32] = {
+static const u8 omnia_int_to_gpio_idx[32] = {
 	[__bf_shf(OMNIA_INT_CARD_DET)]			= 4,
 	[__bf_shf(OMNIA_INT_MSATA_IND)]			= 5,
 	[__bf_shf(OMNIA_INT_USB30_OVC)]			= 6,
@@ -1092,4 +1093,22 @@ int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu)
 	}
 
 	return 0;
+}
+
+int omnia_mcu_request_irq(struct omnia_mcu *mcu, u32 spec,
+			  irq_handler_t thread_fn, const char *devname)
+{
+	u8 irq_idx;
+	int irq;
+
+	if (!spec)
+		return -EINVAL;
+
+	irq_idx = omnia_int_to_gpio_idx[ffs(spec) - 1];
+	irq = gpiod_to_irq(gpio_device_get_desc(mcu->gc.gpiodev, irq_idx));
+	if (irq < 0)
+		return irq;
+
+	return devm_request_threaded_irq(&mcu->client->dev, irq, NULL,
+					 thread_fn, IRQF_ONESHOT, devname, mcu);
 }

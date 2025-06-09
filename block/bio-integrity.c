@@ -127,10 +127,8 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 
 	if (bip->bip_vcnt > 0) {
 		struct bio_vec *bv = &bip->bip_vec[bip->bip_vcnt - 1];
-		bool same_page = false;
 
-		if (bvec_try_merge_hw_page(q, bv, page, len, offset,
-					   &same_page)) {
+		if (bvec_try_merge_hw_page(q, bv, page, len, offset)) {
 			bip->bip_iter.bi_size += len;
 			return len;
 		}
@@ -156,10 +154,9 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
 EXPORT_SYMBOL(bio_integrity_add_page);
 
 static int bio_integrity_copy_user(struct bio *bio, struct bio_vec *bvec,
-				   int nr_vecs, unsigned int len,
-				   unsigned int direction)
+				   int nr_vecs, unsigned int len)
 {
-	bool write = direction == ITER_SOURCE;
+	bool write = op_is_write(bio_op(bio));
 	struct bio_integrity_payload *bip;
 	struct iov_iter iter;
 	void *buf;
@@ -170,7 +167,7 @@ static int bio_integrity_copy_user(struct bio *bio, struct bio_vec *bvec,
 		return -ENOMEM;
 
 	if (write) {
-		iov_iter_bvec(&iter, direction, bvec, nr_vecs, len);
+		iov_iter_bvec(&iter, ITER_SOURCE, bvec, nr_vecs, len);
 		if (!copy_from_iter_full(buf, len, &iter)) {
 			ret = -EFAULT;
 			goto free_buf;
@@ -266,7 +263,7 @@ int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 	struct page *stack_pages[UIO_FASTIOV], **pages = stack_pages;
 	struct bio_vec stack_vec[UIO_FASTIOV], *bvec = stack_vec;
 	size_t offset, bytes = iter->count;
-	unsigned int direction, nr_bvecs;
+	unsigned int nr_bvecs;
 	int ret, nr_vecs;
 	bool copy;
 
@@ -274,11 +271,6 @@ int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 		return -EINVAL;
 	if (bytes >> SECTOR_SHIFT > queue_max_hw_sectors(q))
 		return -E2BIG;
-
-	if (bio_data_dir(bio) == READ)
-		direction = ITER_DEST;
-	else
-		direction = ITER_SOURCE;
 
 	nr_vecs = iov_iter_npages(iter, BIO_MAX_VECS + 1);
 	if (nr_vecs > BIO_MAX_VECS)
@@ -302,8 +294,7 @@ int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 		copy = true;
 
 	if (copy)
-		ret = bio_integrity_copy_user(bio, bvec, nr_bvecs, bytes,
-					      direction);
+		ret = bio_integrity_copy_user(bio, bvec, nr_bvecs, bytes);
 	else
 		ret = bio_integrity_init_user(bio, bvec, nr_bvecs, bytes);
 	if (ret)

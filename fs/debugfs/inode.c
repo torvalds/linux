@@ -346,7 +346,7 @@ struct dentry *debugfs_lookup(const char *name, struct dentry *parent)
 	if (!parent)
 		parent = debugfs_mount->mnt_root;
 
-	dentry = lookup_positive_unlocked(name, parent, strlen(name));
+	dentry = lookup_noperm_positive_unlocked(&QSTR(name), parent);
 	if (IS_ERR(dentry))
 		return NULL;
 	return dentry;
@@ -388,7 +388,7 @@ static struct dentry *start_creating(const char *name, struct dentry *parent)
 	if (unlikely(IS_DEADDIR(d_inode(parent))))
 		dentry = ERR_PTR(-ENOENT);
 	else
-		dentry = lookup_one_len(name, parent, strlen(name));
+		dentry = lookup_noperm(&QSTR(name), parent);
 	if (!IS_ERR(dentry) && d_really_is_positive(dentry)) {
 		if (d_is_dir(dentry))
 			pr_err("Directory '%s' with parent '%s' already present!\n",
@@ -872,7 +872,7 @@ int __printf(2, 3) debugfs_change_name(struct dentry *dentry, const char *fmt, .
 	}
 	if (strcmp(old_name.name.name, new_name) == 0)
 		goto out;
-	target = lookup_one_len(new_name, parent, strlen(new_name));
+	target = lookup_noperm(&QSTR(new_name), parent);
 	if (IS_ERR(target)) {
 		error = PTR_ERR(target);
 		goto out;

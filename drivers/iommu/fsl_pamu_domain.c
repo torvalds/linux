@@ -64,7 +64,7 @@ static int update_liodn_stash(int liodn, struct fsl_dma_domain *dma_domain,
 	spin_lock_irqsave(&iommu_lock, flags);
 	ret = pamu_update_paace_stash(liodn, val);
 	if (ret) {
-		pr_debug("Failed to update SPAACE for liodn %d\n ", liodn);
+		pr_debug("Failed to update SPAACE for liodn %d\n", liodn);
 		spin_unlock_irqrestore(&iommu_lock, flags);
 		return ret;
 	}

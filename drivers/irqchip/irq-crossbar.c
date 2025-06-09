@@ -351,10 +351,8 @@ static int __init irqcrossbar_init(struct device_node *node,
 	if (err)
 		return err;
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0,
-					  cb->max_crossbar_sources,
-					  node, &crossbar_domain_ops,
-					  NULL);
+	domain = irq_domain_create_hierarchy(parent_domain, 0, cb->max_crossbar_sources,
+					     of_fwnode_handle(node), &crossbar_domain_ops, NULL);
 	if (!domain) {
 		pr_err("%pOF: failed to allocated domain\n", node);
 		return -ENOMEM;

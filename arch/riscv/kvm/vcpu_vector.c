@@ -22,6 +22,9 @@ void kvm_riscv_vcpu_vector_reset(struct kvm_vcpu *vcpu)
 	struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;
 
 	cntx->sstatus &= ~SR_VS;
+
+	cntx->vector.vlenb = riscv_v_vsize / 32;
+
 	if (riscv_isa_extension_available(isa, v)) {
 		cntx->sstatus |= SR_VS_INITIAL;
 		WARN_ON(!cntx->vector.datap);
@@ -70,13 +73,11 @@ void kvm_riscv_vcpu_host_vector_restore(struct kvm_cpu_context *cntx)
 		__kvm_riscv_vector_restore(cntx);
 }
 
-int kvm_riscv_vcpu_alloc_vector_context(struct kvm_vcpu *vcpu,
-					struct kvm_cpu_context *cntx)
+int kvm_riscv_vcpu_alloc_vector_context(struct kvm_vcpu *vcpu)
 {
-	cntx->vector.datap = kmalloc(riscv_v_vsize, GFP_KERNEL);
-	if (!cntx->vector.datap)
+	vcpu->arch.guest_context.vector.datap = kzalloc(riscv_v_vsize, GFP_KERNEL);
+	if (!vcpu->arch.guest_context.vector.datap)
 		return -ENOMEM;
-	cntx->vector.vlenb = riscv_v_vsize / 32;
 
 	vcpu->arch.host_context.vector.datap = kzalloc(riscv_v_vsize, GFP_KERNEL);
 	if (!vcpu->arch.host_context.vector.datap)
@@ -87,7 +88,7 @@ int kvm_riscv_vcpu_alloc_vector_context(struct kvm_vcpu *vcpu,
 
 void kvm_riscv_vcpu_free_vector_context(struct kvm_vcpu *vcpu)
 {
-	kfree(vcpu->arch.guest_reset_context.vector.datap);
+	kfree(vcpu->arch.guest_context.vector.datap);
 	kfree(vcpu->arch.host_context.vector.datap);
 }
 #endif

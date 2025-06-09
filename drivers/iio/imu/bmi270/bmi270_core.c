@@ -918,8 +918,7 @@ static int bmi270_configure_imu(struct bmi270_data *data)
 			      FIELD_PREP(BMI270_ACC_CONF_ODR_MSK,
 					 BMI270_ACC_CONF_ODR_100HZ) |
 			      FIELD_PREP(BMI270_ACC_CONF_BWP_MSK,
-					 BMI270_ACC_CONF_BWP_NORMAL_MODE) |
-			      BMI270_PWR_CONF_ADV_PWR_SAVE_MSK);
+					 BMI270_ACC_CONF_BWP_NORMAL_MODE));
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to configure accelerometer");
 
@@ -927,8 +926,7 @@ static int bmi270_configure_imu(struct bmi270_data *data)
 			      FIELD_PREP(BMI270_GYR_CONF_ODR_MSK,
 					 BMI270_GYR_CONF_ODR_200HZ) |
 			      FIELD_PREP(BMI270_GYR_CONF_BWP_MSK,
-					 BMI270_GYR_CONF_BWP_NORMAL_MODE) |
-			      BMI270_PWR_CONF_ADV_PWR_SAVE_MSK);
+					 BMI270_GYR_CONF_BWP_NORMAL_MODE));
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to configure gyroscope");
 
