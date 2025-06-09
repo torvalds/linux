@@ -1074,6 +1074,7 @@ void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
 /* common trans ops for all generations transports */
 void iwl_trans_pcie_op_mode_enter(struct iwl_trans *trans);
+int _iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 int iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans);
 void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val);

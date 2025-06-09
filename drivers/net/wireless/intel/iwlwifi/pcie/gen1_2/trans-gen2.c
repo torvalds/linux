@@ -610,6 +610,11 @@ again:
 		msleep(10);
 		IWL_INFO(trans, "TOP reset successful, reinit now\n");
 		/* now load the firmware again properly */
+		ret = _iwl_trans_pcie_start_hw(trans);
+		if (ret) {
+			IWL_ERR(trans, "failed to start HW after TOP reset\n");
+			goto out;
+		}
 		trans_pcie->prph_scratch->ctrl_cfg.control.control_flags &=
 			~cpu_to_le32(IWL_PRPH_SCRATCH_TOP_RESET);
 		top_reset_done = true;
