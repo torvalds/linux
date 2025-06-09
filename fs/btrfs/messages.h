@@ -74,23 +74,15 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 #define btrfs_debug_rl(fs_info, fmt, args...) \
 	btrfs_printk_rl_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
 #else
-#define btrfs_debug(fs_info, fmt, args...) \
-	btrfs_no_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
-#define btrfs_debug_rl(fs_info, fmt, args...) \
-	btrfs_no_printk_in_rcu(fs_info, KERN_DEBUG fmt, ##args)
+/* When printk() is no_printk(), expand to no-op. */
+#define btrfs_debug(fs_info, fmt, args...)	do { (void)(fs_info); } while(0)
+#define btrfs_debug_rl(fs_info, fmt, args...)	do { (void)(fs_info); } while(0)
 #endif
 
 #define btrfs_printk_in_rcu(fs_info, fmt, args...)	\
 do {							\
 	rcu_read_lock();				\
 	btrfs_printk(fs_info, fmt, ##args);		\
-	rcu_read_unlock();				\
-} while (0)
-
-#define btrfs_no_printk_in_rcu(fs_info, fmt, args...)	\
-do {							\
-	rcu_read_lock();				\
-	btrfs_no_printk(fs_info, fmt, ##args);		\
 	rcu_read_unlock();				\
 } while (0)
 
