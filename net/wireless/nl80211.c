@@ -9811,33 +9811,11 @@ static bool nl80211_check_scan_feat(struct wiphy *wiphy, u32 flags, u32 flag,
 
 static int
 nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 void *request, struct nlattr **attrs,
-			 bool is_sched_scan)
+			 struct nlattr **attrs, u8 *mac_addr, u8 *mac_addr_mask,
+			 u32 *flags, enum nl80211_feature_flags randomness_flag)
 {
-	u8 *mac_addr, *mac_addr_mask;
-	u32 *flags;
-	enum nl80211_feature_flags randomness_flag;
-
 	if (!attrs[NL80211_ATTR_SCAN_FLAGS])
 		return 0;
-
-	if (is_sched_scan) {
-		struct cfg80211_sched_scan_request *req = request;
-
-		randomness_flag = wdev ?
-				  NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR :
-				  NL80211_FEATURE_ND_RANDOM_MAC_ADDR;
-		flags = &req->flags;
-		mac_addr = req->mac_addr;
-		mac_addr_mask = req->mac_addr_mask;
-	} else {
-		struct cfg80211_scan_request_int *req = request;
-
-		randomness_flag = NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
-		flags = &req->req.flags;
-		mac_addr = req->req.mac_addr;
-		mac_addr_mask = req->req.mac_addr_mask;
-	}
 
 	*flags = nla_get_u32(attrs[NL80211_ATTR_SCAN_FLAGS]);
 
@@ -9885,6 +9863,30 @@ nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 
 	return 0;
+}
+
+static int
+nl80211_check_scan_flags_sched(struct wiphy *wiphy, struct wireless_dev *wdev,
+			       struct nlattr **attrs,
+			       struct cfg80211_sched_scan_request *req)
+{
+	return nl80211_check_scan_flags(wiphy, wdev, attrs,
+					req->mac_addr, req->mac_addr_mask,
+					&req->flags,
+					wdev ? NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR :
+					       NL80211_FEATURE_ND_RANDOM_MAC_ADDR);
+}
+
+static int
+nl80211_check_scan_flags_reg(struct wiphy *wiphy, struct wireless_dev *wdev,
+			     struct nlattr **attrs,
+			     struct cfg80211_scan_request_int *req)
+{
+	return nl80211_check_scan_flags(wiphy, wdev, attrs,
+					req->req.mac_addr,
+					req->req.mac_addr_mask,
+					&req->req.flags,
+					NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR);
 }
 
 static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
@@ -10083,8 +10085,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 			nla_get_flag(info->attrs[NL80211_ATTR_MEASUREMENT_DURATION_MANDATORY]);
 	}
 
-	err = nl80211_check_scan_flags(wiphy, wdev, request, info->attrs,
-				       false);
+	err = nl80211_check_scan_flags_reg(wiphy, wdev, info->attrs, request);
 	if (err)
 		goto out_free;
 
@@ -10537,7 +10538,7 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 		       request->ie_len);
 	}
 
-	err = nl80211_check_scan_flags(wiphy, wdev, request, attrs, true);
+	err = nl80211_check_scan_flags_sched(wiphy, wdev, attrs, request);
 	if (err)
 		goto out_free;
 
