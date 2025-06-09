@@ -1939,14 +1939,7 @@ ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 	}
 	skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
 
-	/* Many APs have broken parsing of the extended MLD capa/ops field,
-	 * dropping (re-)association request frames or replying with association
-	 * response with a failure status if it's present. Without a clear
-	 * indication as to whether the AP supports parsing this field or not do
-	 * not include it in the common information unless strict mode is set.
-	 */
-	if (ieee80211_hw_check(&local->hw, STRICT) &&
-	    assoc_data->ext_mld_capa_ops) {
+	if (assoc_data->ext_mld_capa_ops) {
 		ml_elem->control |=
 			cpu_to_le16(IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP);
 		common->len += 2;
@@ -9357,6 +9350,39 @@ out_rcu:
 	return err;
 }
 
+static bool
+ieee80211_mgd_assoc_bss_has_mld_ext_capa_ops(struct cfg80211_assoc_request *req)
+{
+	const struct cfg80211_bss_ies *ies;
+	struct cfg80211_bss *bss;
+	const struct element *ml;
+
+	/* not an MLO connection if link_id < 0, so irrelevant */
+	if (req->link_id < 0)
+		return false;
+
+	bss = req->links[req->link_id].bss;
+
+	guard(rcu)();
+	ies = rcu_dereference(bss->ies);
+	for_each_element_extid(ml, WLAN_EID_EXT_EHT_MULTI_LINK,
+			       ies->data, ies->len) {
+		const struct ieee80211_multi_link_elem *mle;
+
+		if (!ieee80211_mle_type_ok(ml->data + 1,
+					   IEEE80211_ML_CONTROL_TYPE_BASIC,
+					   ml->datalen - 1))
+			continue;
+
+		mle = (void *)(ml->data + 1);
+		if (mle->control & cpu_to_le16(IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP))
+			return true;
+	}
+
+	return false;
+
+}
+
 int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_assoc_request *req)
 {
@@ -9409,7 +9435,17 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	else
 		memcpy(assoc_data->ap_addr, cbss->bssid, ETH_ALEN);
 
-	assoc_data->ext_mld_capa_ops = cpu_to_le16(req->ext_mld_capa_ops);
+	/*
+	 * Many APs have broken parsing of the extended MLD capa/ops field,
+	 * dropping (re-)association request frames or replying with association
+	 * response with a failure status if it's present.
+	 * Set our value from the userspace request only in strict mode or if
+	 * the AP also had that field present.
+	 */
+	if (ieee80211_hw_check(&local->hw, STRICT) ||
+	    ieee80211_mgd_assoc_bss_has_mld_ext_capa_ops(req))
+		assoc_data->ext_mld_capa_ops =
+			cpu_to_le16(req->ext_mld_capa_ops);
 
 	if (ifmgd->associated) {
 		u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
