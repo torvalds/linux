@@ -460,6 +460,33 @@ static ssize_t sysdata_release_enabled_show(struct config_item *item,
 	return sysfs_emit(buf, "%d\n", release_enabled);
 }
 
+/* Iterate in the list of target, and make sure we don't have any console
+ * register without targets of the same type
+ */
+static void unregister_netcons_consoles(void)
+{
+	struct netconsole_target *nt;
+	u32 console_type_needed = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&target_list_lock, flags);
+	list_for_each_entry(nt, &target_list, list) {
+		if (nt->extended)
+			console_type_needed |= CONS_EXTENDED;
+		else
+			console_type_needed |= CONS_BASIC;
+	}
+	spin_unlock_irqrestore(&target_list_lock, flags);
+
+	if (!(console_type_needed & CONS_EXTENDED) &&
+	    console_is_registered(&netconsole_ext))
+		unregister_console(&netconsole_ext);
+
+	if (!(console_type_needed & CONS_BASIC) &&
+	    console_is_registered(&netconsole))
+		unregister_console(&netconsole);
+}
+
 /*
  * This one is special -- targets created through the configfs interface
  * are not enabled (and the corresponding netpoll activated) by default.
@@ -493,14 +520,18 @@ static ssize_t enabled_store(struct config_item *item,
 			goto out_unlock;
 		}
 
-		if (nt->extended && !console_is_registered(&netconsole_ext))
+		if (nt->extended && !console_is_registered(&netconsole_ext)) {
+			netconsole_ext.flags |= CON_ENABLED;
 			register_console(&netconsole_ext);
+		}
 
 		/* User might be enabling the basic format target for the very
 		 * first time, make sure the console is registered.
 		 */
-		if (!nt->extended && !console_is_registered(&netconsole))
+		if (!nt->extended && !console_is_registered(&netconsole)) {
+			netconsole.flags |= CON_ENABLED;
 			register_console(&netconsole);
+		}
 
 		/*
 		 * Skip netpoll_parse_options() -- all the attributes are
@@ -528,6 +559,10 @@ static ssize_t enabled_store(struct config_item *item,
 		list_move(&nt->list, &target_cleanup_list);
 		spin_unlock_irqrestore(&target_list_lock, flags);
 		mutex_unlock(&target_cleanup_list_lock);
+		/* Unregister consoles, whose the last target of that type got
+		 * disabled.
+		 */
+		unregister_netcons_consoles();
 	}
 
 	ret = strnlen(buf, count);
