@@ -804,7 +804,7 @@ EXPORT_SYMBOL(vio_port_up);
 
 static void vio_port_timer(struct timer_list *t)
 {
-	struct vio_driver_state *vio = from_timer(vio, t, timer);
+	struct vio_driver_state *vio = timer_container_of(vio, t, timer);
 
 	vio_port_up(vio);
 }

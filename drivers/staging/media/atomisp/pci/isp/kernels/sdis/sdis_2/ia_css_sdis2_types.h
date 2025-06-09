@@ -19,7 +19,7 @@
 #endif
 
 /* DVS 2.0 Coefficient types. This structure contains 4 pointers to
- *  arrays that contain the coeffients for each type.
+ *  arrays that contain the coefficients for each type.
  */
 struct ia_css_dvs2_coef_types {
 	s16 *odd_real; /** real part of the odd coefficients*/

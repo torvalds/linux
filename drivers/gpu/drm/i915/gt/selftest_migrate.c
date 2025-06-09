@@ -537,7 +537,7 @@ struct spinner_timer {
 
 static void spinner_kill(struct timer_list *timer)
 {
-	struct spinner_timer *st = from_timer(st, timer, timer);
+	struct spinner_timer *st = timer_container_of(st, timer, timer);
 
 	igt_spinner_end(&st->spin);
 	pr_info("%s\n", __func__);
@@ -661,7 +661,7 @@ static int live_emit_pte_full_ring(void *arg)
 out_rq:
 	i915_request_add(rq); /* GEM_BUG_ON(rq->reserved_space > ring->space)? */
 	timer_delete_sync(&st.timer);
-	destroy_timer_on_stack(&st.timer);
+	timer_destroy_on_stack(&st.timer);
 out_unpin:
 	intel_context_unpin(ce);
 out_put:

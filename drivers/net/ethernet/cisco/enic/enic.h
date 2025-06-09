@@ -26,6 +26,7 @@
 
 #define ENIC_WQ_MAX		256
 #define ENIC_RQ_MAX		256
+#define ENIC_RQ_MIN_DEFAULT	8
 
 #define ENIC_WQ_NAPI_BUDGET	256
 

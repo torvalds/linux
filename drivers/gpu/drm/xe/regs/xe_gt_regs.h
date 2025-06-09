@@ -62,7 +62,6 @@
 #define   LE_SSE_MASK				REG_GENMASK(18, 17)
 #define   LE_SSE(value)				REG_FIELD_PREP(LE_SSE_MASK, value)
 #define   LE_COS_MASK				REG_GENMASK(16, 15)
-#define   LE_COS(value)				REG_FIELD_PREP(LE_COS_MASK)
 #define   LE_SCF_MASK				REG_BIT(14)
 #define   LE_SCF(value)				REG_FIELD_PREP(LE_SCF_MASK, value)
 #define   LE_PFM_MASK				REG_GENMASK(13, 11)
@@ -392,6 +391,18 @@
 
 #define XEHP_L3NODEARBCFG			XE_REG_MCR(0xb0b4)
 #define   XEHP_LNESPARE				REG_BIT(19)
+
+#define LSN_VC_REG2				XE_REG_MCR(0xb0c8)
+#define   LSN_LNI_WGT_MASK			REG_GENMASK(31, 28)
+#define   LSN_LNI_WGT(value)			REG_FIELD_PREP(LSN_LNI_WGT_MASK, value)
+#define   LSN_LNE_WGT_MASK			REG_GENMASK(27, 24)
+#define   LSN_LNE_WGT(value)			REG_FIELD_PREP(LSN_LNE_WGT_MASK, value)
+#define   LSN_DIM_X_WGT_MASK			REG_GENMASK(23, 20)
+#define   LSN_DIM_X_WGT(value)			REG_FIELD_PREP(LSN_DIM_X_WGT_MASK, value)
+#define   LSN_DIM_Y_WGT_MASK			REG_GENMASK(19, 16)
+#define   LSN_DIM_Y_WGT(value)			REG_FIELD_PREP(LSN_DIM_Y_WGT_MASK, value)
+#define   LSN_DIM_Z_WGT_MASK			REG_GENMASK(15, 12)
+#define   LSN_DIM_Z_WGT(value)			REG_FIELD_PREP(LSN_DIM_Z_WGT_MASK, value)
 
 #define L3SQCREG2				XE_REG_MCR(0xb104)
 #define   COMPMEMRD256BOVRFETCHEN		REG_BIT(20)

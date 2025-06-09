@@ -21,7 +21,9 @@ description: |+
 
 properties:
   compatible:
-    const: syscon-reboot
+    enum:
+      - syscon-reboot
+      - google,gs101-reboot
 
   mask:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -49,12 +51,6 @@ properties:
   priority:
     default: 192
 
-oneOf:
-  - required:
-      - offset
-  - required:
-      - reg
-
 required:
   - compatible
 
@@ -63,12 +59,29 @@ additionalProperties: false
 allOf:
   - $ref: restart-handler.yaml#
   - if:
-      not:
-        required:
-          - mask
+      properties:
+        compatible:
+          contains:
+            const: google,gs101-reboot
     then:
-      required:
-        - value
+      properties:
+        mask: false
+        offset: false
+        reg: false
+        value: false
+
+    else:
+      if:
+        not:
+          required:
+            - mask
+      then:
+        required:
+          - value
+
+      oneOf:
+        - required: [offset]
+        - required: [reg]
 
 examples:
   - |
@@ -77,4 +90,9 @@ examples:
         regmap = <&regmapnode>;
         offset = <0x0>;
         mask = <0x1>;
+    };
+
+  - |
+    reboot {
+        compatible = "google,gs101-reboot";
     };

@@ -10,6 +10,33 @@
 
 #include <uapi/linux/devlink.h>
 
+/* Sparse enums validation callbacks */
+static int
+devlink_attr_param_type_validate(const struct nlattr *attr,
+				 struct netlink_ext_ack *extack)
+{
+	switch (nla_get_u8(attr)) {
+	case DEVLINK_VAR_ATTR_TYPE_U8:
+		fallthrough;
+	case DEVLINK_VAR_ATTR_TYPE_U16:
+		fallthrough;
+	case DEVLINK_VAR_ATTR_TYPE_U32:
+		fallthrough;
+	case DEVLINK_VAR_ATTR_TYPE_U64:
+		fallthrough;
+	case DEVLINK_VAR_ATTR_TYPE_STRING:
+		fallthrough;
+	case DEVLINK_VAR_ATTR_TYPE_FLAG:
+		fallthrough;
+	case DEVLINK_VAR_ATTR_TYPE_NUL_STRING:
+		fallthrough;
+	case DEVLINK_VAR_ATTR_TYPE_BINARY:
+		return 0;
+	}
+	NL_SET_ERR_MSG_ATTR(extack, attr, "invalid enum value");
+	return -EINVAL;
+}
+
 /* Common nested types */
 const struct nla_policy devlink_dl_port_function_nl_policy[DEVLINK_PORT_FN_ATTR_CAPS + 1] = {
 	[DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR] = { .type = NLA_BINARY, },
@@ -273,7 +300,7 @@ static const struct nla_policy devlink_param_set_nl_policy[DEVLINK_ATTR_PARAM_VA
 	[DEVLINK_ATTR_BUS_NAME] = { .type = NLA_NUL_STRING, },
 	[DEVLINK_ATTR_DEV_NAME] = { .type = NLA_NUL_STRING, },
 	[DEVLINK_ATTR_PARAM_NAME] = { .type = NLA_NUL_STRING, },
-	[DEVLINK_ATTR_PARAM_TYPE] = { .type = NLA_U8, },
+	[DEVLINK_ATTR_PARAM_TYPE] = NLA_POLICY_VALIDATE_FN(NLA_U8, &devlink_attr_param_type_validate),
 	[DEVLINK_ATTR_PARAM_VALUE_CMODE] = NLA_POLICY_MAX(NLA_U8, 2),
 };
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018, 2025 Intel Corporation
  *****************************************************************************/
 
 #include <linux/slab.h>
@@ -2097,7 +2097,8 @@ static ssize_t iwl_dbgfs_protection_mode_read(struct file *file,
 	char buf[40];
 	const size_t bufsz = sizeof(buf);
 
-	if (priv->cfg->ht_params)
+	/* HT devices also have at least one HT40 band */
+	if (priv->cfg->ht_params.ht40_bands)
 		pos += scnprintf(buf + pos, bufsz - pos,
 			 "use %s for aggregation\n",
 			 (priv->hw_params.use_rts_for_aggregation) ?
@@ -2117,7 +2118,8 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	int buf_size;
 	int rts;
 
-	if (!priv->cfg->ht_params)
+	/* HT devices also have at least one HT40 band */
+	if (!priv->cfg->ht_params.ht40_bands)
 		return -EINVAL;
 
 	memset(buf, 0, sizeof(buf));

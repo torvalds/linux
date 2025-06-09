@@ -114,11 +114,14 @@ static int __rtw89_ops_add_iface_link(struct rtw89_dev *rtwdev,
 	wiphy_work_init(&rtwvif_link->update_beacon_work, rtw89_core_update_beacon_work);
 	INIT_LIST_HEAD(&rtwvif_link->general_pkt_list);
 
+	rtw89_p2p_noa_once_init(rtwvif_link);
+
 	rtwvif_link->hit_rule = 0;
 	rtwvif_link->bcn_hit_cond = 0;
 	rtwvif_link->chanctx_assigned = false;
 	rtwvif_link->chanctx_idx = RTW89_CHANCTX_0;
 	rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+	rtwvif_link->rand_tsf_done = false;
 
 	rcu_read_lock();
 
@@ -141,6 +144,8 @@ static void __rtw89_ops_remove_iface_link(struct rtw89_dev *rtwdev,
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	wiphy_work_cancel(rtwdev->hw->wiphy, &rtwvif_link->update_beacon_work);
+
+	rtw89_p2p_noa_once_deinit(rtwvif_link);
 
 	rtw89_leave_ps_mode(rtwdev);
 
@@ -186,6 +191,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	if (!rtw89_rtwvif_in_list(rtwdev, rtwvif)) {
 		list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
 		INIT_LIST_HEAD(&rtwvif->mgnt_entry);
+		INIT_LIST_HEAD(&rtwvif->dlink_pool);
 	}
 
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
@@ -479,6 +485,8 @@ static int __rtw89_ops_sta_add(struct rtw89_dev *rtwdev,
 	int i;
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
+		rtwvif->mlo_mode = RTW89_MLO_MODE_MLSR;
+
 		/* for station mode, assign the mac_id from itself */
 		macid = rtw89_vif_get_main_macid(rtwvif);
 	} else {
@@ -493,6 +501,8 @@ static int __rtw89_ops_sta_add(struct rtw89_dev *rtwdev,
 
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		rtw89_core_txq_init(rtwdev, sta->txq[i]);
+
+	INIT_LIST_HEAD(&rtwsta->dlink_pool);
 
 	skb_queue_head_init(&rtwsta->roc_queue);
 	bitmap_zero(rtwsta->pairwise_sec_cam_map, RTW89_MAX_SEC_CAM_NUM);
@@ -1018,7 +1028,7 @@ static void rtw89_ops_sta_statistics(struct ieee80211_hw *hw,
 	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
 	struct rtw89_sta_link *rtwsta_link;
 
-	rtwsta_link = rtw89_sta_get_link_inst(rtwsta, 0);
+	rtwsta_link = rtw89_get_designated_link(rtwsta);
 	if (unlikely(!rtwsta_link))
 		return;
 
@@ -1153,11 +1163,13 @@ static void rtw89_ops_sw_scan_start(struct ieee80211_hw *hw,
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "sw scan start: find no link on HW-0\n");
+		rtw89_err(rtwdev, "sw scan start: find no designated link\n");
 		return;
 	}
+
+	rtw89_leave_lps(rtwdev);
 
 	rtw89_core_scan_start(rtwdev, rtwvif_link, mac_addr, false);
 }
@@ -1171,9 +1183,9 @@ static void rtw89_ops_sw_scan_complete(struct ieee80211_hw *hw,
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "sw scan complete: find no link on HW-0\n");
+		rtw89_err(rtwdev, "sw scan complete: find no designated link\n");
 		return;
 	}
 
@@ -1205,13 +1217,19 @@ static int rtw89_ops_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (rtwdev->scanning || rtwvif->offchan)
 		return -EBUSY;
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "hw scan: find no link on HW-0\n");
+		rtw89_err(rtwdev, "hw scan: find no designated link\n");
 		return -ENOLINK;
 	}
 
-	rtw89_hw_scan_start(rtwdev, rtwvif_link, req);
+	rtw89_leave_lps(rtwdev);
+	rtw89_leave_ips_by_hwflags(rtwdev);
+
+	ret = rtw89_hw_scan_start(rtwdev, rtwvif_link, req);
+	if (ret)
+		return ret;
+
 	ret = rtw89_hw_scan_offload(rtwdev, rtwvif_link, true);
 	if (ret) {
 		rtw89_hw_scan_abort(rtwdev, rtwvif_link);
@@ -1236,9 +1254,9 @@ static void rtw89_ops_cancel_hw_scan(struct ieee80211_hw *hw,
 	if (!rtwdev->scanning)
 		return;
 
-	rtwvif_link = rtw89_vif_get_link_inst(rtwvif, 0);
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
 	if (unlikely(!rtwvif_link)) {
-		rtw89_err(rtwdev, "cancel hw scan: find no link on HW-0\n");
+		rtw89_err(rtwdev, "cancel hw scan: find no designated link\n");
 		return;
 	}
 

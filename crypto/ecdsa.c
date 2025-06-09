@@ -167,7 +167,7 @@ static unsigned int ecdsa_key_size(struct crypto_sig *tfm)
 {
 	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
-	return DIV_ROUND_UP(ctx->curve->nbits, 8);
+	return ctx->curve->nbits;
 }
 
 static unsigned int ecdsa_digest_size(struct crypto_sig *tfm)
@@ -334,7 +334,7 @@ static void __exit ecdsa_exit(void)
 	crypto_unregister_sig(&ecdsa_nist_p521);
 }
 
-subsys_initcall(ecdsa_init);
+module_init(ecdsa_init);
 module_exit(ecdsa_exit);
 
 MODULE_LICENSE("GPL");

@@ -458,6 +458,9 @@
 	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
 			Set instructions support
 
+	arm64.nompam	[ARM64] Unconditionally disable Memory Partitioning And
+			Monitoring support
+
 	arm64.nomte	[ARM64] Unconditionally disable Memory Tagging Extension
 			support
 
@@ -1828,6 +1831,13 @@
 				lz4: Select LZ4 compression algorithm to
 				compress/decompress hibernation image.
 
+	hibernate.pm_test_delay=
+			[HIBERNATION]
+			Sets the number of seconds to remain in a hibernation test
+			mode before resuming the system (see
+			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
+			is set. Default value is 5.
+
 	highmem=nn[KMG]	[KNL,BOOT,EARLY] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
 			highmem otherwise. This also works to reduce highmem
@@ -2741,6 +2751,31 @@
 
 	kgdbwait	[KGDB,EARLY] Stop kernel execution and enter the
 			kernel debugger at the earliest opportunity.
+
+	kho=		[KEXEC,EARLY]
+			Format: { "0" | "1" | "off" | "on" | "y" | "n" }
+			Enables or disables Kexec HandOver.
+			"0" | "off" | "n" - kexec handover is disabled
+			"1" | "on" | "y" - kexec handover is enabled
+
+	kho_scratch=	[KEXEC,EARLY]
+			Format: ll[KMG],mm[KMG],nn[KMG] | nn%
+			Defines the size of the KHO scratch region. The KHO
+			scratch regions are physically contiguous memory
+			ranges that can only be used for non-kernel
+			allocations. That way, even when memory is heavily
+			fragmented with handed over memory, the kexeced
+			kernel will always have enough contiguous ranges to
+			bootstrap itself.
+
+			It is possible to specify the exact amount of
+			memory in the form of "ll[KMG],mm[KMG],nn[KMG]"
+			where the first parameter defines the size of a low
+			memory scratch area, the second parameter defines
+			the size of a global scratch area and the third
+			parameter defines the size of additional per-node
+			scratch areas.  The form "nn%" defines scale factor
+			(in percents) of memory that was used during boot.
 
 	kmac=		[MIPS] Korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
@@ -5672,6 +5707,31 @@
 			are zero, rcutorture acts as if is interpreted
 			they are all non-zero.
 
+	rcutorture.gpwrap_lag= [KNL]
+			Enable grace-period wrap lag testing. Setting
+			to false prevents the gpwrap lag test from
+			running. Default is true.
+
+	rcutorture.gpwrap_lag_gps= [KNL]
+			Set the value for grace-period wrap lag during
+			active lag testing periods. This controls how many
+			grace periods differences we tolerate between
+			rdp and rnp's gp_seq before setting overflow flag.
+			The default is always set to 8.
+
+	rcutorture.gpwrap_lag_cycle_mins= [KNL]
+			Set the total cycle duration for gpwrap lag
+			testing in minutes. This is the total time for
+			one complete cycle of active and inactive
+			testing periods. Default is 30 minutes.
+
+	rcutorture.gpwrap_lag_active_mins= [KNL]
+			Set the duration for which gpwrap lag is active
+			within each cycle, in minutes. During this time,
+			the grace-period wrap lag will be set to the
+			value specified by gpwrap_lag_gps. Default is
+			5 minutes.
+
 	rcutorture.irqreader= [KNL]
 			Run RCU readers from irq handlers, or, more
 			accurately, from a timer handler.  Not all RCU
@@ -6268,7 +6328,7 @@
 			port and the regular usb controller gets disabled.
 
 	root=		[KNL] Root filesystem
-			Usually this a a block device specifier of some kind,
+			Usually this is a block device specifier of some kind,
 			see the early_lookup_bdev comment in
 			block/early-lookup.c for details.
 			Alternatively this can be "ram" for the legacy initial
@@ -6294,6 +6354,11 @@
 			[KNL,ARM,CMA] Remoteproc physical memory block.
 			Memory area to be used by remote processor image,
 			managed by CMA.
+
+	rt_group_sched=	[KNL] Enable or disable SCHED_RR/FIFO group scheduling
+			when CONFIG_RT_GROUP_SCHED=y. Defaults to
+			!CONFIG_RT_GROUP_SCHED_DEFAULT_DISABLED.
+			Format: <bool>
 
 	rw		[KNL] Mount root device read-write on boot
 

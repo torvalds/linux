@@ -27,3 +27,11 @@ Description:	Writing to this will drop compression-related caches,
 		- 1 : invalidate cached compressed folios
 		- 2 : drop in-memory pclusters
 		- 3 : drop in-memory pclusters and cached compressed folios
+
+What:		/sys/fs/erofs/accel
+Date:		May 2025
+Contact:	"Bo Liu" <liubo03@inspur.com>
+Description:	Used to set or show hardware accelerators in effect
+		and multiple accelerators are separated by '\n'.
+		Supported accelerator(s): qat_deflate.
+		Disable all accelerators with an empty string (echo > accel).

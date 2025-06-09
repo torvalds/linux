@@ -13,12 +13,14 @@
 
 #define SHA256_DIGEST_SIZE      32
 #define SHA256_BLOCK_SIZE       64
+#define SHA256_STATE_WORDS      8
 
 #define SHA384_DIGEST_SIZE      48
 #define SHA384_BLOCK_SIZE       128
 
 #define SHA512_DIGEST_SIZE      64
 #define SHA512_BLOCK_SIZE       128
+#define SHA512_STATE_SIZE       80
 
 #define SHA224_H0	0xc1059ed8UL
 #define SHA224_H1	0x367cd507UL
@@ -64,9 +66,19 @@ extern const u8 sha384_zero_message_hash[SHA384_DIGEST_SIZE];
 
 extern const u8 sha512_zero_message_hash[SHA512_DIGEST_SIZE];
 
-struct sha256_state {
-	u32 state[SHA256_DIGEST_SIZE / 4];
+struct crypto_sha256_state {
+	u32 state[SHA256_STATE_WORDS];
 	u64 count;
+};
+
+struct sha256_state {
+	union {
+		struct crypto_sha256_state ctx;
+		struct {
+			u32 state[SHA256_STATE_WORDS];
+			u64 count;
+		};
+	};
 	u8 buf[SHA256_BLOCK_SIZE];
 };
 
@@ -76,31 +88,7 @@ struct sha512_state {
 	u8 buf[SHA512_BLOCK_SIZE];
 };
 
-struct shash_desc;
-
-extern int crypto_sha256_update(struct shash_desc *desc, const u8 *data,
-			      unsigned int len);
-
-extern int crypto_sha256_finup(struct shash_desc *desc, const u8 *data,
-			       unsigned int len, u8 *hash);
-
-extern int crypto_sha512_update(struct shash_desc *desc, const u8 *data,
-			      unsigned int len);
-
-extern int crypto_sha512_finup(struct shash_desc *desc, const u8 *data,
-			       unsigned int len, u8 *hash);
-
-/*
- * Stand-alone implementation of the SHA256 algorithm. It is designed to
- * have as little dependencies as possible so it can be used in the
- * kexec_file purgatory. In other cases you should generally use the
- * hash APIs from include/crypto/hash.h. Especially when hashing large
- * amounts of data as those APIs may be hw-accelerated.
- *
- * For details see lib/crypto/sha256.c
- */
-
-static inline void sha256_init(struct sha256_state *sctx)
+static inline void sha256_block_init(struct crypto_sha256_state *sctx)
 {
 	sctx->state[0] = SHA256_H0;
 	sctx->state[1] = SHA256_H1;
@@ -112,11 +100,16 @@ static inline void sha256_init(struct sha256_state *sctx)
 	sctx->state[7] = SHA256_H7;
 	sctx->count = 0;
 }
-void sha256_update(struct sha256_state *sctx, const u8 *data, unsigned int len);
-void sha256_final(struct sha256_state *sctx, u8 *out);
-void sha256(const u8 *data, unsigned int len, u8 *out);
 
-static inline void sha224_init(struct sha256_state *sctx)
+static inline void sha256_init(struct sha256_state *sctx)
+{
+	sha256_block_init(&sctx->ctx);
+}
+void sha256_update(struct sha256_state *sctx, const u8 *data, size_t len);
+void sha256_final(struct sha256_state *sctx, u8 out[SHA256_DIGEST_SIZE]);
+void sha256(const u8 *data, size_t len, u8 out[SHA256_DIGEST_SIZE]);
+
+static inline void sha224_block_init(struct crypto_sha256_state *sctx)
 {
 	sctx->state[0] = SHA224_H0;
 	sctx->state[1] = SHA224_H1;
@@ -128,7 +121,12 @@ static inline void sha224_init(struct sha256_state *sctx)
 	sctx->state[7] = SHA224_H7;
 	sctx->count = 0;
 }
+
+static inline void sha224_init(struct sha256_state *sctx)
+{
+	sha224_block_init(&sctx->ctx);
+}
 /* Simply use sha256_update as it is equivalent to sha224_update. */
-void sha224_final(struct sha256_state *sctx, u8 *out);
+void sha224_final(struct sha256_state *sctx, u8 out[SHA224_DIGEST_SIZE]);
 
 #endif /* _CRYPTO_SHA2_H */

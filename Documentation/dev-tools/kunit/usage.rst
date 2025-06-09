@@ -670,28 +670,50 @@ with ``kunit_remove_action``.
 Testing Static Functions
 ------------------------
 
-If we do not want to expose functions or variables for testing, one option is to
-conditionally export the used symbol. For example:
+If you want to test static functions without exposing those functions outside of
+testing, one option is conditionally export the symbol. When KUnit is enabled,
+the symbol is exposed but remains static otherwise. To use this method, follow
+the template below.
 
 .. code-block:: c
 
-	/* In my_file.c */
+	/* In the file containing functions to test "my_file.c" */
 
-	VISIBLE_IF_KUNIT int do_interesting_thing();
+	#include <kunit/visibility.h>
+	#include <my_file.h>
+	...
+	VISIBLE_IF_KUNIT int do_interesting_thing()
+	{
+	...
+	}
 	EXPORT_SYMBOL_IF_KUNIT(do_interesting_thing);
 
-	/* In my_file.h */
+	/* In the header file "my_file.h" */
 
 	#if IS_ENABLED(CONFIG_KUNIT)
 		int do_interesting_thing(void);
 	#endif
 
-Alternatively, you could conditionally ``#include`` the test file at the end of
-your .c file. For example:
+	/* In the KUnit test file "my_file_test.c" */
+
+	#include <kunit/visibility.h>
+	#include <my_file.h>
+	...
+	MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+	...
+	// Use do_interesting_thing() in tests
+
+For a full example, see this `patch <https://lore.kernel.org/all/20221207014024.340230-3-rmoar@google.com/>`_
+where a test is modified to conditionally expose static functions for testing
+using the macros above.
+
+As an **alternative** to the method above, you could conditionally ``#include``
+the test file at the end of your .c file. This is not recommended but works
+if needed. For example:
 
 .. code-block:: c
 
-	/* In my_file.c */
+	/* In "my_file.c" */
 
 	static int do_interesting_thing();
 

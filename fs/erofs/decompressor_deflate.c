@@ -97,8 +97,8 @@ failed:
 	return -ENOMEM;
 }
 
-static int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
-				      struct page **pgpl)
+static int __z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
+					struct page **pgpl)
 {
 	struct super_block *sb = rq->sb;
 	struct z_erofs_stream_dctx dctx = { .rq = rq, .no = -1, .ni = 0 };
@@ -176,6 +176,22 @@ failed_zinit:
 	spin_unlock(&z_erofs_deflate_lock);
 	wake_up(&z_erofs_deflate_wq);
 	return err;
+}
+
+static int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
+				      struct page **pgpl)
+{
+#ifdef CONFIG_EROFS_FS_ZIP_ACCEL
+	int err;
+
+	if (!rq->partial_decoding) {
+		err = z_erofs_crypto_decompress(rq, pgpl);
+		if (err != -EOPNOTSUPP)
+			return err;
+
+	}
+#endif
+	return __z_erofs_deflate_decompress(rq, pgpl);
 }
 
 const struct z_erofs_decompressor z_erofs_deflate_decomp = {

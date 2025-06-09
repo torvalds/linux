@@ -961,9 +961,9 @@ static int dw100_s_selection(struct file *file, void *fh,
 	src_q_data = dw100_get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
 
 	dev_dbg(&ctx->dw_dev->pdev->dev,
-		">>> Buffer Type: %u Target: %u Rect: %ux%u@%d.%d\n",
+		">>> Buffer Type: %u Target: %u Rect: (%d,%d)/%ux%u\n",
 		sel->type, sel->target,
-		sel->r.width, sel->r.height, sel->r.left, sel->r.top);
+		sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
@@ -1025,9 +1025,9 @@ static int dw100_s_selection(struct file *file, void *fh,
 	}
 
 	dev_dbg(&ctx->dw_dev->pdev->dev,
-		"<<< Buffer Type: %u Target: %u Rect: %ux%u@%d.%d\n",
+		"<<< Buffer Type: %u Target: %u Rect: (%d,%d)/%ux%u\n",
 		sel->type, sel->target,
-		sel->r.width, sel->r.height, sel->r.left, sel->r.top);
+		sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 
 	return 0;
 }

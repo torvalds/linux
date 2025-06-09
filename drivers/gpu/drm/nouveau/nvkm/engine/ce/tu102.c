@@ -40,7 +40,7 @@ tu102_ce_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	     struct nvkm_engine **pengine)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return r535_ce_new(&tu102_ce, device, type, inst, pengine);
+		return -ENODEV;
 
 	return nvkm_engine_new_(&tu102_ce, device, type, inst, true, pengine);
 }

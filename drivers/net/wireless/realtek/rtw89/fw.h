@@ -199,6 +199,7 @@ enum rtw89_fw_log_comp {
 	RTW89_FW_LOG_COMP_TWT,
 	RTW89_FW_LOG_COMP_RF,
 	RTW89_FW_LOG_COMP_MCC = 20,
+	RTW89_FW_LOG_COMP_MLO = 26,
 	RTW89_FW_LOG_COMP_SCAN = 28,
 };
 
@@ -333,9 +334,9 @@ struct rtw89_fw_macid_pause_sleep_grp {
 #define RTW89_SCAN_LIST_LIMIT_AX RTW89_SCAN_LIST_LIMIT(RTW89_MAC_CHINFO_SIZE)
 #define RTW89_SCAN_LIST_LIMIT_BE RTW89_SCAN_LIST_LIMIT(RTW89_MAC_CHINFO_SIZE_BE)
 
-#define RTW89_BCN_LOSS_CNT 10
+#define RTW89_BCN_LOSS_CNT 60
 
-struct rtw89_mac_chinfo {
+struct rtw89_mac_chinfo_ax {
 	u8 period;
 	u8 dwell_time;
 	u8 central_ch;
@@ -1636,6 +1637,8 @@ struct rtw89_h2c_join_v1 {
 #define RTW89_H2C_JOININFO_W1_IS_MLD BIT(3)
 #define RTW89_H2C_JOININFO_W1_MAIN_MACID GENMASK(11, 4)
 #define RTW89_H2C_JOININFO_W1_MLO_MODE BIT(12)
+#define RTW89_H2C_JOININFO_MLO_MODE_MLMR 0
+#define RTW89_H2C_JOININFO_MLO_MODE_MLSR 1
 #define RTW89_H2C_JOININFO_W1_EMLSR_CAB BIT(13)
 #define RTW89_H2C_JOININFO_W1_NSTR_EN BIT(14)
 #define RTW89_H2C_JOININFO_W1_INIT_PWR_STATE BIT(15)
@@ -2863,6 +2866,13 @@ struct rtw89_h2c_fwips {
 #define RTW89_H2C_FW_IPS_W0_MACID GENMASK(7, 0)
 #define RTW89_H2C_FW_IPS_W0_ENABLE BIT(8)
 
+struct rtw89_h2c_mlo_link_cfg {
+	__le32 w0;
+};
+
+#define RTW89_H2C_MLO_LINK_CFG_W0_MACID GENMASK(15, 0)
+#define RTW89_H2C_MLO_LINK_CFG_W0_OPTION GENMASK(19, 16)
+
 static inline void RTW89_SET_FWCMD_P2P_MACID(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)cmd, val, GENMASK(7, 0));
@@ -3562,6 +3572,7 @@ struct rtw89_c2h_done_ack {
 #define RTW89_C2H_DONE_ACK_W2_CLASS GENMASK(7, 2)
 #define RTW89_C2H_DONE_ACK_W2_FUNC GENMASK(15, 8)
 #define RTW89_C2H_DONE_ACK_W2_H2C_RETURN GENMASK(23, 16)
+#define	RTW89_C2H_SCAN_DONE_ACK_RETURN GENMASK(5, 0)
 #define RTW89_C2H_DONE_ACK_W2_H2C_SEQ GENMASK(31, 24)
 
 #define RTW89_GET_MAC_C2H_REV_ACK_CAT(c2h) \
@@ -3619,6 +3630,19 @@ struct rtw89_c2h_ra_rpt {
 #define RTW89_C2H_RA_RPT_W3_BW GENMASK(14, 13)
 #define RTW89_C2H_RA_RPT_W3_MD_SEL_B2 BIT(15)
 #define RTW89_C2H_RA_RPT_W3_BW_B2 BIT(16)
+
+struct rtw89_c2h_fw_scan_rpt {
+	struct rtw89_c2h_hdr hdr;
+	u8 phy_idx;
+	u8 band;
+	u8 center_ch;
+	u8 ofdm_pd_idx; /* in unit of 2 dBm */
+#define PD_LOWER_BOUND_BASE 102
+	s8 cck_pd_idx;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+} __packed;
 
 /* For WiFi 6 chips:
  *   VHT, HE, HT-old: [6:4]: NSS, [3:0]: MCS
@@ -3717,6 +3741,25 @@ static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE)
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_HIGH(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 4), GENMASK(31, 0))
 
+struct rtw89_c2h_mlo_link_cfg_rpt {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_MLO_LINK_CFG_RPT_W2_MACID GENMASK(15, 0)
+#define RTW89_C2H_MLO_LINK_CFG_RPT_W2_STATUS GENMASK(19, 16)
+
+enum rtw89_c2h_mlo_link_status {
+	RTW89_C2H_MLO_LINK_CFG_IDLE = 0,
+	RTW89_C2H_MLO_LINK_CFG_DONE = 1,
+	RTW89_C2H_MLO_LINK_CFG_ISSUE_NULL_FAIL = 2,
+	RTW89_C2H_MLO_LINK_CFG_TX_NULL_FAIL = 3,
+	RTW89_C2H_MLO_LINK_CFG_ROLE_NOT_EXIST = 4,
+	RTW89_C2H_MLO_LINK_CFG_NULL_1_TIMEOUT = 5,
+	RTW89_C2H_MLO_LINK_CFG_NULL_0_TIMEOUT = 6,
+	RTW89_C2H_MLO_LINK_CFG_RUNNING = 0xff,
+};
+
 struct rtw89_mac_mrc_tsf_rpt {
 	unsigned int num;
 	u64 tsfs[RTW89_MAC_MRC_MAX_REQ_TSF_NUM];
@@ -3813,7 +3856,8 @@ struct rtw89_h2c_bcnfltr {
 #define RTW89_H2C_BCNFLTR_W0_MON_BCN BIT(1)
 #define RTW89_H2C_BCNFLTR_W0_MON_EN BIT(2)
 #define RTW89_H2C_BCNFLTR_W0_MODE GENMASK(4, 3)
-#define RTW89_H2C_BCNFLTR_W0_BCN_LOSS_CNT GENMASK(11, 8)
+#define RTW89_H2C_BCNFLTR_W0_BCN_LOSS_CNT_H3 GENMASK(7, 5)
+#define RTW89_H2C_BCNFLTR_W0_BCN_LOSS_CNT_L4 GENMASK(11, 8)
 #define RTW89_H2C_BCNFLTR_W0_RSSI_HYST GENMASK(15, 12)
 #define RTW89_H2C_BCNFLTR_W0_RSSI_THRESHOLD GENMASK(23, 16)
 #define RTW89_H2C_BCNFLTR_W0_MAC_ID GENMASK(31, 24)
@@ -3891,6 +3935,12 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_TXPWR_TRK = 18,
 	RTW89_FW_ELEMENT_ID_RFKLOG_FMT = 19,
 	RTW89_FW_ELEMENT_ID_REGD = 20,
+	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_2GHZ = 21,
+	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_5GHZ = 22,
+	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_6GHZ = 23,
+	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_2GHZ = 24,
+	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_5GHZ = 25,
+	RTW89_FW_ELEMENT_ID_TXPWR_DA_LMT_RU_6GHZ = 26,
 
 	RTW89_FW_ELEMENT_ID_NUM,
 };
@@ -4228,6 +4278,26 @@ enum rtw89_mcc_h2c_func {
 
 #define RTW89_MCC_WAIT_COND(group, func) \
 	((group) * NUM_OF_RTW89_MCC_H2C_FUNC + (func))
+
+/* CLASS 20 - MLO */
+#define H2C_CL_MLO                     0x14
+enum rtw89_mlo_h2c_func {
+	H2C_FUNC_MLO_TBL_CFG		= 0x0,
+	H2C_FUNC_MLO_STA_CFG		= 0x1,
+	H2C_FUNC_MLO_TTLM		= 0x2,
+	H2C_FUNC_MLO_DM_CFG		= 0x3,
+	H2C_FUNC_MLO_EMLSR_STA_CFG	= 0x4,
+	H2C_FUNC_MLO_MCMLO_RELINK_DROP	= 0x5,
+	H2C_FUNC_MLO_MCMLO_SN_SYNC	= 0x6,
+	H2C_FUNC_MLO_RELINK		= 0x7,
+	H2C_FUNC_MLO_LINK_CFG		= 0x8,
+	H2C_FUNC_MLO_DM_DBG		= 0x9,
+
+	NUM_OF_RTW89_MLO_H2C_FUNC,
+};
+
+#define RTW89_MLO_WAIT_COND(macid, func) \
+	((macid) * NUM_OF_RTW89_MLO_H2C_FUNC + (func))
 
 /* CLASS 24 - MRC */
 #define H2C_CL_MRC			0x18
@@ -4715,9 +4785,9 @@ int rtw89_fw_msg_reg(struct rtw89_dev *rtwdev,
 		     struct rtw89_mac_c2h_info *c2h_info);
 int rtw89_fw_h2c_fw_log(struct rtw89_dev *rtwdev, bool enable);
 void rtw89_fw_st_dbg_dump(struct rtw89_dev *rtwdev);
-void rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
-			 struct rtw89_vif_link *rtwvif_link,
-			 struct ieee80211_scan_request *scan_req);
+int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
+			struct rtw89_vif_link *rtwvif_link,
+			struct ieee80211_scan_request *scan_req);
 void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev,
 			    struct rtw89_vif_link *rtwvif_link,
 			    bool aborted);
@@ -4726,12 +4796,18 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev,
 			  bool enable);
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev,
 			 struct rtw89_vif_link *rtwvif_link);
+int rtw89_hw_scan_prep_chan_list_ax(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif_link *rtwvif_link);
+void rtw89_hw_scan_free_chan_list_ax(struct rtw89_dev *rtwdev);
 int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif_link *rtwvif_link, bool connected);
+				   struct rtw89_vif_link *rtwvif_link);
 int rtw89_pno_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link);
+int rtw89_hw_scan_prep_chan_list_be(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif_link *rtwvif_link);
+void rtw89_hw_scan_free_chan_list_be(struct rtw89_dev *rtwdev);
 int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif_link *rtwvif_link, bool connected);
+				   struct rtw89_vif_link *rtwvif_link);
 int rtw89_pno_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link);
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);
@@ -4800,6 +4876,8 @@ int rtw89_fw_h2c_mrc_sync(struct rtw89_dev *rtwdev,
 int rtw89_fw_h2c_mrc_upd_duration(struct rtw89_dev *rtwdev,
 				  const struct rtw89_fw_mrc_upd_duration_arg *arg);
 int rtw89_fw_h2c_ap_info_refcount(struct rtw89_dev *rtwdev, bool en);
+int rtw89_fw_h2c_mlo_link_cfg(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
+			      bool enable);
 
 static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {

@@ -1129,6 +1129,8 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 		nfs4_schedule_session_recovery(clp->cl_session, task->tk_status);
 		break;
 	case -NFS4ERR_DELAY:
+		nfs_inc_stats(lseg->pls_layout->plh_inode, NFSIOS_DELAY);
+		fallthrough;
 	case -NFS4ERR_GRACE:
 		rpc_delay(task, FF_LAYOUT_POLL_RETRY_MAX);
 		break;

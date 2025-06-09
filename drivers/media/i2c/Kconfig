@@ -217,6 +217,7 @@ config VIDEO_IMX319
 config VIDEO_IMX334
 	tristate "Sony IMX334 sensor support"
 	depends on OF_GPIO
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX334 camera.
@@ -355,6 +356,26 @@ config VIDEO_OV02A10
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov02a10.
+
+config VIDEO_OV02E10
+	tristate "OmniVision OV02E10 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV02E10 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov02e10.
+
+config VIDEO_OV02C10
+	tristate "OmniVision OV02C10 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV02C10 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov02c10.
 
 config VIDEO_OV08D10
         tristate "OmniVision OV08D10 sensor support"
@@ -690,6 +711,28 @@ config VIDEO_S5K6A3
 	help
 	  This is a V4L2 sensor driver for Samsung S5K6A3 raw
 	  camera sensor.
+
+config VIDEO_VD55G1
+	tristate "ST VD55G1 sensor support"
+	select V4L2_CCI_I2C
+	depends on GPIOLIB
+	help
+	  This is a Video4Linux2 sensor driver for the ST VD55G1
+	  camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vd55g1.
+
+config VIDEO_VD56G3
+	tristate "ST VD56G3 sensor support"
+	select V4L2_CCI_I2C
+	depends on GPIOLIB
+	help
+	  This is a Video4Linux2 sensor driver for the ST VD56G3
+	  camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vd56g3.
 
 config VIDEO_VGXY61
 	tristate "ST VGXY61 sensor support"

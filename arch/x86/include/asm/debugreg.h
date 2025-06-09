@@ -23,7 +23,7 @@ DECLARE_PER_CPU(unsigned long, cpu_dr7);
 
 static __always_inline unsigned long native_get_debugreg(int regno)
 {
-	unsigned long val = 0;	/* Damn you, gcc! */
+	unsigned long val;
 
 	switch (regno) {
 	case 0:
@@ -43,7 +43,7 @@ static __always_inline unsigned long native_get_debugreg(int regno)
 		break;
 	case 7:
 		/*
-		 * Apply __FORCE_ORDER to DR7 reads to forbid re-ordering them
+		 * Use "asm volatile" for DR7 reads to forbid re-ordering them
 		 * with other code.
 		 *
 		 * This is needed because a DR7 access can cause a #VC exception
@@ -55,7 +55,7 @@ static __always_inline unsigned long native_get_debugreg(int regno)
 		 * re-ordered to happen before the call to sev_es_ist_enter(),
 		 * causing stack recursion.
 		 */
-		asm volatile("mov %%db7, %0" : "=r" (val) : __FORCE_ORDER);
+		asm volatile("mov %%db7, %0" : "=r" (val));
 		break;
 	default:
 		BUG();
@@ -83,15 +83,15 @@ static __always_inline void native_set_debugreg(int regno, unsigned long value)
 		break;
 	case 7:
 		/*
-		 * Apply __FORCE_ORDER to DR7 writes to forbid re-ordering them
+		 * Use "asm volatile" for DR7 writes to forbid re-ordering them
 		 * with other code.
 		 *
 		 * While is didn't happen with a DR7 write (see the DR7 read
 		 * comment above which explains where it happened), add the
-		 * __FORCE_ORDER here too to avoid similar problems in the
+		 * "asm volatile" here too to avoid similar problems in the
 		 * future.
 		 */
-		asm volatile("mov %0, %%db7"	::"r" (value), __FORCE_ORDER);
+		asm volatile("mov %0, %%db7"	::"r" (value));
 		break;
 	default:
 		BUG();
@@ -169,7 +169,7 @@ static inline unsigned long get_debugctlmsr(void)
 	if (boot_cpu_data.x86 < 6)
 		return 0;
 #endif
-	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+	rdmsrq(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
 
 	return debugctlmsr;
 }
@@ -180,7 +180,7 @@ static inline void update_debugctlmsr(unsigned long debugctlmsr)
 	if (boot_cpu_data.x86 < 6)
 		return;
 #endif
-	wrmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+	wrmsrq(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
 }
 
 #endif /* _ASM_X86_DEBUGREG_H */

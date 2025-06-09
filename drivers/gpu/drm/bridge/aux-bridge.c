@@ -86,6 +86,7 @@ struct drm_aux_bridge_data {
 };
 
 static int drm_aux_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct drm_aux_bridge_data *data;
@@ -95,7 +96,7 @@ static int drm_aux_bridge_attach(struct drm_bridge *bridge,
 
 	data = container_of(bridge, struct drm_aux_bridge_data, bridge);
 
-	return drm_bridge_attach(bridge->encoder, data->next_bridge, bridge,
+	return drm_bridge_attach(encoder, data->next_bridge, bridge,
 				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 }
 

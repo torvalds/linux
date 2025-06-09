@@ -102,7 +102,8 @@ path_to_dentry(struct cifs_sb_info *cifs_sb, const char *path)
 		while (*s && *s != sep)
 			s++;
 
-		child = lookup_positive_unlocked(p, dentry, s - p);
+		child = lookup_noperm_positive_unlocked(&QSTR_LEN(p, s - p),
+							dentry);
 		dput(dentry);
 		dentry = child;
 	} while (!IS_ERR(dentry));
@@ -154,6 +155,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	struct cached_fids *cfids;
 	const char *npath;
 	int retries = 0, cur_sleep = 1;
+	__le32 lease_flags = 0;
 
 	if (cifs_sb->root == NULL)
 		return -ENOENT;
@@ -200,8 +202,10 @@ replay_again:
 	}
 	spin_unlock(&cfids->cfid_list_lock);
 
+	pfid = &cfid->fid;
+
 	/*
-	 * Skip any prefix paths in @path as lookup_positive_unlocked() ends up
+	 * Skip any prefix paths in @path as lookup_noperm_positive_unlocked() ends up
 	 * calling ->lookup() which already adds those through
 	 * build_path_from_dentry().  Also, do it earlier as we might reconnect
 	 * below when trying to send compounded request and then potentially
@@ -221,6 +225,25 @@ replay_again:
 			rc = -ENOENT;
 			goto out;
 		}
+		if (dentry->d_parent && server->dialect >= SMB30_PROT_ID) {
+			struct cached_fid *parent_cfid;
+
+			spin_lock(&cfids->cfid_list_lock);
+			list_for_each_entry(parent_cfid, &cfids->entries, entry) {
+				if (parent_cfid->dentry == dentry->d_parent) {
+					cifs_dbg(FYI, "found a parent cached file handle\n");
+					if (parent_cfid->has_lease && parent_cfid->time) {
+						lease_flags
+							|= SMB2_LEASE_FLAG_PARENT_LEASE_KEY_SET_LE;
+						memcpy(pfid->parent_lease_key,
+						       parent_cfid->fid.lease_key,
+						       SMB2_LEASE_KEY_SIZE);
+					}
+					break;
+				}
+			}
+			spin_unlock(&cfids->cfid_list_lock);
+		}
 	}
 	cfid->dentry = dentry;
 	cfid->tcon = tcon;
@@ -235,7 +258,6 @@ replay_again:
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	pfid = &cfid->fid;
 	server->ops->new_lease_key(pfid);
 
 	memset(rqst, 0, sizeof(rqst));
@@ -255,6 +277,7 @@ replay_again:
 				   FILE_READ_EA,
 		.disposition = FILE_OPEN,
 		.fid = pfid,
+		.lease_flags = lease_flags,
 		.replay = !!(retries),
 	};
 

@@ -230,7 +230,7 @@ Drivers must provide a pointer to the allocated and initialized new EM
 and will be visible to other sub-systems in the kernel (thermal, powercap).
 The main design goal for this API is to be fast and avoid extra calculations
 or memory allocations at runtime. When pre-computed EMs are available in the
-device driver, than it should be possible to simply re-use them with low
+device driver, then it should be possible to simply reuse them with low
 performance overhead.
 
 In order to free the EM, provided earlier by the driver (e.g. when the module
@@ -381,17 +381,17 @@ up periodically to check the temperature and modify the EM data::
   26		rcu_read_unlock();
   27
   28		/* Calculate 'cost' values for EAS */
-  29		ret = em_dev_compute_costs(dev, table, pd->nr_perf_states);
+  29		ret = em_dev_compute_costs(dev, new_table, pd->nr_perf_states);
   30		if (ret) {
   31			dev_warn(dev, "EM: compute costs failed %d\n", ret);
-  32			em_free_table(em_table);
+  32			em_table_free(em_table);
   33			return;
   34		}
   35
   36		ret = em_dev_update_perf_domain(dev, em_table);
   37		if (ret) {
   38			dev_warn(dev, "EM: update failed %d\n", ret);
-  39			em_free_table(em_table);
+  39			em_table_free(em_table);
   40			return;
   41		}
   42

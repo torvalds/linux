@@ -240,7 +240,7 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 	atomic = access_is_atomic(pf->access_type);
 
 	if (xe_vma_is_cpu_addr_mirror(vma))
-		err = xe_svm_handle_pagefault(vm, vma, gt_to_tile(gt),
+		err = xe_svm_handle_pagefault(vm, vma, gt,
 					      pf->page_addr, atomic);
 	else
 		err = handle_vma_pagefault(gt, vma, atomic);

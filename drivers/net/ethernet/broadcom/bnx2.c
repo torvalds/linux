@@ -6163,7 +6163,7 @@ bnx2_5708_serdes_timer(struct bnx2 *bp)
 static void
 bnx2_timer(struct timer_list *t)
 {
-	struct bnx2 *bp = from_timer(bp, t, timer);
+	struct bnx2 *bp = timer_container_of(bp, t, timer);
 
 	if (!netif_running(bp->dev))
 		return;

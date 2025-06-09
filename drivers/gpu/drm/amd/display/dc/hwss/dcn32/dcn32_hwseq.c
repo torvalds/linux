@@ -1181,6 +1181,7 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	unsigned int odm_combine_factor = 0;
 	bool two_pix_per_container = false;
+	struct dce_hwseq *hws = stream->ctx->dc->hwseq;
 
 	two_pix_per_container = pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
@@ -1201,7 +1202,8 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 		} else {
 			*k1_div = PIXEL_RATE_DIV_BY_1;
 			*k2_div = PIXEL_RATE_DIV_BY_4;
-			if ((odm_combine_factor == 2) || dcn32_is_dp_dig_pixel_rate_div_policy(pipe_ctx))
+			if ((odm_combine_factor == 2) || (hws->funcs.is_dp_dig_pixel_rate_div_policy &&
+				hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx)))
 				*k2_div = PIXEL_RATE_DIV_BY_2;
 		}
 	}

@@ -674,8 +674,8 @@ static int kxcjk1013_chip_update_thresholds(struct kxcjk1013_data *data)
 	return 0;
 }
 
-static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
-						bool status)
+static int kxcjk1013_setup_interrupt(struct kxcjk1013_data *data,
+						bool status, bool is_new_data)
 {
 	const struct kx_chipset_regs *regs = data->info->regs;
 	int ret;
@@ -690,69 +690,12 @@ static int kxcjk1013_setup_any_motion_interrupt(struct kxcjk1013_data *data,
 	if (ret < 0)
 		return ret;
 
-	ret = kxcjk1013_chip_update_thresholds(data);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_smbus_read_byte_data(data->client, regs->int_ctrl1);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error reading reg_int_ctrl1\n");
-		return ret;
-	}
-
-	if (status)
-		ret |= KXCJK1013_REG_INT_CTRL1_BIT_IEN;
-	else
-		ret &= ~KXCJK1013_REG_INT_CTRL1_BIT_IEN;
-
-	ret = i2c_smbus_write_byte_data(data->client, regs->int_ctrl1, ret);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_int_ctrl1\n");
-		return ret;
-	}
-
-	ret = i2c_smbus_read_byte_data(data->client, regs->ctrl1);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error reading reg_ctrl1\n");
-		return ret;
-	}
-
-	if (status)
-		ret |= KXCJK1013_REG_CTRL1_BIT_WUFE;
-	else
-		ret &= ~KXCJK1013_REG_CTRL1_BIT_WUFE;
-
-	ret = i2c_smbus_write_byte_data(data->client, regs->ctrl1, ret);
-	if (ret < 0) {
-		dev_err(&data->client->dev, "Error writing reg_ctrl1\n");
-		return ret;
-	}
-
-	if (store_mode == OPERATION) {
-		ret = kxcjk1013_set_mode(data, OPERATION);
+	if (is_new_data == true) {
+		ret = kxcjk1013_chip_update_thresholds(data);
 		if (ret < 0)
 			return ret;
 	}
 
-	return 0;
-}
-
-static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
-					      bool status)
-{
-	const struct kx_chipset_regs *regs = data->info->regs;
-	int ret;
-	enum kxcjk1013_mode store_mode;
-
-	ret = kxcjk1013_get_mode(data, &store_mode);
-	if (ret < 0)
-		return ret;
-
-	/* This is requirement by spec to change state to STANDBY */
-	ret = kxcjk1013_set_mode(data, STANDBY);
-	if (ret < 0)
-		return ret;
-
 	ret = i2c_smbus_read_byte_data(data->client, regs->int_ctrl1);
 	if (ret < 0) {
 		dev_err(&data->client->dev, "Error reading reg_int_ctrl1\n");
@@ -776,10 +719,17 @@ static int kxcjk1013_setup_new_data_interrupt(struct kxcjk1013_data *data,
 		return ret;
 	}
 
-	if (status)
-		ret |= KXCJK1013_REG_CTRL1_BIT_DRDY;
-	else
-		ret &= ~KXCJK1013_REG_CTRL1_BIT_DRDY;
+	if (is_new_data) {
+		if (status)
+			ret |= KXCJK1013_REG_CTRL1_BIT_DRDY;
+		else
+			ret &= ~KXCJK1013_REG_CTRL1_BIT_DRDY;
+	} else {
+		if (status)
+			ret |= KXCJK1013_REG_CTRL1_BIT_WUFE;
+		else
+			ret &= ~KXCJK1013_REG_CTRL1_BIT_WUFE;
+	}
 
 	ret = i2c_smbus_write_byte_data(data->client, regs->ctrl1, ret);
 	if (ret < 0) {
@@ -1112,7 +1062,7 @@ static int kxcjk1013_write_event_config(struct iio_dev *indio_dev,
 		return ret;
 	}
 
-	ret =  kxcjk1013_setup_any_motion_interrupt(data, state);
+	ret =  kxcjk1013_setup_interrupt(data, state, false);
 	if (ret < 0) {
 		kxcjk1013_set_power_state(data, false);
 		data->ev_enable_state = 0;
@@ -1253,8 +1203,8 @@ static irqreturn_t kxcjk1013_trigger_handler(int irq, void *p)
 	if (ret < 0)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   data->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    data->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -1293,10 +1243,7 @@ static int kxcjk1013_data_rdy_trigger_set_state(struct iio_trigger *trig,
 		mutex_unlock(&data->mutex);
 		return ret;
 	}
-	if (data->motion_trig == trig)
-		ret = kxcjk1013_setup_any_motion_interrupt(data, state);
-	else
-		ret = kxcjk1013_setup_new_data_interrupt(data, state);
+	ret = kxcjk1013_setup_interrupt(data, state, data->motion_trig != trig);
 	if (ret < 0) {
 		kxcjk1013_set_power_state(data, false);
 		mutex_unlock(&data->mutex);

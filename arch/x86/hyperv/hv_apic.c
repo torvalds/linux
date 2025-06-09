@@ -28,6 +28,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 
 #include <asm/trace/hyperv.h>
 
@@ -37,7 +38,7 @@ static u64 hv_apic_icr_read(void)
 {
 	u64 reg_val;
 
-	rdmsrl(HV_X64_MSR_ICR, reg_val);
+	rdmsrq(HV_X64_MSR_ICR, reg_val);
 	return reg_val;
 }
 
@@ -49,7 +50,7 @@ static void hv_apic_icr_write(u32 low, u32 id)
 	reg_val = reg_val << 32;
 	reg_val |= low;
 
-	wrmsrl(HV_X64_MSR_ICR, reg_val);
+	wrmsrq(HV_X64_MSR_ICR, reg_val);
 }
 
 static u32 hv_apic_read(u32 reg)
@@ -75,10 +76,10 @@ static void hv_apic_write(u32 reg, u32 val)
 {
 	switch (reg) {
 	case APIC_EOI:
-		wrmsr(HV_X64_MSR_EOI, val, 0);
+		wrmsrq(HV_X64_MSR_EOI, val);
 		break;
 	case APIC_TASKPRI:
-		wrmsr(HV_X64_MSR_TPR, val, 0);
+		wrmsrq(HV_X64_MSR_TPR, val);
 		break;
 	default:
 		native_apic_mem_write(reg, val);
@@ -92,7 +93,7 @@ static void hv_apic_eoi_write(void)
 	if (hvp && (xchg(&hvp->apic_assist, 0) & 0x1))
 		return;
 
-	wrmsr(HV_X64_MSR_EOI, APIC_EOI_ACK, 0);
+	wrmsrq(HV_X64_MSR_EOI, APIC_EOI_ACK);
 }
 
 static bool cpu_is_self(int cpu)

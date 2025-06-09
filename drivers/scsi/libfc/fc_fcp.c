@@ -1283,7 +1283,7 @@ static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
  */
 static void fc_lun_reset_send(struct timer_list *t)
 {
-	struct fc_fcp_pkt *fsp = from_timer(fsp, t, timer);
+	struct fc_fcp_pkt *fsp = timer_container_of(fsp, t, timer);
 	struct fc_lport *lport = fsp->lp;
 
 	if (lport->tt.fcp_cmd_send(lport, fsp, fc_tm_done)) {
@@ -1416,7 +1416,7 @@ static void fc_fcp_cleanup(struct fc_lport *lport)
  */
 static void fc_fcp_timeout(struct timer_list *t)
 {
-	struct fc_fcp_pkt *fsp = from_timer(fsp, t, timer);
+	struct fc_fcp_pkt *fsp = timer_container_of(fsp, t, timer);
 	struct fc_rport *rport = fsp->rport;
 	struct fc_rport_libfc_priv *rpriv = rport->dd_data;
 

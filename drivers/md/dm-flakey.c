@@ -47,14 +47,15 @@ enum feature_flag_bits {
 };
 
 struct per_bio_data {
-	bool bio_submitted;
+	bool bio_can_corrupt;
+	struct bvec_iter saved_iter;
 };
 
 static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 			  struct dm_target *ti)
 {
-	int r;
-	unsigned int argc;
+	int r = 0;
+	unsigned int argc = 0;
 	const char *arg_name;
 
 	static const struct dm_arg _args[] = {
@@ -65,13 +66,12 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		{0, PROBABILITY_BASE, "Invalid random corrupt argument"},
 	};
 
-	/* No feature arguments supplied. */
-	if (!as->argc)
-		return 0;
-
-	r = dm_read_arg_group(_args, as, &argc, &ti->error);
-	if (r)
+	if (as->argc && (r = dm_read_arg_group(_args, as, &argc, &ti->error)))
 		return r;
+
+	/* No feature arguments supplied. */
+	if (!argc)
+		goto error_all_io;
 
 	while (argc) {
 		arg_name = dm_shift_arg(as);
@@ -128,8 +128,11 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		 * corrupt_bio_byte <Nth_byte> <direction> <value> <bio_flags>
 		 */
 		if (!strcasecmp(arg_name, "corrupt_bio_byte")) {
-			if (!argc) {
-				ti->error = "Feature corrupt_bio_byte requires parameters";
+			if (fc->corrupt_bio_byte) {
+				ti->error = "Feature corrupt_bio_byte duplicated";
+				return -EINVAL;
+			} else if (argc < 4) {
+				ti->error = "Feature corrupt_bio_byte requires 4 parameters";
 				return -EINVAL;
 			}
 
@@ -176,7 +179,10 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		}
 
 		if (!strcasecmp(arg_name, "random_read_corrupt")) {
-			if (!argc) {
+			if (fc->random_read_corrupt) {
+				ti->error = "Feature random_read_corrupt duplicated";
+				return -EINVAL;
+			} else if (!argc) {
 				ti->error = "Feature random_read_corrupt requires a parameter";
 				return -EINVAL;
 			}
@@ -189,7 +195,10 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		}
 
 		if (!strcasecmp(arg_name, "random_write_corrupt")) {
-			if (!argc) {
+			if (fc->random_write_corrupt) {
+				ti->error = "Feature random_write_corrupt duplicated";
+				return -EINVAL;
+			} else if (!argc) {
 				ti->error = "Feature random_write_corrupt requires a parameter";
 				return -EINVAL;
 			}
@@ -205,18 +214,25 @@ static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 		return -EINVAL;
 	}
 
-	if (test_bit(DROP_WRITES, &fc->flags) && (fc->corrupt_bio_rw == WRITE)) {
-		ti->error = "drop_writes is incompatible with corrupt_bio_byte with the WRITE flag set";
+	if (test_bit(DROP_WRITES, &fc->flags) &&
+	    (fc->corrupt_bio_rw == WRITE || fc->random_write_corrupt)) {
+		ti->error = "drop_writes is incompatible with random_write_corrupt or corrupt_bio_byte with the WRITE flag set";
 		return -EINVAL;
 
-	} else if (test_bit(ERROR_WRITES, &fc->flags) && (fc->corrupt_bio_rw == WRITE)) {
-		ti->error = "error_writes is incompatible with corrupt_bio_byte with the WRITE flag set";
+	} else if (test_bit(ERROR_WRITES, &fc->flags) &&
+		   (fc->corrupt_bio_rw == WRITE || fc->random_write_corrupt)) {
+		ti->error = "error_writes is incompatible with random_write_corrupt or corrupt_bio_byte with the WRITE flag set";
+		return -EINVAL;
+	} else if (test_bit(ERROR_READS, &fc->flags) &&
+		   (fc->corrupt_bio_rw == READ || fc->random_read_corrupt)) {
+		ti->error = "error_reads is incompatible with random_read_corrupt or corrupt_bio_byte with the READ flag set";
 		return -EINVAL;
 	}
 
 	if (!fc->corrupt_bio_byte && !test_bit(ERROR_READS, &fc->flags) &&
 	    !test_bit(DROP_WRITES, &fc->flags) && !test_bit(ERROR_WRITES, &fc->flags) &&
 	    !fc->random_read_corrupt && !fc->random_write_corrupt) {
+error_all_io:
 		set_bit(ERROR_WRITES, &fc->flags);
 		set_bit(ERROR_READS, &fc->flags);
 	}
@@ -278,7 +294,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	r = dm_read_arg(_args, &as, &fc->down_interval, &ti->error);
+	r = dm_read_arg(_args + 1, &as, &fc->down_interval, &ti->error);
 	if (r)
 		goto bad;
 
@@ -339,7 +355,8 @@ static void flakey_map_bio(struct dm_target *ti, struct bio *bio)
 }
 
 static void corrupt_bio_common(struct bio *bio, unsigned int corrupt_bio_byte,
-			       unsigned char corrupt_bio_value)
+			       unsigned char corrupt_bio_value,
+			       struct bvec_iter start)
 {
 	struct bvec_iter iter;
 	struct bio_vec bvec;
@@ -348,7 +365,7 @@ static void corrupt_bio_common(struct bio *bio, unsigned int corrupt_bio_byte,
 	 * Overwrite the Nth byte of the bio's data, on whichever page
 	 * it falls.
 	 */
-	bio_for_each_segment(bvec, bio, iter) {
+	__bio_for_each_segment(bvec, bio, iter, start) {
 		if (bio_iter_len(bio, iter) > corrupt_bio_byte) {
 			unsigned char *segment = bvec_kmap_local(&bvec);
 			segment[corrupt_bio_byte] = corrupt_bio_value;
@@ -357,36 +374,31 @@ static void corrupt_bio_common(struct bio *bio, unsigned int corrupt_bio_byte,
 				"(rw=%c bi_opf=%u bi_sector=%llu size=%u)\n",
 				bio, corrupt_bio_value, corrupt_bio_byte,
 				(bio_data_dir(bio) == WRITE) ? 'w' : 'r', bio->bi_opf,
-				(unsigned long long)bio->bi_iter.bi_sector,
-				bio->bi_iter.bi_size);
+				(unsigned long long)start.bi_sector,
+				start.bi_size);
 			break;
 		}
 		corrupt_bio_byte -= bio_iter_len(bio, iter);
 	}
 }
 
-static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)
+static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc,
+			     struct bvec_iter start)
 {
 	unsigned int corrupt_bio_byte = fc->corrupt_bio_byte - 1;
 
-	if (!bio_has_data(bio))
-		return;
-
-	corrupt_bio_common(bio, corrupt_bio_byte, fc->corrupt_bio_value);
+	corrupt_bio_common(bio, corrupt_bio_byte, fc->corrupt_bio_value, start);
 }
 
-static void corrupt_bio_random(struct bio *bio)
+static void corrupt_bio_random(struct bio *bio, struct bvec_iter start)
 {
 	unsigned int corrupt_byte;
 	unsigned char corrupt_value;
 
-	if (!bio_has_data(bio))
-		return;
-
-	corrupt_byte = get_random_u32() % bio->bi_iter.bi_size;
+	corrupt_byte = get_random_u32() % start.bi_size;
 	corrupt_value = get_random_u8();
 
-	corrupt_bio_common(bio, corrupt_byte, corrupt_value);
+	corrupt_bio_common(bio, corrupt_byte, corrupt_value, start);
 }
 
 static void clone_free(struct bio *clone)
@@ -481,7 +493,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 	unsigned int elapsed;
 	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 
-	pb->bio_submitted = false;
+	pb->bio_can_corrupt = false;
 
 	if (op_is_zone_mgmt(bio_op(bio)))
 		goto map_bio;
@@ -490,14 +502,15 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 	elapsed = (jiffies - fc->start_time) / HZ;
 	if (elapsed % (fc->up_interval + fc->down_interval) >= fc->up_interval) {
 		bool corrupt_fixed, corrupt_random;
-		/*
-		 * Flag this bio as submitted while down.
-		 */
-		pb->bio_submitted = true;
+
+		if (bio_has_data(bio)) {
+			pb->bio_can_corrupt = true;
+			pb->saved_iter = bio->bi_iter;
+		}
 
 		/*
-		 * Error reads if neither corrupt_bio_byte or drop_writes or error_writes are set.
-		 * Otherwise, flakey_end_io() will decide if the reads should be modified.
+		 * If ERROR_READS isn't set flakey_end_io() will decide if the
+		 * reads should be modified.
 		 */
 		if (bio_data_dir(bio) == READ) {
 			if (test_bit(ERROR_READS, &fc->flags))
@@ -516,6 +529,8 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 			return DM_MAPIO_SUBMITTED;
 		}
 
+		if (!pb->bio_can_corrupt)
+			goto map_bio;
 		/*
 		 * Corrupt matching writes.
 		 */
@@ -535,9 +550,11 @@ static int flakey_map(struct dm_target *ti, struct bio *bio)
 			struct bio *clone = clone_bio(ti, fc, bio);
 			if (clone) {
 				if (corrupt_fixed)
-					corrupt_bio_data(clone, fc);
+					corrupt_bio_data(clone, fc,
+							 clone->bi_iter);
 				if (corrupt_random)
-					corrupt_bio_random(clone);
+					corrupt_bio_random(clone,
+							   clone->bi_iter);
 				submit_bio(clone);
 				return DM_MAPIO_SUBMITTED;
 			}
@@ -559,28 +576,21 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 	if (op_is_zone_mgmt(bio_op(bio)))
 		return DM_ENDIO_DONE;
 
-	if (!*error && pb->bio_submitted && (bio_data_dir(bio) == READ)) {
+	if (!*error && pb->bio_can_corrupt && (bio_data_dir(bio) == READ)) {
 		if (fc->corrupt_bio_byte) {
 			if ((fc->corrupt_bio_rw == READ) &&
 			    all_corrupt_bio_flags_match(bio, fc)) {
 				/*
 				 * Corrupt successful matching READs while in down state.
 				 */
-				corrupt_bio_data(bio, fc);
+				corrupt_bio_data(bio, fc, pb->saved_iter);
 			}
 		}
 		if (fc->random_read_corrupt) {
 			u64 rnd = get_random_u64();
 			u32 rem = do_div(rnd, PROBABILITY_BASE);
 			if (rem < fc->random_read_corrupt)
-				corrupt_bio_random(bio);
-		}
-		if (test_bit(ERROR_READS, &fc->flags)) {
-			/*
-			 * Error read during the down_interval if drop_writes
-			 * and error_writes were not configured.
-			 */
-			*error = BLK_STS_IOERR;
+				corrupt_bio_random(bio, pb->saved_iter);
 		}
 	}
 
@@ -638,7 +648,9 @@ static void flakey_status(struct dm_target *ti, status_type_t type,
 	}
 }
 
-static int flakey_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
+static int flakey_prepare_ioctl(struct dm_target *ti, struct block_device **bdev,
+				unsigned int cmd, unsigned long arg,
+				bool *forward)
 {
 	struct flakey_c *fc = ti->private;
 

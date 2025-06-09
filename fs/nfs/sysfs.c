@@ -387,6 +387,33 @@ static inline void nfs_sysfs_add_nfsv41_server(struct nfs_server *server)
 }
 #endif /* CONFIG_NFS_V4_1 */
 
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+
+static ssize_t
+localio_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	struct nfs_server *server = container_of(kobj, struct nfs_server, kobj);
+	bool localio = nfs_server_is_local(server->nfs_client);
+	return sysfs_emit(buf, "%d\n", localio);
+}
+
+static struct kobj_attribute nfs_sysfs_attr_localio = __ATTR_RO(localio);
+
+static void nfs_sysfs_add_nfs_localio_server(struct nfs_server *server)
+{
+	int ret = sysfs_create_file_ns(&server->kobj, &nfs_sysfs_attr_localio.attr,
+				       nfs_netns_server_namespace(&server->kobj));
+	if (ret < 0)
+		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
+			server->s_sysfs_id, ret);
+}
+#else
+static inline void nfs_sysfs_add_nfs_localio_server(struct nfs_server *server)
+{
+}
+#endif /* IS_ENABLED(CONFIG_NFS_LOCALIO) */
+
 void nfs_sysfs_add_server(struct nfs_server *server)
 {
 	int ret;
@@ -405,6 +432,7 @@ void nfs_sysfs_add_server(struct nfs_server *server)
 			server->s_sysfs_id, ret);
 
 	nfs_sysfs_add_nfsv41_server(server);
+	nfs_sysfs_add_nfs_localio_server(server);
 }
 EXPORT_SYMBOL_GPL(nfs_sysfs_add_server);
 

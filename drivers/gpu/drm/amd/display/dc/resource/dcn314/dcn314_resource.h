@@ -39,7 +39,7 @@ struct dcn314_resource_pool {
 	struct resource_pool base;
 };
 
-bool dcn314_validate_bandwidth(struct dc *dc,
+enum dc_status dcn314_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate);
 

@@ -155,6 +155,82 @@ static int rxrpc_verify_data(struct rxrpc_call *call, struct sk_buff *skb)
 }
 
 /*
+ * Transcribe a call's user ID to a control message.
+ */
+static int rxrpc_recvmsg_user_id(struct rxrpc_call *call, struct msghdr *msg,
+				 int flags)
+{
+	if (!test_bit(RXRPC_CALL_HAS_USERID, &call->flags))
+		return 0;
+
+	if (flags & MSG_CMSG_COMPAT) {
+		unsigned int id32 = call->user_call_ID;
+
+		return put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
+				sizeof(unsigned int), &id32);
+	} else {
+		unsigned long idl = call->user_call_ID;
+
+		return put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
+				sizeof(unsigned long), &idl);
+	}
+}
+
+/*
+ * Deal with a CHALLENGE packet.
+ */
+static int rxrpc_recvmsg_challenge(struct socket *sock, struct msghdr *msg,
+				   struct sk_buff *challenge, unsigned int flags)
+{
+	struct rxrpc_skb_priv *sp = rxrpc_skb(challenge);
+	struct rxrpc_connection *conn = sp->chall.conn;
+
+	return conn->security->challenge_to_recvmsg(conn, challenge, msg);
+}
+
+/*
+ * Process OOB packets.  Called with the socket locked.
+ */
+static int rxrpc_recvmsg_oob(struct socket *sock, struct msghdr *msg,
+			     unsigned int flags)
+{
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
+	struct sk_buff *skb;
+	bool need_response = false;
+	int ret;
+
+	skb = skb_peek(&rx->recvmsg_oobq);
+	if (!skb)
+		return -EAGAIN;
+	rxrpc_see_skb(skb, rxrpc_skb_see_recvmsg);
+
+	ret = put_cmsg(msg, SOL_RXRPC, RXRPC_OOB_ID, sizeof(u64),
+		       &skb->skb_mstamp_ns);
+	if (ret < 0)
+		return ret;
+
+	switch ((enum rxrpc_oob_type)skb->mark) {
+	case RXRPC_OOB_CHALLENGE:
+		need_response = true;
+		ret = rxrpc_recvmsg_challenge(sock, msg, skb, flags);
+		break;
+	default:
+		WARN_ONCE(1, "recvmsg() can't process unknown OOB type %u\n",
+			  skb->mark);
+		ret = -EIO;
+		break;
+	}
+
+	if (!(flags & MSG_PEEK))
+		skb_unlink(skb, &rx->recvmsg_oobq);
+	if (need_response)
+		rxrpc_add_pending_oob(rx, skb);
+	else
+		rxrpc_free_skb(skb, rxrpc_skb_put_oob);
+	return ret;
+}
+
+/*
  * Deliver messages to a call.  This keeps processing packets until the buffer
  * is filled and we find either more DATA (returns 0) or the end of the DATA
  * (returns 1).  If more packets are required, it returns -EAGAIN and if the
@@ -165,6 +241,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			      size_t len, int flags, size_t *_offset)
 {
 	struct rxrpc_skb_priv *sp;
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	struct sk_buff *skb;
 	rxrpc_seq_t seq = 0;
 	size_t remain;
@@ -207,7 +284,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			trace_rxrpc_recvdata(call, rxrpc_recvmsg_next, seq,
 					     sp->offset, sp->len, ret2);
 			if (ret2 < 0) {
-				kdebug("verify = %d", ret2);
 				ret = ret2;
 				goto out;
 			}
@@ -255,6 +331,13 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 		if (!(flags & MSG_PEEK))
 			rxrpc_rotate_rx_window(call);
+
+		if (!rx->app_ops &&
+		    !skb_queue_empty_lockless(&rx->recvmsg_oobq)) {
+			trace_rxrpc_recvdata(call, rxrpc_recvmsg_oobq, seq,
+					     rx_pkt_offset, rx_pkt_len, ret);
+			break;
+		}
 	}
 
 out:
@@ -262,6 +345,7 @@ out:
 		call->rx_pkt_offset = rx_pkt_offset;
 		call->rx_pkt_len = rx_pkt_len;
 	}
+
 done:
 	trace_rxrpc_recvdata(call, rxrpc_recvmsg_data_return, seq,
 			     rx_pkt_offset, rx_pkt_len, ret);
@@ -301,6 +385,7 @@ try_again:
 	/* Return immediately if a client socket has no outstanding calls */
 	if (RB_EMPTY_ROOT(&rx->calls) &&
 	    list_empty(&rx->recvmsg_q) &&
+	    skb_queue_empty_lockless(&rx->recvmsg_oobq) &&
 	    rx->sk.sk_state != RXRPC_SERVER_LISTENING) {
 		release_sock(&rx->sk);
 		return -EAGAIN;
@@ -322,7 +407,8 @@ try_again:
 		if (ret)
 			goto wait_error;
 
-		if (list_empty(&rx->recvmsg_q)) {
+		if (list_empty(&rx->recvmsg_q) &&
+		    skb_queue_empty_lockless(&rx->recvmsg_oobq)) {
 			if (signal_pending(current))
 				goto wait_interrupted;
 			trace_rxrpc_recvmsg(0, rxrpc_recvmsg_wait, 0);
@@ -330,6 +416,15 @@ try_again:
 		}
 		finish_wait(sk_sleep(&rx->sk), &wait);
 		goto try_again;
+	}
+
+	/* Deal with OOB messages before we consider getting normal data. */
+	if (!skb_queue_empty_lockless(&rx->recvmsg_oobq)) {
+		ret = rxrpc_recvmsg_oob(sock, msg, flags);
+		release_sock(&rx->sk);
+		if (ret == -EAGAIN)
+			goto try_again;
+		goto error_no_call;
 	}
 
 	/* Find the next call and dequeue it if we're not just peeking.  If we
@@ -342,7 +437,8 @@ try_again:
 	call = list_entry(l, struct rxrpc_call, recvmsg_link);
 
 	if (!rxrpc_call_is_complete(call) &&
-	    skb_queue_empty(&call->recvmsg_queue)) {
+	    skb_queue_empty(&call->recvmsg_queue) &&
+	    skb_queue_empty(&rx->recvmsg_oobq)) {
 		list_del_init(&call->recvmsg_link);
 		spin_unlock_irq(&rx->recvmsg_lock);
 		release_sock(&rx->sk);
@@ -377,21 +473,9 @@ try_again:
 	if (test_bit(RXRPC_CALL_RELEASED, &call->flags))
 		BUG();
 
-	if (test_bit(RXRPC_CALL_HAS_USERID, &call->flags)) {
-		if (flags & MSG_CMSG_COMPAT) {
-			unsigned int id32 = call->user_call_ID;
-
-			ret = put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
-				       sizeof(unsigned int), &id32);
-		} else {
-			unsigned long idl = call->user_call_ID;
-
-			ret = put_cmsg(msg, SOL_RXRPC, RXRPC_USER_CALL_ID,
-				       sizeof(unsigned long), &idl);
-		}
-		if (ret < 0)
-			goto error_unlock_call;
-	}
+	ret = rxrpc_recvmsg_user_id(call, msg, flags);
+	if (ret < 0)
+		goto error_unlock_call;
 
 	if (msg->msg_name && call->peer) {
 		size_t len = sizeof(call->dest_srx);
@@ -477,14 +561,14 @@ wait_error:
  * @_service: Where to store the actual service ID (may be upgraded)
  *
  * Allow a kernel service to receive data and pick up information about the
- * state of a call.  Returns 0 if got what was asked for and there's more
- * available, 1 if we got what was asked for and we're at the end of the data
- * and -EAGAIN if we need more data.
+ * state of a call.  Note that *@_abort should also be initialised to %0.
  *
- * Note that we may return -EAGAIN to drain empty packets at the end of the
- * data, even if we've already copied over the requested data.
+ * Note that we may return %-EAGAIN to drain empty packets at the end
+ * of the data, even if we've already copied over the requested data.
  *
- * *_abort should also be initialised to 0.
+ * Return: %0 if got what was asked for and there's more available, %1
+ * if we got what was asked for and we're at the end of the data and
+ * %-EAGAIN if we need more data.
  */
 int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 			   struct iov_iter *iter, size_t *_len,

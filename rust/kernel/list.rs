@@ -4,9 +4,6 @@
 
 //! A linked list implementation.
 
-// May not be needed in Rust 1.87.0 (pending beta backport).
-#![allow(clippy::ptr_eq)]
-
 use crate::sync::ArcBorrow;
 use crate::types::Opaque;
 use core::iter::{DoubleEndedIterator, FusedIterator};
@@ -38,6 +35,114 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 /// * All prev/next pointers in `ListLinks` fields of items in the list are valid and form a cycle.
 /// * For every item in the list, the list owns the associated [`ListArc`] reference and has
 ///   exclusive access to the `ListLinks` field.
+///
+/// # Examples
+///
+/// ```
+/// use kernel::list::*;
+///
+/// #[pin_data]
+/// struct BasicItem {
+///     value: i32,
+///     #[pin]
+///     links: ListLinks,
+/// }
+///
+/// impl BasicItem {
+///     fn new(value: i32) -> Result<ListArc<Self>> {
+///         ListArc::pin_init(try_pin_init!(Self {
+///             value,
+///             links <- ListLinks::new(),
+///         }), GFP_KERNEL)
+///     }
+/// }
+///
+/// impl_has_list_links! {
+///     impl HasListLinks<0> for BasicItem { self.links }
+/// }
+/// impl_list_arc_safe! {
+///     impl ListArcSafe<0> for BasicItem { untracked; }
+/// }
+/// impl_list_item! {
+///     impl ListItem<0> for BasicItem { using ListLinks; }
+/// }
+///
+/// // Create a new empty list.
+/// let mut list = List::new();
+/// {
+///     assert!(list.is_empty());
+/// }
+///
+/// // Insert 3 elements using `push_back()`.
+/// list.push_back(BasicItem::new(15)?);
+/// list.push_back(BasicItem::new(10)?);
+/// list.push_back(BasicItem::new(30)?);
+///
+/// // Iterate over the list to verify the nodes were inserted correctly.
+/// // [15, 10, 30]
+/// {
+///     let mut iter = list.iter();
+///     assert_eq!(iter.next().unwrap().value, 15);
+///     assert_eq!(iter.next().unwrap().value, 10);
+///     assert_eq!(iter.next().unwrap().value, 30);
+///     assert!(iter.next().is_none());
+///
+///     // Verify the length of the list.
+///     assert_eq!(list.iter().count(), 3);
+/// }
+///
+/// // Pop the items from the list using `pop_back()` and verify the content.
+/// {
+///     assert_eq!(list.pop_back().unwrap().value, 30);
+///     assert_eq!(list.pop_back().unwrap().value, 10);
+///     assert_eq!(list.pop_back().unwrap().value, 15);
+/// }
+///
+/// // Insert 3 elements using `push_front()`.
+/// list.push_front(BasicItem::new(15)?);
+/// list.push_front(BasicItem::new(10)?);
+/// list.push_front(BasicItem::new(30)?);
+///
+/// // Iterate over the list to verify the nodes were inserted correctly.
+/// // [30, 10, 15]
+/// {
+///     let mut iter = list.iter();
+///     assert_eq!(iter.next().unwrap().value, 30);
+///     assert_eq!(iter.next().unwrap().value, 10);
+///     assert_eq!(iter.next().unwrap().value, 15);
+///     assert!(iter.next().is_none());
+///
+///     // Verify the length of the list.
+///     assert_eq!(list.iter().count(), 3);
+/// }
+///
+/// // Pop the items from the list using `pop_front()` and verify the content.
+/// {
+///     assert_eq!(list.pop_front().unwrap().value, 30);
+///     assert_eq!(list.pop_front().unwrap().value, 10);
+/// }
+///
+/// // Push `list2` to `list` through `push_all_back()`.
+/// // list: [15]
+/// // list2: [25, 35]
+/// {
+///     let mut list2 = List::new();
+///     list2.push_back(BasicItem::new(25)?);
+///     list2.push_back(BasicItem::new(35)?);
+///
+///     list.push_all_back(&mut list2);
+///
+///     // list: [15, 25, 35]
+///     // list2: []
+///     let mut iter = list.iter();
+///     assert_eq!(iter.next().unwrap().value, 15);
+///     assert_eq!(iter.next().unwrap().value, 25);
+///     assert_eq!(iter.next().unwrap().value, 35);
+///     assert!(iter.next().is_none());
+///     assert!(list2.is_empty());
+/// }
+/// # Result::<(), Error>::Ok(())
+/// ```
 pub struct List<T: ?Sized + ListItem<ID>, const ID: u64 = 0> {
     first: *mut ListLinksFields,
     _ty: PhantomData<ListArc<T, ID>>,
@@ -322,7 +427,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
 
     /// Removes the last item from this list.
     pub fn pop_back(&mut self) -> Option<ListArc<T, ID>> {
-        if self.first.is_null() {
+        if self.is_empty() {
             return None;
         }
 
@@ -334,7 +439,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
 
     /// Removes the first item from this list.
     pub fn pop_front(&mut self) -> Option<ListArc<T, ID>> {
-        if self.first.is_null() {
+        if self.is_empty() {
             return None;
         }
 

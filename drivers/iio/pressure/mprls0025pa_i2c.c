@@ -74,13 +74,13 @@ static int mpr_i2c_probe(struct i2c_client *client)
 
 static const struct of_device_id mpr_i2c_match[] = {
 	{ .compatible = "honeywell,mprls0025pa" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mpr_i2c_match);
 
 static const struct i2c_device_id mpr_i2c_id[] = {
 	{ "mprls0025pa" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mpr_i2c_id);
 

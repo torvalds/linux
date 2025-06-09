@@ -23,8 +23,10 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
+#include "xe_bo_evict.h"
 #include "xe_debugfs.h"
 #include "xe_devcoredump.h"
+#include "xe_device_sysfs.h"
 #include "xe_dma_buf.h"
 #include "xe_drm_client.h"
 #include "xe_drv.h"
@@ -467,10 +469,9 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 			xa_erase(&xe->usm.asid_to_vm, asid);
 	}
 
-	spin_lock_init(&xe->pinned.lock);
-	INIT_LIST_HEAD(&xe->pinned.kernel_bo_present);
-	INIT_LIST_HEAD(&xe->pinned.external_vram);
-	INIT_LIST_HEAD(&xe->pinned.evicted);
+	err = xe_bo_pinned_init(xe);
+	if (err)
+		goto err;
 
 	xe->preempt_fence_wq = alloc_ordered_workqueue("xe-preempt-fence-wq",
 						       WQ_MEM_RECLAIM);
@@ -505,7 +506,15 @@ ALLOW_ERROR_INJECTION(xe_device_create, ERRNO); /* See xe_pci_probe() */
 
 static bool xe_driver_flr_disabled(struct xe_device *xe)
 {
-	return xe_mmio_read32(xe_root_tile_mmio(xe), GU_CNTL_PROTECTED) & DRIVERINT_FLR_DIS;
+	if (IS_SRIOV_VF(xe))
+		return true;
+
+	if (xe_mmio_read32(xe_root_tile_mmio(xe), GU_CNTL_PROTECTED) & DRIVERINT_FLR_DIS) {
+		drm_info(&xe->drm, "Driver-FLR disabled by BIOS\n");
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -523,7 +532,7 @@ static bool xe_driver_flr_disabled(struct xe_device *xe)
  */
 static void __xe_driver_flr(struct xe_device *xe)
 {
-	const unsigned int flr_timeout = 3 * MICRO; /* specs recommend a 3s wait */
+	const unsigned int flr_timeout = 3 * USEC_PER_SEC; /* specs recommend a 3s wait */
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	int ret;
 
@@ -569,10 +578,8 @@ static void __xe_driver_flr(struct xe_device *xe)
 
 static void xe_driver_flr(struct xe_device *xe)
 {
-	if (xe_driver_flr_disabled(xe)) {
-		drm_info_once(&xe->drm, "BIOS Disabled Driver-FLR\n");
+	if (xe_driver_flr_disabled(xe))
 		return;
-	}
 
 	__xe_driver_flr(xe);
 }
@@ -706,7 +713,7 @@ int xe_device_probe_early(struct xe_device *xe)
 	sriov_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
-	if (err) {
+	if (err || xe_survivability_mode_is_requested(xe)) {
 		int save_err = err;
 
 		/*
@@ -729,6 +736,7 @@ int xe_device_probe_early(struct xe_device *xe)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_device_probe_early, ERRNO); /* See xe_pci_probe() */
 
 static int probe_has_flat_ccs(struct xe_device *xe)
 {
@@ -908,6 +916,10 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		goto err_unregister_display;
 
+	err = xe_device_sysfs_init(xe);
+	if (err)
+		goto err_unregister_display;
+
 	xe_debugfs_register(xe);
 
 	err = xe_hwmon_register(xe);
@@ -932,6 +944,8 @@ void xe_device_remove(struct xe_device *xe)
 	xe_display_unregister(xe);
 
 	drm_dev_unplug(&xe->drm);
+
+	xe_bo_pci_dev_remove_all(xe);
 }
 
 void xe_device_shutdown(struct xe_device *xe)

@@ -37,7 +37,7 @@ struct dcn31_resource_pool {
 	struct resource_pool base;
 };
 
-bool dcn31_validate_bandwidth(struct dc *dc,
+enum dc_status dcn31_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate);
 void dcn31_calculate_wm_and_dlg(

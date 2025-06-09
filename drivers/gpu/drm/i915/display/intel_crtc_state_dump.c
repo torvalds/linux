@@ -5,9 +5,10 @@
 
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
+#include <drm/drm_print.h>
 
-#include "i915_drv.h"
 #include "intel_crtc_state_dump.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_hdmi.h"
 #include "intel_vblank.h"
@@ -42,13 +43,13 @@ intel_dump_m_n_config(struct drm_printer *p,
 }
 
 static void
-intel_dump_infoframe(struct drm_i915_private *i915,
+intel_dump_infoframe(struct intel_display *display,
 		     const union hdmi_infoframe *frame)
 {
 	if (!drm_debug_enabled(DRM_UT_KMS))
 		return;
 
-	hdmi_infoframe_log(KERN_DEBUG, i915->drm.dev, frame);
+	hdmi_infoframe_log(KERN_DEBUG, display->drm->dev, frame);
 }
 
 #define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
@@ -136,7 +137,7 @@ static void intel_dump_plane_state(struct drm_printer *p,
 }
 
 static void
-ilk_dump_csc(struct drm_i915_private *i915,
+ilk_dump_csc(struct intel_display *display,
 	     struct drm_printer *p,
 	     const char *name,
 	     const struct intel_csc_matrix *csc)
@@ -152,7 +153,7 @@ ilk_dump_csc(struct drm_i915_private *i915,
 			   csc->coeff[3 * i + 1],
 			   csc->coeff[3 * i + 2]);
 
-	if (DISPLAY_VER(i915) < 7)
+	if (DISPLAY_VER(display) < 7)
 		return;
 
 	drm_printf(p, "%s: post offsets: 0x%04x 0x%04x 0x%04x\n", name,
@@ -178,7 +179,6 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 {
 	struct intel_display *display = to_intel_display(pipe_config);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
 	struct drm_printer p;
@@ -188,7 +188,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	if (!drm_debug_enabled(DRM_UT_KMS))
 		return;
 
-	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
+	p = drm_dbg_printer(display->drm, DRM_UT_KMS, NULL);
 
 	drm_printf(&p, "[CRTC:%d:%s] enable: %s [%s]\n",
 		   crtc->base.base.id, crtc->base.name,
@@ -262,19 +262,19 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		drm_printf(&p, "GCP: 0x%x\n", pipe_config->infoframes.gcp);
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI))
-		intel_dump_infoframe(i915, &pipe_config->infoframes.avi);
+		intel_dump_infoframe(display, &pipe_config->infoframes.avi);
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_SPD))
-		intel_dump_infoframe(i915, &pipe_config->infoframes.spd);
+		intel_dump_infoframe(display, &pipe_config->infoframes.spd);
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_VENDOR))
-		intel_dump_infoframe(i915, &pipe_config->infoframes.hdmi);
+		intel_dump_infoframe(display, &pipe_config->infoframes.hdmi);
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_DRM))
-		intel_dump_infoframe(i915, &pipe_config->infoframes.drm);
+		intel_dump_infoframe(display, &pipe_config->infoframes.drm);
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GAMUT_METADATA))
-		intel_dump_infoframe(i915, &pipe_config->infoframes.drm);
+		intel_dump_infoframe(display, &pipe_config->infoframes.drm);
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(DP_SDP_VSC))
 		drm_dp_vsc_sdp_log(&p, &pipe_config->infoframes.vsc);
@@ -294,8 +294,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		   pipe_config->hw.adjusted_mode.crtc_vdisplay,
 		   pipe_config->framestart_delay, pipe_config->msa_timing_delay);
 
-	drm_printf(&p, "vrr: %s, vmin: %d, vmax: %d, flipline: %d, pipeline full: %d, guardband: %d vsync start: %d, vsync end: %d\n",
+	drm_printf(&p, "vrr: %s, fixed rr: %s, vmin: %d, vmax: %d, flipline: %d, pipeline full: %d, guardband: %d vsync start: %d, vsync end: %d\n",
 		   str_yes_no(pipe_config->vrr.enable),
+		   str_yes_no(intel_vrr_is_fixed_rr(pipe_config)),
 		   pipe_config->vrr.vmin, pipe_config->vrr.vmax, pipe_config->vrr.flipline,
 		   pipe_config->vrr.pipeline_full, pipe_config->vrr.guardband,
 		   pipe_config->vrr.vsync_start, pipe_config->vrr.vsync_end);
@@ -319,14 +320,14 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	drm_printf(&p, "linetime: %d, ips linetime: %d\n",
 		   pipe_config->linetime, pipe_config->ips_linetime);
 
-	if (DISPLAY_VER(i915) >= 9)
+	if (DISPLAY_VER(display) >= 9)
 		drm_printf(&p, "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d, scaling_filter: %d\n",
 			   crtc->num_scalers,
 			   pipe_config->scaler_state.scaler_users,
 			   pipe_config->scaler_state.scaler_id,
 			   pipe_config->hw.scaling_filter);
 
-	if (HAS_GMCH(i915))
+	if (HAS_GMCH(display))
 		drm_printf(&p, "gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
 			   pipe_config->gmch_pfit.control,
 			   pipe_config->gmch_pfit.pgm_ratios,
@@ -343,7 +344,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	intel_dpll_dump_hw_state(display, &p, &pipe_config->dpll_hw_state);
 
-	if (IS_CHERRYVIEW(i915))
+	if (display->platform.cherryview)
 		drm_printf(&p, "cgm_mode: 0x%x gamma_mode: 0x%x gamma_enable: %d csc_enable: %d\n",
 			   pipe_config->cgm_mode, pipe_config->gamma_mode,
 			   pipe_config->gamma_enable, pipe_config->csc_enable);
@@ -354,20 +355,20 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	drm_printf(&p, "pre csc lut: %s%d entries, post csc lut: %d entries\n",
 		   pipe_config->pre_csc_lut && pipe_config->pre_csc_lut ==
-		   i915->display.color.glk_linear_degamma_lut ? "(linear) " : "",
+		   display->color.glk_linear_degamma_lut ? "(linear) " : "",
 		   pipe_config->pre_csc_lut ?
 		   drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
 		   pipe_config->post_csc_lut ?
 		   drm_color_lut_size(pipe_config->post_csc_lut) : 0);
 
-	if (DISPLAY_VER(i915) >= 11)
-		ilk_dump_csc(i915, &p, "output csc", &pipe_config->output_csc);
+	if (DISPLAY_VER(display) >= 11)
+		ilk_dump_csc(display, &p, "output csc", &pipe_config->output_csc);
 
-	if (!HAS_GMCH(i915))
-		ilk_dump_csc(i915, &p, "pipe csc", &pipe_config->csc);
-	else if (IS_CHERRYVIEW(i915))
+	if (!HAS_GMCH(display))
+		ilk_dump_csc(display, &p, "pipe csc", &pipe_config->csc);
+	else if (display->platform.cherryview)
 		vlv_dump_csc(&p, "cgm csc", &pipe_config->csc);
-	else if (IS_VALLEYVIEW(i915))
+	else if (display->platform.valleyview)
 		vlv_dump_csc(&p, "wgc csc", &pipe_config->csc);
 
 	intel_vdsc_state_dump(&p, 0, pipe_config);

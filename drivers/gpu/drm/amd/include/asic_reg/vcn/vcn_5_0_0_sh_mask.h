@@ -5714,6 +5714,22 @@
 //UVD_GPUIOV_STATUS
 #define UVD_GPUIOV_STATUS__UVD_GPUIOV_STATUS_VF_ENABLE__SHIFT                                                 0x0
 #define UVD_GPUIOV_STATUS__UVD_GPUIOV_STATUS_VF_ENABLE_MASK                                                   0x00000001L
+//UVD_RAS_VCPU_VCODEC_STATUS
+#define UVD_RAS_VCPU_VCODEC_STATUS__POISONED_VF__SHIFT                                                        0x0
+#define UVD_RAS_VCPU_VCODEC_STATUS__POISONED_PF__SHIFT                                                        0x1f
+#define UVD_RAS_VCPU_VCODEC_STATUS__POISONED_VF_MASK                                                          0x7FFFFFFFL
+#define UVD_RAS_VCPU_VCODEC_STATUS__POISONED_PF_MASK                                                          0x80000000L
+
+//UVD_RAS_JPEG0_STATUS
+#define UVD_RAS_JPEG0_STATUS__POISONED_VF__SHIFT                                                              0x0
+#define UVD_RAS_JPEG0_STATUS__POISONED_PF__SHIFT                                                              0x1f
+#define UVD_RAS_JPEG0_STATUS__POISONED_VF_MASK                                                                0x7FFFFFFFL
+#define UVD_RAS_JPEG0_STATUS__POISONED_PF_MASK                                                                0x80000000L
+//UVD_RAS_JPEG1_STATUS
+#define UVD_RAS_JPEG1_STATUS__POISONED_VF__SHIFT                                                              0x0
+#define UVD_RAS_JPEG1_STATUS__POISONED_PF__SHIFT                                                              0x1f
+#define UVD_RAS_JPEG1_STATUS__POISONED_VF_MASK                                                                0x7FFFFFFFL
+#define UVD_RAS_JPEG1_STATUS__POISONED_PF_MASK                                                                0x80000000L
 //UVD_SCRATCH15
 #define UVD_SCRATCH15__SCRATCH15_DATA__SHIFT                                                                  0x0
 #define UVD_SCRATCH15__SCRATCH15_DATA_MASK                                                                    0xFFFFFFFFL
@@ -5927,6 +5943,29 @@
 #define UVD_DPG_LMA_CTL2__FIFO_DIRECT_ACCESS_EN_MASK                                                          0x00000002L
 #define UVD_DPG_LMA_CTL2__VID_WRITE_PTR_MASK                                                                  0x000001FCL
 #define UVD_DPG_LMA_CTL2__JPEG_WRITE_PTR_MASK                                                                 0x0000FE00L
+
+
+// addressBlock: uvd_mmsch_dec
+//MMSCH_VF_VMID
+#define MMSCH_VF_VMID__VF_CTX_VMID__SHIFT                                                                     0x0
+#define MMSCH_VF_VMID__VF_GPCOM_VMID__SHIFT                                                                   0x5
+#define MMSCH_VF_VMID__VF_CTX_VMID_MASK                                                                       0x0000001FL
+#define MMSCH_VF_VMID__VF_GPCOM_VMID_MASK                                                                     0x000003E0L
+//MMSCH_VF_CTX_ADDR_LO
+#define MMSCH_VF_CTX_ADDR_LO__VF_CTX_ADDR_LO__SHIFT                                                           0x6
+#define MMSCH_VF_CTX_ADDR_LO__VF_CTX_ADDR_LO_MASK                                                             0xFFFFFFC0L
+//MMSCH_VF_CTX_ADDR_HI
+#define MMSCH_VF_CTX_ADDR_HI__VF_CTX_ADDR_HI__SHIFT                                                           0x0
+#define MMSCH_VF_CTX_ADDR_HI__VF_CTX_ADDR_HI_MASK                                                             0xFFFFFFFFL
+//MMSCH_VF_CTX_SIZE
+#define MMSCH_VF_CTX_SIZE__VF_CTX_SIZE__SHIFT                                                                 0x0
+#define MMSCH_VF_CTX_SIZE__VF_CTX_SIZE_MASK                                                                   0xFFFFFFFFL
+//MMSCH_VF_MAILBOX_HOST
+#define MMSCH_VF_MAILBOX_HOST__DATA__SHIFT                                                                    0x0
+#define MMSCH_VF_MAILBOX_HOST__DATA_MASK                                                                      0xFFFFFFFFL
+//MMSCH_VF_MAILBOX_RESP
+#define MMSCH_VF_MAILBOX_RESP__RESP__SHIFT                                                                    0x0
+#define MMSCH_VF_MAILBOX_RESP__RESP_MASK                                                                      0xFFFFFFFFL
 
 
 // addressBlock: uvd_vcn_umsch_dec

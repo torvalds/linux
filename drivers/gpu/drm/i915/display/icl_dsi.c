@@ -29,6 +29,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "i915_reg.h"
@@ -1826,107 +1827,56 @@ static const struct mipi_dsi_host_ops gen11_dsi_host_ops = {
 	.transfer = gen11_dsi_host_transfer,
 };
 
-#define ICL_PREPARE_CNT_MAX	0x7
-#define ICL_CLK_ZERO_CNT_MAX	0xf
-#define ICL_TRAIL_CNT_MAX	0x7
-#define ICL_TCLK_PRE_CNT_MAX	0x3
-#define ICL_TCLK_POST_CNT_MAX	0x7
-#define ICL_HS_ZERO_CNT_MAX	0xf
-#define ICL_EXIT_ZERO_CNT_MAX	0x7
-
 static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 {
-	struct intel_display *display = to_intel_display(&intel_dsi->base);
 	struct intel_connector *connector = intel_dsi->attached_connector;
 	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	u32 tlpx_ns;
-	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
-	u32 ths_prepare_ns, tclk_trail_ns;
-	u32 hs_zero_cnt;
-	u32 tclk_pre_cnt;
+	u32 tclk_prepare_esc_clk, tclk_zero_esc_clk, tclk_pre_esc_clk;
+	u32 ths_prepare_esc_clk, ths_zero_esc_clk, ths_exit_esc_clk;
 
 	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
 
-	tclk_trail_ns = max(mipi_config->tclk_trail, mipi_config->ths_trail);
-	ths_prepare_ns = max(mipi_config->ths_prepare,
-			     mipi_config->tclk_prepare);
-
 	/*
-	 * prepare cnt in escape clocks
-	 * this field represents a hexadecimal value with a precision
-	 * of 1.2 – i.e. the most significant bit is the integer
-	 * and the least significant 2 bits are fraction bits.
-	 * so, the field can represent a range of 0.25 to 1.75
+	 * The clock and data lane prepare timing parameters are in expressed in
+	 * units of 1/4 escape clocks, and all the other timings parameters in
+	 * escape clocks.
 	 */
-	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * 4, tlpx_ns);
-	if (prepare_cnt > ICL_PREPARE_CNT_MAX) {
-		drm_dbg_kms(display->drm, "prepare_cnt out of range (%d)\n",
-			    prepare_cnt);
-		prepare_cnt = ICL_PREPARE_CNT_MAX;
-	}
+	tclk_prepare_esc_clk = DIV_ROUND_UP(mipi_config->tclk_prepare * 4, tlpx_ns);
+	tclk_prepare_esc_clk = min(tclk_prepare_esc_clk, 7);
 
-	/* clk zero count in escape clocks */
-	clk_zero_cnt = DIV_ROUND_UP(mipi_config->tclk_prepare_clkzero -
-				    ths_prepare_ns, tlpx_ns);
-	if (clk_zero_cnt > ICL_CLK_ZERO_CNT_MAX) {
-		drm_dbg_kms(display->drm,
-			    "clk_zero_cnt out of range (%d)\n", clk_zero_cnt);
-		clk_zero_cnt = ICL_CLK_ZERO_CNT_MAX;
-	}
+	tclk_zero_esc_clk = DIV_ROUND_UP(mipi_config->tclk_prepare_clkzero -
+					 mipi_config->tclk_prepare, tlpx_ns);
+	tclk_zero_esc_clk = min(tclk_zero_esc_clk, 15);
 
-	/* trail cnt in escape clocks*/
-	trail_cnt = DIV_ROUND_UP(tclk_trail_ns, tlpx_ns);
-	if (trail_cnt > ICL_TRAIL_CNT_MAX) {
-		drm_dbg_kms(display->drm, "trail_cnt out of range (%d)\n",
-			    trail_cnt);
-		trail_cnt = ICL_TRAIL_CNT_MAX;
-	}
+	tclk_pre_esc_clk = DIV_ROUND_UP(mipi_config->tclk_pre, tlpx_ns);
+	tclk_pre_esc_clk = min(tclk_pre_esc_clk, 3);
 
-	/* tclk pre count in escape clocks */
-	tclk_pre_cnt = DIV_ROUND_UP(mipi_config->tclk_pre, tlpx_ns);
-	if (tclk_pre_cnt > ICL_TCLK_PRE_CNT_MAX) {
-		drm_dbg_kms(display->drm,
-			    "tclk_pre_cnt out of range (%d)\n", tclk_pre_cnt);
-		tclk_pre_cnt = ICL_TCLK_PRE_CNT_MAX;
-	}
+	ths_prepare_esc_clk = DIV_ROUND_UP(mipi_config->ths_prepare * 4, tlpx_ns);
+	ths_prepare_esc_clk = min(ths_prepare_esc_clk, 7);
 
-	/* hs zero cnt in escape clocks */
-	hs_zero_cnt = DIV_ROUND_UP(mipi_config->ths_prepare_hszero -
-				   ths_prepare_ns, tlpx_ns);
-	if (hs_zero_cnt > ICL_HS_ZERO_CNT_MAX) {
-		drm_dbg_kms(display->drm, "hs_zero_cnt out of range (%d)\n",
-			    hs_zero_cnt);
-		hs_zero_cnt = ICL_HS_ZERO_CNT_MAX;
-	}
+	ths_zero_esc_clk = DIV_ROUND_UP(mipi_config->ths_prepare_hszero -
+					mipi_config->ths_prepare, tlpx_ns);
+	ths_zero_esc_clk = min(ths_zero_esc_clk, 15);
 
-	/* hs exit zero cnt in escape clocks */
-	exit_zero_cnt = DIV_ROUND_UP(mipi_config->ths_exit, tlpx_ns);
-	if (exit_zero_cnt > ICL_EXIT_ZERO_CNT_MAX) {
-		drm_dbg_kms(display->drm,
-			    "exit_zero_cnt out of range (%d)\n",
-			    exit_zero_cnt);
-		exit_zero_cnt = ICL_EXIT_ZERO_CNT_MAX;
-	}
+	ths_exit_esc_clk = DIV_ROUND_UP(mipi_config->ths_exit, tlpx_ns);
+	ths_exit_esc_clk = min(ths_exit_esc_clk, 7);
 
 	/* clock lane dphy timings */
 	intel_dsi->dphy_reg = (CLK_PREPARE_OVERRIDE |
-			       CLK_PREPARE(prepare_cnt) |
+			       CLK_PREPARE(tclk_prepare_esc_clk) |
 			       CLK_ZERO_OVERRIDE |
-			       CLK_ZERO(clk_zero_cnt) |
+			       CLK_ZERO(tclk_zero_esc_clk) |
 			       CLK_PRE_OVERRIDE |
-			       CLK_PRE(tclk_pre_cnt) |
-			       CLK_TRAIL_OVERRIDE |
-			       CLK_TRAIL(trail_cnt));
+			       CLK_PRE(tclk_pre_esc_clk));
 
 	/* data lanes dphy timings */
 	intel_dsi->dphy_data_lane_reg = (HS_PREPARE_OVERRIDE |
-					 HS_PREPARE(prepare_cnt) |
+					 HS_PREPARE(ths_prepare_esc_clk) |
 					 HS_ZERO_OVERRIDE |
-					 HS_ZERO(hs_zero_cnt) |
-					 HS_TRAIL_OVERRIDE |
-					 HS_TRAIL(trail_cnt) |
+					 HS_ZERO(ths_zero_esc_clk) |
 					 HS_EXIT_OVERRIDE |
-					 HS_EXIT(exit_zero_cnt));
+					 HS_EXIT(ths_exit_esc_clk));
 
 	intel_dsi_log_params(intel_dsi);
 }

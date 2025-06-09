@@ -9,7 +9,6 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/hash.h>
-#include <crypto/null.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/gcm.h>
 #include <crypto/hash.h>
@@ -46,7 +45,6 @@ struct crypto_rfc4543_instance_ctx {
 
 struct crypto_rfc4543_ctx {
 	struct crypto_aead *child;
-	struct crypto_sync_skcipher *null;
 	u8 nonce[4];
 };
 
@@ -78,8 +76,6 @@ static struct {
 	u8 buf[16];
 	struct scatterlist sg;
 } *gcm_zeroes;
-
-static int crypto_rfc4543_copy_src_to_dst(struct aead_request *req, bool enc);
 
 static inline struct crypto_gcm_req_priv_ctx *crypto_gcm_reqctx(
 	struct aead_request *req)
@@ -930,12 +926,12 @@ static int crypto_rfc4543_crypt(struct aead_request *req, bool enc)
 	unsigned int authsize = crypto_aead_authsize(aead);
 	u8 *iv = PTR_ALIGN((u8 *)(rctx + 1) + crypto_aead_reqsize(ctx->child),
 			   crypto_aead_alignmask(ctx->child) + 1);
-	int err;
 
 	if (req->src != req->dst) {
-		err = crypto_rfc4543_copy_src_to_dst(req, enc);
-		if (err)
-			return err;
+		unsigned int nbytes = req->assoclen + req->cryptlen -
+				      (enc ? 0 : authsize);
+
+		memcpy_sglist(req->dst, req->src, nbytes);
 	}
 
 	memcpy(iv, ctx->nonce, 4);
@@ -950,22 +946,6 @@ static int crypto_rfc4543_crypt(struct aead_request *req, bool enc)
 				    subreq->cryptlen);
 
 	return enc ? crypto_aead_encrypt(subreq) : crypto_aead_decrypt(subreq);
-}
-
-static int crypto_rfc4543_copy_src_to_dst(struct aead_request *req, bool enc)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct crypto_rfc4543_ctx *ctx = crypto_aead_ctx(aead);
-	unsigned int authsize = crypto_aead_authsize(aead);
-	unsigned int nbytes = req->assoclen + req->cryptlen -
-			      (enc ? 0 : authsize);
-	SYNC_SKCIPHER_REQUEST_ON_STACK(nreq, ctx->null);
-
-	skcipher_request_set_sync_tfm(nreq, ctx->null);
-	skcipher_request_set_callback(nreq, req->base.flags, NULL, NULL);
-	skcipher_request_set_crypt(nreq, req->src, req->dst, nbytes, NULL);
-
-	return crypto_skcipher_encrypt(nreq);
 }
 
 static int crypto_rfc4543_encrypt(struct aead_request *req)
@@ -987,21 +967,13 @@ static int crypto_rfc4543_init_tfm(struct crypto_aead *tfm)
 	struct crypto_aead_spawn *spawn = &ictx->aead;
 	struct crypto_rfc4543_ctx *ctx = crypto_aead_ctx(tfm);
 	struct crypto_aead *aead;
-	struct crypto_sync_skcipher *null;
 	unsigned long align;
-	int err = 0;
 
 	aead = crypto_spawn_aead(spawn);
 	if (IS_ERR(aead))
 		return PTR_ERR(aead);
 
-	null = crypto_get_default_null_skcipher();
-	err = PTR_ERR(null);
-	if (IS_ERR(null))
-		goto err_free_aead;
-
 	ctx->child = aead;
-	ctx->null = null;
 
 	align = crypto_aead_alignmask(aead);
 	align &= ~(crypto_tfm_ctx_alignment() - 1);
@@ -1012,10 +984,6 @@ static int crypto_rfc4543_init_tfm(struct crypto_aead *tfm)
 		align + GCM_AES_IV_SIZE);
 
 	return 0;
-
-err_free_aead:
-	crypto_free_aead(aead);
-	return err;
 }
 
 static void crypto_rfc4543_exit_tfm(struct crypto_aead *tfm)
@@ -1023,7 +991,6 @@ static void crypto_rfc4543_exit_tfm(struct crypto_aead *tfm)
 	struct crypto_rfc4543_ctx *ctx = crypto_aead_ctx(tfm);
 
 	crypto_free_aead(ctx->child);
-	crypto_put_default_null_skcipher();
 }
 
 static void crypto_rfc4543_free(struct aead_instance *inst)
@@ -1152,7 +1119,7 @@ static void __exit crypto_gcm_module_exit(void)
 				    ARRAY_SIZE(crypto_gcm_tmpls));
 }
 
-subsys_initcall(crypto_gcm_module_init);
+module_init(crypto_gcm_module_init);
 module_exit(crypto_gcm_module_exit);
 
 MODULE_LICENSE("GPL");

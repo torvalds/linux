@@ -11,6 +11,7 @@ Block Devices
    nbd
    paride
    ramdisk
+   zoned_loop
    zram
 
    drbd/index

@@ -9,7 +9,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <asm/amd_hsmp.h>
+#include <asm/amd/hsmp.h>
 
 #include <linux/acpi.h>
 #include <linux/build_bug.h>
@@ -19,12 +19,11 @@
 #include <linux/platform_device.h>
 #include <linux/sysfs.h>
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #include "hsmp.h"
 
 #define DRIVER_NAME		"amd_hsmp"
-#define DRIVER_VERSION		"2.3"
 
 /*
  * To access specific HSMP mailbox register, s/w writes the SMN address of HSMP mailbox
@@ -190,6 +189,11 @@ static int init_platform_device(struct device *dev)
 			if (ret)
 				dev_err(dev, "Failed to init metric table\n");
 		}
+
+		/* Register with hwmon interface for reporting power */
+		ret = hsmp_create_sensor(dev, i);
+		if (ret)
+			dev_err(dev, "Failed to register HSMP sensors with hwmon\n");
 	}
 
 	return 0;

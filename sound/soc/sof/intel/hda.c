@@ -192,6 +192,9 @@ static int hda_sdw_probe(struct snd_sof_dev *sdev)
 		res.ext = true;
 		res.ops = &sdw_ace2x_callback;
 
+		/* ACE3+ supports microphone privacy */
+		if (chip->hw_ip_version >= SOF_INTEL_ACE_3_0)
+			res.mic_privacy = true;
 	}
 	res.irq = sdev->ipc_irq;
 	res.handle = hdev->info.handle;

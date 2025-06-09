@@ -139,7 +139,7 @@ stmt_list_in_choice:
 
 config_entry_start: T_CONFIG nonconst_symbol T_EOL
 {
-	menu_add_entry($2);
+	menu_add_entry($2, M_NORMAL);
 	printd(DEBUG_PARSE, "%s:%d:config %s\n", cur_filename, cur_lineno, $2->name);
 };
 
@@ -173,7 +173,7 @@ config_stmt: config_entry_start config_option_list
 
 menuconfig_entry_start: T_MENUCONFIG nonconst_symbol T_EOL
 {
-	menu_add_entry($2);
+	menu_add_entry($2, M_MENU);
 	printd(DEBUG_PARSE, "%s:%d:menuconfig %s\n", cur_filename, cur_lineno, $2->name);
 };
 
@@ -246,7 +246,7 @@ choice: T_CHOICE T_EOL
 {
 	struct symbol *sym = sym_lookup(NULL, 0);
 
-	menu_add_entry(sym);
+	menu_add_entry(sym, M_CHOICE);
 	menu_set_type(S_BOOLEAN);
 	INIT_LIST_HEAD(&current_entry->choice_members);
 
@@ -315,7 +315,7 @@ default:
 if_entry: T_IF expr T_EOL
 {
 	printd(DEBUG_PARSE, "%s:%d:if\n", cur_filename, cur_lineno);
-	menu_add_entry(NULL);
+	menu_add_entry(NULL, M_IF);
 	menu_add_dep($2);
 	$$ = menu_add_menu();
 };
@@ -338,7 +338,7 @@ if_stmt_in_choice: if_entry stmt_list_in_choice if_end
 
 menu: T_MENU T_WORD_QUOTE T_EOL
 {
-	menu_add_entry(NULL);
+	menu_add_entry(NULL, M_MENU);
 	menu_add_prompt(P_MENU, $2, NULL);
 	printd(DEBUG_PARSE, "%s:%d:menu\n", cur_filename, cur_lineno);
 };
@@ -376,7 +376,7 @@ source_stmt: T_SOURCE T_WORD_QUOTE T_EOL
 
 comment: T_COMMENT T_WORD_QUOTE T_EOL
 {
-	menu_add_entry(NULL);
+	menu_add_entry(NULL, M_COMMENT);
 	menu_add_prompt(P_COMMENT, $2, NULL);
 	printd(DEBUG_PARSE, "%s:%d:comment\n", cur_filename, cur_lineno);
 };

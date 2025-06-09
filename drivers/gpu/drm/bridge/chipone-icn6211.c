@@ -580,11 +580,13 @@ static int chipone_dsi_host_attach(struct chipone *icn)
 	return ret;
 }
 
-static int chipone_attach(struct drm_bridge *bridge, enum drm_bridge_attach_flags flags)
+static int chipone_attach(struct drm_bridge *bridge,
+			  struct drm_encoder *encoder,
+			  enum drm_bridge_attach_flags flags)
 {
 	struct chipone *icn = bridge_to_chipone(bridge);
 
-	return drm_bridge_attach(bridge->encoder, icn->panel_bridge, bridge, flags);
+	return drm_bridge_attach(encoder, icn->panel_bridge, bridge, flags);
 }
 
 #define MAX_INPUT_SEL_FORMATS	1

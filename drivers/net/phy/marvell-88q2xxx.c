@@ -119,7 +119,6 @@
 #define MV88Q2XXX_LED_INDEX_GPIO			1
 
 struct mv88q2xxx_priv {
-	bool enable_temp;
 	bool enable_led0;
 };
 
@@ -482,49 +481,6 @@ static int mv88q2xxx_config_aneg(struct phy_device *phydev)
 	return phydev->drv->soft_reset(phydev);
 }
 
-static int mv88q2xxx_config_init(struct phy_device *phydev)
-{
-	struct mv88q2xxx_priv *priv = phydev->priv;
-	int ret;
-
-	/* The 88Q2XXX PHYs do have the extended ability register available, but
-	 * register MDIO_PMA_EXTABLE where they should signalize it does not
-	 * work according to specification. Therefore, we force it here.
-	 */
-	phydev->pma_extable = MDIO_PMA_EXTABLE_BT1;
-
-	/* Configure interrupt with default settings, output is driven low for
-	 * active interrupt and high for inactive.
-	 */
-	if (phy_interrupt_is_valid(phydev)) {
-		ret = phy_set_bits_mmd(phydev, MDIO_MMD_PCS,
-				       MDIO_MMD_PCS_MV_GPIO_INT_CTRL,
-				       MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* Enable LED function and disable TX disable feature on LED/TX_ENABLE */
-	if (priv->enable_led0) {
-		ret = phy_clear_bits_mmd(phydev, MDIO_MMD_PCS,
-					 MDIO_MMD_PCS_MV_RESET_CTRL,
-					 MDIO_MMD_PCS_MV_RESET_CTRL_TX_DISABLE);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* Enable temperature sense */
-	if (priv->enable_temp) {
-		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
-				     MDIO_MMD_PCS_MV_TEMP_SENSOR2,
-				     MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK, 0);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int mv88q2xxx_get_sqi(struct phy_device *phydev)
 {
 	int ret;
@@ -667,6 +623,12 @@ static int mv88q2xxx_resume(struct phy_device *phydev)
 }
 
 #if IS_ENABLED(CONFIG_HWMON)
+static int mv88q2xxx_enable_temp_sense(struct phy_device *phydev)
+{
+	return phy_modify_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_TEMP_SENSOR2,
+			      MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK, 0);
+}
+
 static const struct hwmon_channel_info * const mv88q2xxx_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_ALARM),
 	NULL
@@ -762,11 +724,13 @@ static const struct hwmon_chip_info mv88q2xxx_hwmon_chip_info = {
 
 static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 {
-	struct mv88q2xxx_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	struct device *hwmon;
+	int ret;
 
-	priv->enable_temp = true;
+	ret = mv88q2xxx_enable_temp_sense(phydev);
+	if (ret < 0)
+		return ret;
 
 	hwmon = devm_hwmon_device_register_with_info(dev, NULL, phydev,
 						     &mv88q2xxx_hwmon_chip_info,
@@ -776,6 +740,11 @@ static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 }
 
 #else
+static int mv88q2xxx_enable_temp_sense(struct phy_device *phydev)
+{
+	return 0;
+}
+
 static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 {
 	return 0;
@@ -828,6 +797,7 @@ static int mv88q2xxx_leds_probe(struct phy_device *phydev)
 static int mv88q2xxx_probe(struct phy_device *phydev)
 {
 	struct mv88q2xxx_priv *priv;
+	int ret;
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -835,22 +805,53 @@ static int mv88q2xxx_probe(struct phy_device *phydev)
 
 	phydev->priv = priv;
 
-	return 0;
-}
-
-static int mv88q222x_probe(struct phy_device *phydev)
-{
-	int ret;
-
-	ret = mv88q2xxx_probe(phydev);
-	if (ret)
-		return ret;
-
 	ret = mv88q2xxx_leds_probe(phydev);
 	if (ret)
 		return ret;
 
 	return mv88q2xxx_hwmon_probe(phydev);
+}
+
+static int mv88q2xxx_config_init(struct phy_device *phydev)
+{
+	struct mv88q2xxx_priv *priv = phydev->priv;
+	int ret;
+
+	/* The 88Q2XXX PHYs do have the extended ability register available, but
+	 * register MDIO_PMA_EXTABLE where they should signalize it does not
+	 * work according to specification. Therefore, we force it here.
+	 */
+	phydev->pma_extable = MDIO_PMA_EXTABLE_BT1;
+
+	/* Configure interrupt with default settings, output is driven low for
+	 * active interrupt and high for inactive.
+	 */
+	if (phy_interrupt_is_valid(phydev)) {
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_PCS,
+				       MDIO_MMD_PCS_MV_GPIO_INT_CTRL,
+				       MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Enable LED function and disable TX disable feature on LED/TX_ENABLE */
+	if (priv->enable_led0) {
+		ret = phy_clear_bits_mmd(phydev, MDIO_MMD_PCS,
+					 MDIO_MMD_PCS_MV_RESET_CTRL,
+					 MDIO_MMD_PCS_MV_RESET_CTRL_TX_DISABLE);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* Enable temperature sense again. There might have been a hard reset
+	 * of the PHY and in this case the register content is restored to
+	 * defaults and we need to enable it again.
+	 */
+	ret = mv88q2xxx_enable_temp_sense(phydev);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int mv88q2110_config_init(struct phy_device *phydev)
@@ -1118,7 +1119,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.phy_id_mask		= MARVELL_PHY_ID_MASK,
 		.name			= "mv88q2220",
 		.flags			= PHY_POLL_CABLE_TEST,
-		.probe			= mv88q222x_probe,
+		.probe			= mv88q2xxx_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q2xxx_config_aneg,
 		.aneg_done		= genphy_c45_aneg_done,

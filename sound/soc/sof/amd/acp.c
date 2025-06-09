@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <asm/amd_node.h>
+#include <asm/amd/node.h>
 
 #include "../ops.h"
 #include "acp.h"

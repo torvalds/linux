@@ -6,6 +6,8 @@
 
 #include <linux/property.h>
 #include <linux/irq.h>
+#include <linux/phy.h>
+#include "../libwx/wx_type.h"
 
 /* Device IDs */
 #define TXGBE_DEV_ID_SP1000                     0x1001
@@ -50,6 +52,8 @@
 
 /**************** SP Registers ****************************/
 /* chip control Registers */
+#define TXGBE_MIS_RST                           0x1000C
+#define TXGBE_MIS_RST_MAC_RST(_i)               BIT(20 - (_i) * 3)
 #define TXGBE_MIS_PRB_CTL                       0x10010
 #define TXGBE_MIS_PRB_CTL_LAN_UP(_i)            BIT(1 - (_i))
 /* FMGR Registers */
@@ -62,6 +66,11 @@
 #define TXGBE_TS_CTL                            0x10300
 #define TXGBE_TS_CTL_EVAL_MD                    BIT(31)
 
+/* MAC Misc Registers */
+#define TXGBE_MAC_MISC_CTL                      0x11F00
+#define TXGBE_MAC_MISC_CTL_LINK_STS_MOD         BIT(0)
+#define TXGBE_MAC_MISC_CTL_LINK_PCS             FIELD_PREP(BIT(0), 0)
+#define TXGBE_MAC_MISC_CTL_LINK_BOTH            FIELD_PREP(BIT(0), 1)
 /* GPIO register bit */
 #define TXGBE_GPIOBIT_0                         BIT(0) /* I:tx fault */
 #define TXGBE_GPIOBIT_1                         BIT(1) /* O:tx disabled */
@@ -73,19 +82,27 @@
 /* Extended Interrupt Enable Set */
 #define TXGBE_PX_MISC_ETH_LKDN                  BIT(8)
 #define TXGBE_PX_MISC_DEV_RST                   BIT(10)
+#define TXGBE_PX_MISC_IC_TIMESYNC               BIT(11)
 #define TXGBE_PX_MISC_ETH_EVENT                 BIT(17)
 #define TXGBE_PX_MISC_ETH_LK                    BIT(18)
 #define TXGBE_PX_MISC_ETH_AN                    BIT(19)
 #define TXGBE_PX_MISC_INT_ERR                   BIT(20)
+#define TXGBE_PX_MISC_IC_VF_MBOX                BIT(23)
 #define TXGBE_PX_MISC_GPIO                      BIT(26)
 #define TXGBE_PX_MISC_IEN_MASK                            \
 	(TXGBE_PX_MISC_ETH_LKDN | TXGBE_PX_MISC_DEV_RST | \
 	 TXGBE_PX_MISC_ETH_EVENT | TXGBE_PX_MISC_ETH_LK | \
-	 TXGBE_PX_MISC_ETH_AN | TXGBE_PX_MISC_INT_ERR)
+	 TXGBE_PX_MISC_ETH_AN | TXGBE_PX_MISC_INT_ERR | \
+	 TXGBE_PX_MISC_IC_VF_MBOX | TXGBE_PX_MISC_IC_TIMESYNC)
 
 /* Port cfg registers */
 #define TXGBE_CFG_PORT_ST                       0x14404
 #define TXGBE_CFG_PORT_ST_LINK_UP               BIT(0)
+#define TXGBE_CFG_PORT_ST_LINK_AML_25G          BIT(3)
+#define TXGBE_CFG_PORT_ST_LINK_AML_10G          BIT(4)
+#define TXGBE_CFG_VXLAN                         0x14410
+#define TXGBE_CFG_VXLAN_GPE                     0x14414
+#define TXGBE_CFG_GENEVE                        0x14418
 
 /* I2C registers */
 #define TXGBE_I2C_BASE                          0x14900
@@ -146,8 +163,11 @@
 /*************************** Amber Lite Registers ****************************/
 #define TXGBE_PX_PF_BME                         0x4B8
 #define TXGBE_AML_MAC_TX_CFG                    0x11000
+#define TXGBE_AML_MAC_TX_CFG_TE                 BIT(0)
 #define TXGBE_AML_MAC_TX_CFG_SPEED_MASK         GENMASK(30, 27)
-#define TXGBE_AML_MAC_TX_CFG_SPEED_25G          BIT(28)
+#define TXGBE_AML_MAC_TX_CFG_SPEED_40G          FIELD_PREP(GENMASK(30, 27), 0)
+#define TXGBE_AML_MAC_TX_CFG_SPEED_25G          FIELD_PREP(GENMASK(30, 27), 2)
+#define TXGBE_AML_MAC_TX_CFG_SPEED_10G          FIELD_PREP(GENMASK(30, 27), 8)
 #define TXGBE_RDM_RSC_CTL                       0x1200C
 #define TXGBE_RDM_RSC_CTL_FREE_CTL              BIT(7)
 
@@ -168,13 +188,15 @@
 #define TXGBE_MAX_RX_QUEUES   (TXGBE_MAX_FDIR_INDICES + 1)
 #define TXGBE_MAX_TX_QUEUES   (TXGBE_MAX_FDIR_INDICES + 1)
 
-#define TXGBE_SP_MAX_TX_QUEUES  128
-#define TXGBE_SP_MAX_RX_QUEUES  128
-#define TXGBE_SP_RAR_ENTRIES    128
-#define TXGBE_SP_MC_TBL_SIZE    128
-#define TXGBE_SP_VFT_TBL_SIZE   128
-#define TXGBE_SP_RX_PB_SIZE     512
-#define TXGBE_SP_TDB_PB_SZ      (160 * 1024) /* 160KB Packet Buffer */
+#define TXGBE_MAX_TXQ        128
+#define TXGBE_MAX_RXQ        128
+#define TXGBE_RAR_ENTRIES    128
+#define TXGBE_MC_TBL_SIZE    128
+#define TXGBE_VFT_TBL_SIZE   128
+#define TXGBE_RX_PB_SIZE     512
+#define TXGBE_TDB_PB_SZ      (160 * 1024) /* 160KB Packet Buffer */
+
+#define TXGBE_MAX_VFS_DRV_LIMIT                 63
 
 #define TXGBE_DEFAULT_ATR_SAMPLE_RATE           20
 
@@ -265,7 +287,7 @@ struct txgbe_fdir_filter {
 	struct hlist_node fdir_node;
 	union txgbe_atr_input filter;
 	u16 sw_idx;
-	u16 action;
+	u64 action;
 };
 
 /* TX/RX descriptor defines */
@@ -291,6 +313,72 @@ void txgbe_down(struct wx *wx);
 void txgbe_up(struct wx *wx);
 int txgbe_setup_tc(struct net_device *dev, u8 tc);
 void txgbe_do_reset(struct net_device *netdev);
+
+#define TXGBE_LINK_SPEED_10GB_FULL      4
+#define TXGBE_LINK_SPEED_25GB_FULL      0x10
+
+#define TXGBE_SFF_IDENTIFIER_SFP        0x3
+#define TXGBE_SFF_DA_PASSIVE_CABLE      0x4
+#define TXGBE_SFF_DA_ACTIVE_CABLE       0x8
+#define TXGBE_SFF_DA_SPEC_ACTIVE_LIMIT  0x4
+#define TXGBE_SFF_FCPI4_LIMITING        0x3
+#define TXGBE_SFF_10GBASESR_CAPABLE     0x10
+#define TXGBE_SFF_10GBASELR_CAPABLE     0x20
+#define TXGBE_SFF_25GBASESR_CAPABLE     0x2
+#define TXGBE_SFF_25GBASELR_CAPABLE     0x3
+#define TXGBE_SFF_25GBASEER_CAPABLE     0x4
+#define TXGBE_SFF_25GBASECR_91FEC       0xB
+#define TXGBE_SFF_25GBASECR_74FEC       0xC
+#define TXGBE_SFF_25GBASECR_NOFEC       0xD
+
+#define TXGBE_PHY_FEC_RS                BIT(0)
+#define TXGBE_PHY_FEC_BASER             BIT(1)
+#define TXGBE_PHY_FEC_OFF               BIT(2)
+#define TXGBE_PHY_FEC_AUTO              (TXGBE_PHY_FEC_OFF | \
+					 TXGBE_PHY_FEC_BASER |\
+					 TXGBE_PHY_FEC_RS)
+
+#define FW_PHY_GET_LINK_CMD             0xC0
+#define FW_PHY_SET_LINK_CMD             0xC1
+#define FW_READ_SFP_INFO_CMD            0xC5
+
+struct txgbe_sfp_id {
+	u8 identifier;		/* A0H 0x00 */
+	u8 com_1g_code;		/* A0H 0x06 */
+	u8 com_10g_code;	/* A0H 0x03 */
+	u8 com_25g_code;	/* A0H 0x24 */
+	u8 cable_spec;		/* A0H 0x3C */
+	u8 cable_tech;		/* A0H 0x08 */
+	u8 vendor_oui0;		/* A0H 0x25 */
+	u8 vendor_oui1;		/* A0H 0x26 */
+	u8 vendor_oui2;		/* A0H 0x27 */
+	u8 reserved[3];
+};
+
+struct txgbe_hic_i2c_read {
+	struct wx_hic_hdr hdr;
+	struct txgbe_sfp_id id;
+};
+
+struct txgbe_hic_ephy_setlink {
+	struct wx_hic_hdr hdr;
+	u8 speed;
+	u8 duplex;
+	u8 autoneg;
+	u8 fec_mode;
+	u8 resv[4];
+};
+
+struct txgbe_hic_ephy_getlink {
+	struct wx_hic_hdr hdr;
+	u8 speed;
+	u8 duplex;
+	u8 autoneg;
+	u8 flow_ctl;
+	u8 power;
+	u8 fec_mode;
+	u8 resv[6];
+};
 
 #define NODE_PROP(_NAME, _PROP)			\
 	(const struct software_node) {		\
@@ -329,6 +417,7 @@ struct txgbe_nodes {
 
 enum txgbe_misc_irqs {
 	TXGBE_IRQ_LINK = 0,
+	TXGBE_IRQ_GPIO,
 	TXGBE_IRQ_MAX
 };
 
@@ -350,12 +439,19 @@ struct txgbe {
 	struct clk *clk;
 	struct gpio_chip *gpio;
 	unsigned int link_irq;
+	unsigned int gpio_irq;
+	u32 eicr;
 
 	/* flow director */
 	struct hlist_head fdir_filter_list;
 	union txgbe_atr_input fdir_mask;
 	int fdir_filter_count;
 	spinlock_t fdir_perfect_lock; /* spinlock for FDIR */
+
+	DECLARE_PHY_INTERFACE_MASK(sfp_interfaces);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_support);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+	u8 link_port;
 };
 
 #endif /* _TXGBE_TYPE_H_ */

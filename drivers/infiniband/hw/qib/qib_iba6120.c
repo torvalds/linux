@@ -2615,7 +2615,7 @@ static void qib_chk_6120_errormask(struct qib_devdata *dd)
  */
 static void qib_get_6120_faststats(struct timer_list *t)
 {
-	struct qib_devdata *dd = from_timer(dd, t, stats_timer);
+	struct qib_devdata *dd = timer_container_of(dd, t, stats_timer);
 	struct qib_pportdata *ppd = dd->pport;
 	unsigned long flags;
 	u64 traffic_wds;
@@ -2905,7 +2905,7 @@ static int qib_6120_set_loopback(struct qib_pportdata *ppd, const char *what)
 
 static void pma_6120_timer(struct timer_list *t)
 {
-	struct qib_chip_specific *cs = from_timer(cs, t, pma_timer);
+	struct qib_chip_specific *cs = timer_container_of(cs, t, pma_timer);
 	struct qib_pportdata *ppd = cs->ppd;
 	struct qib_ibport *ibp = &ppd->ibport_data;
 	unsigned long flags;

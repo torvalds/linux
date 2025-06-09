@@ -125,6 +125,7 @@ int amdgpu_xgmi_request_nps_change(struct amdgpu_device *adev,
 				   int req_nps_mode);
 int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev,
 				int global_link_num);
+int amdgpu_xgmi_get_ext_link(struct amdgpu_device *adev, int link_num);
 
 void amdgpu_xgmi_early_init(struct amdgpu_device *adev);
 uint32_t amdgpu_xgmi_get_max_bandwidth(struct amdgpu_device *adev);

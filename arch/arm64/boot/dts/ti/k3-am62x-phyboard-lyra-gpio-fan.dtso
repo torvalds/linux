@@ -33,7 +33,7 @@
 &thermal_zones {
 	main0_thermal: main0-thermal {
 		trips {
-			main0_thermal_trip0: main0-thermal-trip {
+			main0_fan: main0-fan {
 				temperature = <65000>;  /* millicelsius */
 				hysteresis = <2000>;    /* millicelsius */
 				type = "active";
@@ -42,7 +42,17 @@
 
 		cooling-maps {
 			map0 {
-				trip = <&main0_thermal_trip0>;
+				trip = <&main0_alert>;
+				cooling-device =
+					<&fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+					<&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			};
+
+			map1 {
+				trip = <&main0_fan>;
 				cooling-device = <&fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 			};
 		};

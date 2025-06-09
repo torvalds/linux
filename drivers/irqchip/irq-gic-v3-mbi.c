@@ -18,7 +18,7 @@
 
 #include <linux/irqchip/arm-gic-v3.h>
 
-#include "irq-msi-lib.h"
+#include <linux/irqchip/irq-msi-lib.h>
 
 struct mbi_range {
 	u32			spi_start;
@@ -206,17 +206,13 @@ static const struct msi_parent_ops gic_v3_mbi_msi_parent_ops = {
 
 static int mbi_allocate_domain(struct irq_domain *parent)
 {
-	struct irq_domain *nexus_domain;
+	struct irq_domain_info info = {
+		.fwnode		= parent->fwnode,
+		.ops		= &mbi_domain_ops,
+		.parent		= parent,
+	};
 
-	nexus_domain = irq_domain_create_hierarchy(parent, 0, 0, parent->fwnode,
-						   &mbi_domain_ops, NULL);
-	if (!nexus_domain)
-		return -ENOMEM;
-
-	irq_domain_update_bus_token(nexus_domain, DOMAIN_BUS_NEXUS);
-	nexus_domain->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
-	nexus_domain->msi_parent_ops = &gic_v3_mbi_msi_parent_ops;
-	return 0;
+	return msi_create_parent_irq_domain(&info, &gic_v3_mbi_msi_parent_ops) ? 0 : -ENOMEM;
 }
 
 int __init mbi_init(struct fwnode_handle *fwnode, struct irq_domain *parent)

@@ -5,7 +5,7 @@
 //! It is called from a panic handler, so it should't allocate memory and
 //! does all the work on the stack or on the provided buffers. For
 //! simplification, it only supports low error correction, and applies the
-//! first mask (checkerboard). It will draw the smallest QRcode that can
+//! first mask (checkerboard). It will draw the smallest QR code that can
 //! contain the string passed as parameter. To get the most compact
 //! QR code, the start of the URL is encoded as binary, and the
 //! compressed kmsg is encoded as numeric.
@@ -315,7 +315,7 @@ impl Segment<'_> {
         }
     }
 
-    // Returns the size of the length field in bits, depending on QR Version.
+    /// Returns the size of the length field in bits, depending on QR Version.
     fn length_bits_count(&self, version: Version) -> usize {
         let Version(v) = version;
         match self {
@@ -331,7 +331,7 @@ impl Segment<'_> {
         }
     }
 
-    // Number of characters in the segment.
+    /// Number of characters in the segment.
     fn character_count(&self) -> usize {
         match self {
             Segment::Binary(data) => data.len(),
@@ -366,8 +366,48 @@ impl Segment<'_> {
         SegmentIterator {
             segment: self,
             offset: 0,
-            carry: 0,
-            carry_len: 0,
+            decfifo: Default::default(),
+        }
+    }
+}
+
+/// Max fifo size is 17 (max push) + 2 (max remaining)
+const MAX_FIFO_SIZE: usize = 19;
+
+/// A simple Decimal digit FIFO
+#[derive(Default)]
+struct DecFifo {
+    decimals: [u8; MAX_FIFO_SIZE],
+    len: usize,
+}
+
+impl DecFifo {
+    fn push(&mut self, data: u64, len: usize) {
+        let mut chunk = data;
+        for i in (0..self.len).rev() {
+            self.decimals[i + len] = self.decimals[i];
+        }
+        for i in 0..len {
+            self.decimals[i] = (chunk % 10) as u8;
+            chunk /= 10;
+        }
+        self.len += len;
+    }
+
+    /// Pop 3 decimal digits from the FIFO
+    fn pop3(&mut self) -> Option<(u16, usize)> {
+        if self.len == 0 {
+            None
+        } else {
+            let poplen = 3.min(self.len);
+            self.len -= poplen;
+            let mut out = 0;
+            let mut exp = 1;
+            for i in 0..poplen {
+                out += self.decimals[self.len + i] as u16 * exp;
+                exp *= 10;
+            }
+            Some((out, NUM_CHARS_BITS[poplen]))
         }
     }
 }
@@ -375,8 +415,7 @@ impl Segment<'_> {
 struct SegmentIterator<'a> {
     segment: &'a Segment<'a>,
     offset: usize,
-    carry: u64,
-    carry_len: usize,
+    decfifo: DecFifo,
 }
 
 impl Iterator for SegmentIterator<'_> {
@@ -394,31 +433,17 @@ impl Iterator for SegmentIterator<'_> {
                 }
             }
             Segment::Numeric(data) => {
-                if self.carry_len < 3 && self.offset < data.len() {
-                    // If there are less than 3 decimal digits in the carry,
-                    // take the next 7 bytes of input, and add them to the carry.
+                if self.decfifo.len < 3 && self.offset < data.len() {
+                    // If there are less than 3 decimal digits in the fifo,
+                    // take the next 7 bytes of input, and push them to the fifo.
                     let mut buf = [0u8; 8];
                     let len = 7.min(data.len() - self.offset);
                     buf[..len].copy_from_slice(&data[self.offset..self.offset + len]);
                     let chunk = u64::from_le_bytes(buf);
-                    let pow = u64::pow(10, BYTES_TO_DIGITS[len] as u32);
-                    self.carry = chunk + self.carry * pow;
+                    self.decfifo.push(chunk, BYTES_TO_DIGITS[len]);
                     self.offset += len;
-                    self.carry_len += BYTES_TO_DIGITS[len];
                 }
-                match self.carry_len {
-                    0 => None,
-                    len => {
-                        // take the next 3 decimal digits of the carry
-                        // and return 10bits of numeric data.
-                        let out_len = 3.min(len);
-                        self.carry_len -= out_len;
-                        let pow = u64::pow(10, self.carry_len as u32);
-                        let out = (self.carry / pow) as u16;
-                        self.carry = self.carry % pow;
-                        Some((out, NUM_CHARS_BITS[out_len]))
-                    }
-                }
+                self.decfifo.pop3()
             }
         }
     }
@@ -569,8 +594,8 @@ struct EncodedMsgIterator<'a> {
 impl Iterator for EncodedMsgIterator<'_> {
     type Item = u8;
 
-    // Send the bytes in interleaved mode, first byte of first block of group1,
-    // then first byte of second block of group1, ...
+    /// Send the bytes in interleaved mode, first byte of first block of group1,
+    /// then first byte of second block of group1, ...
     fn next(&mut self) -> Option<Self::Item> {
         let em = self.em;
         let blocks = em.g1_blocks + em.g2_blocks;
@@ -638,7 +663,7 @@ impl QrImage<'_> {
         self.data.fill(0);
     }
 
-    // Set pixel to light color.
+    /// Set pixel to light color.
     fn set(&mut self, x: u8, y: u8) {
         let off = y as usize * self.stride as usize + x as usize / 8;
         let mut v = self.data[off];
@@ -646,13 +671,13 @@ impl QrImage<'_> {
         self.data[off] = v;
     }
 
-    // Invert a module color.
+    /// Invert a module color.
     fn xor(&mut self, x: u8, y: u8) {
         let off = y as usize * self.stride as usize + x as usize / 8;
         self.data[off] ^= 0x80 >> (x % 8);
     }
 
-    // Draw a light square at (x, y) top left corner.
+    /// Draw a light square at (x, y) top left corner.
     fn draw_square(&mut self, x: u8, y: u8, size: u8) {
         for k in 0..size {
             self.set(x + k, y);
@@ -784,7 +809,7 @@ impl QrImage<'_> {
         vinfo != 0 && ((x >= pos && x < pos + 3 && y < 6) || (y >= pos && y < pos + 3 && x < 6))
     }
 
-    // Returns true if the module is reserved (Not usable for data and EC).
+    /// Returns true if the module is reserved (Not usable for data and EC).
     fn is_reserved(&self, x: u8, y: u8) -> bool {
         self.is_alignment(x, y)
             || self.is_finder(x, y)
@@ -793,13 +818,14 @@ impl QrImage<'_> {
             || self.is_version_info(x, y)
     }
 
-    // Last module to draw, at bottom left corner.
+    /// Last module to draw, at bottom left corner.
     fn is_last(&self, x: u8, y: u8) -> bool {
         x == 0 && y == self.width - 1
     }
 
-    // Move to the next module according to QR code order.
-    // From bottom right corner, to bottom left corner.
+    /// Move to the next module according to QR code order.
+    ///
+    /// From bottom right corner, to bottom left corner.
     fn next(&self, x: u8, y: u8) -> (u8, u8) {
         let x_adj = if x <= 6 { x + 1 } else { x };
         let column_type = (self.width - x_adj) % 4;
@@ -812,7 +838,7 @@ impl QrImage<'_> {
         }
     }
 
-    // Find next module that can hold data.
+    /// Find next module that can hold data.
     fn next_available(&self, x: u8, y: u8) -> (u8, u8) {
         let (mut x, mut y) = self.next(x, y);
         while self.is_reserved(x, y) && !self.is_last(x, y) {
@@ -841,7 +867,7 @@ impl QrImage<'_> {
         }
     }
 
-    // Apply checkerboard mask to all non-reserved modules.
+    /// Apply checkerboard mask to all non-reserved modules.
     fn apply_mask(&mut self) {
         for x in 0..self.width {
             for y in 0..self.width {
@@ -852,7 +878,7 @@ impl QrImage<'_> {
         }
     }
 
-    // Draw the QR code with the provided data iterator.
+    /// Draw the QR code with the provided data iterator.
     fn draw_all(&mut self, data: impl Iterator<Item = u8>) {
         // First clear the table, as it may have already some data.
         self.clear();
@@ -876,7 +902,7 @@ impl QrImage<'_> {
 ///   will be encoded as binary segment, otherwise it will be encoded
 ///   efficiently as a numeric segment, and appended to the URL.
 /// * `data_len`: Length of the data, that needs to be encoded, must be less
-///   than data_size.
+///   than `data_size`.
 /// * `data_size`: Size of data buffer, it should be at least 4071 bytes to hold
 ///   a V40 QR code. It will then be overwritten with the QR code image.
 /// * `tmp`: A temporary buffer that the QR code encoder will use, to write the

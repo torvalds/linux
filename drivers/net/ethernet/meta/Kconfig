@@ -27,6 +27,7 @@ config FBNIC
 	select NET_DEVLINK
 	select PAGE_POOL
 	select PHYLINK
+	select PLDMFW
 	help
 	  This driver supports Meta Platforms Host Network Interface.
 

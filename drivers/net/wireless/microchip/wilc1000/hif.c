@@ -953,8 +953,8 @@ static void wilc_handle_listen_state_expired(struct work_struct *work)
 
 static void listen_timer_cb(struct timer_list *t)
 {
-	struct host_if_drv *hif_drv = from_timer(hif_drv, t,
-						      remain_on_ch_timer);
+	struct host_if_drv *hif_drv = timer_container_of(hif_drv, t,
+							 remain_on_ch_timer);
 	struct wilc_vif *vif = hif_drv->remain_on_ch_timer_vif;
 	int result;
 	struct host_if_msg *msg;
@@ -1075,7 +1075,8 @@ static void handle_scan_complete(struct work_struct *work)
 
 static void timer_scan_cb(struct timer_list *t)
 {
-	struct host_if_drv *hif_drv = from_timer(hif_drv, t, scan_timer);
+	struct host_if_drv *hif_drv = timer_container_of(hif_drv, t,
+						         scan_timer);
 	struct wilc_vif *vif = hif_drv->scan_timer_vif;
 	struct host_if_msg *msg;
 	int result;
@@ -1091,8 +1092,8 @@ static void timer_scan_cb(struct timer_list *t)
 
 static void timer_connect_cb(struct timer_list *t)
 {
-	struct host_if_drv *hif_drv = from_timer(hif_drv, t,
-						      connect_timer);
+	struct host_if_drv *hif_drv = timer_container_of(hif_drv, t,
+						         connect_timer);
 	struct wilc_vif *vif = hif_drv->connect_timer_vif;
 	struct host_if_msg *msg;
 	int result;
@@ -1497,7 +1498,7 @@ int wilc_hif_set_cfg(struct wilc_vif *vif, struct cfg_param_attr *param)
 
 static void get_periodic_rssi(struct timer_list *t)
 {
-	struct wilc_vif *vif = from_timer(vif, t, periodic_rssi);
+	struct wilc_vif *vif = timer_container_of(vif, t, periodic_rssi);
 
 	if (!vif->hif_drv) {
 		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);

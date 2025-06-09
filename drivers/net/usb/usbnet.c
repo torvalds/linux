@@ -1551,7 +1551,7 @@ static inline void usb_free_skb(struct sk_buff *skb)
 
 static void usbnet_bh (struct timer_list *t)
 {
-	struct usbnet		*dev = from_timer(dev, t, delay);
+	struct usbnet		*dev = timer_container_of(dev, t, delay);
 	struct sk_buff		*skb;
 	struct skb_data		*entry;
 

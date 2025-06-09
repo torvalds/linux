@@ -200,7 +200,7 @@ static void snd_sb8dsp_midi_output_write(struct snd_rawmidi_substream *substream
 
 static void snd_sb8dsp_midi_output_timer(struct timer_list *t)
 {
-	struct snd_sb *chip = from_timer(chip, t, midi_timer);
+	struct snd_sb *chip = timer_container_of(chip, t, midi_timer);
 	struct snd_rawmidi_substream *substream = chip->midi_substream_output;
 	unsigned long flags;
 

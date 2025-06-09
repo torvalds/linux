@@ -2,9 +2,6 @@
 
 //! Implementation of [`Vec`].
 
-// May not be needed in Rust 1.87.0 (pending beta backport).
-#![allow(clippy::ptr_eq)]
-
 use super::{
     allocator::{KVmalloc, Kmalloc, Vmalloc},
     layout::ArrayLayout,
@@ -23,6 +20,9 @@ use core::{
     slice,
     slice::SliceIndex,
 };
+
+mod errors;
+pub use self::errors::{InsertError, PushError, RemoveError};
 
 /// Create a [`KVec`] containing the arguments.
 ///
@@ -92,6 +92,8 @@ macro_rules! kvec {
 /// - `self.layout` represents the absolute number of elements that can be stored within the vector
 ///   without re-allocation. For ZSTs `self.layout`'s capacity is zero. However, it is legal for the
 ///   backing buffer to be larger than `layout`.
+///
+/// - `self.len()` is always less than or equal to `self.capacity()`.
 ///
 /// - The `Allocator` type `A` of the vector is the exact same `Allocator` type the backing buffer
 ///   was allocated with (and must be freed with).
@@ -186,17 +188,38 @@ where
         self.len
     }
 
-    /// Forcefully sets `self.len` to `new_len`.
+    /// Increments `self.len` by `additional`.
     ///
     /// # Safety
     ///
-    /// - `new_len` must be less than or equal to [`Self::capacity`].
-    /// - If `new_len` is greater than `self.len`, all elements within the interval
-    ///   [`self.len`,`new_len`) must be initialized.
+    /// - `additional` must be less than or equal to `self.capacity - self.len`.
+    /// - All elements within the interval [`self.len`,`self.len + additional`) must be initialized.
     #[inline]
-    pub unsafe fn set_len(&mut self, new_len: usize) {
-        debug_assert!(new_len <= self.capacity());
-        self.len = new_len;
+    pub unsafe fn inc_len(&mut self, additional: usize) {
+        // Guaranteed by the type invariant to never underflow.
+        debug_assert!(additional <= self.capacity() - self.len());
+        // INVARIANT: By the safety requirements of this method this represents the exact number of
+        // elements stored within `self`.
+        self.len += additional;
+    }
+
+    /// Decreases `self.len` by `count`.
+    ///
+    /// Returns a mutable slice to the elements forgotten by the vector. It is the caller's
+    /// responsibility to drop these elements if necessary.
+    ///
+    /// # Safety
+    ///
+    /// - `count` must be less than or equal to `self.len`.
+    unsafe fn dec_len(&mut self, count: usize) -> &mut [T] {
+        debug_assert!(count <= self.len());
+        // INVARIANT: We relinquish ownership of the elements within the range `[self.len - count,
+        // self.len)`, hence the updated value of `set.len` represents the exact number of elements
+        // stored within `self`.
+        self.len -= count;
+        // SAFETY: The memory after `self.len()` is guaranteed to contain `count` initialized
+        // elements of type `T`.
+        unsafe { slice::from_raw_parts_mut(self.as_mut_ptr().add(self.len), count) }
     }
 
     /// Returns a slice of the entire vector.
@@ -262,8 +285,8 @@ where
     /// Returns a slice of `MaybeUninit<T>` for the remaining spare capacity of the vector.
     pub fn spare_capacity_mut(&mut self) -> &mut [MaybeUninit<T>] {
         // SAFETY:
-        // - `self.len` is smaller than `self.capacity` and hence, the resulting pointer is
-        //   guaranteed to be part of the same allocated object.
+        // - `self.len` is smaller than `self.capacity` by the type invariant and hence, the
+        //   resulting pointer is guaranteed to be part of the same allocated object.
         // - `self.len` can not overflow `isize`.
         let ptr = unsafe { self.as_mut_ptr().add(self.len) } as *mut MaybeUninit<T>;
 
@@ -287,22 +310,168 @@ where
     /// ```
     pub fn push(&mut self, v: T, flags: Flags) -> Result<(), AllocError> {
         self.reserve(1, flags)?;
+        // SAFETY: The call to `reserve` was successful, so the capacity is at least one greater
+        // than the length.
+        unsafe { self.push_within_capacity_unchecked(v) };
+        Ok(())
+    }
 
-        // SAFETY:
-        // - `self.len` is smaller than `self.capacity` and hence, the resulting pointer is
-        //   guaranteed to be part of the same allocated object.
-        // - `self.len` can not overflow `isize`.
-        let ptr = unsafe { self.as_mut_ptr().add(self.len) };
+    /// Appends an element to the back of the [`Vec`] instance without reallocating.
+    ///
+    /// Fails if the vector does not have capacity for the new element.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = KVec::with_capacity(10, GFP_KERNEL)?;
+    /// for i in 0..10 {
+    ///     v.push_within_capacity(i)?;
+    /// }
+    ///
+    /// assert!(v.push_within_capacity(10).is_err());
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn push_within_capacity(&mut self, v: T) -> Result<(), PushError<T>> {
+        if self.len() < self.capacity() {
+            // SAFETY: The length is less than the capacity.
+            unsafe { self.push_within_capacity_unchecked(v) };
+            Ok(())
+        } else {
+            Err(PushError(v))
+        }
+    }
 
-        // SAFETY:
-        // - `ptr` is properly aligned and valid for writes.
-        unsafe { core::ptr::write(ptr, v) };
+    /// Appends an element to the back of the [`Vec`] instance without reallocating.
+    ///
+    /// # Safety
+    ///
+    /// The length must be less than the capacity.
+    unsafe fn push_within_capacity_unchecked(&mut self, v: T) {
+        let spare = self.spare_capacity_mut();
+
+        // SAFETY: By the safety requirements, `spare` is non-empty.
+        unsafe { spare.get_unchecked_mut(0) }.write(v);
 
         // SAFETY: We just initialised the first spare entry, so it is safe to increase the length
-        // by 1. We also know that the new length is <= capacity because of the previous call to
-        // `reserve` above.
-        unsafe { self.set_len(self.len() + 1) };
+        // by 1. We also know that the new length is <= capacity because the caller guarantees that
+        // the length is less than the capacity at the beginning of this function.
+        unsafe { self.inc_len(1) };
+    }
+
+    /// Inserts an element at the given index in the [`Vec`] instance.
+    ///
+    /// Fails if the vector does not have capacity for the new element. Panics if the index is out
+    /// of bounds.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::alloc::kvec::InsertError;
+    ///
+    /// let mut v = KVec::with_capacity(5, GFP_KERNEL)?;
+    /// for i in 0..5 {
+    ///     v.insert_within_capacity(0, i)?;
+    /// }
+    ///
+    /// assert!(matches!(v.insert_within_capacity(0, 5), Err(InsertError::OutOfCapacity(_))));
+    /// assert!(matches!(v.insert_within_capacity(1000, 5), Err(InsertError::IndexOutOfBounds(_))));
+    /// assert_eq!(v, [4, 3, 2, 1, 0]);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn insert_within_capacity(
+        &mut self,
+        index: usize,
+        element: T,
+    ) -> Result<(), InsertError<T>> {
+        let len = self.len();
+        if index > len {
+            return Err(InsertError::IndexOutOfBounds(element));
+        }
+
+        if len >= self.capacity() {
+            return Err(InsertError::OutOfCapacity(element));
+        }
+
+        // SAFETY: This is in bounds since `index <= len < capacity`.
+        let p = unsafe { self.as_mut_ptr().add(index) };
+        // INVARIANT: This breaks the Vec invariants by making `index` contain an invalid element,
+        // but we restore the invariants below.
+        // SAFETY: Both the src and dst ranges end no later than one element after the length.
+        // Since the length is less than the capacity, both ranges are in bounds of the allocation.
+        unsafe { ptr::copy(p, p.add(1), len - index) };
+        // INVARIANT: This restores the Vec invariants.
+        // SAFETY: The pointer is in-bounds of the allocation.
+        unsafe { ptr::write(p, element) };
+        // SAFETY: Index `len` contains a valid element due to the above copy and write.
+        unsafe { self.inc_len(1) };
         Ok(())
+    }
+
+    /// Removes the last element from a vector and returns it, or `None` if it is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = KVec::new();
+    /// v.push(1, GFP_KERNEL)?;
+    /// v.push(2, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1, 2]);
+    ///
+    /// assert_eq!(v.pop(), Some(2));
+    /// assert_eq!(v.pop(), Some(1));
+    /// assert_eq!(v.pop(), None);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn pop(&mut self) -> Option<T> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let removed: *mut T = {
+            // SAFETY: We just checked that the length is at least one.
+            let slice = unsafe { self.dec_len(1) };
+            // SAFETY: The argument to `dec_len` was 1 so this returns a slice of length 1.
+            unsafe { slice.get_unchecked_mut(0) }
+        };
+
+        // SAFETY: The guarantees of `dec_len` allow us to take ownership of this value.
+        Some(unsafe { removed.read() })
+    }
+
+    /// Removes the element at the given index.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3]?;
+    /// assert_eq!(v.remove(1)?, 2);
+    /// assert_eq!(v, [1, 3]);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn remove(&mut self, i: usize) -> Result<T, RemoveError> {
+        let value = {
+            let value_ref = self.get(i).ok_or(RemoveError)?;
+            // INVARIANT: This breaks the invariants by invalidating the value at index `i`, but we
+            // restore the invariants below.
+            // SAFETY: The value at index `i` is valid, because otherwise we would have already
+            // failed with `RemoveError`.
+            unsafe { ptr::read(value_ref) }
+        };
+
+        // SAFETY: We checked that `i` is in-bounds.
+        let p = unsafe { self.as_mut_ptr().add(i) };
+
+        // INVARIANT: After this call, the invalid value is at the last slot, so the Vec invariants
+        // are restored after the below call to `dec_len(1)`.
+        // SAFETY: `p.add(1).add(self.len - i - 1)` is `i+1+len-i-1 == len` elements after the
+        // beginning of the vector, so this is in-bounds of the vector's allocation.
+        unsafe { ptr::copy(p.add(1), p, self.len - i - 1) };
+
+        // SAFETY: Since the check at the beginning of this call did not fail with `RemoveError`,
+        // the length is at least one.
+        unsafe { self.dec_len(1) };
+
+        Ok(value)
     }
 
     /// Creates a new [`Vec`] instance with at least the given capacity.
@@ -398,6 +567,26 @@ where
         (ptr, len, capacity)
     }
 
+    /// Clears the vector, removing all values.
+    ///
+    /// Note that this method has no effect on the allocated capacity
+    /// of the vector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3]?;
+    ///
+    /// v.clear();
+    ///
+    /// assert!(v.is_empty());
+    /// # Ok::<(), Error>(())
+    /// ```
+    #[inline]
+    pub fn clear(&mut self) {
+        self.truncate(0);
+    }
+
     /// Ensures that the capacity exceeds the length by at least `additional` elements.
     ///
     /// # Examples
@@ -455,6 +644,80 @@ where
 
         Ok(())
     }
+
+    /// Shortens the vector, setting the length to `len` and drops the removed values.
+    /// If `len` is greater than or equal to the current length, this does nothing.
+    ///
+    /// This has no effect on the capacity and will not allocate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3]?;
+    /// v.truncate(1);
+    /// assert_eq!(v.len(), 1);
+    /// assert_eq!(&v, &[1]);
+    ///
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn truncate(&mut self, len: usize) {
+        if let Some(count) = self.len().checked_sub(len) {
+            // SAFETY: `count` is `self.len() - len` so it is guaranteed to be less than or
+            // equal to `self.len()`.
+            let ptr: *mut [T] = unsafe { self.dec_len(count) };
+
+            // SAFETY: the contract of `dec_len` guarantees that the elements in `ptr` are
+            // valid elements whose ownership has been transferred to the caller.
+            unsafe { ptr::drop_in_place(ptr) };
+        }
+    }
+
+    /// Takes ownership of all items in this vector without consuming the allocation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![0, 1, 2, 3]?;
+    ///
+    /// for (i, j) in v.drain_all().enumerate() {
+    ///     assert_eq!(i, j);
+    /// }
+    ///
+    /// assert!(v.capacity() >= 4);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn drain_all(&mut self) -> DrainAll<'_, T> {
+        // SAFETY: This does not underflow the length.
+        let elems = unsafe { self.dec_len(self.len()) };
+        // INVARIANT: The first `len` elements of the spare capacity are valid values, and as we
+        // just set the length to zero, we may transfer ownership to the `DrainAll` object.
+        DrainAll {
+            elements: elems.iter_mut(),
+        }
+    }
+
+    /// Removes all elements that don't match the provided closure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3, 4]?;
+    /// v.retain(|i| *i % 2 == 0);
+    /// assert_eq!(v, [2, 4]);
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn retain(&mut self, mut f: impl FnMut(&mut T) -> bool) {
+        let mut num_kept = 0;
+        let mut next_to_check = 0;
+        while let Some(to_check) = self.get_mut(next_to_check) {
+            if f(to_check) {
+                self.swap(num_kept, next_to_check);
+                num_kept += 1;
+            }
+            next_to_check += 1;
+        }
+        self.truncate(num_kept);
+    }
 }
 
 impl<T: Clone, A: Allocator> Vec<T, A> {
@@ -478,7 +741,7 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
         // SAFETY:
         // - `self.len() + n < self.capacity()` due to the call to reserve above,
         // - the loop and the line above initialized the next `n` elements.
-        unsafe { self.set_len(self.len() + n) };
+        unsafe { self.inc_len(n) };
 
         Ok(())
     }
@@ -509,7 +772,7 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
         //   the length by the same number.
         // - `self.len() + other.len() <= self.capacity()` is guaranteed by the preceding `reserve`
         //   call.
-        unsafe { self.set_len(self.len() + other.len()) };
+        unsafe { self.inc_len(other.len()) };
         Ok(())
     }
 
@@ -520,6 +783,33 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
         v.extend_with(n, value, flags)?;
 
         Ok(v)
+    }
+
+    /// Resizes the [`Vec`] so that `len` is equal to `new_len`.
+    ///
+    /// If `new_len` is smaller than `len`, the `Vec` is [`Vec::truncate`]d.
+    /// If `new_len` is larger, each new slot is filled with clones of `value`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3]?;
+    /// v.resize(1, 42, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1]);
+    ///
+    /// v.resize(3, 42, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1, 42, 42]);
+    ///
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn resize(&mut self, new_len: usize, value: T, flags: Flags) -> Result<(), AllocError> {
+        match new_len.checked_sub(self.len()) {
+            Some(n) => self.extend_with(n, value, flags),
+            None => {
+                self.truncate(new_len);
+                Ok(())
+            }
+        }
     }
 }
 
@@ -760,12 +1050,13 @@ where
             unsafe { ptr::copy(ptr, buf.as_ptr(), len) };
             ptr = buf.as_ptr();
 
-            // SAFETY: `len` is guaranteed to be smaller than `self.layout.len()`.
+            // SAFETY: `len` is guaranteed to be smaller than `self.layout.len()` by the type
+            // invariant.
             let layout = unsafe { ArrayLayout::<T>::new_unchecked(len) };
 
-            // SAFETY: `buf` points to the start of the backing buffer and `len` is guaranteed to be
-            // smaller than `cap`. Depending on `alloc` this operation may shrink the buffer or leaves
-            // it as it is.
+            // SAFETY: `buf` points to the start of the backing buffer and `len` is guaranteed by
+            // the type invariant to be smaller than `cap`. Depending on `realloc` this operation
+            // may shrink the buffer or leave it as it is.
             ptr = match unsafe {
                 A::realloc(Some(buf.cast()), layout.into(), old_layout.into(), flags)
             } {
@@ -911,6 +1202,90 @@ where
             len,
             layout,
             _p: PhantomData::<A>,
+        }
+    }
+}
+
+/// An iterator that owns all items in a vector, but does not own its allocation.
+///
+/// # Invariants
+///
+/// Every `&mut T` returned by the iterator references a `T` that the iterator may take ownership
+/// of.
+pub struct DrainAll<'vec, T> {
+    elements: slice::IterMut<'vec, T>,
+}
+
+impl<'vec, T> Iterator for DrainAll<'vec, T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        let elem: *mut T = self.elements.next()?;
+        // SAFETY: By the type invariants, we may take ownership of this value.
+        Some(unsafe { elem.read() })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.elements.size_hint()
+    }
+}
+
+impl<'vec, T> Drop for DrainAll<'vec, T> {
+    fn drop(&mut self) {
+        if core::mem::needs_drop::<T>() {
+            let iter = core::mem::take(&mut self.elements);
+            let ptr: *mut [T] = iter.into_slice();
+            // SAFETY: By the type invariants, we own these values so we may destroy them.
+            unsafe { ptr::drop_in_place(ptr) };
+        }
+    }
+}
+
+#[macros::kunit_tests(rust_kvec_kunit)]
+mod tests {
+    use super::*;
+    use crate::prelude::*;
+
+    #[test]
+    fn test_kvec_retain() {
+        /// Verify correctness for one specific function.
+        #[expect(clippy::needless_range_loop)]
+        fn verify(c: &[bool]) {
+            let mut vec1: KVec<usize> = KVec::with_capacity(c.len(), GFP_KERNEL).unwrap();
+            let mut vec2: KVec<usize> = KVec::with_capacity(c.len(), GFP_KERNEL).unwrap();
+
+            for i in 0..c.len() {
+                vec1.push_within_capacity(i).unwrap();
+                if c[i] {
+                    vec2.push_within_capacity(i).unwrap();
+                }
+            }
+
+            vec1.retain(|i| c[*i]);
+
+            assert_eq!(vec1, vec2);
+        }
+
+        /// Add one to a binary integer represented as a boolean array.
+        fn add(value: &mut [bool]) {
+            let mut carry = true;
+            for v in value {
+                let new_v = carry != *v;
+                carry = carry && *v;
+                *v = new_v;
+            }
+        }
+
+        // This boolean array represents a function from index to boolean. We check that `retain`
+        // behaves correctly for all possible boolean arrays of every possible length less than
+        // ten.
+        let mut func = KVec::with_capacity(10, GFP_KERNEL).unwrap();
+        for len in 0..10 {
+            for _ in 0u32..1u32 << len {
+                verify(&func);
+                add(&mut func);
+            }
+            func.push_within_capacity(false).unwrap();
         }
     }
 }

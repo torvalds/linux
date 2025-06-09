@@ -56,7 +56,7 @@ static int usnic_uiom_dma_fault(struct iommu_domain *domain,
 				unsigned long iova, int flags,
 				void *token)
 {
-	usnic_err("Device %s iommu fault domain 0x%pK va 0x%lx flags 0x%x\n",
+	usnic_err("Device %s iommu fault domain 0x%p va 0x%lx flags 0x%x\n",
 		dev_name(dev),
 		domain, iova, flags);
 	return -ENOSYS;

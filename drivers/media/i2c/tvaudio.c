@@ -318,7 +318,7 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 
 static void chip_thread_wake(struct timer_list *t)
 {
-	struct CHIPSTATE *chip = from_timer(chip, t, wt);
+	struct CHIPSTATE *chip = timer_container_of(chip, t, wt);
 	wake_up_process(chip->thread);
 }
 

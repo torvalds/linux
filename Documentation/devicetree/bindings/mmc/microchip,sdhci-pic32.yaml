@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/microchip,sdhci-pic32.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip PIC32 SDHI Controller
+
+description:
+  The Microchip PIC32 family of microcontrollers (MCUs) includes models with
+  Secure Digital Host Controller Interface (SDHCI) controllers, allowing them
+  to interface with Secure Digital (SD) cards. This interface is used for reading,
+  writing, and managing data on SD cards, enabling storage and data transfer
+  capabilities in embedded systems.
+
+allOf:
+  - $ref: mmc-controller.yaml
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+properties:
+  compatible:
+    const: microchip,pic32mzda-sdhci
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: base_clk
+      - const: sys_clk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - pinctrl-names
+  - pinctrl-0
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/clock/microchip,pic32-clock.h>
+    mmc@1f8ec000 {
+        compatible = "microchip,pic32mzda-sdhci";
+        reg = <0x1f8ec000 0x100>;
+        interrupts = <191 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&rootclk REF4CLK>, <&rootclk PB5CLK>;
+        clock-names = "base_clk", "sys_clk";
+        bus-width = <4>;
+        cap-sd-highspeed;
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_sdhc1>;
+    };
+...

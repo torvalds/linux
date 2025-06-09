@@ -242,6 +242,7 @@
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.DTLB_MISS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of retired loads that are blocked due to a first level TLB miss. Available PDIST counters: 0",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
     },
@@ -252,6 +253,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.DTLB_MISS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of memory uops retired that missed in the second level TLB. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x13"
     },
@@ -262,6 +264,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_LOADS",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of load uops retired that miss in the second Level TLB. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x11"
     },
@@ -272,6 +275,7 @@
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_STORES",
         "PEBS": "1",
+        "PublicDescription": "Counts the number of store uops retired that miss in the second level TLB. Available PDIST counters: 0",
         "SampleAfterValue": "200003",
         "UMask": "0x12"
     }

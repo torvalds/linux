@@ -236,7 +236,7 @@ static int fifo_xfer_done(struct tnt4882_priv *tnt_priv)
 	return retval;
 }
 
-static int drain_fifo_words(struct tnt4882_priv *tnt_priv, uint8_t *buffer, int num_bytes)
+static int drain_fifo_words(struct tnt4882_priv *tnt_priv, u8 *buffer, int num_bytes)
 {
 	int count = 0;
 	struct nec7210_priv *nec_priv = &tnt_priv->nec7210_priv;
@@ -258,7 +258,8 @@ static void tnt4882_release_holdoff(struct gpib_board *board, struct tnt4882_pri
 
 	sasr_bits = tnt_readb(tnt_priv, SASR);
 
-	/*tnt4882 not in one-chip mode won't always release holdoff unless we
+	/*
+	 * tnt4882 not in one-chip mode won't always release holdoff unless we
 	 * are in the right mode when release handshake command is given
 	 */
 	if (sasr_bits & AEHS_BIT) /* holding off due to holdoff on end mode*/	{
@@ -274,7 +275,7 @@ static void tnt4882_release_holdoff(struct gpib_board *board, struct tnt4882_pri
 	}
 }
 
-static int tnt4882_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int tnt4882_accel_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 			      size_t *bytes_read)
 {
 	size_t count = 0;
@@ -384,7 +385,8 @@ static int tnt4882_accel_read(struct gpib_board *board, uint8_t *buffer, size_t 
 
 	nec7210_set_reg_bits(nec_priv, IMR1, HR_ENDIE, 0);
 	nec7210_set_reg_bits(nec_priv, IMR2, HR_DMAI, 0);
-	/* force handling of any pending interrupts (seems to be needed
+	/*
+	 * force handling of any pending interrupts (seems to be needed
 	 * to keep interrupts from getting hosed, plus for syncing
 	 * with RECEIVED_END below)
 	 */
@@ -448,7 +450,7 @@ static int write_wait(struct gpib_board *board, struct tnt4882_priv *tnt_priv,
 	return 0;
 }
 
-static int generic_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int generic_write(struct gpib_board *board, u8 *buffer, size_t length,
 			 int send_eoi, int send_commands, size_t *bytes_written)
 {
 	size_t count = 0;
@@ -531,7 +533,8 @@ static int generic_write(struct gpib_board *board, uint8_t *buffer, size_t lengt
 
 	nec7210_set_reg_bits(nec_priv, IMR1, HR_ERR, 0x0);
 	nec7210_set_reg_bits(nec_priv, IMR2, HR_DMAO, 0x0);
-	/* force handling of any interrupts that happened
+	/*
+	 * force handling of any interrupts that happened
 	 * while they were masked (this appears to be needed)
 	 */
 	tnt4882_internal_interrupt(board);
@@ -539,13 +542,13 @@ static int generic_write(struct gpib_board *board, uint8_t *buffer, size_t lengt
 	return retval;
 }
 
-static int tnt4882_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
-			       size_t *bytes_written)
+static int tnt4882_accel_write(struct gpib_board *board, u8 *buffer,
+			       size_t length, int send_eoi, size_t *bytes_written)
 {
 	return generic_write(board, buffer, length, send_eoi, 0, bytes_written);
 }
 
-static int tnt4882_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int tnt4882_command(struct gpib_board *board, u8 *buffer, size_t length,
 			   size_t *bytes_written)
 {
 	return generic_write(board, buffer, length, 0, 1, bytes_written);
@@ -566,7 +569,7 @@ static irqreturn_t tnt4882_internal_interrupt(struct gpib_board *board)
 	imr3_bits = priv->imr3_bits;
 
 	if (isr0_bits & TNT_IFCI_BIT)
-		push_gpib_event(board, EventIFC);
+		push_gpib_event(board, EVENT_IFC);
 	//XXX don't need this wakeup, one below should do?
 //		wake_up_interruptible(&board->wait);
 
@@ -592,7 +595,7 @@ static irqreturn_t tnt4882_interrupt(int irq, void *arg)
 }
 
 // wrappers for interface functions
-static int tnt4882_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int tnt4882_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 			size_t *bytes_read)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -612,7 +615,7 @@ static int tnt4882_read(struct gpib_board *board, uint8_t *buffer, size_t length
 	return retval;
 }
 
-static int tnt4882_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
+static int tnt4882_write(struct gpib_board *board, u8 *buffer, size_t length, int send_eoi,
 			 size_t *bytes_written)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -620,7 +623,7 @@ static int tnt4882_write(struct gpib_board *board, uint8_t *buffer, size_t lengt
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int tnt4882_command_unaccel(struct gpib_board *board, uint8_t *buffer,
+static int tnt4882_command_unaccel(struct gpib_board *board, u8 *buffer,
 				   size_t length, size_t *bytes_written)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -642,19 +645,21 @@ static int tnt4882_go_to_standby(struct gpib_board *board)
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-static void tnt4882_request_system_control(struct gpib_board *board, int request_control)
+static int tnt4882_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct tnt4882_priv *priv = board->private_data;
+	int retval;
 
 	if (request_control) {
 		tnt_writeb(priv, SETSC, CMDR);
 		udelay(1);
 	}
-	nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
+	retval = nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
 	if (!request_control) {
 		tnt_writeb(priv, CLRSC, CMDR);
 		udelay(1);
 	}
+	return retval;
 }
 
 static void tnt4882_interface_clear(struct gpib_board *board, int assert)
@@ -671,7 +676,7 @@ static void tnt4882_remote_enable(struct gpib_board *board, int enable)
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int tnt4882_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int tnt4882_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -718,7 +723,7 @@ static int tnt4882_secondary_address(struct gpib_board *board, unsigned int addr
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int tnt4882_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int tnt4882_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct tnt4882_priv *tnt_priv = board->private_data;
 
@@ -735,7 +740,7 @@ static int tnt4882_parallel_poll(struct gpib_board *board, uint8_t *result)
 	}
 }
 
-static void tnt4882_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void tnt4882_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -760,17 +765,18 @@ static void tnt4882_parallel_poll_response(struct gpib_board *board, int ist)
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-/* this is just used by the old nec7210 isa interfaces, the newer
+/*
+ * this is just used by the old nec7210 isa interfaces, the newer
  * boards use tnt4882_serial_poll_response2
  */
-static void tnt4882_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void tnt4882_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t status,
+static void tnt4882_serial_poll_response2(struct gpib_board *board, u8 status,
 					  int new_reason_for_service)
 {
 	struct tnt4882_priv *priv = board->private_data;
@@ -788,7 +794,8 @@ static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t stat
 			priv->nec7210_priv.srq_pending = 0;
 	}
 	if (reqt)
-		/* It may seem like a race to issue reqt before updating
+		/*
+		 * It may seem like a race to issue reqt before updating
 		 * the status byte, but it is not.  The chip does not
 		 * issue the reqt until the SPMR is written to at
 		 * a later time.
@@ -796,7 +803,8 @@ static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t stat
 		write_byte(&priv->nec7210_priv, AUX_REQT, AUXMR);
 	else if (reqf)
 		write_byte(&priv->nec7210_priv, AUX_REQF, AUXMR);
-	/* We need to always zero bit 6 of the status byte before writing it to
+	/*
+	 * We need to always zero bit 6 of the status byte before writing it to
 	 * the SPMR to insure we are using
 	 * serial poll mode SP1, and not accidentally triggering mode SP3.
 	 */
@@ -804,7 +812,7 @@ static void tnt4882_serial_poll_response2(struct gpib_board *board, uint8_t stat
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static uint8_t tnt4882_serial_poll_status(struct gpib_board *board)
+static u8 tnt4882_serial_poll_status(struct gpib_board *board)
 {
 	struct tnt4882_priv *priv = board->private_data;
 
@@ -898,7 +906,7 @@ static void tnt4882_init(struct tnt4882_priv *tnt_priv, const struct gpib_board 
 	tnt_writeb(tnt_priv, tnt_priv->imr0_bits, IMR0);
 }
 
-static int ni_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_pci_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct tnt4882_priv *tnt_priv;
 	struct nec7210_priv *nec_priv;
@@ -1019,7 +1027,7 @@ static int ni_isapnp_find(struct pnp_dev **dev)
 	return 0;
 }
 
-static int ni_isa_attach_common(struct gpib_board *board, const gpib_board_config_t *config,
+static int ni_isa_attach_common(struct gpib_board *board, const struct gpib_board_config *config,
 				enum nec7210_chipset chipset)
 {
 	struct tnt4882_priv *tnt_priv;
@@ -1075,17 +1083,17 @@ static int ni_isa_attach_common(struct gpib_board *board, const gpib_board_confi
 	return 0;
 }
 
-static int ni_tnt_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_tnt_isa_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return ni_isa_attach_common(board, config, TNT4882);
 }
 
-static int ni_nat4882_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_nat4882_isa_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return ni_isa_attach_common(board, config, NAT4882);
 }
 
-static int ni_nec_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_nec_isa_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return ni_isa_attach_common(board, config, NEC7210);
 }
@@ -1116,7 +1124,7 @@ static int tnt4882_pci_probe(struct pci_dev *dev, const struct pci_device_id *id
 	return 0;
 }
 
-static gpib_interface_t ni_pci_interface = {
+static struct gpib_interface ni_pci_interface = {
 	.name = "ni_pci",
 	.attach = ni_pci_attach,
 	.detach = ni_pci_detach,
@@ -1144,7 +1152,7 @@ static gpib_interface_t ni_pci_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_pci_accel_interface = {
+static struct gpib_interface ni_pci_accel_interface = {
 	.name = "ni_pci_accel",
 	.attach = ni_pci_attach,
 	.detach = ni_pci_detach,
@@ -1172,7 +1180,7 @@ static gpib_interface_t ni_pci_accel_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_isa_interface = {
+static struct gpib_interface ni_isa_interface = {
 	.name = "ni_isa",
 	.attach = ni_tnt_isa_attach,
 	.detach = ni_isa_detach,
@@ -1200,7 +1208,7 @@ static gpib_interface_t ni_isa_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_nat4882_isa_interface = {
+static struct gpib_interface ni_nat4882_isa_interface = {
 	.name = "ni_nat4882_isa",
 	.attach = ni_nat4882_isa_attach,
 	.detach = ni_isa_detach,
@@ -1228,7 +1236,7 @@ static gpib_interface_t ni_nat4882_isa_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_nec_isa_interface = {
+static struct gpib_interface ni_nec_isa_interface = {
 	.name = "ni_nec_isa",
 	.attach = ni_nec_isa_attach,
 	.detach = ni_isa_detach,
@@ -1256,7 +1264,7 @@ static gpib_interface_t ni_nec_isa_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_isa_accel_interface = {
+static struct gpib_interface ni_isa_accel_interface = {
 	.name = "ni_isa_accel",
 	.attach = ni_tnt_isa_attach,
 	.detach = ni_isa_detach,
@@ -1284,7 +1292,7 @@ static gpib_interface_t ni_isa_accel_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_nat4882_isa_accel_interface = {
+static struct gpib_interface ni_nat4882_isa_accel_interface = {
 	.name = "ni_nat4882_isa_accel",
 	.attach = ni_nat4882_isa_attach,
 	.detach = ni_isa_detach,
@@ -1312,7 +1320,7 @@ static gpib_interface_t ni_nat4882_isa_accel_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_nec_isa_accel_interface = {
+static struct gpib_interface ni_nec_isa_accel_interface = {
 	.name = "ni_nec_isa_accel",
 	.attach = ni_nec_isa_attach,
 	.detach = ni_isa_detach,
@@ -1371,8 +1379,8 @@ MODULE_DEVICE_TABLE(pnp, tnt4882_pnp_table);
 #endif
 
 #ifdef CONFIG_GPIB_PCMCIA
-static gpib_interface_t ni_pcmcia_interface;
-static gpib_interface_t ni_pcmcia_accel_interface;
+static struct gpib_interface ni_pcmcia_interface;
+static struct gpib_interface ni_pcmcia_accel_interface;
 static int __init init_ni_gpib_cs(void);
 static void __exit exit_ni_gpib_cs(void);
 #endif
@@ -1581,10 +1589,10 @@ static int ni_gpib_probe(struct pcmcia_device *link)
 }
 
 /*
- *	This deletes a driver "instance".  The device is de-registered
- *	with Card Services.  If it has been released, all local data
- *	structures are freed.  Otherwise, the structures will be freed
- *	when the device is released.
+ * This deletes a driver "instance".  The device is de-registered
+ * with Card Services.  If it has been released, all local data
+ * structures are freed.  Otherwise, the structures will be freed
+ * when the device is released.
  */
 static void ni_gpib_remove(struct pcmcia_device *link)
 {
@@ -1611,9 +1619,9 @@ static int ni_gpib_config_iteration(struct pcmcia_device *link,	void *priv_data)
 }
 
 /*
- *	ni_gpib_config() is scheduled to run after a CARD_INSERTION event
- *	is received, to configure the PCMCIA socket, and to make the
- *	device available to the system.
+ * ni_gpib_config() is scheduled to run after a CARD_INSERTION event
+ * is received, to configure the PCMCIA socket, and to make the
+ * device available to the system.
  */
 static int ni_gpib_config(struct pcmcia_device *link)
 {
@@ -1702,7 +1710,7 @@ static void __exit exit_ni_gpib_cs(void)
 
 static const int pcmcia_gpib_iosize = 32;
 
-static int ni_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int ni_pcmcia_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct local_info_t *info;
 	struct tnt4882_priv *tnt_priv;
@@ -1769,7 +1777,7 @@ static void ni_pcmcia_detach(struct gpib_board *board)
 	tnt4882_free_private(board);
 }
 
-static gpib_interface_t ni_pcmcia_interface = {
+static struct gpib_interface ni_pcmcia_interface = {
 	.name = "ni_pcmcia",
 	.attach = ni_pcmcia_attach,
 	.detach = ni_pcmcia_detach,
@@ -1797,7 +1805,7 @@ static gpib_interface_t ni_pcmcia_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-static gpib_interface_t ni_pcmcia_accel_interface = {
+static struct gpib_interface ni_pcmcia_accel_interface = {
 	.name = "ni_pcmcia_accel",
 	.attach = ni_pcmcia_attach,
 	.detach = ni_pcmcia_detach,

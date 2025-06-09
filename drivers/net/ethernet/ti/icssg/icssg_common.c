@@ -1329,10 +1329,28 @@ void icssg_ndo_get_stats64(struct net_device *ndev,
 	stats->rx_over_errors = emac_get_stat_by_name(emac, "rx_over_errors");
 	stats->multicast      = emac_get_stat_by_name(emac, "rx_multicast_frames");
 
-	stats->rx_errors  = ndev->stats.rx_errors;
-	stats->rx_dropped = ndev->stats.rx_dropped;
+	stats->rx_errors  = ndev->stats.rx_errors +
+			    emac_get_stat_by_name(emac, "FW_RX_ERROR") +
+			    emac_get_stat_by_name(emac, "FW_RX_EOF_SHORT_FRMERR") +
+			    emac_get_stat_by_name(emac, "FW_RX_B0_DROP_EARLY_EOF") +
+			    emac_get_stat_by_name(emac, "FW_RX_EXP_FRAG_Q_DROP") +
+			    emac_get_stat_by_name(emac, "FW_RX_FIFO_OVERRUN");
+	stats->rx_dropped = ndev->stats.rx_dropped +
+			    emac_get_stat_by_name(emac, "FW_DROPPED_PKT") +
+			    emac_get_stat_by_name(emac, "FW_INF_PORT_DISABLED") +
+			    emac_get_stat_by_name(emac, "FW_INF_SAV") +
+			    emac_get_stat_by_name(emac, "FW_INF_SA_DL") +
+			    emac_get_stat_by_name(emac, "FW_INF_PORT_BLOCKED") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_TAGGED") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_PRIOTAGGED") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_NOTAG") +
+			    emac_get_stat_by_name(emac, "FW_INF_DROP_NOTMEMBER");
 	stats->tx_errors  = ndev->stats.tx_errors;
-	stats->tx_dropped = ndev->stats.tx_dropped;
+	stats->tx_dropped = ndev->stats.tx_dropped +
+			    emac_get_stat_by_name(emac, "FW_RTU_PKT_DROP") +
+			    emac_get_stat_by_name(emac, "FW_TX_DROPPED_PACKET") +
+			    emac_get_stat_by_name(emac, "FW_TX_TS_DROPPED_PACKET") +
+			    emac_get_stat_by_name(emac, "FW_TX_JUMBO_FRM_CUTOFF");
 }
 EXPORT_SYMBOL_GPL(icssg_ndo_get_stats64);
 

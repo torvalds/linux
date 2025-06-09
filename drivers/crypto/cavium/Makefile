@@ -2,4 +2,5 @@
 #
 # Makefile for Cavium crypto device drivers
 #
-obj-$(CONFIG_CRYPTO_DEV_CAVIUM_ZIP) += zip/
+obj-$(CONFIG_CRYPTO_DEV_CPT) += cpt/
+obj-$(CONFIG_CRYPTO_DEV_NITROX) += nitrox/

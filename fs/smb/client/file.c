@@ -130,7 +130,7 @@ fail:
 	else
 		trace_netfs_sreq(subreq, netfs_sreq_trace_fail);
 	add_credits_and_wake_if(wdata->server, &wdata->credits, 0);
-	cifs_write_subrequest_terminated(wdata, rc, false);
+	cifs_write_subrequest_terminated(wdata, rc);
 	goto out;
 }
 
@@ -219,7 +219,8 @@ static void cifs_issue_read(struct netfs_io_subrequest *subreq)
 			goto failed;
 	}
 
-	if (subreq->rreq->origin != NETFS_DIO_READ)
+	if (subreq->rreq->origin != NETFS_UNBUFFERED_READ &&
+	    subreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
@@ -2423,8 +2424,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	return rc;
 }
 
-void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata, ssize_t result,
-				      bool was_async)
+void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata, ssize_t result)
 {
 	struct netfs_io_request *wreq = wdata->rreq;
 	struct netfs_inode *ictx = netfs_inode(wreq->inode);
@@ -2441,7 +2441,7 @@ void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata, ssize_t 
 			netfs_resize_file(ictx, wrend, true);
 	}
 
-	netfs_write_subrequest_terminated(&wdata->subreq, result, was_async);
+	netfs_write_subrequest_terminated(&wdata->subreq, result);
 }
 
 struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,

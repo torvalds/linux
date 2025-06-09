@@ -16,8 +16,11 @@
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_lib.h"
 #include "../libwx/wx_ptp.h"
+#include "../libwx/wx_sriov.h"
+#include "../libwx/wx_mbx.h"
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
+#include "txgbe_aml.h"
 #include "txgbe_phy.h"
 #include "txgbe_hw.h"
 
@@ -163,7 +166,7 @@ static struct phylink_pcs *txgbe_phylink_mac_select(struct phylink_config *confi
 	struct wx *wx = phylink_to_wx(config);
 	struct txgbe *txgbe = wx->priv;
 
-	if (wx->media_type != sp_media_copper)
+	if (wx->media_type != wx_media_copper)
 		return txgbe->pcs;
 
 	return NULL;
@@ -184,6 +187,8 @@ static void txgbe_mac_link_down(struct phylink_config *config,
 	wx->speed = SPEED_UNKNOWN;
 	if (test_bit(WX_STATE_PTP_RUNNING, wx->state))
 		wx_ptp_reset_cyclecounter(wx);
+	/* ping all the active vfs to let them know we are going down */
+	wx_ping_all_vfs_with_link_status(wx, false);
 }
 
 static void txgbe_mac_link_up(struct phylink_config *config,
@@ -225,6 +230,8 @@ static void txgbe_mac_link_up(struct phylink_config *config,
 	wx->last_rx_ptp_check = jiffies;
 	if (test_bit(WX_STATE_PTP_RUNNING, wx->state))
 		wx_ptp_reset_cyclecounter(wx);
+	/* ping all the active vfs to let them know we are going up */
+	wx_ping_all_vfs_with_link_status(wx, true);
 }
 
 static int txgbe_mac_prepare(struct phylink_config *config, unsigned int mode,
@@ -272,7 +279,7 @@ static int txgbe_phylink_init(struct txgbe *txgbe)
 	config->mac_capabilities = MAC_10000FD | MAC_1000FD | MAC_100FD |
 				   MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
 
-	if (wx->media_type == sp_media_copper) {
+	if (wx->media_type == wx_media_copper) {
 		phy_mode = PHY_INTERFACE_MODE_XAUI;
 		__set_bit(PHY_INTERFACE_MODE_XAUI, config->supported_interfaces);
 	} else {
@@ -312,7 +319,10 @@ irqreturn_t txgbe_link_irq_handler(int irq, void *data)
 	status = rd32(wx, TXGBE_CFG_PORT_ST);
 	up = !!(status & TXGBE_CFG_PORT_ST_LINK_UP);
 
-	phylink_pcs_change(txgbe->pcs, up);
+	if (txgbe->pcs)
+		phylink_pcs_change(txgbe->pcs, up);
+	else
+		phylink_mac_change(wx->phylink, up);
 
 	return IRQ_HANDLED;
 }
@@ -567,11 +577,18 @@ int txgbe_init_phy(struct txgbe *txgbe)
 	struct wx *wx = txgbe->wx;
 	int ret;
 
-	if (wx->mac.type == wx_mac_aml)
+	switch (wx->mac.type) {
+	case wx_mac_aml40:
 		return 0;
-
-	if (txgbe->wx->media_type == sp_media_copper)
-		return txgbe_ext_phy_init(txgbe);
+	case wx_mac_aml:
+		return txgbe_phylink_init_aml(txgbe);
+	case wx_mac_sp:
+		if (wx->media_type == wx_media_copper)
+			return txgbe_ext_phy_init(txgbe);
+		break;
+	default:
+		break;
+	}
 
 	ret = txgbe_swnodes_register(txgbe);
 	if (ret) {
@@ -634,13 +651,21 @@ err_unregister_swnode:
 
 void txgbe_remove_phy(struct txgbe *txgbe)
 {
-	if (txgbe->wx->mac.type == wx_mac_aml)
+	switch (txgbe->wx->mac.type) {
+	case wx_mac_aml40:
 		return;
-
-	if (txgbe->wx->media_type == sp_media_copper) {
-		phylink_disconnect_phy(txgbe->wx->phylink);
+	case wx_mac_aml:
 		phylink_destroy(txgbe->wx->phylink);
 		return;
+	case wx_mac_sp:
+		if (txgbe->wx->media_type == wx_media_copper) {
+			phylink_disconnect_phy(txgbe->wx->phylink);
+			phylink_destroy(txgbe->wx->phylink);
+			return;
+		}
+		break;
+	default:
+		break;
 	}
 
 	platform_device_unregister(txgbe->sfp_dev);

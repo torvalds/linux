@@ -331,7 +331,7 @@ static void npcm7xx_fan_polling(struct timer_list *t)
 	struct npcm7xx_pwm_fan_data *data;
 	int i;
 
-	data = from_timer(data, t, fan_timer);
+	data = timer_container_of(data, t, fan_timer);
 
 	/*
 	 * Polling two module per one round,

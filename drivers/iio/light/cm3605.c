@@ -307,7 +307,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cm3605_dev_pm_ops, cm3605_pm_suspend,
 
 static const struct of_device_id cm3605_of_match[] = {
 	{.compatible = "capella,cm3605"},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, cm3605_of_match);
 

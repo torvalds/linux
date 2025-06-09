@@ -29,7 +29,8 @@
  */
 struct throtl_qnode {
 	struct list_head	node;		/* service_queue->queued[] */
-	struct bio_list		bios;		/* queued bios */
+	struct bio_list		bios_bps;	/* queued bios for bps limit */
+	struct bio_list		bios_iops;	/* queued bios for iops limit */
 	struct throtl_grp	*tg;		/* tg this qnode belongs to */
 };
 
@@ -41,7 +42,8 @@ struct throtl_service_queue {
 	 * children throtl_grp's.
 	 */
 	struct list_head	queued[2];	/* throtl_qnode [READ/WRITE] */
-	unsigned int		nr_queued[2];	/* number of queued bios */
+	unsigned int		nr_queued_bps[2];	/* number of queued bps bios */
+	unsigned int		nr_queued_iops[2];	/* number of queued iops bios */
 
 	/*
 	 * RB tree of active children throtl_grp's, which are sorted by
@@ -54,9 +56,14 @@ struct throtl_service_queue {
 };
 
 enum tg_state_flags {
-	THROTL_TG_PENDING	= 1 << 0,	/* on parent's pending tree */
-	THROTL_TG_WAS_EMPTY	= 1 << 1,	/* bio_lists[] became non-empty */
-	THROTL_TG_CANCELING	= 1 << 2,	/* starts to cancel bio */
+	THROTL_TG_PENDING		= 1 << 0,	/* on parent's pending tree */
+	THROTL_TG_WAS_EMPTY		= 1 << 1,	/* bio_lists[] became non-empty */
+	/*
+	 * The sq's iops queue is empty, and a bio is about to be enqueued
+	 * to the first qnode's bios_iops list.
+	 */
+	THROTL_TG_IOPS_WAS_EMPTY	= 1 << 2,
+	THROTL_TG_CANCELING		= 1 << 3,	/* starts to cancel bio */
 };
 
 struct throtl_grp {
@@ -102,19 +109,16 @@ struct throtl_grp {
 	/* IOPS limits */
 	unsigned int iops[2];
 
-	/* Number of bytes dispatched in current slice */
-	int64_t bytes_disp[2];
-	/* Number of bio's dispatched in current slice */
-	int io_disp[2];
-
 	/*
-	 * The following two fields are updated when new configuration is
-	 * submitted while some bios are still throttled, they record how many
-	 * bytes/ios are waited already in previous configuration, and they will
-	 * be used to calculate wait time under new configuration.
+	 * Number of bytes/bio's dispatched in current slice.
+	 * When new configuration is submitted while some bios are still throttled,
+	 * first calculate the carryover: the amount of bytes/IOs already waited
+	 * under the previous configuration. Then, [bytes/io]_disp are represented
+	 * as the negative of the carryover, and they will be used to calculate the
+	 * wait time under the new configuration.
 	 */
-	long long carryover_bytes[2];
-	int carryover_ios[2];
+	int64_t bytes_disp[2];
+	int io_disp[2];
 
 	unsigned long last_check_time;
 

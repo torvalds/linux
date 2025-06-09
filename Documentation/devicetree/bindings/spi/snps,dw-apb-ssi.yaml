@@ -83,9 +83,7 @@ properties:
         const: canaan,k210-spi
       - description: Renesas RZ/N1 SPI Controller
         items:
-          - enum:
-              - renesas,r9a06g032-spi # RZ/N1D
-              - renesas,r9a06g033-spi # RZ/N1S
+          - const: renesas,r9a06g032-spi # RZ/N1D
           - const: renesas,rzn1-spi   # RZ/N1
 
   reg:

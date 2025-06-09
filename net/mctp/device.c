@@ -120,8 +120,8 @@ static int mctp_dump_addrinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	int ifindex = 0, rc;
 
 	/* Filter by ifindex if a header is provided */
-	if (cb->nlh->nlmsg_len >= nlmsg_msg_size(sizeof(*hdr))) {
-		hdr = nlmsg_data(cb->nlh);
+	hdr = nlmsg_payload(cb->nlh, sizeof(*hdr));
+	if (hdr) {
 		ifindex = hdr->ifa_index;
 	} else {
 		if (cb->strict_check) {

@@ -13,7 +13,7 @@
 #define INSN_PxTLB	0x02		/* modify pdtlb, pitlb */
 #define INSN_NOP	0x08000240	/* nop */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/init.h>
 #include <linux/types.h>
@@ -61,6 +61,6 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end,
 	.word (new_instr_ptr - .)	!	\
 	.previous
 
-#endif  /*  __ASSEMBLY__  */
+#endif  /*  __ASSEMBLER__  */
 
 #endif /* __ASM_PARISC_ALTERNATIVE_H */

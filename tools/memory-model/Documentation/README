@@ -23,8 +23,11 @@ o	You are familiar with the Linux-kernel concurrency primitives
 	that you need, and just want to get started with LKMM litmus
 	tests:  litmus-tests.txt
 
-o	You would like to access lock-protected shared variables without
-	having their corresponding locks held:  locking.txt
+o	You need to locklessly access shared variables that are otherwise
+	protected by a lock: locking.txt
+
+	This locking.txt file expands on the "Locking" section in
+	recipes.txt, but is self-contained.
 
 o	You are familiar with Linux-kernel concurrency, and would
 	like a detailed intuitive understanding of LKMM, including

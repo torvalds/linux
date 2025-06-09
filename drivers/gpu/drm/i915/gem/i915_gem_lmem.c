@@ -48,8 +48,7 @@ bool i915_gem_object_is_lmem(struct drm_i915_gem_object *obj)
 	    i915_gem_object_evictable(obj))
 		assert_object_held(obj);
 #endif
-	return mr && (mr->type == INTEL_MEMORY_LOCAL ||
-		      mr->type == INTEL_MEMORY_STOLEN_LOCAL);
+	return mr && intel_memory_type_is_local(mr->type);
 }
 
 /**

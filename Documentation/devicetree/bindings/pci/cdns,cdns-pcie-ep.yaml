@@ -37,14 +37,14 @@ examples:
         #size-cells = <2>;
 
         pcie-ep@fc000000 {
-                compatible = "cdns,cdns-pcie-ep";
-                reg = <0x0 0xfc000000 0x0 0x01000000>,
-                      <0x0 0x80000000 0x0 0x40000000>;
-                reg-names = "reg", "mem";
-                cdns,max-outbound-regions = <16>;
-                max-functions = /bits/ 8 <8>;
-                phys = <&pcie_phy0>;
-                phy-names = "pcie-phy";
+            compatible = "cdns,cdns-pcie-ep";
+            reg = <0x0 0xfc000000 0x0 0x01000000>,
+                  <0x0 0x80000000 0x0 0x40000000>;
+            reg-names = "reg", "mem";
+            cdns,max-outbound-regions = <16>;
+            max-functions = /bits/ 8 <8>;
+            phys = <&pcie_phy0>;
+            phy-names = "pcie-phy";
         };
     };
 ...

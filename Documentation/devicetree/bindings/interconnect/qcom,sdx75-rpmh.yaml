@@ -78,15 +78,15 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
 
     clk_virt: interconnect-0 {
-            compatible = "qcom,sdx75-clk-virt";
-            #interconnect-cells = <2>;
-            qcom,bcm-voters = <&apps_bcm_voter>;
-            clocks = <&rpmhcc RPMH_QPIC_CLK>;
+        compatible = "qcom,sdx75-clk-virt";
+        #interconnect-cells = <2>;
+        qcom,bcm-voters = <&apps_bcm_voter>;
+        clocks = <&rpmhcc RPMH_QPIC_CLK>;
     };
 
     system_noc: interconnect@1640000 {
-            compatible = "qcom,sdx75-system-noc";
-            reg = <0x1640000 0x4b400>;
-            #interconnect-cells = <2>;
-            qcom,bcm-voters = <&apps_bcm_voter>;
+        compatible = "qcom,sdx75-system-noc";
+        reg = <0x1640000 0x4b400>;
+        #interconnect-cells = <2>;
+        qcom,bcm-voters = <&apps_bcm_voter>;
     };

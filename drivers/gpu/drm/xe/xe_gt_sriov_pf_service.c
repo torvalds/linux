@@ -112,7 +112,6 @@ static const struct xe_reg tgl_runtime_regs[] = {
 	XELP_GT_SLICE_ENABLE,		/* _MMIO(0x9138) */
 	XELP_GT_GEOMETRY_DSS_ENABLE,	/* _MMIO(0x913c) */
 	GT_VEBOX_VDBOX_DISABLE,		/* _MMIO(0x9140) */
-	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
 };
 
@@ -124,7 +123,6 @@ static const struct xe_reg ats_m_runtime_regs[] = {
 	XELP_GT_GEOMETRY_DSS_ENABLE,	/* _MMIO(0x913c) */
 	GT_VEBOX_VDBOX_DISABLE,		/* _MMIO(0x9140) */
 	XEHP_GT_COMPUTE_DSS_ENABLE,	/* _MMIO(0x9144) */
-	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
 };
 
@@ -136,7 +134,6 @@ static const struct xe_reg pvc_runtime_regs[] = {
 	GT_VEBOX_VDBOX_DISABLE,		/* _MMIO(0x9140) */
 	XEHP_GT_COMPUTE_DSS_ENABLE,	/* _MMIO(0x9144) */
 	XEHPC_GT_COMPUTE_DSS_ENABLE_EXT,/* _MMIO(0x9148) */
-	CTC_MODE,			/* _MMIO(0xA26C) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
 };
 
@@ -150,7 +147,6 @@ static const struct xe_reg ver_1270_runtime_regs[] = {
 	GT_VEBOX_VDBOX_DISABLE,		/* _MMIO(0x9140) */
 	XEHP_GT_COMPUTE_DSS_ENABLE,	/* _MMIO(0x9144) */
 	XEHPC_GT_COMPUTE_DSS_ENABLE_EXT,/* _MMIO(0x9148) */
-	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
 };
 
@@ -167,7 +163,6 @@ static const struct xe_reg ver_2000_runtime_regs[] = {
 	XE2_GT_COMPUTE_DSS_2,		/* _MMIO(0x914c) */
 	XE2_GT_GEOMETRY_DSS_1,		/* _MMIO(0x9150) */
 	XE2_GT_GEOMETRY_DSS_2,		/* _MMIO(0x9154) */
-	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
 };
 
@@ -185,7 +180,6 @@ static const struct xe_reg ver_3000_runtime_regs[] = {
 	XE2_GT_COMPUTE_DSS_2,		/* _MMIO(0x914c) */
 	XE2_GT_GEOMETRY_DSS_1,		/* _MMIO(0x9150) */
 	XE2_GT_GEOMETRY_DSS_2,		/* _MMIO(0x9154) */
-	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
 };
 

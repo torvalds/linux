@@ -374,6 +374,9 @@ int ivpu_boot(struct ivpu_device *vdev)
 {
 	int ret;
 
+	drm_WARN_ON(&vdev->drm, atomic_read(&vdev->job_timeout_counter));
+	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
+
 	/* Update boot params located at first 4KB of FW memory */
 	ivpu_fw_boot_params_setup(vdev, ivpu_bo_vaddr(vdev->fw->mem));
 
@@ -573,6 +576,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	vdev->context_xa_limit.min = IVPU_USER_CONTEXT_MIN_SSID;
 	vdev->context_xa_limit.max = IVPU_USER_CONTEXT_MAX_SSID;
 	atomic64_set(&vdev->unique_id_counter, 0);
+	atomic_set(&vdev->job_timeout_counter, 0);
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC | XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
 	xa_init_flags(&vdev->db_xa, XA_FLAGS_ALLOC1);

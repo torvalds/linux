@@ -5,7 +5,7 @@
 
 OBJECT_FILES_NON_STANDARD_head.o := y
 
-extra-y		:= vmlinux.lds
+always-$(KBUILD_BUILTIN)	:= vmlinux.lds
 
 obj-y		+= head.o cpu-probe.o cacheinfo.o env.o setup.o entry.o genex.o \
 		   traps.o irq.o idle.o process.o dma.o mem.o reset.o switch.o \

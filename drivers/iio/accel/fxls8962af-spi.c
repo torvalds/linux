@@ -30,14 +30,14 @@ static int fxls8962af_probe(struct spi_device *spi)
 static const struct of_device_id fxls8962af_spi_of_match[] = {
 	{ .compatible = "nxp,fxls8962af" },
 	{ .compatible = "nxp,fxls8964af" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, fxls8962af_spi_of_match);
 
 static const struct spi_device_id fxls8962af_spi_id_table[] = {
 	{ "fxls8962af", fxls8962af },
 	{ "fxls8964af", fxls8964af },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, fxls8962af_spi_id_table);
 

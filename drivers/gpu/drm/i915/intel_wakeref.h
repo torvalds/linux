@@ -7,8 +7,6 @@
 #ifndef INTEL_WAKEREF_H
 #define INTEL_WAKEREF_H
 
-#include <drm/drm_print.h>
-
 #include <linux/atomic.h>
 #include <linux/bitfield.h>
 #include <linux/bits.h>
@@ -16,10 +14,12 @@
 #include <linux/mutex.h>
 #include <linux/refcount.h>
 #include <linux/ref_tracker.h>
-#include <linux/slab.h>
-#include <linux/stackdepot.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+
+struct drm_printer;
+struct intel_runtime_pm;
+struct intel_wakeref;
 
 typedef struct ref_tracker *intel_wakeref_t;
 
@@ -31,9 +31,6 @@ typedef struct ref_tracker *intel_wakeref_t;
 #else
 #define INTEL_WAKEREF_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
-
-struct intel_runtime_pm;
-struct intel_wakeref;
 
 struct intel_wakeref_ops {
 	int (*get)(struct intel_wakeref *wf);

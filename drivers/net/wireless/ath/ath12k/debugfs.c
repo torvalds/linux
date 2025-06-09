@@ -33,6 +33,76 @@ static const struct file_operations fops_simulate_radar = {
 	.open = simple_open
 };
 
+static ssize_t ath12k_read_simulate_fw_crash(struct file *file,
+					     char __user *user_buf,
+					     size_t count, loff_t *ppos)
+{
+	const char buf[] =
+		"To simulate firmware crash write one of the keywords to this file:\n"
+		"`assert` - send WMI_FORCE_FW_HANG_CMDID to firmware to cause assert.\n";
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
+}
+
+static ssize_t
+ath12k_write_simulate_fw_crash(struct file *file,
+			       const char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct ath12k_base *ab = file->private_data;
+	struct ath12k_pdev *pdev;
+	struct ath12k *ar = NULL;
+	char buf[32] = {0};
+	int i, ret;
+	ssize_t rc;
+
+	/* filter partial writes and invalid commands */
+	if (*ppos != 0 || count >= sizeof(buf) || count == 0)
+		return -EINVAL;
+
+	rc = simple_write_to_buffer(buf, sizeof(buf) - 1, ppos, user_buf, count);
+	if (rc < 0)
+		return rc;
+
+	/* drop the possible '\n' from the end */
+	if (buf[*ppos - 1] == '\n')
+		buf[*ppos - 1] = '\0';
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+		if (ar)
+			break;
+	}
+
+	if (!ar)
+		return -ENETDOWN;
+
+	if (!strcmp(buf, "assert")) {
+		ath12k_info(ab, "simulating firmware assert crash\n");
+		ret = ath12k_wmi_force_fw_hang_cmd(ar,
+						   ATH12K_WMI_FW_HANG_ASSERT_TYPE,
+						   ATH12K_WMI_FW_HANG_DELAY);
+	} else {
+		return -EINVAL;
+	}
+
+	if (ret) {
+		ath12k_warn(ab, "failed to simulate firmware crash: %d\n", ret);
+		return ret;
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_simulate_fw_crash = {
+	.read = ath12k_read_simulate_fw_crash,
+	.write = ath12k_write_simulate_fw_crash,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 static ssize_t ath12k_write_tpc_stats_type(struct file *file,
 					   const char __user *user_buf,
 					   size_t count, loff_t *ppos)
@@ -88,8 +158,8 @@ static int ath12k_get_tpc_ctl_mode_idx(struct wmi_tpc_stats_arg *tpc_stats,
 	u32 chan_freq = le32_to_cpu(tpc_stats->tpc_config.chan_freq);
 	u8 band;
 
-	band = ((chan_freq > ATH12K_MIN_6G_FREQ) ? NL80211_BAND_6GHZ :
-		((chan_freq > ATH12K_MIN_5G_FREQ) ? NL80211_BAND_5GHZ :
+	band = ((chan_freq > ATH12K_MIN_6GHZ_FREQ) ? NL80211_BAND_6GHZ :
+		((chan_freq > ATH12K_MIN_5GHZ_FREQ) ? NL80211_BAND_5GHZ :
 		NL80211_BAND_2GHZ));
 
 	if (band == NL80211_BAND_5GHZ || band == NL80211_BAND_6GHZ) {
@@ -833,6 +903,317 @@ static const struct file_operations fops_extd_rx_stats = {
 	.open = simple_open,
 };
 
+static int ath12k_open_link_stats(struct inode *inode, struct file *file)
+{
+	struct ath12k_vif *ahvif = inode->i_private;
+	size_t len = 0, buf_len = (PAGE_SIZE * 2);
+	struct ath12k_link_stats linkstat;
+	struct ath12k_link_vif *arvif;
+	unsigned long links_map;
+	struct wiphy *wiphy;
+	int link_id, i;
+	char *buf;
+
+	if (!ahvif)
+		return -EINVAL;
+
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	wiphy = ahvif->ah->hw->wiphy;
+	wiphy_lock(wiphy);
+
+	links_map = ahvif->links_map;
+	for_each_set_bit(link_id, &links_map,
+			 IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = rcu_dereference_protected(ahvif->link[link_id],
+						  lockdep_is_held(&wiphy->mtx));
+
+		spin_lock_bh(&arvif->link_stats_lock);
+		linkstat = arvif->link_stats;
+		spin_unlock_bh(&arvif->link_stats_lock);
+
+		len += scnprintf(buf + len, buf_len - len,
+				 "link[%d] Tx Unicast Frames Enqueued  = %d\n",
+				 link_id, linkstat.tx_enqueued);
+		len += scnprintf(buf + len, buf_len - len,
+				 "link[%d] Tx Broadcast Frames Enqueued = %d\n",
+				 link_id, linkstat.tx_bcast_mcast);
+		len += scnprintf(buf + len, buf_len - len,
+				 "link[%d] Tx Frames Completed = %d\n",
+				 link_id, linkstat.tx_completed);
+		len += scnprintf(buf + len, buf_len - len,
+				 "link[%d] Tx Frames Dropped = %d\n",
+				 link_id, linkstat.tx_dropped);
+
+		len += scnprintf(buf + len, buf_len - len,
+				 "link[%d] Tx Frame descriptor Encap Type = ",
+				 link_id);
+
+		len += scnprintf(buf + len, buf_len - len,
+					 " raw:%d",
+					 linkstat.tx_encap_type[0]);
+
+		len += scnprintf(buf + len, buf_len - len,
+					 " native_wifi:%d",
+					 linkstat.tx_encap_type[1]);
+
+		len += scnprintf(buf + len, buf_len - len,
+					 " ethernet:%d",
+					 linkstat.tx_encap_type[2]);
+
+		len += scnprintf(buf + len, buf_len - len,
+				 "\nlink[%d] Tx Frame descriptor Encrypt Type = ",
+				 link_id);
+
+		for (i = 0; i < HAL_ENCRYPT_TYPE_MAX; i++) {
+			len += scnprintf(buf + len, buf_len - len,
+					 " %d:%d", i,
+					 linkstat.tx_encrypt_type[i]);
+		}
+		len += scnprintf(buf + len, buf_len - len,
+				 "\nlink[%d] Tx Frame descriptor Type = buffer:%d extension:%d\n",
+				 link_id, linkstat.tx_desc_type[0],
+				 linkstat.tx_desc_type[1]);
+
+		len += scnprintf(buf + len, buf_len - len,
+				"------------------------------------------------------\n");
+	}
+
+	wiphy_unlock(wiphy);
+
+	file->private_data = buf;
+
+	return 0;
+}
+
+static int ath12k_release_link_stats(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static ssize_t ath12k_read_link_stats(struct file *file,
+				      char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	const char *buf = file->private_data;
+	size_t len = strlen(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations ath12k_fops_link_stats = {
+	.open = ath12k_open_link_stats,
+	.release = ath12k_release_link_stats,
+	.read = ath12k_read_link_stats,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath12k_debugfs_op_vif_add(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif)
+{
+	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
+
+	debugfs_create_file("link_stats", 0400, vif->debugfs_dir, ahvif,
+			    &ath12k_fops_link_stats);
+}
+
+static ssize_t ath12k_debugfs_dump_device_dp_stats(struct file *file,
+						   char __user *user_buf,
+						   size_t count, loff_t *ppos)
+{
+	struct ath12k_base *ab = file->private_data;
+	struct ath12k_device_dp_stats *device_stats = &ab->device_stats;
+	int len = 0, i, j, ret;
+	struct ath12k *ar;
+	const int size = 4096;
+	static const char *rxdma_err[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX] = {
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_OVERFLOW_ERR] = "Overflow",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MPDU_LEN_ERR] = "MPDU len",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_FCS_ERR] = "FCS",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_DECRYPT_ERR] = "Decrypt",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_TKIP_MIC_ERR] = "TKIP MIC",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_UNECRYPTED_ERR] = "Unencrypt",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MSDU_LEN_ERR] = "MSDU len",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MSDU_LIMIT_ERR] = "MSDU limit",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_WIFI_PARSE_ERR] = "WiFi parse",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_PARSE_ERR] = "AMSDU parse",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_SA_TIMEOUT_ERR] = "SA timeout",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_DA_TIMEOUT_ERR] = "DA timeout",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_FLOW_TIMEOUT_ERR] = "Flow timeout",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_FLUSH_REQUEST_ERR] = "Flush req",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_FRAG_ERR] = "AMSDU frag",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_MULTICAST_ECHO_ERR] = "Multicast echo",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_AMSDU_MISMATCH_ERR] = "AMSDU mismatch",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_UNAUTH_WDS_ERR] = "Unauth WDS",
+		[HAL_REO_ENTR_RING_RXDMA_ECODE_GRPCAST_AMSDU_WDS_ERR] = "AMSDU or WDS"};
+
+	static const char *reo_err[HAL_REO_DEST_RING_ERROR_CODE_MAX] = {
+		[HAL_REO_DEST_RING_ERROR_CODE_DESC_ADDR_ZERO] = "Desc addr zero",
+		[HAL_REO_DEST_RING_ERROR_CODE_DESC_INVALID] = "Desc inval",
+		[HAL_REO_DEST_RING_ERROR_CODE_AMPDU_IN_NON_BA] =  "AMPDU in non BA",
+		[HAL_REO_DEST_RING_ERROR_CODE_NON_BA_DUPLICATE] = "Non BA dup",
+		[HAL_REO_DEST_RING_ERROR_CODE_BA_DUPLICATE] = "BA dup",
+		[HAL_REO_DEST_RING_ERROR_CODE_FRAME_2K_JUMP] = "Frame 2k jump",
+		[HAL_REO_DEST_RING_ERROR_CODE_BAR_2K_JUMP] = "BAR 2k jump",
+		[HAL_REO_DEST_RING_ERROR_CODE_FRAME_OOR] = "Frame OOR",
+		[HAL_REO_DEST_RING_ERROR_CODE_BAR_OOR] = "BAR OOR",
+		[HAL_REO_DEST_RING_ERROR_CODE_NO_BA_SESSION] = "No BA session",
+		[HAL_REO_DEST_RING_ERROR_CODE_FRAME_SN_EQUALS_SSN] = "Frame SN equal SSN",
+		[HAL_REO_DEST_RING_ERROR_CODE_PN_CHECK_FAILED] = "PN check fail",
+		[HAL_REO_DEST_RING_ERROR_CODE_2K_ERR_FLAG_SET] = "2k err",
+		[HAL_REO_DEST_RING_ERROR_CODE_PN_ERR_FLAG_SET] = "PN err",
+		[HAL_REO_DEST_RING_ERROR_CODE_DESC_BLOCKED] = "Desc blocked"};
+
+	static const char *wbm_rel_src[HAL_WBM_REL_SRC_MODULE_MAX] = {
+		[HAL_WBM_REL_SRC_MODULE_TQM] = "TQM",
+		[HAL_WBM_REL_SRC_MODULE_RXDMA] = "Rxdma",
+		[HAL_WBM_REL_SRC_MODULE_REO] = "Reo",
+		[HAL_WBM_REL_SRC_MODULE_FW] = "FW",
+		[HAL_WBM_REL_SRC_MODULE_SW] = "SW"};
+
+	char *buf __free(kfree) = kzalloc(size, GFP_KERNEL);
+
+	if (!buf)
+		return -ENOMEM;
+
+	len += scnprintf(buf + len, size - len, "DEVICE RX STATS:\n\n");
+	len += scnprintf(buf + len, size - len, "err ring pkts: %u\n",
+			 device_stats->err_ring_pkts);
+	len += scnprintf(buf + len, size - len, "Invalid RBM: %u\n\n",
+			 device_stats->invalid_rbm);
+	len += scnprintf(buf + len, size - len, "RXDMA errors:\n");
+
+	for (i = 0; i < HAL_REO_ENTR_RING_RXDMA_ECODE_MAX; i++)
+		len += scnprintf(buf + len, size - len, "%s: %u\n",
+				 rxdma_err[i], device_stats->rxdma_error[i]);
+
+	len += scnprintf(buf + len, size - len, "\nREO errors:\n");
+
+	for (i = 0; i < HAL_REO_DEST_RING_ERROR_CODE_MAX; i++)
+		len += scnprintf(buf + len, size - len, "%s: %u\n",
+				 reo_err[i], device_stats->reo_error[i]);
+
+	len += scnprintf(buf + len, size - len, "\nHAL REO errors:\n");
+
+	for (i = 0; i < DP_REO_DST_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len,
+				 "ring%d: %u\n", i,
+				 device_stats->hal_reo_error[i]);
+
+	len += scnprintf(buf + len, size - len, "\nDEVICE TX STATS:\n");
+	len += scnprintf(buf + len, size - len, "\nTCL Ring Full Failures:\n");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, "ring%d: %u\n",
+				 i, device_stats->tx_err.desc_na[i]);
+
+	len += scnprintf(buf + len, size - len,
+			 "\nMisc Transmit Failures: %d\n",
+			 atomic_read(&device_stats->tx_err.misc_fail));
+
+	len += scnprintf(buf + len, size - len, "\ntx_wbm_rel_source:");
+
+	for (i = 0; i < HAL_WBM_REL_SRC_MODULE_MAX; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->tx_wbm_rel_source[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\ntqm_rel_reason:");
+
+	for (i = 0; i < MAX_TQM_RELEASE_REASON; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->tqm_rel_reason[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\nfw_tx_status:");
+
+	for (i = 0; i < MAX_FW_TX_STATUS; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->fw_tx_status[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\ntx_enqueued:");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u", i,
+				 device_stats->tx_enqueued[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	len += scnprintf(buf + len, size - len, "\ntx_completed:");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, " %d:%u",
+				 i, device_stats->tx_completed[i]);
+
+	len += scnprintf(buf + len, size - len, "\n");
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ath12k_mac_get_ar_by_pdev_id(ab, DP_SW2HW_MACID(i));
+		if (ar) {
+			len += scnprintf(buf + len, size - len,
+					"\nradio%d tx_pending: %u\n", i,
+					atomic_read(&ar->dp.num_tx_pending));
+		}
+	}
+
+	len += scnprintf(buf + len, size - len, "\nREO Rx Received:\n");
+
+	for (i = 0; i < DP_REO_DST_RING_MAX; i++) {
+		len += scnprintf(buf + len, size - len, "Ring%d:", i + 1);
+
+		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+			len += scnprintf(buf + len, size - len,
+					"\t%d:%u", j,
+					 device_stats->reo_rx[i][j]);
+		}
+
+		len += scnprintf(buf + len, size - len, "\n");
+	}
+
+	len += scnprintf(buf + len, size - len, "\nRx WBM REL SRC Errors:\n");
+
+	for (i = 0; i < HAL_WBM_REL_SRC_MODULE_MAX; i++) {
+		len += scnprintf(buf + len, size - len, "%s:", wbm_rel_src[i]);
+
+		for (j = 0; j < ATH12K_MAX_DEVICES; j++) {
+			len += scnprintf(buf + len,
+					 size - len,
+					 "\t%d:%u", j,
+					 device_stats->rx_wbm_rel_source[i][j]);
+		}
+
+		len += scnprintf(buf + len, size - len, "\n");
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	return ret;
+}
+
+static const struct file_operations fops_device_dp_stats = {
+	.read = ath12k_debugfs_dump_device_dp_stats,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath12k_debugfs_pdev_create(struct ath12k_base *ab)
+{
+	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
+			    &fops_simulate_fw_crash);
+
+	debugfs_create_file("device_dp_stats", 0400, ab->debugfs_soc, ab,
+			    &fops_device_dp_stats);
+}
+
 void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
 	bool dput_needed;
@@ -868,102 +1249,6 @@ void ath12k_debugfs_soc_destroy(struct ath12k_base *ab)
 	 * a minor cosmetic issue to leave an empty ath12k directory to
 	 * debugfs.
 	 */
-}
-
-static void ath12k_fw_stats_pdevs_free(struct list_head *head)
-{
-	struct ath12k_fw_stats_pdev *i, *tmp;
-
-	list_for_each_entry_safe(i, tmp, head, list) {
-		list_del(&i->list);
-		kfree(i);
-	}
-}
-
-static void ath12k_fw_stats_bcn_free(struct list_head *head)
-{
-	struct ath12k_fw_stats_bcn *i, *tmp;
-
-	list_for_each_entry_safe(i, tmp, head, list) {
-		list_del(&i->list);
-		kfree(i);
-	}
-}
-
-static void ath12k_fw_stats_vdevs_free(struct list_head *head)
-{
-	struct ath12k_fw_stats_vdev *i, *tmp;
-
-	list_for_each_entry_safe(i, tmp, head, list) {
-		list_del(&i->list);
-		kfree(i);
-	}
-}
-
-void ath12k_debugfs_fw_stats_reset(struct ath12k *ar)
-{
-	spin_lock_bh(&ar->data_lock);
-	ar->fw_stats.fw_stats_done = false;
-	ath12k_fw_stats_vdevs_free(&ar->fw_stats.vdevs);
-	ath12k_fw_stats_bcn_free(&ar->fw_stats.bcn);
-	ath12k_fw_stats_pdevs_free(&ar->fw_stats.pdevs);
-	spin_unlock_bh(&ar->data_lock);
-}
-
-static int ath12k_debugfs_fw_stats_request(struct ath12k *ar,
-					   struct ath12k_fw_stats_req_params *param)
-{
-	struct ath12k_base *ab = ar->ab;
-	unsigned long timeout, time_left;
-	int ret;
-
-	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
-
-	/* FW stats can get split when exceeding the stats data buffer limit.
-	 * In that case, since there is no end marking for the back-to-back
-	 * received 'update stats' event, we keep a 3 seconds timeout in case,
-	 * fw_stats_done is not marked yet
-	 */
-	timeout = jiffies + msecs_to_jiffies(3 * 1000);
-
-	ath12k_debugfs_fw_stats_reset(ar);
-
-	reinit_completion(&ar->fw_stats_complete);
-
-	ret = ath12k_wmi_send_stats_request_cmd(ar, param->stats_id,
-						param->vdev_id, param->pdev_id);
-
-	if (ret) {
-		ath12k_warn(ab, "could not request fw stats (%d)\n",
-			    ret);
-		return ret;
-	}
-
-	time_left = wait_for_completion_timeout(&ar->fw_stats_complete,
-						1 * HZ);
-	/* If the wait timed out, return -ETIMEDOUT */
-	if (!time_left)
-		return -ETIMEDOUT;
-
-	/* Firmware sends WMI_UPDATE_STATS_EVENTID back-to-back
-	 * when stats data buffer limit is reached. fw_stats_complete
-	 * is completed once host receives first event from firmware, but
-	 * still end might not be marked in the TLV.
-	 * Below loop is to confirm that firmware completed sending all the event
-	 * and fw_stats_done is marked true when end is marked in the TLV
-	 */
-	for (;;) {
-		if (time_after(jiffies, timeout))
-			break;
-
-		spin_lock_bh(&ar->data_lock);
-		if (ar->fw_stats.fw_stats_done) {
-			spin_unlock_bh(&ar->data_lock);
-			break;
-		}
-		spin_unlock_bh(&ar->data_lock);
-	}
-	return 0;
 }
 
 void
@@ -1022,10 +1307,6 @@ ath12k_debugfs_fw_stats_process(struct ath12k *ar,
 			num_bcn = 0;
 		}
 	}
-	if (stats->stats_id == WMI_REQUEST_PDEV_STAT) {
-		list_splice_tail_init(&stats->pdevs, &ar->fw_stats.pdevs);
-		ar->fw_stats.fw_stats_done = true;
-	}
 }
 
 static int ath12k_open_vdev_stats(struct inode *inode, struct file *file)
@@ -1052,7 +1333,7 @@ static int ath12k_open_vdev_stats(struct inode *inode, struct file *file)
 	param.vdev_id = 0;
 	param.stats_id = WMI_REQUEST_VDEV_STAT;
 
-	ret = ath12k_debugfs_fw_stats_request(ar, &param);
+	ret = ath12k_mac_get_fw_stats(ar, &param);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to request fw vdev stats: %d\n", ret);
 		return ret;
@@ -1117,7 +1398,7 @@ static int ath12k_open_bcn_stats(struct inode *inode, struct file *file)
 			continue;
 
 		param.vdev_id = arvif->vdev_id;
-		ret = ath12k_debugfs_fw_stats_request(ar, &param);
+		ret = ath12k_mac_get_fw_stats(ar, &param);
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to request fw bcn stats: %d\n", ret);
 			return ret;
@@ -1184,7 +1465,7 @@ static int ath12k_open_pdev_stats(struct inode *inode, struct file *file)
 	param.vdev_id = 0;
 	param.stats_id = WMI_REQUEST_PDEV_STAT;
 
-	ret = ath12k_debugfs_fw_stats_request(ar, &param);
+	ret = ath12k_mac_get_fw_stats(ar, &param);
 	if (ret) {
 		ath12k_warn(ab, "failed to request fw pdev stats: %d\n", ret);
 		return ret;
@@ -1239,11 +1520,7 @@ void ath12k_debugfs_fw_stats_register(struct ath12k *ar)
 	debugfs_create_file("pdev_stats", 0600, fwstats_dir, ar,
 			    &fops_pdev_stats);
 
-	INIT_LIST_HEAD(&ar->fw_stats.vdevs);
-	INIT_LIST_HEAD(&ar->fw_stats.bcn);
-	INIT_LIST_HEAD(&ar->fw_stats.pdevs);
-
-	init_completion(&ar->fw_stats_complete);
+	ath12k_fw_stats_init(ar);
 }
 
 void ath12k_debugfs_register(struct ath12k *ar)

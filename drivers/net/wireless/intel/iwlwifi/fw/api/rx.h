@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -193,10 +193,11 @@ enum iwl_rx_mpdu_amsdu_info {
 	IWL_RX_MPDU_AMSDU_LAST_SUBFRAME		= 0x80,
 };
 
-#define RX_MPDU_BAND_POS 6
-#define RX_MPDU_BAND_MASK 0xC0
-#define BAND_IN_RX_STATUS(_val) \
-	(((_val) & RX_MPDU_BAND_MASK) >> RX_MPDU_BAND_POS)
+enum iwl_rx_mpdu_mac_phy_band {
+	IWL_RX_MPDU_MAC_PHY_BAND_MAC_MASK	= 0x0f,
+	IWL_RX_MPDU_MAC_PHY_BAND_PHY_MASK	= 0x30,
+	IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK	= 0xc0,
+};
 
 enum iwl_rx_l3_proto_values {
 	IWL_RX_L3_TYPE_NONE,
@@ -639,7 +640,9 @@ struct iwl_rx_mpdu_desc_v3 {
 	 */
 	__le32 reserved[1];
 } __packed; /* RX_MPDU_RES_START_API_S_VER_3,
-	       RX_MPDU_RES_START_API_S_VER_5 */
+	     * RX_MPDU_RES_START_API_S_VER_5,
+	     * RX_MPDU_RES_START_API_S_VER_6
+	     */
 
 /**
  * struct iwl_rx_mpdu_desc - RX MPDU descriptor
@@ -668,9 +671,10 @@ struct iwl_rx_mpdu_desc {
 	 */
 	__le16 phy_info;
 	/**
-	 * @mac_phy_idx: MAC/PHY index
+	 * @mac_phy_band: MAC ID, PHY ID, band;
+	 *	see &enum iwl_rx_mpdu_mac_phy_band
 	 */
-	u8 mac_phy_idx;
+	u8 mac_phy_band;
 	/* DW4 */
 	union {
 		struct {
@@ -722,8 +726,10 @@ struct iwl_rx_mpdu_desc {
 		struct iwl_rx_mpdu_desc_v3 v3;
 	};
 } __packed; /* RX_MPDU_RES_START_API_S_VER_3,
-	       RX_MPDU_RES_START_API_S_VER_4,
-	       RX_MPDU_RES_START_API_S_VER_5 */
+	     * RX_MPDU_RES_START_API_S_VER_4,
+	     * RX_MPDU_RES_START_API_S_VER_5,
+	     * RX_MPDU_RES_START_API_S_VER_6
+	     */
 
 #define IWL_RX_DESC_SIZE_V1 offsetofend(struct iwl_rx_mpdu_desc, v1)
 
@@ -819,7 +825,7 @@ struct iwl_rx_no_data {
  *	15:8 chain-B, measured at FINA time (FINA_ENERGY), 16:23 channel
  * @on_air_rise_time: GP2 during on air rise
  * @fr_time: frame time
- * @rate: rate/mcs of frame
+ * @rate: rate/mcs of frame, format depends on the notification version
  * @phy_info: &enum iwl_rx_phy_eht_data0 and &enum iwl_rx_phy_info_type
  * @rx_vec: DW-12:9 raw RX vectors from DSP according to modulation type.
  *	for VHT: OFDM_RX_VECTOR_SIGA1_OUT, OFDM_RX_VECTOR_SIGA2_OUT
@@ -835,9 +841,7 @@ struct iwl_rx_no_data_ver_3 {
 	__le32 rate;
 	__le32 phy_info[2];
 	__le32 rx_vec[4];
-} __packed; /* RX_NO_DATA_NTFY_API_S_VER_1,
-	       RX_NO_DATA_NTFY_API_S_VER_2
-	       RX_NO_DATA_NTFY_API_S_VER_3 */
+} __packed; /* RX_NO_DATA_NTFY_API_S_VER_3, _VER_4 */
 
 struct iwl_frame_release {
 	u8 baid;

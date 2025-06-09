@@ -33,7 +33,13 @@ static const char *intel_dram_type_str(enum intel_dram_type type)
 		DRAM_TYPE_STR(DDR4),
 		DRAM_TYPE_STR(LPDDR3),
 		DRAM_TYPE_STR(LPDDR4),
+		DRAM_TYPE_STR(DDR5),
+		DRAM_TYPE_STR(LPDDR5),
+		DRAM_TYPE_STR(GDDR),
+		DRAM_TYPE_STR(GDDR_ECC),
 	};
+
+	BUILD_BUG_ON(ARRAY_SIZE(str) != __INTEL_DRAM_TYPE_MAX);
 
 	if (type >= ARRAY_SIZE(str))
 		type = INTEL_DRAM_UNKNOWN;
@@ -444,8 +450,6 @@ skl_get_dram_info(struct drm_i915_private *i915)
 	int ret;
 
 	dram_info->type = skl_get_dram_type(i915);
-	drm_dbg_kms(&i915->drm, "DRAM type: %s\n",
-		    intel_dram_type_str(dram_info->type));
 
 	ret = skl_dram_get_channels_info(i915);
 	if (ret)
@@ -560,10 +564,9 @@ static int bxt_get_dram_info(struct drm_i915_private *i915)
 			    dram_info->type != type);
 
 		drm_dbg_kms(&i915->drm,
-			    "CH%u DIMM size: %u Gb, width: X%u, ranks: %u, type: %s\n",
+			    "CH%u DIMM size: %u Gb, width: X%u, ranks: %u\n",
 			    i - BXT_D_CR_DRP0_DUNIT_START,
-			    dimm.size, dimm.width, dimm.ranks,
-			    intel_dram_type_str(type));
+			    dimm.size, dimm.width, dimm.ranks);
 
 		if (valid_ranks == 0)
 			valid_ranks = dimm.ranks;
@@ -730,6 +733,10 @@ void intel_dram_detect(struct drm_i915_private *i915)
 		ret = bxt_get_dram_info(i915);
 	else
 		ret = skl_get_dram_info(i915);
+
+	drm_dbg_kms(&i915->drm, "DRAM type: %s\n",
+		    intel_dram_type_str(dram_info->type));
+
 	if (ret)
 		return;
 

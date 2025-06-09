@@ -169,6 +169,10 @@ static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	/* VCN POISON TRAP */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
+		VCN_4_0__SRCID_UVD_POISON, &adev->vcn.inst->ras_poison_irq);
+
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 
 		r = amdgpu_vcn_sw_init(adev, i);
@@ -288,6 +292,31 @@ static int vcn_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+static int vcn_v4_0_3_hw_init_inst(struct amdgpu_vcn_inst *vinst)
+{
+	int vcn_inst;
+	struct amdgpu_device *adev = vinst->adev;
+	struct amdgpu_ring *ring;
+	int inst_idx = vinst->inst;
+
+	vcn_inst = GET_INST(VCN, inst_idx);
+	ring = &adev->vcn.inst[inst_idx].ring_enc[0];
+	if (ring->use_doorbell) {
+		adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+			(adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 9 * vcn_inst,
+			adev->vcn.inst[inst_idx].aid_id);
+
+		WREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL,
+			ring->doorbell_index << VCN_RB1_DB_CTRL__OFFSET__SHIFT |
+			VCN_RB1_DB_CTRL__EN_MASK);
+
+		/* Read DB_CTRL to flush the write DB_CTRL command. */
+		RREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL);
+	}
+
+	return 0;
+}
+
 /**
  * vcn_v4_0_3_hw_init - start and test VCN block
  *
@@ -299,7 +328,8 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
-	int i, r, vcn_inst;
+	struct amdgpu_vcn_inst *vinst;
+	int i, r;
 
 	if (amdgpu_sriov_vf(adev)) {
 		r = vcn_v4_0_3_start_sriov(adev);
@@ -322,28 +352,9 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 			struct amdgpu_vcn4_fw_shared *fw_shared;
 
-			vcn_inst = GET_INST(VCN, i);
 			ring = &adev->vcn.inst[i].ring_enc[0];
-
-			if (ring->use_doorbell) {
-				adev->nbio.funcs->vcn_doorbell_range(
-					adev, ring->use_doorbell,
-					(adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
-						9 * vcn_inst,
-					adev->vcn.inst[i].aid_id);
-
-				WREG32_SOC15(
-					VCN, GET_INST(VCN, ring->me),
-					regVCN_RB1_DB_CTRL,
-					ring->doorbell_index
-							<< VCN_RB1_DB_CTRL__OFFSET__SHIFT |
-						VCN_RB1_DB_CTRL__EN_MASK);
-
-				/* Read DB_CTRL to flush the write DB_CTRL command. */
-				RREG32_SOC15(
-					VCN, GET_INST(VCN, ring->me),
-					regVCN_RB1_DB_CTRL);
-			}
+			vinst = &adev->vcn.inst[i];
+			vcn_v4_0_3_hw_init_inst(vinst);
 
 			/* Re-init fw_shared when RAS fatal error occurred */
 			fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
@@ -379,6 +390,9 @@ static int vcn_v4_0_3_hw_fini(struct amdgpu_ip_block *ip_block)
 		if (vinst->cur_state != AMD_PG_STATE_GATE)
 			vinst->set_pg_state(vinst, AMD_PG_STATE_GATE);
 	}
+
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN))
+		amdgpu_irq_put(adev, &adev->vcn.inst->ras_poison_irq, 0);
 
 	return 0;
 }
@@ -963,6 +977,11 @@ static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 	/*resetting done, fw can check RB ring */
 	fw_shared->sq.queue_mode &= cpu_to_le32(~FW_QUEUE_RING_RESET);
 
+	/* Keeping one read-back to ensure all register writes are done,
+	 * otherwise it may introduce race conditions.
+	 */
+	RREG32_SOC15(VCN, vcn_inst, regUVD_STATUS);
+
 	return 0;
 }
 
@@ -1356,6 +1375,12 @@ static int vcn_v4_0_3_stop_dpg_mode(struct amdgpu_vcn_inst *vinst)
 	/* disable dynamic power gating mode */
 	WREG32_P(SOC15_REG_OFFSET(VCN, vcn_inst, regUVD_POWER_STATUS), 0,
 		 ~UVD_POWER_STATUS__UVD_PG_MODE_MASK);
+
+	/* Keeping one read-back to ensure all register writes are done,
+	 * otherwise it may introduce race conditions.
+	 */
+	RREG32_SOC15(VCN, vcn_inst, regUVD_STATUS);
+
 	return 0;
 }
 
@@ -1438,6 +1463,11 @@ static int vcn_v4_0_3_stop(struct amdgpu_vcn_inst *vinst)
 
 	/* apply HW clock gating */
 	vcn_v4_0_3_enable_clock_gating(vinst);
+
+	/* Keeping one read-back to ensure all register writes are done,
+	 * otherwise it may introduce race conditions.
+	 */
+	RREG32_SOC15(VCN, vcn_inst, regUVD_STATUS);
 
 Done:
 	return 0;
@@ -1564,6 +1594,37 @@ static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
+static int vcn_v4_0_3_ring_reset(struct amdgpu_ring *ring, unsigned int vmid)
+{
+	int r = 0;
+	int vcn_inst;
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[ring->me];
+
+	if (amdgpu_sriov_vf(ring->adev))
+		return -EOPNOTSUPP;
+
+	if (!(adev->vcn.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+		return -EOPNOTSUPP;
+
+	vcn_inst = GET_INST(VCN, ring->me);
+	r = amdgpu_dpm_reset_vcn(adev, 1 << vcn_inst);
+
+	if (r) {
+		DRM_DEV_ERROR(adev->dev, "VCN reset fail : %d\n", r);
+		return r;
+	}
+
+	/* This flag is not set for VF, assumed to be disabled always */
+	if (RREG32_SOC15(VCN, GET_INST(VCN, 0), regVCN_RRMT_CNTL) & 0x100)
+		adev->vcn.caps |= AMDGPU_VCN_CAPS(RRMT_ENABLED);
+	vcn_v4_0_3_hw_init_inst(vinst);
+	vcn_v4_0_3_start_dpg_mode(vinst, adev->vcn.inst[ring->me].indirect_sram);
+	r = amdgpu_ring_test_helper(ring);
+
+	return r;
+}
+
 static const struct amdgpu_ring_funcs vcn_v4_0_3_unified_ring_vm_funcs = {
 	.type = AMDGPU_RING_TYPE_VCN_ENC,
 	.align_mask = 0x3f,
@@ -1592,6 +1653,7 @@ static const struct amdgpu_ring_funcs vcn_v4_0_3_unified_ring_vm_funcs = {
 	.emit_wreg = vcn_v4_0_3_enc_ring_emit_wreg,
 	.emit_reg_wait = vcn_v4_0_3_enc_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
+	.reset = vcn_v4_0_3_ring_reset,
 };
 
 /**
@@ -1775,9 +1837,22 @@ static int vcn_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int vcn_v4_0_3_set_ras_interrupt_state(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned int type,
+					enum amdgpu_interrupt_state state)
+{
+	return 0;
+}
+
 static const struct amdgpu_irq_src_funcs vcn_v4_0_3_irq_funcs = {
 	.set = vcn_v4_0_3_set_interrupt_state,
 	.process = vcn_v4_0_3_process_interrupt,
+};
+
+static const struct amdgpu_irq_src_funcs vcn_v4_0_3_ras_irq_funcs = {
+	.set = vcn_v4_0_3_set_ras_interrupt_state,
+	.process = amdgpu_vcn_process_poison_irq,
 };
 
 /**
@@ -1795,6 +1870,9 @@ static void vcn_v4_0_3_set_irq_funcs(struct amdgpu_device *adev)
 		adev->vcn.inst->irq.num_types++;
 	}
 	adev->vcn.inst->irq.funcs = &vcn_v4_0_3_irq_funcs;
+
+	adev->vcn.inst->ras_poison_irq.num_types = 1;
+	adev->vcn.inst->ras_poison_irq.funcs = &vcn_v4_0_3_ras_irq_funcs;
 }
 
 static void vcn_v4_0_3_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
@@ -1942,9 +2020,44 @@ static void vcn_v4_0_3_reset_ras_error_count(struct amdgpu_device *adev)
 		vcn_v4_0_3_inst_reset_ras_error_count(adev, i);
 }
 
+static uint32_t vcn_v4_0_3_query_poison_by_instance(struct amdgpu_device *adev,
+			uint32_t instance, uint32_t sub_block)
+{
+	uint32_t poison_stat = 0, reg_value = 0;
+
+	switch (sub_block) {
+	case AMDGPU_VCN_V4_0_3_VCPU_VCODEC:
+		reg_value = RREG32_SOC15(VCN, instance, regUVD_RAS_VCPU_VCODEC_STATUS);
+		poison_stat = REG_GET_FIELD(reg_value, UVD_RAS_VCPU_VCODEC_STATUS, POISONED_PF);
+		break;
+	default:
+		break;
+	}
+
+	if (poison_stat)
+		dev_info(adev->dev, "Poison detected in VCN%d, sub_block%d\n",
+			instance, sub_block);
+
+	return poison_stat;
+}
+
+static bool vcn_v4_0_3_query_poison_status(struct amdgpu_device *adev)
+{
+	uint32_t inst, sub;
+	uint32_t poison_stat = 0;
+
+	for (inst = 0; inst < adev->vcn.num_vcn_inst; inst++)
+		for (sub = 0; sub < AMDGPU_VCN_V4_0_3_MAX_SUB_BLOCK; sub++)
+			poison_stat +=
+			vcn_v4_0_3_query_poison_by_instance(adev, inst, sub);
+
+	return !!poison_stat;
+}
+
 static const struct amdgpu_ras_block_hw_ops vcn_v4_0_3_ras_hw_ops = {
 	.query_ras_error_count = vcn_v4_0_3_query_ras_error_count,
 	.reset_ras_error_count = vcn_v4_0_3_reset_ras_error_count,
+	.query_poison_status = vcn_v4_0_3_query_poison_status,
 };
 
 static int vcn_v4_0_3_aca_bank_parser(struct aca_handle *handle, struct aca_bank *bank,
@@ -2019,6 +2132,13 @@ static int vcn_v4_0_3_ras_late_init(struct amdgpu_device *adev, struct ras_commo
 	r = amdgpu_ras_block_late_init(adev, ras_block);
 	if (r)
 		return r;
+
+	if (amdgpu_ras_is_supported(adev, ras_block->block) &&
+		adev->vcn.inst->ras_poison_irq.funcs) {
+		r = amdgpu_irq_get(adev, &adev->vcn.inst->ras_poison_irq, 0);
+		if (r)
+			goto late_fini;
+	}
 
 	r = amdgpu_ras_bind_aca(adev, AMDGPU_RAS_BLOCK__VCN,
 				&vcn_v4_0_3_aca_info, NULL);
