@@ -4186,6 +4186,25 @@ static int bpf_prog_attach_check_attach_type(const struct bpf_prog *prog,
 	}
 }
 
+static bool is_cgroup_prog_type(enum bpf_prog_type ptype, enum bpf_attach_type atype,
+				bool check_atype)
+{
+	switch (ptype) {
+	case BPF_PROG_TYPE_CGROUP_DEVICE:
+	case BPF_PROG_TYPE_CGROUP_SKB:
+	case BPF_PROG_TYPE_CGROUP_SOCK:
+	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
+	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
+	case BPF_PROG_TYPE_CGROUP_SYSCTL:
+	case BPF_PROG_TYPE_SOCK_OPS:
+		return true;
+	case BPF_PROG_TYPE_LSM:
+		return check_atype ? atype == BPF_LSM_CGROUP : true;
+	default:
+		return false;
+	}
+}
+
 #define BPF_PROG_ATTACH_LAST_FIELD expected_revision
 
 #define BPF_F_ATTACH_MASK_BASE	\
@@ -4216,6 +4235,9 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	if (bpf_mprog_supported(ptype)) {
 		if (attr->attach_flags & ~BPF_F_ATTACH_MASK_MPROG)
 			return -EINVAL;
+	} else if (is_cgroup_prog_type(ptype, 0, false)) {
+		if (attr->attach_flags & ~(BPF_F_ATTACH_MASK_BASE | BPF_F_ATTACH_MASK_MPROG))
+			return -EINVAL;
 	} else {
 		if (attr->attach_flags & ~BPF_F_ATTACH_MASK_BASE)
 			return -EINVAL;
@@ -4233,6 +4255,11 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 		return -EINVAL;
 	}
 
+	if (is_cgroup_prog_type(ptype, prog->expected_attach_type, true)) {
+		ret = cgroup_bpf_prog_attach(attr, ptype, prog);
+		goto out;
+	}
+
 	switch (ptype) {
 	case BPF_PROG_TYPE_SK_SKB:
 	case BPF_PROG_TYPE_SK_MSG:
@@ -4244,20 +4271,6 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 		ret = netns_bpf_prog_attach(attr, prog);
 		break;
-	case BPF_PROG_TYPE_CGROUP_DEVICE:
-	case BPF_PROG_TYPE_CGROUP_SKB:
-	case BPF_PROG_TYPE_CGROUP_SOCK:
-	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
-	case BPF_PROG_TYPE_CGROUP_SOCKOPT:
-	case BPF_PROG_TYPE_CGROUP_SYSCTL:
-	case BPF_PROG_TYPE_SOCK_OPS:
-	case BPF_PROG_TYPE_LSM:
-		if (ptype == BPF_PROG_TYPE_LSM &&
-		    prog->expected_attach_type != BPF_LSM_CGROUP)
-			ret = -EINVAL;
-		else
-			ret = cgroup_bpf_prog_attach(attr, ptype, prog);
-		break;
 	case BPF_PROG_TYPE_SCHED_CLS:
 		if (attr->attach_type == BPF_TCX_INGRESS ||
 		    attr->attach_type == BPF_TCX_EGRESS)
@@ -4268,7 +4281,7 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 	default:
 		ret = -EINVAL;
 	}
-
+out:
 	if (ret)
 		bpf_prog_put(prog);
 	return ret;
@@ -4296,6 +4309,9 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 			if (IS_ERR(prog))
 				return PTR_ERR(prog);
 		}
+	} else if (is_cgroup_prog_type(ptype, 0, false)) {
+		if (attr->attach_flags || attr->relative_fd)
+			return -EINVAL;
 	} else if (attr->attach_flags ||
 		   attr->relative_fd ||
 		   attr->expected_revision) {
