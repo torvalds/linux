@@ -542,8 +542,7 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 		goto err_drop_pkt;
 	}
 
-	netdev_tx_sent_queue(netdev_get_tx_queue(netdev, txq->sq->q_id),
-			     skb->len);
+	netif_subqueue_sent(netdev, txq->sq->q_id, skb->len);
 	netif_subqueue_maybe_stop(netdev, tx_q->sq->q_id,
 				  hinic3_wq_free_wqebbs(&tx_q->sq->wq),
 				  tx_q->tx_stop_thrs,
