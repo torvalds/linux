@@ -576,7 +576,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 		emulated = "emulated ";
 	}
 
-	btrfs_info_in_rcu(fs_info,
+	btrfs_info(fs_info,
 		"%s block device %s, %u %szones of %llu bytes",
 		model, rcu_str_deref(device->name), zone_info->nr_zones,
 		emulated, zone_info->zone_size);
