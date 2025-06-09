@@ -3483,6 +3483,17 @@ static inline bool path_overmounted(const struct path *path)
 	return unlikely(!no_child);
 }
 
+/*
+ * Check if there is a possibly empty chain of descent from p1 to p2.
+ * Locks: namespace_sem (shared) or mount_lock (read_seqlock_excl).
+ */
+static bool mount_is_ancestor(const struct mount *p1, const struct mount *p2)
+{
+	while (p2 != p1 && mnt_has_parent(p2))
+		p2 = p2->mnt_parent;
+	return p2 == p1;
+}
+
 /**
  * can_move_mount_beneath - check that we can mount beneath the top mount
  * @from: mount to mount beneath
@@ -3534,9 +3545,8 @@ static int can_move_mount_beneath(const struct path *from,
 	if (parent_mnt_to == current->nsproxy->mnt_ns->root)
 		return -EINVAL;
 
-	for (struct mount *p = mnt_from; mnt_has_parent(p); p = p->mnt_parent)
-		if (p == mnt_to)
-			return -EINVAL;
+	if (mount_is_ancestor(mnt_to, mnt_from))
+		return -EINVAL;
 
 	/*
 	 * If the parent mount propagates to the child mount this would
@@ -3705,9 +3715,8 @@ static int do_move_mount(struct path *old_path,
 	err = -ELOOP;
 	if (!check_for_nsfs_mounts(old))
 		goto out;
-	for (; mnt_has_parent(p); p = p->mnt_parent)
-		if (p == old)
-			goto out;
+	if (mount_is_ancestor(old, p))
+		goto out;
 
 	err = attach_recursive_mnt(old, real_mount(new_path->mnt), mp, flags);
 	if (err)
