@@ -7,6 +7,7 @@ config AMD_HFI
 	bool "AMD Hetero Core Hardware Feedback Driver"
 	depends on ACPI
 	depends on CPU_SUP_AMD
+	depends on SCHED_MC_PRIO
 	help
 	  Select this option to enable the AMD Heterogeneous Core Hardware
 	  Feedback Interface. If selected, hardware provides runtime thread

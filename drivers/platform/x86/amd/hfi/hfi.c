@@ -114,6 +114,12 @@ static DEFINE_PER_CPU(struct amd_hfi_cpuinfo, amd_hfi_cpuinfo) = {.class_index =
 
 static DEFINE_MUTEX(hfi_cpuinfo_lock);
 
+static void amd_hfi_sched_itmt_work(struct work_struct *work)
+{
+	sched_set_itmt_support();
+}
+static DECLARE_WORK(sched_amd_hfi_itmt_work, amd_hfi_sched_itmt_work);
+
 static int find_cpu_index_by_apicid(unsigned int target_apicid)
 {
 	int cpu_index;
@@ -237,6 +243,8 @@ static int amd_set_hfi_ipcc_score(struct amd_hfi_cpuinfo *hfi_cpuinfo, int cpu)
 	for (int i = 0; i < hfi_cpuinfo->nr_class; i++)
 		WRITE_ONCE(hfi_cpuinfo->ipcc_scores[i],
 			   hfi_cpuinfo->amd_hfi_classes[i].perf);
+
+	sched_set_itmt_core_prio(hfi_cpuinfo->ipcc_scores[0], cpu);
 
 	return 0;
 }
@@ -458,6 +466,8 @@ static int amd_hfi_probe(struct platform_device *pdev)
 				amd_hfi_online, amd_hfi_offline);
 	if (ret < 0)
 		return ret;
+
+	schedule_work(&sched_amd_hfi_itmt_work);
 
 	return 0;
 }
