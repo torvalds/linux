@@ -2381,9 +2381,26 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 	 * update cfg80211 directly.
 	 */
 	if (!ieee80211_vif_link_active(&sdata->vif, link->link_id)) {
+		struct link_sta_info *link_sta;
+		struct sta_info *ap_sta;
+
 		link->conf->chanreq = link->csa.chanreq;
 		cfg80211_ch_switch_notify(sdata->dev, &link->csa.chanreq.oper,
 					  link->link_id);
+		link->conf->csa_active = false;
+
+		ap_sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
+		if (WARN_ON(!ap_sta))
+			return;
+
+		link_sta = wiphy_dereference(wiphy,
+					     ap_sta->link[link->link_id]);
+		if (WARN_ON(!link_sta))
+			return;
+
+		link_sta->pub->bandwidth =
+			_ieee80211_sta_cur_vht_bw(link_sta,
+						  &link->csa.chanreq.oper);
 		return;
 	}
 
