@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright 2016-2017  Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #include <linux/if_arp.h>
@@ -800,6 +800,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		local->hw_scan_req->req.scan_6ghz_params =
 			req->scan_6ghz_params;
 		local->hw_scan_req->req.scan_6ghz = req->scan_6ghz;
+		local->hw_scan_req->req.first_part = req->first_part;
 
 		/*
 		 * After allocating local->hw_scan_req, we must
