@@ -15,7 +15,13 @@ allOf:
 
 properties:
   compatible:
-    const: renesas,r9a09g077-rsci      # RZ/T2H
+    oneOf:
+      - items:
+          - const: renesas,r9a09g087-rsci # RZ/N2H
+          - const: renesas,r9a09g077-rsci # RZ/T2H
+
+      - items:
+          - const: renesas,r9a09g077-rsci # RZ/T2H
 
   reg:
     maxItems: 1
