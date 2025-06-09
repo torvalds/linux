@@ -5790,6 +5790,28 @@ intel_dp_detect_sdp_caps(struct intel_dp *intel_dp)
 		drm_dp_as_sdp_supported(&intel_dp->aux, intel_dp->dpcd);
 }
 
+static bool intel_dp_needs_dpcd_probe(struct intel_dp *intel_dp, bool force_on_external)
+{
+	struct intel_connector *connector = intel_dp->attached_connector;
+
+	if (intel_dp_is_edp(intel_dp))
+		return false;
+
+	if (force_on_external)
+		return true;
+
+	if (intel_dp->is_mst)
+		return false;
+
+	return drm_edid_has_quirk(&connector->base, DRM_EDID_QUIRK_DP_DPCD_PROBE);
+}
+
+void intel_dp_dpcd_set_probe(struct intel_dp *intel_dp, bool force_on_external)
+{
+	drm_dp_dpcd_set_probe(&intel_dp->aux,
+			      intel_dp_needs_dpcd_probe(intel_dp, force_on_external));
+}
+
 static int
 intel_dp_detect(struct drm_connector *_connector,
 		struct drm_modeset_acquire_ctx *ctx,
@@ -5918,6 +5940,8 @@ out_unset_edid:
 	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
 
+	intel_dp_dpcd_set_probe(intel_dp, false);
+
 	if (!intel_dp_is_edp(intel_dp))
 		drm_dp_set_subconnector_property(&connector->base,
 						 status,
@@ -5948,6 +5972,8 @@ intel_dp_force(struct drm_connector *_connector)
 		return;
 
 	intel_dp_set_edid(intel_dp);
+
+	intel_dp_dpcd_set_probe(intel_dp, false);
 }
 
 static int intel_dp_get_modes(struct drm_connector *_connector)
@@ -6320,10 +6346,11 @@ intel_dp_hpd_pulse(struct intel_digital_port *dig_port, bool long_hpd)
 	 * complete the DP tunnel BW request for the latter connector/encoder
 	 * waiting for this encoder's DPRX read, perform a dummy read here.
 	 */
-	if (long_hpd)
+	if (long_hpd) {
+		intel_dp_dpcd_set_probe(intel_dp, true);
+
 		intel_dp_read_dprx_caps(intel_dp, dpcd);
 
-	if (long_hpd) {
 		intel_dp->reset_link_params = true;
 		intel_dp_invalidate_source_oui(intel_dp);
 
