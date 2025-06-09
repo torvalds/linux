@@ -1156,7 +1156,7 @@ config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 config REGULATOR_RASPBERRYPI_TOUCHSCREEN_V2
 	tristate "Raspberry Pi 7-inch touchscreen panel V2 regulator"
 	depends on GPIOLIB
-	depends on I2C
+	depends on I2C && OF
 	select GPIO_REGMAP
 	select REGMAP_I2C
 	help

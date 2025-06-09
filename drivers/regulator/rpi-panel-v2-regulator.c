@@ -102,7 +102,7 @@ static struct i2c_driver rpi_panel_v2_regulator_driver = {
 	.driver = {
 		.name = "rpi_touchscreen_v2",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(rpi_panel_v2_dt_ids),
+		.of_match_table = rpi_panel_v2_dt_ids,
 	},
 	.probe = rpi_panel_v2_i2c_probe,
 };
