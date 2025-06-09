@@ -771,6 +771,10 @@ int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
 
 	/*TODO: init soc config */
 	adev->sdma.num_inst_per_xcc = 2;
+	adev->sdma.num_instances =
+		NUM_XCC(adev->gfx.xcc_mask) * adev->sdma.num_inst_per_xcc;
+	adev->sdma.sdma_mask =
+		GENMASK(adev->sdma.num_instances - 1, 0);
 
 	ret = soc_v1_0_xcp_mgr_init(adev);
 	if (ret)
