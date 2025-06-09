@@ -638,8 +638,6 @@ EXPORT_SYMBOL_GPL(svc_destroy);
 static bool
 svc_init_buffer(struct svc_rqst *rqstp, const struct svc_serv *serv, int node)
 {
-	unsigned long ret;
-
 	rqstp->rq_maxpages = svc_serv_maxpages(serv);
 
 	/* rq_pages' last entry is NULL for historical reasons. */
@@ -649,9 +647,7 @@ svc_init_buffer(struct svc_rqst *rqstp, const struct svc_serv *serv, int node)
 	if (!rqstp->rq_pages)
 		return false;
 
-	ret = alloc_pages_bulk_node(GFP_KERNEL, node, rqstp->rq_maxpages,
-				    rqstp->rq_pages);
-	return ret == rqstp->rq_maxpages;
+	return true;
 }
 
 /*
