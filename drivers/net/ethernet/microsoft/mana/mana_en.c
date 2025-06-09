@@ -774,8 +774,9 @@ static int mana_send_request(struct mana_context *ac, void *in_buf,
 	err = mana_gd_send_request(gc, in_len, in_buf, out_len,
 				   out_buf);
 	if (err || resp->status) {
-		dev_err(dev, "Failed to send mana message: %d, 0x%x\n",
-			err, resp->status);
+		if (req->req.msg_type != MANA_QUERY_PHY_STAT)
+			dev_err(dev, "Failed to send mana message: %d, 0x%x\n",
+				err, resp->status);
 		return err ? err : -EPROTO;
 	}
 
@@ -2609,6 +2610,88 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 	apc->eth_stats.hc_tx_mcast_pkts = resp.hc_tx_mcast_pkts;
 	apc->eth_stats.hc_tx_mcast_bytes = resp.hc_tx_mcast_bytes;
 	apc->eth_stats.hc_tx_err_gdma = resp.tx_err_gdma;
+}
+
+void mana_query_phy_stats(struct mana_port_context *apc)
+{
+	struct mana_query_phy_stat_resp resp = {};
+	struct mana_query_phy_stat_req req = {};
+	struct net_device *ndev = apc->ndev;
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_PHY_STAT,
+			     sizeof(req), sizeof(resp));
+	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
+				sizeof(resp));
+	if (err)
+		return;
+
+	err = mana_verify_resp_hdr(&resp.hdr, MANA_QUERY_PHY_STAT,
+				   sizeof(resp));
+	if (err || resp.hdr.status) {
+		netdev_err(ndev,
+			   "Failed to query PHY stats: %d, resp:0x%x\n",
+				err, resp.hdr.status);
+		return;
+	}
+
+	/* Aggregate drop counters */
+	apc->phy_stats.rx_pkt_drop_phy = resp.rx_pkt_drop_phy;
+	apc->phy_stats.tx_pkt_drop_phy = resp.tx_pkt_drop_phy;
+
+	/* Per TC traffic Counters */
+	apc->phy_stats.rx_pkt_tc0_phy = resp.rx_pkt_tc0_phy;
+	apc->phy_stats.tx_pkt_tc0_phy = resp.tx_pkt_tc0_phy;
+	apc->phy_stats.rx_pkt_tc1_phy = resp.rx_pkt_tc1_phy;
+	apc->phy_stats.tx_pkt_tc1_phy = resp.tx_pkt_tc1_phy;
+	apc->phy_stats.rx_pkt_tc2_phy = resp.rx_pkt_tc2_phy;
+	apc->phy_stats.tx_pkt_tc2_phy = resp.tx_pkt_tc2_phy;
+	apc->phy_stats.rx_pkt_tc3_phy = resp.rx_pkt_tc3_phy;
+	apc->phy_stats.tx_pkt_tc3_phy = resp.tx_pkt_tc3_phy;
+	apc->phy_stats.rx_pkt_tc4_phy = resp.rx_pkt_tc4_phy;
+	apc->phy_stats.tx_pkt_tc4_phy = resp.tx_pkt_tc4_phy;
+	apc->phy_stats.rx_pkt_tc5_phy = resp.rx_pkt_tc5_phy;
+	apc->phy_stats.tx_pkt_tc5_phy = resp.tx_pkt_tc5_phy;
+	apc->phy_stats.rx_pkt_tc6_phy = resp.rx_pkt_tc6_phy;
+	apc->phy_stats.tx_pkt_tc6_phy = resp.tx_pkt_tc6_phy;
+	apc->phy_stats.rx_pkt_tc7_phy = resp.rx_pkt_tc7_phy;
+	apc->phy_stats.tx_pkt_tc7_phy = resp.tx_pkt_tc7_phy;
+
+	/* Per TC byte Counters */
+	apc->phy_stats.rx_byte_tc0_phy = resp.rx_byte_tc0_phy;
+	apc->phy_stats.tx_byte_tc0_phy = resp.tx_byte_tc0_phy;
+	apc->phy_stats.rx_byte_tc1_phy = resp.rx_byte_tc1_phy;
+	apc->phy_stats.tx_byte_tc1_phy = resp.tx_byte_tc1_phy;
+	apc->phy_stats.rx_byte_tc2_phy = resp.rx_byte_tc2_phy;
+	apc->phy_stats.tx_byte_tc2_phy = resp.tx_byte_tc2_phy;
+	apc->phy_stats.rx_byte_tc3_phy = resp.rx_byte_tc3_phy;
+	apc->phy_stats.tx_byte_tc3_phy = resp.tx_byte_tc3_phy;
+	apc->phy_stats.rx_byte_tc4_phy = resp.rx_byte_tc4_phy;
+	apc->phy_stats.tx_byte_tc4_phy = resp.tx_byte_tc4_phy;
+	apc->phy_stats.rx_byte_tc5_phy = resp.rx_byte_tc5_phy;
+	apc->phy_stats.tx_byte_tc5_phy = resp.tx_byte_tc5_phy;
+	apc->phy_stats.rx_byte_tc6_phy = resp.rx_byte_tc6_phy;
+	apc->phy_stats.tx_byte_tc6_phy = resp.tx_byte_tc6_phy;
+	apc->phy_stats.rx_byte_tc7_phy = resp.rx_byte_tc7_phy;
+	apc->phy_stats.tx_byte_tc7_phy = resp.tx_byte_tc7_phy;
+
+	/* Per TC pause Counters */
+	apc->phy_stats.rx_pause_tc0_phy = resp.rx_pause_tc0_phy;
+	apc->phy_stats.tx_pause_tc0_phy = resp.tx_pause_tc0_phy;
+	apc->phy_stats.rx_pause_tc1_phy = resp.rx_pause_tc1_phy;
+	apc->phy_stats.tx_pause_tc1_phy = resp.tx_pause_tc1_phy;
+	apc->phy_stats.rx_pause_tc2_phy = resp.rx_pause_tc2_phy;
+	apc->phy_stats.tx_pause_tc2_phy = resp.tx_pause_tc2_phy;
+	apc->phy_stats.rx_pause_tc3_phy = resp.rx_pause_tc3_phy;
+	apc->phy_stats.tx_pause_tc3_phy = resp.tx_pause_tc3_phy;
+	apc->phy_stats.rx_pause_tc4_phy = resp.rx_pause_tc4_phy;
+	apc->phy_stats.tx_pause_tc4_phy = resp.tx_pause_tc4_phy;
+	apc->phy_stats.rx_pause_tc5_phy = resp.rx_pause_tc5_phy;
+	apc->phy_stats.tx_pause_tc5_phy = resp.tx_pause_tc5_phy;
+	apc->phy_stats.rx_pause_tc6_phy = resp.rx_pause_tc6_phy;
+	apc->phy_stats.tx_pause_tc6_phy = resp.tx_pause_tc6_phy;
+	apc->phy_stats.rx_pause_tc7_phy = resp.rx_pause_tc7_phy;
+	apc->phy_stats.tx_pause_tc7_phy = resp.tx_pause_tc7_phy;
 }
 
 static int mana_init_port(struct net_device *ndev)

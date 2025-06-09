@@ -404,6 +404,65 @@ struct mana_ethtool_stats {
 	u64 rx_cqe_unknown_type;
 };
 
+struct mana_ethtool_phy_stats {
+	/* Drop Counters */
+	u64 rx_pkt_drop_phy;
+	u64 tx_pkt_drop_phy;
+
+	/* Per TC traffic Counters */
+	u64 rx_pkt_tc0_phy;
+	u64 tx_pkt_tc0_phy;
+	u64 rx_pkt_tc1_phy;
+	u64 tx_pkt_tc1_phy;
+	u64 rx_pkt_tc2_phy;
+	u64 tx_pkt_tc2_phy;
+	u64 rx_pkt_tc3_phy;
+	u64 tx_pkt_tc3_phy;
+	u64 rx_pkt_tc4_phy;
+	u64 tx_pkt_tc4_phy;
+	u64 rx_pkt_tc5_phy;
+	u64 tx_pkt_tc5_phy;
+	u64 rx_pkt_tc6_phy;
+	u64 tx_pkt_tc6_phy;
+	u64 rx_pkt_tc7_phy;
+	u64 tx_pkt_tc7_phy;
+
+	u64 rx_byte_tc0_phy;
+	u64 tx_byte_tc0_phy;
+	u64 rx_byte_tc1_phy;
+	u64 tx_byte_tc1_phy;
+	u64 rx_byte_tc2_phy;
+	u64 tx_byte_tc2_phy;
+	u64 rx_byte_tc3_phy;
+	u64 tx_byte_tc3_phy;
+	u64 rx_byte_tc4_phy;
+	u64 tx_byte_tc4_phy;
+	u64 rx_byte_tc5_phy;
+	u64 tx_byte_tc5_phy;
+	u64 rx_byte_tc6_phy;
+	u64 tx_byte_tc6_phy;
+	u64 rx_byte_tc7_phy;
+	u64 tx_byte_tc7_phy;
+
+	/* Per TC pause Counters */
+	u64 rx_pause_tc0_phy;
+	u64 tx_pause_tc0_phy;
+	u64 rx_pause_tc1_phy;
+	u64 tx_pause_tc1_phy;
+	u64 rx_pause_tc2_phy;
+	u64 tx_pause_tc2_phy;
+	u64 rx_pause_tc3_phy;
+	u64 tx_pause_tc3_phy;
+	u64 rx_pause_tc4_phy;
+	u64 tx_pause_tc4_phy;
+	u64 rx_pause_tc5_phy;
+	u64 tx_pause_tc5_phy;
+	u64 rx_pause_tc6_phy;
+	u64 tx_pause_tc6_phy;
+	u64 rx_pause_tc7_phy;
+	u64 tx_pause_tc7_phy;
+};
+
 struct mana_context {
 	struct gdma_dev *gdma_dev;
 
@@ -474,6 +533,8 @@ struct mana_port_context {
 
 	struct mana_ethtool_stats eth_stats;
 
+	struct mana_ethtool_phy_stats phy_stats;
+
 	/* Debugfs */
 	struct dentry *mana_port_debugfs;
 };
@@ -501,6 +562,7 @@ struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
 void mana_chn_setxdp(struct mana_port_context *apc, struct bpf_prog *prog);
 int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 void mana_query_gf_stats(struct mana_port_context *apc);
+void mana_query_phy_stats(struct mana_port_context *apc);
 int mana_pre_alloc_rxbufs(struct mana_port_context *apc, int mtu, int num_queues);
 void mana_pre_dealloc_rxbufs(struct mana_port_context *apc);
 
@@ -527,6 +589,7 @@ enum mana_command_code {
 	MANA_FENCE_RQ		= 0x20006,
 	MANA_CONFIG_VPORT_RX	= 0x20007,
 	MANA_QUERY_VPORT_CONFIG	= 0x20008,
+	MANA_QUERY_PHY_STAT     = 0x2000c,
 
 	/* Privileged commands for the PF mode */
 	MANA_REGISTER_FILTER	= 0x28000,
@@ -687,6 +750,74 @@ struct mana_query_gf_stat_resp {
 	u64 hc_tx_mcast_bytes;
 	/* tx error */
 	u64 tx_err_gdma;
+}; /* HW DATA */
+
+/* Query phy stats */
+struct mana_query_phy_stat_req {
+	struct gdma_req_hdr hdr;
+	u64 req_stats;
+}; /* HW DATA */
+
+struct mana_query_phy_stat_resp {
+	struct gdma_resp_hdr hdr;
+	u64 reported_stats;
+
+	/* Aggregate Drop Counters */
+	u64 rx_pkt_drop_phy;
+	u64 tx_pkt_drop_phy;
+
+	/* Per TC(Traffic class) traffic Counters */
+	u64 rx_pkt_tc0_phy;
+	u64 tx_pkt_tc0_phy;
+	u64 rx_pkt_tc1_phy;
+	u64 tx_pkt_tc1_phy;
+	u64 rx_pkt_tc2_phy;
+	u64 tx_pkt_tc2_phy;
+	u64 rx_pkt_tc3_phy;
+	u64 tx_pkt_tc3_phy;
+	u64 rx_pkt_tc4_phy;
+	u64 tx_pkt_tc4_phy;
+	u64 rx_pkt_tc5_phy;
+	u64 tx_pkt_tc5_phy;
+	u64 rx_pkt_tc6_phy;
+	u64 tx_pkt_tc6_phy;
+	u64 rx_pkt_tc7_phy;
+	u64 tx_pkt_tc7_phy;
+
+	u64 rx_byte_tc0_phy;
+	u64 tx_byte_tc0_phy;
+	u64 rx_byte_tc1_phy;
+	u64 tx_byte_tc1_phy;
+	u64 rx_byte_tc2_phy;
+	u64 tx_byte_tc2_phy;
+	u64 rx_byte_tc3_phy;
+	u64 tx_byte_tc3_phy;
+	u64 rx_byte_tc4_phy;
+	u64 tx_byte_tc4_phy;
+	u64 rx_byte_tc5_phy;
+	u64 tx_byte_tc5_phy;
+	u64 rx_byte_tc6_phy;
+	u64 tx_byte_tc6_phy;
+	u64 rx_byte_tc7_phy;
+	u64 tx_byte_tc7_phy;
+
+	/* Per TC(Traffic Class) pause Counters */
+	u64 rx_pause_tc0_phy;
+	u64 tx_pause_tc0_phy;
+	u64 rx_pause_tc1_phy;
+	u64 tx_pause_tc1_phy;
+	u64 rx_pause_tc2_phy;
+	u64 tx_pause_tc2_phy;
+	u64 rx_pause_tc3_phy;
+	u64 tx_pause_tc3_phy;
+	u64 rx_pause_tc4_phy;
+	u64 tx_pause_tc4_phy;
+	u64 rx_pause_tc5_phy;
+	u64 tx_pause_tc5_phy;
+	u64 rx_pause_tc6_phy;
+	u64 tx_pause_tc6_phy;
+	u64 rx_pause_tc7_phy;
+	u64 tx_pause_tc7_phy;
 }; /* HW DATA */
 
 /* Configure vPort Rx Steering */
