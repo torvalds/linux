@@ -50,3 +50,5 @@ busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
 # Make sure the message was received in the dst part
 # and exit
 validate_result "${OUTPUT_FILE}"
+
+exit "${ksft_pass}"
