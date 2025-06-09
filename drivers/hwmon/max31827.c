@@ -10,7 +10,6 @@
 #include <linux/delay.h>
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
-#include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -99,7 +98,6 @@ struct max31827_state {
 	/*
 	 * Prevent simultaneous access to the i2c client.
 	 */
-	struct mutex lock;
 	struct regmap *regmap;
 	bool enable;
 	unsigned int resolution;
@@ -123,30 +121,23 @@ static int shutdown_write(struct max31827_state *st, unsigned int reg,
 	 * Before the Temperature Threshold Alarm, Alarm Hysteresis Threshold
 	 * and Resolution bits from Configuration register are changed over I2C,
 	 * the part must be in shutdown mode.
-	 *
-	 * Mutex is used to ensure, that some other process doesn't change the
-	 * configuration register.
 	 */
-	mutex_lock(&st->lock);
-
 	if (!st->enable) {
 		if (!mask)
-			ret = regmap_write(st->regmap, reg, val);
-		else
-			ret = regmap_update_bits(st->regmap, reg, mask, val);
-		goto unlock;
+			return regmap_write(st->regmap, reg, val);
+		return regmap_update_bits(st->regmap, reg, mask, val);
 	}
 
 	ret = regmap_read(st->regmap, MAX31827_CONFIGURATION_REG, &cfg);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	cnv_rate = MAX31827_CONFIGURATION_CNV_RATE_MASK & cfg;
 	cfg = cfg & ~(MAX31827_CONFIGURATION_1SHOT_MASK |
 		      MAX31827_CONFIGURATION_CNV_RATE_MASK);
 	ret = regmap_write(st->regmap, MAX31827_CONFIGURATION_REG, cfg);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	if (!mask)
 		ret = regmap_write(st->regmap, reg, val);
@@ -154,15 +145,11 @@ static int shutdown_write(struct max31827_state *st, unsigned int reg,
 		ret = regmap_update_bits(st->regmap, reg, mask, val);
 
 	if (ret)
-		goto unlock;
+		return ret;
 
-	ret = regmap_update_bits(st->regmap, MAX31827_CONFIGURATION_REG,
-				 MAX31827_CONFIGURATION_CNV_RATE_MASK,
-				 cnv_rate);
-
-unlock:
-	mutex_unlock(&st->lock);
-	return ret;
+	return regmap_update_bits(st->regmap, MAX31827_CONFIGURATION_REG,
+				  MAX31827_CONFIGURATION_CNV_RATE_MASK,
+				  cnv_rate);
 }
 
 static int write_alarm_val(struct max31827_state *st, unsigned int reg,
@@ -223,23 +210,13 @@ static int max31827_read(struct device *dev, enum hwmon_sensor_types type,
 
 			break;
 		case hwmon_temp_input:
-			mutex_lock(&st->lock);
-
 			if (!st->enable) {
-				/*
-				 * This operation requires mutex protection,
-				 * because the chip configuration should not
-				 * be changed during the conversion process.
-				 */
-
 				ret = regmap_update_bits(st->regmap,
 							 MAX31827_CONFIGURATION_REG,
 							 MAX31827_CONFIGURATION_1SHOT_MASK,
 							 1);
-				if (ret) {
-					mutex_unlock(&st->lock);
+				if (ret)
 					return ret;
-				}
 				msleep(max31827_conv_times[st->resolution]);
 			}
 
@@ -253,8 +230,6 @@ static int max31827_read(struct device *dev, enum hwmon_sensor_types type,
 				usleep_range(15000, 20000);
 
 			ret = regmap_read(st->regmap, MAX31827_T_REG, &uval);
-
-			mutex_unlock(&st->lock);
 
 			if (ret)
 				break;
@@ -352,7 +327,6 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 			if (val >> 1)
 				return -EINVAL;
 
-			mutex_lock(&st->lock);
 			/**
 			 * The chip should not be enabled while a conversion is
 			 * performed. Neither should the chip be enabled when
@@ -361,15 +335,11 @@ static int max31827_write(struct device *dev, enum hwmon_sensor_types type,
 
 			st->enable = val;
 
-			ret = regmap_update_bits(st->regmap,
-						 MAX31827_CONFIGURATION_REG,
-						 MAX31827_CONFIGURATION_1SHOT_MASK |
-						 MAX31827_CONFIGURATION_CNV_RATE_MASK,
-						 MAX31827_DEVICE_ENABLE(val));
-
-			mutex_unlock(&st->lock);
-
-			return ret;
+			return regmap_update_bits(st->regmap,
+						  MAX31827_CONFIGURATION_REG,
+						  MAX31827_CONFIGURATION_1SHOT_MASK |
+						  MAX31827_CONFIGURATION_CNV_RATE_MASK,
+						  MAX31827_DEVICE_ENABLE(val));
 
 		case hwmon_temp_max:
 			return write_alarm_val(st, MAX31827_TH_REG, val);
@@ -622,8 +592,6 @@ static int max31827_probe(struct i2c_client *client)
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
 	if (!st)
 		return -ENOMEM;
-
-	mutex_init(&st->lock);
 
 	st->regmap = devm_regmap_init_i2c(client, &max31827_regmap);
 	if (IS_ERR(st->regmap))
