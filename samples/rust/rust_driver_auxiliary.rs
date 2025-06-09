@@ -114,7 +114,7 @@ impl InPlaceModule for SampleModule {
 module! {
     type: SampleModule,
     name: "rust_driver_auxiliary",
-    author: "Danilo Krummrich",
+    authors: ["Danilo Krummrich"],
     description: "Rust auxiliary driver",
     license: "GPL v2",
 }
