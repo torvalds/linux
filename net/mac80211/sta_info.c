@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #include <linux/module.h>
@@ -729,6 +729,7 @@ __sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 				    IEEE80211_RATE_MANDATORY_G;
 			break;
 		case NL80211_BAND_5GHZ:
+		case NL80211_BAND_6GHZ:
 			mandatory = IEEE80211_RATE_MANDATORY_A;
 			break;
 		case NL80211_BAND_60GHZ:
