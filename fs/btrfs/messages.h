@@ -53,7 +53,7 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 	btrfs_printk(fs_info, KERN_INFO fmt, ##args)
 
 /*
- * Wrappers that use printk_in_rcu
+ * Wrappers that use printk in RCU
  */
 #define btrfs_emerg_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_in_rcu(fs_info, KERN_EMERG fmt, ##args)
@@ -71,7 +71,7 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
 	btrfs_printk_in_rcu(fs_info, KERN_INFO fmt, ##args)
 
 /*
- * Wrappers that use a ratelimited printk_in_rcu
+ * Wrappers that use a ratelimited printk in RCU
  */
 #define btrfs_emerg_rl_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_rl_in_rcu(fs_info, KERN_EMERG fmt, ##args)
