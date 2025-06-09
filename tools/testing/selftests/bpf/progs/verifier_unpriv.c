@@ -619,14 +619,29 @@ __naked void pass_pointer_to_tail_call(void)
 
 SEC("socket")
 __description("unpriv: cmp map pointer with zero")
-__success __failure_unpriv __msg_unpriv("R1 pointer comparison")
+__success __success_unpriv
 __retval(0)
 __naked void cmp_map_pointer_with_zero(void)
 {
 	asm volatile ("					\
-	r1 = 0;						\
 	r1 = %[map_hash_8b] ll;				\
 	if r1 == 0 goto l0_%=;				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm_addr(map_hash_8b)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("unpriv: cmp map pointer with const")
+__success __failure_unpriv __msg_unpriv("R1 pointer comparison prohibited")
+__retval(0)
+__naked void cmp_map_pointer_with_const(void)
+{
+	asm volatile ("					\
+	r1 = %[map_hash_8b] ll;				\
+	if r1 == 0x0000beef goto l0_%=;			\
 l0_%=:	r0 = 0;						\
 	exit;						\
 "	:
