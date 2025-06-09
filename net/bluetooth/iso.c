@@ -1337,10 +1337,13 @@ static int iso_sock_getname(struct socket *sock, struct sockaddr *addr,
 	addr->sa_family = AF_BLUETOOTH;
 
 	if (peer) {
+		struct hci_conn *hcon = iso_pi(sk)->conn ?
+					iso_pi(sk)->conn->hcon : NULL;
+
 		bacpy(&sa->iso_bdaddr, &iso_pi(sk)->dst);
 		sa->iso_bdaddr_type = iso_pi(sk)->dst_type;
 
-		if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
+		if (hcon && hcon->type == BIS_LINK) {
 			sa->iso_bc->bc_sid = iso_pi(sk)->bc_sid;
 			sa->iso_bc->bc_num_bis = iso_pi(sk)->bc_num_bis;
 			memcpy(sa->iso_bc->bc_bis, iso_pi(sk)->bc_bis,
