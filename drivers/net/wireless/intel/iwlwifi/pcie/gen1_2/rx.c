@@ -1700,6 +1700,15 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 		timer_delete(&trans_pcie->txqs.txq[i]->stuck_timer);
 	}
 
+	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_SC) {
+		u32 val = iwl_read32(trans, CSR_IPC_STATE);
+
+		if (val & CSR_IPC_STATE_TOP_RESET_REQ) {
+			IWL_ERR(trans, "FW requested TOP reset for FSEQ\n");
+			trans->do_top_reset = 1;
+		}
+	}
+
 	/* The STATUS_FW_ERROR bit is set in this function. This must happen
 	 * before we wake up the command caller, to ensure a proper cleanup. */
 	iwl_trans_fw_error(trans, IWL_ERR_TYPE_IRQ);
