@@ -572,7 +572,7 @@ static const struct sdw_port_config wsa883x_pconfig[WSA883X_MAX_SWR_PORTS] = {
 	},
 };
 
-static struct reg_default wsa883x_defaults[] = {
+static const struct reg_default wsa883x_defaults[] = {
 	{ WSA883X_REF_CTRL, 0xD5 },
 	{ WSA883X_TEST_CTL_0, 0x06 },
 	{ WSA883X_BIAS_0, 0xD2 },

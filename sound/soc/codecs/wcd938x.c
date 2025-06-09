@@ -158,7 +158,6 @@ struct wcd938x_priv {
 	struct wcd_mbhc_intr intr_ids;
 	struct wcd_clsh_ctrl *clsh_info;
 	struct irq_domain *virq;
-	struct regmap_irq_chip *wcd_regmap_irq_chip;
 	struct regmap_irq_chip_data *irq_chip;
 	struct snd_soc_jack *jack;
 	unsigned long status_mask;
@@ -168,7 +167,6 @@ struct wcd938x_priv {
 	u32 tx_mode[TX_ADC_MAX];
 	int flyback_cur_det_disable;
 	int ear_rx_path;
-	int variant;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *us_euro_gpio;
 	struct mux_control *us_euro_mux;
@@ -277,7 +275,7 @@ static const struct regmap_irq wcd938x_irqs[WCD938X_NUM_IRQS] = {
 	REGMAP_IRQ_REG(WCD938X_IRQ_HPHR_SURGE_DET_INT, 2, 0x08),
 };
 
-static struct regmap_irq_chip wcd938x_regmap_irq_chip = {
+static const struct regmap_irq_chip wcd938x_regmap_irq_chip = {
 	.name = "wcd938x",
 	.irqs = wcd938x_irqs,
 	.num_irqs = ARRAY_SIZE(wcd938x_irqs),
@@ -3048,6 +3046,7 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 	struct sdw_slave *tx_sdw_dev = wcd938x->tx_sdw_dev;
 	struct device *dev = component->dev;
 	unsigned long time_left;
+	unsigned int variant;
 	int ret, i;
 
 	time_left = wait_for_completion_timeout(&tx_sdw_dev->initialization_complete,
@@ -3063,9 +3062,9 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 	if (ret < 0)
 		return ret;
 
-	wcd938x->variant = snd_soc_component_read_field(component,
-						 WCD938X_DIGITAL_EFUSE_REG_0,
-						 WCD938X_ID_MASK);
+	variant = snd_soc_component_read_field(component,
+					       WCD938X_DIGITAL_EFUSE_REG_0,
+					       WCD938X_ID_MASK);
 
 	wcd938x->clsh_info = wcd_clsh_ctrl_alloc(component, WCD938X);
 	if (IS_ERR(wcd938x->clsh_info)) {
@@ -3119,14 +3118,14 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 	disable_irq_nosync(wcd938x->hphl_pdm_wd_int);
 	disable_irq_nosync(wcd938x->aux_pdm_wd_int);
 
-	switch (wcd938x->variant) {
+	switch (variant) {
 	case WCD9380:
 		ret = snd_soc_add_component_controls(component, wcd9380_snd_controls,
 					ARRAY_SIZE(wcd9380_snd_controls));
 		if (ret < 0) {
 			dev_err(component->dev,
 				"%s: Failed to add snd ctrls for variant: %d\n",
-				__func__, wcd938x->variant);
+				__func__, variant);
 			goto err_free_aux_pdm_wd_int;
 		}
 		break;
@@ -3136,7 +3135,7 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 		if (ret < 0) {
 			dev_err(component->dev,
 				"%s: Failed to add snd ctrls for variant: %d\n",
-				__func__, wcd938x->variant);
+				__func__, variant);
 			goto err_free_aux_pdm_wd_int;
 		}
 		break;
