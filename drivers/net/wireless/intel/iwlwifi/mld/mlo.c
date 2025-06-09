@@ -1167,8 +1167,8 @@ void iwl_mld_retry_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif)
 {
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 
-	if (!iwl_mld_vif_has_emlsr_cap(vif) || iwl_mld_emlsr_active(vif) ||
-	    mld_vif->emlsr.blocked_reasons)
+	if (!IWL_MLD_AUTO_EML_ENABLE || !iwl_mld_vif_has_emlsr_cap(vif) ||
+	    iwl_mld_emlsr_active(vif) || mld_vif->emlsr.blocked_reasons)
 		return;
 
 	iwl_mld_int_mlo_scan(mld, vif);
