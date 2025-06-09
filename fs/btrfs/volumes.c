@@ -403,7 +403,8 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 static void btrfs_free_device(struct btrfs_device *device)
 {
 	WARN_ON(!list_empty(&device->post_commit_list));
-	rcu_string_free(device->name);
+	/* No need to call kfree_rcu(), nothing is reading the device name. */
+	kfree(device->name);
 	btrfs_extent_io_tree_release(&device->alloc_state);
 	btrfs_destroy_dev_zone_info(device);
 	kfree(device);
@@ -962,7 +963,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 			mutex_unlock(&fs_devices->device_list_mutex);
 			return ERR_PTR(-ENOMEM);
 		}
-		rcu_string_free(device->name);
+		kfree_rcu(device->name, rcu);
 		rcu_assign_pointer(device->name, name);
 		if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state)) {
 			fs_devices->missing_devices--;

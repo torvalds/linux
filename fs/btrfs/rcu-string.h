@@ -32,12 +32,6 @@ static inline struct rcu_string *rcu_string_strdup(const char *src, gfp_t mask)
 	return ret;
 }
 
-static inline void rcu_string_free(struct rcu_string *str)
-{
-	if (str)
-		kfree_rcu(str, rcu);
-}
-
 #define printk_in_rcu(fmt, ...) do {	\
 	rcu_read_lock();		\
 	printk(fmt, __VA_ARGS__);	\
