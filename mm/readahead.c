@@ -620,7 +620,7 @@ void page_cache_async_ra(struct readahead_control *ractl,
 	unsigned long max_pages;
 	struct file_ra_state *ra = ractl->ra;
 	pgoff_t index = readahead_index(ractl);
-	pgoff_t expected, start;
+	pgoff_t expected, start, end, aligned_end, align;
 	unsigned int order = folio_order(folio);
 
 	/* no readahead */
@@ -652,7 +652,6 @@ void page_cache_async_ra(struct readahead_control *ractl,
 		 * the readahead window.
 		 */
 		ra->size = max(ra->size, get_next_ra_size(ra, max_pages));
-		ra->async_size = ra->size;
 		goto readit;
 	}
 
@@ -673,9 +672,14 @@ void page_cache_async_ra(struct readahead_control *ractl,
 	ra->size = start - index;	/* old async_size */
 	ra->size += req_count;
 	ra->size = get_next_ra_size(ra, max_pages);
-	ra->async_size = ra->size;
 readit:
 	order += 2;
+	align = 1UL << min(order, ffs(max_pages) - 1);
+	end = ra->start + ra->size;
+	aligned_end = round_down(end, align);
+	if (aligned_end > ra->start)
+		ra->size -= end - aligned_end;
+	ra->async_size = ra->size;
 	ractl->_index = ra->start;
 	page_cache_ra_order(ractl, ra, order);
 }
