@@ -5,7 +5,6 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"

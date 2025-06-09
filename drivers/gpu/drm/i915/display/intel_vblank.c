@@ -6,7 +6,6 @@
 #include <drm/drm_vblank.h>
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_de.h"

@@ -11,7 +11,6 @@
 #include "pxp/intel_pxp.h"
 
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "intel_atomic_plane.h"
 #include "intel_bo.h"
 #include "intel_de.h"

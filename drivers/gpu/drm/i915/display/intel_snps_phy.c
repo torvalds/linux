@@ -7,7 +7,6 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"

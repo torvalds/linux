@@ -5,7 +5,6 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "intel_display_core.h"
 #include "intel_display_power_map.h"
 #include "intel_display_power_well.h"

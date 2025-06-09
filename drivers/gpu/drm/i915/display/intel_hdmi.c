@@ -44,7 +44,6 @@
 #include <media/cec-notifier.h>
 
 #include "g4x_hdmi.h"
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"

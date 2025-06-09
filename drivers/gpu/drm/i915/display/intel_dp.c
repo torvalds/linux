@@ -50,7 +50,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "g4x_dp.h"
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_alpm.h"
 #include "intel_atomic.h"

@@ -7,7 +7,6 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"

@@ -36,7 +36,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"

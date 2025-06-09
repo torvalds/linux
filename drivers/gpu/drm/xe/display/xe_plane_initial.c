@@ -10,7 +10,6 @@
 #include "xe_ggtt.h"
 #include "xe_mmio.h"
 
-#include "i915_reg.h"
 #include "intel_atomic_plane.h"
 #include "intel_crtc.h"
 #include "intel_display.h"
