@@ -152,8 +152,8 @@ static __always_inline int __intel_idle(struct cpuidle_device *dev,
 					int index, bool irqoff)
 {
 	struct cpuidle_state *state = &drv->states[index];
-	unsigned long eax = flg2MWAIT(state->flags);
-	unsigned long ecx = 1*irqoff; /* break on interrupt flag */
+	unsigned int eax = flg2MWAIT(state->flags);
+	unsigned int ecx = 1*irqoff; /* break on interrupt flag */
 
 	mwait_idle_with_hints(eax, ecx);
 
@@ -226,9 +226,9 @@ static __cpuidle int intel_idle_xstate(struct cpuidle_device *dev,
 static __cpuidle int intel_idle_s2idle(struct cpuidle_device *dev,
 				       struct cpuidle_driver *drv, int index)
 {
-	unsigned long ecx = 1; /* break on interrupt flag */
 	struct cpuidle_state *state = &drv->states[index];
-	unsigned long eax = flg2MWAIT(state->flags);
+	unsigned int eax = flg2MWAIT(state->flags);
+	unsigned int ecx = 1; /* break on interrupt flag */
 
 	if (state->flags & CPUIDLE_FLAG_INIT_XSTATE)
 		fpu_idle_fpregs();
