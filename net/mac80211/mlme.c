@@ -10705,8 +10705,8 @@ static void ieee80211_ml_epcs(struct ieee80211_sub_if_data *sdata,
 	 */
 	for_each_mle_subelement(sub, (const u8 *)elems->ml_epcs,
 				elems->ml_epcs_len) {
+		struct ieee802_11_elems *link_elems __free(kfree) = NULL;
 		struct ieee80211_link_data *link;
-		struct ieee802_11_elems *link_elems __free(kfree);
 		u8 *pos = (void *)sub->data;
 		u16 control;
 		ssize_t len;
