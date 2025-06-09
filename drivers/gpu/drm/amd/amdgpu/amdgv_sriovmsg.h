@@ -113,7 +113,8 @@ union amd_sriov_reg_access_flags {
 		uint32_t vf_reg_access_mmhub		: 1;
 		uint32_t vf_reg_access_gc		: 1;
 		uint32_t vf_reg_access_l1_tlb_cntl	: 1;
-		uint32_t reserved			: 28;
+		uint32_t vf_reg_access_sq_config	: 1;
+		uint32_t reserved			: 27;
 	} flags;
 	uint32_t all;
 };

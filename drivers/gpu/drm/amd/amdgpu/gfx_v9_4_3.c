@@ -1351,7 +1351,9 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	/* ToDo: GC 9.4.4 */
 	case IP_VERSION(9, 4, 3):
-		if (adev->gfx.mec_fw_version >= 184)
+		if (adev->gfx.mec_fw_version >= 184 &&
+		    (amdgpu_sriov_reg_access_sq_config(adev) ||
+		     !amdgpu_sriov_vf(adev)))
 			adev->gmc.xnack_flags |= AMDGPU_GMC_XNACK_FLAG_CHAIN;
 		break;
 	case IP_VERSION(9, 5, 0):
