@@ -6,8 +6,8 @@
 #ifndef __INTEL_CX0_PHY_REGS_H__
 #define __INTEL_CX0_PHY_REGS_H__
 
-#include "i915_reg_defs.h"
 #include "intel_display_limits.h"
+#include "intel_display_reg_defs.h"
 
 /* DDI Buffer Control */
 #define _DDI_CLK_VALFREQ_A		0x64030

@@ -6,7 +6,7 @@
 #ifndef __INTEL_DMC_REGS_H__
 #define __INTEL_DMC_REGS_H__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 enum dmc_event_id {
 	DMC_EVENT_TRUE = 0x0,
