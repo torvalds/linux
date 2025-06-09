@@ -571,8 +571,11 @@ int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id)
 		page_sched_stopped = true;
 	}
 
-	if (sdma_instance->funcs->stop_kernel_queue)
+	if (sdma_instance->funcs->stop_kernel_queue) {
 		sdma_instance->funcs->stop_kernel_queue(gfx_ring);
+		if (adev->sdma.has_page_queue)
+			sdma_instance->funcs->stop_kernel_queue(page_ring);
+	}
 
 	/* Perform the SDMA reset for the specified instance */
 	ret = amdgpu_sdma_soft_reset(adev, instance_id);
@@ -581,8 +584,11 @@ int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id)
 		goto exit;
 	}
 
-	if (sdma_instance->funcs->start_kernel_queue)
+	if (sdma_instance->funcs->start_kernel_queue) {
 		sdma_instance->funcs->start_kernel_queue(gfx_ring);
+		if (adev->sdma.has_page_queue)
+			sdma_instance->funcs->start_kernel_queue(page_ring);
+	}
 
 exit:
 	/* Restart the scheduler's work queue for the GFX and page rings
