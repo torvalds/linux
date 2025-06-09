@@ -216,4 +216,5 @@ unsigned long memory_block_advised_max_size(void);
  * can sleep.
  */
 extern struct mutex text_mutex;
+
 #endif /* _LINUX_MEMORY_H_ */
