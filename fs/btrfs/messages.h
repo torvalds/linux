@@ -54,8 +54,6 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
  */
 #define btrfs_crit_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_in_rcu(fs_info, KERN_CRIT fmt, ##args)
-#define btrfs_warn_in_rcu(fs_info, fmt, args...) \
-	btrfs_printk_in_rcu(fs_info, KERN_WARNING fmt, ##args)
 #define btrfs_info_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_in_rcu(fs_info, KERN_INFO fmt, ##args)
 
@@ -64,8 +62,6 @@ void _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...);
  */
 #define btrfs_crit_rl_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_rl_in_rcu(fs_info, KERN_CRIT fmt, ##args)
-#define btrfs_warn_rl_in_rcu(fs_info, fmt, args...) \
-	btrfs_printk_rl_in_rcu(fs_info, KERN_WARNING fmt, ##args)
 #define btrfs_info_rl_in_rcu(fs_info, fmt, args...) \
 	btrfs_printk_rl_in_rcu(fs_info, KERN_INFO fmt, ##args)
 
