@@ -3843,6 +3843,68 @@ void xe_vm_unlock(struct xe_vm *vm)
 }
 
 /**
+ * xe_vm_range_tilemask_tlb_invalidation - Issue a TLB invalidation on this tilemask for an
+ * address range
+ * @vm: The VM
+ * @start: start address
+ * @end: end address
+ * @tile_mask: mask for which gt's issue tlb invalidation
+ *
+ * Issue a range based TLB invalidation for gt's in tilemask
+ *
+ * Returns 0 for success, negative error code otherwise.
+ */
+int xe_vm_range_tilemask_tlb_invalidation(struct xe_vm *vm, u64 start,
+					  u64 end, u8 tile_mask)
+{
+	struct xe_gt_tlb_invalidation_fence fence[XE_MAX_TILES_PER_DEVICE * XE_MAX_GT_PER_TILE];
+	struct xe_tile *tile;
+	u32 fence_id = 0;
+	u8 id;
+	int err;
+
+	if (!tile_mask)
+		return 0;
+
+	for_each_tile(tile, vm->xe, id) {
+		if (tile_mask & BIT(id)) {
+			xe_gt_tlb_invalidation_fence_init(tile->primary_gt,
+							  &fence[fence_id], true);
+
+			err = xe_gt_tlb_invalidation_range(tile->primary_gt,
+							   &fence[fence_id],
+							   start,
+							   end,
+							   vm->usm.asid);
+			if (err)
+				goto wait;
+			++fence_id;
+
+			if (!tile->media_gt)
+				continue;
+
+			xe_gt_tlb_invalidation_fence_init(tile->media_gt,
+							  &fence[fence_id], true);
+
+			err = xe_gt_tlb_invalidation_range(tile->media_gt,
+							   &fence[fence_id],
+							   start,
+							   end,
+							   vm->usm.asid);
+			if (err)
+				goto wait;
+			++fence_id;
+		}
+	}
+
+wait:
+	for (id = 0; id < fence_id; ++id)
+		xe_gt_tlb_invalidation_fence_wait(&fence[id]);
+
+	return err;
+}
+
+/**
  * xe_vm_invalidate_vma - invalidate GPU mappings for VMA without a lock
  * @vma: VMA to invalidate
  *
@@ -3857,11 +3919,9 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 	struct xe_device *xe = xe_vma_vm(vma)->xe;
 	struct xe_vm *vm = xe_vma_vm(vma);
 	struct xe_tile *tile;
-	struct xe_gt_tlb_invalidation_fence
-		fence[XE_MAX_TILES_PER_DEVICE * XE_MAX_GT_PER_TILE];
-	u8 id;
-	u32 fence_id = 0;
+	u8 tile_mask = 0;
 	int ret = 0;
+	u8 id;
 
 	xe_assert(xe, !xe_vma_is_null(vma));
 	xe_assert(xe, !xe_vma_is_cpu_addr_mirror(vma));
@@ -3892,37 +3952,14 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 		}
 	}
 
-	for_each_tile(tile, xe, id) {
-		if (xe_pt_zap_ptes(tile, vma)) {
-			xe_device_wmb(xe);
-			xe_gt_tlb_invalidation_fence_init(tile->primary_gt,
-							  &fence[fence_id],
-							  true);
+	for_each_tile(tile, xe, id)
+		if (xe_pt_zap_ptes(tile, vma))
+			tile_mask |= BIT(id);
 
-			ret = xe_gt_tlb_invalidation_vma(tile->primary_gt,
-							 &fence[fence_id], vma);
-			if (ret)
-				goto wait;
-			++fence_id;
+	xe_device_wmb(xe);
 
-			if (!tile->media_gt)
-				continue;
-
-			xe_gt_tlb_invalidation_fence_init(tile->media_gt,
-							  &fence[fence_id],
-							  true);
-
-			ret = xe_gt_tlb_invalidation_vma(tile->media_gt,
-							 &fence[fence_id], vma);
-			if (ret)
-				goto wait;
-			++fence_id;
-		}
-	}
-
-wait:
-	for (id = 0; id < fence_id; ++id)
-		xe_gt_tlb_invalidation_fence_wait(&fence[id]);
+	ret = xe_vm_range_tilemask_tlb_invalidation(xe_vma_vm(vma), xe_vma_start(vma),
+						    xe_vma_end(vma), tile_mask);
 
 	/* WRITE_ONCE pair with READ_ONCE in xe_gt_pagefault.c */
 	WRITE_ONCE(vma->tile_invalidated, vma->tile_mask);

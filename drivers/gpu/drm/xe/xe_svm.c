@@ -169,14 +169,9 @@ static void xe_svm_invalidate(struct drm_gpusvm *gpusvm,
 {
 	struct xe_vm *vm = gpusvm_to_vm(gpusvm);
 	struct xe_device *xe = vm->xe;
-	struct xe_tile *tile;
 	struct drm_gpusvm_range *r, *first;
-	struct xe_gt_tlb_invalidation_fence
-		fence[XE_MAX_TILES_PER_DEVICE * XE_MAX_GT_PER_TILE];
 	u64 adj_start = mmu_range->start, adj_end = mmu_range->end;
 	u8 tile_mask = 0;
-	u8 id;
-	u32 fence_id = 0;
 	long err;
 
 	xe_svm_assert_in_notifier(vm);
@@ -222,42 +217,8 @@ static void xe_svm_invalidate(struct drm_gpusvm *gpusvm,
 
 	xe_device_wmb(xe);
 
-	for_each_tile(tile, xe, id) {
-		if (tile_mask & BIT(id)) {
-			int err;
-
-			xe_gt_tlb_invalidation_fence_init(tile->primary_gt,
-							  &fence[fence_id], true);
-
-			err = xe_gt_tlb_invalidation_range(tile->primary_gt,
-							   &fence[fence_id],
-							   adj_start,
-							   adj_end,
-							   vm->usm.asid);
-			if (WARN_ON_ONCE(err < 0))
-				goto wait;
-			++fence_id;
-
-			if (!tile->media_gt)
-				continue;
-
-			xe_gt_tlb_invalidation_fence_init(tile->media_gt,
-							  &fence[fence_id], true);
-
-			err = xe_gt_tlb_invalidation_range(tile->media_gt,
-							   &fence[fence_id],
-							   adj_start,
-							   adj_end,
-							   vm->usm.asid);
-			if (WARN_ON_ONCE(err < 0))
-				goto wait;
-			++fence_id;
-		}
-	}
-
-wait:
-	for (id = 0; id < fence_id; ++id)
-		xe_gt_tlb_invalidation_fence_wait(&fence[id]);
+	err = xe_vm_range_tilemask_tlb_invalidation(vm, adj_start, adj_end, tile_mask);
+	WARN_ON_ONCE(err);
 
 range_notifier_event_end:
 	r = first;
