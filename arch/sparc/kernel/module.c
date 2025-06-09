@@ -142,7 +142,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			break;
 
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %x\n",
+			printk(KERN_ERR "module %s: Unknown relocation: 0x%x\n",
 			       me->name,
 			       (int) (ELF_R_TYPE(rel[i].r_info) & 0xff));
 			return -ENOEXEC;
