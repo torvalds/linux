@@ -26,7 +26,6 @@
 #include "wcd938x.h"
 
 #define WCD938X_MAX_MICBIAS		(4)
-#define WCD938X_MAX_SUPPLY		(4)
 #define WCD938X_MBHC_MAX_BUTTONS	(8)
 #define TX_ADC_MAX			(4)
 
@@ -161,7 +160,6 @@ struct wcd938x_priv {
 	struct irq_domain *virq;
 	struct regmap_irq_chip *wcd_regmap_irq_chip;
 	struct regmap_irq_chip_data *irq_chip;
-	struct regulator_bulk_data supplies[WCD938X_MAX_SUPPLY];
 	struct snd_soc_jack *jack;
 	unsigned long status_mask;
 	s32 micb_ref[WCD938X_MAX_MICBIAS];
@@ -186,6 +184,10 @@ struct wcd938x_priv {
 	bool comp2_enable;
 	bool ldoh;
 	bool mux_setup_done;
+};
+
+static const char * const wcd938x_supplies[] = {
+	"vdd-rxtx", "vdd-io", "vdd-buck", "vdd-mic-bias",
 };
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(ear_pa_gain, 600, -1800);
@@ -3292,20 +3294,10 @@ static int wcd938x_populate_dt_data(struct wcd938x_priv *wcd938x, struct device 
 
 	cfg->swap_gnd_mic = wcd938x_swap_gnd_mic;
 
-	wcd938x->supplies[0].supply = "vdd-rxtx";
-	wcd938x->supplies[1].supply = "vdd-io";
-	wcd938x->supplies[2].supply = "vdd-buck";
-	wcd938x->supplies[3].supply = "vdd-mic-bias";
-
-	ret = regulator_bulk_get(dev, WCD938X_MAX_SUPPLY, wcd938x->supplies);
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(wcd938x_supplies),
+					     wcd938x_supplies);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get supplies\n");
-
-	ret = regulator_bulk_enable(WCD938X_MAX_SUPPLY, wcd938x->supplies);
-	if (ret) {
-		regulator_bulk_free(WCD938X_MAX_SUPPLY, wcd938x->supplies);
-		return dev_err_probe(dev, ret, "Failed to enable supplies\n");
-	}
+		return dev_err_probe(dev, ret, "Failed to get and enable supplies\n");
 
 	wcd938x_dt_parse_micbias_info(dev, wcd938x);
 
@@ -3569,13 +3561,13 @@ static int wcd938x_probe(struct platform_device *pdev)
 
 	ret = wcd938x_add_slave_components(wcd938x, dev, &match);
 	if (ret)
-		goto err_disable_regulators;
+		return ret;
 
 	wcd938x_reset(wcd938x);
 
 	ret = component_master_add_with_match(dev, &wcd938x_comp_ops, match);
 	if (ret)
-		goto err_disable_regulators;
+		return ret;
 
 	pm_runtime_set_autosuspend_delay(dev, 1000);
 	pm_runtime_use_autosuspend(dev);
@@ -3585,12 +3577,6 @@ static int wcd938x_probe(struct platform_device *pdev)
 	pm_runtime_idle(dev);
 
 	return 0;
-
-err_disable_regulators:
-	regulator_bulk_disable(WCD938X_MAX_SUPPLY, wcd938x->supplies);
-	regulator_bulk_free(WCD938X_MAX_SUPPLY, wcd938x->supplies);
-
-	return ret;
 }
 
 static void wcd938x_remove(struct platform_device *pdev)
@@ -3606,9 +3592,6 @@ static void wcd938x_remove(struct platform_device *pdev)
 
 	if (wcd938x->us_euro_mux && wcd938x->mux_setup_done)
 		mux_control_deselect(wcd938x->us_euro_mux);
-
-	regulator_bulk_disable(WCD938X_MAX_SUPPLY, wcd938x->supplies);
-	regulator_bulk_free(WCD938X_MAX_SUPPLY, wcd938x->supplies);
 }
 
 #if defined(CONFIG_OF)
