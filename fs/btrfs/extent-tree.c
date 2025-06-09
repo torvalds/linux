@@ -6449,7 +6449,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 		/* Check if there are any CHUNK_* bits left */
 		if (start > device->total_bytes) {
 			DEBUG_WARN();
-			btrfs_warn_in_rcu(fs_info,
+			btrfs_warn(fs_info,
 "ignoring attempt to trim beyond device size: offset %llu length %llu device %s device size %llu",
 					  start, end - start + 1,
 					  btrfs_dev_name(device),
