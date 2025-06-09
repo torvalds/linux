@@ -2480,9 +2480,7 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	 * loops get created.
 	 */
 	if (!check_mnt(old_mnt)) {
-		if (!is_mounted(&old_mnt->mnt) ||
-			!is_anon_ns(old_mnt->mnt_ns) ||
-			mnt_has_parent(old_mnt))
+		if (!anon_ns_root(old_mnt))
 			return ERR_PTR(-EINVAL);
 
 		if (!check_for_nsfs_mounts(old_mnt))
@@ -3649,9 +3647,6 @@ static int do_move_mount(struct path *old_path,
 	ns = old->mnt_ns;
 
 	err = -EINVAL;
-	/* The thing moved must be mounted... */
-	if (!is_mounted(&old->mnt))
-		goto out;
 
 	if (check_mnt(old)) {
 		/* if the source is in our namespace... */
@@ -3664,10 +3659,8 @@ static int do_move_mount(struct path *old_path,
 	} else {
 		/*
 		 * otherwise the source must be the root of some anon namespace.
-		 * AV: check for mount being root of an anon namespace is worth
-		 * an inlined predicate...
 		 */
-		if (!is_anon_ns(ns) || mnt_has_parent(old))
+		if (!anon_ns_root(old))
 			goto out;
 		/*
 		 * Bail out early if the target is within the same namespace -
@@ -5028,22 +5021,7 @@ static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
 	err = -EINVAL;
 	lock_mount_hash();
 
-	/* Ensure that this isn't anything purely vfs internal. */
-	if (!is_mounted(&mnt->mnt))
-		goto out;
-
-	/*
-	 * If this is an attached mount make sure it's located in the callers
-	 * mount namespace. If it's not don't let the caller interact with it.
-	 *
-	 * If this mount doesn't have a parent it's most often simply a
-	 * detached mount with an anonymous mount namespace. IOW, something
-	 * that's simply not attached yet. But there are apparently also users
-	 * that do change mount properties on the rootfs itself. That obviously
-	 * neither has a parent nor is it a detached mount so we cannot
-	 * unconditionally check for detached mounts.
-	 */
-	if ((mnt_has_parent(mnt) || !is_anon_ns(mnt->mnt_ns)) && !check_mnt(mnt))
+	if (!anon_ns_root(mnt) && !check_mnt(mnt))
 		goto out;
 
 	/*
