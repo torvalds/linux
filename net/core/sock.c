@@ -837,14 +837,6 @@ static void __sock_set_timestamps(struct sock *sk, bool val, bool new, bool ns)
 	}
 }
 
-void sock_enable_timestamps(struct sock *sk)
-{
-	lock_sock(sk);
-	__sock_set_timestamps(sk, true, false, true);
-	release_sock(sk);
-}
-EXPORT_SYMBOL(sock_enable_timestamps);
-
 void sock_set_timestamp(struct sock *sk, int optname, bool valbool)
 {
 	switch (optname) {
