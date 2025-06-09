@@ -207,6 +207,9 @@ struct link_service {
 	bool (*dp_decide_link_settings)(
 		struct dc_stream_state *stream,
 		struct dc_link_settings *link_setting);
+	void (*dp_decide_tunnel_settings)(
+		struct dc_stream_state *stream,
+		struct dc_tunnel_settings *dp_tunnel_setting);
 	enum dp_link_encoding (*mst_decide_link_encoding_format)(
 			const struct dc_link *link);
 	bool (*edp_decide_link_settings)(struct dc_link *link,

@@ -3494,7 +3494,6 @@ static int dg1_rawclk(struct intel_display *display)
 
 static int cnp_rawclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int divider, fraction;
 	u32 rawclk;
 
@@ -3514,7 +3513,7 @@ static int cnp_rawclk(struct intel_display *display)
 
 		rawclk |= CNP_RAWCLK_DEN(DIV_ROUND_CLOSEST(numerator * 1000,
 							   fraction) - 1);
-		if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 			rawclk |= ICP_RAWCLK_NUM(numerator);
 	}
 
@@ -3553,21 +3552,20 @@ static int i9xx_hrawclk(struct intel_display *display)
  */
 u32 intel_read_rawclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 freq;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_MTL)
+	if (INTEL_PCH_TYPE(display) >= PCH_MTL)
 		/*
 		 * MTL always uses a 38.4 MHz rawclk.  The bspec tells us
 		 * "RAWCLK_FREQ defaults to the values for 38.4 and does
 		 * not need to be programmed."
 		 */
 		freq = 38400;
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+	else if (INTEL_PCH_TYPE(display) >= PCH_DG1)
 		freq = dg1_rawclk(display);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+	else if (INTEL_PCH_TYPE(display) >= PCH_CNP)
 		freq = cnp_rawclk(display);
-	else if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(display))
 		freq = pch_rawclk(display);
 	else if (display->platform.valleyview || display->platform.cherryview)
 		freq = vlv_hrawclk(display);

@@ -133,10 +133,11 @@ void cs_dsp_mock_wmfw_add_info(struct cs_dsp_mock_wmfw_builder *builder,
 
 	if (info_len % 4) {
 		/* Create a padded string with length a multiple of 4 */
+		size_t copy_len = info_len;
 		info_len = round_up(info_len, 4);
 		tmp = kunit_kzalloc(builder->test_priv->test, info_len, GFP_KERNEL);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(builder->test_priv->test, tmp);
-		memcpy(tmp, info, info_len);
+		memcpy(tmp, info, copy_len);
 		info = tmp;
 	}
 
@@ -177,6 +178,8 @@ void cs_dsp_mock_wmfw_start_alg_info_block(struct cs_dsp_mock_wmfw_builder *buil
 	struct wmfw_long_string *longstring;
 	size_t bytes_needed, name_len, description_len;
 	int offset;
+
+	KUNIT_ASSERT_LE(builder->test_priv->test, alg_id, 0xffffff);
 
 	/* Bytes needed for region header */
 	bytes_needed = offsetof(struct wmfw_region, data);
@@ -434,6 +437,8 @@ struct cs_dsp_mock_wmfw_builder *cs_dsp_mock_wmfw_init(struct cs_dsp_test *priv,
 						       int format_version)
 {
 	struct cs_dsp_mock_wmfw_builder *builder;
+
+	KUNIT_ASSERT_LE(priv->test, format_version, 0xff);
 
 	/* If format version isn't given use the default for the target core */
 	if (format_version < 0) {

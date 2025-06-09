@@ -1493,7 +1493,7 @@ static void dasd_device_timeout(struct timer_list *t)
 	unsigned long flags;
 	struct dasd_device *device;
 
-	device = from_timer(device, t, timer);
+	device = timer_container_of(device, t, timer);
 	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	/* re-activate request queue */
 	dasd_device_remove_stop_bits(device, DASD_STOPPED_PENDING);
@@ -2677,7 +2677,7 @@ static void dasd_block_timeout(struct timer_list *t)
 	unsigned long flags;
 	struct dasd_block *block;
 
-	block = from_timer(block, t, timer);
+	block = timer_container_of(block, t, timer);
 	spin_lock_irqsave(get_ccwdev_lock(block->base->cdev), flags);
 	/* re-activate request queue */
 	dasd_device_remove_stop_bits(block->base, DASD_STOPPED_PENDING);

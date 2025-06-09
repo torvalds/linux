@@ -16,6 +16,7 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/dma-mapping.h>
 #include <linux/bitmap.h>
 #include <linux/iommu-helper.h>
@@ -769,8 +770,8 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid,
 	iommu_table_clear(tbl);
 
 	if (!welcomed) {
-		printk(KERN_INFO "IOMMU table initialized, virtual merging %s\n",
-		       novmerge ? "disabled" : "enabled");
+		pr_info("IOMMU table initialized, virtual merging %s\n",
+			str_disabled_enabled(novmerge));
 		welcomed = 1;
 	}
 

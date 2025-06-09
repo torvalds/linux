@@ -1780,7 +1780,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	rc = devm_cxl_setup_fwctl(cxlmd);
+	rc = devm_cxl_setup_fwctl(&pdev->dev, cxlmd);
 	if (rc)
 		dev_dbg(dev, "No CXL FWCTL setup\n");
 
@@ -1909,4 +1909,5 @@ static struct platform_driver cxl_mock_mem_driver = {
 
 module_platform_driver(cxl_mock_mem_driver);
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("cxl_test: mem device mock module");
 MODULE_IMPORT_NS("CXL");

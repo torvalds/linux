@@ -330,30 +330,27 @@ static int vt596_probe(struct pci_dev *pdev,
 			SMBHSTCFG = 0x84;
 		} else {
 			/* no matches at all */
-			dev_err(&pdev->dev, "Cannot configure "
-				"SMBus I/O Base address\n");
-			return -ENODEV;
+			return dev_err_probe(&pdev->dev, -ENODEV,
+					     "Cannot configure "
+					     "SMBus I/O Base address\n");
 		}
 	}
 
 	vt596_smba &= 0xfff0;
-	if (vt596_smba == 0) {
-		dev_err(&pdev->dev, "SMBus base address "
-			"uninitialized - upgrade BIOS or use "
-			"force_addr=0xaddr\n");
-		return -ENODEV;
-	}
+	if (vt596_smba == 0)
+		return dev_err_probe(&pdev->dev, -ENODEV, "SMBus base address "
+				     "uninitialized - upgrade BIOS or use "
+				     "force_addr=0xaddr\n");
 
 found:
 	error = acpi_check_region(vt596_smba, 8, vt596_driver.name);
 	if (error)
 		return -ENODEV;
 
-	if (!request_region(vt596_smba, 8, vt596_driver.name)) {
-		dev_err(&pdev->dev, "SMBus region 0x%x already in use!\n",
-			vt596_smba);
-		return -ENODEV;
-	}
+	if (!request_region(vt596_smba, 8, vt596_driver.name))
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "SMBus region 0x%x already in use!\n",
+				     vt596_smba);
 
 	pci_read_config_byte(pdev, SMBHSTCFG, &temp);
 	/* If force_addr is set, we program the new address here. Just to make
@@ -375,10 +372,10 @@ found:
 			pci_write_config_byte(pdev, SMBHSTCFG, temp | 0x01);
 			dev_info(&pdev->dev, "Enabling SMBus device\n");
 		} else {
-			dev_err(&pdev->dev, "SMBUS: Error: Host SMBus "
-				"controller not enabled! - upgrade BIOS or "
-				"use force=1\n");
-			error = -ENODEV;
+			error = dev_err_probe(&pdev->dev, -ENODEV,
+					      "SMBUS: Error: Host SMBus "
+					      "controller not enabled! - "
+					      "upgrade BIOS or use force=1\n");
 			goto release_region;
 		}
 	}

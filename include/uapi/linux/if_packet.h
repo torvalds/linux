@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef __LINUX_IF_PACKET_H
-#define __LINUX_IF_PACKET_H
+#ifndef _UAPI__LINUX_IF_PACKET_H
+#define _UAPI__LINUX_IF_PACKET_H
 
 #include <asm/byteorder.h>
 #include <linux/types.h>

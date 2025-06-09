@@ -39,7 +39,7 @@
 #include <asm/gart.h>
 #include <asm/set_memory.h>
 #include <asm/dma.h>
-#include <asm/amd_nb.h>
+#include <asm/amd/nb.h>
 #include <asm/x86_init.h>
 
 static unsigned long iommu_bus_base;	/* GART remapping area (physical) */

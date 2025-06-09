@@ -147,7 +147,7 @@ efc_els_retry(struct efc_els_io_req *els);
 static void
 efc_els_delay_timer_cb(struct timer_list *t)
 {
-	struct efc_els_io_req *els = from_timer(els, t, delay_timer);
+	struct efc_els_io_req *els = timer_container_of(els, t, delay_timer);
 
 	/* Retry delay timer expired, retry the ELS request */
 	efc_els_retry(els);

@@ -41,7 +41,7 @@ unsigned int fuse_max_pages_limit = 256;
 unsigned int fuse_default_req_timeout;
 unsigned int fuse_max_req_timeout;
 
-unsigned max_user_bgreq;
+unsigned int max_user_bgreq;
 module_param_call(max_user_bgreq, set_global_limit, param_get_uint,
 		  &max_user_bgreq, 0644);
 __MODULE_PARM_TYPE(max_user_bgreq, "uint");
@@ -49,7 +49,7 @@ MODULE_PARM_DESC(max_user_bgreq,
  "Global limit for the maximum number of backgrounded requests an "
  "unprivileged user can set");
 
-unsigned max_user_congthresh;
+unsigned int max_user_congthresh;
 module_param_call(max_user_congthresh, set_global_limit, param_get_uint,
 		  &max_user_congthresh, 0644);
 __MODULE_PARM_TYPE(max_user_congthresh, "uint");
@@ -962,6 +962,7 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	init_rwsem(&fc->killsb);
 	refcount_set(&fc->count, 1);
 	atomic_set(&fc->dev_count, 1);
+	atomic_set(&fc->epoch, 1);
 	init_waitqueue_head(&fc->blocked_waitq);
 	fuse_iqueue_init(&fc->iq, fiq_ops, fiq_priv);
 	INIT_LIST_HEAD(&fc->bg_queue);
@@ -1036,7 +1037,7 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)
 }
 EXPORT_SYMBOL_GPL(fuse_conn_get);
 
-static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned mode)
+static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned int mode)
 {
 	struct fuse_attr attr;
 	memset(&attr, 0, sizeof(attr));
@@ -1211,7 +1212,7 @@ static const struct super_operations fuse_super_operations = {
 	.show_options	= fuse_show_options,
 };
 
-static void sanitize_global_limit(unsigned *limit)
+static void sanitize_global_limit(unsigned int *limit)
 {
 	/*
 	 * The default maximum number of async requests is calculated to consume
@@ -1232,7 +1233,7 @@ static int set_global_limit(const char *val, const struct kernel_param *kp)
 	if (rv)
 		return rv;
 
-	sanitize_global_limit((unsigned *)kp->arg);
+	sanitize_global_limit((unsigned int *)kp->arg);
 
 	return 0;
 }

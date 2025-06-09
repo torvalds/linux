@@ -2619,7 +2619,8 @@ err_qdio_bufs:
 
 static void qeth_tx_completion_timer(struct timer_list *timer)
 {
-	struct qeth_qdio_out_q *queue = from_timer(queue, timer, timer);
+	struct qeth_qdio_out_q *queue = timer_container_of(queue, timer,
+							   timer);
 
 	napi_schedule(&queue->napi);
 	QETH_TXQ_STAT_INC(queue, completion_timer);

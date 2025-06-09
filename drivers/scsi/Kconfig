@@ -403,6 +403,7 @@ config SCSI_ACARD
 config SCSI_AHA152X
 	tristate "Adaptec AHA152X/2825 support"
 	depends on ISA && SCSI
+	depends on !HIGHMEM
 	select SCSI_SPI_ATTRS
 	select CHECK_SIGNATURE
 	help
@@ -795,6 +796,7 @@ config SCSI_PPA
 	tristate "IOMEGA parallel port (ppa - older drives)"
 	depends on SCSI && PARPORT_PC
 	depends on HAS_IOPORT
+	depends on !HIGHMEM
 	help
 	  This driver supports older versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).
@@ -822,6 +824,7 @@ config SCSI_PPA
 config SCSI_IMM
 	tristate "IOMEGA parallel port (imm - newer drives)"
 	depends on SCSI && PARPORT_PC
+	depends on !HIGHMEM
 	help
 	  This driver supports newer versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).

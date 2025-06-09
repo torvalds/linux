@@ -713,7 +713,7 @@ isac_release(struct isac_hw *isac)
 static void
 dbusy_timer_handler(struct timer_list *t)
 {
-	struct isac_hw *isac = from_timer(isac, t, dch.timer);
+	struct isac_hw *isac = timer_container_of(isac, t, dch.timer);
 	int rbch, star;
 	u_long flags;
 

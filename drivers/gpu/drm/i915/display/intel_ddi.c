@@ -30,11 +30,13 @@
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_scdc_helper.h>
+#include <drm/drm_print.h>
 #include <drm/drm_privacy_screen_consumer.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "icl_dsi.h"
+#include "intel_alpm.h"
 #include "intel_audio.h"
 #include "intel_audio_regs.h"
 #include "intel_backlight.h"
@@ -3505,9 +3507,6 @@ static void intel_ddi_enable(struct intel_atomic_state *state,
 
 	intel_vrr_transcoder_enable(crtc_state);
 
-	/* Enable/Disable DP2.0 SDP split config before transcoder */
-	intel_audio_sdp_split_update(crtc_state);
-
 	/* 128b/132b SST */
 	if (!is_hdmi && intel_dp_is_uhbr(crtc_state)) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -3553,6 +3552,7 @@ static void intel_ddi_disable_dp(struct intel_atomic_state *state,
 	intel_dp->link.active = false;
 
 	intel_psr_disable(intel_dp, old_crtc_state);
+	intel_alpm_disable(intel_dp);
 	intel_edp_backlight_off(old_conn_state);
 	/* Disable the decompression in DP Sink */
 	intel_dp_sink_disable_decompression(state,
@@ -4902,9 +4902,7 @@ static enum hpd_pin tgl_hpd_pin(struct intel_display *display, enum port port)
 
 static enum hpd_pin rkl_hpd_pin(struct intel_display *display, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	if (HAS_PCH_TGP(dev_priv))
+	if (HAS_PCH_TGP(display))
 		return tgl_hpd_pin(display, port);
 
 	if (port >= PORT_TC1)
@@ -4923,12 +4921,10 @@ static enum hpd_pin icl_hpd_pin(struct intel_display *display, enum port port)
 
 static enum hpd_pin ehl_hpd_pin(struct intel_display *display, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (port == PORT_D)
 		return HPD_PORT_A;
 
-	if (HAS_PCH_TGP(dev_priv))
+	if (HAS_PCH_TGP(display))
 		return icl_hpd_pin(display, port);
 
 	return HPD_PORT_A + port - PORT_A;
@@ -4936,9 +4932,7 @@ static enum hpd_pin ehl_hpd_pin(struct intel_display *display, enum port port)
 
 static enum hpd_pin skl_hpd_pin(struct intel_display *display, enum port port)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	if (HAS_PCH_TGP(dev_priv))
+	if (HAS_PCH_TGP(display))
 		return icl_hpd_pin(display, port);
 
 	return HPD_PORT_A + port - PORT_A;

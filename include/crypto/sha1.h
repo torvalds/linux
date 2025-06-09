@@ -10,6 +10,7 @@
 
 #define SHA1_DIGEST_SIZE        20
 #define SHA1_BLOCK_SIZE         64
+#define SHA1_STATE_SIZE         offsetof(struct sha1_state, buffer)
 
 #define SHA1_H0		0x67452301UL
 #define SHA1_H1		0xefcdab89UL
@@ -24,14 +25,6 @@ struct sha1_state {
 	u64 count;
 	u8 buffer[SHA1_BLOCK_SIZE];
 };
-
-struct shash_desc;
-
-extern int crypto_sha1_update(struct shash_desc *desc, const u8 *data,
-			      unsigned int len);
-
-extern int crypto_sha1_finup(struct shash_desc *desc, const u8 *data,
-			     unsigned int len, u8 *hash);
 
 /*
  * An implementation of SHA-1's compression function.  Don't use in new code!

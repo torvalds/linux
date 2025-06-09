@@ -136,13 +136,15 @@ EXPORT_SYMBOL(generic_fill_statx_attr);
  * @stat:	Where to fill in the attribute flags
  * @unit_min:	Minimum supported atomic write length in bytes
  * @unit_max:	Maximum supported atomic write length in bytes
+ * @unit_max_opt: Optimised maximum supported atomic write length in bytes
  *
  * Fill in the STATX{_ATTR}_WRITE_ATOMIC flags in the kstat structure from
  * atomic write unit_min and unit_max values.
  */
 void generic_fill_statx_atomic_writes(struct kstat *stat,
 				      unsigned int unit_min,
-				      unsigned int unit_max)
+				      unsigned int unit_max,
+				      unsigned int unit_max_opt)
 {
 	/* Confirm that the request type is known */
 	stat->result_mask |= STATX_WRITE_ATOMIC;
@@ -153,6 +155,7 @@ void generic_fill_statx_atomic_writes(struct kstat *stat,
 	if (unit_min) {
 		stat->atomic_write_unit_min = unit_min;
 		stat->atomic_write_unit_max = unit_max;
+		stat->atomic_write_unit_max_opt = unit_max_opt;
 		/* Initially only allow 1x segment */
 		stat->atomic_write_segments_max = 1;
 
@@ -204,12 +207,25 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 				  STATX_ATTR_DAX);
 
 	idmap = mnt_idmap(path->mnt);
-	if (inode->i_op->getattr)
-		return inode->i_op->getattr(idmap, path, stat,
-					    request_mask,
-					    query_flags);
+	if (inode->i_op->getattr) {
+		int ret;
 
-	generic_fillattr(idmap, request_mask, inode, stat);
+		ret = inode->i_op->getattr(idmap, path, stat, request_mask,
+				query_flags);
+		if (ret)
+			return ret;
+	} else {
+		generic_fillattr(idmap, request_mask, inode, stat);
+	}
+
+	/*
+	 * If this is a block device inode, override the filesystem attributes
+	 * with the block device specific parameters that need to be obtained
+	 * from the bdev backing inode.
+	 */
+	if (S_ISBLK(stat->mode))
+		bdev_statx(path, stat, request_mask);
+
 	return 0;
 }
 EXPORT_SYMBOL(vfs_getattr_nosec);
@@ -241,7 +257,7 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 	int retval;
 
 	retval = security_inode_getattr(path);
-	if (retval)
+	if (unlikely(retval))
 		return retval;
 	return vfs_getattr_nosec(path, stat, request_mask, query_flags);
 }
@@ -295,15 +311,6 @@ static int vfs_statx_path(struct path *path, int flags, struct kstat *stat,
 	if (path_mounted(path))
 		stat->attributes |= STATX_ATTR_MOUNT_ROOT;
 	stat->attributes_mask |= STATX_ATTR_MOUNT_ROOT;
-
-	/*
-	 * If this is a block device inode, override the filesystem
-	 * attributes with the block device specific parameters that need to be
-	 * obtained from the bdev backing inode.
-	 */
-	if (S_ISBLK(stat->mode))
-		bdev_statx(path, stat, request_mask);
-
 	return 0;
 }
 
@@ -421,7 +428,7 @@ SYSCALL_DEFINE2(stat, const char __user *, filename,
 	int error;
 
 	error = vfs_stat(filename, &stat);
-	if (error)
+	if (unlikely(error))
 		return error;
 
 	return cp_old_stat(&stat, statbuf);
@@ -434,7 +441,7 @@ SYSCALL_DEFINE2(lstat, const char __user *, filename,
 	int error;
 
 	error = vfs_lstat(filename, &stat);
-	if (error)
+	if (unlikely(error))
 		return error;
 
 	return cp_old_stat(&stat, statbuf);
@@ -443,12 +450,13 @@ SYSCALL_DEFINE2(lstat, const char __user *, filename,
 SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, statbuf)
 {
 	struct kstat stat;
-	int error = vfs_fstat(fd, &stat);
+	int error;
 
-	if (!error)
-		error = cp_old_stat(&stat, statbuf);
+	error = vfs_fstat(fd, &stat);
+	if (unlikely(error))
+		return error;
 
-	return error;
+	return cp_old_stat(&stat, statbuf);
 }
 
 #endif /* __ARCH_WANT_OLD_STAT */
@@ -502,10 +510,12 @@ SYSCALL_DEFINE2(newstat, const char __user *, filename,
 		struct stat __user *, statbuf)
 {
 	struct kstat stat;
-	int error = vfs_stat(filename, &stat);
+	int error;
 
-	if (error)
+	error = vfs_stat(filename, &stat);
+	if (unlikely(error))
 		return error;
+
 	return cp_new_stat(&stat, statbuf);
 }
 
@@ -516,7 +526,7 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
 	int error;
 
 	error = vfs_lstat(filename, &stat);
-	if (error)
+	if (unlikely(error))
 		return error;
 
 	return cp_new_stat(&stat, statbuf);
@@ -530,8 +540,9 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
 	int error;
 
 	error = vfs_fstatat(dfd, filename, &stat, flag);
-	if (error)
+	if (unlikely(error))
 		return error;
+
 	return cp_new_stat(&stat, statbuf);
 }
 #endif
@@ -539,12 +550,13 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
 SYSCALL_DEFINE2(newfstat, unsigned int, fd, struct stat __user *, statbuf)
 {
 	struct kstat stat;
-	int error = vfs_fstat(fd, &stat);
+	int error;
 
-	if (!error)
-		error = cp_new_stat(&stat, statbuf);
+	error = vfs_fstat(fd, &stat);
+	if (unlikely(error))
+		return error;
 
-	return error;
+	return cp_new_stat(&stat, statbuf);
 }
 #endif
 
@@ -732,6 +744,7 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 	tmp.stx_atomic_write_unit_min = stat->atomic_write_unit_min;
 	tmp.stx_atomic_write_unit_max = stat->atomic_write_unit_max;
 	tmp.stx_atomic_write_segments_max = stat->atomic_write_segments_max;
+	tmp.stx_atomic_write_unit_max_opt = stat->atomic_write_unit_max_opt;
 
 	return copy_to_user(buffer, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }

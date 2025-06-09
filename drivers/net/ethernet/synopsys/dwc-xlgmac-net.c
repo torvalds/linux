@@ -360,7 +360,8 @@ static irqreturn_t xlgmac_dma_isr(int irq, void *data)
 
 static void xlgmac_tx_timer(struct timer_list *t)
 {
-	struct xlgmac_channel *channel = from_timer(channel, t, tx_timer);
+	struct xlgmac_channel *channel = timer_container_of(channel, t,
+							    tx_timer);
 	struct xlgmac_pdata *pdata = channel->pdata;
 	struct napi_struct *napi;
 

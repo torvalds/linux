@@ -58,7 +58,7 @@ static inline void heartbeat_toggle_bit(struct heartbeat_data *hd,
 
 static void heartbeat_timer(struct timer_list *t)
 {
-	struct heartbeat_data *hd = from_timer(hd, t, timer);
+	struct heartbeat_data *hd = timer_container_of(hd, t, timer);
 	static unsigned bit = 0, up = 1;
 
 	heartbeat_toggle_bit(hd, bit, hd->flags & HEARTBEAT_INVERTED);

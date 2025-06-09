@@ -492,8 +492,6 @@ extern struct clk_ops kona_peri_clk_ops;
 /* Externally visible functions */
 
 extern u64 scaled_div_max(struct bcm_clk_div *div);
-extern u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value,
-				u32 billionths);
 
 extern void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 				struct device_node *node);

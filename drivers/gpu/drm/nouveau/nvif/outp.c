@@ -198,7 +198,7 @@ nvif_outp_hda_eld(struct nvif_outp *outp, int head, void *data, u32 size)
 	DEFINE_RAW_FLEX(struct nvif_outp_hda_eld_v0, mthd, data, 128);
 	int ret;
 
-	if (WARN_ON(size > (__struct_size(mthd) - sizeof(*mthd))))
+	if (WARN_ON(size > __member_size(mthd->data)))
 		return -EINVAL;
 
 	mthd->version = 0;

@@ -1088,7 +1088,7 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	rk817_bat_calib_vol(charger);
 
 	pscfg.drv_data = charger;
-	pscfg.fwnode = node ? &node->fwnode : NULL;
+	pscfg.fwnode = &node->fwnode;
 
 	/*
 	 * Get sample resistor value. Note only values of 10000 or 20000

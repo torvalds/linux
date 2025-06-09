@@ -43,6 +43,29 @@ static ssize_t show_package_id(struct kobject *kobj, struct kobj_attribute *attr
 	return sprintf(buf, "%u\n", data->package_id);
 }
 
+#define MAX_UNCORE_AGENT_TYPES	4
+
+/* The order follows AGENT_TYPE_* defines */
+static const char *agent_name[MAX_UNCORE_AGENT_TYPES] = {"core", "cache", "memory", "io"};
+
+static ssize_t show_agent_types(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	struct uncore_data *data = container_of(attr, struct uncore_data, agent_types_kobj_attr);
+	unsigned long agent_mask = data->agent_type_mask;
+	int agent, length = 0;
+
+	for_each_set_bit(agent, &agent_mask, MAX_UNCORE_AGENT_TYPES) {
+		if (length)
+			length += sysfs_emit_at(buf, length, " ");
+
+		length += sysfs_emit_at(buf, length, agent_name[agent]);
+	}
+
+	length += sysfs_emit_at(buf, length, "\n");
+
+	return length;
+}
+
 static ssize_t show_attr(struct uncore_data *data, char *buf, enum uncore_index index)
 {
 	unsigned int value;
@@ -120,6 +143,8 @@ show_uncore_attr(elc_high_threshold_enable,
 		 UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE);
 show_uncore_attr(elc_floor_freq_khz, UNCORE_INDEX_EFF_LAT_CTRL_FREQ);
 
+show_uncore_attr(die_id, UNCORE_INDEX_DIE_ID);
+
 #define show_uncore_data(member_name)					\
 	static ssize_t show_##member_name(struct kobject *kobj,	\
 					   struct kobj_attribute *attr, char *buf)\
@@ -179,6 +204,15 @@ static int create_attr_group(struct uncore_data *data, char *name)
 		data->uncore_attrs[index++] = &data->fabric_cluster_id_kobj_attr.attr;
 		init_attribute_root_ro(package_id);
 		data->uncore_attrs[index++] = &data->package_id_kobj_attr.attr;
+		if (data->agent_type_mask) {
+			init_attribute_ro(agent_types);
+			data->uncore_attrs[index++] = &data->agent_types_kobj_attr.attr;
+		}
+		if (topology_max_dies_per_package() > 1 &&
+		    data->agent_type_mask & AGENT_TYPE_CORE) {
+			init_attribute_ro(die_id);
+			data->uncore_attrs[index++] = &data->die_id_kobj_attr.attr;
+		}
 	}
 
 	data->uncore_attrs[index++] = &data->max_freq_khz_kobj_attr.attr;

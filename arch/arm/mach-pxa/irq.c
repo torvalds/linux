@@ -147,9 +147,8 @@ pxa_init_irq_common(struct device_node *node, int irq_nr,
 	int n;
 
 	pxa_internal_irq_nr = irq_nr;
-	pxa_irq_domain = irq_domain_add_legacy(node, irq_nr,
-					       PXA_IRQ(0), 0,
-					       &pxa_irq_ops, NULL);
+	pxa_irq_domain = irq_domain_create_legacy(of_fwnode_handle(node), irq_nr, PXA_IRQ(0), 0,
+						  &pxa_irq_ops, NULL);
 	if (!pxa_irq_domain)
 		panic("Unable to add PXA IRQ domain\n");
 	irq_set_default_domain(pxa_irq_domain);

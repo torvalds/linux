@@ -13,6 +13,7 @@
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
 #include <asm/ldt.h>
+#include <asm/msr.h>
 #include <asm/vm86.h>
 
 #undef pr_fmt
@@ -631,14 +632,21 @@ static bool get_desc(struct desc_struct *out, unsigned short sel)
 		/* Bits [15:3] contain the index of the desired entry. */
 		sel >>= 3;
 
-		mutex_lock(&current->active_mm->context.lock);
-		ldt = current->active_mm->context.ldt;
+		/*
+		 * If we're not in a valid context with a real (not just lazy)
+		 * user mm, then don't even try.
+		 */
+		if (!nmi_uaccess_okay())
+			return false;
+
+		mutex_lock(&current->mm->context.lock);
+		ldt = current->mm->context.ldt;
 		if (ldt && sel < ldt->nr_entries) {
 			*out = ldt->entries[sel];
 			success = true;
 		}
 
-		mutex_unlock(&current->active_mm->context.lock);
+		mutex_unlock(&current->mm->context.lock);
 
 		return success;
 	}
@@ -702,16 +710,16 @@ unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx)
 		unsigned long base;
 
 		if (seg_reg_idx == INAT_SEG_REG_FS) {
-			rdmsrl(MSR_FS_BASE, base);
+			rdmsrq(MSR_FS_BASE, base);
 		} else if (seg_reg_idx == INAT_SEG_REG_GS) {
 			/*
 			 * swapgs was called at the kernel entry point. Thus,
 			 * MSR_KERNEL_GS_BASE will have the user-space GS base.
 			 */
 			if (user_mode(regs))
-				rdmsrl(MSR_KERNEL_GS_BASE, base);
+				rdmsrq(MSR_KERNEL_GS_BASE, base);
 			else
-				rdmsrl(MSR_GS_BASE, base);
+				rdmsrq(MSR_GS_BASE, base);
 		} else {
 			base = 0;
 		}

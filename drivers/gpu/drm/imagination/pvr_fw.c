@@ -437,6 +437,9 @@ fw_runtime_cfg_init(void *cpu_ptr, void *priv)
 	runtime_cfg->active_pm_latency_persistant = true;
 	WARN_ON(PVR_FEATURE_VALUE(pvr_dev, num_clusters,
 				  &runtime_cfg->default_dusts_num_init) != 0);
+
+	/* Keep watchdog timer disabled. */
+	runtime_cfg->wdg_period_us = 0;
 }
 
 static void
@@ -659,7 +662,7 @@ pvr_fw_process(struct pvr_device *pvr_dev)
 		return PTR_ERR(fw_code_ptr);
 	}
 
-	if (pvr_dev->fw_dev.defs->has_fixed_data_addr()) {
+	if (pvr_dev->fw_dev.defs->has_fixed_data_addr) {
 		u32 base_addr = private_data->base_addr & pvr_dev->fw_dev.fw_heap_info.offset_mask;
 
 		fw_data_ptr =
@@ -935,17 +938,21 @@ pvr_fw_validate_init_device_info(struct pvr_device *pvr_dev)
 int
 pvr_fw_init(struct pvr_device *pvr_dev)
 {
+	static const struct pvr_fw_defs *fw_defs[PVR_FW_PROCESSOR_TYPE_COUNT] = {
+		[PVR_FW_PROCESSOR_TYPE_META] = &pvr_fw_defs_meta,
+		[PVR_FW_PROCESSOR_TYPE_MIPS] = &pvr_fw_defs_mips,
+		[PVR_FW_PROCESSOR_TYPE_RISCV] = &pvr_fw_defs_riscv,
+	};
+
 	u32 kccb_size_log2 = ROGUE_FWIF_KCCB_NUMCMDS_LOG2_DEFAULT;
 	u32 kccb_rtn_size = (1 << kccb_size_log2) * sizeof(*pvr_dev->kccb.rtn);
 	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
 	int err;
 
-	if (fw_dev->processor_type == PVR_FW_PROCESSOR_TYPE_META)
-		fw_dev->defs = &pvr_fw_defs_meta;
-	else if (fw_dev->processor_type == PVR_FW_PROCESSOR_TYPE_MIPS)
-		fw_dev->defs = &pvr_fw_defs_mips;
-	else
+	if (fw_dev->processor_type >= PVR_FW_PROCESSOR_TYPE_COUNT)
 		return -EINVAL;
+
+	fw_dev->defs = fw_defs[fw_dev->processor_type];
 
 	err = fw_dev->defs->init(pvr_dev);
 	if (err)
@@ -1450,6 +1457,15 @@ void pvr_fw_object_get_fw_addr_offset(struct pvr_fw_object *fw_obj, u32 offset, 
 	struct pvr_device *pvr_dev = to_pvr_device(gem_from_pvr_gem(pvr_obj)->dev);
 
 	*fw_addr_out = pvr_dev->fw_dev.defs->get_fw_addr_with_offset(fw_obj, offset);
+}
+
+u64
+pvr_fw_obj_get_gpu_addr(struct pvr_fw_object *fw_obj)
+{
+	struct pvr_device *pvr_dev = to_pvr_device(gem_from_pvr_gem(fw_obj->gem)->dev);
+	struct pvr_fw_device *fw_dev = &pvr_dev->fw_dev;
+
+	return fw_dev->fw_heap_info.gpu_addr + fw_obj->fw_addr_offset;
 }
 
 /*

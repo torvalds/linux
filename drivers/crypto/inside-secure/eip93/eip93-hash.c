@@ -97,12 +97,20 @@ void eip93_hash_handle_result(struct crypto_async_request *async, int err)
 
 static void eip93_hash_init_sa_state_digest(u32 hash, u8 *digest)
 {
-	u32 sha256_init[] = { SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
-			      SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7 };
-	u32 sha224_init[] = { SHA224_H0, SHA224_H1, SHA224_H2, SHA224_H3,
-			      SHA224_H4, SHA224_H5, SHA224_H6, SHA224_H7 };
-	u32 sha1_init[] = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 };
-	u32 md5_init[] = { MD5_H0, MD5_H1, MD5_H2, MD5_H3 };
+	static const u32 sha256_init[] = {
+		SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
+		SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7
+	};
+	static const u32 sha224_init[] = {
+		SHA224_H0, SHA224_H1, SHA224_H2, SHA224_H3,
+		SHA224_H4, SHA224_H5, SHA224_H6, SHA224_H7
+	};
+	static const u32 sha1_init[] = {
+		SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4
+	};
+	static const u32 md5_init[] = {
+		MD5_H0, MD5_H1, MD5_H2, MD5_H3
+	};
 
 	/* Init HASH constant */
 	switch (hash) {

@@ -211,7 +211,7 @@ orion_gpio_direction_output(struct gpio_chip *chip, unsigned pin, int value)
 	return 0;
 }
 
-static void orion_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
+static int orion_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 {
 	struct orion_gpio_chip *ochip = gpiochip_get_data(chip);
 	unsigned long flags;
@@ -219,6 +219,8 @@ static void orion_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 	spin_lock_irqsave(&ochip->lock, flags);
 	__set_level(ochip, pin, value);
 	spin_unlock_irqrestore(&ochip->lock, flags);
+
+	return 0;
 }
 
 static int orion_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
@@ -496,11 +498,10 @@ static void orion_gpio_unmask_irq(struct irq_data *d)
 	u32 reg_val;
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	reg_val = irq_reg_readl(gc, ct->regs.mask);
 	reg_val |= mask;
 	irq_reg_writel(gc, reg_val, ct->regs.mask);
-	irq_gc_unlock(gc);
 }
 
 static void orion_gpio_mask_irq(struct irq_data *d)
@@ -510,11 +511,10 @@ static void orion_gpio_mask_irq(struct irq_data *d)
 	u32 mask = d->mask;
 	u32 reg_val;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	reg_val = irq_reg_readl(gc, ct->regs.mask);
 	reg_val &= ~mask;
 	irq_reg_writel(gc, reg_val, ct->regs.mask);
-	irq_gc_unlock(gc);
 }
 
 void __init orion_gpio_init(int gpio_base, int ngpio,
@@ -540,7 +540,7 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 	ochip->chip.direction_input = orion_gpio_direction_input;
 	ochip->chip.get = orion_gpio_get;
 	ochip->chip.direction_output = orion_gpio_direction_output;
-	ochip->chip.set = orion_gpio_set;
+	ochip->chip.set_rv = orion_gpio_set;
 	ochip->chip.to_irq = orion_gpio_to_irq;
 	ochip->chip.base = gpio_base;
 	ochip->chip.ngpio = ngpio;
@@ -602,12 +602,12 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
 
 	/* Setup irq domain on top of the generic chip. */
-	ochip->domain = irq_domain_add_legacy(NULL,
-					      ochip->chip.ngpio,
-					      ochip->secondary_irq_base,
-					      ochip->secondary_irq_base,
-					      &irq_domain_simple_ops,
-					      ochip);
+	ochip->domain = irq_domain_create_legacy(NULL,
+						 ochip->chip.ngpio,
+						 ochip->secondary_irq_base,
+						 ochip->secondary_irq_base,
+						 &irq_domain_simple_ops,
+						 ochip);
 	if (!ochip->domain)
 		panic("%s: couldn't allocate irq domain (DT).\n",
 		      ochip->chip.label);

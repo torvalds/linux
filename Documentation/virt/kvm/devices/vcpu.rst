@@ -137,6 +137,30 @@ exit_reason = KVM_EXIT_FAIL_ENTRY and populate the fail_entry struct by setting
 hardare_entry_failure_reason field to KVM_EXIT_FAIL_ENTRY_CPU_UNSUPPORTED and
 the cpu field to the processor id.
 
+1.5 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_SET_NR_COUNTERS
+--------------------------------------------------
+
+:Parameters: in kvm_device_attr.addr the address to an unsigned int
+	     representing the maximum value taken by PMCR_EL0.N
+
+:Returns:
+
+	 =======  ====================================================
+	 -EBUSY   PMUv3 already initialized, a VCPU has already run or
+                  an event filter has already been set
+	 -EFAULT  Error accessing the value pointed to by addr
+	 -ENODEV  PMUv3 not supported or GIC not initialized
+	 -EINVAL  No PMUv3 explicitly selected, or value of N out of
+	 	  range
+	 =======  ====================================================
+
+Set the number of implemented event counters in the virtual PMU. This
+mandates that a PMU has explicitly been selected via
+KVM_ARM_VCPU_PMU_V3_SET_PMU, and will fail when no PMU has been
+explicitly selected, or the number of counters is out of range for the
+selected PMU. Selecting a new PMU cancels the effect of setting this
+attribute.
+
 2. GROUP: KVM_ARM_VCPU_TIMER_CTRL
 =================================
 

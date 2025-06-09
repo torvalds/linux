@@ -7,11 +7,11 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
-#include <linux/fwnode.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 

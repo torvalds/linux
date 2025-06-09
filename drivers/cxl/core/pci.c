@@ -415,8 +415,39 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
 	 */
 	if (global_ctrl & CXL_HDM_DECODER_ENABLE || (!hdm && info->mem_enabled))
 		return devm_cxl_enable_mem(&port->dev, cxlds);
-	else if (!hdm)
+
+	/*
+	 * If the HDM Decoder Capability does not exist and DVSEC was
+	 * not setup, the DVSEC based emulation cannot be used.
+	 */
+	if (!hdm)
 		return -ENODEV;
+
+	/* The HDM Decoder Capability exists but is globally disabled. */
+
+	/*
+	 * If the DVSEC CXL Range registers are not enabled, just
+	 * enable and use the HDM Decoder Capability registers.
+	 */
+	if (!info->mem_enabled) {
+		rc = devm_cxl_enable_hdm(&port->dev, cxlhdm);
+		if (rc)
+			return rc;
+
+		return devm_cxl_enable_mem(&port->dev, cxlds);
+	}
+
+	/*
+	 * Per CXL 2.0 Section 8.1.3.8.3 and 8.1.3.8.4 DVSEC CXL Range 1 Base
+	 * [High,Low] when HDM operation is enabled the range register values
+	 * are ignored by the device, but the spec also recommends matching the
+	 * DVSEC Range 1,2 to HDM Decoder Range 0,1. So, non-zero info->ranges
+	 * are expected even though Linux does not require or maintain that
+	 * match. Check if at least one DVSEC range is enabled and allowed by
+	 * the platform. That is, the DVSEC range must be covered by a locked
+	 * platform window (CFMWS). Fail otherwise as the endpoint's decoders
+	 * cannot be used.
+	 */
 
 	root = to_cxl_port(port->dev.parent);
 	while (!is_cxl_root(root) && is_cxl_port(root->dev.parent))
@@ -424,14 +455,6 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
 	if (!is_cxl_root(root)) {
 		dev_err(dev, "Failed to acquire root port for HDM enable\n");
 		return -ENODEV;
-	}
-
-	if (!info->mem_enabled) {
-		rc = devm_cxl_enable_hdm(&port->dev, cxlhdm);
-		if (rc)
-			return rc;
-
-		return devm_cxl_enable_mem(&port->dev, cxlds);
 	}
 
 	for (i = 0, allowed = 0; i < info->ranges; i++) {
@@ -453,15 +476,6 @@ int cxl_hdm_decode_init(struct cxl_dev_state *cxlds, struct cxl_hdm *cxlhdm,
 		return -ENXIO;
 	}
 
-	/*
-	 * Per CXL 2.0 Section 8.1.3.8.3 and 8.1.3.8.4 DVSEC CXL Range 1 Base
-	 * [High,Low] when HDM operation is enabled the range register values
-	 * are ignored by the device, but the spec also recommends matching the
-	 * DVSEC Range 1,2 to HDM Decoder Range 0,1. So, non-zero info->ranges
-	 * are expected even though Linux does not require or maintain that
-	 * match. If at least one DVSEC range is enabled and allowed, skip HDM
-	 * Decoder Capability Enable.
-	 */
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_hdm_decode_init, "CXL");
@@ -1072,14 +1086,20 @@ int cxl_pci_get_bandwidth(struct pci_dev *pdev, struct access_coordinate *c)
 #define GPF_TIMEOUT_BASE_MAX 2
 #define GPF_TIMEOUT_SCALE_MAX 7 /* 10 seconds */
 
-u16 cxl_gpf_get_dvsec(struct device *dev, bool is_port)
+u16 cxl_gpf_get_dvsec(struct device *dev)
 {
+	struct pci_dev *pdev;
+	bool is_port = true;
 	u16 dvsec;
 
 	if (!dev_is_pci(dev))
 		return 0;
 
-	dvsec = pci_find_dvsec_capability(to_pci_dev(dev), PCI_VENDOR_ID_CXL,
+	pdev = to_pci_dev(dev);
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ENDPOINT)
+		is_port = false;
+
+	dvsec = pci_find_dvsec_capability(pdev, PCI_VENDOR_ID_CXL,
 			is_port ? CXL_DVSEC_PORT_GPF : CXL_DVSEC_DEVICE_GPF);
 	if (!dvsec)
 		dev_warn(dev, "%s GPF DVSEC not present\n",
@@ -1128,26 +1148,24 @@ static int update_gpf_port_dvsec(struct pci_dev *pdev, int dvsec, int phase)
 	return rc;
 }
 
-int cxl_gpf_port_setup(struct device *dport_dev, struct cxl_port *port)
+int cxl_gpf_port_setup(struct cxl_dport *dport)
 {
-	struct pci_dev *pdev;
-
-	if (!port)
+	if (!dport)
 		return -EINVAL;
 
-	if (!port->gpf_dvsec) {
+	if (!dport->gpf_dvsec) {
+		struct pci_dev *pdev;
 		int dvsec;
 
-		dvsec = cxl_gpf_get_dvsec(dport_dev, true);
+		dvsec = cxl_gpf_get_dvsec(dport->dport_dev);
 		if (!dvsec)
 			return -EINVAL;
 
-		port->gpf_dvsec = dvsec;
+		dport->gpf_dvsec = dvsec;
+		pdev = to_pci_dev(dport->dport_dev);
+		update_gpf_port_dvsec(pdev, dport->gpf_dvsec, 1);
+		update_gpf_port_dvsec(pdev, dport->gpf_dvsec, 2);
 	}
-
-	pdev = to_pci_dev(dport_dev);
-	update_gpf_port_dvsec(pdev, port->gpf_dvsec, 1);
-	update_gpf_port_dvsec(pdev, port->gpf_dvsec, 2);
 
 	return 0;
 }

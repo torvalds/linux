@@ -614,7 +614,7 @@ static int apple_fetch_battery(struct hid_device *hdev)
 
 static void apple_battery_timer_tick(struct timer_list *t)
 {
-	struct apple_sc *asc = from_timer(asc, t, battery_timer);
+	struct apple_sc *asc = timer_container_of(asc, t, battery_timer);
 	struct hid_device *hdev = asc->hdev;
 
 	if (apple_fetch_battery(hdev) == 0) {

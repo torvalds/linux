@@ -1804,8 +1804,7 @@ static struct xfrm_tunnel mplsip_handler __read_mostly = {
 };
 #endif
 
-static void __net_exit sit_destroy_tunnels(struct net *net,
-					   struct list_head *head)
+static void __net_exit sit_exit_rtnl_net(struct net *net, struct list_head *head)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 	struct net_device *dev, *aux;
@@ -1820,15 +1819,15 @@ static void __net_exit sit_destroy_tunnels(struct net *net,
 		for (h = 0; h < (prio ? IP6_SIT_HASH_SIZE : 1); h++) {
 			struct ip_tunnel *t;
 
-			t = rtnl_dereference(sitn->tunnels[prio][h]);
+			t = rtnl_net_dereference(net, sitn->tunnels[prio][h]);
 			while (t) {
 				/* If dev is in the same netns, it has already
 				 * been added to the list by the previous loop.
 				 */
 				if (!net_eq(dev_net(t->dev), net))
-					unregister_netdevice_queue(t->dev,
-								   head);
-				t = rtnl_dereference(t->next);
+					unregister_netdevice_queue(t->dev, head);
+
+				t = rtnl_net_dereference(net, t->next);
 			}
 		}
 	}
@@ -1881,19 +1880,9 @@ err_alloc_dev:
 	return err;
 }
 
-static void __net_exit sit_exit_batch_rtnl(struct list_head *net_list,
-					   struct list_head *dev_to_kill)
-{
-	struct net *net;
-
-	ASSERT_RTNL();
-	list_for_each_entry(net, net_list, exit_list)
-		sit_destroy_tunnels(net, dev_to_kill);
-}
-
 static struct pernet_operations sit_net_ops = {
 	.init = sit_init_net,
-	.exit_batch_rtnl = sit_exit_batch_rtnl,
+	.exit_rtnl = sit_exit_rtnl_net,
 	.id   = &sit_net_id,
 	.size = sizeof(struct sit_net),
 };

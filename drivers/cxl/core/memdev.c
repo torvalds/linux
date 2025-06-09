@@ -27,6 +27,7 @@ static void cxl_memdev_release(struct device *dev)
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 
 	ida_free(&cxl_memdev_ida, cxlmd->id);
+	devm_cxl_memdev_edac_release(cxlmd);
 	kfree(cxlmd);
 }
 
@@ -153,8 +154,8 @@ static ssize_t security_state_show(struct device *dev,
 		return sysfs_emit(buf, "frozen\n");
 	if (state & CXL_PMEM_SEC_STATE_LOCKED)
 		return sysfs_emit(buf, "locked\n");
-	else
-		return sysfs_emit(buf, "unlocked\n");
+
+	return sysfs_emit(buf, "unlocked\n");
 }
 static struct device_attribute dev_attr_security_state =
 	__ATTR(state, 0444, security_state_show, NULL);

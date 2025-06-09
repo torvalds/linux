@@ -1456,9 +1456,8 @@ static int advk_pcie_init_msi_irq_domain(struct advk_pcie *pcie)
 	raw_spin_lock_init(&pcie->msi_irq_lock);
 	mutex_init(&pcie->msi_used_lock);
 
-	pcie->msi_inner_domain =
-		irq_domain_add_linear(NULL, MSI_IRQ_NUM,
-				      &advk_msi_domain_ops, pcie);
+	pcie->msi_inner_domain = irq_domain_create_linear(NULL, MSI_IRQ_NUM,
+							  &advk_msi_domain_ops, pcie);
 	if (!pcie->msi_inner_domain)
 		return -ENOMEM;
 
@@ -1508,9 +1507,8 @@ static int advk_pcie_init_irq_domain(struct advk_pcie *pcie)
 	irq_chip->irq_mask = advk_pcie_irq_mask;
 	irq_chip->irq_unmask = advk_pcie_irq_unmask;
 
-	pcie->irq_domain =
-		irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
-				      &advk_pcie_irq_domain_ops, pcie);
+	pcie->irq_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node), PCI_NUM_INTX,
+						    &advk_pcie_irq_domain_ops, pcie);
 	if (!pcie->irq_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
 		ret = -ENOMEM;
@@ -1549,9 +1547,7 @@ static const struct irq_domain_ops advk_pcie_rp_irq_domain_ops = {
 
 static int advk_pcie_init_rp_irq_domain(struct advk_pcie *pcie)
 {
-	pcie->rp_irq_domain = irq_domain_add_linear(NULL, 1,
-						    &advk_pcie_rp_irq_domain_ops,
-						    pcie);
+	pcie->rp_irq_domain = irq_domain_create_linear(NULL, 1, &advk_pcie_rp_irq_domain_ops, pcie);
 	if (!pcie->rp_irq_domain) {
 		dev_err(&pcie->pdev->dev, "Failed to add Root Port IRQ domain\n");
 		return -ENOMEM;

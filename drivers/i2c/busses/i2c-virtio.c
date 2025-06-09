@@ -192,10 +192,9 @@ static int virtio_i2c_probe(struct virtio_device *vdev)
 	struct virtio_i2c *vi;
 	int ret;
 
-	if (!virtio_has_feature(vdev, VIRTIO_I2C_F_ZERO_LENGTH_REQUEST)) {
-		dev_err(&vdev->dev, "Zero-length request feature is mandatory\n");
-		return -EINVAL;
-	}
+	if (!virtio_has_feature(vdev, VIRTIO_I2C_F_ZERO_LENGTH_REQUEST))
+		return dev_err_probe(&vdev->dev, -EINVAL,
+				     "Zero-length request feature is mandatory\n");
 
 	vi = devm_kzalloc(&vdev->dev, sizeof(*vi), GFP_KERNEL);
 	if (!vi)

@@ -572,7 +572,7 @@ config SERIAL_8250_BCM7271
 config SERIAL_8250_NI
 	tristate "NI 16550 based serial port"
 	depends on SERIAL_8250
-	depends on (X86 && ACPI) || COMPILE_TEST
+	depends on X86 || COMPILE_TEST
 	help
 	  This driver supports the integrated serial ports on National
 	  Instruments (NI) controller hardware. This is required for all NI

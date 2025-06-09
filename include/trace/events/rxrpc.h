@@ -25,6 +25,7 @@
 	EM(afs_abort_probeuuid_negative,	"afs-probeuuid-neg")	\
 	EM(afs_abort_send_data_error,		"afs-send-data")	\
 	EM(afs_abort_unmarshal_error,		"afs-unmarshal")	\
+	EM(afs_abort_unsupported_sec_class,	"afs-unsup-sec-class")	\
 	/* rxperf errors */						\
 	EM(rxperf_abort_general_error,		"rxperf-error")		\
 	EM(rxperf_abort_oom,			"rxperf-oom")		\
@@ -68,6 +69,38 @@
 	EM(rxkad_abort_resp_tkt_sname,		"rxkad-resp-tk-sname")	\
 	EM(rxkad_abort_resp_unknown_tkt,	"rxkad-resp-unknown-tkt") \
 	EM(rxkad_abort_resp_version,		"rxkad-resp-version")	\
+	/* RxGK security errors */					\
+	EM(rxgk_abort_1_verify_mic_eproto,	"rxgk1-vfy-mic-eproto")	\
+	EM(rxgk_abort_2_decrypt_eproto,		"rxgk2-dec-eproto")	\
+	EM(rxgk_abort_2_short_data,		"rxgk2-short-data")	\
+	EM(rxgk_abort_2_short_encdata,		"rxgk2-short-encdata")	\
+	EM(rxgk_abort_2_short_header,		"rxgk2-short-hdr")	\
+	EM(rxgk_abort_bad_key_number,		"rxgk-bad-key-num")	\
+	EM(rxgk_abort_chall_key_expired,	"rxgk-chall-key-exp")	\
+	EM(rxgk_abort_chall_no_key,		"rxgk-chall-nokey")	\
+	EM(rxgk_abort_chall_short,		"rxgk-chall-short")	\
+	EM(rxgk_abort_resp_auth_dec,		"rxgk-resp-auth-dec")	\
+	EM(rxgk_abort_resp_bad_callid,		"rxgk-resp-bad-callid")	\
+	EM(rxgk_abort_resp_bad_nonce,		"rxgk-resp-bad-nonce")	\
+	EM(rxgk_abort_resp_bad_param,		"rxgk-resp-bad-param")	\
+	EM(rxgk_abort_resp_call_ctr,		"rxgk-resp-call-ctr")	\
+	EM(rxgk_abort_resp_call_state,		"rxgk-resp-call-state")	\
+	EM(rxgk_abort_resp_internal_error,	"rxgk-resp-int-error")	\
+	EM(rxgk_abort_resp_nopkg,		"rxgk-resp-nopkg")	\
+	EM(rxgk_abort_resp_short_applen,	"rxgk-resp-short-applen") \
+	EM(rxgk_abort_resp_short_auth,		"rxgk-resp-short-auth") \
+	EM(rxgk_abort_resp_short_call_list,	"rxgk-resp-short-callls") \
+	EM(rxgk_abort_resp_short_packet,	"rxgk-resp-short-packet") \
+	EM(rxgk_abort_resp_short_yfs_klen,	"rxgk-resp-short-yfs-klen") \
+	EM(rxgk_abort_resp_short_yfs_key,	"rxgk-resp-short-yfs-key") \
+	EM(rxgk_abort_resp_short_yfs_tkt,	"rxgk-resp-short-yfs-tkt") \
+	EM(rxgk_abort_resp_tok_dec,		"rxgk-resp-tok-dec")	\
+	EM(rxgk_abort_resp_tok_internal_error,	"rxgk-resp-tok-int-err") \
+	EM(rxgk_abort_resp_tok_keyerr,		"rxgk-resp-tok-keyerr")	\
+	EM(rxgk_abort_resp_tok_nokey,		"rxgk-resp-tok-nokey")	\
+	EM(rxgk_abort_resp_tok_nopkg,		"rxgk-resp-tok-nopkg")	\
+	EM(rxgk_abort_resp_tok_short,		"rxgk-resp-tok-short")	\
+	EM(rxgk_abort_resp_xdr_align,		"rxgk-resp-xdr-align")	\
 	/* rxrpc errors */						\
 	EM(rxrpc_abort_call_improper_term,	"call-improper-term")	\
 	EM(rxrpc_abort_call_reset,		"call-reset")		\
@@ -77,6 +110,7 @@
 	EM(rxrpc_abort_call_timeout,		"call-timeout")		\
 	EM(rxrpc_abort_no_service_key,		"no-serv-key")		\
 	EM(rxrpc_abort_nomem,			"nomem")		\
+	EM(rxrpc_abort_response_sendmsg,	"resp-sendmsg")		\
 	EM(rxrpc_abort_service_not_offered,	"serv-not-offered")	\
 	EM(rxrpc_abort_shut_down,		"shut-down")		\
 	EM(rxrpc_abort_unsupported_security,	"unsup-sec")		\
@@ -133,24 +167,33 @@
 	EM(rxrpc_skb_get_conn_secured,		"GET conn-secd") \
 	EM(rxrpc_skb_get_conn_work,		"GET conn-work") \
 	EM(rxrpc_skb_get_local_work,		"GET locl-work") \
+	EM(rxrpc_skb_get_post_oob,		"GET post-oob ") \
 	EM(rxrpc_skb_get_reject_work,		"GET rej-work ") \
 	EM(rxrpc_skb_get_to_recvmsg,		"GET to-recv  ") \
 	EM(rxrpc_skb_get_to_recvmsg_oos,	"GET to-recv-o") \
 	EM(rxrpc_skb_new_encap_rcv,		"NEW encap-rcv") \
 	EM(rxrpc_skb_new_error_report,		"NEW error-rpt") \
 	EM(rxrpc_skb_new_jumbo_subpacket,	"NEW jumbo-sub") \
+	EM(rxrpc_skb_new_response_rxgk,		"NEW resp-rxgk") \
+	EM(rxrpc_skb_new_response_rxkad,	"NEW resp-rxkd") \
 	EM(rxrpc_skb_new_unshared,		"NEW unshared ") \
 	EM(rxrpc_skb_put_call_rx,		"PUT call-rx  ") \
+	EM(rxrpc_skb_put_challenge,		"PUT challenge") \
 	EM(rxrpc_skb_put_conn_secured,		"PUT conn-secd") \
 	EM(rxrpc_skb_put_conn_work,		"PUT conn-work") \
 	EM(rxrpc_skb_put_error_report,		"PUT error-rep") \
 	EM(rxrpc_skb_put_input,			"PUT input    ") \
 	EM(rxrpc_skb_put_jumbo_subpacket,	"PUT jumbo-sub") \
+	EM(rxrpc_skb_put_oob,			"PUT oob      ") \
 	EM(rxrpc_skb_put_purge,			"PUT purge    ") \
+	EM(rxrpc_skb_put_purge_oob,		"PUT purge-oob") \
+	EM(rxrpc_skb_put_response,		"PUT response ") \
 	EM(rxrpc_skb_put_rotate,		"PUT rotate   ") \
 	EM(rxrpc_skb_put_unknown,		"PUT unknown  ") \
 	EM(rxrpc_skb_see_conn_work,		"SEE conn-work") \
+	EM(rxrpc_skb_see_oob_challenge,		"SEE oob-chall") \
 	EM(rxrpc_skb_see_recvmsg,		"SEE recvmsg  ") \
+	EM(rxrpc_skb_see_recvmsg_oob,		"SEE recvm-oob") \
 	EM(rxrpc_skb_see_reject,		"SEE reject   ") \
 	EM(rxrpc_skb_see_rotate,		"SEE rotate   ") \
 	E_(rxrpc_skb_see_version,		"SEE version  ")
@@ -216,9 +259,11 @@
 	EM(rxrpc_conn_free,			"FREE        ") \
 	EM(rxrpc_conn_get_activate_call,	"GET act-call") \
 	EM(rxrpc_conn_get_call_input,		"GET inp-call") \
+	EM(rxrpc_conn_get_challenge_input,	"GET inp-chal") \
 	EM(rxrpc_conn_get_conn_input,		"GET inp-conn") \
 	EM(rxrpc_conn_get_idle,			"GET idle    ") \
 	EM(rxrpc_conn_get_poke_abort,		"GET pk-abort") \
+	EM(rxrpc_conn_get_poke_response,	"GET response") \
 	EM(rxrpc_conn_get_poke_secured,		"GET secured ") \
 	EM(rxrpc_conn_get_poke_timer,		"GET poke    ") \
 	EM(rxrpc_conn_get_service_conn,		"GET svc-conn") \
@@ -226,10 +271,12 @@
 	EM(rxrpc_conn_new_service,		"NEW service ") \
 	EM(rxrpc_conn_put_call,			"PUT call    ") \
 	EM(rxrpc_conn_put_call_input,		"PUT inp-call") \
+	EM(rxrpc_conn_put_challenge_input,	"PUT inp-chal") \
 	EM(rxrpc_conn_put_conn_input,		"PUT inp-conn") \
 	EM(rxrpc_conn_put_discard_idle,		"PUT disc-idl") \
 	EM(rxrpc_conn_put_local_dead,		"PUT loc-dead") \
 	EM(rxrpc_conn_put_noreuse,		"PUT noreuse ") \
+	EM(rxrpc_conn_put_oob,			"PUT oob     ") \
 	EM(rxrpc_conn_put_poke,			"PUT poke    ") \
 	EM(rxrpc_conn_put_service_reaped,	"PUT svc-reap") \
 	EM(rxrpc_conn_put_unbundle,		"PUT unbundle") \
@@ -331,6 +378,7 @@
 	EM(rxrpc_recvmsg_full,			"FULL") \
 	EM(rxrpc_recvmsg_hole,			"HOLE") \
 	EM(rxrpc_recvmsg_next,			"NEXT") \
+	EM(rxrpc_recvmsg_oobq,			"OOBQ") \
 	EM(rxrpc_recvmsg_requeue,		"REQU") \
 	EM(rxrpc_recvmsg_return,		"RETN") \
 	EM(rxrpc_recvmsg_terminal,		"TERM") \
@@ -455,8 +503,9 @@
 	EM(rxrpc_tx_point_call_final_resend,	"CallFinalResend") \
 	EM(rxrpc_tx_point_conn_abort,		"ConnAbort") \
 	EM(rxrpc_tx_point_reject,		"Reject") \
+	EM(rxrpc_tx_point_rxgk_challenge,	"RxGKChall") \
 	EM(rxrpc_tx_point_rxkad_challenge,	"RxkadChall") \
-	EM(rxrpc_tx_point_rxkad_response,	"RxkadResp") \
+	EM(rxrpc_tx_point_response,		"Response") \
 	EM(rxrpc_tx_point_version_keepalive,	"VerKeepalive") \
 	E_(rxrpc_tx_point_version_reply,	"VerReply")
 
@@ -473,6 +522,7 @@
 
 #define rxrpc_txbuf_traces \
 	EM(rxrpc_txbuf_alloc_data,		"ALLOC DATA ")	\
+	EM(rxrpc_txbuf_alloc_response,		"ALLOC RESP ")	\
 	EM(rxrpc_txbuf_free,			"FREE       ")	\
 	EM(rxrpc_txbuf_get_buffer,		"GET BUFFER ")	\
 	EM(rxrpc_txbuf_get_trans,		"GET TRANS  ")	\
@@ -480,6 +530,7 @@
 	EM(rxrpc_txbuf_put_cleaned,		"PUT CLEANED")	\
 	EM(rxrpc_txbuf_put_nomem,		"PUT NOMEM  ")	\
 	EM(rxrpc_txbuf_put_rotated,		"PUT ROTATED")	\
+	EM(rxrpc_txbuf_put_response_tx,		"PUT RESP TX")	\
 	EM(rxrpc_txbuf_put_send_aborted,	"PUT SEND-X ")	\
 	EM(rxrpc_txbuf_put_trans,		"PUT TRANS  ")	\
 	EM(rxrpc_txbuf_see_lost,		"SEE LOST   ")	\
@@ -1150,6 +1201,39 @@ TRACE_EVENT(rxrpc_rx_conn_abort,
 		      __entry->abort_code)
 	    );
 
+TRACE_EVENT(rxrpc_tx_challenge,
+	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t serial,
+		     u32 version, u32 nonce),
+
+	    TP_ARGS(conn, serial, version, nonce),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	conn)
+		    __field(rxrpc_serial_t,	serial)
+		    __field(u32,		version)
+		    __field(u32,		nonce)
+		    __field(u16,		service_id)
+		    __field(u8,			security_ix)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn = conn->debug_id;
+		    __entry->serial = serial;
+		    __entry->version = version;
+		    __entry->nonce = nonce;
+		    __entry->service_id = conn->service_id;
+		    __entry->security_ix = conn->security_ix;
+			   ),
+
+	    TP_printk("C=%08x CHALLENGE r=%08x sv=%u+%u v=%x n=%x",
+		      __entry->conn,
+		      __entry->serial,
+		      __entry->service_id,
+		      __entry->security_ix,
+		      __entry->version,
+		      __entry->nonce)
+	    );
+
 TRACE_EVENT(rxrpc_rx_challenge,
 	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t serial,
 		     u32 version, u32 nonce, u32 min_level),
@@ -1162,6 +1246,8 @@ TRACE_EVENT(rxrpc_rx_challenge,
 		    __field(u32,		version)
 		    __field(u32,		nonce)
 		    __field(u32,		min_level)
+		    __field(u16,		service_id)
+		    __field(u8,			security_ix)
 			     ),
 
 	    TP_fast_assign(
@@ -1170,14 +1256,58 @@ TRACE_EVENT(rxrpc_rx_challenge,
 		    __entry->version = version;
 		    __entry->nonce = nonce;
 		    __entry->min_level = min_level;
+		    __entry->service_id = conn->service_id;
+		    __entry->security_ix = conn->security_ix;
 			   ),
 
-	    TP_printk("C=%08x CHALLENGE %08x v=%x n=%x ml=%x",
+	    TP_printk("C=%08x CHALLENGE r=%08x sv=%u+%u v=%x n=%x ml=%x",
 		      __entry->conn,
 		      __entry->serial,
+		      __entry->service_id,
+		      __entry->security_ix,
 		      __entry->version,
 		      __entry->nonce,
 		      __entry->min_level)
+	    );
+
+TRACE_EVENT(rxrpc_tx_response,
+	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t serial,
+		     struct rxrpc_skb_priv *rsp),
+
+	    TP_ARGS(conn, serial, rsp),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	conn)
+		    __field(rxrpc_serial_t,	serial)
+		    __field(rxrpc_serial_t,	challenge)
+		    __field(u32,		version)
+		    __field(u32,		kvno)
+		    __field(u16,		ticket_len)
+		    __field(u16,		appdata_len)
+		    __field(u16,		service_id)
+		    __field(u8,			security_ix)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn	= conn->debug_id;
+		    __entry->serial	= serial;
+		    __entry->challenge	= rsp->resp.challenge_serial;
+		    __entry->version	= rsp->resp.version;
+		    __entry->kvno	= rsp->resp.kvno;
+		    __entry->ticket_len = rsp->resp.ticket_len;
+		    __entry->service_id = conn->service_id;
+		    __entry->security_ix = conn->security_ix;
+			   ),
+
+	    TP_printk("C=%08x RESPONSE r=%08x cr=%08x sv=%u+%u v=%x kv=%x tl=%u",
+		      __entry->conn,
+		      __entry->serial,
+		      __entry->challenge,
+		      __entry->service_id,
+		      __entry->security_ix,
+		      __entry->version,
+		      __entry->kvno,
+		      __entry->ticket_len)
 	    );
 
 TRACE_EVENT(rxrpc_rx_response,
@@ -1192,6 +1322,7 @@ TRACE_EVENT(rxrpc_rx_response,
 		    __field(u32,		version)
 		    __field(u32,		kvno)
 		    __field(u32,		ticket_len)
+		    __field(u8,			security_ix)
 			     ),
 
 	    TP_fast_assign(
@@ -1200,11 +1331,13 @@ TRACE_EVENT(rxrpc_rx_response,
 		    __entry->version = version;
 		    __entry->kvno = kvno;
 		    __entry->ticket_len = ticket_len;
+		    __entry->security_ix = conn->security_ix;
 			   ),
 
-	    TP_printk("C=%08x RESPONSE %08x v=%x kvno=%x tl=%x",
+	    TP_printk("C=%08x RESPONSE r=%08x sx=%u v=%x kvno=%x tl=%x",
 		      __entry->conn,
 		      __entry->serial,
+		      __entry->security_ix,
 		      __entry->version,
 		      __entry->kvno,
 		      __entry->ticket_len)
@@ -2666,6 +2799,30 @@ TRACE_EVENT(rxrpc_rack_timer,
 		      __entry->exp ? "Exp" : "Set",
 		      __print_symbolic(__entry->mode, rxrpc_rack_timer_modes),
 		      ktime_to_us(__entry->delay))
+	    );
+
+TRACE_EVENT(rxrpc_rxgk_rekey,
+	    TP_PROTO(struct rxrpc_connection *conn,
+		     unsigned int current_key, unsigned int requested_key),
+
+	    TP_ARGS(conn, current_key, requested_key),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	conn)
+		    __field(unsigned int,	current_key)
+		    __field(unsigned int,	requested_key)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn		= conn->debug_id;
+		    __entry->current_key	= current_key;
+		    __entry->requested_key	= requested_key;
+			   ),
+
+	    TP_printk("C=%08x cur=%x req=%x",
+		      __entry->conn,
+		      __entry->current_key,
+		      __entry->requested_key)
 	    );
 
 #undef EM

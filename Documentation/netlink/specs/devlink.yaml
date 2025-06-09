@@ -202,6 +202,28 @@ definitions:
         name: exception
       -
         name: control
+  -
+    type: enum
+    name: var-attr-type
+    entries:
+      -
+        name: u8
+        value: 1
+      -
+        name: u16
+      -
+        name: u32
+      -
+        name: u64
+      -
+        name: string
+      -
+        name: flag
+      -
+        name: nul_string
+        value: 10
+      -
+        name: binary
 
 attribute-sets:
   -
@@ -498,6 +520,7 @@ attribute-sets:
       -
         name: param-type
         type: u8
+        enum: var-attr-type
 
       # TODO: fill in the attributes in between
 
@@ -592,6 +615,7 @@ attribute-sets:
       -
         name: fmsg-obj-value-type
         type: u8
+        enum: var-attr-type
 
       # TODO: fill in the attributes in between
 

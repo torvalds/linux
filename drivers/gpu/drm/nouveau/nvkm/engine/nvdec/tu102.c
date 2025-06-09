@@ -23,22 +23,12 @@
 
 #include <subdev/gsp.h>
 
-#include <nvif/class.h>
-
-static const struct nvkm_engine_func
-tu102_nvdec = {
-	.sclass = {
-		{ -1, -1, NVC4B0_VIDEO_DECODER },
-		{}
-	}
-};
-
 int
 tu102_nvdec_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		struct nvkm_nvdec **pnvdec)
 {
 	if (nvkm_gsp_rm(device->gsp))
-		return r535_nvdec_new(&tu102_nvdec, device, type, inst, pnvdec);
+		return -ENODEV;
 
 	return nvkm_nvdec_new_(gm107_nvdec_fwif, device, type, inst, 0, pnvdec);
 }

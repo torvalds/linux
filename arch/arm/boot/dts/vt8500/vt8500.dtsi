@@ -55,6 +55,11 @@
 			#gpio-cells = <2>;
 		};
 
+		chipid@d8120000 {
+			compatible = "via,vt8500-scc-id";
+			reg = <0xd8120000 0x4>;
+		};
+
 		pmc@d8130000 {
 			compatible = "via,vt8500-pmc";
 			reg = <0xd8130000 0x1000>;
@@ -106,10 +111,10 @@
 		timer@d8130100 {
 			compatible = "via,vt8500-timer";
 			reg = <0xd8130100 0x28>;
-			interrupts = <36>;
+			interrupts = <36>, <37>, <38>, <39>;
 		};
 
-		ehci@d8007900 {
+		usb@d8007900 {
 			compatible = "via,vt8500-ehci";
 			reg = <0xd8007900 0x200>;
 			interrupts = <43>;

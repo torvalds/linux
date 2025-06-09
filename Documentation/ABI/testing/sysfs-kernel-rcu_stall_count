@@ -1,0 +1,6 @@
+What:		/sys/kernel/rcu_stall_count
+Date:		May 2025
+KernelVersion:	6.16
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:
+		Shows how many times the system has detected an RCU stall since last boot.

@@ -16,7 +16,7 @@ struct nvif_object {
 	u32 handle;
 	s32 oclass;
 	void *priv; /*XXX: hack */
-	struct {
+	struct nvif_map {
 		void __iomem *ptr;
 		u64 size;
 	} map;

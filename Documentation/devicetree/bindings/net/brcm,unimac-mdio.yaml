@@ -22,9 +22,9 @@ properties:
       - brcm,genet-mdio-v3
       - brcm,genet-mdio-v4
       - brcm,genet-mdio-v5
-      - brcm,asp-v2.0-mdio
       - brcm,asp-v2.1-mdio
       - brcm,asp-v2.2-mdio
+      - brcm,asp-v3.0-mdio
       - brcm,unimac-mdio
       - brcm,bcm6846-mdio
 

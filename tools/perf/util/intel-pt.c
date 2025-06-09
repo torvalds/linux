@@ -127,6 +127,7 @@ struct intel_pt {
 
 	bool single_pebs;
 	bool sample_pebs;
+	int pebs_data_src_fmt;
 	struct evsel *pebs_evsel;
 
 	u64 evt_sample_type;
@@ -175,6 +176,7 @@ enum switch_state {
 struct intel_pt_pebs_event {
 	struct evsel *evsel;
 	u64 id;
+	int data_src_fmt;
 };
 
 struct intel_pt_queue {
@@ -2272,7 +2274,146 @@ static void intel_pt_add_lbrs(struct branch_stack *br_stack,
 	}
 }
 
-static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evsel *evsel, u64 id)
+#define P(a, b) PERF_MEM_S(a, b)
+#define OP_LH (P(OP, LOAD) | P(LVL, HIT))
+#define LEVEL(x) P(LVLNUM, x)
+#define REM P(REMOTE, REMOTE)
+#define SNOOP_NONE_MISS (P(SNOOP, NONE) | P(SNOOP, MISS))
+
+#define PERF_PEBS_DATA_SOURCE_GRT_MAX	0x10
+#define PERF_PEBS_DATA_SOURCE_GRT_MASK	(PERF_PEBS_DATA_SOURCE_GRT_MAX - 1)
+
+/* Based on kernel __intel_pmu_pebs_data_source_grt() and pebs_data_source */
+static const u64 pebs_data_source_grt[PERF_PEBS_DATA_SOURCE_GRT_MAX] = {
+	P(OP, LOAD) | P(LVL, MISS) | LEVEL(L3) | P(SNOOP, NA),         /* L3 miss|SNP N/A */
+	OP_LH | P(LVL, L1)  | LEVEL(L1)  | P(SNOOP, NONE),             /* L1 hit|SNP None */
+	OP_LH | P(LVL, LFB) | LEVEL(LFB) | P(SNOOP, NONE),             /* LFB/MAB hit|SNP None */
+	OP_LH | P(LVL, L2)  | LEVEL(L2)  | P(SNOOP, NONE),             /* L2 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, NONE),             /* L3 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HIT),              /* L3 hit|SNP Hit */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HITM),             /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HITM),             /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOPX, FWD),             /* L3 hit|SNP Fwd */
+	OP_LH | P(LVL, REM_CCE1) | REM | LEVEL(L3) | P(SNOOP, HITM),   /* Remote L3 hit|SNP HitM */
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | P(SNOOP, HIT),         /* RAM hit|SNP Hit */
+	OP_LH | P(LVL, REM_RAM1) | REM | LEVEL(L3) | P(SNOOP, HIT),    /* Remote L3 hit|SNP Hit */
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | SNOOP_NONE_MISS,       /* RAM hit|SNP None or Miss */
+	OP_LH | P(LVL, REM_RAM1) | LEVEL(RAM) | REM | SNOOP_NONE_MISS, /* Remote RAM hit|SNP None or Miss */
+	OP_LH | P(LVL, IO)  | LEVEL(NA) | P(SNOOP, NONE),              /* I/O hit|SNP None */
+	OP_LH | P(LVL, UNC) | LEVEL(NA) | P(SNOOP, NONE),              /* Uncached hit|SNP None */
+};
+
+/* Based on kernel __intel_pmu_pebs_data_source_cmt() and pebs_data_source */
+static const u64 pebs_data_source_cmt[PERF_PEBS_DATA_SOURCE_GRT_MAX] = {
+	P(OP, LOAD) | P(LVL, MISS) | LEVEL(L3) | P(SNOOP, NA),       /* L3 miss|SNP N/A */
+	OP_LH | P(LVL, L1)  | LEVEL(L1)  | P(SNOOP, NONE),           /* L1 hit|SNP None */
+	OP_LH | P(LVL, LFB) | LEVEL(LFB) | P(SNOOP, NONE),           /* LFB/MAB hit|SNP None */
+	OP_LH | P(LVL, L2)  | LEVEL(L2)  | P(SNOOP, NONE),           /* L2 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, NONE),           /* L3 hit|SNP None */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, MISS),           /* L3 hit|SNP Hit */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HIT),            /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOPX, FWD),           /* L3 hit|SNP HitM */
+	OP_LH | P(LVL, L3)  | LEVEL(L3)  | P(SNOOP, HITM),           /* L3 hit|SNP Fwd */
+	OP_LH | P(LVL, REM_CCE1) | REM | LEVEL(L3) | P(SNOOP, HITM), /* Remote L3 hit|SNP HitM */
+	OP_LH | P(LVL, LOC_RAM)  | LEVEL(RAM) | P(SNOOP, NONE),      /* RAM hit|SNP Hit */
+	OP_LH | LEVEL(RAM) | REM | P(SNOOP, NONE),                   /* Remote L3 hit|SNP Hit */
+	OP_LH | LEVEL(RAM) | REM | P(SNOOPX, FWD),                   /* RAM hit|SNP None or Miss */
+	OP_LH | LEVEL(RAM) | REM | P(SNOOP, HITM),                   /* Remote RAM hit|SNP None or Miss */
+	OP_LH | P(LVL, IO)  | LEVEL(NA) | P(SNOOP, NONE),            /* I/O hit|SNP None */
+	OP_LH | P(LVL, UNC) | LEVEL(NA) | P(SNOOP, NONE),            /* Uncached hit|SNP None */
+};
+
+/* Based on kernel pebs_set_tlb_lock() */
+static inline void pebs_set_tlb_lock(u64 *val, bool tlb, bool lock)
+{
+	/*
+	 * TLB access
+	 * 0 = did not miss 2nd level TLB
+	 * 1 = missed 2nd level TLB
+	 */
+	if (tlb)
+		*val |= P(TLB, MISS) | P(TLB, L2);
+	else
+		*val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
+
+	/* locked prefix */
+	if (lock)
+		*val |= P(LOCK, LOCKED);
+}
+
+/* Based on kernel __grt_latency_data() */
+static u64 intel_pt_grt_latency_data(u8 dse, bool tlb, bool lock, bool blk,
+				     const u64 *pebs_data_source)
+{
+	u64 val;
+
+	dse &= PERF_PEBS_DATA_SOURCE_GRT_MASK;
+	val = pebs_data_source[dse];
+
+	pebs_set_tlb_lock(&val, tlb, lock);
+
+	if (blk)
+		val |= P(BLK, DATA);
+	else
+		val |= P(BLK, NA);
+
+	return val;
+}
+
+/* Default value for data source */
+#define PERF_MEM_NA (PERF_MEM_S(OP, NA)    |\
+		     PERF_MEM_S(LVL, NA)   |\
+		     PERF_MEM_S(SNOOP, NA) |\
+		     PERF_MEM_S(LOCK, NA)  |\
+		     PERF_MEM_S(TLB, NA)   |\
+		     PERF_MEM_S(LVLNUM, NA))
+
+enum DATA_SRC_FORMAT {
+	DATA_SRC_FORMAT_ERR  = -1,
+	DATA_SRC_FORMAT_NA   =  0,
+	DATA_SRC_FORMAT_GRT  =  1,
+	DATA_SRC_FORMAT_CMT  =  2,
+};
+
+/* Based on kernel grt_latency_data() and cmt_latency_data */
+static u64 intel_pt_get_data_src(u64 mem_aux_info, int data_src_fmt)
+{
+	switch (data_src_fmt) {
+	case DATA_SRC_FORMAT_GRT: {
+		union {
+			u64 val;
+			struct {
+				unsigned int dse:4;
+				unsigned int locked:1;
+				unsigned int stlb_miss:1;
+				unsigned int fwd_blk:1;
+				unsigned int reserved:25;
+			};
+		} x = {.val = mem_aux_info};
+		return intel_pt_grt_latency_data(x.dse, x.stlb_miss, x.locked, x.fwd_blk,
+						 pebs_data_source_grt);
+	}
+	case DATA_SRC_FORMAT_CMT: {
+		union {
+			u64 val;
+			struct {
+				unsigned int dse:5;
+				unsigned int locked:1;
+				unsigned int stlb_miss:1;
+				unsigned int fwd_blk:1;
+				unsigned int reserved:24;
+			};
+		} x = {.val = mem_aux_info};
+		return intel_pt_grt_latency_data(x.dse, x.stlb_miss, x.locked, x.fwd_blk,
+						 pebs_data_source_cmt);
+	}
+	default:
+		return PERF_MEM_NA;
+	}
+}
+
+static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evsel *evsel,
+					 u64 id, int data_src_fmt)
 {
 	const struct intel_pt_blk_items *items = &ptq->state->items;
 	struct perf_sample sample;
@@ -2393,6 +2534,18 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 		}
 	}
 
+	if (sample_type & PERF_SAMPLE_DATA_SRC) {
+		if (items->has_mem_aux_info && data_src_fmt) {
+			if (data_src_fmt < 0) {
+				pr_err("Intel PT missing data_src info\n");
+				return -1;
+			}
+			sample.data_src = intel_pt_get_data_src(items->mem_aux_info, data_src_fmt);
+		} else {
+			sample.data_src = PERF_MEM_NA;
+		}
+	}
+
 	if (sample_type & PERF_SAMPLE_TRANSACTION && items->has_tsx_aux_info) {
 		u64 ax = items->has_rax ? items->rax : 0;
 		/* Refer kernel's intel_hsw_transaction() */
@@ -2413,9 +2566,10 @@ static int intel_pt_synth_single_pebs_sample(struct intel_pt_queue *ptq)
 {
 	struct intel_pt *pt = ptq->pt;
 	struct evsel *evsel = pt->pebs_evsel;
+	int data_src_fmt = pt->pebs_data_src_fmt;
 	u64 id = evsel->core.id[0];
 
-	return intel_pt_do_synth_pebs_sample(ptq, evsel, id);
+	return intel_pt_do_synth_pebs_sample(ptq, evsel, id, data_src_fmt);
 }
 
 static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
@@ -2440,7 +2594,7 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 				       hw_id);
 			return intel_pt_synth_single_pebs_sample(ptq);
 		}
-		err = intel_pt_do_synth_pebs_sample(ptq, pe->evsel, pe->id);
+		err = intel_pt_do_synth_pebs_sample(ptq, pe->evsel, pe->id, pe->data_src_fmt);
 		if (err)
 			return err;
 	}
@@ -3407,6 +3561,49 @@ static int intel_pt_process_itrace_start(struct intel_pt *pt,
 					event->itrace_start.tid);
 }
 
+/*
+ * Events with data_src are identified by L1_Hit_Indication
+ * refer https://github.com/intel/perfmon
+ */
+static int intel_pt_data_src_fmt(struct intel_pt *pt, struct evsel *evsel)
+{
+	struct perf_env *env = pt->machine->env;
+	int fmt = DATA_SRC_FORMAT_NA;
+
+	if (!env->cpuid)
+		return DATA_SRC_FORMAT_ERR;
+
+	/*
+	 * PEBS-via-PT is only supported on E-core non-hybrid. Of those only
+	 * Gracemont and Crestmont have data_src. Check for:
+	 *	Alderlake N   (Gracemont)
+	 *	Sierra Forest (Crestmont)
+	 *	Grand Ridge   (Crestmont)
+	 */
+
+	if (!strncmp(env->cpuid, "GenuineIntel,6,190,", 19))
+		fmt = DATA_SRC_FORMAT_GRT;
+
+	if (!strncmp(env->cpuid, "GenuineIntel,6,175,", 19) ||
+	    !strncmp(env->cpuid, "GenuineIntel,6,182,", 19))
+		fmt = DATA_SRC_FORMAT_CMT;
+
+	if (fmt == DATA_SRC_FORMAT_NA)
+		return fmt;
+
+	/*
+	 * Only data_src events are:
+	 *	mem-loads	event=0xd0,umask=0x5
+	 *	mem-stores	event=0xd0,umask=0x6
+	 */
+	if (evsel->core.attr.type == PERF_TYPE_RAW &&
+	    ((evsel->core.attr.config & 0xffff) == 0x5d0 ||
+	     (evsel->core.attr.config & 0xffff) == 0x6d0))
+		return fmt;
+
+	return DATA_SRC_FORMAT_NA;
+}
+
 static int intel_pt_process_aux_output_hw_id(struct intel_pt *pt,
 					     union perf_event *event,
 					     struct perf_sample *sample)
@@ -3427,6 +3624,7 @@ static int intel_pt_process_aux_output_hw_id(struct intel_pt *pt,
 
 	ptq->pebs[hw_id].evsel = evsel;
 	ptq->pebs[hw_id].id = sample->id;
+	ptq->pebs[hw_id].data_src_fmt = intel_pt_data_src_fmt(pt, evsel);
 
 	return 0;
 }
@@ -3976,6 +4174,7 @@ static void intel_pt_setup_pebs_events(struct intel_pt *pt)
 			}
 			pt->single_pebs = true;
 			pt->sample_pebs = true;
+			pt->pebs_data_src_fmt = intel_pt_data_src_fmt(pt, evsel);
 			pt->pebs_evsel = evsel;
 		}
 	}

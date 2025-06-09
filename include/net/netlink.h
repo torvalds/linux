@@ -321,7 +321,13 @@ enum nla_policy_validation {
  *    All other            Unused - but note that it's a union
  *
  * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
+ *    NLA_U8, NLA_U16,
+ *    NLA_U32, NLA_U64,
+ *    NLA_S8, NLA_S16,
+ *    NLA_S32, NLA_S64,
+ *    NLA_MSECS,
  *    NLA_BINARY           Validation function called for the attribute.
+ *
  *    All other            Unused - but note that it's a union
  *
  * Example:
@@ -609,6 +615,22 @@ static inline void *nlmsg_data(const struct nlmsghdr *nlh)
 static inline int nlmsg_len(const struct nlmsghdr *nlh)
 {
 	return nlh->nlmsg_len - NLMSG_HDRLEN;
+}
+
+/**
+ * nlmsg_payload - message payload if the data fits in the len
+ * @nlh: netlink message header
+ * @len: struct length
+ *
+ * Returns: The netlink message payload/data if the length is sufficient,
+ * otherwise NULL.
+ */
+static inline void *nlmsg_payload(const struct nlmsghdr *nlh, size_t len)
+{
+	if (nlh->nlmsg_len < nlmsg_msg_size(len))
+		return NULL;
+
+	return nlmsg_data(nlh);
 }
 
 /**

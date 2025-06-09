@@ -2225,7 +2225,7 @@ static int niu_link_status(struct niu *np, int *link_up_p)
 
 static void niu_timer(struct timer_list *t)
 {
-	struct niu *np = from_timer(np, t, timer);
+	struct niu *np = timer_container_of(np, t, timer);
 	unsigned long off;
 	int err, link_up;
 
@@ -9063,6 +9063,8 @@ static void niu_try_msix(struct niu *np, u8 *ldg_num_map)
 		msi_vec[i].vector = 0;
 		msi_vec[i].entry = i;
 	}
+
+	pdev->dev_flags |= PCI_DEV_FLAGS_MSIX_TOUCH_ENTRY_DATA_FIRST;
 
 	num_irqs = pci_enable_msix_range(pdev, msi_vec, 1, num_irqs);
 	if (num_irqs < 0) {

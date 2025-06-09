@@ -459,7 +459,7 @@ dsp_tone_hw_message(struct dsp *dsp, u8 *sample, int len)
 void
 dsp_tone_timeout(struct timer_list *t)
 {
-	struct dsp *dsp = from_timer(dsp, t, tone.tl);
+	struct dsp *dsp = timer_container_of(dsp, t, tone.tl);
 	struct dsp_tone *tone = &dsp->tone;
 	struct pattern *pat = (struct pattern *)tone->pattern;
 	int index = tone->index;

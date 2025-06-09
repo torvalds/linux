@@ -69,7 +69,8 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage *subpage;
 
 	/* For metadata we don't support large folio yet. */
-	ASSERT(!folio_test_large(folio));
+	if (type == BTRFS_SUBPAGE_METADATA)
+		ASSERT(!folio_test_large(folio));
 
 	/*
 	 * We have cases like a dummy extent buffer page, which is not mapped
@@ -181,9 +182,6 @@ void btrfs_folio_dec_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *
 static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 				 struct folio *folio, u64 start, u32 len)
 {
-	/* For subpage support, the folio must be single page. */
-	ASSERT(folio_order(folio) == 0);
-
 	/* Basic checks */
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
@@ -204,7 +202,7 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 			   btrfs_blocks_per_folio(fs_info, folio);	\
 									\
 	btrfs_subpage_assert(fs_info, folio, start, len);		\
-	__start_bit = offset_in_page(start) >> fs_info->sectorsize_bits; \
+	__start_bit = offset_in_folio(folio, start) >> fs_info->sectorsize_bits; \
 	__start_bit += blocks_per_folio * btrfs_bitmap_nr_##name;	\
 	__start_bit;							\
 })
@@ -666,7 +664,7 @@ IMPLEMENT_BTRFS_PAGE_OPS(checked, folio_set_checked, folio_clear_checked,
 				btrfs_blocks_per_folio(fs_info, folio);	\
 	const struct btrfs_subpage *subpage = folio_get_private(folio);	\
 									\
-	ASSERT(blocks_per_folio < BITS_PER_LONG);			\
+	ASSERT(blocks_per_folio <= BITS_PER_LONG);			\
 	*dst = bitmap_read(subpage->bitmaps,				\
 			   blocks_per_folio * btrfs_bitmap_nr_##name,	\
 			   blocks_per_folio);				\

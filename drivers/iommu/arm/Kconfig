@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# ARM IOMMU support
+config ARM_SMMU
+	tristate "ARM Ltd. System MMU (SMMU) Support"
+	depends on ARM64 || ARM || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select ARM_DMA_USE_IOMMU if ARM
+	help
+	  Support for implementations of the ARM System MMU architecture
+	  versions 1 and 2.
+
+	  Say Y here if your SoC includes an IOMMU device implementing
+	  the ARM SMMU architecture.
+
+if ARM_SMMU
+config ARM_SMMU_LEGACY_DT_BINDINGS
+	bool "Support the legacy \"mmu-masters\" devicetree bindings"
+	depends on ARM_SMMU=y && OF
+	help
+	  Support for the badly designed and deprecated "mmu-masters"
+	  devicetree bindings. This allows some DMA masters to attach
+	  to the SMMU but does not provide any support via the DMA API.
+	  If you're lucky, you might be able to get VFIO up and running.
+
+	  If you say Y here then you'll make me very sad. Instead, say N
+	  and move your firmware to the utopian future that was 2016.
+
+config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
+	bool "Disable unmatched stream bypass by default" if EXPERT
+	default y
+	help
+	  If your firmware is broken and fails to describe StreamIDs which
+	  Linux should know about in order to manage the SMMU correctly and
+	  securely, and you don't want to boot with the 'arm-smmu.disable_bypass=0'
+	  command line parameter, then as a last resort you can turn it off
+	  by default here. But don't. This option may be removed at any time.
+
+	  Note that 'arm-smmu.disable_bypass=1' will still take precedence.
+
+config ARM_SMMU_MMU_500_CPRE_ERRATA
+	bool "Enable errata workaround for CPRE in SMMU reset path"
+	default y
+	help
+	  Say Y here (by default) to apply workaround to disable
+	  MMU-500's next-page prefetcher for sake of 4 known errata.
+
+	  Say N here only when it is sure that any errata related to
+	  prefetch enablement are not applicable on the platform.
+	  Refer silicon-errata.rst for info on errata IDs.
+
+config ARM_SMMU_QCOM
+	def_tristate y
+	depends on ARCH_QCOM
+	select QCOM_SCM
+	help
+	  When running on a Qualcomm platform that has the custom variant
+	  of the ARM SMMU, this needs to be built into the SMMU driver.
+
+config ARM_SMMU_QCOM_DEBUG
+	bool "ARM SMMU QCOM implementation defined debug support"
+	depends on ARM_SMMU_QCOM=y
+	help
+	  Support for implementation specific debug features in ARM SMMU
+	  hardware found in QTI platforms. This include support for
+	  the Translation Buffer Units (TBU) that can be used to obtain
+	  additional information when debugging memory management issues
+	  like context faults.
+
+	  Say Y here to enable debug for issues such as context faults
+	  or TLB sync timeouts which requires implementation defined
+	  register dumps.
+endif
+
+config ARM_SMMU_V3
+	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
+	depends on ARM64
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select GENERIC_MSI_IRQ
+	select IOMMUFD_DRIVER if IOMMUFD
+	help
+	  Support for implementations of the ARM System MMU architecture
+	  version 3 providing translation support to a PCIe root complex.
+
+	  Say Y here if your system includes an IOMMU device implementing
+	  the ARM SMMUv3 architecture.
+
+if ARM_SMMU_V3
+config ARM_SMMU_V3_SVA
+	bool "Shared Virtual Addressing support for the ARM SMMUv3"
+	select IOMMU_SVA
+	select IOMMU_IOPF
+	select MMU_NOTIFIER
+	help
+	  Support for sharing process address spaces with devices using the
+	  SMMUv3.
+
+	  Say Y here if your system supports SVA extensions such as PCIe PASID
+	  and PRI.
+
+config ARM_SMMU_V3_IOMMUFD
+	bool "Enable IOMMUFD features for ARM SMMUv3 (EXPERIMENTAL)"
+	depends on IOMMUFD
+	help
+	  Support for IOMMUFD features intended to support virtual machines
+	  with accelerated virtual IOMMUs.
+
+	  Say Y here if you are doing development and testing on this feature.
+
+config ARM_SMMU_V3_KUNIT_TEST
+	tristate "KUnit tests for arm-smmu-v3 driver"  if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on ARM_SMMU_V3_SVA
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to unit-test arm-smmu-v3 driver functions.
+
+	  If unsure, say N.
+
+config TEGRA241_CMDQV
+	bool "NVIDIA Tegra241 CMDQ-V extension support for ARM SMMUv3"
+	depends on ACPI
+	help
+	  Support for NVIDIA CMDQ-Virtualization extension for ARM SMMUv3. The
+	  CMDQ-V extension is similar to v3.3 ECMDQ for multi command queues
+	  support, except with virtualization capabilities.
+
+	  Say Y here if your system is NVIDIA Tegra241 (Grace) or it has the same
+	  CMDQ-V extension.
+endif
+
+config QCOM_IOMMU
+	# Note: iommu drivers cannot (yet?) be built as modules
+	bool "Qualcomm IOMMU Support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE
+	select QCOM_SCM
+	select IOMMU_API
+	select IOMMU_IO_PGTABLE_LPAE
+	select ARM_DMA_USE_IOMMU
+	help
+	  Support for IOMMU on certain Qualcomm SoCs.

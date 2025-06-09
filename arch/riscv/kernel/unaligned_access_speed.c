@@ -236,6 +236,11 @@ arch_initcall_sync(lock_and_set_unaligned_access_static_branch);
 
 static int riscv_online_cpu(unsigned int cpu)
 {
+	int ret = cpu_online_unaligned_access_init(cpu);
+
+	if (ret)
+		return ret;
+
 	/* We are already set since the last check */
 	if (per_cpu(misaligned_access_speed, cpu) != RISCV_HWPROBE_MISALIGNED_SCALAR_UNKNOWN) {
 		goto exit;
@@ -248,7 +253,6 @@ static int riscv_online_cpu(unsigned int cpu)
 	{
 		static struct page *buf;
 
-		check_unaligned_access_emulated(NULL);
 		buf = alloc_pages(GFP_KERNEL, MISALIGNED_BUFFER_ORDER);
 		if (!buf) {
 			pr_warn("Allocation failure, not measuring misaligned performance\n");
@@ -439,29 +443,38 @@ static int __init check_unaligned_access_all_cpus(void)
 {
 	int cpu;
 
-	if (unaligned_scalar_speed_param == RISCV_HWPROBE_MISALIGNED_SCALAR_UNKNOWN &&
-	    !check_unaligned_access_emulated_all_cpus()) {
-		check_unaligned_access_speed_all_cpus();
-	} else {
-		pr_info("scalar unaligned access speed set to '%s' by command line\n",
-			speed_str[unaligned_scalar_speed_param]);
+	unaligned_access_init();
+
+	if (unaligned_scalar_speed_param != RISCV_HWPROBE_MISALIGNED_SCALAR_UNKNOWN) {
+		pr_info("scalar unaligned access speed set to '%s' (%lu) by command line\n",
+			speed_str[unaligned_scalar_speed_param], unaligned_scalar_speed_param);
 		for_each_online_cpu(cpu)
 			per_cpu(misaligned_access_speed, cpu) = unaligned_scalar_speed_param;
+	} else if (!check_unaligned_access_emulated_all_cpus()) {
+		check_unaligned_access_speed_all_cpus();
+	}
+
+	if (unaligned_vector_speed_param != RISCV_HWPROBE_MISALIGNED_VECTOR_UNKNOWN) {
+		if (!has_vector() &&
+		    unaligned_vector_speed_param != RISCV_HWPROBE_MISALIGNED_VECTOR_UNSUPPORTED) {
+			pr_warn("vector support is not available, ignoring unaligned_vector_speed=%s\n",
+				speed_str[unaligned_vector_speed_param]);
+		} else {
+			pr_info("vector unaligned access speed set to '%s' (%lu) by command line\n",
+				speed_str[unaligned_vector_speed_param], unaligned_vector_speed_param);
+		}
 	}
 
 	if (!has_vector())
 		unaligned_vector_speed_param = RISCV_HWPROBE_MISALIGNED_VECTOR_UNSUPPORTED;
 
-	if (unaligned_vector_speed_param == RISCV_HWPROBE_MISALIGNED_VECTOR_UNKNOWN &&
-	    !check_vector_unaligned_access_emulated_all_cpus() &&
-	    IS_ENABLED(CONFIG_RISCV_PROBE_VECTOR_UNALIGNED_ACCESS)) {
-		kthread_run(vec_check_unaligned_access_speed_all_cpus,
-			    NULL, "vec_check_unaligned_access_speed_all_cpus");
-	} else {
-		pr_info("vector unaligned access speed set to '%s' by command line\n",
-			speed_str[unaligned_vector_speed_param]);
+	if (unaligned_vector_speed_param != RISCV_HWPROBE_MISALIGNED_VECTOR_UNKNOWN) {
 		for_each_online_cpu(cpu)
 			per_cpu(vector_misaligned_access, cpu) = unaligned_vector_speed_param;
+	} else if (!check_vector_unaligned_access_emulated_all_cpus() &&
+		   IS_ENABLED(CONFIG_RISCV_PROBE_VECTOR_UNALIGNED_ACCESS)) {
+		kthread_run(vec_check_unaligned_access_speed_all_cpus,
+			    NULL, "vec_check_unaligned_access_speed_all_cpus");
 	}
 
 	/*

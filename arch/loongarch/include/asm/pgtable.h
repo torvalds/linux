@@ -255,7 +255,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 
 #define pmd_page_vaddr(pmd)	pmd_val(pmd)
 
-extern pmd_t mk_pmd(struct page *page, pgprot_t prot);
 extern void set_pmd_at(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp, pmd_t pmd);
 
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
@@ -425,12 +424,6 @@ static inline unsigned long pte_accessible(struct mm_struct *mm, pte_t a)
 
 	return false;
 }
-
-/*
- * Conversion functions: convert a page and protection to a page entry,
- * and a page entry and page directory to the page they refer to.
- */
-#define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {

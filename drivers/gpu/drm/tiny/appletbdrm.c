@@ -212,7 +212,7 @@ retry:
 	}
 
 	if (response->msg != expected_response) {
-		drm_err(drm, "Unexpected response from device (expected %p4cc found %p4cc)\n",
+		drm_err(drm, "Unexpected response from device (expected %p4cl found %p4cl)\n",
 			&expected_response, &response->msg);
 		return -EIO;
 	}
@@ -286,7 +286,7 @@ static int appletbdrm_get_information(struct appletbdrm_device *adev)
 	}
 
 	if (pixel_format != APPLETBDRM_PIXEL_FORMAT) {
-		drm_err(drm, "Encountered unknown pixel format (%p4cc)\n", &pixel_format);
+		drm_err(drm, "Encountered unknown pixel format (%p4cl)\n", &pixel_format);
 		ret = -EINVAL;
 		goto free_info;
 	}

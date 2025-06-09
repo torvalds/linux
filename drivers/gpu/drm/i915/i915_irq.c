@@ -658,23 +658,9 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void ibx_irq_reset(struct drm_i915_private *dev_priv)
-{
-	struct intel_uncore *uncore = &dev_priv->uncore;
-
-	if (HAS_PCH_NOP(dev_priv))
-		return;
-
-	gen2_irq_reset(uncore, SDE_IRQ_REGS);
-
-	if (HAS_PCH_CPT(dev_priv) || HAS_PCH_LPT(dev_priv))
-		intel_uncore_write(&dev_priv->uncore, SERR_INT, 0xffffffff);
-}
-
-/* drm_dma.h hooks
-*/
 static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
 	gen2_irq_reset(uncore, DE_IRQ_REGS);
@@ -690,7 +676,7 @@ static void ilk_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen5_gt_irq_reset(to_gt(dev_priv));
 
-	ibx_irq_reset(dev_priv);
+	ibx_display_irq_reset(display);
 }
 
 static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
@@ -702,9 +688,7 @@ static void valleyview_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen5_gt_irq_reset(to_gt(dev_priv));
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_reset(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void gen8_irq_reset(struct drm_i915_private *dev_priv)
@@ -717,10 +701,6 @@ static void gen8_irq_reset(struct drm_i915_private *dev_priv)
 	gen8_gt_irq_reset(to_gt(dev_priv));
 	gen8_display_irq_reset(display);
 	gen2_irq_reset(uncore, GEN8_PCU_IRQ_REGS);
-
-	if (HAS_PCH_SPLIT(dev_priv))
-		ibx_irq_reset(dev_priv);
-
 }
 
 static void gen11_irq_reset(struct drm_i915_private *dev_priv)
@@ -770,9 +750,7 @@ static void cherryview_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_irq_reset(uncore, GEN8_PCU_IRQ_REGS);
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_reset(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
 static void ilk_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -790,9 +768,7 @@ static void valleyview_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen5_gt_irq_postinstall(to_gt(dev_priv));
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_postinstall(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 
 	intel_uncore_write(&dev_priv->uncore, VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 	intel_uncore_posting_read(&dev_priv->uncore, VLV_MASTER_IER);
@@ -849,9 +825,7 @@ static void cherryview_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen8_gt_irq_postinstall(to_gt(dev_priv));
 
-	spin_lock_irq(&dev_priv->irq_lock);
 	vlv_display_irq_postinstall(display);
-	spin_unlock_irq(&dev_priv->irq_lock);
 
 	intel_uncore_write(&dev_priv->uncore, GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 	intel_uncore_posting_read(&dev_priv->uncore, GEN8_MASTER_IRQ);
@@ -961,14 +935,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->irq_mask, enable_mask);
 
-	/* Interrupt setup is already guaranteed to be single-threaded, this is
-	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irq(&dev_priv->irq_lock);
-	i915_enable_pipestat(display, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	i915_enable_pipestat(display, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	i915_enable_asle_pipestat(display);
+	i915_display_irq_postinstall(display);
 }
 
 static irqreturn_t i915_irq_handler(int irq, void *arg)
@@ -1086,15 +1053,7 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	gen2_irq_init(uncore, GEN2_IRQ_REGS, dev_priv->irq_mask, enable_mask);
 
-	/* Interrupt setup is already guaranteed to be single-threaded, this is
-	 * just to make the assert_spin_locked check happy. */
-	spin_lock_irq(&dev_priv->irq_lock);
-	i915_enable_pipestat(display, PIPE_A, PIPE_GMBUS_INTERRUPT_STATUS);
-	i915_enable_pipestat(display, PIPE_A, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	i915_enable_pipestat(display, PIPE_B, PIPE_CRC_DONE_INTERRUPT_STATUS);
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	i915_enable_asle_pipestat(display);
+	i965_display_irq_postinstall(display);
 }
 
 static irqreturn_t i965_irq_handler(int irq, void *arg)

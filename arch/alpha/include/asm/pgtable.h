@@ -192,13 +192,6 @@ extern unsigned long __zero_page(void);
 #define pte_pfn(pte)		(pte_val(pte) >> PFN_PTE_SHIFT)
 
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
-#define mk_pte(page, pgprot)						\
-({									\
-	pte_t pte;							\
-									\
-	pte_val(pte) = (page_to_pfn(page) << 32) | pgprot_val(pgprot);	\
-	pte;								\
-})
 
 extern inline pte_t pfn_pte(unsigned long physpfn, pgprot_t pgprot)
 { pte_t pte; pte_val(pte) = (PHYS_TWIDDLE(physpfn) << 32) | pgprot_val(pgprot); return pte; }

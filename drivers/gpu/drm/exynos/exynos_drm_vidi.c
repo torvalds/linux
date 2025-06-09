@@ -159,7 +159,7 @@ static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 
 static void vidi_fake_vblank_timer(struct timer_list *t)
 {
-	struct vidi_context *ctx = from_timer(ctx, t, timer);
+	struct vidi_context *ctx = timer_container_of(ctx, t, timer);
 
 	if (drm_crtc_handle_vblank(&ctx->crtc->base))
 		mod_timer(&ctx->timer,
@@ -311,9 +311,6 @@ static int vidi_get_modes(struct drm_connector *connector)
 		drm_edid = drm_edid_dup(ctx->raw_edid);
 	else
 		drm_edid = drm_edid_alloc(fake_edid_info, sizeof(fake_edid_info));
-
-	if (!drm_edid)
-		return 0;
 
 	drm_edid_connector_update(connector, drm_edid);
 

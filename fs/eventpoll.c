@@ -1996,6 +1996,14 @@ static int ep_try_send_events(struct eventpoll *ep,
 	return res;
 }
 
+static int ep_schedule_timeout(ktime_t *to)
+{
+	if (to)
+		return ktime_after(*to, ktime_get());
+	else
+		return 1;
+}
+
 /**
  * ep_poll - Retrieves ready events, and delivers them to the caller-supplied
  *           event buffer.
@@ -2104,8 +2112,9 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		write_unlock_irq(&ep->lock);
 
 		if (!eavail)
-			timed_out = !schedule_hrtimeout_range(to, slack,
-							      HRTIMER_MODE_ABS);
+			timed_out = !ep_schedule_timeout(to) ||
+				!schedule_hrtimeout_range(to, slack,
+							  HRTIMER_MODE_ABS);
 		__set_current_state(TASK_RUNNING);
 
 		/*

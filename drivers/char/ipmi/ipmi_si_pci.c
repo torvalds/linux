@@ -23,30 +23,32 @@ MODULE_PARM_DESC(trypci,
 
 static int ipmi_pci_probe_regspacing(struct si_sm_io *io)
 {
-	if (io->si_type == SI_KCS) {
-		unsigned char	status;
-		int		regspacing;
+	unsigned char status;
+	int regspacing;
 
-		io->regsize = DEFAULT_REGSIZE;
-		io->regshift = 0;
+	if (io->si_info->type != SI_KCS)
+		return DEFAULT_REGSPACING;
 
-		/* detect 1, 4, 16byte spacing */
-		for (regspacing = DEFAULT_REGSPACING; regspacing <= 16;) {
-			io->regspacing = regspacing;
-			if (io->io_setup(io)) {
-				dev_err(io->dev, "Could not setup I/O space\n");
-				return DEFAULT_REGSPACING;
-			}
-			/* write invalid cmd */
-			io->outputb(io, 1, 0x10);
-			/* read status back */
-			status = io->inputb(io, 1);
-			io->io_cleanup(io);
-			if (status)
-				return regspacing;
-			regspacing *= 4;
+	io->regsize = DEFAULT_REGSIZE;
+	io->regshift = 0;
+
+	/* detect 1, 4, 16byte spacing */
+	for (regspacing = DEFAULT_REGSPACING; regspacing <= 16;) {
+		io->regspacing = regspacing;
+		if (io->io_setup(io)) {
+			dev_err(io->dev, "Could not setup I/O space\n");
+			return DEFAULT_REGSPACING;
 		}
+		/* write invalid cmd */
+		io->outputb(io, 1, 0x10);
+		/* read status back */
+		status = io->inputb(io, 1);
+		io->io_cleanup(io);
+		if (status)
+			return regspacing;
+		regspacing *= 4;
 	}
+
 	return DEFAULT_REGSPACING;
 }
 
@@ -74,15 +76,15 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 
 	switch (pdev->class) {
 	case PCI_CLASS_SERIAL_IPMI_SMIC:
-		io.si_type = SI_SMIC;
+		io.si_info = &ipmi_smic_si_info;
 		break;
 
 	case PCI_CLASS_SERIAL_IPMI_KCS:
-		io.si_type = SI_KCS;
+		io.si_info = &ipmi_kcs_si_info;
 		break;
 
 	case PCI_CLASS_SERIAL_IPMI_BT:
-		io.si_type = SI_BT;
+		io.si_info = &ipmi_bt_si_info;
 		break;
 
 	default:

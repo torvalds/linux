@@ -978,6 +978,88 @@ static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 	return 0;
 }
 
+static bool flow_type_hashable(u32 flow_type)
+{
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+	case GTPU_V4_FLOW:
+	case GTPU_V6_FLOW:
+	case GTPC_V4_FLOW:
+	case GTPC_V6_FLOW:
+	case GTPC_TEID_V4_FLOW:
+	case GTPC_TEID_V6_FLOW:
+	case GTPU_EH_V4_FLOW:
+	case GTPU_EH_V6_FLOW:
+	case GTPU_UL_V4_FLOW:
+	case GTPU_UL_V6_FLOW:
+	case GTPU_DL_V4_FLOW:
+	case GTPU_DL_V6_FLOW:
+		return true;
+	}
+
+	return false;
+}
+
+/* When adding a new type, update the assert and, if it's hashable, add it to
+ * the flow_type_hashable switch case.
+ */
+static_assert(GTPU_DL_V6_FLOW + 1 == __FLOW_TYPE_COUNT);
+
+static int ethtool_check_xfrm_rxfh(u32 input_xfrm, u64 rxfh)
+{
+	/* Sanity check: if symmetric-xor/symmetric-or-xor is set, then:
+	 * 1 - no other fields besides IP src/dst and/or L4 src/dst are set
+	 * 2 - If src is set, dst must also be set
+	 */
+	if ((input_xfrm != RXH_XFRM_NO_CHANGE &&
+	     input_xfrm & (RXH_XFRM_SYM_XOR | RXH_XFRM_SYM_OR_XOR)) &&
+	    ((rxfh & ~(RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 | RXH_L4_B_2_3)) ||
+	     (!!(rxfh & RXH_IP_SRC) ^ !!(rxfh & RXH_IP_DST)) ||
+	     (!!(rxfh & RXH_L4_B_0_1) ^ !!(rxfh & RXH_L4_B_2_3))))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ethtool_check_flow_types(struct net_device *dev, u32 input_xfrm)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxnfc info = {
+		.cmd = ETHTOOL_GRXFH,
+	};
+	int err;
+	u32 i;
+
+	for (i = 0; i < __FLOW_TYPE_COUNT; i++) {
+		if (!flow_type_hashable(i))
+			continue;
+
+		info.flow_type = i;
+		err = ops->get_rxnfc(dev, &info, NULL);
+		if (err)
+			continue;
+
+		err = ethtool_check_xfrm_rxfh(input_xfrm, info.data);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 						u32 cmd, void __user *useraddr)
 {
@@ -1012,16 +1094,9 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 		if (rc)
 			return rc;
 
-		/* Sanity check: if symmetric-xor/symmetric-or-xor is set, then:
-		 * 1 - no other fields besides IP src/dst and/or L4 src/dst
-		 * 2 - If src is set, dst must also be set
-		 */
-		if ((rxfh.input_xfrm & (RXH_XFRM_SYM_XOR | RXH_XFRM_SYM_OR_XOR)) &&
-		    ((info.data & ~(RXH_IP_SRC | RXH_IP_DST |
-				    RXH_L4_B_0_1 | RXH_L4_B_2_3)) ||
-		     (!!(info.data & RXH_IP_SRC) ^ !!(info.data & RXH_IP_DST)) ||
-		     (!!(info.data & RXH_L4_B_0_1) ^ !!(info.data & RXH_L4_B_2_3))))
-			return -EINVAL;
+		rc = ethtool_check_xfrm_rxfh(rxfh.input_xfrm, info.data);
+		if (rc)
+			return rc;
 	}
 
 	rc = ops->set_rxnfc(dev, &info);
@@ -1412,6 +1487,10 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE &&
 	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
+
+	ret = ethtool_check_flow_types(dev, rxfh.input_xfrm);
+	if (ret)
+		return ret;
 
 	indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 

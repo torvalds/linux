@@ -22,13 +22,14 @@ static int udl_usb_suspend(struct usb_interface *interface,
 			   pm_message_t message)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
+	struct udl_device *udl = to_udl(dev);
 	int ret;
 
 	ret = drm_mode_config_helper_suspend(dev);
 	if (ret)
 		return ret;
 
-	udl_sync_pending_urbs(dev);
+	udl_sync_pending_urbs(udl);
 	return 0;
 }
 
@@ -109,9 +110,10 @@ static int udl_usb_probe(struct usb_interface *interface,
 static void udl_usb_disconnect(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
+	struct udl_device *udl = to_udl(dev);
 
 	drm_dev_unplug(dev);
-	udl_drop_usb(dev);
+	udl_drop_usb(udl);
 }
 
 /*

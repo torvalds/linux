@@ -147,7 +147,7 @@ static int __init ath79_misc_intc_of_init(
 		return -ENOMEM;
 	}
 
-	domain = irq_domain_add_linear(node, ATH79_MISC_IRQ_COUNT,
+	domain = irq_domain_create_linear(of_fwnode_handle(node), ATH79_MISC_IRQ_COUNT,
 				&misc_irq_domain_ops, base);
 	if (!domain) {
 		pr_err("Failed to add MISC irqdomain\n");
@@ -188,7 +188,7 @@ void __init ath79_misc_irq_init(void __iomem *regs, int irq,
 	else
 		ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
 
-	domain = irq_domain_add_legacy(NULL, ATH79_MISC_IRQ_COUNT,
+	domain = irq_domain_create_legacy(NULL, ATH79_MISC_IRQ_COUNT,
 			irq_base, 0, &misc_irq_domain_ops, regs);
 	if (!domain)
 		panic("Failed to create MISC irqdomain");

@@ -121,23 +121,23 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	priv->cfg = cfg;
 	priv->irq = pdev->irq;
 
-	ret = pci_request_regions(pdev, DRV_NAME_ALCOR_PCI);
+	ret = pcim_request_all_regions(pdev, DRV_NAME_ALCOR_PCI);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot request region\n");
-		ret = -ENOMEM;
+		ret = -EBUSY;
 		goto error_free_ida;
 	}
 
 	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "BAR %d is not iomem. Aborting.\n", bar);
 		ret = -ENODEV;
-		goto error_release_regions;
+		goto error_free_ida;
 	}
 
 	priv->iobase = pcim_iomap(pdev, bar, 0);
 	if (!priv->iobase) {
 		ret = -ENOMEM;
-		goto error_release_regions;
+		goto error_free_ida;
 	}
 
 	/* make sure irqs are disabled */
@@ -147,7 +147,7 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	ret = dma_set_mask_and_coherent(priv->dev, AU6601_SDMA_MASK);
 	if (ret) {
 		dev_err(priv->dev, "Failed to set DMA mask\n");
-		goto error_release_regions;
+		goto error_free_ida;
 	}
 
 	pci_set_master(pdev);
@@ -169,8 +169,6 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 error_clear_drvdata:
 	pci_clear_master(pdev);
 	pci_set_drvdata(pdev, NULL);
-error_release_regions:
-	pci_release_regions(pdev);
 error_free_ida:
 	ida_free(&alcor_pci_idr, priv->id);
 	return ret;
@@ -186,7 +184,6 @@ static void alcor_pci_remove(struct pci_dev *pdev)
 
 	ida_free(&alcor_pci_idr, priv->id);
 
-	pci_release_regions(pdev);
 	pci_clear_master(pdev);
 	pci_set_drvdata(pdev, NULL);
 }

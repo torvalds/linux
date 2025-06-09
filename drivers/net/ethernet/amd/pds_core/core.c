@@ -167,8 +167,10 @@ static void pdsc_q_map(struct pdsc_queue *q, void *base, dma_addr_t base_pa)
 	q->base = base;
 	q->base_pa = base_pa;
 
-	for (i = 0, cur = q->info; i < q->num_descs; i++, cur++)
+	for (i = 0, cur = q->info; i < q->num_descs; i++, cur++) {
 		cur->desc = base + (i * q->desc_size);
+		init_completion(&cur->completion);
+	}
 }
 
 static void pdsc_cq_map(struct pdsc_cq *cq, void *base, dma_addr_t base_pa)
@@ -325,10 +327,7 @@ static int pdsc_core_init(struct pdsc *pdsc)
 	size_t sz;
 	int err;
 
-	/* Scale the descriptor ring length based on number of CPUs and VFs */
-	numdescs = max_t(int, PDSC_ADMINQ_MIN_LENGTH, num_online_cpus());
-	numdescs += 2 * pci_sriov_get_totalvfs(pdsc->pdev);
-	numdescs = roundup_pow_of_two(numdescs);
+	numdescs = PDSC_ADMINQ_MAX_LENGTH;
 	err = pdsc_qcq_alloc(pdsc, PDS_CORE_QTYPE_ADMINQ, 0, "adminq",
 			     PDS_CORE_QCQ_F_CORE | PDS_CORE_QCQ_F_INTR,
 			     numdescs,
@@ -403,6 +402,7 @@ err_out_uninit:
 
 static struct pdsc_viftype pdsc_viftype_defaults[] = {
 	[PDS_DEV_TYPE_FWCTL] = { .name = PDS_DEV_TYPE_FWCTL_STR,
+				 .enabled = true,
 				 .vif_id = PDS_DEV_TYPE_FWCTL,
 				 .dl_id = -1 },
 	[PDS_DEV_TYPE_VDPA] = { .name = PDS_DEV_TYPE_VDPA_STR,
@@ -415,7 +415,8 @@ static int pdsc_viftypes_init(struct pdsc *pdsc)
 {
 	enum pds_core_vif_types vt;
 
-	pdsc->viftype_status = kzalloc(sizeof(pdsc_viftype_defaults),
+	pdsc->viftype_status = kcalloc(ARRAY_SIZE(pdsc_viftype_defaults),
+				       sizeof(*pdsc->viftype_status),
 				       GFP_KERNEL);
 	if (!pdsc->viftype_status)
 		return -ENOMEM;
@@ -431,9 +432,6 @@ static int pdsc_viftypes_init(struct pdsc *pdsc)
 
 		/* See what the Core device has for support */
 		vt_support = !!le16_to_cpu(pdsc->dev_ident.vif_types[vt]);
-
-		if (vt == PDS_DEV_TYPE_FWCTL)
-			pdsc->viftype_status[vt].enabled = true;
 
 		dev_dbg(pdsc->dev, "VIF %s is %ssupported\n",
 			pdsc->viftype_status[vt].name,

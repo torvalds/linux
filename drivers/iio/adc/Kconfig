@@ -6,6 +6,9 @@
 
 menu "Analog to digital converters"
 
+config IIO_ADC_HELPER
+	tristate
+
 config AB8500_GPADC
 	bool "ST-Ericsson AB8500 GPADC driver"
 	depends on AB8500_CORE && REGULATOR_AB8500
@@ -25,10 +28,15 @@ config AD4000
 	tristate "Analog Devices AD4000 ADC Driver"
 	depends on SPI
 	select IIO_BUFFER
+	select IIO_BUFFER_DMAENGINE
 	select IIO_TRIGGERED_BUFFER
+	select SPI_OFFLOAD
 	help
 	  Say yes here to build support for Analog Devices AD4000 high speed
-	  SPI analog to digital converters (ADC).
+	  SPI analog to digital converters (ADC). If intended to use with
+	  SPI offloading support, it is recommended to enable
+	  CONFIG_SPI_AXI_SPI_ENGINE, CONFIG_PWM_AXI_PWMGEN, and
+	  CONFIG_SPI_OFFLOAD_TRIGGER_PWM.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad4000.
@@ -129,8 +137,9 @@ config AD7173
 	tristate "Analog Devices AD7173 driver"
 	depends on SPI_MASTER
 	select AD_SIGMA_DELTA
-	select GPIO_REGMAP if GPIOLIB
-	select REGMAP_SPI if GPIOLIB
+	select GPIOLIB
+	select GPIO_REGMAP
+	select REGMAP_SPI
 	help
 	  Say yes here to build support for Analog Devices AD7173 and similar ADC
 	  Currently supported models:
@@ -281,6 +290,8 @@ config AD7606_IFACE_SPI
 	tristate "Analog Devices AD7606 ADC driver with spi interface support"
 	depends on SPI
 	select AD7606
+	select IIO_BUFFER_DMAENGINE
+	select SPI_OFFLOAD
 	help
 	  Say yes here to build spi interface support for Analog Devices:
 	  ad7605-4, ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
@@ -319,6 +330,7 @@ config AD7766
 config AD7768_1
 	tristate "Analog Devices AD7768-1 ADC driver"
 	depends on SPI
+	select REGMAP_SPI
 	select IIO_BUFFER
 	select IIO_TRIGGER
 	select IIO_TRIGGERED_BUFFER
@@ -1092,6 +1104,17 @@ config NAU7802
 	  To compile this driver as a module, choose M here: the
 	  module will be called nau7802.
 
+config NCT7201
+	tristate "Nuvoton Instruments NCT7201 and NCT7202 Power Monitor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Nuvoton NCT7201 and
+	  NCT7202 Voltage Monitor.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nct7201.
+
 config NPCM_ADC
 	tristate "Nuvoton NPCM ADC driver"
 	depends on ARCH_NPCM || COMPILE_TEST
@@ -1232,6 +1255,18 @@ config RN5T618_ADC
 	  This driver can also be built as a module. If so, the module
 	  will be called rn5t618-adc.
 
+config ROHM_BD79124
+	tristate "Rohm BD79124 ADC driver"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_ADC_HELPER
+	help
+	  Say yes here to build support for the ROHM BD79124 ADC. The
+	  ROHM BD79124 is a 12-bit, 8-channel, SAR ADC. The ADC supports
+	  also an automatic measurement mode, with an alarm interrupt for
+	  out-of-window measurements. The window is configurable for each
+	  channel.
+
 config ROCKCHIP_SARADC
 	tristate "Rockchip SARADC driver"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
@@ -1263,6 +1298,7 @@ config RICHTEK_RTQ6056
 config RZG2L_ADC
 	tristate "Renesas RZ/G2L ADC driver"
 	depends on ARCH_RZG2L || COMPILE_TEST
+	select IIO_ADC_HELPER
 	help
 	  Say yes here to build support for the ADC found in Renesas
 	  RZ/G2L family.
@@ -1397,6 +1433,7 @@ config SUN4I_GPADC
 config SUN20I_GPADC
 	tristate "Allwinner D1/T113s/T507/R329 and similar GPADCs driver"
 	depends on ARCH_SUNXI || COMPILE_TEST
+	select IIO_ADC_HELPER
 	help
 	  Say yes here to build support for Allwinner (D1, T113, T507 and R329)
 	  SoCs GPADC. This ADC provides up to 16 channels.
@@ -1440,18 +1477,6 @@ config TI_ADC084S021
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc084s021.
 
-config TI_ADC12138
-	tristate "Texas Instruments ADC12130/ADC12132/ADC12138"
-	depends on SPI
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  If you say yes here you get support for Texas Instruments ADC12130,
-	  ADC12132 and ADC12138 chips.
-
-	  This driver can also be built as a module. If so, the module will be
-	  called ti-adc12138.
-
 config TI_ADC108S102
 	tristate "Texas Instruments ADC108S102 and ADC128S102 driver"
 	depends on SPI
@@ -1464,12 +1489,24 @@ config TI_ADC108S102
 	  To compile this driver as a module, choose M here: the module will
 	  be called ti-adc108s102.
 
+config TI_ADC12138
+	tristate "Texas Instruments ADC12130/ADC12132/ADC12138"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADC12130,
+	  ADC12132 and ADC12138 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc12138.
+
 config TI_ADC128S052
 	tristate "Texas Instruments ADC128S052/ADC122S021/ADC124S021"
 	depends on SPI
 	help
 	  If you say yes here you get support for Texas Instruments ADC128S052,
-	  ADC122S021 and ADC124S021 chips.
+	  ADC122S021, ADC124S021 and ROHM Semiconductor BD79104 chips.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-adc128s052.
@@ -1499,6 +1536,16 @@ config TI_ADS1015
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-ads1015.
 
+config TI_ADS1100
+	tristate "Texas Instruments ADS1100 and ADS1000 ADC"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments ADS1100 and
+	  ADS1000 ADC chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads1100.
+
 config TI_ADS1119
        tristate "Texas Instruments ADS1119 ADC"
        depends on I2C
@@ -1510,6 +1557,42 @@ config TI_ADS1119
 
          This driver can also be built as a module. If so, the module will be
          called ti-ads1119.
+
+config TI_ADS124S08
+	tristate "Texas Instruments ADS124S08"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  If you say yes here you get support for Texas Instruments ADS124S08
+	  and ADS124S06 ADC chips
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads124s08.
+
+config TI_ADS1298
+	tristate "Texas Instruments ADS1298"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  If you say yes here you get support for Texas Instruments ADS1298
+	  medical ADC chips
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads1298.
+
+config TI_ADS131E08
+	tristate "Texas Instruments ADS131E08"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to get support for Texas Instruments ADS131E04, ADS131E06
+	  and ADS131E08 chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-ads131e08.
 
 config TI_ADS7138
 	tristate "Texas Instruments ADS7128 and ADS7138 ADC driver"
@@ -1531,27 +1614,6 @@ config TI_ADS7924
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-ads7924.
-
-config TI_ADS1100
-	tristate "Texas Instruments ADS1100 and ADS1000 ADC"
-	depends on I2C
-	help
-	  If you say yes here you get support for Texas Instruments ADS1100 and
-	  ADS1000 ADC chips.
-
-	  This driver can also be built as a module. If so, the module will be
-	  called ti-ads1100.
-
-config TI_ADS1298
-	tristate "Texas Instruments ADS1298"
-	depends on SPI
-	select IIO_BUFFER
-	help
-	  If you say yes here you get support for Texas Instruments ADS1298
-	  medical ADC chips
-
-	  This driver can also be built as a module. If so, the module will be
-	  called ti-ads1298.
 
 config TI_ADS7950
 	tristate "Texas Instruments ADS7950 ADC driver"
@@ -1587,30 +1649,6 @@ config TI_ADS8688
 
 	  This driver can also be built as a module. If so, the module will be
 	  called ti-ads8688.
-
-config TI_ADS124S08
-	tristate "Texas Instruments ADS124S08"
-	depends on SPI
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  If you say yes here you get support for Texas Instruments ADS124S08
-	  and ADS124S06 ADC chips
-
-	  This driver can also be built as a module. If so, the module will be
-	  called ti-ads124s08.
-
-config TI_ADS131E08
-	tristate "Texas Instruments ADS131E08"
-	depends on SPI
-	select IIO_BUFFER
-	select IIO_TRIGGERED_BUFFER
-	help
-	  Say yes here to get support for Texas Instruments ADS131E04, ADS131E06
-	  and ADS131E08 chips.
-
-	  This driver can also be built as a module. If so, the module will be
-	  called ti-ads131e08.
 
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"

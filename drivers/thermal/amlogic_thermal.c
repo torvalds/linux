@@ -7,10 +7,10 @@
  *
  * Register value to celsius temperature formulas:
  *	Read_Val	    m * U
- * U = ---------, Uptat = ---------
+ * U = ---------, uptat = ---------
  *	2^16		  1 + n * U
  *
- * Temperature = A * ( Uptat + u_efuse / 2^16 )- B
+ * Temperature = A * ( uptat + u_efuse / 2^16 )- B
  *
  *  A B m n : calibration parameters
  *  u_efuse : fused calibration value, it's a signed 16 bits value
@@ -112,7 +112,7 @@ static int amlogic_thermal_code_to_millicelsius(struct amlogic_thermal *pdata,
 	const struct amlogic_thermal_soc_calib_data *param =
 					pdata->data->calibration_parameters;
 	int temp;
-	s64 factor, Uptat, uefuse;
+	s64 factor, uptat, uefuse;
 
 	uefuse = pdata->trim_info & TSENSOR_TRIM_SIGN_MASK ?
 			     ~(pdata->trim_info & TSENSOR_TRIM_TEMP_MASK) + 1 :
@@ -121,12 +121,12 @@ static int amlogic_thermal_code_to_millicelsius(struct amlogic_thermal *pdata,
 	factor = param->n * temp_code;
 	factor = div_s64(factor, 100);
 
-	Uptat = temp_code * param->m;
-	Uptat = div_s64(Uptat, 100);
-	Uptat = Uptat * BIT(16);
-	Uptat = div_s64(Uptat, BIT(16) + factor);
+	uptat = temp_code * param->m;
+	uptat = div_s64(uptat, 100);
+	uptat = uptat * BIT(16);
+	uptat = div_s64(uptat, BIT(16) + factor);
 
-	temp = (Uptat + uefuse) * param->A;
+	temp = (uptat + uefuse) * param->A;
 	temp = div_s64(temp, BIT(16));
 	temp = (temp - param->B) * 100;
 

@@ -1401,6 +1401,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 		nv_connector->aux.drm_dev = dev;
 		nv_connector->aux.transfer = nouveau_connector_aux_xfer;
 		nv_connector->aux.name = connector->name;
+		if (disp->disp.object.oclass >= GB202_DISP)
+			nv_connector->aux.no_zero_sized = true;
 		drm_dp_aux_init(&nv_connector->aux);
 		break;
 	default:

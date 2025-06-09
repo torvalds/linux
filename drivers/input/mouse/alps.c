@@ -1582,7 +1582,7 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 
 static void alps_flush_packet(struct timer_list *t)
 {
-	struct alps_data *priv = from_timer(priv, t, timer);
+	struct alps_data *priv = timer_container_of(priv, t, timer);
 	struct psmouse *psmouse = priv->psmouse;
 
 	guard(serio_pause_rx)(psmouse->ps2dev.serio);

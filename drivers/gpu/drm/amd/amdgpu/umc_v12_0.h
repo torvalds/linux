@@ -55,8 +55,6 @@
 #define UMC_V12_0_NA_MAP_PA_NUM        8
 /* R13 bit shift should be considered, double the number */
 #define UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL (UMC_V12_0_NA_MAP_PA_NUM * 2)
-/* C2, C3, C4, R13, four bits in MCA address are looped in retirement */
-#define UMC_V12_0_RETIRE_LOOP_BITS 4
 
 /* column bits in SOC physical address */
 #define UMC_V12_0_PA_C2_BIT 15
@@ -64,13 +62,16 @@
 #define UMC_V12_0_PA_C4_BIT 21
 /* row bits in SOC physical address */
 #define UMC_V12_0_PA_R0_BIT 22
+#define UMC_V12_0_PA_R10_BIT 32
 #define UMC_V12_0_PA_R11_BIT 33
+#define UMC_V12_0_PA_R12_BIT 34
 #define UMC_V12_0_PA_R13_BIT 35
 /* channel bit in SOC physical address */
 #define UMC_V12_0_PA_CH4_BIT 12
 #define UMC_V12_0_PA_CH5_BIT 13
 /* bank bit in SOC physical address */
 #define UMC_V12_0_PA_B0_BIT 19
+#define UMC_V12_0_PA_B1_BIT 20
 /* row bits in MCA address */
 #define UMC_V12_0_MA_R0_BIT 10
 

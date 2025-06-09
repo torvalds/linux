@@ -229,6 +229,10 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 
 		link->replay_settings.config.replay_error_status.raw |= replay_error_status.raw;
 
+		/* Increment desync error counter if a desync error is detected */
+		if (replay_configuration.bits.DESYNC_ERROR_STATUS)
+			link->replay_settings.replay_desync_error_fail_count++;
+
 		if (link->replay_settings.config.force_disable_desync_error_check)
 			return;
 
@@ -239,9 +243,6 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 			DP_SINK_PR_REPLAY_STATUS,
 			&replay_configuration.raw,
 			sizeof(replay_configuration.raw));
-
-		/* Update desync error counter */
-		link->replay_settings.replay_desync_error_fail_count++;
 
 		/* Acknowledge and clear error bits */
 		dm_helpers_dp_write_dpcd(
@@ -351,7 +352,7 @@ enum dc_status dp_read_hpd_rx_irq_data(
 			irq_data->raw,
 			DP_SINK_STATUS - DP_SINK_COUNT + 1);
 
-		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+		if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dp_tunneling) {
 			retval = core_link_read_dpcd(
 					link, DP_LINK_SERVICE_IRQ_VECTOR_ESI0,
 					&irq_data->bytes.link_service_irq_esi0.raw, 1);
@@ -520,7 +521,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 		dp_trace_link_loss_increment(link);
 	}
 
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+	if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dp_tunneling) {
 		if (hpd_irq_dpcd_data.bytes.link_service_irq_esi0.bits.DP_LINK_TUNNELING_IRQ)
 			dp_handle_tunneling_irq(link);
 	}

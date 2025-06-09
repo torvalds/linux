@@ -666,6 +666,8 @@ finished:
 		/* smb2_parse_contexts() fills idata->fi.IndexNumber */
 		rc = smb2_parse_contexts(server, &rsp_iov[0], &oparms->fid->epoch,
 					 oparms->fid->lease_key, &oplock, &idata->fi, NULL);
+		if (rc)
+			cifs_dbg(VFS, "rc: %d parsing context of compound op\n", rc);
 	}
 
 	for (i = 0; i < num_cmds; i++) {

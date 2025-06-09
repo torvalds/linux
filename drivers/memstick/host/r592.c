@@ -614,7 +614,7 @@ static void r592_update_card_detect(struct r592_device *dev)
 /* Timer routine that fires 1 second after last card detection event, */
 static void r592_detect_timer(struct timer_list *t)
 {
-	struct r592_device *dev = from_timer(dev, t, detect_timer);
+	struct r592_device *dev = timer_container_of(dev, t, detect_timer);
 	r592_update_card_detect(dev);
 	memstick_detect_change(dev->host);
 }

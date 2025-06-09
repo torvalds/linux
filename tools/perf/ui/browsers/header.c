@@ -69,6 +69,7 @@ static int list_menu__run(struct ui_browser *menu)
 			key = -1;
 			break;
 		default:
+			ui_browser__warn_unhandled_hotkey(menu, key, 0, ", use 'h'/'?'/F1 to see actions");
 			continue;
 		}
 

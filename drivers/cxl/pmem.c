@@ -108,7 +108,7 @@ static void cxl_nvdimm_arm_dirty_shutdown_tracking(struct cxl_nvdimm *cxl_nvd)
 		return;
 	}
 
-	if (!cxl_gpf_get_dvsec(cxlds->dev, false))
+	if (!cxl_gpf_get_dvsec(cxlds->dev))
 		return;
 
 	if (cxl_get_dirty_count(mds, &count)) {

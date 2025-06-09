@@ -130,7 +130,7 @@ int landlock_init_hierarchy_log(struct landlock_hierarchy *const hierarchy);
 static inline void
 landlock_free_hierarchy_details(struct landlock_hierarchy *const hierarchy)
 {
-	if (WARN_ON_ONCE(!hierarchy || !hierarchy->details))
+	if (!hierarchy || !hierarchy->details)
 		return;
 
 	put_pid(hierarchy->details->pid);

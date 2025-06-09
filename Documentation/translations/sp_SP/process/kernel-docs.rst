@@ -170,9 +170,8 @@ Recursos varios
 
     * Título: **linux-kernel mailing list archives and search engines**
 
-      :URL: http://vger.kernel.org/vger-lists.html
-      :URL: http://www.uwsg.indiana.edu/hypermail/linux/kernel/index.html
-      :URL: http://groups.google.com/group/mlist.linux.kernel
+      :URL: https://subspace.kernel.org
+      :URL: https://lore.kernel.org
       :Palabras Clave: linux-kernel, archives, buscar, search, archivos.
       :Descripción: Algunos de los archivadores de listas de correo del
         kernel de Linux. Si usted tiene uno mejor/otro, por favor hágamelo

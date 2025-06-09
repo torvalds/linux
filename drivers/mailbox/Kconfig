@@ -36,6 +36,16 @@ config ARM_MHU_V3
 	  that provides different means of transports: supported extensions
 	  will be discovered and possibly managed at probe-time.
 
+config CV1800_MBOX
+	tristate "cv1800 mailbox"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	help
+	  Mailbox driver implementation for Sophgo CV18XX SoCs. This driver
+	  can be used to send message between different processors in SoC. Any
+	  processer can write data in a channel, and set co-responding register
+	  to raise interrupt to notice another processor, and it is allowed to
+	  send data to itself.
+
 config EXYNOS_MBOX
 	tristate "Exynos Mailbox"
 	depends on ARCH_EXYNOS || COMPILE_TEST
@@ -191,8 +201,8 @@ config POLARFIRE_SOC_MAILBOX
 
 config MCHP_SBI_IPC_MBOX
 	tristate "Microchip Inter-processor Communication (IPC) SBI driver"
-	depends on RISCV_SBI || COMPILE_TEST
-	depends on ARCH_MICROCHIP
+	depends on RISCV_SBI
+	depends on ARCH_MICROCHIP || COMPILE_TEST
 	help
 	  Mailbox implementation for Microchip devices with an
 	  Inter-process communication (IPC) controller.

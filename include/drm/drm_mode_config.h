@@ -937,6 +937,12 @@ struct drm_mode_config {
 	struct drm_property *modifiers_property;
 
 	/**
+	 * @async_modifiers_property: Plane property to list support modifier/format
+	 * combination for asynchronous flips.
+	 */
+	struct drm_property *async_modifiers_property;
+
+	/**
 	 * @size_hints_property: Plane SIZE_HINTS property.
 	 */
 	struct drm_property *size_hints_property;

@@ -6,16 +6,10 @@
  * Copyright (c) 2003 Kyle McMartin <kyle@debian.org>
  */
 #include <crypto/internal/hash.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/crypto.h>
-#include <linux/types.h>
 #include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
-#include <linux/percpu.h>
-#include <asm/byteorder.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/unaligned.h>
 
 const u8 sha384_zero_message_hash[SHA384_DIGEST_SIZE] = {
@@ -145,47 +139,42 @@ sha512_transform(u64 *state, const u8 *input)
 	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
 }
 
-static void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
-				    int blocks)
+void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
+			     int blocks)
 {
-	while (blocks--) {
+	do {
 		sha512_transform(sst->state, src);
 		src += SHA512_BLOCK_SIZE;
-	}
+	} while (--blocks);
+}
+EXPORT_SYMBOL_GPL(sha512_generic_block_fn);
+
+static int crypto_sha512_update(struct shash_desc *desc, const u8 *data,
+				unsigned int len)
+{
+	return sha512_base_do_update_blocks(desc, data, len,
+					    sha512_generic_block_fn);
 }
 
-int crypto_sha512_update(struct shash_desc *desc, const u8 *data,
-			unsigned int len)
+static int crypto_sha512_finup(struct shash_desc *desc, const u8 *data,
+			       unsigned int len, u8 *hash)
 {
-	return sha512_base_do_update(desc, data, len, sha512_generic_block_fn);
-}
-EXPORT_SYMBOL(crypto_sha512_update);
-
-static int sha512_final(struct shash_desc *desc, u8 *hash)
-{
-	sha512_base_do_finalize(desc, sha512_generic_block_fn);
+	sha512_base_do_finup(desc, data, len, sha512_generic_block_fn);
 	return sha512_base_finish(desc, hash);
 }
-
-int crypto_sha512_finup(struct shash_desc *desc, const u8 *data,
-			unsigned int len, u8 *hash)
-{
-	sha512_base_do_update(desc, data, len, sha512_generic_block_fn);
-	return sha512_final(desc, hash);
-}
-EXPORT_SYMBOL(crypto_sha512_finup);
 
 static struct shash_alg sha512_algs[2] = { {
 	.digestsize	=	SHA512_DIGEST_SIZE,
 	.init		=	sha512_base_init,
 	.update		=	crypto_sha512_update,
-	.final		=	sha512_final,
 	.finup		=	crypto_sha512_finup,
-	.descsize	=	sizeof(struct sha512_state),
+	.descsize	=	SHA512_STATE_SIZE,
 	.base		=	{
 		.cra_name	=	"sha512",
 		.cra_driver_name =	"sha512-generic",
 		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA512_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -193,13 +182,14 @@ static struct shash_alg sha512_algs[2] = { {
 	.digestsize	=	SHA384_DIGEST_SIZE,
 	.init		=	sha384_base_init,
 	.update		=	crypto_sha512_update,
-	.final		=	sha512_final,
 	.finup		=	crypto_sha512_finup,
-	.descsize	=	sizeof(struct sha512_state),
+	.descsize	=	SHA512_STATE_SIZE,
 	.base		=	{
 		.cra_name	=	"sha384",
 		.cra_driver_name =	"sha384-generic",
 		.cra_priority	=	100,
+		.cra_flags	=	CRYPTO_AHASH_ALG_BLOCK_ONLY |
+					CRYPTO_AHASH_ALG_FINUP_MAX,
 		.cra_blocksize	=	SHA384_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -215,7 +205,7 @@ static void __exit sha512_generic_mod_fini(void)
 	crypto_unregister_shashes(sha512_algs, ARRAY_SIZE(sha512_algs));
 }
 
-subsys_initcall(sha512_generic_mod_init);
+module_init(sha512_generic_mod_init);
 module_exit(sha512_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

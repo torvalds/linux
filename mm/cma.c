@@ -35,7 +35,7 @@
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned int cma_area_count;
 
-static int __init __cma_declare_contiguous_nid(phys_addr_t base,
+static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 			phys_addr_t size, phys_addr_t limit,
 			phys_addr_t alignment, unsigned int order_per_bit,
 			bool fixed, const char *name, struct cma **res_cma,
@@ -143,13 +143,14 @@ bool cma_validate_zones(struct cma *cma)
 
 static void __init cma_activate_area(struct cma *cma)
 {
-	unsigned long pfn, end_pfn;
+	unsigned long pfn, end_pfn, early_pfn[CMA_MAX_RANGES];
 	int allocrange, r;
 	struct cma_memrange *cmr;
 	unsigned long bitmap_count, count;
 
 	for (allocrange = 0; allocrange < cma->nranges; allocrange++) {
 		cmr = &cma->ranges[allocrange];
+		early_pfn[allocrange] = cmr->early_pfn;
 		cmr->bitmap = bitmap_zalloc(cma_bitmap_maxno(cma, cmr),
 					    GFP_KERNEL);
 		if (!cmr->bitmap)
@@ -161,13 +162,13 @@ static void __init cma_activate_area(struct cma *cma)
 
 	for (r = 0; r < cma->nranges; r++) {
 		cmr = &cma->ranges[r];
-		if (cmr->early_pfn != cmr->base_pfn) {
-			count = cmr->early_pfn - cmr->base_pfn;
+		if (early_pfn[r] != cmr->base_pfn) {
+			count = early_pfn[r] - cmr->base_pfn;
 			bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 			bitmap_set(cmr->bitmap, 0, bitmap_count);
 		}
 
-		for (pfn = cmr->early_pfn; pfn < cmr->base_pfn + cmr->count;
+		for (pfn = early_pfn[r]; pfn < cmr->base_pfn + cmr->count;
 		     pfn += pageblock_nr_pages)
 			init_cma_reserved_pageblock(pfn_to_page(pfn));
 	}
@@ -193,7 +194,7 @@ cleanup:
 		for (r = 0; r < allocrange; r++) {
 			cmr = &cma->ranges[r];
 			end_pfn = cmr->base_pfn + cmr->count;
-			for (pfn = cmr->early_pfn; pfn < end_pfn; pfn++)
+			for (pfn = early_pfn[r]; pfn < end_pfn; pfn++)
 				free_reserved_page(pfn_to_page(pfn));
 		}
 	}
@@ -370,7 +371,7 @@ int __init cma_declare_contiguous_multi(phys_addr_t total_size,
 			phys_addr_t align, unsigned int order_per_bit,
 			const char *name, struct cma **res_cma, int nid)
 {
-	phys_addr_t start, end;
+	phys_addr_t start = 0, end;
 	phys_addr_t size, sizesum, sizeleft;
 	struct cma_init_memrange *mrp, *mlp, *failed;
 	struct cma_memrange *cmrp;
@@ -384,7 +385,7 @@ int __init cma_declare_contiguous_multi(phys_addr_t total_size,
 	/*
 	 * First, try it the normal way, producing just one range.
 	 */
-	ret = __cma_declare_contiguous_nid(0, total_size, 0, align,
+	ret = __cma_declare_contiguous_nid(&start, total_size, 0, align,
 			order_per_bit, false, name, res_cma, nid);
 	if (ret != -ENOMEM)
 		goto out;
@@ -580,7 +581,7 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 {
 	int ret;
 
-	ret = __cma_declare_contiguous_nid(base, size, limit, alignment,
+	ret = __cma_declare_contiguous_nid(&base, size, limit, alignment,
 			order_per_bit, fixed, name, res_cma, nid);
 	if (ret != 0)
 		pr_err("Failed to reserve %ld MiB\n",
@@ -592,14 +593,14 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 	return ret;
 }
 
-static int __init __cma_declare_contiguous_nid(phys_addr_t base,
+static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 			phys_addr_t size, phys_addr_t limit,
 			phys_addr_t alignment, unsigned int order_per_bit,
 			bool fixed, const char *name, struct cma **res_cma,
 			int nid)
 {
 	phys_addr_t memblock_end = memblock_end_of_DRAM();
-	phys_addr_t highmem_start;
+	phys_addr_t highmem_start, base = *basep;
 	int ret;
 
 	/*
@@ -608,7 +609,10 @@ static int __init __cma_declare_contiguous_nid(phys_addr_t base,
 	 * complain. Find the boundary by adding one to the last valid
 	 * address.
 	 */
-	highmem_start = __pa(high_memory - 1) + 1;
+	if (IS_ENABLED(CONFIG_HIGHMEM))
+		highmem_start = __pa(high_memory - 1) + 1;
+	else
+		highmem_start = memblock_end_of_DRAM();
 	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
 		__func__, &size, &base, &limit, &alignment);
 
@@ -722,12 +726,15 @@ static int __init __cma_declare_contiguous_nid(phys_addr_t base,
 	}
 
 	ret = cma_init_reserved_mem(base, size, order_per_bit, name, res_cma);
-	if (ret)
+	if (ret) {
 		memblock_phys_free(base, size);
+		return ret;
+	}
 
 	(*res_cma)->nid = nid;
+	*basep = base;
 
-	return ret;
+	return 0;
 }
 
 static void cma_debug_show_areas(struct cma *cma)

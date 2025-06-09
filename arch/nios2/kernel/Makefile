@@ -3,7 +3,7 @@
 # Makefile for the nios2 linux kernel.
 #
 
-extra-y	+= vmlinux.lds
+always-$(KBUILD_BUILTIN)	+= vmlinux.lds
 
 obj-y	+= head.o
 obj-y	+= cpuinfo.o

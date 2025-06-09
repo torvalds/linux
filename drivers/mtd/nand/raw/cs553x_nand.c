@@ -351,20 +351,20 @@ static int __init cs553x_init(void)
 		return -ENXIO;
 
 	/* If it doesn't have the CS553[56], abort */
-	rdmsrl(MSR_DIVIL_GLD_CAP, val);
+	rdmsrq(MSR_DIVIL_GLD_CAP, val);
 	val &= ~0xFFULL;
 	if (val != CAP_CS5535 && val != CAP_CS5536)
 		return -ENXIO;
 
 	/* If it doesn't have the NAND controller enabled, abort */
-	rdmsrl(MSR_DIVIL_BALL_OPTS, val);
+	rdmsrq(MSR_DIVIL_BALL_OPTS, val);
 	if (val & PIN_OPT_IDE) {
 		pr_info("CS553x NAND controller: Flash I/O not enabled in MSR_DIVIL_BALL_OPTS.\n");
 		return -ENXIO;
 	}
 
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
-		rdmsrl(MSR_DIVIL_LBAR_FLSH0 + i, val);
+		rdmsrq(MSR_DIVIL_LBAR_FLSH0 + i, val);
 
 		if ((val & (FLSH_LBAR_EN|FLSH_NOR_NAND)) == (FLSH_LBAR_EN|FLSH_NOR_NAND))
 			err = cs553x_init_one(i, !!(val & FLSH_MEM_IO), val & 0xFFFFFFFF);

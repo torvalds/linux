@@ -25,7 +25,9 @@ properties:
 
   compatible:
     oneOf:
-      - const: nvidia,tegra210-i2s
+      - enum:
+          - nvidia,tegra210-i2s
+          - nvidia,tegra264-i2s
       - items:
           - enum:
               - nvidia,tegra234-i2s

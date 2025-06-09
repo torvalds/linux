@@ -268,7 +268,7 @@ static void bcm63xx_pcmcia_poll(struct timer_list *t)
 	struct bcm63xx_pcmcia_socket *skt;
 	unsigned int stat, events;
 
-	skt = from_timer(skt, t, timer);
+	skt = timer_container_of(skt, t, timer);
 
 	spin_lock_bh(&skt->lock);
 

@@ -1450,7 +1450,8 @@ err_free_pkt:
  */
 static void ice_vf_fdir_timer(struct timer_list *t)
 {
-	struct ice_vf_fdir_ctx *ctx_irq = from_timer(ctx_irq, t, rx_tmr);
+	struct ice_vf_fdir_ctx *ctx_irq = timer_container_of(ctx_irq, t,
+							     rx_tmr);
 	struct ice_vf_fdir_ctx *ctx_done;
 	struct ice_vf_fdir *fdir;
 	unsigned long flags;
@@ -2097,6 +2098,11 @@ int ice_vc_add_fdir_fltr(struct ice_vf *vf, u8 *msg)
 	pf = vf->pf;
 	dev = ice_pf_to_dev(pf);
 	vf_vsi = ice_get_vf_vsi(vf);
+	if (!vf_vsi) {
+		dev_err(dev, "Can not get FDIR vf_vsi for VF %u\n", vf->vf_id);
+		v_ret = VIRTCHNL_STATUS_ERR_PARAM;
+		goto err_exit;
+	}
 
 #define ICE_VF_MAX_FDIR_FILTERS	128
 	if (!ice_fdir_num_avail_fltr(&pf->hw, vf_vsi) ||

@@ -176,18 +176,8 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 }
 EXPORT_SYMBOL(end_buffer_write_sync);
 
-/*
- * Various filesystems appear to want __find_get_block to be non-blocking.
- * But it's the page lock which protects the buffers.  To get around this,
- * we get exclusion from try_to_free_buffers with the blockdev mapping's
- * i_private_lock.
- *
- * Hack idea: for the blockdev mapping, i_private_lock contention
- * may be quite high.  This code could TryLock the page, and if that
- * succeeds, there is no need to take i_private_lock.
- */
 static struct buffer_head *
-__find_get_block_slow(struct block_device *bdev, sector_t block)
+__find_get_block_slow(struct block_device *bdev, sector_t block, bool atomic)
 {
 	struct address_space *bd_mapping = bdev->bd_mapping;
 	const int blkbits = bd_mapping->host->i_blkbits;
@@ -204,10 +194,28 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 	if (IS_ERR(folio))
 		goto out;
 
-	spin_lock(&bd_mapping->i_private_lock);
+	/*
+	 * Folio lock protects the buffers. Callers that cannot block
+	 * will fallback to serializing vs try_to_free_buffers() via
+	 * the i_private_lock.
+	 */
+	if (atomic)
+		spin_lock(&bd_mapping->i_private_lock);
+	else
+		folio_lock(folio);
+
 	head = folio_buffers(folio);
 	if (!head)
 		goto out_unlock;
+	/*
+	 * Upon a noref migration, the folio lock serializes here;
+	 * otherwise bail.
+	 */
+	if (test_bit_acquire(BH_Migrate, &head->b_state)) {
+		WARN_ON(!atomic);
+		goto out_unlock;
+	}
+
 	bh = head;
 	do {
 		if (!buffer_mapped(bh))
@@ -236,7 +244,10 @@ __find_get_block_slow(struct block_device *bdev, sector_t block)
 		       1 << blkbits);
 	}
 out_unlock:
-	spin_unlock(&bd_mapping->i_private_lock);
+	if (atomic)
+		spin_unlock(&bd_mapping->i_private_lock);
+	else
+		folio_unlock(folio);
 	folio_put(folio);
 out:
 	return ret;
@@ -286,7 +297,6 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 
 still_busy:
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
-	return;
 }
 
 struct postprocess_bh_ctx {
@@ -411,7 +421,6 @@ static void end_buffer_async_write(struct buffer_head *bh, int uptodate)
 
 still_busy:
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
-	return;
 }
 
 /*
@@ -656,7 +665,9 @@ EXPORT_SYMBOL(generic_buffers_fsync);
 void write_boundary_block(struct block_device *bdev,
 			sector_t bblock, unsigned blocksize)
 {
-	struct buffer_head *bh = __find_get_block(bdev, bblock + 1, blocksize);
+	struct buffer_head *bh;
+
+	bh = __find_get_block_nonatomic(bdev, bblock + 1, blocksize);
 	if (bh) {
 		if (buffer_dirty(bh))
 			write_dirty_buffer(bh, 0);
@@ -1109,6 +1120,8 @@ static struct buffer_head *
 __getblk_slow(struct block_device *bdev, sector_t block,
 	     unsigned size, gfp_t gfp)
 {
+	bool blocking = gfpflags_allow_blocking(gfp);
+
 	/* Size must be multiple of hard sectorsize */
 	if (unlikely(size & (bdev_logical_block_size(bdev)-1) ||
 			(size < 512 || size > PAGE_SIZE))) {
@@ -1124,12 +1137,15 @@ __getblk_slow(struct block_device *bdev, sector_t block,
 	for (;;) {
 		struct buffer_head *bh;
 
-		bh = __find_get_block(bdev, block, size);
-		if (bh)
-			return bh;
-
 		if (!grow_buffers(bdev, block, size, gfp))
 			return NULL;
+
+		if (blocking)
+			bh = __find_get_block_nonatomic(bdev, block, size);
+		else
+			bh = __find_get_block(bdev, block, size);
+		if (bh)
+			return bh;
 	}
 }
 
@@ -1207,10 +1223,8 @@ void mark_buffer_write_io_error(struct buffer_head *bh)
 	/* FIXME: do we need to set this in both places? */
 	if (bh->b_folio && bh->b_folio->mapping)
 		mapping_set_error(bh->b_folio->mapping, -EIO);
-	if (bh->b_assoc_map) {
+	if (bh->b_assoc_map)
 		mapping_set_error(bh->b_assoc_map, -EIO);
-		errseq_set(&bh->b_assoc_map->host->i_sb->s_wb_err, -EIO);
-	}
 }
 EXPORT_SYMBOL(mark_buffer_write_io_error);
 
@@ -1386,16 +1400,18 @@ lookup_bh_lru(struct block_device *bdev, sector_t block, unsigned size)
 /*
  * Perform a pagecache lookup for the matching buffer.  If it's there, refresh
  * it in the LRU and mark it as accessed.  If it is not present then return
- * NULL
+ * NULL. Atomic context callers may also return NULL if the buffer is being
+ * migrated; similarly the page is not marked accessed either.
  */
-struct buffer_head *
-__find_get_block(struct block_device *bdev, sector_t block, unsigned size)
+static struct buffer_head *
+find_get_block_common(struct block_device *bdev, sector_t block,
+			unsigned size, bool atomic)
 {
 	struct buffer_head *bh = lookup_bh_lru(bdev, block, size);
 
 	if (bh == NULL) {
 		/* __find_get_block_slow will mark the page accessed */
-		bh = __find_get_block_slow(bdev, block);
+		bh = __find_get_block_slow(bdev, block, atomic);
 		if (bh)
 			bh_lru_install(bh);
 	} else
@@ -1403,7 +1419,22 @@ __find_get_block(struct block_device *bdev, sector_t block, unsigned size)
 
 	return bh;
 }
+
+struct buffer_head *
+__find_get_block(struct block_device *bdev, sector_t block, unsigned size)
+{
+	return find_get_block_common(bdev, block, size, true);
+}
 EXPORT_SYMBOL(__find_get_block);
+
+/* same as __find_get_block() but allows sleeping contexts */
+struct buffer_head *
+__find_get_block_nonatomic(struct block_device *bdev, sector_t block,
+			   unsigned size)
+{
+	return find_get_block_common(bdev, block, size, false);
+}
+EXPORT_SYMBOL(__find_get_block_nonatomic);
 
 /**
  * bdev_getblk - Get a buffer_head in a block device's buffer cache.
@@ -1422,7 +1453,12 @@ EXPORT_SYMBOL(__find_get_block);
 struct buffer_head *bdev_getblk(struct block_device *bdev, sector_t block,
 		unsigned size, gfp_t gfp)
 {
-	struct buffer_head *bh = __find_get_block(bdev, block, size);
+	struct buffer_head *bh;
+
+	if (gfpflags_allow_blocking(gfp))
+		bh = __find_get_block_nonatomic(bdev, block, size);
+	else
+		bh = __find_get_block(bdev, block, size);
 
 	might_alloc(gfp);
 	if (bh)
@@ -1578,8 +1614,8 @@ static void discard_buffer(struct buffer_head * bh)
 	bh->b_bdev = NULL;
 	b_state = READ_ONCE(bh->b_state);
 	do {
-	} while (!try_cmpxchg(&bh->b_state, &b_state,
-			      b_state & ~BUFFER_FLAGS_DISCARD));
+	} while (!try_cmpxchg_relaxed(&bh->b_state, &b_state,
+				      b_state & ~BUFFER_FLAGS_DISCARD));
 	unlock_buffer(bh);
 }
 
@@ -1644,7 +1680,6 @@ void block_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 		filemap_release_folio(folio, 0);
 out:
 	folio_clear_mappedtodisk(folio);
-	return;
 }
 EXPORT_SYMBOL(block_invalidate_folio);
 
@@ -2695,7 +2730,7 @@ unlock:
 EXPORT_SYMBOL(block_truncate_page);
 
 /*
- * The generic ->writepage function for buffer-backed address_spaces
+ * The generic write folio function for buffer-backed address_spaces
  */
 int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
 		void *get_block)
@@ -2715,7 +2750,7 @@ int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
 
 	/*
 	 * The folio straddles i_size.  It must be zeroed out on each and every
-	 * writepage invocation because it may be mmapped.  "A file is mapped
+	 * writeback invocation because it may be mmapped.  "A file is mapped
 	 * in multiples of the page size.  For a file that is not a multiple of
 	 * the page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."

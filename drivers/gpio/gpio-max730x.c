@@ -143,18 +143,21 @@ static int max7301_get(struct gpio_chip *chip, unsigned offset)
 	return level;
 }
 
-static void max7301_set(struct gpio_chip *chip, unsigned offset, int value)
+static int max7301_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct max7301 *ts = gpiochip_get_data(chip);
+	int ret;
 
 	/* First 4 pins are unused in the controller */
 	offset += 4;
 
 	mutex_lock(&ts->lock);
 
-	__max7301_set(ts, offset, value);
+	ret = __max7301_set(ts, offset, value);
 
 	mutex_unlock(&ts->lock);
+
+	return ret;
 }
 
 int __max730x_probe(struct max7301 *ts)
@@ -185,7 +188,7 @@ int __max730x_probe(struct max7301 *ts)
 	ts->chip.direction_input = max7301_direction_input;
 	ts->chip.get = max7301_get;
 	ts->chip.direction_output = max7301_direction_output;
-	ts->chip.set = max7301_set;
+	ts->chip.set_rv = max7301_set;
 
 	ts->chip.ngpio = PIN_NUMBER;
 	ts->chip.can_sleep = true;

@@ -1837,6 +1837,8 @@ static int igt_mmap_revoke(void *arg)
 
 int i915_gem_mman_live_selftests(struct drm_i915_private *i915)
 {
+	int ret;
+	bool unuse_mm = false;
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_partial_tiling),
 		SUBTEST(igt_smoke_tiling),
@@ -1848,5 +1850,15 @@ int i915_gem_mman_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_mmap_gpu),
 	};
 
-	return i915_live_subtests(tests, i915);
+	if (!current->mm) {
+		kthread_use_mm(current->active_mm);
+		unuse_mm = true;
+	}
+
+	ret = i915_live_subtests(tests, i915);
+
+	if (unuse_mm)
+		kthread_unuse_mm(current->active_mm);
+
+	return ret;
 }

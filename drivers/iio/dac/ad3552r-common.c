@@ -43,6 +43,7 @@ const struct ad3552r_model_data ad3541r_model_data = {
 	.num_ranges = ARRAY_SIZE(ad3542r_ch_ranges),
 	.requires_output_range = true,
 	.num_spi_data_lanes = 2,
+	.max_reg_addr = 0x46,
 };
 EXPORT_SYMBOL_NS_GPL(ad3541r_model_data, "IIO_AD3552R");
 
@@ -54,6 +55,7 @@ const struct ad3552r_model_data ad3542r_model_data = {
 	.num_ranges = ARRAY_SIZE(ad3542r_ch_ranges),
 	.requires_output_range = true,
 	.num_spi_data_lanes = 2,
+	.max_reg_addr = 0x49,
 };
 EXPORT_SYMBOL_NS_GPL(ad3542r_model_data, "IIO_AD3552R");
 
@@ -65,6 +67,7 @@ const struct ad3552r_model_data ad3551r_model_data = {
 	.num_ranges = ARRAY_SIZE(ad3552r_ch_ranges),
 	.requires_output_range = false,
 	.num_spi_data_lanes = 4,
+	.max_reg_addr = 0x46,
 };
 EXPORT_SYMBOL_NS_GPL(ad3551r_model_data, "IIO_AD3552R");
 
@@ -76,6 +79,7 @@ const struct ad3552r_model_data ad3552r_model_data = {
 	.num_ranges = ARRAY_SIZE(ad3552r_ch_ranges),
 	.requires_output_range = false,
 	.num_spi_data_lanes = 4,
+	.max_reg_addr = 0x49,
 };
 EXPORT_SYMBOL_NS_GPL(ad3552r_model_data, "IIO_AD3552R");
 

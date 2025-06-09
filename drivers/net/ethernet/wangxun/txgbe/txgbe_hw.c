@@ -99,9 +99,15 @@ static int txgbe_calc_eeprom_checksum(struct wx *wx, u16 *checksum)
 	}
 	local_buffer = eeprom_ptrs;
 
-	for (i = 0; i < TXGBE_EEPROM_LAST_WORD; i++)
+	for (i = 0; i < TXGBE_EEPROM_LAST_WORD; i++) {
+		if (wx->mac.type == wx_mac_aml) {
+			if (i >= TXGBE_EEPROM_I2C_SRART_PTR &&
+			    i < TXGBE_EEPROM_I2C_END_PTR)
+				local_buffer[i] = 0xffff;
+		}
 		if (i != wx->eeprom.sw_region_offset + TXGBE_EEPROM_CHECKSUM)
 			*checksum += local_buffer[i];
+	}
 
 	kvfree(eeprom_ptrs);
 
@@ -182,7 +188,7 @@ int txgbe_reset_hw(struct wx *wx)
 	if (status != 0)
 		return status;
 
-	if (wx->media_type != sp_media_copper) {
+	if (wx->media_type != wx_media_copper) {
 		u32 val;
 
 		val = WX_MIS_RST_LAN_RST(wx->bus.func);
@@ -212,7 +218,7 @@ int txgbe_reset_hw(struct wx *wx)
 	 * clear the multicast table.  Also reset num_rar_entries to 128,
 	 * since we modify this value when programming the SAN MAC address.
 	 */
-	wx->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
+	wx->mac.num_rar_entries = TXGBE_RAR_ENTRIES;
 	wx_init_rx_addrs(wx);
 
 	pci_set_master(wx->pdev);

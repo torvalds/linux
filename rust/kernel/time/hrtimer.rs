@@ -68,9 +68,25 @@
 //! `start` operation.
 
 use super::ClockId;
-use crate::{prelude::*, time::Ktime, types::Opaque};
+use crate::{prelude::*, types::Opaque};
 use core::marker::PhantomData;
 use pin_init::PinInit;
+
+/// A Rust wrapper around a `ktime_t`.
+// NOTE: Ktime is going to be removed when hrtimer is converted to Instant/Delta.
+#[repr(transparent)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+pub struct Ktime {
+    inner: bindings::ktime_t,
+}
+
+impl Ktime {
+    /// Returns the number of nanoseconds.
+    #[inline]
+    pub fn to_ns(self) -> i64 {
+        self.inner
+    }
+}
 
 /// A timer backed by a C `struct hrtimer`.
 ///
@@ -384,11 +400,9 @@ pub unsafe trait HasHrTimer<T> {
 #[repr(u32)]
 pub enum HrTimerRestart {
     /// Timer should not be restarted.
-    #[allow(clippy::unnecessary_cast)]
-    NoRestart = bindings::hrtimer_restart_HRTIMER_NORESTART as u32,
+    NoRestart = bindings::hrtimer_restart_HRTIMER_NORESTART,
     /// Timer should be restarted.
-    #[allow(clippy::unnecessary_cast)]
-    Restart = bindings::hrtimer_restart_HRTIMER_RESTART as u32,
+    Restart = bindings::hrtimer_restart_HRTIMER_RESTART,
 }
 
 impl HrTimerRestart {

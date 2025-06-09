@@ -2055,6 +2055,43 @@ int otx2_handle_ntuple_tc_features(struct net_device *netdev, netdev_features_t 
 }
 EXPORT_SYMBOL(otx2_handle_ntuple_tc_features);
 
+int otx2_set_hw_capabilities(struct otx2_nic *pfvf)
+{
+	struct mbox *mbox = &pfvf->mbox;
+	struct otx2_hw *hw = &pfvf->hw;
+	struct get_hw_cap_rsp *rsp;
+	struct msg_req *req;
+	int ret = -ENOMEM;
+
+	mutex_lock(&mbox->lock);
+
+	req = otx2_mbox_alloc_msg_get_hw_cap(mbox);
+	if (!req)
+		goto fail;
+
+	ret = otx2_sync_mbox_msg(mbox);
+	if (ret)
+		goto fail;
+
+	rsp = (struct get_hw_cap_rsp *)otx2_mbox_get_rsp(&pfvf->mbox.mbox,
+							 0, &req->hdr);
+	if (IS_ERR(rsp)) {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	if (rsp->hw_caps & HW_CAP_MACSEC)
+		__set_bit(CN10K_HW_MACSEC, &hw->cap_flag);
+
+	mutex_unlock(&mbox->lock);
+
+	return 0;
+fail:
+	dev_err(pfvf->dev, "Cannot get MACSEC capability from AF\n");
+	mutex_unlock(&mbox->lock);
+	return ret;
+}
+
 #define M(_name, _id, _fn_name, _req_type, _rsp_type)			\
 int __weak								\
 otx2_mbox_up_handler_ ## _fn_name(struct otx2_nic *pfvf,		\

@@ -1584,10 +1584,13 @@ int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 		/*
 		 * Filter for systems with 'component_chaining' enabled.
 		 * This helps to avoid unnecessary re-configuration of an
-		 * already active BE on such systems.
+		 * already active BE on such systems and ensures the BE DAI
+		 * widget is powered ON after hw_params() BE DAI callback.
 		 */
 		if (fe->card->component_chaining &&
 		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_NEW) &&
+		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_OPEN) &&
+		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_HW_PARAMS) &&
 		    (be->dpcm[stream].state != SND_SOC_DPCM_STATE_CLOSE))
 			continue;
 
@@ -2507,17 +2510,6 @@ static int dpcm_fe_dai_prepare(struct snd_pcm_substream *substream)
 
 	dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_FE);
 
-	/* there is no point preparing this FE if there are no BEs */
-	if (list_empty(&fe->dpcm[stream].be_clients)) {
-		/* dev_err_once() for visibility, dev_dbg() for debugging UCM profiles */
-		dev_err_once(fe->dev, "ASoC: no backend DAIs enabled for %s, possibly missing ALSA mixer-based routing or UCM profile\n",
-			     fe->dai_link->name);
-		dev_dbg(fe->dev, "ASoC: no backend DAIs enabled for %s\n",
-			fe->dai_link->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
 	ret = dpcm_be_dai_prepare(fe, stream);
 	if (ret < 0)
 		goto out;
@@ -2773,11 +2765,23 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 	/* calculate valid and active FE <-> BE dpcms */
 	dpcm_add_paths(fe, stream, &list);
 
+	/* There is no point starting up this FE if there are no BEs. */
+	if (list_empty(&fe->dpcm[stream].be_clients)) {
+		/* dev_err_once() for visibility, dev_dbg() for debugging UCM profiles. */
+		dev_err_once(fe->dev, "ASoC: no backend DAIs enabled for %s, possibly missing ALSA mixer-based routing or UCM profile\n",
+			     fe->dai_link->name);
+		dev_dbg(fe->dev, "ASoC: no backend DAIs enabled for %s\n", fe->dai_link->name);
+
+		ret = -EINVAL;
+		goto put_path;
+	}
+
 	ret = dpcm_fe_dai_startup(fe_substream);
 	if (ret < 0)
 		dpcm_fe_dai_cleanup(fe_substream);
 
 	dpcm_clear_pending_state(fe, stream);
+put_path:
 	dpcm_path_put(&list);
 open_end:
 	snd_soc_dpcm_mutex_unlock(fe);

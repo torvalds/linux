@@ -1273,7 +1273,7 @@ static int sis_chip_create(struct snd_card *card,
 	sis->irq = -1;
 	sis->ioport = pci_resource_start(pci, 0);
 
-	rc = pci_request_regions(pci, "SiS7019");
+	rc = pcim_request_all_regions(pci, "SiS7019");
 	if (rc) {
 		dev_err(&pci->dev, "unable request regions\n");
 		return rc;

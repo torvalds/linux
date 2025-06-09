@@ -2,7 +2,7 @@
 #ifndef __ASM_SH_TLB_H
 #define __ASM_SH_TLB_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/pagemap.h>
 #include <asm-generic/tlb.h>
 
@@ -29,5 +29,5 @@ asmlinkage int handle_tlbmiss(struct pt_regs *regs, unsigned long error_code,
 			      unsigned long address);
 
 #endif /* CONFIG_MMU */
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_SH_TLB_H */

@@ -27,7 +27,7 @@ SYSCALL
 =======
 mseal syscall signature
 -----------------------
-   ``int mseal(void \* addr, size_t len, unsigned long flags)``
+   ``int mseal(void *addr, size_t len, unsigned long flags)``
 
    **addr**/**len**: virtual memory address range.
       The address range set by **addr**/**len** must meet:
@@ -144,7 +144,7 @@ Use cases
   architecture.
 
   The following architectures currently support this feature: x86-64, arm64,
-  and s390.
+  loongarch and s390.
 
   WARNING: This feature breaks programs which rely on relocating
   or unmapping system mappings. Known broken software at the time

@@ -157,6 +157,7 @@ static const __u8 fixed_rdesc_vendor[] = {
 			ReportCount(5) // padding
 			Input(Const)
 			// Byte 4 in report - just exists so we get to be a tablet pad
+			UsagePage_Digitizers
 			Usage_Dig_BarrelSwitch // BTN_STYLUS
 			ReportCount(1)
 			ReportSize(1)

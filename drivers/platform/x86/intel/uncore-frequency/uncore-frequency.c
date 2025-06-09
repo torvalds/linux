@@ -21,6 +21,7 @@
 #include <linux/suspend.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
 
 #include "uncore-frequency-common.h"
 
@@ -51,7 +52,7 @@ static int uncore_read_control_freq(struct uncore_data *data, unsigned int *valu
 	if (data->control_cpu < 0)
 		return -ENXIO;
 
-	ret = rdmsrl_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, &cap);
+	ret = rdmsrq_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, &cap);
 	if (ret)
 		return ret;
 
@@ -76,7 +77,7 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 	if (data->control_cpu < 0)
 		return -ENXIO;
 
-	ret = rdmsrl_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, &cap);
+	ret = rdmsrq_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, &cap);
 	if (ret)
 		return ret;
 
@@ -88,7 +89,7 @@ static int uncore_write_control_freq(struct uncore_data *data, unsigned int inpu
 		cap |= FIELD_PREP(UNCORE_MIN_RATIO_MASK, input);
 	}
 
-	ret = wrmsrl_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, cap);
+	ret = wrmsrq_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT, cap);
 	if (ret)
 		return ret;
 
@@ -105,7 +106,7 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 	if (data->control_cpu < 0)
 		return -ENXIO;
 
-	ret = rdmsrl_on_cpu(data->control_cpu, MSR_UNCORE_PERF_STATUS, &ratio);
+	ret = rdmsrq_on_cpu(data->control_cpu, MSR_UNCORE_PERF_STATUS, &ratio);
 	if (ret)
 		return ret;
 
@@ -146,14 +147,12 @@ static int uncore_event_cpu_online(unsigned int cpu)
 {
 	struct uncore_data *data;
 	int target;
+	int ret;
 
 	/* Check if there is an online cpu in the package for uncore MSR */
 	target = cpumask_any_and(&uncore_cpu_mask, topology_die_cpumask(cpu));
 	if (target < nr_cpu_ids)
 		return 0;
-
-	/* Use this CPU on this die as a control CPU */
-	cpumask_set_cpu(cpu, &uncore_cpu_mask);
 
 	data = uncore_get_instance(cpu);
 	if (!data)
@@ -163,7 +162,14 @@ static int uncore_event_cpu_online(unsigned int cpu)
 	data->die_id = topology_die_id(cpu);
 	data->domain_id = UNCORE_DOMAIN_ID_INVALID;
 
-	return uncore_freq_add_entry(data, cpu);
+	ret = uncore_freq_add_entry(data, cpu);
+	if (ret)
+		return ret;
+
+	/* Use this CPU on this die as a control CPU */
+	cpumask_set_cpu(cpu, &uncore_cpu_mask);
+
+	return 0;
 }
 
 static int uncore_event_cpu_offline(unsigned int cpu)
@@ -207,7 +213,7 @@ static int uncore_pm_notify(struct notifier_block *nb, unsigned long mode,
 			if (!data || !data->valid || !data->stored_uncore_data)
 				return 0;
 
-			wrmsrl_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT,
+			wrmsrq_on_cpu(data->control_cpu, MSR_UNCORE_RATIO_LIMIT,
 				      data->stored_uncore_data);
 		}
 		break;

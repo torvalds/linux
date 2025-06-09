@@ -85,7 +85,7 @@ static struct irq_chip xtensa_irq_chip = {
 int __init xtensa_pic_init_legacy(struct device_node *interrupt_parent)
 {
 	struct irq_domain *root_domain =
-		irq_domain_add_legacy(NULL, NR_IRQS - 1, 1, 0,
+		irq_domain_create_legacy(NULL, NR_IRQS - 1, 1, 0,
 				&xtensa_irq_domain_ops, &xtensa_irq_chip);
 	irq_set_default_domain(root_domain);
 	return 0;
@@ -95,7 +95,7 @@ static int __init xtensa_pic_init(struct device_node *np,
 		struct device_node *interrupt_parent)
 {
 	struct irq_domain *root_domain =
-		irq_domain_add_linear(np, NR_IRQS, &xtensa_irq_domain_ops,
+		irq_domain_create_linear(of_fwnode_handle(np), NR_IRQS, &xtensa_irq_domain_ops,
 				&xtensa_irq_chip);
 	irq_set_default_domain(root_domain);
 	return 0;

@@ -244,11 +244,13 @@ void ovs_dp_detach_port(struct vport *p)
 /* Must be called with rcu_read_lock. */
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 {
+	struct ovs_pcpu_storage *ovs_pcpu = this_cpu_ptr(&ovs_pcpu_storage);
 	const struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
 	struct sw_flow *flow;
 	struct sw_flow_actions *sf_acts;
 	struct dp_stats_percpu *stats;
+	bool ovs_pcpu_locked = false;
 	u64 *stats_counter;
 	u32 n_mask_hit;
 	u32 n_cache_hit;
@@ -290,10 +292,26 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 
 	ovs_flow_stats_update(flow, key->tp.flags, skb);
 	sf_acts = rcu_dereference(flow->sf_acts);
+	/* This path can be invoked recursively: Use the current task to
+	 * identify recursive invocation - the lock must be acquired only once.
+	 * Even with disabled bottom halves this can be preempted on PREEMPT_RT.
+	 * Limit the locking to RT to avoid assigning `owner' if it can be
+	 * avoided.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && ovs_pcpu->owner != current) {
+		local_lock_nested_bh(&ovs_pcpu_storage.bh_lock);
+		ovs_pcpu->owner = current;
+		ovs_pcpu_locked = true;
+	}
+
 	error = ovs_execute_actions(dp, skb, sf_acts, key);
 	if (unlikely(error))
 		net_dbg_ratelimited("ovs: action execution error on datapath %s: %d\n",
 				    ovs_dp_name(dp), error);
+	if (ovs_pcpu_locked) {
+		ovs_pcpu->owner = NULL;
+		local_unlock_nested_bh(&ovs_pcpu_storage.bh_lock);
+	}
 
 	stats_counter = &stats->n_hit;
 
@@ -671,7 +689,13 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	sf_acts = rcu_dereference(flow->sf_acts);
 
 	local_bh_disable();
+	local_lock_nested_bh(&ovs_pcpu_storage.bh_lock);
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		this_cpu_write(ovs_pcpu_storage.owner, current);
 	err = ovs_execute_actions(dp, packet, sf_acts, &flow->key);
+	if (IS_ENABLED(CONFIG_PREEMPT_RT))
+		this_cpu_write(ovs_pcpu_storage.owner, NULL);
+	local_unlock_nested_bh(&ovs_pcpu_storage.bh_lock);
 	local_bh_enable();
 	rcu_read_unlock();
 
@@ -2729,13 +2753,9 @@ static int __init dp_init(void)
 
 	pr_info("Open vSwitch switching datapath\n");
 
-	err = action_fifos_init();
-	if (err)
-		goto error;
-
 	err = ovs_internal_dev_rtnl_link_register();
 	if (err)
-		goto error_action_fifos_exit;
+		goto error;
 
 	err = ovs_flow_init();
 	if (err)
@@ -2778,8 +2798,6 @@ error_flow_exit:
 	ovs_flow_exit();
 error_unreg_rtnl_link:
 	ovs_internal_dev_rtnl_link_unregister();
-error_action_fifos_exit:
-	action_fifos_exit();
 error:
 	return err;
 }
@@ -2795,7 +2813,6 @@ static void dp_cleanup(void)
 	ovs_vport_exit();
 	ovs_flow_exit();
 	ovs_internal_dev_rtnl_link_unregister();
-	action_fifos_exit();
 }
 
 module_init(dp_init);

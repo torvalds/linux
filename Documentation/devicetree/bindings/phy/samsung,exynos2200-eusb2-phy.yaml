@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/samsung,exynos2200-eusb2-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos2200 eUSB2 phy controller
+
+maintainers:
+  - Ivaylo Ivanov <ivo.ivanov.ivanov1@gmail.com>
+
+description:
+  Samsung Exynos2200 eUSB2 phy, based on Synopsys eUSB2 IP block, supports
+  LS/FS/HS usb connectivity.
+
+properties:
+  compatible:
+    enum:
+      - samsung,exynos2200-eusb2-phy
+
+  reg:
+    maxItems: 1
+
+  "#phy-cells":
+    const: 0
+
+  clocks:
+    items:
+      - description: Reference clock
+      - description: Bus (APB) clock
+      - description: Control clock
+
+  clock-names:
+    items:
+      - const: ref
+      - const: bus
+      - const: ctrl
+
+  resets:
+    maxItems: 1
+
+  phys:
+    maxItems: 1
+    description:
+      Phandle to eUSB2 to USB 2.0 repeater
+
+  vdd-supply:
+    description:
+      Phandle to 0.88V regulator supply to PHY digital circuit.
+
+  vdda12-supply:
+    description:
+      Phandle to 1.2V regulator supply to PHY refclk pll block.
+
+required:
+  - compatible
+  - reg
+  - "#phy-cells"
+  - clocks
+  - clock-names
+  - vdd-supply
+  - vdda12-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    usb_hsphy: phy@10ab0000 {
+        compatible = "samsung,exynos2200-eusb2-phy";
+        reg = <0x10ab0000 0x10000>;
+        #phy-cells = <0>;
+
+        clocks = <&cmu_hsi0 7>,
+                 <&cmu_hsi0 5>,
+                 <&cmu_hsi0 8>;
+        clock-names = "ref", "bus", "ctrl";
+
+        vdd-supply = <&vreg_0p88>;
+        vdda12-supply = <&vreg_1p2>;
+    };

@@ -71,6 +71,8 @@ enum {
 	POWER_SUPPLY_HEALTH_COOL,
 	POWER_SUPPLY_HEALTH_HOT,
 	POWER_SUPPLY_HEALTH_NO_BATTERY,
+	POWER_SUPPLY_HEALTH_BLOWN_FUSE,
+	POWER_SUPPLY_HEALTH_CELL_IMBALANCE,
 };
 
 enum {
@@ -212,6 +214,7 @@ enum power_supply_usb_type {
 enum power_supply_charge_behaviour {
 	POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO = 0,
 	POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE,
+	POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE_AWAKE,
 	POWER_SUPPLY_CHARGE_BEHAVIOUR_FORCE_DISCHARGE,
 };
 
@@ -288,6 +291,7 @@ struct power_supply_desc {
 struct power_supply_ext {
 	const char *const name;
 	u8 charge_behaviours;
+	u32 charge_types;
 	const enum power_supply_property *properties;
 	size_t num_properties;
 

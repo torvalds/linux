@@ -578,7 +578,7 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = pci_request_regions(pdev, DRIVER_NAME);
+	ret = pcim_request_all_regions(pdev, DRIVER_NAME);
 	if (ret)
 		return ret;
 

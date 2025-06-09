@@ -336,9 +336,8 @@ static int __init mtk_cirq_of_init(struct device_node *node,
 	cirq_data->offsets = match->data;
 
 	irq_num = cirq_data->ext_irq_end - cirq_data->ext_irq_start + 1;
-	domain = irq_domain_add_hierarchy(domain_parent, 0,
-					  irq_num, node,
-					  &cirq_domain_ops, cirq_data);
+	domain = irq_domain_create_hierarchy(domain_parent, 0, irq_num, of_fwnode_handle(node),
+					     &cirq_domain_ops, cirq_data);
 	if (!domain) {
 		ret = -ENOMEM;
 		goto out_unmap;

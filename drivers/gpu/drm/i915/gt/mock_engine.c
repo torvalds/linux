@@ -108,7 +108,7 @@ static void advance(struct i915_request *request)
 
 static void hw_delay_complete(struct timer_list *t)
 {
-	struct mock_engine *engine = from_timer(engine, t, hw_delay);
+	struct mock_engine *engine = timer_container_of(engine, t, hw_delay);
 	struct i915_request *request;
 	unsigned long flags;
 
