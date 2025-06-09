@@ -838,7 +838,8 @@ static bool cfg80211_find_ssid_match(struct cfg80211_colocated_ap *ap,
 	return false;
 }
 
-static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
+static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev,
+			      bool first_part)
 {
 	u8 i;
 	struct cfg80211_colocated_ap *ap;
@@ -850,6 +851,7 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 	size_t size, offs_ssids, offs_6ghz_params, offs_ies;
 
 	rdev_req->req.scan_6ghz = true;
+	rdev_req->req.first_part = first_part;
 
 	if (!rdev->wiphy.bands[NL80211_BAND_6GHZ])
 		return -EOPNOTSUPP;
@@ -1046,7 +1048,7 @@ skip:
 		 * If this scan follows a previous scan, save the scan start
 		 * info from the first part of the scan
 		 */
-		if (old)
+		if (!first_part && !WARN_ON(!old))
 			rdev->int_scan_req->info = old->info;
 
 		err = rdev_scan(rdev, request);
@@ -1070,8 +1072,10 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev)
 	struct cfg80211_scan_request_int *rdev_req = rdev->scan_req;
 	u32 n_channels = 0, idx, i;
 
-	if (!(rdev->wiphy.flags & WIPHY_FLAG_SPLIT_SCAN_6GHZ))
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_SPLIT_SCAN_6GHZ)) {
+		rdev_req->req.first_part = true;
 		return rdev_scan(rdev, rdev_req);
+	}
 
 	for (i = 0; i < rdev_req->req.n_channels; i++) {
 		if (rdev_req->req.channels[i]->band != NL80211_BAND_6GHZ)
@@ -1079,7 +1083,7 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev)
 	}
 
 	if (!n_channels)
-		return cfg80211_scan_6ghz(rdev);
+		return cfg80211_scan_6ghz(rdev, true);
 
 	request = kzalloc(struct_size(request, req.channels, n_channels),
 			  GFP_KERNEL);
@@ -1096,6 +1100,7 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev)
 	}
 
 	rdev_req->req.scan_6ghz = false;
+	rdev_req->req.first_part = true;
 	rdev->int_scan_req = request;
 	return rdev_scan(rdev, request);
 }
@@ -1128,7 +1133,7 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 	if (wdev_running(wdev) &&
 	    (rdev->wiphy.flags & WIPHY_FLAG_SPLIT_SCAN_6GHZ) &&
 	    !rdev_req->req.scan_6ghz && !request->info.aborted &&
-	    !cfg80211_scan_6ghz(rdev))
+	    !cfg80211_scan_6ghz(rdev, false))
 		return;
 
 	/*
