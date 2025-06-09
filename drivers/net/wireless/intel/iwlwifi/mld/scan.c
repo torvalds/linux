@@ -1809,8 +1809,8 @@ void iwl_mld_int_mlo_scan(struct iwl_mld *mld, struct ieee80211_vif *vif)
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif) ||
-	    hweight16(vif->valid_links) == 1)
+	if (!IWL_MLD_AUTO_EML_ENABLE || !vif->cfg.assoc ||
+	    !ieee80211_vif_is_mld(vif) || hweight16(vif->valid_links) == 1)
 		return;
 
 	if (mld->scan.status & IWL_MLD_SCAN_INT_MLO) {
