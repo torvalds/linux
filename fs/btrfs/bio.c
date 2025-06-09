@@ -433,7 +433,7 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 		ASSERT(btrfs_dev_is_sequential(dev, physical));
 		bio->bi_iter.bi_sector = zone_start >> SECTOR_SHIFT;
 	}
-	btrfs_debug_in_rcu(dev->fs_info,
+	btrfs_debug(dev->fs_info,
 	"%s: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
 		__func__, bio_op(bio), bio->bi_opf, bio->bi_iter.bi_sector,
 		(unsigned long)dev->bdev->bd_dev, btrfs_dev_name(dev),
