@@ -243,10 +243,10 @@ extern struct acp_resource rmb_rsrc;
 extern struct acp_resource acp63_rsrc;
 extern struct acp_resource acp70_rsrc;
 
-extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines;
-extern struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_acp_machines;
-extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_acp_machines;
-extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_acp_machines;
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_acp_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_acp_machines[];
+extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_acp_machines[];
 
 extern const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops;
 extern const struct snd_soc_dai_ops acp_dmic_dai_ops;
