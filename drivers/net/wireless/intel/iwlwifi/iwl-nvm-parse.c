@@ -160,23 +160,26 @@ static struct ieee80211_rate iwl_cfg80211_rates[] = {
  * @NVM_CHANNEL_DC_HIGH: DC HIGH required/allowed (?)
  * @NVM_CHANNEL_VLP: client support connection to UHB VLP AP
  * @NVM_CHANNEL_AFC: client support connection to UHB AFC AP
+ * @NVM_CHANNEL_VLP_AP_NOT_ALLOWED: UHB VLP AP not allowed,
+ *	Valid only when %NVM_CHANNEL_VLP is enabled.
  */
 enum iwl_nvm_channel_flags {
-	NVM_CHANNEL_VALID                   = BIT(0),
-	NVM_CHANNEL_IBSS                    = BIT(1),
-	NVM_CHANNEL_ALLOW_20MHZ_ACTIVITY    = BIT(2),
-	NVM_CHANNEL_ACTIVE                  = BIT(3),
-	NVM_CHANNEL_RADAR                   = BIT(4),
-	NVM_CHANNEL_INDOOR_ONLY             = BIT(5),
-	NVM_CHANNEL_GO_CONCURRENT           = BIT(6),
-	NVM_CHANNEL_UNIFORM                 = BIT(7),
-	NVM_CHANNEL_20MHZ                   = BIT(8),
-	NVM_CHANNEL_40MHZ                   = BIT(9),
-	NVM_CHANNEL_80MHZ                   = BIT(10),
-	NVM_CHANNEL_160MHZ                  = BIT(11),
-	NVM_CHANNEL_DC_HIGH                 = BIT(12),
-	NVM_CHANNEL_VLP                     = BIT(13),
-	NVM_CHANNEL_AFC                     = BIT(14),
+	NVM_CHANNEL_VALID			= BIT(0),
+	NVM_CHANNEL_IBSS			= BIT(1),
+	NVM_CHANNEL_ALLOW_20MHZ_ACTIVITY	= BIT(2),
+	NVM_CHANNEL_ACTIVE			= BIT(3),
+	NVM_CHANNEL_RADAR			= BIT(4),
+	NVM_CHANNEL_INDOOR_ONLY			= BIT(5),
+	NVM_CHANNEL_GO_CONCURRENT		= BIT(6),
+	NVM_CHANNEL_UNIFORM			= BIT(7),
+	NVM_CHANNEL_20MHZ			= BIT(8),
+	NVM_CHANNEL_40MHZ			= BIT(9),
+	NVM_CHANNEL_80MHZ			= BIT(10),
+	NVM_CHANNEL_160MHZ			= BIT(11),
+	NVM_CHANNEL_DC_HIGH			= BIT(12),
+	NVM_CHANNEL_VLP				= BIT(13),
+	NVM_CHANNEL_AFC				= BIT(14),
+	NVM_CHANNEL_VLP_AP_NOT_ALLOWED		= BIT(15),
 };
 
 /**
@@ -1685,10 +1688,12 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	}
 
 	/* Set the AP type for the UHB case. */
-	if (nvm_flags & NVM_CHANNEL_VLP)
-		flags |= NL80211_RRF_ALLOW_6GHZ_VLP_AP;
-	else
+	if (nvm_flags & NVM_CHANNEL_VLP) {
+		if (!(nvm_flags & NVM_CHANNEL_VLP_AP_NOT_ALLOWED))
+			flags |= NL80211_RRF_ALLOW_6GHZ_VLP_AP;
+	} else {
 		flags |= NL80211_RRF_NO_6GHZ_VLP_CLIENT;
+	}
 
 	if (!(nvm_flags & NVM_CHANNEL_AFC))
 		flags |= NL80211_RRF_NO_6GHZ_AFC_CLIENT;
