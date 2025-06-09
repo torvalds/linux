@@ -248,6 +248,14 @@ static const struct edid_quirk {
 	/* OSVR HDK and HDK2 VR Headsets */
 	EDID_QUIRK('S', 'V', 'R', 0x1019, BIT(EDID_QUIRK_NON_DESKTOP)),
 	EDID_QUIRK('A', 'U', 'O', 0x1111, BIT(EDID_QUIRK_NON_DESKTOP)),
+
+	/*
+	 * @drm_edid_internal_quirk entries end here, following with the
+	 * @drm_edid_quirk entries.
+	 */
+
+	/* HP ZR24w DP AUX DPCD access requires probing to prevent corruption. */
+	EDID_QUIRK('H', 'W', 'P', 0x2869, BIT(DRM_EDID_QUIRK_DP_DPCD_PROBE)),
 };
 
 /*
