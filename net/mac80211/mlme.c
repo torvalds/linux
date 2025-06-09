@@ -1641,6 +1641,30 @@ static size_t ieee80211_add_before_he_elems(struct sk_buff *skb,
 	return noffset;
 }
 
+static size_t ieee80211_add_before_reg_conn(struct sk_buff *skb,
+					    const u8 *elems, size_t elems_len,
+					    size_t offset)
+{
+	static const u8 before_reg_conn[] = {
+		/*
+		 * no need to list the ones split off before HE
+		 * or generated here
+		 */
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_DH_PARAMETER,
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_KNOWN_STA_IDENTIFCATION,
+	};
+	size_t noffset;
+
+	if (!elems_len)
+		return offset;
+
+	noffset = ieee80211_ie_split(elems, elems_len, before_reg_conn,
+				     ARRAY_SIZE(before_reg_conn), offset);
+	skb_put_data(skb, elems + offset, noffset - offset);
+
+	return noffset;
+}
+
 #define PRESENT_ELEMS_MAX	8
 #define PRESENT_ELEM_EXT_OFFS	0x100
 
@@ -1799,6 +1823,22 @@ ieee80211_add_link_elems(struct ieee80211_sub_if_data *sdata,
 				     &assoc_data->link[link_id].conn);
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_HE_CAPABILITY);
 		ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
+	}
+
+	/*
+	 * if present, add any custom IEs that go before regulatory
+	 * connectivity element
+	 */
+	offset = ieee80211_add_before_reg_conn(skb, extra_elems,
+					       extra_elems_len, offset);
+
+	if (sband->band == NL80211_BAND_6GHZ) {
+		/*
+		 * as per Section E.2.7 of IEEE 802.11 REVme D7.0, non-AP STA
+		 * capable of operating on the 6 GHz band shall transmit
+		 * regulatory connectivity element.
+		 */
+		ieee80211_put_reg_conn(skb, chan->flags);
 	}
 
 	/*
@@ -5931,6 +5971,7 @@ ieee80211_ap_power_type(u8 control)
 		return IEEE80211_REG_LPI_AP;
 	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
 	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
+	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD:
 		return IEEE80211_REG_SP_AP;
 	case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
 		return IEEE80211_REG_VLP_AP;
