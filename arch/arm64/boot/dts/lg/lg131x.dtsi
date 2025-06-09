@@ -128,24 +128,24 @@
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0xfe000000 0x1000>;
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_bus>;
-			clock-names = "apb_pclk";
+			clocks = <&clk_bus>, <&clk_bus>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 		uart1: serial@fe100000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0xfe100000 0x1000>;
 			interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_bus>;
-			clock-names = "apb_pclk";
+			clocks = <&clk_bus>, <&clk_bus>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 		uart2: serial@fe200000 {
 			compatible = "arm,pl011", "arm,primecell";
 			reg = <0x0 0xfe200000 0x1000>;
 			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk_bus>;
-			clock-names = "apb_pclk";
+			clocks = <&clk_bus>, <&clk_bus>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 		spi0: spi@fe800000 {
