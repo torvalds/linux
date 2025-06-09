@@ -2333,67 +2333,31 @@ void drop_collected_paths(struct path *paths, struct path *prealloc)
 static void free_mnt_ns(struct mnt_namespace *);
 static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *, bool);
 
-static inline bool must_dissolve(struct mnt_namespace *mnt_ns)
-{
-	/*
-        * This mount belonged to an anonymous mount namespace
-        * but was moved to a non-anonymous mount namespace and
-        * then unmounted.
-        */
-	if (unlikely(!mnt_ns))
-		return false;
-
-	/*
-        * This mount belongs to a non-anonymous mount namespace
-        * and we know that such a mount can never transition to
-        * an anonymous mount namespace again.
-        */
-	if (!is_anon_ns(mnt_ns)) {
-		/*
-		 * A detached mount either belongs to an anonymous mount
-		 * namespace or a non-anonymous mount namespace. It
-		 * should never belong to something purely internal.
-		 */
-		VFS_WARN_ON_ONCE(mnt_ns == MNT_NS_INTERNAL);
-		return false;
-	}
-
-	return true;
-}
-
 void dissolve_on_fput(struct vfsmount *mnt)
 {
 	struct mnt_namespace *ns;
 	struct mount *m = real_mount(mnt);
 
+	/*
+	 * m used to be the root of anon namespace; if it still is one,
+	 * we need to dissolve the mount tree and free that namespace.
+	 * Let's try to avoid taking namespace_sem if we can determine
+	 * that there's nothing to do without it - rcu_read_lock() is
+	 * enough to make anon_ns_root() memory-safe and once m has
+	 * left its namespace, it's no longer our concern, since it will
+	 * never become a root of anon ns again.
+	 */
+
 	scoped_guard(rcu) {
-		if (!must_dissolve(READ_ONCE(m->mnt_ns)))
+		if (!anon_ns_root(m))
 			return;
 	}
 
 	scoped_guard(namespace_lock, &namespace_sem) {
+		if (!anon_ns_root(m))
+			return;
+
 		ns = m->mnt_ns;
-		if (!must_dissolve(ns))
-			return;
-
-		/*
-		 * After must_dissolve() we know that this is a detached
-		 * mount in an anonymous mount namespace.
-		 *
-		 * Now when mnt_has_parent() reports that this mount
-		 * tree has a parent, we know that this anonymous mount
-		 * tree has been moved to another anonymous mount
-		 * namespace.
-		 *
-		 * So when closing this file we cannot unmount the mount
-		 * tree. This will be done when the file referring to
-		 * the root of the anonymous mount namespace will be
-		 * closed (It could already be closed but it would sync
-		 * on @namespace_sem and wait for us to finish.).
-		 */
-		if (mnt_has_parent(m))
-			return;
-
 		lock_mount_hash();
 		umount_tree(m, UMOUNT_CONNECTED);
 		unlock_mount_hash();
