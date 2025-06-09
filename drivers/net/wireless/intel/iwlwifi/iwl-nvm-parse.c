@@ -1632,8 +1632,7 @@ IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);
 
 static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 				       int ch_idx, u16 nvm_flags,
-				       struct iwl_reg_capa reg_capa,
-				       const struct iwl_rf_cfg *cfg)
+				       struct iwl_reg_capa reg_capa)
 {
 	u32 flags = NL80211_RRF_NO_HT40;
 
@@ -1820,8 +1819,8 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		}
 
 		reg_rule_flags = iwl_nvm_get_regdom_bw_flags(nvm_chan, ch_idx,
-							     ch_flags, reg_capa,
-							     cfg);
+							     ch_flags,
+							     reg_capa);
 
 		/* we can't continue the same rule */
 		if (ch_idx == 0 || prev_reg_rule_flags != reg_rule_flags ||
