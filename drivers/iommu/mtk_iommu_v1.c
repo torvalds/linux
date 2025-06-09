@@ -288,6 +288,8 @@ static struct iommu_domain *mtk_iommu_v1_domain_alloc_paging(struct device *dev)
 	if (!dom)
 		return NULL;
 
+	dom->domain.pgsize_bitmap = MT2701_IOMMU_PAGE_SIZE;
+
 	return &dom->domain;
 }
 
@@ -582,7 +584,6 @@ static const struct iommu_ops mtk_iommu_v1_ops = {
 	.probe_finalize = mtk_iommu_v1_probe_finalize,
 	.release_device	= mtk_iommu_v1_release_device,
 	.device_group	= generic_device_group,
-	.pgsize_bitmap	= MT2701_IOMMU_PAGE_SIZE,
 	.owner          = THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= mtk_iommu_v1_attach_device,
