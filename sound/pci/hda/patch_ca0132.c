@@ -28,7 +28,7 @@
 #include "ca0132_regs.h"
 
 /* Enable this to see controls for tuning purpose. */
-/*#define ENABLE_TUNING_CONTROLS*/
+#define ENABLE_TUNING_CONTROLS
 
 #ifdef ENABLE_TUNING_CONTROLS
 #include <sound/tlv.h>
