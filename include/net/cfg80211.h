@@ -2748,8 +2748,6 @@ struct cfg80211_scan_6ghz_params {
  * @wiphy: the wiphy this was for
  * @scan_start: time (in jiffies) when the scan started
  * @wdev: the wireless device to scan for
- * @info: (internal) information about completed scan
- * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
  * @mac_addr: MAC address used with randomisation
  * @mac_addr_mask: MAC address mask used with randomisation, bits that
@@ -2780,12 +2778,8 @@ struct cfg80211_scan_request {
 	u8 mac_addr[ETH_ALEN] __aligned(2);
 	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
 	u8 bssid[ETH_ALEN] __aligned(2);
-
-	/* internal */
 	struct wiphy *wiphy;
 	unsigned long scan_start;
-	struct cfg80211_scan_info info;
-	bool notified;
 	bool no_cck;
 	bool scan_6ghz;
 	u32 n_6ghz_params;

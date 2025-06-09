@@ -782,9 +782,9 @@ cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
 }
 EXPORT_SYMBOL_IF_CFG80211_KUNIT(cfg80211_parse_colocated_ap);
 
-static  void cfg80211_scan_req_add_chan(struct cfg80211_scan_request *request,
-					struct ieee80211_channel *chan,
-					bool add_to_6ghz)
+static void cfg80211_scan_req_add_chan(struct cfg80211_scan_request *request,
+				       struct ieee80211_channel *chan,
+				       bool add_to_6ghz)
 {
 	int i;
 	u32 n_channels = request->n_channels;
@@ -843,25 +843,25 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 	u8 i;
 	struct cfg80211_colocated_ap *ap;
 	int n_channels, count = 0, err;
-	struct cfg80211_scan_request *request, *rdev_req = rdev->scan_req;
+	struct cfg80211_scan_request_int *request, *rdev_req = rdev->scan_req;
 	LIST_HEAD(coloc_ap_list);
 	bool need_scan_psc = true;
 	const struct ieee80211_sband_iftype_data *iftd;
 	size_t size, offs_ssids, offs_6ghz_params, offs_ies;
 
-	rdev_req->scan_6ghz = true;
+	rdev_req->req.scan_6ghz = true;
 
 	if (!rdev->wiphy.bands[NL80211_BAND_6GHZ])
 		return -EOPNOTSUPP;
 
 	iftd = ieee80211_get_sband_iftype_data(rdev->wiphy.bands[NL80211_BAND_6GHZ],
-					       rdev_req->wdev->iftype);
+					       rdev_req->req.wdev->iftype);
 	if (!iftd || !iftd->he_cap.has_he)
 		return -EOPNOTSUPP;
 
 	n_channels = rdev->wiphy.bands[NL80211_BAND_6GHZ]->n_channels;
 
-	if (rdev_req->flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ) {
+	if (rdev_req->req.flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ) {
 		struct cfg80211_internal_bss *intbss;
 
 		spin_lock_bh(&rdev->bss_lock);
@@ -883,8 +883,8 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 			 * This is relevant for ML probe requests when the lower
 			 * band APs have not been discovered.
 			 */
-			if (is_broadcast_ether_addr(rdev_req->bssid) ||
-			    !ether_addr_equal(rdev_req->bssid, res->bssid) ||
+			if (is_broadcast_ether_addr(rdev_req->req.bssid) ||
+			    !ether_addr_equal(rdev_req->req.bssid, res->bssid) ||
 			    res->channel->band != NL80211_BAND_6GHZ)
 				continue;
 
@@ -911,13 +911,13 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 		spin_unlock_bh(&rdev->bss_lock);
 	}
 
-	size = struct_size(request, channels, n_channels);
+	size = struct_size(request, req.channels, n_channels);
 	offs_ssids = size;
-	size += sizeof(*request->ssids) * rdev_req->n_ssids;
+	size += sizeof(*request->req.ssids) * rdev_req->req.n_ssids;
 	offs_6ghz_params = size;
-	size += sizeof(*request->scan_6ghz_params) * count;
+	size += sizeof(*request->req.scan_6ghz_params) * count;
 	offs_ies = size;
-	size += rdev_req->ie_len;
+	size += rdev_req->req.ie_len;
 
 	request = kzalloc(size, GFP_KERNEL);
 	if (!request) {
@@ -926,26 +926,26 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 	}
 
 	*request = *rdev_req;
-	request->n_channels = 0;
-	request->n_6ghz_params = 0;
-	if (rdev_req->n_ssids) {
+	request->req.n_channels = 0;
+	request->req.n_6ghz_params = 0;
+	if (rdev_req->req.n_ssids) {
 		/*
 		 * Add the ssids from the parent scan request to the new
 		 * scan request, so the driver would be able to use them
 		 * in its probe requests to discover hidden APs on PSC
 		 * channels.
 		 */
-		request->ssids = (void *)request + offs_ssids;
-		memcpy(request->ssids, rdev_req->ssids,
-		       sizeof(*request->ssids) * request->n_ssids);
+		request->req.ssids = (void *)request + offs_ssids;
+		memcpy(request->req.ssids, rdev_req->req.ssids,
+		       sizeof(*request->req.ssids) * request->req.n_ssids);
 	}
-	request->scan_6ghz_params = (void *)request + offs_6ghz_params;
+	request->req.scan_6ghz_params = (void *)request + offs_6ghz_params;
 
-	if (rdev_req->ie_len) {
+	if (rdev_req->req.ie_len) {
 		void *ie = (void *)request + offs_ies;
 
-		memcpy(ie, rdev_req->ie, rdev_req->ie_len);
-		request->ie = ie;
+		memcpy(ie, rdev_req->req.ie, rdev_req->req.ie_len);
+		request->req.ie = ie;
 	}
 
 	/*
@@ -953,10 +953,12 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 	 * and at least one of the reported co-located APs with same SSID
 	 * indicating that all APs in the same ESS are co-located
 	 */
-	if (count && request->n_ssids == 1 && request->ssids[0].ssid_len) {
+	if (count &&
+	    request->req.n_ssids == 1 &&
+	    request->req.ssids[0].ssid_len) {
 		list_for_each_entry(ap, &coloc_ap_list, list) {
 			if (ap->colocated_ess &&
-			    cfg80211_find_ssid_match(ap, request)) {
+			    cfg80211_find_ssid_match(ap, &request->req)) {
 				need_scan_psc = false;
 				break;
 			}
@@ -968,51 +970,52 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 	 * regardless of the collocated APs (PSC channels or all channels
 	 * in case that NL80211_SCAN_FLAG_COLOCATED_6GHZ is not set)
 	 */
-	for (i = 0; i < rdev_req->n_channels; i++) {
-		if (rdev_req->channels[i]->band == NL80211_BAND_6GHZ &&
+	for (i = 0; i < rdev_req->req.n_channels; i++) {
+		if (rdev_req->req.channels[i]->band == NL80211_BAND_6GHZ &&
 		    ((need_scan_psc &&
-		      cfg80211_channel_is_psc(rdev_req->channels[i])) ||
-		     !(rdev_req->flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ))) {
-			cfg80211_scan_req_add_chan(request,
-						   rdev_req->channels[i],
+		      cfg80211_channel_is_psc(rdev_req->req.channels[i])) ||
+		     !(rdev_req->req.flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ))) {
+			cfg80211_scan_req_add_chan(&request->req,
+						   rdev_req->req.channels[i],
 						   false);
 		}
 	}
 
-	if (!(rdev_req->flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ))
+	if (!(rdev_req->req.flags & NL80211_SCAN_FLAG_COLOCATED_6GHZ))
 		goto skip;
 
 	list_for_each_entry(ap, &coloc_ap_list, list) {
 		bool found = false;
 		struct cfg80211_scan_6ghz_params *scan_6ghz_params =
-			&request->scan_6ghz_params[request->n_6ghz_params];
+			&request->req.scan_6ghz_params[request->req.n_6ghz_params];
 		struct ieee80211_channel *chan =
 			ieee80211_get_channel(&rdev->wiphy, ap->center_freq);
 
 		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED ||
-		    !cfg80211_wdev_channel_allowed(rdev_req->wdev, chan))
+		    !cfg80211_wdev_channel_allowed(rdev_req->req.wdev, chan))
 			continue;
 
-		for (i = 0; i < rdev_req->n_channels; i++) {
-			if (rdev_req->channels[i] == chan)
+		for (i = 0; i < rdev_req->req.n_channels; i++) {
+			if (rdev_req->req.channels[i] == chan)
 				found = true;
 		}
 
 		if (!found)
 			continue;
 
-		if (request->n_ssids > 0 &&
-		    !cfg80211_find_ssid_match(ap, request))
+		if (request->req.n_ssids > 0 &&
+		    !cfg80211_find_ssid_match(ap, &request->req))
 			continue;
 
-		if (!is_broadcast_ether_addr(request->bssid) &&
-		    !ether_addr_equal(request->bssid, ap->bssid))
+		if (!is_broadcast_ether_addr(request->req.bssid) &&
+		    !ether_addr_equal(request->req.bssid, ap->bssid))
 			continue;
 
-		if (!request->n_ssids && ap->multi_bss && !ap->transmitted_bssid)
+		if (!request->req.n_ssids && ap->multi_bss &&
+		    !ap->transmitted_bssid)
 			continue;
 
-		cfg80211_scan_req_add_chan(request, chan, true);
+		cfg80211_scan_req_add_chan(&request->req, chan, true);
 		memcpy(scan_6ghz_params->bssid, ap->bssid, ETH_ALEN);
 		scan_6ghz_params->short_ssid = ap->short_ssid;
 		scan_6ghz_params->short_ssid_valid = ap->short_ssid_valid;
@@ -1028,14 +1031,14 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 		if (cfg80211_channel_is_psc(chan) && !need_scan_psc)
 			scan_6ghz_params->psc_no_listen = true;
 
-		request->n_6ghz_params++;
+		request->req.n_6ghz_params++;
 	}
 
 skip:
 	cfg80211_free_coloc_ap_list(&coloc_ap_list);
 
-	if (request->n_channels) {
-		struct cfg80211_scan_request *old = rdev->int_scan_req;
+	if (request->req.n_channels) {
+		struct cfg80211_scan_request_int *old = rdev->int_scan_req;
 
 		rdev->int_scan_req = request;
 
@@ -1063,35 +1066,36 @@ skip:
 
 int cfg80211_scan(struct cfg80211_registered_device *rdev)
 {
-	struct cfg80211_scan_request *request;
-	struct cfg80211_scan_request *rdev_req = rdev->scan_req;
+	struct cfg80211_scan_request_int *request;
+	struct cfg80211_scan_request_int *rdev_req = rdev->scan_req;
 	u32 n_channels = 0, idx, i;
 
 	if (!(rdev->wiphy.flags & WIPHY_FLAG_SPLIT_SCAN_6GHZ))
 		return rdev_scan(rdev, rdev_req);
 
-	for (i = 0; i < rdev_req->n_channels; i++) {
-		if (rdev_req->channels[i]->band != NL80211_BAND_6GHZ)
+	for (i = 0; i < rdev_req->req.n_channels; i++) {
+		if (rdev_req->req.channels[i]->band != NL80211_BAND_6GHZ)
 			n_channels++;
 	}
 
 	if (!n_channels)
 		return cfg80211_scan_6ghz(rdev);
 
-	request = kzalloc(struct_size(request, channels, n_channels),
+	request = kzalloc(struct_size(request, req.channels, n_channels),
 			  GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
 
 	*request = *rdev_req;
-	request->n_channels = n_channels;
+	request->req.n_channels = n_channels;
 
-	for (i = idx = 0; i < rdev_req->n_channels; i++) {
-		if (rdev_req->channels[i]->band != NL80211_BAND_6GHZ)
-			request->channels[idx++] = rdev_req->channels[i];
+	for (i = idx = 0; i < rdev_req->req.n_channels; i++) {
+		if (rdev_req->req.channels[i]->band != NL80211_BAND_6GHZ)
+			request->req.channels[idx++] =
+				rdev_req->req.channels[i];
 	}
 
-	rdev_req->scan_6ghz = false;
+	rdev_req->req.scan_6ghz = false;
 	rdev->int_scan_req = request;
 	return rdev_scan(rdev, request);
 }
@@ -1099,7 +1103,7 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev)
 void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 			   bool send_message)
 {
-	struct cfg80211_scan_request *request, *rdev_req;
+	struct cfg80211_scan_request_int *request, *rdev_req;
 	struct wireless_dev *wdev;
 	struct sk_buff *msg;
 #ifdef CONFIG_CFG80211_WEXT
@@ -1118,12 +1122,12 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 	if (!rdev_req)
 		return;
 
-	wdev = rdev_req->wdev;
+	wdev = rdev_req->req.wdev;
 	request = rdev->int_scan_req ? rdev->int_scan_req : rdev_req;
 
 	if (wdev_running(wdev) &&
 	    (rdev->wiphy.flags & WIPHY_FLAG_SPLIT_SCAN_6GHZ) &&
-	    !rdev_req->scan_6ghz && !request->info.aborted &&
+	    !rdev_req->req.scan_6ghz && !request->info.aborted &&
 	    !cfg80211_scan_6ghz(rdev))
 		return;
 
@@ -1136,10 +1140,10 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev,
 		cfg80211_sme_scan_done(wdev->netdev);
 
 	if (!request->info.aborted &&
-	    request->flags & NL80211_SCAN_FLAG_FLUSH) {
+	    request->req.flags & NL80211_SCAN_FLAG_FLUSH) {
 		/* flush entries from previous scans */
 		spin_lock_bh(&rdev->bss_lock);
-		__cfg80211_bss_expire(rdev, request->scan_start);
+		__cfg80211_bss_expire(rdev, request->req.scan_start);
 		spin_unlock_bh(&rdev->bss_lock);
 	}
 
@@ -1175,13 +1179,16 @@ void __cfg80211_scan_done(struct wiphy *wiphy, struct wiphy_work *wk)
 void cfg80211_scan_done(struct cfg80211_scan_request *request,
 			struct cfg80211_scan_info *info)
 {
-	struct cfg80211_scan_info old_info = request->info;
+	struct cfg80211_scan_request_int *intreq =
+		container_of(request, struct cfg80211_scan_request_int, req);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(request->wiphy);
+	struct cfg80211_scan_info old_info = intreq->info;
 
-	trace_cfg80211_scan_done(request, info);
-	WARN_ON(request != wiphy_to_rdev(request->wiphy)->scan_req &&
-		request != wiphy_to_rdev(request->wiphy)->int_scan_req);
+	trace_cfg80211_scan_done(intreq, info);
+	WARN_ON(intreq != rdev->scan_req &&
+		intreq != rdev->int_scan_req);
 
-	request->info = *info;
+	intreq->info = *info;
 
 	/*
 	 * In case the scan is split, the scan_start_tsf and tsf_bssid should
@@ -1189,14 +1196,13 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request,
 	 * be non zero.
 	 */
 	if (request->scan_6ghz && old_info.scan_start_tsf) {
-		request->info.scan_start_tsf = old_info.scan_start_tsf;
-		memcpy(request->info.tsf_bssid, old_info.tsf_bssid,
-		       sizeof(request->info.tsf_bssid));
+		intreq->info.scan_start_tsf = old_info.scan_start_tsf;
+		memcpy(intreq->info.tsf_bssid, old_info.tsf_bssid,
+		       sizeof(intreq->info.tsf_bssid));
 	}
 
-	request->notified = true;
-	wiphy_work_queue(request->wiphy,
-			 &wiphy_to_rdev(request->wiphy)->scan_done_wk);
+	intreq->notified = true;
+	wiphy_work_queue(request->wiphy, &rdev->scan_done_wk);
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
 
@@ -3496,7 +3502,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	struct cfg80211_registered_device *rdev;
 	struct wiphy *wiphy;
 	struct iw_scan_req *wreq = NULL;
-	struct cfg80211_scan_request *creq;
+	struct cfg80211_scan_request_int *creq;
 	int i, err, n_channels = 0;
 	enum nl80211_band band;
 
@@ -3526,19 +3532,20 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 		n_channels = ieee80211_get_num_supported_channels(wiphy);
 	}
 
-	creq = kzalloc(struct_size(creq, channels, n_channels) +
+	creq = kzalloc(struct_size(creq, req.channels, n_channels) +
 		       sizeof(struct cfg80211_ssid),
 		       GFP_ATOMIC);
 	if (!creq)
 		return -ENOMEM;
 
-	creq->wiphy = wiphy;
-	creq->wdev = dev->ieee80211_ptr;
+	creq->req.wiphy = wiphy;
+	creq->req.wdev = dev->ieee80211_ptr;
 	/* SSIDs come after channels */
-	creq->ssids = (void *)creq + struct_size(creq, channels, n_channels);
-	creq->n_channels = n_channels;
-	creq->n_ssids = 1;
-	creq->scan_start = jiffies;
+	creq->req.ssids = (void *)creq +
+			  struct_size(creq, req.channels, n_channels);
+	creq->req.n_channels = n_channels;
+	creq->req.n_ssids = 1;
+	creq->req.scan_start = jiffies;
 
 	/* translate "Scan on frequencies" request */
 	i = 0;
@@ -3554,7 +3561,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 			/* ignore disabled channels */
 			chan = &wiphy->bands[band]->channels[j];
 			if (chan->flags & IEEE80211_CHAN_DISABLED ||
-			    !cfg80211_wdev_channel_allowed(creq->wdev, chan))
+			    !cfg80211_wdev_channel_allowed(creq->req.wdev, chan))
 				continue;
 
 			/* If we have a wireless request structure and the
@@ -3577,7 +3584,8 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 			}
 
 		wext_freq_found:
-			creq->channels[i] = &wiphy->bands[band]->channels[j];
+			creq->req.channels[i] =
+				&wiphy->bands[band]->channels[j];
 			i++;
 		wext_freq_not_found: ;
 		}
@@ -3588,28 +3596,30 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 		goto out;
 	}
 
-	/* Set real number of channels specified in creq->channels[] */
-	creq->n_channels = i;
+	/* Set real number of channels specified in creq->req.channels[] */
+	creq->req.n_channels = i;
 
 	/* translate "Scan for SSID" request */
 	if (wreq) {
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
 			if (wreq->essid_len > IEEE80211_MAX_SSID_LEN)
 				return -EINVAL;
-			memcpy(creq->ssids[0].ssid, wreq->essid, wreq->essid_len);
-			creq->ssids[0].ssid_len = wreq->essid_len;
+			memcpy(creq->req.ssids[0].ssid, wreq->essid,
+			       wreq->essid_len);
+			creq->req.ssids[0].ssid_len = wreq->essid_len;
 		}
 		if (wreq->scan_type == IW_SCAN_TYPE_PASSIVE) {
-			creq->ssids = NULL;
-			creq->n_ssids = 0;
+			creq->req.ssids = NULL;
+			creq->req.n_ssids = 0;
 		}
 	}
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++)
 		if (wiphy->bands[i])
-			creq->rates[i] = (1 << wiphy->bands[i]->n_bitrates) - 1;
+			creq->req.rates[i] =
+				(1 << wiphy->bands[i]->n_bitrates) - 1;
 
-	eth_broadcast_addr(creq->bssid);
+	eth_broadcast_addr(creq->req.bssid);
 
 	scoped_guard(wiphy, &rdev->wiphy) {
 		rdev->scan_req = creq;
