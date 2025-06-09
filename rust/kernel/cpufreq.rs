@@ -10,6 +10,7 @@
 
 use crate::{
     clk::Hertz,
+    cpu::CpuId,
     cpumask,
     device::{Bound, Device},
     devres::Devres,
@@ -465,8 +466,9 @@ impl Policy {
 
     /// Returns the primary CPU for the [`Policy`].
     #[inline]
-    pub fn cpu(&self) -> u32 {
-        self.as_ref().cpu
+    pub fn cpu(&self) -> CpuId {
+        // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
+        unsafe { CpuId::from_u32_unchecked(self.as_ref().cpu) }
     }
 
     /// Returns the minimum frequency for the [`Policy`].
@@ -525,7 +527,7 @@ impl Policy {
     #[inline]
     pub fn generic_get(&self) -> Result<u32> {
         // SAFETY: By the type invariant, the pointer stored in `self` is valid.
-        Ok(unsafe { bindings::cpufreq_generic_get(self.cpu()) })
+        Ok(unsafe { bindings::cpufreq_generic_get(u32::from(self.cpu())) })
     }
 
     /// Provides a wrapper to the register with energy model using the OPP core.
@@ -678,9 +680,9 @@ impl Policy {
 struct PolicyCpu<'a>(&'a mut Policy);
 
 impl<'a> PolicyCpu<'a> {
-    fn from_cpu(cpu: u32) -> Result<Self> {
+    fn from_cpu(cpu: CpuId) -> Result<Self> {
         // SAFETY: It is safe to call `cpufreq_cpu_get` for any valid CPU.
-        let ptr = from_err_ptr(unsafe { bindings::cpufreq_cpu_get(cpu) })?;
+        let ptr = from_err_ptr(unsafe { bindings::cpufreq_cpu_get(u32::from(cpu)) })?;
 
         Ok(Self(
             // SAFETY: The `ptr` is guaranteed to be valid and remains valid for the lifetime of
@@ -1266,7 +1268,10 @@ impl<T: Driver> Registration<T> {
         target_perf: usize,
         capacity: usize,
     ) {
-        if let Ok(mut policy) = PolicyCpu::from_cpu(cpu) {
+        // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
+        let cpu_id = unsafe { CpuId::from_u32_unchecked(cpu) };
+
+        if let Ok(mut policy) = PolicyCpu::from_cpu(cpu_id) {
             T::adjust_perf(&mut policy, min_perf, target_perf, capacity);
         }
     }
@@ -1321,7 +1326,10 @@ impl<T: Driver> Registration<T> {
     ///
     /// - This function may only be called from the cpufreq C infrastructure.
     unsafe extern "C" fn get_callback(cpu: u32) -> kernel::ffi::c_uint {
-        PolicyCpu::from_cpu(cpu).map_or(0, |mut policy| T::get(&mut policy).map_or(0, |f| f))
+        // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
+        let cpu_id = unsafe { CpuId::from_u32_unchecked(cpu) };
+
+        PolicyCpu::from_cpu(cpu_id).map_or(0, |mut policy| T::get(&mut policy).map_or(0, |f| f))
     }
 
     /// Driver's `update_limit` callback.
@@ -1344,8 +1352,11 @@ impl<T: Driver> Registration<T> {
     /// - This function may only be called from the cpufreq C infrastructure.
     /// - The pointer arguments must be valid pointers.
     unsafe extern "C" fn bios_limit_callback(cpu: i32, limit: *mut u32) -> kernel::ffi::c_int {
+        // SAFETY: The C API guarantees that `cpu` refers to a valid CPU number.
+        let cpu_id = unsafe { CpuId::from_i32_unchecked(cpu) };
+
         from_result(|| {
-            let mut policy = PolicyCpu::from_cpu(cpu as u32)?;
+            let mut policy = PolicyCpu::from_cpu(cpu_id)?;
 
             // SAFETY: `limit` is guaranteed by the C code to be valid.
             T::bios_limit(&mut policy, &mut (unsafe { *limit })).map(|()| 0)

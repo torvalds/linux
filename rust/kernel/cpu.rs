@@ -127,9 +127,9 @@ impl From<CpuId> for i32 {
 /// Callers must ensure that the CPU device is not used after it has been unregistered.
 /// This can be achieved, for example, by registering a CPU hotplug notifier and removing
 /// any references to the CPU device within the notifier's callback.
-pub unsafe fn from_cpu(cpu: u32) -> Result<&'static Device> {
+pub unsafe fn from_cpu(cpu: CpuId) -> Result<&'static Device> {
     // SAFETY: It is safe to call `get_cpu_device()` for any CPU.
-    let ptr = unsafe { bindings::get_cpu_device(cpu) };
+    let ptr = unsafe { bindings::get_cpu_device(u32::from(cpu)) };
     if ptr.is_null() {
         return Err(ENODEV);
     }
