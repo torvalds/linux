@@ -86,19 +86,15 @@ do {							\
 	rcu_read_unlock();				\
 } while (0)
 
-#define btrfs_printk_ratelimited(fs_info, fmt, args...)		\
+#define btrfs_printk_rl_in_rcu(fs_info, fmt, args...)		\
 do {								\
 	static DEFINE_RATELIMIT_STATE(_rs,			\
 		DEFAULT_RATELIMIT_INTERVAL,			\
 		DEFAULT_RATELIMIT_BURST);			\
+								\
+	rcu_read_lock();					\
 	if (__ratelimit(&_rs))					\
 		btrfs_printk(fs_info, fmt, ##args);		\
-} while (0)
-
-#define btrfs_printk_rl_in_rcu(fs_info, fmt, args...)		\
-do {								\
-	rcu_read_lock();					\
-	btrfs_printk_ratelimited(fs_info, fmt, ##args);		\
 	rcu_read_unlock();					\
 } while (0)
 
