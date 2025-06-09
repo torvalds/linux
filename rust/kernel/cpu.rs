@@ -102,6 +102,17 @@ impl CpuId {
     pub fn as_u32(&self) -> u32 {
         self.0
     }
+
+    /// Returns the ID of the CPU the code is currently running on.
+    ///
+    /// The returned value is considered unstable because it may change
+    /// unexpectedly due to preemption or CPU migration. It should only be
+    /// used when the context ensures that the task remains on the same CPU
+    /// or the users could use a stale (yet valid) CPU ID.
+    pub fn current() -> Self {
+        // SAFETY: raw_smp_processor_id() always returns a valid CPU ID.
+        unsafe { Self::from_u32_unchecked(bindings::raw_smp_processor_id()) }
+    }
 }
 
 impl From<CpuId> for u32 {
