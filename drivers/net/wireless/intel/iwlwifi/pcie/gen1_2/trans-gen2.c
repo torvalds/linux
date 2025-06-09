@@ -5,8 +5,8 @@
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
-#include "iwl-context-info.h"
-#include "iwl-context-info-v2.h"
+#include "pcie/iwl-context-info.h"
+#include "pcie/iwl-context-info-v2.h"
 #include "internal.h"
 #include "fw/dbg.h"
 

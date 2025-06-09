@@ -22,7 +22,7 @@
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
-#include "iwl-context-info.h"
+#include "pcie/iwl-context-info.h"
 
 /*
  * RX related structures and functions

@@ -14,7 +14,7 @@
 #include "iwl-fh.h"
 #include <linux/dmapool.h>
 #include "fw/api/commands.h"
-#include "pcie/internal.h"
+#include "pcie/gen1_2/internal.h"
 #include "pcie/iwl-context-info-v2.h"
 
 struct iwl_trans_dev_restart_data {

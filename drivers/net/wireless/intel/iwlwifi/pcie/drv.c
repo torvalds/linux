@@ -15,7 +15,7 @@
 #include "iwl-trans.h"
 #include "iwl-drv.h"
 #include "iwl-prph.h"
-#include "internal.h"
+#include "gen1_2/internal.h"
 
 #define _IS_A(cfg, _struct) __builtin_types_compatible_p(typeof(cfg),	\
 							 struct _struct)

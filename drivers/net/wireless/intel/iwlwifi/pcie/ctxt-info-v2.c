@@ -6,7 +6,7 @@
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-context-info-v2.h"
-#include "internal.h"
+#include "gen1_2/internal.h"
 #include "iwl-prph.h"
 
 static const struct dmi_system_id dmi_force_scu_active_approved_list[] = {
