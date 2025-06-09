@@ -589,9 +589,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 			return -ENOMEM;
 		}
 		call->ip = cursor_node->ip;
-		call->ms = cursor_node->ms;
-		call->ms.map = map__get(call->ms.map);
-		call->ms.maps = maps__get(call->ms.maps);
+		map_symbol__copy(&call->ms, &cursor_node->ms);
 		call->srcline = cursor_node->srcline;
 
 		if (cursor_node->branch) {
@@ -1094,9 +1092,7 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 
 	node->ip = ip;
 	map_symbol__exit(&node->ms);
-	node->ms = *ms;
-	node->ms.maps = maps__get(ms->maps);
-	node->ms.map = map__get(ms->map);
+	map_symbol__copy(&node->ms, ms);
 	node->branch = branch;
 	node->nr_loop_iter = nr_loop_iter;
 	node->iter_cycles = iter_cycles;
@@ -1564,7 +1560,7 @@ int callchain_node__make_parent_list(struct callchain_node *node)
 				goto out;
 			*new = *chain;
 			new->has_children = false;
-			new->ms.map = map__get(new->ms.map);
+			map_symbol__copy(&new->ms, &chain->ms);
 			list_add_tail(&new->list, &head);
 		}
 		parent = parent->parent;

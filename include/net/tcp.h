@@ -779,7 +779,6 @@ static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
 
 /* tcp.c */
 void tcp_get_info(struct sock *, struct tcp_info *);
-void tcp_sock_rfree(struct sk_buff *skb);
 
 /* Read 'sendfile()'-style from a TCP socket */
 int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
@@ -2898,19 +2897,5 @@ enum skb_drop_reason tcp_inbound_hash(struct sock *sk,
 		const struct request_sock *req, const struct sk_buff *skb,
 		const void *saddr, const void *daddr,
 		int family, int dif, int sdif);
-
-/* version of skb_set_owner_r() avoiding one atomic_add() */
-static inline void tcp_skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
-{
-	skb_orphan(skb);
-	skb->sk = sk;
-	skb->destructor = tcp_sock_rfree;
-
-	sock_owned_by_me(sk);
-	atomic_set(&sk->sk_rmem_alloc,
-		   atomic_read(&sk->sk_rmem_alloc) + skb->truesize);
-
-	sk_forward_alloc_add(sk, -skb->truesize);
-}
 
 #endif	/* _TCP_H */

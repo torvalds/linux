@@ -1,0 +1,20 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_filter_mode_available
+KernelVersion:  6.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Reading returns a list with the possible filter modes.
+
+		This ABI is only kept for backwards compatibility and the values
+		returned are identical to filter_type_available attribute
+		documented in Documentation/ABI/testing/sysfs-bus-iio. Please,
+		use filter_type_available like ABI to provide filter options for
+		new drivers.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY-voltageZ_filter_mode
+KernelVersion:  6.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This ABI is only kept for backwards compatibility and the values
+		returned are identical to in_voltageY-voltageZ_filter_type
+		attribute documented in Documentation/ABI/testing/sysfs-bus-iio.
+		Please, use in_voltageY-voltageZ_filter_type for new drivers.

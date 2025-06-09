@@ -28,9 +28,9 @@
 
 #define PHY_DEF_LANE_CNT	1
 
-static void samsung_ufs_phy_config(struct samsung_ufs_phy *phy,
-				   const struct samsung_ufs_phy_cfg *cfg,
-				   u8 lane)
+void samsung_ufs_phy_config(struct samsung_ufs_phy *phy,
+			    const struct samsung_ufs_phy_cfg *cfg,
+			    u8 lane)
 {
 	enum {LANE_0, LANE_1}; /* lane index */
 
@@ -323,6 +323,9 @@ static const struct of_device_id samsung_ufs_phy_match[] = {
 	}, {
 		.compatible = "samsung,exynosautov9-ufs-phy",
 		.data = &exynosautov9_ufs_phy,
+	}, {
+		.compatible = "samsung,exynosautov920-ufs-phy",
+		.data = &exynosautov920_ufs_phy,
 	}, {
 		.compatible = "tesla,fsd-ufs-phy",
 		.data = &fsd_ufs_phy,

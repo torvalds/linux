@@ -1137,7 +1137,7 @@ static const struct drm_connector_funcs tegra_hdmi_connector_funcs = {
 
 static enum drm_mode_status
 tegra_hdmi_connector_mode_valid(struct drm_connector *connector,
-				struct drm_display_mode *mode)
+				const struct drm_display_mode *mode)
 {
 	struct tegra_output *output = connector_to_output(connector);
 	struct tegra_hdmi *hdmi = to_hdmi(output);

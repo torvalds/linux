@@ -35,6 +35,7 @@
  */
 
 #include <linux/kref.h>
+#include <linux/dma-buf.h>
 #include <linux/dma-resv.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -573,6 +574,19 @@ int drm_gem_evict(struct drm_gem_object *obj);
 static inline bool drm_gem_object_is_shared_for_memory_stats(struct drm_gem_object *obj)
 {
 	return (obj->handle_count > 1) || obj->dma_buf;
+}
+
+/**
+ * drm_gem_is_imported() - Tests if GEM object's buffer has been imported
+ * @obj: the GEM object
+ *
+ * Returns:
+ * True if the GEM object's buffer has been imported, false otherwise
+ */
+static inline bool drm_gem_is_imported(const struct drm_gem_object *obj)
+{
+	/* The dma-buf's priv field points to the original GEM object. */
+	return obj->dma_buf && (obj->dma_buf->priv != obj);
 }
 
 #ifdef CONFIG_LOCKDEP

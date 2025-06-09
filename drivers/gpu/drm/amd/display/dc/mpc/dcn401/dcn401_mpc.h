@@ -63,7 +63,7 @@
 	uint32_t MPC_MCM_SECOND_GAMUT_REMAP_C31_C32_B[MAX_MPCC]; \
 	uint32_t MPC_MCM_SECOND_GAMUT_REMAP_C33_C34_B[MAX_MPCC]; \
 	uint32_t MPCC_MCM_3DLUT_FAST_LOAD_SELECT[MAX_MPCC]; \
-	uint32_t MPCC_MCM_3DLUT_FAST_LOAD_STATUS[MAX_MPCC]
+	uint32_t MPCC_MCM_3DLUT_FAST_LOAD_STATUS[MAX_MPCC];
 
 #define MPC_COMMON_MASK_SH_LIST_DCN4_01(mask_sh) \
 	MPC_COMMON_MASK_SH_LIST_DCN32(mask_sh), \
@@ -183,7 +183,7 @@ struct dcn401_mpc_mask {
 };
 
 struct dcn401_mpc_registers {
-	MPC_REG_VARIABLE_LIST_DCN4_01;
+	MPC_REG_VARIABLE_LIST_DCN4_01
 };
 
 struct dcn401_mpc {
@@ -235,5 +235,29 @@ void mpc401_get_gamut_remap(
 	struct mpc *mpc,
 	int mpcc_id,
 	struct mpc_grph_gamut_adjustment *adjust);
+
+void mpc401_update_3dlut_fast_load_select(
+	struct mpc *mpc,
+	int mpcc_id,
+	int hubp_idx);
+
+void mpc401_get_3dlut_fast_load_status(
+	struct mpc *mpc,
+	int mpcc_id,
+	uint32_t *done,
+	uint32_t *soft_underflow,
+	uint32_t *hard_underflow);
+
+void mpc401_update_3dlut_fast_load_select(
+	struct mpc *mpc,
+	int mpcc_id,
+	int hubp_idx);
+
+void mpc401_get_3dlut_fast_load_status(
+	struct mpc *mpc,
+	int mpcc_id,
+	uint32_t *done,
+	uint32_t *soft_underflow,
+	uint32_t *hard_underflow);
 
 #endif

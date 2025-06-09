@@ -40,11 +40,6 @@ struct dc_state;
  *
  */
 
-void pre_surface_trace(
-		struct dc *dc,
-		const struct dc_plane_state *const *plane_states,
-		int surface_count);
-
 void update_surface_trace(
 		struct dc *dc,
 		const struct dc_surface_update *updates,

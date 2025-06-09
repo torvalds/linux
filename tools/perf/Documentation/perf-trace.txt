@@ -150,6 +150,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	To be used with -s or -S, to show stats for the errnos experienced by
 	syscalls, using only this option will trigger --summary.
 
+--summary-mode=mode::
+	To be used with -s or -S, to select how to show summary.  By default it'll
+	show the syscall summary by thread.  Possible values are: thread, total.
+
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru
 	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.

@@ -1,0 +1,323 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright (C) 2025 Altera Corporation
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/edac/altr,socfpga-ecc-manager.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera SoCFPGA ECC Manager
+
+maintainers:
+  - Matthew Gerlach <matthew.gerlach@altera.com>
+
+description:
+  This binding describes the device tree nodes required for the Altera SoCFPGA
+  ECC Manager for the Cyclone5, Arria5, Arria10, Stratix10, and Agilex chip
+  families.
+
+properties:
+
+  compatible:
+    oneOf:
+      - items:
+          - const: altr,socfpga-s10-ecc-manager
+          - const: altr,socfpga-a10-ecc-manager
+      - const: altr,socfpga-a10-ecc-manager
+      - const: altr,socfpga-ecc-manager
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  ranges: true
+
+  altr,sysmgr-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to Stratix10 System Manager Block with the ECC manager registers
+
+  sdramedac:
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - altr,sdram-edac-a10
+          - altr,sdram-edac-s10
+
+      interrupts:
+        minItems: 1
+        maxItems: 2
+
+      altr,sdr-syscon:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to SDRAM parent
+
+    required:
+      - compatible
+      - interrupts
+      - altr,sdr-syscon
+
+patternProperties:
+  "^ocram-ecc@[a-f0-9]+$":
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        oneOf:
+          - items:
+              - const: altr,socfpga-s10-ocram-ecc
+              - const: altr,socfpga-a10-ocram-ecc
+          - const: altr,socfpga-a10-ocram-ecc
+          - const: altr,socfpga-ocram-ecc
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        minItems: 1
+        maxItems: 2
+
+      iram:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to OCRAM parent
+
+      altr,ecc-parent:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to OCRAM parent
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+
+  "^usb[0-9]-ecc@[a-f0-9]+$":
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        oneOf:
+          - items:
+              - const: altr,socfpga-s10-usb-ecc
+              - const: altr,socfpga-usb-ecc
+          - const: altr,socfpga-usb-ecc
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        minItems: 1
+        maxItems: 2
+
+      altr,ecc-parent:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to USB parent
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - altr,ecc-parent
+
+  "^emac[0-9]-[t,r]x-ecc@[a-f0-9]+$":
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        oneOf:
+          - items:
+              - const: altr,socfpga-s10-eth-mac-ecc
+              - const: altr,socfpga-eth-mac-ecc
+          - const: altr,socfpga-eth-mac-ecc
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        minItems: 1
+        maxItems: 2
+
+      altr,ecc-parent:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to ethernet parent
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - altr,ecc-parent
+
+  "^sdmmc[a-f]-ecc@[a-f0-9]+$":
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        oneOf:
+          - items:
+              - const: altr,socfpga-s10-sdmmc-ecc
+              - const: altr,socfpga-sdmmc-ecc
+          - const: altr,socfpga-sdmmc-ecc
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        minItems: 2
+        maxItems: 4
+
+      altr,ecc-parent:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to SD/MMC parent
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - altr,ecc-parent
+
+  "^l2-ecc@[a-f0-9]+$":
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - altr,socfpga-a10-l2-ecc
+          - altr,socfpga-l2-ecc
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 2
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+
+  "^dma-ecc@[a-f0-9]+$":
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: altr,socfpga-dma-ecc
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 2
+
+      altr,ecc-parent:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle to SD/MMC parent
+
+    required:
+      - compatible
+      - reg
+      - interrupts
+      - altr,ecc-parent
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: altr,socfpga-ecc-manager
+then:
+  required:
+    - compatible
+    - "#address-cells"
+    - "#size-cells"
+    - ranges
+
+else:
+  required:
+    - compatible
+    - "#address-cells"
+    - "#size-cells"
+    - interrupts
+    - interrupt-controller
+    - "#interrupt-cells"
+    - ranges
+    - altr,sysmgr-syscon
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    eccmgr {
+        compatible = "altr,socfpga-s10-ecc-manager",
+                     "altr,socfpga-a10-ecc-manager";
+        altr,sysmgr-syscon = <&sysmgr>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        ranges;
+
+        sdramedac {
+            compatible = "altr,sdram-edac-s10";
+            altr,sdr-syscon = <&sdr>;
+            interrupts = <16 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        ocram-ecc@ff8cc000 {
+            compatible = "altr,socfpga-s10-ocram-ecc",
+                         "altr,socfpga-a10-ocram-ecc";
+            reg = <0xff8cc000 0x100>;
+            altr,ecc-parent = <&ocram>;
+            interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        usb0-ecc@ff8c4000 {
+            compatible = "altr,socfpga-s10-usb-ecc",
+                         "altr,socfpga-usb-ecc";
+            reg = <0xff8c4000 0x100>;
+            altr,ecc-parent = <&usb0>;
+            interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        emac0-rx-ecc@ff8c0000 {
+            compatible = "altr,socfpga-s10-eth-mac-ecc",
+                         "altr,socfpga-eth-mac-ecc";
+            reg = <0xff8c0000 0x100>;
+            altr,ecc-parent = <&gmac0>;
+            interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        emac0-tx-ecc@ff8c0400 {
+            compatible = "altr,socfpga-s10-eth-mac-ecc",
+                         "altr,socfpga-eth-mac-ecc";
+            reg = <0xff8c0400 0x100>;
+            altr,ecc-parent = <&gmac0>;
+            interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        sdmmca-ecc@ff8c8c00 {
+            compatible = "altr,socfpga-s10-sdmmc-ecc",
+                         "altr,socfpga-sdmmc-ecc";
+            reg = <0xff8c8c00 0x100>;
+            altr,ecc-parent = <&mmc>;
+            interrupts = <14 IRQ_TYPE_LEVEL_HIGH>,
+                         <15 IRQ_TYPE_LEVEL_HIGH>;
+        };
+    };

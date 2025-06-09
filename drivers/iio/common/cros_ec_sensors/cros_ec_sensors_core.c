@@ -23,6 +23,8 @@
 #include <linux/platform_data/cros_ec_sensorhub.h>
 #include <linux/platform_device.h>
 
+#include "cros_ec_sensors_trace.h"
+
 /*
  * Hard coded to the first device to support sensor fifo.  The EC has a 2048
  * byte fifo and will trigger an interrupt when fifo is 2/3 full.
@@ -413,6 +415,7 @@ EXPORT_SYMBOL_GPL(cros_ec_sensors_core_register);
 int cros_ec_motion_send_host_cmd(struct cros_ec_sensors_core_state *state,
 				 u16 opt_length)
 {
+	struct ec_response_motion_sense *resp = (struct ec_response_motion_sense *)state->msg->data;
 	int ret;
 
 	if (opt_length)
@@ -423,12 +426,12 @@ int cros_ec_motion_send_host_cmd(struct cros_ec_sensors_core_state *state,
 	memcpy(state->msg->data, &state->param, sizeof(state->param));
 
 	ret = cros_ec_cmd_xfer_status(state->ec, state->msg);
+	trace_cros_ec_motion_host_cmd(&state->param, resp, ret);
 	if (ret < 0)
 		return ret;
 
-	if (ret &&
-	    state->resp != (struct ec_response_motion_sense *)state->msg->data)
-		memcpy(state->resp, state->msg->data, ret);
+	if (ret && state->resp != resp)
+		memcpy(state->resp, resp, ret);
 
 	return 0;
 }

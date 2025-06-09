@@ -63,6 +63,7 @@ struct probe_finder {
 	const char		*fname;		/* Real file name */
 	Dwarf_Die		cu_die;		/* Current CU */
 	Dwarf_Die		sp_die;
+	Dwarf_Off		abstrace_dieoffset;
 	struct intlist		*lcache;	/* Line cache for lazy match */
 
 	/* For variable searching */

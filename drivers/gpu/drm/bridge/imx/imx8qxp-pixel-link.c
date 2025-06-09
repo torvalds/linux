@@ -153,9 +153,8 @@ imx8qxp_pixel_link_bridge_mode_set(struct drm_bridge *bridge,
 	imx8qxp_pixel_link_set_mst_addr(pl);
 }
 
-static void
-imx8qxp_pixel_link_bridge_atomic_enable(struct drm_bridge *bridge,
-					struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_pixel_link_bridge_atomic_enable(struct drm_bridge *bridge,
+						    struct drm_atomic_state *state)
 {
 	struct imx8qxp_pixel_link *pl = bridge->driver_private;
 
@@ -164,9 +163,8 @@ imx8qxp_pixel_link_bridge_atomic_enable(struct drm_bridge *bridge,
 	imx8qxp_pixel_link_enable_sync(pl);
 }
 
-static void
-imx8qxp_pixel_link_bridge_atomic_disable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_pixel_link_bridge_atomic_disable(struct drm_bridge *bridge,
+						     struct drm_atomic_state *state)
 {
 	struct imx8qxp_pixel_link *pl = bridge->driver_private;
 

@@ -216,24 +216,12 @@ static ssize_t state_show(struct ib_device *ibdev, u32 port_num,
 	struct ib_port_attr attr;
 	ssize_t ret;
 
-	static const char *state_name[] = {
-		[IB_PORT_NOP]		= "NOP",
-		[IB_PORT_DOWN]		= "DOWN",
-		[IB_PORT_INIT]		= "INIT",
-		[IB_PORT_ARMED]		= "ARMED",
-		[IB_PORT_ACTIVE]	= "ACTIVE",
-		[IB_PORT_ACTIVE_DEFER]	= "ACTIVE_DEFER"
-	};
-
 	ret = ib_query_port(ibdev, port_num, &attr);
 	if (ret)
 		return ret;
 
 	return sysfs_emit(buf, "%d: %s\n", attr.state,
-			  attr.state >= 0 &&
-					  attr.state < ARRAY_SIZE(state_name) ?
-				  state_name[attr.state] :
-				  "UNKNOWN");
+			  ib_port_state_to_str(attr.state));
 }
 
 static ssize_t lid_show(struct ib_device *ibdev, u32 port_num,
@@ -988,6 +976,7 @@ int ib_setup_device_attrs(struct ib_device *ibdev)
 	for (i = 0; i != ARRAY_SIZE(ibdev->groups); i++)
 		if (!ibdev->groups[i]) {
 			ibdev->groups[i] = &data->group;
+			ibdev->hw_stats_attr_index = i;
 			return 0;
 		}
 	WARN(true, "struct ib_device->groups is too small");

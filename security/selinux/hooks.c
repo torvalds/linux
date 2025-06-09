@@ -3587,10 +3587,13 @@ static int selinux_kernfs_init_security(struct kernfs_node *kn_dir,
 		newsid = tsec->create_sid;
 	} else {
 		u16 secclass = inode_mode_to_security_class(kn->mode);
+		const char *kn_name;
 		struct qstr q;
 
-		q.name = kn->name;
-		q.hash_len = hashlen_string(kn_dir, kn->name);
+		/* kn is fresh, can't be renamed, name goes not away */
+		kn_name = rcu_dereference_check(kn->name, true);
+		q.name = kn_name;
+		q.hash_len = hashlen_string(kn_dir, kn_name);
 
 		rc = security_transition_sid(tsec->sid,
 					     parent_sid, secclass, &q,
@@ -6907,7 +6910,7 @@ static int selinux_ib_alloc_security(void *ib_sec)
 
 #ifdef CONFIG_BPF_SYSCALL
 static int selinux_bpf(int cmd, union bpf_attr *attr,
-				     unsigned int size)
+		       unsigned int size, bool kernel)
 {
 	u32 sid = current_sid();
 	int ret;
@@ -6994,7 +6997,7 @@ static int selinux_bpf_prog(struct bpf_prog *prog)
 }
 
 static int selinux_bpf_map_create(struct bpf_map *map, union bpf_attr *attr,
-				  struct bpf_token *token)
+				  struct bpf_token *token, bool kernel)
 {
 	struct bpf_security_struct *bpfsec;
 
@@ -7017,7 +7020,7 @@ static void selinux_bpf_map_free(struct bpf_map *map)
 }
 
 static int selinux_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
-				 struct bpf_token *token)
+				 struct bpf_token *token, bool kernel)
 {
 	struct bpf_security_struct *bpfsec;
 

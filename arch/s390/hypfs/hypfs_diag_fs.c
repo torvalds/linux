@@ -16,6 +16,7 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include "hypfs_diag.h"
@@ -382,7 +383,7 @@ static void diag224_delete_name_table(void)
 
 int __init __hypfs_diag_fs_init(void)
 {
-	if (MACHINE_IS_LPAR)
+	if (machine_is_lpar())
 		return diag224_get_name_table();
 	return 0;
 }

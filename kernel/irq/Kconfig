@@ -47,10 +47,6 @@ config GENERIC_IRQ_INJECTION
 config HARDIRQS_SW_RESEND
        bool
 
-# Edge style eoi based handler (cell)
-config IRQ_EDGE_EOI_HANDLER
-       bool
-
 # Generic configurable interrupt chip implementation
 config GENERIC_IRQ_CHIP
        bool

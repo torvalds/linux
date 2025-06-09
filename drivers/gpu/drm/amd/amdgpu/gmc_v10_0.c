@@ -1076,7 +1076,7 @@ static int gmc_v10_0_resume(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static bool gmc_v10_0_is_idle(void *handle)
+static bool gmc_v10_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* MC is always ready in GMC v10.*/
 	return true;
@@ -1115,9 +1115,9 @@ static int gmc_v10_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 		return athub_v2_0_set_clockgating(adev, state);
 }
 
-static void gmc_v10_0_get_clockgating_state(void *handle, u64 *flags)
+static void gmc_v10_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(10, 1, 3) ||
 	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(10, 1, 4))

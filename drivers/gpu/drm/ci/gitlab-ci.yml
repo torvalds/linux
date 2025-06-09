@@ -1,11 +1,11 @@
 variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
-  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha c6a9a9c3bce90923f7700219354e0b6e5a3c9ba6
+  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha 7d3062470f3ccc6cb40540e772e902c7e2248024
 
   UPSTREAM_REPO: https://gitlab.freedesktop.org/drm/kernel.git
   TARGET_BRANCH: drm-next
 
-  IGT_VERSION: a73311079a5d8ac99eb25336a8369a2c3c6b519b
+  IGT_VERSION: 33adea9ebafd059ac88a5ccfec60536394f36c7c
 
   DEQP_RUNNER_GIT_URL: https://gitlab.freedesktop.org/mesa/deqp-runner.git
   DEQP_RUNNER_GIT_TAG: v0.20.0
@@ -20,6 +20,9 @@ variables:
           rm download-git-cache.sh
           set +o xtrace
   S3_JWT_FILE: /s3_jwt
+  S3_JWT_FILE_SCRIPT: |-
+      echo -n '${S3_JWT}' > '${S3_JWT_FILE}' &&
+      unset CI_JOB_JWT S3_JWT  # Unsetting vulnerable env variables
   S3_HOST: s3.freedesktop.org
   # This bucket is used to fetch the kernel image
   S3_KERNEL_BUCKET: mesa-rootfs
@@ -31,16 +34,13 @@ variables:
   PIPELINE_ARTIFACTS_BASE: ${S3_HOST}/${S3_ARTIFACTS_BUCKET}/${CI_PROJECT_PATH}/${CI_PIPELINE_ID}
   # per-job artifact storage on MinIO
   JOB_ARTIFACTS_BASE: ${PIPELINE_ARTIFACTS_BASE}/${CI_JOB_ID}
-  # default kernel for rootfs before injecting the current kernel tree
-  KERNEL_REPO: "gfx-ci/linux"
-  KERNEL_TAG: "v6.6.21-mesa-f8ea"
   KERNEL_IMAGE_BASE: https://${S3_HOST}/${S3_KERNEL_BUCKET}/${KERNEL_REPO}/${KERNEL_TAG}
-  PKG_REPO_REV: "3cc12a2a"
   LAVA_TAGS: subset-1-gfx
   LAVA_JOB_PRIORITY: 30
   ARTIFACTS_BASE_URL: https://${CI_PROJECT_ROOT_NAMESPACE}.${CI_PAGES_DOMAIN}/-/${CI_PROJECT_NAME}/-/jobs/${CI_JOB_ID}/artifacts
   # Python scripts for structured logger
   PYTHONPATH: "$PYTHONPATH:$CI_PROJECT_DIR/install"
+
 
 default:
   id_tokens:
@@ -50,16 +50,13 @@ default:
     - export SCRIPTS_DIR=$(mktemp -d)
     - curl -L -s --retry 4 -f --retry-all-errors --retry-delay 60 -O --output-dir "${SCRIPTS_DIR}" "${DRM_CI_PROJECT_URL}/-/raw/${DRM_CI_COMMIT_SHA}/.gitlab-ci/setup-test-env.sh"
     - source ${SCRIPTS_DIR}/setup-test-env.sh
-    - echo -e "\e[0Ksection_start:$(date +%s):unset_env_vars_section[collapsed=true]\r\e[0KUnsetting vulnerable environment variables"
-    - echo -n "${S3_JWT}" > "${S3_JWT_FILE}"
-    - unset CI_JOB_JWT S3_JWT
-    - echo -e "\e[0Ksection_end:$(date +%s):unset_env_vars_section\r\e[0K"
+    - eval "$S3_JWT_FILE_SCRIPT"
 
     - echo -e "\e[0Ksection_start:$(date +%s):drm_ci_download_section[collapsed=true]\r\e[0KDownloading mesa from $DRM_CI_PROJECT_URL/-/archive/$DRM_CI_COMMIT_SHA/mesa-$DRM_CI_COMMIT_SHA.tar.gz"
     - cd $CI_PROJECT_DIR
     - curl --output - $DRM_CI_PROJECT_URL/-/archive/$DRM_CI_COMMIT_SHA/mesa-$DRM_CI_COMMIT_SHA.tar.gz | tar -xz
     - mv mesa-$DRM_CI_COMMIT_SHA/.gitlab-ci* .
-    - mv mesa-$DRM_CI_COMMIT_SHA/bin/ci .
+    - mv mesa-$DRM_CI_COMMIT_SHA/bin .
     - rm -rf mesa-$DRM_CI_COMMIT_SHA/
     - echo -e "\e[0Ksection_end:$(date +%s):drm_ci_download_section\r\e[0K"
 
@@ -70,6 +67,7 @@ default:
       test -e "${S3_JWT_FILE}" &&
       export S3_JWT="$(<${S3_JWT_FILE})" &&
       rm "${S3_JWT_FILE}"
+
 
 include:
   - project: 'freedesktop/ci-templates'
@@ -85,6 +83,7 @@ include:
   - project: *drm-ci-project-path
     ref: *drm-ci-commit-sha
     file:
+      - '/.gitlab-ci/build/gitlab-ci.yml'
       - '/.gitlab-ci/container/gitlab-ci.yml'
       - '/.gitlab-ci/farm-rules.yml'
       - '/.gitlab-ci/lava/lava-gitlab-ci.yml'
@@ -115,9 +114,10 @@ include:
 stages:
   - sanity
   - container
-  - code-validation
   - git-archive
-  - build
+  - build-for-tests
+  - build-only
+  - code-validation
   - amdgpu
   - i915
   - mediatek
@@ -128,33 +128,27 @@ stages:
   - rockchip
   - software-driver
 
+
 # YAML anchors for rule conditions
 # --------------------------------
 .rules-anchors:
   rules:
-    # Pipeline for forked project branch
-    - if: &is-forked-branch '$CI_COMMIT_BRANCH && $CI_PROJECT_NAMESPACE != "mesa"'
-      when: manual
-    # Forked project branch / pre-merge pipeline not for Marge bot
-    - if: &is-forked-branch-or-pre-merge-not-for-marge '$CI_PROJECT_NAMESPACE != "mesa" || ($GITLAB_USER_LOGIN != "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event")'
-      when: manual
-    # Pipeline runs for the main branch of the upstream Mesa project
-    - if: &is-mesa-main '$CI_PROJECT_NAMESPACE == "mesa" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_COMMIT_BRANCH'
-      when: always
-    # Post-merge pipeline
-    - if: &is-post-merge '$CI_PROJECT_NAMESPACE == "mesa" && $CI_COMMIT_BRANCH'
-      when: on_success
-    # Post-merge pipeline, not for Marge Bot
-    - if: &is-post-merge-not-for-marge '$CI_PROJECT_NAMESPACE == "mesa" && $GITLAB_USER_LOGIN != "marge-bot" && $CI_COMMIT_BRANCH'
-      when: on_success
+    # do not duplicate pipelines on merge pipelines
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
+    # merge pipeline
+    - if: &is-merge-attempt $GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event"
+    # post-merge pipeline
+    - if: &is-post-merge $GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "push"
     # Pre-merge pipeline
-    - if: &is-pre-merge '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: on_success
-    # Pre-merge pipeline for Marge Bot
-    - if: &is-pre-merge-for-marge '$GITLAB_USER_LOGIN == "marge-bot" && $CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: on_success
+    - if: &is-pre-merge $CI_PIPELINE_SOURCE == "merge_request_event"
     # Push to a branch on a fork
-    - &is-fork-push '$CI_PROJECT_NAMESPACE != "mesa" && $CI_PIPELINE_SOURCE == "push"'
+    - if: &is-fork-push $CI_PROJECT_NAMESPACE != "mesa" && $CI_PIPELINE_SOURCE == "push"
+    # nightly pipeline
+    - if: &is-scheduled-pipeline $CI_PIPELINE_SOURCE == "schedule"
+    # pipeline for direct pushes that bypassed the CI
+    - if: &is-direct-push $CI_PROJECT_NAMESPACE == "mesa" && $CI_PIPELINE_SOURCE == "push" && $GITLAB_USER_LOGIN != "marge-bot"
+
 
 # Rules applied to every job in the pipeline
 .common-rules:
@@ -162,42 +156,51 @@ stages:
     - if: *is-fork-push
       when: manual
 
+
 .never-post-merge-rules:
   rules:
     - if: *is-post-merge
       when: never
 
-# Rule to filter for only scheduled pipelines.
-.scheduled_pipeline-rules:
-  rules:
-    - if: &is-scheduled-pipeline '$CI_PIPELINE_SOURCE == "schedule"'
-      when: on_success
 
-# Generic rule to not run the job during scheduled pipelines. Jobs that aren't
-# something like a nightly run should include this rule.
-.no_scheduled_pipelines-rules:
-  rules:
-    - if: *is-scheduled-pipeline
-      when: never
-
-# When to automatically run the CI for build jobs
-.build-rules:
-  rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
-    - !reference [.never-post-merge-rules, rules]
-    # Run automatically once all dependency jobs have passed
-    - when: on_success
-
-# When to automatically run the CI for container jobs
 .container+build-rules:
   rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
+    - !reference [.common-rules, rules]
+    # Run when re-enabling a disabled farm, but not when disabling it
+    - !reference [.disable-farm-mr-rules, rules]
+    # Never run immediately after merging, as we just ran everything
     - !reference [.never-post-merge-rules, rules]
+    # Build everything in merge pipelines, if any files affecting the pipeline
+    # were changed
+    - if: *is-merge-attempt
+      changes: &all_paths
+      - drivers/gpu/drm/ci/**/*
+      when: on_success
+    # Same as above, but for pre-merge pipelines
+    - if: *is-pre-merge
+      changes:
+        *all_paths
+      when: manual
+    # Skip everything for pre-merge and merge pipelines which don't change
+    # anything in the build
+    - if: *is-merge-attempt
+      when: never
+    - if: *is-pre-merge
+      when: never
+    # Build everything after someone bypassed the CI
+    - if: *is-direct-push
+      when: on_success
+    # Build everything in scheduled pipelines
+    - if: *is-scheduled-pipeline
+      when: on_success
+    # Allow building everything in fork pipelines, but build nothing unless
+    # manually triggered
     - when: manual
+
 
 .ci-deqp-artifacts:
   artifacts:
-    name: "mesa_${CI_JOB_NAME}"
+    name: "${CI_PROJECT_NAME}_${CI_JOB_NAME}"
     when: always
     untracked: false
     paths:
@@ -208,31 +211,7 @@ stages:
       - _build/meson-logs/strace
 
 
-.container-rules:
-  rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
-    - !reference [.never-post-merge-rules, rules]
-    # Run pipeline by default in the main project if any CI pipeline
-    # configuration files were changed, to ensure docker images are up to date
-    - if: *is-post-merge
-      changes:
-      - drivers/gpu/drm/ci/**/*
-      when: on_success
-    # Run pipeline by default if it was triggered by Marge Bot, is for a
-    # merge request, and any files affecting the pipeline were changed
-    - if: *is-pre-merge-for-marge
-      when: on_success
-    # Run pipeline by default in the main project if it was not triggered by
-    # Marge Bot, and any files affecting the pipeline were changed
-    - if: *is-post-merge-not-for-marge
-      when: on_success
-    # Allow triggering jobs manually in other cases
-    - when: manual
-
-
-
 # Git archive
-
 make git archive:
   extends:
     - .fdo.ci-fairy
@@ -264,30 +243,64 @@ sanity:
   rules:
     - if: *is-pre-merge
       when: on_success
-    # Other cases default to never
+    - when: never
   variables:
     GIT_STRATEGY: none
   script:
     # ci-fairy check-commits --junit-xml=check-commits.xml
     - ci-fairy check-merge-request --require-allow-collaboration --junit-xml=check-merge-request.xml
+    - |
+      set -eu
+      image_tags=(
+        ALPINE_X86_64_LAVA_SSH_TAG
+        CONTAINER_TAG
+        DEBIAN_BASE_TAG
+        DEBIAN_BUILD_TAG
+        DEBIAN_PYUTILS_TAG
+        DEBIAN_TEST_GL_TAG
+        KERNEL_ROOTFS_TAG
+        KERNEL_TAG
+        PKG_REPO_REV
+      )
+      for var in "${image_tags[@]}"
+      do
+        if [ "$(echo -n "${!var}" | wc -c)" -gt 20 ]
+        then
+          echo "$var is too long; please make sure it is at most 20 chars."
+          exit 1
+        fi
+      done
   artifacts:
     when: on_failure
     reports:
       junit: check-*.xml
+  tags:
+    - placeholder-job
 
-# Rules for tests that should not block merging, but should be available to
-# optionally run with the "play" button in the UI in pre-merge non-marge
-# pipelines.  This should appear in "extends:" after any includes of
-# test-source-dep.yml rules, so that these rules replace those.
-.test-manual-mr:
+
+mr-label-maker-test:
+  extends:
+    - .fdo.ci-fairy
+  stage: sanity
   rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
-    - if: *is-forked-branch-or-pre-merge-not-for-marge
-      when: manual
+    - !reference [.mr-label-maker-rules, rules]
   variables:
-    JOB_TIMEOUT: 80
+    GIT_STRATEGY: fetch
+  timeout: 10m
+  script:
+    - set -eu
+    - python3 -m venv .venv
+    - source .venv/bin/activate
+    - pip install git+https://gitlab.freedesktop.org/freedesktop/mr-label-maker
+    - mr-label-maker --dry-run --mr $CI_MERGE_REQUEST_IID
 
 
 # Jobs that need to pass before spending hardware resources on further testing
 .required-for-hardware-jobs:
-  needs: []
+  needs:
+    - job: clang-format
+      optional: true
+    - job: rustfmt
+      optional: true
+    - job: toml-lint
+      optional: true

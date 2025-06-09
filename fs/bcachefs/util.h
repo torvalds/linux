@@ -94,6 +94,7 @@ do {									\
 #define printbuf_tabstop_push(_buf, _n)	bch2_printbuf_tabstop_push(_buf, _n)
 
 #define printbuf_indent_add(_out, _n)	bch2_printbuf_indent_add(_out, _n)
+#define printbuf_indent_add_nextline(_out, _n)	bch2_printbuf_indent_add_nextline(_out, _n)
 #define printbuf_indent_sub(_out, _n)	bch2_printbuf_indent_sub(_out, _n)
 
 #define prt_newline(_out)		bch2_prt_newline(_out)
@@ -621,7 +622,7 @@ do {									\
 
 #define per_cpu_sum(_p)							\
 ({									\
-	typeof(*_p) _ret = 0;						\
+	TYPEOF_UNQUAL(*_p) _ret = 0;					\
 									\
 	int cpu;							\
 	for_each_possible_cpu(cpu)					\

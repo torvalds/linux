@@ -28,6 +28,7 @@ Currently, these files are in /proc/sys/vm:
 - compact_memory
 - compaction_proactiveness
 - compact_unevictable_allowed
+- defrag_mode
 - dirty_background_bytes
 - dirty_background_ratio
 - dirty_bytes
@@ -145,6 +146,14 @@ On CONFIG_PREEMPT_RT the default value is 0 in order to avoid a page fault, due
 to compaction, which would block the task from becoming active until the fault
 is resolved.
 
+defrag_mode
+===========
+
+When set to 1, the page allocator tries harder to avoid fragmentation
+and maintain the ability to produce huge pages / higher-order pages.
+
+It is recommended to enable this right after boot, as fragmentation,
+once it occurred, can be long-lasting or even permanent.
 
 dirty_background_bytes
 ======================

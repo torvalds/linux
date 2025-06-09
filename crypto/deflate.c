@@ -112,7 +112,7 @@ out:
 	return ret;
 }
 
-static void *deflate_alloc_ctx(struct crypto_scomp *tfm)
+static void *deflate_alloc_ctx(void)
 {
 	struct deflate_ctx *ctx;
 	int ret;
@@ -130,30 +130,16 @@ static void *deflate_alloc_ctx(struct crypto_scomp *tfm)
 	return ctx;
 }
 
-static int deflate_init(struct crypto_tfm *tfm)
-{
-	struct deflate_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	return __deflate_init(ctx);
-}
-
 static void __deflate_exit(void *ctx)
 {
 	deflate_comp_exit(ctx);
 	deflate_decomp_exit(ctx);
 }
 
-static void deflate_free_ctx(struct crypto_scomp *tfm, void *ctx)
+static void deflate_free_ctx(void *ctx)
 {
 	__deflate_exit(ctx);
 	kfree_sensitive(ctx);
-}
-
-static void deflate_exit(struct crypto_tfm *tfm)
-{
-	struct deflate_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	__deflate_exit(ctx);
 }
 
 static int __deflate_compress(const u8 *src, unsigned int slen,
@@ -183,14 +169,6 @@ static int __deflate_compress(const u8 *src, unsigned int slen,
 	*dlen = stream->total_out;
 out:
 	return ret;
-}
-
-static int deflate_compress(struct crypto_tfm *tfm, const u8 *src,
-			    unsigned int slen, u8 *dst, unsigned int *dlen)
-{
-	struct deflate_ctx *dctx = crypto_tfm_ctx(tfm);
-
-	return __deflate_compress(src, slen, dst, dlen, dctx);
 }
 
 static int deflate_scompress(struct crypto_scomp *tfm, const u8 *src,
@@ -241,33 +219,12 @@ out:
 	return ret;
 }
 
-static int deflate_decompress(struct crypto_tfm *tfm, const u8 *src,
-			      unsigned int slen, u8 *dst, unsigned int *dlen)
-{
-	struct deflate_ctx *dctx = crypto_tfm_ctx(tfm);
-
-	return __deflate_decompress(src, slen, dst, dlen, dctx);
-}
-
 static int deflate_sdecompress(struct crypto_scomp *tfm, const u8 *src,
 			       unsigned int slen, u8 *dst, unsigned int *dlen,
 			       void *ctx)
 {
 	return __deflate_decompress(src, slen, dst, dlen, ctx);
 }
-
-static struct crypto_alg alg = {
-	.cra_name		= "deflate",
-	.cra_driver_name	= "deflate-generic",
-	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
-	.cra_ctxsize		= sizeof(struct deflate_ctx),
-	.cra_module		= THIS_MODULE,
-	.cra_init		= deflate_init,
-	.cra_exit		= deflate_exit,
-	.cra_u			= { .compress = {
-	.coa_compress 		= deflate_compress,
-	.coa_decompress  	= deflate_decompress } }
-};
 
 static struct scomp_alg scomp = {
 	.alloc_ctx		= deflate_alloc_ctx,
@@ -283,24 +240,11 @@ static struct scomp_alg scomp = {
 
 static int __init deflate_mod_init(void)
 {
-	int ret;
-
-	ret = crypto_register_alg(&alg);
-	if (ret)
-		return ret;
-
-	ret = crypto_register_scomp(&scomp);
-	if (ret) {
-		crypto_unregister_alg(&alg);
-		return ret;
-	}
-
-	return ret;
+	return crypto_register_scomp(&scomp);
 }
 
 static void __exit deflate_mod_fini(void)
 {
-	crypto_unregister_alg(&alg);
 	crypto_unregister_scomp(&scomp);
 }
 

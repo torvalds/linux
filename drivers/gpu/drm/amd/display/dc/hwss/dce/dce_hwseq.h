@@ -644,10 +644,18 @@ struct dce_hwseq_registers {
 	uint32_t DPP_TOP0_DPP_CRC_CTRL;
 	uint32_t DPP_TOP0_DPP_CRC_VAL_R_G;
 	uint32_t DPP_TOP0_DPP_CRC_VAL_B_A;
+	uint32_t DPP_TOP0_DPP_CRC_VAL_R;
+	uint32_t DPP_TOP0_DPP_CRC_VAL_G;
+	uint32_t DPP_TOP0_DPP_CRC_VAL_B;
+	uint32_t DPP_TOP0_DPP_CRC_VAL_A;
 	uint32_t MPC_CRC_CTRL;
 	uint32_t MPC_CRC_RESULT_GB;
 	uint32_t MPC_CRC_RESULT_C;
 	uint32_t MPC_CRC_RESULT_AR;
+	uint32_t MPC_CRC_RESULT_R;
+	uint32_t MPC_CRC_RESULT_G;
+	uint32_t MPC_CRC_RESULT_B;
+	uint32_t MPC_CRC_RESULT_A;
 	uint32_t D1VGA_CONTROL;
 	uint32_t D2VGA_CONTROL;
 	uint32_t D3VGA_CONTROL;
@@ -1236,6 +1244,7 @@ struct dce_hwseq_registers {
 	type DOMAIN24_PGFSM_PWR_STATUS; \
 	type DOMAIN25_PGFSM_PWR_STATUS; \
 	type DOMAIN_DESIRED_PWR_STATE;
+
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN_REG_FIELD_LIST(uint8_t)

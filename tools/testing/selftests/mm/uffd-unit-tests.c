@@ -26,6 +26,8 @@
 #define ALIGN_UP(x, align_to) \
 	((__typeof__(x))((((unsigned long)(x)) + ((align_to)-1)) & ~((align_to)-1)))
 
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 struct mem_type {
 	const char *name;
 	unsigned int mem_flag;
@@ -196,9 +198,10 @@ uffd_setup_environment(uffd_test_args_t *args, uffd_test_case_t *test,
 	else
 		page_size = psize();
 
-	nr_pages = UFFD_TEST_MEM_SIZE / page_size;
+	/* Ensure we have at least 2 pages */
+	nr_pages = MAX(UFFD_TEST_MEM_SIZE, page_size * 2) / page_size;
 	/* TODO: remove this global var.. it's so ugly */
-	nr_cpus = 1;
+	nr_parallel = 1;
 
 	/* Initialize test arguments */
 	args->mem_type = mem_type;

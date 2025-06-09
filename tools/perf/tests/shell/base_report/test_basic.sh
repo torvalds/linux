@@ -183,6 +183,58 @@ print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "symbol filter"
 (( TEST_RESULT += $? ))
 
 
+### latency and parallelism
+
+# Record with --latency should record with context switches.
+$CMD_PERF report -i $CURRENT_TEST_DIR/perf.data.1 --stdio --header-only > $LOGS_DIR/latency_header.log
+PERF_EXIT_CODE=$?
+
+../common/check_all_patterns_found.pl ", context_switch = 1, " < $LOGS_DIR/latency_header.log
+CHECK_EXIT_CODE=$?
+
+print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "latency header"
+(( TEST_RESULT += $? ))
+
+
+# The default report for latency profile should show Overhead and Latency fields (in that order).
+$CMD_PERF report --stdio -i $CURRENT_TEST_DIR/perf.data.1 > $LOGS_DIR/latency_default.log 2> $LOGS_DIR/latency_default.err
+PERF_EXIT_CODE=$?
+
+../common/check_all_patterns_found.pl "# Overhead   Latency  Command" < $LOGS_DIR/latency_default.log
+CHECK_EXIT_CODE=$?
+../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/latency_default.err
+(( CHECK_EXIT_CODE += $? ))
+
+print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "default report for latency profile"
+(( TEST_RESULT += $? ))
+
+
+# The latency report for latency profile should show Latency and Overhead fields (in that order).
+$CMD_PERF report --latency --stdio -i $CURRENT_TEST_DIR/perf.data.1 > $LOGS_DIR/latency_latency.log 2> $LOGS_DIR/latency_latency.err
+PERF_EXIT_CODE=$?
+
+../common/check_all_patterns_found.pl "#  Latency  Overhead  Command" < $LOGS_DIR/latency_latency.log
+CHECK_EXIT_CODE=$?
+../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/latency_latency.err
+(( CHECK_EXIT_CODE += $? ))
+
+print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "latency report for latency profile"
+(( TEST_RESULT += $? ))
+
+
+# Ensure parallelism histogram with parallelism filter does not fail/crash.
+$CMD_PERF report --hierarchy --sort latency,parallelism,comm,symbol --parallelism=1,2 --stdio -i $CURRENT_TEST_DIR/perf.data.1 > $LOGS_DIR/parallelism_hierarchy.log 2> $LOGS_DIR/parallelism_hierarchy.err
+PERF_EXIT_CODE=$?
+
+../common/check_all_patterns_found.pl "#           Latency  Parallelism / Command / Symbol" < $LOGS_DIR/parallelism_hierarchy.log
+CHECK_EXIT_CODE=$?
+../common/check_errors_whitelisted.pl "stderr-whitelist.txt" < $LOGS_DIR/parallelism_hierarchy.err
+(( CHECK_EXIT_CODE += $? ))
+
+print_results $PERF_EXIT_CODE $CHECK_EXIT_CODE "parallelism histogram"
+(( TEST_RESULT += $? ))
+
+
 # TODO: $CMD_PERF report -n --showcpuutilization -TUxDg 2> 01.log
 
 # print overall results

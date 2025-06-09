@@ -247,5 +247,20 @@ static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)
 	return container_of(tfm, struct crypto_shash, base);
 }
 
+static inline bool ahash_request_chained(struct ahash_request *req)
+{
+	return crypto_request_chained(&req->base);
+}
+
+static inline bool ahash_request_isvirt(struct ahash_request *req)
+{
+	return req->base.flags & CRYPTO_AHASH_REQ_VIRT;
+}
+
+static inline bool crypto_ahash_req_chain(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_req_chain(&tfm->base);
+}
+
 #endif	/* _CRYPTO_INTERNAL_HASH_H */
 

@@ -11,6 +11,7 @@
 
 #define pr_fmt(fmt) "PM: hibernation: " fmt
 
+#include <crypto/acompress.h>
 #include <linux/blkdev.h>
 #include <linux/export.h>
 #include <linux/suspend.h>
@@ -757,7 +758,7 @@ int hibernate(void)
 	 */
 	if (!nocompress) {
 		strscpy(hib_comp_algo, hibernate_compressor, sizeof(hib_comp_algo));
-		if (crypto_has_comp(hib_comp_algo, 0, 0) != 1) {
+		if (!crypto_has_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC)) {
 			pr_err("%s compression is not available\n", hib_comp_algo);
 			return -EOPNOTSUPP;
 		}
@@ -1008,7 +1009,7 @@ static int software_resume(void)
 			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZ4, sizeof(hib_comp_algo));
 		else
 			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZO, sizeof(hib_comp_algo));
-		if (crypto_has_comp(hib_comp_algo, 0, 0) != 1) {
+		if (!crypto_has_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC)) {
 			pr_err("%s compression is not available\n", hib_comp_algo);
 			error = -EOPNOTSUPP;
 			goto Unlock;

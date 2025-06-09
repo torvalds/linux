@@ -721,12 +721,6 @@ enum mhi_state mhi_get_mhi_state(struct mhi_controller *mhi_cntrl);
 void mhi_soc_reset(struct mhi_controller *mhi_cntrl);
 
 /**
- * mhi_device_get - Disable device low power mode
- * @mhi_dev: Device associated with the channel
- */
-void mhi_device_get(struct mhi_device *mhi_dev);
-
-/**
  * mhi_device_get_sync - Disable device low power mode. Synchronously
  *                       take the controller out of suspended state
  * @mhi_dev: Device associated with the channel
@@ -775,18 +769,6 @@ int mhi_prepare_for_transfer_autoqueue(struct mhi_device *mhi_dev);
  * @mhi_dev: Device associated with the channels
  */
 void mhi_unprepare_from_transfer(struct mhi_device *mhi_dev);
-
-/**
- * mhi_queue_dma - Send or receive DMA mapped buffers from client device
- *                 over MHI channel
- * @mhi_dev: Device associated with the channels
- * @dir: DMA direction for the channel
- * @mhi_buf: Buffer for holding the DMA mapped data
- * @len: Buffer length
- * @mflags: MHI transfer flags used for the transfer
- */
-int mhi_queue_dma(struct mhi_device *mhi_dev, enum dma_data_direction dir,
-		  struct mhi_buf *mhi_buf, size_t len, enum mhi_flags mflags);
 
 /**
  * mhi_queue_buf - Send or receive raw buffers from client device over MHI

@@ -21,6 +21,7 @@
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 
+#include <asm/machine.h>
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
 #include <asm/idals.h>
@@ -3382,7 +3383,7 @@ int dasd_device_is_ro(struct dasd_device *device)
 	struct diag210 diag_data;
 	int rc;
 
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return 0;
 	ccw_device_get_id(device->cdev, &dev_id);
 	memset(&diag_data, 0, sizeof(diag_data));

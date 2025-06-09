@@ -7,6 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/sysfs.h>
+#include <linux/string_choices.h>
 
 #include "physical_location.h"
 
@@ -116,7 +117,7 @@ static ssize_t dock_show(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
 	return sysfs_emit(buf, "%s\n",
-		dev->physical_location->dock ? "yes" : "no");
+		str_yes_no(dev->physical_location->dock));
 }
 static DEVICE_ATTR_RO(dock);
 
@@ -124,7 +125,7 @@ static ssize_t lid_show(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
 	return sysfs_emit(buf, "%s\n",
-		dev->physical_location->lid ? "yes" : "no");
+		str_yes_no(dev->physical_location->lid));
 }
 static DEVICE_ATTR_RO(lid);
 

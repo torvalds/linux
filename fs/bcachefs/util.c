@@ -270,7 +270,7 @@ static void __bch2_print_string_as_lines(const char *prefix, const char *lines,
 		locked = console_trylock();
 	}
 
-	while (1) {
+	while (*lines) {
 		p = strchrnul(lines, '\n');
 		printk("%s%.*s\n", prefix, (int) (p - lines), lines);
 		if (!*p)

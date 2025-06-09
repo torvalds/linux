@@ -26,6 +26,7 @@
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <asm/machine.h>
 #include <asm/airq.h>
 #include <asm/tpi.h>
 #include <linux/atomic.h>
@@ -2324,7 +2325,7 @@ static inline int __init ap_async_init(void)
 	 * Setup the high resolution poll timer.
 	 * If we are running under z/VM adjust polling to z/VM polling rate.
 	 */
-	if (MACHINE_IS_VM)
+	if (machine_is_vm())
 		poll_high_timeout = 1500000;
 	hrtimer_setup(&ap_poll_timer, ap_poll_timeout, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 

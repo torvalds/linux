@@ -226,33 +226,6 @@ static int siw_qp_readq_init(struct siw_qp *qp, int irq_size, int orq_size)
 	return 0;
 }
 
-static int siw_qp_enable_crc(struct siw_qp *qp)
-{
-	struct siw_rx_stream *c_rx = &qp->rx_stream;
-	struct siw_iwarp_tx *c_tx = &qp->tx_ctx;
-	int size;
-
-	if (siw_crypto_shash == NULL)
-		return -ENOENT;
-
-	size = crypto_shash_descsize(siw_crypto_shash) +
-		sizeof(struct shash_desc);
-
-	c_tx->mpa_crc_hd = kzalloc(size, GFP_KERNEL);
-	c_rx->mpa_crc_hd = kzalloc(size, GFP_KERNEL);
-	if (!c_tx->mpa_crc_hd || !c_rx->mpa_crc_hd) {
-		kfree(c_tx->mpa_crc_hd);
-		kfree(c_rx->mpa_crc_hd);
-		c_tx->mpa_crc_hd = NULL;
-		c_rx->mpa_crc_hd = NULL;
-		return -ENOMEM;
-	}
-	c_tx->mpa_crc_hd->tfm = siw_crypto_shash;
-	c_rx->mpa_crc_hd->tfm = siw_crypto_shash;
-
-	return 0;
-}
-
 /*
  * Send a non signalled READ or WRITE to peer side as negotiated
  * with MPAv2 P2P setup protocol. The work request is only created
@@ -583,20 +556,15 @@ void siw_send_terminate(struct siw_qp *qp)
 
 	term->ctrl.mpa_len =
 		cpu_to_be16(len_terminate - (MPA_HDR_SIZE + MPA_CRC_SIZE));
-	if (qp->tx_ctx.mpa_crc_hd) {
-		crypto_shash_init(qp->tx_ctx.mpa_crc_hd);
-		if (crypto_shash_update(qp->tx_ctx.mpa_crc_hd,
-					(u8 *)iov[0].iov_base,
-					iov[0].iov_len))
-			goto out;
-
+	if (qp->tx_ctx.mpa_crc_enabled) {
+		siw_crc_init(&qp->tx_ctx.mpa_crc);
+		siw_crc_update(&qp->tx_ctx.mpa_crc,
+			       iov[0].iov_base, iov[0].iov_len);
 		if (num_frags == 3) {
-			if (crypto_shash_update(qp->tx_ctx.mpa_crc_hd,
-						(u8 *)iov[1].iov_base,
-						iov[1].iov_len))
-				goto out;
+			siw_crc_update(&qp->tx_ctx.mpa_crc,
+				       iov[1].iov_base, iov[1].iov_len);
 		}
-		crypto_shash_final(qp->tx_ctx.mpa_crc_hd, (u8 *)&crc);
+		siw_crc_final(&qp->tx_ctx.mpa_crc, (u8 *)&crc);
 	}
 
 	rv = kernel_sendmsg(s, &msg, iov, num_frags, len_terminate);
@@ -604,7 +572,6 @@ void siw_send_terminate(struct siw_qp *qp)
 		   rv == len_terminate ? "success" : "failure",
 		   __rdmap_term_layer(term), __rdmap_term_etype(term),
 		   __rdmap_term_ecode(term), rv);
-out:
 	kfree(term);
 	kfree(err_hdr);
 }
@@ -643,9 +610,10 @@ static int siw_qp_nextstate_from_idle(struct siw_qp *qp,
 	switch (attrs->state) {
 	case SIW_QP_STATE_RTS:
 		if (attrs->flags & SIW_MPA_CRC) {
-			rv = siw_qp_enable_crc(qp);
-			if (rv)
-				break;
+			siw_crc_init(&qp->tx_ctx.mpa_crc);
+			qp->tx_ctx.mpa_crc_enabled = true;
+			siw_crc_init(&qp->rx_stream.mpa_crc);
+			qp->rx_stream.mpa_crc_enabled = true;
 		}
 		if (!(mask & SIW_QP_ATTR_LLP_HANDLE)) {
 			siw_dbg_qp(qp, "no socket\n");

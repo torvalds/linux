@@ -227,6 +227,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Navy_Flounder;
 		break;
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VANGOGH;
 		break;
 	case IP_VERSION(11, 0, 12):
@@ -471,10 +472,11 @@ int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_power_context *smu_power = &smu->smu_power;
-	size_t size = amdgpu_ip_version(adev, MP1_HWIP, 0) ==
-				      IP_VERSION(11, 5, 0) ?
-			      sizeof(struct smu_11_5_power_context) :
-			      sizeof(struct smu_11_0_power_context);
+	u32 ip_version = amdgpu_ip_version(adev, MP1_HWIP, 0);
+	size_t size = ((ip_version == IP_VERSION(11, 5, 0)) ||
+			(ip_version == IP_VERSION(11, 5, 2))) ?
+				sizeof(struct smu_11_5_power_context) :
+				sizeof(struct smu_11_0_power_context);
 
 	smu_power->power_context = kzalloc(size, GFP_KERNEL);
 	if (!smu_power->power_context)
@@ -731,6 +733,7 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 	 */
 	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 11) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 5, 0) ||
+	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 5, 2) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 12) ||
 	    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 13))
 		return 0;
@@ -1110,6 +1113,7 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case IP_VERSION(11, 0, 12):
 	case IP_VERSION(11, 0, 13):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)

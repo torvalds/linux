@@ -45,7 +45,7 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 	enum pipe port_pipe;
 	bool state;
 
-	state = g4x_dp_port_enabled(dev_priv, dp_reg, port, &port_pipe);
+	state = g4x_dp_port_enabled(display, dp_reg, port, &port_pipe);
 
 	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
 				 "PCH DP %c enabled on transcoder %c, should be disabled\n",
@@ -65,7 +65,7 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 	enum pipe port_pipe;
 	bool state;
 
-	state = intel_sdvo_port_enabled(dev_priv, hdmi_reg, &port_pipe);
+	state = intel_sdvo_port_enabled(display, hdmi_reg, &port_pipe);
 
 	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
 				 "PCH HDMI %c enabled on transcoder %c, should be disabled\n",
@@ -181,10 +181,10 @@ static void ibx_sanitize_pch_ports(struct drm_i915_private *dev_priv)
 static void intel_pch_transcoder_set_m1_n1(struct intel_crtc *crtc,
 					   const struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_set_m_n(dev_priv, m_n,
+	intel_set_m_n(display, m_n,
 		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
 		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
 }
@@ -192,10 +192,10 @@ static void intel_pch_transcoder_set_m1_n1(struct intel_crtc *crtc,
 static void intel_pch_transcoder_set_m2_n2(struct intel_crtc *crtc,
 					   const struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_set_m_n(dev_priv, m_n,
+	intel_set_m_n(display, m_n,
 		      PCH_TRANS_DATA_M2(pipe), PCH_TRANS_DATA_N2(pipe),
 		      PCH_TRANS_LINK_M2(pipe), PCH_TRANS_LINK_N2(pipe));
 }
@@ -203,10 +203,10 @@ static void intel_pch_transcoder_set_m2_n2(struct intel_crtc *crtc,
 void intel_pch_transcoder_get_m1_n1(struct intel_crtc *crtc,
 				    struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_get_m_n(dev_priv, m_n,
+	intel_get_m_n(display, m_n,
 		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
 		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
 }
@@ -214,10 +214,10 @@ void intel_pch_transcoder_get_m1_n1(struct intel_crtc *crtc,
 void intel_pch_transcoder_get_m2_n2(struct intel_crtc *crtc,
 				    struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_get_m_n(dev_priv, m_n,
+	intel_get_m_n(display, m_n,
 		      PCH_TRANS_DATA_M2(pipe), PCH_TRANS_DATA_N2(pipe),
 		      PCH_TRANS_LINK_M2(pipe), PCH_TRANS_LINK_N2(pipe));
 }
@@ -249,21 +249,22 @@ static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_s
 static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 val, pipeconf_val;
 
 	/* Make sure PCH DPLL is enabled */
-	assert_shared_dpll_enabled(dev_priv, crtc_state->shared_dpll);
+	assert_shared_dpll_enabled(display, crtc_state->shared_dpll);
 
 	/* FDI must be feeding us bits for PCH ports */
-	assert_fdi_tx_enabled(dev_priv, pipe);
-	assert_fdi_rx_enabled(dev_priv, pipe);
+	assert_fdi_tx_enabled(display, pipe);
+	assert_fdi_rx_enabled(display, pipe);
 
 	if (HAS_PCH_CPT(dev_priv)) {
 		reg = TRANS_CHICKEN2(pipe);
-		val = intel_de_read(dev_priv, reg);
+		val = intel_de_read(display, reg);
 		/*
 		 * Workaround: Set the timing override bit
 		 * before enabling the pch transcoder.
@@ -272,12 +273,12 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		/* Configure frame start delay to match the CPU */
 		val &= ~TRANS_CHICKEN2_FRAME_START_DELAY_MASK;
 		val |= TRANS_CHICKEN2_FRAME_START_DELAY(crtc_state->framestart_delay - 1);
-		intel_de_write(dev_priv, reg, val);
+		intel_de_write(display, reg, val);
 	}
 
 	reg = PCH_TRANSCONF(pipe);
-	val = intel_de_read(dev_priv, reg);
-	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe));
+	val = intel_de_read(display, reg);
+	pipeconf_val = intel_de_read(display, TRANSCONF(display, pipe));
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Configure frame start delay to match the CPU */
@@ -307,21 +308,22 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 		val |= TRANS_INTERLACE_PROGRESSIVE;
 	}
 
-	intel_de_write(dev_priv, reg, val | TRANS_ENABLE);
-	if (intel_de_wait_for_set(dev_priv, reg, TRANS_STATE_ENABLE, 100))
-		drm_err(&dev_priv->drm, "failed to enable transcoder %c\n",
+	intel_de_write(display, reg, val | TRANS_ENABLE);
+	if (intel_de_wait_for_set(display, reg, TRANS_STATE_ENABLE, 100))
+		drm_err(display->drm, "failed to enable transcoder %c\n",
 			pipe_name(pipe));
 }
 
 static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 
 	/* FDI relies on the transcoder */
-	assert_fdi_tx_disabled(dev_priv, pipe);
-	assert_fdi_rx_disabled(dev_priv, pipe);
+	assert_fdi_tx_disabled(display, pipe);
+	assert_fdi_rx_disabled(display, pipe);
 
 	/* Ports must be off as well */
 	assert_pch_ports_disabled(dev_priv, pipe);
@@ -383,15 +385,15 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	if (HAS_PCH_CPT(dev_priv)) {
 		u32 sel;
 
-		temp = intel_de_read(dev_priv, PCH_DPLL_SEL);
+		temp = intel_de_read(display, PCH_DPLL_SEL);
 		temp |= TRANS_DPLL_ENABLE(pipe);
 		sel = TRANS_DPLLB_SEL(pipe);
 		if (crtc_state->shared_dpll ==
-		    intel_get_shared_dpll_by_id(dev_priv, DPLL_ID_PCH_PLL_B))
+		    intel_get_shared_dpll_by_id(display, DPLL_ID_PCH_PLL_B))
 			temp |= sel;
 		else
 			temp &= ~sel;
-		intel_de_write(dev_priv, PCH_DPLL_SEL, temp);
+		intel_de_write(display, PCH_DPLL_SEL, temp);
 	}
 
 	/*
@@ -420,11 +422,12 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	    intel_crtc_has_dp_encoder(crtc_state)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc_state->hw.adjusted_mode;
-		u32 bpc = (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) >> 5;
+		u32 bpc = (intel_de_read(display, TRANSCONF(display, pipe))
+			   & TRANSCONF_BPC_MASK) >> 5;
 		i915_reg_t reg = TRANS_DP_CTL(pipe);
 		enum port port;
 
-		temp = intel_de_read(dev_priv, reg);
+		temp = intel_de_read(display, reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
 			  TRANS_DP_VSYNC_ACTIVE_HIGH |
 			  TRANS_DP_HSYNC_ACTIVE_HIGH |
@@ -438,10 +441,10 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 			temp |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
 		port = intel_get_crtc_new_encoder(state, crtc_state)->port;
-		drm_WARN_ON(&dev_priv->drm, port < PORT_B || port > PORT_D);
+		drm_WARN_ON(display->drm, port < PORT_B || port > PORT_D);
 		temp |= TRANS_DP_PORT_SEL(port);
 
-		intel_de_write(dev_priv, reg, temp);
+		intel_de_write(display, reg, temp);
 	}
 
 	ilk_enable_pch_transcoder(crtc_state);
@@ -477,8 +480,7 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 
 static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 
 	/* read out port_clock from the DPLL */
 	i9xx_crtc_clock_get(crtc_state);
@@ -489,13 +491,14 @@ static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
 	 * Calculate one based on the FDI configuration.
 	 */
 	crtc_state->hw.adjusted_mode.crtc_clock =
-		intel_dotclock_calculate(intel_fdi_link_freq(dev_priv, crtc_state),
+		intel_dotclock_calculate(intel_fdi_link_freq(display, crtc_state),
 					 &crtc_state->fdi_m_n);
 }
 
 void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
 	enum pipe pipe = crtc->pipe;
@@ -503,12 +506,12 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 	bool pll_active;
 	u32 tmp;
 
-	if ((intel_de_read(dev_priv, PCH_TRANSCONF(pipe)) & TRANS_ENABLE) == 0)
+	if ((intel_de_read(display, PCH_TRANSCONF(pipe)) & TRANS_ENABLE) == 0)
 		return;
 
 	crtc_state->has_pch_encoder = true;
 
-	tmp = intel_de_read(dev_priv, FDI_RX_CTL(pipe));
+	tmp = intel_de_read(display, FDI_RX_CTL(pipe));
 	crtc_state->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
 				 FDI_DP_PORT_WIDTH_SHIFT) + 1;
 
@@ -522,19 +525,19 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 		 */
 		pll_id = (enum intel_dpll_id) pipe;
 	} else {
-		tmp = intel_de_read(dev_priv, PCH_DPLL_SEL);
+		tmp = intel_de_read(display, PCH_DPLL_SEL);
 		if (tmp & TRANS_DPLLB_SEL(pipe))
 			pll_id = DPLL_ID_PCH_PLL_B;
 		else
 			pll_id = DPLL_ID_PCH_PLL_A;
 	}
 
-	crtc_state->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, pll_id);
+	crtc_state->shared_dpll = intel_get_shared_dpll_by_id(display, pll_id);
 	pll = crtc_state->shared_dpll;
 
-	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+	pll_active = intel_dpll_get_hw_state(display, pll,
 					     &crtc_state->dpll_hw_state);
-	drm_WARN_ON(&dev_priv->drm, !pll_active);
+	drm_WARN_ON(display->drm, !pll_active);
 
 	tmp = crtc_state->dpll_hw_state.i9xx.dpll;
 	crtc_state->pixel_multiplier =
@@ -546,14 +549,15 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 
 static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val, pipeconf_val;
 
 	/* FDI must be feeding us bits for PCH ports */
-	assert_fdi_tx_enabled(dev_priv, (enum pipe) cpu_transcoder);
-	assert_fdi_rx_enabled(dev_priv, PIPE_A);
+	assert_fdi_tx_enabled(display, (enum pipe)cpu_transcoder);
+	assert_fdi_rx_enabled(display, PIPE_A);
 
 	val = intel_de_read(dev_priv, TRANS_CHICKEN2(PIPE_A));
 	/* Workaround: set timing override bit. */

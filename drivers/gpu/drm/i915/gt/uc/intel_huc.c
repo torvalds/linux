@@ -489,13 +489,15 @@ int intel_huc_wait_for_auth_complete(struct intel_huc *huc,
 	if (delta_ms > 50) {
 		huc_warn(huc, "excessive auth time: %lldms! [status = 0x%08X, count = %d, ret = %d]\n",
 			 delta_ms, huc->status[type].reg.reg, count, ret);
-		huc_warn(huc, "excessive auth time: [freq = %dMHz, before = %dMHz, perf_limit_reasons = 0x%08X]\n",
-			 intel_rps_read_actual_frequency(&gt->rps), before_freq,
+		huc_warn(huc, "excessive auth time: [freq = %dMHz -> %dMHz vs %dMHz, perf_limit_reasons = 0x%08X]\n",
+			 before_freq, intel_rps_read_actual_frequency(&gt->rps),
+			 intel_rps_get_requested_frequency(&gt->rps),
 			 intel_uncore_read(uncore, intel_gt_perf_limit_reasons_reg(gt)));
 	} else {
-		huc_dbg(huc, "auth took %lldms, freq = %dMHz, before = %dMHz, status = 0x%08X, count = %d, ret = %d\n",
-			delta_ms, intel_rps_read_actual_frequency(&gt->rps),
-			before_freq, huc->status[type].reg.reg, count, ret);
+		huc_dbg(huc, "auth took %lldms, freq = %dMHz -> %dMHz vs %dMHz, status = 0x%08X, count = %d, ret = %d\n",
+			delta_ms, before_freq, intel_rps_read_actual_frequency(&gt->rps),
+			intel_rps_get_requested_frequency(&gt->rps),
+			huc->status[type].reg.reg, count, ret);
 	}
 
 	/* mark the load process as complete even if the wait failed */

@@ -37,6 +37,7 @@
 #define TEST_TAG_JITED_PFX "comment:test_jited="
 #define TEST_TAG_JITED_PFX_UNPRIV "comment:test_jited_unpriv="
 #define TEST_TAG_CAPS_UNPRIV "comment:test_caps_unpriv="
+#define TEST_TAG_LOAD_MODE_PFX "comment:load_mode="
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xcafe4all
@@ -53,6 +54,11 @@ static int sysctl_unpriv_disabled = -1;
 enum mode {
 	PRIV = 1,
 	UNPRIV = 2
+};
+
+enum load_mode {
+	JITED		= 1 << 0,
+	NO_JITED	= 1 << 1,
 };
 
 struct expect_msg {
@@ -87,6 +93,7 @@ struct test_spec {
 	int prog_flags;
 	int mode_mask;
 	int arch_mask;
+	int load_mask;
 	bool auxiliary;
 	bool valid;
 };
@@ -406,6 +413,7 @@ static int parse_test_spec(struct test_loader *tester,
 	bool collect_jit = false;
 	int func_id, i, err = 0;
 	u32 arch_mask = 0;
+	u32 load_mask = 0;
 	struct btf *btf;
 	enum arch arch;
 
@@ -580,10 +588,22 @@ static int parse_test_spec(struct test_loader *tester,
 			if (err)
 				goto cleanup;
 			spec->mode_mask |= UNPRIV;
+		} else if (str_has_pfx(s, TEST_TAG_LOAD_MODE_PFX)) {
+			val = s + sizeof(TEST_TAG_LOAD_MODE_PFX) - 1;
+			if (strcmp(val, "jited") == 0) {
+				load_mask = JITED;
+			} else if (strcmp(val, "no_jited") == 0) {
+				load_mask = NO_JITED;
+			} else {
+				PRINT_FAIL("bad load spec: '%s'", val);
+				err = -EINVAL;
+				goto cleanup;
+			}
 		}
 	}
 
 	spec->arch_mask = arch_mask ?: -1;
+	spec->load_mask = load_mask ?: (JITED | NO_JITED);
 
 	if (spec->mode_mask == 0)
 		spec->mode_mask = PRIV;
@@ -773,7 +793,7 @@ static int drop_capabilities(struct cap_state *caps)
 
 	err = cap_disable_effective(caps_to_drop, &caps->old_caps);
 	if (err) {
-		PRINT_FAIL("failed to drop capabilities: %i, %s\n", err, strerror(err));
+		PRINT_FAIL("failed to drop capabilities: %i, %s\n", err, strerror(-err));
 		return err;
 	}
 
@@ -790,7 +810,7 @@ static int restore_capabilities(struct cap_state *caps)
 
 	err = cap_enable_effective(caps->old_caps, NULL);
 	if (err)
-		PRINT_FAIL("failed to restore capabilities: %i, %s\n", err, strerror(err));
+		PRINT_FAIL("failed to restore capabilities: %i, %s\n", err, strerror(-err));
 	caps->initialized = false;
 	return err;
 }
@@ -928,6 +948,7 @@ void run_subtest(struct test_loader *tester,
 		 bool unpriv)
 {
 	struct test_subspec *subspec = unpriv ? &spec->unpriv : &spec->priv;
+	int current_runtime = is_jit_enabled() ? JITED : NO_JITED;
 	struct bpf_program *tprog = NULL, *tprog_iter;
 	struct bpf_link *link, *links[32] = {};
 	struct test_spec *spec_iter;
@@ -946,6 +967,11 @@ void run_subtest(struct test_loader *tester,
 		return;
 	}
 
+	if ((current_runtime & spec->load_mask) == 0) {
+		test__skip();
+		return;
+	}
+
 	if (unpriv) {
 		if (!can_execute_unpriv(tester, spec)) {
 			test__skip();
@@ -959,7 +985,7 @@ void run_subtest(struct test_loader *tester,
 		if (subspec->caps) {
 			err = cap_enable_effective(subspec->caps, NULL);
 			if (err) {
-				PRINT_FAIL("failed to set capabilities: %i, %s\n", err, strerror(err));
+				PRINT_FAIL("failed to set capabilities: %i, %s\n", err, strerror(-err));
 				goto subtest_cleanup;
 			}
 		}

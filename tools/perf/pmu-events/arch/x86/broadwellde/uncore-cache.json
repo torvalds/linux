@@ -608,7 +608,7 @@
         "EventCode": "0x12",
         "EventName": "UNC_C_RxR_EXT_STARVED.IPQ",
         "PerPkg": "1",
-        "PublicDescription": "Counts cycles in external starvation.  This occurs when one of the ingress queues is being starved by the other queues.; IPQ is externally startved and therefore we are blocking the IRQ.",
+        "PublicDescription": "Counts cycles in external starvation.  This occurs when one of the ingress queues is being starved by the other queues.; IPQ is externally starved and therefore we are blocking the IRQ.",
         "UMask": "0x2",
         "Unit": "CBOX"
     },
@@ -1654,7 +1654,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_H_BYPASS_IMC.NOT_TAKEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filted by when the bypass was taken and when it was not.; Filter for transactions that could not take the bypass.",
+        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filtered by when the bypass was taken and when it was not.; Filter for transactions that could not take the bypass.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -1664,7 +1664,7 @@
         "EventCode": "0x14",
         "EventName": "UNC_H_BYPASS_IMC.TAKEN",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filted by when the bypass was taken and when it was not.; Filter for transactions that succeeded in taking the bypass.",
+        "PublicDescription": "Counts the number of times when the HA was able to bypass was attempted.  This is a latency optimization for situations when there is light loadings on the memory subsystem.  This can be filtered by when the bypass was taken and when it was not.; Filter for transactions that succeeded in taking the bypass.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -2679,7 +2679,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 0 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 0 only.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -2689,7 +2689,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 1 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 1 only.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -2699,7 +2699,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN2",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 2 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 2 only.",
         "UMask": "0x4",
         "Unit": "HA"
     },
@@ -2709,7 +2709,7 @@
         "EventCode": "0x15",
         "EventName": "UNC_H_RPQ_CYCLES_NO_REG_CREDITS.CHN3",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 3 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting reads from the HA into the iMC.  In order to send reads into the memory controller, the HA must first acquire a credit for the iMC's RPQ (read pending queue).  This queue is broken into regular credits/buffers that are used by general reads, and special requests such as ISOCH reads.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 3 only.",
         "UMask": "0x8",
         "Unit": "HA"
     },
@@ -3239,7 +3239,7 @@
         "EventCode": "0x3",
         "EventName": "UNC_H_TRACKER_CYCLES_NE.ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the local HA tracker pool is not empty.  This can be used with edge detect to identify the number of situations when the pool became empty.  This should not be confused with RTID credit usage -- which must be tracked inside each cbo individually -- but represents the actual tracker buffer structure.  In other words, this buffer could be completely empty, but there may still be credits in use by the CBos.  This stat can be used in conjunction with the occupancy accumulation stat in order to calculate average queue occpancy.  HA trackers are allocated as soon as a request enters the HA if an HT (Home Tracker) entry is available and is released after the snoop response and data return (or post in the case of a write) and the response is returned on the ring.; Requests coming from both local and remote sockets.",
+        "PublicDescription": "Counts the number of cycles when the local HA tracker pool is not empty.  This can be used with edge detect to identify the number of situations when the pool became empty.  This should not be confused with RTID credit usage -- which must be tracked inside each cbo individually -- but represents the actual tracker buffer structure.  In other words, this buffer could be completely empty, but there may still be credits in use by the CBos.  This stat can be used in conjunction with the occupancy accumulation stat in order to calculate average queue occupancy.  HA trackers are allocated as soon as a request enters the HA if an HT (Home Tracker) entry is available and is released after the snoop response and data return (or post in the case of a write) and the response is returned on the ring.; Requests coming from both local and remote sockets.",
         "UMask": "0x3",
         "Unit": "HA"
     },
@@ -3249,7 +3249,7 @@
         "EventCode": "0x3",
         "EventName": "UNC_H_TRACKER_CYCLES_NE.LOCAL",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the local HA tracker pool is not empty.  This can be used with edge detect to identify the number of situations when the pool became empty.  This should not be confused with RTID credit usage -- which must be tracked inside each cbo individually -- but represents the actual tracker buffer structure.  In other words, this buffer could be completely empty, but there may still be credits in use by the CBos.  This stat can be used in conjunction with the occupancy accumulation stat in order to calculate average queue occpancy.  HA trackers are allocated as soon as a request enters the HA if an HT (Home Tracker) entry is available and is released after the snoop response and data return (or post in the case of a write) and the response is returned on the ring.; This filter includes only requests coming from the local socket.",
+        "PublicDescription": "Counts the number of cycles when the local HA tracker pool is not empty.  This can be used with edge detect to identify the number of situations when the pool became empty.  This should not be confused with RTID credit usage -- which must be tracked inside each cbo individually -- but represents the actual tracker buffer structure.  In other words, this buffer could be completely empty, but there may still be credits in use by the CBos.  This stat can be used in conjunction with the occupancy accumulation stat in order to calculate average queue occupancy.  HA trackers are allocated as soon as a request enters the HA if an HT (Home Tracker) entry is available and is released after the snoop response and data return (or post in the case of a write) and the response is returned on the ring.; This filter includes only requests coming from the local socket.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -3259,7 +3259,7 @@
         "EventCode": "0x3",
         "EventName": "UNC_H_TRACKER_CYCLES_NE.REMOTE",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when the local HA tracker pool is not empty.  This can be used with edge detect to identify the number of situations when the pool became empty.  This should not be confused with RTID credit usage -- which must be tracked inside each cbo individually -- but represents the actual tracker buffer structure.  In other words, this buffer could be completely empty, but there may still be credits in use by the CBos.  This stat can be used in conjunction with the occupancy accumulation stat in order to calculate average queue occpancy.  HA trackers are allocated as soon as a request enters the HA if an HT (Home Tracker) entry is available and is released after the snoop response and data return (or post in the case of a write) and the response is returned on the ring.; This filter includes only requests coming from remote sockets.",
+        "PublicDescription": "Counts the number of cycles when the local HA tracker pool is not empty.  This can be used with edge detect to identify the number of situations when the pool became empty.  This should not be confused with RTID credit usage -- which must be tracked inside each cbo individually -- but represents the actual tracker buffer structure.  In other words, this buffer could be completely empty, but there may still be credits in use by the CBos.  This stat can be used in conjunction with the occupancy accumulation stat in order to calculate average queue occupancy.  HA trackers are allocated as soon as a request enters the HA if an HT (Home Tracker) entry is available and is released after the snoop response and data return (or post in the case of a write) and the response is returned on the ring.; This filter includes only requests coming from remote sockets.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -3679,7 +3679,7 @@
         "EventCode": "0x18",
         "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN0",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 0 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 0 only.",
         "UMask": "0x1",
         "Unit": "HA"
     },
@@ -3689,7 +3689,7 @@
         "EventCode": "0x18",
         "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN1",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 1 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 1 only.",
         "UMask": "0x2",
         "Unit": "HA"
     },
@@ -3699,7 +3699,7 @@
         "EventCode": "0x18",
         "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN2",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 2 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 2 only.",
         "UMask": "0x4",
         "Unit": "HA"
     },
@@ -3709,7 +3709,7 @@
         "EventCode": "0x18",
         "EventName": "UNC_H_WPQ_CYCLES_NO_REG_CREDITS.CHN3",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high banwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 3 only.",
+        "PublicDescription": "Counts the number of cycles when there are no regular credits available for posting writes from the HA into the iMC.  In order to send writes into the memory controller, the HA must first acquire a credit for the iMC's WPQ (write pending queue).  This queue is broken into regular credits/buffers that are used by general writes, and special requests such as ISOCH writes.  This count only tracks the regular credits  Common high bandwidth workloads should be able to make use of all of the regular buffers, but it will be difficult (and uncommon) to make use of both the regular and special buffers at the same time.  One can filter based on the memory controller channel.  One or more channels can be tracked at a given time.; Filter for memory controller channel 3 only.",
         "UMask": "0x8",
         "Unit": "HA"
     },

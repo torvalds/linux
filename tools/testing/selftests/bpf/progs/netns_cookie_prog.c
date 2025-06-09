@@ -28,6 +28,7 @@ struct {
 } sock_map SEC(".maps");
 
 int tcx_init_netns_cookie, tcx_netns_cookie;
+int cgroup_skb_init_netns_cookie, cgroup_skb_netns_cookie;
 
 SEC("sockops")
 int get_netns_cookie_sockops(struct bpf_sock_ops *ctx)
@@ -89,6 +90,14 @@ int get_netns_cookie_tcx(struct __sk_buff *skb)
 	tcx_init_netns_cookie = bpf_get_netns_cookie(NULL);
 	tcx_netns_cookie = bpf_get_netns_cookie(skb);
 	return TCX_PASS;
+}
+
+SEC("cgroup_skb/ingress")
+int get_netns_cookie_cgroup_skb(struct __sk_buff *skb)
+{
+	cgroup_skb_init_netns_cookie = bpf_get_netns_cookie(NULL);
+	cgroup_skb_netns_cookie = bpf_get_netns_cookie(skb);
+	return SK_PASS;
 }
 
 char _license[] SEC("license") = "GPL";

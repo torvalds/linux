@@ -201,7 +201,7 @@ static int qaic_timesync_probe(struct mhi_device *mhi_dev, const struct mhi_devi
 		goto free_sync_msg;
 
 	/* Qtimer register pointer */
-	mqtsdev->qtimer_addr = qdev->bar_0 + QTIMER_REG_OFFSET;
+	mqtsdev->qtimer_addr = qdev->bar_mhi + QTIMER_REG_OFFSET;
 	timer_setup(timer, qaic_timesync_timer, 0);
 	timer->expires = jiffies + msecs_to_jiffies(timesync_delay_ms);
 	add_timer(timer);

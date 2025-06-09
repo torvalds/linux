@@ -485,7 +485,7 @@ static int check_snapshot_tree(struct btree_trans *trans,
 			root_id != bch2_snapshot_root(c, root_id) ||
 			st.k->p.offset != le32_to_cpu(s.tree),
 			trans, snapshot_tree_to_missing_snapshot,
-			"snapshot tree points to missing/incorrect snapshot:\n  %s",
+			"snapshot tree points to missing/incorrect snapshot:\n%s",
 			(bch2_bkey_val_to_text(&buf, c, st.s_c),
 			 prt_newline(&buf),
 			 ret
@@ -505,19 +505,19 @@ static int check_snapshot_tree(struct btree_trans *trans,
 
 	if (fsck_err_on(ret,
 			trans, snapshot_tree_to_missing_subvol,
-			"snapshot tree points to missing subvolume:\n  %s",
+			"snapshot tree points to missing subvolume:\n%s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, st.s_c), buf.buf)) ||
 	    fsck_err_on(!bch2_snapshot_is_ancestor(c,
 						le32_to_cpu(subvol.snapshot),
 						root_id),
 			trans, snapshot_tree_to_wrong_subvol,
-			"snapshot tree points to subvolume that does not point to snapshot in this tree:\n  %s",
+			"snapshot tree points to subvolume that does not point to snapshot in this tree:\n%s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, st.s_c), buf.buf)) ||
 	    fsck_err_on(BCH_SUBVOLUME_SNAP(&subvol),
 			trans, snapshot_tree_to_snapshot_subvol,
-			"snapshot tree points to snapshot subvolume:\n  %s",
+			"snapshot tree points to snapshot subvolume:\n%s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, st.s_c), buf.buf))) {
 		struct bkey_i_snapshot_tree *u;
@@ -756,7 +756,7 @@ static int check_snapshot(struct btree_trans *trans,
 	} else {
 		if (fsck_err_on(s.subvol,
 				trans, snapshot_should_not_have_subvol,
-				"snapshot should not point to subvol:\n  %s",
+				"snapshot should not point to subvol:\n%s",
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 			u = bch2_bkey_make_mut_typed(trans, iter, &k, 0, snapshot);
 			ret = PTR_ERR_OR_ZERO(u);
@@ -774,7 +774,7 @@ static int check_snapshot(struct btree_trans *trans,
 
 	if (fsck_err_on(!ret,
 			trans, snapshot_to_bad_snapshot_tree,
-			"snapshot points to missing/incorrect tree:\n  %s",
+			"snapshot points to missing/incorrect tree:\n%s",
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		ret = snapshot_tree_ptr_repair(trans, iter, k, &s);
 		if (ret)
@@ -786,7 +786,7 @@ static int check_snapshot(struct btree_trans *trans,
 
 	if (fsck_err_on(le32_to_cpu(s.depth) != real_depth,
 			trans, snapshot_bad_depth,
-			"snapshot with incorrect depth field, should be %u:\n  %s",
+			"snapshot with incorrect depth field, should be %u:\n%s",
 			real_depth, (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		u = bch2_bkey_make_mut_typed(trans, iter, &k, 0, snapshot);
 		ret = PTR_ERR_OR_ZERO(u);
@@ -803,7 +803,7 @@ static int check_snapshot(struct btree_trans *trans,
 
 	if (fsck_err_on(!ret,
 			trans, snapshot_bad_skiplist,
-			"snapshot with bad skiplist field:\n  %s",
+			"snapshot with bad skiplist field:\n%s",
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		u = bch2_bkey_make_mut_typed(trans, iter, &k, 0, snapshot);
 		ret = PTR_ERR_OR_ZERO(u);

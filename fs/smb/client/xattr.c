@@ -320,10 +320,17 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		if (pTcon->ses->server->ops->get_acl == NULL)
 			goto out; /* rc already EOPNOTSUPP */
 
-		if (handler->flags == XATTR_CIFS_NTSD_FULL) {
-			extra_info = SACL_SECINFO;
-		} else {
-			extra_info = 0;
+		switch (handler->flags) {
+		case XATTR_CIFS_NTSD_FULL:
+			extra_info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO | SACL_SECINFO;
+			break;
+		case XATTR_CIFS_NTSD:
+			extra_info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO;
+			break;
+		case XATTR_CIFS_ACL:
+		default:
+			extra_info = DACL_SECINFO;
+			break;
 		}
 		pacl = pTcon->ses->server->ops->get_acl(cifs_sb,
 				inode, full_path, &acllen, extra_info);

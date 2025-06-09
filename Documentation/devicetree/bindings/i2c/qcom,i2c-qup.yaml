@@ -40,6 +40,9 @@ properties:
       - const: tx
       - const: rx
 
+  interconnects:
+    maxItems: 1
+
   interrupts:
     maxItems: 1
 
@@ -52,7 +55,13 @@ properties:
       - const: default
       - const: sleep
 
+  power-domains:
+    maxItems: 1
+
   reg:
+    maxItems: 1
+
+  required-opps:
     maxItems: 1
 
 required:
@@ -67,7 +76,9 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/qcom,gcc-msm8998.h>
+    #include <dt-bindings/interconnect/qcom,msm8996.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
 
     i2c@c175000 {
         compatible = "qcom,i2c-qup-v2.2.1";
@@ -82,6 +93,9 @@ examples:
         pinctrl-names = "default", "sleep";
         pinctrl-0 = <&blsp1_i2c1_default>;
         pinctrl-1 = <&blsp1_i2c1_sleep>;
+        power-domains = <&rpmpd MSM8909_VDDCX>;
+        required-opps = <&rpmpd_opp_svs_krait>;
+        interconnects = <&pnoc MASTER_BLSP_1 &bimc SLAVE_EBI_CH0>;
         clock-frequency = <400000>;
 
         #address-cells = <1>;

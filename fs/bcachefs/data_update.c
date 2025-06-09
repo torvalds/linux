@@ -22,6 +22,13 @@
 
 #include <linux/ioprio.h>
 
+static const char * const bch2_data_update_type_strs[] = {
+#define x(t, n, ...) [n] = #t,
+	BCH_DATA_UPDATE_TYPES()
+#undef x
+	NULL
+};
+
 static void bkey_put_dev_refs(struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
@@ -181,6 +188,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		container_of(op, struct data_update, op);
 	struct keylist *keys = &op->insert_keys;
 	struct bkey_buf _new, _insert;
+	struct printbuf journal_msg = PRINTBUF;
 	int ret = 0;
 
 	bch2_bkey_buf_init(&_new);
@@ -372,7 +380,12 @@ restart_drop_extra_replicas:
 			printbuf_exit(&buf);
 		}
 
-		ret =   bch2_insert_snapshot_whiteouts(trans, m->btree_id,
+		printbuf_reset(&journal_msg);
+		prt_str(&journal_msg, bch2_data_update_type_strs[m->type]);
+
+		ret =   bch2_trans_log_msg(trans, &journal_msg) ?:
+			bch2_trans_log_bkey(trans, m->btree_id, 0, m->k.k) ?:
+			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, bkey_start_pos(&insert->k)) ?:
 			bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, insert->k.p) ?:
@@ -417,6 +430,7 @@ nowork:
 		goto next;
 	}
 out:
+	printbuf_exit(&journal_msg);
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_bkey_buf_exit(&_insert, c);
 	bch2_bkey_buf_exit(&_new, c);
@@ -577,6 +591,9 @@ void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
 
 void bch2_data_update_to_text(struct printbuf *out, struct data_update *m)
 {
+	prt_str(out, bch2_data_update_type_strs[m->type]);
+	prt_newline(out);
+
 	bch2_data_update_opts_to_text(out, m->op.c, &m->op.opts, &m->data_opts);
 	prt_newline(out);
 
@@ -738,6 +755,9 @@ int bch2_data_update_init(struct btree_trans *trans,
 
 	bch2_bkey_buf_init(&m->k);
 	bch2_bkey_buf_reassemble(&m->k, c, k);
+	m->type		= data_opts.btree_insert_flags & BCH_WATERMARK_copygc
+		? BCH_DATA_UPDATE_copygc
+		: BCH_DATA_UPDATE_rebalance;
 	m->btree_id	= btree_id;
 	m->data_opts	= data_opts;
 	m->ctxt		= ctxt;

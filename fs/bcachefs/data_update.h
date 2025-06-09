@@ -24,7 +24,19 @@ struct data_update_opts {
 void bch2_data_update_opts_to_text(struct printbuf *, struct bch_fs *,
 				   struct bch_io_opts *, struct data_update_opts *);
 
+#define BCH_DATA_UPDATE_TYPES()		\
+	x(copygc,	0)		\
+	x(rebalance,	1)		\
+	x(promote,	2)
+
+enum bch_data_update_types {
+#define x(n, id)	BCH_DATA_UPDATE_##n = id,
+	BCH_DATA_UPDATE_TYPES()
+#undef x
+};
+
 struct data_update {
+	enum bch_data_update_types type;
 	/* extent being updated: */
 	bool			read_done;
 	enum btree_id		btree_id;

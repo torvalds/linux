@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_XE_JOB_TIMEOUT_MAX
 	int "Default max job timeout (ms)"
 	default 10000 # milliseconds

@@ -2621,6 +2621,7 @@ static int dw_hdmi_connector_create(struct dw_hdmi *hdmi)
  * - MEDIA_BUS_FMT_UYYVYY12_0_5X36,
  * - MEDIA_BUS_FMT_UYYVYY10_0_5X30,
  * - MEDIA_BUS_FMT_UYYVYY8_0_5X24,
+ * - MEDIA_BUS_FMT_RGB888_1X24,
  * - MEDIA_BUS_FMT_YUV16_1X48,
  * - MEDIA_BUS_FMT_RGB161616_1X48,
  * - MEDIA_BUS_FMT_UYVY12_1X24,
@@ -2631,7 +2632,6 @@ static int dw_hdmi_connector_create(struct dw_hdmi *hdmi)
  * - MEDIA_BUS_FMT_RGB101010_1X30,
  * - MEDIA_BUS_FMT_UYVY8_1X16,
  * - MEDIA_BUS_FMT_YUV8_1X24,
- * - MEDIA_BUS_FMT_RGB888_1X24,
  */
 
 /* Can return a maximum of 11 possible output formats for a mode/connector */
@@ -2669,7 +2669,7 @@ static u32 *dw_hdmi_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 	}
 
 	/*
-	 * If the current mode enforces 4:2:0, force the output but format
+	 * If the current mode enforces 4:2:0, force the output bus format
 	 * to 4:2:0 and do not add the YUV422/444/RGB formats
 	 */
 	if (conn->ycbcr_420_allowed &&
@@ -2945,7 +2945,7 @@ static void dw_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
-					  struct drm_bridge_state *old_state)
+					  struct drm_atomic_state *state)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
 
@@ -2959,10 +2959,9 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void dw_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_state)
+					 struct drm_atomic_state *state)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
-	struct drm_atomic_state *state = old_state->base.state;
 	struct drm_connector *connector;
 
 	connector = drm_atomic_get_new_connector_for_encoder(state,

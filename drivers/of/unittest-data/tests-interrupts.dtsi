@@ -50,6 +50,13 @@
 				interrupt-map = <0x5000 1 2 &test_intc0 15>;
 			};
 
+			test_intc_intmap0: intc-intmap0 {
+				#interrupt-cells = <1>;
+				#address-cells = <1>;
+				interrupt-controller;
+				interrupt-map = <0x6000 1 &test_intc_intmap0 0x7000 2>;
+			};
+
 			interrupts0 {
 				interrupt-parent = <&test_intc0>;
 				interrupts = <1>, <2>, <3>, <4>;
@@ -58,6 +65,12 @@
 			interrupts1 {
 				interrupt-parent = <&test_intmap0>;
 				interrupts = <1>, <2>, <3>, <4>;
+			};
+
+			interrupts2 {
+				reg = <0x6000 0x100>;
+				interrupt-parent = <&test_intc_intmap0>;
+				interrupts = <1>;
 			};
 
 			interrupts-extended0 {

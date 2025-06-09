@@ -109,6 +109,7 @@
 #include "amdgpu_mca.h"
 #include "amdgpu_aca.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_cper.h"
 #include "amdgpu_xcp.h"
 #include "amdgpu_seq64.h"
 #include "amdgpu_reg_state.h"
@@ -415,6 +416,7 @@ bool amdgpu_get_bios(struct amdgpu_device *adev);
 bool amdgpu_read_bios(struct amdgpu_device *adev);
 bool amdgpu_soc15_read_bios_from_rom(struct amdgpu_device *adev,
 				     u8 *bios, u32 length_bytes);
+void amdgpu_bios_release(struct amdgpu_device *adev);
 /*
  * Clocks
  */
@@ -1090,6 +1092,9 @@ struct amdgpu_device {
 	/* ACA */
 	struct amdgpu_aca		aca;
 
+	/* CPER */
+	struct amdgpu_cper		cper;
+
 	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
 	uint32_t		        harvest_ip_mask;
 	int				num_ip_blocks;
@@ -1149,6 +1154,7 @@ struct amdgpu_device {
 	struct ratelimit_state		throttling_logging_rs;
 	uint32_t                        ras_hw_enabled;
 	uint32_t                        ras_enabled;
+	bool                            ras_default_ecc_enabled;
 
 	bool                            no_hw_access;
 	struct pci_saved_state          *pci_state;
@@ -1186,12 +1192,24 @@ struct amdgpu_device {
 	bool                            debug_use_vram_fw_buf;
 	bool                            debug_enable_ras_aca;
 	bool                            debug_exp_resets;
+	bool                            debug_disable_gpu_ring_reset;
 
-	bool				enforce_isolation[MAX_XCP];
-	/* Added this mutex for cleaner shader isolation between GFX and compute processes */
+	/* Protection for the following isolation structure */
 	struct mutex                    enforce_isolation_mutex;
+	bool				enforce_isolation[MAX_XCP];
+	struct amdgpu_isolation {
+		void			*owner;
+		struct dma_fence	*spearhead;
+		struct amdgpu_sync	active;
+		struct amdgpu_sync	prev;
+	} isolation[MAX_XCP];
 
 	struct amdgpu_init_level *init_lvl;
+
+	/* This flag is used to determine how VRAM allocations are handled for APUs
+	 * in KFD: VRAM or GTT.
+	 */
+	bool                            apu_prefer_gtt;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
@@ -1470,6 +1488,9 @@ void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev,
 struct dma_fence *amdgpu_device_get_gang(struct amdgpu_device *adev);
 struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 					    struct dma_fence *gang);
+struct dma_fence *amdgpu_device_enforce_isolation(struct amdgpu_device *adev,
+						  struct amdgpu_ring *ring,
+						  struct amdgpu_job *job);
 bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev);
 ssize_t amdgpu_get_soft_full_reset_mask(struct amdgpu_ring *ring);
 ssize_t amdgpu_show_reset_mask(char *buf, uint32_t supported_reset);

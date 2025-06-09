@@ -13754,16 +13754,5 @@
         "PerPkg": "1",
         "PublicDescription": "Number outstanding register requests within message channel tracker",
         "Unit": "UBOX"
-    },
-    {
-        "BriefDescription": "UPI interconnect send bandwidth for payload. Derived from unc_upi_txl_flits.all_data",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x2",
-        "EventName": "UPI_DATA_BANDWIDTH_TX",
-        "PerPkg": "1",
-        "PublicDescription": "Counts valid data FLITs (80 bit FLow control unITs: 64bits of data) transmitted (TxL) via any of the 3 Intel(R) Ultra Path Interconnect (UPI) slots on this UPI unit.",
-        "ScaleUnit": "7.11E-06Bytes",
-        "UMask": "0xf",
-        "Unit": "UPI"
     }
 ]

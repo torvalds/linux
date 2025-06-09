@@ -12,6 +12,9 @@ we have a dedicated glossary for Display Core at
       The number of CUs that are active on the system.  The number of active
       CUs may be less than SE * SH * CU depending on the board configuration.
 
+    CE
+      Constant Engine
+
     CP
       Command Processor
 
@@ -68,6 +71,9 @@ we have a dedicated glossary for Display Core at
     IB
       Indirect Buffer
 
+    IMU
+      Integrated Management Unit (Power Management support)
+
     IP
         Intellectual Property blocks
 
@@ -79,6 +85,12 @@ we have a dedicated glossary for Display Core at
 
     KIQ
       Kernel Interface Queue
+
+    MC
+      Memory Controller
+
+    ME
+      MicroEngine (Graphics)
 
     MEC
       MicroEngine Compute
@@ -92,6 +104,9 @@ we have a dedicated glossary for Display Core at
     MQD
       Memory Queue Descriptor
 
+    PFP
+      Pre-Fetch Parser (Graphics)
+
     PPLib
       PowerPlay Library - PowerPlay is the power management component.
 
@@ -99,7 +114,10 @@ we have a dedicated glossary for Display Core at
         Platform Security Processor
 
     RLC
-      RunList Controller
+      RunList Controller. This name is a remnant of past ages and doesn't have
+      much meaning today. It's a group of general-purpose helper engines for
+      the GFX block. It's involved in GFX power management and SR-IOV, among
+      other things.
 
     SDMA
       System DMA
@@ -110,14 +128,35 @@ we have a dedicated glossary for Display Core at
     SH
       SHader array
 
-    SMU
-      System Management Unit
+    SMU/SMC
+      System Management Unit / System Management Controller
+
+    SRLC
+      Save/Restore List Control
+
+    SRLG
+      Save/Restore List GPM_MEM
+
+    SRLS
+      Save/Restore List SRM_MEM
 
     SS
       Spread Spectrum
+
+    TA
+      Trusted Application
+
+    TOC
+      Table of Contents
+
+    UVD
+      Unified Video Decoder
 
     VCE
       Video Compression Engine
 
     VCN
       Video Codec Next
+
+    VPE
+      Video Processing Engine

@@ -394,6 +394,10 @@ static int amdgpu_atif_query_backlight_caps(struct amdgpu_atif *atif)
 			characteristics.max_input_signal;
 	atif->backlight_caps.ac_level = characteristics.ac_level;
 	atif->backlight_caps.dc_level = characteristics.dc_level;
+	atif->backlight_caps.data_points = characteristics.number_of_points;
+	memcpy(atif->backlight_caps.luminance_data,
+	       characteristics.data_points,
+	       sizeof(atif->backlight_caps.luminance_data));
 out:
 	kfree(info);
 	return err;
@@ -1277,11 +1281,7 @@ void amdgpu_acpi_get_backlight_caps(struct amdgpu_dm_backlight_caps *caps)
 {
 	struct amdgpu_atif *atif = &amdgpu_acpi_priv.atif;
 
-	caps->caps_valid = atif->backlight_caps.caps_valid;
-	caps->min_input_signal = atif->backlight_caps.min_input_signal;
-	caps->max_input_signal = atif->backlight_caps.max_input_signal;
-	caps->ac_level = atif->backlight_caps.ac_level;
-	caps->dc_level = atif->backlight_caps.dc_level;
+	memcpy(caps, &atif->backlight_caps, sizeof(*caps));
 }
 
 /**

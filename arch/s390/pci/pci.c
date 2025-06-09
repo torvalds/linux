@@ -31,6 +31,7 @@
 #include <linux/lockdep.h>
 #include <linux/list_sort.h>
 
+#include <asm/machine.h>
 #include <asm/isc.h>
 #include <asm/airq.h>
 #include <asm/facility.h>
@@ -254,7 +255,7 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 }
 
 void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
-			   unsigned long prot)
+			   pgprot_t prot)
 {
 	/*
 	 * When PCI MIO instructions are unavailable the "physical" address
@@ -264,7 +265,7 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
 	if (!static_branch_unlikely(&have_mio))
 		return (void __iomem *)phys_addr;
 
-	return generic_ioremap_prot(phys_addr, size, __pgprot(prot));
+	return generic_ioremap_prot(phys_addr, size, prot);
 }
 EXPORT_SYMBOL(ioremap_prot);
 
@@ -1078,7 +1079,7 @@ char * __init pcibios_setup(char *str)
 		return NULL;
 	}
 	if (!strcmp(str, "nomio")) {
-		get_lowcore()->machine_flags &= ~MACHINE_FLAG_PCI_MIO;
+		clear_machine_feature(MFEATURE_PCI_MIO);
 		return NULL;
 	}
 	if (!strcmp(str, "force_floating")) {
@@ -1153,7 +1154,7 @@ static int __init pci_base_init(void)
 		return 0;
 	}
 
-	if (MACHINE_HAS_PCI_MIO) {
+	if (test_machine_feature(MFEATURE_PCI_MIO)) {
 		static_branch_enable(&have_mio);
 		system_ctl_set_bit(2, CR2_MIO_ADDRESSING_BIT);
 	}

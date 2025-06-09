@@ -49,6 +49,13 @@
 			__VA_ARGS__, { } },				\
 	}
 
+#define MTK_EINT_PIN(_number, _instance, _index, _debounce) {	\
+		.number = _number,				\
+		.instance = _instance,				\
+		.index = _index,				\
+		.debounce = _debounce,				\
+	}
+
 #define PINCTRL_PIN_GROUP(_name_, id)							\
 	{										\
 		.grp = PINCTRL_PINGROUP(_name_,id##_pins, ARRAY_SIZE(id##_pins)),	\

@@ -1525,25 +1525,11 @@ void tcp_cleanup_rbuf(struct sock *sk, int copied)
 	__tcp_cleanup_rbuf(sk, copied);
 }
 
-/* private version of sock_rfree() avoiding one atomic_sub() */
-void tcp_sock_rfree(struct sk_buff *skb)
-{
-	struct sock *sk = skb->sk;
-	unsigned int len = skb->truesize;
-
-	sock_owned_by_me(sk);
-	atomic_set(&sk->sk_rmem_alloc,
-		   atomic_read(&sk->sk_rmem_alloc) - len);
-
-	sk_forward_alloc_add(sk, len);
-	sk_mem_reclaim(sk);
-}
-
 static void tcp_eat_recv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	__skb_unlink(skb, &sk->sk_receive_queue);
-	if (likely(skb->destructor == tcp_sock_rfree)) {
-		tcp_sock_rfree(skb);
+	if (likely(skb->destructor == sock_rfree)) {
+		sock_rfree(skb);
 		skb->destructor = NULL;
 		skb->sk = NULL;
 		return skb_attempt_defer_free(skb);

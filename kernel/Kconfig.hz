@@ -30,7 +30,7 @@ choice
 	 250 Hz is a good compromise choice allowing server performance
 	 while also showing good interactive responsiveness even
 	 on SMP and NUMA systems. If you are going to be using NTSC video
-	 or multimedia, selected 300Hz instead.
+	 or multimedia, select 300Hz instead.
 
 	config HZ_300
 		bool "300 HZ"

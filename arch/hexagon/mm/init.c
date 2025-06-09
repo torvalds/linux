@@ -43,32 +43,6 @@ DEFINE_SPINLOCK(kmap_gen_lock);
 /*  checkpatch says don't init this to 0.  */
 unsigned long long kmap_generation;
 
-/*
- * mem_init - initializes memory
- *
- * Frees up bootmem
- * Fixes up more stuff for HIGHMEM
- * Calculates and displays memory available/used
- */
-void __init mem_init(void)
-{
-	/*  No idea where this is actually declared.  Seems to evade LXR.  */
-	memblock_free_all();
-
-	/*
-	 *  To-Do:  someone somewhere should wipe out the bootmem map
-	 *  after we're done?
-	 */
-
-	/*
-	 * This can be moved to some more virtual-memory-specific
-	 * initialization hook at some point.  Set the init_mm
-	 * descriptors "context" value to point to the initial
-	 * kernel segment table's physical address.
-	 */
-	init_mm.context.ptbase = __pa(init_mm.pgd);
-}
-
 void sync_icache_dcache(pte_t pte)
 {
 	unsigned long addr;
@@ -104,10 +78,10 @@ static void __init paging_init(void)
 	free_area_init(max_zone_pfn);  /*  sets up the zonelists and mem_map  */
 
 	/*
-	 * Start of high memory area.  Will probably need something more
-	 * fancy if we...  get more fancy.
+	 * Set the init_mm descriptors "context" value to point to the
+	 * initial kernel segment table's physical address.
 	 */
-	high_memory = (void *)((bootmem_lastpg + 1) << PAGE_SHIFT);
+	init_mm.context.ptbase = __pa(init_mm.pgd);
 }
 
 #ifndef DMA_RESERVE

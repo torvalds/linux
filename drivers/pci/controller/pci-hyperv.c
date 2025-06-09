@@ -1356,7 +1356,7 @@ static struct pci_ops hv_pcifront_ops = {
  *
  * If the PF driver wishes to initiate communication, it can "invalidate" one or
  * more of the first 64 blocks.  This invalidation is delivered via a callback
- * supplied by the VF driver by this driver.
+ * supplied to the VF driver by this driver.
  *
  * No protocol is implied, except that supplied by the PF and VF drivers.
  */
@@ -3975,18 +3975,24 @@ static int hv_pci_restore_msi_msg(struct pci_dev *pdev, void *arg)
 {
 	struct irq_data *irq_data;
 	struct msi_desc *entry;
+	int ret = 0;
 
 	if (!pdev->msi_enabled && !pdev->msix_enabled)
 		return 0;
 
-	guard(msi_descs_lock)(&pdev->dev);
+	msi_lock_descs(&pdev->dev);
 	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {
 		irq_data = irq_get_irq_data(entry->irq);
-		if (WARN_ON_ONCE(!irq_data))
-			return -EINVAL;
+		if (WARN_ON_ONCE(!irq_data)) {
+			ret = -EINVAL;
+			break;
+		}
+
 		hv_compose_msi_msg(irq_data, &entry->msg);
 	}
-	return 0;
+	msi_unlock_descs(&pdev->dev);
+
+	return ret;
 }
 
 /*

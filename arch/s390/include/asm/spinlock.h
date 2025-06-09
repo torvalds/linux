@@ -16,7 +16,23 @@
 #include <asm/processor.h>
 #include <asm/alternative.h>
 
-#define SPINLOCK_LOCKVAL (get_lowcore()->spinlock_lockval)
+static __always_inline unsigned int spinlock_lockval(void)
+{
+	unsigned long lc_lockval;
+	unsigned int lockval;
+
+	BUILD_BUG_ON(sizeof_field(struct lowcore, spinlock_lockval) != sizeof(lockval));
+	lc_lockval = offsetof(struct lowcore, spinlock_lockval);
+	asm_inline(
+		ALTERNATIVE("   ly      %[lockval],%[offzero](%%r0)\n",
+			    "   ly      %[lockval],%[offalt](%%r0)\n",
+			    ALT_FEATURE(MFEATURE_LOWCORE))
+		: [lockval] "=d" (lockval)
+		: [offzero] "i" (lc_lockval),
+		  [offalt] "i" (lc_lockval + LOWCORE_ALT_ADDRESS),
+		  "m" (((struct lowcore *)0)->spinlock_lockval));
+	return lockval;
+}
 
 extern int spin_retry;
 
@@ -60,7 +76,7 @@ static inline int arch_spin_trylock_once(arch_spinlock_t *lp)
 	int old = 0;
 
 	barrier();
-	return likely(arch_try_cmpxchg(&lp->lock, &old, SPINLOCK_LOCKVAL));
+	return likely(arch_try_cmpxchg(&lp->lock, &old, spinlock_lockval()));
 }
 
 static inline void arch_spin_lock(arch_spinlock_t *lp)

@@ -147,7 +147,6 @@ int exfat_clear_bitmap(struct inode *inode, unsigned int clu, bool sync)
 	unsigned int ent_idx;
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct exfat_mount_options *opts = &sbi->options;
 
 	if (!is_valid_cluster(sbi, clu))
 		return -EIO;
@@ -162,19 +161,6 @@ int exfat_clear_bitmap(struct inode *inode, unsigned int clu, bool sync)
 	clear_bit_le(b, sbi->vol_amap[i]->b_data);
 
 	exfat_update_bh(sbi->vol_amap[i], sync);
-
-	if (opts->discard) {
-		int ret_discard;
-
-		ret_discard = sb_issue_discard(sb,
-			exfat_cluster_to_sector(sbi, clu),
-			(1 << sbi->sect_per_clus_bits), GFP_NOFS, 0);
-
-		if (ret_discard == -EOPNOTSUPP) {
-			exfat_err(sb, "discard not supported by device, disabling");
-			opts->discard = 0;
-		}
-	}
 
 	return 0;
 }

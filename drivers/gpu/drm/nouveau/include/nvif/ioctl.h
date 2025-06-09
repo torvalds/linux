@@ -3,25 +3,30 @@
 #define __NVIF_IOCTL_H__
 
 struct nvif_ioctl_v0 {
-	__u8  version;
+	/* New members MUST be added within the struct_group() macro below. */
+	struct_group_tagged(nvif_ioctl_v0_hdr, __hdr,
+		__u8  version;
 #define NVIF_IOCTL_V0_SCLASS                                               0x01
 #define NVIF_IOCTL_V0_NEW                                                  0x02
 #define NVIF_IOCTL_V0_DEL                                                  0x03
 #define NVIF_IOCTL_V0_MTHD                                                 0x04
 #define NVIF_IOCTL_V0_MAP                                                  0x07
 #define NVIF_IOCTL_V0_UNMAP                                                0x08
-	__u8  type;
-	__u8  pad02[4];
+		__u8  type;
+		__u8  pad02[4];
 #define NVIF_IOCTL_V0_OWNER_NVIF                                           0x00
 #define NVIF_IOCTL_V0_OWNER_ANY                                            0xff
-	__u8  owner;
+		__u8  owner;
 #define NVIF_IOCTL_V0_ROUTE_NVIF                                           0x00
 #define NVIF_IOCTL_V0_ROUTE_HIDDEN                                         0xff
-	__u8  route;
-	__u64 token;
-	__u64 object;
+		__u8  route;
+		__u64 token;
+		__u64 object;
+	);
 	__u8  data[];		/* ioctl data (below) */
 };
+static_assert(offsetof(struct nvif_ioctl_v0, data) == sizeof(struct nvif_ioctl_v0_hdr),
+	      "struct member likely outside of struct_group()");
 
 struct nvif_ioctl_sclass_v0 {
 	/* nvif_ioctl ... */
@@ -51,12 +56,17 @@ struct nvif_ioctl_del {
 };
 
 struct nvif_ioctl_mthd_v0 {
-	/* nvif_ioctl ... */
-	__u8  version;
-	__u8  method;
-	__u8  pad02[6];
+	/* New members MUST be added within the struct_group() macro below. */
+	struct_group_tagged(nvif_ioctl_mthd_v0_hdr, __hdr,
+		/* nvif_ioctl ... */
+		__u8  version;
+		__u8  method;
+		__u8  pad02[6];
+	);
 	__u8  data[];		/* method data (class.h) */
 };
+static_assert(offsetof(struct nvif_ioctl_mthd_v0, data) == sizeof(struct nvif_ioctl_mthd_v0_hdr),
+	      "struct member likely outside of struct_group()");
 
 struct nvif_ioctl_map_v0 {
 	/* nvif_ioctl ... */

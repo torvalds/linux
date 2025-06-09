@@ -33,6 +33,7 @@
 
 struct device;
 struct seq_file;
+struct ttm_backup_flags;
 struct ttm_operation_ctx;
 struct ttm_pool;
 struct ttm_tt;
@@ -88,6 +89,13 @@ void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
 void ttm_pool_fini(struct ttm_pool *pool);
 
 int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m);
+
+void ttm_pool_drop_backed_up(struct ttm_tt *tt);
+
+long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *ttm,
+		     const struct ttm_backup_flags *flags);
+int ttm_pool_restore_and_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
+			       const struct ttm_operation_ctx *ctx);
 
 int ttm_pool_mgr_init(unsigned long num_pages);
 void ttm_pool_mgr_fini(void);

@@ -16,6 +16,7 @@ extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
+extern const char * const __bch2_csum_types[];
 extern const char * const __bch2_csum_opts[];
 extern const char * const __bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
@@ -635,7 +636,7 @@ int bch2_opts_check_may_set(struct bch_fs *);
 int bch2_parse_one_mount_opt(struct bch_fs *, struct bch_opts *,
 			     struct printbuf *, const char *, const char *);
 int bch2_parse_mount_opts(struct bch_fs *, struct bch_opts *, struct printbuf *,
-			  char *);
+			  char *, bool);
 
 /* inode opts: */
 

@@ -9,6 +9,7 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
@@ -749,7 +750,10 @@ static int spacemit_pinctrl_probe(struct platform_device *pdev)
 	pctrl->data = pctrl_data;
 	pctrl->dev = dev;
 	raw_spin_lock_init(&pctrl->lock);
-	mutex_init(&pctrl->mutex);
+
+	ret = devm_mutex_init(dev, &pctrl->mutex);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, pctrl);
 

@@ -88,7 +88,7 @@ def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         check_nic_features(cfg)
 
-        cfg.bin_local = cfg.rpath("../../../net/lib/csum")
+        cfg.bin_local = cfg.net_lib_dir / "csum"
         cfg.bin_remote = cfg.remote.deploy(cfg.bin_local)
 
         cases = []

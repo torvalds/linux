@@ -36,3 +36,19 @@ void kfree(void *p)
 		printf("Freeing %p to malloc\n", p);
 	free(p);
 }
+
+void *kmalloc_array(size_t n, size_t size, gfp_t gfp)
+{
+	void *ret;
+
+	if (!(gfp & __GFP_DIRECT_RECLAIM))
+		return NULL;
+
+	ret = calloc(n, size);
+	uatomic_inc(&kmalloc_nr_allocated);
+	if (kmalloc_verbose)
+		printf("Allocating %p from calloc\n", ret);
+	if (gfp & __GFP_ZERO)
+		memset(ret, 0, n * size);
+	return ret;
+}

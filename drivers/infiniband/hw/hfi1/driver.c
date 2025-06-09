@@ -968,7 +968,7 @@ static bool __set_armed_to_active(struct hfi1_packet *packet)
 		if (hwstate != IB_PORT_ACTIVE) {
 			dd_dev_info(packet->rcd->dd,
 				    "Unexpected link state %s\n",
-				    opa_lstate_name(hwstate));
+				    ib_port_state_to_str(hwstate));
 			return false;
 		}
 

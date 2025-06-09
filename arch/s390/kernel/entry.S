@@ -29,6 +29,7 @@
 #include <asm/nmi.h>
 #include <asm/nospec-insn.h>
 #include <asm/lowcore.h>
+#include <asm/machine.h>
 
 _LPP_OFFSET	= __LC_LPP
 
@@ -44,7 +45,7 @@ _LPP_OFFSET	= __LC_LPP
 	ALTERNATIVE_2 "b \lpswe;nopr", \
 		".insn siy,0xeb0000000071,\address,0", ALT_FACILITY(193),		\
 		__stringify(.insn siy,0xeb0000000071,LOWCORE_ALT_ADDRESS+\address,0),	\
-		ALT_LOWCORE
+		ALT_FEATURE(MFEATURE_LOWCORE)
 	.endm
 
 	.macro MBEAR reg, lowcore
@@ -67,7 +68,7 @@ _LPP_OFFSET	= __LC_LPP
 	clg	%r14,__LC_RESTART_STACK(\lowcore)
 	je	\oklabel
 	la	%r14,\savearea(\lowcore)
-	j	stack_overflow
+	j	stack_invalid
 	.endm
 
 	/*
@@ -315,7 +316,7 @@ SYM_CODE_START(pgm_check_handler)
 	tm	__LC_PGM_ILC+3(%r13),0x80	# check for per exception
 	jnz	.Lpgm_svcper		# -> single stepped svc
 2:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	# CHECK_VMAP_STACK branches to stack_overflow or 4f
+	# CHECK_VMAP_STACK branches to stack_invalid or 4f
 	CHECK_VMAP_STACK __LC_SAVE_AREA,%r13,4f
 3:	lg	%r15,__LC_KERNEL_STACK(%r13)
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
@@ -590,11 +591,11 @@ SYM_CODE_END(early_pgm_check_handler)
 	.section .kprobes.text, "ax"
 
 /*
- * The synchronous or the asynchronous stack overflowed. We are dead.
+ * The synchronous or the asynchronous stack pointer is invalid. We are dead.
  * No need to properly save the registers, we are going to panic anyway.
  * Setup a pt_regs so that show_trace can provide a good call trace.
  */
-SYM_CODE_START(stack_overflow)
+SYM_CODE_START(stack_invalid)
 	GET_LC	%r15
 	lg	%r15,__LC_NODAT_STACK(%r15) # change to panic stack
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
@@ -604,8 +605,8 @@ SYM_CODE_START(stack_overflow)
 	stg	%r10,__PT_ORIG_GPR2(%r11) # store last break to orig_gpr2
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
-	jg	kernel_stack_overflow
-SYM_CODE_END(stack_overflow)
+	jg	kernel_stack_invalid
+SYM_CODE_END(stack_invalid)
 
 	.section .data, "aw"
 	.balign	4
@@ -621,7 +622,7 @@ SYM_DATA_END(daton_psw)
 	.balign	8
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
 SYM_DATA_START(sys_call_table)
-#include "asm/syscall_table.h"
+#include <asm/syscall_table.h>
 SYM_DATA_END(sys_call_table)
 #undef SYSCALL
 
@@ -629,7 +630,7 @@ SYM_DATA_END(sys_call_table)
 
 #define SYSCALL(esame,emu)	.quad __s390_ ## emu
 SYM_DATA_START(sys_call_table_emu)
-#include "asm/syscall_table.h"
+#include <asm/syscall_table.h>
 SYM_DATA_END(sys_call_table_emu)
 #undef SYSCALL
 #endif

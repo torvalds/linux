@@ -1083,6 +1083,8 @@ int device_online(struct device *dev);
 void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 void device_set_node(struct device *dev, struct fwnode_handle *fwnode);
+int device_add_of_node(struct device *dev, struct device_node *of_node);
+void device_remove_of_node(struct device *dev);
 void device_set_of_node_from_dev(struct device *dev, const struct device *dev2);
 
 static inline struct device_node *dev_of_node(struct device *dev)
@@ -1160,7 +1162,7 @@ static inline void device_remove_group(struct device *dev,
 {
 	const struct attribute_group *groups[] = { grp, NULL };
 
-	return device_remove_groups(dev, groups);
+	device_remove_groups(dev, groups);
 }
 
 int __must_check devm_device_add_group(struct device *dev,

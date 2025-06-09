@@ -42,11 +42,6 @@ struct iommu_dma_msi_page {
 	phys_addr_t		phys;
 };
 
-enum iommu_dma_cookie_type {
-	IOMMU_DMA_IOVA_COOKIE,
-	IOMMU_DMA_MSI_COOKIE,
-};
-
 enum iommu_dma_queue_type {
 	IOMMU_DMA_OPTS_PER_CPU_QUEUE,
 	IOMMU_DMA_OPTS_SINGLE_QUEUE,
@@ -59,34 +54,30 @@ struct iommu_dma_options {
 };
 
 struct iommu_dma_cookie {
-	enum iommu_dma_cookie_type	type;
+	struct iova_domain iovad;
+	struct list_head msi_page_list;
+	/* Flush queue */
 	union {
-		/* Full allocator for IOMMU_DMA_IOVA_COOKIE */
-		struct {
-			struct iova_domain	iovad;
-			/* Flush queue */
-			union {
-				struct iova_fq	*single_fq;
-				struct iova_fq	__percpu *percpu_fq;
-			};
-			/* Number of TLB flushes that have been started */
-			atomic64_t		fq_flush_start_cnt;
-			/* Number of TLB flushes that have been finished */
-			atomic64_t		fq_flush_finish_cnt;
-			/* Timer to regularily empty the flush queues */
-			struct timer_list	fq_timer;
-			/* 1 when timer is active, 0 when not */
-			atomic_t		fq_timer_on;
-		};
-		/* Trivial linear page allocator for IOMMU_DMA_MSI_COOKIE */
-		dma_addr_t		msi_iova;
+		struct iova_fq *single_fq;
+		struct iova_fq __percpu *percpu_fq;
 	};
-	struct list_head		msi_page_list;
-
+	/* Number of TLB flushes that have been started */
+	atomic64_t fq_flush_start_cnt;
+	/* Number of TLB flushes that have been finished */
+	atomic64_t fq_flush_finish_cnt;
+	/* Timer to regularily empty the flush queues */
+	struct timer_list fq_timer;
+	/* 1 when timer is active, 0 when not */
+	atomic_t fq_timer_on;
 	/* Domain for flush queue callback; NULL if flush queue not in use */
-	struct iommu_domain		*fq_domain;
+	struct iommu_domain *fq_domain;
 	/* Options for dma-iommu use */
-	struct iommu_dma_options	options;
+	struct iommu_dma_options options;
+};
+
+struct iommu_dma_msi_cookie {
+	dma_addr_t msi_iova;
+	struct list_head msi_page_list;
 };
 
 static DEFINE_STATIC_KEY_FALSE(iommu_deferred_attach_enabled);
@@ -101,9 +92,6 @@ static int __init iommu_dma_forcedac_setup(char *str)
 	return ret;
 }
 early_param("iommu.forcedac", iommu_dma_forcedac_setup);
-
-static int iommu_dma_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
-			    phys_addr_t msi_addr);
 
 /* Number of entries per flush queue */
 #define IOVA_DEFAULT_FQ_SIZE	256
@@ -368,39 +356,24 @@ int iommu_dma_init_fq(struct iommu_domain *domain)
 	return 0;
 }
 
-static inline size_t cookie_msi_granule(struct iommu_dma_cookie *cookie)
-{
-	if (cookie->type == IOMMU_DMA_IOVA_COOKIE)
-		return cookie->iovad.granule;
-	return PAGE_SIZE;
-}
-
-static struct iommu_dma_cookie *cookie_alloc(enum iommu_dma_cookie_type type)
-{
-	struct iommu_dma_cookie *cookie;
-
-	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
-	if (cookie) {
-		INIT_LIST_HEAD(&cookie->msi_page_list);
-		cookie->type = type;
-	}
-	return cookie;
-}
-
 /**
  * iommu_get_dma_cookie - Acquire DMA-API resources for a domain
  * @domain: IOMMU domain to prepare for DMA-API usage
  */
 int iommu_get_dma_cookie(struct iommu_domain *domain)
 {
-	if (domain->iova_cookie)
+	struct iommu_dma_cookie *cookie;
+
+	if (domain->cookie_type != IOMMU_COOKIE_NONE)
 		return -EEXIST;
 
-	domain->iova_cookie = cookie_alloc(IOMMU_DMA_IOVA_COOKIE);
-	if (!domain->iova_cookie)
+	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
+	if (!cookie)
 		return -ENOMEM;
 
-	iommu_domain_set_sw_msi(domain, iommu_dma_sw_msi);
+	INIT_LIST_HEAD(&cookie->msi_page_list);
+	domain->cookie_type = IOMMU_COOKIE_DMA_IOVA;
+	domain->iova_cookie = cookie;
 	return 0;
 }
 
@@ -418,54 +391,56 @@ int iommu_get_dma_cookie(struct iommu_domain *domain)
  */
 int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
 {
-	struct iommu_dma_cookie *cookie;
+	struct iommu_dma_msi_cookie *cookie;
 
 	if (domain->type != IOMMU_DOMAIN_UNMANAGED)
 		return -EINVAL;
 
-	if (domain->iova_cookie)
+	if (domain->cookie_type != IOMMU_COOKIE_NONE)
 		return -EEXIST;
 
-	cookie = cookie_alloc(IOMMU_DMA_MSI_COOKIE);
+	cookie = kzalloc(sizeof(*cookie), GFP_KERNEL);
 	if (!cookie)
 		return -ENOMEM;
 
 	cookie->msi_iova = base;
-	domain->iova_cookie = cookie;
-	iommu_domain_set_sw_msi(domain, iommu_dma_sw_msi);
+	INIT_LIST_HEAD(&cookie->msi_page_list);
+	domain->cookie_type = IOMMU_COOKIE_DMA_MSI;
+	domain->msi_cookie = cookie;
 	return 0;
 }
 EXPORT_SYMBOL(iommu_get_msi_cookie);
 
 /**
  * iommu_put_dma_cookie - Release a domain's DMA mapping resources
- * @domain: IOMMU domain previously prepared by iommu_get_dma_cookie() or
- *          iommu_get_msi_cookie()
+ * @domain: IOMMU domain previously prepared by iommu_get_dma_cookie()
  */
 void iommu_put_dma_cookie(struct iommu_domain *domain)
 {
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iommu_dma_msi_page *msi, *tmp;
 
-#if IS_ENABLED(CONFIG_IRQ_MSI_IOMMU)
-	if (domain->sw_msi != iommu_dma_sw_msi)
-		return;
-#endif
-
-	if (!cookie)
-		return;
-
-	if (cookie->type == IOMMU_DMA_IOVA_COOKIE && cookie->iovad.granule) {
+	if (cookie->iovad.granule) {
 		iommu_dma_free_fq(cookie);
 		put_iova_domain(&cookie->iovad);
 	}
-
-	list_for_each_entry_safe(msi, tmp, &cookie->msi_page_list, list) {
-		list_del(&msi->list);
+	list_for_each_entry_safe(msi, tmp, &cookie->msi_page_list, list)
 		kfree(msi);
-	}
 	kfree(cookie);
-	domain->iova_cookie = NULL;
+}
+
+/**
+ * iommu_put_msi_cookie - Release a domain's MSI mapping resources
+ * @domain: IOMMU domain previously prepared by iommu_get_msi_cookie()
+ */
+void iommu_put_msi_cookie(struct iommu_domain *domain)
+{
+	struct iommu_dma_msi_cookie *cookie = domain->msi_cookie;
+	struct iommu_dma_msi_page *msi, *tmp;
+
+	list_for_each_entry_safe(msi, tmp, &cookie->msi_page_list, list)
+		kfree(msi);
+	kfree(cookie);
 }
 
 /**
@@ -685,7 +660,7 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, struct device *dev
 	struct iova_domain *iovad;
 	int ret;
 
-	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
+	if (!cookie || domain->cookie_type != IOMMU_COOKIE_DMA_IOVA)
 		return -EINVAL;
 
 	iovad = &cookie->iovad;
@@ -768,9 +743,9 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long shift, iova_len, iova;
 
-	if (cookie->type == IOMMU_DMA_MSI_COOKIE) {
-		cookie->msi_iova += size;
-		return cookie->msi_iova - size;
+	if (domain->cookie_type == IOMMU_COOKIE_DMA_MSI) {
+		domain->msi_cookie->msi_iova += size;
+		return domain->msi_cookie->msi_iova - size;
 	}
 
 	shift = iova_shift(iovad);
@@ -807,16 +782,16 @@ done:
 	return (dma_addr_t)iova << shift;
 }
 
-static void iommu_dma_free_iova(struct iommu_dma_cookie *cookie,
-		dma_addr_t iova, size_t size, struct iommu_iotlb_gather *gather)
+static void iommu_dma_free_iova(struct iommu_domain *domain, dma_addr_t iova,
+				size_t size, struct iommu_iotlb_gather *gather)
 {
-	struct iova_domain *iovad = &cookie->iovad;
+	struct iova_domain *iovad = &domain->iova_cookie->iovad;
 
 	/* The MSI case is only ever cleaning up its most recent allocation */
-	if (cookie->type == IOMMU_DMA_MSI_COOKIE)
-		cookie->msi_iova -= size;
+	if (domain->cookie_type == IOMMU_COOKIE_DMA_MSI)
+		domain->msi_cookie->msi_iova -= size;
 	else if (gather && gather->queued)
-		queue_iova(cookie, iova_pfn(iovad, iova),
+		queue_iova(domain->iova_cookie, iova_pfn(iovad, iova),
 				size >> iova_shift(iovad),
 				&gather->freelist);
 	else
@@ -844,7 +819,7 @@ static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 
 	if (!iotlb_gather.queued)
 		iommu_iotlb_sync(domain, &iotlb_gather);
-	iommu_dma_free_iova(cookie, dma_addr, size, &iotlb_gather);
+	iommu_dma_free_iova(domain, dma_addr, size, &iotlb_gather);
 }
 
 static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
@@ -872,7 +847,7 @@ static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
 		return DMA_MAPPING_ERROR;
 
 	if (iommu_map(domain, iova, phys - iova_off, size, prot, GFP_ATOMIC)) {
-		iommu_dma_free_iova(cookie, iova, size, NULL);
+		iommu_dma_free_iova(domain, iova, size, NULL);
 		return DMA_MAPPING_ERROR;
 	}
 	return iova + iova_off;
@@ -1009,7 +984,7 @@ static struct page **__iommu_dma_alloc_noncontiguous(struct device *dev,
 out_free_sg:
 	sg_free_table(sgt);
 out_free_iova:
-	iommu_dma_free_iova(cookie, iova, size, NULL);
+	iommu_dma_free_iova(domain, iova, size, NULL);
 out_free_pages:
 	__iommu_dma_free_pages(pages, count);
 	return NULL;
@@ -1486,7 +1461,7 @@ int iommu_dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	return __finalise_sg(dev, sg, nents, iova);
 
 out_free_iova:
-	iommu_dma_free_iova(cookie, iova, iova_len, NULL);
+	iommu_dma_free_iova(domain, iova, iova_len, NULL);
 out_restore_sg:
 	__invalidate_sg(sg, nents);
 out:
@@ -1764,17 +1739,47 @@ out_err:
 	dev->dma_iommu = false;
 }
 
+static bool has_msi_cookie(const struct iommu_domain *domain)
+{
+	return domain && (domain->cookie_type == IOMMU_COOKIE_DMA_IOVA ||
+			  domain->cookie_type == IOMMU_COOKIE_DMA_MSI);
+}
+
+static size_t cookie_msi_granule(const struct iommu_domain *domain)
+{
+	switch (domain->cookie_type) {
+	case IOMMU_COOKIE_DMA_IOVA:
+		return domain->iova_cookie->iovad.granule;
+	case IOMMU_COOKIE_DMA_MSI:
+		return PAGE_SIZE;
+	default:
+		BUG();
+	};
+}
+
+static struct list_head *cookie_msi_pages(const struct iommu_domain *domain)
+{
+	switch (domain->cookie_type) {
+	case IOMMU_COOKIE_DMA_IOVA:
+		return &domain->iova_cookie->msi_page_list;
+	case IOMMU_COOKIE_DMA_MSI:
+		return &domain->msi_cookie->msi_page_list;
+	default:
+		BUG();
+	};
+}
+
 static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,
 		phys_addr_t msi_addr, struct iommu_domain *domain)
 {
-	struct iommu_dma_cookie *cookie = domain->iova_cookie;
+	struct list_head *msi_page_list = cookie_msi_pages(domain);
 	struct iommu_dma_msi_page *msi_page;
 	dma_addr_t iova;
 	int prot = IOMMU_WRITE | IOMMU_NOEXEC | IOMMU_MMIO;
-	size_t size = cookie_msi_granule(cookie);
+	size_t size = cookie_msi_granule(domain);
 
 	msi_addr &= ~(phys_addr_t)(size - 1);
-	list_for_each_entry(msi_page, &cookie->msi_page_list, list)
+	list_for_each_entry(msi_page, msi_page_list, list)
 		if (msi_page->phys == msi_addr)
 			return msi_page;
 
@@ -1792,23 +1797,23 @@ static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,
 	INIT_LIST_HEAD(&msi_page->list);
 	msi_page->phys = msi_addr;
 	msi_page->iova = iova;
-	list_add(&msi_page->list, &cookie->msi_page_list);
+	list_add(&msi_page->list, msi_page_list);
 	return msi_page;
 
 out_free_iova:
-	iommu_dma_free_iova(cookie, iova, size, NULL);
+	iommu_dma_free_iova(domain, iova, size, NULL);
 out_free_page:
 	kfree(msi_page);
 	return NULL;
 }
 
-static int iommu_dma_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
-			    phys_addr_t msi_addr)
+int iommu_dma_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
+		     phys_addr_t msi_addr)
 {
 	struct device *dev = msi_desc_to_dev(desc);
 	const struct iommu_dma_msi_page *msi_page;
 
-	if (!domain->iova_cookie) {
+	if (!has_msi_cookie(domain)) {
 		msi_desc_set_iommu_msi_iova(desc, 0, 0);
 		return 0;
 	}
@@ -1818,9 +1823,8 @@ static int iommu_dma_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
 	if (!msi_page)
 		return -ENOMEM;
 
-	msi_desc_set_iommu_msi_iova(
-		desc, msi_page->iova,
-		ilog2(cookie_msi_granule(domain->iova_cookie)));
+	msi_desc_set_iommu_msi_iova(desc, msi_page->iova,
+				    ilog2(cookie_msi_granule(domain)));
 	return 0;
 }
 

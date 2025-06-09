@@ -60,7 +60,7 @@ static void enc401_dp_set_odm_combine(
 }
 
 /* setup stream encoder in dvi mode */
-static void enc401_stream_encoder_dvi_set_stream_attribute(
+void enc401_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)
@@ -100,7 +100,7 @@ static void enc401_stream_encoder_dvi_set_stream_attribute(
 }
 
 /* setup stream encoder in hdmi mode */
-static void enc401_stream_encoder_hdmi_set_stream_attribute(
+void enc401_stream_encoder_hdmi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	int actual_pix_clk_khz,
@@ -229,7 +229,7 @@ static void enc401_stream_encoder_hdmi_set_stream_attribute(
 	REG_UPDATE(HDMI_GC, HDMI_GC_AVMUTE, 0);
 }
 
-static void enc401_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
+void enc401_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
@@ -260,7 +260,7 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
-static void enc401_stream_encoder_dp_unblank(
+void enc401_stream_encoder_dp_unblank(
 		struct dc_link *link,
 		struct stream_encoder *enc,
 		const struct encoder_unblank_param *param)
@@ -376,7 +376,7 @@ static void enc401_stream_encoder_dp_unblank(
 /* this function read dsc related register fields to be logged later in dcn10_log_hw_state
  * into a dcn_dsc_state struct.
  */
-static void enc401_read_state(struct stream_encoder *enc, struct enc_state *s)
+void enc401_read_state(struct stream_encoder *enc, struct enc_state *s)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
@@ -394,7 +394,7 @@ static void enc401_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
-static void enc401_stream_encoder_enable(
+void enc401_stream_encoder_enable(
 	struct stream_encoder *enc,
 	enum signal_type signal,
 	bool enable)
@@ -632,7 +632,7 @@ void enc401_stream_encoder_dp_set_stream_attribute(
 		break;
 	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
 	case COLOR_SPACE_2020_RGB_FULLRANGE:
-	case COLOR_SPACE_2020_YCBCR:
+	case COLOR_SPACE_2020_YCBCR_LIMITED:
 	case COLOR_SPACE_XR_RGB:
 	case COLOR_SPACE_MSREF_SCRGB:
 	case COLOR_SPACE_ADOBERGB:
@@ -645,6 +645,7 @@ void enc401_stream_encoder_dp_set_stream_attribute(
 	case COLOR_SPACE_CUSTOMPOINTS:
 	case COLOR_SPACE_UNKNOWN:
 	case COLOR_SPACE_YCBCR709_BLACK:
+	default:
 		/* do nothing */
 		break;
 	}
@@ -704,7 +705,7 @@ void enc401_stream_encoder_dp_set_stream_attribute(
 		DP_SST_SDP_SPLITTING, enable_sdp_splitting);
 }
 
-static void enc401_stream_encoder_map_to_link(
+void enc401_stream_encoder_map_to_link(
 		struct stream_encoder *enc,
 		uint32_t stream_enc_inst,
 		uint32_t link_enc_inst)

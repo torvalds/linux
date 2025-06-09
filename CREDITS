@@ -855,6 +855,10 @@ N: John Crispin
 E: john@phrozen.org
 D: MediaTek MT7623 Gigabit ethernet support
 
+N: Conor Culhane
+E: conor.culhane@silvaco.com
+D: Silvaco I3C master driver
+
 N: Laurence Culhane
 E: loz@holmes.demon.co.uk
 D: Wrote the initial alpha SLIP code
@@ -1895,6 +1899,7 @@ S: Czech Republic
 N: Seth Jennings
 E: sjenning@redhat.com
 D: Creation and maintenance of zswap
+D: Creation and maintenace of the zbud allocator
 
 N: Jeremy Kerr
 D: Maintainer of SPU File System
@@ -2187,6 +2192,10 @@ D: Various ACPI fixes, keeping correct battery state through suspend
 D: various lockdep annotations, autofs and other random bugfixes
 S: Prague, Czech Republic
 
+N: Ishizaki Kou
+E: kou.ishizaki@toshiba.co.jp
+D: Spidernet driver for PowerPC Cell platforms
+
 N: Gene Kozin
 E: 74604.152@compuserve.com
 W: https://www.sangoma.com
@@ -2196,6 +2205,9 @@ S: 7170 Warden Avenue, Unit 2
 S: Markham, Ontario
 S: L3R 8B2
 S: Canada
+
+N: Christian Krafft
+D: PowerPC Cell support
 
 N: Maxim Krasnyansky
 E: maxk@qualcomm.com
@@ -2388,6 +2400,10 @@ D: GDT Disk Array Controller/Storage RAID controller driver
 S: ICP vortex GmbH
 S: Neckarsulm
 S: Germany
+
+N: Geoff Levand
+E: geoff@infradead.org
+D: Spidernet driver for PowerPC Cell platforms
 
 N: Phil Lewis
 E: beans@bucket.ualr.edu
@@ -3792,6 +3808,7 @@ N: Dan Streetman
 E: ddstreet@ieee.org
 D: Maintenance and development of zswap
 D: Creation and maintenance of the zpool API
+D: Maintenace of the zbud allocator
 
 N: Drew Sullivan
 E: drew@ss.org
@@ -3949,6 +3966,10 @@ S: MIT Room E40-343
 S: 1 Amherst Street
 S: Cambridge, Massachusetts 02139
 S: USA
+
+N: Luben Tuikov
+E: Luben Tuikov <ltuikov89@gmail.com>
+D: Maintainer of the DRM GPU Scheduler
 
 N: Simmule Turner
 E: sturner@tele-tv.com
@@ -4315,6 +4336,7 @@ S: England
 N: Vitaly Wool
 E: vitaly.wool@konsulko.com
 D: Maintenance and development of zswap
+D: Maintenance and development of z3fold
 
 N: Chris Wright
 E: chrisw@sous-sol.org

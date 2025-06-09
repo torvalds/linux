@@ -30,7 +30,6 @@
 #endif
 #include <linux/auxiliary_bus.h>
 #include <linux/net/intel/iidc.h>
-#include <crypto/hash.h>
 #include <rdma/ib_smi.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_pack.h>

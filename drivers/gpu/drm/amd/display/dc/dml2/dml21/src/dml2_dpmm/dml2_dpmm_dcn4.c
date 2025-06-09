@@ -307,8 +307,8 @@ static bool map_soc_min_clocks_to_dpm_fine_grained(struct dml2_display_cfg_progr
 	/* these clocks are optional, so they can fail to map, in which case map all to 0 */
 	if (result) {
 		if (!round_up_to_next_dpm(&display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.dcfclk_khz, &state_table->dcfclk) ||
-				!round_up_to_next_dpm(&display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz, &state_table->fclk) ||
-				!round_up_to_next_dpm(&display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.uclk_khz, &state_table->uclk)) {
+			!round_up_to_next_dpm(&display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz, &state_table->fclk) ||
+			!round_up_to_next_dpm(&display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.uclk_khz, &state_table->uclk)) {
 			display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.dcfclk_khz = 0;
 			display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz = 0;
 			display_cfg->min_clocks.dcn4x.svp_prefetch_no_throttle.uclk_khz = 0;

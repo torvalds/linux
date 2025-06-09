@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #define boot_fmt(fmt) "vmem: " fmt
+#include <linux/cpufeature.h>
 #include <linux/sched/task.h>
 #include <linux/pgtable.h>
 #include <linux/kasan.h>
@@ -10,6 +11,7 @@
 #include <asm/ctlreg.h>
 #include <asm/physmem_info.h>
 #include <asm/maccess.h>
+#include <asm/machine.h>
 #include <asm/abs_lowcore.h>
 #include "decompressor.h"
 #include "boot.h"
@@ -314,7 +316,7 @@ static unsigned long try_get_large_pud_pa(pud_t *pu_dir, unsigned long addr, uns
 {
 	unsigned long pa, size = end - addr;
 
-	if (!machine.has_edat2 || !large_page_mapping_allowed(mode) ||
+	if (!cpu_has_edat2() || !large_page_mapping_allowed(mode) ||
 	    !IS_ALIGNED(addr, PUD_SIZE) || (size < PUD_SIZE))
 		return INVALID_PHYS_ADDR;
 
@@ -330,7 +332,7 @@ static unsigned long try_get_large_pmd_pa(pmd_t *pm_dir, unsigned long addr, uns
 {
 	unsigned long pa, size = end - addr;
 
-	if (!machine.has_edat1 || !large_page_mapping_allowed(mode) ||
+	if (!cpu_has_edat1() || !large_page_mapping_allowed(mode) ||
 	    !IS_ALIGNED(addr, PMD_SIZE) || (size < PMD_SIZE))
 		return INVALID_PHYS_ADDR;
 
@@ -516,7 +518,7 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 	__arch_set_page_dat((void *)swapper_pg_dir, 1UL << CRST_ALLOC_ORDER);
 	__arch_set_page_dat((void *)invalid_pg_dir, 1UL << CRST_ALLOC_ORDER);
 
-	if (relocate_lowcore)
+	if (machine_has_relocated_lowcore())
 		lowcore_address = LOWCORE_ALT_ADDRESS;
 
 	/*

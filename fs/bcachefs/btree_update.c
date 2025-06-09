@@ -846,6 +846,19 @@ int bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf)
 	return 0;
 }
 
+int bch2_trans_log_bkey(struct btree_trans *trans, enum btree_id btree,
+			unsigned level, struct bkey_i *k)
+{
+	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(k->k.u64s));
+	int ret = PTR_ERR_OR_ZERO(e);
+	if (ret)
+		return ret;
+
+	journal_entry_init(e, BCH_JSET_ENTRY_log_bkey, btree, level, k->k.u64s);
+	bkey_copy(e->start, k);
+	return 0;
+}
+
 __printf(3, 0)
 static int
 __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,

@@ -108,24 +108,6 @@ struct kfd_node *kfd_device_by_id(uint32_t gpu_id)
 	return top_dev->gpu;
 }
 
-struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev)
-{
-	struct kfd_topology_device *top_dev;
-	struct kfd_node *device = NULL;
-
-	down_read(&topology_lock);
-
-	list_for_each_entry(top_dev, &topology_device_list, list)
-		if (top_dev->gpu && top_dev->gpu->adev->pdev == pdev) {
-			device = top_dev->gpu;
-			break;
-		}
-
-	up_read(&topology_lock);
-
-	return device;
-}
-
 /* Called with write topology_lock acquired */
 static void kfd_release_topology_device(struct kfd_topology_device *dev)
 {
@@ -537,6 +519,8 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 				      dev->gpu->kfd->mec_fw_version);
 		sysfs_show_32bit_prop(buffer, offs, "capability",
 				      dev->node_props.capability);
+		sysfs_show_32bit_prop(buffer, offs, "capability2",
+				      dev->node_props.capability2);
 		sysfs_show_64bit_prop(buffer, offs, "debug_prop",
 				      dev->node_props.debug_prop);
 		sysfs_show_32bit_prop(buffer, offs, "sdma_fw_version",
@@ -968,24 +952,23 @@ static void kfd_update_system_properties(void)
 	up_read(&topology_lock);
 }
 
-static void find_system_memory(const struct dmi_header *dm,
-	void *private)
+static void find_system_memory(const struct dmi_header *dm, void *private)
 {
+	struct dmi_mem_device *memdev = container_of(dm, struct dmi_mem_device, header);
 	struct kfd_mem_properties *mem;
-	u16 mem_width, mem_clock;
 	struct kfd_topology_device *kdev =
 		(struct kfd_topology_device *)private;
-	const u8 *dmi_data = (const u8 *)(dm + 1);
 
-	if (dm->type == DMI_ENTRY_MEM_DEVICE && dm->length >= 0x15) {
-		mem_width = (u16)(*(const u16 *)(dmi_data + 0x6));
-		mem_clock = (u16)(*(const u16 *)(dmi_data + 0x11));
-		list_for_each_entry(mem, &kdev->mem_props, list) {
-			if (mem_width != 0xFFFF && mem_width != 0)
-				mem->width = mem_width;
-			if (mem_clock != 0)
-				mem->mem_clk_max = mem_clock;
-		}
+	if (memdev->header.type != DMI_ENTRY_MEM_DEVICE)
+		return;
+	if (memdev->header.length < sizeof(struct dmi_mem_device))
+		return;
+
+	list_for_each_entry(mem, &kdev->mem_props, list) {
+		if (memdev->total_width != 0xFFFF && memdev->total_width != 0)
+			mem->width = memdev->total_width;
+		if (memdev->speed != 0)
+			mem->mem_clk_max = memdev->speed;
 	}
 }
 
@@ -1683,17 +1666,32 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 				int cache_type, unsigned int cu_processor_id,
 				struct kfd_node *knode)
 {
-	unsigned int cu_sibling_map_mask;
+	unsigned int cu_sibling_map_mask = 0;
 	int first_active_cu;
 	int i, j, k, xcc, start, end;
 	int num_xcc = NUM_XCC(knode->xcc_mask);
 	struct kfd_cache_properties *pcache = NULL;
 	enum amdgpu_memory_partition mode;
 	struct amdgpu_device *adev = knode->adev;
+	bool found = false;
 
 	start = ffs(knode->xcc_mask) - 1;
 	end = start + num_xcc;
-	cu_sibling_map_mask = cu_info->bitmap[start][0][0];
+
+	/* To find the bitmap in the first active cu in the first
+	 * xcc, it is based on the assumption that evrey xcc must
+	 * have at least one active cu.
+	 */
+	for (i = 0; i < gfx_info->max_shader_engines && !found; i++) {
+		for (j = 0; j < gfx_info->max_sh_per_se && !found; j++) {
+			if (cu_info->bitmap[start][i % 4][j % 4]) {
+				cu_sibling_map_mask =
+					cu_info->bitmap[start][i % 4][j % 4];
+				found = true;
+			}
+		}
+	}
+
 	cu_sibling_map_mask &=
 		((1 << pcache_info[cache_type].num_cu_shared) - 1);
 	first_active_cu = ffs(cu_sibling_map_mask);
@@ -1985,6 +1983,9 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 	if (kfd_dbg_has_ttmps_always_setup(dev->gpu))
 		dev->node_props.debug_prop |= HSA_DBG_DISPATCH_INFO_ALWAYS_VALID;
 
+	if (dev->gpu->adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE)
+		dev->node_props.capability2 |= HSA_CAP2_PER_SDMA_QUEUE_RESET_SUPPORTED;
+
 	if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(10, 0, 0)) {
 		if (KFD_GC_VERSION(dev->gpu) == IP_VERSION(9, 4, 3) ||
 		    KFD_GC_VERSION(dev->gpu) == IP_VERSION(9, 4, 4))
@@ -2004,10 +2005,6 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 	} else {
 		dev->node_props.debug_prop |= HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX10 |
 					HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
-
-		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(11, 0, 0))
-			dev->node_props.capability |=
-				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
 
 		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(12, 0, 0))
 			dev->node_props.capability |=

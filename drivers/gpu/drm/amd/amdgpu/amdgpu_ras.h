@@ -47,7 +47,7 @@ struct amdgpu_iv_entry;
 #define AMDGPU_RAS_GPU_ERR_AID_ID(x)			AMDGPU_GET_REG_FIELD(x, 12, 11)
 #define AMDGPU_RAS_GPU_ERR_HBM_ID(x)			AMDGPU_GET_REG_FIELD(x, 14, 13)
 #define AMDGPU_RAS_GPU_ERR_DATA_ABORT(x)		AMDGPU_GET_REG_FIELD(x, 29, 29)
-#define AMDGPU_RAS_GPU_ERR_UNKNOWN(x)			AMDGPU_GET_REG_FIELD(x, 30, 30)
+#define AMDGPU_RAS_GPU_ERR_GENERIC(x)			AMDGPU_GET_REG_FIELD(x, 30, 30)
 
 #define AMDGPU_RAS_BOOT_STATUS_POLLING_LIMIT	100
 #define AMDGPU_RAS_BOOT_STEADY_STATUS		0xBA
@@ -65,7 +65,7 @@ struct amdgpu_iv_entry;
 
 /* Reserve 8 physical dram row for possible retirement.
  * In worst cases, it will lose 8 * 2MB memory in vram domain */
-#define AMDGPU_RAS_RESERVED_VRAM_SIZE	(16ULL << 20)
+#define AMDGPU_RAS_RESERVED_VRAM_SIZE_DEFAULT	(16ULL << 20)
 /* The high three bits indicates socketid */
 #define AMDGPU_RAS_GET_FEATURES(val)  ((val) & ~AMDGPU_RAS_FEATURES_SOCKETID_MASK)
 

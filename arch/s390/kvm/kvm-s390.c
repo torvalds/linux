@@ -23,6 +23,7 @@
 #include <linux/mman.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/cpufeature.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
@@ -36,6 +37,7 @@
 #include <asm/access-regs.h>
 #include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
+#include <asm/machine.h>
 #include <asm/stp.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>
@@ -443,13 +445,13 @@ static void __init kvm_s390_cpu_feat_init(void)
 	if (test_facility(201))	/* PFCR */
 		pfcr_query(&kvm_s390_available_subfunc.pfcr);
 
-	if (MACHINE_HAS_ESOP)
+	if (machine_has_esop())
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
 	/*
 	 * We need SIE support, ESOP (PROT_READ protection for gmap_shadow),
 	 * 64bit SCAO (SCA passthrough) and IDTE (for gmap_shadow unshadowing).
 	 */
-	if (!sclp.has_sief2 || !MACHINE_HAS_ESOP || !sclp.has_64bscao ||
+	if (!sclp.has_sief2 || !machine_has_esop() || !sclp.has_64bscao ||
 	    !test_facility(3) || !nested)
 		return;
 	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIEF2);
@@ -638,7 +640,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 			r = min_t(unsigned int, num_online_cpus(), r);
 		break;
 	case KVM_CAP_S390_COW:
-		r = MACHINE_HAS_ESOP;
+		r = machine_has_esop();
 		break;
 	case KVM_CAP_S390_VECTOR_REGISTERS:
 		r = test_facility(129);
@@ -3396,7 +3398,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/* we emulate STHYI in kvm */
 	set_kvm_facility(kvm->arch.model.fac_mask, 74);
 	set_kvm_facility(kvm->arch.model.fac_list, 74);
-	if (MACHINE_HAS_TLB_GUEST) {
+	if (machine_has_tlb_guest()) {
 		set_kvm_facility(kvm->arch.model.fac_mask, 147);
 		set_kvm_facility(kvm->arch.model.fac_list, 147);
 	}
@@ -3892,8 +3894,8 @@ static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	kvm_s390_vcpu_setup_model(vcpu);
 
-	/* pgste_set_pte has special handling for !MACHINE_HAS_ESOP */
-	if (MACHINE_HAS_ESOP)
+	/* pgste_set_pte has special handling for !machine_has_esop() */
+	if (machine_has_esop())
 		vcpu->arch.sie_block->ecb |= ECB_HOSTPROTINT;
 	if (test_kvm_facility(vcpu->kvm, 9))
 		vcpu->arch.sie_block->ecb |= ECB_SRSI;
@@ -5176,7 +5178,7 @@ static void sync_regs_fmt2(struct kvm_vcpu *vcpu)
 		vcpu->arch.sie_block->fpf &= ~FPF_BPBC;
 		vcpu->arch.sie_block->fpf |= kvm_run->s.regs.bpbc ? FPF_BPBC : 0;
 	}
-	if (MACHINE_HAS_GS) {
+	if (cpu_has_gs()) {
 		preempt_disable();
 		local_ctl_set_bit(2, CR2_GUARDED_STORAGE_BIT);
 		if (current->thread.gs_cb) {
@@ -5242,7 +5244,7 @@ static void store_regs_fmt2(struct kvm_vcpu *vcpu)
 	kvm_run->s.regs.gbea = vcpu->arch.sie_block->gbea;
 	kvm_run->s.regs.bpbc = (vcpu->arch.sie_block->fpf & FPF_BPBC) == FPF_BPBC;
 	kvm_run->s.regs.diag318 = vcpu->arch.diag318_info.val;
-	if (MACHINE_HAS_GS) {
+	if (cpu_has_gs()) {
 		preempt_disable();
 		local_ctl_set_bit(2, CR2_GUARDED_STORAGE_BIT);
 		if (vcpu->arch.gs_enabled)

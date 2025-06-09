@@ -356,8 +356,6 @@ int pvrdma_query_pkey(struct ib_device *ibdev, u32 port,
 		      u16 index, u16 *pkey);
 enum rdma_link_layer pvrdma_port_link_layer(struct ib_device *ibdev,
 					    u32 port);
-int pvrdma_modify_device(struct ib_device *ibdev, int mask,
-			 struct ib_device_modify *props);
 int pvrdma_modify_port(struct ib_device *ibdev, u32 port,
 		       int mask, struct ib_port_modify *props);
 int pvrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);

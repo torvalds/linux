@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/host1x_context_bus.h>
 #include <linux/iommu.h>
+#include <linux/iommufd.h>
 #include <linux/idr.h>
 #include <linux/err.h>
 #include <linux/pci.h>
@@ -537,6 +538,13 @@ static void iommu_deinit_device(struct device *dev)
 	dev->iommu_group = NULL;
 	module_put(ops->owner);
 	dev_iommu_free(dev);
+}
+
+static struct iommu_domain *pasid_array_entry_to_domain(void *entry)
+{
+	if (xa_pointer_tag(entry) == IOMMU_PASID_ARRAY_DOMAIN)
+		return xa_untag_pointer(entry);
+	return ((struct iommu_attach_handle *)xa_untag_pointer(entry))->domain;
 }
 
 DEFINE_MUTEX(iommu_probe_device_lock);
@@ -1973,8 +1981,10 @@ void iommu_set_fault_handler(struct iommu_domain *domain,
 					iommu_fault_handler_t handler,
 					void *token)
 {
-	BUG_ON(!domain);
+	if (WARN_ON(!domain || domain->cookie_type != IOMMU_COOKIE_NONE))
+		return;
 
+	domain->cookie_type = IOMMU_COOKIE_FAULT_HANDLER;
 	domain->handler = handler;
 	domain->handler_token = token;
 }
@@ -2044,9 +2054,19 @@ EXPORT_SYMBOL_GPL(iommu_paging_domain_alloc_flags);
 
 void iommu_domain_free(struct iommu_domain *domain)
 {
-	if (domain->type == IOMMU_DOMAIN_SVA)
+	switch (domain->cookie_type) {
+	case IOMMU_COOKIE_DMA_IOVA:
+		iommu_put_dma_cookie(domain);
+		break;
+	case IOMMU_COOKIE_DMA_MSI:
+		iommu_put_msi_cookie(domain);
+		break;
+	case IOMMU_COOKIE_SVA:
 		mmdrop(domain->mm);
-	iommu_put_dma_cookie(domain);
+		break;
+	default:
+		break;
+	}
 	if (domain->ops->free)
 		domain->ops->free(domain);
 }
@@ -3335,14 +3355,15 @@ static void iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
 }
 
 static int __iommu_set_group_pasid(struct iommu_domain *domain,
-				   struct iommu_group *group, ioasid_t pasid)
+				   struct iommu_group *group, ioasid_t pasid,
+				   struct iommu_domain *old)
 {
 	struct group_device *device, *last_gdev;
 	int ret;
 
 	for_each_group_device(group, device) {
 		ret = domain->ops->set_dev_pasid(domain, device->dev,
-						 pasid, NULL);
+						 pasid, old);
 		if (ret)
 			goto err_revert;
 	}
@@ -3354,7 +3375,15 @@ err_revert:
 	for_each_group_device(group, device) {
 		if (device == last_gdev)
 			break;
-		iommu_remove_dev_pasid(device->dev, pasid, domain);
+		/*
+		 * If no old domain, undo the succeeded devices/pasid.
+		 * Otherwise, rollback the succeeded devices/pasid to the old
+		 * domain. And it is a driver bug to fail attaching with a
+		 * previously good domain.
+		 */
+		if (!old || WARN_ON(old->ops->set_dev_pasid(old, device->dev,
+							    pasid, domain)))
+			iommu_remove_dev_pasid(device->dev, pasid, domain);
 	}
 	return ret;
 }
@@ -3375,6 +3404,9 @@ static void __iommu_remove_group_pasid(struct iommu_group *group,
  * @dev: the attached device.
  * @pasid: the pasid of the device.
  * @handle: the attach handle.
+ *
+ * Caller should always provide a new handle to avoid race with the paths
+ * that have lockless reference to handle if it intends to pass a valid handle.
  *
  * Return: 0 on success, or an error.
  */
@@ -3420,7 +3452,7 @@ int iommu_attach_device_pasid(struct iommu_domain *domain,
 	if (ret)
 		goto out_unlock;
 
-	ret = __iommu_set_group_pasid(domain, group, pasid);
+	ret = __iommu_set_group_pasid(domain, group, pasid, NULL);
 	if (ret) {
 		xa_release(&group->pasid_array, pasid);
 		goto out_unlock;
@@ -3440,6 +3472,97 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_attach_device_pasid);
+
+/**
+ * iommu_replace_device_pasid - Replace the domain that a specific pasid
+ *                              of the device is attached to
+ * @domain: the new iommu domain
+ * @dev: the attached device.
+ * @pasid: the pasid of the device.
+ * @handle: the attach handle.
+ *
+ * This API allows the pasid to switch domains. The @pasid should have been
+ * attached. Otherwise, this fails. The pasid will keep the old configuration
+ * if replacement failed.
+ *
+ * Caller should always provide a new handle to avoid race with the paths
+ * that have lockless reference to handle if it intends to pass a valid handle.
+ *
+ * Return 0 on success, or an error.
+ */
+int iommu_replace_device_pasid(struct iommu_domain *domain,
+			       struct device *dev, ioasid_t pasid,
+			       struct iommu_attach_handle *handle)
+{
+	/* Caller must be a probed driver on dev */
+	struct iommu_group *group = dev->iommu_group;
+	struct iommu_attach_handle *entry;
+	struct iommu_domain *curr_domain;
+	void *curr;
+	int ret;
+
+	if (!group)
+		return -ENODEV;
+
+	if (!domain->ops->set_dev_pasid)
+		return -EOPNOTSUPP;
+
+	if (dev_iommu_ops(dev) != domain->owner ||
+	    pasid == IOMMU_NO_PASID || !handle)
+		return -EINVAL;
+
+	mutex_lock(&group->mutex);
+	entry = iommu_make_pasid_array_entry(domain, handle);
+	curr = xa_cmpxchg(&group->pasid_array, pasid, NULL,
+			  XA_ZERO_ENTRY, GFP_KERNEL);
+	if (xa_is_err(curr)) {
+		ret = xa_err(curr);
+		goto out_unlock;
+	}
+
+	/*
+	 * No domain (with or without handle) attached, hence not
+	 * a replace case.
+	 */
+	if (!curr) {
+		xa_release(&group->pasid_array, pasid);
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/*
+	 * Reusing handle is problematic as there are paths that refers
+	 * the handle without lock. To avoid race, reject the callers that
+	 * attempt it.
+	 */
+	if (curr == entry) {
+		WARN_ON(1);
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	curr_domain = pasid_array_entry_to_domain(curr);
+	ret = 0;
+
+	if (curr_domain != domain) {
+		ret = __iommu_set_group_pasid(domain, group,
+					      pasid, curr_domain);
+		if (ret)
+			goto out_unlock;
+	}
+
+	/*
+	 * The above xa_cmpxchg() reserved the memory, and the
+	 * group->mutex is held, this cannot fail.
+	 */
+	WARN_ON(xa_is_err(xa_store(&group->pasid_array,
+				   pasid, entry, GFP_KERNEL)));
+
+out_unlock:
+	mutex_unlock(&group->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(iommu_replace_device_pasid, "IOMMUFD_INTERNAL");
 
 /*
  * iommu_detach_device_pasid() - Detach the domain from pasid of device
@@ -3536,6 +3659,9 @@ EXPORT_SYMBOL_NS_GPL(iommu_attach_handle_get, "IOMMUFD_INTERNAL");
  * This is a variant of iommu_attach_group(). It allows the caller to provide
  * an attach handle and use it when the domain is attached. This is currently
  * used by IOMMUFD to deliver the I/O page faults.
+ *
+ * Caller should always provide a new handle to avoid race with the paths
+ * that have lockless reference to handle.
  */
 int iommu_attach_group_handle(struct iommu_domain *domain,
 			      struct iommu_group *group,
@@ -3605,6 +3731,9 @@ EXPORT_SYMBOL_NS_GPL(iommu_detach_group_handle, "IOMMUFD_INTERNAL");
  *
  * If the currently attached domain is a core domain (e.g. a default_domain),
  * it will act just like the iommu_attach_group_handle().
+ *
+ * Caller should always provide a new handle to avoid race with the paths
+ * that have lockless reference to handle.
  */
 int iommu_replace_group_handle(struct iommu_group *group,
 			       struct iommu_domain *new_domain,
@@ -3662,8 +3791,21 @@ int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
 		return 0;
 
 	mutex_lock(&group->mutex);
-	if (group->domain && group->domain->sw_msi)
-		ret = group->domain->sw_msi(group->domain, desc, msi_addr);
+	/* An IDENTITY domain must pass through */
+	if (group->domain && group->domain->type != IOMMU_DOMAIN_IDENTITY) {
+		switch (group->domain->cookie_type) {
+		case IOMMU_COOKIE_DMA_MSI:
+		case IOMMU_COOKIE_DMA_IOVA:
+			ret = iommu_dma_sw_msi(group->domain, desc, msi_addr);
+			break;
+		case IOMMU_COOKIE_IOMMUFD:
+			ret = iommufd_sw_msi(group->domain, desc, msi_addr);
+			break;
+		default:
+			ret = -EOPNOTSUPP;
+			break;
+		}
+	}
 	mutex_unlock(&group->mutex);
 	return ret;
 }

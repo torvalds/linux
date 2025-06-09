@@ -146,39 +146,7 @@ void bpf_struct_ops_image_free(void *image)
 }
 
 #define MAYBE_NULL_SUFFIX "__nullable"
-#define MAX_STUB_NAME 128
-
-/* Return the type info of a stub function, if it exists.
- *
- * The name of a stub function is made up of the name of the struct_ops and
- * the name of the function pointer member, separated by "__". For example,
- * if the struct_ops type is named "foo_ops" and the function pointer
- * member is named "bar", the stub function name would be "foo_ops__bar".
- */
-static const struct btf_type *
-find_stub_func_proto(const struct btf *btf, const char *st_op_name,
-		     const char *member_name)
-{
-	char stub_func_name[MAX_STUB_NAME];
-	const struct btf_type *func_type;
-	s32 btf_id;
-	int cp;
-
-	cp = snprintf(stub_func_name, MAX_STUB_NAME, "%s__%s",
-		      st_op_name, member_name);
-	if (cp >= MAX_STUB_NAME) {
-		pr_warn("Stub function name too long\n");
-		return NULL;
-	}
-	btf_id = btf_find_by_name_kind(btf, stub_func_name, BTF_KIND_FUNC);
-	if (btf_id < 0)
-		return NULL;
-	func_type = btf_type_by_id(btf, btf_id);
-	if (!func_type)
-		return NULL;
-
-	return btf_type_by_id(btf, func_type->type); /* FUNC_PROTO */
-}
+#define REFCOUNTED_SUFFIX "__ref"
 
 /* Prepare argument info for every nullable argument of a member of a
  * struct_ops type.
@@ -203,27 +171,44 @@ find_stub_func_proto(const struct btf *btf, const char *st_op_name,
 static int prepare_arg_info(struct btf *btf,
 			    const char *st_ops_name,
 			    const char *member_name,
-			    const struct btf_type *func_proto,
+			    const struct btf_type *func_proto, void *stub_func_addr,
 			    struct bpf_struct_ops_arg_info *arg_info)
 {
 	const struct btf_type *stub_func_proto, *pointed_type;
+	bool is_nullable = false, is_refcounted = false;
 	const struct btf_param *stub_args, *args;
 	struct bpf_ctx_arg_aux *info, *info_buf;
 	u32 nargs, arg_no, info_cnt = 0;
+	char ksym[KSYM_SYMBOL_LEN];
+	const char *stub_fname;
+	const char *suffix;
+	s32 stub_func_id;
 	u32 arg_btf_id;
 	int offset;
 
-	stub_func_proto = find_stub_func_proto(btf, st_ops_name, member_name);
-	if (!stub_func_proto)
-		return 0;
+	stub_fname = kallsyms_lookup((unsigned long)stub_func_addr, NULL, NULL, NULL, ksym);
+	if (!stub_fname) {
+		pr_warn("Cannot find the stub function name for the %s in struct %s\n",
+			member_name, st_ops_name);
+		return -ENOENT;
+	}
+
+	stub_func_id = btf_find_by_name_kind(btf, stub_fname, BTF_KIND_FUNC);
+	if (stub_func_id < 0) {
+		pr_warn("Cannot find the stub function %s in btf\n", stub_fname);
+		return -ENOENT;
+	}
+
+	stub_func_proto = btf_type_by_id(btf, stub_func_id);
+	stub_func_proto = btf_type_by_id(btf, stub_func_proto->type);
 
 	/* Check if the number of arguments of the stub function is the same
 	 * as the number of arguments of the function pointer.
 	 */
 	nargs = btf_type_vlen(func_proto);
 	if (nargs != btf_type_vlen(stub_func_proto)) {
-		pr_warn("the number of arguments of the stub function %s__%s does not match the number of arguments of the member %s of struct %s\n",
-			st_ops_name, member_name, member_name, st_ops_name);
+		pr_warn("the number of arguments of the stub function %s does not match the number of arguments of the member %s of struct %s\n",
+			stub_fname, member_name, st_ops_name);
 		return -EINVAL;
 	}
 
@@ -241,10 +226,18 @@ static int prepare_arg_info(struct btf *btf,
 	info = info_buf;
 	for (arg_no = 0; arg_no < nargs; arg_no++) {
 		/* Skip arguments that is not suffixed with
-		 * "__nullable".
+		 * "__nullable or __ref".
 		 */
-		if (!btf_param_match_suffix(btf, &stub_args[arg_no],
-					    MAYBE_NULL_SUFFIX))
+		is_nullable = btf_param_match_suffix(btf, &stub_args[arg_no],
+						     MAYBE_NULL_SUFFIX);
+		is_refcounted = btf_param_match_suffix(btf, &stub_args[arg_no],
+						       REFCOUNTED_SUFFIX);
+
+		if (is_nullable)
+			suffix = MAYBE_NULL_SUFFIX;
+		else if (is_refcounted)
+			suffix = REFCOUNTED_SUFFIX;
+		else
 			continue;
 
 		/* Should be a pointer to struct */
@@ -253,30 +246,34 @@ static int prepare_arg_info(struct btf *btf,
 						    &arg_btf_id);
 		if (!pointed_type ||
 		    !btf_type_is_struct(pointed_type)) {
-			pr_warn("stub function %s__%s has %s tagging to an unsupported type\n",
-				st_ops_name, member_name, MAYBE_NULL_SUFFIX);
+			pr_warn("stub function %s has %s tagging to an unsupported type\n",
+				stub_fname, suffix);
 			goto err_out;
 		}
 
 		offset = btf_ctx_arg_offset(btf, func_proto, arg_no);
 		if (offset < 0) {
-			pr_warn("stub function %s__%s has an invalid trampoline ctx offset for arg#%u\n",
-				st_ops_name, member_name, arg_no);
+			pr_warn("stub function %s has an invalid trampoline ctx offset for arg#%u\n",
+				stub_fname, arg_no);
 			goto err_out;
 		}
 
 		if (args[arg_no].type != stub_args[arg_no].type) {
-			pr_warn("arg#%u type in stub function %s__%s does not match with its original func_proto\n",
-				arg_no, st_ops_name, member_name);
+			pr_warn("arg#%u type in stub function %s does not match with its original func_proto\n",
+				arg_no, stub_fname);
 			goto err_out;
 		}
 
 		/* Fill the information of the new argument */
-		info->reg_type =
-			PTR_TRUSTED | PTR_TO_BTF_ID | PTR_MAYBE_NULL;
 		info->btf_id = arg_btf_id;
 		info->btf = btf;
 		info->offset = offset;
+		if (is_nullable) {
+			info->reg_type = PTR_TRUSTED | PTR_TO_BTF_ID | PTR_MAYBE_NULL;
+		} else if (is_refcounted) {
+			info->reg_type = PTR_TRUSTED | PTR_TO_BTF_ID;
+			info->refcounted = true;
+		}
 
 		info++;
 		info_cnt++;
@@ -322,6 +319,13 @@ static bool is_module_member(const struct btf *btf, u32 id)
 		return false;
 
 	return !strcmp(btf_name_by_offset(btf, t->name_off), "module");
+}
+
+int bpf_struct_ops_supported(const struct bpf_struct_ops *st_ops, u32 moff)
+{
+	void *func_ptr = *(void **)(st_ops->cfi_stubs + moff);
+
+	return func_ptr ? 0 : -ENOTSUPP;
 }
 
 int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
@@ -386,8 +390,11 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 	st_ops_desc->value_type = btf_type_by_id(btf, value_id);
 
 	for_each_member(i, t, member) {
-		const struct btf_type *func_proto;
+		const struct btf_type *func_proto, *ret_type;
+		void **stub_func_addr;
+		u32 moff;
 
+		moff = __btf_member_bit_offset(t, member) / 8;
 		mname = btf_name_by_offset(btf, member->name_off);
 		if (!*mname) {
 			pr_warn("anon member in struct %s is not supported\n",
@@ -413,8 +420,22 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 		func_proto = btf_type_resolve_func_ptr(btf,
 						       member->type,
 						       NULL);
-		if (!func_proto)
+
+		/* The member is not a function pointer or
+		 * the function pointer is not supported.
+		 */
+		if (!func_proto || bpf_struct_ops_supported(st_ops, moff))
 			continue;
+
+		if (func_proto->type) {
+			ret_type = btf_type_resolve_ptr(btf, func_proto->type, NULL);
+			if (ret_type && !__btf_type_is_struct(ret_type)) {
+				pr_warn("func ptr %s in struct %s returns non-struct pointer, which is not supported\n",
+					mname, st_ops->name);
+				err = -EOPNOTSUPP;
+				goto errout;
+			}
+		}
 
 		if (btf_distill_func_proto(log, btf,
 					   func_proto, mname,
@@ -425,8 +446,9 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 			goto errout;
 		}
 
+		stub_func_addr = *(void **)(st_ops->cfi_stubs + moff);
 		err = prepare_arg_info(btf, st_ops->name, mname,
-				       func_proto,
+				       func_proto, stub_func_addr,
 				       arg_info + i);
 		if (err)
 			goto errout;
@@ -1150,13 +1172,6 @@ void bpf_struct_ops_put(const void *kdata)
 	st_map = container_of(kvalue, struct bpf_struct_ops_map, kvalue);
 
 	bpf_map_put(&st_map->map);
-}
-
-int bpf_struct_ops_supported(const struct bpf_struct_ops *st_ops, u32 moff)
-{
-	void *func_ptr = *(void **)(st_ops->cfi_stubs + moff);
-
-	return func_ptr ? 0 : -ENOTSUPP;
 }
 
 static bool bpf_struct_ops_valid_to_reg(struct bpf_map *map)

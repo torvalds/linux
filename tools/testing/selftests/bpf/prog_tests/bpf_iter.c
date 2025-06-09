@@ -323,10 +323,66 @@ static void test_task_pidfd(void)
 static void test_task_sleepable(void)
 {
 	struct bpf_iter_tasks *skel;
+	int pid, status, err, data_pipe[2], finish_pipe[2], c;
+	char *test_data = NULL;
+	char *test_data_long = NULL;
+	char *data[2];
+
+	if (!ASSERT_OK(pipe(data_pipe), "data_pipe") ||
+	    !ASSERT_OK(pipe(finish_pipe), "finish_pipe"))
+		return;
 
 	skel = bpf_iter_tasks__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "bpf_iter_tasks__open_and_load"))
 		return;
+
+	pid = fork();
+	if (!ASSERT_GE(pid, 0, "fork"))
+		return;
+
+	if (pid == 0) {
+		/* child */
+		close(data_pipe[0]);
+		close(finish_pipe[1]);
+
+		test_data = malloc(sizeof(char) * 10);
+		strncpy(test_data, "test_data", 10);
+		test_data[9] = '\0';
+
+		test_data_long = malloc(sizeof(char) * 5000);
+		for (int i = 0; i < 5000; ++i) {
+			if (i % 2 == 0)
+				test_data_long[i] = 'b';
+			else
+				test_data_long[i] = 'a';
+		}
+		test_data_long[4999] = '\0';
+
+		data[0] = test_data;
+		data[1] = test_data_long;
+
+		write(data_pipe[1], &data, sizeof(data));
+
+		/* keep child alive until after the test */
+		err = read(finish_pipe[0], &c, 1);
+		if (err != 1)
+			exit(-1);
+
+		close(data_pipe[1]);
+		close(finish_pipe[0]);
+		_exit(0);
+	}
+
+	/* parent */
+	close(data_pipe[1]);
+	close(finish_pipe[0]);
+
+	err = read(data_pipe[0], &data, sizeof(data));
+	ASSERT_EQ(err, sizeof(data), "read_check");
+
+	skel->bss->user_ptr = data[0];
+	skel->bss->user_ptr_long = data[1];
+	skel->bss->pid = pid;
 
 	do_dummy_read(skel->progs.dump_task_sleepable);
 
@@ -334,8 +390,20 @@ static void test_task_sleepable(void)
 		  "num_expected_failure_copy_from_user_task");
 	ASSERT_GT(skel->bss->num_success_copy_from_user_task, 0,
 		  "num_success_copy_from_user_task");
+	ASSERT_GT(skel->bss->num_expected_failure_copy_from_user_task_str, 0,
+		  "num_expected_failure_copy_from_user_task_str");
+	ASSERT_GT(skel->bss->num_success_copy_from_user_task_str, 0,
+		  "num_success_copy_from_user_task_str");
 
 	bpf_iter_tasks__destroy(skel);
+
+	write(finish_pipe[1], &c, 1);
+	err = waitpid(pid, &status, 0);
+	ASSERT_EQ(err, pid, "waitpid");
+	ASSERT_EQ(status, 0, "zero_child_exit");
+
+	close(data_pipe[0]);
+	close(finish_pipe[1]);
 }
 
 static void test_task_stack(void)

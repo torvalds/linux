@@ -369,7 +369,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 
 		/*
 		 * Already exiting vblank? If so, shift our position
-		 * so it looks like we're already apporaching the full
+		 * so it looks like we're already approaching the full
 		 * vblank end. This should make the generated timestamp
 		 * more or less match when the active portion will start.
 		 */
@@ -507,6 +507,23 @@ void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc)
 	wait_for_pipe_scanline_moving(crtc, true);
 }
 
+static void intel_crtc_active_timings(struct drm_display_mode *mode,
+				      int *vmax_vblank_start,
+				      const struct intel_crtc_state *crtc_state,
+				      bool vrr_enable)
+{
+	drm_mode_init(mode, &crtc_state->hw.adjusted_mode);
+	*vmax_vblank_start = 0;
+
+	if (!vrr_enable)
+		return;
+
+	mode->crtc_vtotal = intel_vrr_vmax_vtotal(crtc_state);
+	mode->crtc_vblank_end = intel_vrr_vmax_vtotal(crtc_state);
+	mode->crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+	*vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+}
+
 void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 				      bool vrr_enable)
 {
@@ -517,19 +534,13 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 	int vmax_vblank_start = 0;
 	unsigned long irqflags;
 
-	drm_mode_init(&adjusted_mode, &crtc_state->hw.adjusted_mode);
+	intel_crtc_active_timings(&adjusted_mode, &vmax_vblank_start,
+				  crtc_state, vrr_enable);
 
-	if (vrr_enable) {
-		drm_WARN_ON(display->drm,
-			    (mode_flags & I915_MODE_FLAG_VRR) == 0);
-
-		adjusted_mode.crtc_vtotal = crtc_state->vrr.vmax;
-		adjusted_mode.crtc_vblank_end = crtc_state->vrr.vmax;
-		adjusted_mode.crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
-		vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
-	} else {
+	if (vrr_enable)
+		drm_WARN_ON(display->drm, (mode_flags & I915_MODE_FLAG_VRR) == 0);
+	else
 		mode_flags &= ~I915_MODE_FLAG_VRR;
-	}
 
 	/*
 	 * Belts and suspenders locking to guarantee everyone sees 100%
@@ -597,6 +608,37 @@ int intel_mode_vtotal(const struct drm_display_mode *mode)
 	return vtotal;
 }
 
+int intel_mode_vblank_delay(const struct drm_display_mode *mode)
+{
+	return intel_mode_vblank_start(mode) - intel_mode_vdisplay(mode);
+}
+
+static const struct intel_crtc_state *
+pre_commit_crtc_state(const struct intel_crtc_state *old_crtc_state,
+		      const struct intel_crtc_state *new_crtc_state)
+{
+	/*
+	 * During fastsets/etc. the transcoder is still
+	 * running with the old timings at this point.
+	 */
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		return new_crtc_state;
+	else
+		return old_crtc_state;
+}
+
+const struct intel_crtc_state *
+intel_pre_commit_crtc_state(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	return pre_commit_crtc_state(old_crtc_state, new_crtc_state);
+}
+
 void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 			     const struct intel_crtc_state *new_crtc_state,
 			     struct intel_vblank_evade_ctx *evade)
@@ -605,6 +647,7 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	const struct intel_crtc_state *crtc_state;
 	const struct drm_display_mode *adjusted_mode;
+	int vblank_delay;
 
 	evade->crtc = crtc;
 
@@ -612,16 +655,8 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 				  display->platform.cherryview) &&
 		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 
-	/*
-	 * During fastsets/etc. the transcoder is still
-	 * running with the old timings at this point.
-	 *
-	 * TODO: maybe just use the active timings here?
-	 */
-	if (intel_crtc_needs_modeset(new_crtc_state))
-		crtc_state = new_crtc_state;
-	else
-		crtc_state = old_crtc_state;
+	/* TODO: maybe just use the active timings here? */
+	crtc_state = pre_commit_crtc_state(old_crtc_state, new_crtc_state);
 
 	adjusted_mode = &crtc_state->hw.adjusted_mode;
 
@@ -634,8 +669,12 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 			evade->vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
 		else
 			evade->vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+
+		vblank_delay = intel_vrr_vblank_delay(crtc_state);
 	} else {
 		evade->vblank_start = intel_mode_vblank_start(adjusted_mode);
+
+		vblank_delay = intel_mode_vblank_delay(adjusted_mode);
 	}
 
 	/* FIXME needs to be calibrated sensibly */
@@ -653,8 +692,7 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 	 */
 	if (intel_color_uses_dsb(new_crtc_state) ||
 	    new_crtc_state->update_m_n || new_crtc_state->update_lrr)
-		evade->min -= intel_mode_vblank_start(adjusted_mode) -
-			intel_mode_vdisplay(adjusted_mode);
+		evade->min -= vblank_delay;
 }
 
 /* must be called with vblank interrupt already enabled! */

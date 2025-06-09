@@ -4851,9 +4851,9 @@ static int gfx_v8_0_kcq_disable(struct amdgpu_device *adev)
 	return r;
 }
 
-static bool gfx_v8_0_is_idle(void *handle)
+static bool gfx_v8_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (REG_GET_FIELD(RREG32(mmGRBM_STATUS), GRBM_STATUS, GUI_ACTIVE)
 		|| RREG32(mmGRBM_STATUS2) != 0x8)
@@ -4892,7 +4892,7 @@ static int gfx_v8_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (gfx_v8_0_is_idle(adev))
+		if (gfx_v8_0_is_idle(ip_block))
 			return 0;
 
 		udelay(1);
@@ -5452,9 +5452,9 @@ static int gfx_v8_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
-static void gfx_v8_0_get_clockgating_state(void *handle, u64 *flags)
+static void gfx_v8_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int data;
 
 	if (amdgpu_sriov_vf(adev))

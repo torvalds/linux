@@ -1678,7 +1678,7 @@ int __of_add_property(struct device_node *np, struct property *prop)
 	prop->next = NULL;
 	next = &np->properties;
 	while (*next) {
-		if (strcmp(prop->name, (*next)->name) == 0) {
+		if (of_prop_cmp(prop->name, (*next)->name) == 0) {
 			/* duplicate ! don't insert it */
 			rc = -EEXIST;
 			goto out_unlock;
@@ -1882,9 +1882,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 		int id, len;
 
 		/* Skip those we do not want to proceed */
-		if (!strcmp(pp->name, "name") ||
-		    !strcmp(pp->name, "phandle") ||
-		    !strcmp(pp->name, "linux,phandle"))
+		if (is_pseudo_property(pp->name))
 			continue;
 
 		np = of_find_node_by_path(pp->value);

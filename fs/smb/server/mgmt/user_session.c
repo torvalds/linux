@@ -230,6 +230,9 @@ void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 			if (!ksmbd_chann_del(conn, sess) &&
 			    xa_empty(&sess->ksmbd_chann_list)) {
 				hash_del(&sess->hlist);
+				down_write(&conn->session_lock);
+				xa_erase(&conn->sessions, sess->id);
+				up_write(&conn->session_lock);
 				ksmbd_session_destroy(sess);
 			}
 		}
@@ -254,6 +257,22 @@ void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 	}
 	up_write(&conn->session_lock);
 	up_write(&sessions_table_lock);
+}
+
+bool is_ksmbd_session_in_connection(struct ksmbd_conn *conn,
+				   unsigned long long id)
+{
+	struct ksmbd_session *sess;
+
+	down_read(&conn->session_lock);
+	sess = xa_load(&conn->sessions, id);
+	if (sess) {
+		up_read(&conn->session_lock);
+		return true;
+	}
+	up_read(&conn->session_lock);
+
+	return false;
 }
 
 struct ksmbd_session *ksmbd_session_lookup(struct ksmbd_conn *conn,

@@ -52,19 +52,6 @@ static void __init highmem_init(void)
 	map_page(PKMAP_BASE, 0, 0);	/* XXX gross */
 	pkmap_page_table = virt_to_kpte(PKMAP_BASE);
 }
-
-static void __meminit highmem_setup(void)
-{
-	unsigned long pfn;
-
-	for (pfn = max_low_pfn; pfn < max_pfn; ++pfn) {
-		struct page *page = pfn_to_page(pfn);
-
-		/* FIXME not sure about */
-		if (!memblock_is_reserved(pfn << PAGE_SHIFT))
-			free_highmem_page(page);
-	}
-}
 #endif /* CONFIG_HIGHMEM */
 
 /*
@@ -104,17 +91,13 @@ void __init setup_memory(void)
 	 *
 	 * min_low_pfn - the first page (mm/bootmem.c - node_boot_start)
 	 * max_low_pfn
-	 * max_mapnr - the first unused page (mm/bootmem.c - node_low_pfn)
 	 */
 
 	/* memory start is from the kernel end (aligned) to higher addr */
 	min_low_pfn = memory_start >> PAGE_SHIFT; /* minimum for allocation */
-	/* RAM is assumed contiguous */
-	max_mapnr = memory_size >> PAGE_SHIFT;
 	max_low_pfn = ((u64)memory_start + (u64)lowmem_size) >> PAGE_SHIFT;
 	max_pfn = ((u64)memory_start + (u64)memory_size) >> PAGE_SHIFT;
 
-	pr_info("%s: max_mapnr: %#lx\n", __func__, max_mapnr);
 	pr_info("%s: min_low_pfn: %#lx\n", __func__, min_low_pfn);
 	pr_info("%s: max_low_pfn: %#lx\n", __func__, max_low_pfn);
 	pr_info("%s: max_pfn: %#lx\n", __func__, max_pfn);
@@ -124,14 +107,6 @@ void __init setup_memory(void)
 
 void __init mem_init(void)
 {
-	high_memory = (void *)__va(memory_start + lowmem_size - 1);
-
-	/* this will put all memory onto the freelists */
-	memblock_free_all();
-#ifdef CONFIG_HIGHMEM
-	highmem_setup();
-#endif
-
 	mem_init_done = 1;
 }
 

@@ -533,9 +533,11 @@ int bch2_fs_read_write(struct bch_fs *c)
 
 int bch2_fs_read_write_early(struct bch_fs *c)
 {
-	lockdep_assert_held(&c->state_lock);
+	down_write(&c->state_lock);
+	int ret = __bch2_fs_read_write(c, true);
+	up_write(&c->state_lock);
 
-	return __bch2_fs_read_write(c, true);
+	return ret;
 }
 
 /* Filesystem startup/shutdown: */
@@ -1019,38 +1021,39 @@ static void print_mount_opts(struct bch_fs *c)
 int bch2_fs_start(struct bch_fs *c)
 {
 	time64_t now = ktime_get_real_seconds();
-	int ret;
+	int ret = 0;
 
 	print_mount_opts(c);
 
 	down_write(&c->state_lock);
+	mutex_lock(&c->sb_lock);
 
 	BUG_ON(test_bit(BCH_FS_started, &c->flags));
 
-	mutex_lock(&c->sb_lock);
+	if (!bch2_sb_field_get_minsize(&c->disk_sb, ext,
+			sizeof(struct bch_sb_field_ext) / sizeof(u64))) {
+		mutex_unlock(&c->sb_lock);
+		up_write(&c->state_lock);
+		ret = -BCH_ERR_ENOSPC_sb;
+		goto err;
+	}
 
 	ret = bch2_sb_members_v2_init(c);
 	if (ret) {
 		mutex_unlock(&c->sb_lock);
+		up_write(&c->state_lock);
 		goto err;
 	}
 
 	for_each_online_member(c, ca)
 		bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount = cpu_to_le64(now);
 
-	struct bch_sb_field_ext *ext =
-		bch2_sb_field_get_minsize(&c->disk_sb, ext, sizeof(*ext) / sizeof(u64));
 	mutex_unlock(&c->sb_lock);
-
-	if (!ext) {
-		bch_err(c, "insufficient space in superblock for sb_field_ext");
-		ret = -BCH_ERR_ENOSPC_sb;
-		goto err;
-	}
 
 	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
+	up_write(&c->state_lock);
 
 	c->recovery_task = current;
 	ret = BCH_SB_INITIALIZED(c->disk_sb.sb)
@@ -1066,31 +1069,28 @@ int bch2_fs_start(struct bch_fs *c)
 		goto err;
 
 	if (bch2_fs_init_fault("fs_start")) {
-		bch_err(c, "fs_start fault injected");
-		ret = -EINVAL;
+		ret = -BCH_ERR_injected_fs_start;
 		goto err;
 	}
 
 	set_bit(BCH_FS_started, &c->flags);
 	wake_up(&c->ro_ref_wait);
 
+	down_write(&c->state_lock);
 	if (c->opts.read_only) {
 		bch2_fs_read_only(c);
 	} else {
 		ret = !test_bit(BCH_FS_rw, &c->flags)
 			? bch2_fs_read_write(c)
 			: bch2_fs_read_write_late(c);
-		if (ret)
-			goto err;
 	}
+	up_write(&c->state_lock);
 
-	ret = 0;
 err:
 	if (ret)
 		bch_err_msg(c, ret, "starting filesystem");
 	else
 		bch_verbose(c, "done starting filesystem");
-	up_write(&c->state_lock);
 	return ret;
 }
 
@@ -2259,7 +2259,7 @@ BCH_DEBUG_PARAMS()
 
 __maybe_unused
 static unsigned bch2_metadata_version = bcachefs_metadata_version_current;
-module_param_named(version, bch2_metadata_version, uint, 0400);
+module_param_named(version, bch2_metadata_version, uint, 0444);
 
 module_exit(bcachefs_exit);
 module_init(bcachefs_init);

@@ -1031,20 +1031,15 @@ EXPORT_SYMBOL_GPL(of_dma_is_coherent);
  *
  * Returns true if the "nonposted-mmio" property was found for
  * the device's bus.
- *
- * This is currently only enabled on builds that support Apple ARM devices, as
- * an optimization.
  */
 static bool of_mmio_is_nonposted(const struct device_node *np)
 {
-	if (!IS_ENABLED(CONFIG_ARCH_APPLE))
-		return false;
-
 	struct device_node *parent __free(device_node) = of_get_parent(np);
-	if (!parent)
-		return false;
 
-	return of_property_read_bool(parent, "nonposted-mmio");
+	if (of_property_read_bool(np, "nonposted-mmio"))
+		return true;
+
+	return parent && of_property_read_bool(parent, "nonposted-mmio");
 }
 
 static int __of_address_to_resource(struct device_node *dev, int index, int bar_no,

@@ -295,7 +295,8 @@ enum ip_power_state {
 };
 
 /* Used to mask smu debug modes */
-#define SMU_DEBUG_HALT_ON_ERROR		0x1
+#define SMU_DEBUG_HALT_ON_ERROR		BIT(0)
+#define SMU_DEBUG_POOL_USE_VRAM		BIT(1)
 
 #define MAX_SMU_I2C_BUSES       2
 
@@ -603,5 +604,6 @@ int amdgpu_dpm_set_pm_policy(struct amdgpu_device *adev, int policy_type,
 ssize_t amdgpu_dpm_get_pm_policy_info(struct amdgpu_device *adev,
 				      enum pp_pm_policy p_type, char *buf);
 int amdgpu_dpm_reset_sdma(struct amdgpu_device *adev, uint32_t inst_mask);
+bool amdgpu_dpm_reset_sdma_is_supported(struct amdgpu_device *adev);
 
 #endif

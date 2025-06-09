@@ -434,12 +434,6 @@ void bch2_write_op_error(struct bch_write_op *op, u64 offset, const char *fmt, .
 	printbuf_exit(&buf);
 }
 
-static void bch2_write_csum_err_msg(struct bch_write_op *op)
-{
-	bch2_write_op_error(op, op->pos.offset,
-			    "error verifying existing checksum while rewriting existing data (memory corruption?)");
-}
-
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 			       enum bch_data_type type,
 			       const struct bkey_i *k,
@@ -839,7 +833,7 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 {
 	struct bch_fs *c = op->c;
 	struct bio *bio = &op->wbio.bio;
-	struct nonce nonce = extent_nonce(op->version, op->crc);
+	struct bch_csum csum;
 	int ret = 0;
 
 	BUG_ON(bio_sectors(bio) != op->crc.compressed_size);
@@ -866,7 +860,8 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 	 */
 	if (crc_is_compressed(op->crc)) {
 		/* Last point we can still verify checksum: */
-		struct bch_csum csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
+		struct nonce nonce = extent_nonce(op->version, op->crc);
+		csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 			goto csum_err;
 
@@ -905,7 +900,8 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 	 */
 	if (bch2_csum_type_is_encryption(op->crc.csum_type) &&
 	    (op->compression_opt || op->crc.csum_type != op->csum_type)) {
-		struct bch_csum csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
+		struct nonce nonce = extent_nonce(op->version, op->crc);
+		csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 			goto csum_err;
 
@@ -919,7 +915,16 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 
 	return 0;
 csum_err:
-	bch2_write_csum_err_msg(op);
+	bch2_write_op_error(op, op->pos.offset,
+		"error verifying existing checksum while moving existing data (memory corruption?)\n"
+		"  expected %0llx:%0llx got %0llx:%0llx type %s",
+		op->crc.csum.hi,
+		op->crc.csum.lo,
+		csum.hi,
+		csum.lo,
+		op->crc.csum_type < BCH_CSUM_NR
+		? __bch2_csum_types[op->crc.csum_type]
+		: "(unknown)");
 	return -BCH_ERR_data_write_csum;
 }
 
@@ -934,6 +939,9 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 	bool bounce = false;
 	bool page_alloc_failed = false;
 	int ret, more = 0;
+
+	if (op->incompressible)
+		op->compression_opt = 0;
 
 	BUG_ON(!bio_sectors(src));
 
@@ -1046,12 +1054,13 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			 * data can't be modified (by userspace) while it's in
 			 * flight.
 			 */
-			if (bch2_rechecksum_bio(c, src, version, op->crc,
+			ret = bch2_rechecksum_bio(c, src, version, op->crc,
 					&crc, &op->crc,
 					src_len >> 9,
 					bio_sectors(src) - (src_len >> 9),
-					op->csum_type))
-				goto csum_err;
+					op->csum_type);
+			if (ret)
+				goto err;
 			/*
 			 * rchecksum_bio sets compression_type on crc from op->crc,
 			 * this isn't always correct as sometimes we're changing
@@ -1061,12 +1070,12 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 			crc.nonce = nonce;
 		} else {
 			if ((op->flags & BCH_WRITE_data_encoded) &&
-			    bch2_rechecksum_bio(c, src, version, op->crc,
+			    (ret = bch2_rechecksum_bio(c, src, version, op->crc,
 					NULL, &op->crc,
 					src_len >> 9,
 					bio_sectors(src) - (src_len >> 9),
-					op->crc.csum_type))
-				goto csum_err;
+					op->crc.csum_type)))
+				goto err;
 
 			crc.compressed_size	= dst_len >> 9;
 			crc.uncompressed_size	= src_len >> 9;
@@ -1125,9 +1134,6 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 do_write:
 	*_dst = dst;
 	return more;
-csum_err:
-	bch2_write_csum_err_msg(op);
-	ret = -BCH_ERR_data_write_csum;
 err:
 	if (to_wbio(dst)->bounce)
 		bch2_bio_free_pages_pool(c, dst);

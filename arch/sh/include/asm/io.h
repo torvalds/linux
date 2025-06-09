@@ -279,7 +279,7 @@ unsigned long long poke_real_address_q(unsigned long long addr,
 #define _PAGE_IOREMAP pgprot_val(PAGE_KERNEL_NOCACHE)
 
 #define ioremap_cache(addr, size)  \
-	ioremap_prot((addr), (size), pgprot_val(PAGE_KERNEL))
+	ioremap_prot((addr), (size), PAGE_KERNEL)
 #endif /* CONFIG_MMU */
 
 #include <asm-generic/io.h>

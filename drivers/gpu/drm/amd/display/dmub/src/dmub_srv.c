@@ -38,6 +38,7 @@
 #include "dmub_dcn32.h"
 #include "dmub_dcn35.h"
 #include "dmub_dcn351.h"
+#include "dmub_dcn36.h"
 #include "dmub_dcn401.h"
 #include "os_types.h"
 /*
@@ -314,6 +315,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 	case DMUB_ASIC_DCN35:
 	case DMUB_ASIC_DCN351:
+	case DMUB_ASIC_DCN36:
 			dmub->regs_dcn35 = &dmub_srv_dcn35_regs;
 			funcs->configure_dmub_in_system_memory = dmub_dcn35_configure_dmub_in_system_memory;
 			funcs->send_inbox0_cmd = dmub_dcn35_send_inbox0_cmd;
@@ -351,7 +353,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 			funcs->init_reg_offsets = dmub_srv_dcn35_regs_init;
 			if (asic == DMUB_ASIC_DCN351)
-                                funcs->init_reg_offsets = dmub_srv_dcn351_regs_init;
+				funcs->init_reg_offsets = dmub_srv_dcn351_regs_init;
+			if (asic == DMUB_ASIC_DCN36)
+				funcs->init_reg_offsets = dmub_srv_dcn36_regs_init;
 
 			funcs->is_hw_powered_up = dmub_dcn35_is_hw_powered_up;
 			funcs->should_detect = dmub_dcn35_should_detect;
@@ -846,7 +850,7 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 	flush_rb.rptr = dmub->inbox1_last_wptr;
 	dmub_rb_flush_pending(&flush_rb);
 
-	dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
+		dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
 
 	dmub->inbox1_last_wptr = dmub->inbox1_rb.wrpt;
 
@@ -915,7 +919,7 @@ enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,
 		return DMUB_STATUS_INVALID;
 
 	for (i = 0; i <= timeout_us; ++i) {
-		rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+			rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
 
 		if (rptr > dmub->inbox1_rb.capacity)
 			return DMUB_STATUS_HW_FAILURE;
@@ -1095,11 +1099,11 @@ bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entr
 	return dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry);
 }
 
-bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
+bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub)
 {
-	if (!dmub || !dmub->hw_funcs.get_diagnostic_data || !diag_data)
+	if (!dmub || !dmub->hw_funcs.get_diagnostic_data)
 		return false;
-	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
+	dmub->hw_funcs.get_diagnostic_data(dmub);
 	return true;
 }
 
@@ -1155,6 +1159,7 @@ void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_
 				subvp_index);
 	}
 }
+
 
 enum dmub_status dmub_srv_send_reg_inbox0_cmd(
 		struct dmub_srv *dmub,

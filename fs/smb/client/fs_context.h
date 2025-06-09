@@ -135,6 +135,7 @@ enum cifs_param {
 	Opt_witness,
 	Opt_is_upcall_target_mount,
 	Opt_is_upcall_target_application,
+	Opt_unicode,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid,
@@ -306,6 +307,7 @@ struct smb3_fs_context {
 	bool compress; /* enable SMB2 messages (READ/WRITE) de/compression */
 	bool rootfs:1; /* if it's a SMB root file system */
 	bool witness:1; /* use witness protocol */
+	int unicode;
 	char *leaf_fullpath;
 	struct cifs_ses *dfs_root_ses;
 	bool dfs_automount:1; /* set for dfs automount only */

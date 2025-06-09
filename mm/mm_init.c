@@ -30,11 +30,27 @@
 #include <linux/crash_dump.h>
 #include <linux/execmem.h>
 #include <linux/vmstat.h>
+#include <linux/hugetlb.h>
 #include "internal.h"
 #include "slab.h"
 #include "shuffle.h"
 
 #include <asm/setup.h>
+
+#ifndef CONFIG_NUMA
+unsigned long max_mapnr;
+EXPORT_SYMBOL(max_mapnr);
+
+struct page *mem_map;
+EXPORT_SYMBOL(mem_map);
+#endif
+
+/*
+ * high_memory defines the upper bound on direct map memory, then end
+ * of ZONE_NORMAL.
+ */
+void *high_memory;
+EXPORT_SYMBOL(high_memory);
 
 #ifdef CONFIG_DEBUG_MEMORY_INIT
 int __meminitdata mminit_loglevel;
@@ -438,7 +454,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 		 * was requested by the user
 		 */
 		required_movablecore =
-			roundup(required_movablecore, MAX_ORDER_NR_PAGES);
+			round_up(required_movablecore, MAX_ORDER_NR_PAGES);
 		required_movablecore = min(totalpages, required_movablecore);
 		corepages = totalpages - required_movablecore;
 
@@ -545,11 +561,11 @@ restart:
 
 out2:
 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
-	for (nid = 0; nid < MAX_NUMNODES; nid++) {
+	for_each_node_state(nid, N_MEMORY) {
 		unsigned long start_pfn, end_pfn;
 
 		zone_movable_pfn[nid] =
-			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+			round_up(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
 
 		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 		if (zone_movable_pfn[nid] >= end_pfn)
@@ -649,6 +665,28 @@ static inline void fixup_hashdist(void)
 static inline void fixup_hashdist(void) {}
 #endif /* CONFIG_NUMA */
 
+/*
+ * Initialize a reserved page unconditionally, finding its zone first.
+ */
+void __meminit __init_page_from_nid(unsigned long pfn, int nid)
+{
+	pg_data_t *pgdat;
+	int zid;
+
+	pgdat = NODE_DATA(nid);
+
+	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+		struct zone *zone = &pgdat->node_zones[zid];
+
+		if (zone_spans_pfn(zone, pfn))
+			break;
+	}
+	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
+
+	if (pageblock_aligned(pfn))
+		set_pageblock_migratetype(pfn_to_page(pfn), MIGRATE_MOVABLE);
+}
+
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 static inline void pgdat_set_deferred_range(pg_data_t *pgdat)
 {
@@ -705,26 +743,12 @@ defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
 	return false;
 }
 
-static void __meminit init_reserved_page(unsigned long pfn, int nid)
+static void __meminit init_deferred_page(unsigned long pfn, int nid)
 {
-	pg_data_t *pgdat;
-	int zid;
-
 	if (early_page_initialised(pfn, nid))
 		return;
 
-	pgdat = NODE_DATA(nid);
-
-	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-		struct zone *zone = &pgdat->node_zones[zid];
-
-		if (zone_spans_pfn(zone, pfn))
-			break;
-	}
-	__init_single_page(pfn_to_page(pfn), pfn, zid, nid);
-
-	if (pageblock_aligned(pfn))
-		set_pageblock_migratetype(pfn_to_page(pfn), MIGRATE_MOVABLE);
+	__init_page_from_nid(pfn, nid);
 }
 #else
 static inline void pgdat_set_deferred_range(pg_data_t *pgdat) {}
@@ -739,7 +763,7 @@ static inline bool defer_init(int nid, unsigned long pfn, unsigned long end_pfn)
 	return false;
 }
 
-static inline void init_reserved_page(unsigned long pfn, int nid)
+static inline void init_deferred_page(unsigned long pfn, int nid)
 {
 }
 #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
@@ -760,7 +784,7 @@ void __meminit reserve_bootmem_region(phys_addr_t start,
 		if (pfn_valid(start_pfn)) {
 			struct page *page = pfn_to_page(start_pfn);
 
-			init_reserved_page(start_pfn, nid);
+			init_deferred_page(start_pfn, nid);
 
 			/*
 			 * no need for atomic set_bit because the struct
@@ -998,7 +1022,7 @@ static void __ref __init_zone_device_page(struct page *page, unsigned long pfn,
 	 * and zone_device_data.  It is a bug if a ZONE_DEVICE page is
 	 * ever freed or placed on a driver-private list.
 	 */
-	page->pgmap = pgmap;
+	page_folio(page)->pgmap = pgmap;
 	page->zone_device_data = NULL;
 
 	/*
@@ -1017,12 +1041,25 @@ static void __ref __init_zone_device_page(struct page *page, unsigned long pfn,
 	}
 
 	/*
-	 * ZONE_DEVICE pages are released directly to the driver page allocator
-	 * which will set the page count to 1 when allocating the page.
+	 * ZONE_DEVICE pages other than MEMORY_TYPE_GENERIC are released
+	 * directly to the driver page allocator which will set the page count
+	 * to 1 when allocating the page.
+	 *
+	 * MEMORY_TYPE_GENERIC and MEMORY_TYPE_FS_DAX pages automatically have
+	 * their refcount reset to one whenever they are freed (ie. after
+	 * their refcount drops to 0).
 	 */
-	if (pgmap->type == MEMORY_DEVICE_PRIVATE ||
-	    pgmap->type == MEMORY_DEVICE_COHERENT)
+	switch (pgmap->type) {
+	case MEMORY_DEVICE_FS_DAX:
+	case MEMORY_DEVICE_PRIVATE:
+	case MEMORY_DEVICE_COHERENT:
+	case MEMORY_DEVICE_PCI_P2PDMA:
 		set_page_count(page, 0);
+		break;
+
+	case MEMORY_DEVICE_GENERIC:
+		break;
+	}
 }
 
 /*
@@ -1431,7 +1468,7 @@ void __meminit init_currently_empty_zone(struct zone *zone,
 
 #ifndef CONFIG_SPARSEMEM
 /*
- * Calculate the size of the zone->blockflags rounded to an unsigned long
+ * Calculate the size of the zone->pageblock_flags rounded to an unsigned long
  * Start by making sure zonesize is a multiple of pageblock_order by rounding
  * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
  * round what is now in bits to nearest long in bits, then return it in
@@ -1442,10 +1479,10 @@ static unsigned long __init usemap_size(unsigned long zone_start_pfn, unsigned l
 	unsigned long usemapsize;
 
 	zonesize += zone_start_pfn & (pageblock_nr_pages-1);
-	usemapsize = roundup(zonesize, pageblock_nr_pages);
+	usemapsize = round_up(zonesize, pageblock_nr_pages);
 	usemapsize = usemapsize >> pageblock_order;
 	usemapsize *= NR_PAGEBLOCK_BITS;
-	usemapsize = roundup(usemapsize, BITS_PER_LONG);
+	usemapsize = round_up(usemapsize, BITS_PER_LONG);
 
 	return usemapsize / BITS_PER_BYTE;
 }
@@ -1617,7 +1654,7 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 	start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
 	offset = pgdat->node_start_pfn - start;
 	/*
-		 * The zone's endpoints aren't required to be MAX_PAGE_ORDER
+	 * The zone's endpoints aren't required to be MAX_PAGE_ORDER
 	 * aligned but the node_mem_map endpoints must be in order
 	 * for the buddy allocator to function correctly.
 	 */
@@ -1633,14 +1670,15 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
 		 __func__, pgdat->node_id, (unsigned long)pgdat,
 		 (unsigned long)pgdat->node_mem_map);
-#ifndef CONFIG_NUMA
+
 	/* the global mem_map is just set as node 0's */
-	if (pgdat == NODE_DATA(0)) {
-		mem_map = NODE_DATA(0)->node_mem_map;
-		if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
-			mem_map -= offset;
-	}
-#endif
+	WARN_ON(pgdat != NODE_DATA(0));
+
+	mem_map = pgdat->node_mem_map;
+	if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
+		mem_map -= offset;
+
+	max_mapnr = end - start;
 }
 #else
 static inline void alloc_node_mem_map(struct pglist_data *pgdat) { }
@@ -1745,6 +1783,27 @@ void __init setup_nr_node_ids(void)
 static bool arch_has_descending_max_zone_pfns(void)
 {
 	return IS_ENABLED(CONFIG_ARC) && !IS_ENABLED(CONFIG_ARC_HAS_PAE40);
+}
+
+static void set_high_memory(void)
+{
+	phys_addr_t highmem = memblock_end_of_DRAM();
+
+	/*
+	 * Some architectures (e.g. ARM) set high_memory very early and
+	 * use it in arch setup code.
+	 * If an architecture already set high_memory don't overwrite it
+	 */
+	if (high_memory)
+		return;
+
+#ifdef CONFIG_HIGHMEM
+	if (arch_has_descending_max_zone_pfns() ||
+	    highmem > PFN_PHYS(arch_zone_lowest_possible_pfn[ZONE_HIGHMEM]))
+		highmem = PFN_PHYS(arch_zone_lowest_possible_pfn[ZONE_HIGHMEM]);
+#endif
+
+	high_memory = phys_to_virt(highmem - 1) + 1;
 }
 
 /**
@@ -1861,11 +1920,16 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 		}
 	}
 
+	for_each_node_state(nid, N_MEMORY)
+		sparse_vmemmap_init_nid_late(nid);
+
 	calc_nr_kernel_pages();
 	memmap_init();
 
 	/* disable hash distribution for systems with a single node */
 	fixup_hashdist();
+
+	set_high_memory();
 }
 
 /**
@@ -2251,6 +2315,15 @@ void __init init_cma_reserved_pageblock(struct page *page)
 	adjust_managed_page_count(page, pageblock_nr_pages);
 	page_zone(page)->cma_pages += pageblock_nr_pages;
 }
+/*
+ * Similar to above, but only set the migrate type and stats.
+ */
+void __init init_cma_pageblock(struct page *page)
+{
+	set_pageblock_migratetype(page, MIGRATE_CMA);
+	adjust_managed_page_count(page, pageblock_nr_pages);
+	page_zone(page)->cma_pages += pageblock_nr_pages;
+}
 #endif
 
 void set_zone_contiguous(struct zone *zone)
@@ -2273,6 +2346,31 @@ void set_zone_contiguous(struct zone *zone)
 
 	/* We confirm that there is no hole */
 	zone->contiguous = true;
+}
+
+/*
+ * Check if a PFN range intersects multiple zones on one or more
+ * NUMA nodes. Specify the @nid argument if it is known that this
+ * PFN range is on one node, NUMA_NO_NODE otherwise.
+ */
+bool pfn_range_intersects_zones(int nid, unsigned long start_pfn,
+			   unsigned long nr_pages)
+{
+	struct zone *zone, *izone = NULL;
+
+	for_each_zone(zone) {
+		if (nid != NUMA_NO_NODE && zone_to_nid(zone) != nid)
+			continue;
+
+		if (zone_intersects(zone, start_pfn, nr_pages)) {
+			if (izone != NULL)
+				return true;
+			izone = zone;
+		}
+
+	}
+
+	return false;
 }
 
 static void __init mem_init_print_info(void);
@@ -2636,11 +2734,22 @@ static void __init mem_init_print_info(void)
 		);
 }
 
+void __init __weak arch_mm_preinit(void)
+{
+}
+
+void __init __weak mem_init(void)
+{
+}
+
 /*
  * Set up kernel memory allocators
  */
 void __init mm_core_init(void)
 {
+	arch_mm_preinit();
+	hugetlb_bootmem_alloc();
+
 	/* Initializations relying on SMP setup */
 	BUILD_BUG_ON(MAX_ZONELISTS > 2);
 	build_all_zonelists(NULL);
@@ -2656,6 +2765,7 @@ void __init mm_core_init(void)
 	report_meminit();
 	kmsan_init_shadow();
 	stack_depot_early_init();
+	memblock_free_all();
 	mem_init();
 	kmem_cache_init();
 	/*

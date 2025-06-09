@@ -87,17 +87,17 @@ static int component_devices_show(struct seq_file *s, void *data)
 	size_t i;
 
 	mutex_lock(&component_mutex);
-	seq_printf(s, "%-40s %20s\n", "aggregate_device name", "status");
-	seq_puts(s, "-------------------------------------------------------------\n");
-	seq_printf(s, "%-40s %20s\n\n",
+	seq_printf(s, "%-50s %20s\n", "aggregate_device name", "status");
+	seq_puts(s, "-----------------------------------------------------------------------\n");
+	seq_printf(s, "%-50s %20s\n\n",
 		   dev_name(m->parent), m->bound ? "bound" : "not bound");
 
-	seq_printf(s, "%-40s %20s\n", "device name", "status");
-	seq_puts(s, "-------------------------------------------------------------\n");
+	seq_printf(s, "%-50s %20s\n", "device name", "status");
+	seq_puts(s, "-----------------------------------------------------------------------\n");
 	for (i = 0; i < match->num; i++) {
 		struct component *component = match->compare[i].component;
 
-		seq_printf(s, "%-40s %20s\n",
+		seq_printf(s, "%-50s %20s\n",
 			   component ? dev_name(component->dev) : "(unknown)",
 			   component ? (component->bound ? "bound" : "not bound") : "not registered");
 	}
@@ -569,10 +569,27 @@ void component_master_del(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(component_master_del);
 
+bool component_master_is_bound(struct device *parent,
+	const struct component_master_ops *ops)
+{
+	struct aggregate_device *adev;
+
+	guard(mutex)(&component_mutex);
+	adev = __aggregate_find(parent, ops);
+	if (!adev)
+		return 0;
+
+	return adev->bound;
+}
+EXPORT_SYMBOL_GPL(component_master_is_bound);
+
 static void component_unbind(struct component *component,
 	struct aggregate_device *adev, void *data)
 {
 	WARN_ON(!component->bound);
+
+	dev_dbg(adev->parent, "unbinding %s component %p (ops %ps)\n",
+		dev_name(component->dev), component, component->ops);
 
 	if (component->ops && component->ops->unbind)
 		component->ops->unbind(component->dev, adev->parent, data);

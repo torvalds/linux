@@ -28,10 +28,9 @@
 #include <drm/drm_print.h>
 #include <drm/gpu_scheduler.h>
 
-#include "gpu_scheduler_trace.h"
+#include "sched_internal.h"
 
-#define to_drm_sched_job(sched_job)		\
-		container_of((sched_job), struct drm_sched_job, queue_node)
+#include "gpu_scheduler_trace.h"
 
 /**
  * drm_sched_entity_init - Init a context entity used by scheduler when
@@ -92,7 +91,7 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 		 * the lowest priority available.
 		 */
 		if (entity->priority >= sched_list[0]->num_rqs) {
-			drm_err(sched_list[0], "entity with out-of-bounds priority:%u num_rqs:%u\n",
+			dev_err(sched_list[0]->dev, "entity has out-of-bounds priority: %u. num_rqs: %u\n",
 				entity->priority, sched_list[0]->num_rqs);
 			entity->priority = max_t(s32, (s32) sched_list[0]->num_rqs - 1,
 						 (s32) DRM_SCHED_PRIORITY_KERNEL);
@@ -150,18 +149,6 @@ static bool drm_sched_entity_is_idle(struct drm_sched_entity *entity)
 		return true;
 
 	return false;
-}
-
-/* Return true if entity could provide a job. */
-bool drm_sched_entity_is_ready(struct drm_sched_entity *entity)
-{
-	if (spsc_queue_peek(&entity->job_queue) == NULL)
-		return false;
-
-	if (READ_ONCE(entity->dependency))
-		return false;
-
-	return true;
 }
 
 /**
@@ -255,7 +242,7 @@ static void drm_sched_entity_kill(struct drm_sched_entity *entity)
 	/* The entity is guaranteed to not be used by the scheduler */
 	prev = rcu_dereference_check(entity->last_scheduled, true);
 	dma_fence_get(prev);
-	while ((job = to_drm_sched_job(spsc_queue_pop(&entity->job_queue)))) {
+	while ((job = drm_sched_entity_queue_pop(entity))) {
 		struct drm_sched_fence *s_fence = job->s_fence;
 
 		dma_fence_get(&s_fence->finished);
@@ -484,7 +471,7 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 {
 	struct drm_sched_job *sched_job;
 
-	sched_job = to_drm_sched_job(spsc_queue_peek(&entity->job_queue));
+	sched_job = drm_sched_entity_queue_peek(entity);
 	if (!sched_job)
 		return NULL;
 
@@ -520,7 +507,7 @@ struct drm_sched_job *drm_sched_entity_pop_job(struct drm_sched_entity *entity)
 	if (drm_sched_policy == DRM_SCHED_POLICY_FIFO) {
 		struct drm_sched_job *next;
 
-		next = to_drm_sched_job(spsc_queue_peek(&entity->job_queue));
+		next = drm_sched_entity_queue_peek(entity);
 		if (next) {
 			struct drm_sched_rq *rq;
 
