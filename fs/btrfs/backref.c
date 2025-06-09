@@ -2201,7 +2201,6 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	int ret;
 	u64 flags;
 	u64 size = 0;
-	u32 item_size;
 	const struct extent_buffer *eb;
 	struct btrfs_extent_item *ei;
 	struct btrfs_key key;
@@ -2244,7 +2243,6 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	}
 
 	eb = path->nodes[0];
-	item_size = btrfs_item_size(eb, path->slots[0]);
 
 	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
 	flags = btrfs_extent_flags(eb, ei);
@@ -2252,7 +2250,7 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	btrfs_debug(fs_info,
 		"logical %llu is at position %llu within the extent (%llu EXTENT_ITEM %llu) flags %#llx size %u",
 		 logical, logical - found_key->objectid, found_key->objectid,
-		 found_key->offset, flags, item_size);
+		 found_key->offset, flags, btrfs_item_size(eb, path->slots[0]));
 
 	WARN_ON(!flags_ret);
 	if (flags_ret) {
