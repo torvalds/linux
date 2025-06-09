@@ -1108,9 +1108,6 @@ use_clean:
 out:
 	bch2_flush_fsck_errs(c);
 
-	if (!IS_ERR(clean))
-		kfree(clean);
-
 	if (!ret &&
 	    test_bit(BCH_FS_need_delete_dead_snapshots, &c->flags) &&
 	    !c->opts.nochanges) {
@@ -1119,6 +1116,9 @@ out:
 	}
 
 	bch_err_fn(c, ret);
+final_out:
+	if (!IS_ERR(clean))
+		kfree(clean);
 	return ret;
 err:
 fsck_err:
@@ -1132,7 +1132,7 @@ fsck_err:
 		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}
-	return ret;
+	goto final_out;
 }
 
 int bch2_fs_initialize(struct bch_fs *c)
