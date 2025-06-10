@@ -7,6 +7,8 @@
 #include <linux/bitmap.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/mm.h>
+#include <linux/pagemap.h>
 #include <linux/math64.h>
 #include <linux/rbtree.h>
 
@@ -156,6 +158,11 @@ static inline bool bitmap_test_range_all_zero(const unsigned long *addr,
 
 	found_set = find_next_bit(addr, start + nbits, start);
 	return (found_set == start + nbits);
+}
+
+static inline u64 folio_end(struct folio *folio)
+{
+	return folio_pos(folio) + folio_size(folio);
 }
 
 #endif
