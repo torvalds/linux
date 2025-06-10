@@ -744,7 +744,7 @@ attribute-sets:
         name: flash-update-overwrite-mask
         type: bitfield32
         enum: flash-overwrite
-        enum-as-flags: True
+        enum-as-flags: true
       -
         name: reload-action
         type: u8
@@ -753,12 +753,12 @@ attribute-sets:
         name: reload-actions-performed
         type: bitfield32
         enum: reload-action
-        enum-as-flags: True
+        enum-as-flags: true
       -
         name: reload-limits
         type: bitfield32
         enum: reload-action
-        enum-as-flags: True
+        enum-as-flags: true
       -
         name: dev-stats
         type: nest
@@ -917,7 +917,7 @@ attribute-sets:
         name: caps
         type: bitfield32
         enum: port-fn-attr-cap
-        enum-as-flags: True
+        enum-as-flags: true
 
   -
     name: dl-dpipe-tables

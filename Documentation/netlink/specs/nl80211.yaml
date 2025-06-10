@@ -680,7 +680,7 @@ attribute-sets:
         name: feature-flags
         type: u32
         enum: feature-flags
-        enum-as-flags: True
+        enum-as-flags: true
       -
         name: probe-resp-offload
         type: u32
