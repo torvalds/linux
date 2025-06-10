@@ -332,7 +332,7 @@ static void do_test_vmsplice_in_parent(char *mem, size_t size,
 	if (before_fork) {
 		transferred = vmsplice(fds[1], &iov, 1, 0);
 		if (transferred <= 0) {
-			ksft_print_msg("vmsplice() failed\n");
+			ksft_perror("vmsplice() failed\n");
 			log_test_result(KSFT_FAIL);
 			goto close_pipe;
 		}
@@ -562,7 +562,7 @@ static void do_test_iouring(char *mem, size_t size, bool use_fork)
 	while (total < size) {
 		cur = pread(fd, tmp + total, size - total, total);
 		if (cur < 0) {
-			ksft_print_msg("pread() failed\n");
+			ksft_perror("pread() failed\n");
 			log_test_result(KSFT_FAIL);
 			goto quit_child;
 		}
@@ -628,7 +628,7 @@ static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
 
 	tmp = malloc(size);
 	if (!tmp) {
-		ksft_print_msg("malloc() failed\n");
+		ksft_perror("malloc() failed\n");
 		log_test_result(KSFT_FAIL);
 		return;
 	}
