@@ -772,6 +772,7 @@ static ssize_t certificate_store(struct kobject *kobj,
 	struct tlmi_pwd_setting *setting = to_tlmi_pwd_setting(kobj);
 	enum cert_install_mode install_mode = TLMI_CERT_INSTALL;
 	char *auth_str, *new_cert;
+	const char *serial;
 	char *signature;
 	char *guid;
 	int ret;
@@ -789,9 +790,10 @@ static ssize_t certificate_store(struct kobject *kobj,
 			return -EACCES;
 
 		/* Format: 'serial#, signature' */
-		auth_str = cert_command(setting,
-					dmi_get_system_info(DMI_PRODUCT_SERIAL),
-					setting->signature);
+		serial = dmi_get_system_info(DMI_PRODUCT_SERIAL);
+		if (!serial)
+			return -ENODEV;
+		auth_str = cert_command(setting, serial, setting->signature);
 		if (!auth_str)
 			return -ENOMEM;
 
