@@ -2409,7 +2409,7 @@ union bpf_attr {
  * 		into it. An example is available in file
  * 		*samples/bpf/trace_output_user.c* in the Linux kernel source
  * 		tree (the eBPF program counterpart is in
- * 		*samples/bpf/trace_output_kern.c*).
+ *		*samples/bpf/trace_output.bpf.c*).
  *
  * 		**bpf_perf_event_output**\ () achieves better performance
  * 		than **bpf_trace_printk**\ () for sharing data with user
