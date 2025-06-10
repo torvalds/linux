@@ -1273,6 +1273,8 @@ static int __rtw89_mcc_calc_pattern_anchor(struct rtw89_dev *rtwdev,
 
 	if (bcn_ofst < RTW89_MCC_MIN_RX_BCN_TIME)
 		small_bcn_ofst = true;
+	else if (bcn_ofst < aux->duration - aux->limit.max_toa)
+		small_bcn_ofst = true;
 	else if (mcc_intvl - bcn_ofst < RTW89_MCC_MIN_RX_BCN_TIME)
 		small_bcn_ofst = false;
 	else
