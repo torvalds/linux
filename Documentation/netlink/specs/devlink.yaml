@@ -1139,7 +1139,7 @@ attribute-sets:
       -
         name: param-type
 
-      # TODO: fill in the attribute param-value-list
+        # TODO: fill in the attribute param-value-list
 
   -
     name: dl-region-snapshots
@@ -1266,7 +1266,7 @@ operations:
           attributes: &dev-id-attrs
             - bus-name
             - dev-name
-        reply:  &get-reply
+        reply: &get-reply
           value: 3
           attributes:
             - bus-name
