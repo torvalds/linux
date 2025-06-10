@@ -21,7 +21,7 @@
 #include "quicki2c-hid.h"
 #include "quicki2c-protocol.h"
 
-struct quicki2c_ddata ptl_ddata = {
+static struct quicki2c_ddata ptl_ddata = {
 	.max_detect_size = MAX_RX_DETECT_SIZE_PTL,
 };
 
