@@ -1612,6 +1612,70 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 			  &mac_stats->eth_mac.FrameTooLongErrors);
 }
 
+static void
+fbnic_get_eth_ctrl_stats(struct net_device *netdev,
+			 struct ethtool_eth_ctrl_stats *eth_ctrl_stats)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_mac_stats *mac_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+
+	mac_stats = &fbd->hw_stats.mac;
+
+	fbd->mac->get_eth_ctrl_stats(fbd, false, &mac_stats->eth_ctrl);
+
+	eth_ctrl_stats->MACControlFramesReceived =
+		mac_stats->eth_ctrl.MACControlFramesReceived.value;
+	eth_ctrl_stats->MACControlFramesTransmitted =
+		mac_stats->eth_ctrl.MACControlFramesTransmitted.value;
+}
+
+static const struct ethtool_rmon_hist_range fbnic_rmon_ranges[] = {
+	{    0,   64 },
+	{   65,  127 },
+	{  128,  255 },
+	{  256,  511 },
+	{  512, 1023 },
+	{ 1024, 1518 },
+	{ 1519, 2047 },
+	{ 2048, 4095 },
+	{ 4096, 8191 },
+	{ 8192, 9216 },
+	{ 9217, FBNIC_MAX_JUMBO_FRAME_SIZE },
+	{}
+};
+
+static void
+fbnic_get_rmon_stats(struct net_device *netdev,
+		     struct ethtool_rmon_stats *rmon_stats,
+		     const struct ethtool_rmon_hist_range **ranges)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_mac_stats *mac_stats;
+	struct fbnic_dev *fbd = fbn->fbd;
+	int i;
+
+	mac_stats = &fbd->hw_stats.mac;
+
+	fbd->mac->get_rmon_stats(fbd, false, &mac_stats->rmon);
+
+	rmon_stats->undersize_pkts =
+		mac_stats->rmon.undersize_pkts.value;
+	rmon_stats->oversize_pkts =
+		mac_stats->rmon.oversize_pkts.value;
+	rmon_stats->fragments =
+		mac_stats->rmon.fragments.value;
+	rmon_stats->jabbers =
+		mac_stats->rmon.jabbers.value;
+
+	for (i = 0; fbnic_rmon_ranges[i].high; i++) {
+		rmon_stats->hist[i] = mac_stats->rmon.hist[i].value;
+		rmon_stats->hist_tx[i] = mac_stats->rmon.hist_tx[i].value;
+	}
+
+	*ranges = fbnic_rmon_ranges;
+}
+
 static const struct ethtool_ops fbnic_ethtool_ops = {
 	.supported_coalesce_params	=
 				  ETHTOOL_COALESCE_USECS |
@@ -1641,6 +1705,8 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_ts_info		= fbnic_get_ts_info,
 	.get_ts_stats		= fbnic_get_ts_stats,
 	.get_eth_mac_stats	= fbnic_get_eth_mac_stats,
+	.get_eth_ctrl_stats	= fbnic_get_eth_ctrl_stats,
+	.get_rmon_stats		= fbnic_get_rmon_stats,
 };
 
 void fbnic_set_ethtool_ops(struct net_device *dev)
