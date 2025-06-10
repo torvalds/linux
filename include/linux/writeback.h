@@ -72,13 +72,6 @@ struct writeback_control {
 	 */
 	unsigned no_cgroup_owner:1;
 
-	/* To enable batching of swap writes to non-block-device backends,
-	 * "plug" can be set point to a 'struct swap_iocb *'.  When all swap
-	 * writes have been submitted, if with swap_iocb is not NULL,
-	 * swap_write_unplug() should be called.
-	 */
-	struct swap_iocb **swap_plug;
-
 	/* internal fields used by the ->writepages implementation: */
 	struct folio_batch fbatch;
 	pgoff_t index;

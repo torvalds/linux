@@ -655,14 +655,6 @@ typedef enum {
 static pageout_t writeout(struct folio *folio, struct address_space *mapping,
 		struct swap_iocb **plug, struct list_head *folio_list)
 {
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_NONE,
-		.nr_to_write = SWAP_CLUSTER_MAX,
-		.range_start = 0,
-		.range_end = LLONG_MAX,
-		.for_reclaim = 1,
-		.swap_plug = plug,
-	};
 	int res;
 
 	folio_set_reclaim(folio);
@@ -675,7 +667,7 @@ static pageout_t writeout(struct folio *folio, struct address_space *mapping,
 	if (shmem_mapping(mapping))
 		res = shmem_writeout(folio, plug, folio_list);
 	else
-		res = swap_writeout(folio, &wbc);
+		res = swap_writeout(folio, plug);
 
 	if (res < 0)
 		handle_write_error(mapping, folio, res);
