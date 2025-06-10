@@ -2429,7 +2429,6 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 
 		}
 		if (i == MAX_BIC) {
-			fprintf(stderr, "deferred %s\n", name_list);
 			if (mode == SHOW_LIST) {
 				deferred_add_names[deferred_add_index++] = name_list;
 				if (deferred_add_index >= MAX_DEFERRED) {
@@ -10536,9 +10535,6 @@ void probe_cpuidle_residency(void)
 	int state;
 	int min_state = 1024, max_state = 0;
 	char *sp;
-
-	if (!DO_BIC(BIC_pct_idle))
-		return;
 
 	for (state = 10; state >= 0; --state) {
 
