@@ -939,7 +939,7 @@ static void svm_msr_filter_changed(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void add_msr_offset(u32 offset)
+static int add_msr_offset(u32 offset)
 {
 	int i;
 
@@ -947,7 +947,7 @@ static void add_msr_offset(u32 offset)
 
 		/* Offset already in list? */
 		if (msrpm_offsets[i] == offset)
-			return;
+			return 0;
 
 		/* Slot used by another offset? */
 		if (msrpm_offsets[i] != MSR_INVALID)
@@ -956,17 +956,13 @@ static void add_msr_offset(u32 offset)
 		/* Add offset to list */
 		msrpm_offsets[i] = offset;
 
-		return;
+		return 0;
 	}
 
-	/*
-	 * If this BUG triggers the msrpm_offsets table has an overflow. Just
-	 * increase MSRPM_OFFSETS in this case.
-	 */
-	BUG();
+	return -ENOSPC;
 }
 
-static void init_msrpm_offsets(void)
+static int init_msrpm_offsets(void)
 {
 	int i;
 
@@ -976,10 +972,13 @@ static void init_msrpm_offsets(void)
 		u32 offset;
 
 		offset = svm_msrpm_offset(direct_access_msrs[i].index);
-		BUG_ON(offset == MSR_INVALID);
+		if (WARN_ON(offset == MSR_INVALID))
+			return -EIO;
 
-		add_msr_offset(offset);
+		if (WARN_ON_ONCE(add_msr_offset(offset)))
+			return -EIO;
 	}
+	return 0;
 }
 
 void svm_copy_lbrs(struct vmcb *to_vmcb, struct vmcb *from_vmcb)
@@ -5494,7 +5493,9 @@ static __init int svm_hardware_setup(void)
 	}
 	kvm_enable_efer_bits(EFER_NX);
 
-	init_msrpm_offsets();
+	r = init_msrpm_offsets();
+	if (r)
+		return r;
 
 	kvm_caps.supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS |
 				     XFEATURE_MASK_BNDCSR);
