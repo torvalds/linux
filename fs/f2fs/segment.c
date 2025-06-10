@@ -3948,8 +3948,14 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 		folio_end_writeback(folio);
 		if (f2fs_in_warm_node_list(fio->sbi, folio))
 			f2fs_del_fsync_node_entry(fio->sbi, folio);
+		f2fs_bug_on(fio->sbi, !is_set_ckpt_flags(fio->sbi,
+							CP_ERROR_FLAG));
 		goto out;
 	}
+
+	f2fs_bug_on(fio->sbi, !f2fs_is_valid_blkaddr(fio->sbi,
+				fio->new_blkaddr, DATA_GENERIC_ENHANCE));
+
 	if (GET_SEGNO(fio->sbi, fio->old_blkaddr) != NULL_SEGNO)
 		f2fs_invalidate_internal_cache(fio->sbi, fio->old_blkaddr, 1);
 
