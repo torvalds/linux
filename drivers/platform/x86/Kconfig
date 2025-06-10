@@ -37,6 +37,15 @@ config ACPI_WMI
 	  It is safe to enable this driver even if your DSDT doesn't define
 	  any ACPI-WMI devices.
 
+config ACPI_WMI_LEGACY_DEVICE_NAMES
+	bool "Use legacy WMI device naming scheme"
+	depends on ACPI_WMI
+	help
+	  Say Y here to force the WMI driver core to use the old WMI device naming
+	  scheme when creating WMI devices. Doing so might be necessary for some
+	  userspace applications but will cause the registration of WMI devices with
+	  the same GUID to fail in some corner cases.
+
 config WMI_BMOF
 	tristate "WMI embedded Binary MOF driver"
 	depends on ACPI_WMI
