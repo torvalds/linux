@@ -234,7 +234,7 @@ static inline int get_boot_cpu_id(void)
 #endif /* !SMP */
 
 /**
- * raw_processor_id() - get the current (unstable) CPU id
+ * raw_smp_processor_id() - get the current (unstable) CPU id
  *
  * For then you know what you are doing and need an unstable
  * CPU id.
