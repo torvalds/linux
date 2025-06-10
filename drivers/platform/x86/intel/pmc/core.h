@@ -302,6 +302,10 @@ enum ppfear_regs {
 /* LNL */
 #define PMC_DEVID_LNL_SOCM	0xa87f
 
+/* PTL */
+#define PMC_DEVID_PTL_PCDH	0xe37f
+#define PMC_DEVID_PTL_PCDP	0xe47f
+
 /* ARL */
 #define PMC_DEVID_ARL_SOCM	0x777f
 #define PMC_DEVID_ARL_SOCS	0xae7f
