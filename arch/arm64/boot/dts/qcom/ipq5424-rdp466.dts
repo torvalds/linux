@@ -2,7 +2,7 @@
 /*
  * IPQ5424 RDP466 board device tree source
  *
- * Copyright (c) 2024 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024-2025 The Linux Foundation. All rights reserved.
  */
 
 /dts-v1/;
@@ -253,6 +253,21 @@
 	status = "okay";
 };
 
+/*
+ * The bootstrap pins for the board select the XO clock frequency that
+ * supports 48 MHZ, 96 MHZ or 192 MHZ. This setting automatically
+ * enables the right dividers, to ensure the reference clock output
+ * from WiFi to the CMN PLL is 48 MHZ.
+ */
+&ref_48mhz_clk {
+	clock-div = <1>;
+	clock-mult = <1>;
+};
+
 &xo_board {
 	clock-frequency = <24000000>;
+};
+
+&xo_clk {
+	clock-frequency = <48000000>;
 };
