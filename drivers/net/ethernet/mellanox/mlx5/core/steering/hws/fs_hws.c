@@ -1357,6 +1357,7 @@ mlx5_cmd_hws_packet_reformat_alloc(struct mlx5_flow_root_namespace *ns,
 		pkt_reformat->fs_hws_action.pr_data = pr_data;
 	}
 
+	mutex_init(&pkt_reformat->fs_hws_action.lock);
 	pkt_reformat->owner = MLX5_FLOW_RESOURCE_OWNER_HWS;
 	pkt_reformat->fs_hws_action.hws_action = hws_action;
 	return 0;
@@ -1503,7 +1504,6 @@ static int mlx5_cmd_hws_modify_header_alloc(struct mlx5_flow_root_namespace *ns,
 		err = -ENOMEM;
 		goto release_mh;
 	}
-	mutex_init(&modify_hdr->fs_hws_action.lock);
 	modify_hdr->fs_hws_action.mh_data = mh_data;
 	modify_hdr->fs_hws_action.fs_pool = pool;
 	modify_hdr->owner = MLX5_FLOW_RESOURCE_OWNER_SW;
