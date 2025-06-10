@@ -1602,6 +1602,35 @@ static bool rtw89_mcc_duration_decision_on_bt(struct rtw89_dev *rtwdev)
 	return false;
 }
 
+void rtw89_mcc_prepare_done_work(struct wiphy *wiphy, struct wiphy_work *work)
+{
+	struct rtw89_dev *rtwdev = container_of(work, struct rtw89_dev,
+						mcc_prepare_done_work.work);
+
+	lockdep_assert_wiphy(wiphy);
+
+	ieee80211_wake_queues(rtwdev->hw);
+}
+
+static void rtw89_mcc_prepare(struct rtw89_dev *rtwdev, bool start)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_config *config = &mcc->config;
+
+	if (start) {
+		ieee80211_stop_queues(rtwdev->hw);
+
+		wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+					 &rtwdev->mcc_prepare_done_work,
+					 usecs_to_jiffies(config->prepare_delay));
+	} else {
+		wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+					 &rtwdev->mcc_prepare_done_work, 0);
+		wiphy_delayed_work_flush(rtwdev->hw->wiphy,
+					 &rtwdev->mcc_prepare_done_work);
+	}
+}
+
 static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
@@ -1637,6 +1666,8 @@ static int rtw89_mcc_fill_start_tsf(struct rtw89_dev *rtwdev)
 
 	config->start_tsf = start_tsf;
 	config->start_tsf_in_aux_domain = tsf_aux + start_tsf - tsf;
+	config->prepare_delay = start_tsf - tsf;
+
 	return 0;
 }
 
@@ -2247,6 +2278,8 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
 
 	rtw89_mcc_start_beacon_noa(rtwdev);
+
+	rtw89_mcc_prepare(rtwdev, true);
 	return 0;
 }
 
@@ -2335,6 +2368,8 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev,
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
 
 	rtw89_mcc_stop_beacon_noa(rtwdev);
+
+	rtw89_mcc_prepare(rtwdev, false);
 }
 
 static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
