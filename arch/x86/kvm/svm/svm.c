@@ -939,7 +939,7 @@ static void svm_msr_filter_changed(struct kvm_vcpu *vcpu)
 	}
 }
 
-static int add_msr_offset(u32 offset)
+static __init int add_msr_offset(u32 offset)
 {
 	int i;
 
@@ -962,7 +962,7 @@ static int add_msr_offset(u32 offset)
 	return -ENOSPC;
 }
 
-static int init_msrpm_offsets(void)
+static __init int init_msrpm_offsets(void)
 {
 	int i;
 
