@@ -1161,7 +1161,7 @@ definitions:
       -
         name: keys
         type: binary
-        struct: tc-u32-key # TODO: array
+        struct: tc-u32-key  # TODO: array
   -
     name: tc-u32-pcnt
     type: struct
@@ -1174,7 +1174,7 @@ definitions:
         type: u64
       -
         name: kcnts
-        type: u64 # TODO: array
+        type: u64  # TODO: array
   -
     name: tcf-t
     type: struct
@@ -1336,7 +1336,7 @@ definitions:
       -
         name: keys
         type: binary
-        struct: tc-pedit-key # TODO: array
+        struct: tc-pedit-key  # TODO: array
   -
     name: tc-pedit-key
     type: struct
@@ -2885,7 +2885,7 @@ attribute-sets:
     attributes:
       -
         name: parms
-        type: binary # array of struct: tc-gred-qopt
+        type: binary  # array of struct: tc-gred-qopt
       -
         name: stab
         type: binary
@@ -3335,10 +3335,10 @@ attribute-sets:
         struct: tc-police
       -
         name: rate
-        type: binary # TODO
+        type: binary  # TODO
       -
         name: peakrate
-        type: binary # TODO
+        type: binary  # TODO
       -
         name: avrate
         type: u32
@@ -3698,7 +3698,7 @@ sub-messages:
         value: choke
         attribute-set: choke-attrs
       -
-        value: clsact # no content
+        value: clsact  # no content
       -
         value: codel
         attribute-set: codel-attrs
@@ -3742,12 +3742,12 @@ sub-messages:
         value: htb
         attribute-set: htb-attrs
       -
-        value: ingress # no content
+        value: ingress  # no content
       -
         value: matchall
         attribute-set: matchall-attrs
       -
-        value: mq # no content
+        value: mq  # no content
       -
         value: mqprio
         fixed-header: tc-mqprio-qopt

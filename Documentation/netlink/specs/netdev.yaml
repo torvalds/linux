@@ -205,7 +205,7 @@ attribute-sets:
       -
         name: alloc-fast
         type: uint
-        value: 8 # reserve some attr ids in case we need more metadata later
+        value: 8  # reserve some attr ids in case we need more metadata later
       -
         name: alloc-slow
         type: uint
@@ -367,7 +367,7 @@ attribute-sets:
           For drivers supporting XDP, XDP is considered the first layer
           of the stack, so packets consumed by XDP are still counted here.
         type: uint
-        value: 8 # reserve some attr ids in case we need more metadata later
+        value: 8  # reserve some attr ids in case we need more metadata later
       -
         name: rx-bytes
         doc: Successfully received bytes, see `rx-packets`.

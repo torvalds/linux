@@ -19,7 +19,7 @@ definitions:
     name: stringset
     type: enum
     entries: []
-    header: linux/ethtool.h # skip rendering, no actual definition
+    header: linux/ethtool.h  # skip rendering, no actual definition
   -
     name: header-flags
     type: flags
