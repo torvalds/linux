@@ -59,6 +59,13 @@ struct phy_fixup {
 	int (*run)(struct phy_device *phydev);
 };
 
+static struct phy_driver genphy_c45_driver = {
+	.phy_id         = 0xffffffff,
+	.phy_id_mask    = 0xffffffff,
+	.name           = "Generic Clause 45 PHY",
+	.read_status    = genphy_c45_read_status,
+};
+
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_basic_features);
 

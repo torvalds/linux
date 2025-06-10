@@ -1941,9 +1941,6 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_keee *data);
 int genphy_c45_an_config_eee_aneg(struct phy_device *phydev);
 
-/* Generic C45 PHY driver */
-extern struct phy_driver genphy_c45_driver;
-
 /* The gen10g_* functions are the old Clause 45 stub */
 int gen10g_config_aneg(struct phy_device *phydev);
 
