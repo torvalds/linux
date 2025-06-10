@@ -1573,8 +1573,14 @@ static int apply_relocations(struct module *mod, const struct load_info *info)
 		if (infosec >= info->hdr->e_shnum)
 			continue;
 
-		/* Don't bother with non-allocated sections */
-		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC))
+		/*
+		 * Don't bother with non-allocated sections.
+		 * An exception is the percpu section, which has separate allocations
+		 * for individual CPUs. We relocate the percpu section in the initial
+		 * ELF template and subsequently copy it to the per-CPU destinations.
+		 */
+		if (!(info->sechdrs[infosec].sh_flags & SHF_ALLOC) &&
+		    (!infosec || infosec != info->index.pcpu))
 			continue;
 
 		if (info->sechdrs[i].sh_flags & SHF_RELA_LIVEPATCH)
