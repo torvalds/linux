@@ -4006,6 +4006,12 @@ int rtw89_core_sta_link_add(struct rtw89_dev *rtwdev,
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif_link, rtwsta_link,
 					 BTC_ROLE_MSTS_STA_CONN_START);
 		rtw89_chip_rfk_channel(rtwdev, rtwvif_link);
+
+		if (vif->p2p) {
+			rtw89_mac_get_tx_retry_limit(rtwdev, rtwsta_link,
+						     &rtwsta_link->tx_retry);
+			rtw89_mac_set_tx_retry_limit(rtwdev, rtwsta_link, false, 60);
+		}
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		ret = rtw89_mac_set_macid_pause(rtwdev, rtwsta_link->mac_id, false);
 		if (ret) {
@@ -4190,6 +4196,10 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 		}
 
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, true);
+
+		if (vif->p2p)
+			rtw89_mac_set_tx_retry_limit(rtwdev, rtwsta_link, false,
+						     rtwsta_link->tx_retry);
 	}
 
 	rtw89_assoc_link_set(rtwsta_link);
@@ -4208,6 +4218,10 @@ int rtw89_core_sta_link_remove(struct rtw89_dev *rtwdev,
 		rtw89_reg_6ghz_recalc(rtwdev, rtwvif_link, false);
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif_link, rtwsta_link,
 					 BTC_ROLE_MSTS_STA_DIS_CONN);
+
+		if (vif->p2p)
+			rtw89_mac_set_tx_retry_limit(rtwdev, rtwsta_link, false,
+						     rtwsta_link->tx_retry);
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		ret = rtw89_fw_h2c_role_maintain(rtwdev, rtwvif_link, rtwsta_link,
 						 RTW89_ROLE_REMOVE);
