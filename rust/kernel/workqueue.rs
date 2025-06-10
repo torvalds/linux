@@ -26,7 +26,7 @@
 //!  * The [`WorkItemPointer`] trait is implemented for the pointer type that points at a something
 //!    that implements [`WorkItem`].
 //!
-//! ## Example
+//! ## Examples
 //!
 //! This example defines a struct that holds an integer and can be scheduled on the workqueue. When
 //! the struct is executed, it will print the integer. Since there is only one `work_struct` field,

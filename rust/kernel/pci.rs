@@ -100,7 +100,7 @@ impl<T: Driver + 'static> Adapter<T> {
 
 /// Declares a kernel module that exposes a single PCI driver.
 ///
-/// # Example
+/// # Examples
 ///
 ///```ignore
 /// kernel::module_pci_driver! {
@@ -194,7 +194,7 @@ macro_rules! pci_device_table {
 
 /// The PCI driver trait.
 ///
-/// # Example
+/// # Examples
 ///
 ///```
 /// # use kernel::{bindings, device::Core, pci};

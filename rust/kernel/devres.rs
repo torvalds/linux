@@ -44,7 +44,7 @@ struct DevresInner<T> {
 /// [`Devres`] users should make sure to simply free the corresponding backing resource in `T`'s
 /// [`Drop`] implementation.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```no_run
 /// # use kernel::{bindings, c_str, device::{Bound, Device}, devres::Devres, io::{Io, IoRaw}};
@@ -203,7 +203,7 @@ impl<T> Devres<T> {
     /// An error is returned if `dev` does not match the same [`Device`] this [`Devres`] instance
     /// has been created with.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```no_run
     /// # #![cfg(CONFIG_PCI)]

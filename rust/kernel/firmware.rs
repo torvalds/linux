@@ -140,7 +140,7 @@ unsafe impl Sync for Firmware {}
 /// Typically, such contracts would be enforced by a trait, however traits do not (yet) support
 /// const functions.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # mod module_firmware_test {
@@ -262,7 +262,7 @@ impl<const N: usize> ModInfoBuilder<N> {
     /// Append path components to the [`ModInfoBuilder`] instance. Paths need to be separated
     /// with [`ModInfoBuilder::new_entry`].
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// use kernel::firmware::ModInfoBuilder;

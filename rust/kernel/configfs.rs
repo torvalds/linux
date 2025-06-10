@@ -17,7 +17,7 @@
 //!
 //! C header: [`include/linux/configfs.h`](srctree/include/linux/configfs.h)
 //!
-//! # Example
+//! # Examples
 //!
 //! ```ignore
 //! use kernel::alloc::flags;

@@ -41,7 +41,7 @@ impl LockClassKey {
     /// Initializes a dynamically allocated lock class key. In the common case of using a
     /// statically allocated lock class key, the static_lock_class! macro should be used instead.
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// # use kernel::c_str;
     /// # use kernel::alloc::KBox;

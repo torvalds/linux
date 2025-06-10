@@ -122,7 +122,7 @@ macro_rules! module_platform_driver {
 ///
 /// Drivers must implement this trait in order to get a platform driver registered.
 ///
-/// # Example
+/// # Examples
 ///
 ///```
 /// # use kernel::{bindings, c_str, device::Core, of, platform};
