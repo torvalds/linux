@@ -429,7 +429,9 @@ CATEGORY="vma_merge" run_test ./merge
 
 if [ -x ./memfd_secret ]
 then
-(echo 0 > /proc/sys/kernel/yama/ptrace_scope 2>&1) | tap_prefix
+if [ -f /proc/sys/kernel/yama/ptrace_scope ]; then
+	(echo 0 > /proc/sys/kernel/yama/ptrace_scope 2>&1) | tap_prefix
+fi
 CATEGORY="memfd_secret" run_test ./memfd_secret
 fi
 
