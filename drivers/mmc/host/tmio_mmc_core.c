@@ -696,8 +696,11 @@ static bool __tmio_mmc_sdio_irq(struct tmio_mmc_host *host)
 
 	sd_ctrl_write16(host, CTL_SDIO_STATUS, sdio_status);
 
-	if (mmc->caps & MMC_CAP_SDIO_IRQ && ireg & TMIO_SDIO_STAT_IOIRQ)
+	if (mmc->caps & MMC_CAP_SDIO_IRQ && ireg & TMIO_SDIO_STAT_IOIRQ) {
+		if (host->sdio_irq)
+			host->sdio_irq(host);
 		mmc_signal_sdio_irq(mmc);
+	}
 
 	return ireg;
 }
