@@ -2500,10 +2500,8 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 
 	if (xdr_stream_decode_u32(argp->xdr, &argp->minorversion) < 0)
 		return false;
-	if (xdr_stream_decode_u32(argp->xdr, &argp->client_opcnt) < 0)
+	if (xdr_stream_decode_u32(argp->xdr, &argp->opcnt) < 0)
 		return false;
-	argp->opcnt = min_t(u32, argp->client_opcnt,
-			    NFSD_MAX_OPS_PER_COMPOUND);
 
 	if (argp->opcnt > ARRAY_SIZE(argp->iops)) {
 		argp->ops = vcalloc(argp->opcnt, sizeof(*argp->ops));
