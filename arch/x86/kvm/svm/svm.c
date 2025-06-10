@@ -796,11 +796,6 @@ static bool valid_msr_intercept(u32 index)
 
 static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 {
-	u8 bit_write;
-	unsigned long tmp;
-	u32 offset;
-	u32 *msrpm;
-
 	/*
 	 * For non-nested case:
 	 * If the L01 MSR bitmap does not intercept the MSR, then we need to
@@ -810,17 +805,10 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 	 * If the L02 MSR bitmap does not intercept the MSR, then we need to
 	 * save it.
 	 */
-	msrpm = is_guest_mode(vcpu) ? to_svm(vcpu)->nested.msrpm:
-				      to_svm(vcpu)->msrpm;
+	void *msrpm = is_guest_mode(vcpu) ? to_svm(vcpu)->nested.msrpm :
+					    to_svm(vcpu)->msrpm;
 
-	offset    = svm_msrpm_offset(msr);
-	if (KVM_BUG_ON(offset == MSR_INVALID, vcpu->kvm))
-		return false;
-
-	bit_write = 2 * (msr & 0x0f) + 1;
-	tmp       = msrpm[offset];
-
-	return test_bit(bit_write, &tmp);
+	return svm_test_msr_bitmap_write(msrpm, msr);
 }
 
 static void set_msr_interception_bitmap(struct kvm_vcpu *vcpu, u32 *msrpm,
@@ -855,7 +843,17 @@ static void set_msr_interception_bitmap(struct kvm_vcpu *vcpu, u32 *msrpm,
 	read  ? __clear_bit(bit_read,  &tmp) : __set_bit(bit_read,  &tmp);
 	write ? __clear_bit(bit_write, &tmp) : __set_bit(bit_write, &tmp);
 
-	msrpm[offset] = tmp;
+	if (read)
+		svm_clear_msr_bitmap_read((void *)msrpm, msr);
+	else
+		svm_set_msr_bitmap_read((void *)msrpm, msr);
+
+	if (write)
+		svm_clear_msr_bitmap_write((void *)msrpm, msr);
+	else
+		svm_set_msr_bitmap_write((void *)msrpm, msr);
+
+	WARN_ON_ONCE(msrpm[offset] != (u32)tmp);
 
 	svm_hv_vmcb_dirty_nested_enlightenments(vcpu);
 	svm->nested.force_msr_bitmap_recalc = true;
