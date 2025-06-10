@@ -5262,7 +5262,6 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 	if (tp->mac_version == RTL_GIGA_MAC_VER_61)
 		phy_disable_eee_mode(tp->phydev,
 				     ETHTOOL_LINK_MODE_2500baseT_Full_BIT);
-	phy_disable_eee_mode(tp->phydev, ETHTOOL_LINK_MODE_5000baseT_Full_BIT);
 
 	/* PHY will be woken up in rtl_open() */
 	phy_suspend(tp->phydev);
