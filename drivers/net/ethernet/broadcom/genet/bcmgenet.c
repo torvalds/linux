@@ -3986,6 +3986,8 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	dev->hw_features |= dev->features;
 	dev->vlan_features |= dev->features;
 
+	netdev_sw_irq_coalesce_default_on(dev);
+
 	/* Request the WOL interrupt and advertise suspend if available */
 	priv->wol_irq_disabled = true;
 	if (priv->wol_irq > 0) {
