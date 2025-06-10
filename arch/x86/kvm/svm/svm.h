@@ -619,9 +619,7 @@ static inline void svm_vmgexit_no_action(struct vcpu_svm *svm, u64 data)
 static_assert(SVM_MSRS_PER_RANGE == 8192);
 #define SVM_MSRPM_OFFSET_MASK (SVM_MSRS_PER_RANGE - 1)
 
-#define MSR_INVALID				0xffffffffU
-
-static __always_inline u32 svm_msrpm_bit_nr(u32 msr)
+static __always_inline int svm_msrpm_bit_nr(u32 msr)
 {
 	int range_nr;
 
@@ -636,7 +634,7 @@ static __always_inline u32 svm_msrpm_bit_nr(u32 msr)
 		range_nr = 2;
 		break;
 	default:
-		return MSR_INVALID;
+		return -EINVAL;
 	}
 
 	return range_nr * SVM_MSRPM_BYTES_PER_RANGE * BITS_PER_BYTE +
@@ -647,10 +645,10 @@ static __always_inline u32 svm_msrpm_bit_nr(u32 msr)
 static inline rtype svm_##action##_msr_bitmap_##access(unsigned long *bitmap,	\
 						       u32 msr)			\
 {										\
-	u32 bit_nr;								\
+	int bit_nr;								\
 										\
 	bit_nr = svm_msrpm_bit_nr(msr);						\
-	if (bit_nr == MSR_INVALID)								\
+	if (bit_nr < 0)								\
 		return (rtype)true;						\
 										\
 	return bitop##_bit(bit_nr + bit_rw, bitmap);				\
