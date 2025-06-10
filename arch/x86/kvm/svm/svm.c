@@ -1097,7 +1097,7 @@ static void svm_recalc_instruction_intercepts(struct kvm_vcpu *vcpu,
 	}
 }
 
-static inline void init_vmcb_after_set_cpuid(struct kvm_vcpu *vcpu)
+static void svm_recalc_intercepts_after_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -1263,7 +1263,8 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 		sev_init_vmcb(svm);
 
 	svm_hv_init_vmcb(vmcb);
-	init_vmcb_after_set_cpuid(vcpu);
+
+	svm_recalc_intercepts_after_set_cpuid(vcpu);
 
 	vmcb_mark_all_dirty(vmcb);
 
@@ -4508,7 +4509,7 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	if (sev_guest(vcpu->kvm))
 		sev_vcpu_after_set_cpuid(svm);
 
-	init_vmcb_after_set_cpuid(vcpu);
+	svm_recalc_intercepts_after_set_cpuid(vcpu);
 }
 
 static bool svm_has_wbinvd_exit(void)
