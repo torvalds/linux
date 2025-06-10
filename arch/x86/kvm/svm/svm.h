@@ -697,6 +697,18 @@ void svm_set_x2apic_msr_interception(struct vcpu_svm *svm, bool disable);
 void svm_complete_interrupt_delivery(struct kvm_vcpu *vcpu, int delivery_mode,
 				     int trig_mode, int vec);
 
+void svm_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
+void svm_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
+
+static inline void svm_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
+					     int type, bool enable_intercept)
+{
+	if (enable_intercept)
+		svm_enable_intercept_for_msr(vcpu, msr, type);
+	else
+		svm_disable_intercept_for_msr(vcpu, msr, type);
+}
+
 /* nested.c */
 
 #define NESTED_EXIT_HOST	0	/* Exit handled on host level */
