@@ -60,33 +60,33 @@ definitions:
     name-prefix: ethtool-c33-pse-ext-state-
     header: linux/ethtool.h
     entries:
-        -
-          name: none
-          doc: none
-        -
-          name: error-condition
-          doc: Group of error_condition states
-        -
-          name: mr-mps-valid
-          doc: Group of mr_mps_valid states
-        -
-          name: mr-pse-enable
-          doc: Group of mr_pse_enable states
-        -
-          name: option-detect-ted
-          doc: Group of option_detect_ted states
-        -
-          name: option-vport-lim
-          doc: Group of option_vport_lim states
-        -
-          name: ovld-detected
-          doc: Group of ovld_detected states
-        -
-          name: power-not-available
-          doc: Group of power_not_available states
-        -
-          name: short-detected
-          doc: Group of short_detected states
+      -
+        name: none
+        doc: none
+      -
+        name: error-condition
+        doc: Group of error_condition states
+      -
+        name: mr-mps-valid
+        doc: Group of mr_mps_valid states
+      -
+        name: mr-pse-enable
+        doc: Group of mr_pse_enable states
+      -
+        name: option-detect-ted
+        doc: Group of option_detect_ted states
+      -
+        name: option-vport-lim
+        doc: Group of option_vport_lim states
+      -
+        name: ovld-detected
+        doc: Group of ovld_detected states
+      -
+        name: power-not-available
+        doc: Group of power_not_available states
+      -
+        name: short-detected
+        doc: Group of short_detected states
   -
     name: phy-upstream-type
     enum-name: phy-upstream

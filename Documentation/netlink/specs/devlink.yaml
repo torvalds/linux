@@ -812,14 +812,14 @@ attribute-sets:
         name: rate-parent-node-name
         type: string
       -
-         name: region-max-snapshots
-         type: u32
+        name: region-max-snapshots
+        type: u32
       -
         name: linecard-index
         type: u32
       -
-         name: linecard-state
-         type: u8
+        name: linecard-state
+        type: u8
       -
         name: linecard-type
         type: string
