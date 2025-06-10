@@ -299,6 +299,9 @@ enum ppfear_regs {
 #define PTL_PCD_PMC_MMIO_REG_LEN		0x31A8
 
 /* SSRAM PMC Device ID */
+/* LNL */
+#define PMC_DEVID_LNL_SOCM	0xa87f
+
 /* ARL */
 #define PMC_DEVID_ARL_SOCM	0x777f
 #define PMC_DEVID_ARL_SOCS	0xae7f
