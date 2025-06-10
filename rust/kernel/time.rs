@@ -194,6 +194,11 @@ impl<C: ClockSource> Instant<C> {
     pub fn elapsed(&self) -> Delta {
         Self::now() - *self
     }
+
+    #[inline]
+    pub(crate) fn as_nanos(&self) -> i64 {
+        self.inner
+    }
 }
 
 impl<C: ClockSource> core::ops::Sub for Instant<C> {
