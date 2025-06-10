@@ -960,6 +960,7 @@ static int rtw89_mcc_fill_all_roles(struct rtw89_dev *rtwdev)
 		}
 
 		sel.bind_vif[i] = rtwvif_link;
+		rtw89_p2p_disable_all_noa(rtwdev, rtwvif_link, NULL);
 	}
 
 	ret = rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_fill_role_iterator, &sel);
