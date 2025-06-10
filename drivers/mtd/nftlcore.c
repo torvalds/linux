@@ -228,6 +228,25 @@ static u16 NFTL_findfreeblock(struct NFTLrecord *nftl, int desperate )
 	return BLOCK_NIL;
 }
 
+static noinline_for_stack void NFTL_move_block(struct mtd_info *mtd, loff_t src, loff_t dst)
+{
+	unsigned char movebuf[512];
+	struct nftl_oob oob;
+	size_t retlen;
+	int ret;
+
+	ret = mtd_read(mtd, src, 512, &retlen, movebuf);
+	if (ret < 0 && !mtd_is_bitflip(ret)) {
+		ret = mtd_read(mtd, src, 512, &retlen, movebuf);
+		if (ret != -EIO)
+			printk("Error went away on retry.\n");
+	}
+	memset(&oob, 0xff, sizeof(struct nftl_oob));
+	oob.b.Status = oob.b.Status1 = SECTOR_USED;
+
+	nftl_write(mtd, dst, 512, &retlen, movebuf, (char *)&oob);
+}
+
 static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned pendingblock )
 {
 	struct mtd_info *mtd = nftl->mbd.mtd;
@@ -389,9 +408,6 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 	*/
 	pr_debug("Folding chain %d into unit %d\n", thisVUC, targetEUN);
 	for (block = 0; block < nftl->EraseSize / 512 ; block++) {
-		unsigned char movebuf[512];
-		int ret;
-
 		/* If it's in the target EUN already, or if it's pending write, do nothing */
 		if (BlockMap[block] == targetEUN ||
 		    (pendingblock == (thisVUC * (nftl->EraseSize / 512) + block))) {
@@ -403,25 +419,8 @@ static u16 NFTL_foldchain (struct NFTLrecord *nftl, unsigned thisVUC, unsigned p
 		if (BlockMap[block] == BLOCK_NIL)
 			continue;
 
-		ret = mtd_read(mtd,
-			       (nftl->EraseSize * BlockMap[block]) + (block * 512),
-			       512,
-			       &retlen,
-			       movebuf);
-		if (ret < 0 && !mtd_is_bitflip(ret)) {
-			ret = mtd_read(mtd,
-				       (nftl->EraseSize * BlockMap[block]) + (block * 512),
-				       512,
-				       &retlen,
-				       movebuf);
-			if (ret != -EIO)
-				printk("Error went away on retry.\n");
-		}
-		memset(&oob, 0xff, sizeof(struct nftl_oob));
-		oob.b.Status = oob.b.Status1 = SECTOR_USED;
-
-		nftl_write(nftl->mbd.mtd, (nftl->EraseSize * targetEUN) +
-			   (block * 512), 512, &retlen, movebuf, (char *)&oob);
+		NFTL_move_block(mtd, (nftl->EraseSize * BlockMap[block]) + (block * 512),
+				(nftl->EraseSize * targetEUN) + (block * 512));
 	}
 
 	/* add the header so that it is now a valid chain */
