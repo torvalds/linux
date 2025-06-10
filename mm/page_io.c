@@ -237,7 +237,7 @@ static void swap_zeromap_folio_clear(struct folio *folio)
  * We may have stale swap cache pages in memory: notice
  * them here and get rid of the unnecessary final write.
  */
-int swap_writeout(struct folio *folio, struct writeback_control *wbc)
+int swap_writeout(struct folio *folio, struct swap_iocb **swap_plug)
 {
 	int ret = 0;
 
@@ -281,7 +281,7 @@ int swap_writeout(struct folio *folio, struct writeback_control *wbc)
 		return AOP_WRITEPAGE_ACTIVATE;
 	}
 
-	__swap_writepage(folio, wbc->swap_plug);
+	__swap_writepage(folio, swap_plug);
 	return 0;
 out_unlock:
 	folio_unlock(folio);

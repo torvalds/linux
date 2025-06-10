@@ -1635,21 +1635,13 @@ try_split:
 		list_add(&info->swaplist, &shmem_swaplist);
 
 	if (!folio_alloc_swap(folio, __GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN)) {
-		struct writeback_control wbc = {
-			.sync_mode	= WB_SYNC_NONE,
-			.nr_to_write	= SWAP_CLUSTER_MAX,
-			.range_start	= 0,
-			.range_end	= LLONG_MAX,
-			.for_reclaim	= 1,
-			.swap_plug	= plug,
-		};
 		shmem_recalc_inode(inode, 0, nr_pages);
 		swap_shmem_alloc(folio->swap, nr_pages);
 		shmem_delete_from_page_cache(folio, swp_to_radix_entry(folio->swap));
 
 		mutex_unlock(&shmem_swaplist_mutex);
 		BUG_ON(folio_mapped(folio));
-		return swap_writeout(folio, &wbc);
+		return swap_writeout(folio, plug);
 	}
 	if (!info->swapped)
 		list_del_init(&info->swaplist);
