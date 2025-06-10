@@ -667,7 +667,13 @@ BUILD_SVM_MSR_BITMAP_HELPERS(void, set, __set)
 /* svm.c */
 extern bool dump_invalid_vmcb;
 
-void *svm_vcpu_alloc_msrpm(void);
+void *svm_alloc_permissions_map(unsigned long size, gfp_t gfp_mask);
+
+static inline void *svm_vcpu_alloc_msrpm(void)
+{
+	return svm_alloc_permissions_map(MSRPM_SIZE, GFP_KERNEL_ACCOUNT);
+}
+
 void svm_vcpu_free_msrpm(void *msrpm);
 void svm_copy_lbrs(struct vmcb *to_vmcb, struct vmcb *from_vmcb);
 void svm_enable_lbrv(struct kvm_vcpu *vcpu);
