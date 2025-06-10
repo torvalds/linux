@@ -1540,11 +1540,13 @@ start_over:
 /**
  * shmem_writeout - Write the folio to swap
  * @folio: The folio to write
- * @wbc: How writeback is to be done
+ * @plug: swap plug
+ * @folio_list: list to put back folios on split
  *
  * Move the folio from the page cache to the swap cache.
  */
-int shmem_writeout(struct folio *folio, struct writeback_control *wbc)
+int shmem_writeout(struct folio *folio, struct swap_iocb **plug,
+		struct list_head *folio_list)
 {
 	struct address_space *mapping = folio->mapping;
 	struct inode *inode = mapping->host;
@@ -1553,9 +1555,6 @@ int shmem_writeout(struct folio *folio, struct writeback_control *wbc)
 	pgoff_t index;
 	int nr_pages;
 	bool split = false;
-
-	if (WARN_ON_ONCE(!wbc->for_reclaim))
-		goto redirty;
 
 	if ((info->flags & VM_LOCKED) || sbinfo->noswap)
 		goto redirty;
@@ -1583,7 +1582,7 @@ int shmem_writeout(struct folio *folio, struct writeback_control *wbc)
 try_split:
 		/* Ensure the subpages are still dirty */
 		folio_test_set_dirty(folio);
-		if (split_folio_to_list(folio, wbc->list))
+		if (split_folio_to_list(folio, folio_list))
 			goto redirty;
 		folio_clear_dirty(folio);
 	}
@@ -1636,13 +1635,21 @@ try_split:
 		list_add(&info->swaplist, &shmem_swaplist);
 
 	if (!folio_alloc_swap(folio, __GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN)) {
+		struct writeback_control wbc = {
+			.sync_mode	= WB_SYNC_NONE,
+			.nr_to_write	= SWAP_CLUSTER_MAX,
+			.range_start	= 0,
+			.range_end	= LLONG_MAX,
+			.for_reclaim	= 1,
+			.swap_plug	= plug,
+		};
 		shmem_recalc_inode(inode, 0, nr_pages);
 		swap_shmem_alloc(folio->swap, nr_pages);
 		shmem_delete_from_page_cache(folio, swp_to_radix_entry(folio->swap));
 
 		mutex_unlock(&shmem_swaplist_mutex);
 		BUG_ON(folio_mapped(folio));
-		return swap_writeout(folio, wbc);
+		return swap_writeout(folio, &wbc);
 	}
 	if (!info->swapped)
 		list_del_init(&info->swaplist);
@@ -1651,10 +1658,7 @@ try_split:
 		goto try_split;
 redirty:
 	folio_mark_dirty(folio);
-	if (wbc->for_reclaim)
-		return AOP_WRITEPAGE_ACTIVATE;	/* Return with folio locked */
-	folio_unlock(folio);
-	return 0;
+	return AOP_WRITEPAGE_ACTIVATE;	/* Return with folio locked */
 }
 EXPORT_SYMBOL_GPL(shmem_writeout);
 
