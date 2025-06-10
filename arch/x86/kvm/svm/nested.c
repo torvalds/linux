@@ -194,7 +194,7 @@ void recalc_intercepts(struct vcpu_svm *svm)
  * Hardcode the capacity of the array based on the maximum number of _offsets_.
  * MSRs are batched together, so there are fewer offsets than MSRs.
  */
-static int nested_svm_msrpm_merge_offsets[9] __ro_after_init;
+static int nested_svm_msrpm_merge_offsets[6] __ro_after_init;
 static int nested_svm_nr_msrpm_merge_offsets __ro_after_init;
 
 int __init nested_svm_init_msrpm_merge_offsets(void)
@@ -219,13 +219,6 @@ int __init nested_svm_init_msrpm_merge_offsets(void)
 		MSR_IA32_LASTBRANCHTOIP,
 		MSR_IA32_LASTINTFROMIP,
 		MSR_IA32_LASTINTTOIP,
-
-		MSR_IA32_DEBUGCTLMSR,
-		MSR_IA32_XSS,
-		MSR_EFER,
-		MSR_IA32_CR_PAT,
-		MSR_AMD64_SEV_ES_GHCB,
-		MSR_TSC_AUX,
 	};
 	int i, j;
 
