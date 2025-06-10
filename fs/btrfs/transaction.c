@@ -1232,11 +1232,11 @@ int btrfs_wait_tree_log_extents(struct btrfs_root *log_root, int mark)
 	ASSERT(btrfs_root_id(log_root) == BTRFS_TREE_LOG_OBJECTID);
 
 	ret = __btrfs_wait_marked_extents(fs_info, dirty_pages);
-	if ((mark & EXTENT_DIRTY) &&
+	if ((mark & EXTENT_DIRTY_LOG1) &&
 	    test_and_clear_bit(BTRFS_FS_LOG1_ERR, &fs_info->flags))
 		errors = true;
 
-	if ((mark & EXTENT_NEW) &&
+	if ((mark & EXTENT_DIRTY_LOG2) &&
 	    test_and_clear_bit(BTRFS_FS_LOG2_ERR, &fs_info->flags))
 		errors = true;
 
