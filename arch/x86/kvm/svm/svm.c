@@ -883,8 +883,9 @@ u32 *svm_vcpu_alloc_msrpm(void)
 	return msrpm;
 }
 
-void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu, u32 *msrpm)
+static void svm_vcpu_init_msrpm(struct kvm_vcpu *vcpu)
 {
+	u32 *msrpm = to_svm(vcpu)->msrpm;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(direct_access_msrs); i++) {
@@ -1396,7 +1397,7 @@ static void __svm_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
+	svm_vcpu_init_msrpm(vcpu);
 
 	svm_init_osvw(vcpu);
 
