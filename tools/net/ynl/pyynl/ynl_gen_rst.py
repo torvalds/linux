@@ -314,9 +314,10 @@ def parse_yaml(obj: Dict[str, Any]) -> str:
 
     # Main header
 
-    lines.append(rst_header())
-
     family = obj['name']
+
+    lines.append(rst_header())
+    lines.append(rst_label("netlink-" + family))
 
     title = f"Family ``{family}`` netlink specification"
     lines.append(rst_title(title))
