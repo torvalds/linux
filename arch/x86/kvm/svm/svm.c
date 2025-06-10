@@ -5532,6 +5532,10 @@ static __init int svm_hardware_setup(void)
 	if (nested) {
 		pr_info("Nested Virtualization enabled\n");
 		kvm_enable_efer_bits(EFER_SVME | EFER_LMSLE);
+
+		r = nested_svm_init_msrpm_merge_offsets();
+		if (r)
+			return r;
 	}
 
 	/*
