@@ -358,12 +358,7 @@ Forcing power
 Many OEMs include a method that can be used to force the power of a
 Thunderbolt controller to an "On" state even if nothing is connected.
 If supported by your machine this will be exposed by the WMI bus with
-a sysfs attribute called "force_power".
-
-For example the intel-wmi-thunderbolt driver exposes this attribute in:
-  /sys/bus/wmi/devices/86CCFD48-205E-4A77-9C48-2021CBEDE341/force_power
-
-  To force the power to on, write 1 to this attribute file.
-  To disable force power, write 0 to this attribute file.
+a sysfs attribute called "force_power", see
+Documentation/ABI/testing/sysfs-platform-intel-wmi-thunderbolt for details.
 
 Note: it's currently not possible to query the force power state of a platform.

@@ -1,4 +1,4 @@
-What:		/sys/bus/wmi/devices/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_supported_type
+What:		/sys/bus/wmi/devices/6932965F-1671-4CEB-B988-D3AB0A901919[-X]/dell_privacy_supported_type
 Date:		Apr 2021
 KernelVersion:	5.13
 Contact:	"<perry.yuan@dell.com>"
@@ -29,12 +29,12 @@ Description:
 
 		For example to check which privacy devices are supported::
 
-		    # cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_supported_type
+		    # cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919*/dell_privacy_supported_type
 		    [Microphone Mute] [supported]
 		    [Camera Shutter] [supported]
 		    [ePrivacy Screen] [unsupported]
 
-What:		/sys/bus/wmi/devices/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_current_state
+What:		/sys/bus/wmi/devices/6932965F-1671-4CEB-B988-D3AB0A901919[-X]/dell_privacy_current_state
 Date:		Apr 2021
 KernelVersion:	5.13
 Contact:	"<perry.yuan@dell.com>"
@@ -66,6 +66,6 @@ Description:
 
 		For example to check all supported current privacy device states::
 
-		    # cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919/dell_privacy_current_state
+		    # cat /sys/bus/wmi/drivers/dell-privacy/6932965F-1671-4CEB-B988-D3AB0A901919*/dell_privacy_current_state
 		    [Microphone] [unmuted]
 		    [Camera Shutter] [unmuted]
