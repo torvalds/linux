@@ -84,7 +84,7 @@
 	status = "okay";
 	clock-frequency = <355000>;
 
-	synaptics@2c {
+	touchscreen: synaptics@2c {
 		compatible = "syna,rmi4-i2c";
 		reg = <0x2c>;
 
