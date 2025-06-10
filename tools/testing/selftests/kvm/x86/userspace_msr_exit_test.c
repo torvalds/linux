@@ -343,6 +343,12 @@ static void guest_code_permission_bitmap(void)
 	data = test_rdmsr(MSR_GS_BASE);
 	GUEST_ASSERT(data == MSR_GS_BASE);
 
+	/* Access the MSRs again to ensure KVM has disabled interception.*/
+	data = test_rdmsr(MSR_FS_BASE);
+	GUEST_ASSERT(data != MSR_FS_BASE);
+	data = test_rdmsr(MSR_GS_BASE);
+	GUEST_ASSERT(data != MSR_GS_BASE);
+
 	GUEST_DONE();
 }
 
@@ -682,6 +688,8 @@ KVM_ONE_VCPU_TEST(user_msr, msr_permission_bitmap, guest_code_permission_bitmap)
 		    "Expected ucall state to be UCALL_SYNC.");
 	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_gs);
 	run_guest_then_process_rdmsr(vcpu, MSR_GS_BASE);
+
+	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_allow);
 	run_guest_then_process_ucall_done(vcpu);
 }
 
