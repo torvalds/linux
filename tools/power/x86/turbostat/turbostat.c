@@ -2310,6 +2310,8 @@ char *deferred_add_names[MAX_DEFERRED];
 char *deferred_skip_names[MAX_DEFERRED];
 int deferred_add_index;
 int deferred_skip_index;
+unsigned int deferred_add_consumed;
+unsigned int deferred_skip_consumed;
 
 /*
  * HIDE_LIST - hide this list of counters, show the rest [default]
@@ -10512,8 +10514,10 @@ int is_deferred_add(char *name)
 	int i;
 
 	for (i = 0; i < deferred_add_index; ++i)
-		if (!strcmp(name, deferred_add_names[i]))
+		if (!strcmp(name, deferred_add_names[i])) {
+			deferred_add_consumed |= (1 << i);
 			return 1;
+		}
 	return 0;
 }
 
@@ -10522,9 +10526,32 @@ int is_deferred_skip(char *name)
 	int i;
 
 	for (i = 0; i < deferred_skip_index; ++i)
-		if (!strcmp(name, deferred_skip_names[i]))
+		if (!strcmp(name, deferred_skip_names[i])) {
+			deferred_skip_consumed |= (1 << i);
 			return 1;
+		}
 	return 0;
+}
+
+void verify_deferred_consumed(void)
+{
+	int i;
+	int fail = 0;
+
+	for (i = 0; i < deferred_add_index; ++i) {
+		if (!(deferred_add_consumed & (1 << i))) {
+			warnx("Counter '%s' can not be added.", deferred_add_names[i]);
+			fail++;
+		}
+	}
+	for (i = 0; i < deferred_skip_index; ++i) {
+		if (!(deferred_skip_consumed & (1 << i))) {
+			warnx("Counter '%s' can not be skipped.", deferred_skip_names[i]);
+			fail++;
+		}
+	}
+	if (fail)
+		exit(-EINVAL);
 }
 
 void probe_cpuidle_residency(void)
@@ -10884,6 +10911,8 @@ skip_cgroup_setting:
 
 	probe_cpuidle_residency();
 	probe_cpuidle_counts();
+
+	verify_deferred_consumed();
 
 	if (!getuid())
 		set_rlimit();
