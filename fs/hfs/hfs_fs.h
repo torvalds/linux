@@ -112,13 +112,13 @@ struct hfs_sb_info {
 						   the extents b-tree */
 	struct hfs_btree *cat_tree;			/* Information about
 						   the catalog b-tree */
-	u32 file_count;				/* The number of
+	atomic64_t file_count;			/* The number of
 						   regular files in
 						   the filesystem */
-	u32 folder_count;			/* The number of
+	atomic64_t folder_count;		/* The number of
 						   directories in the
 						   filesystem */
-	u32 next_id;				/* The next available
+	atomic64_t next_id;			/* The next available
 						   file id number */
 	u32 clumpablks;				/* The number of allocation
 						   blocks to try to add when
