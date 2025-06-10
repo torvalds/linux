@@ -3046,14 +3046,14 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 {
 	unsigned int used_buses, normal_bridges = 0, hotplug_bridges = 0;
 	unsigned int start = bus->busn_res.start;
-	unsigned int devfn, cmax, max = start;
+	unsigned int devnr, cmax, max = start;
 	struct pci_dev *dev;
 
 	dev_dbg(&bus->dev, "scanning bus\n");
 
 	/* Go find them, Rover! */
-	for (devfn = 0; devfn < 256; devfn += 8)
-		pci_scan_slot(bus, devfn);
+	for (devnr = 0; devnr < PCI_MAX_NR_DEVS; devnr++)
+		pci_scan_slot(bus, PCI_DEVFN(devnr, 0));
 
 	/* Reserve buses for SR-IOV capability */
 	used_buses = pci_iov_bus_range(bus);
