@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2024-2025, OpenVPN Inc.
 #
-
+---
 name: ovpn
 
 protocol: genetlink
