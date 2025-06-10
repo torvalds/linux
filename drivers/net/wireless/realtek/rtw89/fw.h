@@ -237,6 +237,7 @@ enum rtw89_chan_type {
 	RTW89_CHAN_OPERATE = 0,
 	RTW89_CHAN_ACTIVE,
 	RTW89_CHAN_DFS,
+	RTW89_CHAN_EXTRA_OP,
 };
 
 enum rtw89_p2pps_action {
@@ -316,6 +317,7 @@ struct rtw89_fw_macid_pause_sleep_grp {
 #define RTW89_H2C_MAX_SIZE 2048
 #define RTW89_CHANNEL_TIME 45
 #define RTW89_CHANNEL_TIME_6G 20
+#define RTW89_CHANNEL_TIME_EXTRA_OP 30
 #define RTW89_DFS_CHAN_TIME 105
 #define RTW89_OFF_CHAN_TIME 100
 #define RTW89_DWELL_TIME 20
@@ -352,7 +354,8 @@ struct rtw89_mac_chinfo_ax {
 	u8 tx_null:1;
 	u8 rand_seq_num:1;
 	u8 cfg_tx_pwr:1;
-	u8 rsvd0: 4;
+	u8 macid_tx: 1;
+	u8 rsvd0: 3;
 	u8 pkt_id[RTW89_SCANOFLD_MAX_SSID];
 	u16 tx_pwr_idx;
 	u8 rsvd1;
@@ -2674,6 +2677,7 @@ struct rtw89_h2c_chinfo_elem {
 #define RTW89_H2C_CHINFO_W1_TX_NULL BIT(25)
 #define RTW89_H2C_CHINFO_W1_RANDOM BIT(26)
 #define RTW89_H2C_CHINFO_W1_CFG_TX BIT(27)
+#define RTW89_H2C_CHINFO_W1_MACID_TX BIT(29)
 #define RTW89_H2C_CHINFO_W2_PKT0 GENMASK(7, 0)
 #define RTW89_H2C_CHINFO_W2_PKT1 GENMASK(15, 8)
 #define RTW89_H2C_CHINFO_W2_PKT2 GENMASK(23, 16)
@@ -2773,6 +2777,7 @@ struct rtw89_h2c_scanofld {
 #define RTW89_H2C_SCANOFLD_W2_SLOW_PD GENMASK(23, 16)
 #define RTW89_H2C_SCANOFLD_W3_TSF_HIGH GENMASK(31, 0)
 #define RTW89_H2C_SCANOFLD_W4_TSF_LOW GENMASK(31, 0)
+#define RTW89_H2C_SCANOFLD_W6_SECOND_MACID GENMASK(31, 24)
 
 struct rtw89_h2c_scanofld_be_macc_role {
 	__le32 w0;
