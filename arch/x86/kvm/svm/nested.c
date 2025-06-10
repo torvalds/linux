@@ -277,6 +277,8 @@ int __init nested_svm_init_msrpm_merge_offsets(void)
 static bool nested_svm_merge_msrpm(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+	u32 *msrpm02 = svm->nested.msrpm;
+	u32 *msrpm01 = svm->msrpm;
 	int i;
 
 	/*
@@ -311,7 +313,7 @@ static bool nested_svm_merge_msrpm(struct kvm_vcpu *vcpu)
 		if (kvm_vcpu_read_guest(vcpu, offset, &value, 4))
 			return false;
 
-		svm->nested.msrpm[p] = svm->msrpm[p] | value;
+		msrpm02[p] = msrpm01[p] | value;
 	}
 
 	svm->nested.force_msr_bitmap_recalc = false;
