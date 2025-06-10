@@ -63,6 +63,7 @@ struct stm32_pinctrl_match_data {
 	const struct stm32_desc_pin *pins;
 	const unsigned int npins;
 	bool secure_control;
+	bool rif_control;
 };
 
 int stm32_pctl_probe(struct platform_device *pdev);
