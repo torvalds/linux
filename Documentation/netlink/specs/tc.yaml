@@ -76,7 +76,8 @@ definitions:
         name: overlimits
         type: u32
         doc: |
-          Number of throttle events when this flow goes out of allocated bandwidth
+          Number of throttle events when this flow goes out of allocated
+          bandwidth
       -
         name: bps
         type: u32
@@ -751,7 +752,9 @@ definitions:
       -
         name: count
         type: u32
-        doc: How many drops we've done since the last time we entered dropping state
+        doc: |
+          How many drops we've done since the last time we entered dropping
+          state
       -
         name: lastcount
         type: u32

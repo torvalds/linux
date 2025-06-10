@@ -42,8 +42,8 @@ attribute-sets:
         name: id
         type: u32
         doc: >-
-          The unique ID of the peer in the device context. To be used to identify
-          peers during operations for a specific device
+          The unique ID of the peer in the device context. To be used to
+          identify peers during operations for a specific device
         checks:
           max: 0xFFFFFF
       -

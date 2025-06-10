@@ -61,8 +61,8 @@ definitions:
       -
         name: sub-closed
         doc: >-
-          A subflow has been closed. An error (copy of sk_err) could be set if an
-          error has been detected for this subflow.
+          A subflow has been closed. An error (copy of sk_err) could be set if
+          an error has been detected for this subflow.
           Attributes: token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 |
           daddr6, sport, dport, backup, if_idx [, error].
       -

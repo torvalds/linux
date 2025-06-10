@@ -55,7 +55,9 @@ definitions:
         doc: The firmware flashing process was stopped due to an error.
   -
     name: c33-pse-ext-state
-    doc: "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4 Variables"
+    doc: |
+      "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4
+      Variables"
     type: enum
     name-prefix: ethtool-c33-pse-ext-state-
     header: linux/ethtool.h

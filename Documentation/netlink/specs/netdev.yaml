@@ -48,16 +48,19 @@ definitions:
     entries:
       -
         name: timestamp
-        doc:
-          Device is capable of exposing receive HW timestamp via bpf_xdp_metadata_rx_timestamp().
+        doc: |
+          Device is capable of exposing receive HW timestamp via
+          bpf_xdp_metadata_rx_timestamp().
       -
         name: hash
-        doc:
-          Device is capable of exposing receive packet hash via bpf_xdp_metadata_rx_hash().
+        doc: |
+          Device is capable of exposing receive packet hash via
+          bpf_xdp_metadata_rx_hash().
       -
         name: vlan-tag
-        doc:
-          Device is capable of exposing receive packet VLAN tag via bpf_xdp_metadata_rx_vlan_tag().
+        doc: |
+          Device is capable of exposing receive packet VLAN tag via
+          bpf_xdp_metadata_rx_vlan_tag().
   -
     type: flags
     name: xsk-flags
@@ -425,9 +428,9 @@ attribute-sets:
       -
         name: rx-hw-gro-packets
         doc: |
-          Number of packets that were coalesced from smaller packets by the device.
-          Counts only packets coalesced with the HW-GRO netdevice feature,
-          LRO-coalesced packets are not counted.
+          Number of packets that were coalesced from smaller packets by the
+          device. Counts only packets coalesced with the HW-GRO netdevice
+          feature, LRO-coalesced packets are not counted.
         type: uint
       -
         name: rx-hw-gro-bytes
@@ -436,8 +439,8 @@ attribute-sets:
       -
         name: rx-hw-gro-wire-packets
         doc: |
-          Number of packets that were coalesced to bigger packetss with the HW-GRO
-          netdevice feature. LRO-coalesced packets are not counted.
+          Number of packets that were coalesced to bigger packetss with the
+          HW-GRO netdevice feature. LRO-coalesced packets are not counted.
         type: uint
       -
         name: rx-hw-gro-wire-bytes
