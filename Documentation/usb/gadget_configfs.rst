@@ -92,7 +92,7 @@ Then the strings can be specified::
 
 Further custom string descriptors can be created as directories within the
 language's directory, with the string text being written to the "s" attribute
-within the string's directory:
+within the string's directory::
 
 	$ mkdir strings/0x409/xu.0
 	$ echo <string text> > strings/0x409/xu.0/s
@@ -104,9 +104,9 @@ string descriptors to associate those strings with class descriptors.
 ------------------------------
 
 Each gadget will consist of a number of configurations, their corresponding
-directories must be created:
+directories must be created::
 
-$ mkdir configs/<name>.<number>
+        $ mkdir configs/<name>.<number>
 
 where <name> can be any string which is legal in a filesystem and the
 <number> is the configuration's number, e.g.::
@@ -246,7 +246,7 @@ a symlink to a function being removed from the configuration, e.g.::
 	...
 	...
 
-Remove strings directories in configurations:
+Remove strings directories in configurations::
 
 	$ rmdir configs/<config name>.<number>/strings/<lang>
 
@@ -270,7 +270,7 @@ e.g.::
 	...
 	...
 
-Remove functions (function modules are not unloaded, though):
+Remove functions (function modules are not unloaded, though)::
 
 	$ rmdir functions/<name>.<instance name>
 
