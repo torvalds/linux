@@ -446,6 +446,8 @@
 };
 
 &smbb {
+	usb-charge-current-limit = <1800000>;
+
 	qcom,fast-charge-safe-current = <1500000>;
 	qcom,fast-charge-current-limit = <1500000>;
 	qcom,dc-current-limit = <1800000>;
