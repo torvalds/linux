@@ -187,7 +187,7 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 	 */
 	if (folio->mapping)
 		ASSERT(folio_pos(folio) <= start &&
-		       start + len <= folio_pos(folio) + folio_size(folio));
+		       start + len <= folio_end(folio));
 }
 
 #define subpage_calc_start_bit(fs_info, folio, name, start, len)	\
@@ -216,8 +216,7 @@ static void btrfs_subpage_clamp_range(struct folio *folio, u64 *start, u32 *len)
 	if (folio_pos(folio) >= orig_start + orig_len)
 		*len = 0;
 	else
-		*len = min_t(u64, folio_pos(folio) + folio_size(folio),
-			     orig_start + orig_len) - *start;
+		*len = min_t(u64, folio_end(folio), orig_start + orig_len) - *start;
 }
 
 static bool btrfs_subpage_end_and_test_lock(const struct btrfs_fs_info *fs_info,
