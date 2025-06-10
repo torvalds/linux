@@ -3440,6 +3440,8 @@ struct rtw89_tx_skb_data {
 	u8 hci_priv[];
 };
 
+#define RTW89_SCAN_NULL_TIMEOUT 30
+
 #define RTW89_ROC_IDLE_TIMEOUT 500
 #define RTW89_ROC_TX_TIMEOUT 30
 enum rtw89_roc_state {

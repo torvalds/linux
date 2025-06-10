@@ -5205,6 +5205,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 {
 	struct ieee80211_bss_conf *bss_conf;
 	struct rtw89_bb_ctx *bb;
+	int ret;
 
 	if (!rtwvif_link)
 		return;
@@ -5223,6 +5224,14 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 	bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
 	rtw89_phy_config_edcca(rtwdev, bb, false);
 	rtw89_tas_scan(rtwdev, false);
+
+	if (hw_scan) {
+		ret = rtw89_core_send_nullfunc(rtwdev, rtwvif_link, false, false,
+					       RTW89_SCAN_NULL_TIMEOUT);
+		if (ret)
+			rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+				    "scan send null-0 failed: %d\n", ret);
+	}
 
 	rtwdev->scanning = false;
 	rtw89_for_each_active_bb(rtwdev, bb)
