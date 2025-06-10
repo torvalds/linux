@@ -727,8 +727,6 @@ static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem)
 	return ret;
 }
 
-#define OWNER_SPINNABLE		(OWNER_NULL | OWNER_WRITER | OWNER_READER)
-
 static inline enum owner_state
 rwsem_owner_state(struct task_struct *owner, unsigned long flags)
 {
@@ -835,7 +833,7 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 		enum owner_state owner_state;
 
 		owner_state = rwsem_spin_on_owner(sem);
-		if (!(owner_state & OWNER_SPINNABLE))
+		if (owner_state == OWNER_NONSPINNABLE)
 			break;
 
 		/*
