@@ -785,8 +785,6 @@ void tdx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	else
 		vt->msr_host_kernel_gs_base = read_msr(MSR_KERNEL_GS_BASE);
 
-	vt->host_debugctlmsr = get_debugctlmsr();
-
 	vt->guest_state_loaded = true;
 }
 
@@ -1062,8 +1060,8 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 
 	tdx_vcpu_enter_exit(vcpu);
 
-	if (vt->host_debugctlmsr & ~TDX_DEBUGCTL_PRESERVED)
-		update_debugctlmsr(vt->host_debugctlmsr);
+	if (vcpu->arch.host_debugctl & ~TDX_DEBUGCTL_PRESERVED)
+		update_debugctlmsr(vcpu->arch.host_debugctl);
 
 	tdx_load_host_xsave_state(vcpu);
 	tdx->guest_entered = true;
