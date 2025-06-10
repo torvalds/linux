@@ -16,9 +16,14 @@ description:
 
 properties:
   compatible:
-    enum:
-      - atmel,at91rm9200-ssc
-      - atmel,at91sam9g45-ssc
+    oneOf:
+      - enum:
+          - atmel,at91rm9200-ssc
+          - atmel,at91sam9g45-ssc
+      - items:
+          - enum:
+              - microchip,sam9x7-ssc
+          - const: atmel,at91sam9g45-ssc
 
   reg:
     maxItems: 1
