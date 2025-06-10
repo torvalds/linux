@@ -4356,6 +4356,14 @@ enum rtw89_rfk_offload_h2c_func {
 };
 
 struct rtw89_fw_h2c_rf_get_mccch {
+	__le32 ch_0_0;
+	__le32 ch_0_1;
+	__le32 ch_1_0;
+	__le32 ch_1_1;
+	__le32 current_channel;
+} __packed;
+
+struct rtw89_fw_h2c_rf_get_mccch_v0 {
 	__le32 ch_0;
 	__le32 ch_1;
 	__le32 band_0;

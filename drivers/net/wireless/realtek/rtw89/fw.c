@@ -833,6 +833,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 91, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 110, 0, BEACON_FILTER),
 	__CFG_FW_FEAT(RTL8852C, le, 0, 27, 33, 0, NO_DEEP_PS),
+	__CFG_FW_FEAT(RTL8852C, ge, 0, 0, 0, 0, RFK_NTFY_MCC_V0),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 34, 0, TX_WAKE),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 36, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 40, 0, CRASH_TRIGGER),
@@ -5889,31 +5890,48 @@ fail:
 int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
+	struct rtw89_fw_h2c_rf_get_mccch_v0 *mccch_v0;
 	struct rtw89_fw_h2c_rf_get_mccch *mccch;
+	u32 len = sizeof(*mccch);
 	struct sk_buff *skb;
+	u8 ver = U8_MAX;
 	int ret;
 	u8 idx;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, sizeof(*mccch));
+	if (RTW89_CHK_FW_FEATURE(RFK_NTFY_MCC_V0, &rtwdev->fw)) {
+		len = sizeof(*mccch_v0);
+		ver = 0;
+	}
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, sizeof(*mccch));
-	mccch = (struct rtw89_fw_h2c_rf_get_mccch *)skb->data;
+	skb_put(skb, len);
 
 	idx = rfk_mcc->table_idx;
-	mccch->ch_0 = cpu_to_le32(rfk_mcc->ch[0]);
-	mccch->ch_1 = cpu_to_le32(rfk_mcc->ch[1]);
-	mccch->band_0 = cpu_to_le32(rfk_mcc->band[0]);
-	mccch->band_1 = cpu_to_le32(rfk_mcc->band[1]);
-	mccch->current_channel = cpu_to_le32(rfk_mcc->ch[idx]);
-	mccch->current_band_type = cpu_to_le32(rfk_mcc->band[idx]);
+	if (ver == 0) {
+		mccch_v0 = (struct rtw89_fw_h2c_rf_get_mccch_v0 *)skb->data;
+		mccch_v0->ch_0 = cpu_to_le32(rfk_mcc->ch[0]);
+		mccch_v0->ch_1 = cpu_to_le32(rfk_mcc->ch[1]);
+		mccch_v0->band_0 = cpu_to_le32(rfk_mcc->band[0]);
+		mccch_v0->band_1 = cpu_to_le32(rfk_mcc->band[1]);
+		mccch_v0->current_band_type = cpu_to_le32(rfk_mcc->band[idx]);
+		mccch_v0->current_channel = cpu_to_le32(rfk_mcc->ch[idx]);
+	} else {
+		mccch = (struct rtw89_fw_h2c_rf_get_mccch *)skb->data;
+		mccch->ch_0_0 = cpu_to_le32(rfk_mcc->ch[0]);
+		mccch->ch_0_1 = cpu_to_le32(rfk_mcc->ch[0]);
+		mccch->ch_1_0 = cpu_to_le32(rfk_mcc->ch[1]);
+		mccch->ch_1_1 = cpu_to_le32(rfk_mcc->ch[1]);
+		mccch->current_channel = cpu_to_le32(rfk_mcc->ch[idx]);
+	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_NOTIFY,
 			      H2C_FUNC_OUTSRC_RF_GET_MCCCH, 0, 0,
-			      sizeof(*mccch));
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
