@@ -4819,9 +4819,9 @@ again:
 	 */
 
 	zero_start = max_t(u64, folio_pos(folio), start);
-	zero_end = folio_pos(folio) + folio_size(folio) - 1;
+	zero_end = folio_pos(folio) + folio_size(folio);
 	folio_zero_range(folio, zero_start - folio_pos(folio),
-			 zero_end - zero_start + 1);
+			 zero_end - zero_start);
 
 out_unlock:
 	folio_unlock(folio);
