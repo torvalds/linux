@@ -708,15 +708,15 @@ static int adxl345_read_event_value(struct iio_dev *indio_dev,
 			return IIO_VAL_INT;
 		case IIO_EV_INFO_TIMEOUT:
 			*val = st->tap_duration_us;
-			*val2 = 1000000;
+			*val2 = MICRO;
 			return IIO_VAL_FRACTIONAL;
 		case IIO_EV_INFO_RESET_TIMEOUT:
 			*val = st->tap_window_us;
-			*val2 = 1000000;
+			*val2 = MICRO;
 			return IIO_VAL_FRACTIONAL;
 		case IIO_EV_INFO_TAP2_MIN_DELAY:
 			*val = st->tap_latent_us;
-			*val2 = 1000000;
+			*val2 = MICRO;
 			return IIO_VAL_FRACTIONAL;
 		default:
 			return -EINVAL;
