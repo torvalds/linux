@@ -2478,6 +2478,41 @@ static void rtw89_core_update_rx_freq_from_ie(struct rtw89_dev *rtwdev,
 	rx_status->freq = ieee80211_channel_to_frequency(chan, rx_status->band);
 }
 
+static void rtw89_core_correct_mcc_chan(struct rtw89_dev *rtwdev,
+					struct rtw89_rx_desc_info *desc_info,
+					struct ieee80211_rx_status *rx_status,
+					struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_sta_link *rtwsta_link;
+	const struct rtw89_chan *chan;
+	u8 mac_id = desc_info->mac_id;
+	enum rtw89_entity_mode mode;
+	enum nl80211_band band;
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	if (likely(mode != RTW89_ENTITY_MODE_MCC))
+		return;
+
+	if (chip_gen == RTW89_CHIP_BE && phy_ppdu)
+		mac_id = phy_ppdu->mac_id;
+
+	rcu_read_lock();
+
+	rtwsta_link = rtw89_assoc_link_rcu_dereference(rtwdev, mac_id);
+	if (!rtwsta_link)
+		goto out;
+
+	rtwvif_link = rtwsta_link->rtwvif_link;
+	chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+	band = rtw89_hw_to_nl80211_band(chan->band_type);
+	rx_status->freq = ieee80211_channel_to_frequency(chan->primary_channel, band);
+
+out:
+	rcu_read_unlock();
+}
+
 static void rtw89_core_rx_to_mac80211(struct rtw89_dev *rtwdev,
 				      struct rtw89_rx_phy_ppdu *phy_ppdu,
 				      struct rtw89_rx_desc_info *desc_info,
@@ -2496,6 +2531,7 @@ static void rtw89_core_rx_to_mac80211(struct rtw89_dev *rtwdev,
 	rtw89_core_update_radiotap(rtwdev, skb_ppdu, rx_status);
 	rtw89_core_validate_rx_signal(rx_status);
 	rtw89_core_update_rx_freq_from_ie(rtwdev, skb_ppdu, rx_status);
+	rtw89_core_correct_mcc_chan(rtwdev, desc_info, rx_status, phy_ppdu);
 
 	/* In low power mode, it does RX in thread context. */
 	local_bh_disable();
