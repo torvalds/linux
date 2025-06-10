@@ -5113,11 +5113,11 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		if (buf->log_index == 0)
 			btrfs_set_extent_bit(&root->dirty_log_pages, buf->start,
 					     buf->start + buf->len - 1,
-					     EXTENT_DIRTY, NULL);
+					     EXTENT_DIRTY_LOG1, NULL);
 		else
 			btrfs_set_extent_bit(&root->dirty_log_pages, buf->start,
 					     buf->start + buf->len - 1,
-					     EXTENT_NEW, NULL);
+					     EXTENT_DIRTY_LOG2, NULL);
 	} else {
 		buf->log_index = -1;
 		btrfs_set_extent_bit(&trans->transaction->dirty_pages, buf->start,
