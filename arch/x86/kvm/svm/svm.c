@@ -5494,15 +5494,6 @@ static __init int svm_hardware_setup(void)
 	}
 	kvm_enable_efer_bits(EFER_NX);
 
-	iopm_pages = alloc_pages(GFP_KERNEL, order);
-
-	if (!iopm_pages)
-		return -ENOMEM;
-
-	iopm_va = page_address(iopm_pages);
-	memset(iopm_va, 0xff, PAGE_SIZE * (1 << order));
-	iopm_base = __sme_page_pa(iopm_pages);
-
 	init_msrpm_offsets();
 
 	kvm_caps.supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS |
@@ -5569,6 +5560,15 @@ static __init int svm_hardware_setup(void)
 		else
 			pr_info("LBR virtualization supported\n");
 	}
+
+	iopm_pages = alloc_pages(GFP_KERNEL, order);
+	if (!iopm_pages)
+		return -ENOMEM;
+
+	iopm_va = page_address(iopm_pages);
+	memset(iopm_va, 0xff, PAGE_SIZE * (1 << order));
+	iopm_base = __sme_page_pa(iopm_pages);
+
 	/*
 	 * Note, SEV setup consumes npt_enabled and enable_mmio_caching (which
 	 * may be modified by svm_adjust_mmio_mask()), as well as nrips.
