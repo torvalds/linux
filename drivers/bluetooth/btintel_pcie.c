@@ -41,9 +41,9 @@ static const struct pci_device_id btintel_pcie_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, btintel_pcie_table);
 
-struct btintel_pcie_dev_restart_data {
+struct btintel_pcie_dev_recovery {
 	struct list_head list;
-	u8 restart_count;
+	u8 count;
 	time64_t last_error;
 	char name[];
 };
@@ -114,8 +114,8 @@ struct btintel_pcie_removal {
 	struct work_struct work;
 };
 
-static LIST_HEAD(btintel_pcie_restart_data_list);
-static DEFINE_SPINLOCK(btintel_pcie_restart_data_lock);
+static LIST_HEAD(btintel_pcie_recovery_list);
+static DEFINE_SPINLOCK(btintel_pcie_recovery_lock);
 
 /* This function initializes the memory for DBGC buffers and formats the
  * DBGC fragment which consists header info and DBGC buffer's LSB, MSB and
@@ -2219,21 +2219,21 @@ static int btintel_pcie_setup(struct hci_dev *hdev)
 	return err;
 }
 
-static struct btintel_pcie_dev_restart_data *btintel_pcie_get_restart_data(struct pci_dev *pdev,
-									   struct device *dev)
+static struct btintel_pcie_dev_recovery *
+btintel_pcie_get_recovery(struct pci_dev *pdev, struct device *dev)
 {
-	struct btintel_pcie_dev_restart_data *tmp, *data = NULL;
+	struct btintel_pcie_dev_recovery *tmp, *data = NULL;
 	const char *name = pci_name(pdev);
 	struct hci_dev *hdev = to_hci_dev(dev);
 
-	spin_lock(&btintel_pcie_restart_data_lock);
-	list_for_each_entry(tmp, &btintel_pcie_restart_data_list, list) {
+	spin_lock(&btintel_pcie_recovery_lock);
+	list_for_each_entry(tmp, &btintel_pcie_recovery_list, list) {
 		if (strcmp(tmp->name, name))
 			continue;
 		data = tmp;
 		break;
 	}
-	spin_unlock(&btintel_pcie_restart_data_lock);
+	spin_unlock(&btintel_pcie_recovery_lock);
 
 	if (data) {
 		bt_dev_dbg(hdev, "Found restart data for BDF: %s", data->name);
@@ -2245,50 +2245,44 @@ static struct btintel_pcie_dev_restart_data *btintel_pcie_get_restart_data(struc
 		return NULL;
 
 	strscpy_pad(data->name, name, strlen(name) + 1);
-	spin_lock(&btintel_pcie_restart_data_lock);
-	list_add_tail(&data->list, &btintel_pcie_restart_data_list);
-	spin_unlock(&btintel_pcie_restart_data_lock);
+	spin_lock(&btintel_pcie_recovery_lock);
+	list_add_tail(&data->list, &btintel_pcie_recovery_list);
+	spin_unlock(&btintel_pcie_recovery_lock);
 
 	return data;
 }
 
 static void btintel_pcie_free_restart_list(void)
 {
-	struct btintel_pcie_dev_restart_data *tmp;
+	struct btintel_pcie_dev_recovery *tmp;
 
-	while ((tmp = list_first_entry_or_null(&btintel_pcie_restart_data_list,
+	while ((tmp = list_first_entry_or_null(&btintel_pcie_recovery_list,
 					       typeof(*tmp), list))) {
 		list_del(&tmp->list);
 		kfree(tmp);
 	}
 }
 
-static void btintel_pcie_inc_restart_count(struct pci_dev *pdev,
-					   struct device *dev)
+static void btintel_pcie_inc_recovery_count(struct pci_dev *pdev,
+					    struct device *dev)
 {
-	struct btintel_pcie_dev_restart_data *data;
-	struct hci_dev *hdev = to_hci_dev(dev);
+	struct btintel_pcie_dev_recovery *data;
 	time64_t retry_window;
 
-	data = btintel_pcie_get_restart_data(pdev, dev);
+	data = btintel_pcie_get_recovery(pdev, dev);
 	if (!data)
 		return;
 
 	retry_window = ktime_get_boottime_seconds() - data->last_error;
-	if (data->restart_count == 0) {
+	if (data->count == 0) {
 		data->last_error = ktime_get_boottime_seconds();
-		data->restart_count++;
-		bt_dev_dbg(hdev, "First iteration initialise. last_error: %lld seconds restart_count: %d",
-			   data->last_error, data->restart_count);
+		data->count++;
 	} else if (retry_window < BTINTEL_PCIE_RESET_WINDOW_SECS &&
-		   data->restart_count <= BTINTEL_PCIE_FLR_MAX_RETRY) {
-		data->restart_count++;
-		bt_dev_dbg(hdev, "Flr triggered within the max retry time so increment the restart_count: %d",
-			   data->restart_count);
+		   data->count <= BTINTEL_PCIE_FLR_MAX_RETRY) {
+		data->count++;
 	} else if (retry_window > BTINTEL_PCIE_RESET_WINDOW_SECS) {
 		data->last_error = 0;
-		data->restart_count = 0;
-		bt_dev_dbg(hdev, "Flr triggered out of the retry window, so reset counters");
+		data->count = 0;
 	}
 }
 
@@ -2374,7 +2368,7 @@ static void btintel_pcie_reset(struct hci_dev *hdev)
 
 static void btintel_pcie_hw_error(struct hci_dev *hdev, u8 code)
 {
-	struct  btintel_pcie_dev_restart_data *data;
+	struct btintel_pcie_dev_recovery *data;
 	struct btintel_pcie_data *dev_data = hci_get_drvdata(hdev);
 	struct pci_dev *pdev = dev_data->pdev;
 	time64_t retry_window;
@@ -2384,22 +2378,23 @@ static void btintel_pcie_hw_error(struct hci_dev *hdev, u8 code)
 		return;
 	}
 
-	data = btintel_pcie_get_restart_data(pdev, &hdev->dev);
+	data = btintel_pcie_get_recovery(pdev, &hdev->dev);
 	if (!data)
 		return;
 
 	retry_window = ktime_get_boottime_seconds() - data->last_error;
 
 	if (retry_window < BTINTEL_PCIE_RESET_WINDOW_SECS &&
-	    data->restart_count >= BTINTEL_PCIE_FLR_MAX_RETRY) {
+	    data->count >= BTINTEL_PCIE_FLR_MAX_RETRY) {
 		bt_dev_err(hdev, "Exhausted maximum: %d recovery attempts: %d",
-			   BTINTEL_PCIE_FLR_MAX_RETRY, data->restart_count);
-		bt_dev_dbg(hdev, "Boot time: %lld seconds first_flr at: %lld seconds restart_count: %d",
-			   ktime_get_boottime_seconds(), data->last_error,
-			   data->restart_count);
+			   BTINTEL_PCIE_FLR_MAX_RETRY, data->count);
+		bt_dev_dbg(hdev, "Boot time: %lld seconds",
+			   ktime_get_boottime_seconds());
+		bt_dev_dbg(hdev, "last error at: %lld seconds",
+			   data->last_error);
 		return;
 	}
-	btintel_pcie_inc_restart_count(pdev, &hdev->dev);
+	btintel_pcie_inc_recovery_count(pdev, &hdev->dev);
 	btintel_pcie_reset(hdev);
 }
 
