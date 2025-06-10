@@ -192,12 +192,6 @@ static int gb_gpio_set_value_operation(struct gb_gpio_controller *ggc,
 	struct gb_gpio_set_value_request request;
 	int ret;
 
-	if (ggc->lines[which].direction == 1) {
-		dev_warn(dev, "refusing to set value of input gpio %u\n",
-			 which);
-		return -EPERM;
-	}
-
 	request.which = which;
 	request.value = value_high ? 1 : 0;
 	ret = gb_operation_sync(ggc->connection, GB_GPIO_TYPE_SET_VALUE,
