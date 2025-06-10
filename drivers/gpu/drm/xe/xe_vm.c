@@ -2924,10 +2924,10 @@ static int prefetch_ranges(struct xe_vm *vm, struct xe_vma_op *op)
 
 		err = xe_svm_range_get_pages(vm, svm_range, &ctx);
 		if (err) {
-			if (err == -EOPNOTSUPP || err == -EFAULT || err == -EPERM)
-				err = -ENODATA;
 			drm_dbg(&vm->xe->drm, "Get pages failed, asid=%u, gpusvm=%p, errno=%pe\n",
 				vm->usm.asid, &vm->svm.gpusvm, ERR_PTR(err));
+			if (err == -EOPNOTSUPP || err == -EFAULT || err == -EPERM)
+				err = -ENODATA;
 			return err;
 		}
 		xe_svm_range_debug(svm_range, "PREFETCH - RANGE GET PAGES DONE");
