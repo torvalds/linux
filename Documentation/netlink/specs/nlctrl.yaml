@@ -76,12 +76,12 @@ attribute-sets:
       -
         name: policy
         type: nest-type-value
-        type-value: [ policy-id, attr-id ]
+        type-value: [policy-id, attr-id]
         nested-attributes: policy-attrs
       -
         name: op-policy
         type: nest-type-value
-        type-value: [ op-id ]
+        type-value: [op-id]
         nested-attributes: op-policy-attrs
       -
         name: op

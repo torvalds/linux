@@ -277,8 +277,8 @@ operations:
       name: add-addr
       doc: Add endpoint
       attribute-set: endpoint
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: &add-addr-attrs
         request:
           attributes:
@@ -287,14 +287,14 @@ operations:
       name: del-addr
       doc: Delete endpoint
       attribute-set: endpoint
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: *add-addr-attrs
     -
       name: get-addr
       doc: Get endpoint information
       attribute-set: attr
-      dont-validate: [ strict ]
+      dont-validate: [strict]
       do: &get-addr-attrs
         request:
           attributes:
@@ -311,15 +311,15 @@ operations:
       name: flush-addrs
       doc: Flush addresses
       attribute-set: endpoint
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: *add-addr-attrs
     -
       name: set-limits
       doc: Set protocol limits
       attribute-set: attr
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: &mptcp-limits
         request:
           attributes:
@@ -329,7 +329,7 @@ operations:
       name: get-limits
       doc: Get protocol limits
       attribute-set: attr
-      dont-validate: [ strict ]
+      dont-validate: [strict]
       do: &mptcp-get-limits
         request:
            attributes:
@@ -343,8 +343,8 @@ operations:
       name: set-flags
       doc: Change endpoint flags
       attribute-set: attr
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: &mptcp-set-flags
         request:
           attributes:
@@ -355,8 +355,8 @@ operations:
       name: announce
       doc: Announce new address
       attribute-set: attr
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: &announce-add
         request:
           attributes:
@@ -366,8 +366,8 @@ operations:
       name: remove
       doc: Announce removal
       attribute-set: attr
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do:
         request:
          attributes:
@@ -377,8 +377,8 @@ operations:
       name: subflow-create
       doc: Create subflow
       attribute-set: attr
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: &sf-create
         request:
           attributes:
@@ -389,6 +389,6 @@ operations:
       name: subflow-destroy
       doc: Destroy subflow
       attribute-set: attr
-      dont-validate: [ strict ]
-      flags: [ uns-admin-perm ]
+      dont-validate: [strict]
+      flags: [uns-admin-perm]
       do: *sf-create

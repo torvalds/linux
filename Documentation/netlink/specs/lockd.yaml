@@ -26,7 +26,7 @@ operations:
       name: server-set
       doc: set the lockd server parameters
       attribute-set: server
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       do:
         request:
           attributes:

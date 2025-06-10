@@ -21,7 +21,7 @@ definitions:
     type: enum
     enum-name: ovs-vport-type
     name-prefix: ovs-vport-type-
-    entries: [ unspec, netdev, internal, gre, vxlan, geneve ]
+    entries: [unspec, netdev, internal, gre, vxlan, geneve]
   -
     name: ovs-vport-stats
     type: struct

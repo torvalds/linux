@@ -12,7 +12,7 @@ definitions:
     name: udp-tunnel-type
     enum-name:
     type: enum
-    entries: [ vxlan, geneve, vxlan-gpe ]
+    entries: [vxlan, geneve, vxlan-gpe]
     enum-cnt-name: __ethtool-udp-tunnel-type-cnt
     render-max: true
   -
@@ -93,11 +93,11 @@ definitions:
     header: linux/ethtool.h
     type: enum
     name-prefix: phy-upstream
-    entries: [ mac, phy ]
+    entries: [mac, phy]
   -
     name: tcp-data-split
     type: enum
-    entries: [ unknown, disabled, enabled ]
+    entries: [unknown, disabled, enabled]
   -
     name: hwtstamp-source
     doc: Source of the hardware timestamp
@@ -1224,7 +1224,7 @@ attribute-sets:
       -
         name: stat
         type: u64
-        type-value: [ id ]
+        type-value: [id]
       -
         name: hist-rx
         type: nest
