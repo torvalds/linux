@@ -3367,8 +3367,8 @@ static void rtw89_core_handle_sta_pending_tx(struct rtw89_dev *rtwdev,
 					  rtwvif_link);
 }
 
-static int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev,
-				    struct rtw89_vif_link *rtwvif_link, bool qos, bool ps)
+int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
+			     bool qos, bool ps, int timeout)
 {
 	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	int link_id = ieee80211_vif_is_mld(vif) ? rtwvif_link->link_id : -1;
@@ -3416,7 +3416,7 @@ static int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev,
 	rcu_read_unlock();
 
 	return rtw89_core_tx_kick_off_and_wait(rtwdev, skb, qsel,
-					       RTW89_ROC_TX_TIMEOUT);
+					       timeout);
 out:
 	rcu_read_unlock();
 
@@ -3453,7 +3453,8 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	pause_parm.trigger = rtwvif_link;
 	rtw89_chanctx_pause(rtwdev, &pause_parm);
 
-	ret = rtw89_core_send_nullfunc(rtwdev, rtwvif_link, true, true);
+	ret = rtw89_core_send_nullfunc(rtwdev, rtwvif_link, true, true,
+				       RTW89_ROC_TX_TIMEOUT);
 	if (ret)
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
 			    "roc send null-1 failed: %d\n", ret);
@@ -3513,7 +3514,8 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	roc->state = RTW89_ROC_IDLE;
 	rtw89_config_roc_chandef(rtwdev, rtwvif_link, NULL);
 	rtw89_chanctx_proceed(rtwdev, NULL);
-	ret = rtw89_core_send_nullfunc(rtwdev, rtwvif_link, true, false);
+	ret = rtw89_core_send_nullfunc(rtwdev, rtwvif_link, true, false,
+				       RTW89_ROC_TX_TIMEOUT);
 	if (ret)
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
 			    "roc send null-0 failed: %d\n", ret);

@@ -5685,6 +5685,7 @@ struct rtw89_mcc_role {
 
 	/* byte-array in LE order for FW */
 	u8 macid_bitmap[BITS_TO_BYTES(RTW89_MAX_MAC_ID_NUM)];
+	u8 probe_count;
 
 	u16 duration; /* TU */
 	u16 beacon_interval; /* TU */
@@ -7342,6 +7343,8 @@ int rtw89_core_start(struct rtw89_dev *rtwdev);
 void rtw89_core_stop(struct rtw89_dev *rtwdev);
 void rtw89_core_update_beacon_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_core_csa_beacon_work(struct wiphy *wiphy, struct wiphy_work *work);
+int rtw89_core_send_nullfunc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
+			     bool qos, bool ps, int timeout);
 void rtw89_roc_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);

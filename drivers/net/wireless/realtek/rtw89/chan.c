@@ -2184,6 +2184,18 @@ static void rtw89_mcc_stop_beacon_noa(struct rtw89_dev *rtwdev)
 	rtw89_mcc_handle_beacon_noa(rtwdev, false);
 }
 
+static bool rtw89_mcc_ignore_bcn(struct rtw89_dev *rtwdev, struct rtw89_mcc_role *role)
+{
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+
+	if (role->is_go)
+		return true;
+	else if (chip_gen == RTW89_CHIP_BE && role->is_gc)
+		return true;
+	else
+		return false;
+}
+
 static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
@@ -2206,6 +2218,15 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 		mcc->mode = RTW89_MCC_MODE_GO_STA;
 	else
 		mcc->mode = RTW89_MCC_MODE_GC_STA;
+
+	if (rtw89_mcc_ignore_bcn(rtwdev, ref)) {
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, aux->rtwvif_link, false);
+	} else if (rtw89_mcc_ignore_bcn(rtwdev, aux)) {
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, ref->rtwvif_link, false);
+	} else {
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, ref->rtwvif_link, true);
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, aux->rtwvif_link, true);
+	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC sel mode: %d\n", mcc->mode);
 
@@ -2369,14 +2390,43 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static void rtw89_mcc_detect_connection(struct rtw89_dev *rtwdev,
+					struct rtw89_mcc_role *role)
+{
+	struct ieee80211_vif *vif;
+	int ret;
+
+	ret = rtw89_core_send_nullfunc(rtwdev, role->rtwvif_link, true, false,
+				       RTW89_MCC_PROBE_TIMEOUT);
+	if (ret)
+		role->probe_count++;
+	else
+		role->probe_count = 0;
+
+	if (role->probe_count < RTW89_MCC_PROBE_MAX_TRIES)
+		return;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC <macid %d> can not detect AP\n", role->rtwvif_link->mac_id);
+	vif = rtwvif_link_to_vif(role->rtwvif_link);
+	ieee80211_connection_loss(vif);
+}
+
 static void rtw89_mcc_track(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_config *config = &mcc->config;
 	struct rtw89_mcc_pattern *pattern = &config->pattern;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	u16 tolerance;
 	u16 bcn_ofst;
 	u16 diff;
+
+	if (rtw89_mcc_ignore_bcn(rtwdev, ref))
+		rtw89_mcc_detect_connection(rtwdev, aux);
+	else if (rtw89_mcc_ignore_bcn(rtwdev, aux))
+		rtw89_mcc_detect_connection(rtwdev, ref);
 
 	if (mcc->mode != RTW89_MCC_MODE_GC_STA)
 		return;
