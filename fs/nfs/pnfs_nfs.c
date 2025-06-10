@@ -17,6 +17,7 @@
 #include "internal.h"
 #include "pnfs.h"
 #include "netns.h"
+#include "nfs4trace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS
 
@@ -1007,8 +1008,10 @@ int nfs4_pnfs_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds,
 		err = nfs4_wait_ds_connect(ds);
 		if (err || ds->ds_clp)
 			goto out;
-		if (nfs4_test_deviceid_unavailable(devid))
-			return -ENODEV;
+		if (nfs4_test_deviceid_unavailable(devid)) {
+			err = -ENODEV;
+			goto out;
+		}
 	} while (test_and_set_bit(NFS4DS_CONNECTING, &ds->ds_state) != 0);
 
 	if (ds->ds_clp)
@@ -1038,11 +1041,12 @@ out:
 		if (!ds->ds_clp || !nfs_client_init_is_complete(ds->ds_clp)) {
 			WARN_ON_ONCE(ds->ds_clp ||
 				!nfs4_test_deviceid_unavailable(devid));
-			return -EINVAL;
-		}
-		err = nfs_client_init_status(ds->ds_clp);
+			err = -EINVAL;
+		} else
+			err = nfs_client_init_status(ds->ds_clp);
 	}
 
+	trace_pnfs_ds_connect(ds->ds_remotestr, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(nfs4_pnfs_ds_connect);

@@ -274,6 +274,32 @@ TRACE_EVENT(nfs4_cb_offload,
 			show_nfs_stable_how(__entry->cb_how)
 		)
 );
+
+TRACE_EVENT(pnfs_ds_connect,
+		TP_PROTO(
+			char *ds_remotestr,
+			int status
+		),
+
+		TP_ARGS(ds_remotestr, status),
+
+		TP_STRUCT__entry(
+			__string(ds_ips, ds_remotestr)
+			__field(int, status)
+		),
+
+		TP_fast_assign(
+			__assign_str(ds_ips);
+			__entry->status = status;
+		),
+
+		TP_printk(
+			"ds_ips=%s, status=%d",
+			__get_str(ds_ips),
+			__entry->status
+                )
+);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 TRACE_EVENT(nfs4_setup_sequence,
