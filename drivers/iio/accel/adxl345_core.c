@@ -133,7 +133,6 @@ struct adxl345_state {
 	const struct adxl345_chip_info *info;
 	struct regmap *regmap;
 	bool fifo_delay; /* delay: delay is needed for SPI */
-	int irq;
 	u8 watermark;
 	u8 fifo_mode;
 
@@ -1120,6 +1119,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 					 ADXL345_DATA_FORMAT_FULL_RES |
 					 ADXL345_DATA_FORMAT_SELF_TEST);
 	unsigned int tap_threshold;
+	int irq;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
@@ -1204,11 +1204,11 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret)
 		return ret;
 
-	st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
-	if (st->irq < 0) {
+	irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
+	if (irq < 0) {
 		intio = ADXL345_INT2;
-		st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT2");
-		if (st->irq < 0)
+		irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT2");
+		if (irq < 0)
 			intio = ADXL345_INT_NONE;
 	}
 
@@ -1233,7 +1233,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 		if (ret)
 			return ret;
 
-		ret = devm_request_threaded_irq(dev, st->irq, NULL,
+		ret = devm_request_threaded_irq(dev, irq, NULL,
 						&adxl345_irq_handler,
 						IRQF_SHARED | IRQF_ONESHOT,
 						indio_dev->name, indio_dev);
