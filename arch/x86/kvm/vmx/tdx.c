@@ -1025,20 +1025,20 @@ static void tdx_load_host_xsave_state(struct kvm_vcpu *vcpu)
 				DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI | \
 				DEBUGCTLMSR_FREEZE_IN_SMM)
 
-fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
+fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, u64 run_flags)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
 	struct vcpu_vt *vt = to_vt(vcpu);
 
 	/*
-	 * force_immediate_exit requires vCPU entering for events injection with
-	 * an immediately exit followed. But The TDX module doesn't guarantee
-	 * entry, it's already possible for KVM to _think_ it completely entry
-	 * to the guest without actually having done so.
-	 * Since KVM never needs to force an immediate exit for TDX, and can't
-	 * do direct injection, just warn on force_immediate_exit.
+	 * WARN if KVM wants to force an immediate exit, as the TDX module does
+	 * not guarantee entry into the guest, i.e. it's possible for KVM to
+	 * _think_ it completed entry to the guest and forced an immediate exit
+	 * without actually having done so.  Luckily, KVM never needs to force
+	 * an immediate exit for TDX (KVM can't do direct event injection, so
+	 * just WARN and continue on.
 	 */
-	WARN_ON_ONCE(force_immediate_exit);
+	WARN_ON_ONCE(run_flags);
 
 	/*
 	 * Wait until retry of SEPT-zap-related SEAMCALL completes before
@@ -1048,7 +1048,7 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	if (unlikely(READ_ONCE(to_kvm_tdx(vcpu->kvm)->wait_for_sept_zap)))
 		return EXIT_FASTPATH_EXIT_HANDLED;
 
-	trace_kvm_entry(vcpu, force_immediate_exit);
+	trace_kvm_entry(vcpu, run_flags & KVM_RUN_FORCE_IMMEDIATE_EXIT);
 
 	if (pi_test_on(&vt->pi_desc)) {
 		apic->send_IPI_self(POSTED_INTR_VECTOR);
