@@ -1031,8 +1031,8 @@ static int __init rzv2h_cpg_probe(struct platform_device *pdev)
 	/* Adjust for CPG_BUS_m_MSTOP starting from m = 1 */
 	priv->mstop_count -= 16;
 
-	priv->resets = devm_kmemdup(dev, info->resets, sizeof(*info->resets) *
-				    info->num_resets, GFP_KERNEL);
+	priv->resets = devm_kmemdup_array(dev, info->resets, info->num_resets,
+					  sizeof(*info->resets), GFP_KERNEL);
 	if (!priv->resets)
 		return -ENOMEM;
 
