@@ -43,6 +43,11 @@ struct gpiod_data {
 	bool direction_can_change;
 };
 
+struct gpiodev_data {
+	struct gpio_device *gdev;
+	struct device *cdev_base; /* Class device by GPIO base */
+};
+
 /*
  * Lock to serialise gpiod export and unexport, and prevent re-export of
  * gpiod whose chip is being unregistered.
@@ -399,27 +404,27 @@ static const struct attribute_group *gpio_groups[] = {
 static ssize_t base_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
-	const struct gpio_device *gdev = dev_get_drvdata(dev);
+	const struct gpiodev_data *data = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%u\n", gdev->base);
+	return sysfs_emit(buf, "%u\n", data->gdev->base);
 }
 static DEVICE_ATTR_RO(base);
 
 static ssize_t label_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct gpio_device *gdev = dev_get_drvdata(dev);
+	const struct gpiodev_data *data = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%s\n", gdev->label);
+	return sysfs_emit(buf, "%s\n", data->gdev->label);
 }
 static DEVICE_ATTR_RO(label);
 
 static ssize_t ngpio_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
-	const struct gpio_device *gdev = dev_get_drvdata(dev);
+	const struct gpiodev_data *data = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%u\n", gdev->ngpio);
+	return sysfs_emit(buf, "%u\n", data->gdev->ngpio);
 }
 static DEVICE_ATTR_RO(ngpio);
 
@@ -545,6 +550,26 @@ static const struct class gpio_class = {
 	.class_groups =	gpio_class_groups,
 };
 
+static int match_gdev(struct device *dev, const void *desc)
+{
+	struct gpiodev_data *data = dev_get_drvdata(dev);
+	const struct gpio_device *gdev = desc;
+
+	return data && data->gdev == gdev;
+}
+
+static struct gpiodev_data *
+gdev_get_data(struct gpio_device *gdev) __must_hold(&sysfs_lock)
+{
+	struct device *cdev __free(put_device) = class_find_device(&gpio_class,
+								   NULL, gdev,
+								   match_gdev);
+	if (!cdev)
+		return NULL;
+
+	return dev_get_drvdata(cdev);
+};
+
 /**
  * gpiod_export - export a GPIO through sysfs
  * @desc: GPIO to make available, already requested
@@ -589,12 +614,6 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	gdev = desc->gdev;
 
 	guard(mutex)(&sysfs_lock);
-
-	/* check if chip is being removed */
-	if (!gdev->mockdev) {
-		status = -ENODEV;
-		goto err_clear_bit;
-	}
 
 	if (!test_bit(FLAG_REQUESTED, &desc->flags)) {
 		gpiod_dbg(desc, "%s: unavailable (not requested)\n", __func__);
@@ -719,9 +738,9 @@ EXPORT_SYMBOL_GPL(gpiod_unexport);
 
 int gpiochip_sysfs_register(struct gpio_device *gdev)
 {
+	struct gpiodev_data *data;
 	struct gpio_chip *chip;
 	struct device *parent;
-	struct device *dev;
 
 	/*
 	 * Many systems add gpio chips for SOC support very early,
@@ -747,32 +766,41 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	else
 		parent = &gdev->dev;
 
-	/* use chip->base for the ID; it's already known to be unique */
-	dev = device_create_with_groups(&gpio_class, parent, MKDEV(0, 0), gdev,
-					gpiochip_groups, GPIOCHIP_NAME "%d",
-					chip->base);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->gdev = gdev;
 
 	guard(mutex)(&sysfs_lock);
-	gdev->mockdev = dev;
+
+	/* use chip->base for the ID; it's already known to be unique */
+	data->cdev_base = device_create_with_groups(&gpio_class, parent,
+						    MKDEV(0, 0), data,
+						    gpiochip_groups,
+						    GPIOCHIP_NAME "%d",
+						    chip->base);
+	if (IS_ERR(data->cdev_base)) {
+		kfree(data);
+		return PTR_ERR(data->cdev_base);
+	}
 
 	return 0;
 }
 
 void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 {
+	struct gpiodev_data *data;
 	struct gpio_desc *desc;
 	struct gpio_chip *chip;
 
 	scoped_guard(mutex, &sysfs_lock) {
-		if (!gdev->mockdev)
+		data = gdev_get_data(gdev);
+		if (!data)
 			return;
 
-		device_unregister(gdev->mockdev);
-
-		/* prevent further gpiod exports */
-		gdev->mockdev = NULL;
+		device_unregister(data->cdev_base);
+		kfree(data);
 	}
 
 	guard(srcu)(&gdev->srcu);
@@ -797,9 +825,6 @@ static int gpiofind_sysfs_register(struct gpio_chip *gc, const void *data)
 {
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
-
-	if (gdev->mockdev)
-		return 0;
 
 	ret = gpiochip_sysfs_register(gdev);
 	if (ret)
