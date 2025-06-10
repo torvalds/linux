@@ -1023,10 +1023,14 @@ static int sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 
 	if (power_mode == MMC_POWER_OFF) {
 		err = sd_power_off(host);
+		if (err)
+			dev_dbg(sdmmc_dev(host), "power-off (err = %d)\n", err);
 		pm_runtime_put_noidle(sdmmc_dev(host));
 	} else {
 		pm_runtime_get_noresume(sdmmc_dev(host));
 		err = sd_power_on(host);
+		if (err)
+			dev_dbg(sdmmc_dev(host), "power-on (err = %d)\n", err);
 	}
 
 	host->power_mode = power_mode;
