@@ -1212,11 +1212,13 @@ static int tdx_map_gpa(struct kvm_vcpu *vcpu)
 	/*
 	 * Converting TDVMCALL_MAP_GPA to KVM_HC_MAP_GPA_RANGE requires
 	 * userspace to enable KVM_CAP_EXIT_HYPERCALL with KVM_HC_MAP_GPA_RANGE
-	 * bit set.  If not, the error code is not defined in GHCI for TDX, use
-	 * TDVMCALL_STATUS_INVALID_OPERAND for this case.
+	 * bit set.  This is a base call so it should always be supported, but
+	 * KVM has no way to ensure that userspace implements the GHCI correctly.
+	 * So if KVM_HC_MAP_GPA_RANGE does not cause a VMEXIT, return an error
+	 * to the guest.
 	 */
 	if (!user_exit_on_hypercall(vcpu->kvm, KVM_HC_MAP_GPA_RANGE)) {
-		ret = TDVMCALL_STATUS_INVALID_OPERAND;
+		ret = TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED;
 		goto error;
 	}
 
@@ -1476,7 +1478,7 @@ static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-	tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+	tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED);
 	return 1;
 }
 
