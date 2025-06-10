@@ -72,12 +72,12 @@
 					reg = <0x6001 0x1>;
 				};
 
-				boot_error_count: boot-error-count@6002 {
+				boot_error_count: boot-error-count@6002,0 {
 					reg = <0x6002 0x1>;
 					bits = <0 4>;
 				};
 
-				panic_count: panic-count@6002 {
+				panic_count: panic-count@6002,4 {
 					reg = <0x6002 0x1>;
 					bits = <4 4>;
 				};
@@ -86,7 +86,7 @@
 					reg = <0x6003 0x1>;
 				};
 
-				shutdown_flag: shutdown-flag@600f {
+				shutdown_flag: shutdown-flag@600f,3 {
 					reg = <0x600f 0x1>;
 					bits = <3 1>;
 				};

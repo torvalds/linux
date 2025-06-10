@@ -761,12 +761,12 @@
 						reg = <0x9f01 0x1>;
 					};
 
-					boot_error_count: boot-error-count@9f02 {
+					boot_error_count: boot-error-count@9f02,0 {
 						reg = <0x9f02 0x1>;
 						bits = <0 4>;
 					};
 
-					panic_count: panic-count@9f02 {
+					panic_count: panic-count@9f02,4 {
 						reg = <0x9f02 0x1>;
 						bits = <4 4>;
 					};
@@ -775,7 +775,7 @@
 						reg = <0x9f03 0x1>;
 					};
 
-					shutdown_flag: shutdown-flag@9f0f {
+					shutdown_flag: shutdown-flag@9f0f,3 {
 						reg = <0x9f0f 0x1>;
 						bits = <3 1>;
 					};

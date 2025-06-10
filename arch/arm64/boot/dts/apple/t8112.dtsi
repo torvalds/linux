@@ -809,12 +809,12 @@
 						reg = <0xf701 0x1>;
 					};
 
-					boot_error_count: boot-error-count@f702 {
+					boot_error_count: boot-error-count@f702,0 {
 						reg = <0xf702 0x1>;
 						bits = <0 4>;
 					};
 
-					panic_count: panic-count@f702 {
+					panic_count: panic-count@f702,4 {
 						reg = <0xf702 0x1>;
 						bits = <4 4>;
 					};
@@ -823,7 +823,7 @@
 						reg = <0xf703 0x1>;
 					};
 
-					shutdown_flag: shutdown-flag@f70f {
+					shutdown_flag: shutdown-flag@f70f,3 {
 						reg = <0xf70f 0x1>;
 						bits = <3 1>;
 					};
