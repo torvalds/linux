@@ -20,7 +20,7 @@ static int ixgbe_get_invariants_X550_x(struct ixgbe_hw *hw)
 	struct ixgbe_phy_info *phy = &hw->phy;
 	struct ixgbe_link_info *link = &hw->link;
 
-	/* Start with X540 invariants, since so simular */
+	/* Start with X540 invariants, since so similar */
 	ixgbe_get_invariants_X540(hw);
 
 	if (mac->ops.get_media_type(hw) != ixgbe_media_type_copper)
@@ -48,7 +48,7 @@ static int ixgbe_get_invariants_X550_a(struct ixgbe_hw *hw)
 	struct ixgbe_mac_info *mac = &hw->mac;
 	struct ixgbe_phy_info *phy = &hw->phy;
 
-	/* Start with X540 invariants, since so simular */
+	/* Start with X540 invariants, since so similar */
 	ixgbe_get_invariants_X540(hw);
 
 	if (mac->ops.get_media_type(hw) != ixgbe_media_type_copper)
@@ -685,7 +685,7 @@ static int ixgbe_iosf_wait(struct ixgbe_hw *hw, u32 *ctrl)
 	return 0;
 }
 
-/** ixgbe_read_iosf_sb_reg_x550 - Writes a value to specified register of the
+/** ixgbe_read_iosf_sb_reg_x550 - Reads a value to specified register of the
  *  IOSF device
  *  @hw: pointer to hardware structure
  *  @reg_addr: 32 bit PHY register to write
@@ -847,7 +847,7 @@ static int ixgbe_read_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 
 /** ixgbe_read_ee_hostif_buffer_X550- Read EEPROM word(s) using hostif
  *  @hw: pointer to hardware structure
- *  @offset: offset of  word in the EEPROM to read
+ *  @offset: offset of word in the EEPROM to read
  *  @words: number of words
  *  @data: word(s) read from the EEPROM
  *
@@ -1253,7 +1253,7 @@ static int ixgbe_get_bus_info_X550em(struct ixgbe_hw *hw)
 
 /**
  * ixgbe_fw_recovery_mode_X550 - Check FW NVM recovery mode
- * @hw: pointer t hardware structure
+ * @hw: pointer to hardware structure
  *
  * Returns true if in FW NVM recovery mode.
  */
@@ -1267,7 +1267,7 @@ static bool ixgbe_fw_recovery_mode_X550(struct ixgbe_hw *hw)
 
 /** ixgbe_disable_rx_x550 - Disable RX unit
  *
- *  Enables the Rx DMA unit for x550
+ *  Disables the Rx DMA unit for x550
  **/
 static void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 {
@@ -1754,7 +1754,7 @@ ixgbe_setup_mac_link_sfp_n(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	ret_val = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
 
 	/* If no SFP module present, then return success. Return success since
-	 * SFP not present error is not excepted in the setup MAC link flow.
+	 * SFP not present error is not accepted in the setup MAC link flow.
 	 */
 	if (ret_val == -ENOENT)
 		return 0;
@@ -1804,7 +1804,7 @@ ixgbe_setup_mac_link_sfp_x550a(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 	ret_val = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
 
 	/* If no SFP module present, then return success. Return success since
-	 * SFP not present error is not excepted in the setup MAC link flow.
+	 * SFP not present error is not accepted in the setup MAC link flow.
 	 */
 	if (ret_val == -ENOENT)
 		return 0;
@@ -2324,7 +2324,7 @@ static int ixgbe_get_link_capabilities_X550em(struct ixgbe_hw *hw,
  *	 PHY interrupt is lsc
  * @is_overtemp: indicate whether an overtemp event encountered
  *
- * Determime if external Base T PHY interrupt cause is high temperature
+ * Determine if external Base T PHY interrupt cause is high temperature
  * failure alarm or link status change.
  **/
 static int ixgbe_get_lasi_ext_t_x550em(struct ixgbe_hw *hw, bool *lsc,
@@ -2669,7 +2669,7 @@ static int ixgbe_setup_internal_phy_t_x550em(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	/* If link is not still up, then no setup is necessary so return */
+	/* If the link is still not up, no setup is necessary */
 	status = ixgbe_ext_phy_t_x550em_get_link(hw, &link_up);
 	if (status)
 		return status;
@@ -2768,7 +2768,7 @@ static int ixgbe_led_off_t_x550em(struct ixgbe_hw *hw, u32 led_idx)
  *  Sends driver version number to firmware through the manageability
  *  block.  On success return 0
  *  else returns -EBUSY when encountering an error acquiring
- *  semaphore, -EIO when command fails or -ENIVAL when incorrect
+ *  semaphore, -EIO when command fails or -EINVAL when incorrect
  *  params passed.
  **/
 int ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
@@ -3175,7 +3175,7 @@ static void ixgbe_read_mng_if_sel_x550em(struct ixgbe_hw *hw)
 	hw->phy.nw_mng_if_sel = IXGBE_READ_REG(hw, IXGBE_NW_MNG_IF_SEL);
 
 	/* If X552 (X550EM_a) and MDIO is connected to external PHY, then set
-	 * PHY address. This register field was has only been used for X552.
+	 * PHY address. This register field has only been used for X552.
 	 */
 	if (hw->mac.type == ixgbe_mac_x550em_a &&
 	    hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_MDIO_ACT) {
@@ -3735,7 +3735,7 @@ static int ixgbe_acquire_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
  * @hw: pointer to hardware structure
  * @mask: Mask to specify which semaphore to release
  *
- * Release the SWFW semaphore and puts the shared PHY token as needed
+ * Release the SWFW semaphore and puts back the shared PHY token as needed
  */
 static void ixgbe_release_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
 {
@@ -3756,7 +3756,7 @@ static void ixgbe_release_swfw_sync_x550em_a(struct ixgbe_hw *hw, u32 mask)
  * @phy_data: Pointer to read data from PHY register
  *
  * Reads a value from a specified PHY register using the SWFW lock and PHY
- * Token. The PHY Token is needed since the MDIO is shared between to MAC
+ * Token. The PHY Token is needed since the MDIO is shared between two MAC
  * instances.
  */
 static int ixgbe_read_phy_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,

@@ -132,8 +132,8 @@ enum virtchnl_ops {
 	VIRTCHNL_OP_RELEASE_RDMA_IRQ_MAP = VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP,
 	VIRTCHNL_OP_CONFIG_RSS_KEY = 23,
 	VIRTCHNL_OP_CONFIG_RSS_LUT = 24,
-	VIRTCHNL_OP_GET_RSS_HENA_CAPS = 25,
-	VIRTCHNL_OP_SET_RSS_HENA = 26,
+	VIRTCHNL_OP_GET_RSS_HASHCFG_CAPS = 25,
+	VIRTCHNL_OP_SET_RSS_HASHCFG = 26,
 	VIRTCHNL_OP_ENABLE_VLAN_STRIPPING = 27,
 	VIRTCHNL_OP_DISABLE_VLAN_STRIPPING = 28,
 	VIRTCHNL_OP_REQUEST_QUEUES = 29,
@@ -974,18 +974,19 @@ struct virtchnl_rss_lut {
 VIRTCHNL_CHECK_STRUCT_LEN(4, virtchnl_rss_lut);
 #define virtchnl_rss_lut_LEGACY_SIZEOF	6
 
-/* VIRTCHNL_OP_GET_RSS_HENA_CAPS
- * VIRTCHNL_OP_SET_RSS_HENA
- * VF sends these messages to get and set the hash filter enable bits for RSS.
+/* VIRTCHNL_OP_GET_RSS_HASHCFG_CAPS
+ * VIRTCHNL_OP_SET_RSS_HASHCFG
+ * VF sends these messages to get and set the hash filter configuration for RSS.
  * By default, the PF sets these to all possible traffic types that the
  * hardware supports. The VF can query this value if it wants to change the
  * traffic types that are hashed by the hardware.
  */
-struct virtchnl_rss_hena {
-	u64 hena;
+struct virtchnl_rss_hashcfg {
+	/* Bits defined by enum libie_filter_pctype */
+	u64 hashcfg;
 };
 
-VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_rss_hena);
+VIRTCHNL_CHECK_STRUCT_LEN(8, virtchnl_rss_hashcfg);
 
 /* Type of RSS algorithm */
 enum virtchnl_rss_algorithm {
@@ -1779,10 +1780,10 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 	case VIRTCHNL_OP_CONFIG_RSS_HFUNC:
 		valid_len = sizeof(struct virtchnl_rss_hfunc);
 		break;
-	case VIRTCHNL_OP_GET_RSS_HENA_CAPS:
+	case VIRTCHNL_OP_GET_RSS_HASHCFG_CAPS:
 		break;
-	case VIRTCHNL_OP_SET_RSS_HENA:
-		valid_len = sizeof(struct virtchnl_rss_hena);
+	case VIRTCHNL_OP_SET_RSS_HASHCFG:
+		valid_len = sizeof(struct virtchnl_rss_hashcfg);
 		break;
 	case VIRTCHNL_OP_ENABLE_VLAN_STRIPPING:
 	case VIRTCHNL_OP_DISABLE_VLAN_STRIPPING:
