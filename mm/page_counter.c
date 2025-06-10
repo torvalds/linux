@@ -121,6 +121,7 @@ bool page_counter_try_charge(struct page_counter *counter,
 {
 	struct page_counter *c;
 	bool protection = track_protection(counter);
+	bool track_failcnt = counter->track_failcnt;
 
 	for (c = counter; c; c = c->parent) {
 		long new;
@@ -146,7 +147,8 @@ bool page_counter_try_charge(struct page_counter *counter,
 			 * inaccuracy in the failcnt which is only used
 			 * to report stats.
 			 */
-			data_race(c->failcnt++);
+			if (track_failcnt)
+				data_race(c->failcnt++);
 			*fail = c;
 			goto failed;
 		}

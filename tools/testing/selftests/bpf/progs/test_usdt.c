@@ -11,6 +11,7 @@ int usdt0_called;
 u64 usdt0_cookie;
 int usdt0_arg_cnt;
 int usdt0_arg_ret;
+int usdt0_arg_size;
 
 SEC("usdt")
 int usdt0(struct pt_regs *ctx)
@@ -26,6 +27,7 @@ int usdt0(struct pt_regs *ctx)
 	usdt0_arg_cnt = bpf_usdt_arg_cnt(ctx);
 	/* should return -ENOENT for any arg_num */
 	usdt0_arg_ret = bpf_usdt_arg(ctx, bpf_get_prandom_u32(), &tmp);
+	usdt0_arg_size = bpf_usdt_arg_size(ctx, bpf_get_prandom_u32());
 	return 0;
 }
 
@@ -34,6 +36,7 @@ u64 usdt3_cookie;
 int usdt3_arg_cnt;
 int usdt3_arg_rets[3];
 u64 usdt3_args[3];
+int usdt3_arg_sizes[3];
 
 SEC("usdt//proc/self/exe:test:usdt3")
 int usdt3(struct pt_regs *ctx)
@@ -50,12 +53,15 @@ int usdt3(struct pt_regs *ctx)
 
 	usdt3_arg_rets[0] = bpf_usdt_arg(ctx, 0, &tmp);
 	usdt3_args[0] = (int)tmp;
+	usdt3_arg_sizes[0] = bpf_usdt_arg_size(ctx, 0);
 
 	usdt3_arg_rets[1] = bpf_usdt_arg(ctx, 1, &tmp);
 	usdt3_args[1] = (long)tmp;
+	usdt3_arg_sizes[1] = bpf_usdt_arg_size(ctx, 1);
 
 	usdt3_arg_rets[2] = bpf_usdt_arg(ctx, 2, &tmp);
 	usdt3_args[2] = (uintptr_t)tmp;
+	usdt3_arg_sizes[2] = bpf_usdt_arg_size(ctx, 2);
 
 	return 0;
 }
@@ -64,12 +70,15 @@ int usdt12_called;
 u64 usdt12_cookie;
 int usdt12_arg_cnt;
 u64 usdt12_args[12];
+int usdt12_arg_sizes[12];
 
 SEC("usdt//proc/self/exe:test:usdt12")
 int BPF_USDT(usdt12, int a1, int a2, long a3, long a4, unsigned a5,
 		     long a6, __u64 a7, uintptr_t a8, int a9, short a10,
 		     short a11, signed char a12)
 {
+	int i;
+
 	if (my_pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 
@@ -90,6 +99,11 @@ int BPF_USDT(usdt12, int a1, int a2, long a3, long a4, unsigned a5,
 	usdt12_args[9] = a10;
 	usdt12_args[10] = a11;
 	usdt12_args[11] = a12;
+
+	bpf_for(i, 0, 12) {
+		usdt12_arg_sizes[i] = bpf_usdt_arg_size(ctx, i);
+	}
+
 	return 0;
 }
 

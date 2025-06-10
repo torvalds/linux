@@ -57,11 +57,10 @@ static ssize_t efivarfs_file_write(struct file *file,
 
 	if (bytes == -ENOENT) {
 		/*
-		 * FIXME: temporary workaround for fwupdate, signal
-		 * failed write with a 1 to keep created but not
-		 * written files
+		 * zero size signals to release that the write deleted
+		 * the variable
 		 */
-		i_size_write(inode, 1);
+		i_size_write(inode, 0);
 	} else {
 		i_size_write(inode, datasize + sizeof(attributes));
 		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
@@ -125,8 +124,7 @@ static int efivarfs_file_release(struct inode *inode, struct file *file)
 	struct efivar_entry *var = inode->i_private;
 
 	inode_lock(inode);
-	/* FIXME: temporary work around for fwupdate */
-	var->removed = (--var->open_count == 0 && i_size_read(inode) == 1);
+	var->removed = (--var->open_count == 0 && i_size_read(inode) == 0);
 	inode_unlock(inode);
 
 	if (var->removed)

@@ -4611,7 +4611,7 @@ void brcmf_sdio_wd_timer(struct brcmf_sdio *bus, bool active)
 {
 	/* Totally stop the timer */
 	if (!active && bus->wd_active) {
-		del_timer_sync(&bus->timer);
+		timer_delete_sync(&bus->timer);
 		bus->wd_active = false;
 		return;
 	}

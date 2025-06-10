@@ -960,7 +960,7 @@ static enum dc_status build_mapped_resource(
 	return DC_OK;
 }
 
-static bool dce110_validate_bandwidth(
+static enum dc_status dce110_validate_bandwidth(
 	struct dc *dc,
 	struct dc_state *context,
 	bool fast_validate)
@@ -1031,7 +1031,7 @@ static bool dce110_validate_bandwidth(
 			context->bw_ctx.bw.dce.yclk_khz,
 			context->bw_ctx.bw.dce.blackout_recovery_time_us);
 	}
-	return result;
+	return result ? DC_OK : DC_FAIL_BANDWIDTH_VALIDATE;
 }
 
 static enum dc_status dce110_validate_plane(const struct dc_plane_state *plane_state,

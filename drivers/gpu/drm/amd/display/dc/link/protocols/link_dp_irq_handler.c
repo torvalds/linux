@@ -37,6 +37,7 @@
 #include "link/accessories/link_dp_trace.h"
 #include "link/link_dpms.h"
 #include "dm_helpers.h"
+#include "link_dp_dpia_bw.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -228,6 +229,10 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 
 		link->replay_settings.config.replay_error_status.raw |= replay_error_status.raw;
 
+		/* Increment desync error counter if a desync error is detected */
+		if (replay_configuration.bits.DESYNC_ERROR_STATUS)
+			link->replay_settings.replay_desync_error_fail_count++;
+
 		if (link->replay_settings.config.force_disable_desync_error_check)
 			return;
 
@@ -238,9 +243,6 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 			DP_SINK_PR_REPLAY_STATUS,
 			&replay_configuration.raw,
 			sizeof(replay_configuration.raw));
-
-		/* Update desync error counter */
-		link->replay_settings.replay_desync_error_fail_count++;
 
 		/* Acknowledge and clear error bits */
 		dm_helpers_dp_write_dpcd(
@@ -286,6 +288,30 @@ void dp_handle_link_loss(struct dc_link *link)
 	}
 }
 
+static void dp_handle_tunneling_irq(struct dc_link *link)
+{
+	enum dc_status retval;
+	uint8_t tunneling_status = 0;
+
+	retval = core_link_read_dpcd(
+			link, DP_TUNNELING_STATUS,
+			&tunneling_status,
+			sizeof(tunneling_status));
+
+	if (retval == DC_OK) {
+		DC_LOG_HW_HPD_IRQ("%s: Got DP tunneling status on link %d status=0x%x",
+				__func__, link->link_index, tunneling_status);
+
+		if (tunneling_status & DP_TUNNELING_BW_ALLOC_BITS_MASK)
+			link_dp_dpia_handle_bw_alloc_status(link, tunneling_status);
+	}
+
+	tunneling_status = DP_TUNNELING_IRQ;
+	core_link_write_dpcd(
+		link, DP_LINK_SERVICE_IRQ_VECTOR_ESI0,
+		&tunneling_status, 1);
+}
+
 static void read_dpcd204h_on_irq_hpd(struct dc_link *link, union hpd_irq_data *irq_data)
 {
 	enum dc_status retval;
@@ -319,13 +345,19 @@ enum dc_status dp_read_hpd_rx_irq_data(
 	 *
 	 * For DP 1.4 we need to read those from 2002h range.
 	 */
-	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14)
+	if (link->dpcd_caps.dpcd_rev.raw < DPCD_REV_14) {
 		retval = core_link_read_dpcd(
 			link,
 			DP_SINK_COUNT,
 			irq_data->raw,
-			sizeof(union hpd_irq_data));
-	else {
+			DP_SINK_STATUS - DP_SINK_COUNT + 1);
+
+		if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dp_tunneling) {
+			retval = core_link_read_dpcd(
+					link, DP_LINK_SERVICE_IRQ_VECTOR_ESI0,
+					&irq_data->bytes.link_service_irq_esi0.raw, 1);
+		}
+	} else {
 		/* Read 14 bytes in a single read and then copy only the required fields.
 		 * This is more efficient than doing it in two separate AUX reads. */
 
@@ -346,6 +378,7 @@ enum dc_status dp_read_hpd_rx_irq_data(
 		irq_data->bytes.lane23_status.raw = tmp[DP_LANE2_3_STATUS_ESI - DP_SINK_COUNT_ESI];
 		irq_data->bytes.lane_status_updated.raw = tmp[DP_LANE_ALIGN_STATUS_UPDATED_ESI - DP_SINK_COUNT_ESI];
 		irq_data->bytes.sink_status.raw = tmp[DP_SINK_STATUS_ESI - DP_SINK_COUNT_ESI];
+		irq_data->bytes.link_service_irq_esi0.raw = tmp[DP_LINK_SERVICE_IRQ_VECTOR_ESI0 - DP_SINK_COUNT_ESI];
 
 		/*
 		 * This display doesn't have correct values in DPCD200Eh.
@@ -486,6 +519,11 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 			*out_link_loss = true;
 
 		dp_trace_link_loss_increment(link);
+	}
+
+	if (link->dpcd_caps.usb4_dp_tun_info.dp_tun_cap.bits.dp_tunneling) {
+		if (hpd_irq_dpcd_data.bytes.link_service_irq_esi0.bits.DP_LINK_TUNNELING_IRQ)
+			dp_handle_tunneling_irq(link);
 	}
 
 	if (link->type == dc_connection_sst_branch &&

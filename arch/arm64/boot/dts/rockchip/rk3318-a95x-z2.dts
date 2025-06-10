@@ -274,13 +274,13 @@
 
 &pwm0 {
 	pinctrl-0 = <&pwm0_pin_pull_up>;
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	status = "okay";
 };
 
 &pwm1 {
 	pinctrl-0 = <&pwm1_pin_pull_up>;
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	status = "okay";
 };
 

@@ -159,7 +159,7 @@ static void noinline __section(".idmap.text") set_ttbr0_for_lpa2(u64 ttbr)
 static void __init remap_idmap_for_lpa2(void)
 {
 	/* clear the bits that change meaning once LPA2 is turned on */
-	pteval_t mask = PTE_SHARED;
+	ptdesc_t mask = PTE_SHARED;
 
 	/*
 	 * We have to clear bits [9:8] in all block or page descriptors in the
@@ -207,6 +207,29 @@ static void __init map_fdt(u64 fdt)
 	dsb(ishst);
 }
 
+/*
+ * PI version of the Cavium Eratum 27456 detection, which makes it
+ * impossible to use non-global mappings.
+ */
+static bool __init ng_mappings_allowed(void)
+{
+	static const struct midr_range cavium_erratum_27456_cpus[] __initconst = {
+		/* Cavium ThunderX, T88 pass 1.x - 2.1 */
+		MIDR_RANGE(MIDR_THUNDERX, 0, 0, 1, 1),
+		/* Cavium ThunderX, T81 pass 1.0 */
+		MIDR_REV(MIDR_THUNDERX_81XX, 0, 0),
+		{},
+	};
+
+	for (const struct midr_range *r = cavium_erratum_27456_cpus; r->model; r++) {
+		if (midr_is_cpu_model_range(read_cpuid_id(), r->model,
+					    r->rv_min, r->rv_max))
+			return false;
+	}
+
+	return true;
+}
+
 asmlinkage void __init early_map_kernel(u64 boot_status, void *fdt)
 {
 	static char const chosen_str[] __initconst = "/chosen";
@@ -246,7 +269,7 @@ asmlinkage void __init early_map_kernel(u64 boot_status, void *fdt)
 		u64 kaslr_seed = kaslr_early_init(fdt, chosen);
 
 		if (kaslr_seed && kaslr_requires_kpti())
-			arm64_use_ng_mappings = true;
+			arm64_use_ng_mappings = ng_mappings_allowed();
 
 		kaslr_offset |= kaslr_seed & ~(MIN_KIMG_ALIGN - 1);
 	}

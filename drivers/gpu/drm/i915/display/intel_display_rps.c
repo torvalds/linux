@@ -8,6 +8,8 @@
 
 #include "gt/intel_rps.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
+#include "intel_display_irq.h"
 #include "intel_display_rps.h"
 #include "intel_display_types.h"
 
@@ -69,13 +71,36 @@ void intel_display_rps_boost_after_vblank(struct drm_crtc *crtc,
 	add_wait_queue(drm_crtc_vblank_waitqueue(crtc), &wait->wait);
 }
 
-void intel_display_rps_mark_interactive(struct drm_i915_private *i915,
+void intel_display_rps_mark_interactive(struct intel_display *display,
 					struct intel_atomic_state *state,
 					bool interactive)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	if (state->rps_interactive == interactive)
 		return;
 
 	intel_rps_mark_interactive(&to_gt(i915)->rps, interactive);
 	state->rps_interactive = interactive;
+}
+
+void ilk_display_rps_enable(struct intel_display *display)
+{
+	spin_lock(&display->irq.lock);
+	ilk_enable_display_irq(display, DE_PCU_EVENT);
+	spin_unlock(&display->irq.lock);
+}
+
+void ilk_display_rps_disable(struct intel_display *display)
+{
+	spin_lock(&display->irq.lock);
+	ilk_disable_display_irq(display, DE_PCU_EVENT);
+	spin_unlock(&display->irq.lock);
+}
+
+void ilk_display_rps_irq_handler(struct intel_display *display)
+{
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	gen5_rps_irq_handler(&to_gt(i915)->rps);
 }

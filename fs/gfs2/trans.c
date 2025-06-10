@@ -226,6 +226,27 @@ out:
 	unlock_buffer(bh);
 }
 
+void gfs2_trans_add_databufs(struct gfs2_glock *gl, struct folio *folio,
+			     size_t from, size_t len)
+{
+	struct buffer_head *head = folio_buffers(folio);
+	unsigned int bsize = head->b_size;
+	struct buffer_head *bh;
+	size_t to = from + len;
+	size_t start, end;
+
+	for (bh = head, start = 0; bh != head || !start;
+	     bh = bh->b_this_page, start = end) {
+		end = start + bsize;
+		if (end <= from)
+			continue;
+		if (start >= to)
+			break;
+		set_buffer_uptodate(bh);
+		gfs2_trans_add_data(gl, bh);
+	}
+}
+
 void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 {
 
@@ -246,12 +267,12 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	if (bd == NULL) {
 		gfs2_log_unlock(sdp);
 		unlock_buffer(bh);
-		lock_page(bh->b_page);
+		folio_lock(bh->b_folio);
 		if (bh->b_private == NULL)
 			bd = gfs2_alloc_bufdata(gl, bh);
 		else
 			bd = bh->b_private;
-		unlock_page(bh->b_page);
+		folio_unlock(bh->b_folio);
 		lock_buffer(bh);
 		gfs2_log_lock(sdp);
 	}

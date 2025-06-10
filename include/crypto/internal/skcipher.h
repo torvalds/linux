@@ -10,6 +10,7 @@
 
 #include <crypto/algapi.h>
 #include <crypto/internal/cipher.h>
+#include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
 #include <linux/types.h>
 
@@ -52,32 +53,6 @@ struct crypto_skcipher_spawn {
 
 struct crypto_lskcipher_spawn {
 	struct crypto_spawn base;
-};
-
-struct skcipher_walk {
-	union {
-		struct {
-			void *addr;
-		} virt;
-	} src, dst;
-
-	struct scatter_walk in;
-	unsigned int nbytes;
-
-	struct scatter_walk out;
-	unsigned int total;
-
-	u8 *page;
-	u8 *buffer;
-	u8 *oiv;
-	void *iv;
-
-	unsigned int ivsize;
-
-	int flags;
-	unsigned int blocksize;
-	unsigned int stride;
-	unsigned int alignmask;
 };
 
 static inline struct crypto_instance *skcipher_crypto_instance(
@@ -196,19 +171,15 @@ void crypto_unregister_lskciphers(struct lskcipher_alg *algs, int count);
 int lskcipher_register_instance(struct crypto_template *tmpl,
 				struct lskcipher_instance *inst);
 
-int skcipher_walk_done(struct skcipher_walk *walk, int res);
-int skcipher_walk_virt(struct skcipher_walk *walk,
-		       struct skcipher_request *req,
+int skcipher_walk_virt(struct skcipher_walk *__restrict walk,
+		       struct skcipher_request *__restrict req,
 		       bool atomic);
-int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic);
-int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic);
-
-static inline void skcipher_walk_abort(struct skcipher_walk *walk)
-{
-	skcipher_walk_done(walk, -ECANCELED);
-}
+int skcipher_walk_aead_encrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic);
+int skcipher_walk_aead_decrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic);
 
 static inline void *crypto_skcipher_ctx(struct crypto_skcipher *tfm)
 {

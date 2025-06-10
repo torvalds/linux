@@ -48,14 +48,17 @@
 #include <trace/events/power.h>
 #include <linux/sched.h>
 #include <linux/sched/smt.h>
+#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/moduleparam.h>
-#include <asm/cpuid.h>
+#include <linux/sysfs.h>
+#include <asm/cpuid/api.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/mwait.h>
 #include <asm/spec-ctrl.h>
+#include <asm/msr.h>
 #include <asm/tsc.h>
 #include <asm/fpu/api.h>
 #include <asm/smp.h>
@@ -92,8 +95,14 @@ struct idle_cpu {
 	 */
 	unsigned long auto_demotion_disable_flags;
 	bool disable_promotion_to_c1e;
+	bool c1_demotion_supported;
 	bool use_acpi;
 };
+
+static bool c1_demotion_supported;
+static DEFINE_MUTEX(c1_demotion_mutex);
+
+static struct device *sysfs_root __initdata;
 
 static const struct idle_cpu *icpu __initdata;
 static struct cpuidle_state *cpuidle_state_table __initdata;
@@ -1549,18 +1558,21 @@ static const struct idle_cpu idle_cpu_gmt __initconst = {
 static const struct idle_cpu idle_cpu_spr __initconst = {
 	.state_table = spr_cstates,
 	.disable_promotion_to_c1e = true,
+	.c1_demotion_supported = true,
 	.use_acpi = true,
 };
 
 static const struct idle_cpu idle_cpu_gnr __initconst = {
 	.state_table = gnr_cstates,
 	.disable_promotion_to_c1e = true,
+	.c1_demotion_supported = true,
 	.use_acpi = true,
 };
 
 static const struct idle_cpu idle_cpu_gnrd __initconst = {
 	.state_table = gnrd_cstates,
 	.disable_promotion_to_c1e = true,
+	.c1_demotion_supported = true,
 	.use_acpi = true,
 };
 
@@ -1599,12 +1611,14 @@ static const struct idle_cpu idle_cpu_snr __initconst = {
 static const struct idle_cpu idle_cpu_grr __initconst = {
 	.state_table = grr_cstates,
 	.disable_promotion_to_c1e = true,
+	.c1_demotion_supported = true,
 	.use_acpi = true,
 };
 
 static const struct idle_cpu idle_cpu_srf __initconst = {
 	.state_table = srf_cstates,
 	.disable_promotion_to_c1e = true,
+	.c1_demotion_supported = true,
 	.use_acpi = true,
 };
 
@@ -1928,35 +1942,35 @@ static void __init bxt_idle_state_table_update(void)
 	unsigned long long msr;
 	unsigned int usec;
 
-	rdmsrl(MSR_PKGC6_IRTL, msr);
+	rdmsrq(MSR_PKGC6_IRTL, msr);
 	usec = irtl_2_usec(msr);
 	if (usec) {
 		bxt_cstates[2].exit_latency = usec;
 		bxt_cstates[2].target_residency = usec;
 	}
 
-	rdmsrl(MSR_PKGC7_IRTL, msr);
+	rdmsrq(MSR_PKGC7_IRTL, msr);
 	usec = irtl_2_usec(msr);
 	if (usec) {
 		bxt_cstates[3].exit_latency = usec;
 		bxt_cstates[3].target_residency = usec;
 	}
 
-	rdmsrl(MSR_PKGC8_IRTL, msr);
+	rdmsrq(MSR_PKGC8_IRTL, msr);
 	usec = irtl_2_usec(msr);
 	if (usec) {
 		bxt_cstates[4].exit_latency = usec;
 		bxt_cstates[4].target_residency = usec;
 	}
 
-	rdmsrl(MSR_PKGC9_IRTL, msr);
+	rdmsrq(MSR_PKGC9_IRTL, msr);
 	usec = irtl_2_usec(msr);
 	if (usec) {
 		bxt_cstates[5].exit_latency = usec;
 		bxt_cstates[5].target_residency = usec;
 	}
 
-	rdmsrl(MSR_PKGC10_IRTL, msr);
+	rdmsrq(MSR_PKGC10_IRTL, msr);
 	usec = irtl_2_usec(msr);
 	if (usec) {
 		bxt_cstates[6].exit_latency = usec;
@@ -1984,7 +1998,7 @@ static void __init sklh_idle_state_table_update(void)
 	if ((mwait_substates & (0xF << 28)) == 0)
 		return;
 
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr);
 
 	/* PC10 is not enabled in PKG C-state limit */
 	if ((msr & 0xF) != 8)
@@ -1996,7 +2010,7 @@ static void __init sklh_idle_state_table_update(void)
 	/* if SGX is present */
 	if (ebx & (1 << 2)) {
 
-		rdmsrl(MSR_IA32_FEAT_CTL, msr);
+		rdmsrq(MSR_IA32_FEAT_CTL, msr);
 
 		/* if SGX is enabled */
 		if (msr & (1 << 18))
@@ -2015,7 +2029,7 @@ static void __init skx_idle_state_table_update(void)
 {
 	unsigned long long msr;
 
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr);
 
 	/*
 	 * 000b: C0/C1 (no package C-state support)
@@ -2068,7 +2082,7 @@ static void __init spr_idle_state_table_update(void)
 	 * C6. However, if PC6 is disabled, we update the numbers to match
 	 * core C6.
 	 */
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr);
 
 	/* Limit value 2 and above allow for PC6. */
 	if ((msr & 0x7) < 2) {
@@ -2082,8 +2096,8 @@ static void __init spr_idle_state_table_update(void)
  */
 static void __init byt_cht_auto_demotion_disable(void)
 {
-	wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
-	wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
+	wrmsrq(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
+	wrmsrq(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
 }
 
 static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
@@ -2241,27 +2255,27 @@ static void auto_demotion_disable(void)
 {
 	unsigned long long msr_bits;
 
-	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
+	rdmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
 	msr_bits &= ~auto_demotion_disable_flags;
-	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
+	wrmsrq(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
 }
 
 static void c1e_promotion_enable(void)
 {
 	unsigned long long msr_bits;
 
-	rdmsrl(MSR_IA32_POWER_CTL, msr_bits);
+	rdmsrq(MSR_IA32_POWER_CTL, msr_bits);
 	msr_bits |= 0x2;
-	wrmsrl(MSR_IA32_POWER_CTL, msr_bits);
+	wrmsrq(MSR_IA32_POWER_CTL, msr_bits);
 }
 
 static void c1e_promotion_disable(void)
 {
 	unsigned long long msr_bits;
 
-	rdmsrl(MSR_IA32_POWER_CTL, msr_bits);
+	rdmsrq(MSR_IA32_POWER_CTL, msr_bits);
 	msr_bits &= ~0x2;
-	wrmsrl(MSR_IA32_POWER_CTL, msr_bits);
+	wrmsrq(MSR_IA32_POWER_CTL, msr_bits);
 }
 
 /**
@@ -2324,6 +2338,88 @@ static void __init intel_idle_cpuidle_devices_uninit(void)
 		cpuidle_unregister_device(per_cpu_ptr(intel_idle_cpuidle_devices, i));
 }
 
+static void intel_c1_demotion_toggle(void *enable)
+{
+	unsigned long long msr_val;
+
+	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
+	/*
+	 * Enable/disable C1 undemotion along with C1 demotion, as this is the
+	 * most sensible configuration in general.
+	 */
+	if (enable)
+		msr_val |= NHM_C1_AUTO_DEMOTE | SNB_C1_AUTO_UNDEMOTE;
+	else
+		msr_val &= ~(NHM_C1_AUTO_DEMOTE | SNB_C1_AUTO_UNDEMOTE);
+	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
+}
+
+static ssize_t intel_c1_demotion_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	bool enable;
+	int err;
+
+	err = kstrtobool(buf, &enable);
+	if (err)
+		return err;
+
+	mutex_lock(&c1_demotion_mutex);
+	/* Enable/disable C1 demotion on all CPUs */
+	on_each_cpu(intel_c1_demotion_toggle, (void *)enable, 1);
+	mutex_unlock(&c1_demotion_mutex);
+
+	return count;
+}
+
+static ssize_t intel_c1_demotion_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	unsigned long long msr_val;
+
+	/*
+	 * Read the MSR value for a CPU and assume it is the same for all CPUs. Any other
+	 * configuration would be a BIOS bug.
+	 */
+	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_val);
+	return sysfs_emit(buf, "%d\n", !!(msr_val & NHM_C1_AUTO_DEMOTE));
+}
+static DEVICE_ATTR_RW(intel_c1_demotion);
+
+static int __init intel_idle_sysfs_init(void)
+{
+	int err;
+
+	if (!c1_demotion_supported)
+		return 0;
+
+	sysfs_root = bus_get_dev_root(&cpu_subsys);
+	if (!sysfs_root)
+		return 0;
+
+	err = sysfs_add_file_to_group(&sysfs_root->kobj,
+				      &dev_attr_intel_c1_demotion.attr,
+				      "cpuidle");
+	if (err) {
+		put_device(sysfs_root);
+		return err;
+	}
+
+	return 0;
+}
+
+static void __init intel_idle_sysfs_uninit(void)
+{
+	if (!sysfs_root)
+		return;
+
+	sysfs_remove_file_from_group(&sysfs_root->kobj,
+				     &dev_attr_intel_c1_demotion.attr,
+				     "cpuidle");
+	put_device(sysfs_root);
+}
+
 static int __init intel_idle_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -2374,6 +2470,8 @@ static int __init intel_idle_init(void)
 		auto_demotion_disable_flags = icpu->auto_demotion_disable_flags;
 		if (icpu->disable_promotion_to_c1e)
 			c1e_promotion = C1E_PROMOTION_DISABLE;
+		if (icpu->c1_demotion_supported)
+			c1_demotion_supported = true;
 		if (icpu->use_acpi || force_use_acpi)
 			intel_idle_acpi_cst_extract();
 	} else if (!intel_idle_acpi_cst_extract()) {
@@ -2386,6 +2484,10 @@ static int __init intel_idle_init(void)
 	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
 	if (!intel_idle_cpuidle_devices)
 		return -ENOMEM;
+
+	retval = intel_idle_sysfs_init();
+	if (retval)
+		pr_warn("failed to initialized sysfs");
 
 	intel_idle_cpuidle_driver_init(&intel_idle_driver);
 
@@ -2411,6 +2513,7 @@ hp_setup_fail:
 	intel_idle_cpuidle_devices_uninit();
 	cpuidle_unregister_driver(&intel_idle_driver);
 init_driver_fail:
+	intel_idle_sysfs_uninit();
 	free_percpu(intel_idle_cpuidle_devices);
 	return retval;
 

@@ -981,13 +981,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		}
 
 		if (PageHuge(page)) {
+			const unsigned int order = compound_order(page);
 			/*
 			 * skip hugetlbfs if we are not compacting for pages
 			 * bigger than its order. THPs and other compound pages
 			 * are handled below.
 			 */
 			if (!cc->alloc_contig) {
-				const unsigned int order = compound_order(page);
 
 				if (order <= MAX_PAGE_ORDER) {
 					low_pfn += (1UL << order) - 1;
@@ -1001,27 +1001,27 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 				locked = NULL;
 			}
 
-			ret = isolate_or_dissolve_huge_page(page, &cc->migratepages);
+			folio = page_folio(page);
+			ret = isolate_or_dissolve_huge_folio(folio, &cc->migratepages);
 
 			/*
-			 * Fail isolation in case isolate_or_dissolve_huge_page()
+			 * Fail isolation in case isolate_or_dissolve_huge_folio()
 			 * reports an error. In case of -ENOMEM, abort right away.
 			 */
 			if (ret < 0) {
 				 /* Do not report -EBUSY down the chain */
 				if (ret == -EBUSY)
 					ret = 0;
-				low_pfn += compound_nr(page) - 1;
-				nr_scanned += compound_nr(page) - 1;
+				low_pfn += (1UL << order) - 1;
+				nr_scanned += (1UL << order) - 1;
 				goto isolate_fail;
 			}
 
-			if (PageHuge(page)) {
+			if (folio_test_hugetlb(folio)) {
 				/*
 				 * Hugepage was successfully isolated and placed
 				 * on the cc->migratepages list.
 				 */
-				folio = page_folio(page);
 				low_pfn += folio_nr_pages(folio) - 1;
 				goto isolate_success_no_list;
 			}
@@ -2249,15 +2249,11 @@ static unsigned int fragmentation_score_node(pg_data_t *pgdat)
 
 static unsigned int fragmentation_score_wmark(bool low)
 {
-	unsigned int wmark_low;
+	unsigned int wmark_low, leeway;
 
-	/*
-	 * Cap the low watermark to avoid excessive compaction
-	 * activity in case a user sets the proactiveness tunable
-	 * close to 100 (maximum).
-	 */
-	wmark_low = max(100U - sysctl_compaction_proactiveness, 5U);
-	return low ? wmark_low : min(wmark_low + 10, 100U);
+	wmark_low = 100U - sysctl_compaction_proactiveness;
+	leeway = min(10U, wmark_low / 2);
+	return low ? wmark_low : min(wmark_low + leeway, 100U);
 }
 
 static bool should_proactive_compact_node(pg_data_t *pgdat)
@@ -2328,11 +2324,26 @@ static enum compact_result __compact_finished(struct compact_control *cc)
 	if (!pageblock_aligned(cc->migrate_pfn))
 		return COMPACT_CONTINUE;
 
+	/*
+	 * When defrag_mode is enabled, make kcompactd target
+	 * watermarks in whole pageblocks. Because they can be stolen
+	 * without polluting, no further fallback checks are needed.
+	 */
+	if (defrag_mode && !cc->direct_compaction) {
+		if (__zone_watermark_ok(cc->zone, cc->order,
+					high_wmark_pages(cc->zone),
+					cc->highest_zoneidx, cc->alloc_flags,
+					zone_page_state(cc->zone,
+							NR_FREE_PAGES_BLOCKS)))
+			return COMPACT_SUCCESS;
+
+		return COMPACT_CONTINUE;
+	}
+
 	/* Direct compactor: Is a suitable page free? */
 	ret = COMPACT_NO_SUITABLE_PAGE;
 	for (order = cc->order; order < NR_PAGE_ORDERS; order++) {
 		struct free_area *area = &cc->zone->free_area[order];
-		bool can_steal;
 
 		/* Job done if page is free of the right migratetype */
 		if (!free_area_empty(area, migratetype))
@@ -2348,8 +2359,7 @@ static enum compact_result __compact_finished(struct compact_control *cc)
 		 * Job done if allocation would steal freepages from
 		 * other migratetype buddy lists.
 		 */
-		if (find_suitable_fallback(area, order, migratetype,
-						true, &can_steal) != -1)
+		if (find_suitable_fallback(area, order, migratetype, true) >= 0)
 			/*
 			 * Movable pages are OK in any pageblock. If we are
 			 * stealing for a non-movable allocation, make sure
@@ -2381,40 +2391,42 @@ static enum compact_result compact_finished(struct compact_control *cc)
 }
 
 static bool __compaction_suitable(struct zone *zone, int order,
-				  int highest_zoneidx,
-				  unsigned long wmark_target)
+				  unsigned long watermark, int highest_zoneidx,
+				  unsigned long free_pages)
 {
-	unsigned long watermark;
 	/*
 	 * Watermarks for order-0 must be met for compaction to be able to
 	 * isolate free pages for migration targets. This means that the
-	 * watermark and alloc_flags have to match, or be more pessimistic than
-	 * the check in __isolate_free_page(). We don't use the direct
-	 * compactor's alloc_flags, as they are not relevant for freepage
-	 * isolation. We however do use the direct compactor's highest_zoneidx
-	 * to skip over zones where lowmem reserves would prevent allocation
-	 * even if compaction succeeds.
-	 * For costly orders, we require low watermark instead of min for
-	 * compaction to proceed to increase its chances.
+	 * watermark have to match, or be more pessimistic than the check in
+	 * __isolate_free_page().
+	 *
+	 * For costly orders, we require a higher watermark for compaction to
+	 * proceed to increase its chances.
+	 *
+	 * We use the direct compactor's highest_zoneidx to skip over zones
+	 * where lowmem reserves would prevent allocation even if compaction
+	 * succeeds.
+	 *
 	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
-	 * suitable migration targets
+	 * suitable migration targets.
 	 */
-	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
-				low_wmark_pages(zone) : min_wmark_pages(zone);
 	watermark += compact_gap(order);
+	if (order > PAGE_ALLOC_COSTLY_ORDER)
+		watermark += low_wmark_pages(zone) - min_wmark_pages(zone);
 	return __zone_watermark_ok(zone, 0, watermark, highest_zoneidx,
-				   ALLOC_CMA, wmark_target);
+				   ALLOC_CMA, free_pages);
 }
 
 /*
  * compaction_suitable: Is this suitable to run compaction on this zone now?
  */
-bool compaction_suitable(struct zone *zone, int order, int highest_zoneidx)
+bool compaction_suitable(struct zone *zone, int order, unsigned long watermark,
+			 int highest_zoneidx)
 {
 	enum compact_result compact_result;
 	bool suitable;
 
-	suitable = __compaction_suitable(zone, order, highest_zoneidx,
+	suitable = __compaction_suitable(zone, order, watermark, highest_zoneidx,
 					 zone_page_state(zone, NR_FREE_PAGES));
 	/*
 	 * fragmentation index determines if allocation failures are due to
@@ -2452,6 +2464,7 @@ bool compaction_suitable(struct zone *zone, int order, int highest_zoneidx)
 	return suitable;
 }
 
+/* Used by direct reclaimers */
 bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 		int alloc_flags)
 {
@@ -2474,8 +2487,8 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 		 */
 		available = zone_reclaimable_pages(zone) / order;
 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
-		if (__compaction_suitable(zone, order, ac->highest_zoneidx,
-					  available))
+		if (__compaction_suitable(zone, order, min_wmark_pages(zone),
+					  ac->highest_zoneidx, available))
 			return true;
 	}
 
@@ -2492,13 +2505,19 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 static enum compact_result
 compaction_suit_allocation_order(struct zone *zone, unsigned int order,
 				 int highest_zoneidx, unsigned int alloc_flags,
-				 bool async)
+				 bool async, bool kcompactd)
 {
+	unsigned long free_pages;
 	unsigned long watermark;
 
+	if (kcompactd && defrag_mode)
+		free_pages = zone_page_state(zone, NR_FREE_PAGES_BLOCKS);
+	else
+		free_pages = zone_page_state(zone, NR_FREE_PAGES);
+
 	watermark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
-	if (zone_watermark_ok(zone, order, watermark, highest_zoneidx,
-			      alloc_flags))
+	if (__zone_watermark_ok(zone, order, watermark, highest_zoneidx,
+				alloc_flags, free_pages))
 		return COMPACT_SUCCESS;
 
 	/*
@@ -2512,13 +2531,13 @@ compaction_suit_allocation_order(struct zone *zone, unsigned int order,
 	 */
 	if (order > PAGE_ALLOC_COSTLY_ORDER && async &&
 	    !(alloc_flags & ALLOC_CMA)) {
-		watermark = low_wmark_pages(zone) + compact_gap(order);
-		if (!__zone_watermark_ok(zone, 0, watermark, highest_zoneidx,
-					   0, zone_page_state(zone, NR_FREE_PAGES)))
+		if (!__zone_watermark_ok(zone, 0, watermark + compact_gap(order),
+					 highest_zoneidx, 0,
+					 zone_page_state(zone, NR_FREE_PAGES)))
 			return COMPACT_SKIPPED;
 	}
 
-	if (!compaction_suitable(zone, order, highest_zoneidx))
+	if (!compaction_suitable(zone, order, watermark, highest_zoneidx))
 		return COMPACT_SKIPPED;
 
 	return COMPACT_CONTINUE;
@@ -2554,7 +2573,8 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 		ret = compaction_suit_allocation_order(cc->zone, cc->order,
 						       cc->highest_zoneidx,
 						       cc->alloc_flags,
-						       cc->mode == MIGRATE_ASYNC);
+						       cc->mode == MIGRATE_ASYNC,
+						       !cc->direct_compaction);
 		if (ret != COMPACT_CONTINUE)
 			return ret;
 	}
@@ -3048,6 +3068,8 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
 	struct zone *zone;
 	enum zone_type highest_zoneidx = pgdat->kcompactd_highest_zoneidx;
 	enum compact_result ret;
+	unsigned int alloc_flags = defrag_mode ?
+		ALLOC_WMARK_HIGH : ALLOC_WMARK_MIN;
 
 	for (zoneid = 0; zoneid <= highest_zoneidx; zoneid++) {
 		zone = &pgdat->node_zones[zoneid];
@@ -3057,8 +3079,8 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
 
 		ret = compaction_suit_allocation_order(zone,
 				pgdat->kcompactd_max_order,
-				highest_zoneidx, ALLOC_WMARK_MIN,
-				false);
+				highest_zoneidx, alloc_flags,
+				false, true);
 		if (ret == COMPACT_CONTINUE)
 			return true;
 	}
@@ -3081,6 +3103,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 		.mode = MIGRATE_SYNC_LIGHT,
 		.ignore_skip_hint = false,
 		.gfp_mask = GFP_KERNEL,
+		.alloc_flags = defrag_mode ? ALLOC_WMARK_HIGH : ALLOC_WMARK_MIN,
 	};
 	enum compact_result ret;
 
@@ -3099,8 +3122,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 			continue;
 
 		ret = compaction_suit_allocation_order(zone,
-				cc.order, zoneid, ALLOC_WMARK_MIN,
-				false);
+				cc.order, zoneid, cc.alloc_flags,
+				false, true);
 		if (ret != COMPACT_CONTINUE)
 			continue;
 

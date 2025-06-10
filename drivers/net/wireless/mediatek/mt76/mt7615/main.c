@@ -97,7 +97,7 @@ static void mt7615_stop(struct ieee80211_hw *hw, bool suspend)
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
 
 	cancel_delayed_work_sync(&phy->mt76->mac_work);
-	del_timer_sync(&phy->roc_timer);
+	timer_delete_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
 
 	cancel_delayed_work_sync(&dev->pm.ps_work);
@@ -1194,7 +1194,7 @@ static int mt7615_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
 		return 0;
 
-	del_timer_sync(&phy->roc_timer);
+	timer_delete_sync(&phy->roc_timer);
 	cancel_work_sync(&phy->roc_work);
 
 	mt7615_mutex_acquire(phy->dev);

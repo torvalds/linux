@@ -5,19 +5,13 @@
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
 
+#include <asm/neon.h>
 #include <crypto/internal/hash.h>
-#include <crypto/internal/simd.h>
 #include <crypto/sha1.h>
 #include <crypto/sha1_base.h>
 #include <linux/cpufeature.h>
-#include <linux/crypto.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
-
-#include <asm/hwcap.h>
-#include <asm/neon.h>
-#include <asm/simd.h>
-
-#include "sha1.h"
 
 MODULE_DESCRIPTION("SHA1 secure hash using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
@@ -29,50 +23,36 @@ asmlinkage void sha1_ce_transform(struct sha1_state *sst, u8 const *src,
 static int sha1_ce_update(struct shash_desc *desc, const u8 *data,
 			  unsigned int len)
 {
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-
-	if (!crypto_simd_usable() ||
-	    (sctx->count % SHA1_BLOCK_SIZE) + len < SHA1_BLOCK_SIZE)
-		return sha1_update_arm(desc, data, len);
+	int remain;
 
 	kernel_neon_begin();
-	sha1_base_do_update(desc, data, len, sha1_ce_transform);
+	remain = sha1_base_do_update_blocks(desc, data, len, sha1_ce_transform);
 	kernel_neon_end();
 
-	return 0;
+	return remain;
 }
 
 static int sha1_ce_finup(struct shash_desc *desc, const u8 *data,
 			 unsigned int len, u8 *out)
 {
-	if (!crypto_simd_usable())
-		return sha1_finup_arm(desc, data, len, out);
-
 	kernel_neon_begin();
-	if (len)
-		sha1_base_do_update(desc, data, len, sha1_ce_transform);
-	sha1_base_do_finalize(desc, sha1_ce_transform);
+	sha1_base_do_finup(desc, data, len, sha1_ce_transform);
 	kernel_neon_end();
 
 	return sha1_base_finish(desc, out);
 }
 
-static int sha1_ce_final(struct shash_desc *desc, u8 *out)
-{
-	return sha1_ce_finup(desc, NULL, 0, out);
-}
-
 static struct shash_alg alg = {
 	.init			= sha1_base_init,
 	.update			= sha1_ce_update,
-	.final			= sha1_ce_final,
 	.finup			= sha1_ce_finup,
-	.descsize		= sizeof(struct sha1_state),
+	.descsize		= SHA1_STATE_SIZE,
 	.digestsize		= SHA1_DIGEST_SIZE,
 	.base			= {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "sha1-ce",
 		.cra_priority		= 200,
+		.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 		.cra_blocksize		= SHA1_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	}

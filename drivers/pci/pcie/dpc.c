@@ -219,7 +219,9 @@ static void dpc_process_rp_pio_error(struct pci_dev *pdev)
 		goto clear_status;
 	pcie_read_tlp_log(pdev, cap + PCI_EXP_DPC_RP_PIO_HEADER_LOG,
 			  cap + PCI_EXP_DPC_RP_PIO_TLPPREFIX_LOG,
-			  dpc_tlp_log_len(pdev), &tlp_log);
+			  dpc_tlp_log_len(pdev),
+			  pdev->subordinate->flit_mode,
+			  &tlp_log);
 	pcie_print_tlp_log(pdev, &tlp_log, dev_fmt(""));
 
 	if (pdev->dpc_rp_log_size < PCIE_STD_NUM_TLP_HEADERLOG + 1)
@@ -398,11 +400,21 @@ void pci_dpc_init(struct pci_dev *pdev)
 
 	/* Quirks may set dpc_rp_log_size if device or firmware is buggy */
 	if (!pdev->dpc_rp_log_size) {
+		u16 flags;
+		int ret;
+
+		ret = pcie_capability_read_word(pdev, PCI_EXP_FLAGS, &flags);
+		if (ret)
+			return;
+
 		pdev->dpc_rp_log_size =
 				FIELD_GET(PCI_EXP_DPC_RP_PIO_LOG_SIZE, cap);
+		if (FIELD_GET(PCI_EXP_FLAGS_FLIT, flags))
+			pdev->dpc_rp_log_size += FIELD_GET(PCI_EXP_DPC_RP_PIO_LOG_SIZE4,
+							   cap) << 4;
+
 		if (pdev->dpc_rp_log_size < PCIE_STD_NUM_TLP_HEADERLOG ||
-		    pdev->dpc_rp_log_size > PCIE_STD_NUM_TLP_HEADERLOG + 1 +
-					    PCIE_STD_MAX_TLP_PREFIXLOG) {
+		    pdev->dpc_rp_log_size > PCIE_STD_MAX_TLP_HEADERLOG + 1) {
 			pci_err(pdev, "RP PIO log size %u is invalid\n",
 				pdev->dpc_rp_log_size);
 			pdev->dpc_rp_log_size = 0;

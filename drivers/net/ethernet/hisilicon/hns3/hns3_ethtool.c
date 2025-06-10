@@ -3,6 +3,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/phy.h>
 #include <linux/sfp.h>
 
@@ -1198,7 +1199,7 @@ static int hns3_set_tx_push(struct net_device *netdev, u32 tx_push)
 		return 0;
 
 	netdev_dbg(netdev, "Changing tx push from %s to %s\n",
-		   old_state ? "on" : "off", tx_push ? "on" : "off");
+		   str_on_off(old_state), str_on_off(tx_push));
 
 	if (tx_push)
 		set_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);

@@ -246,7 +246,7 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 	 * fabric RA_TOV value and dev_loss tmo.  The driver's
 	 * devloss_tmo is 10 giving this loop a 3x multiplier minimally.
 	 */
-	wait_time_max = msecs_to_jiffies(((phba->fc_ratov * 3) + 3) * 1000);
+	wait_time_max = secs_to_jiffies((phba->fc_ratov * 3) + 3);
 	wait_time_max += jiffies;
 	start_time = jiffies;
 	while (time_before(jiffies, wait_time_max)) {
@@ -505,7 +505,7 @@ lpfc_send_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		wait_event_timeout(waitq,
 				   !test_bit(NLP_WAIT_FOR_LOGO,
 					     &ndlp->save_flags),
-				   msecs_to_jiffies(phba->fc_ratov * 2000));
+				   secs_to_jiffies(phba->fc_ratov * 2));
 
 		if (!test_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags))
 			goto logo_cmpl;
@@ -703,7 +703,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				wait_event_timeout(waitq,
 				   !test_bit(NLP_WAIT_FOR_DA_ID,
 					     &ndlp->save_flags),
-				   msecs_to_jiffies(phba->fc_ratov * 2000));
+				   secs_to_jiffies(phba->fc_ratov * 2));
 			}
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT | LOG_ELS,

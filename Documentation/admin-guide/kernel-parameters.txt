@@ -1407,13 +1407,17 @@
 			earlyprintk=serial[,0x...[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
-			earlyprintk=pciserial[,force],bus:device.function[,baudrate]
+			earlyprintk=mmio32,membase[,{nocfg|baudrate}]
+			earlyprintk=pciserial[,force],bus:device.function[,{nocfg|baudrate}]
 			earlyprintk=xdbc[xhciController#]
 			earlyprintk=bios
 
 			earlyprintk is useful when the kernel crashes before
 			the normal console is initialized. It is not enabled by
 			default because it has some cosmetic problems.
+
+			Use "nocfg" to skip UART configuration, assume
+			BIOS/firmware has configured UART correctly.
 
 			Append ",keep" to not disable it when the real console
 			takes over.
@@ -1824,6 +1828,13 @@
 				lz4: Select LZ4 compression algorithm to
 				compress/decompress hibernation image.
 
+	hibernate.pm_test_delay=
+			[HIBERNATION]
+			Sets the number of seconds to remain in a hibernation test
+			mode before resuming the system (see
+			/sys/power/pm_test). Only available when CONFIG_PM_DEBUG
+			is set. Default value is 5.
+
 	highmem=nn[KMG]	[KNL,BOOT,EARLY] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
 			highmem otherwise. This also works to reduce highmem
@@ -1859,7 +1870,7 @@
 	hpet_mmap=	[X86, HPET_MMAP] Allow userspace to mmap HPET
 			registers.  Default set by CONFIG_HPET_MMAP_DEFAULT.
 
-	hugepages=	[HW] Number of HugeTLB pages to allocate at boot.
+	hugepages=	[HW,EARLY] Number of HugeTLB pages to allocate at boot.
 			If this follows hugepagesz (below), it specifies
 			the number of pages of hugepagesz to be allocated.
 			If this is the first HugeTLB parameter on the command
@@ -1871,14 +1882,23 @@
 				<node>:<integer>[,<node>:<integer>]
 
 	hugepagesz=
-			[HW] The size of the HugeTLB pages.  This is used in
-			conjunction with hugepages (above) to allocate huge
-			pages of a specific size at boot.  The pair
-			hugepagesz=X hugepages=Y can be specified once for
-			each supported huge page size. Huge page sizes are
-			architecture dependent.  See also
+			[HW,EARLY] The size of the HugeTLB pages.  This is
+			used in conjunction with hugepages (above) to
+			allocate huge pages of a specific size at boot. The
+			pair hugepagesz=X hugepages=Y can be specified once
+			for each supported huge page size. Huge page sizes
+			are architecture dependent. See also
 			Documentation/admin-guide/mm/hugetlbpage.rst.
 			Format: size[KMG]
+
+	hugepage_alloc_threads=
+			[HW] The number of threads that should be used to
+			allocate hugepages during boot. This option can be
+			used to improve system bootup time when allocating
+			a large amount of huge pages.
+			The default value is 25% of the available hardware threads.
+
+			Note that this parameter only applies to non-gigantic huge pages.
 
 	hugetlb_cma=	[HW,CMA,EARLY] The size of a CMA area used for allocation
 			of gigantic hugepages. Or using node format, the size
@@ -1889,6 +1909,13 @@
 			Reserve a CMA area of given size and allocate gigantic
 			hugepages using the CMA allocator. If enabled, the
 			boot-time allocation of gigantic hugepages is skipped.
+
+	hugetlb_cma_only=
+			[HW,CMA,EARLY] When allocating new HugeTLB pages, only
+			try to allocate from the CMA areas.
+
+			This option does nothing if hugetlb_cma= is not also
+			specified.
 
 	hugetlb_free_vmemmap=
 			[KNL] Requires CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
@@ -1930,6 +1957,12 @@
 			Disables the paravirt spinlock optimizations
 			which allow the hypervisor to 'idle' the guest
 			on lock contention.
+
+	hw_protection=	[HW]
+			Format: reboot | shutdown
+
+			Hardware protection action taken on critical events like
+			overtemperature or imminent voltage loss.
 
 	i2c_bus=	[HW]	Override the default board specific I2C bus speed
 				or register an additional I2C bus that is not
@@ -2175,6 +2208,23 @@
 			ahash performance varies for different chunk sizes on
 			different crypto accelerators. This option can be used
 			to achieve best performance for particular HW.
+
+	indirect_target_selection= [X86,Intel] Mitigation control for Indirect
+			Target Selection(ITS) bug in Intel CPUs. Updated
+			microcode is also required for a fix in IBPB.
+
+			on:     Enable mitigation (default).
+			off:    Disable mitigation.
+			force:	Force the ITS bug and deploy default
+				mitigation.
+			vmexit: Only deploy mitigation if CPU is affected by
+				guest/host isolation part of ITS.
+			stuff:	Deploy RSB-fill mitigation when retpoline is
+				also deployed. Otherwise, deploy the default
+				mitigation.
+
+			For details see:
+			Documentation/admin-guide/hw-vuln/indirect-target-selection.rst
 
 	init=		[KNL]
 			Format: <full_path>
@@ -2699,6 +2749,31 @@
 	kgdbwait	[KGDB,EARLY] Stop kernel execution and enter the
 			kernel debugger at the earliest opportunity.
 
+	kho=		[KEXEC,EARLY]
+			Format: { "0" | "1" | "off" | "on" | "y" | "n" }
+			Enables or disables Kexec HandOver.
+			"0" | "off" | "n" - kexec handover is disabled
+			"1" | "on" | "y" - kexec handover is enabled
+
+	kho_scratch=	[KEXEC,EARLY]
+			Format: ll[KMG],mm[KMG],nn[KMG] | nn%
+			Defines the size of the KHO scratch region. The KHO
+			scratch regions are physically contiguous memory
+			ranges that can only be used for non-kernel
+			allocations. That way, even when memory is heavily
+			fragmented with handed over memory, the kexeced
+			kernel will always have enough contiguous ranges to
+			bootstrap itself.
+
+			It is possible to specify the exact amount of
+			memory in the form of "ll[KMG],mm[KMG],nn[KMG]"
+			where the first parameter defines the size of a low
+			memory scratch area, the second parameter defines
+			the size of a global scratch area and the third
+			parameter defines the size of additional per-node
+			scratch areas.  The form "nn%" defines scale factor
+			(in percents) of memory that was used during boot.
+
 	kmac=		[MIPS] Korina ethernet MAC address.
 			Configure the RouterBoard 532 series on-chip
 			Ethernet adapter MAC address.
@@ -3116,6 +3191,8 @@
 
 			* max_sec_lba48: Set or clear transfer size limit to
 			  65535 sectors.
+
+			* external: Mark port as external (hotplug-capable).
 
 			* [no]lpm: Enable or disable link power management.
 
@@ -3665,6 +3742,7 @@
 				expose users to several CPU vulnerabilities.
 				Equivalent to: if nokaslr then kpti=0 [ARM64]
 					       gather_data_sampling=off [X86]
+					       indirect_target_selection=off [X86]
 					       kvm.nx_huge_pages=off [X86]
 					       l1tf=off [X86]
 					       mds=off [X86]
@@ -4234,10 +4312,10 @@
 	nosmp		[SMP,EARLY] Tells an SMP kernel to act as a UP kernel,
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
-	nosmt		[KNL,MIPS,PPC,S390,EARLY] Disable symmetric multithreading (SMT).
+	nosmt		[KNL,MIPS,PPC,EARLY] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
-			[KNL,X86,PPC] Disable symmetric multithreading (SMT).
+			[KNL,X86,PPC,S390] Disable symmetric multithreading (SMT).
 			nosmt=force: Force disable SMT, cannot be undone
 				     via the sysfs control file.
 
@@ -5018,6 +5096,14 @@
 			Format: <bool>
 			default: 0 (auto_verbose is enabled)
 
+	printk.debug_non_panic_cpus=
+			Allows storing messages from non-panic CPUs into
+			the printk log buffer during panic(). They are
+			flushed to consoles by the panic-CPU on
+			a best-effort basis.
+			Format: <bool> (1/Y/y=enable, 0/N/n=disable)
+			Default: disabled
+
 	printk.devkmsg={on,off,ratelimit}
 			Control writing to /dev/kmsg.
 			on - unlimited logging to /dev/kmsg from userspace
@@ -5618,6 +5704,31 @@
 			are zero, rcutorture acts as if is interpreted
 			they are all non-zero.
 
+	rcutorture.gpwrap_lag= [KNL]
+			Enable grace-period wrap lag testing. Setting
+			to false prevents the gpwrap lag test from
+			running. Default is true.
+
+	rcutorture.gpwrap_lag_gps= [KNL]
+			Set the value for grace-period wrap lag during
+			active lag testing periods. This controls how many
+			grace periods differences we tolerate between
+			rdp and rnp's gp_seq before setting overflow flag.
+			The default is always set to 8.
+
+	rcutorture.gpwrap_lag_cycle_mins= [KNL]
+			Set the total cycle duration for gpwrap lag
+			testing in minutes. This is the total time for
+			one complete cycle of active and inactive
+			testing periods. Default is 30 minutes.
+
+	rcutorture.gpwrap_lag_active_mins= [KNL]
+			Set the duration for which gpwrap lag is active
+			within each cycle, in minutes. During this time,
+			the grace-period wrap lag will be set to the
+			value specified by gpwrap_lag_gps. Default is
+			5 minutes.
+
 	rcutorture.irqreader= [KNL]
 			Run RCU readers from irq handlers, or, more
 			accurately, from a timer handler.  Not all RCU
@@ -6214,7 +6325,7 @@
 			port and the regular usb controller gets disabled.
 
 	root=		[KNL] Root filesystem
-			Usually this a a block device specifier of some kind,
+			Usually this is a block device specifier of some kind,
 			see the early_lookup_bdev comment in
 			block/early-lookup.c for details.
 			Alternatively this can be "ram" for the legacy initial
@@ -6240,6 +6351,11 @@
 			[KNL,ARM,CMA] Remoteproc physical memory block.
 			Memory area to be used by remote processor image,
 			managed by CMA.
+
+	rt_group_sched=	[KNL] Enable or disable SCHED_RR/FIFO group scheduling
+			when CONFIG_RT_GROUP_SCHED=y. Defaults to
+			!CONFIG_RT_GROUP_SCHED_DEFAULT_DISABLED.
+			Format: <bool>
 
 	rw		[KNL] Mount root device read-write on boot
 
@@ -7249,6 +7365,8 @@
 			This is just one of many ways that can clear memory. Make sure your system
 			keeps the content of memory across reboots before relying on this option.
 
+			NB: Both the mapped address and size must be page aligned for the architecture.
+
 			See also Documentation/trace/debugging.rst
 
 
@@ -7286,6 +7404,15 @@
 
 			See also "Event triggers" in Documentation/trace/events.rst
 
+
+	traceoff_after_boot
+			[FTRACE] Sometimes tracing is used to debug issues
+			during the boot process. Since the trace buffer has a
+			limited amount of storage, it may be prudent to
+			disable tracing after the boot is finished, otherwise
+			the critical information may be overwritten.  With this
+			option, the main tracing buffer will be turned off at
+			the end of the boot process.
 
 	traceoff_on_warning
 			[FTRACE] enable this option to disable tracing when a
@@ -7484,6 +7611,22 @@
 			anything.  Set this parameter to avoid log spamming.
 			Note that genuine overcurrent events won't be
 			reported either.
+
+	unaligned_scalar_speed=
+			[RISCV]
+			Format: {slow | fast | unsupported}
+			Allow skipping scalar unaligned access speed tests. This
+			is useful for testing alternative code paths and to skip
+			the tests in environments where they run too slowly. All
+			CPUs must have the same scalar unaligned access speed.
+
+	unaligned_vector_speed=
+			[RISCV]
+			Format: {slow | fast | unsupported}
+			Allow skipping vector unaligned access speed tests. This
+			is useful for testing alternative code paths and to skip
+			the tests in environments where they run too slowly. All
+			CPUs must have the same vector unaligned access speed.
 
 	unknown_nmi_panic
 			[X86] Cause panic on unknown NMI.

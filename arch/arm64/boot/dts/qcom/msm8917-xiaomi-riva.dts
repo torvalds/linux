@@ -20,6 +20,14 @@
 	qcom,msm-id = <QCOM_ID_MSM8917 0>;
 	qcom,board-id = <0x1000b 2>, <0x2000b 2>;
 
+	pwm_backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pm8937_pwm 0 100000>;
+		brightness-levels = <0 255>;
+		num-interpolated-steps = <255>;
+		default-brightness-level = <128>;
+	};
+
 	battery: battery {
 		compatible = "simple-battery";
 		charge-full-design-microamp-hours = <3000000>;
@@ -119,7 +127,7 @@
 		monitored-battery = <&battery>;
 	};
 
-	bq25601@6b{
+	bq25601@6b {
 		compatible = "ti,bq25601";
 		reg = <0x6b>;
 		interrupts-extended = <&tlmm 61 IRQ_TYPE_EDGE_FALLING>;
@@ -129,6 +137,23 @@
 		input-current-limit-microamp = <1000000>;
 		monitored-battery = <&battery>;
 	};
+};
+
+&pm8937_gpios {
+	pwm_enable_default: pwm-enable-default-state {
+		pins = "gpio8";
+		function = "dtest2";
+		output-low;
+		bias-disable;
+		qcom,drive-strength = <2>;
+	};
+};
+
+&pm8937_pwm {
+	pinctrl-0 = <&pwm_enable_default>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
 
 &pm8937_resin {

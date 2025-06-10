@@ -9,14 +9,21 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 
-struct drm_gem_object;
-struct intel_pxp;
+#include "xe_pxp.h"
 
-static inline int intel_pxp_key_check(struct intel_pxp *pxp,
-				      struct drm_gem_object *obj,
-				      bool assign)
+struct drm_gem_object;
+
+static inline int intel_pxp_key_check(struct drm_gem_object *obj, bool assign)
 {
-	return -ENODEV;
+	/*
+	 * The assign variable is used in i915 to assign the key to the BO at
+	 * first submission time. In Xe the key is instead assigned at BO
+	 * creation time, so the assign variable must always be false.
+	 */
+	if (assign)
+		return -EINVAL;
+
+	return xe_pxp_obj_key_check(obj);
 }
 
 #endif

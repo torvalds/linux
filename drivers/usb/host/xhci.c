@@ -322,7 +322,7 @@ static void xhci_zero_64b_regs(struct xhci_hcd *xhci)
 		xhci_info(xhci, "Fault detected\n");
 }
 
-static int xhci_enable_interrupter(struct xhci_interrupter *ir)
+int xhci_enable_interrupter(struct xhci_interrupter *ir)
 {
 	u32 iman;
 
@@ -335,7 +335,7 @@ static int xhci_enable_interrupter(struct xhci_interrupter *ir)
 	return 0;
 }
 
-static int xhci_disable_interrupter(struct xhci_interrupter *ir)
+int xhci_disable_interrupter(struct xhci_interrupter *ir)
 {
 	u32 iman;
 
@@ -627,7 +627,7 @@ void xhci_stop(struct usb_hcd *hcd)
 	/* Deleting Compliance Mode Recovery Timer */
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
-		del_timer_sync(&xhci->comp_mode_recovery_timer);
+		timer_delete_sync(&xhci->comp_mode_recovery_timer);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"%s: compliance mode recovery timer deleted",
 				__func__);
@@ -672,11 +672,11 @@ void xhci_shutdown(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "%s: stopping usb%d port polling.\n",
 			__func__, hcd->self.busnum);
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 
 	if (xhci->shared_hcd) {
 		clear_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
-		del_timer_sync(&xhci->shared_hcd->rh_timer);
+		timer_delete_sync(&xhci->shared_hcd->rh_timer);
 	}
 
 	spin_lock_irq(&xhci->lock);
@@ -908,10 +908,10 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 	xhci_dbg(xhci, "%s: stopping usb%d port polling.\n",
 		 __func__, hcd->self.busnum);
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 	if (xhci->shared_hcd) {
 		clear_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
-		del_timer_sync(&xhci->shared_hcd->rh_timer);
+		timer_delete_sync(&xhci->shared_hcd->rh_timer);
 	}
 
 	if (xhci->quirks & XHCI_SUSPEND_DELAY)
@@ -978,7 +978,7 @@ int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup)
 	 */
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
-		del_timer_sync(&xhci->comp_mode_recovery_timer);
+		timer_delete_sync(&xhci->comp_mode_recovery_timer);
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"%s: compliance mode recovery timer deleted",
 				__func__);
@@ -994,16 +994,14 @@ EXPORT_SYMBOL_GPL(xhci_suspend);
  * This is called when the machine transition from S3/S4 mode.
  *
  */
-int xhci_resume(struct xhci_hcd *xhci, pm_message_t msg)
+int xhci_resume(struct xhci_hcd *xhci, bool power_lost, bool is_auto_resume)
 {
-	bool			hibernated = (msg.event == PM_EVENT_RESTORE);
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	int			retval = 0;
 	bool			comp_timer_running = false;
 	bool			pending_portevent = false;
 	bool			suspended_usb3_devs = false;
-	bool			reinit_xhc = false;
 
 	if (!hcd->state)
 		return 0;
@@ -1022,10 +1020,10 @@ int xhci_resume(struct xhci_hcd *xhci, pm_message_t msg)
 
 	spin_lock_irq(&xhci->lock);
 
-	if (hibernated || xhci->quirks & XHCI_RESET_ON_RESUME || xhci->broken_suspend)
-		reinit_xhc = true;
+	if (xhci->quirks & XHCI_RESET_ON_RESUME || xhci->broken_suspend)
+		power_lost = true;
 
-	if (!reinit_xhc) {
+	if (!power_lost) {
 		/*
 		 * Some controllers might lose power during suspend, so wait
 		 * for controller not ready bit to clear, just as in xHC init.
@@ -1065,15 +1063,15 @@ int xhci_resume(struct xhci_hcd *xhci, pm_message_t msg)
 	/* re-initialize the HC on Restore Error, or Host Controller Error */
 	if ((temp & (STS_SRE | STS_HCE)) &&
 	    !(xhci->xhc_state & XHCI_STATE_REMOVING)) {
-		reinit_xhc = true;
-		if (!xhci->broken_suspend)
+		if (!power_lost)
 			xhci_warn(xhci, "xHC error in resume, USBSTS 0x%x, Reinit\n", temp);
+		power_lost = true;
 	}
 
-	if (reinit_xhc) {
+	if (power_lost) {
 		if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 				!(xhci_all_ports_seen_u0(xhci))) {
-			del_timer_sync(&xhci->comp_mode_recovery_timer);
+			timer_delete_sync(&xhci->comp_mode_recovery_timer);
 			xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"Compliance Mode Recovery Timer deleted!");
 		}
@@ -1168,8 +1166,7 @@ int xhci_resume(struct xhci_hcd *xhci, pm_message_t msg)
 
 		pending_portevent = xhci_pending_portevent(xhci);
 
-		if (suspended_usb3_devs && !pending_portevent &&
-		    msg.event == PM_EVENT_AUTO_RESUME) {
+		if (suspended_usb3_devs && !pending_portevent && is_auto_resume) {
 			msleep(120);
 			pending_portevent = xhci_pending_portevent(xhci);
 		}
@@ -4759,8 +4756,8 @@ static u16 xhci_calculate_u1_timeout(struct xhci_hcd *xhci,
 	 */
 	if (timeout_ns <= USB3_LPM_U1_MAX_TIMEOUT)
 		return timeout_ns;
-	dev_dbg(&udev->dev, "Hub-initiated U1 disabled "
-			"due to long timeout %llu ms\n", timeout_ns);
+	dev_dbg(&udev->dev, "Hub-initiated U1 disabled due to long timeout %lluus\n",
+		timeout_ns);
 	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U1);
 }
 
@@ -4817,8 +4814,8 @@ static u16 xhci_calculate_u2_timeout(struct xhci_hcd *xhci,
 	 */
 	if (timeout_ns <= USB3_LPM_U2_MAX_TIMEOUT)
 		return timeout_ns;
-	dev_dbg(&udev->dev, "Hub-initiated U2 disabled "
-			"due to long timeout %llu ms\n", timeout_ns);
+	dev_dbg(&udev->dev, "Hub-initiated U2 disabled due to long timeout %lluus\n",
+		timeout_ns * 256);
 	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U2);
 }
 

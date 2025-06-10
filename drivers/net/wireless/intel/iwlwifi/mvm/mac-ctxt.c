@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -938,12 +938,19 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 
 u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw, u8 rate_idx)
 {
-	u16 flags = iwl_mvm_mac80211_idx_to_hwrate(fw, rate_idx);
 	bool is_new_rate = iwl_fw_lookup_cmd_ver(fw, BEACON_TEMPLATE_CMD, 0) > 10;
+	u16 flags, cck_flag;
 
-	if (rate_idx <= IWL_FIRST_CCK_RATE)
-		flags |= is_new_rate ? IWL_MAC_BEACON_CCK
-			  : IWL_MAC_BEACON_CCK_V1;
+	if (is_new_rate) {
+		flags = iwl_mvm_mac80211_idx_to_hwrate(fw, rate_idx);
+		cck_flag = IWL_MAC_BEACON_CCK;
+	} else {
+		cck_flag = IWL_MAC_BEACON_CCK_V1;
+		flags = iwl_fw_rate_idx_to_plcp(rate_idx);
+	}
+
+	if (rate_idx <= IWL_LAST_CCK_RATE)
+		flags |= cck_flag;
 
 	return flags;
 }
@@ -969,7 +976,7 @@ u8 iwl_mvm_mac_ctxt_get_beacon_rate(struct iwl_mvm *mvm,
 static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct sk_buff *beacon,
-				    struct iwl_tx_cmd *tx)
+				    struct iwl_tx_cmd_v6 *tx)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_tx_info *info;
@@ -1958,28 +1965,5 @@ void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
 			    CS_ERR_LONG_DELAY_AFTER_CS |
 			    CS_ERR_TX_BLOCK_TIMER_EXPIRED))
 		ieee80211_channel_switch_disconnect(vif);
-	rcu_read_unlock();
-}
-
-void iwl_mvm_rx_missed_vap_notif(struct iwl_mvm *mvm,
-				 struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_missed_vap_notif *mb = (void *)pkt->data;
-	struct ieee80211_vif *vif;
-	u32 id = le32_to_cpu(mb->mac_id);
-
-	IWL_DEBUG_INFO(mvm,
-		       "missed_vap notify mac_id=%u, num_beacon_intervals_elapsed=%u, profile_periodicity=%u\n",
-		       le32_to_cpu(mb->mac_id),
-		       mb->num_beacon_intervals_elapsed,
-		       mb->profile_periodicity);
-
-	rcu_read_lock();
-
-	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
-	if (vif)
-		iwl_mvm_connection_loss(mvm, vif, "missed vap beacon");
-
 	rcu_read_unlock();
 }

@@ -1265,7 +1265,7 @@ static int happy_meal_init(struct happy_meal *hp)
 	u32 regtmp, rxcfg;
 
 	/* If auto-negotiation timer is running, kill it. */
-	del_timer(&hp->happy_timer);
+	timer_delete(&hp->happy_timer);
 
 	HMD("happy_flags[%08x]\n", hp->happy_flags);
 	if (!(hp->happy_flags & HFLAG_INIT)) {
@@ -1922,7 +1922,7 @@ static int happy_meal_close(struct net_device *dev)
 	happy_meal_clean_rings(hp);
 
 	/* If auto-negotiation timer is running, kill it. */
-	del_timer(&hp->happy_timer);
+	timer_delete(&hp->happy_timer);
 
 	spin_unlock_irq(&hp->happy_lock);
 
@@ -2184,7 +2184,7 @@ static int hme_set_link_ksettings(struct net_device *dev,
 
 	/* Ok, do it to it. */
 	spin_lock_irq(&hp->happy_lock);
-	del_timer(&hp->happy_timer);
+	timer_delete(&hp->happy_timer);
 	happy_meal_begin_auto_negotiation(hp, hp->tcvregs, cmd);
 	spin_unlock_irq(&hp->happy_lock);
 

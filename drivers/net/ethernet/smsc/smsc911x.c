@@ -43,7 +43,6 @@
 #include <linux/smsc911x.h>
 #include <linux/device.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_net.h>
 #include <linux/acpi.h>
 #include <linux/pm_runtime.h>

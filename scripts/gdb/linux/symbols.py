@@ -14,7 +14,9 @@
 import gdb
 import os
 import re
+import struct
 
+from itertools import count
 from linux import modules, utils, constants
 
 
@@ -36,21 +38,50 @@ if hasattr(gdb, 'Breakpoint'):
             # Disable pagination while reporting symbol (re-)loading.
             # The console input is blocked in this context so that we would
             # get stuck waiting for the user to acknowledge paged output.
-            show_pagination = gdb.execute("show pagination", to_string=True)
-            pagination = show_pagination.endswith("on.\n")
-            gdb.execute("set pagination off")
-
-            if module_name in cmd.loaded_modules:
-                gdb.write("refreshing all symbols to reload module "
-                          "'{0}'\n".format(module_name))
-                cmd.load_all_symbols()
-            else:
-                cmd.load_module_symbols(module)
-
-            # restore pagination state
-            gdb.execute("set pagination %s" % ("on" if pagination else "off"))
+            with utils.pagination_off():
+                if module_name in cmd.loaded_modules:
+                    gdb.write("refreshing all symbols to reload module "
+                              "'{0}'\n".format(module_name))
+                    cmd.load_all_symbols()
+                else:
+                    cmd.load_module_symbols(module)
 
             return False
+
+
+def get_vmcore_s390():
+    with utils.qemu_phy_mem_mode():
+        vmcore_info = 0x0e0c
+        paddr_vmcoreinfo_note = gdb.parse_and_eval("*(unsigned long long *)" +
+                                                   hex(vmcore_info))
+        if paddr_vmcoreinfo_note == 0 or paddr_vmcoreinfo_note & 1:
+            # In the early boot case, extract vm_layout.kaslr_offset from the
+            # vmlinux image in physical memory.
+            if paddr_vmcoreinfo_note == 0:
+                kaslr_offset_phys = 0
+            else:
+                kaslr_offset_phys = paddr_vmcoreinfo_note - 1
+            with utils.pagination_off():
+                gdb.execute("symbol-file {0} -o {1}".format(
+                    utils.get_vmlinux(), hex(kaslr_offset_phys)))
+            kaslr_offset = gdb.parse_and_eval("vm_layout.kaslr_offset")
+            return "KERNELOFFSET=" + hex(kaslr_offset)[2:]
+        inferior = gdb.selected_inferior()
+        elf_note = inferior.read_memory(paddr_vmcoreinfo_note, 12)
+        n_namesz, n_descsz, n_type = struct.unpack(">III", elf_note)
+        desc_paddr = paddr_vmcoreinfo_note + len(elf_note) + n_namesz + 1
+        return gdb.parse_and_eval("(char *)" + hex(desc_paddr)).string()
+
+
+def get_kerneloffset():
+    if utils.is_target_arch('s390'):
+        try:
+            vmcore_str = get_vmcore_s390()
+        except gdb.error as e:
+            gdb.write("{}\n".format(e))
+            return None
+        return utils.parse_vmcore(vmcore_str).kerneloffset
+    return None
 
 
 class LxSymbols(gdb.Command):
@@ -95,10 +126,14 @@ lx-symbols command."""
         except gdb.error:
             return str(module_addr)
 
-        attrs = sect_attrs['attrs']
-        section_name_to_address = {
-            attrs[n]['battr']['attr']['name'].string(): attrs[n]['address']
-            for n in range(int(sect_attrs['nsections']))}
+        section_name_to_address = {}
+        for i in count():
+            # this is a NULL terminated array
+            if sect_attrs['grp']['bin_attrs'][i] == 0x0:
+                break
+
+            attr = sect_attrs['grp']['bin_attrs'][i].dereference()
+            section_name_to_address[attr['attr']['name'].string()] = attr['private']
 
         textaddr = section_name_to_address.get(".text", module_addr)
         args = []
@@ -149,13 +184,14 @@ lx-symbols command."""
                 saved_states.append({'breakpoint': bp, 'enabled': bp.enabled})
 
         # drop all current symbols and reload vmlinux
-        orig_vmlinux = 'vmlinux'
-        for obj in gdb.objfiles():
-            if (obj.filename.endswith('vmlinux') or
-                obj.filename.endswith('vmlinux.debug')):
-                orig_vmlinux = obj.filename
+        orig_vmlinux = utils.get_vmlinux()
         gdb.execute("symbol-file", to_string=True)
-        gdb.execute("symbol-file {0}".format(orig_vmlinux))
+        kerneloffset = get_kerneloffset()
+        if kerneloffset is None:
+            offset_arg = ""
+        else:
+            offset_arg = " -o " + hex(kerneloffset)
+        gdb.execute("symbol-file {0}{1}".format(orig_vmlinux, offset_arg))
 
         self.loaded_modules = []
         module_list = modules.module_list()

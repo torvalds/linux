@@ -174,7 +174,7 @@ static int exc3000_handle_mt_event(struct exc3000_data *data)
 	/*
 	 * We read full state successfully, no contacts will be "stuck".
 	 */
-	del_timer_sync(&data->timer);
+	timer_delete_sync(&data->timer);
 
 	while (total_slots > 0) {
 		int slots = min(total_slots, EXC3000_SLOTS_PER_FRAME);

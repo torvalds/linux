@@ -57,56 +57,6 @@ struct agilent_82350b_priv {
 	bool using_fifos;
 };
 
-// driver name
-extern const char *driver_name;
-
-// init functions
-
-int agilent_82350b_unaccel_attach(gpib_board_t *board, const gpib_board_config_t *config);
-int agilent_82350b_accel_attach(gpib_board_t *board, const gpib_board_config_t *config);
-
-// interface functions
-int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
-			      size_t *bytes_read);
-int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-			       size_t *bytes_written);
-int agilent_82350b_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
-			size_t *bytes_read);
-int agilent_82350b_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-			 size_t *bytes_written);
-int agilent_82350b_command(gpib_board_t *board, uint8_t *buffer, size_t length,
-			   size_t *bytes_written);
-int agilent_82350b_take_control(gpib_board_t *board, int synchronous);
-int agilent_82350b_go_to_standby(gpib_board_t *board);
-void agilent_82350b_request_system_control(gpib_board_t *board, int request_control);
-void agilent_82350b_interface_clear(gpib_board_t *board, int assert);
-void agilent_82350b_remote_enable(gpib_board_t *board, int enable);
-int agilent_82350b_enable_eos(gpib_board_t *board, uint8_t eos_byte, int
-			compare_8_bits);
-void agilent_82350b_disable_eos(gpib_board_t *board);
-unsigned int agilent_82350b_update_status(gpib_board_t *board, unsigned int clear_mask);
-int agilent_82350b_primary_address(gpib_board_t *board, unsigned int address);
-int agilent_82350b_secondary_address(gpib_board_t *board, unsigned int address, int
-				enable);
-int agilent_82350b_parallel_poll(gpib_board_t *board, uint8_t *result);
-void agilent_82350b_parallel_poll_configure(gpib_board_t *board, uint8_t config);
-void agilent_82350b_parallel_poll_response(gpib_board_t *board, int ist);
-void agilent_82350b_serial_poll_response(gpib_board_t *board, uint8_t status);
-void agilent_82350b_return_to_local(gpib_board_t *board);
-uint8_t agilent_82350b_serial_poll_status(gpib_board_t *board);
-int agilent_82350b_line_status(const gpib_board_t *board);
-unsigned int agilent_82350b_t1_delay(gpib_board_t *board, unsigned int nanosec);
-
-// interrupt service routines
-irqreturn_t agilent_82350b_interrupt(int irq, void *arg);
-
-// utility functions
-int agilent_82350b_allocate_private(gpib_board_t *board);
-void agilent_82350b_free_private(gpib_board_t *board);
-unsigned short read_and_clear_event_status(gpib_board_t *board);
-int read_transfer_counter(struct agilent_82350b_priv *a_priv);
-void set_transfer_counter(struct agilent_82350b_priv *a_priv, int count);
-
 //registers
 enum agilent_82350b_gpib_registers
 

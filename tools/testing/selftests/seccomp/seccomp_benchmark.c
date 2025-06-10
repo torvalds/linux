@@ -1,6 +1,6 @@
 /*
  * Strictly speaking, this is not a test. But it can report during test
- * runs so relative performace can be measured.
+ * runs so relative performance can be measured.
  */
 #define _GNU_SOURCE
 #include <assert.h>

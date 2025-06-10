@@ -2331,7 +2331,7 @@ static void fas216_eh_timer(struct timer_list *t)
 
 	fas216_log(info, LOG_ERROR, "error handling timed out\n");
 
-	del_timer(&info->eh_timer);
+	timer_delete(&info->eh_timer);
 
 	if (info->rst_bus_status == 0)
 		info->rst_bus_status = -1;
@@ -2532,7 +2532,7 @@ int fas216_eh_device_reset(struct scsi_cmnd *SCpnt)
 		 */
 		wait_event(info->eh_wait, info->rst_dev_status);
 
-		del_timer_sync(&info->eh_timer);
+		timer_delete_sync(&info->eh_timer);
 		spin_lock_irqsave(&info->host_lock, flags);
 		info->rstSCpnt = NULL;
 
@@ -2622,7 +2622,7 @@ int fas216_eh_bus_reset(struct scsi_cmnd *SCpnt)
 	 * Wait one second for the interrupt.
 	 */
 	wait_event(info->eh_wait, info->rst_bus_status);
-	del_timer_sync(&info->eh_timer);
+	timer_delete_sync(&info->eh_timer);
 
 	fas216_log(info, LOG_ERROR, "bus reset complete: %s\n",
 		   info->rst_bus_status == 1 ? "success" : "failed");

@@ -1017,7 +1017,7 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 out_restore:
 	if (rc) {
-		del_timer_sync(&vif->scan_timer);
+		timer_delete_sync(&vif->scan_timer);
 		if (vif->mid == 0)
 			wil->radio_wdev = wil->main_ndev->ieee80211_ptr;
 		vif->scan_request = NULL;

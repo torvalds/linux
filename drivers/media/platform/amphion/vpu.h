@@ -162,7 +162,6 @@ struct vpu_core {
 	struct delayed_work msg_delayed_work;
 	struct kfifo msg_fifo;
 	void *msg_buffer;
-	unsigned int msg_buffer_size;
 
 	struct vpu_dev *vpu;
 	void *iface;

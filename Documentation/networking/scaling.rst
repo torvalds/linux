@@ -49,13 +49,20 @@ destination address) and TCP/UDP (source port, destination port) tuples
 are swapped, the computed hash is the same. This is beneficial in some
 applications that monitor TCP/IP flows (IDS, firewalls, ...etc) and need
 both directions of the flow to land on the same Rx queue (and CPU). The
-"Symmetric-XOR" is a type of RSS algorithms that achieves this hash
-symmetry by XORing the input source and destination fields of the IP
-and/or L4 protocols. This, however, results in reduced input entropy and
-could potentially be exploited. Specifically, the algorithm XORs the input
+"Symmetric-XOR" and "Symmetric-OR-XOR" are types of RSS algorithms that
+achieve this hash symmetry by XOR/ORing the input source and destination
+fields of the IP and/or L4 protocols. This, however, results in reduced
+input entropy and could potentially be exploited.
+
+Specifically, the "Symmetric-XOR" algorithm XORs the input
 as follows::
 
     # (SRC_IP ^ DST_IP, SRC_IP ^ DST_IP, SRC_PORT ^ DST_PORT, SRC_PORT ^ DST_PORT)
+
+The "Symmetric-OR-XOR" algorithm, on the other hand, transforms the input as
+follows::
+
+    # (SRC_IP | DST_IP, SRC_IP ^ DST_IP, SRC_PORT | DST_PORT, SRC_PORT ^ DST_PORT)
 
 The result is then fed to the underlying RSS algorithm.
 
@@ -427,8 +434,10 @@ rps_dev_flow_table. The stack consults a CPU to hardware queue map which
 is maintained by the NIC driver. This is an auto-generated reverse map of
 the IRQ affinity table shown by /proc/interrupts. Drivers can use
 functions in the cpu_rmap (“CPU affinity reverse map”) kernel library
-to populate the map. For each CPU, the corresponding queue in the map is
-set to be one whose processing CPU is closest in cache locality.
+to populate the map. Alternatively, drivers can delegate the cpu_rmap
+management to the Kernel by calling netif_enable_cpu_rmap(). For each CPU,
+the corresponding queue in the map is set to be one whose processing CPU is
+closest in cache locality.
 
 
 Accelerated RFS Configuration

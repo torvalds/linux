@@ -108,6 +108,14 @@ struct io_uring_task {
 	} ____cacheline_aligned_in_smp;
 };
 
+struct iou_vec {
+	union {
+		struct iovec	*iovec;
+		struct bio_vec	*bvec;
+	};
+	unsigned		nr; /* number of struct iovec it can hold */
+};
+
 struct io_uring {
 	u32 head;
 	u32 tail;
@@ -292,6 +300,8 @@ struct io_ring_ctx {
 
 		struct io_file_table	file_table;
 		struct io_rsrc_data	buf_table;
+		struct io_alloc_cache	node_cache;
+		struct io_alloc_cache	imu_cache;
 
 		struct io_submit_state	submit_state;
 
@@ -306,7 +316,7 @@ struct io_ring_ctx {
 		struct io_alloc_cache	apoll_cache;
 		struct io_alloc_cache	netmsg_cache;
 		struct io_alloc_cache	rw_cache;
-		struct io_alloc_cache	uring_cache;
+		struct io_alloc_cache	cmd_cache;
 
 		/*
 		 * Any cancelable uring_cmd is added to this list in
@@ -331,7 +341,6 @@ struct io_ring_ctx {
 		unsigned		cached_cq_tail;
 		unsigned		cq_entries;
 		struct io_ev_fd	__rcu	*io_ev_fd;
-		unsigned		cq_extra;
 
 		void			*cq_wait_arg;
 		size_t			cq_wait_size;
@@ -360,7 +369,6 @@ struct io_ring_ctx {
 
 	spinlock_t		completion_lock;
 
-	struct list_head	io_buffers_comp;
 	struct list_head	cq_overflow_list;
 
 	struct hlist_head	waitid_list;
@@ -379,11 +387,12 @@ struct io_ring_ctx {
 	unsigned int		file_alloc_start;
 	unsigned int		file_alloc_end;
 
-	struct list_head	io_buffers_cache;
-
 	/* Keep this last, we don't need it for the fast path */
 	struct wait_queue_head		poll_wq;
 	struct io_restriction		restrictions;
+
+	/* Stores zcrx object pointers of type struct io_zcrx_ifq */
+	struct xarray			zcrx_ctxs;
 
 	u32			pers_next;
 	struct xarray		personalities;
@@ -407,6 +416,7 @@ struct io_ring_ctx {
 
 	struct callback_head		poll_wq_task_work;
 	struct list_head		defer_list;
+	unsigned			nr_drained;
 
 	struct io_alloc_cache		msg_cache;
 	spinlock_t			msg_lock;
@@ -425,6 +435,7 @@ struct io_ring_ctx {
 
 	/* protected by ->completion_lock */
 	unsigned			evfd_last_cq_tail;
+	unsigned			nr_req_allocated;
 
 	/*
 	 * Protection for resize vs mmap races - both the mmap and resize
@@ -439,8 +450,15 @@ struct io_ring_ctx {
 	struct io_mapped_region		param_region;
 };
 
+/*
+ * Token indicating function is called in task work context:
+ * ctx->uring_lock is held and any completions generated will be flushed.
+ * ONLY core io_uring.c should instantiate this struct.
+ */
 struct io_tw_state {
 };
+/* Alias to use in code that doesn't instantiate struct io_tw_state */
+typedef struct io_tw_state io_tw_token_t;
 
 enum {
 	REQ_F_FIXED_FILE_BIT	= IOSQE_FIXED_FILE_BIT,
@@ -470,6 +488,7 @@ enum {
 	REQ_F_SKIP_LINK_CQES_BIT,
 	REQ_F_SINGLE_POLL_BIT,
 	REQ_F_DOUBLE_POLL_BIT,
+	REQ_F_MULTISHOT_BIT,
 	REQ_F_APOLL_MULTISHOT_BIT,
 	REQ_F_CLEAR_POLLIN_BIT,
 	/* keep async read/write and isreg together and in order */
@@ -482,6 +501,7 @@ enum {
 	REQ_F_BUFFERS_COMMIT_BIT,
 	REQ_F_BUF_NODE_BIT,
 	REQ_F_HAS_METADATA_BIT,
+	REQ_F_IMPORT_BUFFER_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -546,6 +566,8 @@ enum {
 	REQ_F_SINGLE_POLL	= IO_REQ_FLAG(REQ_F_SINGLE_POLL_BIT),
 	/* double poll may active */
 	REQ_F_DOUBLE_POLL	= IO_REQ_FLAG(REQ_F_DOUBLE_POLL_BIT),
+	/* request posts multiple completions, should be set at prep time */
+	REQ_F_MULTISHOT		= IO_REQ_FLAG(REQ_F_MULTISHOT_BIT),
 	/* fast poll multishot mode */
 	REQ_F_APOLL_MULTISHOT	= IO_REQ_FLAG(REQ_F_APOLL_MULTISHOT_BIT),
 	/* recvmsg special flag, clear EPOLLIN */
@@ -564,9 +586,14 @@ enum {
 	REQ_F_BUF_NODE		= IO_REQ_FLAG(REQ_F_BUF_NODE_BIT),
 	/* request has read/write metadata assigned */
 	REQ_F_HAS_METADATA	= IO_REQ_FLAG(REQ_F_HAS_METADATA_BIT),
+	/*
+	 * For vectored fixed buffers, resolve iovec to registered buffers.
+	 * For SEND_ZC, whether to import buffers (i.e. the first issue).
+	 */
+	REQ_F_IMPORT_BUFFER	= IO_REQ_FLAG(REQ_F_IMPORT_BUFFER_BIT),
 };
 
-typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);
+typedef void (*io_req_tw_func_t)(struct io_kiocb *req, io_tw_token_t tw);
 
 struct io_task_work {
 	struct llist_node		node;
@@ -601,7 +628,11 @@ static inline void io_kiocb_cmd_sz_check(size_t cmd_sz)
 	io_kiocb_cmd_sz_check(sizeof(cmd_type)) , \
 	((cmd_type *)&(req)->cmd) \
 )
-#define cmd_to_io_kiocb(ptr)	((struct io_kiocb *) ptr)
+
+static inline struct io_kiocb *cmd_to_io_kiocb(void *ptr)
+{
+	return ptr;
+}
 
 struct io_kiocb {
 	union {
@@ -620,8 +651,7 @@ struct io_kiocb {
 	u8				iopoll_completed;
 	/*
 	 * Can be either a fixed buffer index, or used with provided buffers.
-	 * For the latter, before issue it points to the buffer group ID,
-	 * and after selection it points to the buffer ID itself.
+	 * For the latter, it points to the selected buffer ID.
 	 */
 	u16				buf_index;
 
@@ -680,7 +710,7 @@ struct io_kiocb {
 	const struct cred		*creds;
 	struct io_wq_work		work;
 
-	struct {
+	struct io_big_cqe {
 		u64			extra1;
 		u64			extra2;
 	} big_cqe;

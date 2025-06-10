@@ -45,8 +45,6 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type);
 
 int mlx5dr_domain_destroy(struct mlx5dr_domain *domain);
 
-int mlx5dr_domain_sync(struct mlx5dr_domain *domain, u32 flags);
-
 void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 			    struct mlx5dr_domain *peer_dmn,
 			    u16 peer_vhca_id);

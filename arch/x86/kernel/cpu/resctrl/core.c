@@ -22,6 +22,7 @@
 #include <linux/cpuhotplug.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 #include <asm/resctrl.h>
 #include "internal.h"
 
@@ -60,7 +61,6 @@ struct rdt_hw_resource rdt_resources_all[RDT_NUM_RESOURCES] = {
 	[RDT_RESOURCE_L3] =
 	{
 		.r_resctrl = {
-			.rid			= RDT_RESOURCE_L3,
 			.name			= "L3",
 			.ctrl_scope		= RESCTRL_L3_CACHE,
 			.mon_scope		= RESCTRL_L3_CACHE,
@@ -74,7 +74,6 @@ struct rdt_hw_resource rdt_resources_all[RDT_NUM_RESOURCES] = {
 	[RDT_RESOURCE_L2] =
 	{
 		.r_resctrl = {
-			.rid			= RDT_RESOURCE_L2,
 			.name			= "L2",
 			.ctrl_scope		= RESCTRL_L2_CACHE,
 			.ctrl_domains		= ctrl_domain_init(RDT_RESOURCE_L2),
@@ -86,7 +85,6 @@ struct rdt_hw_resource rdt_resources_all[RDT_NUM_RESOURCES] = {
 	[RDT_RESOURCE_MBA] =
 	{
 		.r_resctrl = {
-			.rid			= RDT_RESOURCE_MBA,
 			.name			= "MB",
 			.ctrl_scope		= RESCTRL_L3_CACHE,
 			.ctrl_domains		= ctrl_domain_init(RDT_RESOURCE_MBA),
@@ -96,7 +94,6 @@ struct rdt_hw_resource rdt_resources_all[RDT_NUM_RESOURCES] = {
 	[RDT_RESOURCE_SMBA] =
 	{
 		.r_resctrl = {
-			.rid			= RDT_RESOURCE_SMBA,
 			.name			= "SMBA",
 			.ctrl_scope		= RESCTRL_L3_CACHE,
 			.ctrl_domains		= ctrl_domain_init(RDT_RESOURCE_SMBA),
@@ -145,10 +142,10 @@ static inline void cache_alloc_hsw_probe(void)
 	struct rdt_resource *r  = &hw_res->r_resctrl;
 	u64 max_cbm = BIT_ULL_MASK(20) - 1, l3_cbm_0;
 
-	if (wrmsrl_safe(MSR_IA32_L3_CBM_BASE, max_cbm))
+	if (wrmsrq_safe(MSR_IA32_L3_CBM_BASE, max_cbm))
 		return;
 
-	rdmsrl(MSR_IA32_L3_CBM_BASE, l3_cbm_0);
+	rdmsrq(MSR_IA32_L3_CBM_BASE, l3_cbm_0);
 
 	/* If all the bits were set in MSR, return success */
 	if (l3_cbm_0 != max_cbm)
@@ -162,21 +159,6 @@ static inline void cache_alloc_hsw_probe(void)
 	r->alloc_capable = true;
 
 	rdt_alloc_capable = true;
-}
-
-bool is_mba_sc(struct rdt_resource *r)
-{
-	if (!r)
-		r = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
-
-	/*
-	 * The software controller support is only applicable to MBA resource.
-	 * Make sure to check for resource type.
-	 */
-	if (r->rid != RDT_RESOURCE_MBA)
-		return false;
-
-	return r->membw.mba_sc;
 }
 
 /*
@@ -309,7 +291,7 @@ static void mba_wrmsr_amd(struct msr_param *m)
 	unsigned int i;
 
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
+		wrmsrq(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
 }
 
 /*
@@ -334,7 +316,7 @@ static void mba_wrmsr_intel(struct msr_param *m)
 
 	/*  Write the delay values for mba. */
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(hw_res->msr_base + i, delay_bw_map(hw_dom->ctrl_val[i], m->res));
+		wrmsrq(hw_res->msr_base + i, delay_bw_map(hw_dom->ctrl_val[i], m->res));
 }
 
 static void cat_wrmsr(struct msr_param *m)
@@ -344,7 +326,7 @@ static void cat_wrmsr(struct msr_param *m)
 	unsigned int i;
 
 	for (i = m->low; i < m->high; i++)
-		wrmsrl(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
+		wrmsrq(hw_res->msr_base + i, hw_dom->ctrl_val[i]);
 }
 
 u32 resctrl_arch_get_num_closid(struct rdt_resource *r)
@@ -737,7 +719,7 @@ struct rdt_options {
 	bool	force_off, force_on;
 };
 
-static struct rdt_options rdt_options[]  __initdata = {
+static struct rdt_options rdt_options[]  __ro_after_init = {
 	RDT_OPT(RDT_FLAG_CMT,	    "cmt",	X86_FEATURE_CQM_OCCUP_LLC),
 	RDT_OPT(RDT_FLAG_MBM_TOTAL, "mbmtotal", X86_FEATURE_CQM_MBM_TOTAL),
 	RDT_OPT(RDT_FLAG_MBM_LOCAL, "mbmlocal", X86_FEATURE_CQM_MBM_LOCAL),
@@ -777,7 +759,7 @@ static int __init set_rdt_options(char *str)
 }
 __setup("rdt", set_rdt_options);
 
-bool __init rdt_cpu_has(int flag)
+bool rdt_cpu_has(int flag)
 {
 	bool ret = boot_cpu_has(flag);
 	struct rdt_options *o;
@@ -797,7 +779,7 @@ bool __init rdt_cpu_has(int flag)
 	return ret;
 }
 
-__init bool resctrl_arch_is_evt_configurable(enum resctrl_event_id evt)
+bool resctrl_arch_is_evt_configurable(enum resctrl_event_id evt)
 {
 	if (!rdt_cpu_has(X86_FEATURE_BMEC))
 		return false;
@@ -1011,7 +993,11 @@ void resctrl_cpu_detect(struct cpuinfo_x86 *c)
 static int __init resctrl_arch_late_init(void)
 {
 	struct rdt_resource *r;
-	int state, ret;
+	int state, ret, i;
+
+	/* for_each_rdt_resource() requires all rid to be initialised. */
+	for (i = 0; i < RDT_NUM_RESOURCES; i++)
+		rdt_resources_all[i].r_resctrl.rid = i;
 
 	/*
 	 * Initialize functions(or definitions) that are different

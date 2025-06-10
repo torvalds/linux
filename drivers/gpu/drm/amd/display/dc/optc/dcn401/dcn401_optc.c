@@ -101,7 +101,7 @@ static uint32_t decide_odm_mem_bit_map(int *opp_id, int opp_cnt, int h_active)
 	return memory_bit_map;
 }
 
-static void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
+void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
 		int opp_cnt, int segment_width, int last_segment_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -162,7 +162,7 @@ static void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
 	optc1->opp_count = opp_cnt;
 }
 
-static void optc401_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode)
+void optc401_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -177,7 +177,7 @@ static void optc401_set_h_timing_div_manual_mode(struct timing_generator *optc, 
  *
  * Return: Always returns true
  */
-static bool optc401_enable_crtc(struct timing_generator *optc)
+bool optc401_enable_crtc(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -203,7 +203,7 @@ static bool optc401_enable_crtc(struct timing_generator *optc)
 }
 
 /* disable_crtc */
-static bool optc401_disable_crtc(struct timing_generator *optc)
+bool optc401_disable_crtc(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -234,7 +234,7 @@ static bool optc401_disable_crtc(struct timing_generator *optc)
 	return true;
 }
 
-static void optc401_phantom_crtc_post_enable(struct timing_generator *optc)
+void optc401_phantom_crtc_post_enable(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -245,7 +245,7 @@ static void optc401_phantom_crtc_post_enable(struct timing_generator *optc)
 	REG_WAIT(OTG_CLOCK_CONTROL, OTG_BUSY, 0, 1, 100000);
 }
 
-static void optc401_disable_phantom_otg(struct timing_generator *optc)
+void optc401_disable_phantom_otg(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -259,7 +259,7 @@ static void optc401_disable_phantom_otg(struct timing_generator *optc)
 	REG_UPDATE(OTG_CONTROL, OTG_MASTER_EN, 0);
 }
 
-static void optc401_set_odm_bypass(struct timing_generator *optc,
+void optc401_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -365,7 +365,7 @@ void optc401_set_drr(
 	}
 }
 
-static void optc401_set_out_mux(struct timing_generator *optc, enum otg_out_mux_dest dest)
+void optc401_set_out_mux(struct timing_generator *optc, enum otg_out_mux_dest dest)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -396,7 +396,7 @@ void optc401_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, i
 	}
 }
 
-static void optc401_program_global_sync(
+void optc401_program_global_sync(
 		struct timing_generator *optc,
 		int vready_offset,
 		int vstartup_start,
@@ -430,7 +430,7 @@ static void optc401_program_global_sync(
 	REG_UPDATE(OTG_PSTATE_REGISTER, OTG_PSTATE_KEEPOUT_START, pstate_keepout);
 }
 
-static void optc401_set_vupdate_keepout(struct timing_generator *tg, bool enable)
+void optc401_set_vupdate_keepout(struct timing_generator *tg, bool enable)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(tg);
 
@@ -442,7 +442,7 @@ static void optc401_set_vupdate_keepout(struct timing_generator *tg, bool enable
 	return;
 }
 
-static bool optc401_wait_update_lock_status(struct timing_generator *tg, bool locked)
+bool optc401_wait_update_lock_status(struct timing_generator *tg, bool locked)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(tg);
 	uint32_t lock_status = 0;
@@ -527,6 +527,7 @@ static struct timing_generator_funcs dcn401_tg_funcs = {
 		.get_pipe_update_pending = optc3_get_pipe_update_pending,
 		.set_vupdate_keepout = optc401_set_vupdate_keepout,
 		.wait_update_lock_status = optc401_wait_update_lock_status,
+		.read_otg_state = optc31_read_otg_state,
 };
 
 void dcn401_timing_generator_init(struct optc *optc1)

@@ -61,6 +61,25 @@ static void mlx5_cleanup_ttc_rules(struct mlx5_ttc_table *ttc)
 	}
 }
 
+static const char *mlx5_traffic_types_names[MLX5_NUM_TT] = {
+	[MLX5_TT_IPV4_TCP] =  "TT_IPV4_TCP",
+	[MLX5_TT_IPV6_TCP] =  "TT_IPV6_TCP",
+	[MLX5_TT_IPV4_UDP] =  "TT_IPV4_UDP",
+	[MLX5_TT_IPV6_UDP] =  "TT_IPV6_UDP",
+	[MLX5_TT_IPV4_IPSEC_AH] = "TT_IPV4_IPSEC_AH",
+	[MLX5_TT_IPV6_IPSEC_AH] = "TT_IPV6_IPSEC_AH",
+	[MLX5_TT_IPV4_IPSEC_ESP] = "TT_IPV4_IPSEC_ESP",
+	[MLX5_TT_IPV6_IPSEC_ESP] = "TT_IPV6_IPSEC_ESP",
+	[MLX5_TT_IPV4] = "TT_IPV4",
+	[MLX5_TT_IPV6] = "TT_IPV6",
+	[MLX5_TT_ANY] = "TT_ANY"
+};
+
+const char *mlx5_ttc_get_name(enum mlx5_traffic_types tt)
+{
+	return mlx5_traffic_types_names[tt];
+}
+
 struct mlx5_etype_proto {
 	u16 etype;
 	u8 proto;
@@ -618,10 +637,6 @@ struct mlx5_ttc_table *mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
 	bool use_l4_type;
 	int err;
 
-	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
-	if (!ttc)
-		return ERR_PTR(-ENOMEM);
-
 	switch (params->ns_type) {
 	case MLX5_FLOW_NAMESPACE_PORT_SEL:
 		use_l4_type = MLX5_CAP_GEN_2(dev, pcc_ifa2) &&
@@ -635,7 +650,16 @@ struct mlx5_ttc_table *mlx5_create_inner_ttc_table(struct mlx5_core_dev *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
+	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
+	if (!ttc)
+		return ERR_PTR(-ENOMEM);
+
 	ns = mlx5_get_flow_namespace(dev, params->ns_type);
+	if (!ns) {
+		kvfree(ttc);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
 	groups = use_l4_type ? &inner_ttc_groups[TTC_GROUPS_USE_L4_TYPE] :
 			       &inner_ttc_groups[TTC_GROUPS_DEFAULT];
 
@@ -691,10 +715,6 @@ struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
 	bool use_l4_type;
 	int err;
 
-	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
-	if (!ttc)
-		return ERR_PTR(-ENOMEM);
-
 	switch (params->ns_type) {
 	case MLX5_FLOW_NAMESPACE_PORT_SEL:
 		use_l4_type = MLX5_CAP_GEN_2(dev, pcc_ifa2) &&
@@ -708,7 +728,16 @@ struct mlx5_ttc_table *mlx5_create_ttc_table(struct mlx5_core_dev *dev,
 		return ERR_PTR(-EINVAL);
 	}
 
+	ttc = kvzalloc(sizeof(*ttc), GFP_KERNEL);
+	if (!ttc)
+		return ERR_PTR(-ENOMEM);
+
 	ns = mlx5_get_flow_namespace(dev, params->ns_type);
+	if (!ns) {
+		kvfree(ttc);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
 	groups = use_l4_type ? &ttc_groups[TTC_GROUPS_USE_L4_TYPE] :
 			       &ttc_groups[TTC_GROUPS_DEFAULT];
 

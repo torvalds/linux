@@ -64,15 +64,36 @@ typedef struct {
 	refcount_t		cs_count;
 } copy_stateid_t;
 
+struct nfsd4_referring_call {
+	struct list_head	__list;
+
+	u32			rc_sequenceid;
+	u32			rc_slotid;
+};
+
+struct nfsd4_referring_call_list {
+	struct list_head	__list;
+
+	struct nfs4_sessionid	rcl_sessionid;
+	int			__nr_referring_calls;
+	struct list_head	rcl_referring_calls;
+};
+
 struct nfsd4_callback {
 	struct nfs4_client *cb_clp;
 	struct rpc_message cb_msg;
+#define NFSD4_CALLBACK_RUNNING		(0)
+#define NFSD4_CALLBACK_WAKE		(1)
+#define NFSD4_CALLBACK_REQUEUE		(2)
+	unsigned long cb_flags;
 	const struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
 	int cb_seq_status;
 	int cb_status;
 	int cb_held_slot;
-	bool cb_need_restart;
+
+	int cb_nr_referring_call_list;
+	struct list_head cb_referring_call_list;
 };
 
 struct nfsd4_callback_ops {
@@ -162,14 +183,10 @@ struct nfs4_cb_fattr {
 	struct timespec64 ncf_cb_mtime;
 	struct timespec64 ncf_cb_atime;
 
-	unsigned long ncf_cb_flags;
 	bool ncf_file_modified;
 	u64 ncf_initial_cinfo;
 	u64 ncf_cur_fsize;
 };
-
-/* bits for ncf_cb_flags */
-#define	CB_GETATTR_BUSY		0
 
 /*
  * Represents a delegation stateid. The nfs4_client holds references to these
@@ -198,8 +215,8 @@ struct nfs4_delegation {
 	struct list_head	dl_perclnt;
 	struct list_head	dl_recall_lru;  /* delegation recalled */
 	struct nfs4_clnt_odstate *dl_clnt_odstate;
-	u32			dl_type;
 	time64_t		dl_time;
+	u32			dl_type;
 /* For recall: */
 	int			dl_retries;
 	struct nfsd4_callback	dl_recall;
@@ -261,6 +278,7 @@ struct nfsd4_slot {
 	u32	sl_seqid;
 	__be32	sl_status;
 	struct svc_cred sl_cred;
+	u32	sl_index;
 	u32	sl_datalen;
 	u16	sl_opcnt;
 	u16	sl_generation;
@@ -452,7 +470,6 @@ struct nfs4_client {
 #define NFSD4_CLIENT_UPCALL_LOCK	(5)	/* upcall serialization */
 #define NFSD4_CLIENT_CB_FLAG_MASK	(1 << NFSD4_CLIENT_CB_UPDATE | \
 					 1 << NFSD4_CLIENT_CB_KILL)
-#define NFSD4_CLIENT_CB_RECALL_ANY	(6)
 	unsigned long		cl_flags;
 
 	struct workqueue_struct *cl_callback_wq;
@@ -498,7 +515,6 @@ struct nfs4_client {
 
 	struct nfsd4_cb_recall_any	*cl_ra;
 	time64_t		cl_ra_time;
-	struct list_head	cl_ra_cblist;
 };
 
 /* struct nfs4_client_reset
@@ -777,9 +793,20 @@ extern __be32 nfs4_check_open_reclaim(struct nfs4_client *);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
 extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
+extern void nfsd41_cb_referring_call(struct nfsd4_callback *cb,
+				     struct nfs4_sessionid *sessionid,
+				     u32 slotid, u32 seqno);
+extern void nfsd41_cb_destroy_referring_call_list(struct nfsd4_callback *cb);
 extern void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 		const struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op);
 extern bool nfsd4_run_cb(struct nfsd4_callback *cb);
+
+static inline void nfsd4_try_run_cb(struct nfsd4_callback *cb)
+{
+	if (!test_and_set_bit(NFSD4_CALLBACK_RUNNING, &cb->cb_flags))
+		WARN_ON_ONCE(!nfsd4_run_cb(cb));
+}
+
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfsd4_shutdown_copy(struct nfs4_client *clp);
 void nfsd4_async_copy_reaper(struct nfsd_net *nn);

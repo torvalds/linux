@@ -29,10 +29,10 @@
 #include "core_status.h"
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
-#include "spl/dc_spl.h"
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 #define MEMORY_TYPE_HBM 2
+#define MAX_MCACHES 8
 
 
 #define IS_PIPE_SYNCD_VALID(pipe) ((((pipe)->pipe_idx_syncd) & 0x80)?1:0)
@@ -64,6 +64,13 @@ struct resource_straps {
 	uint32_t hdmi_disable;
 	uint32_t dc_pinstraps_audio;
 	uint32_t audio_stream_number;
+};
+
+struct dc_mcache_allocations {
+	int global_mcache_ids_plane0[MAX_MCACHES + 1];
+	int global_mcache_ids_plane1[MAX_MCACHES + 1];
+	int global_mcache_ids_mall_plane0[MAX_MCACHES + 1];
+	int global_mcache_ids_mall_plane1[MAX_MCACHES + 1];
 };
 
 struct resource_create_funcs {
@@ -151,6 +158,8 @@ bool resource_attach_surfaces_to_context(
 		struct dc_stream_state *dc_stream,
 		struct dc_state *context,
 		const struct resource_pool *pool);
+
+bool resource_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx);
 
 #define FREE_PIPE_INDEX_NOT_FOUND -1
 
@@ -627,8 +636,6 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx);
 
-bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream);
-
 /* Get hw programming parameters container from pipe context
  * @pipe_ctx: pipe context
  * @dscl_prog_data: struct to hold programmable hw reg values
@@ -646,4 +653,9 @@ void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuratio
 int resource_calculate_det_for_stream(struct dc_state *state, struct pipe_ctx *otg_master);
 
 bool resource_is_hpo_acquired(struct dc_state *context);
+
+struct link_encoder *get_temp_dio_link_enc(
+		const struct resource_context *res_ctx,
+		const struct resource_pool *const pool,
+		const struct dc_link *link);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

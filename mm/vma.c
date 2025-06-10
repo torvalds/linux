@@ -17,9 +17,13 @@ struct mmap_state {
 	unsigned long pglen;
 	unsigned long flags;
 	struct file *file;
+	pgprot_t page_prot;
+
+	/* User-defined fields, perhaps updated by .mmap_prepare(). */
+	const struct vm_operations_struct *vm_ops;
+	void *vm_private_data;
 
 	unsigned long charged;
-	bool retry_merge;
 
 	struct vm_area_struct *prev;
 	struct vm_area_struct *next;
@@ -40,6 +44,7 @@ struct mmap_state {
 		.pglen = PHYS_PFN(len_),				\
 		.flags = flags_,					\
 		.file = file_,						\
+		.page_prot = vm_get_page_prot(flags_),			\
 	}
 
 #define VMG_MMAP_STATE(name, map_, vma_)				\
@@ -52,11 +57,26 @@ struct mmap_state {
 		.pgoff = (map_)->pgoff,					\
 		.file = (map_)->file,					\
 		.prev = (map_)->prev,					\
-		.vma = vma_,						\
+		.middle = vma_,						\
 		.next = (vma_) ? NULL : (map_)->next,			\
 		.state = VMA_MERGE_START,				\
-		.merge_flags = VMG_FLAG_DEFAULT,			\
 	}
+
+/*
+ * If, at any point, the VMA had unCoW'd mappings from parents, it will maintain
+ * more than one anon_vma_chain connecting it to more than one anon_vma. A merge
+ * would mean a wider range of folios sharing the root anon_vma lock, and thus
+ * potential lock contention, we do not wish to encourage merging such that this
+ * scales to a problem.
+ */
+static bool vma_had_uncowed_parents(struct vm_area_struct *vma)
+{
+	/*
+	 * The list_is_singular() test is to avoid merging VMA cloned from
+	 * parents. This can improve scalability caused by anon_vma lock.
+	 */
+	return vma && vma->anon_vma && !list_is_singular(&vma->anon_vma_chain);
+}
 
 static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_next)
 {
@@ -83,53 +103,72 @@ static inline bool is_mergeable_vma(struct vma_merge_struct *vmg, bool merge_nex
 	return true;
 }
 
-static inline bool is_mergeable_anon_vma(struct anon_vma *anon_vma1,
-		 struct anon_vma *anon_vma2, struct vm_area_struct *vma)
+static bool is_mergeable_anon_vma(struct vma_merge_struct *vmg, bool merge_next)
 {
-	/*
-	 * The list_is_singular() test is to avoid merging VMA cloned from
-	 * parents. This can improve scalability caused by anon_vma lock.
-	 */
-	if ((!anon_vma1 || !anon_vma2) && (!vma ||
-		list_is_singular(&vma->anon_vma_chain)))
-		return true;
-	return anon_vma1 == anon_vma2;
-}
+	struct vm_area_struct *tgt = merge_next ? vmg->next : vmg->prev;
+	struct vm_area_struct *src = vmg->middle; /* exisitng merge case. */
+	struct anon_vma *tgt_anon = tgt->anon_vma;
+	struct anon_vma *src_anon = vmg->anon_vma;
 
-/* Are the anon_vma's belonging to each VMA compatible with one another? */
-static inline bool are_anon_vmas_compatible(struct vm_area_struct *vma1,
-					    struct vm_area_struct *vma2)
-{
-	return is_mergeable_anon_vma(vma1->anon_vma, vma2->anon_vma, NULL);
+	/*
+	 * We _can_ have !src, vmg->anon_vma via copy_vma(). In this instance we
+	 * will remove the existing VMA's anon_vma's so there's no scalability
+	 * concerns.
+	 */
+	VM_WARN_ON(src && src_anon != src->anon_vma);
+
+	/* Case 1 - we will dup_anon_vma() from src into tgt. */
+	if (!tgt_anon && src_anon)
+		return !vma_had_uncowed_parents(src);
+	/* Case 2 - we will simply use tgt's anon_vma. */
+	if (tgt_anon && !src_anon)
+		return !vma_had_uncowed_parents(tgt);
+	/* Case 3 - the anon_vma's are already shared. */
+	return src_anon == tgt_anon;
 }
 
 /*
  * init_multi_vma_prep() - Initializer for struct vma_prepare
  * @vp: The vma_prepare struct
  * @vma: The vma that will be altered once locked
- * @next: The next vma if it is to be adjusted
- * @remove: The first vma to be removed
- * @remove2: The second vma to be removed
+ * @vmg: The merge state that will be used to determine adjustment and VMA
+ *       removal.
  */
 static void init_multi_vma_prep(struct vma_prepare *vp,
 				struct vm_area_struct *vma,
-				struct vm_area_struct *next,
-				struct vm_area_struct *remove,
-				struct vm_area_struct *remove2)
+				struct vma_merge_struct *vmg)
 {
+	struct vm_area_struct *adjust;
+	struct vm_area_struct **remove = &vp->remove;
+
 	memset(vp, 0, sizeof(struct vma_prepare));
 	vp->vma = vma;
 	vp->anon_vma = vma->anon_vma;
-	vp->remove = remove;
-	vp->remove2 = remove2;
-	vp->adj_next = next;
-	if (!vp->anon_vma && next)
-		vp->anon_vma = next->anon_vma;
+
+	if (vmg && vmg->__remove_middle) {
+		*remove = vmg->middle;
+		remove = &vp->remove2;
+	}
+	if (vmg && vmg->__remove_next)
+		*remove = vmg->next;
+
+	if (vmg && vmg->__adjust_middle_start)
+		adjust = vmg->middle;
+	else if (vmg && vmg->__adjust_next_start)
+		adjust = vmg->next;
+	else
+		adjust = NULL;
+
+	vp->adj_next = adjust;
+	if (!vp->anon_vma && adjust)
+		vp->anon_vma = adjust->anon_vma;
+
+	VM_WARN_ON(vp->anon_vma && adjust && adjust->anon_vma &&
+		   vp->anon_vma != adjust->anon_vma);
 
 	vp->file = vma->vm_file;
 	if (vp->file)
 		vp->mapping = vma->vm_file->f_mapping;
-
 }
 
 /*
@@ -150,7 +189,7 @@ static bool can_vma_merge_before(struct vma_merge_struct *vmg)
 	pgoff_t pglen = PHYS_PFN(vmg->end - vmg->start);
 
 	if (is_mergeable_vma(vmg, /* merge_next = */ true) &&
-	    is_mergeable_anon_vma(vmg->anon_vma, vmg->next->anon_vma, vmg->next)) {
+	    is_mergeable_anon_vma(vmg, /* merge_next = */ true)) {
 		if (vmg->next->vm_pgoff == vmg->pgoff + pglen)
 			return true;
 	}
@@ -170,7 +209,7 @@ static bool can_vma_merge_before(struct vma_merge_struct *vmg)
 static bool can_vma_merge_after(struct vma_merge_struct *vmg)
 {
 	if (is_mergeable_vma(vmg, /* merge_next = */ false) &&
-	    is_mergeable_anon_vma(vmg->anon_vma, vmg->prev->anon_vma, vmg->prev)) {
+	    is_mergeable_anon_vma(vmg, /* merge_next = */ false)) {
 		if (vmg->prev->vm_pgoff + vma_pages(vmg->prev) == vmg->pgoff)
 			return true;
 	}
@@ -306,7 +345,7 @@ static void vma_complete(struct vma_prepare *vp, struct vma_iterator *vmi,
 		 * us to insert it before dropping the locks
 		 * (it may either follow vma or precede it).
 		 */
-		vma_iter_store(vmi, vp->insert);
+		vma_iter_store_new(vmi, vp->insert);
 		mm->map_count++;
 	}
 
@@ -327,7 +366,7 @@ static void vma_complete(struct vma_prepare *vp, struct vma_iterator *vmi,
 
 	if (vp->remove) {
 again:
-		vma_mark_detached(vp->remove, true);
+		vma_mark_detached(vp->remove);
 		if (vp->file) {
 			uprobe_munmap(vp->remove, vp->remove->vm_start,
 				      vp->remove->vm_end);
@@ -362,7 +401,7 @@ again:
  */
 static void init_vma_prep(struct vma_prepare *vp, struct vm_area_struct *vma)
 {
-	init_multi_vma_prep(vp, vma, NULL, NULL, NULL);
+	init_multi_vma_prep(vp, vma, NULL);
 }
 
 /*
@@ -386,8 +425,10 @@ static bool can_vma_merge_left(struct vma_merge_struct *vmg)
 static bool can_vma_merge_right(struct vma_merge_struct *vmg,
 				bool can_merge_left)
 {
-	if (!vmg->next || vmg->end != vmg->next->vm_start ||
-	    !can_vma_merge_before(vmg))
+	struct vm_area_struct *next = vmg->next;
+	struct vm_area_struct *prev;
+
+	if (!next || vmg->end != next->vm_start || !can_vma_merge_before(vmg))
 		return false;
 
 	if (!can_merge_left)
@@ -400,23 +441,22 @@ static bool can_vma_merge_right(struct vma_merge_struct *vmg,
 	 *
 	 * We therefore check this in addition to mergeability to either side.
 	 */
-	return are_anon_vmas_compatible(vmg->prev, vmg->next);
+	prev = vmg->prev;
+	return !prev->anon_vma || !next->anon_vma ||
+		prev->anon_vma == next->anon_vma;
 }
 
 /*
  * Close a vm structure and free it.
  */
-void remove_vma(struct vm_area_struct *vma, bool unreachable)
+void remove_vma(struct vm_area_struct *vma)
 {
 	might_sleep();
 	vma_close(vma);
 	if (vma->vm_file)
 		fput(vma->vm_file);
 	mpol_put(vma_policy(vma));
-	if (unreachable)
-		__vm_area_free(vma);
-	else
-		vm_area_free(vma);
+	vm_area_free(vma);
 }
 
 /*
@@ -499,7 +539,7 @@ __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	init_vma_prep(&vp, vma);
 	vp.insert = new;
 	vma_prepare(&vp);
-	vma_adjust_trans_huge(vma, vma->vm_start, addr, 0);
+	vma_adjust_trans_huge(vma, vma->vm_start, addr, NULL);
 
 	if (new_below) {
 		vma->vm_start = addr;
@@ -543,7 +583,9 @@ static int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
 }
 
 /*
- * dup_anon_vma() - Helper function to duplicate anon_vma
+ * dup_anon_vma() - Helper function to duplicate anon_vma on VMA merge in the
+ * instance that the destination VMA has no anon_vma but the source does.
+ *
  * @dst: The destination VMA
  * @src: The source VMA
  * @dup: Pointer to the destination VMA when successful.
@@ -554,9 +596,18 @@ static int dup_anon_vma(struct vm_area_struct *dst,
 			struct vm_area_struct *src, struct vm_area_struct **dup)
 {
 	/*
-	 * Easily overlooked: when mprotect shifts the boundary, make sure the
-	 * expanding vma has anon_vma set if the shrinking vma had, to cover any
-	 * anon pages imported.
+	 * There are three cases to consider for correctly propagating
+	 * anon_vma's on merge.
+	 *
+	 * The first is trivial - neither VMA has anon_vma, we need not do
+	 * anything.
+	 *
+	 * The second where both have anon_vma is also a no-op, as they must
+	 * then be the same, so there is simply nothing to copy.
+	 *
+	 * Here we cover the third - if the destination VMA has no anon_vma,
+	 * that is it is unfaulted, we need to ensure that the newly merged
+	 * range is referenced by the anon_vma's of the source.
 	 */
 	if (src->anon_vma && !dst->anon_vma) {
 		int ret;
@@ -629,49 +680,75 @@ void validate_mm(struct mm_struct *mm)
 }
 #endif /* CONFIG_DEBUG_VM_MAPLE_TREE */
 
-/* Actually perform the VMA merge operation. */
-static int commit_merge(struct vma_merge_struct *vmg,
-			struct vm_area_struct *adjust,
-			struct vm_area_struct *remove,
-			struct vm_area_struct *remove2,
-			long adj_start,
-			bool expanded)
+/*
+ * Based on the vmg flag indicating whether we need to adjust the vm_start field
+ * for the middle or next VMA, we calculate what the range of the newly adjusted
+ * VMA ought to be, and set the VMA's range accordingly.
+ */
+static void vmg_adjust_set_range(struct vma_merge_struct *vmg)
 {
-	struct vma_prepare vp;
+	struct vm_area_struct *adjust;
+	pgoff_t pgoff;
 
-	init_multi_vma_prep(&vp, vmg->vma, adjust, remove, remove2);
-
-	VM_WARN_ON(vp.anon_vma && adjust && adjust->anon_vma &&
-		   vp.anon_vma != adjust->anon_vma);
-
-	if (expanded) {
-		/* Note: vma iterator must be pointing to 'start'. */
-		vma_iter_config(vmg->vmi, vmg->start, vmg->end);
+	if (vmg->__adjust_middle_start) {
+		adjust = vmg->middle;
+		pgoff = adjust->vm_pgoff + PHYS_PFN(vmg->end - adjust->vm_start);
+	} else if (vmg->__adjust_next_start) {
+		adjust = vmg->next;
+		pgoff = adjust->vm_pgoff - PHYS_PFN(adjust->vm_start - vmg->end);
 	} else {
-		vma_iter_config(vmg->vmi, adjust->vm_start + adj_start,
-				adjust->vm_end);
+		return;
 	}
 
-	if (vma_iter_prealloc(vmg->vmi, vmg->vma))
+	vma_set_range(adjust, vmg->end, adjust->vm_end, pgoff);
+}
+
+/*
+ * Actually perform the VMA merge operation.
+ *
+ * IMPORTANT: We guarantee that, should vmg->give_up_on_oom is set, to not
+ * modify any VMAs or cause inconsistent state should an OOM condition arise.
+ *
+ * Returns 0 on success, or an error value on failure.
+ */
+static int commit_merge(struct vma_merge_struct *vmg)
+{
+	struct vm_area_struct *vma;
+	struct vma_prepare vp;
+
+	if (vmg->__adjust_next_start) {
+		/* We manipulate middle and adjust next, which is the target. */
+		vma = vmg->middle;
+		vma_iter_config(vmg->vmi, vmg->end, vmg->next->vm_end);
+	} else {
+		vma = vmg->target;
+		 /* Note: vma iterator must be pointing to 'start'. */
+		vma_iter_config(vmg->vmi, vmg->start, vmg->end);
+	}
+
+	init_multi_vma_prep(&vp, vma, vmg);
+
+	/*
+	 * If vmg->give_up_on_oom is set, we're safe, because we don't actually
+	 * manipulate any VMAs until we succeed at preallocation.
+	 *
+	 * Past this point, we will not return an error.
+	 */
+	if (vma_iter_prealloc(vmg->vmi, vma))
 		return -ENOMEM;
 
 	vma_prepare(&vp);
-	vma_adjust_trans_huge(vmg->vma, vmg->start, vmg->end, adj_start);
-	vma_set_range(vmg->vma, vmg->start, vmg->end, vmg->pgoff);
+	/*
+	 * THP pages may need to do additional splits if we increase
+	 * middle->vm_start.
+	 */
+	vma_adjust_trans_huge(vma, vmg->start, vmg->end,
+			      vmg->__adjust_middle_start ? vmg->middle : NULL);
+	vma_set_range(vma, vmg->start, vmg->end, vmg->pgoff);
+	vmg_adjust_set_range(vmg);
+	vma_iter_store_overwrite(vmg->vmi, vmg->target);
 
-	if (expanded)
-		vma_iter_store(vmg->vmi, vmg->vma);
-
-	if (adj_start) {
-		adjust->vm_start += adj_start;
-		adjust->vm_pgoff += PHYS_PFN(adj_start);
-		if (adj_start < 0) {
-			WARN_ON(expanded);
-			vma_iter_store(vmg->vmi, adjust);
-		}
-	}
-
-	vma_complete(&vp, vmg->vmi, vmg->vma->vm_mm);
+	vma_complete(&vp, vmg->vmi, vma->vm_mm);
 
 	return 0;
 }
@@ -694,8 +771,9 @@ static bool can_merge_remove_vma(struct vm_area_struct *vma)
  * identical properties.
  *
  * This function checks for the existence of any such mergeable VMAs and updates
- * the maple tree describing the @vmg->vma->vm_mm address space to account for
- * this, as well as any VMAs shrunk/expanded/deleted as a result of this merge.
+ * the maple tree describing the @vmg->middle->vm_mm address space to account
+ * for this, as well as any VMAs shrunk/expanded/deleted as a result of this
+ * merge.
  *
  * As part of this operation, if a merge occurs, the @vmg object will have its
  * vma, start, end, and pgoff fields modified to execute the merge. Subsequent
@@ -704,45 +782,43 @@ static bool can_merge_remove_vma(struct vm_area_struct *vma)
  * Returns: The merged VMA if merge succeeds, or NULL otherwise.
  *
  * ASSUMPTIONS:
- * - The caller must assign the VMA to be modifed to @vmg->vma.
+ * - The caller must assign the VMA to be modifed to @vmg->middle.
  * - The caller must have set @vmg->prev to the previous VMA, if there is one.
  * - The caller must not set @vmg->next, as we determine this.
  * - The caller must hold a WRITE lock on the mm_struct->mmap_lock.
- * - vmi must be positioned within [@vmg->vma->vm_start, @vmg->vma->vm_end).
+ * - vmi must be positioned within [@vmg->middle->vm_start, @vmg->middle->vm_end).
  */
 static __must_check struct vm_area_struct *vma_merge_existing_range(
 		struct vma_merge_struct *vmg)
 {
-	struct vm_area_struct *vma = vmg->vma;
+	struct vm_area_struct *middle = vmg->middle;
 	struct vm_area_struct *prev = vmg->prev;
-	struct vm_area_struct *next, *res;
+	struct vm_area_struct *next;
 	struct vm_area_struct *anon_dup = NULL;
-	struct vm_area_struct *adjust = NULL;
 	unsigned long start = vmg->start;
 	unsigned long end = vmg->end;
-	bool left_side = vma && start == vma->vm_start;
-	bool right_side = vma && end == vma->vm_end;
+	bool left_side = middle && start == middle->vm_start;
+	bool right_side = middle && end == middle->vm_end;
 	int err = 0;
-	long adj_start = 0;
-	bool merge_will_delete_vma, merge_will_delete_next;
 	bool merge_left, merge_right, merge_both;
-	bool expanded;
 
 	mmap_assert_write_locked(vmg->mm);
-	VM_WARN_ON_VMG(!vma, vmg); /* We are modifying a VMA, so caller must specify. */
+	VM_WARN_ON_VMG(!middle, vmg); /* We are modifying a VMA, so caller must specify. */
 	VM_WARN_ON_VMG(vmg->next, vmg); /* We set this. */
 	VM_WARN_ON_VMG(prev && start <= prev->vm_start, vmg);
 	VM_WARN_ON_VMG(start >= end, vmg);
 
 	/*
-	 * If vma == prev, then we are offset into a VMA. Otherwise, if we are
+	 * If middle == prev, then we are offset into a VMA. Otherwise, if we are
 	 * not, we must span a portion of the VMA.
 	 */
-	VM_WARN_ON_VMG(vma && ((vma != prev && vmg->start != vma->vm_start) ||
-			       vmg->end > vma->vm_end), vmg);
-	/* The vmi must be positioned within vmg->vma. */
-	VM_WARN_ON_VMG(vma && !(vma_iter_addr(vmg->vmi) >= vma->vm_start &&
-				vma_iter_addr(vmg->vmi) < vma->vm_end), vmg);
+	VM_WARN_ON_VMG(middle &&
+		       ((middle != prev && vmg->start != middle->vm_start) ||
+			vmg->end > middle->vm_end), vmg);
+	/* The vmi must be positioned within vmg->middle. */
+	VM_WARN_ON_VMG(middle &&
+		       !(vma_iter_addr(vmg->vmi) >= middle->vm_start &&
+			 vma_iter_addr(vmg->vmi) < middle->vm_end), vmg);
 
 	vmg->state = VMA_MERGE_NOMERGE;
 
@@ -776,49 +852,52 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 
 	merge_both = merge_left && merge_right;
 	/* If we span the entire VMA, a merge implies it will be deleted. */
-	merge_will_delete_vma = left_side && right_side;
+	vmg->__remove_middle = left_side && right_side;
 
 	/*
-	 * If we need to remove vma in its entirety but are unable to do so,
+	 * If we need to remove middle in its entirety but are unable to do so,
 	 * we have no sensible recourse but to abort the merge.
 	 */
-	if (merge_will_delete_vma && !can_merge_remove_vma(vma))
+	if (vmg->__remove_middle && !can_merge_remove_vma(middle))
 		return NULL;
 
 	/*
 	 * If we merge both VMAs, then next is also deleted. This implies
 	 * merge_will_delete_vma also.
 	 */
-	merge_will_delete_next = merge_both;
+	vmg->__remove_next = merge_both;
 
 	/*
 	 * If we cannot delete next, then we can reduce the operation to merging
-	 * prev and vma (thereby deleting vma).
+	 * prev and middle (thereby deleting middle).
 	 */
-	if (merge_will_delete_next && !can_merge_remove_vma(next)) {
-		merge_will_delete_next = false;
+	if (vmg->__remove_next && !can_merge_remove_vma(next)) {
+		vmg->__remove_next = false;
 		merge_right = false;
 		merge_both = false;
 	}
 
-	/* No matter what happens, we will be adjusting vma. */
-	vma_start_write(vma);
+	/* No matter what happens, we will be adjusting middle. */
+	vma_start_write(middle);
 
-	if (merge_left)
-		vma_start_write(prev);
-
-	if (merge_right)
+	if (merge_right) {
 		vma_start_write(next);
+		vmg->target = next;
+	}
+
+	if (merge_left) {
+		vma_start_write(prev);
+		vmg->target = prev;
+	}
 
 	if (merge_both) {
 		/*
-		 *         |<----->|
-		 * |-------*********-------|
-		 *   prev     vma     next
-		 *  extend   delete  delete
+		 * |<-------------------->|
+		 * |-------********-------|
+		 *   prev   middle   next
+		 *  extend  delete  delete
 		 */
 
-		vmg->vma = prev;
 		vmg->start = prev->vm_start;
 		vmg->end = next->vm_end;
 		vmg->pgoff = prev->vm_pgoff;
@@ -826,97 +905,91 @@ static __must_check struct vm_area_struct *vma_merge_existing_range(
 		/*
 		 * We already ensured anon_vma compatibility above, so now it's
 		 * simply a case of, if prev has no anon_vma object, which of
-		 * next or vma contains the anon_vma we must duplicate.
+		 * next or middle contains the anon_vma we must duplicate.
 		 */
-		err = dup_anon_vma(prev, next->anon_vma ? next : vma, &anon_dup);
+		err = dup_anon_vma(prev, next->anon_vma ? next : middle,
+				   &anon_dup);
 	} else if (merge_left) {
 		/*
-		 *         |<----->| OR
-		 *         |<--------->|
+		 * |<------------>|      OR
+		 * |<----------------->|
 		 * |-------*************
-		 *   prev       vma
+		 *   prev     middle
 		 *  extend shrink/delete
 		 */
 
-		vmg->vma = prev;
 		vmg->start = prev->vm_start;
 		vmg->pgoff = prev->vm_pgoff;
 
-		if (!merge_will_delete_vma) {
-			adjust = vma;
-			adj_start = vmg->end - vma->vm_start;
-		}
+		if (!vmg->__remove_middle)
+			vmg->__adjust_middle_start = true;
 
-		err = dup_anon_vma(prev, vma, &anon_dup);
+		err = dup_anon_vma(prev, middle, &anon_dup);
 	} else { /* merge_right */
 		/*
-		 *     |<----->| OR
-		 * |<--------->|
+		 *     |<------------->| OR
+		 * |<----------------->|
 		 * *************-------|
-		 *      vma       next
+		 *    middle     next
 		 * shrink/delete extend
 		 */
 
 		pgoff_t pglen = PHYS_PFN(vmg->end - vmg->start);
 
 		VM_WARN_ON_VMG(!merge_right, vmg);
-		/* If we are offset into a VMA, then prev must be vma. */
-		VM_WARN_ON_VMG(vmg->start > vma->vm_start && prev && vma != prev, vmg);
+		/* If we are offset into a VMA, then prev must be middle. */
+		VM_WARN_ON_VMG(vmg->start > middle->vm_start && prev && middle != prev, vmg);
 
-		if (merge_will_delete_vma) {
-			vmg->vma = next;
+		if (vmg->__remove_middle) {
 			vmg->end = next->vm_end;
 			vmg->pgoff = next->vm_pgoff - pglen;
 		} else {
-			/*
-			 * We shrink vma and expand next.
-			 *
-			 * IMPORTANT: This is the ONLY case where the final
-			 * merged VMA is NOT vmg->vma, but rather vmg->next.
-			 */
-
-			vmg->start = vma->vm_start;
+			/* We shrink middle and expand next. */
+			vmg->__adjust_next_start = true;
+			vmg->start = middle->vm_start;
 			vmg->end = start;
-			vmg->pgoff = vma->vm_pgoff;
-
-			adjust = next;
-			adj_start = -(vma->vm_end - start);
+			vmg->pgoff = middle->vm_pgoff;
 		}
 
-		err = dup_anon_vma(next, vma, &anon_dup);
+		err = dup_anon_vma(next, middle, &anon_dup);
 	}
 
 	if (err)
 		goto abort;
 
-	/*
-	 * In nearly all cases, we expand vmg->vma. There is one exception -
-	 * merge_right where we partially span the VMA. In this case we shrink
-	 * the end of vmg->vma and adjust the start of vmg->next accordingly.
-	 */
-	expanded = !merge_right || merge_will_delete_vma;
+	err = commit_merge(vmg);
+	if (err) {
+		VM_WARN_ON(err != -ENOMEM);
 
-	if (commit_merge(vmg, adjust,
-			 merge_will_delete_vma ? vma : NULL,
-			 merge_will_delete_next ? next : NULL,
-			 adj_start, expanded)) {
 		if (anon_dup)
 			unlink_anon_vmas(anon_dup);
 
-		vmg->state = VMA_MERGE_ERROR_NOMEM;
+		/*
+		 * We've cleaned up any cloned anon_vma's, no VMAs have been
+		 * modified, no harm no foul if the user requests that we not
+		 * report this and just give up, leaving the VMAs unmerged.
+		 */
+		if (!vmg->give_up_on_oom)
+			vmg->state = VMA_MERGE_ERROR_NOMEM;
 		return NULL;
 	}
 
-	res = merge_left ? prev : next;
-	khugepaged_enter_vma(res, vmg->flags);
-
+	khugepaged_enter_vma(vmg->target, vmg->flags);
 	vmg->state = VMA_MERGE_SUCCESS;
-	return res;
+	return vmg->target;
 
 abort:
 	vma_iter_set(vmg->vmi, start);
 	vma_iter_load(vmg->vmi);
-	vmg->state = VMA_MERGE_ERROR_NOMEM;
+
+	/*
+	 * This means we have failed to clone anon_vma's correctly, but no
+	 * actual changes to VMAs have occurred, so no harm no foul - if the
+	 * user doesn't want this reported and instead just wants to give up on
+	 * the merge, allow it.
+	 */
+	if (!vmg->give_up_on_oom)
+		vmg->state = VMA_MERGE_ERROR_NOMEM;
 	return NULL;
 }
 
@@ -970,10 +1043,9 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	struct vm_area_struct *next = vmg->next;
 	unsigned long end = vmg->end;
 	bool can_merge_left, can_merge_right;
-	bool just_expand = vmg->merge_flags & VMG_FLAG_JUST_EXPAND;
 
 	mmap_assert_write_locked(vmg->mm);
-	VM_WARN_ON_VMG(vmg->vma, vmg);
+	VM_WARN_ON_VMG(vmg->middle, vmg);
 	/* vmi must point at or before the gap. */
 	VM_WARN_ON_VMG(vma_iter_addr(vmg->vmi) > end, vmg);
 
@@ -984,18 +1056,18 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 		return NULL;
 
 	can_merge_left = can_vma_merge_left(vmg);
-	can_merge_right = !just_expand && can_vma_merge_right(vmg, can_merge_left);
+	can_merge_right = !vmg->just_expand && can_vma_merge_right(vmg, can_merge_left);
 
 	/* If we can merge with the next VMA, adjust vmg accordingly. */
 	if (can_merge_right) {
 		vmg->end = next->vm_end;
-		vmg->vma = next;
+		vmg->middle = next;
 	}
 
 	/* If we can merge with the previous VMA, adjust vmg accordingly. */
 	if (can_merge_left) {
 		vmg->start = prev->vm_start;
-		vmg->vma = prev;
+		vmg->middle = prev;
 		vmg->pgoff = prev->vm_pgoff;
 
 		/*
@@ -1007,7 +1079,7 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 			vmg->end = end;
 
 		/* In expand-only case we are already positioned at prev. */
-		if (!just_expand) {
+		if (!vmg->just_expand) {
 			/* Equivalent to going to the previous range. */
 			vma_prev(vmg->vmi);
 		}
@@ -1017,10 +1089,10 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	 * Now try to expand adjacent VMA(s). This takes care of removing the
 	 * following VMA if we have VMAs on both sides.
 	 */
-	if (vmg->vma && !vma_expand(vmg)) {
-		khugepaged_enter_vma(vmg->vma, vmg->flags);
+	if (vmg->middle && !vma_expand(vmg)) {
+		khugepaged_enter_vma(vmg->middle, vmg->flags);
 		vmg->state = VMA_MERGE_SUCCESS;
-		return vmg->vma;
+		return vmg->middle;
 	}
 
 	return NULL;
@@ -1032,53 +1104,68 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
  * @vmg: Describes a VMA expansion operation.
  *
  * Expand @vma to vmg->start and vmg->end.  Can expand off the start and end.
- * Will expand over vmg->next if it's different from vmg->vma and vmg->end ==
- * vmg->next->vm_end.  Checking if the vmg->vma can expand and merge with
+ * Will expand over vmg->next if it's different from vmg->middle and vmg->end ==
+ * vmg->next->vm_end.  Checking if the vmg->middle can expand and merge with
  * vmg->next needs to be handled by the caller.
  *
  * Returns: 0 on success.
  *
  * ASSUMPTIONS:
- * - The caller must hold a WRITE lock on vmg->vma->mm->mmap_lock.
- * - The caller must have set @vmg->vma and @vmg->next.
+ * - The caller must hold a WRITE lock on vmg->middle->mm->mmap_lock.
+ * - The caller must have set @vmg->middle and @vmg->next.
  */
 int vma_expand(struct vma_merge_struct *vmg)
 {
 	struct vm_area_struct *anon_dup = NULL;
 	bool remove_next = false;
-	struct vm_area_struct *vma = vmg->vma;
+	struct vm_area_struct *middle = vmg->middle;
 	struct vm_area_struct *next = vmg->next;
 
 	mmap_assert_write_locked(vmg->mm);
 
-	vma_start_write(vma);
-	if (next && (vma != next) && (vmg->end == next->vm_end)) {
+	vma_start_write(middle);
+	if (next && (middle != next) && (vmg->end == next->vm_end)) {
 		int ret;
 
 		remove_next = true;
 		/* This should already have been checked by this point. */
 		VM_WARN_ON_VMG(!can_merge_remove_vma(next), vmg);
 		vma_start_write(next);
-		ret = dup_anon_vma(vma, next, &anon_dup);
+		/*
+		 * In this case we don't report OOM, so vmg->give_up_on_mm is
+		 * safe.
+		 */
+		ret = dup_anon_vma(middle, next, &anon_dup);
 		if (ret)
 			return ret;
 	}
 
 	/* Not merging but overwriting any part of next is not handled. */
 	VM_WARN_ON_VMG(next && !remove_next &&
-		       next != vma && vmg->end > next->vm_start, vmg);
+		       next != middle && vmg->end > next->vm_start, vmg);
 	/* Only handles expanding */
-	VM_WARN_ON_VMG(vma->vm_start < vmg->start || vma->vm_end > vmg->end, vmg);
+	VM_WARN_ON_VMG(middle->vm_start < vmg->start ||
+		       middle->vm_end > vmg->end, vmg);
 
-	if (commit_merge(vmg, NULL, remove_next ? next : NULL, NULL, 0, true))
+	vmg->target = middle;
+	if (remove_next)
+		vmg->__remove_next = true;
+
+	if (commit_merge(vmg))
 		goto nomem;
 
 	return 0;
 
 nomem:
-	vmg->state = VMA_MERGE_ERROR_NOMEM;
 	if (anon_dup)
 		unlink_anon_vmas(anon_dup);
+	/*
+	 * If the user requests that we just give upon OOM, we are safe to do so
+	 * here, as commit merge provides this contract to us. Nothing has been
+	 * changed - no harm no foul, just don't report it.
+	 */
+	if (!vmg->give_up_on_oom)
+		vmg->state = VMA_MERGE_ERROR_NOMEM;
 	return -ENOMEM;
 }
 
@@ -1110,7 +1197,7 @@ int vma_shrink(struct vma_iterator *vmi, struct vm_area_struct *vma,
 
 	init_vma_prep(&vp, vma);
 	vma_prepare(&vp);
-	vma_adjust_trans_huge(vma, start, end, 0);
+	vma_adjust_trans_huge(vma, start, end, NULL);
 
 	vma_iter_clear(vmi);
 	vma_set_range(vma, start, end, pgoff);
@@ -1199,7 +1286,7 @@ static void vms_complete_munmap_vmas(struct vma_munmap_struct *vms,
 	/* Remove and clean up vmas */
 	mas_set(mas_detach, 0);
 	mas_for_each(mas_detach, vma, ULONG_MAX)
-		remove_vma(vma, /* unreachable = */ false);
+		remove_vma(vma);
 
 	vm_unacct_memory(vms->nr_accounted);
 	validate_mm(mm);
@@ -1221,7 +1308,7 @@ static void reattach_vmas(struct ma_state *mas_detach)
 
 	mas_set(mas_detach, 0);
 	mas_for_each(mas_detach, vma, ULONG_MAX)
-		vma_mark_detached(vma, false);
+		vma_mark_attached(vma);
 
 	__mt_destroy(mas_detach->tree);
 }
@@ -1296,7 +1383,7 @@ static int vms_gather_munmap_vmas(struct vma_munmap_struct *vms,
 		if (error)
 			goto munmap_gather_failed;
 
-		vma_mark_detached(next, true);
+		vma_mark_detached(next);
 		nrpages = vma_pages(next);
 
 		vms->nr_pages += nrpages;
@@ -1508,7 +1595,7 @@ int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
  */
 static struct vm_area_struct *vma_modify(struct vma_merge_struct *vmg)
 {
-	struct vm_area_struct *vma = vmg->vma;
+	struct vm_area_struct *vma = vmg->middle;
 	unsigned long start = vmg->start;
 	unsigned long end = vmg->end;
 	struct vm_area_struct *merged;
@@ -1519,6 +1606,13 @@ static struct vm_area_struct *vma_modify(struct vma_merge_struct *vmg)
 		return merged;
 	if (vmg_nomem(vmg))
 		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * Split can fail for reasons other than OOM, so if the user requests
+	 * this it's probably a mistake.
+	 */
+	VM_WARN_ON(vmg->give_up_on_oom &&
+		   (vma->vm_start != start || vma->vm_end != end));
 
 	/* Split any preceding portion of the VMA. */
 	if (vma->vm_start < start) {
@@ -1588,12 +1682,15 @@ struct vm_area_struct
 		       struct vm_area_struct *vma,
 		       unsigned long start, unsigned long end,
 		       unsigned long new_flags,
-		       struct vm_userfaultfd_ctx new_ctx)
+		       struct vm_userfaultfd_ctx new_ctx,
+		       bool give_up_on_oom)
 {
 	VMG_VMA_STATE(vmg, vmi, prev, vma, start, end);
 
 	vmg.flags = new_flags;
 	vmg.uffd_ctx = new_ctx;
+	if (give_up_on_oom)
+		vmg.give_up_on_oom = true;
 
 	return vma_modify(&vmg);
 }
@@ -1609,7 +1706,7 @@ struct vm_area_struct *vma_merge_extend(struct vma_iterator *vmi,
 	VMG_VMA_STATE(vmg, vmi, vma, vma, vma->vm_end, vma->vm_end + delta);
 
 	vmg.next = vma_iter_next_rewind(vmi, NULL);
-	vmg.vma = NULL; /* We use the VMA to populate VMG fields only. */
+	vmg.middle = NULL; /* We use the VMA to populate VMG fields only. */
 
 	return vma_merge_new_range(&vmg);
 }
@@ -1694,7 +1791,7 @@ int vma_link(struct mm_struct *mm, struct vm_area_struct *vma)
 		return -ENOMEM;
 
 	vma_start_write(vma);
-	vma_iter_store(&vmi, vma);
+	vma_iter_store_new(&vmi, vma);
 	vma_link_file(vma);
 	mm->map_count++;
 	validate_mm(mm);
@@ -1730,7 +1827,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	if (new_vma && new_vma->vm_start < addr + len)
 		return NULL;	/* should never get here */
 
-	vmg.vma = NULL; /* New VMA range. */
+	vmg.middle = NULL; /* New VMA range. */
 	vmg.pgoff = pgoff;
 	vmg.next = vma_iter_next_rewind(&vmi, NULL);
 	new_vma = vma_merge_new_range(&vmg);
@@ -1777,6 +1874,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 	return new_vma;
 
 out_vma_link:
+	fixup_hugetlb_reservations(new_vma);
 	vma_close(new_vma);
 
 	if (new_vma->vm_file)
@@ -2293,6 +2391,10 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 	int error;
 
 	vma->vm_file = get_file(map->file);
+
+	if (!map->file->f_op->mmap)
+		return 0;
+
 	error = mmap_file(vma->vm_file, vma);
 	if (error) {
 		fput(vma->vm_file);
@@ -2315,8 +2417,6 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 			!(map->flags & VM_MAYWRITE) &&
 			(vma->vm_flags & VM_MAYWRITE));
 
-	/* If the flags change (and are mergeable), let's retry later. */
-	map->retry_merge = vma->vm_flags != map->flags && !(vma->vm_flags & VM_SPECIAL);
 	map->flags = vma->vm_flags;
 
 	return 0;
@@ -2349,7 +2449,7 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 	vma_iter_config(vmi, map->addr, map->end);
 	vma_set_range(vma, map->addr, map->end, map->pgoff);
 	vm_flags_init(vma, map->flags);
-	vma->vm_page_prot = vm_get_page_prot(map->flags);
+	vma->vm_page_prot = map->page_prot;
 
 	if (vma_iter_prealloc(vmi, vma)) {
 		error = -ENOMEM;
@@ -2373,7 +2473,7 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 
 	/* Lock the VMA since it is modified after insertion into VMA tree */
 	vma_start_write(vma);
-	vma_iter_store(vmi, vma);
+	vma_iter_store_new(vmi, vma);
 	map->mm->map_count++;
 	vma_link_file(vma);
 
@@ -2436,6 +2536,56 @@ static void __mmap_complete(struct mmap_state *map, struct vm_area_struct *vma)
 	vma_set_page_prot(vma);
 }
 
+/*
+ * Invoke the f_op->mmap_prepare() callback for a file-backed mapping that
+ * specifies it.
+ *
+ * This is called prior to any merge attempt, and updates whitelisted fields
+ * that are permitted to be updated by the caller.
+ *
+ * All but user-defined fields will be pre-populated with original values.
+ *
+ * Returns 0 on success, or an error code otherwise.
+ */
+static int call_mmap_prepare(struct mmap_state *map)
+{
+	int err;
+	struct vm_area_desc desc = {
+		.mm = map->mm,
+		.start = map->addr,
+		.end = map->end,
+
+		.pgoff = map->pgoff,
+		.file = map->file,
+		.vm_flags = map->flags,
+		.page_prot = map->page_prot,
+	};
+
+	/* Invoke the hook. */
+	err = __call_mmap_prepare(map->file, &desc);
+	if (err)
+		return err;
+
+	/* Update fields permitted to be changed. */
+	map->pgoff = desc.pgoff;
+	map->file = desc.file;
+	map->flags = desc.vm_flags;
+	map->page_prot = desc.page_prot;
+	/* User-defined fields. */
+	map->vm_ops = desc.vm_ops;
+	map->vm_private_data = desc.private_data;
+
+	return 0;
+}
+
+static void set_vma_user_defined_fields(struct vm_area_struct *vma,
+		struct mmap_state *map)
+{
+	if (map->vm_ops)
+		vma->vm_ops = map->vm_ops;
+	vma->vm_private_data = map->vm_private_data;
+}
+
 static unsigned long __mmap_region(struct file *file, unsigned long addr,
 		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
 		struct list_head *uf)
@@ -2443,10 +2593,13 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = NULL;
 	int error;
+	bool have_mmap_prepare = file && file->f_op->mmap_prepare;
 	VMA_ITERATOR(vmi, mm, addr);
 	MMAP_STATE(map, mm, &vmi, addr, len, pgoff, vm_flags, file);
 
 	error = __mmap_prepare(&map, uf);
+	if (!error && have_mmap_prepare)
+		error = call_mmap_prepare(&map);
 	if (error)
 		goto abort_munmap;
 
@@ -2464,16 +2617,8 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 			goto unacct_error;
 	}
 
-	/* If flags changed, we might be able to merge, so try again. */
-	if (map.retry_merge) {
-		struct vm_area_struct *merged;
-		VMG_MMAP_STATE(vmg, &map, vma);
-
-		vma_iter_config(map.vmi, map.addr, map.end);
-		merged = vma_merge_existing_range(&vmg);
-		if (merged)
-			vma = merged;
-	}
+	if (have_mmap_prepare)
+		set_vma_user_defined_fields(vma, &map);
 
 	__mmap_complete(&map, vma);
 
@@ -2587,7 +2732,7 @@ int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
 
 		vmg.prev = vma;
 		/* vmi is positioned at prev, which this mode expects. */
-		vmg.merge_flags = VMG_FLAG_JUST_EXPAND;
+		vmg.just_expand = true;
 
 		if (vma_merge_new_range(&vmg))
 			goto out;
@@ -2850,7 +2995,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 				anon_vma_interval_tree_pre_update_vma(vma);
 				vma->vm_end = address;
 				/* Overwrite old entry in mtree. */
-				vma_iter_store(&vmi, vma);
+				vma_iter_store_overwrite(&vmi, vma);
 				anon_vma_interval_tree_post_update_vma(vma);
 
 				perf_event_mmap(vma);
@@ -2930,7 +3075,7 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 				vma->vm_start = address;
 				vma->vm_pgoff -= grow;
 				/* Overwrite old entry in mtree. */
-				vma_iter_store(&vmi, vma);
+				vma_iter_store_overwrite(&vmi, vma);
 				anon_vma_interval_tree_post_update_vma(vma);
 
 				perf_event_mmap(vma);
@@ -2959,4 +3104,47 @@ int __vm_munmap(unsigned long start, size_t len, bool unlock)
 
 	userfaultfd_unmap_complete(mm, &uf);
 	return ret;
+}
+
+
+/* Insert vm structure into process list sorted by address
+ * and into the inode's i_mmap tree.  If vm_file is non-NULL
+ * then i_mmap_rwsem is taken here.
+ */
+int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
+{
+	unsigned long charged = vma_pages(vma);
+
+
+	if (find_vma_intersection(mm, vma->vm_start, vma->vm_end))
+		return -ENOMEM;
+
+	if ((vma->vm_flags & VM_ACCOUNT) &&
+	     security_vm_enough_memory_mm(mm, charged))
+		return -ENOMEM;
+
+	/*
+	 * The vm_pgoff of a purely anonymous vma should be irrelevant
+	 * until its first write fault, when page's anon_vma and index
+	 * are set.  But now set the vm_pgoff it will almost certainly
+	 * end up with (unless mremap moves it elsewhere before that
+	 * first wfault), so /proc/pid/maps tells a consistent story.
+	 *
+	 * By setting it to reflect the virtual start address of the
+	 * vma, merges and splits can happen in a seamless way, just
+	 * using the existing file pgoff checks and manipulations.
+	 * Similarly in do_mmap and in do_brk_flags.
+	 */
+	if (vma_is_anonymous(vma)) {
+		BUG_ON(vma->anon_vma);
+		vma->vm_pgoff = vma->vm_start >> PAGE_SHIFT;
+	}
+
+	if (vma_link(mm, vma)) {
+		if (vma->vm_flags & VM_ACCOUNT)
+			vm_unacct_memory(charged);
+		return -ENOMEM;
+	}
+
+	return 0;
 }

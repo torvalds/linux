@@ -101,8 +101,8 @@ static void __bkey_cached_free(struct rcu_pending *pending, struct rcu_head *rcu
 	kmem_cache_free(bch2_key_cache, ck);
 }
 
-static void bkey_cached_free(struct btree_key_cache *bc,
-			     struct bkey_cached *ck)
+static inline void bkey_cached_free_noassert(struct btree_key_cache *bc,
+				      struct bkey_cached *ck)
 {
 	kfree(ck->k);
 	ck->k		= NULL;
@@ -114,6 +114,19 @@ static void bkey_cached_free(struct btree_key_cache *bc,
 	bool pcpu_readers = ck->c.lock.readers != NULL;
 	rcu_pending_enqueue(&bc->pending[pcpu_readers], &ck->rcu);
 	this_cpu_inc(*bc->nr_pending);
+}
+
+static void bkey_cached_free(struct btree_trans *trans,
+			     struct btree_key_cache *bc,
+			     struct bkey_cached *ck)
+{
+	/*
+	 * we'll hit strange issues in the SRCU code if we aren't holding an
+	 * SRCU read lock...
+	 */
+	EBUG_ON(!trans->srcu_held);
+
+	bkey_cached_free_noassert(bc, ck);
 }
 
 static struct bkey_cached *__bkey_cached_alloc(unsigned key_u64s, gfp_t gfp)
@@ -281,16 +294,31 @@ static int btree_key_cache_create(struct btree_trans *trans,
 	ck_path->uptodate = BTREE_ITER_UPTODATE;
 	return 0;
 err:
-	bkey_cached_free(bc, ck);
+	bkey_cached_free(trans, bc, ck);
 	mark_btree_node_locked_noreset(ck_path, 0, BTREE_NODE_UNLOCKED);
 
 	return ret;
 }
 
+static noinline_for_stack void do_trace_key_cache_fill(struct btree_trans *trans,
+						       struct btree_path *ck_path,
+						       struct bkey_s_c k)
+{
+	struct printbuf buf = PRINTBUF;
+
+	bch2_bpos_to_text(&buf, ck_path->pos);
+	prt_char(&buf, ' ');
+	bch2_bkey_val_to_text(&buf, trans->c, k);
+	trace_key_cache_fill(trans, buf.buf);
+	printbuf_exit(&buf);
+}
+
 static noinline int btree_key_cache_fill(struct btree_trans *trans,
-					 struct btree_path *ck_path,
+					 btree_path_idx_t ck_path_idx,
 					 unsigned flags)
 {
+	struct btree_path *ck_path = trans->paths + ck_path_idx;
+
 	if (flags & BTREE_ITER_cached_nofill) {
 		ck_path->l[0].b = NULL;
 		return 0;
@@ -306,12 +334,13 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 			     BTREE_ITER_key_cache_fill|
 			     BTREE_ITER_cached_nofill);
 	iter.flags &= ~BTREE_ITER_with_journal;
-	k = bch2_btree_iter_peek_slot(&iter);
+	k = bch2_btree_iter_peek_slot(trans, &iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
 
 	/* Recheck after btree lookup, before allocating: */
+	ck_path = trans->paths + ck_path_idx;
 	ret = bch2_btree_key_cache_find(c, ck_path->btree_id, ck_path->pos) ? -EEXIST : 0;
 	if (unlikely(ret))
 		goto out;
@@ -320,28 +349,22 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (trace_key_cache_fill_enabled()) {
-		struct printbuf buf = PRINTBUF;
-
-		bch2_bpos_to_text(&buf, ck_path->pos);
-		prt_char(&buf, ' ');
-		bch2_bkey_val_to_text(&buf, trans->c, k);
-		trace_key_cache_fill(trans, buf.buf);
-		printbuf_exit(&buf);
-	}
+	if (trace_key_cache_fill_enabled())
+		do_trace_key_cache_fill(trans, ck_path, k);
 out:
 	/* We're not likely to need this iterator again: */
-	bch2_set_btree_iter_dontneed(&iter);
+	bch2_set_btree_iter_dontneed(trans, &iter);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
 static inline int btree_path_traverse_cached_fast(struct btree_trans *trans,
-						  struct btree_path *path)
+						  btree_path_idx_t path_idx)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck;
+	struct btree_path *path = trans->paths + path_idx;
 retry:
 	ck = bch2_btree_key_cache_find(c, path->btree_id, path->pos);
 	if (!ck)
@@ -367,19 +390,20 @@ retry:
 	return 0;
 }
 
-int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path *path,
+int bch2_btree_path_traverse_cached(struct btree_trans *trans,
+				    btree_path_idx_t path_idx,
 				    unsigned flags)
 {
-	EBUG_ON(path->level);
-
-	path->l[1].b = NULL;
+	EBUG_ON(trans->paths[path_idx].level);
 
 	int ret;
 	do {
-		ret = btree_path_traverse_cached_fast(trans, path);
+		ret = btree_path_traverse_cached_fast(trans, path_idx);
 		if (unlikely(ret == -ENOENT))
-			ret = btree_key_cache_fill(trans, path, flags);
+			ret = btree_key_cache_fill(trans, path_idx, flags);
 	} while (ret == -EEXIST);
+
+	struct btree_path *path = trans->paths + path_idx;
 
 	if (unlikely(ret)) {
 		path->uptodate = BTREE_ITER_NEED_TRAVERSE;
@@ -387,7 +411,11 @@ int bch2_btree_path_traverse_cached(struct btree_trans *trans, struct btree_path
 			btree_node_unlock(trans, path, 0);
 			path->l[0].b = ERR_PTR(ret);
 		}
+	} else {
+		BUG_ON(path->uptodate);
+		BUG_ON(!path->nodes_locked);
 	}
+
 	return ret;
 }
 
@@ -412,7 +440,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 			     BTREE_ITER_intent);
 	b_iter.flags &= ~BTREE_ITER_with_key_cache;
 
-	ret = bch2_btree_iter_traverse(&c_iter);
+	ret = bch2_btree_iter_traverse(trans, &c_iter);
 	if (ret)
 		goto out;
 
@@ -444,7 +472,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	    !test_bit(JOURNAL_space_low, &c->journal.flags))
 		commit_flags |= BCH_TRANS_COMMIT_no_journal_res;
 
-	struct bkey_s_c btree_k = bch2_btree_iter_peek_slot(&b_iter);
+	struct bkey_s_c btree_k = bch2_btree_iter_peek_slot(trans, &b_iter);
 	ret = bkey_err(btree_k);
 	if (ret)
 		goto err;
@@ -496,7 +524,7 @@ evict:
 
 		mark_btree_node_locked_noreset(path, 0, BTREE_NODE_UNLOCKED);
 		if (bkey_cached_evict(&c->btree_key_cache, ck)) {
-			bkey_cached_free(&c->btree_key_cache, ck);
+			bkey_cached_free(trans, &c->btree_key_cache, ck);
 		} else {
 			six_unlock_write(&ck->c.lock);
 			six_unlock_intent(&ck->c.lock);
@@ -610,7 +638,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 	}
 
 	bkey_cached_evict(bc, ck);
-	bkey_cached_free(bc, ck);
+	bkey_cached_free(trans, bc, ck);
 
 	mark_btree_node_locked(trans, path, 0, BTREE_NODE_UNLOCKED);
 
@@ -618,10 +646,17 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 	unsigned i;
 	trans_for_each_path(trans, path2, i)
 		if (path2->l[0].b == (void *) ck) {
+			/*
+			 * It's safe to clear should_be_locked here because
+			 * we're evicting from the key cache, and we still have
+			 * the underlying btree locked: filling into the key
+			 * cache would require taking a write lock on the btree
+			 * node
+			 */
+			path2->should_be_locked = false;
 			__bch2_btree_path_unlock(trans, path2);
 			path2->l[0].b = ERR_PTR(-BCH_ERR_no_btree_node_drop);
-			path2->should_be_locked = false;
-			btree_path_set_dirty(path2, BTREE_ITER_NEED_TRAVERSE);
+			btree_path_set_dirty(trans, path2, BTREE_ITER_NEED_TRAVERSE);
 		}
 
 	bch2_trans_verify_locks(trans);
@@ -678,7 +713,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 			} else if (!bkey_cached_lock_for_evict(ck)) {
 				bc->skipped_lock_fail++;
 			} else if (bkey_cached_evict(bc, ck)) {
-				bkey_cached_free(bc, ck);
+				bkey_cached_free_noassert(bc, ck);
 				bc->freed++;
 				freed++;
 			} else {

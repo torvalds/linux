@@ -40,6 +40,7 @@
 #include "xfs_rtrmap_btree.h"
 #include "xfs_rtrefcount_btree.h"
 #include "scrub/stats.h"
+#include "xfs_zone_alloc.h"
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;
@@ -185,7 +186,7 @@ xfs_readsb(
 	 */
 reread:
 	error = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-				      BTOBB(sector_size), 0, &bp, buf_ops);
+				      BTOBB(sector_size), &bp, buf_ops);
 	if (error) {
 		if (loud)
 			xfs_warn(mp, "SB validate failed with error %d.", error);
@@ -413,7 +414,7 @@ xfs_check_sizes(
 	}
 	error = xfs_buf_read_uncached(mp->m_ddev_targp,
 					d - XFS_FSS_TO_BB(mp, 1),
-					XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+					XFS_FSS_TO_BB(mp, 1), &bp, NULL);
 	if (error) {
 		xfs_warn(mp, "last sector read failed");
 		return error;
@@ -430,7 +431,7 @@ xfs_check_sizes(
 	}
 	error = xfs_buf_read_uncached(mp->m_logdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
-					XFS_FSB_TO_BB(mp, 1), 0, &bp, NULL);
+					XFS_FSB_TO_BB(mp, 1), &bp, NULL);
 	if (error) {
 		xfs_warn(mp, "log device read failed");
 		return error;
@@ -461,22 +462,38 @@ xfs_mount_reset_sbqflags(
 	return xfs_sync_sb(mp, false);
 }
 
-uint64_t
-xfs_default_resblks(xfs_mount_t *mp)
-{
-	uint64_t resblks;
+static const char *const xfs_free_pool_name[] = {
+	[XC_FREE_BLOCKS]	= "free blocks",
+	[XC_FREE_RTEXTENTS]	= "free rt extents",
+	[XC_FREE_RTAVAILABLE]	= "available rt extents",
+};
 
-	/*
-	 * We default to 5% or 8192 fsbs of space reserved, whichever is
-	 * smaller.  This is intended to cover concurrent allocation
-	 * transactions when we initially hit enospc. These each require a 4
-	 * block reservation. Hence by default we cover roughly 2000 concurrent
-	 * allocation reservations.
-	 */
-	resblks = mp->m_sb.sb_dblocks;
-	do_div(resblks, 20);
-	resblks = min_t(uint64_t, resblks, 8192);
-	return resblks;
+uint64_t
+xfs_default_resblks(
+	struct xfs_mount	*mp,
+	enum xfs_free_counter	ctr)
+{
+	switch (ctr) {
+	case XC_FREE_BLOCKS:
+		/*
+		 * Default to 5% or 8192 FSBs of space reserved, whichever is
+		 * smaller.
+		 *
+		 * This is intended to cover concurrent allocation transactions
+		 * when we initially hit ENOSPC.  These each require a 4 block
+		 * reservation. Hence by default we cover roughly 2000
+		 * concurrent allocation reservations.
+		 */
+		return min(div_u64(mp->m_sb.sb_dblocks, 20), 8192ULL);
+	case XC_FREE_RTEXTENTS:
+	case XC_FREE_RTAVAILABLE:
+		if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(mp))
+			return xfs_zoned_default_resblks(mp, ctr);
+		return 0;
+	default:
+		ASSERT(0);
+		return 0;
+	}
 }
 
 /* Ensure the summary counts are correct. */
@@ -543,7 +560,7 @@ xfs_check_summary_counts(
 	 * If we're mounting the rt volume after recovering the log, recompute
 	 * frextents from the rtbitmap file to fix the inconsistency.
 	 */
-	if (xfs_has_realtime(mp) && !xfs_is_clean(mp)) {
+	if (xfs_has_realtime(mp) && !xfs_has_zoned(mp) && !xfs_is_clean(mp)) {
 		error = xfs_rtalloc_reinit_frextents(mp);
 		if (error)
 			return error;
@@ -649,6 +666,158 @@ xfs_agbtree_compute_maxlevels(
 	mp->m_agbtree_maxlevels = max(levels, mp->m_refc_maxlevels);
 }
 
+/* Maximum atomic write IO size that the kernel allows. */
+static inline xfs_extlen_t xfs_calc_atomic_write_max(struct xfs_mount *mp)
+{
+	return rounddown_pow_of_two(XFS_B_TO_FSB(mp, MAX_RW_COUNT));
+}
+
+static inline unsigned int max_pow_of_two_factor(const unsigned int nr)
+{
+	return 1 << (ffs(nr) - 1);
+}
+
+/*
+ * If the data device advertises atomic write support, limit the size of data
+ * device atomic writes to the greatest power-of-two factor of the AG size so
+ * that every atomic write unit aligns with the start of every AG.  This is
+ * required so that the per-AG allocations for an atomic write will always be
+ * aligned compatibly with the alignment requirements of the storage.
+ *
+ * If the data device doesn't advertise atomic writes, then there are no
+ * alignment restrictions and the largest out-of-place write we can do
+ * ourselves is the number of blocks that user files can allocate from any AG.
+ */
+static inline xfs_extlen_t xfs_calc_perag_awu_max(struct xfs_mount *mp)
+{
+	if (mp->m_ddev_targp->bt_bdev_awu_min > 0)
+		return max_pow_of_two_factor(mp->m_sb.sb_agblocks);
+	return rounddown_pow_of_two(mp->m_ag_max_usable);
+}
+
+/*
+ * Reflink on the realtime device requires rtgroups, and atomic writes require
+ * reflink.
+ *
+ * If the realtime device advertises atomic write support, limit the size of
+ * data device atomic writes to the greatest power-of-two factor of the rtgroup
+ * size so that every atomic write unit aligns with the start of every rtgroup.
+ * This is required so that the per-rtgroup allocations for an atomic write
+ * will always be aligned compatibly with the alignment requirements of the
+ * storage.
+ *
+ * If the rt device doesn't advertise atomic writes, then there are no
+ * alignment restrictions and the largest out-of-place write we can do
+ * ourselves is the number of blocks that user files can allocate from any
+ * rtgroup.
+ */
+static inline xfs_extlen_t xfs_calc_rtgroup_awu_max(struct xfs_mount *mp)
+{
+	struct xfs_groups	*rgs = &mp->m_groups[XG_TYPE_RTG];
+
+	if (rgs->blocks == 0)
+		return 0;
+	if (mp->m_rtdev_targp && mp->m_rtdev_targp->bt_bdev_awu_min > 0)
+		return max_pow_of_two_factor(rgs->blocks);
+	return rounddown_pow_of_two(rgs->blocks);
+}
+
+/* Compute the maximum atomic write unit size for each section. */
+static inline void
+xfs_calc_atomic_write_unit_max(
+	struct xfs_mount	*mp)
+{
+	struct xfs_groups	*ags = &mp->m_groups[XG_TYPE_AG];
+	struct xfs_groups	*rgs = &mp->m_groups[XG_TYPE_RTG];
+
+	const xfs_extlen_t	max_write = xfs_calc_atomic_write_max(mp);
+	const xfs_extlen_t	max_ioend = xfs_reflink_max_atomic_cow(mp);
+	const xfs_extlen_t	max_agsize = xfs_calc_perag_awu_max(mp);
+	const xfs_extlen_t	max_rgsize = xfs_calc_rtgroup_awu_max(mp);
+
+	ags->awu_max = min3(max_write, max_ioend, max_agsize);
+	rgs->awu_max = min3(max_write, max_ioend, max_rgsize);
+
+	trace_xfs_calc_atomic_write_unit_max(mp, max_write, max_ioend,
+			max_agsize, max_rgsize);
+}
+
+/*
+ * Try to set the atomic write maximum to a new value that we got from
+ * userspace via mount option.
+ */
+int
+xfs_set_max_atomic_write_opt(
+	struct xfs_mount	*mp,
+	unsigned long long	new_max_bytes)
+{
+	const xfs_filblks_t	new_max_fsbs = XFS_B_TO_FSBT(mp, new_max_bytes);
+	const xfs_extlen_t	max_write = xfs_calc_atomic_write_max(mp);
+	const xfs_extlen_t	max_group =
+		max(mp->m_groups[XG_TYPE_AG].blocks,
+		    mp->m_groups[XG_TYPE_RTG].blocks);
+	const xfs_extlen_t	max_group_write =
+		max(xfs_calc_perag_awu_max(mp), xfs_calc_rtgroup_awu_max(mp));
+	int			error;
+
+	if (new_max_bytes == 0)
+		goto set_limit;
+
+	ASSERT(max_write <= U32_MAX);
+
+	/* generic_atomic_write_valid enforces power of two length */
+	if (!is_power_of_2(new_max_bytes)) {
+		xfs_warn(mp,
+ "max atomic write size of %llu bytes is not a power of 2",
+				new_max_bytes);
+		return -EINVAL;
+	}
+
+	if (new_max_bytes & mp->m_blockmask) {
+		xfs_warn(mp,
+ "max atomic write size of %llu bytes not aligned with fsblock",
+				new_max_bytes);
+		return -EINVAL;
+	}
+
+	if (new_max_fsbs > max_write) {
+		xfs_warn(mp,
+ "max atomic write size of %lluk cannot be larger than max write size %lluk",
+				new_max_bytes >> 10,
+				XFS_FSB_TO_B(mp, max_write) >> 10);
+		return -EINVAL;
+	}
+
+	if (new_max_fsbs > max_group) {
+		xfs_warn(mp,
+ "max atomic write size of %lluk cannot be larger than allocation group size %lluk",
+				new_max_bytes >> 10,
+				XFS_FSB_TO_B(mp, max_group) >> 10);
+		return -EINVAL;
+	}
+
+	if (new_max_fsbs > max_group_write) {
+		xfs_warn(mp,
+ "max atomic write size of %lluk cannot be larger than max allocation group write size %lluk",
+				new_max_bytes >> 10,
+				XFS_FSB_TO_B(mp, max_group_write) >> 10);
+		return -EINVAL;
+	}
+
+set_limit:
+	error = xfs_calc_atomic_write_reservation(mp, new_max_fsbs);
+	if (error) {
+		xfs_warn(mp,
+ "cannot support completing atomic writes of %lluk",
+				new_max_bytes >> 10);
+		return error;
+	}
+
+	xfs_calc_atomic_write_unit_max(mp);
+	mp->m_awu_max_bytes = new_max_bytes;
+	return 0;
+}
+
 /* Compute maximum possible height for realtime btree types for this fs. */
 static inline void
 xfs_rtbtree_compute_maxlevels(
@@ -678,6 +847,7 @@ xfs_mountfs(
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
 	int			error = 0;
+	int			i;
 
 	xfs_sb_mount_common(mp, sbp);
 
@@ -747,27 +917,15 @@ xfs_mountfs(
 	/* enable fail_at_unmount as default */
 	mp->m_fail_unmount = true;
 
-	super_set_sysfs_name_id(mp->m_super);
-
-	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype,
-			       NULL, mp->m_super->s_id);
-	if (error)
-		goto out;
-
-	error = xfs_sysfs_init(&mp->m_stats.xs_kobj, &xfs_stats_ktype,
-			       &mp->m_kobj, "stats");
-	if (error)
-		goto out_remove_sysfs;
-
-	xchk_stats_register(mp->m_scrub_stats, mp->m_debugfs);
-
-	error = xfs_error_sysfs_init(mp);
+	error = xfs_mount_sysfs_init(mp);
 	if (error)
 		goto out_remove_scrub_stats;
 
+	xchk_stats_register(mp->m_scrub_stats, mp->m_debugfs);
+
 	error = xfs_errortag_init(mp);
 	if (error)
-		goto out_remove_error_sysfs;
+		goto out_remove_sysfs;
 
 	error = xfs_uuid_mount(mp);
 	if (error)
@@ -1031,6 +1189,12 @@ xfs_mountfs(
 	if (xfs_is_readonly(mp) && !xfs_has_norecovery(mp))
 		xfs_log_clean(mp);
 
+	if (xfs_has_zoned(mp)) {
+		error = xfs_mount_zones(mp);
+		if (error)
+			goto out_rtunmount;
+	}
+
 	/*
 	 * Complete the quota initialisation, post-log-replay component.
 	 */
@@ -1046,29 +1210,46 @@ xfs_mountfs(
 	 * privileged transactions. This is needed so that transaction
 	 * space required for critical operations can dip into this pool
 	 * when at ENOSPC. This is needed for operations like create with
-	 * attr, unwritten extent conversion at ENOSPC, etc. Data allocations
-	 * are not allowed to use this reserved space.
+	 * attr, unwritten extent conversion at ENOSPC, garbage collection
+	 * etc. Data allocations are not allowed to use this reserved space.
 	 *
 	 * This may drive us straight to ENOSPC on mount, but that implies
 	 * we were already there on the last unmount. Warn if this occurs.
 	 */
 	if (!xfs_is_readonly(mp)) {
-		error = xfs_reserve_blocks(mp, xfs_default_resblks(mp));
-		if (error)
-			xfs_warn(mp,
-	"Unable to allocate reserve blocks. Continuing without reserve pool.");
+		for (i = 0; i < XC_FREE_NR; i++) {
+			error = xfs_reserve_blocks(mp, i,
+					xfs_default_resblks(mp, i));
+			if (error)
+				xfs_warn(mp,
+"Unable to allocate reserve blocks. Continuing without reserve pool for %s.",
+					xfs_free_pool_name[i]);
+		}
 
 		/* Reserve AG blocks for future btree expansion. */
 		error = xfs_fs_reserve_ag_blocks(mp);
 		if (error && error != -ENOSPC)
 			goto out_agresv;
+
+		xfs_zone_gc_start(mp);
 	}
+
+	/*
+	 * Pre-calculate atomic write unit max.  This involves computations
+	 * derived from transaction reservations, so we must do this after the
+	 * log is fully initialized.
+	 */
+	error = xfs_set_max_atomic_write_opt(mp, mp->m_awu_max_bytes);
+	if (error)
+		goto out_agresv;
 
 	return 0;
 
  out_agresv:
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
+	if (xfs_has_zoned(mp))
+		xfs_unmount_zones(mp);
  out_rtunmount:
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
@@ -1116,13 +1297,10 @@ xfs_mountfs(
 	xfs_uuid_unmount(mp);
  out_remove_errortag:
 	xfs_errortag_del(mp);
- out_remove_error_sysfs:
-	xfs_error_sysfs_del(mp);
+ out_remove_sysfs:
+	xfs_mount_sysfs_del(mp);
  out_remove_scrub_stats:
 	xchk_stats_unregister(mp->m_scrub_stats);
-	xfs_sysfs_del(&mp->m_stats.xs_kobj);
- out_remove_sysfs:
-	xfs_sysfs_del(&mp->m_kobj);
  out:
 	return error;
 }
@@ -1148,8 +1326,12 @@ xfs_unmountfs(
 	xfs_inodegc_flush(mp);
 
 	xfs_blockgc_stop(mp);
+	if (!test_bit(XFS_OPSTATE_READONLY, &mp->m_opstate))
+		xfs_zone_gc_stop(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
+	if (xfs_has_zoned(mp))
+		xfs_unmount_zones(mp);
 	xfs_rtunmount_inodes(mp);
 	xfs_irele(mp->m_rootip);
 	if (mp->m_metadirip)
@@ -1173,7 +1355,7 @@ xfs_unmountfs(
 	 * we only every apply deltas to the superblock and hence the incore
 	 * value does not matter....
 	 */
-	error = xfs_reserve_blocks(mp, 0);
+	error = xfs_reserve_blocks(mp, XC_FREE_BLOCKS, 0);
 	if (error)
 		xfs_warn(mp, "Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
@@ -1195,10 +1377,8 @@ xfs_unmountfs(
 	xfs_free_rtgroups(mp, 0, mp->m_sb.sb_rgcount);
 	xfs_free_perag_range(mp, 0, mp->m_sb.sb_agcount);
 	xfs_errortag_del(mp);
-	xfs_error_sysfs_del(mp);
 	xchk_stats_unregister(mp->m_scrub_stats);
-	xfs_sysfs_del(&mp->m_stats.xs_kobj);
-	xfs_sysfs_del(&mp->m_kobj);
+	xfs_mount_sysfs_del(mp);
 }
 
 /*
@@ -1220,52 +1400,67 @@ xfs_fs_writable(
 	return true;
 }
 
+/*
+ * Estimate the amount of free space that is not available to userspace and is
+ * not explicitly reserved from the incore fdblocks.  This includes:
+ *
+ * - The minimum number of blocks needed to support splitting a bmap btree
+ * - The blocks currently in use by the freespace btrees because they record
+ *   the actual blocks that will fill per-AG metadata space reservations
+ */
+uint64_t
+xfs_freecounter_unavailable(
+	struct xfs_mount	*mp,
+	enum xfs_free_counter	ctr)
+{
+	if (ctr != XC_FREE_BLOCKS)
+		return 0;
+	return mp->m_alloc_set_aside + atomic64_read(&mp->m_allocbt_blks);
+}
+
 void
 xfs_add_freecounter(
 	struct xfs_mount	*mp,
-	struct percpu_counter	*counter,
+	enum xfs_free_counter	ctr,
 	uint64_t		delta)
 {
-	bool			has_resv_pool = (counter == &mp->m_fdblocks);
+	struct xfs_freecounter	*counter = &mp->m_free[ctr];
 	uint64_t		res_used;
 
 	/*
 	 * If the reserve pool is depleted, put blocks back into it first.
 	 * Most of the time the pool is full.
 	 */
-	if (!has_resv_pool || mp->m_resblks == mp->m_resblks_avail) {
-		percpu_counter_add(counter, delta);
+	if (likely(counter->res_avail == counter->res_total)) {
+		percpu_counter_add(&counter->count, delta);
 		return;
 	}
 
 	spin_lock(&mp->m_sb_lock);
-	res_used = mp->m_resblks - mp->m_resblks_avail;
+	res_used = counter->res_total - counter->res_avail;
 	if (res_used > delta) {
-		mp->m_resblks_avail += delta;
+		counter->res_avail += delta;
 	} else {
 		delta -= res_used;
-		mp->m_resblks_avail = mp->m_resblks;
-		percpu_counter_add(counter, delta);
+		counter->res_avail = counter->res_total;
+		percpu_counter_add(&counter->count, delta);
 	}
 	spin_unlock(&mp->m_sb_lock);
 }
 
+
+/* Adjust in-core free blocks or RT extents. */
 int
 xfs_dec_freecounter(
 	struct xfs_mount	*mp,
-	struct percpu_counter	*counter,
+	enum xfs_free_counter	ctr,
 	uint64_t		delta,
 	bool			rsvd)
 {
-	int64_t			lcounter;
-	uint64_t		set_aside = 0;
+	struct xfs_freecounter	*counter = &mp->m_free[ctr];
 	s32			batch;
-	bool			has_resv_pool;
 
-	ASSERT(counter == &mp->m_fdblocks || counter == &mp->m_frextents);
-	has_resv_pool = (counter == &mp->m_fdblocks);
-	if (rsvd)
-		ASSERT(has_resv_pool);
+	ASSERT(ctr < XC_FREE_NR);
 
 	/*
 	 * Taking blocks away, need to be more accurate the closer we
@@ -1275,7 +1470,7 @@ xfs_dec_freecounter(
 	 * then make everything serialise as we are real close to
 	 * ENOSPC.
 	 */
-	if (__percpu_counter_compare(counter, 2 * XFS_FDBLOCKS_BATCH,
+	if (__percpu_counter_compare(&counter->count, 2 * XFS_FDBLOCKS_BATCH,
 				     XFS_FDBLOCKS_BATCH) < 0)
 		batch = 1;
 	else
@@ -1292,34 +1487,34 @@ xfs_dec_freecounter(
 	 * problems (i.e. transaction abort, pagecache discards, etc.) than
 	 * slightly premature -ENOSPC.
 	 */
-	if (has_resv_pool)
-		set_aside = xfs_fdblocks_unavailable(mp);
-	percpu_counter_add_batch(counter, -((int64_t)delta), batch);
-	if (__percpu_counter_compare(counter, set_aside,
-				     XFS_FDBLOCKS_BATCH) >= 0) {
-		/* we had space! */
-		return 0;
-	}
-
-	/*
-	 * lock up the sb for dipping into reserves before releasing the space
-	 * that took us to ENOSPC.
-	 */
-	spin_lock(&mp->m_sb_lock);
-	percpu_counter_add(counter, delta);
-	if (!has_resv_pool || !rsvd)
-		goto fdblocks_enospc;
-
-	lcounter = (long long)mp->m_resblks_avail - delta;
-	if (lcounter >= 0) {
-		mp->m_resblks_avail = lcounter;
-		spin_unlock(&mp->m_sb_lock);
-		return 0;
-	}
-	xfs_warn_once(mp,
+	percpu_counter_add_batch(&counter->count, -((int64_t)delta), batch);
+	if (__percpu_counter_compare(&counter->count,
+			xfs_freecounter_unavailable(mp, ctr),
+			XFS_FDBLOCKS_BATCH) < 0) {
+		/*
+		 * Lock up the sb for dipping into reserves before releasing the
+		 * space that took us to ENOSPC.
+		 */
+		spin_lock(&mp->m_sb_lock);
+		percpu_counter_add(&counter->count, delta);
+		if (!rsvd)
+			goto fdblocks_enospc;
+		if (delta > counter->res_avail) {
+			if (ctr == XC_FREE_BLOCKS)
+				xfs_warn_once(mp,
 "Reserve blocks depleted! Consider increasing reserve pool size.");
+			goto fdblocks_enospc;
+		}
+		counter->res_avail -= delta;
+		trace_xfs_freecounter_reserved(mp, ctr, delta, _RET_IP_);
+		spin_unlock(&mp->m_sb_lock);
+	}
+
+	/* we had space! */
+	return 0;
 
 fdblocks_enospc:
+	trace_xfs_freecounter_enospc(mp, ctr, delta, _RET_IP_);
 	spin_unlock(&mp->m_sb_lock);
 	return -ENOSPC;
 }

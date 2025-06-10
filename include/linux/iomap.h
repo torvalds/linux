@@ -79,6 +79,11 @@ struct vm_fault;
 #define IOMAP_F_ATOMIC_BIO	(1U << 8)
 
 /*
+ * Flag reserved for file system specific usage
+ */
+#define IOMAP_F_PRIVATE		(1U << 12)
+
+/*
  * Flags set by the core iomap code during operations:
  *
  * IOMAP_F_SIZE_CHANGED indicates to the iomap_end method that the file size
@@ -88,14 +93,8 @@ struct vm_fault;
  * range it covers needs to be remapped by the high level before the operation
  * can proceed.
  */
-#define IOMAP_F_SIZE_CHANGED	(1U << 8)
-#define IOMAP_F_STALE		(1U << 9)
-
-/*
- * Flags from 0x1000 up are for file system specific usage:
- */
-#define IOMAP_F_PRIVATE		(1U << 12)
-
+#define IOMAP_F_SIZE_CHANGED	(1U << 14)
+#define IOMAP_F_STALE		(1U << 15)
 
 /*
  * Magic value for addr:
@@ -378,13 +377,16 @@ sector_t iomap_bmap(struct address_space *mapping, sector_t bno,
 #define IOMAP_IOEND_BOUNDARY		(1U << 2)
 /* is direct I/O */
 #define IOMAP_IOEND_DIRECT		(1U << 3)
+/* is DONTCACHE I/O */
+#define IOMAP_IOEND_DONTCACHE		(1U << 4)
 
 /*
  * Flags that if set on either ioend prevent the merge of two ioends.
  * (IOMAP_IOEND_BOUNDARY also prevents merges, but only one-way)
  */
 #define IOMAP_IOEND_NOMERGE_FLAGS \
-	(IOMAP_IOEND_SHARED | IOMAP_IOEND_UNWRITTEN | IOMAP_IOEND_DIRECT)
+	(IOMAP_IOEND_SHARED | IOMAP_IOEND_UNWRITTEN | IOMAP_IOEND_DIRECT | \
+	 IOMAP_IOEND_DONTCACHE)
 
 /*
  * Structure for writeback I/O completions.

@@ -508,7 +508,7 @@ efct_xport_detach(struct efct_xport *xport)
 
 	/*Shutdown FC Statistics timer*/
 	if (timer_pending(&xport->stats_timer))
-		del_timer(&xport->stats_timer);
+		timer_delete(&xport->stats_timer);
 
 	efct_hw_teardown(&efct->hw);
 

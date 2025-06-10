@@ -12,8 +12,6 @@
 #include <linux/export.h>
 #include <asm/reg.h>
 #include <asm/copro.h>
-#include <asm/spu.h>
-#include <misc/cxl-base.h>
 
 /*
  * This ought to be kept in sync with the powerpc specific do_page_fault
@@ -135,13 +133,4 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(copro_calculate_slb);
-
-void copro_flush_all_slbs(struct mm_struct *mm)
-{
-#ifdef CONFIG_SPU_BASE
-	spu_flush_all_slbs(mm);
-#endif
-	cxl_slbia(mm);
-}
-EXPORT_SYMBOL_GPL(copro_flush_all_slbs);
 #endif

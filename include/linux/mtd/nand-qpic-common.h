@@ -108,7 +108,7 @@
 #define	ECC_FORCE_CLK_OPEN		BIT(30)
 
 /* NAND_DEV_CMD1 bits */
-#define	READ_ADDR			0
+#define	READ_ADDR_MASK			GENMASK(7, 0)
 
 /* NAND_DEV_CMD_VLD bits */
 #define	READ_START_VLD			BIT(0)
@@ -119,6 +119,7 @@
 
 /* NAND_EBI2_ECC_BUF_CFG bits */
 #define	NUM_STEPS			0
+#define	NUM_STEPS_MASK			GENMASK(9, 0)
 
 /* NAND_ERASED_CW_DETECT_CFG bits */
 #define	ERASED_CW_ECC_MASK		1
@@ -139,8 +140,11 @@
 
 /* NAND_READ_LOCATION_n bits */
 #define READ_LOCATION_OFFSET		0
+#define READ_LOCATION_OFFSET_MASK	GENMASK(9, 0)
 #define READ_LOCATION_SIZE		16
+#define READ_LOCATION_SIZE_MASK		GENMASK(25, 16)
 #define READ_LOCATION_LAST		31
+#define READ_LOCATION_LAST_MASK		BIT(31)
 
 /* Version Mask */
 #define	NAND_VERSION_MAJOR_MASK		0xf0000000
@@ -194,9 +198,6 @@
  * (i.e. NAND_DEV_CMD0, NAND_DEV_CMD1, NAND_DEV_CMD2 and NAND_DEV_CMD_VLD)
  */
 #define dev_cmd_reg_addr(nandc, reg) ((nandc)->props->dev_cmd_reg_start + (reg))
-
-/* Returns the NAND register physical address */
-#define nandc_reg_phys(chip, offset) ((chip)->base_phys + (offset))
 
 /* Returns the dma address for reg read buffer */
 #define reg_buf_dma_addr(chip, vaddr) \
@@ -450,6 +451,7 @@ struct qcom_nand_controller {
 struct qcom_nandc_props {
 	u32 ecc_modes;
 	u32 dev_cmd_reg_start;
+	u32 bam_offset;
 	bool supports_bam;
 	bool nandc_part_of_qpic;
 	bool qpic_version2;

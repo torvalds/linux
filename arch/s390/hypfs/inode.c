@@ -24,6 +24,7 @@
 #include <linux/kobject.h>
 #include <linux/seq_file.h>
 #include <linux/uio.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
 #include "hypfs.h"
 
@@ -184,7 +185,7 @@ static ssize_t hypfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	}
 	hypfs_delete_tree(sb->s_root);
-	if (MACHINE_IS_VM)
+	if (machine_is_vm())
 		rc = hypfs_vm_create_files(sb->s_root);
 	else
 		rc = hypfs_diag_create_files(sb->s_root);
@@ -273,7 +274,7 @@ static int hypfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_root = root_dentry = d_make_root(root_inode);
 	if (!root_dentry)
 		return -ENOMEM;
-	if (MACHINE_IS_VM)
+	if (machine_is_vm())
 		rc = hypfs_vm_create_files(root_dentry);
 	else
 		rc = hypfs_diag_create_files(root_dentry);
@@ -341,7 +342,7 @@ static struct dentry *hypfs_create_file(struct dentry *parent, const char *name,
 	struct inode *inode;
 
 	inode_lock(d_inode(parent));
-	dentry = lookup_one_len(name, parent, strlen(name));
+	dentry = lookup_noperm(&QSTR(name), parent);
 	if (IS_ERR(dentry)) {
 		dentry = ERR_PTR(-ENOMEM);
 		goto fail;

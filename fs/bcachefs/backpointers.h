@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _BCACHEFS_BACKPOINTERS_BACKGROUND_H
-#define _BCACHEFS_BACKPOINTERS_BACKGROUND_H
+#ifndef _BCACHEFS_BACKPOINTERS_H
+#define _BCACHEFS_BACKPOINTERS_H
 
 #include "btree_cache.h"
 #include "btree_iter.h"
@@ -102,7 +102,7 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 				struct bkey_i_backpointer *bp,
 				bool insert)
 {
-	if (unlikely(bch2_backpointers_no_use_write_buffer))
+	if (static_branch_unlikely(&bch2_backpointers_no_use_write_buffer))
 		return bch2_bucket_backpointer_mod_nowritebuffer(trans, orig_k, bp, insert);
 
 	if (!insert) {
@@ -123,7 +123,12 @@ static inline enum bch_data_type bch2_bkey_ptr_data_type(struct bkey_s_c k,
 		return BCH_DATA_btree;
 	case KEY_TYPE_extent:
 	case KEY_TYPE_reflink_v:
-		return p.has_ec ? BCH_DATA_stripe : BCH_DATA_user;
+		if (p.has_ec)
+			return BCH_DATA_stripe;
+		if (p.ptr.cached)
+			return BCH_DATA_cached;
+		else
+			return BCH_DATA_user;
 	case KEY_TYPE_stripe: {
 		const struct bch_extent_ptr *ptr = &entry->ptr;
 		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
@@ -147,7 +152,20 @@ static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
 			   struct bkey_i_backpointer *bp)
 {
 	bkey_backpointer_init(&bp->k_i);
-	bp->k.p = POS(p.ptr.dev, ((u64) p.ptr.offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) + p.crc.offset);
+	bp->k.p.inode = p.ptr.dev;
+
+	if (k.k->type != KEY_TYPE_stripe)
+		bp->k.p.offset = ((u64) p.ptr.offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) + p.crc.offset;
+	else {
+		/*
+		 * Put stripe backpointers where they won't collide with the
+		 * extent backpointers within the stripe:
+		 */
+		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+		bp->k.p.offset = ((u64) (p.ptr.offset + le16_to_cpu(s.v->sectors)) <<
+				  MAX_EXTENT_COMPRESS_RATIO_SHIFT) - 1;
+	}
+
 	bp->v	= (struct bch_backpointer) {
 		.btree_id	= btree_id,
 		.level		= level,
@@ -164,8 +182,20 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *, struct bkey_s_c_b
 struct btree *bch2_backpointer_get_node(struct btree_trans *, struct bkey_s_c_backpointer,
 					struct btree_iter *, struct bkey_buf *);
 
+int bch2_check_bucket_backpointer_mismatch(struct btree_trans *, struct bch_dev *, u64,
+					   bool, struct bkey_buf *);
+
 int bch2_check_btree_backpointers(struct bch_fs *);
 int bch2_check_extents_to_backpointers(struct bch_fs *);
 int bch2_check_backpointers_to_extents(struct bch_fs *);
+
+static inline bool bch2_bucket_bitmap_test(struct bucket_bitmap *b, u64 i)
+{
+	unsigned long *bitmap = READ_ONCE(b->buckets);
+	return bitmap && test_bit(i, bitmap);
+}
+
+int bch2_bucket_bitmap_resize(struct bucket_bitmap *, u64, u64);
+void bch2_bucket_bitmap_free(struct bucket_bitmap *);
 
 #endif /* _BCACHEFS_BACKPOINTERS_BACKGROUND_H */

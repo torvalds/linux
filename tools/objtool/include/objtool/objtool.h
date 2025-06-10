@@ -41,7 +41,7 @@ struct objtool_file {
 
 struct objtool_file *objtool_open_read(const char *_objname);
 
-void objtool_pv_add(struct objtool_file *file, int idx, struct symbol *func);
+int objtool_pv_add(struct objtool_file *file, int idx, struct symbol *func);
 
 int check(struct objtool_file *file);
 int orc_dump(const char *objname);

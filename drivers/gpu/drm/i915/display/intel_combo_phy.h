@@ -8,12 +8,12 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
 enum phy;
+struct intel_display;
 
-void intel_combo_phy_init(struct drm_i915_private *dev_priv);
-void intel_combo_phy_uninit(struct drm_i915_private *dev_priv);
-void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
+void intel_combo_phy_init(struct intel_display *display);
+void intel_combo_phy_uninit(struct intel_display *display);
+void intel_combo_phy_power_up_lanes(struct intel_display *display,
 				    enum phy phy, bool is_dsi,
 				    int lane_count, bool lane_reversal);
 

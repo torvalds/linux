@@ -30,7 +30,7 @@ static irqreturn_t hi65xx_power_press_isr(int irq, void *q)
 {
 	struct input_dev *input = q;
 
-	pm_wakeup_event(input->dev.parent, MAX_HELD_TIME);
+	pm_wakeup_dev_event(input->dev.parent, MAX_HELD_TIME, true);
 	input_report_key(input, KEY_POWER, 1);
 	input_sync(input);
 

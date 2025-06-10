@@ -40,13 +40,13 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 	} while (0)
 
 	chkaddr(0, 0, sizeof(*mz));
-	if (mz->magic != MZ_MAGIC)
+	if (mz->magic != IMAGE_DOS_SIGNATURE)
 		return -ELIBBAD;
 	cursor = sizeof(*mz);
 
 	chkaddr(cursor, mz->peaddr, sizeof(*pe));
 	pe = pebuf + mz->peaddr;
-	if (pe->magic != PE_MAGIC)
+	if (pe->magic != IMAGE_NT_SIGNATURE)
 		return -ELIBBAD;
 	cursor = mz->peaddr + sizeof(*pe);
 
@@ -55,7 +55,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 	pe64 = pebuf + cursor;
 
 	switch (pe32->magic) {
-	case PE_OPT_MAGIC_PE32:
+	case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
 		chkaddr(0, cursor, sizeof(*pe32));
 		ctx->image_checksum_offset =
 			(unsigned long)&pe32->csum - (unsigned long)pebuf;
@@ -64,7 +64,7 @@ static int pefile_parse_binary(const void *pebuf, unsigned int pelen,
 		ctx->n_data_dirents = pe32->data_dirs;
 		break;
 
-	case PE_OPT_MAGIC_PE32PLUS:
+	case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
 		chkaddr(0, cursor, sizeof(*pe64));
 		ctx->image_checksum_offset =
 			(unsigned long)&pe64->csum - (unsigned long)pebuf;

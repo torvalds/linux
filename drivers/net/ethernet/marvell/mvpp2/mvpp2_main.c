@@ -3915,13 +3915,13 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 
 	while (rx_done < rx_todo) {
 		struct mvpp2_rx_desc *rx_desc = mvpp2_rxq_next_desc_get(rxq);
+		u32 rx_status, timestamp, metasize = 0;
 		struct mvpp2_bm_pool *bm_pool;
 		struct page_pool *pp = NULL;
 		struct sk_buff *skb;
 		unsigned int frag_size;
 		dma_addr_t dma_addr;
 		phys_addr_t phys_addr;
-		u32 rx_status, timestamp;
 		int pool, rx_bytes, err, ret;
 		struct page *page;
 		void *data;
@@ -3983,7 +3983,7 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 			xdp_init_buff(&xdp, PAGE_SIZE, xdp_rxq);
 			xdp_prepare_buff(&xdp, data,
 					 MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM,
-					 rx_bytes, false);
+					 rx_bytes, true);
 
 			ret = mvpp2_run_xdp(port, xdp_prog, &xdp, pp, &ps);
 
@@ -3999,6 +3999,8 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 				ps.rx_bytes += rx_bytes;
 				continue;
 			}
+
+			metasize = xdp.data - xdp.data_meta;
 		}
 
 		if (frag_size)
@@ -4038,6 +4040,8 @@ static int mvpp2_rx(struct mvpp2_port *port, struct napi_struct *napi,
 
 		skb_reserve(skb, MVPP2_MH_SIZE + MVPP2_SKB_HEADROOM);
 		skb_put(skb, rx_bytes);
+		if (metasize)
+			skb_metadata_set(skb, metasize);
 		skb->ip_summed = mvpp2_rx_csum(port, rx_status);
 		skb->protocol = eth_type_trans(skb, dev);
 
@@ -5169,38 +5173,40 @@ mvpp2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	stats->tx_dropped	= dev->stats.tx_dropped;
 }
 
-static int mvpp2_set_ts_config(struct mvpp2_port *port, struct ifreq *ifr)
+static int mvpp2_hwtstamp_set(struct net_device *dev,
+			      struct kernel_hwtstamp_config *config,
+			      struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
+	struct mvpp2_port *port = netdev_priv(dev);
 	void __iomem *ptp;
 	u32 gcr, int_mask;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
+	if (!port->hwtstamp)
+		return -EOPNOTSUPP;
 
-	if (config.tx_type != HWTSTAMP_TX_OFF &&
-	    config.tx_type != HWTSTAMP_TX_ON)
+	if (config->tx_type != HWTSTAMP_TX_OFF &&
+	    config->tx_type != HWTSTAMP_TX_ON)
 		return -ERANGE;
 
 	ptp = port->priv->iface_base + MVPP22_PTP_BASE(port->gop_id);
 
 	int_mask = gcr = 0;
-	if (config.tx_type != HWTSTAMP_TX_OFF) {
+	if (config->tx_type != HWTSTAMP_TX_OFF) {
 		gcr |= MVPP22_PTP_GCR_TSU_ENABLE | MVPP22_PTP_GCR_TX_RESET;
 		int_mask |= MVPP22_PTP_INT_MASK_QUEUE1 |
 			    MVPP22_PTP_INT_MASK_QUEUE0;
 	}
 
 	/* It seems we must also release the TX reset when enabling the TSU */
-	if (config.rx_filter != HWTSTAMP_FILTER_NONE)
+	if (config->rx_filter != HWTSTAMP_FILTER_NONE)
 		gcr |= MVPP22_PTP_GCR_TSU_ENABLE | MVPP22_PTP_GCR_RX_RESET |
 		       MVPP22_PTP_GCR_TX_RESET;
 
 	if (gcr & MVPP22_PTP_GCR_TSU_ENABLE)
 		mvpp22_tai_start(port->priv->tai);
 
-	if (config.rx_filter != HWTSTAMP_FILTER_NONE) {
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+	if (config->rx_filter != HWTSTAMP_FILTER_NONE) {
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		mvpp2_modify(ptp + MVPP22_PTP_GCR,
 			     MVPP22_PTP_GCR_RX_RESET |
 			     MVPP22_PTP_GCR_TX_RESET |
@@ -5221,26 +5227,22 @@ static int mvpp2_set_ts_config(struct mvpp2_port *port, struct ifreq *ifr)
 	if (!(gcr & MVPP22_PTP_GCR_TSU_ENABLE))
 		mvpp22_tai_stop(port->priv->tai);
 
-	port->tx_hwtstamp_type = config.tx_type;
-
-	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
-		return -EFAULT;
+	port->tx_hwtstamp_type = config->tx_type;
 
 	return 0;
 }
 
-static int mvpp2_get_ts_config(struct mvpp2_port *port, struct ifreq *ifr)
+static int mvpp2_hwtstamp_get(struct net_device *dev,
+			      struct kernel_hwtstamp_config *config)
 {
-	struct hwtstamp_config config;
+	struct mvpp2_port *port = netdev_priv(dev);
 
-	memset(&config, 0, sizeof(config));
+	if (!port->hwtstamp)
+		return -EOPNOTSUPP;
 
-	config.tx_type = port->tx_hwtstamp_type;
-	config.rx_filter = port->rx_hwtstamp ?
-		HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE;
-
-	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
-		return -EFAULT;
+	config->tx_type = port->tx_hwtstamp_type;
+	config->rx_filter = port->rx_hwtstamp ? HWTSTAMP_FILTER_ALL :
+			    HWTSTAMP_FILTER_NONE;
 
 	return 0;
 }
@@ -5269,18 +5271,6 @@ static int mvpp2_ethtool_get_ts_info(struct net_device *dev,
 static int mvpp2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
-
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		if (port->hwtstamp)
-			return mvpp2_set_ts_config(port, ifr);
-		break;
-
-	case SIOCGHWTSTAMP:
-		if (port->hwtstamp)
-			return mvpp2_get_ts_config(port, ifr);
-		break;
-	}
 
 	if (!port->phylink)
 		return -ENOTSUPP;
@@ -5795,6 +5785,8 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 	.ndo_set_features	= mvpp2_set_features,
 	.ndo_bpf		= mvpp2_xdp,
 	.ndo_xdp_xmit		= mvpp2_xdp_xmit,
+	.ndo_hwtstamp_get	= mvpp2_hwtstamp_get,
+	.ndo_hwtstamp_set	= mvpp2_hwtstamp_set,
 };
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
@@ -7023,9 +7015,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	dev->dev_port = port->id;
 
 	port->pcs_gmac.ops = &mvpp2_phylink_gmac_pcs_ops;
-	port->pcs_gmac.neg_mode = true;
 	port->pcs_xlg.ops = &mvpp2_phylink_xlg_pcs_ops;
-	port->pcs_xlg.neg_mode = true;
 
 	if (!mvpp2_use_acpi_compat_mode(port_fwnode)) {
 		port->phylink_config.dev = &dev->dev;
@@ -7721,8 +7711,9 @@ static int mvpp2_probe(struct platform_device *pdev)
 	if (mvpp2_read(priv, MVPP2_VER_ID_REG) == MVPP2_VER_PP23)
 		priv->hw_version = MVPP23;
 
-	/* Init mss lock */
+	/* Init locks for shared packet processor resources */
 	spin_lock_init(&priv->mss_spinlock);
+	spin_lock_init(&priv->prs_spinlock);
 
 	/* Initialize network controller */
 	err = mvpp2_init(pdev, priv);

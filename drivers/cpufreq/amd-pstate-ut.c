@@ -31,6 +31,8 @@
 
 #include <acpi/cppc_acpi.h>
 
+#include <asm/msr.h>
+
 #include "amd-pstate.h"
 
 
@@ -90,9 +92,9 @@ static int amd_pstate_ut_check_enabled(u32 index)
 	if (get_shared_mem())
 		return 0;
 
-	ret = rdmsrl_safe(MSR_AMD_CPPC_ENABLE, &cppc_enable);
+	ret = rdmsrq_safe(MSR_AMD_CPPC_ENABLE, &cppc_enable);
 	if (ret) {
-		pr_err("%s rdmsrl_safe MSR_AMD_CPPC_ENABLE ret=%d error!\n", __func__, ret);
+		pr_err("%s rdmsrq_safe MSR_AMD_CPPC_ENABLE ret=%d error!\n", __func__, ret);
 		return ret;
 	}
 
@@ -137,7 +139,7 @@ static int amd_pstate_ut_check_perf(u32 index)
 			lowest_nonlinear_perf = cppc_perf.lowest_nonlinear_perf;
 			lowest_perf = cppc_perf.lowest_perf;
 		} else {
-			ret = rdmsrl_safe_on_cpu(cpu, MSR_AMD_CPPC_CAP1, &cap1);
+			ret = rdmsrq_safe_on_cpu(cpu, MSR_AMD_CPPC_CAP1, &cap1);
 			if (ret) {
 				pr_err("%s read CPPC_CAP1 ret=%d error!\n", __func__, ret);
 				return ret;
@@ -242,25 +244,30 @@ static int amd_pstate_set_mode(enum amd_pstate_mode mode)
 static int amd_pstate_ut_check_driver(u32 index)
 {
 	enum amd_pstate_mode mode1, mode2 = AMD_PSTATE_DISABLE;
+	enum amd_pstate_mode orig_mode = amd_pstate_get_status();
+	int ret;
 
 	for (mode1 = AMD_PSTATE_DISABLE; mode1 < AMD_PSTATE_MAX; mode1++) {
-		int ret = amd_pstate_set_mode(mode1);
+		ret = amd_pstate_set_mode(mode1);
 		if (ret)
 			return ret;
 		for (mode2 = AMD_PSTATE_DISABLE; mode2 < AMD_PSTATE_MAX; mode2++) {
 			if (mode1 == mode2)
 				continue;
 			ret = amd_pstate_set_mode(mode2);
-			if (ret) {
-				pr_err("%s: failed to update status for %s->%s\n", __func__,
-					amd_pstate_get_mode_string(mode1),
-					amd_pstate_get_mode_string(mode2));
-				return ret;
-			}
+			if (ret)
+				goto out;
 		}
 	}
 
-	return 0;
+out:
+	if (ret)
+		pr_warn("%s: failed to update status for %s->%s: %d\n", __func__,
+			amd_pstate_get_mode_string(mode1),
+			amd_pstate_get_mode_string(mode2), ret);
+
+	amd_pstate_set_mode(orig_mode);
+	return ret;
 }
 
 static int __init amd_pstate_ut_init(void)

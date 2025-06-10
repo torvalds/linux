@@ -6,7 +6,7 @@ to easily create and test complex environments.
 
 Unfortunately, these namespaces can not be used with actual switching
 ASICs, as their ports can not be migrated to other network namespaces
-(dev->netns_local) and most of them probably do not support the
+(dev->netns_immutable) and most of them probably do not support the
 L1-separation provided by namespaces.
 
 However, a similar kind of flexibility can be achieved by using VRFs and

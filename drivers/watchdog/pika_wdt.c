@@ -129,7 +129,7 @@ static int pikawdt_release(struct inode *inode, struct file *file)
 {
 	/* stop internal ping */
 	if (!pikawdt_private.expect_close)
-		del_timer(&pikawdt_private.timer);
+		timer_delete(&pikawdt_private.timer);
 
 	clear_bit(0, &pikawdt_private.open);
 	pikawdt_private.expect_close = 0;

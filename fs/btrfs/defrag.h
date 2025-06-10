@@ -6,14 +6,14 @@
 #include <linux/types.h>
 #include <linux/compiler_types.h>
 
-struct inode;
 struct file_ra_state;
+struct btrfs_inode;
 struct btrfs_fs_info;
 struct btrfs_root;
 struct btrfs_trans_handle;
 struct btrfs_ioctl_defrag_range_args;
 
-int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
+int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 		      struct btrfs_ioctl_defrag_range_args *range,
 		      u64 newer_than, unsigned long max_to_defrag);
 int __init btrfs_auto_defrag_init(void);

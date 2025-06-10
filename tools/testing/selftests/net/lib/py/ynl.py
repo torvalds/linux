@@ -39,9 +39,13 @@ class EthtoolFamily(YnlFamily):
 
 class RtnlFamily(YnlFamily):
     def __init__(self, recv_size=0):
-        super().__init__((SPEC_PATH / Path('rt_link.yaml')).as_posix(),
+        super().__init__((SPEC_PATH / Path('rt-link.yaml')).as_posix(),
                          schema='', recv_size=recv_size)
 
+class RtnlAddrFamily(YnlFamily):
+    def __init__(self, recv_size=0):
+        super().__init__((SPEC_PATH / Path('rt-addr.yaml')).as_posix(),
+                         schema='', recv_size=recv_size)
 
 class NetdevFamily(YnlFamily):
     def __init__(self, recv_size=0):

@@ -20,7 +20,7 @@ void gfs2_log_write(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 void gfs2_log_submit_bio(struct bio **biop, blk_opf_t opf);
 void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
 int gfs2_find_jhead(struct gfs2_jdesc *jd,
-		    struct gfs2_log_header_host *head, bool keep_cache);
+		    struct gfs2_log_header_host *head);
 void gfs2_drain_revokes(struct gfs2_sbd *sdp);
 
 static inline unsigned int buf_limit(struct gfs2_sbd *sdp)

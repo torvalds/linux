@@ -8,9 +8,6 @@
 #include "armada-ap806.dtsi"
 
 / {
-	model = "Marvell Armada AP806 Quad";
-	compatible = "marvell,armada-ap806-quad", "marvell,armada-ap806";
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

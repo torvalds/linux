@@ -63,7 +63,8 @@ struct pm4_mes_set_resources {
 		struct {
 			uint32_t vmid_mask:16;
 			uint32_t unmap_latency:8;
-			uint32_t reserved1:5;
+			uint32_t reserved1:4;
+			uint32_t enb_xnack_retry_disable_check:1;
 			enum mes_set_resources_queue_type_enum queue_type:3;
 		} bitfields2;
 		uint32_t ordinal2;

@@ -130,6 +130,16 @@ bool bch2_journal_seq_is_blacklisted(struct bch_fs *c, u64 seq,
 	return true;
 }
 
+u64 bch2_journal_last_blacklisted_seq(struct bch_fs *c)
+{
+	struct journal_seq_blacklist_table *t = c->journal_seq_blacklist_table;
+
+	if (!t || !t->nr)
+		return 0;
+
+	return t->entries[eytzinger0_last(t->nr)].end - 1;
+}
+
 int bch2_blacklist_table_initialize(struct bch_fs *c)
 {
 	struct bch_sb_field_journal_seq_blacklist *bl =
@@ -231,15 +241,14 @@ bool bch2_blacklist_entries_gc(struct bch_fs *c)
 	struct journal_seq_blacklist_table *t = c->journal_seq_blacklist_table;
 	BUG_ON(nr != t->nr);
 
-	unsigned i;
-	for (src = bl->start, i = t->nr == 0 ? 0 : eytzinger0_first(t->nr);
-	     src < bl->start + nr;
-	     src++, i = eytzinger0_next(i, nr)) {
+	src = bl->start;
+	eytzinger0_for_each(i, nr) {
 		BUG_ON(t->entries[i].start	!= le64_to_cpu(src->start));
 		BUG_ON(t->entries[i].end	!= le64_to_cpu(src->end));
 
 		if (t->entries[i].dirty || t->entries[i].end >= c->journal.oldest_seq_found_ondisk)
 			*dst++ = *src;
+		src++;
 	}
 
 	unsigned new_nr = dst - bl->start;

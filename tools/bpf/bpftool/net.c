@@ -476,7 +476,7 @@ static void __show_dev_tc_bpf(const struct ip_devname_ifindex *dev,
 	for (i = 0; i < optq.count; i++) {
 		NET_START_OBJECT;
 		NET_DUMP_STR("devname", "%s", dev->devname);
-		NET_DUMP_UINT("ifindex", "(%u)", dev->ifindex);
+		NET_DUMP_UINT("ifindex", "(%u)", (unsigned int)dev->ifindex);
 		NET_DUMP_STR("kind", " %s", attach_loc_strings[loc]);
 		ret = __show_dev_tc_bpf_name(prog_ids[i], prog_name,
 					     sizeof(prog_name));
@@ -831,7 +831,7 @@ static void show_link_netfilter(void)
 		if (err) {
 			if (errno == ENOENT)
 				break;
-			p_err("can't get next link: %s (id %d)", strerror(errno), id);
+			p_err("can't get next link: %s (id %u)", strerror(errno), id);
 			break;
 		}
 

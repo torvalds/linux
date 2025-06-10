@@ -10,6 +10,9 @@
 #include "eytzinger.h"
 #include "time_stats.h"
 
+/* disable automatic switching to percpu mode */
+#define TIME_STATS_NONPCPU	((unsigned long) 1)
+
 static const struct time_unit time_units[] = {
 	{ "ns",		1		 },
 	{ "us",		NSEC_PER_USEC	 },
@@ -123,11 +126,12 @@ void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 {
 	unsigned long flags;
 
-	if (!stats->buffer) {
+	if ((unsigned long) stats->buffer <= TIME_STATS_NONPCPU) {
 		spin_lock_irqsave(&stats->lock, flags);
 		time_stats_update_one(stats, start, end);
 
-		if (mean_and_variance_weighted_get_mean(stats->freq_stats_weighted, TIME_STATS_MV_WEIGHT) < 32 &&
+		if (!stats->buffer &&
+		    mean_and_variance_weighted_get_mean(stats->freq_stats_weighted, TIME_STATS_MV_WEIGHT) < 32 &&
 		    stats->duration_stats.n > 1024)
 			stats->buffer =
 				alloc_percpu_gfp(struct time_stat_buffer,
@@ -157,7 +161,7 @@ void bch2_time_stats_reset(struct bch2_time_stats *stats)
 	unsigned offset = offsetof(struct bch2_time_stats, min_duration);
 	memset((void *) stats + offset, 0, sizeof(*stats) - offset);
 
-	if (stats->buffer) {
+	if ((unsigned long) stats->buffer > TIME_STATS_NONPCPU) {
 		int cpu;
 		for_each_possible_cpu(cpu)
 			per_cpu_ptr(stats->buffer, cpu)->nr = 0;
@@ -167,7 +171,9 @@ void bch2_time_stats_reset(struct bch2_time_stats *stats)
 
 void bch2_time_stats_exit(struct bch2_time_stats *stats)
 {
-	free_percpu(stats->buffer);
+	if ((unsigned long) stats->buffer > TIME_STATS_NONPCPU)
+		free_percpu(stats->buffer);
+	stats->buffer = NULL;
 }
 
 void bch2_time_stats_init(struct bch2_time_stats *stats)
@@ -176,4 +182,10 @@ void bch2_time_stats_init(struct bch2_time_stats *stats)
 	stats->min_duration = U64_MAX;
 	stats->min_freq = U64_MAX;
 	spin_lock_init(&stats->lock);
+}
+
+void bch2_time_stats_init_no_pcpu(struct bch2_time_stats *stats)
+{
+	bch2_time_stats_init(stats);
+	stats->buffer = (struct time_stat_buffer __percpu *) TIME_STATS_NONPCPU;
 }

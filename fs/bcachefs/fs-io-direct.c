@@ -3,6 +3,7 @@
 
 #include "bcachefs.h"
 #include "alloc_foreground.h"
+#include "enumerated_ref.h"
 #include "fs.h"
 #include "fs-io.h"
 #include "fs-io-direct.h"
@@ -73,6 +74,7 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	struct blk_plug plug;
 	loff_t offset = req->ki_pos;
 	bool sync = is_sync_kiocb(req);
+	bool split = false;
 	size_t shorten;
 	ssize_t ret;
 
@@ -98,8 +100,6 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 			       REQ_OP_READ,
 			       GFP_KERNEL,
 			       &c->dio_read_bioset);
-
-	bio->bi_end_io = bch2_direct_IO_read_endio;
 
 	dio = container_of(bio, struct dio_read, rbio.bio);
 	closure_init(&dio->cl, NULL);
@@ -133,12 +133,13 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 
 	goto start;
 	while (iter->count) {
+		split = true;
+
 		bio = bio_alloc_bioset(NULL,
 				       bio_iov_vecs_to_alloc(iter, BIO_MAX_VECS),
 				       REQ_OP_READ,
 				       GFP_KERNEL,
 				       &c->bio_read);
-		bio->bi_end_io		= bch2_direct_IO_read_split_endio;
 start:
 		bio->bi_opf		= REQ_OP_READ|REQ_SYNC;
 		bio->bi_iter.bi_sector	= offset >> 9;
@@ -160,7 +161,15 @@ start:
 		if (iter->count)
 			closure_get(&dio->cl);
 
-		bch2_read(c, rbio_init(bio, opts), inode_inum(inode));
+		struct bch_read_bio *rbio =
+			rbio_init(bio,
+				  c,
+				  opts,
+				  split
+				  ? bch2_direct_IO_read_split_endio
+				  : bch2_direct_IO_read_endio);
+
+		bch2_read(c, rbio, inode_inum(inode));
 	}
 
 	blk_finish_plug(&plug);
@@ -393,7 +402,7 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 	ret = dio->op.error ?: ((long) dio->written << 9);
 	bio_put(&dio->op.wbio.bio);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_dio_write);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_dio_write);
 
 	/* inode->i_dio_count is our ref on inode and thus bch_fs */
 	inode_dio_end(&inode->v);
@@ -511,8 +520,8 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 		dio->op.devs_need_flush	= &inode->ei_devs_need_flush;
 
 		if (sync)
-			dio->op.flags |= BCH_WRITE_SYNC;
-		dio->op.flags |= BCH_WRITE_CHECK_ENOSPC;
+			dio->op.flags |= BCH_WRITE_sync;
+		dio->op.flags |= BCH_WRITE_check_enospc;
 
 		ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
 						 bio_sectors(bio), true);
@@ -598,7 +607,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	prefetch(&inode->ei_inode);
 	prefetch((void *) &inode->ei_inode + 64);
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_dio_write))
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_dio_write))
 		return -EROFS;
 
 	inode_lock(&inode->v);
@@ -667,7 +676,7 @@ err_put_bio:
 	bio_put(bio);
 	inode_dio_end(&inode->v);
 err_put_write_ref:
-	bch2_write_ref_put(c, BCH_WRITE_REF_dio_write);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_dio_write);
 	goto out;
 }
 

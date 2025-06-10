@@ -56,6 +56,7 @@ struct dma_pool {		/* the pool */
 	unsigned int size;
 	unsigned int allocation;
 	unsigned int boundary;
+	int node;
 	char name[32];
 	struct list_head pools;
 };
@@ -199,12 +200,13 @@ static void pool_block_push(struct dma_pool *pool, struct dma_block *block,
 
 
 /**
- * dma_pool_create - Creates a pool of consistent memory blocks, for dma.
+ * dma_pool_create_node - Creates a pool of consistent memory blocks, for dma.
  * @name: name of pool, for diagnostics
  * @dev: device that will be doing the DMA
  * @size: size of the blocks in this pool.
  * @align: alignment requirement for blocks; must be a power of two
  * @boundary: returned blocks won't cross this power of two boundary
+ * @node: optional NUMA node to allocate structs 'dma_pool' and 'dma_page' on
  * Context: not in_interrupt()
  *
  * Given one of these pools, dma_pool_alloc()
@@ -221,8 +223,8 @@ static void pool_block_push(struct dma_pool *pool, struct dma_block *block,
  * Return: a dma allocation pool with the requested characteristics, or
  * %NULL if one can't be created.
  */
-struct dma_pool *dma_pool_create(const char *name, struct device *dev,
-				 size_t size, size_t align, size_t boundary)
+struct dma_pool *dma_pool_create_node(const char *name, struct device *dev,
+		size_t size, size_t align, size_t boundary, int node)
 {
 	struct dma_pool *retval;
 	size_t allocation;
@@ -251,7 +253,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 
 	boundary = min(boundary, allocation);
 
-	retval = kzalloc(sizeof(*retval), GFP_KERNEL);
+	retval = kzalloc_node(sizeof(*retval), GFP_KERNEL, node);
 	if (!retval)
 		return retval;
 
@@ -264,6 +266,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	retval->size = size;
 	retval->boundary = boundary;
 	retval->allocation = allocation;
+	retval->node = node;
 	INIT_LIST_HEAD(&retval->pools);
 
 	/*
@@ -295,7 +298,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	mutex_unlock(&pools_reg_lock);
 	return retval;
 }
-EXPORT_SYMBOL(dma_pool_create);
+EXPORT_SYMBOL(dma_pool_create_node);
 
 static void pool_initialise_page(struct dma_pool *pool, struct dma_page *page)
 {
@@ -335,7 +338,7 @@ static struct dma_page *pool_alloc_page(struct dma_pool *pool, gfp_t mem_flags)
 {
 	struct dma_page *page;
 
-	page = kmalloc(sizeof(*page), mem_flags);
+	page = kmalloc_node(sizeof(*page), mem_flags, pool->node);
 	if (!page)
 		return NULL;
 

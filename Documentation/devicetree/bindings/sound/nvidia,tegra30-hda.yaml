@@ -20,14 +20,17 @@ properties:
 
   compatible:
     oneOf:
-      - const: nvidia,tegra30-hda
+      - enum:
+          - nvidia,tegra30-hda
+          - nvidia,tegra194-hda
+          - nvidia,tegra234-hda
+          - nvidia,tegra264-hda
       - items:
           - enum:
-              - nvidia,tegra234-hda
-              - nvidia,tegra194-hda
               - nvidia,tegra186-hda
               - nvidia,tegra210-hda
               - nvidia,tegra124-hda
+              - nvidia,tegra114-hda
           - const: nvidia,tegra30-hda
       - items:
           - const: nvidia,tegra132-hda
@@ -42,15 +45,12 @@ properties:
     maxItems: 1
 
   clocks:
-    minItems: 2
+    minItems: 1
     maxItems: 3
 
   clock-names:
-    minItems: 2
-    items:
-      - const: hda
-      - const: hda2hdmi
-      - const: hda2codec_2x
+    minItems: 1
+    maxItems: 3
 
   resets:
     minItems: 2
@@ -58,10 +58,7 @@ properties:
 
   reset-names:
     minItems: 2
-    items:
-      - const: hda
-      - const: hda2hdmi
-      - const: hda2codec_2x
+    maxItems: 3
 
   power-domains:
     maxItems: 1
@@ -91,6 +88,92 @@ required:
   - clock-names
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra30-hda
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          items:
+            - const: hda
+            - const: hda2hdmi
+            - const: hda2codec_2x
+        resets:
+          minItems: 3
+        reset-names:
+          items:
+            - const: hda
+            - const: hda2hdmi
+            - const: hda2codec_2x
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra194-hda
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          items:
+            - const: hda
+            - const: hda2hdmi
+            - const: hda2codec_2x
+        resets:
+          maxItems: 2
+        reset-names:
+          items:
+            - const: hda
+            - const: hda2hdmi
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra234-hda
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: hda
+            - const: hda2codec_2x
+        resets:
+          maxItems: 2
+        reset-names:
+          items:
+            - const: hda
+            - const: hda2codec_2x
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - nvidia,tegra264-hda
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          items:
+            - const: hda
+        resets:
+          maxItems: 2
+        reset-names:
+          items:
+            - const: hda
+            - const: hda2codec_2x
+        power-domains: false
 
 examples:
   - |

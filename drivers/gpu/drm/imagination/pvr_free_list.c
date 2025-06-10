@@ -237,11 +237,10 @@ pvr_free_list_insert_pages_locked(struct pvr_free_list *free_list,
 		dma_addr_t dma_addr = sg_page_iter_dma_address(&dma_iter);
 		u64 dma_pfn = dma_addr >>
 			       ROGUE_BIF_PM_PHYSICAL_PAGE_ALIGNSHIFT;
-		u32 dma_addr_offset;
 
 		BUILD_BUG_ON(ROGUE_BIF_PM_PHYSICAL_PAGE_SIZE > PAGE_SIZE);
 
-		for (dma_addr_offset = 0; dma_addr_offset < PAGE_SIZE;
+		for (u32 dma_addr_offset = 0; dma_addr_offset < PAGE_SIZE;
 		     dma_addr_offset += ROGUE_BIF_PM_PHYSICAL_PAGE_SIZE) {
 			WARN_ON_ONCE(dma_pfn >> 32);
 

@@ -462,64 +462,68 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static int ad7793_write_raw(struct iio_dev *indio_dev,
-			       struct iio_chan_spec const *chan,
-			       int val,
-			       int val2,
-			       long mask)
+static int __ad7793_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
-	int ret, i;
+	int i;
 	unsigned int tmp;
-
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		ret = -EINVAL;
-		for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
-			if (val2 == st->scale_avail[i][1]) {
-				ret = 0;
-				tmp = st->conf;
-				st->conf &= ~AD7793_CONF_GAIN(-1);
-				st->conf |= AD7793_CONF_GAIN(i);
+		for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++) {
+			if (val2 != st->scale_avail[i][1])
+				continue;
 
-				if (tmp == st->conf)
-					break;
+			tmp = st->conf;
+			st->conf &= ~AD7793_CONF_GAIN(-1);
+			st->conf |= AD7793_CONF_GAIN(i);
 
-				ad_sd_write_reg(&st->sd, AD7793_REG_CONF,
-						sizeof(st->conf), st->conf);
-				ad7793_calibrate_all(st);
-				break;
-			}
-		break;
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (!val) {
-			ret = -EINVAL;
-			break;
+			if (tmp == st->conf)
+				return 0;
+
+			ad_sd_write_reg(&st->sd, AD7793_REG_CONF,
+					sizeof(st->conf), st->conf);
+			ad7793_calibrate_all(st);
+
+			return 0;
 		}
+		return -EINVAL;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (!val)
+			return -EINVAL;
 
 		for (i = 0; i < 16; i++)
 			if (val == st->chip_info->sample_freq_avail[i])
 				break;
 
-		if (i == 16) {
-			ret = -EINVAL;
-			break;
-		}
+		if (i == 16)
+			return -EINVAL;
 
 		st->mode &= ~AD7793_MODE_RATE(-1);
 		st->mode |= AD7793_MODE_RATE(i);
 		ad_sd_write_reg(&st->sd, AD7793_REG_MODE, sizeof(st->mode),
 				st->mode);
-		break;
+		return 0;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
+}
 
-	iio_device_release_direct_mode(indio_dev);
+static int ad7793_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
+{
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = __ad7793_write_raw(indio_dev, chan, val, val2, mask);
+
+	iio_device_release_direct(indio_dev);
+
 	return ret;
 }
 

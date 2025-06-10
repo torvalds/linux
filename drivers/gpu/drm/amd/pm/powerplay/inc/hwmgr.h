@@ -257,7 +257,6 @@ struct pp_hwmgr_func {
 	int (*get_pp_table_entry)(struct pp_hwmgr *hwmgr,
 			    unsigned long, struct pp_power_state *);
 	int (*get_num_of_pp_table_entries)(struct pp_hwmgr *hwmgr);
-	int (*powerdown_uvd)(struct pp_hwmgr *hwmgr);
 	void (*powergate_vce)(struct pp_hwmgr *hwmgr, bool bgate);
 	void (*powergate_uvd)(struct pp_hwmgr *hwmgr, bool bgate);
 	void (*powergate_acp)(struct pp_hwmgr *hwmgr, bool bgate);

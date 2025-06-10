@@ -51,27 +51,13 @@ void __init paging_init(void)
 	pagetable_init();
 	pgd_current = swapper_pg_dir;
 
-	max_zone_pfn[ZONE_NORMAL] = max_mapnr;
+	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
 
 	/* pass the memory from the bootmem allocator to the main allocator */
 	free_area_init(max_zone_pfn);
 
 	flush_dcache_range((unsigned long)empty_zero_page,
 			(unsigned long)empty_zero_page + PAGE_SIZE);
-}
-
-void __init mem_init(void)
-{
-	unsigned long end_mem   = memory_end; /* this must not include
-						kernel stack at top */
-
-	pr_debug("mem_init: start=%lx, end=%lx\n", memory_start, memory_end);
-
-	end_mem &= PAGE_MASK;
-	high_memory = __va(end_mem);
-
-	/* this will put all memory onto the freelists */
-	memblock_free_all();
 }
 
 void __init mmu_init(void)

@@ -72,9 +72,6 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "max keysize  : %u\n",
 					alg->cra_cipher.cia_max_keysize);
 		break;
-	case CRYPTO_ALG_TYPE_COMPRESS:
-		seq_printf(m, "type         : compression\n");
-		break;
 	default:
 		seq_printf(m, "type         : unknown\n");
 		break;

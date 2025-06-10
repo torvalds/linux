@@ -47,6 +47,7 @@
 #define SCLK_MACREF		152
 #define SCLK_MACPLL		153
 #define SCLK_SFC		160
+#define SCLK_USB480M		161
 
 /* aclk gates */
 #define ACLK_DMAC2		194

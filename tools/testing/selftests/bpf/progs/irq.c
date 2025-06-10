@@ -11,6 +11,9 @@ extern void bpf_local_irq_save(unsigned long *) __weak __ksym;
 extern void bpf_local_irq_restore(unsigned long *) __weak __ksym;
 extern int bpf_copy_from_user_str(void *dst, u32 dst__sz, const void *unsafe_ptr__ign, u64 flags) __weak __ksym;
 
+struct bpf_res_spin_lock lockA __hidden SEC(".data.A");
+struct bpf_res_spin_lock lockB __hidden SEC(".data.B");
+
 SEC("?tc")
 __failure __msg("arg#0 doesn't point to an irq flag on stack")
 int irq_save_bad_arg(struct __sk_buff *ctx)
@@ -222,7 +225,7 @@ int __noinline global_local_irq_balance(void)
 }
 
 SEC("?tc")
-__failure __msg("global function calls are not allowed with IRQs disabled")
+__success
 int irq_global_subprog(struct __sk_buff *ctx)
 {
 	unsigned long flags;
@@ -438,6 +441,125 @@ int irq_ooo_refs_array(struct __sk_buff *ctx)
 	bpf_local_irq_restore(&flags[1]);
 	bpf_local_irq_restore(&flags[2]);
 	bpf_local_irq_restore(&flags[0]);
+	return 0;
+}
+
+int __noinline
+global_subprog(int i)
+{
+	if (i)
+		bpf_printk("%p", &i);
+	return i;
+}
+
+int __noinline
+global_sleepable_helper_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user(&i, sizeof(i), NULL);
+	return i;
+}
+
+int __noinline
+global_sleepable_kfunc_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user_str(&i, sizeof(i), NULL, 0);
+	global_subprog(i);
+	return i;
+}
+
+int __noinline
+global_subprog_calling_sleepable_global(int i)
+{
+	if (!i)
+		global_sleepable_kfunc_subprog(i);
+	return i;
+}
+
+SEC("?syscall")
+__success
+int irq_non_sleepable_global_subprog(void *ctx)
+{
+	unsigned long flags;
+
+	bpf_local_irq_save(&flags);
+	global_subprog(0);
+	bpf_local_irq_restore(&flags);
+	return 0;
+}
+
+SEC("?syscall")
+__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+int irq_sleepable_helper_global_subprog(void *ctx)
+{
+	unsigned long flags;
+
+	bpf_local_irq_save(&flags);
+	global_sleepable_helper_subprog(0);
+	bpf_local_irq_restore(&flags);
+	return 0;
+}
+
+SEC("?syscall")
+__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+int irq_sleepable_global_subprog_indirect(void *ctx)
+{
+	unsigned long flags;
+
+	bpf_local_irq_save(&flags);
+	global_subprog_calling_sleepable_global(0);
+	bpf_local_irq_restore(&flags);
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("cannot restore irq state out of order")
+int irq_ooo_lock_cond_inv(struct __sk_buff *ctx)
+{
+	unsigned long flags1, flags2;
+
+	if (bpf_res_spin_lock_irqsave(&lockA, &flags1))
+		return 0;
+	if (bpf_res_spin_lock_irqsave(&lockB, &flags2)) {
+		bpf_res_spin_unlock_irqrestore(&lockA, &flags1);
+		return 0;
+	}
+
+	bpf_res_spin_unlock_irqrestore(&lockB, &flags1);
+	bpf_res_spin_unlock_irqrestore(&lockA, &flags2);
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("function calls are not allowed")
+int irq_wrong_kfunc_class_1(struct __sk_buff *ctx)
+{
+	unsigned long flags1;
+
+	if (bpf_res_spin_lock_irqsave(&lockA, &flags1))
+		return 0;
+	/* For now, bpf_local_irq_restore is not allowed in critical section,
+	 * but this test ensures error will be caught with kfunc_class when it's
+	 * opened up. Tested by temporarily permitting this kfunc in critical
+	 * section.
+	 */
+	bpf_local_irq_restore(&flags1);
+	bpf_res_spin_unlock_irqrestore(&lockA, &flags1);
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("function calls are not allowed")
+int irq_wrong_kfunc_class_2(struct __sk_buff *ctx)
+{
+	unsigned long flags1, flags2;
+
+	bpf_local_irq_save(&flags1);
+	if (bpf_res_spin_lock_irqsave(&lockA, &flags2))
+		return 0;
+	bpf_local_irq_restore(&flags2);
+	bpf_res_spin_unlock_irqrestore(&lockA, &flags1);
 	return 0;
 }
 

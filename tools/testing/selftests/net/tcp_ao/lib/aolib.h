@@ -289,7 +289,7 @@ extern int link_set_up(const char *intf);
 extern const unsigned int test_server_port;
 extern int test_wait_fd(int sk, time_t sec, bool write);
 extern int __test_connect_socket(int sk, const char *device,
-				 void *addr, size_t addr_sz, time_t timeout);
+				 void *addr, size_t addr_sz, bool async);
 extern int __test_listen_socket(int backlog, void *addr, size_t addr_sz);
 
 static inline int test_listen_socket(const union tcp_addr taddr,
@@ -331,25 +331,26 @@ static inline int test_listen_socket(const union tcp_addr taddr,
  * If set to 0 - kernel will try to retransmit SYN number of times, set in
  * /proc/sys/net/ipv4/tcp_syn_retries
  * By default set to 1 to make tests pass faster on non-busy machine.
+ * [in process of removal, don't use in new tests]
  */
 #ifndef TEST_RETRANSMIT_SEC
 #define TEST_RETRANSMIT_SEC	1
 #endif
 
 static inline int _test_connect_socket(int sk, const union tcp_addr taddr,
-				       unsigned int port, time_t timeout)
+				       unsigned int port, bool async)
 {
 	sockaddr_af addr;
 
 	tcp_addr_to_sockaddr_in(&addr, &taddr, htons(port));
 	return __test_connect_socket(sk, veth_name,
-				     (void *)&addr, sizeof(addr), timeout);
+				     (void *)&addr, sizeof(addr), async);
 }
 
 static inline int test_connect_socket(int sk, const union tcp_addr taddr,
 				      unsigned int port)
 {
-	return _test_connect_socket(sk, taddr, port, TEST_TIMEOUT_SEC);
+	return _test_connect_socket(sk, taddr, port, false);
 }
 
 extern int __test_set_md5(int sk, void *addr, size_t addr_sz,
@@ -483,10 +484,7 @@ static inline int test_set_ao_flags(int sk, bool ao_required, bool accept_icmps)
 }
 
 extern ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec);
-extern ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
-				const size_t msg_len, time_t timeout_sec);
-extern int test_client_verify(int sk, const size_t msg_len, const size_t nr,
-			      time_t timeout_sec);
+extern int test_client_verify(int sk, const size_t msg_len, const size_t nr);
 
 struct tcp_ao_key_counters {
 	uint8_t sndid;
@@ -512,7 +510,15 @@ struct tcp_ao_counters {
 	size_t nr_keys;
 	struct tcp_ao_key_counters *key_cnts;
 };
-extern int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out);
+
+struct tcp_counters {
+	struct tcp_ao_counters ao;
+	uint64_t netns_md5_notfound;
+	uint64_t netns_md5_unexpected;
+	uint64_t netns_md5_failure;
+};
+
+extern int test_get_tcp_counters(int sk, struct tcp_counters *out);
 
 #define TEST_CNT_KEY_GOOD		BIT(0)
 #define TEST_CNT_KEY_BAD		BIT(1)
@@ -526,7 +532,30 @@ extern int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out);
 #define TEST_CNT_NS_KEY_NOT_FOUND	BIT(9)
 #define TEST_CNT_NS_AO_REQUIRED		BIT(10)
 #define TEST_CNT_NS_DROPPED_ICMP	BIT(11)
+#define TEST_CNT_NS_MD5_NOT_FOUND	BIT(12)
+#define TEST_CNT_NS_MD5_UNEXPECTED	BIT(13)
+#define TEST_CNT_NS_MD5_FAILURE		BIT(14)
 typedef uint16_t test_cnt;
+
+#define _for_each_counter(f)						\
+do {									\
+	/* per-netns */							\
+	f(ao.netns_ao_good,		TEST_CNT_NS_GOOD);		\
+	f(ao.netns_ao_bad,		TEST_CNT_NS_BAD);		\
+	f(ao.netns_ao_key_not_found,	TEST_CNT_NS_KEY_NOT_FOUND);	\
+	f(ao.netns_ao_required,		TEST_CNT_NS_AO_REQUIRED);	\
+	f(ao.netns_ao_dropped_icmp,	TEST_CNT_NS_DROPPED_ICMP);	\
+	/* per-socket */						\
+	f(ao.ao_info_pkt_good,		TEST_CNT_SOCK_GOOD);		\
+	f(ao.ao_info_pkt_bad,		TEST_CNT_SOCK_BAD);		\
+	f(ao.ao_info_pkt_key_not_found,	TEST_CNT_SOCK_KEY_NOT_FOUND);	\
+	f(ao.ao_info_pkt_ao_required,	TEST_CNT_SOCK_AO_REQUIRED);	\
+	f(ao.ao_info_pkt_dropped_icmp,	TEST_CNT_SOCK_DROPPED_ICMP);	\
+	/* non-AO */							\
+	f(netns_md5_notfound,		TEST_CNT_NS_MD5_NOT_FOUND);	\
+	f(netns_md5_unexpected,		TEST_CNT_NS_MD5_UNEXPECTED);	\
+	f(netns_md5_failure,		TEST_CNT_NS_MD5_FAILURE);	\
+} while (0)
 
 #define TEST_CNT_AO_GOOD		(TEST_CNT_SOCK_GOOD | TEST_CNT_NS_GOOD)
 #define TEST_CNT_AO_BAD			(TEST_CNT_SOCK_BAD | TEST_CNT_NS_BAD)
@@ -539,34 +568,71 @@ typedef uint16_t test_cnt;
 #define TEST_CNT_GOOD			(TEST_CNT_KEY_GOOD | TEST_CNT_AO_GOOD)
 #define TEST_CNT_BAD			(TEST_CNT_KEY_BAD | TEST_CNT_AO_BAD)
 
-extern int __test_tcp_ao_counters_cmp(const char *tst_name,
-		struct tcp_ao_counters *before, struct tcp_ao_counters *after,
+extern test_cnt test_cmp_counters(struct tcp_counters *before,
+				  struct tcp_counters *after);
+extern int test_assert_counters_sk(const char *tst_name,
+		struct tcp_counters *before, struct tcp_counters *after,
 		test_cnt expected);
-extern int test_tcp_ao_key_counters_cmp(const char *tst_name,
+extern int test_assert_counters_key(const char *tst_name,
 		struct tcp_ao_counters *before, struct tcp_ao_counters *after,
 		test_cnt expected, int sndid, int rcvid);
-extern void test_tcp_ao_counters_free(struct tcp_ao_counters *cnts);
+extern void test_tcp_counters_free(struct tcp_counters *cnts);
+
 /*
- * Frees buffers allocated in test_get_tcp_ao_counters().
+ * Polling for netns and socket counters during select()/connect() and also
+ * client/server messaging. Instead of constant timeout on underlying select(),
+ * check the counters and return early. This allows to pass the tests where
+ * timeout is expected without waiting for that fixing timeout (tests speed-up).
+ * Previously shorter timeouts were used for tests expecting to time out,
+ * but that leaded to sporadic false positives on counter checks failures,
+ * as one second timeouts aren't enough for TCP retransmit.
+ *
+ * Two sides of the socketpair (client/server) should synchronize failures
+ * using a shared variable *err, so that they can detect the other side's
+ * failure.
+ */
+extern int test_skpair_wait_poll(int sk, bool write, test_cnt cond,
+				 volatile int *err);
+extern int _test_skpair_connect_poll(int sk, const char *device,
+				     void *addr, size_t addr_sz,
+				     test_cnt cond, volatile int *err);
+static inline int test_skpair_connect_poll(int sk, const union tcp_addr taddr,
+					   unsigned int port,
+					   test_cnt cond, volatile int *err)
+{
+	sockaddr_af addr;
+
+	tcp_addr_to_sockaddr_in(&addr, &taddr, htons(port));
+	return _test_skpair_connect_poll(sk, veth_name,
+					 (void *)&addr, sizeof(addr), cond, err);
+}
+
+extern int test_skpair_client(int sk, const size_t msg_len, const size_t nr,
+			      test_cnt cond, volatile int *err);
+extern int test_skpair_server(int sk, ssize_t quota,
+			      test_cnt cond, volatile int *err);
+
+/*
+ * Frees buffers allocated in test_get_tcp_counters().
  * The function doesn't expect new keys or keys removed between calls
- * to test_get_tcp_ao_counters(). Check key counters manually if they
+ * to test_get_tcp_counters(). Check key counters manually if they
  * may change.
  */
-static inline int test_tcp_ao_counters_cmp(const char *tst_name,
-					   struct tcp_ao_counters *before,
-					   struct tcp_ao_counters *after,
-					   test_cnt expected)
+static inline int test_assert_counters(const char *tst_name,
+				       struct tcp_counters *before,
+				       struct tcp_counters *after,
+				       test_cnt expected)
 {
 	int ret;
 
-	ret = __test_tcp_ao_counters_cmp(tst_name, before, after, expected);
+	ret = test_assert_counters_sk(tst_name, before, after, expected);
 	if (ret)
 		goto out;
-	ret = test_tcp_ao_key_counters_cmp(tst_name, before, after,
-					   expected, -1, -1);
+	ret = test_assert_counters_key(tst_name, &before->ao, &after->ao,
+				       expected, -1, -1);
 out:
-	test_tcp_ao_counters_free(before);
-	test_tcp_ao_counters_free(after);
+	test_tcp_counters_free(before);
+	test_tcp_counters_free(after);
 	return ret;
 }
 

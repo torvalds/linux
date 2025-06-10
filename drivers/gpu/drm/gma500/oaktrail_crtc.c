@@ -658,10 +658,3 @@ const struct drm_crtc_helper_funcs oaktrail_helper_funcs = {
 	.prepare = gma_crtc_prepare,
 	.commit = gma_crtc_commit,
 };
-
-/* Not used yet */
-const struct gma_clock_funcs mrst_clock_funcs = {
-	.clock = mrst_lvds_clock,
-	.limit = mrst_limit,
-	.pll_is_valid = gma_pll_is_valid,
-};

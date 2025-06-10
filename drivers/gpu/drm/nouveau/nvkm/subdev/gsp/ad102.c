@@ -22,30 +22,27 @@
 #include "priv.h"
 
 static const struct nvkm_gsp_func
-ad102_gsp_r535_113_01 = {
+ad102_gsp = {
 	.flcn = &ga102_gsp_flcn,
 	.fwsec = &ga102_gsp_fwsec,
 
 	.sig_section = ".fwsignature_ad10x",
 
-	.wpr_heap.os_carveout_size = 20 << 20,
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 84 << 20,
-
 	.booter.ctor = ga102_gsp_booter_ctor,
 
 	.dtor = r535_gsp_dtor,
 	.oneinit = tu102_gsp_oneinit,
-	.init = r535_gsp_init,
-	.fini = r535_gsp_fini,
+	.init = tu102_gsp_init,
+	.fini = tu102_gsp_fini,
 	.reset = ga102_gsp_reset,
 
-	.rm = &r535_gsp_rm,
+	.rm.gpu = &ad10x_gpu,
 };
 
 static struct nvkm_gsp_fwif
 ad102_gsps[] = {
-	{ 0, r535_gsp_load, &ad102_gsp_r535_113_01, "535.113.01", true },
+	{ 1, tu102_gsp_load, &ad102_gsp, &r570_rm_ga102, "570.144", true },
+	{ 0, tu102_gsp_load, &ad102_gsp, &r535_rm_ga102, "535.113.01", true },
 	{}
 };
 
@@ -55,3 +52,15 @@ ad102_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	return nvkm_gsp_new_(ad102_gsps, device, type, inst, pgsp);
 }
+
+NVKM_GSP_FIRMWARE_BOOTER(ad102, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ad103, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ad104, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ad106, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ad107, 535.113.01);
+
+NVKM_GSP_FIRMWARE_BOOTER(ad102, 570.144);
+NVKM_GSP_FIRMWARE_BOOTER(ad103, 570.144);
+NVKM_GSP_FIRMWARE_BOOTER(ad104, 570.144);
+NVKM_GSP_FIRMWARE_BOOTER(ad106, 570.144);
+NVKM_GSP_FIRMWARE_BOOTER(ad107, 570.144);

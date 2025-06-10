@@ -411,7 +411,8 @@ static ssize_t supported_sectorsizes_show(struct kobject *kobj,
 {
 	ssize_t ret = 0;
 
-	/* An artificial limit to only support 4K and PAGE_SIZE */
+	if (BTRFS_MIN_BLOCKSIZE != SZ_4K && BTRFS_MIN_BLOCKSIZE != PAGE_SIZE)
+		ret += sysfs_emit_at(buf, ret, "%u ", BTRFS_MIN_BLOCKSIZE);
 	if (PAGE_SIZE > SZ_4K)
 		ret += sysfs_emit_at(buf, ret, "%u ", SZ_4K);
 	ret += sysfs_emit_at(buf, ret, "%lu\n", PAGE_SIZE);
@@ -1342,17 +1343,18 @@ int btrfs_read_policy_to_enum(const char *str, s64 *value_ret)
 	/* Separate value from input in policy:value format. */
 	value_str = strchr(param, ':');
 	if (value_str) {
-		int ret;
+		char *retptr;
 
 		*value_str = 0;
 		value_str++;
 		if (!value_ret)
 			return -EINVAL;
-		ret = kstrtos64(value_str, 10, value_ret);
-		if (ret)
+
+		*value_ret = memparse(value_str, &retptr);
+		/* There could be any trailing typos after the value. */
+		retptr = skip_spaces(retptr);
+		if (*retptr != 0 || *value_ret <= 0)
 			return -EINVAL;
-		if (*value_ret < 0)
-			return -ERANGE;
 	}
 #endif
 
@@ -1928,16 +1930,35 @@ void btrfs_sysfs_remove_space_info(struct btrfs_space_info *space_info)
 	kobject_put(&space_info->kobj);
 }
 
-static const char *alloc_name(u64 flags)
+static const char *alloc_name(struct btrfs_space_info *space_info)
 {
+	u64 flags = space_info->flags;
+
 	switch (flags) {
 	case BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA:
 		return "mixed";
 	case BTRFS_BLOCK_GROUP_METADATA:
-		return "metadata";
+		switch (space_info->subgroup_id) {
+		case BTRFS_SUB_GROUP_PRIMARY:
+			return "metadata";
+		case BTRFS_SUB_GROUP_TREELOG:
+			return "metadata-treelog";
+		default:
+			WARN_ON_ONCE(1);
+			return "metadata (unknown sub-group)";
+		}
 	case BTRFS_BLOCK_GROUP_DATA:
-		return "data";
+		switch (space_info->subgroup_id) {
+		case BTRFS_SUB_GROUP_PRIMARY:
+			return "data";
+		case BTRFS_SUB_GROUP_DATA_RELOC:
+			return "data-reloc";
+		default:
+			WARN_ON_ONCE(1);
+			return "data (unknown sub-group)";
+		}
 	case BTRFS_BLOCK_GROUP_SYSTEM:
+		ASSERT(space_info->subgroup_id == BTRFS_SUB_GROUP_PRIMARY);
 		return "system";
 	default:
 		WARN_ON(1);
@@ -1956,7 +1977,7 @@ int btrfs_sysfs_add_space_info_type(struct btrfs_fs_info *fs_info,
 
 	ret = kobject_init_and_add(&space_info->kobj, &space_info_ktype,
 				   fs_info->space_info_kobj, "%s",
-				   alloc_name(space_info->flags));
+				   alloc_name(space_info));
 	if (ret) {
 		kobject_put(&space_info->kobj);
 		return ret;

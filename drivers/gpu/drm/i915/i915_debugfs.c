@@ -66,8 +66,6 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
-
 	intel_device_info_print(INTEL_INFO(i915), RUNTIME_INFO(i915), &p);
 	i915_print_iommu_status(i915, &p);
 	intel_gt_info_print(&to_gt(i915)->info, &p);
@@ -410,9 +408,6 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 
 	if (!HAS_RUNTIME_PM(dev_priv))
 		seq_puts(m, "Runtime power management not supported\n");
-
-	seq_printf(m, "Runtime power status: %s\n",
-		   str_enabled_disabled(!dev_priv->display.power.domains.init_wakeref));
 
 	seq_printf(m, "GPU idle: %s\n", str_yes_no(!to_gt(dev_priv)->awake));
 	seq_printf(m, "IRQs disabled: %s\n",

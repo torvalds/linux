@@ -7,6 +7,10 @@
  *   copyright: (C) 2006, 2010, 2015 Fluke Corporation
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include "fluke_gpib.h"
 
 #include "gpibP.h"
@@ -20,11 +24,11 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB Driver for Fluke cda devices");
 
-static int fluke_attach_holdoff_all(gpib_board_t *board, const gpib_board_config_t *config);
-static int fluke_attach_holdoff_end(gpib_board_t *board, const gpib_board_config_t *config);
-static void fluke_detach(gpib_board_t *board);
-static int fluke_config_dma(gpib_board_t *board, int output);
-static irqreturn_t fluke_gpib_internal_interrupt(gpib_board_t *board);
+static int fluke_attach_holdoff_all(struct gpib_board *board, const gpib_board_config_t *config);
+static int fluke_attach_holdoff_end(struct gpib_board *board, const gpib_board_config_t *config);
+static void fluke_detach(struct gpib_board *board);
+static int fluke_config_dma(struct gpib_board *board, int output);
+static irqreturn_t fluke_gpib_internal_interrupt(struct gpib_board *board);
 
 static struct platform_device *fluke_gpib_pdev;
 
@@ -50,7 +54,7 @@ static void fluke_locking_write_byte(struct nec7210_priv *nec_priv, uint8_t byte
 }
 
 // wrappers for interface functions
-static int fluke_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
+static int fluke_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
 		      size_t *bytes_read)
 {
 	struct fluke_priv *priv = board->private_data;
@@ -58,7 +62,7 @@ static int fluke_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *
 	return nec7210_read(board, &priv->nec7210_priv, buffer, length, end, bytes_read);
 }
 
-static int fluke_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int fluke_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 		       int send_eoi, size_t *bytes_written)
 {
 	struct fluke_priv *priv = board->private_data;
@@ -66,28 +70,29 @@ static int fluke_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int fluke_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+static int fluke_command(struct gpib_board *board, uint8_t *buffer,
+			 size_t length, size_t *bytes_written)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_command(board, &priv->nec7210_priv, buffer, length, bytes_written);
 }
 
-static int fluke_take_control(gpib_board_t *board, int synchronous)
+static int fluke_take_control(struct gpib_board *board, int synchronous)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_take_control(board, &priv->nec7210_priv, synchronous);
 }
 
-static int fluke_go_to_standby(gpib_board_t *board)
+static int fluke_go_to_standby(struct gpib_board *board)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-static void fluke_request_system_control(gpib_board_t *board, int request_control)
+static void fluke_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct fluke_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -95,91 +100,91 @@ static void fluke_request_system_control(gpib_board_t *board, int request_contro
 	nec7210_request_system_control(board, nec_priv, request_control);
 }
 
-static void fluke_interface_clear(gpib_board_t *board, int assert)
+static void fluke_interface_clear(struct gpib_board *board, int assert)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	nec7210_interface_clear(board, &priv->nec7210_priv, assert);
 }
 
-static void fluke_remote_enable(gpib_board_t *board, int enable)
+static void fluke_remote_enable(struct gpib_board *board, int enable)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int fluke_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+static int fluke_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_enable_eos(board, &priv->nec7210_priv, eos_byte, compare_8_bits);
 }
 
-static void fluke_disable_eos(gpib_board_t *board)
+static void fluke_disable_eos(struct gpib_board *board)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	nec7210_disable_eos(board, &priv->nec7210_priv);
 }
 
-static unsigned int fluke_update_status(gpib_board_t *board, unsigned int clear_mask)
+static unsigned int fluke_update_status(struct gpib_board *board, unsigned int clear_mask)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_update_status(board, &priv->nec7210_priv, clear_mask);
 }
 
-static int fluke_primary_address(gpib_board_t *board, unsigned int address)
+static int fluke_primary_address(struct gpib_board *board, unsigned int address)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_primary_address(board, &priv->nec7210_priv, address);
 }
 
-static int fluke_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+static int fluke_secondary_address(struct gpib_board *board, unsigned int address, int enable)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int fluke_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int fluke_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-static void fluke_parallel_poll_configure(gpib_board_t *board, uint8_t configuration)
+static void fluke_parallel_poll_configure(struct gpib_board *board, uint8_t configuration)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_configure(board, &priv->nec7210_priv, configuration);
 }
 
-static void fluke_parallel_poll_response(gpib_board_t *board, int ist)
+static void fluke_parallel_poll_response(struct gpib_board *board, int ist)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-static void fluke_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void fluke_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-static uint8_t fluke_serial_poll_status(gpib_board_t *board)
+static uint8_t fluke_serial_poll_status(struct gpib_board *board)
 {
 	struct fluke_priv *priv = board->private_data;
 
 	return nec7210_serial_poll_status(board, &priv->nec7210_priv);
 }
 
-static void fluke_return_to_local(gpib_board_t *board)
+static void fluke_return_to_local(struct gpib_board *board)
 {
 	struct fluke_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -189,39 +194,37 @@ static void fluke_return_to_local(gpib_board_t *board)
 	write_byte(nec_priv, AUX_RTL, AUXMR);
 }
 
-static int fluke_line_status(const gpib_board_t *board)
+static int fluke_line_status(const struct gpib_board *board)
 {
-	int status = ValidALL;
+	int status = VALID_ALL;
 	int bsr_bits;
 	struct fluke_priv *e_priv;
-	struct nec7210_priv *nec_priv;
 
 	e_priv = board->private_data;
-	nec_priv = &e_priv->nec7210_priv;
 
 	bsr_bits = fluke_paged_read_byte(e_priv, BUS_STATUS, BUS_STATUS_PAGE);
 
 	if ((bsr_bits & BSR_REN_BIT) == 0)
-		status |= BusREN;
+		status |= BUS_REN;
 	if ((bsr_bits & BSR_IFC_BIT) == 0)
-		status |= BusIFC;
+		status |= BUS_IFC;
 	if ((bsr_bits & BSR_SRQ_BIT) == 0)
-		status |= BusSRQ;
+		status |= BUS_SRQ;
 	if ((bsr_bits & BSR_EOI_BIT) == 0)
-		status |= BusEOI;
+		status |= BUS_EOI;
 	if ((bsr_bits & BSR_NRFD_BIT) == 0)
-		status |= BusNRFD;
+		status |= BUS_NRFD;
 	if ((bsr_bits & BSR_NDAC_BIT) == 0)
-		status |= BusNDAC;
+		status |= BUS_NDAC;
 	if ((bsr_bits & BSR_DAV_BIT) == 0)
-		status |= BusDAV;
+		status |= BUS_DAV;
 	if ((bsr_bits & BSR_ATN_BIT) == 0)
-		status |= BusATN;
+		status |= BUS_ATN;
 
 	return status;
 }
 
-static unsigned int fluke_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+static int fluke_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct fluke_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
@@ -238,7 +241,7 @@ static unsigned int fluke_t1_delay(gpib_board_t *board, unsigned int nano_sec)
 	return retval;
 }
 
-static int lacs_or_read_ready(gpib_board_t *board)
+static int lacs_or_read_ready(struct gpib_board *board)
 {
 	const struct fluke_priv *e_priv = board->private_data;
 	const struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
@@ -254,7 +257,7 @@ static int lacs_or_read_ready(gpib_board_t *board)
 /* Wait until it is possible for a read to do something useful.  This
  * is not essential, it only exists to prevent RFD holdoff from being released pointlessly.
  */
-static int wait_for_read(gpib_board_t *board)
+static int wait_for_read(struct gpib_board *board)
 {
 	struct fluke_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
@@ -263,9 +266,9 @@ static int wait_for_read(gpib_board_t *board)
 	if (wait_event_interruptible(board->wait,
 				     lacs_or_read_ready(board) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
+				     test_bit(TIMO_NUM, &board->status)))
 		retval = -ERESTARTSYS;
-	}
+
 	if (test_bit(TIMO_NUM, &board->status))
 		retval = -ETIMEDOUT;
 	if (test_and_clear_bit(DEV_CLEAR_BN, &nec_priv->state))
@@ -311,34 +314,30 @@ static int source_handshake_is_sids_or_sgns(struct fluke_priv *e_priv)
  * If the chip is SGNS it is probably waiting for a a byte to
  * be written to it.
  */
-static int wait_for_data_out_ready(gpib_board_t *board)
+static int wait_for_data_out_ready(struct gpib_board *board)
 {
 	struct fluke_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 	int retval = 0;
-//	printk("%s: enter\n", __FUNCTION__);
 
 	if (wait_event_interruptible(board->wait,
 				     (test_bit(TACS_NUM, &board->status) &&
 				      source_handshake_is_sgns(e_priv)) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
+				     test_bit(TIMO_NUM, &board->status)))
 		retval = -ERESTARTSYS;
-	}
 	if (test_bit(TIMO_NUM, &board->status))
 		retval = -ETIMEDOUT;
 	if (test_and_clear_bit(DEV_CLEAR_BN, &nec_priv->state))
 		retval = -EINTR;
-//	printk("%s: exit, retval=%i\n", __FUNCTION__, retval);
 	return retval;
 }
 
-static int wait_for_sids_or_sgns(gpib_board_t *board)
+static int wait_for_sids_or_sgns(struct gpib_board *board)
 {
 	struct fluke_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 	int retval = 0;
-//	printk("%s: enter\n", __FUNCTION__);
 
 	if (wait_event_interruptible(board->wait,
 				     source_handshake_is_sids_or_sgns(e_priv) ||
@@ -350,19 +349,17 @@ static int wait_for_sids_or_sgns(gpib_board_t *board)
 		retval = -ETIMEDOUT;
 	if (test_and_clear_bit(DEV_CLEAR_BN, &nec_priv->state))
 		retval = -EINTR;
-//	printk("%s: exit, retval=%i\n", __FUNCTION__, retval);
 	return retval;
 }
 
 static void fluke_dma_callback(void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct fluke_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 	unsigned long flags;
 
 	spin_lock_irqsave(&board->spinlock, flags);
-//	printk("%s: enter\n", __FUNCTION__);
 
 	nec7210_set_reg_bits(nec_priv, IMR1, HR_DOIE | HR_DIIE, HR_DOIE | HR_DIIE);
 	wake_up_interruptible(&board->wait);
@@ -370,11 +367,11 @@ static void fluke_dma_callback(void *arg)
 	fluke_gpib_internal_interrupt(board);
 	clear_bit(DMA_WRITE_IN_PROGRESS_BN, &nec_priv->state);
 	clear_bit(DMA_READ_IN_PROGRESS_BN, &nec_priv->state);
-//	printk("%s: exit\n", __FUNCTION__);
+
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static int fluke_dma_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int fluke_dma_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 			   size_t *bytes_written)
 {
 	struct fluke_priv *e_priv = board->private_data;
@@ -385,7 +382,7 @@ static int fluke_dma_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	struct dma_async_tx_descriptor *tx_desc;
 
 	*bytes_written = 0;
-//	printk("%s: enter\n", __FUNCTION__);
+
 	if (WARN_ON_ONCE(length > e_priv->dma_buffer_size))
 		return -EFAULT;
 	dmaengine_terminate_all(e_priv->dma_channel);
@@ -403,7 +400,7 @@ static int fluke_dma_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	tx_desc = dmaengine_prep_slave_single(e_priv->dma_channel, address, length, DMA_MEM_TO_DEV,
 					      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!tx_desc) {
-		pr_err("fluke_gpib: failed to allocate dma transmit descriptor\n");
+		dev_err(board->gpib_dev, "failed to allocate dma transmit descriptor\n");
 		retval = -ENOMEM;
 		goto cleanup;
 	}
@@ -419,10 +416,8 @@ static int fluke_dma_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	clear_bit(WRITE_READY_BN, &nec_priv->state);
 	set_bit(DMA_WRITE_IN_PROGRESS_BN, &nec_priv->state);
 
-	//	printk("%s: in spin lock\n", __FUNCTION__);
 	spin_unlock_irqrestore(&board->spinlock, flags);
 
-//	printk("%s: waiting for write.\n", __FUNCTION__);
 	// suspend until message is sent
 	if (wait_event_interruptible(board->wait,
 				     ((readl(e_priv->write_transfer_counter) &
@@ -430,7 +425,6 @@ static int fluke_dma_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 				     test_bit(BUS_ERROR_BN, &nec_priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "gpib write interrupted!\n");
 		retval = -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))
@@ -459,11 +453,10 @@ static int fluke_dma_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 
 cleanup:
 	dma_unmap_single(board->dev, address, length, DMA_TO_DEVICE);
-//	printk("%s: exit, retval=%d\n", __FUNCTION__, retval);
 	return retval;
 }
 
-static int fluke_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int fluke_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 			     int send_eoi, size_t *bytes_written)
 {
 	struct fluke_priv *e_priv = board->private_data;
@@ -474,7 +467,7 @@ static int fluke_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length
 	size_t dma_remainder = remainder;
 
 	if (!e_priv->dma_channel) {
-		pr_err("fluke_gpib: No dma channel available, cannot do accel write.");
+		dev_err(board->gpib_dev, "No dma channel available, cannot do accel write.");
 		return -ENXIO;
 	}
 
@@ -486,7 +479,6 @@ static int fluke_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length
 
 	if (send_eoi)
 		--dma_remainder;
-//	printk("%s: entering while loop\n", __FUNCTION__);
 
 	while (dma_remainder > 0) {
 		size_t num_bytes;
@@ -512,7 +504,7 @@ static int fluke_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length
 	//handle sending of last byte with eoi
 	if (send_eoi) {
 		size_t num_bytes;
-		//		printk("%s: handling last byte\n", __FUNCTION__);
+
 		if (WARN_ON_ONCE(remainder != 1))
 			return -EFAULT;
 
@@ -533,7 +525,6 @@ static int fluke_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length
 			return retval;
 		remainder -= num_bytes;
 	}
-//	printk("%s: bytes send=%i\n", __FUNCTION__, (int)(length - remainder));
 	return 0;
 }
 
@@ -544,7 +535,7 @@ static int fluke_get_dma_residue(struct dma_chan *chan, dma_cookie_t cookie)
 
 	result = dmaengine_pause(chan);
 	if (result < 0) {
-		pr_err("fluke_gpib: dma pause failed?\n");
+		pr_err("dma pause failed?\n");
 		return result;
 	}
 	dmaengine_tx_status(chan, cookie, &state);
@@ -553,7 +544,7 @@ static int fluke_get_dma_residue(struct dma_chan *chan, dma_cookie_t cookie)
 	return state.residue;
 }
 
-static int fluke_dma_read(gpib_board_t *board, uint8_t *buffer,
+static int fluke_dma_read(struct gpib_board *board, uint8_t *buffer,
 			  size_t length, int *end, size_t *bytes_read)
 {
 	struct fluke_priv *e_priv = board->private_data;
@@ -566,10 +557,6 @@ static int fluke_dma_read(gpib_board_t *board, uint8_t *buffer,
 	dma_cookie_t dma_cookie;
 	int i;
 	static const int timeout = 10;
-
-	//	printk("%s: enter, bus_address=0x%x, length=%i\n", __FUNCTION__,
-	//	       (unsigned)bus_address,
-	//	       (int)length);
 
 	*bytes_read = 0;
 	*end = 0;
@@ -589,7 +576,7 @@ static int fluke_dma_read(gpib_board_t *board, uint8_t *buffer,
 					      bus_address, length, DMA_DEV_TO_MEM,
 					      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!tx_desc) {
-		pr_err("fluke_gpib: failed to allocate dma transmit descriptor\n");
+		dev_err(board->gpib_dev, "failed to allocate dma transmit descriptor\n");
 		dma_unmap_single(NULL, bus_address, length, DMA_FROM_DEVICE);
 		return -EIO;
 	}
@@ -608,14 +595,12 @@ static int fluke_dma_read(gpib_board_t *board, uint8_t *buffer,
 	clear_bit(READ_READY_BN, &nec_priv->state);
 
 	spin_unlock_irqrestore(&board->spinlock, flags);
-//	printk("waiting for data transfer.\n");
 	// wait for data to transfer
 	if (wait_event_interruptible(board->wait,
 				     test_bit(DMA_READ_IN_PROGRESS_BN, &nec_priv->state) == 0 ||
 				     test_bit(RECEIVED_END_BN, &nec_priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		pr_warn("fluke: dma read wait interrupted\n");
 		retval = -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))
@@ -672,7 +657,7 @@ static int fluke_dma_read(gpib_board_t *board, uint8_t *buffer,
 	return retval;
 }
 
-static int fluke_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int fluke_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 			    int *end, size_t *bytes_read)
 {
 	struct fluke_priv *e_priv = board->private_data;
@@ -682,10 +667,6 @@ static int fluke_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
 	int retval = 0;
 	size_t dma_nbytes;
 
-/*	printk("%s: enter, buffer=0x%p, length=%i\n", __FUNCTION__,
- *		   buffer, (int)length);
- *	printk("\t dma_buffer=0x%p\n", e_priv->dma_buffer);
- */
 	*end = 0;
 	*bytes_read = 0;
 
@@ -699,7 +680,6 @@ static int fluke_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
 
 	nec7210_release_rfd_holdoff(board, nec_priv);
 
-//	printk("%s: entering while loop\n", __FUNCTION__);
 	while (remain > 0) {
 		transfer_size = (e_priv->dma_buffer_size < remain) ?
 			e_priv->dma_buffer_size : remain;
@@ -709,14 +689,12 @@ static int fluke_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length,
 		*bytes_read += dma_nbytes;
 		if (*end)
 			break;
-		if (retval < 0)	{
-//			printk("%s: early exit, retval=%i\n", __FUNCTION__, (int)retval);
+		if (retval < 0)
 			return retval;
-		}
 		if (need_resched())
 			schedule();
 	}
-//	printk("%s: exit, retval=%i\n", __FUNCTION__, (int)retval);
+
 	return retval;
 }
 
@@ -809,7 +787,7 @@ static gpib_interface_t fluke_interface = {
 	.return_to_local = fluke_return_to_local,
 };
 
-irqreturn_t fluke_gpib_internal_interrupt(gpib_board_t *board)
+irqreturn_t fluke_gpib_internal_interrupt(struct gpib_board *board)
 {
 	int status0, status1, status2;
 	struct fluke_priv *priv = board->private_data;
@@ -830,13 +808,6 @@ irqreturn_t fluke_gpib_internal_interrupt(gpib_board_t *board)
 
 	if (nec7210_interrupt_have_status(board, nec_priv, status1, status2) == IRQ_HANDLED)
 		retval = IRQ_HANDLED;
-/*
- *	if((status1 & nec_priv->reg_bits[IMR1]) ||
- *		(status2 & (nec_priv->reg_bits[IMR2] & IMR2_ENABLE_INTR_MASK)))
- *	{
- *		printk("fluke: status1 0x%x, status2 0x%x\n", status1, status2);
- *	}
- */
 
 	if (read_byte(nec_priv, ADR0) & DATA_IN_STATUS)	{
 		if (test_bit(RFD_HOLDOFF_BN, &nec_priv->state))
@@ -853,7 +824,7 @@ irqreturn_t fluke_gpib_internal_interrupt(gpib_board_t *board)
 
 static irqreturn_t fluke_gpib_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	unsigned long flags;
 	irqreturn_t retval;
 
@@ -863,7 +834,7 @@ static irqreturn_t fluke_gpib_interrupt(int irq, void *arg)
 	return retval;
 }
 
-static int fluke_allocate_private(gpib_board_t *board)
+static int fluke_allocate_private(struct gpib_board *board)
 {
 	struct fluke_priv *priv;
 
@@ -880,7 +851,7 @@ static int fluke_allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-static void fluke_generic_detach(gpib_board_t *board)
+static void fluke_generic_detach(struct gpib_board *board)
 {
 	if (board->private_data) {
 		struct fluke_priv *e_priv = board->private_data;
@@ -892,7 +863,7 @@ static void fluke_generic_detach(gpib_board_t *board)
 }
 
 // generic part of attach functions shared by all cb7210 boards
-static int fluke_generic_attach(gpib_board_t *board)
+static int fluke_generic_attach(struct gpib_board *board)
 {
 	struct fluke_priv *e_priv;
 	struct nec7210_priv *nec_priv;
@@ -912,7 +883,7 @@ static int fluke_generic_attach(gpib_board_t *board)
 	return 0;
 }
 
-static int fluke_config_dma(gpib_board_t *board, int output)
+static int fluke_config_dma(struct gpib_board *board, int output)
 {
 	struct fluke_priv *e_priv = board->private_data;
 	struct dma_slave_config config;
@@ -937,7 +908,7 @@ static int fluke_config_dma(gpib_board_t *board, int output)
 	return dmaengine_slave_config(e_priv->dma_channel, &config);
 }
 
-static int fluke_init(struct fluke_priv *e_priv, gpib_board_t *board, int handshake_mode)
+static int fluke_init(struct fluke_priv *e_priv, struct gpib_board *board, int handshake_mode)
 {
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;
 
@@ -954,7 +925,7 @@ static int fluke_init(struct fluke_priv *e_priv, gpib_board_t *board, int handsh
 
 	/* poll so we can detect ATN changes */
 	if (gpib_request_pseudo_irq(board, fluke_gpib_interrupt)) {
-		pr_err("fluke_gpib: failed to allocate pseudo_irq\n");
+		dev_err(board->gpib_dev, "failed to allocate pseudo_irq\n");
 		return -EINVAL;
 	}
 
@@ -972,7 +943,7 @@ static bool gpib_dma_channel_filter(struct dma_chan *chan, void *filter_param)
 	return chan->chan_id == 0;
 }
 
-static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *config,
+static int fluke_attach_impl(struct gpib_board *board, const gpib_board_config_t *config,
 			     unsigned int handshake_mode)
 {
 	struct fluke_priv *e_priv;
@@ -984,7 +955,7 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 	dma_cap_mask_t dma_cap;
 
 	if (!fluke_gpib_pdev) {
-		pr_err("No gpib platform device was found, attach failed.\n");
+		dev_err(board->gpib_dev, "No fluke device was found, attach failed.\n");
 		return -ENODEV;
 	}
 
@@ -999,7 +970,7 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 
 	res = platform_get_resource(fluke_gpib_pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&fluke_gpib_pdev->dev, "Unable to locate mmio resource for cb7210 gpib\n");
+		dev_err(&fluke_gpib_pdev->dev, "Unable to locate mmio resource\n");
 		return -ENODEV;
 	}
 
@@ -1012,10 +983,7 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 	e_priv->gpib_iomem_res = res;
 
 	nec_priv->mmiobase = ioremap(e_priv->gpib_iomem_res->start,
-				   resource_size(e_priv->gpib_iomem_res));
-	pr_info("gpib: mmiobase %llx remapped to %p, length=%d\n",
-		(u64)e_priv->gpib_iomem_res->start,
-		nec_priv->mmiobase, (int)resource_size(e_priv->gpib_iomem_res));
+				     resource_size(e_priv->gpib_iomem_res));
 	if (!nec_priv->mmiobase) {
 		dev_err(&fluke_gpib_pdev->dev, "Could not map I/O memory\n");
 		return -ENOMEM;
@@ -1050,19 +1018,14 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 
 	e_priv->write_transfer_counter = ioremap(e_priv->write_transfer_counter_res->start,
 						 resource_size(e_priv->write_transfer_counter_res));
-	pr_info("gpib: write transfer counter %lx remapped to %p, length=%d\n",
-		(unsigned long)e_priv->write_transfer_counter_res->start,
-		e_priv->write_transfer_counter,
-		(int)resource_size(e_priv->write_transfer_counter_res));
 	if (!e_priv->write_transfer_counter) {
 		dev_err(&fluke_gpib_pdev->dev, "Could not map I/O memory\n");
 		return -ENOMEM;
 	}
 
 	irq = platform_get_irq(fluke_gpib_pdev, 0);
-	pr_info("gpib: irq %d\n", irq);
 	if (irq < 0) {
-		dev_err(&fluke_gpib_pdev->dev, "fluke_gpib: request for IRQ failed\n");
+		dev_err(&fluke_gpib_pdev->dev, "failed to obtain IRQ\n");
 		return -EBUSY;
 	}
 	retval = request_irq(irq, fluke_gpib_interrupt, isr_flags, fluke_gpib_pdev->name, board);
@@ -1078,7 +1041,7 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 	dma_cap_set(DMA_SLAVE, dma_cap);
 	e_priv->dma_channel = dma_request_channel(dma_cap, gpib_dma_channel_filter, NULL);
 	if (!e_priv->dma_channel) {
-		pr_err("fluke_gpib: failed to allocate a dma channel.\n");
+		dev_err(board->gpib_dev, "failed to allocate a dma channel.\n");
 		// we don't error out here because unaccel interface will still
 		// work without dma
 	}
@@ -1086,17 +1049,17 @@ static int fluke_attach_impl(gpib_board_t *board, const gpib_board_config_t *con
 	return fluke_init(e_priv, board, handshake_mode);
 }
 
-int fluke_attach_holdoff_all(gpib_board_t *board, const gpib_board_config_t *config)
+int fluke_attach_holdoff_all(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	return fluke_attach_impl(board, config, HR_HLDA);
 }
 
-int fluke_attach_holdoff_end(gpib_board_t *board, const gpib_board_config_t *config)
+int fluke_attach_holdoff_end(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	return fluke_attach_impl(board, config, HR_HLDE);
 }
 
-void fluke_detach(gpib_board_t *board)
+void fluke_detach(struct gpib_board *board)
 {
 	struct fluke_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -1142,8 +1105,7 @@ MODULE_DEVICE_TABLE(of, fluke_gpib_of_match);
 
 static struct platform_driver fluke_gpib_platform_driver = {
 	.driver = {
-		.name = "fluke_gpib",
-		.owner = THIS_MODULE,
+		.name = DRV_NAME,
 		.of_match_table = fluke_gpib_of_match,
 	},
 	.probe = &fluke_gpib_probe
@@ -1155,25 +1117,25 @@ static int __init fluke_init_module(void)
 
 	result = platform_driver_register(&fluke_gpib_platform_driver);
 	if (result) {
-		pr_err("fluke_gpib: platform_driver_register failed: error = %d\n", result);
+		pr_err("platform_driver_register failed: error = %d\n", result);
 		return result;
 	}
 
 	result = gpib_register_driver(&fluke_unaccel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_unaccel;
 	}
 
 	result = gpib_register_driver(&fluke_hybrid_interface, THIS_MODULE);
 	if (result) {
-		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_hybrid;
 	}
 
 	result = gpib_register_driver(&fluke_interface, THIS_MODULE);
 	if (result) {
-		pr_err("fluke_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_interface;
 	}
 

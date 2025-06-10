@@ -44,5 +44,5 @@ int io_ftruncate(struct io_kiocb *req, unsigned int issue_flags)
 	ret = do_ftruncate(req->file, ft->len, 1);
 
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }

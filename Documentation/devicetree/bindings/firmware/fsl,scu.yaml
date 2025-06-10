@@ -45,6 +45,18 @@ properties:
       Keys provided by the SCU
     $ref: /schemas/input/fsl,scu-key.yaml
 
+  reset-controller:
+    type: object
+    properties:
+      compatible:
+        const: fsl,imx-scu-reset
+      '#reset-cells':
+        const: 1
+    required:
+      - compatible
+      - '#reset-cells'
+    additionalProperties: false
+
   mboxes:
     description:
       A list of phandles of TX MU channels followed by a list of phandles of

@@ -9,4 +9,6 @@
 int hbg_mdio_init(struct hbg_priv *priv);
 void hbg_phy_start(struct hbg_priv *priv);
 void hbg_phy_stop(struct hbg_priv *priv);
+void hbg_fix_np_link_fail(struct hbg_priv *priv);
+
 #endif

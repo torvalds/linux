@@ -22,6 +22,8 @@ struct mlx5_fs_hws_actions_pool {
 	struct xarray table_dests;
 	struct xarray vport_vhca_dests;
 	struct xarray vport_dests;
+	struct xarray aso_meters;
+	struct xarray sample_dests;
 };
 
 struct mlx5_fs_hws_context {
@@ -39,6 +41,11 @@ struct mlx5_fs_hws_action {
 	struct mlx5_fs_pool *fs_pool;
 	struct mlx5_fs_hws_pr *pr_data;
 	struct mlx5_fs_hws_mh *mh_data;
+	u32 fw_reformat_id;
+	/* Protect `fw_reformat_id` against being initialized from multiple
+	 * threads.
+	 */
+	struct mutex lock;
 };
 
 struct mlx5_fs_hws_matcher {
@@ -49,6 +56,8 @@ struct mlx5_fs_hws_rule_action {
 	struct mlx5hws_action *action;
 	union {
 		struct mlx5_fc *counter;
+		struct mlx5_exe_aso *exe_aso;
+		u32 sampler_id;
 	};
 };
 
@@ -58,13 +67,44 @@ struct mlx5_fs_hws_rule {
 	int num_fs_actions;
 };
 
+struct mlx5_fs_hws_data {
+	struct mlx5hws_action *hws_action;
+	struct mutex lock; /* protects hws_action */
+	refcount_t hws_action_refcount;
+};
+
+struct mlx5_fs_hws_create_action_ctx {
+	enum mlx5hws_action_type actions_type;
+	struct mlx5hws_context *hws_ctx;
+	u32 id;
+	union {
+		u8 return_reg_id;
+	};
+};
+
+struct mlx5hws_action *
+mlx5_fs_get_hws_action(struct mlx5_fs_hws_data *fs_hws_data,
+		       struct mlx5_fs_hws_create_action_ctx *create_ctx);
+void mlx5_fs_put_hws_action(struct mlx5_fs_hws_data *fs_hws_data);
+
 #ifdef CONFIG_MLX5_HW_STEERING
+
+int
+mlx5_fs_hws_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
+				       u32 *reformat_id);
 
 bool mlx5_fs_hws_is_supported(struct mlx5_core_dev *dev);
 
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void);
 
 #else
+
+static inline int
+mlx5_fs_hws_action_get_pkt_reformat_id(struct mlx5_pkt_reformat *pkt_reformat,
+				       u32 *reformat_id)
+{
+	return -EOPNOTSUPP;
+}
 
 static inline bool mlx5_fs_hws_is_supported(struct mlx5_core_dev *dev)
 {

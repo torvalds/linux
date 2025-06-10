@@ -216,7 +216,7 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (ret < 0)
 		return ret;
 
-	ret = pci_request_regions(pci, "Audio DSP");
+	ret = pcim_request_all_regions(pci, "Audio DSP");
 	if (ret < 0)
 		return ret;
 
@@ -240,8 +240,7 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		path_override->ipc_type = sof_pci_ipc_type;
 	} else {
 		dev_err(dev, "Invalid IPC type requested: %d\n", sof_pci_ipc_type);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	path_override->fw_path = fw_path;
@@ -271,13 +270,7 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	sof_pdata->sof_probe_complete = sof_pci_probe_complete;
 
 	/* call sof helper for DSP hardware probe */
-	ret = snd_sof_device_probe(dev, sof_pdata);
-
-out:
-	if (ret)
-		pci_release_regions(pci);
-
-	return ret;
+	return snd_sof_device_probe(dev, sof_pdata);
 }
 EXPORT_SYMBOL_NS(sof_pci_probe, "SND_SOC_SOF_PCI_DEV");
 
@@ -290,9 +283,6 @@ void sof_pci_remove(struct pci_dev *pci)
 	if (snd_sof_device_probe_completed(&pci->dev) &&
 	    !(sof_pci_debug & SOF_PCI_DISABLE_PM_RUNTIME))
 		pm_runtime_get_noresume(&pci->dev);
-
-	/* release pci regions and disable device */
-	pci_release_regions(pci);
 }
 EXPORT_SYMBOL_NS(sof_pci_remove, "SND_SOC_SOF_PCI_DEV");
 

@@ -59,7 +59,8 @@ struct msi_ctrl {
 static void msi_domain_free_locked(struct device *dev, struct msi_ctrl *ctrl);
 static unsigned int msi_domain_get_hwsize(struct device *dev, unsigned int domid);
 static inline int msi_sysfs_create_group(struct device *dev);
-
+static int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,
+				   int nvec, msi_alloc_info_t *arg);
 
 /**
  * msi_alloc_desc - Allocate an initialized msi_desc
@@ -270,11 +271,16 @@ fail:
 	return ret;
 }
 
+void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+{
+	*msg = entry->msg;
+}
+
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
 	struct msi_desc *entry = irq_get_msi_desc(irq);
 
-	*msg = entry->msg;
+	__get_cached_msi_msg(entry, msg);
 }
 EXPORT_SYMBOL_GPL(get_cached_msi_msg);
 
@@ -755,7 +761,7 @@ static int msi_domain_translate(struct irq_domain *domain, struct irq_fwspec *fw
 static void msi_domain_debug_show(struct seq_file *m, struct irq_domain *d,
 				  struct irq_data *irqd, int ind)
 {
-	struct msi_desc *desc = irq_data_get_msi_desc(irqd);
+	struct msi_desc *desc = irqd ? irq_data_get_msi_desc(irqd) : NULL;
 
 	if (!desc)
 		return;
@@ -790,6 +796,10 @@ static int msi_domain_ops_prepare(struct irq_domain *domain, struct device *dev,
 	return 0;
 }
 
+static void msi_domain_ops_teardown(struct irq_domain *domain, msi_alloc_info_t *arg)
+{
+}
+
 static void msi_domain_ops_set_desc(msi_alloc_info_t *arg,
 				    struct msi_desc *desc)
 {
@@ -815,6 +825,7 @@ static struct msi_domain_ops msi_domain_ops_default = {
 	.get_hwirq		= msi_domain_ops_get_hwirq,
 	.msi_init		= msi_domain_ops_init,
 	.msi_prepare		= msi_domain_ops_prepare,
+	.msi_teardown		= msi_domain_ops_teardown,
 	.set_desc		= msi_domain_ops_set_desc,
 };
 
@@ -836,6 +847,8 @@ static void msi_domain_update_dom_ops(struct msi_domain_info *info)
 		ops->msi_init = msi_domain_ops_default.msi_init;
 	if (ops->msi_prepare == NULL)
 		ops->msi_prepare = msi_domain_ops_default.msi_prepare;
+	if (ops->msi_teardown == NULL)
+		ops->msi_teardown = msi_domain_ops_default.msi_teardown;
 	if (ops->set_desc == NULL)
 		ops->set_desc = msi_domain_ops_default.set_desc;
 }
@@ -897,6 +910,32 @@ struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 {
 	return __msi_create_irq_domain(fwnode, info, 0, parent);
 }
+
+/**
+ * msi_create_parent_irq_domain - Create an MSI-parent interrupt domain
+ * @info:		MSI irqdomain creation info
+ * @msi_parent_ops:	MSI parent callbacks and configuration
+ *
+ * Return: pointer to the created &struct irq_domain or %NULL on failure
+ */
+struct irq_domain *msi_create_parent_irq_domain(struct irq_domain_info *info,
+						const struct msi_parent_ops *msi_parent_ops)
+{
+	struct irq_domain *d;
+
+	info->hwirq_max		= max(info->hwirq_max, info->size);
+	info->size		= info->hwirq_max;
+	info->domain_flags	|= IRQ_DOMAIN_FLAG_MSI_PARENT;
+	info->bus_token		= msi_parent_ops->bus_select_token;
+
+	d = irq_domain_instantiate(info);
+	if (IS_ERR(d))
+		return NULL;
+
+	d->msi_parent_ops = msi_parent_ops;
+	return d;
+}
+EXPORT_SYMBOL_GPL(msi_create_parent_irq_domain);
 
 /**
  * msi_parent_init_dev_msi_info - Delegate initialization of device MSI info down
@@ -1002,7 +1041,7 @@ bool msi_create_device_irq_domain(struct device *dev, unsigned int domid,
 		return false;
 
 	struct msi_domain_template *bundle __free(kfree) =
-		bundle = kmemdup(template, sizeof(*bundle), GFP_KERNEL);
+		kmemdup(template, sizeof(*bundle), GFP_KERNEL);
 	if (!bundle)
 		return false;
 
@@ -1011,6 +1050,7 @@ bool msi_create_device_irq_domain(struct device *dev, unsigned int domid,
 	bundle->info.ops = &bundle->ops;
 	bundle->info.data = domain_data;
 	bundle->info.chip_data = chip_data;
+	bundle->info.alloc_data = &bundle->alloc_info;
 
 	pops = parent->msi_parent_ops;
 	snprintf(bundle->name, sizeof(bundle->name), "%s%s-%s",
@@ -1049,11 +1089,18 @@ bool msi_create_device_irq_domain(struct device *dev, unsigned int domid,
 	if (!domain)
 		return false;
 
-	/* @bundle and @fwnode_alloced are now in use. Prevent cleanup */
-	retain_ptr(bundle);
-	retain_ptr(fwnode_alloced);
 	domain->dev = dev;
 	dev->msi.data->__domains[domid].domain = domain;
+
+	if (msi_domain_prepare_irqs(domain, dev, hwsize, &bundle->alloc_info)) {
+		dev->msi.data->__domains[domid].domain = NULL;
+		irq_domain_remove(domain);
+		return false;
+	}
+
+	/* @bundle and @fwnode_alloced are now in use. Prevent cleanup */
+	retain_and_null_ptr(bundle);
+	retain_and_null_ptr(fwnode_alloced);
 	return true;
 }
 
@@ -1075,6 +1122,9 @@ void msi_remove_device_irq_domain(struct device *dev, unsigned int domid)
 
 	dev->msi.data->__domains[domid].domain = NULL;
 	info = domain->host_data;
+
+	info->ops->msi_teardown(domain, info->alloc_data);
+
 	if (irq_domain_is_msi_device(domain))
 		fwnode = domain->fwnode;
 	irq_domain_remove(domain);
@@ -1220,6 +1270,24 @@ static int msi_init_virq(struct irq_domain *domain, int virq, unsigned int vflag
 	return 0;
 }
 
+static int populate_alloc_info(struct irq_domain *domain, struct device *dev,
+			       unsigned int nirqs, msi_alloc_info_t *arg)
+{
+	struct msi_domain_info *info = domain->host_data;
+
+	/*
+	 * If the caller has provided a template alloc info, use that. Once
+	 * all users of msi_create_irq_domain() have been eliminated, this
+	 * should be the only source of allocation information, and the
+	 * prepare call below should be finally removed.
+	 */
+	if (!info->alloc_data)
+		return msi_domain_prepare_irqs(domain, dev, nirqs, arg);
+
+	*arg = *info->alloc_data;
+	return 0;
+}
+
 static int __msi_domain_alloc_irqs(struct device *dev, struct irq_domain *domain,
 				   struct msi_ctrl *ctrl)
 {
@@ -1232,7 +1300,7 @@ static int __msi_domain_alloc_irqs(struct device *dev, struct irq_domain *domain
 	unsigned long idx;
 	int i, ret, virq;
 
-	ret = msi_domain_prepare_irqs(domain, dev, ctrl->nirqs, &arg);
+	ret = populate_alloc_info(domain, dev, ctrl->nirqs, &arg);
 	if (ret)
 		return ret;
 
@@ -1334,6 +1402,33 @@ static int msi_domain_alloc_locked(struct device *dev, struct msi_ctrl *ctrl)
 }
 
 /**
+ * msi_domain_alloc_irqs_range_locked - Allocate interrupts from a MSI interrupt domain
+ * @dev:	Pointer to device struct of the device for which the interrupts
+ *		are allocated
+ * @domid:	Id of the interrupt domain to operate on
+ * @first:	First index to allocate (inclusive)
+ * @last:	Last index to allocate (inclusive)
+ *
+ * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
+ * pair. Use this for MSI irqdomains which implement their own descriptor
+ * allocation/free.
+ *
+ * Return: %0 on success or an error code.
+ */
+int msi_domain_alloc_irqs_range_locked(struct device *dev, unsigned int domid,
+				       unsigned int first, unsigned int last)
+{
+	struct msi_ctrl ctrl = {
+		.domid	= domid,
+		.first	= first,
+		.last	= last,
+		.nirqs	= last + 1 - first,
+	};
+
+	return msi_domain_alloc_locked(dev, &ctrl);
+}
+
+/**
  * msi_domain_alloc_irqs_range - Allocate interrupts from a MSI interrupt domain
  * @dev:	Pointer to device struct of the device for which the interrupts
  *		are allocated
@@ -1346,15 +1441,9 @@ static int msi_domain_alloc_locked(struct device *dev, struct msi_ctrl *ctrl)
 int msi_domain_alloc_irqs_range(struct device *dev, unsigned int domid,
 				unsigned int first, unsigned int last)
 {
-	struct msi_ctrl ctrl = {
-		.domid	= domid,
-		.first	= first,
-		.last	= last,
-		.nirqs	= last + 1 - first,
-	};
 
 	guard(msi_descs_lock)(dev);
-	return msi_domain_alloc_locked(dev, &ctrl);
+	return msi_domain_alloc_irqs_range_locked(dev, domid, first, last);
 }
 EXPORT_SYMBOL_GPL(msi_domain_alloc_irqs_range);
 
@@ -1570,8 +1659,8 @@ static void msi_domain_free_locked(struct device *dev, struct msi_ctrl *ctrl)
  * @first:	First index to free (inclusive)
  * @last:	Last index to free (inclusive)
  */
-static void msi_domain_free_irqs_range_locked(struct device *dev, unsigned int domid,
-					      unsigned int first, unsigned int last)
+void msi_domain_free_irqs_range_locked(struct device *dev, unsigned int domid,
+				       unsigned int first, unsigned int last)
 {
 	struct msi_ctrl ctrl = {
 		.domid	= domid,

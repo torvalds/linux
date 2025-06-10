@@ -183,6 +183,7 @@ enum atom_dgpu_vram_type {
   ATOM_DGPU_VRAM_TYPE_HBM2E = 0x61,
   ATOM_DGPU_VRAM_TYPE_GDDR6 = 0x70,
   ATOM_DGPU_VRAM_TYPE_HBM3 = 0x80,
+	ATOM_DGPU_VRAM_TYPE_HBM3E = 0x81,
 };
 
 enum atom_dp_vs_preemph_def{

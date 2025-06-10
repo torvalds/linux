@@ -162,6 +162,16 @@ enum mt76_dfs_state {
 	MT_DFS_STATE_ACTIVE,
 };
 
+#define MT76_RNR_SCAN_MAX_BSSIDS       16
+struct mt76_scan_rnr_param {
+	u8 bssid[MT76_RNR_SCAN_MAX_BSSIDS][ETH_ALEN];
+	u8 channel[MT76_RNR_SCAN_MAX_BSSIDS];
+	u8 random_mac[ETH_ALEN];
+	u8 seq_num;
+	u8 bssid_num;
+	u32 sreq_flag;
+};
+
 struct mt76_queue_buf {
 	dma_addr_t addr;
 	u16 len:15,
@@ -351,6 +361,7 @@ struct mt76_wcid {
 	u8 hw_key_idx;
 	u8 hw_key_idx2;
 
+	u8 offchannel:1;
 	u8 sta:1;
 	u8 sta_disabled:1;
 	u8 amsdu:1;
@@ -491,6 +502,7 @@ struct mt76_hw_cap {
 #define MT_DRV_RX_DMA_HDR		BIT(3)
 #define MT_DRV_HW_MGMT_TXQ		BIT(4)
 #define MT_DRV_AMSDU_OFFLOAD		BIT(5)
+#define MT_DRV_IGNORE_TXS_FAILED	BIT(6)
 
 struct mt76_driver_ops {
 	u32 drv_flags;
@@ -769,6 +781,7 @@ struct mt76_testmode_data {
 
 struct mt76_vif_link {
 	u8 idx;
+	u8 link_idx;
 	u8 omac_idx;
 	u8 band_idx;
 	u8 wmm_idx;
@@ -786,6 +799,7 @@ struct mt76_vif_link {
 
 struct mt76_vif_data {
 	struct mt76_vif_link __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct mt76_vif_link __rcu *offchannel_link;
 
 	struct mt76_phy *roc_phy;
 	u16 valid_links;
@@ -936,6 +950,8 @@ struct mt76_dev {
 
 	char alpha2[3];
 	enum nl80211_dfs_regions region;
+
+	struct mt76_scan_rnr_param rnr;
 
 	u32 debugfs_reg;
 
@@ -1224,6 +1240,8 @@ struct mt76_phy *mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
 				u8 band_idx);
 int mt76_register_phy(struct mt76_phy *phy, bool vht,
 		      struct ieee80211_rate *rates, int n_rates);
+struct mt76_phy *mt76_vif_phy(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif);
 
 struct dentry *mt76_register_debugfs_fops(struct mt76_phy *phy,
 					  const struct file_operations *ops);
@@ -1380,12 +1398,12 @@ static inline bool mt76_is_skb_pktid(u8 pktid)
 	return pktid >= MT_PACKET_ID_FIRST;
 }
 
-static inline u8 mt76_tx_power_nss_delta(u8 nss)
+static inline u8 mt76_tx_power_path_delta(u8 path)
 {
-	static const u8 nss_delta[4] = { 0, 6, 9, 12 };
-	u8 idx = nss - 1;
+	static const u8 path_delta[5] = { 0, 6, 9, 12, 14 };
+	u8 idx = path - 1;
 
-	return (idx < ARRAY_SIZE(nss_delta)) ? nss_delta[idx] : 0;
+	return (idx < ARRAY_SIZE(path_delta)) ? path_delta[idx] : 0;
 }
 
 static inline bool mt76_testmode_enabled(struct mt76_phy *phy)
@@ -1481,6 +1499,8 @@ void mt76_sta_pre_rcu_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta);
 
 int mt76_get_min_avg_rssi(struct mt76_dev *dev, u8 phy_idx);
+
+s8 mt76_get_power_bound(struct mt76_phy *phy, s8 txpower);
 
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     unsigned int link_id, int *dbm);

@@ -1945,7 +1945,7 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
 				 session->tmf_state != TMF_QUEUED);
 	if (signal_pending(current))
 		flush_signals(current);
-	del_timer_sync(&session->tmf_timer);
+	timer_delete_sync(&session->tmf_timer);
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);
@@ -3247,7 +3247,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 
 	iscsi_remove_conn(cls_conn);
 
-	del_timer_sync(&conn->transport_timer);
+	timer_delete_sync(&conn->transport_timer);
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->frwd_lock);
@@ -3411,7 +3411,7 @@ void iscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	conn->stop_stage = flag;
 	spin_unlock_bh(&session->frwd_lock);
 
-	del_timer_sync(&conn->transport_timer);
+	timer_delete_sync(&conn->transport_timer);
 	iscsi_suspend_tx(conn);
 
 	spin_lock_bh(&session->frwd_lock);

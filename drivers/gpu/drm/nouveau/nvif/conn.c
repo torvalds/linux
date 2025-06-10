@@ -30,17 +30,17 @@ int
 nvif_conn_event_ctor(struct nvif_conn *conn, const char *name, nvif_event_func func, u8 types,
 		     struct nvif_event *event)
 {
-	struct {
-		struct nvif_event_v0 base;
-		struct nvif_conn_event_v0 conn;
-	} args;
+	DEFINE_RAW_FLEX(struct nvif_event_v0, args, data,
+			sizeof(struct nvif_conn_event_v0));
+	struct nvif_conn_event_v0 *args_conn =
+				(struct nvif_conn_event_v0 *)args->data;
 	int ret;
 
-	args.conn.version = 0;
-	args.conn.types = types;
+	args_conn->version = 0;
+	args_conn->types = types;
 
 	ret = nvif_event_ctor_(&conn->object, name ?: "nvifConnHpd", nvif_conn_id(conn),
-			       func, true, &args.base, sizeof(args), false, event);
+			       func, true, args, __struct_size(args), false, event);
 	NVIF_DEBUG(&conn->object, "[NEW EVENT:HPD types:%02x]", types);
 	return ret;
 }

@@ -12,34 +12,7 @@
 #include <asm/mmu_context.h>
 #include <asm/page-states.h>
 #include <asm/pgalloc.h>
-#include <asm/gmap.h>
-#include <asm/tlb.h>
 #include <asm/tlbflush.h>
-
-#ifdef CONFIG_PGSTE
-
-int page_table_allocate_pgste = 0;
-EXPORT_SYMBOL(page_table_allocate_pgste);
-
-static const struct ctl_table page_table_sysctl[] = {
-	{
-		.procname	= "allocate_pgste",
-		.data		= &page_table_allocate_pgste,
-		.maxlen		= sizeof(int),
-		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-};
-
-static int __init page_table_register_sysctl(void)
-{
-	return register_sysctl("vm", page_table_sysctl) ? 0 : -ENOMEM;
-}
-__initcall(page_table_register_sysctl);
-
-#endif /* CONFIG_PGSTE */
 
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
@@ -63,11 +36,15 @@ void crst_table_free(struct mm_struct *mm, unsigned long *table)
 static void __crst_table_upgrade(void *arg)
 {
 	struct mm_struct *mm = arg;
+	struct ctlreg asce;
 
 	/* change all active ASCEs to avoid the creation of new TLBs */
 	if (current->active_mm == mm) {
-		get_lowcore()->user_asce.val = mm->context.asce;
-		local_ctl_load(7, &get_lowcore()->user_asce);
+		asce.val = mm->context.asce;
+		get_lowcore()->user_asce = asce;
+		local_ctl_load(7, &asce);
+		if (!test_thread_flag(TIF_ASCE_PRIMARY))
+			local_ctl_load(1, &asce);
 	}
 	__tlb_flush_local();
 }
@@ -76,6 +53,8 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 {
 	unsigned long *pgd = NULL, *p4d = NULL, *__pgd;
 	unsigned long asce_limit = mm->context.asce_limit;
+
+	mmap_assert_write_locked(mm);
 
 	/* upgrade should only happen from 3 to 4, 3 to 5, or 4 to 5 levels */
 	VM_BUG_ON(asce_limit < _REGION2_SIZE);
@@ -99,13 +78,6 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 	}
 
 	spin_lock_bh(&mm->page_table_lock);
-
-	/*
-	 * This routine gets called with mmap_lock lock held and there is
-	 * no reason to optimize for the case of otherwise. However, if
-	 * that would ever change, the below check will let us know.
-	 */
-	VM_BUG_ON(asce_limit != mm->context.asce_limit);
 
 	if (p4d) {
 		__pgd = (unsigned long *) mm->pgd;
@@ -170,7 +142,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
 	if (!ptdesc)
 		return NULL;
-	if (!pagetable_pte_ctor(ptdesc)) {
+	if (!pagetable_pte_ctor(mm, ptdesc)) {
 		pagetable_free(ptdesc);
 		return NULL;
 	}

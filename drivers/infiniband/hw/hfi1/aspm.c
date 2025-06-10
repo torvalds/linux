@@ -191,7 +191,7 @@ void aspm_disable_all(struct hfi1_devdata *dd)
 	for (i = 0; i < dd->first_dyn_alloc_ctxt; i++) {
 		rcd = hfi1_rcd_get_by_index(dd, i);
 		if (rcd) {
-			del_timer_sync(&rcd->aspm_timer);
+			timer_delete_sync(&rcd->aspm_timer);
 			spin_lock_irqsave(&rcd->aspm_lock, flags);
 			rcd->aspm_intr_enable = false;
 			spin_unlock_irqrestore(&rcd->aspm_lock, flags);

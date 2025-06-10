@@ -176,8 +176,8 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	if (xe_exec_queue_is_parallel(q)) {
-		err = __copy_from_user(addresses, addresses_user, sizeof(u64) *
-				       q->width);
+		err = copy_from_user(addresses, addresses_user, sizeof(u64) *
+				     q->width);
 		if (err) {
 			err = -EFAULT;
 			goto err_syncs;
@@ -260,6 +260,12 @@ retry:
 		err = -EWOULDBLOCK;	/* Aliased to -EAGAIN */
 		skip_retry = true;
 		goto err_exec;
+	}
+
+	if (xe_exec_queue_uses_pxp(q)) {
+		err = xe_vm_validate_protected(q->vm);
+		if (err)
+			goto err_exec;
 	}
 
 	job = xe_sched_job_create(q, xe_exec_queue_is_parallel(q) ?

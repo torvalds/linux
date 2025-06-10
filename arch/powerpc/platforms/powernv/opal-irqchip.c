@@ -191,7 +191,8 @@ int __init opal_event_init(void)
 	 * fall back to the legacy method (opal_event_request(...))
 	 * anyway. */
 	dn = of_find_compatible_node(NULL, NULL, "ibm,opal-event");
-	opal_event_irqchip.domain = irq_domain_add_linear(dn, MAX_NUM_EVENTS,
+	opal_event_irqchip.domain = irq_domain_create_linear(of_fwnode_handle(dn),
+				MAX_NUM_EVENTS,
 				&opal_event_domain_ops, &opal_event_irqchip);
 	of_node_put(dn);
 	if (!opal_event_irqchip.domain) {

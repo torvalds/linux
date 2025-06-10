@@ -24,10 +24,12 @@
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
+#include <linux/units.h>
 #include <linux/regulator/consumer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
+#include <linux/iio/iio-gts-helper.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
@@ -59,22 +61,36 @@
 #define VEML6035_INT_CHAN     BIT(3)
 #define VEML6035_CHAN_EN      BIT(2)
 
+/* Regfields */
+#define VEML6030_GAIN_RF      REG_FIELD(VEML6030_REG_ALS_CONF, 11, 12)
+#define VEML6030_IT_RF        REG_FIELD(VEML6030_REG_ALS_CONF, 6, 9)
+
+#define VEML6035_GAIN_RF      REG_FIELD(VEML6030_REG_ALS_CONF, 10, 12)
+
+/* Maximum scales x 10000 to work with integers */
+#define VEML6030_MAX_SCALE    21504
+#define VEML6035_MAX_SCALE    4096
+
 enum veml6030_scan {
 	VEML6030_SCAN_ALS,
 	VEML6030_SCAN_WH,
 	VEML6030_SCAN_TIMESTAMP,
 };
 
+struct veml6030_rf {
+	struct regmap_field *it;
+	struct regmap_field *gain;
+};
+
 struct veml603x_chip {
 	const char *name;
-	const int(*scale_vals)[][2];
-	const int num_scale_vals;
 	const struct iio_chan_spec *channels;
 	const int num_channels;
+	const struct reg_field gain_rf;
+	const struct reg_field it_rf;
+	const int max_scale;
 	int (*hw_init)(struct iio_dev *indio_dev, struct device *dev);
 	int (*set_info)(struct iio_dev *indio_dev);
-	int (*set_als_gain)(struct iio_dev *indio_dev, int val, int val2);
-	int (*get_als_gain)(struct iio_dev *indio_dev, int *val, int *val2);
 };
 
 /*
@@ -91,40 +107,56 @@ struct veml603x_chip {
 struct veml6030_data {
 	struct i2c_client *client;
 	struct regmap *regmap;
-	int cur_resolution;
-	int cur_gain;
-	int cur_integration_time;
+	struct veml6030_rf rf;
 	const struct veml603x_chip *chip;
+	struct iio_gts gts;
+
 };
 
-static const int veml6030_it_times[][2] = {
-	{ 0, 25000 },
-	{ 0, 50000 },
-	{ 0, 100000 },
-	{ 0, 200000 },
-	{ 0, 400000 },
-	{ 0, 800000 },
+#define VEML6030_SEL_IT_25MS  0x0C
+#define VEML6030_SEL_IT_50MS  0x08
+#define VEML6030_SEL_IT_100MS 0x00
+#define VEML6030_SEL_IT_200MS 0x01
+#define VEML6030_SEL_IT_400MS 0x02
+#define VEML6030_SEL_IT_800MS 0x03
+static const struct iio_itime_sel_mul veml6030_it_sel[] = {
+	GAIN_SCALE_ITIME_US(25000, VEML6030_SEL_IT_25MS, 1),
+	GAIN_SCALE_ITIME_US(50000, VEML6030_SEL_IT_50MS, 2),
+	GAIN_SCALE_ITIME_US(100000, VEML6030_SEL_IT_100MS, 4),
+	GAIN_SCALE_ITIME_US(200000, VEML6030_SEL_IT_200MS, 8),
+	GAIN_SCALE_ITIME_US(400000, VEML6030_SEL_IT_400MS, 16),
+	GAIN_SCALE_ITIME_US(800000, VEML6030_SEL_IT_800MS, 32),
 };
 
-/*
- * Scale is 1/gain. Value 0.125 is ALS gain x (1/8), 0.25 is
- * ALS gain x (1/4), 0.5 is ALS gain x (1/2), 1.0 is ALS gain x 1,
- * 2.0 is ALS gain x2, and 4.0 is ALS gain x 4.
+/* Gains are multiplied by 8 to work with integers. The values in the
+ * iio-gts tables don't need corrections because the maximum value of
+ * the scale refers to GAIN = x1, and the rest of the values are
+ * obtained from the resulting linear function.
  */
-static const int veml6030_scale_vals[][2] = {
-	{ 0, 125000 },
-	{ 0, 250000 },
-	{ 1, 0 },
-	{ 2, 0 },
+#define VEML6030_SEL_MILLI_GAIN_X125  2
+#define VEML6030_SEL_MILLI_GAIN_X250  3
+#define VEML6030_SEL_MILLI_GAIN_X1000 0
+#define VEML6030_SEL_MILLI_GAIN_X2000 1
+static const struct iio_gain_sel_pair veml6030_gain_sel[] = {
+	GAIN_SCALE_GAIN(1, VEML6030_SEL_MILLI_GAIN_X125),
+	GAIN_SCALE_GAIN(2, VEML6030_SEL_MILLI_GAIN_X250),
+	GAIN_SCALE_GAIN(8, VEML6030_SEL_MILLI_GAIN_X1000),
+	GAIN_SCALE_GAIN(16, VEML6030_SEL_MILLI_GAIN_X2000),
 };
 
-static const int veml6035_scale_vals[][2] = {
-	{ 0, 125000 },
-	{ 0, 250000 },
-	{ 0, 500000 },
-	{ 1, 0 },
-	{ 2, 0 },
-	{ 4, 0 },
+#define VEML6035_SEL_MILLI_GAIN_X125  4
+#define VEML6035_SEL_MILLI_GAIN_X250  5
+#define VEML6035_SEL_MILLI_GAIN_X500  7
+#define VEML6035_SEL_MILLI_GAIN_X1000 0
+#define VEML6035_SEL_MILLI_GAIN_X2000 1
+#define VEML6035_SEL_MILLI_GAIN_X4000 3
+static const struct iio_gain_sel_pair veml6035_gain_sel[] = {
+	GAIN_SCALE_GAIN(1, VEML6035_SEL_MILLI_GAIN_X125),
+	GAIN_SCALE_GAIN(2, VEML6035_SEL_MILLI_GAIN_X250),
+	GAIN_SCALE_GAIN(4, VEML6035_SEL_MILLI_GAIN_X500),
+	GAIN_SCALE_GAIN(8, VEML6035_SEL_MILLI_GAIN_X1000),
+	GAIN_SCALE_GAIN(16, VEML6035_SEL_MILLI_GAIN_X2000),
+	GAIN_SCALE_GAIN(32, VEML6035_SEL_MILLI_GAIN_X4000),
 };
 
 /*
@@ -319,113 +351,112 @@ static const struct iio_chan_spec veml7700_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(VEML6030_SCAN_TIMESTAMP),
 };
 
+static const struct regmap_range veml6030_readable_ranges[] = {
+	regmap_reg_range(VEML6030_REG_ALS_CONF, VEML6030_REG_ALS_INT),
+};
+
+static const struct regmap_access_table veml6030_readable_table = {
+	.yes_ranges = veml6030_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml6030_readable_ranges),
+};
+
+static const struct regmap_range veml6030_writable_ranges[] = {
+	regmap_reg_range(VEML6030_REG_ALS_CONF, VEML6030_REG_ALS_PSM),
+};
+
+static const struct regmap_access_table veml6030_writable_table = {
+	.yes_ranges = veml6030_writable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml6030_writable_ranges),
+};
+
+static const struct regmap_range veml6030_volatile_ranges[] = {
+	regmap_reg_range(VEML6030_REG_ALS_DATA, VEML6030_REG_WH_DATA),
+};
+
+static const struct regmap_access_table veml6030_volatile_table = {
+	.yes_ranges = veml6030_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml6030_volatile_ranges),
+};
+
 static const struct regmap_config veml6030_regmap_config = {
 	.name = "veml6030_regmap",
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = VEML6030_REG_ALS_INT,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
+	.rd_table = &veml6030_readable_table,
+	.wr_table = &veml6030_writable_table,
+	.volatile_table = &veml6030_volatile_table,
+	.cache_type = REGCACHE_RBTREE,
 };
 
-static int veml6030_get_intgrn_tm(struct iio_dev *indio_dev,
-						int *val, int *val2)
+static int veml6030_get_it(struct veml6030_data *data, int *val, int *val2)
 {
-	int ret, reg;
-	struct veml6030_data *data = iio_priv(indio_dev);
+	int ret, it_idx;
 
-	ret = regmap_read(data->regmap, VEML6030_REG_ALS_CONF, &reg);
-	if (ret) {
-		dev_err(&data->client->dev,
-				"can't read als conf register %d\n", ret);
+	ret = regmap_field_read(data->rf.it, &it_idx);
+	if (ret)
 		return ret;
-	}
 
-	switch ((reg >> 6) & 0xF) {
-	case 0:
-		*val2 = 100000;
-		break;
-	case 1:
-		*val2 = 200000;
-		break;
-	case 2:
-		*val2 = 400000;
-		break;
-	case 3:
-		*val2 = 800000;
-		break;
-	case 8:
-		*val2 = 50000;
-		break;
-	case 12:
-		*val2 = 25000;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = iio_gts_find_int_time_by_sel(&data->gts, it_idx);
+	if (ret < 0)
+		return ret;
 
+	*val2 = ret;
 	*val = 0;
+
 	return IIO_VAL_INT_PLUS_MICRO;
 }
 
-static int veml6030_set_intgrn_tm(struct iio_dev *indio_dev,
-						int val, int val2)
+static int veml6030_set_it(struct iio_dev *indio_dev, int val, int val2)
 {
-	int ret, new_int_time, int_idx;
 	struct veml6030_data *data = iio_priv(indio_dev);
+	int ret, gain_idx, it_idx, new_gain, prev_gain, prev_it;
+	bool in_range;
 
-	if (val)
+	if (val || !iio_gts_valid_time(&data->gts, val2))
 		return -EINVAL;
 
-	switch (val2) {
-	case 25000:
-		new_int_time = 0x300;
-		int_idx = 5;
-		break;
-	case 50000:
-		new_int_time = 0x200;
-		int_idx = 4;
-		break;
-	case 100000:
-		new_int_time = 0x00;
-		int_idx = 3;
-		break;
-	case 200000:
-		new_int_time = 0x40;
-		int_idx = 2;
-		break;
-	case 400000:
-		new_int_time = 0x80;
-		int_idx = 1;
-		break;
-	case 800000:
-		new_int_time = 0xC0;
-		int_idx = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = regmap_update_bits(data->regmap, VEML6030_REG_ALS_CONF,
-					VEML6030_ALS_IT, new_int_time);
-	if (ret) {
-		dev_err(&data->client->dev,
-				"can't update als integration time %d\n", ret);
+	ret = regmap_field_read(data->rf.it, &it_idx);
+	if (ret)
 		return ret;
-	}
 
-	/*
-	 * Cache current integration time and update resolution. For every
-	 * increase in integration time to next level, resolution is halved
-	 * and vice-versa.
-	 */
-	if (data->cur_integration_time < int_idx)
-		data->cur_resolution <<= int_idx - data->cur_integration_time;
-	else if (data->cur_integration_time > int_idx)
-		data->cur_resolution >>= data->cur_integration_time - int_idx;
+	ret = regmap_field_read(data->rf.gain, &gain_idx);
+	if (ret)
+		return ret;
 
-	data->cur_integration_time = int_idx;
+	prev_it = iio_gts_find_int_time_by_sel(&data->gts, it_idx);
+	if (prev_it < 0)
+		return prev_it;
 
-	return ret;
+	if (prev_it == val2)
+		return 0;
+
+	prev_gain = iio_gts_find_gain_by_sel(&data->gts, gain_idx);
+	if (prev_gain < 0)
+		return prev_gain;
+
+	ret = iio_gts_find_new_gain_by_gain_time_min(&data->gts, prev_gain, prev_it,
+						     val2, &new_gain, &in_range);
+	if (ret)
+		return ret;
+
+	if (!in_range)
+		dev_dbg(&data->client->dev, "Optimal gain out of range\n");
+
+	ret = iio_gts_find_sel_by_int_time(&data->gts, val2);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_field_write(data->rf.it, ret);
+	if (ret)
+		return ret;
+
+	ret = iio_gts_find_sel_by_gain(&data->gts, new_gain);
+	if (ret < 0)
+		return ret;
+
+	return regmap_field_write(data->rf.gain, ret);
 }
 
 static int veml6030_read_persistence(struct iio_dev *indio_dev,
@@ -434,7 +465,7 @@ static int veml6030_read_persistence(struct iio_dev *indio_dev,
 	int ret, reg, period, x, y;
 	struct veml6030_data *data = iio_priv(indio_dev);
 
-	ret = veml6030_get_intgrn_tm(indio_dev, &x, &y);
+	ret = veml6030_get_it(data, &x, &y);
 	if (ret < 0)
 		return ret;
 
@@ -459,7 +490,7 @@ static int veml6030_write_persistence(struct iio_dev *indio_dev,
 	int ret, period, x, y;
 	struct veml6030_data *data = iio_priv(indio_dev);
 
-	ret = veml6030_get_intgrn_tm(indio_dev, &x, &y);
+	ret = veml6030_get_it(data, &x, &y);
 	if (ret < 0)
 		return ret;
 
@@ -488,177 +519,29 @@ static int veml6030_write_persistence(struct iio_dev *indio_dev,
 	return ret;
 }
 
-/*
- * Cache currently set gain & update resolution. For every
- * increase in the gain to next level, resolution is halved
- * and vice-versa.
- */
-static void veml6030_update_gain_res(struct veml6030_data *data, int gain_idx)
+static int veml6030_set_scale(struct iio_dev *indio_dev, int val, int val2)
 {
-	if (data->cur_gain < gain_idx)
-		data->cur_resolution <<= gain_idx - data->cur_gain;
-	else if (data->cur_gain > gain_idx)
-		data->cur_resolution >>= data->cur_gain - gain_idx;
-
-	data->cur_gain = gain_idx;
-}
-
-static int veml6030_set_als_gain(struct iio_dev *indio_dev,
-						int val, int val2)
-{
-	int ret, new_gain, gain_idx;
+	int ret, gain_sel, it_idx, it_sel;
 	struct veml6030_data *data = iio_priv(indio_dev);
 
-	if (val == 0 && val2 == 125000) {
-		new_gain = 0x1000; /* 0x02 << 11 */
-		gain_idx = 3;
-	} else if (val == 0 && val2 == 250000) {
-		new_gain = 0x1800;
-		gain_idx = 2;
-	} else if (val == 1 && val2 == 0) {
-		new_gain = 0x00;
-		gain_idx = 1;
-	} else if (val == 2 && val2 == 0) {
-		new_gain = 0x800;
-		gain_idx = 0;
-	} else {
-		return -EINVAL;
-	}
-
-	ret = regmap_update_bits(data->regmap, VEML6030_REG_ALS_CONF,
-					VEML6030_ALS_GAIN, new_gain);
-	if (ret) {
-		dev_err(&data->client->dev,
-				"can't set als gain %d\n", ret);
+	ret = regmap_field_read(data->rf.it, &it_idx);
+	if (ret)
 		return ret;
-	}
 
-	veml6030_update_gain_res(data, gain_idx);
+	ret = iio_gts_find_gain_time_sel_for_scale(&data->gts, val, val2,
+						   &gain_sel, &it_sel);
+	if (ret)
+		return ret;
+
+	ret = regmap_field_write(data->rf.it, it_sel);
+	if (ret)
+		return ret;
+
+	ret = regmap_field_write(data->rf.gain, gain_sel);
+	if (ret)
+		return ret;
 
 	return 0;
-}
-
-static int veml6035_set_als_gain(struct iio_dev *indio_dev, int val, int val2)
-{
-	int ret, new_gain, gain_idx;
-	struct veml6030_data *data = iio_priv(indio_dev);
-
-	if (val == 0 && val2 == 125000) {
-		new_gain = VEML6035_SENS;
-		gain_idx = 5;
-	} else if (val == 0 && val2 == 250000) {
-		new_gain = VEML6035_SENS | VEML6035_GAIN;
-		gain_idx = 4;
-	} else if (val == 0 && val2 == 500000) {
-		new_gain = VEML6035_SENS | VEML6035_GAIN |
-			VEML6035_DG;
-		gain_idx = 3;
-	} else if (val == 1 && val2 == 0) {
-		new_gain = 0x0000;
-		gain_idx = 2;
-	} else if (val == 2 && val2 == 0) {
-		new_gain = VEML6035_GAIN;
-		gain_idx = 1;
-	} else if (val == 4 && val2 == 0) {
-		new_gain = VEML6035_GAIN | VEML6035_DG;
-		gain_idx = 0;
-	} else {
-		return -EINVAL;
-	}
-
-	ret = regmap_update_bits(data->regmap, VEML6030_REG_ALS_CONF,
-				 VEML6035_GAIN_M, new_gain);
-	if (ret) {
-		dev_err(&data->client->dev, "can't set als gain %d\n", ret);
-		return ret;
-	}
-
-	veml6030_update_gain_res(data, gain_idx);
-
-	return 0;
-}
-
-static int veml6030_get_als_gain(struct iio_dev *indio_dev,
-						int *val, int *val2)
-{
-	int ret, reg;
-	struct veml6030_data *data = iio_priv(indio_dev);
-
-	ret = regmap_read(data->regmap, VEML6030_REG_ALS_CONF, &reg);
-	if (ret) {
-		dev_err(&data->client->dev,
-				"can't read als conf register %d\n", ret);
-		return ret;
-	}
-
-	switch ((reg >> 11) & 0x03) {
-	case 0:
-		*val = 1;
-		*val2 = 0;
-		break;
-	case 1:
-		*val = 2;
-		*val2 = 0;
-		break;
-	case 2:
-		*val = 0;
-		*val2 = 125000;
-		break;
-	case 3:
-		*val = 0;
-		*val2 = 250000;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return IIO_VAL_INT_PLUS_MICRO;
-}
-
-static int veml6035_get_als_gain(struct iio_dev *indio_dev, int *val, int *val2)
-{
-	int ret, reg;
-	struct veml6030_data *data = iio_priv(indio_dev);
-
-	ret = regmap_read(data->regmap, VEML6030_REG_ALS_CONF, &reg);
-	if (ret) {
-		dev_err(&data->client->dev,
-			"can't read als conf register %d\n", ret);
-		return ret;
-	}
-
-	switch (FIELD_GET(VEML6035_GAIN_M, reg)) {
-	case 0:
-		*val = 1;
-		*val2 = 0;
-		break;
-	case 1:
-	case 2:
-		*val = 2;
-		*val2 = 0;
-		break;
-	case 3:
-		*val = 4;
-		*val2 = 0;
-		break;
-	case 4:
-		*val = 0;
-		*val2 = 125000;
-		break;
-	case 5:
-	case 6:
-		*val = 0;
-		*val2 = 250000;
-		break;
-	case 7:
-		*val = 0;
-		*val2 = 500000;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return IIO_VAL_INT_PLUS_MICRO;
 }
 
 static int veml6030_read_thresh(struct iio_dev *indio_dev,
@@ -705,6 +588,71 @@ static int veml6030_write_thresh(struct iio_dev *indio_dev,
 	return ret;
 }
 
+static int veml6030_get_total_gain(struct veml6030_data *data)
+{
+	int gain, it, reg, ret;
+
+	ret = regmap_field_read(data->rf.gain, &reg);
+	if (ret)
+		return ret;
+
+	gain = iio_gts_find_gain_by_sel(&data->gts, reg);
+	if (gain < 0)
+		return gain;
+
+	ret = regmap_field_read(data->rf.it, &reg);
+	if (ret)
+		return ret;
+
+	it = iio_gts_find_int_time_by_sel(&data->gts, reg);
+	if (it < 0)
+		return it;
+
+	return iio_gts_get_total_gain(&data->gts, gain, it);
+}
+
+static int veml6030_get_scale(struct veml6030_data *data, int *val, int *val2)
+{
+	int gain, it, reg, ret;
+
+	ret = regmap_field_read(data->rf.gain, &reg);
+	if (ret)
+		return ret;
+
+	gain = iio_gts_find_gain_by_sel(&data->gts, reg);
+	if (gain < 0)
+		return gain;
+
+	ret = regmap_field_read(data->rf.it, &reg);
+	if (ret)
+		return ret;
+
+	it = iio_gts_find_int_time_by_sel(&data->gts, reg);
+	if (it < 0)
+		return it;
+
+	ret = iio_gts_get_scale(&data->gts, gain, it, val, val2);
+	if (ret)
+		return ret;
+
+	return IIO_VAL_INT_PLUS_NANO;
+}
+
+static int veml6030_process_als(struct veml6030_data *data, int raw,
+				int *val, int *val2)
+{
+	int total_gain;
+
+	total_gain = veml6030_get_total_gain(data);
+	if (total_gain < 0)
+		return total_gain;
+
+	*val = raw * data->chip->max_scale / total_gain / 10000;
+	*val2 = raw * data->chip->max_scale / total_gain % 10000 * 100;
+
+	return IIO_VAL_INT_PLUS_MICRO;
+}
+
 /*
  * Provide both raw as well as light reading in lux.
  * light (in lux) = resolution * raw reading
@@ -728,11 +676,9 @@ static int veml6030_read_raw(struct iio_dev *indio_dev,
 				dev_err(dev, "can't read als data %d\n", ret);
 				return ret;
 			}
-			if (mask == IIO_CHAN_INFO_PROCESSED) {
-				*val = (reg * data->cur_resolution) / 10000;
-				*val2 = (reg * data->cur_resolution) % 10000 * 100;
-				return IIO_VAL_INT_PLUS_MICRO;
-			}
+			if (mask == IIO_CHAN_INFO_PROCESSED)
+				return veml6030_process_als(data, reg, val, val2);
+
 			*val = reg;
 			return IIO_VAL_INT;
 		case IIO_INTENSITY:
@@ -747,9 +693,9 @@ static int veml6030_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_INT_TIME:
-		return veml6030_get_intgrn_tm(indio_dev, val, val2);
+		return veml6030_get_it(data, val, val2);
 	case IIO_CHAN_INFO_SCALE:
-		return data->chip->get_als_gain(indio_dev, val, val2);
+		return veml6030_get_scale(data, val, val2);
 	default:
 		return -EINVAL;
 	}
@@ -764,15 +710,9 @@ static int veml6030_read_avail(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
-		*vals = (int *)&veml6030_it_times;
-		*length = 2 * ARRAY_SIZE(veml6030_it_times);
-		*type = IIO_VAL_INT_PLUS_MICRO;
-		return IIO_AVAIL_LIST;
+		return iio_gts_avail_times(&data->gts, vals, type, length);
 	case IIO_CHAN_INFO_SCALE:
-		*vals = (int *)*data->chip->scale_vals;
-		*length = 2 * data->chip->num_scale_vals;
-		*type = IIO_VAL_INT_PLUS_MICRO;
-		return IIO_AVAIL_LIST;
+		return iio_gts_all_avail_scales(&data->gts, vals, type, length);
 	}
 
 	return -EINVAL;
@@ -782,13 +722,25 @@ static int veml6030_write_raw(struct iio_dev *indio_dev,
 				struct iio_chan_spec const *chan,
 				int val, int val2, long mask)
 {
-	struct veml6030_data *data = iio_priv(indio_dev);
-
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
-		return veml6030_set_intgrn_tm(indio_dev, val, val2);
+		return veml6030_set_it(indio_dev, val, val2);
 	case IIO_CHAN_INFO_SCALE:
-		return data->chip->set_als_gain(indio_dev, val, val2);
+		return veml6030_set_scale(indio_dev, val, val2);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int veml6030_write_raw_get_fmt(struct iio_dev *indio_dev,
+				      struct iio_chan_spec const *chan,
+				      long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_INT_TIME:
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
 	}
@@ -886,6 +838,7 @@ static const struct iio_info veml6030_info = {
 	.read_raw  = veml6030_read_raw,
 	.read_avail  = veml6030_read_avail,
 	.write_raw = veml6030_write_raw,
+	.write_raw_get_fmt = veml6030_write_raw_get_fmt,
 	.read_event_value = veml6030_read_event_val,
 	.write_event_value	= veml6030_write_event_val,
 	.read_event_config = veml6030_read_interrupt_config,
@@ -897,6 +850,7 @@ static const struct iio_info veml6030_info_no_irq = {
 	.read_raw  = veml6030_read_raw,
 	.read_avail  = veml6030_read_avail,
 	.write_raw = veml6030_write_raw,
+	.write_raw_get_fmt = veml6030_write_raw_get_fmt,
 };
 
 static irqreturn_t veml6030_event_handler(int irq, void *private)
@@ -990,6 +944,27 @@ static int veml7700_set_info(struct iio_dev *indio_dev)
 	return 0;
 }
 
+static int veml6030_regfield_init(struct iio_dev *indio_dev)
+{
+	struct veml6030_data *data = iio_priv(indio_dev);
+	struct regmap *regmap = data->regmap;
+	struct device *dev = &data->client->dev;
+	struct regmap_field *rm_field;
+	struct veml6030_rf *rf = &data->rf;
+
+	rm_field = devm_regmap_field_alloc(dev, regmap, data->chip->it_rf);
+	if (IS_ERR(rm_field))
+		return PTR_ERR(rm_field);
+	rf->it = rm_field;
+
+	rm_field = devm_regmap_field_alloc(dev, regmap, data->chip->gain_rf);
+	if (IS_ERR(rm_field))
+		return PTR_ERR(rm_field);
+	rf->gain = rm_field;
+
+	return 0;
+}
+
 /*
  * Set ALS gain to 1/8, integration time to 100 ms, PSM to mode 2,
  * persistence to 1 x integration time and the threshold
@@ -1000,6 +975,13 @@ static int veml6030_hw_init(struct iio_dev *indio_dev, struct device *dev)
 {
 	int ret, val;
 	struct veml6030_data *data = iio_priv(indio_dev);
+
+	ret = devm_iio_init_iio_gts(dev, 2, 150400000,
+				    veml6030_gain_sel, ARRAY_SIZE(veml6030_gain_sel),
+				    veml6030_it_sel, ARRAY_SIZE(veml6030_it_sel),
+				    &data->gts);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to init iio gts\n");
 
 	ret = veml6030_als_shut_down(data);
 	if (ret)
@@ -1036,11 +1018,6 @@ static int veml6030_hw_init(struct iio_dev *indio_dev, struct device *dev)
 		return dev_err_probe(dev, ret,
 				     "can't clear als interrupt status\n");
 
-	/* Cache currently active measurement parameters */
-	data->cur_gain = 3;
-	data->cur_resolution = 5376;
-	data->cur_integration_time = 3;
-
 	return ret;
 }
 
@@ -1055,6 +1032,13 @@ static int veml6035_hw_init(struct iio_dev *indio_dev, struct device *dev)
 {
 	int ret, val;
 	struct veml6030_data *data = iio_priv(indio_dev);
+
+	ret = devm_iio_init_iio_gts(dev, 0, 409600000,
+				    veml6035_gain_sel, ARRAY_SIZE(veml6035_gain_sel),
+				    veml6030_it_sel, ARRAY_SIZE(veml6030_it_sel),
+				    &data->gts);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to init iio gts\n");
 
 	ret = veml6030_als_shut_down(data);
 	if (ret)
@@ -1091,11 +1075,6 @@ static int veml6035_hw_init(struct iio_dev *indio_dev, struct device *dev)
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
 				     "can't clear als interrupt status\n");
-
-	/* Cache currently active measurement parameters */
-	data->cur_gain = 5;
-	data->cur_resolution = 1024;
-	data->cur_integration_time = 3;
 
 	return 0;
 }
@@ -1143,6 +1122,11 @@ static int veml6030_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
+	ret = veml6030_regfield_init(indio_dev);
+	if (ret)
+		return dev_err_probe(&client->dev, ret,
+				     "failed to init regfields\n");
+
 	ret = data->chip->hw_init(indio_dev, &client->dev);
 	if (ret < 0)
 		return ret;
@@ -1187,38 +1171,35 @@ static DEFINE_RUNTIME_DEV_PM_OPS(veml6030_pm_ops, veml6030_runtime_suspend,
 
 static const struct veml603x_chip veml6030_chip = {
 	.name = "veml6030",
-	.scale_vals = &veml6030_scale_vals,
-	.num_scale_vals = ARRAY_SIZE(veml6030_scale_vals),
 	.channels = veml6030_channels,
 	.num_channels = ARRAY_SIZE(veml6030_channels),
+	.gain_rf = VEML6030_GAIN_RF,
+	.it_rf = VEML6030_IT_RF,
+	.max_scale = VEML6030_MAX_SCALE,
 	.hw_init = veml6030_hw_init,
 	.set_info = veml6030_set_info,
-	.set_als_gain = veml6030_set_als_gain,
-	.get_als_gain = veml6030_get_als_gain,
 };
 
 static const struct veml603x_chip veml6035_chip = {
 	.name = "veml6035",
-	.scale_vals = &veml6035_scale_vals,
-	.num_scale_vals = ARRAY_SIZE(veml6035_scale_vals),
 	.channels = veml6030_channels,
 	.num_channels = ARRAY_SIZE(veml6030_channels),
+	.gain_rf = VEML6035_GAIN_RF,
+	.it_rf = VEML6030_IT_RF,
+	.max_scale = VEML6035_MAX_SCALE,
 	.hw_init = veml6035_hw_init,
 	.set_info = veml6030_set_info,
-	.set_als_gain = veml6035_set_als_gain,
-	.get_als_gain = veml6035_get_als_gain,
 };
 
 static const struct veml603x_chip veml7700_chip = {
 	.name = "veml7700",
-	.scale_vals = &veml6030_scale_vals,
-	.num_scale_vals = ARRAY_SIZE(veml6030_scale_vals),
 	.channels = veml7700_channels,
 	.num_channels = ARRAY_SIZE(veml7700_channels),
+	.gain_rf = VEML6030_GAIN_RF,
+	.it_rf = VEML6030_IT_RF,
+	.max_scale = VEML6030_MAX_SCALE,
 	.hw_init = veml6030_hw_init,
 	.set_info = veml7700_set_info,
-	.set_als_gain = veml6030_set_als_gain,
-	.get_als_gain = veml6030_get_als_gain,
 };
 
 static const struct of_device_id veml6030_of_match[] = {
@@ -1260,3 +1241,4 @@ module_i2c_driver(veml6030_driver);
 MODULE_AUTHOR("Rishi Gupta <gupt21@gmail.com>");
 MODULE_DESCRIPTION("VEML6030 Ambient Light Sensor");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

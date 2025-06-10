@@ -33,7 +33,6 @@ NSIM_DEV_SYS_NEW="/sys/bus/netdevsim/new_device"
 
 # Used to create and delete namespaces
 source "${LIBDIR}"/../../../../net/lib.sh
-source "${LIBDIR}"/../../../../net/net_helper.sh
 
 # Create netdevsim interfaces
 create_ifaces() {
@@ -107,6 +106,13 @@ function create_dynamic_target() {
 	echo "${DSTMAC}" > "${NETCONS_PATH}"/remote_mac
 	echo "${SRCIF}" > "${NETCONS_PATH}"/dev_name
 
+	echo 1 > "${NETCONS_PATH}"/enabled
+}
+
+# Do not append the release to the header of the message
+function disable_release_append() {
+	echo 0 > "${NETCONS_PATH}"/enabled
+	echo 0 > "${NETCONS_PATH}"/release
 	echo 1 > "${NETCONS_PATH}"/enabled
 }
 
@@ -222,4 +228,21 @@ function check_for_dependencies() {
 		echo "SKIP: IPs already in use. Skipping it" >&2
 		exit "${ksft_skip}"
 	fi
+}
+
+function check_for_taskset() {
+	if ! which taskset > /dev/null ; then
+		echo "SKIP: taskset(1) is not available" >&2
+		exit "${ksft_skip}"
+	fi
+}
+
+# This is necessary if running multiple tests in a row
+function pkill_socat() {
+	PROCESS_NAME="socat UDP-LISTEN:6666,fork ${OUTPUT_FILE}"
+	# socat runs under timeout(1), kill it if it is still alive
+	# do not fail if socat doesn't exist anymore
+	set +e
+	pkill -f "${PROCESS_NAME}"
+	set -e
 }

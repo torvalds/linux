@@ -4,6 +4,7 @@
 #include "aolib.h"
 
 #define fault(type)	(inj == FAULT_ ## type)
+static volatile int sk_pair;
 
 static inline int test_add_key_maclen(int sk, const char *key, uint8_t maclen,
 				      union tcp_addr in_addr, uint8_t prefix,
@@ -34,10 +35,10 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 		       const char *cnt_name, test_cnt cnt_expected,
 		       fault_t inj)
 {
-	struct tcp_ao_counters ao_cnt1, ao_cnt2;
+	struct tcp_counters cnt1, cnt2;
 	uint64_t before_cnt = 0, after_cnt = 0; /* silence GCC */
+	test_cnt poll_cnt = (cnt_expected == TEST_CNT_GOOD) ? 0 : cnt_expected;
 	int lsk, err, sk = 0;
-	time_t timeout;
 
 	lsk = test_listen_socket(this_ip_addr, port, 1);
 
@@ -46,21 +47,24 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 
 	if (cnt_name)
 		before_cnt = netstat_get_one(cnt_name, NULL);
-	if (pwd && test_get_tcp_ao_counters(lsk, &ao_cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (pwd && test_get_tcp_counters(lsk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* preparations done */
 
-	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
-	err = test_wait_fd(lsk, timeout, 0);
+	err = test_skpair_wait_poll(lsk, 0, poll_cnt, &sk_pair);
 	if (err == -ETIMEDOUT) {
+		sk_pair = err;
 		if (!fault(TIMEOUT))
-			test_fail("timed out for accept()");
+			test_fail("%s: timed out for accept()", tst_name);
+	} else if (err == -EKEYREJECTED) {
+		if (!fault(KEYREJECT))
+			test_fail("%s: key was rejected", tst_name);
 	} else if (err < 0) {
-		test_error("test_wait_fd()");
+		test_error("test_skpair_wait_poll()");
 	} else {
 		if (fault(TIMEOUT))
-			test_fail("ready to accept");
+			test_fail("%s: ready to accept", tst_name);
 
 		sk = accept(lsk, NULL, NULL);
 		if (sk < 0) {
@@ -72,13 +76,13 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 	}
 
 	synchronize_threads(); /* before counter checks */
-	if (pwd && test_get_tcp_ao_counters(lsk, &ao_cnt2))
-		test_error("test_get_tcp_ao_counters()");
+	if (pwd && test_get_tcp_counters(lsk, &cnt2))
+		test_error("test_get_tcp_counters()");
 
 	close(lsk);
 
 	if (pwd)
-		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		test_assert_counters(tst_name, &cnt1, &cnt2, cnt_expected);
 
 	if (!cnt_name)
 		goto out;
@@ -109,7 +113,7 @@ static void *server_fn(void *arg)
 
 	try_accept("Non-AO server + AO client", port++, NULL,
 		   this_ip_dest, -1, 100, 100, 0,
-		   "TCPAOKeyNotFound", 0, FAULT_TIMEOUT);
+		   "TCPAOKeyNotFound", TEST_CNT_NS_KEY_NOT_FOUND, FAULT_TIMEOUT);
 
 	try_accept("AO server + Non-AO client", port++, DEFAULT_TEST_PASSWORD,
 		   this_ip_dest, -1, 100, 100, 0,
@@ -135,8 +139,9 @@ static void *server_fn(void *arg)
 		   wrong_addr, -1, 100, 100, 0,
 		   "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND, FAULT_TIMEOUT);
 
+	/* Key rejected by the other side, failing short through skpair */
 	try_accept("Client: Wrong addr", port++, NULL,
-		   this_ip_dest, -1, 100, 100, 0, NULL, 0, FAULT_TIMEOUT);
+		   this_ip_dest, -1, 100, 100, 0, NULL, 0, FAULT_KEYREJECT);
 
 	try_accept("rcv id != snd id", port++, DEFAULT_TEST_PASSWORD,
 		   this_ip_dest, -1, 200, 100, 0,
@@ -163,8 +168,7 @@ static void try_connect(const char *tst_name, unsigned int port,
 			uint8_t sndid, uint8_t rcvid,
 			test_cnt cnt_expected, fault_t inj)
 {
-	struct tcp_ao_counters ao_cnt1, ao_cnt2;
-	time_t timeout;
+	struct tcp_counters cnt1, cnt2;
 	int sk, ret;
 
 	sk = socket(test_family, SOCK_STREAM, IPPROTO_TCP);
@@ -174,16 +178,15 @@ static void try_connect(const char *tst_name, unsigned int port,
 	if (pwd && test_add_key(sk, pwd, addr, prefix, sndid, rcvid))
 		test_error("setsockopt(TCP_AO_ADD_KEY)");
 
-	if (pwd && test_get_tcp_ao_counters(sk, &ao_cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (pwd && test_get_tcp_counters(sk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* preparations done */
 
-	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
-	ret = _test_connect_socket(sk, this_ip_dest, port, timeout);
-
+	ret = test_skpair_connect_poll(sk, this_ip_dest, port, cnt_expected, &sk_pair);
 	synchronize_threads(); /* before counter checks */
 	if (ret < 0) {
+		sk_pair = ret;
 		if (fault(KEYREJECT) && ret == -EKEYREJECTED) {
 			test_ok("%s: connect() was prevented", tst_name);
 		} else if (ret == -ETIMEDOUT && fault(TIMEOUT)) {
@@ -202,9 +205,11 @@ static void try_connect(const char *tst_name, unsigned int port,
 	else
 		test_ok("%s: connected", tst_name);
 	if (pwd && ret > 0) {
-		if (test_get_tcp_ao_counters(sk, &ao_cnt2))
-			test_error("test_get_tcp_ao_counters()");
-		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		if (test_get_tcp_counters(sk, &cnt2))
+			test_error("test_get_tcp_counters()");
+		test_assert_counters(tst_name, &cnt1, &cnt2, cnt_expected);
+	} else if (pwd) {
+		test_tcp_counters_free(&cnt1);
 	}
 out:
 	synchronize_threads(); /* close() */
@@ -241,6 +246,11 @@ static void *client_fn(void *arg)
 	try_connect("Wrong rcv id", port++, DEFAULT_TEST_PASSWORD,
 			this_ip_dest, -1, 100, 100, 0, FAULT_TIMEOUT);
 
+	/*
+	 * XXX: The test doesn't increase any counters, see tcp_make_synack().
+	 * Potentially, it can be speed up by setting sk_pair = -ETIMEDOUT
+	 * but the price would be increased complexity of the tracer thread.
+	 */
 	trace_ao_event_sk_expect(TCP_AO_SYNACK_NO_KEY, this_ip_dest, addr_any,
 				 port, 0, 100, 100);
 	try_connect("Wrong snd id", port++, DEFAULT_TEST_PASSWORD,

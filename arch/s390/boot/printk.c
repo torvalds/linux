@@ -8,6 +8,7 @@
 #include <asm/sections.h>
 #include <asm/lowcore.h>
 #include <asm/setup.h>
+#include <asm/timex.h>
 #include <asm/sclp.h>
 #include <asm/uv.h>
 #include "boot.h"
@@ -28,7 +29,8 @@ static void boot_rb_add(const char *str, size_t len)
 	/* store strings separated by '\0' */
 	if (len + 1 > avail)
 		boot_rb_off = 0;
-	strcpy(boot_rb + boot_rb_off, str);
+	avail = sizeof(boot_rb) - boot_rb_off - 1;
+	strscpy(boot_rb + boot_rb_off, str, avail);
 	boot_rb_off += len + 1;
 }
 
@@ -157,10 +159,10 @@ static noinline char *strsym(char *buf, void *ip)
 
 	p = findsym((unsigned long)ip, &off, &len);
 	if (p) {
-		strncpy(buf, p, MAX_SYMLEN);
+		strscpy(buf, p, MAX_SYMLEN);
 		/* reserve 15 bytes for offset/len in symbol+0x1234/0x1234 */
 		p = buf + strnlen(buf, MAX_SYMLEN - 15);
-		strcpy(p, "+0x");
+		strscpy(p, "+0x", MAX_SYMLEN - (p - buf));
 		as_hex(p + 3, off, 0);
 		strcat(p, "/0x");
 		as_hex(p + strlen(p), len, 0);
@@ -199,8 +201,7 @@ static void boot_console_earlyprintk(const char *buf)
 static char *add_timestamp(char *buf)
 {
 #ifdef CONFIG_PRINTK_TIME
-	union tod_clock *boot_clock = (union tod_clock *)&get_lowcore()->boot_clock;
-	unsigned long ns = tod_to_ns(get_tod_clock() - boot_clock->tod);
+	unsigned long ns = tod_to_ns(__get_tod_clock_monotonic());
 	char ts[MAX_NUMLEN];
 
 	*buf++ = '[';

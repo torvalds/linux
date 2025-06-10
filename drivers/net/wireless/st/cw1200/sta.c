@@ -113,7 +113,7 @@ void cw1200_stop(struct ieee80211_hw *dev, bool suspend)
 	cancel_work_sync(&priv->unjoin_work);
 	cancel_delayed_work_sync(&priv->link_id_gc_work);
 	flush_workqueue(priv->workqueue);
-	del_timer_sync(&priv->mcast_timeout);
+	timer_delete_sync(&priv->mcast_timeout);
 	mutex_lock(&priv->conf_mutex);
 	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	priv->listening = false;
@@ -2102,7 +2102,7 @@ void cw1200_multicast_stop_work(struct work_struct *work)
 		container_of(work, struct cw1200_common, multicast_stop_work);
 
 	if (priv->aid0_bit_set) {
-		del_timer_sync(&priv->mcast_timeout);
+		timer_delete_sync(&priv->mcast_timeout);
 		wsm_lock_tx(priv);
 		priv->aid0_bit_set = false;
 		cw1200_set_tim_impl(priv, false);
@@ -2170,7 +2170,7 @@ void cw1200_suspend_resume(struct cw1200_common *priv,
 		}
 		spin_unlock_bh(&priv->ps_state_lock);
 		if (cancel_tmo)
-			del_timer_sync(&priv->mcast_timeout);
+			timer_delete_sync(&priv->mcast_timeout);
 	} else {
 		spin_lock_bh(&priv->ps_state_lock);
 		cw1200_ps_notify(priv, arg->link_id, arg->stop);

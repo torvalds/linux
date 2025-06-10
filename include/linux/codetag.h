@@ -36,10 +36,10 @@ union codetag_ref {
 struct codetag_type_desc {
 	const char *section;
 	size_t tag_size;
-	void (*module_load)(struct codetag_type *cttype,
-			    struct codetag_module *cmod);
-	void (*module_unload)(struct codetag_type *cttype,
-			      struct codetag_module *cmod);
+	void (*module_load)(struct module *mod,
+			    struct codetag *start, struct codetag *end);
+	void (*module_unload)(struct module *mod,
+			      struct codetag *start, struct codetag *end);
 #ifdef CONFIG_MODULES
 	void (*module_replaced)(struct module *mod, struct module *new_mod);
 	bool (*needs_section_mem)(struct module *mod, unsigned long size);

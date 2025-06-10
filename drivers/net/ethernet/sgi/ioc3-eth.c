@@ -718,7 +718,7 @@ static void ioc3_init(struct net_device *dev)
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3_ethregs *regs = ip->regs;
 
-	del_timer_sync(&ip->ioc3_timer);	/* Kill if running	*/
+	timer_delete_sync(&ip->ioc3_timer);	/* Kill if running	*/
 
 	writel(EMCR_RST, &regs->emcr);		/* Reset		*/
 	readl(&regs->emcr);			/* Flush WB		*/
@@ -801,7 +801,7 @@ static int ioc3_close(struct net_device *dev)
 {
 	struct ioc3_private *ip = netdev_priv(dev);
 
-	del_timer_sync(&ip->ioc3_timer);
+	timer_delete_sync(&ip->ioc3_timer);
 
 	netif_stop_queue(dev);
 
@@ -950,7 +950,7 @@ static int ioc3eth_probe(struct platform_device *pdev)
 	return 0;
 
 out_stop:
-	del_timer_sync(&ip->ioc3_timer);
+	timer_delete_sync(&ip->ioc3_timer);
 	if (ip->rxr)
 		dma_free_coherent(ip->dma_dev, RX_RING_SIZE, ip->rxr,
 				  ip->rxr_dma);
@@ -971,7 +971,7 @@ static void ioc3eth_remove(struct platform_device *pdev)
 	dma_free_coherent(ip->dma_dev, TX_RING_SIZE + SZ_16K - 1, ip->tx_ring, ip->txr_dma);
 
 	unregister_netdev(dev);
-	del_timer_sync(&ip->ioc3_timer);
+	timer_delete_sync(&ip->ioc3_timer);
 	free_netdev(dev);
 }
 

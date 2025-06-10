@@ -208,6 +208,14 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 		return NVME_SC_CONNECT_CTRL_BUSY | NVME_STATUS_DNR;
 	}
 
+	kref_get(&ctrl->ref);
+	old = cmpxchg(&req->cq->ctrl, NULL, ctrl);
+	if (old) {
+		pr_warn("queue already connected!\n");
+		req->error_loc = offsetof(struct nvmf_connect_command, opcode);
+		return NVME_SC_CONNECT_CTRL_BUSY | NVME_STATUS_DNR;
+	}
+
 	/* note: convert queue size from 0's-based value to 1's-based value */
 	nvmet_cq_setup(ctrl, req->cq, qid, sqsize + 1);
 	nvmet_sq_setup(ctrl, req->sq, qid, sqsize + 1);
@@ -234,10 +242,26 @@ err:
 	return ret;
 }
 
-static u32 nvmet_connect_result(struct nvmet_ctrl *ctrl)
+static u32 nvmet_connect_result(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq)
 {
+	bool needs_auth = nvmet_has_auth(ctrl, sq);
+	key_serial_t keyid = nvmet_queue_tls_keyid(sq);
+
+	/* Do not authenticate I/O queues */
+	if (sq->qid)
+		needs_auth = false;
+
+	if (keyid)
+		pr_debug("%s: ctrl %d qid %d should %sauthenticate, tls psk %08x\n",
+			 __func__, ctrl->cntlid, sq->qid,
+			 needs_auth ? "" : "not ", keyid);
+	else
+		pr_debug("%s: ctrl %d qid %d should %sauthenticate%s\n",
+			 __func__, ctrl->cntlid, sq->qid,
+			 needs_auth ? "" : "not ",
+			 ctrl->concat ? ", secure concatenation" : "");
 	return (u32)ctrl->cntlid |
-		(nvmet_has_auth(ctrl) ? NVME_CONNECT_AUTHREQ_ATR : 0);
+		(needs_auth ? NVME_CONNECT_AUTHREQ_ATR : 0);
 }
 
 static void nvmet_execute_admin_connect(struct nvmet_req *req)
@@ -247,6 +271,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 	struct nvmet_ctrl *ctrl = NULL;
 	struct nvmet_alloc_ctrl_args args = {
 		.port = req->port,
+		.sq = req->sq,
 		.ops = req->ops,
 		.p2p_client = req->p2p_client,
 		.kato = le32_to_cpu(c->kato),
@@ -299,7 +324,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 		goto out;
 	}
 
-	args.result = cpu_to_le32(nvmet_connect_result(ctrl));
+	args.result = cpu_to_le32(nvmet_connect_result(ctrl, req->sq));
 out:
 	kfree(d);
 complete:
@@ -357,7 +382,7 @@ static void nvmet_execute_io_connect(struct nvmet_req *req)
 		goto out_ctrl_put;
 
 	pr_debug("adding queue %d to ctrl %d.\n", qid, ctrl->cntlid);
-	req->cqe->result.u32 = cpu_to_le32(nvmet_connect_result(ctrl));
+	req->cqe->result.u32 = cpu_to_le32(nvmet_connect_result(ctrl, req->sq));
 out:
 	kfree(d);
 complete:

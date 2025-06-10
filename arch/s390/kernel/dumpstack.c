@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task_stack.h>
+#include <asm/asm-offsets.h>
 #include <asm/processor.h>
 #include <asm/debug.h>
 #include <asm/dis.h>

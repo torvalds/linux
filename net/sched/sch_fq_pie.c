@@ -366,7 +366,7 @@ static int fq_pie_change(struct Qdisc *sch, struct nlattr *opt,
 
 	/* Drop excess packets if new limit is lower */
 	while (sch->q.qlen > sch->limit) {
-		struct sk_buff *skb = fq_pie_qdisc_dequeue(sch);
+		struct sk_buff *skb = qdisc_dequeue_internal(sch, false);
 
 		len_dropped += qdisc_pkt_len(skb);
 		num_dropped += 1;
@@ -555,7 +555,7 @@ static void fq_pie_destroy(struct Qdisc *sch)
 
 	tcf_block_put(q->block);
 	q->p_params.tupdate = 0;
-	del_timer_sync(&q->adapt_timer);
+	timer_delete_sync(&q->adapt_timer);
 	kvfree(q->flows);
 }
 

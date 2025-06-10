@@ -225,8 +225,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 				  struct rndis_request *req)
 {
 	struct hv_netvsc_packet *packet;
-	struct hv_page_buffer page_buf[2];
-	struct hv_page_buffer *pb = page_buf;
+	struct hv_page_buffer pb;
 	int ret;
 
 	/* Setup the packet to send it */
@@ -235,27 +234,14 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	packet->total_data_buflen = req->request_msg.msg_len;
 	packet->page_buf_cnt = 1;
 
-	pb[0].pfn = virt_to_phys(&req->request_msg) >>
-					HV_HYP_PAGE_SHIFT;
-	pb[0].len = req->request_msg.msg_len;
-	pb[0].offset = offset_in_hvpage(&req->request_msg);
-
-	/* Add one page_buf when request_msg crossing page boundary */
-	if (pb[0].offset + pb[0].len > HV_HYP_PAGE_SIZE) {
-		packet->page_buf_cnt++;
-		pb[0].len = HV_HYP_PAGE_SIZE -
-			pb[0].offset;
-		pb[1].pfn = virt_to_phys((void *)&req->request_msg
-			+ pb[0].len) >> HV_HYP_PAGE_SHIFT;
-		pb[1].offset = 0;
-		pb[1].len = req->request_msg.msg_len -
-			pb[0].len;
-	}
+	pb.pfn = virt_to_phys(&req->request_msg) >> HV_HYP_PAGE_SHIFT;
+	pb.len = req->request_msg.msg_len;
+	pb.offset = offset_in_hvpage(&req->request_msg);
 
 	trace_rndis_send(dev->ndev, 0, &req->request_msg);
 
 	rcu_read_lock_bh();
-	ret = netvsc_send(dev->ndev, packet, NULL, pb, NULL, false);
+	ret = netvsc_send(dev->ndev, packet, NULL, &pb, NULL, false);
 	rcu_read_unlock_bh();
 
 	return ret;
@@ -1356,8 +1342,9 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct ndis_offload hwcaps;
 	struct ndis_offload_params offloads;
-	unsigned int gso_max_size = GSO_LEGACY_MAX_SIZE;
 	int ret;
+
+	nvdev->netvsc_gso_max_size = GSO_LEGACY_MAX_SIZE;
 
 	/* Find HW offload capabilities */
 	ret = rndis_query_hwcaps(rndis_device, nvdev, &hwcaps);
@@ -1390,8 +1377,8 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 			offloads.lso_v2_ipv4 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
 			net->hw_features |= NETIF_F_TSO;
 
-			if (hwcaps.lsov2.ip4_maxsz < gso_max_size)
-				gso_max_size = hwcaps.lsov2.ip4_maxsz;
+			if (hwcaps.lsov2.ip4_maxsz < nvdev->netvsc_gso_max_size)
+				nvdev->netvsc_gso_max_size = hwcaps.lsov2.ip4_maxsz;
 		}
 
 		if (hwcaps.csum.ip4_txcsum & NDIS_TXCSUM_CAP_UDP4) {
@@ -1411,8 +1398,8 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 			offloads.lso_v2_ipv6 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
 			net->hw_features |= NETIF_F_TSO6;
 
-			if (hwcaps.lsov2.ip6_maxsz < gso_max_size)
-				gso_max_size = hwcaps.lsov2.ip6_maxsz;
+			if (hwcaps.lsov2.ip6_maxsz < nvdev->netvsc_gso_max_size)
+				nvdev->netvsc_gso_max_size = hwcaps.lsov2.ip6_maxsz;
 		}
 
 		if (hwcaps.csum.ip6_txcsum & NDIS_TXCSUM_CAP_UDP6) {
@@ -1438,7 +1425,7 @@ static int rndis_netdev_set_hwcaps(struct rndis_device *rndis_device,
 	 */
 	net->features &= ~NETVSC_SUPPORTED_HW_FEATURES | net->hw_features;
 
-	netif_set_tso_max_size(net, gso_max_size);
+	netif_set_tso_max_size(net, nvdev->netvsc_gso_max_size);
 
 	ret = rndis_filter_set_offload_params(net, nvdev, &offloads);
 

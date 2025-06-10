@@ -37,7 +37,7 @@ int bch2_set_rebalance_needs_scan_trans(struct btree_trans *, u64);
 int bch2_set_rebalance_needs_scan(struct bch_fs *, u64 inum);
 int bch2_set_fs_needs_rebalance(struct bch_fs *);
 
-static inline void rebalance_wakeup(struct bch_fs *c)
+static inline void bch2_rebalance_wakeup(struct bch_fs *c)
 {
 	struct task_struct *p;
 
@@ -52,6 +52,10 @@ void bch2_rebalance_status_to_text(struct printbuf *, struct bch_fs *);
 
 void bch2_rebalance_stop(struct bch_fs *);
 int bch2_rebalance_start(struct bch_fs *);
-void bch2_fs_rebalance_init(struct bch_fs *);
+
+void bch2_fs_rebalance_exit(struct bch_fs *);
+int bch2_fs_rebalance_init(struct bch_fs *);
+
+int bch2_check_rebalance_work(struct bch_fs *);
 
 #endif /* _BCACHEFS_REBALANCE_H */

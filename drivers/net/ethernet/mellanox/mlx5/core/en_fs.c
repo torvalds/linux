@@ -484,7 +484,9 @@ static int mlx5e_vlan_rx_add_svid(struct mlx5e_flow_steering *fs,
 	}
 
 	/* Need to fix some features.. */
+	netdev_lock(netdev);
 	netdev_update_features(netdev);
+	netdev_unlock(netdev);
 	return err;
 }
 
@@ -521,7 +523,9 @@ int mlx5e_fs_vlan_rx_kill_vid(struct mlx5e_flow_steering *fs,
 	} else if (be16_to_cpu(proto) == ETH_P_8021AD) {
 		clear_bit(vid, fs->vlan->active_svlans);
 		mlx5e_fs_del_vlan_rule(fs, MLX5E_VLAN_RULE_TYPE_MATCH_STAG_VID, vid);
+		netdev_lock(netdev);
 		netdev_update_features(netdev);
+		netdev_unlock(netdev);
 	}
 
 	return 0;

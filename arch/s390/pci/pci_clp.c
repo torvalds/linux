@@ -56,7 +56,7 @@ static inline int clp_get_ilp(unsigned long *ilp)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	.insn	rrf,0xb9a00000,%[mask],%[cmd],8,0\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -79,7 +79,7 @@ static __always_inline int clp_req(void *data, unsigned int lps)
 	u64 ignored;
 
 	exception = 1;
-	asm volatile (
+	asm_inline volatile (
 		"	.insn	rrf,0xb9a00000,%[ign],%[req],0,%[lps]\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -112,6 +112,7 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->version = response->version;
 	zdev->maxstbl = response->maxstbl;
 	zdev->dtsm = response->dtsm;
+	zdev->rtr_avail = response->rtr;
 
 	switch (response->version) {
 	case 1:
@@ -427,6 +428,8 @@ static void __clp_add(struct clp_fh_list_entry *entry, void *data)
 		return;
 	}
 	zdev = zpci_create_device(entry->fid, entry->fh, entry->config_state);
+	if (IS_ERR(zdev))
+		return;
 	list_add_tail(&zdev->entry, scan_list);
 }
 

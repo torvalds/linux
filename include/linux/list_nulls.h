@@ -28,6 +28,7 @@ struct hlist_nulls_node {
 #define NULLS_MARKER(value) (1UL | (((long)value) << 1))
 #define INIT_HLIST_NULLS_HEAD(ptr, nulls) \
 	((ptr)->first = (struct hlist_nulls_node *) NULLS_MARKER(nulls))
+#define HLIST_NULLS_HEAD_INIT(nulls) {.first = (struct hlist_nulls_node *)NULLS_MARKER(nulls)}
 
 #define hlist_nulls_entry(ptr, type, member) container_of(ptr,type,member)
 

@@ -335,12 +335,12 @@ config DEBUG_INFO_COMPRESSED_ZLIB
 	  Compress the debug information using zlib.  Requires GCC 5.0+ or Clang
 	  5.0+, binutils 2.26+, and zlib.
 
-	  Users of dpkg-deb via scripts/package/builddeb may find an increase in
+	  Users of dpkg-deb via debian/rules may find an increase in
 	  size of their debug .deb packages with this config set, due to the
 	  debug info being compressed with zlib, then the object files being
 	  recompressed with a different compression scheme. But this is still
-	  preferable to setting $KDEB_COMPRESS to "none" which would be even
-	  larger.
+	  preferable to setting KDEB_COMPRESS or DPKG_DEB_COMPRESSOR_TYPE to
+	  "none" which would be even larger.
 
 config DEBUG_INFO_COMPRESSED_ZSTD
 	bool "Compress debugging information with zstd"
@@ -473,7 +473,6 @@ config READABLE_ASM
 
 config HEADERS_INSTALL
 	bool "Install uapi headers to usr/include"
-	depends on !UML
 	help
 	  This option will install uapi headers (headers exported to user-space)
 	  into the usr/include directory for use during the kernel build.
@@ -1279,6 +1278,17 @@ config BOOTPARAM_HUNG_TASK_PANIC
 	  where a hung tasks must be resolved ASAP.
 
 	  Say N if unsure.
+
+config DETECT_HUNG_TASK_BLOCKER
+	bool "Dump Hung Tasks Blocker"
+	depends on DETECT_HUNG_TASK
+	depends on !PREEMPT_RT
+	default y
+	help
+	  Say Y here to show the blocker task's stacktrace who acquires
+	  the mutex lock which "hung tasks" are waiting.
+	  This will add overhead a bit but shows suspicious tasks and
+	  call trace if it comes from waiting a mutex.
 
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
@@ -2143,18 +2153,12 @@ config ARCH_HAS_KCOV
 	  build and run with CONFIG_KCOV. This typically requires
 	  disabling instrumentation for some early boot code.
 
-config CC_HAS_SANCOV_TRACE_PC
-	def_bool $(cc-option,-fsanitize-coverage=trace-pc)
-
-
 config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
-	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
 	depends on !ARCH_WANTS_NO_INSTR || HAVE_NOINSTR_HACK || \
 		   GCC_VERSION >= 120000 || CC_IS_CLANG
 	select DEBUG_FS
-	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
 	select OBJTOOL if HAVE_NOINSTR_HACK
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
@@ -2502,13 +2506,20 @@ config TEST_IDA
 	tristate "Perform selftest on IDA functions"
 
 config TEST_MISC_MINOR
-	tristate "Basic misc minor Kunit test" if !KUNIT_ALL_TESTS
+	tristate "miscdevice KUnit test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 	help
-	  Kunit test for the misc minor.
-	  It tests misc minor functions for dynamic and misc dynamic minor.
-	  This include misc_xxx functions
+	  Kunit test for miscdevice API, specially its behavior in respect to
+	  static and dynamic minor numbers.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
+	  running the KUnit test harness, and not intended for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
 	  If unsure, say N.
 
@@ -2557,8 +2568,7 @@ config TEST_BITOPS
 config TEST_VMALLOC
 	tristate "Test module for stress/performance analysis of vmalloc allocator"
 	default n
-       depends on MMU
-	depends on m
+	depends on MMU
 	help
 	  This builds the "test_vmalloc" module that should be used for
 	  stress and performance analysis. So, any new change for vmalloc
@@ -2577,15 +2587,6 @@ config TEST_BPF
 	  development, but also to run regression tests against changes in
 	  the interpreter code. It also enables test stubs for eBPF maps and
 	  verifier used by user space verifier testsuite.
-
-	  If unsure, say N.
-
-config TEST_BLACKHOLE_DEV
-	tristate "Test blackhole netdev functionality"
-	depends on m && NET
-	help
-	  This builds the "test_blackhole_dev" module that validates the
-	  data path through this blackhole netdev.
 
 	  If unsure, say N.
 
@@ -2855,6 +2856,14 @@ config OVERFLOW_KUNIT_TEST
 
 	  If unsure, say N.
 
+config RANDSTRUCT_KUNIT_TEST
+	tristate "Test randstruct structure layout randomization at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Builds unit tests for the checking CONFIG_RANDSTRUCT=y, which
+	  randomizes structure layouts.
+
 config STACKINIT_KUNIT_TEST
 	tristate "Test level of stack variable initialization" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2862,9 +2871,7 @@ config STACKINIT_KUNIT_TEST
 	help
 	  Test if the kernel is zero-initializing stack variables and
 	  padding. Coverage is controlled by compiler flags,
-	  CONFIG_INIT_STACK_ALL_PATTERN, CONFIG_INIT_STACK_ALL_ZERO,
-	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
-	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
+	  CONFIG_INIT_STACK_ALL_PATTERN or CONFIG_INIT_STACK_ALL_ZERO.
 
 config FORTIFY_KUNIT_TEST
 	tristate "Test fortified str*() and mem*() function internals at runtime" if !KUNIT_ALL_TESTS
@@ -2874,6 +2881,15 @@ config FORTIFY_KUNIT_TEST
 	  Builds unit tests for checking internals of FORTIFY_SOURCE as used
 	  by the str*() and mem*() family of functions. For testing runtime
 	  traps of FORTIFY_SOURCE, see LKDTM's "FORTIFY_*" tests.
+
+config LONGEST_SYM_KUNIT_TEST
+	tristate "Test the longest symbol possible" if !KUNIT_ALL_TESTS
+	depends on KUNIT && KPROBES
+	default KUNIT_ALL_TESTS
+	help
+	  Tests the longest symbol possible
+
+	  If unsure, say N.
 
 config HW_BREAKPOINT_KUNIT_TEST
 	bool "Test hw_breakpoint constraints accounting" if !KUNIT_ALL_TESTS
@@ -2926,6 +2942,17 @@ config USERCOPY_KUNIT_TEST
 	  on the copy_to/from_user infrastructure, making sure basic
 	  user/kernel boundary testing is working.
 
+config BLACKHOLE_DEV_KUNIT_TEST
+	tristate "Test blackhole netdev functionality" if !KUNIT_ALL_TESTS
+	depends on NET
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the "blackhole_dev_kunit" module that validates the
+	  data path through this blackhole netdev.
+
+	  If unsure, say N.
+
 config TEST_UDELAY
 	tristate "udelay test driver"
 	help
@@ -2955,13 +2982,7 @@ config TEST_DYNAMIC_DEBUG
 config TEST_KMOD
 	tristate "kmod stress tester"
 	depends on m
-	depends on NETDEVICES && NET_CORE && INET # for TUN
-	depends on BLOCK
-	depends on PAGE_SIZE_LESS_THAN_256KB # for BTRFS
 	select TEST_LKM
-	select XFS_FS
-	select TUN
-	select BTRFS_FS
 	help
 	  Test the kernel's module loading mechanism: kmod. kmod implements
 	  support to load modules using the Linux kernel's usermode helper.
@@ -3262,7 +3283,7 @@ config GCD_KUNIT_TEST
 config PRIME_NUMBERS_KUNIT_TEST
 	tristate "Prime number generator test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
-	select PRIME_NUMBERS
+	depends on PRIME_NUMBERS
 	default KUNIT_ALL_TESTS
 	help
 	  This option enables the KUnit test suite for the {is,next}_prime_number

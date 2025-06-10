@@ -14,6 +14,8 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <uapi/linux/btrfs_tree.h>
+#include "fs.h"
+#include "messages.h"
 
 struct btrfs_trans_handle;
 struct btrfs_fs_info;
@@ -260,7 +262,6 @@ enum btrfs_ref_type {
 	BTRFS_REF_NOT_SET,
 	BTRFS_REF_DATA,
 	BTRFS_REF_METADATA,
-	BTRFS_REF_LAST,
 } __packed;
 
 struct btrfs_ref {

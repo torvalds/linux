@@ -7,11 +7,11 @@
  * Author: Kent Yoder <yoder1@us.ibm.com>
  */
 
+#include <crypto/aes.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
-#include <crypto/aes.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/sha2.h>
-#include <crypto/algapi.h>
 #include <crypto/scatterwalk.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -124,8 +124,6 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 		}
 
 		if ((sg - sg_head) == sgmax) {
-			pr_err("nx: scatter/gather list overflow, pid: %d\n",
-			       current->pid);
 			sg++;
 			break;
 		}
@@ -153,40 +151,18 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
 {
 	struct scatter_walk walk;
 	struct nx_sg *nx_sg = nx_dst;
-	unsigned int n, offset = 0, len = *src_len;
-	char *dst;
+	unsigned int n, len = *src_len;
 
 	/* we need to fast forward through @start bytes first */
-	for (;;) {
-		scatterwalk_start(&walk, sg_src);
-
-		if (start < offset + sg_src->length)
-			break;
-
-		offset += sg_src->length;
-		sg_src = sg_next(sg_src);
-	}
-
-	/* start - offset is the number of bytes to advance in the scatterlist
-	 * element we're currently looking at */
-	scatterwalk_advance(&walk, start - offset);
+	scatterwalk_start_at_pos(&walk, sg_src, start);
 
 	while (len && (nx_sg - nx_dst) < sglen) {
-		n = scatterwalk_clamp(&walk, len);
-		if (!n) {
-			/* In cases where we have scatterlist chain sg_next
-			 * handles with it properly */
-			scatterwalk_start(&walk, sg_next(walk.sg));
-			n = scatterwalk_clamp(&walk, len);
-		}
-		dst = scatterwalk_map(&walk);
+		n = scatterwalk_next(&walk, len);
 
-		nx_sg = nx_build_sg_list(nx_sg, dst, &n, sglen - (nx_sg - nx_dst));
+		nx_sg = nx_build_sg_list(nx_sg, walk.addr, &n, sglen - (nx_sg - nx_dst));
+
+		scatterwalk_done_src(&walk, n);
 		len -= n;
-
-		scatterwalk_unmap(dst);
-		scatterwalk_advance(&walk, n);
-		scatterwalk_done(&walk, SCATTERWALK_FROM_SG, len);
 	}
 	/* update to_process */
 	*src_len -= len;
@@ -724,14 +700,14 @@ int nx_crypto_ctx_aes_ecb_init(struct crypto_skcipher *tfm)
 				  NX_MODE_AES_ECB);
 }
 
-int nx_crypto_ctx_sha_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_sha_init(struct crypto_shash *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_SHA, NX_MODE_SHA);
+	return nx_crypto_ctx_init(crypto_shash_ctx(tfm), NX_FC_SHA, NX_MODE_SHA);
 }
 
-int nx_crypto_ctx_aes_xcbc_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_aes_xcbc_init(struct crypto_shash *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
+	return nx_crypto_ctx_init(crypto_shash_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_XCBC_MAC);
 }
 
@@ -764,6 +740,11 @@ void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm)
 	struct nx_crypto_ctx *nx_ctx = crypto_aead_ctx(tfm);
 
 	kfree_sensitive(nx_ctx->kmem);
+}
+
+void nx_crypto_ctx_shash_exit(struct crypto_shash *tfm)
+{
+	nx_crypto_ctx_exit(crypto_shash_ctx(tfm));
 }
 
 static int nx_probe(struct vio_dev *viodev, const struct vio_device_id *id)

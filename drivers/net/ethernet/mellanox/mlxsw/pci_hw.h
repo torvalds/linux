@@ -90,6 +90,11 @@ MLXSW_ITEM32(pci, wqe, lp, 0x00, 30, 1);
  */
 MLXSW_ITEM32(pci, wqe, type, 0x00, 23, 4);
 
+/* pci_wqe_ipcs
+ * Calculate IPv4 and TCP / UDP checksums.
+ */
+MLXSW_ITEM32(pci, wqe, ipcs, 0x00, 14, 1);
+
 /* pci_wqe_byte_count
  * Size of i-th scatter/gather entry, 0 if entry is unused.
  */

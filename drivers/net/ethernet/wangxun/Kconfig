@@ -18,6 +18,7 @@ if NET_VENDOR_WANGXUN
 
 config LIBWX
 	tristate
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select PAGE_POOL
 	help
 	Common library for Wangxun(R) Ethernet drivers.
@@ -25,6 +26,7 @@ config LIBWX
 config NGBE
 	tristate "Wangxun(R) GbE PCI Express adapters support"
 	depends on PCI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select LIBWX
 	select PHYLINK
 	help
@@ -38,10 +40,11 @@ config NGBE
 	  will be called ngbe.
 
 config TXGBE
-	tristate "Wangxun(R) 10GbE PCI Express adapters support"
+	tristate "Wangxun(R) 10/25/40GbE PCI Express adapters support"
 	depends on PCI
 	depends on COMMON_CLK
 	depends on I2C_DESIGNWARE_PLATFORM
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select MARVELL_10G_PHY
 	select REGMAP
 	select PHYLINK
@@ -52,7 +55,7 @@ config TXGBE
 	select PCS_XPCS
 	select LIBWX
 	help
-	  This driver supports Wangxun(R) 10GbE PCI Express family of
+	  This driver supports Wangxun(R) 10/25/40GbE PCI Express family of
 	  adapters.
 
 	  More specific information on configuring the driver is in

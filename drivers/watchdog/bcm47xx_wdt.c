@@ -139,7 +139,7 @@ static int bcm47xx_wdt_soft_stop(struct watchdog_device *wdd)
 {
 	struct bcm47xx_wdt *wdt = bcm47xx_wdt_get(wdd);
 
-	del_timer_sync(&wdt->soft_timer);
+	timer_delete_sync(&wdt->soft_timer);
 	wdt->timer_set(wdt, 0);
 
 	return 0;
@@ -213,7 +213,7 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 
 err_timer:
 	if (soft)
-		del_timer_sync(&wdt->soft_timer);
+		timer_delete_sync(&wdt->soft_timer);
 
 	return ret;
 }

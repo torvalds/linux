@@ -135,7 +135,6 @@ extern ssize_t cifs_file_copychunk_range(unsigned int xid,
 
 extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern void cifs_setsize(struct inode *inode, loff_t offset);
-extern int cifs_truncate_page(struct address_space *mapping, loff_t from);
 
 struct smb3_fs_context;
 extern struct dentry *cifs_smb3_do_mount(struct file_system_type *fs_type,
@@ -146,6 +145,6 @@ extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
 /* when changing internal version - update following two lines at same time */
-#define SMB3_PRODUCT_BUILD 53
-#define CIFS_VERSION   "2.53"
+#define SMB3_PRODUCT_BUILD 54
+#define CIFS_VERSION   "2.54"
 #endif				/* _CIFSFS_H */

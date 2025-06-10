@@ -337,10 +337,11 @@ static void mlx5e_sq_calc_wqe_attr(struct sk_buff *skb, const struct mlx5e_tx_at
 	};
 }
 
-static void mlx5e_tx_skb_update_hwts_flags(struct sk_buff *skb)
+static void mlx5e_tx_skb_update_ts_flags(struct sk_buff *skb)
 {
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+	skb_tx_timestamp(skb);
 }
 
 static void mlx5e_tx_check_stop(struct mlx5e_txqsq *sq)
@@ -392,7 +393,7 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | attr->opcode);
 	cseg->qpn_ds           = cpu_to_be32((sq->sqn << 8) | wqe_attr->ds_cnt);
 
-	mlx5e_tx_skb_update_hwts_flags(skb);
+	mlx5e_tx_skb_update_ts_flags(skb);
 
 	sq->pc += wi->num_wqebbs;
 
@@ -525,9 +526,9 @@ static void mlx5e_tx_mpwqe_session_start(struct mlx5e_txqsq *sq,
 {
 	struct mlx5e_tx_mpwqe *session = &sq->mpwqe;
 	struct mlx5e_tx_wqe *wqe;
-	u16 pi;
+	u16 pi, num_wqebbs;
 
-	pi = mlx5e_txqsq_get_next_pi(sq, sq->max_sq_mpw_wqebbs);
+	pi = mlx5e_txqsq_get_next_pi_anysize(sq, &num_wqebbs);
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 	net_prefetchw(wqe->data);
 
@@ -535,6 +536,7 @@ static void mlx5e_tx_mpwqe_session_start(struct mlx5e_txqsq *sq,
 		.wqe = wqe,
 		.bytes_count = 0,
 		.ds_count = MLX5E_TX_WQE_EMPTY_DS_COUNT,
+		.ds_count_max = num_wqebbs * MLX5_SEND_WQEBB_NUM_DS,
 		.pkt_count = 0,
 		.inline_on = 0,
 	};
@@ -624,9 +626,9 @@ mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 	mlx5e_dma_push(sq, txd.dma_addr, txd.len, MLX5E_DMA_MAP_SINGLE);
 	mlx5e_skb_fifo_push(&sq->db.skb_fifo, skb);
 	mlx5e_tx_mpwqe_add_dseg(sq, &txd);
-	mlx5e_tx_skb_update_hwts_flags(skb);
+	mlx5e_tx_skb_update_ts_flags(skb);
 
-	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe, sq->max_sq_mpw_wqebbs))) {
+	if (unlikely(mlx5e_tx_mpwqe_is_full(&sq->mpwqe))) {
 		/* Might stop the queue and affect the retval of __netdev_tx_sent_queue. */
 		cseg = mlx5e_tx_mpwqe_session_complete(sq);
 

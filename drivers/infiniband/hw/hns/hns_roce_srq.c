@@ -51,7 +51,7 @@ static void hns_roce_ib_srq_event(struct hns_roce_srq *srq,
 			break;
 		default:
 			dev_err(hr_dev->dev,
-			   "hns_roce:Unexpected event type 0x%x on SRQ %06lx\n",
+			   "hns_roce:Unexpected event type %d on SRQ %06lx\n",
 			   event_type, srq->srqn);
 			return;
 		}

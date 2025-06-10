@@ -8,6 +8,12 @@
 	model = "Rockchip RK3036 KylinBoard";
 	compatible = "rockchip,rk3036-kylin", "rockchip,rk3036";
 
+	aliases {
+		mmc0 = &emmc;
+		mmc1 = &sdmmc;
+		mmc2 = &sdio;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
@@ -379,6 +385,18 @@
 };
 
 &usb_otg {
+	status = "okay";
+};
+
+&usb2phy {
+	status = "okay";
+};
+
+&usb2phy_host {
+	status = "okay";
+};
+
+&usb2phy_otg {
 	status = "okay";
 };
 

@@ -217,16 +217,19 @@ livepatch relocation section refer to their respective symbols with their symbol
 indices, and the original symbol indices (and thus the symtab ordering) must be
 preserved in order for apply_relocate_add() to find the right symbol.
 
-For example, take this particular rela from a livepatch module:::
+For example, take this particular rela from a livepatch module::
 
   Relocation section '.klp.rela.btrfs.text.btrfs_feature_attr_show' at offset 0x2ba0 contains 4 entries:
       Offset             Info             Type               Symbol's Value  Symbol's Name + Addend
   000000000000001f  0000005e00000002 R_X86_64_PC32          0000000000000000 .klp.sym.vmlinux.printk,0 - 4
 
-  This rela refers to the symbol '.klp.sym.vmlinux.printk,0', and the symbol index is encoded
-  in 'Info'. Here its symbol index is 0x5e, which is 94 in decimal, which refers to the
-  symbol index 94.
-  And in this patch module's corresponding symbol table, symbol index 94 refers to that very symbol:
+This rela refers to the symbol '.klp.sym.vmlinux.printk,0', and the symbol
+index is encoded in 'Info'. Here its symbol index is 0x5e, which is 94 in
+decimal, which refers to the symbol index 94.
+
+And in this patch module's corresponding symbol table, symbol index 94 refers
+to that very symbol::
+
   [ snip ]
   94: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT OS [0xff20] .klp.sym.vmlinux.printk,0
   [ snip ]

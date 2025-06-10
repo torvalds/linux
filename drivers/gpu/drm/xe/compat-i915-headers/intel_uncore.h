@@ -10,6 +10,8 @@
 #include "xe_device_types.h"
 #include "xe_mmio.h"
 
+#define FORCEWAKE_ALL XE_FORCEWAKE_ALL
+
 static inline struct intel_uncore *to_intel_uncore(struct drm_device *drm)
 {
 	return &to_xe_device(drm)->uncore;

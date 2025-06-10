@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 #include <net/netdev_queues.h>
 #include <net/page_pool/helpers.h>
+#include <net/tcp.h>
 
 #include "fbnic.h"
 #include "fbnic_csr.h"
@@ -18,6 +19,7 @@ enum {
 
 struct fbnic_xmit_cb {
 	u32 bytecount;
+	u16 gso_segs;
 	u8 desc_count;
 	u8 flags;
 	int hw_head;
@@ -113,6 +115,11 @@ static int fbnic_maybe_stop_tx(const struct net_device *dev,
 
 	res = netif_txq_maybe_stop(txq, fbnic_desc_unused(ring), size,
 				   FBNIC_TX_DESC_WAKEUP);
+	if (!res) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.twq.stop++;
+		u64_stats_update_end(&ring->stats.syncp);
+	}
 
 	return !res;
 }
@@ -174,8 +181,72 @@ static bool fbnic_tx_tstamp(struct sk_buff *skb)
 }
 
 static bool
+fbnic_tx_lso(struct fbnic_ring *ring, struct sk_buff *skb,
+	     struct skb_shared_info *shinfo, __le64 *meta,
+	     unsigned int *l2len, unsigned int *i3len)
+{
+	unsigned int l3_type, l4_type, l4len, hdrlen;
+	unsigned char *l4hdr;
+	__be16 payload_len;
+
+	if (unlikely(skb_cow_head(skb, 0)))
+		return true;
+
+	if (shinfo->gso_type & SKB_GSO_PARTIAL) {
+		l3_type = FBNIC_TWD_L3_TYPE_OTHER;
+	} else if (!skb->encapsulation) {
+		if (ip_hdr(skb)->version == 4)
+			l3_type = FBNIC_TWD_L3_TYPE_IPV4;
+		else
+			l3_type = FBNIC_TWD_L3_TYPE_IPV6;
+	} else {
+		unsigned int o3len;
+
+		o3len = skb_inner_network_header(skb) - skb_network_header(skb);
+		*i3len -= o3len;
+		*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_L3_OHLEN_MASK,
+						o3len / 2));
+		l3_type = FBNIC_TWD_L3_TYPE_V6V6;
+	}
+
+	l4hdr = skb_checksum_start(skb);
+	payload_len = cpu_to_be16(skb->len - (l4hdr - skb->data));
+
+	if (shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6)) {
+		struct tcphdr *tcph = (struct tcphdr *)l4hdr;
+
+		l4_type = FBNIC_TWD_L4_TYPE_TCP;
+		l4len = __tcp_hdrlen((struct tcphdr *)l4hdr);
+		csum_replace_by_diff(&tcph->check, (__force __wsum)payload_len);
+	} else {
+		struct udphdr *udph = (struct udphdr *)l4hdr;
+
+		l4_type = FBNIC_TWD_L4_TYPE_UDP;
+		l4len = sizeof(struct udphdr);
+		csum_replace_by_diff(&udph->check, (__force __wsum)payload_len);
+	}
+
+	hdrlen = (l4hdr - skb->data) + l4len;
+	*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_L3_TYPE_MASK, l3_type) |
+			     FIELD_PREP(FBNIC_TWD_L4_TYPE_MASK, l4_type) |
+			     FIELD_PREP(FBNIC_TWD_L4_HLEN_MASK, l4len / 4) |
+			     FIELD_PREP(FBNIC_TWD_MSS_MASK, shinfo->gso_size) |
+			     FBNIC_TWD_FLAG_REQ_LSO);
+
+	FBNIC_XMIT_CB(skb)->bytecount += (shinfo->gso_segs - 1) * hdrlen;
+	FBNIC_XMIT_CB(skb)->gso_segs = shinfo->gso_segs;
+
+	u64_stats_update_begin(&ring->stats.syncp);
+	ring->stats.twq.lso += shinfo->gso_segs;
+	u64_stats_update_end(&ring->stats.syncp);
+
+	return false;
+}
+
+static bool
 fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 {
+	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	unsigned int l2len, i3len;
 
 	if (fbnic_tx_tstamp(skb))
@@ -190,7 +261,15 @@ fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 	*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_CSUM_OFFSET_MASK,
 					skb->csum_offset / 2));
 
-	*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_CSO);
+	if (shinfo->gso_size) {
+		if (fbnic_tx_lso(ring, skb, shinfo, meta, &l2len, &i3len))
+			return true;
+	} else {
+		*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_CSO);
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.twq.csum_partial++;
+		u64_stats_update_end(&ring->stats.syncp);
+	}
 
 	*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_L2_HLEN_MASK, l2len / 2) |
 			     FIELD_PREP(FBNIC_TWD_L3_IHLEN_MASK, i3len / 2));
@@ -198,12 +277,15 @@ fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 }
 
 static void
-fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq)
+fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq,
+	      u64 *csum_cmpl, u64 *csum_none)
 {
 	skb_checksum_none_assert(skb);
 
-	if (unlikely(!(skb->dev->features & NETIF_F_RXCSUM)))
+	if (unlikely(!(skb->dev->features & NETIF_F_RXCSUM))) {
+		(*csum_none)++;
 		return;
+	}
 
 	if (FIELD_GET(FBNIC_RCD_META_L4_CSUM_UNNECESSARY, rcd)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -212,6 +294,7 @@ fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq)
 
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = (__force __wsum)csum;
+		(*csum_cmpl)++;
 	}
 }
 
@@ -329,7 +412,9 @@ fbnic_xmit_frame_ring(struct sk_buff *skb, struct fbnic_ring *ring)
 
 	/* Write all members within DWORD to condense this into 2 4B writes */
 	FBNIC_XMIT_CB(skb)->bytecount = skb->len;
+	FBNIC_XMIT_CB(skb)->gso_segs = 1;
 	FBNIC_XMIT_CB(skb)->desc_count = 0;
+	FBNIC_XMIT_CB(skb)->flags = 0;
 
 	if (fbnic_tx_offloads(ring, skb, meta))
 		goto err_free;
@@ -356,6 +441,59 @@ netdev_tx_t fbnic_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	return fbnic_xmit_frame_ring(skb, fbn->tx[q_map]);
 }
 
+static netdev_features_t
+fbnic_features_check_encap_gso(struct sk_buff *skb, struct net_device *dev,
+			       netdev_features_t features, unsigned int l3len)
+{
+	netdev_features_t skb_gso_features;
+	struct ipv6hdr *ip6_hdr;
+	unsigned char l4_hdr;
+	unsigned int start;
+	__be16 frag_off;
+
+	/* Require MANGLEID for GSO_PARTIAL of IPv4.
+	 * In theory we could support TSO with single, innermost v4 header
+	 * by pretending everything before it is L2, but that needs to be
+	 * parsed case by case.. so leaving it for when the need arises.
+	 */
+	if (!(features & NETIF_F_TSO_MANGLEID))
+		features &= ~NETIF_F_TSO;
+
+	skb_gso_features = skb_shinfo(skb)->gso_type;
+	skb_gso_features <<= NETIF_F_GSO_SHIFT;
+
+	/* We'd only clear the native GSO features, so don't bother validating
+	 * if the match can only be on those supported thru GSO_PARTIAL.
+	 */
+	if (!(skb_gso_features & FBNIC_TUN_GSO_FEATURES))
+		return features;
+
+	/* We can only do IPv6-in-IPv6, not v4-in-v6. It'd be nice
+	 * to fall back to partial for this, or any failure below.
+	 * This is just an optimization, UDPv4 will be caught later on.
+	 */
+	if (skb_gso_features & NETIF_F_TSO)
+		return features & ~FBNIC_TUN_GSO_FEATURES;
+
+	/* Inner headers multiple of 2 */
+	if ((skb_inner_network_header(skb) - skb_network_header(skb)) % 2)
+		return features & ~FBNIC_TUN_GSO_FEATURES;
+
+	/* Encapsulated GSO packet, make 100% sure it's IPv6-in-IPv6. */
+	ip6_hdr = ipv6_hdr(skb);
+	if (ip6_hdr->version != 6)
+		return features & ~FBNIC_TUN_GSO_FEATURES;
+
+	l4_hdr = ip6_hdr->nexthdr;
+	start = (unsigned char *)ip6_hdr - skb->data + sizeof(struct ipv6hdr);
+	start = ipv6_skip_exthdr(skb, start, &l4_hdr, &frag_off);
+	if (frag_off || l4_hdr != IPPROTO_IPV6 ||
+	    skb->data + start != skb_inner_network_header(skb))
+		return features & ~FBNIC_TUN_GSO_FEATURES;
+
+	return features;
+}
+
 netdev_features_t
 fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
 		     netdev_features_t features)
@@ -376,9 +514,12 @@ fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
 	    !FIELD_FIT(FBNIC_TWD_L2_HLEN_MASK, l2len / 2) ||
 	    !FIELD_FIT(FBNIC_TWD_L3_IHLEN_MASK, l3len / 2) ||
 	    !FIELD_FIT(FBNIC_TWD_CSUM_OFFSET_MASK, skb->csum_offset / 2))
-		return features & ~NETIF_F_CSUM_MASK;
+		return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
 
-	return features;
+	if (likely(!skb->encapsulation) || !skb_is_gso(skb))
+		return features;
+
+	return fbnic_features_check_encap_gso(skb, dev, features, l3len);
 }
 
 static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
@@ -429,7 +570,7 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 		}
 
 		total_bytes += FBNIC_XMIT_CB(skb)->bytecount;
-		total_packets += 1;
+		total_packets += FBNIC_XMIT_CB(skb)->gso_segs;
 
 		napi_consume_skb(skb, napi_budget);
 	}
@@ -444,7 +585,7 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 	if (unlikely(discard)) {
 		u64_stats_update_begin(&ring->stats.syncp);
 		ring->stats.dropped += total_packets;
-		ring->stats.ts_lost += ts_lost;
+		ring->stats.twq.ts_lost += ts_lost;
 		u64_stats_update_end(&ring->stats.syncp);
 
 		netdev_tx_completed_queue(txq, total_packets, total_bytes);
@@ -456,9 +597,13 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 	ring->stats.packets += total_packets;
 	u64_stats_update_end(&ring->stats.syncp);
 
-	netif_txq_completed_wake(txq, total_packets, total_bytes,
-				 fbnic_desc_unused(ring),
-				 FBNIC_TX_DESC_WAKEUP);
+	if (!netif_txq_completed_wake(txq, total_packets, total_bytes,
+				      fbnic_desc_unused(ring),
+				      FBNIC_TX_DESC_WAKEUP)) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.twq.wake++;
+		u64_stats_update_end(&ring->stats.syncp);
+	}
 }
 
 static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
@@ -507,7 +652,7 @@ static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
 
 	skb_tstamp_tx(skb, &hwtstamp);
 	u64_stats_update_begin(&ring->stats.syncp);
-	ring->stats.ts_packets++;
+	ring->stats.twq.ts_packets++;
 	u64_stats_update_end(&ring->stats.syncp);
 }
 
@@ -661,8 +806,13 @@ static void fbnic_fill_bdq(struct fbnic_napi_vector *nv, struct fbnic_ring *bdq)
 		struct page *page;
 
 		page = page_pool_dev_alloc_pages(nv->page_pool);
-		if (!page)
+		if (!page) {
+			u64_stats_update_begin(&bdq->stats.syncp);
+			bdq->stats.rx.alloc_failed++;
+			u64_stats_update_end(&bdq->stats.syncp);
+
 			break;
+		}
 
 		fbnic_page_pool_init(bdq, i, page);
 		fbnic_bd_prep(bdq, i, page);
@@ -875,12 +1025,13 @@ static void fbnic_rx_tstamp(struct fbnic_napi_vector *nv, u64 rcd,
 
 static void fbnic_populate_skb_fields(struct fbnic_napi_vector *nv,
 				      u64 rcd, struct sk_buff *skb,
-				      struct fbnic_q_triad *qt)
+				      struct fbnic_q_triad *qt,
+				      u64 *csum_cmpl, u64 *csum_none)
 {
 	struct net_device *netdev = nv->napi.dev;
 	struct fbnic_ring *rcq = &qt->cmpl;
 
-	fbnic_rx_csum(rcd, skb, rcq);
+	fbnic_rx_csum(rcd, skb, rcq, csum_cmpl, csum_none);
 
 	if (netdev->features & NETIF_F_RXHASH)
 		skb_set_hash(skb,
@@ -898,7 +1049,8 @@ static bool fbnic_rcd_metadata_err(u64 rcd)
 static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			   struct fbnic_q_triad *qt, int budget)
 {
-	unsigned int packets = 0, bytes = 0, dropped = 0;
+	unsigned int packets = 0, bytes = 0, dropped = 0, alloc_failed = 0;
+	u64 csum_complete = 0, csum_none = 0;
 	struct fbnic_ring *rcq = &qt->cmpl;
 	struct fbnic_pkt_buff *pkt;
 	s32 head0 = -1, head1 = -1;
@@ -947,14 +1099,22 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 
 			/* Populate skb and invalidate XDP */
 			if (!IS_ERR_OR_NULL(skb)) {
-				fbnic_populate_skb_fields(nv, rcd, skb, qt);
+				fbnic_populate_skb_fields(nv, rcd, skb, qt,
+							  &csum_complete,
+							  &csum_none);
 
 				packets++;
 				bytes += skb->len;
 
 				napi_gro_receive(&nv->napi, skb);
 			} else {
-				dropped++;
+				if (!skb) {
+					alloc_failed++;
+					dropped++;
+				} else {
+					dropped++;
+				}
+
 				fbnic_put_pkt_buff(nv, pkt, 1);
 			}
 
@@ -977,6 +1137,9 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 	/* Re-add ethernet header length (removed in fbnic_build_skb) */
 	rcq->stats.bytes += ETH_HLEN * packets;
 	rcq->stats.dropped += dropped;
+	rcq->stats.rx.alloc_failed += alloc_failed;
+	rcq->stats.rx.csum_complete += csum_complete;
+	rcq->stats.rx.csum_none += csum_none;
 	u64_stats_update_end(&rcq->stats.syncp);
 
 	/* Unmap and free processed buffers */
@@ -1054,6 +1217,11 @@ void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	fbn->rx_stats.bytes += stats->bytes;
 	fbn->rx_stats.packets += stats->packets;
 	fbn->rx_stats.dropped += stats->dropped;
+	fbn->rx_stats.rx.alloc_failed += stats->rx.alloc_failed;
+	fbn->rx_stats.rx.csum_complete += stats->rx.csum_complete;
+	fbn->rx_stats.rx.csum_none += stats->rx.csum_none;
+	/* Remember to add new stats here */
+	BUILD_BUG_ON(sizeof(fbn->rx_stats.rx) / 8 != 3);
 }
 
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
@@ -1065,8 +1233,14 @@ void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 	fbn->tx_stats.bytes += stats->bytes;
 	fbn->tx_stats.packets += stats->packets;
 	fbn->tx_stats.dropped += stats->dropped;
-	fbn->tx_stats.ts_lost += stats->ts_lost;
-	fbn->tx_stats.ts_packets += stats->ts_packets;
+	fbn->tx_stats.twq.csum_partial += stats->twq.csum_partial;
+	fbn->tx_stats.twq.lso += stats->twq.lso;
+	fbn->tx_stats.twq.ts_lost += stats->twq.ts_lost;
+	fbn->tx_stats.twq.ts_packets += stats->twq.ts_packets;
+	fbn->tx_stats.twq.stop += stats->twq.stop;
+	fbn->tx_stats.twq.wake += stats->twq.wake;
+	/* Remember to add new stats here */
+	BUILD_BUG_ON(sizeof(fbn->tx_stats.twq) / 8 != 6);
 }
 
 static void fbnic_remove_tx_ring(struct fbnic_net *fbn,
@@ -1142,7 +1316,9 @@ static int fbnic_alloc_nv_page_pool(struct fbnic_net *fbn,
 		.dev = nv->dev,
 		.dma_dir = DMA_BIDIRECTIONAL,
 		.offset = 0,
-		.max_len = PAGE_SIZE
+		.max_len = PAGE_SIZE,
+		.napi	= &nv->napi,
+		.netdev	= fbn->netdev,
 	};
 	struct page_pool *pp;
 
@@ -2010,9 +2186,51 @@ static void fbnic_config_drop_mode_rcq(struct fbnic_napi_vector *nv,
 	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RDE_CTL0, rcq_ctl);
 }
 
+static void fbnic_config_rim_threshold(struct fbnic_ring *rcq, u16 nv_idx, u32 rx_desc)
+{
+	u32 threshold;
+
+	/* Set the threhsold to half the ring size if rx_frames
+	 * is not configured
+	 */
+	threshold = rx_desc ? : rcq->size_mask / 2;
+
+	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_CTL, nv_idx);
+	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_THRESHOLD, threshold);
+}
+
+void fbnic_config_txrx_usecs(struct fbnic_napi_vector *nv, u32 arm)
+{
+	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
+	struct fbnic_dev *fbd = nv->fbd;
+	u32 val = arm;
+
+	val |= FIELD_PREP(FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT, fbn->rx_usecs) |
+	       FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT_UPD_EN;
+	val |= FIELD_PREP(FBNIC_INTR_CQ_REARM_TCQ_TIMEOUT, fbn->tx_usecs) |
+	       FBNIC_INTR_CQ_REARM_TCQ_TIMEOUT_UPD_EN;
+
+	fbnic_wr32(fbd, FBNIC_INTR_CQ_REARM(nv->v_idx), val);
+}
+
+void fbnic_config_rx_frames(struct fbnic_napi_vector *nv)
+{
+	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
+	int i;
+
+	for (i = nv->txt_count; i < nv->rxt_count + nv->txt_count; i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		fbnic_config_rim_threshold(&qt->cmpl, nv->v_idx,
+					   fbn->rx_max_frames *
+					   FBNIC_MIN_RXD_PER_FRAME);
+	}
+}
+
 static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 			     struct fbnic_ring *rcq)
 {
+	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
 	u32 log_size = fls(rcq->size_mask);
 	u32 rcq_ctl;
 
@@ -2040,8 +2258,8 @@ static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RCQ_SIZE, log_size & 0xf);
 
 	/* Store interrupt information for the completion queue */
-	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_CTL, nv->v_idx);
-	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_THRESHOLD, rcq->size_mask / 2);
+	fbnic_config_rim_threshold(rcq, nv->v_idx, fbn->rx_max_frames *
+						   FBNIC_MIN_RXD_PER_FRAME);
 	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_MASK, 0);
 
 	/* Enable queue */
@@ -2080,12 +2298,7 @@ void fbnic_enable(struct fbnic_net *fbn)
 
 static void fbnic_nv_irq_enable(struct fbnic_napi_vector *nv)
 {
-	struct fbnic_dev *fbd = nv->fbd;
-	u32 val;
-
-	val = FBNIC_INTR_CQ_REARM_INTR_UNMASK;
-
-	fbnic_wr32(fbd, FBNIC_INTR_CQ_REARM(nv->v_idx), val);
+	fbnic_config_txrx_usecs(nv, FBNIC_INTR_CQ_REARM_INTR_UNMASK);
 }
 
 void fbnic_napi_enable(struct fbnic_net *fbn)

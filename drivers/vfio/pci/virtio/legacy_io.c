@@ -382,7 +382,9 @@ static bool virtiovf_bar0_exists(struct pci_dev *pdev)
 
 bool virtiovf_support_legacy_io(struct pci_dev *pdev)
 {
-	return virtio_pci_admin_has_legacy_io(pdev) && !virtiovf_bar0_exists(pdev);
+	/* For now, the legacy IO functionality is supported only for virtio-net */
+	return pdev->device == 0x1041 && virtio_pci_admin_has_legacy_io(pdev) &&
+	       !virtiovf_bar0_exists(pdev);
 }
 
 int virtiovf_init_legacy_io(struct virtiovf_pci_core_device *virtvdev)

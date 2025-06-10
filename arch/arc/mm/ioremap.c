@@ -32,7 +32,7 @@ void __iomem *ioremap(phys_addr_t paddr, unsigned long size)
 		return (void __iomem *)(u32)paddr;
 
 	return ioremap_prot(paddr, size,
-			    pgprot_val(pgprot_noncached(PAGE_KERNEL)));
+			    pgprot_noncached(PAGE_KERNEL));
 }
 EXPORT_SYMBOL(ioremap);
 
@@ -44,10 +44,8 @@ EXPORT_SYMBOL(ioremap);
  * might need finer access control (R/W/X)
  */
 void __iomem *ioremap_prot(phys_addr_t paddr, size_t size,
-			   unsigned long flags)
+			   pgprot_t prot)
 {
-	pgprot_t prot = __pgprot(flags);
-
 	/* force uncached */
 	return generic_ioremap_prot(paddr, size, pgprot_noncached(prot));
 }

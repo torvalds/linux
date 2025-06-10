@@ -950,7 +950,7 @@ static int apple_probe(struct hid_device *hdev,
 	return 0;
 
 out_err:
-	del_timer_sync(&asc->battery_timer);
+	timer_delete_sync(&asc->battery_timer);
 	hid_hw_stop(hdev);
 	return ret;
 }
@@ -959,7 +959,7 @@ static void apple_remove(struct hid_device *hdev)
 {
 	struct apple_sc *asc = hid_get_drvdata(hdev);
 
-	del_timer_sync(&asc->battery_timer);
+	timer_delete_sync(&asc->battery_timer);
 
 	hid_hw_stop(hdev);
 }

@@ -4,7 +4,6 @@
  */
 #include <net/gso.h>
 #include <linux/ieee80211.h>
-#include <net/gso.h>
 #include <net/ip.h>
 
 #include "iwl-drv.h"

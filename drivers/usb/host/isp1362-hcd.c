@@ -2357,7 +2357,7 @@ static void isp1362_hc_stop(struct usb_hcd *hcd)
 
 	pr_debug("%s:\n", __func__);
 
-	del_timer_sync(&hcd->rh_timer);
+	timer_delete_sync(&hcd->rh_timer);
 
 	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 

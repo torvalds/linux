@@ -1,0 +1,397 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-3-Clause)
+/*
+ * Copyright (C) 2020 STMicroelectronics - All Rights Reserved
+ * Copyright (C) 2021 Rouven Czerwinski, Pengutronix
+ * Copyright (C) 2023, 2024 Leonard Göhrs, Pengutronix
+ */
+
+#include "stm32mp153.dtsi"
+#include "stm32mp15xc.dtsi"
+#include "stm32mp15xx-osd32.dtsi"
+#include "stm32mp15xxac-pinctrl.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/pwm/pwm.h>
+
+/ {
+	aliases {
+		can0 = &m_can1;
+		ethernet0 = &ethernet0;
+		i2c0 = &i2c1;
+		i2c1 = &i2c4;
+		mmc1 = &sdmmc2;
+		serial0 = &uart4;
+		serial1 = &usart3;
+		spi0 = &spi4;
+	};
+
+	chosen {
+		stdout-path = &uart4;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		power-supply = <&v3v3>;
+
+		brightness-levels = <0 31 63 95 127 159 191 223 255>;
+		default-brightness-level = <7>;
+		pwms = <&led_pwm 3 1000000 0>;
+	};
+
+	led-controller-cpu {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_HEARTBEAT;
+			gpios = <&gpioa 13 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	led_controller_io: led-controller-io {
+		compatible = "gpio-leds";
+
+		/*
+		 * led-0 and led-1 are internally connected antiparallel to one
+		 * another inside the ethernet jack like this:
+		 * GPIO0 ---+---|led-0|>--+--- GPIO2
+		 *          +--<|led-1|---+
+		 * E.g. only one of the LEDs can be illuminated at a time while
+		 * the other output must be driven low.
+		 * This should likely be implemented using a multi color LED
+		 * driver for antiparallel LEDs.
+		 */
+		led-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_LAN;
+			gpios = <&io_board_gpio 0 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-1 {
+			color = <LED_COLOR_ID_ORANGE>;
+			function = LED_FUNCTION_LAN;
+			gpios = <&io_board_gpio 2 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	reg_1v2: regulator-1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "1V2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		vin-supply = <&reg_5v>;
+	};
+};
+
+baseboard_eeprom: &sip_eeprom {
+};
+
+&crc1 {
+	status = "okay";
+};
+
+&cryp1 {
+	status = "okay";
+};
+
+&dts {
+	status = "okay";
+};
+
+&ethernet0 {
+	assigned-clocks = <&rcc ETHCK_K>, <&rcc PLL4_P>;
+	assigned-clock-parents = <&rcc PLL4_P>;
+	assigned-clock-rates = <125000000>; /* Clock PLL4 to 750Mhz in ATF */
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&ethernet0_rgmii_pins_b>;
+	pinctrl-1 = <&ethernet0_rgmii_sleep_pins_b>;
+
+	st,eth-clk-sel;
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethphy>;
+	status = "okay";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy: ethernet-phy@3 { /* KSZ9031RN */
+			reg = <3>;
+			reset-gpios = <&gpioe 11 GPIO_ACTIVE_LOW>; /* ETH_RST# */
+			interrupt-parent = <&gpioa>;
+			interrupts = <6 IRQ_TYPE_EDGE_FALLING>; /* ETH_MDINT# */
+			reset-assert-us = <10000>;
+			reset-deassert-us = <300>;
+			micrel,force-master;
+		};
+	};
+};
+
+&gpioa {
+	gpio-line-names = "", "", "", "", "",				/*  0 */
+			  "", "ETH_INT", "", "", "",			/*  5 */
+			  "", "", "", "BOOTROM_LED", "",		/* 10 */
+			  "";						/* 15 */
+};
+
+&gpiob {
+	gpio-line-names = "", "", "", "", "",				/*  0 */
+			  "", "", "", "", "",				/*  5 */
+			  "", "", "", "", "",				/* 10 */
+			  "";						/* 15 */
+};
+
+&gpioc {
+	gpio-line-names = "", "", "", "", "",				/*  0 */
+			  "", "", "", "", "",				/*  5 */
+			  "", "";					/* 10 */
+};
+
+&gpiod {
+	gpio-line-names = "", "", "", "", "",				/*  0 */
+			  "", "", "LCD_TE", "", "",			/*  5 */
+			  "LCD_DC", "", "", "", "",			/* 10 */
+			  "";						/* 15 */
+};
+
+&gpioe {
+	gpio-line-names = "LCD_CS", "", "", "", "",			/*  0 */
+			  "", "", "", "", "",				/*  5 */
+			  "", "", "", "", "",				/* 10 */
+			  "";						/* 15 */
+};
+
+&gpiof {
+	gpio-line-names = "GPIO1", "GPIO2", "", "", "",			/*  0 */
+			  "", "", "", "", "",				/*  5 */
+			  "", "", "", "", "",				/* 10 */
+			  "";						/* 15 */
+};
+
+&gpiog {
+	gpio-line-names = "", "", "", "", "",				/*  0 */
+			  "", "", "", "", "",				/*  5 */
+			  "", "", "", "", "",				/* 10 */
+			  "";						/* 15 */
+};
+
+&gpioz {
+	gpio-line-names = "HWID0", "HWID1", "HWID2", "HWID3", "",	/*  0 */
+			  "", "HWID4", "HWID5";				/*  5 */
+};
+
+&hash1 {
+	status = "okay";
+};
+
+&iwdg2 {
+	timeout-sec = <8>;
+	status = "okay";
+};
+
+&m_can1 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&m_can1_pins_b>;
+	pinctrl-1 = <&m_can1_sleep_pins_b>;
+	status = "okay";
+	termination-gpios = <&io_board_gpio 7 GPIO_ACTIVE_HIGH>;
+	termination-ohms = <120>;
+};
+
+&pmic {
+	regulators {
+		buck1-supply = <&reg_5v>;	/* VIN */
+		buck2-supply = <&reg_5v>;	/* VIN */
+		buck3-supply = <&reg_5v>;	/* VIN */
+		buck4-supply = <&reg_5v>;	/* VIN */
+		ldo2-supply = <&reg_5v>;	/* PMIC_LDO25IN */
+		ldo4-supply = <&reg_5v>;	/* VIN */
+		ldo5-supply = <&reg_5v>;	/* PMIC_LDO25IN */
+		vref_ddr-supply = <&reg_5v>;	/* VIN */
+		boost-supply = <&reg_5v>;	/* PMIC_BSTIN */
+		pwr_sw2-supply = <&bst_out>;	/* PMIC_SWIN */
+	};
+};
+
+&pwr_regulators {
+	vdd-supply = <&vdd>;
+	vdd_3v3_usbfs-supply = <&vdd_usb>;
+};
+
+&sdmmc2 {
+	pinctrl-names = "default", "opendrain", "sleep";
+	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_b>;
+	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_d47_pins_b>;
+	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_b>;
+	vmmc-supply = <&v3v3>;
+
+	bus-width = <8>;
+	mmc-ddr-3_3v;
+	no-1-8-v;
+	non-removable;
+	no-sd;
+	no-sdio;
+	st,neg-edge;
+
+	status = "okay";
+};
+
+&spi4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi4_pins_a>;
+	cs-gpios = <&gpioe 0 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	lcd: display@0 {
+		compatible = "shineworld,lh133k", "panel-mipi-dbi-spi";
+		reg = <0>;
+		power-supply = <&v3v3>;
+		io-supply = <&v3v3>;
+		backlight = <&backlight>;
+		dc-gpios = <&gpiod 10 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpioh 4 GPIO_ACTIVE_HIGH>;
+		spi-3wire;
+		spi-max-frequency = <32000000>;
+
+		width-mm = <23>;
+		height-mm = <23>;
+		rotation = <180>;
+
+		panel-timing {
+			hactive = <240>;
+			vactive = <240>;
+			hback-porch = <0>;
+			vback-porch = <0>;
+
+			clock-frequency = <0>;
+			hfront-porch = <0>;
+			hsync-len = <0>;
+			vfront-porch = <0>;
+			vsync-len = <0>;
+		};
+	};
+};
+
+&timers2 {
+	/* spare dmas for other usage */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	status = "okay";
+
+	timer@1 {
+		status = "okay";
+	};
+};
+
+&timers3 {
+	/* spare dmas for other usage */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	status = "okay";
+
+	timer@2 {
+		status = "okay";
+	};
+};
+
+&timers4 {
+	/* spare dmas for other usage */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	status = "okay";
+
+	timer@3 {
+		status = "okay";
+	};
+};
+
+&timers8 {
+	/* spare dmas for other usage */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	status = "okay";
+
+	led_pwm: pwm {
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&pwm8_pins_b>;
+		pinctrl-1 = <&pwm8_sleep_pins_b>;
+		status = "okay";
+	};
+};
+
+&uart4 {
+	label = "debug";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_pins_a>;
+
+	/* spare dmas for other usage */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	status = "okay";
+};
+
+&usart3 {
+	label = "external";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&usart3_pins_a>;
+
+	/* spare dmas for other usage */
+	/delete-property/dmas;
+	/delete-property/dma-names;
+
+	status = "okay";
+};
+
+&usbh_ehci {
+	phys = <&usbphyc_port0>;
+	phy-names = "usb";
+
+	status = "okay";
+};
+
+&usbotg_hs {
+	phys = <&usbphyc_port1 0>;
+	phy-names = "usb2-phy";
+
+	vusb_d-supply = <&vdd_usb>;
+	vusb_a-supply = <&reg18>;
+
+	status = "okay";
+};
+
+&usbphyc {
+	status = "okay";
+};
+
+&usbphyc_port0 {
+	phy-supply = <&vdd_usb>;
+};
+
+&usbphyc_port1 {
+	phy-supply = <&vdd_usb>;
+};
+
+&v3v3_hdmi {
+	regulator-enable-ramp-delay = <1000>;
+};

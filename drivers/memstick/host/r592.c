@@ -827,7 +827,7 @@ static void r592_remove(struct pci_dev *pdev)
 	/* Stop the processing thread.
 	That ensures that we won't take any more requests */
 	kthread_stop(dev->io_thread);
-	del_timer_sync(&dev->detect_timer);
+	timer_delete_sync(&dev->detect_timer);
 	r592_enable_device(dev, false);
 
 	while (!error && dev->req) {
@@ -854,7 +854,7 @@ static int r592_suspend(struct device *core_dev)
 
 	r592_clear_interrupts(dev);
 	memstick_suspend_host(dev->host);
-	del_timer_sync(&dev->detect_timer);
+	timer_delete_sync(&dev->detect_timer);
 	return 0;
 }
 

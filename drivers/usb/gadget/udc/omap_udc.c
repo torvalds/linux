@@ -252,7 +252,7 @@ static int omap_ep_disable(struct usb_ep *_ep)
 	ep->has_dma = 0;
 	omap_writew(UDC_SET_HALT, UDC_CTRL);
 	list_del_init(&ep->iso);
-	del_timer(&ep->timer);
+	timer_delete(&ep->timer);
 
 	spin_unlock_irqrestore(&ep->udc->lock, flags);
 

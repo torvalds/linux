@@ -11,12 +11,6 @@
 
 typedef unsigned int __bitwise ieee80211_rx_result;
 
-#define MAC80211_DROP_REASONS_MONITOR(R)	\
-	R(RX_DROP_M_UNEXPECTED_4ADDR_FRAME)	\
-	R(RX_DROP_M_BAD_BCN_KEYIDX)		\
-	R(RX_DROP_M_BAD_MGMT_KEYIDX)		\
-/* this line for the trailing \ - add before this */
-
 #define MAC80211_DROP_REASONS_UNUSABLE(R)	\
 	/* 0x00 == ___RX_DROP_UNUSABLE */	\
 	R(RX_DROP_U_MIC_FAIL)			\
@@ -66,6 +60,10 @@ typedef unsigned int __bitwise ieee80211_rx_result;
 	R(RX_DROP_U_UNEXPECTED_STA_4ADDR)	\
 	R(RX_DROP_U_UNEXPECTED_VLAN_MCAST)	\
 	R(RX_DROP_U_NOT_PORT_CONTROL)		\
+	R(RX_DROP_U_UNEXPECTED_4ADDR_FRAME)	\
+	R(RX_DROP_U_BAD_BCN_KEYIDX)		\
+	/* 0x30 */				\
+	R(RX_DROP_U_BAD_MGMT_KEYIDX)		\
 	R(RX_DROP_U_UNKNOWN_ACTION_REJECTED)	\
 /* this line for the trailing \ - add before this */
 
@@ -78,10 +76,6 @@ enum ___mac80211_drop_reason {
 	___RX_QUEUED	= SKB_NOT_DROPPED_YET,
 
 #define ENUM(x) ___ ## x,
-	___RX_DROP_MONITOR = SKB_DROP_REASON_SUBSYS_MAC80211_MONITOR <<
-		SKB_DROP_REASON_SUBSYS_SHIFT,
-	MAC80211_DROP_REASONS_MONITOR(ENUM)
-
 	___RX_DROP_UNUSABLE = SKB_DROP_REASON_SUBSYS_MAC80211_UNUSABLE <<
 		SKB_DROP_REASON_SUBSYS_SHIFT,
 	MAC80211_DROP_REASONS_UNUSABLE(ENUM)
@@ -89,11 +83,10 @@ enum ___mac80211_drop_reason {
 };
 
 enum mac80211_drop_reason {
-	RX_CONTINUE	 = (__force ieee80211_rx_result)___RX_CONTINUE,
-	RX_QUEUED	 = (__force ieee80211_rx_result)___RX_QUEUED,
-	RX_DROP_MONITOR	 = (__force ieee80211_rx_result)___RX_DROP_MONITOR,
+	RX_CONTINUE	= (__force ieee80211_rx_result)___RX_CONTINUE,
+	RX_QUEUED	= (__force ieee80211_rx_result)___RX_QUEUED,
+	RX_DROP		= (__force ieee80211_rx_result)___RX_DROP_UNUSABLE,
 #define DEF(x) x = (__force ieee80211_rx_result)___ ## x,
-	MAC80211_DROP_REASONS_MONITOR(DEF)
 	MAC80211_DROP_REASONS_UNUSABLE(DEF)
 #undef DEF
 };

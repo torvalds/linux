@@ -22,7 +22,7 @@ struct resource_pool *dcn401_create_resource_pool(
 
 enum dc_status dcn401_patch_unknown_plane_state(struct dc_plane_state *plane_state);
 
-bool dcn401_validate_bandwidth(struct dc *dc,
+enum dc_status dcn401_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate);
 
@@ -538,7 +538,8 @@ void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
 	SRI_ARR(OPTC_MEMORY_CONFIG, ODM, inst),                                  \
 	SRI_ARR(OTG_DRR_CONTROL, OTG, inst),                                     \
 	SRI_ARR(OTG_PSTATE_REGISTER, OTG, inst),                                 \
-	SRI_ARR(OTG_PIPE_UPDATE_STATUS, OTG, inst)
+	SRI_ARR(OTG_PIPE_UPDATE_STATUS, OTG, inst),                              \
+	SRI_ARR(INTERRUPT_DEST, OTG, inst)
 
 /* HUBBUB */
 #define HUBBUB_REG_LIST_DCN4_01_RI(id)                                       \

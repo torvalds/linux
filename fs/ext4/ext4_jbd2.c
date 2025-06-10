@@ -16,7 +16,8 @@ int ext4_inode_journal_mode(struct inode *inode)
 	    ext4_test_inode_flag(inode, EXT4_INODE_EA_INODE) ||
 	    test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
 	    (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA) &&
-	    !test_opt(inode->i_sb, DELALLOC))) {
+	    !test_opt(inode->i_sb, DELALLOC) &&
+	    !mapping_large_folio_support(inode->i_mapping))) {
 		/* We do not support data journalling for encrypted data */
 		if (S_ISREG(inode->i_mode) && IS_ENCRYPTED(inode))
 			return EXT4_INODE_ORDERED_DATA_MODE;  /* ordered */
@@ -63,12 +64,14 @@ static void ext4_put_nojournal(handle_t *handle)
  */
 static int ext4_journal_check_start(struct super_block *sb)
 {
+	int ret;
 	journal_t *journal;
 
 	might_sleep();
 
-	if (unlikely(ext4_forced_shutdown(sb)))
-		return -EIO;
+	ret = ext4_emergency_state(sb);
+	if (unlikely(ret))
+		return ret;
 
 	if (WARN_ON_ONCE(sb_rdonly(sb)))
 		return -EROFS;
@@ -244,7 +247,8 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 		}
 	} else
 		ext4_check_bdev_write_error(sb);
-	if (trigger_type == EXT4_JTR_NONE || !ext4_has_metadata_csum(sb))
+	if (trigger_type == EXT4_JTR_NONE ||
+	    !ext4_has_feature_metadata_csum(sb))
 		return 0;
 	BUG_ON(trigger_type >= EXT4_JOURNAL_TRIGGER_COUNT);
 	jbd2_journal_set_triggers(bh,
@@ -331,7 +335,8 @@ int __ext4_journal_get_create_access(const char *where, unsigned int line,
 					  err);
 		return err;
 	}
-	if (trigger_type == EXT4_JTR_NONE || !ext4_has_metadata_csum(sb))
+	if (trigger_type == EXT4_JTR_NONE ||
+	    !ext4_has_feature_metadata_csum(sb))
 		return 0;
 	BUG_ON(trigger_type >= EXT4_JOURNAL_TRIGGER_COUNT);
 	jbd2_journal_set_triggers(bh,

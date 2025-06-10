@@ -2158,8 +2158,8 @@ static int __init init_sel_fs(void)
 		return err;
 	}
 
-	selinux_null.dentry = d_hash_and_lookup(selinux_null.mnt->mnt_root,
-						&null_name);
+	selinux_null.dentry = try_lookup_noperm(&null_name,
+						  selinux_null.mnt->mnt_root);
 	if (IS_ERR(selinux_null.dentry)) {
 		pr_err("selinuxfs:  could not lookup null!\n");
 		err = PTR_ERR(selinux_null.dentry);

@@ -526,28 +526,6 @@ out:
 	return res;
 }
 
-u32 mlx4_zone_free_entries(struct mlx4_zone_allocator *zones, u32 uid, u32 obj, u32 count)
-{
-	struct mlx4_zone_entry *zone;
-	int res = 0;
-
-	spin_lock(&zones->lock);
-
-	zone = __mlx4_find_zone_by_uid(zones, uid);
-
-	if (NULL == zone) {
-		res = -1;
-		goto out;
-	}
-
-	__mlx4_free_from_zone(zone, obj, count);
-
-out:
-	spin_unlock(&zones->lock);
-
-	return res;
-}
-
 u32 mlx4_zone_free_entries_unique(struct mlx4_zone_allocator *zones, u32 obj, u32 count)
 {
 	struct mlx4_zone_entry *zone;
@@ -682,9 +660,9 @@ static struct mlx4_db_pgdir *mlx4_alloc_db_pgdir(struct device *dma_device)
 }
 
 static int mlx4_alloc_db_from_pgdir(struct mlx4_db_pgdir *pgdir,
-				    struct mlx4_db *db, int order)
+				    struct mlx4_db *db, unsigned int order)
 {
-	int o;
+	unsigned int o;
 	int i;
 
 	for (o = order; o <= 1; ++o) {
@@ -712,7 +690,7 @@ found:
 	return 0;
 }
 
-int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, int order)
+int mlx4_db_alloc(struct mlx4_dev *dev, struct mlx4_db *db, unsigned int order)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_db_pgdir *pgdir;

@@ -84,7 +84,7 @@ struct btrfs_fs_context {
 	u32 thread_pool_size;
 	unsigned long long mount_opt;
 	unsigned long compress_type:4;
-	unsigned int compress_level;
+	int compress_level;
 	refcount_t refs;
 };
 
@@ -125,7 +125,6 @@ enum {
 	/* Rescue options */
 	Opt_rescue,
 	Opt_usebackuproot,
-	Opt_nologreplay,
 
 	/* Debugging options */
 	Opt_enospc_debug,
@@ -246,8 +245,6 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 
 	/* Rescue options. */
 	fsparam_enum("rescue", Opt_rescue, btrfs_parameter_rescue),
-	/* Deprecated, with alias rescue=nologreplay */
-	__fsparam(NULL, "nologreplay", Opt_nologreplay, fs_param_deprecated, NULL),
 	/* Deprecated, with alias rescue=usebackuproot */
 	__fsparam(NULL, "usebackuproot", Opt_usebackuproot, fs_param_deprecated, NULL),
 	/* For compatibility only, alias for "rescue=nologreplay". */
@@ -449,11 +446,6 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		else
 			btrfs_clear_opt(ctx->mount_opt, NOTREELOG);
 		break;
-	case Opt_nologreplay:
-		btrfs_warn(NULL,
-		"'nologreplay' is deprecated, use 'rescue=nologreplay' instead");
-		btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
-		break;
 	case Opt_norecovery:
 		btrfs_info(NULL,
 "'norecovery' is for compatibility only, recommended to use 'rescue=nologreplay'");
@@ -569,6 +561,10 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_commit_interval:
 		ctx->commit_interval = result.uint_32;
+		if (ctx->commit_interval > BTRFS_WARNING_COMMIT_INTERVAL) {
+			btrfs_warn(NULL, "excessive commit interval %u, use with care",
+				   ctx->commit_interval);
+		}
 		if (ctx->commit_interval == 0)
 			ctx->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
 		break;
@@ -947,7 +943,7 @@ static int get_default_subvol_objectid(struct btrfs_fs_info *fs_info, u64 *objec
 static int btrfs_fill_super(struct super_block *sb,
 			    struct btrfs_fs_devices *fs_devices)
 {
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	int err;
 
@@ -982,7 +978,7 @@ static int btrfs_fill_super(struct super_block *sb,
 		goto fail_close;
 	}
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(&inode->vfs_inode);
 	if (!sb->s_root) {
 		err = -ENOMEM;
 		goto fail_close;
@@ -1139,8 +1135,7 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 	subvol_name = btrfs_get_subvol_name_from_objectid(info,
 			btrfs_root_id(BTRFS_I(d_inode(dentry))->root));
 	if (!IS_ERR(subvol_name)) {
-		seq_puts(seq, ",subvol=");
-		seq_escape(seq, subvol_name, " \t\n\\");
+		seq_show_option(seq, "subvol", subvol_name);
 		kfree(subvol_name);
 	}
 	return 0;
@@ -1149,11 +1144,11 @@ static int btrfs_show_options(struct seq_file *seq, struct dentry *dentry)
 /*
  * subvolumes are identified by ino 256
  */
-static inline int is_subvolume_inode(struct inode *inode)
+static inline bool is_subvolume_inode(struct inode *inode)
 {
 	if (inode && inode->i_ino == BTRFS_FIRST_FREE_OBJECTID)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
@@ -2293,7 +2288,7 @@ static int check_dev_super(struct btrfs_device *dev)
 		return 0;
 
 	/* Only need to check the primary super block. */
-	sb = btrfs_read_dev_one_super(dev->bdev, 0, true);
+	sb = btrfs_read_disk_super(dev->bdev, 0, true);
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
 
@@ -2526,8 +2521,8 @@ static const struct init_sequence mod_init_seq[] = {
 		.init_func = btrfs_free_space_init,
 		.exit_func = btrfs_free_space_exit,
 	}, {
-		.init_func = extent_state_init_cachep,
-		.exit_func = extent_state_free_cachep,
+		.init_func = btrfs_extent_state_init_cachep,
+		.exit_func = btrfs_extent_state_free_cachep,
 	}, {
 		.init_func = extent_buffer_init_cachep,
 		.exit_func = extent_buffer_free_cachep,
@@ -2535,8 +2530,8 @@ static const struct init_sequence mod_init_seq[] = {
 		.init_func = btrfs_bioset_init,
 		.exit_func = btrfs_bioset_exit,
 	}, {
-		.init_func = extent_map_init,
-		.exit_func = extent_map_exit,
+		.init_func = btrfs_extent_map_init,
+		.exit_func = btrfs_extent_map_exit,
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	}, {
 		.init_func = btrfs_read_policy_init,

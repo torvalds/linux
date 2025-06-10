@@ -10,10 +10,74 @@
 #define IXGBE_MAX_VSI			768
 
 /* Checksum and Shadow RAM pointers */
-#define E610_SR_SW_CHECKSUM_WORD		0x3F
+#define IXGBE_E610_SR_NVM_CTRL_WORD		0x00
+#define IXGBE_E610_SR_PBA_BLOCK_PTR		0x16
+#define IXGBE_E610_SR_PBA_BLOCK_MASK		GENMASK(15, 8)
+#define IXGBE_E610_SR_NVM_DEV_STARTER_VER	0x18
+#define IXGBE_E610_SR_NVM_EETRACK_LO		0x2D
+#define IXGBE_E610_SR_NVM_EETRACK_HI		0x2E
+#define IXGBE_E610_NVM_VER_LO_MASK		GENMASK(7, 0)
+#define IXGBE_E610_NVM_VER_HI_MASK		GENMASK(15, 12)
+#define IXGBE_E610_SR_SW_CHECKSUM_WORD		0x3F
+#define IXGBE_E610_SR_PFA_PTR			0x40
+#define IXGBE_E610_SR_1ST_NVM_BANK_PTR		0x42
+#define IXGBE_E610_SR_NVM_BANK_SIZE		0x43
+#define IXGBE_E610_SR_1ST_OROM_BANK_PTR		0x44
+#define IXGBE_E610_SR_OROM_BANK_SIZE		0x45
+#define IXGBE_E610_SR_NETLIST_BANK_PTR		0x46
+#define IXGBE_E610_SR_NETLIST_BANK_SIZE		0x47
+
+/* The OROM version topology */
+#define IXGBE_OROM_VER_PATCH_MASK		GENMASK_ULL(7, 0)
+#define IXGBE_OROM_VER_BUILD_MASK		GENMASK_ULL(23, 8)
+#define IXGBE_OROM_VER_MASK			GENMASK_ULL(31, 24)
+
+/* CSS Header words */
+#define IXGBE_NVM_CSS_HDR_LEN_L			0x02
+#define IXGBE_NVM_CSS_HDR_LEN_H			0x03
+#define IXGBE_NVM_CSS_SREV_L			0x14
+#define IXGBE_NVM_CSS_SREV_H			0x15
+
+#define IXGBE_HDR_LEN_ROUNDUP			32
+
+/* Length of Authentication header section in words */
+#define IXGBE_NVM_AUTH_HEADER_LEN		0x08
 
 /* Shadow RAM related */
 #define IXGBE_SR_WORDS_IN_1KB	512
+
+/* The Netlist ID Block is located after all of the Link Topology nodes. */
+#define IXGBE_NETLIST_ID_BLK_SIZE		0x30
+#define IXGBE_NETLIST_ID_BLK_OFFSET(n)		IXGBE_NETLIST_LINK_TOPO_OFFSET(0x0004 + 2 * (n))
+
+/* netlist ID block field offsets (word offsets) */
+#define IXGBE_NETLIST_ID_BLK_MAJOR_VER_LOW	0x02
+#define IXGBE_NETLIST_ID_BLK_MAJOR_VER_HIGH	0x03
+#define IXGBE_NETLIST_ID_BLK_MINOR_VER_LOW	0x04
+#define IXGBE_NETLIST_ID_BLK_MINOR_VER_HIGH	0x05
+#define IXGBE_NETLIST_ID_BLK_TYPE_LOW		0x06
+#define IXGBE_NETLIST_ID_BLK_TYPE_HIGH		0x07
+#define IXGBE_NETLIST_ID_BLK_REV_LOW		0x08
+#define IXGBE_NETLIST_ID_BLK_REV_HIGH		0x09
+#define IXGBE_NETLIST_ID_BLK_SHA_HASH_WORD(n)	(0x0A + (n))
+#define IXGBE_NETLIST_ID_BLK_CUST_VER		0x2F
+
+/* The Link Topology Netlist section is stored as a series of words. It is
+ * stored in the NVM as a TLV, with the first two words containing the type
+ * and length.
+ */
+#define IXGBE_NETLIST_LINK_TOPO_MOD_ID		0x011B
+#define IXGBE_NETLIST_TYPE_OFFSET		0x0000
+#define IXGBE_NETLIST_LEN_OFFSET		0x0001
+
+/* The Link Topology section follows the TLV header. When reading the netlist
+ * using ixgbe_read_netlist_module, we need to account for the 2-word TLV
+ * header.
+ */
+#define IXGBE_NETLIST_LINK_TOPO_OFFSET(n)	((n) + 2)
+#define IXGBE_LINK_TOPO_MODULE_LEN	IXGBE_NETLIST_LINK_TOPO_OFFSET(0x0000)
+#define IXGBE_LINK_TOPO_NODE_COUNT	IXGBE_NETLIST_LINK_TOPO_OFFSET(0x0001)
+#define IXGBE_LINK_TOPO_NODE_COUNT_M		GENMASK_ULL(9, 0)
 
 /* Firmware Status Register (GL_FWSTS) */
 #define GL_FWSTS		0x00083048 /* Reset Source: POR */
@@ -24,10 +88,22 @@
 #define GLNVM_GENS		0x000B6100 /* Reset Source: POR */
 #define GLNVM_GENS_SR_SIZE_M	GENMASK(7, 5)
 
+#define IXGBE_GL_MNG_FWSM		0x000B6134 /* Reset Source: POR */
+#define IXGBE_GL_MNG_FWSM_RECOVERY_M	BIT(1)
+#define IXGBE_GL_MNG_FWSM_ROLLBACK_M    BIT(2)
+
 /* Flash Access Register */
 #define IXGBE_GLNVM_FLA			0x000B6108 /* Reset Source: POR */
 #define IXGBE_GLNVM_FLA_LOCKED_S	6
 #define IXGBE_GLNVM_FLA_LOCKED_M	BIT(6)
+
+/* Auxiliary field, mask and shift definition for Shadow RAM and NVM Flash */
+#define IXGBE_SR_CTRL_WORD_1_M		GENMASK(7, 6)
+#define IXGBE_SR_CTRL_WORD_VALID	BIT(0)
+#define IXGBE_SR_CTRL_WORD_OROM_BANK	BIT(3)
+#define IXGBE_SR_CTRL_WORD_NETLIST_BANK	BIT(4)
+#define IXGBE_SR_CTRL_WORD_NVM_BANK	BIT(5)
+#define IXGBE_SR_NVM_PTR_4KB_UNITS	BIT(15)
 
 /* Admin Command Interface (ACI) registers */
 #define IXGBE_PF_HIDA(_i)			(0x00085000 + ((_i) * 4))
@@ -39,6 +115,10 @@
 #define IXGBE_PF_HICR_C				BIT(1)
 #define IXGBE_PF_HICR_SV			BIT(2)
 #define IXGBE_PF_HICR_EV			BIT(3)
+
+#define IXGBE_FW_API_VER_MAJOR		0x01
+#define IXGBE_FW_API_VER_MINOR		0x07
+#define IXGBE_FW_API_VER_DIFF_ALLOWED	0x02
 
 #define IXGBE_ACI_DESC_SIZE		32
 #define IXGBE_ACI_DESC_SIZE_IN_DWORDS	(IXGBE_ACI_DESC_SIZE / BYTES_PER_DWORD)
@@ -143,6 +223,7 @@ enum ixgbe_aci_opc {
 	ixgbe_aci_opc_write_mdio			= 0x06E5,
 	ixgbe_aci_opc_set_gpio_by_func			= 0x06E6,
 	ixgbe_aci_opc_get_gpio_by_func			= 0x06E7,
+	ixgbe_aci_opc_set_port_id_led			= 0x06E9,
 	ixgbe_aci_opc_set_gpio				= 0x06EC,
 	ixgbe_aci_opc_get_gpio				= 0x06ED,
 	ixgbe_aci_opc_sff_eeprom			= 0x06EE,
@@ -170,6 +251,9 @@ enum ixgbe_aci_opc {
 	ixgbe_aci_opc_read_alt_indirect			= 0x0903,
 	ixgbe_aci_opc_done_alt_write			= 0x0904,
 	ixgbe_aci_opc_clear_port_alt_write		= 0x0906,
+
+	/* TCA Events */
+	ixgbe_aci_opc_temp_tca_event                    = 0x0C94,
 
 	/* debug commands */
 	ixgbe_aci_opc_debug_dump_internals		= 0xFF08,
@@ -725,6 +809,18 @@ struct ixgbe_aci_cmd_get_link_topo_pin {
 	u8 rsvd[7];
 };
 
+/* Set Port Identification LED (direct, 0x06E9) */
+struct ixgbe_aci_cmd_set_port_id_led {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 ident_mode;
+	u8 rsvd[13];
+};
+
+#define IXGBE_ACI_PORT_ID_PORT_NUM_VALID	BIT(0)
+#define IXGBE_ACI_PORT_IDENT_LED_ORIG		0
+#define IXGBE_ACI_PORT_IDENT_LED_BLINK		BIT(0)
+
 /* Read/Write SFF EEPROM command (indirect 0x06EE) */
 struct ixgbe_aci_cmd_sff_eeprom {
 	u8 lport_num;
@@ -758,6 +854,8 @@ struct ixgbe_aci_cmd_nvm {
 #define IXGBE_ACI_NVM_MAX_OFFSET	0xFFFFFF
 	__le16 offset_low;
 	u8 offset_high; /* For Write Activate offset_high is used as flags2 */
+#define IXGBE_ACI_NVM_OFFSET_HI_A_MASK  GENMASK(15, 8)
+#define IXGBE_ACI_NVM_OFFSET_HI_U_MASK	GENMASK(23, 16)
 	u8 cmd_flags;
 #define IXGBE_ACI_NVM_LAST_CMD		BIT(0)
 #define IXGBE_ACI_NVM_PCIR_REQ		BIT(0) /* Used by NVM Write reply */
@@ -773,6 +871,9 @@ struct ixgbe_aci_cmd_nvm {
 #define IXGBE_ACI_NVM_PERST_FLAG	1
 #define IXGBE_ACI_NVM_EMPR_FLAG		2
 #define IXGBE_ACI_NVM_EMPR_ENA		BIT(0) /* Write Activate reply only */
+#define IXGBE_ACI_NVM_NO_PRESERVATION	0x0
+#define IXGBE_ACI_NVM_PRESERVE_SELECTED	0x6
+
 	/* For Write Activate, several flags are sent as part of a separate
 	 * flags2 field using a separate byte. For simplicity of the software
 	 * interface, we pass the flags as a 16 bit value so these flags are
@@ -801,6 +902,63 @@ struct ixgbe_aci_cmd_nvm_checksum {
 #define IXGBE_ACI_NVM_CHECKSUM_CORRECT	0xBABA
 	u8 rsvd2[12];
 };
+
+/* Used for NVM Set Package Data command - 0x070A */
+struct ixgbe_aci_cmd_nvm_pkg_data {
+	u8 reserved[3];
+	u8 cmd_flags;
+#define IXGBE_ACI_NVM_PKG_DELETE	BIT(0) /* used for command call */
+
+	u32 reserved1;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Used for Pass Component Table command - 0x070B */
+struct ixgbe_aci_cmd_nvm_pass_comp_tbl {
+	u8 component_response; /* Response only */
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_BE_UPDATED		0x0
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_MAY_BE_UPDATEABLE	0x1
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_NOT_BE_UPDATED	0x2
+#define IXGBE_ACI_NVM_PASS_COMP_PARTIAL_CHECK		0x3
+	u8 component_response_code; /* Response only */
+#define IXGBE_ACI_NVM_PASS_COMP_CAN_BE_UPDATED_CODE	0x0
+#define IXGBE_ACI_NVM_PASS_COMP_STAMP_IDENTICAL_CODE	0x1
+#define IXGBE_ACI_NVM_PASS_COMP_STAMP_LOWER		0x2
+#define IXGBE_ACI_NVM_PASS_COMP_INVALID_STAMP_CODE	0x3
+#define IXGBE_ACI_NVM_PASS_COMP_CONFLICT_CODE		0x4
+#define IXGBE_ACI_NVM_PASS_COMP_PRE_REQ_NOT_MET_CODE	0x5
+#define IXGBE_ACI_NVM_PASS_COMP_NOT_SUPPORTED_CODE	0x6
+#define IXGBE_ACI_NVM_PASS_COMP_CANNOT_DOWNGRADE_CODE	0x7
+#define IXGBE_ACI_NVM_PASS_COMP_INCOMPLETE_IMAGE_CODE	0x8
+#define IXGBE_ACI_NVM_PASS_COMP_VER_STR_IDENTICAL_CODE	0xA
+#define IXGBE_ACI_NVM_PASS_COMP_VER_STR_LOWER_CODE	0xB
+	u8 reserved;
+	u8 transfer_flag;
+	__le32 reserved1;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ixgbe_aci_cmd_nvm_comp_tbl {
+	__le16 comp_class;
+#define NVM_COMP_CLASS_ALL_FW		0x000A
+
+	__le16 comp_id;
+#define NVM_COMP_ID_OROM		0x5
+#define NVM_COMP_ID_NVM			0x6
+#define NVM_COMP_ID_NETLIST		0x8
+
+	u8 comp_class_idx;
+#define FWU_COMP_CLASS_IDX_NOT_USE	0x0
+
+	__le32 comp_cmp_stamp;
+	u8 cvs_type;
+#define NVM_CVS_TYPE_ASCII		0x1
+
+	u8 cvs_len;
+	u8 cvs[]; /* Component Version String */
+} __packed;
 
 /**
  * struct ixgbe_aci_desc - Admin Command (AC) descriptor
@@ -840,11 +998,14 @@ struct ixgbe_aci_desc {
 		struct ixgbe_aci_cmd_restart_an restart_an;
 		struct ixgbe_aci_cmd_get_link_status get_link_status;
 		struct ixgbe_aci_cmd_set_event_mask set_event_mask;
+		struct ixgbe_aci_cmd_set_port_id_led set_port_id_led;
 		struct ixgbe_aci_cmd_get_link_topo get_link_topo;
 		struct ixgbe_aci_cmd_get_link_topo_pin get_link_topo_pin;
 		struct ixgbe_aci_cmd_sff_eeprom read_write_sff_param;
 		struct ixgbe_aci_cmd_nvm nvm;
 		struct ixgbe_aci_cmd_nvm_checksum nvm_checksum;
+		struct ixgbe_aci_cmd_nvm_pkg_data pkg_data;
+		struct ixgbe_aci_cmd_nvm_pass_comp_tbl pass_comp_tbl;
 	} params;
 };
 
@@ -981,6 +1142,16 @@ struct ixgbe_hw_caps {
 #define IXGBE_EXT_TOPO_DEV_IMG_PROG_EN	BIT(1)
 } __packed;
 
+#define IXGBE_OROM_CIV_SIGNATURE	"$CIV"
+
+struct ixgbe_orom_civd_info {
+	u8 signature[4];	/* Must match ASCII '$CIV' characters */
+	u8 checksum;		/* Simple modulo 256 sum of all structure bytes must equal 0 */
+	__le32 combo_ver;	/* Combo Image Version number */
+	u8 combo_name_len;	/* Length of the unicode combo image version string, max of 32 */
+	__le16 combo_name[32];	/* Unicode string representing the Combo Image version */
+};
+
 /* Function specific capabilities */
 struct ixgbe_hw_func_caps {
 	u32 num_allocd_vfs;		/* Number of allocated VFs */
@@ -1010,6 +1181,11 @@ struct ixgbe_aci_event {
 struct ixgbe_aci_info {
 	struct mutex lock;		/* admin command interface lock */
 	enum ixgbe_aci_err last_status;	/* last status of sent admin command */
+};
+
+enum ixgbe_bank_select {
+	IXGBE_ACTIVE_FLASH_BANK,
+	IXGBE_INACTIVE_FLASH_BANK,
 };
 
 /* Option ROM version information */

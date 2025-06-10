@@ -104,11 +104,12 @@ static void lvds_serialiser_on(struct mchp_lvds *lvds)
 }
 
 static int mchp_lvds_attach(struct drm_bridge *bridge,
+			    struct drm_encoder *encoder,
 			    enum drm_bridge_attach_flags flags)
 {
 	struct mchp_lvds *lvds = bridge_to_lvds(bridge);
 
-	return drm_bridge_attach(bridge->encoder, lvds->panel_bridge,
+	return drm_bridge_attach(encoder, lvds->panel_bridge,
 				 bridge, flags);
 }
 
@@ -162,8 +163,7 @@ static int mchp_lvds_probe(struct platform_device *pdev)
 
 	lvds->dev = dev;
 
-	lvds->regs = devm_ioremap_resource(lvds->dev,
-			platform_get_resource(pdev, IORESOURCE_MEM, 0));
+	lvds->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lvds->regs))
 		return PTR_ERR(lvds->regs);
 

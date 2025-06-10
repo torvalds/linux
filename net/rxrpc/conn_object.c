@@ -73,6 +73,7 @@ struct rxrpc_connection *rxrpc_alloc_connection(struct rxrpc_net *rxnet,
 		skb_queue_head_init(&conn->rx_queue);
 		conn->rxnet = rxnet;
 		conn->security = &rxrpc_no_security;
+		rwlock_init(&conn->security_use_lock);
 		spin_lock_init(&conn->state_lock);
 		conn->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		conn->idle_timestamp = jiffies;
@@ -314,9 +315,9 @@ static void rxrpc_clean_up_connection(struct work_struct *work)
 	       !conn->channels[3].call);
 	ASSERT(list_empty(&conn->cache_link));
 
-	del_timer_sync(&conn->timer);
+	timer_delete_sync(&conn->timer);
 	cancel_work_sync(&conn->processor); /* Processing may restart the timer */
-	del_timer_sync(&conn->timer);
+	timer_delete_sync(&conn->timer);
 
 	write_lock(&rxnet->conn_lock);
 	list_del_init(&conn->proc_link);
@@ -329,6 +330,7 @@ static void rxrpc_clean_up_connection(struct work_struct *work)
 	}
 
 	rxrpc_purge_queue(&conn->rx_queue);
+	rxrpc_free_skb(conn->tx_response, rxrpc_skb_put_response);
 
 	rxrpc_kill_client_conn(conn);
 
@@ -365,7 +367,7 @@ void rxrpc_put_connection(struct rxrpc_connection *conn,
 	dead = __refcount_dec_and_test(&conn->ref, &r);
 	trace_rxrpc_conn(debug_id, r - 1, why);
 	if (dead) {
-		del_timer(&conn->timer);
+		timer_delete(&conn->timer);
 		cancel_work(&conn->processor);
 
 		if (in_softirq() || work_busy(&conn->processor) ||
@@ -470,7 +472,7 @@ void rxrpc_destroy_all_connections(struct rxrpc_net *rxnet)
 
 	atomic_dec(&rxnet->nr_conns);
 
-	del_timer_sync(&rxnet->service_conn_reap_timer);
+	timer_delete_sync(&rxnet->service_conn_reap_timer);
 	rxrpc_queue_work(&rxnet->service_conn_reaper);
 	flush_workqueue(rxrpc_workqueue);
 

@@ -422,19 +422,6 @@ int iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
 }
 EXPORT_SYMBOL(iosf_mbi_unregister_pmic_bus_access_notifier_unlocked);
 
-int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
-{
-	int ret;
-
-	/* Wait for the bus to go inactive before unregistering */
-	iosf_mbi_punit_acquire();
-	ret = iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(nb);
-	iosf_mbi_punit_release();
-
-	return ret;
-}
-EXPORT_SYMBOL(iosf_mbi_unregister_pmic_bus_access_notifier);
-
 void iosf_mbi_assert_punit_acquired(void)
 {
 	WARN_ON(iosf_mbi_pmic_punit_access_count == 0);

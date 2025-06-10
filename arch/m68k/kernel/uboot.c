@@ -10,7 +10,6 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/console.h>
@@ -74,7 +73,7 @@ static void __init parse_uboot_commandline(char *commandp, int size)
 	uboot_cmd_end = sp[5];
 
 	if (uboot_cmd_start && uboot_cmd_end)
-		strncpy(commandp, (const char *)uboot_cmd_start, size);
+		strscpy(commandp, (const char *)uboot_cmd_start, size);
 
 #if defined(CONFIG_BLK_DEV_INITRD)
 	uboot_initrd_start = sp[2];

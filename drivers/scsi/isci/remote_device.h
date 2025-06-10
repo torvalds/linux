@@ -160,21 +160,6 @@ enum sci_status sci_remote_device_stop(
 	u32 timeout);
 
 /**
- * sci_remote_device_reset() - This method will reset the device making it
- *    ready for operation. This method must be called anytime the device is
- *    reset either through a SMP phy control or a port hard reset request.
- * @remote_device: This parameter specifies the device to be reset.
- *
- * This method does not actually cause the device hardware to be reset. This
- * method resets the software object so that it will be operational after a
- * device hardware reset completes. An indication of whether the device reset
- * was accepted. SCI_SUCCESS This value is returned if the device reset is
- * started.
- */
-enum sci_status sci_remote_device_reset(
-	struct isci_remote_device *idev);
-
-/**
  * enum sci_remote_device_states - This enumeration depicts all the states
  *    for the common remote device state machine.
  * @SCI_DEV_INITIAL: Simply the initial state for the base remote device
@@ -198,7 +183,7 @@ enum sci_status sci_remote_device_reset(
  * device.  When there are no active IO for the device it is is in this
  * state.
  *
- * @SCI_STP_DEV_CMD: This is the command state for for the STP remote
+ * @SCI_STP_DEV_CMD: This is the command state for the STP remote
  * device.  This state is entered when the device is processing a
  * non-NCQ command.  The device object will fail any new start IO
  * requests until this command is complete.

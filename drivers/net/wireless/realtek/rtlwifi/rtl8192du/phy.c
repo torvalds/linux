@@ -2445,11 +2445,6 @@ void rtl92du_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,  "LCK:Finish!!!\n");
 }
 
-void rtl92du_phy_ap_calibrate(struct ieee80211_hw *hw, s8 delta)
-{
-	/* Nothing to do. */
-}
-
 u8 rtl92du_phy_sw_chnl(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);

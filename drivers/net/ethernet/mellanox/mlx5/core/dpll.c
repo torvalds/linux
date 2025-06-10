@@ -242,7 +242,7 @@ static int mlx5_dpll_clock_quality_level_get(const struct dpll_device *dpll,
 		return 0;
 	}
 errout:
-	NL_SET_ERR_MSG_MOD(extack, "Invalid clock quality level obtained from firmware\n");
+	NL_SET_ERR_MSG_MOD(extack, "Invalid clock quality level obtained from firmware");
 	return -EINVAL;
 }
 

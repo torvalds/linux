@@ -449,8 +449,10 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_AIRTIME_FAIRNESS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_AQL);
 
-	wiphy->available_antennas_tx = phy->antenna_mask;
-	wiphy->available_antennas_rx = phy->antenna_mask;
+	if (!wiphy->available_antennas_tx)
+		wiphy->available_antennas_tx = phy->antenna_mask;
+	if (!wiphy->available_antennas_rx)
+		wiphy->available_antennas_rx = phy->antenna_mask;
 
 	wiphy->sar_capa = &mt76_sar_capa;
 	phy->frp = devm_kcalloc(dev->dev, wiphy->sar_capa->num_freq_ranges,
@@ -816,8 +818,8 @@ void mt76_free_device(struct mt76_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76_free_device);
 
-static struct mt76_phy *
-mt76_vif_phy(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+struct mt76_phy *mt76_vif_phy(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif)
 {
 	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
 	struct mt76_chanctx *ctx;
@@ -831,6 +833,7 @@ mt76_vif_phy(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	ctx = (struct mt76_chanctx *)mlink->ctx->drv_priv;
 	return ctx->phy;
 }
+EXPORT_SYMBOL_GPL(mt76_vif_phy);
 
 static void mt76_rx_release_amsdu(struct mt76_phy *phy, enum mt76_rxq_id q)
 {
@@ -1697,6 +1700,17 @@ void mt76_wcid_add_poll(struct mt76_dev *dev, struct mt76_wcid *wcid)
 }
 EXPORT_SYMBOL_GPL(mt76_wcid_add_poll);
 
+s8 mt76_get_power_bound(struct mt76_phy *phy, s8 txpower)
+{
+	int n_chains = hweight16(phy->chainmask);
+
+	txpower = mt76_get_sar_power(phy, phy->chandef.chan, txpower * 2);
+	txpower -= mt76_tx_power_path_delta(n_chains);
+
+	return txpower;
+}
+EXPORT_SYMBOL_GPL(mt76_get_power_bound);
+
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     unsigned int link_id, int *dbm)
 {
@@ -1707,7 +1721,7 @@ int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	n_chains = hweight16(phy->chainmask);
-	delta = mt76_tx_power_nss_delta(n_chains);
+	delta = mt76_tx_power_path_delta(n_chains);
 	*dbm = DIV_ROUND_UP(phy->txpower_cur + delta, 2);
 
 	return 0;

@@ -210,13 +210,13 @@ class SystemValues:
 		'hibernate_preallocate_memory': {},
 		'create_basic_memory_bitmaps': {},
 		'swsusp_write': {},
-		'suspend_console': {},
+		'console_suspend_all': {},
 		'acpi_pm_prepare': {},
 		'syscore_suspend': {},
 		'arch_enable_nonboot_cpus_end': {},
 		'syscore_resume': {},
 		'acpi_pm_finish': {},
-		'resume_console': {},
+		'console_resume_all': {},
 		'acpi_pm_end': {},
 		'pm_restore_gfp_mask': {},
 		'thaw_processes': {},
@@ -3459,7 +3459,7 @@ def parseTraceLog(live=False):
 	tracewatch = ['irq_wakeup']
 	if sysvals.usekprobes:
 		tracewatch += ['sync_filesystems', 'freeze_processes', 'syscore_suspend',
-			'syscore_resume', 'resume_console', 'thaw_processes', 'CPU_ON',
+			'syscore_resume', 'console_resume_all', 'thaw_processes', 'CPU_ON',
 			'CPU_OFF', 'acpi_suspend']
 
 	# extract the callgraph and traceevent data
@@ -4017,7 +4017,8 @@ def parseKernelLog(data):
 							'PM: early restore of devices complete after.*'],
 		'resume_complete': ['PM: resume of devices complete after.*',
 							'PM: restore of devices complete after.*'],
-		    'post_resume': [r'.*Restarting tasks \.\.\..*'],
+		    'post_resume': [r'.*Restarting tasks \.\.\..*',
+							'Done restarting tasks.*'],
 	}
 
 	# action table (expected events that occur and show up in dmesg)

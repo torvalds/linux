@@ -43,11 +43,11 @@ impl PollTable {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that for the duration of 'a, the pointer will point at a valid poll
+    /// The caller must ensure that for the duration of `'a`, the pointer will point at a valid poll
     /// table (as defined in the type invariants).
     ///
     /// The caller must also ensure that the `poll_table` is only accessed via the returned
-    /// reference for the duration of 'a.
+    /// reference for the duration of `'a`.
     pub unsafe fn from_ptr<'a>(ptr: *mut bindings::poll_table) -> &'a mut PollTable {
         // SAFETY: The safety requirements guarantee the validity of the dereference, while the
         // `PollTable` type being transparent makes the cast ok.

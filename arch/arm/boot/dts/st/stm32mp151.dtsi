@@ -1781,7 +1781,6 @@
 				st,syscon = <&syscfg 0x4>;
 				snps,mixed-burst;
 				snps,pbl = <2>;
-				snps,en-tx-lpi-clockgating;
 				snps,axi-config = <&stmmac_axi_config_0>;
 				snps,tso;
 				access-controllers = <&etzpc 94>;

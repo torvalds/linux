@@ -34,11 +34,12 @@ static inline struct tidss_encoder
 }
 
 static int tidss_bridge_attach(struct drm_bridge *bridge,
+			       struct drm_encoder *encoder,
 			       enum drm_bridge_attach_flags flags)
 {
 	struct tidss_encoder *t_enc = bridge_to_tidss_encoder(bridge);
 
-	return drm_bridge_attach(bridge->encoder, t_enc->next_bridge,
+	return drm_bridge_attach(encoder, t_enc->next_bridge,
 				 bridge, flags);
 }
 

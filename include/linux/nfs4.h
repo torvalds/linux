@@ -300,6 +300,7 @@ enum nfsstat4 {
 /* error codes for internal client use */
 #define NFS4ERR_RESET_TO_MDS   12001
 #define NFS4ERR_RESET_TO_PNFS  12002
+#define NFS4ERR_FATAL_IOERROR  12003
 
 static inline bool seqid_mutating_err(u32 err)
 {
@@ -691,6 +692,7 @@ enum {
 	NFSPROC4_CLNT_LISTXATTRS,
 	NFSPROC4_CLNT_REMOVEXATTR,
 	NFSPROC4_CLNT_READ_PLUS,
+	NFSPROC4_CLNT_OFFLOAD_STATUS,
 };
 
 /* nfs41 types */

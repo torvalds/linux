@@ -267,6 +267,65 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 	},
 };
 
+static int __iio_dummy_read_raw(struct iio_dev *indio_dev,
+				struct iio_chan_spec const *chan,
+				int *val)
+{
+	struct iio_dummy_state *st = iio_priv(indio_dev);
+
+	guard(mutex)(&st->lock);
+	switch (chan->type) {
+	case IIO_VOLTAGE:
+		if (chan->output) {
+			/* Set integer part to cached value */
+			*val = st->dac_val;
+			return IIO_VAL_INT;
+		} else if (chan->differential) {
+			if (chan->channel == 1)
+				*val = st->differential_adc_val[0];
+			else
+				*val = st->differential_adc_val[1];
+			return IIO_VAL_INT;
+		} else {
+			*val = st->single_ended_adc_val;
+			return IIO_VAL_INT;
+		}
+
+	case IIO_ACCEL:
+		*val = st->accel_val;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int __iio_dummy_read_processed(struct iio_dev *indio_dev,
+				      struct iio_chan_spec const *chan,
+				      int *val)
+{
+	struct iio_dummy_state *st = iio_priv(indio_dev);
+
+	guard(mutex)(&st->lock);
+	switch (chan->type) {
+	case IIO_STEPS:
+		*val = st->steps;
+		return IIO_VAL_INT;
+	case IIO_ACTIVITY:
+		switch (chan->channel2) {
+		case IIO_MOD_RUNNING:
+			*val = st->activity_running;
+			return IIO_VAL_INT;
+		case IIO_MOD_WALKING:
+			*val = st->activity_walking;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
 /**
  * iio_dummy_read_raw() - data read function.
  * @indio_dev:	the struct iio_dev associated with this device instance
@@ -283,59 +342,21 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 			      long mask)
 {
 	struct iio_dummy_state *st = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW: /* magic value - channel value read */
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			guard(mutex)(&st->lock);
-			switch (chan->type) {
-			case IIO_VOLTAGE:
-				if (chan->output) {
-					/* Set integer part to cached value */
-					*val = st->dac_val;
-					return IIO_VAL_INT;
-				} else if (chan->differential) {
-					if (chan->channel == 1)
-						*val = st->differential_adc_val[0];
-					else
-						*val = st->differential_adc_val[1];
-					return IIO_VAL_INT;
-				} else {
-					*val = st->single_ended_adc_val;
-					return IIO_VAL_INT;
-				}
-
-			case IIO_ACCEL:
-				*val = st->accel_val;
-				return IIO_VAL_INT;
-			default:
-				return -EINVAL;
-			}
-		}
-		unreachable();
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = __iio_dummy_read_raw(indio_dev, chan, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_PROCESSED:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			guard(mutex)(&st->lock);
-			switch (chan->type) {
-			case IIO_STEPS:
-				*val = st->steps;
-				return IIO_VAL_INT;
-			case IIO_ACTIVITY:
-				switch (chan->channel2) {
-				case IIO_MOD_RUNNING:
-					*val = st->activity_running;
-					return IIO_VAL_INT;
-				case IIO_MOD_WALKING:
-					*val = st->activity_walking;
-					return IIO_VAL_INT;
-				default:
-					return -EINVAL;
-				}
-			default:
-				return -EINVAL;
-			}
-		}
-		unreachable();
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		ret = __iio_dummy_read_processed(indio_dev, chan, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_OFFSET:
 		/* only single ended adc -> 7 */
 		*val = 7;

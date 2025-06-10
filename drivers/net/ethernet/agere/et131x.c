@@ -3639,7 +3639,7 @@ static int et131x_close(struct net_device *netdev)
 	free_irq(adapter->pdev->irq, netdev);
 
 	/* Stop the error timer */
-	return del_timer_sync(&adapter->error_timer);
+	return timer_delete_sync(&adapter->error_timer);
 }
 
 /* et131x_set_packet_filter - Configures the Rx Packet filtering */

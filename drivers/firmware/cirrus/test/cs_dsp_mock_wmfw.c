@@ -178,6 +178,8 @@ void cs_dsp_mock_wmfw_start_alg_info_block(struct cs_dsp_mock_wmfw_builder *buil
 	size_t bytes_needed, name_len, description_len;
 	int offset;
 
+	KUNIT_ASSERT_LE(builder->test_priv->test, alg_id, 0xffffff);
+
 	/* Bytes needed for region header */
 	bytes_needed = offsetof(struct wmfw_region, data);
 
@@ -434,6 +436,8 @@ struct cs_dsp_mock_wmfw_builder *cs_dsp_mock_wmfw_init(struct cs_dsp_test *priv,
 						       int format_version)
 {
 	struct cs_dsp_mock_wmfw_builder *builder;
+
+	KUNIT_ASSERT_LE(priv->test, format_version, 0xff);
 
 	/* If format version isn't given use the default for the target core */
 	if (format_version < 0) {

@@ -237,7 +237,7 @@ struct intel_engine_execlists {
 	 */
 	struct i915_request * const *active;
 	/**
-	 * @inflight: the set of contexts submitted and acknowleged by HW
+	 * @inflight: the set of contexts submitted and acknowledged by HW
 	 *
 	 * The set of inflight contexts is managed by reading CS events
 	 * from the HW. On a context-switch event (not preemption), we
@@ -260,7 +260,7 @@ struct intel_engine_execlists {
 	unsigned int port_mask;
 
 	/**
-	 * @virtual: Queue of requets on a virtual engine, sorted by priority.
+	 * @virtual: Queue of requests on a virtual engine, sorted by priority.
 	 * Each RB entry is a struct i915_priolist containing a list of requests
 	 * of the same priority.
 	 */

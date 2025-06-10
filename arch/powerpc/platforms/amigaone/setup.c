@@ -109,7 +109,7 @@ static void __init amigaone_init_IRQ(void)
 
 	i8259_init(pic, int_ack);
 	ppc_md.get_irq = i8259_irq;
-	irq_set_default_host(i8259_get_host());
+	irq_set_default_domain(i8259_get_host());
 }
 
 static int __init request_isa_regions(void)

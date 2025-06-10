@@ -14,14 +14,14 @@ static __le32 ext4_mmp_csum(struct super_block *sb, struct mmp_struct *mmp)
 	int offset = offsetof(struct mmp_struct, mmp_checksum);
 	__u32 csum;
 
-	csum = ext4_chksum(sbi, sbi->s_csum_seed, (char *)mmp, offset);
+	csum = ext4_chksum(sbi->s_csum_seed, (char *)mmp, offset);
 
 	return cpu_to_le32(csum);
 }
 
 static int ext4_mmp_csum_verify(struct super_block *sb, struct mmp_struct *mmp)
 {
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return 1;
 
 	return mmp->mmp_checksum == ext4_mmp_csum(sb, mmp);
@@ -29,7 +29,7 @@ static int ext4_mmp_csum_verify(struct super_block *sb, struct mmp_struct *mmp)
 
 static void ext4_mmp_csum_set(struct super_block *sb, struct mmp_struct *mmp)
 {
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return;
 
 	mmp->mmp_checksum = ext4_mmp_csum(sb, mmp);
@@ -162,7 +162,7 @@ static int kmmpd(void *data)
 	memcpy(mmp->mmp_nodename, init_utsname()->nodename,
 	       sizeof(mmp->mmp_nodename));
 
-	while (!kthread_should_stop() && !ext4_forced_shutdown(sb)) {
+	while (!kthread_should_stop() && !ext4_emergency_state(sb)) {
 		if (!ext4_has_feature_mmp(sb)) {
 			ext4_warning(sb, "kmmpd being stopped since MMP feature"
 				     " has been disabled.");

@@ -9,12 +9,13 @@
 #ifndef _ASM_S390_HUGETLB_H
 #define _ASM_S390_HUGETLB_H
 
+#include <linux/cpufeature.h>
 #include <linux/pgtable.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <asm/page.h>
 
-#define hugepages_supported()			(MACHINE_HAS_EDAT1)
+#define hugepages_supported()	cpu_has_edat1()
 
 #define __HAVE_ARCH_HUGE_SET_HUGE_PTE_AT
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,

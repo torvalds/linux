@@ -48,7 +48,6 @@ Contents:
    ax25
    bonding
    cdc_mbim
-   dccp
    dctcp
    devmem
    dns_resolver
@@ -63,6 +62,7 @@ Contents:
    gtp
    ila
    ioam6-sysctl
+   iou-zcrx
    ip_dynaddr
    ipsec
    ip-sysctl

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Copyright (C) 2021 Thomas Weißschuh <thomas@weissschuh.net>
+ *  Copyright (C) 2021 Thomas Weißschuh <linux@weissschuh.net>
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -159,6 +159,6 @@ static struct wmi_driver gigabyte_wmi_driver = {
 module_wmi_driver(gigabyte_wmi_driver);
 
 MODULE_DEVICE_TABLE(wmi, gigabyte_wmi_id_table);
-MODULE_AUTHOR("Thomas Weißschuh <thomas@weissschuh.net>");
+MODULE_AUTHOR("Thomas Weißschuh <linux@weissschuh.net>");
 MODULE_DESCRIPTION("Gigabyte WMI temperature driver");
 MODULE_LICENSE("GPL");

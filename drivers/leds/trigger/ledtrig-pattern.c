@@ -94,7 +94,7 @@ static void pattern_trig_timer_cancel(struct pattern_trig_data *data)
 	if (data->type == PATTERN_TYPE_HR)
 		hrtimer_cancel(&data->hrtimer);
 	else
-		del_timer_sync(&data->timer);
+		timer_delete_sync(&data->timer);
 }
 
 static void pattern_trig_timer_restart(struct pattern_trig_data *data,

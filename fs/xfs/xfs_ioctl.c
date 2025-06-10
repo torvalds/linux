@@ -1131,15 +1131,15 @@ xfs_ioctl_getset_resblocks(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_reserve_blocks(mp, fsop.resblks);
+		error = xfs_reserve_blocks(mp, XC_FREE_BLOCKS, fsop.resblks);
 		mnt_drop_write_file(filp);
 		if (error)
 			return error;
 	}
 
 	spin_lock(&mp->m_sb_lock);
-	fsop.resblks = mp->m_resblks;
-	fsop.resblks_avail = mp->m_resblks_avail;
+	fsop.resblks = mp->m_free[XC_FREE_BLOCKS].res_total;
+	fsop.resblks_avail = mp->m_free[XC_FREE_BLOCKS].res_avail;
 	spin_unlock(&mp->m_sb_lock);
 
 	if (copy_to_user(arg, &fsop, sizeof(fsop)))
@@ -1155,9 +1155,9 @@ xfs_ioctl_fs_counts(
 	struct xfs_fsop_counts	out = {
 		.allocino = percpu_counter_read_positive(&mp->m_icount),
 		.freeino  = percpu_counter_read_positive(&mp->m_ifree),
-		.freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
-				xfs_fdblocks_unavailable(mp),
-		.freertx  = percpu_counter_read_positive(&mp->m_frextents),
+		.freedata = xfs_estimate_freecounter(mp, XC_FREE_BLOCKS) -
+				xfs_freecounter_unavailable(mp, XC_FREE_BLOCKS),
+		.freertx  = xfs_estimate_freecounter(mp, XC_FREE_RTEXTENTS),
 	};
 
 	if (copy_to_user(uarg, &out, sizeof(out)))

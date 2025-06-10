@@ -898,6 +898,8 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 
 	frags = aq_nic_map_skb(self, skb, ring);
 
+	skb_tx_timestamp(skb);
+
 	if (likely(frags)) {
 		err = self->aq_hw_ops->hw_ring_tx_xmit(self->aq_hw,
 						       ring, frags);
@@ -1389,13 +1391,13 @@ int aq_nic_stop(struct aq_nic_s *self)
 	netif_tx_disable(self->ndev);
 	netif_carrier_off(self->ndev);
 
-	del_timer_sync(&self->service_timer);
+	timer_delete_sync(&self->service_timer);
 	cancel_work_sync(&self->service_task);
 
 	self->aq_hw_ops->hw_irq_disable(self->aq_hw, AQ_CFG_IRQ_MASK);
 
 	if (self->aq_nic_cfg.is_polling)
-		del_timer_sync(&self->polling_timer);
+		timer_delete_sync(&self->polling_timer);
 	else
 		aq_pci_func_free_irqs(self);
 

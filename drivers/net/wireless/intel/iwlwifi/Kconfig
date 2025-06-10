@@ -81,14 +81,25 @@ config IWLMVM
 	  of the devices that use this firmware is available here:
 	  https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#firmware
 
+config IWLMLD
+	tristate "Intel Wireless WiFi MLD Firmware support"
+	select WANT_DEV_COREDUMP
+	depends on MAC80211
+	depends on PTP_1588_CLOCK_OPTIONAL
+	help
+	  This is the driver that supports firmwares of MLD capable devices.
+	  The list of the devices that use this firmware is available here:
+	  https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi#firmware
+
 # don't call it _MODULE -- will confuse Kconfig/fixdep/...
 config IWLWIFI_OPMODE_MODULAR
 	bool
 	default y if IWLDVM=m
 	default y if IWLMVM=m
+	default y if IWLMLD=m
 
-comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
-	depends on IWLDVM=n && IWLMVM=n
+comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM or IWLMLD"
+	depends on IWLDVM=n && IWLMVM=n && IWLMLD=n
 
 menu "Debugging Options"
 

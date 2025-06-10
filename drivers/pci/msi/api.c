@@ -161,7 +161,7 @@ struct msi_map pci_msix_alloc_irq_at(struct pci_dev *dev, unsigned int index,
 EXPORT_SYMBOL_GPL(pci_msix_alloc_irq_at);
 
 /**
- * pci_msix_free_irq - Free an interrupt on a PCI/MSIX interrupt domain
+ * pci_msix_free_irq - Free an interrupt on a PCI/MSI-X interrupt domain
  *
  * @dev:	The PCI device to operate on
  * @map:	A struct msi_map describing the interrupt to free
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(pci_restore_msi_state);
  * Return: true if MSI has not been globally disabled through ACPI FADT,
  * PCI bridge quirks, or the "pci=nomsi" kernel command-line option.
  */
-int pci_msi_enabled(void)
+bool pci_msi_enabled(void)
 {
 	return pci_msi_enable;
 }

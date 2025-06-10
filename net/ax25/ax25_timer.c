@@ -65,7 +65,7 @@ void ax25_start_t3timer(ax25_cb *ax25)
 	if (ax25->t3 > 0)
 		mod_timer(&ax25->t3timer, jiffies + ax25->t3);
 	else
-		del_timer(&ax25->t3timer);
+		timer_delete(&ax25->t3timer);
 }
 
 void ax25_start_idletimer(ax25_cb *ax25)
@@ -73,32 +73,32 @@ void ax25_start_idletimer(ax25_cb *ax25)
 	if (ax25->idle > 0)
 		mod_timer(&ax25->idletimer, jiffies + ax25->idle);
 	else
-		del_timer(&ax25->idletimer);
+		timer_delete(&ax25->idletimer);
 }
 
 void ax25_stop_heartbeat(ax25_cb *ax25)
 {
-	del_timer(&ax25->timer);
+	timer_delete(&ax25->timer);
 }
 
 void ax25_stop_t1timer(ax25_cb *ax25)
 {
-	del_timer(&ax25->t1timer);
+	timer_delete(&ax25->t1timer);
 }
 
 void ax25_stop_t2timer(ax25_cb *ax25)
 {
-	del_timer(&ax25->t2timer);
+	timer_delete(&ax25->t2timer);
 }
 
 void ax25_stop_t3timer(ax25_cb *ax25)
 {
-	del_timer(&ax25->t3timer);
+	timer_delete(&ax25->t3timer);
 }
 
 void ax25_stop_idletimer(ax25_cb *ax25)
 {
-	del_timer(&ax25->idletimer);
+	timer_delete(&ax25->idletimer);
 }
 
 int ax25_t1timer_running(ax25_cb *ax25)

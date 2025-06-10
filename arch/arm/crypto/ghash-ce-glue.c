@@ -8,22 +8,22 @@
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
-#include <asm/simd.h>
-#include <linux/unaligned.h>
 #include <crypto/aes.h>
-#include <crypto/gcm.h>
 #include <crypto/b128ops.h>
-#include <crypto/cryptd.h>
+#include <crypto/gcm.h>
+#include <crypto/gf128mul.h>
+#include <crypto/ghash.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
-#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
-#include <crypto/gf128mul.h>
 #include <crypto/scatterwalk.h>
 #include <linux/cpufeature.h>
-#include <linux/crypto.h>
+#include <linux/errno.h>
 #include <linux/jump_label.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+#include <linux/unaligned.h>
 
 MODULE_DESCRIPTION("GHASH hash function using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ardb@kernel.org>");
@@ -31,9 +31,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_CRYPTO("ghash");
 MODULE_ALIAS_CRYPTO("gcm(aes)");
 MODULE_ALIAS_CRYPTO("rfc4106(gcm(aes))");
-
-#define GHASH_BLOCK_SIZE	16
-#define GHASH_DIGEST_SIZE	16
 
 #define RFC4106_NONCE_SIZE	4
 
@@ -49,14 +46,8 @@ struct gcm_key {
 	u8	nonce[];	// for RFC4106 nonce
 };
 
-struct ghash_desc_ctx {
+struct arm_ghash_desc_ctx {
 	u64 digest[GHASH_DIGEST_SIZE/sizeof(u64)];
-	u8 buf[GHASH_BLOCK_SIZE];
-	u32 count;
-};
-
-struct ghash_async_ctx {
-	struct cryptd_ahash *cryptd_tfm;
 };
 
 asmlinkage void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
@@ -69,94 +60,69 @@ static __ro_after_init DEFINE_STATIC_KEY_FALSE(use_p64);
 
 static int ghash_init(struct shash_desc *desc)
 {
-	struct ghash_desc_ctx *ctx = shash_desc_ctx(desc);
+	struct arm_ghash_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	*ctx = (struct ghash_desc_ctx){};
+	*ctx = (struct arm_ghash_desc_ctx){};
 	return 0;
 }
 
 static void ghash_do_update(int blocks, u64 dg[], const char *src,
 			    struct ghash_key *key, const char *head)
 {
-	if (likely(crypto_simd_usable())) {
-		kernel_neon_begin();
-		if (static_branch_likely(&use_p64))
-			pmull_ghash_update_p64(blocks, dg, src, key->h, head);
-		else
-			pmull_ghash_update_p8(blocks, dg, src, key->h, head);
-		kernel_neon_end();
-	} else {
-		be128 dst = { cpu_to_be64(dg[1]), cpu_to_be64(dg[0]) };
-
-		do {
-			const u8 *in = src;
-
-			if (head) {
-				in = head;
-				blocks++;
-				head = NULL;
-			} else {
-				src += GHASH_BLOCK_SIZE;
-			}
-
-			crypto_xor((u8 *)&dst, in, GHASH_BLOCK_SIZE);
-			gf128mul_lle(&dst, &key->k);
-		} while (--blocks);
-
-		dg[0] = be64_to_cpu(dst.b);
-		dg[1] = be64_to_cpu(dst.a);
-	}
+	kernel_neon_begin();
+	if (static_branch_likely(&use_p64))
+		pmull_ghash_update_p64(blocks, dg, src, key->h, head);
+	else
+		pmull_ghash_update_p8(blocks, dg, src, key->h, head);
+	kernel_neon_end();
 }
 
 static int ghash_update(struct shash_desc *desc, const u8 *src,
 			unsigned int len)
 {
-	struct ghash_desc_ctx *ctx = shash_desc_ctx(desc);
-	unsigned int partial = ctx->count % GHASH_BLOCK_SIZE;
+	struct ghash_key *key = crypto_shash_ctx(desc->tfm);
+	struct arm_ghash_desc_ctx *ctx = shash_desc_ctx(desc);
+	int blocks;
 
-	ctx->count += len;
+	blocks = len / GHASH_BLOCK_SIZE;
+	ghash_do_update(blocks, ctx->digest, src, key, NULL);
+	return len - blocks * GHASH_BLOCK_SIZE;
+}
 
-	if ((partial + len) >= GHASH_BLOCK_SIZE) {
-		struct ghash_key *key = crypto_shash_ctx(desc->tfm);
-		int blocks;
+static int ghash_export(struct shash_desc *desc, void *out)
+{
+	struct arm_ghash_desc_ctx *ctx = shash_desc_ctx(desc);
+	u8 *dst = out;
 
-		if (partial) {
-			int p = GHASH_BLOCK_SIZE - partial;
-
-			memcpy(ctx->buf + partial, src, p);
-			src += p;
-			len -= p;
-		}
-
-		blocks = len / GHASH_BLOCK_SIZE;
-		len %= GHASH_BLOCK_SIZE;
-
-		ghash_do_update(blocks, ctx->digest, src, key,
-				partial ? ctx->buf : NULL);
-		src += blocks * GHASH_BLOCK_SIZE;
-		partial = 0;
-	}
-	if (len)
-		memcpy(ctx->buf + partial, src, len);
+	put_unaligned_be64(ctx->digest[1], dst);
+	put_unaligned_be64(ctx->digest[0], dst + 8);
 	return 0;
 }
 
-static int ghash_final(struct shash_desc *desc, u8 *dst)
+static int ghash_import(struct shash_desc *desc, const void *in)
 {
-	struct ghash_desc_ctx *ctx = shash_desc_ctx(desc);
-	unsigned int partial = ctx->count % GHASH_BLOCK_SIZE;
+	struct arm_ghash_desc_ctx *ctx = shash_desc_ctx(desc);
+	const u8 *src = in;
 
-	if (partial) {
-		struct ghash_key *key = crypto_shash_ctx(desc->tfm);
-
-		memset(ctx->buf + partial, 0, GHASH_BLOCK_SIZE - partial);
-		ghash_do_update(1, ctx->digest, ctx->buf, key, NULL);
-	}
-	put_unaligned_be64(ctx->digest[1], dst);
-	put_unaligned_be64(ctx->digest[0], dst + 8);
-
-	*ctx = (struct ghash_desc_ctx){};
+	ctx->digest[1] = get_unaligned_be64(src);
+	ctx->digest[0] = get_unaligned_be64(src + 8);
 	return 0;
+}
+
+static int ghash_finup(struct shash_desc *desc, const u8 *src,
+		       unsigned int len, u8 *dst)
+{
+	struct ghash_key *key = crypto_shash_ctx(desc->tfm);
+	struct arm_ghash_desc_ctx *ctx = shash_desc_ctx(desc);
+
+	if (len) {
+		u8 buf[GHASH_BLOCK_SIZE] = {};
+
+		memcpy(buf, src, len);
+		ghash_do_update(1, ctx->digest, buf, key, NULL);
+		memzero_explicit(buf, sizeof(buf));
+	}
+	return ghash_export(desc, dst);
 }
 
 static void ghash_reflect(u64 h[], const be128 *k)
@@ -201,166 +167,21 @@ static struct shash_alg ghash_alg = {
 	.digestsize		= GHASH_DIGEST_SIZE,
 	.init			= ghash_init,
 	.update			= ghash_update,
-	.final			= ghash_final,
+	.finup			= ghash_finup,
 	.setkey			= ghash_setkey,
-	.descsize		= sizeof(struct ghash_desc_ctx),
+	.export			= ghash_export,
+	.import			= ghash_import,
+	.descsize		= sizeof(struct arm_ghash_desc_ctx),
+	.statesize		= sizeof(struct ghash_desc_ctx),
 
 	.base.cra_name		= "ghash",
-	.base.cra_driver_name	= "ghash-ce-sync",
-	.base.cra_priority	= 300 - 1,
+	.base.cra_driver_name	= "ghash-ce",
+	.base.cra_priority	= 300,
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
 	.base.cra_blocksize	= GHASH_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct ghash_key) + sizeof(u64[2]),
 	.base.cra_module	= THIS_MODULE,
 };
-
-static int ghash_async_init(struct ahash_request *req)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct ahash_request *cryptd_req = ahash_request_ctx(req);
-	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
-	struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
-	struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
-
-	desc->tfm = child;
-	return crypto_shash_init(desc);
-}
-
-static int ghash_async_update(struct ahash_request *req)
-{
-	struct ahash_request *cryptd_req = ahash_request_ctx(req);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
-
-	if (!crypto_simd_usable() ||
-	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
-		memcpy(cryptd_req, req, sizeof(*req));
-		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
-		return crypto_ahash_update(cryptd_req);
-	} else {
-		struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
-		return shash_ahash_update(req, desc);
-	}
-}
-
-static int ghash_async_final(struct ahash_request *req)
-{
-	struct ahash_request *cryptd_req = ahash_request_ctx(req);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
-
-	if (!crypto_simd_usable() ||
-	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
-		memcpy(cryptd_req, req, sizeof(*req));
-		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
-		return crypto_ahash_final(cryptd_req);
-	} else {
-		struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
-		return crypto_shash_final(desc, req->result);
-	}
-}
-
-static int ghash_async_digest(struct ahash_request *req)
-{
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct ahash_request *cryptd_req = ahash_request_ctx(req);
-	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
-
-	if (!crypto_simd_usable() ||
-	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
-		memcpy(cryptd_req, req, sizeof(*req));
-		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
-		return crypto_ahash_digest(cryptd_req);
-	} else {
-		struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
-		struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
-
-		desc->tfm = child;
-		return shash_ahash_digest(req, desc);
-	}
-}
-
-static int ghash_async_import(struct ahash_request *req, const void *in)
-{
-	struct ahash_request *cryptd_req = ahash_request_ctx(req);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
-
-	desc->tfm = cryptd_ahash_child(ctx->cryptd_tfm);
-
-	return crypto_shash_import(desc, in);
-}
-
-static int ghash_async_export(struct ahash_request *req, void *out)
-{
-	struct ahash_request *cryptd_req = ahash_request_ctx(req);
-	struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
-
-	return crypto_shash_export(desc, out);
-}
-
-static int ghash_async_setkey(struct crypto_ahash *tfm, const u8 *key,
-			      unsigned int keylen)
-{
-	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
-	struct crypto_ahash *child = &ctx->cryptd_tfm->base;
-
-	crypto_ahash_clear_flags(child, CRYPTO_TFM_REQ_MASK);
-	crypto_ahash_set_flags(child, crypto_ahash_get_flags(tfm)
-			       & CRYPTO_TFM_REQ_MASK);
-	return crypto_ahash_setkey(child, key, keylen);
-}
-
-static int ghash_async_init_tfm(struct crypto_tfm *tfm)
-{
-	struct cryptd_ahash *cryptd_tfm;
-	struct ghash_async_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	cryptd_tfm = cryptd_alloc_ahash("ghash-ce-sync", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ctx->cryptd_tfm = cryptd_tfm;
-	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-				 sizeof(struct ahash_request) +
-				 crypto_ahash_reqsize(&cryptd_tfm->base));
-
-	return 0;
-}
-
-static void ghash_async_exit_tfm(struct crypto_tfm *tfm)
-{
-	struct ghash_async_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	cryptd_free_ahash(ctx->cryptd_tfm);
-}
-
-static struct ahash_alg ghash_async_alg = {
-	.init			= ghash_async_init,
-	.update			= ghash_async_update,
-	.final			= ghash_async_final,
-	.setkey			= ghash_async_setkey,
-	.digest			= ghash_async_digest,
-	.import			= ghash_async_import,
-	.export			= ghash_async_export,
-	.halg.digestsize	= GHASH_DIGEST_SIZE,
-	.halg.statesize		= sizeof(struct ghash_desc_ctx),
-	.halg.base		= {
-		.cra_name	= "ghash",
-		.cra_driver_name = "ghash-ce",
-		.cra_priority	= 300,
-		.cra_flags	= CRYPTO_ALG_ASYNC,
-		.cra_blocksize	= GHASH_BLOCK_SIZE,
-		.cra_ctxsize	= sizeof(struct ghash_async_ctx),
-		.cra_module	= THIS_MODULE,
-		.cra_init	= ghash_async_init_tfm,
-		.cra_exit	= ghash_async_exit_tfm,
-	},
-};
-
 
 void pmull_gcm_encrypt(int blocks, u64 dg[], const char *src,
 		       struct gcm_key const *k, char *dst,
@@ -459,17 +280,11 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u64 dg[], u32 len)
 	scatterwalk_start(&walk, req->src);
 
 	do {
-		u32 n = scatterwalk_clamp(&walk, len);
-		u8 *p;
+		unsigned int n;
 
-		if (!n) {
-			scatterwalk_start(&walk, sg_next(walk.sg));
-			n = scatterwalk_clamp(&walk, len);
-		}
-
-		p = scatterwalk_map(&walk);
-		gcm_update_mac(dg, p, n, buf, &buf_count, ctx);
-		scatterwalk_unmap(p);
+		n = scatterwalk_next(&walk, len);
+		gcm_update_mac(dg, walk.addr, n, buf, &buf_count, ctx);
+		scatterwalk_done_src(&walk,  n);
 
 		if (unlikely(len / SZ_4K > (len - n) / SZ_4K)) {
 			kernel_neon_end();
@@ -477,8 +292,6 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u64 dg[], u32 len)
 		}
 
 		len -= n;
-		scatterwalk_advance(&walk, n);
-		scatterwalk_done(&walk, 0, len);
 	} while (len);
 
 	if (buf_count) {
@@ -499,9 +312,6 @@ static int gcm_encrypt(struct aead_request *req, const u8 *iv, u32 assoclen)
 	const u8 *src;
 	u8 *tag, *dst;
 	int tail, err;
-
-	if (WARN_ON_ONCE(!may_use_simd()))
-		return -EBUSY;
 
 	err = skcipher_walk_aead_encrypt(&walk, req, false);
 
@@ -591,9 +401,6 @@ static int gcm_decrypt(struct aead_request *req, const u8 *iv, u32 assoclen)
 	const u8 *src;
 	u8 *tag, *dst;
 	int tail, err, ret;
-
-	if (WARN_ON_ONCE(!may_use_simd()))
-		return -EBUSY;
 
 	scatterwalk_map_and_copy(otag, req->src,
 				 req->assoclen + req->cryptlen - authsize,
@@ -767,14 +574,9 @@ static int __init ghash_ce_mod_init(void)
 	err = crypto_register_shash(&ghash_alg);
 	if (err)
 		goto err_aead;
-	err = crypto_register_ahash(&ghash_async_alg);
-	if (err)
-		goto err_shash;
 
 	return 0;
 
-err_shash:
-	crypto_unregister_shash(&ghash_alg);
 err_aead:
 	if (elf_hwcap2 & HWCAP2_PMULL)
 		crypto_unregister_aeads(gcm_aes_algs,
@@ -784,7 +586,6 @@ err_aead:
 
 static void __exit ghash_ce_mod_exit(void)
 {
-	crypto_unregister_ahash(&ghash_async_alg);
 	crypto_unregister_shash(&ghash_alg);
 	if (elf_hwcap2 & HWCAP2_PMULL)
 		crypto_unregister_aeads(gcm_aes_algs,

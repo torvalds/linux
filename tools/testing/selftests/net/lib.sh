@@ -217,9 +217,36 @@ setup_ns()
 			return $ksft_skip
 		fi
 		ip -n "${!ns_name}" link set lo up
+		ip netns exec "${!ns_name}" sysctl -wq net.ipv4.conf.all.rp_filter=0
+		ip netns exec "${!ns_name}" sysctl -wq net.ipv4.conf.default.rp_filter=0
 		ns_list+=("${!ns_name}")
 	done
 	NS_LIST+=("${ns_list[@]}")
+}
+
+# Create netdevsim with given id and net namespace.
+create_netdevsim() {
+    local id="$1"
+    local ns="$2"
+
+    modprobe netdevsim &> /dev/null
+    udevadm settle
+
+    echo "$id 1" | ip netns exec $ns tee /sys/bus/netdevsim/new_device >/dev/null
+    local dev=$(ip netns exec $ns ls /sys/bus/netdevsim/devices/netdevsim$id/net)
+    ip -netns $ns link set dev $dev name nsim$id
+    ip -netns $ns link set dev nsim$id up
+
+    echo nsim$id
+}
+
+# Remove netdevsim with given id.
+cleanup_netdevsim() {
+    local id="$1"
+
+    if [ -d "/sys/bus/netdevsim/devices/netdevsim$id/net" ]; then
+        echo "$id" > /sys/bus/netdevsim/del_device
+    fi
 }
 
 tc_rule_stats_get()
@@ -243,6 +270,30 @@ tc_rule_handle_stats_get()
 	tc $netns -j -s filter show $id \
 	    | jq ".[] | select(.options.handle == $handle) | \
 		  .options.actions[0].stats$selector"
+}
+
+# attach a qdisc with two children match/no-match and a flower filter to match
+tc_set_flower_counter() {
+	local -r ns=$1
+	local -r ipver=$2
+	local -r dev=$3
+	local -r flower_expr=$4
+
+	tc -n $ns qdisc add dev $dev root handle 1: prio bands 2 \
+			priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+	tc -n $ns qdisc add dev $dev parent 1:1 handle 11: pfifo
+	tc -n $ns qdisc add dev $dev parent 1:2 handle 12: pfifo
+
+	tc -n $ns filter add dev $dev parent 1: protocol ipv$ipver \
+			flower $flower_expr classid 1:2
+}
+
+tc_get_flower_counter() {
+	local -r ns=$1
+	local -r dev=$2
+
+	tc -n $ns -j -s qdisc show dev $dev handle 12: | jq .[0].packets
 }
 
 ret_set_ksft_status()
@@ -450,6 +501,25 @@ kill_process()
 	{ kill $pid && wait $pid; } 2>/dev/null
 }
 
+check_command()
+{
+	local cmd=$1; shift
+
+	if [[ ! -x "$(command -v "$cmd")" ]]; then
+		log_test_skip "$cmd not installed"
+		return $EXIT_STATUS
+	fi
+}
+
+require_command()
+{
+	local cmd=$1; shift
+
+	if ! check_command "$cmd"; then
+		exit $EXIT_STATUS
+	fi
+}
+
 ip_link_add()
 {
 	local name=$1; shift
@@ -524,4 +594,25 @@ bridge_vlan_add()
 {
 	bridge vlan add "$@"
 	defer bridge vlan del "$@"
+}
+
+wait_local_port_listen()
+{
+	local listener_ns="${1}"
+	local port="${2}"
+	local protocol="${3}"
+	local pattern
+	local i
+
+	pattern=":$(printf "%04X" "${port}") "
+
+	# for tcp protocol additionally check the socket state
+	[ ${protocol} = "tcp" ] && pattern="${pattern}0A"
+	for i in $(seq 10); do
+		if ip netns exec "${listener_ns}" awk '{print $2" "$4}' \
+		   /proc/net/"${protocol}"* | grep -q "${pattern}"; then
+			break
+		fi
+		sleep 0.1
+	done
 }

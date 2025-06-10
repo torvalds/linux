@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -775,11 +775,13 @@ static void iwl_mvm_roc_rm_cmd(struct iwl_mvm *mvm, u32 activity)
 		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
 		.activity = cpu_to_le32(activity),
 	};
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0);
+	u16 cmd_len = ver < 6 ? sizeof(struct iwl_roc_req_v5) : sizeof(roc_cmd);
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0,
-				   sizeof(roc_cmd), &roc_cmd);
+				   cmd_len, &roc_cmd);
 	if (ret)
 		IWL_ERR(mvm, "Couldn't send the ROC_CMD: %d\n", ret);
 }
@@ -1107,6 +1109,8 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 		.activity = cpu_to_le32(activity),
 		.sta_id = cpu_to_le32(mvm->aux_sta.sta_id),
 	};
+	u8 ver = iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(MAC_CONF_GROUP, ROC_CMD), 0);
+	u16 cmd_len = ver < 6 ? sizeof(struct iwl_roc_req_v5) : sizeof(roc_req);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1136,7 +1140,7 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 	memcpy(roc_req.node_addr, vif->addr, ETH_ALEN);
 
 	res = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(MAC_CONF_GROUP, ROC_CMD),
-				   0, sizeof(roc_req), &roc_req);
+				   0, cmd_len, &roc_req);
 	if (!res)
 		mvmvif->roc_activity = activity;
 

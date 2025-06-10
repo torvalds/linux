@@ -181,6 +181,7 @@ struct dc_panel_patch {
 	uint8_t blankstream_before_otg_off;
 	bool oled_optimize_display_on;
 	unsigned int force_mst_blocked_discovery;
+	unsigned int wait_after_dpcd_poweroff_ms;
 };
 
 struct dc_edid_caps {
@@ -209,6 +210,7 @@ struct dc_edid_caps {
 
 	bool edid_hdmi;
 	bool hdr_supported;
+	bool rr_capable;
 
 	struct dc_panel_patch panel_patch;
 };
@@ -1033,6 +1035,13 @@ struct psr_settings {
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	uint8_t force_ffu_mode;
 	unsigned int psr_power_opt;
+
+	/**
+	 * Some panels cannot handle idle pattern during PSR entry.
+	 * To power down phy before disable stream to avoid sending
+	 * idle pattern.
+	 */
+	uint8_t power_down_phy_before_disable_stream;
 };
 
 enum replay_coasting_vtotal_type {
@@ -1081,7 +1090,8 @@ union replay_low_refresh_rate_enable_options {
 	struct {
 	//BIT[0-3]: Replay Low Hz Support control
 		unsigned int ENABLE_LOW_RR_SUPPORT          :1;
-		unsigned int RESERVED_1_3                   :3;
+		unsigned int SKIP_ASIC_CHECK                :1;
+		unsigned int RESERVED_2_3                   :2;
 	//BIT[4-15]: Replay Low Hz Enable Scenarios
 		unsigned int ENABLE_STATIC_SCREEN           :1;
 		unsigned int ENABLE_FULL_SCREEN_VIDEO       :1;
@@ -1121,6 +1131,10 @@ struct replay_config {
 	union replay_low_refresh_rate_enable_options low_rr_enable_options;
 	/* Replay coasting vtotal is within low refresh rate range. */
 	bool low_rr_activated;
+	/* Replay low refresh rate supported*/
+	bool low_rr_supported;
+	/* Replay Video Conferencing Optimization Enabled */
+	bool replay_video_conferencing_optimization_enabled;
 };
 
 /* Replay feature flags*/
@@ -1216,7 +1230,6 @@ struct dc_dpia_bw_alloc {
 	int bw_granularity;    // BW Granularity
 	int dp_overhead;       // DP overhead in dp tunneling
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
-	bool response_ready;   // Response ready from the CM side
 	uint8_t nrd_max_lane_count; // Non-reduced max lane count
 	uint8_t nrd_max_link_rate; // Non-reduced max link rate
 };
@@ -1242,6 +1255,7 @@ enum dc_cm2_gpu_mem_layout {
 
 enum dc_cm2_gpu_mem_pixel_component_order {
 	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA,
+	DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_BGRA
 };
 
 enum dc_cm2_gpu_mem_format {
@@ -1263,7 +1277,8 @@ struct dc_cm2_gpu_mem_format_parameters {
 
 enum dc_cm2_gpu_mem_size {
 	DC_CM2_GPU_MEM_SIZE_171717,
-	DC_CM2_GPU_MEM_SIZE_TRANSFORMED
+	DC_CM2_GPU_MEM_SIZE_333333,
+	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
 };
 
 struct dc_cm2_gpu_mem_parameters {
@@ -1272,6 +1287,7 @@ struct dc_cm2_gpu_mem_parameters {
 	struct dc_cm2_gpu_mem_format_parameters format_params;
 	enum dc_cm2_gpu_mem_pixel_component_order component_order;
 	enum dc_cm2_gpu_mem_size  size;
+	uint16_t bit_depth;
 };
 
 enum dc_cm2_transfer_func_source {
@@ -1295,6 +1311,10 @@ struct dc_cm2_func_luts {
 			const struct dc_3dlut *lut3d_func;
 			struct dc_cm2_gpu_mem_parameters gpu_mem_params;
 		};
+		bool rmcm_3dlut_shaper_select;
+		bool mpc_3dlut_enable;
+		bool rmcm_3dlut_enable;
+		bool mpc_mcm_post_blend;
 	} lut3d_data;
 	const struct dc_transfer_func *lut1d_func;
 };

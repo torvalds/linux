@@ -21,9 +21,6 @@ enum io_wq_cancel {
 	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
 };
 
-typedef struct io_wq_work *(free_work_fn)(struct io_wq_work *);
-typedef void (io_wq_work_fn)(struct io_wq_work *);
-
 struct io_wq_hash {
 	refcount_t refs;
 	unsigned long map;
@@ -39,8 +36,6 @@ static inline void io_wq_put_hash(struct io_wq_hash *hash)
 struct io_wq_data {
 	struct io_wq_hash *hash;
 	struct task_struct *task;
-	io_wq_work_fn *do_work;
-	free_work_fn *free_work;
 };
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);
@@ -54,9 +49,14 @@ int io_wq_cpu_affinity(struct io_uring_task *tctx, cpumask_var_t mask);
 int io_wq_max_workers(struct io_wq *wq, int *new_count);
 bool io_wq_worker_stopped(void);
 
+static inline bool __io_wq_is_hashed(unsigned int work_flags)
+{
+	return work_flags & IO_WQ_WORK_HASHED;
+}
+
 static inline bool io_wq_is_hashed(struct io_wq_work *work)
 {
-	return atomic_read(&work->flags) & IO_WQ_WORK_HASHED;
+	return __io_wq_is_hashed(atomic_read(&work->flags));
 }
 
 typedef bool (work_cancel_fn)(struct io_wq_work *, void *);

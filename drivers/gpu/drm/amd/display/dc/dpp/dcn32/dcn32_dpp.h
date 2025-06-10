@@ -27,7 +27,6 @@
 
 #include "dcn20/dcn20_dpp.h"
 #include "dcn30/dcn30_dpp.h"
-#include "spl/dc_spl_types.h"
 
 bool dpp32_construct(struct dcn3_dpp *dpp3,
 	struct dc_context *ctx,

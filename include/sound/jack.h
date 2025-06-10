@@ -79,7 +79,6 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 		 struct snd_jack **jack, bool initial_kctl, bool phantom_jack);
 int snd_jack_add_new_kctl(struct snd_jack *jack, const char * name, int mask);
 #ifdef CONFIG_SND_JACK_INPUT_DEV
-void snd_jack_set_parent(struct snd_jack *jack, struct device *parent);
 int snd_jack_set_key(struct snd_jack *jack, enum snd_jack_types type,
 		     int keytype);
 #endif
@@ -104,11 +103,6 @@ static inline void snd_jack_report(struct snd_jack *jack, int status)
 #endif
 
 #if !defined(CONFIG_SND_JACK) || !defined(CONFIG_SND_JACK_INPUT_DEV)
-static inline void snd_jack_set_parent(struct snd_jack *jack,
-				       struct device *parent)
-{
-}
-
 static inline int snd_jack_set_key(struct snd_jack *jack,
 				   enum snd_jack_types type,
 				   int keytype)

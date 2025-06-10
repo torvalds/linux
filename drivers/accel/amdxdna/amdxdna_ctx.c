@@ -220,6 +220,8 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	args->syncobj_handle = hwctx->syncobj_hdl;
 	mutex_unlock(&xdna->dev_lock);
 
+	atomic64_set(&hwctx->job_submit_cnt, 0);
+	atomic64_set(&hwctx->job_free_cnt, 0);
 	XDNA_DBG(xdna, "PID %d create HW context %d, ret %d", client->pid, args->handle, ret);
 	drm_dev_exit(idx);
 	return 0;
@@ -494,11 +496,11 @@ static int amdxdna_drm_submit_execbuf(struct amdxdna_client *client,
 				      struct amdxdna_drm_exec_cmd *args)
 {
 	struct amdxdna_dev *xdna = client->xdna;
-	u32 *arg_bo_hdls;
+	u32 *arg_bo_hdls = NULL;
 	u32 cmd_bo_hdl;
 	int ret;
 
-	if (!args->arg_count || args->arg_count > MAX_ARG_COUNT) {
+	if (args->arg_count > MAX_ARG_COUNT) {
 		XDNA_ERR(xdna, "Invalid arg bo count %d", args->arg_count);
 		return -EINVAL;
 	}
@@ -510,14 +512,16 @@ static int amdxdna_drm_submit_execbuf(struct amdxdna_client *client,
 	}
 
 	cmd_bo_hdl = (u32)args->cmd_handles;
-	arg_bo_hdls = kcalloc(args->arg_count, sizeof(u32), GFP_KERNEL);
-	if (!arg_bo_hdls)
-		return -ENOMEM;
-	ret = copy_from_user(arg_bo_hdls, u64_to_user_ptr(args->args),
-			     args->arg_count * sizeof(u32));
-	if (ret) {
-		ret = -EFAULT;
-		goto free_cmd_bo_hdls;
+	if (args->arg_count) {
+		arg_bo_hdls = kcalloc(args->arg_count, sizeof(u32), GFP_KERNEL);
+		if (!arg_bo_hdls)
+			return -ENOMEM;
+		ret = copy_from_user(arg_bo_hdls, u64_to_user_ptr(args->args),
+				     args->arg_count * sizeof(u32));
+		if (ret) {
+			ret = -EFAULT;
+			goto free_cmd_bo_hdls;
+		}
 	}
 
 	ret = amdxdna_cmd_submit(client, cmd_bo_hdl, arg_bo_hdls,

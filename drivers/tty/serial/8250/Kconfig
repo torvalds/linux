@@ -569,6 +569,19 @@ config SERIAL_8250_BCM7271
 	  including DMA support and high accuracy BAUD rates, say
 	  Y to this option. If unsure, say N.
 
+config SERIAL_8250_NI
+	tristate "NI 16550 based serial port"
+	depends on SERIAL_8250
+	depends on (X86 && ACPI) || COMPILE_TEST
+	help
+	  This driver supports the integrated serial ports on National
+	  Instruments (NI) controller hardware. This is required for all NI
+	  controller models with onboard RS-485 or dual-mode RS-485/RS-232
+	  ports.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8250_ni.
+
 config SERIAL_OF_PLATFORM
 	tristate "Devicetree based probing for 8250 ports"
 	depends on SERIAL_8250 && OF

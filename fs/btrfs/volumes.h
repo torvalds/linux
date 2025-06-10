@@ -7,6 +7,7 @@
 #define BTRFS_VOLUMES_H
 
 #include <linux/blk_types.h>
+#include <linux/blkdev.h>
 #include <linux/sizes.h>
 #include <linux/atomic.h>
 #include <linux/sort.h>
@@ -18,14 +19,17 @@
 #include <linux/completion.h>
 #include <linux/rbtree.h>
 #include <uapi/linux/btrfs.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "messages.h"
 #include "rcu-string.h"
+#include "extent-io-tree.h"
 
 struct block_device;
 struct bdev_handle;
 struct btrfs_fs_info;
 struct btrfs_block_group;
 struct btrfs_trans_handle;
+struct btrfs_transaction;
 struct btrfs_zoned_device_info;
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
@@ -469,7 +473,6 @@ struct btrfs_io_stripe {
 	struct btrfs_device *dev;
 	/* Block mapping. */
 	u64 physical;
-	u64 length;
 	bool rst_search_commit_root;
 	/* For the endio handler. */
 	struct btrfs_io_context *bioc;
@@ -711,7 +714,8 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
 int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 struct btrfs_block_group *btrfs_create_chunk(struct btrfs_trans_handle *trans,
-					    u64 type);
+					     struct btrfs_space_info *space_info,
+					     u64 type);
 void btrfs_mapping_tree_free(struct btrfs_fs_info *fs_info);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       blk_mode_t flags, void *holder);
@@ -782,6 +786,8 @@ struct btrfs_chunk_map *btrfs_find_chunk_map_nolock(struct btrfs_fs_info *fs_inf
 struct btrfs_chunk_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
 					    u64 logical, u64 length);
 void btrfs_remove_chunk_map(struct btrfs_fs_info *fs_info, struct btrfs_chunk_map *map);
+struct btrfs_super_block *btrfs_read_disk_super(struct block_device *bdev,
+						int copy_num, bool drop_cache);
 void btrfs_release_disk_super(struct btrfs_super_block *super);
 
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
@@ -841,6 +847,11 @@ static inline const char *btrfs_dev_name(const struct btrfs_device *device)
 		return "<missing disk>";
 	else
 		return rcu_str_deref(device->name);
+}
+
+static inline void btrfs_warn_unknown_chunk_allocation(enum btrfs_chunk_allocation_policy pol)
+{
+	WARN_ONCE(1, "unknown allocation policy %d, fallback to regular", pol);
 }
 
 void btrfs_commit_device_sizes(struct btrfs_transaction *trans);

@@ -99,7 +99,7 @@ void snd_ak4117_reinit(struct ak4117 *chip)
 {
 	unsigned char old = chip->regmap[AK4117_REG_PWRDN], reg;
 
-	del_timer(&chip->timer);
+	timer_delete(&chip->timer);
 	chip->init = 1;
 	/* bring the chip to reset state and powerdown state */
 	reg_write(chip, AK4117_REG_PWRDN, 0);

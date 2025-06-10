@@ -197,7 +197,7 @@ static void h5_peer_reset(struct hci_uart *hu)
 
 	h5->state = H5_UNINITIALIZED;
 
-	del_timer(&h5->timer);
+	timer_delete(&h5->timer);
 
 	skb_queue_purge(&h5->rel);
 	skb_queue_purge(&h5->unrel);
@@ -254,7 +254,7 @@ static int h5_close(struct hci_uart *hu)
 {
 	struct h5 *h5 = hu->priv;
 
-	del_timer_sync(&h5->timer);
+	timer_delete_sync(&h5->timer);
 
 	skb_queue_purge(&h5->unack);
 	skb_queue_purge(&h5->rel);
@@ -318,7 +318,7 @@ static void h5_pkt_cull(struct h5 *h5)
 	}
 
 	if (skb_queue_empty(&h5->unack))
-		del_timer(&h5->timer);
+		timer_delete(&h5->timer);
 
 unlock:
 	spin_unlock_irqrestore(&h5->unack.lock, flags);

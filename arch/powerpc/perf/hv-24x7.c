@@ -998,7 +998,7 @@ e_out:
 }
 
 static ssize_t catalog_read(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
+			    const struct bin_attribute *bin_attr, char *buf,
 			    loff_t offset, size_t count)
 {
 	long hret;
@@ -1108,14 +1108,14 @@ PAGE_0_ATTR(catalog_version, "%lld\n",
 		(unsigned long long)be64_to_cpu(page_0->version));
 PAGE_0_ATTR(catalog_len, "%lld\n",
 		(unsigned long long)be32_to_cpu(page_0->length) * 4096);
-static BIN_ATTR_RO(catalog, 0/* real length varies */);
+static const BIN_ATTR_RO(catalog, 0/* real length varies */);
 static DEVICE_ATTR_RO(domains);
 static DEVICE_ATTR_RO(sockets);
 static DEVICE_ATTR_RO(chipspersocket);
 static DEVICE_ATTR_RO(coresperchip);
 static DEVICE_ATTR_RO(cpumask);
 
-static struct bin_attribute *if_bin_attrs[] = {
+static const struct bin_attribute *const if_bin_attrs[] = {
 	&bin_attr_catalog,
 	NULL,
 };
@@ -1141,7 +1141,7 @@ static struct attribute *if_attrs[] = {
 
 static const struct attribute_group if_group = {
 	.name = "interface",
-	.bin_attrs = if_bin_attrs,
+	.bin_attrs_new = if_bin_attrs,
 	.attrs = if_attrs,
 };
 

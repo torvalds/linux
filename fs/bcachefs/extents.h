@@ -320,8 +320,9 @@ static inline struct bkey_ptrs bch2_bkey_ptrs(struct bkey_s k)
 ({									\
 	__label__ out;							\
 									\
-	(_ptr).idx	= 0;						\
-	(_ptr).has_ec	= false;					\
+	(_ptr).has_ec			= false;			\
+	(_ptr).do_ec_reconstruct	= false;			\
+	(_ptr).crc_retry_nr		= 0;				\
 									\
 	__bkey_extent_entry_for_each_from(_entry, _end, _entry)		\
 		switch (__extent_entry_type(_entry)) {			\
@@ -379,13 +380,6 @@ out:									\
 
 /* Iterate over pointers in KEY_TYPE_extent: */
 
-#define extent_for_each_entry_from(_e, _entry, _start)			\
-	__bkey_extent_entry_for_each_from(_start,			\
-				extent_entry_last(_e), _entry)
-
-#define extent_for_each_entry(_e, _entry)				\
-	extent_for_each_entry_from(_e, _entry, (_e).v->start)
-
 #define extent_ptr_next(_e, _ptr)					\
 	__bkey_ptr_next(_ptr, extent_entry_last(_e))
 
@@ -398,13 +392,16 @@ out:									\
 
 /* utility code common to all keys with pointers: */
 
+void bch2_io_failures_to_text(struct printbuf *, struct bch_fs *,
+			      struct bch_io_failures *);
 struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *,
 						 unsigned);
 void bch2_mark_io_failure(struct bch_io_failures *,
-			  struct extent_ptr_decoded *);
+			  struct extent_ptr_decoded *, bool);
+void bch2_mark_btree_validate_failure(struct bch_io_failures *, unsigned);
 int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 			       struct bch_io_failures *,
-			       struct extent_ptr_decoded *);
+			       struct extent_ptr_decoded *, int);
 
 /* KEY_TYPE_btree_ptr: */
 
@@ -752,5 +749,20 @@ static inline void bch2_key_resize(struct bkey *k, unsigned new_size)
 	k->p.offset += new_size;
 	k->size = new_size;
 }
+
+static inline u64 bch2_bkey_extent_ptrs_flags(struct bkey_ptrs_c ptrs)
+{
+	if (ptrs.start != ptrs.end &&
+	    extent_entry_type(ptrs.start) == BCH_EXTENT_ENTRY_flags)
+		return ptrs.start->flags.flags;
+	return 0;
+}
+
+static inline u64 bch2_bkey_extent_flags(struct bkey_s_c k)
+{
+	return bch2_bkey_extent_ptrs_flags(bch2_bkey_ptrs_c(k));
+}
+
+int bch2_bkey_extent_flags_set(struct bch_fs *, struct bkey_i *, u64);
 
 #endif /* _BCACHEFS_EXTENTS_H */

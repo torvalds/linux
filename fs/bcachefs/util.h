@@ -14,8 +14,10 @@
 #include <linux/log2.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/random.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
+#include <linux/sort.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
 
@@ -55,15 +57,16 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
-static inline void *bch2_kvmalloc(size_t n, gfp_t flags)
+static inline void *bch2_kvmalloc_noprof(size_t n, gfp_t flags)
 {
 	void *p = unlikely(n >= INT_MAX)
-		? vmalloc(n)
-		: kvmalloc(n, flags & ~__GFP_ZERO);
+		? vmalloc_noprof(n)
+		: kvmalloc_noprof(n, flags & ~__GFP_ZERO);
 	if (p && (flags & __GFP_ZERO))
 		memset(p, 0, n);
 	return p;
 }
+#define bch2_kvmalloc(...)			alloc_hooks(bch2_kvmalloc_noprof(__VA_ARGS__))
 
 #define init_heap(heap, _size, gfp)					\
 ({									\
@@ -94,6 +97,7 @@ do {									\
 #define printbuf_tabstop_push(_buf, _n)	bch2_printbuf_tabstop_push(_buf, _n)
 
 #define printbuf_indent_add(_out, _n)	bch2_printbuf_indent_add(_out, _n)
+#define printbuf_indent_add_nextline(_out, _n)	bch2_printbuf_indent_add_nextline(_out, _n)
 #define printbuf_indent_sub(_out, _n)	bch2_printbuf_indent_sub(_out, _n)
 
 #define prt_newline(_out)		bch2_prt_newline(_out)
@@ -210,8 +214,7 @@ u64 bch2_read_flag_list(const char *, const char * const[]);
 void bch2_prt_u64_base2_nbits(struct printbuf *, u64, unsigned);
 void bch2_prt_u64_base2(struct printbuf *, u64);
 
-void bch2_print_string_as_lines(const char *prefix, const char *lines);
-void bch2_print_string_as_lines_nonblocking(const char *prefix, const char *lines);
+void bch2_print_string_as_lines(const char *, const char *, bool);
 
 typedef DARRAY(unsigned long) bch_stacktrace;
 int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned, gfp_t);
@@ -406,6 +409,20 @@ u64 bch2_get_random_u64_below(u64);
 void memcpy_to_bio(struct bio *, struct bvec_iter, const void *);
 void memcpy_from_bio(void *, struct bio *, struct bvec_iter);
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+void bch2_corrupt_bio(struct bio *);
+
+static inline void bch2_maybe_corrupt_bio(struct bio *bio, unsigned ratio)
+{
+	if (ratio && !get_random_u32_below(ratio))
+		bch2_corrupt_bio(bio);
+}
+#else
+#define bch2_maybe_corrupt_bio(...)	do {} while (0)
+#endif
+
+void bch2_bio_to_text(struct printbuf *, struct bio *);
+
 static inline void memcpy_u64s_small(void *dst, const void *src,
 				     unsigned u64s)
 {
@@ -419,7 +436,7 @@ static inline void memcpy_u64s_small(void *dst, const void *src,
 static inline void __memcpy_u64s(void *dst, const void *src,
 				 unsigned u64s)
 {
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("rep ; movsq"
@@ -496,7 +513,7 @@ static inline void __memmove_u64s_up(void *_dst, const void *_src,
 	u64 *dst = (u64 *) _dst + u64s - 1;
 	u64 *src = (u64 *) _src + u64s - 1;
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("std ;\n"
@@ -609,7 +626,7 @@ do {									\
 
 #define per_cpu_sum(_p)							\
 ({									\
-	typeof(*_p) _ret = 0;						\
+	TYPEOF_UNQUAL(*_p) _ret = 0;					\
 									\
 	int cpu;							\
 	for_each_possible_cpu(cpu)					\
@@ -656,8 +673,6 @@ static inline void percpu_memset(void __percpu *p, int c, size_t bytes)
 
 u64 *bch2_acc_percpu_u64s(u64 __percpu *, unsigned);
 
-#define cmp_int(l, r)		((l > r) - (l < r))
-
 static inline int u8_cmp(u8 l, u8 r)
 {
 	return cmp_int(l, r);
@@ -675,8 +690,8 @@ static inline bool qstr_eq(const struct qstr l, const struct qstr r)
 	return l.len == r.len && !memcmp(l.name, r.name, l.len);
 }
 
-void bch2_darray_str_exit(darray_str *);
-int bch2_split_devs(const char *, darray_str *);
+void bch2_darray_str_exit(darray_const_str *);
+int bch2_split_devs(const char *, darray_const_str *);
 
 #ifdef __KERNEL__
 
@@ -725,5 +740,43 @@ static inline void memcpy_swab(void *_dst, void *_src, size_t len)
 	while (len--)
 		*--dst = *src++;
 }
+
+#define set_flags(_map, _in, _out)					\
+do {									\
+	unsigned _i;							\
+									\
+	for (_i = 0; _i < ARRAY_SIZE(_map); _i++)			\
+		if ((_in) & (1 << _i))					\
+			(_out) |= _map[_i];				\
+		else							\
+			(_out) &= ~_map[_i];				\
+} while (0)
+
+#define map_flags(_map, _in)						\
+({									\
+	unsigned _out = 0;						\
+									\
+	set_flags(_map, _in, _out);					\
+	_out;								\
+})
+
+#define map_flags_rev(_map, _in)					\
+({									\
+	unsigned _i, _out = 0;						\
+									\
+	for (_i = 0; _i < ARRAY_SIZE(_map); _i++)			\
+		if ((_in) & _map[_i]) {					\
+			(_out) |= 1 << _i;				\
+			(_in) &= ~_map[_i];				\
+		}							\
+	(_out);								\
+})
+
+#define map_defined(_map)						\
+({									\
+	unsigned _in = ~0;						\
+									\
+	map_flags_rev(_map, _in);					\
+})
 
 #endif /* _BCACHEFS_UTIL_H */

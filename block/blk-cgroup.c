@@ -797,7 +797,7 @@ int blkg_conf_open_bdev(struct blkg_conf_ctx *ctx)
 		return -EINVAL;
 	input = skip_spaces(input);
 
-	bdev = blkdev_get_no_open(MKDEV(major, minor));
+	bdev = blkdev_get_no_open(MKDEV(major, minor), false);
 	if (!bdev)
 		return -ENODEV;
 	if (bdev_is_partition(bdev)) {
@@ -815,6 +815,41 @@ int blkg_conf_open_bdev(struct blkg_conf_ctx *ctx)
 	ctx->body = input;
 	ctx->bdev = bdev;
 	return 0;
+}
+/*
+ * Similar to blkg_conf_open_bdev, but additionally freezes the queue,
+ * acquires q->elevator_lock, and ensures the correct locking order
+ * between q->elevator_lock and q->rq_qos_mutex.
+ *
+ * This function returns negative error on failure. On success it returns
+ * memflags which must be saved and later passed to blkg_conf_exit_frozen
+ * for restoring the memalloc scope.
+ */
+unsigned long __must_check blkg_conf_open_bdev_frozen(struct blkg_conf_ctx *ctx)
+{
+	int ret;
+	unsigned long memflags;
+
+	if (ctx->bdev)
+		return -EINVAL;
+
+	ret = blkg_conf_open_bdev(ctx);
+	if (ret < 0)
+		return ret;
+	/*
+	 * At this point, we haven’t started protecting anything related to QoS,
+	 * so we release q->rq_qos_mutex here, which was first acquired in blkg_
+	 * conf_open_bdev. Later, we re-acquire q->rq_qos_mutex after freezing
+	 * the queue and acquiring q->elevator_lock to maintain the correct
+	 * locking order.
+	 */
+	mutex_unlock(&ctx->bdev->bd_queue->rq_qos_mutex);
+
+	memflags = blk_mq_freeze_queue(ctx->bdev->bd_queue);
+	mutex_lock(&ctx->bdev->bd_queue->elevator_lock);
+	mutex_lock(&ctx->bdev->bd_queue->rq_qos_mutex);
+
+	return memflags;
 }
 
 /**
@@ -972,6 +1007,22 @@ void blkg_conf_exit(struct blkg_conf_ctx *ctx)
 }
 EXPORT_SYMBOL_GPL(blkg_conf_exit);
 
+/*
+ * Similar to blkg_conf_exit, but also unfreezes the queue and releases
+ * q->elevator_lock. Should be used when blkg_conf_open_bdev_frozen
+ * is used to open the bdev.
+ */
+void blkg_conf_exit_frozen(struct blkg_conf_ctx *ctx, unsigned long memflags)
+{
+	if (ctx->bdev) {
+		struct request_queue *q = ctx->bdev->bd_queue;
+
+		blkg_conf_exit(ctx);
+		mutex_unlock(&q->elevator_lock);
+		blk_mq_unfreeze_queue(q, memflags);
+	}
+}
+
 static void blkg_iostat_add(struct blkg_iostat *dst, struct blkg_iostat *src)
 {
 	int i;
@@ -1023,8 +1074,8 @@ static void __blkcg_rstat_flush(struct blkcg *blkcg, int cpu)
 	/*
 	 * For covering concurrent parent blkg update from blkg_release().
 	 *
-	 * When flushing from cgroup, cgroup_rstat_lock is always held, so
-	 * this lock won't cause contention most of time.
+	 * When flushing from cgroup, the subsystem rstat lock is always held,
+	 * so this lock won't cause contention most of time.
 	 */
 	raw_spin_lock_irqsave(&blkg_stat_lock, flags);
 
@@ -1093,7 +1144,7 @@ static void blkcg_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 /*
  * We source root cgroup stats from the system-wide stats to avoid
  * tracking the same information twice and incurring overhead when no
- * cgroups are defined. For that reason, cgroup_rstat_flush in
+ * cgroups are defined. For that reason, css_rstat_flush in
  * blkcg_print_stat does not actually fill out the iostat in the root
  * cgroup's blkcg_gq.
  *
@@ -1202,7 +1253,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 	if (!seq_css(sf)->parent)
 		blkcg_fill_root_iostats();
 	else
-		cgroup_rstat_flush(blkcg->css.cgroup);
+		css_rstat_flush(&blkcg->css);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
@@ -1728,26 +1779,26 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 	struct blkcg *blkcg;
 	int i, ret;
 
-	mutex_lock(&blkcg_pol_register_mutex);
-	mutex_lock(&blkcg_pol_mutex);
-
-	/* find an empty slot */
-	ret = -ENOSPC;
-	for (i = 0; i < BLKCG_MAX_POLS; i++)
-		if (!blkcg_policy[i])
-			break;
-	if (i >= BLKCG_MAX_POLS) {
-		pr_warn("blkcg_policy_register: BLKCG_MAX_POLS too small\n");
-		goto err_unlock;
-	}
-
 	/*
 	 * Make sure cpd/pd_alloc_fn and cpd/pd_free_fn in pairs, and policy
 	 * without pd_alloc_fn/pd_free_fn can't be activated.
 	 */
 	if ((!pol->cpd_alloc_fn ^ !pol->cpd_free_fn) ||
 	    (!pol->pd_alloc_fn ^ !pol->pd_free_fn))
+		return -EINVAL;
+
+	mutex_lock(&blkcg_pol_register_mutex);
+	mutex_lock(&blkcg_pol_mutex);
+
+	/* find an empty slot */
+	for (i = 0; i < BLKCG_MAX_POLS; i++)
+		if (!blkcg_policy[i])
+			break;
+	if (i >= BLKCG_MAX_POLS) {
+		pr_warn("blkcg_policy_register: BLKCG_MAX_POLS too small\n");
+		ret = -ENOSPC;
 		goto err_unlock;
+	}
 
 	/* register @pol */
 	pol->plid = i;
@@ -1759,8 +1810,10 @@ int blkcg_policy_register(struct blkcg_policy *pol)
 			struct blkcg_policy_data *cpd;
 
 			cpd = pol->cpd_alloc_fn(GFP_KERNEL);
-			if (!cpd)
+			if (!cpd) {
+				ret = -ENOMEM;
 				goto err_free_cpds;
+			}
 
 			blkcg->cpd[pol->plid] = cpd;
 			cpd->blkcg = blkcg;
@@ -2190,7 +2243,7 @@ void blk_cgroup_bio_start(struct bio *bio)
 	}
 
 	u64_stats_update_end_irqrestore(&bis->sync, flags);
-	cgroup_rstat_updated(blkcg->css.cgroup, cpu);
+	css_rstat_updated(&blkcg->css, cpu);
 	put_cpu();
 }
 

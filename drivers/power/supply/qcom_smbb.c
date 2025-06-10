@@ -880,7 +880,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	}
 
 	bat_cfg.drv_data = chg;
-	bat_cfg.of_node = pdev->dev.of_node;
+	bat_cfg.fwnode = dev_fwnode(&pdev->dev);
 	chg->bat_psy = devm_power_supply_register(&pdev->dev,
 						  &bat_psy_desc,
 						  &bat_cfg);

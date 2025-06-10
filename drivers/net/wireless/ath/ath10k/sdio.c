@@ -1621,7 +1621,7 @@ static void ath10k_sdio_hif_power_down(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "sdio power off\n");
 
-	del_timer_sync(&ar_sdio->sleep_timer);
+	timer_delete_sync(&ar_sdio->sleep_timer);
 	ath10k_sdio_set_mbox_sleep(ar, true);
 
 	/* Disable the card */
@@ -1844,7 +1844,7 @@ static int ath10k_sdio_get_htt_tx_complete(struct ath10k *ar)
 	ret = ath10k_sdio_diag_read32(ar, addr, &val);
 	if (ret) {
 		ath10k_warn(ar,
-			    "unable to read hi_acs_flags for htt tx comple : %d\n", ret);
+			    "unable to read hi_acs_flags for htt tx complete: %d\n", ret);
 		return ret;
 	}
 

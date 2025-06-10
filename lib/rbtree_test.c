@@ -14,6 +14,7 @@
 __param(int, nnodes, 100, "Number of nodes in the rb-tree");
 __param(int, perf_loops, 1000, "Number of iterations modifying the rb-tree");
 __param(int, check_loops, 100, "Number of iterations modifying and verifying the rb-tree");
+__param(ullong, seed, 3141592653589793238ULL, "Random seed");
 
 struct test_node {
 	u32 key;
@@ -239,19 +240,14 @@ static void check_augmented(int nr_nodes)
 	}
 }
 
-static int __init rbtree_test_init(void)
+static int basic_check(void)
 {
 	int i, j;
 	cycles_t time1, time2, time;
 	struct rb_node *node;
 
-	nodes = kmalloc_array(nnodes, sizeof(*nodes), GFP_KERNEL);
-	if (!nodes)
-		return -ENOMEM;
-
 	printk(KERN_ALERT "rbtree testing");
 
-	prandom_seed_state(&rnd, 3141592653589793238ULL);
 	init();
 
 	time1 = get_cycles();
@@ -343,6 +339,14 @@ static int __init rbtree_test_init(void)
 		check(0);
 	}
 
+	return 0;
+}
+
+static int augmented_check(void)
+{
+	int i, j;
+	cycles_t time1, time2, time;
+
 	printk(KERN_ALERT "augmented rbtree testing");
 
 	init();
@@ -389,6 +393,20 @@ static int __init rbtree_test_init(void)
 		}
 		check_augmented(0);
 	}
+
+	return 0;
+}
+
+static int __init rbtree_test_init(void)
+{
+	nodes = kmalloc_array(nnodes, sizeof(*nodes), GFP_KERNEL);
+	if (!nodes)
+		return -ENOMEM;
+
+	prandom_seed_state(&rnd, seed);
+
+	basic_check();
+	augmented_check();
 
 	kfree(nodes);
 

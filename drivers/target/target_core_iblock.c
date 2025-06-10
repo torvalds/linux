@@ -167,18 +167,6 @@ static int iblock_configure_device(struct se_device *dev)
 		break;
 	}
 
-	if (dev->dev_attrib.pi_prot_type) {
-		struct bio_set *bs = &ib_dev->ibd_bio_set;
-
-		if (bioset_integrity_create(bs, IBLOCK_BIO_POOL_SIZE) < 0) {
-			pr_err("Unable to allocate bioset for PI\n");
-			ret = -ENOMEM;
-			goto out_blkdev_put;
-		}
-		pr_debug("IBLOCK setup BIP bs->bio_integrity_pool: %p\n",
-			 &bs->bio_integrity_pool);
-	}
-
 	dev->dev_attrib.hw_pi_prot_type = dev->dev_attrib.pi_prot_type;
 	return 0;
 

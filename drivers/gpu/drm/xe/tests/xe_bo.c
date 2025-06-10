@@ -60,7 +60,7 @@ static int ccs_test_migrate(struct xe_tile *tile, struct xe_bo *bo,
 	}
 
 	/* Evict to system. CCS data should be copied. */
-	ret = xe_bo_evict(bo, true);
+	ret = xe_bo_evict(bo);
 	if (ret) {
 		KUNIT_FAIL(test, "Failed to evict bo.\n");
 		return ret;
@@ -252,7 +252,7 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 
 		for_each_gt(__gt, xe, id)
 			xe_gt_sanitize(__gt);
-		err = xe_bo_restore_kernel(xe);
+		err = xe_bo_restore_early(xe);
 		/*
 		 * Snapshotting the CTB and copying back a potentially old
 		 * version seems risky, depending on what might have been
@@ -273,7 +273,7 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 			goto cleanup_all;
 		}
 
-		err = xe_bo_restore_user(xe);
+		err = xe_bo_restore_late(xe);
 		if (err) {
 			KUNIT_FAIL(test, "restore user err=%pe\n", ERR_PTR(err));
 			goto cleanup_all;
@@ -514,8 +514,13 @@ static int shrink_test_run_device(struct xe_device *xe)
 		 * other way around, they may not be subject to swapping...
 		 */
 		if (alloced < purgeable) {
+			xe_ttm_tt_account_subtract(&xe_tt->ttm);
 			xe_tt->purgeable = true;
+			xe_ttm_tt_account_add(&xe_tt->ttm);
 			bo->ttm.priority = 0;
+			spin_lock(&bo->ttm.bdev->lru_lock);
+			ttm_bo_move_to_lru_tail(&bo->ttm);
+			spin_unlock(&bo->ttm.bdev->lru_lock);
 		} else {
 			int ret = shrink_test_fill_random(bo, &prng, link);
 
@@ -570,7 +575,6 @@ static int shrink_test_run_device(struct xe_device *xe)
 				if (ret == -EINTR)
 					intr = true;
 			} while (ret == -EINTR && !signal_pending(current));
-
 			if (!ret && !purgeable)
 				failed = shrink_test_verify(test, bo, count, &prng, link);
 

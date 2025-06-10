@@ -62,6 +62,21 @@ const struct super_operations kernfs_sops = {
 
 	.show_options	= kernfs_sop_show_options,
 	.show_path	= kernfs_sop_show_path,
+
+	/*
+	 * sysfs is built on top of kernfs and sysfs provides the power
+	 * management infrastructure to support suspend/hibernate by
+	 * writing to various files in /sys/power/. As filesystems may
+	 * be automatically frozen during suspend/hibernate implementing
+	 * freeze/thaw support for kernfs generically will cause
+	 * deadlocks as the suspending/hibernation initiating task will
+	 * hold a VFS lock that it will then wait upon to be released.
+	 * If freeze/thaw for kernfs is needed talk to the VFS.
+	 */
+	.freeze_fs	= NULL,
+	.unfreeze_fs	= NULL,
+	.freeze_super	= NULL,
+	.thaw_super	= NULL,
 };
 
 static int kernfs_encode_fh(struct inode *inode, __u32 *fh, int *max_len,
@@ -145,8 +160,10 @@ static struct dentry *kernfs_fh_to_parent(struct super_block *sb,
 static struct dentry *kernfs_get_parent_dentry(struct dentry *child)
 {
 	struct kernfs_node *kn = kernfs_dentry_node(child);
+	struct kernfs_root *root = kernfs_root(kn);
 
-	return d_obtain_alias(kernfs_get_inode(child->d_sb, kn->parent));
+	guard(rwsem_read)(&root->kernfs_rwsem);
+	return d_obtain_alias(kernfs_get_inode(child->d_sb, kernfs_parent(kn)));
 }
 
 static const struct export_operations kernfs_export_ops = {
@@ -186,10 +203,10 @@ static struct kernfs_node *find_next_ancestor(struct kernfs_node *child,
 		return NULL;
 	}
 
-	while (child->parent != parent) {
-		if (!child->parent)
+	while (kernfs_parent(child) != parent) {
+		child = kernfs_parent(child);
+		if (!child)
 			return NULL;
-		child = child->parent;
 	}
 
 	return child;
@@ -207,16 +224,27 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 {
 	struct dentry *dentry;
 	struct kernfs_node *knparent;
+	struct kernfs_root *root;
 
 	BUG_ON(sb->s_op != &kernfs_sops);
 
 	dentry = dget(sb->s_root);
 
 	/* Check if this is the root kernfs_node */
-	if (!kn->parent)
+	if (!rcu_access_pointer(kn->__parent))
 		return dentry;
 
-	knparent = find_next_ancestor(kn, NULL);
+	root = kernfs_root(kn);
+	/*
+	 * As long as kn is valid, its parent can not vanish. This is cgroup's
+	 * kn so it can't have its parent replaced. Therefore it is safe to use
+	 * the ancestor node outside of the RCU or locked section.
+	 */
+	if (WARN_ON_ONCE(!(root->flags & KERNFS_ROOT_INVARIANT_PARENT)))
+		return ERR_PTR(-EINVAL);
+	scoped_guard(rcu) {
+		knparent = find_next_ancestor(kn, NULL);
+	}
 	if (WARN_ON(!knparent)) {
 		dput(dentry);
 		return ERR_PTR(-EINVAL);
@@ -225,17 +253,26 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 	do {
 		struct dentry *dtmp;
 		struct kernfs_node *kntmp;
+		const char *name;
 
 		if (kn == knparent)
 			return dentry;
-		kntmp = find_next_ancestor(kn, knparent);
-		if (WARN_ON(!kntmp)) {
-			dput(dentry);
-			return ERR_PTR(-EINVAL);
+
+		scoped_guard(rwsem_read, &root->kernfs_rwsem) {
+			kntmp = find_next_ancestor(kn, knparent);
+			if (WARN_ON(!kntmp)) {
+				dput(dentry);
+				return ERR_PTR(-EINVAL);
+			}
+			name = kstrdup(kernfs_rcu_name(kntmp), GFP_KERNEL);
 		}
-		dtmp = lookup_positive_unlocked(kntmp->name, dentry,
-					       strlen(kntmp->name));
+		if (!name) {
+			dput(dentry);
+			return ERR_PTR(-ENOMEM);
+		}
+		dtmp = lookup_noperm_positive_unlocked(&QSTR(name), dentry);
 		dput(dentry);
+		kfree(name);
 		if (IS_ERR(dtmp))
 			return dtmp;
 		knparent = kntmp;

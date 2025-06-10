@@ -8,6 +8,10 @@
  *  copyright		 : (C) 2011 Marcello Carla'			   *
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define NAME KBUILD_MODNAME
+
 /* base module includes */
 
 #include <linux/module.h>
@@ -31,8 +35,6 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for LPVO usb devices");
 
-#define NAME "lpvo_usb_gpib"
-
 /*
  *  Table of devices that work with this driver.
  *
@@ -55,10 +57,11 @@ MODULE_DEVICE_TABLE(usb, skel_table);
 
 /*
  *    ***  Diagnostics and Debug  ***
- *
+ *  To enable the diagnostic and debug messages either compile with DEBUG set
+ *  or control via the dynamic debug mechanisms.
  *  The module parameter "debug" controls the sending of debug messages to
- *  syslog. By default it is set to 0 or 1 according to GPIB_CONFIG_KERNEL_DEBUG.
- *    debug = 0: only register/deregister messages are generated
+ *  syslog. By default it is set to 0
+ *    debug = 0: only attach/detach messages are sent
  *	      1: every action is logged
  *	      2: extended logging; each single exchanged byte is documented
  *		 (about twice the log volume of [1])
@@ -70,10 +73,14 @@ MODULE_DEVICE_TABLE(usb, skel_table);
 static int debug;
 module_param(debug, int, 0644);
 
-#define DIA_LOG(level, format, ...)					\
+#define DIA_LOG(level, format, ...)			   \
 	do { if (debug >= (level))					\
-			pr_alert("%s:%s - " format, NAME, __func__, ## __VA_ARGS__); } \
+			dev_dbg(board->gpib_dev, format, ## __VA_ARGS__); } \
 	while (0)
+
+#define WQT wait_queue_entry_t
+#define WQH head
+#define WQE entry
 
 /* standard and extended command sets of the usb-gpib adapter */
 
@@ -135,7 +142,7 @@ struct char_buf {		/* used by one_char() routine */
 };
 
 struct usb_gpib_priv {		/* private data to the device */
-	u8 eos;		        /* eos character */
+	u8 eos;			/* eos character */
 	short eos_flags;	/* eos mode */
 	int timeout;		/* current value for timeout */
 	void *dev;		/* the usb device private data structure */
@@ -143,42 +150,23 @@ struct usb_gpib_priv {		/* private data to the device */
 
 #define GPIB_DEV (((struct usb_gpib_priv *)board->private_data)->dev)
 
-#define SHOW_STATUS(board) {						\
-		DIA_LOG(2, "# - board %p\n", board);			\
-		DIA_LOG(2, "# - buffer_length %d\n", board->buffer_length); \
-		DIA_LOG(2, "# - status %lx\n", board->status);		\
-		DIA_LOG(2, "# - use_count %d\n", board->use_count);	\
-		DIA_LOG(2, "# - pad %x\n", board->pad);			\
-		DIA_LOG(2, "# - sad %x\n", board->sad);			\
-		DIA_LOG(2, "# - timeout %d\n", board->usec_timeout);	\
-		DIA_LOG(2, "# - ppc %d\n", board->parallel_poll_configuration); \
-		DIA_LOG(2, "# - t1delay %d\n", board->t1_nano_sec);	\
-		DIA_LOG(2, "# - online %d\n", board->online);		\
-		DIA_LOG(2, "# - autopoll %d\n", board->autospollers);	\
-		DIA_LOG(2, "# - autopoll task %p\n", board->autospoll_task); \
-		DIA_LOG(2, "# - minor %d\n", board->minor);		\
-		DIA_LOG(2, "# - master %d\n", board->master);		\
-		DIA_LOG(2, "# - list %d\n", board->ist);		\
-	}
-/*
- * n = 0;
- * list_for_each (l, &board->device_list) n++;
- * TTY_LOG ("%s:%s - devices in list %d\n", a, b, n);
- */
-
-/*
- * TTY_LOG - write a message to the current work terminal (if any)
- */
-
-#define TTY_LOG(format, ...) {						\
-		char buf[128];						\
-		struct tty_struct *tty = get_current_tty();		\
-		if (tty) {						\
-			snprintf(buf, 128, format, __VA_ARGS__);	\
-			tty->driver->ops->write(tty, buf, strlen(buf)); \
-			tty->driver->ops->write(tty, "\r", 1);		\
-		}							\
-	}
+static void show_status(struct gpib_board *board)
+{
+	DIA_LOG(2, "# - buffer_length %d\n", board->buffer_length);
+	DIA_LOG(2, "# - status %lx\n", board->status);
+	DIA_LOG(2, "# - use_count %d\n", board->use_count);
+	DIA_LOG(2, "# - pad %x\n", board->pad);
+	DIA_LOG(2, "# - sad %x\n", board->sad);
+	DIA_LOG(2, "# - timeout %d\n", board->usec_timeout);
+	DIA_LOG(2, "# - ppc %d\n", board->parallel_poll_configuration);
+	DIA_LOG(2, "# - t1delay %d\n", board->t1_nano_sec);
+	DIA_LOG(2, "# - online %d\n", board->online);
+	DIA_LOG(2, "# - autopoll %d\n", board->autospollers);
+	DIA_LOG(2, "# - autopoll task %p\n", board->autospoll_task);
+	DIA_LOG(2, "# - minor %d\n", board->minor);
+	DIA_LOG(2, "# - master %d\n", board->master);
+	DIA_LOG(2, "# - list %d\n", board->ist);
+}
 
 /*
  *  GLOBAL VARIABLES: required for
@@ -200,8 +188,8 @@ static struct mutex minors_lock;     /* operations on usb_minors are to be prote
 struct usb_skel;
 static ssize_t skel_do_write(struct usb_skel *, const char *, size_t);
 static ssize_t skel_do_read(struct usb_skel *, char *, size_t);
-static int skel_do_open(gpib_board_t *, int);
-static int skel_do_release(gpib_board_t *);
+static int skel_do_open(struct gpib_board *, int);
+static int skel_do_release(struct gpib_board *);
 
 /*
  *   usec_diff : take difference in MICROsec between two 'timespec'
@@ -229,27 +217,7 @@ static inline int usec_diff(struct timespec64 *a, struct timespec64 *b)
 
 static int write_loop(void *dev, char *msg, int leng)
 {
-//	  int nchar = 0, val;
-
-//	  do {
-
 	return skel_do_write(dev, msg, leng);
-
-//		  if (val < 1) {
-//			  printk (KERN_ALERT "%s:%s - write error: %d %d/%d\n",
-//				  NAME, __func__, val, nchar, leng);
-//			  return -EIO;
-//		  }
-//		  nchar +=val;
-//	  } while (nchar < leng);
-//	  return leng;
-}
-
-static char printable(char x)
-{
-	if (x < 32 || x > 126)
-		return ' ';
-	return x;
 }
 
 /**
@@ -257,15 +225,15 @@ static char printable(char x)
  *
  * @board:    the gpib_board_struct data area for this gpib interface
  * @msg:      the byte sequence.
- * @leng      the byte sequence length; can be given as zero and is
+ * @leng:     the byte sequence length; can be given as zero and is
  *	      computed automatically, but if 'msg' contains a zero byte,
  *	      it has to be given explicitly.
  */
 
-static int send_command(gpib_board_t *board, char *msg, int leng)
+static int send_command(struct gpib_board *board, char *msg, int leng)
 {
 	char buffer[64];
-	int nchar, j;
+	int nchar;
 	int retval;
 	struct timespec64 before, after;
 
@@ -280,17 +248,10 @@ static int send_command(gpib_board_t *board, char *msg, int leng)
 	nchar = skel_do_read(GPIB_DEV, buffer, 64);
 
 	if (nchar < 0) {
-		DIA_LOG(0, " return from read: %d\n", nchar);
+		dev_err(board->gpib_dev, " return from read: %d\n", nchar);
 		return nchar;
 	} else if (nchar != 1) {
-		for (j = 0 ; j < leng ; j++) {
-			DIA_LOG(0, " Irregular reply to command: %d  %x %c\n",
-				j, msg[j], printable(msg[j]));
-		}
-		for (j = 0 ; j < nchar ; j++) {
-			DIA_LOG(0, " Irregular command reply: %d %x %c\n",
-				j, buffer[j] & 0xff, printable(buffer[j]));
-		}
+		dev_err(board->gpib_dev, " Irregular reply to command: %s\n", msg);
 		return -EIO;
 	}
 	ktime_get_real_ts64 (&after);
@@ -310,7 +271,7 @@ static int send_command(gpib_board_t *board, char *msg, int leng)
  *
  */
 
-static int set_control_line(gpib_board_t *board, int line, int value)
+static int set_control_line(struct gpib_board *board, int line, int value)
 {
 	char msg[] = USB_GPIB_SET_LINES;
 	int retval;
@@ -337,11 +298,11 @@ static int set_control_line(gpib_board_t *board, int line, int value)
 /*
  * one_char() - read one single byte from input buffer
  *
- * @board:      the gpib_board_struct data area for this gpib interface
- * @char_buf:   the routine private data structure
+ * @board:	the gpib_board_struct data area for this gpib interface
+ * @char_buf:	the routine private data structure
  */
 
-static int one_char(gpib_board_t *board, struct char_buf *b)
+static int one_char(struct gpib_board *board, struct char_buf *b)
 {
 	struct timespec64 before, after;
 
@@ -360,13 +321,7 @@ static int one_char(gpib_board_t *board, struct char_buf *b)
 	if (b->nchar > 0) {
 		DIA_LOG(2, "--> %x\n", b->inbuf[b->last - b->nchar]);
 		return b->inbuf[b->last - b->nchar--];
-	} else if (b->nchar == 0) {
-		dev_alert(board->gpib_dev, "%s:%s - read returned EOF\n", NAME, __func__);
-		return -EIO;
 	}
-	dev_alert(board->gpib_dev, "%s:%s - read error %d\n", NAME, __func__, b->nchar);
-	TTY_LOG("\n *** %s *** Read Error - %s\n", NAME,
-		"Reset the adapter with 'gpib_config'\n");
 	return -EIO;
 }
 
@@ -381,7 +336,7 @@ static int one_char(gpib_board_t *board, struct char_buf *b)
  *	   not supported.
  */
 
-static void set_timeout(gpib_board_t *board)
+static void set_timeout(struct gpib_board *board)
 {
 	int n, val;
 	char command[sizeof(USB_GPIB_TTMO) + 6];
@@ -406,12 +361,10 @@ static void set_timeout(gpib_board_t *board)
 		val = send_command(board, command, 0);
 	}
 
-	if (val != ACK) {
-		dev_alert(board->gpib_dev, "%s:%s - error in timeout set: <%s>\n",
-			  NAME, __func__, command);
-	} else {
+	if (val != ACK)
+		dev_err(board->gpib_dev, "error in timeout set: <%s>\n", command);
+	else
 		data->timeout = board->usec_timeout;
-	}
 }
 
 /*
@@ -431,7 +384,7 @@ static void set_timeout(gpib_board_t *board)
  * detach() will be called. Always.
  */
 
-static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int usb_gpib_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	int retval, j;
 	u32 base = config->ibbase;
@@ -451,8 +404,6 @@ static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *confi
 
 	if (config->device_path) {
 		/* if config->device_path given, try that first */
-		dev_alert(board->gpib_dev, "%s:%s - Looking for device_path: %s\n",
-			  NAME, __func__, config->device_path);
 		for (j = 0 ; j < MAX_DEV ; j++) {
 			if ((assigned_usb_minors & 1 << j) == 0)
 				continue;
@@ -487,8 +438,7 @@ static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *confi
 	mutex_unlock(&minors_lock);
 
 	if (j == MAX_DEV) {
-		dev_alert(board->gpib_dev, "%s:%s - Requested device is not registered.\n",
-			  NAME, __func__);
+		dev_err(board->gpib_dev, "Requested device is not registered.\n");
 		return -EIO;
 	}
 
@@ -501,13 +451,13 @@ static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *confi
 	DIA_LOG(1, "Skel open: %d\n", retval);
 
 	if (retval) {
-		TTY_LOG("%s:%s - skel open failed.\n", NAME, __func__);
+		dev_err(board->gpib_dev, "skel open failed.\n");
 		kfree(board->private_data);
 		board->private_data = NULL;
 		return -ENODEV;
 	}
 
-	SHOW_STATUS(board);
+	show_status(board);
 
 	retval = send_command(board, USB_GPIB_ON, 0);
 	DIA_LOG(1, "USB_GPIB_ON returns %x\n", retval);
@@ -541,8 +491,8 @@ static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *confi
 	if (retval != ACK)
 		return -EIO;
 
-	SHOW_STATUS(board);
-	TTY_LOG("Module '%s' has been sucesfully configured\n", NAME);
+	show_status(board);
+	DIA_LOG(0, "attached\n");
 	return 0;
 }
 
@@ -553,13 +503,13 @@ static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *confi
  *
  */
 
-static void usb_gpib_detach(gpib_board_t *board)
+static void usb_gpib_detach(struct gpib_board *board)
 {
 	int retval;
 
-	SHOW_STATUS(board);
+	show_status(board);
 
-	DIA_LOG(0, "detaching %p\n", board);
+	DIA_LOG(0, "detaching\n");
 
 	if (board->private_data) {
 		if (GPIB_DEV) {
@@ -573,15 +523,14 @@ static void usb_gpib_detach(gpib_board_t *board)
 		board->private_data = NULL;
 	}
 
-	DIA_LOG(0, "done %p\n", board);
-	TTY_LOG("Module '%s' has been detached\n", NAME);
+	DIA_LOG(0, "detached\n");
 }
 
 /*
  *   Other functions follow in alphabetical order
  */
 /* command */
-static int usb_gpib_command(gpib_board_t *board,
+static int usb_gpib_command(struct gpib_board *board,
 			    u8 *buffer,
 			    size_t length,
 			    size_t *bytes_written)
@@ -614,7 +563,7 @@ static int usb_gpib_command(gpib_board_t *board,
  *   Cannot do nothing here, but remember for future use.
  */
 
-static void usb_gpib_disable_eos(gpib_board_t *board)
+static void usb_gpib_disable_eos(struct gpib_board *board)
 {
 	((struct usb_gpib_priv *)board->private_data)->eos_flags &= ~REOS;
 	DIA_LOG(1, "done: %x\n",
@@ -630,7 +579,7 @@ static void usb_gpib_disable_eos(gpib_board_t *board)
  *
  */
 
-static int usb_gpib_enable_eos(gpib_board_t *board,
+static int usb_gpib_enable_eos(struct gpib_board *board,
 			       u8 eos_byte,
 			       int compare_8_bits)
 {
@@ -650,7 +599,7 @@ static int usb_gpib_enable_eos(gpib_board_t *board,
  * @board:    the gpib_board data area for this gpib interface
  */
 
-static int usb_gpib_go_to_standby(gpib_board_t *board)
+static int usb_gpib_go_to_standby(struct gpib_board *board)
 {
 	int retval = set_control_line(board, IB_BUS_ATN, 0);
 
@@ -665,14 +614,14 @@ static int usb_gpib_go_to_standby(gpib_board_t *board)
  * usb_gpib_interface_clear() - Assert or de-assert IFC
  *
  * @board:    the gpib_board data area for this gpib interface
- * assert:    1: assert IFC;  0: de-assert IFC
+ * @assert:   1: assert IFC;  0: de-assert IFC
  *
  *    Currently on the assert request we issue the lpvo IBZ
  *    command that cycles IFC low for 100 usec, then we ignore
  *    the de-assert request.
  */
 
-static void usb_gpib_interface_clear(gpib_board_t *board, int assert)
+static void usb_gpib_interface_clear(struct gpib_board *board, int assert)
 {
 	int retval = 0;
 
@@ -688,21 +637,16 @@ static void usb_gpib_interface_clear(gpib_board_t *board, int assert)
 }
 
 /**
- * line_status() - Read the status of the bus lines.
+ * usb_gpib_line_status() - Read the status of the bus lines.
  *
  *  @board:    the gpib_board data area for this gpib interface
  *
  *    We can read all lines.
  */
-
-#define WQT wait_queue_entry_t
-#define WQH head
-#define WQE entry
-
-static int usb_gpib_line_status(const gpib_board_t *board)
+static int usb_gpib_line_status(const struct gpib_board *board)
 {
 	int buffer;
-	int line_status = ValidALL;   /* all lines will be read */
+	int line_status = VALID_ALL;   /* all lines will be read */
 	struct list_head *p, *q;
 	WQT *item;
 	unsigned long flags;
@@ -730,30 +674,29 @@ static int usb_gpib_line_status(const gpib_board_t *board)
 		msleep(sleep);
 	}
 
-	buffer = send_command((gpib_board_t *)board, USB_GPIB_STATUS, 0);
+	buffer = send_command((struct gpib_board *)board, USB_GPIB_STATUS, 0);
 
 	if (buffer < 0) {
-		dev_alert(board->gpib_dev, "%s:%s - line status read failed with %d\n",
-			  NAME, __func__, buffer);
+		dev_err(board->gpib_dev, "line status read failed with %d\n", buffer);
 		return -1;
 	}
 
 	if ((buffer & 0x01) == 0)
-		line_status |= BusREN;
+		line_status |= BUS_REN;
 	if ((buffer & 0x02) == 0)
-		line_status |= BusIFC;
+		line_status |= BUS_IFC;
 	if ((buffer & 0x04) == 0)
-		line_status |= BusNDAC;
+		line_status |= BUS_NDAC;
 	if ((buffer & 0x08) == 0)
-		line_status |= BusNRFD;
+		line_status |= BUS_NRFD;
 	if ((buffer & 0x10) == 0)
-		line_status |= BusDAV;
+		line_status |= BUS_DAV;
 	if ((buffer & 0x20) == 0)
-		line_status |= BusEOI;
+		line_status |= BUS_EOI;
 	if ((buffer & 0x40) == 0)
-		line_status |= BusATN;
+		line_status |= BUS_ATN;
 	if ((buffer & 0x80) == 0)
-		line_status |= BusSRQ;
+		line_status |= BUS_SRQ;
 
 	DIA_LOG(1, "done with %x %x\n", buffer, line_status);
 
@@ -762,7 +705,7 @@ static int usb_gpib_line_status(const gpib_board_t *board)
 
 /* parallel_poll */
 
-static int usb_gpib_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int usb_gpib_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	/* request parallel poll asserting ATN | EOI;
 	 * we suppose ATN already asserted
@@ -773,27 +716,23 @@ static int usb_gpib_parallel_poll(gpib_board_t *board, uint8_t *result)
 	DIA_LOG(1, "enter %p\n", board);
 
 	retval = set_control_line(board, IB_BUS_EOI, 1);
-	if (retval != ACK) {
-		dev_alert(board->gpib_dev, "%s:%s - assert EOI failed\n", NAME, __func__);
+	if (retval != ACK)
 		return -EIO;
-	}
 
 	*result = send_command(board, USB_GPIB_READ_DATA, 0);
 
 	DIA_LOG(1, "done with %x\n", *result);
 
 	retval = set_control_line(board, IB_BUS_EOI, 0);
-	if (retval != 0x06) {
-		dev_alert(board->gpib_dev, "%s:%s - unassert EOI failed\n", NAME, __func__);
+	if (retval != 0x06)
 		return -EIO;
-	}
 
 	return 0;
 }
 
 /* read */
 
-static int usb_gpib_read(gpib_board_t *board,
+static int usb_gpib_read(struct gpib_board *board,
 			 u8 *buffer,
 			 size_t length,
 			 int *end,
@@ -866,8 +805,7 @@ static int usb_gpib_read(gpib_board_t *board,
 		goto read_return;
 
 	if (one_char(board, &b) != DLE || one_char(board, &b) != STX) {
-		dev_alert(board->gpib_dev, "%s:%s - wrong <DLE><STX> sequence\n",
-			  NAME, __func__);
+		dev_err(board->gpib_dev, "wrong <DLE><STX> sequence\n");
 		retval = -EIO;
 		goto read_return;
 	}
@@ -907,15 +845,12 @@ static int usb_gpib_read(gpib_board_t *board,
 					retval = 0;
 					goto read_return;
 				} else {
-					dev_alert(board->gpib_dev, "%s:%s - %s %x\n",
-						  NAME, __func__,
-						  "Wrong end of message", c);
+					dev_err(board->gpib_dev, "wrong end of message %x", c);
 					retval = -ETIME;
 					goto read_return;
 				}
 			} else {
-				dev_alert(board->gpib_dev, "%s:%s - %s\n", NAME, __func__,
-					  "lone <DLE> in stream");
+				dev_err(board->gpib_dev, "lone <DLE> in stream");
 				retval = -EIO;
 				goto read_return;
 			}
@@ -934,8 +869,7 @@ static int usb_gpib_read(gpib_board_t *board,
 			c = one_char(board, &b);
 			if (c == ACK) {
 				if (MAX_READ_EXCESS - read_count > 1)
-					dev_alert(board->gpib_dev, "%s:%s - %s\n", NAME, __func__,
-						  "small buffer - maybe some data lost");
+					dev_dbg(board->gpib_dev, "small buffer - maybe some data lost");
 				retval = 0;
 				goto read_return;
 			}
@@ -943,15 +877,13 @@ static int usb_gpib_read(gpib_board_t *board,
 		}
 	}
 
-	dev_alert(board->gpib_dev, "%s:%s - no input end - GPIB board in odd state\n",
-		  NAME, __func__);
+	dev_err(board->gpib_dev, "no input end - board in odd state\n");
 	retval = -EIO;
 
 read_return:
 	kfree(b.inbuf);
 
-	DIA_LOG(1, "done with byte/status: %d %x %d\n",
-		(int)*bytes_read, retval, *end);
+	DIA_LOG(1, "done with byte/status: %d %x %d\n",	(int)*bytes_read, retval, *end);
 
 	if (retval == 0 || retval == -ETIME) {
 		if (send_command(board, USB_GPIB_UNTALK, sizeof(USB_GPIB_UNTALK)) == 0x06)
@@ -964,21 +896,20 @@ read_return:
 
 /* remote_enable */
 
-static void usb_gpib_remote_enable(gpib_board_t *board, int enable)
+static void usb_gpib_remote_enable(struct gpib_board *board, int enable)
 {
 	int retval;
 
 	retval = set_control_line(board, IB_BUS_REN, enable ? 1 : 0);
 	if (retval != ACK)
-		dev_alert(board->gpib_dev, "%s:%s - could not set REN line: %x\n",
-			  NAME, __func__, retval);
+		dev_err(board->gpib_dev, "could not set REN line: %x\n", retval);
 
 	DIA_LOG(1, "done with %x\n", retval);
 }
 
 /* request_system_control */
 
-static void usb_gpib_request_system_control(gpib_board_t *board,
+static void usb_gpib_request_system_control(struct gpib_board *board,
 					    int request_control)
 {
 	if (request_control)
@@ -992,7 +923,7 @@ static void usb_gpib_request_system_control(gpib_board_t *board,
 /* take_control */
 /* beware: the sync flag is ignored; what is its real meaning? */
 
-static int usb_gpib_take_control(gpib_board_t *board, int sync)
+static int usb_gpib_take_control(struct gpib_board *board, int sync)
 {
 	int retval;
 
@@ -1007,7 +938,7 @@ static int usb_gpib_take_control(gpib_board_t *board, int sync)
 
 /* update_status */
 
-static unsigned int usb_gpib_update_status(gpib_board_t *board,
+static unsigned int usb_gpib_update_status(struct gpib_board *board,
 					   unsigned int clear_mask)
 {
 	/* There is nothing we can do here, I guess */
@@ -1022,7 +953,7 @@ static unsigned int usb_gpib_update_status(gpib_board_t *board,
 /* write */
 /* beware: DLE characters are not escaped - can only send ASCII data */
 
-static int usb_gpib_write(gpib_board_t *board,
+static int usb_gpib_write(struct gpib_board *board,
 			  u8 *buffer,
 			  size_t length,
 			  int send_eoi,
@@ -1053,9 +984,8 @@ static int usb_gpib_write(gpib_board_t *board,
 
 	*bytes_written = length;
 
-	if (send_command(board, USB_GPIB_UNLISTEN, sizeof(USB_GPIB_UNLISTEN))
-	    != 0x06)
-		return  -EPIPE;
+	if (send_command(board, USB_GPIB_UNLISTEN, sizeof(USB_GPIB_UNLISTEN)) != 0x06)
+		return -EPIPE;
 
 	return length;
 }
@@ -1066,64 +996,56 @@ static int usb_gpib_write(gpib_board_t *board,
 
 /* parallel_poll configure */
 
-static void usb_gpib_parallel_poll_configure(gpib_board_t *board,
+static void usb_gpib_parallel_poll_configure(struct gpib_board *board,
 					     uint8_t configuration)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 }
 
 /* parallel_poll_response */
 
-static void usb_gpib_parallel_poll_response(gpib_board_t *board, int ist)
+static void usb_gpib_parallel_poll_response(struct gpib_board *board, int ist)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 }
 
 /* primary_address */
 
-static int  usb_gpib_primary_address(gpib_board_t *board, unsigned int address)
+static int  usb_gpib_primary_address(struct gpib_board *board, unsigned int address)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 	return 0;
 }
 
 /* return_to_local */
 
-static	void usb_gpib_return_to_local(gpib_board_t *board)
+static	void usb_gpib_return_to_local(struct gpib_board *board)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 }
 
 /* secondary_address */
 
-static int usb_gpib_secondary_address(gpib_board_t *board,
+static int usb_gpib_secondary_address(struct gpib_board *board,
 				      unsigned int address,
 				      int enable)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 	return 0;
 }
 
 /* serial_poll_response */
 
-static void usb_gpib_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void usb_gpib_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 }
 
 /* serial_poll_status */
 
-static uint8_t usb_gpib_serial_poll_status(gpib_board_t *board)
+static uint8_t usb_gpib_serial_poll_status(struct gpib_board *board)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 	return 0;
 }
 
 /* t1_delay */
 
-static unsigned int usb_gpib_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+static int usb_gpib_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
-	dev_alert(board->gpib_dev, "%s:%s - currently a NOP\n", NAME, __func__);
 	return 0;
 }
 
@@ -1181,7 +1103,7 @@ static int usb_gpib_init_module(struct usb_interface *interface)
 	if (!assigned_usb_minors) {
 		rv = gpib_register_driver(&usb_gpib_interface, THIS_MODULE);
 		if (rv) {
-			pr_err("lpvo_usb_gpib: gpib_register_driver failed: error = %d\n", rv);
+			pr_err("gpib_register_driver failed: error = %d\n", rv);
 			goto exit;
 		}
 	} else {
@@ -1191,8 +1113,8 @@ static int usb_gpib_init_module(struct usb_interface *interface)
 
 		for (j = 0 ; j < MAX_DEV ; j++) {
 			if (usb_minors[j] == interface->minor && assigned_usb_minors & 1 << j) {
-				pr_alert("%s:%s - CODE BUG: USB minor %d registered at %d.\n",
-					 NAME, __func__, interface->minor, j);
+				pr_err("CODE BUG: USB minor %d registered at %d.\n",
+				       interface->minor, j);
 				rv = -1;
 				goto exit;
 			}
@@ -1207,13 +1129,11 @@ static int usb_gpib_init_module(struct usb_interface *interface)
 			usb_minors[j] = interface->minor;
 			lpvo_usb_interfaces[j] = interface;
 			assigned_usb_minors |= mask;
-			DIA_LOG(0, "usb minor %d registered at %d\n", interface->minor, j);
 			rv = 0;
 			goto exit;
 		}
 	}
-	pr_alert("%s:%s - No slot available for interface %p minor %d\n",
-		 NAME, __func__, interface, interface->minor);
+	pr_err("No slot available for interface %p minor %d\n", interface, interface->minor);
 	rv = -1;
 
 exit:
@@ -1235,7 +1155,7 @@ static void usb_gpib_exit_module(int minor)
 			goto exit;
 		}
 	}
-	pr_alert("%s:%s - CODE BUG: USB minor %d not found.\n", NAME, __func__, minor);
+	pr_err("CODE BUG: USB minor %d not found.\n", minor);
 
 exit:
 	mutex_unlock(&minors_lock);
@@ -1267,7 +1187,7 @@ static int write_latency_timer(struct usb_device *udev)
 				 LATENCY_TIMER, LATENCY_CHANNEL,
 				 NULL, 0, WDR_TIMEOUT);
 	if (rv < 0)
-		pr_alert("Unable to write latency timer: %i\n", rv);
+		dev_err(&udev->dev, "Unable to write latency timer: %i\n", rv);
 	return rv;
 }
 
@@ -1363,18 +1283,15 @@ static void skel_delete(struct kref *kref)
  *   skel_do_open() - to be called by usb_gpib_attach
  */
 
-static int skel_do_open(gpib_board_t *board, int subminor)
+static int skel_do_open(struct gpib_board *board, int subminor)
 {
 	struct usb_skel *dev;
 	struct usb_interface *interface;
 	int retval = 0;
 
-	DIA_LOG(0, "Required minor: %d\n", subminor);
-
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
-		pr_err("%s - error, can't find device for minor %d\n",
-		       __func__, subminor);
+		dev_err(board->gpib_dev, "can't find device for minor %d\n", subminor);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -1403,7 +1320,7 @@ exit:
  *   skel_do_release() - to be called by usb_gpib_detach
  */
 
-static int skel_do_release(gpib_board_t *board)
+static int skel_do_release(struct gpib_board *board)
 {
 	struct usb_skel *dev;
 
@@ -1439,9 +1356,8 @@ static void skel_read_bulk_callback(struct urb *urb)
 		if (!(urb->status == -ENOENT ||
 		      urb->status == -ECONNRESET ||
 		      urb->status == -ESHUTDOWN))
-			dev_err(&dev->interface->dev,
-				"%s - nonzero read bulk status received: %d\n",
-				__func__, urb->status);
+			dev_err(&dev->interface->dev, "nonzero read bulk status received: %d\n",
+				urb->status);
 
 		dev->errors = urb->status;
 	} else {
@@ -1478,9 +1394,7 @@ static int skel_do_read_io(struct usb_skel *dev, size_t count)
 	/* do it */
 	rv = usb_submit_urb(dev->bulk_in_urb, GFP_KERNEL);
 	if (rv < 0) {
-		dev_err(&dev->interface->dev,
-			"%s - failed submitting read urb, error %d\n",
-			__func__, rv);
+		dev_err(&dev->interface->dev, "failed submitting read urb, error %d\n", rv);
 		rv = (rv == -ENOMEM) ? rv : -EIO;
 		spin_lock_irq(&dev->err_lock);
 		dev->ongoing_read = 0;
@@ -1504,13 +1418,9 @@ static ssize_t skel_do_read(struct usb_skel *dev, char *buffer, size_t count)
 	if (!dev->bulk_in_urb || !count)
 		return 0;
 
-	DIA_LOG(1, "enter for %zu.\n", count);
-
 restart:  /* added to comply with ftdi timeout technique */
 
 	/* no concurrent readers */
-
-	DIA_LOG(2, "restart with %zd %zd.\n", dev->bulk_in_filled, dev->bulk_in_copied);
 
 	rv = mutex_lock_interruptible(&dev->io_mutex);
 	if (rv < 0)
@@ -1526,8 +1436,6 @@ retry:
 	spin_lock_irq(&dev->err_lock);
 	ongoing_io = dev->ongoing_read;
 	spin_unlock_irq(&dev->err_lock);
-
-	DIA_LOG(2, "retry with %d.\n", ongoing_io);
 
 	if (ongoing_io) {
 //		  /* nonblocking IO shall not wait */
@@ -1569,8 +1477,6 @@ retry:
 //		  size_t chunk = min(available, count);	 /* compute chunk later */
 		size_t chunk;
 
-		DIA_LOG(2, "we have data: %zu %zu.\n", dev->bulk_in_filled, dev->bulk_in_copied);
-
 		if (!available) {
 			/*
 			 * all data has been used
@@ -1596,12 +1502,6 @@ retry:
 		 */
 
 		if (dev->bulk_in_copied) {
-			int j;
-
-			for (j = 0 ; j < dev->bulk_in_filled ; j++) {
-				pr_alert("copy -> %x %zu %x\n",
-					 j, dev->bulk_in_copied, dev->bulk_in_buffer[j]);
-			}
 			chunk = min(available, count);
 			memcpy(buffer, dev->bulk_in_buffer + dev->bulk_in_copied, chunk);
 			rv = chunk;
@@ -1613,7 +1513,7 @@ retry:
 			/* account for two bytes to be discarded */
 			chunk = min(available, count + 2);
 			if (chunk < 2) {
-				pr_alert("BAD READ - chunk: %zu\n", chunk);
+				dev_err(&dev->udev->dev, "BAD READ - chunk: %zu\n", chunk);
 				rv = -EIO;
 				goto exit;
 			}
@@ -1633,8 +1533,6 @@ retry:
 //		  if (available < count)
 //			  skel_do_read_io(dev, dev->bulk_in_size);
 	} else {
-		DIA_LOG(1, "no data - start read - copied: %zd.\n", dev->bulk_in_copied);
-
 		/* no data in the buffer */
 		rv = skel_do_read_io(dev, dev->bulk_in_size);
 		if (rv < 0)
@@ -1645,10 +1543,10 @@ retry:
 exit:
 	mutex_unlock(&dev->io_mutex);
 	if (rv == 2)
-		goto restart;   /* ftdi chip returns two status bytes after a latency anyhow */
-	DIA_LOG(1, "exit with %d.\n", rv);
+		goto restart;	/* ftdi chip returns two status bytes after a latency anyhow */
+
 	if (rv > 0)
-		return rv - 2;  /* account for 2 discarded bytes in a valid buffer */
+		return rv - 2;	/* account for 2 discarded bytes in a valid buffer */
 	return rv;
 }
 
@@ -1669,8 +1567,7 @@ static void skel_write_bulk_callback(struct urb *urb)
 		      urb->status == -ECONNRESET ||
 		      urb->status == -ESHUTDOWN))
 			dev_err(&dev->interface->dev,
-				"%s - nonzero write bulk status received: %d\n",
-				__func__, urb->status);
+				"nonzero write bulk status received: %d\n", urb->status);
 
 		spin_lock_irqsave(&dev->err_lock, flags);
 		dev->errors = urb->status;
@@ -1763,9 +1660,7 @@ static ssize_t skel_do_write(struct usb_skel *dev, const char *buffer, size_t co
 	retval = usb_submit_urb(urb, GFP_KERNEL);
 	mutex_unlock(&dev->io_mutex);
 	if (retval) {
-		dev_err(&dev->interface->dev,
-			"%s - failed submitting write urb, error %d\n",
-			__func__, retval);
+		dev_err(&dev->interface->dev, "failed submitting write urb, error %d\n", retval);
 		goto error_unanchor;
 	}
 
@@ -1831,8 +1726,7 @@ static int skel_open(struct inode *inode, struct file *file)
 
 	interface = usb_find_interface(&skel_driver, subminor);
 	if (!interface) {
-		pr_err("%s - error, can't find device for minor %d\n",
-		       __func__, subminor);
+		pr_err("can't find device for minor %d\n", subminor);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -1894,8 +1788,6 @@ static ssize_t skel_read(struct file *file, char __user *buffer, size_t count,
 		return -ENOMEM;
 
 	rv = skel_do_read(dev, buf, count);
-
-	pr_alert("%s - return with %zu\n", __func__, rv);
 
 	if (rv > 0) {
 		if (copy_to_user(buffer, buf, rv)) {
@@ -2015,8 +1907,8 @@ static int skel_probe(struct usb_interface *interface,
 	/* let the world know */
 
 	device_path = kobject_get_path(&dev->udev->dev.kobj, GFP_KERNEL);
-	pr_alert("%s:%s - New lpvo_usb_device -> bus: %d  dev: %d  path: %s\n", NAME, __func__,
-		 dev->udev->bus->busnum, dev->udev->devnum, device_path);
+	dev_dbg(&interface->dev, "New lpvo_usb_device -> bus: %d  dev: %d  path: %s\n",
+		dev->udev->bus->busnum, dev->udev->devnum, device_path);
 	kfree(device_path);
 
 #if USER_DEVICE
@@ -2029,14 +1921,9 @@ static int skel_probe(struct usb_interface *interface,
 		usb_set_intfdata(interface, NULL);
 		goto error;
 	}
-
-	/* let the user know what node this device is now attached to */
-	dev_info(&interface->dev,
-		 "lpvo_usb_gpib device now attached to lpvo_raw%d",
-		 interface->minor);
 #endif
 
-	write_latency_timer(dev->udev);     /* adjust the latency timer */
+	write_latency_timer(dev->udev);	    /* adjust the latency timer */
 
 	usb_gpib_init_module(interface);    /* last, init the lpvo for this minor */
 
@@ -2073,8 +1960,6 @@ static void skel_disconnect(struct usb_interface *interface)
 
 	/* decrement our usage count */
 	kref_put(&dev->kref, skel_delete);
-
-	dev_info(&interface->dev, "USB lpvo_raw #%d now disconnected", minor);
 }
 
 static void skel_draw_down(struct usb_skel *dev)

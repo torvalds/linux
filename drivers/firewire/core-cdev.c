@@ -1137,10 +1137,7 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 	unsigned long payload, buffer_end, transmit_header_bytes = 0;
 	u32 control;
 	int count;
-	struct {
-		struct fw_iso_packet packet;
-		u8 header[256];
-	} u;
+	DEFINE_RAW_FLEX(struct fw_iso_packet, u, header, 64);
 
 	if (ctx == NULL || a->handle != 0)
 		return -EINVAL;
@@ -1172,29 +1169,29 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 	while (p < end) {
 		if (get_user(control, &p->control))
 			return -EFAULT;
-		u.packet.payload_length = GET_PAYLOAD_LENGTH(control);
-		u.packet.interrupt = GET_INTERRUPT(control);
-		u.packet.skip = GET_SKIP(control);
-		u.packet.tag = GET_TAG(control);
-		u.packet.sy = GET_SY(control);
-		u.packet.header_length = GET_HEADER_LENGTH(control);
+		u->payload_length = GET_PAYLOAD_LENGTH(control);
+		u->interrupt = GET_INTERRUPT(control);
+		u->skip = GET_SKIP(control);
+		u->tag = GET_TAG(control);
+		u->sy = GET_SY(control);
+		u->header_length = GET_HEADER_LENGTH(control);
 
 		switch (ctx->type) {
 		case FW_ISO_CONTEXT_TRANSMIT:
-			if (u.packet.header_length & 3)
+			if (u->header_length & 3)
 				return -EINVAL;
-			transmit_header_bytes = u.packet.header_length;
+			transmit_header_bytes = u->header_length;
 			break;
 
 		case FW_ISO_CONTEXT_RECEIVE:
-			if (u.packet.header_length == 0 ||
-			    u.packet.header_length % ctx->header_size != 0)
+			if (u->header_length == 0 ||
+			    u->header_length % ctx->header_size != 0)
 				return -EINVAL;
 			break;
 
 		case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
-			if (u.packet.payload_length == 0 ||
-			    u.packet.payload_length & 3)
+			if (u->payload_length == 0 ||
+			    u->payload_length & 3)
 				return -EINVAL;
 			break;
 		}
@@ -1204,20 +1201,19 @@ static int ioctl_queue_iso(struct client *client, union ioctl_arg *arg)
 		if (next > end)
 			return -EINVAL;
 		if (copy_from_user
-		    (u.packet.header, p->header, transmit_header_bytes))
+		    (u->header, p->header, transmit_header_bytes))
 			return -EFAULT;
-		if (u.packet.skip && ctx->type == FW_ISO_CONTEXT_TRANSMIT &&
-		    u.packet.header_length + u.packet.payload_length > 0)
+		if (u->skip && ctx->type == FW_ISO_CONTEXT_TRANSMIT &&
+		    u->header_length + u->payload_length > 0)
 			return -EINVAL;
-		if (payload + u.packet.payload_length > buffer_end)
+		if (payload + u->payload_length > buffer_end)
 			return -EINVAL;
 
-		if (fw_iso_context_queue(ctx, &u.packet,
-					 &client->buffer, payload))
+		if (fw_iso_context_queue(ctx, u, &client->buffer, payload))
 			break;
 
 		p = next;
-		payload += u.packet.payload_length;
+		payload += u->payload_length;
 		count++;
 	}
 	fw_iso_context_queue_flush(ctx);

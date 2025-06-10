@@ -23,6 +23,7 @@
 #include <linux/io.h>
 
 #include <asm/css_chars.h>
+#include <asm/machine.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
@@ -1953,7 +1954,7 @@ static int dasd_eckd_validate_server(struct dasd_device *device,
 	if (private->uid.type == UA_BASE_PAV_ALIAS ||
 	    private->uid.type == UA_HYPER_PAV_ALIAS)
 		return 0;
-	if (dasd_nopav || MACHINE_IS_VM)
+	if (dasd_nopav || machine_is_vm())
 		enable_pav = 0;
 	else
 		enable_pav = 1;

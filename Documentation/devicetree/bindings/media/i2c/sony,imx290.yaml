@@ -136,7 +136,7 @@ examples:
             port {
                 imx290_ep: endpoint {
                     data-lanes = <1 2 3 4>;
-                    link-frequencies = /bits/ 64 <445500000>;
+                    link-frequencies = /bits/ 64 <222750000 148500000>;
                     remote-endpoint = <&csiphy0_ep>;
                 };
             };

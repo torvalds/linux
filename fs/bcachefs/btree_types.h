@@ -139,6 +139,7 @@ struct btree {
 };
 
 #define BCH_BTREE_CACHE_NOT_FREED_REASONS()	\
+	x(cache_reserve)			\
 	x(lock_intent)				\
 	x(lock_write)				\
 	x(dirty)				\
@@ -257,9 +258,6 @@ struct btree_node_iter {
  *
  * BTREE_TRIGGER_insert - @new is entering the btree
  * BTREE_TRIGGER_overwrite - @old is leaving the btree
- *
- * BTREE_TRIGGER_bucket_invalidate - signal from bucket invalidate path to alloc
- * trigger
  */
 #define BTREE_TRIGGER_FLAGS()			\
 	x(norun)				\
@@ -269,8 +267,7 @@ struct btree_node_iter {
 	x(gc)					\
 	x(insert)				\
 	x(overwrite)				\
-	x(is_root)				\
-	x(bucket_invalidate)
+	x(is_root)
 
 enum {
 #define x(n) BTREE_ITER_FLAG_BIT_##n,
@@ -367,7 +364,6 @@ static inline unsigned long btree_path_ip_allocated(struct btree_path *path)
  * @nodes_intent_locked	- bitmask indicating which locks are intent locks
  */
 struct btree_iter {
-	struct btree_trans	*trans;
 	btree_path_idx_t	path;
 	btree_path_idx_t	update_path;
 	btree_path_idx_t	key_cache_path;
@@ -423,6 +419,7 @@ static inline struct bpos btree_node_pos(struct btree_bkey_cached_common *b)
 
 struct btree_insert_entry {
 	unsigned		flags;
+	u8			sort_order;
 	u8			bkey_type;
 	enum btree_id		btree_id:8;
 	u8			level:4;
@@ -477,6 +474,18 @@ struct btree_trans_paths {
 	struct btree_path	paths[];
 };
 
+struct trans_kmalloc_trace {
+	unsigned long		ip;
+	size_t			bytes;
+};
+typedef DARRAY(struct trans_kmalloc_trace) darray_trans_kmalloc_trace;
+
+struct btree_trans_subbuf {
+	u16			base;
+	u16			u64s;
+	u16			size;;
+};
+
 struct btree_trans {
 	struct bch_fs		*c;
 
@@ -488,6 +497,9 @@ struct btree_trans {
 	void			*mem;
 	unsigned		mem_top;
 	unsigned		mem_bytes;
+#ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
+	darray_trans_kmalloc_trace trans_kmalloc_trace;
+#endif
 
 	btree_path_idx_t	nr_sorted;
 	btree_path_idx_t	nr_paths;
@@ -528,9 +540,8 @@ struct btree_trans {
 	int			srcu_idx;
 
 	/* update path: */
-	u16			journal_entries_u64s;
-	u16			journal_entries_size;
-	struct jset_entry	*journal_entries;
+	struct btree_trans_subbuf journal_entries;
+	struct btree_trans_subbuf accounting;
 
 	struct btree_trans_commit_hook *hooks;
 	struct journal_entry_pin *journal_pin;
@@ -647,13 +658,13 @@ static inline struct bset_tree *bset_tree_last(struct btree *b)
 static inline void *
 __btree_node_offset_to_ptr(const struct btree *b, u16 offset)
 {
-	return (void *) ((u64 *) b->data + 1 + offset);
+	return (void *) ((u64 *) b->data + offset);
 }
 
 static inline u16
 __btree_node_ptr_to_offset(const struct btree *b, const void *p)
 {
-	u16 ret = (u64 *) p - 1 - (u64 *) b->data;
+	u16 ret = (u64 *) p - (u64 *) b->data;
 
 	EBUG_ON(__btree_node_offset_to_ptr(b, ret) != p);
 	return ret;
@@ -851,6 +862,18 @@ static inline bool btree_type_uses_write_buffer(enum btree_id btree)
 	;
 
 	return BIT_ULL(btree) & mask;
+}
+
+static inline u8 btree_trigger_order(enum btree_id btree)
+{
+	switch (btree) {
+	case BTREE_ID_alloc:
+		return U8_MAX;
+	case BTREE_ID_stripes:
+		return U8_MAX - 1;
+	default:
+		return btree;
+	}
 }
 
 struct btree_root {

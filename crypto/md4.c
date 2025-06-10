@@ -233,7 +233,7 @@ static void __exit md4_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-subsys_initcall(md4_mod_init);
+module_init(md4_mod_init);
 module_exit(md4_mod_fini);
 
 MODULE_LICENSE("GPL");

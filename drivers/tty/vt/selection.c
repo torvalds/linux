@@ -193,13 +193,12 @@ int set_selection_user(const struct tiocl_selection __user *sel,
 		return -EFAULT;
 
 	/*
-	 * TIOCL_SELCLEAR, TIOCL_SELPOINTER and TIOCL_SELMOUSEREPORT are OK to
-	 * use without CAP_SYS_ADMIN as they do not modify the selection.
+	 * TIOCL_SELCLEAR and TIOCL_SELPOINTER are OK to use without
+	 * CAP_SYS_ADMIN as they do not modify the selection.
 	 */
 	switch (v.sel_mode) {
 	case TIOCL_SELCLEAR:
 	case TIOCL_SELPOINTER:
-	case TIOCL_SELMOUSEREPORT:
 		break;
 	default:
 		if (!capable(CAP_SYS_ADMIN))

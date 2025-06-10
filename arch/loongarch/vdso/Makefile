@@ -36,8 +36,7 @@ endif
 
 # VDSO linker flags.
 ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
-	$(filter -E%,$(KBUILD_CFLAGS)) -nostdlib -shared \
-	--hash-style=sysv --build-id -T
+	$(filter -E%,$(KBUILD_CFLAGS)) -nostdlib -shared --build-id -T
 
 #
 # Shared build commands.

@@ -754,6 +754,7 @@
 &scif0 {
 	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
+	bootph-all;
 
 	status = "okay";
 };

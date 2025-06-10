@@ -11,22 +11,30 @@
 if __name__ == '__main__':
     from dot2.dot2k import dot2k
     import argparse
-    import ntpath
-    import os
-    import platform
     import sys
 
+    def is_container():
+        """Should work even before parsing the arguments"""
+        return "-c" in sys.argv or "--container" in sys.argv
+
     parser = argparse.ArgumentParser(description='transform .dot file into kernel rv monitor')
-    parser.add_argument('-d', "--dot", dest="dot_file", required=True)
-    parser.add_argument('-t', "--monitor_type", dest="monitor_type", required=True)
-    parser.add_argument('-n', "--model_name", dest="model_name", required=False)
+    parser.add_argument('-d', "--dot", dest="dot_file", required=not is_container())
+    parser.add_argument('-t', "--monitor_type", dest="monitor_type", required=not is_container(),
+                        help=f"Available options: {', '.join(dot2k.monitor_types.keys())}")
+    parser.add_argument('-n', "--model_name", dest="model_name", required=is_container())
     parser.add_argument("-D", "--description", dest="description", required=False)
     parser.add_argument("-a", "--auto_patch", dest="auto_patch",
                         action="store_true", required=False,
                         help="Patch the kernel in place")
+    parser.add_argument("-p", "--parent", dest="parent",
+                        required=False, help="Create a monitor nested to parent")
+    parser.add_argument("-c", "--container", dest="container",
+                        action="store_true", required=False,
+                        help="Create an empty monitor to be used as a container")
     params = parser.parse_args()
 
-    print("Opening and parsing the dot file %s" % params.dot_file)
+    if not is_container():
+        print("Opening and parsing the dot file %s" % params.dot_file)
     try:
         monitor=dot2k(params.dot_file, params.monitor_type, vars(params))
     except Exception as e:
@@ -37,8 +45,9 @@ if __name__ == '__main__':
     print("Writing the monitor into the directory %s" % monitor.name)
     monitor.print_files()
     print("Almost done, checklist")
-    print("  - Edit the %s/%s.c to add the instrumentation" % (monitor.name, monitor.name))
-    print(monitor.fill_tracepoint_tooltip())
+    if not is_container():
+        print("  - Edit the %s/%s.c to add the instrumentation" % (monitor.name, monitor.name))
+        print(monitor.fill_tracepoint_tooltip())
     print(monitor.fill_makefile_tooltip())
     print(monitor.fill_kconfig_tooltip())
     print(monitor.fill_monitor_tooltip())

@@ -138,10 +138,10 @@ config PINCTRL_MSM8916
 	  Qualcomm TLMM block found on the Qualcomm 8916 platform.
 
 config PINCTRL_MSM8917
-	tristate "Qualcomm 8917 pin controller driver"
+	tristate "Qualcomm 8917/8937 pin controller driver"
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found on the Qualcomm MSM8917 platform.
+	  Qualcomm TLMM block found on the Qualcomm MSM8917, MSM8937 platform.
 
 config PINCTRL_MSM8953
 	tristate "Qualcomm 8953 pin controller driver"
@@ -435,6 +435,16 @@ config PINCTRL_X1E80100
 	  Qualcomm Technologies Inc Top Level Mode Multiplexer block (TLMM)
 	  block found on the Qualcomm Technologies Inc X1E80100 platform.
 	  Say Y here to compile statically, or M here to compile it as a module.
+	  If unsure, say N.
+
+config PINCTRL_TLMM_TEST
+	tristate "Qualcomm TLMM test driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on KUNIT
+	help
+	  This driver provides test cases for the interrupt capabilities of
+	  TLMM driver (pinctrl-msm). Specify a floating gpio to use for testing
+	  using the module parameter "gpio" and execute the kunit suite.
 	  If unsure, say N.
 
 endif

@@ -846,7 +846,7 @@ static int natsemi_probe1(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	i = pci_request_regions(pdev, DRV_NAME);
+	i = pcim_request_all_regions(pdev, DRV_NAME);
 	if (i)
 		goto err_pci_request_regions;
 
@@ -3179,7 +3179,7 @@ static int netdev_close(struct net_device *dev)
 	 * the final WOL settings?
 	 */
 
-	del_timer_sync(&np->timer);
+	timer_delete_sync(&np->timer);
 	disable_irq(irq);
 	spin_lock_irq(&np->lock);
 	natsemi_irq_disable(dev);
@@ -3278,7 +3278,7 @@ static int __maybe_unused natsemi_suspend(struct device *dev_d)
 	if (netif_running (dev)) {
 		const int irq = np->pci_dev->irq;
 
-		del_timer_sync(&np->timer);
+		timer_delete_sync(&np->timer);
 
 		disable_irq(irq);
 		spin_lock_irq(&np->lock);

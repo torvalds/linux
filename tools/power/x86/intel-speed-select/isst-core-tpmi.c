@@ -227,6 +227,7 @@ static int tpmi_get_ctdp_control(struct isst_id *id, int config_index,
 static int tpmi_get_tdp_info(struct isst_id *id, int config_index,
 			     struct isst_pkg_ctdp_level_info *ctdp_level)
 {
+	struct isst_perf_level_fabric_info fabric_info;
 	struct isst_perf_level_data_info info;
 	int ret;
 
@@ -252,6 +253,17 @@ static int tpmi_get_tdp_info(struct isst_id *id, int config_index,
 	ctdp_level->uncore_p0 = info.p0_fabric_freq_mhz;
 	ctdp_level->uncore_p1 = info.p1_fabric_freq_mhz;
 	ctdp_level->uncore_pm = info.pm_fabric_freq_mhz;
+
+	fabric_info.socket_id = id->pkg;
+	fabric_info.power_domain_id = id->punit;
+	fabric_info.level = config_index;
+
+	ret = tpmi_process_ioctl(ISST_IF_GET_PERF_LEVEL_FABRIC_INFO, &fabric_info);
+	if (ret != -1) {
+		ctdp_level->uncore1_p0 = fabric_info.p0_fabric_freq_mhz[1];
+		ctdp_level->uncore1_p1 = fabric_info.p1_fabric_freq_mhz[1];
+		ctdp_level->uncore1_pm = fabric_info.pm_fabric_freq_mhz[1];
+	}
 
 	debug_printf
 	    ("cpu:%d ctdp:%d CONFIG_TDP_GET_TDP_INFO tdp_ratio:%d pkg_tdp:%d ctdp_level->t_proc_hot:%d\n",

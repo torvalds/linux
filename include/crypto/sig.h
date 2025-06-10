@@ -23,7 +23,8 @@ struct crypto_sig {
  * struct sig_alg - generic public key signature algorithm
  *
  * @sign:	Function performs a sign operation as defined by public key
- *		algorithm. Optional.
+ *		algorithm. On success, the signature size is returned.
+ *		Optional.
  * @verify:	Function performs a complete verify operation as defined by
  *		public key algorithm, returning verification status. Optional.
  * @set_pub_key: Function invokes the algorithm specific set public key
@@ -127,7 +128,7 @@ static inline void crypto_free_sig(struct crypto_sig *tfm)
 /**
  * crypto_sig_keysize() - Get key size
  *
- * Function returns the key size in bytes.
+ * Function returns the key size in bits.
  * Function assumes that the key is already set in the transformation. If this
  * function is called without a setkey or with a failed setkey, you may end up
  * in a NULL dereference.
@@ -186,7 +187,7 @@ static inline unsigned int crypto_sig_maxsize(struct crypto_sig *tfm)
  * @dst:	destination obuffer
  * @dlen:	destination length
  *
- * Return: zero on success; error code in case of error
+ * Return: signature size on success; error code in case of error
  */
 static inline int crypto_sig_sign(struct crypto_sig *tfm,
 				  const void *src, unsigned int slen,

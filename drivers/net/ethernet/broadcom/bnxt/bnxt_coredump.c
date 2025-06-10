@@ -110,19 +110,29 @@ static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg,
 			}
 		}
 
-		if (info->dest_buf) {
-			if ((info->seg_start + off + len) <=
-			    BNXT_COREDUMP_BUF_LEN(info->buf_len)) {
-				memcpy(info->dest_buf + off, dma_buf, len);
-			} else {
-				rc = -ENOBUFS;
-				break;
-			}
-		}
-
 		if (cmn_req->req_type ==
 				cpu_to_le16(HWRM_DBG_COREDUMP_RETRIEVE))
 			info->dest_buf_size += len;
+
+		if (info->dest_buf) {
+			if ((info->seg_start + off + len) <=
+			    BNXT_COREDUMP_BUF_LEN(info->buf_len)) {
+				u16 copylen = min_t(u16, len,
+						    info->dest_buf_size - off);
+
+				memcpy(info->dest_buf + off, dma_buf, copylen);
+				if (copylen < len)
+					break;
+			} else {
+				rc = -ENOBUFS;
+				if (cmn_req->req_type ==
+				    cpu_to_le16(HWRM_DBG_COREDUMP_LIST)) {
+					kfree(info->dest_buf);
+					info->dest_buf = NULL;
+				}
+				break;
+			}
+		}
 
 		if (!(cmn_resp->flags & HWRM_DBG_CMN_FLAGS_MORE))
 			break;
@@ -159,8 +169,8 @@ static int bnxt_hwrm_dbg_coredump_list(struct bnxt *bp,
 	return rc;
 }
 
-static int bnxt_hwrm_dbg_coredump_initiate(struct bnxt *bp, u16 component_id,
-					   u16 segment_id)
+static int bnxt_hwrm_dbg_coredump_initiate(struct bnxt *bp, u16 dump_type,
+					   u16 component_id, u16 segment_id)
 {
 	struct hwrm_dbg_coredump_initiate_input *req;
 	int rc;
@@ -172,6 +182,8 @@ static int bnxt_hwrm_dbg_coredump_initiate(struct bnxt *bp, u16 component_id,
 	hwrm_req_timeout(bp, req, bp->hwrm_cmd_max_timeout);
 	req->component_id = cpu_to_le16(component_id);
 	req->segment_id = cpu_to_le16(segment_id);
+	if (dump_type == BNXT_DUMP_LIVE_WITH_CTX_L1_CACHE)
+		req->seg_flags = DBG_COREDUMP_INITIATE_REQ_SEG_FLAGS_COLLECT_CTX_L1_CACHE;
 
 	return hwrm_req_send(bp, req);
 }
@@ -450,7 +462,8 @@ static int __bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf,
 
 		start = jiffies;
 
-		rc = bnxt_hwrm_dbg_coredump_initiate(bp, comp_id, seg_id);
+		rc = bnxt_hwrm_dbg_coredump_initiate(bp, dump_type, comp_id,
+						     seg_id);
 		if (rc) {
 			netdev_err(bp->dev,
 				   "Failed to initiate coredump for seg = %d\n",
@@ -493,9 +506,16 @@ err:
 					  start_utc, coredump.total_segs + 1,
 					  rc);
 	kfree(coredump.data);
-	*dump_len += sizeof(struct bnxt_coredump_record);
-	if (rc == -ENOBUFS)
+	if (!rc) {
+		*dump_len += sizeof(struct bnxt_coredump_record);
+		/* The actual coredump length can be smaller than the FW
+		 * reported length earlier.  Use the ethtool provided length.
+		 */
+		if (buf_len)
+			*dump_len = buf_len;
+	} else if (rc == -ENOBUFS) {
 		netdev_err(bp->dev, "Firmware returned large coredump buffer\n");
+	}
 	return rc;
 }
 

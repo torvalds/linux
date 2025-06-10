@@ -141,13 +141,16 @@ static inline struct device *nvmet_ns_dev(struct nvmet_ns *ns)
 }
 
 struct nvmet_cq {
+	struct nvmet_ctrl	*ctrl;
 	u16			qid;
 	u16			size;
+	refcount_t		ref;
 };
 
 struct nvmet_sq {
 	struct nvmet_ctrl	*ctrl;
 	struct percpu_ref	ref;
+	struct nvmet_cq		*cq;
 	u16			qid;
 	u16			size;
 	u32			sqhd;
@@ -164,6 +167,9 @@ struct nvmet_sq {
 	u32			dhchap_s2;
 	u8			*dhchap_skey;
 	int			dhchap_skey_len;
+#endif
+#ifdef CONFIG_NVME_TARGET_TCP_TLS
+	struct key		*tls_key;
 #endif
 	struct completion	free_done;
 	struct completion	confirm_done;
@@ -244,6 +250,7 @@ struct nvmet_pr_log_mgr {
 struct nvmet_ctrl {
 	struct nvmet_subsys	*subsys;
 	struct nvmet_sq		**sqs;
+	struct nvmet_cq		**cqs;
 
 	void			*drvdata;
 
@@ -289,6 +296,7 @@ struct nvmet_ctrl {
 	u64			err_counter;
 	struct nvme_error_slot	slots[NVMET_ERROR_LOG_SLOTS];
 	bool			pi_support;
+	bool			concat;
 #ifdef CONFIG_NVME_TARGET_AUTH
 	struct nvme_dhchap_key	*host_key;
 	struct nvme_dhchap_key	*ctrl_key;
@@ -297,6 +305,9 @@ struct nvmet_ctrl {
 	u8			dh_gid;
 	u8			*dh_key;
 	size_t			dh_keysize;
+#endif
+#ifdef CONFIG_NVME_TARGET_TCP_TLS
+	struct key		*tls_key;
 #endif
 	struct nvmet_pr_log_mgr pr_log_mgr;
 };
@@ -417,7 +428,7 @@ struct nvmet_fabrics_ops {
 	u16 (*get_max_queue_size)(const struct nvmet_ctrl *ctrl);
 
 	/* Operations mandatory for PCI target controllers */
-	u16 (*create_sq)(struct nvmet_ctrl *ctrl, u16 sqid, u16 flags,
+	u16 (*create_sq)(struct nvmet_ctrl *ctrl, u16 sqid, u16 cqid, u16 flags,
 			 u16 qsize, u64 prp1);
 	u16 (*delete_sq)(struct nvmet_ctrl *ctrl, u16 sqid);
 	u16 (*create_cq)(struct nvmet_ctrl *ctrl, u16 cqid, u16 flags,
@@ -550,8 +561,8 @@ u32 nvmet_fabrics_admin_cmd_data_len(struct nvmet_req *req);
 u16 nvmet_parse_fabrics_io_cmd(struct nvmet_req *req);
 u32 nvmet_fabrics_io_cmd_data_len(struct nvmet_req *req);
 
-bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
-		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops);
+bool nvmet_req_init(struct nvmet_req *req, struct nvmet_sq *sq,
+		const struct nvmet_fabrics_ops *ops);
 void nvmet_req_uninit(struct nvmet_req *req);
 size_t nvmet_req_transfer_len(struct nvmet_req *req);
 bool nvmet_check_transfer_len(struct nvmet_req *req, size_t len);
@@ -564,18 +575,24 @@ void nvmet_execute_set_features(struct nvmet_req *req);
 void nvmet_execute_get_features(struct nvmet_req *req);
 void nvmet_execute_keep_alive(struct nvmet_req *req);
 
-u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid);
+u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid, bool create);
+u16 nvmet_check_io_cqid(struct nvmet_ctrl *ctrl, u16 cqid, bool create);
+void nvmet_cq_init(struct nvmet_cq *cq);
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
 		u16 size);
 u16 nvmet_cq_create(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
 		u16 size);
+void nvmet_cq_destroy(struct nvmet_cq *cq);
+bool nvmet_cq_get(struct nvmet_cq *cq);
+void nvmet_cq_put(struct nvmet_cq *cq);
+bool nvmet_cq_in_use(struct nvmet_cq *cq);
 u16 nvmet_check_sqid(struct nvmet_ctrl *ctrl, u16 sqid, bool create);
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
 		u16 size);
-u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
-		u16 size);
+u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq,
+	struct nvmet_cq *cq, u16 qid, u16 size);
 void nvmet_sq_destroy(struct nvmet_sq *sq);
-int nvmet_sq_init(struct nvmet_sq *sq);
+int nvmet_sq_init(struct nvmet_sq *sq, struct nvmet_cq *cq);
 
 void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl);
 
@@ -583,6 +600,7 @@ void nvmet_update_cc(struct nvmet_ctrl *ctrl, u32 new);
 
 struct nvmet_alloc_ctrl_args {
 	struct nvmet_port	*port;
+	struct nvmet_sq		*sq;
 	char			*subsysnqn;
 	char			*hostnqn;
 	uuid_t			*hostid;
@@ -819,7 +837,7 @@ static inline u8 nvmet_cc_iocqes(u32 cc)
 /* Convert a 32-bit number to a 16-bit 0's based number */
 static inline __le16 to0based(u32 a)
 {
-	return cpu_to_le16(max(1U, min(1U << 16, a)) - 1);
+	return cpu_to_le16(clamp(a, 1U, 1U << 16) - 1);
 }
 
 static inline bool nvmet_ns_has_pi(struct nvmet_ns *ns)
@@ -851,6 +869,22 @@ static inline void nvmet_req_bio_put(struct nvmet_req *req, struct bio *bio)
 		bio_put(bio);
 }
 
+#ifdef CONFIG_NVME_TARGET_TCP_TLS
+static inline key_serial_t nvmet_queue_tls_keyid(struct nvmet_sq *sq)
+{
+	return sq->tls_key ? key_serial(sq->tls_key) : 0;
+}
+static inline void nvmet_sq_put_tls_key(struct nvmet_sq *sq)
+{
+	if (sq->tls_key) {
+		key_put(sq->tls_key);
+		sq->tls_key = NULL;
+	}
+}
+#else
+static inline key_serial_t nvmet_queue_tls_keyid(struct nvmet_sq *sq) { return 0; }
+static inline void nvmet_sq_put_tls_key(struct nvmet_sq *sq) {}
+#endif
 #ifdef CONFIG_NVME_TARGET_AUTH
 u32 nvmet_auth_send_data_len(struct nvmet_req *req);
 void nvmet_execute_auth_send(struct nvmet_req *req);
@@ -859,7 +893,7 @@ void nvmet_execute_auth_receive(struct nvmet_req *req);
 int nvmet_auth_set_key(struct nvmet_host *host, const char *secret,
 		       bool set_ctrl);
 int nvmet_auth_set_host_hash(struct nvmet_host *host, const char *hash);
-u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl);
+u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq);
 void nvmet_auth_sq_init(struct nvmet_sq *sq);
 void nvmet_destroy_auth(struct nvmet_ctrl *ctrl);
 void nvmet_auth_sq_free(struct nvmet_sq *sq);
@@ -869,16 +903,18 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 			 unsigned int hash_len);
 int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 			 unsigned int hash_len);
-static inline bool nvmet_has_auth(struct nvmet_ctrl *ctrl)
+static inline bool nvmet_has_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq)
 {
-	return ctrl->host_key != NULL;
+	return ctrl->host_key != NULL && !nvmet_queue_tls_keyid(sq);
 }
 int nvmet_auth_ctrl_exponential(struct nvmet_req *req,
 				u8 *buf, int buf_size);
 int nvmet_auth_ctrl_sesskey(struct nvmet_req *req,
 			    u8 *buf, int buf_size);
+void nvmet_auth_insert_psk(struct nvmet_sq *sq);
 #else
-static inline u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl)
+static inline u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl,
+				  struct nvmet_sq *sq)
 {
 	return 0;
 }
@@ -891,11 +927,13 @@ static inline bool nvmet_check_auth_status(struct nvmet_req *req)
 {
 	return true;
 }
-static inline bool nvmet_has_auth(struct nvmet_ctrl *ctrl)
+static inline bool nvmet_has_auth(struct nvmet_ctrl *ctrl,
+				  struct nvmet_sq *sq)
 {
 	return false;
 }
 static inline const char *nvmet_dhchap_dhgroup_name(u8 dhgid) { return NULL; }
+static inline void nvmet_auth_insert_psk(struct nvmet_sq *sq) {};
 #endif
 
 int nvmet_pr_init_ns(struct nvmet_ns *ns);

@@ -294,7 +294,7 @@ mtype_cancel_gc(struct ip_set *set)
 	struct mtype *map = set->data;
 
 	if (SET_WITH_TIMEOUT(set))
-		del_timer_sync(&map->gc);
+		timer_delete_sync(&map->gc);
 }
 
 static const struct ip_set_type_variant mtype = {

@@ -4,11 +4,30 @@
  */
 #include <linux/bitfield.h>
 #include <linux/ethtool_netlink.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/random.h>
 
 #include "open_alliance_helpers.h"
+
+/*
+ * DP83TG720S_POLL_ACTIVE_LINK - Polling interval in milliseconds when the link
+ *				 is active.
+ * DP83TG720S_POLL_NO_LINK_MIN - Minimum polling interval in milliseconds when
+ *				 the link is down.
+ * DP83TG720S_POLL_NO_LINK_MAX - Maximum polling interval in milliseconds when
+ *				 the link is down.
+ *
+ * These values are not documented or officially recommended by the vendor but
+ * were determined through empirical testing. They achieve a good balance in
+ * minimizing the number of reset retries while ensuring reliable link recovery
+ * within a reasonable timeframe.
+ */
+#define DP83TG720S_POLL_ACTIVE_LINK		1000
+#define DP83TG720S_POLL_NO_LINK_MIN		100
+#define DP83TG720S_POLL_NO_LINK_MAX		1000
 
 #define DP83TG720S_PHY_ID			0x2000a284
 
@@ -371,6 +390,13 @@ static int dp83tg720_read_status(struct phy_device *phydev)
 		if (ret)
 			return ret;
 
+		/* Sleep 600ms for PHY stabilization post-reset.
+		 * Empirically chosen value (not documented).
+		 * Helps reduce reset bounces with link partners having similar
+		 * issues.
+		 */
+		msleep(600);
+
 		/* After HW reset we need to restore master/slave configuration.
 		 * genphy_c45_pma_baset1_read_master_slave() call will be done
 		 * by the dp83tg720_config_aneg() function.
@@ -498,6 +524,57 @@ static int dp83tg720_probe(struct phy_device *phydev)
 	return 0;
 }
 
+/**
+ * dp83tg720_get_next_update_time - Determine the next update time for PHY
+ *                                  state
+ * @phydev: Pointer to the phy_device structure
+ *
+ * This function addresses a limitation of the DP83TG720 PHY, which cannot
+ * reliably detect or report a stable link state. To recover from such
+ * scenarios, the PHY must be periodically reset when the link is down. However,
+ * if the link partner also runs Linux with the same driver, synchronized reset
+ * intervals can lead to a deadlock where the link never establishes due to
+ * simultaneous resets on both sides.
+ *
+ * To avoid this, the function implements randomized polling intervals when the
+ * link is down. It ensures that reset intervals are desynchronized by
+ * introducing a random delay between a configured minimum and maximum range.
+ * When the link is up, a fixed polling interval is used to minimize overhead.
+ *
+ * This mechanism guarantees that the link will reestablish within 10 seconds
+ * in the worst-case scenario.
+ *
+ * Return: Time (in jiffies) until the next update event for the PHY state
+ * machine.
+ */
+static unsigned int dp83tg720_get_next_update_time(struct phy_device *phydev)
+{
+	unsigned int next_time_jiffies;
+
+	if (phydev->link) {
+		/* When the link is up, use a fixed 1000ms interval
+		 * (in jiffies)
+		 */
+		next_time_jiffies =
+			msecs_to_jiffies(DP83TG720S_POLL_ACTIVE_LINK);
+	} else {
+		unsigned int min_jiffies, max_jiffies, rand_jiffies;
+
+		/* When the link is down, randomize interval between min/max
+		 * (in jiffies)
+		 */
+		min_jiffies = msecs_to_jiffies(DP83TG720S_POLL_NO_LINK_MIN);
+		max_jiffies = msecs_to_jiffies(DP83TG720S_POLL_NO_LINK_MAX);
+
+		rand_jiffies = min_jiffies +
+			get_random_u32_below(max_jiffies - min_jiffies + 1);
+		next_time_jiffies = rand_jiffies;
+	}
+
+	/* Ensure the polling time is at least one jiffy */
+	return max(next_time_jiffies, 1U);
+}
+
 static struct phy_driver dp83tg720_driver[] = {
 {
 	PHY_ID_MATCH_MODEL(DP83TG720S_PHY_ID),
@@ -516,6 +593,7 @@ static struct phy_driver dp83tg720_driver[] = {
 	.get_link_stats	= dp83tg720_get_link_stats,
 	.get_phy_stats	= dp83tg720_get_phy_stats,
 	.update_stats	= dp83tg720_update_stats,
+	.get_next_update_time = dp83tg720_get_next_update_time,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,

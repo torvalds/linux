@@ -76,10 +76,10 @@ static int cscfg_set_on_enable(struct cscfg_feature_csdev *feat_csdev)
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(feat_csdev->drv_spinlock, flags);
+	raw_spin_lock_irqsave(feat_csdev->drv_spinlock, flags);
 	for (i = 0; i < feat_csdev->nr_regs; i++)
 		cscfg_set_reg(&feat_csdev->regs_csdev[i]);
-	spin_unlock_irqrestore(feat_csdev->drv_spinlock, flags);
+	raw_spin_unlock_irqrestore(feat_csdev->drv_spinlock, flags);
 	dev_dbg(&feat_csdev->csdev->dev, "Feature %s: %s",
 		feat_csdev->feat_desc->name, "set on enable");
 	return 0;
@@ -91,10 +91,10 @@ static void cscfg_save_on_disable(struct cscfg_feature_csdev *feat_csdev)
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(feat_csdev->drv_spinlock, flags);
+	raw_spin_lock_irqsave(feat_csdev->drv_spinlock, flags);
 	for (i = 0; i < feat_csdev->nr_regs; i++)
 		cscfg_save_reg(&feat_csdev->regs_csdev[i]);
-	spin_unlock_irqrestore(feat_csdev->drv_spinlock, flags);
+	raw_spin_unlock_irqrestore(feat_csdev->drv_spinlock, flags);
 	dev_dbg(&feat_csdev->csdev->dev, "Feature %s: %s",
 		feat_csdev->feat_desc->name, "save on disable");
 }

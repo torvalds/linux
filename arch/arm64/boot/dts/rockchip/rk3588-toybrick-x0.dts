@@ -289,6 +289,10 @@
 	};
 };
 
+&pd_gpu {
+	domain-supply = <&vdd_gpu_s0>;
+};
+
 &pinctrl {
 	rtl8211f {
 		rtl8211f_rst: rtl8211f-rst {

@@ -195,7 +195,7 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt,
 	/* Drop excess packets if new limit is lower */
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > sch->limit) {
-		struct sk_buff *skb = __qdisc_dequeue_head(&sch->q);
+		struct sk_buff *skb = qdisc_dequeue_internal(sch, true);
 
 		dropped += qdisc_pkt_len(skb);
 		qdisc_qstats_backlog_dec(sch, skb);
@@ -545,7 +545,7 @@ static void pie_destroy(struct Qdisc *sch)
 	struct pie_sched_data *q = qdisc_priv(sch);
 
 	q->params.tupdate = 0;
-	del_timer_sync(&q->adapt_timer);
+	timer_delete_sync(&q->adapt_timer);
 }
 
 static struct Qdisc_ops pie_qdisc_ops __read_mostly = {

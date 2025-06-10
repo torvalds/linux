@@ -1,5 +1,54 @@
 // SPDX-License-Identifier: GPL-2.0
+#pragma once
+
+#include "utils.h"
 #include "trace.h"
+
+enum osnoise_mode {
+	MODE_OSNOISE = 0,
+	MODE_HWNOISE
+};
+
+struct osnoise_params {
+	/* Common params */
+	char			*cpus;
+	cpu_set_t		monitored_cpus;
+	char			*trace_output;
+	char			*cgroup_name;
+	unsigned long long	runtime;
+	unsigned long long	period;
+	long long		threshold;
+	long long		stop_us;
+	long long		stop_total_us;
+	int			sleep_time;
+	int			duration;
+	int			set_sched;
+	int			cgroup;
+	int			hk_cpus;
+	cpu_set_t		hk_cpu_set;
+	struct sched_attr	sched_param;
+	struct trace_events	*events;
+	int			warmup;
+	int			buffer_size;
+	union {
+		struct {
+			/* top only */
+			int			quiet;
+			int			pretty_output;
+			enum osnoise_mode	mode;
+		};
+		struct {
+			/* hist only */
+			int			output_divisor;
+			char			no_header;
+			char			no_summary;
+			char			no_index;
+			char			with_zeros;
+			int			bucket_size;
+			int			entries;
+		};
+	};
+};
 
 /*
  * osnoise_context - read, store, write, restore osnoise configs.
@@ -106,6 +155,7 @@ struct osnoise_tool *osnoise_init_tool(char *tool_name);
 struct osnoise_tool *osnoise_init_trace_tool(char *tracer);
 void osnoise_report_missed_events(struct osnoise_tool *tool);
 bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record);
+int osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params);
 
 int osnoise_hist_main(int argc, char *argv[]);
 int osnoise_top_main(int argc, char **argv);

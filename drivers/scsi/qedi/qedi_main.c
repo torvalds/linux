@@ -1877,14 +1877,6 @@ void qedi_get_task_tid(struct qedi_ctx *qedi, u32 itt, s16 *tid)
 	WARN_ON(1);
 }
 
-void qedi_get_proto_itt(struct qedi_ctx *qedi, u32 tid, u32 *proto_itt)
-{
-	*proto_itt = qedi->itt_map[tid].itt;
-	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN,
-		  "Get itt map tid [0x%x with proto itt[0x%x]",
-		  tid, *proto_itt);
-}
-
 struct qedi_cmd *qedi_get_cmd_from_tid(struct qedi_ctx *qedi, u32 tid)
 {
 	struct qedi_cmd *cmd = NULL;
@@ -2876,7 +2868,7 @@ MODULE_DEVICE_TABLE(pci, qedi_pci_tbl);
 
 static enum cpuhp_state qedi_cpuhp_state;
 
-static struct pci_error_handlers qedi_err_handler = {
+static const struct pci_error_handlers qedi_err_handler = {
 	.error_detected = qedi_io_error_detected,
 };
 

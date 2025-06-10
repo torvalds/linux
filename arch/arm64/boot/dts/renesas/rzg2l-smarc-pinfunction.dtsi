@@ -38,6 +38,11 @@
 		line-name = "can1_stb";
 	};
 
+	gpt_pins: gpt {
+		pinmux = <RZG2L_PORT_PINMUX(43, 0, 2)>, /* GTIOC4A */
+			 <RZG2L_PORT_PINMUX(43, 1, 2)>; /* GTIOC4B */
+	};
+
 	i2c0_pins: i2c0 {
 		pins = "RIIC0_SDA", "RIIC0_SCL";
 		input-enable;

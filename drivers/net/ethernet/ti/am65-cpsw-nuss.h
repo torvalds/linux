@@ -104,6 +104,14 @@ struct am65_cpsw_rx_flow {
 	char name[32];
 };
 
+struct am65_cpsw_tx_swdata {
+	struct net_device *ndev;
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	};
+};
+
 struct am65_cpsw_swdata {
 	u32 flow_id;
 	struct page *page;

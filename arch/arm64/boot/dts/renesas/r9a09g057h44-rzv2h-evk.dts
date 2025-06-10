@@ -43,6 +43,16 @@
 		reg = <0x2 0x40000000 0x2 0x00000000>;
 	};
 
+	reg_0p8v: regulator0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "fixed-0.8V";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	reg_3p3v: regulator1 {
 		compatible = "regulator-fixed";
 
@@ -66,6 +76,11 @@
 
 &audio_extal_clk {
 	clock-frequency = <22579200>;
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&reg_0p8v>;
 };
 
 &i2c0 {

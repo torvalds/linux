@@ -11,6 +11,7 @@
 
 #define pr_fmt(fmt) "PM: hibernation: " fmt
 
+#include <crypto/acompress.h>
 #include <linux/blkdev.h>
 #include <linux/export.h>
 #include <linux/suspend.h>
@@ -89,6 +90,11 @@ void hibernate_release(void)
 	atomic_inc(&hibernate_atomic);
 }
 
+bool hibernation_in_progress(void)
+{
+	return !atomic_read(&hibernate_atomic);
+}
+
 bool hibernation_available(void)
 {
 	return nohibernate == 0 &&
@@ -132,10 +138,15 @@ bool system_entering_hibernation(void)
 EXPORT_SYMBOL(system_entering_hibernation);
 
 #ifdef CONFIG_PM_DEBUG
+static unsigned int pm_test_delay = 5;
+module_param(pm_test_delay, uint, 0644);
+MODULE_PARM_DESC(pm_test_delay,
+		 "Number of seconds to wait before resuming from hibernation test");
 static void hibernation_debug_sleep(void)
 {
-	pr_info("debug: Waiting for 5 seconds.\n");
-	mdelay(5000);
+	pr_info("hibernation debug: Waiting for %d second(s).\n",
+		pm_test_delay);
+	mdelay(pm_test_delay * 1000);
 }
 
 static int hibernation_test(int level)
@@ -411,7 +422,7 @@ int hibernation_snapshot(int platform_mode)
 		goto Thaw;
 	}
 
-	suspend_console();
+	console_suspend_all();
 	pm_restrict_gfp_mask();
 
 	error = dpm_suspend(PMSG_FREEZE);
@@ -437,7 +448,7 @@ int hibernation_snapshot(int platform_mode)
 	if (error || !in_suspend)
 		pm_restore_gfp_mask();
 
-	resume_console();
+	console_resume_all();
 	dpm_complete(msg);
 
  Close:
@@ -547,7 +558,7 @@ int hibernation_restore(int platform_mode)
 	int error;
 
 	pm_prepare_console();
-	suspend_console();
+	console_suspend_all();
 	pm_restrict_gfp_mask();
 	error = dpm_suspend_start(PMSG_QUIESCE);
 	if (!error) {
@@ -561,7 +572,7 @@ int hibernation_restore(int platform_mode)
 	}
 	dpm_resume_end(PMSG_RECOVER);
 	pm_restore_gfp_mask();
-	resume_console();
+	console_resume_all();
 	pm_restore_console();
 	return error;
 }
@@ -586,7 +597,7 @@ int hibernation_platform_enter(void)
 		goto Close;
 
 	entering_platform_hibernation = true;
-	suspend_console();
+	console_suspend_all();
 	error = dpm_suspend_start(PMSG_HIBERNATE);
 	if (error) {
 		if (hibernation_ops->recover)
@@ -639,7 +650,7 @@ int hibernation_platform_enter(void)
  Resume_devices:
 	entering_platform_hibernation = false;
 	dpm_resume_end(PMSG_RESTORE);
-	resume_console();
+	console_resume_all();
 
  Close:
 	hibernation_ops->end();
@@ -756,8 +767,8 @@ int hibernate(void)
 	 * Query for the compression algorithm support if compression is enabled.
 	 */
 	if (!nocompress) {
-		strscpy(hib_comp_algo, hibernate_compressor, sizeof(hib_comp_algo));
-		if (crypto_has_comp(hib_comp_algo, 0, 0) != 1) {
+		strscpy(hib_comp_algo, hibernate_compressor);
+		if (!crypto_has_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC)) {
 			pr_err("%s compression is not available\n", hib_comp_algo);
 			return -EOPNOTSUPP;
 		}
@@ -777,6 +788,8 @@ int hibernate(void)
 		goto Restore;
 
 	ksys_sync_helper();
+	if (filesystem_freeze_enabled)
+		filesystems_freeze();
 
 	error = freeze_processes();
 	if (error)
@@ -845,6 +858,7 @@ int hibernate(void)
 	/* Don't bother checking whether freezer_test_done is true */
 	freezer_test_done = false;
  Exit:
+	filesystems_thaw();
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
  Restore:
 	pm_restore_console();
@@ -881,6 +895,9 @@ int hibernate_quiet_exec(int (*func)(void *data), void *data)
 	if (error)
 		goto restore;
 
+	if (filesystem_freeze_enabled)
+		filesystems_freeze();
+
 	error = freeze_processes();
 	if (error)
 		goto exit;
@@ -901,7 +918,7 @@ int hibernate_quiet_exec(int (*func)(void *data), void *data)
 	if (error)
 		goto dpm_complete;
 
-	suspend_console();
+	console_suspend_all();
 
 	error = dpm_suspend(PMSG_FREEZE);
 	if (error)
@@ -925,7 +942,7 @@ skip:
 dpm_resume:
 	dpm_resume(PMSG_THAW);
 
-	resume_console();
+	console_resume_all();
 
 dpm_complete:
 	dpm_complete(PMSG_THAW);
@@ -940,6 +957,7 @@ thaw:
 	thaw_processes();
 
 exit:
+	filesystems_thaw();
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
 
 restore:
@@ -1005,10 +1023,10 @@ static int software_resume(void)
 	 */
 	if (!(swsusp_header_flags & SF_NOCOMPRESS_MODE)) {
 		if (swsusp_header_flags & SF_COMPRESSION_ALG_LZ4)
-			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZ4, sizeof(hib_comp_algo));
+			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZ4);
 		else
-			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZO, sizeof(hib_comp_algo));
-		if (crypto_has_comp(hib_comp_algo, 0, 0) != 1) {
+			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZO);
+		if (!crypto_has_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC)) {
 			pr_err("%s compression is not available\n", hib_comp_algo);
 			error = -EOPNOTSUPP;
 			goto Unlock;
@@ -1028,19 +1046,26 @@ static int software_resume(void)
 	if (error)
 		goto Restore;
 
+	if (filesystem_freeze_enabled)
+		filesystems_freeze();
+
 	pm_pr_dbg("Preparing processes for hibernation restore.\n");
 	error = freeze_processes();
-	if (error)
+	if (error) {
+		filesystems_thaw();
 		goto Close_Finish;
+	}
 
 	error = freeze_kernel_threads();
 	if (error) {
 		thaw_processes();
+		filesystems_thaw();
 		goto Close_Finish;
 	}
 
 	error = load_image_and_restore();
 	thaw_processes();
+	filesystems_thaw();
  Finish:
 	pm_notifier_call_chain(PM_POST_RESTORE);
  Restore:
@@ -1455,8 +1480,7 @@ static int hibernate_compressor_param_set(const char *compressor,
 	if (index >= 0) {
 		ret = param_set_copystring(comp_alg_enabled[index], kp);
 		if (!ret)
-			strscpy(hib_comp_algo, comp_alg_enabled[index],
-				sizeof(hib_comp_algo));
+			strscpy(hib_comp_algo, comp_alg_enabled[index]);
 	} else {
 		ret = index;
 	}

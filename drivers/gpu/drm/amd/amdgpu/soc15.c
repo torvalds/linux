@@ -28,7 +28,6 @@
 #include <drm/amdgpu_drm.h>
 
 #include "amdgpu.h"
-#include "amdgpu_atombios.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_uvd.h"
 #include "amdgpu_vce.h"
@@ -585,6 +584,8 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		 * Enable triggering of GPU reset only if specified
 		 * by module parameter.
 		 */
+		if (adev->pcie_reset_ctx.in_link_reset)
+			return AMD_RESET_METHOD_LINK;
 		if (amdgpu_gpu_recovery == 4 || amdgpu_gpu_recovery == 5)
 			return AMD_RESET_METHOD_MODE2;
 		else if (!(adev->flags & AMD_IS_APU))
@@ -604,12 +605,10 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 static bool soc15_need_reset_on_resume(struct amdgpu_device *adev)
 {
 	/* Will reset for the following suspend abort cases.
-	 * 1) Only reset on APU side, dGPU hasn't checked yet.
-	 * 2) S3 suspend aborted in the normal S3 suspend or
-	 *    performing pm core test.
+	 * 1) S3 suspend aborted in the normal S3 suspend
+	 * 2) S3 suspend aborted in performing pm core test.
 	 */
-	if (adev->flags & AMD_IS_APU && adev->in_s3 &&
-			!pm_resume_via_firmware())
+	if (adev->in_s3 && !pm_resume_via_firmware())
 		return true;
 	else
 		return false;
@@ -643,6 +642,9 @@ asic_reset:
 	case AMD_RESET_METHOD_MODE2:
 		dev_info(adev->dev, "MODE2 reset\n");
 		return amdgpu_dpm_mode2_reset(adev);
+	case AMD_RESET_METHOD_LINK:
+		dev_info(adev->dev, "Link reset\n");
+		return amdgpu_device_link_reset(adev);
 	default:
 		dev_info(adev->dev, "MODE1 reset\n");
 		return amdgpu_device_mode1_reset(adev);
@@ -1362,7 +1364,7 @@ static int soc15_common_resume(struct amdgpu_ip_block *ip_block)
 	return soc15_common_hw_init(ip_block);
 }
 
-static bool soc15_common_is_idle(void *handle)
+static bool soc15_common_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return true;
 }
@@ -1463,9 +1465,9 @@ static int soc15_common_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
-static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
+static void soc15_common_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int data;
 
 	if (amdgpu_sriov_vf(adev))

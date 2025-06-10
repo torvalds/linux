@@ -16,6 +16,10 @@
 
 #include "pinctrl-sunxi.h"
 
+#define PINCTRL_SUN5I_A10S	BIT(0)
+#define PINCTRL_SUN5I_A13	BIT(1)
+#define PINCTRL_SUN5I_GR8	BIT(2)
+
 static const struct sunxi_desc_pin sun5i_pins[] = {
 	SUNXI_PIN_VARIANT(SUNXI_PINCTRL_PIN(A, 0),
 		  PINCTRL_SUN5I_A10S,
@@ -719,8 +723,8 @@ static int sun5i_pinctrl_probe(struct platform_device *pdev)
 {
 	unsigned long variant = (unsigned long)of_device_get_match_data(&pdev->dev);
 
-	return sunxi_pinctrl_init_with_variant(pdev, &sun5i_pinctrl_data,
-					       variant);
+	return sunxi_pinctrl_init_with_flags(pdev, &sun5i_pinctrl_data,
+					     variant);
 }
 
 static const struct of_device_id sun5i_pinctrl_match[] = {

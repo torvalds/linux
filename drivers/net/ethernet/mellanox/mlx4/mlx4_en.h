@@ -247,19 +247,10 @@ struct mlx4_en_tx_desc {
 
 struct mlx4_en_rx_alloc {
 	struct page	*page;
-	dma_addr_t	dma;
 	u32		page_offset;
 };
 
 #define MLX4_EN_CACHE_SIZE (2 * NAPI_POLL_WEIGHT)
-
-struct mlx4_en_page_cache {
-	u32 index;
-	struct {
-		struct page	*page;
-		dma_addr_t	dma;
-	} buf[MLX4_EN_CACHE_SIZE];
-};
 
 enum {
 	MLX4_EN_TX_RING_STATE_RECOVERING,
@@ -335,14 +326,14 @@ struct mlx4_en_rx_ring {
 	u16 stride;
 	u16 log_stride;
 	u16 cqn;	/* index of port CQ associated with this ring */
+	u8  fcs_del;
 	u32 prod;
 	u32 cons;
 	u32 buf_size;
-	u8  fcs_del;
+	struct page_pool *pp;
 	void *buf;
 	void *rx_info;
 	struct bpf_prog __rcu *xdp_prog;
-	struct mlx4_en_page_cache page_cache;
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long csum_ok;
@@ -707,8 +698,6 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 			       struct mlx4_en_priv *priv, unsigned int length,
 			       int tx_ind, bool *doorbell_pending);
 void mlx4_en_xmit_doorbell(struct mlx4_en_tx_ring *ring);
-bool mlx4_en_rx_recycle(struct mlx4_en_rx_ring *ring,
-			struct mlx4_en_rx_alloc *frame);
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring,

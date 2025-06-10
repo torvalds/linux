@@ -153,7 +153,7 @@ void inet_sock_destruct(struct sock *sk)
 	WARN_ON_ONCE(atomic_read(&sk->sk_rmem_alloc));
 	WARN_ON_ONCE(refcount_read(&sk->sk_wmem_alloc));
 	WARN_ON_ONCE(sk->sk_wmem_queued);
-	WARN_ON_ONCE(sk_forward_alloc_get(sk));
+	WARN_ON_ONCE(sk->sk_forward_alloc);
 
 	kfree(rcu_dereference_protected(inet->inet_opt, 1));
 	dst_release(rcu_dereference_protected(sk->sk_dst_cache, 1));
@@ -1328,10 +1328,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 
 		/* Routing failed... */
 		sk->sk_route_caps = 0;
-		/*
-		 * Other protocols have to map its equivalent state to TCP_SYN_SENT.
-		 * DCCP maps its DCCP_REQUESTING state to TCP_SYN_SENT. -acme
-		 */
+
 		if (!READ_ONCE(sock_net(sk)->ipv4.sysctl_ip_dynaddr) ||
 		    sk->sk_state != TCP_SYN_SENT ||
 		    (sk->sk_userlocks & SOCK_BINDADDR_LOCK) ||

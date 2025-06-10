@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
 #include "adf_common_drv.h"
+#include "adf_dc.h"
 #include "adf_gen2_hw_data.h"
+#include "icp_qat_fw_comp.h"
 #include "icp_qat_hw.h"
 #include <linux/pci.h>
 
@@ -115,8 +117,8 @@ u32 adf_gen2_get_accel_cap(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
+	u32 fuses = hw_data->fuses[ADF_FUSECTL0];
 	u32 straps = hw_data->straps;
-	u32 fuses = hw_data->fuses;
 	u32 legfuses;
 	u32 capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
 			   ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
@@ -169,3 +171,58 @@ void adf_gen2_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 	}
 }
 EXPORT_SYMBOL_GPL(adf_gen2_set_ssm_wdtimer);
+
+static int adf_gen2_build_comp_block(void *ctx, enum adf_dc_algo algo)
+{
+	struct icp_qat_fw_comp_req *req_tmpl = ctx;
+	struct icp_qat_fw_comp_req_hdr_cd_pars *cd_pars = &req_tmpl->cd_pars;
+	struct icp_qat_fw_comn_req_hdr *header = &req_tmpl->comn_hdr;
+
+	switch (algo) {
+	case QAT_DEFLATE:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_STATIC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	cd_pars->u.sl.comp_slice_cfg_word[0] =
+		ICP_QAT_HW_COMPRESSION_CONFIG_BUILD(ICP_QAT_HW_COMPRESSION_DIR_COMPRESS,
+						    ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_DISABLED,
+						    ICP_QAT_HW_COMPRESSION_ALGO_DEFLATE,
+						    ICP_QAT_HW_COMPRESSION_DEPTH_1,
+						    ICP_QAT_HW_COMPRESSION_FILE_TYPE_0);
+
+	return 0;
+}
+
+static int adf_gen2_build_decomp_block(void *ctx, enum adf_dc_algo algo)
+{
+	struct icp_qat_fw_comp_req *req_tmpl = ctx;
+	struct icp_qat_fw_comp_req_hdr_cd_pars *cd_pars = &req_tmpl->cd_pars;
+	struct icp_qat_fw_comn_req_hdr *header = &req_tmpl->comn_hdr;
+
+	switch (algo) {
+	case QAT_DEFLATE:
+		header->service_cmd_id = ICP_QAT_FW_COMP_CMD_DECOMPRESS;
+	break;
+	default:
+		return -EINVAL;
+	}
+
+	cd_pars->u.sl.comp_slice_cfg_word[0] =
+		ICP_QAT_HW_COMPRESSION_CONFIG_BUILD(ICP_QAT_HW_COMPRESSION_DIR_DECOMPRESS,
+						    ICP_QAT_HW_COMPRESSION_DELAYED_MATCH_DISABLED,
+						    ICP_QAT_HW_COMPRESSION_ALGO_DEFLATE,
+						    ICP_QAT_HW_COMPRESSION_DEPTH_1,
+						    ICP_QAT_HW_COMPRESSION_FILE_TYPE_0);
+
+	return 0;
+}
+
+void adf_gen2_init_dc_ops(struct adf_dc_ops *dc_ops)
+{
+	dc_ops->build_comp_block = adf_gen2_build_comp_block;
+	dc_ops->build_decomp_block = adf_gen2_build_decomp_block;
+}
+EXPORT_SYMBOL_GPL(adf_gen2_init_dc_ops);

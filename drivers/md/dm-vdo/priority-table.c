@@ -199,7 +199,7 @@ void vdo_priority_table_remove(struct priority_table *table, struct list_head *e
 
 	/*
 	 * Remove the entry from the bucket list, remembering a pointer to another entry in the
-	 * ring.
+	 * list.
 	 */
 	next_entry = entry->next;
 	list_del_init(entry);

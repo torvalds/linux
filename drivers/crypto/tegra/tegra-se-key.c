@@ -115,11 +115,17 @@ static int tegra_key_insert(struct tegra_se *se, const u8 *key,
 			    u32 keylen, u16 slot, u32 alg)
 {
 	const u32 *keyval = (u32 *)key;
-	u32 *addr = se->cmdbuf->addr, size;
+	u32 *addr = se->keybuf->addr, size;
+	int ret;
+
+	mutex_lock(&kslt_lock);
 
 	size = tegra_key_prep_ins_cmd(se, addr, keyval, keylen, slot, alg);
+	ret = tegra_se_host1x_submit(se, se->keybuf, size);
 
-	return tegra_se_host1x_submit(se, size);
+	mutex_unlock(&kslt_lock);
+
+	return ret;
 }
 
 void tegra_key_invalidate(struct tegra_se *se, u32 keyid, u32 alg)
@@ -135,6 +141,23 @@ void tegra_key_invalidate(struct tegra_se *se, u32 keyid, u32 alg)
 	tegra_keyslot_free(keyid);
 }
 
+void tegra_key_invalidate_reserved(struct tegra_se *se, u32 keyid, u32 alg)
+{
+	u8 zkey[AES_MAX_KEY_SIZE] = {0};
+
+	if (!keyid)
+		return;
+
+	/* Overwrite the key with 0s */
+	tegra_key_insert(se, zkey, AES_MAX_KEY_SIZE, keyid, alg);
+}
+
+inline int tegra_key_submit_reserved(struct tegra_se *se, const u8 *key,
+				     u32 keylen, u32 alg, u32 *keyid)
+{
+	return tegra_key_insert(se, key, keylen, *keyid, alg);
+}
+
 int tegra_key_submit(struct tegra_se *se, const u8 *key, u32 keylen, u32 alg, u32 *keyid)
 {
 	int ret;
@@ -143,7 +166,7 @@ int tegra_key_submit(struct tegra_se *se, const u8 *key, u32 keylen, u32 alg, u3
 	if (!tegra_key_in_kslt(*keyid)) {
 		*keyid = tegra_keyslot_alloc();
 		if (!(*keyid)) {
-			dev_err(se->dev, "failed to allocate key slot\n");
+			dev_dbg(se->dev, "failed to allocate key slot\n");
 			return -ENOMEM;
 		}
 	}

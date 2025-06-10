@@ -106,7 +106,7 @@ int flow_dissector_bpf_prog_attach_check(struct net *net,
 #endif /* CONFIG_BPF_SYSCALL */
 
 /**
- * __skb_flow_get_ports - extract the upper layer ports and return them
+ * skb_flow_get_ports - extract the upper layer ports and return them
  * @skb: sk_buff to extract the ports from
  * @thoff: transport header offset
  * @ip_proto: protocol for which to get port offset
@@ -116,8 +116,8 @@ int flow_dissector_bpf_prog_attach_check(struct net *net,
  * The function will try to retrieve the ports at offset thoff + poff where poff
  * is the protocol port offset returned from proto_ports_offset
  */
-__be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
-			    const void *data, int hlen)
+__be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
+			  const void *data, int hlen)
 {
 	int poff = proto_ports_offset(ip_proto);
 
@@ -137,7 +137,7 @@ __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
 
 	return 0;
 }
-EXPORT_SYMBOL(__skb_flow_get_ports);
+EXPORT_SYMBOL(skb_flow_get_ports);
 
 static bool icmp_has_id(u8 type)
 {
@@ -870,7 +870,7 @@ __skb_flow_dissect_ports(const struct sk_buff *skb,
 	if (!key_ports && !key_ports_range)
 		return;
 
-	ports = __skb_flow_get_ports(skb, nhoff, ip_proto, data, hlen);
+	ports = skb_flow_get_ports(skb, nhoff, ip_proto, data, hlen);
 
 	if (key_ports)
 		key_ports->ports = ports;

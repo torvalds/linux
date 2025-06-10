@@ -35,14 +35,3 @@ int perf_config_colorbool(const char *var, const char *value, int stdout_is_tty)
 	}
 	return 0;
 }
-
-int perf_color_default_config(const char *var, const char *value,
-			      void *cb __maybe_unused)
-{
-	if (!strcmp(var, "color.ui")) {
-		perf_use_color_default = perf_config_colorbool(var, value, -1);
-		return 0;
-	}
-
-	return 0;
-}

@@ -810,28 +810,6 @@ err_cur:
 
 /* Reaping the old btree. */
 
-/* Reap the old rtrmapbt blocks. */
-STATIC int
-xrep_rtrmap_remove_old_tree(
-	struct xrep_rtrmap	*rr)
-{
-	int			error;
-
-	/*
-	 * Free all the extents that were allocated to the former rtrmapbt and
-	 * aren't cross-linked with something else.
-	 */
-	error = xrep_reap_metadir_fsblocks(rr->sc, &rr->old_rtrmapbt_blocks);
-	if (error)
-		return error;
-
-	/*
-	 * Ensure the proper reservation for the rtrmap inode so that we don't
-	 * fail to expand the new btree.
-	 */
-	return xrep_reset_metafile_resv(rr->sc);
-}
-
 static inline bool
 xrep_rtrmapbt_want_live_update(
 	struct xchk_iscan		*iscan,
@@ -995,8 +973,11 @@ xrep_rtrmapbt(
 	if (error)
 		goto out_records;
 
-	/* Kill the old tree. */
-	error = xrep_rtrmap_remove_old_tree(rr);
+	/*
+	 * Free all the extents that were allocated to the former rtrmapbt and
+	 * aren't cross-linked with something else.
+	 */
+	error = xrep_reap_metadir_fsblocks(rr->sc, &rr->old_rtrmapbt_blocks);
 	if (error)
 		goto out_records;
 

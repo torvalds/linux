@@ -8,7 +8,13 @@
 #ifndef _MTK_EPHY_H_
 #define _MTK_EPHY_H_
 
+#define MTK_PHY_AUX_CTRL_AND_STATUS		0x14
+#define   MTK_PHY_ENABLE_DOWNSHIFT		BIT(4)
+
 #define MTK_EXT_PAGE_ACCESS			0x1f
+#define MTK_PHY_PAGE_EXTENDED_1			0x0001
+#define MTK_PHY_PAGE_STANDARD			0x0000
+#define MTK_PHY_PAGE_EXTENDED_52B5		0x52b5
 
 /* Registers on MDIO_MMD_VEND2 */
 #define MTK_PHY_LED0_ON_CTRL			0x24
@@ -65,6 +71,15 @@
 struct mtk_socphy_priv {
 	unsigned long		led_state;
 };
+
+void __mtk_tr_modify(struct phy_device *phydev, u8 ch_addr, u8 node_addr,
+		     u8 data_addr, u32 mask, u32 set);
+void mtk_tr_modify(struct phy_device *phydev, u8 ch_addr, u8 node_addr,
+		   u8 data_addr, u32 mask, u32 set);
+void __mtk_tr_set_bits(struct phy_device *phydev, u8 ch_addr, u8 node_addr,
+		       u8 data_addr, u32 set);
+void __mtk_tr_clr_bits(struct phy_device *phydev, u8 ch_addr, u8 node_addr,
+		       u8 data_addr, u32 clr);
 
 int mtk_phy_read_page(struct phy_device *phydev);
 int mtk_phy_write_page(struct phy_device *phydev, int page);

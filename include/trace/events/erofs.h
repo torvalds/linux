@@ -75,7 +75,7 @@ TRACE_EVENT(erofs_fill_inode,
 		__entry->ofs		= erofs_blkoff(inode->i_sb, erofs_iloc(inode));
 	),
 
-	TP_printk("dev = (%d,%d), nid = %llu, blkaddr %u ofs %u",
+	TP_printk("dev = (%d,%d), nid = %llu, blkaddr %llu ofs %u",
 		  show_dev_nid(__entry),
 		  __entry->blkaddr, __entry->ofs)
 );
@@ -113,7 +113,7 @@ TRACE_EVENT(erofs_read_folio,
 		__entry->raw)
 );
 
-TRACE_EVENT(erofs_readpages,
+TRACE_EVENT(erofs_readahead,
 
 	TP_PROTO(struct inode *inode, pgoff_t start, unsigned int nrpage,
 		bool raw),
