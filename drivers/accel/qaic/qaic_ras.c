@@ -322,7 +322,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 
 	switch (msg->source) {
 	case SOC_MEM:
-		pci_printk(level, qdev->pdev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n",
+		dev_printk(level, &qdev->pdev->dev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n    0x%llx\n",
 			   err_class_str[msg->err_type],
 			   err_type_str[msg->err_type],
 			   "error from",
@@ -338,7 +338,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 			   soc_syndrome->error_address[7]);
 		break;
 	case PCIE:
-		pci_printk(level, qdev->pdev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\n",
+		dev_printk(level, &qdev->pdev->dev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\n",
 			   err_class_str[msg->err_type],
 			   err_type_str[msg->err_type],
 			   "error from",
@@ -348,7 +348,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 		switch (msg->err_type) {
 		case CE:
 			/*
-			 * Modeled after AER prints. This continues the pci_printk() from a few
+			 * Modeled after AER prints. This continues the dev_printk() from a few
 			 * lines up. We reduce duplication of code, but also avoid re-printing the
 			 * PCI device info so that the end result looks uniform to the log user.
 			 */
@@ -381,7 +381,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 		}
 		break;
 	case DDR:
-		pci_printk(level, qdev->pdev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    Instance %d\n    Count %d\n    Data 31_0 0x%x 0x%x\n    Data 63_32 0x%x 0x%x\n    Data 95_64 0x%x 0x%x\n    Data 127_96 0x%x 0x%x\n    Parity bits 0x%x\n    Address msb 0x%x\n    Address lsb 0x%x\n",
+		dev_printk(level, &qdev->pdev->dev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    Instance %d\n    Count %d\n    Data 31_0 0x%x 0x%x\n    Data 63_32 0x%x 0x%x\n    Data 95_64 0x%x 0x%x\n    Data 127_96 0x%x 0x%x\n    Parity bits 0x%x\n    Address msb 0x%x\n    Address lsb 0x%x\n",
 			   err_class_str[msg->err_type],
 			   err_type_str[msg->err_type],
 			   "error from",
@@ -402,7 +402,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 			   ddr_syndrome->addr_lsb);
 		break;
 	case SYS_BUS1:
-		pci_printk(level, qdev->pdev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    instance %d\n    %s\n    err_type %d\n    address0 0x%x\n    address1 0x%x\n    address2 0x%x\n    address3 0x%x\n    address4 0x%x\n    address5 0x%x\n    address6 0x%x\n    address7 0x%x\n",
+		dev_printk(level, &qdev->pdev->dev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    instance %d\n    %s\n    err_type %d\n    address0 0x%x\n    address1 0x%x\n    address2 0x%x\n    address3 0x%x\n    address4 0x%x\n    address5 0x%x\n    address6 0x%x\n    address7 0x%x\n",
 			   err_class_str[msg->err_type],
 			   err_type_str[msg->err_type],
 			   "error from",
@@ -421,7 +421,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 			   sysbus1_syndrome->addr[7]);
 		break;
 	case SYS_BUS2:
-		pci_printk(level, qdev->pdev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    instance %d\n    valid %d\n    word error %d\n    non-secure %d\n    opc %d\n    error code %d\n    transaction type %d\n    address space %d\n    operation type %d\n    len %d\n    redirect %d\n    path %d\n    ext_id %d\n    lsb2 %d\n    msb2 %d\n    lsb3 %d\n    msb3 %d\n",
+		dev_printk(level, &qdev->pdev->dev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    instance %d\n    valid %d\n    word error %d\n    non-secure %d\n    opc %d\n    error code %d\n    transaction type %d\n    address space %d\n    operation type %d\n    len %d\n    redirect %d\n    path %d\n    ext_id %d\n    lsb2 %d\n    msb2 %d\n    lsb3 %d\n    msb3 %d\n",
 			   err_class_str[msg->err_type],
 			   err_type_str[msg->err_type],
 			   "error from",
@@ -446,7 +446,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 			   sysbus2_syndrome->msb3);
 		break;
 	case NSP_MEM:
-		pci_printk(level, qdev->pdev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    NSP ID %d\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n",
+		dev_printk(level, &qdev->pdev->dev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    NSP ID %d\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n    0x%x\n",
 			   err_class_str[msg->err_type],
 			   err_type_str[msg->err_type],
 			   "error from",
@@ -476,7 +476,7 @@ static void decode_ras_msg(struct qaic_device *qdev, struct ras_data *msg)
 		else
 			class = "Warning";
 
-		pci_printk(level, qdev->pdev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    %s threshold\n    %d deg C\n",
+		dev_printk(level, &qdev->pdev->dev, "RAS event.\nClass:%s\nDescription:%s %s %s\nError Threshold for this report %d\nSyndrome:\n    %s threshold\n    %d deg C\n",
 			   class,
 			   err_type_str[msg->err_type],
 			   "error from",
