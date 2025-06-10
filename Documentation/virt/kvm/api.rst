@@ -7191,6 +7191,11 @@ The valid value for 'flags' is:
 					u64 gpa;
 					u64 size;
 				} get_quote;
+				struct {
+					u64 ret;
+					u64 leaf;
+					u64 r11, r12, r13, r14;
+				} get_tdvmcall_info;
 			};
 		} tdx;
 
@@ -7215,6 +7220,11 @@ the return value of the GetQuote request.  When the request has been
 queued successfully, the TDX guest can poll the status field in the
 shared-memory area to check whether the Quote generation is completed or
 not. When completed, the generated Quote is returned via the same buffer.
+
+* ``TDVMCALL_GET_TD_VM_CALL_INFO``: the guest has requested the support
+status of TDVMCALLs.  The output values for the given leaf should be
+placed in fields from ``r11`` to ``r14`` of the ``get_tdvmcall_info``
+field of the union.
 
 KVM may add support for more values in the future that may cause a userspace
 exit, even without calls to ``KVM_ENABLE_CAP`` or similar.  In this case,
