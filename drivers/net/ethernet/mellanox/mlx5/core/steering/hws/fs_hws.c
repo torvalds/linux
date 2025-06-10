@@ -966,6 +966,9 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 			switch (attr->type) {
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 				dest_action = mlx5_fs_get_dest_action_ft(fs_ctx, dst);
+				if (dst->dest_attr.ft->flags &
+				    MLX5_FLOW_TABLE_UPLINK_VPORT)
+					dest_actions[num_dest_actions].is_wire_ft = true;
 				break;
 			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
 				dest_action = mlx5_fs_get_dest_action_table_num(fs_ctx,
