@@ -1948,6 +1948,56 @@ static int ksz886x_read_status(struct phy_device *phydev)
 	return genphy_read_status(phydev);
 }
 
+static int ksz9477_mdix_update(struct phy_device *phydev)
+{
+	if (phydev->mdix_ctrl != ETH_TP_MDI_AUTO)
+		phydev->mdix = phydev->mdix_ctrl;
+	else
+		phydev->mdix = ETH_TP_MDI_INVALID;
+
+	return 0;
+}
+
+static int ksz9477_read_mdix_ctrl(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read(phydev, MII_KSZ9131_AUTO_MDIX);
+	if (val < 0)
+		return val;
+
+	if (!(val & MII_KSZ9131_AUTO_MDIX_SWAP_OFF))
+		phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	else if (val & MII_KSZ9131_AUTO_MDI_SET)
+		phydev->mdix_ctrl = ETH_TP_MDI;
+	else
+		phydev->mdix_ctrl = ETH_TP_MDI_X;
+
+	return 0;
+}
+
+static int ksz9477_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz9477_mdix_update(phydev);
+	if (ret)
+		return ret;
+
+	return genphy_read_status(phydev);
+}
+
+static int ksz9477_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz9131_config_mdix(phydev, phydev->mdix_ctrl);
+	if (ret)
+		return ret;
+
+	return genphy_config_aneg(phydev);
+}
+
 struct ksz9477_errata_write {
 	u8 dev_addr;
 	u8 reg_addr;
@@ -2028,6 +2078,13 @@ static int ksz9477_config_init(struct phy_device *phydev)
 		if (err)
 			return err;
 	}
+
+	/* Read initial MDI-X config state. So, we do not need to poll it
+	 * later on.
+	 */
+	err = ksz9477_read_mdix_ctrl(phydev);
+	if (err)
+		return err;
 
 	return kszphy_config_init(phydev);
 }
@@ -5691,6 +5748,8 @@ static struct phy_driver ksphy_driver[] = {
 	/* PHY_GBIT_FEATURES */
 	.config_init	= ksz9477_config_init,
 	.config_intr	= kszphy_config_intr,
+	.config_aneg	= ksz9477_config_aneg,
+	.read_status	= ksz9477_read_status,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.suspend	= genphy_suspend,
 	.resume		= ksz9477_resume,
