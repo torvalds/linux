@@ -186,7 +186,7 @@ EXPORT_SYMBOL(reset_devices);
 
 static int __init set_reset_devices(char *str)
 {
-	reset_devices = 1;
+	reset_devices = 1;     
 	return 1;
 }
 
