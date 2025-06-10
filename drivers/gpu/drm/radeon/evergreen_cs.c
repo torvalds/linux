@@ -211,7 +211,7 @@ static int evergreen_surface_check_linear_aligned(struct radeon_cs_parser *p,
 	surf->base_align = track->group_size;
 	surf->palign = palign;
 	surf->halign = 1;
-	if (surf->nbx & (palign - 1)) {
+	if ((surf->nbx & (palign - 1)) && !(palign == 64 && surf->nbx == 32)) {
 		if (prefix) {
 			dev_warn(p->dev, "%s:%d %s pitch %d invalid must be aligned with %d\n",
 				 __func__, __LINE__, prefix, surf->nbx, palign);
