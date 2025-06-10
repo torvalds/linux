@@ -1613,13 +1613,13 @@ static void run_with_huge_zeropage(non_anon_test_fn fn, const char *desc)
 	smem = (char *)(((uintptr_t)mmap_smem + pmdsize) & ~(pmdsize - 1));
 
 	ret = madvise(mem, pmdsize, MADV_HUGEPAGE);
-	if (ret != 0) {
+	if (ret) {
 		ksft_perror("madvise()");
 		log_test_result(KSFT_FAIL);
 		goto munmap;
 	}
-	ret |= madvise(smem, pmdsize, MADV_HUGEPAGE);
-	if (ret != 0) {
+	ret = madvise(smem, pmdsize, MADV_HUGEPAGE);
+	if (ret) {
 		ksft_perror("madvise()");
 		log_test_result(KSFT_FAIL);
 		goto munmap;
