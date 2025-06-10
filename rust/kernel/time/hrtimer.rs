@@ -98,7 +98,6 @@ impl Ktime {
 pub struct HrTimer<T> {
     #[pin]
     timer: Opaque<bindings::hrtimer>,
-    mode: bindings::hrtimer_mode,
     _t: PhantomData<T>,
 }
 
@@ -112,9 +111,10 @@ unsafe impl<T> Sync for HrTimer<T> {}
 
 impl<T> HrTimer<T> {
     /// Return an initializer for a new timer instance.
-    pub fn new<U: ClockSource, M: HrTimerMode>() -> impl PinInit<Self>
+    pub fn new() -> impl PinInit<Self>
     where
         T: HrTimerCallback,
+        T: HasHrTimer<T>,
     {
         pin_init!(Self {
             // INVARIANT: We initialize `timer` with `hrtimer_setup` below.
@@ -126,12 +126,11 @@ impl<T> HrTimer<T> {
                     bindings::hrtimer_setup(
                         place,
                         Some(T::Pointer::run),
-                        U::ID,
-                        M::C_MODE,
+                        <<T as HasHrTimer<T>>::TimerMode as HrTimerMode>::Clock::ID,
+                        <T as HasHrTimer<T>>::TimerMode::C_MODE,
                     );
                 }
             }),
-            mode: M::C_MODE,
             _t: PhantomData,
         })
     }
@@ -193,6 +192,11 @@ impl<T> HrTimer<T> {
 /// exist. A timer can be manipulated through any of the handles, and a handle
 /// may represent a cancelled timer.
 pub trait HrTimerPointer: Sync + Sized {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// A handle representing a started or restarted timer.
     ///
     /// If the timer is running or if the timer callback is executing when the
@@ -205,7 +209,7 @@ pub trait HrTimerPointer: Sync + Sized {
 
     /// Start the timer with expiry after `expires` time units. If the timer was
     /// already running, it is restarted with the new expiry time.
-    fn start(self, expires: Ktime) -> Self::TimerHandle;
+    fn start(self, expires: <Self::TimerMode as HrTimerMode>::Expires) -> Self::TimerHandle;
 }
 
 /// Unsafe version of [`HrTimerPointer`] for situations where leaking the
@@ -220,6 +224,11 @@ pub trait HrTimerPointer: Sync + Sized {
 /// [`UnsafeHrTimerPointer`] outlives any associated [`HrTimerPointer::TimerHandle`]
 /// instances.
 pub unsafe trait UnsafeHrTimerPointer: Sync + Sized {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// A handle representing a running timer.
     ///
     /// # Safety
@@ -236,7 +245,7 @@ pub unsafe trait UnsafeHrTimerPointer: Sync + Sized {
     ///
     /// Caller promises keep the timer structure alive until the timer is dead.
     /// Caller can ensure this by not leaking the returned [`Self::TimerHandle`].
-    unsafe fn start(self, expires: Ktime) -> Self::TimerHandle;
+    unsafe fn start(self, expires: <Self::TimerMode as HrTimerMode>::Expires) -> Self::TimerHandle;
 }
 
 /// A trait for stack allocated timers.
@@ -246,9 +255,14 @@ pub unsafe trait UnsafeHrTimerPointer: Sync + Sized {
 /// Implementers must ensure that `start_scoped` does not return until the
 /// timer is dead and the timer handler is not running.
 pub unsafe trait ScopedHrTimerPointer {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// Start the timer to run after `expires` time units and immediately
     /// after call `f`. When `f` returns, the timer is cancelled.
-    fn start_scoped<T, F>(self, expires: Ktime, f: F) -> T
+    fn start_scoped<T, F>(self, expires: <Self::TimerMode as HrTimerMode>::Expires, f: F) -> T
     where
         F: FnOnce() -> T;
 }
@@ -260,7 +274,13 @@ unsafe impl<T> ScopedHrTimerPointer for T
 where
     T: UnsafeHrTimerPointer,
 {
-    fn start_scoped<U, F>(self, expires: Ktime, f: F) -> U
+    type TimerMode = T::TimerMode;
+
+    fn start_scoped<U, F>(
+        self,
+        expires: <<T as UnsafeHrTimerPointer>::TimerMode as HrTimerMode>::Expires,
+        f: F,
+    ) -> U
     where
         F: FnOnce() -> U,
     {
@@ -335,6 +355,11 @@ pub unsafe trait HrTimerHandle {
 /// their documentation. All the methods of this trait must operate on the same
 /// field.
 pub unsafe trait HasHrTimer<T> {
+    /// The operational mode associated with this timer.
+    ///
+    /// This defines how the expiration value is interpreted.
+    type TimerMode: HrTimerMode;
+
     /// Return a pointer to the [`HrTimer`] within `Self`.
     ///
     /// This function is useful to get access to the value without creating
@@ -382,14 +407,14 @@ pub unsafe trait HasHrTimer<T> {
     /// - `this` must point to a valid `Self`.
     /// - Caller must ensure that the pointee of `this` lives until the timer
     ///   fires or is canceled.
-    unsafe fn start(this: *const Self, expires: Ktime) {
+    unsafe fn start(this: *const Self, expires: <Self::TimerMode as HrTimerMode>::Expires) {
         // SAFETY: By function safety requirement, `this` is a valid `Self`.
         unsafe {
             bindings::hrtimer_start_range_ns(
                 Self::c_timer_ptr(this).cast_mut(),
-                expires.to_ns(),
+                expires.as_nanos(),
                 0,
-                (*Self::raw_get_timer(this)).mode,
+                <Self::TimerMode as HrTimerMode>::Clock::ID as u32,
             );
         }
     }
@@ -568,12 +593,16 @@ macro_rules! impl_has_hr_timer {
         impl$({$($generics:tt)*})?
             HasHrTimer<$timer_type:ty>
             for $self:ty
-        { self.$field:ident }
+        {
+            mode : $mode:ty,
+            field : self.$field:ident $(,)?
+        }
         $($rest:tt)*
     ) => {
         // SAFETY: This implementation of `raw_get_timer` only compiles if the
         // field has the right type.
         unsafe impl$(<$($generics)*>)? $crate::time::hrtimer::HasHrTimer<$timer_type> for $self {
+            type TimerMode = $mode;
 
             #[inline]
             unsafe fn raw_get_timer(
