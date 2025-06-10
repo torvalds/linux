@@ -270,7 +270,8 @@ static int io_sq_thread(void *data)
 	/* offload context creation failed, just exit */
 	if (!current->io_uring) {
 		mutex_lock(&sqd->lock);
-		sqd->thread = NULL;
+		rcu_assign_pointer(sqd->thread, NULL);
+		put_task_struct(current);
 		mutex_unlock(&sqd->lock);
 		goto err_out;
 	}
@@ -379,7 +380,8 @@ static int io_sq_thread(void *data)
 		io_sq_tw(&retry_list, UINT_MAX);
 
 	io_uring_cancel_generic(true, sqd);
-	sqd->thread = NULL;
+	rcu_assign_pointer(sqd->thread, NULL);
+	put_task_struct(current);
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 		atomic_or(IORING_SQ_NEED_WAKEUP, &ctx->rings->sq_flags);
 	io_run_task_work();
@@ -495,9 +497,6 @@ __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 		ret = -EINVAL;
 		goto err;
 	}
-
-	if (task_to_put)
-		put_task_struct(task_to_put);
 	return 0;
 err_sqpoll:
 	complete(&ctx->sq_data->exited);
