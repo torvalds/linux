@@ -669,15 +669,13 @@ static pageout_t writeout(struct folio *folio, struct address_space *mapping,
 
 	/*
 	 * The large shmem folio can be split if CONFIG_THP_SWAP is not enabled
-	 * or we failed to allocate contiguous swap entries.
+	 * or we failed to allocate contiguous swap entries, in which case
+	 * the split out folios get added back to folio_list.
 	 */
-	if (shmem_mapping(mapping)) {
-		if (folio_test_large(folio))
-			wbc.list = folio_list;
-		res = shmem_writeout(folio, &wbc);
-	} else {
+	if (shmem_mapping(mapping))
+		res = shmem_writeout(folio, plug, folio_list);
+	else
 		res = swap_writeout(folio, &wbc);
-	}
 
 	if (res < 0)
 		handle_write_error(mapping, folio, res);

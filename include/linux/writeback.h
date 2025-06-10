@@ -79,9 +79,6 @@ struct writeback_control {
 	 */
 	struct swap_iocb **swap_plug;
 
-	/* Target list for splitting a large folio */
-	struct list_head *list;
-
 	/* internal fields used by the ->writepages implementation: */
 	struct folio_batch fbatch;
 	pgoff_t index;
