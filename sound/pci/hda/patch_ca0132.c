@@ -4385,8 +4385,8 @@ static int add_tuning_control(struct hda_codec *codec,
 
 	knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-	knew.tlv.c = 0;
-	knew.tlv.p = 0;
+	knew.tlv.c = NULL;
+	knew.tlv.p = NULL;
 	switch (pnid) {
 	case VOICE_FOCUS:
 		knew.info = voice_focus_ctl_info;
@@ -4410,7 +4410,7 @@ static int add_tuning_control(struct hda_codec *codec,
 	}
 	knew.private_value =
 		HDA_COMPOSE_AMP_VAL(nid, 1, 0, type);
-	sprintf(namestr, "%s %s Volume", name, dirstr[dir]);
+	snprintf(namestr, sizeof(namestr), "%s %s Volume", name, dirstr[dir]);
 	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
 }
 
