@@ -2842,19 +2842,9 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 
 	rqstp->rq_lease_breaker = (void **)&cstate->clp;
 
-	trace_nfsd_compound(rqstp, args->tag, args->taglen, args->client_opcnt);
+	trace_nfsd_compound(rqstp, args->tag, args->taglen, args->opcnt);
 	while (!status && resp->opcnt < args->opcnt) {
 		op = &args->ops[resp->opcnt++];
-
-		if (unlikely(resp->opcnt == NFSD_MAX_OPS_PER_COMPOUND)) {
-			/* If there are still more operations to process,
-			 * stop here and report NFS4ERR_RESOURCE. */
-			if (cstate->minorversion == 0 &&
-			    args->client_opcnt > resp->opcnt) {
-				op->status = nfserr_resource;
-				goto encode_op;
-			}
-		}
 
 		/*
 		 * The XDR decode routines may have pre-set op->status;
@@ -2932,7 +2922,7 @@ encode_op:
 			status = op->status;
 		}
 
-		trace_nfsd_compound_status(args->client_opcnt, resp->opcnt,
+		trace_nfsd_compound_status(args->opcnt, resp->opcnt,
 					   status, nfsd4_op_name(op->opnum));
 
 		nfsd4_cstate_clear_replay(cstate);
