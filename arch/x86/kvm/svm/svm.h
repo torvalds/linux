@@ -613,11 +613,22 @@ static inline void svm_vmgexit_no_action(struct vcpu_svm *svm, u64 data)
 	svm_vmgexit_set_return_code(svm, GHCB_HV_RESP_NO_ACTION, data);
 }
 
-/* svm.c */
+/*
+ * The MSRPM is 8KiB in size, divided into four 2KiB ranges (the fourth range
+ * is reserved).  Each MSR within a range is covered by two bits, one each for
+ * read (bit 0) and write (bit 1), where a bit value of '1' means intercepted.
+ */
+#define SVM_MSRPM_BYTES_PER_RANGE 2048
+#define SVM_BITS_PER_MSR 2
+#define SVM_MSRS_PER_BYTE (BITS_PER_BYTE / SVM_BITS_PER_MSR)
+#define SVM_MSRS_PER_RANGE (SVM_MSRPM_BYTES_PER_RANGE * SVM_MSRS_PER_BYTE)
+static_assert(SVM_MSRS_PER_RANGE == 8192);
+
 #define MSR_INVALID				0xffffffffU
 
 #define DEBUGCTL_RESERVED_BITS (~DEBUGCTLMSR_LBR)
 
+/* svm.c */
 extern bool dump_invalid_vmcb;
 
 u32 svm_msrpm_offset(u32 msr);

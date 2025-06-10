@@ -269,22 +269,18 @@ static int tsc_aux_uret_slot __read_mostly = -1;
 
 static const u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
 
-#define NUM_MSR_MAPS ARRAY_SIZE(msrpm_ranges)
-#define MSRS_RANGE_SIZE 2048
-#define MSRS_IN_RANGE (MSRS_RANGE_SIZE * 8 / 2)
-
 u32 svm_msrpm_offset(u32 msr)
 {
 	u32 offset;
 	int i;
 
-	for (i = 0; i < NUM_MSR_MAPS; i++) {
+	for (i = 0; i < ARRAY_SIZE(msrpm_ranges); i++) {
 		if (msr < msrpm_ranges[i] ||
-		    msr >= msrpm_ranges[i] + MSRS_IN_RANGE)
+		    msr >= msrpm_ranges[i] + SVM_MSRS_PER_RANGE)
 			continue;
 
-		offset  = (msr - msrpm_ranges[i]) / 4; /* 4 msrs per u8 */
-		offset += (i * MSRS_RANGE_SIZE);       /* add range offset */
+		offset  = (msr - msrpm_ranges[i]) / SVM_MSRS_PER_BYTE;
+		offset += (i * SVM_MSRPM_BYTES_PER_RANGE);  /* add range offset */
 
 		/* Now we have the u8 offset - but need the u32 offset */
 		return offset / 4;
