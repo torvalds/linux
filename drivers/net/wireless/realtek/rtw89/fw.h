@@ -320,6 +320,7 @@ struct rtw89_fw_macid_pause_sleep_grp {
 #define RTW89_CHANNEL_TIME_EXTRA_OP 30
 #define RTW89_DFS_CHAN_TIME 105
 #define RTW89_OFF_CHAN_TIME 100
+#define RTW89_P2P_CHAN_TIME 105
 #define RTW89_DWELL_TIME 20
 #define RTW89_DWELL_TIME_6G 10
 #define RTW89_SCAN_WIDTH 0

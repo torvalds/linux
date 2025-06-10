@@ -7264,6 +7264,8 @@ int rtw89_hw_scan_prep_chan_list_ax(struct rtw89_dev *rtwdev,
 		else if (channel->band == NL80211_BAND_6GHZ)
 			ch_info->period = RTW89_CHANNEL_TIME_6G +
 					  RTW89_DWELL_TIME_6G;
+		else if (rtwvif_link->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
+			ch_info->period = RTW89_P2P_CHAN_TIME;
 		else
 			ch_info->period = RTW89_CHANNEL_TIME;
 
@@ -7440,6 +7442,8 @@ int rtw89_hw_scan_prep_chan_list_be(struct rtw89_dev *rtwdev,
 			ch_info->period = req->duration;
 		else if (channel->band == NL80211_BAND_6GHZ)
 			ch_info->period = RTW89_CHANNEL_TIME_6G + RTW89_DWELL_TIME_6G;
+		else if (rtwvif_link->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
+			ch_info->period = RTW89_P2P_CHAN_TIME;
 		else
 			ch_info->period = RTW89_CHANNEL_TIME;
 
