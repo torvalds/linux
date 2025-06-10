@@ -1010,7 +1010,7 @@ static int sd_power_off(struct rtsx_usb_sdmmc *host)
 	return sd_pull_ctl_disable_qfn24(ucr);
 }
 
-static int sd_set_power_mode(struct rtsx_usb_sdmmc *host,
+static void sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 		unsigned char power_mode)
 {
 	int err;
@@ -1019,7 +1019,7 @@ static int sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 		power_mode = MMC_POWER_ON;
 
 	if (power_mode == host->power_mode)
-		return 0;
+		return;
 
 	if (power_mode == MMC_POWER_OFF) {
 		err = sd_power_off(host);
@@ -1034,7 +1034,6 @@ static int sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 	}
 
 	host->power_mode = power_mode;
-	return err;
 }
 
 static int sd_set_timing(struct rtsx_usb_sdmmc *host,
