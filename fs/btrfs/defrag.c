@@ -848,8 +848,8 @@ static struct folio *defrag_prepare_one_folio(struct btrfs_inode *inode, pgoff_t
 {
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
-	u64 folio_start;
-	u64 folio_end;
+	u64 lock_start;
+	u64 lock_end;
 	struct extent_state *cached_state = NULL;
 	struct folio *folio;
 	int ret;
@@ -885,15 +885,15 @@ again:
 		return ERR_PTR(ret);
 	}
 
-	folio_start = folio_pos(folio);
-	folio_end = folio_pos(folio) + folio_size(folio) - 1;
+	lock_start = folio_pos(folio);
+	lock_end = folio_pos(folio) + folio_size(folio) - 1;
 	/* Wait for any existing ordered extent in the range */
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
 
-		btrfs_lock_extent(&inode->io_tree, folio_start, folio_end, &cached_state);
-		ordered = btrfs_lookup_ordered_range(inode, folio_start, folio_size(folio));
-		btrfs_unlock_extent(&inode->io_tree, folio_start, folio_end, &cached_state);
+		btrfs_lock_extent(&inode->io_tree, lock_start, lock_end, &cached_state);
+		ordered = btrfs_lookup_ordered_range(inode, lock_start, folio_size(folio));
+		btrfs_unlock_extent(&inode->io_tree, lock_start, lock_end, &cached_state);
 		if (!ordered)
 			break;
 
