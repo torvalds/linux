@@ -2630,7 +2630,7 @@ static int lan78xx_configure_flowcontrol(struct lan78xx_net *dev,
  */
 static struct phy_device *lan78xx_register_fixed_phy(struct lan78xx_net *dev)
 {
-	struct fixed_phy_status fphy_status = {
+	static const struct fixed_phy_status fphy_status = {
 		.link = 1,
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_FULL,
