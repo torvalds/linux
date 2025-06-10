@@ -431,6 +431,10 @@ struct kszphy_ptp_priv {
 	spinlock_t seconds_lock;
 };
 
+struct kszphy_phy_stats {
+	u64 rx_err_pkt_cnt;
+};
+
 struct kszphy_priv {
 	struct kszphy_ptp_priv ptp_priv;
 	const struct kszphy_type *type;
@@ -441,6 +445,7 @@ struct kszphy_priv {
 	bool rmii_ref_clk_sel_val;
 	bool clk_enable;
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
+	struct kszphy_phy_stats phy_stats;
 };
 
 static const struct kszphy_type lan8814_type = {
@@ -2128,6 +2133,35 @@ static void kszphy_get_stats(struct phy_device *phydev,
 
 	for (i = 0; i < ARRAY_SIZE(kszphy_hw_stats); i++)
 		data[i] = kszphy_get_stat(phydev, i);
+}
+
+/* KSZ9477 PHY RXER Counter. Probably supported by other PHYs like KSZ9313,
+ * etc. The counter is incremented when the PHY receives a frame with one or
+ * more symbol errors. The counter is cleared when the register is read.
+ */
+#define MII_KSZ9477_PHY_RXER_COUNTER	0x15
+
+static int kszphy_update_stats(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+	int ret;
+
+	ret = phy_read(phydev, MII_KSZ9477_PHY_RXER_COUNTER);
+	if (ret < 0)
+		return ret;
+
+	priv->phy_stats.rx_err_pkt_cnt += ret;
+
+	return 0;
+}
+
+static void kszphy_get_phy_stats(struct phy_device *phydev,
+				 struct ethtool_eth_phy_stats *eth_stats,
+				 struct ethtool_phy_stats *stats)
+{
+	struct kszphy_priv *priv = phydev->priv;
+
+	stats->rx_errors = priv->phy_stats.rx_err_pkt_cnt;
 }
 
 static void kszphy_enable_clk(struct phy_device *phydev)
@@ -5745,6 +5779,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_KSZ9477,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip KSZ9477",
+	.probe		= kszphy_probe,
 	/* PHY_GBIT_FEATURES */
 	.config_init	= ksz9477_config_init,
 	.config_intr	= kszphy_config_intr,
@@ -5753,6 +5788,8 @@ static struct phy_driver ksphy_driver[] = {
 	.handle_interrupt = kszphy_handle_interrupt,
 	.suspend	= genphy_suspend,
 	.resume		= ksz9477_resume,
+	.get_phy_stats	= kszphy_get_phy_stats,
+	.update_stats	= kszphy_update_stats,
 } };
 
 module_phy_driver(ksphy_driver);
