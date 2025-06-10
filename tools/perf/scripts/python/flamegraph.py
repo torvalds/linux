@@ -123,7 +123,13 @@ class FlameGraphCLI:
             return ""
 
         try:
-            output = subprocess.check_output(["perf", "report", "--header-only"])
+            # if the file name other than perf.data is given,
+            # we read the header of that file
+            if self.args.input:
+                output = subprocess.check_output(["perf", "report", "--header-only", "-i", self.args.input])
+            else:
+                output = subprocess.check_output(["perf", "report", "--header-only"])
+
             return output.decode("utf-8")
         except Exception as err:  # pylint: disable=broad-except
             print("Error reading report header: {}".format(err), file=sys.stderr)
