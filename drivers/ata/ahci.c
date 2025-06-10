@@ -1438,13 +1438,7 @@ static bool ahci_broken_lpm(struct pci_dev *pdev)
 				DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 				DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad W541"),
 			},
-			/*
-			 * Note date based on release notes, 2.35 has been
-			 * reported to be good, but I've been unable to get
-			 * a hold of the reporter to get the DMI BIOS date.
-			 * TODO: fix this.
-			 */
-			.driver_data = "20180310", /* 2.35 */
+			.driver_data = "20180409", /* 2.35 */
 		},
 		{ }	/* terminate list */
 	};
