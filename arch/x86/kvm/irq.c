@@ -570,10 +570,15 @@ int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
 	spin_lock_irq(&kvm->irqfds.lock);
 	irqfd->producer = prod;
 
+	if (!kvm->arch.nr_possible_bypass_irqs++)
+		kvm_x86_call(pi_start_bypass)(kvm);
+
 	if (irqfd->irq_entry.type == KVM_IRQ_ROUTING_MSI) {
 		ret = kvm_pi_update_irte(irqfd, &irqfd->irq_entry);
-		if (ret)
+		if (ret) {
+			kvm->arch.nr_possible_bypass_irqs--;
 			kvm_arch_end_assignment(irqfd->kvm);
+		}
 	}
 	spin_unlock_irq(&kvm->irqfds.lock);
 
@@ -605,6 +610,8 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 				irqfd->consumer.eventfd, ret);
 	}
 	irqfd->producer = NULL;
+
+	kvm->arch.nr_possible_bypass_irqs--;
 
 	spin_unlock_irq(&kvm->irqfds.lock);
 
