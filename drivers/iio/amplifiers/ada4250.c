@@ -299,24 +299,24 @@ static void ada4250_reg_disable(void *data)
 
 static int ada4250_init(struct ada4250_state *st)
 {
+	struct device *dev = &st->spi->dev;
 	int ret;
 	u16 chip_id;
-	struct spi_device *spi = st->spi;
 
-	st->refbuf_en = device_property_read_bool(&spi->dev, "adi,refbuf-enable");
+	st->refbuf_en = device_property_read_bool(dev, "adi,refbuf-enable");
 
-	st->reg = devm_regulator_get(&spi->dev, "avdd");
+	st->reg = devm_regulator_get(dev, "avdd");
 	if (IS_ERR(st->reg))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->reg),
+		return dev_err_probe(dev, PTR_ERR(st->reg),
 				     "failed to get the AVDD voltage\n");
 
 	ret = regulator_enable(st->reg);
 	if (ret) {
-		dev_err(&spi->dev, "Failed to enable specified AVDD supply\n");
+		dev_err(dev, "Failed to enable specified AVDD supply\n");
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(&spi->dev, ada4250_reg_disable, st->reg);
+	ret = devm_add_action_or_reset(dev, ada4250_reg_disable, st->reg);
 	if (ret)
 		return ret;
 
@@ -333,7 +333,7 @@ static int ada4250_init(struct ada4250_state *st)
 	chip_id = le16_to_cpu(st->reg_val_16);
 
 	if (chip_id != ADA4250_CHIP_ID) {
-		dev_err(&spi->dev, "Invalid chip ID.\n");
+		dev_err(dev, "Invalid chip ID.\n");
 		return -EINVAL;
 	}
 
