@@ -605,10 +605,8 @@ next:
 
 	bcmasp_intf_rx_desc_write(intf, intf->rx_edpkt_dma_read);
 
-	if (processed < budget) {
-		napi_complete_done(&intf->rx_napi, processed);
+	if (processed < budget && napi_complete_done(&intf->rx_napi, processed))
 		bcmasp_enable_rx_irq(intf, 1);
-	}
 
 	return processed;
 }
