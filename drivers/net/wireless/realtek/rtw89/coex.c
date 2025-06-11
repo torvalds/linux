@@ -5360,14 +5360,46 @@ static void _set_bt_rx_scan_pri(struct rtw89_dev *rtwdev)
 	_write_scbd(rtwdev, BTC_WSCB_RXSCAN_PRI, (bool)(!!bt->scan_rx_low_pri));
 }
 
+static void _wl_req_mac(struct rtw89_dev *rtwdev, u8 mac)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	u32 add;
+
+	if (mac == wl->pta_req_mac)
+		return;
+
+	dm->ost_info.pta_req_hw_band = mac;
+	wl->pta_req_mac = mac;
+	wl->pta_reg_mac_chg = true;
+
+	if (btc->ver->fcxosi)
+		return;
+
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		add = R_BE_BTC_CFG;
+	else
+		add = R_AX_BTC_CFG;
+
+	if (mac == RTW89_MAC_0)
+		rtw89_write32_clr(rtwdev, add, B_AX_WL_SRC);
+	else
+		rtw89_write32_set(rtwdev, add, B_AX_WL_SRC);
+}
+
 static void _action_common(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_wl_role_info_v8 *rinfo_v8 = &wl->role_info_v8;
 	struct rtw89_btc_wl_smap *wl_smap = &wl->status.map;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	u32 bt_rom_code_id, bt_fw_ver;
+
+	if (btc->ver->fwlrole == 8)
+		_wl_req_mac(rtwdev, rinfo_v8->pta_req_band);
 
 	_set_btg_ctrl(rtwdev);
 	_set_wl_preagc_ctrl(rtwdev);
@@ -5405,6 +5437,7 @@ static void _action_common(struct rtw89_dev *rtwdev)
 		btc->cx.cnt_wl[BTC_WCNT_SCBDUPDATE]++;
 	}
 	btc->dm.tdma_instant_excute = 0;
+	wl->pta_reg_mac_chg = false;
 }
 
 static void _action_by_bt(struct rtw89_dev *rtwdev)
@@ -5865,14 +5898,6 @@ _update_rssi_state(struct rtw89_dev *rtwdev, u8 pre_state, u8 rssi, u8 thresh)
 	}
 
 	return next_state;
-}
-
-static void _wl_req_mac(struct rtw89_dev *rtwdev, u8 mac)
-{
-	if (mac == RTW89_MAC_0)
-		rtw89_write32_clr(rtwdev, R_AX_BTC_CFG, B_AX_WL_SRC);
-	else
-		rtw89_write32_set(rtwdev, R_AX_BTC_CFG, B_AX_WL_SRC);
 }
 
 static
