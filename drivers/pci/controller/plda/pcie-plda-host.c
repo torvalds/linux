@@ -150,7 +150,7 @@ static struct msi_domain_info plda_msi_domain_info = {
 static int plda_allocate_msi_domains(struct plda_pcie_rp *port)
 {
 	struct device *dev = port->dev;
-	struct fwnode_handle *fwnode = of_fwnode_handle(dev->of_node);
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct plda_msi *msi = &port->msi;
 
 	mutex_init(&port->msi.lock);

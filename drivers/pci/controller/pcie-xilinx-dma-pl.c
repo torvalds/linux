@@ -470,7 +470,7 @@ static int xilinx_pl_dma_pcie_init_msi_irq_domain(struct pl_dma_pcie *port)
 	struct device *dev = port->dev;
 	struct xilinx_msi *msi = &port->msi;
 	int size = BITS_TO_LONGS(XILINX_NUM_MSI_IRQS) * sizeof(long);
-	struct fwnode_handle *fwnode = of_fwnode_handle(port->dev->of_node);
+	struct fwnode_handle *fwnode = dev_fwnode(port->dev);
 
 	msi->dev_domain = irq_domain_create_linear(NULL, XILINX_NUM_MSI_IRQS,
 						   &dev_msi_domain_ops, port);
