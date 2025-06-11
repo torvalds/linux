@@ -109,6 +109,8 @@ static void sdma_v4_4_2_set_ras_funcs(struct amdgpu_device *adev);
 static void sdma_v4_4_2_update_reset_mask(struct amdgpu_device *adev);
 static int sdma_v4_4_2_stop_queue(struct amdgpu_ring *ring);
 static int sdma_v4_4_2_restore_queue(struct amdgpu_ring *ring);
+static int sdma_v4_4_2_soft_reset_engine(struct amdgpu_device *adev,
+					 u32 instance_id);
 
 static u32 sdma_v4_4_2_get_reg_offset(struct amdgpu_device *adev,
 		u32 instance, u32 offset)
@@ -1337,6 +1339,7 @@ static bool sdma_v4_4_2_fw_support_paging_queue(struct amdgpu_device *adev)
 static const struct amdgpu_sdma_funcs sdma_v4_4_2_sdma_funcs = {
 	.stop_kernel_queue = &sdma_v4_4_2_stop_queue,
 	.start_kernel_queue = &sdma_v4_4_2_restore_queue,
+	.soft_reset_kernel_queue = &sdma_v4_4_2_soft_reset_engine,
 };
 
 static int sdma_v4_4_2_early_init(struct amdgpu_ip_block *ip_block)
@@ -1743,6 +1746,15 @@ static int sdma_v4_4_2_restore_queue(struct amdgpu_ring *ring)
 	}
 
 	return sdma_v4_4_2_inst_start(adev, inst_mask, true);
+}
+
+static int sdma_v4_4_2_soft_reset_engine(struct amdgpu_device *adev,
+					 u32 instance_id)
+{
+	/* For SDMA 4.x, use the existing DPM interface for backward compatibility
+	 * we need to convert the logical instance ID to physical instance ID before reset.
+	 */
+	return amdgpu_dpm_reset_sdma(adev, 1 << GET_INST(SDMA0, instance_id));
 }
 
 static int sdma_v4_4_2_set_trap_irq_state(struct amdgpu_device *adev,
