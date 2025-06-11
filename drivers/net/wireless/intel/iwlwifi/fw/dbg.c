@@ -1106,6 +1106,7 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 	u32 prph_val;
 	u32 dphy_state;
 	u32 dphy_addr;
+	u32 prph_stts;
 	int i;
 
 	range->internal_base_addr = cpu_to_le32(addr);
@@ -1133,6 +1134,21 @@ static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
 
 		iwl_write_prph_no_grab(fwrt->trans, indirect_wr_addr,
 				       WMAL_INDRCT_CMD(addr + i));
+
+		if (fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF1 &&
+		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_JF2 &&
+		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_HR1 &&
+		    fwrt->trans->info.hw_rf_id != IWL_CFG_RF_TYPE_HR2) {
+			udelay(2);
+			prph_stts = iwl_read_prph_no_grab(fwrt->trans,
+							  WMAL_MRSPF_STTS);
+
+			/* Abort dump if status is 0xA5A5A5A2 or FIFO1 empty */
+			if (prph_stts == WMAL_TIMEOUT_VAL ||
+			    !WMAL_MRSPF_STTS_IS_FIFO1_NOT_EMPTY(prph_stts))
+				break;
+		}
+
 		prph_val = iwl_read_prph_no_grab(fwrt->trans,
 						 indirect_rd_addr);
 		*val++ = cpu_to_le32(prph_val);
