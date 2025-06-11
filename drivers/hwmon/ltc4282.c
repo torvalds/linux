@@ -1596,7 +1596,7 @@ static const struct hwmon_ops ltc4282_hwmon_ops = {
 	.read_string = ltc4282_read_labels,
 };
 
-static const struct hwmon_chip_info ltc2947_chip_info = {
+static const struct hwmon_chip_info ltc4282_chip_info = {
 	.ops = &ltc4282_hwmon_ops,
 	.info = ltc4282_info,
 };
@@ -1717,7 +1717,7 @@ static int ltc4282_probe(struct i2c_client *i2c)
 
 	mutex_init(&st->lock);
 	hwmon = devm_hwmon_device_register_with_info(dev, "ltc4282", st,
-						     &ltc2947_chip_info,
+						     &ltc4282_chip_info,
 						     ltc4282_groups);
 	if (IS_ERR(hwmon))
 		return PTR_ERR(hwmon);
