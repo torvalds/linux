@@ -821,8 +821,8 @@ static int ar9331_sw_irq_init(struct ar9331_sw_priv *priv)
 		return ret;
 	}
 
-	priv->irqdomain = irq_domain_create_linear(of_fwnode_handle(np), 1,
-						   &ar9331_sw_irqdomain_ops, priv);
+	priv->irqdomain = irq_domain_create_linear(dev_fwnode(dev), 1, &ar9331_sw_irqdomain_ops,
+						   priv);
 	if (!priv->irqdomain) {
 		dev_err(dev, "failed to create IRQ domain\n");
 		return -EINVAL;
