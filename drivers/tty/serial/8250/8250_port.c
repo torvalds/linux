@@ -2792,6 +2792,30 @@ static void serial8250_set_efr(struct uart_port *port, struct ktermios *termios)
 	serial_port_out(port, efr_reg, efr);
 }
 
+static void serial8250_set_fcr(struct uart_port *port, struct ktermios *termios)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	bool is_16750 = port->type == PORT_16750;
+
+	if (is_16750)
+		serial_port_out(port, UART_FCR, up->fcr);
+
+	/*
+	 * LCR DLAB must be reset to enable 64-byte FIFO mode. If the FCR is written without DLAB
+	 * set, this mode will be disabled.
+	 */
+	serial_port_out(port, UART_LCR, up->lcr);
+
+	if (is_16750)
+		return;
+
+	/* emulated UARTs (Lucent Venus 167x) need two steps */
+	if (up->fcr & UART_FCR_ENABLE_FIFO)
+		serial_port_out(port, UART_FCR, UART_FCR_ENABLE_FIFO);
+
+	serial_port_out(port, UART_FCR, up->fcr);
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
@@ -2823,22 +2847,9 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial8250_set_ier(port, termios);
 	serial8250_set_efr(port, termios);
 	serial8250_set_divisor(port, baud, quot, frac);
-
-	/*
-	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
-	 * is written without DLAB set, this mode will be disabled.
-	 */
-	if (port->type == PORT_16750)
-		serial_port_out(port, UART_FCR, up->fcr);
-
-	serial_port_out(port, UART_LCR, up->lcr);	/* reset DLAB */
-	if (port->type != PORT_16750) {
-		/* emulated UARTs (Lucent Venus 167x) need two steps */
-		if (up->fcr & UART_FCR_ENABLE_FIFO)
-			serial_port_out(port, UART_FCR, UART_FCR_ENABLE_FIFO);
-		serial_port_out(port, UART_FCR, up->fcr);	/* set fcr */
-	}
+	serial8250_set_fcr(port, termios);
 	serial8250_set_mctrl(port, port->mctrl);
+
 	uart_port_unlock_irqrestore(port, flags);
 	serial8250_rpm_put(up);
 
