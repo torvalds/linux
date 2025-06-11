@@ -82,7 +82,6 @@ TRACE_EVENT(kvm_set_irq,
 	TP_printk("gsi %u level %d source %d",
 		  __entry->gsi, __entry->level, __entry->irq_source_id)
 );
-#endif /* defined(CONFIG_HAVE_KVM_IRQCHIP) */
 
 #ifdef CONFIG_KVM_IOAPIC
 
@@ -92,8 +91,6 @@ TRACE_EVENT(kvm_set_irq,
 	{KVM_IRQCHIP_IOAPIC,		"IOAPIC"}
 
 #endif /* CONFIG_KVM_IOAPIC */
-
-#if defined(CONFIG_HAVE_KVM_IRQCHIP)
 
 #ifdef kvm_irqchips
 #define kvm_ack_irq_string "irqchip %s pin %u"
