@@ -252,8 +252,9 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	return r;
 }
 
-void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
-		     struct kvm_lapic_irq *irq)
+static void kvm_msi_to_lapic_irq(struct kvm *kvm,
+				 struct kvm_kernel_irq_routing_entry *e,
+				 struct kvm_lapic_irq *irq)
 {
 	struct msi_msg msg = { .address_lo = e->msi.address_lo,
 			       .address_hi = e->msi.address_hi,
@@ -271,7 +272,6 @@ void kvm_set_msi_irq(struct kvm *kvm, struct kvm_kernel_irq_routing_entry *e,
 	irq->level = 1;
 	irq->shorthand = APIC_DEST_NOSHORT;
 }
-EXPORT_SYMBOL_GPL(kvm_set_msi_irq);
 
 static inline bool kvm_msi_route_invalid(struct kvm *kvm,
 		struct kvm_kernel_irq_routing_entry *e)
@@ -290,7 +290,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	if (!level)
 		return -1;
 
-	kvm_set_msi_irq(kvm, e, &irq);
+	kvm_msi_to_lapic_irq(kvm, e, &irq);
 
 	return kvm_irq_delivery_to_apic(kvm, NULL, &irq, NULL);
 }
@@ -313,7 +313,7 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 		if (kvm_msi_route_invalid(kvm, e))
 			return -EINVAL;
 
-		kvm_set_msi_irq(kvm, e, &irq);
+		kvm_msi_to_lapic_irq(kvm, e, &irq);
 
 		if (kvm_irq_delivery_to_apic_fast(kvm, NULL, &irq, &r, NULL))
 			return r;
@@ -486,7 +486,7 @@ void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
 			if (entry->type != KVM_IRQ_ROUTING_MSI)
 				continue;
 
-			kvm_set_msi_irq(vcpu->kvm, entry, &irq);
+			kvm_msi_to_lapic_irq(vcpu->kvm, entry, &irq);
 
 			if (!irq.trig_mode)
 				continue;
@@ -521,7 +521,7 @@ static int kvm_pi_update_irte(struct kvm_kernel_irqfd *irqfd,
 		return -EINVAL;
 
 	if (entry && entry->type == KVM_IRQ_ROUTING_MSI) {
-		kvm_set_msi_irq(kvm, entry, &irq);
+		kvm_msi_to_lapic_irq(kvm, entry, &irq);
 
 		/*
 		 * Force remapped mode if hardware doesn't support posting the
