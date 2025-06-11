@@ -6,6 +6,8 @@
 
 #include <kvm/iodev.h>
 
+#include <uapi/asm/kvm.h>
+
 struct kvm_kpit_channel_state {
 	u32 count; /* can be 65536 */
 	u16 latched_count;
@@ -55,11 +57,13 @@ struct kvm_pit {
 #define KVM_MAX_PIT_INTR_INTERVAL   HZ / 100
 #define KVM_PIT_CHANNEL_MASK	    0x3
 
+int kvm_vm_ioctl_get_pit(struct kvm *kvm, struct kvm_pit_state *ps);
+int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps);
+int kvm_vm_ioctl_get_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps);
+int kvm_vm_ioctl_set_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps);
+int kvm_vm_ioctl_reinject(struct kvm *kvm, struct kvm_reinject_control *control);
+
 struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags);
 void kvm_free_pit(struct kvm *kvm);
-
-void kvm_pit_load_count(struct kvm_pit *pit, int channel, u32 val,
-		int hpet_legacy_start);
-void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject);
 
 #endif
