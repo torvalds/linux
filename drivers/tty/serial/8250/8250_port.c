@@ -2111,6 +2111,54 @@ static void serial8250_put_poll_char(struct uart_port *port,
 
 #endif /* CONFIG_CONSOLE_POLL */
 
+static void serial8250_startup_special(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned long flags;
+
+	switch (port->type) {
+	case PORT_16C950:
+		/*
+		 * Wake up and initialize UART
+		 *
+		 * Synchronize UART_IER access against the console.
+		 */
+		uart_port_lock_irqsave(port, &flags);
+		up->acr = 0;
+		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
+		serial_port_out(port, UART_EFR, UART_EFR_ECB);
+		serial_port_out(port, UART_IER, 0);
+		serial_port_out(port, UART_LCR, 0);
+		serial_icr_write(up, UART_CSR, 0); /* Reset the UART */
+		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
+		serial_port_out(port, UART_EFR, UART_EFR_ECB);
+		serial_port_out(port, UART_LCR, 0);
+		uart_port_unlock_irqrestore(port, flags);
+		break;
+	case PORT_DA830:
+		/*
+		 * Reset the port
+		 *
+		 * Synchronize UART_IER access against the console.
+		 */
+		uart_port_lock_irqsave(port, &flags);
+		serial_port_out(port, UART_IER, 0);
+		serial_port_out(port, UART_DA830_PWREMU_MGMT, 0);
+		uart_port_unlock_irqrestore(port, flags);
+		mdelay(10);
+
+		/* Enable Tx, Rx and free run mode */
+		serial_port_out(port, UART_DA830_PWREMU_MGMT,
+				UART_DA830_PWREMU_MGMT_UTRST |
+				UART_DA830_PWREMU_MGMT_URRST |
+				UART_DA830_PWREMU_MGMT_FREE);
+		break;
+	case PORT_RSA:
+		rsa_enable(up);
+		break;
+	}
+}
+
 int serial8250_do_startup(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -2131,45 +2179,8 @@ int serial8250_do_startup(struct uart_port *port)
 		set_io_from_upio(port);
 
 	serial8250_rpm_get(up);
-	if (port->type == PORT_16C950) {
-		/*
-		 * Wake up and initialize UART
-		 *
-		 * Synchronize UART_IER access against the console.
-		 */
-		uart_port_lock_irqsave(port, &flags);
-		up->acr = 0;
-		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
-		serial_port_out(port, UART_EFR, UART_EFR_ECB);
-		serial_port_out(port, UART_IER, 0);
-		serial_port_out(port, UART_LCR, 0);
-		serial_icr_write(up, UART_CSR, 0); /* Reset the UART */
-		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
-		serial_port_out(port, UART_EFR, UART_EFR_ECB);
-		serial_port_out(port, UART_LCR, 0);
-		uart_port_unlock_irqrestore(port, flags);
-	}
 
-	if (port->type == PORT_DA830) {
-		/*
-		 * Reset the port
-		 *
-		 * Synchronize UART_IER access against the console.
-		 */
-		uart_port_lock_irqsave(port, &flags);
-		serial_port_out(port, UART_IER, 0);
-		serial_port_out(port, UART_DA830_PWREMU_MGMT, 0);
-		uart_port_unlock_irqrestore(port, flags);
-		mdelay(10);
-
-		/* Enable Tx, Rx and free run mode */
-		serial_port_out(port, UART_DA830_PWREMU_MGMT,
-				UART_DA830_PWREMU_MGMT_UTRST |
-				UART_DA830_PWREMU_MGMT_URRST |
-				UART_DA830_PWREMU_MGMT_FREE);
-	}
-
-	rsa_enable(up);
+	serial8250_startup_special(port);
 
 	/*
 	 * Clear the FIFO buffers and disable them.
