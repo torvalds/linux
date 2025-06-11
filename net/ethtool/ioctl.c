@@ -1075,19 +1075,7 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	if (rc)
 		return rc;
 
-	if (cmd == ETHTOOL_SRXCLSRLINS && info.fs.flow_type & FLOW_RSS) {
-		/* Nonzero ring with RSS only makes sense
-		 * if NIC adds them together
-		 */
-		if (!ops->cap_rss_rxnfc_adds &&
-		    ethtool_get_flow_spec_ring(info.fs.ring_cookie))
-			return -EINVAL;
-
-		if (!xa_load(&dev->ethtool->rss_ctx, info.rss_context))
-			return -EINVAL;
-	}
-
-	if (cmd == ETHTOOL_SRXFH && ops->get_rxfh) {
+	if (ops->get_rxfh) {
 		struct ethtool_rxfh_param rxfh = {};
 
 		rc = ops->get_rxfh(dev, &rxfh);
@@ -1099,15 +1087,7 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 			return rc;
 	}
 
-	rc = ops->set_rxnfc(dev, &info);
-	if (rc)
-		return rc;
-
-	if (cmd == ETHTOOL_SRXCLSRLINS &&
-	    ethtool_rxnfc_copy_to_user(useraddr, &info, info_size, NULL))
-		return -EFAULT;
-
-	return 0;
+	return ops->set_rxnfc(dev, &info);
 }
 
 static noinline_for_stack int
@@ -1117,7 +1097,6 @@ ethtool_get_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	size_t info_size = sizeof(info);
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	int ret;
-	void *rule_buf = NULL;
 
 	if (!ops->get_rxnfc)
 		return -EOPNOTSUPP;
@@ -1126,25 +1105,11 @@ ethtool_get_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	if (ret)
 		return ret;
 
-	if (info.cmd == ETHTOOL_GRXCLSRLALL) {
-		if (info.rule_cnt > 0) {
-			if (info.rule_cnt <= KMALLOC_MAX_SIZE / sizeof(u32))
-				rule_buf = kcalloc(info.rule_cnt, sizeof(u32),
-						   GFP_USER);
-			if (!rule_buf)
-				return -ENOMEM;
-		}
-	}
-
-	ret = ops->get_rxnfc(dev, &info, rule_buf);
+	ret = ops->get_rxnfc(dev, &info, NULL);
 	if (ret < 0)
-		goto err_out;
+		return ret;
 
-	ret = ethtool_rxnfc_copy_to_user(useraddr, &info, info_size, rule_buf);
-err_out:
-	kfree(rule_buf);
-
-	return ret;
+	return ethtool_rxnfc_copy_to_user(useraddr, &info, info_size, NULL);
 }
 
 static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
@@ -1173,18 +1138,6 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 		if (info.rss_context &&
 		    !xa_load(&dev->ethtool->rss_ctx, info.rss_context))
 			return -EINVAL;
-	}
-
-	if (cmd == ETHTOOL_SRXFH && ops->get_rxfh) {
-		struct ethtool_rxfh_param rxfh = {};
-
-		rc = ops->get_rxfh(dev, &rxfh);
-		if (rc)
-			return rc;
-
-		rc = ethtool_check_xfrm_rxfh(rxfh.input_xfrm, info.data);
-		if (rc)
-			return rc;
 	}
 
 	rc = ops->set_rxnfc(dev, &info);
