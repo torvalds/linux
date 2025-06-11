@@ -705,6 +705,15 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 	serial8250_rpm_put(p);
 }
 
+/* Clear the interrupt registers. */
+static void serial8250_clear_interrupts(struct uart_port *port)
+{
+	serial_port_in(port, UART_LSR);
+	serial_port_in(port, UART_RX);
+	serial_port_in(port, UART_IIR);
+	serial_port_in(port, UART_MSR);
+}
+
 static void serial8250_clear_IER(struct uart_8250_port *up)
 {
 	if (up->capabilities & UART_CAP_UUE)
@@ -1275,10 +1284,7 @@ static void autoconfig_irq(struct uart_8250_port *up)
 	uart_port_lock_irq(port);
 	serial_out(up, UART_IER, UART_IER_ALL_INTR);
 	uart_port_unlock_irq(port);
-	serial_in(up, UART_LSR);
-	serial_in(up, UART_RX);
-	serial_in(up, UART_IIR);
-	serial_in(up, UART_MSR);
+	serial8250_clear_interrupts(port);
 	serial_out(up, UART_TX, 0xFF);
 	udelay(20);
 	irq = probe_irq_off(irqs);
@@ -2322,13 +2328,7 @@ int serial8250_do_startup(struct uart_port *port)
 	 */
 	serial8250_clear_fifos(up);
 
-	/*
-	 * Clear the interrupt registers.
-	 */
-	serial_port_in(port, UART_LSR);
-	serial_port_in(port, UART_RX);
-	serial_port_in(port, UART_IIR);
-	serial_port_in(port, UART_MSR);
+	serial8250_clear_interrupts(port);
 
 	/*
 	 * At this point, there's no way the LSR could still be 0xff;
@@ -2363,10 +2363,7 @@ int serial8250_do_startup(struct uart_port *port)
 	 * saved flags to avoid getting false values from polling
 	 * routines or the previous session.
 	 */
-	serial_port_in(port, UART_LSR);
-	serial_port_in(port, UART_RX);
-	serial_port_in(port, UART_IIR);
-	serial_port_in(port, UART_MSR);
+	serial8250_clear_interrupts(port);
 	up->lsr_saved_flags = 0;
 	up->msr_saved_flags = 0;
 
