@@ -5056,6 +5056,7 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_fbtc_outsrc_set_info *o_info = &btc->dm.ost_info;
 	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_role_info_v2 *rinfo_v2 = &wl->role_info_v2;
@@ -5087,9 +5088,7 @@ static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 		return;
 	}
 
-	if (link_mode == BTC_WLINK_25G_MCC) {
-		is_preagc = BTC_PREAGC_BB_FWCTRL;
-	} else if (!(bt->run_patch_code && bt->enable.now)) {
+	if (!(bt->run_patch_code && bt->enable.now)) {
 		is_preagc = BTC_PREAGC_DISABLE;
 	} else if (link_mode == BTC_WLINK_5G) {
 		is_preagc = BTC_PREAGC_DISABLE;
@@ -5109,6 +5108,9 @@ static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 		is_preagc = BTC_PREAGC_ENABLE;
 	}
 
+	if (!btc->ver->fcxosi && link_mode == BTC_WLINK_25G_MCC)
+		is_preagc = BTC_PREAGC_BB_FWCTRL;
+
 	if (dm->wl_pre_agc_rb != dm->wl_pre_agc &&
 	    dm->wl_pre_agc_rb != BTC_PREAGC_NOTFOUND) {
 		_get_reg_status(rtwdev, BTC_CSTATUS_BB_PRE_AGC, &val);
@@ -5122,9 +5124,34 @@ static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 	    is_preagc != dm->wl_pre_agc) {
 		dm->wl_pre_agc = is_preagc;
 
-		if (is_preagc > BTC_PREAGC_ENABLE)
+		if (!btc->ver->fcxosi && is_preagc > BTC_PREAGC_ENABLE)
 			return;
-		chip->ops->ctrl_nbtg_bt_tx(rtwdev, dm->wl_pre_agc, RTW89_PHY_0);
+
+		if (o_info->rf_band[BTC_RF_S0] != o_info->rf_band[BTC_RF_S1]) {/* 1+1 */
+			if (o_info->rf_band[BTC_RF_S0]) /* Non-2G */
+				o_info->nbtg_tx[BTC_RF_S0] = BTC_PREAGC_DISABLE;
+			else
+				o_info->nbtg_tx[BTC_RF_S0] = is_preagc;
+
+			if (o_info->rf_band[BTC_RF_S1]) /* Non-2G */
+				o_info->nbtg_tx[BTC_RF_S1] = BTC_PREAGC_DISABLE;
+			else
+				o_info->nbtg_tx[BTC_RF_S1] = is_preagc;
+
+		} else { /* 2+0 or 0+2 */
+			o_info->nbtg_tx[BTC_RF_S0] = is_preagc;
+			o_info->nbtg_tx[BTC_RF_S1] = is_preagc;
+		}
+
+		if (btc->ver->fcxosi)
+			return;
+
+		chip->ops->ctrl_nbtg_bt_tx(rtwdev, o_info->nbtg_tx[BTC_RF_S0],
+					   RTW89_PHY_0);
+		if (chip->chip_id != RTL8922A)
+			return;
+		chip->ops->ctrl_nbtg_bt_tx(rtwdev, o_info->nbtg_tx[BTC_RF_S1],
+					   RTW89_PHY_1);
 	}
 }
 
