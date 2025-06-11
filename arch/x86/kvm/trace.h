@@ -270,6 +270,7 @@ TRACE_EVENT(kvm_cpuid,
 	{0x6, "SIPI"},			\
 	{0x7, "ExtINT"}
 
+#ifdef CONFIG_KVM_IOAPIC
 TRACE_EVENT(kvm_ioapic_set_irq,
 	    TP_PROTO(__u64 e, int pin, bool coalesced),
 	    TP_ARGS(e, pin, coalesced),
@@ -314,6 +315,7 @@ TRACE_EVENT(kvm_ioapic_delayed_eoi_inj,
 		  (__entry->e & (1<<15)) ? "level" : "edge",
 		  (__entry->e & (1<<16)) ? "|masked" : "")
 );
+#endif
 
 TRACE_EVENT(kvm_msi_set_irq,
 	    TP_PROTO(__u64 address, __u64 data),

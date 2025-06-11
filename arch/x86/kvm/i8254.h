@@ -8,6 +8,7 @@
 
 #include <uapi/asm/kvm.h>
 
+#ifdef CONFIG_KVM_IOAPIC
 struct kvm_kpit_channel_state {
 	u32 count; /* can be 65536 */
 	u16 latched_count;
@@ -64,5 +65,6 @@ int kvm_vm_ioctl_reinject(struct kvm *kvm, struct kvm_reinject_control *control)
 
 struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags);
 void kvm_free_pit(struct kvm *kvm);
+#endif /* CONFIG_KVM_IOAPIC */
 
 #endif

@@ -18,6 +18,8 @@
 #include <kvm/iodev.h>
 #include "lapic.h"
 
+#ifdef CONFIG_KVM_IOAPIC
+
 #define PIC_NUM_PINS 16
 #define SELECT_PIC(irq) \
 	((irq) < 8 ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE)
@@ -79,11 +81,18 @@ static inline int irqchip_full(struct kvm *kvm)
 	smp_rmb();
 	return mode == KVM_IRQCHIP_KERNEL;
 }
+#else /* CONFIG_KVM_IOAPIC */
+static __always_inline int irqchip_full(struct kvm *kvm)
+{
+	return false;
+}
+#endif
 
 static inline int pic_in_kernel(struct kvm *kvm)
 {
 	return irqchip_full(kvm);
 }
+
 
 static inline int irqchip_split(struct kvm *kvm)
 {

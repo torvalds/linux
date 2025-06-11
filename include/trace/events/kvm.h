@@ -84,14 +84,14 @@ TRACE_EVENT(kvm_set_irq,
 );
 #endif /* defined(CONFIG_HAVE_KVM_IRQCHIP) */
 
-#if defined(__KVM_HAVE_IOAPIC)
+#ifdef CONFIG_KVM_IOAPIC
 
 #define kvm_irqchips						\
 	{KVM_IRQCHIP_PIC_MASTER,	"PIC master"},		\
 	{KVM_IRQCHIP_PIC_SLAVE,		"PIC slave"},		\
 	{KVM_IRQCHIP_IOAPIC,		"IOAPIC"}
 
-#endif /* defined(__KVM_HAVE_IOAPIC) */
+#endif /* CONFIG_KVM_IOAPIC */
 
 #if defined(CONFIG_HAVE_KVM_IRQCHIP)
 
