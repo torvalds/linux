@@ -900,7 +900,7 @@ static int add_free_space_extent(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_search_prev_slot(trans, root, &key, path, -1, 1);
 	if (ret)
-		goto out;
+		return ret;
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 
@@ -923,7 +923,7 @@ static int add_free_space_extent(struct btrfs_trans_handle *trans,
 	if (found_end == start) {
 		ret = btrfs_del_item(trans, root, path);
 		if (ret)
-			goto out;
+			return ret;
 		new_key.objectid = found_start;
 		new_key.offset += key.offset;
 		new_extents--;
@@ -940,7 +940,7 @@ right:
 
 	ret = btrfs_search_prev_slot(trans, root, &key, path, -1, 1);
 	if (ret)
-		goto out;
+		return ret;
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
 
@@ -964,7 +964,7 @@ right:
 	if (found_start == end) {
 		ret = btrfs_del_item(trans, root, path);
 		if (ret)
-			goto out;
+			return ret;
 		new_key.offset += key.offset;
 		new_extents--;
 	}
@@ -974,14 +974,10 @@ insert:
 	/* Insert the new key (cases 1-4). */
 	ret = btrfs_insert_empty_item(trans, root, path, &new_key, 0);
 	if (ret)
-		goto out;
+		return ret;
 
 	btrfs_release_path(path);
-	ret = update_free_space_extent_count(trans, block_group, path,
-					     new_extents);
-
-out:
-	return ret;
+	return update_free_space_extent_count(trans, block_group, path, new_extents);
 }
 
 EXPORT_FOR_TESTS
