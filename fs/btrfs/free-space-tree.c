@@ -82,18 +82,15 @@ static int add_new_free_space_info(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key, sizeof(*info));
 	if (ret)
-		goto out;
+		return ret;
 
 	leaf = path->nodes[0];
 	info = btrfs_item_ptr(leaf, path->slots[0],
 			      struct btrfs_free_space_info);
 	btrfs_set_free_space_extent_count(leaf, info, 0);
 	btrfs_set_free_space_flags(leaf, info, 0);
-
-	ret = 0;
-out:
 	btrfs_release_path(path);
-	return ret;
+	return 0;
 }
 
 EXPORT_FOR_TESTS
