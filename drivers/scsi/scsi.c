@@ -708,20 +708,15 @@ void scsi_cdl_check(struct scsi_device *sdev)
 int scsi_cdl_enable(struct scsi_device *sdev, bool enable)
 {
 	char buf[64];
-	bool is_ata;
 	int ret;
 
 	if (!sdev->cdl_supported)
 		return -EOPNOTSUPP;
 
-	rcu_read_lock();
-	is_ata = rcu_dereference(sdev->vpd_pg89);
-	rcu_read_unlock();
-
 	/*
 	 * For ATA devices, CDL needs to be enabled with a SET FEATURES command.
 	 */
-	if (is_ata) {
+	if (sdev->is_ata) {
 		struct scsi_mode_data data;
 		struct scsi_sense_hdr sshdr;
 		char *buf_data;
