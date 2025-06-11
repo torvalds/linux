@@ -617,6 +617,7 @@
 	};
 
 	/* sorted in register address */
+	#include "imx8-ss-security.dtsi"
 	#include "imx8-ss-cm41.dtsi"
 	#include "imx8-ss-audio.dtsi"
 	#include "imx8-ss-vpu.dtsi"
