@@ -2752,6 +2752,22 @@ static void serial8250_set_errors_and_ignores(struct uart_port *port, struct kte
 		port->ignore_status_mask |= UART_LSR_DR;
 }
 
+static void serial8250_set_ier(struct uart_port *port, struct ktermios *termios)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	/* CTS flow control flag and modem status interrupts */
+	up->ier &= ~UART_IER_MSI;
+	if (!(up->bugs & UART_BUG_NOMSR) && UART_ENABLE_MS(&up->port, termios->c_cflag))
+		up->ier |= UART_IER_MSI;
+	if (up->capabilities & UART_CAP_UUE)
+		up->ier |= UART_IER_UUE;
+	if (up->capabilities & UART_CAP_RTOIE)
+		up->ier |= UART_IER_RTOIE;
+
+	serial_port_out(port, UART_IER, up->ier);
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
@@ -2780,20 +2796,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial8250_set_afe(port, termios);
 	uart_update_timeout(port, termios->c_cflag, baud);
 	serial8250_set_errors_and_ignores(port, termios);
-
-	/*
-	 * CTS flow control flag and modem status interrupts
-	 */
-	up->ier &= ~UART_IER_MSI;
-	if (!(up->bugs & UART_BUG_NOMSR) &&
-			UART_ENABLE_MS(&up->port, termios->c_cflag))
-		up->ier |= UART_IER_MSI;
-	if (up->capabilities & UART_CAP_UUE)
-		up->ier |= UART_IER_UUE;
-	if (up->capabilities & UART_CAP_RTOIE)
-		up->ier |= UART_IER_RTOIE;
-
-	serial_port_out(port, UART_IER, up->ier);
+	serial8250_set_ier(port, termios);
 
 	if (up->capabilities & UART_CAP_EFR) {
 		unsigned char efr = 0;
