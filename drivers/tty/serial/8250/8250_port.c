@@ -2768,6 +2768,30 @@ static void serial8250_set_ier(struct uart_port *port, struct ktermios *termios)
 	serial_port_out(port, UART_IER, up->ier);
 }
 
+static void serial8250_set_efr(struct uart_port *port, struct ktermios *termios)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	u8 efr_reg = UART_EFR;
+	u8 efr = 0;
+
+	if (!(up->capabilities & UART_CAP_EFR))
+		return;
+
+	/*
+	 * TI16C752/Startech hardware flow control.  FIXME:
+	 * - TI16C752 requires control thresholds to be set.
+	 * - UART_MCR_RTS is ineffective if auto-RTS mode is enabled.
+	 */
+	if (termios->c_cflag & CRTSCTS)
+		efr |= UART_EFR_CTS;
+
+	if (port->flags & UPF_EXAR_EFR)
+		efr_reg = UART_XR_EFR;
+
+	serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
+	serial_port_out(port, efr_reg, efr);
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
@@ -2797,24 +2821,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	uart_update_timeout(port, termios->c_cflag, baud);
 	serial8250_set_errors_and_ignores(port, termios);
 	serial8250_set_ier(port, termios);
-
-	if (up->capabilities & UART_CAP_EFR) {
-		unsigned char efr = 0;
-		/*
-		 * TI16C752/Startech hardware flow control.  FIXME:
-		 * - TI16C752 requires control thresholds to be set.
-		 * - UART_MCR_RTS is ineffective if auto-RTS mode is enabled.
-		 */
-		if (termios->c_cflag & CRTSCTS)
-			efr |= UART_EFR_CTS;
-
-		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
-		if (port->flags & UPF_EXAR_EFR)
-			serial_port_out(port, UART_XR_EFR, efr);
-		else
-			serial_port_out(port, UART_EFR, efr);
-	}
-
+	serial8250_set_efr(port, termios);
 	serial8250_set_divisor(port, baud, quot, frac);
 
 	/*
