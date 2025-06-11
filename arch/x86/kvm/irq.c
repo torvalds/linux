@@ -42,6 +42,14 @@ static int pending_userspace_extint(struct kvm_vcpu *v)
 	return v->arch.pending_external_vector != -1;
 }
 
+static int get_userspace_extint(struct kvm_vcpu *vcpu)
+{
+	int vector = vcpu->arch.pending_external_vector;
+
+	vcpu->arch.pending_external_vector = -1;
+	return vector;
+}
+
 /*
  * check if there is pending interrupt from
  * non-APIC source without intack.
@@ -68,10 +76,11 @@ int kvm_cpu_has_extint(struct kvm_vcpu *v)
 	if (!kvm_apic_accept_pic_intr(v))
 		return 0;
 
-	if (irqchip_split(v->kvm))
-		return pending_userspace_extint(v);
-	else
+	if (pic_in_kernel(v->kvm))
 		return v->kvm->arch.vpic->output;
+
+	WARN_ON_ONCE(!irqchip_split(v->kvm));
+	return pending_userspace_extint(v);
 }
 
 /*
@@ -127,13 +136,11 @@ int kvm_cpu_get_extint(struct kvm_vcpu *v)
 		return v->kvm->arch.xen.upcall_vector;
 #endif
 
-	if (irqchip_split(v->kvm)) {
-		int vector = v->arch.pending_external_vector;
-
-		v->arch.pending_external_vector = -1;
-		return vector;
-	} else
+	if (pic_in_kernel(v->kvm))
 		return kvm_pic_read_irq(v->kvm); /* PIC */
+
+	WARN_ON_ONCE(!irqchip_split(v->kvm));
+	return get_userspace_extint(v);
 }
 EXPORT_SYMBOL_GPL(kvm_cpu_get_extint);
 
