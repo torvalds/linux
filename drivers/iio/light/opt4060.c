@@ -1083,15 +1083,13 @@ static irqreturn_t opt4060_trigger_handler(int irq, void *p)
 	struct  {
 		u32 chan[OPT4060_NUM_CHANS];
 		aligned_s64 ts;
-	} raw;
+	} raw = { };
 	int i = 0;
 	int chan, ret;
 
 	/* If the trigger is not from this driver, a new sample is needed.*/
 	if (iio_trigger_validate_own_device(idev->trig, idev))
 		opt4060_trigger_new_samples(idev);
-
-	memset(&raw, 0, sizeof(raw));
 
 	iio_for_each_active_channel(idev, chan) {
 		if (chan == OPT4060_ILLUM)
