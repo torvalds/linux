@@ -14,6 +14,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
+#include <linux/units.h>
 
 /* ADA4250 Register Map */
 #define ADA4250_REG_GAIN_MUX        0x00
@@ -55,9 +56,9 @@ enum ada4250_current_bias {
 struct ada4250_state {
 	struct spi_device	*spi;
 	struct regmap		*regmap;
-	struct regulator	*reg;
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex		lock;
+	int			avdd_uv;
 	u8			bias;
 	u8			gain;
 	int			offset_uv;
@@ -91,8 +92,7 @@ static int ada4250_set_offset_uv(struct iio_dev *indio_dev,
 	if (st->bias == 0 || st->bias == 3)
 		return -EINVAL;
 
-	voltage_v = regulator_get_voltage(st->reg);
-	voltage_v = DIV_ROUND_CLOSEST(voltage_v, 1000000);
+	voltage_v = DIV_ROUND_CLOSEST(st->avdd_uv, MICRO);
 
 	if (st->bias == ADA4250_BIAS_AVDD)
 		x[0] = voltage_v;
@@ -292,11 +292,6 @@ static const struct iio_chan_spec ada4250_channels[] = {
 	}
 };
 
-static void ada4250_reg_disable(void *data)
-{
-	regulator_disable(data);
-}
-
 static int ada4250_init(struct ada4250_state *st)
 {
 	struct device *dev = &st->spi->dev;
@@ -305,20 +300,10 @@ static int ada4250_init(struct ada4250_state *st)
 
 	st->refbuf_en = device_property_read_bool(dev, "adi,refbuf-enable");
 
-	st->reg = devm_regulator_get(dev, "avdd");
-	if (IS_ERR(st->reg))
-		return dev_err_probe(dev, PTR_ERR(st->reg),
+	st->avdd_uv = devm_regulator_get_enable_read_voltage(dev, "avdd");
+	if (st->avdd_uv < 0)
+		return dev_err_probe(dev, st->avdd_uv,
 				     "failed to get the AVDD voltage\n");
-
-	ret = regulator_enable(st->reg);
-	if (ret) {
-		dev_err(dev, "Failed to enable specified AVDD supply\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(dev, ada4250_reg_disable, st->reg);
-	if (ret)
-		return ret;
 
 	ret = regmap_write(st->regmap, ADA4250_REG_RESET,
 			   FIELD_PREP(ADA4250_RESET_MSK, 1));
