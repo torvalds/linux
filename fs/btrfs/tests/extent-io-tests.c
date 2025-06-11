@@ -344,11 +344,11 @@ static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb)
 	unsigned long i;
 
 	for (i = 0; i < eb->len * BITS_PER_BYTE; i++) {
-		int bit, bit1;
+		bool bit_set, bit1_set;
 
-		bit = !!test_bit(i, bitmap);
-		bit1 = !!extent_buffer_test_bit(eb, 0, i);
-		if (bit1 != bit) {
+		bit_set = test_bit(i, bitmap);
+		bit1_set = extent_buffer_test_bit(eb, 0, i);
+		if (bit1_set != bit_set) {
 			u8 has;
 			u8 expect;
 
@@ -361,9 +361,9 @@ static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb)
 			return -EINVAL;
 		}
 
-		bit1 = !!extent_buffer_test_bit(eb, i / BITS_PER_BYTE,
-						i % BITS_PER_BYTE);
-		if (bit1 != bit) {
+		bit1_set = extent_buffer_test_bit(eb, i / BITS_PER_BYTE,
+						  i % BITS_PER_BYTE);
+		if (bit1_set != bit_set) {
 			u8 has;
 			u8 expect;
 

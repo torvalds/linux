@@ -532,7 +532,7 @@ int free_space_test_bit(struct btrfs_block_group *block_group,
 	ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	i = div_u64(offset - found_start,
 		    block_group->fs_info->sectorsize);
-	return !!extent_buffer_test_bit(leaf, ptr, i);
+	return extent_buffer_test_bit(leaf, ptr, i);
 }
 
 static void free_space_set_bits(struct btrfs_trans_handle *trans,
