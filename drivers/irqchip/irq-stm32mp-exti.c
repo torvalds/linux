@@ -683,9 +683,7 @@ static int stm32mp_exti_probe(struct platform_device *pdev)
 	}
 
 	domain = irq_domain_create_hierarchy(parent_domain, 0, drv_data->bank_nr * IRQS_PER_BANK,
-					     of_fwnode_handle(np), &stm32mp_exti_domain_ops,
-					     host_data);
-
+					     dev_fwnode(dev), &stm32mp_exti_domain_ops, host_data);
 	if (!domain) {
 		dev_err(dev, "Could not register exti domain\n");
 		return -ENOMEM;
