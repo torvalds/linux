@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: conntrack
 protocol: netlink-raw
 protonum: 12
@@ -195,17 +195,17 @@ attribute-sets:
   -
     name: tuple-attrs
     attributes:
-    -
+      -
         name: tuple-ip
         type: nest
         nested-attributes: tuple-ip-attrs
         doc: conntrack l3 information
-    -
+      -
         name: tuple-proto
         type: nest
         nested-attributes: tuple-proto-attrs
         doc: conntrack l4 information
-    -
+      -
         name: tuple-zone
         type: u16
         byte-order: big-endian
@@ -213,74 +213,74 @@ attribute-sets:
   -
     name: protoinfo-tcp-attrs
     attributes:
-    -
+      -
         name: tcp-state
         type: u8
         enum: nf-ct-tcp-state
         doc: tcp connection state
-    -
+      -
         name: tcp-wscale-original
         type: u8
         doc: window scaling factor in original direction
-    -
+      -
         name: tcp-wscale-reply
         type: u8
         doc: window scaling factor in reply direction
-    -
+      -
         name: tcp-flags-original
         type: binary
         struct: nf-ct-tcp-flags-mask
-    -
+      -
         name: tcp-flags-reply
         type: binary
         struct: nf-ct-tcp-flags-mask
   -
     name: protoinfo-dccp-attrs
     attributes:
-    -
+      -
         name: dccp-state
         type: u8
         doc: dccp connection state
-    -
+      -
         name: dccp-role
         type: u8
-    -
+      -
         name: dccp-handshake-seq
         type: u64
         byte-order: big-endian
-    -
+      -
         name: dccp-pad
         type: pad
   -
     name: protoinfo-sctp-attrs
     attributes:
-    -
+      -
         name: sctp-state
         type: u8
         doc: sctp connection state
         enum: nf-ct-sctp-state
-    -
+      -
         name: vtag-original
         type: u32
         byte-order: big-endian
-    -
+      -
         name: vtag-reply
         type: u32
         byte-order: big-endian
   -
     name: protoinfo-attrs
     attributes:
-    -
+      -
         name: protoinfo-tcp
         type: nest
         nested-attributes: protoinfo-tcp-attrs
         doc: conntrack tcp state information
-    -
+      -
         name: protoinfo-dccp
         type: nest
         nested-attributes: protoinfo-dccp-attrs
         doc: conntrack dccp state information
-    -
+      -
         name: protoinfo-sctp
         type: nest
         nested-attributes: protoinfo-sctp-attrs

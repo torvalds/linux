@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: ethtool
 
 protocol: genetlink-legacy
@@ -12,14 +12,14 @@ definitions:
     name: udp-tunnel-type
     enum-name:
     type: enum
-    entries: [ vxlan, geneve, vxlan-gpe ]
+    entries: [vxlan, geneve, vxlan-gpe]
     enum-cnt-name: __ethtool-udp-tunnel-type-cnt
     render-max: true
   -
     name: stringset
     type: enum
     entries: []
-    header: linux/ethtool.h # skip rendering, no actual definition
+    header: linux/ethtool.h  # skip rendering, no actual definition
   -
     name: header-flags
     type: flags
@@ -55,49 +55,51 @@ definitions:
         doc: The firmware flashing process was stopped due to an error.
   -
     name: c33-pse-ext-state
-    doc: "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4 Variables"
+    doc: |
+      "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4
+      Variables"
     type: enum
     name-prefix: ethtool-c33-pse-ext-state-
     header: linux/ethtool.h
     entries:
-        -
-          name: none
-          doc: none
-        -
-          name: error-condition
-          doc: Group of error_condition states
-        -
-          name: mr-mps-valid
-          doc: Group of mr_mps_valid states
-        -
-          name: mr-pse-enable
-          doc: Group of mr_pse_enable states
-        -
-          name: option-detect-ted
-          doc: Group of option_detect_ted states
-        -
-          name: option-vport-lim
-          doc: Group of option_vport_lim states
-        -
-          name: ovld-detected
-          doc: Group of ovld_detected states
-        -
-          name: power-not-available
-          doc: Group of power_not_available states
-        -
-          name: short-detected
-          doc: Group of short_detected states
+      -
+        name: none
+        doc: none
+      -
+        name: error-condition
+        doc: Group of error_condition states
+      -
+        name: mr-mps-valid
+        doc: Group of mr_mps_valid states
+      -
+        name: mr-pse-enable
+        doc: Group of mr_pse_enable states
+      -
+        name: option-detect-ted
+        doc: Group of option_detect_ted states
+      -
+        name: option-vport-lim
+        doc: Group of option_vport_lim states
+      -
+        name: ovld-detected
+        doc: Group of ovld_detected states
+      -
+        name: power-not-available
+        doc: Group of power_not_available states
+      -
+        name: short-detected
+        doc: Group of short_detected states
   -
     name: phy-upstream-type
     enum-name: phy-upstream
     header: linux/ethtool.h
     type: enum
     name-prefix: phy-upstream
-    entries: [ mac, phy ]
+    entries: [mac, phy]
   -
     name: tcp-data-split
     type: enum
-    entries: [ unknown, disabled, enabled ]
+    entries: [unknown, disabled, enabled]
   -
     name: hwtstamp-source
     doc: Source of the hardware timestamp
@@ -1224,7 +1226,7 @@ attribute-sets:
       -
         name: stat
         type: u64
-        type-value: [ id ]
+        type-value: [id]
       -
         name: hist-rx
         type: nest

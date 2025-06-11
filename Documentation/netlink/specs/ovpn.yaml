@@ -4,7 +4,7 @@
 #
 # Copyright (c) 2024-2025, OpenVPN Inc.
 #
-
+---
 name: ovpn
 
 protocol: genetlink
@@ -19,7 +19,7 @@ definitions:
   -
     type: enum
     name: cipher-alg
-    entries: [ none, aes-gcm, chacha20-poly1305 ]
+    entries: [none, aes-gcm, chacha20-poly1305]
   -
     type: enum
     name: del-peer-reason
@@ -32,7 +32,7 @@ definitions:
   -
     type: enum
     name: key-slot
-    entries: [ primary, secondary ]
+    entries: [primary, secondary]
 
 attribute-sets:
   -
@@ -42,8 +42,8 @@ attribute-sets:
         name: id
         type: u32
         doc: >-
-          The unique ID of the peer in the device context. To be used to identify
-          peers during operations for a specific device
+          The unique ID of the peer in the device context. To be used to
+          identify peers during operations for a specific device
         checks:
           max: 0xFFFFFF
       -
@@ -241,7 +241,7 @@ operations:
     -
       name: peer-new
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Add a remote peer
       do:
         pre: ovpn-nl-pre-doit
@@ -253,7 +253,7 @@ operations:
     -
       name: peer-set
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: modify a remote peer
       do:
         pre: ovpn-nl-pre-doit
@@ -265,7 +265,7 @@ operations:
     -
       name: peer-get
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Retrieve data about existing remote peers (or a specific one)
       do:
         pre: ovpn-nl-pre-doit
@@ -287,7 +287,7 @@ operations:
     -
       name: peer-del
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Delete existing remote peer
       do:
         pre: ovpn-nl-pre-doit
@@ -305,7 +305,7 @@ operations:
     -
       name: key-new
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Add a cipher key for a specific peer
       do:
         pre: ovpn-nl-pre-doit
@@ -317,7 +317,7 @@ operations:
     -
       name: key-get
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Retrieve non-sensitive data about peer key and cipher
       do:
         pre: ovpn-nl-pre-doit
@@ -332,7 +332,7 @@ operations:
     -
       name: key-swap
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Swap primary and secondary session keys for a specific peer
       do:
         pre: ovpn-nl-pre-doit
@@ -351,7 +351,7 @@ operations:
     -
       name: key-del
       attribute-set: ovpn
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       doc: Delete cipher key for a specific peer
       do:
         pre: ovpn-nl-pre-doit

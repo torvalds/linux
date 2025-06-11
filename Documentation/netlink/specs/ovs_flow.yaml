@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: ovs_flow
 version: 1
 protocol: genetlink-legacy
@@ -293,9 +293,10 @@ definitions:
     enum-name: ovs-hash-alg
     type: enum
     doc: |
-      Data path hash algorithm for computing Datapath hash. The algorithm type only specifies
-      the fields in a flow will be used as part of the hash. Each datapath is free to use its
-      own hash algorithm. The hash value will be opaque to the user space daemon.
+      Data path hash algorithm for computing Datapath hash. The algorithm type
+      only specifies the fields in a flow will be used as part of the hash. Each
+      datapath is free to use its own hash algorithm. The hash value will be
+      opaque to the user space daemon.
     entries:
       - ovs-hash-alg-l4
 
@@ -615,7 +616,9 @@ attribute-sets:
         name: set
         type: nest
         nested-attributes: key-attrs
-        doc: Replaces the contents of an existing header. The single nested attribute specifies a header to modify and its value.
+        doc: |
+          Replaces the contents of an existing header. The single nested
+          attribute specifies a header to modify and its value.
       -
         name: push-vlan
         type: binary
@@ -630,7 +633,8 @@ attribute-sets:
         type: nest
         nested-attributes: sample-attrs
         doc: |
-          Probabilistically executes actions, as specified in the nested attributes.
+          Probabilistically executes actions, as specified in the nested
+          attributes.
       -
         name: recirc
         type: u32
