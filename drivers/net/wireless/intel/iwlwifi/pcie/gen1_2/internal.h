@@ -39,7 +39,7 @@ struct iwl_host_cmd;
  * trans_pcie layer */
 
 /**
- * struct iwl_rx_mem_buffer
+ * struct iwl_rx_mem_buffer - driver-side RX buffer descriptor
  * @page_dma: bus address of rxb page
  * @page: driver's pointer to the rxb page
  * @list: list entry for the membuffer
@@ -190,6 +190,7 @@ struct iwl_rb_allocator {
  * iwl_get_closed_rb_stts - get closed rb stts from different structs
  * @trans: transport pointer (for configuration)
  * @rxq: the rxq to get the rb stts from
+ * Return: last closed RB index
  */
 static inline u16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
 					 struct iwl_rxq *rxq)
@@ -703,6 +704,7 @@ static inline void iwl_txq_stop(struct iwl_trans *trans, struct iwl_txq *txq)
  * iwl_txq_inc_wrap - increment queue index, wrap back to beginning
  * @trans: the transport (for configuration data)
  * @index: current index
+ * Return: the queue index incremented, subject to wrapping
  */
 static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 {
@@ -714,6 +716,7 @@ static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
  * iwl_txq_dec_wrap - decrement queue index, wrap back to end
  * @trans: the transport (for configuration data)
  * @index: current index
+ * Return: the queue index decremented, subject to wrapping
  */
 static inline int iwl_txq_dec_wrap(struct iwl_trans *trans, int index)
 {

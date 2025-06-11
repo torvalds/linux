@@ -391,13 +391,13 @@ static int iwl_pcie_load_payloads_segments
 {
 	struct iwl_dram_data *cur_payload_dram = &dram_regions->drams[0];
 	struct iwl_dram_data *desc_dram = &dram_regions->prph_scratch_mem_desc;
-	struct iwl_prph_scrath_mem_desc_addr_array *addresses;
+	struct iwl_prph_scratch_mem_desc_addr_array *addresses;
 	const void *data;
 	u32 len;
 	int i;
 
 	/* allocate and init DRAM descriptors array */
-	len = sizeof(struct iwl_prph_scrath_mem_desc_addr_array);
+	len = sizeof(struct iwl_prph_scratch_mem_desc_addr_array);
 	desc_dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent
 						(trans,
 						 len,
