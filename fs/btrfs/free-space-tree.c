@@ -791,32 +791,40 @@ static int remove_free_space_extent(struct btrfs_trans_handle *trans,
 	return update_free_space_extent_count(trans, block_group, path, new_extents);
 }
 
+static int using_bitmaps(struct btrfs_block_group *bg, struct btrfs_path *path)
+{
+	struct btrfs_free_space_info *info;
+	u32 flags;
+
+	info = btrfs_search_free_space_info(NULL, bg, path, 0);
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+	flags = btrfs_free_space_flags(path->nodes[0], info);
+	btrfs_release_path(path);
+
+	return (flags & BTRFS_FREE_SPACE_USING_BITMAPS) ? 1 : 0;
+}
+
 EXPORT_FOR_TESTS
 int __btrfs_remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 					struct btrfs_block_group *block_group,
 					struct btrfs_path *path, u64 start, u64 size)
 {
-	struct btrfs_free_space_info *info;
-	u32 flags;
 	int ret;
 
 	ret = __add_block_group_free_space(trans, block_group, path);
 	if (ret)
 		return ret;
 
-	info = btrfs_search_free_space_info(NULL, block_group, path, 0);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
-	flags = btrfs_free_space_flags(path->nodes[0], info);
-	btrfs_release_path(path);
+	ret = using_bitmaps(block_group, path);
+	if (ret < 0)
+		return ret;
 
-	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
+	if (ret)
 		return modify_free_space_bitmap(trans, block_group, path,
 						start, size, true);
-	} else {
-		return remove_free_space_extent(trans, block_group, path,
-						start, size);
-	}
+
+	return remove_free_space_extent(trans, block_group, path, start, size);
 }
 
 int btrfs_remove_from_free_space_tree(struct btrfs_trans_handle *trans,
@@ -984,27 +992,21 @@ int __btrfs_add_to_free_space_tree(struct btrfs_trans_handle *trans,
 				   struct btrfs_block_group *block_group,
 				   struct btrfs_path *path, u64 start, u64 size)
 {
-	struct btrfs_free_space_info *info;
-	u32 flags;
 	int ret;
 
 	ret = __add_block_group_free_space(trans, block_group, path);
 	if (ret)
 		return ret;
 
-	info = btrfs_search_free_space_info(NULL, block_group, path, 0);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
-	flags = btrfs_free_space_flags(path->nodes[0], info);
-	btrfs_release_path(path);
+	ret = using_bitmaps(block_group, path);
+	if (ret < 0)
+		return ret;
 
-	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
+	if (ret)
 		return modify_free_space_bitmap(trans, block_group, path,
 						start, size, false);
-	} else {
-		return add_free_space_extent(trans, block_group, path, start,
-					     size);
-	}
+
+	return add_free_space_extent(trans, block_group, path, start, size);
 }
 
 int btrfs_add_to_free_space_tree(struct btrfs_trans_handle *trans,
