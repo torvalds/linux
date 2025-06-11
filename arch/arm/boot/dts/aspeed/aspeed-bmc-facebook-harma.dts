@@ -643,7 +643,7 @@
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","led-identify-gate","",
 	/*V0-V7*/	"","","","",
-			"rtc-battery-voltage-read-enable","",
+			"","",
 			"","",
 	/*W0-W7*/	"","","","","","","","",
 	/*X0-X7*/	"","","","","","","","",
@@ -728,7 +728,7 @@
 	"presence-cmm","ac-control-n",
 	/*G0-G3 line 96-103*/
 	"FM_CPU_CORETYPE2","",
-	"FM_CPU_CORETYPE1","",
+	"FM_CPU_CORETYPE1","rtc-battery-voltage-read-enable",
 	"FM_CPU_CORETYPE0","",
 	"FM_BOARD_REV_ID5","",
 	/*G4-G7 line 104-111*/
