@@ -630,7 +630,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_search_prev_slot(trans, root, &key, path, 0, 1);
 		if (ret)
-			goto out;
+			return ret;
 
 		prev_bit_set = free_space_test_bit(block_group, path, prev_block);
 
@@ -639,7 +639,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 		if (start >= key.objectid + key.offset) {
 			ret = free_space_next_bitmap(trans, root, path);
 			if (ret)
-				goto out;
+				return ret;
 		}
 	} else {
 		key.objectid = start;
@@ -648,7 +648,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_search_prev_slot(trans, root, &key, path, 0, 1);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -664,7 +664,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 			break;
 		ret = free_space_next_bitmap(trans, root, path);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -677,7 +677,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 		if (end >= key.objectid + key.offset) {
 			ret = free_space_next_bitmap(trans, root, path);
 			if (ret)
-				goto out;
+				return ret;
 		}
 
 		next_bit_set = free_space_test_bit(block_group, path, end);
@@ -706,11 +706,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_release_path(path);
-	ret = update_free_space_extent_count(trans, block_group, path,
-					     new_extents);
-
-out:
-	return ret;
+	return update_free_space_extent_count(trans, block_group, path, new_extents);
 }
 
 static int remove_free_space_extent(struct btrfs_trans_handle *trans,
