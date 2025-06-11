@@ -255,7 +255,7 @@ static void gmc_v12_1_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	unsigned int i;
 	unsigned char hub_ip = 0;
 
-	hub_ip = (vmhub == AMDGPU_GFXHUB(0)) ?
+	hub_ip = (AMDGPU_IS_GFXHUB(vmhub)) ?
 		   GC_HWIP : MMHUB_HWIP;
 
 	spin_lock(&adev->gmc.invalidate_lock);
@@ -274,7 +274,7 @@ static void gmc_v12_1_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 	}
 
 	/* Issue additional private vm invalidation to MMHUB */
-	if ((vmhub != AMDGPU_GFXHUB(0)) &&
+	if (!AMDGPU_IS_GFXHUB(vmhub) &&
 	    (hub->vm_l2_bank_select_reserved_cid2) &&
 		!amdgpu_sriov_vf(adev)) {
 		inv_req = RREG32_NO_KIQ(hub->vm_l2_bank_select_reserved_cid2);
@@ -307,7 +307,7 @@ static void gmc_v12_1_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 static void gmc_v12_1_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 				    uint32_t vmhub, uint32_t flush_type)
 {
-	if ((vmhub == AMDGPU_GFXHUB(0)) && !adev->gfx.is_poweron)
+	if (AMDGPU_IS_GFXHUB(vmhub) && !adev->gfx.is_poweron)
 		return;
 
 	/* This is necessary for SRIOV as well as for GFXOFF to function
