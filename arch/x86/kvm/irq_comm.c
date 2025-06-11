@@ -334,38 +334,6 @@ bool kvm_intr_is_single_vcpu(struct kvm *kvm, struct kvm_lapic_irq *irq,
 }
 EXPORT_SYMBOL_GPL(kvm_intr_is_single_vcpu);
 
-#define IOAPIC_ROUTING_ENTRY(irq) \
-	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
-	  .u.irqchip = { .irqchip = KVM_IRQCHIP_IOAPIC, .pin = (irq) } }
-#define ROUTING_ENTRY1(irq) IOAPIC_ROUTING_ENTRY(irq)
-
-#define PIC_ROUTING_ENTRY(irq) \
-	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
-	  .u.irqchip = { .irqchip = SELECT_PIC(irq), .pin = (irq) % 8 } }
-#define ROUTING_ENTRY2(irq) \
-	IOAPIC_ROUTING_ENTRY(irq), PIC_ROUTING_ENTRY(irq)
-
-static const struct kvm_irq_routing_entry default_routing[] = {
-	ROUTING_ENTRY2(0), ROUTING_ENTRY2(1),
-	ROUTING_ENTRY2(2), ROUTING_ENTRY2(3),
-	ROUTING_ENTRY2(4), ROUTING_ENTRY2(5),
-	ROUTING_ENTRY2(6), ROUTING_ENTRY2(7),
-	ROUTING_ENTRY2(8), ROUTING_ENTRY2(9),
-	ROUTING_ENTRY2(10), ROUTING_ENTRY2(11),
-	ROUTING_ENTRY2(12), ROUTING_ENTRY2(13),
-	ROUTING_ENTRY2(14), ROUTING_ENTRY2(15),
-	ROUTING_ENTRY1(16), ROUTING_ENTRY1(17),
-	ROUTING_ENTRY1(18), ROUTING_ENTRY1(19),
-	ROUTING_ENTRY1(20), ROUTING_ENTRY1(21),
-	ROUTING_ENTRY1(22), ROUTING_ENTRY1(23),
-};
-
-int kvm_setup_default_irq_routing(struct kvm *kvm)
-{
-	return kvm_set_irq_routing(kvm, default_routing,
-				   ARRAY_SIZE(default_routing), 0);
-}
-
 void kvm_scan_ioapic_irq(struct kvm_vcpu *vcpu, u32 dest_id, u16 dest_mode,
 			 u8 vector, unsigned long *ioapic_handled_vectors)
 {

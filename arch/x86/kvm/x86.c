@@ -6991,7 +6991,7 @@ set_identity_unlock:
 			goto create_irqchip_unlock;
 		}
 
-		r = kvm_setup_default_irq_routing(kvm);
+		r = kvm_setup_default_ioapic_and_pic_routing(kvm);
 		if (r) {
 			kvm_ioapic_destroy(kvm);
 			kvm_pic_destroy(kvm);
