@@ -1718,16 +1718,27 @@ static void test_stream_msgzcopy_leak_zcskb_server(const struct test_opts *opts)
 
 #define MAX_PORT_RETRIES	24	/* net/vmw_vsock/af_vsock.c */
 
-/* Test attempts to trigger a transport release for an unbound socket. This can
- * lead to a reference count mishandling.
- */
-static void test_stream_transport_uaf_client(const struct test_opts *opts)
+static bool test_stream_transport_uaf(int cid)
 {
 	int sockets[MAX_PORT_RETRIES];
 	struct sockaddr_vm addr;
-	int fd, i, alen;
+	socklen_t alen;
+	int fd, i, c;
+	bool ret;
 
-	fd = vsock_bind(VMADDR_CID_ANY, VMADDR_PORT_ANY, SOCK_STREAM);
+	/* Probe for a transport by attempting a local CID bind. Unavailable
+	 * transport (or more specifically: an unsupported transport/CID
+	 * combination) results in EADDRNOTAVAIL, other errnos are fatal.
+	 */
+	fd = vsock_bind_try(cid, VMADDR_PORT_ANY, SOCK_STREAM);
+	if (fd < 0) {
+		if (errno != EADDRNOTAVAIL) {
+			perror("Unexpected bind() errno");
+			exit(EXIT_FAILURE);
+		}
+
+		return false;
+	}
 
 	alen = sizeof(addr);
 	if (getsockname(fd, (struct sockaddr *)&addr, &alen)) {
@@ -1735,38 +1746,83 @@ static void test_stream_transport_uaf_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
+	/* Drain the autobind pool; see __vsock_bind_connectible(). */
 	for (i = 0; i < MAX_PORT_RETRIES; ++i)
-		sockets[i] = vsock_bind(VMADDR_CID_ANY, ++addr.svm_port,
-					SOCK_STREAM);
+		sockets[i] = vsock_bind(cid, ++addr.svm_port, SOCK_STREAM);
 
 	close(fd);
-	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+
+	/* Setting SOCK_NONBLOCK makes connect() return soon after
+	 * (re-)assigning the transport. We are not connecting to anything
+	 * anyway, so there is no point entering the main loop in
+	 * vsock_connect(); waiting for timeout, checking for signals, etc.
+	 */
+	fd = socket(AF_VSOCK, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (fd < 0) {
 		perror("socket");
 		exit(EXIT_FAILURE);
 	}
 
-	if (!vsock_connect_fd(fd, addr.svm_cid, addr.svm_port)) {
-		perror("Unexpected connect() #1 success");
+	/* Assign transport, while failing to autobind. Autobind pool was
+	 * drained, so EADDRNOTAVAIL coming from __vsock_bind_connectible() is
+	 * expected.
+	 *
+	 * One exception is ENODEV which is thrown by vsock_assign_transport(),
+	 * i.e. before vsock_auto_bind(), when the only transport loaded is
+	 * vhost.
+	 */
+	if (!connect(fd, (struct sockaddr *)&addr, alen)) {
+		fprintf(stderr, "Unexpected connect() success\n");
+		exit(EXIT_FAILURE);
+	}
+	if (errno == ENODEV && cid == VMADDR_CID_HOST) {
+		ret = false;
+		goto cleanup;
+	}
+	if (errno != EADDRNOTAVAIL) {
+		perror("Unexpected connect() errno");
 		exit(EXIT_FAILURE);
 	}
 
-	/* Vulnerable system may crash now. */
-	if (!vsock_connect_fd(fd, VMADDR_CID_HOST, VMADDR_PORT_ANY)) {
-		perror("Unexpected connect() #2 success");
-		exit(EXIT_FAILURE);
+	/* Reassign transport, triggering old transport release and
+	 * (potentially) unbinding of an unbound socket.
+	 *
+	 * Vulnerable system may crash now.
+	 */
+	for (c = VMADDR_CID_HYPERVISOR; c <= VMADDR_CID_HOST + 1; ++c) {
+		if (c != cid) {
+			addr.svm_cid = c;
+			(void)connect(fd, (struct sockaddr *)&addr, alen);
+		}
 	}
 
+	ret = true;
+cleanup:
 	close(fd);
 	while (i--)
 		close(sockets[i]);
 
-	control_writeln("DONE");
+	return ret;
 }
 
-static void test_stream_transport_uaf_server(const struct test_opts *opts)
+/* Test attempts to trigger a transport release for an unbound socket. This can
+ * lead to a reference count mishandling.
+ */
+static void test_stream_transport_uaf_client(const struct test_opts *opts)
 {
-	control_expectln("DONE");
+	bool tested = false;
+	int cid, tr;
+
+	for (cid = VMADDR_CID_HYPERVISOR; cid <= VMADDR_CID_HOST + 1; ++cid)
+		tested |= test_stream_transport_uaf(cid);
+
+	tr = get_transports();
+	if (!tr)
+		fprintf(stderr, "No transports detected\n");
+	else if (tr == TRANSPORT_VIRTIO)
+		fprintf(stderr, "Setup unsupported: sole virtio transport\n");
+	else if (!tested)
+		fprintf(stderr, "No transports tested\n");
 }
 
 static void test_stream_connect_retry_client(const struct test_opts *opts)
@@ -2034,7 +2090,6 @@ static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM transport release use-after-free",
 		.run_client = test_stream_transport_uaf_client,
-		.run_server = test_stream_transport_uaf_server,
 	},
 	{
 		.name = "SOCK_STREAM retry failed connect()",
