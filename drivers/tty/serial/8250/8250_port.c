@@ -2670,6 +2670,22 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(serial8250_update_uartclk);
 
+static void serial8250_set_mini(struct uart_port *port, struct ktermios *termios)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	if (!(up->capabilities & UART_CAP_MINI))
+		return;
+
+	termios->c_cflag &= ~(CSTOPB | PARENB | PARODD | CMSPAR);
+
+	tcflag_t csize = termios->c_cflag & CSIZE;
+	if (csize == CS5 || csize == CS6) {
+		termios->c_cflag &= ~CSIZE;
+		termios->c_cflag |= CS7;
+	}
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
@@ -2679,14 +2695,8 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long flags;
 	unsigned int baud, quot, frac = 0;
 
-	if (up->capabilities & UART_CAP_MINI) {
-		termios->c_cflag &= ~(CSTOPB | PARENB | PARODD | CMSPAR);
-		if ((termios->c_cflag & CSIZE) == CS5 ||
-		    (termios->c_cflag & CSIZE) == CS6)
-			termios->c_cflag = (termios->c_cflag & ~CSIZE) | CS7;
-	}
+	serial8250_set_mini(port, termios);
 	cval = serial8250_compute_lcr(up, termios->c_cflag);
-
 	baud = serial8250_get_baud_rate(port, termios, old);
 	quot = serial8250_get_divisor(port, baud, &frac);
 
