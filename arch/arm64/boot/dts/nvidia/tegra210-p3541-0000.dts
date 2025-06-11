@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "tegra210-p3450-0000.dts"
+
+/ {
+	model = "NVIDIA Jetson Nano 2GB Developer Kit";
+	compatible = "nvidia,p3541-0000", "nvidia,p3450-0000", "nvidia,tegra210";
+
+	memory@80000000 {
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+
+	host1x@50000000 {
+		sor@54540000 {
+			status = "disabled";
+		};
+
+		dpaux@545c0000 {
+			status = "disabled";
+		};
+	};
+
+	padctl@7009f000 {
+		ports {
+			usb2-1 {
+				vbus-supply = <&vdd_hub_5v0>;
+			};
+
+			usb2-2 {
+				vbus-supply = <&vdd_hub_5v0>;
+			};
+
+			usb3-0 {
+				/delete-property/ vbus-supply;
+			};
+		};
+	};
+
+	regulator-vdd-hdmi-5v0 {
+		gpio = <&gpio TEGRA_GPIO(A, 6) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	/delete-node/ regulator-vdd-hub-3v3;
+
+	vdd_hub_5v0: regulator-vdd-hub-5v0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_HUB_5V0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		gpio = <&gpio TEGRA_GPIO(I, 2) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vdd_5v0_sys>;
+	};
+};
