@@ -27,15 +27,6 @@
 #include "x86.h"
 #include "xen.h"
 
-static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
-			      struct kvm *kvm, int irq_source_id, int level,
-			      bool line_status)
-{
-	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, irq_source_id, level,
-				line_status);
-}
-
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		struct kvm_lapic_irq *irq, struct dest_map *dest_map)
 {
@@ -293,7 +284,7 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		case KVM_IRQCHIP_IOAPIC:
 			if (ue->u.irqchip.pin >= KVM_IOAPIC_NUM_PINS)
 				return -EINVAL;
-			e->set = kvm_set_ioapic_irq;
+			e->set = kvm_ioapic_set_irq;
 			break;
 		default:
 			return -EINVAL;
