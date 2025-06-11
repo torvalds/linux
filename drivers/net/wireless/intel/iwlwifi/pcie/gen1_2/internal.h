@@ -382,7 +382,7 @@ struct iwl_pcie_txqs {
  * @irq_lock: lock to synchronize IRQ handling
  * @txq_memory: TXQ allocation array
  * @sx_waitq: waitqueue for Sx transitions
- * @sx_complete: completion for Sx transitions
+ * @sx_state: state tracking Sx transitions
  * @pcie_dbg_dumped_once: indicates PCIe regs were dumped already
  * @opmode_down: indicates opmode went away
  * @num_rx_bufs: number of RX buffers to allocate/use
@@ -448,7 +448,12 @@ struct iwl_trans_pcie {
 	u8 __iomem *hw_base;
 
 	bool ucode_write_complete;
-	bool sx_complete;
+	enum {
+		IWL_SX_INVALID = 0,
+		IWL_SX_WAITING,
+		IWL_SX_ERROR,
+		IWL_SX_COMPLETE,
+	} sx_state;
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t sx_waitq;
 

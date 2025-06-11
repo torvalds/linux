@@ -2394,6 +2394,11 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 		} else {
 			iwl_pcie_irq_handle_error(trans);
 		}
+
+		if (trans_pcie->sx_state == IWL_SX_WAITING) {
+			trans_pcie->sx_state = IWL_SX_ERROR;
+			wake_up(&trans_pcie->sx_waitq);
+		}
 	}
 
 	/* After checking FH register check HW register */
@@ -2428,13 +2433,20 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_WAKEUP && trans_pcie->prph_info) {
 		u32 sleep_notif =
 			le32_to_cpu(trans_pcie->prph_info->sleep_notif);
+
 		if (sleep_notif == IWL_D3_SLEEP_STATUS_SUSPEND ||
 		    sleep_notif == IWL_D3_SLEEP_STATUS_RESUME) {
 			IWL_DEBUG_ISR(trans,
 				      "Sx interrupt: sleep notification = 0x%x\n",
 				      sleep_notif);
-			trans_pcie->sx_complete = true;
-			wake_up(&trans_pcie->sx_waitq);
+			if (trans_pcie->sx_state == IWL_SX_WAITING) {
+				trans_pcie->sx_state = IWL_SX_COMPLETE;
+				wake_up(&trans_pcie->sx_waitq);
+			} else {
+				IWL_ERR(trans,
+					"unexpected Sx interrupt (0x%x)\n",
+					sleep_notif);
+			}
 		} else {
 			/* uCode wakes up after power-down sleep */
 			IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
