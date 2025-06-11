@@ -342,7 +342,7 @@ static int stm_generic_link(struct stm_data *stm_data,
 {
 	struct stm_drvdata *drvdata = container_of(stm_data,
 						   struct stm_drvdata, stm);
-	if (!drvdata || !drvdata->csdev)
+	if (!drvdata->csdev)
 		return -EINVAL;
 
 	return coresight_enable_sysfs(drvdata->csdev);
@@ -353,7 +353,7 @@ static void stm_generic_unlink(struct stm_data *stm_data,
 {
 	struct stm_drvdata *drvdata = container_of(stm_data,
 						   struct stm_drvdata, stm);
-	if (!drvdata || !drvdata->csdev)
+	if (!drvdata->csdev)
 		return;
 
 	coresight_disable_sysfs(drvdata->csdev);
@@ -384,7 +384,7 @@ static long stm_generic_set_options(struct stm_data *stm_data,
 {
 	struct stm_drvdata *drvdata = container_of(stm_data,
 						   struct stm_drvdata, stm);
-	if (!(drvdata && coresight_get_mode(drvdata->csdev)))
+	if (!coresight_get_mode(drvdata->csdev))
 		return -EINVAL;
 
 	if (channel >= drvdata->numsp)
@@ -419,7 +419,7 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 						   struct stm_drvdata, stm);
 	unsigned int stm_flags;
 
-	if (!(drvdata && coresight_get_mode(drvdata->csdev)))
+	if (!coresight_get_mode(drvdata->csdev))
 		return -EACCES;
 
 	if (channel >= drvdata->numsp)
