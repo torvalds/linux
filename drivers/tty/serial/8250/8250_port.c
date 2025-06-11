@@ -2704,6 +2704,22 @@ static void serial8250_set_trigger_for_slow_speed(struct uart_port *port, struct
 	up->fcr |= UART_FCR_TRIGGER_1;
 }
 
+/*
+ * MCR-based auto flow control. When AFE is enabled, RTS will be deasserted when the receive FIFO
+ * contains more characters than the trigger, or the MCR RTS bit is cleared.
+ */
+static void serial8250_set_afe(struct uart_port *port, struct ktermios *termios)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	if (!(up->capabilities & UART_CAP_AFE))
+		return;
+
+	up->mcr &= ~UART_MCR_AFE;
+	if (termios->c_cflag & CRTSCTS)
+		up->mcr |= UART_MCR_AFE;
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
@@ -2729,21 +2745,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	up->lcr = cval;					/* Save computed LCR */
 	serial8250_set_trigger_for_slow_speed(port, termios, baud);
-
-	/*
-	 * MCR-based auto flow control.  When AFE is enabled, RTS will be
-	 * deasserted when the receive FIFO contains more characters than
-	 * the trigger, or the MCR RTS bit is cleared.
-	 */
-	if (up->capabilities & UART_CAP_AFE) {
-		up->mcr &= ~UART_MCR_AFE;
-		if (termios->c_cflag & CRTSCTS)
-			up->mcr |= UART_MCR_AFE;
-	}
-
-	/*
-	 * Update the per-port timeout.
-	 */
+	serial8250_set_afe(port, termios);
 	uart_update_timeout(port, termios->c_cflag, baud);
 
 	/*
