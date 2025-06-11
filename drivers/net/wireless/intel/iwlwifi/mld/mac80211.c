@@ -508,8 +508,15 @@ int iwl_mld_mac80211_start(struct ieee80211_hw *hw)
 	if (in_d3) {
 		/* mac80211 already cleaned up the state, no need for cleanup */
 		ret = iwl_mld_no_wowlan_resume(mld);
-		if (ret)
+		if (ret) {
 			iwl_mld_stop_fw(mld);
+			/* We're not really restarting in the sense of
+			 * in_hw_restart even if we got an error during
+			 * this. We'll just start again below and have
+			 * nothing to recover, mac80211 will do anyway.
+			 */
+			mld->fw_status.in_hw_restart = false;
+		}
 	}
 #endif /* CONFIG_PM_SLEEP */
 

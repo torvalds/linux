@@ -204,66 +204,6 @@ void iwl_mld_ipv6_addr_change(struct ieee80211_hw *hw,
 }
 #endif
 
-enum rt_status {
-	FW_ALIVE,
-	FW_NEEDS_RESET,
-	FW_ERROR,
-};
-
-static enum rt_status iwl_mld_check_err_tables(struct iwl_mld *mld,
-					       struct ieee80211_vif *vif)
-{
-	u32 err_id;
-
-	/* check for lmac1 error */
-	if (iwl_fwrt_read_err_table(mld->trans,
-				    mld->trans->dbg.lmac_error_event_table[0],
-				    &err_id)) {
-		if (err_id == RF_KILL_INDICATOR_FOR_WOWLAN && vif) {
-			struct cfg80211_wowlan_wakeup wakeup = {
-				.rfkill_release = true,
-			};
-			ieee80211_report_wowlan_wakeup(vif, &wakeup,
-						       GFP_KERNEL);
-
-			return FW_NEEDS_RESET;
-		}
-		return FW_ERROR;
-	}
-
-	/* check if we have lmac2 set and check for error */
-	if (iwl_fwrt_read_err_table(mld->trans,
-				    mld->trans->dbg.lmac_error_event_table[1],
-				    NULL))
-		return FW_ERROR;
-
-	/* check for umac error */
-	if (iwl_fwrt_read_err_table(mld->trans,
-				    mld->trans->dbg.umac_error_event_table,
-				    NULL))
-		return FW_ERROR;
-
-	return FW_ALIVE;
-}
-
-static bool iwl_mld_fw_needs_restart(struct iwl_mld *mld,
-				     struct ieee80211_vif *vif)
-{
-	enum rt_status rt_status = iwl_mld_check_err_tables(mld, vif);
-
-	if (rt_status == FW_ALIVE)
-		return false;
-
-	if (rt_status == FW_ERROR) {
-		IWL_ERR(mld, "FW Error occurred during suspend\n");
-		iwl_fwrt_dump_error_logs(&mld->fwrt);
-		iwl_dbg_tlv_time_point(&mld->fwrt,
-				       IWL_FW_INI_TIME_POINT_FW_ASSERT, NULL);
-	}
-
-	return true;
-}
-
 static int
 iwl_mld_netdetect_config(struct iwl_mld *mld,
 			 struct ieee80211_vif *vif,
@@ -1383,10 +1323,7 @@ int iwl_mld_no_wowlan_resume(struct iwl_mld *mld)
 	mld->fw_status.in_d3 = false;
 	iwl_fw_dbg_read_d3_debug_data(&mld->fwrt);
 
-	if (iwl_mld_fw_needs_restart(mld, NULL))
-		ret = -ENODEV;
-	else
-		ret = iwl_mld_wait_d3_notif(mld, &resume_data, false);
+	ret = iwl_mld_wait_d3_notif(mld, &resume_data, false);
 
 	if (!ret && (resume_data.d3_end_flags & IWL_D0I3_RESET_REQUIRE))
 		return -ENODEV;
@@ -1935,15 +1872,10 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 
 	iwl_fw_dbg_read_d3_debug_data(&mld->fwrt);
 
-	if (iwl_mld_fw_needs_restart(mld, bss_vif)) {
-		fw_err = true;
-		goto err;
-	}
-
 	resume_data.wowlan_status = kzalloc(sizeof(*resume_data.wowlan_status),
 					    GFP_KERNEL);
 	if (!resume_data.wowlan_status)
-		return -1;
+		return -ENOMEM;
 
 	if (mld->netdetect)
 		resume_data.notifs_expected |= IWL_D3_ND_MATCH_INFO;
