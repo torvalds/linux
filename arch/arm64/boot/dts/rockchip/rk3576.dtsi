@@ -1155,12 +1155,14 @@
 				 <&cru HCLK_VOP>,
 				 <&cru DCLK_VP0>,
 				 <&cru DCLK_VP1>,
-				 <&cru DCLK_VP2>;
+				 <&cru DCLK_VP2>,
+				 <&hdptxphy>;
 			clock-names = "aclk",
 				      "hclk",
 				      "dclk_vp0",
 				      "dclk_vp1",
-				      "dclk_vp2";
+				      "dclk_vp2",
+				      "pll_hdmiphy0";
 			iommus = <&vop_mmu>;
 			power-domains = <&power RK3576_PD_VOP>;
 			rockchip,grf = <&sys_grf>;
