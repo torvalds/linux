@@ -44,6 +44,49 @@
 
 #define NUM_OF_RTW89_MCC_ROLES 2
 
+enum rtw89_mr_wtype {
+	RTW89_MR_WTYPE_NONE,
+	RTW89_MR_WTYPE_NONMLD,
+	RTW89_MR_WTYPE_MLD1L1R,
+	RTW89_MR_WTYPE_MLD2L1R,
+	RTW89_MR_WTYPE_MLD2L2R,
+	RTW89_MR_WTYPE_NONMLD_NONMLD,
+	RTW89_MR_WTYPE_MLD1L1R_NONMLD,
+	RTW89_MR_WTYPE_MLD2L1R_NONMLD,
+	RTW89_MR_WTYPE_MLD2L2R_NONMLD,
+	RTW89_MR_WTYPE_UNKNOWN,
+};
+
+enum rtw89_mr_wmode {
+	RTW89_MR_WMODE_NONE,
+	RTW89_MR_WMODE_1CLIENT,
+	RTW89_MR_WMODE_1AP,
+	RTW89_MR_WMODE_1AP_1CLIENT,
+	RTW89_MR_WMODE_2CLIENTS,
+	RTW89_MR_WMODE_2APS,
+	RTW89_MR_WMODE_UNKNOWN,
+};
+
+enum rtw89_mr_ctxtype {
+	RTW89_MR_CTX_NONE,
+	RTW89_MR_CTX1_2GHZ,
+	RTW89_MR_CTX1_5GHZ,
+	RTW89_MR_CTX1_6GHZ,
+	RTW89_MR_CTX2_2GHZ,
+	RTW89_MR_CTX2_5GHZ,
+	RTW89_MR_CTX2_6GHZ,
+	RTW89_MR_CTX2_2GHZ_5GHZ,
+	RTW89_MR_CTX2_2GHZ_6GHZ,
+	RTW89_MR_CTX2_5GHZ_6GHZ,
+	RTW89_MR_CTX_UNKNOWN,
+};
+
+struct rtw89_mr_chanctx_info {
+	enum rtw89_mr_wtype wtype;
+	enum rtw89_mr_wmode wmode;
+	enum rtw89_mr_ctxtype ctxtype;
+};
+
 enum rtw89_chanctx_pause_reasons {
 	RTW89_CHANCTX_PAUSE_REASON_HW_SCAN,
 	RTW89_CHANCTX_PAUSE_REASON_ROC,
@@ -120,6 +163,8 @@ void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_queue_chanctx_work(struct rtw89_dev *rtwdev);
 void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 				enum rtw89_chanctx_changes change);
+void rtw89_query_mr_chanctx_info(struct rtw89_dev *rtwdev, u8 inst_idx,
+				 struct rtw89_mr_chanctx_info *info);
 void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 			 const struct rtw89_chanctx_pause_parm *parm);
