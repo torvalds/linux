@@ -336,9 +336,8 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 	atomic_set(&twl6030_irq->wakeirqs, 0);
 	twl6030_irq->irq_mapping_tbl = of_id->data;
 
-	twl6030_irq->irq_domain =
-		irq_domain_create_linear(of_fwnode_handle(dev->of_node), nr_irqs,
-					 &twl6030_irq_domain_ops, twl6030_irq);
+	twl6030_irq->irq_domain = irq_domain_create_linear(dev_fwnode(dev), nr_irqs,
+							   &twl6030_irq_domain_ops, twl6030_irq);
 	if (!twl6030_irq->irq_domain) {
 		dev_err(dev, "Can't add irq_domain\n");
 		return -ENOMEM;
