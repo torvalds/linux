@@ -51,7 +51,7 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
-static void dcn401_initialize_min_clocks(struct dc *dc)
+void dcn401_initialize_min_clocks(struct dc *dc)
 {
 	struct dc_clocks *clocks = &dc->current_state->bw_ctx.bw.dcn.clk;
 
@@ -2632,10 +2632,12 @@ void dcn401_plane_atomic_power_down(struct dc *dc,
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
-	if (org_ip_request_cntl == 0)
-		REG_SET(DC_IP_REQUEST_CNTL, 0,
-			IP_REQUEST_EN, 1);
+	if (REG(DC_IP_REQUEST_CNTL)) {
+		REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+		if (org_ip_request_cntl == 0)
+			REG_SET(DC_IP_REQUEST_CNTL, 0,
+				IP_REQUEST_EN, 1);
+	}
 
 	if (hws->funcs.dpp_pg_control)
 		hws->funcs.dpp_pg_control(hws, dpp->inst, false);
@@ -2646,7 +2648,7 @@ void dcn401_plane_atomic_power_down(struct dc *dc,
 	hubp->funcs->hubp_reset(hubp);
 	dpp->funcs->dpp_reset(dpp);
 
-	if (org_ip_request_cntl == 0)
+	if (org_ip_request_cntl == 0 && REG(DC_IP_REQUEST_CNTL))
 		REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 
