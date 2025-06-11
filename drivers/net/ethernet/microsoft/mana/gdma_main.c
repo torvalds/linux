@@ -1329,7 +1329,8 @@ void mana_gd_free_res_map(struct gdma_resource *r)
  * do the same thing.
  */
 
-static int irq_setup(unsigned int *irqs, unsigned int len, int node)
+static int irq_setup(unsigned int *irqs, unsigned int len, int node,
+		     bool skip_first_cpu)
 {
 	const struct cpumask *next, *prev = cpu_none_mask;
 	cpumask_var_t cpus __free(free_cpumask_var);
@@ -1344,11 +1345,18 @@ static int irq_setup(unsigned int *irqs, unsigned int len, int node)
 		while (weight > 0) {
 			cpumask_andnot(cpus, next, prev);
 			for_each_cpu(cpu, cpus) {
-				if (len-- == 0)
-					goto done;
-				irq_set_affinity_and_hint(*irqs++, topology_sibling_cpumask(cpu));
 				cpumask_andnot(cpus, cpus, topology_sibling_cpumask(cpu));
 				--weight;
+
+				if (unlikely(skip_first_cpu)) {
+					skip_first_cpu = false;
+					continue;
+				}
+
+				if (len-- == 0)
+					goto done;
+
+				irq_set_affinity_and_hint(*irqs++, topology_sibling_cpumask(cpu));
 			}
 		}
 		prev = next;
@@ -1444,7 +1452,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 		}
 	}
 
-	err = irq_setup(irqs, (nvec - start_irq_index), gc->numa_node);
+	err = irq_setup(irqs, nvec - start_irq_index, gc->numa_node, false);
 	if (err)
 		goto free_irq;
 
