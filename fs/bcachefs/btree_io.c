@@ -741,16 +741,22 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		     BCH_VERSION_MAJOR(version),
 		     BCH_VERSION_MINOR(version));
 
-	if (btree_err_on(version < c->sb.version_min,
+	if (c->recovery.curr_pass != BCH_RECOVERY_PASS_scan_for_btree_nodes &&
+	    btree_err_on(version < c->sb.version_min,
 			 -BCH_ERR_btree_node_read_err_fixable,
 			 c, NULL, b, i, NULL,
 			 btree_node_bset_older_than_sb_min,
 			 "bset version %u older than superblock version_min %u",
 			 version, c->sb.version_min)) {
-		mutex_lock(&c->sb_lock);
-		c->disk_sb.sb->version_min = cpu_to_le16(version);
-		bch2_write_super(c);
-		mutex_unlock(&c->sb_lock);
+		if (bch2_version_compatible(version)) {
+			mutex_lock(&c->sb_lock);
+			c->disk_sb.sb->version_min = cpu_to_le16(version);
+			bch2_write_super(c);
+			mutex_unlock(&c->sb_lock);
+		} else {
+			/* We have no idea what's going on: */
+			i->version = cpu_to_le16(c->sb.version);
+		}
 	}
 
 	if (btree_err_on(BCH_VERSION_MAJOR(version) >
