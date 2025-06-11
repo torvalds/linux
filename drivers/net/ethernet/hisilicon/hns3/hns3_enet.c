@@ -5961,8 +5961,8 @@ static int __init hns3_init_module(void)
 {
 	int ret;
 
-	pr_info("%s: %s - version\n", hns3_driver_name, hns3_driver_string);
-	pr_info("%s: %s\n", hns3_driver_name, hns3_copyright);
+	pr_debug("%s: %s - version\n", hns3_driver_name, hns3_driver_string);
+	pr_debug("%s: %s\n", hns3_driver_name, hns3_copyright);
 
 	client.type = HNAE3_CLIENT_KNIC;
 	snprintf(client.name, HNAE3_CLIENT_NAME_LENGTH, "%s",

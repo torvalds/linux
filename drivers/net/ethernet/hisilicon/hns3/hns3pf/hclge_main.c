@@ -12904,7 +12904,7 @@ static struct hnae3_ae_algo ae_algo = {
 
 static int __init hclge_init(void)
 {
-	pr_info("%s is initializing\n", HCLGE_NAME);
+	pr_debug("%s is initializing\n", HCLGE_NAME);
 
 	hclge_wq = alloc_workqueue("%s", WQ_UNBOUND, 0, HCLGE_NAME);
 	if (!hclge_wq) {
