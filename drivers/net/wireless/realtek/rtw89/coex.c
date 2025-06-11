@@ -2866,6 +2866,8 @@ static void _set_gnt_v1(struct rtw89_dev *rtwdev, u8 phy_map,
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_fbtc_outsrc_set_info *osi = &dm->ost_info;
+	struct rtw89_mac_ax_wl_act *b = dm->gnt.bt;
 	struct rtw89_mac_ax_gnt *g = dm->gnt.band;
 	u8 i, bt_idx = dm->bt_select + 1;
 
@@ -2914,21 +2916,35 @@ static void _set_gnt_v1(struct rtw89_dev *rtwdev, u8 phy_map,
 
 			switch (wlact_state) {
 			case BTC_WLACT_HW:
-				dm->gnt.bt[i].wlan_act_en = 0;
-				dm->gnt.bt[i].wlan_act = 0;
+				b[i].wlan_act_en = 0;
+				b[i].wlan_act = 0;
 				break;
 			case BTC_WLACT_SW_LO:
-				dm->gnt.bt[i].wlan_act_en = 1;
-				dm->gnt.bt[i].wlan_act = 0;
+				b[i].wlan_act_en = 1;
+				b[i].wlan_act = 0;
 				break;
 			case BTC_WLACT_SW_HI:
-				dm->gnt.bt[i].wlan_act_en = 1;
-				dm->gnt.bt[i].wlan_act = 1;
+				b[i].wlan_act_en = 1;
+				b[i].wlan_act = 1;
 				break;
 			}
 		}
 	}
-	rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
+
+	if (!btc->ver->fcxosi) {
+		rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
+		return;
+	}
+
+	memcpy(osi->gnt_set, dm->gnt.band, sizeof(osi->gnt_set));
+	memcpy(osi->wlact_set, dm->gnt.bt, sizeof(osi->wlact_set));
+
+	/* GBT source should be GBT_S1 in 1+1 (HWB0:5G + HWB1:2G) case */
+	if (osi->rf_band[BTC_RF_S0] == 1 &&
+	    osi->rf_band[BTC_RF_S1] == 0)
+		osi->rf_gbt_source = BTC_RF_S1;
+	else
+		osi->rf_gbt_source = BTC_RF_S0;
 }
 
 #define BTC_TDMA_WLROLE_MAX 3
