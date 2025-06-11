@@ -14293,7 +14293,7 @@ static int sanitize_err(struct bpf_verifier_env *env,
 	case REASON_STACK:
 		verbose(env, "R%d could not be pushed for speculative verification, %s\n",
 			dst, err);
-		break;
+		return -ENOMEM;
 	default:
 		verbose(env, "verifier internal error: unknown reason (%d)\n",
 			reason);
@@ -19926,7 +19926,7 @@ static int do_check(struct bpf_verifier_env *env)
 			goto process_bpf_exit;
 
 		err = do_check_insn(env, &do_print_state);
-		if (state->speculative && error_recoverable_with_nospec(err)) {
+		if (error_recoverable_with_nospec(err) && state->speculative) {
 			/* Prevent this speculative path from ever reaching the
 			 * insn that would have been unsafe to execute.
 			 */
