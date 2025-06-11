@@ -206,16 +206,6 @@ int kvm_pic_set_irq(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
 	return ret;
 }
 
-void kvm_pic_clear_all(struct kvm_pic *s, int irq_source_id)
-{
-	int i;
-
-	pic_lock(s);
-	for (i = 0; i < PIC_NUM_PINS; i++)
-		__clear_bit(irq_source_id, &s->irq_states[i]);
-	pic_unlock(s);
-}
-
 /*
  * acknowledge interrupt 'irq'
  */

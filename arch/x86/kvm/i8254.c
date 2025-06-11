@@ -641,14 +641,6 @@ static void kvm_pit_reset(struct kvm_pit *pit)
 	kvm_pit_reset_reinject(pit);
 }
 
-static void kvm_pit_clear_all(struct kvm *kvm)
-{
-	mutex_lock(&kvm->irq_lock);
-	kvm_ioapic_clear_all(kvm->arch.vioapic, KVM_PIT_IRQ_SOURCE_ID);
-	kvm_pic_clear_all(kvm->arch.vpic, KVM_PIT_IRQ_SOURCE_ID);
-	mutex_unlock(&kvm->irq_lock);
-}
-
 static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
 {
 	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_notifier);
@@ -803,7 +795,6 @@ fail_register_pit:
 	kvm_pit_set_reinject(pit, false);
 	kthread_destroy_worker(pit->worker);
 fail_kthread:
-	kvm_pit_clear_all(kvm);
 	kfree(pit);
 	return NULL;
 }
@@ -820,7 +811,6 @@ void kvm_free_pit(struct kvm *kvm)
 		kvm_pit_set_reinject(pit, false);
 		hrtimer_cancel(&pit->pit_state.timer);
 		kthread_destroy_worker(pit->worker);
-		kvm_pit_clear_all(kvm);
 		kfree(pit);
 	}
 }
