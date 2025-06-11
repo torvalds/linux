@@ -2247,13 +2247,59 @@ static void serial8250_THRE_test(struct uart_port *port)
 		up->bugs |= UART_BUG_THRE;
 }
 
-int serial8250_do_startup(struct uart_port *port)
+static void serial8250_initialize(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned long flags;
-	unsigned char iir;
+	bool lsr_TEMT, iir_NOINT;
+
+	serial_port_out(port, UART_LCR, UART_LCR_WLEN8);
+
+	uart_port_lock_irqsave(port, &flags);
+	if (port->flags & UPF_FOURPORT) {
+		if (!port->irq)
+			port->mctrl |= TIOCM_OUT1;
+	} else {
+		/* Most PC uarts need OUT2 raised to enable interrupts. */
+		if (port->irq)
+			port->mctrl |= TIOCM_OUT2;
+	}
+
+	serial8250_set_mctrl(port, port->mctrl);
+
+	/*
+	 * Serial over Lan (SoL) hack:
+	 * Intel 8257x Gigabit ethernet chips have a 16550 emulation, to be used for Serial Over
+	 * Lan.  Those chips take a longer time than a normal serial device to signalize that a
+	 * transmission data was queued. Due to that, the above test generally fails. One solution
+	 * would be to delay the reading of iir. However, this is not reliable, since the timeout is
+	 * variable. So, let's just don't test if we receive TX irq.  This way, we'll never enable
+	 * UART_BUG_TXEN.
+	 */
+	if (!(port->quirks & UPQ_NO_TXEN_TEST)) {
+		/* Do a quick test to see if we receive an interrupt when we enable the TX irq. */
+		serial_port_out(port, UART_IER, UART_IER_THRI);
+		lsr_TEMT = serial_port_in(port, UART_LSR) & UART_LSR_TEMT;
+		iir_NOINT = serial_port_in(port, UART_IIR) & UART_IIR_NO_INT;
+		serial_port_out(port, UART_IER, 0);
+
+		if (lsr_TEMT && iir_NOINT) {
+			if (!(up->bugs & UART_BUG_TXEN)) {
+				up->bugs |= UART_BUG_TXEN;
+				dev_dbg(port->dev, "enabling bad tx status workarounds\n");
+			}
+		} else {
+			up->bugs &= ~UART_BUG_TXEN;
+		}
+	}
+
+	uart_port_unlock_irqrestore(port, flags);
+}
+
+int serial8250_do_startup(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
 	int retval;
-	u16 lsr;
 
 	if (!port->fifosize)
 		port->fifosize = uart_config[port->type].fifo_size;
@@ -2310,56 +2356,7 @@ int serial8250_do_startup(struct uart_port *port)
 
 	up->ops->setup_timer(up);
 
-	/*
-	 * Now, initialize the UART
-	 */
-	serial_port_out(port, UART_LCR, UART_LCR_WLEN8);
-
-	uart_port_lock_irqsave(port, &flags);
-	if (up->port.flags & UPF_FOURPORT) {
-		if (!up->port.irq)
-			up->port.mctrl |= TIOCM_OUT1;
-	} else
-		/*
-		 * Most PC uarts need OUT2 raised to enable interrupts.
-		 */
-		if (port->irq)
-			up->port.mctrl |= TIOCM_OUT2;
-
-	serial8250_set_mctrl(port, port->mctrl);
-
-	/*
-	 * Serial over Lan (SoL) hack:
-	 * Intel 8257x Gigabit ethernet chips have a 16550 emulation, to be
-	 * used for Serial Over Lan.  Those chips take a longer time than a
-	 * normal serial device to signalize that a transmission data was
-	 * queued. Due to that, the above test generally fails. One solution
-	 * would be to delay the reading of iir. However, this is not
-	 * reliable, since the timeout is variable. So, let's just don't
-	 * test if we receive TX irq.  This way, we'll never enable
-	 * UART_BUG_TXEN.
-	 */
-	if (!(up->port.quirks & UPQ_NO_TXEN_TEST)) {
-		/*
-		 * Do a quick test to see if we receive an interrupt when we
-		 * enable the TX irq.
-		 */
-		serial_port_out(port, UART_IER, UART_IER_THRI);
-		lsr = serial_port_in(port, UART_LSR);
-		iir = serial_port_in(port, UART_IIR);
-		serial_port_out(port, UART_IER, 0);
-
-		if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
-			if (!(up->bugs & UART_BUG_TXEN)) {
-				up->bugs |= UART_BUG_TXEN;
-				dev_dbg(port->dev, "enabling bad tx status workarounds\n");
-			}
-		} else {
-			up->bugs &= ~UART_BUG_TXEN;
-		}
-	}
-
-	uart_port_unlock_irqrestore(port, flags);
+	serial8250_initialize(port);
 
 	/*
 	 * Clear the interrupt registers again for luck, and clear the
