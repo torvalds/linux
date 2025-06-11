@@ -121,15 +121,17 @@ bool vsock_wait_sent(int fd)
 	return !ret;
 }
 
-/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
-int vsock_bind(unsigned int cid, unsigned int port, int type)
+/* Create socket <type>, bind to <cid, port>.
+ * Return the file descriptor, or -1 on error.
+ */
+int vsock_bind_try(unsigned int cid, unsigned int port, int type)
 {
 	struct sockaddr_vm sa = {
 		.svm_family = AF_VSOCK,
 		.svm_cid = cid,
 		.svm_port = port,
 	};
-	int fd;
+	int fd, saved_errno;
 
 	fd = socket(AF_VSOCK, type, 0);
 	if (fd < 0) {
@@ -138,6 +140,22 @@ int vsock_bind(unsigned int cid, unsigned int port, int type)
 	}
 
 	if (bind(fd, (struct sockaddr *)&sa, sizeof(sa))) {
+		saved_errno = errno;
+		close(fd);
+		errno = saved_errno;
+		fd = -1;
+	}
+
+	return fd;
+}
+
+/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
+int vsock_bind(unsigned int cid, unsigned int port, int type)
+{
+	int fd;
+
+	fd = vsock_bind_try(cid, port, type);
+	if (fd < 0) {
 		perror("bind");
 		exit(EXIT_FAILURE);
 	}
