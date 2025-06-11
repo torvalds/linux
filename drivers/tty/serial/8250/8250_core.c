@@ -13,6 +13,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/hashtable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/ioport.h>
@@ -47,8 +48,8 @@ struct irq_info {
 	struct list_head	*head;
 };
 
-#define NR_IRQ_HASH		32	/* Can be adjusted later */
-static struct hlist_head irq_lists[NR_IRQ_HASH];
+#define IRQ_HASH_BITS		5	/* Can be adjusted later */
+static DEFINE_HASHTABLE(irq_lists, IRQ_HASH_BITS);
 static DEFINE_MUTEX(hash_mutex);	/* Used to walk the hash */
 
 /*
@@ -75,11 +76,8 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 
 	l = i->head;
 	do {
-		struct uart_8250_port *up;
-		struct uart_port *port;
-
-		up = list_entry(l, struct uart_8250_port, list);
-		port = &up->port;
+		struct uart_8250_port *up = list_entry(l, struct uart_8250_port, list);
+		struct uart_port *port = &up->port;
 
 		if (port->handle_irq(port)) {
 			handled = 1;
@@ -132,14 +130,11 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
  */
 static struct irq_info *serial_get_or_create_irq_info(const struct uart_8250_port *up)
 {
-	struct hlist_head *h;
 	struct irq_info *i;
 
 	mutex_lock(&hash_mutex);
 
-	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
-
-	hlist_for_each_entry(i, h, node)
+	hash_for_each_possible(irq_lists, i, node, up->port.irq)
 		if (i->irq == up->port.irq)
 			goto unlock;
 
@@ -150,7 +145,7 @@ static struct irq_info *serial_get_or_create_irq_info(const struct uart_8250_por
 	}
 	spin_lock_init(&i->lock);
 	i->irq = up->port.irq;
-	hlist_add_head(&i->node, h);
+	hash_add(irq_lists, &i->node, i->irq);
 unlock:
 	mutex_unlock(&hash_mutex);
 
@@ -189,13 +184,10 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 static void serial_unlink_irq_chain(struct uart_8250_port *up)
 {
 	struct irq_info *i;
-	struct hlist_head *h;
 
 	mutex_lock(&hash_mutex);
 
-	h = &irq_lists[up->port.irq % NR_IRQ_HASH];
-
-	hlist_for_each_entry(i, h, node)
+	hash_for_each_possible(irq_lists, i, node, up->port.irq)
 		if (i->irq == up->port.irq)
 			break;
 
