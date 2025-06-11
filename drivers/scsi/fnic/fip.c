@@ -200,7 +200,7 @@ void fnic_fcoe_start_fcf_discovery(struct fnic *fnic)
 		return;
 	}
 
-	memset(iport->selected_fcf.fcf_mac, 0, ETH_ALEN);
+	eth_zero_addr(iport->selected_fcf.fcf_mac);
 
 	pdisc_sol = (struct fip_discovery *) frame;
 	*pdisc_sol = (struct fip_discovery) {
@@ -588,12 +588,12 @@ void fnic_common_fip_cleanup(struct fnic *fnic)
 	if (!is_zero_ether_addr(iport->fpma))
 		vnic_dev_del_addr(fnic->vdev, iport->fpma);
 
-	memset(iport->fpma, 0, ETH_ALEN);
+	eth_zero_addr(iport->fpma);
 	iport->fcid = 0;
 	iport->r_a_tov = 0;
 	iport->e_d_tov = 0;
-	memset(fnic->iport.fcfmac, 0, ETH_ALEN);
-	memset(iport->selected_fcf.fcf_mac, 0, ETH_ALEN);
+	eth_zero_addr(fnic->iport.fcfmac);
+	eth_zero_addr(iport->selected_fcf.fcf_mac);
 	iport->selected_fcf.fcf_priority = 0;
 	iport->selected_fcf.fka_adv_period = 0;
 	iport->selected_fcf.ka_disabled = 0;
@@ -777,7 +777,7 @@ void fnic_work_on_fip_timer(struct work_struct *work)
  */
 void fnic_handle_fip_timer(struct timer_list *t)
 {
-	struct fnic *fnic = from_timer(fnic, t, retry_fip_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, retry_fip_timer);
 
 	INIT_WORK(&fnic->fip_timer_work, fnic_work_on_fip_timer);
 	queue_work(fnic_fip_queue, &fnic->fip_timer_work);
@@ -790,7 +790,7 @@ void fnic_handle_fip_timer(struct timer_list *t)
 void fnic_handle_enode_ka_timer(struct timer_list *t)
 {
 	uint8_t *frame;
-	struct fnic *fnic = from_timer(fnic, t, enode_ka_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, enode_ka_timer);
 
 	struct fnic_iport_s *iport = &fnic->iport;
 	struct fip_enode_ka *penode_ka;
@@ -843,7 +843,7 @@ void fnic_handle_enode_ka_timer(struct timer_list *t)
 void fnic_handle_vn_ka_timer(struct timer_list *t)
 {
 	uint8_t *frame;
-	struct fnic *fnic = from_timer(fnic, t, vn_ka_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, vn_ka_timer);
 
 	struct fnic_iport_s *iport = &fnic->iport;
 	struct fip_vn_port_ka *pvn_port_ka;
@@ -998,7 +998,7 @@ void fnic_work_on_fcs_ka_timer(struct work_struct *work)
  */
 void fnic_handle_fcs_ka_timer(struct timer_list *t)
 {
-	struct fnic *fnic = from_timer(fnic, t, fcs_ka_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, fcs_ka_timer);
 
 	INIT_WORK(&fnic->fip_timer_work, fnic_work_on_fcs_ka_timer);
 	queue_work(fnic_fip_queue, &fnic->fip_timer_work);

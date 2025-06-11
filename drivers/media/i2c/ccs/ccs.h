@@ -43,6 +43,8 @@
 #define SMIAPP_RESET_DELAY(clk)				\
 	(1000 +	(SMIAPP_RESET_DELAY_CLOCKS * 1000	\
 		 + (clk) / 1000 - 1) / ((clk) / 1000))
+#define CCS_RESET_DELAY_US		5000
+#define CCS_RESET_TIMEOUT_US		1000000
 
 #define CCS_COLOUR_COMPONENTS		4
 

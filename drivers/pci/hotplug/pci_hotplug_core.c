@@ -20,13 +20,9 @@
 #include <linux/types.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
-#include <linux/pagemap.h>
 #include <linux/init.h>
-#include <linux/mount.h>
-#include <linux/namei.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <linux/uaccess.h>
 #include "../pci.h"
 #include "cpci_hotplug.h"
 
@@ -491,6 +487,75 @@ void pci_hp_destroy(struct hotplug_slot *slot)
 	pci_destroy_slot(pci_slot);
 }
 EXPORT_SYMBOL_GPL(pci_hp_destroy);
+
+static DECLARE_WAIT_QUEUE_HEAD(pci_hp_link_change_wq);
+
+/**
+ * pci_hp_ignore_link_change - begin code section causing spurious link changes
+ * @pdev: PCI hotplug bridge
+ *
+ * Mark the beginning of a code section causing spurious link changes on the
+ * Secondary Bus of @pdev, e.g. as a side effect of a Secondary Bus Reset,
+ * D3cold transition, firmware update or FPGA reconfiguration.
+ *
+ * Hotplug drivers can thus check whether such a code section is executing
+ * concurrently, await it with pci_hp_spurious_link_change() and ignore the
+ * resulting link change events.
+ *
+ * Must be paired with pci_hp_unignore_link_change().  May be called both
+ * from the PCI core and from Endpoint drivers.  May be called for bridges
+ * which are not hotplug-capable, in which case it has no effect because
+ * no hotplug driver is bound to the bridge.
+ */
+void pci_hp_ignore_link_change(struct pci_dev *pdev)
+{
+	set_bit(PCI_LINK_CHANGING, &pdev->priv_flags);
+	smp_mb__after_atomic(); /* pairs with implied barrier of wait_event() */
+}
+
+/**
+ * pci_hp_unignore_link_change - end code section causing spurious link changes
+ * @pdev: PCI hotplug bridge
+ *
+ * Mark the end of a code section causing spurious link changes on the
+ * Secondary Bus of @pdev.  Must be paired with pci_hp_ignore_link_change().
+ */
+void pci_hp_unignore_link_change(struct pci_dev *pdev)
+{
+	set_bit(PCI_LINK_CHANGED, &pdev->priv_flags);
+	mb(); /* ensure pci_hp_spurious_link_change() sees either bit set */
+	clear_bit(PCI_LINK_CHANGING, &pdev->priv_flags);
+	wake_up_all(&pci_hp_link_change_wq);
+}
+
+/**
+ * pci_hp_spurious_link_change - check for spurious link changes
+ * @pdev: PCI hotplug bridge
+ *
+ * Check whether a code section is executing concurrently which is causing
+ * spurious link changes on the Secondary Bus of @pdev.  Await the end of the
+ * code section if so.
+ *
+ * May be called by hotplug drivers to check whether a link change is spurious
+ * and can be ignored.
+ *
+ * Because a genuine link change may have occurred in-between a spurious link
+ * change and the invocation of this function, hotplug drivers should perform
+ * sanity checks such as retrieving the current link state and bringing down
+ * the slot if the link is down.
+ *
+ * Return: %true if such a code section has been executing concurrently,
+ * otherwise %false.  Also return %true if such a code section has not been
+ * executing concurrently, but at least once since the last invocation of this
+ * function.
+ */
+bool pci_hp_spurious_link_change(struct pci_dev *pdev)
+{
+	wait_event(pci_hp_link_change_wq,
+		   !test_bit(PCI_LINK_CHANGING, &pdev->priv_flags));
+
+	return test_and_clear_bit(PCI_LINK_CHANGED, &pdev->priv_flags);
+}
 
 static int __init pci_hotplug_init(void)
 {

@@ -40,24 +40,6 @@
 		reg = <0x00000000 0x80000000 0 0x40000000>;
 	};
 
-	reserved-memory {
-		dsp_vdev0vring0: memory@942f0000 {
-			reg = <0 0x942f0000 0 0x8000>;
-			no-map;
-		};
-
-		dsp_vdev0vring1: memory@942f8000 {
-			reg = <0 0x942f8000 0 0x8000>;
-			no-map;
-		};
-
-		dsp_vdev0buffer: memory@94300000 {
-			compatible = "shared-dma-pool";
-			reg = <0 0x94300000 0 0x100000>;
-			no-map;
-		};
-	};
-
 	reg_usdhc2_vmmc: usdhc2-vmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "SD1_SPWR";
@@ -186,6 +168,22 @@
 		vdevbuffer: memory@90400000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0x90400000 0 0x100000>;
+			no-map;
+		};
+
+		dsp_vdev0vring0: memory@942f0000 {
+			reg = <0 0x942f0000 0 0x8000>;
+			no-map;
+		};
+
+		dsp_vdev0vring1: memory@942f8000 {
+			reg = <0 0x942f8000 0 0x8000>;
+			no-map;
+		};
+
+		dsp_vdev0buffer: memory@94300000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x94300000 0 0x100000>;
 			no-map;
 		};
 
@@ -539,7 +537,7 @@
 	status = "okay";
 };
 
-&pcieb {
+&pcie0 {
 	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
 	phy-names = "pcie-phy";
 	pinctrl-0 = <&pinctrl_pcieb>;
@@ -547,6 +545,15 @@
 	reset-gpios = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_pcieb>;
 	status = "okay";
+};
+
+&pcie0_ep {
+	phys = <&hsio_phy 0 PHY_TYPE_PCIE 0>;
+	phy-names = "pcie-phy";
+	pinctrl-0 = <&pinctrl_pcieb>;
+	pinctrl-names = "default";
+	vpcie-supply = <&reg_pcieb>;
+	status = "disabled";
 };
 
 &scu_key {

@@ -14,6 +14,7 @@
 
 #define SM3_DIGEST_SIZE	32
 #define SM3_BLOCK_SIZE	64
+#define SM3_STATE_SIZE	40
 
 #define SM3_T1		0x79CC4519
 #define SM3_T2		0x7A879D8A
@@ -58,7 +59,6 @@ static inline void sm3_init(struct sm3_state *sctx)
 	sctx->count = 0;
 }
 
-void sm3_update(struct sm3_state *sctx, const u8 *data, unsigned int len);
-void sm3_final(struct sm3_state *sctx, u8 *out);
+void sm3_block_generic(struct sm3_state *sctx, u8 const *data, int blocks);
 
 #endif

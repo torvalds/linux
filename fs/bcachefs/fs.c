@@ -124,8 +124,9 @@ retry:
 		goto err;
 
 	struct bch_extent_rebalance new_r = bch2_inode_rebalance_opts_get(c, &inode_u);
+	bool rebalance_changed = memcmp(&old_r, &new_r, sizeof(new_r));
 
-	if (memcmp(&old_r, &new_r, sizeof(new_r))) {
+	if (rebalance_changed) {
 		ret = bch2_set_rebalance_needs_scan_trans(trans, inode_u.bi_inum);
 		if (ret)
 			goto err;
@@ -145,6 +146,9 @@ err:
 
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
+
+	if (rebalance_changed)
+		bch2_rebalance_wakeup(c);
 
 	bch2_fs_fatal_err_on(bch2_err_matches(ret, ENOENT), c,
 			     "%s: inode %llu:%llu not found when updating",
@@ -189,11 +193,6 @@ int bch2_fs_quota_transfer(struct bch_fs *c,
 	mutex_unlock(&inode->ei_quota_lock);
 
 	return ret;
-}
-
-static bool subvol_inum_eq(subvol_inum a, subvol_inum b)
-{
-	return a.subvol == b.subvol && a.inum == b.inum;
 }
 
 static u32 bch2_vfs_inode_hash_fn(const void *data, u32 len, u32 seed)
@@ -352,9 +351,8 @@ repeat:
 			if (!trans) {
 				__wait_on_freeing_inode(c, inode, inum);
 			} else {
-				bch2_trans_unlock(trans);
-				__wait_on_freeing_inode(c, inode, inum);
-				int ret = bch2_trans_relock(trans);
+				int ret = drop_locks_do(trans,
+						(__wait_on_freeing_inode(c, inode, inum), 0));
 				if (ret)
 					return ERR_PTR(ret);
 			}
@@ -1429,7 +1427,9 @@ static int bch2_next_fiemap_extent(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	ret = bch2_next_fiemap_pagecache_extent(trans, inode, start, end, cur);
+	u64 pagecache_end = k.k ? max(start, bkey_start_offset(k.k)) : end;
+
+	ret = bch2_next_fiemap_pagecache_extent(trans, inode, start, pagecache_end, cur);
 	if (ret)
 		goto err;
 
@@ -1573,11 +1573,12 @@ static int bch2_vfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	int ret = bch2_readdir(c, inode_inum(inode), ctx);
+	int ret = bch2_readdir(c, inode_inum(inode), &hash, ctx);
 
 	bch_err_fn(c, ret);
 	return bch2_err_class(ret);
@@ -1662,33 +1663,9 @@ static int fssetxattr_inode_update_fn(struct btree_trans *trans,
 		return -EINVAL;
 
 	if (s->casefold != bch2_inode_casefold(c, bi)) {
-#ifdef CONFIG_UNICODE
-		int ret = 0;
-		/* Not supported on individual files. */
-		if (!S_ISDIR(bi->bi_mode))
-			return -EOPNOTSUPP;
-
-		/*
-		 * Make sure the dir is empty, as otherwise we'd need to
-		 * rehash everything and update the dirent keys.
-		 */
-		ret = bch2_empty_dir_trans(trans, inode_inum(inode));
-		if (ret < 0)
-			return ret;
-
-		ret = bch2_request_incompat_feature(c, bcachefs_metadata_version_casefolding);
+		int ret = bch2_inode_set_casefold(trans, inode_inum(inode), bi, s->casefold);
 		if (ret)
 			return ret;
-
-		bch2_check_set_feature(c, BCH_FEATURE_casefolding);
-
-		bi->bi_casefold = s->casefold + 1;
-		bi->bi_fields_set |= BIT(Inode_opt_casefold);
-
-#else
-		printk(KERN_ERR "Cannot use casefolding on a kernel without CONFIG_UNICODE\n");
-		return -EOPNOTSUPP;
-#endif
 	}
 
 	if (s->set_project) {
@@ -2030,14 +2007,14 @@ retry:
 			goto err;
 
 		if (k.k->type != KEY_TYPE_dirent) {
-			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
+			ret = bch_err_throw(c, ENOENT_dirent_doesnt_match_inode);
 			goto err;
 		}
 
 		d = bkey_s_c_to_dirent(k);
 		ret = bch2_dirent_read_target(trans, inode_inum(dir), d, &target);
 		if (ret > 0)
-			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
+			ret = bch_err_throw(c, ENOENT_dirent_doesnt_match_inode);
 		if (ret)
 			goto err;
 
@@ -2203,7 +2180,13 @@ static void bch2_evict_inode(struct inode *vinode)
 				KEY_TYPE_QUOTA_WARN);
 		bch2_quota_acct(c, inode->ei_qid, Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
-		bch2_inode_rm(c, inode_inum(inode));
+		int ret = bch2_inode_rm(c, inode_inum(inode));
+		if (ret && !bch2_err_matches(ret, EROFS)) {
+			bch_err_msg(c, ret, "VFS incorrectly tried to delete inode %llu:%llu",
+				    inode->ei_inum.subvol,
+				    inode->ei_inum.inum);
+			bch2_sb_error_count(c, BCH_FSCK_ERR_vfs_bad_inode_rm);
+		}
 
 		/*
 		 * If we are deleting, we need it present in the vfs hash table
@@ -2350,7 +2333,8 @@ static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 	struct bch_fs *c = root->d_sb->s_fs_info;
 	bool first = true;
 
-	for_each_online_member(c, ca) {
+	guard(rcu)();
+	for_each_online_member_rcu(c, ca) {
 		if (!first)
 			seq_putc(seq, ':');
 		first = false;
@@ -2462,7 +2446,7 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	struct inode *vinode;
 	struct bch2_opts_parse *opts_parse = fc->fs_private;
 	struct bch_opts opts = opts_parse->opts;
-	darray_str devs;
+	darray_const_str devs;
 	darray_fs devs_to_fs = {};
 	int ret;
 
@@ -2486,7 +2470,7 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	if (!IS_ERR(sb))
 		goto got_sb;
 
-	c = bch2_fs_open(devs.data, devs.nr, opts);
+	c = bch2_fs_open(&devs, &opts);
 	ret = PTR_ERR_OR_ZERO(c);
 	if (ret)
 		goto err;
@@ -2502,10 +2486,9 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 
 	bch2_opts_apply(&c->opts, opts);
 
-	/*
-	 * need to initialise sb and set c->vfs_sb _before_ starting fs,
-	 * for blk_holder_ops
-	 */
+	ret = bch2_fs_start(c);
+	if (ret)
+		goto err_stop_fs;
 
 	sb = sget(fc->fs_type, NULL, bch2_set_super, fc->sb_flags|SB_NOSEC, c);
 	ret = PTR_ERR_OR_ZERO(sb);
@@ -2537,7 +2520,12 @@ got_sb:
 	sb->s_time_min		= div_s64(S64_MIN, c->sb.time_units_per_sec) + 1;
 	sb->s_time_max		= div_s64(S64_MAX, c->sb.time_units_per_sec);
 	super_set_uuid(sb, c->sb.user_uuid.b, sizeof(c->sb.user_uuid));
-	super_set_sysfs_name_uuid(sb);
+
+	if (c->sb.multi_device)
+		super_set_sysfs_name_uuid(sb);
+	else
+		strscpy(sb->s_sysfs_name, c->name, sizeof(sb->s_sysfs_name));
+
 	sb->s_shrink->seeks	= 0;
 	c->vfs_sb		= sb;
 	strscpy(sb->s_id, c->name, sizeof(sb->s_id));
@@ -2548,14 +2536,15 @@ got_sb:
 
 	sb->s_bdi->ra_pages		= VM_READAHEAD_PAGES;
 
-	for_each_online_member(c, ca) {
-		struct block_device *bdev = ca->disk_sb.bdev;
+	scoped_guard(rcu) {
+		for_each_online_member_rcu(c, ca) {
+			struct block_device *bdev = ca->disk_sb.bdev;
 
-		/* XXX: create an anonymous device for multi device filesystems */
-		sb->s_bdev	= bdev;
-		sb->s_dev	= bdev->bd_dev;
-		percpu_ref_put(&ca->io_ref[READ]);
-		break;
+			/* XXX: create an anonymous device for multi device filesystems */
+			sb->s_bdev	= bdev;
+			sb->s_dev	= bdev->bd_dev;
+			break;
+		}
 	}
 
 	c->dev = sb->s_dev;
@@ -2566,10 +2555,6 @@ got_sb:
 #endif
 
 	sb->s_shrink->seeks = 0;
-
-	ret = bch2_fs_start(c);
-	if (ret)
-		goto err_put_super;
 
 #ifdef CONFIG_UNICODE
 	sb->s_encoding = c->cf_encoding;

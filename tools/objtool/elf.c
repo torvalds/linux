@@ -572,6 +572,34 @@ err:
 	return -1;
 }
 
+static int mark_group_syms(struct elf *elf)
+{
+	struct section *symtab, *sec;
+	struct symbol *sym;
+
+	symtab = find_section_by_name(elf, ".symtab");
+	if (!symtab) {
+		ERROR("no .symtab");
+		return -1;
+	}
+
+	list_for_each_entry(sec, &elf->sections, list) {
+		if (sec->sh.sh_type == SHT_GROUP &&
+		    sec->sh.sh_link == symtab->idx) {
+			sym = find_symbol_by_index(elf, sec->sh.sh_info);
+			if (!sym) {
+				ERROR("%s: can't find SHT_GROUP signature symbol",
+				      sec->name);
+				return -1;
+			}
+
+			sym->group_sec = sec;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * @sym's idx has changed.  Update the relocs which reference it.
  */
@@ -745,7 +773,7 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 
 	/*
 	 * Move the first global symbol, as per sh_info, into a new, higher
-	 * symbol index. This fees up a spot for a new local symbol.
+	 * symbol index. This frees up a spot for a new local symbol.
 	 */
 	first_non_local = symtab->sh.sh_info;
 	old = find_symbol_by_index(elf, first_non_local);
@@ -762,6 +790,11 @@ __elf_create_symbol(struct elf *elf, struct symbol *sym)
 
 		if (elf_update_sym_relocs(elf, old))
 			return NULL;
+
+		if (old->group_sec) {
+			old->group_sec->sh.sh_info = new_idx;
+			mark_sec_changed(elf, old->group_sec, true);
+		}
 
 		new_idx = first_non_local;
 	}
@@ -1033,6 +1066,9 @@ struct elf *elf_open_read(const char *name, int flags)
 		goto err;
 
 	if (read_symbols(elf))
+		goto err;
+
+	if (mark_group_syms(elf))
 		goto err;
 
 	if (read_relocs(elf))

@@ -154,7 +154,7 @@ static int __init wpcm450_aic_of_init(struct device_node *node,
 
 	set_handle_irq(wpcm450_aic_handle_irq);
 
-	aic->domain = irq_domain_add_linear(node, AIC_NUM_IRQS, &wpcm450_aic_ops, aic);
+	aic->domain = irq_domain_create_linear(of_fwnode_handle(node), AIC_NUM_IRQS, &wpcm450_aic_ops, aic);
 
 	return 0;
 }

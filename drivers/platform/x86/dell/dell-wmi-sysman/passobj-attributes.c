@@ -45,7 +45,7 @@ static ssize_t current_password_store(struct kobject *kobj,
 	int length;
 
 	length = strlen(buf);
-	if (buf[length-1] == '\n')
+	if (length && buf[length - 1] == '\n')
 		length--;
 
 	/* firmware does verifiation of min/max password length,

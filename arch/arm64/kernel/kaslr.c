@@ -10,8 +10,6 @@
 #include <asm/cpufeature.h>
 #include <asm/memory.h>
 
-u16 __initdata memstart_offset_seed;
-
 bool __ro_after_init __kaslr_is_enabled = false;
 
 void __init kaslr_init(void)

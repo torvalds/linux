@@ -5,7 +5,6 @@
 
 config PHYLINK
 	tristate
-	depends on NETDEVICES
 	select PHYLIB
 	select SWPHY
 	help
@@ -15,9 +14,7 @@ config PHYLINK
 
 menuconfig PHYLIB
 	tristate "PHY Device support and infrastructure"
-	depends on NETDEVICES
-	select MDIO_DEVICE
-	select MDIO_DEVRES
+	select MDIO_BUS
 	help
 	  Ethernet controllers are usually attached to PHY
 	  devices.  This option provides infrastructure for
@@ -78,6 +75,18 @@ config SFP
 	select MDIO_I2C
 
 comment "MII PHY device drivers"
+
+config AS21XXX_PHY
+	tristate "Aeonsemi AS21xxx PHYs"
+	help
+	  Currently supports the Aeonsemi AS21xxx PHY.
+
+	  These are C45 PHYs 10G that require all a generic firmware.
+
+	  Supported PHYs AS21011JB1, AS21011PB1, AS21010JB1, AS21010PB1,
+	  AS21511JB1, AS21511PB1, AS21510JB1, AS21510PB1, AS21210JB1,
+	  AS21210PB1 that all register with the PHY ID 0x7500 0x7500
+	  before the firmware is loaded.
 
 config AIR_EN8811H_PHY
 	tristate "Airoha EN8811H 2.5 Gigabit PHY"
@@ -265,6 +274,18 @@ config MAXLINEAR_GPHY
 	help
 	  Support for the Maxlinear GPY115, GPY211, GPY212, GPY215,
 	  GPY241, GPY245 PHYs.
+
+config MAXLINEAR_86110_PHY
+	tristate "MaxLinear MXL86110 PHY support"
+	help
+	 Support for the MaxLinear MXL86110 Gigabit Ethernet
+	 Physical Layer transceiver.
+	 The MXL86110 is commonly used in networking equipment such as
+	 routers, switches, and embedded systems, providing the
+	 physical interface for 10/100/1000 Mbps Ethernet connections
+	 over copper media.
+	 If you are using a board with the MXL86110 PHY connected to your
+	 Ethernet MAC, you should enable this option.
 
 source "drivers/net/phy/mediatek/Kconfig"
 

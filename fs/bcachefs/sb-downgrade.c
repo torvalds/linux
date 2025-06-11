@@ -100,7 +100,11 @@
 	  BCH_FSCK_ERR_ptr_to_missing_backpointer)		\
 	x(stripe_backpointers,					\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers),\
-	  BCH_FSCK_ERR_ptr_to_missing_backpointer)
+	  BCH_FSCK_ERR_ptr_to_missing_backpointer)		\
+	x(inode_has_case_insensitive,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
+	  BCH_FSCK_ERR_inode_has_case_insensitive_not_set,	\
+	  BCH_FSCK_ERR_inode_parent_has_case_insensitive_not_set)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\
@@ -374,6 +378,9 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 		if (BCH_VERSION_MAJOR(src->version) != BCH_VERSION_MAJOR(le16_to_cpu(c->disk_sb.sb->version)))
 			continue;
 
+		if (src->version < c->sb.version_incompat)
+			continue;
+
 		struct bch_sb_field_downgrade_entry *dst;
 		unsigned bytes = sizeof(*dst) + sizeof(dst->errors[0]) * src->nr_errors;
 
@@ -410,7 +417,7 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 
 	d = bch2_sb_field_resize(&c->disk_sb, downgrade, sb_u64s);
 	if (!d) {
-		ret = -BCH_ERR_ENOSPC_sb_downgrade;
+		ret = bch_err_throw(c, ENOSPC_sb_downgrade);
 		goto out;
 	}
 

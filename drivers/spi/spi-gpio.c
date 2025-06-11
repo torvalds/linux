@@ -46,7 +46,7 @@ struct spi_gpio {
 static inline struct spi_gpio *__pure
 spi_to_spi_gpio(const struct spi_device *spi)
 {
-	const struct spi_bitbang	*bang;
+	struct spi_bitbang		*bang;
 	struct spi_gpio			*spi_gpio;
 
 	bang = spi_controller_get_devdata(spi->controller);

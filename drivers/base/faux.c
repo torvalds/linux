@@ -25,6 +25,7 @@
 struct faux_object {
 	struct faux_device faux_dev;
 	const struct faux_device_ops *faux_ops;
+	const struct attribute_group **groups;
 };
 #define to_faux_object(dev) container_of_const(dev, struct faux_object, faux_dev.dev)
 
@@ -43,10 +44,21 @@ static int faux_probe(struct device *dev)
 	struct faux_object *faux_obj = to_faux_object(dev);
 	struct faux_device *faux_dev = &faux_obj->faux_dev;
 	const struct faux_device_ops *faux_ops = faux_obj->faux_ops;
-	int ret = 0;
+	int ret;
 
-	if (faux_ops && faux_ops->probe)
+	if (faux_ops && faux_ops->probe) {
 		ret = faux_ops->probe(faux_dev);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Add groups after the probe succeeds to ensure resources are
+	 * initialized correctly
+	 */
+	ret = device_add_groups(dev, faux_obj->groups);
+	if (ret && faux_ops && faux_ops->remove)
+		faux_ops->remove(faux_dev);
 
 	return ret;
 }
@@ -56,6 +68,8 @@ static void faux_remove(struct device *dev)
 	struct faux_object *faux_obj = to_faux_object(dev);
 	struct faux_device *faux_dev = &faux_obj->faux_dev;
 	const struct faux_device_ops *faux_ops = faux_obj->faux_ops;
+
+	device_remove_groups(dev, faux_obj->groups);
 
 	if (faux_ops && faux_ops->remove)
 		faux_ops->remove(faux_dev);
@@ -124,8 +138,9 @@ struct faux_device *faux_device_create_with_groups(const char *name,
 	if (!faux_obj)
 		return NULL;
 
-	/* Save off the callbacks so we can use them in the future */
+	/* Save off the callbacks and groups so we can use them in the future */
 	faux_obj->faux_ops = faux_ops;
+	faux_obj->groups = groups;
 
 	/* Initialize the device portion and register it with the driver core */
 	faux_dev = &faux_obj->faux_dev;
@@ -138,7 +153,6 @@ struct faux_device *faux_device_create_with_groups(const char *name,
 	else
 		dev->parent = &faux_bus_root;
 	dev->bus = &faux_bus_type;
-	dev->groups = groups;
 	dev_set_name(dev, "%s", name);
 
 	ret = device_add(dev);

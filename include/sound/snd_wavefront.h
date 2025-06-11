@@ -110,12 +110,8 @@ struct _snd_wavefront_card {
 };
 
 extern void snd_wavefront_internal_interrupt (snd_wavefront_card_t *card);
-extern int  snd_wavefront_detect_irq (snd_wavefront_t *dev) ;
-extern int  snd_wavefront_check_irq (snd_wavefront_t *dev, int irq);
-extern int  snd_wavefront_restart (snd_wavefront_t *dev);
 extern int  snd_wavefront_start (snd_wavefront_t *dev);
 extern int  snd_wavefront_detect (snd_wavefront_card_t *card);
-extern int  snd_wavefront_config_midi (snd_wavefront_t *dev) ;
 extern int  snd_wavefront_cmd (snd_wavefront_t *, int, unsigned char *,
 			       unsigned char *);
 

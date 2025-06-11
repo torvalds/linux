@@ -89,7 +89,7 @@ impl<T: Driver + 'static> Adapter<T> {
     extern "C" fn remove_callback(pdev: *mut bindings::pci_dev) {
         // SAFETY: The PCI bus only ever calls the remove callback with a valid pointer to a
         // `struct pci_dev`.
-        let ptr = unsafe { bindings::pci_get_drvdata(pdev) };
+        let ptr = unsafe { bindings::pci_get_drvdata(pdev) }.cast();
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `ptr` points to a valid and initialized
@@ -118,7 +118,9 @@ macro_rules! module_pci_driver {
 };
 }
 
-/// Abstraction for bindings::pci_device_id.
+/// Abstraction for the PCI device ID structure ([`struct pci_device_id`]).
+///
+/// [`struct pci_device_id`]: https://docs.kernel.org/PCI/pci.html#c.pci_device_id
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub struct DeviceId(bindings::pci_device_id);
@@ -173,7 +175,7 @@ unsafe impl RawDeviceId for DeviceId {
     }
 }
 
-/// IdTable type for PCI
+/// `IdTable` type for PCI.
 pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 
 /// Create a PCI `IdTable` with its alias for modpost.
@@ -224,10 +226,11 @@ macro_rules! pci_device_table {
 /// `Adapter` documentation for an example.
 pub trait Driver: Send {
     /// The type holding information about each device id supported by the driver.
-    ///
-    /// TODO: Use associated_type_defaults once stabilized:
-    ///
-    /// type IdInfo: 'static = ();
+    // TODO: Use `associated_type_defaults` once stabilized:
+    //
+    // ```
+    // type IdInfo: 'static = ();
+    // ```
     type IdInfo: 'static;
 
     /// The table of device ids supported by the driver.

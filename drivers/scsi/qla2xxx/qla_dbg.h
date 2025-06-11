@@ -334,9 +334,6 @@ ql_log(uint, scsi_qla_host_t *vha, uint, const char *fmt, ...);
 void __attribute__((format (printf, 4, 5)))
 ql_log_pci(uint, struct pci_dev *pdev, uint, const char *fmt, ...);
 
-void __attribute__((format (printf, 4, 5)))
-ql_log_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
-
 /* Debug Levels */
 /* The 0x40000000 is the max value any debug level can have
  * as ql2xextended_error_logging is of type signed int

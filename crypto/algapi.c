@@ -71,12 +71,23 @@ static void crypto_free_instance(struct crypto_instance *inst)
 
 static void crypto_destroy_instance_workfn(struct work_struct *w)
 {
-	struct crypto_instance *inst = container_of(w, struct crypto_instance,
+	struct crypto_template *tmpl = container_of(w, struct crypto_template,
 						    free_work);
-	struct crypto_template *tmpl = inst->tmpl;
+	struct crypto_instance *inst;
+	struct hlist_node *n;
+	HLIST_HEAD(list);
 
-	crypto_free_instance(inst);
-	crypto_tmpl_put(tmpl);
+	down_write(&crypto_alg_sem);
+	hlist_for_each_entry_safe(inst, n, &tmpl->dead, list) {
+		if (refcount_read(&inst->alg.cra_refcnt) != -1)
+			continue;
+		hlist_del(&inst->list);
+		hlist_add_head(&inst->list, &list);
+	}
+	up_write(&crypto_alg_sem);
+
+	hlist_for_each_entry_safe(inst, n, &list, list)
+		crypto_free_instance(inst);
 }
 
 static void crypto_destroy_instance(struct crypto_alg *alg)
@@ -84,9 +95,10 @@ static void crypto_destroy_instance(struct crypto_alg *alg)
 	struct crypto_instance *inst = container_of(alg,
 						    struct crypto_instance,
 						    alg);
+	struct crypto_template *tmpl = inst->tmpl;
 
-	INIT_WORK(&inst->free_work, crypto_destroy_instance_workfn);
-	schedule_work(&inst->free_work);
+	refcount_set(&alg->cra_refcnt, -1);
+	schedule_work(&tmpl->free_work);
 }
 
 /*
@@ -132,14 +144,16 @@ static void crypto_remove_instance(struct crypto_instance *inst,
 
 	inst->alg.cra_flags |= CRYPTO_ALG_DEAD;
 
-	if (!tmpl || !crypto_tmpl_get(tmpl))
+	if (!tmpl)
 		return;
 
-	list_move(&inst->alg.cra_list, list);
+	list_del_init(&inst->alg.cra_list);
 	hlist_del(&inst->list);
-	inst->alg.cra_destroy = crypto_destroy_instance;
+	hlist_add_head(&inst->list, &tmpl->dead);
 
 	BUG_ON(!list_empty(&inst->alg.cra_users));
+
+	crypto_alg_put(&inst->alg);
 }
 
 /*
@@ -260,8 +274,7 @@ static struct crypto_larval *crypto_alloc_test_larval(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval;
 
-	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER) ||
-	    IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) ||
+	if (!IS_ENABLED(CONFIG_CRYPTO_SELFTESTS) ||
 	    (alg->cra_flags & CRYPTO_ALG_INTERNAL))
 		return NULL; /* No self-test needed */
 
@@ -404,6 +417,15 @@ void crypto_remove_final(struct list_head *list)
 }
 EXPORT_SYMBOL_GPL(crypto_remove_final);
 
+static void crypto_free_alg(struct crypto_alg *alg)
+{
+	unsigned int algsize = alg->cra_type->algsize;
+	u8 *p = (u8 *)alg - algsize;
+
+	crypto_destroy_alg(alg);
+	kfree(p);
+}
+
 int crypto_register_alg(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval;
@@ -416,6 +438,19 @@ int crypto_register_alg(struct crypto_alg *alg)
 	if (err)
 		return err;
 
+	if (alg->cra_flags & CRYPTO_ALG_DUP_FIRST &&
+	    !WARN_ON_ONCE(alg->cra_destroy)) {
+		unsigned int algsize = alg->cra_type->algsize;
+		u8 *p = (u8 *)alg - algsize;
+
+		p = kmemdup(p, algsize + sizeof(*alg), GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+
+		alg = (void *)(p + algsize);
+		alg->cra_destroy = crypto_free_alg;
+	}
+
 	down_write(&crypto_alg_sem);
 	larval = __crypto_register_alg(alg, &algs_to_put);
 	if (!IS_ERR_OR_NULL(larval)) {
@@ -424,8 +459,10 @@ int crypto_register_alg(struct crypto_alg *alg)
 	}
 	up_write(&crypto_alg_sem);
 
-	if (IS_ERR(larval))
+	if (IS_ERR(larval)) {
+		crypto_alg_put(alg);
 		return PTR_ERR(larval);
+	}
 
 	if (test_started)
 		crypto_schedule_test(larval);
@@ -461,11 +498,9 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	if (WARN(ret, "Algorithm %s is not registered", alg->cra_driver_name))
 		return;
 
-	if (WARN_ON(refcount_read(&alg->cra_refcnt) != 1))
-		return;
+	WARN_ON(!alg->cra_destroy && refcount_read(&alg->cra_refcnt) != 1);
 
-	crypto_alg_put(alg);
-
+	list_add(&alg->cra_list, &list);
 	crypto_remove_final(&list);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_alg);
@@ -503,6 +538,8 @@ int crypto_register_template(struct crypto_template *tmpl)
 {
 	struct crypto_template *q;
 	int err = -EEXIST;
+
+	INIT_WORK(&tmpl->free_work, crypto_destroy_instance_workfn);
 
 	down_write(&crypto_alg_sem);
 
@@ -565,6 +602,8 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 		crypto_free_instance(inst);
 	}
 	crypto_remove_final(&users);
+
+	flush_work(&tmpl->free_work);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_template);
 
@@ -618,6 +657,7 @@ int crypto_register_instance(struct crypto_template *tmpl,
 
 	inst->alg.cra_module = tmpl->module;
 	inst->alg.cra_flags |= CRYPTO_ALG_INSTANCE;
+	inst->alg.cra_destroy = crypto_destroy_instance;
 
 	down_write(&crypto_alg_sem);
 
@@ -883,20 +923,20 @@ const char *crypto_attr_alg_name(struct rtattr *rta)
 }
 EXPORT_SYMBOL_GPL(crypto_attr_alg_name);
 
-int crypto_inst_setname(struct crypto_instance *inst, const char *name,
-			struct crypto_alg *alg)
+int __crypto_inst_setname(struct crypto_instance *inst, const char *name,
+			  const char *driver, struct crypto_alg *alg)
 {
 	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME, "%s(%s)", name,
 		     alg->cra_name) >= CRYPTO_MAX_ALG_NAME)
 		return -ENAMETOOLONG;
 
 	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s(%s)",
-		     name, alg->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
+		     driver, alg->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
 		return -ENAMETOOLONG;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(crypto_inst_setname);
+EXPORT_SYMBOL_GPL(__crypto_inst_setname);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen)
 {
@@ -1018,7 +1058,7 @@ static void __init crypto_start_tests(void)
 	if (!IS_BUILTIN(CONFIG_CRYPTO_ALGAPI))
 		return;
 
-	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+	if (!IS_ENABLED(CONFIG_CRYPTO_SELFTESTS))
 		return;
 
 	set_crypto_boot_test_finished();

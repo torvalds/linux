@@ -83,6 +83,8 @@ properties:
       by SNVS ONOFF, the driver can report the status of POWER key and wakeup
       system if pressed after system suspend.
 
+    $ref: /schemas/input/input.yaml
+
     properties:
       compatible:
         const: fsl,sec-v4.0-pwrkey
@@ -110,6 +112,9 @@ properties:
       linux,keycodes:
         maxItems: 1
         default: 116
+
+      power-off-time-sec:
+        enum: [0, 5, 10, 15]
 
     required:
       - compatible

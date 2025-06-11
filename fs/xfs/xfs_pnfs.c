@@ -58,8 +58,6 @@ xfs_fs_get_uuid(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
-	xfs_warn_experimental(mp, XFS_EXPERIMENTAL_PNFS);
-
 	if (*len < sizeof(uuid_t))
 		return -EINVAL;
 

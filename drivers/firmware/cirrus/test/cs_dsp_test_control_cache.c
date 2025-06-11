@@ -776,7 +776,6 @@ static void cs_dsp_ctl_cache_init_multiple_offsets(struct kunit *test)
 					      "dummyalg", NULL);
 
 	/* Create controls identical except for offset */
-	def.length_bytes = 8;
 	def.offset_dsp_words = 0;
 	def.shortname = "CtlA";
 	cs_dsp_mock_wmfw_add_coeff_desc(local->wmfw_builder, &def);

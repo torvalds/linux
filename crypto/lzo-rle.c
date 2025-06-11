@@ -9,10 +9,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-struct lzorle_ctx {
-	void *lzorle_comp_mem;
-};
-
 static void *lzorle_alloc_ctx(void)
 {
 	void *ctx;
@@ -95,7 +91,7 @@ static void __exit lzorle_mod_fini(void)
 	crypto_unregister_scomp(&scomp);
 }
 
-subsys_initcall(lzorle_mod_init);
+module_init(lzorle_mod_init);
 module_exit(lzorle_mod_fini);
 
 MODULE_LICENSE("GPL");

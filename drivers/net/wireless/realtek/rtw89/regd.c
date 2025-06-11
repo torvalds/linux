@@ -588,6 +588,38 @@ bottom:
 	kfree(sband);
 }
 
+#define RTW89_DEF_REGD_STR(regd) \
+	[RTW89_ ## regd] = #regd
+
+static const char * const rtw89_regd_string[] = {
+	RTW89_DEF_REGD_STR(WW),
+	RTW89_DEF_REGD_STR(ETSI),
+	RTW89_DEF_REGD_STR(FCC),
+	RTW89_DEF_REGD_STR(MKK),
+	RTW89_DEF_REGD_STR(NA),
+	RTW89_DEF_REGD_STR(IC),
+	RTW89_DEF_REGD_STR(KCC),
+	RTW89_DEF_REGD_STR(ACMA),
+	RTW89_DEF_REGD_STR(NCC),
+	RTW89_DEF_REGD_STR(MEXICO),
+	RTW89_DEF_REGD_STR(CHILE),
+	RTW89_DEF_REGD_STR(UKRAINE),
+	RTW89_DEF_REGD_STR(CN),
+	RTW89_DEF_REGD_STR(QATAR),
+	RTW89_DEF_REGD_STR(UK),
+	RTW89_DEF_REGD_STR(THAILAND),
+};
+
+static_assert(ARRAY_SIZE(rtw89_regd_string) == RTW89_REGD_NUM);
+
+const char *rtw89_regd_get_string(enum rtw89_regulation_type regd)
+{
+	if (regd < 0 || regd >= RTW89_REGD_NUM)
+		return "(unknown)";
+
+	return rtw89_regd_string[regd];
+}
+
 int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
@@ -604,6 +636,7 @@ int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 	}
 
 	regulatory->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+	regulatory->txpwr_uk_follow_etsi = true;
 
 	if (!wiphy)
 		return -EINVAL;
@@ -726,11 +759,22 @@ static void rtw89_regd_apply_policy_tas(struct rtw89_dev *rtwdev)
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	const struct rtw89_regd *regd = regulatory->regd;
 	struct rtw89_tas_info *tas = &rtwdev->tas;
+	u8 tas_country;
 
 	if (!tas->enable)
 		return;
 
-	tas->block_regd = !test_bit(RTW89_REGD_FUNC_TAS, regd->func_bitmap);
+	if (memcmp("US", regd->alpha2, 2) == 0)
+		tas_country = RTW89_ACPI_CONF_TAS_US;
+	else if (memcmp("CA", regd->alpha2, 2) == 0)
+		tas_country = RTW89_ACPI_CONF_TAS_CA;
+	else if (memcmp("KR", regd->alpha2, 2) == 0)
+		tas_country = RTW89_ACPI_CONF_TAS_KR;
+	else
+		tas_country = RTW89_ACPI_CONF_TAS_OTHERS;
+
+	tas->block_regd = !(tas->enabled_countries & tas_country &&
+			    test_bit(RTW89_REGD_FUNC_TAS, regd->func_bitmap));
 }
 
 static void rtw89_regd_apply_policy_ant_gain(struct rtw89_dev *rtwdev)

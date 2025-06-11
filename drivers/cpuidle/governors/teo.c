@@ -19,7 +19,7 @@
  *
  * Of course, non-timer wakeup sources are more important in some use cases,
  * but even then it is generally unnecessary to consider idle duration values
- * greater than the time time till the next timer event, referred as the sleep
+ * greater than the time till the next timer event, referred as the sleep
  * length in what follows, because the closest timer will ultimately wake up the
  * CPU anyway unless it is woken up earlier.
  *
@@ -311,7 +311,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		struct cpuidle_state *s = &drv->states[i];
 
 		/*
-		 * Update the sums of idle state mertics for all of the states
+		 * Update the sums of idle state metrics for all of the states
 		 * shallower than the current one.
 		 */
 		intercept_sum += prev_bin->intercepts;

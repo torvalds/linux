@@ -234,16 +234,12 @@ struct comedi_buf_page {
  *
  * A COMEDI data buffer is allocated as individual pages, either in
  * conventional memory or DMA coherent memory, depending on the attached,
- * low-level hardware device.  (The buffer pages also get mapped into the
- * kernel's contiguous virtual address space pointed to by the 'prealloc_buf'
- * member of &struct comedi_async.)
+ * low-level hardware device.
  *
  * The buffer is normally freed when the COMEDI device is detached from the
  * low-level driver (which may happen due to device removal), but if it happens
  * to be mmapped at the time, the pages cannot be freed until the buffer has
- * been munmapped.  That is what the reference counter is for.  (The virtual
- * address space pointed by 'prealloc_buf' is freed when the COMEDI device is
- * detached.)
+ * been munmapped.  That is what the reference counter is for.
  */
 struct comedi_buf_map {
 	struct device *dma_hw_dev;
@@ -255,7 +251,6 @@ struct comedi_buf_map {
 
 /**
  * struct comedi_async - Control data for asynchronous COMEDI commands
- * @prealloc_buf: Kernel virtual address of allocated acquisition buffer.
  * @prealloc_bufsz: Buffer size (in bytes).
  * @buf_map: Map of buffer pages.
  * @max_bufsize: Maximum allowed buffer size (in bytes).
@@ -344,7 +339,6 @@ struct comedi_buf_map {
  * less than or equal to UINT_MAX).
  */
 struct comedi_async {
-	void *prealloc_buf;
 	unsigned int prealloc_bufsz;
 	struct comedi_buf_map *buf_map;
 	unsigned int max_bufsize;

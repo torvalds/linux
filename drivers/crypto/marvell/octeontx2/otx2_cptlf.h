@@ -105,11 +105,19 @@ struct cpt_hw_ops {
 			      gfp_t gfp);
 };
 
+#define LMTLINE_SIZE  128
+#define LMTLINE_ALIGN 128
+struct otx2_lmt_info {
+	void *base;
+	dma_addr_t iova;
+	u32 size;
+	u8 align;
+};
+
 struct otx2_cptlfs_info {
 	/* Registers start address of VF/PF LFs are attached to */
 	void __iomem *reg_base;
-#define LMTLINE_SIZE  128
-	void __iomem *lmt_base;
+	struct otx2_lmt_info lmt_info;
 	struct pci_dev *pdev;   /* Device LFs are attached to */
 	struct otx2_cptlf_info lf[OTX2_CPT_MAX_LFS_NUM];
 	struct otx2_mbox *mbox;

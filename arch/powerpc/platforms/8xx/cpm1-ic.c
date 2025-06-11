@@ -59,7 +59,7 @@ static int cpm_get_irq(struct irq_desc *desc)
 	cpm_vec = in_be16(&data->reg->cpic_civr);
 	cpm_vec >>= 11;
 
-	return irq_linear_revmap(data->host, cpm_vec);
+	return irq_find_mapping(data->host, cpm_vec);
 }
 
 static void cpm_cascade(struct irq_desc *desc)
@@ -110,7 +110,8 @@ static int cpm_pic_probe(struct platform_device *pdev)
 
 	out_be32(&data->reg->cpic_cimr, 0);
 
-	data->host = irq_domain_add_linear(dev->of_node, 64, &cpm_pic_host_ops, data);
+	data->host = irq_domain_create_linear(of_fwnode_handle(dev->of_node),
+					      64, &cpm_pic_host_ops, data);
 	if (!data->host)
 		return -ENODEV;
 

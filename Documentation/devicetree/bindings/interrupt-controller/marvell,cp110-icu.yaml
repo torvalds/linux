@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/marvell,cp110-icu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+  - Thomas Petazzoni <thomas.petazzoni@bootlin.com>
+
+title: Marvell ICU Interrupt Controller
+
+description:
+  The Marvell ICU (Interrupt Consolidation Unit) controller is responsible for
+  collecting all wired-interrupt sources in the CP and communicating them to the
+  GIC in the AP. The unit translates interrupt requests on input wires to MSG
+  memory mapped transactions to the GIC. These messages access different GIC
+  memory areas depending on their type (NSR, SR, SEI, REI, etc).
+
+properties:
+  compatible:
+    const: marvell,cp110-icu
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+  ranges: true
+
+patternProperties:
+  "^interrupt-controller@":
+    type: object
+    description: Interrupt group child nodes
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - marvell,cp110-icu-nsr
+          - marvell,cp110-icu-sr
+          - marvell,cp110-icu-sei
+          - marvell,cp110-icu-rei
+
+      reg:
+        maxItems: 1
+
+      '#interrupt-cells':
+        const: 2
+
+      interrupt-controller: true
+
+      msi-parent:
+        maxItems: 1
+        description: Phandle to the GICP controller
+
+    required:
+      - compatible
+      - reg
+      - '#interrupt-cells'
+      - interrupt-controller
+      - msi-parent
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@1e0000 {
+        compatible = "marvell,cp110-icu";
+        reg = <0x1e0000 0x440>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        interrupt-controller@10 {
+                compatible = "marvell,cp110-icu-nsr";
+                reg = <0x10 0x20>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                msi-parent = <&gicp>;
+        };
+
+        interrupt-controller@50 {
+                compatible = "marvell,cp110-icu-sei";
+                reg = <0x50 0x10>;
+                #interrupt-cells = <2>;
+                interrupt-controller;
+                msi-parent = <&sei>;
+        };
+    };

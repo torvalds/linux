@@ -7,23 +7,20 @@
 # real test to check that the kernel is configured to support at least 5
 # pagetable levels.
 
-# 1 means the test failed
-exitcode=1
-
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-fail()
+skip()
 {
 	echo "$1"
-	exit $exitcode
+	exit $ksft_skip
 }
 
 check_supported_x86_64()
 {
 	local config="/proc/config.gz"
 	[[ -f "${config}" ]] || config="/boot/config-$(uname -r)"
-	[[ -f "${config}" ]] || fail "Cannot find kernel config in /proc or /boot"
+	[[ -f "${config}" ]] || skip "Cannot find kernel config in /proc or /boot"
 
 	# gzip -dcfq automatically handles both compressed and plaintext input.
 	# See man 1 gzip under '-f'.
@@ -33,11 +30,9 @@ check_supported_x86_64()
 		else {print 1}; exit}' /proc/cpuinfo 2>/dev/null)
 
 	if [[ "${pg_table_levels}" -lt 5 ]]; then
-		echo "$0: PGTABLE_LEVELS=${pg_table_levels}, must be >= 5 to run this test"
-		exit $ksft_skip
+		skip "$0: PGTABLE_LEVELS=${pg_table_levels}, must be >= 5 to run this test"
 	elif [[ "${cpu_supports_pl5}" -ne 0 ]]; then
-		echo "$0: CPU does not have the necessary la57 flag to support page table level 5"
-		exit $ksft_skip
+		skip "$0: CPU does not have the necessary la57 flag to support page table level 5"
 	fi
 }
 
@@ -45,24 +40,21 @@ check_supported_ppc64()
 {
 	local config="/proc/config.gz"
 	[[ -f "${config}" ]] || config="/boot/config-$(uname -r)"
-	[[ -f "${config}" ]] || fail "Cannot find kernel config in /proc or /boot"
+	[[ -f "${config}" ]] || skip "Cannot find kernel config in /proc or /boot"
 
 	local pg_table_levels=$(gzip -dcfq "${config}" | grep PGTABLE_LEVELS | cut -d'=' -f 2)
 	if [[ "${pg_table_levels}" -lt 5 ]]; then
-		echo "$0: PGTABLE_LEVELS=${pg_table_levels}, must be >= 5 to run this test"
-		exit $ksft_skip
+		skip "$0: PGTABLE_LEVELS=${pg_table_levels}, must be >= 5 to run this test"
 	fi
 
 	local mmu_support=$(grep -m1 "mmu" /proc/cpuinfo | awk '{print $3}')
 	if [[ "$mmu_support" != "radix" ]]; then
-		echo "$0: System does not use Radix MMU, required for 5-level paging"
-		exit $ksft_skip
+		skip "$0: System does not use Radix MMU, required for 5-level paging"
 	fi
 
 	local hugepages_total=$(awk '/HugePages_Total/ {print $2}' /proc/meminfo)
 	if [[ "${hugepages_total}" -eq 0 ]]; then
-		echo "$0: HugePages are not enabled, required for some tests"
-		exit $ksft_skip
+		skip "$0: HugePages are not enabled, required for some tests"
 	fi
 }
 

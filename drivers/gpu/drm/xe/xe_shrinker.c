@@ -227,7 +227,7 @@ struct xe_shrinker *xe_shrinker_create(struct xe_device *xe)
 	if (!shrinker)
 		return ERR_PTR(-ENOMEM);
 
-	shrinker->shrink = shrinker_alloc(0, "xe system shrinker");
+	shrinker->shrink = shrinker_alloc(0, "drm-xe_gem:%s", xe->drm.unique);
 	if (!shrinker->shrink) {
 		kfree(shrinker);
 		return ERR_PTR(-ENOMEM);

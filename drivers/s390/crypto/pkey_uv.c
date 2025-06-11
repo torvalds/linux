@@ -21,6 +21,12 @@ MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("s390 protected key UV handler");
 
 /*
+ * One pre-allocated uv_secret_list for use with uv_find_secret()
+ */
+static struct uv_secret_list *uv_list;
+static DEFINE_MUTEX(uv_list_mutex);
+
+/*
  * UV secret token struct and defines.
  */
 
@@ -85,13 +91,26 @@ static bool is_uv_keytype(enum pkey_key_type keytype)
 	}
 }
 
+static int get_secret_metadata(const u8 secret_id[UV_SECRET_ID_LEN],
+			       struct uv_secret_list_item_hdr *secret)
+{
+	int rc;
+
+	mutex_lock(&uv_list_mutex);
+	memset(uv_list, 0, sizeof(*uv_list));
+	rc = uv_find_secret(secret_id, uv_list, secret);
+	mutex_unlock(&uv_list_mutex);
+
+	return rc;
+}
+
 static int retrieve_secret(const u8 secret_id[UV_SECRET_ID_LEN],
 			   u16 *secret_type, u8 *buf, u32 *buflen)
 {
 	struct uv_secret_list_item_hdr secret_meta_data;
 	int rc;
 
-	rc = uv_get_secret_metadata(secret_id, &secret_meta_data);
+	rc = get_secret_metadata(secret_id, &secret_meta_data);
 	if (rc)
 		return rc;
 
@@ -172,7 +191,8 @@ static int uv_get_size_and_type(u16 secret_type, u32 *pkeysize, u32 *pkeytype)
 static int uv_key2protkey(const struct pkey_apqn *_apqns __always_unused,
 			  size_t _nr_apqns __always_unused,
 			  const u8 *key, u32 keylen,
-			  u8 *protkey, u32 *protkeylen, u32 *keyinfo)
+			  u8 *protkey, u32 *protkeylen, u32 *keyinfo,
+			  u32 _xflags __always_unused)
 {
 	struct uvsecrettoken *t = (struct uvsecrettoken *)key;
 	u32 pkeysize, pkeytype;
@@ -214,7 +234,8 @@ out:
 static int uv_verifykey(const u8 *key, u32 keylen,
 			u16 *_card __always_unused,
 			u16 *_dom __always_unused,
-			u32 *keytype, u32 *keybitsize, u32 *flags)
+			u32 *keytype, u32 *keybitsize, u32 *flags,
+			u32 xflags __always_unused)
 {
 	struct uvsecrettoken *t = (struct uvsecrettoken *)key;
 	struct uv_secret_list_item_hdr secret_meta_data;
@@ -225,7 +246,7 @@ static int uv_verifykey(const u8 *key, u32 keylen,
 	if (rc)
 		goto out;
 
-	rc = uv_get_secret_metadata(t->secret_id, &secret_meta_data);
+	rc = get_secret_metadata(t->secret_id, &secret_meta_data);
 	if (rc)
 		goto out;
 
@@ -263,13 +284,23 @@ static struct pkey_handler uv_handler = {
  */
 static int __init pkey_uv_init(void)
 {
+	int rc;
+
 	if (!is_prot_virt_guest())
 		return -ENODEV;
 
 	if (!test_bit_inv(BIT_UVC_CMD_RETR_SECRET, uv_info.inst_calls_list))
 		return -ENODEV;
 
-	return pkey_handler_register(&uv_handler);
+	uv_list = kmalloc(sizeof(*uv_list), GFP_KERNEL);
+	if (!uv_list)
+		return -ENOMEM;
+
+	rc = pkey_handler_register(&uv_handler);
+	if (rc)
+		kfree(uv_list);
+
+	return rc;
 }
 
 /*
@@ -278,6 +309,9 @@ static int __init pkey_uv_init(void)
 static void __exit pkey_uv_exit(void)
 {
 	pkey_handler_unregister(&uv_handler);
+	mutex_lock(&uv_list_mutex);
+	kvfree(uv_list);
+	mutex_unlock(&uv_list_mutex);
 }
 
 module_cpu_feature_match(S390_CPU_FEATURE_UV, pkey_uv_init);

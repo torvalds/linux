@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef __LINUX_NEIGHBOUR_H
-#define __LINUX_NEIGHBOUR_H
+#ifndef _UAPI__LINUX_NEIGHBOUR_H
+#define _UAPI__LINUX_NEIGHBOUR_H
 
 #include <linux/types.h>
 #include <linux/netlink.h>

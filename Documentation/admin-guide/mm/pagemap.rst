@@ -250,6 +250,7 @@ Following flags about pages are currently supported:
 - ``PAGE_IS_PFNZERO`` - Page has zero PFN
 - ``PAGE_IS_HUGE`` - Page is PMD-mapped THP or Hugetlb backed
 - ``PAGE_IS_SOFT_DIRTY`` - Page is soft-dirty
+- ``PAGE_IS_GUARD`` - Page is a part of a guard region
 
 The ``struct pm_scan_arg`` is used as the argument of the IOCTL.
 

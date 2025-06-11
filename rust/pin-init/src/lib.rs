@@ -32,6 +32,12 @@
 //! will require the `std` feature, because stable compilers have neither `Box` nor `Arc` in no-std
 //! mode.
 //!
+//! ## Nightly needed for `unsafe-pinned` feature
+//!
+//! This feature enables the `Wrapper` implementation on the unstable `core::pin::UnsafePinned` type.
+//! This requires the [`unsafe_pinned` unstable feature](https://github.com/rust-lang/rust/issues/125735)
+//! and therefore a nightly compiler. Note that this feature is not enabled by default.
+//!
 //! # Overview
 //!
 //! To initialize a `struct` with an in-place constructor you will need two things:
@@ -241,7 +247,7 @@
 //! [`sync`]: https://rust.docs.kernel.org/kernel/sync/index.html
 //! [pinning]: https://doc.rust-lang.org/std/pin/index.html
 //! [structurally pinned fields]:
-//!     https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
+//!     https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning
 //! [stack]: crate::stack_pin_init
 #![cfg_attr(
     kernel,
@@ -269,6 +275,10 @@
 #![forbid(missing_docs, unsafe_op_in_unsafe_fn)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "alloc", feature(allocator_api))]
+#![cfg_attr(
+    all(feature = "unsafe-pinned", CONFIG_RUSTC_HAS_UNSAFE_PINNED),
+    feature(unsafe_pinned)
+)]
 
 use core::{
     cell::UnsafeCell,
@@ -385,9 +395,10 @@ pub use ::pin_init_internal::pin_data;
 /// ```
 pub use ::pin_init_internal::pinned_drop;
 
-/// Derives the [`Zeroable`] trait for the given struct.
+/// Derives the [`Zeroable`] trait for the given `struct` or `union`.
 ///
-/// This can only be used for structs where every field implements the [`Zeroable`] trait.
+/// This can only be used for `struct`s/`union`s where every field implements the [`Zeroable`]
+/// trait.
 ///
 /// # Examples
 ///
@@ -396,12 +407,53 @@ pub use ::pin_init_internal::pinned_drop;
 ///
 /// #[derive(Zeroable)]
 /// pub struct DriverData {
-///     id: i64,
+///     pub(crate) id: i64,
 ///     buf_ptr: *mut u8,
 ///     len: usize,
 /// }
 /// ```
+///
+/// ```
+/// use pin_init::Zeroable;
+///
+/// #[derive(Zeroable)]
+/// pub union SignCast {
+///     signed: i64,
+///     unsigned: u64,
+/// }
+/// ```
 pub use ::pin_init_internal::Zeroable;
+
+/// Derives the [`Zeroable`] trait for the given `struct` or `union` if all fields implement
+/// [`Zeroable`].
+///
+/// Contrary to the derive macro named [`macro@Zeroable`], this one silently fails when a field
+/// doesn't implement [`Zeroable`].
+///
+/// # Examples
+///
+/// ```
+/// use pin_init::MaybeZeroable;
+///
+/// // implmements `Zeroable`
+/// #[derive(MaybeZeroable)]
+/// pub struct DriverData {
+///     pub(crate) id: i64,
+///     buf_ptr: *mut u8,
+///     len: usize,
+/// }
+///
+/// // does not implmement `Zeroable`
+/// #[derive(MaybeZeroable)]
+/// pub struct DriverData2 {
+///     pub(crate) id: i64,
+///     buf_ptr: *mut u8,
+///     len: usize,
+///     // this field doesn't implement `Zeroable`
+///     other_data: &'static i32,
+/// }
+/// ```
+pub use ::pin_init_internal::MaybeZeroable;
 
 /// Initialize and pin a type directly on the stack.
 ///
@@ -1216,6 +1268,38 @@ pub const unsafe fn init_from_closure<T: ?Sized, E>(
     __internal::InitClosure(f, PhantomData)
 }
 
+/// Changes the to be initialized type.
+///
+/// # Safety
+///
+/// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
+///   pointer must result in a valid `U`.
+#[expect(clippy::let_and_return)]
+pub const unsafe fn cast_pin_init<T, U, E>(init: impl PinInit<T, E>) -> impl PinInit<U, E> {
+    // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
+    // requirements.
+    let res = unsafe { pin_init_from_closure(|ptr: *mut U| init.__pinned_init(ptr.cast::<T>())) };
+    // FIXME: remove the let statement once the nightly-MSRV allows it (1.78 otherwise encounters a
+    // cycle when computing the type returned by this function)
+    res
+}
+
+/// Changes the to be initialized type.
+///
+/// # Safety
+///
+/// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
+///   pointer must result in a valid `U`.
+#[expect(clippy::let_and_return)]
+pub const unsafe fn cast_init<T, U, E>(init: impl Init<T, E>) -> impl Init<U, E> {
+    // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
+    // requirements.
+    let res = unsafe { init_from_closure(|ptr: *mut U| init.__init(ptr.cast::<T>())) };
+    // FIXME: remove the let statement once the nightly-MSRV allows it (1.78 otherwise encounters a
+    // cycle when computing the type returned by this function)
+    res
+}
+
 /// An initializer that leaves the memory uninitialized.
 ///
 /// The initializer is a no-op. The `slot` memory is not changed.
@@ -1481,3 +1565,55 @@ macro_rules! impl_tuple_zeroable {
 }
 
 impl_tuple_zeroable!(A, B, C, D, E, F, G, H, I, J);
+
+/// This trait allows creating an instance of `Self` which contains exactly one
+/// [structurally pinned value](https://doc.rust-lang.org/std/pin/index.html#projections-and-structural-pinning).
+///
+/// This is useful when using wrapper `struct`s like [`UnsafeCell`] or with new-type `struct`s.
+///
+/// # Examples
+///
+/// ```
+/// # use core::cell::UnsafeCell;
+/// # use pin_init::{pin_data, pin_init, Wrapper};
+///
+/// #[pin_data]
+/// struct Foo {}
+///
+/// #[pin_data]
+/// struct Bar {
+///     #[pin]
+///     content: UnsafeCell<Foo>
+/// };
+///
+/// let foo_initializer = pin_init!(Foo{});
+/// let initializer = pin_init!(Bar {
+///     content <- UnsafeCell::pin_init(foo_initializer)
+/// });
+/// ```
+pub trait Wrapper<T> {
+    /// Creates an pin-initializer for a [`Self`] containing `T` from the `value_init` initializer.
+    fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E>;
+}
+
+impl<T> Wrapper<T> for UnsafeCell<T> {
+    fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
+        // SAFETY: `UnsafeCell<T>` has a compatible layout to `T`.
+        unsafe { cast_pin_init(value_init) }
+    }
+}
+
+impl<T> Wrapper<T> for MaybeUninit<T> {
+    fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
+        // SAFETY: `MaybeUninit<T>` has a compatible layout to `T`.
+        unsafe { cast_pin_init(value_init) }
+    }
+}
+
+#[cfg(all(feature = "unsafe-pinned", CONFIG_RUSTC_HAS_UNSAFE_PINNED))]
+impl<T> Wrapper<T> for core::pin::UnsafePinned<T> {
+    fn pin_init<E>(init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
+        // SAFETY: `UnsafePinned<T>` has a compatible layout to `T`.
+        unsafe { cast_pin_init(init) }
+    }
+}

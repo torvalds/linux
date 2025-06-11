@@ -48,47 +48,19 @@ struct hfsplus_wd {
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		       void *buf, void **data, blk_opf_t opf)
 {
-	const enum req_op op = opf & REQ_OP_MASK;
-	struct bio *bio;
-	int ret = 0;
-	u64 io_size;
-	loff_t start;
-	int offset;
+	u64 io_size = hfsplus_min_io_size(sb);
+	loff_t start = (loff_t)sector << HFSPLUS_SECTOR_SHIFT;
+	int offset = start & (io_size - 1);
 
-	/*
-	 * Align sector to hardware sector size and find offset. We
-	 * assume that io_size is a power of two, which _should_
-	 * be true.
-	 */
-	io_size = hfsplus_min_io_size(sb);
-	start = (loff_t)sector << HFSPLUS_SECTOR_SHIFT;
-	offset = start & (io_size - 1);
-	sector &= ~((io_size >> HFSPLUS_SECTOR_SHIFT) - 1);
-
-	bio = bio_alloc(sb->s_bdev, 1, opf, GFP_NOIO);
-	bio->bi_iter.bi_sector = sector;
-
-	if (op != REQ_OP_WRITE && data)
+	if ((opf & REQ_OP_MASK) != REQ_OP_WRITE && data)
 		*data = (u8 *)buf + offset;
 
-	while (io_size > 0) {
-		unsigned int page_offset = offset_in_page(buf);
-		unsigned int len = min_t(unsigned int, PAGE_SIZE - page_offset,
-					 io_size);
-
-		ret = bio_add_page(bio, virt_to_page(buf), len, page_offset);
-		if (ret != len) {
-			ret = -EIO;
-			goto out;
-		}
-		io_size -= len;
-		buf = (u8 *)buf + len;
-	}
-
-	ret = submit_bio_wait(bio);
-out:
-	bio_put(bio);
-	return ret < 0 ? ret : 0;
+	/*
+	 * Align sector to hardware sector size and find offset. We assume that
+	 * io_size is a power of two, which _should_ be true.
+	 */
+	sector &= ~((io_size >> HFSPLUS_SECTOR_SHIFT) - 1);
+	return bdev_rw_virt(sb->s_bdev, sector, buf, io_size, opf);
 }
 
 static int hfsplus_read_mdb(void *bufptr, struct hfsplus_wd *wd)

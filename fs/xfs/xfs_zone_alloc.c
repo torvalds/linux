@@ -24,6 +24,7 @@
 #include "xfs_zone_priv.h"
 #include "xfs_zones.h"
 #include "xfs_trace.h"
+#include "xfs_mru_cache.h"
 
 void
 xfs_open_zone_put(
@@ -796,6 +797,100 @@ xfs_submit_zoned_bio(
 	submit_bio(&ioend->io_bio);
 }
 
+/*
+ * Cache the last zone written to for an inode so that it is considered first
+ * for subsequent writes.
+ */
+struct xfs_zone_cache_item {
+	struct xfs_mru_cache_elem	mru;
+	struct xfs_open_zone		*oz;
+};
+
+static inline struct xfs_zone_cache_item *
+xfs_zone_cache_item(struct xfs_mru_cache_elem *mru)
+{
+	return container_of(mru, struct xfs_zone_cache_item, mru);
+}
+
+static void
+xfs_zone_cache_free_func(
+	void				*data,
+	struct xfs_mru_cache_elem	*mru)
+{
+	struct xfs_zone_cache_item	*item = xfs_zone_cache_item(mru);
+
+	xfs_open_zone_put(item->oz);
+	kfree(item);
+}
+
+/*
+ * Check if we have a cached last open zone available for the inode and
+ * if yes return a reference to it.
+ */
+static struct xfs_open_zone *
+xfs_cached_zone(
+	struct xfs_mount		*mp,
+	struct xfs_inode		*ip)
+{
+	struct xfs_mru_cache_elem	*mru;
+	struct xfs_open_zone		*oz;
+
+	mru = xfs_mru_cache_lookup(mp->m_zone_cache, ip->i_ino);
+	if (!mru)
+		return NULL;
+	oz = xfs_zone_cache_item(mru)->oz;
+	if (oz) {
+		/*
+		 * GC only steals open zones at mount time, so no GC zones
+		 * should end up in the cache.
+		 */
+		ASSERT(!oz->oz_is_gc);
+		ASSERT(atomic_read(&oz->oz_ref) > 0);
+		atomic_inc(&oz->oz_ref);
+	}
+	xfs_mru_cache_done(mp->m_zone_cache);
+	return oz;
+}
+
+/*
+ * Update the last used zone cache for a given inode.
+ *
+ * The caller must have a reference on the open zone.
+ */
+static void
+xfs_zone_cache_create_association(
+	struct xfs_inode		*ip,
+	struct xfs_open_zone		*oz)
+{
+	struct xfs_mount		*mp = ip->i_mount;
+	struct xfs_zone_cache_item	*item = NULL;
+	struct xfs_mru_cache_elem	*mru;
+
+	ASSERT(atomic_read(&oz->oz_ref) > 0);
+	atomic_inc(&oz->oz_ref);
+
+	mru = xfs_mru_cache_lookup(mp->m_zone_cache, ip->i_ino);
+	if (mru) {
+		/*
+		 * If we have an association already, update it to point to the
+		 * new zone.
+		 */
+		item = xfs_zone_cache_item(mru);
+		xfs_open_zone_put(item->oz);
+		item->oz = oz;
+		xfs_mru_cache_done(mp->m_zone_cache);
+		return;
+	}
+
+	item = kmalloc(sizeof(*item), GFP_KERNEL);
+	if (!item) {
+		xfs_open_zone_put(oz);
+		return;
+	}
+	item->oz = oz;
+	xfs_mru_cache_insert(mp->m_zone_cache, ip->i_ino, &item->mru);
+}
+
 void
 xfs_zone_alloc_and_submit(
 	struct iomap_ioend	*ioend,
@@ -819,11 +914,16 @@ xfs_zone_alloc_and_submit(
 	 */
 	if (!*oz && ioend->io_offset)
 		*oz = xfs_last_used_zone(ioend);
+	if (!*oz)
+		*oz = xfs_cached_zone(mp, ip);
+
 	if (!*oz) {
 select_zone:
 		*oz = xfs_select_zone(mp, write_hint, pack_tight);
 		if (!*oz)
 			goto out_error;
+
+		xfs_zone_cache_create_association(ip, *oz);
 	}
 
 	alloc_len = xfs_zone_alloc_blocks(*oz, XFS_B_TO_FSB(mp, ioend->io_size),
@@ -1211,6 +1311,14 @@ xfs_mount_zones(
 	error = xfs_zone_gc_mount(mp);
 	if (error)
 		goto out_free_zone_info;
+
+	/*
+	 * Set up a mru cache to track inode to open zone for data placement
+	 * purposes. The magic values for group count and life time is the
+	 * same as the defaults for file streams, which seems sane enough.
+	 */
+	xfs_mru_cache_create(&mp->m_zone_cache, mp,
+			5000, 10, xfs_zone_cache_free_func);
 	return 0;
 
 out_free_zone_info:
@@ -1224,4 +1332,5 @@ xfs_unmount_zones(
 {
 	xfs_zone_gc_unmount(mp);
 	xfs_free_zone_info(mp->m_zone_info);
+	xfs_mru_cache_destroy(mp->m_zone_cache);
 }

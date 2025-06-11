@@ -225,11 +225,10 @@ static int snd_aw2_create(struct snd_card *card,
 	chip->irq = -1;
 
 	/* (1) PCI resource allocation */
-	err = pcim_iomap_regions(pci, 1 << 0, "Audiowerk2");
-	if (err < 0)
-		return err;
+	chip->iobase_virt = pcim_iomap_region(pci, 0, "Audiowerk2");
+	if (IS_ERR(chip->iobase_virt))
+		return PTR_ERR(chip->iobase_virt);
 	chip->iobase_phys = pci_resource_start(pci, 0);
-	chip->iobase_virt = pcim_iomap_table(pci)[0];
 
 	/* (2) initialization of the chip hardware */
 	snd_aw2_saa7146_setup(&chip->saa7146, chip->iobase_virt);

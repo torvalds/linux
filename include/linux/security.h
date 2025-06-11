@@ -563,7 +563,6 @@ int security_setselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
 int security_getprocattr(struct task_struct *p, int lsmid, const char *name,
 			 char **value);
 int security_setprocattr(int lsmid, const char *name, void *value, size_t size);
-int security_netlink_send(struct sock *sk, struct sk_buff *skb);
 int security_ismaclabel(const char *name);
 int security_secid_to_secctx(u32 secid, struct lsm_context *cp);
 int security_lsmprop_to_secctx(struct lsm_prop *prop, struct lsm_context *cp);
@@ -1527,11 +1526,6 @@ static inline int security_setprocattr(int lsmid, char *name, void *value,
 	return -EINVAL;
 }
 
-static inline int security_netlink_send(struct sock *sk, struct sk_buff *skb)
-{
-	return 0;
-}
-
 static inline int security_ismaclabel(const char *name)
 {
 	return 0;
@@ -1629,6 +1623,7 @@ static inline int security_watch_key(struct key *key)
 
 #ifdef CONFIG_SECURITY_NETWORK
 
+int security_netlink_send(struct sock *sk, struct sk_buff *skb);
 int security_unix_stream_connect(struct sock *sock, struct sock *other, struct sock *newsk);
 int security_unix_may_send(struct socket *sock,  struct socket *other);
 int security_socket_create(int family, int type, int protocol, int kern);
@@ -1684,6 +1679,11 @@ int security_sctp_assoc_established(struct sctp_association *asoc,
 int security_mptcp_add_subflow(struct sock *sk, struct sock *ssk);
 
 #else	/* CONFIG_SECURITY_NETWORK */
+static inline int security_netlink_send(struct sock *sk, struct sk_buff *skb)
+{
+	return 0;
+}
+
 static inline int security_unix_stream_connect(struct sock *sock,
 					       struct sock *other,
 					       struct sock *newsk)

@@ -281,6 +281,30 @@ config EFI_EMBEDDED_FIRMWARE
 	bool
 	select CRYPTO_LIB_SHA256
 
+config EFI_SBAT
+       def_bool y if EFI_SBAT_FILE!=""
+
+config EFI_SBAT_FILE
+	string "Embedded SBAT section file path"
+	depends on EFI_ZBOOT
+	help
+	  SBAT section provides a way to improve SecureBoot revocations of UEFI
+	  binaries by introducing a generation-based mechanism. With SBAT, older
+	  UEFI binaries can be prevented from booting by bumping the minimal
+	  required generation for the specific component in the bootloader.
+
+	  Note: SBAT information is distribution specific, i.e. the owner of the
+	  signing SecureBoot certificate must define the SBAT policy. Linux
+	  kernel upstream does not define SBAT components and their generations.
+
+	  See https://github.com/rhboot/shim/blob/main/SBAT.md for the additional
+	  details.
+
+	  Specify a file with SBAT data which is going to be embedded as '.sbat'
+	  section into the kernel.
+
+	  If unsure, leave blank.
+
 endmenu
 
 config UEFI_CPER

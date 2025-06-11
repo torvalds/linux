@@ -222,18 +222,27 @@ static const struct file_operations mt7996_sys_recovery_ops = {
 static int
 mt7996_radar_trigger(void *data, u64 val)
 {
+#define RADAR_MAIN_CHAIN	1
+#define RADAR_BACKGROUND	2
 	struct mt7996_dev *dev = data;
+	struct mt7996_phy *phy = mt7996_band_phy(dev, NL80211_BAND_5GHZ);
+	int rdd_idx;
 
-	if (val > MT_RX_SEL2)
+	if (!phy || !val || val > RADAR_BACKGROUND)
 		return -EINVAL;
 
-	if (val == MT_RX_SEL2 && !dev->rdd2_phy) {
+	if (val == RADAR_BACKGROUND && !dev->rdd2_phy) {
 		dev_err(dev->mt76.dev, "Background radar is not enabled\n");
 		return -EINVAL;
 	}
 
-	return mt7996_mcu_rdd_cmd(dev, RDD_RADAR_EMULATE,
-				  val, 0, 0);
+	rdd_idx = mt7996_get_rdd_idx(phy, val == RADAR_BACKGROUND);
+	if (rdd_idx < 0) {
+		dev_err(dev->mt76.dev, "No RDD found\n");
+		return -EINVAL;
+	}
+
+	return mt7996_mcu_rdd_cmd(dev, RDD_RADAR_EMULATE, rdd_idx, 0);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_radar_trigger, NULL,

@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 
-#include <stdio.h>
+#include <cpuid.h>
+#include <err.h>
+#include <getopt.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 
 #define ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 #define min(a, b)	(((a) < (b)) ? (a) : (b))
+#define __noreturn	__attribute__((__noreturn__))
 
 typedef unsigned int u32;
 typedef unsigned long long u64;
@@ -49,7 +52,7 @@ static const char * const reg_names[] = {
 struct subleaf {
 	u32 index;
 	u32 sub;
-	u32 eax, ebx, ecx, edx;
+	u32 output[NR_REGS];
 	struct reg_desc info[NR_REGS];
 };
 
@@ -63,21 +66,64 @@ struct cpuid_func {
 	int nr;
 };
 
+enum range_index {
+	RANGE_STD = 0,			/* Standard */
+	RANGE_EXT = 0x80000000,		/* Extended */
+	RANGE_TSM = 0x80860000,		/* Transmeta */
+	RANGE_CTR = 0xc0000000,		/* Centaur/Zhaoxin */
+};
+
+#define CPUID_INDEX_MASK		0xffff0000
+#define CPUID_FUNCTION_MASK		(~CPUID_INDEX_MASK)
+
 struct cpuid_range {
 	/* array of main leafs */
 	struct cpuid_func *funcs;
 	/* number of valid leafs */
 	int nr;
-	bool is_ext;
+	enum range_index index;
 };
 
-/*
- * basic:  basic functions range: [0... ]
- * ext:    extended functions range: [0x80000000... ]
- */
-struct cpuid_range *leafs_basic, *leafs_ext;
+static struct cpuid_range ranges[] = {
+	{	.index		= RANGE_STD,	},
+	{	.index		= RANGE_EXT,	},
+	{	.index		= RANGE_TSM,	},
+	{	.index		= RANGE_CTR,	},
+};
 
-static bool is_amd;
+static char *range_to_str(struct cpuid_range *range)
+{
+	switch (range->index) {
+	case RANGE_STD:		return "Standard";
+	case RANGE_EXT:		return "Extended";
+	case RANGE_TSM:		return "Transmeta";
+	case RANGE_CTR:		return "Centaur";
+	default:		return NULL;
+	}
+}
+
+#define __for_each_cpuid_range(range, __condition)				\
+	for (unsigned int i = 0;						\
+	     i < ARRAY_SIZE(ranges) && ((range) = &ranges[i]) && (__condition);	\
+	     i++)
+
+#define for_each_valid_cpuid_range(range)	__for_each_cpuid_range(range, (range)->nr != 0)
+#define for_each_cpuid_range(range)		__for_each_cpuid_range(range, true)
+
+struct cpuid_range *index_to_cpuid_range(u32 index)
+{
+	u32 func_idx = index & CPUID_FUNCTION_MASK;
+	u32 range_idx = index & CPUID_INDEX_MASK;
+	struct cpuid_range *range;
+
+	for_each_valid_cpuid_range(range) {
+		if (range->index == range_idx && (u32)range->nr > func_idx)
+			return range;
+	}
+
+	return NULL;
+}
+
 static bool show_details;
 static bool show_raw;
 static bool show_flags_only = true;
@@ -85,16 +131,16 @@ static u32 user_index = 0xFFFFFFFF;
 static u32 user_sub = 0xFFFFFFFF;
 static int flines;
 
-static inline void cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
-{
-	/* ecx is often an input as well as an output. */
-	asm volatile("cpuid"
-	    : "=a" (*eax),
-	      "=b" (*ebx),
-	      "=c" (*ecx),
-	      "=d" (*edx)
-	    : "0" (*eax), "2" (*ecx));
-}
+/*
+ * Force using <cpuid.h> __cpuid_count() instead of __cpuid(). The
+ * latter leaves ECX uninitialized, which can break CPUID queries.
+ */
+
+#define cpuid(leaf, a, b, c, d)				\
+	__cpuid_count(leaf, 0, a, b, c, d)
+
+#define cpuid_count(leaf, subleaf, a, b, c, d)		\
+	__cpuid_count(leaf, subleaf, a, b, c, d)
 
 static inline bool has_subleafs(u32 f)
 {
@@ -117,11 +163,11 @@ static void leaf_print_raw(struct subleaf *leaf)
 		if (leaf->sub == 0)
 			printf("0x%08x: subleafs:\n", leaf->index);
 
-		printf(" %2d: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n",
-			leaf->sub, leaf->eax, leaf->ebx, leaf->ecx, leaf->edx);
+		printf(" %2d: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n", leaf->sub,
+		       leaf->output[0], leaf->output[1], leaf->output[2], leaf->output[3]);
 	} else {
-		printf("0x%08x: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n",
-			leaf->index, leaf->eax, leaf->ebx, leaf->ecx, leaf->edx);
+		printf("0x%08x: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n", leaf->index,
+		       leaf->output[0], leaf->output[1], leaf->output[2], leaf->output[3]);
 	}
 }
 
@@ -140,19 +186,19 @@ static bool cpuid_store(struct cpuid_range *range, u32 f, int subleaf,
 	 * Cut off vendor-prefix from CPUID function as we're using it as an
 	 * index into ->funcs.
 	 */
-	func = &range->funcs[f & 0xffff];
+	func = &range->funcs[f & CPUID_FUNCTION_MASK];
 
 	if (!func->leafs) {
 		func->leafs = malloc(sizeof(struct subleaf));
 		if (!func->leafs)
-			perror("malloc func leaf");
+			err(EXIT_FAILURE, NULL);
 
 		func->nr = 1;
 	} else {
 		s = func->nr;
 		func->leafs = realloc(func->leafs, (s + 1) * sizeof(*leaf));
 		if (!func->leafs)
-			perror("realloc f->leafs");
+			err(EXIT_FAILURE, NULL);
 
 		func->nr++;
 	}
@@ -161,83 +207,72 @@ static bool cpuid_store(struct cpuid_range *range, u32 f, int subleaf,
 
 	leaf->index = f;
 	leaf->sub = subleaf;
-	leaf->eax = a;
-	leaf->ebx = b;
-	leaf->ecx = c;
-	leaf->edx = d;
+	leaf->output[R_EAX] = a;
+	leaf->output[R_EBX] = b;
+	leaf->output[R_ECX] = c;
+	leaf->output[R_EDX] = d;
 
 	return false;
 }
 
 static void raw_dump_range(struct cpuid_range *range)
 {
-	u32 f;
-	int i;
-
-	printf("%s Leafs :\n", range->is_ext ? "Extended" : "Basic");
+	printf("%s Leafs :\n", range_to_str(range));
 	printf("================\n");
 
-	for (f = 0; (int)f < range->nr; f++) {
+	for (u32 f = 0; (int)f < range->nr; f++) {
 		struct cpuid_func *func = &range->funcs[f];
-		u32 index = f;
-
-		if (range->is_ext)
-			index += 0x80000000;
 
 		/* Skip leaf without valid items */
 		if (!func->nr)
 			continue;
 
 		/* First item is the main leaf, followed by all subleafs */
-		for (i = 0; i < func->nr; i++)
+		for (int i = 0; i < func->nr; i++)
 			leaf_print_raw(&func->leafs[i]);
 	}
 }
 
 #define MAX_SUBLEAF_NUM		64
-struct cpuid_range *setup_cpuid_range(u32 input_eax)
+#define MAX_RANGE_INDEX_OFFSET	0xff
+void setup_cpuid_range(struct cpuid_range *range)
 {
-	u32 max_func, idx_func, subleaf, max_subleaf;
-	u32 eax, ebx, ecx, edx, f = input_eax;
-	struct cpuid_range *range;
-	bool allzero;
+	u32 max_func, range_funcs_sz;
+	u32 eax, ebx, ecx, edx;
 
-	eax = input_eax;
-	ebx = ecx = edx = 0;
+	cpuid(range->index, max_func, ebx, ecx, edx);
 
-	cpuid(&eax, &ebx, &ecx, &edx);
-	max_func = eax;
-	idx_func = (max_func & 0xffff) + 1;
+	/*
+	 * If the CPUID range's maximum function value is garbage, then it
+	 * is not recognized by this CPU.  Set the range's number of valid
+	 * leaves to zero so that for_each_valid_cpu_range() can ignore it.
+	 */
+	if (max_func < range->index || max_func > (range->index + MAX_RANGE_INDEX_OFFSET)) {
+		range->nr = 0;
+		return;
+	}
 
-	range = malloc(sizeof(struct cpuid_range));
-	if (!range)
-		perror("malloc range");
+	range->nr = (max_func & CPUID_FUNCTION_MASK) + 1;
+	range_funcs_sz = range->nr * sizeof(struct cpuid_func);
 
-	if (input_eax & 0x80000000)
-		range->is_ext = true;
-	else
-		range->is_ext = false;
-
-	range->funcs = malloc(sizeof(struct cpuid_func) * idx_func);
+	range->funcs = malloc(range_funcs_sz);
 	if (!range->funcs)
-		perror("malloc range->funcs");
+		err(EXIT_FAILURE, NULL);
 
-	range->nr = idx_func;
-	memset(range->funcs, 0, sizeof(struct cpuid_func) * idx_func);
+	memset(range->funcs, 0, range_funcs_sz);
 
-	for (; f <= max_func; f++) {
-		eax = f;
-		subleaf = ecx = 0;
+	for (u32 f = range->index; f <= max_func; f++) {
+		u32 max_subleaf = MAX_SUBLEAF_NUM;
+		bool allzero;
 
-		cpuid(&eax, &ebx, &ecx, &edx);
-		allzero = cpuid_store(range, f, subleaf, eax, ebx, ecx, edx);
+		cpuid(f, eax, ebx, ecx, edx);
+
+		allzero = cpuid_store(range, f, 0, eax, ebx, ecx, edx);
 		if (allzero)
 			continue;
 
 		if (!has_subleafs(f))
 			continue;
-
-		max_subleaf = MAX_SUBLEAF_NUM;
 
 		/*
 		 * Some can provide the exact number of subleafs,
@@ -256,20 +291,15 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 		if (f == 0x80000026)
 			max_subleaf = 5;
 
-		for (subleaf = 1; subleaf < max_subleaf; subleaf++) {
-			eax = f;
-			ecx = subleaf;
+		for (u32 subleaf = 1; subleaf < max_subleaf; subleaf++) {
+			cpuid_count(f, subleaf, eax, ebx, ecx, edx);
 
-			cpuid(&eax, &ebx, &ecx, &edx);
-			allzero = cpuid_store(range, f, subleaf,
-						eax, ebx, ecx, edx);
+			allzero = cpuid_store(range, f, subleaf, eax, ebx, ecx, edx);
 			if (allzero)
 				continue;
 		}
 
 	}
-
-	return range;
 }
 
 /*
@@ -280,15 +310,13 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
  *	0,    0,  EAX,   31:0, max_basic_leafs,  Max input value for supported subleafs
  *	1,    0,  ECX,      0, sse3,  Streaming SIMD Extensions 3(SSE3)
  */
-static int parse_line(char *line)
+static void parse_line(char *line)
 {
 	char *str;
-	int i;
 	struct cpuid_range *range;
 	struct cpuid_func *func;
 	struct subleaf *leaf;
 	u32 index;
-	u32 sub;
 	char buffer[512];
 	char *buf;
 	/*
@@ -310,12 +338,12 @@ static int parse_line(char *line)
 
 	/* Skip comments and NULL line */
 	if (line[0] == '#' || line[0] == '\n')
-		return 0;
+		return;
 
 	strncpy(buffer, line, 511);
 	buffer[511] = 0;
 	str = buffer;
-	for (i = 0; i < 5; i++) {
+	for (int i = 0; i < 5; i++) {
 		tokens[i] = strtok(str, ",");
 		if (!tokens[i])
 			goto err_exit;
@@ -328,21 +356,19 @@ static int parse_line(char *line)
 	/* index/main-leaf */
 	index = strtoull(tokens[0], NULL, 0);
 
-	if (index & 0x80000000)
-		range = leafs_ext;
-	else
-		range = leafs_basic;
+	/*
+	 * Skip line parsing if the index is not covered by known-valid
+	 * CPUID ranges on this CPU.
+	 */
+	range = index_to_cpuid_range(index);
+	if (!range)
+		return;
 
-	index &= 0x7FFFFFFF;
-	/* Skip line parsing for non-existing indexes */
-	if ((int)index >= range->nr)
-		return -1;
-
+	/* Skip line parsing if the index CPUID output is all zero */
+	index &= CPUID_FUNCTION_MASK;
 	func = &range->funcs[index];
-
-	/* Return if the index has no valid item on this platform */
 	if (!func->nr)
-		return 0;
+		return;
 
 	/* subleaf */
 	buf = tokens[1];
@@ -355,11 +381,11 @@ static int parse_line(char *line)
 		subleaf_start = strtoul(start, NULL, 0);
 		subleaf_end = min(subleaf_end, (u32)(func->nr - 1));
 		if (subleaf_start > subleaf_end)
-			return 0;
+			return;
 	} else {
 		subleaf_start = subleaf_end;
 		if (subleaf_start > (u32)(func->nr - 1))
-			return 0;
+			return;
 	}
 
 	/* register */
@@ -382,7 +408,7 @@ static int parse_line(char *line)
 	bit_end = strtoul(end, NULL, 0);
 	bit_start = (start) ? strtoul(start, NULL, 0) : bit_end;
 
-	for (sub = subleaf_start; sub <= subleaf_end; sub++) {
+	for (u32 sub = subleaf_start; sub <= subleaf_end; sub++) {
 		leaf = &func->leafs[sub];
 		reg = &leaf->info[reg_index];
 		bdesc = &reg->descs[reg->nr++];
@@ -392,12 +418,11 @@ static int parse_line(char *line)
 		strcpy(bdesc->simp, strtok(tokens[4], " \t"));
 		strcpy(bdesc->detail, tokens[5]);
 	}
-	return 0;
+	return;
 
 err_exit:
-	printf("Warning: wrong line format:\n");
-	printf("\tline[%d]: %s\n", flines, line);
-	return -1;
+	warnx("Wrong line format:\n"
+	      "\tline[%d]: %s", flines, line);
 }
 
 /* Parse csv file, and construct the array of all leafs and subleafs */
@@ -418,10 +443,8 @@ static void parse_text(void)
 		file = fopen("./cpuid.csv", "r");
 	}
 
-	if (!file) {
-		printf("Fail to open '%s'\n", filename);
-		return;
-	}
+	if (!file)
+		err(EXIT_FAILURE, "%s", filename);
 
 	while (1) {
 		ret = getline(&line, &len, file);
@@ -436,21 +459,13 @@ static void parse_text(void)
 	fclose(file);
 }
 
-
-/* Decode every eax/ebx/ecx/edx */
-static void decode_bits(u32 value, struct reg_desc *rdesc, enum cpuid_reg reg)
+static void show_reg(const struct reg_desc *rdesc, u32 value)
 {
-	struct bits_desc *bdesc;
-	int start, end, i;
+	const struct bits_desc *bdesc;
+	int start, end;
 	u32 mask;
 
-	if (!rdesc->nr) {
-		if (show_details)
-			printf("\t %s: 0x%08x\n", reg_names[reg], value);
-		return;
-	}
-
-	for (i = 0; i < rdesc->nr; i++) {
+	for (int i = 0; i < rdesc->nr; i++) {
 		bdesc = &rdesc->descs[i];
 
 		start = bdesc->start;
@@ -480,23 +495,21 @@ static void decode_bits(u32 value, struct reg_desc *rdesc, enum cpuid_reg reg)
 	}
 }
 
+static void show_reg_header(bool has_entries, u32 leaf, u32 subleaf, const char *reg_name)
+{
+	if (show_details && has_entries)
+		printf("CPUID_0x%x_%s[0x%x]:\n", leaf, reg_name, subleaf);
+}
+
 static void show_leaf(struct subleaf *leaf)
 {
-	if (!leaf)
-		return;
-
-	if (show_raw) {
+	if (show_raw)
 		leaf_print_raw(leaf);
-	} else {
-		if (show_details)
-			printf("CPUID_0x%x_ECX[0x%x]:\n",
-				leaf->index, leaf->sub);
-	}
 
-	decode_bits(leaf->eax, &leaf->info[R_EAX], R_EAX);
-	decode_bits(leaf->ebx, &leaf->info[R_EBX], R_EBX);
-	decode_bits(leaf->ecx, &leaf->info[R_ECX], R_ECX);
-	decode_bits(leaf->edx, &leaf->info[R_EDX], R_EDX);
+	for (int i = R_EAX; i < NR_REGS; i++) {
+		show_reg_header((leaf->info[i].nr > 0), leaf->index, leaf->sub, reg_names[i]);
+		show_reg(&leaf->info[i], leaf->output[i]);
+	}
 
 	if (!show_raw && show_details)
 		printf("\n");
@@ -504,46 +517,37 @@ static void show_leaf(struct subleaf *leaf)
 
 static void show_func(struct cpuid_func *func)
 {
-	int i;
-
-	if (!func)
-		return;
-
-	for (i = 0; i < func->nr; i++)
+	for (int i = 0; i < func->nr; i++)
 		show_leaf(&func->leafs[i]);
 }
 
 static void show_range(struct cpuid_range *range)
 {
-	int i;
-
-	for (i = 0; i < range->nr; i++)
+	for (int i = 0; i < range->nr; i++)
 		show_func(&range->funcs[i]);
 }
 
 static inline struct cpuid_func *index_to_func(u32 index)
 {
+	u32 func_idx = index & CPUID_FUNCTION_MASK;
 	struct cpuid_range *range;
-	u32 func_idx;
 
-	range = (index & 0x80000000) ? leafs_ext : leafs_basic;
-	func_idx = index & 0xffff;
-
-	if ((func_idx + 1) > (u32)range->nr) {
-		printf("ERR: invalid input index (0x%x)\n", index);
+	range = index_to_cpuid_range(index);
+	if (!range)
 		return NULL;
-	}
+
 	return &range->funcs[func_idx];
 }
 
 static void show_info(void)
 {
+	struct cpuid_range *range;
 	struct cpuid_func *func;
 
 	if (show_raw) {
 		/* Show all of the raw output of 'cpuid' instr */
-		raw_dump_range(leafs_basic);
-		raw_dump_range(leafs_ext);
+		for_each_valid_cpuid_range(range)
+			raw_dump_range(range);
 		return;
 	}
 
@@ -551,18 +555,19 @@ static void show_info(void)
 		/* Only show specific leaf/subleaf info */
 		func = index_to_func(user_index);
 		if (!func)
-			return;
+			errx(EXIT_FAILURE, "Invalid input leaf (0x%x)", user_index);
 
 		/* Dump the raw data also */
 		show_raw = true;
 
 		if (user_sub != 0xFFFFFFFF) {
-			if (user_sub + 1 <= (u32)func->nr) {
-				show_leaf(&func->leafs[user_sub]);
-				return;
+			if (user_sub + 1 > (u32)func->nr) {
+				errx(EXIT_FAILURE, "Leaf 0x%x has no valid subleaf = 0x%x",
+				     user_index, user_sub);
 			}
 
-			printf("ERR: invalid input subleaf (0x%x)\n", user_sub);
+			show_leaf(&func->leafs[user_sub]);
+			return;
 		}
 
 		show_func(func);
@@ -570,38 +575,21 @@ static void show_info(void)
 	}
 
 	printf("CPU features:\n=============\n\n");
-	show_range(leafs_basic);
-	show_range(leafs_ext);
+	for_each_valid_cpuid_range(range)
+		show_range(range);
 }
 
-static void setup_platform_cpuid(void)
+static void __noreturn usage(int exit_code)
 {
-	 u32 eax, ebx, ecx, edx;
-
-	/* Check vendor */
-	eax = ebx = ecx = edx = 0;
-	cpuid(&eax, &ebx, &ecx, &edx);
-
-	/* "htuA" */
-	if (ebx == 0x68747541)
-		is_amd = true;
-
-	/* Setup leafs for the basic and extended range */
-	leafs_basic = setup_cpuid_range(0x0);
-	leafs_ext = setup_cpuid_range(0x80000000);
-}
-
-static void usage(void)
-{
-	printf("kcpuid [-abdfhr] [-l leaf] [-s subleaf]\n"
-		"\t-a|--all             Show both bit flags and complex bit fields info\n"
-		"\t-b|--bitflags        Show boolean flags only\n"
-		"\t-d|--detail          Show details of the flag/fields (default)\n"
-		"\t-f|--flags           Specify the cpuid csv file\n"
-		"\t-h|--help            Show usage info\n"
-		"\t-l|--leaf=index      Specify the leaf you want to check\n"
-		"\t-r|--raw             Show raw cpuid data\n"
-		"\t-s|--subleaf=sub     Specify the subleaf you want to check\n"
+	errx(exit_code, "kcpuid [-abdfhr] [-l leaf] [-s subleaf]\n"
+	     "\t-a|--all             Show both bit flags and complex bit fields info\n"
+	     "\t-b|--bitflags        Show boolean flags only\n"
+	     "\t-d|--detail          Show details of the flag/fields (default)\n"
+	     "\t-f|--flags           Specify the CPUID CSV file\n"
+	     "\t-h|--help            Show usage info\n"
+	     "\t-l|--leaf=index      Specify the leaf you want to check\n"
+	     "\t-r|--raw             Show raw CPUID data\n"
+	     "\t-s|--subleaf=sub     Specify the subleaf you want to check"
 	);
 }
 
@@ -617,7 +605,7 @@ static struct option opts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-static int parse_options(int argc, char *argv[])
+static void parse_options(int argc, char *argv[])
 {
 	int c;
 
@@ -637,9 +625,7 @@ static int parse_options(int argc, char *argv[])
 			user_csv = optarg;
 			break;
 		case 'h':
-			usage();
-			exit(1);
-			break;
+			usage(EXIT_SUCCESS);
 		case 'l':
 			/* main leaf */
 			user_index = strtoul(optarg, NULL, 0);
@@ -652,11 +638,8 @@ static int parse_options(int argc, char *argv[])
 			user_sub = strtoul(optarg, NULL, 0);
 			break;
 		default:
-			printf("%s: Invalid option '%c'\n", argv[0], optopt);
-			return -1;
-	}
-
-	return 0;
+			usage(EXIT_FAILURE);
+		}
 }
 
 /*
@@ -669,11 +652,13 @@ static int parse_options(int argc, char *argv[])
  */
 int main(int argc, char *argv[])
 {
-	if (parse_options(argc, argv))
-		return -1;
+	struct cpuid_range *range;
+
+	parse_options(argc, argv);
 
 	/* Setup the cpuid leafs of current platform */
-	setup_platform_cpuid();
+	for_each_cpuid_range(range)
+		setup_cpuid_range(range);
 
 	/* Read and parse the 'cpuid.csv' */
 	parse_text();

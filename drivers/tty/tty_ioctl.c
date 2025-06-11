@@ -122,21 +122,19 @@ EXPORT_SYMBOL(tty_unthrottle);
  */
 bool tty_throttle_safe(struct tty_struct *tty)
 {
-	bool ret = true;
+	guard(mutex)(&tty->throttle_mutex);
 
-	mutex_lock(&tty->throttle_mutex);
-	if (!tty_throttled(tty)) {
-		if (tty->flow_change != TTY_THROTTLE_SAFE)
-			ret = false;
-		else {
-			set_bit(TTY_THROTTLED, &tty->flags);
-			if (tty->ops->throttle)
-				tty->ops->throttle(tty);
-		}
-	}
-	mutex_unlock(&tty->throttle_mutex);
+	if (tty_throttled(tty))
+		return true;
 
-	return ret;
+	if (tty->flow_change != TTY_THROTTLE_SAFE)
+		return false;
+
+	set_bit(TTY_THROTTLED, &tty->flags);
+	if (tty->ops->throttle)
+		tty->ops->throttle(tty);
+
+	return true;
 }
 
 /**
@@ -152,21 +150,19 @@ bool tty_throttle_safe(struct tty_struct *tty)
  */
 bool tty_unthrottle_safe(struct tty_struct *tty)
 {
-	bool ret = true;
+	guard(mutex)(&tty->throttle_mutex);
 
-	mutex_lock(&tty->throttle_mutex);
-	if (tty_throttled(tty)) {
-		if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
-			ret = false;
-		else {
-			clear_bit(TTY_THROTTLED, &tty->flags);
-			if (tty->ops->unthrottle)
-				tty->ops->unthrottle(tty);
-		}
-	}
-	mutex_unlock(&tty->throttle_mutex);
+	if (!tty_throttled(tty))
+		return true;
 
-	return ret;
+	if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
+		return false;
+
+	clear_bit(TTY_THROTTLED, &tty->flags);
+	if (tty->ops->unthrottle)
+		tty->ops->unthrottle(tty);
+
+	return true;
 }
 
 /**

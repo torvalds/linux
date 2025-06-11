@@ -167,8 +167,7 @@ static void __init xtensa_mx_init_common(struct irq_domain *root_domain)
 int __init xtensa_mx_init_legacy(struct device_node *interrupt_parent)
 {
 	struct irq_domain *root_domain =
-		irq_domain_add_legacy(NULL, NR_IRQS - 1, 1, 0,
-				&xtensa_mx_irq_domain_ops,
+		irq_domain_create_legacy(NULL, NR_IRQS - 1, 1, 0, &xtensa_mx_irq_domain_ops,
 				&xtensa_mx_irq_chip);
 	xtensa_mx_init_common(root_domain);
 	return 0;
@@ -178,7 +177,7 @@ static int __init xtensa_mx_init(struct device_node *np,
 		struct device_node *interrupt_parent)
 {
 	struct irq_domain *root_domain =
-		irq_domain_add_linear(np, NR_IRQS, &xtensa_mx_irq_domain_ops,
+		irq_domain_create_linear(of_fwnode_handle(np), NR_IRQS, &xtensa_mx_irq_domain_ops,
 				&xtensa_mx_irq_chip);
 	xtensa_mx_init_common(root_domain);
 	return 0;

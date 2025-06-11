@@ -3509,7 +3509,7 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 		 *  state as the LLDD would not have had an rport
 		 *  reference to pass us.
 		 *
-		 * Take no action on the del_timer failure as the state
+		 * Take no action on the timer_delete() failure as the state
 		 * machine state change will validate the
 		 * transaction.
 		 */

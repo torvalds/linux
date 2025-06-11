@@ -102,12 +102,6 @@ config USB_FSL_USB2
 	   dynamically linked module called "fsl_usb2_udc" and force
 	   all gadget drivers to also be dynamically linked.
 
-config USB_FUSB300
-	tristate "Faraday FUSB300 USB Peripheral Controller"
-	depends on !PHYS_ADDR_T_64BIT && HAS_DMA
-	help
-	   Faraday usb device controller FUSB300 driver
-
 config USB_GR_UDC
 	tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
 	depends on HAS_DMA
@@ -228,21 +222,6 @@ config USB_PXA27X
 	   dynamically linked module called "pxa27x_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_MV_UDC
-	tristate "Marvell USB2.0 Device Controller"
-	depends on HAS_DMA
-	help
-	  Marvell Socs (including PXA and MMP series) include a high speed
-	  USB2.0 OTG controller, which can be configured as high speed or
-	  full speed USB peripheral.
-
-config USB_MV_U3D
-	depends on HAS_DMA
-	tristate "MARVELL PXA2128 USB 3.0 controller"
-	help
-	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
-	  controller, which support super speed USB peripheral.
-
 config USB_SNP_CORE
 	depends on (USB_AMD5536UDC || USB_SNP_UDC_PLAT)
 	depends on HAS_DMA
@@ -325,29 +304,6 @@ config USB_FSL_QE
 
 	   Set CONFIG_USB_GADGET to "m" to build this driver as a
 	   dynamically linked module called "fsl_qe_udc".
-
-config USB_NET2272
-	depends on HAS_IOMEM
-	tristate "PLX NET2272"
-	help
-	  PLX NET2272 is a USB peripheral controller which supports
-	  both full and high speed USB 2.0 data transfers.
-
-	  It has three configurable endpoints, as well as endpoint zero
-	  (for control transfer).
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "net2272" and force all
-	  gadget drivers to also be dynamically linked.
-
-config USB_NET2272_DMA
-	bool "Support external DMA controller"
-	depends on USB_NET2272 && HAS_DMA
-	help
-	  The NET2272 part can optionally support an external DMA
-	  controller, but your board has to have support in the
-	  driver itself.
-
-	  If unsure, say "N" here.  The driver works fine in PIO mode.
 
 config USB_NET2280
 	tristate "NetChip NET228x / PLX USB3x8x"

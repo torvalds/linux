@@ -506,7 +506,7 @@ static void ttm_pool_allocated_page_commit(struct page *allocated,
  * if successful, populate the page-table and dma-address arrays.
  */
 static int ttm_pool_restore_commit(struct ttm_pool_tt_restore *restore,
-				   struct ttm_backup *backup,
+				   struct file *backup,
 				   const struct ttm_operation_ctx *ctx,
 				   struct ttm_pool_alloc_state *alloc)
 
@@ -655,7 +655,7 @@ static void ttm_pool_free_range(struct ttm_pool *pool, struct ttm_tt *tt,
 				pgoff_t start_page, pgoff_t end_page)
 {
 	struct page **pages = &tt->pages[start_page];
-	struct ttm_backup *backup = tt->backup;
+	struct file *backup = tt->backup;
 	pgoff_t i, nr;
 
 	for (i = start_page; i < end_page; i += nr, pages += nr) {
@@ -963,7 +963,7 @@ void ttm_pool_drop_backed_up(struct ttm_tt *tt)
 long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 		     const struct ttm_backup_flags *flags)
 {
-	struct ttm_backup *backup = tt->backup;
+	struct file *backup = tt->backup;
 	struct page *page;
 	unsigned long handle;
 	gfp_t alloc_gfp;

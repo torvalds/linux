@@ -11,6 +11,7 @@
 #include <linux/types.h>
 
 struct acpm_handle;
+struct device_node;
 
 struct acpm_pmic_ops {
 	int (*read_reg)(const struct acpm_handle *handle,
@@ -44,6 +45,7 @@ struct acpm_handle {
 
 struct device;
 
-const struct acpm_handle *devm_acpm_get_by_phandle(struct device *dev,
-						   const char *property);
+const struct acpm_handle *devm_acpm_get_by_node(struct device *dev,
+						struct device_node *np);
+
 #endif /* __EXYNOS_ACPM_PROTOCOL_H */

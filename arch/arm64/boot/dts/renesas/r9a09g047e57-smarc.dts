@@ -7,6 +7,15 @@
 
 /dts-v1/;
 
+/* Switch selection settings */
+#define SW_GPIO8_CAN0_STB	0
+#define SW_GPIO9_CAN1_STB	0
+#define SW_LCD_EN		0
+#define SW_PDM_EN		0
+#define SW_SD0_DEV_SEL		0
+#define SW_SDIO_M2E		0
+
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/renesas,r9a09g047-pinctrl.h>
 #include "r9a09g047e57.dtsi"
 #include "rzg3e-smarc-som.dtsi"
@@ -16,16 +25,109 @@
 	model = "Renesas SMARC EVK version 2 based on r9a09g047e57";
 	compatible = "renesas,smarc2-evk", "renesas,rzg3e-smarcm",
 		     "renesas,r9a09g047e57", "renesas,r9a09g047";
+
+	vqmmc_sd1_pvdd: regulator-vqmmc-sd1-pvdd {
+		compatible = "regulator-gpio";
+		regulator-name = "SD1_PVDD";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&pinctrl RZG3E_GPIO(1, 5) GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+		states = <3300000 0>, <1800000 1>;
+	};
 };
 
+&canfd {
+	pinctrl-0 = <&canfd_pins>;
+	pinctrl-names = "default";
+
+#if (!SW_PDM_EN)
+	channel1 {
+		status = "okay";
+#if (!SW_LCD_EN) && (SW_GPIO9_CAN1_STB)
+		phys = <&can_transceiver1>;
+#endif
+	};
+#endif
+
+#if (!SW_LCD_EN)
+	channel4 {
+		status = "okay";
+#if (SW_GPIO8_CAN0_STB)
+		phys = <&can_transceiver0>;
+#endif
+	};
+#endif
+};
+
+#if (!SW_LCD_EN) && (SW_GPIO8_CAN0_STB)
+&can_transceiver0 {
+	standby-gpios = <&pinctrl RZG3E_GPIO(5, 4) GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+#endif
+
+#if (!SW_LCD_EN) && (SW_GPIO9_CAN1_STB)
+&can_transceiver1 {
+	standby-gpios = <&pinctrl RZG3E_GPIO(5, 5) GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+#endif
+
 &pinctrl {
+	canfd_pins: canfd {
+		can1_pins: can1 {
+			pinmux = <RZG3E_PORT_PINMUX(L, 2, 3)>, /* RX */
+				 <RZG3E_PORT_PINMUX(L, 3, 3)>; /* TX */
+		};
+
+		can4_pins: can4 {
+			pinmux = <RZG3E_PORT_PINMUX(5, 2, 3)>, /* RX */
+				 <RZG3E_PORT_PINMUX(5, 3, 3)>; /* TX */
+		};
+	};
+
 	scif_pins: scif {
 		pins = "SCIF_TXD", "SCIF_RXD";
 		renesas,output-impedance = <1>;
+	};
+
+	sd1-pwr-en-hog {
+		gpio-hog;
+		gpios = <RZG3E_GPIO(1, 6) GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "sd1_pwr_en";
+	};
+
+	sdhi1_pins: sd1 {
+		sd1-cd {
+			pinmux = <RZG3E_PORT_PINMUX(1, 4, 8)>; /* SD1CD */
+		};
+
+		sd1-ctrl {
+			pinmux = <RZG3E_PORT_PINMUX(G, 0, 1)>, /* SD1CLK */
+				 <RZG3E_PORT_PINMUX(G, 1, 1)>; /* SD1CMD */
+		};
+
+		sd1-data {
+			pinmux = <RZG3E_PORT_PINMUX(G, 2, 1)>, /* SD1DAT0 */
+				 <RZG3E_PORT_PINMUX(G, 3, 1)>, /* SD1DAT1 */
+				 <RZG3E_PORT_PINMUX(G, 4, 1)>, /* SD1DAT2 */
+				 <RZG3E_PORT_PINMUX(G, 5, 1)>; /* SD1DAT3 */
+		};
 	};
 };
 
 &scif0 {
 	pinctrl-0 = <&scif_pins>;
 	pinctrl-names = "default";
+};
+
+&sdhi1 {
+	pinctrl-0 = <&sdhi1_pins>;
+	pinctrl-1 = <&sdhi1_pins>;
+	pinctrl-names = "default", "state_uhs";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&vqmmc_sd1_pvdd>;
 };

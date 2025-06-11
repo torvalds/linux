@@ -261,6 +261,48 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 	{ 0x001e, KEY_RED },	/* Reserved */
 	{ 0x0000, KEY_NUMERIC_0 },
 	{ 0x0026, KEY_SLEEP },	/* Minimize */
+
+	/*
+	 * Keycodes for the black Credit Card Remote Control shipped with, for
+	 * example, the WinTV-dualHD tuner.
+	 * Keycodes start with address = 0x19
+	 */
+	{ 0x190a, KEY_LAST },		/* <- */
+	{ 0x192f, KEY_MENU },		/* List */
+	{ 0x1910, KEY_CHANNELUP },
+	{ 0x192e, KEY_CHANNELDOWN },
+	{ 0x192c, KEY_OK },
+
+	{ 0x1911, KEY_TV },
+	{ 0x190c, KEY_POWER },
+
+	{ 0x1900, KEY_NUMERIC_0 },
+	{ 0x1938, KEY_NUMERIC_1 },
+	{ 0x1920, KEY_NUMERIC_2 },
+	{ 0x1901, KEY_NUMERIC_3 },
+	{ 0x1902, KEY_NUMERIC_4 },
+	{ 0x1904, KEY_NUMERIC_5 },
+	{ 0x1905, KEY_NUMERIC_6 },
+	{ 0x1907, KEY_NUMERIC_7 },
+	{ 0x1908, KEY_NUMERIC_8 },
+	{ 0x190f, KEY_NUMERIC_9 },
+
+	{ 0x1921, KEY_VOLUMEUP },
+	{ 0x1903, KEY_VOLUMEDOWN },
+	{ 0x1906, KEY_MUTE },
+
+	{ 0x1909, KEY_CAMERA },		/* Snap */
+	{ 0x1922, KEY_SUBTITLE },	/* CC */
+	{ 0x192b, KEY_INFO },
+
+	{ 0x1929, KEY_END },		/* Skip to live TV */
+	{ 0x190d, KEY_PLAYPAUSE },
+	{ 0x1926, KEY_STOP },
+	{ 0x192a, KEY_RECORD },
+	{ 0x193a, KEY_PREVIOUS },	/* |< */
+	{ 0x193b, KEY_REWIND },		/* << */
+	{ 0x193c, KEY_FASTFORWARD },	/* >> */
+	{ 0x193d, KEY_NEXT },		/* >| */
 };
 
 static struct rc_map_list rc5_hauppauge_new_map = {

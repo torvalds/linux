@@ -253,7 +253,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	bool is_mst = intel_dp->is_mst;
+	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
 	int bpp_x16, slots = -EINVAL;
 	int dsc_slice_count = 0;
 	int max_dpt_bpp_x16;
@@ -1327,8 +1327,6 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 		intel_de_rmw(display, CHICKEN_TRANS(display, trans),
 			     FECSTALL_DIS_DPTSTREAM_DPTTG,
 			     pipe_config->fec_enable ? FECSTALL_DIS_DPTSTREAM_DPTTG : 0);
-
-	intel_audio_sdp_split_update(pipe_config);
 
 	intel_enable_transcoder(pipe_config);
 

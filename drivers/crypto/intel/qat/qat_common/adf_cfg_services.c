@@ -116,7 +116,7 @@ int adf_parse_service_string(struct adf_accel_dev *accel_dev, const char *in,
 	return adf_service_mask_to_string(mask, out, out_len);
 }
 
-static int adf_get_service_mask(struct adf_accel_dev *accel_dev, unsigned long *mask)
+int adf_get_service_mask(struct adf_accel_dev *accel_dev, unsigned long *mask)
 {
 	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = { };
 	size_t len;
@@ -138,6 +138,7 @@ static int adf_get_service_mask(struct adf_accel_dev *accel_dev, unsigned long *
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(adf_get_service_mask);
 
 int adf_get_service_enabled(struct adf_accel_dev *accel_dev)
 {

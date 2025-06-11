@@ -427,7 +427,8 @@ static void dma_i915_sw_fence_wake(struct dma_fence *dma,
 
 static void timer_i915_sw_fence_wake(struct timer_list *t)
 {
-	struct i915_sw_dma_fence_cb_timer *cb = from_timer(cb, t, timer);
+	struct i915_sw_dma_fence_cb_timer *cb = timer_container_of(cb, t,
+								   timer);
 	struct i915_sw_fence *fence;
 
 	fence = xchg(&cb->base.fence, NULL);

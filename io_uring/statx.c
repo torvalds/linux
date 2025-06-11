@@ -59,7 +59,7 @@ int io_statx(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = do_statx(sx->dfd, sx->filename, sx->flags, sx->mask, sx->buffer);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 void io_statx_cleanup(struct io_kiocb *req)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef __NETLINK_DIAG_H__
-#define __NETLINK_DIAG_H__
+#ifndef _UAPI__NETLINK_DIAG_H__
+#define _UAPI__NETLINK_DIAG_H__
 
 #include <linux/types.h>
 

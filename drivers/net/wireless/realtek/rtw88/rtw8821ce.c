@@ -21,7 +21,7 @@ static const struct pci_device_id rtw_8821ce_id_table[] = {
 MODULE_DEVICE_TABLE(pci, rtw_8821ce_id_table);
 
 static struct pci_driver rtw_8821ce_driver = {
-	.name = "rtw_8821ce",
+	.name = KBUILD_MODNAME,
 	.id_table = rtw_8821ce_id_table,
 	.probe = rtw_pci_probe,
 	.remove = rtw_pci_remove,

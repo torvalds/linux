@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
+/*
+ * sc7180 specific modifications required to boot in EL2.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/* We can't and don't need to use zap shader in EL2 as linux can zap the gpu on it's own. */
+&gpu {
+	zap-shader {
+		status = "disabled";
+	};
+};
+
+/* Venus can be used in EL2 if booted similarly to ChromeOS devices. */
+&venus {
+	video-firmware {
+		iommus = <&apps_smmu 0x0c42 0x0>;
+	};
+};

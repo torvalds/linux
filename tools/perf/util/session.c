@@ -1400,7 +1400,9 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	int err;
 
 	perf_sample__init(&sample, /*all=*/true);
-	if (event->header.type != PERF_RECORD_COMPRESSED || perf_tool__compressed_is_stub(tool))
+	if ((event->header.type != PERF_RECORD_COMPRESSED &&
+	     event->header.type != PERF_RECORD_COMPRESSED2) ||
+	    perf_tool__compressed_is_stub(tool))
 		dump_event(session->evlist, event, file_offset, &sample, file_path);
 
 	/* These events are processed right away */
@@ -1481,6 +1483,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		err = tool->feature(session, event);
 		break;
 	case PERF_RECORD_COMPRESSED:
+	case PERF_RECORD_COMPRESSED2:
 		err = tool->compressed(session, event, file_offset, file_path);
 		if (err)
 			dump_event(session->evlist, event, file_offset, &sample, file_path);
@@ -1639,8 +1642,17 @@ static s64 perf_session__process_event(struct perf_session *session,
 	if (session->header.needs_swap)
 		event_swap(event, evlist__sample_id_all(evlist));
 
-	if (event->header.type >= PERF_RECORD_HEADER_MAX)
-		return -EINVAL;
+	if (event->header.type >= PERF_RECORD_HEADER_MAX) {
+		/* perf should not support unaligned event, stop here. */
+		if (event->header.size % sizeof(u64))
+			return -EINVAL;
+
+		/* This perf is outdated and does not support the latest event type. */
+		ui__warning("Unsupported header type %u, please consider updating perf.\n",
+			    event->header.type);
+		/* Skip unsupported event by returning its size. */
+		return event->header.size;
+	}
 
 	events_stats__inc(&evlist->stats, event->header.type);
 

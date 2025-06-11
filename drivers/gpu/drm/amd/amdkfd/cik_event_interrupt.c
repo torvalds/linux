@@ -91,7 +91,6 @@ static void cik_event_interrupt_wq(struct kfd_node *dev,
 	const struct cik_ih_ring_entry *ihre =
 			(const struct cik_ih_ring_entry *)ih_ring_entry;
 	uint32_t context_id = ihre->data & 0xfffffff;
-	unsigned int vmid  = (ihre->ring_id & 0x0000ff00) >> 8;
 	u32 pasid = (ihre->ring_id & 0xffff0000) >> 16;
 
 	if (pasid == 0)
@@ -125,11 +124,7 @@ static void cik_event_interrupt_wq(struct kfd_node *dev,
 			return;
 		}
 
-		if (info.vmid == vmid)
-			kfd_signal_vm_fault_event(pdd, &info, NULL);
-		else
-			kfd_signal_vm_fault_event(pdd, &info, NULL);
-
+		kfd_signal_vm_fault_event(pdd, &info, NULL);
 		kfd_unref_process(p);
 	}
 }

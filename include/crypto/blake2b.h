@@ -7,25 +7,25 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
+struct blake2b_state {
+	/* 'h', 't', and 'f' are used in assembly code, so keep them as-is. */
+	u64 h[8];
+	u64 t[2];
+	/* The true state ends here.  The rest is temporary storage. */
+	u64 f[2];
+};
+
 enum blake2b_lengths {
 	BLAKE2B_BLOCK_SIZE = 128,
 	BLAKE2B_HASH_SIZE = 64,
 	BLAKE2B_KEY_SIZE = 64,
+	BLAKE2B_STATE_SIZE = offsetof(struct blake2b_state, f),
+	BLAKE2B_DESC_SIZE = sizeof(struct blake2b_state),
 
 	BLAKE2B_160_HASH_SIZE = 20,
 	BLAKE2B_256_HASH_SIZE = 32,
 	BLAKE2B_384_HASH_SIZE = 48,
 	BLAKE2B_512_HASH_SIZE = 64,
-};
-
-struct blake2b_state {
-	/* 'h', 't', and 'f' are used in assembly code, so keep them as-is. */
-	u64 h[8];
-	u64 t[2];
-	u64 f[2];
-	u8 buf[BLAKE2B_BLOCK_SIZE];
-	unsigned int buflen;
-	unsigned int outlen;
 };
 
 enum blake2b_iv {
@@ -40,7 +40,7 @@ enum blake2b_iv {
 };
 
 static inline void __blake2b_init(struct blake2b_state *state, size_t outlen,
-				  const void *key, size_t keylen)
+				  size_t keylen)
 {
 	state->h[0] = BLAKE2B_IV0 ^ (0x01010000 | keylen << 8 | outlen);
 	state->h[1] = BLAKE2B_IV1;
@@ -52,15 +52,6 @@ static inline void __blake2b_init(struct blake2b_state *state, size_t outlen,
 	state->h[7] = BLAKE2B_IV7;
 	state->t[0] = 0;
 	state->t[1] = 0;
-	state->f[0] = 0;
-	state->f[1] = 0;
-	state->buflen = 0;
-	state->outlen = outlen;
-	if (keylen) {
-		memcpy(state->buf, key, keylen);
-		memset(&state->buf[keylen], 0, BLAKE2B_BLOCK_SIZE - keylen);
-		state->buflen = BLAKE2B_BLOCK_SIZE;
-	}
 }
 
 #endif /* _CRYPTO_BLAKE2B_H */

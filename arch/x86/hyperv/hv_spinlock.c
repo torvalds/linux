@@ -15,6 +15,7 @@
 #include <asm/mshyperv.h>
 #include <asm/paravirt.h>
 #include <asm/apic.h>
+#include <asm/msr.h>
 
 static bool hv_pvspin __initdata = true;
 
@@ -39,18 +40,18 @@ static void hv_qlock_wait(u8 *byte, u8 val)
 	 * To prevent a race against the unlock path it is required to
 	 * disable interrupts before accessing the HV_X64_MSR_GUEST_IDLE
 	 * MSR. Otherwise, if the IPI from hv_qlock_kick() arrives between
-	 * the lock value check and the rdmsrl() then the vCPU might be put
+	 * the lock value check and the rdmsrq() then the vCPU might be put
 	 * into 'idle' state by the hypervisor and kept in that state for
 	 * an unspecified amount of time.
 	 */
 	local_irq_save(flags);
 	/*
-	 * Only issue the rdmsrl() when the lock state has not changed.
+	 * Only issue the rdmsrq() when the lock state has not changed.
 	 */
 	if (READ_ONCE(*byte) == val) {
 		unsigned long msr_val;
 
-		rdmsrl(HV_X64_MSR_GUEST_IDLE, msr_val);
+		rdmsrq(HV_X64_MSR_GUEST_IDLE, msr_val);
 
 		(void)msr_val;
 	}

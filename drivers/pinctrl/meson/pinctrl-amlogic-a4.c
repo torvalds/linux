@@ -596,20 +596,6 @@ static int aml_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static inline const struct aml_pctl_group *
-	aml_pctl_find_group_by_name(const struct aml_pinctrl *info,
-				    const char *name)
-{
-	int i;
-
-	for (i = 0; i < info->ngroups; i++) {
-		if (!strcmp(info->groups[i].name, name))
-			return &info->groups[i];
-	}
-
-	return NULL;
-}
-
 static void aml_pin_dbg_show(struct pinctrl_dev *pcdev, struct seq_file *s,
 			     unsigned int offset)
 {
@@ -806,15 +792,15 @@ static int aml_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio,
 				  value ? BIT(bit) : 0);
 }
 
-static void aml_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
+static int aml_gpio_set(struct gpio_chip *chip, unsigned int gpio, int value)
 {
 	struct aml_gpio_bank *bank = gpiochip_get_data(chip);
 	unsigned int bit, reg;
 
 	aml_gpio_calc_reg_and_bit(bank, AML_REG_OUT, gpio, &reg, &bit);
 
-	regmap_update_bits(bank->reg_gpio, reg, BIT(bit),
-			   value ? BIT(bit) : 0);
+	return regmap_update_bits(bank->reg_gpio, reg, BIT(bit),
+				  value ? BIT(bit) : 0);
 }
 
 static int aml_gpio_get(struct gpio_chip *chip, unsigned int gpio)
@@ -832,7 +818,7 @@ static const struct gpio_chip aml_gpio_template = {
 	.request		= gpiochip_generic_request,
 	.free			= gpiochip_generic_free,
 	.set_config		= gpiochip_generic_config,
-	.set			= aml_gpio_set,
+	.set_rv			= aml_gpio_set,
 	.get			= aml_gpio_get,
 	.direction_input	= aml_gpio_direction_input,
 	.direction_output	= aml_gpio_direction_output,

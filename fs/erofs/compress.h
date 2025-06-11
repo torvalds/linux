@@ -76,4 +76,14 @@ int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
 			 unsigned int padbufsize);
 int __init z_erofs_init_decompressor(void);
 void z_erofs_exit_decompressor(void);
+int z_erofs_crypto_decompress(struct z_erofs_decompress_req *rq,
+			      struct page **pgpl);
+int z_erofs_crypto_enable_engine(const char *name, int len);
+#ifdef CONFIG_EROFS_FS_ZIP_ACCEL
+void z_erofs_crypto_disable_all_engines(void);
+int z_erofs_crypto_show_engines(char *buf, int size, char sep);
+#else
+static inline void z_erofs_crypto_disable_all_engines(void) {}
+static inline int z_erofs_crypto_show_engines(char *buf, int size, char sep) { return 0; }
+#endif
 #endif

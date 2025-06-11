@@ -1266,6 +1266,16 @@ hist_browser__hpp_color_##_type(struct perf_hpp_fmt *fmt,		\
 			_fmttype);					\
 }
 
+#define __HPP_COLOR_MEM_STAT_FN(_name, _type)				\
+static int								\
+hist_browser__hpp_color_mem_stat_##_name(struct perf_hpp_fmt *fmt,	\
+					 struct perf_hpp *hpp,		\
+					 struct hist_entry *he)		\
+{									\
+	return hpp__fmt_mem_stat(fmt, hpp, he, PERF_MEM_STAT_##_type,	\
+				 " %5.1f%%", __hpp__slsmg_color_printf);\
+}
+
 __HPP_COLOR_PERCENT_FN(overhead, period, PERF_HPP_FMT_TYPE__PERCENT)
 __HPP_COLOR_PERCENT_FN(latency, latency, PERF_HPP_FMT_TYPE__LATENCY)
 __HPP_COLOR_PERCENT_FN(overhead_sys, period_sys, PERF_HPP_FMT_TYPE__PERCENT)
@@ -1274,9 +1284,15 @@ __HPP_COLOR_PERCENT_FN(overhead_guest_sys, period_guest_sys, PERF_HPP_FMT_TYPE__
 __HPP_COLOR_PERCENT_FN(overhead_guest_us, period_guest_us, PERF_HPP_FMT_TYPE__PERCENT)
 __HPP_COLOR_ACC_PERCENT_FN(overhead_acc, period, PERF_HPP_FMT_TYPE__PERCENT)
 __HPP_COLOR_ACC_PERCENT_FN(latency_acc, latency, PERF_HPP_FMT_TYPE__LATENCY)
+__HPP_COLOR_MEM_STAT_FN(op, OP)
+__HPP_COLOR_MEM_STAT_FN(cache, CACHE)
+__HPP_COLOR_MEM_STAT_FN(memory, MEMORY)
+__HPP_COLOR_MEM_STAT_FN(snoop, SNOOP)
+__HPP_COLOR_MEM_STAT_FN(dtlb, DTLB)
 
 #undef __HPP_COLOR_PERCENT_FN
 #undef __HPP_COLOR_ACC_PERCENT_FN
+#undef __HPP_COLOR_MEM_STAT_FN
 
 void hist_browser__init_hpp(void)
 {
@@ -1296,6 +1312,16 @@ void hist_browser__init_hpp(void)
 				hist_browser__hpp_color_overhead_acc;
 	perf_hpp__format[PERF_HPP__LATENCY_ACC].color =
 				hist_browser__hpp_color_latency_acc;
+	perf_hpp__format[PERF_HPP__MEM_STAT_OP].color =
+				hist_browser__hpp_color_mem_stat_op;
+	perf_hpp__format[PERF_HPP__MEM_STAT_CACHE].color =
+				hist_browser__hpp_color_mem_stat_cache;
+	perf_hpp__format[PERF_HPP__MEM_STAT_MEMORY].color =
+				hist_browser__hpp_color_mem_stat_memory;
+	perf_hpp__format[PERF_HPP__MEM_STAT_SNOOP].color =
+				hist_browser__hpp_color_mem_stat_snoop;
+	perf_hpp__format[PERF_HPP__MEM_STAT_DTLB].color =
+				hist_browser__hpp_color_mem_stat_dtlb;
 
 	res_sample_init();
 }
@@ -1686,7 +1712,8 @@ hists_browser__scnprintf_headers(struct hist_browser *browser, char *buf,
 	return ret;
 }
 
-static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *browser, char *buf, size_t size)
+static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *browser,
+						      char *buf, size_t size, int line)
 {
 	struct hists *hists = browser->hists;
 	struct perf_hpp dummy_hpp = {
@@ -1712,7 +1739,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 		if (column++ < browser->b.horiz_scroll)
 			continue;
 
-		ret = fmt->header(fmt, &dummy_hpp, hists, 0, NULL);
+		ret = fmt->header(fmt, &dummy_hpp, hists, line, NULL);
 		if (advance_hpp_check(&dummy_hpp, ret))
 			break;
 
@@ -1722,6 +1749,9 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 
 		first_node = false;
 	}
+
+	if (line < hists->hpp_list->nr_header_lines - 1)
+		return ret;
 
 	if (!first_node) {
 		ret = scnprintf(dummy_hpp.buf, dummy_hpp.size, "%*s",
@@ -1753,7 +1783,7 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 			}
 			first_col = false;
 
-			ret = fmt->header(fmt, &dummy_hpp, hists, 0, NULL);
+			ret = fmt->header(fmt, &dummy_hpp, hists, line, NULL);
 			dummy_hpp.buf[ret] = '\0';
 
 			start = strim(dummy_hpp.buf);
@@ -1772,14 +1802,18 @@ static int hists_browser__scnprintf_hierarchy_headers(struct hist_browser *brows
 
 static void hists_browser__hierarchy_headers(struct hist_browser *browser)
 {
+	struct perf_hpp_list *hpp_list = browser->hists->hpp_list;
 	char headers[1024];
+	int line;
 
-	hists_browser__scnprintf_hierarchy_headers(browser, headers,
-						   sizeof(headers));
+	for (line = 0; line < hpp_list->nr_header_lines; line++) {
+		hists_browser__scnprintf_hierarchy_headers(browser, headers,
+							   sizeof(headers), line);
 
-	ui_browser__gotorc_title(&browser->b, 0, 0);
-	ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
-	ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+		ui_browser__gotorc_title(&browser->b, line, 0);
+		ui_browser__set_color(&browser->b, HE_COLORSET_ROOT);
+		ui_browser__write_nstring(&browser->b, headers, browser->b.width + 1);
+	}
 }
 
 static void hists_browser__headers(struct hist_browser *browser)
@@ -2422,7 +2456,6 @@ close_file_and_continue:
 struct popup_action {
 	unsigned long		time;
 	struct thread 		*thread;
-	struct evsel	*evsel;
 	int (*fn)(struct hist_browser *browser, struct popup_action *act);
 	struct map_symbol 	ms;
 	int			socket;
@@ -2489,8 +2522,7 @@ static struct symbol *symbol__new_unresolved(u64 addr, struct map *map)
 }
 
 static int
-add_annotate_opt(struct hist_browser *browser __maybe_unused,
-		 struct popup_action *act, char **optstr,
+add_annotate_opt(struct popup_action *act, char **optstr,
 		 struct map_symbol *ms,
 		 u64 addr)
 {
@@ -2514,18 +2546,17 @@ add_annotate_opt(struct hist_browser *browser __maybe_unused,
 }
 
 static int
-do_annotate_type(struct hist_browser *browser, struct popup_action *act)
+do_annotate_type(struct hist_browser *browser, struct popup_action *act __maybe_unused)
 {
 	struct hist_entry *he = browser->he_selection;
 
-	hist_entry__annotate_data_tui(he, act->evsel, browser->hbt);
+	hist_entry__annotate_data_tui(he, hists_to_evsel(browser->hists), browser->hbt);
 	ui_browser__handle_resize(&browser->b);
 	return 0;
 }
 
 static int
-add_annotate_type_opt(struct hist_browser *browser,
-		      struct popup_action *act, char **optstr,
+add_annotate_type_opt(struct popup_action *act, char **optstr,
 		      struct hist_entry *he)
 {
 	if (he == NULL || he->mem_type == NULL || he->mem_type->histograms == NULL)
@@ -2534,7 +2565,6 @@ add_annotate_type_opt(struct hist_browser *browser,
 	if (asprintf(optstr, "Annotate type %s", he->mem_type->self.type_name) < 0)
 		return 0;
 
-	act->evsel = hists_to_evsel(browser->hists);
 	act->fn = do_annotate_type;
 	return 1;
 }
@@ -2695,7 +2725,7 @@ add_map_opt(struct hist_browser *browser,
 }
 
 static int
-do_run_script(struct hist_browser *browser __maybe_unused,
+do_run_script(struct hist_browser *browser,
 	      struct popup_action *act)
 {
 	char *script_opt;
@@ -2734,27 +2764,26 @@ do_run_script(struct hist_browser *browser __maybe_unused,
 		n += snprintf(script_opt + n, len - n, " --time %s,%s", start, end);
 	}
 
-	script_browse(script_opt, act->evsel);
+	script_browse(script_opt, hists_to_evsel(browser->hists));
 	free(script_opt);
 	return 0;
 }
 
 static int
-do_res_sample_script(struct hist_browser *browser __maybe_unused,
+do_res_sample_script(struct hist_browser *browser,
 		     struct popup_action *act)
 {
 	struct hist_entry *he;
 
 	he = hist_browser__selected_entry(browser);
-	res_sample_browse(he->res_samples, he->num_res, act->evsel, act->rstype);
+	res_sample_browse(he->res_samples, he->num_res, hists_to_evsel(browser->hists), act->rstype);
 	return 0;
 }
 
 static int
-add_script_opt_2(struct hist_browser *browser __maybe_unused,
-	       struct popup_action *act, char **optstr,
+add_script_opt_2(struct popup_action *act, char **optstr,
 	       struct thread *thread, struct symbol *sym,
-	       struct evsel *evsel, const char *tstr)
+	       const char *tstr)
 {
 
 	if (thread) {
@@ -2772,7 +2801,6 @@ add_script_opt_2(struct hist_browser *browser __maybe_unused,
 
 	act->thread = thread;
 	act->ms.sym = sym;
-	act->evsel = evsel;
 	act->fn = do_run_script;
 	return 1;
 }
@@ -2780,13 +2808,12 @@ add_script_opt_2(struct hist_browser *browser __maybe_unused,
 static int
 add_script_opt(struct hist_browser *browser,
 	       struct popup_action *act, char **optstr,
-	       struct thread *thread, struct symbol *sym,
-	       struct evsel *evsel)
+	       struct thread *thread, struct symbol *sym)
 {
 	int n, j;
 	struct hist_entry *he;
 
-	n = add_script_opt_2(browser, act, optstr, thread, sym, evsel, "");
+	n = add_script_opt_2(act, optstr, thread, sym, "");
 
 	he = hist_browser__selected_entry(browser);
 	if (sort_order && strstr(sort_order, "time")) {
@@ -2800,8 +2827,7 @@ add_script_opt(struct hist_browser *browser,
 		j += sprintf(tstr + j, "-");
 		timestamp__scnprintf_usec(he->time + symbol_conf.time_quantum,
 				          tstr + j, sizeof tstr - j);
-		n += add_script_opt_2(browser, act, optstr, thread, sym,
-					  evsel, tstr);
+		n += add_script_opt_2(act, optstr, thread, sym, tstr);
 		act->time = he->time;
 	}
 	return n;
@@ -2811,7 +2837,6 @@ static int
 add_res_sample_opt(struct hist_browser *browser __maybe_unused,
 		   struct popup_action *act, char **optstr,
 		   struct res_sample *res_sample,
-		   struct evsel *evsel,
 		   enum rstype type)
 {
 	if (!res_sample)
@@ -2823,7 +2848,6 @@ add_res_sample_opt(struct hist_browser *browser __maybe_unused,
 		return 0;
 
 	act->fn = do_res_sample_script;
-	act->evsel = evsel;
 	act->rstype = type;
 	return 1;
 }
@@ -3274,10 +3298,10 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 				/*
 				 * No need to set actions->dso here since
 				 * it's just to remove the current filter.
-				 * Ditto for thread below.
 				 */
 				do_zoom_dso(browser, actions);
 			} else if (top == &browser->hists->thread_filter) {
+				actions->thread = thread;
 				do_zoom_thread(browser, actions);
 			} else if (top == &browser->hists->socket_filter) {
 				do_zoom_socket(browser, actions);
@@ -3308,6 +3332,8 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			/* Fall thru */
 		default:
 			helpline = "Press '?' for help on key bindings";
+			ui_browser__warn_unhandled_hotkey(&browser->b, key, delay_secs,
+							  ", use 'h'/'?'/F1 to see actions");
 			continue;
 		}
 
@@ -3322,27 +3348,23 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			if (bi == NULL)
 				goto skip_annotation;
 
-			nr_options += add_annotate_opt(browser,
-						       &actions[nr_options],
+			nr_options += add_annotate_opt(&actions[nr_options],
 						       &options[nr_options],
 						       &bi->from.ms,
 						       bi->from.al_addr);
 			if (bi->to.ms.sym != bi->from.ms.sym)
-				nr_options += add_annotate_opt(browser,
-							&actions[nr_options],
+				nr_options += add_annotate_opt(&actions[nr_options],
 							&options[nr_options],
 							&bi->to.ms,
 							bi->to.al_addr);
 		} else if (browser->he_selection) {
-			nr_options += add_annotate_opt(browser,
-						       &actions[nr_options],
+			nr_options += add_annotate_opt(&actions[nr_options],
 						       &options[nr_options],
 						       browser->selection,
 						       browser->he_selection->ip);
 		}
 skip_annotation:
-		nr_options += add_annotate_type_opt(browser,
-						    &actions[nr_options],
+		nr_options += add_annotate_type_opt(&actions[nr_options],
 						    &options[nr_options],
 						    browser->he_selection);
 		nr_options += add_thread_opt(browser, &actions[nr_options],
@@ -3366,7 +3388,7 @@ skip_annotation:
 				nr_options += add_script_opt(browser,
 							     &actions[nr_options],
 							     &options[nr_options],
-							     thread, NULL, evsel);
+							     thread, NULL);
 			}
 			/*
 			 * Note that browser->selection != NULL
@@ -3381,24 +3403,23 @@ skip_annotation:
 				nr_options += add_script_opt(browser,
 							     &actions[nr_options],
 							     &options[nr_options],
-							     NULL, browser->selection->sym,
-							     evsel);
+							     NULL, browser->selection->sym);
 			}
 		}
 		nr_options += add_script_opt(browser, &actions[nr_options],
-					     &options[nr_options], NULL, NULL, evsel);
+					     &options[nr_options], NULL, NULL);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
 						 hist_browser__selected_res_sample(browser),
-						 evsel, A_NORMAL);
+						 A_NORMAL);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
 						 hist_browser__selected_res_sample(browser),
-						 evsel, A_ASM);
+						 A_ASM);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
 						 hist_browser__selected_res_sample(browser),
-						 evsel, A_SOURCE);
+						 A_SOURCE);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
 skip_scripting:
@@ -3568,6 +3589,7 @@ browse_hists:
 		case CTRL('c'):
 			goto out;
 		default:
+			ui_browser__warn_unhandled_hotkey(&menu->b, key, delay_secs, NULL);
 			continue;
 		}
 	}
@@ -3693,7 +3715,7 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 	struct popup_action action;
 	char *br_cntr_text = NULL;
 	static const char help[] =
-	" q             Quit \n"
+	" q/ESC         Quit \n"
 	" B             Branch counter abbr list (Optional)\n";
 
 	browser = hist_browser__new(hists);
@@ -3720,6 +3742,7 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 
 		switch (key) {
 		case 'q':
+		case K_ESC:
 			goto out;
 		case '?':
 			ui_browser__help_window(&browser->b, help);
@@ -3746,7 +3769,9 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 			}
 			continue;
 		default:
-			break;
+			ui_browser__warn_unhandled_hotkey(&browser->b, key, 0,
+							  ", use '?' to see actions");
+			continue;
 		}
 	}
 

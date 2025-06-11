@@ -64,6 +64,11 @@ struct scatterlist;
 #define KEY_USAGE_SEED_INTEGRITY        (0x55)
 
 /*
+ * Standard Kerberos error codes.
+ */
+#define KRB5_PROG_KEYTYPE_NOSUPP		-1765328233
+
+/*
  * Mode of operation.
  */
 enum krb5_crypto_mode {

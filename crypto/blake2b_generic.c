@@ -15,12 +15,12 @@
  * More information about BLAKE2 can be found at https://blake2.net.
  */
 
-#include <linux/unaligned.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/bitops.h>
 #include <crypto/internal/blake2b.h>
 #include <crypto/internal/hash.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
+#include <linux/unaligned.h>
 
 static const u8 blake2b_sigma[12][16] = {
 	{  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 },
@@ -111,8 +111,8 @@ static void blake2b_compress_one_generic(struct blake2b_state *S,
 #undef G
 #undef ROUND
 
-void blake2b_compress_generic(struct blake2b_state *state,
-			      const u8 *block, size_t nblocks, u32 inc)
+static void blake2b_compress_generic(struct blake2b_state *state,
+				     const u8 *block, size_t nblocks, u32 inc)
 {
 	do {
 		blake2b_increment_counter(state, inc);
@@ -120,17 +120,19 @@ void blake2b_compress_generic(struct blake2b_state *state,
 		block += BLAKE2B_BLOCK_SIZE;
 	} while (--nblocks);
 }
-EXPORT_SYMBOL(blake2b_compress_generic);
 
 static int crypto_blake2b_update_generic(struct shash_desc *desc,
 					 const u8 *in, unsigned int inlen)
 {
-	return crypto_blake2b_update(desc, in, inlen, blake2b_compress_generic);
+	return crypto_blake2b_update_bo(desc, in, inlen,
+					blake2b_compress_generic);
 }
 
-static int crypto_blake2b_final_generic(struct shash_desc *desc, u8 *out)
+static int crypto_blake2b_finup_generic(struct shash_desc *desc, const u8 *in,
+					unsigned int inlen, u8 *out)
 {
-	return crypto_blake2b_final(desc, out, blake2b_compress_generic);
+	return crypto_blake2b_finup(desc, in, inlen, out,
+				    blake2b_compress_generic);
 }
 
 #define BLAKE2B_ALG(name, driver_name, digest_size)			\
@@ -138,7 +140,9 @@ static int crypto_blake2b_final_generic(struct shash_desc *desc, u8 *out)
 		.base.cra_name		= name,				\
 		.base.cra_driver_name	= driver_name,			\
 		.base.cra_priority	= 100,				\
-		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,	\
+		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY |	\
+					  CRYPTO_AHASH_ALG_BLOCK_ONLY |	\
+					  CRYPTO_AHASH_ALG_FINAL_NONZERO, \
 		.base.cra_blocksize	= BLAKE2B_BLOCK_SIZE,		\
 		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx), \
 		.base.cra_module	= THIS_MODULE,			\
@@ -146,8 +150,9 @@ static int crypto_blake2b_final_generic(struct shash_desc *desc, u8 *out)
 		.setkey			= crypto_blake2b_setkey,	\
 		.init			= crypto_blake2b_init,		\
 		.update			= crypto_blake2b_update_generic, \
-		.final			= crypto_blake2b_final_generic,	\
-		.descsize		= sizeof(struct blake2b_state),	\
+		.finup			= crypto_blake2b_finup_generic,	\
+		.descsize		= BLAKE2B_DESC_SIZE,		\
+		.statesize		= BLAKE2B_STATE_SIZE,		\
 	}
 
 static struct shash_alg blake2b_algs[] = {
@@ -171,7 +176,7 @@ static void __exit blake2b_mod_fini(void)
 	crypto_unregister_shashes(blake2b_algs, ARRAY_SIZE(blake2b_algs));
 }
 
-subsys_initcall(blake2b_mod_init);
+module_init(blake2b_mod_init);
 module_exit(blake2b_mod_fini);
 
 MODULE_AUTHOR("David Sterba <kdave@kernel.org>");

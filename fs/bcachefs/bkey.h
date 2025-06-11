@@ -191,6 +191,7 @@ static inline struct bpos bkey_max(struct bpos l, struct bpos r)
 static inline bool bkey_and_val_eq(struct bkey_s_c l, struct bkey_s_c r)
 {
 	return bpos_eq(l.k->p, r.k->p) &&
+		l.k->size == r.k->size &&
 		bkey_bytes(l.k) == bkey_bytes(r.k) &&
 		!memcmp(l.v, r.v, bkey_val_bytes(l.k));
 }
@@ -397,8 +398,7 @@ __bkey_unpack_key_format_checked(const struct btree *b,
 		compiled_unpack_fn unpack_fn = b->aux_data;
 		unpack_fn(dst, src);
 
-		if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
-		    bch2_expensive_debug_checks) {
+		if (static_branch_unlikely(&bch2_debug_check_bkey_unpack)) {
 			struct bkey dst2 = __bch2_bkey_unpack_key(&b->format, src);
 
 			BUG_ON(memcmp(dst, &dst2, sizeof(*dst)));
