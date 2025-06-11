@@ -395,13 +395,6 @@ int kvm_setup_default_irq_routing(struct kvm *kvm)
 				   ARRAY_SIZE(default_routing), 0);
 }
 
-void kvm_arch_post_irq_routing_update(struct kvm *kvm)
-{
-	if (!irqchip_split(kvm))
-		return;
-	kvm_make_scan_ioapic_request(kvm);
-}
-
 void kvm_scan_ioapic_irq(struct kvm_vcpu *vcpu, u32 dest_id, u16 dest_mode,
 			 u8 vector, unsigned long *ioapic_handled_vectors)
 {
@@ -466,4 +459,7 @@ void kvm_arch_irq_routing_update(struct kvm *kvm)
 #ifdef CONFIG_KVM_HYPERV
 	kvm_hv_irq_routing_update(kvm);
 #endif
+
+	if (irqchip_split(kvm))
+		kvm_make_scan_ioapic_request(kvm);
 }
