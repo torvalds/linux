@@ -187,6 +187,7 @@
  * enum slab_flags - How the slab flags bits are used.
  * @SL_locked: Is locked with slab_lock()
  * @SL_partial: On the per-node partial list
+ * @SL_pfmemalloc: Was allocated from PF_MEMALLOC reserves
  *
  * The slab flags share space with the page flags but some bits have
  * different interpretations.  The high bits are used for information
@@ -195,6 +196,7 @@
 enum slab_flags {
 	SL_locked = PG_locked,
 	SL_partial = PG_workingset,	/* Historical reasons for this bit */
+	SL_pfmemalloc = PG_active,	/* Historical reasons for this bit */
 };
 
 /*
@@ -647,6 +649,25 @@ static inline unsigned int slub_get_cpu_partial(struct kmem_cache *s)
 	return 0;
 }
 #endif /* CONFIG_SLUB_CPU_PARTIAL */
+
+/*
+ * If network-based swap is enabled, slub must keep track of whether memory
+ * were allocated from pfmemalloc reserves.
+ */
+static inline bool slab_test_pfmemalloc(const struct slab *slab)
+{
+	return test_bit(SL_pfmemalloc, &slab->flags);
+}
+
+static inline void slab_set_pfmemalloc(struct slab *slab)
+{
+	set_bit(SL_pfmemalloc, &slab->flags);
+}
+
+static inline void __slab_clear_pfmemalloc(struct slab *slab)
+{
+	__clear_bit(SL_pfmemalloc, &slab->flags);
+}
 
 /*
  * Per slab locking using the pagelock
