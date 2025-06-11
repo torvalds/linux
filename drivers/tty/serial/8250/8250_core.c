@@ -129,11 +129,15 @@ static void serial_do_unlink(struct irq_info *i, struct uart_8250_port *up)
 	}
 }
 
-static int serial_link_irq_chain(struct uart_8250_port *up)
+/*
+ * Either:
+ * - find the corresponding info in the hashtable and return it, or
+ * - allocate a new one, add it to the hashtable and return it.
+ */
+static struct irq_info *serial_get_or_create_irq_info(const struct uart_8250_port *up)
 {
 	struct hlist_head *h;
 	struct irq_info *i;
-	int ret;
 
 	mutex_lock(&hash_mutex);
 
@@ -141,19 +145,30 @@ static int serial_link_irq_chain(struct uart_8250_port *up)
 
 	hlist_for_each_entry(i, h, node)
 		if (i->irq == up->port.irq)
-			break;
+			goto unlock;
 
+	i = kzalloc(sizeof(*i), GFP_KERNEL);
 	if (i == NULL) {
-		i = kzalloc(sizeof(struct irq_info), GFP_KERNEL);
-		if (i == NULL) {
-			mutex_unlock(&hash_mutex);
-			return -ENOMEM;
-		}
-		spin_lock_init(&i->lock);
-		i->irq = up->port.irq;
-		hlist_add_head(&i->node, h);
+		i = ERR_PTR(-ENOMEM);
+		goto unlock;
 	}
+	spin_lock_init(&i->lock);
+	i->irq = up->port.irq;
+	hlist_add_head(&i->node, h);
+unlock:
 	mutex_unlock(&hash_mutex);
+
+	return i;
+}
+
+static int serial_link_irq_chain(struct uart_8250_port *up)
+{
+	struct irq_info *i;
+	int ret;
+
+	i = serial_get_or_create_irq_info(up);
+	if (IS_ERR(i))
+		return PTR_ERR(i);
 
 	spin_lock_irq(&i->lock);
 
