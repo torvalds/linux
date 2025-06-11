@@ -436,10 +436,8 @@ static int brcmstb_gpio_irq_setup(struct platform_device *pdev,
 	struct device_node *np = dev->of_node;
 	int err;
 
-	priv->irq_domain =
-		irq_domain_create_linear(of_fwnode_handle(np), priv->num_gpios,
-				      &brcmstb_gpio_irq_domain_ops,
-				      priv);
+	priv->irq_domain = irq_domain_create_linear(dev_fwnode(dev), priv->num_gpios,
+						    &brcmstb_gpio_irq_domain_ops, priv);
 	if (!priv->irq_domain) {
 		dev_err(dev, "Couldn't allocate IRQ domain\n");
 		return -ENXIO;
