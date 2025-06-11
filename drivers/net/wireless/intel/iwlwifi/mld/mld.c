@@ -723,6 +723,17 @@ static void iwl_mld_device_powered_off(struct iwl_op_mode *op_mode)
 {}
 #endif
 
+static void iwl_mld_dump(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
+	struct iwl_fw_runtime *fwrt = &mld->fwrt;
+
+	if (!iwl_trans_fw_running(fwrt->trans))
+		return;
+
+	iwl_dbg_tlv_time_point(fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER, NULL);
+}
+
 static const struct iwl_op_mode_ops iwl_mld_ops = {
 	.start = iwl_op_mode_mld_start,
 	.stop = iwl_op_mode_mld_stop,
@@ -737,6 +748,7 @@ static const struct iwl_op_mode_ops iwl_mld_ops = {
 	.sw_reset = iwl_mld_sw_reset,
 	.time_point = iwl_mld_time_point,
 	.device_powered_off = pm_sleep_ptr(iwl_mld_device_powered_off),
+	.dump = iwl_mld_dump,
 };
 
 struct iwl_mld_mod_params iwlmld_mod_params = {
