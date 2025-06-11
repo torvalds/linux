@@ -203,8 +203,6 @@ static int __rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
 
 		page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
 		user_va = kmap_local_page(page);
-		if (!user_va)
-			return -EFAULT;
 
 		src = (dir == RXE_TO_MR_OBJ) ? addr : user_va;
 		dest = (dir == RXE_TO_MR_OBJ) ? user_va : addr;
@@ -283,16 +281,14 @@ static enum resp_states rxe_odp_do_atomic_op(struct rxe_mr *mr, u64 iova,
 		return RESPST_ERR_RKEY_VIOLATION;
 	}
 
-	idx = rxe_odp_iova_to_index(umem_odp, iova);
 	page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
-	page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
-	if (!page)
-		return RESPST_ERR_RKEY_VIOLATION;
-
 	if (unlikely(page_offset & 0x7)) {
 		rxe_dbg_mr(mr, "iova not aligned\n");
 		return RESPST_ERR_MISALIGNED_ATOMIC;
 	}
+
+	idx = rxe_odp_iova_to_index(umem_odp, iova);
+	page = hmm_pfn_to_page(umem_odp->map.pfn_list[idx]);
 
 	va = kmap_local_page(page);
 
@@ -352,10 +348,6 @@ int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 		page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
 
 		page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
-		if (!page) {
-			mutex_unlock(&umem_odp->umem_mutex);
-			return -EFAULT;
-		}
 
 		bytes = min_t(unsigned int, length,
 			      mr_page_size(mr) - page_offset);
@@ -396,18 +388,15 @@ enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 		return RESPST_ERR_RKEY_VIOLATION;
 
 	page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
-	index = rxe_odp_iova_to_index(umem_odp, iova);
-	page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
-	if (!page) {
-		mutex_unlock(&umem_odp->umem_mutex);
-		return RESPST_ERR_RKEY_VIOLATION;
-	}
 	/* See IBA A19.4.2 */
 	if (unlikely(page_offset & 0x7)) {
 		mutex_unlock(&umem_odp->umem_mutex);
 		rxe_dbg_mr(mr, "misaligned address\n");
 		return RESPST_ERR_MISALIGNED_ATOMIC;
 	}
+
+	index = rxe_odp_iova_to_index(umem_odp, iova);
+	page = hmm_pfn_to_page(umem_odp->map.pfn_list[index]);
 
 	va = kmap_local_page(page);
 	/* Do atomic write after all prior operations have completed */
