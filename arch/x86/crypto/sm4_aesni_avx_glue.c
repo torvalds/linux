@@ -11,6 +11,7 @@
 #include <asm/fpu/api.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/sm4.h>
