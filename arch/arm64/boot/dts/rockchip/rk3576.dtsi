@@ -2407,6 +2407,7 @@
 			reg = <0x0 0x2b000000 0x0 0x2000>;
 			clocks = <&cru CLK_PHY_REF_SRC>, <&cru PCLK_HDPTX_APB>;
 			clock-names = "ref", "apb";
+			#clock-cells = <0>;
 			resets = <&cru SRST_P_HDPTX_APB>, <&cru SRST_HDPTX_INIT>,
 				 <&cru SRST_HDPTX_CMN>, <&cru SRST_HDPTX_LANE>;
 			reset-names = "apb", "init", "cmn", "lane";
