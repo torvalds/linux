@@ -121,10 +121,10 @@ void __init init_pointer_table(void *table, int type)
 {
 	ptable_desc *dp;
 	unsigned long ptable = (unsigned long)table;
-	unsigned long page = ptable & PAGE_MASK;
-	unsigned int mask = 1U << ((ptable - page)/ptable_size(type));
+	unsigned long pt_addr = ptable & PAGE_MASK;
+	unsigned int mask = 1U << ((ptable - pt_addr)/ptable_size(type));
 
-	dp = PD_PTABLE(page);
+	dp = PD_PTABLE(pt_addr);
 	if (!(PD_MARKBITS(dp) & mask)) {
 		PD_MARKBITS(dp) = ptable_mask(type);
 		list_add(dp, &ptable_list[type]);
@@ -133,9 +133,9 @@ void __init init_pointer_table(void *table, int type)
 	PD_MARKBITS(dp) &= ~mask;
 	pr_debug("init_pointer_table: %lx, %x\n", ptable, PD_MARKBITS(dp));
 
-	/* unreserve the page so it's possible to free that page */
-	__ClearPageReserved(PD_PAGE(dp));
-	init_page_count(PD_PAGE(dp));
+	/* unreserve the ptdesc so it's possible to free that ptdesc */
+	__ClearPageReserved(ptdesc_page(PD_PTDESC(dp)));
+	init_page_count(ptdesc_page(PD_PTDESC(dp)));
 
 	return;
 }
