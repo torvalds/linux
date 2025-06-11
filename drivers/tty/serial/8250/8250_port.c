@@ -2199,6 +2199,54 @@ static void serial8250_set_TRG_levels(struct uart_port *port)
 	}
 }
 
+static void serial8250_THRE_test(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned long flags;
+	bool iir_noint1, iir_noint2;
+
+	if (!port->irq)
+		return;
+
+	if (up->port.flags & UPF_NO_THRE_TEST)
+		return;
+
+	if (port->irqflags & IRQF_SHARED)
+		disable_irq_nosync(port->irq);
+
+	/*
+	 * Test for UARTs that do not reassert THRE when the transmitter is idle and the interrupt
+	 * has already been cleared.  Real 16550s should always reassert this interrupt whenever the
+	 * transmitter is idle and the interrupt is enabled.  Delays are necessary to allow register
+	 * changes to become visible.
+	 *
+	 * Synchronize UART_IER access against the console.
+	 */
+	uart_port_lock_irqsave(port, &flags);
+
+	wait_for_xmitr(up, UART_LSR_THRE);
+	serial_port_out_sync(port, UART_IER, UART_IER_THRI);
+	udelay(1); /* allow THRE to set */
+	iir_noint1 = serial_port_in(port, UART_IIR) & UART_IIR_NO_INT;
+	serial_port_out(port, UART_IER, 0);
+	serial_port_out_sync(port, UART_IER, UART_IER_THRI);
+	udelay(1); /* allow a working UART time to re-assert THRE */
+	iir_noint2 = serial_port_in(port, UART_IIR) & UART_IIR_NO_INT;
+	serial_port_out(port, UART_IER, 0);
+
+	uart_port_unlock_irqrestore(port, flags);
+
+	if (port->irqflags & IRQF_SHARED)
+		enable_irq(port->irq);
+
+	/*
+	 * If the interrupt is not reasserted, or we otherwise don't trust the iir, setup a timer to
+	 * kick the UART on a regular basis.
+	 */
+	if ((!iir_noint1 && iir_noint2) || up->port.flags & UPF_BUG_THRE)
+		up->bugs |= UART_BUG_THRE;
+}
+
 int serial8250_do_startup(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -2258,49 +2306,7 @@ int serial8250_do_startup(struct uart_port *port)
 	if (retval)
 		goto out;
 
-	if (port->irq && !(up->port.flags & UPF_NO_THRE_TEST)) {
-		unsigned char iir1;
-
-		if (port->irqflags & IRQF_SHARED)
-			disable_irq_nosync(port->irq);
-
-		/*
-		 * Test for UARTs that do not reassert THRE when the
-		 * transmitter is idle and the interrupt has already
-		 * been cleared.  Real 16550s should always reassert
-		 * this interrupt whenever the transmitter is idle and
-		 * the interrupt is enabled.  Delays are necessary to
-		 * allow register changes to become visible.
-		 *
-		 * Synchronize UART_IER access against the console.
-		 */
-		uart_port_lock_irqsave(port, &flags);
-
-		wait_for_xmitr(up, UART_LSR_THRE);
-		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
-		udelay(1); /* allow THRE to set */
-		iir1 = serial_port_in(port, UART_IIR);
-		serial_port_out(port, UART_IER, 0);
-		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
-		udelay(1); /* allow a working UART time to re-assert THRE */
-		iir = serial_port_in(port, UART_IIR);
-		serial_port_out(port, UART_IER, 0);
-
-		uart_port_unlock_irqrestore(port, flags);
-
-		if (port->irqflags & IRQF_SHARED)
-			enable_irq(port->irq);
-
-		/*
-		 * If the interrupt is not reasserted, or we otherwise
-		 * don't trust the iir, setup a timer to kick the UART
-		 * on a regular basis.
-		 */
-		if ((!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) ||
-		    up->port.flags & UPF_BUG_THRE) {
-			up->bugs |= UART_BUG_THRE;
-		}
-	}
+	serial8250_THRE_test(port);
 
 	up->ops->setup_timer(up);
 
