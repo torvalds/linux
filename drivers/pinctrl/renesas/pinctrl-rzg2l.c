@@ -1758,8 +1758,8 @@ static int rzg2l_gpio_direction_input(struct gpio_chip *chip,
 	return 0;
 }
 
-static void rzg2l_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			   int value)
+static int rzg2l_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			  int value)
 {
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
 	const struct pinctrl_pin_desc *pin_desc = &pctrl->desc.pins[offset];
@@ -1779,6 +1779,8 @@ static void rzg2l_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		writeb(reg8 & ~BIT(bit), pctrl->base + P(off));
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	return 0;
 }
 
 static int rzg2l_gpio_direction_output(struct gpio_chip *chip,
@@ -2788,7 +2790,7 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 	chip->direction_input = rzg2l_gpio_direction_input;
 	chip->direction_output = rzg2l_gpio_direction_output;
 	chip->get = rzg2l_gpio_get;
-	chip->set = rzg2l_gpio_set;
+	chip->set_rv = rzg2l_gpio_set;
 	chip->label = name;
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
