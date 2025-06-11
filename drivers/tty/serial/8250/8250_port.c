@@ -2481,9 +2481,7 @@ static void serial8250_flush_buffer(struct uart_port *port)
 		serial8250_tx_dma_flush(up);
 }
 
-static unsigned int serial8250_do_get_divisor(struct uart_port *port,
-					      unsigned int baud,
-					      unsigned int *frac)
+static unsigned int serial8250_do_get_divisor(struct uart_port *port, unsigned int baud)
 {
 	upf_t magic_multiplier = port->flags & UPF_MAGIC_MULTIPLIER;
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -2544,7 +2542,7 @@ static unsigned int serial8250_get_divisor(struct uart_port *port,
 	if (port->get_divisor)
 		return port->get_divisor(port, baud, frac);
 
-	return serial8250_do_get_divisor(port, baud, frac);
+	return serial8250_do_get_divisor(port, baud);
 }
 
 static unsigned char serial8250_compute_lcr(struct uart_8250_port *up, tcflag_t c_cflag)
