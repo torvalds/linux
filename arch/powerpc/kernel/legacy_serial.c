@@ -153,10 +153,9 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	}
 
 	printk(KERN_DEBUG "Found legacy serial port %d for %pOF\n", index, np);
-	printk(KERN_DEBUG "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
+	printk(KERN_DEBUG "  %s=%pa, taddr=%pa, irq=%lx, clk=%d, speed=%d\n",
 	       (iotype == UPIO_PORT) ? "port" : "mem",
-	       (unsigned long long)base, (unsigned long long)taddr, irq,
-	       legacy_port->uartclk, legacy_info->speed);
+	       &base, &taddr, irq, legacy_port->uartclk, legacy_info->speed);
 
 	return index;
 }
