@@ -13,14 +13,12 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/major.h>
 #include <linux/serial_reg.h>
 #include <linux/rtc.h>
-#include <linux/vt_kern.h>
 #include <linux/bcd.h>
 #include <linux/platform_device.h>
 
