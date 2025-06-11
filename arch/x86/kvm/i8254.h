@@ -8,6 +8,8 @@
 
 #include <uapi/asm/kvm.h>
 
+#include "ioapic.h"
+
 #ifdef CONFIG_KVM_IOAPIC
 struct kvm_kpit_channel_state {
 	u32 count; /* can be 65536 */

@@ -31,6 +31,8 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+
+#include "ioapic.h"
 #include "irq.h"
 
 #include <linux/kvm_host.h>
