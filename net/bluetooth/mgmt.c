@@ -5102,11 +5102,11 @@ static void mgmt_adv_monitor_added(struct sock *sk, struct hci_dev *hdev,
 }
 
 static void mgmt_adv_monitor_removed(struct sock *sk, struct hci_dev *hdev,
-				     u16 handle)
+				     __le16 handle)
 {
 	struct mgmt_ev_adv_monitor_removed ev;
 
-	ev.monitor_handle = cpu_to_le16(handle);
+	ev.monitor_handle = handle;
 
 	mgmt_event(MGMT_EV_ADV_MONITOR_REMOVED, hdev, &ev, sizeof(ev), sk);
 }
