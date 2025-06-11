@@ -2547,23 +2547,20 @@ static unsigned int serial8250_get_divisor(struct uart_port *port,
 	return serial8250_do_get_divisor(port, baud, frac);
 }
 
-static unsigned char serial8250_compute_lcr(struct uart_8250_port *up,
-					    tcflag_t c_cflag)
+static unsigned char serial8250_compute_lcr(struct uart_8250_port *up, tcflag_t c_cflag)
 {
-	unsigned char cval;
-
-	cval = UART_LCR_WLEN(tty_get_char_size(c_cflag));
+	u8 lcr = UART_LCR_WLEN(tty_get_char_size(c_cflag));
 
 	if (c_cflag & CSTOPB)
-		cval |= UART_LCR_STOP;
+		lcr |= UART_LCR_STOP;
 	if (c_cflag & PARENB)
-		cval |= UART_LCR_PARITY;
+		lcr |= UART_LCR_PARITY;
 	if (!(c_cflag & PARODD))
-		cval |= UART_LCR_EPAR;
+		lcr |= UART_LCR_EPAR;
 	if (c_cflag & CMSPAR)
-		cval |= UART_LCR_SPAR;
+		lcr |= UART_LCR_SPAR;
 
-	return cval;
+	return lcr;
 }
 
 void serial8250_do_set_divisor(struct uart_port *port, unsigned int baud,
@@ -2821,12 +2818,12 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-	unsigned char cval;
 	unsigned long flags;
 	unsigned int baud, quot, frac = 0;
+	u8 lcr;
 
 	serial8250_set_mini(port, termios);
-	cval = serial8250_compute_lcr(up, termios->c_cflag);
+	lcr = serial8250_compute_lcr(up, termios->c_cflag);
 	baud = serial8250_get_baud_rate(port, termios, old);
 	quot = serial8250_get_divisor(port, baud, &frac);
 
@@ -2839,7 +2836,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial8250_rpm_get(up);
 	uart_port_lock_irqsave(port, &flags);
 
-	up->lcr = cval;					/* Save computed LCR */
+	up->lcr = lcr;
 	serial8250_set_trigger_for_slow_speed(port, termios, baud);
 	serial8250_set_afe(port, termios);
 	uart_update_timeout(port, termios->c_cflag, baud);
