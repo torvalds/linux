@@ -4972,16 +4972,14 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_role_info_v2 *wl_rinfo_v2 = &wl->role_info_v2;
 	struct rtw89_btc_wl_role_info_v7 *wl_rinfo_v7 = &wl->role_info_v7;
 	struct rtw89_btc_wl_role_info_v8 *wl_rinfo_v8 = &wl->role_info_v8;
+	struct rtw89_btc_fbtc_outsrc_set_info *o_info = &btc->dm.ost_info;
 	struct rtw89_btc_wl_role_info *wl_rinfo_v0 = &wl->role_info;
-	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct _wl_rinfo_now wl_rinfo;
-	u32 run_reason = btc->dm.run_reason;
-	u32 is_btg;
-	u8 i, val;
+	u32 is_btg = BTC_BTGCTRL_DISABLE;
 
 	if (btc->manual_ctrl)
 		return;
@@ -4999,58 +4997,56 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 	else
 		return;
 
-	if (rtwdev->dbcc_en) {
-		if (ver->fwlrole == 0) {
-			wl_rinfo.dbcc_2g_phy = RTW89_PHY_NUM;
+	/* notify halbb ignore GNT_BT or not for WL BB Rx-AGC control */
+	if (btc->ant_type == BTC_ANT_SHARED) {
+		if (!(bt->run_patch_code && bt->enable.now))
+			is_btg = BTC_BTGCTRL_DISABLE;
+		else if (wl_rinfo.link_mode != BTC_WLINK_5G)
+			is_btg = BTC_BTGCTRL_ENABLE;
+		else
+			is_btg = BTC_BTGCTRL_DISABLE;
 
-			for (i = 0; i < RTW89_PHY_NUM; i++) {
-				if (wl_dinfo->real_band[i] == RTW89_BAND_2G)
-					wl_rinfo.dbcc_2g_phy = i;
-			}
-		} else if (ver->fwlrole == 1) {
-			wl_rinfo.dbcc_2g_phy = wl_rinfo_v1->dbcc_2g_phy;
-		} else if (ver->fwlrole == 2) {
-			wl_rinfo.dbcc_2g_phy = wl_rinfo_v2->dbcc_2g_phy;
-		} else if (ver->fwlrole == 7) {
-			wl_rinfo.dbcc_2g_phy = wl_rinfo_v7->dbcc_2g_phy;
-		} else if (ver->fwlrole == 8) {
-			wl_rinfo.dbcc_2g_phy = wl_rinfo_v8->dbcc_2g_phy;
-		} else {
-			return;
-		}
+		/* bb call ctrl_btg() in WL FW by slot */
+		if (!ver->fcxosi &&
+		    wl_rinfo.link_mode == BTC_WLINK_25G_MCC)
+			is_btg = BTC_BTGCTRL_BB_GNT_FWCTRL;
 	}
 
-	if (wl_rinfo.link_mode == BTC_WLINK_25G_MCC)
-		is_btg = BTC_BTGCTRL_BB_GNT_FWCTRL;
-	else if (!(bt->run_patch_code && bt->enable.now))
-		is_btg = BTC_BTGCTRL_DISABLE;
-	else if (wl_rinfo.link_mode == BTC_WLINK_5G)
-		is_btg = BTC_BTGCTRL_DISABLE;
-	else if (dm->freerun)
-		is_btg = BTC_BTGCTRL_DISABLE;
-	else if (rtwdev->dbcc_en && wl_rinfo.dbcc_2g_phy != RTW89_PHY_1)
-		is_btg = BTC_BTGCTRL_DISABLE;
+	if (is_btg == dm->wl_btg_rx)
+		return;
 	else
-		is_btg = BTC_BTGCTRL_ENABLE;
-
-	if (dm->wl_btg_rx_rb != dm->wl_btg_rx &&
-	    dm->wl_btg_rx_rb != BTC_BTGCTRL_BB_GNT_NOTFOUND) {
-		_get_reg_status(rtwdev, BTC_CSTATUS_BB_GNT_MUX, &val);
-		dm->wl_btg_rx_rb = val;
-	}
-
-	if (run_reason == BTC_RSN_NTFY_INIT ||
-	    run_reason == BTC_RSN_NTFY_SWBAND ||
-	    dm->wl_btg_rx_rb != dm->wl_btg_rx ||
-	    is_btg != dm->wl_btg_rx) {
-
 		dm->wl_btg_rx = is_btg;
 
-		if (is_btg > BTC_BTGCTRL_ENABLE)
-			return;
+	/* skip setup if btg_ctrl set by wl fw */
+	if (!ver->fcxosi && is_btg > BTC_BTGCTRL_ENABLE)
+		return;
 
-		chip->ops->ctrl_btg_bt_rx(rtwdev, is_btg, RTW89_PHY_0);
+	/* Below flow is for BTC_FEAT_NEW_BBAPI_FLOW = 1 */
+	if (o_info->rf_band[BTC_RF_S0] != o_info->rf_band[BTC_RF_S1]) {/* 1+1 */
+		if (o_info->rf_band[BTC_RF_S0]) /* Non-2G */
+			o_info->btg_rx[BTC_RF_S0] = BTC_BTGCTRL_DISABLE;
+		else
+			o_info->btg_rx[BTC_RF_S0] = is_btg;
+
+		if (o_info->rf_band[BTC_RF_S1]) /* Non-2G */
+			o_info->btg_rx[BTC_RF_S1] = BTC_BTGCTRL_DISABLE;
+		else
+			o_info->btg_rx[BTC_RF_S1] = is_btg;
+	} else { /* 2+0 or 0+2 */
+		o_info->btg_rx[BTC_RF_S0] = is_btg;
+		o_info->btg_rx[BTC_RF_S1] = is_btg;
 	}
+
+	if (ver->fcxosi)
+		return;
+
+	chip->ops->ctrl_btg_bt_rx(rtwdev, o_info->btg_rx[BTC_RF_S0],
+				  RTW89_PHY_0);
+	if (chip->chip_id != RTL8922A)
+		return;
+
+	chip->ops->ctrl_btg_bt_rx(rtwdev, o_info->btg_rx[BTC_RF_S1],
+				  RTW89_PHY_1);
 }
 
 static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
