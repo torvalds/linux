@@ -81,7 +81,7 @@ static inline void init_sched_ext_class(void) {}
 
 #endif	/* CONFIG_SCHED_CLASS_EXT */
 
-#if defined(CONFIG_SCHED_CLASS_EXT) && defined(CONFIG_SMP)
+#ifdef CONFIG_SCHED_CLASS_EXT
 void __scx_update_idle(struct rq *rq, bool idle, bool do_notify);
 
 static inline void scx_update_idle(struct rq *rq, bool idle, bool do_notify)
