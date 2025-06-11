@@ -1,13 +1,12 @@
-==========================
-Short users guide for SLUB
-==========================
+========================================
+Short users guide for the slab allocator
+========================================
 
-The basic philosophy of SLUB is very different from SLAB. SLAB
-requires rebuilding the kernel to activate debug options for all
-slab caches. SLUB always includes full debugging but it is off by default.
-SLUB can enable debugging only for selected slabs in order to avoid
-an impact on overall system performance which may make a bug more
-difficult to find.
+The slab allocator includes full debugging support (when built with
+CONFIG_SLUB_DEBUG=y) but it is off by default (unless built with
+CONFIG_SLUB_DEBUG_ON=y).  You can enable debugging only for selected
+slabs in order to avoid an impact on overall system performance which
+may make a bug more difficult to find.
 
 In order to switch debugging on one can add an option ``slab_debug``
 to the kernel command line. That will enable full debugging for
