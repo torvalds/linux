@@ -34,7 +34,7 @@ void dml21_copy(struct dml2_context *dst_dml_ctx,
 	struct dml2_context *src_dml_ctx);
 bool dml21_create_copy(struct dml2_context **dst_dml_ctx,
 	struct dml2_context *src_dml_ctx);
-void dml21_reinit(const struct dc *in_dc, struct dml2_context **dml_ctx, const struct dml2_configuration_options *config);
+void dml21_reinit(const struct dc *in_dc, struct dml2_context *dml_ctx, const struct dml2_configuration_options *config);
 
 /**
  * dml21_validate - Determines if a display configuration is supported or not.
