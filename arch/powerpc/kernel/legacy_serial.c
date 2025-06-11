@@ -54,9 +54,10 @@ static int legacy_serial_console = -1;
 static const upf_t legacy_port_flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 	UPF_SHARE_IRQ | UPF_FIXED_PORT;
 
-static unsigned int tsi_serial_in(struct uart_port *p, int offset)
+static u32 tsi_serial_in(struct uart_port *p, unsigned int offset)
 {
-	unsigned int tmp;
+	u32 tmp;
+
 	offset = offset << p->regshift;
 	if (offset == UART_IIR) {
 		tmp = readl(p->membase + (UART_IIR & ~3));
@@ -65,7 +66,7 @@ static unsigned int tsi_serial_in(struct uart_port *p, int offset)
 		return readb(p->membase + offset);
 }
 
-static void tsi_serial_out(struct uart_port *p, int offset, int value)
+static void tsi_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	if (!((offset == UART_IER) && (value & UART_IER_UUE)))

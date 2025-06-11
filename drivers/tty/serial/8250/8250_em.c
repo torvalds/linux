@@ -59,7 +59,7 @@ static void serial8250_em_serial_out_helper(struct uart_port *p, int offset,
 	}
 }
 
-static unsigned int serial8250_em_serial_in(struct uart_port *p, int offset)
+static u32 serial8250_em_serial_in(struct uart_port *p, unsigned int offset)
 {
 	switch (offset) {
 	case UART_RX: /* RX @ 0x00 */
@@ -119,7 +119,7 @@ static void serial8250_em_reg_update(struct uart_port *p, int off, int value)
 	serial8250_em_serial_out_helper(p, UART_HCR0_EM, hcr0);
 }
 
-static void serial8250_em_serial_out(struct uart_port *p, int offset, int value)
+static void serial8250_em_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	switch (offset) {
 	case UART_TX:

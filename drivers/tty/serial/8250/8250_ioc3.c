@@ -21,12 +21,12 @@ struct ioc3_8250_data {
 	int line;
 };
 
-static unsigned int ioc3_serial_in(struct uart_port *p, int offset)
+static u32 ioc3_serial_in(struct uart_port *p, unsigned int offset)
 {
 	return readb(p->membase + (offset ^ 3));
 }
 
-static void ioc3_serial_out(struct uart_port *p, int offset, int value)
+static void ioc3_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	writeb(value, p->membase + (offset ^ 3));
 }
