@@ -3146,31 +3146,6 @@ enum rtw89_btc_btfre_type {
 	BTFRE_MAX,
 };
 
-struct rtw89_btc_btf_fwinfo {
-	u32 cnt_c2h;
-	u32 cnt_h2c;
-	u32 cnt_h2c_fail;
-	u32 event[BTF_EVNT_MAX];
-
-	u32 err[BTFRE_MAX];
-	u32 len_mismch;
-	u32 fver_mismch;
-	u32 rpt_en_map;
-
-	struct rtw89_btc_report_ctrl_state rpt_ctrl;
-	struct rtw89_btc_rpt_fbtc_tdma rpt_fbtc_tdma;
-	struct rtw89_btc_rpt_fbtc_slots rpt_fbtc_slots;
-	struct rtw89_btc_rpt_fbtc_cysta rpt_fbtc_cysta;
-	struct rtw89_btc_rpt_fbtc_step rpt_fbtc_step;
-	struct rtw89_btc_rpt_fbtc_nullsta rpt_fbtc_nullsta;
-	struct rtw89_btc_rpt_fbtc_mreg rpt_fbtc_mregval;
-	struct rtw89_btc_rpt_fbtc_gpio_dbg rpt_fbtc_gpio_dbg;
-	struct rtw89_btc_rpt_fbtc_btver rpt_fbtc_btver;
-	struct rtw89_btc_rpt_fbtc_btscan rpt_fbtc_btscan;
-	struct rtw89_btc_rpt_fbtc_btafh rpt_fbtc_btafh;
-	struct rtw89_btc_rpt_fbtc_btdev rpt_fbtc_btdev;
-};
-
 struct rtw89_btc_ver {
 	enum rtw89_core_chip_id chip_id;
 	u32 fw_ver_code;
@@ -3199,6 +3174,32 @@ struct rtw89_btc_ver {
 	u8 max_role_num;
 	u8 fcxosi;
 	u8 fcxmlo;
+};
+
+struct rtw89_btc_btf_fwinfo {
+	u32 cnt_c2h;
+	u32 cnt_h2c;
+	u32 cnt_h2c_fail;
+	u32 event[BTF_EVNT_MAX];
+
+	u32 err[BTFRE_MAX];
+	u32 len_mismch;
+	u32 fver_mismch;
+	u32 rpt_en_map;
+
+	struct rtw89_btc_ver fw_subver;
+	struct rtw89_btc_report_ctrl_state rpt_ctrl;
+	struct rtw89_btc_rpt_fbtc_tdma rpt_fbtc_tdma;
+	struct rtw89_btc_rpt_fbtc_slots rpt_fbtc_slots;
+	struct rtw89_btc_rpt_fbtc_cysta rpt_fbtc_cysta;
+	struct rtw89_btc_rpt_fbtc_step rpt_fbtc_step;
+	struct rtw89_btc_rpt_fbtc_nullsta rpt_fbtc_nullsta;
+	struct rtw89_btc_rpt_fbtc_mreg rpt_fbtc_mregval;
+	struct rtw89_btc_rpt_fbtc_gpio_dbg rpt_fbtc_gpio_dbg;
+	struct rtw89_btc_rpt_fbtc_btver rpt_fbtc_btver;
+	struct rtw89_btc_rpt_fbtc_btscan rpt_fbtc_btscan;
+	struct rtw89_btc_rpt_fbtc_btafh rpt_fbtc_btafh;
+	struct rtw89_btc_rpt_fbtc_btdev rpt_fbtc_btdev;
 };
 
 #define RTW89_BTC_POLICY_MAXLEN 512
