@@ -3000,7 +3000,7 @@ static int do_free_extent_accounting(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
-	ret = add_to_free_space_tree(trans, bytenr, num_bytes);
+	ret = btrfs_add_to_free_space_tree(trans, bytenr, num_bytes);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		return ret;
@@ -4784,7 +4784,7 @@ static int alloc_reserved_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
 
-	ret = remove_from_free_space_tree(trans, bytenr, num_bytes);
+	ret = btrfs_remove_from_free_space_tree(trans, bytenr, num_bytes);
 	if (ret)
 		return ret;
 
