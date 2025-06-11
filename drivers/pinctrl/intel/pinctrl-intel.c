@@ -9,6 +9,7 @@
 
 #include <linux/acpi.h>
 #include <linux/cleanup.h>
+#include <linux/export.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/log2.h>
