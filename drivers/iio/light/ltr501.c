@@ -1404,7 +1404,7 @@ static const struct regmap_config ltr501_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = LTR501_MAX_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = ltr501_is_volatile_reg,
 };
 
