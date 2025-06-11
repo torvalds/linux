@@ -4677,12 +4677,13 @@ static void mark_all_scalars_imprecise(struct bpf_verifier_env *env, struct bpf_
  * mark_all_scalars_imprecise() to hopefully get more permissive and generic
  * finalized states which help in short circuiting more future states.
  */
-static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
+static int __mark_chain_precision(struct bpf_verifier_env *env,
+				  struct bpf_verifier_state *starting_state, int regno)
 {
+	struct bpf_verifier_state *st = starting_state;
 	struct backtrack_state *bt = &env->bt;
-	struct bpf_verifier_state *st = env->cur_state;
 	int first_idx = st->first_insn_idx;
-	int last_idx = env->insn_idx;
+	int last_idx = starting_state->insn_idx;
 	int subseq_idx = -1;
 	struct bpf_func_state *func;
 	struct bpf_reg_state *reg;
@@ -4693,7 +4694,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 		return 0;
 
 	/* set frame number from which we are starting to backtrack */
-	bt_init(bt, env->cur_state->curframe);
+	bt_init(bt, starting_state->curframe);
 
 	/* Do sanity checks against current state of register and/or stack
 	 * slot, but don't set precise flag in current state, as precision
@@ -4757,7 +4758,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 				err = backtrack_insn(env, i, subseq_idx, hist, bt);
 			}
 			if (err == -ENOTSUPP) {
-				mark_all_scalars_precise(env, env->cur_state);
+				mark_all_scalars_precise(env, starting_state);
 				bt_reset(bt);
 				return 0;
 			} else if (err) {
@@ -4845,7 +4846,7 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 	 * fallback to marking all precise
 	 */
 	if (!bt_empty(bt)) {
-		mark_all_scalars_precise(env, env->cur_state);
+		mark_all_scalars_precise(env, starting_state);
 		bt_reset(bt);
 	}
 
@@ -4854,15 +4855,16 @@ static int __mark_chain_precision(struct bpf_verifier_env *env, int regno)
 
 int mark_chain_precision(struct bpf_verifier_env *env, int regno)
 {
-	return __mark_chain_precision(env, regno);
+	return __mark_chain_precision(env, env->cur_state, regno);
 }
 
 /* mark_chain_precision_batch() assumes that env->bt is set in the caller to
  * desired reg and stack masks across all relevant frames
  */
-static int mark_chain_precision_batch(struct bpf_verifier_env *env)
+static int mark_chain_precision_batch(struct bpf_verifier_env *env,
+				      struct bpf_verifier_state *starting_state)
 {
-	return __mark_chain_precision(env, -1);
+	return __mark_chain_precision(env, starting_state, -1);
 }
 
 static bool is_spillable_regtype(enum bpf_reg_type type)
@@ -9515,7 +9517,7 @@ static int get_constant_map_key(struct bpf_verifier_env *env,
 	 * to prevent pruning on it.
 	 */
 	bt_set_frame_slot(&env->bt, key->frameno, spi);
-	err = mark_chain_precision_batch(env);
+	err = mark_chain_precision_batch(env, env->cur_state);
 	if (err < 0)
 		return err;
 
@@ -18939,7 +18941,7 @@ static int propagate_precision(struct bpf_verifier_env *env,
 			verbose(env, "\n");
 	}
 
-	err = mark_chain_precision_batch(env);
+	err = mark_chain_precision_batch(env, env->cur_state);
 	if (err < 0)
 		return err;
 
