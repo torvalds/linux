@@ -39,15 +39,6 @@
 #include "8250.h"
 
 /*
- * Debugging.
- */
-#if 0
-#define DEBUG_AUTOCONF(fmt...)	printk(fmt)
-#else
-#define DEBUG_AUTOCONF(fmt...)	do { } while (0)
-#endif
-
-/*
  * Here we define the default xmit fifo size used for each type of UART.
  */
 static const struct serial8250_config uart_config[] = {
@@ -825,8 +816,6 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 	id3 = serial_icr_read(up, UART_ID3);
 	rev = serial_icr_read(up, UART_REV);
 
-	DEBUG_AUTOCONF("950id=%02x:%02x:%02x:%02x ", id1, id2, id3, rev);
-
 	if (id1 == 0x16 && id2 == 0xC9 &&
 	    (id3 == 0x50 || id3 == 0x52 || id3 == 0x54)) {
 		up->port.type = PORT_16C950;
@@ -850,7 +839,6 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 	 *  0x14 - XR16C854.
 	 */
 	id1 = autoconfig_read_divisor_id(up);
-	DEBUG_AUTOCONF("850id=%04x ", id1);
 
 	id2 = id1 >> 8;
 	if (id2 == 0x10 || id2 == 0x12 || id2 == 0x14) {
@@ -937,7 +925,6 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	if (serial_in(up, UART_EFR) == 0) {
 		serial_out(up, UART_EFR, 0xA8);
 		if (serial_in(up, UART_EFR) != 0) {
-			DEBUG_AUTOCONF("EFRv1 ");
 			up->port.type = PORT_16650;
 			up->capabilities |= UART_CAP_EFR | UART_CAP_SLEEP;
 		} else {
@@ -950,8 +937,6 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 
 			if (status1 == UART_IIR_FIFO_ENABLED_16750)
 				up->port.type = PORT_16550A_FSL64;
-			else
-				DEBUG_AUTOCONF("Motorola 8xxx DUART ");
 		}
 		serial_out(up, UART_EFR, 0);
 		return;
@@ -963,7 +948,6 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 */
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	if (serial_in(up, UART_EFR) == 0 && !broken_efr(up)) {
-		DEBUG_AUTOCONF("EFRv2 ");
 		autoconfig_has_efr(up);
 		return;
 	}
@@ -1026,8 +1010,6 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 
 	serial_out(up, UART_LCR, 0);
 
-	DEBUG_AUTOCONF("iir1=%d iir2=%d ", status1, status2);
-
 	if (status1 == UART_IIR_FIFO_ENABLED_16550A &&
 	    status2 == UART_IIR_FIFO_ENABLED_16750) {
 		up->port.type = PORT_16750;
@@ -1056,17 +1038,10 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 			 * It's an Xscale.
 			 * We'll leave the UART_IER_UUE bit set to 1 (enabled).
 			 */
-			DEBUG_AUTOCONF("Xscale ");
 			up->port.type = PORT_XSCALE;
 			up->capabilities |= UART_CAP_UUE | UART_CAP_RTOIE;
 			return;
 		}
-	} else {
-		/*
-		 * If we got here we couldn't force the IER_UUE bit to 0.
-		 * Log it and continue.
-		 */
-		DEBUG_AUTOCONF("Couldn't force IER_UUE to 0 ");
 	}
 	serial_out(up, UART_IER, iersave);
 
@@ -1097,9 +1072,6 @@ static void autoconfig(struct uart_8250_port *up)
 
 	if (!port->iobase && !port->mapbase && !port->membase)
 		return;
-
-	DEBUG_AUTOCONF("%s: autoconf (0x%04lx, 0x%p): ",
-		       port->name, port->iobase, port->membase);
 
 	/*
 	 * We really do need global IRQs disabled here - we're going to
@@ -1147,9 +1119,7 @@ static void autoconfig(struct uart_8250_port *up)
 			 * We failed; there's nothing here
 			 */
 			uart_port_unlock_irqrestore(port, flags);
-			DEBUG_AUTOCONF("IER test failed (%02x, %02x) ",
-				       scratch2, scratch3);
-			goto out;
+			return;
 		}
 	}
 
@@ -1171,9 +1141,7 @@ static void autoconfig(struct uart_8250_port *up)
 		serial8250_out_MCR(up, save_mcr);
 		if (status1 != (UART_MSR_DCD | UART_MSR_CTS)) {
 			uart_port_unlock_irqrestore(port, flags);
-			DEBUG_AUTOCONF("LOOP test failed (%02x) ",
-				       status1);
-			goto out;
+			return;
 		}
 	}
 
@@ -1241,9 +1209,6 @@ out_unlock:
 		dev_warn(port->dev, "detected caps %08x should be %08x\n",
 			 old_capabilities, up->capabilities);
 	}
-out:
-	DEBUG_AUTOCONF("iir=%d ", scratch);
-	DEBUG_AUTOCONF("type=%s\n", uart_config[port->type].name);
 }
 
 static void autoconfig_irq(struct uart_8250_port *up)
