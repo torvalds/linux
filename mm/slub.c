@@ -183,6 +183,18 @@
  * 			the fast path and disables lockless freelists.
  */
 
+/**
+ * enum slab_flags - How the slab flags bits are used.
+ * @SL_locked: Is locked with slab_lock()
+ *
+ * The slab flags share space with the page flags but some bits have
+ * different interpretations.  The high bits are used for information
+ * like zone/node/section.
+ */
+enum slab_flags {
+	SL_locked = PG_locked,
+};
+
 /*
  * We could simply use migrate_disable()/enable() but as long as it's a
  * function call even on !PREEMPT_RT, use inline preempt_disable() there.
@@ -639,12 +651,12 @@ static inline unsigned int slub_get_cpu_partial(struct kmem_cache *s)
  */
 static __always_inline void slab_lock(struct slab *slab)
 {
-	bit_spin_lock(PG_locked, &slab->__page_flags);
+	bit_spin_lock(SL_locked, &slab->flags);
 }
 
 static __always_inline void slab_unlock(struct slab *slab)
 {
-	bit_spin_unlock(PG_locked, &slab->__page_flags);
+	bit_spin_unlock(SL_locked, &slab->flags);
 }
 
 static inline bool
@@ -1010,7 +1022,7 @@ static void print_slab_info(const struct slab *slab)
 {
 	pr_err("Slab 0x%p objects=%u used=%u fp=0x%p flags=%pGp\n",
 	       slab, slab->objects, slab->inuse, slab->freelist,
-	       &slab->__page_flags);
+	       &slab->flags);
 }
 
 void skip_orig_size_check(struct kmem_cache *s, const void *object)
