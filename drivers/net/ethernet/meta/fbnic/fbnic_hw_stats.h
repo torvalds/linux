@@ -22,6 +22,23 @@ struct fbnic_hw_stat {
 	struct fbnic_stat_counter bytes;
 };
 
+/* Note: not updated by fbnic_get_hw_stats() */
+struct fbnic_eth_ctrl_stats {
+	struct fbnic_stat_counter MACControlFramesTransmitted;
+	struct fbnic_stat_counter MACControlFramesReceived;
+};
+
+/* Note: not updated by fbnic_get_hw_stats() */
+struct fbnic_rmon_stats {
+	struct fbnic_stat_counter undersize_pkts;
+	struct fbnic_stat_counter oversize_pkts;
+	struct fbnic_stat_counter fragments;
+	struct fbnic_stat_counter jabbers;
+
+	struct fbnic_stat_counter hist[ETHTOOL_RMON_HIST_MAX];
+	struct fbnic_stat_counter hist_tx[ETHTOOL_RMON_HIST_MAX];
+};
+
 struct fbnic_eth_mac_stats {
 	struct fbnic_stat_counter FramesTransmittedOK;
 	struct fbnic_stat_counter FramesReceivedOK;
@@ -40,6 +57,8 @@ struct fbnic_eth_mac_stats {
 
 struct fbnic_mac_stats {
 	struct fbnic_eth_mac_stats eth_mac;
+	struct fbnic_eth_ctrl_stats eth_ctrl;
+	struct fbnic_rmon_stats rmon;
 };
 
 struct fbnic_tmi_stats {

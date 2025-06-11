@@ -85,6 +85,10 @@ struct fbnic_mac {
 
 	void (*get_eth_mac_stats)(struct fbnic_dev *fbd, bool reset,
 				  struct fbnic_eth_mac_stats *mac_stats);
+	void (*get_eth_ctrl_stats)(struct fbnic_dev *fbd, bool reset,
+				   struct fbnic_eth_ctrl_stats *ctrl_stats);
+	void (*get_rmon_stats)(struct fbnic_dev *fbd, bool reset,
+			       struct fbnic_rmon_stats *rmon_stats);
 
 	void (*link_down)(struct fbnic_dev *fbd);
 	void (*link_up)(struct fbnic_dev *fbd, bool tx_pause, bool rx_pause);

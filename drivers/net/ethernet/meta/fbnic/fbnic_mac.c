@@ -680,6 +680,76 @@ fbnic_mac_get_eth_mac_stats(struct fbnic_dev *fbd, bool reset,
 			    MAC_STAT_TX_BROADCAST);
 }
 
+static void
+fbnic_mac_get_eth_ctrl_stats(struct fbnic_dev *fbd, bool reset,
+			     struct fbnic_eth_ctrl_stats *ctrl_stats)
+{
+	fbnic_mac_stat_rd64(fbd, reset, ctrl_stats->MACControlFramesReceived,
+			    MAC_STAT_RX_CONTROL_FRAMES);
+	fbnic_mac_stat_rd64(fbd, reset, ctrl_stats->MACControlFramesTransmitted,
+			    MAC_STAT_TX_CONTROL_FRAMES);
+}
+
+static void
+fbnic_mac_get_rmon_stats(struct fbnic_dev *fbd, bool reset,
+			 struct fbnic_rmon_stats *rmon_stats)
+{
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->undersize_pkts,
+			    MAC_STAT_RX_UNDERSIZE);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->oversize_pkts,
+			    MAC_STAT_RX_OVERSIZE);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->fragments,
+			    MAC_STAT_RX_FRAGMENT);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->jabbers,
+			    MAC_STAT_RX_JABBER);
+
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[0],
+			    MAC_STAT_RX_PACKET_64_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[1],
+			    MAC_STAT_RX_PACKET_65_127_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[2],
+			    MAC_STAT_RX_PACKET_128_255_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[3],
+			    MAC_STAT_RX_PACKET_256_511_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[4],
+			    MAC_STAT_RX_PACKET_512_1023_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[5],
+			    MAC_STAT_RX_PACKET_1024_1518_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[6],
+			    RPC_STAT_RX_PACKET_1519_2047_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[7],
+			    RPC_STAT_RX_PACKET_2048_4095_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[8],
+			    RPC_STAT_RX_PACKET_4096_8191_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[9],
+			    RPC_STAT_RX_PACKET_8192_9216_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist[10],
+			    RPC_STAT_RX_PACKET_9217_MAX_BYTES);
+
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[0],
+			    MAC_STAT_TX_PACKET_64_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[1],
+			    MAC_STAT_TX_PACKET_65_127_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[2],
+			    MAC_STAT_TX_PACKET_128_255_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[3],
+			    MAC_STAT_TX_PACKET_256_511_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[4],
+			    MAC_STAT_TX_PACKET_512_1023_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[5],
+			    MAC_STAT_TX_PACKET_1024_1518_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[6],
+			    TMI_STAT_TX_PACKET_1519_2047_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[7],
+			    TMI_STAT_TX_PACKET_2048_4095_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[8],
+			    TMI_STAT_TX_PACKET_4096_8191_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[9],
+			    TMI_STAT_TX_PACKET_8192_9216_BYTES);
+	fbnic_mac_stat_rd64(fbd, reset, rmon_stats->hist_tx[10],
+			    TMI_STAT_TX_PACKET_9217_MAX_BYTES);
+}
+
 static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id,
 				     long *val)
 {
@@ -755,6 +825,8 @@ static const struct fbnic_mac fbnic_mac_asic = {
 	.pcs_get_link = fbnic_pcs_get_link_asic,
 	.pcs_get_link_event = fbnic_pcs_get_link_event_asic,
 	.get_eth_mac_stats = fbnic_mac_get_eth_mac_stats,
+	.get_eth_ctrl_stats = fbnic_mac_get_eth_ctrl_stats,
+	.get_rmon_stats = fbnic_mac_get_rmon_stats,
 	.link_down = fbnic_mac_link_down_asic,
 	.link_up = fbnic_mac_link_up_asic,
 	.get_sensor = fbnic_mac_get_sensor_asic,
