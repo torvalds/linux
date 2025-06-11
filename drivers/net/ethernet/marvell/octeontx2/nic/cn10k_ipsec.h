@@ -220,7 +220,7 @@ struct cpt_sg_s {
 #define CPT_LF_Q_SIZE_DIV40 GENMASK_ULL(14, 0)
 
 /* CPT LF CTX Flush Register */
-#define CPT_LF_CTX_FLUSH GENMASK_ULL(45, 0)
+#define CPT_LF_CTX_FLUSH_CPTR GENMASK_ULL(45, 0)
 
 #ifdef CONFIG_XFRM_OFFLOAD
 int cn10k_ipsec_init(struct net_device *netdev);

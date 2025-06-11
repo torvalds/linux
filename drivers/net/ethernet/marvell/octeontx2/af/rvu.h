@@ -10,6 +10,7 @@
 
 #include <linux/pci.h>
 #include <net/devlink.h>
+#include <linux/soc/marvell/silicons.h>
 
 #include "rvu_struct.h"
 #include "rvu_devlink.h"
@@ -43,10 +44,34 @@
 #define MAX_CPT_BLKS				2
 
 /* PF_FUNC */
-#define RVU_PFVF_PF_SHIFT	10
-#define RVU_PFVF_PF_MASK	0x3F
-#define RVU_PFVF_FUNC_SHIFT	0
-#define RVU_PFVF_FUNC_MASK	0x3FF
+#define RVU_OTX2_PFVF_PF_SHIFT			10
+#define RVU_OTX2_PFVF_PF_MASK			0x3F
+#define RVU_PFVF_FUNC_SHIFT			0
+#define RVU_PFVF_FUNC_MASK			0x3FF
+#define RVU_CN20K_PFVF_PF_SHIFT			9
+#define RVU_CN20K_PFVF_PF_MASK			0x7F
+
+static inline u16 rvu_make_pcifunc(struct pci_dev *pdev, int pf, int func)
+{
+	if (is_cn20k(pdev))
+		return ((pf & RVU_CN20K_PFVF_PF_MASK) <<
+			RVU_CN20K_PFVF_PF_SHIFT) |
+			((func & RVU_PFVF_FUNC_MASK) <<
+			RVU_PFVF_FUNC_SHIFT);
+	else
+		return ((pf & RVU_OTX2_PFVF_PF_MASK) <<
+			RVU_OTX2_PFVF_PF_SHIFT) |
+			((func & RVU_PFVF_FUNC_MASK) <<
+			RVU_PFVF_FUNC_SHIFT);
+}
+
+static inline int rvu_pcifunc_pf_mask(struct pci_dev *pdev)
+{
+	if (is_cn20k(pdev))
+		return ~(RVU_CN20K_PFVF_PF_MASK << RVU_CN20K_PFVF_PF_SHIFT);
+	else
+		return ~(RVU_OTX2_PFVF_PF_MASK << RVU_OTX2_PFVF_PF_SHIFT);
+}
 
 #ifdef CONFIG_DEBUG_FS
 struct dump_ctx {
@@ -836,7 +861,6 @@ int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc);
 void rvu_free_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc, int start);
 bool rvu_rsrc_check_contig(struct rsrc_bmap *rsrc, int nrsrc);
 u16 rvu_get_rsrc_mapcount(struct rvu_pfvf *pfvf, int blkaddr);
-int rvu_get_pf(u16 pcifunc);
 struct rvu_pfvf *rvu_get_pfvf(struct rvu *rvu, int pcifunc);
 void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf);
 bool is_block_implemented(struct rvu_hwinfo *hw, int blkaddr);
@@ -865,8 +889,8 @@ void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq);
 
 /* SDP APIs */
 int rvu_sdp_init(struct rvu *rvu);
-bool is_sdp_pfvf(u16 pcifunc);
-bool is_sdp_pf(u16 pcifunc);
+bool is_sdp_pfvf(struct rvu *rvu, u16 pcifunc);
+bool is_sdp_pf(struct rvu *rvu, u16 pcifunc);
 bool is_sdp_vf(struct rvu *rvu, u16 pcifunc);
 
 static inline bool is_rep_dev(struct rvu *rvu, u16 pcifunc)
@@ -877,11 +901,21 @@ static inline bool is_rep_dev(struct rvu *rvu, u16 pcifunc)
 	return false;
 }
 
+static inline int rvu_get_pf(struct pci_dev *pdev, u16 pcifunc)
+{
+	if (is_cn20k(pdev))
+		return (pcifunc >> RVU_CN20K_PFVF_PF_SHIFT) &
+			RVU_CN20K_PFVF_PF_MASK;
+	else
+		return (pcifunc >> RVU_OTX2_PFVF_PF_SHIFT) &
+			RVU_OTX2_PFVF_PF_MASK;
+}
+
 /* CGX APIs */
 static inline bool is_pf_cgxmapped(struct rvu *rvu, u8 pf)
 {
 	return (pf >= PF_CGXMAP_BASE && pf <= rvu->cgx_mapped_pfs) &&
-		!is_sdp_pf(pf << RVU_PFVF_PF_SHIFT);
+		!is_sdp_pf(rvu, rvu_make_pcifunc(rvu->pdev, pf, 0));
 }
 
 static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
@@ -893,7 +927,7 @@ static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
 static inline bool is_cgx_vf(struct rvu *rvu, u16 pcifunc)
 {
 	return ((pcifunc & RVU_PFVF_FUNC_MASK) &&
-		is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc)));
+		is_pf_cgxmapped(rvu, rvu_get_pf(rvu->pdev, pcifunc)));
 }
 
 #define M(_name, _id, fn_name, req, rsp)				\
