@@ -345,8 +345,8 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 			   unsigned long len);
 void memzero_extent_buffer(const struct extent_buffer *eb, unsigned long start,
 			   unsigned long len);
-int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
-			   unsigned long pos);
+bool extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
+			    unsigned long pos);
 void extent_buffer_bitmap_set(const struct extent_buffer *eb, unsigned long start,
 			      unsigned long pos, unsigned long len);
 void extent_buffer_bitmap_clear(const struct extent_buffer *eb,

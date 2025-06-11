@@ -4107,8 +4107,8 @@ static inline void eb_bitmap_offset(const struct extent_buffer *eb,
  * @start:  offset of the bitmap item in the extent buffer
  * @nr:     bit number to test
  */
-int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
-			   unsigned long nr)
+bool extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
+			    unsigned long nr)
 {
 	unsigned long i;
 	size_t offset;
