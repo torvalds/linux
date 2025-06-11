@@ -59,9 +59,9 @@ struct ada4250_state {
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex		lock;
 	int			avdd_uv;
+	int			offset_uv;
 	u8			bias;
 	u8			gain;
-	int			offset_uv;
 	bool			refbuf_en;
 	__le16			reg_val_16 __aligned(IIO_DMA_MINALIGN);
 };
