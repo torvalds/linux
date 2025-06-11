@@ -24,7 +24,7 @@
 
 #define LEGACY_COMMAND_LINE_SIZE	896
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/lowcore.h>
 #include <asm/types.h>
@@ -100,5 +100,5 @@ static __always_inline u32 gen_lpswe(unsigned long addr)
 	BUILD_BUG_ON(addr > 0xfff);
 	return 0xb2b20000 | addr;
 }
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _ASM_S390_SETUP_H */

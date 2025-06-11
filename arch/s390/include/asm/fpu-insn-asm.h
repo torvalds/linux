@@ -16,7 +16,7 @@
 #error only <asm/fpu-insn.h> can be included directly
 #endif
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* Macros to generate vector instruction byte code */
 
@@ -750,5 +750,5 @@
 	MRXBOPC	0, 0x77, v1, v2, v3
 .endm
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 #endif	/* __ASM_S390_FPU_INSN_ASM_H */

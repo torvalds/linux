@@ -33,7 +33,7 @@
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 
 #include <asm/setup.h>
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 void __storage_key_init_range(unsigned long start, unsigned long end);
 
@@ -274,7 +274,7 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
