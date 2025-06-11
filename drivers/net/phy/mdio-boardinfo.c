@@ -14,6 +14,11 @@
 static LIST_HEAD(mdio_board_list);
 static DEFINE_MUTEX(mdio_board_lock);
 
+struct mdio_board_entry {
+	struct list_head	list;
+	struct mdio_board_info	board_info;
+};
+
 /**
  * mdiobus_setup_mdiodev_from_board_info - create and setup MDIO devices
  * from pre-collected board specific MDIO information
