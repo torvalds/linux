@@ -26,24 +26,18 @@ void mdiobus_setup_mdiodev_from_board_info(struct mii_bus *bus,
 					   (struct mii_bus *bus,
 					    struct mdio_board_info *bi))
 {
-	struct mdio_board_entry *be;
-	struct mdio_board_entry *tmp;
-	struct mdio_board_info *bi;
-	int ret;
+	struct mdio_board_entry *be, *tmp;
 
 	mutex_lock(&mdio_board_lock);
 	list_for_each_entry_safe(be, tmp, &mdio_board_list, list) {
-		bi = &be->board_info;
+		struct mdio_board_info *bi = &be->board_info;
 
 		if (strcmp(bus->id, bi->bus_id))
 			continue;
 
 		mutex_unlock(&mdio_board_lock);
-		ret = cb(bus, bi);
+		cb(bus, bi);
 		mutex_lock(&mdio_board_lock);
-		if (ret)
-			continue;
-
 	}
 	mutex_unlock(&mdio_board_lock);
 }
