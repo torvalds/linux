@@ -535,10 +535,10 @@ bool btrfs_free_space_test_bit(struct btrfs_block_group *block_group,
 	return extent_buffer_test_bit(leaf, ptr, i);
 }
 
-static void free_space_set_bits(struct btrfs_trans_handle *trans,
-				struct btrfs_block_group *block_group,
-				struct btrfs_path *path, u64 *start, u64 *size,
-				int bit)
+static void free_space_modify_bits(struct btrfs_trans_handle *trans,
+				   struct btrfs_block_group *block_group,
+				   struct btrfs_path *path, u64 *start, u64 *size,
+				   bool set_bits)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct extent_buffer *leaf;
@@ -562,7 +562,7 @@ static void free_space_set_bits(struct btrfs_trans_handle *trans,
 	ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	first = (*start - found_start) >> fs_info->sectorsize_bits;
 	last = (end - found_start) >> fs_info->sectorsize_bits;
-	if (bit)
+	if (set_bits)
 		extent_buffer_bitmap_set(leaf, ptr, first, last - first);
 	else
 		extent_buffer_bitmap_clear(leaf, ptr, first, last - first);
@@ -658,8 +658,8 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 	cur_start = start;
 	cur_size = size;
 	while (1) {
-		free_space_set_bits(trans, block_group, path, &cur_start, &cur_size,
-				    !remove);
+		free_space_modify_bits(trans, block_group, path, &cur_start,
+				       &cur_size, !remove);
 		if (cur_size == 0)
 			break;
 		ret = free_space_next_bitmap(trans, root, path);
