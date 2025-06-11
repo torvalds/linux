@@ -12,7 +12,7 @@ static int run_getsockopt_test(int cg_parent, int sock_fd, bool has_relative_fd)
 	struct cgroup_preorder *skel = NULL;
 	struct bpf_program *prog;
 	__u8 *result, buf;
-	socklen_t optlen;
+	socklen_t optlen = 1;
 	int err = 0;
 
 	skel = cgroup_preorder__open_and_load();
