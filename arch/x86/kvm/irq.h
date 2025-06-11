@@ -69,16 +69,7 @@ int kvm_pic_set_irq(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
 int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip);
 int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip);
 
-static inline int irqchip_split(struct kvm *kvm)
-{
-	int mode = kvm->arch.irqchip_mode;
-
-	/* Matches smp_wmb() when setting irqchip_mode */
-	smp_rmb();
-	return mode == KVM_IRQCHIP_SPLIT;
-}
-
-static inline int irqchip_kernel(struct kvm *kvm)
+static inline int irqchip_full(struct kvm *kvm)
 {
 	int mode = kvm->arch.irqchip_mode;
 
@@ -89,7 +80,16 @@ static inline int irqchip_kernel(struct kvm *kvm)
 
 static inline int pic_in_kernel(struct kvm *kvm)
 {
-	return irqchip_kernel(kvm);
+	return irqchip_full(kvm);
+}
+
+static inline int irqchip_split(struct kvm *kvm)
+{
+	int mode = kvm->arch.irqchip_mode;
+
+	/* Matches smp_wmb() when setting irqchip_mode */
+	smp_rmb();
+	return mode == KVM_IRQCHIP_SPLIT;
 }
 
 static inline int irqchip_in_kernel(struct kvm *kvm)

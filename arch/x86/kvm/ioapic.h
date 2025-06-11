@@ -103,7 +103,7 @@ do {									\
 
 static inline int ioapic_in_kernel(struct kvm *kvm)
 {
-	return irqchip_kernel(kvm);
+	return irqchip_full(kvm);
 }
 
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);

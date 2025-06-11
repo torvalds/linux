@@ -172,7 +172,7 @@ bool kvm_arch_irqfd_allowed(struct kvm *kvm, struct kvm_irqfd *args)
 {
 	bool resample = args->flags & KVM_IRQFD_FLAG_RESAMPLE;
 
-	return resample ? irqchip_kernel(kvm) : irqchip_in_kernel(kvm);
+	return resample ? irqchip_full(kvm) : irqchip_in_kernel(kvm);
 }
 
 bool kvm_arch_irqchip_in_kernel(struct kvm *kvm)
