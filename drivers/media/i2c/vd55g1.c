@@ -111,9 +111,9 @@
 
 #define VD55G1_WIDTH					804
 #define VD55G1_HEIGHT					704
-#define VD55G1_DEFAULT_MODE				0
+#define VD55G1_MODE_DEF					0
 #define VD55G1_NB_GPIOS					4
-#define VD55G1_MEDIA_BUS_FMT_DEF			MEDIA_BUS_FMT_Y8_1X8
+#define VD55G1_MBUS_CODE_DEF				0
 #define VD55G1_DGAIN_DEF				256
 #define VD55G1_AGAIN_DEF				19
 #define VD55G1_EXPO_MAX_TERM				64
@@ -883,10 +883,9 @@ static int vd55g1_apply_cold_start(struct vd55g1 *sensor,
 	return ret;
 }
 
-static void vd55g1_update_img_pad_format(struct vd55g1 *sensor,
-					 const struct vd55g1_mode *mode,
-					 u32 code,
-					 struct v4l2_mbus_framefmt *fmt)
+static void vd55g1_update_pad_fmt(struct vd55g1 *sensor,
+				  const struct vd55g1_mode *mode, u32 code,
+				  struct v4l2_mbus_framefmt *fmt)
 {
 	fmt->code = code;
 	fmt->width = mode->width;
@@ -1229,8 +1228,8 @@ static int vd55g1_set_pad_fmt(struct v4l2_subdev *sd,
 					  width, height, sd_fmt->format.width,
 					  sd_fmt->format.height);
 
-	vd55g1_update_img_pad_format(sensor, new_mode, sd_fmt->format.code,
-				     &sd_fmt->format);
+	vd55g1_update_pad_fmt(sensor, new_mode, sd_fmt->format.code,
+			      &sd_fmt->format);
 
 	/*
 	 * Use binning to maximize the crop rectangle size, and centre it in the
@@ -1260,7 +1259,6 @@ static int vd55g1_set_pad_fmt(struct v4l2_subdev *sd,
 static int vd55g1_init_state(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state)
 {
-	unsigned int def_mode = VD55G1_DEFAULT_MODE;
 	struct vd55g1 *sensor = to_vd55g1(sd);
 	struct v4l2_subdev_format fmt = { 0 };
 	struct v4l2_subdev_route routes[] = {
@@ -1277,8 +1275,9 @@ static int vd55g1_init_state(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	vd55g1_update_img_pad_format(sensor, &vd55g1_supported_modes[def_mode],
-				     VD55G1_MEDIA_BUS_FMT_DEF, &fmt.format);
+	vd55g1_update_pad_fmt(sensor, &vd55g1_supported_modes[VD55G1_MODE_DEF],
+			      vd55g1_mbus_codes[VD55G1_MBUS_CODE_DEF].code,
+			      &fmt.format);
 
 	return vd55g1_set_pad_fmt(sd, sd_state, &fmt);
 }
