@@ -576,6 +576,23 @@ irqreturn_t otx2_pfvf_mbox_intr_handler(int irq, void *pf_irq)
 	return IRQ_HANDLED;
 }
 
+static void *cn20k_pfvf_mbox_alloc(struct otx2_nic *pf, int numvfs)
+{
+	struct qmem *mbox_addr;
+	int err;
+
+	err = qmem_alloc(&pf->pdev->dev, &mbox_addr, numvfs, MBOX_SIZE);
+	if (err) {
+		dev_err(pf->dev, "qmem alloc fail\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	otx2_write64(pf, RVU_PF_VF_MBOX_ADDR, (u64)mbox_addr->iova);
+	pf->pfvf_mbox_addr = mbox_addr;
+
+	return mbox_addr->base;
+}
+
 static int otx2_pfvf_mbox_init(struct otx2_nic *pf, int numvfs)
 {
 	void __iomem *hwbase;
@@ -597,19 +614,27 @@ static int otx2_pfvf_mbox_init(struct otx2_nic *pf, int numvfs)
 	if (!pf->mbox_pfvf_wq)
 		return -ENOMEM;
 
-	/* On CN10K platform, PF <-> VF mailbox region follows after
-	 * PF <-> AF mailbox region.
+	/* For CN20K, PF allocates mbox memory in DRAM and writes PF/VF
+	 * regions/offsets in RVU_PF_VF_MBOX_ADDR, the RVU_PFX_FUNC_PFAF_MBOX
+	 * gives the aliased address to access PF/VF mailbox regions.
 	 */
-	if (test_bit(CN10K_MBOX, &pf->hw.cap_flag))
-		base = pci_resource_start(pf->pdev, PCI_MBOX_BAR_NUM) +
-		       MBOX_SIZE;
-	else
-		base = readq(pf->reg_base + RVU_PF_VF_BAR4_ADDR);
+	if (is_cn20k(pf->pdev)) {
+		hwbase = (void __iomem *)cn20k_pfvf_mbox_alloc(pf, numvfs);
+	} else {
+		/* On CN10K platform, PF <-> VF mailbox region follows after
+		 * PF <-> AF mailbox region.
+		 */
+		if (test_bit(CN10K_MBOX, &pf->hw.cap_flag))
+			base = pci_resource_start(pf->pdev, PCI_MBOX_BAR_NUM) +
+						  MBOX_SIZE;
+		else
+			base = readq(pf->reg_base + RVU_PF_VF_BAR4_ADDR);
 
-	hwbase = ioremap_wc(base, MBOX_SIZE * pf->total_vfs);
-	if (!hwbase) {
-		err = -ENOMEM;
-		goto free_wq;
+		hwbase = ioremap_wc(base, MBOX_SIZE * pf->total_vfs);
+		if (!hwbase) {
+			err = -ENOMEM;
+			goto free_wq;
+		}
 	}
 
 	mbox = &pf->mbox_pfvf[0];
@@ -633,7 +658,7 @@ static int otx2_pfvf_mbox_init(struct otx2_nic *pf, int numvfs)
 	return 0;
 
 free_iomem:
-	if (hwbase)
+	if (hwbase && !(is_cn20k(pf->pdev)))
 		iounmap(hwbase);
 free_wq:
 	destroy_workqueue(pf->mbox_pfvf_wq);
@@ -652,8 +677,10 @@ static void otx2_pfvf_mbox_destroy(struct otx2_nic *pf)
 		pf->mbox_pfvf_wq = NULL;
 	}
 
-	if (mbox->mbox.hwbase)
+	if (mbox->mbox.hwbase && !is_cn20k(pf->pdev))
 		iounmap(mbox->mbox.hwbase);
+	else
+		qmem_free(&pf->pdev->dev, pf->pfvf_mbox_addr);
 
 	otx2_mbox_destroy(&mbox->mbox);
 }
@@ -677,6 +704,9 @@ static void otx2_disable_pfvf_mbox_intr(struct otx2_nic *pf, int numvfs)
 {
 	int vector;
 
+	if (is_cn20k(pf->pdev))
+		return cn20k_disable_pfvf_mbox_intr(pf, numvfs);
+
 	/* Disable PF <=> VF mailbox IRQ */
 	otx2_write64(pf, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(0), ~0ull);
 	otx2_write64(pf, RVU_PF_VFPF_MBOX_INT_ENA_W1CX(1), ~0ull);
@@ -697,6 +727,9 @@ static int otx2_register_pfvf_mbox_intr(struct otx2_nic *pf, int numvfs)
 	struct otx2_hw *hw = &pf->hw;
 	char *irq_name;
 	int err;
+
+	if (is_cn20k(pf->pdev))
+		return cn20k_register_pfvf_mbox_intr(pf, numvfs);
 
 	/* Register MBOX0 interrupt handler */
 	irq_name = &hw->irq_name[RVU_PF_INT_VEC_VFPF_MBOX0 * NAME_SIZE];
