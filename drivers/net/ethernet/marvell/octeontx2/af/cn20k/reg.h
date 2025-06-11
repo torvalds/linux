@@ -19,6 +19,23 @@
 /* RVU AF BAR0 Mbox registers for AF => PFx */
 #define RVU_MBOX_AF_PFX_ADDR(a)			(0x5000 | (a) << 4)
 #define RVU_MBOX_AF_PFX_CFG(a)			(0x6000 | (a) << 4)
+#define RVU_MBOX_AF_AFPFX_TRIGX(a)		(0x9000 | (a) << 3)
+#define RVU_MBOX_AF_PFAF_INT(a)			(0x2980 | (a) << 6)
+#define RVU_MBOX_AF_PFAF_INT_W1S(a)		(0x2988 | (a) << 6)
+#define RVU_MBOX_AF_PFAF_INT_ENA_W1S(a)		(0x2990 | (a) << 6)
+#define RVU_MBOX_AF_PFAF_INT_ENA_W1C(a)		(0x2998 | (a) << 6)
+#define RVU_MBOX_AF_PFAF1_INT(a)		(0x29A0 | (a) << 6)
+#define RVU_MBOX_AF_PFAF1_INT_W1S(a)		(0x29A8 | (a) << 6)
+#define RVU_MBOX_AF_PFAF1_INT_ENA_W1S(a)	(0x29B0 | (a) << 6)
+#define RVU_MBOX_AF_PFAF1_INT_ENA_W1C(a)	(0x29B8 | (a) << 6)
+
+/* RVU PF => AF mbox registers */
+#define RVU_MBOX_PF_PFAF_TRIGX(a)		(0xC00 | (a) << 3)
+#define RVU_MBOX_PF_INT				(0xC20)
+#define RVU_MBOX_PF_INT_W1S			(0xC28)
+#define RVU_MBOX_PF_INT_ENA_W1S			(0xC30)
+#define RVU_MBOX_PF_INT_ENA_W1C			(0xC38)
+
 #define RVU_AF_BAR2_SEL				(0x9000000)
 #define RVU_AF_BAR2_PFID			(0x16400)
 #define NIX_CINTX_INT_W1S(a)			(0xd30 | (a) << 12)

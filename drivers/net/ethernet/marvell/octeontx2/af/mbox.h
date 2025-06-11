@@ -13,6 +13,7 @@
 
 #include "rvu_struct.h"
 #include "common.h"
+#include "cn20k/struct.h"
 
 #define MBOX_SIZE		SZ_64K
 

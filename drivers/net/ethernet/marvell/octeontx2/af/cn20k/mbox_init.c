@@ -13,6 +13,137 @@
 #include "reg.h"
 #include "api.h"
 
+/* CN20K mbox PFx => AF irq handler */
+static irqreturn_t cn20k_mbox_pf_common_intr_handler(int irq, void *rvu_irq)
+{
+	struct rvu_irq_data *rvu_irq_data = rvu_irq;
+	struct rvu *rvu = rvu_irq_data->rvu;
+	u64 intr;
+
+	/* Clear interrupts */
+	intr = rvu_read64(rvu, BLKADDR_RVUM, rvu_irq_data->intr_status);
+	rvu_write64(rvu, BLKADDR_RVUM, rvu_irq_data->intr_status, intr);
+
+	if (intr)
+		trace_otx2_msg_interrupt(rvu->pdev, "PF(s) to AF", intr);
+
+	/* Sync with mbox memory region */
+	rmb();
+
+	rvu_irq_data->rvu_queue_work_hdlr(&rvu->afpf_wq_info,
+					  rvu_irq_data->start,
+					  rvu_irq_data->mdevs, intr);
+
+	return IRQ_HANDLED;
+}
+
+void cn20k_rvu_enable_mbox_intr(struct rvu *rvu)
+{
+	struct rvu_hwinfo *hw = rvu->hw;
+
+	/* Clear spurious irqs, if any */
+	rvu_write64(rvu, BLKADDR_RVUM,
+		    RVU_MBOX_AF_PFAF_INT(0), INTR_MASK(hw->total_pfs));
+
+	rvu_write64(rvu, BLKADDR_RVUM,
+		    RVU_MBOX_AF_PFAF_INT(1), INTR_MASK(hw->total_pfs - 64));
+
+	rvu_write64(rvu, BLKADDR_RVUM,
+		    RVU_MBOX_AF_PFAF1_INT(0), INTR_MASK(hw->total_pfs));
+
+	rvu_write64(rvu, BLKADDR_RVUM,
+		    RVU_MBOX_AF_PFAF1_INT(1), INTR_MASK(hw->total_pfs - 64));
+
+	/* Enable mailbox interrupt for all PFs except PF0 i.e AF itself */
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF_INT_ENA_W1S(0),
+		    INTR_MASK(hw->total_pfs) & ~1ULL);
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF_INT_ENA_W1S(1),
+		    INTR_MASK(hw->total_pfs - 64));
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF1_INT_ENA_W1S(0),
+		    INTR_MASK(hw->total_pfs) & ~1ULL);
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF1_INT_ENA_W1S(1),
+		    INTR_MASK(hw->total_pfs - 64));
+}
+
+void cn20k_rvu_unregister_interrupts(struct rvu *rvu)
+{
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF_INT_ENA_W1C(0),
+		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF_INT_ENA_W1C(1),
+		    INTR_MASK(rvu->hw->total_pfs - 64));
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF1_INT_ENA_W1C(0),
+		    INTR_MASK(rvu->hw->total_pfs) & ~1ULL);
+
+	rvu_write64(rvu, BLKADDR_RVUM, RVU_MBOX_AF_PFAF1_INT_ENA_W1C(1),
+		    INTR_MASK(rvu->hw->total_pfs - 64));
+}
+
+int cn20k_register_afpf_mbox_intr(struct rvu *rvu)
+{
+	struct rvu_irq_data *irq_data;
+	int intr_vec, ret, vec = 0;
+
+	/* irq data for 4 PF intr vectors */
+	irq_data = devm_kcalloc(rvu->dev, 4,
+				sizeof(struct rvu_irq_data), GFP_KERNEL);
+	if (!irq_data)
+		return -ENOMEM;
+
+	for (intr_vec = RVU_AF_CN20K_INT_VEC_PFAF_MBOX0; intr_vec <=
+				RVU_AF_CN20K_INT_VEC_PFAF1_MBOX1; intr_vec++,
+				vec++) {
+		switch (intr_vec) {
+		case RVU_AF_CN20K_INT_VEC_PFAF_MBOX0:
+			irq_data[vec].intr_status =
+						RVU_MBOX_AF_PFAF_INT(0);
+			irq_data[vec].start = 0;
+			irq_data[vec].mdevs = 64;
+			break;
+		case RVU_AF_CN20K_INT_VEC_PFAF_MBOX1:
+			irq_data[vec].intr_status =
+						RVU_MBOX_AF_PFAF_INT(1);
+			irq_data[vec].start = 64;
+			irq_data[vec].mdevs = 96;
+			break;
+		case RVU_AF_CN20K_INT_VEC_PFAF1_MBOX0:
+			irq_data[vec].intr_status =
+						RVU_MBOX_AF_PFAF1_INT(0);
+			irq_data[vec].start = 0;
+			irq_data[vec].mdevs = 64;
+			break;
+		case RVU_AF_CN20K_INT_VEC_PFAF1_MBOX1:
+			irq_data[vec].intr_status =
+						RVU_MBOX_AF_PFAF1_INT(1);
+			irq_data[vec].start = 64;
+			irq_data[vec].mdevs = 96;
+			break;
+		}
+		irq_data[vec].rvu_queue_work_hdlr = rvu_queue_work;
+		irq_data[vec].vec_num = intr_vec;
+		irq_data[vec].rvu = rvu;
+
+		/* Register mailbox interrupt handler */
+		sprintf(&rvu->irq_name[intr_vec * NAME_SIZE],
+			"RVUAF PFAF%d Mbox%d",
+			vec / 2, vec % 2);
+		ret = request_irq(pci_irq_vector(rvu->pdev, intr_vec),
+				  rvu->ng_rvu->rvu_mbox_ops->pf_intr_handler, 0,
+				  &rvu->irq_name[intr_vec * NAME_SIZE],
+				  &irq_data[vec]);
+		if (ret)
+			return ret;
+
+		rvu->irq_allocated[intr_vec] = true;
+	}
+
+	return 0;
+}
+
 int cn20k_rvu_get_mbox_regions(struct rvu *rvu, void **mbox_addr,
 			       int num, int type, unsigned long *pf_bmap)
 {
@@ -72,12 +203,18 @@ static int rvu_alloc_mbox_memory(struct rvu *rvu, int type,
 	return 0;
 }
 
+static struct mbox_ops cn20k_mbox_ops = {
+	.pf_intr_handler = cn20k_mbox_pf_common_intr_handler,
+};
+
 int cn20k_rvu_mbox_init(struct rvu *rvu, int type, int ndevs)
 {
 	int dev;
 
 	if (!is_cn20k(rvu->pdev))
 		return 0;
+
+	rvu->ng_rvu->rvu_mbox_ops = &cn20k_mbox_ops;
 
 	for (dev = 0; dev < ndevs; dev++)
 		rvu_write64(rvu, BLKADDR_RVUM,
@@ -92,4 +229,39 @@ void cn20k_free_mbox_memory(struct rvu *rvu)
 		return;
 
 	qmem_free(rvu->dev, rvu->ng_rvu->pf_mbox_addr);
+}
+
+int rvu_alloc_cint_qint_mem(struct rvu *rvu, struct rvu_pfvf *pfvf,
+			    int blkaddr, int nixlf)
+{
+	int qints, hwctx_size, err;
+	u64 cfg, ctx_cfg;
+
+	if (is_rvu_otx2(rvu) || is_cn20k(rvu->pdev))
+		return 0;
+
+	ctx_cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST3);
+	/* Alloc memory for CQINT's HW contexts */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST2);
+	qints = (cfg >> 24) & 0xFFF;
+	hwctx_size = 1UL << ((ctx_cfg >> 24) & 0xF);
+	err = qmem_alloc(rvu->dev, &pfvf->cq_ints_ctx, qints, hwctx_size);
+	if (err)
+		return -ENOMEM;
+
+	rvu_write64(rvu, blkaddr, NIX_AF_LFX_CINTS_BASE(nixlf),
+		    (u64)pfvf->cq_ints_ctx->iova);
+
+	/* Alloc memory for QINT's HW contexts */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_CONST2);
+	qints = (cfg >> 12) & 0xFFF;
+	hwctx_size = 1UL << ((ctx_cfg >> 20) & 0xF);
+	err = qmem_alloc(rvu->dev, &pfvf->nix_qints_ctx, qints, hwctx_size);
+	if (err)
+		return -ENOMEM;
+
+	rvu_write64(rvu, blkaddr, NIX_AF_LFX_QINTS_BASE(nixlf),
+		    (u64)pfvf->nix_qints_ctx->iova);
+
+	return 0;
 }
