@@ -1247,6 +1247,14 @@ static void __init retbleed_select_mitigation(void)
 			retbleed_mitigation = RETBLEED_MITIGATION_IBPB;
 		else
 			retbleed_mitigation = RETBLEED_MITIGATION_NONE;
+	} else if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
+		/* Final mitigation depends on spectre-v2 selection */
+		if (boot_cpu_has(X86_FEATURE_IBRS_ENHANCED))
+			retbleed_mitigation = RETBLEED_MITIGATION_EIBRS;
+		else if (boot_cpu_has(X86_FEATURE_IBRS))
+			retbleed_mitigation = RETBLEED_MITIGATION_IBRS;
+		else
+			retbleed_mitigation = RETBLEED_MITIGATION_NONE;
 	}
 }
 
@@ -1254,9 +1262,6 @@ static void __init retbleed_update_mitigation(void)
 {
 	if (!boot_cpu_has_bug(X86_BUG_RETBLEED) || cpu_mitigations_off())
 		return;
-
-	if (retbleed_mitigation == RETBLEED_MITIGATION_NONE)
-		goto out;
 
 	/*
 	 * retbleed=stuff is only allowed on Intel.  If stuffing can't be used
@@ -1268,7 +1273,7 @@ static void __init retbleed_update_mitigation(void)
 	    its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF) {
 		if (spectre_v2_enabled != SPECTRE_V2_RETPOLINE) {
 			pr_err("WARNING: retbleed=stuff depends on spectre_v2=retpoline\n");
-			retbleed_mitigation = RETBLEED_MITIGATION_AUTO;
+			retbleed_mitigation = RETBLEED_MITIGATION_NONE;
 		} else {
 			if (retbleed_mitigation != RETBLEED_MITIGATION_STUFF)
 				pr_info("Retbleed mitigation updated to stuffing\n");
@@ -1294,14 +1299,10 @@ static void __init retbleed_update_mitigation(void)
 			if (retbleed_mitigation != RETBLEED_MITIGATION_STUFF)
 				pr_err(RETBLEED_INTEL_MSG);
 		}
-		/* If nothing has set the mitigation yet, default to NONE. */
-		if (retbleed_mitigation == RETBLEED_MITIGATION_AUTO)
-			retbleed_mitigation = RETBLEED_MITIGATION_NONE;
 	}
-out:
+
 	pr_info("%s\n", retbleed_strings[retbleed_mitigation]);
 }
-
 
 static void __init retbleed_apply_mitigation(void)
 {
