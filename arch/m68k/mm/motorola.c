@@ -92,7 +92,7 @@ void mmu_page_dtor(void *page)
 }
 
 /* ++andreas: {get,free}_pointer_table rewritten to use unused fields from
-   struct page instead of separately kmalloced struct.  Stolen from
+   struct ptdesc instead of separately kmalloced struct.  Stolen from
    arch/sparc/mm/srmmu.c ... */
 
 typedef struct list_head ptable_desc;
@@ -103,8 +103,7 @@ static struct list_head ptable_list[3] = {
 	LIST_HEAD_INIT(ptable_list[2]),
 };
 
-#define PD_PTABLE(page) ((ptable_desc *)&(virt_to_page((void *)(page))->lru))
-#define PD_PAGE(ptable) (list_entry(ptable, struct page, lru))
+#define PD_PTABLE(ptdesc) ((ptable_desc *)&(virt_to_ptdesc((void *)(ptdesc))->pt_list))
 #define PD_PTDESC(ptable) (list_entry(ptable, struct ptdesc, pt_list))
 #define PD_MARKBITS(dp) (*(unsigned int *)&PD_PTDESC(dp)->pt_index)
 
