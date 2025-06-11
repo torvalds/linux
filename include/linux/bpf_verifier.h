@@ -459,6 +459,10 @@ struct bpf_verifier_state {
 	 * See get_loop_entry() for more information.
 	 */
 	struct bpf_verifier_state *loop_entry;
+	/* if this state is a backedge state then equal_state
+	 * records cached state to which this state is equal.
+	 */
+	struct bpf_verifier_state *equal_state;
 	/* jmp history recorded from first to last.
 	 * backtracking is using it to go from last to first.
 	 * For most states jmp_history_cnt is [0-3].
@@ -723,6 +727,37 @@ struct bpf_idset {
 	u32 ids[BPF_ID_MAP_SIZE];
 };
 
+/* see verifier.c:compute_scc_callchain() */
+struct bpf_scc_callchain {
+	/* call sites from bpf_verifier_state->frame[*]->callsite leading to this SCC */
+	u32 callsites[MAX_CALL_FRAMES - 1];
+	/* last frame in a chain is identified by SCC id */
+	u32 scc;
+};
+
+/* verifier state waiting for propagate_backedges() */
+struct bpf_scc_backedge {
+	struct bpf_scc_backedge *next;
+	struct bpf_verifier_state state;
+};
+
+struct bpf_scc_visit {
+	struct bpf_scc_callchain callchain;
+	/* first state in current verification path that entered SCC
+	 * identified by the callchain
+	 */
+	struct bpf_verifier_state *entry_state;
+	struct bpf_scc_backedge *backedges; /* list of backedges */
+};
+
+/* An array of bpf_scc_visit structs sharing tht same bpf_scc_callchain->scc
+ * but having different bpf_scc_callchain->callsites.
+ */
+struct bpf_scc_info {
+	u32 num_visits;
+	struct bpf_scc_visit visits[];
+};
+
 /* single container for all structs
  * one verifier_env per bpf_check() call
  */
@@ -819,6 +854,9 @@ struct bpf_verifier_env {
 	char tmp_str_buf[TMP_STR_BUF_LEN];
 	struct bpf_insn insn_buf[INSN_BUF_SIZE];
 	struct bpf_insn epilogue_buf[INSN_BUF_SIZE];
+	/* array of pointers to bpf_scc_info indexed by SCC id */
+	struct bpf_scc_info **scc_info;
+	u32 scc_cnt;
 };
 
 static inline struct bpf_func_info_aux *subprog_aux(struct bpf_verifier_env *env, int subprog)
