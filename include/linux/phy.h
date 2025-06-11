@@ -1994,8 +1994,8 @@ bool phy_validate_pause(struct phy_device *phydev,
 			struct ethtool_pauseparam *pp);
 void phy_get_pause(struct phy_device *phydev, bool *tx_pause, bool *rx_pause);
 
-s32 phy_get_internal_delay(struct phy_device *phydev, struct device *dev,
-			   const int *delay_values, int size, bool is_rx);
+s32 phy_get_internal_delay(struct phy_device *phydev, const int *delay_values,
+			   int size, bool is_rx);
 
 int phy_get_tx_amplitude_gain(struct phy_device *phydev, struct device *dev,
 			      enum ethtool_link_mode_bit_indices linkmode,
