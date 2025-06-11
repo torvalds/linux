@@ -16,9 +16,9 @@ struct dml2_instance;
 
 enum dml2_project_id {
 	dml2_project_invalid = 0,
-	dml2_project_dcn4x_stage1 = 1,
-	dml2_project_dcn4x_stage2 = 2,
-	dml2_project_dcn4x_stage2_auto_drr_svp = 3,
+	dml2_project_dcn4x_stage1,
+	dml2_project_dcn4x_stage2,
+	dml2_project_dcn4x_stage2_auto_drr_svp,
 };
 
 enum dml2_pstate_change_support {
