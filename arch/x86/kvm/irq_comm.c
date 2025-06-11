@@ -15,15 +15,11 @@
 #include <linux/export.h>
 #include <linux/rculist.h>
 
-#include <trace/events/kvm.h>
-
-#include "irq.h"
-
-#include "ioapic.h"
-
-#include "lapic.h"
-
 #include "hyperv.h"
+#include "ioapic.h"
+#include "irq.h"
+#include "lapic.h"
+#include "trace.h"
 #include "x86.h"
 #include "xen.h"
 
