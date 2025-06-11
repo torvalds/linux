@@ -406,12 +406,12 @@ int btrfs_convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 				data_size = free_space_bitmap_size(fs_info,
 								found_key.offset);
 
-				ptr = btrfs_item_ptr_offset(leaf, path->slots[0] - 1);
+				path->slots[0]--;
+				ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 				read_extent_buffer(leaf, bitmap_cursor, ptr,
 						   data_size);
 
 				nr++;
-				path->slots[0]--;
 			} else {
 				ASSERT(0);
 			}
