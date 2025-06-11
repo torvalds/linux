@@ -296,8 +296,8 @@ static int otx2_pf_flr_init(struct otx2_nic *pf, int num_vfs)
 	return 0;
 }
 
-static void otx2_queue_vf_work(struct mbox *mw, struct workqueue_struct *mbox_wq,
-			       int first, int mdevs, u64 intr)
+void otx2_queue_vf_work(struct mbox *mw, struct workqueue_struct *mbox_wq,
+			int first, int mdevs, u64 intr)
 {
 	struct otx2_mbox_dev *mdev;
 	struct otx2_mbox *mbox;
@@ -547,7 +547,7 @@ end:
 	}
 }
 
-static irqreturn_t otx2_pfvf_mbox_intr_handler(int irq, void *pf_irq)
+irqreturn_t otx2_pfvf_mbox_intr_handler(int irq, void *pf_irq)
 {
 	struct otx2_nic *pf = (struct otx2_nic *)(pf_irq);
 	int vfs = pf->total_vfs;

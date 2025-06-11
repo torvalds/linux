@@ -63,24 +63,28 @@ int cn20k_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
 {
 	switch (direction) {
 	case MBOX_DIR_AFPF:
+	case MBOX_DIR_PFVF:
 		mbox->tx_start = MBOX_DOWN_TX_START;
 		mbox->rx_start = MBOX_DOWN_RX_START;
 		mbox->tx_size  = MBOX_DOWN_TX_SIZE;
 		mbox->rx_size  = MBOX_DOWN_RX_SIZE;
 		break;
 	case MBOX_DIR_PFAF:
+	case MBOX_DIR_VFPF:
 		mbox->tx_start = MBOX_DOWN_RX_START;
 		mbox->rx_start = MBOX_DOWN_TX_START;
 		mbox->tx_size  = MBOX_DOWN_RX_SIZE;
 		mbox->rx_size  = MBOX_DOWN_TX_SIZE;
 		break;
 	case MBOX_DIR_AFPF_UP:
+	case MBOX_DIR_PFVF_UP:
 		mbox->tx_start = MBOX_UP_TX_START;
 		mbox->rx_start = MBOX_UP_RX_START;
 		mbox->tx_size  = MBOX_UP_TX_SIZE;
 		mbox->rx_size  = MBOX_UP_RX_SIZE;
 		break;
 	case MBOX_DIR_PFAF_UP:
+	case MBOX_DIR_VFPF_UP:
 		mbox->tx_start = MBOX_UP_RX_START;
 		mbox->rx_start = MBOX_UP_TX_START;
 		mbox->tx_size  = MBOX_UP_RX_SIZE;
@@ -105,6 +109,22 @@ int cn20k_mbox_setup(struct otx2_mbox *mbox, struct pci_dev *pdev,
 		break;
 	case MBOX_DIR_PFAF_UP:
 		mbox->trigger = RVU_MBOX_PF_PFAF_TRIGX(1);
+		mbox->tr_shift = 0;
+		break;
+	case MBOX_DIR_PFVF:
+		mbox->trigger = RVU_MBOX_PF_VFX_PFVF_TRIGX(1);
+		mbox->tr_shift = 4;
+		break;
+	case MBOX_DIR_PFVF_UP:
+		mbox->trigger = RVU_MBOX_PF_VFX_PFVF_TRIGX(0);
+		mbox->tr_shift = 4;
+		break;
+	case MBOX_DIR_VFPF:
+		mbox->trigger = RVU_MBOX_VF_VFPF_TRIGX(0);
+		mbox->tr_shift = 0;
+		break;
+	case MBOX_DIR_VFPF_UP:
+		mbox->trigger = RVU_MBOX_VF_VFPF_TRIGX(1);
 		mbox->tr_shift = 0;
 		break;
 	default:

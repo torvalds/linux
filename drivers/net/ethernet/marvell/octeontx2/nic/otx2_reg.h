@@ -44,6 +44,17 @@
 #define RVU_PF_VF_MBOX_ADDR                 (0xC40)
 #define RVU_PF_LMTLINE_ADDR                 (0xC48)
 
+#define RVU_MBOX_PF_VFX_PFVF_TRIGX(a)		(0x2000 | (a) << 3)
+#define RVU_MBOX_PF_VFPF_INTX(a)		(0x1000 | (a) << 3)
+#define RVU_MBOX_PF_VFPF_INT_W1SX(a)		(0x1020 | (a) << 3)
+#define RVU_MBOX_PF_VFPF_INT_ENA_W1SX(a)	(0x1040 | (a) << 3)
+#define RVU_MBOX_PF_VFPF_INT_ENA_W1CX(a)	(0x1060 | (a) << 3)
+
+#define RVU_MBOX_PF_VFPF1_INTX(a)		(0x1080 | (a) << 3)
+#define RVU_MBOX_PF_VFPF1_INT_W1SX(a)		(0x10a0 | (a) << 3)
+#define RVU_MBOX_PF_VFPF1_INT_ENA_W1SX(a)	(0x10c0 | (a) << 3)
+#define RVU_MBOX_PF_VFPF1_INT_ENA_W1CX(a)	(0x10e0 | (a) << 3)
+
 /* RVU VF registers */
 #define	RVU_VF_VFPF_MBOX0		    (0x00000)
 #define	RVU_VF_VFPF_MBOX1		    (0x00008)
@@ -61,6 +72,7 @@
 /* CN20K RVU_MBOX_E: RVU PF/VF MBOX Address Range Enumeration */
 #define RVU_MBOX_AF_PFX_ADDR(a)             (0x5000 | (a) << 4)
 #define RVU_PFX_FUNC_PFAF_MBOX		    (0x80000)
+#define RVU_PFX_FUNCX_VFAF_MBOX		    (0x40000)
 
 #define RVU_FUNC_BLKADDR_SHIFT		20
 #define RVU_FUNC_BLKADDR_MASK		0x1FULL
@@ -146,5 +158,8 @@
 #define LMT_LFBASE			BIT_ULL(RVU_FUNC_BLKADDR_SHIFT)
 #define LMT_LF_LMTLINEX(a)		(LMT_LFBASE | 0x000 | (a) << 12)
 #define LMT_LF_LMTCANCEL		(LMT_LFBASE | 0x400)
+
+/* CN20K registers */
+#define RVU_PF_DISC			(0x0)
 
 #endif /* OTX2_REG_H */
