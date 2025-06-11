@@ -2518,15 +2518,24 @@ static void gfx_v12_1_xcc_disable_gpa_mode(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCPG_PSP_DEBUG, data);
 }
 
-static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
+static void gfx_v12_1_xcc_enable_atomics(struct amdgpu_device *adev,
+					 int xcc_id)
 {
-	uint32_t val;
+	uint32_t data;
 
 	/* Set the TCP UTCL0 register to enable atomics */
-	val = RREG32_SOC15(GC, 0, regTCP_UTCL0_CNTL1);
-	val = REG_SET_FIELD(val, TCP_UTCL0_CNTL1, ATOMIC_REQUESTER_EN, 0x1);
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regTCP_UTCL0_CNTL1);
+	data = REG_SET_FIELD(data, TCP_UTCL0_CNTL1, ATOMIC_REQUESTER_EN, 0x1);
 
-	WREG32_SOC15(GC, 0, regTCP_UTCL0_CNTL1, val);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regTCP_UTCL0_CNTL1, data);
+}
+
+static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
+{
+	int i;
+
+	for (i = 0; i < NUM_XCC(adev->gfx.xcc_mask); i++)
+		gfx_v12_1_xcc_enable_atomics(adev, i);
 }
 
 static int gfx_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
