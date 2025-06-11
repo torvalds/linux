@@ -438,16 +438,16 @@ int btrfs_convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	expected_extent_count = btrfs_free_space_extent_count(leaf, info);
 	btrfs_release_path(path);
 
-	nrbits = block_group->length >> block_group->fs_info->sectorsize_bits;
+	nrbits = block_group->length >> fs_info->sectorsize_bits;
 	start_bit = find_next_bit_le(bitmap, nrbits, 0);
 
 	while (start_bit < nrbits) {
 		end_bit = find_next_zero_bit_le(bitmap, nrbits, start_bit);
 		ASSERT(start_bit < end_bit);
 
-		key.objectid = start + start_bit * block_group->fs_info->sectorsize;
+		key.objectid = start + start_bit * fs_info->sectorsize;
 		key.type = BTRFS_FREE_SPACE_EXTENT_KEY;
-		key.offset = (end_bit - start_bit) * block_group->fs_info->sectorsize;
+		key.offset = (end_bit - start_bit) * fs_info->sectorsize;
 
 		ret = btrfs_insert_empty_item(trans, root, path, &key, 0);
 		if (ret) {
