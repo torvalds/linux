@@ -127,18 +127,6 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_irq_delivery_to_apic(kvm, NULL, &irq, NULL);
 }
 
-#ifdef CONFIG_KVM_HYPERV
-static int kvm_hv_set_sint(struct kvm_kernel_irq_routing_entry *e,
-		    struct kvm *kvm, int irq_source_id, int level,
-		    bool line_status)
-{
-	if (!level)
-		return -1;
-
-	return kvm_hv_synic_set_irq(kvm, e->hv_sint.vcpu, e->hv_sint.sint);
-}
-#endif
-
 int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 			      struct kvm *kvm, int irq_source_id, int level,
 			      bool line_status)
@@ -149,8 +137,8 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 	switch (e->type) {
 #ifdef CONFIG_KVM_HYPERV
 	case KVM_IRQ_ROUTING_HV_SINT:
-		return kvm_hv_set_sint(e, kvm, irq_source_id, level,
-				       line_status);
+		return kvm_hv_synic_set_irq(e, kvm, irq_source_id, level,
+					    line_status);
 #endif
 
 	case KVM_IRQ_ROUTING_MSI:
@@ -302,7 +290,7 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		break;
 #ifdef CONFIG_KVM_HYPERV
 	case KVM_IRQ_ROUTING_HV_SINT:
-		e->set = kvm_hv_set_sint;
+		e->set = kvm_hv_synic_set_irq;
 		e->hv_sint.vcpu = ue->u.hv_sint.vcpu;
 		e->hv_sint.sint = ue->u.hv_sint.sint;
 		break;
