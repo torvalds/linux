@@ -1765,7 +1765,9 @@ static int ad7173_probe(struct spi_device *spi)
 	indio_dev->info = &ad7173_info;
 
 	spi->mode = SPI_MODE_3;
-	spi_setup(spi);
+	ret = spi_setup(spi);
+	if (ret)
+		return ret;
 
 	ret = ad_sd_init(&st->sd, indio_dev, spi, st->info->sd_info);
 	if (ret)
