@@ -1317,6 +1317,13 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 	struct iwl_d3_manager_config d3_cfg_cmd_data = {};
 	int ret;
 
+	if (mld->debug_max_sleep) {
+		d3_cfg_cmd_data.wakeup_host_timer =
+			cpu_to_le32(mld->debug_max_sleep);
+		d3_cfg_cmd_data.wakeup_flags =
+			cpu_to_le32(IWL_WAKEUP_D3_HOST_TIMER);
+	}
+
 	lockdep_assert_wiphy(mld->wiphy);
 
 	IWL_DEBUG_WOWLAN(mld, "Starting the no wowlan suspend flow\n");

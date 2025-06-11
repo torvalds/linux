@@ -159,6 +159,7 @@
  * @addresses: device MAC addresses.
  * @scan: instance of the scan object
  * @wowlan: WoWLAN support data.
+ * @debug_max_sleep: maximum sleep time in D3 (for debug purposes)
  * @led: the led device
  * @mcc_src: the source id of the MCC, comes from the firmware
  * @bios_enable_puncturing: is puncturing enabled by bios
@@ -252,6 +253,7 @@ struct iwl_mld {
 	struct iwl_mld_scan scan;
 #ifdef CONFIG_PM_SLEEP
 	struct wiphy_wowlan_support wowlan;
+	u32 debug_max_sleep;
 #endif /* CONFIG_PM_SLEEP */
 #ifdef CONFIG_IWLWIFI_LEDS
 	struct led_classdev led;
