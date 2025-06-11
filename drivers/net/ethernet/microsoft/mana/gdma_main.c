@@ -1288,6 +1288,47 @@ void mana_gd_free_res_map(struct gdma_resource *r)
 	r->size = 0;
 }
 
+/*
+ * Spread on CPUs with the following heuristics:
+ *
+ * 1. No more than one IRQ per CPU, if possible;
+ * 2. NUMA locality is the second priority;
+ * 3. Sibling dislocality is the last priority.
+ *
+ * Let's consider this topology:
+ *
+ * Node            0               1
+ * Core        0       1       2       3
+ * CPU       0   1   2   3   4   5   6   7
+ *
+ * The most performant IRQ distribution based on the above topology
+ * and heuristics may look like this:
+ *
+ * IRQ     Nodes   Cores   CPUs
+ * 0       1       0       0-1
+ * 1       1       1       2-3
+ * 2       1       0       0-1
+ * 3       1       1       2-3
+ * 4       2       2       4-5
+ * 5       2       3       6-7
+ * 6       2       2       4-5
+ * 7       2       3       6-7
+ *
+ * The heuristics is implemented as follows.
+ *
+ * The outer for_each() loop resets the 'weight' to the actual number
+ * of CPUs in the hop. Then inner for_each() loop decrements it by the
+ * number of sibling groups (cores) while assigning first set of IRQs
+ * to each group. IRQs 0 and 1 above are distributed this way.
+ *
+ * Now, because NUMA locality is more important, we should walk the
+ * same set of siblings and assign 2nd set of IRQs (2 and 3), and it's
+ * implemented by the medium while() loop. We do like this unless the
+ * number of IRQs assigned on this hop will not become equal to number
+ * of CPUs in the hop (weight == 0). Then we switch to the next hop and
+ * do the same thing.
+ */
+
 static int irq_setup(unsigned int *irqs, unsigned int len, int node)
 {
 	const struct cpumask *next, *prev = cpu_none_mask;
