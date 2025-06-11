@@ -1184,19 +1184,17 @@ static void autoconfig(struct uart_8250_port *up)
 	up->capabilities = uart_config[port->type].flags;
 	up->tx_loadsz = uart_config[port->type].tx_loadsz;
 
-	if (port->type == PORT_UNKNOWN)
-		goto out_unlock;
+	if (port->type != PORT_UNKNOWN) {
+		/*
+		 * Reset the UART.
+		 */
+		rsa_reset(up);
+		serial8250_out_MCR(up, save_mcr);
+		serial8250_clear_fifos(up);
+		serial_in(up, UART_RX);
+		serial8250_clear_IER(up);
+	}
 
-	/*
-	 * Reset the UART.
-	 */
-	rsa_reset(up);
-	serial8250_out_MCR(up, save_mcr);
-	serial8250_clear_fifos(up);
-	serial_in(up, UART_RX);
-	serial8250_clear_IER(up);
-
-out_unlock:
 	uart_port_unlock_irqrestore(port, flags);
 
 	/*
