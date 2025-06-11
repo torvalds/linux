@@ -8159,7 +8159,11 @@ void __rtw89_btc_ntfy_wl_sta_iter(struct rtw89_vif_link *rtwvif_link,
 	rssi = ewma_rssi_read(&rtwsta_link->avg_rssi) >> RSSI_FACTOR;
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], rssi=%d\n", rssi);
 
-	link_info = &wl->link_info[port];
+	if (btc->ver->fwlrole != 8)
+		link_info = &wl->link_info[port];
+	else
+		link_info = &wl->rlink_info[port][rtwvif_link->mac_idx];
+
 	link_info->stat.traffic = *stats;
 	link_info_t = &link_info->stat.traffic;
 
@@ -8240,13 +8244,12 @@ void __rtw89_btc_ntfy_wl_sta_iter(struct rtw89_vif_link *rtwvif_link,
 		r1->active_role_v1[port].rx_lvl = stats->rx_tfc_lv;
 		r1->active_role_v1[port].tx_rate = rtwsta_link->ra_report.hw_rate;
 		r1->active_role_v1[port].rx_rate = rtwsta_link->rx_hw_rate;
-	} else if (ver->fwlrole == 2) {
-		dm->trx_info.tx_lvl = stats->tx_tfc_lv;
-		dm->trx_info.rx_lvl = stats->rx_tfc_lv;
-		dm->trx_info.tx_rate = rtwsta_link->ra_report.hw_rate;
-		dm->trx_info.rx_rate = rtwsta_link->rx_hw_rate;
 	}
 
+	dm->trx_info.tx_lvl = stats->tx_tfc_lv;
+	dm->trx_info.rx_lvl = stats->rx_tfc_lv;
+	dm->trx_info.tx_rate = rtwsta_link->ra_report.hw_rate;
+	dm->trx_info.rx_rate = rtwsta_link->rx_hw_rate;
 	dm->trx_info.tx_tp = link_info_t->tx_throughput;
 	dm->trx_info.rx_tp = link_info_t->rx_throughput;
 
