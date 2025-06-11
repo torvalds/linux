@@ -2686,6 +2686,24 @@ static void serial8250_set_mini(struct uart_port *port, struct ktermios *termios
 	}
 }
 
+static void serial8250_set_trigger_for_slow_speed(struct uart_port *port, struct ktermios *termios,
+						  unsigned int baud)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	if (!(up->capabilities & UART_CAP_FIFO))
+		return;
+	if (port->fifosize <= 1)
+		return;
+	if (baud >= 2400)
+		return;
+	if (up->dma)
+		return;
+
+	up->fcr &= ~UART_FCR_TRIGGER_MASK;
+	up->fcr |= UART_FCR_TRIGGER_1;
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
@@ -2710,13 +2728,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	uart_port_lock_irqsave(port, &flags);
 
 	up->lcr = cval;					/* Save computed LCR */
-
-	if (up->capabilities & UART_CAP_FIFO && port->fifosize > 1) {
-		if (baud < 2400 && !up->dma) {
-			up->fcr &= ~UART_FCR_TRIGGER_MASK;
-			up->fcr |= UART_FCR_TRIGGER_1;
-		}
-	}
+	serial8250_set_trigger_for_slow_speed(port, termios, baud);
 
 	/*
 	 * MCR-based auto flow control.  When AFE is enabled, RTS will be
