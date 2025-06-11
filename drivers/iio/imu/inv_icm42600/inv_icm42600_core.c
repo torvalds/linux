@@ -83,7 +83,7 @@ const struct regmap_config inv_icm42600_regmap_config = {
 	.num_ranges = ARRAY_SIZE(inv_icm42600_regmap_ranges),
 	.volatile_table = inv_icm42600_regmap_volatile_accesses,
 	.rd_noinc_table = inv_icm42600_regmap_rd_noinc_accesses,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(inv_icm42600_regmap_config, "IIO_ICM42600");
 
@@ -97,7 +97,7 @@ const struct regmap_config inv_icm42600_spi_regmap_config = {
 	.num_ranges = ARRAY_SIZE(inv_icm42600_regmap_ranges),
 	.volatile_table = inv_icm42600_regmap_volatile_accesses,
 	.rd_noinc_table = inv_icm42600_regmap_rd_noinc_accesses,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_write = true,
 };
 EXPORT_SYMBOL_NS_GPL(inv_icm42600_spi_regmap_config, "IIO_ICM42600");
