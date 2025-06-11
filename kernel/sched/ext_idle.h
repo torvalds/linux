@@ -12,13 +12,8 @@
 
 struct sched_ext_ops;
 
-#ifdef CONFIG_SMP
 void scx_idle_update_selcpu_topology(struct sched_ext_ops *ops);
 void scx_idle_init_masks(void);
-#else /* !CONFIG_SMP */
-static inline void scx_idle_update_selcpu_topology(struct sched_ext_ops *ops) {}
-static inline void scx_idle_init_masks(void) {}
-#endif /* CONFIG_SMP */
 
 s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		       const struct cpumask *cpus_allowed, u64 flags);
