@@ -351,10 +351,8 @@ static int ada4250_probe(struct spi_device *spi)
 	mutex_init(&st->lock);
 
 	ret = ada4250_init(st);
-	if (ret) {
-		dev_err(&spi->dev, "ADA4250 init failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "ADA4250 init failed\n");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
