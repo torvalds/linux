@@ -148,16 +148,20 @@ void *get_pointer_table(struct mm_struct *mm, int type)
 
 	/*
 	 * For a pointer table for a user process address space, a
-	 * table is taken from a page allocated for the purpose.  Each
-	 * page can hold 8 pointer tables.  The page is remapped in
+	 * table is taken from a ptdesc allocated for the purpose.  Each
+	 * ptdesc can hold 8 pointer tables.  The ptdesc is remapped in
 	 * virtual address space to be noncacheable.
 	 */
 	if (mask == 0) {
-		void *page;
+		struct ptdesc *ptdesc;
 		ptable_desc *new;
+		void *pt_addr;
 
-		if (!(page = (void *)get_zeroed_page(GFP_KERNEL)))
+		ptdesc = pagetable_alloc(GFP_KERNEL | __GFP_ZERO, 0);
+		if (!ptdesc)
 			return NULL;
+
+		pt_addr = ptdesc_address(ptdesc);
 
 		switch (type) {
 		case TABLE_PTE:
@@ -165,23 +169,23 @@ void *get_pointer_table(struct mm_struct *mm, int type)
 			 * m68k doesn't have SPLIT_PTE_PTLOCKS for not having
 			 * SMP.
 			 */
-			pagetable_pte_ctor(mm, virt_to_ptdesc(page));
+			pagetable_pte_ctor(mm, ptdesc);
 			break;
 		case TABLE_PMD:
-			pagetable_pmd_ctor(mm, virt_to_ptdesc(page));
+			pagetable_pmd_ctor(mm, ptdesc);
 			break;
 		case TABLE_PGD:
-			pagetable_pgd_ctor(virt_to_ptdesc(page));
+			pagetable_pgd_ctor(ptdesc);
 			break;
 		}
 
-		mmu_page_ctor(page);
+		mmu_page_ctor(pt_addr);
 
-		new = PD_PTABLE(page);
+		new = PD_PTABLE(pt_addr);
 		PD_MARKBITS(new) = ptable_mask(type) - 1;
 		list_add_tail(new, dp);
 
-		return (pmd_t *)page;
+		return (pmd_t *)pt_addr;
 	}
 
 	for (tmp = 1, off = 0; (mask & tmp) == 0; tmp <<= 1, off += ptable_size(type))
@@ -191,7 +195,7 @@ void *get_pointer_table(struct mm_struct *mm, int type)
 		/* move to end of list */
 		list_move_tail(dp, &ptable_list[type]);
 	}
-	return page_address(PD_PAGE(dp)) + off;
+	return ptdesc_address(PD_PTDESC(dp)) + off;
 }
 
 int free_pointer_table(void *table, int type)
