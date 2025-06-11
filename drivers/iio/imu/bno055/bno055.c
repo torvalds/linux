@@ -290,7 +290,7 @@ const struct regmap_config bno055_regmap_config = {
 	.max_register = 0x80 * 2,
 	.writeable_reg = bno055_regmap_writeable,
 	.readable_reg = bno055_regmap_readable,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(bno055_regmap_config, "IIO_BNO055");
 
