@@ -491,10 +491,9 @@ static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
 		return 0;
 
 	info = search_free_space_info(trans, block_group, path, 1);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto out;
-	}
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
 	flags = btrfs_free_space_flags(path->nodes[0], info);
 	extent_count = btrfs_free_space_extent_count(path->nodes[0], info);
 
@@ -510,7 +509,6 @@ static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
 		ret = convert_free_space_to_extents(trans, block_group, path);
 	}
 
-out:
 	return ret;
 }
 
