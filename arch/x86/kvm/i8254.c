@@ -641,6 +641,50 @@ static void kvm_pit_reset(struct kvm_pit *pit)
 	kvm_pit_reset_reinject(pit);
 }
 
+static int kvm_request_irq_source_id(struct kvm *kvm)
+{
+	unsigned long *bitmap = &kvm->arch.irq_sources_bitmap;
+	int irq_source_id;
+
+	mutex_lock(&kvm->irq_lock);
+	irq_source_id = find_first_zero_bit(bitmap, BITS_PER_LONG);
+
+	if (irq_source_id >= BITS_PER_LONG) {
+		pr_warn("exhausted allocatable IRQ sources!\n");
+		irq_source_id = -EFAULT;
+		goto unlock;
+	}
+
+	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
+	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
+	set_bit(irq_source_id, bitmap);
+unlock:
+	mutex_unlock(&kvm->irq_lock);
+
+	return irq_source_id;
+}
+
+static void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
+{
+	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
+	ASSERT(irq_source_id != KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID);
+
+	mutex_lock(&kvm->irq_lock);
+	if (irq_source_id < 0 ||
+	    irq_source_id >= BITS_PER_LONG) {
+		pr_err("IRQ source ID out of range!\n");
+		goto unlock;
+	}
+	clear_bit(irq_source_id, &kvm->arch.irq_sources_bitmap);
+	if (!irqchip_full(kvm))
+		goto unlock;
+
+	kvm_ioapic_clear_all(kvm->arch.vioapic, irq_source_id);
+	kvm_pic_clear_all(kvm->arch.vpic, irq_source_id);
+unlock:
+	mutex_unlock(&kvm->irq_lock);
+}
+
 static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
 {
 	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_notifier);
