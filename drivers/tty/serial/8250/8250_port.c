@@ -2720,6 +2720,38 @@ static void serial8250_set_afe(struct uart_port *port, struct ktermios *termios)
 		up->mcr |= UART_MCR_AFE;
 }
 
+static void serial8250_set_errors_and_ignores(struct uart_port *port, struct ktermios *termios)
+{
+	/*
+	 * Specify which conditions may be considered for error handling and the ignoring of
+	 * characters. The actual ignoring of characters only occurs if the bit is set in
+	 * @ignore_status_mask as well.
+	 */
+	port->read_status_mask = UART_LSR_OE | UART_LSR_DR;
+	if (termios->c_iflag & INPCK)
+		port->read_status_mask |= UART_LSR_FE | UART_LSR_PE;
+	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
+		port->read_status_mask |= UART_LSR_BI;
+
+	/* Characters to ignore */
+	port->ignore_status_mask = 0;
+	if (termios->c_iflag & IGNPAR)
+		port->ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
+	if (termios->c_iflag & IGNBRK) {
+		port->ignore_status_mask |= UART_LSR_BI;
+		/*
+		 * If we're ignoring parity and break indicators, ignore overruns too (for real raw
+		 * support).
+		 */
+		if (termios->c_iflag & IGNPAR)
+			port->ignore_status_mask |= UART_LSR_OE;
+	}
+
+	/* ignore all characters if CREAD is not set */
+	if ((termios->c_cflag & CREAD) == 0)
+		port->ignore_status_mask |= UART_LSR_DR;
+}
+
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		          const struct ktermios *old)
@@ -2747,40 +2779,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial8250_set_trigger_for_slow_speed(port, termios, baud);
 	serial8250_set_afe(port, termios);
 	uart_update_timeout(port, termios->c_cflag, baud);
-
-	/*
-	 * Specify which conditions may be considered for error
-	 * handling and the ignoring of characters. The actual
-	 * ignoring of characters only occurs if the bit is set
-	 * in @ignore_status_mask as well.
-	 */
-	port->read_status_mask = UART_LSR_OE | UART_LSR_DR;
-	if (termios->c_iflag & INPCK)
-		port->read_status_mask |= UART_LSR_FE | UART_LSR_PE;
-	if (termios->c_iflag & (IGNBRK | BRKINT | PARMRK))
-		port->read_status_mask |= UART_LSR_BI;
-
-	/*
-	 * Characters to ignore
-	 */
-	port->ignore_status_mask = 0;
-	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART_LSR_PE | UART_LSR_FE;
-	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= UART_LSR_BI;
-		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
-		 */
-		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= UART_LSR_OE;
-	}
-
-	/*
-	 * ignore all characters if CREAD is not set
-	 */
-	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_LSR_DR;
+	serial8250_set_errors_and_ignores(port, termios);
 
 	/*
 	 * CTS flow control flag and modem status interrupts
