@@ -53,7 +53,9 @@ enum dml2_output_type_and_rate__rate {
 	dml2_output_rate_hdmi_rate_6x4 = 9,
 	dml2_output_rate_hdmi_rate_8x4 = 10,
 	dml2_output_rate_hdmi_rate_10x4 = 11,
-	dml2_output_rate_hdmi_rate_12x4 = 12
+	dml2_output_rate_hdmi_rate_12x4 = 12,
+	dml2_output_rate_hdmi_rate_16x4 = 13,
+	dml2_output_rate_hdmi_rate_20x4 = 14
 };
 
 struct dml2_pmo_options {

@@ -93,6 +93,7 @@ struct dml2_soc_power_management_parameters {
 	double dram_clk_change_write_only_us;
 	double fclk_change_blackout_us;
 	double g7_ppt_blackout_us;
+	double g7_temperature_read_blackout_us;
 	double stutter_enter_plus_exit_latency_us;
 	double stutter_exit_latency_us;
 	double z8_stutter_enter_plus_exit_latency_us;

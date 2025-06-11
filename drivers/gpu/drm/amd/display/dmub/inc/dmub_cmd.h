@@ -303,9 +303,11 @@ union dmub_addr {
 /* Flattened structure containing SOC BB parameters stored in the VBIOS
  * It is not practical to store the entire bounding box in VBIOS since the bounding box struct can gain new parameters.
  * This also prevents alighment issues when new parameters are added to the SoC BB.
+ * The following parameters should be added since these values can't be obtained elsewhere:
+ * -dml2_soc_power_management_parameters
+ * -dml2_soc_vmin_clock_limits
  */
 struct dmub_soc_bb_params {
-	/* dml2_soc_power_management_parameters */
 	uint32_t dram_clk_change_blackout_ns;
 	uint32_t dram_clk_change_read_only_ns;
 	uint32_t dram_clk_change_write_only_ns;
@@ -318,9 +320,9 @@ struct dmub_soc_bb_params {
 	uint32_t z8_min_idle_time_ns;
 	uint32_t type_b_dram_clk_change_blackout_ns;
 	uint32_t type_b_ppt_blackout_ns;
-	/* dml2_soc_vmin_clock_limits */
 	uint32_t vmin_limit_dispclk_khz;
 	uint32_t vmin_limit_dcfclk_khz;
+	uint32_t g7_temperature_read_blackout_ns;
 };
 #pragma pack(pop)
 
@@ -2098,6 +2100,28 @@ enum fams2_stream_type {
 	FAMS2_STREAM_TYPE_VACTIVE = 2,
 	FAMS2_STREAM_TYPE_DRR = 3,
 	FAMS2_STREAM_TYPE_SUBVP = 4,
+};
+
+struct dmub_rect16 {
+	/**
+	 * Dirty rect x offset.
+	 */
+	uint16_t x;
+
+	/**
+	 * Dirty rect y offset.
+	 */
+	uint16_t y;
+
+	/**
+	 * Dirty rect width.
+	 */
+	uint16_t width;
+
+	/**
+	 * Dirty rect height.
+	 */
+	uint16_t height;
 };
 
 /* static stream state */

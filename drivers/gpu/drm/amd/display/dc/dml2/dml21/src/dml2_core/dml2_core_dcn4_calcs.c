@@ -13069,6 +13069,10 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_10x4;
 		else if (mode_lib->ms.support.OutputRate[k] == dml2_core_internal_output_rate_hdmi_rate_12x4)
 			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_12x4;
+		else if (mode_lib->ms.support.OutputRate[k] == dml2_core_internal_output_rate_hdmi_rate_16x4)
+			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_16x4;
+		else if (mode_lib->ms.support.OutputRate[k] == dml2_core_internal_output_rate_hdmi_rate_20x4)
+			out->informative.mode_support_info.OutputRate[k] = dml2_output_rate_hdmi_rate_20x4;
 
 		out->informative.mode_support_info.AlignedYPitch[k] = mode_lib->ms.support.AlignedYPitch[k];
 		out->informative.mode_support_info.AlignedCPitch[k] = mode_lib->ms.support.AlignedCPitch[k];
