@@ -332,10 +332,8 @@ static int ada4250_init(struct ada4250_state *st)
 
 	chip_id = le16_to_cpu(st->reg_val_16);
 
-	if (chip_id != ADA4250_CHIP_ID) {
-		dev_err(dev, "Invalid chip ID.\n");
-		return -EINVAL;
-	}
+	if (chip_id != ADA4250_CHIP_ID)
+		dev_info(dev, "Invalid chip ID: 0x%02X.\n", chip_id);
 
 	return regmap_write(st->regmap, ADA4250_REG_REFBUF_EN,
 			    FIELD_PREP(ADA4250_REFBUF_MSK, st->refbuf_en));
