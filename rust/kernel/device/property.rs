@@ -38,7 +38,6 @@ impl FwNode {
     /// - They relinquish that increment. That is, if there is only one
     ///   increment, callers must not use the underlying object anymore -- it is
     ///   only safe to do so via the newly created `ARef<FwNode>`.
-    #[expect(dead_code)]
     unsafe fn from_raw(raw: *mut bindings::fwnode_handle) -> ARef<Self> {
         // SAFETY: As per the safety requirements of this function:
         // - `NonNull::new_unchecked`:
@@ -56,6 +55,32 @@ impl FwNode {
     /// Obtain the raw `struct fwnode_handle *`.
     pub(crate) fn as_raw(&self) -> *mut bindings::fwnode_handle {
         self.0.get()
+    }
+
+    /// Returns an object that implements [`Display`](core::fmt::Display) for
+    /// printing the name of a node.
+    ///
+    /// This is an alternative to the default `Display` implementation, which
+    /// prints the full path.
+    pub fn display_name(&self) -> impl core::fmt::Display + '_ {
+        struct FwNodeDisplayName<'a>(&'a FwNode);
+
+        impl core::fmt::Display for FwNodeDisplayName<'_> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                // SAFETY: `self` is valid by its type invariant.
+                let name = unsafe { bindings::fwnode_get_name(self.0.as_raw()) };
+                if name.is_null() {
+                    return Ok(());
+                }
+                // SAFETY:
+                // - `fwnode_get_name` returns null or a valid C string.
+                // - `name` was checked to be non-null.
+                let name = unsafe { CStr::from_char_ptr(name) };
+                write!(f, "{name}")
+            }
+        }
+
+        FwNodeDisplayName(self)
     }
 
     /// Checks if property is present or not.
@@ -77,5 +102,55 @@ unsafe impl crate::types::AlwaysRefCounted for FwNode {
         // SAFETY: The safety requirements guarantee that the refcount is
         // non-zero.
         unsafe { bindings::fwnode_handle_put(obj.cast().as_ptr()) }
+    }
+}
+
+enum Node<'a> {
+    Borrowed(&'a FwNode),
+    Owned(ARef<FwNode>),
+}
+
+impl core::fmt::Display for FwNode {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // The logic here is the same as the one in lib/vsprintf.c
+        // (fwnode_full_name_string).
+
+        // SAFETY: `self.as_raw()` is valid by its type invariant.
+        let num_parents = unsafe { bindings::fwnode_count_parents(self.as_raw()) };
+
+        for depth in (0..=num_parents).rev() {
+            let fwnode = if depth == 0 {
+                Node::Borrowed(self)
+            } else {
+                // SAFETY: `self.as_raw()` is valid.
+                let ptr = unsafe { bindings::fwnode_get_nth_parent(self.as_raw(), depth) };
+                // SAFETY:
+                // - The depth passed to `fwnode_get_nth_parent` is
+                //   within the valid range, so the returned pointer is
+                //   not null.
+                // - The reference count was incremented by
+                //   `fwnode_get_nth_parent`.
+                // - That increment is relinquished to
+                //   `FwNode::from_raw`.
+                Node::Owned(unsafe { FwNode::from_raw(ptr) })
+            };
+            // Take a reference to the owned or borrowed `FwNode`.
+            let fwnode: &FwNode = match &fwnode {
+                Node::Borrowed(f) => f,
+                Node::Owned(f) => f,
+            };
+
+            // SAFETY: `fwnode` is valid by its type invariant.
+            let prefix = unsafe { bindings::fwnode_get_name_prefix(fwnode.as_raw()) };
+            if !prefix.is_null() {
+                // SAFETY: `fwnode_get_name_prefix` returns null or a
+                // valid C string.
+                let prefix = unsafe { CStr::from_char_ptr(prefix) };
+                write!(f, "{prefix}")?;
+            }
+            write!(f, "{}", fwnode.display_name())?;
+        }
+
+        Ok(())
     }
 }
