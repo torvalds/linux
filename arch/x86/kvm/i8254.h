@@ -44,7 +44,6 @@ struct kvm_pit {
 	struct kvm_io_device speaker_dev;
 	struct kvm *kvm;
 	struct kvm_kpit_state pit_state;
-	int irq_source_id;
 	struct kvm_irq_mask_notifier mask_notifier;
 	struct kthread_worker *worker;
 	struct kthread_work expired;

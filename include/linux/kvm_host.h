@@ -190,6 +190,7 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req);
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
+#define KVM_PIT_IRQ_SOURCE_ID			2
 
 extern struct mutex kvm_lock;
 extern struct list_head vm_list;
