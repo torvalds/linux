@@ -503,7 +503,7 @@ static int lp_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(ioread32(reg) & IN_LVL_BIT);
 }
 
-static void lp_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int lp_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct intel_pinctrl *lg = gpiochip_get_data(chip);
 	void __iomem *reg = lp_gpio_reg(chip, offset, LP_CONFIG1);
@@ -514,6 +514,8 @@ static void lp_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 		iowrite32(ioread32(reg) | OUT_LVL_BIT, reg);
 	else
 		iowrite32(ioread32(reg) & ~OUT_LVL_BIT, reg);
+
+	return 0;
 }
 
 static int lp_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
@@ -775,7 +777,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->direction_input = lp_gpio_direction_input;
 	gc->direction_output = lp_gpio_direction_output;
 	gc->get = lp_gpio_get;
-	gc->set = lp_gpio_set;
+	gc->set_rv = lp_gpio_set;
 	gc->set_config = gpiochip_generic_config;
 	gc->get_direction = lp_gpio_get_direction;
 	gc->base = -1;
