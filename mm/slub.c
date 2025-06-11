@@ -91,14 +91,14 @@
  *   The partially empty slabs cached on the CPU partial list are used
  *   for performance reasons, which speeds up the allocation process.
  *   These slabs are not frozen, but are also exempt from list management,
- *   by clearing the PG_workingset flag when moving out of the node
+ *   by clearing the SL_partial flag when moving out of the node
  *   partial list. Please see __slab_free() for more details.
  *
  *   To sum up, the current scheme is:
- *   - node partial slab: PG_Workingset && !frozen
- *   - cpu partial slab: !PG_Workingset && !frozen
- *   - cpu slab: !PG_Workingset && frozen
- *   - full slab: !PG_Workingset && !frozen
+ *   - node partial slab: SL_partial && !frozen
+ *   - cpu partial slab: !SL_partial && !frozen
+ *   - cpu slab: !SL_partial && frozen
+ *   - full slab: !SL_partial && !frozen
  *
  *   list_lock
  *
@@ -186,6 +186,7 @@
 /**
  * enum slab_flags - How the slab flags bits are used.
  * @SL_locked: Is locked with slab_lock()
+ * @SL_partial: On the per-node partial list
  *
  * The slab flags share space with the page flags but some bits have
  * different interpretations.  The high bits are used for information
@@ -193,6 +194,7 @@
  */
 enum slab_flags {
 	SL_locked = PG_locked,
+	SL_partial = PG_workingset,	/* Historical reasons for this bit */
 };
 
 /*
@@ -2729,23 +2731,19 @@ static void discard_slab(struct kmem_cache *s, struct slab *slab)
 	free_slab(s, slab);
 }
 
-/*
- * SLUB reuses PG_workingset bit to keep track of whether it's on
- * the per-node partial list.
- */
 static inline bool slab_test_node_partial(const struct slab *slab)
 {
-	return folio_test_workingset(slab_folio(slab));
+	return test_bit(SL_partial, &slab->flags);
 }
 
 static inline void slab_set_node_partial(struct slab *slab)
 {
-	set_bit(PG_workingset, folio_flags(slab_folio(slab), 0));
+	set_bit(SL_partial, &slab->flags);
 }
 
 static inline void slab_clear_node_partial(struct slab *slab)
 {
-	clear_bit(PG_workingset, folio_flags(slab_folio(slab), 0));
+	clear_bit(SL_partial, &slab->flags);
 }
 
 /*
