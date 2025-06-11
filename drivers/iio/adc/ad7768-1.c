@@ -29,6 +29,8 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger_consumer.h>
 
+#include <dt-bindings/iio/adc/adi,ad7768-1.h>
+
 /* AD7768 registers definition */
 #define AD7768_REG_CHIP_TYPE		0x3
 #define AD7768_REG_PROD_ID_L		0x4
@@ -100,6 +102,8 @@
 #define AD7768_GPIO_READ_MSK		GENMASK(3, 0)
 
 #define AD7768_VCM_OFF			0x07
+
+#define AD7768_TRIGGER_SOURCE_SYNC_IDX 0
 
 enum ad7768_conv_mode {
 	AD7768_CONTINUOUS,
@@ -211,6 +215,7 @@ struct ad7768_state {
 	struct gpio_desc *gpio_reset;
 	const char *labels[ARRAY_SIZE(ad7768_channels)];
 	struct gpio_chip gpiochip;
+	bool en_spi_sync;
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
@@ -298,6 +303,9 @@ static const struct regmap_config ad7768_regmap24_config = {
 
 static int ad7768_send_sync_pulse(struct ad7768_state *st)
 {
+	if (st->en_spi_sync)
+		return regmap_write(st->regmap, AD7768_REG_SYNC_RESET, 0x00);
+
 	/*
 	 * The datasheet specifies a minimum SYNC_IN pulse width of 1.5 × Tmclk,
 	 * where Tmclk is the MCLK period. The supported MCLK frequencies range
@@ -687,6 +695,76 @@ static const struct iio_info ad7768_info = {
 	.debugfs_reg_access = &ad7768_reg_access,
 };
 
+static struct fwnode_handle *
+ad7768_fwnode_find_reference_args(const struct fwnode_handle *fwnode,
+				  const char *name, const char *nargs_prop,
+				  unsigned int nargs, unsigned int index,
+				  struct fwnode_reference_args *args)
+{
+	int ret;
+
+	ret = fwnode_property_get_reference_args(fwnode, name, nargs_prop,
+						 nargs, index, args);
+	return ret ? ERR_PTR(ret) : args->fwnode;
+}
+
+static int ad7768_trigger_sources_sync_setup(struct device *dev,
+					     struct fwnode_handle *fwnode,
+					     struct ad7768_state *st)
+{
+	struct fwnode_reference_args args;
+
+	struct fwnode_handle *ref __free(fwnode_handle) =
+		ad7768_fwnode_find_reference_args(fwnode, "trigger-sources",
+						  "#trigger-source-cells", 0,
+						  AD7768_TRIGGER_SOURCE_SYNC_IDX,
+						  &args);
+	if (IS_ERR(ref))
+		return PTR_ERR(ref);
+
+	ref = args.fwnode;
+	/* First, try getting the GPIO trigger source */
+	if (fwnode_device_is_compatible(ref, "gpio-trigger")) {
+		st->gpio_sync_in = devm_fwnode_gpiod_get_index(dev, ref, NULL, 0,
+							       GPIOD_OUT_LOW,
+							       "sync-in");
+		return PTR_ERR_OR_ZERO(st->gpio_sync_in);
+	}
+
+	/*
+	 * TODO: Support the other cases when we have a trigger subsystem
+	 * to reliably handle other types of devices as trigger sources.
+	 *
+	 * For now, return an error message. For self triggering, omit the
+	 * trigger-sources property.
+	 */
+	return dev_err_probe(dev, -EOPNOTSUPP, "Invalid synchronization trigger source\n");
+}
+
+static int ad7768_trigger_sources_get_sync(struct device *dev,
+					   struct ad7768_state *st)
+{
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+
+	/*
+	 * The AD7768-1 allows two primary methods for driving the SYNC_IN pin
+	 * to synchronize one or more devices:
+	 * 1. Using an external GPIO.
+	 * 2. Using a SPI command, where the SYNC_OUT pin generates a
+	 *    synchronization pulse that drives the SYNC_IN pin.
+	 */
+	if (fwnode_property_present(fwnode, "trigger-sources"))
+		return ad7768_trigger_sources_sync_setup(dev, fwnode, st);
+
+	/*
+	 * In the absence of trigger-sources property, enable self
+	 * synchronization over SPI (SYNC_OUT).
+	 */
+	st->en_spi_sync = true;
+
+	return 0;
+}
+
 static int ad7768_setup(struct iio_dev *indio_dev)
 {
 	struct ad7768_state *st = iio_priv(indio_dev);
@@ -717,10 +795,21 @@ static int ad7768_setup(struct iio_dev *indio_dev)
 			return ret;
 	}
 
-	st->gpio_sync_in = devm_gpiod_get(&st->spi->dev, "adi,sync-in",
-					  GPIOD_OUT_LOW);
+	/* For backwards compatibility, try the adi,sync-in-gpios property */
+	st->gpio_sync_in = devm_gpiod_get_optional(&st->spi->dev, "adi,sync-in",
+						   GPIOD_OUT_LOW);
 	if (IS_ERR(st->gpio_sync_in))
 		return PTR_ERR(st->gpio_sync_in);
+
+	/*
+	 * If the synchronization is not defined by adi,sync-in-gpios, try the
+	 * trigger-sources.
+	 */
+	if (!st->gpio_sync_in) {
+		ret = ad7768_trigger_sources_get_sync(&st->spi->dev, st);
+		if (ret)
+			return ret;
+	}
 
 	/* Only create a Chip GPIO if flagged for it */
 	if (device_property_read_bool(&st->spi->dev, "gpio-controller")) {
