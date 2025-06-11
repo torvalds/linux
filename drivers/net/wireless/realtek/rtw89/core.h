@@ -3167,6 +3167,8 @@ struct rtw89_btc_ver {
 	u8 drvinfo_type;
 	u16 info_buf;
 	u8 max_role_num;
+	u8 fcxosi;
+	u8 fcxmlo;
 };
 
 #define RTW89_BTC_POLICY_MAXLEN 512
