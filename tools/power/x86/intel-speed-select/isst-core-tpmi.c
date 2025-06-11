@@ -540,6 +540,7 @@ static int tpmi_get_fact_info(struct isst_id *id, int level, int fact_bucket,
 	int i, j;
 	int ret;
 
+	memset(&info, 0, sizeof(info));
 	info.socket_id = id->pkg;
 	info.power_domain_id = id->punit;
 	info.level = level;
