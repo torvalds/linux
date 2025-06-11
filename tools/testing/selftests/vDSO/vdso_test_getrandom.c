@@ -100,6 +100,7 @@ out:
 	return state;
 }
 
+__attribute__((unused)) /* Example for libc implementors */
 static void vgetrandom_put_state(void *state)
 {
 	if (!state)
@@ -264,7 +265,7 @@ static void kselftest(void)
 	}
 	for (;;) {
 		struct ptrace_syscall_info info = { 0 };
-		int status, ret;
+		int status;
 		ksft_assert(waitpid(child, &status, 0) >= 0);
 		if (WIFEXITED(status)) {
 			ksft_assert(WEXITSTATUS(status) == 0);
