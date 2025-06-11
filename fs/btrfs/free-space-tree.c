@@ -513,8 +513,8 @@ static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
 }
 
 EXPORT_FOR_TESTS
-int free_space_test_bit(struct btrfs_block_group *block_group,
-			struct btrfs_path *path, u64 offset)
+bool free_space_test_bit(struct btrfs_block_group *block_group,
+			 struct btrfs_path *path, u64 offset)
 {
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
@@ -612,7 +612,8 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	u64 end = start + size;
 	u64 cur_start, cur_size;
-	int prev_bit, next_bit;
+	bool prev_bit_set = false;
+	bool next_bit_set = false;
 	int new_extents;
 	int ret;
 
@@ -631,7 +632,7 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 		if (ret)
 			goto out;
 
-		prev_bit = free_space_test_bit(block_group, path, prev_block);
+		prev_bit_set = free_space_test_bit(block_group, path, prev_block);
 
 		/* The previous block may have been in the previous bitmap. */
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
@@ -648,8 +649,6 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 		ret = btrfs_search_prev_slot(trans, root, &key, path, 0, 1);
 		if (ret)
 			goto out;
-
-		prev_bit = -1;
 	}
 
 	/*
@@ -681,28 +680,26 @@ static int modify_free_space_bitmap(struct btrfs_trans_handle *trans,
 				goto out;
 		}
 
-		next_bit = free_space_test_bit(block_group, path, end);
-	} else {
-		next_bit = -1;
+		next_bit_set = free_space_test_bit(block_group, path, end);
 	}
 
 	if (remove) {
 		new_extents = -1;
-		if (prev_bit == 1) {
+		if (prev_bit_set) {
 			/* Leftover on the left. */
 			new_extents++;
 		}
-		if (next_bit == 1) {
+		if (next_bit_set) {
 			/* Leftover on the right. */
 			new_extents++;
 		}
 	} else {
 		new_extents = 1;
-		if (prev_bit == 1) {
+		if (prev_bit_set) {
 			/* Merging with neighbor on the left. */
 			new_extents--;
 		}
-		if (next_bit == 1) {
+		if (next_bit_set) {
 			/* Merging with neighbor on the right. */
 			new_extents--;
 		}
@@ -1552,7 +1549,7 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_root *root;
 	struct btrfs_key key;
-	int prev_bit = 0, bit;
+	bool prev_bit_set = false;
 	/* Initialize to silence GCC. */
 	u64 extent_start = 0;
 	u64 end, offset;
@@ -1583,10 +1580,12 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 
 		offset = key.objectid;
 		while (offset < key.objectid + key.offset) {
-			bit = free_space_test_bit(block_group, path, offset);
-			if (prev_bit == 0 && bit == 1) {
+			bool bit_set;
+
+			bit_set = free_space_test_bit(block_group, path, offset);
+			if (!prev_bit_set && bit_set) {
 				extent_start = offset;
-			} else if (prev_bit == 1 && bit == 0) {
+			} else if (prev_bit_set && !bit_set) {
 				u64 space_added;
 
 				ret = btrfs_add_new_free_space(block_group,
@@ -1602,11 +1601,11 @@ static int load_free_space_bitmaps(struct btrfs_caching_control *caching_ctl,
 				}
 				extent_count++;
 			}
-			prev_bit = bit;
+			prev_bit_set = bit_set;
 			offset += fs_info->sectorsize;
 		}
 	}
-	if (prev_bit == 1) {
+	if (prev_bit_set) {
 		ret = btrfs_add_new_free_space(block_group, extent_start, end, NULL);
 		if (ret)
 			goto out;
