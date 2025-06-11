@@ -1648,7 +1648,7 @@ static void update_peak_states(struct bpf_verifier_env *env)
 {
 	u32 cur_states;
 
-	cur_states = env->explored_states_size + env->free_list_size;
+	cur_states = env->explored_states_size + env->free_list_size + env->num_backedges;
 	env->peak_states = max(env->peak_states, cur_states);
 }
 
@@ -1949,6 +1949,9 @@ static int maybe_exit_scc(struct bpf_verifier_env *env, struct bpf_verifier_stat
 	if (env->log.level & BPF_LOG_LEVEL2)
 		verbose(env, "SCC exit %s\n", format_callchain(env, &callchain));
 	visit->entry_state = NULL;
+	env->num_backedges -= visit->num_backedges;
+	visit->num_backedges = 0;
+	update_peak_states(env);
 	return propagate_backedges(env, visit);
 }
 
@@ -1977,6 +1980,9 @@ static int add_scc_backedge(struct bpf_verifier_env *env,
 		verbose(env, "SCC backedge %s\n", format_callchain(env, &callchain));
 	backedge->next = visit->backedges;
 	visit->backedges = backedge;
+	visit->num_backedges++;
+	env->num_backedges++;
+	update_peak_states(env);
 	return 0;
 }
 
