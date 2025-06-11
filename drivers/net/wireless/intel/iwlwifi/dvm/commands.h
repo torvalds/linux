@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2023-2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2023-2025 Intel Corporation
  */
 /*
  * Please use this file (commands.h) only for uCode API definitions.
@@ -614,7 +614,7 @@ struct iwl_rxon_time_cmd {
  * REPLY_CHANNEL_SWITCH = 0x72 (command, has simple generic response)
  */
 /**
- * struct iwl5000_channel_switch_cmd
+ * struct iwl5000_channel_switch_cmd - channel switch command (5000 series)
  * @band: 0- 5.2GHz, 1- 2.4GHz
  * @expect_beacon: 0- resume transmits after channel switch
  *		   1- wait for beacon to resume transmits
@@ -635,7 +635,7 @@ struct iwl5000_channel_switch_cmd {
 } __packed;
 
 /**
- * struct iwl6000_channel_switch_cmd
+ * struct iwl6000_channel_switch_cmd - channel switch command (6000 series)
  * @band: 0- 5.2GHz, 1- 2.4GHz
  * @expect_beacon: 0- resume transmits after channel switch
  *		   1- wait for beacon to resume transmits
@@ -791,7 +791,7 @@ struct iwl_keyinfo {
 } __packed;
 
 /**
- * struct sta_id_modify
+ * struct sta_id_modify - station modify command
  * @addr: station's MAC address
  * @reserved1: reserved for alignment
  * @sta_id: index of station in uCode's station table
@@ -2992,7 +2992,7 @@ struct iwl_missed_beacon_notif {
 #define SENSITIVITY_CMD_CONTROL_WORK_TABLE	cpu_to_le16(1)
 
 /**
- * struct iwl_sensitivity_cmd
+ * struct iwl_sensitivity_cmd - sensitivity configuration command
  * @control:  (1) updates working table, (0) updates default table
  * @table:  energy threshold values, use HD_* as index into table
  *
@@ -3848,7 +3848,7 @@ struct iwlagn_wowlan_status {
 #define IWL_MIN_SLOT_TIME	20
 
 /**
- * struct iwl_wipan_slot
+ * struct iwl_wipan_slot - WiPAN slot configuration
  * @width: Time in TU
  * @type:
  *   0 - BSS
@@ -3868,7 +3868,7 @@ struct iwl_wipan_slot {
 #define IWL_WIPAN_PARAMS_FLG_FULL_SLOTTED_MODE		BIT(5)
 
 /**
- * struct iwl_wipan_params_cmd
+ * struct iwl_wipan_params_cmd - WiPAN parameters
  * @flags:
  *   bit0: reserved
  *   bit1: CP leave channel with CTS
