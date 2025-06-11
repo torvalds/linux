@@ -743,15 +743,16 @@ static int __enable_rsa(struct uart_8250_port *up)
  */
 static void enable_rsa(struct uart_8250_port *up)
 {
-	if (up->port.type == PORT_RSA) {
-		if (up->port.uartclk != SERIAL_RSA_BAUD_BASE * 16) {
-			uart_port_lock_irq(&up->port);
-			__enable_rsa(up);
-			uart_port_unlock_irq(&up->port);
-		}
-		if (up->port.uartclk == SERIAL_RSA_BAUD_BASE * 16)
-			serial_out(up, UART_RSA_FRR, 0);
+	if (up->port.type != PORT_RSA)
+		return;
+
+	if (up->port.uartclk != SERIAL_RSA_BAUD_BASE * 16) {
+		uart_port_lock_irq(&up->port);
+		__enable_rsa(up);
+		uart_port_unlock_irq(&up->port);
 	}
+	if (up->port.uartclk == SERIAL_RSA_BAUD_BASE * 16)
+		serial_out(up, UART_RSA_FRR, 0);
 }
 
 /*
@@ -764,37 +765,45 @@ static void disable_rsa(struct uart_8250_port *up)
 	unsigned char mode;
 	int result;
 
-	if (up->port.type == PORT_RSA &&
-	    up->port.uartclk == SERIAL_RSA_BAUD_BASE * 16) {
-		uart_port_lock_irq(&up->port);
+	if (up->port.type != PORT_RSA)
+		return;
 
+	if (up->port.uartclk != SERIAL_RSA_BAUD_BASE * 16)
+		return;
+
+	uart_port_lock_irq(&up->port);
+	mode = serial_in(up, UART_RSA_MSR);
+	result = !(mode & UART_RSA_MSR_FIFO);
+
+	if (!result) {
+		serial_out(up, UART_RSA_MSR, mode & ~UART_RSA_MSR_FIFO);
 		mode = serial_in(up, UART_RSA_MSR);
 		result = !(mode & UART_RSA_MSR_FIFO);
-
-		if (!result) {
-			serial_out(up, UART_RSA_MSR, mode & ~UART_RSA_MSR_FIFO);
-			mode = serial_in(up, UART_RSA_MSR);
-			result = !(mode & UART_RSA_MSR_FIFO);
-		}
-
-		if (result)
-			up->port.uartclk = SERIAL_RSA_BAUD_BASE_LO * 16;
-		uart_port_unlock_irq(&up->port);
 	}
+
+	if (result)
+		up->port.uartclk = SERIAL_RSA_BAUD_BASE_LO * 16;
+	uart_port_unlock_irq(&up->port);
 }
 
 static void rsa_autoconfig(struct uart_8250_port *up)
 {
 	/* Only probe for RSA ports if we got the region. */
-	if (up->port.type == PORT_16550A && up->probe & UART_PROBE_RSA &&
-	    __enable_rsa(up))
+	if (up->port.type != PORT_16550A)
+		return;
+	if (!(up->probe & UART_PROBE_RSA))
+		return;
+
+	if (__enable_rsa(up))
 		up->port.type = PORT_RSA;
 }
 
 static void rsa_reset(struct uart_8250_port *up)
 {
-	if (up->port.type == PORT_RSA)
-		serial_out(up, UART_RSA_FRR, 0);
+	if (up->port.type != PORT_RSA)
+		return;
+
+	serial_out(up, UART_RSA_FRR, 0);
 }
 #else
 static inline void enable_rsa(struct uart_8250_port *up) {}
