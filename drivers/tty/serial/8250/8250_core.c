@@ -71,8 +71,6 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	struct list_head *l, *end = NULL;
 	int pass_counter = 0, handled = 0;
 
-	pr_debug("%s(%d): start\n", __func__, irq);
-
 	spin_lock(&i->lock);
 
 	l = i->head;
@@ -96,8 +94,6 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	} while (l != end);
 
 	spin_unlock(&i->lock);
-
-	pr_debug("%s(%d): end\n", __func__, irq);
 
 	return IRQ_RETVAL(handled);
 }
