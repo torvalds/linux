@@ -2159,6 +2159,46 @@ static void serial8250_startup_special(struct uart_port *port)
 	}
 }
 
+static void serial8250_set_TRG_levels(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	switch (port->type) {
+	/* For a XR16C850, we need to set the trigger levels */
+	case PORT_16850: {
+		u8 fctr;
+
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+
+		fctr = serial_in(up, UART_FCTR) & ~(UART_FCTR_RX|UART_FCTR_TX);
+		fctr |= UART_FCTR_TRGD;
+		serial_port_out(port, UART_FCTR, fctr | UART_FCTR_RX);
+		serial_port_out(port, UART_TRG, UART_TRG_96);
+		serial_port_out(port, UART_FCTR, fctr | UART_FCTR_TX);
+		serial_port_out(port, UART_TRG, UART_TRG_96);
+
+		serial_port_out(port, UART_LCR, 0);
+		break;
+	}
+	/* For the Altera 16550 variants, set TX threshold trigger level. */
+	case PORT_ALTR_16550_F32:
+	case PORT_ALTR_16550_F64:
+	case PORT_ALTR_16550_F128:
+		if (port->fifosize <= 1)
+			return;
+
+		/* Bounds checking of TX threshold (valid 0 to fifosize-2) */
+		if (up->tx_loadsz < 2 || up->tx_loadsz > port->fifosize) {
+			dev_err(port->dev, "TX FIFO Threshold errors, skipping\n");
+			return;
+		}
+		serial_port_out(port, UART_ALTR_AFR, UART_ALTR_EN_TXFIFO_LW);
+		serial_port_out(port, UART_ALTR_TX_LOW, port->fifosize - up->tx_loadsz);
+		port->handle_irq = serial8250_tx_threshold_handle_irq;
+		break;
+	}
+}
+
 int serial8250_do_startup(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
@@ -2208,42 +2248,7 @@ int serial8250_do_startup(struct uart_port *port)
 		goto out;
 	}
 
-	/*
-	 * For a XR16C850, we need to set the trigger levels
-	 */
-	if (port->type == PORT_16850) {
-		unsigned char fctr;
-
-		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-
-		fctr = serial_in(up, UART_FCTR) & ~(UART_FCTR_RX|UART_FCTR_TX);
-		serial_port_out(port, UART_FCTR,
-				fctr | UART_FCTR_TRGD | UART_FCTR_RX);
-		serial_port_out(port, UART_TRG, UART_TRG_96);
-		serial_port_out(port, UART_FCTR,
-				fctr | UART_FCTR_TRGD | UART_FCTR_TX);
-		serial_port_out(port, UART_TRG, UART_TRG_96);
-
-		serial_port_out(port, UART_LCR, 0);
-	}
-
-	/*
-	 * For the Altera 16550 variants, set TX threshold trigger level.
-	 */
-	if (((port->type == PORT_ALTR_16550_F32) ||
-	     (port->type == PORT_ALTR_16550_F64) ||
-	     (port->type == PORT_ALTR_16550_F128)) && (port->fifosize > 1)) {
-		/* Bounds checking of TX threshold (valid 0 to fifosize-2) */
-		if ((up->tx_loadsz < 2) || (up->tx_loadsz > port->fifosize)) {
-			dev_err(port->dev, "TX FIFO Threshold errors, skipping\n");
-		} else {
-			serial_port_out(port, UART_ALTR_AFR,
-					UART_ALTR_EN_TXFIFO_LW);
-			serial_port_out(port, UART_ALTR_TX_LOW,
-					port->fifosize - up->tx_loadsz);
-			port->handle_irq = serial8250_tx_threshold_handle_irq;
-		}
-	}
+	serial8250_set_TRG_levels(port);
 
 	/* Check if we need to have shared IRQs */
 	if (port->irq && (up->port.flags & UPF_SHARE_IRQ))
