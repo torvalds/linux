@@ -10,7 +10,7 @@
 
 #define PAGE_OFFSET	(PAGE_OFFSET_RAW)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * These are used to make use of C type-checking..
@@ -48,7 +48,7 @@ extern unsigned long _rambase;
 extern unsigned long _ramstart;
 extern unsigned long _ramend;
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #ifdef CONFIG_MMU
 #include <asm/page_mm.h>

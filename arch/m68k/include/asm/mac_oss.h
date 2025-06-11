@@ -59,7 +59,7 @@
 
 #define OSS_POWEROFF	0x80
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct mac_oss {
     __u8  irq_level[0x10];	/* [0x000-0x00f] Interrupt levels */
@@ -77,4 +77,4 @@ extern void oss_register_interrupts(void);
 extern void oss_irq_enable(int);
 extern void oss_irq_disable(int);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */

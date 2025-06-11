@@ -22,7 +22,7 @@
 
 #define THREAD_SIZE	(PAGE_SIZE << THREAD_SIZE_ORDER)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
@@ -31,7 +31,7 @@ struct thread_info {
 	__u32			cpu;		/* should always be 0 on m68k */
 	unsigned long		tp_value;	/* thread pointer */
 };
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define INIT_THREAD_INFO(tsk)			\
 {						\
@@ -39,7 +39,7 @@ struct thread_info {
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)
 {

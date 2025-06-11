@@ -10,7 +10,7 @@
 #include <asm/pgtable_mm.h>
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 extern void paging_init(void);
 #endif
 
