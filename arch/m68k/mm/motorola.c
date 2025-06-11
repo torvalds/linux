@@ -202,21 +202,20 @@ int free_pointer_table(void *table, int type)
 {
 	ptable_desc *dp;
 	unsigned long ptable = (unsigned long)table;
-	unsigned long page = ptable & PAGE_MASK;
-	unsigned int mask = 1U << ((ptable - page)/ptable_size(type));
+	unsigned long pt_addr = ptable & PAGE_MASK;
+	unsigned int mask = 1U << ((ptable - pt_addr)/ptable_size(type));
 
-	dp = PD_PTABLE(page);
+	dp = PD_PTABLE(pt_addr);
 	if (PD_MARKBITS (dp) & mask)
 		panic ("table already free!");
 
 	PD_MARKBITS (dp) |= mask;
 
 	if (PD_MARKBITS(dp) == ptable_mask(type)) {
-		/* all tables in page are free, free page */
+		/* all tables in ptdesc are free, free ptdesc */
 		list_del(dp);
-		mmu_page_dtor((void *)page);
-		pagetable_dtor(virt_to_ptdesc((void *)page));
-		free_page (page);
+		mmu_page_dtor((void *)pt_addr);
+		pagetable_dtor_free(virt_to_ptdesc((void *)pt_addr));
 		return 1;
 	} else if (ptable_list[type].next != dp) {
 		/*
