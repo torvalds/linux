@@ -1418,6 +1418,10 @@ static inline bool check_coredump_socket(void)
 	if (strlen(p) >= UNIX_PATH_MAX)
 		return false;
 
+	/* Must not contain ".." in the path. */
+	if (name_contains_dotdot(core_pattern))
+		return false;
+
 	return true;
 }
 
