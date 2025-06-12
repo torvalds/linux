@@ -384,7 +384,6 @@ struct iwl_pcie_txqs {
  * @txq_memory: TXQ allocation array
  * @sx_waitq: waitqueue for Sx transitions
  * @sx_state: state tracking Sx transitions
- * @pcie_dbg_dumped_once: indicates PCIe regs were dumped already
  * @opmode_down: indicates opmode went away
  * @num_rx_bufs: number of RX buffers to allocate/use
  * @affinity_mask: IRQ affinity mask for each RX queue
@@ -460,7 +459,6 @@ struct iwl_trans_pcie {
 
 	u16 num_rx_bufs;
 
-	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
 	u32 rx_buf_bytes;
 	u32 supported_dma_mask;
@@ -1069,7 +1067,6 @@ static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
 }
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq);
-void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
