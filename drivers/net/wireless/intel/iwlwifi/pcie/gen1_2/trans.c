@@ -294,8 +294,8 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	u32 dl_cfg_reg;
 
 	/* Force XTAL ON */
-	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
-				 CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
+	iwl_trans_set_bit(trans, CSR_GP_CNTRL,
+			  CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 
 	ret = iwl_trans_pcie_sw_reset(trans, true);
 
@@ -304,8 +304,8 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 
 	if (WARN_ON(ret)) {
 		/* Release XTAL ON request */
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 		return;
 	}
 
@@ -356,12 +356,12 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	iwl_clear_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* Activates XTAL resources monitor */
-	__iwl_trans_pcie_set_bit(trans, CSR_MONITOR_CFG_REG,
-				 CSR_MONITOR_XTAL_RESOURCES);
+	iwl_trans_set_bit(trans, CSR_MONITOR_CFG_REG,
+			  CSR_MONITOR_XTAL_RESOURCES);
 
 	/* Release XTAL ON request */
-	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
+	iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 	udelay(10);
 
 	/* Release APMG XTAL */
@@ -2330,7 +2330,7 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 	}
 
 	/* this bit wakes up the NIC */
-	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL, write);
+	iwl_trans_set_bit(trans, CSR_GP_CNTRL, write);
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_8000)
 		udelay(2);
 
@@ -2419,11 +2419,11 @@ iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
 	if (trans->mac_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
 	else
-		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+		iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/*
 	 * Above we read the CSR_GP_CNTRL register, which will flush
 	 * any previous writes, but we need the write that clears the
@@ -2604,7 +2604,7 @@ void iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans, u32 reg,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	spin_lock_bh(&trans_pcie->reg_lock);
-	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, value);
+	_iwl_trans_set_bits_mask(trans, reg, mask, value);
 	spin_unlock_bh(&trans_pcie->reg_lock);
 }
 
