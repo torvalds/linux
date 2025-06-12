@@ -1024,6 +1024,15 @@ static bool coredump_pipe(struct core_name *cn, struct coredump_params *cprm,
 		return false;
 	}
 
+	/*
+	 * umh disabled with CONFIG_STATIC_USERMODEHELPER_PATH="" would
+	 * have this set to NULL.
+	 */
+	if (!cprm->file) {
+		coredump_report_failure("Core dump to |%s disabled", cn->corename);
+		return false;
+	}
+
 	return true;
 }
 
@@ -1117,14 +1126,6 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 		goto close_fail;
 
 	if ((cn.mask & COREDUMP_KERNEL) && !dump_interrupted()) {
-		/*
-		 * umh disabled with CONFIG_STATIC_USERMODEHELPER_PATH="" would
-		 * have this set to NULL.
-		 */
-		if (!cprm.file) {
-			coredump_report_failure("Core dump to |%s disabled", cn.corename);
-			goto close_fail;
-		}
 		if (!dump_vma_snapshot(&cprm))
 			goto close_fail;
 
