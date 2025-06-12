@@ -31,6 +31,12 @@
 /*
  * Relay buffer statistics
  */
+enum {
+	RELAY_STATS_BUF_FULL = (1 << 0),
+
+	RELAY_STATS_LAST = RELAY_STATS_BUF_FULL,
+};
+
 struct rchan_buf_stats
 {
 	unsigned int full_count;	/* counter for buffer full */
@@ -167,6 +173,7 @@ struct rchan *relay_open(const char *base_filename,
 			 void *private_data);
 extern void relay_close(struct rchan *chan);
 extern void relay_flush(struct rchan *chan);
+size_t relay_stats(struct rchan *chan, int flags);
 extern void relay_subbufs_consumed(struct rchan *chan,
 				   unsigned int cpu,
 				   size_t consumed);
