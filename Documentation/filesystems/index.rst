@@ -96,10 +96,7 @@ Documentation for filesystem implementations.
    hfs
    hfsplus
    hpfs
-   fuse
-   fuse-io
-   fuse-io-uring
-   fuse-passthrough
+   fuse/index
    inotify
    isofs
    nilfs2

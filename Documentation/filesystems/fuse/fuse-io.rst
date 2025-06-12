@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==============
-Fuse I/O Modes
+FUSE I/O Modes
 ==============
 
 Fuse supports the following I/O modes:
