@@ -6,6 +6,7 @@
  * Tux Ascii art taken from cowsay written by Tony Monroe
  */
 
+#include <linux/export.h>
 #include <linux/font.h>
 #include <linux/highmem.h>
 #include <linux/init.h>

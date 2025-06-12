@@ -8,6 +8,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/iosys-map.h>
 #include <linux/module.h>

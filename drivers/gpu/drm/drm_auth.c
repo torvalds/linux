@@ -28,6 +28,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/export.h>
 #include <linux/slab.h>
 
 #include <drm/drm_auth.h>

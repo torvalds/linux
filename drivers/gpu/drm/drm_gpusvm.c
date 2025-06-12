@@ -7,6 +7,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <linux/hmm.h>
 #include <linux/memremap.h>
 #include <linux/migrate.h>
