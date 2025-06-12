@@ -250,6 +250,8 @@ static void px30_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct clk *clk_mac_speed = bsp_priv->clks[RK_CLK_MAC_SPEED].clk;
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
+	long rate;
 	int ret;
 
 	if (!clk_mac_speed) {
@@ -258,25 +260,22 @@ static void px30_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 	}
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, PX30_GRF_GMAC_CON1,
-			     PX30_GMAC_SPEED_10M);
-
-		ret = clk_set_rate(clk_mac_speed, 2500000);
-		if (ret)
-			dev_err(dev, "%s: set clk_mac_speed rate 2500000 failed: %d\n",
-				__func__, ret);
+		con1 = PX30_GMAC_SPEED_10M;
+		rate = 2500000;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, PX30_GRF_GMAC_CON1,
-			     PX30_GMAC_SPEED_100M);
-
-		ret = clk_set_rate(clk_mac_speed, 25000000);
-		if (ret)
-			dev_err(dev, "%s: set clk_mac_speed rate 25000000 failed: %d\n",
-				__func__, ret);
-
+		con1 = PX30_GMAC_SPEED_100M;
+		rate = 25000000;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, PX30_GRF_GMAC_CON1, con1);
+
+	ret = clk_set_rate(clk_mac_speed, rate);
+	if (ret)
+		dev_err(dev, "%s: set clk_mac_speed rate %ld failed: %d\n",
+			__func__, rate, ret);
 }
 
 static const struct rk_gmac_ops px30_ops = {
