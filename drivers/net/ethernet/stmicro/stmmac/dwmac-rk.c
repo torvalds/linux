@@ -264,35 +264,37 @@ static void rk3128_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3128_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
-			     RK3128_GMAC_CLK_2_5M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
-			     RK3128_GMAC_CLK_25M);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
-			     RK3128_GMAC_CLK_125M);
-	else
+	if (speed == 10) {
+		con1 = RK3128_GMAC_CLK_2_5M;
+	} else if (speed == 100) {
+		con1 = RK3128_GMAC_CLK_25M;
+	} else if (speed == 1000) {
+		con1 = RK3128_GMAC_CLK_125M;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1, con1);
 }
 
 static void rk3128_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
-			     RK3128_GMAC_RMII_CLK_2_5M |
-			     RK3128_GMAC_SPEED_10M);
+		con1 = RK3128_GMAC_RMII_CLK_2_5M | RK3128_GMAC_SPEED_10M;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1,
-			     RK3128_GMAC_RMII_CLK_25M |
-			     RK3128_GMAC_SPEED_100M);
+		con1 = RK3128_GMAC_RMII_CLK_25M | RK3128_GMAC_SPEED_100M;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, RK3128_GRF_MAC_CON1, con1);
 }
 
 static const struct rk_gmac_ops rk3128_ops = {
@@ -361,34 +363,37 @@ static void rk3228_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3228_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
-			     RK3228_GMAC_CLK_2_5M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
-			     RK3228_GMAC_CLK_25M);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
-			     RK3228_GMAC_CLK_125M);
-	else
+	if (speed == 10) {
+		con1 = RK3228_GMAC_CLK_2_5M;
+	} else if (speed == 100) {
+		con1 = RK3228_GMAC_CLK_25M;
+	} else if (speed == 1000) {
+		con1 = RK3228_GMAC_CLK_125M;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1, con1);
 }
 
 static void rk3228_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
-			     RK3228_GMAC_RMII_CLK_2_5M |
-			     RK3228_GMAC_SPEED_10M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1,
-			     RK3228_GMAC_RMII_CLK_25M |
-			     RK3228_GMAC_SPEED_100M);
-	else
+	if (speed == 10) {
+		con1 = RK3228_GMAC_RMII_CLK_2_5M | RK3228_GMAC_SPEED_10M;
+	} else if (speed == 100) {
+		con1 = RK3228_GMAC_RMII_CLK_25M | RK3228_GMAC_SPEED_100M;
+	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3228_GRF_MAC_CON1, con1);
 }
 
 static void rk3228_integrated_phy_powerup(struct rk_priv_data *priv)
@@ -457,35 +462,37 @@ static void rk3288_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3288_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
-			     RK3288_GMAC_CLK_2_5M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
-			     RK3288_GMAC_CLK_25M);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
-			     RK3288_GMAC_CLK_125M);
-	else
+	if (speed == 10) {
+		con1 = RK3288_GMAC_CLK_2_5M;
+	} else if (speed == 100) {
+		con1 = RK3288_GMAC_CLK_25M;
+	} else if (speed == 1000) {
+		con1 = RK3288_GMAC_CLK_125M;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1, con1);
 }
 
 static void rk3288_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
-			     RK3288_GMAC_RMII_CLK_2_5M |
-			     RK3288_GMAC_SPEED_10M);
+		con1 = RK3288_GMAC_RMII_CLK_2_5M | RK3288_GMAC_SPEED_10M;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1,
-			     RK3288_GMAC_RMII_CLK_25M |
-			     RK3288_GMAC_SPEED_100M);
+		con1 = RK3288_GMAC_RMII_CLK_25M | RK3288_GMAC_SPEED_100M;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, RK3288_GRF_SOC_CON1, con1);
 }
 
 static const struct rk_gmac_ops rk3288_ops = {
@@ -514,16 +521,18 @@ static void rk3308_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3308_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con0;
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, RK3308_GRF_MAC_CON0,
-			     RK3308_GMAC_SPEED_10M);
+		con0 = RK3308_GMAC_SPEED_10M;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, RK3308_GRF_MAC_CON0,
-			     RK3308_GMAC_SPEED_100M);
+		con0 = RK3308_GMAC_SPEED_100M;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, RK3308_GRF_MAC_CON0, con0);
 }
 
 static const struct rk_gmac_ops rk3308_ops = {
@@ -593,38 +602,40 @@ static void rk3328_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3328_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con1;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3328_GRF_MAC_CON1,
-			     RK3328_GMAC_CLK_2_5M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3328_GRF_MAC_CON1,
-			     RK3328_GMAC_CLK_25M);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3328_GRF_MAC_CON1,
-			     RK3328_GMAC_CLK_125M);
-	else
+	if (speed == 10) {
+		con1 = RK3328_GMAC_CLK_2_5M;
+	} else if (speed == 100) {
+		con1 = RK3328_GMAC_CLK_25M;
+	} else if (speed == 1000) {
+		con1 = RK3328_GMAC_CLK_125M;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3328_GRF_MAC_CON1, con1);
 }
 
 static void rk3328_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
-	unsigned int reg;
+	unsigned int reg, con;
 
 	reg = bsp_priv->integrated_phy ? RK3328_GRF_MAC_CON2 :
 		  RK3328_GRF_MAC_CON1;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, reg,
-			     RK3328_GMAC_RMII_CLK_2_5M |
-			     RK3328_GMAC_SPEED_10M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, reg,
-			     RK3328_GMAC_RMII_CLK_25M |
-			     RK3328_GMAC_SPEED_100M);
-	else
+	if (speed == 10) {
+		con = RK3328_GMAC_RMII_CLK_2_5M | RK3328_GMAC_SPEED_10M;
+	} else if (speed == 100) {
+		con = RK3328_GMAC_RMII_CLK_25M | RK3328_GMAC_SPEED_100M;
+	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, reg, con);
 }
 
 static void rk3328_integrated_phy_powerup(struct rk_priv_data *priv)
@@ -693,35 +704,37 @@ static void rk3366_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3366_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con6;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
-			     RK3366_GMAC_CLK_2_5M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
-			     RK3366_GMAC_CLK_25M);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
-			     RK3366_GMAC_CLK_125M);
-	else
+	if (speed == 10) {
+		con6 = RK3366_GMAC_CLK_2_5M;
+	} else if (speed == 100) {
+		con6 = RK3366_GMAC_CLK_25M;
+	} else if (speed == 1000) {
+		con6 = RK3366_GMAC_CLK_125M;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6, con6);
 }
 
 static void rk3366_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con6;
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
-			     RK3366_GMAC_RMII_CLK_2_5M |
-			     RK3366_GMAC_SPEED_10M);
+		con6 = RK3366_GMAC_RMII_CLK_2_5M | RK3366_GMAC_SPEED_10M;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6,
-			     RK3366_GMAC_RMII_CLK_25M |
-			     RK3366_GMAC_SPEED_100M);
+		con6 = RK3366_GMAC_RMII_CLK_25M | RK3366_GMAC_SPEED_100M;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, RK3366_GRF_SOC_CON6, con6);
 }
 
 static const struct rk_gmac_ops rk3366_ops = {
@@ -780,35 +793,37 @@ static void rk3368_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3368_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con15;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
-			     RK3368_GMAC_CLK_2_5M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
-			     RK3368_GMAC_CLK_25M);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
-			     RK3368_GMAC_CLK_125M);
-	else
+	if (speed == 10) {
+		con15 = RK3368_GMAC_CLK_2_5M;
+	} else if (speed == 100) {
+		con15 = RK3368_GMAC_CLK_25M;
+	} else if (speed == 1000) {
+		con15 = RK3368_GMAC_CLK_125M;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15, con15);
 }
 
 static void rk3368_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con15;
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
-			     RK3368_GMAC_RMII_CLK_2_5M |
-			     RK3368_GMAC_SPEED_10M);
+		con15 = RK3368_GMAC_RMII_CLK_2_5M | RK3368_GMAC_SPEED_10M;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15,
-			     RK3368_GMAC_RMII_CLK_25M |
-			     RK3368_GMAC_SPEED_100M);
+		con15 = RK3368_GMAC_RMII_CLK_25M | RK3368_GMAC_SPEED_100M;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, RK3368_GRF_SOC_CON15, con15);
 }
 
 static const struct rk_gmac_ops rk3368_ops = {
@@ -867,35 +882,37 @@ static void rk3399_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3399_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con5;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
-			     RK3399_GMAC_CLK_2_5M);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
-			     RK3399_GMAC_CLK_25M);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
-			     RK3399_GMAC_CLK_125M);
-	else
+	if (speed == 10) {
+		con5 = RK3399_GMAC_CLK_2_5M;
+	} else if (speed == 100) {
+		con5 = RK3399_GMAC_CLK_25M;
+	} else if (speed == 1000) {
+		con5 = RK3399_GMAC_CLK_125M;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5, con5);
 }
 
 static void rk3399_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con5;
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
-			     RK3399_GMAC_RMII_CLK_2_5M |
-			     RK3399_GMAC_SPEED_10M);
+		con5 = RK3399_GMAC_RMII_CLK_2_5M | RK3399_GMAC_SPEED_10M;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5,
-			     RK3399_GMAC_RMII_CLK_25M |
-			     RK3399_GMAC_SPEED_100M);
+		con5 = RK3399_GMAC_RMII_CLK_25M | RK3399_GMAC_SPEED_100M;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, RK3399_GRF_SOC_CON5, con5);
 }
 
 static const struct rk_gmac_ops rk3399_ops = {
@@ -968,18 +985,20 @@ static void rk3528_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rk3528_set_rgmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con5;
 
-	if (speed == 10)
-		regmap_write(bsp_priv->grf, RK3528_VPU_GRF_GMAC_CON5,
-			     RK3528_GMAC1_CLK_RGMII_DIV50);
-	else if (speed == 100)
-		regmap_write(bsp_priv->grf, RK3528_VPU_GRF_GMAC_CON5,
-			     RK3528_GMAC1_CLK_RGMII_DIV5);
-	else if (speed == 1000)
-		regmap_write(bsp_priv->grf, RK3528_VPU_GRF_GMAC_CON5,
-			     RK3528_GMAC1_CLK_RGMII_DIV1);
-	else
+	if (speed == 10) {
+		con5 = RK3528_GMAC1_CLK_RGMII_DIV50;
+	} else if (speed == 100) {
+		con5 = RK3528_GMAC1_CLK_RGMII_DIV5;
+	} else if (speed == 1000) {
+		con5 = RK3528_GMAC1_CLK_RGMII_DIV1;
+	} else {
 		dev_err(dev, "unknown speed value for RGMII! speed=%d", speed);
+		return;
+	}
+
+	regmap_write(bsp_priv->grf, RK3528_VPU_GRF_GMAC_CON5, con5);
 }
 
 static void rk3528_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
@@ -987,13 +1006,13 @@ static void rk3528_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 	struct device *dev = &bsp_priv->pdev->dev;
 	unsigned int reg, val;
 
-	if (speed == 10)
+	if (speed == 10) {
 		val = bsp_priv->id == 1 ? RK3528_GMAC1_CLK_RMII_DIV20 :
 					  RK3528_GMAC0_CLK_RMII_DIV20;
-	else if (speed == 100)
+	} else if (speed == 100) {
 		val = bsp_priv->id == 1 ? RK3528_GMAC1_CLK_RMII_DIV2 :
 					  RK3528_GMAC0_CLK_RMII_DIV2;
-	else {
+	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
 		return;
 	}
@@ -1430,18 +1449,18 @@ static void rv1108_set_to_rmii(struct rk_priv_data *bsp_priv)
 static void rv1108_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned int con0;
 
 	if (speed == 10) {
-		regmap_write(bsp_priv->grf, RV1108_GRF_GMAC_CON0,
-			     RV1108_GMAC_RMII_CLK_2_5M |
-			     RV1108_GMAC_SPEED_10M);
+		con0 = RV1108_GMAC_RMII_CLK_2_5M | RV1108_GMAC_SPEED_10M;
 	} else if (speed == 100) {
-		regmap_write(bsp_priv->grf, RV1108_GRF_GMAC_CON0,
-			     RV1108_GMAC_RMII_CLK_25M |
-			     RV1108_GMAC_SPEED_100M);
+		con0 = RV1108_GMAC_RMII_CLK_25M | RV1108_GMAC_SPEED_100M;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
+		return;
 	}
+
+	regmap_write(bsp_priv->grf, RV1108_GRF_GMAC_CON0, con0);
 }
 
 static const struct rk_gmac_ops rv1108_ops = {
