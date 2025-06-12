@@ -4,6 +4,7 @@
  */
 
 #include <linux/crc4.h>
+#include <linux/export.h>
 #include <linux/module.h>
 
 static const uint8_t crc4_tab[] = {

@@ -25,6 +25,7 @@
 /* see: Documentation/staging/crc32.rst for a description of algorithms */
 
 #include <linux/crc32.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
 
