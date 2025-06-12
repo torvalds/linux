@@ -1088,7 +1088,6 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	struct mm_struct *mm = current->mm;
 	struct linux_binfmt * binfmt;
 	const struct cred *old_cred;
-	int retval = 0;
 	int argc = 0;
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
@@ -1123,8 +1122,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	if (coredump_force_suid_safe(&cprm))
 		cred->fsuid = GLOBAL_ROOT_UID;
 
-	retval = coredump_wait(siginfo->si_signo, &core_state);
-	if (retval < 0)
+	if (coredump_wait(siginfo->si_signo, &core_state) < 0)
 		return;
 
 	old_cred = override_creds(cred);
@@ -1160,8 +1158,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 
 	/* get us an unshared descriptor table; almost always a no-op */
 	/* The cell spufs coredump code reads the file descriptor tables */
-	retval = unshare_files();
-	if (retval)
+	if (unshare_files())
 		goto close_fail;
 
 	if ((cn.mask & COREDUMP_KERNEL) && !coredump_write(&cn, &cprm, binfmt))
