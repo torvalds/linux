@@ -153,8 +153,14 @@ static int imu_v12_1_switch_compute_partition(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void imu_v12_1_init_mcm_addr_lut(struct amdgpu_device *adev)
+{
+	/* todo: fill in when interface is ready */
+}
+
 const struct amdgpu_imu_funcs gfx_v12_1_imu_funcs = {
 	.init_microcode = imu_v12_1_init_microcode,
 	.load_microcode = imu_v12_1_load_microcode,
 	.switch_compute_partition = imu_v12_1_switch_compute_partition,
+	.init_mcm_addr_lut = imu_v12_1_init_mcm_addr_lut,
 };
