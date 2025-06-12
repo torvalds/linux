@@ -20,6 +20,7 @@ TRACE_DEFINE_ENUM(ALARM_BOOTTIME_FREEZER);
 	{ 1 << ALARM_REALTIME_FREEZER, "REALTIME Freezer" },	\
 	{ 1 << ALARM_BOOTTIME_FREEZER, "BOOTTIME Freezer" })
 
+#ifdef CONFIG_RTC_CLASS
 TRACE_EVENT(alarmtimer_suspend,
 
 	TP_PROTO(ktime_t expires, int flag),
@@ -41,6 +42,7 @@ TRACE_EVENT(alarmtimer_suspend,
 		  __entry->expires
 	)
 );
+#endif /* CONFIG_RTC_CLASS */
 
 DECLARE_EVENT_CLASS(alarm_class,
 
