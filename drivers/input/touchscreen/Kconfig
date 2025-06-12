@@ -105,7 +105,6 @@ config TOUCHSCREEN_ADC
 
 config TOUCHSCREEN_APPLE_Z2
 	tristate "Apple Z2 touchscreens"
-	default ARCH_APPLE
 	depends on SPI && (ARCH_APPLE || COMPILE_TEST)
 	help
 	  Say Y here if you have an ARM Apple device with
