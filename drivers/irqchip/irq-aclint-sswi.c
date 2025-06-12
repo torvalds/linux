@@ -61,18 +61,18 @@ static int aclint_sswi_dying_cpu(unsigned int cpu)
 
 static int __init aclint_sswi_parse_irq(struct fwnode_handle *fwnode, void __iomem *reg)
 {
-	struct of_phandle_args parent;
-	unsigned long hartid;
-	u32 contexts, i;
-	int rc, cpu;
+	u32 contexts = of_irq_count(to_of_node(fwnode));
 
-	contexts = of_irq_count(to_of_node(fwnode));
 	if (!(contexts)) {
 		pr_err("%pfwP: no ACLINT SSWI context available\n", fwnode);
 		return -EINVAL;
 	}
 
-	for (i = 0; i < contexts; i++) {
+	for (u32 i = 0; i < contexts; i++) {
+		struct of_phandle_args parent;
+		unsigned long hartid;
+		int rc, cpu;
+
 		rc = of_irq_parse_one(to_of_node(fwnode), i, &parent);
 		if (rc)
 			return rc;
