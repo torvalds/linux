@@ -352,6 +352,83 @@ For reaching best IO performance, ublk server should align its segment
 parameter of `struct ublk_param_segment` with backend for avoiding
 unnecessary IO split, which usually hurts io_uring performance.
 
+Auto Buffer Registration
+------------------------
+
+The ``UBLK_F_AUTO_BUF_REG`` feature automatically handles buffer registration
+and unregistration for I/O requests, which simplifies the buffer management
+process and reduces overhead in the ublk server implementation.
+
+This is another feature flag for using zero copy, and it is compatible with
+``UBLK_F_SUPPORT_ZERO_COPY``.
+
+Feature Overview
+~~~~~~~~~~~~~~~~
+
+This feature automatically registers request buffers to the io_uring context
+before delivering I/O commands to the ublk server and unregisters them when
+completing I/O commands. This eliminates the need for manual buffer
+registration/unregistration via ``UBLK_IO_REGISTER_IO_BUF`` and
+``UBLK_IO_UNREGISTER_IO_BUF`` commands, then IO handling in ublk server
+can avoid dependency on the two uring_cmd operations.
+
+IOs can't be issued concurrently to io_uring if there is any dependency
+among these IOs. So this way not only simplifies ublk server implementation,
+but also makes concurrent IO handling becomes possible by removing the
+dependency on buffer registration & unregistration commands.
+
+Usage Requirements
+~~~~~~~~~~~~~~~~~~
+
+1. The ublk server must create a sparse buffer table on the same ``io_ring_ctx``
+   used for ``UBLK_IO_FETCH_REQ`` and ``UBLK_IO_COMMIT_AND_FETCH_REQ``. If
+   uring_cmd is issued on a different ``io_ring_ctx``, manual buffer
+   unregistration is required.
+
+2. Buffer registration data must be passed via uring_cmd's ``sqe->addr`` with the
+   following structure::
+
+    struct ublk_auto_buf_reg {
+        __u16 index;      /* Buffer index for registration */
+        __u8 flags;       /* Registration flags */
+        __u8 reserved0;   /* Reserved for future use */
+        __u32 reserved1;  /* Reserved for future use */
+    };
+
+   ublk_auto_buf_reg_to_sqe_addr() is for converting the above structure into
+   ``sqe->addr``.
+
+3. All reserved fields in ``ublk_auto_buf_reg`` must be zeroed.
+
+4. Optional flags can be passed via ``ublk_auto_buf_reg.flags``.
+
+Fallback Behavior
+~~~~~~~~~~~~~~~~~
+
+If auto buffer registration fails:
+
+1. When ``UBLK_AUTO_BUF_REG_FALLBACK`` is enabled:
+
+   - The uring_cmd is completed
+   - ``UBLK_IO_F_NEED_REG_BUF`` is set in ``ublksrv_io_desc.op_flags``
+   - The ublk server must manually deal with the failure, such as, register
+     the buffer manually, or using user copy feature for retrieving the data
+     for handling ublk IO
+
+2. If fallback is not enabled:
+
+   - The ublk I/O request fails silently
+   - The uring_cmd won't be completed
+
+Limitations
+~~~~~~~~~~~
+
+- Requires same ``io_ring_ctx`` for all operations
+- May require manual buffer management in fallback cases
+- io_ring_ctx buffer table has a max size of 16K, which may not be enough
+  in case that too many ublk devices are handled by this single io_ring_ctx
+  and each one has very large queue depth
+
 References
 ==========
 
