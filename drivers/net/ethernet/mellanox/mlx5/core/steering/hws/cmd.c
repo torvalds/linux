@@ -55,6 +55,7 @@ int mlx5hws_cmd_flow_table_create(struct mlx5_core_dev *mdev,
 
 	MLX5_SET(create_flow_table_in, in, opcode, MLX5_CMD_OP_CREATE_FLOW_TABLE);
 	MLX5_SET(create_flow_table_in, in, table_type, ft_attr->type);
+	MLX5_SET(create_flow_table_in, in, uid, ft_attr->uid);
 
 	ft_ctx = MLX5_ADDR_OF(create_flow_table_in, in, flow_table_context);
 	MLX5_SET(flow_table_context, ft_ctx, level, ft_attr->level);

@@ -543,10 +543,10 @@ static int ps_setup(struct hci_dev *hdev)
 	}
 
 	if (psdata->wakeup_source) {
-		ret = devm_request_irq(&serdev->dev, psdata->irq_handler,
-					ps_host_wakeup_irq_handler,
-					IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
-					dev_name(&serdev->dev), nxpdev);
+		ret = devm_request_threaded_irq(&serdev->dev, psdata->irq_handler,
+						NULL, ps_host_wakeup_irq_handler,
+						IRQF_ONESHOT,
+						dev_name(&serdev->dev), nxpdev);
 		if (ret)
 			bt_dev_info(hdev, "error setting wakeup IRQ handler, ignoring\n");
 		disable_irq(psdata->irq_handler);
