@@ -18900,7 +18900,7 @@ static int propagate_liveness(struct bpf_verifier_env *env,
 	struct bpf_reg_state *state_reg, *parent_reg;
 	struct bpf_func_state *state, *parent;
 	int i, frame, err = 0;
-	bool tmp;
+	bool tmp = false;
 
 	changed = changed ?: &tmp;
 	if (vparent->curframe != vstate->curframe) {
