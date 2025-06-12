@@ -865,6 +865,108 @@ static inline void coredump_sock_wait(struct file *file) { }
 static inline void coredump_sock_shutdown(struct file *file) { }
 #endif
 
+/* cprm->mm_flags contains a stable snapshot of dumpability flags. */
+static inline bool coredump_force_suid_safe(const struct coredump_params *cprm)
+{
+	/* Require nonrelative corefile path and be extra careful. */
+	return __get_dumpable(cprm->mm_flags) == SUID_DUMP_ROOT;
+}
+
+static bool coredump_file(struct core_name *cn, struct coredump_params *cprm,
+			  const struct linux_binfmt *binfmt)
+{
+	struct mnt_idmap *idmap;
+	struct inode *inode;
+	struct file *file __free(fput) = NULL;
+	int open_flags = O_CREAT | O_WRONLY | O_NOFOLLOW | O_LARGEFILE | O_EXCL;
+
+	if (cprm->limit < binfmt->min_coredump)
+		return false;
+
+	if (coredump_force_suid_safe(cprm) && cn->corename[0] != '/') {
+		coredump_report_failure("this process can only dump core to a fully qualified path, skipping core dump");
+		return false;
+	}
+
+	/*
+	 * Unlink the file if it exists unless this is a SUID
+	 * binary - in that case, we're running around with root
+	 * privs and don't want to unlink another user's coredump.
+	 */
+	if (!coredump_force_suid_safe(cprm)) {
+		/*
+		 * If it doesn't exist, that's fine. If there's some
+		 * other problem, we'll catch it at the filp_open().
+		 */
+		do_unlinkat(AT_FDCWD, getname_kernel(cn->corename));
+	}
+
+	/*
+	 * There is a race between unlinking and creating the
+	 * file, but if that causes an EEXIST here, that's
+	 * fine - another process raced with us while creating
+	 * the corefile, and the other process won. To userspace,
+	 * what matters is that at least one of the two processes
+	 * writes its coredump successfully, not which one.
+	 */
+	if (coredump_force_suid_safe(cprm)) {
+		/*
+		 * Using user namespaces, normal user tasks can change
+		 * their current->fs->root to point to arbitrary
+		 * directories. Since the intention of the "only dump
+		 * with a fully qualified path" rule is to control where
+		 * coredumps may be placed using root privileges,
+		 * current->fs->root must not be used. Instead, use the
+		 * root directory of init_task.
+		 */
+		struct path root;
+
+		task_lock(&init_task);
+		get_fs_root(init_task.fs, &root);
+		task_unlock(&init_task);
+		file = file_open_root(&root, cn->corename, open_flags, 0600);
+		path_put(&root);
+	} else {
+		file = filp_open(cn->corename, open_flags, 0600);
+	}
+	if (IS_ERR(file))
+		return false;
+
+	inode = file_inode(file);
+	if (inode->i_nlink > 1)
+		return false;
+	if (d_unhashed(file->f_path.dentry))
+		return false;
+	/*
+	 * AK: actually i see no reason to not allow this for named
+	 * pipes etc, but keep the previous behaviour for now.
+	 */
+	if (!S_ISREG(inode->i_mode))
+		return false;
+	/*
+	 * Don't dump core if the filesystem changed owner or mode
+	 * of the file during file creation. This is an issue when
+	 * a process dumps core while its cwd is e.g. on a vfat
+	 * filesystem.
+	 */
+	idmap = file_mnt_idmap(file);
+	if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid())) {
+		coredump_report_failure("Core dump to %s aborted: cannot preserve file owner", cn->corename);
+		return false;
+	}
+	if ((inode->i_mode & 0677) != 0600) {
+		coredump_report_failure("Core dump to %s aborted: cannot preserve file permissions", cn->corename);
+		return false;
+	}
+	if (!(file->f_mode & FMODE_CAN_WRITE))
+		return false;
+	if (do_truncate(idmap, file->f_path.dentry, 0, 0, file))
+		return false;
+
+	cprm->file = no_free_ptr(file);
+	return true;
+}
+
 void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct core_state core_state;
@@ -876,8 +978,6 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	int retval = 0;
 	size_t *argv = NULL;
 	int argc = 0;
-	/* require nonrelative corefile path and be extra careful */
-	bool need_suid_safe = false;
 	bool core_dumped = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
@@ -910,11 +1010,8 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	 * so we dump it as root in mode 2, and only into a controlled
 	 * environment (pipe handler or fully qualified path).
 	 */
-	if (__get_dumpable(cprm.mm_flags) == SUID_DUMP_ROOT) {
-		/* Setuid core dump mode */
-		cred->fsuid = GLOBAL_ROOT_UID;	/* Dump root private */
-		need_suid_safe = true;
-	}
+	if (coredump_force_suid_safe(&cprm))
+		cred->fsuid = GLOBAL_ROOT_UID;
 
 	retval = coredump_wait(siginfo->si_signo, &core_state);
 	if (retval < 0)
@@ -928,102 +1025,10 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	}
 
 	switch (cn.core_type) {
-	case COREDUMP_FILE: {
-		struct mnt_idmap *idmap;
-		struct inode *inode;
-		int open_flags = O_CREAT | O_WRONLY | O_NOFOLLOW |
-				 O_LARGEFILE | O_EXCL;
-
-		if (cprm.limit < binfmt->min_coredump)
-			goto fail_unlock;
-
-		if (need_suid_safe && cn.corename[0] != '/') {
-			coredump_report_failure(
-				"this process can only dump core to a fully qualified path, skipping core dump");
-			goto fail_unlock;
-		}
-
-		/*
-		 * Unlink the file if it exists unless this is a SUID
-		 * binary - in that case, we're running around with root
-		 * privs and don't want to unlink another user's coredump.
-		 */
-		if (!need_suid_safe) {
-			/*
-			 * If it doesn't exist, that's fine. If there's some
-			 * other problem, we'll catch it at the filp_open().
-			 */
-			do_unlinkat(AT_FDCWD, getname_kernel(cn.corename));
-		}
-
-		/*
-		 * There is a race between unlinking and creating the
-		 * file, but if that causes an EEXIST here, that's
-		 * fine - another process raced with us while creating
-		 * the corefile, and the other process won. To userspace,
-		 * what matters is that at least one of the two processes
-		 * writes its coredump successfully, not which one.
-		 */
-		if (need_suid_safe) {
-			/*
-			 * Using user namespaces, normal user tasks can change
-			 * their current->fs->root to point to arbitrary
-			 * directories. Since the intention of the "only dump
-			 * with a fully qualified path" rule is to control where
-			 * coredumps may be placed using root privileges,
-			 * current->fs->root must not be used. Instead, use the
-			 * root directory of init_task.
-			 */
-			struct path root;
-
-			task_lock(&init_task);
-			get_fs_root(init_task.fs, &root);
-			task_unlock(&init_task);
-			cprm.file = file_open_root(&root, cn.corename,
-						   open_flags, 0600);
-			path_put(&root);
-		} else {
-			cprm.file = filp_open(cn.corename, open_flags, 0600);
-		}
-		if (IS_ERR(cprm.file))
-			goto fail_unlock;
-
-		inode = file_inode(cprm.file);
-		if (inode->i_nlink > 1)
-			goto close_fail;
-		if (d_unhashed(cprm.file->f_path.dentry))
-			goto close_fail;
-		/*
-		 * AK: actually i see no reason to not allow this for named
-		 * pipes etc, but keep the previous behaviour for now.
-		 */
-		if (!S_ISREG(inode->i_mode))
-			goto close_fail;
-		/*
-		 * Don't dump core if the filesystem changed owner or mode
-		 * of the file during file creation. This is an issue when
-		 * a process dumps core while its cwd is e.g. on a vfat
-		 * filesystem.
-		 */
-		idmap = file_mnt_idmap(cprm.file);
-		if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode),
-				    current_fsuid())) {
-			coredump_report_failure("Core dump to %s aborted: "
-				"cannot preserve file owner", cn.corename);
-			goto close_fail;
-		}
-		if ((inode->i_mode & 0677) != 0600) {
-			coredump_report_failure("Core dump to %s aborted: "
-				"cannot preserve file permissions", cn.corename);
-			goto close_fail;
-		}
-		if (!(cprm.file->f_mode & FMODE_CAN_WRITE))
-			goto close_fail;
-		if (do_truncate(idmap, cprm.file->f_path.dentry,
-				0, 0, cprm.file))
+	case COREDUMP_FILE:
+		if (!coredump_file(&cn, &cprm, binfmt))
 			goto close_fail;
 		break;
-	}
 	case COREDUMP_PIPE: {
 		int argi;
 		int dump_count;
