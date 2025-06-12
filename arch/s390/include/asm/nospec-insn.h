@@ -3,6 +3,7 @@
 #define _ASM_S390_NOSPEC_ASM_H
 
 #include <linux/linkage.h>
+#include <linux/export.h>
 #include <asm/dwarf.h>
 
 #ifdef __ASSEMBLER__

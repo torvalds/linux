@@ -8,6 +8,7 @@
 #define KMSG_COMPONENT	"crc32-vx"
 #define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 #include <linux/crc32.h>

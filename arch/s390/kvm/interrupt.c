@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <linux/hrtimer.h>
+#include <linux/export.h>
 #include <linux/mmu_context.h>
 #include <linux/nospec.h>
 #include <linux/signal.h>
