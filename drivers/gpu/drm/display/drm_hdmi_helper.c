@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+#include <linux/export.h>
 #include <linux/module.h>
 
 #include <drm/display/drm_hdmi_helper.h>
