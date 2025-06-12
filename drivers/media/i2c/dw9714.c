@@ -144,7 +144,7 @@ static int dw9714_probe(struct i2c_client *client)
 
 	dw9714_dev = devm_kzalloc(&client->dev, sizeof(*dw9714_dev),
 				  GFP_KERNEL);
-	if (dw9714_dev == NULL)
+	if (!dw9714_dev)
 		return -ENOMEM;
 
 	dw9714_dev->vcc = devm_regulator_get(&client->dev, "vcc");
@@ -247,7 +247,7 @@ static int __maybe_unused dw9714_vcm_suspend(struct device *dev)
  * The lens position is gradually moved in units of DW9714_CTRL_STEPS,
  * to make the movements smoothly.
  */
-static int  __maybe_unused dw9714_vcm_resume(struct device *dev)
+static int __maybe_unused dw9714_vcm_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -271,7 +271,7 @@ static int  __maybe_unused dw9714_vcm_resume(struct device *dev)
 				       DW9714_VAL(val, DW9714_DEFAULT_S));
 		if (ret)
 			dev_err_ratelimited(dev, "%s I2C failure: %d",
-						__func__, ret);
+					    __func__, ret);
 		usleep_range(DW9714_CTRL_DELAY_US, DW9714_CTRL_DELAY_US + 10);
 	}
 
