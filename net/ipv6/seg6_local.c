@@ -421,7 +421,7 @@ static int end_next_csid_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 static int input_action_end_x_finish(struct sk_buff *skb,
 				     struct seg6_local_lwt *slwt)
 {
-	seg6_lookup_any_nexthop(skb, &slwt->nh6, 0, false, 0);
+	seg6_lookup_any_nexthop(skb, &slwt->nh6, 0, false, slwt->oif);
 
 	return dst_input(skb);
 }
@@ -1480,7 +1480,8 @@ static struct seg6_action_desc seg6_action_table[] = {
 		.action		= SEG6_LOCAL_ACTION_END_X,
 		.attrs		= SEG6_F_ATTR(SEG6_LOCAL_NH6),
 		.optattrs	= SEG6_F_LOCAL_COUNTERS |
-				  SEG6_F_LOCAL_FLAVORS,
+				  SEG6_F_LOCAL_FLAVORS |
+				  SEG6_F_ATTR(SEG6_LOCAL_OIF),
 		.input		= input_action_end_x,
 	},
 	{
