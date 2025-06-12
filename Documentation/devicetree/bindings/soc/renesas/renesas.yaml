@@ -595,7 +595,7 @@ properties:
       - description: RZ/T2H (R9A09G077)
         items:
           - enum:
-              - renesas,rzt2h-evk # RZ/T2H Evaluation Board
+              - renesas,rzt2h-evk # RZ/T2H Evaluation Board (RTK9RZT2H0S00000BJ)
           - enum:
               - renesas,r9a09g077m04 # RZ/T2H with Single Cortex-A55 + Dual Cortex-R52 - no security
               - renesas,r9a09g077m24 # RZ/T2H with Dual Cortex-A55 + Dual Cortex-R52 - no security
