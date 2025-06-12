@@ -597,7 +597,7 @@ int rsnd_dai_connect(struct rsnd_mod *mod,
 
 	dev_dbg(dev, "%s is connected to io (%s)\n",
 		rsnd_mod_name(mod),
-		snd_pcm_direction_name(io->substream->stream));
+		rsnd_io_is_play(io) ? "Playback" : "Capture");
 
 	return 0;
 }
