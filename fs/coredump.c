@@ -1388,6 +1388,8 @@ void validate_coredump_safety(void)
 
 static inline bool check_coredump_socket(void)
 {
+	const char *p;
+
 	if (core_pattern[0] != '@')
 		return true;
 
@@ -1407,9 +1409,14 @@ static inline bool check_coredump_socket(void)
 		/* ... and if so must be an absolute path. */
 		if (core_pattern[2] != '/')
 			return false;
-		/* Anything else is unsupported. */
-		return false;
+		p = &core_pattern[2];
+	} else {
+		p = &core_pattern[1];
 	}
+
+	/* The path obviously cannot exceed UNIX_PATH_MAX. */
+	if (strlen(p) >= UNIX_PATH_MAX)
+		return false;
 
 	return true;
 }
