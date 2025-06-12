@@ -2,6 +2,8 @@
 /*
  *	Copyright (C)  2025 Zsolt Kajtar (soci@c64.rulez.org)
  */
+
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/bitrev.h>
