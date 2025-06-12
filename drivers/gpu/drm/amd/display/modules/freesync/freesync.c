@@ -147,7 +147,7 @@ unsigned int mod_freesync_calc_v_total_from_refresh(
 			((unsigned int)(div64_u64((1000000000ULL * 1000000),
 					refresh_in_uhz)));
 
-	if (MICRO_HZ_TO_HZ(refresh_in_uhz) <= stream->timing.min_refresh_in_uhz) {
+	if (refresh_in_uhz <= stream->timing.min_refresh_in_uhz) {
 		/* When the target refresh rate is the minimum panel refresh rate,
 		 * round down the vtotal value to avoid stretching vblank over
 		 * panel's vtotal boundary.
