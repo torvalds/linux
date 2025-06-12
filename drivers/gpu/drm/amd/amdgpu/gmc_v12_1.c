@@ -597,3 +597,10 @@ void gmc_v12_1_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gmc.vm_fault.num_types = 1;
 	adev->gmc.vm_fault.funcs = &gmc_v12_1_irq_funcs;
 }
+
+void gmc_v12_1_init_vram_info(struct amdgpu_device *adev)
+{
+	/* TODO: query vram_info from ip discovery binary */
+	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM4;
+	adev->gmc.vram_width = 384 * 64;
+}
