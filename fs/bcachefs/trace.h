@@ -1495,6 +1495,26 @@ DEFINE_EVENT(fs_str, extent_trim_atomic,
 	TP_ARGS(c, str)
 );
 
+DEFINE_EVENT(fs_str, btree_iter_peek_slot,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+DEFINE_EVENT(fs_str, __btree_iter_peek,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+DEFINE_EVENT(fs_str, btree_iter_peek_max,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+DEFINE_EVENT(fs_str, btree_iter_peek_prev_min,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
 #ifdef CONFIG_BCACHEFS_PATH_TRACEPOINTS
 
 TRACE_EVENT(update_by_path,

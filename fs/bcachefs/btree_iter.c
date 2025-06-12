@@ -2326,6 +2326,20 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_trans *trans, struct 
 	}
 
 	bch2_btree_iter_verify(trans, iter);
+
+	if (trace___btree_iter_peek_enabled()) {
+		CLASS(printbuf, buf)();
+
+		int ret = bkey_err(k);
+		if (ret)
+			prt_str(&buf, bch2_err_str(ret));
+		else if (k.k)
+			bch2_bkey_val_to_text(&buf, trans->c, k);
+		else
+			prt_str(&buf, "(null)");
+		trace___btree_iter_peek(trans->c, buf.buf);
+	}
+
 	return k;
 }
 
@@ -2483,6 +2497,19 @@ out_no_locked:
 	}
 
 	bch2_btree_iter_verify_entry_exit(iter);
+
+	if (trace_btree_iter_peek_max_enabled()) {
+		CLASS(printbuf, buf)();
+
+		int ret = bkey_err(k);
+		if (ret)
+			prt_str(&buf, bch2_err_str(ret));
+		else if (k.k)
+			bch2_bkey_val_to_text(&buf, trans->c, k);
+		else
+			prt_str(&buf, "(null)");
+		trace_btree_iter_peek_max(trans->c, buf.buf);
+	}
 
 	return k;
 end:
@@ -2724,6 +2751,19 @@ out_no_locked:
 
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(trans, iter);
+
+	if (trace_btree_iter_peek_prev_min_enabled()) {
+		CLASS(printbuf, buf)();
+
+		int ret = bkey_err(k);
+		if (ret)
+			prt_str(&buf, bch2_err_str(ret));
+		else if (k.k)
+			bch2_bkey_val_to_text(&buf, trans->c, k);
+		else
+			prt_str(&buf, "(null)");
+		trace_btree_iter_peek_prev_min(trans->c, buf.buf);
+	}
 	return k;
 end:
 	bch2_btree_iter_set_pos(trans, iter, end);
@@ -2767,8 +2807,10 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_trans *trans, struct btre
 	/* extents can't span inode numbers: */
 	if ((iter->flags & BTREE_ITER_is_extents) &&
 	    unlikely(iter->pos.offset == KEY_OFFSET_MAX)) {
-		if (iter->pos.inode == KEY_INODE_MAX)
-			return bkey_s_c_null;
+		if (iter->pos.inode == KEY_INODE_MAX) {
+			k = bkey_s_c_null;
+			goto out2;
+		}
 
 		bch2_btree_iter_set_pos(trans, iter, bpos_nosnap_successor(iter->pos));
 	}
@@ -2785,8 +2827,10 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_trans *trans, struct btre
 	}
 
 	struct btree_path *path = btree_iter_path(trans, iter);
-	if (unlikely(!btree_path_node(path, path->level)))
-		return bkey_s_c_null;
+	if (unlikely(!btree_path_node(path, path->level))) {
+		k = bkey_s_c_null;
+		goto out2;
+	}
 
 	btree_path_set_should_be_locked(trans, path);
 
@@ -2879,7 +2923,20 @@ out:
 	bch2_btree_iter_verify(trans, iter);
 	ret = bch2_btree_iter_verify_ret(trans, iter, k);
 	if (unlikely(ret))
-		return bkey_s_c_err(ret);
+		k = bkey_s_c_err(ret);
+out2:
+	if (trace_btree_iter_peek_slot_enabled()) {
+		CLASS(printbuf, buf)();
+
+		int ret = bkey_err(k);
+		if (ret)
+			prt_str(&buf, bch2_err_str(ret));
+		else if (k.k)
+			bch2_bkey_val_to_text(&buf, trans->c, k);
+		else
+			prt_str(&buf, "(null)");
+		trace_btree_iter_peek_slot(trans->c, buf.buf);
+	}
 
 	return k;
 }
