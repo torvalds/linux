@@ -89,7 +89,6 @@ config APPLE_ADMAC
 	tristate "Apple ADMAC support"
 	depends on ARCH_APPLE || COMPILE_TEST
 	select DMA_ENGINE
-	default ARCH_APPLE
 	help
 	  Enable support for Audio DMA Controller found on Apple Silicon SoCs.
 
