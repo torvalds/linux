@@ -4360,7 +4360,7 @@ int ath12k_mac_get_fw_stats(struct ath12k *ar,
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_hw *ah = ath12k_ar_to_ah(ar);
-	unsigned long timeout, time_left;
+	unsigned long time_left;
 	int ret;
 
 	guard(mutex)(&ah->hw_mutex);
@@ -4368,19 +4368,13 @@ int ath12k_mac_get_fw_stats(struct ath12k *ar,
 	if (ah->state != ATH12K_HW_STATE_ON)
 		return -ENETDOWN;
 
-	/* FW stats can get split when exceeding the stats data buffer limit.
-	 * In that case, since there is no end marking for the back-to-back
-	 * received 'update stats' event, we keep a 3 seconds timeout in case,
-	 * fw_stats_done is not marked yet
-	 */
-	timeout = jiffies + msecs_to_jiffies(3 * 1000);
 	ath12k_fw_stats_reset(ar);
 
 	reinit_completion(&ar->fw_stats_complete);
+	reinit_completion(&ar->fw_stats_done);
 
 	ret = ath12k_wmi_send_stats_request_cmd(ar, param->stats_id,
 						param->vdev_id, param->pdev_id);
-
 	if (ret) {
 		ath12k_warn(ab, "failed to request fw stats: %d\n", ret);
 		return ret;
@@ -4391,7 +4385,6 @@ int ath12k_mac_get_fw_stats(struct ath12k *ar,
 		   param->pdev_id, param->vdev_id, param->stats_id);
 
 	time_left = wait_for_completion_timeout(&ar->fw_stats_complete, 1 * HZ);
-
 	if (!time_left) {
 		ath12k_warn(ab, "time out while waiting for get fw stats\n");
 		return -ETIMEDOUT;
@@ -4400,19 +4393,15 @@ int ath12k_mac_get_fw_stats(struct ath12k *ar,
 	/* Firmware sends WMI_UPDATE_STATS_EVENTID back-to-back
 	 * when stats data buffer limit is reached. fw_stats_complete
 	 * is completed once host receives first event from firmware, but
-	 * still there could be more events following. Below loop is to wait
+	 * still there could be more events following. Below is to wait
 	 * until firmware completes sending all the events.
 	 */
-	for (;;) {
-		if (time_after(jiffies, timeout))
-			break;
-		spin_lock_bh(&ar->data_lock);
-		if (ar->fw_stats.fw_stats_done) {
-			spin_unlock_bh(&ar->data_lock);
-			break;
-		}
-		spin_unlock_bh(&ar->data_lock);
+	time_left = wait_for_completion_timeout(&ar->fw_stats_done, 3 * HZ);
+	if (!time_left) {
+		ath12k_warn(ab, "time out while waiting for fw stats done\n");
+		return -ETIMEDOUT;
 	}
+
 	return 0;
 }
 

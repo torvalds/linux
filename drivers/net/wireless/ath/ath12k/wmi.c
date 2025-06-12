@@ -8192,11 +8192,12 @@ static void ath12k_wmi_fw_stats_process(struct ath12k *ar,
 				      &ar->fw_stats.vdevs);
 
 		if (is_end) {
-			ar->fw_stats.fw_stats_done = true;
+			complete(&ar->fw_stats_done);
 			num_vdev = 0;
 		}
 		return;
 	}
+
 	if (stats->stats_id == WMI_REQUEST_BCN_STAT) {
 		if (list_empty(&stats->bcn)) {
 			ath12k_warn(ab, "empty beacon stats");
@@ -8211,7 +8212,7 @@ static void ath12k_wmi_fw_stats_process(struct ath12k *ar,
 				      &ar->fw_stats.bcn);
 
 		if (is_end) {
-			ar->fw_stats.fw_stats_done = true;
+			complete(&ar->fw_stats_done);
 			num_bcn = 0;
 		}
 	}
@@ -8249,7 +8250,7 @@ static void ath12k_update_stats_event(struct ath12k_base *ab, struct sk_buff *sk
 	/* Handle WMI_REQUEST_PDEV_STAT status update */
 	if (stats.stats_id == WMI_REQUEST_PDEV_STAT) {
 		list_splice_tail_init(&stats.pdevs, &ar->fw_stats.pdevs);
-		ar->fw_stats.fw_stats_done = true;
+		complete(&ar->fw_stats_done);
 		goto complete;
 	}
 
