@@ -152,6 +152,7 @@ struct btf_node;
 
 extern struct perf_env perf_env;
 
+int perf_env__read_core_pmu_caps(struct perf_env *env);
 void perf_env__exit(struct perf_env *env);
 
 int perf_env__kernel_is_64_bit(struct perf_env *env);
