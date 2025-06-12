@@ -131,6 +131,7 @@ enum dmub_window_id {
 	DMUB_WINDOW_7_SCRATCH_MEM,
 	DMUB_WINDOW_IB_MEM,
 	DMUB_WINDOW_SHARED_STATE,
+	DMUB_WINDOW_LSDMA_BUFFER,
 	DMUB_WINDOW_TOTAL,
 };
 
@@ -579,6 +580,7 @@ struct dmub_srv {
 
 	enum dmub_srv_power_state_type power_state;
 	struct dmub_diagnostic_data debug;
+	struct dmub_fb lsdma_rb_fb;
 };
 
 /**

@@ -248,4 +248,59 @@ bool dc_dmub_srv_ips_residency_cntl(struct dc_dmub_srv *dc_dmub_srv, bool start_
  * @output: Output struct to copy the the residency info to
  */
 void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struct ips_residency_info *output);
+
+bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv);
+bool dmub_lsdma_send_linear_copy_packet(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t src_addr,
+	uint64_t dst_addr,
+	uint32_t count);
+bool dmub_lsdma_send_pio_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t src_addr,
+	uint64_t dst_addr,
+	uint32_t byte_count,
+	uint32_t overlap_disable);
+bool dmub_lsdma_send_pio_constfill_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t dst_addr,
+	uint32_t byte_count,
+	uint32_t data);
+
+struct lsdma_send_tiled_to_tiled_copy_command_params {
+	uint64_t src_addr;
+	uint64_t dst_addr;
+
+	uint32_t src_x            : 16;
+	uint32_t src_y            : 16;
+
+	uint32_t dst_x            : 16;
+	uint32_t dst_y            : 16;
+
+	uint32_t src_width        : 16;
+	uint32_t dst_width        : 16;
+
+	uint32_t rect_x           : 16;
+	uint32_t rect_y           : 16;
+
+	uint32_t src_height       : 16;
+	uint32_t dst_height       : 16;
+
+	uint32_t data_format      : 6;
+	uint32_t swizzle_mode     : 5;
+	uint32_t element_size     : 3;
+	uint32_t dcc              : 1;
+	uint32_t tmz              : 1;
+	uint32_t read_compress    : 2;
+	uint32_t write_compress   : 2;
+	uint32_t max_com          : 2;
+	uint32_t max_uncom        : 1;
+	uint32_t padding          : 9;
+};
+
+bool dmub_lsdma_send_tiled_to_tiled_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	struct lsdma_send_tiled_to_tiled_copy_command_params params);
+bool dmub_lsdma_send_poll_reg_write_command(struct dc_dmub_srv *dc_dmub_srv, uint32_t reg_addr, uint32_t reg_data);
+
 #endif /* _DMUB_DC_SRV_H_ */

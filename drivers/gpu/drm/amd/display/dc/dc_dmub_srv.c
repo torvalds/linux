@@ -1984,3 +1984,202 @@ void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struc
 					       DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 			output->histogram[i] = 0;
 }
+
+bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_INIT_CONFIG;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.init_data.gpu_addr_base.quad_part = dc_ctx->dmub_srv->dmub->lsdma_rb_fb.gpu_addr;
+	lsdma_data->u.init_data.ring_size               = dc_ctx->dmub_srv->dmub->lsdma_rb_fb.size;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Init failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_linear_copy_packet(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t src_addr,
+	uint64_t dst_addr,
+	uint32_t count)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_LINEAR_COPY;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.linear_copy_data.count   = count - 1; // LSDMA controller expects bytes to copy -1
+	lsdma_data->u.linear_copy_data.src_lo  = src_addr & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.src_hi  = (src_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.dst_lo  = dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.dst_hi  = (dst_addr >> 32) & 0xFFFFFFFF;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Linear Copy failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_tiled_to_tiled_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	struct lsdma_send_tiled_to_tiled_copy_command_params params)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_TILED_TO_TILED_COPY;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.tiled_copy_data.src_addr_lo      = params.src_addr & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.src_addr_hi      = (params.src_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.dst_addr_lo      = params.dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.dst_addr_hi      = (params.dst_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.tiled_copy_data.src_x            = params.src_x;
+	lsdma_data->u.tiled_copy_data.src_y            = params.src_y;
+	lsdma_data->u.tiled_copy_data.dst_x            = params.dst_x;
+	lsdma_data->u.tiled_copy_data.dst_y            = params.dst_y;
+	lsdma_data->u.tiled_copy_data.src_width        = params.src_width - 1; // LSDMA controller expects width -1
+	lsdma_data->u.tiled_copy_data.dst_width        = params.dst_width - 1; // LSDMA controller expects width -1
+	lsdma_data->u.tiled_copy_data.src_swizzle_mode = params.swizzle_mode;
+	lsdma_data->u.tiled_copy_data.dst_swizzle_mode = params.swizzle_mode;
+	lsdma_data->u.tiled_copy_data.src_element_size = params.element_size;
+	lsdma_data->u.tiled_copy_data.dst_element_size = params.element_size;
+	lsdma_data->u.tiled_copy_data.rect_x           = params.rect_x;
+	lsdma_data->u.tiled_copy_data.rect_y           = params.rect_y;
+	lsdma_data->u.tiled_copy_data.dcc              = params.dcc;
+	lsdma_data->u.tiled_copy_data.tmz              = params.tmz;
+	lsdma_data->u.tiled_copy_data.read_compress    = params.read_compress;
+	lsdma_data->u.tiled_copy_data.write_compress   = params.write_compress;
+	lsdma_data->u.tiled_copy_data.src_height       = params.src_height - 1; // LSDMA controller expects height -1
+	lsdma_data->u.tiled_copy_data.dst_height       = params.dst_height - 1; // LSDMA controller expects height -1
+	lsdma_data->u.tiled_copy_data.data_format      = params.data_format;
+	lsdma_data->u.tiled_copy_data.max_com          = params.max_com;
+	lsdma_data->u.tiled_copy_data.max_uncom        = params.max_uncom;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Tiled to Tiled Copy failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_pio_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t src_addr,
+	uint64_t dst_addr,
+	uint32_t byte_count,
+	uint32_t overlap_disable)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_PIO_COPY;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.pio_copy_data.packet.fields.byte_count      = byte_count;
+	lsdma_data->u.pio_copy_data.packet.fields.overlap_disable = overlap_disable;
+	lsdma_data->u.pio_copy_data.src_lo                        = src_addr & 0xFFFFFFFF;
+	lsdma_data->u.pio_copy_data.src_hi                        = (src_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.pio_copy_data.dst_lo                        = dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.pio_copy_data.dst_hi                        = (dst_addr >> 32) & 0xFFFFFFFF;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA PIO Copy failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_pio_constfill_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint64_t dst_addr,
+	uint32_t byte_count,
+	uint32_t data)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_PIO_CONSTFILL;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.pio_constfill_data.packet.fields.constant_fill = 1;
+	lsdma_data->u.pio_constfill_data.packet.fields.byte_count    = byte_count;
+	lsdma_data->u.pio_constfill_data.dst_lo                      = dst_addr & 0xFFFFFFFF;
+	lsdma_data->u.pio_constfill_data.dst_hi                      = (dst_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.pio_constfill_data.data                        = data;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA PIO Constfill failed in DMUB");
+
+	return result;
+}
+
+bool dmub_lsdma_send_poll_reg_write_command(struct dc_dmub_srv *dc_dmub_srv, uint32_t reg_addr, uint32_t reg_data)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_POLL_REG_WRITE;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.reg_write_data.reg_addr = reg_addr;
+	lsdma_data->u.reg_write_data.reg_data = reg_data;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Poll Reg failed in DMUB");
+
+	return result;
+}
+
