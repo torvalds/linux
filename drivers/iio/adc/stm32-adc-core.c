@@ -407,7 +407,6 @@ static const struct irq_domain_ops stm32_adc_domain_ops = {
 static int stm32_adc_irq_probe(struct platform_device *pdev,
 			       struct stm32_adc_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
 	unsigned int i;
 
 	/*
@@ -421,7 +420,7 @@ static int stm32_adc_irq_probe(struct platform_device *pdev,
 			return priv->irq[i];
 	}
 
-	priv->domain = irq_domain_create_simple(of_fwnode_handle(np),
+	priv->domain = irq_domain_create_simple(dev_fwnode(&pdev->dev),
 						STM32_ADC_MAX_ADCS, 0,
 						&stm32_adc_domain_ops,
 						priv);
