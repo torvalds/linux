@@ -222,7 +222,10 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
 	if (size_cmdline != -1) {
 		selected_size = size_cmdline;
 		selected_base = base_cmdline;
-		selected_limit = min_not_zero(limit_cmdline, limit);
+
+		/* Hornor the user setup dma address limit */
+		selected_limit = limit_cmdline ?: limit;
+
 		if (base_cmdline + size_cmdline == limit_cmdline)
 			fixed = true;
 	} else {
