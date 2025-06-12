@@ -296,6 +296,17 @@ static bool coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 			return false;
 		}
 
+		/* Must not contain ".." in the path. */
+		if (name_contains_dotdot(cn->corename)) {
+			coredump_report_failure("Coredump socket may not %s contain '..' spaces", cn->corename);
+			return false;
+		}
+
+		if (strlen(cn->corename) >= UNIX_PATH_MAX) {
+			coredump_report_failure("Coredump socket path %s too long", cn->corename);
+			return false;
+		}
+
 		/*
 		 * Currently no need to parse any other options.
 		 * Relevant information can be retrieved from the peer
