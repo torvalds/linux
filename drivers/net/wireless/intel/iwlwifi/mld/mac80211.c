@@ -2580,28 +2580,6 @@ static int iwl_mld_mac80211_tx_last_beacon(struct ieee80211_hw *hw)
 	return mld->ibss_manager;
 }
 
-#define IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS_TIMEOUT (5 * HZ)
-
-static void iwl_mld_vif_iter_emlsr_block_tmp_non_bss(void *_data, u8 *mac,
-						     struct ieee80211_vif *vif)
-{
-	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	int ret;
-
-	if (!iwl_mld_vif_has_emlsr_cap(vif))
-		return;
-
-	ret = iwl_mld_block_emlsr_sync(mld_vif->mld, vif,
-				       IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS,
-				       iwl_mld_get_primary_link(vif));
-	if (ret)
-		return;
-
-	wiphy_delayed_work_queue(mld_vif->mld->wiphy,
-				 &mld_vif->emlsr.tmp_non_bss_done_wk,
-				 IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS_TIMEOUT);
-}
-
 static void iwl_mld_prep_add_interface(struct ieee80211_hw *hw,
 				       enum nl80211_iftype type)
 {
@@ -2614,10 +2592,7 @@ static void iwl_mld_prep_add_interface(struct ieee80211_hw *hw,
 	      type == NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
-	ieee80211_iterate_active_interfaces_mtx(mld->hw,
-						IEEE80211_IFACE_ITER_NORMAL,
-						iwl_mld_vif_iter_emlsr_block_tmp_non_bss,
-						NULL);
+	iwl_mld_emlsr_block_tmp_non_bss(mld);
 }
 
 static int iwl_mld_set_hw_timestamp(struct ieee80211_hw *hw,

@@ -287,6 +287,36 @@ int iwl_mld_block_emlsr_sync(struct iwl_mld *mld, struct ieee80211_vif *vif,
 	return _iwl_mld_emlsr_block(mld, vif, reason, link_to_keep, true);
 }
 
+#define IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS_TIMEOUT (10 * HZ)
+
+static void iwl_mld_vif_iter_emlsr_block_tmp_non_bss(void *_data, u8 *mac,
+						     struct ieee80211_vif *vif)
+{
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	int ret;
+
+	if (!iwl_mld_vif_has_emlsr_cap(vif))
+		return;
+
+	ret = iwl_mld_block_emlsr_sync(mld_vif->mld, vif,
+				       IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS,
+				       iwl_mld_get_primary_link(vif));
+	if (ret)
+		return;
+
+	wiphy_delayed_work_queue(mld_vif->mld->wiphy,
+				 &mld_vif->emlsr.tmp_non_bss_done_wk,
+				 IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS_TIMEOUT);
+}
+
+void iwl_mld_emlsr_block_tmp_non_bss(struct iwl_mld *mld)
+{
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_vif_iter_emlsr_block_tmp_non_bss,
+						NULL);
+}
+
 static void _iwl_mld_select_links(struct iwl_mld *mld,
 				  struct ieee80211_vif *vif);
 

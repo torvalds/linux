@@ -1752,6 +1752,10 @@ int iwl_mld_regular_scan_start(struct iwl_mld *mld, struct ieee80211_vif *vif,
 			       struct cfg80211_scan_request *req,
 			       struct ieee80211_scan_ies *ies)
 {
+
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
+		iwl_mld_emlsr_block_tmp_non_bss(mld);
+
 	return _iwl_mld_single_scan_start(mld, vif, req, ies,
 					  IWL_MLD_SCAN_REGULAR);
 }
