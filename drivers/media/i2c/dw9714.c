@@ -2,6 +2,7 @@
 // Copyright (c) 2015--2017 Intel Corporation.
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -38,6 +39,7 @@ struct dw9714_device {
 	struct v4l2_subdev sd;
 	u16 current_val;
 	struct regulator *vcc;
+	struct gpio_desc *powerdown_gpio;
 };
 
 static inline struct dw9714_device *to_dw9714_vcm(struct v4l2_ctrl *ctrl)
@@ -145,6 +147,8 @@ static int dw9714_power_up(struct dw9714_device *dw9714_dev)
 	if (ret)
 		return ret;
 
+	gpiod_set_value_cansleep(dw9714_dev->powerdown_gpio, 0);
+
 	usleep_range(1000, 2000);
 
 	return 0;
@@ -152,6 +156,8 @@ static int dw9714_power_up(struct dw9714_device *dw9714_dev)
 
 static int dw9714_power_down(struct dw9714_device *dw9714_dev)
 {
+	gpiod_set_value_cansleep(dw9714_dev->powerdown_gpio, 1);
+
 	return regulator_disable(dw9714_dev->vcc);
 }
 
@@ -168,6 +174,14 @@ static int dw9714_probe(struct i2c_client *client)
 	dw9714_dev->vcc = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(dw9714_dev->vcc))
 		return PTR_ERR(dw9714_dev->vcc);
+
+	dw9714_dev->powerdown_gpio = devm_gpiod_get_optional(&client->dev,
+							     "powerdown",
+							     GPIOD_OUT_HIGH);
+	if (IS_ERR(dw9714_dev->powerdown_gpio))
+		return dev_err_probe(&client->dev,
+				     PTR_ERR(dw9714_dev->powerdown_gpio),
+				     "could not get powerdown gpio\n");
 
 	rval = dw9714_power_up(dw9714_dev);
 	if (rval)
