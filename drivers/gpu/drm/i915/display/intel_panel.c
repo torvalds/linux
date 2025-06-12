@@ -502,7 +502,7 @@ static void intel_panel_sync_state(struct intel_connector *connector)
 	drm_modeset_unlock(&display->drm->mode_config.connection_mutex);
 }
 
-const struct drm_panel_funcs dummy_panel_funcs = {
+static const struct drm_panel_funcs dummy_panel_funcs = {
 };
 
 int intel_panel_register(struct intel_connector *connector)
