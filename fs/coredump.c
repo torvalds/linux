@@ -225,12 +225,13 @@ put_exe_file:
 	return ret;
 }
 
-/* format_corename will inspect the pattern parameter, and output a
- * name into corename, which must have space for at least
- * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
+/*
+ * coredump_parse will inspect the pattern parameter, and output a name
+ * into corename, which must have space for at least CORENAME_MAX_SIZE
+ * bytes plus one byte for the zero terminator.
  */
-static int format_corename(struct core_name *cn, struct coredump_params *cprm,
-			   size_t **argv, int *argc)
+static int coredump_parse(struct core_name *cn, struct coredump_params *cprm,
+			  size_t **argv, int *argc)
 {
 	const struct cred *cred = current_cred();
 	const char *pat_ptr = core_pattern;
@@ -910,7 +911,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 
 	old_cred = override_creds(cred);
 
-	retval = format_corename(&cn, &cprm, &argv, &argc);
+	retval = coredump_parse(&cn, &cprm, &argv, &argc);
 	if (retval < 0) {
 		coredump_report_failure("format_corename failed, aborting core");
 		goto fail_unlock;
