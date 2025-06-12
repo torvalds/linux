@@ -17494,7 +17494,7 @@ F:	tools/testing/selftests/net/srv6*
 NETWORKING [TCP]
 M:	Eric Dumazet <edumazet@google.com>
 M:	Neal Cardwell <ncardwell@google.com>
-R:	Kuniyuki Iwashima <kuniyu@amazon.com>
+R:	Kuniyuki Iwashima <kuniyu@google.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/net_cachelines/tcp_sock.rst
@@ -17524,7 +17524,7 @@ F:	net/tls/*
 
 NETWORKING [SOCKETS]
 M:	Eric Dumazet <edumazet@google.com>
-M:	Kuniyuki Iwashima <kuniyu@amazon.com>
+M:	Kuniyuki Iwashima <kuniyu@google.com>
 M:	Paolo Abeni <pabeni@redhat.com>
 M:	Willem de Bruijn <willemb@google.com>
 S:	Maintained
@@ -17539,7 +17539,7 @@ F:	net/core/scm.c
 F:	net/socket.c
 
 NETWORKING [UNIX SOCKETS]
-M:	Kuniyuki Iwashima <kuniyu@amazon.com>
+M:	Kuniyuki Iwashima <kuniyu@google.com>
 S:	Maintained
 F:	include/net/af_unix.h
 F:	include/net/netns/unix.h
