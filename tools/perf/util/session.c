@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <perf/cpumap.h>
+#include <perf/event.h>
 
 #include "map_symbol.h"
 #include "branch.h"
@@ -1490,6 +1491,9 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		break;
 	case PERF_RECORD_FINISHED_INIT:
 		err = tool->finished_init(session, event);
+		break;
+	case PERF_RECORD_BPF_METADATA:
+		err = tool->bpf_metadata(session, event);
 		break;
 	default:
 		err = -EINVAL;
