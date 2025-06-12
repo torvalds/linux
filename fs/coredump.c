@@ -1081,14 +1081,14 @@ static void coredump_cleanup(struct core_name *cn, struct coredump_params *cprm)
 
 void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
+	struct cred *cred __free(put_cred) = NULL;
+	size_t *argv __free(kfree) = NULL;
 	struct core_state core_state;
 	struct core_name cn;
 	struct mm_struct *mm = current->mm;
 	struct linux_binfmt * binfmt;
 	const struct cred *old_cred;
-	struct cred *cred __free(put_cred) = NULL;
 	int retval = 0;
-	size_t *argv __free(kfree) = NULL;
 	int argc = 0;
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
