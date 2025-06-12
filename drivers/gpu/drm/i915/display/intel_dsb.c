@@ -554,8 +554,8 @@ static void intel_dsb_gosub_align(struct intel_dsb *dsb)
 	aligned_tail = ALIGN(tail, CACHELINE_BYTES);
 
 	/*
-	 * "The GOSUB instruction cannot be placed in
-	 *  cacheline QW slot 6 or 7 (numbered 0-7)"
+	 * Wa_16024917128
+	 * "Ensure GOSUB is not placed in cacheline QW slot 6 or 7 (numbered 0-7)"
 	 */
 	if (aligned_tail - tail <= 2 * 8)
 		intel_dsb_buffer_memset(&dsb->dsb_buf, dsb->free_pos, 0,
@@ -618,8 +618,8 @@ void intel_dsb_gosub_finish(struct intel_dsb *dsb)
 	intel_dsb_align_tail(dsb);
 
 	/*
-	 * "All subroutines called by the GOSUB instruction
-	 *  must end with a cacheline of NOPs"
+	 * Wa_16024917128
+	 * "Ensure that all subroutines called by GOSUB end with a cacheline of NOPs"
 	 */
 	intel_dsb_noop(dsb, 8);
 
@@ -667,7 +667,11 @@ static u32 dsb_error_int_en(struct intel_display *display)
 	if (DISPLAY_VER(display) >= 14)
 		errors |= DSB_ATS_FAULT_INT_EN;
 
-	if (DISPLAY_VER(display) >= 30)
+	/*
+	 * Wa_16024917128
+	 * "Disable nested GOSUB interrupt (DSB_INTERRUPT bit 21)"
+	 */
+	if (0 && DISPLAY_VER(display) >= 30)
 		errors |= DSB_GOSUB_INT_EN;
 
 	return errors;
