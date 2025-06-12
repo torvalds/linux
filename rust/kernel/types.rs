@@ -2,6 +2,7 @@
 
 //! Kernel types.
 
+use crate::ffi::c_void;
 use core::{
     cell::UnsafeCell,
     marker::{PhantomData, PhantomPinned},
@@ -21,15 +22,10 @@ use pin_init::{PinInit, Zeroable};
 ///
 /// # Safety
 ///
-/// Implementers must ensure that [`into_foreign`] returns a pointer which meets the alignment
-/// requirements of [`PointedTo`].
-///
-/// [`into_foreign`]: Self::into_foreign
-/// [`PointedTo`]: Self::PointedTo
+/// - Implementations must satisfy the guarantees of [`Self::into_foreign`].
 pub unsafe trait ForeignOwnable: Sized {
-    /// Type used when the value is foreign-owned. In practical terms only defines the alignment of
-    /// the pointer.
-    type PointedTo;
+    /// The alignment of pointers returned by `into_foreign`.
+    const FOREIGN_ALIGN: usize;
 
     /// Type used to immutably borrow a value that is currently foreign-owned.
     type Borrowed<'a>;
@@ -39,18 +35,20 @@ pub unsafe trait ForeignOwnable: Sized {
 
     /// Converts a Rust-owned object to a foreign-owned one.
     ///
+    /// The foreign representation is a pointer to void. Aside from the guarantees listed below,
+    /// there are no other guarantees for this pointer. For example, it might be invalid, dangling
+    /// or pointing to uninitialized memory. Using it in any way except for [`from_foreign`],
+    /// [`try_from_foreign`], [`borrow`], or [`borrow_mut`] can result in undefined behavior.
+    ///
     /// # Guarantees
     ///
-    /// The return value is guaranteed to be well-aligned, but there are no other guarantees for
-    /// this pointer. For example, it might be null, dangling, or point to uninitialized memory.
-    /// Using it in any way except for [`ForeignOwnable::from_foreign`], [`ForeignOwnable::borrow`],
-    /// [`ForeignOwnable::try_from_foreign`] can result in undefined behavior.
+    /// - Minimum alignment of returned pointer is [`Self::FOREIGN_ALIGN`].
     ///
     /// [`from_foreign`]: Self::from_foreign
     /// [`try_from_foreign`]: Self::try_from_foreign
     /// [`borrow`]: Self::borrow
     /// [`borrow_mut`]: Self::borrow_mut
-    fn into_foreign(self) -> *mut Self::PointedTo;
+    fn into_foreign(self) -> *mut c_void;
 
     /// Converts a foreign-owned object back to a Rust-owned one.
     ///
@@ -60,7 +58,7 @@ pub unsafe trait ForeignOwnable: Sized {
     /// must not be passed to `from_foreign` more than once.
     ///
     /// [`into_foreign`]: Self::into_foreign
-    unsafe fn from_foreign(ptr: *mut Self::PointedTo) -> Self;
+    unsafe fn from_foreign(ptr: *mut c_void) -> Self;
 
     /// Tries to convert a foreign-owned object back to a Rust-owned one.
     ///
@@ -72,7 +70,7 @@ pub unsafe trait ForeignOwnable: Sized {
     /// `ptr` must either be null or satisfy the safety requirements for [`from_foreign`].
     ///
     /// [`from_foreign`]: Self::from_foreign
-    unsafe fn try_from_foreign(ptr: *mut Self::PointedTo) -> Option<Self> {
+    unsafe fn try_from_foreign(ptr: *mut c_void) -> Option<Self> {
         if ptr.is_null() {
             None
         } else {
@@ -95,7 +93,7 @@ pub unsafe trait ForeignOwnable: Sized {
     ///
     /// [`into_foreign`]: Self::into_foreign
     /// [`from_foreign`]: Self::from_foreign
-    unsafe fn borrow<'a>(ptr: *mut Self::PointedTo) -> Self::Borrowed<'a>;
+    unsafe fn borrow<'a>(ptr: *mut c_void) -> Self::Borrowed<'a>;
 
     /// Borrows a foreign-owned object mutably.
     ///
@@ -123,23 +121,24 @@ pub unsafe trait ForeignOwnable: Sized {
     /// [`from_foreign`]: Self::from_foreign
     /// [`borrow`]: Self::borrow
     /// [`Arc`]: crate::sync::Arc
-    unsafe fn borrow_mut<'a>(ptr: *mut Self::PointedTo) -> Self::BorrowedMut<'a>;
+    unsafe fn borrow_mut<'a>(ptr: *mut c_void) -> Self::BorrowedMut<'a>;
 }
 
-// SAFETY: The `into_foreign` function returns a pointer that is dangling, but well-aligned.
+// SAFETY: The pointer returned by `into_foreign` comes from a well aligned
+// pointer to `()`.
 unsafe impl ForeignOwnable for () {
-    type PointedTo = ();
+    const FOREIGN_ALIGN: usize = core::mem::align_of::<()>();
     type Borrowed<'a> = ();
     type BorrowedMut<'a> = ();
 
-    fn into_foreign(self) -> *mut Self::PointedTo {
+    fn into_foreign(self) -> *mut c_void {
         core::ptr::NonNull::dangling().as_ptr()
     }
 
-    unsafe fn from_foreign(_: *mut Self::PointedTo) -> Self {}
+    unsafe fn from_foreign(_: *mut c_void) -> Self {}
 
-    unsafe fn borrow<'a>(_: *mut Self::PointedTo) -> Self::Borrowed<'a> {}
-    unsafe fn borrow_mut<'a>(_: *mut Self::PointedTo) -> Self::BorrowedMut<'a> {}
+    unsafe fn borrow<'a>(_: *mut c_void) -> Self::Borrowed<'a> {}
+    unsafe fn borrow_mut<'a>(_: *mut c_void) -> Self::BorrowedMut<'a> {}
 }
 
 /// Runs a cleanup function/closure when dropped.
