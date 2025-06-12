@@ -19,7 +19,7 @@ obj-$(CONFIG_MDIO_BUS)		+= mdio-bus.o
 obj-$(CONFIG_PHYLINK)		+= phylink.o
 obj-$(CONFIG_PHYLIB)		+= libphy.o
 obj-$(CONFIG_PHYLIB)		+= mdio_devres.o
-obj-$(CONFIG_PHYLIB)		+= phy_package.o
+obj-$(CONFIG_PHY_PACKAGE)	+= phy_package.o
 
 obj-$(CONFIG_NETWORK_PHY_TIMESTAMPING) += mii_timestamper.o
 
