@@ -996,7 +996,7 @@ do_holes:
 					dio_unpin_page(dio, page);
 					goto out;
 				}
-				zero_user(page, from, 1 << blkbits);
+				memzero_page(page, from, 1 << blkbits);
 				sdio->block_in_file++;
 				from += 1 << blkbits;
 				dio->result += 1 << blkbits;
