@@ -4400,9 +4400,8 @@ int ath12k_mac_get_fw_stats(struct ath12k *ar,
 	/* Firmware sends WMI_UPDATE_STATS_EVENTID back-to-back
 	 * when stats data buffer limit is reached. fw_stats_complete
 	 * is completed once host receives first event from firmware, but
-	 * still end might not be marked in the TLV.
-	 * Below loop is to confirm that firmware completed sending all the event
-	 * and fw_stats_done is marked true when end is marked in the TLV.
+	 * still there could be more events following. Below loop is to wait
+	 * until firmware completes sending all the events.
 	 */
 	for (;;) {
 		if (time_after(jiffies, timeout))
