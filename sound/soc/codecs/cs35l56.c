@@ -853,6 +853,31 @@ err:
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
 
+static int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
+{
+	if (cs35l56->dsp.fwf_suffix)
+		return 0;
+
+	if (!cs35l56->sdw_peripheral)
+		return 0;
+
+	/*
+	 * There are published firmware files for L56 B0 silicon using
+	 * the default wm_adsp name suffixing so don't change those.
+	 */
+	if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev == 0xb0))
+		return 0;
+
+	cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
+						 "l%uu%u",
+						 cs35l56->sdw_link_num,
+						 cs35l56->sdw_unique_id);
+	if (!cs35l56->dsp.fwf_suffix)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int cs35l56_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
@@ -890,6 +915,10 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 	cs35l56->dsp.part = kasprintf(GFP_KERNEL, "cs35l%02x", cs35l56->base.type);
 	if (!cs35l56->dsp.part)
 		return -ENOMEM;
+
+	ret = cs35l56_set_fw_suffix(cs35l56);
+	if (ret)
+		return ret;
 
 	cs35l56->component = component;
 	wm_adsp2_component_probe(&cs35l56->dsp, component);

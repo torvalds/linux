@@ -29,6 +29,7 @@ struct wm_adsp {
 	const char *part;
 	const char *fwf_name;
 	const char *system_name;
+	const char *fwf_suffix;
 	struct snd_soc_component *component;
 
 	unsigned int sys_config_size;
