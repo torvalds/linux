@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -1112,10 +1113,12 @@ static void pispbe_try_format(struct v4l2_format *f, struct pispbe_node *node)
 	f->fmt.pix_mp.pixelformat = fmt->fourcc;
 	f->fmt.pix_mp.num_planes = fmt->num_planes;
 	f->fmt.pix_mp.field = V4L2_FIELD_NONE;
-	f->fmt.pix_mp.width = max(min(f->fmt.pix_mp.width, 65536u),
-				  PISP_BACK_END_MIN_TILE_WIDTH);
-	f->fmt.pix_mp.height = max(min(f->fmt.pix_mp.height, 65536u),
-				   PISP_BACK_END_MIN_TILE_HEIGHT);
+	f->fmt.pix_mp.width = clamp(f->fmt.pix_mp.width,
+				    PISP_BACK_END_MIN_TILE_WIDTH,
+				    PISP_BACK_END_MAX_TILE_WIDTH);
+	f->fmt.pix_mp.height = clamp(f->fmt.pix_mp.height,
+				     PISP_BACK_END_MIN_TILE_HEIGHT,
+				     PISP_BACK_END_MAX_TILE_HEIGHT);
 
 	/*
 	 * Fill in the actual colour space when the requested one was
