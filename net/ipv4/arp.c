@@ -966,6 +966,7 @@ static int arp_is_multicast(const void *pkey)
 static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev)
 {
+	enum skb_drop_reason drop_reason;
 	const struct arphdr *arp;
 
 	/* do not tweak dropwatch on an ARP we will ignore */
@@ -979,12 +980,15 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto out_of_mem;
 
 	/* ARP header, plus 2 device addresses, plus 2 IP addresses.  */
-	if (!pskb_may_pull(skb, arp_hdr_len(dev)))
+	drop_reason = pskb_may_pull_reason(skb, arp_hdr_len(dev));
+	if (drop_reason != SKB_NOT_DROPPED_YET)
 		goto freeskb;
 
 	arp = arp_hdr(skb);
-	if (arp->ar_hln != dev->addr_len || arp->ar_pln != 4)
+	if (arp->ar_hln != dev->addr_len || arp->ar_pln != 4) {
+		drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
 		goto freeskb;
+	}
 
 	memset(NEIGH_CB(skb), 0, sizeof(struct neighbour_cb));
 
@@ -996,7 +1000,7 @@ consumeskb:
 	consume_skb(skb);
 	return NET_RX_SUCCESS;
 freeskb:
-	kfree_skb(skb);
+	kfree_skb_reason(skb, drop_reason);
 out_of_mem:
 	return NET_RX_DROP;
 }
