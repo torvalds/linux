@@ -1005,6 +1005,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 {
 	struct btree_insert_entry *errored_at = NULL;
 	struct bch_fs *c = trans->c;
+	unsigned journal_u64s = 0;
 	int ret = 0;
 
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
@@ -1033,10 +1034,10 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 
 	EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
 
-	trans->journal_u64s		= trans->journal_entries.u64s + jset_u64s(trans->accounting.u64s);
+	journal_u64s = jset_u64s(trans->accounting.u64s);
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);
 	if (trans->journal_transaction_names)
-		trans->journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
+		journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
 
 	trans_for_each_update(trans, i) {
 		struct btree_path *path = trans->paths + i->path;
@@ -1056,11 +1057,11 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 			continue;
 
 		/* we're going to journal the key being updated: */
-		trans->journal_u64s += jset_u64s(i->k->k.u64s);
+		journal_u64s += jset_u64s(i->k->k.u64s);
 
 		/* and we're also going to log the overwrite: */
 		if (trans->journal_transaction_names)
-			trans->journal_u64s += jset_u64s(i->old_k.u64s);
+			journal_u64s += jset_u64s(i->old_k.u64s);
 	}
 
 	if (trans->extra_disk_res) {
@@ -1077,6 +1078,8 @@ retry:
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res)))
 		memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 	memset(&trans->fs_usage_delta, 0, sizeof(trans->fs_usage_delta));
+
+	trans->journal_u64s = journal_u64s + trans->journal_entries.u64s;
 
 	ret = do_bch2_trans_commit(trans, flags, &errored_at, _RET_IP_);
 
