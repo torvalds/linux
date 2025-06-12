@@ -1773,7 +1773,7 @@ static noinline_for_stack bool lock_extent_buffer_for_io(struct extent_buffer *e
 	 */
 	spin_lock(&eb->refs_lock);
 	if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
-		XA_STATE(xas, &fs_info->buffer_tree, eb->start >> fs_info->sectorsize_bits);
+		XA_STATE(xas, &fs_info->buffer_tree, eb->start >> fs_info->nodesize_bits);
 		unsigned long flags;
 
 		set_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
@@ -1873,7 +1873,7 @@ static void set_btree_ioerr(struct extent_buffer *eb)
 static void buffer_tree_set_mark(const struct extent_buffer *eb, xa_mark_t mark)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	XA_STATE(xas, &fs_info->buffer_tree, eb->start >> fs_info->sectorsize_bits);
+	XA_STATE(xas, &fs_info->buffer_tree, eb->start >> fs_info->nodesize_bits);
 	unsigned long flags;
 
 	xas_lock_irqsave(&xas, flags);
@@ -1885,7 +1885,7 @@ static void buffer_tree_set_mark(const struct extent_buffer *eb, xa_mark_t mark)
 static void buffer_tree_clear_mark(const struct extent_buffer *eb, xa_mark_t mark)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	XA_STATE(xas, &fs_info->buffer_tree, eb->start >> fs_info->sectorsize_bits);
+	XA_STATE(xas, &fs_info->buffer_tree, eb->start >> fs_info->nodesize_bits);
 	unsigned long flags;
 
 	xas_lock_irqsave(&xas, flags);
@@ -1985,7 +1985,7 @@ static unsigned int buffer_tree_get_ebs_tag(struct btrfs_fs_info *fs_info,
 	rcu_read_lock();
 	while ((eb = find_get_eb(&xas, end, tag)) != NULL) {
 		if (!eb_batch_add(batch, eb)) {
-			*start = ((eb->start + eb->len) >> fs_info->sectorsize_bits);
+			*start = (eb->start + eb->len) >> fs_info->nodesize_bits;
 			goto out;
 		}
 	}
@@ -2007,7 +2007,7 @@ static struct extent_buffer *find_extent_buffer_nolock(
 		struct btrfs_fs_info *fs_info, u64 start)
 {
 	struct extent_buffer *eb;
-	unsigned long index = (start >> fs_info->sectorsize_bits);
+	unsigned long index = start >> fs_info->nodesize_bits;
 
 	rcu_read_lock();
 	eb = xa_load(&fs_info->buffer_tree, index);
@@ -2113,8 +2113,8 @@ void btrfs_btree_wait_writeback_range(struct btrfs_fs_info *fs_info, u64 start,
 				      u64 end)
 {
 	struct eb_batch batch;
-	unsigned long start_index = (start >> fs_info->sectorsize_bits);
-	unsigned long end_index = (end >> fs_info->sectorsize_bits);
+	unsigned long start_index = start >> fs_info->nodesize_bits;
+	unsigned long end_index = end >> fs_info->nodesize_bits;
 
 	eb_batch_init(&batch);
 	while (start_index <= end_index) {
@@ -2150,7 +2150,7 @@ int btree_write_cache_pages(struct address_space *mapping,
 
 	eb_batch_init(&batch);
 	if (wbc->range_cyclic) {
-		index = ((mapping->writeback_index << PAGE_SHIFT) >> fs_info->sectorsize_bits);
+		index = (mapping->writeback_index << PAGE_SHIFT) >> fs_info->nodesize_bits;
 		end = -1;
 
 		/*
@@ -2159,8 +2159,8 @@ int btree_write_cache_pages(struct address_space *mapping,
 		 */
 		scanned = (index == 0);
 	} else {
-		index = (wbc->range_start >> fs_info->sectorsize_bits);
-		end = (wbc->range_end >> fs_info->sectorsize_bits);
+		index = wbc->range_start >> fs_info->nodesize_bits;
+		end = wbc->range_end >> fs_info->nodesize_bits;
 
 		scanned = 1;
 	}
@@ -3037,7 +3037,7 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 	eb->fs_info = fs_info;
 again:
 	xa_lock_irq(&fs_info->buffer_tree);
-	exists = __xa_cmpxchg(&fs_info->buffer_tree, start >> fs_info->sectorsize_bits,
+	exists = __xa_cmpxchg(&fs_info->buffer_tree, start >> fs_info->nodesize_bits,
 			      NULL, eb, GFP_NOFS);
 	if (xa_is_err(exists)) {
 		ret = xa_err(exists);
@@ -3354,7 +3354,7 @@ reallocate:
 again:
 	xa_lock_irq(&fs_info->buffer_tree);
 	existing_eb = __xa_cmpxchg(&fs_info->buffer_tree,
-				   start >> fs_info->sectorsize_bits, NULL, eb,
+				   start >> fs_info->nodesize_bits, NULL, eb,
 				   GFP_NOFS);
 	if (xa_is_err(existing_eb)) {
 		ret = xa_err(existing_eb);
@@ -3457,7 +3457,7 @@ static int release_extent_buffer(struct extent_buffer *eb)
 		 * in this case.
 		 */
 		xa_cmpxchg_irq(&fs_info->buffer_tree,
-			       eb->start >> fs_info->sectorsize_bits, eb, NULL,
+			       eb->start >> fs_info->nodesize_bits, eb, NULL,
 			       GFP_ATOMIC);
 
 		btrfs_leak_debug_del_eb(eb);
@@ -4299,9 +4299,9 @@ static int try_release_subpage_extent_buffer(struct folio *folio)
 {
 	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
 	struct extent_buffer *eb;
-	unsigned long start = (folio_pos(folio) >> fs_info->sectorsize_bits);
+	unsigned long start = folio_pos(folio) >> fs_info->nodesize_bits;
 	unsigned long index = start;
-	unsigned long end = index + (PAGE_SIZE >> fs_info->sectorsize_bits) - 1;
+	unsigned long end = index + (PAGE_SIZE >> fs_info->nodesize_bits) - 1;
 	int ret;
 
 	xa_lock_irq(&fs_info->buffer_tree);
