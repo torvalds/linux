@@ -1864,6 +1864,18 @@ static void rk_gmac_powerdown(struct rk_priv_data *gmac)
 	gmac_clk_enable(gmac, false);
 }
 
+static void rk_get_interfaces(struct stmmac_priv *priv, void *bsp_priv,
+			      unsigned long *interfaces)
+{
+	struct rk_priv_data *rk = bsp_priv;
+
+	if (rk->ops->set_to_rgmii)
+		phy_interface_set_rgmii(interfaces);
+
+	if (rk->ops->set_to_rmii)
+		__set_bit(PHY_INTERFACE_MODE_RMII, interfaces);
+}
+
 static int rk_set_clk_tx_rate(void *bsp_priv_, struct clk *clk_tx_i,
 			      phy_interface_t interface, int speed)
 {
@@ -1919,6 +1931,7 @@ static int rk_gmac_probe(struct platform_device *pdev)
 		plat_dat->tx_fifo_size = 2048;
 	}
 
+	plat_dat->get_interfaces = rk_get_interfaces;
 	plat_dat->set_clk_tx_rate = rk_set_clk_tx_rate;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, plat_dat, data);
