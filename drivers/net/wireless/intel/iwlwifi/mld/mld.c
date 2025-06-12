@@ -356,7 +356,7 @@ iwl_mld_configure_trans(struct iwl_op_mode *op_mode)
 	trans->conf.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 
 	trans->conf.rx_mpdu_cmd = REPLY_RX_MPDU_CMD;
-	trans->conf.rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_res_start);
+	trans->conf.rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_desc);
 	trans->conf.wide_cmd_header = true;
 
 	iwl_trans_op_mode_enter(trans, op_mode);
