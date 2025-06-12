@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 #include <linux/suspend.h>
 #include <linux/bcd.h>
 #include <linux/acpi.h>
@@ -38,8 +39,7 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 		if (!dev->physical_node_count) {
 			seq_printf(seq, "%c%-8s\n",
 				dev->wakeup.flags.valid ? '*' : ' ',
-				device_may_wakeup(&dev->dev) ?
-					"enabled" : "disabled");
+				str_enabled_disabled(device_may_wakeup(&dev->dev)));
 		} else {
 			struct device *ldev;
 			list_for_each_entry(entry, &dev->physical_node_list,
@@ -54,9 +54,8 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 
 				seq_printf(seq, "%c%-8s  %s:%s\n",
 					dev->wakeup.flags.valid ? '*' : ' ',
-					(device_may_wakeup(&dev->dev) ||
-					device_may_wakeup(ldev)) ?
-					"enabled" : "disabled",
+					str_enabled_disabled(device_may_wakeup(ldev) ||
+							     device_may_wakeup(&dev->dev)),
 					ldev->bus ? ldev->bus->name :
 					"no-bus", dev_name(ldev));
 				put_device(ldev);
