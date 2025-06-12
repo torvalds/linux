@@ -82,6 +82,7 @@ static unsigned int core_sort_vma;
 static char core_pattern[CORENAME_MAX_SIZE] = "core";
 static int core_name_size = CORENAME_MAX_SIZE;
 unsigned int core_file_note_size_limit = CORE_FILE_NOTE_SIZE_DEFAULT;
+static atomic_t core_pipe_count = ATOMIC_INIT(0);
 
 enum coredump_type_t {
 	COREDUMP_FILE		= 1,
@@ -981,7 +982,6 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	size_t *argv = NULL;
 	int argc = 0;
 	bool core_dumped = false;
-	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
 		.limit = rlimit(RLIMIT_CORE),
@@ -1057,7 +1057,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 		}
 		cprm.limit = RLIM_INFINITY;
 
-		cn.core_pipe_limit = atomic_inc_return(&core_dump_count);
+		cn.core_pipe_limit = atomic_inc_return(&core_pipe_count);
 		if (core_pipe_limit && (core_pipe_limit < cn.core_pipe_limit)) {
 			coredump_report_failure("over core_pipe_limit, skipping core dump");
 			goto close_fail;
@@ -1171,7 +1171,7 @@ close_fail:
 		filp_close(cprm.file, NULL);
 	if (cn.core_pipe_limit) {
 		VFS_WARN_ON_ONCE(cn.core_type != COREDUMP_PIPE);
-		atomic_dec(&core_dump_count);
+		atomic_dec(&core_pipe_count);
 	}
 fail_unlock:
 	kfree(argv);
