@@ -2162,6 +2162,14 @@ out:
 	return err;
 }
 
+static void record__synthesize_final_bpf_metadata(struct record *rec __maybe_unused)
+{
+#ifdef HAVE_LIBBPF_SUPPORT
+	perf_event__synthesize_final_bpf_metadata(rec->session,
+						  process_synthesized_event);
+#endif
+}
+
 static int record__process_signal_event(union perf_event *event __maybe_unused, void *data)
 {
 	struct record *rec = data;
@@ -2806,6 +2814,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 
 	trigger_off(&auxtrace_snapshot_trigger);
 	trigger_off(&switch_output_trigger);
+
+	record__synthesize_final_bpf_metadata(rec);
 
 	if (opts->auxtrace_snapshot_on_exit)
 		record__auxtrace_snapshot_exit(rec);
