@@ -206,6 +206,17 @@ config PINCTRL_DIGICOLOR
 	select PINMUX
 	select GENERIC_PINCONF
 
+config PINCTRL_EIC7700
+	tristate "EIC7700 PINCTRL driver"
+	depends on ARCH_ESWIN || COMPILE_TEST
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This driver support for the pin controller in ESWIN's EIC7700 SoC,
+	  which supports pin multiplexing, pin configuration,and rgmii voltage
+	  control.
+	  Say Y here to enable the eic7700 pinctrl driver
+
 config PINCTRL_EP93XX
 	bool
 	depends on ARCH_EP93XX || COMPILE_TEST
