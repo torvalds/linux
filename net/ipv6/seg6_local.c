@@ -421,7 +421,7 @@ static int end_next_csid_core(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 static int input_action_end_x_finish(struct sk_buff *skb,
 				     struct seg6_local_lwt *slwt)
 {
-	seg6_lookup_nexthop(skb, &slwt->nh6, 0);
+	seg6_lookup_any_nexthop(skb, &slwt->nh6, 0, false, 0);
 
 	return dst_input(skb);
 }
