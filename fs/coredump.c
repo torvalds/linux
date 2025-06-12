@@ -855,17 +855,18 @@ static bool coredump_sock_request(struct core_name *cn, struct coredump_params *
 	cn->mask = ack.mask;
 	return coredump_sock_mark(cprm->file, COREDUMP_MARK_REQACK);
 }
-#else
-static bool coredump_sock_connect(struct core_name *cn,
-				  struct coredump_params *cprm)
+
+static bool coredump_socket(struct core_name *cn, struct coredump_params *cprm)
 {
-	coredump_report_failure("Core dump socket support %s disabled", cn->corename);
-	return false;
+	if (!coredump_sock_connect(cn, cprm))
+		return false;
+
+	return coredump_sock_request(cn, cprm);
 }
-static bool coredump_sock_request(struct core_name *cn,
-				  struct coredump_params *cprm) { return false; }
+#else
 static inline void coredump_sock_wait(struct file *file) { }
 static inline void coredump_sock_shutdown(struct file *file) { }
+static inline bool coredump_socket(struct core_name *cn, struct coredump_params *cprm) { return false; }
 #endif
 
 /* cprm->mm_flags contains a stable snapshot of dumpability flags. */
@@ -1104,10 +1105,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	case COREDUMP_SOCK_REQ:
 		fallthrough;
 	case COREDUMP_SOCK:
-		if (!coredump_sock_connect(&cn, &cprm))
-			goto close_fail;
-
-		if (!coredump_sock_request(&cn, &cprm))
+		if (!coredump_socket(&cn, &cprm))
 			goto close_fail;
 		break;
 	default:
