@@ -701,6 +701,36 @@ void relay_flush(struct rchan *chan)
 EXPORT_SYMBOL_GPL(relay_flush);
 
 /**
+ *	relay_stats - get channel buffer statistics
+ *	@chan: the channel
+ *	@flags: select particular information to get
+ *
+ *	Returns the count of certain field that caller specifies.
+ */
+size_t relay_stats(struct rchan *chan, int flags)
+{
+	unsigned int i, count = 0;
+	struct rchan_buf *rbuf;
+
+	if (!chan || flags > RELAY_STATS_LAST)
+		return 0;
+
+	if (chan->is_global) {
+		rbuf = *per_cpu_ptr(chan->buf, 0);
+		if (flags & RELAY_STATS_BUF_FULL)
+			count = rbuf->stats.full_count;
+	} else {
+		for_each_online_cpu(i) {
+			rbuf = *per_cpu_ptr(chan->buf, i);
+			if (rbuf && flags & RELAY_STATS_BUF_FULL)
+				count += rbuf->stats.full_count;
+		}
+	}
+
+	return count;
+}
+
+/**
  *	relay_file_open - open file op for relay files
  *	@inode: the inode
  *	@filp: the file
