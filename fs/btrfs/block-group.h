@@ -246,6 +246,11 @@ struct btrfs_block_group {
 	/* Lock for free space tree operations. */
 	struct mutex free_space_lock;
 
+	/* Protected by @free_space_lock. */
+	bool using_free_space_bitmaps;
+	/* Protected by @free_space_lock. */
+	bool using_free_space_bitmaps_cached;
+
 	/*
 	 * Number of extents in this block group used for swap files.
 	 * All accesses protected by the spinlock 'lock'.

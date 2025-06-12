@@ -287,6 +287,8 @@ int btrfs_convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 	leaf = path->nodes[0];
 	flags = btrfs_free_space_flags(leaf, info);
 	flags |= BTRFS_FREE_SPACE_USING_BITMAPS;
+	block_group->using_free_space_bitmaps = true;
+	block_group->using_free_space_bitmaps_cached = true;
 	btrfs_set_free_space_flags(leaf, info, flags);
 	expected_extent_count = btrfs_free_space_extent_count(leaf, info);
 	btrfs_release_path(path);
@@ -434,6 +436,8 @@ int btrfs_convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	leaf = path->nodes[0];
 	flags = btrfs_free_space_flags(leaf, info);
 	flags &= ~BTRFS_FREE_SPACE_USING_BITMAPS;
+	block_group->using_free_space_bitmaps = false;
+	block_group->using_free_space_bitmaps_cached = true;
 	btrfs_set_free_space_flags(leaf, info, flags);
 	expected_extent_count = btrfs_free_space_extent_count(leaf, info);
 	btrfs_release_path(path);
@@ -796,13 +800,19 @@ static int using_bitmaps(struct btrfs_block_group *bg, struct btrfs_path *path)
 	struct btrfs_free_space_info *info;
 	u32 flags;
 
+	if (bg->using_free_space_bitmaps_cached)
+		return bg->using_free_space_bitmaps;
+
 	info = btrfs_search_free_space_info(NULL, bg, path, 0);
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 	flags = btrfs_free_space_flags(path->nodes[0], info);
 	btrfs_release_path(path);
 
-	return (flags & BTRFS_FREE_SPACE_USING_BITMAPS) ? 1 : 0;
+	bg->using_free_space_bitmaps = (flags & BTRFS_FREE_SPACE_USING_BITMAPS);
+	bg->using_free_space_bitmaps_cached = true;
+
+	return bg->using_free_space_bitmaps;
 }
 
 EXPORT_FOR_TESTS
