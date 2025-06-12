@@ -757,6 +757,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 				  btree_trans_journal_entries_start(trans),
 				  trans->journal_entries.u64s);
 
+		EBUG_ON(trans->journal_res.u64s < trans->journal_entries.u64s);
+
 		trans->journal_res.offset	+= trans->journal_entries.u64s;
 		trans->journal_res.u64s		-= trans->journal_entries.u64s;
 
