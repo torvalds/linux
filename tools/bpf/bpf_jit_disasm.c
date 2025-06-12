@@ -45,6 +45,8 @@ static void get_exec_path(char *tpath, size_t size)
 	assert(path);
 
 	len = readlink(path, tpath, size);
+	if (len < 0)
+		len = 0;
 	tpath[len] = 0;
 
 	free(path);
