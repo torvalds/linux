@@ -865,7 +865,7 @@ static inline void coredump_sock_wait(struct file *file) { }
 static inline void coredump_sock_shutdown(struct file *file) { }
 #endif
 
-void do_coredump(const kernel_siginfo_t *siginfo)
+void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct core_state core_state;
 	struct core_name cn;
