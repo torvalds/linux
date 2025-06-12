@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
@@ -1069,6 +1070,12 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	afe->dev = &pdev->dev;
+
+	ret = of_reserved_mem_device_init(&pdev->dev);
+	if (ret) {
+		dev_info(&pdev->dev, "no reserved memory found, pre-allocating buffers instead\n");
+		afe->preallocate_buffers = true;
+	}
 
 	irq_id = platform_get_irq(pdev, 0);
 	if (irq_id <= 0)
