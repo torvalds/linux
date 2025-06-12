@@ -75,7 +75,7 @@
  *     This is to enable COW mechanism
  */
 	/* xwr */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define pte_write(pte)		(pte_val(pte) & _PAGE_WRITE)
 #define pte_dirty(pte)		(pte_val(pte) & _PAGE_DIRTY)
@@ -142,6 +142,6 @@ PTE_BIT_FUNC(swp_clear_exclusive, &= ~(_PAGE_SWP_EXCLUSIVE));
 #include <asm/hugepage.h>
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif
