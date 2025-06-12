@@ -33,9 +33,11 @@
  *   Author: Coly Li <colyli@suse.de>
  */
 
+#include <linux/crc64.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/crc64.h>
+
 #include "crc64table.h"
 
 static inline u64 __maybe_unused

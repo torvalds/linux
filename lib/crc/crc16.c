@@ -3,9 +3,10 @@
  *      crc16.c
  */
 
-#include <linux/types.h>
-#include <linux/module.h>
 #include <linux/crc16.h>
+#include <linux/export.h>
+#include <linux/module.h>
+#include <linux/types.h>
 
 /** CRC table for the CRC-16. The poly is 0x8005 (x^16 + x^15 + x^2 + 1) */
 static const u16 crc16_table[256] = {
