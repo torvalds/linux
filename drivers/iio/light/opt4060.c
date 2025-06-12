@@ -311,7 +311,7 @@ any_mode_retry:
 		 * concurrently change. And we just keep trying until we get one
 		 * of the modes...
 		 */
-		if (iio_device_claim_direct_mode(indio_dev))
+		if (!iio_device_claim_direct(indio_dev))
 			goto any_mode_retry;
 		/*
 		 * This path means that we managed to claim direct mode. In
@@ -320,7 +320,8 @@ any_mode_retry:
 		 */
 		ret = opt4060_set_state_common(chip, continuous_sampling,
 					       continuous_irq);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	} else {
 		/*
 		 * This path means that we managed to claim buffer mode. In

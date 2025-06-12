@@ -38,7 +38,7 @@ static void kxsd9_spi_remove(struct spi_device *spi)
 
 static const struct spi_device_id kxsd9_spi_id[] = {
 	{"kxsd9", 0},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, kxsd9_spi_id);
 

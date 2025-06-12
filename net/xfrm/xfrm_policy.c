@@ -353,7 +353,7 @@ static inline unsigned long make_jiffies(long secs)
 
 static void xfrm_policy_timer(struct timer_list *t)
 {
-	struct xfrm_policy *xp = from_timer(xp, t, timer);
+	struct xfrm_policy *xp = timer_container_of(xp, t, timer);
 	time64_t now = ktime_get_real_seconds();
 	time64_t next = TIME64_MAX;
 	int warn = 0;
@@ -2898,7 +2898,7 @@ static void xfrm_policy_queue_process(struct timer_list *t)
 	struct sk_buff *skb;
 	struct sock *sk;
 	struct dst_entry *dst;
-	struct xfrm_policy *pol = from_timer(pol, t, polq.hold_timer);
+	struct xfrm_policy *pol = timer_container_of(pol, t, polq.hold_timer);
 	struct net *net = xp_net(pol);
 	struct xfrm_policy_queue *pq = &pol->polq;
 	struct flowi fl;

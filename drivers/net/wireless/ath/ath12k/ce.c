@@ -868,7 +868,7 @@ void ath12k_ce_rx_post_buf(struct ath12k_base *ab)
 
 void ath12k_ce_rx_replenish_retry(struct timer_list *t)
 {
-	struct ath12k_base *ab = from_timer(ab, t, rx_replenish_retry);
+	struct ath12k_base *ab = timer_container_of(ab, t, rx_replenish_retry);
 
 	ath12k_ce_rx_post_buf(ab);
 }

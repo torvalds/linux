@@ -922,7 +922,7 @@ void svc_send(struct svc_rqst *rqstp)
  */
 static void svc_age_temp_xprts(struct timer_list *t)
 {
-	struct svc_serv *serv = from_timer(serv, t, sv_temptimer);
+	struct svc_serv *serv = timer_container_of(serv, t, sv_temptimer);
 	struct svc_xprt *xprt;
 	struct list_head *le, *next;
 

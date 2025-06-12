@@ -13995,7 +13995,7 @@ fw_reset:
 
 static void bnxt_timer(struct timer_list *t)
 {
-	struct bnxt *bp = from_timer(bp, t, timer);
+	struct bnxt *bp = timer_container_of(bp, t, timer);
 	struct net_device *dev = bp->dev;
 
 	if (!netif_running(dev) || !test_bit(BNXT_STATE_OPEN, &bp->state))

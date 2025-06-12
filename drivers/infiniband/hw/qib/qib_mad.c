@@ -2398,7 +2398,8 @@ bail:
 
 static void xmit_wait_timer_func(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = from_timer(ppd, t, cong_stats.timer);
+	struct qib_pportdata *ppd = timer_container_of(ppd, t,
+						       cong_stats.timer);
 	struct qib_devdata *dd = dd_from_ppd(ppd);
 	unsigned long flags;
 	u8 status;

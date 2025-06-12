@@ -312,6 +312,11 @@ static void smu_v13_0_14_init_caps(struct smu_context *smu)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(PER_INST_METRICS));
 	if (fw_ver >= 0x5551200)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(SDMA_RESET));
+	if (fw_ver >= 0x5551600) {
+		smu_v13_0_6_cap_set(smu, SMU_CAP(STATIC_METRICS));
+		smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
+		smu_v13_0_6_cap_set(smu, SMU_CAP(PLDM_VERSION));
+	}
 }
 
 static void smu_v13_0_12_init_caps(struct smu_context *smu)
@@ -392,10 +397,14 @@ static void smu_v13_0_6_init_caps(struct smu_context *smu)
 		if ((pgm == 7 && fw_ver >= 0x7550E00) ||
 		    (pgm == 0 && fw_ver >= 0x00557E00))
 			smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
-		if (fw_ver >= 0x00557F01) {
+		if ((pgm == 0 && fw_ver >= 0x00557F01) ||
+		    (pgm == 7 && fw_ver >= 0x7551000)) {
 			smu_v13_0_6_cap_set(smu, SMU_CAP(STATIC_METRICS));
 			smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
 		}
+		if ((pgm == 0 && fw_ver >= 0x00558000) ||
+		    (pgm == 7 && fw_ver >= 0x7551000))
+			smu_v13_0_6_cap_set(smu, SMU_CAP(PLDM_VERSION));
 	}
 	if (((pgm == 7) && (fw_ver >= 0x7550700)) ||
 	    ((pgm == 0) && (fw_ver >= 0x00557900)) ||
@@ -752,6 +761,11 @@ static void smu_v13_0_6_fill_static_metrics_table(struct smu_context *smu,
 	}
 
 	dpm_context->board_volt = static_metrics->InputTelemetryVoltageInmV;
+
+	if (smu_v13_0_6_cap_supported(smu, SMU_CAP(PLDM_VERSION)) &&
+	    static_metrics->pldmVersion[0] != 0xFFFFFFFF)
+		smu->adev->firmware.pldm_version =
+			static_metrics->pldmVersion[0];
 }
 
 int smu_v13_0_6_get_static_metrics_table(struct smu_context *smu)
@@ -2529,6 +2543,126 @@ static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 	return pcie_gen_to_speed(speed_level + 1);
 }
 
+static ssize_t smu_v13_0_6_get_xcp_metrics(struct smu_context *smu, int xcp_id,
+					   void *table)
+{
+	const u8 num_jpeg_rings = AMDGPU_MAX_JPEG_RINGS_4_0_3;
+	int version = smu_v13_0_6_get_metrics_version(smu);
+	struct amdgpu_partition_metrics_v1_0 *xcp_metrics;
+	struct amdgpu_device *adev = smu->adev;
+	int ret, inst, i, j, k, idx;
+	MetricsTableV0_t *metrics_v0;
+	MetricsTableV1_t *metrics_v1;
+	MetricsTableV2_t *metrics_v2;
+	struct amdgpu_xcp *xcp;
+	u32 inst_mask;
+	bool per_inst;
+
+	if (!table)
+		return sizeof(*xcp_metrics);
+
+	for_each_xcp(adev->xcp_mgr, xcp, i) {
+		if (xcp->id == xcp_id)
+			break;
+	}
+	if (i == adev->xcp_mgr->num_xcps)
+		return -EINVAL;
+
+	xcp_metrics = (struct amdgpu_partition_metrics_v1_0 *)table;
+	smu_cmn_init_partition_metrics(xcp_metrics, 1, 0);
+
+	metrics_v0 = kzalloc(METRICS_TABLE_SIZE, GFP_KERNEL);
+	if (!metrics_v0)
+		return -ENOMEM;
+
+	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, false);
+	if (ret) {
+		kfree(metrics_v0);
+		return ret;
+	}
+
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) ==
+		    IP_VERSION(13, 0, 12) &&
+	    smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS))) {
+		ret = smu_v13_0_12_get_xcp_metrics(smu, xcp, table, metrics_v0);
+		goto out;
+	}
+
+	metrics_v1 = (MetricsTableV1_t *)metrics_v0;
+	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
+
+	per_inst = smu_v13_0_6_cap_supported(smu, SMU_CAP(PER_INST_METRICS));
+
+	amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+	idx = 0;
+	for_each_inst(k, inst_mask) {
+		/* Both JPEG and VCN has same instances */
+		inst = GET_INST(VCN, k);
+
+		for (j = 0; j < num_jpeg_rings; ++j) {
+			xcp_metrics->jpeg_busy[(idx * num_jpeg_rings) + j] =
+				SMUQ10_ROUND(GET_METRIC_FIELD(
+					JpegBusy,
+					version)[(inst * num_jpeg_rings) + j]);
+		}
+		xcp_metrics->vcn_busy[idx] =
+			SMUQ10_ROUND(GET_METRIC_FIELD(VcnBusy, version)[inst]);
+
+		xcp_metrics->current_vclk0[idx] = SMUQ10_ROUND(
+			GET_METRIC_FIELD(VclkFrequency, version)[inst]);
+		xcp_metrics->current_dclk0[idx] = SMUQ10_ROUND(
+			GET_METRIC_FIELD(DclkFrequency, version)[inst]);
+		xcp_metrics->current_socclk[idx] = SMUQ10_ROUND(
+			GET_METRIC_FIELD(SocclkFrequency, version)[inst]);
+
+		idx++;
+	}
+
+	xcp_metrics->current_uclk =
+		SMUQ10_ROUND(GET_METRIC_FIELD(UclkFrequency, version));
+
+	if (per_inst) {
+		amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask);
+		idx = 0;
+		for_each_inst(k, inst_mask) {
+			inst = GET_INST(GC, k);
+			xcp_metrics->current_gfxclk[idx] =
+				SMUQ10_ROUND(GET_METRIC_FIELD(GfxclkFrequency,
+							      version)[inst]);
+
+			xcp_metrics->gfx_busy_inst[idx] = SMUQ10_ROUND(
+				GET_GPU_METRIC_FIELD(GfxBusy, version)[inst]);
+			xcp_metrics->gfx_busy_acc[idx] = SMUQ10_ROUND(
+				GET_GPU_METRIC_FIELD(GfxBusyAcc,
+						     version)[inst]);
+			if (smu_v13_0_6_cap_supported(
+				    smu, SMU_CAP(HST_LIMIT_METRICS))) {
+				xcp_metrics->gfx_below_host_limit_ppt_acc
+					[idx] = SMUQ10_ROUND(
+					metrics_v0->GfxclkBelowHostLimitPptAcc
+						[inst]);
+				xcp_metrics->gfx_below_host_limit_thm_acc
+					[idx] = SMUQ10_ROUND(
+					metrics_v0->GfxclkBelowHostLimitThmAcc
+						[inst]);
+				xcp_metrics->gfx_low_utilization_acc
+					[idx] = SMUQ10_ROUND(
+					metrics_v0
+						->GfxclkLowUtilizationAcc[inst]);
+				xcp_metrics->gfx_below_host_limit_total_acc
+					[idx] = SMUQ10_ROUND(
+					metrics_v0->GfxclkBelowHostLimitTotalAcc
+						[inst]);
+			}
+			idx++;
+		}
+	}
+out:
+	kfree(metrics_v0);
+
+	return sizeof(*xcp_metrics);
+}
+
 static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -2542,6 +2676,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	MetricsTableV2_t *metrics_v2;
 	struct amdgpu_xcp *xcp;
 	u16 link_width_level;
+	ssize_t num_bytes;
 	u8 num_jpeg_rings;
 	u32 inst_mask;
 	bool per_inst;
@@ -2554,8 +2689,11 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	}
 
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12) &&
-	    smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS)))
-		return smu_v13_0_12_get_gpu_metrics(smu, table);
+	    smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS))) {
+		num_bytes = smu_v13_0_12_get_gpu_metrics(smu, table, metrics_v0);
+		kfree(metrics_v0);
+		return num_bytes;
+	}
 
 	metrics_v1 = (MetricsTableV1_t *)metrics_v0;
 	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
@@ -2670,13 +2808,16 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilizationAcc, version));
 
 	for (i = 0; i < NUM_XGMI_LINKS; i++) {
-		gpu_metrics->xgmi_read_data_acc[i] =
-			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiReadDataSizeAcc, version)[i]);
-		gpu_metrics->xgmi_write_data_acc[i] =
-			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWriteDataSizeAcc, version)[i]);
+		j = amdgpu_xgmi_get_ext_link(adev, i);
+		if (j < 0 || j >= NUM_XGMI_LINKS)
+			continue;
+		gpu_metrics->xgmi_read_data_acc[j] = SMUQ10_ROUND(
+			GET_METRIC_FIELD(XgmiReadDataSizeAcc, version)[i]);
+		gpu_metrics->xgmi_write_data_acc[j] = SMUQ10_ROUND(
+			GET_METRIC_FIELD(XgmiWriteDataSizeAcc, version)[i]);
 		ret = amdgpu_get_xgmi_link_status(adev, i);
 		if (ret >= 0)
-			gpu_metrics->xgmi_link_status[i] = ret;
+			gpu_metrics->xgmi_link_status[j] = ret;
 	}
 
 	gpu_metrics->num_partition = adev->xcp_mgr->num_xcps;
@@ -3673,6 +3814,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.get_gpu_metrics = smu_v13_0_6_get_gpu_metrics,
 	.get_pm_metrics = smu_v13_0_6_get_pm_metrics,
+	.get_xcp_metrics = smu_v13_0_6_get_xcp_metrics,
 	.get_thermal_temperature_range = smu_v13_0_6_get_thermal_temperature_range,
 	.mode1_reset_is_support = smu_v13_0_6_is_mode1_reset_supported,
 	.link_reset_is_support = smu_v13_0_6_is_link_reset_supported,

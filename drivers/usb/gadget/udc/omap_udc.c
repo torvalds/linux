@@ -1860,7 +1860,7 @@ static irqreturn_t omap_udc_irq(int irq, void *_udc)
 
 static void pio_out_timer(struct timer_list *t)
 {
-	struct omap_ep	*ep = from_timer(ep, t, timer);
+	struct omap_ep	*ep = timer_container_of(ep, t, timer);
 	unsigned long	flags;
 	u16		stat_flg;
 

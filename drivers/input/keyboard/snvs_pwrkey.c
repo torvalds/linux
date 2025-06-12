@@ -46,7 +46,8 @@ struct pwrkey_drv_data {
 
 static void imx_imx_snvs_check_for_events(struct timer_list *t)
 {
-	struct pwrkey_drv_data *pdata = from_timer(pdata, t, check_timer);
+	struct pwrkey_drv_data *pdata = timer_container_of(pdata, t,
+							   check_timer);
 	struct input_dev *input = pdata->input;
 	u32 state;
 

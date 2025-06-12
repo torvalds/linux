@@ -608,7 +608,7 @@ EXPORT_SYMBOL_GPL(wb_writeout_inc);
  */
 static void writeout_period(struct timer_list *t)
 {
-	struct wb_domain *dom = from_timer(dom, t, period_timer);
+	struct wb_domain *dom = timer_container_of(dom, t, period_timer);
 	int miss_periods = (jiffies - dom->period_time) /
 						 VM_COMPLETIONS_PERIOD_LEN;
 
@@ -2203,7 +2203,7 @@ static int dirty_writeback_centisecs_handler(const struct ctl_table *table, int 
 void laptop_mode_timer_fn(struct timer_list *t)
 {
 	struct backing_dev_info *backing_dev_info =
-		from_timer(backing_dev_info, t, laptop_mode_wb_timer);
+		timer_container_of(backing_dev_info, t, laptop_mode_wb_timer);
 
 	wakeup_flusher_threads_bdi(backing_dev_info, WB_REASON_LAPTOP_TIMER);
 }

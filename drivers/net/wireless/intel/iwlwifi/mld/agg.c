@@ -317,7 +317,7 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_reorder);
 static void iwl_mld_rx_agg_session_expired(struct timer_list *t)
 {
 	struct iwl_mld_baid_data *data =
-		from_timer(data, t, session_timer);
+		timer_container_of(data, t, session_timer);
 	struct iwl_mld_baid_data __rcu **rcu_ptr = data->rcu_ptr;
 	struct iwl_mld_baid_data *ba_data;
 	struct ieee80211_link_sta *link_sta;

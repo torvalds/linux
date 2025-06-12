@@ -138,7 +138,7 @@ pub trait MiscDevice: Sized {
 
     /// Handler for ioctls.
     ///
-    /// The `cmd` argument is usually manipulated using the utilties in [`kernel::ioctl`].
+    /// The `cmd` argument is usually manipulated using the utilities in [`kernel::ioctl`].
     ///
     /// [`kernel::ioctl`]: mod@crate::ioctl
     fn ioctl(

@@ -2481,7 +2481,7 @@ EXPORT_SYMBOL_GPL(queue_work_node);
 
 void delayed_work_timer_fn(struct timer_list *t)
 {
-	struct delayed_work *dwork = from_timer(dwork, t, timer);
+	struct delayed_work *dwork = timer_container_of(dwork, t, timer);
 
 	/* should have been called from irqsafe timer with irq already off */
 	__queue_work(dwork->cpu, dwork->wq, &dwork->work);
@@ -2909,7 +2909,7 @@ static void set_worker_dying(struct worker *worker, struct list_head *list)
  */
 static void idle_worker_timeout(struct timer_list *t)
 {
-	struct worker_pool *pool = from_timer(pool, t, idle_timer);
+	struct worker_pool *pool = timer_container_of(pool, t, idle_timer);
 	bool do_cull = false;
 
 	if (work_pending(&pool->idle_cull_work))
@@ -3008,7 +3008,7 @@ static void send_mayday(struct work_struct *work)
 
 static void pool_mayday_timeout(struct timer_list *t)
 {
-	struct worker_pool *pool = from_timer(pool, t, mayday_timer);
+	struct worker_pool *pool = timer_container_of(pool, t, mayday_timer);
 	struct work_struct *work;
 
 	raw_spin_lock_irq(&pool->lock);

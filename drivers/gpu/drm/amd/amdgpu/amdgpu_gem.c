@@ -58,7 +58,7 @@ amdgpu_gem_add_input_fence(struct drm_file *filp,
 		return 0;
 
 	syncobj_handles = memdup_user(u64_to_user_ptr(syncobj_handles_array),
-				      sizeof(uint32_t) * num_syncobj_handles);
+				      size_mul(sizeof(uint32_t), num_syncobj_handles));
 	if (IS_ERR(syncobj_handles))
 		return PTR_ERR(syncobj_handles);
 

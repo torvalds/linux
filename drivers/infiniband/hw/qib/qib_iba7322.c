@@ -1721,7 +1721,8 @@ static void qib_error_tasklet(struct tasklet_struct *t)
 
 static void reenable_chase(struct timer_list *t)
 {
-	struct qib_chippport_specific *cp = from_timer(cp, t, chase_timer);
+	struct qib_chippport_specific *cp = timer_container_of(cp, t,
+							       chase_timer);
 	struct qib_pportdata *ppd = cp->ppd;
 
 	ppd->cpspec->chase_timer.expires = 0;
@@ -5084,7 +5085,7 @@ done:
  */
 static void qib_get_7322_faststats(struct timer_list *t)
 {
-	struct qib_devdata *dd = from_timer(dd, t, stats_timer);
+	struct qib_devdata *dd = timer_container_of(dd, t, stats_timer);
 	struct qib_pportdata *ppd;
 	unsigned long flags;
 	u64 traffic_wds;

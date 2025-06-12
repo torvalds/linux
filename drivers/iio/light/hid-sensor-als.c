@@ -456,7 +456,7 @@ static const struct platform_device_id hid_als_ids[] = {
 		/* Format: HID-SENSOR-custom_sensor_tag-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-LISS-0041",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_als_ids);
 

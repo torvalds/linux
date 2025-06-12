@@ -1688,7 +1688,8 @@ err_return:
 static void
 bnad_ioc_timeout(struct timer_list *t)
 {
-	struct bnad *bnad = from_timer(bnad, t, bna.ioceth.ioc.ioc_timer);
+	struct bnad *bnad = timer_container_of(bnad, t,
+					       bna.ioceth.ioc.ioc_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -1699,7 +1700,8 @@ bnad_ioc_timeout(struct timer_list *t)
 static void
 bnad_ioc_hb_check(struct timer_list *t)
 {
-	struct bnad *bnad = from_timer(bnad, t, bna.ioceth.ioc.hb_timer);
+	struct bnad *bnad = timer_container_of(bnad, t,
+					       bna.ioceth.ioc.hb_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -1710,7 +1712,8 @@ bnad_ioc_hb_check(struct timer_list *t)
 static void
 bnad_iocpf_timeout(struct timer_list *t)
 {
-	struct bnad *bnad = from_timer(bnad, t, bna.ioceth.ioc.iocpf_timer);
+	struct bnad *bnad = timer_container_of(bnad, t,
+					       bna.ioceth.ioc.iocpf_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -1721,7 +1724,8 @@ bnad_iocpf_timeout(struct timer_list *t)
 static void
 bnad_iocpf_sem_timeout(struct timer_list *t)
 {
-	struct bnad *bnad = from_timer(bnad, t, bna.ioceth.ioc.sem_timer);
+	struct bnad *bnad = timer_container_of(bnad, t,
+					       bna.ioceth.ioc.sem_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -1743,7 +1747,7 @@ bnad_iocpf_sem_timeout(struct timer_list *t)
 static void
 bnad_dim_timeout(struct timer_list *t)
 {
-	struct bnad *bnad = from_timer(bnad, t, dim_timer);
+	struct bnad *bnad = timer_container_of(bnad, t, dim_timer);
 	struct bnad_rx_info *rx_info;
 	struct bnad_rx_ctrl *rx_ctrl;
 	int i, j;
@@ -1776,7 +1780,7 @@ bnad_dim_timeout(struct timer_list *t)
 static void
 bnad_stats_timeout(struct timer_list *t)
 {
-	struct bnad *bnad = from_timer(bnad, t, stats_timer);
+	struct bnad *bnad = timer_container_of(bnad, t, stats_timer);
 	unsigned long flags;
 
 	if (!netif_running(bnad->netdev) ||

@@ -131,7 +131,7 @@ static void igorplugusb_cmd(struct igorplugusb *ir, int cmd)
 
 static void igorplugusb_timer(struct timer_list *t)
 {
-	struct igorplugusb *ir = from_timer(ir, t, timer);
+	struct igorplugusb *ir = timer_container_of(ir, t, timer);
 
 	igorplugusb_cmd(ir, GET_INFRACODE);
 }

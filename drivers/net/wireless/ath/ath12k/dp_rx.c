@@ -2955,7 +2955,8 @@ exit:
 
 static void ath12k_dp_rx_frag_timer(struct timer_list *timer)
 {
-	struct ath12k_dp_rx_tid *rx_tid = from_timer(rx_tid, timer, frag_timer);
+	struct ath12k_dp_rx_tid *rx_tid = timer_container_of(rx_tid, timer,
+							     frag_timer);
 
 	spin_lock_bh(&rx_tid->ab->base_lock);
 	if (rx_tid->last_frag_no &&

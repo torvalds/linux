@@ -1298,7 +1298,6 @@ static int sysdata_append_release(struct netconsole_target *nt, int offset)
  */
 static int prepare_extradata(struct netconsole_target *nt)
 {
-	u32 fields = SYSDATA_CPU_NR | SYSDATA_TASKNAME;
 	int extradata_len;
 
 	/* userdata was appended when configfs write helper was called
@@ -1306,7 +1305,7 @@ static int prepare_extradata(struct netconsole_target *nt)
 	 */
 	extradata_len = nt->userdata_length;
 
-	if (!(nt->sysdata_fields & fields))
+	if (!nt->sysdata_fields)
 		goto out;
 
 	if (nt->sysdata_fields & SYSDATA_CPU_NR)

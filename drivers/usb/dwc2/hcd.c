@@ -3227,7 +3227,7 @@ host:
 
 static void dwc2_wakeup_detected(struct timer_list *t)
 {
-	struct dwc2_hsotg *hsotg = from_timer(hsotg, t, wkp_timer);
+	struct dwc2_hsotg *hsotg = timer_container_of(hsotg, t, wkp_timer);
 	u32 hprt0;
 
 	dev_dbg(hsotg->dev, "%s()\n", __func__);

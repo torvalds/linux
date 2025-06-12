@@ -1943,7 +1943,7 @@ snd_hdspm_midi_input_trigger(struct snd_rawmidi_substream *substream, int up)
 
 static void snd_hdspm_midi_output_timer(struct timer_list *t)
 {
-	struct hdspm_midi *hmidi = from_timer(hmidi, t, timer);
+	struct hdspm_midi *hmidi = timer_container_of(hmidi, t, timer);
 	unsigned long flags;
 
 	snd_hdspm_midi_output_write(hmidi);

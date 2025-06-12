@@ -32,7 +32,8 @@
 #define ENABLE_IRQ(IRQ, TYPE) irq_set_irq_type(IRQ, TYPE)
 #define DISABLE_IRQ(IRQ) irq_set_irq_type(IRQ, IRQ_TYPE_NONE)
 
-/* Debug print levels:
+/*
+ * Debug print levels:
  *  0 = load/unload info and errors that make the driver fail;
  *  1 = + warnings for unforeseen events that may break the current
  *	 operation and lead to a timeout, but do not affect the
@@ -65,7 +66,6 @@
 #include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
-#include <linux/leds.h>
 
 static int sn7516x_used = 1, sn7516x;
 module_param(sn7516x_used, int, 0660);
@@ -135,19 +135,14 @@ enum lines_t {
 #define SN7516X_PINS 4
 #define NUM_PINS (GPIB_PINS + SN7516X_PINS)
 
-DEFINE_LED_TRIGGER(ledtrig_gpib);
-#define ACT_LED_ON do {							\
+#define ACT_LED_ON do {						\
 		if (ACT_LED)					\
-			gpiod_direction_output(ACT_LED, 1);		\
-		else							\
-			led_trigger_event(ledtrig_gpib, LED_FULL); }	\
-	while (0)
-#define ACT_LED_OFF do {						\
+			gpiod_direction_output(ACT_LED, 1);	\
+	} while (0)
+#define ACT_LED_OFF do {					\
 		if (ACT_LED)					\
-			gpiod_direction_output(ACT_LED, 0);		\
-		else							\
-			led_trigger_event(ledtrig_gpib, LED_OFF); }	\
-	while (0)
+			gpiod_direction_output(ACT_LED, 0);	\
+	} while (0)
 
 static struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
 
@@ -311,7 +306,6 @@ struct bb_priv {
 	int dav_seq;
 	long all_irqs;
 	int dav_idle;
-	int atn_asserted;
 
 	enum talker_function_state talker_state;
 	enum listener_function_state listener_state;
@@ -324,7 +318,7 @@ static void set_data_lines(u8 byte);
 static u8 get_data_lines(void);
 static void set_data_lines_input(void);
 static void set_data_lines_output(void);
-static inline int check_for_eos(struct bb_priv *priv, uint8_t byte);
+static inline int check_for_eos(struct bb_priv *priv, u8 byte);
 static void set_atn(struct gpib_board *board, int atn_asserted);
 
 static inline void SET_DIR_WRITE(struct bb_priv *priv);
@@ -353,7 +347,7 @@ static char printable(char x)
  *									   *
  ***************************************************************************/
 
-static int bb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int bb_read(struct gpib_board *board, u8 *buffer, size_t length,
 		   int *end, size_t *bytes_read)
 {
 	struct bb_priv *priv = board->private_data;
@@ -491,7 +485,7 @@ dav_exit:
  *									   *
  ***************************************************************************/
 
-static int bb_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int bb_write(struct gpib_board *board, u8 *buffer, size_t length,
 		    int send_eoi, size_t *bytes_written)
 {
 	unsigned long flags;
@@ -522,7 +516,7 @@ static int bb_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 		   gpiod_get_value(NRFD), gpiod_get_value(NDAC));
 
 	if (gpiod_get_value(NRFD) && gpiod_get_value(NDAC)) { /* check for listener */
-		retval = -ENODEV;
+		retval = -ENOTCONN;
 		goto write_end;
 	}
 
@@ -619,7 +613,8 @@ static irqreturn_t bb_NRFD_interrupt(int irq, void *arg)
 		goto nrfd_exit;
 	}
 
-	if (priv->atn_asserted && priv->w_cnt >= priv->length) { // test for end of transfer
+	if (priv->w_cnt >= priv->length) { // test for missed NDAC end of transfer
+		dev_err(board->gpib_dev, "Unexpected NRFD exit\n");
 		priv->write_done = 1;
 		priv->w_busy = 0;
 		wake_up_interruptible(&board->wait);
@@ -691,14 +686,14 @@ static irqreturn_t bb_NDAC_interrupt(int irq, void *arg)
 
 	dbg_printk(3, "accepted %zu\n", priv->w_cnt - 1);
 
-	if (!priv->atn_asserted && priv->w_cnt >= priv->length) { // test for end of transfer
+	gpiod_set_value(DAV, 1); // Data not available
+	priv->dav_tx = 1;
+	priv->phase = 510;
+
+	if (priv->w_cnt >= priv->length) { // test for end of transfer
 		priv->write_done = 1;
 		priv->w_busy = 0;
 		wake_up_interruptible(&board->wait);
-	} else {
-		gpiod_set_value(DAV, 1); // Data not available
-		priv->dav_tx = 1;
-		priv->phase = 510;
 	}
 
 ndac_exit:
@@ -728,7 +723,7 @@ static irqreturn_t bb_SRQ_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int bb_command(struct gpib_board *board, uint8_t *buffer,
+static int bb_command(struct gpib_board *board, u8 *buffer,
 		      size_t length, size_t *bytes_written)
 {
 	size_t ret;
@@ -855,6 +850,7 @@ static void set_atn(struct gpib_board *board, int atn_asserted)
 			priv->listener_state = listener_addressed;
 		if (priv->talker_state == talker_active)
 			priv->talker_state = talker_addressed;
+		SET_DIR_WRITE(priv);  // need to be able to read bus NRFD/NDAC
 	} else {
 		if (priv->listener_state == listener_addressed) {
 			priv->listener_state = listener_active;
@@ -864,14 +860,12 @@ static void set_atn(struct gpib_board *board, int atn_asserted)
 			priv->talker_state = talker_active;
 	}
 	gpiod_direction_output(_ATN, !atn_asserted);
-	priv->atn_asserted = atn_asserted;
 }
 
 static int bb_take_control(struct gpib_board *board, int synchronous)
 {
 	dbg_printk(2, "%d\n", synchronous);
 	set_atn(board, 1);
-	set_bit(CIC_NUM, &board->status);
 	return 0;
 }
 
@@ -882,16 +876,24 @@ static int bb_go_to_standby(struct gpib_board *board)
 	return 0;
 }
 
-static void bb_request_system_control(struct gpib_board *board, int request_control)
+static int bb_request_system_control(struct gpib_board *board, int request_control)
 {
+	struct bb_priv *priv = board->private_data;
+
 	dbg_printk(2, "%d\n", request_control);
-	if (request_control) {
-		set_bit(CIC_NUM, &board->status);
-		// drive DAV & EOI false, enable NRFD & NDAC irqs
-		SET_DIR_WRITE(board->private_data);
-	} else {
-		clear_bit(CIC_NUM, &board->status);
-	}
+	if (!request_control)
+		return -EINVAL;
+
+	gpiod_direction_output(REN, 1); /* user space must enable REN if needed */
+	gpiod_direction_output(IFC, 1); /* user space must toggle IFC if needed */
+	if (sn7516x)
+		gpiod_direction_output(DC, 0); /* enable ATN as output on SN75161/2 */
+
+	gpiod_direction_input(SRQ);
+
+	ENABLE_IRQ(priv->irq_SRQ, IRQ_TYPE_EDGE_FALLING);
+
+	return 0;
 }
 
 static void bb_interface_clear(struct gpib_board *board, int assert)
@@ -903,6 +905,7 @@ static void bb_interface_clear(struct gpib_board *board, int assert)
 		gpiod_direction_output(IFC, 0);
 		priv->talker_state = talker_idle;
 		priv->listener_state = listener_idle;
+		set_bit(CIC_NUM, &board->status);
 	} else {
 		gpiod_direction_output(IFC, 1);
 	}
@@ -920,7 +923,7 @@ static void bb_remote_enable(struct gpib_board *board, int enable)
 	}
 }
 
-static int bb_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int bb_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -987,12 +990,12 @@ static int bb_secondary_address(struct gpib_board *board, unsigned int address, 
 	return 0;
 }
 
-static int bb_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int bb_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	return -ENOENT;
 }
 
-static void bb_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void bb_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 }
 
@@ -1000,11 +1003,11 @@ static void bb_parallel_poll_response(struct gpib_board *board, int ist)
 {
 }
 
-static void bb_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void bb_serial_poll_response(struct gpib_board *board, u8 status)
 {
 }
 
-static uint8_t bb_serial_poll_status(struct gpib_board *board)
+static u8 bb_serial_poll_status(struct gpib_board *board)
 {
 	return 0; // -ENOENT;
 }
@@ -1120,8 +1123,7 @@ static void release_gpios(void)
 
 static int allocate_gpios(struct gpib_board *board)
 {
-	int j, retval = 0;
-	bool error = false;
+	int j;
 	int table_index = 0;
 	char name[256];
 	struct gpio_desc *desc;
@@ -1132,8 +1134,8 @@ static int allocate_gpios(struct gpib_board *board)
 		return -ENOENT;
 	}
 
-	lookup_table = lookup_tables[0];
-	lookup_table->dev_id   = dev_name(board->gpib_dev);
+	lookup_table = lookup_tables[table_index];
+	lookup_table->dev_id = dev_name(board->gpib_dev);
 	gpiod_add_lookup_table(lookup_table);
 	dbg_printk(1, "Allocating gpios using table index %d\n", table_index);
 
@@ -1150,30 +1152,26 @@ try_again:
 			gpiod_remove_lookup_table(lookup_table);
 			table_index++;
 			lookup_table = lookup_tables[table_index];
-			if (lookup_table) {
-				dbg_printk(1, "Allocation failed,  now  using table_index %d\n",
-					   table_index);
-				lookup_table->dev_id = dev_name(board->gpib_dev);
-				gpiod_add_lookup_table(lookup_table);
-				goto try_again;
+			if (!lookup_table) {
+				dev_err(board->gpib_dev, "Unable to obtain gpio descriptor for pin %d error %ld\n",
+					gpios_vector[j], PTR_ERR(desc));
+				goto alloc_gpios_fail;
 			}
-			dev_err(board->gpib_dev, "Unable to obtain gpio descriptor for pin %d error %ld\n",
-				gpios_vector[j], PTR_ERR(desc));
-			error = true;
-			break;
+			dbg_printk(1, "Allocation failed, now using table_index %d\n", table_index);
+			lookup_table->dev_id = dev_name(board->gpib_dev);
+			gpiod_add_lookup_table(lookup_table);
+			goto try_again;
 		}
 		all_descriptors[j] = desc;
 	}
 
-	if (error) { /* undo what already done */
-		release_gpios();
-		retval = -1;
-	}
-	if (lookup_table)
-		gpiod_remove_lookup_table(lookup_table);
-	// Initialize LED trigger
-	led_trigger_register_simple("gpib", &ledtrig_gpib);
-	return retval;
+	gpiod_remove_lookup_table(lookup_table);
+
+	return 0;
+
+alloc_gpios_fail:
+	release_gpios();
+	return -1;
 }
 
 static void bb_detach(struct gpib_board *board)
@@ -1183,8 +1181,6 @@ static void bb_detach(struct gpib_board *board)
 	dbg_printk(2, "Enter with data %p\n", board->private_data);
 	if (!board->private_data)
 		return;
-
-	led_trigger_unregister_simple(ledtrig_gpib);
 
 	bb_free_irq(board, &priv->irq_DAV, NAME "_DAV");
 	bb_free_irq(board, &priv->irq_NRFD, NAME "_NRFD");
@@ -1206,7 +1202,7 @@ static void bb_detach(struct gpib_board *board)
 	free_private(board);
 }
 
-static int bb_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int bb_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct bb_priv *priv;
 	int retval = 0;
@@ -1245,7 +1241,6 @@ static int bb_attach(struct gpib_board *board, const gpib_board_config_t *config
 		gpios_vector[&(D06) - &all_descriptors[0]] = YOGA_D06_pin_nr;
 		gpios_vector[&(PE)  - &all_descriptors[0]] = -1;
 		gpios_vector[&(DC)  - &all_descriptors[0]] = -1;
-		gpios_vector[&(ACT_LED)	 - &all_descriptors[0]] = -1;
 	} else {
 		dev_err(board->gpib_dev, "Unrecognized pin map %s\n", pin_map);
 		goto bb_attach_fail;
@@ -1256,7 +1251,8 @@ static int bb_attach(struct gpib_board *board, const gpib_board_config_t *config
 	if (allocate_gpios(board))
 		goto bb_attach_fail;
 
-/* Configure SN7516X control lines.
+/*
+ * Configure SN7516X control lines.
  * drive ATN, IFC and REN as outputs only when master
  * i.e. system controller. In this mode can only be the CIC
  * When not master then enable device mode ATN, IFC & REN as inputs
@@ -1266,6 +1262,10 @@ static int bb_attach(struct gpib_board *board, const gpib_board_config_t *config
 		gpiod_direction_output(TE, 1);
 		gpiod_direction_output(PE, 1);
 	}
+/* Set main control lines to a known state */
+	gpiod_direction_output(IFC, 1);
+	gpiod_direction_output(REN, 1);
+	gpiod_direction_output(_ATN, 1);
 
 	if (strcmp(PINMAP_2, pin_map) == 0) { /* YOGA: enable level shifters */
 		gpiod_direction_output(YOGA_ENABLE, 1);
@@ -1293,8 +1293,6 @@ static int bb_attach(struct gpib_board *board, const gpib_board_config_t *config
 		       IRQF_TRIGGER_NONE))
 		goto bb_attach_fail_r;
 
-	ENABLE_IRQ(priv->irq_SRQ, IRQ_TYPE_EDGE_FALLING);
-
 	dbg_printk(0, "attached board %d\n", board->minor);
 	goto bb_attach_out;
 
@@ -1306,7 +1304,7 @@ bb_attach_out:
 	return retval;
 }
 
-static gpib_interface_t bb_interface = {
+static struct gpib_interface bb_interface = {
 	.name =	NAME,
 	.attach = bb_attach,
 	.detach = bb_detach,
@@ -1364,7 +1362,7 @@ inline long usec_diff(struct timespec64 *a, struct timespec64 *b)
 		(a->tv_nsec - b->tv_nsec) / 1000);
 }
 
-static inline int check_for_eos(struct bb_priv *priv, uint8_t byte)
+static inline int check_for_eos(struct bb_priv *priv, u8 byte)
 {
 	if (priv->eos_check)
 		return 0;

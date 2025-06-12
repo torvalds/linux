@@ -1955,7 +1955,7 @@ nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 	}
 
 	/*
-	 * For the linux implementation, if we have an unsuccesful
+	 * For the linux implementation, if we have an unsucceesful
 	 * status, they blk-mq layer can typically be called with the
 	 * non-zero status and the content of the cqe isn't important.
 	 */
@@ -2479,7 +2479,7 @@ __nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
 	 * writing the registers for shutdown and polling (call
 	 * nvme_disable_ctrl()). Given a bunch of i/o was potentially
 	 * just aborted and we will wait on those contexts, and given
-	 * there was no indication of how live the controlelr is on the
+	 * there was no indication of how live the controller is on the
 	 * link, don't send more io to create more contexts for the
 	 * shutdown. Let the controller fail via keepalive failure if
 	 * its still present.

@@ -75,22 +75,23 @@ static inline void uart_port_deref(struct uart_port *uport)
 		wake_up(&uport->state->remove_wait);
 }
 
-#define uart_port_lock(state, flags)					\
-	({								\
-		struct uart_port *__uport = uart_port_ref(state);	\
-		if (__uport)						\
-			uart_port_lock_irqsave(__uport, &flags);	\
-		__uport;						\
-	})
+static inline struct uart_port *uart_port_ref_lock(struct uart_state *state, unsigned long *flags)
+{
+	struct uart_port *uport = uart_port_ref(state);
 
-#define uart_port_unlock(uport, flags)					\
-	({								\
-		struct uart_port *__uport = uport;			\
-		if (__uport) {						\
-			uart_port_unlock_irqrestore(__uport, flags);	\
-			uart_port_deref(__uport);			\
-		}							\
-	})
+	if (uport)
+		uart_port_lock_irqsave(uport, flags);
+
+	return uport;
+}
+
+static inline void uart_port_unlock_deref(struct uart_port *uport, unsigned long flags)
+{
+	if (uport) {
+		uart_port_unlock_irqrestore(uport, flags);
+		uart_port_deref(uport);
+	}
+}
 
 static inline struct uart_port *uart_port_check(struct uart_state *state)
 {
@@ -127,10 +128,10 @@ static void uart_stop(struct tty_struct *tty)
 	struct uart_port *port;
 	unsigned long flags;
 
-	port = uart_port_lock(state, flags);
+	port = uart_port_ref_lock(state, &flags);
 	if (port)
 		port->ops->stop_tx(port);
-	uart_port_unlock(port, flags);
+	uart_port_unlock_deref(port, flags);
 }
 
 static void __uart_start(struct uart_state *state)
@@ -168,9 +169,9 @@ static void uart_start(struct tty_struct *tty)
 	struct uart_port *port;
 	unsigned long flags;
 
-	port = uart_port_lock(state, flags);
+	port = uart_port_ref_lock(state, &flags);
 	__uart_start(state);
-	uart_port_unlock(port, flags);
+	uart_port_unlock_deref(port, flags);
 }
 
 static void
@@ -258,14 +259,14 @@ static int uart_alloc_xmit_buf(struct tty_port *port)
 	if (!page)
 		return -ENOMEM;
 
-	uport = uart_port_lock(state, flags);
+	uport = uart_port_ref_lock(state, &flags);
 	if (!state->port.xmit_buf) {
 		state->port.xmit_buf = (unsigned char *)page;
 		kfifo_init(&state->port.xmit_fifo, state->port.xmit_buf,
 				PAGE_SIZE);
-		uart_port_unlock(uport, flags);
+		uart_port_unlock_deref(uport, flags);
 	} else {
-		uart_port_unlock(uport, flags);
+		uart_port_unlock_deref(uport, flags);
 		/*
 		 * Do not free() the page under the port lock, see
 		 * uart_free_xmit_buf().
@@ -289,11 +290,11 @@ static void uart_free_xmit_buf(struct tty_port *port)
 	 * console driver may need to allocate/free a debug object, which
 	 * can end up in printk() recursion.
 	 */
-	uport = uart_port_lock(state, flags);
+	uport = uart_port_ref_lock(state, &flags);
 	xmit_buf = port->xmit_buf;
 	port->xmit_buf = NULL;
 	INIT_KFIFO(port->xmit_fifo);
-	uart_port_unlock(uport, flags);
+	uart_port_unlock_deref(uport, flags);
 
 	free_page((unsigned long)xmit_buf);
 }
@@ -592,15 +593,15 @@ static int uart_put_char(struct tty_struct *tty, u8 c)
 	unsigned long flags;
 	int ret = 0;
 
-	port = uart_port_lock(state, flags);
+	port = uart_port_ref_lock(state, &flags);
 	if (!state->port.xmit_buf) {
-		uart_port_unlock(port, flags);
+		uart_port_unlock_deref(port, flags);
 		return 0;
 	}
 
 	if (port)
 		ret = kfifo_put(&state->port.xmit_fifo, c);
-	uart_port_unlock(port, flags);
+	uart_port_unlock_deref(port, flags);
 	return ret;
 }
 
@@ -623,9 +624,9 @@ static ssize_t uart_write(struct tty_struct *tty, const u8 *buf, size_t count)
 	if (WARN_ON(!state))
 		return -EL3HLT;
 
-	port = uart_port_lock(state, flags);
+	port = uart_port_ref_lock(state, &flags);
 	if (!state->port.xmit_buf) {
-		uart_port_unlock(port, flags);
+		uart_port_unlock_deref(port, flags);
 		return 0;
 	}
 
@@ -633,7 +634,7 @@ static ssize_t uart_write(struct tty_struct *tty, const u8 *buf, size_t count)
 		ret = kfifo_in(&state->port.xmit_fifo, buf, count);
 
 	__uart_start(state);
-	uart_port_unlock(port, flags);
+	uart_port_unlock_deref(port, flags);
 	return ret;
 }
 
@@ -644,9 +645,9 @@ static unsigned int uart_write_room(struct tty_struct *tty)
 	unsigned long flags;
 	unsigned int ret;
 
-	port = uart_port_lock(state, flags);
+	port = uart_port_ref_lock(state, &flags);
 	ret = kfifo_avail(&state->port.xmit_fifo);
-	uart_port_unlock(port, flags);
+	uart_port_unlock_deref(port, flags);
 	return ret;
 }
 
@@ -657,9 +658,9 @@ static unsigned int uart_chars_in_buffer(struct tty_struct *tty)
 	unsigned long flags;
 	unsigned int ret;
 
-	port = uart_port_lock(state, flags);
+	port = uart_port_ref_lock(state, &flags);
 	ret = kfifo_len(&state->port.xmit_fifo);
-	uart_port_unlock(port, flags);
+	uart_port_unlock_deref(port, flags);
 	return ret;
 }
 
@@ -678,13 +679,13 @@ static void uart_flush_buffer(struct tty_struct *tty)
 
 	pr_debug("uart_flush_buffer(%d) called\n", tty->index);
 
-	port = uart_port_lock(state, flags);
+	port = uart_port_ref_lock(state, &flags);
 	if (!port)
 		return;
 	kfifo_reset(&state->port.xmit_fifo);
 	if (port->ops->flush_buffer)
 		port->ops->flush_buffer(port);
-	uart_port_unlock(port, flags);
+	uart_port_unlock_deref(port, flags);
 	tty_port_tty_wakeup(&state->port);
 }
 
@@ -1275,14 +1276,13 @@ static int uart_get_icount(struct tty_struct *tty,
 	struct uart_state *state = tty->driver_data;
 	struct uart_icount cnow;
 	struct uart_port *uport;
+	unsigned long flags;
 
-	uport = uart_port_ref(state);
+	uport = uart_port_ref_lock(state, &flags);
 	if (!uport)
 		return -EIO;
-	uart_port_lock_irq(uport);
 	memcpy(&cnow, &uport->icount, sizeof(struct uart_icount));
-	uart_port_unlock_irq(uport);
-	uart_port_deref(uport);
+	uart_port_unlock_deref(uport, flags);
 
 	icount->cts         = cnow.cts;
 	icount->dsr         = cnow.dsr;
@@ -1914,9 +1914,10 @@ static bool uart_carrier_raised(struct tty_port *port)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport;
+	unsigned long flags;
 	int mctrl;
 
-	uport = uart_port_ref(state);
+	uport = uart_port_ref_lock(state, &flags);
 	/*
 	 * Should never observe uport == NULL since checks for hangup should
 	 * abort the tty_port_block_til_ready() loop before checking for carrier
@@ -1925,11 +1926,9 @@ static bool uart_carrier_raised(struct tty_port *port)
 	 */
 	if (WARN_ON(!uport))
 		return true;
-	uart_port_lock_irq(uport);
 	uart_enable_ms(uport);
 	mctrl = uport->ops->get_mctrl(uport);
-	uart_port_unlock_irq(uport);
-	uart_port_deref(uport);
+	uart_port_unlock_deref(uport, flags);
 
 	return mctrl & TIOCM_CAR;
 }
@@ -2178,8 +2177,8 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
  *
  * Returns: 0 on success or -%EINVAL on failure
  */
-int uart_parse_earlycon(char *p, unsigned char *iotype, resource_size_t *addr,
-			char **options)
+int uart_parse_earlycon(char *p, enum uart_iotype *iotype,
+			resource_size_t *addr, char **options)
 {
 	if (strncmp(p, "mmio,", 5) == 0) {
 		*iotype = UPIO_MEM;
@@ -3289,9 +3288,9 @@ bool uart_match_port(const struct uart_port *port1,
 	case UPIO_AU:
 	case UPIO_TSI:
 		return port1->mapbase == port2->mapbase;
+	default:
+		return false;
 	}
-
-	return false;
 }
 EXPORT_SYMBOL(uart_match_port);
 

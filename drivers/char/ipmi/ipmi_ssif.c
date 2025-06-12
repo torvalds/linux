@@ -539,7 +539,8 @@ static void start_resend(struct ssif_info *ssif_info);
 
 static void retry_timeout(struct timer_list *t)
 {
-	struct ssif_info *ssif_info = from_timer(ssif_info, t, retry_timer);
+	struct ssif_info *ssif_info = timer_container_of(ssif_info, t,
+							 retry_timer);
 	unsigned long oflags, *flags;
 	bool waiting, resend;
 
@@ -563,7 +564,8 @@ static void retry_timeout(struct timer_list *t)
 
 static void watch_timeout(struct timer_list *t)
 {
-	struct ssif_info *ssif_info = from_timer(ssif_info, t, watch_timer);
+	struct ssif_info *ssif_info = timer_container_of(ssif_info, t,
+							 watch_timer);
 	unsigned long oflags, *flags;
 
 	if (ssif_info->stopping)

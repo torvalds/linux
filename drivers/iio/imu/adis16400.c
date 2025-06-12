@@ -1212,7 +1212,7 @@ static const struct spi_device_id adis16400_id[] = {
 	{"adis16405", ADIS16400},
 	{"adis16445", ADIS16445},
 	{"adis16448", ADIS16448},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, adis16400_id);
 

@@ -512,12 +512,13 @@ void amdgpu_device_detect_runtime_pm_mode(struct amdgpu_device *adev)
 				break;
 			case CHIP_VEGA10:
 				/* enable BACO as runpm mode if noretry=0 */
-				if (!adev->gmc.noretry)
+				if (!adev->gmc.noretry && !amdgpu_passthrough(adev))
 					adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 				break;
 			default:
 				/* enable BACO as runpm mode on CI+ */
-				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
+				if (!amdgpu_passthrough(adev))
+					adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 				break;
 			}
 
@@ -4728,7 +4729,7 @@ fence_driver_init:
 
 	amdgpu_fru_sysfs_init(adev);
 	amdgpu_reg_state_sysfs_init(adev);
-	amdgpu_xcp_cfg_sysfs_init(adev);
+	amdgpu_xcp_sysfs_init(adev);
 
 	if (IS_ENABLED(CONFIG_PERF_EVENTS))
 		r = amdgpu_pmu_init(adev);
@@ -4858,7 +4859,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 	amdgpu_fru_sysfs_fini(adev);
 
 	amdgpu_reg_state_sysfs_fini(adev);
-	amdgpu_xcp_cfg_sysfs_fini(adev);
+	amdgpu_xcp_sysfs_fini(adev);
 
 	/* disable ras feature must before hw fini */
 	amdgpu_ras_pre_fini(adev);
