@@ -230,8 +230,8 @@ put_exe_file:
  * into corename, which must have space for at least CORENAME_MAX_SIZE
  * bytes plus one byte for the zero terminator.
  */
-static int coredump_parse(struct core_name *cn, struct coredump_params *cprm,
-			  size_t **argv, int *argc)
+static bool coredump_parse(struct core_name *cn, struct coredump_params *cprm,
+			   size_t **argv, int *argc)
 {
 	const struct cred *cred = current_cred();
 	const char *pat_ptr = core_pattern;
@@ -251,7 +251,7 @@ static int coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 	else
 		cn->core_type = COREDUMP_FILE;
 	if (expand_corename(cn, core_name_size))
-		return -ENOMEM;
+		return false;
 	cn->corename[0] = '\0';
 
 	switch (cn->core_type) {
@@ -259,33 +259,33 @@ static int coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 		int argvs = sizeof(core_pattern) / 2;
 		(*argv) = kmalloc_array(argvs, sizeof(**argv), GFP_KERNEL);
 		if (!(*argv))
-			return -ENOMEM;
+			return false;
 		(*argv)[(*argc)++] = 0;
 		++pat_ptr;
 		if (!(*pat_ptr))
-			return -ENOMEM;
+			return false;
 		break;
 	}
 	case COREDUMP_SOCK: {
 		/* skip the @ */
 		pat_ptr++;
 		if (!(*pat_ptr))
-			return -ENOMEM;
+			return false;
 		if (*pat_ptr == '@') {
 			pat_ptr++;
 			if (!(*pat_ptr))
-				return -ENOMEM;
+				return false;
 
 			cn->core_type = COREDUMP_SOCK_REQ;
 		}
 
 		err = cn_printf(cn, "%s", pat_ptr);
 		if (err)
-			return err;
+			return false;
 
 		/* Require absolute paths. */
 		if (cn->corename[0] != '/')
-			return -EINVAL;
+			return false;
 
 		/*
 		 * Ensure we can uses spaces to indicate additional
@@ -293,7 +293,7 @@ static int coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 		 */
 		if (strchr(cn->corename, ' ')) {
 			coredump_report_failure("Coredump socket may not %s contain spaces", cn->corename);
-			return -EINVAL;
+			return false;
 		}
 
 		/*
@@ -303,13 +303,13 @@ static int coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 		 * via /proc/<pid>, using the SO_PEERPIDFD to guard
 		 * against pid recycling when opening /proc/<pid>.
 		 */
-		return 0;
+		return true;
 	}
 	case COREDUMP_FILE:
 		break;
 	default:
 		WARN_ON_ONCE(true);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Repeat as long as we have more pattern to process and more output
@@ -447,7 +447,7 @@ static int coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 		}
 
 		if (err)
-			return err;
+			return false;
 	}
 
 out:
@@ -457,9 +457,9 @@ out:
 	 * and core_uses_pid is set, then .%pid will be appended to
 	 * the filename. Do not do this for piped commands. */
 	if (cn->core_type == COREDUMP_FILE && !pid_in_pattern && core_uses_pid)
-		return cn_printf(cn, ".%d", task_tgid_vnr(current));
+		return cn_printf(cn, ".%d", task_tgid_vnr(current)) == 0;
 
-	return 0;
+	return true;
 }
 
 static int zap_process(struct signal_struct *signal, int exit_code)
@@ -911,8 +911,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 
 	old_cred = override_creds(cred);
 
-	retval = coredump_parse(&cn, &cprm, &argv, &argc);
-	if (retval < 0) {
+	if (!coredump_parse(&cn, &cprm, &argv, &argc)) {
 		coredump_report_failure("format_corename failed, aborting core");
 		goto fail_unlock;
 	}
