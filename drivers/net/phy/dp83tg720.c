@@ -13,12 +13,58 @@
 #include "open_alliance_helpers.h"
 
 /*
+ * DP83TG720 PHY Limitations and Workarounds
+ *
+ * The DP83TG720 1000BASE-T1 PHY has several limitations that require
+ * software-side mitigations. These workarounds are implemented throughout
+ * this driver. This section documents the known issues and their corresponding
+ * mitigation strategies.
+ *
+ * 1. Unreliable Link Detection and Synchronized Reset Deadlock
+ * ------------------------------------------------------------
+ * After a link loss or during link establishment, the DP83TG720 PHY may fail
+ * to detect or report link status correctly. As of June 2025, no public
+ * errata sheet for the DP83TG720 PHY documents this behavior.
+ * The "DP83TC81x, DP83TG72x Software Implementation Guide" application note
+ * (SNLA404, available at https://www.ti.com/lit/an/snla404/snla404.pdf)
+ * recommends performing a soft restart if polling for a link fails to establish
+ * a connection after 100ms. This procedure is adopted as the workaround for the
+ * observed link detection issue.
+ *
+ * However, in point-to-point setups where both link partners use the same
+ * driver (e.g. Linux on both sides), a synchronized reset pattern may emerge.
+ * This leads to a deadlock, where both PHYs reset at the same time and
+ * continuously miss each other during auto-negotiation.
+ *
+ * To address this, the reset procedure includes two components:
+ *
+ * - A **fixed minimum delay of 1ms** after a hardware reset. The datasheet
+ *   "DP83TG720S-Q1 1000BASE-T1 Automotive Ethernet PHY with SGMII and RGMII"
+ *   specifies this as the "Post reset stabilization-time prior to MDC preamble
+ *   for register access" (T6.2), ensuring the PHY is ready for MDIO
+ *   operations.
+ *
+ * - An **additional asymmetric delay**, empirically chosen based on
+ *   master/slave role. This reduces the risk of synchronized resets on both
+ *   link partners. Values are selected to avoid periodic overlap and ensure
+ *   the link is re-established within a few cycles.
+ *
+ * The functions that implement this logic are:
+ * - dp83tg720_soft_reset()
+ * - dp83tg720_get_next_update_time()
+ */
+
+/*
  * DP83TG720S_POLL_ACTIVE_LINK - Polling interval in milliseconds when the link
  *				 is active.
  * DP83TG720S_POLL_NO_LINK_MIN - Minimum polling interval in milliseconds when
  *				 the link is down.
  * DP83TG720S_POLL_NO_LINK_MAX - Maximum polling interval in milliseconds when
  *				 the link is down.
+ * DP83TG720S_RESET_DELAY_MS_MASTER - Delay after a reset before attempting
+ *				 to establish a link again for master phy.
+ * DP83TG720S_RESET_DELAY_MS_SLAVE  - Delay after a reset before attempting
+ *				 to establish a link again for slave phy.
  *
  * These values are not documented or officially recommended by the vendor but
  * were determined through empirical testing. They achieve a good balance in
@@ -28,6 +74,8 @@
 #define DP83TG720S_POLL_ACTIVE_LINK		1000
 #define DP83TG720S_POLL_NO_LINK_MIN		100
 #define DP83TG720S_POLL_NO_LINK_MAX		1000
+#define DP83TG720S_RESET_DELAY_MS_MASTER	97
+#define DP83TG720S_RESET_DELAY_MS_SLAVE		149
 
 #define DP83TG720S_PHY_ID			0x2000a284
 
@@ -199,6 +247,26 @@ static int dp83tg720_update_stats(struct phy_device *phydev)
 	priv->stats.rx_err_pkt_cnt += ret;
 
 	return 0;
+}
+
+static int dp83tg720_soft_reset(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_write(phydev, DP83TG720S_PHY_RESET, DP83TG720S_HW_RESET);
+	if (ret)
+		return ret;
+
+	/* Include mandatory MDC-access delay (1ms) + extra asymmetric delay to
+	 * avoid synchronized reset deadlock. See section 1 in the top-of-file
+	 * comment block.
+	 */
+	if (phydev->master_slave_state == MASTER_SLAVE_STATE_SLAVE)
+		msleep(DP83TG720S_RESET_DELAY_MS_SLAVE);
+	else
+		msleep(DP83TG720S_RESET_DELAY_MS_MASTER);
+
+	return ret;
 }
 
 static void dp83tg720_get_link_stats(struct phy_device *phydev,
@@ -477,18 +545,10 @@ static int dp83tg720_config_init(struct phy_device *phydev)
 {
 	int ret;
 
-	/* Software Restart is not enough to recover from a link failure.
-	 * Using Hardware Reset instead.
-	 */
-	ret = phy_write(phydev, DP83TG720S_PHY_RESET, DP83TG720S_HW_RESET);
+	/* Reset the PHY to recover from a link failure */
+	ret = dp83tg720_soft_reset(phydev);
 	if (ret)
 		return ret;
-
-	/* Wait until MDC can be used again.
-	 * The wait value of one 1ms is documented in "DP83TG720S-Q1 1000BASE-T1
-	 * Automotive Ethernet PHY with SGMII and RGMII" datasheet.
-	 */
-	usleep_range(1000, 2000);
 
 	if (phy_interface_is_rgmii(phydev)) {
 		ret = dp83tg720_config_rgmii_delay(phydev);
@@ -582,6 +642,7 @@ static struct phy_driver dp83tg720_driver[] = {
 
 	.flags          = PHY_POLL_CABLE_TEST,
 	.probe		= dp83tg720_probe,
+	.soft_reset	= dp83tg720_soft_reset,
 	.config_aneg	= dp83tg720_config_aneg,
 	.read_status	= dp83tg720_read_status,
 	.get_features	= genphy_c45_pma_read_ext_abilities,
