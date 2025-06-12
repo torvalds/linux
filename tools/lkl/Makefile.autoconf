@@ -248,10 +248,6 @@ endef
 define do_autoconf_mmu
   $(call set_autoconf_var,MMU,y)
   $(call set_kernel_config,MMU,y)
-  # Don't need swap in LKL. CONFIG_SHMEM generates a compile-time assertion
-  # when build with gcc, however, works fine with clang. The issues is in macro
-  # HPAGE_PMD_SIZE which should be optimized out but is not in case of gcc.
-  $(call set_kernel_config,SHMEM,n)
   $(if $(MMU_KUNIT), $(call mmu_test_enable))
 endef
 
