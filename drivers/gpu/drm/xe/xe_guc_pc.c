@@ -51,6 +51,7 @@
 
 #define LNL_MERT_FREQ_CAP	800
 #define BMG_MERT_FREQ_CAP	2133
+#define BMG_MIN_FREQ		1200
 
 #define SLPC_RESET_TIMEOUT_MS 5 /* roughly 5ms, but no need for precision */
 #define SLPC_RESET_EXTENDED_TIMEOUT_MS 1000 /* To be used only at pc_start */
@@ -817,6 +818,7 @@ void xe_guc_pc_init_early(struct xe_guc_pc *pc)
 
 static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 {
+	struct xe_tile *tile = gt_to_tile(pc_to_gt(pc));
 	int ret;
 
 	lockdep_assert_held(&pc->freq_lock);
@@ -842,6 +844,9 @@ static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 	 */
 	if (pc_get_min_freq(pc) > pc->rp0_freq)
 		ret = pc_set_min_freq(pc, pc->rp0_freq);
+
+	if (XE_WA(tile->primary_gt, 14022085890))
+		ret = pc_set_min_freq(pc, max(BMG_MIN_FREQ, pc_get_min_freq(pc)));
 
 out:
 	return ret;
