@@ -246,17 +246,17 @@ static void px30_set_to_rmii(struct rk_priv_data *bsp_priv)
 		     PX30_GMAC_PHY_INTF_SEL_RMII);
 }
 
-static void px30_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
+static int px30_set_speed(struct rk_priv_data *bsp_priv,
+			  phy_interface_t interface, int speed)
 {
 	struct clk *clk_mac_speed = bsp_priv->clks[RK_CLK_MAC_SPEED].clk;
 	struct device *dev = &bsp_priv->pdev->dev;
 	unsigned int con1;
 	long rate;
-	int ret;
 
 	if (!clk_mac_speed) {
 		dev_err(dev, "%s: Missing clk_mac_speed clock\n", __func__);
-		return;
+		return -EINVAL;
 	}
 
 	if (speed == 10) {
@@ -267,20 +267,17 @@ static void px30_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		rate = 25000000;
 	} else {
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
-		return;
+		return -EINVAL;
 	}
 
 	regmap_write(bsp_priv->grf, PX30_GRF_GMAC_CON1, con1);
 
-	ret = clk_set_rate(clk_mac_speed, rate);
-	if (ret)
-		dev_err(dev, "%s: set clk_mac_speed rate %ld failed: %d\n",
-			__func__, rate, ret);
+	return clk_set_rate(clk_mac_speed, rate);
 }
 
 static const struct rk_gmac_ops px30_ops = {
 	.set_to_rmii = px30_set_to_rmii,
-	.set_rmii_speed = px30_set_rmii_speed,
+	.set_speed = px30_set_speed,
 };
 
 #define RK3128_GRF_MAC_CON0	0x0168
