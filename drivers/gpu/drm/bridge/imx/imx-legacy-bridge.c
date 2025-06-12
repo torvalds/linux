@@ -5,6 +5,8 @@
  * bridge driver for legacy DT bindings, utilizing display-timings node
  */
 
+#include <linux/export.h>
+
 #include <drm/drm_bridge.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_probe_helper.h>

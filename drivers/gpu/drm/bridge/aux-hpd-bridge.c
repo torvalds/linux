@@ -5,6 +5,7 @@
  * Author: Dmitry Baryshkov <dmitry.baryshkov@linaro.org>
  */
 #include <linux/auxiliary_bus.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/of.h>
 

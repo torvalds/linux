@@ -8,6 +8,7 @@
  */
 #include <linux/completion.h>
 #include <linux/hdmi.h>
+#include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/module.h>

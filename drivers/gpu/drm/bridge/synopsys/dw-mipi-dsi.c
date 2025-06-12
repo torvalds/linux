@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/iopoll.h>
 #include <linux/math64.h>
 #include <linux/media-bus-format.h>
