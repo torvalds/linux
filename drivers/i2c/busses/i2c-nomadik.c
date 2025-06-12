@@ -996,8 +996,8 @@ static unsigned int nmk_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm nmk_i2c_algo = {
-	.master_xfer	= nmk_i2c_xfer,
-	.functionality	= nmk_i2c_functionality
+	.xfer = nmk_i2c_xfer,
+	.functionality = nmk_i2c_functionality
 };
 
 static void nmk_i2c_of_probe(struct device_node *np,

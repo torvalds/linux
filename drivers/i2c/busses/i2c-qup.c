@@ -1634,13 +1634,13 @@ static u32 qup_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm qup_i2c_algo = {
-	.master_xfer	= qup_i2c_xfer,
-	.functionality	= qup_i2c_func,
+	.xfer = qup_i2c_xfer,
+	.functionality = qup_i2c_func,
 };
 
 static const struct i2c_algorithm qup_i2c_algo_v2 = {
-	.master_xfer	= qup_i2c_xfer_v2,
-	.functionality	= qup_i2c_func,
+	.xfer = qup_i2c_xfer_v2,
+	.functionality = qup_i2c_func,
 };
 
 /*
