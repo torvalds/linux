@@ -18,6 +18,12 @@ void __cold libeth_xsk_tx_return_bulk(const struct libeth_xdp_tx_frame *bq,
 		libeth_xsk_buff_free_slow(bq[i].xsk);
 }
 
+/* XSk TMO */
+
+const struct xsk_tx_metadata_ops libeth_xsktmo_slow = {
+	.tmo_request_checksum		= libeth_xsktmo_req_csum,
+};
+
 /* Rx polling path */
 
 /**

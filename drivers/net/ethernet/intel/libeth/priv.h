@@ -13,6 +13,8 @@ struct libeth_xdp_tx_frame;
 struct skb_shared_info;
 struct xdp_frame_bulk;
 
+extern const struct xsk_tx_metadata_ops libeth_xsktmo_slow;
+
 void libeth_xsk_tx_return_bulk(const struct libeth_xdp_tx_frame *bq,
 			       u32 count);
 
