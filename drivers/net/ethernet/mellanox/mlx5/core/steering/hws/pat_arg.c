@@ -279,7 +279,7 @@ int mlx5hws_pat_get_pattern(struct mlx5hws_context *ctx,
 	return ret;
 
 clean_pattern:
-	mlx5hws_cmd_header_modify_pattern_destroy(ctx->mdev, *pattern_id);
+	mlx5hws_cmd_header_modify_pattern_destroy(ctx->mdev, ptrn_id);
 out_unlock:
 	mutex_unlock(&ctx->pattern_cache->lock);
 	return ret;
@@ -527,7 +527,6 @@ int mlx5hws_pat_calc_nop(__be64 *pattern, size_t num_actions,
 			 u32 *nop_locations, __be64 *new_pat)
 {
 	u16 prev_src_field = INVALID_FIELD, prev_dst_field = INVALID_FIELD;
-	u16 src_field, dst_field;
 	u8 action_type;
 	bool dependent;
 	size_t i, j;
@@ -539,6 +538,9 @@ int mlx5hws_pat_calc_nop(__be64 *pattern, size_t num_actions,
 		return 0;
 
 	for (i = 0, j = 0; i < num_actions; i++, j++) {
+		u16 src_field = INVALID_FIELD;
+		u16 dst_field = INVALID_FIELD;
+
 		if (j >= max_actions)
 			return -EINVAL;
 

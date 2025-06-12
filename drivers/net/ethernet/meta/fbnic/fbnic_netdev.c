@@ -52,6 +52,8 @@ int __fbnic_open(struct fbnic_net *fbn)
 	fbnic_bmc_rpc_init(fbd);
 	fbnic_rss_reinit(fbd, fbn);
 
+	phylink_resume(fbn->phylink);
+
 	return 0;
 time_stop:
 	fbnic_time_stop(fbn);
@@ -83,6 +85,8 @@ static int fbnic_open(struct net_device *netdev)
 static int fbnic_stop(struct net_device *netdev)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	phylink_suspend(fbn->phylink, fbnic_bmc_present(fbn->fbd));
 
 	fbnic_down(fbn);
 	fbnic_pcs_free_irq(fbn->fbd);
