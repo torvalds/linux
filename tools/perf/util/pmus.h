@@ -35,5 +35,6 @@ struct perf_pmu *perf_pmus__add_test_hwmon_pmu(int hwmon_dir,
 					       const char *sysfs_name,
 					       const char *name);
 struct perf_pmu *perf_pmus__fake_pmu(void);
+struct perf_pmu *perf_pmus__find_core_pmu(void);
 
 #endif /* __PMUS_H */
