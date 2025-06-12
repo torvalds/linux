@@ -12,6 +12,7 @@
 
 #include <linux/init.h>
 #include <linux/miscdevice.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 
 #include "zcrypt_api.h"

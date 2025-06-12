@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/panic_notifier.h>
