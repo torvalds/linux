@@ -52,15 +52,37 @@
  * The functions that implement this logic are:
  * - dp83tg720_soft_reset()
  * - dp83tg720_get_next_update_time()
+ *
+ * 2. Polling-Based Link Detection and IRQ Support
+ * -----------------------------------------------
+ * Due to the PHY-specific limitation described in section 1, link-up events
+ * cannot be reliably detected via interrupts on the DP83TG720. Therefore,
+ * polling is required to detect transitions from link-down to link-up.
+ *
+ * While link-down events *can* be detected via IRQs on this PHY, this driver
+ * currently does **not** implement interrupt support. As a result, all link
+ * state changes must be detected using polling.
+ *
+ * Polling behavior:
+ * - When the link is up: slow polling (e.g. 1s).
+ * - When the link just went down: fast polling for a short time.
+ * - When the link stays down: fallback to slow polling.
+ *
+ * This design balances responsiveness and CPU usage. It sacrifices fast link-up
+ * times in cases where the link is expected to remain down for extended periods,
+ * assuming that such systems do not require immediate reactivity.
  */
 
 /*
  * DP83TG720S_POLL_ACTIVE_LINK - Polling interval in milliseconds when the link
  *				 is active.
- * DP83TG720S_POLL_NO_LINK_MIN - Minimum polling interval in milliseconds when
- *				 the link is down.
- * DP83TG720S_POLL_NO_LINK_MAX - Maximum polling interval in milliseconds when
- *				 the link is down.
+ * DP83TG720S_POLL_NO_LINK     - Polling interval in milliseconds when the
+ *				 link is down.
+ * DP83TG720S_FAST_POLL_DURATION_MS - Timeout in milliseconds for no-link
+ *				 polling after which polling interval is
+ *				 increased.
+ * DP83TG720S_POLL_SLOW	       - Slow polling interval when there is no
+ *				 link for a prolongued period.
  * DP83TG720S_RESET_DELAY_MS_MASTER - Delay after a reset before attempting
  *				 to establish a link again for master phy.
  * DP83TG720S_RESET_DELAY_MS_SLAVE  - Delay after a reset before attempting
@@ -71,9 +93,10 @@
  * minimizing the number of reset retries while ensuring reliable link recovery
  * within a reasonable timeframe.
  */
-#define DP83TG720S_POLL_ACTIVE_LINK		1000
-#define DP83TG720S_POLL_NO_LINK_MIN		100
-#define DP83TG720S_POLL_NO_LINK_MAX		1000
+#define DP83TG720S_POLL_ACTIVE_LINK		421
+#define DP83TG720S_POLL_NO_LINK			149
+#define DP83TG720S_FAST_POLL_DURATION_MS	6000
+#define DP83TG720S_POLL_SLOW			1117
 #define DP83TG720S_RESET_DELAY_MS_MASTER	97
 #define DP83TG720S_RESET_DELAY_MS_SLAVE		149
 
@@ -172,6 +195,7 @@ struct dp83tg720_stats {
 
 struct dp83tg720_priv {
 	struct dp83tg720_stats stats;
+	unsigned long last_link_down_jiffies;
 };
 
 /**
@@ -575,50 +599,42 @@ static int dp83tg720_probe(struct phy_device *phydev)
 }
 
 /**
- * dp83tg720_get_next_update_time - Determine the next update time for PHY
- *                                  state
+ * dp83tg720_get_next_update_time - Return next polling interval for PHY state
  * @phydev: Pointer to the phy_device structure
  *
- * This function addresses a limitation of the DP83TG720 PHY, which cannot
- * reliably detect or report a stable link state. To recover from such
- * scenarios, the PHY must be periodically reset when the link is down. However,
- * if the link partner also runs Linux with the same driver, synchronized reset
- * intervals can lead to a deadlock where the link never establishes due to
- * simultaneous resets on both sides.
+ * Implements adaptive polling interval logic depending on link state and
+ * downtime duration. See the "2. Polling-Based Link Detection and IRQ Support"
+ * section at the top of this file for details.
  *
- * To avoid this, the function implements randomized polling intervals when the
- * link is down. It ensures that reset intervals are desynchronized by
- * introducing a random delay between a configured minimum and maximum range.
- * When the link is up, a fixed polling interval is used to minimize overhead.
- *
- * This mechanism guarantees that the link will reestablish within 10 seconds
- * in the worst-case scenario.
- *
- * Return: Time (in jiffies) until the next update event for the PHY state
- * machine.
+ * Return: Time (in jiffies) until the next poll
  */
 static unsigned int dp83tg720_get_next_update_time(struct phy_device *phydev)
 {
+	struct dp83tg720_priv *priv = phydev->priv;
 	unsigned int next_time_jiffies;
 
 	if (phydev->link) {
-		/* When the link is up, use a fixed 1000ms interval
-		 * (in jiffies)
-		 */
+		priv->last_link_down_jiffies = 0;
+
+		/* When the link is up, use a slower interval (in jiffies) */
 		next_time_jiffies =
 			msecs_to_jiffies(DP83TG720S_POLL_ACTIVE_LINK);
 	} else {
-		unsigned int min_jiffies, max_jiffies, rand_jiffies;
+		unsigned long now = jiffies;
 
-		/* When the link is down, randomize interval between min/max
-		 * (in jiffies)
-		 */
-		min_jiffies = msecs_to_jiffies(DP83TG720S_POLL_NO_LINK_MIN);
-		max_jiffies = msecs_to_jiffies(DP83TG720S_POLL_NO_LINK_MAX);
+		if (!priv->last_link_down_jiffies)
+			priv->last_link_down_jiffies = now;
 
-		rand_jiffies = min_jiffies +
-			get_random_u32_below(max_jiffies - min_jiffies + 1);
-		next_time_jiffies = rand_jiffies;
+		if (time_before(now, priv->last_link_down_jiffies +
+			  msecs_to_jiffies(DP83TG720S_FAST_POLL_DURATION_MS))) {
+			/* Link recently went down: fast polling */
+			next_time_jiffies =
+				msecs_to_jiffies(DP83TG720S_POLL_NO_LINK);
+		} else {
+			/* Link has been down for a while: slow polling */
+			next_time_jiffies =
+				msecs_to_jiffies(DP83TG720S_POLL_SLOW);
+		}
 	}
 
 	/* Ensure the polling time is at least one jiffy */
