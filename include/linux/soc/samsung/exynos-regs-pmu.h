@@ -665,6 +665,11 @@
 /* For Exynos990 */
 #define EXYNOS990_PHY_CTRL_USB20				(0x72C)
 
+/* For Exynos7870 */
+#define EXYNOS7870_MIPI_PHY_CONTROL0				(0x070c)
+#define EXYNOS7870_MIPI_PHY_CONTROL1				(0x0714)
+#define EXYNOS7870_MIPI_PHY_CONTROL2				(0x0734)
+
 /* For Tensor GS101 */
 /* PMU ALIVE */
 #define GS101_SYSIP_DAT0					(0x810)
