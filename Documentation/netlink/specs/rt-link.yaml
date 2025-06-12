@@ -603,7 +603,7 @@ definitions:
         name: optmask
         type: u32
   -
-    name: if_stats_msg
+    name: if-stats-msg
     type: struct
     members:
       -
@@ -2486,7 +2486,7 @@ operations:
       name: getstats
       doc: Get / dump link stats.
       attribute-set: stats-attrs
-      fixed-header: if_stats_msg
+      fixed-header: if-stats-msg
       do:
         request:
           value: 94

@@ -216,7 +216,7 @@ definitions:
     type: struct
     members:
       -
-        name: nd_target
+        name: nd-target
         type: binary
         len: 16
         byte-order: big-endian
@@ -258,12 +258,12 @@ definitions:
     type: struct
     members:
       -
-        name: vlan_tpid
+        name: vlan-tpid
         type: u16
         byte-order: big-endian
         doc: Tag protocol identifier (TPID) to push.
       -
-        name: vlan_tci
+        name: vlan-tci
         type: u16
         byte-order: big-endian
         doc: Tag control identifier (TCI) to push.
