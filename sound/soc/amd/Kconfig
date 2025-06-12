@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "AMD"
+
 config SND_SOC_AMD_ACP
 	tristate "AMD Audio Coprocessor support"
 	help
@@ -185,3 +187,4 @@ config SND_SOC_AMD_PS_MACH
           If unsure select "N".
 
 endif
+endmenu
