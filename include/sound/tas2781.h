@@ -17,6 +17,10 @@
 #ifndef __TAS2781_H__
 #define __TAS2781_H__
 
+#ifdef CONFIG_SND_SOC_TAS2781_ACOUST_I2C
+#include <linux/debugfs.h>
+#endif
+
 #include "tas2781-dsp.h"
 
 /* version number */
