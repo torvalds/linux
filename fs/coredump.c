@@ -1067,6 +1067,18 @@ static bool coredump_write(struct core_name *cn,
 	return true;
 }
 
+static void coredump_cleanup(struct core_name *cn, struct coredump_params *cprm)
+{
+	if (cprm->file)
+		filp_close(cprm->file, NULL);
+	if (cn->core_pipe_limit) {
+		VFS_WARN_ON_ONCE(cn->core_type != COREDUMP_PIPE);
+		atomic_dec(&core_pipe_count);
+	}
+	kfree(cn->corename);
+	coredump_finish(cn->core_dumped);
+}
+
 void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct core_state core_state;
@@ -1119,7 +1131,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 
 	if (!coredump_parse(&cn, &cprm, &argv, &argc)) {
 		coredump_report_failure("format_corename failed, aborting core");
-		goto fail_unlock;
+		goto close_fail;
 	}
 
 	switch (cn.core_type) {
@@ -1182,15 +1194,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	}
 
 close_fail:
-	if (cprm.file)
-		filp_close(cprm.file, NULL);
-	if (cn.core_pipe_limit) {
-		VFS_WARN_ON_ONCE(cn.core_type != COREDUMP_PIPE);
-		atomic_dec(&core_pipe_count);
-	}
-fail_unlock:
-	kfree(cn.corename);
-	coredump_finish(cn.core_dumped);
+	coredump_cleanup(&cn, &cprm);
 	revert_creds(old_cred);
 	return;
 }
