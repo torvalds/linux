@@ -1399,9 +1399,17 @@ static inline bool check_coredump_socket(void)
 	if (current->nsproxy->mnt_ns != init_task.nsproxy->mnt_ns)
 		return false;
 
-	/* Must be an absolute path or the socket request. */
-	if (*(core_pattern + 1) != '/' && *(core_pattern + 1) != '@')
+	/* Must be an absolute path... */
+	if (core_pattern[1] != '/') {
+		/* ... or the socket request protocol... */
+		if (core_pattern[1] != '@')
+			return false;
+		/* ... and if so must be an absolute path. */
+		if (core_pattern[2] != '/')
+			return false;
+		/* Anything else is unsupported. */
 		return false;
+	}
 
 	return true;
 }
