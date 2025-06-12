@@ -855,8 +855,6 @@ static irqreturn_t igbvf_msix_other(int irq, void *data)
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	adapter->int_counter1++;
-
 	hw->mac.get_link_status = 1;
 	if (!test_bit(__IGBVF_DOWN, &adapter->state))
 		mod_timer(&adapter->watchdog_timer, jiffies + 1);
@@ -898,8 +896,6 @@ static irqreturn_t igbvf_intr_msix_rx(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
-
-	adapter->int_counter0++;
 
 	/* Write the ITR value calculated at the end of the
 	 * previous interrupt.
