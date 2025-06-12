@@ -970,6 +970,63 @@ static bool coredump_file(struct core_name *cn, struct coredump_params *cprm,
 	return true;
 }
 
+static bool coredump_pipe(struct core_name *cn, struct coredump_params *cprm,
+			  size_t *argv, int argc)
+{
+	int argi;
+	char **helper_argv __free(kfree) = NULL;
+	struct subprocess_info *sub_info;
+
+	if (cprm->limit == 1) {
+		/* See umh_coredump_setup() which sets RLIMIT_CORE = 1.
+		 *
+		 * Normally core limits are irrelevant to pipes, since
+		 * we're not writing to the file system, but we use
+		 * cprm.limit of 1 here as a special value, this is a
+		 * consistent way to catch recursive crashes.
+		 * We can still crash if the core_pattern binary sets
+		 * RLIM_CORE = !1, but it runs as root, and can do
+		 * lots of stupid things.
+		 *
+		 * Note that we use task_tgid_vnr here to grab the pid
+		 * of the process group leader.  That way we get the
+		 * right pid if a thread in a multi-threaded
+		 * core_pattern process dies.
+		 */
+		coredump_report_failure("RLIMIT_CORE is set to 1, aborting core");
+		return false;
+	}
+	cprm->limit = RLIM_INFINITY;
+
+	cn->core_pipe_limit = atomic_inc_return(&core_pipe_count);
+	if (core_pipe_limit && (core_pipe_limit < cn->core_pipe_limit)) {
+		coredump_report_failure("over core_pipe_limit, skipping core dump");
+		return false;
+	}
+
+	helper_argv = kmalloc_array(argc + 1, sizeof(*helper_argv), GFP_KERNEL);
+	if (!helper_argv) {
+		coredump_report_failure("%s failed to allocate memory", __func__);
+		return false;
+	}
+	for (argi = 0; argi < argc; argi++)
+		helper_argv[argi] = cn->corename + argv[argi];
+	helper_argv[argi] = NULL;
+
+	sub_info = call_usermodehelper_setup(helper_argv[0], helper_argv, NULL,
+					     GFP_KERNEL, umh_coredump_setup,
+					     NULL, cprm);
+	if (!sub_info)
+		return false;
+
+	if (call_usermodehelper_exec(sub_info, UMH_WAIT_EXEC)) {
+		coredump_report_failure("|%s pipe failed", cn->corename);
+		return false;
+	}
+
+	return true;
+}
+
 void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct core_state core_state;
@@ -1031,63 +1088,10 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 		if (!coredump_file(&cn, &cprm, binfmt))
 			goto close_fail;
 		break;
-	case COREDUMP_PIPE: {
-		int argi;
-		char **helper_argv;
-		struct subprocess_info *sub_info;
-
-		if (cprm.limit == 1) {
-			/* See umh_coredump_setup() which sets RLIMIT_CORE = 1.
-			 *
-			 * Normally core limits are irrelevant to pipes, since
-			 * we're not writing to the file system, but we use
-			 * cprm.limit of 1 here as a special value, this is a
-			 * consistent way to catch recursive crashes.
-			 * We can still crash if the core_pattern binary sets
-			 * RLIM_CORE = !1, but it runs as root, and can do
-			 * lots of stupid things.
-			 *
-			 * Note that we use task_tgid_vnr here to grab the pid
-			 * of the process group leader.  That way we get the
-			 * right pid if a thread in a multi-threaded
-			 * core_pattern process dies.
-			 */
-			coredump_report_failure("RLIMIT_CORE is set to 1, aborting core");
+	case COREDUMP_PIPE:
+		if (!coredump_pipe(&cn, &cprm, argv, argc))
 			goto close_fail;
-		}
-		cprm.limit = RLIM_INFINITY;
-
-		cn.core_pipe_limit = atomic_inc_return(&core_pipe_count);
-		if (core_pipe_limit && (core_pipe_limit < cn.core_pipe_limit)) {
-			coredump_report_failure("over core_pipe_limit, skipping core dump");
-			goto close_fail;
-		}
-
-		helper_argv = kmalloc_array(argc + 1, sizeof(*helper_argv),
-					    GFP_KERNEL);
-		if (!helper_argv) {
-			coredump_report_failure("%s failed to allocate memory", __func__);
-			goto close_fail;
-		}
-		for (argi = 0; argi < argc; argi++)
-			helper_argv[argi] = cn.corename + argv[argi];
-		helper_argv[argi] = NULL;
-
-		retval = -ENOMEM;
-		sub_info = call_usermodehelper_setup(helper_argv[0],
-						helper_argv, NULL, GFP_KERNEL,
-						umh_coredump_setup, NULL, &cprm);
-		if (sub_info)
-			retval = call_usermodehelper_exec(sub_info,
-							  UMH_WAIT_EXEC);
-
-		kfree(helper_argv);
-		if (retval) {
-			coredump_report_failure("|%s pipe failed", cn.corename);
-			goto close_fail;
-		}
 		break;
-	}
 	case COREDUMP_SOCK_REQ:
 		fallthrough;
 	case COREDUMP_SOCK:
