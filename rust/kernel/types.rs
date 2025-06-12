@@ -43,6 +43,7 @@ pub unsafe trait ForeignOwnable: Sized {
     /// # Guarantees
     ///
     /// - Minimum alignment of returned pointer is [`Self::FOREIGN_ALIGN`].
+    /// - The returned pointer is not null.
     ///
     /// [`from_foreign`]: Self::from_foreign
     /// [`try_from_foreign`]: Self::try_from_foreign
