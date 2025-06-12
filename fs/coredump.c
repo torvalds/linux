@@ -1074,7 +1074,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	struct mm_struct *mm = current->mm;
 	struct linux_binfmt * binfmt;
 	const struct cred *old_cred;
-	struct cred *cred;
+	struct cred *cred __free(put_cred) = NULL;
 	int retval = 0;
 	size_t *argv __free(kfree) = NULL;
 	int argc = 0;
@@ -1113,7 +1113,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 
 	retval = coredump_wait(siginfo->si_signo, &core_state);
 	if (retval < 0)
-		goto fail_creds;
+		return;
 
 	old_cred = override_creds(cred);
 
@@ -1192,8 +1192,6 @@ fail_unlock:
 	kfree(cn.corename);
 	coredump_finish(cn.core_dumped);
 	revert_creds(old_cred);
-fail_creds:
-	put_cred(cred);
 	return;
 }
 
