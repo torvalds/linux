@@ -62,6 +62,7 @@ TRACE_EVENT(cpu_idle_miss,
 		(unsigned long)__entry->state, (__entry->below)?"below":"above")
 );
 
+#ifdef CONFIG_ARM_PSCI_CPUIDLE
 DECLARE_EVENT_CLASS(psci_domain_idle,
 
 	TP_PROTO(unsigned int cpu_id, unsigned int state, bool s2idle),
@@ -98,6 +99,7 @@ DEFINE_EVENT(psci_domain_idle, psci_domain_idle_exit,
 
 	TP_ARGS(cpu_id, state, s2idle)
 );
+#endif
 
 TRACE_EVENT(pstate_sample,
 
