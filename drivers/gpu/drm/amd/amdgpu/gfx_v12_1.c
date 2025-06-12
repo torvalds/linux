@@ -2454,17 +2454,39 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev,
 
 static int gfx_v12_1_cp_resume(struct amdgpu_device *adev)
 {
-	int i, r, num_xcc;
+	int num_xcc, num_xcp, num_xcc_per_xcp;
+	int r = 0;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	if (amdgpu_sriov_vf(adev)) {
+		enum amdgpu_gfx_partition mode;
 
-	for (i = 0; i < num_xcc; i++) {
-		r = gfx_v12_1_xcc_cp_resume(adev, i);
-		if (r)
-			return r;
+		mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
+						       AMDGPU_XCP_FL_NONE);
+		if (mode == AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
+			return -EINVAL;
+		if (adev->gfx.funcs &&
+		    adev->gfx.funcs->get_xccs_per_xcp) {
+			num_xcc_per_xcp = adev->gfx.funcs->get_xccs_per_xcp(adev);
+			adev->gfx.num_xcc_per_xcp = num_xcc_per_xcp;
+			num_xcp = num_xcc / num_xcc_per_xcp;
+		} else {
+			return -EINVAL;
+		}
+		r = amdgpu_xcp_init(adev->xcp_mgr, num_xcp, mode);
+
+	} else {
+		if (amdgpu_xcp_query_partition_mode(adev->xcp_mgr,
+						    AMDGPU_XCP_FL_NONE) ==
+		    AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
+			r = amdgpu_xcp_switch_partition_mode(adev->xcp_mgr,
+							     amdgpu_user_partt_mode);
 	}
 
-	return 0;
+	if (r)
+		return r;
+
+	return gfx_v12_1_xcc_cp_resume(adev, adev->gfx.xcc_mask);
 }
 
 static int gfx_v12_1_gfxhub_enable(struct amdgpu_device *adev)
