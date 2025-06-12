@@ -93,6 +93,7 @@ enum coredump_type_t {
 struct core_name {
 	char *corename;
 	int used, size;
+	unsigned int core_pipe_limit;
 	enum coredump_type_t core_type;
 	u64 mask;
 };
@@ -244,6 +245,7 @@ static bool coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 		cn->mask |= COREDUMP_WAIT;
 	cn->used = 0;
 	cn->corename = NULL;
+	cn->core_pipe_limit = 0;
 	if (*pat_ptr == '|')
 		cn->core_type = COREDUMP_PIPE;
 	else if (*pat_ptr == '@')
@@ -1031,7 +1033,6 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 		break;
 	case COREDUMP_PIPE: {
 		int argi;
-		int dump_count;
 		char **helper_argv;
 		struct subprocess_info *sub_info;
 
@@ -1052,21 +1053,21 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 			 * core_pattern process dies.
 			 */
 			coredump_report_failure("RLIMIT_CORE is set to 1, aborting core");
-			goto fail_unlock;
+			goto close_fail;
 		}
 		cprm.limit = RLIM_INFINITY;
 
-		dump_count = atomic_inc_return(&core_dump_count);
-		if (core_pipe_limit && (core_pipe_limit < dump_count)) {
+		cn.core_pipe_limit = atomic_inc_return(&core_dump_count);
+		if (core_pipe_limit && (core_pipe_limit < cn.core_pipe_limit)) {
 			coredump_report_failure("over core_pipe_limit, skipping core dump");
-			goto fail_dropcount;
+			goto close_fail;
 		}
 
 		helper_argv = kmalloc_array(argc + 1, sizeof(*helper_argv),
 					    GFP_KERNEL);
 		if (!helper_argv) {
 			coredump_report_failure("%s failed to allocate memory", __func__);
-			goto fail_dropcount;
+			goto close_fail;
 		}
 		for (argi = 0; argi < argc; argi++)
 			helper_argv[argi] = cn.corename + argv[argi];
@@ -1168,9 +1169,10 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 close_fail:
 	if (cprm.file)
 		filp_close(cprm.file, NULL);
-fail_dropcount:
-	if (cn.core_type == COREDUMP_PIPE)
+	if (cn.core_pipe_limit) {
+		VFS_WARN_ON_ONCE(cn.core_type != COREDUMP_PIPE);
 		atomic_dec(&core_dump_count);
+	}
 fail_unlock:
 	kfree(argv);
 	kfree(cn.corename);
