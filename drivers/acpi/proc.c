@@ -30,9 +30,9 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 		if (!dev->wakeup.flags.valid)
 			continue;
 
-		seq_printf(seq, "%s\t  S%d\t",
+		seq_printf(seq, "%s\t  S%llu\t",
 			   dev->pnp.bus_id,
-			   (u32) dev->wakeup.sleep_state);
+			   dev->wakeup.sleep_state);
 
 		mutex_lock(&dev->physical_node_lock);
 
