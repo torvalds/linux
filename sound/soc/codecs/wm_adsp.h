@@ -36,6 +36,7 @@ struct wm_adsp {
 
 	int fw;
 	bool wmfw_optional;
+	bool bin_mandatory;
 
 	struct work_struct boot_work;
 	int (*control_add)(struct wm_adsp *dsp, struct cs_dsp_coeff_ctl *cs_ctl);

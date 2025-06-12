@@ -1000,11 +1000,17 @@ int wm_adsp_power_up(struct wm_adsp *dsp, bool load_firmware)
 			return ret;
 	}
 
+	if (dsp->bin_mandatory && !coeff_firmware) {
+		ret = -ENOENT;
+		goto err;
+	}
+
 	ret = cs_dsp_power_up(&dsp->cs_dsp,
 			      wmfw_firmware, wmfw_filename,
 			      coeff_firmware, coeff_filename,
 			      wm_adsp_fw_text[dsp->fw]);
 
+err:
 	wm_adsp_release_firmware_files(dsp,
 				       wmfw_firmware, wmfw_filename,
 				       coeff_firmware, coeff_filename);
