@@ -2033,6 +2033,24 @@ void xe_guc_ct_print(struct xe_guc_ct *ct, struct drm_printer *p, bool want_ctb)
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+
+#ifdef CONFIG_FUNCTION_ERROR_INJECTION
+/*
+ * This is a helper function which assists the driver in identifying if a fault
+ * injection test is currently active, allowing it to reduce unnecessary debug
+ * output. Typically, the function returns zero, but the fault injection
+ * framework can alter this to return an error. Since faults are injected
+ * through this function, it's important to ensure the compiler doesn't optimize
+ * it into an inline function. To avoid such optimization, the 'noinline'
+ * attribute is applied. Compiler optimizes the static function defined in the
+ * header file as an inline function.
+ */
+noinline int xe_is_injection_active(void) { return 0; }
+ALLOW_ERROR_INJECTION(xe_is_injection_active, ERRNO);
+#else
+int xe_is_injection_active(void) { return 0; }
+#endif
+
 static void ct_dead_capture(struct xe_guc_ct *ct, struct guc_ctb *ctb, u32 reason_code)
 {
 	struct xe_guc_log_snapshot *snapshot_log;
@@ -2043,6 +2061,12 @@ static void ct_dead_capture(struct xe_guc_ct *ct, struct guc_ctb *ctb, u32 reaso
 
 	if (ctb)
 		ctb->info.broken = true;
+	/*
+	 * Huge dump is getting generated when injecting error for guc CT/MMIO
+	 * functions. So, let us suppress the dump when fault is injected.
+	 */
+	if (xe_is_injection_active())
+		return;
 
 	/* Ignore further errors after the first dump until a reset */
 	if (ct->dead.reported)
