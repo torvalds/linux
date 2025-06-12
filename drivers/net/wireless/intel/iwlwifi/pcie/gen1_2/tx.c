@@ -494,9 +494,9 @@ void iwl_pcie_tx_start(struct iwl_trans *trans)
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
 
 	/* reset context data, TX status and translation data */
-	iwl_trans_pcie_write_mem(trans, trans_pcie->scd_base_addr +
-					SCD_CONTEXT_MEM_LOWER_BOUND,
-				 NULL, clear_dwords);
+	iwl_trans_write_mem(trans, trans_pcie->scd_base_addr +
+				   SCD_CONTEXT_MEM_LOWER_BOUND,
+			    NULL, clear_dwords);
 
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->txqs.scd_bc_tbls.dma >> 10);
@@ -1292,9 +1292,8 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);
 
-		iwl_trans_pcie_write_mem(trans, stts_addr,
-					 (const void *)zero_val,
-					 ARRAY_SIZE(zero_val));
+		iwl_trans_write_mem(trans, stts_addr, (const void *)zero_val,
+				    ARRAY_SIZE(zero_val));
 	}
 
 	iwl_pcie_txq_unmap(trans, txq_id);
