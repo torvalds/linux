@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (C) 2024 Intel Corporation */
+/* Copyright (C) 2024-2025 Intel Corporation */
 
 #ifndef __LIBETH_TX_H
 #define __LIBETH_TX_H
@@ -12,11 +12,13 @@
 
 /**
  * enum libeth_sqe_type - type of &libeth_sqe to act on Tx completion
- * @LIBETH_SQE_EMPTY: unused/empty, no action required
+ * @LIBETH_SQE_EMPTY: unused/empty OR XDP_TX frag, no action required
  * @LIBETH_SQE_CTX: context descriptor with empty SQE, no action required
  * @LIBETH_SQE_SLAB: kmalloc-allocated buffer, unmap and kfree()
  * @LIBETH_SQE_FRAG: mapped skb frag, only unmap DMA
  * @LIBETH_SQE_SKB: &sk_buff, unmap and napi_consume_skb(), update stats
+ * @__LIBETH_SQE_XDP_START: separator between skb and XDP types
+ * @LIBETH_SQE_XDP_TX: &skb_shared_info, libeth_xdp_return_buff_bulk(), stats
  */
 enum libeth_sqe_type {
 	LIBETH_SQE_EMPTY		= 0U,
@@ -24,6 +26,9 @@ enum libeth_sqe_type {
 	LIBETH_SQE_SLAB,
 	LIBETH_SQE_FRAG,
 	LIBETH_SQE_SKB,
+
+	__LIBETH_SQE_XDP_START,
+	LIBETH_SQE_XDP_TX		= __LIBETH_SQE_XDP_START,
 };
 
 /**
@@ -32,6 +37,7 @@ enum libeth_sqe_type {
  * @rs_idx: index of the last buffer from the batch this one was sent in
  * @raw: slab buffer to free via kfree()
  * @skb: &sk_buff to consume
+ * @sinfo: skb shared info of an XDP_TX frame
  * @dma: DMA address to unmap
  * @len: length of the mapped region to unmap
  * @nr_frags: number of frags in the frame this buffer belongs to
@@ -46,6 +52,7 @@ struct libeth_sqe {
 	union {
 		void				*raw;
 		struct sk_buff			*skb;
+		struct skb_shared_info		*sinfo;
 	};
 
 	DEFINE_DMA_UNMAP_ADDR(dma);
