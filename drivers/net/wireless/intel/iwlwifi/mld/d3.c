@@ -868,7 +868,7 @@ iwl_mld_add_mcast_rekey(struct ieee80211_vif *vif,
 	return true;
 }
 
-static bool
+static void
 iwl_mld_add_all_rekeys(struct ieee80211_vif *vif,
 		       struct iwl_mld_wowlan_status *wowlan_status,
 		       struct iwl_mld_resume_key_iter_data *key_iter_data,
@@ -881,21 +881,19 @@ iwl_mld_add_all_rekeys(struct ieee80211_vif *vif,
 					     &wowlan_status->gtk[i],
 					     link_conf,
 					     key_iter_data->gtk_cipher))
-			return false;
+			return;
 
 	if (!iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
 				     &wowlan_status->igtk,
 				     link_conf, key_iter_data->igtk_cipher))
-		return false;
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(wowlan_status->bigtk); i++)
 		if (!iwl_mld_add_mcast_rekey(vif, key_iter_data->mld,
 					     &wowlan_status->bigtk[i],
 					     link_conf,
 					     key_iter_data->bigtk_cipher))
-			return false;
-
-	return true;
+			return;
 }
 
 static bool
