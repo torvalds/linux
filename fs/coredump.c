@@ -1079,6 +1079,18 @@ static void coredump_cleanup(struct core_name *cn, struct coredump_params *cprm)
 	coredump_finish(cn->core_dumped);
 }
 
+static inline bool coredump_skip(const struct coredump_params *cprm,
+				 const struct linux_binfmt *binfmt)
+{
+	if (!binfmt)
+		return true;
+	if (!binfmt->core_dump)
+		return true;
+	if (!__get_dumpable(cprm->mm_flags))
+		return true;
+	return false;
+}
+
 void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct cred *cred __free(put_cred) = NULL;
@@ -1086,7 +1098,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	struct core_state core_state;
 	struct core_name cn;
 	struct mm_struct *mm = current->mm;
-	struct linux_binfmt * binfmt;
+	struct linux_binfmt *binfmt = mm->binfmt;
 	const struct cred *old_cred;
 	int argc = 0;
 	struct coredump_params cprm = {
@@ -1104,10 +1116,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 
 	audit_core_dumps(siginfo->si_signo);
 
-	binfmt = mm->binfmt;
-	if (!binfmt || !binfmt->core_dump)
-		return;
-	if (!__get_dumpable(cprm.mm_flags))
+	if (coredump_skip(&cprm, binfmt))
 		return;
 
 	cred = prepare_creds();
