@@ -139,6 +139,5 @@ static const struct proc_ops acpi_system_wakeup_device_proc_ops = {
 void __init acpi_sleep_proc_init(void)
 {
 	/* 'wakeup device' [R/W] */
-	proc_create("wakeup", S_IFREG | S_IRUGO | S_IWUSR,
-		    acpi_root_dir, &acpi_system_wakeup_device_proc_ops);
+	proc_create("wakeup", 0644, acpi_root_dir, &acpi_system_wakeup_device_proc_ops);
 }
