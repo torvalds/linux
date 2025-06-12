@@ -4,6 +4,8 @@
  */
 
 #include <drm/ttm/ttm_backup.h>
+
+#include <linux/export.h>
 #include <linux/page-flags.h>
 #include <linux/swap.h>
 
