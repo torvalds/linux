@@ -1062,8 +1062,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 						interface, speed);
 		if (ret < 0)
 			netdev_err(priv->dev,
-				   "failed to configure transmit clock for %dMbps: %pe\n",
-				   speed, ERR_PTR(ret));
+				   "failed to configure %s transmit clock for %dMbps: %pe\n",
+				   phy_modes(interface), speed, ERR_PTR(ret));
 	}
 
 	stmmac_mac_set(priv, priv->ioaddr, true);
