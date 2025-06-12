@@ -450,20 +450,10 @@ static int dp83tg720_read_status(struct phy_device *phydev)
 		/* According to the "DP83TC81x, DP83TG72x Software
 		 * Implementation Guide", the PHY needs to be reset after a
 		 * link loss or if no link is created after at least 100ms.
-		 *
-		 * Currently we are polling with the PHY_STATE_TIME (1000ms)
-		 * interval, which is still enough for not automotive use cases.
 		 */
 		ret = phy_init_hw(phydev);
 		if (ret)
 			return ret;
-
-		/* Sleep 600ms for PHY stabilization post-reset.
-		 * Empirically chosen value (not documented).
-		 * Helps reduce reset bounces with link partners having similar
-		 * issues.
-		 */
-		msleep(600);
 
 		/* After HW reset we need to restore master/slave configuration.
 		 * genphy_c45_pma_baset1_read_master_slave() call will be done
