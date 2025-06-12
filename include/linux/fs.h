@@ -2004,20 +2004,20 @@ int vfs_unlink(struct mnt_idmap *, struct inode *, struct dentry *,
 /**
  * struct renamedata - contains all information required for renaming
  * @old_mnt_idmap:     idmap of the old mount the inode was found from
- * @old_dir:           parent of source
+ * @old_parent:        parent of source
  * @old_dentry:                source
  * @new_mnt_idmap:     idmap of the new mount the inode was found from
- * @new_dir:           parent of destination
+ * @new_parent:        parent of destination
  * @new_dentry:                destination
  * @delegated_inode:   returns an inode needing a delegation break
  * @flags:             rename flags
  */
 struct renamedata {
 	struct mnt_idmap *old_mnt_idmap;
-	struct inode *old_dir;
+	struct dentry *old_parent;
 	struct dentry *old_dentry;
 	struct mnt_idmap *new_mnt_idmap;
-	struct inode *new_dir;
+	struct dentry *new_parent;
 	struct dentry *new_dentry;
 	struct inode **delegated_inode;
 	unsigned int flags;

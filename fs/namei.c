@@ -5007,7 +5007,8 @@ SYSCALL_DEFINE2(link, const char __user *, oldname, const char __user *, newname
 int vfs_rename(struct renamedata *rd)
 {
 	int error;
-	struct inode *old_dir = rd->old_dir, *new_dir = rd->new_dir;
+	struct inode *old_dir = d_inode(rd->old_parent);
+	struct inode *new_dir = d_inode(rd->new_parent);
 	struct dentry *old_dentry = rd->old_dentry;
 	struct dentry *new_dentry = rd->new_dentry;
 	struct inode **delegated_inode = rd->delegated_inode;
@@ -5266,10 +5267,10 @@ retry_deleg:
 	if (error)
 		goto exit5;
 
-	rd.old_dir	   = old_path.dentry->d_inode;
+	rd.old_parent	   = old_path.dentry;
 	rd.old_dentry	   = old_dentry;
 	rd.old_mnt_idmap   = mnt_idmap(old_path.mnt);
-	rd.new_dir	   = new_path.dentry->d_inode;
+	rd.new_parent	   = new_path.dentry;
 	rd.new_dentry	   = new_dentry;
 	rd.new_mnt_idmap   = mnt_idmap(new_path.mnt);
 	rd.delegated_inode = &delegated_inode;

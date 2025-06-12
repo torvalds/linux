@@ -635,10 +635,10 @@ ecryptfs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 
 	rd.old_mnt_idmap	= &nop_mnt_idmap;
-	rd.old_dir		= d_inode(lower_old_dir_dentry);
+	rd.old_parent		= lower_old_dir_dentry;
 	rd.old_dentry		= lower_old_dentry;
 	rd.new_mnt_idmap	= &nop_mnt_idmap;
-	rd.new_dir		= d_inode(lower_new_dir_dentry);
+	rd.new_parent		= lower_new_dir_dentry;
 	rd.new_dentry		= lower_new_dentry;
 	rc = vfs_rename(&rd);
 	if (rc)
