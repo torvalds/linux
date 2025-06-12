@@ -1687,26 +1687,6 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		}
 	}
 
-	ret = smu_system_features_control(smu, true);
-	if (ret) {
-		dev_err(adev->dev, "Failed to enable requested dpm features!\n");
-		return ret;
-	}
-
-	smu_init_xgmi_plpd_mode(smu);
-
-	ret = smu_feature_get_enabled_mask(smu, &features_supported);
-	if (ret) {
-		dev_err(adev->dev, "Failed to retrieve supported dpm features!\n");
-		return ret;
-	}
-	bitmap_copy(feature->supported,
-		    (unsigned long *)&features_supported,
-		    feature->feature_num);
-
-	if (!smu_is_dpm_running(smu))
-		dev_info(adev->dev, "dpm has been disabled\n");
-
 	/*
 	 * Set initialized values (get from vbios) to dpm tables context such as
 	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
@@ -1752,6 +1732,26 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		dev_err(adev->dev, "Attempt to override pcie params failed!\n");
 		return ret;
 	}
+
+	ret = smu_system_features_control(smu, true);
+	if (ret) {
+		dev_err(adev->dev, "Failed to enable requested dpm features!\n");
+		return ret;
+	}
+
+	smu_init_xgmi_plpd_mode(smu);
+
+	ret = smu_feature_get_enabled_mask(smu, &features_supported);
+	if (ret) {
+		dev_err(adev->dev, "Failed to retrieve supported dpm features!\n");
+		return ret;
+	}
+	bitmap_copy(feature->supported,
+		    (unsigned long *)&features_supported,
+		    feature->feature_num);
+
+	if (!smu_is_dpm_running(smu))
+		dev_info(adev->dev, "dpm has been disabled\n");
 
 	ret = smu_get_thermal_temperature_range(smu);
 	if (ret) {
