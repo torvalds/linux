@@ -1076,7 +1076,7 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	const struct cred *old_cred;
 	struct cred *cred;
 	int retval = 0;
-	size_t *argv = NULL;
+	size_t *argv __free(kfree) = NULL;
 	int argc = 0;
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
@@ -1189,7 +1189,6 @@ close_fail:
 		atomic_dec(&core_pipe_count);
 	}
 fail_unlock:
-	kfree(argv);
 	kfree(cn.corename);
 	coredump_finish(cn.core_dumped);
 	revert_creds(old_cred);
