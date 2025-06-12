@@ -212,6 +212,7 @@ TRACE_EVENT(cpu_frequency_limits,
 		  (unsigned long)__entry->cpu_id)
 );
 
+#ifdef CONFIG_PM_SLEEP
 TRACE_EVENT(device_pm_callback_start,
 
 	TP_PROTO(struct device *dev, const char *pm_ops, int event),
@@ -260,6 +261,7 @@ TRACE_EVENT(device_pm_callback_end,
 	TP_printk("%s %s, err=%d",
 		__get_str(driver), __get_str(device), __entry->error)
 );
+#endif
 
 TRACE_EVENT(suspend_resume,
 
