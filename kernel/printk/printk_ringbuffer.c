@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <kunit/visibility.h>
 #include <linux/kernel.h>
 #include <linux/irqflags.h>
 #include <linux/string.h>
@@ -1685,6 +1686,7 @@ fail:
 	memset(r, 0, sizeof(*r));
 	return false;
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_reserve);
 
 /* Commit the data (possibly finalizing it) and restore interrupts. */
 static void _prb_commit(struct prb_reserved_entry *e, unsigned long state_val)
@@ -1759,6 +1761,7 @@ void prb_commit(struct prb_reserved_entry *e)
 	if (head_id != e->id)
 		desc_make_final(e->rb, e->id);
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_commit);
 
 /**
  * prb_final_commit() - Commit and finalize (previously reserved) data to
@@ -2184,6 +2187,7 @@ bool prb_read_valid(struct printk_ringbuffer *rb, u64 seq,
 {
 	return _prb_read_valid(rb, &seq, r, NULL);
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_read_valid);
 
 /**
  * prb_read_valid_info() - Non-blocking read of meta data for a requested
@@ -2333,6 +2337,7 @@ void prb_init(struct printk_ringbuffer *rb,
 	infos[0].seq = -(u64)_DESCS_COUNT(descbits);
 	infos[_DESCS_COUNT(descbits) - 1].seq = 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(prb_init);
 
 /**
  * prb_record_text_space() - Query the full actual used ringbuffer space for
