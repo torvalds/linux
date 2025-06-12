@@ -231,6 +231,10 @@ impl<T> PinnedDrop for Revocable<T> {
 ///
 /// The RCU read-side lock is held while the guard is alive.
 pub struct RevocableGuard<'a, T> {
+    // This can't use the `&'a T` type because references that appear in function arguments must
+    // not become dangling during the execution of the function, which can happen if the
+    // `RevocableGuard` is passed as a function argument and then dropped during execution of the
+    // function.
     data_ref: *const T,
     _rcu_guard: rcu::Guard,
     _p: PhantomData<&'a ()>,
