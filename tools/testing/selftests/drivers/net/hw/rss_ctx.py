@@ -747,6 +747,62 @@ def test_rss_ntuple_addition(cfg):
                                                           'noise' : (0,) })
 
 
+def test_rss_default_context_rule(cfg):
+    """
+    Allocate a port, direct this port to context 0, then create a new RSS
+    context and steer all TCP traffic to it (context 1).  Verify that:
+      * Traffic to the specific port continues to use queues of the main
+        context (0/1).
+      * Traffic to any other TCP port is redirected to the new context
+        (queues 2/3).
+    """
+
+    require_ntuple(cfg)
+
+    queue_cnt = len(_get_rx_cnts(cfg))
+    if queue_cnt < 4:
+        try:
+            ksft_pr(f"Increasing queue count {queue_cnt} -> 4")
+            ethtool(f"-L {cfg.ifname} combined 4")
+            defer(ethtool, f"-L {cfg.ifname} combined {queue_cnt}")
+        except Exception as exc:
+            raise KsftSkipEx("Not enough queues for the test") from exc
+
+    # Use queues 0 and 1 for the main context
+    ethtool(f"-X {cfg.ifname} equal 2")
+    defer(ethtool, f"-X {cfg.ifname} default")
+
+    # Create a new RSS context that uses queues 2 and 3
+    ctx_id = ethtool_create(cfg, "-X", "context new start 2 equal 2")
+    defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    # Generic low-priority rule: redirect all TCP traffic to the new context.
+    # Give it an explicit higher location number (lower priority).
+    flow_generic = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} context {ctx_id} loc 1"
+    ethtool(f"-N {cfg.ifname} {flow_generic}")
+    defer(ethtool, f"-N {cfg.ifname} delete 1")
+
+    # Specific high-priority rule for a random port that should stay on context 0.
+    # Assign loc 0 so it is evaluated before the generic rule.
+    port_main = rand_port()
+    flow_main = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port_main} context 0 loc 0"
+    ethtool(f"-N {cfg.ifname} {flow_main}")
+    defer(ethtool, f"-N {cfg.ifname} delete 0")
+
+    _ntuple_rule_check(cfg, 1, ctx_id)
+
+    # Verify that traffic matching the specific rule still goes to queues 0/1
+    _send_traffic_check(cfg, port_main, "context 0",
+                        { 'target': (0, 1),
+                          'empty' : (2, 3) })
+
+    # And that traffic for any other port is steered to the new context
+    port_other = rand_port()
+    _send_traffic_check(cfg, port_other, f"context {ctx_id}",
+                        { 'target': (2, 3),
+                          'noise' : (0, 1) })
+
+
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         cfg.context_cnt = None
@@ -760,7 +816,8 @@ def main() -> None:
                   test_rss_context_overlap, test_rss_context_overlap2,
                   test_rss_context_out_of_order, test_rss_context4_create_with_cfg,
                   test_flow_add_context_missing,
-                  test_delete_rss_context_busy, test_rss_ntuple_addition],
+                  test_delete_rss_context_busy, test_rss_ntuple_addition,
+                  test_rss_default_context_rule],
                  args=(cfg, ))
     ksft_exit()
 
