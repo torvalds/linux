@@ -14,7 +14,6 @@
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
-#include <linux/export.h>
 #include <linux/miscdevice.h>
 #include <linux/perf_event.h>
 
