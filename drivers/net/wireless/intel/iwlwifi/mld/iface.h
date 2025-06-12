@@ -87,6 +87,8 @@ enum iwl_mld_emlsr_exit {
  * @last_exit_reason: Reason for the last EMLSR exit
  * @last_exit_ts: Time of the last EMLSR exit (if @last_exit_reason is non-zero)
  * @exit_repeat_count: Number of times EMLSR was exited for the same reason
+ * @last_entry_ts: the time of the last EMLSR entry (if iwl_mld_emlsr_active()
+ *	is true)
  * @unblock_tpt_wk: Unblock EMLSR because the throughput limit was reached
  * @check_tpt_wk: a worker to check if IWL_MLD_EMLSR_BLOCKED_TPT should be
  *	added, for example if there is no longer enough traffic.
@@ -105,6 +107,7 @@ struct iwl_mld_emlsr {
 		enum iwl_mld_emlsr_exit last_exit_reason;
 		unsigned long last_exit_ts;
 		u8 exit_repeat_count;
+		unsigned long last_entry_ts;
 	);
 
 	struct wiphy_work unblock_tpt_wk;
