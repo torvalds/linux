@@ -1047,6 +1047,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	case IWL_CFG_RF_TYPE_GF:
 	case IWL_CFG_RF_TYPE_FM:
 	case IWL_CFG_RF_TYPE_WH:
+	case IWL_CFG_RF_TYPE_PE:
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[9] |=
 			IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU;
 		if (!is_ap)
