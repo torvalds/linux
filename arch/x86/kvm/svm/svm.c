@@ -679,40 +679,25 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 	return svm_test_msr_bitmap_write(msrpm, msr);
 }
 
-void svm_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
+void svm_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type, bool set)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	void *msrpm = svm->msrpm;
 
 	/* Don't disable interception for MSRs userspace wants to handle. */
 	if (type & MSR_TYPE_R) {
-		if (kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_READ))
+		if (!set && kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_READ))
 			svm_clear_msr_bitmap_read(msrpm, msr);
 		else
 			svm_set_msr_bitmap_read(msrpm, msr);
 	}
 
 	if (type & MSR_TYPE_W) {
-		if (kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_WRITE))
+		if (!set && kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_WRITE))
 			svm_clear_msr_bitmap_write(msrpm, msr);
 		else
 			svm_set_msr_bitmap_write(msrpm, msr);
 	}
-
-	svm_hv_vmcb_dirty_nested_enlightenments(vcpu);
-	svm->nested.force_msr_bitmap_recalc = true;
-}
-
-void svm_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-	void *msrpm = svm->msrpm;
-
-	if (type & MSR_TYPE_R)
-		svm_set_msr_bitmap_read(msrpm, msr);
-
-	if (type & MSR_TYPE_W)
-		svm_set_msr_bitmap_write(msrpm, msr);
 
 	svm_hv_vmcb_dirty_nested_enlightenments(vcpu);
 	svm->nested.force_msr_bitmap_recalc = true;

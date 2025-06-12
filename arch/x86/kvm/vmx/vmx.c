@@ -3963,7 +3963,7 @@ static void vmx_msr_bitmap_l01_changed(struct vcpu_vmx *vmx)
 	vmx->nested.force_msr_bitmap_recalc = true;
 }
 
-void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
+void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type, bool set)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long *msr_bitmap = vmx->vmcs01.msr_bitmap;
@@ -3974,35 +3974,18 @@ void vmx_disable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
 	vmx_msr_bitmap_l01_changed(vmx);
 
 	if (type & MSR_TYPE_R) {
-		if (kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_READ))
+		if (!set && kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_READ))
 			vmx_clear_msr_bitmap_read(msr_bitmap, msr);
 		else
 			vmx_set_msr_bitmap_read(msr_bitmap, msr);
 	}
 
 	if (type & MSR_TYPE_W) {
-		if (kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_WRITE))
+		if (!set && kvm_msr_allowed(vcpu, msr, KVM_MSR_FILTER_WRITE))
 			vmx_clear_msr_bitmap_write(msr_bitmap, msr);
 		else
 			vmx_set_msr_bitmap_write(msr_bitmap, msr);
 	}
-}
-
-void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	unsigned long *msr_bitmap = vmx->vmcs01.msr_bitmap;
-
-	if (!cpu_has_vmx_msr_bitmap())
-		return;
-
-	vmx_msr_bitmap_l01_changed(vmx);
-
-	if (type & MSR_TYPE_R)
-		vmx_set_msr_bitmap_read(msr_bitmap, msr);
-
-	if (type & MSR_TYPE_W)
-		vmx_set_msr_bitmap_write(msr_bitmap, msr);
 }
 
 static void vmx_update_msr_bitmap_x2apic(struct kvm_vcpu *vcpu)
