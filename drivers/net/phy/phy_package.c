@@ -414,3 +414,6 @@ int devm_of_phy_package_join(struct device *dev, struct phy_device *phydev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_of_phy_package_join);
+
+MODULE_DESCRIPTION("PHY package support");
+MODULE_LICENSE("GPL");
