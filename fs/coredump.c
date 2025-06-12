@@ -1095,13 +1095,13 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 
 	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)
-		goto fail;
+		return;
 	if (!__get_dumpable(cprm.mm_flags))
-		goto fail;
+		return;
 
 	cred = prepare_creds();
 	if (!cred)
-		goto fail;
+		return;
 	/*
 	 * We cannot trust fsuid as being the "true" uid of the process
 	 * nor do we know its entire history. We only know it was tainted
@@ -1194,7 +1194,6 @@ fail_unlock:
 	revert_creds(old_cred);
 fail_creds:
 	put_cred(cred);
-fail:
 	return;
 }
 
