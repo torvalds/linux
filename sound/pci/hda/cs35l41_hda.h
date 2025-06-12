@@ -42,6 +42,7 @@ struct cs35l41_amp_efi_data {
 enum cs35l41_hda_spk_pos {
 	CS35L41_LEFT,
 	CS35L41_RIGHT,
+	CS35L41_CENTER,
 };
 
 enum cs35l41_hda_gpio_function {
