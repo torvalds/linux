@@ -37,8 +37,6 @@ struct rk_gmac_ops {
 	void (*set_to_rgmii)(struct rk_priv_data *bsp_priv,
 			     int tx_delay, int rx_delay);
 	void (*set_to_rmii)(struct rk_priv_data *bsp_priv);
-	void (*set_rgmii_speed)(struct rk_priv_data *bsp_priv, int speed);
-	void (*set_rmii_speed)(struct rk_priv_data *bsp_priv, int speed);
 	int (*set_speed)(struct rk_priv_data *bsp_priv,
 			 phy_interface_t interface, int speed);
 	void (*set_clock_selection)(struct rk_priv_data *bsp_priv, bool input,
@@ -1707,29 +1705,12 @@ static int rk_set_clk_tx_rate(void *bsp_priv_, struct clk *clk_tx_i,
 			      phy_interface_t interface, int speed)
 {
 	struct rk_priv_data *bsp_priv = bsp_priv_;
-	struct device *dev = &bsp_priv->pdev->dev;
 
 	if (bsp_priv->ops->set_speed)
 		return bsp_priv->ops->set_speed(bsp_priv, bsp_priv->phy_iface,
 						speed);
 
-	switch (bsp_priv->phy_iface) {
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		if (bsp_priv->ops->set_rgmii_speed)
-			bsp_priv->ops->set_rgmii_speed(bsp_priv, speed);
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-		if (bsp_priv->ops->set_rmii_speed)
-			bsp_priv->ops->set_rmii_speed(bsp_priv, speed);
-		break;
-	default:
-		dev_err(dev, "unsupported interface %d", bsp_priv->phy_iface);
-	}
-
-	return 0;
+	return -EINVAL;
 }
 
 static int rk_gmac_probe(struct platform_device *pdev)
