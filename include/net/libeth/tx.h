@@ -19,6 +19,8 @@
  * @LIBETH_SQE_SKB: &sk_buff, unmap and napi_consume_skb(), update stats
  * @__LIBETH_SQE_XDP_START: separator between skb and XDP types
  * @LIBETH_SQE_XDP_TX: &skb_shared_info, libeth_xdp_return_buff_bulk(), stats
+ * @LIBETH_SQE_XDP_XMIT: &xdp_frame, unmap and xdp_return_frame_bulk(), stats
+ * @LIBETH_SQE_XDP_XMIT_FRAG: &xdp_frame frag, only unmap DMA
  */
 enum libeth_sqe_type {
 	LIBETH_SQE_EMPTY		= 0U,
@@ -29,6 +31,8 @@ enum libeth_sqe_type {
 
 	__LIBETH_SQE_XDP_START,
 	LIBETH_SQE_XDP_TX		= __LIBETH_SQE_XDP_START,
+	LIBETH_SQE_XDP_XMIT,
+	LIBETH_SQE_XDP_XMIT_FRAG,
 };
 
 /**
@@ -38,6 +42,7 @@ enum libeth_sqe_type {
  * @raw: slab buffer to free via kfree()
  * @skb: &sk_buff to consume
  * @sinfo: skb shared info of an XDP_TX frame
+ * @xdpf: XDP frame from ::ndo_xdp_xmit()
  * @dma: DMA address to unmap
  * @len: length of the mapped region to unmap
  * @nr_frags: number of frags in the frame this buffer belongs to
@@ -53,6 +58,7 @@ struct libeth_sqe {
 		void				*raw;
 		struct sk_buff			*skb;
 		struct skb_shared_info		*sinfo;
+		struct xdp_frame		*xdpf;
 	};
 
 	DEFINE_DMA_UNMAP_ADDR(dma);
