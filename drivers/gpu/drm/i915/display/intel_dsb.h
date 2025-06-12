@@ -68,8 +68,7 @@ void intel_dsb_chain(struct intel_atomic_state *state,
 		     struct intel_dsb *chained_dsb,
 		     bool wait_for_vblank);
 
-void intel_dsb_commit(struct intel_dsb *dsb,
-		      bool wait_for_vblank);
+void intel_dsb_commit(struct intel_dsb *dsb);
 void intel_dsb_wait(struct intel_dsb *dsb);
 
 void intel_dsb_irq_handler(struct intel_display *display,

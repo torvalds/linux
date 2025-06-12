@@ -6748,13 +6748,13 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	if (new_crtc_state->use_dsb) {
 		intel_crtc_prepare_vblank_event(new_crtc_state, &crtc->dsb_event);
 
-		intel_dsb_commit(new_crtc_state->dsb_commit, false);
+		intel_dsb_commit(new_crtc_state->dsb_commit);
 	} else {
 		/* Perform vblank evasion around commit operation */
 		intel_pipe_update_start(state, crtc);
 
 		if (new_crtc_state->dsb_commit)
-			intel_dsb_commit(new_crtc_state->dsb_commit, false);
+			intel_dsb_commit(new_crtc_state->dsb_commit);
 
 		commit_pipe_pre_planes(state, crtc);
 

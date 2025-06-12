@@ -825,8 +825,13 @@ void intel_dsb_wait_vblank_delay(struct intel_atomic_state *state,
 	intel_dsb_wait_usec(dsb, usecs);
 }
 
-static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
-			      int hw_dewake_scanline)
+/**
+ * intel_dsb_commit() - Trigger workload execution of DSB.
+ * @dsb: DSB context
+ *
+ * This function is used to do actual write to hardware using DSB.
+ */
+void intel_dsb_commit(struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
 	struct intel_display *display = to_intel_display(crtc->base.dev);
@@ -842,7 +847,7 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 	}
 
 	intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id),
-			  ctrl | DSB_ENABLE);
+			  DSB_ENABLE);
 
 	intel_de_write_fw(display, DSB_CHICKEN(pipe, dsb->id),
 			  dsb->chicken);
@@ -854,42 +859,8 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 	intel_de_write_fw(display, DSB_HEAD(pipe, dsb->id),
 			  intel_dsb_head(dsb));
 
-	if (hw_dewake_scanline >= 0) {
-		int diff, position;
-
-		intel_de_write_fw(display, DSB_PMCTRL(pipe, dsb->id),
-				  DSB_ENABLE_DEWAKE |
-				  DSB_SCANLINE_FOR_DEWAKE(hw_dewake_scanline));
-
-		/*
-		 * Force DEwake immediately if we're already past
-		 * or close to racing past the target scanline.
-		 */
-		position = intel_de_read_fw(display, PIPEDSL(display, pipe)) & PIPEDSL_LINE_MASK;
-
-		diff = hw_dewake_scanline - position;
-		intel_de_write_fw(display, DSB_PMCTRL_2(pipe, dsb->id),
-				  (diff >= 0 && diff < 5 ? DSB_FORCE_DEWAKE : 0) |
-				  DSB_BLOCK_DEWAKE_EXTENSION);
-	}
-
 	intel_de_write_fw(display, DSB_TAIL(pipe, dsb->id),
 			  intel_dsb_tail(dsb));
-}
-
-/**
- * intel_dsb_commit() - Trigger workload execution of DSB.
- * @dsb: DSB context
- * @wait_for_vblank: wait for vblank before executing
- *
- * This function is used to do actual write to hardware using DSB.
- */
-void intel_dsb_commit(struct intel_dsb *dsb,
-		      bool wait_for_vblank)
-{
-	_intel_dsb_commit(dsb,
-			  wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0,
-			  wait_for_vblank ? dsb->hw_dewake_scanline : -1);
 }
 
 void intel_dsb_wait(struct intel_dsb *dsb)
