@@ -341,24 +341,30 @@ static int __mcp23s08_set(struct mcp23s08 *mcp, unsigned mask, bool value)
 	return mcp_update_bits(mcp, MCP_OLAT, mask, value ? mask : 0);
 }
 
-static void mcp23s08_set(struct gpio_chip *chip, unsigned offset, int value)
+static int mcp23s08_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct mcp23s08	*mcp = gpiochip_get_data(chip);
 	unsigned mask = BIT(offset);
+	int ret;
 
 	mutex_lock(&mcp->lock);
-	__mcp23s08_set(mcp, mask, !!value);
+	ret = __mcp23s08_set(mcp, mask, !!value);
 	mutex_unlock(&mcp->lock);
+
+	return ret;
 }
 
-static void mcp23s08_set_multiple(struct gpio_chip *chip,
-				  unsigned long *mask, unsigned long *bits)
+static int mcp23s08_set_multiple(struct gpio_chip *chip,
+				 unsigned long *mask, unsigned long *bits)
 {
 	struct mcp23s08	*mcp = gpiochip_get_data(chip);
+	int ret;
 
 	mutex_lock(&mcp->lock);
-	mcp_update_bits(mcp, MCP_OLAT, *mask, *bits);
+	ret = mcp_update_bits(mcp, MCP_OLAT, *mask, *bits);
 	mutex_unlock(&mcp->lock);
+
+	return ret;
 }
 
 static int
@@ -626,8 +632,8 @@ int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->chip.get = mcp23s08_get;
 	mcp->chip.get_multiple = mcp23s08_get_multiple;
 	mcp->chip.direction_output = mcp23s08_direction_output;
-	mcp->chip.set = mcp23s08_set;
-	mcp->chip.set_multiple = mcp23s08_set_multiple;
+	mcp->chip.set_rv = mcp23s08_set;
+	mcp->chip.set_multiple_rv = mcp23s08_set_multiple;
 
 	mcp->chip.base = base;
 	mcp->chip.can_sleep = true;
