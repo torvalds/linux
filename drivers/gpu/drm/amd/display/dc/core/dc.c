@@ -6343,13 +6343,14 @@ void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
 	edp_link->dc->link_srv->edp_set_panel_power(edp_link, powerOn);
 }
 
-/*
- *****************************************************************************
+/**
  * dc_get_power_profile_for_dc_state() - extracts power profile from dc state
  *
  * Called when DM wants to make power policy decisions based on dc_state
  *
- *****************************************************************************
+ * @context: Pointer to the dc_state from which the power profile is extracted.
+ *
+ * Return: The power profile structure containing the power level information.
  */
 struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state *context)
 {
@@ -6365,13 +6366,14 @@ struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state 
 	return profile;
 }
 
-/*
- **********************************************************************************
+/**
  * dc_get_det_buffer_size_from_state() - extracts detile buffer size from dc state
  *
- * Called when DM wants to log detile buffer size from dc_state
+ * This function is called to log the detile buffer size from the dc_state.
  *
- **********************************************************************************
+ * @context: a pointer to the dc_state from which the detile buffer size is extracted.
+ *
+ * Return: the size of the detile buffer, or 0 if not available.
  */
 unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context)
 {
@@ -6382,18 +6384,17 @@ unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context)
 	else
 		return 0;
 }
+
 /**
- ***********************************************************************************************
  * dc_get_host_router_index: Get index of host router from a dpia link
  *
  * This function return a host router index of the target link. If the target link is dpia link.
  *
- * @param [in] link: target link
- * @param [out] host_router_index: host router index of the target link
+ * @link: Pointer to the target link (input)
+ * @host_router_index: Pointer to store the host router index of the target link (output).
  *
- * @return: true if the host router index is found and valid.
+ * Return: true if the host router index is found and valid.
  *
- ***********************************************************************************************
  */
 bool dc_get_host_router_index(const struct dc_link *link, unsigned int *host_router_index)
 {
