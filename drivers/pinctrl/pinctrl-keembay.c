@@ -1188,7 +1188,7 @@ static int keembay_gpio_get(struct gpio_chip *gc, unsigned int pin)
 	return keembay_read_pin(kpc->base0 + offset, pin);
 }
 
-static void keembay_gpio_set(struct gpio_chip *gc, unsigned int pin, int val)
+static int keembay_gpio_set(struct gpio_chip *gc, unsigned int pin, int val)
 {
 	struct keembay_pinctrl *kpc = gpiochip_get_data(gc);
 	unsigned int reg_val;
@@ -1200,6 +1200,8 @@ static void keembay_gpio_set(struct gpio_chip *gc, unsigned int pin, int val)
 	else
 		keembay_write_gpio_reg(~reg_val | BIT(pin % KEEMBAY_GPIO_MAX_PER_REG),
 				       kpc->base0 + KEEMBAY_GPIO_DATA_LOW, pin);
+
+	return 0;
 }
 
 static int keembay_gpio_get_direction(struct gpio_chip *gc, unsigned int pin)
@@ -1231,9 +1233,8 @@ static int keembay_gpio_set_direction_out(struct gpio_chip *gc,
 	val = keembay_read_reg(kpc->base1 + KEEMBAY_GPIO_MODE, pin);
 	val &= ~KEEMBAY_GPIO_MODE_DIR;
 	keembay_write_reg(val, kpc->base1 + KEEMBAY_GPIO_MODE, pin);
-	keembay_gpio_set(gc, pin, value);
 
-	return 0;
+	return keembay_gpio_set(gc, pin, value);
 }
 
 static void keembay_gpio_irq_handler(struct irq_desc *desc)
@@ -1480,7 +1481,7 @@ static int keembay_gpiochip_probe(struct keembay_pinctrl *kpc,
 	gc->direction_input	= keembay_gpio_set_direction_in;
 	gc->direction_output	= keembay_gpio_set_direction_out;
 	gc->get			= keembay_gpio_get;
-	gc->set			= keembay_gpio_set;
+	gc->set_rv		= keembay_gpio_set;
 	gc->set_config		= gpiochip_generic_config;
 	gc->base		= -1;
 	gc->ngpio		= kpc->npins;
