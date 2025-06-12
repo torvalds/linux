@@ -95,6 +95,7 @@ struct core_name {
 	char *corename;
 	int used, size;
 	unsigned int core_pipe_limit;
+	bool core_dumped;
 	enum coredump_type_t core_type;
 	u64 mask;
 };
@@ -247,6 +248,7 @@ static bool coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 	cn->used = 0;
 	cn->corename = NULL;
 	cn->core_pipe_limit = 0;
+	cn->core_dumped = false;
 	if (*pat_ptr == '|')
 		cn->core_type = COREDUMP_PIPE;
 	else if (*pat_ptr == '@')
@@ -1037,6 +1039,34 @@ static bool coredump_pipe(struct core_name *cn, struct coredump_params *cprm,
 	return true;
 }
 
+static bool coredump_write(struct core_name *cn,
+			  struct coredump_params *cprm,
+			  struct linux_binfmt *binfmt)
+{
+
+	if (dump_interrupted())
+		return true;
+
+	if (!dump_vma_snapshot(cprm))
+		return false;
+
+	file_start_write(cprm->file);
+	cn->core_dumped = binfmt->core_dump(cprm);
+	/*
+	 * Ensures that file size is big enough to contain the current
+	 * file postion. This prevents gdb from complaining about
+	 * a truncated file if the last "write" to the file was
+	 * dump_skip.
+	 */
+	if (cprm->to_skip) {
+		cprm->to_skip--;
+		dump_emit(cprm, "", 1);
+	}
+	file_end_write(cprm->file);
+	free_vma_snapshot(cprm);
+	return true;
+}
+
 void vfs_coredump(const kernel_siginfo_t *siginfo)
 {
 	struct core_state core_state;
@@ -1048,7 +1078,6 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	int retval = 0;
 	size_t *argv = NULL;
 	int argc = 0;
-	bool core_dumped = false;
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
 		.limit = rlimit(RLIMIT_CORE),
@@ -1123,31 +1152,14 @@ void vfs_coredump(const kernel_siginfo_t *siginfo)
 	if (retval)
 		goto close_fail;
 
-	if ((cn.mask & COREDUMP_KERNEL) && !dump_interrupted()) {
-		if (!dump_vma_snapshot(&cprm))
-			goto close_fail;
-
-		file_start_write(cprm.file);
-		core_dumped = binfmt->core_dump(&cprm);
-		/*
-		 * Ensures that file size is big enough to contain the current
-		 * file postion. This prevents gdb from complaining about
-		 * a truncated file if the last "write" to the file was
-		 * dump_skip.
-		 */
-		if (cprm.to_skip) {
-			cprm.to_skip--;
-			dump_emit(&cprm, "", 1);
-		}
-		file_end_write(cprm.file);
-		free_vma_snapshot(&cprm);
-	}
+	if ((cn.mask & COREDUMP_KERNEL) && !coredump_write(&cn, &cprm, binfmt))
+		goto close_fail;
 
 	coredump_sock_shutdown(cprm.file);
 
 	/* Let the parent know that a coredump was generated. */
 	if (cn.mask & COREDUMP_USERSPACE)
-		core_dumped = true;
+		cn.core_dumped = true;
 
 	/*
 	 * When core_pipe_limit is set we wait for the coredump server
@@ -1179,7 +1191,7 @@ close_fail:
 fail_unlock:
 	kfree(argv);
 	kfree(cn.corename);
-	coredump_finish(core_dumped);
+	coredump_finish(cn.core_dumped);
 	revert_creds(old_cred);
 fail_creds:
 	put_cred(cred);
