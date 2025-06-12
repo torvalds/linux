@@ -292,12 +292,6 @@ static inline void zero_user_segment(struct page *page,
 	zero_user_segments(page, start, end, 0, 0);
 }
 
-static inline void zero_user(struct page *page,
-	unsigned start, unsigned size)
-{
-	zero_user_segments(page, start, start + size, 0, 0);
-}
-
 #ifndef __HAVE_ARCH_COPY_USER_HIGHPAGE
 
 static inline void copy_user_highpage(struct page *to, struct page *from,
