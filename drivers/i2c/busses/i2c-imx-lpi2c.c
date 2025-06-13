@@ -563,7 +563,7 @@ static int lpi2c_imx_dma_timeout_calculate(struct lpi2c_imx_struct *lpi2c_imx)
 	time += 1;
 
 	/* Double calculated time */
-	return msecs_to_jiffies(time * MSEC_PER_SEC);
+	return secs_to_jiffies(time);
 }
 
 static int lpi2c_imx_alloc_rx_cmd_buf(struct lpi2c_imx_struct *lpi2c_imx)
