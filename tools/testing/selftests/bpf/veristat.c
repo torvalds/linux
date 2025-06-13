@@ -1182,6 +1182,7 @@ static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const ch
 		case BPF_MAP_TYPE_TASK_STORAGE:
 		case BPF_MAP_TYPE_INODE_STORAGE:
 		case BPF_MAP_TYPE_CGROUP_STORAGE:
+		case BPF_MAP_TYPE_CGRP_STORAGE:
 			break;
 		case BPF_MAP_TYPE_STRUCT_OPS:
 			mask_unrelated_struct_ops_progs(obj, map, prog);
