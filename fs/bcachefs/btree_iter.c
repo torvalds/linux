@@ -3216,25 +3216,32 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size, unsigned long
 		mutex_unlock(&s->lock);
 	}
 
-	if (trans->used_mempool) {
+	if (trans->used_mempool || new_bytes > BTREE_TRANS_MEM_MAX) {
 		EBUG_ON(trans->mem_bytes >= new_bytes);
 		return ERR_PTR(-BCH_ERR_ENOMEM_trans_kmalloc);
 	}
 
-	new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
+	if (old_bytes) {
+		trans->realloc_bytes_required = new_bytes;
+		trace_and_count(c, trans_restart_mem_realloced, trans, _RET_IP_, new_bytes);
+		return ERR_PTR(btree_trans_restart_ip(trans,
+					BCH_ERR_transaction_restart_mem_realloced, _RET_IP_));
+	}
+
+	EBUG_ON(trans->mem);
+
+	new_mem = kmalloc(new_bytes, GFP_NOWAIT|__GFP_NOWARN);
 	if (unlikely(!new_mem)) {
 		bch2_trans_unlock(trans);
 
-		new_mem = krealloc(trans->mem, new_bytes, GFP_KERNEL);
+		new_mem = kmalloc(new_bytes, GFP_KERNEL);
 		if (!new_mem && new_bytes <= BTREE_TRANS_MEM_MAX) {
 			new_mem = mempool_alloc(&c->btree_trans_mem_pool, GFP_KERNEL);
 			new_bytes = BTREE_TRANS_MEM_MAX;
 			trans->used_mempool = true;
-			kfree(trans->mem);
 		}
 
-		if (!new_mem)
-			return ERR_PTR(-BCH_ERR_ENOMEM_trans_kmalloc);
+		EBUG_ON(!new_mem);
 
 		trans->mem = new_mem;
 		trans->mem_bytes = new_bytes;
@@ -3246,14 +3253,6 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size, unsigned long
 
 	trans->mem = new_mem;
 	trans->mem_bytes = new_bytes;
-
-	if (old_bytes) {
-		trace_and_count(c, trans_restart_mem_realloced, trans, _RET_IP_, new_bytes);
-		return ERR_PTR(btree_trans_restart_ip(trans,
-					BCH_ERR_transaction_restart_mem_realloced, _RET_IP_));
-	}
-
-	bch2_trans_kmalloc_trace(trans, size, ip);
 
 	p = trans->mem + trans->mem_top;
 	trans->mem_top += size;
@@ -3314,6 +3313,27 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 	trans->restart_count++;
 	trans->mem_top			= 0;
+
+	if (trans->restarted == BCH_ERR_transaction_restart_mem_realloced) {
+		EBUG_ON(!trans->mem || !trans->mem_bytes);
+		unsigned new_bytes = trans->realloc_bytes_required;
+		void *new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
+		if (unlikely(!new_mem)) {
+			bch2_trans_unlock(trans);
+			new_mem = krealloc(trans->mem, new_bytes, GFP_KERNEL);
+
+			EBUG_ON(new_bytes > BTREE_TRANS_MEM_MAX);
+
+			if (!new_mem) {
+				new_mem = mempool_alloc(&trans->c->btree_trans_mem_pool, GFP_KERNEL);
+				new_bytes = BTREE_TRANS_MEM_MAX;
+				trans->used_mempool = true;
+				kfree(trans->mem);
+			}
+                }
+		trans->mem = new_mem;
+		trans->mem_bytes = new_bytes;
+	}
 
 	trans_for_each_path(trans, path, i) {
 		path->should_be_locked = false;
