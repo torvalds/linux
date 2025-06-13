@@ -55,4 +55,6 @@ ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
 	return bo;
 }
 
+void ttm_bo_put(struct ttm_buffer_object *bo);
+
 #endif
