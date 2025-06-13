@@ -1086,9 +1086,12 @@ __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 {
 	unsigned long v, total;
 	struct iov_iter iter;
-	loff_t ppos = offset;
+	struct kiocb kiocb;
 	ssize_t host_err;
 	size_t len;
+
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = offset;
 
 	v = 0;
 	total = *count;
@@ -1104,7 +1107,7 @@ __be32 nfsd_iter_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	trace_nfsd_read_vector(rqstp, fhp, offset, *count);
 	iov_iter_bvec(&iter, ITER_DEST, rqstp->rq_bvec, v, *count);
-	host_err = vfs_iter_read(file, &iter, &ppos, 0);
+	host_err = vfs_iocb_iter_read(file, &kiocb, &iter);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
 
