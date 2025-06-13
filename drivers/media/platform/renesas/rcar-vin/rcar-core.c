@@ -1405,15 +1405,18 @@ static int rcar_vin_probe(struct platform_device *pdev)
 			vin->scaler = vin->info->scaler;
 	}
 
-	if (ret) {
-		rvin_dma_unregister(vin);
-		return ret;
-	}
+	if (ret)
+		goto err_dma;
 
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
+
+err_dma:
+	rvin_dma_unregister(vin);
+
+	return ret;
 }
 
 static void rcar_vin_remove(struct platform_device *pdev)
