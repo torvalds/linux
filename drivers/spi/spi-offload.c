@@ -297,7 +297,7 @@ int spi_offload_trigger_enable(struct spi_offload *offload,
 	if (trigger->ops->enable) {
 		ret = trigger->ops->enable(trigger, config);
 		if (ret) {
-			if (offload->ops->trigger_disable)
+			if (offload->ops && offload->ops->trigger_disable)
 				offload->ops->trigger_disable(offload);
 			return ret;
 		}
