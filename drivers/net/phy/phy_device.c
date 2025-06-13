@@ -652,11 +652,119 @@ static struct attribute *phy_dev_attrs[] = {
 	&dev_attr_phy_dev_flags.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(phy_dev);
+
+static const struct attribute_group phy_dev_group = {
+	.attrs = phy_dev_attrs,
+};
+
+#define MMD_DEVICE_ID_ATTR(n) \
+static ssize_t mmd##n##_device_id_show(struct device *dev, \
+				struct device_attribute *attr, char *buf) \
+{ \
+	struct phy_device *phydev = to_phy_device(dev); \
+	return sysfs_emit(buf, "0x%.8lx\n", \
+			 (unsigned long)phydev->c45_ids.device_ids[n]); \
+} \
+static DEVICE_ATTR_RO(mmd##n##_device_id)
+
+MMD_DEVICE_ID_ATTR(1);
+MMD_DEVICE_ID_ATTR(2);
+MMD_DEVICE_ID_ATTR(3);
+MMD_DEVICE_ID_ATTR(4);
+MMD_DEVICE_ID_ATTR(5);
+MMD_DEVICE_ID_ATTR(6);
+MMD_DEVICE_ID_ATTR(7);
+MMD_DEVICE_ID_ATTR(8);
+MMD_DEVICE_ID_ATTR(9);
+MMD_DEVICE_ID_ATTR(10);
+MMD_DEVICE_ID_ATTR(11);
+MMD_DEVICE_ID_ATTR(12);
+MMD_DEVICE_ID_ATTR(13);
+MMD_DEVICE_ID_ATTR(14);
+MMD_DEVICE_ID_ATTR(15);
+MMD_DEVICE_ID_ATTR(16);
+MMD_DEVICE_ID_ATTR(17);
+MMD_DEVICE_ID_ATTR(18);
+MMD_DEVICE_ID_ATTR(19);
+MMD_DEVICE_ID_ATTR(20);
+MMD_DEVICE_ID_ATTR(21);
+MMD_DEVICE_ID_ATTR(22);
+MMD_DEVICE_ID_ATTR(23);
+MMD_DEVICE_ID_ATTR(24);
+MMD_DEVICE_ID_ATTR(25);
+MMD_DEVICE_ID_ATTR(26);
+MMD_DEVICE_ID_ATTR(27);
+MMD_DEVICE_ID_ATTR(28);
+MMD_DEVICE_ID_ATTR(29);
+MMD_DEVICE_ID_ATTR(30);
+MMD_DEVICE_ID_ATTR(31);
+
+static struct attribute *phy_mmd_attrs[] = {
+	&dev_attr_mmd1_device_id.attr,
+	&dev_attr_mmd2_device_id.attr,
+	&dev_attr_mmd3_device_id.attr,
+	&dev_attr_mmd4_device_id.attr,
+	&dev_attr_mmd5_device_id.attr,
+	&dev_attr_mmd6_device_id.attr,
+	&dev_attr_mmd7_device_id.attr,
+	&dev_attr_mmd8_device_id.attr,
+	&dev_attr_mmd9_device_id.attr,
+	&dev_attr_mmd10_device_id.attr,
+	&dev_attr_mmd11_device_id.attr,
+	&dev_attr_mmd12_device_id.attr,
+	&dev_attr_mmd13_device_id.attr,
+	&dev_attr_mmd14_device_id.attr,
+	&dev_attr_mmd15_device_id.attr,
+	&dev_attr_mmd16_device_id.attr,
+	&dev_attr_mmd17_device_id.attr,
+	&dev_attr_mmd18_device_id.attr,
+	&dev_attr_mmd19_device_id.attr,
+	&dev_attr_mmd20_device_id.attr,
+	&dev_attr_mmd21_device_id.attr,
+	&dev_attr_mmd22_device_id.attr,
+	&dev_attr_mmd23_device_id.attr,
+	&dev_attr_mmd24_device_id.attr,
+	&dev_attr_mmd25_device_id.attr,
+	&dev_attr_mmd26_device_id.attr,
+	&dev_attr_mmd27_device_id.attr,
+	&dev_attr_mmd28_device_id.attr,
+	&dev_attr_mmd29_device_id.attr,
+	&dev_attr_mmd30_device_id.attr,
+	&dev_attr_mmd31_device_id.attr,
+	NULL
+};
+
+static umode_t phy_mmd_is_visible(struct kobject *kobj,
+				  struct attribute *attr, int index)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct phy_device *phydev = to_phy_device(dev);
+	const int i = index + 1;
+
+	if (!phydev->is_c45)
+		return 0;
+	if (i >= ARRAY_SIZE(phydev->c45_ids.device_ids) ||
+	    phydev->c45_ids.device_ids[i] == 0xffffffff)
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group phy_mmd_group = {
+	.name = "c45_phy_ids",
+	.attrs = phy_mmd_attrs,
+	.is_visible = phy_mmd_is_visible,
+};
+
+static const struct attribute_group *phy_device_groups[] = {
+	&phy_dev_group,
+	&phy_mmd_group,
+	NULL,
+};
 
 static const struct device_type mdio_bus_phy_type = {
 	.name = "PHY",
-	.groups = phy_dev_groups,
+	.groups = phy_device_groups,
 	.release = phy_device_release,
 	.pm = pm_ptr(&mdio_bus_phy_pm_ops),
 };
