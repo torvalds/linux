@@ -806,7 +806,7 @@ static int add_inode(struct bch_fs *c, struct inode_walker *w,
 	if (!n->whiteout) {
 		return bch2_inode_unpack(inode, &n->inode);
 	} else {
-		n->inode.bi_inum	= inode.k->p.inode;
+		n->inode.bi_inum	= inode.k->p.offset;
 		n->inode.bi_snapshot	= inode.k->p.snapshot;
 		return 0;
 	}
