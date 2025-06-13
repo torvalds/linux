@@ -38,6 +38,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu0_intc: interrupt-controller {
@@ -73,6 +74,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu1_intc: interrupt-controller {
@@ -108,6 +110,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu2_intc: interrupt-controller {
@@ -143,6 +146,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu3_intc: interrupt-controller {
@@ -178,6 +182,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu4_intc: interrupt-controller {
@@ -213,6 +218,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu5_intc: interrupt-controller {
@@ -248,6 +254,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu6_intc: interrupt-controller {
@@ -283,6 +290,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu7_intc: interrupt-controller {
@@ -318,6 +326,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu8_intc: interrupt-controller {
@@ -353,6 +362,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu9_intc: interrupt-controller {
@@ -388,6 +398,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu10_intc: interrupt-controller {
@@ -423,6 +434,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu11_intc: interrupt-controller {
@@ -458,6 +470,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu12_intc: interrupt-controller {
@@ -493,6 +506,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu13_intc: interrupt-controller {
@@ -528,6 +542,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu14_intc: interrupt-controller {
@@ -563,6 +578,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu15_intc: interrupt-controller {
@@ -598,6 +614,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu16_intc: interrupt-controller {
@@ -633,6 +650,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu17_intc: interrupt-controller {
@@ -668,6 +686,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu18_intc: interrupt-controller {
@@ -703,6 +722,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu19_intc: interrupt-controller {
@@ -738,6 +758,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu20_intc: interrupt-controller {
@@ -773,6 +794,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu21_intc: interrupt-controller {
@@ -808,6 +830,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu22_intc: interrupt-controller {
@@ -843,6 +866,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu23_intc: interrupt-controller {
@@ -878,6 +902,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu24_intc: interrupt-controller {
@@ -913,6 +938,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu25_intc: interrupt-controller {
@@ -948,6 +974,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu26_intc: interrupt-controller {
@@ -983,6 +1010,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu27_intc: interrupt-controller {
@@ -1018,6 +1046,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu28_intc: interrupt-controller {
@@ -1053,6 +1082,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu29_intc: interrupt-controller {
@@ -1088,6 +1118,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu30_intc: interrupt-controller {
@@ -1123,6 +1154,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu31_intc: interrupt-controller {
@@ -1158,6 +1190,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu32_intc: interrupt-controller {
@@ -1193,6 +1226,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu33_intc: interrupt-controller {
@@ -1228,6 +1262,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu34_intc: interrupt-controller {
@@ -1263,6 +1298,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu35_intc: interrupt-controller {
@@ -1298,6 +1334,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu36_intc: interrupt-controller {
@@ -1333,6 +1370,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu37_intc: interrupt-controller {
@@ -1368,6 +1406,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu38_intc: interrupt-controller {
@@ -1403,6 +1442,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu39_intc: interrupt-controller {
@@ -1438,6 +1478,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu40_intc: interrupt-controller {
@@ -1473,6 +1514,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu41_intc: interrupt-controller {
@@ -1508,6 +1550,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu42_intc: interrupt-controller {
@@ -1543,6 +1586,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu43_intc: interrupt-controller {
@@ -1578,6 +1622,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu44_intc: interrupt-controller {
@@ -1613,6 +1658,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu45_intc: interrupt-controller {
@@ -1648,6 +1694,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu46_intc: interrupt-controller {
@@ -1683,6 +1730,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu47_intc: interrupt-controller {
@@ -1718,6 +1766,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu48_intc: interrupt-controller {
@@ -1753,6 +1802,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu49_intc: interrupt-controller {
@@ -1788,6 +1838,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu50_intc: interrupt-controller {
@@ -1823,6 +1874,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu51_intc: interrupt-controller {
@@ -1858,6 +1910,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu52_intc: interrupt-controller {
@@ -1893,6 +1946,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu53_intc: interrupt-controller {
@@ -1928,6 +1982,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu54_intc: interrupt-controller {
@@ -1963,6 +2018,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu55_intc: interrupt-controller {
@@ -1998,6 +2054,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu56_intc: interrupt-controller {
@@ -2033,6 +2090,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu57_intc: interrupt-controller {
@@ -2068,6 +2126,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu58_intc: interrupt-controller {
@@ -2103,6 +2162,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu59_intc: interrupt-controller {
@@ -2138,6 +2198,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu60_intc: interrupt-controller {
@@ -2173,6 +2234,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu61_intc: interrupt-controller {
@@ -2208,6 +2270,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu62_intc: interrupt-controller {
@@ -2243,6 +2306,7 @@
 					       "zvfbfmin", "zvfbfwma", "zvfh",
 					       "zvfhmin";
 			riscv,cbom-block-size = <64>;
+			riscv,cbop-block-size = <64>;
 			riscv,cboz-block-size = <64>;
 
 			cpu63_intc: interrupt-controller {
