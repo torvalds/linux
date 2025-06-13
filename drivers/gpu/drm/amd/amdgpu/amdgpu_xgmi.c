@@ -1771,13 +1771,15 @@ void amdgpu_xgmi_early_init(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 0):
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
-		adev->gmc.xgmi.max_speed = XGMI_SPEED_25GT;
+		/* 25 GT/s */
+		adev->gmc.xgmi.max_speed = 25;
 		adev->gmc.xgmi.max_width = 16;
 		break;
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
 	case IP_VERSION(9, 5, 0):
-		adev->gmc.xgmi.max_speed = XGMI_SPEED_32GT;
+		/* 32 GT/s */
+		adev->gmc.xgmi.max_speed = 32;
 		adev->gmc.xgmi.max_width = 16;
 		break;
 	default:
