@@ -46,7 +46,8 @@ static int ir_spi_tx(struct rc_dev *dev, unsigned int *buffer, unsigned int coun
 
 	/* convert the pulse/space signal to raw binary signal */
 	for (i = 0; i < count; i++) {
-		buffer[i] = DIV_ROUND_CLOSEST(buffer[i] * idata->freq, 1000000);
+		buffer[i] = DIV_ROUND_CLOSEST_ULL((u64)buffer[i] * idata->freq,
+						  1000000);
 		len += buffer[i];
 	}
 
