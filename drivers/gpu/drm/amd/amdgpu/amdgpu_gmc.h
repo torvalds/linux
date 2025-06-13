@@ -84,6 +84,8 @@ enum amdgpu_memory_partition {
 
 #define AMDGPU_GMC_INIT_RESET_NPS  BIT(0)
 
+#define AMDGPU_MAX_MEM_RANGES 8
+
 /*
  * GMC page fault information
  */
