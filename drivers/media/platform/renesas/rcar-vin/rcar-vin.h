@@ -242,6 +242,7 @@ struct rvin_dev {
  * @lock:		protects the count, notifier, vin and csi members
  * @count:		number of enabled VIN instances found in DT
  * @notifier:		group notifier for CSI-2 async connections
+ * @info:		Platform dependent information about the VIN instances
  * @vin:		VIN instances which are part of the group
  * @link_setup:		Callback to create all links for the media graph
  * @remotes:		array of pairs of async connection and subdev pointers
@@ -255,6 +256,7 @@ struct rvin_group {
 	struct mutex lock;
 	unsigned int count;
 	struct v4l2_async_notifier notifier;
+	const struct rvin_info *info;
 	struct rvin_dev *vin[RCAR_VIN_NUM];
 
 	int (*link_setup)(struct rvin_dev *vin);

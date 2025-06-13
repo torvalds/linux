@@ -156,6 +156,7 @@ static int rvin_group_get(struct rvin_dev *vin,
 		}
 
 		kref_init(&group->refcount);
+		group->info = vin->info;
 
 		rvin_group_data = group;
 	}
