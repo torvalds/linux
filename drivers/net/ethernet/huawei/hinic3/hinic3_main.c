@@ -324,8 +324,6 @@ static __init int hinic3_nic_lld_init(void)
 {
 	int err;
 
-	pr_info("%s: %s\n", HINIC3_NIC_DRV_NAME, HINIC3_NIC_DRV_DESC);
-
 	err = hinic3_lld_init();
 	if (err)
 		return err;

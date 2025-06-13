@@ -1145,7 +1145,7 @@ static void ovpn_peer_release_p2p(struct ovpn_priv *ovpn, struct sock *sk,
 
 	if (sk) {
 		ovpn_sock = rcu_access_pointer(peer->sock);
-		if (!ovpn_sock || ovpn_sock->sock->sk != sk) {
+		if (!ovpn_sock || ovpn_sock->sk != sk) {
 			spin_unlock_bh(&ovpn->lock);
 			ovpn_peer_put(peer);
 			return;
@@ -1175,7 +1175,7 @@ static void ovpn_peers_release_mp(struct ovpn_priv *ovpn, struct sock *sk,
 		if (sk) {
 			rcu_read_lock();
 			ovpn_sock = rcu_dereference(peer->sock);
-			remove = ovpn_sock && ovpn_sock->sock->sk == sk;
+			remove = ovpn_sock && ovpn_sock->sk == sk;
 			rcu_read_unlock();
 		}
 

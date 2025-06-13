@@ -8,6 +8,8 @@
  * Copyright (C) 2001 by various other people who didn't put their name here.
  */
 
+#define pr_fmt(fmt) "uml-vector: " fmt
+
 #include <linux/memblock.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -27,7 +29,6 @@
 #include <init.h>
 #include <irq_kern.h>
 #include <irq_user.h>
-#include <net_kern.h>
 #include <os.h>
 #include "mconsole_kern.h"
 #include "vector_user.h"
@@ -1539,7 +1540,41 @@ static void vector_timer_expire(struct timer_list *t)
 	napi_schedule(&vp->napi);
 }
 
+static void vector_setup_etheraddr(struct net_device *dev, char *str)
+{
+	u8 addr[ETH_ALEN];
 
+	if (str == NULL)
+		goto random;
+
+	if (!mac_pton(str, addr)) {
+		netdev_err(dev,
+			"Failed to parse '%s' as an ethernet address\n", str);
+		goto random;
+	}
+	if (is_multicast_ether_addr(addr)) {
+		netdev_err(dev,
+			"Attempt to assign a multicast ethernet address to a device disallowed\n");
+		goto random;
+	}
+	if (!is_valid_ether_addr(addr)) {
+		netdev_err(dev,
+			"Attempt to assign an invalid ethernet address to a device disallowed\n");
+		goto random;
+	}
+	if (!is_local_ether_addr(addr)) {
+		netdev_warn(dev, "Warning: Assigning a globally valid ethernet address to a device\n");
+		netdev_warn(dev, "You should set the 2nd rightmost bit in the first byte of the MAC,\n");
+		netdev_warn(dev, "i.e. %02x:%02x:%02x:%02x:%02x:%02x\n",
+			addr[0] | 0x02, addr[1], addr[2], addr[3], addr[4], addr[5]);
+	}
+	eth_hw_addr_set(dev, addr);
+	return;
+
+random:
+	netdev_info(dev, "Choosing a random ethernet address\n");
+	eth_hw_addr_random(dev);
+}
 
 static void vector_eth_configure(
 		int n,
@@ -1553,14 +1588,12 @@ static void vector_eth_configure(
 
 	device = kzalloc(sizeof(*device), GFP_KERNEL);
 	if (device == NULL) {
-		printk(KERN_ERR "eth_configure failed to allocate struct "
-				 "vector_device\n");
+		pr_err("Failed to allocate struct vector_device for vec%d\n", n);
 		return;
 	}
 	dev = alloc_etherdev(sizeof(struct vector_private));
 	if (dev == NULL) {
-		printk(KERN_ERR "eth_configure: failed to allocate struct "
-				 "net_device for vec%d\n", n);
+		pr_err("Failed to allocate struct net_device for vec%d\n", n);
 		goto out_free_device;
 	}
 
@@ -1574,7 +1607,7 @@ static void vector_eth_configure(
 	 * and fail.
 	 */
 	snprintf(dev->name, sizeof(dev->name), "vec%d", n);
-	uml_net_setup_etheraddr(dev, uml_vector_fetch_arg(def, "mac"));
+	vector_setup_etheraddr(dev, uml_vector_fetch_arg(def, "mac"));
 	vp = netdev_priv(dev);
 
 	/* sysfs register */
@@ -1690,8 +1723,7 @@ static int __init vector_setup(char *str)
 
 	err = vector_parse(str, &n, &str, &error);
 	if (err) {
-		printk(KERN_ERR "vector_setup - Couldn't parse '%s' : %s\n",
-				 str, error);
+		pr_err("Couldn't parse '%s': %s\n", str, error);
 		return 1;
 	}
 	new = memblock_alloc_or_panic(sizeof(*new), SMP_CACHE_BYTES);
