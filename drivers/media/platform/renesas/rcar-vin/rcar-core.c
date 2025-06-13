@@ -895,10 +895,6 @@ static int rvin_csi2_init(struct rvin_dev *vin)
 {
 	int ret;
 
-	vin->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_pads_init(&vin->vdev.entity, 1, &vin->pad);
-	if (ret)
-		return ret;
 
 	ret = rvin_create_controls(vin, NULL);
 	if (ret < 0)
@@ -980,10 +976,6 @@ static int rvin_isp_init(struct rvin_dev *vin)
 {
 	int ret;
 
-	vin->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_pads_init(&vin->vdev.entity, 1, &vin->pad);
-	if (ret)
-		return ret;
 
 	ret = rvin_create_controls(vin, NULL);
 	if (ret < 0)
@@ -1376,6 +1368,11 @@ static int rcar_vin_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_dma;
 	}
+
+	vin->pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_pads_init(&vin->vdev.entity, 1, &vin->pad);
+	if (ret)
+		goto err_id;
 
 	if (vin->info->use_isp) {
 		ret = rvin_isp_init(vin);
