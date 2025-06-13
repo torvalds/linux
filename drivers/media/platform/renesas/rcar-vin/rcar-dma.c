@@ -2,12 +2,11 @@
 /*
  * Driver for Renesas R-Car VIN
  *
+ * Copyright (C) 2025 Niklas Söderlund <niklas.soderlund@ragnatech.se>
  * Copyright (C) 2016 Renesas Electronics Corp.
  * Copyright (C) 2011-2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Cogent Embedded, Inc., <source@cogentembedded.com>
  * Copyright (C) 2008 Magnus Damm
- *
- * Based on the soc-camera rcar_vin driver
  */
 
 #include <linux/delay.h>
@@ -555,17 +554,12 @@ static void rvin_set_coeff(struct rvin_dev *vin, unsigned short xs)
 
 void rvin_scaler_gen2(struct rvin_dev *vin)
 {
-	unsigned int crop_height;
 	u32 xs, ys;
 
 	/* Set scaling coefficient */
-	crop_height = vin->crop.height;
-	if (V4L2_FIELD_HAS_BOTH(vin->format.field))
-		crop_height *= 2;
-
 	ys = 0;
-	if (crop_height != vin->compose.height)
-		ys = (4096 * crop_height) / vin->compose.height;
+	if (vin->crop.height != vin->compose.height)
+		ys = (4096 * vin->crop.height) / vin->compose.height;
 	rvin_write(vin, ys, VNYS_REG);
 
 	xs = 0;
@@ -1293,14 +1287,6 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
 	int ret;
-
-	/* No media controller used, simply pass operation to subdevice. */
-	if (!vin->info->use_mc) {
-		ret = v4l2_subdev_call(vin->parallel.subdev, video, s_stream,
-				       on);
-
-		return ret == -ENOIOCTLCMD ? 0 : ret;
-	}
 
 	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
