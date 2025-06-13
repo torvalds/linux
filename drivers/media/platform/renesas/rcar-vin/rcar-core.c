@@ -340,24 +340,20 @@ static void rvin_group_notifier_cleanup(struct rvin_dev *vin)
 
 static int rvin_parallel_parse_of(struct rvin_dev *vin)
 {
-	struct fwnode_handle *ep, *fwnode;
+	struct fwnode_handle *fwnode __free(fwnode_handle) = NULL;
+	struct fwnode_handle *ep __free(fwnode_handle) = NULL;
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_UNKNOWN,
 	};
 	struct v4l2_async_connection *asc;
-	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), 0, 0, 0);
 	if (!ep)
 		return 0;
 
-	fwnode = fwnode_graph_get_remote_endpoint(ep);
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
-	fwnode_handle_put(ep);
-	if (ret) {
-		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
-		ret = -EINVAL;
-		goto out;
+	if (v4l2_fwnode_endpoint_parse(ep, &vep)) {
+		vin_err(vin, "Failed to parse %pOF\n", to_of_node(ep));
+		return -EINVAL;
 	}
 
 	switch (vep.bus_type) {
@@ -371,24 +367,20 @@ static int rvin_parallel_parse_of(struct rvin_dev *vin)
 		break;
 	default:
 		vin_err(vin, "Unknown media bus type\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
 	asc = v4l2_async_nf_add_fwnode(&vin->notifier, fwnode,
 				       struct v4l2_async_connection);
-	if (IS_ERR(asc)) {
-		ret = PTR_ERR(asc);
-		goto out;
-	}
+	if (IS_ERR(asc))
+		return PTR_ERR(asc);
 
 	vin->parallel.asc = asc;
 
 	vin_dbg(vin, "Add parallel OF device %pOF\n", to_of_node(fwnode));
-out:
-	fwnode_handle_put(fwnode);
 
-	return ret;
+	return 0;
 }
 
 static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
