@@ -163,21 +163,35 @@ u16 xe_pat_index_get_coh_mode(struct xe_device *xe, u16 pat_index)
 static void program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
 			int n_entries)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+
 	for (int i = 0; i < n_entries; i++) {
 		struct xe_reg reg = XE_REG(_PAT_INDEX(i));
 
 		xe_mmio_write32(&gt->mmio, reg, table[i].value);
 	}
+
+	if (xe->pat.pat_ats)
+		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_ATS), xe->pat.pat_ats->value);
+	if (xe->pat.pat_pta)
+		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_PTA), xe->pat.pat_pta->value);
 }
 
 static void program_pat_mcr(struct xe_gt *gt, const struct xe_pat_table_entry table[],
 			    int n_entries)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+
 	for (int i = 0; i < n_entries; i++) {
 		struct xe_reg_mcr reg_mcr = XE_REG_MCR(_PAT_INDEX(i));
 
 		xe_gt_mcr_multicast_write(gt, reg_mcr, table[i].value);
 	}
+
+	if (xe->pat.pat_ats)
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_ATS), xe->pat.pat_ats->value);
+	if (xe->pat.pat_pta)
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_PTA), xe->pat.pat_pta->value);
 }
 
 static void xelp_dump(struct xe_gt *gt, struct drm_printer *p)
@@ -304,32 +318,6 @@ static const struct xe_pat_ops xelpg_pat_ops = {
 	.dump = xelpg_dump,
 };
 
-static void xe2lpg_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
-			       int n_entries)
-{
-	struct xe_device *xe = gt_to_xe(gt);
-
-	program_pat_mcr(gt, table, n_entries);
-
-	if (xe->pat.pat_ats)
-		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_ATS), xe->pat.pat_ats->value);
-	if (xe->pat.pat_pta)
-		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_PTA), xe->pat.pat_pta->value);
-}
-
-static void xe2lpm_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
-			       int n_entries)
-{
-	struct xe_device *xe = gt_to_xe(gt);
-
-	program_pat(gt, table, n_entries);
-
-	if (xe->pat.pat_ats)
-		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_ATS), xe->pat.pat_ats->value);
-	if (xe->pat.pat_pta)
-		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_PTA), xe->pat.pat_pta->value);
-}
-
 static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
@@ -382,8 +370,8 @@ static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 }
 
 static const struct xe_pat_ops xe2_pat_ops = {
-	.program_graphics = xe2lpg_program_pat,
-	.program_media = xe2lpm_program_pat,
+	.program_graphics = program_pat_mcr,
+	.program_media = program_pat,
 	.dump = xe2_dump,
 };
 
