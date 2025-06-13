@@ -221,7 +221,7 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 
 	info = adreno_info(config.chip_id);
 	/* We shouldn't have gotten this far if we don't recognize the GPU: */
-	if (!WARN_ON(info))
+	if (WARN_ON(!info))
 		return -ENXIO;
 
 	config.info = info;
