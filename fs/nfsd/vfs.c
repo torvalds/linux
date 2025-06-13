@@ -1173,15 +1173,14 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct nfsd_net		*nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct file		*file = nf->nf_file;
 	struct super_block	*sb = file_inode(file)->i_sb;
+	struct kiocb		kiocb;
 	struct svc_export	*exp;
 	struct iov_iter		iter;
 	errseq_t		since;
 	__be32			nfserr;
 	int			host_err;
-	loff_t			pos = offset;
 	unsigned long		exp_op_flags = 0;
 	unsigned int		pflags = current->flags;
-	rwf_t			flags = 0;
 	bool			restore_flags = false;
 	unsigned int		nvecs;
 
@@ -1207,16 +1206,17 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	if (!EX_ISSYNC(exp))
 		stable = NFS_UNSTABLE;
-
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = offset;
 	if (stable && !fhp->fh_use_wgather)
-		flags |= RWF_SYNC;
+		kiocb.ki_flags |= IOCB_DSYNC;
 
 	nvecs = xdr_buf_to_bvec(rqstp->rq_bvec, rqstp->rq_maxpages, payload);
 	iov_iter_bvec(&iter, ITER_SOURCE, rqstp->rq_bvec, nvecs, *cnt);
 	since = READ_ONCE(file->f_wb_err);
 	if (verf)
 		nfsd_copy_write_verifier(verf, nn);
-	host_err = vfs_iter_write(file, &iter, &pos, flags);
+	host_err = vfs_iocb_iter_write(file, &kiocb, &iter);
 	if (host_err < 0) {
 		commit_reset_write_verifier(nn, rqstp, host_err);
 		goto out_nfserr;
