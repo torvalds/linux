@@ -104,6 +104,13 @@ In this example the SSID is 10280c63.
 
 The format of the firmware file names is:
 
+SoundWire (except CS35L56 Rev B0):
+    cs35lxx-b0-dsp1-misc-SSID[-spkidX]-l?u?
+
+SoundWire CS35L56 Rev B0:
+    cs35lxx-b0-dsp1-misc-SSID[-spkidX]-ampN
+
+Non-SoundWire (HDA and I2S):
     cs35lxx-b0-dsp1-misc-SSID[-spkidX]-ampN
 
 Where:
@@ -111,11 +118,17 @@ Where:
   * cs35lxx-b0 is the amplifier model and silicon revision. This information
     is logged by the driver during initialization.
   * SSID is the 8-digit hexadecimal SSID value.
+  * l?u? is the physical address on the SoundWire bus of the amp this
+    file applies to.
   * ampN is the amplifier number (for example amp1). This is the same as
     the prefix on the ALSA control names except that it is always lower-case
     in the file name.
   * spkidX is an optional part, used for laptops that have firmware
     configurations for different makes and models of internal speakers.
+
+The CS35L56 Rev B0 continues to use the old filename scheme because a
+large number of firmware files have already been published with these
+names.
 
 Sound Open Firmware and ALSA topology files
 -------------------------------------------
