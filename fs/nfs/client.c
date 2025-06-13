@@ -830,7 +830,6 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
 
 	server->maxfilesize = fsinfo->maxfilesize;
 
-	server->time_delta = fsinfo->time_delta;
 	server->change_attr_type = fsinfo->change_attr_type;
 
 	server->clone_blksize = fsinfo->clone_blksize;
