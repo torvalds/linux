@@ -979,7 +979,7 @@ static void amt_event_send_request(struct amt_dev *amt)
 	amt->req_cnt++;
 out:
 	exp = min_t(u32, (1 * (1 << amt->req_cnt)), AMT_MAX_REQ_TIMEOUT);
-	mod_delayed_work(amt_wq, &amt->req_wq, msecs_to_jiffies(exp * 1000));
+	mod_delayed_work(amt_wq, &amt->req_wq, secs_to_jiffies(exp));
 }
 
 static void amt_req_work(struct work_struct *work)
