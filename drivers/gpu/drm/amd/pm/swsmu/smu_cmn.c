@@ -86,6 +86,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 #define SMU_RESP_BUSY_OTHER     0xFC
 #define SMU_RESP_DEBUG_END      0xFB
 
+#define SMU_RESP_UNEXP (~0U)
 /**
  * __smu_cmn_poll_stat -- poll for a status from the SMU
  * @smu: a pointer to SMU context
@@ -171,6 +172,15 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm debugging!");
 		break;
+	case SMU_RESP_UNEXP:
+		if (amdgpu_device_bus_status_check(smu->adev)) {
+			/* print error immediately if device is off the bus */
+			dev_err(adev->dev,
+				"SMU: response:0x%08X for index:%d param:0x%08X message:%s?",
+				reg_c2pmsg_90, msg_index, param, message);
+			break;
+		}
+		fallthrough;
 	default:
 		dev_err_ratelimited(adev->dev,
 				    "SMU: response:0x%08X for index:%d param:0x%08X message:%s?",

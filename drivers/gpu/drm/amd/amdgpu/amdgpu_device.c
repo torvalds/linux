@@ -6071,14 +6071,9 @@ static int amdgpu_device_health_check(struct list_head *device_list_handle)
 {
 	struct amdgpu_device *tmp_adev;
 	int ret = 0;
-	u32 status;
 
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-		pci_read_config_dword(tmp_adev->pdev, PCI_COMMAND, &status);
-		if (PCI_POSSIBLE_ERROR(status)) {
-			dev_err(tmp_adev->dev, "device lost from bus!");
-			ret = -ENODEV;
-		}
+		ret |= amdgpu_device_bus_status_check(tmp_adev);
 	}
 
 	return ret;

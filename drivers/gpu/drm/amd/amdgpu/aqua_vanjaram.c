@@ -353,11 +353,14 @@ static int aqua_vanjaram_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 
 	if (adev->nbio.funcs->get_compute_partition_mode) {
 		mode = adev->nbio.funcs->get_compute_partition_mode(adev);
-		if (mode != derv_mode)
+		if (mode != derv_mode) {
 			dev_warn(
 				adev->dev,
 				"Mismatch in compute partition mode - reported : %d derived : %d",
 				mode, derv_mode);
+			if (derv_mode == AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
+				amdgpu_device_bus_status_check(adev);
+		}
 	}
 
 	return mode;
