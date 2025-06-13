@@ -124,4 +124,6 @@ int amdgpu_xgmi_get_ext_link(struct amdgpu_device *adev, int link_num);
 void amdgpu_xgmi_early_init(struct amdgpu_device *adev);
 uint32_t amdgpu_xgmi_get_max_bandwidth(struct amdgpu_device *adev);
 
+void amgpu_xgmi_set_max_speed_width(struct amdgpu_device *adev,
+				    uint16_t max_speed, uint8_t max_width);
 #endif

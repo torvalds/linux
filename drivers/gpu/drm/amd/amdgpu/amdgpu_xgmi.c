@@ -1786,3 +1786,10 @@ void amdgpu_xgmi_early_init(struct amdgpu_device *adev)
 		break;
 	}
 }
+
+void amgpu_xgmi_set_max_speed_width(struct amdgpu_device *adev,
+				    uint16_t max_speed, uint8_t max_width)
+{
+	adev->gmc.xgmi.max_speed = max_speed;
+	adev->gmc.xgmi.max_width = max_width;
+}
