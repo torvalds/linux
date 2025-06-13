@@ -692,7 +692,7 @@ static bool check_version_upgrade(struct bch_fs *c)
 		ret = true;
 	}
 
-	if (new_version > c->sb.version_incompat &&
+	if (new_version > c->sb.version_incompat_allowed &&
 	    c->opts.version_upgrade == BCH_VERSION_UPGRADE_incompatible) {
 		struct printbuf buf = PRINTBUF;
 
