@@ -213,6 +213,7 @@
 		#pwm-cells = <2>;
 
 		fan {
+			cooling-levels = <255>;
 			pwms = <&fan_controller 40000 PWM_POLARITY_INVERTED>;
 		};
 	};
