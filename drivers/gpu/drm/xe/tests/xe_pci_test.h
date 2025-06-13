@@ -15,7 +15,6 @@ struct xe_device;
 struct xe_graphics_desc;
 struct xe_media_desc;
 
-typedef int (*xe_device_fn)(struct xe_device *);
 typedef void (*xe_graphics_fn)(const struct xe_graphics_desc *);
 typedef void (*xe_media_fn)(const struct xe_media_desc *);
 
