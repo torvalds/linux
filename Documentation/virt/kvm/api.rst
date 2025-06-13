@@ -8373,7 +8373,7 @@ core crystal clock frequency, if a non-zero CPUID 0x15 is exposed to the guest.
 7.36 KVM_CAP_DIRTY_LOG_RING/KVM_CAP_DIRTY_LOG_RING_ACQ_REL
 ----------------------------------------------------------
 
-:Architectures: x86, arm64
+:Architectures: x86, arm64, riscv
 :Type: vm
 :Parameters: args[0] - size of the dirty log ring
 

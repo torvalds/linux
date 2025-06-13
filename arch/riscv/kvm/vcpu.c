@@ -682,7 +682,14 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
+/**
+ * check_vcpu_requests - check and handle pending vCPU requests
+ * @vcpu:	the VCPU pointer
+ *
+ * Return: 1 if we should enter the guest
+ *	    0 if we should exit to userspace
+ */
+static int kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 {
 	struct rcuwait *wait = kvm_arch_vcpu_get_wait(vcpu);
 
@@ -723,7 +730,12 @@ static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 
 		if (kvm_check_request(KVM_REQ_STEAL_UPDATE, vcpu))
 			kvm_riscv_vcpu_record_steal_time(vcpu);
+
+		if (kvm_dirty_ring_check_request(vcpu))
+			return 0;
 	}
+
+	return 1;
 }
 
 static void kvm_riscv_update_hvip(struct kvm_vcpu *vcpu)
@@ -905,7 +917,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 		kvm_riscv_gstage_vmid_update(vcpu);
 
-		kvm_riscv_check_vcpu_requests(vcpu);
+		ret = kvm_riscv_check_vcpu_requests(vcpu);
+		if (ret <= 0)
+			continue;
 
 		preempt_disable();
 
