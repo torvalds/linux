@@ -278,7 +278,7 @@ static void netconsole_process_cleanups_core(void)
 	mutex_unlock(&target_cleanup_list_lock);
 }
 
-static void netpoll_print_options(struct netpoll *np)
+static void netconsole_print_banner(struct netpoll *np)
 {
 	np_info(np, "local port %d\n", np->local_port);
 	if (np->ipv6)
@@ -551,10 +551,10 @@ static ssize_t enabled_store(struct config_item *item,
 		}
 
 		/*
-		 * Skip netpoll_parse_options() -- all the attributes are
+		 * Skip netconsole_parser_cmdline() -- all the attributes are
 		 * already configured via configfs. Just print them out.
 		 */
-		netpoll_print_options(&nt->np);
+		netconsole_print_banner(&nt->np);
 
 		ret = netpoll_setup(&nt->np);
 		if (ret)
@@ -1696,11 +1696,12 @@ static int netpoll_parse_ip_addr(const char *str, union inet_addr *addr)
 	return -1;
 }
 
-static int netpoll_parse_options(struct netpoll *np, char *opt)
+static int netconsole_parser_cmdline(struct netpoll *np, char *opt)
 {
-	char *cur=opt, *delim;
-	int ipv6;
 	bool ipversion_set = false;
+	char *cur = opt;
+	char *delim;
+	int ipv6;
 
 	if (*cur != '@') {
 		if ((delim = strchr(cur, '@')) == NULL)
@@ -1775,7 +1776,7 @@ static int netpoll_parse_options(struct netpoll *np, char *opt)
 			goto parse_failed;
 	}
 
-	netpoll_print_options(np);
+	netconsole_print_banner(np);
 
 	return 0;
 
@@ -1813,7 +1814,7 @@ static struct netconsole_target *alloc_param_target(char *target_config,
 	}
 
 	/* Parse parameters and setup netpoll */
-	err = netpoll_parse_options(&nt->np, target_config);
+	err = netconsole_parser_cmdline(&nt->np, target_config);
 	if (err)
 		goto fail;
 
