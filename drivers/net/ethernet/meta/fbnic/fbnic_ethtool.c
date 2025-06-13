@@ -531,20 +531,6 @@ static int fbnic_get_rss_hash_idx(u32 flow_type)
 	return -1;
 }
 
-static int
-fbnic_get_rss_hash_opts(struct fbnic_net *fbn, struct ethtool_rxnfc *cmd)
-{
-	int hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
-
-	if (hash_opt_idx < 0)
-		return -EINVAL;
-
-	/* Report options from rss_en table in fbn */
-	cmd->data = fbn->rss_flow_hash[hash_opt_idx];
-
-	return 0;
-}
-
 static int fbnic_get_cls_rule_all(struct fbnic_net *fbn,
 				  struct ethtool_rxnfc *cmd,
 				  u32 *rule_locs)
@@ -779,9 +765,6 @@ static int fbnic_get_rxnfc(struct net_device *netdev,
 		cmd->data = fbn->num_rx_queues;
 		ret = 0;
 		break;
-	case ETHTOOL_GRXFH:
-		ret = fbnic_get_rss_hash_opts(fbn, cmd);
-		break;
 	case ETHTOOL_GRXCLSRULE:
 		ret = fbnic_get_cls_rule(fbn, cmd);
 		break;
@@ -801,41 +784,6 @@ static int fbnic_get_rxnfc(struct net_device *netdev,
 	}
 
 	return ret;
-}
-
-#define FBNIC_L2_HASH_OPTIONS \
-	(RXH_L2DA | RXH_DISCARD)
-#define FBNIC_L3_HASH_OPTIONS \
-	(FBNIC_L2_HASH_OPTIONS | RXH_IP_SRC | RXH_IP_DST)
-#define FBNIC_L4_HASH_OPTIONS \
-	(FBNIC_L3_HASH_OPTIONS | RXH_L4_B_0_1 | RXH_L4_B_2_3)
-
-static int
-fbnic_set_rss_hash_opts(struct fbnic_net *fbn, const struct ethtool_rxnfc *cmd)
-{
-	int hash_opt_idx;
-
-	/* Verify the type requested is correct */
-	hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
-	if (hash_opt_idx < 0)
-		return -EINVAL;
-
-	/* Verify the fields asked for can actually be assigned based on type */
-	if (cmd->data & ~FBNIC_L4_HASH_OPTIONS ||
-	    (hash_opt_idx > FBNIC_L4_HASH_OPT &&
-	     cmd->data & ~FBNIC_L3_HASH_OPTIONS) ||
-	    (hash_opt_idx > FBNIC_IP_HASH_OPT &&
-	     cmd->data & ~FBNIC_L2_HASH_OPTIONS))
-		return -EINVAL;
-
-	fbn->rss_flow_hash[hash_opt_idx] = cmd->data;
-
-	if (netif_running(fbn->netdev)) {
-		fbnic_rss_reinit(fbn->fbd, fbn);
-		fbnic_write_rules(fbn->fbd);
-	}
-
-	return 0;
 }
 
 static int fbnic_cls_rule_any_loc(struct fbnic_dev *fbd)
@@ -1244,9 +1192,6 @@ static int fbnic_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	int ret = -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = fbnic_set_rss_hash_opts(fbn, cmd);
-		break;
 	case ETHTOOL_SRXCLSRLINS:
 		ret = fbnic_set_cls_rule_ins(fbn, cmd);
 		break;
@@ -1342,6 +1287,60 @@ fbnic_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
 
 	if (changes && netif_running(netdev))
 		fbnic_rss_reinit_hw(fbn->fbd, fbn);
+
+	return 0;
+}
+
+static int
+fbnic_get_rss_hash_opts(struct net_device *netdev,
+			struct ethtool_rxfh_fields *cmd)
+{
+	int hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	if (hash_opt_idx < 0)
+		return -EINVAL;
+
+	/* Report options from rss_en table in fbn */
+	cmd->data = fbn->rss_flow_hash[hash_opt_idx];
+
+	return 0;
+}
+
+#define FBNIC_L2_HASH_OPTIONS \
+	(RXH_L2DA | RXH_DISCARD)
+#define FBNIC_L3_HASH_OPTIONS \
+	(FBNIC_L2_HASH_OPTIONS | RXH_IP_SRC | RXH_IP_DST)
+#define FBNIC_L4_HASH_OPTIONS \
+	(FBNIC_L3_HASH_OPTIONS | RXH_L4_B_0_1 | RXH_L4_B_2_3)
+
+static int
+fbnic_set_rss_hash_opts(struct net_device *netdev,
+			const struct ethtool_rxfh_fields *cmd,
+			struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	int hash_opt_idx;
+
+	/* Verify the type requested is correct */
+	hash_opt_idx = fbnic_get_rss_hash_idx(cmd->flow_type);
+	if (hash_opt_idx < 0)
+		return -EINVAL;
+
+	/* Verify the fields asked for can actually be assigned based on type */
+	if (cmd->data & ~FBNIC_L4_HASH_OPTIONS ||
+	    (hash_opt_idx > FBNIC_L4_HASH_OPT &&
+	     cmd->data & ~FBNIC_L3_HASH_OPTIONS) ||
+	    (hash_opt_idx > FBNIC_IP_HASH_OPT &&
+	     cmd->data & ~FBNIC_L2_HASH_OPTIONS))
+		return -EINVAL;
+
+	fbn->rss_flow_hash[hash_opt_idx] = cmd->data;
+
+	if (netif_running(fbn->netdev)) {
+		fbnic_rss_reinit(fbn->fbd, fbn);
+		fbnic_write_rules(fbn->fbd);
+	}
 
 	return 0;
 }
@@ -1697,6 +1696,8 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_rxfh_indir_size	= fbnic_get_rxfh_indir_size,
 	.get_rxfh		= fbnic_get_rxfh,
 	.set_rxfh		= fbnic_set_rxfh,
+	.get_rxfh_fields	= fbnic_get_rss_hash_opts,
+	.set_rxfh_fields	= fbnic_set_rss_hash_opts,
 	.create_rxfh_context	= fbnic_create_rxfh_context,
 	.modify_rxfh_context	= fbnic_modify_rxfh_context,
 	.remove_rxfh_context	= fbnic_remove_rxfh_context,
