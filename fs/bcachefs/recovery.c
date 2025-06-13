@@ -965,7 +965,7 @@ use_clean:
 
 	ret =   bch2_journal_log_msg(c, "starting journal at entry %llu, replaying %llu-%llu",
 				     journal_seq, last_seq, blacklist_seq - 1) ?:
-		bch2_fs_journal_start(&c->journal, journal_seq);
+		bch2_fs_journal_start(&c->journal, last_seq, journal_seq);
 	if (ret)
 		goto err;
 
@@ -1181,7 +1181,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * journal_res_get() will crash if called before this has
 	 * set up the journal.pin FIFO and journal.cur pointer:
 	 */
-	ret = bch2_fs_journal_start(&c->journal, 1);
+	ret = bch2_fs_journal_start(&c->journal, 1, 1);
 	if (ret)
 		goto err;
 
