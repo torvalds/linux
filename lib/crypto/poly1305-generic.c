@@ -8,6 +8,7 @@
  */
 
 #include <crypto/internal/poly1305.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
