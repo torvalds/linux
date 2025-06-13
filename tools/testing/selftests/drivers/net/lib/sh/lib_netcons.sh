@@ -128,15 +128,8 @@ function disable_release_append() {
 	echo 1 > "${NETCONS_PATH}"/enabled
 }
 
-function cleanup() {
+function do_cleanup() {
 	local NSIM_DEV_SYS_DEL="/sys/bus/netdevsim/del_device"
-
-	# delete netconsole dynamic reconfiguration
-	echo 0 > "${NETCONS_PATH}"/enabled
-	# Remove all the keys that got created during the selftest
-	find "${NETCONS_PATH}/userdata/" -mindepth 1 -type d -delete
-	# Remove the configfs entry
-	rmdir "${NETCONS_PATH}"
 
 	# Delete netdevsim devices
 	echo "$NSIM_DEV_2_ID" > "$NSIM_DEV_SYS_DEL"
@@ -147,6 +140,17 @@ function cleanup() {
 
 	# Restoring printk configurations
 	echo "${DEFAULT_PRINTK_VALUES}" > /proc/sys/kernel/printk
+}
+
+function cleanup() {
+	# delete netconsole dynamic reconfiguration
+	echo 0 > "${NETCONS_PATH}"/enabled
+	# Remove all the keys that got created during the selftest
+	find "${NETCONS_PATH}/userdata/" -mindepth 1 -type d -delete
+	# Remove the configfs entry
+	rmdir "${NETCONS_PATH}"
+
+	do_cleanup
 }
 
 function set_user_data() {
