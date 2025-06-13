@@ -30,6 +30,10 @@ struct perf_ftrace {
 	int			graph_depth;
 	int			func_stack_trace;
 	int			func_irq_info;
+	int			graph_args;
+	int			graph_retval;
+	int			graph_retval_hex;
+	int			graph_retaddr;
 	int			graph_nosleep_time;
 	int			graph_noirqs;
 	int			graph_verbose;

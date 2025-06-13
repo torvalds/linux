@@ -301,6 +301,10 @@ static void reset_tracing_options(struct perf_ftrace *ftrace __maybe_unused)
 	write_tracing_option_file("funcgraph-proc", "0");
 	write_tracing_option_file("funcgraph-abstime", "0");
 	write_tracing_option_file("funcgraph-tail", "0");
+	write_tracing_option_file("funcgraph-args", "0");
+	write_tracing_option_file("funcgraph-retval", "0");
+	write_tracing_option_file("funcgraph-retval-hex", "0");
+	write_tracing_option_file("funcgraph-retaddr", "0");
 	write_tracing_option_file("latency-format", "0");
 	write_tracing_option_file("irq-info", "0");
 }
@@ -542,6 +546,41 @@ static int set_tracing_sleep_time(struct perf_ftrace *ftrace)
 	return 0;
 }
 
+static int set_tracing_funcgraph_args(struct perf_ftrace *ftrace)
+{
+	if (ftrace->graph_args) {
+		if (write_tracing_option_file("funcgraph-args", "1") < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int set_tracing_funcgraph_retval(struct perf_ftrace *ftrace)
+{
+	if (ftrace->graph_retval || ftrace->graph_retval_hex) {
+		if (write_tracing_option_file("funcgraph-retval", "1") < 0)
+			return -1;
+	}
+
+	if (ftrace->graph_retval_hex) {
+		if (write_tracing_option_file("funcgraph-retval-hex", "1") < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int set_tracing_funcgraph_retaddr(struct perf_ftrace *ftrace)
+{
+	if (ftrace->graph_retaddr) {
+		if (write_tracing_option_file("funcgraph-retaddr", "1") < 0)
+			return -1;
+	}
+
+	return 0;
+}
+
 static int set_tracing_funcgraph_irqs(struct perf_ftrace *ftrace)
 {
 	if (!ftrace->graph_noirqs)
@@ -639,6 +678,21 @@ static int set_tracing_options(struct perf_ftrace *ftrace)
 
 	if (set_tracing_sleep_time(ftrace) < 0) {
 		pr_err("failed to set tracing option sleep-time\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_args(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-args\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_retval(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-retval\n");
+		return -1;
+	}
+
+	if (set_tracing_funcgraph_retaddr(ftrace) < 0) {
+		pr_err("failed to set tracing option funcgraph-retaddr\n");
 		return -1;
 	}
 
@@ -1634,6 +1688,10 @@ static int parse_graph_tracer_opts(const struct option *opt,
 	int ret;
 	struct perf_ftrace *ftrace = (struct perf_ftrace *) opt->value;
 	struct sublevel_option graph_tracer_opts[] = {
+		{ .name = "args",		.value_ptr = &ftrace->graph_args },
+		{ .name = "retval",		.value_ptr = &ftrace->graph_retval },
+		{ .name = "retval-hex",		.value_ptr = &ftrace->graph_retval_hex },
+		{ .name = "retaddr",		.value_ptr = &ftrace->graph_retaddr },
 		{ .name = "nosleep-time",	.value_ptr = &ftrace->graph_nosleep_time },
 		{ .name = "noirqs",		.value_ptr = &ftrace->graph_noirqs },
 		{ .name = "verbose",		.value_ptr = &ftrace->graph_verbose },
@@ -1725,7 +1783,7 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_CALLBACK('g', "nograph-funcs", &ftrace.nograph_funcs, "func",
 		     "Set nograph filter on given functions", parse_filter_func),
 	OPT_CALLBACK(0, "graph-opts", &ftrace, "options",
-		     "Graph tracer options, available options: nosleep-time,noirqs,verbose,thresh=<n>,depth=<n>",
+		     "Graph tracer options, available options: args,retval,retval-hex,retaddr,nosleep-time,noirqs,verbose,thresh=<n>,depth=<n>",
 		     parse_graph_tracer_opts),
 	OPT_CALLBACK('m', "buffer-size", &ftrace.percpu_buffer_size, "size",
 		     "Size of per cpu buffer, needs to use a B, K, M or G suffix.", parse_buffer_size),
