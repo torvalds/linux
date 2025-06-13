@@ -189,6 +189,7 @@ int smu_v13_0_12_get_max_metrics_size(void)
 
 int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 {
+	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	StaticMetricsTable_t *static_metrics = (StaticMetricsTable_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
@@ -237,6 +238,17 @@ int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 		if (ret)
 			return ret;
 
+		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(BOARD_VOLTAGE))) {
+			if (!static_metrics->InputTelemetryVoltageInmV) {
+				dev_warn(smu->adev->dev, "Invalid board voltage %d\n",
+						static_metrics->InputTelemetryVoltageInmV);
+			}
+			dpm_context->board_volt = static_metrics->InputTelemetryVoltageInmV;
+		}
+		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(PLDM_VERSION)) &&
+			static_metrics->pldmVersion[0] != 0xFFFFFFFF)
+			smu->adev->firmware.pldm_version =
+				static_metrics->pldmVersion[0];
 		pptable->Init = true;
 	}
 
