@@ -2524,7 +2524,7 @@ free_ifence:
 	kfree(mfence);
 	kfree(ifence);
 kill_vm_tile1:
-	if (err != -EAGAIN && tile->id)
+	if (err != -EAGAIN && err != -ENODATA && tile->id)
 		xe_vm_kill(vops->vm, false);
 
 	return ERR_PTR(err);
