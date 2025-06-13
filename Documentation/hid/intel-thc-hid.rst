@@ -195,6 +195,7 @@ This is a new feature introduced in Panther Lake platform, THC hardware allows d
 a max input size for RxDMA. After this max size gets set and enabled, for every input report
 packet reading, THC hardware sequencer will first read incoming input packet size, then compare
 input packet size with the given max size:
+
 - if input packet size <= max size, THC continues using input packet size to finish the reading
 - if input packet size > max size, there is potential input data crash risk during
   transferring, THC will use max size instead of input packet size for reading
