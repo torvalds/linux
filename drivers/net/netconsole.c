@@ -1659,6 +1659,114 @@ static void write_msg(struct console *con, const char *msg, unsigned int len)
 	spin_unlock_irqrestore(&target_list_lock, flags);
 }
 
+static int netpoll_parse_ip_addr(const char *str, union inet_addr *addr)
+{
+	const char *end;
+
+	if (!strchr(str, ':') &&
+	    in4_pton(str, -1, (void *)addr, -1, &end) > 0) {
+		if (!*end)
+			return 0;
+	}
+	if (in6_pton(str, -1, addr->in6.s6_addr, -1, &end) > 0) {
+#if IS_ENABLED(CONFIG_IPV6)
+		if (!*end)
+			return 1;
+#else
+		return -1;
+#endif
+	}
+	return -1;
+}
+
+static int netpoll_parse_options(struct netpoll *np, char *opt)
+{
+	char *cur=opt, *delim;
+	int ipv6;
+	bool ipversion_set = false;
+
+	if (*cur != '@') {
+		if ((delim = strchr(cur, '@')) == NULL)
+			goto parse_failed;
+		*delim = 0;
+		if (kstrtou16(cur, 10, &np->local_port))
+			goto parse_failed;
+		cur = delim;
+	}
+	cur++;
+
+	if (*cur != '/') {
+		ipversion_set = true;
+		if ((delim = strchr(cur, '/')) == NULL)
+			goto parse_failed;
+		*delim = 0;
+		ipv6 = netpoll_parse_ip_addr(cur, &np->local_ip);
+		if (ipv6 < 0)
+			goto parse_failed;
+		else
+			np->ipv6 = (bool)ipv6;
+		cur = delim;
+	}
+	cur++;
+
+	if (*cur != ',') {
+		/* parse out dev_name or dev_mac */
+		if ((delim = strchr(cur, ',')) == NULL)
+			goto parse_failed;
+		*delim = 0;
+
+		np->dev_name[0] = '\0';
+		eth_broadcast_addr(np->dev_mac);
+		if (!strchr(cur, ':'))
+			strscpy(np->dev_name, cur, sizeof(np->dev_name));
+		else if (!mac_pton(cur, np->dev_mac))
+			goto parse_failed;
+
+		cur = delim;
+	}
+	cur++;
+
+	if (*cur != '@') {
+		/* dst port */
+		if ((delim = strchr(cur, '@')) == NULL)
+			goto parse_failed;
+		*delim = 0;
+		if (*cur == ' ' || *cur == '\t')
+			np_info(np, "warning: whitespace is not allowed\n");
+		if (kstrtou16(cur, 10, &np->remote_port))
+			goto parse_failed;
+		cur = delim;
+	}
+	cur++;
+
+	/* dst ip */
+	if ((delim = strchr(cur, '/')) == NULL)
+		goto parse_failed;
+	*delim = 0;
+	ipv6 = netpoll_parse_ip_addr(cur, &np->remote_ip);
+	if (ipv6 < 0)
+		goto parse_failed;
+	else if (ipversion_set && np->ipv6 != (bool)ipv6)
+		goto parse_failed;
+	else
+		np->ipv6 = (bool)ipv6;
+	cur = delim + 1;
+
+	if (*cur != 0) {
+		/* MAC address */
+		if (!mac_pton(cur, np->remote_mac))
+			goto parse_failed;
+	}
+
+	netpoll_print_options(np);
+
+	return 0;
+
+ parse_failed:
+	np_info(np, "couldn't parse config at '%s'!\n", cur);
+	return -1;
+}
+
 /* Allocate new target (from boot/module param) and setup netpoll for it */
 static struct netconsole_target *alloc_param_target(char *target_config,
 						    int cmdline_count)
