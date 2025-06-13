@@ -6,6 +6,7 @@
 
 use crate::{
     alloc::{AllocError, Flags},
+    cpu::CpuId,
     prelude::*,
     types::Opaque,
 };
@@ -35,9 +36,10 @@ use core::ops::{Deref, DerefMut};
 ///
 /// ```
 /// use kernel::bindings;
+/// use kernel::cpu::CpuId;
 /// use kernel::cpumask::Cpumask;
 ///
-/// fn set_clear_cpu(ptr: *mut bindings::cpumask, set_cpu: u32, clear_cpu: i32) {
+/// fn set_clear_cpu(ptr: *mut bindings::cpumask, set_cpu: CpuId, clear_cpu: CpuId) {
 ///     // SAFETY: The `ptr` is valid for writing and remains valid for the lifetime of the
 ///     // returned reference.
 ///     let mask = unsafe { Cpumask::as_mut_ref(ptr) };
@@ -90,9 +92,9 @@ impl Cpumask {
     /// This mismatches kernel naming convention and corresponds to the C
     /// function `__cpumask_set_cpu()`.
     #[inline]
-    pub fn set(&mut self, cpu: u32) {
+    pub fn set(&mut self, cpu: CpuId) {
         // SAFETY: By the type invariant, `self.as_raw` is a valid argument to `__cpumask_set_cpu`.
-        unsafe { bindings::__cpumask_set_cpu(cpu, self.as_raw()) };
+        unsafe { bindings::__cpumask_set_cpu(u32::from(cpu), self.as_raw()) };
     }
 
     /// Clear `cpu` in the cpumask.
@@ -101,19 +103,19 @@ impl Cpumask {
     /// This mismatches kernel naming convention and corresponds to the C
     /// function `__cpumask_clear_cpu()`.
     #[inline]
-    pub fn clear(&mut self, cpu: i32) {
+    pub fn clear(&mut self, cpu: CpuId) {
         // SAFETY: By the type invariant, `self.as_raw` is a valid argument to
         // `__cpumask_clear_cpu`.
-        unsafe { bindings::__cpumask_clear_cpu(cpu, self.as_raw()) };
+        unsafe { bindings::__cpumask_clear_cpu(i32::from(cpu), self.as_raw()) };
     }
 
     /// Test `cpu` in the cpumask.
     ///
     /// Equivalent to the kernel's `cpumask_test_cpu` API.
     #[inline]
-    pub fn test(&self, cpu: i32) -> bool {
+    pub fn test(&self, cpu: CpuId) -> bool {
         // SAFETY: By the type invariant, `self.as_raw` is a valid argument to `cpumask_test_cpu`.
-        unsafe { bindings::cpumask_test_cpu(cpu, self.as_raw()) }
+        unsafe { bindings::cpumask_test_cpu(i32::from(cpu), self.as_raw()) }
     }
 
     /// Set all CPUs in the cpumask.
@@ -178,21 +180,40 @@ impl Cpumask {
 /// The following example demonstrates how to create and update a [`CpumaskVar`].
 ///
 /// ```
+/// use kernel::cpu::CpuId;
 /// use kernel::cpumask::CpumaskVar;
 ///
 /// let mut mask = CpumaskVar::new_zero(GFP_KERNEL).unwrap();
 ///
 /// assert!(mask.empty());
-/// mask.set(2);
-/// assert!(mask.test(2));
-/// mask.set(3);
-/// assert!(mask.test(3));
-/// assert_eq!(mask.weight(), 2);
+/// let mut count = 0;
+///
+/// let cpu2 = CpuId::from_u32(2);
+/// if let Some(cpu) = cpu2 {
+///     mask.set(cpu);
+///     assert!(mask.test(cpu));
+///     count += 1;
+/// }
+///
+/// let cpu3 = CpuId::from_u32(3);
+/// if let Some(cpu) = cpu3 {
+///     mask.set(cpu);
+///     assert!(mask.test(cpu));
+///     count += 1;
+/// }
+///
+/// assert_eq!(mask.weight(), count);
 ///
 /// let mask2 = CpumaskVar::try_clone(&mask).unwrap();
-/// assert!(mask2.test(2));
-/// assert!(mask2.test(3));
-/// assert_eq!(mask2.weight(), 2);
+///
+/// if let Some(cpu) = cpu2 {
+///     assert!(mask2.test(cpu));
+/// }
+///
+/// if let Some(cpu) = cpu3 {
+///     assert!(mask2.test(cpu));
+/// }
+/// assert_eq!(mask2.weight(), count);
 /// ```
 pub struct CpumaskVar {
     #[cfg(CONFIG_CPUMASK_OFFSTACK)]

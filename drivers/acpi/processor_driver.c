@@ -279,6 +279,9 @@ static int __init acpi_processor_driver_init(void)
 	 * after acpi_cppc_processor_probe() has been called for all online CPUs
 	 */
 	acpi_processor_init_invariance_cppc();
+
+	acpi_idle_rescan_dead_smt_siblings();
+
 	return 0;
 err:
 	driver_unregister(&acpi_processor_driver);
