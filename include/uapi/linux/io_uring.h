@@ -449,6 +449,7 @@ enum io_uring_msg_ring_flags {
 #define IORING_NOP_FILE			(1U << 1)
 #define IORING_NOP_FIXED_FILE		(1U << 2)
 #define IORING_NOP_FIXED_BUFFER		(1U << 3)
+#define IORING_NOP_TW			(1U << 4)
 
 /*
  * IO completion data structure (Completion Queue Entry)
