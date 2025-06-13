@@ -400,7 +400,7 @@ static bool test_simple_expand(void)
 	VMA_ITERATOR(vmi, &mm, 0);
 	struct vma_merge_struct vmg = {
 		.vmi = &vmi,
-		.middle = vma,
+		.target = vma,
 		.start = 0,
 		.end = 0x3000,
 		.pgoff = 0,
@@ -1318,7 +1318,7 @@ static bool test_dup_anon_vma(void)
 	vma_next->anon_vma = &dummy_anon_vma;
 
 	vmg_set_range(&vmg, 0, 0x5000, 0, flags);
-	vmg.middle = vma_prev;
+	vmg.target = vma_prev;
 	vmg.next = vma_next;
 
 	ASSERT_EQ(expand_existing(&vmg), 0);
@@ -1501,7 +1501,7 @@ static bool test_vmi_prealloc_fail(void)
 	vma->anon_vma = &dummy_anon_vma;
 
 	vmg_set_range(&vmg, 0, 0x5000, 3, flags);
-	vmg.middle = vma_prev;
+	vmg.target = vma_prev;
 	vmg.next = vma;
 
 	fail_prealloc = true;

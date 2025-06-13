@@ -1048,6 +1048,7 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 
 	mmap_assert_write_locked(vmg->mm);
 	VM_WARN_ON_VMG(vmg->middle, vmg);
+	VM_WARN_ON_VMG(vmg->target, vmg);
 	/* vmi must point at or before the gap. */
 	VM_WARN_ON_VMG(vma_iter_addr(vmg->vmi) > end, vmg);
 
@@ -1063,13 +1064,13 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	/* If we can merge with the next VMA, adjust vmg accordingly. */
 	if (can_merge_right) {
 		vmg->end = next->vm_end;
-		vmg->middle = next;
+		vmg->target = next;
 	}
 
 	/* If we can merge with the previous VMA, adjust vmg accordingly. */
 	if (can_merge_left) {
 		vmg->start = prev->vm_start;
-		vmg->middle = prev;
+		vmg->target = prev;
 		vmg->pgoff = prev->vm_pgoff;
 
 		/*
@@ -1091,10 +1092,10 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	 * Now try to expand adjacent VMA(s). This takes care of removing the
 	 * following VMA if we have VMAs on both sides.
 	 */
-	if (vmg->middle && !vma_expand(vmg)) {
-		khugepaged_enter_vma(vmg->middle, vmg->flags);
+	if (vmg->target && !vma_expand(vmg)) {
+		khugepaged_enter_vma(vmg->target, vmg->flags);
 		vmg->state = VMA_MERGE_SUCCESS;
-		return vmg->middle;
+		return vmg->target;
 	}
 
 	return NULL;
@@ -1106,27 +1107,29 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
  * @vmg: Describes a VMA expansion operation.
  *
  * Expand @vma to vmg->start and vmg->end.  Can expand off the start and end.
- * Will expand over vmg->next if it's different from vmg->middle and vmg->end ==
- * vmg->next->vm_end.  Checking if the vmg->middle can expand and merge with
+ * Will expand over vmg->next if it's different from vmg->target and vmg->end ==
+ * vmg->next->vm_end.  Checking if the vmg->target can expand and merge with
  * vmg->next needs to be handled by the caller.
  *
  * Returns: 0 on success.
  *
  * ASSUMPTIONS:
- * - The caller must hold a WRITE lock on vmg->middle->mm->mmap_lock.
- * - The caller must have set @vmg->middle and @vmg->next.
+ * - The caller must hold a WRITE lock on vmg->target->mm->mmap_lock.
+ * - The caller must have set @vmg->target and @vmg->next.
  */
 int vma_expand(struct vma_merge_struct *vmg)
 {
 	struct vm_area_struct *anon_dup = NULL;
 	bool remove_next = false;
-	struct vm_area_struct *middle = vmg->middle;
+	struct vm_area_struct *target = vmg->target;
 	struct vm_area_struct *next = vmg->next;
+
+	VM_WARN_ON_VMG(!target, vmg);
 
 	mmap_assert_write_locked(vmg->mm);
 
-	vma_start_write(middle);
-	if (next && (middle != next) && (vmg->end == next->vm_end)) {
+	vma_start_write(target);
+	if (next && (target != next) && (vmg->end == next->vm_end)) {
 		int ret;
 
 		remove_next = true;
@@ -1137,19 +1140,18 @@ int vma_expand(struct vma_merge_struct *vmg)
 		 * In this case we don't report OOM, so vmg->give_up_on_mm is
 		 * safe.
 		 */
-		ret = dup_anon_vma(middle, next, &anon_dup);
+		ret = dup_anon_vma(target, next, &anon_dup);
 		if (ret)
 			return ret;
 	}
 
 	/* Not merging but overwriting any part of next is not handled. */
 	VM_WARN_ON_VMG(next && !remove_next &&
-		       next != middle && vmg->end > next->vm_start, vmg);
+		       next != target && vmg->end > next->vm_start, vmg);
 	/* Only handles expanding */
-	VM_WARN_ON_VMG(middle->vm_start < vmg->start ||
-		       middle->vm_end > vmg->end, vmg);
+	VM_WARN_ON_VMG(target->vm_start < vmg->start ||
+		       target->vm_end > vmg->end, vmg);
 
-	vmg->target = middle;
 	if (remove_next)
 		vmg->__remove_next = true;
 
