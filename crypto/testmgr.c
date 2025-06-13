@@ -4493,6 +4493,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "crc32",
+		.generic_driver = "crc32-lib",
 		.test = alg_test_hash,
 		.fips_allowed = 1,
 		.suite = {
@@ -4500,6 +4501,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "crc32c",
+		.generic_driver = "crc32c-lib",
 		.test = alg_test_hash,
 		.fips_allowed = 1,
 		.suite = {
