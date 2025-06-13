@@ -690,8 +690,8 @@ static int smu_v13_0_6_get_allowed_feature_mask(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v13_0_6_get_metrics_table(struct smu_context *smu,
-					 void *metrics_table, bool bypass_cache)
+int smu_v13_0_6_get_metrics_table(struct smu_context *smu, void *metrics_table,
+				  bool bypass_cache)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
