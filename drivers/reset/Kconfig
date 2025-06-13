@@ -140,6 +140,15 @@ config RESET_K210
 	  Say Y if you want to control reset signals provided by this
 	  controller.
 
+config RESET_K230
+	tristate "Reset controller driver for Canaan Kendryte K230 SoC"
+	depends on ARCH_CANAAN || COMPILE_TEST
+	depends on OF
+	help
+	  Support for the Canaan Kendryte K230 RISC-V SoC reset controller.
+	  Say Y if you want to control reset signals provided by this
+	  controller.
+
 config RESET_LANTIQ
 	bool "Lantiq XWAY Reset Driver" if COMPILE_TEST
 	default SOC_TYPE_XWAY
