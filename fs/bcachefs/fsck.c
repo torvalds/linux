@@ -1820,18 +1820,39 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			    !key_visible_in_snapshot(c, s, i->inode.bi_snapshot, k.k->p.snapshot))
 				continue;
 
-			if (fsck_err_on(k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
+			u64 last_block = round_up(i->inode.bi_size, block_bytes(c)) >> 9;
+
+			if (fsck_err_on(k.k->p.offset > last_block &&
 					!bkey_extent_is_reservation(k),
 					trans, extent_past_end_of_inode,
 					"extent type past end of inode %llu:%u, i_size %llu\n%s",
 					i->inode.bi_inum, i->inode.bi_snapshot, i->inode.bi_size,
 					(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-				struct btree_iter iter2;
+				struct bkey_i *whiteout = bch2_trans_kmalloc(trans, sizeof(*whiteout));
+				ret = PTR_ERR_OR_ZERO(whiteout);
+				if (ret)
+					goto err;
 
-				bch2_trans_copy_iter(trans, &iter2, iter);
-				bch2_btree_iter_set_snapshot(trans, &iter2, i->inode.bi_snapshot);
+				bkey_init(&whiteout->k);
+				whiteout->k.p = SPOS(k.k->p.inode,
+						     last_block,
+						     i->inode.bi_snapshot);
+				bch2_key_resize(&whiteout->k,
+						min(KEY_SIZE_MAX & (~0 << c->block_bits),
+						    U64_MAX - whiteout->k.p.offset));
+
+
+				/*
+				 * Need a normal (not BTREE_ITER_all_snapshots)
+				 * iterator, if we're deleting in a different
+				 * snapshot and need to emit a whiteout
+				 */
+				struct btree_iter iter2;
+				bch2_trans_iter_init(trans, &iter2, BTREE_ID_extents,
+						     bkey_start_pos(&whiteout->k),
+						     BTREE_ITER_intent);
 				ret =   bch2_btree_iter_traverse(trans, &iter2) ?:
-					bch2_btree_delete_at(trans, &iter2,
+					bch2_trans_update(trans, &iter2, whiteout,
 						BTREE_UPDATE_internal_snapshot_node);
 				bch2_trans_iter_exit(trans, &iter2);
 				if (ret)
