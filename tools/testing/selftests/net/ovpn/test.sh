@@ -18,6 +18,10 @@ for p in $(seq 0 ${NUM_PEERS}); do
 done
 
 for p in $(seq 0 ${NUM_PEERS}); do
+	setup_listener ${p}
+done
+
+for p in $(seq 0 ${NUM_PEERS}); do
 	setup_ns ${p} 5.5.5.$((${p} + 1))/24 ${MTU}
 done
 
@@ -111,6 +115,10 @@ for p in $(seq 3 ${NUM_PEERS}); do
 	ip netns exec peer${p} ${OVPN_CLI} set_peer tun${p} ${p} 3 3
 done
 sleep 5
+
+for p in $(seq 0 ${NUM_PEERS}); do
+	compare_ntfs ${p}
+done
 
 cleanup
 
