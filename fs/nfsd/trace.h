@@ -2099,25 +2099,6 @@ TRACE_EVENT(nfsd_ctl_maxblksize,
 	)
 );
 
-TRACE_EVENT(nfsd_ctl_maxconn,
-	TP_PROTO(
-		const struct net *net,
-		int maxconn
-	),
-	TP_ARGS(net, maxconn),
-	TP_STRUCT__entry(
-		__field(unsigned int, netns_ino)
-		__field(int, maxconn)
-	),
-	TP_fast_assign(
-		__entry->netns_ino = net->ns.inum;
-		__entry->maxconn = maxconn;
-	),
-	TP_printk("maxconn=%d",
-		__entry->maxconn
-	)
-);
-
 TRACE_EVENT(nfsd_ctl_time,
 	TP_PROTO(
 		const struct net *net,
