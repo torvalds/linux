@@ -2076,14 +2076,14 @@ inline bool bch2_btree_iter_rewind(struct btree_trans *trans, struct btree_iter 
 
 static noinline
 void bch2_btree_trans_peek_prev_updates(struct btree_trans *trans, struct btree_iter *iter,
-					struct bkey_s_c *k)
+					struct bpos search_key, struct bkey_s_c *k)
 {
 	struct bpos end = path_l(btree_iter_path(trans, iter))->b->data->min_key;
 
 	trans_for_each_update(trans, i)
 		if (!i->key_cache_already_flushed &&
 		    i->btree_id == iter->btree_id &&
-		    bpos_le(i->k->k.p, iter->pos) &&
+		    bpos_le(i->k->k.p, search_key) &&
 		    bpos_ge(i->k->k.p, k->k ? k->k->p : end)) {
 			iter->k = i->k->k;
 			*k = bkey_i_to_s_c(i->k);
@@ -2092,6 +2092,7 @@ void bch2_btree_trans_peek_prev_updates(struct btree_trans *trans, struct btree_
 
 static noinline
 void bch2_btree_trans_peek_updates(struct btree_trans *trans, struct btree_iter *iter,
+				   struct bpos search_key,
 				   struct bkey_s_c *k)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
@@ -2100,7 +2101,7 @@ void bch2_btree_trans_peek_updates(struct btree_trans *trans, struct btree_iter 
 	trans_for_each_update(trans, i)
 		if (!i->key_cache_already_flushed &&
 		    i->btree_id == iter->btree_id &&
-		    bpos_ge(i->k->k.p, path->pos) &&
+		    bpos_ge(i->k->k.p, search_key) &&
 		    bpos_le(i->k->k.p, k->k ? k->k->p : end)) {
 			iter->k = i->k->k;
 			*k = bkey_i_to_s_c(i->k);
@@ -2122,13 +2123,14 @@ void bch2_btree_trans_peek_slot_updates(struct btree_trans *trans, struct btree_
 
 static struct bkey_i *bch2_btree_journal_peek(struct btree_trans *trans,
 					      struct btree_iter *iter,
+					      struct bpos search_pos,
 					      struct bpos end_pos)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 
 	return bch2_journal_keys_peek_max(trans->c, iter->btree_id,
 					   path->level,
-					   path->pos,
+					   search_pos,
 					   end_pos,
 					   &iter->journal_idx);
 }
@@ -2138,7 +2140,7 @@ struct bkey_s_c btree_trans_peek_slot_journal(struct btree_trans *trans,
 					      struct btree_iter *iter)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
-	struct bkey_i *k = bch2_btree_journal_peek(trans, iter, path->pos);
+	struct bkey_i *k = bch2_btree_journal_peek(trans, iter, path->pos, path->pos);
 
 	if (k) {
 		iter->k = k->k;
@@ -2151,11 +2153,12 @@ struct bkey_s_c btree_trans_peek_slot_journal(struct btree_trans *trans,
 static noinline
 void btree_trans_peek_journal(struct btree_trans *trans,
 			      struct btree_iter *iter,
+			      struct bpos search_key,
 			      struct bkey_s_c *k)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 	struct bkey_i *next_journal =
-		bch2_btree_journal_peek(trans, iter,
+		bch2_btree_journal_peek(trans, iter, search_key,
 				k->k ? k->k->p : path_l(path)->b->key.k.p);
 	if (next_journal) {
 		iter->k = next_journal->k;
@@ -2165,13 +2168,14 @@ void btree_trans_peek_journal(struct btree_trans *trans,
 
 static struct bkey_i *bch2_btree_journal_peek_prev(struct btree_trans *trans,
 					      struct btree_iter *iter,
+					      struct bpos search_key,
 					      struct bpos end_pos)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 
 	return bch2_journal_keys_peek_prev_min(trans->c, iter->btree_id,
 					   path->level,
-					   path->pos,
+					   search_key,
 					   end_pos,
 					   &iter->journal_idx);
 }
@@ -2179,11 +2183,12 @@ static struct bkey_i *bch2_btree_journal_peek_prev(struct btree_trans *trans,
 static noinline
 void btree_trans_peek_prev_journal(struct btree_trans *trans,
 				   struct btree_iter *iter,
+				   struct bpos search_key,
 				   struct bkey_s_c *k)
 {
 	struct btree_path *path = btree_iter_path(trans, iter);
 	struct bkey_i *next_journal =
-		bch2_btree_journal_peek_prev(trans, iter,
+		bch2_btree_journal_peek_prev(trans, iter, search_key,
 				k->k ? k->k->p : path_l(path)->b->key.k.p);
 
 	if (next_journal) {
@@ -2292,11 +2297,11 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_trans *trans, struct 
 		}
 
 		if (unlikely(iter->flags & BTREE_ITER_with_journal))
-			btree_trans_peek_journal(trans, iter, &k);
+			btree_trans_peek_journal(trans, iter, search_key, &k);
 
 		if (unlikely((iter->flags & BTREE_ITER_with_updates) &&
 			     trans->nr_updates))
-			bch2_btree_trans_peek_updates(trans, iter, &k);
+			bch2_btree_trans_peek_updates(trans, iter, search_key, &k);
 
 		if (k.k && bkey_deleted(k.k)) {
 			/*
@@ -2584,11 +2589,11 @@ static struct bkey_s_c __bch2_btree_iter_peek_prev(struct btree_trans *trans, st
 		}
 
 		if (unlikely(iter->flags & BTREE_ITER_with_journal))
-			btree_trans_peek_prev_journal(trans, iter, &k);
+			btree_trans_peek_prev_journal(trans, iter, search_key, &k);
 
 		if (unlikely((iter->flags & BTREE_ITER_with_updates) &&
 			     trans->nr_updates))
-			bch2_btree_trans_peek_prev_updates(trans, iter, &k);
+			bch2_btree_trans_peek_prev_updates(trans, iter, search_key, &k);
 
 		if (likely(k.k && !bkey_deleted(k.k))) {
 			break;
