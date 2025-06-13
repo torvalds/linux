@@ -365,14 +365,6 @@ out:
 	return ret;
 }
 
-static void rvin_group_notifier_cleanup(struct rvin_dev *vin)
-{
-	if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
-		v4l2_async_nf_unregister(&vin->group->notifier);
-		v4l2_async_nf_cleanup(&vin->group->notifier);
-	}
-}
-
 static int rvin_parallel_parse_of(struct rvin_dev *vin)
 {
 	struct fwnode_handle *fwnode __free(fwnode_handle) = NULL;
@@ -510,11 +502,11 @@ static void rvin_free_controls(struct rvin_dev *vin)
 	vin->vdev.ctrl_handler = NULL;
 }
 
-static int rvin_create_controls(struct rvin_dev *vin, struct v4l2_subdev *subdev)
+static int rvin_create_controls(struct rvin_dev *vin)
 {
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 16);
+	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 1);
 	if (ret < 0)
 		return ret;
 
@@ -526,16 +518,6 @@ static int rvin_create_controls(struct rvin_dev *vin, struct v4l2_subdev *subdev
 		ret = vin->ctrl_handler.error;
 		rvin_free_controls(vin);
 		return ret;
-	}
-
-	/* For the non-MC mode add controls from the subdevice. */
-	if (subdev) {
-		ret = v4l2_ctrl_add_handler(&vin->ctrl_handler,
-					    subdev->ctrl_handler, NULL, true);
-		if (ret < 0) {
-			rvin_free_controls(vin);
-			return ret;
-		}
 	}
 
 	vin->vdev.ctrl_handler = &vin->ctrl_handler;
@@ -625,11 +607,6 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 	vin->std = V4L2_STD_UNKNOWN;
 	ret = v4l2_subdev_call(subdev, video, g_std, &vin->std);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
-		return ret;
-
-	/* Add the controls */
-	ret = rvin_create_controls(vin, subdev);
-	if (ret < 0)
 		return ret;
 
 	vin->parallel.subdev = subdev;
@@ -885,34 +862,17 @@ out:
 	return ret;
 }
 
-static void rvin_csi2_cleanup(struct rvin_dev *vin)
-{
-	rvin_group_notifier_cleanup(vin);
-	rvin_free_controls(vin);
-}
-
 static int rvin_csi2_init(struct rvin_dev *vin)
 {
 	int ret;
 
-
-	ret = rvin_create_controls(vin, NULL);
-	if (ret < 0)
-		return ret;
-
 	ret = rvin_group_get(vin, rvin_csi2_setup_links, &rvin_csi2_media_ops);
 	if (ret)
-		goto err_controls;
+		return ret;
 
 	ret = rvin_group_notifier_init(vin, 1, RVIN_CSI_MAX);
 	if (ret)
-		goto err_group;
-
-	return 0;
-err_group:
-	rvin_group_put(vin);
-err_controls:
-	rvin_free_controls(vin);
+		rvin_group_put(vin);
 
 	return ret;
 }
@@ -966,34 +926,17 @@ static int rvin_isp_setup_links(struct rvin_group *group)
 	return ret;
 }
 
-static void rvin_isp_cleanup(struct rvin_dev *vin)
-{
-	rvin_group_notifier_cleanup(vin);
-	rvin_free_controls(vin);
-}
-
 static int rvin_isp_init(struct rvin_dev *vin)
 {
 	int ret;
 
-
-	ret = rvin_create_controls(vin, NULL);
-	if (ret < 0)
-		return ret;
-
 	ret = rvin_group_get(vin, rvin_isp_setup_links, NULL);
 	if (ret)
-		goto err_controls;
+		return ret;
 
 	ret = rvin_group_notifier_init(vin, 2, RVIN_ISP_MAX);
 	if (ret)
-		goto err_group;
-
-	return 0;
-err_group:
-	rvin_group_put(vin);
-err_controls:
-	rvin_free_controls(vin);
+		rvin_group_put(vin);
 
 	return ret;
 }
@@ -1374,6 +1317,10 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_id;
 
+	ret = rvin_create_controls(vin);
+	if (ret < 0)
+		goto err_id;
+
 	if (vin->info->use_isp) {
 		ret = rvin_isp_init(vin);
 	} else if (vin->info->use_mc) {
@@ -1392,13 +1339,15 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	}
 
 	if (ret)
-		goto err_id;
+		goto err_ctrl;
 
 	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 
+err_ctrl:
+	rvin_free_controls(vin);
 err_id:
 	rvin_id_put(vin);
 err_dma:
@@ -1415,12 +1364,16 @@ static void rcar_vin_remove(struct platform_device *pdev)
 
 	rvin_v4l2_unregister(vin);
 
-	if (vin->info->use_isp)
-		rvin_isp_cleanup(vin);
-	else if (vin->info->use_mc)
-		rvin_csi2_cleanup(vin);
+	if (vin->info->use_isp || vin->info->use_mc) {
+		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
+			v4l2_async_nf_unregister(&vin->group->notifier);
+			v4l2_async_nf_cleanup(&vin->group->notifier);
+		}
+	}
 
 	rvin_group_put(vin);
+
+	rvin_free_controls(vin);
 
 	rvin_id_put(vin);
 
