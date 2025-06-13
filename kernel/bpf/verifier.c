@@ -23951,6 +23951,7 @@ static bool can_jump(struct bpf_insn *insn)
 	case BPF_JSLT:
 	case BPF_JSLE:
 	case BPF_JCOND:
+	case BPF_JSET:
 		return true;
 	}
 
