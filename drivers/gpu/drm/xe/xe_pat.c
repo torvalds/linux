@@ -307,21 +307,27 @@ static const struct xe_pat_ops xelpg_pat_ops = {
 static void xe2lpg_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
 			       int n_entries)
 {
-	program_pat_mcr(gt, table, n_entries);
-	xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_ATS), xe2_pat_ats.value);
+	struct xe_device *xe = gt_to_xe(gt);
 
-	if (IS_DGFX(gt_to_xe(gt)))
-		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_PTA), xe2_pat_pta.value);
+	program_pat_mcr(gt, table, n_entries);
+
+	if (xe->pat.pat_ats)
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_ATS), xe->pat.pat_ats->value);
+	if (xe->pat.pat_pta)
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_PTA), xe->pat.pat_pta->value);
 }
 
 static void xe2lpm_program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
 			       int n_entries)
 {
-	program_pat(gt, table, n_entries);
-	xe_mmio_write32(&gt->mmio, XE_REG(_PAT_ATS), xe2_pat_ats.value);
+	struct xe_device *xe = gt_to_xe(gt);
 
-	if (IS_DGFX(gt_to_xe(gt)))
-		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_PTA), xe2_pat_pta.value);
+	program_pat(gt, table, n_entries);
+
+	if (xe->pat.pat_ats)
+		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_ATS), xe->pat.pat_ats->value);
+	if (xe->pat.pat_pta)
+		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_PTA), xe->pat.pat_pta->value);
 }
 
 static void xe2_dump(struct xe_gt *gt, struct drm_printer *p)
@@ -386,6 +392,9 @@ void xe_pat_init_early(struct xe_device *xe)
 	if (GRAPHICS_VER(xe) == 30 || GRAPHICS_VER(xe) == 20) {
 		xe->pat.ops = &xe2_pat_ops;
 		xe->pat.table = xe2_pat_table;
+		xe->pat.pat_ats = &xe2_pat_ats;
+		if (IS_DGFX(xe))
+			xe->pat.pat_pta = &xe2_pat_pta;
 
 		/* Wa_16023588340. XXX: Should use XE_WA */
 		if (GRAPHICS_VERx100(xe) == 2001)
