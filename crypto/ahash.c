@@ -350,6 +350,9 @@ static int ahash_do_req_chain(struct ahash_request *req,
 	if (!crypto_ahash_need_fallback(tfm))
 		return -ENOSYS;
 
+	if (crypto_hash_no_export_core(tfm))
+		return -ENOSYS;
+
 	{
 		u8 state[HASH_MAX_STATESIZE];
 
