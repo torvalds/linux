@@ -408,6 +408,7 @@ Fallback Behavior
 If auto buffer registration fails:
 
 1. When ``UBLK_AUTO_BUF_REG_FALLBACK`` is enabled:
+
    - The uring_cmd is completed
    - ``UBLK_IO_F_NEED_REG_BUF`` is set in ``ublksrv_io_desc.op_flags``
    - The ublk server must manually deal with the failure, such as, register
@@ -415,6 +416,7 @@ If auto buffer registration fails:
      for handling ublk IO
 
 2. If fallback is not enabled:
+
    - The ublk I/O request fails silently
    - The uring_cmd won't be completed
 
