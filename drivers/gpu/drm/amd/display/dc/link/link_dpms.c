@@ -2295,9 +2295,10 @@ static bool allocate_usb4_bandwidth_for_stream(struct dc_stream_state *stream, i
 		}
 
 		link->dpia_bw_alloc_config.remote_sink_req_bw[sink_index] = bw;
-		link->dpia_bw_alloc_config.dp_overhead = link_dpia_get_dp_mst_overhead(link);
-		req_bw += link->dpia_bw_alloc_config.dp_overhead;
 	}
+
+	link->dpia_bw_alloc_config.dp_overhead = link_dpia_get_dp_overhead(link);
+	req_bw += link->dpia_bw_alloc_config.dp_overhead;
 
 	link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, req_bw);
 

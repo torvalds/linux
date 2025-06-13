@@ -80,25 +80,13 @@ void link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int r
 void dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int peak_bw);
 
 /*
- * Handle the validation of total BW here and confirm that the bw used by each
- * DPIA doesn't exceed available BW for each host router (HR)
- *
- * @link[]: array of link pointer to all possible DPIA links
- * @bw_needed[]: bw needed for each DPIA link based on timing
- * @num_dpias: Number of DPIAs for the above 2 arrays. Should always be <= MAX_DPIA_NUM
- *
- * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
- */
-bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned int num_dpias);
-
-/*
  * Obtain all the DP overheads in dp tunneling for the dpia link
  *
  * @link: pointer to the dc_link struct instance
  *
  * return: DP overheads in DP tunneling
  */
-uint32_t link_dpia_get_dp_mst_overhead(const struct dc_link *link);
+uint32_t link_dpia_get_dp_overhead(const struct dc_link *link);
 
 /*
  * Handle DP BW allocation status register
