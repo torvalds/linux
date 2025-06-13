@@ -141,8 +141,8 @@ search:
 	if (!*idx)
 		*idx = __bch2_journal_key_search(keys, btree_id, level, pos);
 
-	while (*idx &&
-	       __journal_key_cmp(btree_id, level, end_pos, idx_to_key(keys, *idx - 1)) <= 0) {
+	while (*idx < keys->nr &&
+	       __journal_key_cmp(btree_id, level, end_pos, idx_to_key(keys, *idx - 1)) >= 0) {
 		(*idx)++;
 		iters++;
 		if (iters == 10) {
