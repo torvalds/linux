@@ -229,6 +229,12 @@ static inline int iommufd_viommu_report_event(struct iommufd_viommu *viommu,
 }
 #endif /* CONFIG_IOMMUFD_DRIVER_CORE */
 
+#define VIOMMU_STRUCT_SIZE(drv_struct, member)                                 \
+	(sizeof(drv_struct) +                                                  \
+	 BUILD_BUG_ON_ZERO(offsetof(drv_struct, member)) +                     \
+	 BUILD_BUG_ON_ZERO(!__same_type(struct iommufd_viommu,                 \
+					((drv_struct *)NULL)->member)))
+
 /*
  * Helpers for IOMMU driver to allocate driver structures that will be freed by
  * the iommufd core. The free op will be called prior to freeing the memory.
