@@ -1166,4 +1166,8 @@ DEFINE_LOCK_GUARD_0(rcu,
 	} while (0),
 	rcu_read_unlock())
 
+DEFINE_LOCK_GUARD_0(rcu_read_lock_sched,
+	rcu_read_lock_sched(),
+	rcu_read_unlock_sched())
+
 #endif /* __LINUX_RCUPDATE_H */
