@@ -33,8 +33,6 @@ int iommufd_viommu_alloc_ioctl(struct iommufd_ucmd *ucmd)
 
 	ops = dev_iommu_ops(idev->dev);
 	if (!ops->get_viommu_size || !ops->viommu_init) {
-		if (ops->viommu_alloc)
-			goto get_hwpt_paging;
 		rc = -EOPNOTSUPP;
 		goto out_put_idev;
 	}
@@ -54,7 +52,6 @@ int iommufd_viommu_alloc_ioctl(struct iommufd_ucmd *ucmd)
 		goto out_put_idev;
 	}
 
-get_hwpt_paging:
 	hwpt_paging = iommufd_get_hwpt_paging(ucmd, cmd->hwpt_id);
 	if (IS_ERR(hwpt_paging)) {
 		rc = PTR_ERR(hwpt_paging);
@@ -66,13 +63,8 @@ get_hwpt_paging:
 		goto out_put_hwpt;
 	}
 
-	if (ops->viommu_alloc)
-		viommu = ops->viommu_alloc(idev->dev,
-					   hwpt_paging->common.domain,
-					   ucmd->ictx, cmd->type);
-	else
-		viommu = (struct iommufd_viommu *)_iommufd_object_alloc(
-			ucmd->ictx, viommu_size, IOMMUFD_OBJ_VIOMMU);
+	viommu = (struct iommufd_viommu *)_iommufd_object_alloc(
+		ucmd->ictx, viommu_size, IOMMUFD_OBJ_VIOMMU);
 	if (IS_ERR(viommu)) {
 		rc = PTR_ERR(viommu);
 		goto out_put_hwpt;
@@ -92,11 +84,9 @@ get_hwpt_paging:
 	 */
 	viommu->iommu_dev = __iommu_get_iommu_dev(idev->dev);
 
-	if (!ops->viommu_alloc) {
-		rc = ops->viommu_init(viommu, hwpt_paging->common.domain);
-		if (rc)
-			goto out_abort;
-	}
+	rc = ops->viommu_init(viommu, hwpt_paging->common.domain);
+	if (rc)
+		goto out_abort;
 
 	/* It is a driver bug that viommu->ops isn't filled */
 	if (WARN_ON_ONCE(!viommu->ops)) {

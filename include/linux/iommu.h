@@ -607,14 +607,6 @@ iommu_copy_struct_from_full_user_array(void *kdst, size_t kdst_entry_size,
  *               resources shared/passed to user space IOMMU instance. Associate
  *               it with a nesting @parent_domain. It is required for driver to
  *               set @viommu->ops pointing to its own viommu_ops
- * @viommu_alloc: Allocate an iommufd_viommu on a physical IOMMU instance behind
- *                the @dev, as the set of virtualization resources shared/passed
- *                to user space IOMMU instance. And associate it with a nesting
- *                @parent_domain. The @viommu_type must be defined in the header
- *                include/uapi/linux/iommufd.h
- *                It is required to call iommufd_viommu_alloc() helper for
- *                a bundled allocation of the core and the driver structures,
- *                using the given @ictx pointer.
  * @pgsize_bitmap: bitmap of all possible supported page sizes
  * @owner: Driver module providing these ops
  * @identity_domain: An always available, always attachable identity
@@ -669,9 +661,6 @@ struct iommu_ops {
 				  enum iommu_viommu_type viommu_type);
 	int (*viommu_init)(struct iommufd_viommu *viommu,
 			   struct iommu_domain *parent_domain);
-	struct iommufd_viommu *(*viommu_alloc)(
-		struct device *dev, struct iommu_domain *parent_domain,
-		struct iommufd_ctx *ictx, unsigned int viommu_type);
 
 	const struct iommu_domain_ops *default_domain_ops;
 	unsigned long pgsize_bitmap;

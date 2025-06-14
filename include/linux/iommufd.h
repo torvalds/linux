@@ -234,22 +234,4 @@ static inline int iommufd_viommu_report_event(struct iommufd_viommu *viommu,
 	 BUILD_BUG_ON_ZERO(offsetof(drv_struct, member)) +                     \
 	 BUILD_BUG_ON_ZERO(!__same_type(struct iommufd_viommu,                 \
 					((drv_struct *)NULL)->member)))
-
-/*
- * Helpers for IOMMU driver to allocate driver structures that will be freed by
- * the iommufd core. The free op will be called prior to freeing the memory.
- */
-#define iommufd_viommu_alloc(ictx, drv_struct, member, viommu_ops)             \
-	({                                                                     \
-		drv_struct *ret;                                               \
-									       \
-		static_assert(__same_type(struct iommufd_viommu,               \
-					  ((drv_struct *)NULL)->member));      \
-		static_assert(offsetof(drv_struct, member.obj) == 0);          \
-		ret = (drv_struct *)_iommufd_object_alloc(                     \
-			ictx, sizeof(drv_struct), IOMMUFD_OBJ_VIOMMU);         \
-		if (!IS_ERR(ret))                                              \
-			ret->member.ops = viommu_ops;                          \
-		ret;                                                           \
-	})
 #endif
