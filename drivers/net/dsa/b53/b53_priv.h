@@ -84,6 +84,12 @@ enum {
 	BCM53134_DEVICE_ID = 0x5075,
 };
 
+enum b53_variant_id {
+	B53_VARIANT_NONE = 0,
+	B53_VARIANT_5325E,
+	B53_VARIANT_5325M,
+};
+
 struct b53_pcs {
 	struct phylink_pcs pcs;
 	struct b53_device *dev;
@@ -118,6 +124,7 @@ struct b53_device {
 
 	/* chip specific data */
 	u32 chip_id;
+	enum b53_variant_id variant_id;
 	u8 core_rev;
 	u8 vta_regs[3];
 	u8 duplex_reg;
@@ -163,6 +170,18 @@ struct b53_device {
 static inline int is5325(struct b53_device *dev)
 {
 	return dev->chip_id == BCM5325_DEVICE_ID;
+}
+
+static inline int is5325e(struct b53_device *dev)
+{
+	return is5325(dev) &&
+		dev->variant_id == B53_VARIANT_5325E;
+}
+
+static inline int is5325m(struct b53_device *dev)
+{
+	return is5325(dev) &&
+		dev->variant_id == B53_VARIANT_5325M;
 }
 
 static inline int is5365(struct b53_device *dev)

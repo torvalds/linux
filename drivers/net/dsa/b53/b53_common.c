@@ -1778,7 +1778,8 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 
 	/* Perform a read for the given MAC and VID */
 	b53_write48(dev, B53_ARLIO_PAGE, B53_MAC_ADDR_IDX, mac);
-	b53_write16(dev, B53_ARLIO_PAGE, B53_VLAN_ID_IDX, vid);
+	if (!is5325m(dev))
+		b53_write16(dev, B53_ARLIO_PAGE, B53_VLAN_ID_IDX, vid);
 
 	/* Issue a read operation for this MAC */
 	ret = b53_arl_rw_op(dev, 1);
@@ -2833,6 +2834,9 @@ static int b53_switch_init(struct b53_device *dev)
 		}
 	}
 
+	if (is5325e(dev))
+		dev->num_arl_buckets = 512;
+
 	dev->num_ports = fls(dev->enabled_ports);
 
 	dev->ds->num_ports = min_t(unsigned int, dev->num_ports, DSA_MAX_PORTS);
@@ -2934,10 +2938,24 @@ int b53_switch_detect(struct b53_device *dev)
 		b53_write16(dev, B53_VLAN_PAGE, B53_VLAN_TABLE_ACCESS_25, 0xf);
 		b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_TABLE_ACCESS_25, &tmp);
 
-		if (tmp == 0xf)
+		if (tmp == 0xf) {
+			u32 phy_id;
+			int val;
+
 			dev->chip_id = BCM5325_DEVICE_ID;
-		else
+
+			val = b53_phy_read16(dev->ds, 0, MII_PHYSID1);
+			phy_id = (val & 0xffff) << 16;
+			val = b53_phy_read16(dev->ds, 0, MII_PHYSID2);
+			phy_id |= (val & 0xfff0);
+
+			if (phy_id == 0x00406330)
+				dev->variant_id = B53_VARIANT_5325M;
+			else if (phy_id == 0x0143bc30)
+				dev->variant_id = B53_VARIANT_5325E;
+		} else {
 			dev->chip_id = BCM5365_DEVICE_ID;
+		}
 		break;
 	case BCM5389_DEVICE_ID:
 	case BCM5395_DEVICE_ID:
