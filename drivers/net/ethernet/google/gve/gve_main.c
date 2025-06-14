@@ -619,9 +619,12 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	err = gve_alloc_counter_array(priv);
 	if (err)
 		goto abort_with_rss_config_cache;
-	err = gve_alloc_notify_blocks(priv);
+	err = gve_init_clock(priv);
 	if (err)
 		goto abort_with_counter;
+	err = gve_alloc_notify_blocks(priv);
+	if (err)
+		goto abort_with_clock;
 	err = gve_alloc_stats_report(priv);
 	if (err)
 		goto abort_with_ntfy_blocks;
@@ -674,6 +677,8 @@ abort_with_stats_report:
 	gve_free_stats_report(priv);
 abort_with_ntfy_blocks:
 	gve_free_notify_blocks(priv);
+abort_with_clock:
+	gve_teardown_clock(priv);
 abort_with_counter:
 	gve_free_counter_array(priv);
 abort_with_rss_config_cache:
