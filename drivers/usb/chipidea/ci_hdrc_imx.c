@@ -331,6 +331,11 @@ static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned int event)
 		if (ci->usb_phy)
 			schedule_work(&ci->usb_phy->chg_work);
 		break;
+	case CI_HDRC_CONTROLLER_PULLUP_EVENT:
+		if (ci->role == CI_ROLE_GADGET)
+			imx_usbmisc_pullup(data->usbmisc_data,
+					   ci->gadget.connected);
+		break;
 	default:
 		break;
 	}
