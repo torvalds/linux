@@ -584,8 +584,8 @@ static int unix_peer_perm(const struct cred *subj_cred,
 	struct aa_profile *profile;
 	DEFINE_AUDIT_SK(ad, op, subj_cred, sk);
 
-	ad.net.addr = peer_addr;
-	ad.net.addrlen = peer_addrlen;
+	ad.net.peer.addr = peer_addr;
+	ad.net.peer.addrlen = peer_addrlen;
 
 	return fn_for_each_confined(label, profile,
 			profile_peer_perm(profile, request, sk,

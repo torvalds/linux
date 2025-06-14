@@ -99,10 +99,15 @@ static void audit_unix_sk_addr(struct audit_buffer *ab, const char *str,
 {
 	const struct unix_sock *u = unix_sk(sk);
 
-	if (u && u->addr)
-		audit_unix_addr(ab, str, u->addr->name, u->addr->len);
-	else
+	if (u && u->addr) {
+		int addrlen;
+		struct sockaddr_un *addr = aa_sunaddr(u, &addrlen);
+
+		audit_unix_addr(ab, str, addr, addrlen);
+	} else {
 		audit_unix_addr(ab, str, NULL, 0);
+
+	}
 }
 
 /* audit callback for net specific fields */
@@ -137,17 +142,16 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 		}
 	}
 	if (ad->common.u.net->family == PF_UNIX) {
-		if ((ad->request & ~NET_PEER_MASK) && ad->net.addr)
+		if (ad->net.addr || !ad->common.u.net->sk)
 			audit_unix_addr(ab, "addr",
 					unix_addr(ad->net.addr),
 					ad->net.addrlen);
 		else
 			audit_unix_sk_addr(ab, "addr", ad->common.u.net->sk);
 		if (ad->request & NET_PEER_MASK) {
-			if (ad->net.addr)
-				audit_unix_addr(ab, "peer_addr",
-						unix_addr(ad->net.addr),
-						ad->net.addrlen);
+			audit_unix_addr(ab, "peer_addr",
+					unix_addr(ad->net.peer.addr),
+					ad->net.peer.addrlen);
 		}
 	}
 	if (ad->peer) {
