@@ -8,6 +8,7 @@
 #include "fsverity_private.h"
 
 #include <crypto/hash.h>
+#include <linux/export.h>
 #include <linux/mount.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
