@@ -102,9 +102,8 @@ static int iommufd_object_dec_wait_shortterm(struct iommufd_ctx *ictx,
 		return 0;
 
 	if (wait_event_timeout(ictx->destroy_wait,
-				refcount_read(&to_destroy->shortterm_users) ==
-					0,
-				msecs_to_jiffies(60000)))
+			       refcount_read(&to_destroy->shortterm_users) == 0,
+			       msecs_to_jiffies(60000)))
 		return 0;
 
 	pr_crit("Time out waiting for iommufd object to become free\n");
@@ -538,7 +537,6 @@ static struct miscdevice iommu_misc_dev = {
 	.nodename = "iommu",
 	.mode = 0660,
 };
-
 
 static struct miscdevice vfio_misc_dev = {
 	.minor = VFIO_MINOR,

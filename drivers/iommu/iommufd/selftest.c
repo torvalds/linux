@@ -1216,9 +1216,8 @@ static int iommufd_test_md_check_refs(struct iommufd_ucmd *ucmd,
 	return 0;
 }
 
-static int iommufd_test_md_check_iotlb(struct iommufd_ucmd *ucmd,
-				       u32 mockpt_id, unsigned int iotlb_id,
-				       u32 iotlb)
+static int iommufd_test_md_check_iotlb(struct iommufd_ucmd *ucmd, u32 mockpt_id,
+				       unsigned int iotlb_id, u32 iotlb)
 {
 	struct mock_iommu_domain_nested *mock_nested;
 	struct iommufd_hw_pagetable *hwpt;
@@ -1491,7 +1490,7 @@ static int iommufd_test_access_pages(struct iommufd_ucmd *ucmd,
 	int rc;
 
 	/* Prevent syzkaller from triggering a WARN_ON in kvzalloc() */
-	if (length > 16*1024*1024)
+	if (length > 16 * 1024 * 1024)
 		return -ENOMEM;
 
 	if (flags & ~(MOCK_FLAGS_ACCESS_WRITE | MOCK_FLAGS_ACCESS_SYZ))
@@ -1508,7 +1507,7 @@ static int iommufd_test_access_pages(struct iommufd_ucmd *ucmd,
 
 	if (flags & MOCK_FLAGS_ACCESS_SYZ)
 		iova = iommufd_test_syz_conv_iova(staccess->access,
-					&cmd->access_pages.iova);
+						  &cmd->access_pages.iova);
 
 	npages = (ALIGN(iova + length, PAGE_SIZE) -
 		  ALIGN_DOWN(iova, PAGE_SIZE)) /
@@ -1584,7 +1583,7 @@ static int iommufd_test_access_rw(struct iommufd_ucmd *ucmd,
 	int rc;
 
 	/* Prevent syzkaller from triggering a WARN_ON in kvzalloc() */
-	if (length > 16*1024*1024)
+	if (length > 16 * 1024 * 1024)
 		return -ENOMEM;
 
 	if (flags & ~(MOCK_ACCESS_RW_WRITE | MOCK_ACCESS_RW_SLOW_PATH |
@@ -1610,7 +1609,7 @@ static int iommufd_test_access_rw(struct iommufd_ucmd *ucmd,
 
 	if (flags & MOCK_FLAGS_ACCESS_SYZ)
 		iova = iommufd_test_syz_conv_iova(staccess->access,
-				&cmd->access_rw.iova);
+						  &cmd->access_rw.iova);
 
 	rc = iommufd_access_rw(staccess->access, iova, tmp, length, flags);
 	if (rc)
@@ -1665,7 +1664,7 @@ static int iommufd_test_dirty(struct iommufd_ucmd *ucmd, unsigned int mockpt_id,
 		goto out_put;
 	}
 
-	if (copy_from_user(tmp, uptr,DIV_ROUND_UP(max, BITS_PER_BYTE))) {
+	if (copy_from_user(tmp, uptr, DIV_ROUND_UP(max, BITS_PER_BYTE))) {
 		rc = -EFAULT;
 		goto out_free;
 	}
@@ -1701,7 +1700,7 @@ out_put:
 static int iommufd_test_trigger_iopf(struct iommufd_ucmd *ucmd,
 				     struct iommu_test_cmd *cmd)
 {
-	struct iopf_fault event = { };
+	struct iopf_fault event = {};
 	struct iommufd_device *idev;
 
 	idev = iommufd_get_device(ucmd, cmd->trigger_iopf.dev_id);
@@ -1832,8 +1831,7 @@ static int iommufd_test_pasid_attach(struct iommufd_ucmd *ucmd,
 
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 	if (rc)
-		iommufd_device_detach(sobj->idev.idev,
-				      cmd->pasid_attach.pasid);
+		iommufd_device_detach(sobj->idev.idev, cmd->pasid_attach.pasid);
 
 out_sobj:
 	iommufd_put_object(ucmd->ictx, &sobj->obj);
@@ -2004,8 +2002,8 @@ int __init iommufd_test_init(void)
 		goto err_bus;
 
 	rc = iommu_device_register_bus(&mock_iommu.iommu_dev, &mock_ops,
-				  &iommufd_mock_bus_type.bus,
-				  &iommufd_mock_bus_type.nb);
+				       &iommufd_mock_bus_type.bus,
+				       &iommufd_mock_bus_type.nb);
 	if (rc)
 		goto err_sysfs;
 

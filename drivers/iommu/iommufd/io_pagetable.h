@@ -240,7 +240,7 @@ int iopt_area_add_access(struct iopt_area *area, unsigned long start,
 			 unsigned long last, struct page **out_pages,
 			 unsigned int flags);
 void iopt_area_remove_access(struct iopt_area *area, unsigned long start,
-			    unsigned long last);
+			     unsigned long last);
 int iopt_pages_rw_access(struct iopt_pages *pages, unsigned long start_byte,
 			 void *data, unsigned long length, unsigned int flags);
 

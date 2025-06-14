@@ -171,8 +171,9 @@ static inline void iommufd_access_unpin_pages(struct iommufd_access *access,
 {
 }
 
-static inline int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
-		      void *data, size_t len, unsigned int flags)
+static inline int iommufd_access_rw(struct iommufd_access *access,
+				    unsigned long iova, void *data, size_t len,
+				    unsigned int flags)
 {
 	return -EOPNOTSUPP;
 }

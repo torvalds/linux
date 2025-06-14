@@ -266,8 +266,7 @@ struct iommufd_ioas {
 static inline struct iommufd_ioas *iommufd_get_ioas(struct iommufd_ctx *ictx,
 						    u32 id)
 {
-	return container_of(iommufd_get_object(ictx, id,
-					       IOMMUFD_OBJ_IOAS),
+	return container_of(iommufd_get_object(ictx, id, IOMMUFD_OBJ_IOAS),
 			    struct iommufd_ioas, obj);
 }
 
@@ -452,8 +451,7 @@ struct iommufd_access {
 
 int iopt_add_access(struct io_pagetable *iopt, struct iommufd_access *access);
 void iopt_remove_access(struct io_pagetable *iopt,
-			struct iommufd_access *access,
-			u32 iopt_access_list_id);
+			struct iommufd_access *access, u32 iopt_access_list_id);
 void iommufd_access_destroy_object(struct iommufd_object *obj);
 
 struct iommufd_eventq {
