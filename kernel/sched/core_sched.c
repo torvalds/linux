@@ -54,11 +54,10 @@ static unsigned long sched_core_update_cookie(struct task_struct *p,
 					      unsigned long cookie)
 {
 	unsigned long old_cookie;
-	struct rq_flags rf;
 	struct rq *rq;
 
-	rq = task_rq_lock(p, &rf);
-
+	CLASS(task_rq_lock, guard)(p);
+	rq = guard.rq;
 	/*
 	 * Since creating a cookie implies sched_core_get(), and we cannot set
 	 * a cookie until after we've created it, similarly, we cannot destroy
@@ -91,18 +90,15 @@ static unsigned long sched_core_update_cookie(struct task_struct *p,
 	if (task_on_cpu(rq, p))
 		resched_curr(rq);
 
-	task_rq_unlock(rq, p, &rf);
-
 	return old_cookie;
 }
 
 static unsigned long sched_core_clone_cookie(struct task_struct *p)
 {
-	unsigned long cookie, flags;
+	unsigned long cookie;
 
-	raw_spin_lock_irqsave(&p->pi_lock, flags);
+	guard(raw_spinlock_irqsave)(&p->pi_lock);
 	cookie = sched_core_get_cookie(p->core_cookie);
-	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 
 	return cookie;
 }
@@ -145,18 +141,16 @@ int sched_core_share_pid(unsigned int cmd, pid_t pid, enum pid_type type,
 	    (cmd != PR_SCHED_CORE_GET && uaddr))
 		return -EINVAL;
 
-	rcu_read_lock();
-	if (pid == 0) {
-		task = current;
-	} else {
-		task = find_task_by_vpid(pid);
-		if (!task) {
-			rcu_read_unlock();
-			return -ESRCH;
+	scoped_guard(rcu) {
+		if (pid == 0) {
+			task = current;
+		} else {
+			task = find_task_by_vpid(pid);
+			if (!task)
+				return -ESRCH;
 		}
+		get_task_struct(task);
 	}
-	get_task_struct(task);
-	rcu_read_unlock();
 
 	/*
 	 * Check if this process has the right to modify the specified
