@@ -449,9 +449,8 @@ static void sugov_update_single_freq(struct update_util_data *hook, u64 time,
 	if (sg_policy->policy->fast_switch_enabled) {
 		cpufreq_driver_fast_switch(sg_policy->policy, next_f);
 	} else {
-		raw_spin_lock(&sg_policy->update_lock);
+		guard(raw_spinlock)(&sg_policy->update_lock);
 		sugov_deferred_update(sg_policy);
-		raw_spin_unlock(&sg_policy->update_lock);
 	}
 }
 
@@ -515,7 +514,7 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 	struct sugov_policy *sg_policy = sg_cpu->sg_policy;
 	unsigned int next_f;
 
-	raw_spin_lock(&sg_policy->update_lock);
+	guard(raw_spinlock)(&sg_policy->update_lock);
 
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
@@ -526,22 +525,19 @@ sugov_update_shared(struct update_util_data *hook, u64 time, unsigned int flags)
 		next_f = sugov_next_freq_shared(sg_cpu, time);
 
 		if (!sugov_update_next_freq(sg_policy, time, next_f))
-			goto unlock;
+			return;
 
 		if (sg_policy->policy->fast_switch_enabled)
 			cpufreq_driver_fast_switch(sg_policy->policy, next_f);
 		else
 			sugov_deferred_update(sg_policy);
 	}
-unlock:
-	raw_spin_unlock(&sg_policy->update_lock);
 }
 
 static void sugov_work(struct kthread_work *work)
 {
 	struct sugov_policy *sg_policy = container_of(work, struct sugov_policy, work);
 	unsigned int freq;
-	unsigned long flags;
 
 	/*
 	 * Hold sg_policy->update_lock shortly to handle the case where:
@@ -553,14 +549,14 @@ static void sugov_work(struct kthread_work *work)
 	 * sugov_work() will just be called again by kthread_work code; and the
 	 * request will be proceed before the sugov thread sleeps.
 	 */
-	raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
-	freq = sg_policy->next_freq;
-	sg_policy->work_in_progress = false;
-	raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
+	scoped_guard(raw_spinlock_irqsave, &sg_policy->update_lock) {
+		freq = sg_policy->next_freq;
+		sg_policy->work_in_progress = false;
+	}
 
-	mutex_lock(&sg_policy->work_lock);
-	__cpufreq_driver_target(sg_policy->policy, freq, CPUFREQ_RELATION_L);
-	mutex_unlock(&sg_policy->work_lock);
+	scoped_guard(mutex, &sg_policy->work_lock) {
+		__cpufreq_driver_target(sg_policy->policy, freq, CPUFREQ_RELATION_L);
+	}
 }
 
 static void sugov_irq_work(struct irq_work *irq_work)
@@ -822,14 +818,12 @@ static void sugov_exit(struct cpufreq_policy *policy)
 	struct sugov_tunables *tunables = sg_policy->tunables;
 	unsigned int count;
 
-	mutex_lock(&global_tunables_lock);
-
-	count = gov_attr_set_put(&tunables->attr_set, &sg_policy->tunables_hook);
-	policy->governor_data = NULL;
-	if (!count)
-		sugov_clear_global_tunables();
-
-	mutex_unlock(&global_tunables_lock);
+	scoped_guard(mutex, &global_tunables_lock) {
+		count = gov_attr_set_put(&tunables->attr_set, &sg_policy->tunables_hook);
+		policy->governor_data = NULL;
+		if (!count)
+			sugov_clear_global_tunables();
+	}
 
 	sugov_kthread_stop(sg_policy);
 	sugov_policy_free(sg_policy);
@@ -892,9 +886,8 @@ static void sugov_limits(struct cpufreq_policy *policy)
 	struct sugov_policy *sg_policy = policy->governor_data;
 
 	if (!policy->fast_switch_enabled) {
-		mutex_lock(&sg_policy->work_lock);
+		guard(mutex)(&sg_policy->work_lock);
 		cpufreq_policy_apply_limits(policy);
-		mutex_unlock(&sg_policy->work_lock);
 	}
 
 	/*
