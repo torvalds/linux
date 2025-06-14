@@ -292,12 +292,10 @@ static inline u64 read_sum_exec_runtime(struct task_struct *t)
 static u64 read_sum_exec_runtime(struct task_struct *t)
 {
 	u64 ns;
-	struct rq_flags rf;
 	struct rq *rq;
 
-	rq = task_rq_lock(t, &rf);
+	guard(task_rq_lock)(t);
 	ns = t->se.sum_exec_runtime;
-	task_rq_unlock(rq, t, &rf);
 
 	return ns;
 }
@@ -326,7 +324,7 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	if (same_thread_group(current, tsk))
 		(void) task_sched_runtime(current);
 
-	rcu_read_lock();
+	guard(rcu)();
 	/* Attempt a lockless read on the first round. */
 	nextseq = 0;
 	do {
@@ -346,7 +344,6 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 		nextseq = 1;
 	} while (need_seqretry(&sig->stats_lock, seq));
 	done_seqretry_irqrestore(&sig->stats_lock, seq, flags);
-	rcu_read_unlock();
 }
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -984,15 +981,14 @@ u64 kcpustat_field(struct kernel_cpustat *kcpustat,
 	for (;;) {
 		struct task_struct *curr;
 
-		rcu_read_lock();
-		curr = rcu_dereference(rq->curr);
-		if (WARN_ON_ONCE(!curr)) {
-			rcu_read_unlock();
-			return cpustat[usage];
-		}
+		scoped_guard(rcu) {
+			curr = rcu_dereference(rq->curr);
+			if (WARN_ON_ONCE(!curr))
+				return cpustat[usage];
 
-		err = kcpustat_field_vtime(cpustat, curr, usage, cpu, &val);
-		rcu_read_unlock();
+			err = kcpustat_field_vtime(cpustat, curr,
+				usage, cpu, &val);
+		}
 
 		if (!err)
 			return val;
@@ -1071,16 +1067,15 @@ void kcpustat_cpu_fetch(struct kernel_cpustat *dst, int cpu)
 	for (;;) {
 		struct task_struct *curr;
 
-		rcu_read_lock();
-		curr = rcu_dereference(rq->curr);
-		if (WARN_ON_ONCE(!curr)) {
-			rcu_read_unlock();
-			*dst = *src;
-			return;
-		}
+		scoped_guard(rcu) {
+			curr = rcu_dereference(rq->curr);
+			if (WARN_ON_ONCE(!curr)) {
+				*dst = *src;
+				return;
+			}
 
-		err = kcpustat_cpu_fetch_vtime(dst, src, curr, cpu);
-		rcu_read_unlock();
+			err = kcpustat_cpu_fetch_vtime(dst, src, curr, cpu);
+		}
 
 		if (!err)
 			return;
