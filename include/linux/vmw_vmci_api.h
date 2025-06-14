@@ -60,12 +60,6 @@ s64 vmci_qpair_produce_free_space(const struct vmci_qp *qpair);
 s64 vmci_qpair_produce_buf_ready(const struct vmci_qp *qpair);
 s64 vmci_qpair_consume_free_space(const struct vmci_qp *qpair);
 s64 vmci_qpair_consume_buf_ready(const struct vmci_qp *qpair);
-ssize_t vmci_qpair_enqueue(struct vmci_qp *qpair,
-			   const void *buf, size_t buf_size, int mode);
-ssize_t vmci_qpair_dequeue(struct vmci_qp *qpair,
-			   void *buf, size_t buf_size, int mode);
-ssize_t vmci_qpair_peek(struct vmci_qp *qpair, void *buf, size_t buf_size,
-			int mode);
 ssize_t vmci_qpair_enquev(struct vmci_qp *qpair,
 			  struct msghdr *msg, size_t iov_size, int mode);
 ssize_t vmci_qpair_dequev(struct vmci_qp *qpair,
