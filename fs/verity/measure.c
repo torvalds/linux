@@ -9,6 +9,7 @@
 
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/export.h>
 #include <linux/uaccess.h>
 
 /**

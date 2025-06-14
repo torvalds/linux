@@ -7,6 +7,7 @@
 
 #include "fsverity_private.h"
 
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 
