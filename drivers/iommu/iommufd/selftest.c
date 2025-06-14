@@ -769,25 +769,23 @@ static struct iommufd_viommu_ops mock_viommu_ops = {
 	.cache_invalidate = mock_viommu_cache_invalidate,
 };
 
-static struct iommufd_viommu *mock_viommu_alloc(struct device *dev,
-						struct iommu_domain *domain,
-						struct iommufd_ctx *ictx,
-						unsigned int viommu_type)
+static size_t mock_get_viommu_size(struct device *dev,
+				   enum iommu_viommu_type viommu_type)
 {
-	struct mock_iommu_device *mock_iommu =
-		iommu_get_iommu_dev(dev, struct mock_iommu_device, iommu_dev);
-	struct mock_viommu *mock_viommu;
-
 	if (viommu_type != IOMMU_VIOMMU_TYPE_SELFTEST)
-		return ERR_PTR(-EOPNOTSUPP);
+		return 0;
+	return VIOMMU_STRUCT_SIZE(struct mock_viommu, core);
+}
 
-	mock_viommu = iommufd_viommu_alloc(ictx, struct mock_viommu, core,
-					   &mock_viommu_ops);
-	if (IS_ERR(mock_viommu))
-		return ERR_CAST(mock_viommu);
+static int mock_viommu_init(struct iommufd_viommu *viommu,
+			    struct iommu_domain *parent_domain)
+{
+	struct mock_iommu_device *mock_iommu = container_of(
+		viommu->iommu_dev, struct mock_iommu_device, iommu_dev);
 
 	refcount_inc(&mock_iommu->users);
-	return &mock_viommu->core;
+	viommu->ops = &mock_viommu_ops;
+	return 0;
 }
 
 static const struct iommu_ops mock_ops = {
@@ -807,7 +805,8 @@ static const struct iommu_ops mock_ops = {
 	.probe_device = mock_probe_device,
 	.page_response = mock_domain_page_response,
 	.user_pasid_table = true,
-	.viommu_alloc = mock_viommu_alloc,
+	.get_viommu_size = mock_get_viommu_size,
+	.viommu_init = mock_viommu_init,
 	.default_domain_ops =
 		&(struct iommu_domain_ops){
 			.free = mock_domain_free,
