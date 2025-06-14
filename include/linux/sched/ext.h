@@ -214,4 +214,12 @@ static inline void print_scx_info(const char *log_lvl, struct task_struct *p) {}
 static inline void scx_softlockup(u32 dur_s) {}
 
 #endif	/* CONFIG_SCHED_CLASS_EXT */
+
+struct scx_task_group {
+#ifdef CONFIG_EXT_GROUP_SCHED
+	u32			flags;		/* SCX_TG_* */
+	u32			weight;
+#endif
+};
+
 #endif	/* _LINUX_SCHED_EXT_H */

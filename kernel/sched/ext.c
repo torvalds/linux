@@ -4058,7 +4058,7 @@ static bool scx_cgroup_enabled;
 
 void scx_tg_init(struct task_group *tg)
 {
-	tg->scx_weight = CGROUP_WEIGHT_DFL;
+	tg->scx.weight = CGROUP_WEIGHT_DFL;
 }
 
 int scx_tg_online(struct task_group *tg)
@@ -4066,14 +4066,14 @@ int scx_tg_online(struct task_group *tg)
 	struct scx_sched *sch = scx_root;
 	int ret = 0;
 
-	WARN_ON_ONCE(tg->scx_flags & (SCX_TG_ONLINE | SCX_TG_INITED));
+	WARN_ON_ONCE(tg->scx.flags & (SCX_TG_ONLINE | SCX_TG_INITED));
 
 	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (scx_cgroup_enabled) {
 		if (SCX_HAS_OP(sch, cgroup_init)) {
 			struct scx_cgroup_init_args args =
-				{ .weight = tg->scx_weight };
+				{ .weight = tg->scx.weight };
 
 			ret = SCX_CALL_OP_RET(sch, SCX_KF_UNLOCKED, cgroup_init,
 					      NULL, tg->css.cgroup, &args);
@@ -4081,9 +4081,9 @@ int scx_tg_online(struct task_group *tg)
 				ret = ops_sanitize_err(sch, "cgroup_init", ret);
 		}
 		if (ret == 0)
-			tg->scx_flags |= SCX_TG_ONLINE | SCX_TG_INITED;
+			tg->scx.flags |= SCX_TG_ONLINE | SCX_TG_INITED;
 	} else {
-		tg->scx_flags |= SCX_TG_ONLINE;
+		tg->scx.flags |= SCX_TG_ONLINE;
 	}
 
 	percpu_up_read(&scx_cgroup_rwsem);
@@ -4094,15 +4094,15 @@ void scx_tg_offline(struct task_group *tg)
 {
 	struct scx_sched *sch = scx_root;
 
-	WARN_ON_ONCE(!(tg->scx_flags & SCX_TG_ONLINE));
+	WARN_ON_ONCE(!(tg->scx.flags & SCX_TG_ONLINE));
 
 	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_exit) &&
-	    (tg->scx_flags & SCX_TG_INITED))
+	    (tg->scx.flags & SCX_TG_INITED))
 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_exit, NULL,
 			    tg->css.cgroup);
-	tg->scx_flags &= ~(SCX_TG_ONLINE | SCX_TG_INITED);
+	tg->scx.flags &= ~(SCX_TG_ONLINE | SCX_TG_INITED);
 
 	percpu_up_read(&scx_cgroup_rwsem);
 }
@@ -4211,11 +4211,11 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_weight) &&
-	    tg->scx_weight != weight)
+	    tg->scx.weight != weight)
 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_set_weight, NULL,
 			    tg_cgrp(tg), weight);
 
-	tg->scx_weight = weight;
+	tg->scx.weight = weight;
 
 	percpu_up_read(&scx_cgroup_rwsem);
 }
@@ -4366,9 +4366,9 @@ static void scx_cgroup_exit(struct scx_sched *sch)
 	css_for_each_descendant_post(css, &root_task_group.css) {
 		struct task_group *tg = css_tg(css);
 
-		if (!(tg->scx_flags & SCX_TG_INITED))
+		if (!(tg->scx.flags & SCX_TG_INITED))
 			continue;
-		tg->scx_flags &= ~SCX_TG_INITED;
+		tg->scx.flags &= ~SCX_TG_INITED;
 
 		if (!sch->ops.cgroup_exit)
 			continue;
@@ -4400,14 +4400,14 @@ static int scx_cgroup_init(struct scx_sched *sch)
 	rcu_read_lock();
 	css_for_each_descendant_pre(css, &root_task_group.css) {
 		struct task_group *tg = css_tg(css);
-		struct scx_cgroup_init_args args = { .weight = tg->scx_weight };
+		struct scx_cgroup_init_args args = { .weight = tg->scx.weight };
 
-		if ((tg->scx_flags &
+		if ((tg->scx.flags &
 		     (SCX_TG_ONLINE | SCX_TG_INITED)) != SCX_TG_ONLINE)
 			continue;
 
 		if (!sch->ops.cgroup_init) {
-			tg->scx_flags |= SCX_TG_INITED;
+			tg->scx.flags |= SCX_TG_INITED;
 			continue;
 		}
 
@@ -4422,7 +4422,7 @@ static int scx_cgroup_init(struct scx_sched *sch)
 			scx_error(sch, "ops.cgroup_init() failed (%d)", ret);
 			return ret;
 		}
-		tg->scx_flags |= SCX_TG_INITED;
+		tg->scx.flags |= SCX_TG_INITED;
 
 		rcu_read_lock();
 		css_put(css);
