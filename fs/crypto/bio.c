@@ -7,10 +7,12 @@
  * Copyright (C) 2015, Motorola Mobility
  */
 
-#include <linux/pagemap.h>
-#include <linux/module.h>
 #include <linux/bio.h>
+#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/namei.h>
+#include <linux/pagemap.h>
+
 #include "fscrypt_private.h"
 
 /**

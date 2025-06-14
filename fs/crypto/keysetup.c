@@ -9,6 +9,7 @@
  */
 
 #include <crypto/skcipher.h>
+#include <linux/export.h>
 #include <linux/random.h>
 
 #include "fscrypt_private.h"

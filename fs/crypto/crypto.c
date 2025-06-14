@@ -20,12 +20,14 @@
  * Special Publication 800-38E and IEEE P1619/D16.
  */
 
-#include <linux/pagemap.h>
+#include <crypto/skcipher.h>
+#include <linux/export.h>
 #include <linux/mempool.h>
 #include <linux/module.h>
-#include <linux/scatterlist.h>
+#include <linux/pagemap.h>
 #include <linux/ratelimit.h>
-#include <crypto/skcipher.h>
+#include <linux/scatterlist.h>
+
 #include "fscrypt_private.h"
 
 static unsigned int num_prealloc_crypto_pages = 32;
