@@ -33,16 +33,15 @@ static void sort_key_next(struct btree_iter *iter,
 	i->k = bkey_next(i->k);
 
 	if (i->k == i->end)
-		*i = iter->heap.data[--iter->heap.nr];
+		*i = iter->data[--iter->used];
 }
 
-static bool new_bch_key_sort_cmp(const void *l, const void *r, void *args)
+static bool bch_key_sort_cmp(struct btree_iter_set l,
+			     struct btree_iter_set r)
 {
-	struct btree_iter_set *_l = (struct btree_iter_set *)l;
-	struct btree_iter_set *_r = (struct btree_iter_set *)r;
-	int64_t c = bkey_cmp(_l->k, _r->k);
+	int64_t c = bkey_cmp(l.k, r.k);
 
-	return !(c ? c > 0 : _l->k < _r->k);
+	return c ? c > 0 : l.k < r.k;
 }
 
 static bool __ptr_invalid(struct cache_set *c, const struct bkey *k)
@@ -239,7 +238,7 @@ static bool bch_btree_ptr_insert_fixup(struct btree_keys *bk,
 }
 
 const struct btree_keys_ops bch_btree_keys_ops = {
-	.sort_cmp	= new_bch_key_sort_cmp,
+	.sort_cmp	= bch_key_sort_cmp,
 	.insert_fixup	= bch_btree_ptr_insert_fixup,
 	.key_invalid	= bch_btree_ptr_invalid,
 	.key_bad	= bch_btree_ptr_bad,
@@ -256,36 +255,22 @@ const struct btree_keys_ops bch_btree_keys_ops = {
  * Necessary for btree_sort_fixup() - if there are multiple keys that compare
  * equal in different sets, we have to process them newest to oldest.
  */
-
-static bool new_bch_extent_sort_cmp(const void *l, const void *r, void __always_unused *args)
+static bool bch_extent_sort_cmp(struct btree_iter_set l,
+				struct btree_iter_set r)
 {
-	struct btree_iter_set *_l = (struct btree_iter_set *)l;
-	struct btree_iter_set *_r = (struct btree_iter_set *)r;
-	int64_t c = bkey_cmp(&START_KEY(_l->k), &START_KEY(_r->k));
+	int64_t c = bkey_cmp(&START_KEY(l.k), &START_KEY(r.k));
 
-	return !(c ? c > 0 : _l->k < _r->k);
-}
-
-static inline void new_btree_iter_swap(void *iter1, void *iter2, void __always_unused *args)
-{
-	struct btree_iter_set *_iter1 = iter1;
-	struct btree_iter_set *_iter2 = iter2;
-
-	swap(*_iter1, *_iter2);
+	return c ? c > 0 : l.k < r.k;
 }
 
 static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 					  struct bkey *tmp)
 {
-	const struct min_heap_callbacks callbacks = {
-		.less = new_bch_extent_sort_cmp,
-		.swp = new_btree_iter_swap,
-	};
-	while (iter->heap.nr > 1) {
-		struct btree_iter_set *top = iter->heap.data, *i = top + 1;
+	while (iter->used > 1) {
+		struct btree_iter_set *top = iter->data, *i = top + 1;
 
-		if (iter->heap.nr > 2 &&
-		    !new_bch_extent_sort_cmp(&i[0], &i[1], NULL))
+		if (iter->used > 2 &&
+		    bch_extent_sort_cmp(i[0], i[1]))
 			i++;
 
 		if (bkey_cmp(top->k, &START_KEY(i->k)) <= 0)
@@ -293,7 +278,7 @@ static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 
 		if (!KEY_SIZE(i->k)) {
 			sort_key_next(iter, i);
-			min_heap_sift_down(&iter->heap, i - top, &callbacks, NULL);
+			heap_sift(iter, i - top, bch_extent_sort_cmp);
 			continue;
 		}
 
@@ -303,7 +288,7 @@ static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 			else
 				bch_cut_front(top->k, i->k);
 
-			min_heap_sift_down(&iter->heap, i - top, &callbacks, NULL);
+			heap_sift(iter, i - top, bch_extent_sort_cmp);
 		} else {
 			/* can't happen because of comparison func */
 			BUG_ON(!bkey_cmp(&START_KEY(top->k), &START_KEY(i->k)));
@@ -313,7 +298,7 @@ static struct bkey *bch_extent_sort_fixup(struct btree_iter *iter,
 
 				bch_cut_back(&START_KEY(i->k), tmp);
 				bch_cut_front(i->k, top->k);
-				min_heap_sift_down(&iter->heap, 0, &callbacks, NULL);
+				heap_sift(iter, 0, bch_extent_sort_cmp);
 
 				return tmp;
 			} else {
@@ -633,7 +618,7 @@ static bool bch_extent_merge(struct btree_keys *bk,
 }
 
 const struct btree_keys_ops bch_extent_keys_ops = {
-	.sort_cmp	= new_bch_extent_sort_cmp,
+	.sort_cmp	= bch_extent_sort_cmp,
 	.sort_fixup	= bch_extent_sort_fixup,
 	.insert_fixup	= bch_extent_insert_fixup,
 	.key_invalid	= bch_extent_invalid,

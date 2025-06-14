@@ -164,68 +164,40 @@ static void bch_invalidate_one_bucket(struct cache *ca, struct bucket *b)
  * prio is worth 1/8th of what INITIAL_PRIO is worth.
  */
 
-static inline unsigned int new_bucket_prio(struct cache *ca, struct bucket *b)
-{
-	unsigned int min_prio = (INITIAL_PRIO - ca->set->min_prio) / 8;
+#define bucket_prio(b)							\
+({									\
+	unsigned int min_prio = (INITIAL_PRIO - ca->set->min_prio) / 8;	\
+									\
+	(b->prio - ca->set->min_prio + min_prio) * GC_SECTORS_USED(b);	\
+})
 
-	return (b->prio - ca->set->min_prio + min_prio) * GC_SECTORS_USED(b);
-}
-
-static inline bool new_bucket_max_cmp(const void *l, const void *r, void *args)
-{
-	struct bucket **lhs = (struct bucket **)l;
-	struct bucket **rhs = (struct bucket **)r;
-	struct cache *ca = args;
-
-	return new_bucket_prio(ca, *lhs) > new_bucket_prio(ca, *rhs);
-}
-
-static inline bool new_bucket_min_cmp(const void *l, const void *r, void *args)
-{
-	struct bucket **lhs = (struct bucket **)l;
-	struct bucket **rhs = (struct bucket **)r;
-	struct cache *ca = args;
-
-	return new_bucket_prio(ca, *lhs) < new_bucket_prio(ca, *rhs);
-}
-
-static inline void new_bucket_swap(void *l, void *r, void __always_unused *args)
-{
-	struct bucket **lhs = l, **rhs = r;
-
-	swap(*lhs, *rhs);
-}
+#define bucket_max_cmp(l, r)	(bucket_prio(l) < bucket_prio(r))
+#define bucket_min_cmp(l, r)	(bucket_prio(l) > bucket_prio(r))
 
 static void invalidate_buckets_lru(struct cache *ca)
 {
 	struct bucket *b;
-	const struct min_heap_callbacks bucket_max_cmp_callback = {
-		.less = new_bucket_max_cmp,
-		.swp = new_bucket_swap,
-	};
-	const struct min_heap_callbacks bucket_min_cmp_callback = {
-		.less = new_bucket_min_cmp,
-		.swp = new_bucket_swap,
-	};
+	ssize_t i;
 
-	ca->heap.nr = 0;
+	ca->heap.used = 0;
 
 	for_each_bucket(b, ca) {
 		if (!bch_can_invalidate_bucket(ca, b))
 			continue;
 
-		if (!min_heap_full(&ca->heap))
-			min_heap_push(&ca->heap, &b, &bucket_max_cmp_callback, ca);
-		else if (!new_bucket_max_cmp(&b, min_heap_peek(&ca->heap), ca)) {
+		if (!heap_full(&ca->heap))
+			heap_add(&ca->heap, b, bucket_max_cmp);
+		else if (bucket_max_cmp(b, heap_peek(&ca->heap))) {
 			ca->heap.data[0] = b;
-			min_heap_sift_down(&ca->heap, 0, &bucket_max_cmp_callback, ca);
+			heap_sift(&ca->heap, 0, bucket_max_cmp);
 		}
 	}
 
-	min_heapify_all(&ca->heap, &bucket_min_cmp_callback, ca);
+	for (i = ca->heap.used / 2 - 1; i >= 0; --i)
+		heap_sift(&ca->heap, i, bucket_min_cmp);
 
 	while (!fifo_full(&ca->free_inc)) {
-		if (!ca->heap.nr) {
+		if (!heap_pop(&ca->heap, b, bucket_min_cmp)) {
 			/*
 			 * We don't want to be calling invalidate_buckets()
 			 * multiple times when it can't do anything
@@ -234,8 +206,6 @@ static void invalidate_buckets_lru(struct cache *ca)
 			wake_up_gc(ca->set);
 			return;
 		}
-		b = min_heap_peek(&ca->heap)[0];
-		min_heap_pop(&ca->heap, &bucket_min_cmp_callback, ca);
 
 		bch_invalidate_one_bucket(ca, b);
 	}
