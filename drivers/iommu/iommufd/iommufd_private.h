@@ -526,7 +526,7 @@ struct iommufd_veventq {
 	struct list_head node; /* for iommufd_viommu::veventqs */
 	struct iommufd_vevent lost_events_header;
 
-	unsigned int type;
+	enum iommu_veventq_type type;
 	unsigned int depth;
 
 	/* Use common.lock for protection */
@@ -581,7 +581,8 @@ iommufd_get_viommu(struct iommufd_ucmd *ucmd, u32 id)
 }
 
 static inline struct iommufd_veventq *
-iommufd_viommu_find_veventq(struct iommufd_viommu *viommu, u32 type)
+iommufd_viommu_find_veventq(struct iommufd_viommu *viommu,
+			    enum iommu_veventq_type type)
 {
 	struct iommufd_veventq *veventq, *next;
 
