@@ -5617,15 +5617,6 @@ void cfs_bandwidth_usage_inc(void) {}
 void cfs_bandwidth_usage_dec(void) {}
 #endif /* !CONFIG_JUMP_LABEL */
 
-/*
- * default period for cfs group bandwidth.
- * default: 0.1s, units: nanoseconds
- */
-static inline u64 default_cfs_period(void)
-{
-	return 100000000ULL;
-}
-
 static inline u64 sched_cfs_bandwidth_slice(void)
 {
 	return (u64)sysctl_sched_cfs_bandwidth_slice * NSEC_PER_USEC;
@@ -6404,8 +6395,6 @@ static enum hrtimer_restart sched_cfs_slack_timer(struct hrtimer *timer)
 
 	return HRTIMER_NORESTART;
 }
-
-extern const u64 max_cfs_quota_period;
 
 static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 {
