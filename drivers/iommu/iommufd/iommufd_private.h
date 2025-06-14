@@ -601,7 +601,6 @@ void iommufd_vdevice_destroy(struct iommufd_object *obj);
 
 struct iommufd_vdevice {
 	struct iommufd_object obj;
-	struct iommufd_ctx *ictx;
 	struct iommufd_viommu *viommu;
 	struct device *dev;
 	u64 id; /* per-vIOMMU virtual ID */
