@@ -15,14 +15,11 @@
 
 static void complete_with_flags(struct completion *x, int wake_flags)
 {
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&x->wait.lock, flags);
+	guard(raw_spinlock_irqsave)(&x->wait.lock);
 
 	if (x->done != UINT_MAX)
 		x->done++;
 	swake_up_locked(&x->wait, wake_flags);
-	raw_spin_unlock_irqrestore(&x->wait.lock, flags);
 }
 
 void complete_on_current_cpu(struct completion *x)
@@ -66,14 +63,11 @@ EXPORT_SYMBOL(complete);
  */
 void complete_all(struct completion *x)
 {
-	unsigned long flags;
-
 	lockdep_assert_RT_in_threaded_ctx();
 
-	raw_spin_lock_irqsave(&x->wait.lock, flags);
+	guard(raw_spinlock_irqsave)(&x->wait.lock);
 	x->done = UINT_MAX;
 	swake_up_all_locked(&x->wait);
-	raw_spin_unlock_irqrestore(&x->wait.lock, flags);
 }
 EXPORT_SYMBOL(complete_all);
 
@@ -110,13 +104,10 @@ __wait_for_common(struct completion *x,
 {
 	might_sleep();
 
-	complete_acquire(x);
-
-	raw_spin_lock_irq(&x->wait.lock);
-	timeout = do_wait_for_common(x, action, timeout, state);
-	raw_spin_unlock_irq(&x->wait.lock);
-
-	complete_release(x);
+	guard(complete)(x);
+	scoped_guard(raw_spinlock_irq, &x->wait.lock) {
+		timeout = do_wait_for_common(x, action, timeout, state);
+	}
 
 	return timeout;
 }
@@ -303,7 +294,6 @@ EXPORT_SYMBOL(wait_for_completion_killable_timeout);
  */
 bool try_wait_for_completion(struct completion *x)
 {
-	unsigned long flags;
 	bool ret = true;
 
 	/*
@@ -315,12 +305,12 @@ bool try_wait_for_completion(struct completion *x)
 	if (!READ_ONCE(x->done))
 		return false;
 
-	raw_spin_lock_irqsave(&x->wait.lock, flags);
+	guard(raw_spinlock_irqsave)(&x->wait.lock);
 	if (!x->done)
 		ret = false;
 	else if (x->done != UINT_MAX)
 		x->done--;
-	raw_spin_unlock_irqrestore(&x->wait.lock, flags);
+
 	return ret;
 }
 EXPORT_SYMBOL(try_wait_for_completion);
@@ -336,8 +326,6 @@ EXPORT_SYMBOL(try_wait_for_completion);
  */
 bool completion_done(struct completion *x)
 {
-	unsigned long flags;
-
 	if (!READ_ONCE(x->done))
 		return false;
 
@@ -346,8 +334,8 @@ bool completion_done(struct completion *x)
 	 * otherwise we can end up freeing the completion before complete()
 	 * is done referencing it.
 	 */
-	raw_spin_lock_irqsave(&x->wait.lock, flags);
-	raw_spin_unlock_irqrestore(&x->wait.lock, flags);
+	guard(raw_spinlock_irqsave)(&x->wait.lock);
+
 	return true;
 }
 EXPORT_SYMBOL(completion_done);

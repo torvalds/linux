@@ -32,6 +32,10 @@ struct completion {
 static inline void complete_acquire(struct completion *x) {}
 static inline void complete_release(struct completion *x) {}
 
+DEFINE_LOCK_GUARD_1(complete, struct completion,
+	complete_acquire(_T->lock),
+	complete_release(_T->lock))
+
 #define COMPLETION_INITIALIZER(work) \
 	{ 0, __SWAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
 
