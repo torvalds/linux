@@ -1117,9 +1117,7 @@ again:
 	btrfs_release_path(path);
 
 	/* Same search but for extended refs */
-	extref = btrfs_lookup_inode_extref(NULL, root, path, name,
-					   inode_objectid, parent_objectid, 0,
-					   0);
+	extref = btrfs_lookup_inode_extref(root, path, name, inode_objectid, parent_objectid);
 	if (IS_ERR(extref)) {
 		return PTR_ERR(extref);
 	} else if (extref) {
