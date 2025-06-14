@@ -264,7 +264,7 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 	hwpt->domain->cookie_type = IOMMU_COOKIE_IOMMUFD;
 
 	if (WARN_ON_ONCE(hwpt->domain->type != IOMMU_DOMAIN_NESTED)) {
-		rc = -EINVAL;
+		rc = -EOPNOTSUPP;
 		goto out_abort;
 	}
 	return hwpt_nested;
@@ -321,7 +321,7 @@ iommufd_viommu_alloc_hwpt_nested(struct iommufd_viommu *viommu, u32 flags,
 	hwpt->domain->cookie_type = IOMMU_COOKIE_IOMMUFD;
 
 	if (WARN_ON_ONCE(hwpt->domain->type != IOMMU_DOMAIN_NESTED)) {
-		rc = -EINVAL;
+		rc = -EOPNOTSUPP;
 		goto out_abort;
 	}
 	return hwpt_nested;

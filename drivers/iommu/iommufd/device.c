@@ -1483,7 +1483,7 @@ int iommufd_get_hw_info(struct iommufd_ucmd *ucmd)
 		 */
 		if (WARN_ON_ONCE(cmd->out_data_type ==
 				 IOMMU_HW_INFO_TYPE_NONE)) {
-			rc = -ENODEV;
+			rc = -EOPNOTSUPP;
 			goto out_free;
 		}
 	} else {
