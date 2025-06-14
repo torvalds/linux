@@ -4286,14 +4286,6 @@
 
 			status = "disabled";
 
-			video-core0 {
-				compatible = "venus-decoder";
-			};
-
-			video-core1 {
-				compatible = "venus-encoder";
-			};
-
 			venus_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
