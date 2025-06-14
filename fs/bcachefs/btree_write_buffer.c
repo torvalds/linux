@@ -676,6 +676,9 @@ int bch2_btree_write_buffer_maybe_flush(struct btree_trans *trans,
 			goto err;
 
 		bch2_bkey_buf_copy(last_flushed, c, tmp.k);
+
+		/* can we avoid the unconditional restart? */
+		trace_and_count(c, trans_restart_write_buffer_flush, trans, _RET_IP_);
 		ret = bch_err_throw(c, transaction_restart_write_buffer_flush);
 	}
 err:

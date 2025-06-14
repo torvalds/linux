@@ -595,12 +595,13 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	int ret = 0;
 
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
-
+#if 0
+	/* todo: bring back dynamic fault injection */
 	if (race_fault()) {
 		trace_and_count(c, trans_restart_fault_inject, trans, trace_ip);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_fault_inject);
 	}
-
+#endif
 	/*
 	 * Check if the insert will fit in the leaf node with the write lock
 	 * held, otherwise another thread could write the node changing the
