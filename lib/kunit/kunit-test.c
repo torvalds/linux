@@ -44,7 +44,8 @@ static void kunit_test_try_catch_successful_try_no_catch(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_successful_try,
-			     kunit_test_no_catch);
+			     kunit_test_no_catch,
+			     300 * msecs_to_jiffies(MSEC_PER_SEC));
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_TRUE(test, ctx->function_called);
@@ -76,7 +77,8 @@ static void kunit_test_try_catch_unsuccessful_try_does_catch(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_unsuccessful_try,
-			     kunit_test_catch);
+			     kunit_test_catch,
+			     300 * msecs_to_jiffies(MSEC_PER_SEC));
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_TRUE(test, ctx->function_called);
@@ -130,7 +132,8 @@ static void kunit_test_fault_null_dereference(struct kunit *test)
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_test_null_dereference,
-			     kunit_test_catch);
+			     kunit_test_catch,
+			     300 * msecs_to_jiffies(MSEC_PER_SEC));
 	kunit_try_catch_run(try_catch, test);
 
 	KUNIT_EXPECT_EQ(test, try_catch->try_result, -EINTR);

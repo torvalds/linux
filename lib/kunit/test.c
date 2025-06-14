@@ -373,6 +373,46 @@ static void kunit_run_case_check_speed(struct kunit *test,
 		   duration.tv_sec, duration.tv_nsec);
 }
 
+/* Returns timeout multiplier based on speed.
+ * DEFAULT:		    1
+ * KUNIT_SPEED_SLOW:        3
+ * KUNIT_SPEED_VERY_SLOW:   12
+ */
+static int kunit_timeout_mult(enum kunit_speed speed)
+{
+	switch (speed) {
+	case KUNIT_SPEED_SLOW:
+		return 3;
+	case KUNIT_SPEED_VERY_SLOW:
+		return 12;
+	default:
+		return 1;
+	}
+}
+
+static unsigned long kunit_test_timeout(struct kunit_suite *suite, struct kunit_case *test_case)
+{
+	int mult = 1;
+	/*
+	 * TODO: Make the default (base) timeout configurable, so that users with
+	 * particularly slow or fast machines can successfully run tests, while
+	 * still taking advantage of the relative speed.
+	 */
+	unsigned long default_timeout = 300;
+
+	/*
+	 * The default test timeout is 300 seconds and will be adjusted by mult
+	 * based on the test speed. The test speed will be overridden by the
+	 * innermost test component.
+	 */
+	if (suite->attr.speed != KUNIT_SPEED_UNSET)
+		mult = kunit_timeout_mult(suite->attr.speed);
+	if (test_case->attr.speed != KUNIT_SPEED_UNSET)
+		mult = kunit_timeout_mult(test_case->attr.speed);
+	return mult * default_timeout * msecs_to_jiffies(MSEC_PER_SEC);
+}
+
+
 /*
  * Initializes and runs test case. Does not clean up or do post validations.
  */
@@ -527,7 +567,8 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_try_run_case,
-			     kunit_catch_run_case);
+			     kunit_catch_run_case,
+			     kunit_test_timeout(suite, test_case));
 	context.test = test;
 	context.suite = suite;
 	context.test_case = test_case;
@@ -537,7 +578,8 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	kunit_try_catch_init(try_catch,
 			     test,
 			     kunit_try_run_case_cleanup,
-			     kunit_catch_run_case_cleanup);
+			     kunit_catch_run_case_cleanup,
+			     kunit_test_timeout(suite, test_case));
 	kunit_try_catch_run(try_catch, &context);
 
 	/* Propagate the parameter result to the test case. */
