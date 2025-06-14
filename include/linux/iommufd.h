@@ -101,7 +101,7 @@ struct iommufd_viommu {
 	struct list_head veventqs;
 	struct rw_semaphore veventqs_rwsem;
 
-	unsigned int type;
+	enum iommu_viommu_type type;
 };
 
 /**
