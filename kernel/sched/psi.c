@@ -563,7 +563,7 @@ static void psi_avgs_work(struct work_struct *work)
 	dwork = to_delayed_work(work);
 	group = container_of(dwork, struct psi_group, avgs_work);
 
-	mutex_lock(&group->avgs_lock);
+	guard(mutex)(&group->avgs_lock);
 
 	now = sched_clock();
 
@@ -584,8 +584,6 @@ static void psi_avgs_work(struct work_struct *work)
 		schedule_delayed_work(dwork, nsecs_to_jiffies(
 				group->avg_next_update - now) + 1);
 	}
-
-	mutex_unlock(&group->avgs_lock);
 }
 
 static void init_rtpoll_triggers(struct psi_group *group, u64 now)
@@ -613,7 +611,7 @@ static void psi_schedule_rtpoll_work(struct psi_group *group, unsigned long dela
 	if (atomic_xchg(&group->rtpoll_scheduled, 1) && !force)
 		return;
 
-	rcu_read_lock();
+	guard(rcu)();
 
 	task = rcu_dereference(group->rtpoll_task);
 	/*
@@ -624,8 +622,6 @@ static void psi_schedule_rtpoll_work(struct psi_group *group, unsigned long dela
 		mod_timer(&group->rtpoll_timer, jiffies + delay);
 	else
 		atomic_set(&group->rtpoll_scheduled, 0);
-
-	rcu_read_unlock();
 }
 
 static void psi_rtpoll_work(struct psi_group *group)
@@ -634,7 +630,7 @@ static void psi_rtpoll_work(struct psi_group *group)
 	u32 changed_states;
 	u64 now;
 
-	mutex_lock(&group->rtpoll_trigger_lock);
+	guard(mutex)(&group->rtpoll_trigger_lock);
 
 	now = sched_clock();
 
@@ -693,7 +689,7 @@ static void psi_rtpoll_work(struct psi_group *group)
 
 	if (now > group->rtpoll_until) {
 		group->rtpoll_next_update = ULLONG_MAX;
-		goto out;
+		return;
 	}
 
 	if (now >= group->rtpoll_next_update) {
@@ -708,9 +704,6 @@ static void psi_rtpoll_work(struct psi_group *group)
 	psi_schedule_rtpoll_work(group,
 		nsecs_to_jiffies(group->rtpoll_next_update - now) + 1,
 		force_reschedule);
-
-out:
-	mutex_unlock(&group->rtpoll_trigger_lock);
 }
 
 static int psi_rtpoll_worker(void *data)
@@ -1046,9 +1039,6 @@ void psi_account_irqtime(struct rq *rq, struct task_struct *curr, struct task_st
  */
 void psi_memstall_enter(unsigned long *flags)
 {
-	struct rq_flags rf;
-	struct rq *rq;
-
 	if (static_branch_likely(&psi_disabled))
 		return;
 
@@ -1060,12 +1050,10 @@ void psi_memstall_enter(unsigned long *flags)
 	 * changes to the task's scheduling state, otherwise we can
 	 * race with CPU migration.
 	 */
-	rq = this_rq_lock_irq(&rf);
+	guard(rq_lock_irq)(this_rq());
 
 	current->in_memstall = 1;
 	psi_task_change(current, 0, TSK_MEMSTALL | TSK_MEMSTALL_RUNNING);
-
-	rq_unlock_irq(rq, &rf);
 }
 EXPORT_SYMBOL_GPL(psi_memstall_enter);
 
@@ -1077,9 +1065,6 @@ EXPORT_SYMBOL_GPL(psi_memstall_enter);
  */
 void psi_memstall_leave(unsigned long *flags)
 {
-	struct rq_flags rf;
-	struct rq *rq;
-
 	if (static_branch_likely(&psi_disabled))
 		return;
 
@@ -1090,12 +1075,10 @@ void psi_memstall_leave(unsigned long *flags)
 	 * changes to the task's scheduling state, otherwise we could
 	 * race with CPU migration.
 	 */
-	rq = this_rq_lock_irq(&rf);
+	guard(rq_lock_irq)(this_rq());
 
 	current->in_memstall = 0;
 	psi_task_change(current, TSK_MEMSTALL | TSK_MEMSTALL_RUNNING, 0);
-
-	rq_unlock_irq(rq, &rf);
 }
 EXPORT_SYMBOL_GPL(psi_memstall_leave);
 
@@ -1146,7 +1129,6 @@ void psi_cgroup_free(struct cgroup *cgroup)
 void cgroup_move_task(struct task_struct *task, struct css_set *to)
 {
 	unsigned int task_flags;
-	struct rq_flags rf;
 	struct rq *rq;
 
 	if (!static_branch_likely(&psi_cgroups_enabled)) {
@@ -1158,7 +1140,8 @@ void cgroup_move_task(struct task_struct *task, struct css_set *to)
 		return;
 	}
 
-	rq = task_rq_lock(task, &rf);
+	CLASS(task_rq_lock, rq_guard)(task);
+	rq = rq_guard.rq;
 
 	/*
 	 * We may race with schedule() dropping the rq lock between
@@ -1194,8 +1177,6 @@ void cgroup_move_task(struct task_struct *task, struct css_set *to)
 
 	if (task_flags)
 		psi_task_change(task, 0, task_flags);
-
-	task_rq_unlock(rq, task, &rf);
 }
 
 void psi_cgroup_restart(struct psi_group *group)
@@ -1222,11 +1203,9 @@ void psi_cgroup_restart(struct psi_group *group)
 
 	for_each_possible_cpu(cpu) {
 		struct rq *rq = cpu_rq(cpu);
-		struct rq_flags rf;
 
-		rq_lock_irq(rq, &rf);
+		guard(rq_lock_irq)(rq);
 		psi_group_change(group, cpu, 0, 0, true);
-		rq_unlock_irq(rq, &rf);
 	}
 }
 #endif /* CONFIG_CGROUPS */
@@ -1246,12 +1225,12 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
 #endif
 
 	/* Update averages before reporting them */
-	mutex_lock(&group->avgs_lock);
-	now = sched_clock();
-	collect_percpu_times(group, PSI_AVGS, NULL);
-	if (now >= group->avg_next_update)
-		group->avg_next_update = update_averages(group, now);
-	mutex_unlock(&group->avgs_lock);
+	scoped_guard(mutex, &group->avgs_lock) {
+		now = sched_clock();
+		collect_percpu_times(group, PSI_AVGS, NULL);
+		if (now >= group->avg_next_update)
+			group->avg_next_update = update_averages(group, now);
+	}
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	only_full = res == PSI_IRQ;
@@ -1349,7 +1328,7 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group, char *buf,
 	t->aggregator = privileged ? PSI_POLL : PSI_AVGS;
 
 	if (privileged) {
-		mutex_lock(&group->rtpoll_trigger_lock);
+		guard(mutex)(&group->rtpoll_trigger_lock);
 
 		if (!rcu_access_pointer(group->rtpoll_task)) {
 			struct task_struct *task;
@@ -1357,7 +1336,6 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group, char *buf,
 			task = kthread_create(psi_rtpoll_worker, group, "psimon");
 			if (IS_ERR(task)) {
 				kfree(t);
-				mutex_unlock(&group->rtpoll_trigger_lock);
 				return ERR_CAST(task);
 			}
 			atomic_set(&group->rtpoll_wakeup, 0);
@@ -1370,15 +1348,11 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group, char *buf,
 			div_u64(t->win.size, UPDATES_PER_WINDOW));
 		group->rtpoll_nr_triggers[t->state]++;
 		group->rtpoll_states |= (1 << t->state);
-
-		mutex_unlock(&group->rtpoll_trigger_lock);
 	} else {
-		mutex_lock(&group->avgs_lock);
+		guard(mutex)(&group->avgs_lock);
 
 		list_add(&t->node, &group->avg_triggers);
 		group->avg_nr_triggers[t->state]++;
-
-		mutex_unlock(&group->avgs_lock);
 	}
 	return t;
 }
@@ -1407,14 +1381,13 @@ void psi_trigger_destroy(struct psi_trigger *t)
 		wake_up_interruptible(&t->event_wait);
 
 	if (t->aggregator == PSI_AVGS) {
-		mutex_lock(&group->avgs_lock);
+		guard(mutex)(&group->avgs_lock);
 		if (!list_empty(&t->node)) {
 			list_del(&t->node);
 			group->avg_nr_triggers[t->state]--;
 		}
-		mutex_unlock(&group->avgs_lock);
 	} else {
-		mutex_lock(&group->rtpoll_trigger_lock);
+		guard(mutex)(&group->rtpoll_trigger_lock);
 		if (!list_empty(&t->node)) {
 			struct psi_trigger *tmp;
 			u64 period = ULLONG_MAX;
@@ -1443,7 +1416,6 @@ void psi_trigger_destroy(struct psi_trigger *t)
 				timer_delete(&group->rtpoll_timer);
 			}
 		}
-		mutex_unlock(&group->rtpoll_trigger_lock);
 	}
 
 	/*
@@ -1546,22 +1518,19 @@ static ssize_t psi_write(struct file *file, const char __user *user_buf,
 	seq = file->private_data;
 
 	/* Take seq->lock to protect seq->private from concurrent writes */
-	mutex_lock(&seq->lock);
+	guard(mutex)(&seq->lock);
 
 	/* Allow only one trigger per file descriptor */
 	if (seq->private) {
-		mutex_unlock(&seq->lock);
 		return -EBUSY;
 	}
 
 	new = psi_trigger_create(&psi_system, buf, res, file, NULL);
 	if (IS_ERR(new)) {
-		mutex_unlock(&seq->lock);
 		return PTR_ERR(new);
 	}
 
 	smp_store_release(&seq->private, new);
-	mutex_unlock(&seq->lock);
 
 	return nbytes;
 }
