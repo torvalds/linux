@@ -170,6 +170,9 @@ struct usbmisc_ops {
 	int (*charger_detection)(struct imx_usbmisc_data *data);
 	/* It's called when system resume from usb power lost */
 	int (*power_lost_check)(struct imx_usbmisc_data *data);
+	/* It's called when device controller changed pullup status */
+	void (*pullup)(struct imx_usbmisc_data *data, bool on);
+	/* It's called during suspend/resume to save power */
 	void (*vbus_comparator_on)(struct imx_usbmisc_data *data, bool on);
 };
 
@@ -1224,6 +1227,21 @@ int imx_usbmisc_charger_detection(struct imx_usbmisc_data *data, bool connect)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_usbmisc_charger_detection);
+
+int imx_usbmisc_pullup(struct imx_usbmisc_data *data, bool on)
+{
+	struct imx_usbmisc *usbmisc;
+
+	if (!data)
+		return 0;
+
+	usbmisc = dev_get_drvdata(data->dev);
+	if (usbmisc->ops->pullup)
+		usbmisc->ops->pullup(data, on);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(imx_usbmisc_pullup);
 
 int imx_usbmisc_suspend(struct imx_usbmisc_data *data, bool wakeup)
 {
