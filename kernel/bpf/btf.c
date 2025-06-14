@@ -3443,7 +3443,8 @@ btf_find_graph_root(const struct btf *btf, const struct btf_type *pt,
 	node_field_name = strstr(value_type, ":");
 	if (!node_field_name)
 		return -EINVAL;
-	value_type = kstrndup(value_type, node_field_name - value_type, GFP_KERNEL | __GFP_NOWARN);
+	value_type = kstrndup(value_type, node_field_name - value_type,
+			      GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (!value_type)
 		return -ENOMEM;
 	id = btf_find_by_name_kind(btf, value_type, BTF_KIND_STRUCT);
@@ -3958,7 +3959,7 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 	/* This needs to be kzalloc to zero out padding and unused fields, see
 	 * comment in btf_record_equal.
 	 */
-	rec = kzalloc(struct_size(rec, fields, cnt), GFP_KERNEL | __GFP_NOWARN);
+	rec = kzalloc(struct_size(rec, fields, cnt), GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
 	if (!rec)
 		return ERR_PTR(-ENOMEM);
 
@@ -9019,7 +9020,7 @@ static struct bpf_cand_cache *populate_cand_cache(struct bpf_cand_cache *cands,
 		bpf_free_cands_from_cache(*cc);
 		*cc = NULL;
 	}
-	new_cands = kmemdup(cands, sizeof_cands(cands->cnt), GFP_KERNEL);
+	new_cands = kmemdup(cands, sizeof_cands(cands->cnt), GFP_KERNEL_ACCOUNT);
 	if (!new_cands) {
 		bpf_free_cands(cands);
 		return ERR_PTR(-ENOMEM);
@@ -9027,7 +9028,7 @@ static struct bpf_cand_cache *populate_cand_cache(struct bpf_cand_cache *cands,
 	/* strdup the name, since it will stay in cache.
 	 * the cands->name points to strings in prog's BTF and the prog can be unloaded.
 	 */
-	new_cands->name = kmemdup_nul(cands->name, cands->name_len, GFP_KERNEL);
+	new_cands->name = kmemdup_nul(cands->name, cands->name_len, GFP_KERNEL_ACCOUNT);
 	bpf_free_cands(cands);
 	if (!new_cands->name) {
 		kfree(new_cands);
@@ -9111,7 +9112,7 @@ bpf_core_add_cands(struct bpf_cand_cache *cands, const struct btf *targ_btf,
 			continue;
 
 		/* most of the time there is only one candidate for a given kind+name pair */
-		new_cands = kmalloc(sizeof_cands(cands->cnt + 1), GFP_KERNEL);
+		new_cands = kmalloc(sizeof_cands(cands->cnt + 1), GFP_KERNEL_ACCOUNT);
 		if (!new_cands) {
 			bpf_free_cands(cands);
 			return ERR_PTR(-ENOMEM);
@@ -9228,7 +9229,7 @@ int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
 	/* ~4k of temp memory necessary to convert LLVM spec like "0:1:0:5"
 	 * into arrays of btf_ids of struct fields and array indices.
 	 */
-	specs = kcalloc(3, sizeof(*specs), GFP_KERNEL);
+	specs = kcalloc(3, sizeof(*specs), GFP_KERNEL_ACCOUNT);
 	if (!specs)
 		return -ENOMEM;
 
@@ -9253,7 +9254,7 @@ int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
 			goto out;
 		}
 		if (cc->cnt) {
-			cands.cands = kcalloc(cc->cnt, sizeof(*cands.cands), GFP_KERNEL);
+			cands.cands = kcalloc(cc->cnt, sizeof(*cands.cands), GFP_KERNEL_ACCOUNT);
 			if (!cands.cands) {
 				err = -ENOMEM;
 				goto out;

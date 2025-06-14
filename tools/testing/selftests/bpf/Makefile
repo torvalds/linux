@@ -841,6 +841,11 @@ $(OUTPUT)/bench: $(OUTPUT)/bench.o \
 	$(call msg,BINARY,,$@)
 	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(filter %.a %.o,$^) $(LDLIBS) -o $@
 
+# This works around GCC warning about snprintf truncating strings like:
+#
+#   char a[PATH_MAX], b[PATH_MAX];
+#   snprintf(a, "%s/foo", b);      // triggers -Wformat-truncation
+$(OUTPUT)/veristat.o: CFLAGS += -Wno-format-truncation
 $(OUTPUT)/veristat.o: $(BPFOBJ)
 $(OUTPUT)/veristat: $(OUTPUT)/veristat.o
 	$(call msg,BINARY,,$@)
