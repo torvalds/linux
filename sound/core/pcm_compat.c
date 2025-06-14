@@ -377,12 +377,10 @@ struct snd_pcm_mmap_status_x32 {
 	s32 pad1;
 	u32 hw_ptr;
 	u32 pad2; /* alignment */
-	s64 tstamp_sec;
-	s64 tstamp_nsec;
+	struct __snd_timespec64 tstamp;
 	snd_pcm_state_t suspended_state;
 	s32 pad3;
-	s64 audio_tstamp_sec;
-	s64 audio_tstamp_nsec;
+	struct __snd_timespec64 audio_tstamp;
 } __packed;
 
 struct snd_pcm_mmap_control_x32 {
