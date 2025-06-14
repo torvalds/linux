@@ -109,7 +109,7 @@ static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu,
 	/*
 	 * Take rq->lock to make 64-bit read safe on 32-bit platforms.
 	 */
-	raw_spin_rq_lock_irq(cpu_rq(cpu));
+	guard(raw_spin_rq_lock_irq)(cpu_rq(cpu));
 #endif
 
 	switch (index) {
@@ -124,10 +124,6 @@ static u64 cpuacct_cpuusage_read(struct cpuacct *ca, int cpu,
 		data = *cpuusage;
 		break;
 	}
-
-#ifndef CONFIG_64BIT
-	raw_spin_rq_unlock_irq(cpu_rq(cpu));
-#endif
 
 	return data;
 }
@@ -145,16 +141,12 @@ static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu)
 	/*
 	 * Take rq->lock to make 64-bit write safe on 32-bit platforms.
 	 */
-	raw_spin_rq_lock_irq(cpu_rq(cpu));
+	guard(raw_spin_rq_lock_irq)(cpu_rq(cpu));
 #endif
 	*cpuusage = 0;
 	cpustat[CPUTIME_USER] = cpustat[CPUTIME_NICE] = 0;
 	cpustat[CPUTIME_SYSTEM] = cpustat[CPUTIME_IRQ] = 0;
 	cpustat[CPUTIME_SOFTIRQ] = 0;
-
-#ifndef CONFIG_64BIT
-	raw_spin_rq_unlock_irq(cpu_rq(cpu));
-#endif
 }
 
 /* Return total CPU usage (in nanoseconds) of a group */
