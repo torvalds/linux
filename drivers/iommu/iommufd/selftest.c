@@ -138,7 +138,6 @@ to_mock_domain(struct iommu_domain *domain)
 struct mock_iommu_domain_nested {
 	struct iommu_domain domain;
 	struct mock_viommu *mock_viommu;
-	struct mock_iommu_domain *parent;
 	u32 iotlb[MOCK_NESTED_DOMAIN_IOTLB_NUM];
 };
 
@@ -434,7 +433,6 @@ mock_domain_alloc_nested(struct device *dev, struct iommu_domain *parent,
 	mock_nested = __mock_domain_alloc_nested(user_data);
 	if (IS_ERR(mock_nested))
 		return ERR_CAST(mock_nested);
-	mock_nested->parent = mock_parent;
 	return &mock_nested->domain;
 }
 
@@ -692,7 +690,6 @@ mock_viommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 	if (IS_ERR(mock_nested))
 		return ERR_CAST(mock_nested);
 	mock_nested->mock_viommu = mock_viommu;
-	mock_nested->parent = mock_viommu->s2_parent;
 	return &mock_nested->domain;
 }
 
