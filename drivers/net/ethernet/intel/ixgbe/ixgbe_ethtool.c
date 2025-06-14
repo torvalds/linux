@@ -2753,9 +2753,11 @@ static int ixgbe_get_ethtool_fdir_all(struct ixgbe_adapter *adapter,
 	return 0;
 }
 
-static int ixgbe_get_rss_hash_opts(struct ixgbe_adapter *adapter,
-				   struct ethtool_rxnfc *cmd)
+static int ixgbe_get_rxfh_fields(struct net_device *dev,
+				 struct ethtool_rxfh_fields *cmd)
 {
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
+
 	cmd->data = 0;
 
 	/* Report default options for RSS on ixgbe */
@@ -2824,9 +2826,6 @@ static int ixgbe_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXCLSRLALL:
 		ret = ixgbe_get_ethtool_fdir_all(adapter, cmd, rule_locs);
-		break;
-	case ETHTOOL_GRXFH:
-		ret = ixgbe_get_rss_hash_opts(adapter, cmd);
 		break;
 	default:
 		break;
@@ -3079,9 +3078,11 @@ static int ixgbe_del_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 
 #define UDP_RSS_FLAGS (IXGBE_FLAG2_RSS_FIELD_IPV4_UDP | \
 		       IXGBE_FLAG2_RSS_FIELD_IPV6_UDP)
-static int ixgbe_set_rss_hash_opt(struct ixgbe_adapter *adapter,
-				  struct ethtool_rxnfc *nfc)
+static int ixgbe_set_rxfh_fields(struct net_device *dev,
+				 const struct ethtool_rxfh_fields *nfc,
+				 struct netlink_ext_ack *extack)
 {
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(dev);
 	u32 flags2 = adapter->flags2;
 
 	/*
@@ -3203,9 +3204,6 @@ static int ixgbe_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 		break;
 	case ETHTOOL_SRXCLSRLDEL:
 		ret = ixgbe_del_ethtool_fdir_entry(adapter, cmd);
-		break;
-	case ETHTOOL_SRXFH:
-		ret = ixgbe_set_rss_hash_opt(adapter, cmd);
 		break;
 	default:
 		break;
@@ -3751,6 +3749,8 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_rxfh_key_size	= ixgbe_get_rxfh_key_size,
 	.get_rxfh		= ixgbe_get_rxfh,
 	.set_rxfh		= ixgbe_set_rxfh,
+	.get_rxfh_fields	= ixgbe_get_rxfh_fields,
+	.set_rxfh_fields	= ixgbe_set_rxfh_fields,
 	.get_eee		= ixgbe_get_eee,
 	.set_eee		= ixgbe_set_eee,
 	.get_channels		= ixgbe_get_channels,
@@ -3797,6 +3797,8 @@ static const struct ethtool_ops ixgbe_ethtool_ops_e610 = {
 	.get_rxfh_key_size	= ixgbe_get_rxfh_key_size,
 	.get_rxfh		= ixgbe_get_rxfh,
 	.set_rxfh		= ixgbe_set_rxfh,
+	.get_rxfh_fields	= ixgbe_get_rxfh_fields,
+	.set_rxfh_fields	= ixgbe_set_rxfh_fields,
 	.get_eee		= ixgbe_get_eee,
 	.set_eee		= ixgbe_set_eee,
 	.get_channels		= ixgbe_get_channels,
