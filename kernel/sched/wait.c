@@ -16,44 +16,32 @@ EXPORT_SYMBOL(__init_waitqueue_head);
 
 void add_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
-	unsigned long flags;
-
 	wq_entry->flags &= ~WQ_FLAG_EXCLUSIVE;
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	__add_wait_queue(wq_head, wq_entry);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
 }
 EXPORT_SYMBOL(add_wait_queue);
 
 void add_wait_queue_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
-	unsigned long flags;
-
 	wq_entry->flags |= WQ_FLAG_EXCLUSIVE;
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	__add_wait_queue_entry_tail(wq_head, wq_entry);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
 }
 EXPORT_SYMBOL(add_wait_queue_exclusive);
 
 void add_wait_queue_priority(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
-	unsigned long flags;
-
 	wq_entry->flags |= WQ_FLAG_EXCLUSIVE | WQ_FLAG_PRIORITY;
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	__add_wait_queue(wq_head, wq_entry);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
 }
 EXPORT_SYMBOL_GPL(add_wait_queue_priority);
 
 void remove_wait_queue(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	__remove_wait_queue(wq_head, wq_entry);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
 }
 EXPORT_SYMBOL(remove_wait_queue);
 
@@ -99,13 +87,11 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 static int __wake_up_common_lock(struct wait_queue_head *wq_head, unsigned int mode,
 			int nr_exclusive, int wake_flags, void *key)
 {
-	unsigned long flags;
 	int remaining;
 
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	remaining = __wake_up_common(wq_head, mode, nr_exclusive, wake_flags,
 			key);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
 
 	return nr_exclusive - remaining;
 }
@@ -228,14 +214,11 @@ void __wake_up_pollfree(struct wait_queue_head *wq_head)
 void
 prepare_to_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
 {
-	unsigned long flags;
-
 	wq_entry->flags &= ~WQ_FLAG_EXCLUSIVE;
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	if (list_empty(&wq_entry->entry))
 		__add_wait_queue(wq_head, wq_entry);
 	set_current_state(state);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
 }
 EXPORT_SYMBOL(prepare_to_wait);
 
@@ -243,17 +226,16 @@ EXPORT_SYMBOL(prepare_to_wait);
 bool
 prepare_to_wait_exclusive(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
 {
-	unsigned long flags;
 	bool was_empty = false;
 
 	wq_entry->flags |= WQ_FLAG_EXCLUSIVE;
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	if (list_empty(&wq_entry->entry)) {
 		was_empty = list_empty(&wq_head->head);
 		__add_wait_queue_entry_tail(wq_head, wq_entry);
 	}
 	set_current_state(state);
-	spin_unlock_irqrestore(&wq_head->lock, flags);
+
 	return was_empty;
 }
 EXPORT_SYMBOL(prepare_to_wait_exclusive);
@@ -269,10 +251,9 @@ EXPORT_SYMBOL(init_wait_entry);
 
 long prepare_to_wait_event(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry, int state)
 {
-	unsigned long flags;
 	long ret = 0;
 
-	spin_lock_irqsave(&wq_head->lock, flags);
+	guard(spinlock_irqsave)(&wq_head->lock);
 	if (signal_pending_state(state, current)) {
 		/*
 		 * Exclusive waiter must not fail if it was selected by wakeup,
@@ -297,7 +278,6 @@ long prepare_to_wait_event(struct wait_queue_head *wq_head, struct wait_queue_en
 		}
 		set_current_state(state);
 	}
-	spin_unlock_irqrestore(&wq_head->lock, flags);
 
 	return ret;
 }
@@ -355,8 +335,6 @@ EXPORT_SYMBOL(do_wait_intr_irq);
  */
 void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_entry)
 {
-	unsigned long flags;
-
 	__set_current_state(TASK_RUNNING);
 	/*
 	 * We can check for list emptiness outside the lock
@@ -372,9 +350,8 @@ void finish_wait(struct wait_queue_head *wq_head, struct wait_queue_entry *wq_en
 	 *    the list).
 	 */
 	if (!list_empty_careful(&wq_entry->entry)) {
-		spin_lock_irqsave(&wq_head->lock, flags);
+		guard(spinlock_irqsave)(&wq_head->lock);
 		list_del_init(&wq_entry->entry);
-		spin_unlock_irqrestore(&wq_head->lock, flags);
 	}
 }
 EXPORT_SYMBOL(finish_wait);
