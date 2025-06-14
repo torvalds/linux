@@ -9,7 +9,6 @@
 /*
  * sched-domains (multiprocessor balancing) declarations:
  */
-#ifdef CONFIG_SMP
 
 /* Generate SD flag indexes */
 #define SD_FLAG(name, mflags) __##name,
@@ -199,37 +198,6 @@ extern void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio);
 
 
 # define SD_INIT_NAME(type)		.name = #type
-
-#else /* CONFIG_SMP */
-
-struct sched_domain_attr;
-
-static inline void
-partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
-			struct sched_domain_attr *dattr_new)
-{
-}
-
-static inline bool cpus_equal_capacity(int this_cpu, int that_cpu)
-{
-	return true;
-}
-
-static inline bool cpus_share_cache(int this_cpu, int that_cpu)
-{
-	return true;
-}
-
-static inline bool cpus_share_resources(int this_cpu, int that_cpu)
-{
-	return true;
-}
-
-static inline void sched_update_asym_prefer_cpu(int cpu, int old_prio, int new_prio)
-{
-}
-
-#endif	/* !CONFIG_SMP */
 
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
 extern void rebuild_sched_domains_energy(void);

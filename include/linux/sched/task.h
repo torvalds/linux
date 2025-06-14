@@ -109,11 +109,7 @@ int kernel_wait(pid_t pid, int *stat);
 extern void free_task(struct task_struct *tsk);
 
 /* sched_exec is called by processes performing an exec */
-#ifdef CONFIG_SMP
 extern void sched_exec(void);
-#else
-#define sched_exec()   {}
-#endif
 
 static inline struct task_struct *get_task_struct(struct task_struct *t)
 {
