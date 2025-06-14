@@ -21,6 +21,7 @@ int iommufd_viommu_alloc_ioctl(struct iommufd_ucmd *ucmd)
 	struct iommufd_viommu *viommu;
 	struct iommufd_device *idev;
 	const struct iommu_ops *ops;
+	size_t viommu_size;
 	int rc;
 
 	if (cmd->flags || cmd->type == IOMMU_VIOMMU_TYPE_DEFAULT)
@@ -31,11 +32,29 @@ int iommufd_viommu_alloc_ioctl(struct iommufd_ucmd *ucmd)
 		return PTR_ERR(idev);
 
 	ops = dev_iommu_ops(idev->dev);
-	if (!ops->viommu_alloc) {
+	if (!ops->get_viommu_size || !ops->viommu_init) {
+		if (ops->viommu_alloc)
+			goto get_hwpt_paging;
 		rc = -EOPNOTSUPP;
 		goto out_put_idev;
 	}
 
+	viommu_size = ops->get_viommu_size(idev->dev, cmd->type);
+	if (!viommu_size) {
+		rc = -EOPNOTSUPP;
+		goto out_put_idev;
+	}
+
+	/*
+	 * It is a driver bug for providing a viommu_size smaller than the core
+	 * vIOMMU structure size
+	 */
+	if (WARN_ON_ONCE(viommu_size < sizeof(*viommu))) {
+		rc = -EOPNOTSUPP;
+		goto out_put_idev;
+	}
+
+get_hwpt_paging:
 	hwpt_paging = iommufd_get_hwpt_paging(ucmd, cmd->hwpt_id);
 	if (IS_ERR(hwpt_paging)) {
 		rc = PTR_ERR(hwpt_paging);
@@ -47,8 +66,13 @@ int iommufd_viommu_alloc_ioctl(struct iommufd_ucmd *ucmd)
 		goto out_put_hwpt;
 	}
 
-	viommu = ops->viommu_alloc(idev->dev, hwpt_paging->common.domain,
-				   ucmd->ictx, cmd->type);
+	if (ops->viommu_alloc)
+		viommu = ops->viommu_alloc(idev->dev,
+					   hwpt_paging->common.domain,
+					   ucmd->ictx, cmd->type);
+	else
+		viommu = (struct iommufd_viommu *)_iommufd_object_alloc(
+			ucmd->ictx, viommu_size, IOMMUFD_OBJ_VIOMMU);
 	if (IS_ERR(viommu)) {
 		rc = PTR_ERR(viommu);
 		goto out_put_hwpt;
@@ -67,6 +91,18 @@ int iommufd_viommu_alloc_ioctl(struct iommufd_ucmd *ucmd)
 	 * on its own.
 	 */
 	viommu->iommu_dev = __iommu_get_iommu_dev(idev->dev);
+
+	if (!ops->viommu_alloc) {
+		rc = ops->viommu_init(viommu, hwpt_paging->common.domain);
+		if (rc)
+			goto out_abort;
+	}
+
+	/* It is a driver bug that viommu->ops isn't filled */
+	if (WARN_ON_ONCE(!viommu->ops)) {
+		rc = -EOPNOTSUPP;
+		goto out_abort;
+	}
 
 	cmd->out_viommu_id = viommu->obj.id;
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
