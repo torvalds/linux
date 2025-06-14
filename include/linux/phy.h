@@ -1296,6 +1296,17 @@ static inline bool phy_is_started(struct phy_device *phydev)
 }
 
 /**
+ * phy_driver_is_genphy - Convenience function to check whether PHY is driven
+ *                        by one of the generic PHY drivers
+ * @phydev: The phy_device struct
+ * Return: true if PHY is driven by one of the genphy drivers
+ */
+static inline bool phy_driver_is_genphy(struct phy_device *phydev)
+{
+	return phydev->is_genphy_driven;
+}
+
+/**
  * phy_disable_eee_mode - Don't advertise an EEE mode.
  * @phydev: The phy_device struct
  * @link_mode: The EEE mode to be disabled
@@ -2097,7 +2108,6 @@ module_exit(phy_module_exit)
 #define module_phy_driver(__phy_drivers)				\
 	phy_module_driver(__phy_drivers, ARRAY_SIZE(__phy_drivers))
 
-bool phy_driver_is_genphy(struct phy_device *phydev);
 bool phy_driver_is_genphy_10g(struct phy_device *phydev);
 
 #endif /* __PHY_H */

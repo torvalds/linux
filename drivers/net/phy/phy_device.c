@@ -1729,13 +1729,6 @@ static bool phy_driver_is_genphy_kind(struct phy_device *phydev,
 	return ret;
 }
 
-bool phy_driver_is_genphy(struct phy_device *phydev)
-{
-	return phy_driver_is_genphy_kind(phydev,
-					 &genphy_driver.mdiodrv.driver);
-}
-EXPORT_SYMBOL_GPL(phy_driver_is_genphy);
-
 bool phy_driver_is_genphy_10g(struct phy_device *phydev)
 {
 	return phy_driver_is_genphy_kind(phydev,
