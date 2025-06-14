@@ -1764,6 +1764,45 @@ static int b53_arl_read(struct b53_device *dev, u64 mac,
 	return *idx >= dev->num_arl_bins ? -ENOSPC : -ENOENT;
 }
 
+static int b53_arl_read_25(struct b53_device *dev, u64 mac,
+			   u16 vid, struct b53_arl_entry *ent, u8 *idx)
+{
+	DECLARE_BITMAP(free_bins, B53_ARLTBL_MAX_BIN_ENTRIES);
+	unsigned int i;
+	int ret;
+
+	ret = b53_arl_op_wait(dev);
+	if (ret)
+		return ret;
+
+	bitmap_zero(free_bins, dev->num_arl_bins);
+
+	/* Read the bins */
+	for (i = 0; i < dev->num_arl_bins; i++) {
+		u64 mac_vid;
+
+		b53_read64(dev, B53_ARLIO_PAGE,
+			   B53_ARLTBL_MAC_VID_ENTRY(i), &mac_vid);
+
+		b53_arl_to_entry_25(ent, mac_vid);
+
+		if (!(mac_vid & ARLTBL_VALID_25)) {
+			set_bit(i, free_bins);
+			continue;
+		}
+		if ((mac_vid & ARLTBL_MAC_MASK) != mac)
+			continue;
+		if (dev->vlan_enabled &&
+		    ((mac_vid >> ARLTBL_VID_S_65) & ARLTBL_VID_MASK_25) != vid)
+			continue;
+		*idx = i;
+		return 0;
+	}
+
+	*idx = find_first_bit(free_bins, dev->num_arl_bins);
+	return *idx >= dev->num_arl_bins ? -ENOSPC : -ENOENT;
+}
+
 static int b53_arl_op(struct b53_device *dev, int op, int port,
 		      const unsigned char *addr, u16 vid, bool is_valid)
 {
@@ -1786,7 +1825,10 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	if (ret)
 		return ret;
 
-	ret = b53_arl_read(dev, mac, vid, &ent, &idx);
+	if (is5325(dev) || is5365(dev))
+		ret = b53_arl_read_25(dev, mac, vid, &ent, &idx);
+	else
+		ret = b53_arl_read(dev, mac, vid, &ent, &idx);
 
 	/* If this is a read, just finish now */
 	if (op)
@@ -1830,12 +1872,17 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	ent.is_static = true;
 	ent.is_age = false;
 	memcpy(ent.mac, addr, ETH_ALEN);
-	b53_arl_from_entry(&mac_vid, &fwd_entry, &ent);
+	if (is5325(dev) || is5365(dev))
+		b53_arl_from_entry_25(&mac_vid, &ent);
+	else
+		b53_arl_from_entry(&mac_vid, &fwd_entry, &ent);
 
 	b53_write64(dev, B53_ARLIO_PAGE,
 		    B53_ARLTBL_MAC_VID_ENTRY(idx), mac_vid);
-	b53_write32(dev, B53_ARLIO_PAGE,
-		    B53_ARLTBL_DATA_ENTRY(idx), fwd_entry);
+
+	if (!is5325(dev) && !is5365(dev))
+		b53_write32(dev, B53_ARLIO_PAGE,
+			    B53_ARLTBL_DATA_ENTRY(idx), fwd_entry);
 
 	return b53_arl_rw_op(dev, 0);
 }
@@ -1846,12 +1893,6 @@ int b53_fdb_add(struct dsa_switch *ds, int port,
 {
 	struct b53_device *priv = ds->priv;
 	int ret;
-
-	/* 5325 and 5365 require some more massaging, but could
-	 * be supported eventually
-	 */
-	if (is5325(priv) || is5365(priv))
-		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->arl_mutex);
 	ret = b53_arl_op(priv, 0, port, addr, vid, true);
@@ -1879,10 +1920,15 @@ EXPORT_SYMBOL(b53_fdb_del);
 static int b53_arl_search_wait(struct b53_device *dev)
 {
 	unsigned int timeout = 1000;
-	u8 reg;
+	u8 reg, offset;
+
+	if (is5325(dev) || is5365(dev))
+		offset = B53_ARL_SRCH_CTL_25;
+	else
+		offset = B53_ARL_SRCH_CTL;
 
 	do {
-		b53_read8(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_CTL, &reg);
+		b53_read8(dev, B53_ARLIO_PAGE, offset, &reg);
 		if (!(reg & ARL_SRCH_STDN))
 			return 0;
 
@@ -1899,13 +1945,24 @@ static void b53_arl_search_rd(struct b53_device *dev, u8 idx,
 			      struct b53_arl_entry *ent)
 {
 	u64 mac_vid;
-	u32 fwd_entry;
 
-	b53_read64(dev, B53_ARLIO_PAGE,
-		   B53_ARL_SRCH_RSTL_MACVID(idx), &mac_vid);
-	b53_read32(dev, B53_ARLIO_PAGE,
-		   B53_ARL_SRCH_RSTL(idx), &fwd_entry);
-	b53_arl_to_entry(ent, mac_vid, fwd_entry);
+	if (is5325(dev)) {
+		b53_read64(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL_0_MACVID_25,
+			   &mac_vid);
+		b53_arl_to_entry_25(ent, mac_vid);
+	} else if (is5365(dev)) {
+		b53_read64(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL_0_MACVID_65,
+			   &mac_vid);
+		b53_arl_to_entry_25(ent, mac_vid);
+	} else {
+		u32 fwd_entry;
+
+		b53_read64(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL_MACVID(idx),
+			   &mac_vid);
+		b53_read32(dev, B53_ARLIO_PAGE, B53_ARL_SRCH_RSTL(idx),
+			   &fwd_entry);
+		b53_arl_to_entry(ent, mac_vid, fwd_entry);
+	}
 }
 
 static int b53_fdb_copy(int port, const struct b53_arl_entry *ent,
@@ -1926,14 +1983,20 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 	struct b53_device *priv = ds->priv;
 	struct b53_arl_entry results[2];
 	unsigned int count = 0;
+	u8 offset;
 	int ret;
 	u8 reg;
 
 	mutex_lock(&priv->arl_mutex);
 
+	if (is5325(priv) || is5365(priv))
+		offset = B53_ARL_SRCH_CTL_25;
+	else
+		offset = B53_ARL_SRCH_CTL;
+
 	/* Start search operation */
 	reg = ARL_SRCH_STDN;
-	b53_write8(priv, B53_ARLIO_PAGE, B53_ARL_SRCH_CTL, reg);
+	b53_write8(priv, offset, B53_ARL_SRCH_CTL, reg);
 
 	do {
 		ret = b53_arl_search_wait(priv);

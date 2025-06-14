@@ -324,9 +324,10 @@
 #define   ARLTBL_VID_MASK		0xfff
 #define   ARLTBL_DATA_PORT_ID_S_25	48
 #define   ARLTBL_DATA_PORT_ID_MASK_25	0xf
-#define   ARLTBL_AGE_25			BIT(61)
-#define   ARLTBL_STATIC_25		BIT(62)
-#define   ARLTBL_VALID_25		BIT(63)
+#define   ARLTBL_VID_S_65		53
+#define   ARLTBL_AGE_25			BIT_ULL(61)
+#define   ARLTBL_STATIC_25		BIT_ULL(62)
+#define   ARLTBL_VALID_25		BIT_ULL(63)
 
 /* ARL Table Data Entry N Registers (32 bit) */
 #define B53_ARLTBL_DATA_ENTRY(n)	((0x10 * (n)) + 0x18)
