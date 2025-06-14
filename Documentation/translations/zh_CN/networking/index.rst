@@ -22,6 +22,7 @@
 
    msg_zerocopy
    napi.rst
+   vxlan
 
 Todolist:
 
@@ -142,7 +143,6 @@ Todolist:
 *   tuntap
 *   udplite
 *   vrf
-*   vxlan
 *   x25
 *   x25-iface
 *   xfrm_device
