@@ -402,7 +402,7 @@ static inline bool dl_server_active(struct sched_dl_entity *dl_se)
 
 extern struct list_head task_groups;
 
-#ifdef CONFIG_CFS_BANDWIDTH
+#ifdef CONFIG_GROUP_SCHED_BANDWIDTH
 extern const u64 max_bw_quota_period_us;
 
 /*
@@ -413,7 +413,7 @@ static inline u64 default_bw_period_us(void)
 {
 	return 100000ULL;
 }
-#endif /* CONFIG_CFS_BANDWIDTH */
+#endif /* CONFIG_GROUP_SCHED_BANDWIDTH */
 
 struct cfs_bandwidth {
 #ifdef CONFIG_CFS_BANDWIDTH
