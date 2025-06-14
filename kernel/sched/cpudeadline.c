@@ -173,11 +173,10 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 void cpudl_clear(struct cpudl *cp, int cpu)
 {
 	int old_idx, new_cpu;
-	unsigned long flags;
 
 	WARN_ON(!cpu_present(cpu));
 
-	raw_spin_lock_irqsave(&cp->lock, flags);
+	guard(raw_spinlock_irqsave)(&cp->lock);
 
 	old_idx = cp->elements[cpu].idx;
 	if (old_idx == IDX_INVALID) {
@@ -197,7 +196,6 @@ void cpudl_clear(struct cpudl *cp, int cpu)
 
 		cpumask_set_cpu(cpu, cp->free_cpus);
 	}
-	raw_spin_unlock_irqrestore(&cp->lock, flags);
 }
 
 /*
@@ -213,11 +211,10 @@ void cpudl_clear(struct cpudl *cp, int cpu)
 void cpudl_set(struct cpudl *cp, int cpu, u64 dl)
 {
 	int old_idx;
-	unsigned long flags;
 
 	WARN_ON(!cpu_present(cpu));
 
-	raw_spin_lock_irqsave(&cp->lock, flags);
+	guard(raw_spinlock_irqsave)(&cp->lock);
 
 	old_idx = cp->elements[cpu].idx;
 	if (old_idx == IDX_INVALID) {
@@ -232,8 +229,6 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl)
 		cp->elements[old_idx].dl = dl;
 		cpudl_heapify(cp, old_idx);
 	}
-
-	raw_spin_unlock_irqrestore(&cp->lock, flags);
 }
 
 /*
