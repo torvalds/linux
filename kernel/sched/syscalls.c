@@ -1353,9 +1353,9 @@ SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
 static void do_sched_yield(void)
 {
 	struct rq_flags rf;
-	struct rq *rq;
+	struct rq *rq = this_rq();
 
-	rq = this_rq_lock_irq(&rf);
+	rq_lock_irq(rq, &rf);
 
 	schedstat_inc(rq->yld_count);
 	current->sched_class->yield_task(rq);
