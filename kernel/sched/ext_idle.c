@@ -458,7 +458,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	bool is_prev_allowed;
 	s32 cpu;
 
-	preempt_disable();
+	guard(preempt)();
 
 	/*
 	 * Check whether @prev_cpu is still within the allowed set. If not,
@@ -485,7 +485,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	/*
 	 * This is necessary to protect llc_cpus.
 	 */
-	rcu_read_lock();
+	guard(rcu)();
 
 	/*
 	 * Determine the subset of CPUs that the task can use in its
@@ -528,7 +528,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		if (is_prev_allowed && cpus_share_cache(cpu, prev_cpu) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu)) {
 			cpu = prev_cpu;
-			goto out_unlock;
+			return cpu;
 		}
 
 		/*
@@ -550,7 +550,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		    (!(flags & SCX_PICK_IDLE_IN_NODE) || (waker_node == node)) &&
 		    !cpumask_empty(idle_cpumask(waker_node)->cpu)) {
 			if (cpumask_test_cpu(cpu, allowed))
-				goto out_unlock;
+				return cpu;
 		}
 	}
 
@@ -566,7 +566,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		    cpumask_test_cpu(prev_cpu, idle_cpumask(node)->smt) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu)) {
 			cpu = prev_cpu;
-			goto out_unlock;
+			return cpu;
 		}
 
 		/*
@@ -575,7 +575,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		if (llc_cpus) {
 			cpu = pick_idle_cpu_in_node(llc_cpus, node, SCX_PICK_IDLE_CORE);
 			if (cpu >= 0)
-				goto out_unlock;
+				return cpu;
 		}
 
 		/*
@@ -584,7 +584,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		if (numa_cpus) {
 			cpu = pick_idle_cpu_in_node(numa_cpus, node, SCX_PICK_IDLE_CORE);
 			if (cpu >= 0)
-				goto out_unlock;
+				return cpu;
 		}
 
 		/*
@@ -597,7 +597,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		 */
 		cpu = scx_pick_idle_cpu(allowed, node, flags | SCX_PICK_IDLE_CORE);
 		if (cpu >= 0)
-			goto out_unlock;
+			return cpu;
 
 		/*
 		 * Give up if we're strictly looking for a full-idle SMT
@@ -605,7 +605,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 		 */
 		if (flags & SCX_PICK_IDLE_CORE) {
 			cpu = -EBUSY;
-			goto out_unlock;
+			return cpu;
 		}
 	}
 
@@ -614,7 +614,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	 */
 	if (is_prev_allowed && scx_idle_test_and_clear_cpu(prev_cpu)) {
 		cpu = prev_cpu;
-		goto out_unlock;
+		return cpu;
 	}
 
 	/*
@@ -623,7 +623,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	if (llc_cpus) {
 		cpu = pick_idle_cpu_in_node(llc_cpus, node, 0);
 		if (cpu >= 0)
-			goto out_unlock;
+			return cpu;
 	}
 
 	/*
@@ -632,7 +632,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	if (numa_cpus) {
 		cpu = pick_idle_cpu_in_node(numa_cpus, node, 0);
 		if (cpu >= 0)
-			goto out_unlock;
+			return cpu;
 	}
 
 	/*
@@ -644,11 +644,6 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags,
 	 * increasing distance.
 	 */
 	cpu = scx_pick_idle_cpu(allowed, node, flags);
-
-out_unlock:
-	rcu_read_unlock();
-out_enable:
-	preempt_enable();
 
 	return cpu;
 }
