@@ -561,7 +561,7 @@ where
         let data: &Data = unsafe { get_group_data(c_group) };
 
         // SAFETY: By function safety requirements, `page` is writable for `PAGE_SIZE`.
-        let ret = O::show(data, unsafe { &mut *(page as *mut [u8; PAGE_SIZE]) });
+        let ret = O::show(data, unsafe { &mut *(page.cast::<[u8; PAGE_SIZE]>()) });
 
         match ret {
             Ok(size) => size as isize,

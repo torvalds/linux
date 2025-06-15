@@ -649,7 +649,7 @@ impl Policy {
     fn set_data<T: ForeignOwnable>(&mut self, data: T) -> Result {
         if self.as_ref().driver_data.is_null() {
             // Transfer the ownership of the data to the foreign interface.
-            self.as_mut_ref().driver_data = <T as ForeignOwnable>::into_foreign(data) as _;
+            self.as_mut_ref().driver_data = <T as ForeignOwnable>::into_foreign(data).cast();
             Ok(())
         } else {
             Err(EBUSY)

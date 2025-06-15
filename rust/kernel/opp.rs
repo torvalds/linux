@@ -92,7 +92,7 @@ fn to_c_str_array(names: &[CString]) -> Result<KVec<*const u8>> {
     let mut list = KVec::with_capacity(names.len() + 1, GFP_KERNEL)?;
 
     for name in names.iter() {
-        list.push(name.as_ptr() as _, GFP_KERNEL)?;
+        list.push(name.as_ptr().cast(), GFP_KERNEL)?;
     }
 
     list.push(ptr::null(), GFP_KERNEL)?;
