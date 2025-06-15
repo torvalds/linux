@@ -574,7 +574,6 @@ EXPORT_SYMBOL(fw_card_initialize);
 int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 		unsigned int supported_isoc_contexts)
 {
-	struct workqueue_struct *isoc_wq;
 	int ret;
 
 	// This workqueue should be:
@@ -589,29 +588,48 @@ int fw_card_add(struct fw_card *card, u32 max_receive, u32 link_speed, u64 guid,
 	//  * == WQ_SYSFS		Parameters are available via sysfs.
 	//  * max_active == n_it + n_ir	A hardIRQ could notify events for multiple isochronous
 	//				contexts if they are scheduled to the same cycle.
-	isoc_wq = alloc_workqueue("firewire-isoc-card%u",
-				  WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
-				  supported_isoc_contexts, card->index);
-	if (!isoc_wq)
+	card->isoc_wq = alloc_workqueue("firewire-isoc-card%u",
+					WQ_UNBOUND | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+					supported_isoc_contexts, card->index);
+	if (!card->isoc_wq)
 		return -ENOMEM;
+
+	// This workqueue should be:
+	//  * != WQ_BH			Sleepable.
+	//  * == WQ_UNBOUND		Any core can process data for asynchronous context.
+	//  * == WQ_MEM_RECLAIM		Used for any backend of block device.
+	//  * == WQ_FREEZABLE		The target device would not be available when being freezed.
+	//  * == WQ_HIGHPRI		High priority to process semi-realtime timestamped data.
+	//  * == WQ_SYSFS		Parameters are available via sysfs.
+	//  * max_active == 4		A hardIRQ could notify events for a pair of requests and
+	//				response AR/AT contexts.
+	card->async_wq = alloc_workqueue("firewire-async-card%u",
+					 WQ_UNBOUND | WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_HIGHPRI | WQ_SYSFS,
+					 4, card->index);
+	if (!card->async_wq) {
+		ret = -ENOMEM;
+		goto err_isoc;
+	}
 
 	card->max_receive = max_receive;
 	card->link_speed = link_speed;
 	card->guid = guid;
 
-	guard(mutex)(&card_mutex);
+	scoped_guard(mutex, &card_mutex) {
+		generate_config_rom(card, tmp_config_rom);
+		ret = card->driver->enable(card, tmp_config_rom, config_rom_length);
+		if (ret < 0)
+			goto err_async;
 
-	generate_config_rom(card, tmp_config_rom);
-	ret = card->driver->enable(card, tmp_config_rom, config_rom_length);
-	if (ret < 0) {
-		destroy_workqueue(isoc_wq);
-		return ret;
+		list_add_tail(&card->link, &card_list);
 	}
 
-	card->isoc_wq = isoc_wq;
-	list_add_tail(&card->link, &card_list);
-
 	return 0;
+err_async:
+	destroy_workqueue(card->async_wq);
+err_isoc:
+	destroy_workqueue(card->isoc_wq);
+	return ret;
 }
 EXPORT_SYMBOL(fw_card_add);
 
@@ -744,6 +762,7 @@ void fw_core_remove_card(struct fw_card *card)
 	dummy_driver.stop_iso		= card->driver->stop_iso;
 	card->driver = &dummy_driver;
 	drain_workqueue(card->isoc_wq);
+	drain_workqueue(card->async_wq);
 
 	scoped_guard(spinlock_irqsave, &card->lock)
 		fw_destroy_nodes(card);
@@ -753,6 +772,7 @@ void fw_core_remove_card(struct fw_card *card)
 	wait_for_completion(&card->done);
 
 	destroy_workqueue(card->isoc_wq);
+	destroy_workqueue(card->async_wq);
 
 	WARN_ON(!list_empty(&card->transaction_list));
 }
