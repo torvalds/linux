@@ -2769,8 +2769,6 @@ void tcp_simple_retransmit(struct sock *sk)
 			tcp_mark_skb_lost(sk, skb);
 	}
 
-	tcp_clear_retrans_hints_partial(tp);
-
 	if (!tp->lost_out)
 		return;
 
