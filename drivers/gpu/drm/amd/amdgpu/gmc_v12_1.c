@@ -578,6 +578,8 @@ static const struct amdgpu_gmc_funcs gmc_v12_1_gmc_funcs = {
 	.emit_pasid_mapping = gmc_v12_1_emit_pasid_mapping,
 	.get_vm_pde = gmc_v12_1_get_vm_pde,
 	.get_vm_pte = gmc_v12_1_get_vm_pte,
+	.query_mem_partition_mode = &amdgpu_gmc_query_memory_partition,
+	.request_mem_partition_mode = &amdgpu_gmc_request_memory_partition,
 };
 
 void gmc_v12_1_set_gmc_funcs(struct amdgpu_device *adev)
