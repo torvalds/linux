@@ -878,6 +878,14 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 	amdgpu_gmc_get_vbios_allocations(adev);
 
+#ifdef HAVE_ACPI_DEV_GET_FIRST_MATCH_DEV
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0)) {
+		r = amdgpu_gmc_init_mem_ranges(adev);
+		if (r)
+			return r;
+	}
+#endif
+
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
 	if (r)
