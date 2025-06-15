@@ -1002,6 +1002,7 @@ properties:
               - qcom,sm8450-qrd
               - sony,pdx223
               - sony,pdx224
+              - samsung,r0q
           - const: qcom,sm8450
 
       - items:
