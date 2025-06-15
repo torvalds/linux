@@ -134,11 +134,13 @@ static int imu_v12_1_load_microcode(struct amdgpu_device *adev)
 }
 
 static int imu_v12_1_switch_compute_partition(struct amdgpu_device *adev,
-					      int num_xccs_per_xcp)
+					      int num_xccs_per_xcp,
+					      int compute_partition_mode)
 {
 	int ret;
 
 	if (adev->psp.funcs) {
+		/*TODO: revisit asp interface once it's avaialble */
 		ret = psp_spatial_partition(&adev->psp,
 					    NUM_XCC(adev->gfx.xcc_mask) /
 						    num_xccs_per_xcp);

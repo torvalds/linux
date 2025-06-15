@@ -37,7 +37,8 @@ struct amdgpu_imu_funcs {
     void (*program_rlc_ram)(struct amdgpu_device *adev);
     int (*wait_for_reset_status)(struct amdgpu_device *adev);
     int (*switch_compute_partition)(struct amdgpu_device *adev,
-				    int num_xccs_per_xcp);
+				    int num_xccs_per_xcp,
+				    int compute_partition_mode);
 };
 
 struct imu_rlc_ram_golden {
