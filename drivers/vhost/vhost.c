@@ -594,10 +594,10 @@ static void vhost_attach_mm(struct vhost_dev *dev)
 	if (dev->use_worker) {
 		dev->mm = get_task_mm(current);
 	} else {
-		/* vDPA device does not use worker thead, so there's
-		 * no need to hold the address space for mm. This help
+		/* vDPA device does not use worker thread, so there's
+		 * no need to hold the address space for mm. This helps
 		 * to avoid deadlock in the case of mmap() which may
-		 * held the refcnt of the file and depends on release
+		 * hold the refcnt of the file and depends on release
 		 * method to remove vma.
 		 */
 		dev->mm = current->mm;
@@ -731,7 +731,7 @@ static void __vhost_vq_attach_worker(struct vhost_virtqueue *vq,
 	 * We don't want to call synchronize_rcu for every vq during setup
 	 * because it will slow down VM startup. If we haven't done
 	 * VHOST_SET_VRING_KICK and not done the driver specific
-	 * SET_ENDPOINT/RUNNUNG then we can skip the sync since there will
+	 * SET_ENDPOINT/RUNNING then we can skip the sync since there will
 	 * not be any works queued for scsi and net.
 	 */
 	mutex_lock(&vq->mutex);
@@ -2860,7 +2860,7 @@ void vhost_add_used_and_signal_n(struct vhost_dev *dev,
 }
 EXPORT_SYMBOL_GPL(vhost_add_used_and_signal_n);
 
-/* return true if we're sure that avaiable ring is empty */
+/* return true if we're sure that available ring is empty */
 bool vhost_vq_avail_empty(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
 	int r;
