@@ -1810,7 +1810,7 @@ static struct net_device *bnxt_get_pkt_dev(struct bnxt *bp, u16 cfa_code)
 {
 	struct net_device *dev = bnxt_get_vf_rep(bp, cfa_code);
 
-	/* if vf-rep dev is NULL, the must belongs to the PF */
+	/* if vf-rep dev is NULL, it must belong to the PF */
 	return dev ? dev : bp->dev;
 }
 
@@ -7116,7 +7116,7 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	default:
 		netdev_err(bp->dev, "hwrm alloc invalid ring type %d\n",
 			   ring_type);
-		return -1;
+		return -EINVAL;
 	}
 
 	resp = hwrm_req_hold(bp, req);
