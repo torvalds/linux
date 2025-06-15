@@ -319,6 +319,7 @@ static int bch2_data_thread(void *arg)
 		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_done;
 		ctx->stats.data_type = (int) DATA_PROGRESS_DATA_TYPE_done;
 	}
+	enumerated_ref_put(&ctx->c->writes, BCH_WRITE_REF_ioctl_data);
 	return 0;
 }
 
@@ -378,15 +379,24 @@ static long bch2_ioctl_data(struct bch_fs *c,
 	struct bch_data_ctx *ctx;
 	int ret;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_ioctl_data))
+		return -EROFS;
 
-	if (arg.op >= BCH_DATA_OP_NR || arg.flags)
-		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto put_ref;
+	}
+
+	if (arg.op >= BCH_DATA_OP_NR || arg.flags) {
+		ret = -EINVAL;
+		goto put_ref;
+	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	if (!ctx) {
+		ret = -ENOMEM;
+		goto put_ref;
+	}
 
 	ctx->c = c;
 	ctx->arg = arg;
@@ -395,7 +405,12 @@ static long bch2_ioctl_data(struct bch_fs *c,
 			&bcachefs_data_ops,
 			bch2_data_thread);
 	if (ret < 0)
-		kfree(ctx);
+		goto cleanup;
+	return ret;
+cleanup:
+	kfree(ctx);
+put_ref:
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_ioctl_data);
 	return ret;
 }
 
