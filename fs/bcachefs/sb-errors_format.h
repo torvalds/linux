@@ -251,7 +251,7 @@ enum bch_fsck_flags {
 	x(deleted_inode_not_unlinked,				214,	FSCK_AUTOFIX)	\
 	x(deleted_inode_has_child_snapshots,			288,	FSCK_AUTOFIX)	\
 	x(extent_overlapping,					215,	0)		\
-	x(key_in_missing_inode,					216,	0)		\
+	x(key_in_missing_inode,					216,	FSCK_AUTOFIX)	\
 	x(key_in_wrong_inode_type,				217,	0)		\
 	x(extent_past_end_of_inode,				218,	FSCK_AUTOFIX)	\
 	x(dirent_empty_name,					219,	0)		\
