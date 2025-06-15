@@ -1813,7 +1813,6 @@ static inline void tcp_mib_init(struct net *net)
 /* from STCP */
 static inline void tcp_clear_retrans_hints_partial(struct tcp_sock *tp)
 {
-	tp->lost_skb_hint = NULL;
 }
 
 static inline void tcp_clear_all_retrans_hints(struct tcp_sock *tp)
