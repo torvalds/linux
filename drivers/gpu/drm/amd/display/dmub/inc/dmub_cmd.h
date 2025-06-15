@@ -5909,6 +5909,9 @@ struct dmub_rb_cmd_ips_residency_cntl {
 	struct dmub_cmd_ips_residency_cntl_data cntl_data;
 };
 
+/**
+ * Data passed from FW to driver in a DMUB_CMD__IPS_QUERY_RESIDENCY_INFO command.
+ */
 struct dmub_cmd_ips_query_residency_info_data {
 	union dmub_addr dest;
 	uint32_t size;
