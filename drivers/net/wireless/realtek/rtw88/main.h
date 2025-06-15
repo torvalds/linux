@@ -873,7 +873,7 @@ struct rtw_chip_ops {
 	void (*set_tx_power_index)(struct rtw_dev *rtwdev);
 	int (*rsvd_page_dump)(struct rtw_dev *rtwdev, u8 *buf, u32 offset,
 			      u32 size);
-	int (*set_antenna)(struct rtw_dev *rtwdev,
+	int (*set_antenna)(struct rtw_dev *rtwdev, int radio_idx,
 			   u32 antenna_tx,
 			   u32 antenna_rx);
 	void (*cfg_ldo25)(struct rtw_dev *rtwdev, bool enable);

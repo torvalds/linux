@@ -375,6 +375,7 @@ mwifiex_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
 static int
 mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 			      struct wireless_dev *wdev,
+			      int radio_idx,
 			      enum nl80211_tx_power_setting type,
 			      int mbm)
 {
@@ -410,6 +411,7 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 static int
 mwifiex_cfg80211_get_tx_power(struct wiphy *wiphy,
 			      struct wireless_dev *wdev,
+			      int radio_idx,
 			      unsigned int link_id, int *dbm)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
@@ -737,7 +739,8 @@ mwifiex_set_rts(struct mwifiex_private *priv, u32 rts_thr)
  * Fragmentation threshold of the driver.
  */
 static int
-mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx,
+				  u32 changed)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 	struct mwifiex_private *priv;
@@ -1939,7 +1942,8 @@ mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int
-mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
+mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, int radio_idx, u32 tx_ant,
+			     u32 rx_ant)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
@@ -2002,7 +2006,8 @@ mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
 }
 
 static int
-mwifiex_cfg80211_get_antenna(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant)
+mwifiex_cfg80211_get_antenna(struct wiphy *wiphy, int radio_idx, u32 *tx_ant,
+			     u32 *rx_ant)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 	struct mwifiex_private *priv = mwifiex_get_priv(adapter,

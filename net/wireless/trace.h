@@ -406,9 +406,19 @@ DEFINE_EVENT(wiphy_only_evt, rdev_return_void,
 	TP_ARGS(wiphy)
 );
 
-DEFINE_EVENT(wiphy_only_evt, rdev_get_antenna,
-	TP_PROTO(struct wiphy *wiphy),
-	TP_ARGS(wiphy)
+TRACE_EVENT(rdev_get_antenna,
+	TP_PROTO(struct wiphy *wiphy, int radio_idx),
+	TP_ARGS(wiphy, radio_idx),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		__field(int, radio_idx)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		__entry->radio_idx = radio_idx;
+	),
+	TP_printk(WIPHY_PR_FMT ", radio_idx: %d",
+		  WIPHY_PR_ARG, __entry->radio_idx)
 );
 
 DEFINE_EVENT(wiphy_only_evt, rdev_rfkill_poll,
@@ -1678,18 +1688,20 @@ TRACE_EVENT(rdev_join_ocb,
 );
 
 TRACE_EVENT(rdev_set_wiphy_params,
-	TP_PROTO(struct wiphy *wiphy, u32 changed),
-	TP_ARGS(wiphy, changed),
+	TP_PROTO(struct wiphy *wiphy, int radio_idx, u32 changed),
+	TP_ARGS(wiphy, radio_idx, changed),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
+		__field(int, radio_idx)
 		__field(u32, changed)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
+		__entry->radio_idx = radio_idx;
 		__entry->changed = changed;
 	),
-	TP_printk(WIPHY_PR_FMT ", changed: %u",
-		  WIPHY_PR_ARG, __entry->changed)
+	TP_printk(WIPHY_PR_FMT ", radio_idx: %d, changed: %u",
+		  WIPHY_PR_ARG, __entry->radio_idx, __entry->changed)
 );
 
 DECLARE_EVENT_CLASS(wiphy_wdev_link_evt,
@@ -1710,30 +1722,51 @@ DECLARE_EVENT_CLASS(wiphy_wdev_link_evt,
 		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->link_id)
 );
 
-DEFINE_EVENT(wiphy_wdev_link_evt, rdev_get_tx_power,
+TRACE_EVENT(rdev_get_tx_power,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
-		 unsigned int link_id),
-	TP_ARGS(wiphy, wdev, link_id)
+		 int radio_idx, unsigned int link_id),
+	TP_ARGS(wiphy, wdev, radio_idx, link_id),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		WDEV_ENTRY
+		__field(int, radio_idx)
+		__field(unsigned int, link_id)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
+		__entry->radio_idx = radio_idx;
+		__entry->link_id = link_id;
+	),
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT
+		  ", radio_idx: %d, link_id: %u",
+		  WIPHY_PR_ARG, WDEV_PR_ARG,
+		  __entry->radio_idx, __entry->link_id)
 );
 
 TRACE_EVENT(rdev_set_tx_power,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
-		 enum nl80211_tx_power_setting type, int mbm),
-	TP_ARGS(wiphy, wdev, type, mbm),
+		 int radio_idx, enum nl80211_tx_power_setting type,
+		 int mbm),
+	TP_ARGS(wiphy, wdev, radio_idx, type, mbm),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		WDEV_ENTRY
+		__field(int, radio_idx)
 		__field(enum nl80211_tx_power_setting, type)
 		__field(int, mbm)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		WDEV_ASSIGN;
+		__entry->radio_idx = radio_idx;
 		__entry->type = type;
 		__entry->mbm = mbm;
 	),
-	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT ", type: %u, mbm: %d",
-		  WIPHY_PR_ARG, WDEV_PR_ARG,__entry->type, __entry->mbm)
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT
+		  ", radio_idx: %d, type: %u, mbm: %d",
+		  WIPHY_PR_ARG, WDEV_PR_ARG,
+		  __entry->radio_idx, __entry->type, __entry->mbm)
 );
 
 TRACE_EVENT(rdev_return_int_int,
@@ -1866,26 +1899,24 @@ TRACE_EVENT(rdev_return_void_tx_rx,
 		  __entry->rx_max)
 );
 
-DECLARE_EVENT_CLASS(tx_rx_evt,
-	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx),
-	TP_ARGS(wiphy, tx, rx),
+TRACE_EVENT(rdev_set_antenna,
+	TP_PROTO(struct wiphy *wiphy, int radio_idx, u32 tx, u32 rx),
+	TP_ARGS(wiphy, radio_idx, tx, rx),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
+		__field(int, radio_idx)
 		__field(u32, tx)
 		__field(u32, rx)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
+		__entry->radio_idx = radio_idx;
 		__entry->tx = tx;
 		__entry->rx = rx;
 	),
-	TP_printk(WIPHY_PR_FMT ", tx: %u, rx: %u ",
-		  WIPHY_PR_ARG, __entry->tx, __entry->rx)
-);
-
-DEFINE_EVENT(tx_rx_evt, rdev_set_antenna,
-	TP_PROTO(struct wiphy *wiphy, u32 tx, u32 rx),
-	TP_ARGS(wiphy, tx, rx)
+	TP_printk(WIPHY_PR_FMT ", radio_idx: %d, tx: %u, rx: %u ",
+		  WIPHY_PR_ARG, __entry->radio_idx,
+		  __entry->tx, __entry->rx)
 );
 
 DECLARE_EVENT_CLASS(wiphy_netdev_id_evt,

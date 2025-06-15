@@ -1083,7 +1083,8 @@ static void ar5523_stop(struct ieee80211_hw *hw, bool suspend)
 	mutex_unlock(&ar->mutex);
 }
 
-static int ar5523_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int ar5523_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				    u32 value)
 {
 	struct ar5523 *ar = hw->priv;
 	int ret;
@@ -1137,7 +1138,7 @@ static void ar5523_remove_interface(struct ieee80211_hw *hw,
 	ar->vif = NULL;
 }
 
-static int ar5523_hwconfig(struct ieee80211_hw *hw, u32 changed)
+static int ar5523_hwconfig(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct ar5523 *ar = hw->priv;
 

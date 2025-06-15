@@ -2767,6 +2767,7 @@ static void rtw8822c_set_tx_power_index(struct rtw_dev *rtwdev)
 }
 
 static int rtw8822c_set_antenna(struct rtw_dev *rtwdev,
+				int radio_idx,
 				u32 antenna_tx,
 				u32 antenna_rx)
 {

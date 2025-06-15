@@ -1149,7 +1149,7 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 	}
 }
 
-int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
+int iwlagn_mac_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx;

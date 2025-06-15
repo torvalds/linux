@@ -744,7 +744,7 @@ static int ieee80211_add_chanctx(struct ieee80211_local *local,
 	/* turn idle off *before* setting channel -- some drivers need that */
 	changed = ieee80211_idle_off(local);
 	if (changed)
-		ieee80211_hw_config(local, changed);
+		ieee80211_hw_config(local, -1, changed);
 
 	err = drv_add_chanctx(local, ctx);
 	if (err) {

@@ -1151,7 +1151,7 @@ static void rtl8187_remove_interface(struct ieee80211_hw *dev,
 	mutex_unlock(&priv->conf_mutex);
 }
 
-static int rtl8187_config(struct ieee80211_hw *dev, u32 changed)
+static int rtl8187_config(struct ieee80211_hw *dev, int radio_idx, u32 changed)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct ieee80211_conf *conf = &dev->conf;

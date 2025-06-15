@@ -1541,7 +1541,7 @@ void ieee80211_txq_purge(struct ieee80211_local *local,
 	spin_unlock_bh(&local->active_txq_lock[txqi->txq.ac]);
 }
 
-void ieee80211_txq_set_params(struct ieee80211_local *local)
+void ieee80211_txq_set_params(struct ieee80211_local *local, int radio_idx)
 {
 	if (local->hw.wiphy->txq_limit)
 		local->fq.limit = local->hw.wiphy->txq_limit;
@@ -1605,7 +1605,7 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	for (i = 0; i < fq->flows_cnt; i++)
 		codel_vars_init(&local->cvars[i]);
 
-	ieee80211_txq_set_params(local);
+	ieee80211_txq_set_params(local, -1);
 
 	return 0;
 }

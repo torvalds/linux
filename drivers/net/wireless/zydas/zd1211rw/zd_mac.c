@@ -1133,7 +1133,7 @@ static void zd_op_remove_interface(struct ieee80211_hw *hw,
 	zd_mac_free_cur_beacon(mac);
 }
 
-static int zd_op_config(struct ieee80211_hw *hw, u32 changed)
+static int zd_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct ieee80211_conf *conf = &hw->conf;

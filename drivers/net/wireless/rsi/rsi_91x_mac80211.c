@@ -656,11 +656,13 @@ static int rsi_config_power(struct ieee80211_hw *hw)
  *			   requests. The stack calls this function to
  *			   change hardware configuration, e.g., channel.
  * @hw: Pointer to the ieee80211_hw structure.
+ * @radio_idx: Radio index.
  * @changed: Changed flags set.
  *
  * Return: 0 on success, negative error code on failure.
  */
 static int rsi_mac80211_config(struct ieee80211_hw *hw,
+			       int radio_idx,
 			       u32 changed)
 {
 	struct rsi_hw *adapter = hw->priv;
@@ -1201,12 +1203,13 @@ unlock:
 /**
  * rsi_mac80211_set_rts_threshold() - This function sets rts threshold value.
  * @hw: Pointer to the ieee80211_hw structure.
+ * @radio_idx: Radio index.
  * @value: Rts threshold value.
  *
  * Return: 0 on success.
  */
 static int rsi_mac80211_set_rts_threshold(struct ieee80211_hw *hw,
-					  u32 value)
+					  int radio_idx, u32 value)
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
@@ -1583,12 +1586,14 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
  * rsi_mac80211_set_antenna() - This function is used to configure
  *				tx and rx antennas.
  * @hw: Pointer to the ieee80211_hw structure.
+ * @radio_idx: Radio index
  * @tx_ant: Bitmap for tx antenna
  * @rx_ant: Bitmap for rx antenna
  *
  * Return: 0 on success, Negative error code on failure.
  */
 static int rsi_mac80211_set_antenna(struct ieee80211_hw *hw,
+				    int radio_idx,
 				    u32 tx_ant, u32 rx_ant)
 {
 	struct rsi_hw *adapter = hw->priv;
@@ -1634,12 +1639,14 @@ fail_set_antenna:
  * 				tx and rx antennas.
  *
  * @hw: Pointer to the ieee80211_hw structure.
+ * @radio_idx: Radio index
  * @tx_ant: Bitmap for tx antenna
  * @rx_ant: Bitmap for rx antenna
  * 
  * Return: 0 on success, negative error codes on failure.
  */
 static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
+				    int radio_idx,
 				    u32 *tx_ant, u32 *rx_ant)
 {
 	struct rsi_hw *adapter = hw->priv;
