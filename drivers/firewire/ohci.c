@@ -158,7 +158,7 @@ struct context {
 
 	descriptor_callback_t callback;
 
-	struct tasklet_struct tasklet;
+	struct work_struct work;
 };
 
 struct iso_context {
@@ -1176,9 +1176,9 @@ static void context_retire_descriptors(struct context *ctx)
 	}
 }
 
-static void context_tasklet(unsigned long data)
+static void ohci_at_context_work(struct work_struct *work)
 {
-	struct context *ctx = (struct context *) data;
+	struct context *ctx = from_work(ctx, work, work);
 
 	context_retire_descriptors(ctx);
 }
@@ -1243,7 +1243,6 @@ static int context_init(struct context *ctx, struct fw_ohci *ohci,
 	ctx->buffer_tail = list_entry(ctx->buffer_list.next,
 			struct descriptor_buffer, list);
 
-	tasklet_init(&ctx->tasklet, context_tasklet, (unsigned long)ctx);
 	ctx->callback = callback;
 
 	/*
@@ -1524,13 +1523,17 @@ static int at_context_queue_packet(struct context *ctx,
 
 static void at_context_flush(struct context *ctx)
 {
-	tasklet_disable(&ctx->tasklet);
+	// Avoid dead lock due to programming mistake.
+	if (WARN_ON_ONCE(current_work() == &ctx->work))
+		return;
 
-	ctx->flushing = true;
-	context_tasklet((unsigned long)ctx);
-	ctx->flushing = false;
+	disable_work_sync(&ctx->work);
 
-	tasklet_enable(&ctx->tasklet);
+	WRITE_ONCE(ctx->flushing, true);
+	ohci_at_context_work(&ctx->work);
+	WRITE_ONCE(ctx->flushing, false);
+
+	enable_work(&ctx->work);
 }
 
 static int handle_at_packet(struct context *context,
@@ -1542,7 +1545,7 @@ static int handle_at_packet(struct context *context,
 	struct fw_ohci *ohci = context->ohci;
 	int evt;
 
-	if (last->transfer_status == 0 && !context->flushing)
+	if (last->transfer_status == 0 && !READ_ONCE(context->flushing))
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
@@ -1576,7 +1579,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_missing_ack:
-		if (context->flushing)
+		if (READ_ONCE(context->flushing))
 			packet->ack = RCODE_GENERATION;
 		else {
 			/*
@@ -1598,7 +1601,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_no_status:
-		if (context->flushing) {
+		if (READ_ONCE(context->flushing)) {
 			packet->ack = RCODE_GENERATION;
 			break;
 		}
@@ -2239,10 +2242,10 @@ static irqreturn_t irq_handler(int irq, void *data)
 		queue_work(ohci->card.async_wq, &ohci->ar_response_ctx.work);
 
 	if (event & OHCI1394_reqTxComplete)
-		tasklet_schedule(&ohci->at_request_ctx.tasklet);
+		queue_work(ohci->card.async_wq, &ohci->at_request_ctx.work);
 
 	if (event & OHCI1394_respTxComplete)
-		tasklet_schedule(&ohci->at_response_ctx.tasklet);
+		queue_work(ohci->card.async_wq, &ohci->at_response_ctx.work);
 
 	if (event & OHCI1394_isochRx) {
 		iso_event = reg_read(ohci, OHCI1394_IsoRecvIntEventClear);
@@ -2684,7 +2687,10 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	struct driver_data *driver_data = packet->driver_data;
 	int ret = -ENOENT;
 
-	tasklet_disable_in_atomic(&ctx->tasklet);
+	// Avoid dead lock due to programming mistake.
+	if (WARN_ON_ONCE(current_work() == &ctx->work))
+		return 0;
+	disable_work_sync(&ctx->work);
 
 	if (packet->ack != 0)
 		goto out;
@@ -2703,7 +2709,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	packet->callback(packet, &ohci->card, packet->ack);
 	ret = 0;
  out:
-	tasklet_enable(&ctx->tasklet);
+	enable_work(&ctx->work);
 
 	return ret;
 }
@@ -3765,11 +3771,13 @@ static int pci_probe(struct pci_dev *dev,
 			   OHCI1394_AsReqTrContextControlSet, handle_at_packet);
 	if (err < 0)
 		return err;
+	INIT_WORK(&ohci->at_request_ctx.work, ohci_at_context_work);
 
 	err = context_init(&ohci->at_response_ctx, ohci,
 			   OHCI1394_AsRspTrContextControlSet, handle_at_packet);
 	if (err < 0)
 		return err;
+	INIT_WORK(&ohci->at_response_ctx.work, ohci_at_context_work);
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;
