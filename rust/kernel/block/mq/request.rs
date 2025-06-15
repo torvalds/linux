@@ -125,7 +125,12 @@ impl<T: Operations> Request<T> {
         // success of the call to `try_set_end` guarantees that there are no
         // `ARef`s pointing to this request. Therefore it is safe to hand it
         // back to the block layer.
-        unsafe { bindings::blk_mq_end_request(request_ptr, bindings::BLK_STS_OK as _) };
+        unsafe {
+            bindings::blk_mq_end_request(
+                request_ptr,
+                bindings::BLK_STS_OK as bindings::blk_status_t,
+            )
+        };
 
         Ok(())
     }
