@@ -762,6 +762,16 @@ int bch2_fs_recovery(struct bch_fs *c)
 		c->opts.fsck = true;
 	}
 
+	if (go_rw_in_recovery(c)) {
+		/*
+		 * start workqueues/kworkers early - kthread creation checks for
+		 * pending signals, which is _very_ annoying
+		 */
+		ret = bch2_fs_init_rw(c);
+		if (ret)
+			goto err;
+	}
+
 	mutex_lock(&c->sb_lock);
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 	bool write_sb = false;

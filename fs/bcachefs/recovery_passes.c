@@ -217,11 +217,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
-	if (keys->nr ||
-	    !c->opts.read_only ||
-	    !c->sb.clean ||
-	    c->opts.recovery_passes ||
-	    (c->opts.fsck && !(c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)))) {
+	if (go_rw_in_recovery(c)) {
 		if (c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)) {
 			bch_info(c, "mounting a filesystem with no alloc info read-write; will recreate");
 			bch2_reconstruct_alloc(c);
