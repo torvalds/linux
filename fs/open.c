@@ -1204,14 +1204,11 @@ struct file *kernel_file_open(const struct path *path, int flags,
 	if (IS_ERR(f))
 		return f;
 
-	f->f_path = *path;
-	error = do_dentry_open(f, NULL);
+	error = vfs_open(path, f);
 	if (error) {
 		fput(f);
 		return ERR_PTR(error);
 	}
-
-	fsnotify_open(f);
 	return f;
 }
 EXPORT_SYMBOL_GPL(kernel_file_open);
