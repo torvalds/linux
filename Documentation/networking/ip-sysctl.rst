@@ -645,9 +645,11 @@ tcp_recovery - INTEGER
 	features.
 
 	=========   =============================================================
-	RACK: 0x1   enables the RACK loss detection for fast detection of lost
-		    retransmissions and tail drops. It also subsumes and disables
-		    RFC6675 recovery for SACK connections.
+	RACK: 0x1   enables RACK loss detection, for fast detection of lost
+		    retransmissions and tail drops, and resilience to
+		    reordering. currently, setting this bit to 0 has no
+		    effect, since RACK is the only supported loss detection
+		    algorithm.
 
 	RACK: 0x2   makes RACK's reordering window static (min_rtt/4).
 
