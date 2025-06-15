@@ -143,7 +143,7 @@ impl<T> DevresInner<T> {
             bindings::devm_remove_action_nowarn(
                 this.dev.as_raw(),
                 Some(this.callback),
-                this.as_ptr() as _,
+                this.as_ptr().cast_mut().cast(),
             )
         } == 0;
 
