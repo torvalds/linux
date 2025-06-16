@@ -2470,9 +2470,6 @@ DEFINE_ATTR_EVENT(xfs_attr_node_get);
 DEFINE_ATTR_EVENT(xfs_attr_node_replace);
 DEFINE_ATTR_EVENT(xfs_attr_node_removename);
 
-DEFINE_ATTR_EVENT(xfs_attr_fillstate);
-DEFINE_ATTR_EVENT(xfs_attr_refillstate);
-
 DEFINE_ATTR_EVENT(xfs_attr_rmtval_get);
 
 #define DEFINE_DA_EVENT(name) \
