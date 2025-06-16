@@ -584,6 +584,24 @@ static int rkisp1_init_clocks(struct rkisp1_device *rkisp1)
 		return ret;
 
 	rkisp1->clk_size = info->num_clocks;
+
+	/*
+	 * On i.MX8MP the pclk clock is needed to access the HDR stitching
+	 * registers, but wasn't required by DT bindings. Try to acquire it as
+	 * an optional clock to avoid breaking backward compatibility.
+	 */
+	if (info->isp_ver == RKISP1_V_IMX8MP) {
+		struct clk *clk;
+
+		clk = devm_clk_get_optional(rkisp1->dev, "pclk");
+		if (IS_ERR(clk))
+			return dev_err_probe(rkisp1->dev, PTR_ERR(clk),
+					     "Failed to acquire pclk clock\n");
+
+		if (clk)
+			rkisp1->clks[rkisp1->clk_size++].clk = clk;
+	}
+
 	return 0;
 }
 
