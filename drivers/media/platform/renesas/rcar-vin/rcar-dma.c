@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 
+#include <media/v4l2-event.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "rcar-vin.h"
@@ -114,10 +115,14 @@
 #define VNFC_S_FRAME		(1 << 0)
 
 /* Video n Interrupt Enable Register bits */
+#define VNIE_VFE		BIT(17)
+#define VNIE_VRE		BIT(16)
 #define VNIE_FIE		BIT(4)
 #define VNIE_EFE		BIT(1)
 
 /* Video n Interrupt Status Register bits */
+#define VNINTS_VFS		BIT(17)
+#define VNINTS_VRS		BIT(16)
 #define VNINTS_FIS		BIT(4)
 #define VNINTS_EFS		BIT(1)
 
@@ -889,6 +894,8 @@ static int rvin_setup(struct rvin_dev *vin)
 
 	/* Progressive or interlaced mode */
 	interrupts = progressive ? VNIE_FIE : VNIE_EFE;
+	/* Enable VSYNC Rising Edge Detection. */
+	interrupts |= VNIE_VRE;
 
 	/* Ack interrupts */
 	rvin_write(vin, interrupts, VNINTS_REG);
@@ -1039,6 +1046,16 @@ static irqreturn_t rvin_irq(int irq, void *data)
 
 	rvin_write(vin, status, VNINTS_REG);
 	handled = 1;
+
+	/* Signal Start of Frame. */
+	if (status & VNINTS_VRS) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_FRAME_SYNC,
+			.u.frame_sync.frame_sequence = vin->sequence,
+		};
+
+		v4l2_event_queue(&vin->vdev, &event);
+	}
 
 	/* Nothing to do if nothing was captured. */
 	capture = vin->format.field == V4L2_FIELD_NONE ||
