@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
+#include <linux/lockdep.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -612,6 +613,8 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 	struct vsp1_dl_list *dl = NULL;
 	unsigned long flags;
 
+	lockdep_assert_not_held(&dlm->lock);
+
 	spin_lock_irqsave(&dlm->lock, flags);
 
 	if (!list_empty(&dlm->free)) {
@@ -638,6 +641,8 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 
 	if (!dl)
 		return;
+
+	lockdep_assert_held(&dl->dlm->lock);
 
 	/*
 	 * Release any linked display-lists which were chained for a single
