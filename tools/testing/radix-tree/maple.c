@@ -35669,6 +35669,18 @@ static noinline void __init check_prealloc(struct maple_tree *mt)
 	allocated = mas_allocated(&mas);
 	height = mas_mt_height(&mas);
 	MT_BUG_ON(mt, allocated != 0);
+
+	/* Chaining multiple preallocations */
+	mt_set_in_rcu(mt);
+	mas_set_range(&mas, 800, 805); /* Slot store, should be 0 allocations */
+	MT_BUG_ON(mt, mas_preallocate(&mas, ptr, GFP_KERNEL) != 0);
+	allocated = mas_allocated(&mas);
+	MT_BUG_ON(mt, allocated != 0);
+	mas.last = 809; /* Node store */
+	MT_BUG_ON(mt, mas_preallocate(&mas, ptr, GFP_KERNEL) != 0);
+	allocated = mas_allocated(&mas);
+	MT_BUG_ON(mt, allocated != 1);
+	mas_store_prealloc(&mas, ptr);
 }
 /* End of preallocation testing */
 
