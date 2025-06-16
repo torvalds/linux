@@ -20,7 +20,7 @@ static int iavf_check_reset_complete(struct iavf_hw *hw);
 
 char iavf_driver_name[] = "iavf";
 static const char iavf_driver_string[] =
-	"Intel(R) Ethernet Adaptive Virtual Function Network Driver";
+	"Intel(R) Ethernet Adaptive Virtual Function Network Driver +GTP-Uv15";
 
 static const char iavf_copyright[] =
 	"Copyright (c) 2013 - 2018 Intel Corporation.";
