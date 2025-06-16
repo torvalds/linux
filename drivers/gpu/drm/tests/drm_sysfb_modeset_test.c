@@ -2,13 +2,14 @@
 
 #include <kunit/test.h>
 
-#include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_kunit_helpers.h>
 
+#include "../sysfb/drm_sysfb_helper.h"
+
 #define TEST_BUF_SIZE 50
 
-struct fb_build_fourcc_list_case {
+struct sysfb_build_fourcc_list_case {
 	const char *name;
 	u32 native_fourccs[TEST_BUF_SIZE];
 	size_t native_fourccs_size;
@@ -16,7 +17,7 @@ struct fb_build_fourcc_list_case {
 	size_t expected_fourccs_size;
 };
 
-static struct fb_build_fourcc_list_case fb_build_fourcc_list_cases[] = {
+static struct sysfb_build_fourcc_list_case sysfb_build_fourcc_list_cases[] = {
 	{
 		.name = "no native formats",
 		.native_fourccs = { },
@@ -120,16 +121,17 @@ static struct fb_build_fourcc_list_case fb_build_fourcc_list_cases[] = {
 	},
 };
 
-static void fb_build_fourcc_list_case_desc(struct fb_build_fourcc_list_case *t, char *desc)
+static void sysfb_build_fourcc_list_case_desc(struct sysfb_build_fourcc_list_case *t, char *desc)
 {
 	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
 }
 
-KUNIT_ARRAY_PARAM(fb_build_fourcc_list, fb_build_fourcc_list_cases, fb_build_fourcc_list_case_desc);
+KUNIT_ARRAY_PARAM(sysfb_build_fourcc_list, sysfb_build_fourcc_list_cases,
+		  sysfb_build_fourcc_list_case_desc);
 
-static void drm_test_fb_build_fourcc_list(struct kunit *test)
+static void drm_test_sysfb_build_fourcc_list(struct kunit *test)
 {
-	const struct fb_build_fourcc_list_case *params = test->param_value;
+	const struct sysfb_build_fourcc_list_case *params = test->param_value;
 	u32 fourccs_out[TEST_BUF_SIZE] = {0};
 	size_t nfourccs_out;
 	struct drm_device *drm;
@@ -141,16 +143,16 @@ static void drm_test_fb_build_fourcc_list(struct kunit *test)
 	drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*drm), 0, DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	nfourccs_out = drm_fb_build_fourcc_list(drm, params->native_fourccs,
-						params->native_fourccs_size,
-						fourccs_out, TEST_BUF_SIZE);
+	nfourccs_out = drm_sysfb_build_fourcc_list(drm, params->native_fourccs,
+						   params->native_fourccs_size,
+						   fourccs_out, TEST_BUF_SIZE);
 
 	KUNIT_EXPECT_EQ(test, nfourccs_out, params->expected_fourccs_size);
 	KUNIT_EXPECT_MEMEQ(test, fourccs_out, params->expected, TEST_BUF_SIZE);
 }
 
 static struct kunit_case drm_sysfb_modeset_test_cases[] = {
-	KUNIT_CASE_PARAM(drm_test_fb_build_fourcc_list, fb_build_fourcc_list_gen_params),
+	KUNIT_CASE_PARAM(drm_test_sysfb_build_fourcc_list, sysfb_build_fourcc_list_gen_params),
 	{}
 };
 

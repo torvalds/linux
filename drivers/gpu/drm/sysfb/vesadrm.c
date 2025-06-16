@@ -402,8 +402,8 @@ static struct vesadrm_device *vesadrm_device_create(struct drm_driver *drv,
 
 	/* Primary plane */
 
-	nformats = drm_fb_build_fourcc_list(dev, &format->format, 1,
-					    vesa->formats, ARRAY_SIZE(vesa->formats));
+	nformats = drm_sysfb_build_fourcc_list(dev, &format->format, 1,
+					       vesa->formats, ARRAY_SIZE(vesa->formats));
 
 	primary_plane = &vesa->primary_plane;
 	ret = drm_universal_plane_init(dev, primary_plane, 0, &vesadrm_primary_plane_funcs,
