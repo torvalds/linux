@@ -55,7 +55,7 @@ struct regmap;
 #define RKISP1_BUS_INFO				"platform:" RKISP1_DRIVER_NAME
 
 /* maximum number of clocks */
-#define RKISP1_MAX_BUS_CLK			8
+#define RKISP1_MAX_BUS_CLK			4
 
 /* a bitmask of the ready stats */
 #define RKISP1_STATS_MEAS_MASK			(RKISP1_CIF_ISP_AWB_DONE |	\
@@ -139,8 +139,7 @@ enum rkisp1_feature {
 /*
  * struct rkisp1_info - Model-specific ISP Information
  *
- * @clks: array of ISP clock names
- * @clk_size: number of entries in the @clks array
+ * @num_clocks: number of clocks
  * @isrs: array of ISP interrupt descriptors
  * @isr_size: number of entries in the @isrs array
  * @isp_ver: ISP version
@@ -152,8 +151,7 @@ enum rkisp1_feature {
  * ISP model, version, or integration in a particular SoC.
  */
 struct rkisp1_info {
-	const char * const *clks;
-	unsigned int clk_size;
+	unsigned int num_clocks;
 	const struct rkisp1_isr_data *isrs;
 	unsigned int isr_size;
 	enum rkisp1_cif_isp_version isp_ver;

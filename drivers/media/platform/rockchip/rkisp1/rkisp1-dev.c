@@ -8,6 +8,7 @@
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  */
 
+#include <linux/build_bug.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/syscon.h>
@@ -491,13 +492,6 @@ static irqreturn_t rkisp1_isr(int irq, void *ctx)
 	return ret;
 }
 
-static const char * const px30_isp_clks[] = {
-	"isp",
-	"aclk",
-	"hclk",
-	"pclk",
-};
-
 static const struct rkisp1_isr_data px30_isp_isrs[] = {
 	{ "isp", rkisp1_isp_isr, BIT(RKISP1_IRQ_ISP) },
 	{ "mi", rkisp1_capture_isr, BIT(RKISP1_IRQ_MI) },
@@ -505,8 +499,7 @@ static const struct rkisp1_isr_data px30_isp_isrs[] = {
 };
 
 static const struct rkisp1_info px30_isp_info = {
-	.clks = px30_isp_clks,
-	.clk_size = ARRAY_SIZE(px30_isp_clks),
+	.num_clocks = 4,
 	.isrs = px30_isp_isrs,
 	.isr_size = ARRAY_SIZE(px30_isp_isrs),
 	.isp_ver = RKISP1_V12,
@@ -518,19 +511,12 @@ static const struct rkisp1_info px30_isp_info = {
 	.max_height = 2448,
 };
 
-static const char * const rk3399_isp_clks[] = {
-	"isp",
-	"aclk",
-	"hclk",
-};
-
 static const struct rkisp1_isr_data rk3399_isp_isrs[] = {
 	{ NULL, rkisp1_isr, BIT(RKISP1_IRQ_ISP) | BIT(RKISP1_IRQ_MI) | BIT(RKISP1_IRQ_MIPI) },
 };
 
 static const struct rkisp1_info rk3399_isp_info = {
-	.clks = rk3399_isp_clks,
-	.clk_size = ARRAY_SIZE(rk3399_isp_clks),
+	.num_clocks = 3,
 	.isrs = rk3399_isp_isrs,
 	.isr_size = ARRAY_SIZE(rk3399_isp_isrs),
 	.isp_ver = RKISP1_V10,
@@ -542,19 +528,12 @@ static const struct rkisp1_info rk3399_isp_info = {
 	.max_height = 3312,
 };
 
-static const char * const imx8mp_isp_clks[] = {
-	"isp",
-	"hclk",
-	"aclk",
-};
-
 static const struct rkisp1_isr_data imx8mp_isp_isrs[] = {
 	{ NULL, rkisp1_isr, BIT(RKISP1_IRQ_ISP) | BIT(RKISP1_IRQ_MI) },
 };
 
 static const struct rkisp1_info imx8mp_isp_info = {
-	.clks = imx8mp_isp_clks,
-	.clk_size = ARRAY_SIZE(imx8mp_isp_clks),
+	.num_clocks = 3,
 	.isrs = imx8mp_isp_isrs,
 	.isr_size = ARRAY_SIZE(imx8mp_isp_isrs),
 	.isp_ver = RKISP1_V_IMX8MP,
@@ -581,6 +560,32 @@ static const struct of_device_id rkisp1_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, rkisp1_of_match);
+
+static const char * const rkisp1_clk_names[] = {
+	"isp",
+	"aclk",
+	"hclk",
+	"pclk",
+};
+
+static int rkisp1_init_clocks(struct rkisp1_device *rkisp1)
+{
+	const struct rkisp1_info *info = rkisp1->info;
+	unsigned int i;
+	int ret;
+
+	static_assert(ARRAY_SIZE(rkisp1_clk_names) == ARRAY_SIZE(rkisp1->clks));
+
+	for (i = 0; i < info->num_clocks; i++)
+		rkisp1->clks[i].id = rkisp1_clk_names[i];
+
+	ret = devm_clk_bulk_get(rkisp1->dev, info->num_clocks, rkisp1->clks);
+	if (ret)
+		return ret;
+
+	rkisp1->clk_size = info->num_clocks;
+	return 0;
+}
 
 static int rkisp1_probe(struct platform_device *pdev)
 {
@@ -639,12 +644,9 @@ static int rkisp1_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (i = 0; i < info->clk_size; i++)
-		rkisp1->clks[i].id = info->clks[i];
-	ret = devm_clk_bulk_get(dev, info->clk_size, rkisp1->clks);
+	ret = rkisp1_init_clocks(rkisp1);
 	if (ret)
 		return ret;
-	rkisp1->clk_size = info->clk_size;
 
 	if (info->isp_ver == RKISP1_V_IMX8MP) {
 		unsigned int id;
