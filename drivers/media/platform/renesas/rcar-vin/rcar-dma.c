@@ -114,11 +114,12 @@
 #define VNFC_S_FRAME		(1 << 0)
 
 /* Video n Interrupt Enable Register bits */
-#define VNIE_FIE		(1 << 4)
-#define VNIE_EFE		(1 << 1)
+#define VNIE_FIE		BIT(4)
+#define VNIE_EFE		BIT(1)
 
 /* Video n Interrupt Status Register bits */
-#define VNINTS_FIS		(1 << 4)
+#define VNINTS_FIS		BIT(4)
+#define VNINTS_EFS		BIT(1)
 
 /* Video n Data Mode Register bits */
 #define VNDMR_A8BIT(n)		(((n) & 0xff) << 24)
@@ -1025,7 +1026,7 @@ static void rvin_capture_stop(struct rvin_dev *vin)
 static irqreturn_t rvin_irq(int irq, void *data)
 {
 	struct rvin_dev *vin = data;
-	u32 status, vnms;
+	u32 capture, status, vnms;
 	int slot;
 	unsigned int handled = 0;
 	unsigned long flags;
@@ -1040,7 +1041,10 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	handled = 1;
 
 	/* Nothing to do if nothing was captured. */
-	if (!(status & VNINTS_FIS))
+	capture = vin->format.field == V4L2_FIELD_NONE ||
+		vin->format.field == V4L2_FIELD_ALTERNATE ?
+		VNINTS_FIS : VNINTS_EFS;
+	if (!(status & capture))
 		goto done;
 
 	/* Nothing to do if not running. */
