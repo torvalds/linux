@@ -24,10 +24,8 @@
 #include "wcd-mbhc-v2.h"
 #include "wcd937x.h"
 
-enum {
-	CHIPID_WCD9370 = 0,
-	CHIPID_WCD9375 = 5,
-};
+#define CHIPID_WCD9370			0x0
+#define CHIPID_WCD9375			0x5
 
 /* Z value defined in milliohm */
 #define WCD937X_ZDET_VAL_32		(32000)
