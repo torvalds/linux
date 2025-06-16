@@ -1760,9 +1760,12 @@ mc_send()
 
 adf_mcd_start()
 {
+	local ifs=("$@")
+
 	local table_name="$MCD_TABLE_NAME"
 	local smcroutedir
 	local pid
+	local if
 	local i
 
 	check_command "$MCD" || return 1
@@ -1773,6 +1776,16 @@ adf_mcd_start()
 
 	for ((i = 1; i <= NUM_NETIFS; ++i)); do
 		echo "phyint ${NETIFS[p$i]} enable" >> \
+			"$smcroutedir/$table_name.conf"
+	done
+
+	for if in "${ifs[@]}"; do
+		if ! ip_link_has_flag "$if" MULTICAST; then
+			ip link set dev "$if" multicast on
+			defer ip link set dev "$if" multicast off
+		fi
+
+		echo "phyint $if enable" >> \
 			"$smcroutedir/$table_name.conf"
 	done
 
