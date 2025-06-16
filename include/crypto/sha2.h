@@ -147,6 +147,22 @@ struct __sha512_ctx {
 };
 void __sha512_update(struct __sha512_ctx *ctx, const u8 *data, size_t len);
 
+/*
+ * HMAC key and message context structs, shared by HMAC-SHA384 and HMAC-SHA512.
+ * The hmac_sha384_* and hmac_sha512_* structs wrap this one so that the API has
+ * proper typing and doesn't allow mixing the functions arbitrarily.
+ */
+struct __hmac_sha512_key {
+	struct sha512_block_state istate;
+	struct sha512_block_state ostate;
+};
+struct __hmac_sha512_ctx {
+	struct __sha512_ctx sha_ctx;
+	struct sha512_block_state ostate;
+};
+void __hmac_sha512_init(struct __hmac_sha512_ctx *ctx,
+			const struct __hmac_sha512_key *key);
+
 /**
  * struct sha384_ctx - Context for hashing a message with SHA-384
  * @ctx: private
@@ -203,6 +219,109 @@ void sha384_final(struct sha384_ctx *ctx, u8 out[SHA384_DIGEST_SIZE]);
 void sha384(const u8 *data, size_t len, u8 out[SHA384_DIGEST_SIZE]);
 
 /**
+ * struct hmac_sha384_key - Prepared key for HMAC-SHA384
+ * @key: private
+ */
+struct hmac_sha384_key {
+	struct __hmac_sha512_key key;
+};
+
+/**
+ * struct hmac_sha384_ctx - Context for computing HMAC-SHA384 of a message
+ * @ctx: private
+ */
+struct hmac_sha384_ctx {
+	struct __hmac_sha512_ctx ctx;
+};
+
+/**
+ * hmac_sha384_preparekey() - Prepare a key for HMAC-SHA384
+ * @key: (output) the key structure to initialize
+ * @raw_key: the raw HMAC-SHA384 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ *
+ * Note: the caller is responsible for zeroizing both the struct hmac_sha384_key
+ * and the raw key once they are no longer needed.
+ *
+ * Context: Any context.
+ */
+void hmac_sha384_preparekey(struct hmac_sha384_key *key,
+			    const u8 *raw_key, size_t raw_key_len);
+
+/**
+ * hmac_sha384_init() - Initialize a HMAC-SHA384 context for a new message
+ * @ctx: (output) the HMAC context to initialize
+ * @key: the prepared HMAC key
+ *
+ * If you don't need incremental computation, consider hmac_sha384() instead.
+ *
+ * Context: Any context.
+ */
+static inline void hmac_sha384_init(struct hmac_sha384_ctx *ctx,
+				    const struct hmac_sha384_key *key)
+{
+	__hmac_sha512_init(&ctx->ctx, &key->key);
+}
+
+/**
+ * hmac_sha384_update() - Update a HMAC-SHA384 context with message data
+ * @ctx: the HMAC context to update; must have been initialized
+ * @data: the message data
+ * @data_len: the data length in bytes
+ *
+ * This can be called any number of times.
+ *
+ * Context: Any context.
+ */
+static inline void hmac_sha384_update(struct hmac_sha384_ctx *ctx,
+				      const u8 *data, size_t data_len)
+{
+	__sha512_update(&ctx->ctx.sha_ctx, data, data_len);
+}
+
+/**
+ * hmac_sha384_final() - Finish computing a HMAC-SHA384 value
+ * @ctx: the HMAC context to finalize; must have been initialized
+ * @out: (output) the resulting HMAC-SHA384 value
+ *
+ * After finishing, this zeroizes @ctx.  So the caller does not need to do it.
+ *
+ * Context: Any context.
+ */
+void hmac_sha384_final(struct hmac_sha384_ctx *ctx, u8 out[SHA384_DIGEST_SIZE]);
+
+/**
+ * hmac_sha384() - Compute HMAC-SHA384 in one shot, using a prepared key
+ * @key: the prepared HMAC key
+ * @data: the message data
+ * @data_len: the data length in bytes
+ * @out: (output) the resulting HMAC-SHA384 value
+ *
+ * If you're using the key only once, consider using hmac_sha384_usingrawkey().
+ *
+ * Context: Any context.
+ */
+void hmac_sha384(const struct hmac_sha384_key *key,
+		 const u8 *data, size_t data_len, u8 out[SHA384_DIGEST_SIZE]);
+
+/**
+ * hmac_sha384_usingrawkey() - Compute HMAC-SHA384 in one shot, using a raw key
+ * @raw_key: the raw HMAC-SHA384 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ * @data: the message data
+ * @data_len: the data length in bytes
+ * @out: (output) the resulting HMAC-SHA384 value
+ *
+ * If you're using the key multiple times, prefer to use
+ * hmac_sha384_preparekey() followed by multiple calls to hmac_sha384() instead.
+ *
+ * Context: Any context.
+ */
+void hmac_sha384_usingrawkey(const u8 *raw_key, size_t raw_key_len,
+			     const u8 *data, size_t data_len,
+			     u8 out[SHA384_DIGEST_SIZE]);
+
+/**
  * struct sha512_ctx - Context for hashing a message with SHA-512
  * @ctx: private
  */
@@ -256,5 +375,108 @@ void sha512_final(struct sha512_ctx *ctx, u8 out[SHA512_DIGEST_SIZE]);
  * Context: Any context.
  */
 void sha512(const u8 *data, size_t len, u8 out[SHA512_DIGEST_SIZE]);
+
+/**
+ * struct hmac_sha512_key - Prepared key for HMAC-SHA512
+ * @key: private
+ */
+struct hmac_sha512_key {
+	struct __hmac_sha512_key key;
+};
+
+/**
+ * struct hmac_sha512_ctx - Context for computing HMAC-SHA512 of a message
+ * @ctx: private
+ */
+struct hmac_sha512_ctx {
+	struct __hmac_sha512_ctx ctx;
+};
+
+/**
+ * hmac_sha512_preparekey() - Prepare a key for HMAC-SHA512
+ * @key: (output) the key structure to initialize
+ * @raw_key: the raw HMAC-SHA512 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ *
+ * Note: the caller is responsible for zeroizing both the struct hmac_sha512_key
+ * and the raw key once they are no longer needed.
+ *
+ * Context: Any context.
+ */
+void hmac_sha512_preparekey(struct hmac_sha512_key *key,
+			    const u8 *raw_key, size_t raw_key_len);
+
+/**
+ * hmac_sha512_init() - Initialize a HMAC-SHA512 context for a new message
+ * @ctx: (output) the HMAC context to initialize
+ * @key: the prepared HMAC key
+ *
+ * If you don't need incremental computation, consider hmac_sha512() instead.
+ *
+ * Context: Any context.
+ */
+static inline void hmac_sha512_init(struct hmac_sha512_ctx *ctx,
+				    const struct hmac_sha512_key *key)
+{
+	__hmac_sha512_init(&ctx->ctx, &key->key);
+}
+
+/**
+ * hmac_sha512_update() - Update a HMAC-SHA512 context with message data
+ * @ctx: the HMAC context to update; must have been initialized
+ * @data: the message data
+ * @data_len: the data length in bytes
+ *
+ * This can be called any number of times.
+ *
+ * Context: Any context.
+ */
+static inline void hmac_sha512_update(struct hmac_sha512_ctx *ctx,
+				      const u8 *data, size_t data_len)
+{
+	__sha512_update(&ctx->ctx.sha_ctx, data, data_len);
+}
+
+/**
+ * hmac_sha512_final() - Finish computing a HMAC-SHA512 value
+ * @ctx: the HMAC context to finalize; must have been initialized
+ * @out: (output) the resulting HMAC-SHA512 value
+ *
+ * After finishing, this zeroizes @ctx.  So the caller does not need to do it.
+ *
+ * Context: Any context.
+ */
+void hmac_sha512_final(struct hmac_sha512_ctx *ctx, u8 out[SHA512_DIGEST_SIZE]);
+
+/**
+ * hmac_sha512() - Compute HMAC-SHA512 in one shot, using a prepared key
+ * @key: the prepared HMAC key
+ * @data: the message data
+ * @data_len: the data length in bytes
+ * @out: (output) the resulting HMAC-SHA512 value
+ *
+ * If you're using the key only once, consider using hmac_sha512_usingrawkey().
+ *
+ * Context: Any context.
+ */
+void hmac_sha512(const struct hmac_sha512_key *key,
+		 const u8 *data, size_t data_len, u8 out[SHA512_DIGEST_SIZE]);
+
+/**
+ * hmac_sha512_usingrawkey() - Compute HMAC-SHA512 in one shot, using a raw key
+ * @raw_key: the raw HMAC-SHA512 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ * @data: the message data
+ * @data_len: the data length in bytes
+ * @out: (output) the resulting HMAC-SHA512 value
+ *
+ * If you're using the key multiple times, prefer to use
+ * hmac_sha512_preparekey() followed by multiple calls to hmac_sha512() instead.
+ *
+ * Context: Any context.
+ */
+void hmac_sha512_usingrawkey(const u8 *raw_key, size_t raw_key_len,
+			     const u8 *data, size_t data_len,
+			     u8 out[SHA512_DIGEST_SIZE]);
 
 #endif /* _CRYPTO_SHA2_H */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * SHA-384 and SHA-512 library functions
+ * SHA-384, SHA-512, HMAC-SHA384, and HMAC-SHA512 library functions
  *
  * Copyright (c) Jean-Luc Cooke <jlcooke@certainkey.com>
  * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
@@ -8,11 +8,13 @@
  * Copyright 2025 Google LLC
  */
 
+#include <crypto/hmac.h>
 #include <crypto/internal/sha2.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
+#include <linux/wordpart.h>
 
 static const u64 sha512_K[80] = {
 	0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL,
@@ -245,6 +247,141 @@ void sha512(const u8 *data, size_t len, u8 out[SHA512_DIGEST_SIZE])
 }
 EXPORT_SYMBOL_GPL(sha512);
 
+static void __hmac_sha512_preparekey(struct __hmac_sha512_key *key,
+				     const u8 *raw_key, size_t raw_key_len,
+				     const struct sha512_block_state *iv)
+{
+	union {
+		u8 b[SHA512_BLOCK_SIZE];
+		unsigned long w[SHA512_BLOCK_SIZE / sizeof(unsigned long)];
+	} derived_key = { 0 };
+
+	if (unlikely(raw_key_len > SHA512_BLOCK_SIZE)) {
+		if (iv == &sha384_iv)
+			sha384(raw_key, raw_key_len, derived_key.b);
+		else
+			sha512(raw_key, raw_key_len, derived_key.b);
+	} else {
+		memcpy(derived_key.b, raw_key, raw_key_len);
+	}
+
+	for (size_t i = 0; i < ARRAY_SIZE(derived_key.w); i++)
+		derived_key.w[i] ^= REPEAT_BYTE(HMAC_IPAD_VALUE);
+	key->istate = *iv;
+	sha512_blocks(&key->istate, derived_key.b, 1);
+
+	for (size_t i = 0; i < ARRAY_SIZE(derived_key.w); i++)
+		derived_key.w[i] ^= REPEAT_BYTE(HMAC_OPAD_VALUE ^
+						HMAC_IPAD_VALUE);
+	key->ostate = *iv;
+	sha512_blocks(&key->ostate, derived_key.b, 1);
+
+	memzero_explicit(&derived_key, sizeof(derived_key));
+}
+
+void hmac_sha384_preparekey(struct hmac_sha384_key *key,
+			    const u8 *raw_key, size_t raw_key_len)
+{
+	__hmac_sha512_preparekey(&key->key, raw_key, raw_key_len, &sha384_iv);
+}
+EXPORT_SYMBOL_GPL(hmac_sha384_preparekey);
+
+void hmac_sha512_preparekey(struct hmac_sha512_key *key,
+			    const u8 *raw_key, size_t raw_key_len)
+{
+	__hmac_sha512_preparekey(&key->key, raw_key, raw_key_len, &sha512_iv);
+}
+EXPORT_SYMBOL_GPL(hmac_sha512_preparekey);
+
+void __hmac_sha512_init(struct __hmac_sha512_ctx *ctx,
+			const struct __hmac_sha512_key *key)
+{
+	__sha512_init(&ctx->sha_ctx, &key->istate, SHA512_BLOCK_SIZE);
+	ctx->ostate = key->ostate;
+}
+EXPORT_SYMBOL_GPL(__hmac_sha512_init);
+
+static void __hmac_sha512_final(struct __hmac_sha512_ctx *ctx,
+				u8 *out, size_t digest_size)
+{
+	/* Generate the padded input for the outer hash in ctx->sha_ctx.buf. */
+	__sha512_final(&ctx->sha_ctx, ctx->sha_ctx.buf, digest_size);
+	memset(&ctx->sha_ctx.buf[digest_size], 0,
+	       SHA512_BLOCK_SIZE - digest_size);
+	ctx->sha_ctx.buf[digest_size] = 0x80;
+	*(__be32 *)&ctx->sha_ctx.buf[SHA512_BLOCK_SIZE - 4] =
+		cpu_to_be32(8 * (SHA512_BLOCK_SIZE + digest_size));
+
+	/* Compute the outer hash, which gives the HMAC value. */
+	sha512_blocks(&ctx->ostate, ctx->sha_ctx.buf, 1);
+	for (size_t i = 0; i < digest_size; i += 8)
+		put_unaligned_be64(ctx->ostate.h[i / 8], out + i);
+
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+
+void hmac_sha384_final(struct hmac_sha384_ctx *ctx,
+		       u8 out[SHA384_DIGEST_SIZE])
+{
+	__hmac_sha512_final(&ctx->ctx, out, SHA384_DIGEST_SIZE);
+}
+EXPORT_SYMBOL_GPL(hmac_sha384_final);
+
+void hmac_sha512_final(struct hmac_sha512_ctx *ctx,
+		       u8 out[SHA512_DIGEST_SIZE])
+{
+	__hmac_sha512_final(&ctx->ctx, out, SHA512_DIGEST_SIZE);
+}
+EXPORT_SYMBOL_GPL(hmac_sha512_final);
+
+void hmac_sha384(const struct hmac_sha384_key *key,
+		 const u8 *data, size_t data_len, u8 out[SHA384_DIGEST_SIZE])
+{
+	struct hmac_sha384_ctx ctx;
+
+	hmac_sha384_init(&ctx, key);
+	hmac_sha384_update(&ctx, data, data_len);
+	hmac_sha384_final(&ctx, out);
+}
+EXPORT_SYMBOL_GPL(hmac_sha384);
+
+void hmac_sha512(const struct hmac_sha512_key *key,
+		 const u8 *data, size_t data_len, u8 out[SHA512_DIGEST_SIZE])
+{
+	struct hmac_sha512_ctx ctx;
+
+	hmac_sha512_init(&ctx, key);
+	hmac_sha512_update(&ctx, data, data_len);
+	hmac_sha512_final(&ctx, out);
+}
+EXPORT_SYMBOL_GPL(hmac_sha512);
+
+void hmac_sha384_usingrawkey(const u8 *raw_key, size_t raw_key_len,
+			     const u8 *data, size_t data_len,
+			     u8 out[SHA384_DIGEST_SIZE])
+{
+	struct hmac_sha384_key key;
+
+	hmac_sha384_preparekey(&key, raw_key, raw_key_len);
+	hmac_sha384(&key, data, data_len, out);
+
+	memzero_explicit(&key, sizeof(key));
+}
+EXPORT_SYMBOL_GPL(hmac_sha384_usingrawkey);
+
+void hmac_sha512_usingrawkey(const u8 *raw_key, size_t raw_key_len,
+			     const u8 *data, size_t data_len,
+			     u8 out[SHA512_DIGEST_SIZE])
+{
+	struct hmac_sha512_key key;
+
+	hmac_sha512_preparekey(&key, raw_key, raw_key_len);
+	hmac_sha512(&key, data, data_len, out);
+
+	memzero_explicit(&key, sizeof(key));
+}
+EXPORT_SYMBOL_GPL(hmac_sha512_usingrawkey);
+
 #ifdef sha512_mod_init_arch
 static int __init sha512_mod_init(void)
 {
@@ -259,5 +396,5 @@ static void __exit sha512_mod_exit(void)
 module_exit(sha512_mod_exit);
 #endif
 
-MODULE_DESCRIPTION("SHA-384 and SHA-512 library functions");
+MODULE_DESCRIPTION("SHA-384, SHA-512, HMAC-SHA384, and HMAC-SHA512 library functions");
 MODULE_LICENSE("GPL");
