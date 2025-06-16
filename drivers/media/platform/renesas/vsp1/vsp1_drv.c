@@ -33,6 +33,7 @@
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
 #include "vsp1_pipe.h"
+#include "vsp1_regs.h"
 #include "vsp1_rwpf.h"
 #include "vsp1_sru.h"
 #include "vsp1_uds.h"
@@ -502,7 +503,9 @@ done:
 
 int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
 {
+	u32 version = vsp1->version & VI6_IP_VERSION_MODEL_MASK;
 	unsigned int timeout;
+	int ret = 0;
 	u32 status;
 
 	status = vsp1_read(vsp1, VI6_STATUS);
@@ -523,7 +526,11 @@ int vsp1_reset_wpf(struct vsp1_device *vsp1, unsigned int index)
 		return -ETIMEDOUT;
 	}
 
-	return 0;
+	if (version == VI6_IP_VERSION_MODEL_VSPD_GEN3 ||
+	    version == VI6_IP_VERSION_MODEL_VSPD_GEN4)
+		ret = rcar_fcp_soft_reset(vsp1->fcp);
+
+	return ret;
 }
 
 static int vsp1_device_init(struct vsp1_device *vsp1)
