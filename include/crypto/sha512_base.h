@@ -114,7 +114,4 @@ static inline int sha512_base_finish(struct shash_desc *desc, u8 *out)
 	return 0;
 }
 
-void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
-			     int blocks);
-
 #endif /* _CRYPTO_SHA512_BASE_H */
