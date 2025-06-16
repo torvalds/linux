@@ -399,6 +399,8 @@ static int reattach_inode(struct btree_trans *trans, struct bch_inode_unpacked *
 	if (ret)
 		return ret;
 
+	bch_verbose(c, "got lostfound inum %llu", lostfound.bi_inum);
+
 	lostfound.bi_nlink += S_ISDIR(inode->bi_mode);
 
 	/* ensure lost+found inode is also present in inode snapshot */
@@ -434,6 +436,16 @@ static int reattach_inode(struct btree_trans *trans, struct bch_inode_unpacked *
 	ret = __bch2_fsck_write_inode(trans, inode);
 	if (ret)
 		return ret;
+
+	{
+		CLASS(printbuf, buf)();
+		ret = bch2_inum_snapshot_to_path(trans, inode->bi_inum,
+						 inode->bi_snapshot, NULL, &buf);
+		if (ret)
+			return ret;
+
+		bch_info(c, "reattached at %s", buf.buf);
+	}
 
 	/*
 	 * Fix up inodes in child snapshots: if they should also be reattached
