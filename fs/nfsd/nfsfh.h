@@ -56,7 +56,7 @@ struct knfsd_fh {
 			u8		fh_auth_type;	/* deprecated */
 			u8		fh_fsid_type;
 			u8		fh_fileid_type;
-			u32		fh_fsid[]; /* flexible-array member */
+			u32		fh_fsid[NFS4_FHSIZE / 4 - 1];
 		};
 	};
 };
