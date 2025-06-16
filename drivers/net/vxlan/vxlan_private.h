@@ -19,8 +19,8 @@ extern const struct rhashtable_params vxlan_vni_rht_params;
 /* per-network namespace private data for this module */
 struct vxlan_net {
 	struct list_head  vxlan_list;
+	/* sock_list is protected by rtnl lock */
 	struct hlist_head sock_list[PORT_HASH_SIZE];
-	spinlock_t	  sock_lock;
 	struct notifier_block nexthop_notifier_block;
 };
 
