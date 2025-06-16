@@ -36,12 +36,14 @@ static inline struct raydium_rm67200 *to_raydium_rm67200(struct drm_panel *panel
 
 static void raydium_rm67200_reset(struct raydium_rm67200 *ctx)
 {
-	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
-	msleep(60);
-	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-	msleep(60);
-	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
-	msleep(60);
+	if (ctx->reset_gpio) {
+		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+		msleep(60);
+		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+		msleep(60);
+		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+		msleep(60);
+	}
 }
 
 static void raydium_rm67200_write(struct mipi_dsi_multi_context *ctx,
@@ -409,7 +411,7 @@ static int raydium_rm67200_probe(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		return ret;
 
-	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
 				     "Failed to get reset-gpios\n");
