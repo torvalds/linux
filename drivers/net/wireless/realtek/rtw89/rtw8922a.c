@@ -2923,7 +2923,6 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.phycap_size		= 0x38,
 	.para_ver		= 0xf,
 	.wlcx_desired		= 0x07110000,
-	.btcx_desired		= 0x7,
 	.scbd			= 0x1,
 	.mailbox		= 0x1,
 

@@ -883,7 +883,6 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.phycap_size		= 128,
 	.para_ver		= 0,
 	.wlcx_desired		= 0x05050000,
-	.btcx_desired		= 0x5,
 	.scbd			= 0x1,
 	.mailbox		= 0x1,
 

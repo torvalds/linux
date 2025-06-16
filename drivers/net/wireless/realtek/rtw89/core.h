@@ -3199,6 +3199,7 @@ struct rtw89_btc_ver {
 	u8 max_role_num;
 	u8 fcxosi;
 	u8 fcxmlo;
+	u8 bt_desired;
 };
 
 struct rtw89_btc_btf_fwinfo {
@@ -4422,7 +4423,6 @@ struct rtw89_chip_info {
 
 	u32 para_ver;
 	u32 wlcx_desired;
-	u8 btcx_desired;
 	u8 scbd;
 	u8 mailbox;
 
