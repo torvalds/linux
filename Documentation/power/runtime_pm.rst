@@ -354,9 +354,9 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       success or error code if the request has not been queued up
 
   `int pm_request_autosuspend(struct device *dev);`
-    - schedule the execution of the subsystem-level suspend callback for the
-      device when the autosuspend delay has expired; if the delay has already
-      expired then the work item is queued up immediately
+    - Call pm_runtime_mark_last_busy() and schedule the execution of the
+      subsystem-level suspend callback for the device when the autosuspend delay
+      expires
 
   `int pm_schedule_suspend(struct device *dev, unsigned int delay);`
     - schedule the execution of the subsystem-level suspend callback for the

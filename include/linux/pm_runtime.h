@@ -448,11 +448,12 @@ static inline int pm_request_resume(struct device *dev)
 }
 
 /**
- * pm_request_autosuspend - Queue up autosuspend of a device.
+ * pm_request_autosuspend - Update the last access time and queue up autosuspend
+ * of a device.
  * @dev: Target device.
  *
- * Queue up a work item to run an equivalent pm_runtime_autosuspend() for @dev
- * asynchronously.
+ * Update the last access time of a device and queue up a work item to run an
+ * equivalent pm_runtime_autosuspend() for @dev asynchronously.
  *
  * Return:
  * * 0: Success.
@@ -467,6 +468,7 @@ static inline int pm_request_resume(struct device *dev)
  */
 static inline int pm_request_autosuspend(struct device *dev)
 {
+	pm_runtime_mark_last_busy(dev);
 	return __pm_runtime_suspend(dev, RPM_ASYNC | RPM_AUTO);
 }
 
