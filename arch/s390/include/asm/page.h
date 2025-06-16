@@ -134,12 +134,14 @@ static inline void page_set_storage_key(unsigned long addr,
 		asm volatile(
 			"	.insn	rrf,0xb22b0000,%[skey],%[addr],8,0"
 			:
-			: [skey] "d" (skey), [addr] "a" (addr));
+			: [skey] "d" (skey), [addr] "a" (addr)
+			: "memory");
 	} else {
 		asm volatile(
 			"	sske	 %[skey],%[addr]"
 			:
-			: [skey] "d" (skey), [addr] "a" (addr));
+			: [skey] "d" (skey), [addr] "a" (addr)
+			: "memory");
 	}
 }
 
