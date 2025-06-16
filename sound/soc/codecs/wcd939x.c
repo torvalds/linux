@@ -39,6 +39,11 @@
 #define CHIPID_WCD9390			0x0
 #define CHIPID_WCD9395			0x5
 
+/* Version major: 1.x */
+#define CHIPID_WCD939X_VER_MAJOR_1	0x0
+/* Version minor: x.1 */
+#define CHIPID_WCD939X_VER_MINOR_1	0x3
+
 enum {
 	WCD939X_VERSION_1_0 = 0,
 	WCD939X_VERSION_1_1,
@@ -3449,8 +3454,8 @@ static int wcd939x_bind(struct device *dev)
 	regmap_read(wcd939x->regmap, WCD939X_DIGITAL_CHIP_ID1, &id1);
 	regmap_read(wcd939x->regmap, WCD939X_EAR_STATUS_REG_1, &status1);
 
-	if (id1 == 0)
-		version = ((status1 & 0x3) ? WCD939X_VERSION_1_1 : WCD939X_VERSION_1_0);
+	if (id1 == CHIPID_WCD939X_VER_MAJOR_1)
+		version = ((status1 & CHIPID_WCD939X_VER_MINOR_1) ? WCD939X_VERSION_1_1 : WCD939X_VERSION_1_0);
 	else
 		version = WCD939X_VERSION_2_0;
 
