@@ -17,7 +17,7 @@
 
 #include "sha.h"
 
-static int sha512_init(struct shash_desc *desc)
+static int sha512_init_s390(struct shash_desc *desc)
 {
 	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
 
@@ -62,7 +62,7 @@ static int sha512_import(struct shash_desc *desc, const void *in)
 
 static struct shash_alg sha512_alg = {
 	.digestsize	=	SHA512_DIGEST_SIZE,
-	.init		=	sha512_init,
+	.init		=	sha512_init_s390,
 	.update		=	s390_sha_update_blocks,
 	.finup		=	s390_sha_finup,
 	.export		=	sha512_export,
@@ -82,7 +82,7 @@ static struct shash_alg sha512_alg = {
 
 MODULE_ALIAS_CRYPTO("sha512");
 
-static int sha384_init(struct shash_desc *desc)
+static int sha384_init_s390(struct shash_desc *desc)
 {
 	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
 
@@ -103,7 +103,7 @@ static int sha384_init(struct shash_desc *desc)
 
 static struct shash_alg sha384_alg = {
 	.digestsize	=	SHA384_DIGEST_SIZE,
-	.init		=	sha384_init,
+	.init		=	sha384_init_s390,
 	.update		=	s390_sha_update_blocks,
 	.finup		=	s390_sha_finup,
 	.export		=	sha512_export,
