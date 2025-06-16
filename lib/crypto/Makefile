@@ -5,6 +5,9 @@ aflags-thumb2-$(CONFIG_THUMB2_KERNEL)  := -U__thumb2__ -D__thumb2__=1
 quiet_cmd_perlasm = PERLASM $@
       cmd_perlasm = $(PERL) $(<) > $(@)
 
+quiet_cmd_perlasm_with_args = PERLASM $@
+      cmd_perlasm_with_args = $(PERL) $(<) void $(@)
+
 obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o
 libcryptoutils-y				:= memneq.o utils.o
 
@@ -82,6 +85,13 @@ clean-files += arm/sha512-core.S
 AFLAGS_arm/sha512-core.o += $(aflags-thumb2-y)
 endif
 
+ifeq ($(CONFIG_ARM64),y)
+libsha512-y += arm64/sha512-core.o
+$(obj)/arm64/sha512-core.S: $(src)/../../arch/arm64/lib/crypto/sha2-armv8.pl
+	$(call cmd,perlasm_with_args)
+clean-files += arm64/sha512-core.S
+libsha512-$(CONFIG_KERNEL_MODE_NEON) += arm64/sha512-ce-core.o
+endif
 endif # CONFIG_CRYPTO_LIB_SHA512_ARCH
 
 obj-$(CONFIG_MPILIB) += mpi/

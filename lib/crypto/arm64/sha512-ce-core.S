@@ -102,8 +102,8 @@
 	.endm
 
 	/*
-	 * int __sha512_ce_transform(struct sha512_state *sst, u8 const *src,
-	 *			     int blocks)
+	 * size_t __sha512_ce_transform(struct sha512_block_state *state,
+	 *				const u8 *data, size_t nblocks);
 	 */
 	.text
 SYM_FUNC_START(__sha512_ce_transform)
@@ -117,7 +117,7 @@ SYM_FUNC_START(__sha512_ce_transform)
 	/* load input */
 0:	ld1		{v12.2d-v15.2d}, [x1], #64
 	ld1		{v16.2d-v19.2d}, [x1], #64
-	sub		w2, w2, #1
+	sub		x2, x2, #1
 
 CPU_LE(	rev64		v12.16b, v12.16b	)
 CPU_LE(	rev64		v13.16b, v13.16b	)
@@ -197,10 +197,10 @@ CPU_LE(	rev64		v19.16b, v19.16b	)
 
 	cond_yield	3f, x4, x5
 	/* handled all input blocks? */
-	cbnz		w2, 0b
+	cbnz		x2, 0b
 
 	/* store new state */
 3:	st1		{v8.2d-v11.2d}, [x0]
-	mov		w0, w2
+	mov		x0, x2
 	ret
 SYM_FUNC_END(__sha512_ce_transform)
