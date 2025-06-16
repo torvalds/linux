@@ -2035,8 +2035,8 @@ static inline int ip6mr_forward2_finish(struct net *net, struct sock *sk, struct
  *	Processing handlers for ip6mr_forward
  */
 
-static int ip6mr_forward2(struct net *net, struct mr_table *mrt,
-			  struct sk_buff *skb, int vifi)
+static void ip6mr_forward2(struct net *net, struct mr_table *mrt,
+			   struct sk_buff *skb, int vifi)
 {
 	struct vif_device *vif = &mrt->vif_table[vifi];
 	struct net_device *indev = skb->dev;
@@ -2101,13 +2101,13 @@ static int ip6mr_forward2(struct net *net, struct mr_table *mrt,
 
 	IP6CB(skb)->flags |= IP6SKB_FORWARDED;
 
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
-		       net, NULL, skb, indev, skb->dev,
-		       ip6mr_forward2_finish);
+	NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
+		net, NULL, skb, indev, skb->dev,
+		ip6mr_forward2_finish);
+	return;
 
 out_free:
 	kfree_skb(skb);
-	return 0;
 }
 
 /* Called with rcu_read_lock() */
