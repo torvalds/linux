@@ -386,7 +386,6 @@ static unsigned int __damon_pa_migrate_folio_list(
 		int target_nid)
 {
 	unsigned int nr_succeeded = 0;
-	nodemask_t allowed_mask = NODE_MASK_NONE;
 	struct migration_target_control mtc = {
 		/*
 		 * Allocate from 'node', or fail quickly and quietly.
@@ -396,7 +395,6 @@ static unsigned int __damon_pa_migrate_folio_list(
 		.gfp_mask = (GFP_HIGHUSER_MOVABLE & ~__GFP_RECLAIM) |
 			__GFP_NOWARN | __GFP_NOMEMALLOC | GFP_NOWAIT,
 		.nid = target_nid,
-		.nmask = &allowed_mask
 	};
 
 	if (pgdat->node_id == target_nid || target_nid == NUMA_NO_NODE)
@@ -406,7 +404,7 @@ static unsigned int __damon_pa_migrate_folio_list(
 		return 0;
 
 	/* Migration ignores all cpuset and mempolicy settings */
-	migrate_pages(migrate_folios, alloc_migrate_folio, NULL,
+	migrate_pages(migrate_folios, alloc_migration_target, NULL,
 		      (unsigned long)&mtc, MIGRATE_ASYNC, MR_DAMON,
 		      &nr_succeeded);
 
