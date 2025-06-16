@@ -328,26 +328,21 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	lpc_snoop->clk = devm_clk_get(dev, NULL);
+	lpc_snoop->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(lpc_snoop->clk)) {
 		rc = PTR_ERR(lpc_snoop->clk);
 		if (rc != -EPROBE_DEFER)
 			dev_err(dev, "couldn't get clock\n");
 		return rc;
 	}
-	rc = clk_prepare_enable(lpc_snoop->clk);
-	if (rc) {
-		dev_err(dev, "couldn't enable clock\n");
-		return rc;
-	}
 
 	rc = aspeed_lpc_snoop_config_irq(lpc_snoop, pdev);
 	if (rc)
-		goto err;
+		return rc;
 
 	rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, ASPEED_LPC_SNOOP_INDEX_0, port);
 	if (rc)
-		goto err;
+		return rc;
 
 	/* Configuration of 2nd snoop channel port is optional */
 	if (of_property_read_u32_index(dev->of_node, "snoop-ports",
@@ -355,16 +350,11 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 		rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, ASPEED_LPC_SNOOP_INDEX_1, port);
 		if (rc) {
 			aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
-			goto err;
+			return rc;
 		}
 	}
 
 	return 0;
-
-err:
-	clk_disable_unprepare(lpc_snoop->clk);
-
-	return rc;
 }
 
 static void aspeed_lpc_snoop_remove(struct platform_device *pdev)
@@ -374,8 +364,6 @@ static void aspeed_lpc_snoop_remove(struct platform_device *pdev)
 	/* Disable both snoop channels */
 	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
 	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_1);
-
-	clk_disable_unprepare(lpc_snoop->clk);
 }
 
 static const struct aspeed_lpc_snoop_model_data ast2400_model_data = {
