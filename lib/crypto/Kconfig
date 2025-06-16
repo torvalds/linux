@@ -2,6 +2,8 @@
 
 menu "Crypto library routines"
 
+source "lib/crypto/tests/Kconfig"
+
 config CRYPTO_LIB_UTILS
 	tristate
 

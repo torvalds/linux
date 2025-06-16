@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
+obj-y += tests/
+
 aflags-thumb2-$(CONFIG_THUMB2_KERNEL)  := -U__thumb2__ -D__thumb2__=1
 
 quiet_cmd_perlasm = PERLASM $@
