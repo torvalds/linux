@@ -36,6 +36,9 @@
 #define TX_ADC_MAX			(4)
 #define WCD_MBHC_HS_V_MAX		1600
 
+#define CHIPID_WCD9390			0x0
+#define CHIPID_WCD9395			0x5
+
 enum {
 	WCD939X_VERSION_1_0 = 0,
 	WCD939X_VERSION_1_1,
@@ -84,11 +87,6 @@ enum {
 
 /* Z value compared in milliOhm */
 #define WCD939X_ANA_MBHC_ZDET_CONST	(1018 * 1024)
-
-enum {
-	WCD9390 = 0,
-	WCD9395 = 5,
-};
 
 enum {
 	/* INTR_CTRL_INT_MASK_0 */
@@ -1483,7 +1481,7 @@ static int wcd939x_rx_hph_mode_put(struct snd_kcontrol *kcontrol,
 	if (mode_val == wcd939x->hph_mode)
 		return 0;
 
-	if (wcd939x->variant == WCD9390) {
+	if (wcd939x->variant == CHIPID_WCD9390) {
 		switch (mode_val) {
 		case CLS_H_NORMAL:
 		case CLS_H_LP:
@@ -3065,7 +3063,7 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 	disable_irq_nosync(wcd939x->ear_pdm_wd_int);
 
 	switch (wcd939x->variant) {
-	case WCD9390:
+	case CHIPID_WCD9390:
 		ret = snd_soc_add_component_controls(component, wcd9390_snd_controls,
 						     ARRAY_SIZE(wcd9390_snd_controls));
 		if (ret < 0) {
@@ -3075,7 +3073,7 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 			goto err_free_ear_pdm_wd_int;
 		}
 		break;
-	case WCD9395:
+	case CHIPID_WCD9395:
 		ret = snd_soc_add_component_controls(component, wcd9395_snd_controls,
 						     ARRAY_SIZE(wcd9395_snd_controls));
 		if (ret < 0) {
