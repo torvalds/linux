@@ -263,7 +263,7 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *t)
 
 	udp_tunnel6_xmit_skb(dst, sk, skb, NULL, &fl6->saddr, &fl6->daddr,
 			     tclass, ip6_dst_hoplimit(dst), label,
-			     sctp_sk(sk)->udp_port, t->encap_port, false);
+			     sctp_sk(sk)->udp_port, t->encap_port, false, 0);
 	return 0;
 }
 

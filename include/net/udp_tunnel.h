@@ -158,7 +158,8 @@ void udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 			  const struct in6_addr *saddr,
 			  const struct in6_addr *daddr,
 			  __u8 prio, __u8 ttl, __be32 label,
-			  __be16 src_port, __be16 dst_port, bool nocheck);
+			  __be16 src_port, __be16 dst_port, bool nocheck,
+			  u16 ip6cb_flags);
 
 void udp_tunnel_sock_release(struct socket *sock);
 

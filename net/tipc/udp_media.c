@@ -219,7 +219,7 @@ static int tipc_udp_xmit(struct net *net, struct sk_buff *skb,
 		ttl = ip6_dst_hoplimit(ndst);
 		udp_tunnel6_xmit_skb(ndst, ub->ubsock->sk, skb, NULL,
 				     &src->ipv6, &dst->ipv6, 0, ttl, 0,
-				     src->port, dst->port, false);
+				     src->port, dst->port, false, 0);
 #endif
 	}
 	local_bh_enable();
