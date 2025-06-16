@@ -566,7 +566,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 			.size = MAX_CHAIN_CMDBUF_SIZE,
 		};
 
-		abo = amdxdna_drm_alloc_dev_bo(&xdna->ddev, &args, client->filp, true);
+		abo = amdxdna_drm_alloc_dev_bo(&xdna->ddev, &args, client->filp);
 		if (IS_ERR(abo)) {
 			ret = PTR_ERR(abo);
 			goto free_cmd_bufs;
