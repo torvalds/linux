@@ -241,16 +241,19 @@ out:
 
 static bool set_core_pattern(const char *pattern)
 {
-	FILE *file;
-	int ret;
+	int fd;
+	ssize_t ret;
 
-	file = fopen("/proc/sys/kernel/core_pattern", "w");
-	if (!file)
+	fd = open("/proc/sys/kernel/core_pattern", O_WRONLY | O_CLOEXEC);
+	if (fd < 0)
 		return false;
 
-	ret = fprintf(file, "%s", pattern);
-	fclose(file);
+	ret = write(fd, pattern, strlen(pattern));
+	close(fd);
+	if (ret < 0)
+		return false;
 
+	fprintf(stderr, "Set core_pattern to '%s' | %zu == %zu\n", pattern, ret, strlen(pattern));
 	return ret == strlen(pattern);
 }
 
@@ -1802,6 +1805,23 @@ out:
 	}
 
 	wait_and_check_coredump_server(pid_coredump_server, _metadata, self);
+}
+
+TEST_F(coredump, socket_invalid_paths)
+{
+	ASSERT_FALSE(set_core_pattern("@ /tmp/coredump.socket"));
+	ASSERT_FALSE(set_core_pattern("@/tmp/../coredump.socket"));
+	ASSERT_FALSE(set_core_pattern("@../coredump.socket"));
+	ASSERT_FALSE(set_core_pattern("@/tmp/coredump.socket/.."));
+	ASSERT_FALSE(set_core_pattern("@.."));
+
+	ASSERT_FALSE(set_core_pattern("@@ /tmp/coredump.socket"));
+	ASSERT_FALSE(set_core_pattern("@@/tmp/../coredump.socket"));
+	ASSERT_FALSE(set_core_pattern("@@../coredump.socket"));
+	ASSERT_FALSE(set_core_pattern("@@/tmp/coredump.socket/.."));
+	ASSERT_FALSE(set_core_pattern("@@.."));
+
+	ASSERT_FALSE(set_core_pattern("@@@/tmp/coredump.socket"));
 }
 
 TEST_HARNESS_MAIN

@@ -82,6 +82,7 @@ static unsigned int core_sort_vma;
 static char core_pattern[CORENAME_MAX_SIZE] = "core";
 static int core_name_size = CORENAME_MAX_SIZE;
 unsigned int core_file_note_size_limit = CORE_FILE_NOTE_SIZE_DEFAULT;
+static atomic_t core_pipe_count = ATOMIC_INIT(0);
 
 enum coredump_type_t {
 	COREDUMP_FILE		= 1,
@@ -93,6 +94,8 @@ enum coredump_type_t {
 struct core_name {
 	char *corename;
 	int used, size;
+	unsigned int core_pipe_limit;
+	bool core_dumped;
 	enum coredump_type_t core_type;
 	u64 mask;
 };
@@ -225,11 +228,12 @@ put_exe_file:
 	return ret;
 }
 
-/* format_corename will inspect the pattern parameter, and output a
- * name into corename, which must have space for at least
- * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
+/*
+ * coredump_parse will inspect the pattern parameter, and output a name
+ * into corename, which must have space for at least CORENAME_MAX_SIZE
+ * bytes plus one byte for the zero terminator.
  */
-static int format_corename(struct core_name *cn, struct coredump_params *cprm,
+static bool coredump_parse(struct core_name *cn, struct coredump_params *cprm,
 			   size_t **argv, int *argc)
 {
 	const struct cred *cred = current_cred();
@@ -243,6 +247,8 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 		cn->mask |= COREDUMP_WAIT;
 	cn->used = 0;
 	cn->corename = NULL;
+	cn->core_pipe_limit = 0;
+	cn->core_dumped = false;
 	if (*pat_ptr == '|')
 		cn->core_type = COREDUMP_PIPE;
 	else if (*pat_ptr == '@')
@@ -250,7 +256,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 	else
 		cn->core_type = COREDUMP_FILE;
 	if (expand_corename(cn, core_name_size))
-		return -ENOMEM;
+		return false;
 	cn->corename[0] = '\0';
 
 	switch (cn->core_type) {
@@ -258,33 +264,33 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 		int argvs = sizeof(core_pattern) / 2;
 		(*argv) = kmalloc_array(argvs, sizeof(**argv), GFP_KERNEL);
 		if (!(*argv))
-			return -ENOMEM;
+			return false;
 		(*argv)[(*argc)++] = 0;
 		++pat_ptr;
 		if (!(*pat_ptr))
-			return -ENOMEM;
+			return false;
 		break;
 	}
 	case COREDUMP_SOCK: {
 		/* skip the @ */
 		pat_ptr++;
 		if (!(*pat_ptr))
-			return -ENOMEM;
+			return false;
 		if (*pat_ptr == '@') {
 			pat_ptr++;
 			if (!(*pat_ptr))
-				return -ENOMEM;
+				return false;
 
 			cn->core_type = COREDUMP_SOCK_REQ;
 		}
 
 		err = cn_printf(cn, "%s", pat_ptr);
 		if (err)
-			return err;
+			return false;
 
 		/* Require absolute paths. */
 		if (cn->corename[0] != '/')
-			return -EINVAL;
+			return false;
 
 		/*
 		 * Ensure we can uses spaces to indicate additional
@@ -292,7 +298,18 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 		 */
 		if (strchr(cn->corename, ' ')) {
 			coredump_report_failure("Coredump socket may not %s contain spaces", cn->corename);
-			return -EINVAL;
+			return false;
+		}
+
+		/* Must not contain ".." in the path. */
+		if (name_contains_dotdot(cn->corename)) {
+			coredump_report_failure("Coredump socket may not %s contain '..' spaces", cn->corename);
+			return false;
+		}
+
+		if (strlen(cn->corename) >= UNIX_PATH_MAX) {
+			coredump_report_failure("Coredump socket path %s too long", cn->corename);
+			return false;
 		}
 
 		/*
@@ -302,13 +319,13 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 		 * via /proc/<pid>, using the SO_PEERPIDFD to guard
 		 * against pid recycling when opening /proc/<pid>.
 		 */
-		return 0;
+		return true;
 	}
 	case COREDUMP_FILE:
 		break;
 	default:
 		WARN_ON_ONCE(true);
-		return -EINVAL;
+		return false;
 	}
 
 	/* Repeat as long as we have more pattern to process and more output
@@ -446,7 +463,7 @@ static int format_corename(struct core_name *cn, struct coredump_params *cprm,
 		}
 
 		if (err)
-			return err;
+			return false;
 	}
 
 out:
@@ -456,9 +473,9 @@ out:
 	 * and core_uses_pid is set, then .%pid will be appended to
 	 * the filename. Do not do this for piped commands. */
 	if (cn->core_type == COREDUMP_FILE && !pid_in_pattern && core_uses_pid)
-		return cn_printf(cn, ".%d", task_tgid_vnr(current));
+		return cn_printf(cn, ".%d", task_tgid_vnr(current)) == 0;
 
-	return 0;
+	return true;
 }
 
 static int zap_process(struct signal_struct *signal, int exit_code)
@@ -840,34 +857,250 @@ static bool coredump_sock_request(struct core_name *cn, struct coredump_params *
 	cn->mask = ack.mask;
 	return coredump_sock_mark(cprm->file, COREDUMP_MARK_REQACK);
 }
-#else
-static bool coredump_sock_connect(struct core_name *cn,
-				  struct coredump_params *cprm)
+
+static bool coredump_socket(struct core_name *cn, struct coredump_params *cprm)
 {
-	coredump_report_failure("Core dump socket support %s disabled", cn->corename);
-	return false;
+	if (!coredump_sock_connect(cn, cprm))
+		return false;
+
+	return coredump_sock_request(cn, cprm);
 }
-static bool coredump_sock_request(struct core_name *cn,
-				  struct coredump_params *cprm) { return false; }
+#else
 static inline void coredump_sock_wait(struct file *file) { }
 static inline void coredump_sock_shutdown(struct file *file) { }
+static inline bool coredump_socket(struct core_name *cn, struct coredump_params *cprm) { return false; }
 #endif
 
-void do_coredump(const kernel_siginfo_t *siginfo)
+/* cprm->mm_flags contains a stable snapshot of dumpability flags. */
+static inline bool coredump_force_suid_safe(const struct coredump_params *cprm)
 {
+	/* Require nonrelative corefile path and be extra careful. */
+	return __get_dumpable(cprm->mm_flags) == SUID_DUMP_ROOT;
+}
+
+static bool coredump_file(struct core_name *cn, struct coredump_params *cprm,
+			  const struct linux_binfmt *binfmt)
+{
+	struct mnt_idmap *idmap;
+	struct inode *inode;
+	struct file *file __free(fput) = NULL;
+	int open_flags = O_CREAT | O_WRONLY | O_NOFOLLOW | O_LARGEFILE | O_EXCL;
+
+	if (cprm->limit < binfmt->min_coredump)
+		return false;
+
+	if (coredump_force_suid_safe(cprm) && cn->corename[0] != '/') {
+		coredump_report_failure("this process can only dump core to a fully qualified path, skipping core dump");
+		return false;
+	}
+
+	/*
+	 * Unlink the file if it exists unless this is a SUID
+	 * binary - in that case, we're running around with root
+	 * privs and don't want to unlink another user's coredump.
+	 */
+	if (!coredump_force_suid_safe(cprm)) {
+		/*
+		 * If it doesn't exist, that's fine. If there's some
+		 * other problem, we'll catch it at the filp_open().
+		 */
+		do_unlinkat(AT_FDCWD, getname_kernel(cn->corename));
+	}
+
+	/*
+	 * There is a race between unlinking and creating the
+	 * file, but if that causes an EEXIST here, that's
+	 * fine - another process raced with us while creating
+	 * the corefile, and the other process won. To userspace,
+	 * what matters is that at least one of the two processes
+	 * writes its coredump successfully, not which one.
+	 */
+	if (coredump_force_suid_safe(cprm)) {
+		/*
+		 * Using user namespaces, normal user tasks can change
+		 * their current->fs->root to point to arbitrary
+		 * directories. Since the intention of the "only dump
+		 * with a fully qualified path" rule is to control where
+		 * coredumps may be placed using root privileges,
+		 * current->fs->root must not be used. Instead, use the
+		 * root directory of init_task.
+		 */
+		struct path root;
+
+		task_lock(&init_task);
+		get_fs_root(init_task.fs, &root);
+		task_unlock(&init_task);
+		file = file_open_root(&root, cn->corename, open_flags, 0600);
+		path_put(&root);
+	} else {
+		file = filp_open(cn->corename, open_flags, 0600);
+	}
+	if (IS_ERR(file))
+		return false;
+
+	inode = file_inode(file);
+	if (inode->i_nlink > 1)
+		return false;
+	if (d_unhashed(file->f_path.dentry))
+		return false;
+	/*
+	 * AK: actually i see no reason to not allow this for named
+	 * pipes etc, but keep the previous behaviour for now.
+	 */
+	if (!S_ISREG(inode->i_mode))
+		return false;
+	/*
+	 * Don't dump core if the filesystem changed owner or mode
+	 * of the file during file creation. This is an issue when
+	 * a process dumps core while its cwd is e.g. on a vfat
+	 * filesystem.
+	 */
+	idmap = file_mnt_idmap(file);
+	if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid())) {
+		coredump_report_failure("Core dump to %s aborted: cannot preserve file owner", cn->corename);
+		return false;
+	}
+	if ((inode->i_mode & 0677) != 0600) {
+		coredump_report_failure("Core dump to %s aborted: cannot preserve file permissions", cn->corename);
+		return false;
+	}
+	if (!(file->f_mode & FMODE_CAN_WRITE))
+		return false;
+	if (do_truncate(idmap, file->f_path.dentry, 0, 0, file))
+		return false;
+
+	cprm->file = no_free_ptr(file);
+	return true;
+}
+
+static bool coredump_pipe(struct core_name *cn, struct coredump_params *cprm,
+			  size_t *argv, int argc)
+{
+	int argi;
+	char **helper_argv __free(kfree) = NULL;
+	struct subprocess_info *sub_info;
+
+	if (cprm->limit == 1) {
+		/* See umh_coredump_setup() which sets RLIMIT_CORE = 1.
+		 *
+		 * Normally core limits are irrelevant to pipes, since
+		 * we're not writing to the file system, but we use
+		 * cprm.limit of 1 here as a special value, this is a
+		 * consistent way to catch recursive crashes.
+		 * We can still crash if the core_pattern binary sets
+		 * RLIM_CORE = !1, but it runs as root, and can do
+		 * lots of stupid things.
+		 *
+		 * Note that we use task_tgid_vnr here to grab the pid
+		 * of the process group leader.  That way we get the
+		 * right pid if a thread in a multi-threaded
+		 * core_pattern process dies.
+		 */
+		coredump_report_failure("RLIMIT_CORE is set to 1, aborting core");
+		return false;
+	}
+	cprm->limit = RLIM_INFINITY;
+
+	cn->core_pipe_limit = atomic_inc_return(&core_pipe_count);
+	if (core_pipe_limit && (core_pipe_limit < cn->core_pipe_limit)) {
+		coredump_report_failure("over core_pipe_limit, skipping core dump");
+		return false;
+	}
+
+	helper_argv = kmalloc_array(argc + 1, sizeof(*helper_argv), GFP_KERNEL);
+	if (!helper_argv) {
+		coredump_report_failure("%s failed to allocate memory", __func__);
+		return false;
+	}
+	for (argi = 0; argi < argc; argi++)
+		helper_argv[argi] = cn->corename + argv[argi];
+	helper_argv[argi] = NULL;
+
+	sub_info = call_usermodehelper_setup(helper_argv[0], helper_argv, NULL,
+					     GFP_KERNEL, umh_coredump_setup,
+					     NULL, cprm);
+	if (!sub_info)
+		return false;
+
+	if (call_usermodehelper_exec(sub_info, UMH_WAIT_EXEC)) {
+		coredump_report_failure("|%s pipe failed", cn->corename);
+		return false;
+	}
+
+	/*
+	 * umh disabled with CONFIG_STATIC_USERMODEHELPER_PATH="" would
+	 * have this set to NULL.
+	 */
+	if (!cprm->file) {
+		coredump_report_failure("Core dump to |%s disabled", cn->corename);
+		return false;
+	}
+
+	return true;
+}
+
+static bool coredump_write(struct core_name *cn,
+			  struct coredump_params *cprm,
+			  struct linux_binfmt *binfmt)
+{
+
+	if (dump_interrupted())
+		return true;
+
+	if (!dump_vma_snapshot(cprm))
+		return false;
+
+	file_start_write(cprm->file);
+	cn->core_dumped = binfmt->core_dump(cprm);
+	/*
+	 * Ensures that file size is big enough to contain the current
+	 * file postion. This prevents gdb from complaining about
+	 * a truncated file if the last "write" to the file was
+	 * dump_skip.
+	 */
+	if (cprm->to_skip) {
+		cprm->to_skip--;
+		dump_emit(cprm, "", 1);
+	}
+	file_end_write(cprm->file);
+	free_vma_snapshot(cprm);
+	return true;
+}
+
+static void coredump_cleanup(struct core_name *cn, struct coredump_params *cprm)
+{
+	if (cprm->file)
+		filp_close(cprm->file, NULL);
+	if (cn->core_pipe_limit) {
+		VFS_WARN_ON_ONCE(cn->core_type != COREDUMP_PIPE);
+		atomic_dec(&core_pipe_count);
+	}
+	kfree(cn->corename);
+	coredump_finish(cn->core_dumped);
+}
+
+static inline bool coredump_skip(const struct coredump_params *cprm,
+				 const struct linux_binfmt *binfmt)
+{
+	if (!binfmt)
+		return true;
+	if (!binfmt->core_dump)
+		return true;
+	if (!__get_dumpable(cprm->mm_flags))
+		return true;
+	return false;
+}
+
+void vfs_coredump(const kernel_siginfo_t *siginfo)
+{
+	struct cred *cred __free(put_cred) = NULL;
+	size_t *argv __free(kfree) = NULL;
 	struct core_state core_state;
 	struct core_name cn;
 	struct mm_struct *mm = current->mm;
-	struct linux_binfmt * binfmt;
+	struct linux_binfmt *binfmt = mm->binfmt;
 	const struct cred *old_cred;
-	struct cred *cred;
-	int retval = 0;
-	size_t *argv = NULL;
 	int argc = 0;
-	/* require nonrelative corefile path and be extra careful */
-	bool need_suid_safe = false;
-	bool core_dumped = false;
-	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
 		.limit = rlimit(RLIMIT_CORE),
@@ -883,201 +1116,44 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 
 	audit_core_dumps(siginfo->si_signo);
 
-	binfmt = mm->binfmt;
-	if (!binfmt || !binfmt->core_dump)
-		goto fail;
-	if (!__get_dumpable(cprm.mm_flags))
-		goto fail;
+	if (coredump_skip(&cprm, binfmt))
+		return;
 
 	cred = prepare_creds();
 	if (!cred)
-		goto fail;
+		return;
 	/*
 	 * We cannot trust fsuid as being the "true" uid of the process
 	 * nor do we know its entire history. We only know it was tainted
 	 * so we dump it as root in mode 2, and only into a controlled
 	 * environment (pipe handler or fully qualified path).
 	 */
-	if (__get_dumpable(cprm.mm_flags) == SUID_DUMP_ROOT) {
-		/* Setuid core dump mode */
-		cred->fsuid = GLOBAL_ROOT_UID;	/* Dump root private */
-		need_suid_safe = true;
-	}
+	if (coredump_force_suid_safe(&cprm))
+		cred->fsuid = GLOBAL_ROOT_UID;
 
-	retval = coredump_wait(siginfo->si_signo, &core_state);
-	if (retval < 0)
-		goto fail_creds;
+	if (coredump_wait(siginfo->si_signo, &core_state) < 0)
+		return;
 
 	old_cred = override_creds(cred);
 
-	retval = format_corename(&cn, &cprm, &argv, &argc);
-	if (retval < 0) {
+	if (!coredump_parse(&cn, &cprm, &argv, &argc)) {
 		coredump_report_failure("format_corename failed, aborting core");
-		goto fail_unlock;
+		goto close_fail;
 	}
 
 	switch (cn.core_type) {
-	case COREDUMP_FILE: {
-		struct mnt_idmap *idmap;
-		struct inode *inode;
-		int open_flags = O_CREAT | O_WRONLY | O_NOFOLLOW |
-				 O_LARGEFILE | O_EXCL;
-
-		if (cprm.limit < binfmt->min_coredump)
-			goto fail_unlock;
-
-		if (need_suid_safe && cn.corename[0] != '/') {
-			coredump_report_failure(
-				"this process can only dump core to a fully qualified path, skipping core dump");
-			goto fail_unlock;
-		}
-
-		/*
-		 * Unlink the file if it exists unless this is a SUID
-		 * binary - in that case, we're running around with root
-		 * privs and don't want to unlink another user's coredump.
-		 */
-		if (!need_suid_safe) {
-			/*
-			 * If it doesn't exist, that's fine. If there's some
-			 * other problem, we'll catch it at the filp_open().
-			 */
-			do_unlinkat(AT_FDCWD, getname_kernel(cn.corename));
-		}
-
-		/*
-		 * There is a race between unlinking and creating the
-		 * file, but if that causes an EEXIST here, that's
-		 * fine - another process raced with us while creating
-		 * the corefile, and the other process won. To userspace,
-		 * what matters is that at least one of the two processes
-		 * writes its coredump successfully, not which one.
-		 */
-		if (need_suid_safe) {
-			/*
-			 * Using user namespaces, normal user tasks can change
-			 * their current->fs->root to point to arbitrary
-			 * directories. Since the intention of the "only dump
-			 * with a fully qualified path" rule is to control where
-			 * coredumps may be placed using root privileges,
-			 * current->fs->root must not be used. Instead, use the
-			 * root directory of init_task.
-			 */
-			struct path root;
-
-			task_lock(&init_task);
-			get_fs_root(init_task.fs, &root);
-			task_unlock(&init_task);
-			cprm.file = file_open_root(&root, cn.corename,
-						   open_flags, 0600);
-			path_put(&root);
-		} else {
-			cprm.file = filp_open(cn.corename, open_flags, 0600);
-		}
-		if (IS_ERR(cprm.file))
-			goto fail_unlock;
-
-		inode = file_inode(cprm.file);
-		if (inode->i_nlink > 1)
-			goto close_fail;
-		if (d_unhashed(cprm.file->f_path.dentry))
-			goto close_fail;
-		/*
-		 * AK: actually i see no reason to not allow this for named
-		 * pipes etc, but keep the previous behaviour for now.
-		 */
-		if (!S_ISREG(inode->i_mode))
-			goto close_fail;
-		/*
-		 * Don't dump core if the filesystem changed owner or mode
-		 * of the file during file creation. This is an issue when
-		 * a process dumps core while its cwd is e.g. on a vfat
-		 * filesystem.
-		 */
-		idmap = file_mnt_idmap(cprm.file);
-		if (!vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode),
-				    current_fsuid())) {
-			coredump_report_failure("Core dump to %s aborted: "
-				"cannot preserve file owner", cn.corename);
-			goto close_fail;
-		}
-		if ((inode->i_mode & 0677) != 0600) {
-			coredump_report_failure("Core dump to %s aborted: "
-				"cannot preserve file permissions", cn.corename);
-			goto close_fail;
-		}
-		if (!(cprm.file->f_mode & FMODE_CAN_WRITE))
-			goto close_fail;
-		if (do_truncate(idmap, cprm.file->f_path.dentry,
-				0, 0, cprm.file))
+	case COREDUMP_FILE:
+		if (!coredump_file(&cn, &cprm, binfmt))
 			goto close_fail;
 		break;
-	}
-	case COREDUMP_PIPE: {
-		int argi;
-		int dump_count;
-		char **helper_argv;
-		struct subprocess_info *sub_info;
-
-		if (cprm.limit == 1) {
-			/* See umh_coredump_setup() which sets RLIMIT_CORE = 1.
-			 *
-			 * Normally core limits are irrelevant to pipes, since
-			 * we're not writing to the file system, but we use
-			 * cprm.limit of 1 here as a special value, this is a
-			 * consistent way to catch recursive crashes.
-			 * We can still crash if the core_pattern binary sets
-			 * RLIM_CORE = !1, but it runs as root, and can do
-			 * lots of stupid things.
-			 *
-			 * Note that we use task_tgid_vnr here to grab the pid
-			 * of the process group leader.  That way we get the
-			 * right pid if a thread in a multi-threaded
-			 * core_pattern process dies.
-			 */
-			coredump_report_failure("RLIMIT_CORE is set to 1, aborting core");
-			goto fail_unlock;
-		}
-		cprm.limit = RLIM_INFINITY;
-
-		dump_count = atomic_inc_return(&core_dump_count);
-		if (core_pipe_limit && (core_pipe_limit < dump_count)) {
-			coredump_report_failure("over core_pipe_limit, skipping core dump");
-			goto fail_dropcount;
-		}
-
-		helper_argv = kmalloc_array(argc + 1, sizeof(*helper_argv),
-					    GFP_KERNEL);
-		if (!helper_argv) {
-			coredump_report_failure("%s failed to allocate memory", __func__);
-			goto fail_dropcount;
-		}
-		for (argi = 0; argi < argc; argi++)
-			helper_argv[argi] = cn.corename + argv[argi];
-		helper_argv[argi] = NULL;
-
-		retval = -ENOMEM;
-		sub_info = call_usermodehelper_setup(helper_argv[0],
-						helper_argv, NULL, GFP_KERNEL,
-						umh_coredump_setup, NULL, &cprm);
-		if (sub_info)
-			retval = call_usermodehelper_exec(sub_info,
-							  UMH_WAIT_EXEC);
-
-		kfree(helper_argv);
-		if (retval) {
-			coredump_report_failure("|%s pipe failed", cn.corename);
+	case COREDUMP_PIPE:
+		if (!coredump_pipe(&cn, &cprm, argv, argc))
 			goto close_fail;
-		}
 		break;
-	}
 	case COREDUMP_SOCK_REQ:
 		fallthrough;
 	case COREDUMP_SOCK:
-		if (!coredump_sock_connect(&cn, &cprm))
-			goto close_fail;
-
-		if (!coredump_sock_request(&cn, &cprm))
+		if (!coredump_socket(&cn, &cprm))
 			goto close_fail;
 		break;
 	default:
@@ -1091,43 +1167,17 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 
 	/* get us an unshared descriptor table; almost always a no-op */
 	/* The cell spufs coredump code reads the file descriptor tables */
-	retval = unshare_files();
-	if (retval)
+	if (unshare_files())
 		goto close_fail;
 
-	if ((cn.mask & COREDUMP_KERNEL) && !dump_interrupted()) {
-		/*
-		 * umh disabled with CONFIG_STATIC_USERMODEHELPER_PATH="" would
-		 * have this set to NULL.
-		 */
-		if (!cprm.file) {
-			coredump_report_failure("Core dump to |%s disabled", cn.corename);
-			goto close_fail;
-		}
-		if (!dump_vma_snapshot(&cprm))
-			goto close_fail;
-
-		file_start_write(cprm.file);
-		core_dumped = binfmt->core_dump(&cprm);
-		/*
-		 * Ensures that file size is big enough to contain the current
-		 * file postion. This prevents gdb from complaining about
-		 * a truncated file if the last "write" to the file was
-		 * dump_skip.
-		 */
-		if (cprm.to_skip) {
-			cprm.to_skip--;
-			dump_emit(&cprm, "", 1);
-		}
-		file_end_write(cprm.file);
-		free_vma_snapshot(&cprm);
-	}
+	if ((cn.mask & COREDUMP_KERNEL) && !coredump_write(&cn, &cprm, binfmt))
+		goto close_fail;
 
 	coredump_sock_shutdown(cprm.file);
 
 	/* Let the parent know that a coredump was generated. */
 	if (cn.mask & COREDUMP_USERSPACE)
-		core_dumped = true;
+		cn.core_dumped = true;
 
 	/*
 	 * When core_pipe_limit is set we wait for the coredump server
@@ -1150,19 +1200,8 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	}
 
 close_fail:
-	if (cprm.file)
-		filp_close(cprm.file, NULL);
-fail_dropcount:
-	if (cn.core_type == COREDUMP_PIPE)
-		atomic_dec(&core_dump_count);
-fail_unlock:
-	kfree(argv);
-	kfree(cn.corename);
-	coredump_finish(core_dumped);
+	coredump_cleanup(&cn, &cprm);
 	revert_creds(old_cred);
-fail_creds:
-	put_cred(cred);
-fail:
 	return;
 }
 
@@ -1388,6 +1427,8 @@ void validate_coredump_safety(void)
 
 static inline bool check_coredump_socket(void)
 {
+	const char *p;
+
 	if (core_pattern[0] != '@')
 		return true;
 
@@ -1399,8 +1440,25 @@ static inline bool check_coredump_socket(void)
 	if (current->nsproxy->mnt_ns != init_task.nsproxy->mnt_ns)
 		return false;
 
-	/* Must be an absolute path or the socket request. */
-	if (*(core_pattern + 1) != '/' && *(core_pattern + 1) != '@')
+	/* Must be an absolute path... */
+	if (core_pattern[1] != '/') {
+		/* ... or the socket request protocol... */
+		if (core_pattern[1] != '@')
+			return false;
+		/* ... and if so must be an absolute path. */
+		if (core_pattern[2] != '/')
+			return false;
+		p = &core_pattern[2];
+	} else {
+		p = &core_pattern[1];
+	}
+
+	/* The path obviously cannot exceed UNIX_PATH_MAX. */
+	if (strlen(p) >= UNIX_PATH_MAX)
+		return false;
+
+	/* Must not contain ".." in the path. */
+	if (name_contains_dotdot(core_pattern))
 		return false;
 
 	return true;
