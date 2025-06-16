@@ -130,11 +130,17 @@ typedef pte_t *pgtable_t;
 static inline void page_set_storage_key(unsigned long addr,
 					unsigned char skey, int mapped)
 {
-	if (!mapped)
-		asm volatile(".insn rrf,0xb22b0000,%0,%1,8,0"
-			     : : "d" (skey), "a" (addr));
-	else
-		asm volatile("sske %0,%1" : : "d" (skey), "a" (addr));
+	if (!mapped) {
+		asm volatile(
+			"	.insn	rrf,0xb22b0000,%[skey],%[addr],8,0"
+			:
+			: [skey] "d" (skey), [addr] "a" (addr));
+	} else {
+		asm volatile(
+			"	sske	 %[skey],%[addr]"
+			:
+			: [skey] "d" (skey), [addr] "a" (addr));
+	}
 }
 
 static inline unsigned char page_get_storage_key(unsigned long addr)
