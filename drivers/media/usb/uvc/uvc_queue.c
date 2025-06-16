@@ -175,11 +175,17 @@ static int uvc_start_streaming_video(struct vb2_queue *vq, unsigned int count)
 
 	lockdep_assert_irqs_enabled();
 
+	ret = uvc_pm_get(stream->dev);
+	if (ret)
+		return ret;
+
 	queue->buf_used = 0;
 
 	ret = uvc_video_start_streaming(stream);
 	if (ret == 0)
 		return 0;
+
+	uvc_pm_put(stream->dev);
 
 	uvc_queue_return_buffers(queue, UVC_BUF_STATE_QUEUED);
 
@@ -189,10 +195,13 @@ static int uvc_start_streaming_video(struct vb2_queue *vq, unsigned int count)
 static void uvc_stop_streaming_video(struct vb2_queue *vq)
 {
 	struct uvc_video_queue *queue = vb2_get_drv_priv(vq);
+	struct uvc_streaming *stream = uvc_queue_to_stream(queue);
 
 	lockdep_assert_irqs_enabled();
 
 	uvc_video_stop_streaming(uvc_queue_to_stream(queue));
+
+	uvc_pm_put(stream->dev);
 
 	uvc_queue_return_buffers(queue, UVC_BUF_STATE_ERROR);
 }
