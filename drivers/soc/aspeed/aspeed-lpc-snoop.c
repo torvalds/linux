@@ -293,12 +293,21 @@ static void aspeed_lpc_disable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
 	kfifo_free(&channel->fifo);
 }
 
+static void aspeed_lpc_snoop_remove(struct platform_device *pdev)
+{
+	struct aspeed_lpc_snoop *lpc_snoop = dev_get_drvdata(&pdev->dev);
+
+	/* Disable both snoop channels */
+	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
+	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_1);
+}
+
 static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 {
 	struct aspeed_lpc_snoop *lpc_snoop;
-	struct device *dev;
 	struct device_node *np;
-	u32 port;
+	struct device *dev;
+	int idx;
 	int rc;
 
 	dev = &pdev->dev;
@@ -321,12 +330,6 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, lpc_snoop);
 
-	rc = of_property_read_u32_index(dev->of_node, "snoop-ports", 0, &port);
-	if (rc) {
-		dev_err(dev, "no snoop ports configured\n");
-		return -ENODEV;
-	}
-
 	lpc_snoop->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(lpc_snoop->clk))
 		return dev_err_probe(dev, PTR_ERR(lpc_snoop->clk), "couldn't get clock");
@@ -335,30 +338,24 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, ASPEED_LPC_SNOOP_INDEX_0, port);
-	if (rc)
-		return rc;
+	for (idx = ASPEED_LPC_SNOOP_INDEX_0; idx <= ASPEED_LPC_SNOOP_INDEX_MAX; idx++) {
+		u32 port;
 
-	/* Configuration of 2nd snoop channel port is optional */
-	if (of_property_read_u32_index(dev->of_node, "snoop-ports",
-				       1, &port) == 0) {
-		rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, ASPEED_LPC_SNOOP_INDEX_1, port);
-		if (rc) {
-			aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
-			return rc;
-		}
+		rc = of_property_read_u32_index(dev->of_node, "snoop-ports", idx, &port);
+		if (rc)
+			break;
+
+		rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, idx, port);
+		if (rc)
+			goto cleanup_channels;
 	}
 
-	return 0;
-}
+	return idx == ASPEED_LPC_SNOOP_INDEX_0 ? -ENODEV : 0;
 
-static void aspeed_lpc_snoop_remove(struct platform_device *pdev)
-{
-	struct aspeed_lpc_snoop *lpc_snoop = dev_get_drvdata(&pdev->dev);
+cleanup_channels:
+	aspeed_lpc_snoop_remove(pdev);
 
-	/* Disable both snoop channels */
-	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
-	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_1);
+	return rc;
 }
 
 static const struct aspeed_lpc_snoop_model_data ast2400_model_data = {
