@@ -903,21 +903,6 @@ static int rvin_setup(struct rvin_dev *vin)
 	return 0;
 }
 
-static void rvin_disable_interrupts(struct rvin_dev *vin)
-{
-	rvin_write(vin, 0, VNIE_REG);
-}
-
-static u32 rvin_get_interrupt_status(struct rvin_dev *vin)
-{
-	return rvin_read(vin, VNINTS_REG);
-}
-
-static void rvin_ack_interrupt(struct rvin_dev *vin)
-{
-	rvin_write(vin, rvin_read(vin, VNINTS_REG), VNINTS_REG);
-}
-
 static bool rvin_capture_active(struct rvin_dev *vin)
 {
 	return rvin_read(vin, VNMS_REG) & VNMS_CA;
@@ -1040,22 +1025,22 @@ static void rvin_capture_stop(struct rvin_dev *vin)
 static irqreturn_t rvin_irq(int irq, void *data)
 {
 	struct rvin_dev *vin = data;
-	u32 int_status, vnms;
+	u32 status, vnms;
 	int slot;
 	unsigned int handled = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
-	int_status = rvin_get_interrupt_status(vin);
-	if (!int_status)
+	status = rvin_read(vin, VNINTS_REG);
+	if (!status)
 		goto done;
 
-	rvin_ack_interrupt(vin);
+	rvin_write(vin, status, VNINTS_REG);
 	handled = 1;
 
 	/* Nothing to do if nothing was captured. */
-	if (!(int_status & VNINTS_FIS))
+	if (!(status & VNINTS_FIS))
 		goto done;
 
 	/* Nothing to do if not running. */
@@ -1400,7 +1385,7 @@ void rvin_stop_streaming(struct rvin_dev *vin)
 	rvin_set_stream(vin, 0);
 
 	/* disable interrupts */
-	rvin_disable_interrupts(vin);
+	rvin_write(vin, 0, VNIE_REG);
 
 	/* Return unprocessed buffers from hardware. */
 	for (unsigned int i = 0; i < HW_BUFFER_NUM; i++) {
