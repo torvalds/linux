@@ -12,6 +12,7 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/dev_printk.h>
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/kfifo.h>
@@ -315,10 +316,8 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 	}
 
 	lpc_snoop->regmap = syscon_node_to_regmap(np);
-	if (IS_ERR(lpc_snoop->regmap)) {
-		dev_err(dev, "Couldn't get regmap\n");
-		return -ENODEV;
-	}
+	if (IS_ERR(lpc_snoop->regmap))
+		return dev_err_probe(dev, PTR_ERR(lpc_snoop->regmap), "Couldn't get regmap\n");
 
 	dev_set_drvdata(&pdev->dev, lpc_snoop);
 
@@ -329,12 +328,8 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 	}
 
 	lpc_snoop->clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(lpc_snoop->clk)) {
-		rc = PTR_ERR(lpc_snoop->clk);
-		if (rc != -EPROBE_DEFER)
-			dev_err(dev, "couldn't get clock\n");
-		return rc;
-	}
+	if (IS_ERR(lpc_snoop->clk))
+		return dev_err_probe(dev, PTR_ERR(lpc_snoop->clk), "couldn't get clock");
 
 	rc = aspeed_lpc_snoop_config_irq(lpc_snoop, pdev);
 	if (rc)
