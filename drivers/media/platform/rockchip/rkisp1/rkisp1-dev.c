@@ -17,6 +17,7 @@
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
@@ -532,6 +533,11 @@ static const struct rkisp1_isr_data imx8mp_isp_isrs[] = {
 	{ NULL, rkisp1_isr, BIT(RKISP1_IRQ_ISP) | BIT(RKISP1_IRQ_MI) },
 };
 
+static const char * const imx8mp_isp_pm_domains[] = {
+	"isp",
+	"csi2",
+};
+
 static const struct rkisp1_info imx8mp_isp_info = {
 	.num_clocks = 3,
 	.isrs = imx8mp_isp_isrs,
@@ -542,6 +548,10 @@ static const struct rkisp1_info imx8mp_isp_info = {
 		  | RKISP1_FEATURE_COMPAND,
 	.max_width = 4096,
 	.max_height = 3072,
+	.pm_domains = {
+		.names = imx8mp_isp_pm_domains,
+		.count = ARRAY_SIZE(imx8mp_isp_pm_domains),
+	},
 };
 
 static const struct of_device_id rkisp1_of_match[] = {
@@ -605,6 +615,37 @@ static int rkisp1_init_clocks(struct rkisp1_device *rkisp1)
 	return 0;
 }
 
+static int rkisp1_init_pm_domains(struct rkisp1_device *rkisp1)
+{
+	const struct rkisp1_info *info = rkisp1->info;
+	struct dev_pm_domain_attach_data pm_domain_data = {
+		.pd_names = info->pm_domains.names,
+		.num_pd_names = info->pm_domains.count,
+	};
+	int ret;
+
+	/*
+	 * Most platforms have a single power domain, which the PM domain core
+	 * automatically attaches at probe time. When that's the case there's
+	 * nothing to do here.
+	 */
+	if (rkisp1->dev->pm_domain)
+		return 0;
+
+	if (!pm_domain_data.num_pd_names)
+		return 0;
+
+	ret = devm_pm_domain_attach_list(rkisp1->dev, &pm_domain_data,
+					 &rkisp1->pm_domains);
+	if (ret < 0) {
+		dev_err_probe(rkisp1->dev, ret,
+			      "Failed to attach power domains\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rkisp1_probe(struct platform_device *pdev)
 {
 	const struct rkisp1_info *info;
@@ -663,6 +704,10 @@ static int rkisp1_probe(struct platform_device *pdev)
 	}
 
 	ret = rkisp1_init_clocks(rkisp1);
+	if (ret)
+		return ret;
+
+	ret = rkisp1_init_pm_domains(rkisp1);
 	if (ret)
 		return ret;
 

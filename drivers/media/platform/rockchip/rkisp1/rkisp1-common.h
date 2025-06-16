@@ -24,6 +24,7 @@
 #include "rkisp1-regs.h"
 
 struct dentry;
+struct dev_pm_domain_list;
 struct regmap;
 
 /*
@@ -146,6 +147,8 @@ enum rkisp1_feature {
  * @features: bitmask of rkisp1_feature features implemented by the ISP
  * @max_width: maximum input frame width
  * @max_height: maximum input frame height
+ * @pm_domains.names: name of the power domains
+ * @pm_domains.count: number of power domains
  *
  * This structure contains information about the ISP specific to a particular
  * ISP model, version, or integration in a particular SoC.
@@ -158,6 +161,10 @@ struct rkisp1_info {
 	unsigned int features;
 	unsigned int max_width;
 	unsigned int max_height;
+	struct {
+		const char * const *names;
+		unsigned int count;
+	} pm_domains;
 };
 
 /*
@@ -481,6 +488,7 @@ struct rkisp1_debug {
  * @dev:	   a pointer to the struct device
  * @clk_size:	   number of clocks
  * @clks:	   array of clocks
+ * @pm_domains:    power domains
  * @gasket:	   the gasket - i.MX8MP only
  * @gasket_id:	   the gasket ID (0 or 1) - i.MX8MP only
  * @v4l2_dev:	   v4l2_device variable
@@ -505,6 +513,7 @@ struct rkisp1_device {
 	struct device *dev;
 	unsigned int clk_size;
 	struct clk_bulk_data clks[RKISP1_MAX_BUS_CLK];
+	struct dev_pm_domain_list *pm_domains;
 	struct regmap *gasket;
 	unsigned int gasket_id;
 	struct v4l2_device v4l2_dev;
