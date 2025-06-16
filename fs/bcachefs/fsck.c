@@ -2841,7 +2841,7 @@ fsck_err:
 int bch2_check_directory_structure(struct bch_fs *c)
 {
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes, POS_MIN,
+		for_each_btree_key_reverse_commit(trans, iter, BTREE_ID_inodes, POS_MIN,
 					  BTREE_ITER_intent|
 					  BTREE_ITER_prefetch|
 					  BTREE_ITER_all_snapshots, k,
