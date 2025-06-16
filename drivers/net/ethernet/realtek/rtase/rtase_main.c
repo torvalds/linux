@@ -1871,6 +1871,18 @@ static void rtase_init_netdev_ops(struct net_device *dev)
 	dev->ethtool_ops = &rtase_ethtool_ops;
 }
 
+static void rtase_init_napi(struct rtase_private *tp)
+{
+	u16 i;
+
+	for (i = 0; i < tp->int_nums; i++) {
+		netif_napi_add_config(tp->dev, &tp->int_vector[i].napi,
+				      tp->int_vector[i].poll, i);
+		netif_napi_set_irq(&tp->int_vector[i].napi,
+				   tp->int_vector[i].irq);
+	}
+}
+
 static void rtase_reset_interrupt(struct pci_dev *pdev,
 				  const struct rtase_private *tp)
 {
@@ -1956,9 +1968,6 @@ static void rtase_init_int_vector(struct rtase_private *tp)
 	memset(tp->int_vector[0].name, 0x0, sizeof(tp->int_vector[0].name));
 	INIT_LIST_HEAD(&tp->int_vector[0].ring_list);
 
-	netif_napi_add(tp->dev, &tp->int_vector[0].napi,
-		       tp->int_vector[0].poll);
-
 	/* interrupt vector 1 ~ 3 */
 	for (i = 1; i < tp->int_nums; i++) {
 		tp->int_vector[i].tp = tp;
@@ -1972,9 +1981,6 @@ static void rtase_init_int_vector(struct rtase_private *tp)
 		memset(tp->int_vector[i].name, 0x0,
 		       sizeof(tp->int_vector[0].name));
 		INIT_LIST_HEAD(&tp->int_vector[i].ring_list);
-
-		netif_napi_add(tp->dev, &tp->int_vector[i].napi,
-			       tp->int_vector[i].poll);
 	}
 }
 
@@ -2205,6 +2211,8 @@ static int rtase_init_one(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "unable to alloc MSIX/MSI\n");
 		goto err_out_del_napi;
 	}
+
+	rtase_init_napi(tp);
 
 	rtase_init_netdev_ops(dev);
 
