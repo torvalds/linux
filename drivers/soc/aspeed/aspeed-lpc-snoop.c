@@ -63,7 +63,16 @@ enum aspeed_lpc_snoop_index {
 	ASPEED_LPC_SNOOP_INDEX_MAX = ASPEED_LPC_SNOOP_INDEX_1,
 };
 
+struct aspeed_lpc_snoop_channel_cfg {
+	enum aspeed_lpc_snoop_index index;
+	u32 hicr5_en;
+	u32 snpwadr_mask;
+	u32 snpwadr_shift;
+	u32 hicrb_en;
+};
+
 struct aspeed_lpc_snoop_channel {
+	const struct aspeed_lpc_snoop_channel_cfg *cfg;
 	bool enabled;
 	struct kfifo		fifo;
 	wait_queue_head_t	wq;
@@ -75,6 +84,23 @@ struct aspeed_lpc_snoop {
 	int			irq;
 	struct clk		*clk;
 	struct aspeed_lpc_snoop_channel chan[ASPEED_LPC_SNOOP_INDEX_MAX + 1];
+};
+
+static const struct aspeed_lpc_snoop_channel_cfg channel_cfgs[ASPEED_LPC_SNOOP_INDEX_MAX + 1] = {
+	{
+		.index = ASPEED_LPC_SNOOP_INDEX_0,
+		.hicr5_en = HICR5_EN_SNP0W | HICR5_ENINT_SNP0W,
+		.snpwadr_mask = SNPWADR_CH0_MASK,
+		.snpwadr_shift = SNPWADR_CH0_SHIFT,
+		.hicrb_en = HICRB_ENSNP0D,
+	},
+	{
+		.index = ASPEED_LPC_SNOOP_INDEX_1,
+		.hicr5_en = HICR5_EN_SNP1W | HICR5_ENINT_SNP1W,
+		.snpwadr_mask = SNPWADR_CH1_MASK,
+		.snpwadr_shift = SNPWADR_CH1_SHIFT,
+		.hicrb_en = HICRB_ENSNP1D,
+	},
 };
 
 static struct aspeed_lpc_snoop_channel *snoop_file_to_chan(struct file *file)
@@ -189,28 +215,27 @@ static int aspeed_lpc_snoop_config_irq(struct aspeed_lpc_snoop *lpc_snoop,
 }
 
 __attribute__((nonnull))
-static int aspeed_lpc_enable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
-				   struct device *dev,
-				   enum aspeed_lpc_snoop_index index, u16 lpc_port)
+static int aspeed_lpc_enable_snoop(struct device *dev,
+				    struct aspeed_lpc_snoop *lpc_snoop,
+				    struct aspeed_lpc_snoop_channel *channel,
+				    const struct aspeed_lpc_snoop_channel_cfg *cfg,
+				    u16 lpc_port)
 {
 	const struct aspeed_lpc_snoop_model_data *model_data;
-	u32 hicr5_en, snpwadr_mask, snpwadr_shift, hicrb_en;
-	struct aspeed_lpc_snoop_channel *channel;
 	int rc = 0;
-
-	channel = &lpc_snoop->chan[index];
 
 	if (WARN_ON(channel->enabled))
 		return -EBUSY;
 
 	init_waitqueue_head(&channel->wq);
 
+	channel->cfg = cfg;
 	channel->miscdev.minor = MISC_DYNAMIC_MINOR;
 	channel->miscdev.fops = &snoop_fops;
 	channel->miscdev.parent = dev;
 
 	channel->miscdev.name =
-		devm_kasprintf(dev, GFP_KERNEL, "%s%d", DEVICE_NAME, index);
+		devm_kasprintf(dev, GFP_KERNEL, "%s%d", DEVICE_NAME, cfg->index);
 	if (!channel->miscdev.name)
 		return -ENOMEM;
 
@@ -223,38 +248,18 @@ static int aspeed_lpc_enable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
 		goto err_free_fifo;
 
 	/* Enable LPC snoop channel at requested port */
-	switch (index) {
-	case 0:
-		hicr5_en = HICR5_EN_SNP0W | HICR5_ENINT_SNP0W;
-		snpwadr_mask = SNPWADR_CH0_MASK;
-		snpwadr_shift = SNPWADR_CH0_SHIFT;
-		hicrb_en = HICRB_ENSNP0D;
-		break;
-	case 1:
-		hicr5_en = HICR5_EN_SNP1W | HICR5_ENINT_SNP1W;
-		snpwadr_mask = SNPWADR_CH1_MASK;
-		snpwadr_shift = SNPWADR_CH1_SHIFT;
-		hicrb_en = HICRB_ENSNP1D;
-		break;
-	default:
-		rc = -EINVAL;
-		goto err_misc_deregister;
-	}
-
-	regmap_update_bits(lpc_snoop->regmap, HICR5, hicr5_en, hicr5_en);
-	regmap_update_bits(lpc_snoop->regmap, SNPWADR, snpwadr_mask,
-			   lpc_port << snpwadr_shift);
+	regmap_set_bits(lpc_snoop->regmap, HICR5, cfg->hicr5_en);
+	regmap_update_bits(lpc_snoop->regmap, SNPWADR, cfg->snpwadr_mask,
+			   lpc_port << cfg->snpwadr_shift);
 
 	model_data = of_device_get_match_data(dev);
 	if (model_data && model_data->has_hicrb_ensnp)
-		regmap_update_bits(lpc_snoop->regmap, HICRB, hicrb_en, hicrb_en);
+		regmap_set_bits(lpc_snoop->regmap, HICRB, cfg->hicrb_en);
 
 	channel->enabled = true;
 
 	return 0;
 
-err_misc_deregister:
-	misc_deregister(&channel->miscdev);
 err_free_fifo:
 	kfifo_free(&channel->fifo);
 	return rc;
@@ -262,30 +267,13 @@ err_free_fifo:
 
 __attribute__((nonnull))
 static void aspeed_lpc_disable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
-				     enum aspeed_lpc_snoop_index index)
+				     struct aspeed_lpc_snoop_channel *channel)
 {
-	struct aspeed_lpc_snoop_channel *channel;
-
-	channel = &lpc_snoop->chan[index];
-
 	if (!channel->enabled)
 		return;
 
 	/* Disable interrupts along with the device */
-	switch (index) {
-	case 0:
-		regmap_update_bits(lpc_snoop->regmap, HICR5,
-				   HICR5_EN_SNP0W | HICR5_ENINT_SNP0W,
-				   0);
-		break;
-	case 1:
-		regmap_update_bits(lpc_snoop->regmap, HICR5,
-				   HICR5_EN_SNP1W | HICR5_ENINT_SNP1W,
-				   0);
-		break;
-	default:
-		return;
-	}
+	regmap_clear_bits(lpc_snoop->regmap, HICR5, channel->cfg->hicr5_en);
 
 	channel->enabled = false;
 	/* Consider improving safety wrt concurrent reader(s) */
@@ -298,8 +286,8 @@ static void aspeed_lpc_snoop_remove(struct platform_device *pdev)
 	struct aspeed_lpc_snoop *lpc_snoop = dev_get_drvdata(&pdev->dev);
 
 	/* Disable both snoop channels */
-	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
-	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_1);
+	aspeed_lpc_disable_snoop(lpc_snoop, &lpc_snoop->chan[0]);
+	aspeed_lpc_disable_snoop(lpc_snoop, &lpc_snoop->chan[1]);
 }
 
 static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
@@ -338,6 +326,8 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+	static_assert(ARRAY_SIZE(channel_cfgs) == ARRAY_SIZE(lpc_snoop->chan),
+		"Broken implementation assumption regarding cfg count");
 	for (idx = ASPEED_LPC_SNOOP_INDEX_0; idx <= ASPEED_LPC_SNOOP_INDEX_MAX; idx++) {
 		u32 port;
 
@@ -345,7 +335,8 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 		if (rc)
 			break;
 
-		rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, idx, port);
+		rc = aspeed_lpc_enable_snoop(dev, lpc_snoop, &lpc_snoop->chan[idx],
+					     &channel_cfgs[idx], port);
 		if (rc)
 			goto cleanup_channels;
 	}
