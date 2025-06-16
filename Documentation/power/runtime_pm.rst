@@ -154,11 +154,9 @@ suspending the device are satisfied) and to queue up a suspend request for the
 device in that case.  If there is no idle callback, or if the callback returns
 0, then the PM core will attempt to carry out a runtime suspend of the device,
 also respecting devices configured for autosuspend.  In essence this means a
-call to pm_runtime_autosuspend() (do note that drivers needs to update the
-device last busy mark, pm_runtime_mark_last_busy(), to control the delay under
-this circumstance).  To prevent this (for example, if the callback routine has
-started a delayed suspend), the routine must return a non-zero value.  Negative
-error return codes are ignored by the PM core.
+call to pm_runtime_autosuspend(). To prevent this (for example, if the callback
+routine has started a delayed suspend), the routine must return a non-zero
+value.  Negative error return codes are ignored by the PM core.
 
 The helper functions provided by the PM core, described in Section 4, guarantee
 that the following constraints are met with respect to runtime PM callbacks for
@@ -330,10 +328,9 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       'power.disable_depth' is different from 0
 
   `int pm_runtime_autosuspend(struct device *dev);`
-    - same as pm_runtime_suspend() except that the autosuspend delay is taken
-      `into account;` if pm_runtime_autosuspend_expiration() says the delay has
-      not yet expired then an autosuspend is scheduled for the appropriate time
-      and 0 is returned
+    - same as pm_runtime_suspend() except that a call to
+      pm_runtime_mark_last_busy() is made and an autosuspend is scheduled for
+      the appropriate time and 0 is returned
 
   `int pm_runtime_resume(struct device *dev);`
     - execute the subsystem-level resume callback for the device; returns 0 on

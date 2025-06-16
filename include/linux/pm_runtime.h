@@ -379,11 +379,13 @@ static inline int pm_runtime_suspend(struct device *dev)
 }
 
 /**
- * pm_runtime_autosuspend - Set up autosuspend of a device or suspend it.
+ * pm_runtime_autosuspend - Update the last access time and set up autosuspend
+ * of a device.
  * @dev: Target device.
  *
- * Set up autosuspend of @dev or suspend it (depending on whether or not
- * autosuspend is enabled for it) without engaging its "idle check" callback.
+ * First update the last access time, then set up autosuspend of @dev or suspend
+ * it (depending on whether or not autosuspend is enabled for it) without
+ * engaging its "idle check" callback.
  *
  * Return:
  * * 0: Success.
@@ -399,6 +401,7 @@ static inline int pm_runtime_suspend(struct device *dev)
  */
 static inline int pm_runtime_autosuspend(struct device *dev)
 {
+	pm_runtime_mark_last_busy(dev);
 	return __pm_runtime_suspend(dev, RPM_AUTO);
 }
 
