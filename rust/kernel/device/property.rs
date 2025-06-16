@@ -246,6 +246,108 @@ impl FwNode {
             Some(next)
         })
     }
+
+    /// Finds a reference with arguments.
+    pub fn property_get_reference_args(
+        &self,
+        prop: &CStr,
+        nargs: NArgs<'_>,
+        index: u32,
+    ) -> Result<FwNodeReferenceArgs> {
+        let mut out_args = FwNodeReferenceArgs::default();
+
+        let (nargs_prop, nargs) = match nargs {
+            NArgs::Prop(nargs_prop) => (nargs_prop.as_char_ptr(), 0),
+            NArgs::N(nargs) => (ptr::null(), nargs),
+        };
+
+        // SAFETY:
+        // - `self.0.get()` is valid.
+        // - `prop.as_char_ptr()` is valid and zero-terminated.
+        // - `nargs_prop` is valid and zero-terminated if `nargs`
+        //   is zero, otherwise it is allowed to be a null-pointer.
+        // - The function upholds the type invariants of `out_args`,
+        //   namely:
+        //   - It may fill the field `fwnode` with a valid pointer,
+        //     in which case its refcount is incremented.
+        //   - It may modify the field `nargs`, in which case it
+        //     initializes at least as many elements in `args`.
+        let ret = unsafe {
+            bindings::fwnode_property_get_reference_args(
+                self.0.get(),
+                prop.as_char_ptr(),
+                nargs_prop,
+                nargs,
+                index,
+                &mut out_args.0,
+            )
+        };
+        to_result(ret)?;
+
+        Ok(out_args)
+    }
+}
+
+/// The number of arguments to request [`FwNodeReferenceArgs`].
+pub enum NArgs<'a> {
+    /// The name of the property of the reference indicating the number of
+    /// arguments.
+    Prop(&'a CStr),
+    /// The known number of arguments.
+    N(u32),
+}
+
+/// The return value of [`FwNode::property_get_reference_args`].
+///
+/// This structure represents the Rust abstraction for a C
+/// `struct fwnode_reference_args` which was initialized by the C side.
+///
+/// # Invariants
+///
+/// If the field `fwnode` is valid, it owns an increment of its refcount.
+///
+/// The field `args` contains at least as many initialized elements as indicated
+/// by the field `nargs`.
+#[repr(transparent)]
+#[derive(Default)]
+pub struct FwNodeReferenceArgs(bindings::fwnode_reference_args);
+
+impl Drop for FwNodeReferenceArgs {
+    fn drop(&mut self) {
+        if !self.0.fwnode.is_null() {
+            // SAFETY:
+            // - By the type invariants of `FwNodeReferenceArgs`, its field
+            //   `fwnode` owns an increment of its refcount.
+            // - That increment is relinquished. The underlying object won't be
+            //   used anymore because we are dropping it.
+            let _ = unsafe { FwNode::from_raw(self.0.fwnode) };
+        }
+    }
+}
+
+impl FwNodeReferenceArgs {
+    /// Returns the slice of reference arguments.
+    pub fn as_slice(&self) -> &[u64] {
+        // SAFETY: As per the safety invariant of `FwNodeReferenceArgs`, `nargs`
+        // is the minimum number of elements in `args` that is valid.
+        unsafe { core::slice::from_raw_parts(self.0.args.as_ptr(), self.0.nargs as usize) }
+    }
+
+    /// Returns the number of reference arguments.
+    pub fn len(&self) -> usize {
+        self.0.nargs as usize
+    }
+
+    /// Returns `true` if there are no reference arguments.
+    pub fn is_empty(&self) -> bool {
+        self.0.nargs == 0
+    }
+}
+
+impl core::fmt::Debug for FwNodeReferenceArgs {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self.as_slice())
+    }
 }
 
 // SAFETY: Instances of `FwNode` are always reference-counted.
