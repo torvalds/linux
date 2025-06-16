@@ -1733,7 +1733,7 @@ int gve_adjust_config(struct gve_priv *priv,
 {
 	int err;
 
-	/* Allocate resources for the new confiugration */
+	/* Allocate resources for the new configuration */
 	err = gve_queues_mem_alloc(priv, tx_alloc_cfg, rx_alloc_cfg);
 	if (err) {
 		netif_err(priv, drv, priv->dev,
@@ -2284,7 +2284,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		goto err;
 	}
 
-	/* Big TCP is only supported on DQ*/
+	/* Big TCP is only supported on DQO */
 	if (!gve_is_gqi(priv))
 		netif_set_tso_max_size(priv->dev, GVE_DQO_TX_MAX);
 

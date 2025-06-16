@@ -668,7 +668,7 @@ static u32 gve_get_priv_flags(struct net_device *netdev)
 	struct gve_priv *priv = netdev_priv(netdev);
 	u32 ret_flags = 0;
 
-	/* Only 1 flag exists currently: report-stats (BIT(O)), so set that flag. */
+	/* Only 1 flag exists currently: report-stats (BIT(0)), so set that flag. */
 	if (priv->ethtool_flags & BIT(0))
 		ret_flags |= BIT(0);
 	return ret_flags;

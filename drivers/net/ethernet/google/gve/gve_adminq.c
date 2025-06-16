@@ -650,7 +650,7 @@ static int gve_adminq_execute_extended_cmd(struct gve_priv *priv, u32 opcode,
 
 /* The device specifies that the management vector can either be the first irq
  * or the last irq. ntfy_blk_msix_base_idx indicates the first irq assigned to
- * the ntfy blks. It if is 0 then the management vector is last, if it is 1 then
+ * the ntfy blks. If it is 0 then the management vector is last, if it is 1 then
  * the management vector is first.
  *
  * gve arranges the msix vectors so that the management vector is last.

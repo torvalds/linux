@@ -789,7 +789,7 @@ struct gve_priv {
 
 	struct gve_tx_queue_config tx_cfg;
 	struct gve_rx_queue_config rx_cfg;
-	u32 num_ntfy_blks; /* spilt between TX and RX so must be even */
+	u32 num_ntfy_blks; /* split between TX and RX so must be even */
 
 	struct gve_registers __iomem *reg_bar0; /* see gve_register.h */
 	__be32 __iomem *db_bar2; /* "array" of doorbells */

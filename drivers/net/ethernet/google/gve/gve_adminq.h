@@ -476,7 +476,7 @@ struct gve_ptype_entry {
 };
 
 struct gve_ptype_map {
-	struct gve_ptype_entry ptypes[1 << 10]; /* PTYPES are always 10 bits. */
+	struct gve_ptype_entry ptypes[GVE_NUM_PTYPES]; /* PTYPES are always 10 bits. */
 };
 
 struct gve_adminq_get_ptype_map {
