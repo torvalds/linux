@@ -134,15 +134,17 @@ void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type)
 	struct udp_tunnel_info ti;
 	struct net_device *dev;
 
+	ASSERT_RTNL();
+
 	ti.type = type;
 	ti.sa_family = sk->sk_family;
 	ti.port = inet_sk(sk)->inet_sport;
 
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
+	for_each_netdev(net, dev) {
+		udp_tunnel_nic_lock(dev);
 		udp_tunnel_nic_add_port(dev, &ti);
+		udp_tunnel_nic_unlock(dev);
 	}
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_notify_add_rx_port);
 
@@ -154,15 +156,17 @@ void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type)
 	struct udp_tunnel_info ti;
 	struct net_device *dev;
 
+	ASSERT_RTNL();
+
 	ti.type = type;
 	ti.sa_family = sk->sk_family;
 	ti.port = inet_sk(sk)->inet_sport;
 
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
+	for_each_netdev(net, dev) {
+		udp_tunnel_nic_lock(dev);
 		udp_tunnel_nic_del_port(dev, &ti);
+		udp_tunnel_nic_unlock(dev);
 	}
-	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_notify_del_rx_port);
 
