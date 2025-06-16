@@ -1066,6 +1066,7 @@ static int gfx_v12_1_rlc_backdoor_autoload_enable(struct amdgpu_device *adev)
 	uint32_t rlc_g_offset, rlc_g_size;
 	uint64_t gpu_addr;
 	uint32_t data;
+	int i, num_xcc;
 
 	/* RLC autoload sequence 2: copy ucode */
 	gfx_v12_1_rlc_backdoor_autoload_copy_sdma_ucode(adev);
@@ -1077,13 +1078,18 @@ static int gfx_v12_1_rlc_backdoor_autoload_enable(struct amdgpu_device *adev)
 	rlc_g_size = rlc_autoload_info[SOC24_FIRMWARE_ID_RLC_G_UCODE].size;
 	gpu_addr = adev->gfx.rlc.rlc_autoload_gpu_addr + rlc_g_offset - adev->gmc.vram_start;
 
-	WREG32_SOC15(GC, GET_INST(GC, 0),
-		     regGFX_IMU_RLC_BOOTLOADER_ADDR_HI, upper_32_bits(gpu_addr));
-	WREG32_SOC15(GC, GET_INST(GC, 0),
-		     regGFX_IMU_RLC_BOOTLOADER_ADDR_LO, lower_32_bits(gpu_addr));
-
-	WREG32_SOC15(GC, GET_INST(GC, 0),
-		     regGFX_IMU_RLC_BOOTLOADER_SIZE, rlc_g_size);
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGFX_IMU_RLC_BOOTLOADER_ADDR_HI,
+			     upper_32_bits(gpu_addr));
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGFX_IMU_RLC_BOOTLOADER_ADDR_LO,
+			     lower_32_bits(gpu_addr));
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGFX_IMU_RLC_BOOTLOADER_SIZE,
+			     rlc_g_size);
+	}
 
 	if (adev->gfx.imu.funcs) {
 		/* RLC autoload sequence 3: load IMU fw */
@@ -1092,11 +1098,13 @@ static int gfx_v12_1_rlc_backdoor_autoload_enable(struct amdgpu_device *adev)
 	}
 
 	/* unhalt rlc to start autoload */
-	data = RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPM_THREAD_ENABLE);
-	data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD0_ENABLE, 1);
-	data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD1_ENABLE, 1);
-	WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPM_THREAD_ENABLE, data);
-	WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_CNTL, RLC_CNTL__RLC_ENABLE_F32_MASK);
+	for (i = 0; i < num_xcc; i++) {
+		data = RREG32_SOC15(GC, GET_INST(GC, i), regRLC_GPM_THREAD_ENABLE);
+		data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD0_ENABLE, 1);
+		data = REG_SET_FIELD(data, RLC_GPM_THREAD_ENABLE, THREAD1_ENABLE, 1);
+		WREG32_SOC15(GC, GET_INST(GC, i), regRLC_GPM_THREAD_ENABLE, data);
+		WREG32_SOC15(GC, GET_INST(GC, i), regRLC_CNTL, RLC_CNTL__RLC_ENABLE_F32_MASK);
+	}
 
 	return 0;
 }
@@ -1800,15 +1808,16 @@ static void gfx_v12_1_xcc_set_mec_ucode_start_addr(struct amdgpu_device *adev,
 	mutex_unlock(&adev->srbm_mutex);
 }
 
-static int gfx_v12_1_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
+static int gfx_v12_1_xcc_wait_for_rlc_autoload_complete(struct amdgpu_device *adev,
+							int xcc_id)
 {
 	uint32_t cp_status;
 	uint32_t bootload_status;
-	int i, xcc_id;
+	int i;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		cp_status = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_STAT);
-		bootload_status = RREG32_SOC15(GC, GET_INST(GC, 0),
+		cp_status = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_STAT);
+		bootload_status = RREG32_SOC15(GC, GET_INST(GC, xcc_id),
 					       regRLC_RLCS_BOOTLOAD_STATUS);
 
 		if ((cp_status == 0) &&
@@ -1822,14 +1831,24 @@ static int gfx_v12_1_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 	}
 
 	if (i >= adev->usec_timeout) {
-		dev_err(adev->dev, "rlc autoload: gc ucode autoload timeout\n");
+		dev_err(adev->dev,
+			"rlc autoload: xcc%d gc ucode autoload timeout\n", xcc_id);
 		return -ETIMEDOUT;
 	}
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) {
-		for (xcc_id = 0; xcc_id < NUM_XCC(adev->gfx.xcc_mask); xcc_id++)
-			gfx_v12_1_xcc_set_mec_ucode_start_addr(adev, xcc_id);
+		gfx_v12_1_xcc_set_mec_ucode_start_addr(adev, xcc_id);
 	}
+
+	return 0;
+}
+
+static int gfx_v12_1_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
+{
+	int xcc_id;
+
+	for (xcc_id = 0; xcc_id < NUM_XCC(adev->gfx.xcc_mask); xcc_id++)
+		gfx_v12_1_xcc_wait_for_rlc_autoload_complete(adev, xcc_id);
 
 	return 0;
 }
