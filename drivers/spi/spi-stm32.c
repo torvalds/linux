@@ -283,7 +283,7 @@ struct stm32_spi_cfg {
 	int (*config)(struct stm32_spi *spi);
 	void (*set_bpw)(struct stm32_spi *spi);
 	int (*set_mode)(struct stm32_spi *spi, unsigned int comm_type);
-	void (*set_data_idleness)(struct stm32_spi *spi, u32 length);
+	void (*set_data_idleness)(struct stm32_spi *spi, struct spi_transfer *xfer);
 	int (*set_number_of_data)(struct stm32_spi *spi, u32 length);
 	void (*write_tx)(struct stm32_spi *spi);
 	void (*read_rx)(struct stm32_spi *spi);
@@ -1880,11 +1880,26 @@ static int stm32h7_spi_set_mode(struct stm32_spi *spi, unsigned int comm_type)
  * stm32h7_spi_data_idleness - configure minimum time delay inserted between two
  *			       consecutive data frames in host mode
  * @spi: pointer to the spi controller data structure
- * @len: transfer len
+ * @xfer: pointer to spi transfer
  */
-static void stm32h7_spi_data_idleness(struct stm32_spi *spi, u32 len)
+static void stm32h7_spi_data_idleness(struct stm32_spi *spi, struct spi_transfer *xfer)
 {
 	u32 cfg2_clrb = 0, cfg2_setb = 0;
+	u32 len = xfer->len;
+	u32 spi_delay_ns;
+
+	spi_delay_ns = spi_delay_to_ns(&xfer->word_delay, xfer);
+
+	if (spi->cur_midi != 0) {
+		dev_warn(spi->dev, "st,spi-midi-ns DT property is deprecated\n");
+		if (spi_delay_ns) {
+			dev_warn(spi->dev, "Overriding st,spi-midi-ns with word_delay_ns %d\n",
+				 spi_delay_ns);
+				spi->cur_midi = spi_delay_ns;
+			}
+	} else {
+		spi->cur_midi = spi_delay_ns;
+	}
 
 	cfg2_clrb |= STM32H7_SPI_CFG2_MIDI;
 	if ((len > 1) && (spi->cur_midi > 0)) {
@@ -1975,7 +1990,7 @@ static int stm32_spi_transfer_one_setup(struct stm32_spi *spi,
 	spi->cur_comm = comm_type;
 
 	if (STM32_SPI_HOST_MODE(spi) && spi->cfg->set_data_idleness)
-		spi->cfg->set_data_idleness(spi, transfer->len);
+		spi->cfg->set_data_idleness(spi, transfer);
 
 	if (spi->cur_bpw <= 8)
 		nb_words = transfer->len;
