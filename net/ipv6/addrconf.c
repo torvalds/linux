@@ -3208,7 +3208,7 @@ static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
 	}
 }
 
-#if IS_ENABLED(CONFIG_IPV6_SIT) || IS_ENABLED(CONFIG_NET_IPGRE) || IS_ENABLED(CONFIG_IPV6_GRE)
+#if IS_ENABLED(CONFIG_IPV6_SIT) || IS_ENABLED(CONFIG_NET_IPGRE)
 static void add_v4_addrs(struct inet6_dev *idev)
 {
 	struct in6_addr addr;
@@ -3463,6 +3463,7 @@ static void addrconf_dev_config(struct net_device *dev)
 	    (dev->type != ARPHRD_IEEE1394) &&
 	    (dev->type != ARPHRD_TUNNEL6) &&
 	    (dev->type != ARPHRD_6LOWPAN) &&
+	    (dev->type != ARPHRD_IP6GRE) &&
 	    (dev->type != ARPHRD_TUNNEL) &&
 	    (dev->type != ARPHRD_NONE) &&
 	    (dev->type != ARPHRD_RAWIP)) {
@@ -3518,7 +3519,7 @@ static void addrconf_sit_config(struct net_device *dev)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_NET_IPGRE) || IS_ENABLED(CONFIG_IPV6_GRE)
+#if IS_ENABLED(CONFIG_NET_IPGRE)
 static void addrconf_gre_config(struct net_device *dev)
 {
 	struct inet6_dev *idev;
@@ -3536,7 +3537,7 @@ static void addrconf_gre_config(struct net_device *dev)
 	 * which is in EUI64 mode (as __ipv6_isatap_ifid() would fail in this
 	 * case). Such devices fall back to add_v4_addrs() instead.
 	 */
-	if (!(dev->type == ARPHRD_IPGRE && *(__be32 *)dev->dev_addr == 0 &&
+	if (!(*(__be32 *)dev->dev_addr == 0 &&
 	      idev->cnf.addr_gen_mode == IN6_ADDR_GEN_MODE_EUI64)) {
 		addrconf_addr_gen(idev, true);
 		return;
@@ -3557,8 +3558,7 @@ static void addrconf_init_auto_addrs(struct net_device *dev)
 		addrconf_sit_config(dev);
 		break;
 #endif
-#if IS_ENABLED(CONFIG_NET_IPGRE) || IS_ENABLED(CONFIG_IPV6_GRE)
-	case ARPHRD_IP6GRE:
+#if IS_ENABLED(CONFIG_NET_IPGRE)
 	case ARPHRD_IPGRE:
 		addrconf_gre_config(dev);
 		break;
