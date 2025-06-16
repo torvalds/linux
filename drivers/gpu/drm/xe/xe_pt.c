@@ -1995,6 +1995,32 @@ static int unbind_op_prepare(struct xe_tile *tile,
 	return 0;
 }
 
+static bool
+xe_pt_op_check_range_skip_invalidation(struct xe_vm_pgtable_update_op *pt_op,
+				       struct xe_svm_range *range)
+{
+	struct xe_vm_pgtable_update *update = pt_op->entries;
+
+	XE_WARN_ON(!pt_op->num_entries);
+
+	/*
+	 * We can't skip the invalidation if we are removing PTEs that span more
+	 * than the range, do some checks to ensure we are removing PTEs that
+	 * are invalid.
+	 */
+
+	if (pt_op->num_entries > 1)
+		return false;
+
+	if (update->pt->level == 0)
+		return true;
+
+	if (update->pt->level == 1)
+		return xe_svm_range_size(range) >= SZ_2M;
+
+	return false;
+}
+
 static int unbind_range_prepare(struct xe_vm *vm,
 				struct xe_tile *tile,
 				struct xe_vm_pgtable_update_ops *pt_update_ops,
@@ -2023,7 +2049,10 @@ static int unbind_range_prepare(struct xe_vm *vm,
 					 range->base.itree.last + 1);
 	++pt_update_ops->current_op;
 	pt_update_ops->needs_svm_lock = true;
-	pt_update_ops->needs_invalidation = true;
+	pt_update_ops->needs_invalidation |= xe_vm_has_scratch(vm) ||
+		xe_vm_has_valid_gpu_mapping(tile, range->tile_present,
+					    range->tile_invalidated) ||
+		!xe_pt_op_check_range_skip_invalidation(pt_op, range);
 
 	xe_pt_commit_prepare_unbind(XE_INVALID_VMA, pt_op->entries,
 				    pt_op->num_entries);
