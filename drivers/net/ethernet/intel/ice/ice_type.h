@@ -296,6 +296,7 @@ struct ice_hw_common_caps {
 
 	bool roce_lag;
 	bool sriov_lag;
+	bool sriov_aa_lag;
 
 	bool nvm_update_pending_nvm;
 	bool nvm_update_pending_orom;

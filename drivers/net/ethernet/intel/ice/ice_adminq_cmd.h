@@ -2060,6 +2060,10 @@ struct ice_aqc_cfg_txqs {
 #define ICE_AQC_Q_CFG_SRC_PRT_M		0x7
 #define ICE_AQC_Q_CFG_DST_PRT_S		3
 #define ICE_AQC_Q_CFG_DST_PRT_M		(0x7 << ICE_AQC_Q_CFG_DST_PRT_S)
+#define ICE_AQC_Q_CFG_MODE_M		GENMASK(7, 6)
+#define ICE_AQC_Q_CFG_MODE_SAME_PF	0x0
+#define ICE_AQC_Q_CFG_MODE_GIVE_OWN	0x1
+#define ICE_AQC_Q_CFG_MODE_KEEP_OWN	0x2
 	u8 time_out;
 #define ICE_AQC_Q_CFG_TIMEOUT_S		2
 #define ICE_AQC_Q_CFG_TIMEOUT_M		(0x1F << ICE_AQC_Q_CFG_TIMEOUT_S)
