@@ -155,6 +155,10 @@ allOf:
             const: fsl,imx8mp-isp
     then:
       properties:
+        clocks:
+          minItems: 4
+        clock-names:
+          minItems: 4
         iommus: false
         phys: false
         phy-names: false
