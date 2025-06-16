@@ -821,7 +821,7 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	 * We don't support synchronous mappings for non-DAX files and
 	 * for DAX files if underneath dax_device is not synchronous.
 	 */
-	if (!daxdev_mapping_supported(vma, dax_dev))
+	if (!daxdev_mapping_supported(vma->vm_flags, file_inode(vma->vm_file), dax_dev))
 		return -EOPNOTSUPP;
 
 	file_accessed(file);

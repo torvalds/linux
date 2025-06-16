@@ -1924,7 +1924,8 @@ xfs_file_mmap(
 	 * We don't support synchronous mappings for non-DAX files and
 	 * for DAX files if underneath dax_device is not synchronous.
 	 */
-	if (!daxdev_mapping_supported(vma, target->bt_daxdev))
+	if (!daxdev_mapping_supported(vma->vm_flags, file_inode(vma->vm_file),
+				      target->bt_daxdev))
 		return -EOPNOTSUPP;
 
 	file_accessed(file);
