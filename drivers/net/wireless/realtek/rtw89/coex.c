@@ -5561,6 +5561,16 @@ static void _action_common(struct rtw89_dev *rtwdev)
 		wl->scbd_change = false;
 		btc->cx.cnt_wl[BTC_WCNT_SCBDUPDATE]++;
 	}
+
+	if (btc->ver->fcxosi) {
+		if (memcmp(&dm->ost_info_last, &dm->ost_info,
+			   sizeof(dm->ost_info_last)) ||
+		    dm->run_reason == BTC_RSN_NTFY_INIT ||
+		    dm->run_reason == BTC_RSN_NTFY_RADIO_STATE) {
+			dm->ost_info_last = dm->ost_info;
+			_fw_set_drv_info(rtwdev, CXDRVINFO_OSI);
+		}
+	}
 	btc->dm.tdma_instant_excute = 0;
 	wl->pta_reg_mac_chg = false;
 }
