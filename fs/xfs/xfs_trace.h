@@ -5031,7 +5031,6 @@ DEFINE_ICLOG_EVENT(xlog_iclog_switch);
 DEFINE_ICLOG_EVENT(xlog_iclog_sync);
 DEFINE_ICLOG_EVENT(xlog_iclog_syncing);
 DEFINE_ICLOG_EVENT(xlog_iclog_sync_done);
-DEFINE_ICLOG_EVENT(xlog_iclog_want_sync);
 DEFINE_ICLOG_EVENT(xlog_iclog_wait_on);
 DEFINE_ICLOG_EVENT(xlog_iclog_write);
 
