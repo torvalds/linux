@@ -3710,7 +3710,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
  * @attr: which attribute to fetch
  * @ctx: buffer to receive the result
  * @size: available size in, actual size out
- * @flags: unused
+ * @flags: reserved, currently zero
  *
  * Fill the passed user space @ctx with the details of the requested
  * attribute.
@@ -3771,57 +3771,52 @@ static int smack_getprocattr(struct task_struct *p, const char *name, char **val
  * Sets the Smack value of the task. Only setting self
  * is permitted and only with privilege
  *
- * Returns the length of the smack label or an error code
+ * Returns zero on success or an error code
  */
-static int do_setattr(u64 attr, void *value, size_t size)
+static int do_setattr(unsigned int attr, void *value, size_t size)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
 	struct cred *new;
 	struct smack_known *skp;
-	char *labelstr;
-	int rc = 0;
+	int label_len;
 
-	if (!smack_privileged(CAP_MAC_ADMIN) && list_empty(&tsp->smk_relabel))
-		return -EPERM;
-
+	/*
+	 * let unprivileged user validate input, check permissions later
+	 */
 	if (value == NULL || size == 0 || size >= SMK_LONGLABEL)
 		return -EINVAL;
 
-	if (attr != LSM_ATTR_CURRENT)
-		return -EOPNOTSUPP;
-
-	labelstr = smk_parse_smack(value, size);
-	if (IS_ERR(labelstr))
-		return PTR_ERR(labelstr);
+	label_len = smk_parse_label_len(value, size);
+	if (label_len < 0 || label_len != size)
+		return -EINVAL;
 
 	/*
 	 * No process is ever allowed the web ("@") label
 	 * and the star ("*") label.
 	 */
-	if (labelstr[1] == '\0' /* '@', '*' */) {
-		const char c = labelstr[0];
+	if (label_len == 1 /* '@', '*' */) {
+		const char c = *(const char *)value;
 
 		if (c == *smack_known_web.smk_known ||
-		    c == *smack_known_star.smk_known) {
-			rc = -EPERM;
-			goto free_labelstr;
-		}
+		    c == *smack_known_star.smk_known)
+			return -EPERM;
 	}
 
 	if (!smack_privileged(CAP_MAC_ADMIN)) {
 		const struct smack_known_list_elem *sklep;
-		list_for_each_entry(sklep, &tsp->smk_relabel, list)
-			if (strcmp(sklep->smk_label->smk_known, labelstr) == 0)
-				goto free_labelstr;
-		rc = -EPERM;
+		list_for_each_entry(sklep, &tsp->smk_relabel, list) {
+			const char *cp = sklep->smk_label->smk_known;
+
+			if (strlen(cp) == label_len &&
+			    strncmp(cp, value, label_len) == 0)
+				goto in_relabel;
+		}
+		return -EPERM;
+in_relabel:
+		;
 	}
 
-free_labelstr:
-	kfree(labelstr);
-	if (rc)
-		return -EPERM;
-
-	skp = smk_import_entry(value, size);
+	skp = smk_import_valid_label(value, label_len, GFP_KERNEL);
 	if (IS_ERR(skp))
 		return PTR_ERR(skp);
 
@@ -3837,7 +3832,7 @@ free_labelstr:
 	smk_destroy_label_list(&tsp->smk_relabel);
 
 	commit_creds(new);
-	return size;
+	return 0;
 }
 
 /**
@@ -3845,7 +3840,7 @@ free_labelstr:
  * @attr: which attribute to set
  * @ctx: buffer containing the data
  * @size: size of @ctx
- * @flags: unused
+ * @flags: reserved, must be zero
  *
  * Fill the passed user space @ctx with the details of the requested
  * attribute.
@@ -3855,12 +3850,26 @@ free_labelstr:
 static int smack_setselfattr(unsigned int attr, struct lsm_ctx *ctx,
 			     u32 size, u32 flags)
 {
-	int rc;
+	if (attr != LSM_ATTR_CURRENT)
+		return -EOPNOTSUPP;
 
-	rc = do_setattr(attr, ctx->ctx, ctx->ctx_len);
-	if (rc > 0)
-		return 0;
-	return rc;
+	if (ctx->flags)
+		return -EINVAL;
+	/*
+	 * string must have \0 terminator, included in ctx->ctx
+	 * (see description of struct lsm_ctx)
+	 */
+	if (ctx->ctx_len == 0)
+		return -EINVAL;
+
+	if (ctx->ctx[ctx->ctx_len - 1] != '\0')
+		return -EINVAL;
+	/*
+	 * other do_setattr() caller, smack_setprocattr(),
+	 * does not count \0 into size, so
+	 * decreasing length by 1 to accommodate the divergence.
+	 */
+	return do_setattr(attr, ctx->ctx, ctx->ctx_len - 1);
 }
 
 /**
@@ -3872,15 +3881,39 @@ static int smack_setselfattr(unsigned int attr, struct lsm_ctx *ctx,
  * Sets the Smack value of the task. Only setting self
  * is permitted and only with privilege
  *
- * Returns the length of the smack label or an error code
+ * Returns the size of the input value or an error code
  */
 static int smack_setprocattr(const char *name, void *value, size_t size)
 {
-	int attr = lsm_name_to_attr(name);
+	size_t realsize = size;
+	unsigned int attr = lsm_name_to_attr(name);
 
-	if (attr != LSM_ATTR_UNDEF)
-		return do_setattr(attr, value, size);
-	return -EINVAL;
+	switch (attr) {
+	case LSM_ATTR_UNDEF:   return -EINVAL;
+	default:               return -EOPNOTSUPP;
+	case LSM_ATTR_CURRENT:
+		;
+	}
+
+	/*
+	 * The value for the "current" attribute is the label
+	 * followed by one of the 4 trailers: none, \0, \n, \n\0
+	 *
+	 * I.e. following inputs are accepted as 3-characters long label "foo":
+	 *
+	 *   "foo"     (3 characters)
+	 *   "foo\0"   (4 characters)
+	 *   "foo\n"   (4 characters)
+	 *   "foo\n\0" (5 characters)
+	 */
+
+	if (realsize && (((const char *)value)[realsize - 1] == '\0'))
+		--realsize;
+
+	if (realsize && (((const char *)value)[realsize - 1] == '\n'))
+		--realsize;
+
+	return do_setattr(attr, value, realsize) ? : size;
 }
 
 /**

@@ -443,19 +443,19 @@ struct smack_known *smk_find_entry(const char *string)
 }
 
 /**
- * smk_parse_smack - parse smack label from a text string
- * @string: a text string that might contain a Smack label
- * @len: the maximum size, or zero if it is NULL terminated.
+ * smk_parse_label_len - calculate the length of the starting segment
+ *                       in the string that constitutes a valid smack label
+ * @string: a text string that might contain a Smack label at the beginning
+ * @len: the maximum size to look into, may be zero if string is null-terminated
  *
- * Returns a pointer to the clean label or an error code.
+ * Returns the length of the segment (0 < L < SMK_LONGLABEL) or an error code.
  */
-char *smk_parse_smack(const char *string, int len)
+int smk_parse_label_len(const char *string, int len)
 {
-	char *smack;
 	int i;
 
-	if (len <= 0)
-		len = strlen(string) + 1;
+	if (len <= 0 || len > SMK_LONGLABEL)
+		len = SMK_LONGLABEL;
 
 	/*
 	 * Reserve a leading '-' as an indicator that
@@ -463,7 +463,7 @@ char *smk_parse_smack(const char *string, int len)
 	 * including /smack/cipso and /smack/cipso2
 	 */
 	if (string[0] == '-')
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	for (i = 0; i < len; i++)
 		if (string[i] > '~' || string[i] <= ' ' || string[i] == '/' ||
@@ -471,6 +471,25 @@ char *smk_parse_smack(const char *string, int len)
 			break;
 
 	if (i == 0 || i >= SMK_LONGLABEL)
+		return -EINVAL;
+
+	return i;
+}
+
+/**
+ * smk_parse_smack - copy the starting segment in the string
+ *                   that constitutes a valid smack label
+ * @string: a text string that might contain a Smack label at the beginning
+ * @len: the maximum size to look into, may be zero if string is null-terminated
+ *
+ * Returns a pointer to the copy of the label or an error code.
+ */
+char *smk_parse_smack(const char *string, int len)
+{
+	char *smack;
+	int i = smk_parse_label_len(string, len);
+
+	if (i < 0)
 		return ERR_PTR(-EINVAL);
 
 	smack = kstrndup(string, i, GFP_NOFS);
@@ -554,23 +573,17 @@ int smack_populate_secattr(struct smack_known *skp)
 }
 
 /**
- * smk_import_entry - import a label, return the list entry
- * @string: a text string that might be a Smack label
- * @len: the maximum size, or zero if it is NULL terminated.
+ * smk_import_valid_allocated_label - import a label, return the list entry
+ * @smack: a text string that is a valid Smack label and may be kfree()ed.
+ *         It is consumed: either becomes a part of the entry or kfree'ed.
  *
- * Returns a pointer to the entry in the label list that
- * matches the passed string, adding it if necessary,
- * or an error code.
+ * Returns: see description of smk_import_entry()
  */
-struct smack_known *smk_import_entry(const char *string, int len)
+static struct smack_known *
+smk_import_allocated_label(char *smack, gfp_t gfp)
 {
 	struct smack_known *skp;
-	char *smack;
 	int rc;
-
-	smack = smk_parse_smack(string, len);
-	if (IS_ERR(smack))
-		return ERR_CAST(smack);
 
 	mutex_lock(&smack_known_lock);
 
@@ -578,7 +591,7 @@ struct smack_known *smk_import_entry(const char *string, int len)
 	if (skp != NULL)
 		goto freeout;
 
-	skp = kzalloc(sizeof(*skp), GFP_NOFS);
+	skp = kzalloc(sizeof(*skp), gfp);
 	if (skp == NULL) {
 		skp = ERR_PTR(-ENOMEM);
 		goto freeout;
@@ -606,6 +619,42 @@ unlockout:
 	mutex_unlock(&smack_known_lock);
 
 	return skp;
+}
+
+/**
+ * smk_import_entry - import a label, return the list entry
+ * @string: a text string that might contain a Smack label at the beginning
+ * @len: the maximum size to look into, may be zero if string is null-terminated
+ *
+ * Returns a pointer to the entry in the label list that
+ * matches the passed string, adding it if necessary,
+ * or an error code.
+ */
+struct smack_known *smk_import_entry(const char *string, int len)
+{
+	char *smack = smk_parse_smack(string, len);
+
+	if (IS_ERR(smack))
+		return ERR_CAST(smack);
+
+	return smk_import_allocated_label(smack, GFP_NOFS);
+}
+
+/**
+ * smk_import_valid_label - import a label, return the list entry
+ * @label a text string that is a valid Smack label, not null-terminated
+ *
+ * Returns: see description of smk_import_entry()
+ */
+struct smack_known *
+smk_import_valid_label(const char *label, int label_len, gfp_t gfp)
+{
+	char *smack = kstrndup(label, label_len, gfp);
+
+	if  (!smack)
+		return ERR_PTR(-ENOMEM);
+
+	return smk_import_allocated_label(smack, gfp);
 }
 
 /**

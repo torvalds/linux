@@ -601,10 +601,15 @@ specification.
 Task Attribute
 ~~~~~~~~~~~~~~
 
-The Smack label of a process can be read from /proc/<pid>/attr/current. A
-process can read its own Smack label from /proc/self/attr/current. A
+The Smack label of a process can be read from ``/proc/<pid>/attr/current``. A
+process can read its own Smack label from ``/proc/self/attr/current``. A
 privileged process can change its own Smack label by writing to
-/proc/self/attr/current but not the label of another process.
+``/proc/self/attr/current`` but not the label of another process.
+
+Format of writing is : only the label or the label followed by one of the
+3 trailers: ``\n`` (by common agreement for ``/proc/...`` interfaces),
+``\0`` (because some applications incorrectly include it),
+``\n\0`` (because we think some applications may incorrectly include it).
 
 File Attribute
 ~~~~~~~~~~~~~~
