@@ -48,7 +48,6 @@
 
 struct visconti_eth {
 	void __iomem *reg;
-	u32 phy_intf_sel;
 	struct clk *phy_ref_clk;
 	struct device *dev;
 };
@@ -57,9 +56,9 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 					phy_interface_t interface, int speed)
 {
 	struct visconti_eth *dwmac = bsp_priv;
-	unsigned int val, clk_sel = 0;
+	unsigned long clk_sel, val;
 
-	if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RGMII) {
+	if (phy_interface_mode_is_rgmii(interface)) {
 		switch (speed) {
 		case SPEED_1000:
 			clk_sel = ETHER_CLK_SEL_FREQ_SEL_125M;
@@ -93,7 +92,7 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 
 		val &= ~ETHER_CLK_SEL_TX_O_E_N_IN;
 		writel(val, dwmac->reg + REG_ETHER_CLOCK_SEL);
-	} else if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RMII) {
+	} else if (interface == PHY_INTERFACE_MODE_RMII) {
 		switch (speed) {
 		case SPEED_100:
 			clk_sel = ETHER_CLK_SEL_DIV_SEL_2;
@@ -150,28 +149,28 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 static int visconti_eth_init_hw(struct platform_device *pdev, struct plat_stmmacenet_data *plat_dat)
 {
 	struct visconti_eth *dwmac = plat_dat->bsp_priv;
-	unsigned int reg_val, clk_sel_val;
+	unsigned int clk_sel_val;
+	u32 phy_intf_sel;
 
 	switch (plat_dat->phy_interface) {
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		dwmac->phy_intf_sel = ETHER_CONFIG_INTF_RGMII;
+		phy_intf_sel = ETHER_CONFIG_INTF_RGMII;
 		break;
 	case PHY_INTERFACE_MODE_MII:
-		dwmac->phy_intf_sel = ETHER_CONFIG_INTF_MII;
+		phy_intf_sel = ETHER_CONFIG_INTF_MII;
 		break;
 	case PHY_INTERFACE_MODE_RMII:
-		dwmac->phy_intf_sel = ETHER_CONFIG_INTF_RMII;
+		phy_intf_sel = ETHER_CONFIG_INTF_RMII;
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported phy-mode (%d)\n", plat_dat->phy_interface);
 		return -EOPNOTSUPP;
 	}
 
-	reg_val = dwmac->phy_intf_sel;
-	writel(reg_val, dwmac->reg + REG_ETHER_CONTROL);
+	writel(phy_intf_sel, dwmac->reg + REG_ETHER_CONTROL);
 
 	/* Enable TX/RX clock */
 	clk_sel_val = ETHER_CLK_SEL_FREQ_SEL_125M;
@@ -181,8 +180,8 @@ static int visconti_eth_init_hw(struct platform_device *pdev, struct plat_stmmac
 	       dwmac->reg + REG_ETHER_CLOCK_SEL);
 
 	/* release internal-reset */
-	reg_val |= ETHER_ETH_CONTROL_RESET;
-	writel(reg_val, dwmac->reg + REG_ETHER_CONTROL);
+	phy_intf_sel |= ETHER_ETH_CONTROL_RESET;
+	writel(phy_intf_sel, dwmac->reg + REG_ETHER_CONTROL);
 
 	return 0;
 }
