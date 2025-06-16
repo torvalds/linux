@@ -89,7 +89,17 @@ static int rpi_panel_v2_i2c_probe(struct i2c_client *i2c)
 	if (ret)
 		return dev_err_probe(&i2c->dev, ret, "Failed to create gpiochip\n");
 
+	i2c_set_clientdata(i2c, regmap);
+
 	return devm_pwmchip_add(&i2c->dev, pc);
+}
+
+static void rpi_panel_v2_i2c_shutdown(struct i2c_client *client)
+{
+	struct regmap *regmap = i2c_get_clientdata(client);
+
+	regmap_write(regmap, REG_PWM, 0);
+	regmap_write(regmap, REG_POWERON, 0);
 }
 
 static const struct of_device_id rpi_panel_v2_dt_ids[] = {
@@ -105,6 +115,7 @@ static struct i2c_driver rpi_panel_v2_regulator_driver = {
 		.of_match_table = rpi_panel_v2_dt_ids,
 	},
 	.probe = rpi_panel_v2_i2c_probe,
+	.shutdown = rpi_panel_v2_i2c_shutdown,
 };
 
 module_i2c_driver(rpi_panel_v2_regulator_driver);
