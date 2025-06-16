@@ -1322,6 +1322,7 @@ enum rtw89_btc_bt_state_cnt {
 	BTC_BCNT_POLUT_NOW,
 	BTC_BCNT_POLUT_DIFF,
 	BTC_BCNT_RATECHG,
+	BTC_BCNT_BTTXPWR_UPDATE,
 	BTC_BCNT_NUM,
 };
 
@@ -1810,6 +1811,13 @@ union rtw89_btc_bt_state_map {
 #define BTC_BT_AFH_GROUP 12
 #define BTC_BT_AFH_LE_GROUP 5
 
+struct rtw89_btc_bt_txpwr_desc {
+	s8 br_dbm;
+	s8 le_dbm;
+	u8 br_gain_index;
+	u8 le_gain_index;
+};
+
 struct rtw89_btc_bt_link_info {
 	struct rtw89_btc_u8_sta_chg profile_cnt;
 	struct rtw89_btc_bool_sta_chg multi_link;
@@ -1819,6 +1827,7 @@ struct rtw89_btc_bt_link_info {
 	struct rtw89_btc_bt_a2dp_desc a2dp_desc;
 	struct rtw89_btc_bt_pan_desc pan_desc;
 	union rtw89_btc_bt_state_map status;
+	struct rtw89_btc_bt_txpwr_desc bt_txpwr_desc;
 
 	u8 sut_pwr_level[BTC_PROFILE_MAX];
 	u8 golden_rx_shift[BTC_PROFILE_MAX];
@@ -2089,6 +2098,7 @@ struct rtw89_btc_bt_info {
 	union rtw89_btc_bt_rfk_info_map rfk_info;
 
 	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox */
+	u8 txpwr_info[BTC_BTINFO_MAX];
 	u8 rssi_level;
 
 	u32 scbd;
@@ -3042,6 +3052,7 @@ enum rtw89_btc_btf_fw_event {
 	BTF_EVNT_BT_LEAUDIO_INFO = 7, /* fwc2hfunc > 1 */
 	BTF_EVNT_BUF_OVERFLOW,
 	BTF_EVNT_C2H_LOOPBACK,
+	BTF_EVNT_BT_QUERY_TXPWR, /* fwc2hfunc > 3 */
 	BTF_EVNT_MAX,
 };
 
