@@ -2493,7 +2493,7 @@ static int gfx_v12_1_cp_resume(struct amdgpu_device *adev)
 
 static int gfx_v12_1_gfxhub_enable(struct amdgpu_device *adev)
 {
-	int r;
+	int r, i;
 	bool value;
 
 	r = adev->gfxhub.funcs->gart_enable(adev);
@@ -2506,7 +2506,10 @@ static int gfx_v12_1_gfxhub_enable(struct amdgpu_device *adev)
 	adev->gfxhub.funcs->set_fault_enable_default(adev, value);
 	/* TODO investigate why TLB flush is needed,
 	 * are we missing a flush somewhere else? */
-	adev->gmc.gmc_funcs->flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB(0), 0);
+	for_each_set_bit(i, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
+		if (AMDGPU_IS_GFXHUB(i))
+			adev->gmc.gmc_funcs->flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB(i), 0);
+	}
 
 	return 0;
 }
