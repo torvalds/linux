@@ -1961,31 +1961,7 @@ static void uvc_unregister_video(struct uvc_device *dev)
 		if (!video_is_registered(&stream->vdev))
 			continue;
 
-		/*
-		 * For stream->vdev we follow the same logic as:
-		 * vb2_video_unregister_device().
-		 */
-
-		/* 1. Take a reference to vdev */
-		get_device(&stream->vdev.dev);
-
-		/* 2. Ensure that no new ioctls can be called. */
-		video_unregister_device(&stream->vdev);
-
-		/* 3. Wait for old ioctls to finish. */
-		mutex_lock(&stream->mutex);
-
-		/* 4. Stop streaming. */
-		uvc_queue_release(&stream->queue);
-
-		mutex_unlock(&stream->mutex);
-
-		put_device(&stream->vdev.dev);
-
-		/*
-		 * For stream->meta.vdev we can directly call:
-		 * vb2_video_unregister_device().
-		 */
+		vb2_video_unregister_device(&stream->vdev);
 		vb2_video_unregister_device(&stream->meta.vdev);
 
 		/*
@@ -2033,6 +2009,8 @@ int uvc_register_video_device(struct uvc_device *dev,
 	vdev->ioctl_ops = ioctl_ops;
 	vdev->release = uvc_release;
 	vdev->prio = &stream->chain->prio;
+	vdev->queue = &queue->queue;
+	vdev->lock = &queue->mutex;
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
 		vdev->vfl_dir = VFL_DIR_TX;
 	else
@@ -2397,9 +2375,12 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 	list_for_each_entry(stream, &dev->streams, list) {
 		if (stream->intf == intf) {
 			ret = uvc_video_resume(stream, reset);
-			if (ret < 0)
-				uvc_queue_streamoff(&stream->queue,
-						    stream->queue.queue.type);
+			if (ret < 0) {
+				mutex_lock(&stream->queue.mutex);
+				vb2_streamoff(&stream->queue.queue,
+					      stream->queue.queue.type);
+				mutex_unlock(&stream->queue.mutex);
+			}
 			return ret;
 		}
 	}
