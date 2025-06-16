@@ -1014,6 +1014,7 @@ static void sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 		unsigned char power_mode)
 {
 	int err;
+	struct rtsx_ucr *ucr = host->ucr;
 
 	if (power_mode == host->power_mode)
 		return;
@@ -1031,9 +1032,13 @@ static void sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 		err = sd_power_on(host);
 		if (err)
 			dev_dbg(sdmmc_dev(host), "power-on (err = %d)\n", err);
+		/* issue the clock signals to card at least 74 clocks */
+		rtsx_usb_write_register(ucr, SD_BUS_STAT, SD_CLK_TOGGLE_EN, SD_CLK_TOGGLE_EN);
 		break;
 
 	case MMC_POWER_ON:
+		/* stop to send the clock signals */
+		rtsx_usb_write_register(ucr, SD_BUS_STAT, SD_CLK_TOGGLE_EN, 0x00);
 	case MMC_POWER_UNDEFINED:
 		break;
 
