@@ -64,6 +64,12 @@ libsha256-y					:= sha256.o
 obj-$(CONFIG_CRYPTO_LIB_SHA256_GENERIC)		+= libsha256-generic.o
 libsha256-generic-y				:= sha256-generic.o
 
+obj-$(CONFIG_CRYPTO_LIB_SHA512) += libsha512.o
+libsha512-y := sha512.o
+ifeq ($(CONFIG_CRYPTO_LIB_SHA512_ARCH),y)
+CFLAGS_sha512.o += -I$(src)/$(SRCARCH)
+endif # CONFIG_CRYPTO_LIB_SHA512_ARCH
+
 obj-$(CONFIG_MPILIB) += mpi/
 
 obj-$(CONFIG_CRYPTO_SELFTESTS_FULL)		+= simd.o

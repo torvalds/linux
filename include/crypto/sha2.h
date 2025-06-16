@@ -129,4 +129,132 @@ static inline void sha224_init(struct sha256_state *sctx)
 /* Simply use sha256_update as it is equivalent to sha224_update. */
 void sha224_final(struct sha256_state *sctx, u8 out[SHA224_DIGEST_SIZE]);
 
+/* State for the SHA-512 (and SHA-384) compression function */
+struct sha512_block_state {
+	u64 h[8];
+};
+
+/*
+ * Context structure, shared by SHA-384 and SHA-512.  The sha384_ctx and
+ * sha512_ctx structs wrap this one so that the API has proper typing and
+ * doesn't allow mixing the SHA-384 and SHA-512 functions arbitrarily.
+ */
+struct __sha512_ctx {
+	struct sha512_block_state state;
+	u64 bytecount_lo;
+	u64 bytecount_hi;
+	u8 buf[SHA512_BLOCK_SIZE] __aligned(__alignof__(__be64));
+};
+void __sha512_update(struct __sha512_ctx *ctx, const u8 *data, size_t len);
+
+/**
+ * struct sha384_ctx - Context for hashing a message with SHA-384
+ * @ctx: private
+ */
+struct sha384_ctx {
+	struct __sha512_ctx ctx;
+};
+
+/**
+ * sha384_init() - Initialize a SHA-384 context for a new message
+ * @ctx: the context to initialize
+ *
+ * If you don't need incremental computation, consider sha384() instead.
+ *
+ * Context: Any context.
+ */
+void sha384_init(struct sha384_ctx *ctx);
+
+/**
+ * sha384_update() - Update a SHA-384 context with message data
+ * @ctx: the context to update; must have been initialized
+ * @data: the message data
+ * @len: the data length in bytes
+ *
+ * This can be called any number of times.
+ *
+ * Context: Any context.
+ */
+static inline void sha384_update(struct sha384_ctx *ctx,
+				 const u8 *data, size_t len)
+{
+	__sha512_update(&ctx->ctx, data, len);
+}
+
+/**
+ * sha384_final() - Finish computing a SHA-384 message digest
+ * @ctx: the context to finalize; must have been initialized
+ * @out: (output) the resulting SHA-384 message digest
+ *
+ * After finishing, this zeroizes @ctx.  So the caller does not need to do it.
+ *
+ * Context: Any context.
+ */
+void sha384_final(struct sha384_ctx *ctx, u8 out[SHA384_DIGEST_SIZE]);
+
+/**
+ * sha384() - Compute SHA-384 message digest in one shot
+ * @data: the message data
+ * @len: the data length in bytes
+ * @out: (output) the resulting SHA-384 message digest
+ *
+ * Context: Any context.
+ */
+void sha384(const u8 *data, size_t len, u8 out[SHA384_DIGEST_SIZE]);
+
+/**
+ * struct sha512_ctx - Context for hashing a message with SHA-512
+ * @ctx: private
+ */
+struct sha512_ctx {
+	struct __sha512_ctx ctx;
+};
+
+/**
+ * sha512_init() - Initialize a SHA-512 context for a new message
+ * @ctx: the context to initialize
+ *
+ * If you don't need incremental computation, consider sha512() instead.
+ *
+ * Context: Any context.
+ */
+void sha512_init(struct sha512_ctx *ctx);
+
+/**
+ * sha512_update() - Update a SHA-512 context with message data
+ * @ctx: the context to update; must have been initialized
+ * @data: the message data
+ * @len: the data length in bytes
+ *
+ * This can be called any number of times.
+ *
+ * Context: Any context.
+ */
+static inline void sha512_update(struct sha512_ctx *ctx,
+				 const u8 *data, size_t len)
+{
+	__sha512_update(&ctx->ctx, data, len);
+}
+
+/**
+ * sha512_final() - Finish computing a SHA-512 message digest
+ * @ctx: the context to finalize; must have been initialized
+ * @out: (output) the resulting SHA-512 message digest
+ *
+ * After finishing, this zeroizes @ctx.  So the caller does not need to do it.
+ *
+ * Context: Any context.
+ */
+void sha512_final(struct sha512_ctx *ctx, u8 out[SHA512_DIGEST_SIZE]);
+
+/**
+ * sha512() - Compute SHA-512 message digest in one shot
+ * @data: the message data
+ * @len: the data length in bytes
+ * @out: (output) the resulting SHA-512 message digest
+ *
+ * Context: Any context.
+ */
+void sha512(const u8 *data, size_t len, u8 out[SHA512_DIGEST_SIZE]);
+
 #endif /* _CRYPTO_SHA2_H */

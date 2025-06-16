@@ -167,6 +167,16 @@ config CRYPTO_LIB_SHA256_GENERIC
 	  for SIMD implementations. If no arch specific implementation is
 	  enabled, this implementation serves the users of CRYPTO_LIB_SHA256.
 
+config CRYPTO_LIB_SHA512
+	tristate
+	help
+	  The SHA-384 and SHA-512 library functions.  Select this if your module
+	  uses any of these functions from <crypto/sha2.h>.
+
+config CRYPTO_LIB_SHA512_ARCH
+	bool
+	depends on CRYPTO_LIB_SHA512 && !UML
+
 config CRYPTO_LIB_SM3
 	tristate
 
