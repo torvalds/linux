@@ -65,7 +65,7 @@ static vm_fault_t secretmem_fault(struct vm_fault *vmf)
 
 retry:
 	folio = filemap_lock_folio(mapping, offset);
-	if (!folio) {
+	if (IS_ERR(folio)) {
 		folio = folio_alloc(gfp | __GFP_ZERO, 0);
 		if (!folio) {
 			ret = VM_FAULT_OOM;
