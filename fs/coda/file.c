@@ -160,7 +160,7 @@ coda_file_mmap(struct file *coda_file, struct vm_area_struct *vma)
 	size_t count;
 	int ret;
 
-	if (!host_file->f_op->mmap)
+	if (!can_mmap_file(host_file))
 		return -ENODEV;
 
 	if (WARN_ON(coda_file != vma->vm_file))

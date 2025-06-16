@@ -333,7 +333,7 @@ int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
 	if (WARN_ON_ONCE(!(file->f_mode & FMODE_BACKING)))
 		return -EIO;
 
-	if (!file->f_op->mmap)
+	if (!can_mmap_file(file))
 		return -ENODEV;
 
 	vma_set_file(vma, file);
