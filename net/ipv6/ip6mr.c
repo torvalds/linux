@@ -2035,11 +2035,10 @@ static inline int ip6mr_forward2_finish(struct net *net, struct sock *sk, struct
  *	Processing handlers for ip6mr_forward
  */
 
-static void ip6mr_forward2(struct net *net, struct mr_table *mrt,
-			   struct sk_buff *skb, int vifi)
+static int ip6mr_prepare_xmit(struct net *net, struct mr_table *mrt,
+			      struct sk_buff *skb, int vifi)
 {
 	struct vif_device *vif = &mrt->vif_table[vifi];
-	struct net_device *indev = skb->dev;
 	struct net_device *vif_dev;
 	struct ipv6hdr *ipv6h;
 	struct dst_entry *dst;
@@ -2047,7 +2046,7 @@ static void ip6mr_forward2(struct net *net, struct mr_table *mrt,
 
 	vif_dev = vif_dev_read(vif);
 	if (!vif_dev)
-		goto out_free;
+		return -1;
 
 #ifdef CONFIG_IPV6_PIMSM_V2
 	if (vif->flags & MIFF_REGISTER) {
@@ -2056,7 +2055,7 @@ static void ip6mr_forward2(struct net *net, struct mr_table *mrt,
 		DEV_STATS_ADD(vif_dev, tx_bytes, skb->len);
 		DEV_STATS_INC(vif_dev, tx_packets);
 		ip6mr_cache_report(mrt, skb, vifi, MRT6MSG_WHOLEPKT);
-		goto out_free;
+		return -1;
 	}
 #endif
 
@@ -2070,7 +2069,7 @@ static void ip6mr_forward2(struct net *net, struct mr_table *mrt,
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {
 		dst_release(dst);
-		goto out_free;
+		return -1;
 	}
 
 	skb_dst_drop(skb);
@@ -2094,10 +2093,20 @@ static void ip6mr_forward2(struct net *net, struct mr_table *mrt,
 	/* We are about to write */
 	/* XXX: extension headers? */
 	if (skb_cow(skb, sizeof(*ipv6h) + LL_RESERVED_SPACE(vif_dev)))
-		goto out_free;
+		return -1;
 
 	ipv6h = ipv6_hdr(skb);
 	ipv6h->hop_limit--;
+	return 0;
+}
+
+static void ip6mr_forward2(struct net *net, struct mr_table *mrt,
+			   struct sk_buff *skb, int vifi)
+{
+	struct net_device *indev = skb->dev;
+
+	if (ip6mr_prepare_xmit(net, mrt, skb, vifi))
+		goto out_free;
 
 	IP6CB(skb)->flags |= IP6SKB_FORWARDED;
 
