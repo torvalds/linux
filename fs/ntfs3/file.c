@@ -261,14 +261,15 @@ out:
 }
 
 /*
- * ntfs_file_mmap - file_operations::mmap
+ * ntfs_file_mmap_prepare - file_operations::mmap_prepare
  */
-static int ntfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 {
+	struct file *file = desc->file;
 	struct inode *inode = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(inode);
-	u64 from = ((u64)vma->vm_pgoff << PAGE_SHIFT);
-	bool rw = vma->vm_flags & VM_WRITE;
+	u64 from = ((u64)desc->pgoff << PAGE_SHIFT);
+	bool rw = desc->vm_flags & VM_WRITE;
 	int err;
 
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
@@ -291,7 +292,7 @@ static int ntfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (rw) {
 		u64 to = min_t(loff_t, i_size_read(inode),
-			       from + vma->vm_end - vma->vm_start);
+			       from + desc->end - desc->start);
 
 		if (is_sparsed(ni)) {
 			/* Allocate clusters for rw map. */
@@ -319,7 +320,7 @@ static int ntfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		}
 	}
 
-	err = generic_file_mmap(file, vma);
+	err = generic_file_mmap_prepare(desc);
 out:
 	return err;
 }
@@ -1331,7 +1332,7 @@ const struct file_operations ntfs_file_operations = {
 #endif
 	.splice_read	= ntfs_file_splice_read,
 	.splice_write	= ntfs_file_splice_write,
-	.mmap		= ntfs_file_mmap,
+	.mmap_prepare	= ntfs_file_mmap_prepare,
 	.open		= ntfs_file_open,
 	.fsync		= generic_file_fsync,
 	.fallocate	= ntfs_fallocate,

@@ -432,7 +432,7 @@ loff_t nfs_file_llseek(struct file *, loff_t, int);
 ssize_t nfs_file_read(struct kiocb *, struct iov_iter *);
 ssize_t nfs_file_splice_read(struct file *in, loff_t *ppos, struct pipe_inode_info *pipe,
 			     size_t len, unsigned int flags);
-int nfs_file_mmap(struct file *, struct vm_area_struct *);
+int nfs_file_mmap_prepare(struct vm_area_desc *);
 ssize_t nfs_file_write(struct kiocb *, struct iov_iter *);
 int nfs_file_release(struct inode *, struct file *);
 int nfs_lock(struct file *, int, struct file_lock *);
