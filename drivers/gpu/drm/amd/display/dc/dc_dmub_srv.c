@@ -1314,6 +1314,13 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		} else if (dc->config.disable_ips_rcg == DMUB_IPS1_RCG_DISABLE) {
 			new_signals.bits.allow_ips0_rcg = 1;
 		}
+		// IPS dynamic allow bits (IPSv2 change, vpb use case)
+		if (dc->config.disable_ips_in_vpb == DMUB_IPS_VPB_ENABLE_IPS1_AND_RCG) {
+			new_signals.bits.allow_dynamic_ips1 = 1;
+		} else if (dc->config.disable_ips_in_vpb == DMUB_IPS_VPB_ENABLE_ALL) {
+			new_signals.bits.allow_dynamic_ips1 = 1;
+			new_signals.bits.allow_dynamic_ips1_z8 = 1;
+		}
 		ips_driver->signals = new_signals;
 		dc_dmub_srv->driver_signals = ips_driver->signals;
 	}

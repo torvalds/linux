@@ -790,6 +790,13 @@ enum dmub_ips_rcg_disable_type {
 	DMUB_IPS_RCG_DISABLE = 3
 };
 
+enum dmub_ips_in_vpb_disable_type {
+	DMUB_IPS_VPB_RCG_ONLY = 0, // Legacy behaviour
+	DMUB_IPS_VPB_DISABLE_ALL = 1,
+	DMUB_IPS_VPB_ENABLE_IPS1_AND_RCG = 2,
+	DMUB_IPS_VPB_ENABLE_ALL = 3 // Enable IPS1 Z8, IPS1 and RCG
+};
+
 #define DMUB_IPS1_ALLOW_MASK 0x00000001
 #define DMUB_IPS2_ALLOW_MASK 0x00000002
 #define DMUB_IPS1_COMMIT_MASK 0x00000004
