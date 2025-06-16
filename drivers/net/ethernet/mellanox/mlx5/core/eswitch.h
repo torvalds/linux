@@ -833,6 +833,7 @@ int mlx5_esw_vport_vhca_id_map(struct mlx5_eswitch *esw,
 void mlx5_esw_vport_vhca_id_unmap(struct mlx5_eswitch *esw,
 				  struct mlx5_vport *vport);
 int mlx5_eswitch_vhca_id_to_vport(struct mlx5_eswitch *esw, u16 vhca_id, u16 *vport_num);
+bool mlx5_esw_vport_vhca_id(struct mlx5_eswitch *esw, u16 vportn, u16 *vhca_id);
 
 /**
  * struct mlx5_esw_event_info - Indicates eswitch mode changed/changing.
@@ -973,6 +974,13 @@ static inline bool mlx5_eswitch_block_ipsec(struct mlx5_core_dev *dev)
 }
 
 static inline void mlx5_eswitch_unblock_ipsec(struct mlx5_core_dev *dev) {}
+
+static inline bool
+mlx5_esw_vport_vhca_id(struct mlx5_eswitch *esw, u16 vportn, u16 *vhca_id)
+{
+	return -EOPNOTSUPP;
+}
+
 #endif /* CONFIG_MLX5_ESWITCH */
 
 #endif /* __MLX5_ESWITCH_H__ */

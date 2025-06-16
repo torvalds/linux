@@ -840,6 +840,18 @@ out_free:
 	return err;
 }
 
+bool mlx5_esw_vport_vhca_id(struct mlx5_eswitch *esw, u16 vportn, u16 *vhca_id)
+{
+	struct mlx5_vport *vport;
+
+	vport = mlx5_eswitch_get_vport(esw, vportn);
+	if (IS_ERR(vport) || MLX5_VPORT_INVAL_VHCA_ID(vport))
+		return false;
+
+	*vhca_id = vport->vhca_id;
+	return true;
+}
+
 static int esw_vport_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 {
 	bool vst_mode_steering = esw_vst_mode_is_steering(esw);
