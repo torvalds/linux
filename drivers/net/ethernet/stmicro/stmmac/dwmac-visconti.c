@@ -57,20 +57,20 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 					phy_interface_t interface, int speed)
 {
 	struct visconti_eth *dwmac = bsp_priv;
-	unsigned int val, clk_sel_val = 0;
+	unsigned int val, clk_sel = 0;
 
 	if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RGMII) {
 		switch (speed) {
 		case SPEED_1000:
-			clk_sel_val = ETHER_CLK_SEL_FREQ_SEL_125M;
+			clk_sel = ETHER_CLK_SEL_FREQ_SEL_125M;
 			break;
 
 		case SPEED_100:
-			clk_sel_val = ETHER_CLK_SEL_FREQ_SEL_25M;
+			clk_sel = ETHER_CLK_SEL_FREQ_SEL_25M;
 			break;
 
 		case SPEED_10:
-			clk_sel_val = ETHER_CLK_SEL_FREQ_SEL_2P5M;
+			clk_sel = ETHER_CLK_SEL_FREQ_SEL_2P5M;
 			break;
 
 		default:
@@ -79,12 +79,13 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 
 		/* Stop internal clock */
 		val = readl(dwmac->reg + REG_ETHER_CLOCK_SEL);
-		val &= ~(ETHER_CLK_SEL_RMII_CLK_EN | ETHER_CLK_SEL_RX_TX_CLK_EN);
+		val &= ~(ETHER_CLK_SEL_RMII_CLK_EN |
+			 ETHER_CLK_SEL_RX_TX_CLK_EN);
 		val |= ETHER_CLK_SEL_TX_O_E_N_IN;
 		writel(val, dwmac->reg + REG_ETHER_CLOCK_SEL);
 
 		/* Set Clock-Mux, Start clock, Set TX_O direction */
-		val = clk_sel_val | ETHER_CLK_SEL_RX_CLK_EXT_SEL_RXC;
+		val = clk_sel | ETHER_CLK_SEL_RX_CLK_EXT_SEL_RXC;
 		writel(val, dwmac->reg + REG_ETHER_CLOCK_SEL);
 
 		val |= ETHER_CLK_SEL_RX_TX_CLK_EN;
@@ -95,11 +96,11 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 	} else if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RMII) {
 		switch (speed) {
 		case SPEED_100:
-			clk_sel_val = ETHER_CLK_SEL_DIV_SEL_2;
+			clk_sel = ETHER_CLK_SEL_DIV_SEL_2;
 			break;
 
 		case SPEED_10:
-			clk_sel_val = ETHER_CLK_SEL_DIV_SEL_20;
+			clk_sel = ETHER_CLK_SEL_DIV_SEL_20;
 			break;
 
 		default:
@@ -108,14 +109,16 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 
 		/* Stop internal clock */
 		val = readl(dwmac->reg + REG_ETHER_CLOCK_SEL);
-		val &= ~(ETHER_CLK_SEL_RMII_CLK_EN | ETHER_CLK_SEL_RX_TX_CLK_EN);
+		val &= ~(ETHER_CLK_SEL_RMII_CLK_EN |
+			 ETHER_CLK_SEL_RX_TX_CLK_EN);
 		val |= ETHER_CLK_SEL_TX_O_E_N_IN;
 		writel(val, dwmac->reg + REG_ETHER_CLOCK_SEL);
 
 		/* Set Clock-Mux, Start clock, Set TX_O direction */
-		val = clk_sel_val | ETHER_CLK_SEL_RX_CLK_EXT_SEL_DIV |
-			ETHER_CLK_SEL_TX_CLK_EXT_SEL_DIV | ETHER_CLK_SEL_TX_O_E_N_IN |
-			ETHER_CLK_SEL_RMII_CLK_SEL_RX_C;
+		val = clk_sel | ETHER_CLK_SEL_RX_CLK_EXT_SEL_DIV |
+		      ETHER_CLK_SEL_TX_CLK_EXT_SEL_DIV |
+		      ETHER_CLK_SEL_TX_O_E_N_IN |
+		      ETHER_CLK_SEL_RMII_CLK_SEL_RX_C;
 		writel(val, dwmac->reg + REG_ETHER_CLOCK_SEL);
 
 		val |= ETHER_CLK_SEL_RMII_CLK_RST;
@@ -126,13 +129,15 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 	} else {
 		/* Stop internal clock */
 		val = readl(dwmac->reg + REG_ETHER_CLOCK_SEL);
-		val &= ~(ETHER_CLK_SEL_RMII_CLK_EN | ETHER_CLK_SEL_RX_TX_CLK_EN);
+		val &= ~(ETHER_CLK_SEL_RMII_CLK_EN |
+			 ETHER_CLK_SEL_RX_TX_CLK_EN);
 		val |= ETHER_CLK_SEL_TX_O_E_N_IN;
 		writel(val, dwmac->reg + REG_ETHER_CLOCK_SEL);
 
 		/* Set Clock-Mux, Start clock, Set TX_O direction */
-		val = clk_sel_val | ETHER_CLK_SEL_RX_CLK_EXT_SEL_RXC |
-			ETHER_CLK_SEL_TX_CLK_EXT_SEL_TXC | ETHER_CLK_SEL_TX_O_E_N_IN;
+		val = ETHER_CLK_SEL_RX_CLK_EXT_SEL_RXC |
+		      ETHER_CLK_SEL_TX_CLK_EXT_SEL_TXC |
+		      ETHER_CLK_SEL_TX_O_E_N_IN;
 		writel(val, dwmac->reg + REG_ETHER_CLOCK_SEL);
 
 		val |= ETHER_CLK_SEL_RX_TX_CLK_EN;
