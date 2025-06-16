@@ -59,6 +59,7 @@ struct inet_skb_parm {
 #define IPSKB_L3SLAVE		BIT(7)
 #define IPSKB_NOPOLICY		BIT(8)
 #define IPSKB_MULTIPATH		BIT(9)
+#define IPSKB_MCROUTE		BIT(10)
 
 	u16			frag_max_size;
 };
@@ -167,6 +168,7 @@ void ip_list_rcv(struct list_head *head, struct packet_type *pt,
 int ip_local_deliver(struct sk_buff *skb);
 void ip_protocol_deliver_rcu(struct net *net, struct sk_buff *skb, int proto);
 int ip_mr_input(struct sk_buff *skb);
+int ip_mr_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int ip_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int ip_mc_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
