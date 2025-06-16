@@ -1701,9 +1701,12 @@
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_MEDIA_ISP_ROOT>,
 					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
-				clock-names = "isp", "aclk", "hclk";
-				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>;
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_CAM1_PIX_ROOT>;
+				clock-names = "isp", "aclk", "hclk", "pclk";
+				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>,
+						<&media_blk_ctrl IMX8MP_MEDIABLK_PD_MIPI_CSI2_1>;
+				power-domain-names = "isp", "csi2";
 				fsl,blk-ctrl = <&media_blk_ctrl 0>;
 				status = "disabled";
 
@@ -1723,9 +1726,12 @@
 				interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX8MP_CLK_MEDIA_ISP_ROOT>,
 					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
-					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>;
-				clock-names = "isp", "aclk", "hclk";
-				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>;
+					 <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
+					 <&clk IMX8MP_CLK_MEDIA_CAM1_PIX_ROOT>;
+				clock-names = "isp", "aclk", "hclk", "pclk";
+				power-domains = <&media_blk_ctrl IMX8MP_MEDIABLK_PD_ISP>,
+						<&media_blk_ctrl IMX8MP_MEDIABLK_PD_MIPI_CSI2_2>;
+				power-domain-names = "isp", "csi2";
 				fsl,blk-ctrl = <&media_blk_ctrl 1>;
 				status = "disabled";
 
