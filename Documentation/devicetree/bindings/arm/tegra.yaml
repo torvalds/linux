@@ -52,6 +52,10 @@ properties:
               - nvidia,cardhu-a04
           - const: nvidia,cardhu
           - const: nvidia,tegra30
+      - description: ASUS Portable AiO P1801-T
+        items:
+          - const: asus,p1801-t
+          - const: nvidia,tegra30
       - description: ASUS Transformers Device family
         items:
           - enum:
