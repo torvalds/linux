@@ -24,6 +24,7 @@ config QCA808X_PHY
 config QCA807X_PHY
 	tristate "Qualcomm QCA807x PHYs"
 	select QCOM_NET_PHYLIB
+	select PHY_PACKAGE
 	depends on OF_MDIO
 	help
 	  Currently supports the Qualcomm QCA8072, QCA8075 and the PSGMII
