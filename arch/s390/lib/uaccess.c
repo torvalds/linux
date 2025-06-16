@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <asm/asm-extable.h>
 #include <asm/ctlreg.h>
+#include <asm/skey.h>
 
 #ifdef CONFIG_DEBUG_ENTRY
 void debug_user_asce(int exit)
@@ -156,6 +157,7 @@ int __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
 	bool sacf_flag;
 	int rc = 0;
 
+	skey_regions_initialize();
 	shift = (3 ^ (address & 3)) << 3;
 	address ^= address & 3;
 	_old = (unsigned int)old << shift;
@@ -163,7 +165,7 @@ int __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
 	mask = ~(0xff << shift);
 	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile(
-		"	spka	0(%[key])\n"
+		"20:	spka	0(%[key])\n"
 		"	sacf	256\n"
 		"	llill	%[count],%[max_loops]\n"
 		"0:	l	%[prev],%[address]\n"
@@ -181,10 +183,12 @@ int __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
 		"	brct	%[count],2b\n"
 		"5:	sacf	768\n"
 		"	spka	%[default_key]\n"
+		"21:\n"
 		EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
+		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "=&d" (prev),
 		[address] "+Q" (*(int *)address),
@@ -212,6 +216,7 @@ int __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
 	bool sacf_flag;
 	int rc = 0;
 
+	skey_regions_initialize();
 	shift = (2 ^ (address & 2)) << 3;
 	address ^= address & 2;
 	_old = (unsigned int)old << shift;
@@ -219,7 +224,7 @@ int __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
 	mask = ~(0xffff << shift);
 	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile(
-		"	spka	0(%[key])\n"
+		"20:	spka	0(%[key])\n"
 		"	sacf	256\n"
 		"	llill	%[count],%[max_loops]\n"
 		"0:	l	%[prev],%[address]\n"
@@ -237,10 +242,12 @@ int __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
 		"	brct	%[count],2b\n"
 		"5:	sacf	768\n"
 		"	spka	%[default_key]\n"
+		"21:\n"
 		EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
+		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "=&d" (prev),
 		[address] "+Q" (*(int *)address),
@@ -267,15 +274,18 @@ int __cmpxchg_user_key4(unsigned long address, unsigned int *uval,
 	bool sacf_flag;
 	int rc = 0;
 
+	skey_regions_initialize();
 	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile(
-		"	spka	0(%[key])\n"
+		"20:	spka	0(%[key])\n"
 		"	sacf	256\n"
 		"0:	cs	%[prev],%[new],%[address]\n"
 		"1:	sacf	768\n"
 		"	spka	%[default_key]\n"
+		"21:\n"
 		EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
+		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "+&d" (prev),
 		[address] "+Q" (*(int *)address)
@@ -296,15 +306,18 @@ int __cmpxchg_user_key8(unsigned long address, unsigned long *uval,
 	bool sacf_flag;
 	int rc = 0;
 
+	skey_regions_initialize();
 	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile(
-		"	spka	0(%[key])\n"
+		"20:	spka	0(%[key])\n"
 		"	sacf	256\n"
 		"0:	csg	%[prev],%[new],%[address]\n"
 		"1:	sacf	768\n"
 		"	spka	%[default_key]\n"
+		"21:\n"
 		EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
+		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "+&d" (prev),
 		[address] "+QS" (*(long *)address)
@@ -325,15 +338,18 @@ int __cmpxchg_user_key16(unsigned long address, __uint128_t *uval,
 	bool sacf_flag;
 	int rc = 0;
 
+	skey_regions_initialize();
 	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile(
-		"	spka	0(%[key])\n"
+		"20:	spka	0(%[key])\n"
 		"	sacf	256\n"
 		"0:	cdsg	%[prev],%[new],%[address]\n"
 		"1:	sacf	768\n"
 		"	spka	%[default_key]\n"
+		"21:\n"
 		EX_TABLE_UA_LOAD_REGPAIR(0b, 1b, %[rc], %[prev])
 		EX_TABLE_UA_LOAD_REGPAIR(1b, 1b, %[rc], %[prev])
+		SKEY_REGION(20b, 21b)
 		: [rc] "+&d" (rc),
 		[prev] "+&d" (prev),
 		[address] "+QS" (*(__int128_t *)address)
