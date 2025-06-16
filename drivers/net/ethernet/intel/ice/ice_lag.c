@@ -1144,7 +1144,7 @@ ice_lag_set_swid(u16 primary_swid, struct ice_lag *local_lag,
 {
 	struct ice_aqc_alloc_free_res_elem *buf;
 	struct ice_aqc_set_port_params *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	u16 buf_len, swid;
 	int status, i;
 
@@ -1192,7 +1192,7 @@ ice_lag_set_swid(u16 primary_swid, struct ice_lag *local_lag,
 	else
 		swid = local_lag->pf->hw.port_info->sw_id;
 
-	cmd = &desc.params.set_port_params;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_port_params);
 
 	cmd->swid = cpu_to_le16(ICE_AQC_PORT_SWID_VALID | swid);

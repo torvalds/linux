@@ -240,7 +240,7 @@ ice_aq_fwlog_set(struct ice_hw *hw, struct ice_fwlog_module_entry *entries,
 {
 	struct ice_aqc_fw_log_cfg_resp *fw_modules;
 	struct ice_aqc_fw_log *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 	int i;
 
@@ -255,9 +255,9 @@ ice_aq_fwlog_set(struct ice_hw *hw, struct ice_fwlog_module_entry *entries,
 	}
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logs_config);
-	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	desc.flags |= cpu_to_le16(LIBIE_AQ_FLAG_RD);
 
-	cmd = &desc.params.fw_log;
+	cmd = libie_aq_raw(&desc);
 
 	cmd->cmd_flags = ICE_AQC_FW_LOG_CONF_SET_VALID;
 	cmd->ops.cfg.log_resolution = cpu_to_le16(log_resolution);
@@ -309,7 +309,7 @@ static int ice_aq_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
 	struct ice_aqc_fw_log_cfg_resp *fw_modules;
 	struct ice_aqc_fw_log *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	u16 module_id_cnt;
 	int status;
 	void *buf;
@@ -322,7 +322,7 @@ static int ice_aq_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 		return -ENOMEM;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logs_query);
-	cmd = &desc.params.fw_log;
+	cmd = libie_aq_raw(&desc);
 
 	cmd->cmd_flags = ICE_AQC_FW_LOG_AQ_QUERY;
 
@@ -384,12 +384,14 @@ int ice_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
  */
 static int ice_aq_fwlog_register(struct ice_hw *hw, bool reg)
 {
-	struct ice_aq_desc desc;
+	struct ice_aqc_fw_log *cmd;
+	struct libie_aq_desc desc;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_fw_logs_register);
+	cmd = libie_aq_raw(&desc);
 
 	if (reg)
-		desc.params.fw_log.cmd_flags = ICE_AQC_FW_LOG_AQ_REGISTER;
+		cmd->cmd_flags = ICE_AQC_FW_LOG_AQ_REGISTER;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
 }

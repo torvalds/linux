@@ -1161,10 +1161,12 @@ static u32 ice_globalq_to_pfq(struct ice_pf *pf, u32 globalq)
 void
 ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 {
+	struct ice_aqc_event_lan_overflow *cmd;
 	u32 gldcb_rtctq, queue;
 	struct ice_vf *vf;
 
-	gldcb_rtctq = le32_to_cpu(event->desc.params.lan_overflow.prtdcb_ruptq);
+	cmd = libie_aq_raw(&event->desc);
+	gldcb_rtctq = le32_to_cpu(cmd->prtdcb_ruptq);
 	dev_dbg(ice_pf_to_dev(pf), "GLDCB_RTCTQ: 0x%08x\n", gldcb_rtctq);
 
 	/* event returns device global Rx queue number */

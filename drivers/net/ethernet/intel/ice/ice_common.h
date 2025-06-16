@@ -109,7 +109,7 @@ bool ice_is_sbq_supported(struct ice_hw *hw);
 struct ice_ctl_q_info *ice_get_sbq(struct ice_hw *hw);
 int
 ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
-		struct ice_aq_desc *desc, void *buf, u16 buf_size,
+		struct libie_aq_desc *desc, void *buf, u16 buf_size,
 		struct ice_sq_cd *cd);
 void ice_clear_pxe_mode(struct ice_hw *hw);
 int ice_get_caps(struct ice_hw *hw);
@@ -138,14 +138,14 @@ ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_handle,
 
 bool ice_check_sq_alive(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 int ice_aq_q_shutdown(struct ice_hw *hw, bool unloading);
-void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode);
+void ice_fill_dflt_direct_cmd_desc(struct libie_aq_desc *desc, u16 opcode);
 
 void ice_pack_txq_ctx(const struct ice_tlan_ctx *ctx, ice_txq_ctx_buf_t *buf);
 
 extern struct mutex ice_global_cfg_lock_sw;
 
 int
-ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc,
+ice_aq_send_cmd(struct ice_hw *hw, struct libie_aq_desc *desc,
 		void *buf, u16 buf_size, struct ice_sq_cd *cd);
 int ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd);
 

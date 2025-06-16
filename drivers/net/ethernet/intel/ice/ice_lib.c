@@ -3736,13 +3736,13 @@ int ice_set_link(struct ice_vsi *vsi, bool ena)
 
 	status = ice_aq_set_link_restart_an(pi, ena, NULL);
 
-	/* if link is owned by manageability, FW will return ICE_AQ_RC_EMODE.
+	/* if link is owned by manageability, FW will return LIBIE_AQ_RC_EMODE.
 	 * this is not a fatal error, so print a warning message and return
 	 * a success code. Return an error if FW returns an error code other
-	 * than ICE_AQ_RC_EMODE
+	 * than LIBIE_AQ_RC_EMODE
 	 */
 	if (status == -EIO) {
-		if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
+		if (hw->adminq.sq_last_status == LIBIE_AQ_RC_EMODE)
 			dev_dbg(dev, "can't set link to %s, err %d aq_err %s. not fatal, continuing\n",
 				(ena ? "ON" : "OFF"), status,
 				ice_aq_str(hw->adminq.sq_last_status));

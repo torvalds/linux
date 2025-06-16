@@ -299,7 +299,8 @@ int ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_aq_task task = {};
 	struct ice_hw *hw = &pf->hw;
-	struct ice_aq_desc *desc;
+	struct libie_aq_desc *desc;
+	struct ice_aqc_nvm *cmd;
 	u32 completion_offset;
 	int err;
 
@@ -333,11 +334,12 @@ int ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	}
 
 	desc = &task.event.desc;
-	completion_module = le16_to_cpu(desc->params.nvm.module_typeid);
+	cmd = libie_aq_raw(desc);
+	completion_module = le16_to_cpu(cmd->module_typeid);
 	completion_retval = le16_to_cpu(desc->retval);
 
-	completion_offset = le16_to_cpu(desc->params.nvm.offset_low);
-	completion_offset |= desc->params.nvm.offset_high << 16;
+	completion_offset = le16_to_cpu(cmd->offset_low);
+	completion_offset |= cmd->offset_high << 16;
 
 	if (completion_module != module) {
 		dev_err(dev, "Unexpected module_typeid in write completion: got 0x%x, expected 0x%x\n",
@@ -356,7 +358,7 @@ int ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	if (completion_retval) {
 		dev_err(dev, "Firmware failed to flash module 0x%02x with block of size %u at offset %u, err %s\n",
 			module, block_size, offset,
-			ice_aq_str((enum ice_aq_err)completion_retval));
+			ice_aq_str((enum libie_aq_err)completion_retval));
 		NL_SET_ERR_MSG_MOD(extack, "Firmware failed to program flash module");
 		return -EIO;
 	}
@@ -369,7 +371,7 @@ int ice_write_one_nvm_block(struct ice_pf *pf, u16 module, u32 offset,
 	 */
 	if (reset_level && last_cmd && module == ICE_SR_1ST_NVM_BANK_PTR) {
 		if (hw->dev_caps.common_cap.pcie_reset_avoidance) {
-			*reset_level = desc->params.nvm.cmd_flags &
+			*reset_level = cmd->cmd_flags &
 				       ICE_AQC_NVM_RESET_LVL_M;
 			dev_dbg(dev, "Firmware reported required reset level as %u\n",
 				*reset_level);
@@ -487,7 +489,8 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_aq_task task = {};
 	struct ice_hw *hw = &pf->hw;
-	struct ice_aq_desc *desc;
+	struct libie_aq_desc *desc;
+	struct ice_aqc_nvm *cmd;
 	struct devlink *devlink;
 	int err;
 
@@ -518,7 +521,8 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 	}
 
 	desc = &task.event.desc;
-	completion_module = le16_to_cpu(desc->params.nvm.module_typeid);
+	cmd = libie_aq_raw(desc);
+	completion_module = le16_to_cpu(cmd->module_typeid);
 	completion_retval = le16_to_cpu(desc->retval);
 
 	if (completion_module != module) {
@@ -532,7 +536,7 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 	if (completion_retval) {
 		dev_err(dev, "Firmware failed to erase %s (module 0x02%x), aq_err %s\n",
 			component, module,
-			ice_aq_str((enum ice_aq_err)completion_retval));
+			ice_aq_str((enum libie_aq_err)completion_retval));
 		NL_SET_ERR_MSG_MOD(extack, "Firmware failed to erase flash");
 		err = -EIO;
 		goto out_notify_devlink;
@@ -611,7 +615,7 @@ ice_switch_flash_banks(struct ice_pf *pf, u8 activate_flags,
 	completion_retval = le16_to_cpu(task.event.desc.retval);
 	if (completion_retval) {
 		dev_err(dev, "Firmware failed to switch active flash banks aq_err %s\n",
-			ice_aq_str((enum ice_aq_err)completion_retval));
+			ice_aq_str((enum libie_aq_err)completion_retval));
 		NL_SET_ERR_MSG_MOD(extack, "Firmware failed to switch active flash banks");
 		return -EIO;
 	}

@@ -2509,7 +2509,7 @@ static bool ice_dpll_is_pps_phase_monitor(struct ice_pf *pf)
 	int ret = ice_aq_get_cgu_input_pin_measure(&pf->hw, DPLL_TYPE_PPS, meas,
 						   ARRAY_SIZE(meas));
 
-	if (ret && pf->hw.adminq.sq_last_status == ICE_AQ_RC_ESRCH)
+	if (ret && pf->hw.adminq.sq_last_status == LIBIE_AQ_RC_ESRCH)
 		return false;
 
 	return true;
@@ -2562,7 +2562,7 @@ static int ice_dpll_pps_update_phase_offsets(struct ice_pf *pf,
 	*phase_offset_pins_updated = 0;
 	ret = ice_aq_get_cgu_input_pin_measure(&pf->hw, DPLL_TYPE_PPS, meas,
 					       ARRAY_SIZE(meas));
-	if (ret && pf->hw.adminq.sq_last_status == ICE_AQ_RC_EAGAIN) {
+	if (ret && pf->hw.adminq.sq_last_status == LIBIE_AQ_RC_EAGAIN) {
 		return 0;
 	} else if (ret) {
 		dev_err(ice_pf_to_dev(pf),

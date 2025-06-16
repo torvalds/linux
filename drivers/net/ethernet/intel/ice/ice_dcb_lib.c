@@ -1020,7 +1020,7 @@ ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 	}
 
 	pi = pf->hw.port_info;
-	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
+	mib = libie_aq_raw(&event->desc);
 
 	/* Ignore if event is not for Nearest Bridge */
 	mib_type = FIELD_GET(ICE_AQ_LLDP_BRID_TYPE_M, mib->type);

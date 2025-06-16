@@ -24,10 +24,10 @@ ice_aq_get_lldp_mib(struct ice_hw *hw, u8 bridge_type, u8 mib_type, void *buf,
 		    struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_get_mib *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
-	cmd = &desc.params.lldp_get_mib;
+	cmd = libie_aq_raw(&desc);
 
 	if (buf_size == 0 || !buf)
 		return -EINVAL;
@@ -64,9 +64,9 @@ ice_aq_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_update,
 			   struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_set_mib_change *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.lldp_set_event;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_set_mib_change);
 
@@ -95,9 +95,9 @@ ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
 		 struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_stop *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.lldp_stop;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_stop);
 
@@ -121,9 +121,9 @@ ice_aq_stop_lldp(struct ice_hw *hw, bool shutdown_lldp_agent, bool persist,
 int ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_start *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
-	cmd = &desc.params.lldp_start;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_start);
 
@@ -677,11 +677,11 @@ ice_aq_start_stop_dcbx(struct ice_hw *hw, bool start_dcbx_agent,
 		       bool *dcbx_agent_status, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_lldp_stop_start_specific_agent *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	u16 opcode;
 	int status;
 
-	cmd = &desc.params.lldp_agent_ctrl;
+	cmd = libie_aq_raw(&desc);
 
 	opcode = ice_aqc_opc_lldp_stop_start_specific_agent;
 
@@ -714,7 +714,7 @@ ice_aq_get_cee_dcb_cfg(struct ice_hw *hw,
 		       struct ice_aqc_get_cee_dcb_cfg_resp *buff,
 		       struct ice_sq_cd *cd)
 {
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_cee_dcb_cfg);
 
@@ -733,13 +733,13 @@ ice_aq_get_cee_dcb_cfg(struct ice_hw *hw,
 int ice_aq_set_pfc_mode(struct ice_hw *hw, u8 pfc_mode, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_set_query_pfc_mode *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
 	if (pfc_mode > ICE_AQC_PFC_DSCP_BASED_PFC)
 		return -EINVAL;
 
-	cmd = &desc.params.set_query_pfc_mode;
+	cmd = libie_aq_raw(&desc);
 
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_pfc_mode);
 
@@ -914,7 +914,7 @@ static int ice_get_ieee_or_cee_dcb_cfg(struct ice_port_info *pi, u8 dcbx_mode)
 	ret = ice_aq_get_dcb_cfg(pi->hw, ICE_AQ_LLDP_MIB_REMOTE,
 				 ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID, dcbx_cfg);
 	/* Don't treat ENOENT as an error for Remote MIBs */
-	if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_ENOENT)
+	if (pi->hw->adminq.sq_last_status == LIBIE_AQ_RC_ENOENT)
 		ret = 0;
 
 out:
@@ -941,7 +941,7 @@ int ice_get_dcb_cfg(struct ice_port_info *pi)
 		/* CEE mode */
 		ret = ice_get_ieee_or_cee_dcb_cfg(pi, ICE_DCBX_MODE_CEE);
 		ice_cee_to_dcb_cfg(&cee_cfg, pi);
-	} else if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_ENOENT) {
+	} else if (pi->hw->adminq.sq_last_status == LIBIE_AQ_RC_ENOENT) {
 		/* CEE mode not enabled try querying IEEE data */
 		dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 		dcbx_cfg->dcbx_mode = ICE_DCBX_MODE_IEEE;
@@ -965,7 +965,7 @@ void ice_get_dcb_cfg_from_mib_change(struct ice_port_info *pi,
 	struct ice_aqc_lldp_get_mib *mib;
 	u8 change_type, dcbx_mode;
 
-	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
+	mib = libie_aq_raw(&event->desc);
 
 	change_type = FIELD_GET(ICE_AQ_LLDP_MIB_TYPE_M, mib->type);
 	if (change_type == ICE_AQ_LLDP_MIB_REMOTE)
@@ -1537,12 +1537,12 @@ ice_aq_query_port_ets(struct ice_port_info *pi,
 		      struct ice_sq_cd *cd)
 {
 	struct ice_aqc_query_port_ets *cmd;
-	struct ice_aq_desc desc;
+	struct libie_aq_desc desc;
 	int status;
 
 	if (!pi)
 		return -EINVAL;
-	cmd = &desc.params.port_ets;
+	cmd = libie_aq_raw(&desc);
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_query_port_ets);
 	cmd->port_teid = pi->root->info.node_teid;
 

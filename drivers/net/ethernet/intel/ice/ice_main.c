@@ -379,7 +379,7 @@ static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
 		 * should go into promiscuous mode. There should be some
 		 * space reserved for promiscuous filters.
 		 */
-		if (hw->adminq.sq_last_status == ICE_AQ_RC_ENOSPC &&
+		if (hw->adminq.sq_last_status == LIBIE_AQ_RC_ENOSPC &&
 		    !test_and_set_bit(ICE_FLTR_OVERFLOW_PROMISC,
 				      vsi->state)) {
 			promisc_forced_on = true;
@@ -7914,42 +7914,42 @@ int ice_change_mtu(struct net_device *netdev, int new_mtu)
  * ice_aq_str - convert AQ err code to a string
  * @aq_err: the AQ error code to convert
  */
-const char *ice_aq_str(enum ice_aq_err aq_err)
+const char *ice_aq_str(enum libie_aq_err aq_err)
 {
 	switch (aq_err) {
-	case ICE_AQ_RC_OK:
+	case LIBIE_AQ_RC_OK:
 		return "OK";
-	case ICE_AQ_RC_EPERM:
+	case LIBIE_AQ_RC_EPERM:
 		return "ICE_AQ_RC_EPERM";
-	case ICE_AQ_RC_ENOENT:
+	case LIBIE_AQ_RC_ENOENT:
 		return "ICE_AQ_RC_ENOENT";
-	case ICE_AQ_RC_ESRCH:
+	case LIBIE_AQ_RC_ESRCH:
 		return "ICE_AQ_RC_ESRCH";
-	case ICE_AQ_RC_EAGAIN:
+	case LIBIE_AQ_RC_EAGAIN:
 		return "ICE_AQ_RC_EAGAIN";
-	case ICE_AQ_RC_ENOMEM:
+	case LIBIE_AQ_RC_ENOMEM:
 		return "ICE_AQ_RC_ENOMEM";
-	case ICE_AQ_RC_EBUSY:
+	case LIBIE_AQ_RC_EBUSY:
 		return "ICE_AQ_RC_EBUSY";
-	case ICE_AQ_RC_EEXIST:
+	case LIBIE_AQ_RC_EEXIST:
 		return "ICE_AQ_RC_EEXIST";
-	case ICE_AQ_RC_EINVAL:
+	case LIBIE_AQ_RC_EINVAL:
 		return "ICE_AQ_RC_EINVAL";
-	case ICE_AQ_RC_ENOSPC:
+	case LIBIE_AQ_RC_ENOSPC:
 		return "ICE_AQ_RC_ENOSPC";
-	case ICE_AQ_RC_ENOSYS:
+	case LIBIE_AQ_RC_ENOSYS:
 		return "ICE_AQ_RC_ENOSYS";
-	case ICE_AQ_RC_EMODE:
+	case LIBIE_AQ_RC_EMODE:
 		return "ICE_AQ_RC_EMODE";
-	case ICE_AQ_RC_ENOSEC:
+	case LIBIE_AQ_RC_ENOSEC:
 		return "ICE_AQ_RC_ENOSEC";
-	case ICE_AQ_RC_EBADSIG:
+	case LIBIE_AQ_RC_EBADSIG:
 		return "ICE_AQ_RC_EBADSIG";
-	case ICE_AQ_RC_ESVN:
+	case LIBIE_AQ_RC_ESVN:
 		return "ICE_AQ_RC_ESVN";
-	case ICE_AQ_RC_EBADMAN:
+	case LIBIE_AQ_RC_EBADMAN:
 		return "ICE_AQ_RC_EBADMAN";
-	case ICE_AQ_RC_EBADBUF:
+	case LIBIE_AQ_RC_EBADBUF:
 		return "ICE_AQ_RC_EBADBUF";
 	}
 
