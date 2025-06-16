@@ -3996,6 +3996,15 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 	u32 tbl_w1, tbl_b1, tbl_b4;
 	u16 dur_2;
 
+	if (wl->status.map.lps) {
+		_slot_set_le(btc, CXST_E2G, s_def[CXST_E2G].dur,
+			     s_def[CXST_E2G].cxtbl, s_def[CXST_E2G].cxtype);
+		_slot_set_le(btc, CXST_E5G, s_def[CXST_E5G].dur,
+			     s_def[CXST_E5G].cxtbl, s_def[CXST_E5G].cxtype);
+		_slot_set_le(btc, CXST_EBT, s_def[CXST_EBT].dur,
+			     s_def[CXST_EBT].cxtbl, s_def[CXST_EBT].cxtype);
+	}
+
 	type = FIELD_GET(BTC_CXP_MASK, policy_type);
 
 	if (btc->ant_type == BTC_ANT_SHARED) {
