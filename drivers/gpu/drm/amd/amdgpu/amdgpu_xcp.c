@@ -445,6 +445,47 @@ void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 	}
 }
 
+int amdgpu_xcp_select_scheds(struct amdgpu_device *adev,
+			     u32 hw_ip, u32 hw_prio,
+			     struct amdgpu_fpriv *fpriv,
+			     unsigned int *num_scheds,
+			     struct drm_gpu_scheduler ***scheds)
+{
+	u32 sel_xcp_id;
+	int i;
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+
+	if (fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION) {
+		u32 least_ref_cnt = ~0;
+
+		fpriv->xcp_id = 0;
+		for (i = 0; i < xcp_mgr->num_xcps; i++) {
+			u32 total_ref_cnt;
+
+			total_ref_cnt = atomic_read(&xcp_mgr->xcp[i].ref_cnt);
+			if (total_ref_cnt < least_ref_cnt) {
+				fpriv->xcp_id = i;
+				least_ref_cnt = total_ref_cnt;
+			}
+		}
+	}
+	sel_xcp_id = fpriv->xcp_id;
+
+	if (xcp_mgr->xcp[sel_xcp_id].gpu_sched[hw_ip][hw_prio].num_scheds) {
+		*num_scheds =
+			xcp_mgr->xcp[fpriv->xcp_id].gpu_sched[hw_ip][hw_prio].num_scheds;
+		*scheds =
+			xcp_mgr->xcp[fpriv->xcp_id].gpu_sched[hw_ip][hw_prio].sched;
+		atomic_inc(&adev->xcp_mgr->xcp[sel_xcp_id].ref_cnt);
+		dev_dbg(adev->dev, "Selected partition #%d", sel_xcp_id);
+	} else {
+		dev_err(adev->dev, "Failed to schedule partition #%d.", sel_xcp_id);
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
 /*====================== xcp sysfs - configuration ======================*/
 #define XCP_CFG_SYSFS_RES_ATTR_SHOW(_name)                         \
 	static ssize_t amdgpu_xcp_res_sysfs_##_name##_show(        \

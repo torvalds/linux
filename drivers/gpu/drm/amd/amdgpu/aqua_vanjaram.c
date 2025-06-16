@@ -180,46 +180,6 @@ static int aqua_vanjaram_update_partition_sched_list(struct amdgpu_device *adev)
 	return aqua_vanjaram_xcp_sched_list_update(adev);
 }
 
-static int aqua_vanjaram_select_scheds(
-		struct amdgpu_device *adev,
-		u32 hw_ip,
-		u32 hw_prio,
-		struct amdgpu_fpriv *fpriv,
-		unsigned int *num_scheds,
-		struct drm_gpu_scheduler ***scheds)
-{
-	u32 sel_xcp_id;
-	int i;
-
-	if (fpriv->xcp_id == AMDGPU_XCP_NO_PARTITION) {
-		u32 least_ref_cnt = ~0;
-
-		fpriv->xcp_id = 0;
-		for (i = 0; i < adev->xcp_mgr->num_xcps; i++) {
-			u32 total_ref_cnt;
-
-			total_ref_cnt = atomic_read(&adev->xcp_mgr->xcp[i].ref_cnt);
-			if (total_ref_cnt < least_ref_cnt) {
-				fpriv->xcp_id = i;
-				least_ref_cnt = total_ref_cnt;
-			}
-		}
-	}
-	sel_xcp_id = fpriv->xcp_id;
-
-	if (adev->xcp_mgr->xcp[sel_xcp_id].gpu_sched[hw_ip][hw_prio].num_scheds) {
-		*num_scheds = adev->xcp_mgr->xcp[fpriv->xcp_id].gpu_sched[hw_ip][hw_prio].num_scheds;
-		*scheds = adev->xcp_mgr->xcp[fpriv->xcp_id].gpu_sched[hw_ip][hw_prio].sched;
-		atomic_inc(&adev->xcp_mgr->xcp[sel_xcp_id].ref_cnt);
-		DRM_DEBUG("Selected partition #%d", sel_xcp_id);
-	} else {
-		DRM_ERROR("Failed to schedule partition #%d.", sel_xcp_id);
-		return -ENOENT;
-	}
-
-	return 0;
-}
-
 /* Fixed pattern for smn addressing on different AIDs:
  *   bit[34]: indicate cross AID access
  *   bit[33:32]: indicate target AID id
@@ -734,7 +694,6 @@ struct amdgpu_xcp_mgr_funcs aqua_vanjaram_xcp_funcs = {
 	.get_ip_details = &aqua_vanjaram_get_xcp_ip_details,
 	.get_xcp_res_info = &aqua_vanjaram_get_xcp_res_info,
 	.get_xcp_mem_id = &aqua_vanjaram_get_xcp_mem_id,
-	.select_scheds = &aqua_vanjaram_select_scheds,
 	.update_partition_sched_list =
 		&aqua_vanjaram_update_partition_sched_list
 };
