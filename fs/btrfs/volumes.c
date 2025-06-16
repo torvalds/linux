@@ -413,6 +413,7 @@ static void free_fs_devices(struct btrfs_fs_devices *fs_devices)
 	struct btrfs_device *device;
 
 	WARN_ON(fs_devices->opened);
+	WARN_ON(fs_devices->holding);
 	while (!list_empty(&fs_devices->devices)) {
 		device = list_first_entry(&fs_devices->devices,
 					  struct btrfs_device, dev_list);
@@ -540,7 +541,7 @@ static int btrfs_free_stale_devices(dev_t devt, struct btrfs_device *skip_device
 				continue;
 			if (devt && devt != device->devt)
 				continue;
-			if (fs_devices->opened) {
+			if (fs_devices->opened || fs_devices->holding) {
 				if (devt)
 					ret = -EBUSY;
 				break;
@@ -1196,7 +1197,7 @@ void btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 
 	mutex_lock(&uuid_mutex);
 	close_fs_devices(fs_devices);
-	if (!fs_devices->opened) {
+	if (!fs_devices->opened && !fs_devices->holding) {
 		list_splice_init(&fs_devices->seed_list, &list);
 
 		/*
