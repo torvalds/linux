@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
+#include <sound/sdca_hid.h>
 
 /*
  * Should be long enough to encompass all the MIPI DisCo properties.
@@ -1294,6 +1295,13 @@ find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
 			hide->hid_report_desc = report_desc;
 			fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
 						      report_desc, nval);
+
+			/* add HID device */
+			ret = sdca_add_hid_device(dev, entity);
+			if (ret) {
+				dev_err(dev, "%pfwP: failed to add HID device: %d\n", entity_node, ret);
+				return ret;
+			}
 		}
 	}
 
@@ -1933,3 +1941,4 @@ EXPORT_SYMBOL_NS(sdca_parse_function, "SND_SOC_SDCA");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA library");
+MODULE_IMPORT_NS("SND_SOC_SDCA_HID");
