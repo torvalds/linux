@@ -411,8 +411,9 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       pm_request_idle(dev) and return its result
 
   `int pm_runtime_put_autosuspend(struct device *dev);`
-    - does the same as __pm_runtime_put_autosuspend() for now, but in the
-      future, will also call pm_runtime_mark_last_busy() as well, DO NOT USE!
+    - set the power.last_busy field to the current time and decrement the
+      device's usage counter; if the result is 0 then run
+      pm_request_autosuspend(dev) and return its result
 
   `int __pm_runtime_put_autosuspend(struct device *dev);`
     - decrement the device's usage counter; if the result is 0 then run
@@ -870,11 +871,9 @@ device is automatically suspended (the subsystem or driver still has to call
 the appropriate PM routines); rather it means that runtime suspends will
 automatically be delayed until the desired period of inactivity has elapsed.
 
-Inactivity is determined based on the power.last_busy field.  Drivers should
-call pm_runtime_mark_last_busy() to update this field after carrying out I/O,
-typically just before calling __pm_runtime_put_autosuspend().  The desired
-length of the inactivity period is a matter of policy.  Subsystems can set this
-length initially by calling pm_runtime_set_autosuspend_delay(), but after device
+Inactivity is determined based on the power.last_busy field. The desired length
+of the inactivity period is a matter of policy.  Subsystems can set this length
+initially by calling pm_runtime_set_autosuspend_delay(), but after device
 registration the length should be controlled by user space, using the
 /sys/devices/.../power/autosuspend_delay_ms attribute.
 
@@ -885,7 +884,7 @@ instead of the non-autosuspend counterparts::
 
 	Instead of: pm_runtime_suspend    use: pm_runtime_autosuspend;
 	Instead of: pm_schedule_suspend   use: pm_request_autosuspend;
-	Instead of: pm_runtime_put        use: __pm_runtime_put_autosuspend;
+	Instead of: pm_runtime_put        use: pm_runtime_put_autosuspend;
 	Instead of: pm_runtime_put_sync   use: pm_runtime_put_sync_autosuspend.
 
 Drivers may also continue to use the non-autosuspend helper functions; they
@@ -922,12 +921,10 @@ Here is a schematic pseudo-code example::
 	foo_io_completion(struct foo_priv *foo, void *req)
 	{
 		lock(&foo->private_lock);
-		if (--foo->num_pending_requests == 0) {
-			pm_runtime_mark_last_busy(&foo->dev);
-			__pm_runtime_put_autosuspend(&foo->dev);
-		} else {
+		if (--foo->num_pending_requests == 0)
+			pm_runtime_put_autosuspend(&foo->dev);
+		else
 			foo_process_next_request(foo);
-		}
 		unlock(&foo->private_lock);
 		/* Send req result back to the user ... */
 	}
