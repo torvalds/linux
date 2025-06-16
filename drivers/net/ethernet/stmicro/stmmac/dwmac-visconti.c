@@ -57,30 +57,38 @@ static int visconti_eth_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 					phy_interface_t interface, int speed)
 {
 	struct visconti_eth *dwmac = bsp_priv;
-	struct net_device *netdev = dev_get_drvdata(dwmac->dev);
 	unsigned int val, clk_sel_val = 0;
 
-	switch (speed) {
-	case SPEED_1000:
-		if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RGMII)
+	if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RGMII) {
+		switch (speed) {
+		case SPEED_1000:
 			clk_sel_val = ETHER_CLK_SEL_FREQ_SEL_125M;
-		break;
-	case SPEED_100:
-		if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RGMII)
+			break;
+
+		case SPEED_100:
 			clk_sel_val = ETHER_CLK_SEL_FREQ_SEL_25M;
-		if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RMII)
-			clk_sel_val = ETHER_CLK_SEL_DIV_SEL_2;
-		break;
-	case SPEED_10:
-		if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RGMII)
+			break;
+
+		case SPEED_10:
 			clk_sel_val = ETHER_CLK_SEL_FREQ_SEL_2P5M;
-		if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RMII)
+			break;
+
+		default:
+			return -EINVAL;
+		}
+	} else if (dwmac->phy_intf_sel == ETHER_CONFIG_INTF_RMII) {
+		switch (speed) {
+		case SPEED_100:
+			clk_sel_val = ETHER_CLK_SEL_DIV_SEL_2;
+			break;
+
+		case SPEED_10:
 			clk_sel_val = ETHER_CLK_SEL_DIV_SEL_20;
-		break;
-	default:
-		/* No bit control */
-		netdev_err(netdev, "Unsupported speed request (%d)", speed);
-		return -EINVAL;
+			break;
+
+		default:
+			return -EINVAL;
+		}
 	}
 
 	/* Stop internal clock */
