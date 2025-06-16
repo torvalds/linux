@@ -980,6 +980,24 @@ smk_rule_transmutes(struct smack_known *subject,
 	return (may > 0) && (may & MAY_TRANSMUTE);
 }
 
+static int
+xattr_dupval(struct xattr *xattrs, int *xattr_count,
+	     const char *name, const void *value, unsigned int vallen)
+{
+	struct xattr * const xattr = lsm_get_xattr_slot(xattrs, xattr_count);
+
+	if (!xattr)
+		return 0;
+
+	xattr->value = kmemdup(value, vallen, GFP_NOFS);
+	if (!xattr->value)
+		return -ENOMEM;
+
+	xattr->value_len = vallen;
+	xattr->name = name;
+	return 0;
+}
+
 /**
  * smack_inode_init_security - copy out the smack from an inode
  * @inode: the newly created inode
@@ -997,7 +1015,6 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 	struct task_smack *tsp = smack_cred(current_cred());
 	struct inode_smack * const issp = smack_inode(inode);
 	struct smack_known *dsp = smk_of_inode(dir);
-	struct xattr *xattr = lsm_get_xattr_slot(xattrs, xattr_count);
 	bool trans_cred;
 	bool trans_rule;
 
@@ -1016,8 +1033,6 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 	 * Mark the inode as changed.
 	 */
 	if (trans_cred || (trans_rule && smk_inode_transmutable(dir))) {
-		struct xattr *xattr_transmute;
-
 		/*
 		 * The caller of smack_dentry_create_files_as()
 		 * should have overridden the current cred, so the
@@ -1029,35 +1044,22 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 
 		if (S_ISDIR(inode->i_mode)) {
 			issp->smk_flags |= SMK_INODE_TRANSMUTE;
-			xattr_transmute = lsm_get_xattr_slot(xattrs,
-							     xattr_count);
-			if (xattr_transmute) {
-				xattr_transmute->value = kmemdup(TRANS_TRUE,
-								 TRANS_TRUE_SIZE,
-								 GFP_NOFS);
-				if (!xattr_transmute->value)
-					return -ENOMEM;
 
-				xattr_transmute->value_len = TRANS_TRUE_SIZE;
-				xattr_transmute->name = XATTR_SMACK_TRANSMUTE;
-			}
+			if (xattr_dupval(xattrs, xattr_count,
+				XATTR_SMACK_TRANSMUTE,
+				TRANS_TRUE,
+				TRANS_TRUE_SIZE
+			))
+				return -ENOMEM;
 		}
 	}
 
 	issp->smk_flags |= SMK_INODE_INSTANT;
 
-	if (xattr) {
-		const char *inode_label = issp->smk_inode->smk_known;
-
-		xattr->value = kstrdup(inode_label, GFP_NOFS);
-		if (!xattr->value)
-			return -ENOMEM;
-
-		xattr->value_len = strlen(inode_label);
-		xattr->name = XATTR_SMACK_SUFFIX;
-	}
-
-	return 0;
+	return xattr_dupval(xattrs, xattr_count,
+			    XATTR_SMACK_SUFFIX,
+			    issp->smk_inode->smk_known,
+		     strlen(issp->smk_inode->smk_known));
 }
 
 /**
