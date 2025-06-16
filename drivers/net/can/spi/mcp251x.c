@@ -388,8 +388,8 @@ static void mcp251x_write_2regs(struct spi_device *spi, u8 reg, u8 v1, u8 v2)
 	mcp251x_spi_write(spi, 4);
 }
 
-static void mcp251x_write_bits(struct spi_device *spi, u8 reg,
-			       u8 mask, u8 val)
+static int mcp251x_write_bits(struct spi_device *spi, u8 reg,
+			      u8 mask, u8 val)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 
@@ -398,7 +398,7 @@ static void mcp251x_write_bits(struct spi_device *spi, u8 reg,
 	priv->spi_tx_buf[2] = mask;
 	priv->spi_tx_buf[3] = val;
 
-	mcp251x_spi_write(spi, 4);
+	return mcp251x_spi_write(spi, 4);
 }
 
 static u8 mcp251x_read_stat(struct spi_device *spi)
@@ -441,6 +441,7 @@ static int mcp251x_gpio_request(struct gpio_chip *chip,
 				unsigned int offset)
 {
 	struct mcp251x_priv *priv = gpiochip_get_data(chip);
+	int ret;
 	u8 val;
 
 	/* nothing to be done for inputs */
@@ -450,8 +451,10 @@ static int mcp251x_gpio_request(struct gpio_chip *chip,
 	val = BFPCTRL_BFE(offset - MCP251X_GPIO_RX0BF);
 
 	mutex_lock(&priv->mcp_lock);
-	mcp251x_write_bits(priv->spi, BFPCTRL, val, val);
+	ret = mcp251x_write_bits(priv->spi, BFPCTRL, val, val);
 	mutex_unlock(&priv->mcp_lock);
+	if (ret)
+		return ret;
 
 	priv->reg_bfpctrl |= val;
 
