@@ -4160,7 +4160,7 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 				_slot_set(btc, CXST_E2G, 5, cxtbl[2], SLOT_MIX);
 			else
 				_slot_set(btc, CXST_E2G, 5, tbl_w1, SLOT_MIX);
-			_slot_set_le(btc, CXST_EBT, s_def[CXST_EBT].dur,
+			_slot_set_le(btc, CXST_EBT, cpu_to_le16(40),
 				     s_def[CXST_EBT].cxtbl, s_def[CXST_EBT].cxtype);
 			break;
 		case BTC_CXP_OFFE_WL: /* for 4-way */
