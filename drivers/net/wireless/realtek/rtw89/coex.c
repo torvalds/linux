@@ -3186,7 +3186,7 @@ static void _update_btc_state_map(struct rtw89_dev *rtwdev)
 	}
 }
 
-static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
+static void _set_bt_afh_info_v0(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -3353,6 +3353,115 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 		    "[BTC], %s(): en=%d, ch=%d, bw=%d\n",
 		    __func__, en, ch, bw);
 	btc->cx.cnt_wl[BTC_WCNT_CH_UPDATE]++;
+}
+
+static void _set_bt_afh_info_v1(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_wl_role_info_v8 *wl_rinfo = &wl->role_info_v8;
+	struct rtw89_btc_wl_afh_info *wl_afh = &wl->afh_info;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_wl_rlink *rlink;
+	u8 en = 0, ch = 0, bw = 0, buf[3] = {};
+	u8 i, j, link_mode;
+
+	if (btc->manual_ctrl || wl->status.map.scan)
+		return;
+
+	link_mode = wl_rinfo->link_mode;
+
+	for (i = 0; i < btc->ver->max_role_num; i++) {
+		for (j = RTW89_MAC_0; j < RTW89_MAC_NUM; j++) {
+			if (wl->status.map.rf_off || bt->whql_test ||
+			    link_mode == BTC_WLINK_NOLINK ||
+			    link_mode == BTC_WLINK_5G)
+				break;
+
+			rlink = &wl_rinfo->rlink[i][j];
+
+			/* Don't care no-connected/non-2G-band role */
+			if (!rlink->connected || !rlink->active ||
+			    rlink->rf_band != RTW89_BAND_2G)
+				continue;
+
+			en = 1;
+			ch = rlink->ch;
+			bw = rlink->bw;
+
+			if (link_mode == BTC_WLINK_2G_MCC &&
+			    (rlink->role == RTW89_WIFI_ROLE_AP ||
+			     rlink->role == RTW89_WIFI_ROLE_P2P_GO ||
+			     rlink->role == RTW89_WIFI_ROLE_P2P_CLIENT)) {
+				/* for 2.4G MCC, take role = ap/go/gc */
+				break;
+			} else if (link_mode != BTC_WLINK_2G_SCC ||
+				   rlink->bw == RTW89_CHANNEL_WIDTH_40) {
+				/* for 2.4G scc, take bw = 40M */
+				break;
+			}
+		}
+	}
+
+	/* default AFH channel sapn = center-ch +- 6MHz */
+	switch (bw) {
+	case RTW89_CHANNEL_WIDTH_20:
+		if (btc->dm.freerun || btc->dm.fddt_train)
+			bw = 48;
+		else
+			bw = 20 + chip->afh_guard_ch * 2;
+		break;
+	case RTW89_CHANNEL_WIDTH_40:
+		if (btc->dm.freerun)
+			bw = 40 + chip->afh_guard_ch * 2;
+		else
+			bw = 40;
+		break;
+	case RTW89_CHANNEL_WIDTH_5:
+		bw = 5 + chip->afh_guard_ch * 2;
+		break;
+	case RTW89_CHANNEL_WIDTH_10:
+		bw = 10 + chip->afh_guard_ch * 2;
+		break;
+	default:
+		en = false; /* turn off AFH info if invalid BW */
+		bw = 0;
+		ch = 0;
+		break;
+	}
+
+	if (!en || ch > 14 || ch == 0) {
+		en = false;
+		bw = 0;
+		ch = 0;
+	}
+
+	if (wl_afh->en == en &&
+	    wl_afh->ch == ch &&
+	    wl_afh->bw == bw &&
+	    (!bt->enable.now || bt->enable.last))
+		return;
+
+	wl_afh->en = buf[0];
+	wl_afh->ch = buf[1];
+	wl_afh->bw = buf[2];
+
+	if (_send_fw_cmd(rtwdev, BTFC_SET, SET_BT_WL_CH_INFO, &wl->afh_info, 3)) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): en=%d, ch=%d, bw=%d\n",
+			    __func__, en, ch, bw);
+
+		btc->cx.cnt_wl[BTC_WCNT_CH_UPDATE]++;
+	}
+}
+
+static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->chip->chip_id == RTL8922A)
+		_set_bt_afh_info_v1(rtwdev);
+	else
+		_set_bt_afh_info_v0(rtwdev);
 }
 
 static bool _check_freerun(struct rtw89_dev *rtwdev)
