@@ -4,7 +4,11 @@
 
 use kernel::{
     c_str,
-    device::{self, Core},
+    device::{
+        self,
+        property::{FwNodeReferenceArgs, NArgs},
+        Core,
+    },
     of, platform,
     prelude::*,
     str::CString,
@@ -90,6 +94,13 @@ impl SampleDriver {
         let name = c_str!("test,i16-array");
         let prop: KVec<i16> = fwnode.property_read_array_vec(name, 4)?.required_by(dev)?;
         dev_info!(dev, "'{name}'='{prop:?}' (KVec)\n");
+
+        for child in fwnode.children() {
+            let name = c_str!("test,ref-arg");
+            let nargs = NArgs::N(2);
+            let prop: FwNodeReferenceArgs = child.property_get_reference_args(name, nargs, 0)?;
+            dev_info!(dev, "'{name}'='{prop:?}'\n");
+        }
 
         Ok(())
     }
