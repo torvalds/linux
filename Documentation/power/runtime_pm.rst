@@ -428,7 +428,8 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       pm_runtime_suspend(dev) and return its result
 
   `int pm_runtime_put_sync_autosuspend(struct device *dev);`
-    - decrement the device's usage counter; if the result is 0 then run
+    - set the power.last_busy field to the current time and decrement the
+      device's usage counter; if the result is 0 then run
       pm_runtime_autosuspend(dev) and return its result
 
   `void pm_runtime_enable(struct device *dev);`

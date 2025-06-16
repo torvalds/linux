@@ -651,12 +651,14 @@ static inline int pm_runtime_put_sync_suspend(struct device *dev)
 }
 
 /**
- * pm_runtime_put_sync_autosuspend - Drop device usage counter and autosuspend if 0.
+ * pm_runtime_put_sync_autosuspend - Update the last access time of a device,
+ * drop device usage counter and autosuspend if 0.
  * @dev: Target device.
  *
- * Decrement the runtime PM usage counter of @dev and if it turns out to be
- * equal to 0, set up autosuspend of @dev or suspend it synchronously (depending
- * on whether or not autosuspend has been enabled for it).
+ * Update the last access time of @dev, decrement the runtime PM usage counter
+ * of @dev and if it turns out to be equal to 0, set up autosuspend of @dev or
+ * suspend it synchronously (depending on whether or not autosuspend has been
+ * enabled for it).
  *
  * The runtime PM usage counter of @dev remains decremented in all cases, even
  * if it returns an error code.
@@ -676,6 +678,7 @@ static inline int pm_runtime_put_sync_suspend(struct device *dev)
  */
 static inline int pm_runtime_put_sync_autosuspend(struct device *dev)
 {
+	pm_runtime_mark_last_busy(dev);
 	return __pm_runtime_suspend(dev, RPM_GET_PUT | RPM_AUTO);
 }
 
