@@ -904,7 +904,7 @@ static const struct rk_reg_speed_data rk3528_gmac1_reg_speed_data = {
 };
 
 static int rk3528_set_speed(struct rk_priv_data *bsp_priv,
-			    phy_interface_t interface,int speed)
+			    phy_interface_t interface, int speed)
 {
 	const struct rk_reg_speed_data *rsd;
 	unsigned int reg;
