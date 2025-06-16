@@ -75,9 +75,7 @@ static inline u32 rdpkru(void)
 	 * "rdpkru" instruction.  Places PKRU contents in to EAX,
 	 * clears EDX and requires that ecx=0.
 	 */
-	asm volatile(".byte 0x0f,0x01,0xee\n\t"
-		     : "=a" (pkru), "=d" (edx)
-		     : "c" (ecx));
+	asm volatile("rdpkru" : "=a" (pkru), "=d" (edx) : "c" (ecx));
 	return pkru;
 }
 
@@ -89,8 +87,7 @@ static inline void wrpkru(u32 pkru)
 	 * "wrpkru" instruction.  Loads contents in EAX to PKRU,
 	 * requires that ecx = edx = 0.
 	 */
-	asm volatile(".byte 0x0f,0x01,0xef\n\t"
-		     : : "a" (pkru), "c"(ecx), "d"(edx));
+	asm volatile("wrpkru" : : "a" (pkru), "c"(ecx), "d"(edx));
 }
 
 #else
