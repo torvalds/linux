@@ -2569,7 +2569,7 @@ static int call_mmap_prepare(struct mmap_state *map)
 	};
 
 	/* Invoke the hook. */
-	err = __call_mmap_prepare(map->file, &desc);
+	err = vfs_mmap_prepare(map->file, &desc);
 	if (err)
 		return err;
 
