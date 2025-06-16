@@ -1642,7 +1642,7 @@ int smu_write_watermarks_table(struct smu_context *smu);
 int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			   uint32_t *min, uint32_t *max);
 
-int smu_set_soft_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
+int smu_set_soft_freq_range(struct smu_context *smu, enum pp_clock_type clk_type,
 			    uint32_t min, uint32_t max);
 
 int smu_set_gfx_power_up_by_imu(struct smu_context *smu);

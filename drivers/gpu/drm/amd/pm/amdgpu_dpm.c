@@ -853,22 +853,16 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 				   uint32_t max)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
-	int ret = 0;
-
-	if (type != PP_SCLK)
-		return -EINVAL;
 
 	if (!is_support_sw_smu(adev))
 		return -EOPNOTSUPP;
 
-	mutex_lock(&adev->pm.mutex);
-	ret = smu_set_soft_freq_range(smu,
-				      SMU_SCLK,
+	guard(mutex)(&adev->pm.mutex);
+
+	return smu_set_soft_freq_range(smu,
+				      type,
 				      min,
 				      max);
-	mutex_unlock(&adev->pm.mutex);
-
-	return ret;
 }
 
 int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev)
