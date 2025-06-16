@@ -1533,6 +1533,14 @@ static int smu_v14_0_0_set_vpe_enable(struct smu_context *smu,
 					       0, NULL);
 }
 
+static int smu_v14_0_0_set_isp_enable(struct smu_context *smu,
+				      bool enable)
+{
+	return smu_cmn_send_smc_msg_with_param(smu, enable ?
+				      SMU_MSG_PowerUpIspByTile : SMU_MSG_PowerDownIspByTile,
+				      ISP_ALL_TILES_MASK, NULL);
+}
+
 static int smu_v14_0_0_set_umsch_mm_enable(struct smu_context *smu,
 			      bool enable)
 {
@@ -1669,6 +1677,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.set_fine_grain_gfx_freq_parameters = smu_v14_0_common_set_fine_grain_gfx_freq_parameters,
 	.set_gfx_power_up_by_imu = smu_v14_0_set_gfx_power_up_by_imu,
 	.dpm_set_vpe_enable = smu_v14_0_0_set_vpe_enable,
+	.dpm_set_isp_enable = smu_v14_0_0_set_isp_enable,
 	.dpm_set_umsch_mm_enable = smu_v14_0_0_set_umsch_mm_enable,
 	.get_dpm_clock_table = smu_v14_0_common_get_dpm_table,
 	.set_mall_enable = smu_v14_0_common_set_mall_enable,

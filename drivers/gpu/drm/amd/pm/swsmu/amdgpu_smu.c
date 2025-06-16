@@ -307,6 +307,26 @@ static int smu_dpm_set_vpe_enable(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_dpm_set_isp_enable(struct smu_context *smu,
+				  bool enable)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+	struct smu_power_gate *power_gate = &smu_power->power_gate;
+	int ret;
+
+	if (!smu->ppt_funcs->dpm_set_isp_enable)
+		return 0;
+
+	if (atomic_read(&power_gate->isp_gated) ^ enable)
+		return 0;
+
+	ret = smu->ppt_funcs->dpm_set_isp_enable(smu, enable);
+	if (!ret)
+		atomic_set(&power_gate->isp_gated, !enable);
+
+	return ret;
+}
+
 static int smu_dpm_set_umsch_mm_enable(struct smu_context *smu,
 				   bool enable)
 {
@@ -406,6 +426,12 @@ static int smu_dpm_set_power_gate(void *handle,
 		ret = smu_dpm_set_vpe_enable(smu, !gate);
 		if (ret)
 			dev_err(smu->adev->dev, "Failed to power %s VPE!\n",
+				gate ? "gate" : "ungate");
+		break;
+	case AMD_IP_BLOCK_TYPE_ISP:
+		ret = smu_dpm_set_isp_enable(smu, !gate);
+		if (ret)
+			dev_err(smu->adev->dev, "Failed to power %s ISP!\n",
 				gate ? "gate" : "ungate");
 		break;
 	default:
@@ -1300,6 +1326,7 @@ static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 		atomic_set(&smu->smu_power.power_gate.vcn_gated[i], 1);
 	atomic_set(&smu->smu_power.power_gate.jpeg_gated, 1);
 	atomic_set(&smu->smu_power.power_gate.vpe_gated, 1);
+	atomic_set(&smu->smu_power.power_gate.isp_gated, 1);
 	atomic_set(&smu->smu_power.power_gate.umsch_mm_gated, 1);
 
 	smu_init_power_profile(smu);

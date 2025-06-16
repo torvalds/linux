@@ -98,6 +98,7 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 	case AMD_IP_BLOCK_TYPE_GMC:
 	case AMD_IP_BLOCK_TYPE_ACP:
 	case AMD_IP_BLOCK_TYPE_VPE:
+	case AMD_IP_BLOCK_TYPE_ISP:
 		if (pp_funcs && pp_funcs->set_powergating_by_smu)
 			ret = (pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate, 0));

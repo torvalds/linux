@@ -402,6 +402,7 @@ struct smu_power_gate {
 	atomic_t vcn_gated[AMDGPU_MAX_VCN_INSTANCES];
 	atomic_t jpeg_gated;
 	atomic_t vpe_gated;
+	atomic_t isp_gated;
 	atomic_t umsch_mm_gated;
 };
 
@@ -1434,6 +1435,12 @@ struct pptable_funcs {
 	 *                       management.
 	 */
 	int (*dpm_set_vpe_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @dpm_set_isp_enable: Enable/disable ISP engine dynamic power
+	 *                       management.
+	 */
+	int (*dpm_set_isp_enable)(struct smu_context *smu, bool enable);
 
 	/**
 	 * @dpm_set_umsch_mm_enable: Enable/disable UMSCH engine dynamic power
