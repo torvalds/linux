@@ -113,6 +113,8 @@ enum sysdata_feature {
 	SYSDATA_TASKNAME = BIT(1),
 	/* Kernel release/version as part of sysdata */
 	SYSDATA_RELEASE = BIT(2),
+	/* Include a per-target message ID as part of sysdata */
+	SYSDATA_MSGID = BIT(3),
 };
 
 /**
@@ -798,6 +800,8 @@ static size_t count_extradata_entries(struct netconsole_target *nt)
 	if (nt->sysdata_fields & SYSDATA_TASKNAME)
 		entries += 1;
 	if (nt->sysdata_fields & SYSDATA_RELEASE)
+		entries += 1;
+	if (nt->sysdata_fields & SYSDATA_MSGID)
 		entries += 1;
 
 	return entries;
