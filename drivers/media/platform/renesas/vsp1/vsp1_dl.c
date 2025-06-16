@@ -176,6 +176,7 @@ struct vsp1_dl_cmd_pool {
  * @bodies: list of extra display list bodies
  * @pre_cmd: pre command to be issued through extended dl header
  * @post_cmd: post command to be issued through extended dl header
+ * @allocated: flag to detect double list release
  * @has_chain: if true, indicates that there's a partition chain
  * @chain: entry in the display list partition chain
  * @flags: display list flags, a combination of VSP1_DL_FRAME_END_*
@@ -193,6 +194,8 @@ struct vsp1_dl_list {
 
 	struct vsp1_dl_ext_cmd *pre_cmd;
 	struct vsp1_dl_ext_cmd *post_cmd;
+
+	bool allocated;
 
 	bool has_chain;
 	struct list_head chain;
@@ -617,6 +620,7 @@ struct vsp1_dl_list *vsp1_dl_list_get(struct vsp1_dl_manager *dlm)
 		 * display list can assert list_empty() if it is not in a chain.
 		 */
 		INIT_LIST_HEAD(&dl->chain);
+		dl->allocated = true;
 	}
 
 	spin_unlock_irqrestore(&dlm->lock, flags);
@@ -656,6 +660,13 @@ static void __vsp1_dl_list_put(struct vsp1_dl_list *dl)
 	 * has at least one body, thus we reinitialise the entries list.
 	 */
 	dl->body0->num_entries = 0;
+
+	/*
+	 * Return the display list to the 'free' pool. If the list had already
+	 * been returned be loud about it.
+	 */
+	WARN_ON_ONCE(!dl->allocated);
+	dl->allocated = false;
 
 	list_add_tail(&dl->list, &dl->dlm->free);
 }
