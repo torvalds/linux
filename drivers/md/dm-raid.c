@@ -2532,6 +2532,10 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	struct md_rdev *rdev, *freshest;
 	struct mddev *mddev = &rs->md;
 
+	/* Respect resynchronization requested with "sync" argument. */
+	if (test_bit(__CTR_FLAG_SYNC, &rs->ctr_flags))
+		set_bit(MD_ARRAY_FIRST_USE, &mddev->flags);
+
 	freshest = NULL;
 	rdev_for_each(rdev, mddev) {
 		if (test_bit(Journal, &rdev->flags))
