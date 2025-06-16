@@ -93,16 +93,6 @@ config CRYPTO_SHA1_ARM_CE
 
 	  Architecture: arm using ARMv8 Crypto Extensions
 
-config CRYPTO_SHA512_ARM
-	tristate "Hash functions: SHA-384 and SHA-512 (NEON)"
-	select CRYPTO_HASH
-	depends on !CPU_V7M
-	help
-	  SHA-384 and SHA-512 secure hash algorithms (FIPS 180)
-
-	  Architecture: arm using
-	  - NEON (Advanced SIMD) extensions
-
 config CRYPTO_AES_ARM
 	tristate "Ciphers: AES"
 	select CRYPTO_ALGAPI
