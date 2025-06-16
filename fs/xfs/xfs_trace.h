@@ -4213,32 +4213,6 @@ DEFINE_INODE_IREC_EVENT(xfs_reflink_remap_extent_dest);
 DEFINE_DOUBLE_IO_EVENT(xfs_reflink_compare_extents);
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_compare_extents_error);
 
-/* ioctl tracepoints */
-TRACE_EVENT(xfs_ioctl_clone,
-	TP_PROTO(struct inode *src, struct inode *dest),
-	TP_ARGS(src, dest),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(unsigned long, src_ino)
-		__field(loff_t, src_isize)
-		__field(unsigned long, dest_ino)
-		__field(loff_t, dest_isize)
-	),
-	TP_fast_assign(
-		__entry->dev = src->i_sb->s_dev;
-		__entry->src_ino = src->i_ino;
-		__entry->src_isize = i_size_read(src);
-		__entry->dest_ino = dest->i_ino;
-		__entry->dest_isize = i_size_read(dest);
-	),
-	TP_printk("dev %d:%d ino 0x%lx isize 0x%llx -> ino 0x%lx isize 0x%llx",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->src_ino,
-		  __entry->src_isize,
-		  __entry->dest_ino,
-		  __entry->dest_isize)
-);
-
 /* unshare tracepoints */
 DEFINE_SIMPLE_IO_EVENT(xfs_reflink_unshare);
 DEFINE_INODE_ERROR_EVENT(xfs_reflink_unshare_error);
