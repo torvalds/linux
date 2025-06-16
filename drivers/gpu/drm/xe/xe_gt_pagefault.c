@@ -69,14 +69,9 @@ static bool access_is_atomic(enum access_type access_type)
 
 static bool vma_is_valid(struct xe_tile *tile, struct xe_vma *vma)
 {
-	/*
-	 * Advisory only check whether the VMA currently has a valid mapping,
-	 * READ_ONCE pairs with WRITE_ONCE in xe_pt.c
-	 */
-	return BIT(tile->id) & READ_ONCE(vma->tile_present) &&
-		!(BIT(tile->id) & READ_ONCE(vma->tile_invalidated));
+	return xe_vm_has_valid_gpu_mapping(tile, vma->tile_present,
+					   vma->tile_invalidated);
 }
-
 
 static int xe_pf_begin(struct drm_exec *exec, struct xe_vma *vma,
 		       bool atomic, unsigned int id)

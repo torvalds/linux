@@ -3961,7 +3961,7 @@ int xe_vm_invalidate_vma(struct xe_vma *vma)
 	ret = xe_vm_range_tilemask_tlb_invalidation(xe_vma_vm(vma), xe_vma_start(vma),
 						    xe_vma_end(vma), tile_mask);
 
-	/* WRITE_ONCE pair with READ_ONCE in xe_gt_pagefault.c */
+	/* WRITE_ONCE pairs with READ_ONCE in xe_vm_has_valid_gpu_mapping() */
 	WRITE_ONCE(vma->tile_invalidated, vma->tile_mask);
 
 	return ret;

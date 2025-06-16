@@ -141,7 +141,10 @@ xe_svm_range_notifier_event_begin(struct xe_vm *vm, struct drm_gpusvm_range *r,
 	for_each_tile(tile, xe, id)
 		if (xe_pt_zap_ptes_range(tile, vm, range)) {
 			tile_mask |= BIT(id);
-			/* Pairs with READ_ONCE in xe_svm_range_is_valid */
+			/*
+			 * WRITE_ONCE pairs with READ_ONCE in
+			 * xe_vm_has_valid_gpu_mapping()
+			 */
 			WRITE_ONCE(range->tile_invalidated,
 				   range->tile_invalidated | BIT(id));
 		}
@@ -605,14 +608,9 @@ static bool xe_svm_range_is_valid(struct xe_svm_range *range,
 				  struct xe_tile *tile,
 				  bool devmem_only)
 {
-	/*
-	 * Advisory only check whether the range currently has a valid mapping,
-	 * READ_ONCE pairs with WRITE_ONCE in xe_pt.c,
-	 * xe_svm_range_notifier_event_begin
-	 */
-	return ((READ_ONCE(range->tile_present) &
-		 ~READ_ONCE(range->tile_invalidated)) & BIT(tile->id)) &&
-		(!devmem_only || xe_svm_range_in_vram(range));
+	return (xe_vm_has_valid_gpu_mapping(tile, range->tile_present,
+					    range->tile_invalidated) &&
+		(!devmem_only || xe_svm_range_in_vram(range)));
 }
 
 /** xe_svm_range_migrate_to_smem() - Move range pages from VRAM to SMEM
