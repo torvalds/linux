@@ -493,10 +493,18 @@ static int remove_backpointer(struct btree_trans *trans,
 	if (!inode->bi_dir)
 		return 0;
 
+	u32 snapshot = inode->bi_snapshot;
+
+	if (inode->bi_parent_subvol) {
+		int ret = bch2_subvolume_get_snapshot(trans, inode->bi_parent_subvol, &snapshot);
+		if (ret)
+			return ret;
+	}
+
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c_dirent d = dirent_get_by_pos(trans, &iter,
-				     SPOS(inode->bi_dir, inode->bi_dir_offset, inode->bi_snapshot));
+				     SPOS(inode->bi_dir, inode->bi_dir_offset, snapshot));
 	int ret = bkey_err(d) ?:
 		  dirent_points_to_inode(c, d, inode) ?:
 		  bch2_fsck_remove_dirent(trans, d.k->p);
