@@ -8,6 +8,7 @@
  *		 Gerald Schaefer (gerald.schaefer@de.ibm.com)
  */
 
+#include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/export.h>
 #include <linux/mm.h>
@@ -149,8 +150,8 @@ EXPORT_SYMBOL(_copy_to_user_key);
 
 #define CMPXCHG_USER_KEY_MAX_LOOPS 128
 
-int __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
-			unsigned char old, unsigned char new, unsigned long key)
+int __kprobes __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
+				  unsigned char old, unsigned char new, unsigned long key)
 {
 	unsigned int prev, shift, mask, _old, _new;
 	unsigned long count;
@@ -208,8 +209,8 @@ int __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
 }
 EXPORT_SYMBOL(__cmpxchg_user_key1);
 
-int __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
-			unsigned short old, unsigned short new, unsigned long key)
+int __kprobes __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
+				  unsigned short old, unsigned short new, unsigned long key)
 {
 	unsigned int prev, shift, mask, _old, _new;
 	unsigned long count;
@@ -267,8 +268,8 @@ int __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
 }
 EXPORT_SYMBOL(__cmpxchg_user_key2);
 
-int __cmpxchg_user_key4(unsigned long address, unsigned int *uval,
-			unsigned int old, unsigned int new, unsigned long key)
+int __kprobes __cmpxchg_user_key4(unsigned long address, unsigned int *uval,
+				  unsigned int old, unsigned int new, unsigned long key)
 {
 	unsigned int prev = old;
 	bool sacf_flag;
@@ -299,8 +300,8 @@ int __cmpxchg_user_key4(unsigned long address, unsigned int *uval,
 }
 EXPORT_SYMBOL(__cmpxchg_user_key4);
 
-int __cmpxchg_user_key8(unsigned long address, unsigned long *uval,
-			unsigned long old, unsigned long new, unsigned long key)
+int __kprobes __cmpxchg_user_key8(unsigned long address, unsigned long *uval,
+				  unsigned long old, unsigned long new, unsigned long key)
 {
 	unsigned long prev = old;
 	bool sacf_flag;
@@ -331,8 +332,8 @@ int __cmpxchg_user_key8(unsigned long address, unsigned long *uval,
 }
 EXPORT_SYMBOL(__cmpxchg_user_key8);
 
-int __cmpxchg_user_key16(unsigned long address, __uint128_t *uval,
-			 __uint128_t old, __uint128_t new, unsigned long key)
+int __kprobes __cmpxchg_user_key16(unsigned long address, __uint128_t *uval,
+				   __uint128_t old, __uint128_t new, unsigned long key)
 {
 	__uint128_t prev = old;
 	bool sacf_flag;
