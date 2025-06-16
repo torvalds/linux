@@ -191,6 +191,12 @@ impl<K, V> RBTree<K, V> {
         }
     }
 
+    /// Returns true if this tree is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.root.rb_node.is_null()
+    }
+
     /// Returns an iterator over the tree nodes, sorted by key.
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
