@@ -290,7 +290,7 @@ static int rpm_get_suppliers(struct device *dev)
 				device_links_read_lock_held()) {
 		int retval;
 
-		if (!(link->flags & DL_FLAG_PM_RUNTIME))
+		if (!device_link_test(link, DL_FLAG_PM_RUNTIME))
 			continue;
 
 		retval = pm_runtime_get_sync(link->supplier);
@@ -1879,7 +1879,7 @@ void pm_runtime_get_suppliers(struct device *dev)
 
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node,
 				device_links_read_lock_held())
-		if (link->flags & DL_FLAG_PM_RUNTIME) {
+		if (device_link_test(link, DL_FLAG_PM_RUNTIME)) {
 			link->supplier_preactivated = true;
 			pm_runtime_get_sync(link->supplier);
 		}
@@ -1933,7 +1933,7 @@ static void pm_runtime_drop_link_count(struct device *dev)
  */
 void pm_runtime_drop_link(struct device_link *link)
 {
-	if (!(link->flags & DL_FLAG_PM_RUNTIME))
+	if (!device_link_test(link, DL_FLAG_PM_RUNTIME))
 		return;
 
 	pm_runtime_drop_link_count(link->consumer);
