@@ -887,7 +887,8 @@ instead of the non-autosuspend counterparts::
 
 Drivers may also continue to use the non-autosuspend helper functions; they
 will behave normally, which means sometimes taking the autosuspend delay into
-account (see pm_runtime_idle).
+account (see pm_runtime_idle). The autosuspend variants of the functions also
+call pm_runtime_mark_last_busy().
 
 Under some circumstances a driver or subsystem may want to prevent a device
 from autosuspending immediately, even though the usage counter is zero and the
