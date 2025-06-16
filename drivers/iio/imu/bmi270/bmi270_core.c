@@ -31,6 +31,8 @@
 #define BMI270_INT_STATUS_1_REG				0x1d
 #define BMI270_INT_STATUS_1_ACC_GYR_DRDY_MSK		GENMASK(7, 6)
 
+#define BMI270_SC_OUT_0_REG				0x1e
+
 #define BMI270_INTERNAL_STATUS_REG			0x21
 #define BMI270_INTERNAL_STATUS_MSG_MSK			GENMASK(3, 0)
 #define BMI270_INTERNAL_STATUS_MSG_INIT_OK		0x01
@@ -38,6 +40,8 @@
 #define BMI270_INTERNAL_STATUS_ODR_50HZ_ERR_MSK		BIT(6)
 
 #define BMI270_TEMPERATURE_0_REG			0x22
+
+#define BMI270_FEAT_PAGE_REG				0x2f
 
 #define BMI270_ACC_CONF_REG				0x40
 #define BMI270_ACC_CONF_ODR_MSK				GENMASK(3, 0)
@@ -90,6 +94,9 @@
 #define BMI270_PWR_CTRL_ACCEL_EN_MSK			BIT(2)
 #define BMI270_PWR_CTRL_TEMP_EN_MSK			BIT(3)
 
+#define BMI270_STEP_SC26_RST_CNT_MSK			BIT(10)
+#define BMI270_STEP_SC26_EN_CNT_MSK			BIT(12)
+
 /* See datasheet section 4.6.14, Temperature Sensor */
 #define BMI270_TEMP_OFFSET				11776
 #define BMI270_TEMP_SCALE				1953125
@@ -111,6 +118,7 @@ struct bmi270_data {
 	struct iio_trigger *trig;
 	 /* Protect device's private data from concurrent access */
 	struct mutex mutex;
+	bool steps_enabled;
 
 	/*
 	 * Where IIO_DMA_MINALIGN may be larger than 8 bytes, align to
@@ -120,6 +128,11 @@ struct bmi270_data {
 		__le16 channels[6];
 		aligned_s64 timestamp;
 	} buffer __aligned(IIO_DMA_MINALIGN);
+	/*
+	 * Variable to access feature registers. It can be accessed concurrently
+	 * with the 'buffer' variable
+	 */
+	__le16 regval __aligned(IIO_DMA_MINALIGN);
 };
 
 enum bmi270_scan {
@@ -281,6 +294,107 @@ static const struct  bmi270_odr_item bmi270_odr_table[] = {
 		.num	= ARRAY_SIZE(bmi270_gyro_odr),
 	},
 };
+
+enum bmi270_feature_reg_id {
+	BMI270_SC_26_REG,
+};
+
+struct bmi270_feature_reg {
+	u8 page;
+	u8 addr;
+};
+
+static const struct bmi270_feature_reg bmi270_feature_regs[] = {
+	[BMI270_SC_26_REG] = {
+		.page = 6,
+		.addr = 0x32,
+	},
+};
+
+static int bmi270_write_feature_reg(struct bmi270_data *data,
+				    enum bmi270_feature_reg_id id,
+				    u16 val)
+{
+	const struct bmi270_feature_reg *reg = &bmi270_feature_regs[id];
+	int ret;
+
+	ret = regmap_write(data->regmap, BMI270_FEAT_PAGE_REG, reg->page);
+	if (ret)
+		return ret;
+
+	data->regval = cpu_to_le16(val);
+	return regmap_bulk_write(data->regmap, reg->addr, &data->regval,
+				 sizeof(data->regval));
+}
+
+static int bmi270_read_feature_reg(struct bmi270_data *data,
+				   enum bmi270_feature_reg_id id,
+				   u16 *val)
+{
+	const struct bmi270_feature_reg *reg = &bmi270_feature_regs[id];
+	int ret;
+
+	ret = regmap_write(data->regmap, BMI270_FEAT_PAGE_REG, reg->page);
+	if (ret)
+		return ret;
+
+	ret = regmap_bulk_read(data->regmap, reg->addr, &data->regval,
+			       sizeof(data->regval));
+	if (ret)
+		return ret;
+
+	*val = le16_to_cpu(data->regval);
+	return 0;
+}
+
+static int bmi270_update_feature_reg(struct bmi270_data *data,
+				     enum bmi270_feature_reg_id id,
+				     u16 mask, u16 val)
+{
+	u16 regval;
+	int ret;
+
+	ret = bmi270_read_feature_reg(data, id, &regval);
+	if (ret)
+		return ret;
+
+	regval = (regval & ~mask) | (val & mask);
+
+	return bmi270_write_feature_reg(data, id, regval);
+}
+
+static int bmi270_enable_steps(struct bmi270_data *data, int val)
+{
+	int ret;
+
+	guard(mutex)(&data->mutex);
+	if (data->steps_enabled)
+		return 0;
+
+	ret = bmi270_update_feature_reg(data, BMI270_SC_26_REG,
+					BMI270_STEP_SC26_EN_CNT_MSK,
+					FIELD_PREP(BMI270_STEP_SC26_EN_CNT_MSK,
+						   val ? 1 : 0));
+	if (ret)
+		return ret;
+
+	data->steps_enabled = true;
+	return 0;
+}
+
+static int bmi270_read_steps(struct bmi270_data *data, int *val)
+{
+	__le16 steps_count;
+	int ret;
+
+	ret = regmap_bulk_read(data->regmap, BMI270_SC_OUT_0_REG, &steps_count,
+			       sizeof(steps_count));
+	if (ret)
+		return ret;
+
+	*val = sign_extend32(le16_to_cpu(steps_count), 15);
+	return IIO_VAL_INT;
+}
 
 static int bmi270_set_scale(struct bmi270_data *data, int chan_type, int uscale)
 {
@@ -551,6 +665,8 @@ static int bmi270_read_raw(struct iio_dev *indio_dev,
 	struct bmi270_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
+	case IIO_CHAN_INFO_PROCESSED:
+		return bmi270_read_steps(data, val);
 	case IIO_CHAN_INFO_RAW:
 		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
@@ -571,6 +687,9 @@ static int bmi270_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		ret = bmi270_get_odr(data, chan->type, val, val2);
 		return ret ? ret : IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_ENABLE:
+		*val = data->steps_enabled ? 1 : 0;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -596,6 +715,19 @@ static int bmi270_write_raw(struct iio_dev *indio_dev,
 		ret = bmi270_set_odr(data, chan->type, val, val2);
 		iio_device_release_direct(indio_dev);
 		return ret;
+	case IIO_CHAN_INFO_ENABLE:
+		return bmi270_enable_steps(data, val);
+	case IIO_CHAN_INFO_PROCESSED: {
+		if (val || !data->steps_enabled)
+			return -EINVAL;
+
+		guard(mutex)(&data->mutex);
+		/* Clear step counter value */
+		return bmi270_update_feature_reg(data, BMI270_SC_26_REG,
+						 BMI270_STEP_SC26_RST_CNT_MSK,
+						 FIELD_PREP(BMI270_STEP_SC26_RST_CNT_MSK,
+							    1));
+	}
 	default:
 		return -EINVAL;
 	}
@@ -696,6 +828,12 @@ static const struct iio_chan_spec bmi270_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OFFSET),
+		.scan_index = -1, /* No buffer support */
+	},
+	{
+		.type = IIO_STEPS,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_ENABLE) |
+				      BIT(IIO_CHAN_INFO_PROCESSED),
 		.scan_index = -1, /* No buffer support */
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(BMI270_SCAN_TIMESTAMP),
