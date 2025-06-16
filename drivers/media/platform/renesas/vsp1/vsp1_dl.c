@@ -215,6 +215,7 @@ struct vsp1_dl_list {
  * @pending: list waiting to be queued to the hardware
  * @pool: body pool for the display list bodies
  * @cmdpool: commands pool for extended display list
+ * @list_count: number of allocated display lists
  */
 struct vsp1_dl_manager {
 	unsigned int index;
@@ -229,6 +230,8 @@ struct vsp1_dl_manager {
 
 	struct vsp1_dl_body_pool *pool;
 	struct vsp1_dl_cmd_pool *cmdpool;
+
+	size_t list_count;
 };
 
 /* -----------------------------------------------------------------------------
@@ -1078,6 +1081,7 @@ void vsp1_dlm_setup(struct vsp1_device *vsp1)
 void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 {
 	unsigned long flags;
+	size_t list_count;
 
 	spin_lock_irqsave(&dlm->lock, flags);
 
@@ -1085,7 +1089,10 @@ void vsp1_dlm_reset(struct vsp1_dl_manager *dlm)
 	__vsp1_dl_list_put(dlm->queued);
 	__vsp1_dl_list_put(dlm->pending);
 
+	list_count = list_count_nodes(&dlm->free);
 	spin_unlock_irqrestore(&dlm->lock, flags);
+
+	WARN_ON_ONCE(list_count != dlm->list_count);
 
 	dlm->active = NULL;
 	dlm->queued = NULL;
@@ -1155,6 +1162,8 @@ struct vsp1_dl_manager *vsp1_dlm_create(struct vsp1_device *vsp1,
 
 		list_add_tail(&dl->list, &dlm->free);
 	}
+
+	dlm->list_count = prealloc;
 
 	if (vsp1_feature(vsp1, VSP1_HAS_EXT_DL)) {
 		dlm->cmdpool = vsp1_dl_cmd_pool_create(vsp1,
