@@ -58,13 +58,6 @@ static void zap_completion_queue(void);
 static unsigned int carrier_timeout = 4;
 module_param(carrier_timeout, uint, 0644);
 
-#define np_info(np, fmt, ...)				\
-	pr_info("%s: " fmt, np->name, ##__VA_ARGS__)
-#define np_err(np, fmt, ...)				\
-	pr_err("%s: " fmt, np->name, ##__VA_ARGS__)
-#define np_notice(np, fmt, ...)				\
-	pr_notice("%s: " fmt, np->name, ##__VA_ARGS__)
-
 static netdev_tx_t netpoll_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev,
 				      struct netdev_queue *txq)
@@ -499,43 +492,6 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 }
 EXPORT_SYMBOL(netpoll_send_udp);
 
-void netpoll_print_options(struct netpoll *np)
-{
-	np_info(np, "local port %d\n", np->local_port);
-	if (np->ipv6)
-		np_info(np, "local IPv6 address %pI6c\n", &np->local_ip.in6);
-	else
-		np_info(np, "local IPv4 address %pI4\n", &np->local_ip.ip);
-	np_info(np, "interface name '%s'\n", np->dev_name);
-	np_info(np, "local ethernet address '%pM'\n", np->dev_mac);
-	np_info(np, "remote port %d\n", np->remote_port);
-	if (np->ipv6)
-		np_info(np, "remote IPv6 address %pI6c\n", &np->remote_ip.in6);
-	else
-		np_info(np, "remote IPv4 address %pI4\n", &np->remote_ip.ip);
-	np_info(np, "remote ethernet address %pM\n", np->remote_mac);
-}
-EXPORT_SYMBOL(netpoll_print_options);
-
-static int netpoll_parse_ip_addr(const char *str, union inet_addr *addr)
-{
-	const char *end;
-
-	if (!strchr(str, ':') &&
-	    in4_pton(str, -1, (void *)addr, -1, &end) > 0) {
-		if (!*end)
-			return 0;
-	}
-	if (in6_pton(str, -1, addr->in6.s6_addr, -1, &end) > 0) {
-#if IS_ENABLED(CONFIG_IPV6)
-		if (!*end)
-			return 1;
-#else
-		return -1;
-#endif
-	}
-	return -1;
-}
 
 static void skb_pool_flush(struct netpoll *np)
 {
@@ -545,95 +501,6 @@ static void skb_pool_flush(struct netpoll *np)
 	skb_pool = &np->skb_pool;
 	skb_queue_purge_reason(skb_pool, SKB_CONSUMED);
 }
-
-int netpoll_parse_options(struct netpoll *np, char *opt)
-{
-	char *cur=opt, *delim;
-	int ipv6;
-	bool ipversion_set = false;
-
-	if (*cur != '@') {
-		if ((delim = strchr(cur, '@')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-		if (kstrtou16(cur, 10, &np->local_port))
-			goto parse_failed;
-		cur = delim;
-	}
-	cur++;
-
-	if (*cur != '/') {
-		ipversion_set = true;
-		if ((delim = strchr(cur, '/')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-		ipv6 = netpoll_parse_ip_addr(cur, &np->local_ip);
-		if (ipv6 < 0)
-			goto parse_failed;
-		else
-			np->ipv6 = (bool)ipv6;
-		cur = delim;
-	}
-	cur++;
-
-	if (*cur != ',') {
-		/* parse out dev_name or dev_mac */
-		if ((delim = strchr(cur, ',')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-
-		np->dev_name[0] = '\0';
-		eth_broadcast_addr(np->dev_mac);
-		if (!strchr(cur, ':'))
-			strscpy(np->dev_name, cur, sizeof(np->dev_name));
-		else if (!mac_pton(cur, np->dev_mac))
-			goto parse_failed;
-
-		cur = delim;
-	}
-	cur++;
-
-	if (*cur != '@') {
-		/* dst port */
-		if ((delim = strchr(cur, '@')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-		if (*cur == ' ' || *cur == '\t')
-			np_info(np, "warning: whitespace is not allowed\n");
-		if (kstrtou16(cur, 10, &np->remote_port))
-			goto parse_failed;
-		cur = delim;
-	}
-	cur++;
-
-	/* dst ip */
-	if ((delim = strchr(cur, '/')) == NULL)
-		goto parse_failed;
-	*delim = 0;
-	ipv6 = netpoll_parse_ip_addr(cur, &np->remote_ip);
-	if (ipv6 < 0)
-		goto parse_failed;
-	else if (ipversion_set && np->ipv6 != (bool)ipv6)
-		goto parse_failed;
-	else
-		np->ipv6 = (bool)ipv6;
-	cur = delim + 1;
-
-	if (*cur != 0) {
-		/* MAC address */
-		if (!mac_pton(cur, np->remote_mac))
-			goto parse_failed;
-	}
-
-	netpoll_print_options(np);
-
-	return 0;
-
- parse_failed:
-	np_info(np, "couldn't parse config at '%s'!\n", cur);
-	return -1;
-}
-EXPORT_SYMBOL(netpoll_parse_options);
 
 static void refill_skbs_work_handler(struct work_struct *work)
 {
@@ -863,7 +730,7 @@ static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 	kfree(npinfo);
 }
 
-void __netpoll_cleanup(struct netpoll *np)
+static void __netpoll_cleanup(struct netpoll *np)
 {
 	struct netpoll_info *npinfo;
 
@@ -885,7 +752,6 @@ void __netpoll_cleanup(struct netpoll *np)
 
 	skb_pool_flush(np);
 }
-EXPORT_SYMBOL_GPL(__netpoll_cleanup);
 
 void __netpoll_free(struct netpoll *np)
 {
