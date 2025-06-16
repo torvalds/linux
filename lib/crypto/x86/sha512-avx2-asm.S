@@ -50,7 +50,7 @@
 ########################################################################
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
+#include <linux/objtool.h>
 
 .text
 
@@ -559,14 +559,17 @@ frame_size = frame_CTX + CTX_SIZE
 .endm
 
 ########################################################################
-# void sha512_transform_rorx(sha512_state *state, const u8 *data, int blocks)
+# void sha512_transform_rorx(struct sha512_block_state *state,
+#			     const u8 *data, size_t nblocks);
 # Purpose: Updates the SHA512 digest stored at "state" with the message
 # stored in "data".
 # The size of the message pointed to by "data" must be an integer multiple
 # of SHA512 message blocks.
-# "blocks" is the message length in SHA512 blocks
+# "nblocks" is the message length in SHA512 blocks
 ########################################################################
-SYM_TYPED_FUNC_START(sha512_transform_rorx)
+SYM_FUNC_START(sha512_transform_rorx)
+	ANNOTATE_NOENDBR	# since this is called only via static_call
+
 	# Save GPRs
 	push	%rbx
 	push	%r12

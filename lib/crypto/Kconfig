@@ -183,6 +183,7 @@ config CRYPTO_LIB_SHA512_ARCH
 	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
 	default y if S390
 	default y if SPARC64
+	default y if X86_64
 
 config CRYPTO_LIB_SM3
 	tristate
