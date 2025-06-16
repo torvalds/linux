@@ -1153,7 +1153,6 @@ int online_pages(unsigned long pfn, unsigned long nr_pages,
 	struct memory_notify mem_arg = {
 		.start_pfn = pfn,
 		.nr_pages = nr_pages,
-		.status_change_nid = NUMA_NO_NODE,
 	};
 	struct node_notify node_arg = {
 		.nid = NUMA_NO_NODE,
@@ -1181,7 +1180,6 @@ int online_pages(unsigned long pfn, unsigned long nr_pages,
 	if (!node_state(nid, N_MEMORY)) {
 		/* Adding memory to the node for the first time */
 		node_arg.nid = nid;
-		mem_arg.status_change_nid = nid;
 		ret = node_notify(NODE_ADDING_FIRST_MEMORY, &node_arg);
 		ret = notifier_to_errno(ret);
 		if (ret)
@@ -1904,7 +1902,6 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 	struct memory_notify mem_arg = {
 		.start_pfn = start_pfn,
 		.nr_pages = nr_pages,
-		.status_change_nid = NUMA_NO_NODE,
 	};
 	struct node_notify node_arg = {
 		.nid = NUMA_NO_NODE,
@@ -1975,7 +1972,6 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 	 */
 	if (nr_pages >= pgdat->node_present_pages) {
 		node_arg.nid = node;
-		mem_arg.status_change_nid = node;
 		ret = node_notify(NODE_REMOVING_LAST_MEMORY, &node_arg);
 		ret = notifier_to_errno(ret);
 		if (ret) {
