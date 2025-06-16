@@ -111,6 +111,14 @@ static inline u32 drm_pixel_xrgb8888_to_xbgr8888(u32 pix)
 	       ((pix & 0x000000ff) << 16);
 }
 
+static inline u32 drm_pixel_xrgb8888_to_bgrx8888(u32 pix)
+{
+	return ((pix & 0xff000000) >> 24) | /* also copy filler bits */
+	       ((pix & 0x00ff0000) >> 8) |
+	       ((pix & 0x0000ff00) << 8) |
+	       ((pix & 0x000000ff) << 24);
+}
+
 static inline u32 drm_pixel_xrgb8888_to_abgr8888(u32 pix)
 {
 	return GENMASK(31, 24) | /* fill alpha bits */
