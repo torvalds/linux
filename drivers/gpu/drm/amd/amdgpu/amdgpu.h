@@ -470,9 +470,6 @@ struct amdgpu_sa_manager {
 	void				*cpu_ptr;
 };
 
-int amdgpu_fence_slab_init(void);
-void amdgpu_fence_slab_fini(void);
-
 /*
  * IRQS.
  */
