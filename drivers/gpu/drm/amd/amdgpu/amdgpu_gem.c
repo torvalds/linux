@@ -955,7 +955,12 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gobj;
 	struct amdgpu_vm_bo_base *base;
 	struct amdgpu_bo *robj;
+	struct drm_exec exec;
+	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	int r;
+
+	if (args->padding)
+		return -EINVAL;
 
 	gobj = drm_gem_object_lookup(filp, args->handle);
 	if (!gobj)
@@ -963,9 +968,21 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 
 	robj = gem_to_amdgpu_bo(gobj);
 
-	r = amdgpu_bo_reserve(robj, false);
-	if (unlikely(r))
-		goto out;
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT |
+			  DRM_EXEC_IGNORE_DUPLICATES, 0);
+	drm_exec_until_all_locked(&exec) {
+		r = drm_exec_lock_obj(&exec, gobj);
+		drm_exec_retry_on_contention(&exec);
+		if (r)
+			goto out_exec;
+
+		if (args->op == AMDGPU_GEM_OP_GET_MAPPING_INFO) {
+			r = amdgpu_vm_lock_pd(&fpriv->vm, &exec, 0);
+			drm_exec_retry_on_contention(&exec);
+			if (r)
+				goto out_exec;
+		}
+	}
 
 	switch (args->op) {
 	case AMDGPU_GEM_OP_GET_GEM_CREATE_INFO: {
@@ -976,7 +993,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		info.alignment = robj->tbo.page_alignment << PAGE_SHIFT;
 		info.domains = robj->preferred_domains;
 		info.domain_flags = robj->flags;
-		amdgpu_bo_unreserve(robj);
+		drm_exec_fini(&exec);
 		if (copy_to_user(out, &info, sizeof(info)))
 			r = -EFAULT;
 		break;
@@ -985,20 +1002,17 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 		if (drm_gem_is_imported(&robj->tbo.base) &&
 		    args->value & AMDGPU_GEM_DOMAIN_VRAM) {
 			r = -EINVAL;
-			amdgpu_bo_unreserve(robj);
-			break;
+			goto out_exec;
 		}
 		if (amdgpu_ttm_tt_get_usermm(robj->tbo.ttm)) {
 			r = -EPERM;
-			amdgpu_bo_unreserve(robj);
-			break;
+			goto out_exec;
 		}
 		for (base = robj->vm_bo; base; base = base->next)
 			if (amdgpu_xgmi_same_hive(amdgpu_ttm_adev(robj->tbo.bdev),
 				amdgpu_ttm_adev(base->vm->root.bo->tbo.bdev))) {
 				r = -EINVAL;
-				amdgpu_bo_unreserve(robj);
-				goto out;
+				goto out_exec;
 			}
 
 
@@ -1011,15 +1025,63 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 
 		if (robj->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
 			amdgpu_vm_bo_invalidate(robj, true);
-
-		amdgpu_bo_unreserve(robj);
+		drm_exec_fini(&exec);
 		break;
+	case AMDGPU_GEM_OP_GET_MAPPING_INFO: {
+		struct amdgpu_bo_va *bo_va = amdgpu_vm_bo_find(&fpriv->vm, robj);
+		struct drm_amdgpu_gem_vm_entry *vm_entries;
+		struct amdgpu_bo_va_mapping *mapping;
+		int num_mappings = 0;
+		/*
+		 * num_entries is set as an input to the size of the user-allocated array of
+		 * drm_amdgpu_gem_vm_entry stored at args->value.
+		 * num_entries is sent back as output as the number of mappings the bo has.
+		 * If that number is larger than the size of the array, the ioctl must
+		 * be retried.
+		 */
+		vm_entries = kvcalloc(args->num_entries, sizeof(*vm_entries), GFP_KERNEL);
+		if (!vm_entries)
+			return -ENOMEM;
+
+		amdgpu_vm_bo_va_for_each_valid_mapping(bo_va, mapping) {
+			if (num_mappings < args->num_entries) {
+				vm_entries[num_mappings].addr = mapping->start * AMDGPU_GPU_PAGE_SIZE;
+				vm_entries[num_mappings].size = (mapping->last - mapping->start + 1) * AMDGPU_GPU_PAGE_SIZE;
+				vm_entries[num_mappings].offset = mapping->offset;
+				vm_entries[num_mappings].flags = mapping->flags;
+			}
+			num_mappings += 1;
+		}
+
+		amdgpu_vm_bo_va_for_each_invalid_mapping(bo_va, mapping) {
+			if (num_mappings < args->num_entries) {
+				vm_entries[num_mappings].addr = mapping->start * AMDGPU_GPU_PAGE_SIZE;
+				vm_entries[num_mappings].size = (mapping->last - mapping->start + 1) * AMDGPU_GPU_PAGE_SIZE;
+				vm_entries[num_mappings].offset = mapping->offset;
+				vm_entries[num_mappings].flags = mapping->flags;
+			}
+			num_mappings += 1;
+		}
+
+		drm_exec_fini(&exec);
+
+		if (num_mappings > 0 && num_mappings <= args->num_entries)
+			r = copy_to_user(u64_to_user_ptr(args->value), vm_entries, num_mappings * sizeof(*vm_entries));
+
+		args->num_entries = num_mappings;
+
+		kvfree(vm_entries);
+		break;
+	}
 	default:
-		amdgpu_bo_unreserve(robj);
+		drm_exec_fini(&exec);
 		r = -EINVAL;
 	}
 
-out:
+	drm_gem_object_put(gobj);
+	return r;
+out_exec:
+	drm_exec_fini(&exec);
 	drm_gem_object_put(gobj);
 	return r;
 }
