@@ -62,16 +62,24 @@ EXPORT_SYMBOL(blk_set_stacking_limits);
 void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 		struct queue_limits *lim)
 {
+	u64 io_opt = lim->io_opt;
+
 	/*
 	 * For read-ahead of large files to be effective, we need to read ahead
-	 * at least twice the optimal I/O size.
+	 * at least twice the optimal I/O size. For rotational devices that do
+	 * not report an optimal I/O size (e.g. ATA HDDs), use the maximum I/O
+	 * size to avoid falling back to the (rather inefficient) small default
+	 * read-ahead size.
 	 *
 	 * There is no hardware limitation for the read-ahead size and the user
 	 * might have increased the read-ahead size through sysfs, so don't ever
 	 * decrease it.
 	 */
+	if (!io_opt && (lim->features & BLK_FEAT_ROTATIONAL))
+		io_opt = (u64)lim->max_sectors << SECTOR_SHIFT;
+
 	bdi->ra_pages = max3(bdi->ra_pages,
-				lim->io_opt * 2 / PAGE_SIZE,
+				io_opt * 2 >> PAGE_SHIFT,
 				VM_READAHEAD_PAGES);
 	bdi->io_pages = lim->max_sectors >> PAGE_SECTORS_SHIFT;
 }
