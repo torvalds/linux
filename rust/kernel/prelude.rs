@@ -46,3 +46,5 @@ pub use super::{str::CStr, ThisModule};
 pub use super::init::InPlaceInit;
 
 pub use super::current;
+
+pub use super::uaccess::UserPtr;

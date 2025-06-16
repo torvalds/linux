@@ -14,8 +14,51 @@ use crate::{
 };
 use core::mem::{size_of, MaybeUninit};
 
-/// The type used for userspace addresses.
-pub type UserPtr = usize;
+/// A pointer into userspace.
+///
+/// This is the Rust equivalent to C pointers tagged with `__user`.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct UserPtr(*mut c_void);
+
+impl UserPtr {
+    /// Create a `UserPtr` from an integer representing the userspace address.
+    #[inline]
+    pub fn from_addr(addr: usize) -> Self {
+        Self(addr as *mut c_void)
+    }
+
+    /// Create a `UserPtr` from a pointer representing the userspace address.
+    #[inline]
+    pub fn from_ptr(addr: *mut c_void) -> Self {
+        Self(addr)
+    }
+
+    /// Cast this userspace pointer to a raw const void pointer.
+    ///
+    /// It is up to the caller to use the returned pointer correctly.
+    #[inline]
+    pub fn as_const_ptr(self) -> *const c_void {
+        self.0
+    }
+
+    /// Cast this userspace pointer to a raw mutable void pointer.
+    ///
+    /// It is up to the caller to use the returned pointer correctly.
+    #[inline]
+    pub fn as_mut_ptr(self) -> *mut c_void {
+        self.0
+    }
+
+    /// Increment this user pointer by `add` bytes.
+    ///
+    /// This addition is wrapping, so wrapping around the address space does not result in a panic
+    /// even if `CONFIG_RUST_OVERFLOW_CHECKS` is enabled.
+    #[inline]
+    pub fn wrapping_byte_add(self, add: usize) -> UserPtr {
+        UserPtr(self.0.wrapping_byte_add(add))
+    }
+}
 
 /// A pointer to an area in userspace memory, which can be either read-only or read-write.
 ///
@@ -177,7 +220,7 @@ impl UserSliceReader {
     pub fn skip(&mut self, num_skip: usize) -> Result {
         // Update `self.length` first since that's the fallible part of this operation.
         self.length = self.length.checked_sub(num_skip).ok_or(EFAULT)?;
-        self.ptr = self.ptr.wrapping_add(num_skip);
+        self.ptr = self.ptr.wrapping_byte_add(num_skip);
         Ok(())
     }
 
@@ -224,11 +267,11 @@ impl UserSliceReader {
         }
         // SAFETY: `out_ptr` points into a mutable slice of length `len`, so we may write
         // that many bytes to it.
-        let res = unsafe { bindings::copy_from_user(out_ptr, self.ptr as *const c_void, len) };
+        let res = unsafe { bindings::copy_from_user(out_ptr, self.ptr.as_const_ptr(), len) };
         if res != 0 {
             return Err(EFAULT);
         }
-        self.ptr = self.ptr.wrapping_add(len);
+        self.ptr = self.ptr.wrapping_byte_add(len);
         self.length -= len;
         Ok(())
     }
@@ -262,14 +305,14 @@ impl UserSliceReader {
         let res = unsafe {
             bindings::_copy_from_user(
                 out.as_mut_ptr().cast::<c_void>(),
-                self.ptr as *const c_void,
+                self.ptr.as_const_ptr(),
                 len,
             )
         };
         if res != 0 {
             return Err(EFAULT);
         }
-        self.ptr = self.ptr.wrapping_add(len);
+        self.ptr = self.ptr.wrapping_byte_add(len);
         self.length -= len;
         // SAFETY: The read above has initialized all bytes in `out`, and since `T` implements
         // `FromBytes`, any bit-pattern is a valid value for this type.
@@ -386,11 +429,11 @@ impl UserSliceWriter {
         }
         // SAFETY: `data_ptr` points into an immutable slice of length `len`, so we may read
         // that many bytes from it.
-        let res = unsafe { bindings::copy_to_user(self.ptr as *mut c_void, data_ptr, len) };
+        let res = unsafe { bindings::copy_to_user(self.ptr.as_mut_ptr(), data_ptr, len) };
         if res != 0 {
             return Err(EFAULT);
         }
-        self.ptr = self.ptr.wrapping_add(len);
+        self.ptr = self.ptr.wrapping_byte_add(len);
         self.length -= len;
         Ok(())
     }
@@ -413,7 +456,7 @@ impl UserSliceWriter {
         // is a compile-time constant.
         let res = unsafe {
             bindings::_copy_to_user(
-                self.ptr as *mut c_void,
+                self.ptr.as_mut_ptr(),
                 core::ptr::from_ref(value).cast::<c_void>(),
                 len,
             )
@@ -421,7 +464,7 @@ impl UserSliceWriter {
         if res != 0 {
             return Err(EFAULT);
         }
-        self.ptr = self.ptr.wrapping_add(len);
+        self.ptr = self.ptr.wrapping_byte_add(len);
         self.length -= len;
         Ok(())
     }
@@ -445,7 +488,11 @@ fn raw_strncpy_from_user(dst: &mut [MaybeUninit<u8>], src: UserPtr) -> Result<us
 
     // SAFETY: `dst` is valid for writing `dst.len()` bytes.
     let res = unsafe {
-        bindings::strncpy_from_user(dst.as_mut_ptr().cast::<c_char>(), src as *const c_char, len)
+        bindings::strncpy_from_user(
+            dst.as_mut_ptr().cast::<c_char>(),
+            src.as_const_ptr().cast::<c_char>(),
+            len,
+        )
     };
 
     if res < 0 {
