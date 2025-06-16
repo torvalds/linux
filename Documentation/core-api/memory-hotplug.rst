@@ -9,6 +9,9 @@ Memory hotplug event notifier
 
 Hotplugging events are sent to a notification queue.
 
+Memory notifier
+----------------
+
 There are six types of notification defined in ``include/linux/memory.h``:
 
 MEM_GOING_ONLINE
@@ -68,6 +71,14 @@ The third argument (arg) passes a pointer of struct memory_notify::
   If status_changed_nid* >= 0, callback should create/discard structures for the
   node if necessary.
 
+It is possible to get notified for MEM_CANCEL_ONLINE without having been notified
+for MEM_GOING_ONLINE, and the same applies to MEM_CANCEL_OFFLINE and
+MEM_GOING_OFFLINE.
+This can happen when a consumer fails, meaning we break the callchain and we
+stop calling the remaining consumers of the notifier.
+It is then important that users of memory_notify make no assumptions and get
+prepared to handle such cases.
+
 The callback routine shall return one of the values
 NOTIFY_DONE, NOTIFY_OK, NOTIFY_BAD, NOTIFY_STOP
 defined in ``include/linux/notifier.h``
@@ -79,6 +90,78 @@ MEM_ONLINE, or MEM_OFFLINE action to cancel hotplugging. It stops
 further processing of the notification queue.
 
 NOTIFY_STOP stops further processing of the notification queue.
+
+Numa node notifier
+------------------
+
+There are six types of notification defined in ``include/linux/node.h``:
+
+NODE_ADDING_FIRST_MEMORY
+ Generated before memory becomes available to this node for the first time.
+
+NODE_CANCEL_ADDING_FIRST_MEMORY
+ Generated if NODE_ADDING_FIRST_MEMORY fails.
+
+NODE_ADDED_FIRST_MEMORY
+ Generated when memory has become available fo this node for the first time.
+
+NODE_REMOVING_LAST_MEMORY
+ Generated when the last memory available to this node is about to be offlined.
+
+NODE_CANCEL_REMOVING_LAST_MEMORY
+ Generated when NODE_CANCEL_REMOVING_LAST_MEMORY fails.
+
+NODE_REMOVED_LAST_MEMORY
+ Generated when the last memory available to this node has been offlined.
+
+A callback routine can be registered by calling::
+
+  hotplug_node_notifier(callback_func, priority)
+
+Callback functions with higher values of priority are called before callback
+functions with lower values.
+
+A callback function must have the following prototype::
+
+  int callback_func(
+
+    struct notifier_block *self, unsigned long action, void *arg);
+
+The first argument of the callback function (self) is a pointer to the block
+of the notifier chain that points to the callback function itself.
+The second argument (action) is one of the event types described above.
+The third argument (arg) passes a pointer of struct node_notify::
+
+        struct node_notify {
+                int nid;
+        }
+
+- nid is the node we are adding or removing memory to.
+
+It is possible to get notified for NODE_CANCEL_ADDING_FIRST_MEMORY without
+having been notified for NODE_ADDING_FIRST_MEMORY, and the same applies to
+NODE_CANCEL_REMOVING_LAST_MEMORY and NODE_REMOVING_LAST_MEMORY.
+This can happen when a consumer fails, meaning we break the callchain and we
+stop calling the remaining consumers of the notifier.
+It is then important that users of node_notify make no assumptions and get
+prepared to handle such cases.
+
+The callback routine shall return one of the values
+NOTIFY_DONE, NOTIFY_OK, NOTIFY_BAD, NOTIFY_STOP
+defined in ``include/linux/notifier.h``
+
+NOTIFY_DONE and NOTIFY_OK have no effect on the further processing.
+
+NOTIFY_BAD is used as response to the NODE_ADDING_FIRST_MEMORY,
+NODE_REMOVING_LAST_MEMORY, NODE_ADDED_FIRST_MEMORY or
+NODE_REMOVED_LAST_MEMORY action to cancel hotplugging.
+It stops further processing of the notification queue.
+
+NOTIFY_STOP stops further processing of the notification queue.
+
+Please note that we should not fail for NODE_ADDED_FIRST_MEMORY /
+NODE_REMOVED_FIRST_MEMORY, as memory_hotplug code cannot rollback at that
+point anymore.
 
 Locking Internals
 =================
