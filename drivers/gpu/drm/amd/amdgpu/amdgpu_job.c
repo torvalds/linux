@@ -135,17 +135,9 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	} else if (amdgpu_gpu_recovery && ring->funcs->reset) {
 		dev_err(adev->dev, "Starting %s ring reset\n",
 			s_job->sched->name);
-
-		/*
-		 * Stop the scheduler to prevent anybody else from touching the
-		 * ring buffer.
-		 */
-		drm_sched_wqueue_stop(&ring->sched);
-
 		r = amdgpu_ring_reset(ring, job->vmid, NULL);
 		if (!r) {
 			atomic_inc(&ring->adev->gpu_reset_counter);
-			drm_sched_wqueue_start(&ring->sched);
 			dev_err(adev->dev, "Ring %s reset succeeded\n",
 				ring->sched.name);
 			drm_dev_wedged_event(adev_to_drm(adev),

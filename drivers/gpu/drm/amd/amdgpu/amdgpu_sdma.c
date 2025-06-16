@@ -554,22 +554,16 @@ int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id)
 	struct amdgpu_sdma_instance *sdma_instance = &adev->sdma.instance[instance_id];
 	struct amdgpu_ring *gfx_ring = &sdma_instance->ring;
 	struct amdgpu_ring *page_ring = &sdma_instance->page;
-	bool gfx_sched_stopped = false, page_sched_stopped = false;
 
 	mutex_lock(&sdma_instance->engine_reset_mutex);
 	/* Stop the scheduler's work queue for the GFX and page rings if they are running.
 	* This ensures that no new tasks are submitted to the queues while
 	* the reset is in progress.
 	*/
-	if (!amdgpu_ring_sched_ready(gfx_ring)) {
-		drm_sched_wqueue_stop(&gfx_ring->sched);
-		gfx_sched_stopped = true;
-	}
+	drm_sched_wqueue_stop(&gfx_ring->sched);
 
-	if (adev->sdma.has_page_queue && !amdgpu_ring_sched_ready(page_ring)) {
+	if (adev->sdma.has_page_queue)
 		drm_sched_wqueue_stop(&page_ring->sched);
-		page_sched_stopped = true;
-	}
 
 	if (sdma_instance->funcs->stop_kernel_queue) {
 		sdma_instance->funcs->stop_kernel_queue(gfx_ring);
@@ -596,12 +590,9 @@ exit:
 	 * to be submitted to the queues after the reset is complete.
 	 */
 	if (!ret) {
-		if (gfx_sched_stopped && amdgpu_ring_sched_ready(gfx_ring)) {
-			drm_sched_wqueue_start(&gfx_ring->sched);
-		}
-		if (page_sched_stopped && amdgpu_ring_sched_ready(page_ring)) {
+		drm_sched_wqueue_start(&gfx_ring->sched);
+		if (adev->sdma.has_page_queue)
 			drm_sched_wqueue_start(&page_ring->sched);
-		}
 	}
 	mutex_unlock(&sdma_instance->engine_reset_mutex);
 
