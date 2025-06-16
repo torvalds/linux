@@ -25,7 +25,6 @@
 
 #define DEVICE_NAME	"aspeed-lpc-snoop"
 
-#define NUM_SNOOP_CHANNELS 2
 #define SNOOP_FIFO_SIZE 2048
 
 #define HICR5	0x80
@@ -57,6 +56,12 @@ struct aspeed_lpc_snoop_model_data {
 	unsigned int has_hicrb_ensnp;
 };
 
+enum aspeed_lpc_snoop_index {
+	ASPEED_LPC_SNOOP_INDEX_0 = 0,
+	ASPEED_LPC_SNOOP_INDEX_1 = 1,
+	ASPEED_LPC_SNOOP_INDEX_MAX = ASPEED_LPC_SNOOP_INDEX_1,
+};
+
 struct aspeed_lpc_snoop_channel {
 	bool enabled;
 	struct kfifo		fifo;
@@ -68,7 +73,7 @@ struct aspeed_lpc_snoop {
 	struct regmap		*regmap;
 	int			irq;
 	struct clk		*clk;
-	struct aspeed_lpc_snoop_channel chan[NUM_SNOOP_CHANNELS];
+	struct aspeed_lpc_snoop_channel chan[ASPEED_LPC_SNOOP_INDEX_MAX + 1];
 };
 
 static struct aspeed_lpc_snoop_channel *snoop_file_to_chan(struct file *file)
@@ -182,9 +187,10 @@ static int aspeed_lpc_snoop_config_irq(struct aspeed_lpc_snoop *lpc_snoop,
 	return 0;
 }
 
+__attribute__((nonnull))
 static int aspeed_lpc_enable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
 				   struct device *dev,
-				   int channel, u16 lpc_port)
+				   enum aspeed_lpc_snoop_index channel, u16 lpc_port)
 {
 	const struct aspeed_lpc_snoop_model_data *model_data;
 	u32 hicr5_en, snpwadr_mask, snpwadr_shift, hicrb_en;
@@ -251,8 +257,9 @@ err_free_fifo:
 	return rc;
 }
 
+__attribute__((nonnull))
 static void aspeed_lpc_disable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
-				     int channel)
+				     enum aspeed_lpc_snoop_index channel)
 {
 	if (!lpc_snoop->chan[channel].enabled)
 		return;
@@ -331,16 +338,16 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
 	if (rc)
 		goto err;
 
-	rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, 0, port);
+	rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, ASPEED_LPC_SNOOP_INDEX_0, port);
 	if (rc)
 		goto err;
 
 	/* Configuration of 2nd snoop channel port is optional */
 	if (of_property_read_u32_index(dev->of_node, "snoop-ports",
 				       1, &port) == 0) {
-		rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, 1, port);
+		rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, ASPEED_LPC_SNOOP_INDEX_1, port);
 		if (rc) {
-			aspeed_lpc_disable_snoop(lpc_snoop, 0);
+			aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
 			goto err;
 		}
 	}
@@ -358,8 +365,8 @@ static void aspeed_lpc_snoop_remove(struct platform_device *pdev)
 	struct aspeed_lpc_snoop *lpc_snoop = dev_get_drvdata(&pdev->dev);
 
 	/* Disable both snoop channels */
-	aspeed_lpc_disable_snoop(lpc_snoop, 0);
-	aspeed_lpc_disable_snoop(lpc_snoop, 1);
+	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_0);
+	aspeed_lpc_disable_snoop(lpc_snoop, ASPEED_LPC_SNOOP_INDEX_1);
 
 	clk_disable_unprepare(lpc_snoop->clk);
 }
