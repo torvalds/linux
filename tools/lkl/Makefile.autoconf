@@ -84,9 +84,6 @@ define posix_host
   $(if $(filter $(1),elf32-i386),$(call set_autoconf_var,I386,y))
   $(if $(strip $(call find_include,jsmn.h)),$(call set_autoconf_var,JSMN,y))
   $(if $(filter %,$(zpoline)),$(call zpoline_conf,$(zpoline)))
-  $(call set_kernel_config,LKL_HOST_MEMCPY,y)
-  $(call set_kernel_config,LKL_HOST_MEMSET,y)
-  $(call set_kernel_config,LKL_HOST_MEMMOVE,y)
 endef
 
 define nt64_host
@@ -113,21 +110,6 @@ define nt_host
   $(if $(filter $(1),pe-x86-64),$(call nt64_host))
 endef
 
-define s390_host
-  $(call set_kernel_config,CPU_BIG_ENDIAN,y)
-endef
-
-define 64bit_host
-  $(call set_kernel_config,64BIT,y)
-endef
-
-define kasan_x86_64
-  $(call set_autoconf_var,KASAN_SHADOW_OFFSET,0x0000200000000000)
-  $(call set_kernel_config,KASAN_SHADOW_OFFSET,0x0000200000000000)
-  $(call set_autoconf_var,KASAN_SHADOW_SIZE,0x0000100000000000)
-  $(call set_kernel_config,KASAN_SHADOW_SIZE,0x0000100000000000)
-endef
-
 define kasan_test_enable
   $(call set_autoconf_var,KASAN_TEST,y)
   $(call set_kernel_config,KUNIT,y)
@@ -138,10 +120,6 @@ endef
 define kasan_enable
   $(call set_autoconf_var,KASAN,y)
   $(call set_kernel_config,KASAN,y)
-  # default is 20 which should be 1MB but observed 8MB of reserved
-  # memory - half of what we use
-  $(call set_kernel_config,STACK_HASH_ORDER,12)
-  $(if $(filter $(1),elf64-x86-64),$(call kasan_x86_64))
   $(if $(filter yes,$(kasan_test)), $(call kasan_test_enable))
 endef
 
@@ -255,7 +233,6 @@ define do_autoconf_fuzzing
   $(eval LLVM := 1)
   $(eval CROSS_COMPILE := x86_64-linux-gnu)
   $(eval kasan := yes)
-  $(call set_kernel_config,LKL_FUZZING,y)
   $(if $(LKL_LINE_COV),$(call set_kernel_config,LKL_LINE_COV,y))
   $(if $(MMU),$(call set_kernel_config,ANDROID_BINDER_IPC,y))
   $(if $(PROTOBUF_MUTATOR_DIR),$(call define_libprotobuf_mutator))
@@ -271,15 +248,6 @@ endef
 define do_autoconf_mmu
   $(call set_autoconf_var,MMU,y)
   $(call set_kernel_config,MMU,y)
-  # Explicitly set LKL MMU configuration parameters for Kconfig
-  $(call set_autoconf_var,LKL_MEMORY_START,0x50000000)
-  $(call set_kernel_config,LKL_MEMORY_START,0x50000000)
-  $(call set_autoconf_var,LKL_TASK_UNMAPPED_BASE,0x100000)
-  $(call set_kernel_config,LKL_TASK_UNMAPPED_BASE,0x100000)
-  # Don't need swap in LKL. CONFIG_SHMEM generates a compile-time assertion
-  # when build with gcc, however, works fine with clang. The issues is in macro
-  # HPAGE_PMD_SIZE which should be optimized out but is not in case of gcc.
-  $(call set_kernel_config,SHMEM,n)
   $(if $(MMU_KUNIT), $(call mmu_test_enable))
 endef
 
@@ -287,9 +255,6 @@ define do_autoconf
   $(if $(LKL_FUZZING),$(call do_autoconf_fuzzing))
   $(if $(LLVM),$(call do_autoconf_llvm),$(call do_autoconf_gnu))
   $(eval EXEC_FMT := $(shell echo $(LD_FMT) | cut -d "-" -f1))
-  $(call set_kernel_config,OUTPUT_FORMAT,\"$(LD_FMT)\")
-  $(if $(or $(filter $(EXEC_FMT),elf64),$(filter $(LD_FMT),pe-x86-64)),$(call 64bit_host))
-  $(if $(filter $(LD_FMT),elf64-s390),$(call s390_host))
   $(if $(filter $(EXEC_FMT),$(POSIX_HOSTS)),$(call posix_host,$(LD_FMT)))
   $(if $(filter $(EXEC_FMT),$(NT_HOSTS)),$(call nt_host,$(LD_FMT)))
   $(if $(and $(filter yes,$(kasan)),$(filter $(LD_FMT),$(KASAN_HOSTS))),$(call kasan_enable,$(LD_FMT)))
