@@ -7420,6 +7420,8 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, bool only_update)
 	bt->rfk_info.map.req = !!(val & BTC_BSCB_RFK_REQ);
 	bt->hi_lna_rx = !!(val & BTC_BSCB_BT_HILNA);
 	bt->link_info.status.map.connect = !!(val & BTC_BSCB_BT_CONNECT);
+	if (bt->run_patch_code != !!(val & BTC_BSCB_PATCH_CODE))
+		status_change = true;
 	bt->run_patch_code = !!(val & BTC_BSCB_PATCH_CODE);
 
 	if (!only_update && status_change)
