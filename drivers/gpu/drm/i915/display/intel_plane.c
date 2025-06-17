@@ -1434,8 +1434,8 @@ static int intel_crtc_add_planes_to_state(struct intel_atomic_state *state,
 	return 0;
 }
 
-int intel_atomic_add_affected_planes(struct intel_atomic_state *state,
-				     struct intel_crtc *crtc)
+int intel_plane_add_affected(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
