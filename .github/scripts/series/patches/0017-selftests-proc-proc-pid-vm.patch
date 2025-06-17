@@ -1,0 +1,39 @@
+From a4bfc538aa2d9dc960e075c6b298bbc2f03314fe Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 6 May 2025 07:19:24 +0000
+Subject: [PATCH 5/7] selftests: proc/proc-pid-vm
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix warning for unused variables by moving the x86 ifdef.
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/proc/proc-pid-vm.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/proc/proc-pid-vm.c b/tools/testing/selftests/proc/proc-pid-vm.c
+index d04685771952..f5d011ec296b 100644
+--- a/tools/testing/selftests/proc/proc-pid-vm.c
++++ b/tools/testing/selftests/proc/proc-pid-vm.c
+@@ -212,6 +212,8 @@ static int make_exe(const uint8_t *payload, size_t len)
+ }
+ #endif
+ 
++#ifdef __x86_64__
++
+ /*
+  * 0: vsyscall VMA doesn't exist	vsyscall=none
+  * 1: vsyscall VMA is --xp		vsyscall=xonly
+@@ -226,7 +228,6 @@ static const char str_vsyscall_1[] =
+ static const char str_vsyscall_2[] =
+ "ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n";
+ 
+-#ifdef __x86_64__
+ static void sigaction_SIGSEGV(int _, siginfo_t *__, void *___)
+ {
+ 	_exit(g_vsyscall);
+-- 
+2.48.1
+

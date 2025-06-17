@@ -1,0 +1,40 @@
+From 0e22720f7f4c1cbed83c032ca4b8bc50d2f7aeb5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Thu, 22 Aug 2024 16:27:16 +0000
+Subject: [PATCH 4/6] selftests: exec: Remove static-pie
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+static-pie is broken on RV pre libc6-dev 2.40
+
+WIP: Fix patch
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/exec/Makefile | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/tools/testing/selftests/exec/Makefile b/tools/testing/selftests/exec/Makefile
+index ba012bc5aab9..fcf2db80cc40 100644
+--- a/tools/testing/selftests/exec/Makefile
++++ b/tools/testing/selftests/exec/Makefile
+@@ -5,7 +5,7 @@ CFLAGS += -Wno-nonnull
+ ALIGNS := 0x1000 0x200000 0x1000000
+ ALIGN_PIES        := $(patsubst %,load_address.%,$(ALIGNS))
+ ALIGN_STATIC_PIES := $(patsubst %,load_address.static.%,$(ALIGNS))
+-ALIGNMENT_TESTS   := $(ALIGN_PIES) $(ALIGN_STATIC_PIES)
++ALIGNMENT_TESTS   := $(ALIGN_PIES)
+ 
+ TEST_PROGS := binfmt_script.py
+ TEST_GEN_PROGS := execveat non-regular $(ALIGNMENT_TESTS)
+@@ -35,6 +35,3 @@ $(OUTPUT)/execveat.denatured: $(OUTPUT)/execveat
+ $(OUTPUT)/load_address.0x%: load_address.c
+ 	$(CC) $(CFLAGS) $(LDFLAGS) -Wl,-z,max-page-size=$(lastword $(subst ., ,$@)) \
+ 		-fPIE -pie $< -o $@
+-$(OUTPUT)/load_address.static.0x%: load_address.c
+-	$(CC) $(CFLAGS) $(LDFLAGS) -Wl,-z,max-page-size=$(lastword $(subst ., ,$@)) \
+-		-fPIE -static-pie $< -o $@
+-- 
+2.43.0
+
