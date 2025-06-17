@@ -576,8 +576,18 @@ static u32 dmc_mmiodata(struct intel_display *display,
 		return dmc->dmc_info[dmc_id].mmiodata[i];
 }
 
-static void dmc_load_program(struct intel_display *display,
-			     enum intel_dmc_id dmc_id)
+static void dmc_load_mmio(struct intel_display *display, enum intel_dmc_id dmc_id)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+	int i;
+
+	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
+		intel_de_write(display, dmc->dmc_info[dmc_id].mmioaddr[i],
+			       dmc_mmiodata(display, dmc, dmc_id, i));
+	}
+}
+
+static void dmc_load_program(struct intel_display *display, enum intel_dmc_id dmc_id)
 {
 	struct intel_dmc *dmc = display_to_dmc(display);
 	int i;
@@ -594,16 +604,59 @@ static void dmc_load_program(struct intel_display *display,
 
 	preempt_enable();
 
-	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
-		intel_de_write(display, dmc->dmc_info[dmc_id].mmioaddr[i],
-			       dmc_mmiodata(display, dmc, dmc_id, i));
-	}
+	dmc_load_mmio(display, dmc_id);
 }
 
 static bool need_pipedmc_load_program(struct intel_display *display)
 {
 	/* On TGL/derivatives pipe DMC state is lost when PG1 is disabled */
 	return DISPLAY_VER(display) == 12;
+}
+
+static bool need_pipedmc_load_mmio(struct intel_display *display, enum pipe pipe)
+{
+	/*
+	 * PTL:
+	 * - pipe A/B DMC doesn't need save/restore
+	 * - pipe C/D DMC is in PG0, needs manual save/restore
+	 */
+	if (DISPLAY_VER(display) == 30)
+		return pipe >= PIPE_C;
+
+	/*
+	 * FIXME LNL unclear, main DMC firmware has the pipe DMC A/B PG0
+	 * save/restore, but so far unable to see the loss of pipe DMC state
+	 * in action. Are we just failing to turn off PG0 due to some other
+	 * SoC level stuff?
+	 */
+	if (DISPLAY_VER(display) == 20)
+		return false;
+
+	/*
+	 * FIXME BMG untested, main DMC firmware has the
+	 * pipe DMC A/B PG0 save/restore...
+	 */
+	if (display->platform.battlemage)
+		return false;
+
+	/*
+	 * DG2:
+	 * - Pipe DMCs presumably in PG0?
+	 * - No DC6, and even DC9 doesn't seem to result
+	 *   in loss of DMC state for whatever reason
+	 */
+	if (display->platform.dg2)
+		return false;
+
+	/*
+	 * ADL/MTL:
+	 * - pipe A/B DMC is in PG0, saved/restored by the main DMC
+	 * - pipe C/D DMC is in PG0, needs manual save/restore
+	 */
+	if (IS_DISPLAY_VER(display, 13, 14))
+		return pipe >= PIPE_C;
+
+	return false;
 }
 
 void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe)
@@ -615,6 +668,8 @@ void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe)
 
 	if (need_pipedmc_load_program(display))
 		dmc_load_program(display, dmc_id);
+	else if (need_pipedmc_load_mmio(display, pipe))
+		dmc_load_mmio(display, dmc_id);
 
 	if (DISPLAY_VER(display) >= 20) {
 		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), pipedmc_interrupt_mask(display));
