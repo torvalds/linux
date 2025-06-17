@@ -1,9 +1,0 @@
-[config]
-command = record
-args    = --no-bpf-event -g kill >/dev/null 2>&1
-ret     = 1
-arch    = aarch64
-
-[event:base-record]
-sample_type=4391
-sample_regs_user=1073741824

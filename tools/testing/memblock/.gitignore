@@ -1,5 +1,0 @@
-main
-memblock.c
-linux/memblock.h
-asm/asm.h
-asm/cmpxchg.h

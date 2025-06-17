@@ -1,3 +1,0 @@
-&usb {
-	dr_mode = "host";
-};

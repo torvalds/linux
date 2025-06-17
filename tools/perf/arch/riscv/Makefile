@@ -1,3 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-PERF_HAVE_JITDUMP := 1
-HAVE_KVM_STAT_SUPPORT := 1

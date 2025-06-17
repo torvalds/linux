@@ -1,3 +1,0 @@
-cat <<EOF
-	${retstmt}raw_${atomic}_${pfx}add${sfx}${order}(1, v);
-EOF

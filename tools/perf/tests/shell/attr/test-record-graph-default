@@ -1,9 +1,0 @@
-[config]
-command = record
-args    = --no-bpf-event -g kill >/dev/null 2>&1
-ret     = 1
-# arm64 enables registers in the default mode (fp)
-arch    = !aarch64
-
-[event:base-record]
-sample_type=295

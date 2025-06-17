@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-
-comment "StarFive media platform drivers"
-
-source "drivers/staging/media/starfive/camss/Kconfig"

@@ -1,5 +1,0 @@
-kms_3d,Fail
-kms_force_connector_basic@force-edid,Fail
-kms_hdmi_inject@inject-4k,Fail
-kms_lease@lease-uevent,Fail
-msm/msm_mapping@ring,Fail

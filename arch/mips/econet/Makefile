@@ -1,2 +1,0 @@
-
-obj-y := init.o
