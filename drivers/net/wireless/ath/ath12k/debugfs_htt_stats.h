@@ -155,6 +155,9 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_SCHED_ALGO		= 49,
 	ATH12K_DBG_HTT_EXT_STATS_MANDATORY_MUOFDMA		= 51,
 	ATH12K_DGB_HTT_EXT_STATS_PDEV_MBSSID_CTRL_FRAME		= 54,
+	ATH12K_DBG_HTT_PDEV_TDMA_STATS				= 57,
+	ATH12K_DBG_HTT_MLO_SCHED_STATS				= 63,
+	ATH12K_DBG_HTT_PDEV_MLO_IPC_STATS			= 64,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -248,6 +251,9 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_PDEV_SCHED_ALGO_OFDMA_STATS_TAG	= 165,
 	HTT_STATS_TXBF_OFDMA_AX_STEER_MPDU_STATS_TAG	= 172,
 	HTT_STATS_PDEV_MBSSID_CTRL_FRAME_STATS_TAG	= 176,
+	HTT_STATS_PDEV_TDMA_TAG				= 187,
+	HTT_STATS_MLO_SCHED_STATS_TAG			= 190,
+	HTT_STATS_PDEV_MLO_IPC_STATS_TAG		= 191,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -1886,6 +1892,30 @@ struct ath12k_htt_pdev_mbssid_ctrl_frame_tlv {
 	__le32 mu_rts_within_bss;
 	__le32 ul_mumimo_trigger_across_bss;
 	__le32 ul_mumimo_trigger_within_bss;
+} __packed;
+
+struct ath12k_htt_pdev_tdma_stats_tlv {
+	__le32 mac_id__word;
+	__le32 num_tdma_active_schedules;
+	__le32 num_tdma_reserved_schedules;
+	__le32 num_tdma_restricted_schedules;
+	__le32 num_tdma_unconfigured_schedules;
+	__le32 num_tdma_slot_switches;
+	__le32 num_tdma_edca_switches;
+} __packed;
+
+struct ath12k_htt_mlo_sched_stats_tlv {
+	__le32 pref_link_num_sec_link_sched;
+	__le32 pref_link_num_pref_link_timeout;
+	__le32 pref_link_num_pref_link_sch_delay_ipc;
+	__le32 pref_link_num_pref_link_timeout_ipc;
+} __packed;
+
+#define ATH12K_HTT_HWMLO_MAX_LINKS	6
+#define ATH12K_HTT_MLO_MAX_IPC_RINGS	7
+
+struct ath12k_htt_pdev_mlo_ipc_stats_tlv {
+	__le32 mlo_ipc_ring_cnt[ATH12K_HTT_HWMLO_MAX_LINKS][ATH12K_HTT_MLO_MAX_IPC_RINGS];
 } __packed;
 
 #endif

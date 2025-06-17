@@ -5046,6 +5046,93 @@ ath12k_htt_print_rx_pdev_rate_ext_stats_tlv(const void *tag_buf, u16 tag_len,
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_pdev_tdma_stats_tlv(const void *tag_buf, u16 tag_len,
+				     struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_pdev_tdma_stats_tlv *htt_stats_buf = tag_buf;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 len = stats_req->buf_len;
+	u8 *buf = stats_req->buf;
+	u32 mac_id_word;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = le32_to_cpu(htt_stats_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_PDEV_TDMA_STATS_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "num_tdma_active_schedules = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tdma_active_schedules));
+	len += scnprintf(buf + len, buf_len - len, "num_tdma_reserved_schedules = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tdma_reserved_schedules));
+	len += scnprintf(buf + len, buf_len - len,
+			 "num_tdma_restricted_schedules = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tdma_restricted_schedules));
+	len += scnprintf(buf + len, buf_len - len,
+			 "num_tdma_unconfigured_schedules = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tdma_unconfigured_schedules));
+	len += scnprintf(buf + len, buf_len - len, "num_tdma_slot_switches = %u\n",
+			 le32_to_cpu(htt_stats_buf->num_tdma_slot_switches));
+	len += scnprintf(buf + len, buf_len - len, "num_tdma_edca_switches = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->num_tdma_edca_switches));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_mlo_sched_stats_tlv(const void *tag_buf, u16 tag_len,
+				     struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_mlo_sched_stats_tlv *stats_buf = tag_buf;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 len = stats_req->buf_len;
+	u8 *buf = stats_req->buf;
+
+	if (tag_len < sizeof(*stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_STATS_MLO_SCHED_STATS:\n");
+	len += scnprintf(buf + len, buf_len - len, "num_sec_link_sched = %u\n",
+			 le32_to_cpu(stats_buf->pref_link_num_sec_link_sched));
+	len += scnprintf(buf + len, buf_len - len, "num_pref_link_timeout = %u\n",
+			 le32_to_cpu(stats_buf->pref_link_num_pref_link_timeout));
+	len += scnprintf(buf + len, buf_len - len, "num_pref_link_sch_delay_ipc = %u\n",
+			 le32_to_cpu(stats_buf->pref_link_num_pref_link_sch_delay_ipc));
+	len += scnprintf(buf + len, buf_len - len, "num_pref_link_timeout_ipc = %u\n\n",
+			 le32_to_cpu(stats_buf->pref_link_num_pref_link_timeout_ipc));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_mlo_ipc_stats_tlv(const void *tag_buf, u16 tag_len,
+				   struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_pdev_mlo_ipc_stats_tlv *stats_buf = tag_buf;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 len = stats_req->buf_len;
+	u8 *buf = stats_req->buf;
+	u8 i, j;
+
+	if (tag_len < sizeof(*stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_STATS_MLO_IPC_STATS:\n");
+	for (i = 0; i < ATH12K_HTT_HWMLO_MAX_LINKS; i++) {
+		len += scnprintf(buf + len, buf_len - len, "src_link: %u\n", i);
+		for (j = 0; j < ATH12K_HTT_MLO_MAX_IPC_RINGS; j++)
+			len += scnprintf(buf + len, buf_len - len,
+					 "mlo_ipc_ring_full_cnt[%u]: %u\n", j,
+					 le32_to_cpu(stats_buf->mlo_ipc_ring_cnt[i][j]));
+		len += scnprintf(buf + len, buf_len - len, "\n");
+	}
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -5316,6 +5403,15 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_RX_PDEV_RATE_EXT_STATS_TAG:
 		ath12k_htt_print_rx_pdev_rate_ext_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PDEV_TDMA_TAG:
+		ath12k_htt_print_pdev_tdma_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_MLO_SCHED_STATS_TAG:
+		ath12k_htt_print_mlo_sched_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PDEV_MLO_IPC_STATS_TAG:
+		ath12k_htt_print_mlo_ipc_stats_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;
