@@ -158,6 +158,8 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_PDEV_TDMA_STATS				= 57,
 	ATH12K_DBG_HTT_MLO_SCHED_STATS				= 63,
 	ATH12K_DBG_HTT_PDEV_MLO_IPC_STATS			= 64,
+	ATH12K_DBG_HTT_EXT_PDEV_RTT_RESP_STATS			= 65,
+	ATH12K_DBG_HTT_EXT_PDEV_RTT_INITIATOR_STATS		= 66,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -254,6 +256,11 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_PDEV_TDMA_TAG				= 187,
 	HTT_STATS_MLO_SCHED_STATS_TAG			= 190,
 	HTT_STATS_PDEV_MLO_IPC_STATS_TAG		= 191,
+	HTT_STATS_PDEV_RTT_RESP_STATS_TAG		= 194,
+	HTT_STATS_PDEV_RTT_INIT_STATS_TAG		= 195,
+	HTT_STATS_PDEV_RTT_HW_STATS_TAG			= 196,
+	HTT_STATS_PDEV_RTT_TBR_SELFGEN_QUEUED_STATS_TAG	= 197,
+	HTT_STATS_PDEV_RTT_TBR_CMD_RESULT_STATS_TAG	= 198,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -1916,6 +1923,154 @@ struct ath12k_htt_mlo_sched_stats_tlv {
 
 struct ath12k_htt_pdev_mlo_ipc_stats_tlv {
 	__le32 mlo_ipc_ring_cnt[ATH12K_HTT_HWMLO_MAX_LINKS][ATH12K_HTT_MLO_MAX_IPC_RINGS];
+} __packed;
+
+struct ath12k_htt_stats_pdev_rtt_resp_stats_tlv {
+	__le32 pdev_id;
+	__le32 tx_11mc_ftm_suc;
+	__le32 tx_11mc_ftm_suc_retry;
+	__le32 tx_11mc_ftm_fail;
+	__le32 rx_11mc_ftmr_cnt;
+	__le32 rx_11mc_ftmr_dup_cnt;
+	__le32 rx_11mc_iftmr_cnt;
+	__le32 rx_11mc_iftmr_dup_cnt;
+	__le32 ftmr_drop_11mc_resp_role_not_enabled_cnt;
+	__le32 initiator_active_responder_rejected_cnt;
+	__le32 responder_terminate_cnt;
+	__le32 active_rsta_open;
+	__le32 active_rsta_mac;
+	__le32 active_rsta_mac_phy;
+	__le32 num_assoc_ranging_peers;
+	__le32 num_unassoc_ranging_peers;
+	__le32 responder_alloc_cnt;
+	__le32 responder_alloc_failure;
+	__le32 pn_check_failure_cnt;
+	__le32 pasn_m1_auth_recv_cnt;
+	__le32 pasn_m1_auth_drop_cnt;
+	__le32 pasn_m2_auth_recv_cnt;
+	__le32 pasn_m2_auth_tx_fail_cnt;
+	__le32 pasn_m3_auth_recv_cnt;
+	__le32 pasn_m3_auth_drop_cnt;
+	__le32 pasn_peer_create_request_cnt;
+	__le32 pasn_peer_create_timeout_cnt;
+	__le32 pasn_peer_created_cnt;
+	__le32 sec_ranging_not_supported_mfp_not_setup;
+	__le32 non_sec_ranging_discarded_for_assoc_peer;
+	__le32 open_ranging_discarded_set_for_pasn_peer;
+	__le32 unassoc_non_pasn_ranging_not_supported;
+	__le32 num_req_bw_20_mhz;
+	__le32 num_req_bw_40_mhz;
+	__le32 num_req_bw_80_mhz;
+	__le32 num_req_bw_160_mhz;
+	__le32 tx_11az_ftm_successful;
+	__le32 tx_11az_ftm_failed;
+	__le32 rx_11az_ftmr_cnt;
+	__le32 rx_11az_ftmr_dup_cnt;
+	__le32 rx_11az_iftmr_dup_cnt;
+	__le32 malformed_ftmr;
+	__le32 ftmr_drop_ntb_resp_role_not_enabled_cnt;
+	__le32 ftmr_drop_tb_resp_role_not_enabled_cnt;
+	__le32 invalid_ftm_request_params;
+	__le32 requested_bw_format_not_supported;
+	__le32 ntb_unsec_unassoc_ranging_peer_alloc_failed;
+	__le32 tb_unassoc_unsec_pasn_peer_creation_failed;
+	__le32 num_ranging_sequences_processed;
+	__le32 ntb_tx_ndp;
+	__le32 ndp_rx_cnt;
+	__le32 num_ntb_ranging_ndpas_recv;
+	__le32 recv_lmr;
+	__le32 invalid_ftmr_cnt;
+	__le32 max_time_bw_meas_exp_cnt;
+} __packed;
+
+#define ATH12K_HTT_MAX_SCH_CMD_RESULT	25
+#define ATH12K_HTT_SCH_CMD_STATUS_CNT	9
+
+struct ath12k_htt_stats_pdev_rtt_init_stats_tlv {
+	__le32 pdev_id;
+	__le32 tx_11mc_ftmr_cnt;
+	__le32 tx_11mc_ftmr_fail;
+	__le32 tx_11mc_ftmr_suc_retry;
+	__le32 rx_11mc_ftm_cnt;
+	__le32 tx_meas_req_count;
+	__le32 init_role_not_enabled;
+	__le32 initiator_terminate_cnt;
+	__le32 tx_11az_ftmr_fail;
+	__le32 tx_11az_ftmr_start;
+	__le32 tx_11az_ftmr_stop;
+	__le32 rx_11az_ftm_cnt;
+	__le32 active_ista;
+	__le32 invalid_preamble;
+	__le32 invalid_chan_bw_format;
+	__le32 mgmt_buff_alloc_fail_cnt;
+	__le32 ftm_parse_failure;
+	__le32 ranging_negotiation_successful_cnt;
+	__le32 incompatible_ftm_params;
+	__le32 sec_ranging_req_in_open_mode;
+	__le32 ftmr_tx_failed_null_11az_peer;
+	__le32 ftmr_retry_timeout;
+	__le32 max_time_bw_meas_exp_cnt;
+	__le32 tb_meas_duration_expiry_cnt;
+	__le32 num_tb_ranging_requests;
+	__le32 ntbr_triggered_successfully;
+	__le32 ntbr_trigger_failed;
+	__le32 invalid_or_no_vreg_idx;
+	__le32 set_vreg_params_failed;
+	__le32 sac_mismatch;
+	__le32 pasn_m1_auth_recv_cnt;
+	__le32 pasn_m1_auth_tx_fail_cnt;
+	__le32 pasn_m2_auth_recv_cnt;
+	__le32 pasn_m2_auth_drop_cnt;
+	__le32 pasn_m3_auth_recv_cnt;
+	__le32 pasn_m3_auth_tx_fail_cnt;
+	__le32 pasn_peer_create_request_cnt;
+	__le32 pasn_peer_create_timeout_cnt;
+	__le32 pasn_peer_created_cnt;
+	__le32 ntbr_ndpa_failed;
+	__le32 ntbr_sequence_successful;
+	__le32 ntbr_ndp_failed;
+	__le32 sch_cmd_status_cnts[ATH12K_HTT_SCH_CMD_STATUS_CNT];
+	__le32 lmr_timeout;
+	__le32 lmr_recv;
+	__le32 num_trigger_frames_received;
+	__le32 num_tb_ranging_ndpas_recv;
+	__le32 ndp_rx_cnt;
+} __packed;
+
+struct ath12k_htt_stats_pdev_rtt_hw_stats_tlv {
+	__le32 ista_ranging_ndpa_cnt;
+	__le32 ista_ranging_ndp_cnt;
+	__le32 ista_ranging_i2r_lmr_cnt;
+	__le32 rtsa_ranging_resp_cnt;
+	__le32 rtsa_ranging_ndp_cnt;
+	__le32 rsta_ranging_lmr_cnt;
+	__le32 tb_ranging_cts2s_rcvd_cnt;
+	__le32 tb_ranging_ndp_rcvd_cnt;
+	__le32 tb_ranging_lmr_rcvd_cnt;
+	__le32 tb_ranging_tf_poll_resp_sent_cnt;
+	__le32 tb_ranging_tf_sound_resp_sent_cnt;
+	__le32 tb_ranging_tf_report_resp_sent_cnt;
+} __packed;
+
+enum ath12k_htt_stats_txsend_ftype {
+	ATH12K_HTT_FTYPE_TF_POLL,
+	ATH12K_HTT_FTYPE_TF_SOUND,
+	ATH12K_HTT_FTYPE_TBR_NDPA,
+	ATH12K_HTT_FTYPE_TBR_NDP,
+	ATH12K_HTT_FTYPE_TBR_LMR,
+	ATH12K_HTT_FTYPE_TF_RPRT,
+	ATH12K_HTT_FTYPE_MAX
+};
+
+struct ath12k_htt_stats_pdev_rtt_tbr_tlv {
+	__le32 su_ftype[ATH12K_HTT_FTYPE_MAX];
+	__le32 mu_ftype[ATH12K_HTT_FTYPE_MAX];
+} __packed;
+
+struct ath12k_htt_stats_pdev_rtt_tbr_cmd_result_stats_tlv {
+	__le32 tbr_num_sch_cmd_result_buckets;
+	__le32 su_res[ATH12K_HTT_FTYPE_MAX][ATH12K_HTT_MAX_SCH_CMD_RESULT];
+	__le32 mu_res[ATH12K_HTT_FTYPE_MAX][ATH12K_HTT_MAX_SCH_CMD_RESULT];
 } __packed;
 
 #endif
