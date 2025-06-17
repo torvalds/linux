@@ -5,9 +5,11 @@
 
 #include <linux/ethtool.h>
 #include <linux/pci.h>
+#include <linux/net_tstamp.h>
 
 #include "ena_netdev.h"
 #include "ena_xdp.h"
+#include "ena_phc.h"
 
 struct ena_stats {
 	char name[ETH_GSTRING_LEN];
@@ -296,6 +298,18 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
 	ena_get_stats(adapter, data, true);
+}
+
+static int ena_get_ts_info(struct net_device *netdev,
+			   struct kernel_ethtool_ts_info *info)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
+	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE;
+
+	info->phc_index = ena_phc_get_index(adapter);
+
+	return 0;
 }
 
 static int ena_get_sw_stats_count(struct ena_adapter *adapter)
@@ -1090,7 +1104,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.set_channels		= ena_set_channels,
 	.get_tunable		= ena_get_tunable,
 	.set_tunable		= ena_set_tunable,
-	.get_ts_info            = ethtool_op_get_ts_info,
+	.get_ts_info		= ena_get_ts_info,
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev)

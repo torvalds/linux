@@ -110,6 +110,8 @@
 
 #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
 
+struct ena_phc_info;
+
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
@@ -347,6 +349,8 @@ struct ena_adapter {
 	unsigned long missing_tx_completion_to;
 
 	char name[ENA_NAME_MAX_LEN];
+
+	struct ena_phc_info *phc_info;
 
 	unsigned long flags;
 	/* TX */

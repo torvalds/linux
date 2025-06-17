@@ -19,6 +19,7 @@ if NET_VENDOR_AMAZON
 config ENA_ETHERNET
 	tristate "Elastic Network Adapter (ENA) support"
 	depends on PCI_MSI && !CPU_BIG_ENDIAN
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select DIMLIB
 	help
 	  This driver supports Elastic Network Adapter (ENA)"
