@@ -1272,6 +1272,7 @@ int mana_query_link_cfg(struct mana_port_context *apc)
 		return err;
 	}
 	apc->speed = resp.link_speed_mbps;
+	apc->max_speed = resp.qos_speed_mbps;
 	return 0;
 }
 

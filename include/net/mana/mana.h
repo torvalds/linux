@@ -533,6 +533,8 @@ struct mana_port_context {
 	u16 port_idx;
 	/* Currently configured speed (mbps) */
 	u32 speed;
+	/* Maximum speed supported by the SKU (mbps) */
+	u32 max_speed;
 
 	bool port_is_up;
 	bool port_st_save; /* Saved port state */
