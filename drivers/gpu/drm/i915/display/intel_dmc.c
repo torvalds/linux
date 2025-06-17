@@ -483,7 +483,8 @@ static void mtl_pipedmc_clock_gating_wa(struct intel_display *display)
 	 * for pipe A and B.
 	 */
 	intel_de_rmw(display, GEN9_CLKGATE_DIS_0, 0,
-		     MTL_PIPEDMC_GATING_DIS_A | MTL_PIPEDMC_GATING_DIS_B);
+		     MTL_PIPEDMC_GATING_DIS(PIPE_A) |
+		     MTL_PIPEDMC_GATING_DIS(PIPE_B));
 }
 
 static void pipedmc_clock_gating_wa(struct intel_display *display, bool enable)
