@@ -809,10 +809,8 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 
 	imu->nr_bvecs = nr_pages;
 	ret = io_buffer_account_pin(ctx, pages, nr_pages, imu, last_hpage);
-	if (ret) {
-		unpin_user_pages(pages, nr_pages);
+	if (ret)
 		goto done;
-	}
 
 	size = iov->iov_len;
 	/* store original address for later verification */
@@ -842,6 +840,8 @@ done:
 	if (ret) {
 		if (imu)
 			io_free_imu(ctx, imu);
+		if (pages)
+			unpin_user_pages(pages, nr_pages);
 		io_cache_free(&ctx->node_cache, node);
 		node = ERR_PTR(ret);
 	}
