@@ -9827,6 +9827,7 @@ int fork_it(char **argv)
 	timersub(&tv_odd, &tv_even, &tv_delta);
 	if (for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS))
 		fprintf(outf, "%s: Counter reset detected\n", progname);
+	delta_platform(&platform_counters_odd, &platform_counters_even);
 
 	compute_average(EVEN_COUNTERS);
 	format_all_counters(EVEN_COUNTERS);
