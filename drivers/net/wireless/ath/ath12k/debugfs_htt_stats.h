@@ -237,6 +237,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_SELFGEN_BE_ERR_STATS_TAG		= 137,
 	HTT_STATS_TX_SELFGEN_BE_STATS_TAG		= 138,
 	HTT_STATS_TX_SELFGEN_BE_SCHED_STATUS_STATS_TAG	= 139,
+	HTT_STATS_TX_PDEV_HISTOGRAM_STATS_TAG		= 144,
 	HTT_STATS_TXBF_OFDMA_AX_NDPA_STATS_TAG		= 147,
 	HTT_STATS_TXBF_OFDMA_AX_NDP_STATS_TAG		= 148,
 	HTT_STATS_TXBF_OFDMA_AX_BRP_STATS_TAG		= 149,
@@ -418,6 +419,12 @@ struct ath12k_htt_tx_pdev_mu_ppdu_dist_stats_tlv {
 #define ATH12K_HTT_TX_PDEV_STATS_NUM_EXTRA_MCS_COUNTERS   2
 #define ATH12K_HTT_TX_PDEV_STATS_NUM_EXTRA2_MCS_COUNTERS  2
 #define ATH12K_HTT_TX_PDEV_STATS_NUM_11AX_TRIGGER_TYPES   6
+#define ATH12K_HTT_TX_PDEV_STATS_NUM_PER_COUNTERS	  101
+
+#define ATH12K_HTT_TX_PDEV_STATS_NUM_MCS_DROP_COUNTERS \
+	(ATH12K_HTT_TX_PDEV_STATS_NUM_MCS_COUNTERS + \
+	 ATH12K_HTT_TX_PDEV_STATS_NUM_EXTRA_MCS_COUNTERS + \
+	 ATH12K_HTT_TX_PDEV_STATS_NUM_EXTRA2_MCS_COUNTERS)
 
 struct ath12k_htt_tx_pdev_rate_stats_tlv {
 	__le32 mac_id_word;
@@ -471,6 +478,15 @@ struct ath12k_htt_tx_pdev_rate_stats_tlv {
 	__le32 tx_mcs_ext_2[ATH12K_HTT_TX_PDEV_STATS_NUM_EXTRA2_MCS_COUNTERS];
 	__le32 tx_bw_320mhz;
 };
+
+struct ath12k_htt_tx_histogram_stats_tlv {
+	__le32 rate_retry_mcs_drop_cnt;
+	__le32 mcs_drop_rate[ATH12K_HTT_TX_PDEV_STATS_NUM_MCS_DROP_COUNTERS];
+	__le32 per_histogram_cnt[ATH12K_HTT_TX_PDEV_STATS_NUM_PER_COUNTERS];
+	__le32 low_latency_rate_cnt;
+	__le32 su_burst_rate_drop_cnt;
+	__le32 su_burst_rate_drop_fail_cnt;
+} __packed;
 
 #define ATH12K_HTT_RX_PDEV_STATS_NUM_LEGACY_CCK_STATS		4
 #define ATH12K_HTT_RX_PDEV_STATS_NUM_LEGACY_OFDM_STATS		8
