@@ -8,24 +8,9 @@
 /dts-v1/;
 
 #include "r9a09g077m44.dtsi"
+#include "rzt2h-n2h-evk-common.dtsi"
 
 / {
 	model = "Renesas RZ/T2H EVK Board based on r9a09g077m44";
 	compatible = "renesas,rzt2h-evk", "renesas,r9a09g077m44", "renesas,r9a09g077";
-
-	aliases {
-		serial0 = &sci0;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-};
-
-&extal_clk {
-	clock-frequency = <25000000>;
-};
-
-&sci0 {
-	status = "okay";
 };
