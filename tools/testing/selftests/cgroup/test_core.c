@@ -573,7 +573,7 @@ static int test_cgcore_proc_migration(const char *root)
 	}
 
 	cg_enter_current(dst);
-	if (cg_read_lc(dst, "cgroup.threads") != n_threads + 1)
+	if (cg_read_lc(dst, CG_THREADS_FILE) != n_threads + 1)
 		goto cleanup;
 
 	ret = KSFT_PASS;
@@ -605,7 +605,7 @@ static void *migrating_thread_fn(void *arg)
 	char lines[3][PATH_MAX];
 
 	for (g = 1; g < 3; ++g)
-		snprintf(lines[g], sizeof(lines[g]), "0::%s", grps[g] + strlen(grps[0]));
+		snprintf(lines[g], sizeof(lines[g]), CG_PATH_FORMAT, grps[g] + strlen(grps[0]));
 
 	for (i = 0; i < n_iterations; ++i) {
 		cg_enter_current_thread(grps[(i % 2) + 1]);
@@ -659,7 +659,7 @@ static int test_cgcore_thread_migration(const char *root)
 	if (retval)
 		goto cleanup;
 
-	snprintf(line, sizeof(line), "0::%s", grps[1] + strlen(grps[0]));
+	snprintf(line, sizeof(line), CG_PATH_FORMAT, grps[1] + strlen(grps[0]));
 	if (proc_read_strstr(0, 1, "cgroup", line))
 		goto cleanup;
 
