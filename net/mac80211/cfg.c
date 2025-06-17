@@ -1895,6 +1895,7 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 		       params->vht_capa ||
 		       params->he_capa ||
 		       params->eht_capa ||
+		       params->s1g_capa ||
 		       params->opmode_notif_used;
 
 	switch (mode) {
@@ -1972,6 +1973,10 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 						    params->eht_capa,
 						    params->eht_capa_len,
 						    link_sta);
+
+	if (params->s1g_capa)
+		ieee80211_s1g_cap_to_sta_s1g_cap(sdata, params->s1g_capa,
+						 link_sta);
 
 	ieee80211_sta_init_nss(link_sta);
 
