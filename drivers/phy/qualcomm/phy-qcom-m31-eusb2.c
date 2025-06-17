@@ -253,7 +253,7 @@ static int m31eusb2_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data = device_get_match_data(dev);
-	if (IS_ERR(data))
+	if (!data)
 		return -EINVAL;
 	phy->data = data;
 
