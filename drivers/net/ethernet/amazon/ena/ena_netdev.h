@@ -390,6 +390,7 @@ struct ena_adapter {
 	u32 xdp_num_queues;
 
 	struct devlink *devlink;
+	struct devlink_port devlink_port;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);

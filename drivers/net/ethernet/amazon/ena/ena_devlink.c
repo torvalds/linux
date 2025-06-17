@@ -6,6 +6,23 @@
 #include "linux/pci.h"
 #include "ena_devlink.h"
 
+static void ena_devlink_port_register(struct devlink *devlink)
+{
+	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
+	struct devlink_port_attrs attrs = {};
+
+	attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+	devlink_port_attrs_set(&adapter->devlink_port, &attrs);
+	devl_port_register(devlink, &adapter->devlink_port, 0);
+}
+
+static void ena_devlink_port_unregister(struct devlink *devlink)
+{
+	struct ena_adapter *adapter = ENA_DEVLINK_PRIV(devlink);
+
+	devl_port_unregister(&adapter->devlink_port);
+}
+
 static int ena_devlink_reload_down(struct devlink *devlink,
 				   bool netns_change,
 				   enum devlink_reload_action action,
@@ -19,6 +36,8 @@ static int ena_devlink_reload_down(struct devlink *devlink,
 				   "Namespace change is not supported");
 		return -EOPNOTSUPP;
 	}
+
+	ena_devlink_port_unregister(devlink);
 
 	rtnl_lock();
 	ena_destroy_device(adapter, false);
@@ -45,6 +64,8 @@ static int ena_devlink_reload_up(struct devlink *devlink,
 		err = ena_restore_device(adapter);
 
 	rtnl_unlock();
+
+	ena_devlink_port_register(devlink);
 
 	if (!err)
 		*actions_performed = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
@@ -85,10 +106,16 @@ void ena_devlink_free(struct devlink *devlink)
 
 void ena_devlink_register(struct devlink *devlink, struct device *dev)
 {
-	devlink_register(devlink);
+	devl_lock(devlink);
+	ena_devlink_port_register(devlink);
+	devl_register(devlink);
+	devl_unlock(devlink);
 }
 
 void ena_devlink_unregister(struct devlink *devlink)
 {
-	devlink_unregister(devlink);
+	devl_lock(devlink);
+	ena_devlink_port_unregister(devlink);
+	devl_unregister(devlink);
+	devl_unlock(devlink);
 }
