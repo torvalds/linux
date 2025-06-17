@@ -15893,6 +15893,7 @@ R:	Harry Yoo <harry.yoo@oracle.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/rmap.h
+F:	mm/page_vma_mapped.c
 F:	mm/rmap.c
 
 MEMORY MANAGEMENT - SECRETMEM
