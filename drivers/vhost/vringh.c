@@ -1535,23 +1535,6 @@ ssize_t vringh_iov_push_iotlb(struct vringh *vrh,
 EXPORT_SYMBOL(vringh_iov_push_iotlb);
 
 /**
- * vringh_abandon_iotlb - we've decided not to handle the descriptor(s).
- * @vrh: the vring.
- * @num: the number of descriptors to put back (ie. num
- *	 vringh_get_iotlb() to undo).
- *
- * The next vringh_get_iotlb() will return the old descriptor(s) again.
- */
-void vringh_abandon_iotlb(struct vringh *vrh, unsigned int num)
-{
-	/* We only update vring_avail_event(vr) when we want to be notified,
-	 * so we haven't changed that yet.
-	 */
-	vrh->last_avail_idx -= num;
-}
-EXPORT_SYMBOL(vringh_abandon_iotlb);
-
-/**
  * vringh_complete_iotlb - we've finished with descriptor, publish it.
  * @vrh: the vring.
  * @head: the head as filled in by vringh_getdesc_iotlb.
@@ -1570,32 +1553,6 @@ int vringh_complete_iotlb(struct vringh *vrh, u16 head, u32 len)
 	return __vringh_complete(vrh, &used, 1, putu16_iotlb, putused_iotlb);
 }
 EXPORT_SYMBOL(vringh_complete_iotlb);
-
-/**
- * vringh_notify_enable_iotlb - we want to know if something changes.
- * @vrh: the vring.
- *
- * This always enables notifications, but returns false if there are
- * now more buffers available in the vring.
- */
-bool vringh_notify_enable_iotlb(struct vringh *vrh)
-{
-	return __vringh_notify_enable(vrh, getu16_iotlb, putu16_iotlb);
-}
-EXPORT_SYMBOL(vringh_notify_enable_iotlb);
-
-/**
- * vringh_notify_disable_iotlb - don't tell us if something changes.
- * @vrh: the vring.
- *
- * This is our normal running state: we disable and then only enable when
- * we're going to sleep.
- */
-void vringh_notify_disable_iotlb(struct vringh *vrh)
-{
-	__vringh_notify_disable(vrh, putu16_iotlb);
-}
-EXPORT_SYMBOL(vringh_notify_disable_iotlb);
 
 /**
  * vringh_need_notify_iotlb - must we tell the other side about used buffers?
