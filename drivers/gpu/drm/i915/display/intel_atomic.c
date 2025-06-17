@@ -26,7 +26,7 @@
  *
  * The functions here implement the state management and hardware programming
  * dispatch required by the atomic modeset infrastructure.
- * See intel_atomic_plane.c for the plane-specific atomic functionality.
+ * See intel_plane.c for the plane-specific atomic functionality.
  */
 
 #include <drm/display/drm_dp_tunnel.h>

@@ -10,7 +10,6 @@
 #include "xe_ggtt.h"
 #include "xe_mmio.h"
 
-#include "intel_atomic_plane.h"
 #include "intel_crtc.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
@@ -19,6 +18,7 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
+#include "intel_plane.h"
 #include "intel_plane_initial.h"
 #include "xe_bo.h"
 #include "xe_wa.h"

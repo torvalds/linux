@@ -11,7 +11,6 @@
 #include <drm/drm_modeset_helper.h>
 
 #include "i915_drv.h"
-#include "intel_atomic_plane.h"
 #include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
@@ -20,6 +19,7 @@
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 #include "intel_frontbuffer.h"
+#include "intel_plane.h"
 
 #define check_array_bounds(display, a, i) drm_WARN_ON((display)->drm, (i) >= ARRAY_SIZE(a))
 
