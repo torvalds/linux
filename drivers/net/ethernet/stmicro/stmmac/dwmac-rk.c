@@ -67,7 +67,7 @@ enum rk_clocks_index {
 };
 
 struct rk_priv_data {
-	struct platform_device *pdev;
+	struct device *dev;
 	phy_interface_t phy_iface;
 	int id;
 	struct regulator *regulator;
@@ -80,7 +80,6 @@ struct rk_priv_data {
 
 	struct clk_bulk_data *clks;
 	int num_clks;
-	struct clk *clk_mac;
 	struct clk *clk_phy;
 
 	struct reset_control *phy_reset;
@@ -248,7 +247,7 @@ static int px30_set_speed(struct rk_priv_data *bsp_priv,
 			  phy_interface_t interface, int speed)
 {
 	struct clk *clk_mac_speed = bsp_priv->clks[RK_CLK_MAC_SPEED].clk;
-	struct device *dev = &bsp_priv->pdev->dev;
+	struct device *dev = bsp_priv->dev;
 	unsigned int con1;
 	long rate;
 
@@ -904,7 +903,7 @@ static const struct rk_reg_speed_data rk3528_gmac1_reg_speed_data = {
 };
 
 static int rk3528_set_speed(struct rk_priv_data *bsp_priv,
-			    phy_interface_t interface,int speed)
+			    phy_interface_t interface, int speed)
 {
 	const struct rk_reg_speed_data *rsd;
 	unsigned int reg;
@@ -1380,8 +1379,8 @@ static const struct rk_gmac_ops rv1126_ops = {
 static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 {
 	struct rk_priv_data *bsp_priv = plat->bsp_priv;
-	struct device *dev = &bsp_priv->pdev->dev;
 	int phy_iface = bsp_priv->phy_iface;
+	struct device *dev = bsp_priv->dev;
 	int i, j, ret;
 
 	bsp_priv->clk_enabled = false;
@@ -1408,16 +1407,10 @@ static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to get clocks\n");
 
-	/* "stmmaceth" will be enabled by the core */
-	bsp_priv->clk_mac = devm_clk_get(dev, "stmmaceth");
-	ret = PTR_ERR_OR_ZERO(bsp_priv->clk_mac);
-	if (ret)
-		return dev_err_probe(dev, ret, "Cannot get stmmaceth clock\n");
-
 	if (bsp_priv->clock_input) {
 		dev_info(dev, "clock input from PHY\n");
 	} else if (phy_iface == PHY_INTERFACE_MODE_RMII) {
-		clk_set_rate(bsp_priv->clk_mac, 50000000);
+		clk_set_rate(plat->stmmac_clk, 50000000);
 	}
 
 	if (plat->phy_node && bsp_priv->integrated_phy) {
@@ -1473,8 +1466,8 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 static int phy_power_on(struct rk_priv_data *bsp_priv, bool enable)
 {
 	struct regulator *ldo = bsp_priv->regulator;
+	struct device *dev = bsp_priv->dev;
 	int ret;
-	struct device *dev = &bsp_priv->pdev->dev;
 
 	if (enable) {
 		ret = regulator_enable(ldo);
@@ -1598,7 +1591,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	dev_info(dev, "integrated PHY? (%s).\n",
 		 bsp_priv->integrated_phy ? "yes" : "no");
 
-	bsp_priv->pdev = pdev;
+	bsp_priv->dev = dev;
 
 	return bsp_priv;
 }
@@ -1618,7 +1611,7 @@ static int rk_gmac_check_ops(struct rk_priv_data *bsp_priv)
 			return -EINVAL;
 		break;
 	default:
-		dev_err(&bsp_priv->pdev->dev,
+		dev_err(bsp_priv->dev,
 			"unsupported interface %d", bsp_priv->phy_iface);
 	}
 	return 0;
@@ -1626,8 +1619,8 @@ static int rk_gmac_check_ops(struct rk_priv_data *bsp_priv)
 
 static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 {
+	struct device *dev = bsp_priv->dev;
 	int ret;
-	struct device *dev = &bsp_priv->pdev->dev;
 
 	ret = rk_gmac_check_ops(bsp_priv);
 	if (ret)
@@ -1683,7 +1676,7 @@ static void rk_gmac_powerdown(struct rk_priv_data *gmac)
 	if (gmac->integrated_phy && gmac->ops->integrated_phy_powerdown)
 		gmac->ops->integrated_phy_powerdown(gmac);
 
-	pm_runtime_put_sync(&gmac->pdev->dev);
+	pm_runtime_put_sync(gmac->dev);
 
 	phy_power_on(gmac, false);
 	gmac_clk_enable(gmac, false);
