@@ -148,6 +148,9 @@ static int test_cgcore_populated(const char *root)
 	int cgroup_fd = -EBADF;
 	pid_t pid;
 
+	if (cg_test_v1_named)
+		return KSFT_SKIP;
+
 	cg_test_a = cg_name(root, "cg_test_a");
 	cg_test_b = cg_name(root, "cg_test_a/cg_test_b");
 	cg_test_c = cg_name(root, "cg_test_a/cg_test_b/cg_test_c");
@@ -277,6 +280,9 @@ static int test_cgcore_invalid_domain(const char *root)
 	int ret = KSFT_FAIL;
 	char *grandparent = NULL, *parent = NULL, *child = NULL;
 
+	if (cg_test_v1_named)
+		return KSFT_SKIP;
+
 	grandparent = cg_name(root, "cg_test_grandparent");
 	parent = cg_name(root, "cg_test_grandparent/cg_test_parent");
 	child = cg_name(root, "cg_test_grandparent/cg_test_parent/cg_test_child");
@@ -339,6 +345,9 @@ static int test_cgcore_parent_becomes_threaded(const char *root)
 	int ret = KSFT_FAIL;
 	char *parent = NULL, *child = NULL;
 
+	if (cg_test_v1_named)
+		return KSFT_SKIP;
+
 	parent = cg_name(root, "cg_test_parent");
 	child = cg_name(root, "cg_test_parent/cg_test_child");
 	if (!parent || !child)
@@ -378,7 +387,8 @@ static int test_cgcore_no_internal_process_constraint_on_threads(const char *roo
 	int ret = KSFT_FAIL;
 	char *parent = NULL, *child = NULL;
 
-	if (cg_read_strstr(root, "cgroup.controllers", "cpu") ||
+	if (cg_test_v1_named ||
+	    cg_read_strstr(root, "cgroup.controllers", "cpu") ||
 	    cg_write(root, "cgroup.subtree_control", "+cpu")) {
 		ret = KSFT_SKIP;
 		goto cleanup;
@@ -430,6 +440,9 @@ static int test_cgcore_top_down_constraint_enable(const char *root)
 	int ret = KSFT_FAIL;
 	char *parent = NULL, *child = NULL;
 
+	if (cg_test_v1_named)
+		return KSFT_SKIP;
+
 	parent = cg_name(root, "cg_test_parent");
 	child = cg_name(root, "cg_test_parent/cg_test_child");
 	if (!parent || !child)
@@ -464,6 +477,9 @@ static int test_cgcore_top_down_constraint_disable(const char *root)
 {
 	int ret = KSFT_FAIL;
 	char *parent = NULL, *child = NULL;
+
+	if (cg_test_v1_named)
+		return KSFT_SKIP;
 
 	parent = cg_name(root, "cg_test_parent");
 	child = cg_name(root, "cg_test_parent/cg_test_child");
@@ -505,6 +521,9 @@ static int test_cgcore_internal_process_constraint(const char *root)
 {
 	int ret = KSFT_FAIL;
 	char *parent = NULL, *child = NULL;
+
+	if (cg_test_v1_named)
+		return KSFT_SKIP;
 
 	parent = cg_name(root, "cg_test_parent");
 	child = cg_name(root, "cg_test_parent/cg_test_child");
@@ -642,10 +661,12 @@ static int test_cgcore_thread_migration(const char *root)
 	if (cg_create(grps[2]))
 		goto cleanup;
 
-	if (cg_write(grps[1], "cgroup.type", "threaded"))
-		goto cleanup;
-	if (cg_write(grps[2], "cgroup.type", "threaded"))
-		goto cleanup;
+	if (!cg_test_v1_named) {
+		if (cg_write(grps[1], "cgroup.type", "threaded"))
+			goto cleanup;
+		if (cg_write(grps[2], "cgroup.type", "threaded"))
+			goto cleanup;
+	}
 
 	if (cg_enter_current(grps[1]))
 		goto cleanup;
