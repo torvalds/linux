@@ -3323,7 +3323,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	trans->restart_count++;
 	trans->mem_top			= 0;
 
-	if (trans->restarted == BCH_ERR_transaction_restart_mem_realloced) {
+	if (unlikely(trans->restarted == BCH_ERR_transaction_restart_mem_realloced)) {
 		EBUG_ON(!trans->mem || !trans->mem_bytes);
 		unsigned new_bytes = trans->realloc_bytes_required;
 		void *new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
