@@ -5424,6 +5424,9 @@ bool amdgpu_ras_is_rma(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
+	if (amdgpu_uniras_enabled(adev))
+		return amdgpu_ras_mgr_is_rma(adev);
+
 	if (!con)
 		return false;
 
