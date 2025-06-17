@@ -503,8 +503,14 @@ again:
 	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
+	/*
+	 * XXX: we're not passing the trans object here because we're not set up
+	 * to handle a transaction restart - this code needs to be rewritten
+	 * when we start doing online topology repair
+	 */
+	bch2_trans_unlock_long(trans);
 	if (mustfix_fsck_err_on(!have_child,
-			trans, btree_node_topology_interior_node_empty,
+			c, btree_node_topology_interior_node_empty,
 			"empty interior btree node at %s", buf.buf))
 		ret = DROP_THIS_NODE;
 err:
