@@ -61,6 +61,10 @@ properties:
               - asus,tf300tl
               - asus,tf700t
           - const: nvidia,tegra30
+      - description: Asus VivoTab RT
+        items:
+          - const: asus,tf600t
+          - const: nvidia,tegra30
       - description: LG Optimus 4X P880
         items:
           - const: lg,p880
