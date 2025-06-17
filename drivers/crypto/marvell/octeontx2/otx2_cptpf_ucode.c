@@ -176,7 +176,9 @@ static int cptx_set_ucode_base(struct otx2_cpt_eng_grp_info *eng_grp,
 	/* Set PF number for microcode fetches */
 	ret = otx2_cpt_write_af_reg(&cptpf->afpf_mbox, cptpf->pdev,
 				    CPT_AF_PF_FUNC,
-				    cptpf->pf_id << RVU_PFVF_PF_SHIFT, blkaddr);
+				    rvu_make_pcifunc(cptpf->pdev,
+						     cptpf->pf_id, 0),
+				    blkaddr);
 	if (ret)
 		return ret;
 
