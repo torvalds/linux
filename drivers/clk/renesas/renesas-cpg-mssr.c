@@ -942,6 +942,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 		.data = &r9a09g077_cpg_mssr_info,
 	},
 #endif
+#ifdef CONFIG_CLK_R9A09G087
+	{
+		.compatible = "renesas,r9a09g087-cpg-mssr",
+		.data = &r9a09g077_cpg_mssr_info,
+	},
+#endif
 	{ /* sentinel */ }
 };
 

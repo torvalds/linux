@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 
 #include <dt-bindings/clock/renesas,r9a09g077-cpg-mssr.h>
+#include <dt-bindings/clock/renesas,r9a09g087-cpg-mssr.h>
 #include "renesas-cpg-mssr.h"
 
 #define RZT2H_REG_BLOCK_SHIFT	11
