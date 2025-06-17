@@ -1695,10 +1695,10 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 		s.mask = map_defined(bch_flags_to_xflags);
 		s.flags |= map_flags_rev(bch_flags_to_xflags, fa->fsx_xflags);
 		if (fa->fsx_xflags)
-			return -EOPNOTSUPP;
+			return bch_err_throw(c, unsupported_fsx_flag);
 
 		if (fa->fsx_projid >= U32_MAX)
-			return -EINVAL;
+			return bch_err_throw(c, projid_too_big);
 
 		/*
 		 * inode fields accessible via the xattr interface are stored with a +1
@@ -1721,7 +1721,7 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 
 		s.flags |= map_flags_rev(bch_flags_to_uflags, fa->flags);
 		if (fa->flags)
-			return -EOPNOTSUPP;
+			return bch_err_throw(c, unsupported_fa_flag);
 	}
 
 	mutex_lock(&inode->ei_update_lock);

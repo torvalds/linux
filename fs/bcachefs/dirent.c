@@ -31,7 +31,7 @@ int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
 	*out_cf = (struct qstr) QSTR_INIT(buf, ret);
 	return 0;
 #else
-	return -EOPNOTSUPP;
+	return bch_err_throw(trans->c, no_casefolding_without_utf8);
 #endif
 }
 
@@ -231,7 +231,8 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c
 	prt_printf(out, " type %s", bch2_d_type_str(d.v->d_type));
 }
 
-int bch2_dirent_init_name(struct bkey_i_dirent *dirent,
+int bch2_dirent_init_name(struct bch_fs *c,
+			  struct bkey_i_dirent *dirent,
 			  const struct bch_hash_info *hash_info,
 			  const struct qstr *name,
 			  const struct qstr *cf_name)
@@ -278,7 +279,7 @@ int bch2_dirent_init_name(struct bkey_i_dirent *dirent,
 
 		EBUG_ON(bch2_dirent_get_casefold_name(dirent_i_to_s_c(dirent)).len != cf_len);
 #else
-	return -EOPNOTSUPP;
+	return bch_err_throw(c, no_casefolding_without_utf8);
 #endif
 	}
 
@@ -313,7 +314,7 @@ struct bkey_i_dirent *bch2_dirent_create_key(struct btree_trans *trans,
 	dirent->v.d_type = type;
 	dirent->v.d_unused = 0;
 
-	int ret = bch2_dirent_init_name(dirent, hash_info, name, cf_name);
+	int ret = bch2_dirent_init_name(trans->c, dirent, hash_info, name, cf_name);
 	if (ret)
 		return ERR_PTR(ret);
 

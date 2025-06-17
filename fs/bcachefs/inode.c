@@ -1269,7 +1269,7 @@ int bch2_inode_set_casefold(struct btree_trans *trans, subvol_inum inum,
 	int ret = 0;
 	/* Not supported on individual files. */
 	if (!S_ISDIR(bi->bi_mode))
-		return -EOPNOTSUPP;
+		return bch_err_throw(c, casefold_opt_is_dir_only);
 
 	/*
 	 * Make sure the dir is empty, as otherwise we'd need to
@@ -1291,7 +1291,7 @@ int bch2_inode_set_casefold(struct btree_trans *trans, subvol_inum inum,
 	return bch2_maybe_propagate_has_case_insensitive(trans, inum, bi);
 #else
 	bch_err(c, "Cannot use casefolding on a kernel without CONFIG_UNICODE");
-	return -EOPNOTSUPP;
+	return bch_err_throw(c, no_casefolding_without_utf8);
 #endif
 }
 
