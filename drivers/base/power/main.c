@@ -1095,7 +1095,6 @@ void dpm_resume(pm_message_t state)
 	ktime_t starttime = ktime_get();
 
 	trace_suspend_resume(TPS("dpm_resume"), state.event, true);
-	might_sleep();
 
 	pm_transition = state;
 	async_error = 0;
@@ -1198,7 +1197,6 @@ void dpm_complete(pm_message_t state)
 	struct list_head list;
 
 	trace_suspend_resume(TPS("dpm_complete"), state.event, true);
-	might_sleep();
 
 	INIT_LIST_HEAD(&list);
 	mutex_lock(&dpm_list_mtx);
@@ -2110,7 +2108,6 @@ int dpm_prepare(pm_message_t state)
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_prepare"), state.event, true);
-	might_sleep();
 
 	/*
 	 * Give a chance for the known devices to complete their probes, before
