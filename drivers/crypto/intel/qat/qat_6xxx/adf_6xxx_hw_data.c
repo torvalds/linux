@@ -629,7 +629,6 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
-		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 	if (fusectl1 & ICP_ACCEL_GEN6_MASK_AUTH_SLICE) {
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
