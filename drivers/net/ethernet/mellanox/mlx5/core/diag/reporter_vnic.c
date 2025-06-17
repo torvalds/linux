@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. */
 
+#include <linux/mlx5/vport.h>
+
 #include "reporter_vnic.h"
 #include "en_stats.h"
 #include "devlink.h"

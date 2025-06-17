@@ -1239,7 +1239,9 @@ int mlx5_vport_get_vhca_id(struct mlx5_core_dev *dev, u16 vport, u16 *vhca_id)
 	void *hca_caps;
 	int err;
 
-	*vhca_id = 0;
+	/* try get vhca_id via eswitch */
+	if (mlx5_esw_vport_vhca_id(dev->priv.eswitch, vport, vhca_id))
+		return 0;
 
 	query_ctx = kzalloc(query_out_sz, GFP_KERNEL);
 	if (!query_ctx)
@@ -1256,6 +1258,7 @@ out_free:
 	kfree(query_ctx);
 	return err;
 }
+EXPORT_SYMBOL_GPL(mlx5_vport_get_vhca_id);
 
 int mlx5_vport_set_other_func_cap(struct mlx5_core_dev *dev, const void *hca_cap,
 				  u16 vport, u16 opmod)
