@@ -2914,11 +2914,18 @@ struct ib_block_iter {
 	unsigned int __pg_bit;		/* alignment of current block */
 };
 
-struct ib_device *_ib_alloc_device(size_t size);
+struct ib_device *_ib_alloc_device(size_t size, struct net *net);
 #define ib_alloc_device(drv_struct, member)                                    \
 	container_of(_ib_alloc_device(sizeof(struct drv_struct) +              \
 				      BUILD_BUG_ON_ZERO(offsetof(              \
-					      struct drv_struct, member))),    \
+					      struct drv_struct, member)),     \
+				      &init_net),			       \
+		     struct drv_struct, member)
+
+#define ib_alloc_device_with_net(drv_struct, member, net)		       \
+	container_of(_ib_alloc_device(sizeof(struct drv_struct) +              \
+				      BUILD_BUG_ON_ZERO(offsetof(              \
+					struct drv_struct, member)), net),     \
 		     struct drv_struct, member)
 
 void ib_dealloc_device(struct ib_device *device);
