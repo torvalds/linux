@@ -85,7 +85,7 @@ void intel_plane_init_cursor_vblank_work(struct intel_plane_state *old_plane_sta
 					 struct intel_plane_state *new_plane_state);
 int intel_atomic_add_affected_planes(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc);
-int intel_atomic_check_planes(struct intel_atomic_state *state);
+int intel_plane_atomic_check(struct intel_atomic_state *state);
 
 u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state);
 bool intel_plane_format_mod_supported_async(struct drm_plane *plane,
