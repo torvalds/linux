@@ -2270,6 +2270,9 @@ void ieee80211_s1g_rx_twt_action(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb);
 void ieee80211_s1g_status_twt_action(struct ieee80211_sub_if_data *sdata,
 				     struct sk_buff *skb);
+void ieee80211_s1g_cap_to_sta_s1g_cap(struct ieee80211_sub_if_data *sdata,
+				      const struct ieee80211_s1g_cap *s1g_cap_ie,
+				      struct link_sta_info *link_sta);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
