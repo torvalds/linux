@@ -21,6 +21,9 @@
 #include "cgroup_util.h"
 
 static bool nsdelegate;
+#ifndef CLONE_NEWCGROUP
+#define CLONE_NEWCGROUP 0
+#endif
 
 static int touch_anon(char *buf, size_t size)
 {
