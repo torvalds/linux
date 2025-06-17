@@ -29,19 +29,6 @@
 
 #define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
 
-struct crypto_hash_walk {
-	const char *data;
-
-	unsigned int offset;
-	unsigned int flags;
-
-	struct page *pg;
-	unsigned int entrylen;
-
-	unsigned int total;
-	struct scatterlist *sg;
-};
-
 static int ahash_def_finup(struct ahash_request *req);
 
 static inline bool crypto_ahash_block_only(struct crypto_ahash *tfm)
@@ -112,8 +99,8 @@ static int hash_walk_new_entry(struct crypto_hash_walk *walk)
 	return hash_walk_next(walk);
 }
 
-static int crypto_hash_walk_first(struct ahash_request *req,
-				  struct crypto_hash_walk *walk)
+int crypto_hash_walk_first(struct ahash_request *req,
+			   struct crypto_hash_walk *walk)
 {
 	walk->total = req->nbytes;
 	walk->entrylen = 0;
@@ -133,8 +120,9 @@ static int crypto_hash_walk_first(struct ahash_request *req,
 
 	return hash_walk_new_entry(walk);
 }
+EXPORT_SYMBOL_GPL(crypto_hash_walk_first);
 
-static int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
+int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 {
 	if ((walk->flags & CRYPTO_AHASH_REQ_VIRT))
 		return err;
@@ -160,11 +148,7 @@ static int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
 
 	return hash_walk_new_entry(walk);
 }
-
-static inline int crypto_hash_walk_last(struct crypto_hash_walk *walk)
-{
-	return !(walk->entrylen | walk->total);
-}
+EXPORT_SYMBOL_GPL(crypto_hash_walk_done);
 
 /*
  * For an ahash tfm that is using an shash algorithm (instead of an ahash
