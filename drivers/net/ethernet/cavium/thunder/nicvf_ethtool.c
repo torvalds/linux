@@ -516,8 +516,8 @@ static int nicvf_set_ringparam(struct net_device *netdev,
 	return 0;
 }
 
-static int nicvf_get_rss_hash_opts(struct nicvf *nic,
-				   struct ethtool_rxnfc *info)
+static int nicvf_get_rxfh_fields(struct net_device *dev,
+				 struct ethtool_rxfh_fields *info)
 {
 	info->data = 0;
 
@@ -552,25 +552,28 @@ static int nicvf_get_rxnfc(struct net_device *dev,
 		info->data = nic->rx_queues;
 		ret = 0;
 		break;
-	case ETHTOOL_GRXFH:
-		return nicvf_get_rss_hash_opts(nic, info);
 	default:
 		break;
 	}
 	return ret;
 }
 
-static int nicvf_set_rss_hash_opts(struct nicvf *nic,
-				   struct ethtool_rxnfc *info)
+static int nicvf_set_rxfh_fields(struct net_device *dev,
+				 const struct ethtool_rxfh_fields *info,
+				 struct netlink_ext_ack *extack)
 {
-	struct nicvf_rss_info *rss = &nic->rss_info;
-	u64 rss_cfg = nicvf_reg_read(nic, NIC_VNIC_RSS_CFG);
+	struct nicvf *nic = netdev_priv(dev);
+	struct nicvf_rss_info *rss;
+	u64 rss_cfg;
+
+	rss = &nic->rss_info;
+	rss_cfg = nicvf_reg_read(nic, NIC_VNIC_RSS_CFG);
 
 	if (!rss->enable)
 		netdev_err(nic->netdev,
 			   "RSS is disabled, hash cannot be set\n");
 
-	netdev_info(nic->netdev, "Set RSS flow type = %d, data = %lld\n",
+	netdev_info(nic->netdev, "Set RSS flow type = %d, data = %u\n",
 		    info->flow_type, info->data);
 
 	if (!(info->data & RXH_IP_SRC) || !(info->data & RXH_IP_DST))
@@ -626,19 +629,6 @@ static int nicvf_set_rss_hash_opts(struct nicvf *nic,
 
 	nicvf_reg_write(nic, NIC_VNIC_RSS_CFG, rss_cfg);
 	return 0;
-}
-
-static int nicvf_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
-{
-	struct nicvf *nic = netdev_priv(dev);
-
-	switch (info->cmd) {
-	case ETHTOOL_SRXFH:
-		return nicvf_set_rss_hash_opts(nic, info);
-	default:
-		break;
-	}
-	return -EOPNOTSUPP;
 }
 
 static u32 nicvf_get_rxfh_key_size(struct net_device *netdev)
@@ -872,11 +862,12 @@ static const struct ethtool_ops nicvf_ethtool_ops = {
 	.get_ringparam		= nicvf_get_ringparam,
 	.set_ringparam		= nicvf_set_ringparam,
 	.get_rxnfc		= nicvf_get_rxnfc,
-	.set_rxnfc		= nicvf_set_rxnfc,
 	.get_rxfh_key_size	= nicvf_get_rxfh_key_size,
 	.get_rxfh_indir_size	= nicvf_get_rxfh_indir_size,
 	.get_rxfh		= nicvf_get_rxfh,
 	.set_rxfh		= nicvf_set_rxfh,
+	.get_rxfh_fields	= nicvf_get_rxfh_fields,
+	.set_rxfh_fields	= nicvf_set_rxfh_fields,
 	.get_channels		= nicvf_get_channels,
 	.set_channels		= nicvf_set_channels,
 	.get_pauseparam         = nicvf_get_pauseparam,
