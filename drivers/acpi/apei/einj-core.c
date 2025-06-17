@@ -111,6 +111,7 @@ static char vendor_dev[64];
 static u32 max_nr_components;
 static u32 available_error_type;
 static u32 available_error_type_v2;
+static struct syndrome_array *syndrome_data;
 
 /*
  * Some BIOSes allow parameters to the SET_ERROR_TYPE entries in the
@@ -712,6 +713,7 @@ static u64 error_param3;
 static u64 error_param4;
 static struct dentry *einj_debug_dir;
 static char einj_buf[32];
+static bool einj_v2_enabled;
 static struct { u32 mask; const char *str; } const einj_error_type_string[] = {
 	{ BIT(0), "Processor Correctable" },
 	{ BIT(1), "Processor Uncorrectable non-fatal" },
@@ -848,6 +850,98 @@ static int einj_check_table(struct acpi_table_einj *einj_tab)
 	return 0;
 }
 
+static ssize_t u128_read(struct file *f, char __user *buf, size_t count, loff_t *off)
+{
+	char output[2 * COMPONENT_LEN + 1];
+	u8 *data = f->f_inode->i_private;
+	int i;
+
+	if (*off >= sizeof(output))
+		return 0;
+
+	for (i = 0; i < COMPONENT_LEN; i++)
+		sprintf(output + 2 * i, "%.02x", data[COMPONENT_LEN - i - 1]);
+	output[2 * COMPONENT_LEN] = '\n';
+
+	return simple_read_from_buffer(buf, count, off, output, sizeof(output));
+}
+
+static ssize_t u128_write(struct file *f, const char __user *buf, size_t count, loff_t *off)
+{
+	char input[2 + 2 * COMPONENT_LEN + 2];
+	u8 *save = f->f_inode->i_private;
+	u8 tmp[COMPONENT_LEN];
+	char byte[3] = {};
+	char *s, *e;
+	size_t c;
+	long val;
+	int i;
+
+	/* Require that user supply whole input line in one write(2) syscall */
+	if (*off)
+		return -EINVAL;
+
+	c = simple_write_to_buffer(input, sizeof(input), off, buf, count);
+	if (c < 0)
+		return c;
+
+	if (c < 1 || input[c - 1] != '\n')
+		return -EINVAL;
+
+	/* Empty line means invalidate this entry */
+	if (c == 1) {
+		memset(save, 0xff, COMPONENT_LEN);
+		return c;
+	}
+
+	if (input[0] == '0' && (input[1] == 'x' || input[1] == 'X'))
+		s = input + 2;
+	else
+		s = input;
+	e = input + c - 1;
+
+	for (i = 0; i < COMPONENT_LEN; i++) {
+		byte[1] = *--e;
+		byte[0] = e > s ? *--e : '0';
+		if (kstrtol(byte, 16, &val))
+			return -EINVAL;
+		tmp[i] = val;
+		if (e <= s)
+			break;
+	}
+	while (++i < COMPONENT_LEN)
+		tmp[i] = 0;
+
+	memcpy(save, tmp, COMPONENT_LEN);
+
+	return c;
+}
+
+static const struct file_operations u128_fops = {
+	.read	= u128_read,
+	.write	= u128_write,
+};
+
+static bool setup_einjv2_component_files(void)
+{
+	char name[32];
+
+	syndrome_data = kcalloc(max_nr_components, sizeof(syndrome_data[0]), GFP_KERNEL);
+	if (!syndrome_data)
+		return false;
+
+	for (int i = 0; i < max_nr_components; i++) {
+		sprintf(name, "component_id%d", i);
+		debugfs_create_file(name, 0600, einj_debug_dir,
+				    &syndrome_data[i].comp_id, &u128_fops);
+		sprintf(name, "component_syndrome%d", i);
+		debugfs_create_file(name, 0600, einj_debug_dir,
+				    &syndrome_data[i].comp_synd, &u128_fops);
+	}
+
+	return true;
+}
+
 static int __init einj_probe(struct faux_device *fdev)
 {
 	int rc;
@@ -919,6 +1013,8 @@ static int __init einj_probe(struct faux_device *fdev)
 				   &error_param4);
 		debugfs_create_x32("notrigger", S_IRUSR | S_IWUSR,
 				   einj_debug_dir, &notrigger);
+		if (available_error_type & ACPI65_EINJV2_SUPP)
+			einj_v2_enabled = setup_einjv2_component_files();
 	}
 
 	if (vendor_dev[0]) {
@@ -967,6 +1063,7 @@ static void __exit einj_remove(struct faux_device *fdev)
 	apei_resources_release(&einj_resources);
 	apei_resources_fini(&einj_resources);
 	debugfs_remove_recursive(einj_debug_dir);
+	kfree(syndrome_data);
 	acpi_put_table((struct acpi_table_header *)einj_tab);
 }
 
