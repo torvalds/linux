@@ -1789,6 +1789,7 @@ Kernel response contents:
                                                       limit of the PoE PSE.
   ``ETHTOOL_A_C33_PSE_PW_LIMIT_RANGES``       nested  Supported power limit
                                                       configuration ranges.
+  ``ETHTOOL_A_PSE_PW_D_ID``                      u32  Index of the PSE power domain
   ==========================================  ======  =============================
 
 When set, the optional ``ETHTOOL_A_PODL_PSE_ADMIN_STATE`` attribute identifies
@@ -1861,6 +1862,9 @@ identifies the C33 PSE power limit ranges through
 ``ETHTOOL_A_C33_PSE_PWR_VAL_LIMIT_RANGE_MAX``.
 If the controller works with fixed classes, the min and max values will be
 equal.
+
+The ``ETHTOOL_A_PSE_PW_D_ID`` attribute identifies the index of PSE power
+domain.
 
 PSE_SET
 =======
