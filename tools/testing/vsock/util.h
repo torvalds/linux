@@ -3,7 +3,35 @@
 #define UTIL_H
 
 #include <sys/socket.h>
+#include <linux/bitops.h>
+#include <linux/kernel.h>
 #include <linux/vm_sockets.h>
+
+/* All known vsock transports, see callers of vsock_core_register() */
+#define KNOWN_TRANSPORTS(x)		\
+	x(LOOPBACK, "loopback")		\
+	x(VIRTIO, "virtio")		\
+	x(VHOST, "vhost")		\
+	x(VMCI, "vmci")			\
+	x(HYPERV, "hvs")
+
+enum transport {
+	TRANSPORT_COUNTER_BASE = __COUNTER__ + 1,
+	#define x(name, symbol)		\
+		TRANSPORT_##name = BIT(__COUNTER__ - TRANSPORT_COUNTER_BASE),
+	KNOWN_TRANSPORTS(x)
+	TRANSPORT_NUM = __COUNTER__ - TRANSPORT_COUNTER_BASE,
+	#undef x
+};
+
+static const char * const transport_ksyms[] = {
+	#define x(name, symbol) "d " symbol "_transport",
+	KNOWN_TRANSPORTS(x)
+	#undef x
+};
+
+static_assert(ARRAY_SIZE(transport_ksyms) == TRANSPORT_NUM);
+static_assert(BITS_PER_TYPE(int) >= TRANSPORT_NUM);
 
 /* Tests can either run as the client or the server */
 enum test_mode {
@@ -44,6 +72,7 @@ int vsock_connect(unsigned int cid, unsigned int port, int type);
 int vsock_accept(unsigned int cid, unsigned int port,
 		 struct sockaddr_vm *clientaddrp, int type);
 int vsock_stream_connect(unsigned int cid, unsigned int port);
+int vsock_bind_try(unsigned int cid, unsigned int port, int type);
 int vsock_bind(unsigned int cid, unsigned int port, int type);
 int vsock_bind_connect(unsigned int cid, unsigned int port,
 		       unsigned int bind_port, int type);
@@ -81,4 +110,5 @@ void setsockopt_timeval_check(int fd, int level, int optname,
 			      struct timeval val, char const *errmsg);
 void enable_so_zerocopy_check(int fd);
 void enable_so_linger(int fd, int timeout);
+int get_transports(void);
 #endif /* UTIL_H */
