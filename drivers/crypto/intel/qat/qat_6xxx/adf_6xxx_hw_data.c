@@ -637,7 +637,15 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 
-	capabilities_asym = 0;
+	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			    ICP_ACCEL_CAPABILITIES_SM2 |
+			    ICP_ACCEL_CAPABILITIES_ECEDMONT;
+
+	if (fusectl1 & ICP_ACCEL_GEN6_MASK_PKE_SLICE) {
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+	}
 
 	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
 			  ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
