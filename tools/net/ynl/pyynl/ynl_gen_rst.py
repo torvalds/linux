@@ -31,9 +31,6 @@ def parse_arguments() -> argparse.Namespace:
 
     # Index and input are mutually exclusive
     group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "-x", "--index", action="store_true", help="Generate the index page"
-    )
     group.add_argument("-i", "--input", help="YAML file name")
 
     args = parser.parse_args()
@@ -63,27 +60,6 @@ def write_to_rstfile(content: str, filename: str) -> None:
         rst_file.write(content)
 
 
-def generate_main_index_rst(parser: YnlDocGenerator, output: str) -> None:
-    """Generate the `networking_spec/index` content and write to the file"""
-    lines = []
-
-    lines.append(parser.fmt.rst_header())
-    lines.append(parser.fmt.rst_label("specs"))
-    lines.append(parser.fmt.rst_title("Netlink Family Specifications"))
-    lines.append(parser.fmt.rst_toctree(1))
-
-    index_dir = os.path.dirname(output)
-    logging.debug("Looking for .rst files in %s", index_dir)
-    for filename in sorted(os.listdir(index_dir)):
-        base, ext = os.path.splitext(filename)
-        if filename == "index.rst" or ext not in [".rst", ".yaml"]:
-            continue
-        lines.append(f"   {base}\n")
-
-    logging.debug("Writing an index file at %s", output)
-    write_to_rstfile("".join(lines), output)
-
-
 def main() -> None:
     """Main function that reads the YAML files and generates the RST files"""
 
@@ -101,10 +77,6 @@ def main() -> None:
             sys.exit(-1)
 
         write_to_rstfile(content, args.output)
-
-    if args.index:
-        # Generate the index RST file
-        generate_main_index_rst(parser, args.output)
 
 
 if __name__ == "__main__":
