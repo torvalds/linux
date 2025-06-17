@@ -829,7 +829,7 @@ static void assert_can_enable_dc5(struct intel_display *display)
 
 	assert_display_rpm_held(display);
 
-	assert_dmc_loaded(display);
+	assert_main_dmc_loaded(display);
 }
 
 void gen9_enable_dc5(struct intel_display *display)
@@ -860,7 +860,7 @@ static void assert_can_enable_dc6(struct intel_display *display)
 		       DC_STATE_EN_UPTO_DC6),
 		      "DC6 already programmed to be enabled.\n");
 
-	assert_dmc_loaded(display);
+	assert_main_dmc_loaded(display);
 }
 
 void skl_enable_dc6(struct intel_display *display)

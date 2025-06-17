@@ -32,7 +32,7 @@ struct intel_dmc_snapshot *intel_dmc_snapshot_capture(struct intel_display *disp
 void intel_dmc_snapshot_print(const struct intel_dmc_snapshot *snapshot, struct drm_printer *p);
 void intel_dmc_update_dc6_allowed_count(struct intel_display *display, bool start_tracking);
 
-void assert_dmc_loaded(struct intel_display *display);
+void assert_main_dmc_loaded(struct intel_display *display);
 
 void intel_pipedmc_irq_handler(struct intel_display *display, enum pipe pipe);
 

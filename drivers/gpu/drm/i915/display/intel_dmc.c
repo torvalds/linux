@@ -607,6 +607,46 @@ static void dmc_load_program(struct intel_display *display, enum intel_dmc_id dm
 	dmc_load_mmio(display, dmc_id);
 }
 
+static void assert_dmc_loaded(struct intel_display *display,
+			      enum intel_dmc_id dmc_id)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+	u32 expected, found;
+	int i;
+
+	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(display, dmc_id))
+		return;
+
+	found = intel_de_read(display, DMC_PROGRAM(dmc->dmc_info[dmc_id].start_mmioaddr, 0));
+	expected = dmc->dmc_info[dmc_id].payload[0];
+
+	drm_WARN(display->drm, found != expected,
+		 "DMC %d program storage start incorrect (expected 0x%x, current 0x%x)\n",
+		 dmc_id, expected, found);
+
+	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
+		i915_reg_t reg = dmc->dmc_info[dmc_id].mmioaddr[i];
+
+		found = intel_de_read(display, reg);
+		expected = dmc_mmiodata(display, dmc, dmc_id, i);
+
+		/* once set DMC_EVT_CTL_ENABLE can't be cleared :/ */
+		if (is_dmc_evt_ctl_reg(display, dmc_id, reg)) {
+			found &= ~DMC_EVT_CTL_ENABLE;
+			expected &= ~DMC_EVT_CTL_ENABLE;
+		}
+
+		drm_WARN(display->drm, found != expected,
+			 "DMC %d mmio[%d]/0x%x incorrect (expected 0x%x, current 0x%x)\n",
+			 dmc_id, i, i915_mmio_reg_offset(reg), expected, found);
+	}
+}
+
+void assert_main_dmc_loaded(struct intel_display *display)
+{
+	assert_dmc_loaded(display, DMC_FW_MAIN);
+}
+
 static bool need_pipedmc_load_program(struct intel_display *display)
 {
 	/* On TGL/derivatives pipe DMC state is lost when PG1 is disabled */
@@ -670,6 +710,8 @@ void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe)
 		dmc_load_program(display, dmc_id);
 	else if (need_pipedmc_load_mmio(display, pipe))
 		dmc_load_mmio(display, dmc_id);
+
+	assert_dmc_loaded(display, dmc_id);
 
 	if (DISPLAY_VER(display) >= 20) {
 		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), pipedmc_interrupt_mask(display));
@@ -780,8 +822,10 @@ void intel_dmc_load_program(struct intel_display *display)
 
 	pipedmc_clock_gating_wa(display, true);
 
-	for_each_dmc_id(dmc_id)
+	for_each_dmc_id(dmc_id) {
 		dmc_load_program(display, dmc_id);
+		assert_dmc_loaded(display, dmc_id);
+	}
 
 	power_domains->dc_state = 0;
 
@@ -810,20 +854,6 @@ void intel_dmc_disable_program(struct intel_display *display)
 		disable_all_event_handlers(display, dmc_id);
 
 	pipedmc_clock_gating_wa(display, false);
-}
-
-void assert_dmc_loaded(struct intel_display *display)
-{
-	struct intel_dmc *dmc = display_to_dmc(display);
-
-	drm_WARN_ONCE(display->drm, !dmc, "DMC not initialized\n");
-	drm_WARN_ONCE(display->drm, dmc &&
-		      !intel_de_read(display, DMC_PROGRAM(dmc->dmc_info[DMC_FW_MAIN].start_mmioaddr, 0)),
-		      "DMC program storage start is NULL\n");
-	drm_WARN_ONCE(display->drm, !intel_de_read(display, DMC_SSP_BASE),
-		      "DMC SSP Base Not fine\n");
-	drm_WARN_ONCE(display->drm, !intel_de_read(display, DMC_HTP_SKL),
-		      "DMC HTP Not fine\n");
 }
 
 static bool fw_info_matches_stepping(const struct intel_fw_info *fw_info,
