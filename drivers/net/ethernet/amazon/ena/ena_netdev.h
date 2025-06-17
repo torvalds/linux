@@ -391,6 +391,10 @@ struct ena_adapter {
 
 	struct devlink *devlink;
 	struct devlink_port devlink_port;
+#ifdef CONFIG_DEBUG_FS
+
+	struct dentry *debugfs_base;
+#endif /* CONFIG_DEBUG_FS */
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
