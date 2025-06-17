@@ -375,15 +375,12 @@ struct css_rstat_cpu {
 	 * Child cgroups with stat updates on this cpu since the last read
 	 * are linked on the parent's ->updated_children through
 	 * ->updated_next. updated_children is terminated by its container css.
-	 *
-	 * In addition to being more compact, singly-linked list pointing to
-	 * the css makes it unnecessary for each per-cpu struct to point back
-	 * to the associated css.
-	 *
-	 * Protected by per-cpu css->ss->rstat_ss_cpu_lock.
 	 */
 	struct cgroup_subsys_state *updated_children;
 	struct cgroup_subsys_state *updated_next;	/* NULL if not on the list */
+
+	struct llist_node lnode;		/* lockless list for update */
+	struct cgroup_subsys_state *owner;	/* back pointer */
 };
 
 /*
@@ -821,7 +818,7 @@ struct cgroup_subsys {
 	unsigned int depends_on;
 
 	spinlock_t rstat_ss_lock;
-	raw_spinlock_t __percpu *rstat_ss_cpu_lock;
+	struct llist_head __percpu *lhead; /* lockless update list head */
 };
 
 extern struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
