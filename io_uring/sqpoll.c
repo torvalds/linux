@@ -16,6 +16,7 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io_uring.h"
+#include "tctx.h"
 #include "napi.h"
 #include "sqpoll.h"
 
