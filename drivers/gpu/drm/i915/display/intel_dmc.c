@@ -699,8 +699,11 @@ static bool need_pipedmc_load_mmio(struct intel_display *display, enum pipe pipe
 	return false;
 }
 
-void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe)
+void intel_dmc_enable_pipe(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	enum pipe pipe = crtc->pipe;
 	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(pipe);
 
 	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(display, dmc_id))
@@ -724,8 +727,11 @@ void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe)
 		intel_de_rmw(display, PIPEDMC_CONTROL(pipe), 0, PIPEDMC_ENABLE);
 }
 
-void intel_dmc_disable_pipe(struct intel_display *display, enum pipe pipe)
+void intel_dmc_disable_pipe(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	enum pipe pipe = crtc->pipe;
 	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(pipe);
 
 	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(display, dmc_id))

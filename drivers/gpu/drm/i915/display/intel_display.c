@@ -1659,8 +1659,12 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	if (drm_WARN_ON(display->drm, crtc->active))
 		return;
-	for_each_pipe_crtc_modeset_enable(display, pipe_crtc, new_crtc_state, i)
-		intel_dmc_enable_pipe(display, pipe_crtc->pipe);
+	for_each_pipe_crtc_modeset_enable(display, pipe_crtc, new_crtc_state, i) {
+		const struct intel_crtc_state *new_pipe_crtc_state =
+			intel_atomic_get_new_crtc_state(state, pipe_crtc);
+
+		intel_dmc_enable_pipe(new_pipe_crtc_state);
+	}
 
 	intel_encoders_pre_pll_enable(state, crtc);
 
@@ -1798,8 +1802,12 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 
 	intel_encoders_post_pll_disable(state, crtc);
 
-	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i)
-		intel_dmc_disable_pipe(display, pipe_crtc->pipe);
+	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i) {
+		const struct intel_crtc_state *old_pipe_crtc_state =
+			intel_atomic_get_old_crtc_state(state, pipe_crtc);
+
+		intel_dmc_disable_pipe(old_pipe_crtc_state);
+	}
 }
 
 /* Prefer intel_encoder_is_combo() */
