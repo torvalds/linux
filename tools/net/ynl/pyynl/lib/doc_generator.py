@@ -20,6 +20,16 @@
 from typing import Any, Dict, List
 import yaml
 
+LINE_STR = '__lineno__'
+
+class NumberedSafeLoader(yaml.SafeLoader):              # pylint: disable=R0901
+    """Override the SafeLoader class to add line number to parsed data"""
+
+    def construct_mapping(self, node, *args, **kwargs):
+        mapping = super().construct_mapping(node, *args, **kwargs)
+        mapping[LINE_STR] = node.start_mark.line
+
+        return mapping
 
 class RstFormatters:
     """RST Formatters"""
@@ -127,6 +137,11 @@ class RstFormatters:
         """Return a formatted label"""
         return f".. _{title}:\n\n"
 
+    @staticmethod
+    def rst_lineno(lineno: int) -> str:
+        """Return a lineno comment"""
+        return f".. LINENO {lineno}\n"
+
 class YnlDocGenerator:
     """YAML Netlink specs Parser"""
 
@@ -144,6 +159,9 @@ class YnlDocGenerator:
         """Parse 'do' section and return a formatted string"""
         lines = []
         for key in do_dict.keys():
+            if key == LINE_STR:
+                lines.append(self.fmt.rst_lineno(do_dict[key]))
+                continue
             lines.append(self.fmt.rst_paragraph(self.fmt.bold(key), level + 1))
             if key in ['request', 'reply']:
                 lines.append(self.parse_do_attributes(do_dict[key], level + 1) + "\n")
@@ -174,6 +192,10 @@ class YnlDocGenerator:
             lines.append(self.fmt.rst_paragraph(operation["doc"]) + "\n")
 
             for key in operation.keys():
+                if key == LINE_STR:
+                    lines.append(self.fmt.rst_lineno(operation[key]))
+                    continue
+
                 if key in preprocessed:
                     # Skip the special fields
                     continue
@@ -233,6 +255,9 @@ class YnlDocGenerator:
         for definition in defs:
             lines.append(self.fmt.rst_section(namespace, 'definition', definition["name"]))
             for k in definition.keys():
+                if k == LINE_STR:
+                    lines.append(self.fmt.rst_lineno(definition[k]))
+                    continue
                 if k in preprocessed + ignored:
                     continue
                 lines.append(self.fmt.rst_fields(k, self.fmt.sanitize(definition[k]), 0))
@@ -268,6 +293,9 @@ class YnlDocGenerator:
                 lines.append(self.fmt.rst_subsubsection(attr_line))
 
                 for k in attr.keys():
+                    if k == LINE_STR:
+                        lines.append(self.fmt.rst_lineno(attr[k]))
+                        continue
                     if k in preprocessed + ignored:
                         continue
                     if k in linkable:
@@ -306,6 +334,8 @@ class YnlDocGenerator:
         lines = []
 
         # Main header
+        lineno = obj.get('__lineno__', 0)
+        lines.append(self.fmt.rst_lineno(lineno))
 
         family = obj['name']
 
@@ -354,7 +384,7 @@ class YnlDocGenerator:
     def parse_yaml_file(self, filename: str) -> str:
         """Transform the YAML specified by filename into an RST-formatted string"""
         with open(filename, "r", encoding="utf-8") as spec_file:
-            yaml_data = yaml.safe_load(spec_file)
-            content = self.parse_yaml(yaml_data)
+            numbered_yaml = yaml.load(spec_file, Loader=NumberedSafeLoader)
+            content = self.parse_yaml(numbered_yaml)
 
         return content
