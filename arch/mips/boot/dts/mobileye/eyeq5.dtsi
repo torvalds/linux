@@ -178,6 +178,28 @@
 				clocks = <&olb EQ5C_CPU_CORE0>;
 			};
 		};
+
+		emmc: sdhci@2200000 {
+			compatible = "mobileye,eyeq-sd4hc", "cdns,sd4hc";
+			reg = <0 0x2200000 0x0 0x1000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 10 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&olb EQ5C_PER_EMMC>;
+			bus-width = <8>;
+			max-frequency = <200000000>;
+			mmc-ddr-1_8v;
+			sd-uhs-ddr50;
+			mmc-hs200-1_8v;
+			mmc-hs400-1_8v;
+			mmc-hs400-enhanced-strobe;
+
+			cdns,phy-input-delay-legacy = <4>;
+			cdns,phy-input-delay-mmc-highspeed = <2>;
+			cdns,phy-input-delay-mmc-ddr = <3>;
+			cdns,phy-dll-delay-sdclk = <32>;
+			cdns,phy-dll-delay-sdclk-hsmmc = <32>;
+			cdns,phy-dll-delay-strobe = <32>;
+		};
 	};
 };
 
