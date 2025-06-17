@@ -10,7 +10,6 @@
 #include <trace/events/cgroup.h>
 
 static DEFINE_SPINLOCK(rstat_base_lock);
-static DEFINE_PER_CPU(raw_spinlock_t, rstat_base_cpu_lock);
 static DEFINE_PER_CPU(struct llist_head, rstat_backlog_list);
 
 static void cgroup_base_stat_flush(struct cgroup *cgrp, int cpu);
@@ -51,74 +50,6 @@ static inline struct llist_head *ss_lhead_cpu(struct cgroup_subsys *ss, int cpu)
 	if (ss)
 		return per_cpu_ptr(ss->lhead, cpu);
 	return per_cpu_ptr(&rstat_backlog_list, cpu);
-}
-
-static raw_spinlock_t *ss_rstat_cpu_lock(struct cgroup_subsys *ss, int cpu)
-{
-	if (ss)
-		return per_cpu_ptr(ss->rstat_ss_cpu_lock, cpu);
-
-	return per_cpu_ptr(&rstat_base_cpu_lock, cpu);
-}
-
-/*
- * Helper functions for rstat per CPU locks.
- *
- * This makes it easier to diagnose locking issues and contention in
- * production environments. The parameter @fast_path determine the
- * tracepoints being added, allowing us to diagnose "flush" related
- * operations without handling high-frequency fast-path "update" events.
- */
-static __always_inline
-unsigned long _css_rstat_cpu_lock(struct cgroup_subsys_state *css, int cpu,
-		const bool fast_path)
-{
-	struct cgroup *cgrp = css->cgroup;
-	raw_spinlock_t *cpu_lock;
-	unsigned long flags;
-	bool contended;
-
-	/*
-	 * The _irqsave() is needed because the locks used for flushing are
-	 * spinlock_t which is a sleeping lock on PREEMPT_RT. Acquiring this lock
-	 * with the _irq() suffix only disables interrupts on a non-PREEMPT_RT
-	 * kernel. The raw_spinlock_t below disables interrupts on both
-	 * configurations. The _irqsave() ensures that interrupts are always
-	 * disabled and later restored.
-	 */
-	cpu_lock = ss_rstat_cpu_lock(css->ss, cpu);
-	contended = !raw_spin_trylock_irqsave(cpu_lock, flags);
-	if (contended) {
-		if (fast_path)
-			trace_cgroup_rstat_cpu_lock_contended_fastpath(cgrp, cpu, contended);
-		else
-			trace_cgroup_rstat_cpu_lock_contended(cgrp, cpu, contended);
-
-		raw_spin_lock_irqsave(cpu_lock, flags);
-	}
-
-	if (fast_path)
-		trace_cgroup_rstat_cpu_locked_fastpath(cgrp, cpu, contended);
-	else
-		trace_cgroup_rstat_cpu_locked(cgrp, cpu, contended);
-
-	return flags;
-}
-
-static __always_inline
-void _css_rstat_cpu_unlock(struct cgroup_subsys_state *css, int cpu,
-		unsigned long flags, const bool fast_path)
-{
-	struct cgroup *cgrp = css->cgroup;
-	raw_spinlock_t *cpu_lock;
-
-	if (fast_path)
-		trace_cgroup_rstat_cpu_unlock_fastpath(cgrp, cpu, false);
-	else
-		trace_cgroup_rstat_cpu_unlock(cgrp, cpu, false);
-
-	cpu_lock = ss_rstat_cpu_lock(css->ss, cpu);
-	raw_spin_unlock_irqrestore(cpu_lock, flags);
 }
 
 /**
@@ -323,15 +254,12 @@ static struct cgroup_subsys_state *css_rstat_updated_list(
 {
 	struct css_rstat_cpu *rstatc = css_rstat_cpu(root, cpu);
 	struct cgroup_subsys_state *head = NULL, *parent, *child;
-	unsigned long flags;
-
-	flags = _css_rstat_cpu_lock(root, cpu, false);
 
 	css_process_update_tree(root->ss, cpu);
 
 	/* Return NULL if this subtree is not on-list */
 	if (!rstatc->updated_next)
-		goto unlock_ret;
+		return NULL;
 
 	/*
 	 * Unlink @root from its parent. As the updated_children list is
@@ -363,8 +291,7 @@ static struct cgroup_subsys_state *css_rstat_updated_list(
 	rstatc->updated_children = root;
 	if (child != root)
 		head = css_rstat_push_children(head, child, cpu);
-unlock_ret:
-	_css_rstat_cpu_unlock(root, cpu, flags, false);
+
 	return head;
 }
 
@@ -560,34 +487,15 @@ int __init ss_rstat_init(struct cgroup_subsys *ss)
 {
 	int cpu;
 
-#ifdef CONFIG_SMP
-	/*
-	 * On uniprocessor machines, arch_spinlock_t is defined as an empty
-	 * struct. Avoid allocating a size of zero by having this block
-	 * excluded in this case. It's acceptable to leave the subsystem locks
-	 * unitialized since the associated lock functions are no-ops in the
-	 * non-smp case.
-	 */
-	if (ss) {
-		ss->rstat_ss_cpu_lock = alloc_percpu(raw_spinlock_t);
-		if (!ss->rstat_ss_cpu_lock)
-			return -ENOMEM;
-	}
-#endif
-
 	if (ss) {
 		ss->lhead = alloc_percpu(struct llist_head);
-		if (!ss->lhead) {
-			free_percpu(ss->rstat_ss_cpu_lock);
+		if (!ss->lhead)
 			return -ENOMEM;
-		}
 	}
 
 	spin_lock_init(ss_rstat_lock(ss));
-	for_each_possible_cpu(cpu) {
-		raw_spin_lock_init(ss_rstat_cpu_lock(ss, cpu));
+	for_each_possible_cpu(cpu)
 		init_llist_head(ss_lhead_cpu(ss, cpu));
-	}
 
 	return 0;
 }
