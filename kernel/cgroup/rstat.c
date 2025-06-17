@@ -126,13 +126,16 @@ void _css_rstat_cpu_unlock(struct cgroup_subsys_state *css, int cpu,
  * @css: target cgroup subsystem state
  * @cpu: cpu on which rstat_cpu was updated
  *
- * @css's rstat_cpu on @cpu was updated. Put it on the parent's matching
- * rstat_cpu->updated_children list. See the comment on top of
- * css_rstat_cpu definition for details.
+ * Atomically inserts the css in the ss's llist for the given cpu. This is
+ * reentrant safe i.e. safe against softirq, hardirq and nmi. The ss's llist
+ * will be processed at the flush time to create the update tree.
  */
 __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 {
-	unsigned long flags;
+	struct llist_head *lhead;
+	struct css_rstat_cpu *rstatc;
+	struct css_rstat_cpu __percpu *rstatc_pcpu;
+	struct llist_node *self;
 
 	/*
 	 * Since bpf programs can call this function, prevent access to
@@ -141,19 +144,44 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 	if (!css_uses_rstat(css))
 		return;
 
+	lockdep_assert_preemption_disabled();
+
 	/*
-	 * Speculative already-on-list test. This may race leading to
-	 * temporary inaccuracies, which is fine.
-	 *
-	 * Because @parent's updated_children is terminated with @parent
-	 * instead of NULL, we can tell whether @css is on the list by
-	 * testing the next pointer for NULL.
+	 * For archs withnot nmi safe cmpxchg or percpu ops support, ignore
+	 * the requests from nmi context.
 	 */
-	if (data_race(css_rstat_cpu(css, cpu)->updated_next))
+	if ((!IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG) ||
+	     !IS_ENABLED(CONFIG_ARCH_HAS_NMI_SAFE_THIS_CPU_OPS)) && in_nmi())
 		return;
 
-	flags = _css_rstat_cpu_lock(css, cpu, true);
+	rstatc = css_rstat_cpu(css, cpu);
+	/* If already on list return. */
+	if (llist_on_list(&rstatc->lnode))
+		return;
 
+	/*
+	 * This function can be renentered by irqs and nmis for the same cgroup
+	 * and may try to insert the same per-cpu lnode into the llist. Note
+	 * that llist_add() does not protect against such scenarios.
+	 *
+	 * To protect against such stacked contexts of irqs/nmis, we use the
+	 * fact that lnode points to itself when not on a list and then use
+	 * this_cpu_cmpxchg() to atomically set to NULL to select the winner
+	 * which will call llist_add(). The losers can assume the insertion is
+	 * successful and the winner will eventually add the per-cpu lnode to
+	 * the llist.
+	 */
+	self = &rstatc->lnode;
+	rstatc_pcpu = css->rstat_cpu;
+	if (this_cpu_cmpxchg(rstatc_pcpu->lnode.next, self, NULL) != self)
+		return;
+
+	lhead = ss_lhead_cpu(css->ss, cpu);
+	llist_add(&rstatc->lnode, lhead);
+}
+
+static void __css_process_update_tree(struct cgroup_subsys_state *css, int cpu)
+{
 	/* put @css and all ancestors on the corresponding updated lists */
 	while (true) {
 		struct css_rstat_cpu *rstatc = css_rstat_cpu(css, cpu);
@@ -179,8 +207,19 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 
 		css = parent;
 	}
+}
 
-	_css_rstat_cpu_unlock(css, cpu, flags, true);
+static void css_process_update_tree(struct cgroup_subsys *ss, int cpu)
+{
+	struct llist_head *lhead = ss_lhead_cpu(ss, cpu);
+	struct llist_node *lnode;
+
+	while ((lnode = llist_del_first_init(lhead))) {
+		struct css_rstat_cpu *rstatc;
+
+		rstatc = container_of(lnode, struct css_rstat_cpu, lnode);
+		__css_process_update_tree(rstatc->owner, cpu);
+	}
 }
 
 /**
@@ -287,6 +326,8 @@ static struct cgroup_subsys_state *css_rstat_updated_list(
 	unsigned long flags;
 
 	flags = _css_rstat_cpu_lock(root, cpu, false);
+
+	css_process_update_tree(root->ss, cpu);
 
 	/* Return NULL if this subtree is not on-list */
 	if (!rstatc->updated_next)
