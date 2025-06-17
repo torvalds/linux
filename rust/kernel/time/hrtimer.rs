@@ -444,8 +444,27 @@ impl HrTimerExpires for Delta {
     }
 }
 
+mod private {
+    use crate::time::ClockSource;
+
+    pub trait Sealed {}
+
+    impl<C: ClockSource> Sealed for super::AbsoluteMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativeMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsolutePinnedMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativePinnedMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsoluteSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativeSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsolutePinnedSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativePinnedSoftMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsoluteHardMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativeHardMode<C> {}
+    impl<C: ClockSource> Sealed for super::AbsolutePinnedHardMode<C> {}
+    impl<C: ClockSource> Sealed for super::RelativePinnedHardMode<C> {}
+}
+
 /// Operational mode of [`HrTimer`].
-pub trait HrTimerMode {
+pub trait HrTimerMode: private::Sealed {
     /// The C representation of hrtimer mode.
     const C_MODE: bindings::hrtimer_mode;
 
