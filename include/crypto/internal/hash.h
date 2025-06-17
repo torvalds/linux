@@ -196,6 +196,13 @@ static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 	tfm->reqsize = reqsize;
 }
 
+static inline bool crypto_ahash_tested(struct crypto_ahash *tfm)
+{
+	struct crypto_tfm *tfm_base = crypto_ahash_tfm(tfm);
+
+	return tfm_base->__crt_alg->cra_flags & CRYPTO_ALG_TESTED;
+}
+
 static inline void crypto_ahash_set_reqsize_dma(struct crypto_ahash *ahash,
 						unsigned int reqsize)
 {
