@@ -118,6 +118,17 @@ definitions:
         doc: |
           Hardware timestamp comes from one PHY device
           of the network topology
+  -
+    name: pse-event
+    doc: PSE event list for the PSE controller
+    type: flags
+    entries:
+      -
+        name: over-current
+        doc: PSE output current is too high
+      -
+        name: over-temp
+        doc: PSE in over temperature state
 
 attribute-sets:
   -
@@ -1555,6 +1566,19 @@ attribute-sets:
         name: hwtstamp-flags
         type: nest
         nested-attributes: bitset
+  -
+    name: pse-ntf
+    attr-cnt-name: --ethtool-a-pse-ntf-cnt
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: events
+        type: uint
+        enum: pse-event
+        doc: List of events reported by the PSE controller
 
 operations:
   enum-model: directional
@@ -2413,3 +2437,13 @@ operations:
           attributes: *tsconfig
         reply:
           attributes: *tsconfig
+    -
+      name: pse-ntf
+      doc: Notification for PSE events.
+
+      attribute-set: pse-ntf
+
+      event:
+        attributes:
+          - header
+          - events

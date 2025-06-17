@@ -7,10 +7,14 @@
 
 #include <linux/device.h>
 #include <linux/ethtool.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/of.h>
+#include <linux/phy.h>
 #include <linux/pse-pd/pse.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/rtnetlink.h>
+#include <net/net_trackers.h>
 
 static DEFINE_MUTEX(pse_list_mutex);
 static LIST_HEAD(pse_controller_list);
@@ -208,6 +212,48 @@ out:
 	of_node_put(node);
 	of_node_put(pis);
 	return ret;
+}
+
+/**
+ * pse_control_find_net_by_id - Find net attached to the pse control id
+ * @pcdev: a pointer to the PSE
+ * @id: index of the PSE control
+ *
+ * Return: pse_control pointer or NULL. The device returned has had a
+ *	   reference added and the pointer is safe until the user calls
+ *	   pse_control_put() to indicate they have finished with it.
+ */
+static struct pse_control *
+pse_control_find_by_id(struct pse_controller_dev *pcdev, int id)
+{
+	struct pse_control *psec;
+
+	mutex_lock(&pse_list_mutex);
+	list_for_each_entry(psec, &pcdev->pse_control_head, list) {
+		if (psec->id == id) {
+			kref_get(&psec->refcnt);
+			mutex_unlock(&pse_list_mutex);
+			return psec;
+		}
+	}
+	mutex_unlock(&pse_list_mutex);
+	return NULL;
+}
+
+/**
+ * pse_control_get_netdev - Return netdev associated to a PSE control
+ * @psec: PSE control pointer
+ *
+ * Return: netdev pointer or NULL
+ */
+static struct net_device *pse_control_get_netdev(struct pse_control *psec)
+{
+	ASSERT_RTNL();
+
+	if (!psec || !psec->attached_phydev)
+		return NULL;
+
+	return psec->attached_phydev->attached_dev;
 }
 
 static int pse_pi_is_enabled(struct regulator_dev *rdev)
@@ -558,6 +604,139 @@ int devm_pse_controller_register(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_pse_controller_register);
+
+struct pse_irq {
+	struct pse_controller_dev *pcdev;
+	struct pse_irq_desc desc;
+	unsigned long *notifs;
+};
+
+/**
+ * pse_to_regulator_notifs - Convert PSE notifications to Regulator
+ *			     notifications
+ * @notifs: PSE notifications
+ *
+ * Return: Regulator notifications
+ */
+static unsigned long pse_to_regulator_notifs(unsigned long notifs)
+{
+	unsigned long rnotifs = 0;
+
+	if (notifs & ETHTOOL_PSE_EVENT_OVER_CURRENT)
+		rnotifs |= REGULATOR_EVENT_OVER_CURRENT;
+	if (notifs & ETHTOOL_PSE_EVENT_OVER_TEMP)
+		rnotifs |= REGULATOR_EVENT_OVER_TEMP;
+
+	return rnotifs;
+}
+
+/**
+ * pse_isr - IRQ handler for PSE
+ * @irq: irq number
+ * @data: pointer to user interrupt structure
+ *
+ * Return: irqreturn_t - status of IRQ
+ */
+static irqreturn_t pse_isr(int irq, void *data)
+{
+	struct pse_controller_dev *pcdev;
+	unsigned long notifs_mask = 0;
+	struct pse_irq_desc *desc;
+	struct pse_irq *h = data;
+	int ret, i;
+
+	desc = &h->desc;
+	pcdev = h->pcdev;
+
+	/* Clear notifs mask */
+	memset(h->notifs, 0, pcdev->nr_lines * sizeof(*h->notifs));
+	mutex_lock(&pcdev->lock);
+	ret = desc->map_event(irq, pcdev, h->notifs, &notifs_mask);
+	mutex_unlock(&pcdev->lock);
+	if (ret || !notifs_mask)
+		return IRQ_NONE;
+
+	for_each_set_bit(i, &notifs_mask, pcdev->nr_lines) {
+		unsigned long notifs, rnotifs;
+		struct net_device *netdev;
+		struct pse_control *psec;
+
+		/* Do nothing PI not described */
+		if (!pcdev->pi[i].rdev)
+			continue;
+
+		notifs = h->notifs[i];
+		dev_dbg(h->pcdev->dev,
+			"Sending PSE notification EVT 0x%lx\n", notifs);
+
+		psec = pse_control_find_by_id(pcdev, i);
+		rtnl_lock();
+		netdev = pse_control_get_netdev(psec);
+		if (netdev)
+			ethnl_pse_send_ntf(netdev, notifs);
+		rtnl_unlock();
+		pse_control_put(psec);
+
+		rnotifs = pse_to_regulator_notifs(notifs);
+		regulator_notifier_call_chain(pcdev->pi[i].rdev, rnotifs,
+					      NULL);
+	}
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * devm_pse_irq_helper - Register IRQ based PSE event notifier
+ * @pcdev: a pointer to the PSE
+ * @irq: the irq value to be passed to request_irq
+ * @irq_flags: the flags to be passed to request_irq
+ * @d: PSE interrupt description
+ *
+ * Return: 0 on success and errno on failure
+ */
+int devm_pse_irq_helper(struct pse_controller_dev *pcdev, int irq,
+			int irq_flags, const struct pse_irq_desc *d)
+{
+	struct device *dev = pcdev->dev;
+	size_t irq_name_len;
+	struct pse_irq *h;
+	char *irq_name;
+	int ret;
+
+	if (!d || !d->map_event || !d->name)
+		return -EINVAL;
+
+	h = devm_kzalloc(dev, sizeof(*h), GFP_KERNEL);
+	if (!h)
+		return -ENOMEM;
+
+	h->pcdev = pcdev;
+	h->desc = *d;
+
+	/* IRQ name len is pcdev dev name + 5 char + irq desc name + 1 */
+	irq_name_len = strlen(dev_name(pcdev->dev)) + 5 + strlen(d->name) + 1;
+	irq_name = devm_kzalloc(dev, irq_name_len, GFP_KERNEL);
+	if (!irq_name)
+		return -ENOMEM;
+
+	snprintf(irq_name, irq_name_len, "pse-%s:%s", dev_name(pcdev->dev),
+		 d->name);
+
+	h->notifs = devm_kcalloc(dev, pcdev->nr_lines,
+				 sizeof(*h->notifs), GFP_KERNEL);
+	if (!h->notifs)
+		return -ENOMEM;
+
+	ret = devm_request_threaded_irq(dev, irq, NULL, pse_isr,
+					IRQF_ONESHOT | irq_flags,
+					irq_name, h);
+	if (ret)
+		dev_err(pcdev->dev, "Failed to request IRQ %d\n", irq);
+
+	pcdev->irq = irq;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_pse_irq_helper);
 
 /* PSE control section */
 
