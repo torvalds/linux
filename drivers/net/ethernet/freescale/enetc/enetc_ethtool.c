@@ -467,7 +467,8 @@ static void enetc_get_rmon_stats(struct net_device *ndev,
 #define ENETC_RSSHASH_L3 (RXH_L2DA | RXH_VLAN | RXH_L3_PROTO | RXH_IP_SRC | \
 			  RXH_IP_DST)
 #define ENETC_RSSHASH_L4 (ENETC_RSSHASH_L3 | RXH_L4_B_0_1 | RXH_L4_B_2_3)
-static int enetc_get_rsshash(struct ethtool_rxnfc *rxnfc)
+static int enetc_get_rxfh_fields(struct net_device *netdev,
+				 struct ethtool_rxfh_fields *rxnfc)
 {
 	static const u32 rsshash[] = {
 			[TCP_V4_FLOW]    = ENETC_RSSHASH_L4,
@@ -584,9 +585,6 @@ static int enetc_get_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *rxnfc,
 	case ETHTOOL_GRXRINGS:
 		rxnfc->data = priv->num_rx_rings;
 		break;
-	case ETHTOOL_GRXFH:
-		/* get RSS hash config */
-		return enetc_get_rsshash(rxnfc);
 	case ETHTOOL_GRXCLSRLCNT:
 		/* total number of entries */
 		rxnfc->data = priv->si->num_fs_entries;
@@ -639,8 +637,6 @@ static int enetc4_get_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *rxnfc
 	case ETHTOOL_GRXRINGS:
 		rxnfc->data = priv->num_rx_rings;
 		break;
-	case ETHTOOL_GRXFH:
-		return enetc_get_rsshash(rxnfc);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1228,6 +1224,7 @@ const struct ethtool_ops enetc_pf_ethtool_ops = {
 	.get_rxfh_indir_size = enetc_get_rxfh_indir_size,
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
+	.get_rxfh_fields = enetc_get_rxfh_fields,
 	.get_ringparam = enetc_get_ringparam,
 	.get_coalesce = enetc_get_coalesce,
 	.set_coalesce = enetc_set_coalesce,
@@ -1258,6 +1255,7 @@ const struct ethtool_ops enetc_vf_ethtool_ops = {
 	.get_rxfh_indir_size = enetc_get_rxfh_indir_size,
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
+	.get_rxfh_fields = enetc_get_rxfh_fields,
 	.get_ringparam = enetc_get_ringparam,
 	.get_coalesce = enetc_get_coalesce,
 	.set_coalesce = enetc_set_coalesce,
@@ -1284,6 +1282,7 @@ const struct ethtool_ops enetc4_pf_ethtool_ops = {
 	.get_rxfh_indir_size = enetc_get_rxfh_indir_size,
 	.get_rxfh = enetc_get_rxfh,
 	.set_rxfh = enetc_set_rxfh,
+	.get_rxfh_fields = enetc_get_rxfh_fields,
 };
 
 void enetc_set_ethtool_ops(struct net_device *ndev)
