@@ -719,7 +719,7 @@ static int validate_mmap_request(struct file *file,
 
 	if (file) {
 		/* files must support mmap */
-		if (!file->f_op->mmap)
+		if (!can_mmap_file(file))
 			return -ENODEV;
 
 		/* work out if what we've got could possibly be shared
