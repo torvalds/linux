@@ -66,7 +66,7 @@ enum rzt2h_clk_types {
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R9A09G077_CLK_PCLKM,
+	LAST_DT_CORE_CLK = R9A09G077_CLK_PCLKL,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -140,6 +140,7 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 		dtable_1_2),
 	DEF_FIXED("PCLKGPTL", R9A09G077_CLK_PCLKGPTL, CLK_SEL_CLK_PLL1, 2, 1),
 	DEF_FIXED("PCLKM", R9A09G077_CLK_PCLKM, CLK_SEL_CLK_PLL1, 8, 1),
+	DEF_FIXED("PCLKL", R9A09G077_CLK_PCLKL, CLK_SEL_CLK_PLL1, 16, 1),
 };
 
 static const struct mssr_mod_clk r9a09g077_mod_clks[] __initconst = {
