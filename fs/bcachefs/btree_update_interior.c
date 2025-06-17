@@ -2293,9 +2293,9 @@ err:
 	goto out;
 }
 
-static int bch2_btree_node_rewrite_key(struct btree_trans *trans,
-				       enum btree_id btree, unsigned level,
-				       struct bkey_i *k, unsigned flags)
+int bch2_btree_node_rewrite_key(struct btree_trans *trans,
+				enum btree_id btree, unsigned level,
+				struct bkey_i *k, unsigned flags)
 {
 	struct btree_iter iter;
 	bch2_trans_node_iter_init(trans, &iter,
@@ -2367,9 +2367,8 @@ static void async_btree_node_rewrite_work(struct work_struct *work)
 
 	int ret = bch2_trans_do(c, bch2_btree_node_rewrite_key(trans,
 						a->btree_id, a->level, a->key.k, 0));
-	if (ret != -ENOENT &&
-	    !bch2_err_matches(ret, EROFS) &&
-	    ret != -BCH_ERR_journal_shutdown)
+	if (!bch2_err_matches(ret, ENOENT) &&
+	    !bch2_err_matches(ret, EROFS))
 		bch_err_fn_ratelimited(c, ret);
 
 	spin_lock(&c->btree_node_rewrites_lock);

@@ -1986,28 +1986,12 @@ static void btree_node_scrub_work(struct work_struct *work)
 	prt_newline(&err);
 
 	if (!btree_node_scrub_check(c, scrub->buf, scrub->written, &err)) {
-		struct btree_trans *trans = bch2_trans_get(c);
-
-		struct btree_iter iter;
-		bch2_trans_node_iter_init(trans, &iter, scrub->btree,
-					  scrub->key.k->k.p, 0, scrub->level - 1, 0);
-
-		struct btree *b;
-		int ret = lockrestart_do(trans,
-			PTR_ERR_OR_ZERO(b = bch2_btree_iter_peek_node(trans, &iter)));
-		if (ret)
-			goto err;
-
-		if (bkey_i_to_btree_ptr_v2(&b->key)->v.seq == scrub->seq) {
-			bch_err(c, "error validating btree node during scrub on %s at btree %s",
-				scrub->ca->name, err.buf);
-
-			ret = bch2_btree_node_rewrite(trans, &iter, b, 0, 0);
-		}
-err:
-		bch2_trans_iter_exit(trans, &iter);
-		bch2_trans_begin(trans);
-		bch2_trans_put(trans);
+		int ret = bch2_trans_do(c,
+			bch2_btree_node_rewrite_key(trans, scrub->btree, scrub->level - 1,
+						    scrub->key.k, 0));
+		if (!bch2_err_matches(ret, ENOENT) &&
+		    !bch2_err_matches(ret, EROFS))
+			bch_err_fn_ratelimited(c, ret);
 	}
 
 	printbuf_exit(&err);
