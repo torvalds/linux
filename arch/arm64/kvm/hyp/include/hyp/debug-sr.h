@@ -167,9 +167,6 @@ static inline void __debug_switch_to_host_common(struct kvm_vcpu *vcpu)
 
 	__debug_save_state(guest_dbg, guest_ctxt);
 	__debug_restore_state(host_dbg, host_ctxt);
-
-	if (has_vhe())
-		isb();
 }
 
 #endif /* __ARM64_KVM_HYP_DEBUG_SR_H__ */

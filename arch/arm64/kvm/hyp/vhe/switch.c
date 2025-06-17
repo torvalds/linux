@@ -558,9 +558,9 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	host_ctxt = host_data_ptr(host_ctxt);
 	guest_ctxt = &vcpu->arch.ctxt;
 
-	sysreg_save_host_state_vhe(host_ctxt);
-
 	fpsimd_lazy_switch_to_guest(vcpu);
+
+	sysreg_save_host_state_vhe(host_ctxt);
 
 	/*
 	 * Note that ARM erratum 1165522 requires us to configure both stage 1
@@ -586,17 +586,22 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 
 	__deactivate_traps(vcpu);
 
-	/* Ensure CPTR trap deactivation has taken effect */
+	sysreg_restore_host_state_vhe(host_ctxt);
+
+	__debug_switch_to_host(vcpu);
+
+	/*
+	 * Ensure that all system register writes above have taken effect
+	 * before returning to the host. In VHE mode, CPTR traps for
+	 * FPSIMD/SVE/SME also apply to EL2, so FPSIMD/SVE/SME state must be
+	 * manipulated after the ISB.
+	 */
 	isb();
 
 	fpsimd_lazy_switch_to_host(vcpu);
 
-	sysreg_restore_host_state_vhe(host_ctxt);
-
 	if (guest_owns_fp_regs())
 		__fpsimd_save_fpexc32(vcpu);
-
-	__debug_switch_to_host(vcpu);
 
 	return exit_code;
 }
@@ -627,12 +632,6 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	 */
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
 
-	/*
-	 * When we exit from the guest we change a number of CPU configuration
-	 * parameters, such as traps.  We rely on the isb() in kvm_call_hyp*()
-	 * to make sure these changes take effect before running the host or
-	 * additional guests.
-	 */
 	return ret;
 }
 
