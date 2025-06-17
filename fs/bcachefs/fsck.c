@@ -327,7 +327,8 @@ static inline bool inode_should_reattach(struct bch_inode_unpacked *inode)
 	    (inode->bi_flags & BCH_INODE_has_child_snapshot))
 		return false;
 
-	return !inode->bi_dir && !(inode->bi_flags & BCH_INODE_unlinked);
+	return !bch2_inode_has_backpointer(inode) &&
+		!(inode->bi_flags & BCH_INODE_unlinked);
 }
 
 static int maybe_delete_dirent(struct btree_trans *trans, struct bpos d_pos, u32 snapshot)
@@ -514,7 +515,7 @@ static struct bkey_s_c_dirent dirent_get_by_pos(struct btree_trans *trans,
 static int remove_backpointer(struct btree_trans *trans,
 			      struct bch_inode_unpacked *inode)
 {
-	if (!inode->bi_dir)
+	if (!bch2_inode_has_backpointer(inode))
 		return 0;
 
 	u32 snapshot = inode->bi_snapshot;
@@ -1165,13 +1166,14 @@ static int check_inode(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (u.bi_dir || u.bi_dir_offset) {
+	if (bch2_inode_has_backpointer(&u)) {
 		ret = check_inode_dirent_inode(trans, &u, &do_update);
 		if (ret)
 			goto err;
 	}
 
-	if (fsck_err_on(u.bi_dir && (u.bi_flags & BCH_INODE_unlinked),
+	if (fsck_err_on(bch2_inode_has_backpointer(&u) &&
+			(u.bi_flags & BCH_INODE_unlinked),
 			trans, inode_unlinked_but_has_dirent,
 			"inode unlinked but has dirent\n%s",
 			(printbuf_reset(&buf),
@@ -2751,7 +2753,13 @@ static int check_path_loop(struct btree_trans *trans, struct bkey_s_c inode_k)
 	if (ret)
 		return ret;
 
-	while (!inode.bi_subvol) {
+	/*
+	 * If we're running full fsck, check_dirents() will have already ran,
+	 * and we shouldn't see any missing backpointers here - otherwise that's
+	 * handled separately, by check_unreachable_inodes
+	 */
+	while (!inode.bi_subvol &&
+	       bch2_inode_has_backpointer(&inode)) {
 		struct btree_iter dirent_iter;
 		struct bkey_s_c_dirent d;
 

@@ -734,8 +734,7 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 	if (inode_points_to_dirent(target, d))
 		return 0;
 
-	if (!target->bi_dir &&
-	    !target->bi_dir_offset) {
+	if (!bch2_inode_has_backpointer(target)) {
 		fsck_err_on(S_ISDIR(target->bi_mode),
 			    trans, inode_dir_missing_backpointer,
 			    "directory with missing backpointer\n%s",
