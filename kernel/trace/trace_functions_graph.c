@@ -513,7 +513,7 @@ static void print_graph_proc(struct trace_seq *s, pid_t pid)
 {
 	char comm[TASK_COMM_LEN];
 	/* sign + log10(MAX_INT) + '\0' */
-	char pid_str[11];
+	char pid_str[12];
 	int spaces = 0;
 	int len;
 	int i;
