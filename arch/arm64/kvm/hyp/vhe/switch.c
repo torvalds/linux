@@ -223,9 +223,9 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 		 */
 		val = read_sysreg_el0(SYS_CNTP_CVAL);
 		if (map.direct_ptimer == vcpu_ptimer(vcpu))
-			__vcpu_sys_reg(vcpu, CNTP_CVAL_EL0) = val;
+			__vcpu_assign_sys_reg(vcpu, CNTP_CVAL_EL0, val);
 		if (map.direct_ptimer == vcpu_hptimer(vcpu))
-			__vcpu_sys_reg(vcpu, CNTHP_CVAL_EL2) = val;
+			__vcpu_assign_sys_reg(vcpu, CNTHP_CVAL_EL2, val);
 
 		offset = read_sysreg_s(SYS_CNTPOFF_EL2);
 

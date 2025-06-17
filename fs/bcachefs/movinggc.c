@@ -28,7 +28,7 @@
 #include <linux/wait.h>
 
 struct buckets_in_flight {
-	struct rhashtable	table;
+	struct rhashtable	*table;
 	struct move_bucket	*first;
 	struct move_bucket	*last;
 	size_t			nr;
@@ -98,7 +98,7 @@ out:
 static void move_bucket_free(struct buckets_in_flight *list,
 			     struct move_bucket *b)
 {
-	int ret = rhashtable_remove_fast(&list->table, &b->hash,
+	int ret = rhashtable_remove_fast(list->table, &b->hash,
 					 bch_move_bucket_params);
 	BUG_ON(ret);
 	kfree(b);
@@ -133,7 +133,7 @@ static void move_buckets_wait(struct moving_context *ctxt,
 static bool bucket_in_flight(struct buckets_in_flight *list,
 			     struct move_bucket_key k)
 {
-	return rhashtable_lookup_fast(&list->table, &k, bch_move_bucket_params);
+	return rhashtable_lookup_fast(list->table, &k, bch_move_bucket_params);
 }
 
 static int bch2_copygc_get_buckets(struct moving_context *ctxt,
@@ -185,7 +185,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 				goto err;
 			}
 
-			ret2 = rhashtable_lookup_insert_fast(&buckets_in_flight->table, &b_i->hash,
+			ret2 = rhashtable_lookup_insert_fast(buckets_in_flight->table, &b_i->hash,
 							     bch_move_bucket_params);
 			BUG_ON(ret2);
 
@@ -350,10 +350,13 @@ static int bch2_copygc_thread(void *arg)
 	struct buckets_in_flight buckets = {};
 	u64 last, wait;
 
-	int ret = rhashtable_init(&buckets.table, &bch_move_bucket_params);
+	buckets.table = kzalloc(sizeof(*buckets.table), GFP_KERNEL);
+	int ret = !buckets.table
+		? -ENOMEM
+		: rhashtable_init(buckets.table, &bch_move_bucket_params);
 	bch_err_msg(c, ret, "allocating copygc buckets in flight");
 	if (ret)
-		return ret;
+		goto err;
 
 	set_freezable();
 
@@ -421,11 +424,12 @@ static int bch2_copygc_thread(void *arg)
 	}
 
 	move_buckets_wait(&ctxt, &buckets, true);
-	rhashtable_destroy(&buckets.table);
+	rhashtable_destroy(buckets.table);
 	bch2_moving_ctxt_exit(&ctxt);
 	bch2_move_stats_exit(&move_stats, c);
-
-	return 0;
+err:
+	kfree(buckets.table);
+	return ret;
 }
 
 void bch2_copygc_stop(struct bch_fs *c)

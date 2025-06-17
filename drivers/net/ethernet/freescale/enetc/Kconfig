@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config FSL_ENETC_CORE
 	tristate
+	select NXP_NETC_LIB if NXP_NTMP
 	help
 	  This module supports common functionality between the PF and VF
 	  drivers for the NXP ENETC controller.
@@ -21,6 +22,9 @@ config NXP_NETC_LIB
 	  This module provides common functionalities for both ENETC and NETC
 	  Switch, such as NETC Table Management Protocol (NTMP) 2.0, common tc
 	  flower and debugfs interfaces and so on.
+
+config NXP_NTMP
+	bool
 
 config FSL_ENETC
 	tristate "ENETC PF driver"
@@ -45,7 +49,7 @@ config NXP_ENETC4
 	select FSL_ENETC_CORE
 	select FSL_ENETC_MDIO
 	select NXP_ENETC_PF_COMMON
-	select NXP_NETC_LIB
+	select NXP_NTMP
 	select PHYLINK
 	select DIMLIB
 	help

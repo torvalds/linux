@@ -99,7 +99,7 @@ static inline bool sg_is_last(struct scatterlist *sg)
  * @sg:		The current sg entry
  *
  * Description:
- *   Usually the next entry will be @sg@ + 1, but if this sg element is part
+ *   Usually the next entry will be @sg + 1, but if this sg element is part
  *   of a chained scatterlist, it could jump to the start of a new
  *   scatterlist array.
  *
@@ -254,7 +254,7 @@ static inline void __sg_chain(struct scatterlist *chain_sg,
  * @sgl:	Second scatterlist
  *
  * Description:
- *   Links @prv@ and @sgl@ together, to form a longer scatterlist.
+ *   Links @prv and @sgl together, to form a longer scatterlist.
  *
  **/
 static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,

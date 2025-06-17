@@ -1442,7 +1442,6 @@ static struct platform_driver sdm660_pinctrl_driver = {
 		.of_match_table = sdm660_pinctrl_of_match,
 	},
 	.probe = sdm660_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init sdm660_pinctrl_init(void)

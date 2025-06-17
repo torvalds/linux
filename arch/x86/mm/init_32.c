@@ -30,7 +30,6 @@
 #include <linux/initrd.h>
 #include <linux/cpumask.h>
 #include <linux/gfp.h>
-#include <linux/execmem.h>
 
 #include <asm/asm.h>
 #include <asm/bios_ebda.h>
@@ -748,8 +747,6 @@ void mark_rodata_ro(void)
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
 	pr_info("Write protecting kernel text and read-only data: %luk\n",
 		size >> 10);
-
-	execmem_cache_make_ro();
 
 	kernel_set_to_readonly = 1;
 
