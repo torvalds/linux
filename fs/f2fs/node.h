@@ -31,7 +31,7 @@
 /* control total # of nats */
 #define DEF_NAT_CACHE_THRESHOLD			100000
 
-/* control total # of node writes used for roll-fowrad recovery */
+/* control total # of node writes used for roll-forward recovery */
 #define DEF_RF_NODE_BLOCKS			0
 
 /* vector size for gang look-up from nat cache that consists of radix tree */

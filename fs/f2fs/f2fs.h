@@ -386,7 +386,7 @@ struct discard_cmd {
 	struct rb_node rb_node;		/* rb node located in rb-tree */
 	struct discard_info di;		/* discard info */
 	struct list_head list;		/* command list */
-	struct completion wait;		/* compleation */
+	struct completion wait;		/* completion */
 	struct block_device *bdev;	/* bdev */
 	unsigned short ref;		/* reference count */
 	unsigned char state;		/* state */
@@ -1427,7 +1427,7 @@ enum {
 
 enum {
 	MEMORY_MODE_NORMAL,	/* memory mode for normal devices */
-	MEMORY_MODE_LOW,	/* memory mode for low memry devices */
+	MEMORY_MODE_LOW,	/* memory mode for low memory devices */
 };
 
 enum errors_option {
@@ -1491,7 +1491,7 @@ enum compress_flag {
 #define COMPRESS_DATA_RESERVED_SIZE		4
 struct compress_data {
 	__le32 clen;			/* compressed data size */
-	__le32 chksum;			/* compressed data chksum */
+	__le32 chksum;			/* compressed data checksum */
 	__le32 reserved[COMPRESS_DATA_RESERVED_SIZE];	/* reserved */
 	u8 cdata[];			/* compressed data */
 };

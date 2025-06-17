@@ -2569,7 +2569,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 			!test_opt(sbi, MERGE_CHECKPOINT)) {
 		f2fs_stop_ckpt_thread(sbi);
 	} else {
-		/* Flush if the prevous checkpoint, if exists. */
+		/* Flush if the previous checkpoint, if exists. */
 		f2fs_flush_ckpt_thread(sbi);
 
 		err = f2fs_start_ckpt_thread(sbi);
