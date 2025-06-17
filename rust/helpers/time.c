@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/delay.h>
 #include <linux/ktime.h>
 #include <linux/timekeeping.h>
+
+void rust_helper_fsleep(unsigned long usecs)
+{
+	fsleep(usecs);
+}
 
 ktime_t rust_helper_ktime_get_real(void)
 {

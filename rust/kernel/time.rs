@@ -26,6 +26,7 @@
 
 use core::marker::PhantomData;
 
+pub mod delay;
 pub mod hrtimer;
 
 /// The number of nanoseconds per microsecond.
