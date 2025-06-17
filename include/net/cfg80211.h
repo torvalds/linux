@@ -560,7 +560,7 @@ struct ieee80211_sta_s1g_cap {
  * @vht_cap: VHT capabilities in this band
  * @s1g_cap: S1G capabilities in this band
  * @edmg_cap: EDMG capabilities in this band
- * @s1g_cap: S1G capabilities in this band (S1B band only, of course)
+ * @s1g_cap: S1G capabilities in this band (S1G band only, of course)
  * @n_iftype_data: number of iftype data entries
  * @iftype_data: interface type data entries.  Note that the bits in
  *	@types_mask inside this structure cannot overlap (i.e. only
@@ -1653,6 +1653,7 @@ struct sta_txpwr {
  * @he_6ghz_capa: HE 6 GHz Band capabilities of station
  * @eht_capa: EHT capabilities of station
  * @eht_capa_len: the length of the EHT capabilities
+ * @s1g_capa: S1G capabilities of station
  */
 struct link_station_parameters {
 	const u8 *mld_mac;
@@ -1671,6 +1672,7 @@ struct link_station_parameters {
 	const struct ieee80211_he_6ghz_capa *he_6ghz_capa;
 	const struct ieee80211_eht_cap_elem *eht_capa;
 	u8 eht_capa_len;
+	const struct ieee80211_s1g_cap *s1g_capa;
 };
 
 /**
