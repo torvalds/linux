@@ -699,6 +699,21 @@ static bool need_pipedmc_load_mmio(struct intel_display *display, enum pipe pipe
 	return false;
 }
 
+static bool can_enable_pipedmc(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	/*
+	 * On TGL/derivatives pipe DMC state is lost when PG1 is disabled.
+	 * Do not even enable the pipe DMC when that can happen outside
+	 * of driver control (PSR+DC5/6).
+	 */
+	if (DISPLAY_VER(display) == 12 && crtc_state->has_psr)
+		return false;
+
+	return true;
+}
+
 void intel_dmc_enable_pipe(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -708,6 +723,11 @@ void intel_dmc_enable_pipe(const struct intel_crtc_state *crtc_state)
 
 	if (!is_valid_dmc_id(dmc_id) || !has_dmc_id_fw(display, dmc_id))
 		return;
+
+	if (!can_enable_pipedmc(crtc_state)) {
+		intel_dmc_disable_pipe(crtc_state);
+		return;
+	}
 
 	if (need_pipedmc_load_program(display))
 		dmc_load_program(display, dmc_id);
