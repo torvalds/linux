@@ -433,25 +433,22 @@ static void disable_event_handler(struct intel_display *display,
 	intel_de_write(display, htp_reg, 0);
 }
 
-static void disable_all_event_handlers(struct intel_display *display)
+static void disable_all_event_handlers(struct intel_display *display,
+				       enum intel_dmc_id dmc_id)
 {
-	enum intel_dmc_id dmc_id;
+	int handler;
 
 	/* TODO: disable the event handlers on pre-GEN12 platforms as well */
 	if (DISPLAY_VER(display) < 12)
 		return;
 
-	for_each_dmc_id(dmc_id) {
-		int handler;
+	if (!has_dmc_id_fw(display, dmc_id))
+		return;
 
-		if (!has_dmc_id_fw(display, dmc_id))
-			continue;
-
-		for (handler = 0; handler < DMC_EVENT_HANDLER_COUNT_GEN12; handler++)
-			disable_event_handler(display,
-					      DMC_EVT_CTL(display, dmc_id, handler),
-					      DMC_EVT_HTP(display, dmc_id, handler));
-	}
+	for (handler = 0; handler < DMC_EVENT_HANDLER_COUNT_GEN12; handler++)
+		disable_event_handler(display,
+				      DMC_EVT_CTL(display, dmc_id, handler),
+				      DMC_EVT_HTP(display, dmc_id, handler));
 }
 
 static void adlp_pipedmc_clock_gating_wa(struct intel_display *display, bool enable)
@@ -579,6 +576,30 @@ static u32 dmc_mmiodata(struct intel_display *display,
 		return dmc->dmc_info[dmc_id].mmiodata[i];
 }
 
+static void dmc_load_program(struct intel_display *display,
+			     enum intel_dmc_id dmc_id)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+	int i;
+
+	disable_all_event_handlers(display, dmc_id);
+
+	preempt_disable();
+
+	for (i = 0; i < dmc->dmc_info[dmc_id].dmc_fw_size; i++) {
+		intel_de_write_fw(display,
+				  DMC_PROGRAM(dmc->dmc_info[dmc_id].start_mmioaddr, i),
+				  dmc->dmc_info[dmc_id].payload[i]);
+	}
+
+	preempt_enable();
+
+	for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
+		intel_de_write(display, dmc->dmc_info[dmc_id].mmioaddr[i],
+			       dmc_mmiodata(display, dmc, dmc_id, i));
+	}
+}
+
 void intel_dmc_enable_pipe(struct intel_display *display, enum pipe pipe)
 {
 	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(pipe);
@@ -686,37 +707,17 @@ void intel_dmc_start_pkgc_exit_at_start_of_undelayed_vblank(struct intel_display
 void intel_dmc_load_program(struct intel_display *display)
 {
 	struct i915_power_domains *power_domains = &display->power.domains;
-	struct intel_dmc *dmc = display_to_dmc(display);
 	enum intel_dmc_id dmc_id;
-	u32 i;
 
 	if (!intel_dmc_has_payload(display))
 		return;
 
-	pipedmc_clock_gating_wa(display, true);
-
-	disable_all_event_handlers(display);
-
 	assert_display_rpm_held(display);
 
-	preempt_disable();
+	pipedmc_clock_gating_wa(display, true);
 
-	for_each_dmc_id(dmc_id) {
-		for (i = 0; i < dmc->dmc_info[dmc_id].dmc_fw_size; i++) {
-			intel_de_write_fw(display,
-					  DMC_PROGRAM(dmc->dmc_info[dmc_id].start_mmioaddr, i),
-					  dmc->dmc_info[dmc_id].payload[i]);
-		}
-	}
-
-	preempt_enable();
-
-	for_each_dmc_id(dmc_id) {
-		for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
-			intel_de_write(display, dmc->dmc_info[dmc_id].mmioaddr[i],
-				       dmc_mmiodata(display, dmc, dmc_id, i));
-		}
-	}
+	for_each_dmc_id(dmc_id)
+		dmc_load_program(display, dmc_id);
 
 	power_domains->dc_state = 0;
 
@@ -734,11 +735,16 @@ void intel_dmc_load_program(struct intel_display *display)
  */
 void intel_dmc_disable_program(struct intel_display *display)
 {
+	enum intel_dmc_id dmc_id;
+
 	if (!intel_dmc_has_payload(display))
 		return;
 
 	pipedmc_clock_gating_wa(display, true);
-	disable_all_event_handlers(display);
+
+	for_each_dmc_id(dmc_id)
+		disable_all_event_handlers(display, dmc_id);
+
 	pipedmc_clock_gating_wa(display, false);
 }
 
