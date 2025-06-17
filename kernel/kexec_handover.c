@@ -1100,8 +1100,8 @@ static void __init kho_release_scratch(void)
 		ulong pfn;
 
 		for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages)
-			set_pageblock_migratetype(pfn_to_page(pfn),
-						  MIGRATE_CMA);
+			init_pageblock_migratetype(pfn_to_page(pfn),
+						   MIGRATE_CMA, false);
 	}
 }
 
