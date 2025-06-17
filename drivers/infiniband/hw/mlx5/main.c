@@ -4793,7 +4793,8 @@ static struct ib_device *mlx5_ib_add_sub_dev(struct ib_device *parent,
 	    !MLX5_CAP_GEN_2(mparent->mdev, multiplane_qp_ud))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mplane = ib_alloc_device(mlx5_ib_dev, ib_dev);
+	mplane = ib_alloc_device_with_net(mlx5_ib_dev, ib_dev,
+					  mlx5_core_net(mparent->mdev));
 	if (!mplane)
 		return ERR_PTR(-ENOMEM);
 
@@ -4907,7 +4908,8 @@ static int mlx5r_probe(struct auxiliary_device *adev,
 
 	num_ports = max(MLX5_CAP_GEN(mdev, num_ports),
 			MLX5_CAP_GEN(mdev, num_vhca_ports));
-	dev = ib_alloc_device(mlx5_ib_dev, ib_dev);
+	dev = ib_alloc_device_with_net(mlx5_ib_dev, ib_dev,
+				       mlx5_core_net(mdev));
 	if (!dev)
 		return -ENOMEM;
 

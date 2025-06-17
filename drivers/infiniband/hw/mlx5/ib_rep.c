@@ -88,7 +88,8 @@ mlx5_ib_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	else
 		return mlx5_ib_set_vport_rep(lag_master, rep, vport_index);
 
-	ibdev = ib_alloc_device(mlx5_ib_dev, ib_dev);
+	ibdev = ib_alloc_device_with_net(mlx5_ib_dev, ib_dev,
+					 mlx5_core_net(lag_master));
 	if (!ibdev)
 		return -ENOMEM;
 

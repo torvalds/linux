@@ -1349,4 +1349,9 @@ enum {
 };
 
 bool mlx5_wc_support_get(struct mlx5_core_dev *mdev);
+
+static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
+{
+	return devlink_net(priv_to_devlink(dev));
+}
 #endif /* MLX5_DRIVER_H */
