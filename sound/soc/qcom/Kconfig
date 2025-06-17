@@ -186,6 +186,7 @@ config SND_SOC_SM8250
 	tristate "SoC Machine driver for SM8250 boards"
 	depends on QCOM_APR && SOUNDWIRE
 	depends on COMMON_CLK
+	depends on SND_SOC_QCOM_OFFLOAD_UTILS || !SND_SOC_QCOM_OFFLOAD_UTILS
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_QCOM_SDW
