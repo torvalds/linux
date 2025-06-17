@@ -1173,7 +1173,8 @@ void ieee80211_aggr_check(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (!sta ||
-	    (!sta->sta.valid_links && !sta->sta.deflink.ht_cap.ht_supported) ||
+	    (!sta->sta.valid_links && !sta->sta.deflink.ht_cap.ht_supported &&
+	     !sta->sta.deflink.s1g_cap.s1g) ||
 	    !sta->sta.wme || skb_get_queue_mapping(skb) == IEEE80211_AC_VO ||
 	    skb->protocol == sdata->control_port_protocol)
 		return;
