@@ -289,8 +289,6 @@ static int m31eusb2_phy_probe(struct platform_device *pdev)
 				     "failed to get repeater\n");
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	if (!IS_ERR(phy_provider))
-		dev_info(dev, "Registered M31 USB phy\n");
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
