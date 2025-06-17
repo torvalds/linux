@@ -39,6 +39,7 @@
 #include "vsp1_uds.h"
 #include "vsp1_uif.h"
 #include "vsp1_video.h"
+#include "vsp1_vspx.h"
 
 /* -----------------------------------------------------------------------------
  * Interrupt Handling
@@ -491,7 +492,10 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		ret = media_device_register(mdev);
 	} else {
-		ret = vsp1_drm_init(vsp1);
+		if (vsp1->info->version == VI6_IP_VERSION_MODEL_VSPX_GEN4)
+			ret = vsp1_vspx_init(vsp1);
+		else
+			ret = vsp1_drm_init(vsp1);
 	}
 
 done:
@@ -858,6 +862,13 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.uif_count = 2,
 		.wpf_count = 1,
 		.num_bru_inputs = 5,
+	}, {
+		.version = VI6_IP_VERSION_MODEL_VSPX_GEN4,
+		.model = "VSP2-X",
+		.gen = 4,
+		.features = VSP1_HAS_IIF,
+		.rpf_count = 2,
+		.wpf_count = 1,
 	},
 };
 
