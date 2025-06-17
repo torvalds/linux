@@ -115,7 +115,7 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 
 	const struct dispc_features *feat = tidss->feat;
 	u32 max_vps = feat->num_vps;
-	u32 max_planes = feat->num_planes;
+	u32 max_planes = feat->num_vids;
 
 	struct pipe pipes[TIDSS_MAX_PORTS];
 	u32 num_pipes = 0;

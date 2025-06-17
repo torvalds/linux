@@ -165,6 +165,7 @@ struct ivpu_device {
 		int boot;
 		int jsm;
 		int tdr;
+		int inference;
 		int autosuspend;
 		int d0i3_entry_msg;
 		int state_dump_msg;

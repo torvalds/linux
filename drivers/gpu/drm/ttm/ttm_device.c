@@ -36,6 +36,7 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "ttm_module.h"
+#include "ttm_bo_internal.h"
 
 /*
  * ttm_global_mutex - protecting the global state

@@ -103,9 +103,16 @@ const struct dispc_features dispc_k2g_feats = {
 		},
 	},
 
-	.num_planes = 1,
-	.vid_name = { "vid1" },
-	.vid_lite = { false },
+	.num_vids = 1,
+
+	.vid_info = {
+		{
+			.name = "vid1",
+			.is_lite = false,
+			.hw_id = 0,
+		},
+	},
+
 	.vid_order = { 0 },
 };
 
@@ -178,11 +185,22 @@ const struct dispc_features dispc_am65x_feats = {
 		},
 	},
 
-	.num_planes = 2,
+	.num_vids = 2,
 	/* note: vid is plane_id 0 and vidl1 is plane_id 1 */
-	.vid_name = { "vid", "vidl1" },
-	.vid_lite = { false, true, },
-	.vid_order = { 1, 0 },
+	.vid_info = {
+		{
+			.name = "vid",
+			.is_lite = false,
+			.hw_id = 0,
+		},
+		{
+			.name = "vidl1",
+			.is_lite = true,
+			.hw_id = 1,
+		},
+	},
+
+	.vid_order = {1, 0},
 };
 
 static const u16 tidss_j721e_common_regs[DISPC_COMMON_REG_TABLE_LEN] = {
@@ -267,9 +285,32 @@ const struct dispc_features dispc_j721e_feats = {
 			.gamma_type = TIDSS_GAMMA_10BIT,
 		},
 	},
-	.num_planes = 4,
-	.vid_name = { "vid1", "vidl1", "vid2", "vidl2" },
-	.vid_lite = { 0, 1, 0, 1, },
+
+	.num_vids = 4,
+
+	.vid_info = {
+		{
+			.name = "vid1",
+			.is_lite = false,
+			.hw_id = 0,
+		},
+		{
+			.name = "vidl1",
+			.is_lite = true,
+			.hw_id = 1,
+		},
+		{
+			.name = "vid2",
+			.is_lite = false,
+			.hw_id = 2,
+		},
+		{
+			.name = "vidl2",
+			.is_lite = true,
+			.hw_id = 3,
+		},
+	},
+
 	.vid_order = { 1, 3, 0, 2 },
 };
 
@@ -315,11 +356,23 @@ const struct dispc_features dispc_am625_feats = {
 		},
 	},
 
-	.num_planes = 2,
+	.num_vids = 2,
+
 	/* note: vid is plane_id 0 and vidl1 is plane_id 1 */
-	.vid_name = { "vid", "vidl1" },
-	.vid_lite = { false, true, },
-	.vid_order = { 1, 0 },
+	.vid_info = {
+		{
+			.name = "vid",
+			.is_lite = false,
+			.hw_id = 0,
+		},
+		{
+			.name = "vidl1",
+			.is_lite = true,
+			.hw_id = 1,
+		}
+	},
+
+	.vid_order = {1, 0},
 };
 
 const struct dispc_features dispc_am62a7_feats = {
@@ -369,11 +422,58 @@ const struct dispc_features dispc_am62a7_feats = {
 		},
 	},
 
-	.num_planes = 2,
-	/* note: vid is plane_id 0 and vidl1 is plane_id 1 */
-	.vid_name = { "vid", "vidl1" },
-	.vid_lite = { false, true, },
-	.vid_order = { 1, 0 },
+	.num_vids = 2,
+
+	.vid_info = {
+		{
+			.name = "vid",
+			.is_lite = false,
+			.hw_id = 0,
+		},
+		{
+			.name = "vidl1",
+			.is_lite = true,
+			.hw_id = 1,
+		}
+	},
+
+	.vid_order = {1, 0},
+};
+
+const struct dispc_features dispc_am62l_feats = {
+	.max_pclk_khz = {
+		[DISPC_VP_DPI] = 165000,
+	},
+
+	.subrev = DISPC_AM62L,
+
+	.common = "common",
+	.common_regs = tidss_am65x_common_regs,
+
+	.num_vps = 1,
+	.vp_name = { "vp1" },
+	.ovr_name = { "ovr1" },
+	.vpclk_name =  { "vp1" },
+	.vp_bus_type = { DISPC_VP_DPI },
+
+	.vp_feat = { .color = {
+			.has_ctm = true,
+			.gamma_size = 256,
+			.gamma_type = TIDSS_GAMMA_8BIT,
+		},
+	},
+
+	.num_vids = 1,
+
+	.vid_info = {
+		{
+			.name = "vidl1",
+			.is_lite = true,
+			.hw_id = 1,
+		}
+	},
+
+	.vid_order = {0},
 };
 
 static const u16 *dispc_common_regmap;
@@ -734,7 +834,8 @@ static void dispc_k3_vp_write_irqstatus(struct dispc_device *dispc,
 static dispc_irq_t dispc_k3_vid_read_irqstatus(struct dispc_device *dispc,
 					       u32 hw_plane)
 {
-	u32 stat = dispc_read(dispc, DISPC_VID_IRQSTATUS(hw_plane));
+	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
+	u32 stat = dispc_read(dispc, DISPC_VID_IRQSTATUS(hw_id));
 
 	return dispc_vid_irq_from_raw(stat, hw_plane);
 }
@@ -742,9 +843,10 @@ static dispc_irq_t dispc_k3_vid_read_irqstatus(struct dispc_device *dispc,
 static void dispc_k3_vid_write_irqstatus(struct dispc_device *dispc,
 					 u32 hw_plane, dispc_irq_t vidstat)
 {
+	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
 	u32 stat = dispc_vid_irq_to_raw(vidstat, hw_plane);
 
-	dispc_write(dispc, DISPC_VID_IRQSTATUS(hw_plane), stat);
+	dispc_write(dispc, DISPC_VID_IRQSTATUS(hw_id), stat);
 }
 
 static dispc_irq_t dispc_k3_vp_read_irqenable(struct dispc_device *dispc,
@@ -766,7 +868,8 @@ static void dispc_k3_vp_set_irqenable(struct dispc_device *dispc,
 static dispc_irq_t dispc_k3_vid_read_irqenable(struct dispc_device *dispc,
 					       u32 hw_plane)
 {
-	u32 stat = dispc_read(dispc, DISPC_VID_IRQENABLE(hw_plane));
+	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
+	u32 stat = dispc_read(dispc, DISPC_VID_IRQENABLE(hw_id));
 
 	return dispc_vid_irq_from_raw(stat, hw_plane);
 }
@@ -774,9 +877,10 @@ static dispc_irq_t dispc_k3_vid_read_irqenable(struct dispc_device *dispc,
 static void dispc_k3_vid_set_irqenable(struct dispc_device *dispc,
 				       u32 hw_plane, dispc_irq_t vidstat)
 {
+	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
 	u32 stat = dispc_vid_irq_to_raw(vidstat, hw_plane);
 
-	dispc_write(dispc, DISPC_VID_IRQENABLE(hw_plane), stat);
+	dispc_write(dispc, DISPC_VID_IRQENABLE(hw_id), stat);
 }
 
 static
@@ -788,7 +892,8 @@ void dispc_k3_clear_irqstatus(struct dispc_device *dispc, dispc_irq_t clearmask)
 		if (clearmask & DSS_IRQ_VP_MASK(i))
 			dispc_k3_vp_write_irqstatus(dispc, i, clearmask);
 	}
-	for (i = 0; i < dispc->feat->num_planes; ++i) {
+
+	for (i = 0; i < dispc->feat->num_vids; ++i) {
 		if (clearmask & DSS_IRQ_PLANE_MASK(i))
 			dispc_k3_vid_write_irqstatus(dispc, i, clearmask);
 	}
@@ -809,7 +914,7 @@ dispc_irq_t dispc_k3_read_and_clear_irqstatus(struct dispc_device *dispc)
 	for (i = 0; i < dispc->feat->num_vps; ++i)
 		status |= dispc_k3_vp_read_irqstatus(dispc, i);
 
-	for (i = 0; i < dispc->feat->num_planes; ++i)
+	for (i = 0; i < dispc->feat->num_vids; ++i)
 		status |= dispc_k3_vid_read_irqstatus(dispc, i);
 
 	dispc_k3_clear_irqstatus(dispc, status);
@@ -825,7 +930,7 @@ static dispc_irq_t dispc_k3_read_irqenable(struct dispc_device *dispc)
 	for (i = 0; i < dispc->feat->num_vps; ++i)
 		enable |= dispc_k3_vp_read_irqenable(dispc, i);
 
-	for (i = 0; i < dispc->feat->num_planes; ++i)
+	for (i = 0; i < dispc->feat->num_vids; ++i)
 		enable |= dispc_k3_vid_read_irqenable(dispc, i);
 
 	return enable;
@@ -851,12 +956,15 @@ static void dispc_k3_set_irqenable(struct dispc_device *dispc,
 			main_disable |= BIT(i);		/* VP IRQ */
 	}
 
-	for (i = 0; i < dispc->feat->num_planes; ++i) {
+	for (i = 0; i < dispc->feat->num_vids; ++i) {
+		u32 hw_id = dispc->feat->vid_info[i].hw_id;
+
 		dispc_k3_vid_set_irqenable(dispc, i, mask);
+
 		if (mask & DSS_IRQ_PLANE_MASK(i))
-			main_enable |= BIT(i + 4);	/* VID IRQ */
+			main_enable |= BIT(hw_id + 4);	/* VID IRQ */
 		else
-			main_disable |= BIT(i + 4);	/* VID IRQ */
+			main_disable |= BIT(hw_id + 4);	/* VID IRQ */
 	}
 
 	if (main_enable)
@@ -879,6 +987,7 @@ dispc_irq_t dispc_read_and_clear_irqstatus(struct dispc_device *dispc)
 		return dispc_k2g_read_and_clear_irqstatus(dispc);
 	case DISPC_AM625:
 	case DISPC_AM62A7:
+	case DISPC_AM62L:
 	case DISPC_AM65X:
 	case DISPC_J721E:
 		return dispc_k3_read_and_clear_irqstatus(dispc);
@@ -896,6 +1005,7 @@ void dispc_set_irqenable(struct dispc_device *dispc, dispc_irq_t mask)
 		break;
 	case DISPC_AM625:
 	case DISPC_AM62A7:
+	case DISPC_AM62L:
 	case DISPC_AM65X:
 	case DISPC_J721E:
 		dispc_k3_set_irqenable(dispc, mask);
@@ -1358,8 +1468,10 @@ static void dispc_am65x_ovr_set_plane(struct dispc_device *dispc,
 				      u32 hw_plane, u32 hw_videoport,
 				      u32 x, u32 y, u32 layer)
 {
+	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
+
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer),
-			hw_plane, 4, 1);
+			hw_id, 4, 1);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer),
 			x, 17, 6);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer),
@@ -1370,8 +1482,10 @@ static void dispc_j721e_ovr_set_plane(struct dispc_device *dispc,
 				      u32 hw_plane, u32 hw_videoport,
 				      u32 x, u32 y, u32 layer)
 {
+	u32 hw_id = dispc->feat->vid_info[hw_plane].hw_id;
+
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES(layer),
-			hw_plane, 4, 1);
+			hw_id, 4, 1);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES2(layer),
 			x, 13, 0);
 	OVR_REG_FLD_MOD(dispc, hw_videoport, DISPC_OVR_ATTRIBUTES2(layer),
@@ -1388,6 +1502,7 @@ void dispc_ovr_set_plane(struct dispc_device *dispc, u32 hw_plane,
 		break;
 	case DISPC_AM625:
 	case DISPC_AM62A7:
+	case DISPC_AM62L:
 	case DISPC_AM65X:
 		dispc_am65x_ovr_set_plane(dispc, hw_plane, hw_videoport,
 					  x, y, layer);
@@ -2025,7 +2140,7 @@ int dispc_plane_check(struct dispc_device *dispc, u32 hw_plane,
 		      const struct drm_plane_state *state,
 		      u32 hw_videoport)
 {
-	bool lite = dispc->feat->vid_lite[hw_plane];
+	bool lite = dispc->feat->vid_info[hw_plane].is_lite;
 	u32 fourcc = state->fb->format->format;
 	bool need_scaling = state->src_w >> 16 != state->crtc_w ||
 		state->src_h >> 16 != state->crtc_h;
@@ -2096,7 +2211,7 @@ void dispc_plane_setup(struct dispc_device *dispc, u32 hw_plane,
 		       const struct drm_plane_state *state,
 		       u32 hw_videoport)
 {
-	bool lite = dispc->feat->vid_lite[hw_plane];
+	bool lite = dispc->feat->vid_info[hw_plane].is_lite;
 	u32 fourcc = state->fb->format->format;
 	u16 cpp = state->fb->format->cpp[0];
 	u32 fb_width = state->fb->pitches[0] / cpp;
@@ -2210,7 +2325,7 @@ static void dispc_k2g_plane_init(struct dispc_device *dispc)
 	/* MFLAG_START = MFLAGNORMALSTARTMODE */
 	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0, 6, 6);
 
-	for (hw_plane = 0; hw_plane < dispc->feat->num_planes; hw_plane++) {
+	for (hw_plane = 0; hw_plane < dispc->feat->num_vids; hw_plane++) {
 		u32 size = dispc_vid_get_fifo_size(dispc, hw_plane);
 		u32 thr_low, thr_high;
 		u32 mflag_low, mflag_high;
@@ -2226,7 +2341,7 @@ static void dispc_k2g_plane_init(struct dispc_device *dispc)
 
 		dev_dbg(dispc->dev,
 			"%s: bufsize %u, buf_threshold %u/%u, mflag threshold %u/%u preload %u\n",
-			dispc->feat->vid_name[hw_plane],
+			dispc->feat->vid_info[hw_plane].name,
 			size,
 			thr_high, thr_low,
 			mflag_high, mflag_low,
@@ -2265,7 +2380,7 @@ static void dispc_k3_plane_init(struct dispc_device *dispc)
 	/* MFLAG_START = MFLAGNORMALSTARTMODE */
 	REG_FLD_MOD(dispc, DISPC_GLOBAL_MFLAG_ATTRIBUTE, 0, 6, 6);
 
-	for (hw_plane = 0; hw_plane < dispc->feat->num_planes; hw_plane++) {
+	for (hw_plane = 0; hw_plane < dispc->feat->num_vids; hw_plane++) {
 		u32 size = dispc_vid_get_fifo_size(dispc, hw_plane);
 		u32 thr_low, thr_high;
 		u32 mflag_low, mflag_high;
@@ -2281,7 +2396,7 @@ static void dispc_k3_plane_init(struct dispc_device *dispc)
 
 		dev_dbg(dispc->dev,
 			"%s: bufsize %u, buf_threshold %u/%u, mflag threshold %u/%u preload %u\n",
-			dispc->feat->vid_name[hw_plane],
+			dispc->feat->vid_info[hw_plane].name,
 			size,
 			thr_high, thr_low,
 			mflag_high, mflag_low,
@@ -2308,6 +2423,7 @@ static void dispc_plane_init(struct dispc_device *dispc)
 		break;
 	case DISPC_AM625:
 	case DISPC_AM62A7:
+	case DISPC_AM62L:
 	case DISPC_AM65X:
 	case DISPC_J721E:
 		dispc_k3_plane_init(dispc);
@@ -2416,6 +2532,7 @@ static void dispc_vp_write_gamma_table(struct dispc_device *dispc,
 		break;
 	case DISPC_AM625:
 	case DISPC_AM62A7:
+	case DISPC_AM62L:
 	case DISPC_AM65X:
 		dispc_am65x_vp_write_gamma_table(dispc, hw_videoport);
 		break;
@@ -2898,8 +3015,8 @@ int dispc_init(struct tidss_device *tidss)
 	if (r)
 		return r;
 
-	for (i = 0; i < dispc->feat->num_planes; i++) {
-		r = dispc_iomap_resource(pdev, dispc->feat->vid_name[i],
+	for (i = 0; i < dispc->feat->num_vids; i++) {
+		r = dispc_iomap_resource(pdev, dispc->feat->vid_info[i].name,
 					 &dispc->base_vid[i]);
 		if (r)
 			return r;

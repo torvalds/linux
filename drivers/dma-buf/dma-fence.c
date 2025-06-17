@@ -538,8 +538,8 @@ void dma_fence_release(struct kref *kref)
 	if (WARN(!list_empty(&fence->cb_list) &&
 		 !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags),
 		 "Fence %s:%s:%llx:%llx released with pending signals!\n",
-		 fence->ops->get_driver_name(fence),
-		 fence->ops->get_timeline_name(fence),
+		 dma_fence_driver_name(fence),
+		 dma_fence_timeline_name(fence),
 		 fence->context, fence->seqno)) {
 		unsigned long flags;
 
@@ -983,11 +983,31 @@ EXPORT_SYMBOL(dma_fence_set_deadline);
 void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq)
 {
 	seq_printf(seq, "%s %s seq %llu %ssignalled\n",
-		   fence->ops->get_driver_name(fence),
-		   fence->ops->get_timeline_name(fence), fence->seqno,
+		   dma_fence_driver_name(fence),
+		   dma_fence_timeline_name(fence),
+		   fence->seqno,
 		   dma_fence_is_signaled(fence) ? "" : "un");
 }
 EXPORT_SYMBOL(dma_fence_describe);
+
+static void
+__dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
+	         spinlock_t *lock, u64 context, u64 seqno, unsigned long flags)
+{
+	BUG_ON(!lock);
+	BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
+
+	kref_init(&fence->refcount);
+	fence->ops = ops;
+	INIT_LIST_HEAD(&fence->cb_list);
+	fence->lock = lock;
+	fence->context = context;
+	fence->seqno = seqno;
+	fence->flags = flags;
+	fence->error = 0;
+
+	trace_dma_fence_init(fence);
+}
 
 /**
  * dma_fence_init - Initialize a custom fence.
@@ -1008,18 +1028,30 @@ void
 dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	       spinlock_t *lock, u64 context, u64 seqno)
 {
-	BUG_ON(!lock);
-	BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
-
-	kref_init(&fence->refcount);
-	fence->ops = ops;
-	INIT_LIST_HEAD(&fence->cb_list);
-	fence->lock = lock;
-	fence->context = context;
-	fence->seqno = seqno;
-	fence->flags = 0UL;
-	fence->error = 0;
-
-	trace_dma_fence_init(fence);
+	__dma_fence_init(fence, ops, lock, context, seqno, 0UL);
 }
 EXPORT_SYMBOL(dma_fence_init);
+
+/**
+ * dma_fence_init64 - Initialize a custom fence with 64-bit seqno support.
+ * @fence: the fence to initialize
+ * @ops: the dma_fence_ops for operations on this fence
+ * @lock: the irqsafe spinlock to use for locking this fence
+ * @context: the execution context this fence is run on
+ * @seqno: a linear increasing sequence number for this context
+ *
+ * Initializes an allocated fence, the caller doesn't have to keep its
+ * refcount after committing with this fence, but it will need to hold a
+ * refcount again if &dma_fence_ops.enable_signaling gets called.
+ *
+ * Context and seqno are used for easy comparison between fences, allowing
+ * to check which fence is later by simply using dma_fence_later().
+ */
+void
+dma_fence_init64(struct dma_fence *fence, const struct dma_fence_ops *ops,
+		 spinlock_t *lock, u64 context, u64 seqno)
+{
+	__dma_fence_init(fence, ops, lock, context, seqno,
+			 BIT(DMA_FENCE_FLAG_SEQNO64_BIT));
+}
+EXPORT_SYMBOL(dma_fence_init64);

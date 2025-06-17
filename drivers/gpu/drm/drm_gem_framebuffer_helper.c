@@ -607,8 +607,11 @@ int drm_gem_fb_afbc_init(struct drm_device *dev,
 	if (ret < 0)
 		return ret;
 
-	if (objs[0]->size < afbc_fb->afbc_size)
+	if (objs[0]->size < afbc_fb->afbc_size) {
+		drm_dbg_kms(dev, "GEM object size (%zu) smaller than minimum afbc size (%u)\n",
+			    objs[0]->size, afbc_fb->afbc_size);
 		return -EINVAL;
+	}
 
 	return 0;
 }

@@ -26,6 +26,7 @@
 struct dma_fence;
 struct dma_fence_ops;
 struct dma_fence_cb;
+struct seq_file;
 
 /**
  * struct dma_fence - software synchronization primitive
@@ -97,6 +98,7 @@ struct dma_fence {
 };
 
 enum dma_fence_flag_bits {
+	DMA_FENCE_FLAG_SEQNO64_BIT,
 	DMA_FENCE_FLAG_SIGNALED_BIT,
 	DMA_FENCE_FLAG_TIMESTAMP_BIT,
 	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
@@ -124,14 +126,6 @@ struct dma_fence_cb {
  *
  */
 struct dma_fence_ops {
-	/**
-	 * @use_64bit_seqno:
-	 *
-	 * True if this dma_fence implementation uses 64bit seqno, false
-	 * otherwise.
-	 */
-	bool use_64bit_seqno;
-
 	/**
 	 * @get_driver_name:
 	 *
@@ -262,6 +256,9 @@ struct dma_fence_ops {
 void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 		    spinlock_t *lock, u64 context, u64 seqno);
 
+void dma_fence_init64(struct dma_fence *fence, const struct dma_fence_ops *ops,
+		      spinlock_t *lock, u64 context, u64 seqno);
+
 void dma_fence_release(struct kref *kref);
 void dma_fence_free(struct dma_fence *fence);
 void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq);
@@ -381,6 +378,16 @@ bool dma_fence_remove_callback(struct dma_fence *fence,
 			       struct dma_fence_cb *cb);
 void dma_fence_enable_sw_signaling(struct dma_fence *fence);
 
+static inline const char *dma_fence_driver_name(struct dma_fence *fence)
+{
+	return fence->ops->get_driver_name(fence);
+}
+
+static inline const char *dma_fence_timeline_name(struct dma_fence *fence)
+{
+	return fence->ops->get_timeline_name(fence);
+}
+
 /**
  * dma_fence_is_signaled_locked - Return an indication if the fence
  *                                is signaled yet.
@@ -441,21 +448,20 @@ dma_fence_is_signaled(struct dma_fence *fence)
 
 /**
  * __dma_fence_is_later - return if f1 is chronologically later than f2
+ * @fence: fence in whose context to do the comparison
  * @f1: the first fence's seqno
  * @f2: the second fence's seqno from the same context
- * @ops: dma_fence_ops associated with the seqno
  *
  * Returns true if f1 is chronologically later than f2. Both fences must be
  * from the same context, since a seqno is not common across contexts.
  */
-static inline bool __dma_fence_is_later(u64 f1, u64 f2,
-					const struct dma_fence_ops *ops)
+static inline bool __dma_fence_is_later(struct dma_fence *fence, u64 f1, u64 f2)
 {
 	/* This is for backward compatibility with drivers which can only handle
 	 * 32bit sequence numbers. Use a 64bit compare when the driver says to
 	 * do so.
 	 */
-	if (ops->use_64bit_seqno)
+	if (test_bit(DMA_FENCE_FLAG_SEQNO64_BIT, &fence->flags))
 		return f1 > f2;
 
 	return (int)(lower_32_bits(f1) - lower_32_bits(f2)) > 0;
@@ -475,7 +481,7 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
 	if (WARN_ON(f1->context != f2->context))
 		return false;
 
-	return __dma_fence_is_later(f1->seqno, f2->seqno, f1->ops);
+	return __dma_fence_is_later(f1, f1->seqno, f2->seqno);
 }
 
 /**
