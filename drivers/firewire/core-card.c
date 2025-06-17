@@ -273,10 +273,6 @@ static void allocate_broadcast_channel(struct fw_card *card, int generation)
 			      fw_device_set_broadcast_channel);
 }
 
-static const char gap_count_table[] = {
-	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
-};
-
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 {
 	fw_card_get(card);
@@ -286,6 +282,9 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 
 static void bm_work(struct work_struct *work)
 {
+	static const char gap_count_table[] = {
+		63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
+	};
 	struct fw_card *card = from_work(card, work, bm_work.work);
 	struct fw_device *root_device, *irm_device;
 	struct fw_node *root_node;
