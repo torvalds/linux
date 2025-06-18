@@ -29,6 +29,40 @@ struct ref_tracker_dir_stats {
 	} stacks[];
 };
 
+#ifdef CONFIG_DEBUG_FS
+#include <linux/xarray.h>
+
+/*
+ * ref_tracker_dir_init() is usually called in allocation-safe contexts, but
+ * the same is not true of ref_tracker_dir_exit() which can be called from
+ * anywhere an object is freed. Removing debugfs dentries is a blocking
+ * operation, so we defer that work to the debugfs_reap_worker.
+ *
+ * Each dentry is tracked in the appropriate xarray.  When
+ * ref_tracker_dir_exit() is called, its entries in the xarrays are marked and
+ * the workqueue job is scheduled. The worker then runs and deletes any marked
+ * dentries asynchronously.
+ */
+static struct xarray		debugfs_dentries;
+static struct work_struct	debugfs_reap_worker;
+
+#define REF_TRACKER_DIR_DEAD	XA_MARK_0
+static inline void ref_tracker_debugfs_mark(struct ref_tracker_dir *dir)
+{
+	unsigned long flags;
+
+	xa_lock_irqsave(&debugfs_dentries, flags);
+	__xa_set_mark(&debugfs_dentries, (unsigned long)dir, REF_TRACKER_DIR_DEAD);
+	xa_unlock_irqrestore(&debugfs_dentries, flags);
+
+	schedule_work(&debugfs_reap_worker);
+}
+#else
+static inline void ref_tracker_debugfs_mark(struct ref_tracker_dir *dir)
+{
+}
+#endif
+
 static struct ref_tracker_dir_stats *
 ref_tracker_get_stats(struct ref_tracker_dir *dir, unsigned int limit)
 {
@@ -185,6 +219,11 @@ void ref_tracker_dir_exit(struct ref_tracker_dir *dir)
 	bool leak = false;
 
 	dir->dead = true;
+	/*
+	 * The xarray entries must be marked before the dir->lock is taken to
+	 * protect simultaneous debugfs readers.
+	 */
+	ref_tracker_debugfs_mark(dir);
 	spin_lock_irqsave(&dir->lock, flags);
 	list_for_each_entry_safe(tracker, n, &dir->quarantine, head) {
 		list_del(&tracker->head);
@@ -312,23 +351,126 @@ static void __ostream_printf pr_ostream_seq(struct ostream *stream, char *fmt, .
 	va_end(args);
 }
 
-static __maybe_unused int
-ref_tracker_dir_seq_print(struct ref_tracker_dir *dir, struct seq_file *seq)
+static int ref_tracker_dir_seq_print(struct ref_tracker_dir *dir, struct seq_file *seq)
 {
 	struct ostream os = { .func = pr_ostream_seq,
 			      .prefix = "",
 			      .seq = seq };
-	unsigned long flags;
 
-	spin_lock_irqsave(&dir->lock, flags);
 	__ref_tracker_dir_pr_ostream(dir, 16, &os);
-	spin_unlock_irqrestore(&dir->lock, flags);
 
 	return os.used;
 }
 
+static int ref_tracker_debugfs_show(struct seq_file *f, void *v)
+{
+	struct ref_tracker_dir *dir = f->private;
+	unsigned long index = (unsigned long)dir;
+	unsigned long flags;
+	int ret;
+
+	/*
+	 * "dir" may not exist at this point if ref_tracker_dir_exit() has
+	 * already been called. Take care not to dereference it until its
+	 * legitimacy is established.
+	 *
+	 * The xa_lock is necessary to ensure that "dir" doesn't disappear
+	 * before its lock can be taken. If it's in the hash and not marked
+	 * dead, then it's safe to take dir->lock which prevents
+	 * ref_tracker_dir_exit() from completing. Once the dir->lock is
+	 * acquired, the xa_lock can be released. All of this must be IRQ-safe.
+	 */
+	xa_lock_irqsave(&debugfs_dentries, flags);
+	if (!xa_load(&debugfs_dentries, index) ||
+	    xa_get_mark(&debugfs_dentries, index, REF_TRACKER_DIR_DEAD)) {
+		xa_unlock_irqrestore(&debugfs_dentries, flags);
+		return -ENODATA;
+	}
+
+	spin_lock(&dir->lock);
+	xa_unlock(&debugfs_dentries);
+	ret = ref_tracker_dir_seq_print(dir, f);
+	spin_unlock_irqrestore(&dir->lock, flags);
+	return ret;
+}
+
+static int ref_tracker_debugfs_open(struct inode *inode, struct file *filp)
+{
+	struct ref_tracker_dir *dir = inode->i_private;
+
+	return single_open(filp, ref_tracker_debugfs_show, dir);
+}
+
+static const struct file_operations ref_tracker_debugfs_fops = {
+	.owner		= THIS_MODULE,
+	.open		= ref_tracker_debugfs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/**
+ * ref_tracker_dir_debugfs - create debugfs file for ref_tracker_dir
+ * @dir: ref_tracker_dir to be associated with debugfs file
+ *
+ * In most cases, a debugfs file will be created automatically for every
+ * ref_tracker_dir. If the object was created before debugfs is brought up
+ * then that may fail. In those cases, it is safe to call this at a later
+ * time to create the file.
+ */
+void ref_tracker_dir_debugfs(struct ref_tracker_dir *dir)
+{
+	char name[NAME_MAX + 1];
+	struct dentry *dentry;
+	int ret;
+
+	/* No-op if already created */
+	dentry = xa_load(&debugfs_dentries, (unsigned long)dir);
+	if (dentry && !xa_is_err(dentry))
+		return;
+
+	ret = snprintf(name, sizeof(name), "%s@%px", dir->class, dir);
+	name[sizeof(name) - 1] = '\0';
+
+	if (ret < sizeof(name)) {
+		dentry = debugfs_create_file(name, S_IFREG | 0400,
+					     ref_tracker_debug_dir, dir,
+					     &ref_tracker_debugfs_fops);
+		if (!IS_ERR(dentry)) {
+			void *old;
+
+			old = xa_store_irq(&debugfs_dentries, (unsigned long)dir,
+					   dentry, GFP_KERNEL);
+
+			if (xa_is_err(old))
+				debugfs_remove(dentry);
+			else
+				WARN_ON_ONCE(old);
+		}
+	}
+}
+EXPORT_SYMBOL(ref_tracker_dir_debugfs);
+
+static void debugfs_reap_work(struct work_struct *work)
+{
+	struct dentry *dentry;
+	unsigned long index;
+	bool reaped;
+
+	do {
+		reaped = false;
+		xa_for_each_marked(&debugfs_dentries, index, dentry, REF_TRACKER_DIR_DEAD) {
+			xa_erase_irq(&debugfs_dentries, index);
+			debugfs_remove(dentry);
+			reaped = true;
+		}
+	} while (reaped);
+}
+
 static int __init ref_tracker_debugfs_init(void)
 {
+	INIT_WORK(&debugfs_reap_worker, debugfs_reap_work);
+	xa_init_flags(&debugfs_dentries, XA_FLAGS_LOCK_IRQ);
 	ref_tracker_debug_dir = debugfs_create_dir("ref_tracker", NULL);
 	return 0;
 }
