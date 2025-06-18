@@ -72,11 +72,6 @@
 static void __iomem *sysctl_membase[3], *status_membase;
 void __iomem *ltq_sys1_membase, *ltq_ebu_membase;
 
-void falcon_trigger_hrst(int level)
-{
-	sysctl_w32(SYSCTL_SYS1, level & 1, SYS1_HRSTOUTC);
-}
-
 static inline void sysctl_wait(struct clk *clk,
 		unsigned int test, unsigned int reg)
 {
