@@ -1,6 +1,6 @@
 [
     {
         "ArchStdEvent": "L1I_CACHE_PRF",
-        "BriefDescription": "This event counts fetch counted by either Level 1 instruction hardware prefetch or Level 1 instruction software prefetch."
+        "BriefDescription": "This event counts L1I_CACHE caused by hardware prefetch or software prefetch."
     }
 ]
