@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0-only
 
-=====================================================================
-Audio drivers for Cirrus Logic CS35L54/56/57 Boosted Smart Amplifiers
-=====================================================================
+========================================================================
+Audio drivers for Cirrus Logic CS35L54/56/57/63 Boosted Smart Amplifiers
+========================================================================
 :Copyright: 2025 Cirrus Logic, Inc. and
                  Cirrus Logic International Semiconductor Ltd.
 
@@ -13,11 +13,11 @@ Summary
 
 The high-level summary of this document is:
 
-**If you have a laptop that uses CS35L54/56/57 amplifiers but audio is not
+**If you have a laptop that uses CS35L54/56/57/63 amplifiers but audio is not
 working, DO NOT ATTEMPT TO USE FIRMWARE AND SETTINGS FROM ANOTHER LAPTOP,
 EVEN IF THAT LAPTOP SEEMS SIMILAR.**
 
-The CS35L54/56/57 amplifiers must be correctly configured for the power
+The CS35L54/56/57/63 amplifiers must be correctly configured for the power
 supply voltage, speaker impedance, maximum speaker voltage/current, and
 other external hardware connections.
 
@@ -34,6 +34,7 @@ The cs35l56 drivers support:
 * CS35L54
 * CS35L56
 * CS35L57
+* CS35L63
 
 There are two drivers in the kernel
 
