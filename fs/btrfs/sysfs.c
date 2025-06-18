@@ -2290,15 +2290,15 @@ static struct kset *btrfs_kset;
  */
 int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs)
 {
-	int error;
+	int ret;
 
 	init_completion(&fs_devs->kobj_unregister);
 	fs_devs->fsid_kobj.kset = btrfs_kset;
-	error = kobject_init_and_add(&fs_devs->fsid_kobj, &btrfs_ktype, NULL,
-				     "%pU", fs_devs->fsid);
-	if (error) {
+	ret = kobject_init_and_add(&fs_devs->fsid_kobj, &btrfs_ktype, NULL,
+				   "%pU", fs_devs->fsid);
+	if (ret) {
 		kobject_put(&fs_devs->fsid_kobj);
-		return error;
+		return ret;
 	}
 
 	fs_devs->devices_kobj = kobject_create_and_add("devices",
