@@ -331,16 +331,24 @@ static int nsim_get_iflink(const struct net_device *dev)
 
 static int nsim_rcv(struct nsim_rq *rq, int budget)
 {
+	struct net_device *dev = rq->napi.dev;
 	struct sk_buff *skb;
-	int i;
+	unsigned int skblen;
+	int i, ret;
 
 	for (i = 0; i < budget; i++) {
 		if (skb_queue_empty(&rq->skb_queue))
 			break;
 
 		skb = skb_dequeue(&rq->skb_queue);
+		/* skb might be discard at netif_receive_skb, save the len */
+		skblen = skb->len;
 		skb_mark_napi_id(skb, &rq->napi);
-		netif_receive_skb(skb);
+		ret = netif_receive_skb(skb);
+		if (ret == NET_RX_SUCCESS)
+			dev_dstats_rx_add(dev, skblen);
+		else
+			dev_dstats_rx_dropped(dev);
 	}
 
 	return i;
