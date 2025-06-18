@@ -46,8 +46,6 @@ struct pidfs_attr {
 };
 
 struct pidfs_inode {
-	struct pidfs_exit_info __pei;
-	struct pidfs_exit_info *exit_info;
 	struct inode vfs_inode;
 };
 
@@ -695,9 +693,6 @@ static struct inode *pidfs_alloc_inode(struct super_block *sb)
 	pi = alloc_inode_sb(sb, pidfs_cachep, GFP_KERNEL);
 	if (!pi)
 		return NULL;
-
-	memset(&pi->__pei, 0, sizeof(pi->__pei));
-	pi->exit_info = NULL;
 
 	return &pi->vfs_inode;
 }
