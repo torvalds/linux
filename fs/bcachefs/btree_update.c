@@ -546,7 +546,7 @@ int bch2_btree_insert_clone_trans(struct btree_trans *trans,
 
 void *__bch2_trans_subbuf_alloc(struct btree_trans *trans,
 				struct btree_trans_subbuf *buf,
-				unsigned u64s)
+				unsigned u64s, ulong ip)
 {
 	unsigned new_top = buf->u64s + u64s;
 	unsigned new_size = buf->size;
@@ -556,7 +556,7 @@ void *__bch2_trans_subbuf_alloc(struct btree_trans *trans,
 	if (new_top > new_size)
 		new_size = roundup_pow_of_two(new_top);
 
-	void *n = bch2_trans_kmalloc_nomemzero(trans, new_size * sizeof(u64));
+	void *n = bch2_trans_kmalloc_nomemzero_ip(trans, new_size * sizeof(u64), ip);
 	if (IS_ERR(n))
 		return n;
 
@@ -813,11 +813,11 @@ int bch2_btree_bit_mod_buffered(struct btree_trans *trans, enum btree_id btree,
 	return bch2_trans_update_buffered(trans, btree, &k);
 }
 
-static int __bch2_trans_log_str(struct btree_trans *trans, const char *str, unsigned len)
+static int __bch2_trans_log_str(struct btree_trans *trans, const char *str, unsigned len, ulong ip)
 {
 	unsigned u64s = DIV_ROUND_UP(len, sizeof(u64));
 
-	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(u64s));
+	struct jset_entry *e = bch2_trans_jset_entry_alloc_ip(trans, jset_u64s(u64s), ip);
 	int ret = PTR_ERR_OR_ZERO(e);
 	if (ret)
 		return ret;
@@ -830,7 +830,7 @@ static int __bch2_trans_log_str(struct btree_trans *trans, const char *str, unsi
 
 int bch2_trans_log_str(struct btree_trans *trans, const char *str)
 {
-	return __bch2_trans_log_str(trans, str, strlen(str));
+	return __bch2_trans_log_str(trans, str, strlen(str), _RET_IP_);
 }
 
 int bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf)
@@ -839,13 +839,14 @@ int bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf)
 	if (ret)
 		return ret;
 
-	return __bch2_trans_log_str(trans, buf->buf, buf->pos);
+	return __bch2_trans_log_str(trans, buf->buf, buf->pos, _RET_IP_);
 }
 
 int bch2_trans_log_bkey(struct btree_trans *trans, enum btree_id btree,
 			unsigned level, struct bkey_i *k)
 {
-	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(k->k.u64s));
+	struct jset_entry *e = bch2_trans_jset_entry_alloc_ip(trans,
+						jset_u64s(k->k.u64s), _RET_IP_);
 	int ret = PTR_ERR_OR_ZERO(e);
 	if (ret)
 		return ret;

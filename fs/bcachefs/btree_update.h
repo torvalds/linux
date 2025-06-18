@@ -137,19 +137,27 @@ static inline void *btree_trans_subbuf_top(struct btree_trans *trans,
 
 void *__bch2_trans_subbuf_alloc(struct btree_trans *,
 				struct btree_trans_subbuf *,
-				unsigned);
+				unsigned, ulong);
+
+static inline void *
+bch2_trans_subbuf_alloc_ip(struct btree_trans *trans,
+			   struct btree_trans_subbuf *buf,
+			   unsigned u64s, ulong ip)
+{
+	if (buf->u64s + u64s > buf->size)
+		return __bch2_trans_subbuf_alloc(trans, buf, u64s, ip);
+
+	void *p = btree_trans_subbuf_top(trans, buf);
+	buf->u64s += u64s;
+	return p;
+}
 
 static inline void *
 bch2_trans_subbuf_alloc(struct btree_trans *trans,
 			struct btree_trans_subbuf *buf,
 			unsigned u64s)
 {
-	if (buf->u64s + u64s > buf->size)
-		return __bch2_trans_subbuf_alloc(trans, buf, u64s);
-
-	void *p = btree_trans_subbuf_top(trans, buf);
-	buf->u64s += u64s;
-	return p;
+	return bch2_trans_subbuf_alloc_ip(trans, buf, u64s, _THIS_IP_);
 }
 
 static inline struct jset_entry *btree_trans_journal_entries_start(struct btree_trans *trans)
@@ -163,9 +171,15 @@ static inline struct jset_entry *btree_trans_journal_entries_top(struct btree_tr
 }
 
 static inline struct jset_entry *
+bch2_trans_jset_entry_alloc_ip(struct btree_trans *trans, unsigned u64s, ulong ip)
+{
+	return bch2_trans_subbuf_alloc_ip(trans, &trans->journal_entries, u64s, ip);
+}
+
+static inline struct jset_entry *
 bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsigned u64s)
 {
-	return bch2_trans_subbuf_alloc(trans, &trans->journal_entries, u64s);
+	return bch2_trans_jset_entry_alloc_ip(trans, u64s, _THIS_IP_);
 }
 
 int bch2_btree_insert_clone_trans(struct btree_trans *, enum btree_id, struct bkey_i *);
