@@ -8376,9 +8376,9 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	clear_bit(FC_PUBLIC_LOOP, &vport->fc_flag);
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "3311 Rcv Flogi PS x%x new PS x%x "
-			 "fc_flag x%lx new fc_flag x%lx\n",
+			 "fc_flag x%lx new fc_flag x%lx, hba_flag x%lx\n",
 			 port_state, vport->port_state,
-			 fc_flag, vport->fc_flag);
+			 fc_flag, vport->fc_flag, phba->hba_flag);
 
 	/*
 	 * We temporarily set fc_myDID to make it look like we are
