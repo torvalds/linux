@@ -1046,7 +1046,8 @@ static bool amt_send_membership_update(struct amt_dev *amt,
 			    amt->gw_port,
 			    amt->relay_port,
 			    false,
-			    false);
+			    false,
+			    0);
 	amt_update_gw_status(amt, AMT_STATUS_SENT_UPDATE, true);
 	return false;
 }
@@ -1103,7 +1104,8 @@ static void amt_send_multicast_data(struct amt_dev *amt,
 			    amt->relay_port,
 			    tunnel->source_port,
 			    false,
-			    false);
+			    false,
+			    0);
 }
 
 static bool amt_send_membership_query(struct amt_dev *amt,
@@ -1161,7 +1163,8 @@ static bool amt_send_membership_query(struct amt_dev *amt,
 			    amt->relay_port,
 			    tunnel->source_port,
 			    false,
-			    false);
+			    false,
+			    0);
 	amt_update_relay_status(tunnel, AMT_STATUS_SENT_QUERY, true);
 	return false;
 }

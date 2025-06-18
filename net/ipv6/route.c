@@ -1145,6 +1145,7 @@ static void ip6_rt_init_dst(struct rt6_info *rt, const struct fib6_result *res)
 		rt->dst.input = ip6_input;
 	} else if (ipv6_addr_type(&f6i->fib6_dst.addr) & IPV6_ADDR_MULTICAST) {
 		rt->dst.input = ip6_mc_input;
+		rt->dst.output = ip6_mr_output;
 	} else {
 		rt->dst.input = ip6_forward;
 	}

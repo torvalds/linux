@@ -2451,6 +2451,7 @@ void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	rcu_read_lock();
 	if (addr_family == AF_INET) {
 		struct vxlan_sock *sock4 = rcu_dereference(vxlan->vn4_sock);
+		u16 ipcb_flags = 0;
 		struct rtable *rt;
 		__be16 df = 0;
 		__be32 saddr;
@@ -2466,6 +2467,9 @@ void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			reason = SKB_DROP_REASON_IP_OUTNOROUTES;
 			goto tx_error;
 		}
+
+		if (flags & VXLAN_F_MC_ROUTE)
+			ipcb_flags |= IPSKB_MCROUTE;
 
 		if (!info) {
 			/* Bypass encapsulation if the destination is local */
@@ -2522,11 +2526,13 @@ void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 		udp_tunnel_xmit_skb(rt, sock4->sock->sk, skb, saddr,
 				    pkey->u.ipv4.dst, tos, ttl, df,
-				    src_port, dst_port, xnet, !udp_sum);
+				    src_port, dst_port, xnet, !udp_sum,
+				    ipcb_flags);
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		struct vxlan_sock *sock6 = rcu_dereference(vxlan->vn6_sock);
 		struct in6_addr saddr;
+		u16 ip6cb_flags = 0;
 
 		if (!ifindex)
 			ifindex = sock6->sock->sk->sk_bound_dev_if;
@@ -2541,6 +2547,9 @@ void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			reason = SKB_DROP_REASON_IP_OUTNOROUTES;
 			goto tx_error;
 		}
+
+		if (flags & VXLAN_F_MC_ROUTE)
+			ip6cb_flags |= IP6SKB_MCROUTE;
 
 		if (!info) {
 			u32 rt6i_flags = dst_rt6_info(ndst)->rt6i_flags;
@@ -2586,7 +2595,8 @@ void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 		udp_tunnel6_xmit_skb(ndst, sock6->sock->sk, skb, dev,
 				     &saddr, &pkey->u.ipv6.dst, tos, ttl,
-				     pkey->label, src_port, dst_port, !udp_sum);
+				     pkey->label, src_port, dst_port, !udp_sum,
+				     ip6cb_flags);
 #endif
 	}
 	vxlan_vnifilter_count(vxlan, vni, NULL, VXLAN_VNI_STATS_TX, pkt_len);
@@ -3401,6 +3411,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_LOCALBYPASS]	= NLA_POLICY_MAX(NLA_U8, 1),
 	[IFLA_VXLAN_LABEL_POLICY]       = NLA_POLICY_MAX(NLA_U32, VXLAN_LABEL_MAX),
 	[IFLA_VXLAN_RESERVED_BITS] = NLA_POLICY_EXACT_LEN(sizeof(struct vxlanhdr)),
+	[IFLA_VXLAN_MC_ROUTE]		= NLA_POLICY_MAX(NLA_U8, 1),
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -4310,6 +4321,14 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_REMCSUM_NOPARTIAL,
 				    VXLAN_F_REMCSUM_NOPARTIAL, changelink,
 				    false, extack);
+		if (err)
+			return err;
+	}
+
+	if (data[IFLA_VXLAN_MC_ROUTE]) {
+		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_MC_ROUTE,
+				    VXLAN_F_MC_ROUTE, changelink,
+				    true, extack);
 		if (err)
 			return err;
 	}
