@@ -185,8 +185,7 @@ Git 和邮箱配置
 请执行以下命令，新建开发分支::
 
 	git checkout docs-next
-	git branch my-trans
-	git checkout my-trans
+	git checkout -b my-trans
 
 译文格式要求
 ------------
@@ -298,7 +297,7 @@ warning 不需要解决::
 然后执行以下命令为补丁追加更改::
 
 	git checkout docs-next
-	git branch test-trans
+	git checkout -b test-trans-new
 	git am 0001-xxxxx.patch
 	./scripts/checkpatch.pl 0001-xxxxx.patch
 	# 直接修改您的翻译
