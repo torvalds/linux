@@ -7861,6 +7861,13 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 
 	/* Move all affected nodes by pending RSCNs to NPR state. */
 	list_for_each_entry_safe(ndlp, n, &vport->fc_nodes, nlp_listp) {
+		if (test_bit(FC_UNLOADING, &vport->load_flag)) {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+					 "1000 %s Unloading set\n",
+					 __func__);
+			return 0;
+		}
+
 		if ((ndlp->nlp_state == NLP_STE_UNUSED_NODE) ||
 		    !lpfc_rscn_payload_check(vport, ndlp->nlp_DID))
 			continue;
