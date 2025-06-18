@@ -464,6 +464,7 @@ static const struct raydium_rm67200_panel_info w552793baa_info = {
 		.vtotal = 1952,
 		.width_mm = 68, /* 68.04mm */
 		.height_mm = 121, /* 120.96mm */
+		.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 		.type = DRM_MODE_TYPE_DRIVER,
 	},
 	.regulators = w552793baa_regulators,
