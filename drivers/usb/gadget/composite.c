@@ -1011,7 +1011,7 @@ static int set_config(struct usb_composite_dev *cdev,
 
 			ep = (struct usb_endpoint_descriptor *)*descriptors;
 			addr = ((ep->bEndpointAddress & 0x80) >> 3)
-			     |  (ep->bEndpointAddress & 0x0f);
+			     |  usb_endpoint_num(ep);
 			set_bit(addr, f->endpoints);
 		}
 
