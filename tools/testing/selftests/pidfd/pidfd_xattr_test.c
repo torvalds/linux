@@ -94,4 +94,39 @@ TEST_F(pidfs_xattr, set_get_list_xattr_multiple)
 	}
 }
 
+TEST_F(pidfs_xattr, set_get_list_xattr_persistent)
+{
+	int ret;
+	char buf[32];
+	char list[PATH_MAX] = {};
+
+	ret = fsetxattr(self->child_pidfd, "trusted.persistent", "persistent value", strlen("persistent value"), 0);
+	ASSERT_EQ(ret, 0);
+
+	memset(buf, 0, sizeof(buf));
+	ret = fgetxattr(self->child_pidfd, "trusted.persistent", buf, sizeof(buf));
+	ASSERT_EQ(ret, strlen("persistent value"));
+	ASSERT_EQ(strcmp(buf, "persistent value"), 0);
+
+	ret = flistxattr(self->child_pidfd, list, sizeof(list));
+	ASSERT_GT(ret, 0);
+	ASSERT_EQ(strcmp(list, "trusted.persistent"), 0)
+
+	ASSERT_EQ(close(self->child_pidfd), 0);
+	self->child_pidfd = -EBADF;
+	sleep(2);
+
+	self->child_pidfd = sys_pidfd_open(self->child_pid, 0);
+	ASSERT_GE(self->child_pidfd, 0);
+
+	memset(buf, 0, sizeof(buf));
+	ret = fgetxattr(self->child_pidfd, "trusted.persistent", buf, sizeof(buf));
+	ASSERT_EQ(ret, strlen("persistent value"));
+	ASSERT_EQ(strcmp(buf, "persistent value"), 0);
+
+	ret = flistxattr(self->child_pidfd, list, sizeof(list));
+	ASSERT_GT(ret, 0);
+	ASSERT_EQ(strcmp(list, "trusted.persistent"), 0);
+}
+
 TEST_HARNESS_MAIN
