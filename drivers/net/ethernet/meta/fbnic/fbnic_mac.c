@@ -544,17 +544,17 @@ static void fbnic_mac_get_fw_settings(struct fbnic_dev *fbd, u8 *aui, u8 *fec)
 {
 	/* Retrieve default speed from FW */
 	switch (fbd->fw_cap.link_speed) {
-	case FBNIC_FW_LINK_SPEED_25R1:
+	case FBNIC_FW_LINK_MODE_25CR:
 		*aui = FBNIC_AUI_25GAUI;
 		break;
-	case FBNIC_FW_LINK_SPEED_50R2:
+	case FBNIC_FW_LINK_MODE_50CR2:
 		*aui = FBNIC_AUI_LAUI2;
 		break;
-	case FBNIC_FW_LINK_SPEED_50R1:
+	case FBNIC_FW_LINK_MODE_50CR:
 		*aui = FBNIC_AUI_50GAUI1;
 		*fec = FBNIC_FEC_RS;
 		return;
-	case FBNIC_FW_LINK_SPEED_100R2:
+	case FBNIC_FW_LINK_MODE_100CR2:
 		*aui = FBNIC_AUI_100GAUI2;
 		*fec = FBNIC_FEC_RS;
 		return;
