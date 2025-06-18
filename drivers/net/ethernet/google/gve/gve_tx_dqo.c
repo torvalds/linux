@@ -439,12 +439,28 @@ static u32 num_avail_tx_slots(const struct gve_tx_ring *tx)
 	return tx->mask - num_used;
 }
 
+/* Checks if the requested number of slots are available in the ring */
+static bool gve_has_tx_slots_available(struct gve_tx_ring *tx, u32 slots_req)
+{
+	u32 num_avail = num_avail_tx_slots(tx);
+
+	slots_req += GVE_TX_MIN_DESC_PREVENT_CACHE_OVERLAP;
+
+	if (num_avail >= slots_req)
+		return true;
+
+	/* Update cached TX head pointer */
+	tx->dqo_tx.head = atomic_read_acquire(&tx->dqo_compl.hw_tx_head);
+
+	return num_avail_tx_slots(tx) >= slots_req;
+}
+
 static bool gve_has_avail_slots_tx_dqo(struct gve_tx_ring *tx,
 				       int desc_count, int buf_count)
 {
 	return gve_has_pending_packet(tx) &&
-		   num_avail_tx_slots(tx) >= desc_count &&
-		   gve_has_free_tx_qpl_bufs(tx, buf_count);
+		gve_has_tx_slots_available(tx, desc_count) &&
+		gve_has_free_tx_qpl_bufs(tx, buf_count);
 }
 
 /* Stops the queue if available descriptors is less than 'count'.
@@ -453,12 +469,6 @@ static bool gve_has_avail_slots_tx_dqo(struct gve_tx_ring *tx,
 static int gve_maybe_stop_tx_dqo(struct gve_tx_ring *tx,
 				 int desc_count, int buf_count)
 {
-	if (likely(gve_has_avail_slots_tx_dqo(tx, desc_count, buf_count)))
-		return 0;
-
-	/* Update cached TX head pointer */
-	tx->dqo_tx.head = atomic_read_acquire(&tx->dqo_compl.hw_tx_head);
-
 	if (likely(gve_has_avail_slots_tx_dqo(tx, desc_count, buf_count)))
 		return 0;
 
@@ -472,8 +482,6 @@ static int gve_maybe_stop_tx_dqo(struct gve_tx_ring *tx,
 	/* After stopping queue, check if we can transmit again in order to
 	 * avoid TOCTOU bug.
 	 */
-	tx->dqo_tx.head = atomic_read_acquire(&tx->dqo_compl.hw_tx_head);
-
 	if (likely(!gve_has_avail_slots_tx_dqo(tx, desc_count, buf_count)))
 		return -EBUSY;
 
@@ -500,11 +508,9 @@ static void gve_extract_tx_metadata_dqo(const struct sk_buff *skb,
 }
 
 static void gve_tx_fill_pkt_desc_dqo(struct gve_tx_ring *tx, u32 *desc_idx,
-				     struct sk_buff *skb, u32 len, u64 addr,
+				     bool enable_csum, u32 len, u64 addr,
 				     s16 compl_tag, bool eop, bool is_gso)
 {
-	const bool checksum_offload_en = skb->ip_summed == CHECKSUM_PARTIAL;
-
 	while (len > 0) {
 		struct gve_tx_pkt_desc_dqo *desc =
 			&tx->dqo.tx_ring[*desc_idx].pkt;
@@ -515,7 +521,7 @@ static void gve_tx_fill_pkt_desc_dqo(struct gve_tx_ring *tx, u32 *desc_idx,
 			.buf_addr = cpu_to_le64(addr),
 			.dtype = GVE_TX_PKT_DESC_DTYPE_DQO,
 			.end_of_packet = cur_eop,
-			.checksum_offload_enable = checksum_offload_en,
+			.checksum_offload_enable = enable_csum,
 			.compl_tag = cpu_to_le16(compl_tag),
 			.buf_size = cur_len,
 		};
@@ -612,6 +618,25 @@ gve_tx_fill_general_ctx_desc(struct gve_tx_general_context_desc_dqo *desc,
 	};
 }
 
+static void gve_tx_update_tail(struct gve_tx_ring *tx, u32 desc_idx)
+{
+	u32 last_desc_idx = (desc_idx - 1) & tx->mask;
+	u32 last_report_event_interval =
+			(last_desc_idx - tx->dqo_tx.last_re_idx) & tx->mask;
+
+	/* Commit the changes to our state */
+	tx->dqo_tx.tail = desc_idx;
+
+	/* Request a descriptor completion on the last descriptor of the
+	 * packet if we are allowed to by the HW enforced interval.
+	 */
+
+	if (unlikely(last_report_event_interval >= GVE_TX_MIN_RE_INTERVAL)) {
+		tx->dqo.tx_ring[last_desc_idx].pkt.report_event = true;
+		tx->dqo_tx.last_re_idx = last_desc_idx;
+	}
+}
+
 static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 				      struct sk_buff *skb,
 				      struct gve_tx_pending_packet_dqo *pkt,
@@ -619,6 +644,7 @@ static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 				      u32 *desc_idx,
 				      bool is_gso)
 {
+	bool enable_csum = skb->ip_summed == CHECKSUM_PARTIAL;
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
 	int i;
 
@@ -644,7 +670,7 @@ static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 		dma_unmap_addr_set(pkt, dma[pkt->num_bufs], addr);
 		++pkt->num_bufs;
 
-		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, skb, len, addr,
+		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, enable_csum, len, addr,
 					 completion_tag,
 					 /*eop=*/shinfo->nr_frags == 0, is_gso);
 	}
@@ -664,7 +690,7 @@ static int gve_tx_add_skb_no_copy_dqo(struct gve_tx_ring *tx,
 					  dma[pkt->num_bufs], addr);
 		++pkt->num_bufs;
 
-		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, skb, len, addr,
+		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, enable_csum, len, addr,
 					 completion_tag, is_eop, is_gso);
 	}
 
@@ -709,6 +735,7 @@ static int gve_tx_add_skb_copy_dqo(struct gve_tx_ring *tx,
 				   u32 *desc_idx,
 				   bool is_gso)
 {
+	bool enable_csum = skb->ip_summed == CHECKSUM_PARTIAL;
 	u32 copy_offset = 0;
 	dma_addr_t dma_addr;
 	u32 copy_len;
@@ -730,7 +757,7 @@ static int gve_tx_add_skb_copy_dqo(struct gve_tx_ring *tx,
 		copy_offset += copy_len;
 		dma_sync_single_for_device(tx->dev, dma_addr,
 					   copy_len, DMA_TO_DEVICE);
-		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, skb,
+		gve_tx_fill_pkt_desc_dqo(tx, desc_idx, enable_csum,
 					 copy_len,
 					 dma_addr,
 					 completion_tag,
@@ -800,24 +827,7 @@ static int gve_tx_add_skb_dqo(struct gve_tx_ring *tx,
 
 	tx->dqo_tx.posted_packet_desc_cnt += pkt->num_bufs;
 
-	/* Commit the changes to our state */
-	tx->dqo_tx.tail = desc_idx;
-
-	/* Request a descriptor completion on the last descriptor of the
-	 * packet if we are allowed to by the HW enforced interval.
-	 */
-	{
-		u32 last_desc_idx = (desc_idx - 1) & tx->mask;
-		u32 last_report_event_interval =
-			(last_desc_idx - tx->dqo_tx.last_re_idx) & tx->mask;
-
-		if (unlikely(last_report_event_interval >=
-			     GVE_TX_MIN_RE_INTERVAL)) {
-			tx->dqo.tx_ring[last_desc_idx].pkt.report_event = true;
-			tx->dqo_tx.last_re_idx = last_desc_idx;
-		}
-	}
-
+	gve_tx_update_tail(tx, desc_idx);
 	return 0;
 
 err:
@@ -951,9 +961,8 @@ static int gve_try_tx_skb(struct gve_priv *priv, struct gve_tx_ring *tx,
 
 	/* Metadata + (optional TSO) + data descriptors. */
 	total_num_descs = 1 + skb_is_gso(skb) + num_buffer_descs;
-	if (unlikely(gve_maybe_stop_tx_dqo(tx, total_num_descs +
-			GVE_TX_MIN_DESC_PREVENT_CACHE_OVERLAP,
-			num_buffer_descs))) {
+	if (unlikely(gve_maybe_stop_tx_dqo(tx, total_num_descs,
+					   num_buffer_descs))) {
 		return -1;
 	}
 
