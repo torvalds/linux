@@ -1079,8 +1079,9 @@ void mnt_set_mountpoint(struct mount *mnt,
 	hlist_add_head(&child_mnt->mnt_mp_list, &mp->m_list);
 }
 
-static void __attach_mnt(struct mount *mnt, struct mount *parent)
+static void make_visible(struct mount *mnt)
 {
+	struct mount *parent = mnt->mnt_parent;
 	if (unlikely(mnt->mnt_mountpoint == parent->mnt.mnt_root))
 		parent->overmount = mnt;
 	hlist_add_head_rcu(&mnt->mnt_hash,
@@ -1098,7 +1099,7 @@ static void __attach_mnt(struct mount *mnt, struct mount *parent)
  * Mount @mnt at @mp on @parent. Then attach @mnt
  * to @parent's child mount list and to @mount_hashtable.
  *
- * Note, when __attach_mnt() is called @mnt->mnt_parent already points
+ * Note, when make_visible() is called @mnt->mnt_parent already points
  * to the correct parent.
  *
  * Context: This function expects namespace_lock() and lock_mount_hash()
@@ -1108,7 +1109,7 @@ static void attach_mnt(struct mount *mnt, struct mount *parent,
 		       struct mountpoint *mp)
 {
 	mnt_set_mountpoint(parent, mp, mnt);
-	__attach_mnt(mnt, mnt->mnt_parent);
+	make_visible(mnt);
 }
 
 void mnt_change_mountpoint(struct mount *parent, struct mountpoint *mp, struct mount *mnt)
@@ -1182,7 +1183,7 @@ static void commit_tree(struct mount *mnt)
 	n->nr_mounts += n->pending_mounts;
 	n->pending_mounts = 0;
 
-	__attach_mnt(mnt, parent);
+	make_visible(mnt);
 	touch_mnt_namespace(n);
 }
 
@@ -2679,7 +2680,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
 		if (beneath)
 			mnt_change_mountpoint(top, smp, top_mnt);
-		__attach_mnt(source_mnt, source_mnt->mnt_parent);
+		make_visible(source_mnt);
 		mnt_notify_add(source_mnt);
 		touch_mnt_namespace(source_mnt->mnt_ns);
 	} else {
