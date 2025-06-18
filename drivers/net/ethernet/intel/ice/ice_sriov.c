@@ -966,6 +966,12 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 		return -ENOENT;
 	}
 
+	/* No need to rebuild if we're setting to the same value */
+	if (msix_vec_count == vf->num_msix) {
+		ice_put_vf(vf);
+		return 0;
+	}
+
 	prev_msix = vf->num_msix;
 	prev_queues = vf->num_vf_qs;
 
