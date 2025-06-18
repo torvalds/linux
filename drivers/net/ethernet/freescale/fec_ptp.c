@@ -117,7 +117,7 @@ static u64 fec_ptp_read(const struct cyclecounter *cc)
  * @fep: the fec_enet_private structure handle
  * @enable: enable the channel pps output
  *
- * This function enble the PPS ouput on the timer channel.
+ * This function enables the PPS output on the timer channel.
  */
 static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 {
@@ -172,7 +172,7 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 		 * very close to the second point, which means NSEC_PER_SEC
 		 * - ts.tv_nsec is close to be zero(For example 20ns); Since the timer
 		 * is still running when we calculate the first compare event, it is
-		 * possible that the remaining nanoseonds run out before the compare
+		 * possible that the remaining nanoseconds run out before the compare
 		 * counter is calculated and written into TCCR register. To avoid
 		 * this possibility, we will set the compare event to be the next
 		 * of next second. The current setting is 31-bit timer and wrap
