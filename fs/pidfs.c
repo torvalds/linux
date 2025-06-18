@@ -809,6 +809,8 @@ static struct dentry *pidfs_fh_to_dentry(struct super_block *sb,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
+	VFS_WARN_ON_ONCE(!pid->attr);
+
 	mntput(path.mnt);
 	return path.dentry;
 }
@@ -1037,6 +1039,8 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
 	if (ret < 0)
 		return ERR_PTR(ret);
+
+	VFS_WARN_ON_ONCE(!pid->attr);
 
 	flags &= ~PIDFD_STALE;
 	flags |= O_RDWR;
