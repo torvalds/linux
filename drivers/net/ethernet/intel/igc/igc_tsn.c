@@ -431,7 +431,7 @@ static u8 igc_fpe_get_frag_size_mult(const struct igc_fpe_t *fpe)
 
 u32 igc_fpe_get_supported_frag_size(u32 frag_size)
 {
-	const u32 supported_sizes[] = {64, 128, 192, 256};
+	static const u32 supported_sizes[] = { 64, 128, 192, 256 };
 
 	/* Find the smallest supported size that is >= frag_size */
 	for (int i = 0; i < ARRAY_SIZE(supported_sizes); i++) {
