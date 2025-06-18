@@ -623,7 +623,7 @@ static int dummy_enable(struct usb_ep *_ep,
 
 	dev_dbg(udc_dev(dum), "enabled %s (ep%d%s-%s) maxpacket %d stream %s\n",
 		_ep->name,
-		desc->bEndpointAddress & 0x0f,
+		usb_endpoint_num(desc),
 		(desc->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
 		usb_ep_type_string(usb_endpoint_type(desc)),
 		max, str_enabled_disabled(ep->stream_en));
