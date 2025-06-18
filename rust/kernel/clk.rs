@@ -31,37 +31,37 @@ pub struct Hertz(pub c_ulong);
 
 impl Hertz {
     /// Create a new instance from kilohertz (kHz)
-    pub fn from_khz(khz: c_ulong) -> Self {
+    pub const fn from_khz(khz: c_ulong) -> Self {
         Self(khz * 1_000)
     }
 
     /// Create a new instance from megahertz (MHz)
-    pub fn from_mhz(mhz: c_ulong) -> Self {
+    pub const fn from_mhz(mhz: c_ulong) -> Self {
         Self(mhz * 1_000_000)
     }
 
     /// Create a new instance from gigahertz (GHz)
-    pub fn from_ghz(ghz: c_ulong) -> Self {
+    pub const fn from_ghz(ghz: c_ulong) -> Self {
         Self(ghz * 1_000_000_000)
     }
 
     /// Get the frequency in hertz
-    pub fn as_hz(&self) -> c_ulong {
+    pub const fn as_hz(&self) -> c_ulong {
         self.0
     }
 
     /// Get the frequency in kilohertz
-    pub fn as_khz(&self) -> c_ulong {
+    pub const fn as_khz(&self) -> c_ulong {
         self.0 / 1_000
     }
 
     /// Get the frequency in megahertz
-    pub fn as_mhz(&self) -> c_ulong {
+    pub const fn as_mhz(&self) -> c_ulong {
         self.0 / 1_000_000
     }
 
     /// Get the frequency in gigahertz
-    pub fn as_ghz(&self) -> c_ulong {
+    pub const fn as_ghz(&self) -> c_ulong {
         self.0 / 1_000_000_000
     }
 }
