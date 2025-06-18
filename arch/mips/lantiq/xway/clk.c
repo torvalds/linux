@@ -74,7 +74,7 @@ unsigned long ltq_danube_pp32_hz(void)
 	return clk;
 }
 
-unsigned long ltq_ar9_sys_hz(void)
+static unsigned long ltq_ar9_sys_hz(void)
 {
 	if (((ltq_cgu_r32(CGU_SYS) >> 3) & 0x3) == 0x2)
 		return CLOCK_393M;
