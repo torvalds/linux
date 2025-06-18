@@ -14,10 +14,22 @@
 
 #define ICE_RXQ_CTX_SIZE_DWORDS		8
 #define ICE_RXQ_CTX_SZ			(ICE_RXQ_CTX_SIZE_DWORDS * sizeof(u32))
-#define ICE_TXQ_CTX_SZ			22
 
 typedef struct __packed { u8 buf[ICE_RXQ_CTX_SZ]; } ice_rxq_ctx_buf_t;
+
+/* The Tx queue context is 40 bytes, and includes some internal state. The
+ * Admin Queue buffers don't include the internal state, so only include the
+ * first 22 bytes of the context.
+ */
+#define ICE_TXQ_CTX_SZ			22
+
 typedef struct __packed { u8 buf[ICE_TXQ_CTX_SZ]; } ice_txq_ctx_buf_t;
+
+#define ICE_TXQ_CTX_FULL_SIZE_DWORDS	10
+#define ICE_TXQ_CTX_FULL_SZ \
+	(ICE_TXQ_CTX_FULL_SIZE_DWORDS * sizeof(u32))
+
+typedef struct __packed { u8 buf[ICE_TXQ_CTX_FULL_SZ]; } ice_txq_ctx_buf_full_t;
 
 struct ice_aqc_generic {
 	__le32 param0;
