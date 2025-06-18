@@ -79,6 +79,7 @@ static struct kmem_cache *mnt_cache __ro_after_init;
 static DECLARE_RWSEM(namespace_sem);
 static HLIST_HEAD(unmounted);	/* protected by namespace_sem */
 static LIST_HEAD(ex_mountpoints); /* protected by namespace_sem */
+static struct mnt_namespace *emptied_ns; /* protected by namespace_sem */
 static DEFINE_SEQLOCK(mnt_ns_tree_lock);
 
 #ifdef CONFIG_FSNOTIFY
@@ -1730,15 +1731,18 @@ static bool need_notify_mnt_list(void)
 }
 #endif
 
+static void free_mnt_ns(struct mnt_namespace *);
 static void namespace_unlock(void)
 {
 	struct hlist_head head;
 	struct hlist_node *p;
 	struct mount *m;
+	struct mnt_namespace *ns = emptied_ns;
 	LIST_HEAD(list);
 
 	hlist_move_list(&unmounted, &head);
 	list_splice_init(&ex_mountpoints, &list);
+	emptied_ns = NULL;
 
 	if (need_notify_mnt_list()) {
 		/*
@@ -1751,6 +1755,11 @@ static void namespace_unlock(void)
 		up_read(&namespace_sem);
 	} else {
 		up_write(&namespace_sem);
+	}
+	if (unlikely(ns)) {
+		/* Make sure we notice when we leak mounts. */
+		VFS_WARN_ON_ONCE(!mnt_ns_empty(ns));
+		free_mnt_ns(ns);
 	}
 
 	shrink_dentry_list(&list);
@@ -2335,12 +2344,10 @@ void drop_collected_paths(struct path *paths, struct path *prealloc)
 		kfree(paths);
 }
 
-static void free_mnt_ns(struct mnt_namespace *);
 static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *, bool);
 
 void dissolve_on_fput(struct vfsmount *mnt)
 {
-	struct mnt_namespace *ns;
 	struct mount *m = real_mount(mnt);
 
 	/*
@@ -2362,15 +2369,11 @@ void dissolve_on_fput(struct vfsmount *mnt)
 		if (!anon_ns_root(m))
 			return;
 
-		ns = m->mnt_ns;
+		emptied_ns = m->mnt_ns;
 		lock_mount_hash();
 		umount_tree(m, UMOUNT_CONNECTED);
 		unlock_mount_hash();
 	}
-
-	/* Make sure we notice when we leak mounts. */
-	VFS_WARN_ON_ONCE(!mnt_ns_empty(ns));
-	free_mnt_ns(ns);
 }
 
 static bool __has_locked_children(struct mount *mnt, struct dentry *dentry)
@@ -2678,6 +2681,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	} else {
 		if (source_mnt->mnt_ns) {
 			/* move from anon - the caller will destroy */
+			emptied_ns = source_mnt->mnt_ns;
 			for (p = source_mnt; p; p = next_mnt(p, source_mnt))
 				move_from_ns(p);
 		}
@@ -3656,13 +3660,6 @@ static int do_move_mount(struct path *old_path,
 	err = attach_recursive_mnt(old, p, mp.mp);
 out:
 	unlock_mount(&mp);
-	if (!err) {
-		if (is_anon_ns(ns)) {
-			/* Make sure we notice when we leak mounts. */
-			VFS_WARN_ON_ONCE(!mnt_ns_empty(ns));
-			free_mnt_ns(ns);
-		}
-	}
 	return err;
 }
 
@@ -6153,11 +6150,11 @@ void put_mnt_ns(struct mnt_namespace *ns)
 	if (!refcount_dec_and_test(&ns->ns.count))
 		return;
 	namespace_lock();
+	emptied_ns = ns;
 	lock_mount_hash();
 	umount_tree(ns->root, 0);
 	unlock_mount_hash();
 	namespace_unlock();
-	free_mnt_ns(ns);
 }
 
 struct vfsmount *kern_mount(struct file_system_type *type)
