@@ -46,6 +46,7 @@
 #include "mes_v12_1.h"
 
 #define GFX12_MEC_HPD_SIZE	2048
+#define NUM_SIMD_PER_CU_GFX12_1	4
 
 #define RLCG_UCODE_LOADING_START_ADDRESS	0x00002000L
 
@@ -69,9 +70,6 @@ static int gfx_v12_1_get_cu_info(struct amdgpu_device *adev,
 static uint64_t gfx_v12_1_get_gpu_clock_counter(struct amdgpu_device *adev);
 static void gfx_v12_1_xcc_select_se_sh(struct amdgpu_device *adev, u32 se_num,
 				       u32 sh_num, u32 instance, int xcc_id);
-static u32 gfx_v12_1_get_wgp_active_bitmap_per_sh(struct amdgpu_device *adev,
-						  int xcc_id);
-
 static void gfx_v12_1_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg,
 				     uint32_t val);
 static int gfx_v12_1_wait_for_rlc_autoload_complete(struct amdgpu_device *adev);
@@ -3804,7 +3802,7 @@ static void gfx_v12_1_set_mqd_funcs(struct amdgpu_device *adev)
 		gfx_v12_1_compute_mqd_init;
 }
 
-static void gfx_v12_1_set_user_wgp_inactive_bitmap_per_sh(struct amdgpu_device *adev,
+static void gfx_v12_1_set_user_cu_inactive_bitmap_per_sh(struct amdgpu_device *adev,
 							  u32 bitmap, int xcc_id)
 {
 	u32 data;
@@ -3818,39 +3816,20 @@ static void gfx_v12_1_set_user_wgp_inactive_bitmap_per_sh(struct amdgpu_device *
 	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regGC_USER_SHADER_ARRAY_CONFIG, data);
 }
 
-static u32 gfx_v12_1_get_wgp_active_bitmap_per_sh(struct amdgpu_device *adev,
-						  int xcc_id)
+static u32 gfx_v12_1_get_cu_active_bitmap_per_sh(struct amdgpu_device *adev,
+						 int xcc_id)
 {
-	u32 data, wgp_bitmask;
+	u32 data, mask;
+
 	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCC_GC_SHADER_ARRAY_CONFIG);
 	data |= RREG32_SOC15(GC, GET_INST(GC, xcc_id), regGC_USER_SHADER_ARRAY_CONFIG);
 
 	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_WGPS_MASK;
 	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_WGPS__SHIFT;
 
-	wgp_bitmask =
-		amdgpu_gfx_create_bitmask(adev->gfx.config.max_cu_per_sh >> 1);
+	mask = amdgpu_gfx_create_bitmask(adev->gfx.config.max_cu_per_sh);
 
-	return (~data) & wgp_bitmask;
-}
-
-static u32 gfx_v12_1_get_cu_active_bitmap_per_sh(struct amdgpu_device *adev,
-						 int xcc_id)
-{
-	u32 wgp_idx, wgp_active_bitmap;
-	u32 cu_bitmap_per_wgp, cu_active_bitmap;
-
-	wgp_active_bitmap = gfx_v12_1_get_wgp_active_bitmap_per_sh(adev, xcc_id);
-	cu_active_bitmap = 0;
-
-	for (wgp_idx = 0; wgp_idx < 16; wgp_idx++) {
-		/* if there is one WGP enabled, it means 2 CUs will be enabled */
-		cu_bitmap_per_wgp = 3 << (2 * wgp_idx);
-		if (wgp_active_bitmap & (1 << wgp_idx))
-			cu_active_bitmap |= cu_bitmap_per_wgp;
-	}
-
-	return cu_active_bitmap;
+	return (~data) & mask;
 }
 
 static int gfx_v12_1_get_cu_info(struct amdgpu_device *adev,
@@ -3858,12 +3837,23 @@ static int gfx_v12_1_get_cu_info(struct amdgpu_device *adev,
 {
 	int i, j, k, counter, xcc_id, active_cu_number = 0;
 	u32 mask, bitmap;
-	unsigned disable_masks[8 * 2];
+	unsigned int disable_masks[2 * 2];
 
 	if (!adev || !cu_info)
 		return -EINVAL;
 
-	amdgpu_gfx_parse_disable_cu(disable_masks, 8, 2);
+	if (adev->gfx.config.max_shader_engines > 2 ||
+	    adev->gfx.config.max_sh_per_se > 2) {
+		dev_err(adev->dev,
+			"Max SE (%d) and Max SA per SE (%d) is greater than expected\n",
+			adev->gfx.config.max_shader_engines,
+			adev->gfx.config.max_sh_per_se);
+		return -EINVAL;
+	}
+
+	amdgpu_gfx_parse_disable_cu(disable_masks,
+				    adev->gfx.config.max_shader_engines,
+				    adev->gfx.config.max_sh_per_se);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (xcc_id = 0; xcc_id < NUM_XCC(adev->gfx.xcc_mask); xcc_id++) {
@@ -3875,27 +3865,13 @@ static int gfx_v12_1_get_cu_info(struct amdgpu_device *adev,
 				mask = 1;
 				counter = 0;
 				gfx_v12_1_xcc_select_se_sh(adev, i, j, 0xffffffff, xcc_id);
-				if (i < 8 && j < 2)
-					gfx_v12_1_set_user_wgp_inactive_bitmap_per_sh(
-						adev, disable_masks[i * 2 + j], xcc_id);
+				gfx_v12_1_set_user_cu_inactive_bitmap_per_sh(
+					adev,
+					disable_masks[i * adev->gfx.config.max_sh_per_se + j],
+					xcc_id);
 				bitmap = gfx_v12_1_get_cu_active_bitmap_per_sh(adev, xcc_id);
 
-				/**
-				 * GFX12 could support more than 4 SEs, while the bitmap
-				 * in cu_info struct is 4x4 and ioctl interface struct
-				 * drm_amdgpu_info_device should keep stable.
-				 * So we use last two columns of bitmap to store cu mask for
-				 * SEs 4 to 7, the layout of the bitmap is as below:
-				 *    SE0: {SH0,SH1} --> {bitmap[0][0], bitmap[0][1]}
-				 *    SE1: {SH0,SH1} --> {bitmap[1][0], bitmap[1][1]}
-				 *    SE2: {SH0,SH1} --> {bitmap[2][0], bitmap[2][1]}
-				 *    SE3: {SH0,SH1} --> {bitmap[3][0], bitmap[3][1]}
-				 *    SE4: {SH0,SH1} --> {bitmap[0][2], bitmap[0][3]}
-				 *    SE5: {SH0,SH1} --> {bitmap[1][2], bitmap[1][3]}
-				 *    SE6: {SH0,SH1} --> {bitmap[2][2], bitmap[2][3]}
-				 *    SE7: {SH0,SH1} --> {bitmap[3][2], bitmap[3][3]}
-				 */
-				cu_info->bitmap[0][i % 4][j + (i / 4) * 2] = bitmap;
+				cu_info->bitmap[xcc_id][i][j] = bitmap;
 
 				for (k = 0; k < adev->gfx.config.max_cu_per_sh; k++) {
 					if (bitmap & mask)
@@ -3911,7 +3887,7 @@ static int gfx_v12_1_get_cu_info(struct amdgpu_device *adev,
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	cu_info->number = active_cu_number;
-	cu_info->simd_per_cu = NUM_SIMD_PER_CU;
+	cu_info->simd_per_cu = NUM_SIMD_PER_CU_GFX12_1;
 	cu_info->lds_size = 320;
 
 	return 0;
