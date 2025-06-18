@@ -594,6 +594,8 @@ static bool nfs_delegation_need_return(struct nfs_delegation *delegation)
 {
 	bool ret = false;
 
+	trace_nfs_delegation_need_return(delegation);
+
 	if (test_and_clear_bit(NFS_DELEGATION_RETURN, &delegation->flags))
 		ret = true;
 	if (test_bit(NFS_DELEGATION_RETURNING, &delegation->flags) ||
