@@ -113,9 +113,8 @@ config USB_RTL8152
 config USB_LAN78XX
 	tristate "Microchip LAN78XX Based USB Ethernet Adapters"
 	select MII
-	select PHYLIB
+	select PHYLINK
 	select MICROCHIP_PHY
-	select FIXED_PHY
 	select CRC32
 	help
 	  This option adds support for Microchip LAN78XX based USB 2
