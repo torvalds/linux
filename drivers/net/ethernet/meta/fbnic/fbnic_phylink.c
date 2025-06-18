@@ -24,6 +24,22 @@ static phy_interface_t fbnic_phylink_select_interface(u8 aui)
 	return PHY_INTERFACE_MODE_NA;
 }
 
+void fbnic_phylink_get_pauseparam(struct net_device *netdev,
+				  struct ethtool_pauseparam *pause)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	phylink_ethtool_get_pauseparam(fbn->phylink, pause);
+}
+
+int fbnic_phylink_set_pauseparam(struct net_device *netdev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	return phylink_ethtool_set_pauseparam(fbn->phylink, pause);
+}
+
 static void
 fbnic_phylink_get_supported_fec_modes(unsigned long *supported)
 {
