@@ -905,11 +905,13 @@ static void gfx_v12_1_rlc_backdoor_autoload_copy_ucode(struct amdgpu_device *ade
 		fw_size = toc_fw_inst_size;
 
 	for (i = 0; i < num_inst; i++) {
-		memcpy(ptr + toc_offset + i * toc_fw_inst_size, fw_data, fw_size);
+		if ((1 << (i / 2)) & adev->gfx.xcc_mask) {
+			memcpy(ptr + toc_offset + i * toc_fw_inst_size, fw_data, fw_size);
 
-		if (fw_size < toc_fw_inst_size)
-			memset(ptr + toc_offset + fw_size + i * toc_fw_inst_size,
-			       0, toc_fw_inst_size - fw_size);
+			if (fw_size < toc_fw_inst_size)
+				memset(ptr + toc_offset + fw_size + i * toc_fw_inst_size,
+				       0, toc_fw_inst_size - fw_size);
+		}
 	}
 }
 
