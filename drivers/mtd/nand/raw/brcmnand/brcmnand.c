@@ -29,6 +29,7 @@
 #include <linux/static_key.h>
 #include <linux/list.h>
 #include <linux/log2.h>
+#include <linux/string_choices.h>
 
 #include "brcmnand.h"
 
@@ -1462,7 +1463,7 @@ static void brcmnand_wp(struct mtd_info *mtd, int wp)
 		int ret;
 
 		if (old_wp != wp) {
-			dev_dbg(ctrl->dev, "WP %s\n", wp ? "on" : "off");
+			dev_dbg(ctrl->dev, "WP %s\n", str_on_off(wp));
 			old_wp = wp;
 		}
 
@@ -1492,7 +1493,7 @@ static void brcmnand_wp(struct mtd_info *mtd, int wp)
 		if (ret)
 			dev_err_ratelimited(&host->pdev->dev,
 					    "nand #WP expected %s\n",
-					    wp ? "on" : "off");
+					    str_on_off(wp));
 	}
 }
 
@@ -1869,8 +1870,8 @@ static int brcmnand_edu_trans(struct brcmnand_host *host, u64 addr, u32 *buf,
 	unsigned int trans = len >> FC_SHIFT;
 	dma_addr_t pa;
 
-	dev_dbg(ctrl->dev, "EDU %s %p:%p\n", ((edu_cmd == EDU_CMD_READ) ?
-					      "read" : "write"), buf, oob);
+	dev_dbg(ctrl->dev, "EDU %s %p:%p\n",
+		str_read_write(edu_cmd == EDU_CMD_READ), buf, oob);
 
 	pa = dma_map_single(ctrl->dev, buf, len, dir);
 	if (dma_mapping_error(ctrl->dev, pa)) {
