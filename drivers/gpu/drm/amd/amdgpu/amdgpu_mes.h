@@ -239,6 +239,7 @@ struct mes_add_queue_input {
 struct mes_remove_queue_input {
 	uint32_t	doorbell_offset;
 	uint64_t	gang_context_addr;
+	bool		remove_queue_after_reset;
 };
 
 struct mes_map_legacy_queue_input {
