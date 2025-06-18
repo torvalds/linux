@@ -264,9 +264,9 @@ ct_free_mpvirt:
 ct_free_mp:
 	kfree(mp);
 ct_exit:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-			 "6440 Unsol CT: Rsp err %d Data: x%lx\n",
-			 rc, vport->fc_flag);
+	lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+		      "6440 Unsol CT: Rsp err %d Data: x%lx\n",
+		      rc, vport->fc_flag);
 }
 
 /**
@@ -313,7 +313,7 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	mi_cmd = be16_to_cpu(ct_req->CommandResponse.bits.CmdRsp);
 	lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
-		      "6442 MI Cmd : x%x Not Supported\n", mi_cmd);
+		      "6442 MI Cmd: x%x Not Supported\n", mi_cmd);
 	lpfc_ct_reject_event(ndlp, ct_req,
 			     bf_get(wqe_ctxt_tag,
 				    &ctiocbq->wqe.xmit_els_rsp.wqe_com),
