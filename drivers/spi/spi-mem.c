@@ -591,9 +591,11 @@ EXPORT_SYMBOL_GPL(spi_mem_adjust_op_freq);
 u64 spi_mem_calc_op_duration(struct spi_mem_op *op)
 {
 	u64 ncycles = 0;
-	u32 ns_per_cycles;
+	u64 ps_per_cycles, duration;
 
-	ns_per_cycles = 1000000000 / op->max_freq;
+	ps_per_cycles = 1000000000000ULL;
+	do_div(ps_per_cycles, op->max_freq);
+
 	ncycles += ((op->cmd.nbytes * 8) / op->cmd.buswidth) / (op->cmd.dtr ? 2 : 1);
 	ncycles += ((op->addr.nbytes * 8) / op->addr.buswidth) / (op->addr.dtr ? 2 : 1);
 
@@ -603,7 +605,12 @@ u64 spi_mem_calc_op_duration(struct spi_mem_op *op)
 
 	ncycles += ((op->data.nbytes * 8) / op->data.buswidth) / (op->data.dtr ? 2 : 1);
 
-	return ncycles * ns_per_cycles;
+	/* Derive the duration in ps */
+	duration = ncycles * ps_per_cycles;
+	/* Convert into ns */
+	do_div(duration, 1000);
+
+	return duration;
 }
 EXPORT_SYMBOL_GPL(spi_mem_calc_op_duration);
 
