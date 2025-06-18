@@ -4,8 +4,9 @@
 #define _ASM_POWERPC_BOOK3S_64_PKEYS_H
 
 #include <asm/book3s/64/hash-pkey.h>
+#include <linux/mm_types.h>
 
-static inline u64 vmflag_to_pte_pkey_bits(u64 vm_flags)
+static inline u64 vmflag_to_pte_pkey_bits(vm_flags_t vm_flags)
 {
 	if (!mmu_has_feature(MMU_FTR_PKEY))
 		return 0x0UL;
