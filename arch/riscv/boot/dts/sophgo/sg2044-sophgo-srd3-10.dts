@@ -67,6 +67,36 @@
 	status = "okay";
 };
 
+&pcie0 {
+	bus-range = <0x00 0xff>;
+	linux,pci-domain = <1>;
+	status = "okay";
+};
+
+&pcie1 {
+	bus-range = <0x00 0xff>;
+	linux,pci-domain = <0>;
+	status = "okay";
+};
+
+&pcie2 {
+	bus-range = <0x00 0xff>;
+	linux,pci-domain = <3>;
+	status = "okay";
+};
+
+&pcie3 {
+	bus-range = <0x00 0xff>;
+	linux,pci-domain = <2>;
+	status = "okay";
+};
+
+&pcie4 {
+	bus-range = <0x00 0xff>;
+	linux,pci-domain = <4>;
+	status = "okay";
+};
+
 &pwm {
 	status = "okay";
 };
