@@ -895,8 +895,7 @@ static void pidfs_put_data(void *data)
  * pidfs_register_pid - register a struct pid in pidfs
  * @pid: pid to pin
  *
- * Register a struct pid in pidfs. Needs to be paired with
- * pidfs_put_pid() to not risk leaking the pidfs dentry and inode.
+ * Register a struct pid in pidfs.
  *
  * Return: On success zero, on error a negative error code is returned.
  */
@@ -1005,38 +1004,6 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 		pidfd_file->f_flags |= (flags & PIDFD_THREAD);
 
 	return pidfd_file;
-}
-
-/**
- * pidfs_get_pid - pin a struct pid through pidfs
- * @pid: pid to pin
- *
- * Similar to pidfs_register_pid() but only valid if the caller knows
- * there's a reference to the @pid through a dentry already that can't
- * go away.
- */
-void pidfs_get_pid(struct pid *pid)
-{
-	if (!pid)
-		return;
-	WARN_ON_ONCE(!stashed_dentry_get(&pid->stashed));
-}
-
-/**
- * pidfs_put_pid - drop a pidfs reference
- * @pid: pid to drop
- *
- * Drop a reference to @pid via pidfs. This is only safe if the
- * reference has been taken via pidfs_get_pid().
- */
-void pidfs_put_pid(struct pid *pid)
-{
-	might_sleep();
-
-	if (!pid)
-		return;
-	VFS_WARN_ON_ONCE(!pid->stashed);
-	dput(pid->stashed);
 }
 
 void __init pidfs_init(void)

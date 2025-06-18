@@ -646,9 +646,6 @@ static void unix_sock_destructor(struct sock *sk)
 		return;
 	}
 
-	if (sk->sk_peer_pid)
-		pidfs_put_pid(sk->sk_peer_pid);
-
 	if (u->addr)
 		unix_release_addr(u->addr);
 
@@ -769,7 +766,6 @@ static void drop_peercred(struct unix_peercred *peercred)
 	swap(peercred->peer_pid, pid);
 	swap(peercred->peer_cred, cred);
 
-	pidfs_put_pid(pid);
 	put_pid(pid);
 	put_cred(cred);
 }
@@ -802,7 +798,6 @@ static void copy_peercred(struct sock *sk, struct sock *peersk)
 
 	spin_lock(&sk->sk_peer_lock);
 	sk->sk_peer_pid = get_pid(peersk->sk_peer_pid);
-	pidfs_get_pid(sk->sk_peer_pid);
 	sk->sk_peer_cred = get_cred(peersk->sk_peer_cred);
 	spin_unlock(&sk->sk_peer_lock);
 }
