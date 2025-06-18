@@ -32,6 +32,17 @@
 		#size-cells = <2>;
 		ranges;
 
+		msi: msi-controller@6d50000000 {
+			compatible = "sophgo,sg2044-msi";
+			reg = <0x6d 0x50000000 0x0 0x800>,
+			      <0x0 0x7ee00000 0x0 0x40>;
+			reg-names = "clr", "doorbell";
+			#msi-cells = <0>;
+			msi-controller;
+			msi-ranges = <&intc 352 IRQ_TYPE_LEVEL_HIGH 512>;
+			status = "disabled";
+		};
+
 		spifmc0: spi@7001000000 {
 			compatible = "sophgo,sg2044-spifmc-nor";
 			reg = <0x70 0x01000000 0x0 0x4000000>;
