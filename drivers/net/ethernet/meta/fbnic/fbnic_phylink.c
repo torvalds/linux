@@ -21,15 +21,15 @@ fbnic_phylink_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 	struct fbnic_net *fbn = fbnic_pcs_to_net(pcs);
 	struct fbnic_dev *fbd = fbn->fbd;
 
-	switch (fbn->link_mode) {
-	case FBNIC_LINK_25R1:
+	switch (fbn->aui) {
+	case FBNIC_AUI_25GAUI:
 		state->speed = SPEED_25000;
 		break;
-	case FBNIC_LINK_50R2:
-	case FBNIC_LINK_50R1:
+	case FBNIC_AUI_LAUI2:
+	case FBNIC_AUI_50GAUI1:
 		state->speed = SPEED_50000;
 		break;
-	case FBNIC_LINK_100R2:
+	case FBNIC_AUI_100GAUI2:
 		state->speed = SPEED_100000;
 		break;
 	default:

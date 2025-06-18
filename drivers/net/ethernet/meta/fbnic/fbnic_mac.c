@@ -468,14 +468,14 @@ static bool fbnic_mac_get_pcs_link_status(struct fbnic_dev *fbd)
 		return false;
 
 	/* Define the expected lane mask for the status bits we need to check */
-	switch (fbn->link_mode) {
-	case FBNIC_LINK_100R2:
+	switch (fbn->aui) {
+	case FBNIC_AUI_100GAUI2:
 		lane_mask = 0xf;
 		break;
-	case FBNIC_LINK_50R1:
+	case FBNIC_AUI_50GAUI1:
 		lane_mask = 3;
 		break;
-	case FBNIC_LINK_50R2:
+	case FBNIC_AUI_LAUI2:
 		switch (fbn->fec) {
 		case FBNIC_FEC_OFF:
 			lane_mask = 0x63;
@@ -488,7 +488,7 @@ static bool fbnic_mac_get_pcs_link_status(struct fbnic_dev *fbd)
 			break;
 		}
 		break;
-	case FBNIC_LINK_25R1:
+	case FBNIC_AUI_25GAUI:
 		lane_mask = 1;
 		break;
 	}
@@ -540,27 +540,26 @@ static bool fbnic_pcs_get_link_asic(struct fbnic_dev *fbd)
 	return link;
 }
 
-static void
-fbnic_mac_get_fw_settings(struct fbnic_dev *fbd, u8 *link_mode, u8 *fec)
+static void fbnic_mac_get_fw_settings(struct fbnic_dev *fbd, u8 *aui, u8 *fec)
 {
 	/* Retrieve default speed from FW */
 	switch (fbd->fw_cap.link_speed) {
 	case FBNIC_FW_LINK_SPEED_25R1:
-		*link_mode = FBNIC_LINK_25R1;
+		*aui = FBNIC_AUI_25GAUI;
 		break;
 	case FBNIC_FW_LINK_SPEED_50R2:
-		*link_mode = FBNIC_LINK_50R2;
+		*aui = FBNIC_AUI_LAUI2;
 		break;
 	case FBNIC_FW_LINK_SPEED_50R1:
-		*link_mode = FBNIC_LINK_50R1;
+		*aui = FBNIC_AUI_50GAUI1;
 		*fec = FBNIC_FEC_RS;
 		return;
 	case FBNIC_FW_LINK_SPEED_100R2:
-		*link_mode = FBNIC_LINK_100R2;
+		*aui = FBNIC_AUI_100GAUI2;
 		*fec = FBNIC_FEC_RS;
 		return;
 	default:
-		*link_mode = FBNIC_LINK_UNKONWN;
+		*aui = FBNIC_AUI_UNKNOWN;
 		return;
 	}
 
@@ -588,7 +587,7 @@ static int fbnic_pcs_enable_asic(struct fbnic_dev *fbd)
 	wr32(fbd, FBNIC_SIG_PCS_INTR_STS, ~0);
 
 	/* Pull in settings from FW */
-	fbnic_mac_get_fw_settings(fbd, &fbn->link_mode, &fbn->fec);
+	fbnic_mac_get_fw_settings(fbd, &fbn->aui, &fbn->fec);
 
 	return 0;
 }

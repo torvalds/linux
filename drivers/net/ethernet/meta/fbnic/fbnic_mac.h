@@ -27,21 +27,21 @@ enum {
 	FBNIC_FEC_BASER		= 2,
 };
 
-/* Treat the link modes as a set of modulation/lanes bitmask:
+/* Treat the AUI modes as a modulation/lanes bitmask:
  * Bit 0: Lane Count, 0 = R1, 1 = R2
  * Bit 1: Modulation, 0 = NRZ, 1 = PAM4
- * Bit 2: Retrieve link mode from FW
+ * Bit 2: Unknown Modulation/Lane Configuration
  */
 enum {
-	FBNIC_LINK_25R1		= 0,
-	FBNIC_LINK_50R2		= 1,
-	FBNIC_LINK_50R1		= 2,
-	FBNIC_LINK_100R2	= 3,
-	FBNIC_LINK_UNKONWN	= 4,
+	FBNIC_AUI_25GAUI	= 0,	/* 25.7812GBd	25.78125 * 1 */
+	FBNIC_AUI_LAUI2		= 1,	/* 51.5625GBd	25.78128 * 2 */
+	FBNIC_AUI_50GAUI1	= 2,	/* 53.125GBd	53.125   * 1 */
+	FBNIC_AUI_100GAUI2	= 3,	/* 106.25GBd	53.125   * 2 */
+	FBNIC_AUI_UNKNOWN	= 4,
 };
 
-#define FBNIC_LINK_MODE_R2	(FBNIC_LINK_50R2)
-#define FBNIC_LINK_MODE_PAM4	(FBNIC_LINK_50R1)
+#define FBNIC_AUI_MODE_R2	(FBNIC_AUI_LAUI2)
+#define FBNIC_AUI_MODE_PAM4	(FBNIC_AUI_50GAUI1)
 
 enum fbnic_sensor_id {
 	FBNIC_SENSOR_TEMP,		/* Temp in millidegrees Centigrade */
