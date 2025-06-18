@@ -209,7 +209,7 @@ static inline bool userfaultfd_armed(struct vm_area_struct *vma)
 }
 
 static inline bool vma_can_userfault(struct vm_area_struct *vma,
-				     unsigned long vm_flags,
+				     vm_flags_t vm_flags,
 				     bool wp_async)
 {
 	vm_flags &= __VM_UFFD_FLAGS;
@@ -281,7 +281,7 @@ struct vm_area_struct *userfaultfd_clear_vma(struct vma_iterator *vmi,
 
 int userfaultfd_register_range(struct userfaultfd_ctx *ctx,
 			       struct vm_area_struct *vma,
-			       unsigned long vm_flags,
+			       vm_flags_t vm_flags,
 			       unsigned long start, unsigned long end,
 			       bool wp_async);
 

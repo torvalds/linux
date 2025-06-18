@@ -839,7 +839,7 @@ out:
 struct folio_referenced_arg {
 	int mapcount;
 	int referenced;
-	unsigned long vm_flags;
+	vm_flags_t vm_flags;
 	struct mem_cgroup *memcg;
 };
 
@@ -984,7 +984,7 @@ static bool invalid_folio_referenced_vma(struct vm_area_struct *vma, void *arg)
  * the function bailed out due to rmap lock contention.
  */
 int folio_referenced(struct folio *folio, int is_locked,
-		     struct mem_cgroup *memcg, unsigned long *vm_flags)
+		     struct mem_cgroup *memcg, vm_flags_t *vm_flags)
 {
 	bool we_locked = false;
 	struct folio_referenced_arg pra = {

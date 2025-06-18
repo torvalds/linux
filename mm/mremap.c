@@ -1025,7 +1025,7 @@ static unsigned long prep_move_vma(struct vma_remap_struct *vrm)
 	struct vm_area_struct *vma = vrm->vma;
 	unsigned long old_addr = vrm->addr;
 	unsigned long old_len = vrm->old_len;
-	unsigned long dummy = vma->vm_flags;
+	vm_flags_t dummy = vma->vm_flags;
 
 	/*
 	 * We'd prefer to avoid failure later on in do_munmap:

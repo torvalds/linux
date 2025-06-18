@@ -1242,7 +1242,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	int ret;
 	struct uffdio_register uffdio_register;
 	struct uffdio_register __user *user_uffdio_register;
-	unsigned long vm_flags;
+	vm_flags_t vm_flags;
 	bool found;
 	bool basic_ioctls;
 	unsigned long start, end;

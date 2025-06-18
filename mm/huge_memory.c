@@ -99,7 +99,7 @@ static inline bool file_thp_enabled(struct vm_area_struct *vma)
 }
 
 unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
-					 unsigned long vm_flags,
+					 vm_flags_t vm_flags,
 					 unsigned long tva_flags,
 					 unsigned long orders)
 {

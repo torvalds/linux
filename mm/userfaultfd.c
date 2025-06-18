@@ -1901,11 +1901,11 @@ out:
 }
 
 static void userfaultfd_set_vm_flags(struct vm_area_struct *vma,
-				     vm_flags_t flags)
+				     vm_flags_t vm_flags)
 {
-	const bool uffd_wp_changed = (vma->vm_flags ^ flags) & VM_UFFD_WP;
+	const bool uffd_wp_changed = (vma->vm_flags ^ vm_flags) & VM_UFFD_WP;
 
-	vm_flags_reset(vma, flags);
+	vm_flags_reset(vma, vm_flags);
 	/*
 	 * For shared mappings, we want to enable writenotify while
 	 * userfaultfd-wp is enabled (see vma_wants_writenotify()). We'll simply
@@ -1917,12 +1917,12 @@ static void userfaultfd_set_vm_flags(struct vm_area_struct *vma,
 
 static void userfaultfd_set_ctx(struct vm_area_struct *vma,
 				struct userfaultfd_ctx *ctx,
-				unsigned long flags)
+				vm_flags_t vm_flags)
 {
 	vma_start_write(vma);
 	vma->vm_userfaultfd_ctx = (struct vm_userfaultfd_ctx){ctx};
 	userfaultfd_set_vm_flags(vma,
-				 (vma->vm_flags & ~__VM_UFFD_FLAGS) | flags);
+				 (vma->vm_flags & ~__VM_UFFD_FLAGS) | vm_flags);
 }
 
 void userfaultfd_reset_ctx(struct vm_area_struct *vma)
@@ -1968,14 +1968,14 @@ struct vm_area_struct *userfaultfd_clear_vma(struct vma_iterator *vmi,
 /* Assumes mmap write lock taken, and mm_struct pinned. */
 int userfaultfd_register_range(struct userfaultfd_ctx *ctx,
 			       struct vm_area_struct *vma,
-			       unsigned long vm_flags,
+			       vm_flags_t vm_flags,
 			       unsigned long start, unsigned long end,
 			       bool wp_async)
 {
 	VMA_ITERATOR(vmi, ctx->mm, start);
 	struct vm_area_struct *prev = vma_prev(&vmi);
 	unsigned long vma_end;
-	unsigned long new_flags;
+	vm_flags_t new_flags;
 
 	if (vma->vm_start < start)
 		prev = vma;

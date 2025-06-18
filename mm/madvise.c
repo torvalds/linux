@@ -130,7 +130,7 @@ static int replace_anon_vma_name(struct vm_area_struct *vma,
  */
 static int madvise_update_vma(struct vm_area_struct *vma,
 			      struct vm_area_struct **prev, unsigned long start,
-			      unsigned long end, unsigned long new_flags,
+			      unsigned long end, vm_flags_t new_flags,
 			      struct anon_vma_name *anon_name)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -1258,7 +1258,7 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 	int behavior = arg->behavior;
 	int error;
 	struct anon_vma_name *anon_name;
-	unsigned long new_flags = vma->vm_flags;
+	vm_flags_t new_flags = vma->vm_flags;
 
 	if (unlikely(!can_modify_vma_madv(vma, behavior)))
 		return -EPERM;

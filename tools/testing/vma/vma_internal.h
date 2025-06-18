@@ -1084,7 +1084,7 @@ static inline bool mpol_equal(struct mempolicy *, struct mempolicy *)
 }
 
 static inline void khugepaged_enter_vma(struct vm_area_struct *vma,
-			  unsigned long vm_flags)
+			  vm_flags_t vm_flags)
 {
 	(void)vma;
 	(void)vm_flags;
@@ -1200,7 +1200,7 @@ bool vma_wants_writenotify(struct vm_area_struct *vma, pgprot_t vm_page_prot);
 /* Update vma->vm_page_prot to reflect vma->vm_flags. */
 static inline void vma_set_page_prot(struct vm_area_struct *vma)
 {
-	unsigned long vm_flags = vma->vm_flags;
+	vm_flags_t vm_flags = vma->vm_flags;
 	pgprot_t vm_page_prot;
 
 	/* testing: we inline vm_pgprot_modify() to avoid clash with vma.h. */
@@ -1280,12 +1280,12 @@ static inline bool capable(int cap)
 	return true;
 }
 
-static inline bool mlock_future_ok(struct mm_struct *mm, unsigned long flags,
+static inline bool mlock_future_ok(struct mm_struct *mm, vm_flags_t vm_flags,
 			unsigned long bytes)
 {
 	unsigned long locked_pages, limit_pages;
 
-	if (!(flags & VM_LOCKED) || capable(CAP_IPC_LOCK))
+	if (!(vm_flags & VM_LOCKED) || capable(CAP_IPC_LOCK))
 		return true;
 
 	locked_pages = bytes >> PAGE_SHIFT;

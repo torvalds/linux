@@ -261,7 +261,7 @@ static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
 }
 
 unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
-					 unsigned long vm_flags,
+					 vm_flags_t vm_flags,
 					 unsigned long tva_flags,
 					 unsigned long orders);
 
@@ -282,7 +282,7 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
  */
 static inline
 unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
-				       unsigned long vm_flags,
+				       vm_flags_t vm_flags,
 				       unsigned long tva_flags,
 				       unsigned long orders)
 {
@@ -317,7 +317,7 @@ struct thpsize {
 	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
 
 static inline bool vma_thp_disabled(struct vm_area_struct *vma,
-		unsigned long vm_flags)
+		vm_flags_t vm_flags)
 {
 	/*
 	 * Explicitly disabled through madvise or prctl, or some
@@ -431,7 +431,7 @@ change_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma,
 			__split_huge_pud(__vma, __pud, __address);	\
 	}  while (0)
 
-int hugepage_madvise(struct vm_area_struct *vma, unsigned long *vm_flags,
+int hugepage_madvise(struct vm_area_struct *vma, vm_flags_t *vm_flags,
 		     int advice);
 int madvise_collapse(struct vm_area_struct *vma,
 		     struct vm_area_struct **prev,
@@ -524,7 +524,7 @@ static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
 }
 
 static inline unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
-					unsigned long vm_flags,
+					vm_flags_t vm_flags,
 					unsigned long tva_flags,
 					unsigned long orders)
 {
@@ -593,7 +593,7 @@ static inline bool unmap_huge_pmd_locked(struct vm_area_struct *vma,
 	do { } while (0)
 
 static inline int hugepage_madvise(struct vm_area_struct *vma,
-				   unsigned long *vm_flags, int advice)
+				   vm_flags_t *vm_flags, int advice)
 {
 	return -EINVAL;
 }

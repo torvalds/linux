@@ -332,10 +332,10 @@ static inline bool is_write_sealed(unsigned int seals)
 	return seals & (F_SEAL_WRITE | F_SEAL_FUTURE_WRITE);
 }
 
-static int check_write_seal(unsigned long *vm_flags_ptr)
+static int check_write_seal(vm_flags_t *vm_flags_ptr)
 {
-	unsigned long vm_flags = *vm_flags_ptr;
-	unsigned long mask = vm_flags & (VM_SHARED | VM_WRITE);
+	vm_flags_t vm_flags = *vm_flags_ptr;
+	vm_flags_t mask = vm_flags & (VM_SHARED | VM_WRITE);
 
 	/* If a private mapping then writability is irrelevant. */
 	if (!(mask & VM_SHARED))
@@ -357,7 +357,7 @@ static int check_write_seal(unsigned long *vm_flags_ptr)
 	return 0;
 }
 
-int memfd_check_seals_mmap(struct file *file, unsigned long *vm_flags_ptr)
+int memfd_check_seals_mmap(struct file *file, vm_flags_t *vm_flags_ptr)
 {
 	int err = 0;
 	unsigned int *seals_ptr = memfd_file_seals_ptr(file);

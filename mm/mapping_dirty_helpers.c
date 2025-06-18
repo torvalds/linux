@@ -218,7 +218,7 @@ static void wp_clean_post_vma(struct mm_walk *walk)
 static int wp_clean_test_walk(unsigned long start, unsigned long end,
 			      struct mm_walk *walk)
 {
-	unsigned long vm_flags = READ_ONCE(walk->vma->vm_flags);
+	vm_flags_t vm_flags = READ_ONCE(walk->vma->vm_flags);
 
 	/* Skip non-applicable VMAs */
 	if ((vm_flags & (VM_SHARED | VM_MAYWRITE | VM_HUGETLB)) !=
