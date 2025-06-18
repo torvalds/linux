@@ -2796,9 +2796,11 @@ static void rtw89_core_stats_sta_rx_status(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
+					struct sk_buff *skb,
 					struct rtw89_rx_desc_info *desc_info,
 					struct ieee80211_rx_status *rx_status)
 {
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	const struct cfg80211_chan_def *chandef =
 		rtw89_chandef_get(rtwdev, RTW89_CHANCTX_0);
 	u16 data_rate;
@@ -2809,6 +2811,10 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	/* currently using single PHY */
 	rx_status->freq = chandef->chan->center_freq;
 	rx_status->band = chandef->chan->band;
+
+	if (ieee80211_is_beacon(hdr->frame_control) ||
+	    ieee80211_is_probe_resp(hdr->frame_control))
+		rx_status->boottime_ns = ktime_get_boottime_ns();
 
 	if (rtwdev->scanning &&
 	    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
@@ -2966,7 +2972,7 @@ void rtw89_core_rx(struct rtw89_dev *rtwdev,
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	memset(rx_status, 0, sizeof(*rx_status));
-	rtw89_core_update_rx_status(rtwdev, desc_info, rx_status);
+	rtw89_core_update_rx_status(rtwdev, skb, desc_info, rx_status);
 	rtw89_core_rx_pkt_hdl(rtwdev, skb, desc_info);
 	if (desc_info->long_rxdesc &&
 	    BIT(desc_info->frame_type) & PPDU_FILTER_BITMAP)
