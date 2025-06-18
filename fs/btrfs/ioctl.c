@@ -841,7 +841,7 @@ free_pending:
 static int btrfs_may_delete(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *victim, int isdir)
 {
-	int error;
+	int ret;
 
 	if (d_really_is_negative(victim))
 		return -ENOENT;
@@ -851,9 +851,9 @@ static int btrfs_may_delete(struct mnt_idmap *idmap,
 		return -EINVAL;
 	audit_inode_child(dir, victim, AUDIT_TYPE_CHILD_DELETE);
 
-	error = inode_permission(idmap, dir, MAY_WRITE | MAY_EXEC);
-	if (error)
-		return error;
+	ret = inode_permission(idmap, dir, MAY_WRITE | MAY_EXEC);
+	if (ret)
+		return ret;
 	if (IS_APPEND(dir))
 		return -EPERM;
 	if (check_sticky(idmap, dir, d_inode(victim)) ||
