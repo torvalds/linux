@@ -7077,8 +7077,10 @@ static int niu_ethflow_to_flowkey(u64 ethflow, u64 *flow_key)
 
 }
 
-static int niu_get_hash_opts(struct niu *np, struct ethtool_rxnfc *nfc)
+static int niu_get_rxfh_fields(struct net_device *dev,
+			       struct ethtool_rxfh_fields *nfc)
 {
+	struct niu *np = netdev_priv(dev);
 	u64 class;
 
 	nfc->data = 0;
@@ -7290,9 +7292,6 @@ static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int ret = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXFH:
-		ret = niu_get_hash_opts(np, cmd);
-		break;
 	case ETHTOOL_GRXRINGS:
 		cmd->data = np->num_rx_rings;
 		break;
@@ -7313,8 +7312,11 @@ static int niu_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	return ret;
 }
 
-static int niu_set_hash_opts(struct niu *np, struct ethtool_rxnfc *nfc)
+static int niu_set_rxfh_fields(struct net_device *dev,
+			       const struct ethtool_rxfh_fields *nfc,
+			       struct netlink_ext_ack *extack)
 {
+	struct niu *np = netdev_priv(dev);
 	u64 class;
 	u64 flow_key = 0;
 	unsigned long flags;
@@ -7656,9 +7658,6 @@ static int niu_set_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	int ret = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = niu_set_hash_opts(np, cmd);
-		break;
 	case ETHTOOL_SRXCLSRLINS:
 		ret = niu_add_ethtool_tcam_entry(np, cmd);
 		break;
@@ -7912,6 +7911,8 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.set_phys_id		= niu_set_phys_id,
 	.get_rxnfc		= niu_get_nfc,
 	.set_rxnfc		= niu_set_nfc,
+	.get_rxfh_fields	= niu_get_rxfh_fields,
+	.set_rxfh_fields	= niu_set_rxfh_fields,
 	.get_link_ksettings	= niu_get_link_ksettings,
 	.set_link_ksettings	= niu_set_link_ksettings,
 };
