@@ -449,7 +449,8 @@ static void umount_one(struct mount *m, struct list_head *to_umount)
 {
 	m->mnt.mnt_flags |= MNT_UMOUNT;
 	list_del_init(&m->mnt_child);
-	move_from_ns(m, to_umount);
+	move_from_ns(m);
+	list_add_tail(&m->mnt_list, to_umount);
 }
 
 static void remove_from_candidate_list(struct mount *m)

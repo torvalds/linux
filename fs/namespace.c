@@ -1161,34 +1161,6 @@ static void mnt_add_to_ns(struct mnt_namespace *ns, struct mount *mnt)
 	mnt_notify_add(mnt);
 }
 
-/*
- * vfsmount lock must be held for write
- */
-static void commit_tree(struct mount *mnt)
-{
-	struct mount *parent = mnt->mnt_parent;
-	struct mount *m;
-	LIST_HEAD(head);
-	struct mnt_namespace *n = parent->mnt_ns;
-
-	BUG_ON(parent == mnt);
-
-	if (!mnt_ns_attached(mnt)) {
-		list_add_tail(&head, &mnt->mnt_list);
-		while (!list_empty(&head)) {
-			m = list_first_entry(&head, typeof(*m), mnt_list);
-			list_del(&m->mnt_list);
-
-			mnt_add_to_ns(n, m);
-		}
-		n->nr_mounts += n->pending_mounts;
-		n->pending_mounts = 0;
-	}
-
-	make_visible(mnt);
-	touch_mnt_namespace(n);
-}
-
 static struct mount *next_mnt(struct mount *p, struct mount *root)
 {
 	struct list_head *next = p->mnt_mounts.next;
@@ -1213,6 +1185,27 @@ static struct mount *skip_mnt_tree(struct mount *p)
 		prev = p->mnt_mounts.prev;
 	}
 	return p;
+}
+
+/*
+ * vfsmount lock must be held for write
+ */
+static void commit_tree(struct mount *mnt)
+{
+	struct mnt_namespace *n = mnt->mnt_parent->mnt_ns;
+
+	if (!mnt_ns_attached(mnt)) {
+		for (struct mount *m = mnt; m; m = next_mnt(m, mnt))
+			if (unlikely(mnt_ns_attached(m)))
+				m = skip_mnt_tree(m);
+			else
+				mnt_add_to_ns(n, m);
+		n->nr_mounts += n->pending_mounts;
+		n->pending_mounts = 0;
+	}
+
+	make_visible(mnt);
+	touch_mnt_namespace(n);
 }
 
 /**
@@ -1831,9 +1824,8 @@ static void umount_tree(struct mount *mnt, enum umount_tree_flags how)
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		p->mnt.mnt_flags |= MNT_UMOUNT;
 		if (mnt_ns_attached(p))
-			move_from_ns(p, &tmp_list);
-		else
-			list_move(&p->mnt_list, &tmp_list);
+			move_from_ns(p);
+		list_add_tail(&p->mnt_list, &tmp_list);
 	}
 
 	/* Hide the mounts from mnt_mounts */
@@ -2270,7 +2262,6 @@ struct mount *copy_tree(struct mount *src_root, struct dentry *dentry,
 					list_add(&dst_mnt->mnt_expire,
 						 &src_mnt->mnt_expire);
 			}
-			list_add_tail(&dst_mnt->mnt_list, &res->mnt_list);
 			attach_mnt(dst_mnt, dst_parent, src_parent->mnt_mp);
 			unlock_mount_hash();
 		}
@@ -2686,12 +2677,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		list_del_init(&source_mnt->mnt_expire);
 	} else {
 		if (source_mnt->mnt_ns) {
-			LIST_HEAD(head);
-
 			/* move from anon - the caller will destroy */
 			for (p = source_mnt; p; p = next_mnt(p, source_mnt))
-				move_from_ns(p, &head);
-			list_del_init(&head);
+				move_from_ns(p);
 		}
 	}
 

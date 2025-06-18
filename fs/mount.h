@@ -193,7 +193,7 @@ static inline bool mnt_ns_empty(const struct mnt_namespace *ns)
 	return RB_EMPTY_ROOT(&ns->mounts);
 }
 
-static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
+static inline void move_from_ns(struct mount *mnt)
 {
 	struct mnt_namespace *ns = mnt->mnt_ns;
 	WARN_ON(!mnt_ns_attached(mnt));
@@ -203,7 +203,6 @@ static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 		ns->mnt_first_node = rb_next(&mnt->mnt_node);
 	rb_erase(&mnt->mnt_node, &ns->mounts);
 	RB_CLEAR_NODE(&mnt->mnt_node);
-	list_add_tail(&mnt->mnt_list, dt_list);
 }
 
 bool has_locked_children(struct mount *mnt, struct dentry *dentry);
