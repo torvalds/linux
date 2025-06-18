@@ -632,9 +632,12 @@ static struct nsim_rq *nsim_queue_alloc(void)
 	return rq;
 }
 
-static void nsim_queue_free(struct nsim_rq *rq)
+static void nsim_queue_free(struct net_device *dev, struct nsim_rq *rq)
 {
 	hrtimer_cancel(&rq->napi_timer);
+	local_bh_disable();
+	dev_dstats_rx_dropped_add(dev, rq->skb_queue.qlen);
+	local_bh_enable();
 	skb_queue_purge_reason(&rq->skb_queue, SKB_DROP_REASON_QUEUE_PURGE);
 	kfree(rq);
 }
@@ -681,7 +684,7 @@ nsim_queue_mem_alloc(struct net_device *dev, void *per_queue_mem, int idx)
 	return 0;
 
 err_free:
-	nsim_queue_free(qmem->rq);
+	nsim_queue_free(dev, qmem->rq);
 	return err;
 }
 
@@ -695,7 +698,7 @@ static void nsim_queue_mem_free(struct net_device *dev, void *per_queue_mem)
 		if (!ns->rq_reset_mode)
 			netif_napi_del_locked(&qmem->rq->napi);
 		page_pool_destroy(qmem->rq->page_pool);
-		nsim_queue_free(qmem->rq);
+		nsim_queue_free(dev, qmem->rq);
 	}
 }
 
@@ -913,7 +916,7 @@ static void nsim_queue_uninit(struct netdevsim *ns)
 	int i;
 
 	for (i = 0; i < dev->num_rx_queues; i++)
-		nsim_queue_free(ns->rq[i]);
+		nsim_queue_free(dev, ns->rq[i]);
 
 	kfree(ns->rq);
 	ns->rq = NULL;
