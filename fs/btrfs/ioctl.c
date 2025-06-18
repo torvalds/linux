@@ -903,28 +903,27 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(dir);
 	struct dentry *dentry;
 	struct fscrypt_str name_str = FSTR_INIT((char *)name, namelen);
-	int error;
+	int ret;
 
-	error = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
-	if (error == -EINTR)
-		return error;
+	ret = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
+	if (ret == -EINTR)
+		return ret;
 
 	dentry = lookup_one(idmap, &QSTR_LEN(name, namelen), parent->dentry);
-	error = PTR_ERR(dentry);
+	ret = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out_unlock;
 
-	error = btrfs_may_create(idmap, dir, dentry);
-	if (error)
+	ret = btrfs_may_create(idmap, dir, dentry);
+	if (ret)
 		goto out_dput;
 
 	/*
 	 * even if this name doesn't exist, we may get hash collisions.
 	 * check for them now when we can safely fail
 	 */
-	error = btrfs_check_dir_item_collision(BTRFS_I(dir)->root,
-					       dir->i_ino, &name_str);
-	if (error)
+	ret = btrfs_check_dir_item_collision(BTRFS_I(dir)->root, dir->i_ino, &name_str);
+	if (ret)
 		goto out_dput;
 
 	down_read(&fs_info->subvol_sem);
@@ -933,11 +932,11 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 		goto out_up_read;
 
 	if (snap_src)
-		error = create_snapshot(snap_src, dir, dentry, readonly, inherit);
+		ret = create_snapshot(snap_src, dir, dentry, readonly, inherit);
 	else
-		error = create_subvol(idmap, dir, dentry, inherit);
+		ret = create_subvol(idmap, dir, dentry, inherit);
 
-	if (!error)
+	if (!ret)
 		fsnotify_mkdir(dir, dentry);
 out_up_read:
 	up_read(&fs_info->subvol_sem);
@@ -945,7 +944,7 @@ out_dput:
 	dput(dentry);
 out_unlock:
 	btrfs_inode_unlock(BTRFS_I(dir), 0);
-	return error;
+	return ret;
 }
 
 static noinline int btrfs_mksnapshot(const struct path *parent,
