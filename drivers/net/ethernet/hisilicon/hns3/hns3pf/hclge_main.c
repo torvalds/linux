@@ -4872,7 +4872,7 @@ static int hclge_set_rss(struct hnae3_handle *handle, const u32 *indir,
 }
 
 static int hclge_set_rss_tuple(struct hnae3_handle *handle,
-			       struct ethtool_rxnfc *nfc)
+			       const struct ethtool_rxfh_fields *nfc)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
@@ -4890,7 +4890,7 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 }
 
 static int hclge_get_rss_tuple(struct hnae3_handle *handle,
-			       struct ethtool_rxnfc *nfc)
+			       struct ethtool_rxfh_fields *nfc)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	u8 tuple_sets;
