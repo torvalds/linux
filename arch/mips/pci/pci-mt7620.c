@@ -87,6 +87,15 @@ static inline u32 bridge_r32(unsigned reg)
 	return ioread32(bridge_base + reg);
 }
 
+static inline void bridge_m32(u32 clr, u32 set, unsigned reg)
+{
+	u32 val = bridge_r32(reg);
+
+	val &= ~clr;
+	val |= set;
+	bridge_w32(val, reg);
+}
+
 static inline void pcie_w32(u32 val, unsigned reg)
 {
 	iowrite32(val, pcie_base + reg);
@@ -228,7 +237,7 @@ static int mt7620_pci_hw_init(struct platform_device *pdev)
 	pcie_phy(0x68, 0xB4);
 
 	/* put core into reset */
-	pcie_m32(0, PCIRST, RALINK_PCI_PCICFG_ADDR);
+	bridge_m32(PCIRST, PCIRST, RALINK_PCI_PCICFG_ADDR);
 	reset_control_assert(rstpcie0);
 
 	/* disable power and all clocks */
@@ -318,7 +327,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 	mdelay(50);
 
 	/* enable write access */
-	pcie_m32(PCIRST, 0, RALINK_PCI_PCICFG_ADDR);
+	bridge_m32(PCIRST, 0, RALINK_PCI_PCICFG_ADDR);
 	mdelay(100);
 
 	/* check if there is a card present */
@@ -340,7 +349,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 	pcie_w32(0x06040001, RALINK_PCI0_CLASS);
 
 	/* enable interrupts */
-	pcie_m32(0, PCIINT2, RALINK_PCI_PCIENA);
+	bridge_m32(PCIINT2, PCIINT2, RALINK_PCI_PCIENA);
 
 	/* voodoo from the SDK driver */
 	pci_config_read(NULL, 0, 4, 4, &val);
