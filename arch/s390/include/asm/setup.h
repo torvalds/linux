@@ -41,6 +41,8 @@ struct parmarea {
 	char command_line[COMMAND_LINE_SIZE];		/* 0x10480 */
 };
 
+extern char arch_hw_string[128];
+
 extern struct parmarea parmarea;
 
 extern unsigned int zlib_dfltcc_support;
