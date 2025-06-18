@@ -380,7 +380,7 @@ stmmac_ethtool_set_link_ksettings(struct net_device *dev,
 			return -EINVAL;
 
 		mutex_lock(&priv->lock);
-		stmmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, priv->hw->ps, 0);
+		stmmac_pcs_ctrl_ane(priv, 1, priv->hw->ps, 0);
 		mutex_unlock(&priv->lock);
 
 		return 0;
