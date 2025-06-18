@@ -2324,71 +2324,70 @@ int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs)
 
 int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 {
-	int error;
+	int ret;
 	struct btrfs_fs_devices *fs_devs = fs_info->fs_devices;
 	struct kobject *fsid_kobj = &fs_devs->fsid_kobj;
 
-	error = btrfs_sysfs_add_fs_devices(fs_devs);
-	if (error)
-		return error;
+	ret = btrfs_sysfs_add_fs_devices(fs_devs);
+	if (ret)
+		return ret;
 
-	error = sysfs_create_files(fsid_kobj, btrfs_attrs);
-	if (error) {
+	ret = sysfs_create_files(fsid_kobj, btrfs_attrs);
+	if (ret) {
 		btrfs_sysfs_remove_fs_devices(fs_devs);
-		return error;
+		return ret;
 	}
 
-	error = sysfs_create_group(fsid_kobj,
-				   &btrfs_feature_attr_group);
-	if (error)
+	ret = sysfs_create_group(fsid_kobj, &btrfs_feature_attr_group);
+	if (ret)
 		goto failure;
 
 #ifdef CONFIG_BTRFS_DEBUG
 	fs_info->debug_kobj = kobject_create_and_add("debug", fsid_kobj);
 	if (!fs_info->debug_kobj) {
-		error = -ENOMEM;
+		ret = -ENOMEM;
 		goto failure;
 	}
 
-	error = sysfs_create_files(fs_info->debug_kobj, btrfs_debug_mount_attrs);
-	if (error)
+	ret = sysfs_create_files(fs_info->debug_kobj, btrfs_debug_mount_attrs);
+	if (ret)
 		goto failure;
 #endif
 
 	/* Discard directory */
 	fs_info->discard_kobj = kobject_create_and_add("discard", fsid_kobj);
 	if (!fs_info->discard_kobj) {
-		error = -ENOMEM;
+		ret = -ENOMEM;
 		goto failure;
 	}
 
-	error = sysfs_create_files(fs_info->discard_kobj, discard_attrs);
-	if (error)
+	ret = sysfs_create_files(fs_info->discard_kobj, discard_attrs);
+	if (ret)
 		goto failure;
 
-	error = addrm_unknown_feature_attrs(fs_info, true);
-	if (error)
+	ret = addrm_unknown_feature_attrs(fs_info, true);
+	if (ret)
 		goto failure;
 
-	error = sysfs_create_link(fsid_kobj, &fs_info->sb->s_bdi->dev->kobj, "bdi");
-	if (error)
+	ret = sysfs_create_link(fsid_kobj, &fs_info->sb->s_bdi->dev->kobj, "bdi");
+	if (ret)
 		goto failure;
 
 	fs_info->space_info_kobj = kobject_create_and_add("allocation",
 						  fsid_kobj);
 	if (!fs_info->space_info_kobj) {
-		error = -ENOMEM;
+		ret = -ENOMEM;
 		goto failure;
 	}
 
-	error = sysfs_create_files(fs_info->space_info_kobj, allocation_attrs);
-	if (error)
+	ret = sysfs_create_files(fs_info->space_info_kobj, allocation_attrs);
+	if (ret)
 		goto failure;
 
 	return 0;
 failure:
 	btrfs_sysfs_remove_mounted(fs_info);
-	return error;
+	return ret;
 }
 
 static ssize_t qgroup_enabled_show(struct kobject *qgroups_kobj,
