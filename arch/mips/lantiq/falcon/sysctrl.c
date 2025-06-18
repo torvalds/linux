@@ -14,6 +14,7 @@
 #include <lantiq_soc.h>
 
 #include "../clk.h"
+#include "../prom.h"
 
 /* infrastructure control register */
 #define SYS1_INFRAC		0x00bc
