@@ -100,7 +100,7 @@ void put_pid(struct pid *pid)
 
 	ns = pid->numbers[pid->level].ns;
 	if (refcount_dec_and_test(&pid->count)) {
-		WARN_ON_ONCE(pid->stashed);
+		pidfs_free_pid(pid);
 		kmem_cache_free(ns->pid_cachep, pid);
 		put_pid_ns(ns);
 	}

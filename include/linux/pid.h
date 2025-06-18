@@ -47,6 +47,8 @@
 
 #define RESERVED_PIDS 300
 
+struct pidfs_attr;
+
 struct upid {
 	int nr;
 	struct pid_namespace *ns;
@@ -60,6 +62,7 @@ struct pid {
 		u64 ino;
 		struct rb_node pidfs_node;
 		struct dentry *stashed;
+		struct pidfs_attr *attr;
 	};
 	/* lists of tasks that use this pid */
 	struct hlist_head tasks[PIDTYPE_MAX];
