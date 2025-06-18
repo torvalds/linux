@@ -30,19 +30,23 @@ use crate::ffi::c_ulong;
 pub struct Hertz(pub c_ulong);
 
 impl Hertz {
+    const KHZ_TO_HZ: c_ulong = 1_000;
+    const MHZ_TO_HZ: c_ulong = 1_000_000;
+    const GHZ_TO_HZ: c_ulong = 1_000_000_000;
+
     /// Create a new instance from kilohertz (kHz)
     pub const fn from_khz(khz: c_ulong) -> Self {
-        Self(khz * 1_000)
+        Self(khz * Self::KHZ_TO_HZ)
     }
 
     /// Create a new instance from megahertz (MHz)
     pub const fn from_mhz(mhz: c_ulong) -> Self {
-        Self(mhz * 1_000_000)
+        Self(mhz * Self::MHZ_TO_HZ)
     }
 
     /// Create a new instance from gigahertz (GHz)
     pub const fn from_ghz(ghz: c_ulong) -> Self {
-        Self(ghz * 1_000_000_000)
+        Self(ghz * Self::GHZ_TO_HZ)
     }
 
     /// Get the frequency in hertz
@@ -52,17 +56,17 @@ impl Hertz {
 
     /// Get the frequency in kilohertz
     pub const fn as_khz(&self) -> c_ulong {
-        self.0 / 1_000
+        self.0 / Self::KHZ_TO_HZ
     }
 
     /// Get the frequency in megahertz
     pub const fn as_mhz(&self) -> c_ulong {
-        self.0 / 1_000_000
+        self.0 / Self::MHZ_TO_HZ
     }
 
     /// Get the frequency in gigahertz
     pub const fn as_ghz(&self) -> c_ulong {
-        self.0 / 1_000_000_000
+        self.0 / Self::GHZ_TO_HZ
     }
 }
 
