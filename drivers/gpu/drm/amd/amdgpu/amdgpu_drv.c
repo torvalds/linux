@@ -2912,20 +2912,6 @@ done:
 	return ret;
 }
 
-static int amdgpu_drm_release(struct inode *inode, struct file *filp)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
-
-	if (fpriv) {
-		fpriv->evf_mgr.fd_closing = true;
-		amdgpu_eviction_fence_destroy(&fpriv->evf_mgr);
-		amdgpu_userq_mgr_fini(&fpriv->userq_mgr);
-	}
-
-	return drm_release(inode, filp);
-}
-
 long amdgpu_drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg)
 {
@@ -2977,7 +2963,7 @@ static const struct file_operations amdgpu_driver_kms_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.flush = amdgpu_flush,
-	.release = amdgpu_drm_release,
+	.release = drm_release,
 	.unlocked_ioctl = amdgpu_drm_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
