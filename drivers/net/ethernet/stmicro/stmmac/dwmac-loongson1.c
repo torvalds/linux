@@ -46,6 +46,10 @@ struct ls1x_dwmac {
 	struct regmap *regmap;
 };
 
+struct ls1x_data {
+	int (*init)(struct platform_device *pdev, void *bsp_priv);
+};
+
 static int ls1b_dwmac_syscon_init(struct platform_device *pdev, void *priv)
 {
 	struct ls1x_dwmac *dwmac = priv;
@@ -143,9 +147,9 @@ static int ls1x_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
+	const struct ls1x_data *data;
 	struct regmap *regmap;
 	struct ls1x_dwmac *dwmac;
-	int (*init)(struct platform_device *pdev, void *priv);
 	int ret;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
@@ -159,8 +163,8 @@ static int ls1x_dwmac_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(regmap),
 				     "Unable to find syscon\n");
 
-	init = of_device_get_match_data(&pdev->dev);
-	if (!init) {
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data) {
 		dev_err(&pdev->dev, "No of match data provided\n");
 		return -EINVAL;
 	}
@@ -175,21 +179,29 @@ static int ls1x_dwmac_probe(struct platform_device *pdev)
 				     "dt configuration failed\n");
 
 	plat_dat->bsp_priv = dwmac;
-	plat_dat->init = init;
+	plat_dat->init = data->init;
 	dwmac->plat_dat = plat_dat;
 	dwmac->regmap = regmap;
 
 	return devm_stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 }
 
+static const struct ls1x_data ls1b_dwmac_data = {
+	.init = ls1b_dwmac_syscon_init,
+};
+
+static const struct ls1x_data ls1c_dwmac_data = {
+	.init = ls1c_dwmac_syscon_init,
+};
+
 static const struct of_device_id ls1x_dwmac_match[] = {
 	{
 		.compatible = "loongson,ls1b-gmac",
-		.data = &ls1b_dwmac_syscon_init,
+		.data = &ls1b_dwmac_data,
 	},
 	{
 		.compatible = "loongson,ls1c-emac",
-		.data = &ls1c_dwmac_syscon_init,
+		.data = &ls1c_dwmac_data,
 	},
 	{ }
 };
