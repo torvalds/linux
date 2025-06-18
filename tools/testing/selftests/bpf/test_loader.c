@@ -1103,9 +1103,9 @@ void run_subtest(struct test_loader *tester,
 			}
 		}
 
-		do_prog_test_run(bpf_program__fd(tprog), &retval,
-				 bpf_program__type(tprog) == BPF_PROG_TYPE_SYSCALL ? true : false);
-		if (retval != subspec->retval && subspec->retval != POINTER_VALUE) {
+		err = do_prog_test_run(bpf_program__fd(tprog), &retval,
+				       bpf_program__type(tprog) == BPF_PROG_TYPE_SYSCALL ? true : false);
+		if (!err && retval != subspec->retval && subspec->retval != POINTER_VALUE) {
 			PRINT_FAIL("Unexpected retval: %d != %d\n", retval, subspec->retval);
 			goto tobj_cleanup;
 		}

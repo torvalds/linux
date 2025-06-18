@@ -1270,7 +1270,7 @@ __bpf_kfunc_start_defs();
  * Return: a bpf_key pointer with a valid key pointer if the key is found, a
  *         NULL pointer otherwise.
  */
-__bpf_kfunc struct bpf_key *bpf_lookup_user_key(u32 serial, u64 flags)
+__bpf_kfunc struct bpf_key *bpf_lookup_user_key(s32 serial, u64 flags)
 {
 	key_ref_t key_ref;
 	struct bpf_key *bkey;
