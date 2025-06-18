@@ -2044,7 +2044,7 @@ static long __get_user_pages_locked(struct mm_struct *mm, unsigned long start,
 {
 	struct vm_area_struct *vma;
 	bool must_unlock = false;
-	unsigned long vm_flags;
+	vm_flags_t vm_flags;
 	long i;
 
 	if (!nr_pages)

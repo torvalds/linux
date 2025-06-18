@@ -2564,7 +2564,7 @@ extern long change_protection(struct mmu_gather *tlb,
 			      unsigned long end, unsigned long cp_flags);
 extern int mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	  struct vm_area_struct *vma, struct vm_area_struct **pprev,
-	  unsigned long start, unsigned long end, unsigned long newflags);
+	  unsigned long start, unsigned long end, vm_flags_t newflags);
 
 /*
  * doesn't attempt to fault and will return short.
@@ -3328,9 +3328,9 @@ extern void vm_stat_account(struct mm_struct *, vm_flags_t, long npages);
 
 extern bool vma_is_special_mapping(const struct vm_area_struct *vma,
 				   const struct vm_special_mapping *sm);
-extern struct vm_area_struct *_install_special_mapping(struct mm_struct *mm,
+struct vm_area_struct *_install_special_mapping(struct mm_struct *mm,
 				   unsigned long addr, unsigned long len,
-				   unsigned long flags,
+				   vm_flags_t vm_flags,
 				   const struct vm_special_mapping *spec);
 
 unsigned long randomize_stack_top(unsigned long stack_top);

@@ -290,7 +290,7 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 		vmg->vmi, vmg->vmi ? vma_iter_addr(vmg->vmi) : 0,
 		vmg->vmi ? vma_iter_end(vmg->vmi) : 0,
 		vmg->prev, vmg->middle, vmg->next, vmg->target,
-		vmg->start, vmg->end, vmg->flags,
+		vmg->start, vmg->end, vmg->vm_flags,
 		vmg->file, vmg->anon_vma, vmg->policy,
 #ifdef CONFIG_USERFAULTFD
 		vmg->uffd_ctx.ctx,
