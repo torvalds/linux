@@ -44,6 +44,7 @@ struct ref_tracker_dir_stats {
  * dentries asynchronously.
  */
 static struct xarray		debugfs_dentries;
+static struct xarray		debugfs_symlinks;
 static struct work_struct	debugfs_reap_worker;
 
 #define REF_TRACKER_DIR_DEAD	XA_MARK_0
@@ -54,6 +55,10 @@ static inline void ref_tracker_debugfs_mark(struct ref_tracker_dir *dir)
 	xa_lock_irqsave(&debugfs_dentries, flags);
 	__xa_set_mark(&debugfs_dentries, (unsigned long)dir, REF_TRACKER_DIR_DEAD);
 	xa_unlock_irqrestore(&debugfs_dentries, flags);
+
+	xa_lock_irqsave(&debugfs_symlinks, flags);
+	__xa_set_mark(&debugfs_symlinks, (unsigned long)dir, REF_TRACKER_DIR_DEAD);
+	xa_unlock_irqrestore(&debugfs_symlinks, flags);
 
 	schedule_work(&debugfs_reap_worker);
 }
@@ -451,6 +456,45 @@ void ref_tracker_dir_debugfs(struct ref_tracker_dir *dir)
 }
 EXPORT_SYMBOL(ref_tracker_dir_debugfs);
 
+void __ostream_printf ref_tracker_dir_symlink(struct ref_tracker_dir *dir, const char *fmt, ...)
+{
+	char name[NAME_MAX + 1];
+	struct dentry *symlink, *dentry;
+	va_list args;
+	int ret;
+
+	symlink = xa_load(&debugfs_symlinks, (unsigned long)dir);
+	dentry = xa_load(&debugfs_dentries, (unsigned long)dir);
+
+	/* Already created?*/
+	if (symlink && !xa_is_err(symlink))
+		return;
+
+	if (!dentry || xa_is_err(dentry))
+		return;
+
+	va_start(args, fmt);
+	ret = vsnprintf(name, sizeof(name), fmt, args);
+	va_end(args);
+	name[sizeof(name) - 1] = '\0';
+
+	if (ret < sizeof(name)) {
+		symlink = debugfs_create_symlink(name, ref_tracker_debug_dir,
+						 dentry->d_name.name);
+		if (!IS_ERR(symlink)) {
+			void *old;
+
+			old = xa_store_irq(&debugfs_symlinks, (unsigned long)dir,
+					   symlink, GFP_KERNEL);
+			if (xa_is_err(old))
+				debugfs_remove(symlink);
+			else
+				WARN_ON_ONCE(old);
+		}
+	}
+}
+EXPORT_SYMBOL(ref_tracker_dir_symlink);
+
 static void debugfs_reap_work(struct work_struct *work)
 {
 	struct dentry *dentry;
@@ -459,6 +503,11 @@ static void debugfs_reap_work(struct work_struct *work)
 
 	do {
 		reaped = false;
+		xa_for_each_marked(&debugfs_symlinks, index, dentry, REF_TRACKER_DIR_DEAD) {
+			xa_erase_irq(&debugfs_symlinks, index);
+			debugfs_remove(dentry);
+			reaped = true;
+		}
 		xa_for_each_marked(&debugfs_dentries, index, dentry, REF_TRACKER_DIR_DEAD) {
 			xa_erase_irq(&debugfs_dentries, index);
 			debugfs_remove(dentry);
@@ -471,6 +520,7 @@ static int __init ref_tracker_debugfs_init(void)
 {
 	INIT_WORK(&debugfs_reap_worker, debugfs_reap_work);
 	xa_init_flags(&debugfs_dentries, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&debugfs_symlinks, XA_FLAGS_LOCK_IRQ);
 	ref_tracker_debug_dir = debugfs_create_dir("ref_tracker", NULL);
 	return 0;
 }

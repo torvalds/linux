@@ -29,10 +29,16 @@ struct ref_tracker_dir {
 #ifdef CONFIG_DEBUG_FS
 
 void ref_tracker_dir_debugfs(struct ref_tracker_dir *dir);
+void ref_tracker_dir_symlink(struct ref_tracker_dir *dir, const char *fmt, ...);
 
 #else /* CONFIG_DEBUG_FS */
 
 static inline void ref_tracker_dir_debugfs(struct ref_tracker_dir *dir)
+{
+}
+
+static inline __ostream_printf
+void ref_tracker_dir_symlink(struct ref_tracker_dir *dir, const char *fmt, ...)
 {
 }
 
@@ -82,6 +88,11 @@ static inline void ref_tracker_dir_init(struct ref_tracker_dir *dir,
 }
 
 static inline void ref_tracker_dir_debugfs(struct ref_tracker_dir *dir)
+{
+}
+
+static inline __ostream_printf
+void ref_tracker_dir_symlink(struct ref_tracker_dir *dir, const char *fmt, ...)
 {
 }
 
