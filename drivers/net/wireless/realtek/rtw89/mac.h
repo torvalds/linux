@@ -8,7 +8,9 @@
 #include "core.h"
 #include "reg.h"
 
-#define MAC_MEM_DUMP_PAGE_SIZE 0x40000
+#define MAC_MEM_DUMP_PAGE_SIZE_AX 0x40000
+#define MAC_MEM_DUMP_PAGE_SIZE_BE 0x80000
+
 #define ADDR_CAM_ENT_SIZE  0x40
 #define ADDR_CAM_ENT_SHORT_SIZE 0x20
 #define BSSID_CAM_ENT_SIZE 0x08
@@ -970,6 +972,7 @@ struct rtw89_mac_gen_def {
 	u32 filter_model_addr;
 	u32 indir_access_addr;
 	const u32 *mem_base_addrs;
+	u32 mem_page_size;
 	u32 rx_fltr;
 	const struct rtw89_port_reg *port_base;
 	u32 agg_len_ht;
