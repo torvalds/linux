@@ -1917,13 +1917,6 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	struct nfsd42_write_res *result;
 	__be32 status;
 
-	/*
-	 * Currently, async COPY is not reliable. Force all COPY
-	 * requests to be synchronous to avoid client application
-	 * hangs waiting for COPY completion.
-	 */
-	nfsd4_copy_set_sync(copy, true);
-
 	result = &copy->cp_res;
 	nfsd_copy_write_verifier((__be32 *)&result->wr_verifier.data, nn);
 
