@@ -52,14 +52,15 @@ struct upid {
 	struct pid_namespace *ns;
 };
 
-struct pid
-{
+struct pid {
 	refcount_t count;
 	unsigned int level;
 	spinlock_t lock;
-	struct dentry *stashed;
-	u64 ino;
-	struct rb_node pidfs_node;
+	struct {
+		u64 ino;
+		struct rb_node pidfs_node;
+		struct dentry *stashed;
+	};
 	/* lists of tasks that use this pid */
 	struct hlist_head tasks[PIDTYPE_MAX];
 	struct hlist_head inodes;
