@@ -26,6 +26,8 @@
 
 #define RALINK_INT_PCIE0		4
 
+#define RALINK_SYSCFG0			0x10
+#define RALINK_SYSCFG0_XTAL40		BIT(6)
 #define RALINK_CLKCFG1			0x30
 #define RALINK_GPIOMODE			0x60
 
@@ -62,7 +64,7 @@
 
 #define PCIEPHY0_CFG			0x90
 
-#define RALINK_PCIEPHY_P0_CTL_OFFSET	0x7498
+#define RALINK_PCIEPHY_P0_CTL_OFFSET	0x7000
 #define RALINK_PCIE0_CLK_EN		BIT(26)
 
 #define BUSY				0x80000000
@@ -113,6 +115,14 @@ static inline void pcie_m32(u32 clr, u32 set, unsigned reg)
 	val &= ~clr;
 	val |= set;
 	pcie_w32(val, reg);
+}
+
+static inline void
+pcie_phyctrl_set(unsigned offset, u32 b_start, u32 bits, u32 val)
+{
+	pcie_m32(GENMASK(b_start + bits - 1, b_start),
+		 val << b_start,
+		 RALINK_PCIEPHY_P0_CTL_OFFSET + offset);
 }
 
 static int wait_pciephy_busy(void)
@@ -263,10 +273,8 @@ static int mt7620_pci_hw_init(struct platform_device *pdev)
 	return 0;
 }
 
-static int mt7628_pci_hw_init(struct platform_device *pdev)
+static void mt7628_pci_hw_init(struct platform_device *pdev)
 {
-	u32 val = 0;
-
 	/* bring the core out of reset */
 	rt_sysc_m32(BIT(16), 0, RALINK_GPIOMODE);
 	reset_control_deassert(rstpcie0);
@@ -276,14 +284,33 @@ static int mt7628_pci_hw_init(struct platform_device *pdev)
 	mdelay(100);
 
 	/* voodoo from the SDK driver */
-	pcie_m32(~0xff, 0x5, RALINK_PCIEPHY_P0_CTL_OFFSET);
+	pcie_phyctrl_set(0x400, 8, 1, 0x1);
+	pcie_phyctrl_set(0x400, 9, 2, 0x0);
+	pcie_phyctrl_set(0x000, 4, 1, 0x1);
+	pcie_phyctrl_set(0x000, 5, 1, 0x0);
+	pcie_phyctrl_set(0x4ac, 16, 3, 0x3);
 
-	pci_config_read(NULL, 0, 0x70c, 4, &val);
-	val &= ~(0xff) << 8;
-	val |= 0x50 << 8;
-	pci_config_write(NULL, 0, 0x70c, 4, val);
+	if (rt_sysc_r32(RALINK_SYSCFG0) & RALINK_SYSCFG0_XTAL40) {
+		pcie_phyctrl_set(0x4bc, 24,  8, 0x7d);
+		pcie_phyctrl_set(0x490, 12,  4, 0x08);
+		pcie_phyctrl_set(0x490,  6,  2, 0x01);
+		pcie_phyctrl_set(0x4c0,  0, 32, 0x1f400000);
+		pcie_phyctrl_set(0x4a4,  0, 16, 0x013d);
+		pcie_phyctrl_set(0x4a8, 16, 16, 0x74);
+		pcie_phyctrl_set(0x4a8,  0, 16, 0x74);
+	} else {
+		pcie_phyctrl_set(0x4bc, 24,  8, 0x64);
+		pcie_phyctrl_set(0x490, 12,  4, 0x0a);
+		pcie_phyctrl_set(0x490,  6,  2, 0x00);
+		pcie_phyctrl_set(0x4c0,  0, 32, 0x19000000);
+		pcie_phyctrl_set(0x4a4,  0, 16, 0x018d);
+		pcie_phyctrl_set(0x4a8, 16, 16, 0x4a);
+		pcie_phyctrl_set(0x4a8,  0, 16, 0x4a);
+	}
 
-	return 0;
+	pcie_phyctrl_set(0x498, 0, 8, 0x5);
+	pcie_phyctrl_set(0x000, 5, 1, 0x1);
+	pcie_phyctrl_set(0x000, 4, 1, 0x0);
 }
 
 static int mt7620_pci_probe(struct platform_device *pdev)
@@ -316,8 +343,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 
 	case MT762X_SOC_MT7628AN:
 	case MT762X_SOC_MT7688:
-		if (mt7628_pci_hw_init(pdev))
-			return -1;
+		mt7628_pci_hw_init(pdev);
 		break;
 
 	default:
@@ -336,6 +362,8 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
 		if (ralink_soc == MT762X_SOC_MT7620A)
 			rt_sysc_m32(LC_CKDRVPD, PDRV_SW_SET, PPLL_DRV);
+		else
+			pcie_phyctrl_set(0x000, 0, 32, 0x10);
 		dev_info(&pdev->dev, "PCIE0 no card, disable it(RST&CLK)\n");
 		return -1;
 	}
@@ -354,6 +382,11 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 	/* voodoo from the SDK driver */
 	pci_config_read(NULL, 0, 4, 4, &val);
 	pci_config_write(NULL, 0, 4, 4, val | 0x7);
+
+	pci_config_read(NULL, 0, 0x70c, 4, &val);
+	val &= ~(0xff) << 8;
+	val |= 0x50 << 8;
+	pci_config_write(NULL, 0, 0x70c, 4, val);
 
 	pci_load_of_ranges(&mt7620_controller, pdev->dev.of_node);
 	register_pci_controller(&mt7620_controller);
