@@ -2696,9 +2696,8 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 
 static int move_module(struct module *mod, struct load_info *info)
 {
-	int i;
+	int i, ret;
 	enum mod_mem_type t = MOD_MEM_NUM_TYPES;
-	int ret = -ENOMEM;
 	bool codetag_section_found = false;
 
 	for_each_mod_mem_type(type) {
