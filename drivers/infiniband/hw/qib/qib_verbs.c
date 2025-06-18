@@ -361,7 +361,7 @@ drop:
  */
 static void mem_timer(struct timer_list *t)
 {
-	struct qib_ibdev *dev = from_timer(dev, t, mem_timer);
+	struct qib_ibdev *dev = timer_container_of(dev, t, mem_timer);
 	struct list_head *list = &dev->memwait;
 	struct rvt_qp *qp = NULL;
 	struct qib_qp_priv *priv = NULL;
@@ -1655,7 +1655,7 @@ void qib_unregister_ib_device(struct qib_devdata *dd)
 	if (!list_empty(&dev->memwait))
 		qib_dev_err(dd, "memwait list not empty!\n");
 
-	del_timer_sync(&dev->mem_timer);
+	timer_delete_sync(&dev->mem_timer);
 	while (!list_empty(&dev->txreq_free)) {
 		struct list_head *l = dev->txreq_free.next;
 		struct qib_verbs_txreq *tx;

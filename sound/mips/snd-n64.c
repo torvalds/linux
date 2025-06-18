@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
@@ -327,14 +328,14 @@ static int __init n64audio_probe(struct platform_device *pdev)
 		goto fail_dma_alloc;
 
 	pcm->private_data = priv;
-	strcpy(pcm->name, "N64 Audio");
+	strscpy(pcm->name, "N64 Audio");
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &n64audio_pcm_ops);
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_VMALLOC, card->dev, 0, 0);
 
-	strcpy(card->driver, "N64 Audio");
-	strcpy(card->shortname, "N64 Audio");
-	strcpy(card->longname, "N64 Audio");
+	strscpy(card->driver, "N64 Audio");
+	strscpy(card->shortname, "N64 Audio");
+	strscpy(card->longname, "N64 Audio");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

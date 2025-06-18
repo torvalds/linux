@@ -102,7 +102,8 @@ static void zfcp_qdio_request_tasklet(struct tasklet_struct *tasklet)
 
 static void zfcp_qdio_request_timer(struct timer_list *timer)
 {
-	struct zfcp_qdio *qdio = from_timer(qdio, timer, request_timer);
+	struct zfcp_qdio *qdio = timer_container_of(qdio, timer,
+						    request_timer);
 
 	tasklet_schedule(&qdio->request_tasklet);
 }
@@ -408,7 +409,7 @@ void zfcp_qdio_close(struct zfcp_qdio *qdio)
 
 	tasklet_disable(&qdio->irq_tasklet);
 	tasklet_disable(&qdio->request_tasklet);
-	del_timer_sync(&qdio->request_timer);
+	timer_delete_sync(&qdio->request_timer);
 	qdio_stop_irq(adapter->ccw_device);
 	qdio_shutdown(adapter->ccw_device, QDIO_FLAG_CLEANUP_USING_CLEAR);
 

@@ -930,7 +930,7 @@ void irdma_terminate_done(struct irdma_sc_qp *qp, int timeout_occurred)
 
 static void irdma_terminate_timeout(struct timer_list *t)
 {
-	struct irdma_qp *iwqp = from_timer(iwqp, t, terminate_timer);
+	struct irdma_qp *iwqp = timer_container_of(iwqp, t, terminate_timer);
 	struct irdma_sc_qp *qp = &iwqp->sc_qp;
 
 	irdma_terminate_done(qp, 1);
@@ -963,7 +963,7 @@ void irdma_terminate_del_timer(struct irdma_sc_qp *qp)
 	int ret;
 
 	iwqp = qp->qp_uk.back_qp;
-	ret = del_timer(&iwqp->terminate_timer);
+	ret = timer_delete(&iwqp->terminate_timer);
 	if (ret)
 		irdma_qp_rem_ref(&iwqp->ibqp);
 }
@@ -1537,7 +1537,7 @@ int irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
 static void irdma_hw_stats_timeout(struct timer_list *t)
 {
 	struct irdma_vsi_pestat *pf_devstat =
-		from_timer(pf_devstat, t, stats_timer);
+		timer_container_of(pf_devstat, t, stats_timer);
 	struct irdma_sc_vsi *sc_vsi = pf_devstat->vsi;
 
 	if (sc_vsi->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
@@ -1570,7 +1570,7 @@ void irdma_hw_stats_stop_timer(struct irdma_sc_vsi *vsi)
 {
 	struct irdma_vsi_pestat *devstat = vsi->pestat;
 
-	del_timer_sync(&devstat->stats_timer);
+	timer_delete_sync(&devstat->stats_timer);
 }
 
 /**

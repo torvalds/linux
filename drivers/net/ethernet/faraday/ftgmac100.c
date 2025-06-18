@@ -1906,7 +1906,7 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			goto err_phy_connect;
 		}
 
-		phydev = fixed_phy_register(PHY_POLL, &ncsi_phy_status, np);
+		phydev = fixed_phy_register(&ncsi_phy_status, np);
 		if (IS_ERR(phydev)) {
 			dev_err(&pdev->dev, "failed to register fixed PHY device\n");
 			err = PTR_ERR(phydev);

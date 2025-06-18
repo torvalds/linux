@@ -101,9 +101,7 @@ config USB_RTL8152
 	select MII
 	select PHYLIB
 	select CRC32
-	select CRYPTO
-	select CRYPTO_HASH
-	select CRYPTO_SHA256
+	select CRYPTO_LIB_SHA256
 	help
 	  This option adds support for Realtek RTL8152 based USB 2.0
 	  10/100 Ethernet adapters and RTL8153 based USB 3.0 10/100/1000

@@ -333,7 +333,7 @@ static int tps25990_write_byte_data(struct i2c_client *client,
 
 #if IS_ENABLED(CONFIG_SENSORS_TPS25990_REGULATOR)
 static const struct regulator_desc tps25990_reg_desc[] = {
-	PMBUS_REGULATOR_ONE("vout"),
+	PMBUS_REGULATOR_ONE_NODE("vout"),
 };
 #endif
 

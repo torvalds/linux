@@ -1173,7 +1173,7 @@ static int amd8111e_close(struct net_device *dev)
 
 	/* Delete ipg timer */
 	if (lp->options & OPTION_DYN_IPG_ENABLE)
-		del_timer_sync(&lp->ipg_data.ipg_timer);
+		timer_delete_sync(&lp->ipg_data.ipg_timer);
 
 	spin_unlock_irq(&lp->lock);
 	free_irq(dev->irq, dev);
@@ -1598,7 +1598,7 @@ static int __maybe_unused amd8111e_suspend(struct device *dev_d)
 	/* stop chip */
 	spin_lock_irq(&lp->lock);
 	if (lp->options & OPTION_DYN_IPG_ENABLE)
-		del_timer_sync(&lp->ipg_data.ipg_timer);
+		timer_delete_sync(&lp->ipg_data.ipg_timer);
 	amd8111e_stop_chip(lp);
 	spin_unlock_irq(&lp->lock);
 
@@ -1641,7 +1641,8 @@ static int __maybe_unused amd8111e_resume(struct device *dev_d)
 
 static void amd8111e_config_ipg(struct timer_list *t)
 {
-	struct amd8111e_priv *lp = from_timer(lp, t, ipg_data.ipg_timer);
+	struct amd8111e_priv *lp = timer_container_of(lp, t,
+						      ipg_data.ipg_timer);
 	struct ipg_info *ipg_data = &lp->ipg_data;
 	void __iomem *mmio = lp->mmio;
 	unsigned int prev_col_cnt = ipg_data->col_cnt;

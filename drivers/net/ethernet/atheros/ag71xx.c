@@ -1391,7 +1391,7 @@ static void ag71xx_hw_disable(struct ag71xx *ag)
 	ag71xx_dma_reset(ag);
 
 	napi_disable(&ag->napi);
-	del_timer_sync(&ag->oom_timer);
+	timer_delete_sync(&ag->oom_timer);
 
 	ag71xx_rings_cleanup(ag);
 }
@@ -1563,7 +1563,7 @@ err_drop:
 
 static void ag71xx_oom_timer_handler(struct timer_list *t)
 {
-	struct ag71xx *ag = from_timer(ag, t, oom_timer);
+	struct ag71xx *ag = timer_container_of(ag, t, oom_timer);
 
 	napi_schedule(&ag->napi);
 }

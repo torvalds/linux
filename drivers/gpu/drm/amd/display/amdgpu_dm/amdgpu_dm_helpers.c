@@ -630,6 +630,19 @@ bool dm_helpers_submit_i2c(
 	return result;
 }
 
+bool dm_helpers_execute_fused_io(
+		struct dc_context *ctx,
+		struct dc_link *link,
+		union dmub_rb_cmd *commands,
+		uint8_t count,
+		uint32_t timeout_us
+)
+{
+	struct amdgpu_device *dev = ctx->driver_context;
+
+	return amdgpu_dm_execute_fused_io(dev, link, commands, count, timeout_us);
+}
+
 static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		bool is_write_cmd,
 		unsigned char cmd,
@@ -918,7 +931,7 @@ dm_helpers_probe_acpi_edid(void *data, u8 *buf, unsigned int block, size_t len)
 {
 	struct drm_connector *connector = data;
 	struct acpi_device *acpidev = ACPI_COMPANION(connector->dev->dev);
-	unsigned char start = block * EDID_LENGTH;
+	unsigned short start = block * EDID_LENGTH;
 	struct edid *edid;
 	int r;
 

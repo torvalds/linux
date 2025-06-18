@@ -3,6 +3,7 @@
 #include "bkey_buf.h"
 #include "btree_update.h"
 #include "buckets.h"
+#include "enumerated_ref.h"
 #include "error.h"
 #include "extents.h"
 #include "inode.h"
@@ -311,7 +312,7 @@ static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
 
 	if (!bkey_refcount_c(k)) {
 		if (!(flags & BTREE_TRIGGER_overwrite))
-			ret = -BCH_ERR_missing_indirect_extent;
+			ret = bch_err_throw(c, missing_indirect_extent);
 		goto next;
 	}
 
@@ -495,7 +496,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 				     bool reflink_p_may_update_opts_field)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter reflink_iter = { NULL };
+	struct btree_iter reflink_iter = {};
 	struct bkey_s_c k;
 	struct bkey_i *r_v;
 	struct bkey_i_reflink_p *r_p;
@@ -507,7 +508,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	bch2_trans_iter_init(trans, &reflink_iter, BTREE_ID_reflink, POS_MAX,
 			     BTREE_ITER_intent);
-	k = bch2_btree_iter_peek_prev(&reflink_iter);
+	k = bch2_btree_iter_peek_prev(trans, &reflink_iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -569,12 +570,13 @@ err:
 	return ret;
 }
 
-static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
+static struct bkey_s_c get_next_src(struct btree_trans *trans,
+				    struct btree_iter *iter, struct bpos end)
 {
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_max_continue_norestart(*iter, end, 0, k, ret) {
+	for_each_btree_key_max_continue_norestart(trans, *iter, end, 0, k, ret) {
 		if (bkey_extent_is_unwritten(k))
 			continue;
 
@@ -583,7 +585,7 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 	}
 
 	if (bkey_ge(iter->pos, end))
-		bch2_btree_iter_set_pos(iter, end);
+		bch2_btree_iter_set_pos(trans, iter, end);
 	return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
 }
 
@@ -609,8 +611,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 		!bch2_request_incompat_feature(c, bcachefs_metadata_version_reflink_p_may_update_opts);
 	int ret = 0, ret2 = 0;
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_reflink))
-		return -BCH_ERR_erofs_no_writes;
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_reflink))
+		return bch_err_throw(c, erofs_no_writes);
 
 	bch2_check_set_feature(c, BCH_FEATURE_reflink);
 
@@ -647,27 +649,27 @@ s64 bch2_remap_range(struct bch_fs *c,
 		if (ret)
 			continue;
 
-		bch2_btree_iter_set_snapshot(&src_iter, src_snapshot);
+		bch2_btree_iter_set_snapshot(trans, &src_iter, src_snapshot);
 
 		ret = bch2_subvolume_get_snapshot(trans, dst_inum.subvol,
 						  &dst_snapshot);
 		if (ret)
 			continue;
 
-		bch2_btree_iter_set_snapshot(&dst_iter, dst_snapshot);
+		bch2_btree_iter_set_snapshot(trans, &dst_iter, dst_snapshot);
 
 		if (dst_inum.inum < src_inum.inum) {
 			/* Avoid some lock cycle transaction restarts */
-			ret = bch2_btree_iter_traverse(&dst_iter);
+			ret = bch2_btree_iter_traverse(trans, &dst_iter);
 			if (ret)
 				continue;
 		}
 
 		dst_done = dst_iter.pos.offset - dst_start.offset;
 		src_want = POS(src_start.inode, src_start.offset + dst_done);
-		bch2_btree_iter_set_pos(&src_iter, src_want);
+		bch2_btree_iter_set_pos(trans, &src_iter, src_want);
 
-		src_k = get_next_src(&src_iter, src_end);
+		src_k = get_next_src(trans, &src_iter, src_end);
 		ret = bkey_err(src_k);
 		if (ret)
 			continue;
@@ -709,7 +711,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 			SET_REFLINK_P_IDX(&dst_p->v, offset);
 
 			if (reflink_p_may_update_opts_field &&
-			    may_change_src_io_path_opts)
+			    may_change_src_io_path_opts &&
+			    REFLINK_P_MAY_UPDATE_OPTIONS(src_p.v))
 				SET_REFLINK_P_MAY_UPDATE_OPTIONS(&dst_p->v, true);
 		} else {
 			BUG();
@@ -738,7 +741,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 	do {
 		struct bch_inode_unpacked inode_u;
-		struct btree_iter inode_iter = { NULL };
+		struct btree_iter inode_iter = {};
 
 		bch2_trans_begin(trans);
 
@@ -760,7 +763,7 @@ err:
 	bch2_bkey_buf_exit(&new_src, c);
 	bch2_bkey_buf_exit(&new_dst, c);
 
-	bch2_write_ref_put(c, BCH_WRITE_REF_reflink);
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_reflink);
 
 	return dst_done ?: ret ?: ret2;
 }
@@ -845,7 +848,7 @@ int bch2_gc_reflink_start(struct bch_fs *c)
 			struct reflink_gc *r = genradix_ptr_alloc(&c->reflink_gc_table,
 							c->reflink_gc_nr++, GFP_KERNEL);
 			if (!r) {
-				ret = -BCH_ERR_ENOMEM_gc_reflink_start;
+				ret = bch_err_throw(c, ENOMEM_gc_reflink_start);
 				break;
 			}
 

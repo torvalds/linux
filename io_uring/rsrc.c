@@ -80,10 +80,21 @@ static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 	return 0;
 }
 
-int io_buffer_validate(struct iovec *iov)
+int io_validate_user_buf_range(u64 uaddr, u64 ulen)
 {
-	unsigned long tmp, acct_len = iov->iov_len + (PAGE_SIZE - 1);
+	unsigned long tmp, base = (unsigned long)uaddr;
+	unsigned long acct_len = (unsigned long)PAGE_ALIGN(ulen);
 
+	/* arbitrary limit, but we need something */
+	if (ulen > SZ_1G || !ulen)
+		return -EFAULT;
+	if (check_add_overflow(base, acct_len, &tmp))
+		return -EOVERFLOW;
+	return 0;
+}
+
+static int io_buffer_validate(struct iovec *iov)
+{
 	/*
 	 * Don't impose further limits on the size and buffer
 	 * constraints here, we'll -EINVAL later when IO is
@@ -91,17 +102,9 @@ int io_buffer_validate(struct iovec *iov)
 	 */
 	if (!iov->iov_base)
 		return iov->iov_len ? -EFAULT : 0;
-	if (!iov->iov_len)
-		return -EFAULT;
 
-	/* arbitrary limit, but we need something */
-	if (iov->iov_len > SZ_1G)
-		return -EFAULT;
-
-	if (check_add_overflow((unsigned long)iov->iov_base, acct_len, &tmp))
-		return -EOVERFLOW;
-
-	return 0;
+	return io_validate_user_buf_range((unsigned long)iov->iov_base,
+					  iov->iov_len);
 }
 
 static void io_release_ubuf(void *priv)
@@ -173,6 +176,18 @@ void io_rsrc_cache_free(struct io_ring_ctx *ctx)
 {
 	io_alloc_cache_free(&ctx->node_cache, kfree);
 	io_alloc_cache_free(&ctx->imu_cache, kfree);
+}
+
+static void io_clear_table_tags(struct io_rsrc_data *data)
+{
+	int i;
+
+	for (i = 0; i < data->nr; i++) {
+		struct io_rsrc_node *node = data->nodes[i];
+
+		if (node)
+			node->tag = 0;
+	}
 }
 
 __cold void io_rsrc_data_free(struct io_ring_ctx *ctx,
@@ -485,7 +500,7 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
@@ -583,6 +598,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	io_file_table_set_alloc_range(ctx, 0, ctx->file_table.data.nr);
 	return 0;
 fail:
+	io_clear_table_tags(&ctx->file_table.data);
 	io_sqe_files_unregister(ctx);
 	return ret;
 }
@@ -672,38 +688,34 @@ static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
 				struct io_imu_folio_data *data)
 {
 	struct page **page_array = *pages, **new_array = NULL;
-	int nr_pages_left = *nr_pages, i, j;
-	int nr_folios = data->nr_folios;
+	unsigned nr_pages_left = *nr_pages;
+	unsigned nr_folios = data->nr_folios;
+	unsigned i, j;
 
 	/* Store head pages only*/
-	new_array = kvmalloc_array(nr_folios, sizeof(struct page *),
-					GFP_KERNEL);
+	new_array = kvmalloc_array(nr_folios, sizeof(struct page *), GFP_KERNEL);
 	if (!new_array)
 		return false;
 
-	new_array[0] = compound_head(page_array[0]);
-	/*
-	 * The pages are bound to the folio, it doesn't
-	 * actually unpin them but drops all but one reference,
-	 * which is usually put down by io_buffer_unmap().
-	 * Note, needs a better helper.
-	 */
-	if (data->nr_pages_head > 1)
-		unpin_user_pages(&page_array[1], data->nr_pages_head - 1);
+	for (i = 0, j = 0; i < nr_folios; i++) {
+		struct page *p = compound_head(page_array[j]);
+		struct folio *folio = page_folio(p);
+		unsigned int nr;
 
-	j = data->nr_pages_head;
-	nr_pages_left -= data->nr_pages_head;
-	for (i = 1; i < nr_folios; i++) {
-		unsigned int nr_unpin;
+		WARN_ON_ONCE(i > 0 && p != page_array[j]);
 
-		new_array[i] = page_array[j];
-		nr_unpin = min_t(unsigned int, nr_pages_left - 1,
-					data->nr_pages_mid - 1);
-		if (nr_unpin)
-			unpin_user_pages(&page_array[j+1], nr_unpin);
-		j += data->nr_pages_mid;
-		nr_pages_left -= data->nr_pages_mid;
+		nr = i ? data->nr_pages_mid : data->nr_pages_head;
+		nr = min(nr, nr_pages_left);
+		/* Drop all but one ref, the entire folio will remain pinned. */
+		if (nr > 1)
+			unpin_user_folio(folio, nr - 1);
+		j += nr;
+		nr_pages_left -= nr;
+		new_array[i] = p;
 	}
+
+	WARN_ON_ONCE(j != *nr_pages);
+
 	kvfree(page_array);
 	*pages = new_array;
 	*nr_pages = nr_folios;
@@ -902,8 +914,10 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	ctx->buf_table = data;
-	if (ret)
+	if (ret) {
+		io_clear_table_tags(&ctx->buf_table);
 		io_sqe_buffers_unregister(ctx);
+	}
 	return ret;
 }
 
@@ -1002,73 +1016,86 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(io_buffer_unregister_bvec);
 
-static int io_import_fixed(int ddir, struct iov_iter *iter,
-			   struct io_mapped_ubuf *imu,
-			   u64 buf_addr, size_t len)
+static int validate_fixed_range(u64 buf_addr, size_t len,
+				const struct io_mapped_ubuf *imu)
 {
 	u64 buf_end;
-	size_t offset;
 
-	if (WARN_ON_ONCE(!imu))
-		return -EFAULT;
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
 	if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
 		return -EFAULT;
+	if (unlikely(len > MAX_RW_COUNT))
+		return -EFAULT;
+	return 0;
+}
+
+static int io_import_kbuf(int ddir, struct iov_iter *iter,
+			  struct io_mapped_ubuf *imu, size_t len, size_t offset)
+{
+	size_t count = len + offset;
+
+	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, count);
+	iov_iter_advance(iter, offset);
+
+	if (count < imu->len) {
+		const struct bio_vec *bvec = iter->bvec;
+
+		while (len > bvec->bv_len) {
+			len -= bvec->bv_len;
+			bvec++;
+		}
+		iter->nr_segs = 1 + bvec - iter->bvec;
+	}
+	return 0;
+}
+
+static int io_import_fixed(int ddir, struct iov_iter *iter,
+			   struct io_mapped_ubuf *imu,
+			   u64 buf_addr, size_t len)
+{
+	const struct bio_vec *bvec;
+	size_t folio_mask;
+	unsigned nr_segs;
+	size_t offset;
+	int ret;
+
+	ret = validate_fixed_range(buf_addr, len, imu);
+	if (unlikely(ret))
+		return ret;
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
-	/*
-	 * Might not be a start of buffer, set size appropriately
-	 * and advance us to the beginning.
-	 */
 	offset = buf_addr - imu->ubuf;
-	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, offset + len);
 
-	if (offset) {
-		/*
-		 * Don't use iov_iter_advance() here, as it's really slow for
-		 * using the latter parts of a big fixed buffer - it iterates
-		 * over each segment manually. We can cheat a bit here for user
-		 * registered nodes, because we know that:
-		 *
-		 * 1) it's a BVEC iter, we set it up
-		 * 2) all bvecs are the same in size, except potentially the
-		 *    first and last bvec
-		 *
-		 * So just find our index, and adjust the iterator afterwards.
-		 * If the offset is within the first bvec (or the whole first
-		 * bvec, just use iov_iter_advance(). This makes it easier
-		 * since we can just skip the first segment, which may not
-		 * be folio_size aligned.
-		 */
-		const struct bio_vec *bvec = imu->bvec;
+	if (imu->is_kbuf)
+		return io_import_kbuf(ddir, iter, imu, len, offset);
 
-		/*
-		 * Kernel buffer bvecs, on the other hand, don't necessarily
-		 * have the size property of user registered ones, so we have
-		 * to use the slow iter advance.
-		 */
-		if (offset < bvec->bv_len) {
-			iter->count -= offset;
-			iter->iov_offset = offset;
-		} else if (imu->is_kbuf) {
-			iov_iter_advance(iter, offset);
-		} else {
-			unsigned long seg_skip;
+	/*
+	 * Don't use iov_iter_advance() here, as it's really slow for
+	 * using the latter parts of a big fixed buffer - it iterates
+	 * over each segment manually. We can cheat a bit here for user
+	 * registered nodes, because we know that:
+	 *
+	 * 1) it's a BVEC iter, we set it up
+	 * 2) all bvecs are the same in size, except potentially the
+	 *    first and last bvec
+	 */
+	folio_mask = (1UL << imu->folio_shift) - 1;
+	bvec = imu->bvec;
+	if (offset >= bvec->bv_len) {
+		unsigned long seg_skip;
 
-			/* skip first vec */
-			offset -= bvec->bv_len;
-			seg_skip = 1 + (offset >> imu->folio_shift);
-
-			iter->bvec += seg_skip;
-			iter->nr_segs -= seg_skip;
-			iter->count -= bvec->bv_len + offset;
-			iter->iov_offset = offset & ((1UL << imu->folio_shift) - 1);
-		}
+		/* skip first vec */
+		offset -= bvec->bv_len;
+		seg_skip = 1 + (offset >> imu->folio_shift);
+		bvec += seg_skip;
+		offset &= folio_mask;
 	}
-
+	nr_segs = (offset + len + bvec->bv_offset + folio_mask) >> imu->folio_shift;
+	iov_iter_bvec(iter, ddir, bvec, nr_segs, len);
+	iter->iov_offset = offset;
 	return 0;
 }
 
@@ -1080,13 +1107,19 @@ inline struct io_rsrc_node *io_find_buf_node(struct io_kiocb *req,
 
 	if (req->flags & REQ_F_BUF_NODE)
 		return req->buf_node;
+	req->flags |= REQ_F_BUF_NODE;
 
 	io_ring_submit_lock(ctx, issue_flags);
 	node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
-	if (node)
-		io_req_assign_buf_node(req, node);
+	if (node) {
+		node->refs++;
+		req->buf_node = node;
+		io_ring_submit_unlock(ctx, issue_flags);
+		return node;
+	}
+	req->flags &= ~REQ_F_BUF_NODE;
 	io_ring_submit_unlock(ctx, issue_flags);
-	return node;
+	return NULL;
 }
 
 int io_import_reg_buf(struct io_kiocb *req, struct iov_iter *iter,
@@ -1305,12 +1338,12 @@ static int io_vec_fill_bvec(int ddir, struct iov_iter *iter,
 		u64 buf_addr = (u64)(uintptr_t)iovec[iov_idx].iov_base;
 		struct bio_vec *src_bvec;
 		size_t offset;
-		u64 buf_end;
+		int ret;
 
-		if (unlikely(check_add_overflow(buf_addr, (u64)iov_len, &buf_end)))
-			return -EFAULT;
-		if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
-			return -EFAULT;
+		ret = validate_fixed_range(buf_addr, iov_len, imu);
+		if (unlikely(ret))
+			return ret;
+
 		if (unlikely(!iov_len))
 			return -EFAULT;
 		if (unlikely(check_add_overflow(total_len, iov_len, &total_len)))
@@ -1349,6 +1382,82 @@ static int io_estimate_bvec_size(struct iovec *iov, unsigned nr_iovs,
 	return max_segs;
 }
 
+static int io_vec_fill_kern_bvec(int ddir, struct iov_iter *iter,
+				 struct io_mapped_ubuf *imu,
+				 struct iovec *iovec, unsigned nr_iovs,
+				 struct iou_vec *vec)
+{
+	const struct bio_vec *src_bvec = imu->bvec;
+	struct bio_vec *res_bvec = vec->bvec;
+	unsigned res_idx = 0;
+	size_t total_len = 0;
+	unsigned iov_idx;
+
+	for (iov_idx = 0; iov_idx < nr_iovs; iov_idx++) {
+		size_t offset = (size_t)(uintptr_t)iovec[iov_idx].iov_base;
+		size_t iov_len = iovec[iov_idx].iov_len;
+		struct bvec_iter bi = {
+			.bi_size        = offset + iov_len,
+		};
+		struct bio_vec bv;
+
+		bvec_iter_advance(src_bvec, &bi, offset);
+		for_each_mp_bvec(bv, src_bvec, bi, bi)
+			res_bvec[res_idx++] = bv;
+		total_len += iov_len;
+	}
+	iov_iter_bvec(iter, ddir, res_bvec, res_idx, total_len);
+	return 0;
+}
+
+static int iov_kern_bvec_size(const struct iovec *iov,
+			      const struct io_mapped_ubuf *imu,
+			      unsigned int *nr_seg)
+{
+	size_t offset = (size_t)(uintptr_t)iov->iov_base;
+	const struct bio_vec *bvec = imu->bvec;
+	int start = 0, i = 0;
+	size_t off = 0;
+	int ret;
+
+	ret = validate_fixed_range(offset, iov->iov_len, imu);
+	if (unlikely(ret))
+		return ret;
+
+	for (i = 0; off < offset + iov->iov_len && i < imu->nr_bvecs;
+			off += bvec[i].bv_len, i++) {
+		if (offset >= off && offset < off + bvec[i].bv_len)
+			start = i;
+	}
+	*nr_seg = i - start;
+	return 0;
+}
+
+static int io_kern_bvec_size(struct iovec *iov, unsigned nr_iovs,
+			     struct io_mapped_ubuf *imu, unsigned *nr_segs)
+{
+	unsigned max_segs = 0;
+	size_t total_len = 0;
+	unsigned i;
+	int ret;
+
+	*nr_segs = 0;
+	for (i = 0; i < nr_iovs; i++) {
+		if (unlikely(!iov[i].iov_len))
+			return -EFAULT;
+		if (unlikely(check_add_overflow(total_len, iov[i].iov_len,
+						&total_len)))
+			return -EOVERFLOW;
+		ret = iov_kern_bvec_size(&iov[i], imu, &max_segs);
+		if (unlikely(ret))
+			return ret;
+		*nr_segs += max_segs;
+	}
+	if (total_len > MAX_RW_COUNT)
+		return -EINVAL;
+	return 0;
+}
+
 int io_import_reg_vec(int ddir, struct iov_iter *iter,
 			struct io_kiocb *req, struct iou_vec *vec,
 			unsigned nr_iovs, unsigned issue_flags)
@@ -1363,14 +1472,20 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 	if (!node)
 		return -EFAULT;
 	imu = node->buf;
-	if (imu->is_kbuf)
-		return -EOPNOTSUPP;
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
 	iovec_off = vec->nr - nr_iovs;
 	iov = vec->iovec + iovec_off;
-	nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
+
+	if (imu->is_kbuf) {
+		int ret = io_kern_bvec_size(iov, nr_iovs, imu, &nr_segs);
+
+		if (unlikely(ret))
+			return ret;
+	} else {
+		nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
+	}
 
 	if (sizeof(struct bio_vec) > sizeof(struct iovec)) {
 		size_t bvec_bytes;
@@ -1396,6 +1511,9 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 		iov = vec->iovec + iovec_off;
 		req->flags |= REQ_F_NEED_CLEANUP;
 	}
+
+	if (imu->is_kbuf)
+		return io_vec_fill_kern_bvec(ddir, iter, imu, iov, nr_iovs, vec);
 
 	return io_vec_fill_bvec(ddir, iter, imu, iov, nr_iovs, vec);
 }

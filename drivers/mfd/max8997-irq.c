@@ -327,8 +327,8 @@ int max8997_irq_init(struct max8997_dev *max8997)
 					true : false;
 	}
 
-	domain = irq_domain_add_linear(NULL, MAX8997_IRQ_NR,
-					&max8997_irq_domain_ops, max8997);
+	domain = irq_domain_create_linear(NULL, MAX8997_IRQ_NR,
+					  &max8997_irq_domain_ops, max8997);
 	if (!domain) {
 		dev_err(max8997->dev, "could not create irq domain\n");
 		return -ENODEV;

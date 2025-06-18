@@ -95,7 +95,7 @@ EXPORT_SYMBOL(mISDN_FsmChangeState);
 static void
 FsmExpireTimer(struct timer_list *t)
 {
-	struct FsmTimer *ft = from_timer(ft, t, tl);
+	struct FsmTimer *ft = timer_container_of(ft, t, tl);
 #if FSM_TIMER_DEBUG
 	if (ft->fi->debug)
 		ft->fi->printdebug(ft->fi, "FsmExpireTimer %lx", (long) ft);
@@ -123,7 +123,7 @@ mISDN_FsmDelTimer(struct FsmTimer *ft, int where)
 		ft->fi->printdebug(ft->fi, "mISDN_FsmDelTimer %lx %d",
 				   (long) ft, where);
 #endif
-	del_timer(&ft->tl);
+	timer_delete(&ft->tl);
 }
 EXPORT_SYMBOL(mISDN_FsmDelTimer);
 
@@ -167,7 +167,7 @@ mISDN_FsmRestartTimer(struct FsmTimer *ft,
 #endif
 
 	if (timer_pending(&ft->tl))
-		del_timer(&ft->tl);
+		timer_delete(&ft->tl);
 	ft->event = event;
 	ft->arg = arg;
 	ft->tl.expires = jiffies + (millisec * HZ) / 1000;

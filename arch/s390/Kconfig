@@ -137,6 +137,7 @@ config S390
 	select ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	select ARCH_SUPPORTS_HUGETLBFS
 	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128 && CC_IS_CLANG
+	select ARCH_SUPPORTS_MSEAL_SYSTEM_MAPPINGS
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_SUPPORTS_PER_VMA_LOCK
 	select ARCH_USE_BUILTIN_BSWAP
@@ -145,6 +146,7 @@ config S390
 	select ARCH_WANTS_NO_INSTR
 	select ARCH_WANT_DEFAULT_BPF_JIT
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select ARCH_WANT_IRQS_OFF_ACTIVATE_MM
 	select ARCH_WANT_KERNEL_PMD_MKWRITE
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
@@ -239,6 +241,7 @@ config S390
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING
 	select HAVE_VIRT_CPU_ACCOUNTING_IDLE
+	select HOTPLUG_SMT
 	select IOMMU_HELPER		if PCI
 	select IOMMU_SUPPORT		if PCI
 	select KASAN_VMALLOC if KASAN
@@ -330,6 +333,10 @@ config HAVE_MARCH_Z16_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z15_FEATURES
 
+config HAVE_MARCH_Z17_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z16_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -395,6 +402,14 @@ config MARCH_Z16
 	  Select this to enable optimizations for IBM z16 (3931 and
 	  3932 series).
 
+config MARCH_Z17
+	bool "IBM z17"
+	select HAVE_MARCH_Z17_FEATURES
+	depends on $(cc-option,-march=z17)
+	help
+	  Select this to enable optimizations for IBM z17 (9175 and
+	  9176 series).
+
 endchoice
 
 config MARCH_Z10_TUNE
@@ -417,6 +432,9 @@ config MARCH_Z15_TUNE
 
 config MARCH_Z16_TUNE
 	def_bool TUNE_Z16 || MARCH_Z16 && TUNE_DEFAULT
+
+config MARCH_Z17_TUNE
+	def_bool TUNE_Z17 || MARCH_Z17 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -461,6 +479,10 @@ config TUNE_Z15
 config TUNE_Z16
 	bool "IBM z16"
 	depends on $(cc-option,-mtune=z16)
+
+config TUNE_Z17
+	bool "IBM z17"
+	depends on $(cc-option,-mtune=z17)
 
 endchoice
 
@@ -629,6 +651,7 @@ endchoice
 
 config RELOCATABLE
 	def_bool y
+	select ARCH_VMLINUX_NEEDS_RELOCS
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded at an arbitrary address.

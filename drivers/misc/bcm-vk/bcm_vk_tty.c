@@ -43,7 +43,7 @@ struct bcm_vk_tty_chan {
 
 static void bcm_vk_tty_poll(struct timer_list *t)
 {
-	struct bcm_vk *vk = from_timer(vk, t, serial_timer);
+	struct bcm_vk *vk = timer_container_of(vk, t, serial_timer);
 
 	queue_work(vk->tty_wq_thread, &vk->tty_wq_work);
 	mod_timer(&vk->serial_timer, jiffies + SERIAL_TIMER_VALUE);
@@ -177,7 +177,7 @@ static void bcm_vk_tty_close(struct tty_struct *tty, struct file *file)
 	vk->tty[tty->index].is_opened = false;
 
 	if (tty->count == 1)
-		del_timer_sync(&vk->serial_timer);
+		timer_delete_sync(&vk->serial_timer);
 }
 
 static void bcm_vk_tty_doorbell(struct bcm_vk *vk, u32 db_val)
@@ -304,7 +304,7 @@ void bcm_vk_tty_exit(struct bcm_vk *vk)
 {
 	int i;
 
-	del_timer_sync(&vk->serial_timer);
+	timer_delete_sync(&vk->serial_timer);
 	for (i = 0; i < BCM_VK_NUM_TTY; ++i) {
 		tty_port_unregister_device(&vk->tty[i].port,
 					   vk->tty_drv,

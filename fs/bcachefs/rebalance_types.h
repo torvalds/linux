@@ -18,6 +18,7 @@ enum bch_rebalance_states {
 
 struct bch_fs_rebalance {
 	struct task_struct __rcu	*thread;
+	u32				kick;
 	struct bch_pd_controller pd;
 
 	enum bch_rebalance_states	state;
@@ -30,6 +31,11 @@ struct bch_fs_rebalance {
 	struct bbpos			scan_start;
 	struct bbpos			scan_end;
 	struct bch_move_stats		scan_stats;
+
+	bool				on_battery;
+#ifdef CONFIG_POWER_SUPPLY
+	struct notifier_block		power_notifier;
+#endif
 };
 
 #endif /* _BCACHEFS_REBALANCE_TYPES_H */

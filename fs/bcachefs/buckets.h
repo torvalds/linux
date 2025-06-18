@@ -44,6 +44,7 @@ static inline void bucket_unlock(struct bucket *b)
 	BUILD_BUG_ON(!((union ulong_byte_assert) { .ulong = 1UL << BUCKET_LOCK_BITNR }).byte);
 
 	clear_bit_unlock(BUCKET_LOCK_BITNR, (void *) &b->lock);
+	smp_mb__after_atomic();
 	wake_up_bit((void *) &b->lock, BUCKET_LOCK_BITNR);
 }
 
@@ -83,10 +84,8 @@ static inline int bucket_gen_get_rcu(struct bch_dev *ca, size_t b)
 
 static inline int bucket_gen_get(struct bch_dev *ca, size_t b)
 {
-	rcu_read_lock();
-	int ret = bucket_gen_get_rcu(ca, b);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return bucket_gen_get_rcu(ca, b);
 }
 
 static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
@@ -155,10 +154,8 @@ static inline int dev_ptr_stale_rcu(struct bch_dev *ca, const struct bch_extent_
  */
 static inline int dev_ptr_stale(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
 {
-	rcu_read_lock();
-	int ret = dev_ptr_stale_rcu(ca, ptr);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return dev_ptr_stale_rcu(ca, ptr);
 }
 
 /* Device usage: */
@@ -172,7 +169,16 @@ static inline struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 	return ret;
 }
 
-void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev *, struct bch_dev_usage *);
+void bch2_dev_usage_full_read_fast(struct bch_dev *, struct bch_dev_usage_full *);
+static inline struct bch_dev_usage_full bch2_dev_usage_full_read(struct bch_dev *ca)
+{
+	struct bch_dev_usage_full ret;
+
+	bch2_dev_usage_full_read_fast(ca, &ret);
+	return ret;
+}
+
+void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev *, struct bch_dev_usage_full *);
 
 static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_watermark watermark)
 {
@@ -207,7 +213,7 @@ static inline u64 dev_buckets_free(struct bch_dev *ca,
 				   enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
-		     usage.d[BCH_DATA_free].buckets -
+		     usage.buckets[BCH_DATA_free]-
 		     ca->nr_open_buckets -
 		     bch2_dev_buckets_reserved(ca, watermark));
 }
@@ -217,10 +223,10 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 					  enum bch_watermark watermark)
 {
 	return max_t(s64, 0,
-		       usage.d[BCH_DATA_free].buckets
-		     + usage.d[BCH_DATA_cached].buckets
-		     + usage.d[BCH_DATA_need_gc_gens].buckets
-		     + usage.d[BCH_DATA_need_discard].buckets
+		       usage.buckets[BCH_DATA_free]
+		     + usage.buckets[BCH_DATA_cached]
+		     + usage.buckets[BCH_DATA_need_gc_gens]
+		     + usage.buckets[BCH_DATA_need_discard]
 		     - ca->nr_open_buckets
 		     - bch2_dev_buckets_reserved(ca, watermark));
 }
@@ -232,11 +238,6 @@ static inline u64 dev_buckets_available(struct bch_dev *ca,
 }
 
 /* Filesystem usage: */
-
-static inline unsigned dev_usage_u64s(void)
-{
-	return sizeof(struct bch_dev_usage) / sizeof(u64);
-}
 
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);

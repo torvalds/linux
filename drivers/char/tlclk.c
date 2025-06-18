@@ -838,7 +838,7 @@ static void __exit tlclk_cleanup(void)
 	unregister_chrdev(tlclk_major, "telco_clock");
 
 	release_region(TLCLK_BASE, 8);
-	del_timer_sync(&switchover_timer);
+	timer_delete_sync(&switchover_timer);
 	kfree(alarm_events);
 
 }
@@ -856,7 +856,7 @@ static void switchover_timeout(struct timer_list *unused)
 	}
 
 	/* Alarm processing is done, wake up read task */
-	del_timer(&switchover_timer);
+	timer_delete(&switchover_timer);
 	got_event = 1;
 	wake_up(&wq);
 }

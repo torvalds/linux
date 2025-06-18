@@ -99,7 +99,8 @@ const struct vm_special_mapping vdso_vvar_mapping = {
 struct vm_area_struct *vdso_install_vvar_mapping(struct mm_struct *mm, unsigned long addr)
 {
 	return _install_special_mapping(mm, addr, VDSO_NR_PAGES * PAGE_SIZE,
-					VM_READ | VM_MAYREAD | VM_IO | VM_DONTDUMP | VM_PFNMAP,
+					VM_READ | VM_MAYREAD | VM_IO | VM_DONTDUMP |
+					VM_PFNMAP | VM_SEALED_SYSMAP,
 					&vdso_vvar_mapping);
 }
 

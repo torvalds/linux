@@ -310,7 +310,7 @@ efct_fw_reset(struct efct *efct)
 	 * during attach.
 	 */
 	if (timer_pending(&efct->xport->stats_timer))
-		del_timer(&efct->xport->stats_timer);
+		timer_delete(&efct->xport->stats_timer);
 
 	if (efct_hw_reset(&efct->hw, EFCT_HW_RESET_FIRMWARE)) {
 		efc_log_info(efct, "failed to reset firmware\n");

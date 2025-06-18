@@ -19,17 +19,22 @@ extern int pcibus_to_node(struct pci_bus *);
 
 #define cpumask_of_pcibus(bus)	(cpu_online_mask)
 
-extern unsigned char node_distances[MAX_NUMNODES][MAX_NUMNODES];
-
-void numa_set_distance(int from, int to, int distance);
-
-#define node_distance(from, to)	(node_distances[(from)][(to)])
+int __node_distance(int from, int to);
+#define node_distance(from, to) __node_distance(from, to)
 
 #else
 #define pcibus_to_node(bus)	0
 #endif
 
 #ifdef CONFIG_SMP
+/*
+ * Return cpus that shares the last level cache.
+ */
+static inline const struct cpumask *cpu_coregroup_mask(int cpu)
+{
+	return &cpu_llc_shared_map[cpu];
+}
+
 #define topology_physical_package_id(cpu)	(cpu_data[cpu].package)
 #define topology_core_id(cpu)			(cpu_data[cpu].core)
 #define topology_core_cpumask(cpu)		(&cpu_core_map[cpu])

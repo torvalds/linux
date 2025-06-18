@@ -54,7 +54,12 @@ struct bucket_gens {
 	u8			b[] __counted_by(nbuckets);
 };
 
+/* Only info on bucket countns: */
 struct bch_dev_usage {
+	u64			buckets[BCH_DATA_NR];
+};
+
+struct bch_dev_usage_full {
 	struct bch_dev_usage_type {
 		u64		buckets;
 		u64		sectors; /* _compressed_ sectors: */

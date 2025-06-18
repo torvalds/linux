@@ -1202,7 +1202,7 @@ static int zoran_debugfs_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "JPG ver_dcm %u\n", zr->jpg_settings.ver_dcm);
 	seq_printf(seq, "JPG tmp_dcm %u\n", zr->jpg_settings.tmp_dcm);
 	seq_printf(seq, "JPG odd_even %u\n", zr->jpg_settings.odd_even);
-	seq_printf(seq, "JPG crop %dx%d %d %d\n",
+	seq_printf(seq, "JPG crop (%d,%d)/%dx%d\n",
 		   zr->jpg_settings.img_x,
 		   zr->jpg_settings.img_y,
 		   zr->jpg_settings.img_width,

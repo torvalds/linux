@@ -11,6 +11,7 @@
 #include "btree_write_buffer.h"
 #include "buckets.h"
 #include "disk_accounting.h"
+#include "enumerated_ref.h"
 #include "errcode.h"
 #include "error.h"
 #include "journal.h"
@@ -20,6 +21,7 @@
 #include "snapshot.h"
 
 #include <linux/prefetch.h>
+#include <linux/string_helpers.h>
 
 static const char * const trans_commit_flags_strs[] = {
 #define x(n, ...) #n,
@@ -366,14 +368,15 @@ static noinline void journal_transaction_name(struct btree_trans *trans)
 	struct jset_entry_log *l =
 		container_of(entry, struct jset_entry_log, entry);
 
-	strncpy(l->d, trans->fn, JSET_ENTRY_LOG_U64s * sizeof(u64));
+	memcpy_and_pad(l->d, JSET_ENTRY_LOG_U64s * sizeof(u64),
+		       trans->fn, strlen(trans->fn), 0);
 }
 
 static inline int btree_key_can_insert(struct btree_trans *trans,
 				       struct btree *b, unsigned u64s)
 {
 	if (!bch2_btree_node_insert_fits(b, u64s))
-		return -BCH_ERR_btree_insert_btree_node_full;
+		return bch_err_throw(trans->c, btree_insert_btree_node_full);
 
 	return 0;
 }
@@ -391,9 +394,10 @@ btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 
 	new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
 	if (!new_k) {
-		bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
+		struct bch_fs *c = trans->c;
+		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
 			bch2_btree_id_str(path->btree_id), new_u64s);
-		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
+		return bch_err_throw(c, ENOMEM_btree_key_cache_insert);
 	}
 
 	ret =   bch2_trans_relock(trans) ?:
@@ -429,7 +433,7 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 	if (watermark < BCH_WATERMARK_reclaim &&
 	    !test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
 	    bch2_btree_key_cache_must_wait(c))
-		return -BCH_ERR_btree_insert_need_journal_reclaim;
+		return bch_err_throw(c, btree_insert_need_journal_reclaim);
 
 	/*
 	 * bch2_varint_decode can read past the end of the buffer by at most 7
@@ -644,10 +648,10 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
 	    !(flags & BCH_TRANS_COMMIT_no_journal_res)) {
-		if (bch2_journal_seq_verify)
+		if (static_branch_unlikely(&bch2_journal_seq_verify))
 			trans_for_each_update(trans, i)
 				i->k->k.bversion.lo = trans->journal_res.seq;
-		else if (bch2_inject_invalid_keys)
+		else if (static_branch_unlikely(&bch2_inject_invalid_keys))
 			trans_for_each_update(trans, i)
 				i->k->k.bversion = MAX_VERSION;
 	}
@@ -660,18 +664,17 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 		h = h->next;
 	}
 
-	struct jset_entry *entry = trans->journal_entries;
+	struct bkey_i *accounting;
 
 	percpu_down_read(&c->mark_lock);
-	for (entry = trans->journal_entries;
-	     entry != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
-	     entry = vstruct_next(entry))
-		if (entry->type == BCH_JSET_ENTRY_write_buffer_keys &&
-		    entry->start->k.type == KEY_TYPE_accounting) {
-			ret = bch2_accounting_trans_commit_hook(trans, bkey_i_to_accounting(entry->start), flags);
-			if (ret)
-				goto revert_fs_usage;
-		}
+	for (accounting = btree_trans_subbuf_base(trans, &trans->accounting);
+	     accounting != btree_trans_subbuf_top(trans, &trans->accounting);
+	     accounting = bkey_next(accounting)) {
+		ret = bch2_accounting_trans_commit_hook(trans,
+					bkey_i_to_accounting(accounting), flags);
+		if (ret)
+			goto revert_fs_usage;
+	}
 	percpu_up_read(&c->mark_lock);
 
 	/* XXX: we only want to run this if deltas are nonzero */
@@ -695,8 +698,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
 		validate_context.flags = BCH_VALIDATE_write|BCH_VALIDATE_commit;
 
-	for (struct jset_entry *i = trans->journal_entries;
-	     i != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+	for (struct jset_entry *i = btree_trans_journal_entries_start(trans);
+	     i != btree_trans_journal_entries_top(trans);
 	     i = vstruct_next(i)) {
 		ret = bch2_journal_entry_validate(c, NULL, i,
 						  bcachefs_metadata_version_current,
@@ -751,11 +754,18 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 		}
 
 		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
-				  trans->journal_entries,
-				  trans->journal_entries_u64s);
+				  btree_trans_journal_entries_start(trans),
+				  trans->journal_entries.u64s);
 
-		trans->journal_res.offset	+= trans->journal_entries_u64s;
-		trans->journal_res.u64s		-= trans->journal_entries_u64s;
+		trans->journal_res.offset	+= trans->journal_entries.u64s;
+		trans->journal_res.u64s		-= trans->journal_entries.u64s;
+
+		memcpy_u64s_small(bch2_journal_add_entry(j, &trans->journal_res,
+						BCH_JSET_ENTRY_write_buffer_keys,
+						BTREE_ID_accounting, 0,
+						trans->accounting.u64s)->_data,
+				  btree_trans_subbuf_base(trans, &trans->accounting),
+				  trans->accounting.u64s);
 
 		if (trans->journal_seq)
 			*trans->journal_seq = trans->journal_res.seq;
@@ -777,13 +787,10 @@ fatal_err:
 	bch2_fs_fatal_error(c, "fatal error in transaction commit: %s", bch2_err_str(ret));
 	percpu_down_read(&c->mark_lock);
 revert_fs_usage:
-	for (struct jset_entry *entry2 = trans->journal_entries;
-	     entry2 != entry;
-	     entry2 = vstruct_next(entry2))
-		if (entry2->type == BCH_JSET_ENTRY_write_buffer_keys &&
-		    entry2->start->k.type == KEY_TYPE_accounting)
-			bch2_accounting_trans_commit_revert(trans,
-					bkey_i_to_accounting(entry2->start), flags);
+	for (struct bkey_i *i = btree_trans_subbuf_base(trans, &trans->accounting);
+	     i != accounting;
+	     i = bkey_next(i))
+		bch2_accounting_trans_commit_revert(trans, bkey_i_to_accounting(i), flags);
 	percpu_up_read(&c->mark_lock);
 	return ret;
 }
@@ -888,7 +895,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		 */
 		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
 		    watermark < BCH_WATERMARK_reclaim) {
-			ret = -BCH_ERR_journal_reclaim_would_deadlock;
+			ret = bch_err_throw(c, journal_reclaim_would_deadlock);
 			goto out;
 		}
 
@@ -958,15 +965,36 @@ do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 			return ret;
 	}
 
-	for (struct jset_entry *i = trans->journal_entries;
-	     i != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
-	     i = vstruct_next(i))
+	for (struct jset_entry *i = btree_trans_journal_entries_start(trans);
+	     i != btree_trans_journal_entries_top(trans);
+	     i = vstruct_next(i)) {
 		if (i->type == BCH_JSET_ENTRY_btree_keys ||
 		    i->type == BCH_JSET_ENTRY_write_buffer_keys) {
-			int ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->start);
-			if (ret)
-				return ret;
+			jset_entry_for_each_key(i, k) {
+				int ret = bch2_journal_key_insert(c, i->btree_id, i->level, k);
+				if (ret)
+					return ret;
+			}
 		}
+
+		if (i->type == BCH_JSET_ENTRY_btree_root) {
+			guard(mutex)(&c->btree_root_lock);
+
+			struct btree_root *r = bch2_btree_id_root(c, i->btree_id);
+
+			bkey_copy(&r->key, i->start);
+			r->level = i->level;
+			r->alive = true;
+		}
+	}
+
+	for (struct bkey_i *i = btree_trans_subbuf_base(trans, &trans->accounting);
+	     i != btree_trans_subbuf_top(trans, &trans->accounting);
+	     i = bkey_next(i)) {
+		int ret = bch2_journal_key_insert(c, BTREE_ID_accounting, 0, i);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -984,7 +1012,8 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		goto out_reset;
 
 	if (!trans->nr_updates &&
-	    !trans->journal_entries_u64s)
+	    !trans->journal_entries.u64s &&
+	    !trans->accounting.u64s)
 		goto out_reset;
 
 	ret = bch2_trans_commit_run_triggers(trans);
@@ -992,17 +1021,17 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		goto out_reset;
 
 	if (!(flags & BCH_TRANS_COMMIT_no_check_rw) &&
-	    unlikely(!bch2_write_ref_tryget(c, BCH_WRITE_REF_trans))) {
+	    unlikely(!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_trans))) {
 		if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags)))
 			ret = do_bch2_trans_commit_to_journal_replay(trans);
 		else
-			ret = -BCH_ERR_erofs_trans_commit;
+			ret = bch_err_throw(c, erofs_trans_commit);
 		goto out_reset;
 	}
 
 	EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
 
-	trans->journal_u64s		= trans->journal_entries_u64s;
+	trans->journal_u64s		= trans->journal_entries.u64s + jset_u64s(trans->accounting.u64s);
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);
 	if (trans->journal_transaction_names)
 		trans->journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
@@ -1058,7 +1087,7 @@ retry:
 	trace_and_count(c, transaction_commit, trans, _RET_IP_);
 out:
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_check_rw)))
-		bch2_write_ref_put(c, BCH_WRITE_REF_trans);
+		enumerated_ref_put(&c->writes, BCH_WRITE_REF_trans);
 out_reset:
 	if (!ret)
 		bch2_trans_downgrade(trans);
@@ -1078,7 +1107,7 @@ err:
 	 * restart:
 	 */
 	if (flags & BCH_TRANS_COMMIT_no_journal_res) {
-		ret = -BCH_ERR_transaction_restart_nested;
+		ret = bch_err_throw(c, transaction_restart_nested);
 		goto out;
 	}
 

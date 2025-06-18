@@ -52,7 +52,7 @@
 #define S3C24XX_SERIAL_MINOR	64
 
 #ifdef CONFIG_ARM64
-#define UART_NR			12
+#define UART_NR			18
 #else
 #define UART_NR			CONFIG_SERIAL_SAMSUNG_UARTS
 #endif
@@ -189,6 +189,8 @@ static void wr_reg(const struct uart_port *port, u32 reg, u32 val)
 		break;
 	case UPIO_MEM32:
 		writel_relaxed(val, portaddr(port, reg));
+		break;
+	default:
 		break;
 	}
 }
@@ -2712,6 +2714,8 @@ static void wr_reg_barrier(const struct uart_port *port, u32 reg, u32 val)
 		break;
 	case UPIO_MEM32:
 		writel(val, portaddr(port, reg));
+		break;
+	default:
 		break;
 	}
 }

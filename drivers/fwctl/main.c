@@ -105,7 +105,7 @@ static int fwctl_cmd_rpc(struct fwctl_ucmd *ucmd)
 		if (!test_and_set_bit(0, &fwctl_tainted)) {
 			dev_warn(
 				&fwctl->dev,
-				"%s(%d): has requested full access to the physical device device",
+				"%s(%d): has requested full access to the physical device",
 				current->comm, task_pid_nr(current));
 			add_taint(TAINT_FWCTL, LOCKDEP_STILL_OK);
 		}

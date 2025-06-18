@@ -170,7 +170,7 @@ static int egpio_direction_input(struct gpio_chip *chip, unsigned offset)
  * Output pins
  */
 
-static void egpio_set(struct gpio_chip *chip, unsigned offset, int value)
+static int egpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	unsigned long     flag;
 	struct egpio_chip *egpio;
@@ -198,6 +198,8 @@ static void egpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		egpio->cached_values &= ~(1 << offset);
 	egpio_writew((egpio->cached_values >> shift) & ei->reg_mask, ei, reg);
 	spin_unlock_irqrestore(&ei->lock, flag);
+
+	return 0;
 }
 
 static int egpio_direction_output(struct gpio_chip *chip,
@@ -206,12 +208,10 @@ static int egpio_direction_output(struct gpio_chip *chip,
 	struct egpio_chip *egpio;
 
 	egpio = gpiochip_get_data(chip);
-	if (test_bit(offset, &egpio->is_out)) {
-		egpio_set(chip, offset, value);
-		return 0;
-	} else {
-		return -EINVAL;
-	}
+	if (test_bit(offset, &egpio->is_out))
+		return egpio_set(chip, offset, value);
+
+	return -EINVAL;
 }
 
 static int egpio_get_direction(struct gpio_chip *chip, unsigned offset)
@@ -324,7 +324,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 		chip->parent          = &pdev->dev;
 		chip->owner           = THIS_MODULE;
 		chip->get             = egpio_get;
-		chip->set             = egpio_set;
+		chip->set_rv          = egpio_set;
 		chip->direction_input = egpio_direction_input;
 		chip->direction_output = egpio_direction_output;
 		chip->get_direction   = egpio_get_direction;

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-obj-y += kernel/ mm/ platform/ boot/dts/
+obj-y += kernel/ mm/ platform/
 
 # for cleaning
 subdir- += boot

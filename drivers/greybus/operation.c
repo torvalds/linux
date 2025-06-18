@@ -279,7 +279,7 @@ static void gb_operation_work(struct work_struct *work)
 	if (gb_operation_is_incoming(operation)) {
 		gb_operation_request_handle(operation);
 	} else {
-		ret = del_timer_sync(&operation->timer);
+		ret = timer_delete_sync(&operation->timer);
 		if (!ret) {
 			/* Cancel request message if scheduled by timeout. */
 			if (gb_operation_result(operation) == -ETIMEDOUT)
@@ -295,7 +295,8 @@ static void gb_operation_work(struct work_struct *work)
 
 static void gb_operation_timeout(struct timer_list *t)
 {
-	struct gb_operation *operation = from_timer(operation, t, timer);
+	struct gb_operation *operation = timer_container_of(operation, t,
+							    timer);
 
 	if (gb_operation_result_set(operation, -ETIMEDOUT)) {
 		/*

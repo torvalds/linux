@@ -330,9 +330,8 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	     node, num_ictlrs, soc->num_ictlrs);
 
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, num_ictlrs * 32,
-					  node, &tegra_ictlr_domain_ops,
-					  lic);
+	domain = irq_domain_create_hierarchy(parent_domain, 0, num_ictlrs * 32,
+					     of_fwnode_handle(node), &tegra_ictlr_domain_ops, lic);
 	if (!domain) {
 		pr_err("%pOF: failed to allocated domain\n", node);
 		err = -ENOMEM;

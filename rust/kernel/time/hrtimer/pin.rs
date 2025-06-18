@@ -4,9 +4,9 @@ use super::HasHrTimer;
 use super::HrTimer;
 use super::HrTimerCallback;
 use super::HrTimerHandle;
+use super::Ktime;
 use super::RawHrTimerCallback;
 use super::UnsafeHrTimerPointer;
-use crate::time::Ktime;
 use core::pin::Pin;
 
 /// A handle for a `Pin<&HasHrTimer>`. When the handle exists, the timer might be

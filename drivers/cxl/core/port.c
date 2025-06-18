@@ -194,25 +194,35 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
+	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	/* without @cxl_dpa_rwsem, make sure @part is not reloaded */
+	int part = READ_ONCE(cxled->part);
+	const char *desc;
 
-	return sysfs_emit(buf, "%s\n", cxl_decoder_mode_name(cxled->mode));
+	if (part < 0)
+		desc = "none";
+	else
+		desc = cxlds->part[part].res.name;
+
+	return sysfs_emit(buf, "%s\n", desc);
 }
 
 static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t len)
 {
 	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
-	enum cxl_decoder_mode mode;
+	enum cxl_partition_mode mode;
 	ssize_t rc;
 
 	if (sysfs_streq(buf, "pmem"))
-		mode = CXL_DECODER_PMEM;
+		mode = CXL_PARTMODE_PMEM;
 	else if (sysfs_streq(buf, "ram"))
-		mode = CXL_DECODER_RAM;
+		mode = CXL_PARTMODE_RAM;
 	else
 		return -EINVAL;
 
-	rc = cxl_dpa_set_mode(cxled, mode);
+	rc = cxl_dpa_set_part(cxled, mode);
 	if (rc)
 		return rc;
 
@@ -549,13 +559,9 @@ static ssize_t decoders_committed_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
 	struct cxl_port *port = to_cxl_port(dev);
-	int rc;
 
-	down_read(&cxl_region_rwsem);
-	rc = sysfs_emit(buf, "%d\n", cxl_num_decoders_committed(port));
-	up_read(&cxl_region_rwsem);
-
-	return rc;
+	guard(rwsem_read)(&cxl_region_rwsem);
+	return sysfs_emit(buf, "%d\n", cxl_num_decoders_committed(port));
 }
 
 static DEVICE_ATTR_RO(decoders_committed);
@@ -596,16 +602,18 @@ struct cxl_port *to_cxl_port(const struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_port, "CXL");
 
+struct cxl_port *parent_port_of(struct cxl_port *port)
+{
+	if (!port || !port->parent_dport)
+		return NULL;
+	return port->parent_dport->port;
+}
+
 static void unregister_port(void *_port)
 {
 	struct cxl_port *port = _port;
-	struct cxl_port *parent;
+	struct cxl_port *parent = parent_port_of(port);
 	struct device *lock_dev;
-
-	if (is_cxl_root(port))
-		parent = NULL;
-	else
-		parent = to_cxl_port(port->dev.parent);
 
 	/*
 	 * CXL root port's and the first level of ports are unregistered
@@ -1028,15 +1036,6 @@ struct cxl_root *find_cxl_root(struct cxl_port *port)
 	return to_cxl_root(iter);
 }
 EXPORT_SYMBOL_NS_GPL(find_cxl_root, "CXL");
-
-void put_cxl_root(struct cxl_root *cxl_root)
-{
-	if (!cxl_root)
-		return;
-
-	put_device(&cxl_root->port.dev);
-}
-EXPORT_SYMBOL_NS_GPL(put_cxl_root, "CXL");
 
 static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 {
@@ -1672,6 +1671,8 @@ retry:
 			if (rc && rc != -EBUSY)
 				return rc;
 
+			cxl_gpf_port_setup(dport);
+
 			/* Any more ports to add between this one and the root? */
 			if (!dev_is_cxl_root_child(&port->dev))
 				continue;
@@ -1899,6 +1900,7 @@ struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 		return ERR_PTR(-ENOMEM);
 
 	cxled->pos = -1;
+	cxled->part = -1;
 	cxld = &cxled->cxld;
 	rc = cxl_decoder_init(port, cxld);
 	if (rc)	 {
@@ -2339,8 +2341,14 @@ static __init int cxl_core_init(void)
 	if (rc)
 		goto err_region;
 
+	rc = cxl_ras_init();
+	if (rc)
+		goto err_ras;
+
 	return 0;
 
+err_ras:
+	cxl_region_exit();
 err_region:
 	bus_unregister(&cxl_bus_type);
 err_bus:
@@ -2352,6 +2360,7 @@ err_wq:
 
 static void cxl_core_exit(void)
 {
+	cxl_ras_exit();
 	cxl_region_exit();
 	bus_unregister(&cxl_bus_type);
 	destroy_workqueue(cxl_bus_wq);

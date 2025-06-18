@@ -19,13 +19,6 @@ if ARCH_DAVINCI
 
 comment "DaVinci Core Type"
 
-config ARCH_DAVINCI_DA830
-	bool "DA830/OMAP-L137/AM17x based system"
-	select ARCH_DAVINCI_DA8XX
-	# needed on silicon revs 1.0, 1.1:
-	select CPU_DCACHE_WRITETHROUGH if !CPU_DCACHE_DISABLE
-	select DAVINCI_CP_INTC
-
 config ARCH_DAVINCI_DA850
 	bool "DA850/OMAP-L138/AM18x based system"
 	select ARCH_DAVINCI_DA8XX

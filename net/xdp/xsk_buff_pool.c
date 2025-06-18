@@ -89,6 +89,7 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 	pool->addrs = umem->addrs;
 	pool->tx_metadata_len = umem->tx_metadata_len;
 	pool->tx_sw_csum = umem->flags & XDP_UMEM_TX_SW_CSUM;
+	spin_lock_init(&pool->rx_lock);
 	INIT_LIST_HEAD(&pool->free_list);
 	INIT_LIST_HEAD(&pool->xskb_list);
 	INIT_LIST_HEAD(&pool->xsk_tx_list);
@@ -266,13 +267,17 @@ int xp_assign_dev_shared(struct xsk_buff_pool *pool, struct xdp_sock *umem_xs,
 
 void xp_clear_dev(struct xsk_buff_pool *pool)
 {
+	struct net_device *netdev = pool->netdev;
+
 	if (!pool->netdev)
 		return;
 
+	netdev_lock_ops(netdev);
 	xp_disable_drv_zc(pool);
 	xsk_clear_pool_at_qid(pool->netdev, pool->queue_id);
-	dev_put(pool->netdev);
 	pool->netdev = NULL;
+	netdev_unlock_ops(netdev);
+	dev_put(netdev);
 }
 
 static void xp_release_deferred(struct work_struct *work)

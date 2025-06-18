@@ -258,9 +258,6 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 
 	rtp_get_context(ctx, &hwe, &gt, &xe);
 
-	if (IS_SRIOV_VF(xe))
-		return;
-
 	xe_assert(xe, entries);
 
 	for (entry = entries; entry - entries < n_entries; entry++) {

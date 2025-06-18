@@ -284,8 +284,8 @@ static void run_spu_dma(struct work_struct *work)
 
 static void aica_period_elapsed(struct timer_list *t)
 {
-	struct snd_card_aica *dreamcastcard = from_timer(dreamcastcard,
-							      t, timer);
+	struct snd_card_aica *dreamcastcard = timer_container_of(dreamcastcard,
+								 t, timer);
 	struct snd_pcm_substream *substream = dreamcastcard->substream;
 	/*timer function - so cannot sleep */
 	int play_period;
@@ -354,7 +354,7 @@ static int snd_aicapcm_pcm_sync_stop(struct snd_pcm_substream *substream)
 {
 	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
 
-	del_timer_sync(&dreamcastcard->timer);
+	timer_delete_sync(&dreamcastcard->timer);
 	cancel_work_sync(&dreamcastcard->spu_dma_work);
 	return 0;
 }
@@ -469,8 +469,8 @@ static int aica_pcmvolume_info(struct snd_kcontrol *kcontrol,
 static int aica_pcmvolume_get(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_card_aica *dreamcastcard;
-	dreamcastcard = kcontrol->private_data;
+	struct snd_card_aica *dreamcastcard = snd_kcontrol_chip(kcontrol);
+
 	if (unlikely(!dreamcastcard->channel))
 		return -ETXTBSY;	/* we've not yet been set up */
 	ucontrol->value.integer.value[0] = dreamcastcard->channel->vol;
@@ -480,9 +480,9 @@ static int aica_pcmvolume_get(struct snd_kcontrol *kcontrol,
 static int aica_pcmvolume_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_card_aica *dreamcastcard;
+	struct snd_card_aica *dreamcastcard = snd_kcontrol_chip(kcontrol);
 	unsigned int vol;
-	dreamcastcard = kcontrol->private_data;
+
 	if (unlikely(!dreamcastcard->channel))
 		return -ETXTBSY;
 	vol = ucontrol->value.integer.value[0];

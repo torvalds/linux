@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/time.h>
@@ -77,7 +78,7 @@ long __init pmac_time_init(void)
 		delta |= 0xFF000000UL;
 	dst = ((pmac_xpram_read(PMAC_XPRAM_MACHINE_LOC + 0x8) & 0x80) != 0);
 	printk("GMT Delta read from XPRAM: %d minutes, DST: %s\n", delta/60,
-		dst ? "on" : "off");
+		str_on_off(dst));
 #endif
 	return delta;
 }

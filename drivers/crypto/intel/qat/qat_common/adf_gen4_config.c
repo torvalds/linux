@@ -11,7 +11,7 @@
 #include "qat_compression.h"
 #include "qat_crypto.h"
 
-static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
+int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	int banks = GET_MAX_BANKS(accel_dev);
@@ -117,7 +117,7 @@ err:
 	return ret;
 }
 
-static int adf_comp_dev_config(struct adf_accel_dev *accel_dev)
+int adf_comp_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	int banks = GET_MAX_BANKS(accel_dev);
@@ -187,7 +187,7 @@ err:
 	return ret;
 }
 
-static int adf_no_dev_config(struct adf_accel_dev *accel_dev)
+int adf_no_dev_config(struct adf_accel_dev *accel_dev)
 {
 	unsigned long val;
 	int ret;

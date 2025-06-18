@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/asm-extable.h>
+#include <asm/asm-offsets.h>
 #include <asm/pfault.h>
 #include <asm/diag.h>
 

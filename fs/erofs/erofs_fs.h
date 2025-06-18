@@ -56,7 +56,7 @@ struct erofs_super_block {
 	union {
 		__le16 rootnid_2b;	/* nid of root directory */
 		__le16 blocks_hi;	/* (48BIT on) blocks count MSB */
-	} rb;
+	} __packed rb;
 	__le64 inos;            /* total valid ino # (== f_files - f_favail) */
 	__le64 epoch;		/* base seconds used for compact inodes */
 	__le32 fixed_nsec;	/* fixed nanoseconds for compact inodes */
@@ -148,7 +148,7 @@ union erofs_inode_i_nb {
 	__le16 nlink;		/* if EROFS_I_NLINK_1_BIT is unset */
 	__le16 blocks_hi;	/* total blocks count MSB */
 	__le16 startblk_hi;	/* starting block number MSB */
-};
+} __packed;
 
 /* 32-byte reduced form of an ondisk inode */
 struct erofs_inode_compact {
@@ -369,9 +369,9 @@ struct z_erofs_map_header {
 			 * bit 7   : pack the whole file into packed inode
 			 */
 			__u8	h_clusterbits;
-		};
+		} __packed;
 		__le16 h_extents_hi;	/* extent count MSB */
-	};
+	} __packed;
 };
 
 enum {

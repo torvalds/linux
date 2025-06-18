@@ -38,6 +38,13 @@ properties:
   '#clock-cells':
     const: 0
 
+  reg:
+    maxItems: 1
+    description:
+      The strap I2C address of the serializer. Can be used by the deserializer
+      to communicate over back-channel when the forward-channel is not yet
+      active.
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -81,51 +88,57 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
 
-    serializer {
-      compatible = "ti,ds90ub953-q1";
+    link {
+      #address-cells = <1>;
+      #size-cells = <0>;
 
-      gpio-controller;
-      #gpio-cells = <2>;
+      serializer@18 {
+        compatible = "ti,ds90ub953-q1";
+        reg = <0x18>;
 
-      #clock-cells = <0>;
+        gpio-controller;
+        #gpio-cells = <2>;
 
-      ports {
-        #address-cells = <1>;
-        #size-cells = <0>;
+        #clock-cells = <0>;
 
-        port@0 {
-          reg = <0>;
-          ub953_in: endpoint {
-            clock-lanes = <0>;
-            data-lanes = <1 2 3 4>;
-            remote-endpoint = <&sensor_out>;
+        ports {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          port@0 {
+            reg = <0>;
+            ub953_in: endpoint {
+              clock-lanes = <0>;
+              data-lanes = <1 2 3 4>;
+              remote-endpoint = <&sensor_out>;
+            };
+          };
+
+          port@1 {
+            reg = <1>;
+            endpoint {
+              remote-endpoint = <&deser_fpd_in>;
+            };
           };
         };
 
-        port@1 {
-          reg = <1>;
-          endpoint {
-            remote-endpoint = <&deser_fpd_in>;
-          };
-        };
-      };
+        i2c {
+          #address-cells = <1>;
+          #size-cells = <0>;
 
-      i2c {
-        #address-cells = <1>;
-        #size-cells = <0>;
+          sensor@1a {
+            compatible = "sony,imx274";
+            reg = <0x1a>;
 
-        sensor@1a {
-          compatible = "sony,imx274";
-          reg = <0x1a>;
+            reset-gpios = <&serializer 0 GPIO_ACTIVE_LOW>;
 
-          reset-gpios = <&serializer 0 GPIO_ACTIVE_LOW>;
+            clocks = <&serializer>;
+            clock-names = "inck";
 
-          clocks = <&serializer>;
-          clock-names = "inck";
-
-          port {
-            sensor_out: endpoint {
-              remote-endpoint = <&ub953_in>;
+            port {
+              sensor_out: endpoint {
+                remote-endpoint = <&ub953_in>;
+              };
             };
           };
         };

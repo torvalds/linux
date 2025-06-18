@@ -36,6 +36,7 @@ ALL_TESTS="$ALL_TESTS 0008:1:1:match_int:1"
 ALL_TESTS="$ALL_TESTS 0009:1:1:unregister_error:0"
 ALL_TESTS="$ALL_TESTS 0010:1:1:mnt/mnt_error:0"
 ALL_TESTS="$ALL_TESTS 0011:1:1:empty_add:0"
+ALL_TESTS="$ALL_TESTS 0012:1:1:u8_valid:0"
 
 function allow_user_defaults()
 {
@@ -851,6 +852,34 @@ sysctl_test_0011()
 	return 0
 }
 
+sysctl_test_0012()
+{
+	TARGET="${SYSCTL}/$(get_test_target 0012)"
+	echo -n "Testing u8 range check in sysctl table check in ${TARGET} ... "
+	if [ ! -f ${TARGET} ]; then
+		echo -e "FAIL\nCould not create ${TARGET}" >&2
+		rc=1
+		test_rc
+	fi
+
+	local u8over_msg=$(dmesg | grep "u8_over range value" | wc -l)
+	if [ ! ${u8over_msg} -eq 1 ]; then
+		echo -e "FAIL\nu8 overflow not detected" >&2
+		rc=1
+		test_rc
+	fi
+
+	local u8under_msg=$(dmesg | grep "u8_under range value" | wc -l)
+	if [ ! ${u8under_msg} -eq 1 ]; then
+		echo -e "FAIL\nu8 underflow not detected" >&2
+		rc=1
+		test_rc
+	fi
+
+	echo "OK"
+	return 0
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -870,6 +899,7 @@ list_tests()
 	echo "0009 x $(get_test_count 0009) - tests sysct unregister"
 	echo "0010 x $(get_test_count 0010) - tests sysct mount point"
 	echo "0011 x $(get_test_count 0011) - tests empty directories"
+	echo "0012 x $(get_test_count 0012) - tests range check for u8 proc_handler"
 }
 
 usage()

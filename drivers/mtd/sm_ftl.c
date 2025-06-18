@@ -993,7 +993,7 @@ restart:
 /* flush timer, runs a second after last write */
 static void sm_cache_flush_timer(struct timer_list *t)
 {
-	struct sm_ftl *ftl = from_timer(ftl, t, timer);
+	struct sm_ftl *ftl = timer_container_of(ftl, t, timer);
 	queue_work(cache_flush_workqueue, &ftl->flush_work);
 }
 
@@ -1067,7 +1067,7 @@ static int sm_write(struct mtd_blktrans_dev *dev,
 	sm_break_offset(ftl, sec_no << 9, &zone_num, &block, &boffset);
 
 	/* No need in flush thread running now */
-	del_timer(&ftl->timer);
+	timer_delete(&ftl->timer);
 	mutex_lock(&ftl->mutex);
 
 	zone = sm_get_zone(ftl, zone_num);
@@ -1111,7 +1111,7 @@ static void sm_release(struct mtd_blktrans_dev *dev)
 {
 	struct sm_ftl *ftl = dev->priv;
 
-	del_timer_sync(&ftl->timer);
+	timer_delete_sync(&ftl->timer);
 	cancel_work_sync(&ftl->flush_work);
 	mutex_lock(&ftl->mutex);
 	sm_cache_flush(ftl);

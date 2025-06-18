@@ -20,6 +20,21 @@
 		cifs_dbg(VFS, fmt, ## __VA_ARGS__);	\
 	} while (0)
 
+static inline size_t cifs_io_align(struct fs_context *fc,
+				   const char *name, size_t size)
+{
+	if (!size || !IS_ALIGNED(size, PAGE_SIZE)) {
+		cifs_errorf(fc, "unaligned %s, making it a multiple of %lu bytes\n",
+			    name, PAGE_SIZE);
+		size = umax(round_down(size, PAGE_SIZE), PAGE_SIZE);
+	}
+	return size;
+}
+
+#define CIFS_ALIGN_WSIZE(_fc, _size) cifs_io_align(_fc, "wsize", _size)
+#define CIFS_ALIGN_RSIZE(_fc, _size) cifs_io_align(_fc, "rsize", _size)
+#define CIFS_ALIGN_BSIZE(_fc, _size) cifs_io_align(_fc, "bsize", _size)
+
 enum smb_version {
 	Smb_1 = 1,
 	Smb_20,
@@ -174,6 +189,7 @@ enum cifs_param {
 	Opt_iocharset,
 	Opt_netbiosname,
 	Opt_servern,
+	Opt_nbsessinit,
 	Opt_ver,
 	Opt_vers,
 	Opt_sec,
@@ -216,6 +232,7 @@ struct smb3_fs_context {
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
+	int rfc1001_sessinit;
 	kuid_t cred_uid;
 	kuid_t linux_uid;
 	kgid_t linux_gid;
@@ -280,6 +297,9 @@ struct smb3_fs_context {
 	bool use_client_guid:1;
 	/* reuse existing guid for multichannel */
 	u8 client_guid[SMB2_CLIENT_GUID_SIZE];
+	/* User-specified original r/wsize value */
+	unsigned int vol_rsize;
+	unsigned int vol_wsize;
 	unsigned int bsize;
 	unsigned int rasize;
 	unsigned int rsize;
@@ -354,6 +374,38 @@ static inline void cifs_mount_lock(void)
 static inline void cifs_mount_unlock(void)
 {
 	mutex_unlock(&cifs_mount_mutex);
+}
+
+static inline void cifs_negotiate_rsize(struct TCP_Server_Info *server,
+					struct smb3_fs_context *ctx,
+					struct cifs_tcon *tcon)
+{
+	unsigned int size;
+
+	size = umax(server->ops->negotiate_rsize(tcon, ctx), PAGE_SIZE);
+	if (ctx->rsize)
+		size = umax(umin(ctx->rsize, size), PAGE_SIZE);
+	ctx->rsize = round_down(size, PAGE_SIZE);
+}
+
+static inline void cifs_negotiate_wsize(struct TCP_Server_Info *server,
+					struct smb3_fs_context *ctx,
+					struct cifs_tcon *tcon)
+{
+	unsigned int size;
+
+	size = umax(server->ops->negotiate_wsize(tcon, ctx), PAGE_SIZE);
+	if (ctx->wsize)
+		size = umax(umin(ctx->wsize, size), PAGE_SIZE);
+	ctx->wsize = round_down(size, PAGE_SIZE);
+}
+
+static inline void cifs_negotiate_iosize(struct TCP_Server_Info *server,
+					 struct smb3_fs_context *ctx,
+					 struct cifs_tcon *tcon)
+{
+	cifs_negotiate_rsize(server, ctx, tcon);
+	cifs_negotiate_wsize(server, ctx, tcon);
 }
 
 #endif

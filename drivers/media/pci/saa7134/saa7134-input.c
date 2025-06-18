@@ -431,7 +431,7 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 
 static void saa7134_input_timer(struct timer_list *t)
 {
-	struct saa7134_card_ir *ir = from_timer(ir, t, timer);
+	struct saa7134_card_ir *ir = timer_container_of(ir, t, timer);
 	struct saa7134_dev *dev = ir->dev->priv;
 
 	build_key(dev);
@@ -496,7 +496,7 @@ void saa7134_ir_close(struct rc_dev *rc)
 	struct saa7134_card_ir *ir = dev->remote;
 
 	if (ir->polling)
-		del_timer_sync(&ir->timer);
+		timer_delete_sync(&ir->timer);
 
 	ir->running = false;
 }

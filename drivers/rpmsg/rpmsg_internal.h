@@ -50,10 +50,8 @@ struct rpmsg_device_ops {
  * @destroy_ept:	see @rpmsg_destroy_ept(), required
  * @send:		see @rpmsg_send(), required
  * @sendto:		see @rpmsg_sendto(), optional
- * @send_offchannel:	see @rpmsg_send_offchannel(), optional
  * @trysend:		see @rpmsg_trysend(), required
  * @trysendto:		see @rpmsg_trysendto(), optional
- * @trysend_offchannel:	see @rpmsg_trysend_offchannel(), optional
  * @poll:		see @rpmsg_poll(), optional
  * @set_flow_control:	see @rpmsg_set_flow_control(), optional
  * @get_mtu:		see @rpmsg_get_mtu(), optional
@@ -67,13 +65,9 @@ struct rpmsg_endpoint_ops {
 
 	int (*send)(struct rpmsg_endpoint *ept, void *data, int len);
 	int (*sendto)(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
-	int (*send_offchannel)(struct rpmsg_endpoint *ept, u32 src, u32 dst,
-				  void *data, int len);
 
 	int (*trysend)(struct rpmsg_endpoint *ept, void *data, int len);
 	int (*trysendto)(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
-	int (*trysend_offchannel)(struct rpmsg_endpoint *ept, u32 src, u32 dst,
-			     void *data, int len);
 	__poll_t (*poll)(struct rpmsg_endpoint *ept, struct file *filp,
 			     poll_table *wait);
 	int (*set_flow_control)(struct rpmsg_endpoint *ept, bool pause, u32 dst);

@@ -223,7 +223,7 @@ The Linux kernel's compiler barrier is barrier().  This primitive
 prohibits compiler code-motion optimizations that might move memory
 references across the point in the code containing the barrier(), but
 does not constrain hardware memory ordering.  For example, this can be
-used to prevent to compiler from moving code across an infinite loop:
+used to prevent the compiler from moving code across an infinite loop:
 
 	WRITE_ONCE(x, 1);
 	while (dontstop)
@@ -274,7 +274,7 @@ different pieces of the concurrent algorithm.  The variable stored to
 by the smp_store_release(), in this case "y", will normally be used in
 an acquire operation in other parts of the concurrent algorithm.
 
-To see the performance advantages, suppose that the above example read
+To see the performance advantages, suppose that the above example reads
 from "x" instead of writing to it.  Then an smp_wmb() could not guarantee
 ordering, and an smp_mb() would be needed instead:
 
@@ -394,17 +394,17 @@ from the value returned by the rcu_dereference() or srcu_dereference()
 to that subsequent memory access.
 
 A call to rcu_dereference() for a given RCU-protected pointer is
-usually paired with a call to a call to rcu_assign_pointer() for that
-same pointer in much the same way that a call to smp_load_acquire() is
-paired with a call to smp_store_release().  Calls to rcu_dereference()
-and rcu_assign_pointer are often buried in other APIs, for example,
+usually paired with a call to rcu_assign_pointer() for that same pointer
+in much the same way that a call to smp_load_acquire() is paired with
+a call to smp_store_release().  Calls to rcu_dereference() and
+rcu_assign_pointer() are often buried in other APIs, for example,
 the RCU list API members defined in include/linux/rculist.h.  For more
 information, please see the docbook headers in that file, the most
-recent LWN article on the RCU API (https://lwn.net/Articles/777036/),
+recent LWN article on the RCU API (https://lwn.net/Articles/988638/),
 and of course the material in Documentation/RCU.
 
 If the pointer value is manipulated between the rcu_dereference()
-that returned it and a later dereference(), please read
+that returned it and a later rcu_dereference(), please read
 Documentation/RCU/rcu_dereference.rst.  It can also be quite helpful to
 review uses in the Linux kernel.
 
@@ -457,7 +457,7 @@ described earlier in this document.
 These operations come in three categories:
 
 o	Marked writes, such as WRITE_ONCE() and atomic_set().  These
-	primitives required the compiler to emit the corresponding store
+	primitives require the compiler to emit the corresponding store
 	instructions in the expected execution order, thus suppressing
 	a number of destructive optimizations.	However, they provide no
 	hardware ordering guarantees, and in fact many CPUs will happily
@@ -465,7 +465,7 @@ o	Marked writes, such as WRITE_ONCE() and atomic_set().  These
 	operations, unless these operations are to the same variable.
 
 o	Marked reads, such as READ_ONCE() and atomic_read().  These
-	primitives required the compiler to emit the corresponding load
+	primitives require the compiler to emit the corresponding load
 	instructions in the expected execution order, thus suppressing
 	a number of destructive optimizations.	However, they provide no
 	hardware ordering guarantees, and in fact many CPUs will happily
@@ -506,7 +506,7 @@ of the old value and the new value.
 
 Unmarked C-language accesses are unordered, and are also subject to
 any number of compiler optimizations, many of which can break your
-concurrent code.  It is possible to used unmarked C-language accesses for
+concurrent code.  It is possible to use unmarked C-language accesses for
 shared variables that are subject to concurrent access, but great care
 is required on an ongoing basis.  The compiler-constraining barrier()
 primitive can be helpful, as can the various ordering primitives discussed

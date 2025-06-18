@@ -995,21 +995,21 @@ static const struct sx931x_info sx9311_info = {
 static const struct acpi_device_id sx9310_acpi_match[] = {
 	{ "STH9310", (kernel_ulong_t)&sx9310_info },
 	{ "STH9311", (kernel_ulong_t)&sx9311_info },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, sx9310_acpi_match);
 
 static const struct of_device_id sx9310_of_match[] = {
 	{ .compatible = "semtech,sx9310", &sx9310_info },
 	{ .compatible = "semtech,sx9311", &sx9311_info },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, sx9310_of_match);
 
 static const struct i2c_device_id sx9310_id[] = {
 	{ "sx9310", (kernel_ulong_t)&sx9310_info },
 	{ "sx9311", (kernel_ulong_t)&sx9311_info },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sx9310_id);
 

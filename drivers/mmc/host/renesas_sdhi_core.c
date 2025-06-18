@@ -1112,7 +1112,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		host->mmc->caps2 &= ~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
 
 	/* For some SoC, we disable internal WP. GPIO may override this */
-	if (mmc_can_gpio_ro(host->mmc))
+	if (mmc_host_can_gpio_ro(host->mmc))
 		mmc_data->capabilities2 &= ~MMC_CAP2_NO_WRITE_PROTECT;
 
 	/* SDR speeds are only available on Gen2+ */
@@ -1166,12 +1166,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	if (ret)
 		goto efree;
 
-	rcfg.of_node = of_get_child_by_name(dev->of_node, "vqmmc-regulator");
-	if (!of_device_is_available(rcfg.of_node)) {
-		of_node_put(rcfg.of_node);
-		rcfg.of_node = NULL;
-	}
-
+	rcfg.of_node = of_get_available_child_by_name(dev->of_node, "vqmmc-regulator");
 	if (rcfg.of_node) {
 		rcfg.driver_data = priv->host;
 		rdev = devm_regulator_register(dev, &renesas_sdhi_vqmmc_regulator, &rcfg);
@@ -1179,7 +1174,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "regulator register failed err=%ld", PTR_ERR(rdev));
 			ret = PTR_ERR(rdev);
-			goto efree;
+			goto edisclk;
 		}
 		priv->rdev = rdev;
 	}
@@ -1240,29 +1235,24 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, host->sdcard_irq_mask_all);
 
-	num_irqs = platform_irq_count(pdev);
-	if (num_irqs < 0) {
-		ret = num_irqs;
-		goto eirq;
-	}
-
 	/* There must be at least one IRQ source */
-	if (!num_irqs) {
-		ret = -ENXIO;
-		goto eirq;
+	num_irqs = platform_irq_count(pdev);
+	if (num_irqs <= 0) {
+		ret = num_irqs ?: -ENOENT;
+		goto edisclk;
 	}
 
 	for (i = 0; i < num_irqs; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0) {
 			ret = irq;
-			goto eirq;
+			goto edisclk;
 		}
 
 		ret = devm_request_irq(&pdev->dev, irq, tmio_mmc_irq, 0,
 				       dev_name(&pdev->dev), host);
 		if (ret)
-			goto eirq;
+			goto edisclk;
 	}
 
 	ret = tmio_mmc_host_probe(host);
@@ -1274,8 +1264,6 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	return ret;
 
-eirq:
-	tmio_mmc_host_remove(host);
 edisclk:
 	renesas_sdhi_clk_disable(host);
 efree:

@@ -78,6 +78,21 @@
 		enable-active-high;
 	};
 
+	reg_vsys: regulator-vsys {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	touch0_fixed_3v3: regulator-vio33tp {
+		compatible = "regulator-fixed";
+		regulator-name = "vio33_tp";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&reg_vsys>;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -323,6 +338,18 @@
 				};
 			};
 		};
+	};
+
+	touchscreen@5d {
+		compatible = "goodix,gt9271";
+		reg = <0x5d>;
+		interrupts-extended = <&pio 78 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_pins>;
+		irq-gpios = <&pio 78 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pio 79 GPIO_ACTIVE_LOW>;
+		AVDD28-supply = <&touch0_fixed_3v3>;
+		VDDIO-supply = <&mt6357_vrf12_reg>;
 	};
 };
 
@@ -647,6 +674,19 @@
 			input-enable;
 			drive-strength = <6>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
+		};
+	};
+
+	touch_pins: touch-pins {
+		ctp-int1-pins {
+			pinmux = <MT8365_PIN_78_CMHSYNC__FUNC_GPIO78>;
+			input-enable;
+			bias-disable;
+		};
+
+		rst-pins {
+			pinmux = <MT8365_PIN_79_CMVSYNC__FUNC_GPIO79>;
+			output-low;
 		};
 	};
 

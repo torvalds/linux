@@ -27,7 +27,9 @@ properties:
 
   compatible:
     oneOf:
-      - const: nvidia,tegra210-adx
+      - enum:
+          - nvidia,tegra210-adx
+          - nvidia,tegra264-adx
       - items:
           - enum:
               - nvidia,tegra234-adx

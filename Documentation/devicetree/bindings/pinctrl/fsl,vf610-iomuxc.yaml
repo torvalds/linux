@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/fsl,vf610-iomuxc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Vybrid VF610 IOMUX Controller
+
+description:
+  Please refer to fsl,imx-pinctrl.txt in this directory for common binding part
+  and usage.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: fsl,vf610-iomuxc
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  'grp$':
+    type: object
+    description:
+      Pinctrl node's client devices use subnodes for desired pin configuration.
+      Client device subnodes use below standard properties.
+
+    properties:
+      fsl,pins:
+        description:
+          two integers array, represents a group of pins mux and config setting.
+          The format is fsl,pins = <PIN_FUNC_ID CONFIG>, PIN_FUNC_ID is a pin
+          working on a specific function, CONFIG is the pad setting value such
+          as pull-up, speed, ode for this pin. Please refer to Vybrid VF610
+          datasheet for the valid pad config settings.
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        items:
+          items:
+            - description:
+                PIN_FUN_ID refer to vf610-pinfunc.h in device tree source folder
+                for all available PIN_FUNC_ID for Vybrid VF610.
+            - description: |
+                CONFIG bits definition is
+                PAD_CTL_SPEED_LOW               (1 << 12)
+                PAD_CTL_SPEED_MED               (2 << 12)
+                PAD_CTL_SPEED_HIGH              (3 << 12)
+                PAD_CTL_SRE_FAST                (1 << 11)
+                PAD_CTL_SRE_SLOW                (0 << 11)
+                PAD_CTL_ODE                     (1 << 10)
+                PAD_CTL_HYS                     (1 << 9)
+                PAD_CTL_DSE_DISABLE             (0 << 6)
+                PAD_CTL_DSE_150ohm              (1 << 6)
+                PAD_CTL_DSE_75ohm               (2 << 6)
+                PAD_CTL_DSE_50ohm               (3 << 6)
+                PAD_CTL_DSE_37ohm               (4 << 6)
+                PAD_CTL_DSE_30ohm               (5 << 6)
+                PAD_CTL_DSE_25ohm               (6 << 6)
+                PAD_CTL_DSE_20ohm               (7 << 6)
+                PAD_CTL_PUS_100K_DOWN           (0 << 4)
+                PAD_CTL_PUS_47K_UP              (1 << 4)
+                PAD_CTL_PUS_100K_UP             (2 << 4)
+                PAD_CTL_PUS_22K_UP              (3 << 4)
+                PAD_CTL_PKE                     (1 << 3)
+                PAD_CTL_PUE                     (1 << 2)
+                PAD_CTL_OBE_ENABLE              (1 << 1)
+                PAD_CTL_IBE_ENABLE              (1 << 0)
+                PAD_CTL_OBE_IBE_ENABLE          (3 << 0)
+
+    required:
+      - fsl,pins
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: pinctrl.yaml#
+
+unevaluatedProperties: false

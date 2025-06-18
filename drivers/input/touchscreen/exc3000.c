@@ -105,7 +105,7 @@ static void exc3000_report_slots(struct input_dev *input,
 
 static void exc3000_timer(struct timer_list *t)
 {
-	struct exc3000_data *data = from_timer(data, t, timer);
+	struct exc3000_data *data = timer_container_of(data, t, timer);
 
 	input_mt_sync_frame(data->input);
 	input_sync(data->input);
@@ -174,7 +174,7 @@ static int exc3000_handle_mt_event(struct exc3000_data *data)
 	/*
 	 * We read full state successfully, no contacts will be "stuck".
 	 */
-	del_timer_sync(&data->timer);
+	timer_delete_sync(&data->timer);
 
 	while (total_slots > 0) {
 		int slots = min(total_slots, EXC3000_SLOTS_PER_FRAME);

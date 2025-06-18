@@ -667,7 +667,8 @@ static inline void  queue_gpstate_timer(struct global_pstate_info *gpstates)
  */
 static void gpstate_timer_handler(struct timer_list *t)
 {
-	struct global_pstate_info *gpstates = from_timer(gpstates, t, timer);
+	struct global_pstate_info *gpstates = timer_container_of(gpstates, t,
+								 timer);
 	struct cpufreq_policy *policy = gpstates->policy;
 	int gpstate_idx, lpstate_idx;
 	unsigned long val;
@@ -802,7 +803,7 @@ static int powernv_cpufreq_target_index(struct cpufreq_policy *policy,
 	if (gpstate_idx != new_index)
 		queue_gpstate_timer(gpstates);
 	else
-		del_timer_sync(&gpstates->timer);
+		timer_delete_sync(&gpstates->timer);
 
 gpstates_done:
 	freq_data.gpstate_id = idx_to_pstate(gpstate_idx);
@@ -880,7 +881,7 @@ static void powernv_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	freq_data.gpstate_id = idx_to_pstate(powernv_pstate_info.min);
 	smp_call_function_single(policy->cpu, set_pstate, &freq_data, 1);
 	if (gpstates)
-		del_timer_sync(&gpstates->timer);
+		timer_delete_sync(&gpstates->timer);
 
 	kfree(policy->driver_data);
 }

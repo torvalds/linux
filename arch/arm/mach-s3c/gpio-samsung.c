@@ -11,9 +11,9 @@
 // Samsung - GPIOlib support
 
 #include <linux/kernel.h>
+#include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -430,8 +430,8 @@ static int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
 	return 0;
 }
 
-static void samsung_gpiolib_set(struct gpio_chip *chip,
-				unsigned offset, int value)
+static int samsung_gpiolib_set(struct gpio_chip *chip, unsigned int offset,
+			       int value)
 {
 	struct samsung_gpio_chip *ourchip = to_samsung_gpio(chip);
 	void __iomem *base = ourchip->base;
@@ -447,6 +447,8 @@ static void samsung_gpiolib_set(struct gpio_chip *chip,
 	__raw_writel(dat, base + 0x04);
 
 	samsung_gpio_unlock(ourchip, flags);
+
+	return 0;
 }
 
 static int samsung_gpiolib_get(struct gpio_chip *chip, unsigned offset)
@@ -515,7 +517,7 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 	if (!gc->direction_output)
 		gc->direction_output = samsung_gpiolib_2bit_output;
 	if (!gc->set)
-		gc->set = samsung_gpiolib_set;
+		gc->set_rv = samsung_gpiolib_set;
 	if (!gc->get)
 		gc->get = samsung_gpiolib_get;
 

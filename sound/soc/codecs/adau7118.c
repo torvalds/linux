@@ -169,6 +169,12 @@ static int adau7118_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	case SND_SOC_DAIFMT_RIGHT_J:
 		st->right_j = true;
 		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		ret = snd_soc_component_update_bits(dai->component,
+						    ADAU7118_REG_SPT_CTRL1,
+						    ADAU7118_DATA_FMT_MASK,
+						    ADAU7118_DATA_FMT(1));
+		break;
 	default:
 		dev_err(st->dev, "Invalid format %d",
 			fmt & SND_SOC_DAIFMT_FORMAT_MASK);

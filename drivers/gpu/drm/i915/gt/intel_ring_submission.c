@@ -365,7 +365,13 @@ static void reset_prepare(struct intel_engine_cs *engine)
 			     ENGINE_READ_FW(engine, RING_HEAD),
 			     ENGINE_READ_FW(engine, RING_TAIL),
 			     ENGINE_READ_FW(engine, RING_START));
-		if (!stop_ring(engine)) {
+		/*
+		 * Sometimes engine head failed to set to zero even after writing into it.
+		 * Use wait_for_atomic() with 20ms delay to let engine resumes from
+		 * correct RING_HEAD. Experimented different values and determined
+		 * that 20ms works best based on testing.
+		 */
+		if (wait_for_atomic((!stop_ring(engine) == 0), 20)) {
 			drm_err(&engine->i915->drm,
 				"failed to set %s head to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",

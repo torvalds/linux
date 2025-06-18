@@ -11,6 +11,18 @@ maintainers:
   - Peng Fan <peng.fan@nxp.com>
 
 properties:
+  protocol@80:
+    description:
+      SCMI LMM protocol which is for boot, shutdown, and reset of other logical
+      machines (LM). It is usually used to allow one LM to manage another used
+      as an offload or accelerator engine.
+    $ref: '/schemas/firmware/arm,scmi.yaml#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x80
+
   protocol@81:
     $ref: '/schemas/firmware/arm,scmi.yaml#/$defs/protocol-node'
     unevaluatedProperties: false
@@ -18,6 +30,17 @@ properties:
     properties:
       reg:
         const: 0x81
+
+  protocol@82:
+    description:
+      SCMI CPU Protocol which allows an agent to start or stop a CPU. It is
+      used to manage auxiliary CPUs in a LM.
+    $ref: '/schemas/firmware/arm,scmi.yaml#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x82
 
   protocol@84:
     $ref: '/schemas/firmware/arm,scmi.yaml#/$defs/protocol-node'

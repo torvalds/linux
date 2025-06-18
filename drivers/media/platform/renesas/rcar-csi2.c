@@ -1075,15 +1075,9 @@ static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv,
 			vcdt2 |= vcdt_part << ((i % 2) * 16);
 	}
 
-	if (fmt->field == V4L2_FIELD_ALTERNATE) {
+	if (fmt->field == V4L2_FIELD_ALTERNATE)
 		fld = FLD_DET_SEL(1) | FLD_FLD_EN4 | FLD_FLD_EN3 | FLD_FLD_EN2
 			| FLD_FLD_EN;
-
-		if (fmt->height == 240)
-			fld |= FLD_FLD_NUM(0);
-		else
-			fld |= FLD_FLD_NUM(1);
-	}
 
 	/*
 	 * Get the number of active data lanes inspecting the remote mbus

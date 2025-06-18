@@ -52,6 +52,8 @@ struct xe_eu_stall_data_stream {
 
 	struct xe_gt *gt;
 	struct xe_bo *bo;
+	/* Lock to protect data buffer pointers */
+	struct mutex xecore_buf_lock;
 	struct per_xecore_buf *xecore_buf;
 	struct {
 		bool reported_to_user;
@@ -208,6 +210,9 @@ int xe_eu_stall_init(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	int ret;
 
+	if (!xe_eu_stall_supported_on_platform(xe))
+		return 0;
+
 	gt->eu_stall = kzalloc(sizeof(*gt->eu_stall), GFP_KERNEL);
 	if (!gt->eu_stall) {
 		ret = -ENOMEM;
@@ -222,13 +227,7 @@ int xe_eu_stall_init(struct xe_gt *gt)
 		goto exit_free;
 	}
 
-	ret = devm_add_action_or_reset(xe->drm.dev, xe_eu_stall_fini, gt);
-	if (ret)
-		goto exit_destroy;
-
-	return 0;
-exit_destroy:
-	destroy_workqueue(gt->eu_stall->buf_ptr_poll_wq);
+	return devm_add_action_or_reset(xe->drm.dev, xe_eu_stall_fini, gt);
 exit_free:
 	mutex_destroy(&gt->eu_stall->stream_lock);
 	kfree(gt->eu_stall);
@@ -284,7 +283,7 @@ static int xe_eu_stall_user_ext_set_property(struct xe_device *xe, u64 extension
 	int err;
 	u32 idx;
 
-	err = __copy_from_user(&ext, address, sizeof(ext));
+	err = copy_from_user(&ext, address, sizeof(ext));
 	if (XE_IOCTL_DBG(xe, err))
 		return -EFAULT;
 
@@ -314,7 +313,7 @@ static int xe_eu_stall_user_extensions(struct xe_device *xe, u64 extension,
 	if (XE_IOCTL_DBG(xe, ext_number >= MAX_USER_EXTENSIONS))
 		return -E2BIG;
 
-	err = __copy_from_user(&ext, address, sizeof(ext));
+	err = copy_from_user(&ext, address, sizeof(ext));
 	if (XE_IOCTL_DBG(xe, err))
 		return -EFAULT;
 
@@ -384,7 +383,7 @@ static bool eu_stall_data_buf_poll(struct xe_eu_stall_data_stream *stream)
 	u16 group, instance;
 	unsigned int xecore;
 
-	mutex_lock(&gt->eu_stall->stream_lock);
+	mutex_lock(&stream->xecore_buf_lock);
 	for_each_dss_steering(xecore, gt, group, instance) {
 		xecore_buf = &stream->xecore_buf[xecore];
 		read_ptr = xecore_buf->read;
@@ -402,7 +401,7 @@ static bool eu_stall_data_buf_poll(struct xe_eu_stall_data_stream *stream)
 			set_bit(xecore, stream->data_drop.mask);
 		xecore_buf->write = write_ptr;
 	}
-	mutex_unlock(&gt->eu_stall->stream_lock);
+	mutex_unlock(&stream->xecore_buf_lock);
 
 	return min_data_present;
 }
@@ -517,11 +516,13 @@ static ssize_t xe_eu_stall_stream_read_locked(struct xe_eu_stall_data_stream *st
 	unsigned int xecore;
 	int ret = 0;
 
+	mutex_lock(&stream->xecore_buf_lock);
 	if (bitmap_weight(stream->data_drop.mask, XE_MAX_DSS_FUSE_BITS)) {
 		if (!stream->data_drop.reported_to_user) {
 			stream->data_drop.reported_to_user = true;
 			xe_gt_dbg(gt, "EU stall data dropped in XeCores: %*pb\n",
 				  XE_MAX_DSS_FUSE_BITS, stream->data_drop.mask);
+			mutex_unlock(&stream->xecore_buf_lock);
 			return -EIO;
 		}
 		stream->data_drop.reported_to_user = false;
@@ -533,6 +534,7 @@ static ssize_t xe_eu_stall_stream_read_locked(struct xe_eu_stall_data_stream *st
 		if (ret || count == total_size)
 			break;
 	}
+	mutex_unlock(&stream->xecore_buf_lock);
 	return total_size ?: (ret ?: -EAGAIN);
 }
 
@@ -589,6 +591,7 @@ static void xe_eu_stall_stream_free(struct xe_eu_stall_data_stream *stream)
 {
 	struct xe_gt *gt = stream->gt;
 
+	mutex_destroy(&stream->xecore_buf_lock);
 	gt->eu_stall->stream = NULL;
 	kfree(stream);
 }
@@ -724,6 +727,7 @@ static int xe_eu_stall_stream_init(struct xe_eu_stall_data_stream *stream,
 	}
 
 	init_waitqueue_head(&stream->poll_wq);
+	mutex_init(&stream->xecore_buf_lock);
 	INIT_DELAYED_WORK(&stream->buf_poll_work, eu_stall_data_buf_poll_work_fn);
 	stream->per_xecore_buf_size = per_xecore_buf_size;
 	stream->sampling_rate_mult = props->sampling_rate_mult;

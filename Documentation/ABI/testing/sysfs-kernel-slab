@@ -2,7 +2,7 @@ What:		/sys/kernel/slab
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The /sys/kernel/slab directory contains a snapshot of the
 		internal state of the SLUB allocator for each cache.  Certain
@@ -14,7 +14,7 @@ What:		/sys/kernel/slab/<cache>/aliases
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The aliases file is read-only and specifies how many caches
 		have merged into this cache.
@@ -23,7 +23,7 @@ What:		/sys/kernel/slab/<cache>/align
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The align file is read-only and specifies the cache's object
 		alignment in bytes.
@@ -32,7 +32,7 @@ What:		/sys/kernel/slab/<cache>/alloc_calls
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The alloc_calls file is read-only and lists the kernel code
 		locations from which allocations for this cache were performed.
@@ -43,7 +43,7 @@ What:		/sys/kernel/slab/<cache>/alloc_fastpath
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The alloc_fastpath file shows how many objects have been
 		allocated using the fast path.  It can be written to clear the
@@ -54,7 +54,7 @@ What:		/sys/kernel/slab/<cache>/alloc_from_partial
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The alloc_from_partial file shows how many times a cpu slab has
 		been full and it has been refilled by using a slab from the list
@@ -66,7 +66,7 @@ What:		/sys/kernel/slab/<cache>/alloc_refill
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The alloc_refill file shows how many times the per-cpu freelist
 		was empty but there were objects available as the result of
@@ -77,7 +77,7 @@ What:		/sys/kernel/slab/<cache>/alloc_slab
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The alloc_slab file is shows how many times a new slab had to
 		be allocated from the page allocator.  It can be written to
@@ -88,7 +88,7 @@ What:		/sys/kernel/slab/<cache>/alloc_slowpath
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The alloc_slowpath file shows how many objects have been
 		allocated using the slow path because of a refill or
@@ -100,7 +100,7 @@ What:		/sys/kernel/slab/<cache>/cache_dma
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The cache_dma file is read-only and specifies whether objects
 		are from ZONE_DMA.
@@ -110,7 +110,7 @@ What:		/sys/kernel/slab/<cache>/cpu_slabs
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The cpu_slabs file is read-only and displays how many cpu slabs
 		are active and their NUMA locality.
@@ -119,7 +119,7 @@ What:		/sys/kernel/slab/<cache>/cpuslab_flush
 Date:		April 2009
 KernelVersion:	2.6.31
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The file cpuslab_flush shows how many times a cache's cpu slabs
 		have been flushed as the result of destroying or shrinking a
@@ -132,7 +132,7 @@ What:		/sys/kernel/slab/<cache>/ctor
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The ctor file is read-only and specifies the cache's object
 		constructor function, which is invoked for each object when a
@@ -142,7 +142,7 @@ What:		/sys/kernel/slab/<cache>/deactivate_empty
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The deactivate_empty file shows how many times an empty cpu slab
 		was deactivated.  It can be written to clear the current count.
@@ -152,7 +152,7 @@ What:		/sys/kernel/slab/<cache>/deactivate_full
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The deactivate_full file shows how many times a full cpu slab
 		was deactivated.  It can be written to clear the current count.
@@ -162,7 +162,7 @@ What:		/sys/kernel/slab/<cache>/deactivate_remote_frees
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The deactivate_remote_frees file shows how many times a cpu slab
 		has been deactivated and contained free objects that were freed
@@ -173,7 +173,7 @@ What:		/sys/kernel/slab/<cache>/deactivate_to_head
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The deactivate_to_head file shows how many times a partial cpu
 		slab was deactivated and added to the head of its node's partial
@@ -184,7 +184,7 @@ What:		/sys/kernel/slab/<cache>/deactivate_to_tail
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The deactivate_to_tail file shows how many times a partial cpu
 		slab was deactivated and added to the tail of its node's partial
@@ -195,7 +195,7 @@ What:		/sys/kernel/slab/<cache>/destroy_by_rcu
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The destroy_by_rcu file is read-only and specifies whether
 		slabs (not objects) are freed by rcu.
@@ -204,7 +204,7 @@ What:		/sys/kernel/slab/<cache>/free_add_partial
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The free_add_partial file shows how many times an object has
 		been freed in a full slab so that it had to added to its node's
@@ -215,7 +215,7 @@ What:		/sys/kernel/slab/<cache>/free_calls
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The free_calls file is read-only and lists the locations of
 		object frees if slab debugging is enabled (see
@@ -225,7 +225,7 @@ What:		/sys/kernel/slab/<cache>/free_fastpath
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The free_fastpath file shows how many objects have been freed
 		using the fast path because it was an object from the cpu slab.
@@ -236,7 +236,7 @@ What:		/sys/kernel/slab/<cache>/free_frozen
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The free_frozen file shows how many objects have been freed to
 		a frozen slab (i.e. a remote cpu slab).  It can be written to
@@ -247,7 +247,7 @@ What:		/sys/kernel/slab/<cache>/free_remove_partial
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The free_remove_partial file shows how many times an object has
 		been freed to a now-empty slab so that it had to be removed from
@@ -259,7 +259,7 @@ What:		/sys/kernel/slab/<cache>/free_slab
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The free_slab file shows how many times an empty slab has been
 		freed back to the page allocator.  It can be written to clear
@@ -270,7 +270,7 @@ What:		/sys/kernel/slab/<cache>/free_slowpath
 Date:		February 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The free_slowpath file shows how many objects have been freed
 		using the slow path (i.e. to a full or partial slab).  It can
@@ -281,7 +281,7 @@ What:		/sys/kernel/slab/<cache>/hwcache_align
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The hwcache_align file is read-only and specifies whether
 		objects are aligned on cachelines.
@@ -301,7 +301,7 @@ What:		/sys/kernel/slab/<cache>/object_size
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The object_size file is read-only and specifies the cache's
 		object size.
@@ -310,7 +310,7 @@ What:		/sys/kernel/slab/<cache>/objects
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The objects file is read-only and displays how many objects are
 		active and from which nodes they are from.
@@ -319,7 +319,7 @@ What:		/sys/kernel/slab/<cache>/objects_partial
 Date:		April 2008
 KernelVersion:	2.6.26
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The objects_partial file is read-only and displays how many
 		objects are on partial slabs and from which nodes they are
@@ -329,7 +329,7 @@ What:		/sys/kernel/slab/<cache>/objs_per_slab
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The file objs_per_slab is read-only and specifies how many
 		objects may be allocated from a single slab of the order
@@ -339,7 +339,7 @@ What:		/sys/kernel/slab/<cache>/order
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The order file specifies the page order at which new slabs are
 		allocated.  It is writable and can be changed to increase the
@@ -356,7 +356,7 @@ What:		/sys/kernel/slab/<cache>/order_fallback
 Date:		April 2008
 KernelVersion:	2.6.26
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The order_fallback file shows how many times an allocation of a
 		new slab has not been possible at the cache's order and instead
@@ -369,7 +369,7 @@ What:		/sys/kernel/slab/<cache>/partial
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The partial file is read-only and displays how long many
 		partial slabs there are and how long each node's list is.
@@ -378,7 +378,7 @@ What:		/sys/kernel/slab/<cache>/poison
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The poison file specifies whether objects should be poisoned
 		when a new slab is allocated.
@@ -387,7 +387,7 @@ What:		/sys/kernel/slab/<cache>/reclaim_account
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The reclaim_account file specifies whether the cache's objects
 		are reclaimable (and grouped by their mobility).
@@ -396,7 +396,7 @@ What:		/sys/kernel/slab/<cache>/red_zone
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The red_zone file specifies whether the cache's objects are red
 		zoned.
@@ -405,7 +405,7 @@ What:		/sys/kernel/slab/<cache>/remote_node_defrag_ratio
 Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The file remote_node_defrag_ratio specifies the percentage of
 		times SLUB will attempt to refill the cpu slab with a partial
@@ -419,7 +419,7 @@ What:		/sys/kernel/slab/<cache>/sanity_checks
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The sanity_checks file specifies whether expensive checks
 		should be performed on free and, at minimum, enables double free
@@ -430,7 +430,7 @@ What:		/sys/kernel/slab/<cache>/shrink
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The shrink file is used to reclaim unused slab cache
 		memory from a cache.  Empty per-cpu or partial slabs
@@ -446,7 +446,7 @@ What:		/sys/kernel/slab/<cache>/slab_size
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The slab_size file is read-only and specifies the object size
 		with metadata (debugging information and alignment) in bytes.
@@ -455,7 +455,7 @@ What:		/sys/kernel/slab/<cache>/slabs
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The slabs file is read-only and displays how long many slabs
 		there are (both cpu and partial) and from which nodes they are
@@ -465,7 +465,7 @@ What:		/sys/kernel/slab/<cache>/store_user
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The store_user file specifies whether the location of
 		allocation or free should be tracked for a cache.
@@ -474,7 +474,7 @@ What:		/sys/kernel/slab/<cache>/total_objects
 Date:		April 2008
 KernelVersion:	2.6.26
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The total_objects file is read-only and displays how many total
 		objects a cache has and from which nodes they are from.
@@ -483,7 +483,7 @@ What:		/sys/kernel/slab/<cache>/trace
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		The trace file specifies whether object allocations and frees
 		should be traced.
@@ -492,7 +492,7 @@ What:		/sys/kernel/slab/<cache>/validate
 Date:		May 2007
 KernelVersion:	2.6.22
 Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
-		Christoph Lameter <cl@linux-foundation.org>
+		Christoph Lameter <cl@gentwo.org>
 Description:
 		Writing to the validate file causes SLUB to traverse all of its
 		cache's objects and check the validity of metadata.
@@ -506,14 +506,14 @@ Description:
 
 What:		/sys/kernel/slab/<cache>/slabs_cpu_partial
 Date:		Aug 2011
-Contact:	Christoph Lameter <cl@linux.com>
+Contact:	Christoph Lameter <cl@gentwo.org>
 Description:
 		This read-only file shows the number of partialli allocated
 		frozen slabs.
 
 What:		/sys/kernel/slab/<cache>/cpu_partial
 Date:		Aug 2011
-Contact:	Christoph Lameter <cl@linux.com>
+Contact:	Christoph Lameter <cl@gentwo.org>
 Description:
 		This read-only file shows the number of per cpu partial
 		pages to keep around.

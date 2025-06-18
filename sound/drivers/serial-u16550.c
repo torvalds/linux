@@ -166,7 +166,7 @@ static inline void snd_uart16550_add_timer(struct snd_uart16550 *uart)
 static inline void snd_uart16550_del_timer(struct snd_uart16550 *uart)
 {
 	if (uart->timer_running) {
-		del_timer(&uart->buffer_timer);
+		timer_delete(&uart->buffer_timer);
 		uart->timer_running = 0;
 	}
 }
@@ -299,7 +299,7 @@ static void snd_uart16550_buffer_timer(struct timer_list *t)
 	unsigned long flags;
 	struct snd_uart16550 *uart;
 
-	uart = from_timer(uart, t, buffer_timer);
+	uart = timer_container_of(uart, t, buffer_timer);
 	spin_lock_irqsave(&uart->open_lock, flags);
 	snd_uart16550_del_timer(uart);
 	snd_uart16550_io_loop(uart);

@@ -3,6 +3,7 @@
 
 #include <asm/apic.h>
 #include <asm/memtype.h>
+#include <asm/msr.h>
 #include <asm/processor.h>
 
 #include "cpu.h"
@@ -133,7 +134,7 @@ static void parse_fam10h_node_id(struct topo_scan *tscan)
 	if (!boot_cpu_has(X86_FEATURE_NODEID_MSR))
 		return;
 
-	rdmsrl(MSR_FAM10H_NODE_ID, nid.msr);
+	rdmsrq(MSR_FAM10H_NODE_ID, nid.msr);
 	store_node(tscan, nid.nodes_per_pkg + 1, nid.node_id);
 	tscan->c->topo.llc_id = nid.node_id;
 }
@@ -160,7 +161,7 @@ static void topoext_fixup(struct topo_scan *tscan)
 	if (msr_set_bit(0xc0011005, 54) <= 0)
 		return;
 
-	rdmsrl(0xc0011005, msrval);
+	rdmsrq(0xc0011005, msrval);
 	if (msrval & BIT_64(54)) {
 		set_cpu_cap(c, X86_FEATURE_TOPOEXT);
 		pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
@@ -182,7 +183,7 @@ static void parse_topology_amd(struct topo_scan *tscan)
 	if (cpu_feature_enabled(X86_FEATURE_TOPOEXT))
 		has_topoext = cpu_parse_topology_ext(tscan);
 
-	if (cpu_feature_enabled(X86_FEATURE_AMD_HETEROGENEOUS_CORES))
+	if (cpu_feature_enabled(X86_FEATURE_AMD_HTR_CORES))
 		tscan->c->topo.cpu_type = cpuid_ebx(0x80000026);
 
 	if (!has_topoext && !parse_8000_0008(tscan))

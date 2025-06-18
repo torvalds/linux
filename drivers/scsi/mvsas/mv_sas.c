@@ -976,7 +976,7 @@ static u32 mvs_is_sig_fis_received(u32 irq_status)
 static void mvs_sig_remove_timer(struct mvs_phy *phy)
 {
 	if (phy->timer.function)
-		del_timer(&phy->timer);
+		timer_delete(&phy->timer);
 	phy->timer.function = NULL;
 }
 
@@ -1755,7 +1755,7 @@ static int mvs_handle_event(struct mvs_info *mvi, void *data, int handler)
 
 static void mvs_sig_time_out(struct timer_list *t)
 {
-	struct mvs_phy *phy = from_timer(phy, t, timer);
+	struct mvs_phy *phy = timer_container_of(phy, t, timer);
 	struct mvs_info *mvi = phy->mvi;
 	u8 phy_no;
 

@@ -1143,11 +1143,11 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = device_init_wakeup(&pdev->dev, true);
+	ret = devm_device_init_wakeup(&pdev->dev);
 	if (ret)
 		goto err;
 
-	ret = dev_pm_set_wake_irq(&pdev->dev, rtc->irq_alarm);
+	ret = devm_pm_set_wake_irq(&pdev->dev, rtc->irq_alarm);
 	if (ret)
 		goto err;
 
@@ -1208,9 +1208,6 @@ err_no_rtc_ck:
 	if (rtc->data->need_dbp)
 		regmap_update_bits(rtc->dbp, rtc->dbp_reg, rtc->dbp_mask, 0);
 
-	dev_pm_clear_wake_irq(&pdev->dev);
-	device_init_wakeup(&pdev->dev, false);
-
 	return ret;
 }
 
@@ -1237,9 +1234,6 @@ static void stm32_rtc_remove(struct platform_device *pdev)
 	/* Enable backup domain write protection if needed */
 	if (rtc->data->need_dbp)
 		regmap_update_bits(rtc->dbp, rtc->dbp_reg, rtc->dbp_mask, 0);
-
-	dev_pm_clear_wake_irq(&pdev->dev);
-	device_init_wakeup(&pdev->dev, false);
 }
 
 static int stm32_rtc_suspend(struct device *dev)
@@ -1289,7 +1283,6 @@ static struct platform_driver stm32_rtc_driver = {
 
 module_platform_driver(stm32_rtc_driver);
 
-MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Amelie Delaunay <amelie.delaunay@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics STM32 Real Time Clock driver");
 MODULE_LICENSE("GPL v2");

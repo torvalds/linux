@@ -89,13 +89,33 @@ definitions:
           doc: Group of short_detected states
   -
     name: phy-upstream-type
-    enum-name:
+    enum-name: phy-upstream
+    header: linux/ethtool.h
     type: enum
+    name-prefix: phy-upstream
     entries: [ mac, phy ]
   -
     name: tcp-data-split
     type: enum
     entries: [ unknown, disabled, enabled ]
+  -
+    name: hwtstamp-source
+    doc: Source of the hardware timestamp
+    enum-name: hwtstamp-source
+    name-prefix: hwtstamp-source-
+    type: enum
+    entries:
+      -
+        name: netdev
+        doc: |
+          Hardware timestamp comes from a MAC or a device
+          which has MAC and PHY integrated
+        value: 1
+      -
+        name: phylib
+        doc: |
+          Hardware timestamp comes from one PHY device
+          of the network topology
 
 attribute-sets:
   -
@@ -894,6 +914,13 @@ attribute-sets:
         name: hwtstamp-provider
         type: nest
         nested-attributes: ts-hwtstamp-provider
+      -
+        name: hwtstamp-source
+        type: u32
+        enum: hwtstamp-source
+      -
+        name: hwtstamp-phyindex
+        type: u32
   -
     name: cable-result
     attr-cnt-name: __ethtool-a-cable-result-cnt
@@ -1979,6 +2006,8 @@ operations:
             - phc-index
             - stats
             - hwtstamp-provider
+            - hwtstamp-source
+            - hwtstamp-phyindex
       dump: *tsinfo-get-op
     -
       name: cable-test-act

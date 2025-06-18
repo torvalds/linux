@@ -8,18 +8,18 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
 #include <objtool/builtin.h>
 #include <objtool/objtool.h>
+#include <objtool/warn.h>
 
-#define ERROR(format, ...)				\
-	fprintf(stderr,					\
-		"error: objtool: " format "\n",		\
-		##__VA_ARGS__)
+#define ORIG_SUFFIX ".orig"
 
+int orig_argc;
+static char **orig_argv;
 const char *objname;
-
 struct opts opts;
 
 static const char * const check_usage[] = {
@@ -194,30 +194,30 @@ static int copy_file(const char *src, const char *dst)
 
 	src_fd = open(src, O_RDONLY);
 	if (src_fd == -1) {
-		ERROR("can't open '%s' for reading", src);
+		ERROR("can't open %s for reading: %s", src, strerror(errno));
 		return 1;
 	}
 
 	dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0400);
 	if (dst_fd == -1) {
-		ERROR("can't open '%s' for writing", dst);
+		ERROR("can't open %s for writing: %s", dst, strerror(errno));
 		return 1;
 	}
 
 	if (fstat(src_fd, &stat) == -1) {
-		perror("fstat");
+		ERROR_GLIBC("fstat");
 		return 1;
 	}
 
 	if (fchmod(dst_fd, stat.st_mode) == -1) {
-		perror("fchmod");
+		ERROR_GLIBC("fchmod");
 		return 1;
 	}
 
 	for (to_copy = stat.st_size; to_copy > 0; to_copy -= copied) {
 		copied = sendfile(dst_fd, src_fd, &offset, to_copy);
 		if (copied == -1) {
-			perror("sendfile");
+			ERROR_GLIBC("sendfile");
 			return 1;
 		}
 	}
@@ -227,39 +227,73 @@ static int copy_file(const char *src, const char *dst)
 	return 0;
 }
 
-static char **save_argv(int argc, const char **argv)
+static void save_argv(int argc, const char **argv)
 {
-	char **orig_argv;
-
 	orig_argv = calloc(argc, sizeof(char *));
 	if (!orig_argv) {
-		perror("calloc");
-		return NULL;
+		ERROR_GLIBC("calloc");
+		exit(1);
 	}
 
 	for (int i = 0; i < argc; i++) {
 		orig_argv[i] = strdup(argv[i]);
 		if (!orig_argv[i]) {
-			perror("strdup");
-			return NULL;
+			ERROR_GLIBC("strdup(%s)", argv[i]);
+			exit(1);
 		}
 	};
-
-	return orig_argv;
 }
 
-#define ORIG_SUFFIX ".orig"
+void print_args(void)
+{
+	char *backup = NULL;
+
+	if (opts.output || opts.dryrun)
+		goto print;
+
+	/*
+	 * Make a backup before kbuild deletes the file so the error
+	 * can be recreated without recompiling or relinking.
+	 */
+	backup = malloc(strlen(objname) + strlen(ORIG_SUFFIX) + 1);
+	if (!backup) {
+		ERROR_GLIBC("malloc");
+		goto print;
+	}
+
+	strcpy(backup, objname);
+	strcat(backup, ORIG_SUFFIX);
+	if (copy_file(objname, backup)) {
+		backup = NULL;
+		goto print;
+	}
+
+print:
+	/*
+	 * Print the cmdline args to make it easier to recreate.  If '--output'
+	 * wasn't used, add it to the printed args with the backup as input.
+	 */
+	fprintf(stderr, "%s", orig_argv[0]);
+
+	for (int i = 1; i < orig_argc; i++) {
+		char *arg = orig_argv[i];
+
+		if (backup && !strcmp(arg, objname))
+			fprintf(stderr, " %s -o %s", backup, objname);
+		else
+			fprintf(stderr, " %s", arg);
+	}
+
+	fprintf(stderr, "\n");
+}
 
 int objtool_run(int argc, const char **argv)
 {
 	struct objtool_file *file;
-	char *backup = NULL;
-	char **orig_argv;
 	int ret = 0;
 
-	orig_argv = save_argv(argc, argv);
-	if (!orig_argv)
-		return 1;
+	orig_argc = argc;
+	save_argv(argc, argv);
 
 	cmd_parse_options(argc, argv, check_usage);
 
@@ -282,59 +316,19 @@ int objtool_run(int argc, const char **argv)
 
 	file = objtool_open_read(objname);
 	if (!file)
-		goto err;
+		return 1;
 
 	if (!opts.link && has_multiple_files(file->elf)) {
 		ERROR("Linked object requires --link");
-		goto err;
+		return 1;
 	}
 
 	ret = check(file);
 	if (ret)
-		goto err;
+		return ret;
 
 	if (!opts.dryrun && file->elf->changed && elf_write(file->elf))
-		goto err;
+		return 1;
 
 	return 0;
-
-err:
-	if (opts.dryrun)
-		goto err_msg;
-
-	if (opts.output) {
-		unlink(opts.output);
-		goto err_msg;
-	}
-
-	/*
-	 * Make a backup before kbuild deletes the file so the error
-	 * can be recreated without recompiling or relinking.
-	 */
-	backup = malloc(strlen(objname) + strlen(ORIG_SUFFIX) + 1);
-	if (!backup) {
-		perror("malloc");
-		return 1;
-	}
-
-	strcpy(backup, objname);
-	strcat(backup, ORIG_SUFFIX);
-	if (copy_file(objname, backup))
-		return 1;
-
-err_msg:
-	fprintf(stderr, "%s", orig_argv[0]);
-
-	for (int i = 1; i < argc; i++) {
-		char *arg = orig_argv[i];
-
-		if (backup && !strcmp(arg, objname))
-			fprintf(stderr, " %s -o %s", backup, objname);
-		else
-			fprintf(stderr, " %s", arg);
-	}
-
-	fprintf(stderr, "\n");
-
-	return 1;
 }

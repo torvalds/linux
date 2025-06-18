@@ -32,6 +32,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <linux/mlx5/fs.h>
+#include <net/netdev_lock.h>
 #include "en.h"
 #include "en/params.h"
 #include "ipoib.h"
@@ -102,6 +103,8 @@ int mlx5i_init(struct mlx5_core_dev *mdev, struct net_device *netdev)
 
 	netdev->netdev_ops = &mlx5i_netdev_ops;
 	netdev->ethtool_ops = &mlx5i_ethtool_ops;
+	netdev->request_ops_lock = true;
+	netdev_lockdep_set_classes(netdev);
 
 	return 0;
 }

@@ -56,6 +56,8 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 		return ret;
 	}
 
+	ida_init(&bus->slave_ida);
+
 	ret = sdw_master_device_add(bus, parent, fwnode);
 	if (ret < 0) {
 		dev_err(parent, "Failed to add master device at link %d\n",
@@ -122,6 +124,10 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 	set_bit(SDW_GROUP13_DEV_NUM, bus->assigned);
 	set_bit(SDW_MASTER_DEV_NUM, bus->assigned);
 
+	ret = sdw_irq_create(bus, fwnode);
+	if (ret)
+		return ret;
+
 	/*
 	 * SDW is an enumerable bus, but devices can be powered off. So,
 	 * they won't be able to report as present.
@@ -138,6 +144,7 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 
 	if (ret < 0) {
 		dev_err(bus->dev, "Finding slaves failed:%d\n", ret);
+		sdw_irq_delete(bus);
 		return ret;
 	}
 
@@ -155,10 +162,6 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 	bus->params.curr_dr_freq = bus->params.max_dr_freq;
 	bus->params.curr_bank = SDW_BANK0;
 	bus->params.next_bank = SDW_BANK1;
-
-	ret = sdw_irq_create(bus, fwnode);
-	if (ret)
-		return ret;
 
 	return 0;
 }
@@ -750,41 +753,36 @@ err:
 static int sdw_assign_device_num(struct sdw_slave *slave)
 {
 	struct sdw_bus *bus = slave->bus;
-	int ret, dev_num;
-	bool new_device = false;
+	struct device *dev = bus->dev;
+	int ret;
 
 	/* check first if device number is assigned, if so reuse that */
 	if (!slave->dev_num) {
 		if (!slave->dev_num_sticky) {
+			int dev_num;
+
 			mutex_lock(&slave->bus->bus_lock);
 			dev_num = sdw_get_device_num(slave);
 			mutex_unlock(&slave->bus->bus_lock);
 			if (dev_num < 0) {
-				dev_err(bus->dev, "Get dev_num failed: %d\n",
-					dev_num);
+				dev_err(dev, "Get dev_num failed: %d\n", dev_num);
 				return dev_num;
 			}
-			slave->dev_num = dev_num;
+
 			slave->dev_num_sticky = dev_num;
-			new_device = true;
 		} else {
-			slave->dev_num = slave->dev_num_sticky;
+			dev_dbg(dev, "Slave already registered, reusing dev_num: %d\n",
+				slave->dev_num_sticky);
 		}
 	}
 
-	if (!new_device)
-		dev_dbg(bus->dev,
-			"Slave already registered, reusing dev_num:%d\n",
-			slave->dev_num);
-
 	/* Clear the slave->dev_num to transfer message on device 0 */
-	dev_num = slave->dev_num;
 	slave->dev_num = 0;
 
-	ret = sdw_write_no_pm(slave, SDW_SCP_DEVNUMBER, dev_num);
+	ret = sdw_write_no_pm(slave, SDW_SCP_DEVNUMBER, slave->dev_num_sticky);
 	if (ret < 0) {
-		dev_err(bus->dev, "Program device_num %d failed: %d\n",
-			dev_num, ret);
+		dev_err(dev, "Program device_num %d failed: %d\n",
+			slave->dev_num_sticky, ret);
 		return ret;
 	}
 
@@ -792,7 +790,7 @@ static int sdw_assign_device_num(struct sdw_slave *slave)
 	slave->dev_num = slave->dev_num_sticky;
 
 	if (bus->ops && bus->ops->new_peripheral_assigned)
-		bus->ops->new_peripheral_assigned(bus, slave, dev_num);
+		bus->ops->new_peripheral_assigned(bus, slave, slave->dev_num);
 
 	return 0;
 }

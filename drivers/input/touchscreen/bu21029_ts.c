@@ -209,7 +209,8 @@ static void bu21029_touch_report(struct bu21029_ts_data *bu21029, const u8 *buf)
 
 static void bu21029_touch_release(struct timer_list *t)
 {
-	struct bu21029_ts_data *bu21029 = from_timer(bu21029, t, timer);
+	struct bu21029_ts_data *bu21029 = timer_container_of(bu21029, t,
+							     timer);
 
 	input_report_abs(bu21029->in_dev, ABS_PRESSURE, 0);
 	input_report_key(bu21029->in_dev, BTN_TOUCH, 0);
@@ -325,7 +326,7 @@ static void bu21029_stop_chip(struct input_dev *dev)
 	struct bu21029_ts_data *bu21029 = input_get_drvdata(dev);
 
 	disable_irq(bu21029->client->irq);
-	del_timer_sync(&bu21029->timer);
+	timer_delete_sync(&bu21029->timer);
 
 	bu21029_put_chip_in_reset(bu21029);
 	regulator_disable(bu21029->vdd);

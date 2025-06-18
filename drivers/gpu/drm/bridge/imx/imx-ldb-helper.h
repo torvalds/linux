@@ -81,15 +81,14 @@ void ldb_bridge_enable_helper(struct drm_bridge *bridge);
 
 void ldb_bridge_disable_helper(struct drm_bridge *bridge);
 
-int ldb_bridge_attach_helper(struct drm_bridge *bridge,
+int ldb_bridge_attach_helper(struct drm_bridge *bridge, struct drm_encoder *encoder,
 			     enum drm_bridge_attach_flags flags);
 
 int ldb_init_helper(struct ldb *ldb);
 
 int ldb_find_next_bridge_helper(struct ldb *ldb);
 
-void ldb_add_bridge_helper(struct ldb *ldb,
-			   const struct drm_bridge_funcs *bridge_funcs);
+void ldb_add_bridge_helper(struct ldb *ldb);
 
 void ldb_remove_bridge_helper(struct ldb *ldb);
 

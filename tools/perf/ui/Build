@@ -8,5 +8,6 @@ perf-ui-y += stdio/hist.o
 CFLAGS_setup.o += -DLIBDIR="BUILD_STR($(LIBDIR))"
 
 perf-ui-$(CONFIG_SLANG) += browser.o
+perf-ui-$(CONFIG_SLANG) += keysyms.o
 perf-ui-$(CONFIG_SLANG) += browsers/
 perf-ui-$(CONFIG_SLANG) += tui/

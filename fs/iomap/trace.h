@@ -99,7 +99,11 @@ DEFINE_RANGE_EVENT(iomap_dio_rw_queued);
 	{ IOMAP_FAULT,		"FAULT" }, \
 	{ IOMAP_DIRECT,		"DIRECT" }, \
 	{ IOMAP_NOWAIT,		"NOWAIT" }, \
-	{ IOMAP_ATOMIC,		"ATOMIC" }
+	{ IOMAP_OVERWRITE_ONLY,	"OVERWRITE_ONLY" }, \
+	{ IOMAP_UNSHARE,	"UNSHARE" }, \
+	{ IOMAP_DAX,		"DAX" }, \
+	{ IOMAP_ATOMIC,		"ATOMIC" }, \
+	{ IOMAP_DONTCACHE,	"DONTCACHE" }
 
 #define IOMAP_F_FLAGS_STRINGS \
 	{ IOMAP_F_NEW,		"NEW" }, \
@@ -107,7 +111,14 @@ DEFINE_RANGE_EVENT(iomap_dio_rw_queued);
 	{ IOMAP_F_SHARED,	"SHARED" }, \
 	{ IOMAP_F_MERGED,	"MERGED" }, \
 	{ IOMAP_F_BUFFER_HEAD,	"BH" }, \
-	{ IOMAP_F_SIZE_CHANGED,	"SIZE_CHANGED" }
+	{ IOMAP_F_XATTR,	"XATTR" }, \
+	{ IOMAP_F_BOUNDARY,	"BOUNDARY" }, \
+	{ IOMAP_F_ANON_WRITE,	"ANON_WRITE" }, \
+	{ IOMAP_F_ATOMIC_BIO,	"ATOMIC_BIO" }, \
+	{ IOMAP_F_PRIVATE,	"PRIVATE" }, \
+	{ IOMAP_F_SIZE_CHANGED,	"SIZE_CHANGED" }, \
+	{ IOMAP_F_STALE,	"STALE" }
+
 
 #define IOMAP_DIO_STRINGS \
 	{IOMAP_DIO_FORCE_WAIT,	"DIO_FORCE_WAIT" }, \
@@ -138,7 +149,7 @@ DECLARE_EVENT_CLASS(iomap_class,
 		__entry->bdev = iomap->bdev ? iomap->bdev->bd_dev : 0;
 	),
 	TP_printk("dev %d:%d ino 0x%llx bdev %d:%d addr 0x%llx offset 0x%llx "
-		  "length 0x%llx type %s flags %s",
+		  "length 0x%llx type %s (0x%x) flags %s (0x%x)",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  MAJOR(__entry->bdev), MINOR(__entry->bdev),
@@ -146,7 +157,9 @@ DECLARE_EVENT_CLASS(iomap_class,
 		  __entry->offset,
 		  __entry->length,
 		  __print_symbolic(__entry->type, IOMAP_TYPE_STRINGS),
-		  __print_flags(__entry->flags, "|", IOMAP_F_FLAGS_STRINGS))
+		  __entry->type,
+		  __print_flags(__entry->flags, "|", IOMAP_F_FLAGS_STRINGS),
+		  __entry->flags)
 )
 
 #define DEFINE_IOMAP_EVENT(name)		\
@@ -185,7 +198,7 @@ TRACE_EVENT(iomap_writepage_map,
 		__entry->bdev = iomap->bdev ? iomap->bdev->bd_dev : 0;
 	),
 	TP_printk("dev %d:%d ino 0x%llx bdev %d:%d pos 0x%llx dirty len 0x%llx "
-		  "addr 0x%llx offset 0x%llx length 0x%llx type %s flags %s",
+		  "addr 0x%llx offset 0x%llx length 0x%llx type %s (0x%x) flags %s (0x%x)",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  MAJOR(__entry->bdev), MINOR(__entry->bdev),
@@ -195,7 +208,9 @@ TRACE_EVENT(iomap_writepage_map,
 		  __entry->offset,
 		  __entry->length,
 		  __print_symbolic(__entry->type, IOMAP_TYPE_STRINGS),
-		  __print_flags(__entry->flags, "|", IOMAP_F_FLAGS_STRINGS))
+		  __entry->type,
+		  __print_flags(__entry->flags, "|", IOMAP_F_FLAGS_STRINGS),
+		  __entry->flags)
 );
 
 TRACE_EVENT(iomap_iter,

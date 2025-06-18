@@ -1487,7 +1487,7 @@ static const struct dev_pm_ops kmx61_pm_ops = {
 
 static const struct i2c_device_id kmx61_id[] = {
 	{ "kmx611021" },
-	{}
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, kmx61_id);

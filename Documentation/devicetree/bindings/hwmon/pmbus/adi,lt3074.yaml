@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/adi,lt3074.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices LT3074 voltage regulator
+
+maintainers:
+  - Cedric Encarnacion <cedricjustine.encarnacion@analog.com>
+
+description: |
+  The LT3074 is a low voltage, ultra-low noise and ultra-fast transient
+  response linear regulator. It allows telemetry for input/output voltage,
+  output current and temperature through the PMBus serial interface.
+
+  Datasheet:
+    https://www.analog.com/en/products/lt3074.html
+
+allOf:
+  - $ref: /schemas/regulator/regulator.yaml#
+
+properties:
+  compatible:
+    enum:
+      - adi,lt3074
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@6d {
+            compatible = "adi,lt3074";
+            reg = <0x6d>;
+            regulator-name = "vout";
+            regulator-max-microvolt = <1250000>;
+            regulator-min-microvolt = <1150000>;
+        };
+    };

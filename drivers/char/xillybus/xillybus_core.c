@@ -1184,8 +1184,7 @@ static int xillybus_flush(struct file *filp, fl_owner_t id)
 
 static void xillybus_autoflush(struct work_struct *work)
 {
-	struct delayed_work *workitem = container_of(
-		work, struct delayed_work, work);
+	struct delayed_work *workitem = to_delayed_work(work);
 	struct xilly_channel *channel = container_of(
 		workitem, struct xilly_channel, rd_workitem);
 	int rc;

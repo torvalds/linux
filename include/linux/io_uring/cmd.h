@@ -21,7 +21,6 @@ struct io_uring_cmd {
 
 struct io_uring_cmd_data {
 	void			*op_data;
-	struct io_uring_sqe	sqes[2];
 };
 
 static inline const void *io_uring_sqe_cmd(const struct io_uring_sqe *sqe)
@@ -139,6 +138,15 @@ static inline struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd
 static inline struct io_uring_cmd_data *io_uring_cmd_get_async_data(struct io_uring_cmd *cmd)
 {
 	return cmd_to_io_kiocb(cmd)->async_data;
+}
+
+/*
+ * Return uring_cmd's context reference as its context handle for driver to
+ * track per-context resource, such as registered kernel IO buffer
+ */
+static inline void *io_uring_cmd_ctx_handle(struct io_uring_cmd *cmd)
+{
+	return cmd_to_io_kiocb(cmd)->ctx;
 }
 
 int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,

@@ -242,12 +242,12 @@ static void dlpc_mode_set(struct drm_bridge *bridge,
 	drm_mode_copy(&dlpc->mode, adjusted_mode);
 }
 
-static int dlpc_attach(struct drm_bridge *bridge,
+static int dlpc_attach(struct drm_bridge *bridge, struct drm_encoder *encoder,
 		       enum drm_bridge_attach_flags flags)
 {
 	struct dlpc *dlpc = bridge_to_dlpc(bridge);
 
-	return drm_bridge_attach(bridge->encoder, dlpc->next_bridge, bridge, flags);
+	return drm_bridge_attach(encoder, dlpc->next_bridge, bridge, flags);
 }
 
 static const struct drm_bridge_funcs dlpc_bridge_funcs = {

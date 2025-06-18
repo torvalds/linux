@@ -103,7 +103,8 @@ struct bch_inode_generation {
 	x(bi_parent_subvol,		32)	\
 	x(bi_nocow,			8)	\
 	x(bi_depth,			32)	\
-	x(bi_inodes_32bit,		8)
+	x(bi_inodes_32bit,		8)	\
+	x(bi_casefold,			8)
 
 /* subset of BCH_INODE_FIELDS */
 #define BCH_INODE_OPTS()			\
@@ -117,7 +118,8 @@ struct bch_inode_generation {
 	x(background_target,		16)	\
 	x(erasure_code,			16)	\
 	x(nocow,			8)	\
-	x(inodes_32bit,			8)
+	x(inodes_32bit,			8)	\
+	x(casefold,			8)
 
 enum inode_opt_id {
 #define x(name, ...)				\
@@ -127,6 +129,10 @@ enum inode_opt_id {
 	Inode_opt_nr,
 };
 
+/*
+ * BCH_INODE_has_case_insensitive is set if any descendent is case insensitive -
+ * for overlayfs
+ */
 #define BCH_INODE_FLAGS()			\
 	x(sync,				0)	\
 	x(immutable,			1)	\
@@ -138,7 +144,7 @@ enum inode_opt_id {
 	x(unlinked,			7)	\
 	x(backptr_untrusted,		8)	\
 	x(has_child_snapshot,		9)	\
-	x(casefolded,			10)
+	x(has_case_insensitive,		10)
 
 /* bits 20+ reserved for packed fields below: */
 

@@ -375,7 +375,7 @@ struct wait_timer {
 
 static void wait_timer(struct timer_list *timer)
 {
-	struct wait_timer *wt = from_timer(wt, timer, timer);
+	struct wait_timer *wt = timer_container_of(wt, timer, timer);
 
 	dma_fence_signal(wt->f);
 }
@@ -412,8 +412,8 @@ static int test_wait_timeout(void *arg)
 
 	err = 0;
 err_free:
-	del_timer_sync(&wt.timer);
-	destroy_timer_on_stack(&wt.timer);
+	timer_delete_sync(&wt.timer);
+	timer_destroy_on_stack(&wt.timer);
 	dma_fence_signal(wt.f);
 	dma_fence_put(wt.f);
 	return err;

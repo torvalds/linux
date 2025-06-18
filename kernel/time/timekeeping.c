@@ -164,10 +164,34 @@ static inline struct timespec64 tk_xtime(const struct timekeeper *tk)
 	return ts;
 }
 
+static inline struct timespec64 tk_xtime_coarse(const struct timekeeper *tk)
+{
+	struct timespec64 ts;
+
+	ts.tv_sec = tk->xtime_sec;
+	ts.tv_nsec = tk->coarse_nsec;
+	return ts;
+}
+
+/*
+ * Update the nanoseconds part for the coarse time keepers. They can't rely
+ * on xtime_nsec because xtime_nsec could be adjusted by a small negative
+ * amount when the multiplication factor of the clock is adjusted, which
+ * could cause the coarse clocks to go slightly backwards. See
+ * timekeeping_apply_adjustment(). Thus we keep a separate copy for the coarse
+ * clockids which only is updated when the clock has been set or  we have
+ * accumulated time.
+ */
+static inline void tk_update_coarse_nsecs(struct timekeeper *tk)
+{
+	tk->coarse_nsec = tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift;
+}
+
 static void tk_set_xtime(struct timekeeper *tk, const struct timespec64 *ts)
 {
 	tk->xtime_sec = ts->tv_sec;
 	tk->tkr_mono.xtime_nsec = (u64)ts->tv_nsec << tk->tkr_mono.shift;
+	tk_update_coarse_nsecs(tk);
 }
 
 static void tk_xtime_add(struct timekeeper *tk, const struct timespec64 *ts)
@@ -175,6 +199,7 @@ static void tk_xtime_add(struct timekeeper *tk, const struct timespec64 *ts)
 	tk->xtime_sec += ts->tv_sec;
 	tk->tkr_mono.xtime_nsec += (u64)ts->tv_nsec << tk->tkr_mono.shift;
 	tk_normalize_xtime(tk);
+	tk_update_coarse_nsecs(tk);
 }
 
 static void tk_set_wall_to_mono(struct timekeeper *tk, struct timespec64 wtm)
@@ -682,19 +707,20 @@ static void timekeeping_update_from_shadow(struct tk_data *tkd, unsigned int act
 }
 
 /**
- * timekeeping_forward - update clock to given cycle now value
+ * timekeeping_forward_now - update clock to the current time
  * @tk:		Pointer to the timekeeper to update
- * @cycle_now:  Current clocksource read value
  *
  * Forward the current clock to update its state since the last call to
  * update_wall_time(). This is useful before significant clock changes,
  * as it avoids having to deal with this time offset explicitly.
  */
-static void timekeeping_forward(struct timekeeper *tk, u64 cycle_now)
+static void timekeeping_forward_now(struct timekeeper *tk)
 {
-	u64 delta = clocksource_delta(cycle_now, tk->tkr_mono.cycle_last, tk->tkr_mono.mask,
-				      tk->tkr_mono.clock->max_raw_delta);
+	u64 cycle_now, delta;
 
+	cycle_now = tk_clock_read(&tk->tkr_mono);
+	delta = clocksource_delta(cycle_now, tk->tkr_mono.cycle_last, tk->tkr_mono.mask,
+				  tk->tkr_mono.clock->max_raw_delta);
 	tk->tkr_mono.cycle_last = cycle_now;
 	tk->tkr_raw.cycle_last  = cycle_now;
 
@@ -707,21 +733,7 @@ static void timekeeping_forward(struct timekeeper *tk, u64 cycle_now)
 		tk_normalize_xtime(tk);
 		delta -= incr;
 	}
-}
-
-/**
- * timekeeping_forward_now - update clock to the current time
- * @tk:		Pointer to the timekeeper to update
- *
- * Forward the current clock to update its state since the last call to
- * update_wall_time(). This is useful before significant clock changes,
- * as it avoids having to deal with this time offset explicitly.
- */
-static void timekeeping_forward_now(struct timekeeper *tk)
-{
-	u64 cycle_now = tk_clock_read(&tk->tkr_mono);
-
-	timekeeping_forward(tk, cycle_now);
+	tk_update_coarse_nsecs(tk);
 }
 
 /**
@@ -818,8 +830,8 @@ EXPORT_SYMBOL_GPL(ktime_get_with_offset);
 ktime_t ktime_get_coarse_with_offset(enum tk_offsets offs)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
-	unsigned int seq;
 	ktime_t base, *offset = offsets[offs];
+	unsigned int seq;
 	u64 nsecs;
 
 	WARN_ON(timekeeping_suspended);
@@ -827,7 +839,7 @@ ktime_t ktime_get_coarse_with_offset(enum tk_offsets offs)
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
 		base = ktime_add(tk->tkr_mono.base, *offset);
-		nsecs = tk->tkr_mono.xtime_nsec >> tk->tkr_mono.shift;
+		nsecs = tk->coarse_nsec;
 
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 
@@ -2165,32 +2177,31 @@ static u64 logarithmic_accumulation(struct timekeeper *tk, u64 offset,
 	return offset;
 }
 
-static u64 timekeeping_accumulate(struct timekeeper *tk, u64 offset,
-				  enum timekeeping_adv_mode mode,
-				  unsigned int *clock_set)
+/*
+ * timekeeping_advance - Updates the timekeeper to the current time and
+ * current NTP tick length
+ */
+static bool timekeeping_advance(enum timekeeping_adv_mode mode)
 {
+	struct timekeeper *tk = &tk_core.shadow_timekeeper;
+	struct timekeeper *real_tk = &tk_core.timekeeper;
+	unsigned int clock_set = 0;
 	int shift = 0, maxshift;
+	u64 offset, orig_offset;
 
-	/*
-	 * TK_ADV_FREQ indicates that adjtimex(2) directly set the
-	 * frequency or the tick length.
-	 *
-	 * Accumulate the offset, so that the new multiplier starts from
-	 * now. This is required as otherwise for offsets, which are
-	 * smaller than tk::cycle_interval, timekeeping_adjust() could set
-	 * xtime_nsec backwards, which subsequently causes time going
-	 * backwards in the coarse time getters. But even for the case
-	 * where offset is greater than tk::cycle_interval the periodic
-	 * accumulation does not have much value.
-	 *
-	 * Also reset tk::ntp_error as it does not make sense to keep the
-	 * old accumulated error around in this case.
-	 */
-	if (mode == TK_ADV_FREQ) {
-		timekeeping_forward(tk, tk->tkr_mono.cycle_last + offset);
-		tk->ntp_error = 0;
-		return 0;
-	}
+	guard(raw_spinlock_irqsave)(&tk_core.lock);
+
+	/* Make sure we're fully resumed: */
+	if (unlikely(timekeeping_suspended))
+		return false;
+
+	offset = clocksource_delta(tk_clock_read(&tk->tkr_mono),
+				   tk->tkr_mono.cycle_last, tk->tkr_mono.mask,
+				   tk->tkr_mono.clock->max_raw_delta);
+	orig_offset = offset;
+	/* Check if there's really nothing to do */
+	if (offset < real_tk->cycle_interval && mode == TK_ADV_TICK)
+		return false;
 
 	/*
 	 * With NO_HZ we may have to accumulate many cycle_intervals
@@ -2203,42 +2214,13 @@ static u64 timekeeping_accumulate(struct timekeeper *tk, u64 offset,
 	shift = ilog2(offset) - ilog2(tk->cycle_interval);
 	shift = max(0, shift);
 	/* Bound shift to one less than what overflows tick_length */
-	maxshift = (64 - (ilog2(ntp_tick_length()) + 1)) - 1;
+	maxshift = (64 - (ilog2(ntp_tick_length())+1)) - 1;
 	shift = min(shift, maxshift);
 	while (offset >= tk->cycle_interval) {
-		offset = logarithmic_accumulation(tk, offset, shift, clock_set);
-		if (offset < tk->cycle_interval << shift)
+		offset = logarithmic_accumulation(tk, offset, shift, &clock_set);
+		if (offset < tk->cycle_interval<<shift)
 			shift--;
 	}
-	return offset;
-}
-
-/*
- * timekeeping_advance - Updates the timekeeper to the current time and
- * current NTP tick length
- */
-static bool timekeeping_advance(enum timekeeping_adv_mode mode)
-{
-	struct timekeeper *tk = &tk_core.shadow_timekeeper;
-	struct timekeeper *real_tk = &tk_core.timekeeper;
-	unsigned int clock_set = 0;
-	u64 offset;
-
-	guard(raw_spinlock_irqsave)(&tk_core.lock);
-
-	/* Make sure we're fully resumed: */
-	if (unlikely(timekeeping_suspended))
-		return false;
-
-	offset = clocksource_delta(tk_clock_read(&tk->tkr_mono),
-				   tk->tkr_mono.cycle_last, tk->tkr_mono.mask,
-				   tk->tkr_mono.clock->max_raw_delta);
-
-	/* Check if there's really nothing to do */
-	if (offset < real_tk->cycle_interval && mode == TK_ADV_TICK)
-		return false;
-
-	offset = timekeeping_accumulate(tk, offset, mode, &clock_set);
 
 	/* Adjust the multiplier to correct NTP error */
 	timekeeping_adjust(tk, offset);
@@ -2248,6 +2230,14 @@ static bool timekeeping_advance(enum timekeeping_adv_mode mode)
 	 * xtime_nsec isn't larger than NSEC_PER_SEC
 	 */
 	clock_set |= accumulate_nsecs_to_secs(tk);
+
+	/*
+	 * To avoid inconsistencies caused adjtimex TK_ADV_FREQ calls
+	 * making small negative adjustments to the base xtime_nsec
+	 * value, only update the coarse clocks if we accumulated time
+	 */
+	if (orig_offset != offset)
+		tk_update_coarse_nsecs(tk);
 
 	timekeeping_update_from_shadow(&tk_core, clock_set);
 
@@ -2292,7 +2282,7 @@ void ktime_get_coarse_real_ts64(struct timespec64 *ts)
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
 
-		*ts = tk_xtime(tk);
+		*ts = tk_xtime_coarse(tk);
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 }
 EXPORT_SYMBOL(ktime_get_coarse_real_ts64);
@@ -2315,7 +2305,7 @@ void ktime_get_coarse_real_ts64_mg(struct timespec64 *ts)
 
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
-		*ts = tk_xtime(tk);
+		*ts = tk_xtime_coarse(tk);
 		offset = tk_core.timekeeper.offs_real;
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 
@@ -2394,12 +2384,12 @@ void ktime_get_coarse_ts64(struct timespec64 *ts)
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
 
-		now = tk_xtime(tk);
+		now = tk_xtime_coarse(tk);
 		mono = tk->wall_to_monotonic;
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 
 	set_normalized_timespec64(ts, now.tv_sec + mono.tv_sec,
-				now.tv_nsec + mono.tv_nsec);
+				  now.tv_nsec + mono.tv_nsec);
 }
 EXPORT_SYMBOL(ktime_get_coarse_ts64);
 

@@ -104,7 +104,7 @@ int tulip_refill_rx(struct net_device *dev)
 
 void oom_timer(struct timer_list *t)
 {
-	struct tulip_private *tp = from_timer(tp, t, oom_timer);
+	struct tulip_private *tp = timer_container_of(tp, t, oom_timer);
 
 	napi_schedule(&tp->napi);
 }
@@ -699,8 +699,8 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 				tulip_start_rxtx(tp);
 			}
 			/*
-			 * NB: t21142_lnk_change() does a del_timer_sync(), so be careful if this
-			 * call is ever done under the spinlock
+			 * NB: t21142_lnk_change() does a timer_delete_sync(), so be careful
+			 * if this call is ever done under the spinlock
 			 */
 			if (csr5 & (TPLnkPass | TPLnkFail | 0x08000000)) {
 				if (tp->link_change)

@@ -183,12 +183,12 @@ static void bchfs_read(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
 
-		bch2_btree_iter_set_pos(&iter,
+		bch2_btree_iter_set_pos(trans, &iter,
 				POS(inum.inum, rbio->bio.bi_iter.bi_sector));
 
-		k = bch2_btree_iter_peek_slot(&iter);
+		k = bch2_btree_iter_peek_slot(trans, &iter);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
@@ -225,11 +225,26 @@ static void bchfs_read(struct btree_trans *trans,
 
 		bch2_read_extent(trans, rbio, iter.pos,
 				 data_btree, k, offset_into_extent, flags);
-		swap(rbio->bio.bi_iter.bi_size, bytes);
+		/*
+		 * Careful there's a landmine here if bch2_read_extent() ever
+		 * starts returning transaction restarts here.
+		 *
+		 * We've changed rbio->bi_iter.bi_size to be "bytes we can read
+		 * from this extent" with the swap call, and we restore it
+		 * below. That restore needs to come before checking for
+		 * errors.
+		 *
+		 * But unlike __bch2_read(), we use the rbio bvec iter, not one
+		 * on the stack, so we can't do the restore right after the
+		 * bch2_read_extent() call: we don't own that iterator anymore
+		 * if BCH_READ_last_fragment is set, since we may have submitted
+		 * that rbio instead of cloning it.
+		 */
 
 		if (flags & BCH_READ_last_fragment)
 			break;
 
+		swap(rbio->bio.bi_iter.bi_size, bytes);
 		bio_advance(&rbio->bio, bytes);
 err:
 		if (ret &&
@@ -379,16 +394,8 @@ struct bch_writepage_state {
 	struct bch_io_opts	opts;
 	struct bch_folio_sector	*tmp;
 	unsigned		tmp_sectors;
+	struct blk_plug		plug;
 };
-
-static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs *c,
-								  struct bch_inode_info *inode)
-{
-	struct bch_writepage_state ret = { 0 };
-
-	bch2_inode_opts_get(&ret.opts, c, &inode->ei_inode);
-	return ret;
-}
 
 /*
  * Determine when a writepage io is full. We have to limit writepage bios to a
@@ -651,17 +658,17 @@ do_io:
 int bch2_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
 	struct bch_fs *c = mapping->host->i_sb->s_fs_info;
-	struct bch_writepage_state w =
-		bch_writepage_state_init(c, to_bch_ei(mapping->host));
-	struct blk_plug plug;
-	int ret;
+	struct bch_writepage_state *w = kzalloc(sizeof(*w), GFP_NOFS|__GFP_NOFAIL);
 
-	blk_start_plug(&plug);
-	ret = write_cache_pages(mapping, wbc, __bch2_writepage, &w);
-	if (w.io)
-		bch2_writepage_do_io(&w);
-	blk_finish_plug(&plug);
-	kfree(w.tmp);
+	bch2_inode_opts_get(&w->opts, c, &to_bch_ei(mapping->host)->ei_inode);
+
+	blk_start_plug(&w->plug);
+	int ret = write_cache_pages(mapping, wbc, __bch2_writepage, w);
+	if (w->io)
+		bch2_writepage_do_io(w);
+	blk_finish_plug(&w->plug);
+	kfree(w->tmp);
+	kfree(w);
 	return bch2_err_class(ret);
 }
 

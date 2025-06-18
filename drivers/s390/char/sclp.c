@@ -261,7 +261,7 @@ __sclp_queue_read_req(void)
 static inline void
 __sclp_set_request_timer(unsigned long time, void (*cb)(struct timer_list *))
 {
-	del_timer(&sclp_request_timer);
+	timer_delete(&sclp_request_timer);
 	sclp_request_timer.function = cb;
 	sclp_request_timer.expires = jiffies + time;
 	add_timer(&sclp_request_timer);
@@ -407,7 +407,7 @@ __sclp_start_request(struct sclp_req *req)
 
 	if (sclp_running_state != sclp_running_state_idle)
 		return 0;
-	del_timer(&sclp_request_timer);
+	timer_delete(&sclp_request_timer);
 	rc = sclp_service_call_trace(req->command, req->sccb);
 	req->start_count++;
 
@@ -442,7 +442,7 @@ sclp_process_queue(void)
 		spin_unlock_irqrestore(&sclp_lock, flags);
 		return;
 	}
-	del_timer(&sclp_request_timer);
+	timer_delete(&sclp_request_timer);
 	while (!list_empty(&sclp_req_queue)) {
 		req = list_entry(sclp_req_queue.next, struct sclp_req, list);
 		rc = __sclp_start_request(req);
@@ -662,7 +662,7 @@ static void sclp_interrupt_handler(struct ext_code ext_code,
 			!ok_response(finished_sccb, active_cmd));
 
 	if (finished_sccb) {
-		del_timer(&sclp_request_timer);
+		timer_delete(&sclp_request_timer);
 		sclp_running_state = sclp_running_state_reset_pending;
 		req = __sclp_find_req(finished_sccb);
 		if (req) {
@@ -739,7 +739,7 @@ sclp_sync_wait(void)
 	/* Loop until driver state indicates finished request */
 	while (sclp_running_state != sclp_running_state_idle) {
 		/* Check for expired request timer */
-		if (get_tod_clock_fast() > timeout && del_timer(&sclp_request_timer))
+		if (get_tod_clock_fast() > timeout && timer_delete(&sclp_request_timer))
 			sclp_request_timer.function(&sclp_request_timer);
 		cpu_relax();
 	}
@@ -1165,7 +1165,7 @@ sclp_check_interface(void)
 		 * with IRQs enabled. */
 		irq_subclass_unregister(IRQ_SUBCLASS_SERVICE_SIGNAL);
 		spin_lock_irqsave(&sclp_lock, flags);
-		del_timer(&sclp_request_timer);
+		timer_delete(&sclp_request_timer);
 		rc = -EBUSY;
 		if (sclp_init_req.status == SCLP_REQ_DONE) {
 			if (sccb->header.response_code == 0x20) {

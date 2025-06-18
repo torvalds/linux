@@ -114,6 +114,7 @@ int mlx5e_health_recover_channels(struct mlx5e_priv *priv)
 	int err = 0;
 
 	rtnl_lock();
+	netdev_lock(priv->netdev);
 	mutex_lock(&priv->state_lock);
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
@@ -123,6 +124,7 @@ int mlx5e_health_recover_channels(struct mlx5e_priv *priv)
 
 out:
 	mutex_unlock(&priv->state_lock);
+	netdev_unlock(priv->netdev);
 	rtnl_unlock();
 
 	return err;

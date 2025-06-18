@@ -1941,7 +1941,7 @@ static void gsm_control_response(struct gsm_mux *gsm, unsigned int command,
 	/* Does the reply match our command */
 	if (ctrl != NULL && (command == ctrl->cmd || command == CMD_NSC)) {
 		/* Our command was replied to, kill the retry timer */
-		del_timer(&gsm->t2_timer);
+		timer_delete(&gsm->t2_timer);
 		gsm->pending_cmd = NULL;
 		/* Rejected by the other end */
 		if (command == CMD_NSC)
@@ -1971,7 +1971,7 @@ static void gsm_control_response(struct gsm_mux *gsm, unsigned int command,
 
 static void gsm_control_keep_alive(struct timer_list *t)
 {
-	struct gsm_mux *gsm = from_timer(gsm, t, ka_timer);
+	struct gsm_mux *gsm = timer_container_of(gsm, t, ka_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gsm->control_lock, flags);
@@ -2028,7 +2028,7 @@ static void gsm_control_transmit(struct gsm_mux *gsm, struct gsm_control *ctrl)
 
 static void gsm_control_retransmit(struct timer_list *t)
 {
-	struct gsm_mux *gsm = from_timer(gsm, t, t2_timer);
+	struct gsm_mux *gsm = timer_container_of(gsm, t, t2_timer);
 	struct gsm_control *ctrl;
 	unsigned long flags;
 	spin_lock_irqsave(&gsm->control_lock, flags);
@@ -2131,7 +2131,7 @@ static int gsm_control_wait(struct gsm_mux *gsm, struct gsm_control *control)
 
 static void gsm_dlci_close(struct gsm_dlci *dlci)
 {
-	del_timer(&dlci->t1);
+	timer_delete(&dlci->t1);
 	if (debug & DBG_ERRORS)
 		pr_debug("DLCI %d goes closed.\n", dlci->addr);
 	dlci->state = DLCI_CLOSED;
@@ -2144,7 +2144,7 @@ static void gsm_dlci_close(struct gsm_dlci *dlci)
 		tty_port_set_initialized(&dlci->port, false);
 		wake_up_interruptible(&dlci->port.open_wait);
 	} else {
-		del_timer(&dlci->gsm->ka_timer);
+		timer_delete(&dlci->gsm->ka_timer);
 		dlci->gsm->dead = true;
 	}
 	/* A DLCI 0 close is a MUX termination so we need to kick that
@@ -2166,7 +2166,7 @@ static void gsm_dlci_open(struct gsm_dlci *dlci)
 
 	/* Note that SABM UA .. SABM UA first UA lost can mean that we go
 	   open -> open */
-	del_timer(&dlci->t1);
+	timer_delete(&dlci->t1);
 	/* This will let a tty open continue */
 	dlci->state = DLCI_OPEN;
 	dlci->constipated = false;
@@ -2229,7 +2229,7 @@ static int gsm_dlci_negotiate(struct gsm_dlci *dlci)
 
 static void gsm_dlci_t1(struct timer_list *t)
 {
-	struct gsm_dlci *dlci = from_timer(dlci, t, t1);
+	struct gsm_dlci *dlci = timer_container_of(dlci, t, t1);
 	struct gsm_mux *gsm = dlci->gsm;
 
 	switch (dlci->state) {
@@ -2489,7 +2489,7 @@ static void gsm_dlci_command(struct gsm_dlci *dlci, const u8 *data, int len)
  */
 static void gsm_kick_timer(struct timer_list *t)
 {
-	struct gsm_mux *gsm = from_timer(gsm, t, kick_timer);
+	struct gsm_mux *gsm = timer_container_of(gsm, t, kick_timer);
 	unsigned long flags;
 	int sent = 0;
 
@@ -3144,9 +3144,9 @@ static void gsm_cleanup_mux(struct gsm_mux *gsm, bool disc)
 	}
 
 	/* Finish outstanding timers, making sure they are done */
-	del_timer_sync(&gsm->kick_timer);
-	del_timer_sync(&gsm->t2_timer);
-	del_timer_sync(&gsm->ka_timer);
+	timer_delete_sync(&gsm->kick_timer);
+	timer_delete_sync(&gsm->t2_timer);
+	timer_delete_sync(&gsm->ka_timer);
 
 	/* Finish writing to ldisc */
 	flush_work(&gsm->tx_work);

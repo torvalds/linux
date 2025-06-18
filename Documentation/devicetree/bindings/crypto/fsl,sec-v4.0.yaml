@@ -38,7 +38,9 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: fsl,sec-v5.4
+          - enum:
+              - fsl,sec-v5.4
+              - fsl,sec-v6.0
           - const: fsl,sec-v5.0
           - const: fsl,sec-v4.0
       - items:
@@ -93,6 +95,12 @@ patternProperties:
     properties:
       compatible:
         oneOf:
+          - items:
+              - const: fsl,sec-v6.0-job-ring
+              - const: fsl,sec-v5.2-job-ring
+              - const: fsl,sec-v5.0-job-ring
+              - const: fsl,sec-v4.4-job-ring
+              - const: fsl,sec-v4.0-job-ring
           - items:
               - const: fsl,sec-v5.4-job-ring
               - const: fsl,sec-v5.0-job-ring

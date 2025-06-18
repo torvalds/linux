@@ -1379,7 +1379,7 @@ static int tsi108_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	napi_disable(&data->napi);
 
-	del_timer_sync(&data->timer);
+	timer_delete_sync(&data->timer);
 
 	tsi108_stop_ethernet(dev);
 	tsi108_kill_phy(dev);
@@ -1652,7 +1652,7 @@ regs_fail:
 
 static void tsi108_timed_checker(struct timer_list *t)
 {
-	struct tsi108_prv_data *data = from_timer(data, t, timer);
+	struct tsi108_prv_data *data = timer_container_of(data, t, timer);
 	struct net_device *dev = data->dev;
 
 	tsi108_check_phy(dev);

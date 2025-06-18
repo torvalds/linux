@@ -257,7 +257,8 @@ static unsigned long tpt_trig_traffic(struct ieee80211_local *local,
 
 static void tpt_trig_timer(struct timer_list *t)
 {
-	struct tpt_led_trigger *tpt_trig = from_timer(tpt_trig, t, timer);
+	struct tpt_led_trigger *tpt_trig = timer_container_of(tpt_trig, t,
+							      timer);
 	struct ieee80211_local *local = tpt_trig->local;
 	unsigned long on, off, tpt;
 	int i;
@@ -342,7 +343,7 @@ static void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 		return;
 
 	tpt_trig->running = false;
-	del_timer_sync(&tpt_trig->timer);
+	timer_delete_sync(&tpt_trig->timer);
 
 	led_trigger_event(&local->tpt_led, LED_OFF);
 }

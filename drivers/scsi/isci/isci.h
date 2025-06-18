@@ -481,9 +481,9 @@ irqreturn_t isci_error_isr(int vec, void *data);
 
 /*
  * Each timer is associated with a cancellation flag that is set when
- * del_timer() is called and checked in the timer callback function. This
- * is needed since del_timer_sync() cannot be called with sci_lock held.
- * For deinit however, del_timer_sync() is used without holding the lock.
+ * timer_delete() is called and checked in the timer callback function. This
+ * is needed since timer_delete_sync() cannot be called with sci_lock held.
+ * For deinit however, timer_delete_sync() is used without holding the lock.
  */
 struct sci_timer {
 	struct timer_list	timer;
@@ -506,7 +506,7 @@ static inline void sci_mod_timer(struct sci_timer *tmr, unsigned long msec)
 static inline void sci_del_timer(struct sci_timer *tmr)
 {
 	tmr->cancel = true;
-	del_timer(&tmr->timer);
+	timer_delete(&tmr->timer);
 }
 
 struct sci_base_state_machine {

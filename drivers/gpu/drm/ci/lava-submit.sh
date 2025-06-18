@@ -48,12 +48,13 @@ ROOTFS_URL="$(get_path_to_artifact lava-rootfs.tar.zst)"
 rm -rf results
 mkdir -p results/job-rootfs-overlay/
 
-artifacts/ci-common/generate-env.sh > results/job-rootfs-overlay/set-job-env-vars.sh
+artifacts/ci-common/export-gitlab-job-env-for-dut.sh \
+    > results/job-rootfs-overlay/set-job-env-vars.sh
 cp artifacts/ci-common/init-*.sh results/job-rootfs-overlay/
 cp "$SCRIPTS_DIR"/setup-test-env.sh results/job-rootfs-overlay/
 
 tar zcf job-rootfs-overlay.tar.gz -C results/job-rootfs-overlay/ .
-ci-fairy s3cp --token-file "${S3_JWT_FILE}" job-rootfs-overlay.tar.gz "https://${JOB_ROOTFS_OVERLAY_PATH}"
+s3_upload job-rootfs-overlay.tar.gz "https://${JOB_ARTIFACTS_BASE}"
 
 # Prepare env vars for upload.
 section_switch variables "Environment variables passed through to device:"

@@ -129,7 +129,7 @@ static int __init amd_freq_sensitivity_init(void)
 		pci_dev_put(pcidev);
 	}
 
-	if (rdmsrl_safe(MSR_AMD64_FREQ_SENSITIVITY_ACTUAL, &val))
+	if (rdmsrq_safe(MSR_AMD64_FREQ_SENSITIVITY_ACTUAL, &val))
 		return -ENODEV;
 
 	if (!(val >> CLASS_CODE_SHIFT))

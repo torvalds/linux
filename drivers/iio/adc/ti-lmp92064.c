@@ -209,8 +209,8 @@ static irqreturn_t lmp92064_trigger_handler(int irq, void *p)
 	if (ret)
 		goto err;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data, sizeof(data),
+				    iio_get_time_ns(indio_dev));
 
 err:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -366,7 +366,7 @@ MODULE_DEVICE_TABLE(spi, lmp92064_id_table);
 
 static const struct of_device_id lmp92064_of_table[] = {
 	{ .compatible = "ti,lmp92064" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, lmp92064_of_table);
 

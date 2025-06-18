@@ -62,7 +62,7 @@ static int load_c8sectpfe_fw(struct c8sectpfei *fei);
 
 static void c8sectpfe_timer_interrupt(struct timer_list *t)
 {
-	struct c8sectpfei *fei = from_timer(fei, t, timer);
+	struct c8sectpfei *fei = timer_container_of(fei, t, timer);
 	struct channel_info *channel;
 	int chan_num;
 
@@ -351,7 +351,7 @@ static int c8sectpfe_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 		dev_dbg(fei->dev, "%s:%d global_feed_count=%d\n"
 			, __func__, __LINE__, fei->global_feed_count);
 
-		del_timer(&fei->timer);
+		timer_delete(&fei->timer);
 	}
 
 	mutex_unlock(&fei->lock);

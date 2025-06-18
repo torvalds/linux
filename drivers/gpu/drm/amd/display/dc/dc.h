@@ -53,7 +53,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.325"
+#define DC_VER "3.2.334"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -249,6 +249,7 @@ struct dc_caps {
 	uint32_t i2c_speed_in_khz_hdcp;
 	uint32_t dmdata_alloc_size;
 	unsigned int max_cursor_size;
+	unsigned int max_buffered_cursor_size;
 	unsigned int max_video_width;
 	/*
 	 * max video plane width that can be safely assumed to be always
@@ -282,6 +283,7 @@ struct dc_caps {
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
+	bool fused_io_supported;
 	uint32_t max_otg_num;
 	uint32_t max_cab_allocation_bytes;
 	uint32_t cache_line_size;
@@ -447,6 +449,7 @@ struct dc_config {
 	bool enable_windowed_mpo_odm;
 	bool forceHBR2CP2520; // Used for switching between test patterns TPS4 and CP2520
 	uint32_t allow_edp_hotplug_detection;
+	bool skip_riommu_prefetch_wa;
 	bool clamp_min_dcfclk;
 	uint64_t vblank_alignment_dto_params;
 	uint8_t  vblank_alignment_max_frame_time_diff;
@@ -496,6 +499,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_HW_CURSOR = 20,
 	VISUAL_CONFIRM_VABC = 21,
 	VISUAL_CONFIRM_DCC = 22,
+	VISUAL_CONFIRM_EXPLICIT = 0x80000000,
 };
 
 enum dc_psr_power_opts {
@@ -901,6 +905,9 @@ struct dc_debug_options {
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
 	bool disable_min_fclk;
+
+	bool hdcp_lc_force_fw_enable;
+	bool hdcp_lc_enable_sw_fallback;
 
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;
@@ -1418,6 +1425,171 @@ struct dc_scratch_space {
 	struct dc_stream_state stream_state;
 };
 
+/*
+ * A link contains one or more sinks and their connected status.
+ * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
+ */
+ struct dc_link {
+	struct dc_sink *remote_sinks[MAX_SINKS_PER_LINK];
+	unsigned int sink_count;
+	struct dc_sink *local_sink;
+	unsigned int link_index;
+	enum dc_connection_type type;
+	enum signal_type connector_signal;
+	enum dc_irq_source irq_source_hpd;
+	enum dc_irq_source irq_source_hpd_rx;/* aka DP Short Pulse  */
+	enum dc_irq_source irq_source_read_request;/* Read Request */
+
+	bool is_hpd_filter_disabled;
+	bool dp_ss_off;
+
+	/**
+	 * @link_state_valid:
+	 *
+	 * If there is no link and local sink, this variable should be set to
+	 * false. Otherwise, it should be set to true; usually, the function
+	 * core_link_enable_stream sets this field to true.
+	 */
+	bool link_state_valid;
+	bool aux_access_disabled;
+	bool sync_lt_in_progress;
+	bool skip_stream_reenable;
+	bool is_internal_display;
+	/** @todo Rename. Flag an endpoint as having a programmable mapping to a DIG encoder. */
+	bool is_dig_mapping_flexible;
+	bool hpd_status; /* HPD status of link without physical HPD pin. */
+	bool is_hpd_pending; /* Indicates a new received hpd */
+
+	/* USB4 DPIA links skip verifying link cap, instead performing the fallback method
+	 * for every link training. This is incompatible with DP LL compliance automation,
+	 * which expects the same link settings to be used every retry on a link loss.
+	 * This flag is used to skip the fallback when link loss occurs during automation.
+	 */
+	bool skip_fallback_on_link_loss;
+
+	bool edp_sink_present;
+
+	struct dp_trace dp_trace;
+
+	/* caps is the same as reported_link_cap. link_traing use
+	 * reported_link_cap. Will clean up.  TODO
+	 */
+	struct dc_link_settings reported_link_cap;
+	struct dc_link_settings verified_link_cap;
+	struct dc_link_settings cur_link_settings;
+	struct dc_lane_settings cur_lane_setting[LANE_COUNT_DP_MAX];
+	struct dc_link_settings preferred_link_setting;
+	/* preferred_training_settings are override values that
+	 * come from DM. DM is responsible for the memory
+	 * management of the override pointers.
+	 */
+	struct dc_link_training_overrides preferred_training_settings;
+	struct dp_audio_test_data audio_test_data;
+
+	uint8_t ddc_hw_inst;
+
+	uint8_t hpd_src;
+
+	uint8_t link_enc_hw_inst;
+	/* DIG link encoder ID. Used as index in link encoder resource pool.
+	 * For links with fixed mapping to DIG, this is not changed after dc_link
+	 * object creation.
+	 */
+	enum engine_id eng_id;
+	enum engine_id dpia_preferred_eng_id;
+
+	bool test_pattern_enabled;
+	/* Pending/Current test pattern are only used to perform and track
+	 * FIXED_VS retimer test pattern/lane adjustment override state.
+	 * Pending allows link HWSS to differentiate PHY vs non-PHY pattern,
+	 * to perform specific lane adjust overrides before setting certain
+	 * PHY test patterns. In cases when lane adjust and set test pattern
+	 * calls are not performed atomically (i.e. performing link training),
+	 * pending_test_pattern will be invalid or contain a non-PHY test pattern
+	 * and current_test_pattern will contain required context for any future
+	 * set pattern/set lane adjust to transition between override state(s).
+	 * */
+	enum dp_test_pattern current_test_pattern;
+	enum dp_test_pattern pending_test_pattern;
+
+	union compliance_test_state compliance_test_state;
+
+	void *priv;
+
+	struct ddc_service *ddc;
+
+	enum dp_panel_mode panel_mode;
+	bool aux_mode;
+
+	/* Private to DC core */
+
+	const struct dc *dc;
+
+	struct dc_context *ctx;
+
+	struct panel_cntl *panel_cntl;
+	struct link_encoder *link_enc;
+	struct graphics_object_id link_id;
+	/* Endpoint type distinguishes display endpoints which do not have entries
+	 * in the BIOS connector table from those that do. Helps when tracking link
+	 * encoder to display endpoint assignments.
+	 */
+	enum display_endpoint_type ep_type;
+	union ddi_channel_mapping ddi_channel_mapping;
+	struct connector_device_tag_info device_tag;
+	struct dpcd_caps dpcd_caps;
+	uint32_t dongle_max_pix_clk;
+	unsigned short chip_caps;
+	unsigned int dpcd_sink_count;
+	struct hdcp_caps hdcp_caps;
+	enum edp_revision edp_revision;
+	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
+
+	struct psr_settings psr_settings;
+	struct replay_settings replay_settings;
+
+	/* Drive settings read from integrated info table */
+	struct dc_lane_settings bios_forced_drive_settings;
+
+	/* Vendor specific LTTPR workaround variables */
+	uint8_t vendor_specific_lttpr_link_rate_wa;
+	bool apply_vendor_specific_lttpr_link_rate_wa;
+
+	/* MST record stream using this link */
+	struct link_flags {
+		bool dp_keep_receiver_powered;
+		bool dp_skip_DID2;
+		bool dp_skip_reset_segment;
+		bool dp_skip_fs_144hz;
+		bool dp_mot_reset_segment;
+		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
+		bool dpia_mst_dsc_always_on;
+		/* Forced DPIA into TBT3 compatibility mode. */
+		bool dpia_forced_tbt3_mode;
+		bool dongle_mode_timing_override;
+		bool blank_stream_on_ocs_change;
+		bool read_dpcd204h_on_irq_hpd;
+		bool force_dp_ffe_preset;
+	} wa_flags;
+	union dc_dp_ffe_preset forced_dp_ffe_preset;
+	struct link_mst_stream_allocation_table mst_stream_alloc_table;
+
+	struct dc_link_status link_status;
+	struct dprx_states dprx_states;
+
+	struct gpio *hpd_gpio;
+	enum dc_link_fec_state fec_state;
+	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
+
+	struct dc_panel_config panel_config;
+	struct phy_state phy_state;
+	uint32_t phy_transition_bitmask;
+	// BW ALLOCATON USB4 ONLY
+	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
+	bool skip_implict_edp_power_control;
+	enum backlight_control_type backlight_control_type;
+};
+
 struct dc {
 	struct dc_debug_options debug;
 	struct dc_versions versions;
@@ -1485,6 +1657,7 @@ struct dc {
 		struct dc_scratch_space current_state;
 		struct dc_scratch_space new_state;
 		struct dc_stream_state temp_stream; // Used so we don't need to allocate stream on the stack
+		struct dc_link temp_link;
 		bool pipes_to_unlock_first[MAX_PIPES]; /* Any of the pipes indicated here should be unlocked first */
 	} scratch;
 
@@ -1651,170 +1824,6 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 		const enum dc_link_encoding_format link_encoding);
 
 /* Link Interfaces */
-/*
- * A link contains one or more sinks and their connected status.
- * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
- */
-struct dc_link {
-	struct dc_sink *remote_sinks[MAX_SINKS_PER_LINK];
-	unsigned int sink_count;
-	struct dc_sink *local_sink;
-	unsigned int link_index;
-	enum dc_connection_type type;
-	enum signal_type connector_signal;
-	enum dc_irq_source irq_source_hpd;
-	enum dc_irq_source irq_source_hpd_rx;/* aka DP Short Pulse  */
-
-	bool is_hpd_filter_disabled;
-	bool dp_ss_off;
-
-	/**
-	 * @link_state_valid:
-	 *
-	 * If there is no link and local sink, this variable should be set to
-	 * false. Otherwise, it should be set to true; usually, the function
-	 * core_link_enable_stream sets this field to true.
-	 */
-	bool link_state_valid;
-	bool aux_access_disabled;
-	bool sync_lt_in_progress;
-	bool skip_stream_reenable;
-	bool is_internal_display;
-	/** @todo Rename. Flag an endpoint as having a programmable mapping to a DIG encoder. */
-	bool is_dig_mapping_flexible;
-	bool hpd_status; /* HPD status of link without physical HPD pin. */
-	bool is_hpd_pending; /* Indicates a new received hpd */
-
-	/* USB4 DPIA links skip verifying link cap, instead performing the fallback method
-	 * for every link training. This is incompatible with DP LL compliance automation,
-	 * which expects the same link settings to be used every retry on a link loss.
-	 * This flag is used to skip the fallback when link loss occurs during automation.
-	 */
-	bool skip_fallback_on_link_loss;
-
-	bool edp_sink_present;
-
-	struct dp_trace dp_trace;
-
-	/* caps is the same as reported_link_cap. link_traing use
-	 * reported_link_cap. Will clean up.  TODO
-	 */
-	struct dc_link_settings reported_link_cap;
-	struct dc_link_settings verified_link_cap;
-	struct dc_link_settings cur_link_settings;
-	struct dc_lane_settings cur_lane_setting[LANE_COUNT_DP_MAX];
-	struct dc_link_settings preferred_link_setting;
-	/* preferred_training_settings are override values that
-	 * come from DM. DM is responsible for the memory
-	 * management of the override pointers.
-	 */
-	struct dc_link_training_overrides preferred_training_settings;
-	struct dp_audio_test_data audio_test_data;
-
-	uint8_t ddc_hw_inst;
-
-	uint8_t hpd_src;
-
-	uint8_t link_enc_hw_inst;
-	/* DIG link encoder ID. Used as index in link encoder resource pool.
-	 * For links with fixed mapping to DIG, this is not changed after dc_link
-	 * object creation.
-	 */
-	enum engine_id eng_id;
-	enum engine_id dpia_preferred_eng_id;
-
-	bool test_pattern_enabled;
-	/* Pending/Current test pattern are only used to perform and track
-	 * FIXED_VS retimer test pattern/lane adjustment override state.
-	 * Pending allows link HWSS to differentiate PHY vs non-PHY pattern,
-	 * to perform specific lane adjust overrides before setting certain
-	 * PHY test patterns. In cases when lane adjust and set test pattern
-	 * calls are not performed atomically (i.e. performing link training),
-	 * pending_test_pattern will be invalid or contain a non-PHY test pattern
-	 * and current_test_pattern will contain required context for any future
-	 * set pattern/set lane adjust to transition between override state(s).
-	 * */
-	enum dp_test_pattern current_test_pattern;
-	enum dp_test_pattern pending_test_pattern;
-
-	union compliance_test_state compliance_test_state;
-
-	void *priv;
-
-	struct ddc_service *ddc;
-
-	enum dp_panel_mode panel_mode;
-	bool aux_mode;
-
-	/* Private to DC core */
-
-	const struct dc *dc;
-
-	struct dc_context *ctx;
-
-	struct panel_cntl *panel_cntl;
-	struct link_encoder *link_enc;
-	struct graphics_object_id link_id;
-	/* Endpoint type distinguishes display endpoints which do not have entries
-	 * in the BIOS connector table from those that do. Helps when tracking link
-	 * encoder to display endpoint assignments.
-	 */
-	enum display_endpoint_type ep_type;
-	union ddi_channel_mapping ddi_channel_mapping;
-	struct connector_device_tag_info device_tag;
-	struct dpcd_caps dpcd_caps;
-	uint32_t dongle_max_pix_clk;
-	unsigned short chip_caps;
-	unsigned int dpcd_sink_count;
-	struct hdcp_caps hdcp_caps;
-	enum edp_revision edp_revision;
-	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
-
-	struct psr_settings psr_settings;
-	struct replay_settings replay_settings;
-
-	/* Drive settings read from integrated info table */
-	struct dc_lane_settings bios_forced_drive_settings;
-
-	/* Vendor specific LTTPR workaround variables */
-	uint8_t vendor_specific_lttpr_link_rate_wa;
-	bool apply_vendor_specific_lttpr_link_rate_wa;
-
-	/* MST record stream using this link */
-	struct link_flags {
-		bool dp_keep_receiver_powered;
-		bool dp_skip_DID2;
-		bool dp_skip_reset_segment;
-		bool dp_skip_fs_144hz;
-		bool dp_mot_reset_segment;
-		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
-		bool dpia_mst_dsc_always_on;
-		/* Forced DPIA into TBT3 compatibility mode. */
-		bool dpia_forced_tbt3_mode;
-		bool dongle_mode_timing_override;
-		bool blank_stream_on_ocs_change;
-		bool read_dpcd204h_on_irq_hpd;
-		bool force_dp_ffe_preset;
-	} wa_flags;
-	union dc_dp_ffe_preset forced_dp_ffe_preset;
-	struct link_mst_stream_allocation_table mst_stream_alloc_table;
-
-	struct dc_link_status link_status;
-	struct dprx_states dprx_states;
-
-	struct gpio *hpd_gpio;
-	enum dc_link_fec_state fec_state;
-	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
-
-	struct dc_panel_config panel_config;
-	struct phy_state phy_state;
-	uint32_t phy_transition_bitmask;
-	// BW ALLOCATON USB4 ONLY
-	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
-	bool skip_implict_edp_power_control;
-	enum backlight_control_type backlight_control_type;
-};
-
 /* Return an enumerated dc_link.
  * dc_link order is constant and determined at
  * boot time.  They cannot be created or destroyed.
@@ -2589,10 +2598,18 @@ unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
 /* DSC Interfaces */
 #include "dc_dsc.h"
 
+void dc_get_visual_confirm_for_stream(
+	struct dc *dc,
+	struct dc_stream_state *stream_state,
+	struct tg_color *color);
+
 /* Disable acc mode Interfaces */
 void dc_disable_accelerated_mode(struct dc *dc);
 
 bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
 		       struct dc_stream_state *new_stream);
+
+bool dc_is_cursor_limit_pending(struct dc *dc);
+bool dc_can_clear_cursor_limit(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

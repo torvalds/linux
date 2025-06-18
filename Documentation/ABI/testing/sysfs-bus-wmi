@@ -76,6 +76,6 @@ Date:		May 2017
 Contact:	Darren Hart (VMware) <dvhart@infradead.org>
 Description:
 		This file contains a boolean flags signaling the data block
-		aassociated with the given WMI device is writable. If the
+		associated with the given WMI device is writable. If the
 		given WMI device is not associated with a data block, then
 		this file will not exist.

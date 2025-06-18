@@ -99,13 +99,6 @@ __vector128 __initdata boot_cpu_vector_save_area[__NUM_VXRS];
 static unsigned int smp_max_threads __initdata = -1U;
 cpumask_t cpu_setup_mask;
 
-static int __init early_nosmt(char *s)
-{
-	smp_max_threads = 1;
-	return 0;
-}
-early_param("nosmt", early_nosmt);
-
 static int __init early_smt(char *s)
 {
 	get_option(&s, &smp_max_threads);
@@ -265,13 +258,12 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = get_lowcore()->kernel_asce;
 	lc->user_asce = s390_invalid_asce;
-	lc->machine_flags = get_lowcore()->machine_flags;
 	lc->user_timer = lc->system_timer =
 		lc->steal_timer = lc->avg_steal_timer = 0;
 	abs_lc = get_abs_lowcore();
 	memcpy(lc->cregs_save_area, abs_lc->cregs_save_area, sizeof(lc->cregs_save_area));
 	put_abs_lowcore(abs_lc);
-	lc->cregs_save_area[1] = lc->kernel_asce;
+	lc->cregs_save_area[1] = lc->user_asce;
 	lc->cregs_save_area[7] = lc->user_asce;
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	arch_spin_lock_setup(cpu);
@@ -809,6 +801,7 @@ void __init smp_detect_cpus(void)
 	mtid = boot_core_type ? sclp.mtid : sclp.mtid_cp;
 	mtid = (mtid < smp_max_threads) ? mtid : smp_max_threads - 1;
 	pcpu_set_smt(mtid);
+	cpu_smt_set_num_threads(smp_cpu_mtid + 1, smp_cpu_mtid + 1);
 
 	/* Print number of CPUs */
 	c_cpus = s_cpus = 0;

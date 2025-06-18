@@ -1044,8 +1044,8 @@ done:
 
 static void reenable_7220_chase(struct timer_list *t)
 {
-	struct qib_chippport_specific *cpspec = from_timer(cpspec, t,
-							 chase_timer);
+	struct qib_chippport_specific *cpspec = timer_container_of(cpspec, t,
+								   chase_timer);
 	struct qib_pportdata *ppd = &cpspec->pportdata;
 
 	ppd->cpspec->chase_timer.expires = 0;
@@ -1656,7 +1656,7 @@ static void qib_7220_quiet_serdes(struct qib_pportdata *ppd)
 
 	ppd->cpspec->chase_end = 0;
 	if (ppd->cpspec->chase_timer.function) /* if initted */
-		del_timer_sync(&ppd->cpspec->chase_timer);
+		timer_delete_sync(&ppd->cpspec->chase_timer);
 
 	if (ppd->cpspec->ibsymdelta || ppd->cpspec->iblnkerrdelta ||
 	    ppd->cpspec->ibdeltainprog) {
@@ -2605,7 +2605,7 @@ static int qib_7220_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 			 * wait forpending timer, but don't clear .data (ppd)!
 			 */
 			if (ppd->cpspec->chase_timer.expires) {
-				del_timer_sync(&ppd->cpspec->chase_timer);
+				timer_delete_sync(&ppd->cpspec->chase_timer);
 				ppd->cpspec->chase_timer.expires = 0;
 			}
 			break;
@@ -3240,7 +3240,7 @@ done:
  */
 static void qib_get_7220_faststats(struct timer_list *t)
 {
-	struct qib_devdata *dd = from_timer(dd, t, stats_timer);
+	struct qib_devdata *dd = timer_container_of(dd, t, stats_timer);
 	struct qib_pportdata *ppd = dd->pport;
 	unsigned long flags;
 	u64 traffic_wds;

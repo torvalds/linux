@@ -182,7 +182,7 @@ static void mv88e6xxx_phy_ppu_reenable_work(struct work_struct *ugly)
 
 static void mv88e6xxx_phy_ppu_reenable_timer(struct timer_list *t)
 {
-	struct mv88e6xxx_chip *chip = from_timer(chip, t, ppu_timer);
+	struct mv88e6xxx_chip *chip = timer_container_of(chip, t, ppu_timer);
 
 	schedule_work(&chip->ppu_work);
 }
@@ -206,7 +206,7 @@ static int mv88e6xxx_phy_ppu_access_get(struct mv88e6xxx_chip *chip)
 		}
 		chip->ppu_disabled = 1;
 	} else {
-		del_timer(&chip->ppu_timer);
+		timer_delete(&chip->ppu_timer);
 		ret = 0;
 	}
 
@@ -229,7 +229,10 @@ static void mv88e6xxx_phy_ppu_state_init(struct mv88e6xxx_chip *chip)
 
 static void mv88e6xxx_phy_ppu_state_destroy(struct mv88e6xxx_chip *chip)
 {
-	del_timer_sync(&chip->ppu_timer);
+	mutex_lock(&chip->ppu_mutex);
+	timer_delete_sync(&chip->ppu_timer);
+	cancel_work_sync(&chip->ppu_work);
+	mutex_unlock(&chip->ppu_mutex);
 }
 
 int mv88e6185_phy_ppu_read(struct mv88e6xxx_chip *chip, struct mii_bus *bus,

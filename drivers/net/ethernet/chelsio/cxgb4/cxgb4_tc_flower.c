@@ -1051,7 +1051,7 @@ static void ch_flower_stats_handler(struct work_struct *work)
 
 static void ch_flower_stats_cb(struct timer_list *t)
 {
-	struct adapter *adap = from_timer(adap, t, flower_stats_timer);
+	struct adapter *adap = timer_container_of(adap, t, flower_stats_timer);
 
 	schedule_work(&adap->flower_stats_work);
 }

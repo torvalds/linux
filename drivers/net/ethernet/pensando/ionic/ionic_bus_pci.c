@@ -441,7 +441,7 @@ static void ionic_reset_prepare(struct pci_dev *pdev)
 
 	set_bit(IONIC_LIF_F_FW_RESET, lif->state);
 
-	del_timer_sync(&ionic->watchdog_timer);
+	timer_delete_sync(&ionic->watchdog_timer);
 	cancel_work_sync(&lif->deferred.work);
 
 	mutex_lock(&lif->queue_lock);

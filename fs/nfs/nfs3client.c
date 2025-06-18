@@ -120,6 +120,8 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 
 	if (mds_srv->flags & NFS_MOUNT_NORESVPORT)
 		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+	if (test_bit(NFS_CS_NETUNREACH_FATAL, &mds_clp->cl_flags))
+		__set_bit(NFS_CS_NETUNREACH_FATAL, &cl_init.init_flags);
 
 	__set_bit(NFS_CS_DS, &cl_init.init_flags);
 

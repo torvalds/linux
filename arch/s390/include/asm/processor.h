@@ -31,6 +31,7 @@
 #include <linux/cpumask.h>
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
+#include <linux/bitops.h>
 #include <asm/fpu-types.h>
 #include <asm/cpu.h>
 #include <asm/page.h>
@@ -62,33 +63,27 @@ static __always_inline struct pcpu *this_pcpu(void)
 
 static __always_inline void set_cpu_flag(int flag)
 {
-	this_pcpu()->flags |= (1UL << flag);
+	set_bit(flag, &this_pcpu()->flags);
 }
 
 static __always_inline void clear_cpu_flag(int flag)
 {
-	this_pcpu()->flags &= ~(1UL << flag);
+	clear_bit(flag, &this_pcpu()->flags);
 }
 
 static __always_inline bool test_cpu_flag(int flag)
 {
-	return this_pcpu()->flags & (1UL << flag);
+	return test_bit(flag, &this_pcpu()->flags);
 }
 
 static __always_inline bool test_and_set_cpu_flag(int flag)
 {
-	if (test_cpu_flag(flag))
-		return true;
-	set_cpu_flag(flag);
-	return false;
+	return test_and_set_bit(flag, &this_pcpu()->flags);
 }
 
 static __always_inline bool test_and_clear_cpu_flag(int flag)
 {
-	if (!test_cpu_flag(flag))
-		return false;
-	clear_cpu_flag(flag);
-	return true;
+	return test_and_clear_bit(flag, &this_pcpu()->flags);
 }
 
 /*
@@ -97,7 +92,7 @@ static __always_inline bool test_and_clear_cpu_flag(int flag)
  */
 static __always_inline bool test_cpu_flag_of(int flag, int cpu)
 {
-	return per_cpu(pcpu_devices, cpu).flags & (1UL << flag);
+	return test_bit(flag, &per_cpu(pcpu_devices, cpu).flags);
 }
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)

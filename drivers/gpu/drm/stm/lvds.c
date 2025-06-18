@@ -934,28 +934,27 @@ static const struct drm_connector_funcs lvds_conn_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int lvds_attach(struct drm_bridge *bridge,
+static int lvds_attach(struct drm_bridge *bridge, struct drm_encoder *encoder,
 		       enum drm_bridge_attach_flags flags)
 {
 	struct stm_lvds *lvds = bridge_to_stm_lvds(bridge);
 	struct drm_connector *connector = &lvds->connector;
-	struct drm_encoder *encoder = bridge->encoder;
 	int ret;
 
-	if (!bridge->encoder) {
+	if (!encoder) {
 		drm_err(bridge->dev, "Parent encoder object not found\n");
 		return -ENODEV;
 	}
 
 	/* Set the encoder type as caller does not know it */
-	bridge->encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
+	encoder->encoder_type = DRM_MODE_ENCODER_LVDS;
 
 	/* No cloning support */
-	bridge->encoder->possible_clones = 0;
+	encoder->possible_clones = 0;
 
 	/* If we have a next bridge just attach it. */
 	if (lvds->next_bridge)
-		return drm_bridge_attach(bridge->encoder, lvds->next_bridge,
+		return drm_bridge_attach(encoder, lvds->next_bridge,
 					 bridge, flags);
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {

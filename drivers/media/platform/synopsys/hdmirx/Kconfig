@@ -2,6 +2,7 @@
 
 config VIDEO_SYNOPSYS_HDMIRX
 	tristate "Synopsys DesignWare HDMI Receiver driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API

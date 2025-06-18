@@ -464,7 +464,7 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx, u8 mode)
 	}
 
 	if (dev->ops->check_presence)
-		del_timer_sync(&dev->check_pres_timer);
+		timer_delete_sync(&dev->check_pres_timer);
 
 	dev->ops->deactivate_target(dev, dev->active_target, mode);
 	dev->active_target = NULL;
@@ -509,7 +509,7 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		}
 
 		if (dev->ops->check_presence)
-			del_timer_sync(&dev->check_pres_timer);
+			timer_delete_sync(&dev->check_pres_timer);
 
 		rc = dev->ops->im_transceive(dev, dev->active_target, skb, cb,
 					     cb_context);
@@ -1010,7 +1010,7 @@ exit:
 
 static void nfc_check_pres_timeout(struct timer_list *t)
 {
-	struct nfc_dev *dev = from_timer(dev, t, check_pres_timer);
+	struct nfc_dev *dev = timer_container_of(dev, t, check_pres_timer);
 
 	schedule_work(&dev->check_pres_work);
 }
@@ -1172,7 +1172,7 @@ void nfc_unregister_device(struct nfc_dev *dev)
 	device_unlock(&dev->dev);
 
 	if (dev->ops->check_presence) {
-		del_timer_sync(&dev->check_pres_timer);
+		timer_delete_sync(&dev->check_pres_timer);
 		cancel_work_sync(&dev->check_pres_work);
 	}
 

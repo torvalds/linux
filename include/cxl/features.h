@@ -64,9 +64,9 @@ struct cxl_features_state {
 struct cxl_mailbox;
 struct cxl_memdev;
 #ifdef CONFIG_CXL_FEATURES
-inline struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds);
+struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds);
 int devm_cxl_setup_features(struct cxl_dev_state *cxlds);
-int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd);
+int devm_cxl_setup_fwctl(struct device *host, struct cxl_memdev *cxlmd);
 #else
 static inline struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds)
 {
@@ -78,7 +78,8 @@ static inline int devm_cxl_setup_features(struct cxl_dev_state *cxlds)
 	return -EOPNOTSUPP;
 }
 
-static inline int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
+static inline int devm_cxl_setup_fwctl(struct device *host,
+				       struct cxl_memdev *cxlmd)
 {
 	return -EOPNOTSUPP;
 }

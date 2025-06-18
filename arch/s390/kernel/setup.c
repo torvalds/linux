@@ -414,7 +414,6 @@ static void __init setup_lowcore(void)
 	lc->clock_comparator = clock_comparator_max;
 	lc->current_task = (unsigned long)&init_task;
 	lc->lpp = LPP_MAGIC;
-	lc->machine_flags = get_lowcore()->machine_flags;
 	lc->preempt_count = get_lowcore()->preempt_count;
 	nmi_alloc_mcesa_early(&lc->mcesad);
 	lc->sys_enter_timer = get_lowcore()->sys_enter_timer;

@@ -9,7 +9,7 @@
 static void _dynamic_check_timer_handler(struct timer_list *t)
 {
 	struct adapter *adapter =
-		from_timer(adapter, t, mlmepriv.dynamic_chk_timer);
+		timer_container_of(adapter, t, mlmepriv.dynamic_chk_timer);
 
 	rtw_dynamic_check_timer_handler(adapter);
 
@@ -19,7 +19,7 @@ static void _dynamic_check_timer_handler(struct timer_list *t)
 static void _rtw_set_scan_deny_timer_hdl(struct timer_list *t)
 {
 	struct adapter *adapter =
-		from_timer(adapter, t, mlmepriv.set_scan_deny_timer);
+		timer_container_of(adapter, t, mlmepriv.set_scan_deny_timer);
 
 	rtw_clear_scan_deny(adapter);
 }

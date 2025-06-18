@@ -17,7 +17,6 @@ struct efivarfs_fs_info {
 	struct efivarfs_mount_opts mount_opts;
 	struct super_block *sb;
 	struct notifier_block nb;
-	struct notifier_block pm_nb;
 };
 
 struct efi_variable {

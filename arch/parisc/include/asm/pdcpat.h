@@ -210,7 +210,7 @@
 #define PDC_PAT_SYSTEM_INFO	76L
 /* PDC_PAT_SYSTEM_INFO uses the same options as PDC_SYSTEM_INFO function. */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/types.h>
 
 #ifdef CONFIG_64BIT
@@ -389,6 +389,6 @@ extern int pdc_pat_mem_get_dimm_phys_location(
                 struct pdc_pat_mem_phys_mem_location *pret,
                 unsigned long phys_addr);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* ! __PARISC_PATPDC_H */

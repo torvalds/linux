@@ -2434,6 +2434,107 @@ static int memblock_overlaps_region_checks(void)
 	return 0;
 }
 
+#ifdef CONFIG_NUMA
+static int memblock_set_node_check(void)
+{
+	unsigned long i, max_reserved;
+	struct memblock_region *rgn;
+	void *orig_region;
+
+	PREFIX_PUSH();
+
+	reset_memblock_regions();
+	memblock_allow_resize();
+
+	dummy_physical_memory_init();
+	memblock_add(dummy_physical_memory_base(), MEM_SIZE);
+	orig_region = memblock.reserved.regions;
+
+	/* Equally Split range to node 0 and 1*/
+	memblock_set_node(memblock_start_of_DRAM(),
+			memblock_phys_mem_size() / 2, &memblock.memory, 0);
+	memblock_set_node(memblock_start_of_DRAM() + memblock_phys_mem_size() / 2,
+			memblock_phys_mem_size() / 2, &memblock.memory, 1);
+
+	ASSERT_EQ(memblock.memory.cnt, 2);
+	rgn = &memblock.memory.regions[0];
+	ASSERT_EQ(rgn->base, memblock_start_of_DRAM());
+	ASSERT_EQ(rgn->size, memblock_phys_mem_size() / 2);
+	ASSERT_EQ(memblock_get_region_node(rgn), 0);
+	rgn = &memblock.memory.regions[1];
+	ASSERT_EQ(rgn->base, memblock_start_of_DRAM() + memblock_phys_mem_size() / 2);
+	ASSERT_EQ(rgn->size, memblock_phys_mem_size() / 2);
+	ASSERT_EQ(memblock_get_region_node(rgn), 1);
+
+	/* Reserve 126 regions with the last one across node boundary */
+	for (i = 0; i < 125; i++)
+		memblock_reserve(memblock_start_of_DRAM() + SZ_16 * i, SZ_8);
+
+	memblock_reserve(memblock_start_of_DRAM() + memblock_phys_mem_size() / 2 - SZ_8,
+			SZ_16);
+
+	/*
+	 * Commit 61167ad5fecd ("mm: pass nid to reserve_bootmem_region()")
+	 * do following process to set nid to each memblock.reserved region.
+	 * But it may miss some region if memblock_set_node() double the
+	 * array.
+	 *
+	 * By checking 'max', we make sure all region nid is set properly.
+	 */
+repeat:
+	max_reserved = memblock.reserved.max;
+	for_each_mem_region(rgn) {
+		int nid = memblock_get_region_node(rgn);
+
+		memblock_set_node(rgn->base, rgn->size, &memblock.reserved, nid);
+	}
+	if (max_reserved != memblock.reserved.max)
+		goto repeat;
+
+	/* Confirm each region has valid node set */
+	for_each_reserved_mem_region(rgn) {
+		ASSERT_TRUE(numa_valid_node(memblock_get_region_node(rgn)));
+		if (rgn == (memblock.reserved.regions + memblock.reserved.cnt - 1))
+			ASSERT_EQ(1, memblock_get_region_node(rgn));
+		else
+			ASSERT_EQ(0, memblock_get_region_node(rgn));
+	}
+
+	dummy_physical_memory_cleanup();
+
+	/*
+	 * The current reserved.regions is occupying a range of memory that
+	 * allocated from dummy_physical_memory_init(). After free the memory,
+	 * we must not use it. So restore the origin memory region to make sure
+	 * the tests can run as normal and not affected by the double array.
+	 */
+	memblock.reserved.regions = orig_region;
+	memblock.reserved.cnt = INIT_MEMBLOCK_RESERVED_REGIONS;
+
+	test_pass_pop();
+
+	return 0;
+}
+
+static int memblock_set_node_checks(void)
+{
+	prefix_reset();
+	prefix_push("memblock_set_node");
+	test_print("Running memblock_set_node tests...\n");
+
+	memblock_set_node_check();
+
+	prefix_pop();
+
+	return 0;
+}
+#else
+static int memblock_set_node_checks(void)
+{
+	return 0;
+}
+#endif
+
 int memblock_basic_checks(void)
 {
 	memblock_initialization_check();
@@ -2444,6 +2545,7 @@ int memblock_basic_checks(void)
 	memblock_bottom_up_checks();
 	memblock_trim_memory_checks();
 	memblock_overlaps_region_checks();
+	memblock_set_node_checks();
 
 	return 0;
 }

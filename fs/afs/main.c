@@ -73,6 +73,7 @@ static int __net_init afs_net_init(struct net *net_ns)
 	generate_random_uuid((unsigned char *)&net->uuid);
 
 	INIT_WORK(&net->charge_preallocation_work, afs_charge_preallocation);
+	INIT_WORK(&net->rx_oob_work, afs_process_oob_queue);
 	mutex_init(&net->socket_mutex);
 
 	net->cells = RB_ROOT;

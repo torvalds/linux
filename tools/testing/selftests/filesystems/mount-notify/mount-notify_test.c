@@ -8,48 +8,34 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
-#include <linux/fanotify.h>
 #include <unistd.h>
-#include <sys/fanotify.h>
 #include <sys/syscall.h>
 
 #include "../../kselftest_harness.h"
 #include "../statmount/statmount.h"
+#include "../utils.h"
 
-#ifndef FAN_MNT_ATTACH
-struct fanotify_event_info_mnt {
-	struct fanotify_event_info_header hdr;
-	__u64 mnt_id;
-};
-#define FAN_MNT_ATTACH 0x01000000 /* Mount was attached */
+// Needed for linux/fanotify.h
+#ifndef __kernel_fsid_t
+typedef struct {
+	int	val[2];
+} __kernel_fsid_t;
 #endif
 
-#ifndef FAN_MNT_DETACH
-#define FAN_MNT_DETACH 0x02000000 /* Mount was detached */
-#endif
-
-#ifndef FAN_REPORT_MNT
-#define FAN_REPORT_MNT 0x00004000 /* Report mount events */
-#endif
-
-#ifndef FAN_MARK_MNTNS
-#define FAN_MARK_MNTNS 0x00000110
-#endif
-
-static uint64_t get_mnt_id(struct __test_metadata *const _metadata,
-			   const char *path)
-{
-	struct statx sx;
-
-	ASSERT_EQ(statx(AT_FDCWD, path, 0, STATX_MNT_ID_UNIQUE, &sx), 0);
-	ASSERT_TRUE(!!(sx.stx_mask & STATX_MNT_ID_UNIQUE));
-	return sx.stx_mnt_id;
-}
+#include <sys/fanotify.h>
 
 static const char root_mntpoint_templ[] = "/tmp/mount-notify_test_root.XXXXXX";
 
+static const int mark_cmds[] = {
+	FAN_MARK_ADD,
+	FAN_MARK_REMOVE,
+	FAN_MARK_FLUSH
+};
+
+#define NUM_FAN_FDS ARRAY_SIZE(mark_cmds)
+
 FIXTURE(fanotify) {
-	int fan_fd;
+	int fan_fd[NUM_FAN_FDS];
 	char buf[256];
 	unsigned int rem;
 	void *next;
@@ -61,7 +47,7 @@ FIXTURE(fanotify) {
 
 FIXTURE_SETUP(fanotify)
 {
-	int ret;
+	int i, ret;
 
 	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
 
@@ -86,23 +72,37 @@ FIXTURE_SETUP(fanotify)
 
 	ASSERT_EQ(mkdir("b", 0700), 0);
 
-	self->root_id = get_mnt_id(_metadata, "/");
+	self->root_id = get_unique_mnt_id("/");
 	ASSERT_NE(self->root_id, 0);
 
-	self->fan_fd = fanotify_init(FAN_REPORT_MNT, 0);
-	ASSERT_GE(self->fan_fd, 0);
-
-	ret = fanotify_mark(self->fan_fd, FAN_MARK_ADD | FAN_MARK_MNTNS,
-			    FAN_MNT_ATTACH | FAN_MNT_DETACH, self->ns_fd, NULL);
-	ASSERT_EQ(ret, 0);
+	for (i = 0; i < NUM_FAN_FDS; i++) {
+		self->fan_fd[i] = fanotify_init(FAN_REPORT_MNT | FAN_NONBLOCK,
+						0);
+		ASSERT_GE(self->fan_fd[i], 0);
+		ret = fanotify_mark(self->fan_fd[i], FAN_MARK_ADD |
+				    FAN_MARK_MNTNS,
+				    FAN_MNT_ATTACH | FAN_MNT_DETACH,
+				    self->ns_fd, NULL);
+		ASSERT_EQ(ret, 0);
+		// On fd[0] we do an extra ADD that changes nothing.
+		// On fd[1]/fd[2] we REMOVE/FLUSH which removes the mark.
+		ret = fanotify_mark(self->fan_fd[i], mark_cmds[i] |
+				    FAN_MARK_MNTNS,
+				    FAN_MNT_ATTACH | FAN_MNT_DETACH,
+				    self->ns_fd, NULL);
+		ASSERT_EQ(ret, 0);
+	}
 
 	self->rem = 0;
 }
 
 FIXTURE_TEARDOWN(fanotify)
 {
+	int i;
+
 	ASSERT_EQ(self->rem, 0);
-	close(self->fan_fd);
+	for (i = 0; i < NUM_FAN_FDS; i++)
+		close(self->fan_fd[i]);
 
 	ASSERT_EQ(fchdir(self->orig_root), 0);
 
@@ -123,8 +123,21 @@ static uint64_t expect_notify(struct __test_metadata *const _metadata,
 	unsigned int thislen;
 
 	if (!self->rem) {
-		ssize_t len = read(self->fan_fd, self->buf, sizeof(self->buf));
-		ASSERT_GT(len, 0);
+		ssize_t len;
+		int i;
+
+		for (i = NUM_FAN_FDS - 1; i >= 0; i--) {
+			len = read(self->fan_fd[i], self->buf,
+				   sizeof(self->buf));
+			if (i > 0) {
+				// Groups 1,2 should get EAGAIN
+				ASSERT_EQ(len, -1);
+				ASSERT_EQ(errno, EAGAIN);
+			} else {
+				// Group 0 should get events
+				ASSERT_GT(len, 0);
+			}
+		}
 
 		self->rem = len;
 		self->next = (void *) self->buf;

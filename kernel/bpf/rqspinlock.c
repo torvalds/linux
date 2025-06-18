@@ -253,7 +253,7 @@ static noinline int check_timeout(rqspinlock_t *lock, u32 mask,
 	})
 #else
 #define RES_CHECK_TIMEOUT(ts, ret, mask)			      \
-	({ (ret) = check_timeout(&(ts)); })
+	({ (ret) = check_timeout((lock), (mask), &(ts)); })
 #endif
 
 /*

@@ -61,8 +61,14 @@ void blk_apply_bdi_limits(struct backing_dev_info *bdi,
 	/*
 	 * For read-ahead of large files to be effective, we need to read ahead
 	 * at least twice the optimal I/O size.
+	 *
+	 * There is no hardware limitation for the read-ahead size and the user
+	 * might have increased the read-ahead size through sysfs, so don't ever
+	 * decrease it.
 	 */
-	bdi->ra_pages = max(lim->io_opt * 2 / PAGE_SIZE, VM_READAHEAD_PAGES);
+	bdi->ra_pages = max3(bdi->ra_pages,
+				lim->io_opt * 2 / PAGE_SIZE,
+				VM_READAHEAD_PAGES);
 	bdi->io_pages = lim->max_sectors >> PAGE_SECTORS_SHIFT;
 }
 
@@ -116,11 +122,6 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 		}
 		bi->flags |= BLK_INTEGRITY_NOGENERATE | BLK_INTEGRITY_NOVERIFY;
 		return 0;
-	}
-
-	if (lim->features & BLK_FEAT_BOUNCE_HIGH) {
-		pr_warn("no bounce buffer support for integrity metadata\n");
-		return -EINVAL;
 	}
 
 	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {

@@ -29,6 +29,7 @@
 #include <net/pkt_cls.h>
 #include <net/rtnetlink.h>
 #include <net/udp_tunnel.h>
+#include <net/busy_poll.h>
 
 #include "netdevsim.h"
 
@@ -357,6 +358,7 @@ static int nsim_rcv(struct nsim_rq *rq, int budget)
 			break;
 
 		skb = skb_dequeue(&rq->skb_queue);
+		skb_mark_napi_id(skb, &rq->napi);
 		netif_receive_skb(skb);
 	}
 
@@ -441,8 +443,8 @@ static enum hrtimer_restart nsim_napi_schedule(struct hrtimer *timer)
 
 static void nsim_rq_timer_init(struct nsim_rq *rq)
 {
-	hrtimer_init(&rq->napi_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	rq->napi_timer.function = nsim_napi_schedule;
+	hrtimer_setup(&rq->napi_timer, nsim_napi_schedule, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 }
 
 static void nsim_enable_napi(struct netdevsim *ns)
@@ -879,11 +881,13 @@ static void nsim_setup(struct net_device *dev)
 			 NETIF_F_SG |
 			 NETIF_F_FRAGLIST |
 			 NETIF_F_HW_CSUM |
+			 NETIF_F_LRO |
 			 NETIF_F_TSO;
 	dev->hw_features |= NETIF_F_HW_TC |
 			    NETIF_F_SG |
 			    NETIF_F_FRAGLIST |
 			    NETIF_F_HW_CSUM |
+			    NETIF_F_LRO |
 			    NETIF_F_TSO;
 	dev->max_mtu = ETH_MAX_MTU;
 	dev->xdp_features = NETDEV_XDP_ACT_HW_OFFLOAD;
@@ -939,6 +943,7 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 	ns->netdev->netdev_ops = &nsim_netdev_ops;
 	ns->netdev->stat_ops = &nsim_stat_ops;
 	ns->netdev->queue_mgmt_ops = &nsim_queue_mgmt_ops;
+	netdev_lockdep_set_classes(ns->netdev);
 
 	err = nsim_udp_tunnels_info_create(ns->nsim_dev, ns->netdev);
 	if (err)
@@ -960,6 +965,14 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 	if (err)
 		goto err_ipsec_teardown;
 	rtnl_unlock();
+
+	if (IS_ENABLED(CONFIG_DEBUG_NET)) {
+		ns->nb.notifier_call = netdev_debug_event;
+		if (register_netdevice_notifier_dev_net(ns->netdev, &ns->nb,
+							&ns->nn))
+			ns->nb.notifier_call = NULL;
+	}
+
 	return 0;
 
 err_ipsec_teardown:
@@ -1042,6 +1055,10 @@ void nsim_destroy(struct netdevsim *ns)
 
 	debugfs_remove(ns->qr_dfs);
 	debugfs_remove(ns->pp_dfs);
+
+	if (ns->nb.notifier_call)
+		unregister_netdevice_notifier_dev_net(ns->netdev, &ns->nb,
+						      &ns->nn);
 
 	rtnl_lock();
 	peer = rtnl_dereference(ns->peer);

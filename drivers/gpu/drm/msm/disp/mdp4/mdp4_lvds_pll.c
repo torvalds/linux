@@ -122,40 +122,59 @@ static const struct clk_ops mpd4_lvds_pll_ops = {
 	.set_rate = mpd4_lvds_pll_set_rate,
 };
 
-static const char *mpd4_lvds_pll_parents[] = {
-	"pxo",
+static const struct clk_parent_data mpd4_lvds_pll_parents[] = {
+	{ .fw_name = "pxo", .name = "pxo", },
 };
 
 static struct clk_init_data pll_init = {
 	.name = "mpd4_lvds_pll",
 	.ops = &mpd4_lvds_pll_ops,
-	.parent_names = mpd4_lvds_pll_parents,
+	.parent_data = mpd4_lvds_pll_parents,
 	.num_parents = ARRAY_SIZE(mpd4_lvds_pll_parents),
 };
 
-struct clk *mpd4_lvds_pll_init(struct drm_device *dev)
+static struct clk_hw *mpd4_lvds_pll_init(struct drm_device *dev)
 {
 	struct mdp4_lvds_pll *lvds_pll;
-	struct clk *clk;
 	int ret;
 
 	lvds_pll = devm_kzalloc(dev->dev, sizeof(*lvds_pll), GFP_KERNEL);
-	if (!lvds_pll) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!lvds_pll)
+		return ERR_PTR(-ENOMEM);
 
 	lvds_pll->dev = dev;
 
 	lvds_pll->pll_hw.init = &pll_init;
-	clk = devm_clk_register(dev->dev, &lvds_pll->pll_hw);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		goto fail;
+	ret = devm_clk_hw_register(dev->dev, &lvds_pll->pll_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = devm_of_clk_add_hw_provider(dev->dev, of_clk_hw_simple_get, &lvds_pll->pll_hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return &lvds_pll->pll_hw;
+}
+
+struct clk *mpd4_get_lcdc_clock(struct drm_device *dev)
+{
+	struct clk_hw *hw;
+	struct clk *clk;
+
+
+	/* TODO: do we need different pll in other cases? */
+	hw = mpd4_lvds_pll_init(dev);
+	if (IS_ERR(hw)) {
+		DRM_DEV_ERROR(dev->dev, "failed to register LVDS PLL\n");
+		return ERR_CAST(hw);
+	}
+
+	clk = devm_clk_get(dev->dev, "lcdc_clk");
+	if (clk == ERR_PTR(-ENOENT)) {
+		drm_warn(dev, "can't get LCDC clock, using PLL directly\n");
+
+		return devm_clk_hw_get_clk(dev->dev, hw, "lcdc_clk");
 	}
 
 	return clk;
-
-fail:
-	return ERR_PTR(ret);
 }
