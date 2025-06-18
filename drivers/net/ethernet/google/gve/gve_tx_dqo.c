@@ -9,6 +9,7 @@
 #include "gve_utils.h"
 #include "gve_dqo.h"
 #include <net/ip.h>
+#include <linux/bpf.h>
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -110,6 +111,14 @@ static bool gve_has_pending_packet(struct gve_tx_ring *tx)
 	return false;
 }
 
+void gve_xdp_tx_flush_dqo(struct gve_priv *priv, u32 xdp_qid)
+{
+	u32 tx_qid = gve_xdp_tx_queue_id(priv, xdp_qid);
+	struct gve_tx_ring *tx = &priv->tx[tx_qid];
+
+	gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
+}
+
 static struct gve_tx_pending_packet_dqo *
 gve_alloc_pending_packet(struct gve_tx_ring *tx)
 {
@@ -198,7 +207,8 @@ void gve_tx_stop_ring_dqo(struct gve_priv *priv, int idx)
 
 	gve_remove_napi(priv, ntfy_idx);
 	gve_clean_tx_done_dqo(priv, tx, /*napi=*/NULL);
-	netdev_tx_reset_queue(tx->netdev_txq);
+	if (tx->netdev_txq)
+		netdev_tx_reset_queue(tx->netdev_txq);
 	gve_tx_clean_pending_packets(tx);
 	gve_tx_remove_from_block(priv, idx);
 }
@@ -276,7 +286,8 @@ void gve_tx_start_ring_dqo(struct gve_priv *priv, int idx)
 
 	gve_tx_add_to_block(priv, idx);
 
-	tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
+	if (idx < priv->tx_cfg.num_queues)
+		tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
 	gve_add_napi(priv, ntfy_idx, gve_napi_poll_dqo);
 }
 
@@ -295,6 +306,7 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 	memset(tx, 0, sizeof(*tx));
 	tx->q_num = idx;
 	tx->dev = hdev;
+	spin_lock_init(&tx->dqo_tx.xdp_lock);
 	atomic_set_release(&tx->dqo_compl.hw_tx_head, 0);
 
 	/* Queue sizes must be a power of 2 */
@@ -795,6 +807,7 @@ static int gve_tx_add_skb_dqo(struct gve_tx_ring *tx,
 		return -ENOMEM;
 
 	pkt->skb = skb;
+	pkt->type = GVE_TX_PENDING_PACKET_DQO_SKB;
 	completion_tag = pkt - tx->dqo.pending_packets;
 
 	gve_extract_tx_metadata_dqo(skb, &metadata);
@@ -1116,16 +1129,32 @@ static void gve_handle_packet_completion(struct gve_priv *priv,
 		}
 	}
 	tx->dqo_tx.completed_packet_desc_cnt += pending_packet->num_bufs;
-	if (tx->dqo.qpl)
-		gve_free_tx_qpl_bufs(tx, pending_packet);
-	else
-		gve_unmap_packet(tx->dev, pending_packet);
 
-	*bytes += pending_packet->skb->len;
-	(*pkts)++;
-	napi_consume_skb(pending_packet->skb, is_napi);
-	pending_packet->skb = NULL;
-	gve_free_pending_packet(tx, pending_packet);
+	switch (pending_packet->type) {
+	case GVE_TX_PENDING_PACKET_DQO_SKB:
+		if (tx->dqo.qpl)
+			gve_free_tx_qpl_bufs(tx, pending_packet);
+		else
+			gve_unmap_packet(tx->dev, pending_packet);
+		(*pkts)++;
+		*bytes += pending_packet->skb->len;
+
+		napi_consume_skb(pending_packet->skb, is_napi);
+		pending_packet->skb = NULL;
+		gve_free_pending_packet(tx, pending_packet);
+		break;
+	case GVE_TX_PENDING_PACKET_DQO_XDP_FRAME:
+		gve_unmap_packet(tx->dev, pending_packet);
+		(*pkts)++;
+		*bytes += pending_packet->xdpf->len;
+
+		xdp_return_frame(pending_packet->xdpf);
+		pending_packet->xdpf = NULL;
+		gve_free_pending_packet(tx, pending_packet);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
 }
 
 static void gve_handle_miss_completion(struct gve_priv *priv,
@@ -1296,9 +1325,10 @@ int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 		num_descs_cleaned++;
 	}
 
-	netdev_tx_completed_queue(tx->netdev_txq,
-				  pkt_compl_pkts + miss_compl_pkts,
-				  pkt_compl_bytes + miss_compl_bytes);
+	if (tx->netdev_txq)
+		netdev_tx_completed_queue(tx->netdev_txq,
+					  pkt_compl_pkts + miss_compl_pkts,
+					  pkt_compl_bytes + miss_compl_bytes);
 
 	remove_miss_completions(priv, tx);
 	remove_timed_out_completions(priv, tx);
@@ -1333,4 +1363,99 @@ bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean)
 	/* Return true if we still have work. */
 	compl_desc = &tx->dqo.compl_ring[tx->dqo_compl.head];
 	return compl_desc->generation != tx->dqo_compl.cur_gen_bit;
+}
+
+bool gve_xdp_poll_dqo(struct gve_notify_block *block)
+{
+	struct gve_tx_compl_desc *compl_desc;
+	struct gve_tx_ring *tx = block->tx;
+	struct gve_priv *priv = block->priv;
+
+	gve_clean_tx_done_dqo(priv, tx, &block->napi);
+
+	/* Return true if we still have work. */
+	compl_desc = &tx->dqo.compl_ring[tx->dqo_compl.head];
+	return compl_desc->generation != tx->dqo_compl.cur_gen_bit;
+}
+
+int gve_xdp_xmit_one_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
+			 struct xdp_frame *xdpf)
+{
+	struct gve_tx_pending_packet_dqo *pkt;
+	u32 desc_idx = tx->dqo_tx.tail;
+	s16 completion_tag;
+	int num_descs = 1;
+	dma_addr_t addr;
+	int err;
+
+	if (unlikely(!gve_has_tx_slots_available(tx, num_descs)))
+		return -EBUSY;
+
+	pkt = gve_alloc_pending_packet(tx);
+	if (unlikely(!pkt))
+		return -EBUSY;
+
+	pkt->type = GVE_TX_PENDING_PACKET_DQO_XDP_FRAME;
+	pkt->num_bufs = 0;
+	pkt->xdpf = xdpf;
+	completion_tag = pkt - tx->dqo.pending_packets;
+
+	/* Generate Packet Descriptor */
+	addr = dma_map_single(tx->dev, xdpf->data, xdpf->len, DMA_TO_DEVICE);
+	err = dma_mapping_error(tx->dev, addr);
+	if (unlikely(err))
+		goto err;
+
+	dma_unmap_len_set(pkt, len[pkt->num_bufs], xdpf->len);
+	dma_unmap_addr_set(pkt, dma[pkt->num_bufs], addr);
+	pkt->num_bufs++;
+
+	gve_tx_fill_pkt_desc_dqo(tx, &desc_idx,
+				 false, xdpf->len,
+				 addr, completion_tag, true,
+				 false);
+
+	gve_tx_update_tail(tx, desc_idx);
+	return 0;
+
+err:
+	pkt->xdpf = NULL;
+	pkt->num_bufs = 0;
+	gve_free_pending_packet(tx, pkt);
+	return err;
+}
+
+int gve_xdp_xmit_dqo(struct net_device *dev, int n, struct xdp_frame **frames,
+		     u32 flags)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_tx_ring *tx;
+	int i, err = 0, qid;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	qid = gve_xdp_tx_queue_id(priv,
+				  smp_processor_id() % priv->tx_cfg.num_xdp_queues);
+
+	tx = &priv->tx[qid];
+
+	spin_lock(&tx->dqo_tx.xdp_lock);
+	for (i = 0; i < n; i++) {
+		err = gve_xdp_xmit_one_dqo(priv, tx, frames[i]);
+		if (err)
+			break;
+	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
+
+	spin_unlock(&tx->dqo_tx.xdp_lock);
+
+	u64_stats_update_begin(&tx->statss);
+	tx->xdp_xmit += n;
+	tx->xdp_xmit_errors += n - i;
+	u64_stats_update_end(&tx->statss);
+
+	return i ? i : err;
 }

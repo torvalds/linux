@@ -402,8 +402,16 @@ enum gve_packet_state {
 	GVE_PACKET_STATE_TIMED_OUT_COMPL,
 };
 
+enum gve_tx_pending_packet_dqo_type {
+	GVE_TX_PENDING_PACKET_DQO_SKB,
+	GVE_TX_PENDING_PACKET_DQO_XDP_FRAME
+};
+
 struct gve_tx_pending_packet_dqo {
-	struct sk_buff *skb; /* skb for this packet */
+	union {
+		struct sk_buff *skb;
+		struct xdp_frame *xdpf;
+	};
 
 	/* 0th element corresponds to the linear portion of `skb`, should be
 	 * unmapped with `dma_unmap_single`.
@@ -433,7 +441,10 @@ struct gve_tx_pending_packet_dqo {
 	/* Identifies the current state of the packet as defined in
 	 * `enum gve_packet_state`.
 	 */
-	u8 state;
+	u8 state : 2;
+
+	/* gve_tx_pending_packet_dqo_type */
+	u8 type : 1;
 
 	/* If packet is an outstanding miss completion, then the packet is
 	 * freed if the corresponding re-injection completion is not received
@@ -455,6 +466,9 @@ struct gve_tx_ring {
 
 		/* DQO fields. */
 		struct {
+			/* Spinlock for XDP tx traffic */
+			spinlock_t xdp_lock;
+
 			/* Linked list of gve_tx_pending_packet_dqo. Index into
 			 * pending_packets, or -1 if empty.
 			 *
@@ -1155,6 +1169,7 @@ static inline bool gve_supports_xdp_xmit(struct gve_priv *priv)
 {
 	switch (priv->queue_format) {
 	case GVE_GQI_QPL_FORMAT:
+	case GVE_DQO_RDA_FORMAT:
 		return true;
 	default:
 		return false;
@@ -1180,9 +1195,13 @@ void gve_free_queue_page_list(struct gve_priv *priv,
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
 int gve_xdp_xmit_gqi(struct net_device *dev, int n, struct xdp_frame **frames,
 		     u32 flags);
+int gve_xdp_xmit_dqo(struct net_device *dev, int n, struct xdp_frame **frames,
+		     u32 flags);
 int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 		     void *data, int len, void *frame_p);
 void gve_xdp_tx_flush(struct gve_priv *priv, u32 xdp_qid);
+int gve_xdp_xmit_one_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
+			 struct xdp_frame *xdpf);
 bool gve_tx_poll(struct gve_notify_block *block, int budget);
 bool gve_xdp_poll(struct gve_notify_block *block, int budget);
 int gve_xsk_tx_poll(struct gve_notify_block *block, int budget);
