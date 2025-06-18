@@ -2227,9 +2227,8 @@ int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 	if (IS_ERR(res))
 		return PTR_ERR(res);
 	if (res) {
-		path->dentry = res;
 		sops->put_data(data);
-		goto out_path;
+		goto make_path;
 	}
 
 	/* Allocate a new dentry. */
@@ -2246,15 +2245,14 @@ int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 		dput(dentry);
 		return PTR_ERR(res);
 	}
-	path->dentry = res;
-	/* A dentry was reused. */
 	if (res != dentry)
 		dput(dentry);
 
-out_path:
-	WARN_ON_ONCE(path->dentry->d_fsdata != stashed);
-	WARN_ON_ONCE(d_inode(path->dentry)->i_private != data);
+make_path:
+	path->dentry = res;
 	path->mnt = mntget(mnt);
+	VFS_WARN_ON_ONCE(path->dentry->d_fsdata != stashed);
+	VFS_WARN_ON_ONCE(d_inode(path->dentry)->i_private != data);
 	return 0;
 }
 
