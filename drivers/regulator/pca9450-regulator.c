@@ -873,12 +873,15 @@ static struct pca9450_regulator_desc pca9451a_regulators[] = {
 			.n_ramp_values = ARRAY_SIZE(pca9450_dvs_buck_ramp_table),
 			.owner = THIS_MODULE,
 			.of_parse_cb = pca9450_set_dvs_levels,
+			.of_map_mode = pca9450_map_mode,
 		},
 		.dvs = {
 			.run_reg = PCA9450_REG_BUCK1OUT_DVS0,
 			.run_mask = BUCK1OUT_DVS0_MASK,
 			.standby_reg = PCA9450_REG_BUCK1OUT_DVS1,
 			.standby_mask = BUCK1OUT_DVS1_MASK,
+			.mode_reg = PCA9450_REG_BUCK1CTRL,
+			.mode_mask = BUCK1_FPWM,
 		},
 	},
 	{
@@ -902,12 +905,15 @@ static struct pca9450_regulator_desc pca9451a_regulators[] = {
 			.n_ramp_values = ARRAY_SIZE(pca9450_dvs_buck_ramp_table),
 			.owner = THIS_MODULE,
 			.of_parse_cb = pca9450_set_dvs_levels,
+			.of_map_mode = pca9450_map_mode,
 		},
 		.dvs = {
 			.run_reg = PCA9450_REG_BUCK2OUT_DVS0,
 			.run_mask = BUCK2OUT_DVS0_MASK,
 			.standby_reg = PCA9450_REG_BUCK2OUT_DVS1,
 			.standby_mask = BUCK2OUT_DVS1_MASK,
+			.mode_reg = PCA9450_REG_BUCK2CTRL,
+			.mode_mask = BUCK2_FPWM,
 		},
 	},
 	{
@@ -927,6 +933,11 @@ static struct pca9450_regulator_desc pca9451a_regulators[] = {
 			.enable_mask = BUCK4_ENMODE_MASK,
 			.enable_val = BUCK_ENMODE_ONREQ,
 			.owner = THIS_MODULE,
+			.of_map_mode = pca9450_map_mode,
+		},
+		.dvs = {
+			.mode_reg = PCA9450_REG_BUCK4CTRL,
+			.mode_mask = BUCK4_FPWM,
 		},
 	},
 	{
@@ -946,6 +957,11 @@ static struct pca9450_regulator_desc pca9451a_regulators[] = {
 			.enable_mask = BUCK5_ENMODE_MASK,
 			.enable_val = BUCK_ENMODE_ONREQ,
 			.owner = THIS_MODULE,
+			.of_map_mode = pca9450_map_mode,
+		},
+		.dvs = {
+			.mode_reg = PCA9450_REG_BUCK5CTRL,
+			.mode_mask = BUCK5_FPWM,
 		},
 	},
 	{
@@ -965,6 +981,11 @@ static struct pca9450_regulator_desc pca9451a_regulators[] = {
 			.enable_mask = BUCK6_ENMODE_MASK,
 			.enable_val = BUCK_ENMODE_ONREQ,
 			.owner = THIS_MODULE,
+			.of_map_mode = pca9450_map_mode,
+		},
+		.dvs = {
+			.mode_reg = PCA9450_REG_BUCK6CTRL,
+			.mode_mask = BUCK6_FPWM,
 		},
 	},
 	{
