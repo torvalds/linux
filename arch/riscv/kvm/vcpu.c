@@ -622,7 +622,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		}
 	}
 
-	kvm_riscv_gstage_update_hgatp(vcpu);
+	kvm_riscv_mmu_update_hgatp(vcpu);
 
 	kvm_riscv_vcpu_timer_restore(vcpu);
 
@@ -707,7 +707,7 @@ static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 			kvm_riscv_reset_vcpu(vcpu, true);
 
 		if (kvm_check_request(KVM_REQ_UPDATE_HGATP, vcpu))
-			kvm_riscv_gstage_update_hgatp(vcpu);
+			kvm_riscv_mmu_update_hgatp(vcpu);
 
 		if (kvm_check_request(KVM_REQ_FENCE_I, vcpu))
 			kvm_riscv_fence_i_process(vcpu);
