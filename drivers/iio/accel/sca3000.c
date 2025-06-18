@@ -937,7 +937,6 @@ static const struct attribute_group sca3000_attribute_group = {
 
 static int sca3000_read_data(struct sca3000_state *st,
 			     u8 reg_address_high,
-			     u8 *rx,
 			     int len)
 {
 	int ret;
@@ -947,18 +946,15 @@ static int sca3000_read_data(struct sca3000_state *st,
 			.tx_buf = st->tx,
 		}, {
 			.len = len,
-			.rx_buf = rx,
+			.rx_buf = st->rx,
 		}
 	};
 
 	st->tx[0] = SCA3000_READ_REG(reg_address_high);
 	ret = spi_sync_transfer(st->us, xfer, ARRAY_SIZE(xfer));
-	if (ret) {
+	if (ret)
 		dev_err(&st->us->dev, "problem reading register\n");
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 /**
@@ -982,8 +978,7 @@ static void sca3000_ring_int_process(u8 val, struct iio_dev *indio_dev)
 		 * num_available is the total number of samples available
 		 * i.e. number of time points * number of channels.
 		 */
-		ret = sca3000_read_data(st, SCA3000_REG_RING_OUT_ADDR, st->rx,
-					num_available * 2);
+		ret = sca3000_read_data(st, SCA3000_REG_RING_OUT_ADDR, num_available * 2);
 		if (ret)
 			goto error_ret;
 		for (i = 0; i < num_available / 3; i++) {
