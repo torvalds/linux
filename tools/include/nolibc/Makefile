@@ -91,18 +91,12 @@ help:
 	@echo "  OUTPUT  = $(OUTPUT)"
 	@echo ""
 
-# Note: when ARCH is "x86" we concatenate both x86_64 and i386
 headers:
 	$(Q)mkdir -p $(OUTPUT)sysroot
 	$(Q)mkdir -p $(OUTPUT)sysroot/include
 	$(Q)cp --parents $(all_files) $(OUTPUT)sysroot/include/
-	$(Q)if [ "$(ARCH)" = "x86" ]; then      \
-		sed -e                          \
-		  's,^#ifndef _NOLIBC_ARCH_X86_64_H,#if !defined(_NOLIBC_ARCH_X86_64_H) \&\& defined(__x86_64__),' \
-		  arch-x86_64.h;                \
-		sed -e                          \
-		  's,^#ifndef _NOLIBC_ARCH_I386_H,#if !defined(_NOLIBC_ARCH_I386_H) \&\& !defined(__x86_64__),' \
-		  arch-i386.h;                  \
+	$(Q)if [ "$(ARCH)" = "i386" -o "$(ARCH)" = "x86_64" ]; then \
+		cat arch-x86.h;                 \
 	elif [ -e "$(arch_file)" ]; then        \
 		cat $(arch_file);               \
 	else                                    \
