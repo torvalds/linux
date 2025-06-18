@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
