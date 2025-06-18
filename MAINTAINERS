@@ -22174,7 +22174,7 @@ R:	Tejun Heo <tj@kernel.org>
 R:	David Vernet <void@manifault.com>
 R:	Andrea Righi <arighi@nvidia.com>
 R:	Changwoo Min <changwoo@igalia.com>
-L:	linux-kernel@vger.kernel.org
+L:	sched-ext@lists.linux.dev
 S:	Maintained
 W:	https://github.com/sched-ext/scx
 T:	git://git.kernel.org/pub/scm/linux/kernel/git/tj/sched_ext.git
