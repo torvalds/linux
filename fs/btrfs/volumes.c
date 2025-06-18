@@ -787,7 +787,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 	u64 found_transid = btrfs_super_generation(disk_super);
 	u64 devid = btrfs_stack_device_id(&disk_super->dev_item);
 	dev_t path_devt;
-	int error;
+	int ret;
 	bool same_fsid_diff_dev = false;
 	bool has_metadata_uuid = (btrfs_super_incompat_flags(disk_super) &
 		BTRFS_FEATURE_INCOMPAT_METADATA_UUID);
@@ -799,11 +799,11 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		return ERR_PTR(-EAGAIN);
 	}
 
-	error = lookup_bdev(path, &path_devt);
-	if (error) {
+	ret = lookup_bdev(path, &path_devt);
+	if (ret) {
 		btrfs_err(NULL, "failed to lookup block device for path %s: %d",
-			  path, error);
-		return ERR_PTR(error);
+			  path, ret);
+		return ERR_PTR(ret);
 	}
 
 	fs_devices = find_fsid_by_device(disk_super, path_devt, &same_fsid_diff_dev);
