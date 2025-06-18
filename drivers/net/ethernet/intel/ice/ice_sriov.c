@@ -933,7 +933,6 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	bool needs_rebuild = false;
 	struct ice_vsi *vsi;
 	struct ice_vf *vf;
-	int id;
 
 	if (!ice_get_num_vfs(pf))
 		return -ENOENT;
@@ -952,11 +951,7 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	if (msix_vec_count < ICE_MIN_INTR_PER_VF)
 		return -EINVAL;
 
-	id = pci_iov_vf_id(vf_dev);
-	if (id < 0)
-		return id;
-
-	vf = ice_get_vf_by_id(pf, id);
+	vf = ice_get_vf_by_dev(pf, vf_dev);
 	if (!vf)
 		return -ENOENT;
 

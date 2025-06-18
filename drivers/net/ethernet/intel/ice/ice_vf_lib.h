@@ -239,6 +239,18 @@ static inline bool ice_vf_is_lldp_ena(struct ice_vf *vf)
 
 #ifdef CONFIG_PCI_IOV
 struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id);
+
+static inline struct ice_vf *ice_get_vf_by_dev(struct ice_pf *pf,
+					       struct pci_dev *vf_dev)
+{
+	int vf_id = pci_iov_vf_id(vf_dev);
+
+	if (vf_id < 0)
+		return NULL;
+
+	return ice_get_vf_by_id(pf, pci_iov_vf_id(vf_dev));
+}
+
 void ice_put_vf(struct ice_vf *vf);
 bool ice_has_vfs(struct ice_pf *pf);
 u16 ice_get_num_vfs(struct ice_pf *pf);
@@ -261,6 +273,12 @@ void ice_vf_update_mac_lldp_num(struct ice_vf *vf, struct ice_vsi *vsi,
 				bool incr);
 #else /* CONFIG_PCI_IOV */
 static inline struct ice_vf *ice_get_vf_by_id(struct ice_pf *pf, u16 vf_id)
+{
+	return NULL;
+}
+
+static inline struct ice_vf *ice_get_vf_by_dev(struct ice_pf *pf,
+					       struct pci_dev *vf_dev)
 {
 	return NULL;
 }
