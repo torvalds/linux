@@ -2162,7 +2162,6 @@ static struct dentry *prepare_anon_dentry(struct dentry **stashed,
 
 	/* Notice when this is changed. */
 	WARN_ON_ONCE(!S_ISREG(inode->i_mode));
-	WARN_ON_ONCE(!IS_IMMUTABLE(inode));
 
 	dentry = d_alloc_anon(sb);
 	if (!dentry) {
