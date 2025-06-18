@@ -1723,7 +1723,7 @@ static u16 rtw89_core_get_phy_status_ie_len(struct rtw89_dev *rtwdev,
 		},
 		[RTW89_CHIP_BE] = {
 			32, 40, 24, 24, 8, 8, 8, 8, VAR_LEN, 8, VAR_LEN, 176, VAR_LEN,
-			VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, 16, 24, VAR_LEN,
+			VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, 88, 56, VAR_LEN,
 			VAR_LEN, VAR_LEN, 0, 24, 24, 24, 24, 32, 32, 32, 32
 		},
 	};
@@ -1918,6 +1918,8 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 		return -EINVAL;
 
 	pos = phy_ppdu->buf + PHY_STS_HDR_LEN;
+	if (phy_ppdu->hdr_2_en)
+		pos += PHY_STS_HDR_LEN;
 	end = phy_ppdu->buf + phy_ppdu->len;
 	while (pos < end) {
 		const struct rtw89_phy_sts_iehdr *iehdr = pos;
