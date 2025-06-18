@@ -32,6 +32,7 @@
 /*
  * "X2" in the core is equivalent to "dual output" in the datasheets,
  * "X4" in the core is equivalent to "quad output" in the datasheets.
+ * Quad and octal capable chips feature an absolute maximum frequency of 166MHz.
  */
 
 static SPINAND_OP_VARIANTS(read_cache_octal_variants,
