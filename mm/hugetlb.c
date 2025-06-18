@@ -7247,8 +7247,15 @@ long hugetlb_change_protection(struct vm_area_struct *vma,
 	return pages > 0 ? (pages << h->order) : pages;
 }
 
-/* Return true if reservation was successful, false otherwise.  */
-bool hugetlb_reserve_pages(struct inode *inode,
+/*
+ * Update the reservation map for the range [from, to].
+ *
+ * Returns the number of entries that would be added to the reservation map
+ * associated with the range [from, to].  This number is greater or equal to
+ * zero. -EINVAL or -ENOMEM is returned in case of any errors.
+ */
+
+long hugetlb_reserve_pages(struct inode *inode,
 					long from, long to,
 					struct vm_area_struct *vma,
 					vm_flags_t vm_flags)
@@ -7263,7 +7270,7 @@ bool hugetlb_reserve_pages(struct inode *inode,
 	/* This should never happen */
 	if (from > to) {
 		VM_WARN(1, "%s called with a negative range\n", __func__);
-		return false;
+		return -EINVAL;
 	}
 
 	/*
@@ -7278,7 +7285,7 @@ bool hugetlb_reserve_pages(struct inode *inode,
 	 * without using reserves
 	 */
 	if (vm_flags & VM_NORESERVE)
-		return true;
+		return 0;
 
 	/*
 	 * Shared mappings base their reservation on the number of pages that
@@ -7385,7 +7392,7 @@ bool hugetlb_reserve_pages(struct inode *inode,
 			hugetlb_cgroup_put_rsvd_cgroup(h_cg);
 		}
 	}
-	return true;
+	return chg;
 
 out_put_pages:
 	spool_resv = chg - gbl_reserve;
@@ -7413,7 +7420,7 @@ out_err:
 		kref_put(&resv_map->refs, resv_map_release);
 		set_vma_resv_map(vma, NULL);
 	}
-	return false;
+	return chg < 0 ? chg : add < 0 ? add : -EINVAL;
 }
 
 long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
