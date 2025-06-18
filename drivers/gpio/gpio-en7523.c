@@ -50,7 +50,7 @@ static int airoha_dir_set(struct gpio_chip *gc, unsigned int gpio,
 	iowrite32(dir, ctrl->dir[gpio / 16]);
 
 	if (out)
-		gc->set(gc, gpio, val);
+		gc->set_rv(gc, gpio, val);
 
 	iowrite32(output, ctrl->output);
 
