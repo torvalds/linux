@@ -8,6 +8,8 @@
 
 / {
 	aliases {
+		mmc0 = &sdhc_1;
+		mmc1 = &sdhc_2;
 		serial0 = &blsp1_uart2;
 	};
 
@@ -26,20 +28,6 @@
 			gpios = <&pm8941_gpios 2 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEDOWN>;
-		};
-
-		key-camera-snapshot {
-			label = "camera_snapshot";
-			gpios = <&pm8941_gpios 3 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
-			linux,code = <KEY_CAMERA>;
-		};
-
-		key-camera-focus {
-			label = "camera_focus";
-			gpios = <&pm8941_gpios 4 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
-			linux,code = <KEY_CAMERA_FOCUS>;
 		};
 
 		key-volume-up {
@@ -98,7 +86,7 @@
 	status = "okay";
 	clock-frequency = <355000>;
 
-	synaptics@2c {
+	touchscreen: synaptics@2c {
 		compatible = "syna,rmi4-i2c";
 		reg = <0x2c>;
 
@@ -446,6 +434,8 @@
 };
 
 &smbb {
+	usb-charge-current-limit = <1800000>;
+
 	qcom,fast-charge-safe-current = <1500000>;
 	qcom,fast-charge-current-limit = <1500000>;
 	qcom,dc-current-limit = <1800000>;

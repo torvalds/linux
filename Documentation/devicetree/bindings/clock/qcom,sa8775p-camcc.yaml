@@ -17,12 +17,14 @@ description: |
   See also:
     include/dt-bindings/clock/qcom,qcs8300-camcc.h
     include/dt-bindings/clock/qcom,sa8775p-camcc.h
+    include/dt-bindings/clock/qcom,sc8280xp-camcc.h
 
 properties:
   compatible:
     enum:
       - qcom,qcs8300-camcc
       - qcom,sa8775p-camcc
+      - qcom,sc8280xp-camcc
 
   clocks:
     items:
@@ -35,6 +37,11 @@ properties:
     maxItems: 1
     description: MMCX power domain
 
+  required-opps:
+    description:
+      OPP node describing required MMCX performance point.
+    maxItems: 1
+
 required:
   - compatible
   - clocks
@@ -43,6 +50,14 @@ required:
 
 allOf:
   - $ref: qcom,gcc.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,sc8280xp-camcc
+    then:
+      required:
+        - required-opps
 
 unevaluatedProperties: false
 
