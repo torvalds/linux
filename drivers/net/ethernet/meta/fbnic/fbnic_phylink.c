@@ -8,6 +8,22 @@
 #include "fbnic_mac.h"
 #include "fbnic_netdev.h"
 
+static phy_interface_t fbnic_phylink_select_interface(u8 aui)
+{
+	switch (aui) {
+	case FBNIC_AUI_100GAUI2:
+		return PHY_INTERFACE_MODE_100GBASEP;
+	case FBNIC_AUI_50GAUI1:
+		return PHY_INTERFACE_MODE_50GBASER;
+	case FBNIC_AUI_LAUI2:
+		return PHY_INTERFACE_MODE_LAUI;
+	case FBNIC_AUI_25GAUI:
+		return PHY_INTERFACE_MODE_25GBASER;
+	}
+
+	return PHY_INTERFACE_MODE_NA;
+}
+
 static struct fbnic_net *
 fbnic_pcs_to_net(struct phylink_pcs *pcs)
 {
@@ -128,6 +144,7 @@ static const struct phylink_mac_ops fbnic_phylink_mac_ops = {
 int fbnic_phylink_init(struct net_device *netdev)
 {
 	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_dev *fbd = fbn->fbd;
 	struct phylink *phylink;
 
 	fbn->phylink_pcs.ops = &fbnic_phylink_pcs_ops;
@@ -135,18 +152,23 @@ int fbnic_phylink_init(struct net_device *netdev)
 	fbn->phylink_config.dev = &netdev->dev;
 	fbn->phylink_config.type = PHYLINK_NETDEV;
 	fbn->phylink_config.mac_capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE |
-					       MAC_10000FD | MAC_25000FD |
-					       MAC_40000FD | MAC_50000FD |
+					       MAC_25000FD | MAC_50000FD |
 					       MAC_100000FD;
 	fbn->phylink_config.default_an_inband = true;
 
-	__set_bit(PHY_INTERFACE_MODE_XGMII,
+	__set_bit(PHY_INTERFACE_MODE_100GBASEP,
 		  fbn->phylink_config.supported_interfaces);
-	__set_bit(PHY_INTERFACE_MODE_XLGMII,
+	__set_bit(PHY_INTERFACE_MODE_50GBASER,
+		  fbn->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_LAUI,
+		  fbn->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_25GBASER,
 		  fbn->phylink_config.supported_interfaces);
 
+	fbnic_mac_get_fw_settings(fbd, &fbn->aui, &fbn->fec);
+
 	phylink = phylink_create(&fbn->phylink_config, NULL,
-				 PHY_INTERFACE_MODE_XLGMII,
+				 fbnic_phylink_select_interface(fbn->aui),
 				 &fbnic_phylink_mac_ops);
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);

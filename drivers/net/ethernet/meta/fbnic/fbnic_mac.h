@@ -93,4 +93,5 @@ struct fbnic_mac {
 };
 
 int fbnic_mac_init(struct fbnic_dev *fbd);
+void fbnic_mac_get_fw_settings(struct fbnic_dev *fbd, u8 *aui, u8 *fec);
 #endif /* _FBNIC_MAC_H_ */
