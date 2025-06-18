@@ -3295,7 +3295,7 @@ static int __ffs_func_bind_do_descs(enum ffs_entity_type type, u8 *valuep,
 	if (ffs_ep->descs[ep_desc_id]) {
 		pr_err("two %sspeed descriptors for EP %d\n",
 			  speed_names[ep_desc_id],
-			  ds->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+			  usb_endpoint_num(ds));
 		return -EINVAL;
 	}
 	ffs_ep->descs[ep_desc_id] = ds;
