@@ -2336,10 +2336,8 @@ static bool tcp_check_sack_reneging(struct sock *sk, int *ack_flag)
  * Main question: may we further continue forward transmission
  * with the same cwnd?
  */
-static bool tcp_time_to_recover(struct sock *sk, int flag)
+static bool tcp_time_to_recover(const struct tcp_sock *tp)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
 	/* Has loss detection marked at least one packet lost? */
 	return tp->lost_out != 0;
 }
@@ -3013,7 +3011,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 
 		tcp_identify_packet_loss(sk, ack_flag);
 		if (icsk->icsk_ca_state != TCP_CA_Recovery) {
-			if (!tcp_time_to_recover(sk, flag))
+			if (!tcp_time_to_recover(tp))
 				return;
 			/* Undo reverts the recovery state. If loss is evident,
 			 * starts a new recovery (e.g. reordering then loss);
@@ -3042,7 +3040,7 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 			tcp_try_undo_dsack(sk);
 
 		tcp_identify_packet_loss(sk, ack_flag);
-		if (!tcp_time_to_recover(sk, flag)) {
+		if (!tcp_time_to_recover(tp)) {
 			tcp_try_to_open(sk, flag);
 			return;
 		}
