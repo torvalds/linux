@@ -736,8 +736,6 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	 */
 	netdev->ethtool->wol_enabled = true;
 
-	fbn->fec = FBNIC_FEC_AUTO | FBNIC_FEC_RS;
-	fbn->link_mode = FBNIC_LINK_AUTO | FBNIC_LINK_50R2;
 	netif_carrier_off(netdev);
 
 	netif_tx_stop_all_queues(netdev);

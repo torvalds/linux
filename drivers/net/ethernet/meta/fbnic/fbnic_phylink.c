@@ -21,23 +21,20 @@ fbnic_phylink_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 	struct fbnic_net *fbn = fbnic_pcs_to_net(pcs);
 	struct fbnic_dev *fbd = fbn->fbd;
 
-	/* For now we use hard-coded defaults and FW config to determine
-	 * the current values. In future patches we will add support for
-	 * reconfiguring these values and changing link settings.
-	 */
-	switch (fbd->fw_cap.link_speed) {
-	case FBNIC_FW_LINK_SPEED_25R1:
+	switch (fbn->link_mode) {
+	case FBNIC_LINK_25R1:
 		state->speed = SPEED_25000;
 		break;
-	case FBNIC_FW_LINK_SPEED_50R2:
+	case FBNIC_LINK_50R2:
+	case FBNIC_LINK_50R1:
 		state->speed = SPEED_50000;
 		break;
-	case FBNIC_FW_LINK_SPEED_100R2:
+	case FBNIC_LINK_100R2:
 		state->speed = SPEED_100000;
 		break;
 	default:
-		state->speed = SPEED_UNKNOWN;
-		break;
+		state->link = 0;
+		return;
 	}
 
 	state->duplex = DUPLEX_FULL;

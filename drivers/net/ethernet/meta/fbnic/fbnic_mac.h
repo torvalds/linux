@@ -25,10 +25,7 @@ enum {
 	FBNIC_FEC_OFF		= 0,
 	FBNIC_FEC_RS		= 1,
 	FBNIC_FEC_BASER		= 2,
-	FBNIC_FEC_AUTO		= 4,
 };
-
-#define FBNIC_FEC_MODE_MASK	(FBNIC_FEC_AUTO - 1)
 
 /* Treat the link modes as a set of modulation/lanes bitmask:
  * Bit 0: Lane Count, 0 = R1, 1 = R2
@@ -40,12 +37,11 @@ enum {
 	FBNIC_LINK_50R2		= 1,
 	FBNIC_LINK_50R1		= 2,
 	FBNIC_LINK_100R2	= 3,
-	FBNIC_LINK_AUTO		= 4,
+	FBNIC_LINK_UNKONWN	= 4,
 };
 
 #define FBNIC_LINK_MODE_R2	(FBNIC_LINK_50R2)
 #define FBNIC_LINK_MODE_PAM4	(FBNIC_LINK_50R1)
-#define FBNIC_LINK_MODE_MASK	(FBNIC_LINK_AUTO - 1)
 
 enum fbnic_sensor_id {
 	FBNIC_SENSOR_TEMP,		/* Temp in millidegrees Centigrade */
