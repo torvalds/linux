@@ -885,27 +885,28 @@ static int pc_adjust_requested_freq(struct xe_guc_pc *pc)
 
 static int pc_set_mert_freq_cap(struct xe_guc_pc *pc)
 {
-	int ret = 0;
+	int ret;
 
-	if (XE_WA(pc_to_gt(pc), 22019338487)) {
-		/*
-		 * Get updated min/max and stash them.
-		 */
-		ret = xe_guc_pc_get_min_freq(pc, &pc->stashed_min_freq);
-		if (!ret)
-			ret = xe_guc_pc_get_max_freq(pc, &pc->stashed_max_freq);
-		if (ret)
-			return ret;
+	if (!XE_WA(pc_to_gt(pc), 22019338487))
+		return 0;
 
-		/*
-		 * Ensure min and max are bound by MERT_FREQ_CAP until driver loads.
-		 */
-		mutex_lock(&pc->freq_lock);
-		ret = pc_set_min_freq(pc, min(pc->rpe_freq, pc_max_freq_cap(pc)));
-		if (!ret)
-			ret = pc_set_max_freq(pc, min(pc->rp0_freq, pc_max_freq_cap(pc)));
-		mutex_unlock(&pc->freq_lock);
-	}
+	guard(mutex)(&pc->freq_lock);
+
+	/*
+	 * Get updated min/max and stash them.
+	 */
+	ret = xe_guc_pc_get_min_freq_locked(pc, &pc->stashed_min_freq);
+	if (!ret)
+		ret = xe_guc_pc_get_max_freq_locked(pc, &pc->stashed_max_freq);
+	if (ret)
+		return ret;
+
+	/*
+	 * Ensure min and max are bound by MERT_FREQ_CAP until driver loads.
+	 */
+	ret = pc_set_min_freq(pc, min(pc->rpe_freq, pc_max_freq_cap(pc)));
+	if (!ret)
+		ret = pc_set_max_freq(pc, min(pc->rp0_freq, pc_max_freq_cap(pc)));
 
 	return ret;
 }
