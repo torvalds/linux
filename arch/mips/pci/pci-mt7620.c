@@ -29,7 +29,6 @@
 #define RALINK_SYSCFG0			0x10
 #define RALINK_SYSCFG0_XTAL40		BIT(6)
 #define RALINK_CLKCFG1			0x30
-#define RALINK_GPIOMODE			0x60
 
 #define PPLL_CFG1			0x9c
 #define PPLL_LD				BIT(23)
@@ -246,19 +245,6 @@ static int mt7620_pci_hw_init(struct platform_device *pdev)
 	/* Elastic buffer control */
 	pcie_phy(0x68, 0xB4);
 
-	/* put core into reset */
-	bridge_m32(PCIRST, PCIRST, RALINK_PCI_PCICFG_ADDR);
-	reset_control_assert(rstpcie0);
-
-	/* disable power and all clocks */
-	rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
-	rt_sysc_m32(LC_CKDRVPD, PDRV_SW_SET, PPLL_DRV);
-
-	/* bring core out of reset */
-	reset_control_deassert(rstpcie0);
-	rt_sysc_m32(0, RALINK_PCIE0_CLK_EN, RALINK_CLKCFG1);
-	mdelay(100);
-
 	if (!(rt_sysc_r32(PPLL_CFG1) & PPLL_LD)) {
 		dev_err(&pdev->dev, "pcie PLL not locked, aborting init\n");
 		reset_control_assert(rstpcie0);
@@ -275,14 +261,6 @@ static int mt7620_pci_hw_init(struct platform_device *pdev)
 
 static void mt7628_pci_hw_init(struct platform_device *pdev)
 {
-	/* bring the core out of reset */
-	rt_sysc_m32(BIT(16), 0, RALINK_GPIOMODE);
-	reset_control_deassert(rstpcie0);
-
-	/* enable the pci clk */
-	rt_sysc_m32(0, RALINK_PCIE0_CLK_EN, RALINK_CLKCFG1);
-	mdelay(100);
-
 	/* voodoo from the SDK driver */
 	pcie_phyctrl_set(0x400, 8, 1, 0x1);
 	pcie_phyctrl_set(0x400, 9, 2, 0x0);
@@ -334,6 +312,16 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 	ioport_resource.start = 0;
 	ioport_resource.end = ~0;
 
+	/* reset PCIe controller */
+	reset_control_assert(rstpcie0);
+	msleep(100);
+	reset_control_deassert(rstpcie0);
+	rt_sysc_m32(0, RALINK_PCIE0_CLK_EN, RALINK_CLKCFG1);
+	msleep(100);
+
+	/* assert PERST_N pin */
+	bridge_m32(PCIRST, PCIRST, RALINK_PCI_PCICFG_ADDR);
+
 	/* bring up the pci core */
 	switch (ralink_soc) {
 	case MT762X_SOC_MT7620A:
@@ -350,11 +338,11 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "pcie is not supported on this hardware\n");
 		return -1;
 	}
-	mdelay(50);
+	msleep(500);
 
-	/* enable write access */
+	/* deassert PERST_N pin and wait PCIe peripheral init */
 	bridge_m32(PCIRST, 0, RALINK_PCI_PCICFG_ADDR);
-	mdelay(100);
+	msleep(1000);
 
 	/* check if there is a card present */
 	if ((pcie_r32(RALINK_PCI0_STATUS) & PCIE_LINK_UP_ST) == 0) {
