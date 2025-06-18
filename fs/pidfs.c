@@ -27,7 +27,6 @@
 
 #define PIDFS_PID_DEAD ERR_PTR(-ESRCH)
 
-static struct kmem_cache *pidfs_cachep __ro_after_init;
 static struct kmem_cache *pidfs_attr_cachep __ro_after_init;
 
 /*
@@ -44,15 +43,6 @@ struct pidfs_attr {
 	struct pidfs_exit_info __pei;
 	struct pidfs_exit_info *exit_info;
 };
-
-struct pidfs_inode {
-	struct inode vfs_inode;
-};
-
-static inline struct pidfs_inode *pidfs_i(struct inode *inode)
-{
-	return container_of(inode, struct pidfs_inode, vfs_inode);
-}
 
 static struct rb_root pidfs_ino_tree = RB_ROOT;
 
@@ -686,27 +676,9 @@ static void pidfs_evict_inode(struct inode *inode)
 	put_pid(pid);
 }
 
-static struct inode *pidfs_alloc_inode(struct super_block *sb)
-{
-	struct pidfs_inode *pi;
-
-	pi = alloc_inode_sb(sb, pidfs_cachep, GFP_KERNEL);
-	if (!pi)
-		return NULL;
-
-	return &pi->vfs_inode;
-}
-
-static void pidfs_free_inode(struct inode *inode)
-{
-	kfree(pidfs_i(inode));
-}
-
 static const struct super_operations pidfs_sops = {
-	.alloc_inode	= pidfs_alloc_inode,
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= pidfs_evict_inode,
-	.free_inode	= pidfs_free_inode,
 	.statfs		= simple_statfs,
 };
 
@@ -1067,19 +1039,8 @@ void pidfs_put_pid(struct pid *pid)
 	dput(pid->stashed);
 }
 
-static void pidfs_inode_init_once(void *data)
-{
-	struct pidfs_inode *pi = data;
-
-	inode_init_once(&pi->vfs_inode);
-}
-
 void __init pidfs_init(void)
 {
-	pidfs_cachep = kmem_cache_create("pidfs_cache", sizeof(struct pidfs_inode), 0,
-					 (SLAB_HWCACHE_ALIGN | SLAB_RECLAIM_ACCOUNT |
-					  SLAB_ACCOUNT | SLAB_PANIC),
-					 pidfs_inode_init_once);
 	pidfs_attr_cachep = kmem_cache_create("pidfs_attr_cache", sizeof(struct pidfs_attr), 0,
 					 (SLAB_HWCACHE_ALIGN | SLAB_RECLAIM_ACCOUNT |
 					  SLAB_ACCOUNT | SLAB_PANIC), NULL);
