@@ -5,6 +5,7 @@
 
 #include "xe_guc_pc.h"
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/ktime.h>
 
@@ -553,6 +554,25 @@ u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc)
 	return pc->rpn_freq;
 }
 
+static int xe_guc_pc_get_min_freq_locked(struct xe_guc_pc *pc, u32 *freq)
+{
+	int ret;
+
+	lockdep_assert_held(&pc->freq_lock);
+
+	/* Might be in the middle of a gt reset */
+	if (!pc->freq_ready)
+		return -EAGAIN;
+
+	ret = pc_action_query_task_state(pc);
+	if (ret)
+		return ret;
+
+	*freq = pc_get_min_freq(pc);
+
+	return 0;
+}
+
 /**
  * xe_guc_pc_get_min_freq - Get the min operational frequency
  * @pc: The GuC PC
@@ -563,26 +583,28 @@ u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc)
  */
 int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 {
+	guard(mutex)(&pc->freq_lock);
+
+	return xe_guc_pc_get_min_freq_locked(pc, freq);
+}
+
+static int xe_guc_pc_set_min_freq_locked(struct xe_guc_pc *pc, u32 freq)
+{
 	int ret;
 
-	xe_device_assert_mem_access(pc_to_xe(pc));
+	lockdep_assert_held(&pc->freq_lock);
 
-	mutex_lock(&pc->freq_lock);
-	if (!pc->freq_ready) {
-		/* Might be in the middle of a gt reset */
-		ret = -EAGAIN;
-		goto out;
-	}
+	/* Might be in the middle of a gt reset */
+	if (!pc->freq_ready)
+		return -EAGAIN;
 
-	ret = pc_action_query_task_state(pc);
+	ret = pc_set_min_freq(pc, freq);
 	if (ret)
-		goto out;
+		return ret;
 
-	*freq = pc_get_min_freq(pc);
+	pc->user_requested_min = freq;
 
-out:
-	mutex_unlock(&pc->freq_lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -596,24 +618,28 @@ out:
  */
 int xe_guc_pc_set_min_freq(struct xe_guc_pc *pc, u32 freq)
 {
+	guard(mutex)(&pc->freq_lock);
+
+	return xe_guc_pc_set_min_freq_locked(pc, freq);
+}
+
+static int xe_guc_pc_get_max_freq_locked(struct xe_guc_pc *pc, u32 *freq)
+{
 	int ret;
 
-	mutex_lock(&pc->freq_lock);
-	if (!pc->freq_ready) {
-		/* Might be in the middle of a gt reset */
-		ret = -EAGAIN;
-		goto out;
-	}
+	lockdep_assert_held(&pc->freq_lock);
 
-	ret = pc_set_min_freq(pc, freq);
+	/* Might be in the middle of a gt reset */
+	if (!pc->freq_ready)
+		return -EAGAIN;
+
+	ret = pc_action_query_task_state(pc);
 	if (ret)
-		goto out;
+		return ret;
 
-	pc->user_requested_min = freq;
+	*freq = pc_get_max_freq(pc);
 
-out:
-	mutex_unlock(&pc->freq_lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -626,24 +652,28 @@ out:
  */
 int xe_guc_pc_get_max_freq(struct xe_guc_pc *pc, u32 *freq)
 {
+	guard(mutex)(&pc->freq_lock);
+
+	return xe_guc_pc_get_max_freq_locked(pc, freq);
+}
+
+static int xe_guc_pc_set_max_freq_locked(struct xe_guc_pc *pc, u32 freq)
+{
 	int ret;
 
-	mutex_lock(&pc->freq_lock);
-	if (!pc->freq_ready) {
-		/* Might be in the middle of a gt reset */
-		ret = -EAGAIN;
-		goto out;
-	}
+	lockdep_assert_held(&pc->freq_lock);
 
-	ret = pc_action_query_task_state(pc);
+	/* Might be in the middle of a gt reset */
+	if (!pc->freq_ready)
+		return -EAGAIN;
+
+	ret = pc_set_max_freq(pc, freq);
 	if (ret)
-		goto out;
+		return ret;
 
-	*freq = pc_get_max_freq(pc);
+	pc->user_requested_max = freq;
 
-out:
-	mutex_unlock(&pc->freq_lock);
-	return ret;
+	return 0;
 }
 
 /**
@@ -657,24 +687,9 @@ out:
  */
 int xe_guc_pc_set_max_freq(struct xe_guc_pc *pc, u32 freq)
 {
-	int ret;
+	guard(mutex)(&pc->freq_lock);
 
-	mutex_lock(&pc->freq_lock);
-	if (!pc->freq_ready) {
-		/* Might be in the middle of a gt reset */
-		ret = -EAGAIN;
-		goto out;
-	}
-
-	ret = pc_set_max_freq(pc, freq);
-	if (ret)
-		goto out;
-
-	pc->user_requested_max = freq;
-
-out:
-	mutex_unlock(&pc->freq_lock);
-	return ret;
+	return xe_guc_pc_set_max_freq_locked(pc, freq);
 }
 
 /**
