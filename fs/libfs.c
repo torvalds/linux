@@ -2128,6 +2128,8 @@ struct dentry *stashed_dentry_get(struct dentry **stashed)
 	dentry = rcu_dereference(*stashed);
 	if (!dentry)
 		return NULL;
+	if (IS_ERR(dentry))
+		return dentry;
 	if (!lockref_get_not_dead(&dentry->d_lockref))
 		return NULL;
 	return dentry;
@@ -2176,8 +2178,7 @@ static struct dentry *prepare_anon_dentry(struct dentry **stashed,
 	return dentry;
 }
 
-static struct dentry *stash_dentry(struct dentry **stashed,
-				   struct dentry *dentry)
+struct dentry *stash_dentry(struct dentry **stashed, struct dentry *dentry)
 {
 	guard(rcu)();
 	for (;;) {
@@ -2218,12 +2219,15 @@ static struct dentry *stash_dentry(struct dentry **stashed,
 int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 		      struct path *path)
 {
-	struct dentry *dentry;
+	struct dentry *dentry, *res;
 	const struct stashed_operations *sops = mnt->mnt_sb->s_fs_info;
 
 	/* See if dentry can be reused. */
-	path->dentry = stashed_dentry_get(stashed);
-	if (path->dentry) {
+	res = stashed_dentry_get(stashed);
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+	if (res) {
+		path->dentry = res;
 		sops->put_data(data);
 		goto out_path;
 	}
@@ -2234,8 +2238,17 @@ int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 		return PTR_ERR(dentry);
 
 	/* Added a new dentry. @data is now owned by the filesystem. */
-	path->dentry = stash_dentry(stashed, dentry);
-	if (path->dentry != dentry)
+	if (sops->stash_dentry)
+		res = sops->stash_dentry(stashed, dentry);
+	else
+		res = stash_dentry(stashed, dentry);
+	if (IS_ERR(res)) {
+		dput(dentry);
+		return PTR_ERR(res);
+	}
+	path->dentry = res;
+	/* A dentry was reused. */
+	if (res != dentry)
 		dput(dentry);
 
 out_path:
