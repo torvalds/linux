@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/string_choices.h>
 #include "cb710-mmc.h"
 
 #define CB710_MMC_REQ_TIMEOUT_MS	2000
@@ -215,7 +216,7 @@ static void cb710_mmc_set_transfer_size(struct cb710_slot *slot,
 		((count - 1) << 16)|(blocksize - 1));
 
 	dev_vdbg(cb710_slot_dev(slot), "set up for %zu block%s of %zu bytes\n",
-		count, count == 1 ? "" : "s", blocksize);
+		count, str_plural(count), blocksize);
 }
 
 static void cb710_mmc_fifo_hack(struct cb710_slot *slot)
