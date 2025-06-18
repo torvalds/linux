@@ -2229,21 +2229,6 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* Look for a retryable error */
 		if (ulp_status == IOSTAT_LOCAL_REJECT) {
 			switch ((ulp_word4 & IOERR_PARAM_MASK)) {
-			case IOERR_SLI_ABORTED:
-			case IOERR_SLI_DOWN:
-				/* Driver aborted this IO.  No retry as error
-				 * is likely Offline->Online or some adapter
-				 * error.  Recovery will try again, but if port
-				 * is not active there's no point to continue
-				 * issuing follow up FDMI commands.
-				 */
-				if (!(phba->sli.sli_flag & LPFC_SLI_ACTIVE)) {
-					free_ndlp = cmdiocb->ndlp;
-					lpfc_ct_free_iocb(phba, cmdiocb);
-					lpfc_nlp_put(free_ndlp);
-					return;
-				}
-				break;
 			case IOERR_ABORT_IN_PROGRESS:
 			case IOERR_SEQUENCE_TIMEOUT:
 			case IOERR_ILLEGAL_FRAME:
@@ -2268,6 +2253,9 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	free_ndlp = cmdiocb->ndlp;
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(free_ndlp);
+
+	if (ulp_status != IOSTAT_SUCCESS)
+		return;
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
 	if (!ndlp)
