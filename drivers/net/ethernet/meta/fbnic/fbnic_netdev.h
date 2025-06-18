@@ -92,5 +92,9 @@ void fbnic_time_stop(struct fbnic_net *fbn);
 void __fbnic_set_rx_mode(struct net_device *netdev);
 void fbnic_clear_rx_mode(struct net_device *netdev);
 
+int fbnic_phylink_ethtool_ksettings_get(struct net_device *netdev,
+					struct ethtool_link_ksettings *cmd);
+int fbnic_phylink_get_fecparam(struct net_device *netdev,
+			       struct ethtool_fecparam *fecparam);
 int fbnic_phylink_init(struct net_device *netdev);
 #endif /* _FBNIC_NETDEV_H_ */
