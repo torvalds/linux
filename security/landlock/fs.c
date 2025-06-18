@@ -1061,8 +1061,8 @@ static bool collect_domain_accesses(
 			break;
 		}
 
-		/* We should not reach a root other than @mnt_root. */
-		if (dir == mnt_root || WARN_ON_ONCE(IS_ROOT(dir)))
+		/* Stops at the mount point or disconnected root directories. */
+		if (dir == mnt_root || IS_ROOT(dir))
 			break;
 
 		parent_dentry = dget_parent(dir);
