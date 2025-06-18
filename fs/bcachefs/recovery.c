@@ -1142,7 +1142,7 @@ fsck_err:
 		struct printbuf buf = PRINTBUF;
 		bch2_log_msg_start(c, &buf);
 
-		prt_printf(&buf, "error in recovery: %s", bch2_err_str(ret));
+		prt_printf(&buf, "error in recovery: %s\n", bch2_err_str(ret));
 		bch2_fs_emergency_read_only2(c, &buf);
 
 		bch2_print_str(c, KERN_ERR, buf.buf);

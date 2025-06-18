@@ -1716,9 +1716,10 @@ static CLOSURE_CALLBACK(journal_write_done)
 		bch2_log_msg_start(c, &buf);
 
 		if (err == -BCH_ERR_journal_write_err)
-			prt_printf(&buf, "unable to write journal to sufficient devices");
+			prt_printf(&buf, "unable to write journal to sufficient devices\n");
 		else
-			prt_printf(&buf, "journal write error marking replicas: %s", bch2_err_str(err));
+			prt_printf(&buf, "journal write error marking replicas: %s\n",
+				   bch2_err_str(err));
 
 		bch2_fs_emergency_read_only2(c, &buf);
 
