@@ -3094,6 +3094,10 @@ static int ice_vc_set_rss_hashcfg(struct ice_vf *vf, u8 *msg)
 		v_ret = ice_err_to_virt_err(status);
 	}
 
+	/* save the requested VF configuration */
+	if (!v_ret)
+		vf->rss_hashcfg = vrh->hashcfg;
+
 	/* send the response to the VF */
 err:
 	return ice_vc_send_msg_to_vf(vf, VIRTCHNL_OP_SET_RSS_HASHCFG, v_ret,

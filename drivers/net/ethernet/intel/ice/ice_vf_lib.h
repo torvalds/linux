@@ -106,8 +106,7 @@ struct ice_vf {
 	u16 ctrl_vsi_idx;
 	struct ice_vf_fdir fdir;
 	struct ice_fdir_prof_info fdir_prof_info[ICE_MAX_PTGS];
-	/* first vector index of this VF in the PF space */
-	int first_vector_idx;
+	u64 rss_hashcfg;		/* RSS hash configuration */
 	struct ice_sw *vf_sw_id;	/* switch ID the VF VSIs connect to */
 	struct virtchnl_version_info vf_ver;
 	u32 driver_caps;		/* reported by VF driver */
@@ -126,10 +125,14 @@ struct ice_vf {
 	u8 link_up:1;			/* only valid if VF link is forced */
 	u8 lldp_tx_ena:1;
 
+	u16 num_msix;			/* num of MSI-X configured on this VF */
+
 	u32 ptp_caps;
 
 	unsigned int min_tx_rate;	/* Minimum Tx bandwidth limit in Mbps */
 	unsigned int max_tx_rate;	/* Maximum Tx bandwidth limit in Mbps */
+	/* first vector index of this VF in the PF space */
+	int first_vector_idx;
 	DECLARE_BITMAP(vf_states, ICE_VF_STATES_NBITS);	/* VF runtime states */
 
 	unsigned long vf_caps;		/* VF's adv. capabilities */
@@ -154,7 +157,6 @@ struct ice_vf {
 	u16 lldp_recipe_id;
 	u16 lldp_rule_id;
 
-	u16 num_msix;			/* num of MSI-X configured on this VF */
 	struct ice_vf_qs_bw qs_bw[ICE_MAX_RSS_QS_PER_VF];
 };
 
