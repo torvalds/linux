@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <linux/auxvec.h>
@@ -128,6 +129,19 @@ void mte_clear_tags(void *ptr, size_t size)
 	size = MT_ALIGN_UP(size);
 	ptr = (void *)MT_CLEAR_TAG((unsigned long)ptr);
 	mte_clear_tag_address_range(ptr, size);
+}
+
+void *mte_insert_atag(void *ptr)
+{
+	unsigned char atag;
+
+	atag =  mtefar_support ? (random() % MT_ATAG_MASK) + 1 : 0;
+	return (void *)MT_SET_ATAG((unsigned long)ptr, atag);
+}
+
+void *mte_clear_atag(void *ptr)
+{
+	return (void *)MT_CLEAR_ATAG((unsigned long)ptr);
 }
 
 static void *__mte_allocate_memory_range(size_t size, int mem_type, int mapping,
@@ -329,6 +343,9 @@ int mte_default_setup(void)
 	unsigned long hwcaps3 = getauxval(AT_HWCAP3);
 	unsigned long en = 0;
 	int ret;
+
+	/* To generate random address tag */
+	srandom(time(NULL));
 
 	if (!(hwcaps2 & HWCAP2_MTE))
 		ksft_exit_skip("MTE features unavailable\n");
