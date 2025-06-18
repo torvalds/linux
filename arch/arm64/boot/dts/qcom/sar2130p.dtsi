@@ -2053,7 +2053,7 @@
 			mdss_mdp: display-controller@ae01000 {
 				compatible = "qcom,sar2130p-dpu";
 				reg = <0x0 0x0ae01000 0x0 0x8f000>,
-				      <0x0 0x0aeb0000 0x0 0x2008>;
+				      <0x0 0x0aeb0000 0x0 0x3000>;
 				reg-names = "mdp",
 					    "vbif";
 
