@@ -575,8 +575,10 @@ struct lpfc_pc_sli4_params {
 
 #define LPFC_CQ_4K_PAGE_SZ	0x1
 #define LPFC_CQ_16K_PAGE_SZ	0x4
+#define LPFC_CQ_32K_PAGE_SZ	0x8
 #define LPFC_WQ_4K_PAGE_SZ	0x1
 #define LPFC_WQ_16K_PAGE_SZ	0x4
+#define LPFC_WQ_32K_PAGE_SZ	0x8
 
 struct lpfc_iov {
 	uint32_t pf_number;
