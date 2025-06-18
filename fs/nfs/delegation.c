@@ -355,6 +355,8 @@ nfs_detach_delegation_locked(struct nfs_inode *nfsi,
 		rcu_dereference_protected(nfsi->delegation,
 				lockdep_is_held(&clp->cl_lock));
 
+	trace_nfs4_detach_delegation(&nfsi->vfs_inode, delegation->type);
+
 	if (deleg_cur == NULL || delegation != deleg_cur)
 		return NULL;
 

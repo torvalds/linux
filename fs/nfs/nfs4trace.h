@@ -983,6 +983,7 @@ DECLARE_EVENT_CLASS(nfs4_set_delegation_event,
 			TP_ARGS(inode, fmode))
 DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_set_delegation);
 DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_reclaim_delegation);
+DEFINE_NFS4_SET_DELEGATION_EVENT(nfs4_detach_delegation);
 
 TRACE_EVENT(nfs4_delegreturn_exit,
 		TP_PROTO(
