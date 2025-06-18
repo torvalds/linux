@@ -1178,8 +1178,8 @@ void gve_free_queue_page_list(struct gve_priv *priv,
 			      u32 id);
 /* tx handling */
 netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev);
-int gve_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
-		 u32 flags);
+int gve_xdp_xmit_gqi(struct net_device *dev, int n, struct xdp_frame **frames,
+		     u32 flags);
 int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 		     void *data, int len, void *frame_p);
 void gve_xdp_tx_flush(struct gve_priv *priv, u32 xdp_qid);

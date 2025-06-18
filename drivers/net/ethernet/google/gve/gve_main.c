@@ -1516,6 +1516,16 @@ out:
 	return err;
 }
 
+static int gve_xdp_xmit(struct net_device *dev, int n,
+			struct xdp_frame **frames, u32 flags)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+
+	if (gve_is_gqi(priv))
+		return gve_xdp_xmit_gqi(dev, n, frames, flags);
+	return -EOPNOTSUPP;
+}
+
 static int gve_xsk_pool_enable(struct net_device *dev,
 			       struct xsk_buff_pool *pool,
 			       u16 qid)
