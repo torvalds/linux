@@ -598,13 +598,41 @@ static void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev,
 	}
 }
 
+/*
+ * Take the IPv4 from ndev and populate local_ip structure in netpoll
+ */
+static int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
+{
+	char buf[MAC_ADDR_STR_LEN + 1];
+	const struct in_ifaddr *ifa;
+	struct in_device *in_dev;
+
+	in_dev = __in_dev_get_rtnl(ndev);
+	if (!in_dev) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       egress_dev(np, buf));
+		return -EDESTADDRREQ;
+	}
+
+	ifa = rtnl_dereference(in_dev->ifa_list);
+	if (!ifa) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       egress_dev(np, buf));
+		return -EDESTADDRREQ;
+	}
+
+	np->local_ip.ip = ifa->ifa_local;
+	np_info(np, "local IP %pI4\n", &np->local_ip.ip);
+
+	return 0;
+}
+
 int netpoll_setup(struct netpoll *np)
 {
 	struct net *net = current->nsproxy->net_ns;
 	char buf[MAC_ADDR_STR_LEN + 1];
 	struct net_device *ndev = NULL;
 	bool ip_overwritten = false;
-	struct in_device *in_dev;
 	int err;
 
 	rtnl_lock();
@@ -644,24 +672,10 @@ int netpoll_setup(struct netpoll *np)
 
 	if (!np->local_ip.ip) {
 		if (!np->ipv6) {
-			const struct in_ifaddr *ifa;
-
-			in_dev = __in_dev_get_rtnl(ndev);
-			if (!in_dev)
-				goto put_noaddr;
-
-			ifa = rtnl_dereference(in_dev->ifa_list);
-			if (!ifa) {
-put_noaddr:
-				np_err(np, "no IP address for %s, aborting\n",
-				       egress_dev(np, buf));
-				err = -EDESTADDRREQ;
+			err = netpoll_take_ipv4(np, ndev);
+			if (err)
 				goto put;
-			}
-
-			np->local_ip.ip = ifa->ifa_local;
 			ip_overwritten = true;
-			np_info(np, "local IP %pI4\n", &np->local_ip.ip);
 		} else {
 #if IS_ENABLED(CONFIG_IPV6)
 			struct inet6_dev *idev;
