@@ -827,6 +827,8 @@ static int pidfs_init_inode(struct inode *inode, void *data)
 
 	inode->i_private = data;
 	inode->i_flags |= S_PRIVATE | S_ANON_INODE;
+	/* We allow to set xattrs. */
+	inode->i_flags &= ~S_IMMUTABLE;
 	inode->i_mode |= S_IRWXU;
 	inode->i_op = &pidfs_inode_operations;
 	inode->i_fop = &pidfs_file_operations;
