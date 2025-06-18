@@ -99,5 +99,8 @@ extern __iomem void *ltq_cgu_membase;
 extern void ltq_pmu_enable(unsigned int module);
 extern void ltq_pmu_disable(unsigned int module);
 
+/* VMMC */
+extern unsigned int *ltq_get_cp1_base(void);
+
 #endif /* CONFIG_SOC_TYPE_XWAY */
 #endif /* _LTQ_XWAY_H__ */
