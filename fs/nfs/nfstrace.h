@@ -57,6 +57,7 @@ DECLARE_EVENT_CLASS(nfs_inode_event,
 			__field(u32, fhandle)
 			__field(u64, fileid)
 			__field(u64, version)
+			__field(unsigned long, cache_validity)
 		),
 
 		TP_fast_assign(
@@ -65,14 +66,17 @@ DECLARE_EVENT_CLASS(nfs_inode_event,
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
 			__entry->version = inode_peek_iversion_raw(inode);
+			__entry->cache_validity = nfsi->cache_validity;
 		),
 
 		TP_printk(
-			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu ",
+			"fileid=%02x:%02x:%llu fhandle=0x%08x version=%llu cache_validity=0x%lx (%s)",
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
-			(unsigned long long)__entry->version
+			(unsigned long long)__entry->version,
+			__entry->cache_validity,
+			nfs_show_cache_validity(__entry->cache_validity)
 		)
 );
 
