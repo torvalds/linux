@@ -15,6 +15,7 @@ TEST_PROGS += reclaim.sh lru_sort.sh
 # regression tests (reproducers of previously found bugs)
 TEST_PROGS += sysfs_update_removed_scheme_dir.sh
 TEST_PROGS += sysfs_update_schemes_tried_regions_hang.py
+TEST_PROGS += sysfs_memcg_path_leak.sh
 
 EXTRA_CLEAN = __pycache__
 
