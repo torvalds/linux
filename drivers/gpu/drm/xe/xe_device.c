@@ -44,7 +44,6 @@
 #include "xe_hw_engine_group.h"
 #include "xe_hwmon.h"
 #include "xe_irq.h"
-#include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
 #include "xe_nvm.h"
@@ -814,9 +813,6 @@ int xe_device_probe(struct xe_device *xe)
 
 	for_each_tile(tile, xe, id) {
 		err = xe_ggtt_init_early(tile->mem.ggtt);
-		if (err)
-			return err;
-		err = xe_memirq_init(&tile->memirq);
 		if (err)
 			return err;
 	}
