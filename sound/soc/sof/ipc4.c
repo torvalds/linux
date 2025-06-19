@@ -237,6 +237,26 @@ static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_ms
 				msg->extension, str);
 	}
 }
+
+const char *sof_ipc4_pipeline_state_str(enum sof_ipc4_pipeline_state state)
+{
+	switch (state) {
+	case SOF_IPC4_PIPE_INVALID_STATE:
+		return " (INVALID_STATE)";
+	case SOF_IPC4_PIPE_UNINITIALIZED:
+		return " (UNINITIALIZED)";
+	case SOF_IPC4_PIPE_RESET:
+		return " (RESET)";
+	case SOF_IPC4_PIPE_PAUSED:
+		return " (PAUSED)";
+	case SOF_IPC4_PIPE_RUNNING:
+		return " (RUNNING)";
+	case SOF_IPC4_PIPE_EOS:
+		return " (EOS)";
+	default:
+		return " (<unknown>)";
+	}
+}
 #else /* CONFIG_SND_SOC_SOF_DEBUG_VERBOSE_IPC */
 static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_msg *msg,
 				bool data_size_valid)
@@ -253,6 +273,11 @@ static void sof_ipc4_log_header(struct device *dev, u8 *text, struct sof_ipc4_ms
 			msg->primary, msg->extension, msg->data_size);
 	else
 		dev_dbg(dev, "%s: %#x|%#x\n", text, msg->primary, msg->extension);
+}
+
+const char *sof_ipc4_pipeline_state_str(enum sof_ipc4_pipeline_state state)
+{
+	return "";
 }
 #endif
 
