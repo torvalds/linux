@@ -20,24 +20,6 @@
 #include "sof-utils.h"
 #include "ops.h"
 
-/* Create DMA buffer page table for DSP */
-static int create_page_table(struct snd_soc_component *component,
-			     struct snd_pcm_substream *substream,
-			     unsigned char *dma_area, size_t size)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct snd_sof_pcm *spcm;
-	struct snd_dma_buffer *dmab = snd_pcm_get_dma_buf(substream);
-	int stream = substream->stream;
-
-	spcm = snd_sof_find_spcm_dai(component, rtd);
-	if (!spcm)
-		return -EINVAL;
-
-	return snd_sof_create_page_table(component->dev, dmab,
-		spcm->stream[stream].page_table.area, size);
-}
-
 /*
  * sof pcm period elapse work
  */
@@ -168,9 +150,11 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	/* create compressed page table for audio firmware */
 	if (runtime->buffer_changed) {
-		ret = create_page_table(component, substream, runtime->dma_area,
-					runtime->dma_bytes);
+		struct snd_dma_buffer *dmab = snd_pcm_get_dma_buf(substream);
 
+		ret = snd_sof_create_page_table(component->dev, dmab,
+				spcm->stream[substream->stream].page_table.area,
+				runtime->dma_bytes);
 		if (ret < 0)
 			return ret;
 	}
