@@ -3016,6 +3016,16 @@ static inline void dev_dstats_rx_dropped(struct net_device *dev)
 	u64_stats_update_end(&dstats->syncp);
 }
 
+static inline void dev_dstats_rx_dropped_add(struct net_device *dev,
+					     unsigned int packets)
+{
+	struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
+
+	u64_stats_update_begin(&dstats->syncp);
+	u64_stats_add(&dstats->rx_drops, packets);
+	u64_stats_update_end(&dstats->syncp);
+}
+
 static inline void dev_dstats_tx_add(struct net_device *dev,
 				     unsigned int len)
 {

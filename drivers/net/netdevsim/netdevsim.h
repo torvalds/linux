@@ -108,11 +108,6 @@ struct netdevsim {
 
 	int rq_reset_mode;
 
-	u64 tx_packets;
-	u64 tx_bytes;
-	u64 tx_dropped;
-	struct u64_stats_sync syncp;
-
 	struct nsim_bus_dev *nsim_bus_dev;
 
 	struct bpf_prog	*bpf_offloaded;
