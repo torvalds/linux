@@ -629,6 +629,7 @@ static int xe_guc_realloc_post_hwconfig(struct xe_guc *guc)
 
 static int vf_guc_init(struct xe_guc *guc)
 {
+	struct xe_gt *gt = guc_to_gt(guc);
 	int err;
 
 	xe_guc_comm_init_early(guc);
@@ -638,6 +639,14 @@ static int vf_guc_init(struct xe_guc *guc)
 		return err;
 
 	err = xe_guc_relay_init(&guc->relay);
+	if (err)
+		return err;
+
+	err = xe_gt_sriov_vf_bootstrap(gt);
+	if (err)
+		return err;
+
+	err = xe_gt_sriov_vf_query_config(gt);
 	if (err)
 		return err;
 
