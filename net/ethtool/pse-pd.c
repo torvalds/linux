@@ -11,6 +11,7 @@
 #include "netlink.h"
 #include <linux/ethtool_netlink.h>
 #include <linux/ethtool.h>
+#include <linux/export.h>
 #include <linux/phy.h>
 
 struct pse_req_info {
