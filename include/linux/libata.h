@@ -499,16 +499,28 @@ enum ata_completion_errors {
 };
 
 /*
- * Link power management policy: If you alter this, you also need to
- * alter libata-sata.c (for the ascii descriptions)
+ * Link Power Management (LPM) policies.
+ *
+ * The default LPM policy to use for a device link is defined using these values
+ * with the CONFIG_SATA_MOBILE_LPM_POLICY config option and applied through the
+ * target_lpm_policy field of struct ata_port.
+ *
+ * If you alter this, you also need to alter the policy names used with the
+ * sysfs attribute link_power_management_policy defined in libata-sata.c.
  */
 enum ata_lpm_policy {
+	/* Keep firmware settings */
 	ATA_LPM_UNKNOWN,
+	/* No power savings (maximum performance) */
 	ATA_LPM_MAX_POWER,
+	/* HIPM (Partial) */
 	ATA_LPM_MED_POWER,
-	ATA_LPM_MED_POWER_WITH_DIPM, /* Med power + DIPM as win IRST does */
-	ATA_LPM_MIN_POWER_WITH_PARTIAL, /* Min Power + partial and slumber */
-	ATA_LPM_MIN_POWER, /* Min power + no partial (slumber only) */
+	/* HIPM (Partial) and DIPM (Partial and Slumber) */
+	ATA_LPM_MED_POWER_WITH_DIPM,
+	/* HIPM (Partial and DevSleep) and DIPM (Partial and Slumber) */
+	ATA_LPM_MIN_POWER_WITH_PARTIAL,
+	/* HIPM (Slumber and DevSleep) and DIPM (Partial and Slumber) */
+	ATA_LPM_MIN_POWER,
 };
 
 enum ata_lpm_hints {
