@@ -554,7 +554,7 @@ static u32 sd_get_host_max_current(struct mmc_host *host)
 
 static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 {
-	int current_limit = SD_SET_CURRENT_NO_CHANGE;
+	int current_limit = SD_SET_CURRENT_LIMIT_200;
 	int err;
 	u32 max_current;
 
@@ -598,11 +598,8 @@ static int sd_set_current_limit(struct mmc_card *card, u8 *status)
 	else if (max_current >= 400 &&
 		 card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_400)
 		current_limit = SD_SET_CURRENT_LIMIT_400;
-	else if (max_current >= 200 &&
-		 card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_200)
-		current_limit = SD_SET_CURRENT_LIMIT_200;
 
-	if (current_limit != SD_SET_CURRENT_NO_CHANGE) {
+	if (current_limit != SD_SET_CURRENT_LIMIT_200) {
 		err = mmc_sd_switch(card, SD_SWITCH_SET, 3,
 				current_limit, status);
 		if (err)
