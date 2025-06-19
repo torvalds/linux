@@ -30,6 +30,12 @@
  */
 u32 crc32_le(u32 crc, const void *p, size_t len);
 
+/* This is just an alias for crc32_le(). */
+static inline u32 crc32(u32 crc, const void *p, size_t len)
+{
+	return crc32_le(crc, p, len);
+}
+
 /**
  * crc32_be() - Compute most-significant-bit-first IEEE CRC-32
  * @crc: Initial CRC value.  ~0 (recommended) or 0 for a new CRC computation, or
@@ -89,8 +95,6 @@ u32 crc32_optimizations(void);
 #else
 static inline u32 crc32_optimizations(void) { return 0; }
 #endif
-
-#define crc32(seed, data, length)  crc32_le(seed, (unsigned char const *)(data), length)
 
 /*
  * Helpers for hash table generation of ethernet nics:
