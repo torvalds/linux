@@ -805,10 +805,13 @@ intel_dp_mst_hdcp2_stream_encryption(struct intel_connector *connector,
 	enum pipe pipe = (enum pipe)cpu_transcoder;
 	enum port port = dig_port->base.port;
 	int ret;
+	u32 val;
+	u8 stream_type;
 
+	val = intel_de_read(display, HDCP2_AUTH_STREAM(display, cpu_transcoder, port));
+	stream_type = REG_FIELD_GET(AUTH_STREAM_TYPE_MASK, val);
 	drm_WARN_ON(display->drm, enable &&
-		    !!(intel_de_read(display, HDCP2_AUTH_STREAM(display, cpu_transcoder, port))
-		    & AUTH_STREAM_TYPE) != data->streams[0].stream_type);
+		    stream_type != data->streams[0].stream_type);
 
 	ret = intel_dp_mst_toggle_hdcp_stream_select(connector, enable);
 	if (ret)

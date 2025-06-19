@@ -263,7 +263,7 @@
 #define TRANS_HDCP2_AUTH_STREAM(trans)	_MMIO_TRANS(trans, \
 						    _TRANSA_HDCP2_AUTH_STREAM, \
 						    _TRANSB_HDCP2_AUTH_STREAM)
-#define   AUTH_STREAM_TYPE		REG_BIT(31)
+#define   AUTH_STREAM_TYPE_MASK		REG_GENMASK(31, 31)
 #define HDCP2_AUTH_STREAM(dev_priv, trans, port) \
 					(TRANS_HDCP(dev_priv) ? \
 					 TRANS_HDCP2_AUTH_STREAM(trans) : \
