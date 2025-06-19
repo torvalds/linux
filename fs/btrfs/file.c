@@ -2194,7 +2194,7 @@ static bool check_range_has_page(struct inode *inode, u64 start, u64 end)
 		if (folio->index < start_index)
 			continue;
 		/* A large folio extends beyond the end. Not a target. */
-		if (folio->index + folio_nr_pages(folio) > end_index)
+		if (folio_next_index(folio) > end_index)
 			continue;
 		/* A folio doesn't cover the head/tail index. Found a target. */
 		ret = true;
