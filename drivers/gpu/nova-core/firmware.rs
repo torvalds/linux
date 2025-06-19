@@ -3,11 +3,15 @@
 //! Contains structures and functions dedicated to the parsing, building and patching of firmwares
 //! to be loaded into a given execution unit.
 
+use core::marker::PhantomData;
+
 use kernel::device;
 use kernel::firmware;
 use kernel::prelude::*;
 use kernel::str::CString;
 
+use crate::dma::DmaObject;
+use crate::falcon::FalconFirmware;
 use crate::gpu;
 use crate::gpu::Chipset;
 
@@ -81,6 +85,66 @@ impl FalconUCodeDescV3 {
         const HDR_SIZE_MASK: u32 = 0xffff0000;
 
         ((self.hdr & HDR_SIZE_MASK) >> HDR_SIZE_SHIFT) as usize
+    }
+}
+
+/// Trait implemented by types defining the signed state of a firmware.
+trait SignedState {}
+
+/// Type indicating that the firmware must be signed before it can be used.
+struct Unsigned;
+impl SignedState for Unsigned {}
+
+/// Type indicating that the firmware is signed and ready to be loaded.
+struct Signed;
+impl SignedState for Signed {}
+
+/// A [`DmaObject`] containing a specific microcode ready to be loaded into a falcon.
+///
+/// This is module-local and meant for sub-modules to use internally.
+///
+/// After construction, a firmware is [`Unsigned`], and must generally be patched with a signature
+/// before it can be loaded (with an exception for development hardware). The
+/// [`Self::patch_signature`] and [`Self::no_patch_signature`] methods are used to transition the
+/// firmware to its [`Signed`] state.
+struct FirmwareDmaObject<F: FalconFirmware, S: SignedState>(DmaObject, PhantomData<(F, S)>);
+
+/// Trait for signatures to be patched directly into a given firmware.
+///
+/// This is module-local and meant for sub-modules to use internally.
+trait FirmwareSignature<F: FalconFirmware>: AsRef<[u8]> {}
+
+#[expect(unused)]
+impl<F: FalconFirmware> FirmwareDmaObject<F, Unsigned> {
+    /// Patches the firmware at offset `sig_base_img` with `signature`.
+    fn patch_signature<S: FirmwareSignature<F>>(
+        mut self,
+        signature: &S,
+        sig_base_img: usize,
+    ) -> Result<FirmwareDmaObject<F, Signed>> {
+        let signature_bytes = signature.as_ref();
+        if sig_base_img + signature_bytes.len() > self.0.size() {
+            return Err(EINVAL);
+        }
+
+        // SAFETY: We are the only user of this object, so there cannot be any race.
+        let dst = unsafe { self.0.start_ptr_mut().add(sig_base_img) };
+
+        // SAFETY: `signature` and `dst` are valid, properly aligned, and do not overlap.
+        unsafe {
+            core::ptr::copy_nonoverlapping(signature_bytes.as_ptr(), dst, signature_bytes.len())
+        };
+
+        Ok(FirmwareDmaObject(self.0, PhantomData))
+    }
+
+    /// Mark the firmware as signed without patching it.
+    ///
+    /// This method is used to explicitly confirm that we do not need to sign the firmware, while
+    /// allowing us to continue as if it was. This is typically only needed for development
+    /// hardware.
+    fn no_patch_signature(self) -> FirmwareDmaObject<F, Signed> {
+        FirmwareDmaObject(self.0, PhantomData)
     }
 }
 
