@@ -18,6 +18,14 @@
 		charge-full-design-microamp-hours = <3300000>;
 		voltage-min-design-microvolt = <3400000>;
 		voltage-max-design-microvolt = <4400000>;
+
+		/*
+		 * Typical designs have multiple charger ICs which can handle more
+		 * current but the OnePlus 6/T do not, hence the lower limit. This
+		 * does not apply when using the Dash Charger, however this is not
+		 * yet supported.
+		 */
+		constant-charge-current-max-microamp = <1800000>;
 	};
 };
 
