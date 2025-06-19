@@ -778,6 +778,39 @@ Description:
 		0, write zeroes is not supported by the device.
 
 
+What:		/sys/block/<disk>/queue/write_zeroes_unmap_max_hw_bytes
+Date:		January 2025
+Contact:	Zhang Yi <yi.zhang@huawei.com>
+Description:
+		[RO] This file indicates whether a device supports zeroing data
+		in a specified block range without incurring the cost of
+		physically writing zeroes to the media for each individual
+		block. If this parameter is set to write_zeroes_max_bytes, the
+		device implements a zeroing operation which opportunistically
+		avoids writing zeroes to media while still guaranteeing that
+		subsequent reads from the specified block range will return
+		zeroed data. This operation is a best-effort optimization, a
+		device may fall back to physically writing zeroes to the media
+		due to other factors such as misalignment or being asked to
+		clear a block range smaller than the device's internal
+		allocation unit. If this parameter is set to 0, the device may
+		have to write each logical block media during a zeroing
+		operation.
+
+
+What:		/sys/block/<disk>/queue/write_zeroes_unmap_max_bytes
+Date:		January 2025
+Contact:	Zhang Yi <yi.zhang@huawei.com>
+Description:
+		[RW] While write_zeroes_unmap_max_hw_bytes is the hardware limit
+		for the device, this setting is the software limit. Since the
+		unmap write zeroes operation is a best-effort optimization, some
+		devices may still physically writing zeroes to media. So the
+		speed of this operation is not guaranteed. Writing a value of
+		'0' to this file disables this operation. Otherwise, this
+		parameter should be equal to write_zeroes_unmap_max_hw_bytes.
+
+
 What:		/sys/block/<disk>/queue/zone_append_max_bytes
 Date:		May 2020
 Contact:	linux-block@vger.kernel.org
