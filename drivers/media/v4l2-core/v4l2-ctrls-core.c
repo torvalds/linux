@@ -1631,14 +1631,17 @@ int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
 EXPORT_SYMBOL(v4l2_ctrl_handler_init_class);
 
 /* Free all controls and control refs */
-void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
+int v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 {
 	struct v4l2_ctrl_ref *ref, *next_ref;
 	struct v4l2_ctrl *ctrl, *next_ctrl;
 	struct v4l2_subscribed_event *sev, *next_sev;
 
-	if (hdl == NULL || hdl->buckets == NULL)
-		return;
+	if (!hdl)
+		return 0;
+
+	if (!hdl->buckets)
+		return hdl->error;
 
 	v4l2_ctrl_handler_free_request(hdl);
 
@@ -1663,6 +1666,8 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 	hdl->cached = NULL;
 	mutex_unlock(hdl->lock);
 	mutex_destroy(&hdl->_lock);
+
+	return hdl->error;
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_free);
 
