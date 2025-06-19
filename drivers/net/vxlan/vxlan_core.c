@@ -1485,21 +1485,18 @@ static enum skb_drop_reason vxlan_snoop(struct net_device *dev,
 
 static bool __vxlan_sock_release_prep(struct vxlan_sock *vs)
 {
-	struct vxlan_net *vn;
+	ASSERT_RTNL();
 
 	if (!vs)
 		return false;
 	if (!refcount_dec_and_test(&vs->refcnt))
 		return false;
 
-	vn = net_generic(sock_net(vs->sock->sk), vxlan_net_id);
-	spin_lock(&vn->sock_lock);
 	hlist_del_rcu(&vs->hlist);
 	udp_tunnel_notify_del_rx_port(vs->sock,
 				      (vs->flags & VXLAN_F_GPE) ?
 				      UDP_TUNNEL_TYPE_VXLAN_GPE :
 				      UDP_TUNNEL_TYPE_VXLAN);
-	spin_unlock(&vn->sock_lock);
 
 	return true;
 }
@@ -2857,26 +2854,23 @@ static void vxlan_cleanup(struct timer_list *t)
 
 static void vxlan_vs_del_dev(struct vxlan_dev *vxlan)
 {
-	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
+	ASSERT_RTNL();
 
-	spin_lock(&vn->sock_lock);
 	hlist_del_init_rcu(&vxlan->hlist4.hlist);
 #if IS_ENABLED(CONFIG_IPV6)
 	hlist_del_init_rcu(&vxlan->hlist6.hlist);
 #endif
-	spin_unlock(&vn->sock_lock);
 }
 
 static void vxlan_vs_add_dev(struct vxlan_sock *vs, struct vxlan_dev *vxlan,
 			     struct vxlan_dev_node *node)
 {
-	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	__be32 vni = vxlan->default_dst.remote_vni;
 
+	ASSERT_RTNL();
+
 	node->vxlan = vxlan;
-	spin_lock(&vn->sock_lock);
 	hlist_add_head_rcu(&node->hlist, vni_head(vs, vni));
-	spin_unlock(&vn->sock_lock);
 }
 
 /* Setup stats when device is created */
@@ -3301,9 +3295,10 @@ static void vxlan_offload_rx_ports(struct net_device *dev, bool push)
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	unsigned int i;
 
-	spin_lock(&vn->sock_lock);
+	ASSERT_RTNL();
+
 	for (i = 0; i < PORT_HASH_SIZE; ++i) {
-		hlist_for_each_entry_rcu(vs, &vn->sock_list[i], hlist) {
+		hlist_for_each_entry(vs, &vn->sock_list[i], hlist) {
 			unsigned short type;
 
 			if (vs->flags & VXLAN_F_GPE)
@@ -3317,7 +3312,6 @@ static void vxlan_offload_rx_ports(struct net_device *dev, bool push)
 				udp_tunnel_drop_rx_port(dev, vs->sock, type);
 		}
 	}
-	spin_unlock(&vn->sock_lock);
 }
 
 /* Initialize the device structure. */
@@ -3548,11 +3542,12 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 					      __be16 port, u32 flags,
 					      int ifindex)
 {
-	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_sock *vs;
 	struct socket *sock;
 	unsigned int h;
 	struct udp_tunnel_sock_cfg tunnel_cfg;
+
+	ASSERT_RTNL();
 
 	vs = kzalloc(sizeof(*vs), GFP_KERNEL);
 	if (!vs)
@@ -3571,13 +3566,11 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 	refcount_set(&vs->refcnt, 1);
 	vs->flags = (flags & VXLAN_F_RCV_FLAGS);
 
-	spin_lock(&vn->sock_lock);
 	hlist_add_head_rcu(&vs->hlist, vs_head(net, port));
 	udp_tunnel_notify_add_rx_port(sock,
 				      (vs->flags & VXLAN_F_GPE) ?
 				      UDP_TUNNEL_TYPE_VXLAN_GPE :
 				      UDP_TUNNEL_TYPE_VXLAN);
-	spin_unlock(&vn->sock_lock);
 
 	/* Mark socket as an encapsulation socket. */
 	memset(&tunnel_cfg, 0, sizeof(tunnel_cfg));
@@ -3601,26 +3594,27 @@ static struct vxlan_sock *vxlan_socket_create(struct net *net, bool ipv6,
 
 static int __vxlan_sock_add(struct vxlan_dev *vxlan, bool ipv6)
 {
-	struct vxlan_net *vn = net_generic(vxlan->net, vxlan_net_id);
 	bool metadata = vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA;
 	struct vxlan_sock *vs = NULL;
 	struct vxlan_dev_node *node;
 	int l3mdev_index = 0;
+
+	ASSERT_RTNL();
 
 	if (vxlan->cfg.remote_ifindex)
 		l3mdev_index = l3mdev_master_upper_ifindex_by_index(
 			vxlan->net, vxlan->cfg.remote_ifindex);
 
 	if (!vxlan->cfg.no_share) {
-		spin_lock(&vn->sock_lock);
+		rcu_read_lock();
 		vs = vxlan_find_sock(vxlan->net, ipv6 ? AF_INET6 : AF_INET,
 				     vxlan->cfg.dst_port, vxlan->cfg.flags,
 				     l3mdev_index);
 		if (vs && !refcount_inc_not_zero(&vs->refcnt)) {
-			spin_unlock(&vn->sock_lock);
+			rcu_read_unlock();
 			return -EBUSY;
 		}
-		spin_unlock(&vn->sock_lock);
+		rcu_read_unlock();
 	}
 	if (!vs)
 		vs = vxlan_socket_create(vxlan->net, ipv6,
@@ -4894,7 +4888,6 @@ static __net_init int vxlan_init_net(struct net *net)
 	unsigned int h;
 
 	INIT_LIST_HEAD(&vn->vxlan_list);
-	spin_lock_init(&vn->sock_lock);
 	vn->nexthop_notifier_block.notifier_call = vxlan_nexthop_event;
 
 	for (h = 0; h < PORT_HASH_SIZE; ++h)
