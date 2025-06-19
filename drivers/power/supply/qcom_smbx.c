@@ -362,17 +362,17 @@ enum charger_status {
 	DISABLE_CHARGE,
 };
 
-struct smb2_register {
+struct smb_init_register {
 	u16 addr;
 	u8 mask;
 	u8 val;
 };
 
 /**
- * struct smb2_chip - smb2 chip structure
+ * struct smb_chip - smb chip structure
  * @dev:		Device reference for power_supply
  * @name:		The platform device name
- * @base:		Base address for smb2 registers
+ * @base:		Base address for smb registers
  * @regmap:		Register map
  * @batt_info:		Battery data from DT
  * @status_change_work: Worker to handle plug/unplug events
@@ -382,7 +382,7 @@ struct smb2_register {
  * @usb_in_v_chan:	USB_IN voltage measurement channel
  * @chg_psy:		Charger power supply instance
  */
-struct smb2_chip {
+struct smb_chip {
 	struct device *dev;
 	const char *name;
 	unsigned int base;
@@ -399,7 +399,7 @@ struct smb2_chip {
 	struct power_supply *chg_psy;
 };
 
-static enum power_supply_property smb2_properties[] = {
+static enum power_supply_property smb_properties[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
@@ -411,7 +411,7 @@ static enum power_supply_property smb2_properties[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 };
 
-static int smb2_get_prop_usb_online(struct smb2_chip *chip, int *val)
+static int smb_get_prop_usb_online(struct smb_chip *chip, int *val)
 {
 	unsigned int stat;
 	int rc;
@@ -431,13 +431,13 @@ static int smb2_get_prop_usb_online(struct smb2_chip *chip, int *val)
  * Qualcomm "automatic power source detection" aka APSD
  * tells us what type of charger we're connected to.
  */
-static int smb2_apsd_get_charger_type(struct smb2_chip *chip, int *val)
+static int smb_apsd_get_charger_type(struct smb_chip *chip, int *val)
 {
 	unsigned int apsd_stat, stat;
 	int usb_online = 0;
 	int rc;
 
-	rc = smb2_get_prop_usb_online(chip, &usb_online);
+	rc = smb_get_prop_usb_online(chip, &usb_online);
 	if (!usb_online) {
 		*val = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 		return rc;
@@ -471,13 +471,13 @@ static int smb2_apsd_get_charger_type(struct smb2_chip *chip, int *val)
 	return 0;
 }
 
-static int smb2_get_prop_status(struct smb2_chip *chip, int *val)
+static int smb_get_prop_status(struct smb_chip *chip, int *val)
 {
 	unsigned char stat[2];
 	int usb_online = 0;
 	int rc;
 
-	rc = smb2_get_prop_usb_online(chip, &usb_online);
+	rc = smb_get_prop_usb_online(chip, &usb_online);
 	if (!usb_online) {
 		*val = POWER_SUPPLY_STATUS_DISCHARGING;
 		return rc;
@@ -519,7 +519,7 @@ static int smb2_get_prop_status(struct smb2_chip *chip, int *val)
 	}
 }
 
-static inline int smb2_get_current_limit(struct smb2_chip *chip,
+static inline int smb_get_current_limit(struct smb_chip *chip,
 					 unsigned int *val)
 {
 	int rc = regmap_read(chip->regmap, chip->base + ICL_STATUS, val);
@@ -529,7 +529,7 @@ static inline int smb2_get_current_limit(struct smb2_chip *chip,
 	return rc;
 }
 
-static int smb2_set_current_limit(struct smb2_chip *chip, unsigned int val)
+static int smb_set_current_limit(struct smb_chip *chip, unsigned int val)
 {
 	unsigned char val_raw;
 
@@ -544,22 +544,22 @@ static int smb2_set_current_limit(struct smb2_chip *chip, unsigned int val)
 			    val_raw);
 }
 
-static void smb2_status_change_work(struct work_struct *work)
+static void smb_status_change_work(struct work_struct *work)
 {
 	unsigned int charger_type, current_ua;
 	int usb_online = 0;
 	int count, rc;
-	struct smb2_chip *chip;
+	struct smb_chip *chip;
 
-	chip = container_of(work, struct smb2_chip, status_change_work.work);
+	chip = container_of(work, struct smb_chip, status_change_work.work);
 
-	smb2_get_prop_usb_online(chip, &usb_online);
+	smb_get_prop_usb_online(chip, &usb_online);
 	if (!usb_online)
 		return;
 
 	for (count = 0; count < 3; count++) {
 		dev_dbg(chip->dev, "get charger type retry %d\n", count);
-		rc = smb2_apsd_get_charger_type(chip, &charger_type);
+		rc = smb_apsd_get_charger_type(chip, &charger_type);
 		if (rc != -EAGAIN)
 			break;
 		msleep(100);
@@ -592,11 +592,11 @@ static void smb2_status_change_work(struct work_struct *work)
 		break;
 	}
 
-	smb2_set_current_limit(chip, current_ua);
+	smb_set_current_limit(chip, current_ua);
 	power_supply_changed(chip->chg_psy);
 }
 
-static int smb2_get_iio_chan(struct smb2_chip *chip, struct iio_channel *chan,
+static int smb_get_iio_chan(struct smb_chip *chip, struct iio_channel *chan,
 			     int *val)
 {
 	int rc;
@@ -617,7 +617,7 @@ static int smb2_get_iio_chan(struct smb2_chip *chip, struct iio_channel *chan,
 	return iio_read_channel_processed(chan, val);
 }
 
-static int smb2_get_prop_health(struct smb2_chip *chip, int *val)
+static int smb_get_prop_health(struct smb_chip *chip, int *val)
 {
 	int rc;
 	unsigned int stat;
@@ -651,11 +651,11 @@ static int smb2_get_prop_health(struct smb2_chip *chip, int *val)
 	}
 }
 
-static int smb2_get_property(struct power_supply *psy,
+static int smb_get_property(struct power_supply *psy,
 			     enum power_supply_property psp,
 			     union power_supply_propval *val)
 {
-	struct smb2_chip *chip = power_supply_get_drvdata(psy);
+	struct smb_chip *chip = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_MANUFACTURER:
@@ -665,43 +665,43 @@ static int smb2_get_property(struct power_supply *psy,
 		val->strval = chip->name;
 		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		return smb2_get_current_limit(chip, &val->intval);
+		return smb_get_current_limit(chip, &val->intval);
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		return smb2_get_iio_chan(chip, chip->usb_in_i_chan,
+		return smb_get_iio_chan(chip, chip->usb_in_i_chan,
 					 &val->intval);
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		return smb2_get_iio_chan(chip, chip->usb_in_v_chan,
+		return smb_get_iio_chan(chip, chip->usb_in_v_chan,
 					 &val->intval);
 	case POWER_SUPPLY_PROP_ONLINE:
-		return smb2_get_prop_usb_online(chip, &val->intval);
+		return smb_get_prop_usb_online(chip, &val->intval);
 	case POWER_SUPPLY_PROP_STATUS:
-		return smb2_get_prop_status(chip, &val->intval);
+		return smb_get_prop_status(chip, &val->intval);
 	case POWER_SUPPLY_PROP_HEALTH:
-		return smb2_get_prop_health(chip, &val->intval);
+		return smb_get_prop_health(chip, &val->intval);
 	case POWER_SUPPLY_PROP_USB_TYPE:
-		return smb2_apsd_get_charger_type(chip, &val->intval);
+		return smb_apsd_get_charger_type(chip, &val->intval);
 	default:
 		dev_err(chip->dev, "invalid property: %d\n", psp);
 		return -EINVAL;
 	}
 }
 
-static int smb2_set_property(struct power_supply *psy,
+static int smb_set_property(struct power_supply *psy,
 			     enum power_supply_property psp,
 			     const union power_supply_propval *val)
 {
-	struct smb2_chip *chip = power_supply_get_drvdata(psy);
+	struct smb_chip *chip = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		return smb2_set_current_limit(chip, val->intval);
+		return smb_set_current_limit(chip, val->intval);
 	default:
 		dev_err(chip->dev, "No setter for property: %d\n", psp);
 		return -EINVAL;
 	}
 }
 
-static int smb2_property_is_writable(struct power_supply *psy,
+static int smb_property_is_writable(struct power_supply *psy,
 				     enum power_supply_property psp)
 {
 	switch (psp) {
@@ -712,9 +712,9 @@ static int smb2_property_is_writable(struct power_supply *psy,
 	}
 }
 
-static irqreturn_t smb2_handle_batt_overvoltage(int irq, void *data)
+static irqreturn_t smb_handle_batt_overvoltage(int irq, void *data)
 {
-	struct smb2_chip *chip = data;
+	struct smb_chip *chip = data;
 	unsigned int status;
 
 	regmap_read(chip->regmap, chip->base + BATTERY_CHARGER_STATUS_2,
@@ -729,9 +729,9 @@ static irqreturn_t smb2_handle_batt_overvoltage(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t smb2_handle_usb_plugin(int irq, void *data)
+static irqreturn_t smb_handle_usb_plugin(int irq, void *data)
 {
-	struct smb2_chip *chip = data;
+	struct smb_chip *chip = data;
 
 	power_supply_changed(chip->chg_psy);
 
@@ -741,18 +741,18 @@ static irqreturn_t smb2_handle_usb_plugin(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t smb2_handle_usb_icl_change(int irq, void *data)
+static irqreturn_t smb_handle_usb_icl_change(int irq, void *data)
 {
-	struct smb2_chip *chip = data;
+	struct smb_chip *chip = data;
 
 	power_supply_changed(chip->chg_psy);
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t smb2_handle_wdog_bark(int irq, void *data)
+static irqreturn_t smb_handle_wdog_bark(int irq, void *data)
 {
-	struct smb2_chip *chip = data;
+	struct smb_chip *chip = data;
 	int rc;
 
 	power_supply_changed(chip->chg_psy);
@@ -765,22 +765,22 @@ static irqreturn_t smb2_handle_wdog_bark(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static const struct power_supply_desc smb2_psy_desc = {
+static const struct power_supply_desc smb_psy_desc = {
 	.name = "pmi8998_charger",
 	.type = POWER_SUPPLY_TYPE_USB,
 	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
 		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
 		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
 		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
-	.properties = smb2_properties,
-	.num_properties = ARRAY_SIZE(smb2_properties),
-	.get_property = smb2_get_property,
-	.set_property = smb2_set_property,
-	.property_is_writeable = smb2_property_is_writable,
+	.properties = smb_properties,
+	.num_properties = ARRAY_SIZE(smb_properties),
+	.get_property = smb_get_property,
+	.set_property = smb_set_property,
+	.property_is_writeable = smb_property_is_writable,
 };
 
 /* Init sequence derived from vendor downstream driver */
-static const struct smb2_register smb2_init_seq[] = {
+static const struct smb_init_register smb_init_seq[] = {
 	{ .addr = AICL_RERUN_TIME_CFG, .mask = AICL_RERUN_TIME_MASK, .val = 0 },
 	/*
 	 * By default configure us as an upstream facing port
@@ -882,17 +882,17 @@ static const struct smb2_register smb2_init_seq[] = {
 	  .val = 1000000 / CURRENT_SCALE_FACTOR },
 };
 
-static int smb2_init_hw(struct smb2_chip *chip)
+static int smb_init_hw(struct smb_chip *chip)
 {
 	int rc, i;
 
-	for (i = 0; i < ARRAY_SIZE(smb2_init_seq); i++) {
+	for (i = 0; i < ARRAY_SIZE(smb_init_seq); i++) {
 		dev_dbg(chip->dev, "%d: Writing 0x%02x to 0x%02x\n", i,
-			smb2_init_seq[i].val, smb2_init_seq[i].addr);
+			smb_init_seq[i].val, smb_init_seq[i].addr);
 		rc = regmap_update_bits(chip->regmap,
-					chip->base + smb2_init_seq[i].addr,
-					smb2_init_seq[i].mask,
-					smb2_init_seq[i].val);
+					chip->base + smb_init_seq[i].addr,
+					smb_init_seq[i].mask,
+					smb_init_seq[i].val);
 		if (rc < 0)
 			return dev_err_probe(chip->dev, rc,
 					     "%s: init command %d failed\n",
@@ -902,7 +902,7 @@ static int smb2_init_hw(struct smb2_chip *chip)
 	return 0;
 }
 
-static int smb2_init_irq(struct smb2_chip *chip, int *irq, const char *name,
+static int smb_init_irq(struct smb_chip *chip, int *irq, const char *name,
 			 irqreturn_t (*handler)(int irq, void *data))
 {
 	int irqnum;
@@ -924,11 +924,11 @@ static int smb2_init_irq(struct smb2_chip *chip, int *irq, const char *name,
 	return 0;
 }
 
-static int smb2_probe(struct platform_device *pdev)
+static int smb_probe(struct platform_device *pdev)
 {
 	struct power_supply_config supply_config = {};
 	struct power_supply_desc *desc;
-	struct smb2_chip *chip;
+	struct smb_chip *chip;
 	int rc, irq;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
@@ -959,17 +959,17 @@ static int smb2_probe(struct platform_device *pdev)
 				     "Couldn't get usbin_i IIO channel\n");
 	}
 
-	rc = smb2_init_hw(chip);
+	rc = smb_init_hw(chip);
 	if (rc < 0)
 		return rc;
 
 	supply_config.drv_data = chip;
 	supply_config.fwnode = dev_fwnode(&pdev->dev);
 
-	desc = devm_kzalloc(chip->dev, sizeof(smb2_psy_desc), GFP_KERNEL);
+	desc = devm_kzalloc(chip->dev, sizeof(smb_psy_desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
-	memcpy(desc, &smb2_psy_desc, sizeof(smb2_psy_desc));
+	memcpy(desc, &smb_psy_desc, sizeof(smb_psy_desc));
 	desc->name =
 		devm_kasprintf(chip->dev, GFP_KERNEL, "%s-charger",
 			       (const char *)device_get_match_data(chip->dev));
@@ -988,7 +988,7 @@ static int smb2_probe(struct platform_device *pdev)
 				     "Failed to get battery info\n");
 
 	rc = devm_delayed_work_autocancel(chip->dev, &chip->status_change_work,
-					  smb2_status_change_work);
+					  smb_status_change_work);
 	if (rc)
 		return dev_err_probe(chip->dev, rc,
 				     "Failed to init status change work\n");
@@ -999,20 +999,20 @@ static int smb2_probe(struct platform_device *pdev)
 	if (rc < 0)
 		return dev_err_probe(chip->dev, rc, "Couldn't set vbat max\n");
 
-	rc = smb2_init_irq(chip, &irq, "bat-ov", smb2_handle_batt_overvoltage);
+	rc = smb_init_irq(chip, &irq, "bat-ov", smb_handle_batt_overvoltage);
 	if (rc < 0)
 		return rc;
 
-	rc = smb2_init_irq(chip, &chip->cable_irq, "usb-plugin",
-			   smb2_handle_usb_plugin);
+	rc = smb_init_irq(chip, &chip->cable_irq, "usb-plugin",
+			   smb_handle_usb_plugin);
 	if (rc < 0)
 		return rc;
 
-	rc = smb2_init_irq(chip, &irq, "usbin-icl-change",
-			   smb2_handle_usb_icl_change);
+	rc = smb_init_irq(chip, &irq, "usbin-icl-change",
+			   smb_handle_usb_icl_change);
 	if (rc < 0)
 		return rc;
-	rc = smb2_init_irq(chip, &irq, "wdog-bark", smb2_handle_wdog_bark);
+	rc = smb_init_irq(chip, &irq, "wdog-bark", smb_handle_wdog_bark);
 	if (rc < 0)
 		return rc;
 
@@ -1030,22 +1030,22 @@ static int smb2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id smb2_match_id_table[] = {
+static const struct of_device_id smb_match_id_table[] = {
 	{ .compatible = "qcom,pmi8998-charger", .data = "pmi8998" },
 	{ .compatible = "qcom,pm660-charger", .data = "pm660" },
 	{ /* sentinal */ }
 };
-MODULE_DEVICE_TABLE(of, smb2_match_id_table);
+MODULE_DEVICE_TABLE(of, smb_match_id_table);
 
-static struct platform_driver qcom_spmi_smb2 = {
-	.probe = smb2_probe,
+static struct platform_driver qcom_spmi_smb = {
+	.probe = smb_probe,
 	.driver = {
-		.name = "qcom-pmi8998/pm660-charger",
-		.of_match_table = smb2_match_id_table,
+		.name = "qcom-smbx-charger",
+		.of_match_table = smb_match_id_table,
 		},
 };
 
-module_platform_driver(qcom_spmi_smb2);
+module_platform_driver(qcom_spmi_smb);
 
 MODULE_AUTHOR("Casey Connolly <casey.connolly@linaro.org>");
 MODULE_DESCRIPTION("Qualcomm SMB2 Charger Driver");
