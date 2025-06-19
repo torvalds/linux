@@ -126,7 +126,7 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	 * Handle repeated calls to hw_params() without free_pcm() in
 	 * between. At least ALSA OSS emulation depends on this.
 	 */
-	if (pcm_ops && pcm_ops->hw_free && spcm->prepared[substream->stream]) {
+	if (spcm->prepared[substream->stream] && pcm_ops && pcm_ops->hw_free) {
 		ret = pcm_ops->hw_free(component, substream);
 		if (ret < 0)
 			return ret;
