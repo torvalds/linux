@@ -2,6 +2,7 @@
 
 //! Nova Core GPU Driver
 
+mod dma;
 mod driver;
 mod firmware;
 mod gfw;
