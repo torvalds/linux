@@ -871,7 +871,8 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_snapshot_trees, POS_MIN,
 				     0, k, ret) {
-		if (le32_to_cpu(bkey_s_c_to_snapshot_tree(k).v->root_snapshot) == id) {
+		if (k.k->type == KEY_TYPE_snapshot_tree &&
+		    le32_to_cpu(bkey_s_c_to_snapshot_tree(k).v->root_snapshot) == id) {
 			tree_id = k.k->p.offset;
 			break;
 		}
@@ -899,7 +900,8 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_subvolumes, POS_MIN,
 				     0, k, ret) {
-		if (le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot) == id) {
+		if (k.k->type == KEY_TYPE_subvolume &&
+		    le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot) == id) {
 			snapshot->v.subvol = cpu_to_le32(k.k->p.offset);
 			SET_BCH_SNAPSHOT_SUBVOL(&snapshot->v, true);
 			break;
