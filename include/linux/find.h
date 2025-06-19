@@ -44,6 +44,8 @@ unsigned long _find_next_bit_le(const unsigned long *addr, unsigned
 				long size, unsigned long offset);
 #endif
 
+unsigned long find_random_bit(const unsigned long *addr, unsigned long size);
+
 #ifndef find_next_bit
 /**
  * find_next_bit - find the next set bit in a memory region
