@@ -3,9 +3,10 @@
 #define _BCACHEFS_SB_ERRORS_FORMAT_H
 
 enum bch_fsck_flags {
-	FSCK_CAN_FIX		= 1 << 0,
-	FSCK_CAN_IGNORE		= 1 << 1,
-	FSCK_AUTOFIX		= 1 << 2,
+	FSCK_CAN_FIX		= BIT(0),
+	FSCK_CAN_IGNORE		= BIT(1),
+	FSCK_AUTOFIX		= BIT(2),
+	FSCK_ERR_NO_LOG		= BIT(3),
 };
 
 #define BCH_SB_ERRS()									\

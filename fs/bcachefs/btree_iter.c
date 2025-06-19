@@ -3194,6 +3194,10 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size, unsigned long
 	if (WARN_ON_ONCE(new_bytes > BTREE_TRANS_MEM_MAX)) {
 #ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
 		struct printbuf buf = PRINTBUF;
+		bch2_log_msg_start(c, &buf);
+		prt_printf(&buf, "bump allocator exceeded BTREE_TRANS_MEM_MAX (%u)\n",
+			   BTREE_TRANS_MEM_MAX);
+
 		bch2_trans_kmalloc_trace_to_text(&buf, &trans->trans_kmalloc_trace);
 		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
