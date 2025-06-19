@@ -3,6 +3,7 @@
 use kernel::{device, devres::Devres, error::code::*, pci, prelude::*};
 
 use crate::driver::Bar0;
+use crate::fb::SysmemFlush;
 use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
 use crate::regs;
@@ -158,12 +159,24 @@ impl Spec {
 }
 
 /// Structure holding the resources required to operate the GPU.
-#[pin_data]
+#[pin_data(PinnedDrop)]
 pub(crate) struct Gpu {
     spec: Spec,
     /// MMIO mapping of PCI BAR 0
     bar: Devres<Bar0>,
     fw: Firmware,
+    /// System memory page required for flushing all pending GPU-side memory writes done through
+    /// PCIE into system memory.
+    sysmem_flush: SysmemFlush,
+}
+
+#[pinned_drop]
+impl PinnedDrop for Gpu {
+    fn drop(self: Pin<&mut Self>) {
+        // Unregister the sysmem flush page before we release it.
+        self.bar
+            .try_access_with(|b| self.sysmem_flush.unregister(b));
+    }
 }
 
 impl Gpu {
@@ -187,10 +200,14 @@ impl Gpu {
         gfw::wait_gfw_boot_completion(bar)
             .inspect_err(|_| dev_err!(pdev.as_ref(), "GFW boot did not complete"))?;
 
+        // System memory page required for sysmembar to properly flush into system memory.
+        let sysmem_flush = SysmemFlush::register(pdev.as_ref(), bar, spec.chipset)?;
+
         Ok(pin_init!(Self {
             spec,
             bar: devres_bar,
-            fw
+            fw,
+            sysmem_flush,
         }))
     }
 }

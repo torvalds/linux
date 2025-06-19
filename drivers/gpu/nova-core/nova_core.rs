@@ -4,6 +4,7 @@
 
 mod dma;
 mod driver;
+mod fb;
 mod firmware;
 mod gfw;
 mod gpu;
