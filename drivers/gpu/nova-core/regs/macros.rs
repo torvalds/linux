@@ -78,7 +78,7 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name $(, $comment)?);
+        register!(@common $name @ $offset $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ $offset);
     };
@@ -89,7 +89,7 @@ macro_rules! register {
             $($fields:tt)*
         }
     ) => {
-        register!(@common $name $(, $comment)?);
+        register!(@common $name @ $offset $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io$name @ + $offset);
     };
@@ -98,13 +98,18 @@ macro_rules! register {
 
     // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`, `BitOr`,
     // and conversion to regular `u32`).
-    (@common $name:ident $(, $comment:literal)?) => {
+    (@common $name:ident @ $offset:literal $(, $comment:literal)?) => {
         $(
         #[doc=$comment]
         )?
         #[repr(transparent)]
         #[derive(Clone, Copy, Default)]
         pub(crate) struct $name(u32);
+
+        #[allow(dead_code)]
+        impl $name {
+            pub(crate) const OFFSET: usize = $offset;
+        }
 
         // TODO: display the raw hex value, then the value of all the fields. This requires
         // matching the fields, which will complexify the syntax considerably...
