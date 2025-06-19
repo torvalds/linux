@@ -177,7 +177,7 @@ impl<'a> Iterator for VbiosIterator<'a> {
 
         // Advance to next image (aligned to 512 bytes).
         self.current_offset += image_size;
-        // TODO: replace with `align_up` once it lands.
+        // TODO[NUMM]: replace with `align_up` once it lands.
         self.current_offset = self.current_offset.next_multiple_of(512);
 
         Some(Ok(full_image))

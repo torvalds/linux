@@ -35,6 +35,7 @@ pub(crate) enum FalconCoreRev {
     Rev7 = 7,
 }
 
+// TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconCoreRev {
     type Error = Error;
 
@@ -68,6 +69,7 @@ pub(crate) enum FalconCoreRevSubversion {
     Subversion3 = 3,
 }
 
+// TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconCoreRevSubversion {
     type Error = Error;
 
@@ -101,6 +103,7 @@ pub(crate) enum FalconSecurityModel {
     Heavy = 3,
 }
 
+// TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconSecurityModel {
     type Error = Error;
 
@@ -128,6 +131,7 @@ pub(crate) enum FalconModSelAlgo {
     Rsa3k = 1,
 }
 
+// TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconModSelAlgo {
     type Error = Error;
 
@@ -148,6 +152,7 @@ pub(crate) enum DmaTrfCmdSize {
     Size256B = 0x6,
 }
 
+// TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for DmaTrfCmdSize {
     type Error = Error;
 
@@ -199,6 +204,7 @@ pub(crate) enum FalconFbifTarget {
     NoncoherentSysmem = 2,
 }
 
+// TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconFbifTarget {
     type Error = Error;
 
@@ -354,7 +360,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
 
         regs::NV_PFALCON_FALCON_ENGINE::alter(bar, E::BASE, |v| v.set_reset(true));
 
-        // TODO: replace with udelay() or equivalent once available.
+        // TODO[DLAY]: replace with udelay() or equivalent once available.
         // TIMEOUT: falcon engine should not take more than 10us to reset.
         let _: Result = util::wait_on(Duration::from_micros(10), || None);
 

@@ -26,7 +26,7 @@ impl DmaObject {
 
     pub(crate) fn from_data(dev: &device::Device<device::Bound>, data: &[u8]) -> Result<Self> {
         Self::new(dev, data.len()).map(|mut dma_obj| {
-            // TODO: replace with `CoherentAllocation::write()` once available.
+            // TODO[COHA]: replace with `CoherentAllocation::write()` once available.
             // SAFETY:
             // - `dma_obj`'s size is at least `data.len()`.
             // - We have just created this object and there is no other user at this stage.

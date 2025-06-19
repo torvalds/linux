@@ -44,7 +44,7 @@ impl NV_PMC_BOOT_0 {
 
 /* PBUS */
 
-// TODO: this is an array of registers.
+// TODO[REGA]: this is an array of registers.
 register!(NV_PBUS_SW_SCRATCH_0E@0x00001438  {
     31:16   frts_err_code as u16;
 });
@@ -110,7 +110,7 @@ register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK @ 0x00118128 {
     0:0     read_protection_level0 as bool, "Set after FWSEC lowers its protection level";
 });
 
-// TODO: This is an array of registers.
+// TODO[REGA]: This is an array of registers.
 register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05 @ 0x00118234 {
     31:0    value as u32;
 });
@@ -272,7 +272,7 @@ register!(NV_PFALCON_FALCON_ENGINE @ +0x000003c0 {
     0:0     reset as bool;
 });
 
-// TODO: this is an array of registers.
+// TODO[REGA]: this is an array of registers.
 register!(NV_PFALCON_FBIF_TRANSCFG @ +0x00000600 {
     1:0     target as u8 ?=> FalconFbifTarget;
     2:2     mem_type as bool => FalconFbifMemType;
@@ -294,7 +294,7 @@ register!(NV_PFALCON2_FALCON_BROM_ENGIDMASK @ +0x0000119c {
     31:0    value as u32;
 });
 
-// TODO: this is an array of registers.
+// TODO[REGA]: this is an array of registers.
 register!(NV_PFALCON2_FALCON_BROM_PARAADDR @ +0x00001210 {
     31:0    value as u32;
 });

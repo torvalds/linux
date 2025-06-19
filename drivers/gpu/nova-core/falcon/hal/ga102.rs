@@ -42,10 +42,10 @@ fn signature_reg_fuse_version_ga102(
     engine_id_mask: u16,
     ucode_id: u8,
 ) -> Result<u32> {
-    // TODO: The ucode fuse versions are contained in the FUSE_OPT_FPF_<ENGINE>_UCODE<X>_VERSION
-    // registers, which are an array. Our register definition macros do not allow us to manage them
-    // properly, so we need to hardcode their addresses for now. Clean this up once we support
-    // register arrays.
+    // TODO[REGA]: The ucode fuse versions are contained in the
+    // FUSE_OPT_FPF_<ENGINE>_UCODE<X>_VERSION registers, which are an array. Our register
+    // definition macros do not allow us to manage them properly, so we need to hardcode their
+    // addresses for now. Clean this up once we support register arrays.
 
     // Each engine has 16 ucode version registers numbered from 1 to 16.
     if ucode_id == 0 || ucode_id > 16 {
@@ -69,7 +69,7 @@ fn signature_reg_fuse_version_ga102(
     let reg_fuse_version =
         bar.read32(reg_fuse_base + ((ucode_id - 1) as usize * core::mem::size_of::<u32>()));
 
-    // TODO: replace with `last_set_bit` once it lands.
+    // TODO[NUMM]: replace with `last_set_bit` once it lands.
     Ok(u32::BITS - reg_fuse_version.leading_zeros())
 }
 

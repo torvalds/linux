@@ -150,8 +150,8 @@ impl FirmwareSignature<FwsecFirmware> for Bcrt30Rsa3kSignature {}
 /// Callers must ensure that the region of memory returned is not written for as long as the
 /// returned reference is alive.
 ///
-/// TODO: Remove this and `transmute_mut` once `CoherentAllocation::as_slice` is available and we
-/// have a way to transmute objects implementing FromBytes, e.g.:
+/// TODO[TRSM][COHA]: Remove this and `transmute_mut` once `CoherentAllocation::as_slice` is
+/// available and we have a way to transmute objects implementing FromBytes, e.g.:
 /// https://lore.kernel.org/lkml/20250330234039.29814-1-christiansantoslima21@gmail.com/
 unsafe fn transmute<'a, 'b, T: Sized + FromBytes>(
     fw: &'a DmaObject,
@@ -218,7 +218,7 @@ impl FalconLoadParams for FwsecFirmware {
         FalconLoadTarget {
             src_start: self.desc.imem_load_size,
             dst_start: self.desc.dmem_phys_base,
-            // TODO: replace with `align_up` once it lands.
+            // TODO[NUMM]: replace with `align_up` once it lands.
             len: self
                 .desc
                 .dmem_load_size

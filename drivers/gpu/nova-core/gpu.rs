@@ -37,7 +37,7 @@ macro_rules! define_chipset {
             ];
         }
 
-        // TODO replace with something like derive(FromPrimitive)
+        // TODO[FPRI]: replace with something like derive(FromPrimitive)
         impl TryFrom<u32> for Chipset {
             type Error = kernel::error::Error;
 

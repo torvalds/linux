@@ -147,7 +147,7 @@ macro_rules! register {
             pub(crate) const OFFSET: usize = $offset;
         }
 
-        // TODO: display the raw hex value, then the value of all the fields. This requires
+        // TODO[REGA]: display the raw hex value, then the value of all the fields. This requires
         // matching the fields, which will complexify the syntax considerably...
         impl ::core::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {

@@ -29,7 +29,7 @@ pub(crate) fn wait_gfw_boot_completion(bar: &Bar0) -> Result {
         if gfw_booted {
             Some(())
         } else {
-            // TODO: replace with [1] once merged.
+            // TODO[DLAY]: replace with [1] once it merges.
             // [1] https://lore.kernel.org/rust-for-linux/20250423192857.199712-6-fujita.tomonori@gmail.com/
             //
             // SAFETY: `msleep()` is safe to call with any parameter.

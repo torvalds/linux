@@ -122,7 +122,7 @@ impl FbLayout {
         let frts = {
             const FRTS_DOWN_ALIGN: u64 = SZ_128K as u64;
             const FRTS_SIZE: u64 = SZ_1M as u64;
-            // TODO: replace with `align_down` once it lands.
+            // TODO[NUMM]: replace with `align_down` once it lands.
             let frts_base = (vga_workspace.start & !(FRTS_DOWN_ALIGN - 1)) - FRTS_SIZE;
 
             frts_base..frts_base + FRTS_SIZE
