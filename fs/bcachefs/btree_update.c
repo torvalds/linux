@@ -566,7 +566,7 @@ void *__bch2_trans_subbuf_alloc(struct btree_trans *trans,
 	if (buf->u64s)
 		memcpy(n,
 		       btree_trans_subbuf_base(trans, buf),
-		       buf->size * sizeof(u64));
+		       buf->u64s * sizeof(u64));
 	buf->base = (u64 *) n - (u64 *) trans->mem;
 	buf->size = new_size;
 
