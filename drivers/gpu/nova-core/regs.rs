@@ -37,3 +37,28 @@ impl NV_PMC_BOOT_0 {
             .and_then(Chipset::try_from)
     }
 }
+
+/* PGC6 */
+
+register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK @ 0x00118128 {
+    0:0     read_protection_level0 as bool, "Set after FWSEC lowers its protection level";
+});
+
+// TODO: This is an array of registers.
+register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05 @ 0x00118234 {
+    31:0    value as u32;
+});
+
+register!(
+    NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_0_GFW_BOOT => NV_PGC6_AON_SECURE_SCRATCH_GROUP_05,
+    "Scratch group 05 register 0 used as GFW boot progress indicator" {
+        7:0    progress as u8, "Progress of GFW boot (0xff means completed)";
+    }
+);
+
+impl NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_0_GFW_BOOT {
+    /// Returns `true` if GFW boot is completed.
+    pub(crate) fn completed(self) -> bool {
+        self.progress() == 0xff
+    }
+}

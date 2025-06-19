@@ -4,6 +4,7 @@
 
 mod driver;
 mod firmware;
+mod gfw;
 mod gpu;
 mod regs;
 mod util;
