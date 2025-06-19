@@ -464,8 +464,10 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	xe_gt_mcr_init(gt);
 
 	err = xe_hw_engines_init_early(gt);
-	if (err)
+	if (err) {
+		dump_pat_on_error(gt);
 		goto err_force_wake;
+	}
 
 	err = xe_hw_engine_class_sysfs_init(gt);
 	if (err)
@@ -486,7 +488,6 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	return 0;
 
 err_force_wake:
-	dump_pat_on_error(gt);
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return err;
