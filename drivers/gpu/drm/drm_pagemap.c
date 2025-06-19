@@ -6,6 +6,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/migrate.h>
 #include <linux/pagemap.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_pagemap.h>
 
 /**
@@ -20,23 +21,30 @@
  * system.
  *
  * Typically the DRM pagemap receives requests from one or more DRM GPU SVM
- * instances to populate struct mm_struct virtual ranges with memory.
+ * instances to populate struct mm_struct virtual ranges with memory, and the
+ * migration is best effort only and may thus fail. The implementation should
+ * also handle device unbinding by blocking (return an -ENODEV) error for new
+ * population requests and after that migrate all device pages to system ram.
  */
 
 /**
  * DOC: Migration
  *
- * The migration support is quite simple, allowing migration between RAM and
- * device memory at the range granularity. For example, GPU SVM currently does
- * not support mixing RAM and device memory pages within a range. This means
- * that upon GPU fault, the entire range can be migrated to device memory, and
- * upon CPU fault, the entire range is migrated to RAM. Mixed RAM and device
- * memory storage within a range could be added in the future if required.
+ * Migration granularity typically follows the GPU SVM range requests, but
+ * if there are clashes, due to races or due to the fact that multiple GPU
+ * SVM instances have different views of the ranges used, and because of that
+ * parts of a requested range is already present in the requested device memory,
+ * the implementation has a variety of options. It can fail and it can choose
+ * to populate only the part of the range that isn't already in device memory,
+ * and it can evict the range to system before trying to migrate. Ideally an
+ * implementation would just try to migrate the missing part of the range and
+ * allocate just enough memory to do so.
  *
- * The reasoning for only supporting range granularity is as follows: it
- * simplifies the implementation, and range sizes are driver-defined and should
- * be relatively small.
- *
+ * When migrating to system memory as a response to a cpu fault or a device
+ * memory eviction request, currently a full device memory allocation is
+ * migrated back to system. Moving forward this might need improvement for
+ * situations where a single page needs bouncing between system memory and
+ * device memory due to, for example, atomic operations.
  *
  * Key DRM pagemap components:
  *
@@ -792,3 +800,38 @@ struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page)
 	return zdd->devmem_allocation->dpagemap;
 }
 EXPORT_SYMBOL_GPL(drm_pagemap_page_to_dpagemap);
+
+/**
+ * drm_pagemap_populate_mm() - Populate a virtual range with device memory pages
+ * @dpagemap: Pointer to the drm_pagemap managing the device memory
+ * @start: Start of the virtual range to populate.
+ * @end: End of the virtual range to populate.
+ * @mm: Pointer to the virtual address space.
+ * @timeslice_ms: The time requested for the migrated pagemap pages to
+ * be present in @mm before being allowed to be migrated back.
+ *
+ * Attempt to populate a virtual range with device memory pages,
+ * clearing them or migrating data from the existing pages if necessary.
+ * The function is best effort only, and implementations may vary
+ * in how hard they try to satisfy the request.
+ *
+ * Return: %0 on success, negative error code on error. If the hardware
+ * device was removed / unbound the function will return %-ENODEV.
+ */
+int drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
+			    unsigned long start, unsigned long end,
+			    struct mm_struct *mm,
+			    unsigned long timeslice_ms)
+{
+	int err;
+
+	if (!mmget_not_zero(mm))
+		return -EFAULT;
+	mmap_read_lock(mm);
+	err = dpagemap->ops->populate_mm(dpagemap, start, end, mm,
+					 timeslice_ms);
+	mmap_read_unlock(mm);
+	mmput(mm);
+
+	return err;
+}
