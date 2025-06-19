@@ -148,13 +148,13 @@ CRC Functions
 .. kernel-doc:: lib/crc/crc16.c
    :export:
 
-.. kernel-doc:: lib/crc/crc32-main.c
-
 .. kernel-doc:: lib/crc/crc-ccitt.c
    :export:
 
 .. kernel-doc:: lib/crc/crc-itu-t.c
    :export:
+
+.. kernel-doc:: include/linux/crc32.h
 
 Base 2 log and power Functions
 ------------------------------
