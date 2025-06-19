@@ -44,7 +44,6 @@ impl Firmware {
 /// Structure used to describe some firmwares, notably FWSEC-FRTS.
 #[repr(C)]
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // Temporary, will be removed in later patch.
 pub(crate) struct FalconUCodeDescV3 {
     /// Header defined by `NV_BIT_FALCON_UCODE_DESC_HEADER_VDESC*` in OpenRM.
     hdr: u32,
@@ -77,7 +76,6 @@ pub(crate) struct FalconUCodeDescV3 {
 
 impl FalconUCodeDescV3 {
     /// Returns the size in bytes of the header.
-    #[expect(dead_code)] // Temporary, will be removed in later patch.
     pub(crate) fn size(&self) -> usize {
         const HDR_SIZE_SHIFT: u32 = 16;
         const HDR_SIZE_MASK: u32 = 0xffff0000;

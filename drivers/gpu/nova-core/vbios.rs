@@ -6,7 +6,9 @@
 #![expect(dead_code)]
 
 use crate::driver::Bar0;
+use crate::firmware::FalconUCodeDescV3;
 use core::convert::TryFrom;
+use kernel::device;
 use kernel::error::Result;
 use kernel::pci;
 use kernel::prelude::*;
@@ -195,8 +197,8 @@ impl Vbios {
     pub(crate) fn new(pdev: &pci::Device, bar0: &Bar0) -> Result<Vbios> {
         // Images to extract from iteration
         let mut pci_at_image: Option<PciAtBiosImage> = None;
-        let mut first_fwsec_image: Option<FwSecBiosImage> = None;
-        let mut second_fwsec_image: Option<FwSecBiosImage> = None;
+        let mut first_fwsec_image: Option<FwSecBiosBuilder> = None;
+        let mut second_fwsec_image: Option<FwSecBiosBuilder> = None;
 
         // Parse all VBIOS images in the ROM
         for image_result in VbiosIterator::new(pdev, bar0)? {
@@ -230,12 +232,14 @@ impl Vbios {
         }
 
         // Using all the images, setup the falcon data pointer in Fwsec.
-        // These are temporarily unused images and will be used in later patches.
-        if let (Some(second), Some(_first), Some(_pci_at)) =
+        if let (Some(mut second), Some(first), Some(pci_at)) =
             (second_fwsec_image, first_fwsec_image, pci_at_image)
         {
+            second
+                .setup_falcon_data(pdev, &pci_at, &first)
+                .inspect_err(|e| dev_err!(pdev.as_ref(), "Falcon data setup failed: {:?}\n", e))?;
             Ok(Vbios {
-                fwsec_image: second,
+                fwsec_image: second.build(pdev)?,
             })
         } else {
             dev_err!(
@@ -244,6 +248,10 @@ impl Vbios {
             );
             Err(EINVAL)
         }
+    }
+
+    pub(crate) fn fwsec_image(&self) -> &FwSecBiosImage {
+        &self.fwsec_image
     }
 }
 
@@ -677,7 +685,7 @@ bios_image! {
     PciAt: PciAtBiosImage,   // PCI-AT compatible BIOS image
     Efi: EfiBiosImage,       // EFI (Extensible Firmware Interface)
     Nbsi: NbsiBiosImage,     // NBSI (Nvidia Bios System Interface)
-    FwSec: FwSecBiosImage,   // FWSEC (Firmware Security)
+    FwSec: FwSecBiosBuilder, // FWSEC (Firmware Security)
 }
 
 /// The PciAt BIOS image is typically the first BIOS image type found in the BIOS image chain.
@@ -699,9 +707,29 @@ struct NbsiBiosImage {
     // NBSI-specific fields can be added here in the future.
 }
 
-struct FwSecBiosImage {
+struct FwSecBiosBuilder {
     base: BiosImageBase,
-    // FWSEC-specific fields can be added here in the future.
+    /// These are temporary fields that are used during the construction of the
+    /// [`FwSecBiosBuilder`].
+    ///
+    /// Once FwSecBiosBuilder is constructed, the `falcon_ucode_offset` will be copied into a new
+    /// [`FwSecBiosImage`].
+    ///
+    /// The offset of the Falcon data from the start of Fwsec image.
+    falcon_data_offset: Option<usize>,
+    /// The [`PmuLookupTable`] starts at the offset of the falcon data pointer.
+    pmu_lookup_table: Option<PmuLookupTable>,
+    /// The offset of the Falcon ucode.
+    falcon_ucode_offset: Option<usize>,
+}
+
+/// The [`FwSecBiosImage`] structure contains the PMU table and the Falcon Ucode.
+///
+/// The PMU table contains voltage/frequency tables as well as a pointer to the Falcon Ucode.
+pub(crate) struct FwSecBiosImage {
+    base: BiosImageBase,
+    /// The offset of the Falcon ucode.
+    falcon_ucode_offset: usize,
 }
 
 // Convert from BiosImageBase to BiosImage
@@ -713,7 +741,12 @@ impl TryFrom<BiosImageBase> for BiosImage {
             0x00 => Ok(BiosImage::PciAt(base.try_into()?)),
             0x03 => Ok(BiosImage::Efi(EfiBiosImage { base })),
             0x70 => Ok(BiosImage::Nbsi(NbsiBiosImage { base })),
-            0xE0 => Ok(BiosImage::FwSec(FwSecBiosImage { base })),
+            0xE0 => Ok(BiosImage::FwSec(FwSecBiosBuilder {
+                base,
+                falcon_data_offset: None,
+                pmu_lookup_table: None,
+                falcon_ucode_offset: None,
+            })),
             _ => Err(EINVAL),
         }
     }
@@ -855,5 +888,267 @@ impl TryFrom<BiosImageBase> for PciAtBiosImage {
             bit_header,
             bit_offset,
         })
+    }
+}
+
+/// The [`PmuLookupTableEntry`] structure is a single entry in the [`PmuLookupTable`].
+///
+/// See the [`PmuLookupTable`] description for more information.
+#[expect(dead_code)]
+struct PmuLookupTableEntry {
+    application_id: u8,
+    target_id: u8,
+    data: u32,
+}
+
+impl PmuLookupTableEntry {
+    fn new(data: &[u8]) -> Result<Self> {
+        if data.len() < 5 {
+            return Err(EINVAL);
+        }
+
+        Ok(PmuLookupTableEntry {
+            application_id: data[0],
+            target_id: data[1],
+            data: u32::from_le_bytes(data[2..6].try_into().map_err(|_| EINVAL)?),
+        })
+    }
+}
+
+/// The [`PmuLookupTableEntry`] structure is used to find the [`PmuLookupTableEntry`] for a given
+/// application ID.
+///
+/// The table of entries is pointed to by the falcon data pointer in the BIT table, and is used to
+/// locate the Falcon Ucode.
+#[expect(dead_code)]
+struct PmuLookupTable {
+    version: u8,
+    header_len: u8,
+    entry_len: u8,
+    entry_count: u8,
+    table_data: KVec<u8>,
+}
+
+impl PmuLookupTable {
+    fn new(pdev: &pci::Device, data: &[u8]) -> Result<Self> {
+        if data.len() < 4 {
+            return Err(EINVAL);
+        }
+
+        let header_len = data[1] as usize;
+        let entry_len = data[2] as usize;
+        let entry_count = data[3] as usize;
+
+        let required_bytes = header_len + (entry_count * entry_len);
+
+        if data.len() < required_bytes {
+            dev_err!(
+                pdev.as_ref(),
+                "PmuLookupTable data length less than required\n"
+            );
+            return Err(EINVAL);
+        }
+
+        // Create a copy of only the table data
+        let table_data = {
+            let mut ret = KVec::new();
+            ret.extend_from_slice(&data[header_len..required_bytes], GFP_KERNEL)?;
+            ret
+        };
+
+        // Debug logging of entries (dumps the table data to dmesg)
+        for i in (header_len..required_bytes).step_by(entry_len) {
+            dev_dbg!(
+                pdev.as_ref(),
+                "PMU entry: {:02x?}\n",
+                &data[i..][..entry_len]
+            );
+        }
+
+        Ok(PmuLookupTable {
+            version: data[0],
+            header_len: header_len as u8,
+            entry_len: entry_len as u8,
+            entry_count: entry_count as u8,
+            table_data,
+        })
+    }
+
+    fn lookup_index(&self, idx: u8) -> Result<PmuLookupTableEntry> {
+        if idx >= self.entry_count {
+            return Err(EINVAL);
+        }
+
+        let index = (idx as usize) * self.entry_len as usize;
+        PmuLookupTableEntry::new(&self.table_data[index..])
+    }
+
+    // find entry by type value
+    fn find_entry_by_type(&self, entry_type: u8) -> Result<PmuLookupTableEntry> {
+        for i in 0..self.entry_count {
+            let entry = self.lookup_index(i)?;
+            if entry.application_id == entry_type {
+                return Ok(entry);
+            }
+        }
+
+        Err(EINVAL)
+    }
+}
+
+impl FwSecBiosBuilder {
+    fn setup_falcon_data(
+        &mut self,
+        pdev: &pci::Device,
+        pci_at_image: &PciAtBiosImage,
+        first_fwsec: &FwSecBiosBuilder,
+    ) -> Result {
+        let mut offset = pci_at_image.falcon_data_ptr(pdev)? as usize;
+        let mut pmu_in_first_fwsec = false;
+
+        // The falcon data pointer assumes that the PciAt and FWSEC images
+        // are contiguous in memory. However, testing shows the EFI image sits in
+        // between them. So calculate the offset from the end of the PciAt image
+        // rather than the start of it. Compensate.
+        offset -= pci_at_image.base.data.len();
+
+        // The offset is now from the start of the first Fwsec image, however
+        // the offset points to a location in the second Fwsec image. Since
+        // the fwsec images are contiguous, subtract the length of the first Fwsec
+        // image from the offset to get the offset to the start of the second
+        // Fwsec image.
+        if offset < first_fwsec.base.data.len() {
+            pmu_in_first_fwsec = true;
+        } else {
+            offset -= first_fwsec.base.data.len();
+        }
+
+        self.falcon_data_offset = Some(offset);
+
+        if pmu_in_first_fwsec {
+            self.pmu_lookup_table =
+                Some(PmuLookupTable::new(pdev, &first_fwsec.base.data[offset..])?);
+        } else {
+            self.pmu_lookup_table = Some(PmuLookupTable::new(pdev, &self.base.data[offset..])?);
+        }
+
+        match self
+            .pmu_lookup_table
+            .as_ref()
+            .ok_or(EINVAL)?
+            .find_entry_by_type(FALCON_UCODE_ENTRY_APPID_FWSEC_PROD)
+        {
+            Ok(entry) => {
+                let mut ucode_offset = entry.data as usize;
+                ucode_offset -= pci_at_image.base.data.len();
+                if ucode_offset < first_fwsec.base.data.len() {
+                    dev_err!(pdev.as_ref(), "Falcon Ucode offset not in second Fwsec.\n");
+                    return Err(EINVAL);
+                }
+                ucode_offset -= first_fwsec.base.data.len();
+                self.falcon_ucode_offset = Some(ucode_offset);
+            }
+            Err(e) => {
+                dev_err!(
+                    pdev.as_ref(),
+                    "PmuLookupTableEntry not found, error: {:?}\n",
+                    e
+                );
+                return Err(EINVAL);
+            }
+        }
+        Ok(())
+    }
+
+    /// Build the final FwSecBiosImage from this builder
+    fn build(self, pdev: &pci::Device) -> Result<FwSecBiosImage> {
+        let ret = FwSecBiosImage {
+            base: self.base,
+            falcon_ucode_offset: self.falcon_ucode_offset.ok_or(EINVAL)?,
+        };
+
+        if cfg!(debug_assertions) {
+            // Print the desc header for debugging
+            let desc = ret.header(pdev.as_ref())?;
+            dev_dbg!(pdev.as_ref(), "PmuLookupTableEntry desc: {:#?}\n", desc);
+        }
+
+        Ok(ret)
+    }
+}
+
+impl FwSecBiosImage {
+    /// Get the FwSec header ([`FalconUCodeDescV3`]).
+    pub(crate) fn header(&self, dev: &device::Device) -> Result<&FalconUCodeDescV3> {
+        // Get the falcon ucode offset that was found in setup_falcon_data.
+        let falcon_ucode_offset = self.falcon_ucode_offset;
+
+        // Make sure the offset is within the data bounds.
+        if falcon_ucode_offset + core::mem::size_of::<FalconUCodeDescV3>() > self.base.data.len() {
+            dev_err!(dev, "fwsec-frts header not contained within BIOS bounds\n");
+            return Err(ERANGE);
+        }
+
+        // Read the first 4 bytes to get the version.
+        let hdr_bytes: [u8; 4] = self.base.data[falcon_ucode_offset..falcon_ucode_offset + 4]
+            .try_into()
+            .map_err(|_| EINVAL)?;
+        let hdr = u32::from_le_bytes(hdr_bytes);
+        let ver = (hdr & 0xff00) >> 8;
+
+        if ver != 3 {
+            dev_err!(dev, "invalid fwsec firmware version: {:?}\n", ver);
+            return Err(EINVAL);
+        }
+
+        // Return a reference to the FalconUCodeDescV3 structure.
+        //
+        // SAFETY: We have checked that `falcon_ucode_offset + size_of::<FalconUCodeDescV3>` is
+        // within the bounds of `data`. Also, this data vector is from ROM, and the `data` field
+        // in `BiosImageBase` is immutable after construction.
+        Ok(unsafe {
+            &*(self
+                .base
+                .data
+                .as_ptr()
+                .add(falcon_ucode_offset)
+                .cast::<FalconUCodeDescV3>())
+        })
+    }
+
+    /// Get the ucode data as a byte slice
+    pub(crate) fn ucode(&self, dev: &device::Device, desc: &FalconUCodeDescV3) -> Result<&[u8]> {
+        let falcon_ucode_offset = self.falcon_ucode_offset;
+
+        // The ucode data follows the descriptor.
+        let ucode_data_offset = falcon_ucode_offset + desc.size();
+        let size = (desc.imem_load_size + desc.dmem_load_size) as usize;
+
+        // Get the data slice, checking bounds in a single operation.
+        self.base
+            .data
+            .get(ucode_data_offset..ucode_data_offset + size)
+            .ok_or(ERANGE)
+            .inspect_err(|_| dev_err!(dev, "fwsec ucode data not contained within BIOS bounds\n"))
+    }
+
+    /// Get the signatures as a byte slice
+    pub(crate) fn sigs(&self, dev: &device::Device, desc: &FalconUCodeDescV3) -> Result<&[u8]> {
+        const SIG_SIZE: usize = 96 * 4;
+
+        // The signatures data follows the descriptor.
+        let sigs_data_offset = self.falcon_ucode_offset + core::mem::size_of::<FalconUCodeDescV3>();
+        let size = desc.signature_count as usize * SIG_SIZE;
+
+        // Make sure the data is within bounds.
+        if sigs_data_offset + size > self.base.data.len() {
+            dev_err!(
+                dev,
+                "fwsec signatures data not contained within BIOS bounds\n"
+            );
+            return Err(ERANGE);
+        }
+
+        Ok(&self.base.data[sigs_data_offset..sigs_data_offset + size])
     }
 }
