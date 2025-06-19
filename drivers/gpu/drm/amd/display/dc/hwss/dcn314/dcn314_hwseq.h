@@ -47,4 +47,6 @@ void dcn314_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst,
 
 void dcn314_disable_link_output(struct dc_link *link, const struct link_resource *link_res, enum signal_type signal);
 
+void dcn314_plane_atomic_power_down(struct dc *dc, struct dpp *dpp, struct hubp *hubp);
+
 #endif /* __DC_HWSS_DCN314_H__ */
