@@ -240,7 +240,7 @@ def add_and_resolve_xref(app, docname, domain, reftype, target, contnode=None):
     # mark it as a broken xref
     #
     if contnode:
-        contnode.set_class("broken_xref")
+        contnode['classes'].append("broken_xref")
     return contnode
 
 #
