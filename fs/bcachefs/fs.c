@@ -1732,7 +1732,8 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 		bch2_write_inode(c, inode, fssetxattr_inode_update_fn, &s,
 			       ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
-	return ret;
+
+	return bch2_err_class(ret);
 }
 
 static const struct file_operations bch_file_operations = {
