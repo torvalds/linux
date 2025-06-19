@@ -652,9 +652,9 @@ static int aw9523_gpio_set_multiple(struct gpio_chip *chip,
 		if (ret)
 			goto out;
 	}
-	mutex_unlock(&awi->i2c_lock);
 
 out:
+	mutex_unlock(&awi->i2c_lock);
 	return ret;
 }
 
