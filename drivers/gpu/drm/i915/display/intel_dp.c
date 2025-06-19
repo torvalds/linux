@@ -3726,6 +3726,9 @@ static void intel_dp_get_pcon_dsc_cap(struct intel_dp *intel_dp)
 
 	memset(intel_dp->pcon_dsc_dpcd, 0, sizeof(intel_dp->pcon_dsc_dpcd));
 
+	if (!drm_dp_is_branch(intel_dp->dpcd))
+		return;
+
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_PCON_DSC_ENCODER,
 			     intel_dp->pcon_dsc_dpcd,
 			     sizeof(intel_dp->pcon_dsc_dpcd)) < 0)
