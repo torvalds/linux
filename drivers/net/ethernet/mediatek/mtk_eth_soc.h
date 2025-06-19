@@ -643,8 +643,8 @@
 #define MTK_MAC_FSM(x)		(0x1010C + ((x) * 0x100))
 
 #define MTK_FE_IRQ_SHARED	0
-#define MTK_FE_IRQ_TX		1
-#define MTK_FE_IRQ_RX		2
+#define MTK_FE_IRQ_TX		0
+#define MTK_FE_IRQ_RX		1
 #define MTK_FE_IRQ_NUM		(MTK_FE_IRQ_RX + 1)
 
 struct mtk_rx_dma {
