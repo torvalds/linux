@@ -468,14 +468,6 @@ API, but the filenames mode still does.
     - Recommended:
         - AES-CBC acceleration
 
-fscrypt also uses HMAC-SHA512 for key derivation, so enabling SHA-512
-acceleration is recommended:
-
-- SHA-512
-    - Recommended:
-        - arm64: CONFIG_CRYPTO_SHA512_ARM64_CE
-        - x86: CONFIG_CRYPTO_SHA512_SSSE3
-
 Contents encryption
 -------------------
 
