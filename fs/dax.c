@@ -449,9 +449,6 @@ static void dax_associate_entry(void *entry, struct address_space *mapping,
 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry))
 		return;
 
-	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-		return;
-
 	index = linear_page_index(vma, address & ~(size - 1));
 	if (shared && (folio->mapping || dax_folio_is_shared(folio))) {
 		if (folio->mapping)
@@ -473,9 +470,6 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
 				bool trunc)
 {
 	struct folio *folio = dax_to_folio(entry);
-
-	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-		return;
 
 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry))
 		return;
@@ -767,12 +761,6 @@ struct page *dax_layout_busy_page_range(struct address_space *mapping,
 	pgoff_t start_idx = start >> PAGE_SHIFT;
 	pgoff_t end_idx;
 	XA_STATE(xas, &mapping->i_pages, start_idx);
-
-	/*
-	 * In the 'limited' case get_user_pages() for dax is disabled.
-	 */
-	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-		return NULL;
 
 	if (!dax_mapping(mapping))
 		return NULL;
