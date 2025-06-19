@@ -52,6 +52,27 @@ register!(NV_PFB_NISO_FLUSH_SYSMEM_ADDR_HI @ 0x00100c40 {
     23:0    adr_63_40 as u32;
 });
 
+register!(NV_PFB_PRI_MMU_LOCAL_MEMORY_RANGE @ 0x00100ce0 {
+    3:0     lower_scale as u8;
+    9:4     lower_mag as u8;
+    30:30   ecc_mode_enabled as bool;
+});
+
+impl NV_PFB_PRI_MMU_LOCAL_MEMORY_RANGE {
+    /// Returns the usable framebuffer size, in bytes.
+    pub(crate) fn usable_fb_size(self) -> u64 {
+        let size = ((self.lower_mag() as u64) << (self.lower_scale() as u64))
+            * kernel::sizes::SZ_1M as u64;
+
+        if self.ecc_mode_enabled() {
+            // Remove the amount of memory reserved for ECC (one per 16 units).
+            size / 16 * 15
+        } else {
+            size
+        }
+    }
+}
+
 /* PGC6 */
 
 register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK @ 0x00118128 {
@@ -74,6 +95,42 @@ impl NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_0_GFW_BOOT {
     /// Returns `true` if GFW boot is completed.
     pub(crate) fn completed(self) -> bool {
         self.progress() == 0xff
+    }
+}
+
+register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_42 @ 0x001183a4 {
+    31:0    value as u32;
+});
+
+register!(
+    NV_USABLE_FB_SIZE_IN_MB => NV_PGC6_AON_SECURE_SCRATCH_GROUP_42,
+    "Scratch group 42 register used as framebuffer size" {
+        31:0    value as u32, "Usable framebuffer size, in megabytes";
+    }
+);
+
+impl NV_USABLE_FB_SIZE_IN_MB {
+    /// Returns the usable framebuffer size, in bytes.
+    pub(crate) fn usable_fb_size(self) -> u64 {
+        u64::from(self.value()) * kernel::sizes::SZ_1M as u64
+    }
+}
+
+/* PDISP */
+
+register!(NV_PDISP_VGA_WORKSPACE_BASE @ 0x00625f04 {
+    3:3     status_valid as bool, "Set if the `addr` field is valid";
+    31:8    addr as u32, "VGA workspace base address divided by 0x10000";
+});
+
+impl NV_PDISP_VGA_WORKSPACE_BASE {
+    /// Returns the base address of the VGA workspace, or `None` if none exists.
+    pub(crate) fn vga_workspace_addr(self) -> Option<u64> {
+        if self.status_valid() {
+            Some((self.addr() as u64) << 16)
+        } else {
+            None
+        }
     }
 }
 
@@ -218,3 +275,22 @@ register!(NV_PRISCV_RISCV_BCR_CTRL @ +0x00001668 {
     4:4     core_select as bool => PeregrineCoreSelect;
     8:8     br_fetch as bool;
 });
+
+// The modules below provide registers that are not identical on all supported chips. They should
+// only be used in HAL modules.
+
+pub(crate) mod gm107 {
+    /* FUSE */
+
+    register!(NV_FUSE_STATUS_OPT_DISPLAY @ 0x00021c04 {
+        0:0     display_disabled as bool;
+    });
+}
+
+pub(crate) mod ga100 {
+    /* FUSE */
+
+    register!(NV_FUSE_STATUS_OPT_DISPLAY @ 0x00820c04 {
+        0:0     display_disabled as bool;
+    });
+}

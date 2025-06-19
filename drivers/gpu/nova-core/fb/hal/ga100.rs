@@ -25,6 +25,10 @@ pub(super) fn write_sysmem_flush_page_ga100(bar: &Bar0, addr: u64) {
         .write(bar);
 }
 
+pub(super) fn display_enabled_ga100(bar: &Bar0) -> bool {
+    !regs::ga100::NV_FUSE_STATUS_OPT_DISPLAY::read(bar).display_disabled()
+}
+
 /// Shift applied to the sysmem address before it is written into
 /// `NV_PFB_NISO_FLUSH_SYSMEM_ADDR_HI`,
 const FLUSH_SYSMEM_ADDR_SHIFT_HI: u32 = 40;
@@ -38,6 +42,14 @@ impl FbHal for Ga100 {
         write_sysmem_flush_page_ga100(bar, addr);
 
         Ok(())
+    }
+
+    fn supports_display(&self, bar: &Bar0) -> bool {
+        display_enabled_ga100(bar)
+    }
+
+    fn vidmem_size(&self, bar: &Bar0) -> u64 {
+        super::tu102::vidmem_size_gp102(bar)
     }
 }
 

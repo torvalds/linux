@@ -26,6 +26,14 @@ pub(super) fn write_sysmem_flush_page_gm107(bar: &Bar0, addr: u64) -> Result {
     }
 }
 
+pub(super) fn display_enabled_gm107(bar: &Bar0) -> bool {
+    !regs::gm107::NV_FUSE_STATUS_OPT_DISPLAY::read(bar).display_disabled()
+}
+
+pub(super) fn vidmem_size_gp102(bar: &Bar0) -> u64 {
+    regs::NV_PFB_PRI_MMU_LOCAL_MEMORY_RANGE::read(bar).usable_fb_size()
+}
+
 struct Tu102;
 
 impl FbHal for Tu102 {
@@ -35,6 +43,14 @@ impl FbHal for Tu102 {
 
     fn write_sysmem_flush_page(&self, bar: &Bar0, addr: u64) -> Result {
         write_sysmem_flush_page_gm107(bar, addr)
+    }
+
+    fn supports_display(&self, bar: &Bar0) -> bool {
+        display_enabled_gm107(bar)
+    }
+
+    fn vidmem_size(&self, bar: &Bar0) -> u64 {
+        vidmem_size_gp102(bar)
     }
 }
 

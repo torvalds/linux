@@ -4,6 +4,7 @@ use kernel::{device, devres::Devres, error::code::*, pci, prelude::*};
 
 use crate::driver::Bar0;
 use crate::falcon::{gsp::Gsp, sec2::Sec2, Falcon};
+use crate::fb::FbLayout;
 use crate::fb::SysmemFlush;
 use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
@@ -214,6 +215,9 @@ impl Gpu {
         gsp_falcon.clear_swgen0_intr(bar);
 
         let _sec2_falcon = Falcon::<Sec2>::new(pdev.as_ref(), spec.chipset, bar, true)?;
+
+        let fb_layout = FbLayout::new(spec.chipset, bar)?;
+        dev_dbg!(pdev.as_ref(), "{:#x?}\n", fb_layout);
 
         // Will be used in a later patch when fwsec firmware is needed.
         let _bios = Vbios::new(pdev, bar)?;
