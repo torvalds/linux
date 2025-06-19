@@ -333,6 +333,112 @@ impl PcirStruct {
     }
 }
 
+/// BIOS Information Table (BIT) Header.
+///
+/// This is the head of the BIT table, that is used to locate the Falcon data. The BIT table (with
+/// its header) is in the [`PciAtBiosImage`] and the falcon data it is pointing to is in the
+/// [`FwSecBiosImage`].
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+struct BitHeader {
+    /// 0h: BIT Header Identifier (BMP=0x7FFF/BIT=0xB8FF)
+    id: u16,
+    /// 2h: BIT Header Signature ("BIT\0")
+    signature: [u8; 4],
+    /// 6h: Binary Coded Decimal Version, ex: 0x0100 is 1.00.
+    bcd_version: u16,
+    /// 8h: Size of BIT Header (in bytes)
+    header_size: u8,
+    /// 9h: Size of BIT Tokens (in bytes)
+    token_size: u8,
+    /// 10h: Number of token entries that follow
+    token_entries: u8,
+    /// 11h: BIT Header Checksum
+    checksum: u8,
+}
+
+impl BitHeader {
+    fn new(data: &[u8]) -> Result<Self> {
+        if data.len() < 12 {
+            return Err(EINVAL);
+        }
+
+        let mut signature = [0u8; 4];
+        signature.copy_from_slice(&data[2..6]);
+
+        // Check header ID and signature
+        let id = u16::from_le_bytes([data[0], data[1]]);
+        if id != 0xB8FF || &signature != b"BIT\0" {
+            return Err(EINVAL);
+        }
+
+        Ok(BitHeader {
+            id,
+            signature,
+            bcd_version: u16::from_le_bytes([data[6], data[7]]),
+            header_size: data[8],
+            token_size: data[9],
+            token_entries: data[10],
+            checksum: data[11],
+        })
+    }
+}
+
+/// BIT Token Entry: Records in the BIT table followed by the BIT header.
+#[derive(Debug, Clone, Copy)]
+#[expect(dead_code)]
+struct BitToken {
+    /// 00h: Token identifier
+    id: u8,
+    /// 01h: Version of the token data
+    data_version: u8,
+    /// 02h: Size of token data in bytes
+    data_size: u16,
+    /// 04h: Offset to the token data
+    data_offset: u16,
+}
+
+// Define the token ID for the Falcon data
+const BIT_TOKEN_ID_FALCON_DATA: u8 = 0x70;
+
+impl BitToken {
+    /// Find a BIT token entry by BIT ID in a PciAtBiosImage
+    fn from_id(image: &PciAtBiosImage, token_id: u8) -> Result<Self> {
+        let header = &image.bit_header;
+
+        // Offset to the first token entry
+        let tokens_start = image.bit_offset + header.header_size as usize;
+
+        for i in 0..header.token_entries as usize {
+            let entry_offset = tokens_start + (i * header.token_size as usize);
+
+            // Make sure we don't go out of bounds
+            if entry_offset + header.token_size as usize > image.base.data.len() {
+                return Err(EINVAL);
+            }
+
+            // Check if this token has the requested ID
+            if image.base.data[entry_offset] == token_id {
+                return Ok(BitToken {
+                    id: image.base.data[entry_offset],
+                    data_version: image.base.data[entry_offset + 1],
+                    data_size: u16::from_le_bytes([
+                        image.base.data[entry_offset + 2],
+                        image.base.data[entry_offset + 3],
+                    ]),
+                    data_offset: u16::from_le_bytes([
+                        image.base.data[entry_offset + 4],
+                        image.base.data[entry_offset + 5],
+                    ]),
+                });
+            }
+        }
+
+        // Token not found
+        Err(ENOENT)
+    }
+}
+
 /// PCI ROM Expansion Header as defined in PCI Firmware Specification.
 ///
 /// This is header is at the beginning of every image in the set of images in the ROM. It contains
@@ -574,9 +680,13 @@ bios_image! {
     FwSec: FwSecBiosImage,   // FWSEC (Firmware Security)
 }
 
+/// The PciAt BIOS image is typically the first BIOS image type found in the BIOS image chain.
+///
+/// It contains the BIT header and the BIT tokens.
 struct PciAtBiosImage {
     base: BiosImageBase,
-    // PCI-AT-specific fields can be added here in the future.
+    bit_header: BitHeader,
+    bit_offset: usize,
 }
 
 struct EfiBiosImage {
@@ -600,7 +710,7 @@ impl TryFrom<BiosImageBase> for BiosImage {
 
     fn try_from(base: BiosImageBase) -> Result<Self> {
         match base.pcir.code_type {
-            0x00 => Ok(BiosImage::PciAt(PciAtBiosImage { base })),
+            0x00 => Ok(BiosImage::PciAt(base.try_into()?)),
             0x03 => Ok(BiosImage::Efi(EfiBiosImage { base })),
             0x70 => Ok(BiosImage::Nbsi(NbsiBiosImage { base })),
             0xE0 => Ok(BiosImage::FwSec(FwSecBiosImage { base })),
@@ -676,6 +786,74 @@ impl BiosImageBase {
             pcir,
             npde,
             data: data_copy,
+        })
+    }
+}
+
+impl PciAtBiosImage {
+    /// Find a byte pattern in a slice.
+    fn find_byte_pattern(haystack: &[u8], needle: &[u8]) -> Result<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+            .ok_or(EINVAL)
+    }
+
+    /// Find the BIT header in the [`PciAtBiosImage`].
+    fn find_bit_header(data: &[u8]) -> Result<(BitHeader, usize)> {
+        let bit_pattern = [0xff, 0xb8, b'B', b'I', b'T', 0x00];
+        let bit_offset = Self::find_byte_pattern(data, &bit_pattern)?;
+        let bit_header = BitHeader::new(&data[bit_offset..])?;
+
+        Ok((bit_header, bit_offset))
+    }
+
+    /// Get a BIT token entry from the BIT table in the [`PciAtBiosImage`]
+    fn get_bit_token(&self, token_id: u8) -> Result<BitToken> {
+        BitToken::from_id(self, token_id)
+    }
+
+    /// Find the Falcon data pointer structure in the [`PciAtBiosImage`].
+    ///
+    /// This is just a 4 byte structure that contains a pointer to the Falcon data in the FWSEC
+    /// image.
+    fn falcon_data_ptr(&self, pdev: &pci::Device) -> Result<u32> {
+        let token = self.get_bit_token(BIT_TOKEN_ID_FALCON_DATA)?;
+
+        // Make sure we don't go out of bounds
+        if token.data_offset as usize + 4 > self.base.data.len() {
+            return Err(EINVAL);
+        }
+
+        // read the 4 bytes at the offset specified in the token
+        let offset = token.data_offset as usize;
+        let bytes: [u8; 4] = self.base.data[offset..offset + 4].try_into().map_err(|_| {
+            dev_err!(pdev.as_ref(), "Failed to convert data slice to array");
+            EINVAL
+        })?;
+
+        let data_ptr = u32::from_le_bytes(bytes);
+
+        if (data_ptr as usize) < self.base.data.len() {
+            dev_err!(pdev.as_ref(), "Falcon data pointer out of bounds\n");
+            return Err(EINVAL);
+        }
+
+        Ok(data_ptr)
+    }
+}
+
+impl TryFrom<BiosImageBase> for PciAtBiosImage {
+    type Error = Error;
+
+    fn try_from(base: BiosImageBase) -> Result<Self> {
+        let data_slice = &base.data;
+        let (bit_header, bit_offset) = PciAtBiosImage::find_bit_header(data_slice)?;
+
+        Ok(PciAtBiosImage {
+            base,
+            bit_header,
+            bit_offset,
         })
     }
 }
