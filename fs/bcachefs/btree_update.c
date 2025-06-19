@@ -549,20 +549,26 @@ void *__bch2_trans_subbuf_alloc(struct btree_trans *trans,
 				unsigned u64s)
 {
 	unsigned new_top = buf->u64s + u64s;
-	unsigned old_size = buf->size;
+	unsigned new_size = buf->size;
 
-	if (new_top > buf->size)
-		buf->size = roundup_pow_of_two(new_top);
+	BUG_ON(roundup_pow_of_two(new_top) > U16_MAX);
 
-	void *n = bch2_trans_kmalloc_nomemzero(trans, buf->size * sizeof(u64));
+	if (new_top > new_size)
+		new_size = roundup_pow_of_two(new_top);
+
+	void *n = bch2_trans_kmalloc_nomemzero(trans, new_size * sizeof(u64));
 	if (IS_ERR(n))
 		return n;
+
+	unsigned offset = (u64 *) n - (u64 *) trans->mem;
+	BUG_ON(offset > U16_MAX);
 
 	if (buf->u64s)
 		memcpy(n,
 		       btree_trans_subbuf_base(trans, buf),
-		       old_size * sizeof(u64));
+		       buf->size * sizeof(u64));
 	buf->base = (u64 *) n - (u64 *) trans->mem;
+	buf->size = new_size;
 
 	void *p = btree_trans_subbuf_top(trans, buf);
 	buf->u64s = new_top;
