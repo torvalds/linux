@@ -440,7 +440,7 @@ static void dump_pat_on_error(struct xe_gt *gt)
 	xe_pat_dump(gt, &p);
 }
 
-static int gt_fw_domain_init(struct xe_gt *gt)
+static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 {
 	unsigned int fw_ref;
 	int err;
@@ -493,7 +493,7 @@ err_force_wake:
 	return err;
 }
 
-static int all_fw_domain_init(struct xe_gt *gt)
+static int gt_init_with_all_forcewake(struct xe_gt *gt)
 {
 	unsigned int fw_ref;
 	int err;
@@ -648,7 +648,7 @@ int xe_gt_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = gt_fw_domain_init(gt);
+	err = gt_init_with_gt_forcewake(gt);
 	if (err)
 		return err;
 
@@ -662,7 +662,7 @@ int xe_gt_init(struct xe_gt *gt)
 
 	xe_force_wake_init_engines(gt, gt_to_fw(gt));
 
-	err = all_fw_domain_init(gt);
+	err = gt_init_with_all_forcewake(gt);
 	if (err)
 		return err;
 
