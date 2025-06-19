@@ -1141,6 +1141,11 @@ static void sd_config_write_same(struct scsi_disk *sdkp,
 out:
 	lim->max_write_zeroes_sectors =
 		sdkp->max_ws_blocks * (logical_block_size >> SECTOR_SHIFT);
+
+	if (sdkp->zeroing_mode == SD_ZERO_WS16_UNMAP ||
+	    sdkp->zeroing_mode == SD_ZERO_WS10_UNMAP)
+		lim->max_hw_wzeroes_unmap_sectors =
+				lim->max_write_zeroes_sectors;
 }
 
 static blk_status_t sd_setup_flush_cmnd(struct scsi_cmnd *cmd)
