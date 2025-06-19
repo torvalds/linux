@@ -557,12 +557,15 @@ static int sof_ipc4_pcm_hw_free(struct snd_soc_component *component,
 	return sof_ipc4_trigger_pipelines(component, substream, SOF_IPC4_PIPE_RESET, 0);
 }
 
-static void ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev, const char *link_name,
-						 struct snd_pcm_hw_params *params)
+static int ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev,
+						const char *link_name,
+						struct snd_pcm_hw_params *params)
 {
 	struct snd_sof_dai_link *slink;
 	struct snd_sof_dai *dai;
 	bool dai_link_found = false;
+	int current_config = -1;
+	bool partial_match;
 	int i;
 
 	list_for_each_entry(slink, &sdev->dai_link_list, list) {
@@ -573,19 +576,50 @@ static void ipc4_ssp_dai_config_pcm_params_match(struct snd_sof_dev *sdev, const
 	}
 
 	if (!dai_link_found)
-		return;
+		return 0;
 
+	/*
+	 * Find the first best matching hardware config:
+	 * rate + format + channels are matching
+	 * rate + channel are matching
+	 *
+	 * The copier cannot do rate and/or channel conversion.
+	 */
 	for (i = 0; i < slink->num_hw_configs; i++) {
 		struct snd_soc_tplg_hw_config *hw_config = &slink->hw_configs[i];
 
-		if (params_rate(params) == le32_to_cpu(hw_config->fsync_rate)) {
-			/* set current config for all DAI's with matching name */
-			list_for_each_entry(dai, &sdev->dai_list, list)
-				if (!strcmp(slink->link->name, dai->name))
-					dai->current_config = le32_to_cpu(hw_config->id);
+		if (params_rate(params) == le32_to_cpu(hw_config->fsync_rate) &&
+		    params_width(params) == le32_to_cpu(hw_config->tdm_slot_width) &&
+		    params_channels(params) == le32_to_cpu(hw_config->tdm_slots)) {
+			current_config = le32_to_cpu(hw_config->id);
+			partial_match = false;
+			/* best match found */
 			break;
+		} else if (current_config < 0 &&
+			   params_rate(params) == le32_to_cpu(hw_config->fsync_rate) &&
+			   params_channels(params) == le32_to_cpu(hw_config->tdm_slots)) {
+			current_config = le32_to_cpu(hw_config->id);
+			partial_match = true;
+			/* keep looking for better match */
 		}
 	}
+
+	if (current_config < 0) {
+		dev_err(sdev->dev,
+			"%s: No suitable hw_config found for %s (num_hw_configs: %d)\n",
+			__func__, slink->link->name, slink->num_hw_configs);
+		return -EINVAL;
+	}
+
+	dev_dbg(sdev->dev,
+		"hw_config for %s: %d (num_hw_configs: %d) with %s match\n",
+		slink->link->name, current_config, slink->num_hw_configs,
+		partial_match ? "partial" : "full");
+	list_for_each_entry(dai, &sdev->dai_list, list)
+		if (!strcmp(slink->link->name, dai->name))
+			dai->current_config = current_config;
+
+	return 0;
 }
 
 /*
@@ -728,13 +762,10 @@ static int sof_ipc4_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		break;
 	}
 
-	switch (ipc4_copier->dai_type) {
-	case SOF_DAI_INTEL_SSP:
-		ipc4_ssp_dai_config_pcm_params_match(sdev, (char *)rtd->dai_link->name, params);
-		break;
-	default:
-		break;
-	}
+	if (ipc4_copier->dai_type == SOF_DAI_INTEL_SSP)
+		return ipc4_ssp_dai_config_pcm_params_match(sdev,
+							    (char *)rtd->dai_link->name,
+							    params);
 
 	return 0;
 }
