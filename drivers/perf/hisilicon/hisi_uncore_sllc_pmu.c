@@ -58,7 +58,7 @@
 #define SLLC_V3_SRCID_CMD_SHIFT		1
 #define SLLC_V3_SRCID_MSK_SHIFT		10
 
-#define SLLC_NR_EVENTS			0x80
+#define SLLC_NR_EVENTS			0xff
 #define SLLC_EVENT_CNTn(cnt0, n)	((cnt0) + (n) * 8)
 
 HISI_PMU_EVENT_ATTR_EXTRACTOR(tgtid_min, config1, 10, 0);
