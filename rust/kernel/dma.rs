@@ -114,9 +114,11 @@ pub mod attrs {
 ///
 /// # Invariants
 ///
-/// For the lifetime of an instance of [`CoherentAllocation`], the `cpu_addr` is a valid pointer
-/// to an allocated region of coherent memory and `dma_handle` is the DMA address base of
-/// the region.
+/// - For the lifetime of an instance of [`CoherentAllocation`], the `cpu_addr` is a valid pointer
+///   to an allocated region of coherent memory and `dma_handle` is the DMA address base of the
+///   region.
+/// - The size in bytes of the allocation is equal to `size_of::<T> * count`.
+/// - `size_of::<T> * count` fits into a `usize`.
 // TODO
 //
 // DMA allocations potentially carry device resources (e.g.IOMMU mappings), hence for soundness
@@ -179,9 +181,12 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         if ret.is_null() {
             return Err(ENOMEM);
         }
-        // INVARIANT: We just successfully allocated a coherent region which is accessible for
-        // `count` elements, hence the cpu address is valid. We also hold a refcounted reference
-        // to the device.
+        // INVARIANT:
+        // - We just successfully allocated a coherent region which is accessible for
+        //   `count` elements, hence the cpu address is valid. We also hold a refcounted reference
+        //   to the device.
+        // - The allocated `size` is equal to `size_of::<T> * count`.
+        // - The allocated `size` fits into a `usize`.
         Ok(Self {
             dev: dev.into(),
             dma_handle,
@@ -199,6 +204,21 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         gfp_flags: kernel::alloc::Flags,
     ) -> Result<CoherentAllocation<T>> {
         CoherentAllocation::alloc_attrs(dev, count, gfp_flags, Attrs(0))
+    }
+
+    /// Returns the number of elements `T` in this allocation.
+    ///
+    /// Note that this is not the size of the allocation in bytes, which is provided by
+    /// [`Self::size`].
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    /// Returns the size in bytes of this allocation.
+    pub fn size(&self) -> usize {
+        // INVARIANT: The type invariant of `Self` guarantees that `size_of::<T> * count` fits into
+        // a `usize`.
+        self.count * core::mem::size_of::<T>()
     }
 
     /// Returns the base address to the allocated region in the CPU's virtual address space.
