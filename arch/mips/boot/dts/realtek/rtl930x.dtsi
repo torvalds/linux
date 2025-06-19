@@ -48,6 +48,10 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		interrupt-parent = <&intc>;
+		interrupts = <23>, <24>;
+		interrupt-names = "switch", "nic";
+
 		reboot@c {
 			compatible = "syscon-reboot";
 			reg = <0x0c 0x4>;
