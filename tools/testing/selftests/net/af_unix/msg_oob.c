@@ -548,6 +548,29 @@ TEST_F(msg_oob, ex_oob_oob)
 	siocatmarkpair(false);
 }
 
+TEST_F(msg_oob, ex_oob_ex_oob_oob)
+{
+	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("x", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(true);
+
+	sendpair("y", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("y", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(true);
+
+	sendpair("z", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+}
+
 TEST_F(msg_oob, ex_oob_ahead_break)
 {
 	sendpair("hello", 5, MSG_OOB);
