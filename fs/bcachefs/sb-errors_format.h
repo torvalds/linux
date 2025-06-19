@@ -7,6 +7,7 @@ enum bch_fsck_flags {
 	FSCK_CAN_IGNORE		= BIT(1),
 	FSCK_AUTOFIX		= BIT(2),
 	FSCK_ERR_NO_LOG		= BIT(3),
+	FSCK_ERR_SILENT		= BIT(4),
 };
 
 #define BCH_SB_ERRS()									\

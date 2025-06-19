@@ -1381,7 +1381,7 @@ static int bch2_recheck_discard_freespace_key(struct btree_trans *trans, struct 
 
 	u8 gen;
 	ret = k.k->type != KEY_TYPE_set
-		? bch2_check_discard_freespace_key(trans, &iter, &gen, false)
+		? __bch2_check_discard_freespace_key(trans, &iter, &gen, FSCK_ERR_SILENT)
 		: 0;
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -1397,8 +1397,8 @@ static void check_discard_freespace_key_work(struct work_struct *work)
 	kfree(w);
 }
 
-int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_iter *iter, u8 *gen,
-				     bool async_repair)
+int __bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_iter *iter, u8 *gen,
+				       enum bch_fsck_flags fsck_flags)
 {
 	struct bch_fs *c = trans->c;
 	enum bch_data_type state = iter->btree_id == BTREE_ID_need_discard
@@ -1406,8 +1406,8 @@ int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_ite
 		: BCH_DATA_free;
 	struct printbuf buf = PRINTBUF;
 
-	unsigned fsck_flags = (async_repair ? FSCK_ERR_NO_LOG : 0)|
-		FSCK_CAN_FIX|FSCK_CAN_IGNORE;
+	bool async_repair = fsck_flags & FSCK_ERR_NO_LOG;
+	fsck_flags |= FSCK_CAN_FIX|FSCK_CAN_IGNORE;
 
 	struct bpos bucket = iter->pos;
 	bucket.offset &= ~(~0ULL << 56);
@@ -1490,10 +1490,10 @@ delete:
 	}
 }
 
-static int bch2_check_discard_freespace_key_fsck(struct btree_trans *trans, struct btree_iter *iter)
+static int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_iter *iter)
 {
 	u8 gen;
-	int ret = bch2_check_discard_freespace_key(trans, iter, &gen, false);
+	int ret = __bch2_check_discard_freespace_key(trans, iter, &gen, 0);
 	return ret < 0 ? ret : 0;
 }
 
@@ -1651,7 +1651,7 @@ bkey_err:
 	ret = for_each_btree_key(trans, iter,
 			BTREE_ID_need_discard, POS_MIN,
 			BTREE_ITER_prefetch, k,
-		bch2_check_discard_freespace_key_fsck(trans, &iter));
+		bch2_check_discard_freespace_key(trans, &iter));
 	if (ret)
 		goto err;
 
@@ -1664,7 +1664,7 @@ bkey_err:
 			break;
 
 		ret = bkey_err(k) ?:
-			bch2_check_discard_freespace_key_fsck(trans, &iter);
+			bch2_check_discard_freespace_key(trans, &iter);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 			ret = 0;
 			continue;

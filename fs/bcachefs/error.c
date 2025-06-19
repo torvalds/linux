@@ -472,10 +472,13 @@ int __bch2_fsck_err(struct bch_fs *c,
 		!trans &&
 		bch2_current_has_btree_trans(c));
 
-	if (test_bit(err, c->sb.errors_silent))
-		return flags & FSCK_CAN_FIX
+	if ((flags & FSCK_ERR_SILENT) ||
+	    test_bit(err, c->sb.errors_silent)) {
+		ret = flags & FSCK_CAN_FIX
 			? bch_err_throw(c, fsck_fix)
 			: bch_err_throw(c, fsck_ignore);
+		goto err;
+	}
 
 	printbuf_indent_add_nextline(out, 2);
 
@@ -620,14 +623,14 @@ print:
 
 	if (s)
 		s->ret = ret;
-
+err_unlock:
+	mutex_unlock(&c->fsck_error_msgs_lock);
+err:
 	if (trans &&
 	    !(flags & FSCK_ERR_NO_LOG) &&
 	    ret == -BCH_ERR_fsck_fix)
 		ret = bch2_trans_log_str(trans, bch2_sb_error_strs[err]) ?: ret;
-err_unlock:
-	mutex_unlock(&c->fsck_error_msgs_lock);
-err:
+
 	/*
 	 * We don't yet track whether the filesystem currently has errors, for
 	 * log_fsck_err()s: that would require us to track for every error type
