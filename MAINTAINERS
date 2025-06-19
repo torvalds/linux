@@ -21374,7 +21374,7 @@ N:	spacemit
 K:	spacemit
 
 RISC-V THEAD SoC SUPPORT
-M:	Drew Fustini <drew@pdp7.com>
+M:	Drew Fustini <fustini@kernel.org>
 M:	Guo Ren <guoren@kernel.org>
 M:	Fu Wei <wefu@redhat.com>
 L:	linux-riscv@lists.infradead.org
