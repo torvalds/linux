@@ -4,7 +4,6 @@
 #define _ASM_POWERPC_BOOK3S_64_PKEYS_H
 
 #include <asm/book3s/64/hash-pkey.h>
-#include <linux/mm_types.h>
 
 static inline u64 vmflag_to_pte_pkey_bits(vm_flags_t vm_flags)
 {
