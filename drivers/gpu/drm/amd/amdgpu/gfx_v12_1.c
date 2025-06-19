@@ -2217,6 +2217,9 @@ static int gfx_v12_1_compute_mqd_init(struct amdgpu_device *adev, void *m,
 	mqd->cp_hqd_pipe_priority = prop->hqd_pipe_priority;
 	mqd->cp_hqd_queue_priority = prop->hqd_queue_priority;
 
+	mqd->cp_mqd_stride_size = prop->mqd_stride_size ? prop->mqd_stride_size :
+		sizeof(struct v12_1_compute_mqd);
+
 	mqd->cp_hqd_active = prop->hqd_active;
 
 	return 0;
