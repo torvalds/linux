@@ -1114,7 +1114,7 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
  * Returns: 0 on success.
  *
  * ASSUMPTIONS:
- * - The caller must hold a WRITE lock on vmg->target->mm->mmap_lock.
+ * - The caller must hold a WRITE lock on the mm_struct->mmap_lock.
  * - The caller must have set @vmg->target and @vmg->next.
  */
 int vma_expand(struct vma_merge_struct *vmg)
