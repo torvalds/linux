@@ -976,6 +976,8 @@ static bool dc_construct_ctx(struct dc *dc,
 	if (!dc_ctx)
 		return false;
 
+	dc_stream_init_rmcm_3dlut(dc);
+
 	dc_ctx->cgs_device = init_params->cgs_device;
 	dc_ctx->driver_context = init_params->driver;
 	dc_ctx->dc = dc;

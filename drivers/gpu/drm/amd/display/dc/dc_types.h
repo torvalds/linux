@@ -1313,6 +1313,7 @@ struct dc_cm2_func_luts {
 		bool mpc_3dlut_enable;
 		bool rmcm_3dlut_enable;
 		bool mpc_mcm_post_blend;
+		uint8_t rmcm_tmz;
 	} lut3d_data;
 	const struct dc_transfer_func *lut1d_func;
 };

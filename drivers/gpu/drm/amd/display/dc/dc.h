@@ -246,6 +246,7 @@ struct mpc_color_caps {
 	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
 	uint16_t num_3dluts : 3;
+	uint16_t num_rmcm_3dluts : 3;
 	uint16_t shared_3d_lut:1;
 	struct rom_curve_caps ogam_rom_caps;
 	struct lut3d_caps mcm_3d_lut_caps;
@@ -1293,6 +1294,12 @@ union dc_3dlut_state {
 	uint32_t raw;
 };
 
+
+struct dc_rmcm_3dlut {
+	bool isInUse;
+	const struct dc_stream_state *stream;
+	uint8_t protection_bits;
+};
 
 struct dc_3dlut {
 	struct kref refcount;

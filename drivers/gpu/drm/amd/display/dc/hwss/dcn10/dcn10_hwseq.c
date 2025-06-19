@@ -335,7 +335,7 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 		struct dcn_fl_regs_st *fl_regs = &s->fl_regs;
 
 		if (!s->blank_en) {
-			DTN_INFO("[%2d]:  %5xh  %6xh  %5d  %6d  %2xh  %2xh  %6xh  %6d  %8d  %8d  %7d  %8xh %5x %5x %5x",
+			DTN_INFO("[%2d]:  %5xh  %6xh  %5d  %6d  %8xh  %2xh  %6xh  %6d  %8d  %8d  %7d  %8xh %5x %5x %5x",
 					pool->hubps[i]->inst,
 					fl_regs->lut_enable,
 					fl_regs->lut_done,
