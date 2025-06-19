@@ -1278,7 +1278,7 @@ svm_range_get_pte_flags(struct kfd_node *node,
 				mapping_flags |= ext_coherent ? AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_NC;
 		/* system memory accessed by the dGPU */
 		} else {
-			if (gc_ip_version < IP_VERSION(9, 5, 0))
+			if (gc_ip_version < IP_VERSION(9, 5, 0) || ext_coherent)
 				mapping_flags |= AMDGPU_VM_MTYPE_UC;
 			else
 				mapping_flags |= AMDGPU_VM_MTYPE_NC;
