@@ -573,7 +573,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 		}
 	}
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		goto err_force_wake;
 
@@ -738,7 +738,7 @@ static int vf_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		return err;
 
@@ -776,7 +776,7 @@ static int do_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		return err;
 

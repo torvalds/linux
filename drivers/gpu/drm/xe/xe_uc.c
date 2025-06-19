@@ -144,7 +144,7 @@ int xe_uc_sanitize_reset(struct xe_uc *uc)
 	return uc_reset(uc);
 }
 
-static int vf_uc_init_hw(struct xe_uc *uc)
+static int vf_uc_load_hw(struct xe_uc *uc)
 {
 	int err;
 
@@ -173,7 +173,7 @@ static int vf_uc_init_hw(struct xe_uc *uc)
  * Should be called during driver load, after every GT reset, and after every
  * suspend to reload / auth the firmwares.
  */
-int xe_uc_init_hw(struct xe_uc *uc)
+int xe_uc_load_hw(struct xe_uc *uc)
 {
 	int ret;
 
@@ -182,7 +182,7 @@ int xe_uc_init_hw(struct xe_uc *uc)
 		return 0;
 
 	if (IS_SRIOV_VF(uc_to_xe(uc)))
-		return vf_uc_init_hw(uc);
+		return vf_uc_load_hw(uc);
 
 	ret = xe_huc_upload(&uc->huc);
 	if (ret)
