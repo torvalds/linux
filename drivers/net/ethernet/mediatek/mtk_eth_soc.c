@@ -3346,6 +3346,13 @@ static int mtk_get_irqs(struct platform_device *pdev, struct mtk_eth *eth)
 	if (eth->irq[MTK_FE_IRQ_TX] >= 0 && eth->irq[MTK_FE_IRQ_RX] >= 0)
 		return 0;
 
+	/* only use legacy mode if platform_get_irq_byname returned -ENXIO */
+	if (eth->irq[MTK_FE_IRQ_TX] != -ENXIO)
+		return eth->irq[MTK_FE_IRQ_TX];
+
+	if (eth->irq[MTK_FE_IRQ_RX] != -ENXIO)
+		return eth->irq[MTK_FE_IRQ_RX];
+
 	/* legacy way:
 	 * On MTK_SHARED_INT SoCs (MT7621 + MT7628) the first IRQ is taken
 	 * from devicetree and used for both RX and TX - it is shared.
