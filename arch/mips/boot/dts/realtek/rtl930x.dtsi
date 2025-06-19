@@ -142,6 +142,20 @@
 			clocks = <&lx_clk>;
 		};
 
+		watchdog0: watchdog@3260 {
+			compatible = "realtek,rtl9300-wdt";
+			reg = <0x3260 0xc>;
+
+			realtek,reset-mode = "soc";
+
+			clocks = <&lx_clk>;
+			timeout-sec = <30>;
+
+			interrupt-parent = <&intc>;
+			interrupt-names = "phase1", "phase2";
+			interrupts = <5>, <6>;
+		};
+
 		snand: spi@1a400 {
 			compatible = "realtek,rtl9301-snand";
 			reg = <0x1a400 0x44>;
