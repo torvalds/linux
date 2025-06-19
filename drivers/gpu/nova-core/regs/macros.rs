@@ -71,6 +71,20 @@
 /// pr_info!("CPU CTL: {:#x}", cpuctl);
 /// cpuctl.set_start(true).write(&bar, CPU_BASE);
 /// ```
+///
+/// It is also possible to create a alias register by using the `=> ALIAS` syntax. This is useful
+/// for cases where a register's interpretation depends on the context:
+///
+/// ```no_run
+/// register!(SCRATCH_0 @ 0x0000100, "Scratch register 0" {
+///    31:0     value as u32, "Raw value";
+///
+/// register!(SCRATCH_0_BOOT_STATUS => SCRATCH_0, "Boot status of the firmware" {
+///     0:0     completed as bool, "Whether the firmware has completed booting";
+/// ```
+///
+/// In this example, `SCRATCH_0_BOOT_STATUS` uses the same I/O address as `SCRATCH_0`, while also
+/// providing its own `completed` method.
 macro_rules! register {
     // Creates a register at a fixed offset of the MMIO space.
     (
@@ -81,6 +95,17 @@ macro_rules! register {
         register!(@common $name @ $offset $(, $comment)?);
         register!(@field_accessors $name { $($fields)* });
         register!(@io $name @ $offset);
+    };
+
+    // Creates a alias register of fixed offset register `alias` with its own fields.
+    (
+        $name:ident => $alias:ident $(, $comment:literal)? {
+            $($fields:tt)*
+        }
+    ) => {
+        register!(@common $name @ $alias::OFFSET $(, $comment)?);
+        register!(@field_accessors $name { $($fields)* });
+        register!(@io $name @ $alias::OFFSET);
     };
 
     // Creates a register at a relative offset from a base address.
@@ -94,11 +119,22 @@ macro_rules! register {
         register!(@io$name @ + $offset);
     };
 
+    // Creates a alias register of relative offset register `alias` with its own fields.
+    (
+        $name:ident => + $alias:ident $(, $comment:literal)? {
+            $($fields:tt)*
+        }
+    ) => {
+        register!(@common $name @ $alias::OFFSET $(, $comment)?);
+        register!(@field_accessors $name { $($fields)* });
+        register!(@io $name @ + $alias::OFFSET);
+    };
+
     // All rules below are helpers.
 
     // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`, `BitOr`,
     // and conversion to regular `u32`).
-    (@common $name:ident @ $offset:literal $(, $comment:literal)?) => {
+    (@common $name:ident @ $offset:expr $(, $comment:literal)?) => {
         $(
         #[doc=$comment]
         )?
@@ -280,7 +316,7 @@ macro_rules! register {
     };
 
     // Creates the IO accessors for a fixed offset register.
-    (@io $name:ident @ $offset:literal) => {
+    (@io $name:ident @ $offset:expr) => {
         #[allow(dead_code)]
         impl $name {
             #[inline]
