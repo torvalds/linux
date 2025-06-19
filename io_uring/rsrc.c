@@ -135,8 +135,10 @@ static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 
 static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 {
-	if (!refcount_dec_and_test(&imu->refs))
-		return;
+	if (unlikely(refcount_read(&imu->refs) > 1)) {
+		if (!refcount_dec_and_test(&imu->refs))
+			return;
+	}
 
 	if (imu->acct_pages)
 		io_unaccount_mem(ctx, imu->acct_pages);
