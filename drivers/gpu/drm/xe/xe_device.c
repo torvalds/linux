@@ -784,10 +784,6 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
-	err = xe_ttm_sys_mgr_init(xe);
-	if (err)
-		return err;
-
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_init_early(gt);
 		if (err)
@@ -824,6 +820,14 @@ int xe_device_probe(struct xe_device *xe)
 		if (err)
 			return err;
 	}
+
+	/*
+	 * Allow allocations only now to ensure xe_display_init_early()
+	 * is the first to allocate, always.
+	 */
+	err = xe_ttm_sys_mgr_init(xe);
+	if (err)
+		return err;
 
 	/* Allocate and map stolen after potential VRAM resize */
 	err = xe_ttm_stolen_mgr_init(xe);
