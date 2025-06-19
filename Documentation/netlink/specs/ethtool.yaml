@@ -118,6 +118,43 @@ definitions:
         doc: |
           Hardware timestamp comes from one PHY device
           of the network topology
+  -
+    name: pse-event
+    doc: PSE event list for the PSE controller
+    type: flags
+    name-prefix: ethtool-
+    entries:
+      -
+        name: pse-event-over-current
+        doc: PSE output current is too high
+      -
+        name: pse-event-over-temp
+        doc: PSE in over temperature state
+      -
+        name: c33-pse-event-detection
+        doc: |
+          detection process occur on the PSE. IEEE 802.3-2022 33.2.5 and
+          145.2.6 PSE detection of PDs. IEEE 802.3-202 30.9.1.1.5
+          aPSEPowerDetectionStatus
+      -
+        name: c33-pse-event-classification
+        doc: |
+          classification process occur on the PSE. IEEE 802.3-2022 33.2.6
+          and 145.2.8 classification of PDs mutual identification.
+          IEEE 802.3-2022 30.9.1.1.8 aPSEPowerClassification.
+      -
+        name: c33-pse-event-disconnection
+        doc: |
+          PD has been disconnected on the PSE. IEEE 802.3-2022 33.3.8
+          and 145.3.9 PD Maintain Power Signature. IEEE 802.3-2022
+          33.5.1.2.9 MPS Absent. IEEE 802.3-2022 30.9.1.1.20
+          aPSEMPSAbsentCounter.
+      -
+        name: pse-event-over-budget
+        doc: PSE turned off due to over budget situation
+      -
+        name: pse-event-sw-pw-control-error
+        doc: PSE faced an error managing the power control from software
 
 attribute-sets:
   -
@@ -1395,6 +1432,18 @@ attribute-sets:
         type: nest
         multi-attr: true
         nested-attributes: c33-pse-pw-limit
+      -
+        name: pse-pw-d-id
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: pse-prio-max
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: pse-prio
+        type: u32
+        name-prefix: ethtool-a-
   -
     name: rss
     attr-cnt-name: __ethtool-a-rss-cnt
@@ -1555,6 +1604,19 @@ attribute-sets:
         name: hwtstamp-flags
         type: nest
         nested-attributes: bitset
+  -
+    name: pse-ntf
+    attr-cnt-name: --ethtool-a-pse-ntf-cnt
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: events
+        type: uint
+        enum: pse-event
+        doc: List of events reported by the PSE controller
 
 operations:
   enum-model: directional
@@ -2205,6 +2267,9 @@ operations:
             - c33-pse-ext-substate
             - c33-pse-avail-pw-limit
             - c33-pse-pw-limit-ranges
+            - pse-pw-d-id
+            - pse-prio-max
+            - pse-prio
       dump: *pse-get-op
     -
       name: pse-set
@@ -2219,6 +2284,7 @@ operations:
             - podl-pse-admin-control
             - c33-pse-admin-control
             - c33-pse-avail-pw-limit
+            - pse-prio
     -
       name: rss-get
       doc: Get RSS params.
@@ -2413,3 +2479,13 @@ operations:
           attributes: *tsconfig
         reply:
           attributes: *tsconfig
+    -
+      name: pse-ntf
+      doc: Notification for PSE events.
+
+      attribute-set: pse-ntf
+
+      event:
+        attributes:
+          - header
+          - events
