@@ -74,6 +74,13 @@
 		gpios-states = <0>;
 		states = <3300000 0>, <1800000 1>;
 	};
+
+	/* 32.768kHz crystal */
+	x6: x6-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
 };
 
 &audio_extal_clk {
@@ -169,6 +176,14 @@
 	clock-frequency = <400000>;
 
 	status = "okay";
+
+	raa215300: pmic@12 {
+		compatible = "renesas,raa215300";
+		reg = <0x12>, <0x6f>;
+		reg-names = "main", "rtc";
+		clocks = <&x6>;
+		clock-names = "xin";
+	};
 };
 
 &mdio0 {
