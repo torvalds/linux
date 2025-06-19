@@ -9,6 +9,7 @@ use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
 use crate::regs;
 use crate::util;
+use crate::vbios::Vbios;
 use core::fmt;
 
 macro_rules! define_chipset {
@@ -213,6 +214,9 @@ impl Gpu {
         gsp_falcon.clear_swgen0_intr(bar);
 
         let _sec2_falcon = Falcon::<Sec2>::new(pdev.as_ref(), spec.chipset, bar, true)?;
+
+        // Will be used in a later patch when fwsec firmware is needed.
+        let _bios = Vbios::new(pdev, bar)?;
 
         Ok(pin_init!(Self {
             spec,
