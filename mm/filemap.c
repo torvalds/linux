@@ -3265,7 +3265,6 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	if (mmap_miss > MMAP_LOTSAMISS)
 		return fpin;
 
-	fpin = maybe_unlock_mmap_for_io(vmf, fpin);
 	if (vm_flags & VM_EXEC) {
 		/*
 		 * Allow arch to request a preferred minimum folio order for
@@ -3299,6 +3298,8 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 		ra->async_size = ra->ra_pages / 4;
 		ra->order = 0;
 	}
+
+	fpin = maybe_unlock_mmap_for_io(vmf, fpin);
 	ractl._index = ra->start;
 	page_cache_ra_order(&ractl, ra);
 	return fpin;
