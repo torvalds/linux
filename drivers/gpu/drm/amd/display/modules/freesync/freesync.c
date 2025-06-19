@@ -155,6 +155,14 @@ unsigned int mod_freesync_calc_v_total_from_refresh(
 		v_total = div64_u64(div64_u64(((unsigned long long)(
 				frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
 				stream->timing.h_total), 1000000);
+	} else if (refresh_in_uhz >= stream->timing.max_refresh_in_uhz) {
+		/* When the target refresh rate is the maximum panel refresh rate
+		 * round up the vtotal value to prevent off-by-one error causing
+		 * v_total_min to be below the panel's lower bound
+		 */
+		v_total = div64_u64(div64_u64(((unsigned long long)(
+				frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
+				stream->timing.h_total) + (1000000 - 1), 1000000);
 	} else {
 		v_total = div64_u64(div64_u64(((unsigned long long)(
 				frame_duration_in_ns) * (stream->timing.pix_clk_100hz / 10)),
