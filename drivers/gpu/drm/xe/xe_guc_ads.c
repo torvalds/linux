@@ -382,6 +382,11 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 					GUC_WA_KLV_RESET_BB_STACK_PTR_ON_VF_SWITCH,
 					&offset, &remain);
 
+	if (XE_WA(gt, 16026007364))
+		guc_waklv_enable_simple(ads,
+					GUC_WA_KLV_RESTORE_UNSAVED_MEDIA_CONTROL_REG,
+					&offset, &remain);
+
 	size = guc_ads_waklv_size(ads) - remain;
 	if (!size)
 		return;
