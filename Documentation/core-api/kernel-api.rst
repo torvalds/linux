@@ -156,6 +156,8 @@ CRC Functions
 
 .. kernel-doc:: include/linux/crc32.h
 
+.. kernel-doc:: include/linux/crc64.h
+
 Base 2 log and power Functions
 ------------------------------
 
