@@ -238,6 +238,20 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         self.dma_handle
     }
 
+    /// Returns a DMA handle starting at `offset` (in units of `T`) which may be given to the
+    /// device as the DMA address base of the region.
+    ///
+    /// Returns `EINVAL` if `offset` is not within the bounds of the allocation.
+    pub fn dma_handle_with_offset(&self, offset: usize) -> Result<bindings::dma_addr_t> {
+        if offset >= self.count {
+            Err(EINVAL)
+        } else {
+            // INVARIANT: The type invariant of `Self` guarantees that `size_of::<T> * count` fits
+            // into a `usize`, and `offset` is inferior to `count`.
+            Ok(self.dma_handle + (offset * core::mem::size_of::<T>()) as bindings::dma_addr_t)
+        }
+    }
+
     /// Common helper to validate a range applied from the allocated region in the CPU's virtual
     /// address space.
     fn validate_range(&self, offset: usize, count: usize) -> Result {
