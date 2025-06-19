@@ -137,3 +137,6 @@ own name.
    * - ``event_eq_size``
      - u32
      - Control the size of asynchronous control events EQ.
+   * - ``enable_phc``
+     - Boolean
+     - Enable PHC (PTP Hardware Clock) functionality in the device.
