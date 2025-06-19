@@ -114,7 +114,7 @@ macro_rules! register {
             }
         }
 
-        impl core::ops::BitOr for $name {
+        impl ::core::ops::BitOr for $name {
             type Output = Self;
 
             fn bitor(self, rhs: Self) -> Self::Output {
@@ -161,7 +161,7 @@ macro_rules! register {
     (@check_field_bounds $hi:tt:$lo:tt $field:ident as bool) => {
         #[allow(clippy::eq_op)]
         const _: () = {
-            kernel::build_assert!(
+            ::kernel::build_assert!(
                 $hi == $lo,
                 concat!("boolean field `", stringify!($field), "` covers more than one bit")
             );
@@ -172,7 +172,7 @@ macro_rules! register {
     (@check_field_bounds $hi:tt:$lo:tt $field:ident as $type:tt) => {
         #[allow(clippy::eq_op)]
         const _: () = {
-            kernel::build_assert!(
+            ::kernel::build_assert!(
                 $hi >= $lo,
                 concat!("field `", stringify!($field), "`'s MSB is smaller than its LSB")
             );
@@ -234,7 +234,7 @@ macro_rules! register {
         @leaf_accessor $name:ident $hi:tt:$lo:tt $field:ident as $type:ty
             { $process:expr } $to_type:ty => $res_type:ty $(, $comment:literal)?;
     ) => {
-        kernel::macros::paste!(
+        ::kernel::macros::paste!(
         const [<$field:upper>]: ::core::ops::RangeInclusive<u8> = $lo..=$hi;
         const [<$field:upper _MASK>]: u32 = ((((1 << $hi) - 1) << 1) + 1) - ((1 << $lo) - 1);
         const [<$field:upper _SHIFT>]: u32 = Self::[<$field:upper _MASK>].trailing_zeros();
@@ -246,7 +246,7 @@ macro_rules! register {
         )?
         #[inline]
         pub(crate) fn $field(self) -> $res_type {
-            kernel::macros::paste!(
+            ::kernel::macros::paste!(
             const MASK: u32 = $name::[<$field:upper _MASK>];
             const SHIFT: u32 = $name::[<$field:upper _SHIFT>];
             );
@@ -255,7 +255,7 @@ macro_rules! register {
             $process(field)
         }
 
-        kernel::macros::paste!(
+        ::kernel::macros::paste!(
         $(
         #[doc="Sets the value of this field:"]
         #[doc=$comment]
