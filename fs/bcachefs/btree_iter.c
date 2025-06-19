@@ -3241,32 +3241,30 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size, unsigned long
 	}
 
 	EBUG_ON(trans->mem);
+	EBUG_ON(trans->mem_bytes);
+	EBUG_ON(trans->mem_top);
+	EBUG_ON(new_bytes > BTREE_TRANS_MEM_MAX);
+	
+	bool lock_dropped = false;
+	new_mem = allocate_dropping_locks_norelock(trans, lock_dropped, kmalloc(new_bytes, _gfp));
+	if (!new_mem) {
+		new_mem = mempool_alloc(&c->btree_trans_mem_pool, GFP_KERNEL);
+		new_bytes = BTREE_TRANS_MEM_MAX;
+		trans->used_mempool = true;
+	}
 
-	new_mem = kmalloc(new_bytes, GFP_NOWAIT|__GFP_NOWARN);
-	if (unlikely(!new_mem)) {
-		bch2_trans_unlock(trans);
+	EBUG_ON(!new_mem);
 
-		new_mem = kmalloc(new_bytes, GFP_KERNEL);
-		if (!new_mem && new_bytes <= BTREE_TRANS_MEM_MAX) {
-			new_mem = mempool_alloc(&c->btree_trans_mem_pool, GFP_KERNEL);
-			new_bytes = BTREE_TRANS_MEM_MAX;
-			trans->used_mempool = true;
-		}
+	trans->mem = new_mem;
+	trans->mem_bytes = new_bytes;
 
-		EBUG_ON(!new_mem);
-
-		trans->mem = new_mem;
-		trans->mem_bytes = new_bytes;
-
+	if (unlikely(lock_dropped)) {
 		ret = bch2_trans_relock(trans);
 		if (ret)
 			return ERR_PTR(ret);
 	}
 
-	trans->mem = new_mem;
-	trans->mem_bytes = new_bytes;
-
-	p = trans->mem + trans->mem_top;
+	p = trans->mem;
 	trans->mem_top += size;
 	memset(p, 0, size);
 	return p;
@@ -3327,22 +3325,23 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	trans->mem_top			= 0;
 
 	if (unlikely(trans->restarted == BCH_ERR_transaction_restart_mem_realloced)) {
-		EBUG_ON(!trans->mem || !trans->mem_bytes);
 		unsigned new_bytes = trans->realloc_bytes_required;
-		void *new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
-		if (unlikely(!new_mem)) {
-			bch2_trans_unlock(trans);
-			new_mem = krealloc(trans->mem, new_bytes, GFP_KERNEL);
+		EBUG_ON(new_bytes > BTREE_TRANS_MEM_MAX);
+		EBUG_ON(!trans->mem);
+		EBUG_ON(!trans->mem_bytes);
 
-			EBUG_ON(new_bytes > BTREE_TRANS_MEM_MAX);
+		bool lock_dropped = false;
+		void *new_mem = allocate_dropping_locks_norelock(trans, lock_dropped,
+					krealloc(trans->mem, new_bytes, _gfp));
+		if (!new_mem) {
+			new_mem = mempool_alloc(&trans->c->btree_trans_mem_pool, GFP_KERNEL);
+			new_bytes = BTREE_TRANS_MEM_MAX;
+			trans->used_mempool = true;
+			kfree(trans->mem);
+		}
 
-			if (!new_mem) {
-				new_mem = mempool_alloc(&trans->c->btree_trans_mem_pool, GFP_KERNEL);
-				new_bytes = BTREE_TRANS_MEM_MAX;
-				trans->used_mempool = true;
-				kfree(trans->mem);
-			}
-                }
+		EBUG_ON(!new_mem);
+
 		trans->mem = new_mem;
 		trans->mem_bytes = new_bytes;
 	}
