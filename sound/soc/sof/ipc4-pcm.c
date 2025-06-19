@@ -113,7 +113,8 @@ int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 instance_id, u32 s
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 primary;
 
-	dev_dbg(sdev->dev, "ipc4 set pipeline instance %d state %d", instance_id, state);
+	dev_dbg(sdev->dev, "Set pipeline %d to state %d%s", instance_id, state,
+		sof_ipc4_pipeline_state_str(state));
 
 	primary = state;
 	primary |= SOF_IPC4_GLB_PIPE_STATE_ID(instance_id);
