@@ -6,6 +6,7 @@ use crate::driver::Bar0;
 use crate::falcon::{gsp::Gsp, sec2::Sec2, Falcon};
 use crate::fb::FbLayout;
 use crate::fb::SysmemFlush;
+use crate::firmware::fwsec::{FwsecCommand, FwsecFirmware};
 use crate::firmware::{Firmware, FIRMWARE_VERSION};
 use crate::gfw;
 use crate::regs;
@@ -219,8 +220,18 @@ impl Gpu {
         let fb_layout = FbLayout::new(spec.chipset, bar)?;
         dev_dbg!(pdev.as_ref(), "{:#x?}\n", fb_layout);
 
-        // Will be used in a later patch when fwsec firmware is needed.
-        let _bios = Vbios::new(pdev, bar)?;
+        let bios = Vbios::new(pdev, bar)?;
+
+        let _fwsec_frts = FwsecFirmware::new(
+            pdev.as_ref(),
+            &gsp_falcon,
+            bar,
+            &bios,
+            FwsecCommand::Frts {
+                frts_addr: fb_layout.frts.start,
+                frts_size: fb_layout.frts.end - fb_layout.frts.start,
+            },
+        )?;
 
         Ok(pin_init!(Self {
             spec,

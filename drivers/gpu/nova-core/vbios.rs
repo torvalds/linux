@@ -2,10 +2,8 @@
 
 //! VBIOS extraction and parsing.
 
-// To be removed when all code is used.
-#![expect(dead_code)]
-
 use crate::driver::Bar0;
+use crate::firmware::fwsec::Bcrt30Rsa3kSignature;
 use crate::firmware::FalconUCodeDescV3;
 use core::convert::TryFrom;
 use kernel::device;
@@ -1133,15 +1131,18 @@ impl FwSecBiosImage {
     }
 
     /// Get the signatures as a byte slice
-    pub(crate) fn sigs(&self, dev: &device::Device, desc: &FalconUCodeDescV3) -> Result<&[u8]> {
-        const SIG_SIZE: usize = 96 * 4;
-
+    pub(crate) fn sigs(
+        &self,
+        dev: &device::Device,
+        desc: &FalconUCodeDescV3,
+    ) -> Result<&[Bcrt30Rsa3kSignature]> {
         // The signatures data follows the descriptor.
         let sigs_data_offset = self.falcon_ucode_offset + core::mem::size_of::<FalconUCodeDescV3>();
-        let size = desc.signature_count as usize * SIG_SIZE;
+        let sigs_size =
+            desc.signature_count as usize * core::mem::size_of::<Bcrt30Rsa3kSignature>();
 
         // Make sure the data is within bounds.
-        if sigs_data_offset + size > self.base.data.len() {
+        if sigs_data_offset + sigs_size > self.base.data.len() {
             dev_err!(
                 dev,
                 "fwsec signatures data not contained within BIOS bounds\n"
@@ -1149,6 +1150,17 @@ impl FwSecBiosImage {
             return Err(ERANGE);
         }
 
-        Ok(&self.base.data[sigs_data_offset..sigs_data_offset + size])
+        // SAFETY: we checked that `data + sigs_data_offset + (signature_count *
+        // sizeof::<Bcrt30Rsa3kSignature>()` is within the bounds of `data`.
+        Ok(unsafe {
+            core::slice::from_raw_parts(
+                self.base
+                    .data
+                    .as_ptr()
+                    .add(sigs_data_offset)
+                    .cast::<Bcrt30Rsa3kSignature>(),
+                desc.signature_count as usize,
+            )
+        })
     }
 }
