@@ -32,7 +32,7 @@
  * @rpc_clnt: rpc_clnt that the client established
  * @cred: cred that the client established
  * @nfs_fh: filehandle to lookup
- * @nfp: place to find the nfsd_file, or store it if it was non-NULL
+ * @pnf: place to find the nfsd_file, or store it if it was non-NULL
  * @fmode: fmode_t to use for open
  *
  * This function maps a local fh to a path on a local filesystem.
