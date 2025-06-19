@@ -53,6 +53,7 @@ properties:
       - renesas,r8a779g0-cpg-mssr # R-Car V4H
       - renesas,r8a779h0-cpg-mssr # R-Car V4M
       - renesas,r9a09g077-cpg-mssr # RZ/T2H
+      - renesas,r9a09g087-cpg-mssr # RZ/N2H
 
   reg:
     minItems: 1
@@ -112,7 +113,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,r9a09g077-cpg-mssr
+            enum:
+              - renesas,r9a09g077-cpg-mssr
+              - renesas,r9a09g087-cpg-mssr
     then:
       properties:
         reg:
