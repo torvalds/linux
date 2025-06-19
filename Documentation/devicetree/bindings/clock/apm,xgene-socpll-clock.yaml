@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/apm,xgene-socpll-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: APM X-Gene SoC PLL, PCPPLL, and PMD clocks
+
+maintainers:
+  - Khuong Dinh <khuong@os.amperecomputing.com>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - apm,xgene-pcppll-clock
+          - apm,xgene-pcppll-v2-clock
+          - apm,xgene-pmd-clock
+          - apm,xgene-socpll-clock
+          - apm,xgene-socpll-v2-clock
+
+  reg:
+    maxItems: 1
+
+  reg-names:
+    items:
+      - enum: [ csr-reg, div-reg ]
+      - const: div-reg
+    minItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    enum: [ pcppll, socpll ]
+
+  "#clock-cells":
+    const: 1
+
+  clock-output-names:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - '#clock-cells'
+  - clock-output-names
+
+additionalProperties: false
