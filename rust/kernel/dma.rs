@@ -212,7 +212,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
         self.cpu_addr
     }
 
-    /// Returns a DMA handle which may given to the device as the DMA address base of
+    /// Returns a DMA handle which may be given to the device as the DMA address base of
     /// the region.
     pub fn dma_handle(&self) -> bindings::dma_addr_t {
         self.dma_handle
