@@ -72,15 +72,17 @@ int xe_uc_init(struct xe_uc *uc)
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
-	if (IS_SRIOV_VF(uc_to_xe(uc)))
-		return 0;
+	if (!IS_SRIOV_VF(uc_to_xe(uc))) {
+		ret = xe_wopcm_init(&uc->wopcm);
+		if (ret)
+			goto err;
+	}
 
-	ret = xe_wopcm_init(&uc->wopcm);
+	ret = xe_guc_min_load_for_hwconfig(&uc->guc);
 	if (ret)
 		goto err;
 
 	return 0;
-
 err:
 	xe_gt_err(uc_to_gt(uc), "Failed to initialize uC (%pe)\n", ERR_PTR(ret));
 	return ret;
@@ -140,27 +142,6 @@ int xe_uc_sanitize_reset(struct xe_uc *uc)
 	xe_uc_sanitize(uc);
 
 	return uc_reset(uc);
-}
-
-/**
- * xe_uc_init_hwconfig - minimally init Uc, read and parse hwconfig
- * @uc: The UC object
- *
- * Return: 0 on success, negative error code on error.
- */
-int xe_uc_init_hwconfig(struct xe_uc *uc)
-{
-	int ret;
-
-	/* GuC submission not enabled, nothing to do */
-	if (!xe_device_uc_enabled(uc_to_xe(uc)))
-		return 0;
-
-	ret = xe_guc_min_load_for_hwconfig(&uc->guc);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static int vf_uc_init_hw(struct xe_uc *uc)
