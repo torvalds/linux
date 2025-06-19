@@ -1015,9 +1015,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	if (unlikely(ret))
 		goto out_reset;
 
-	if (!trans->nr_updates &&
-	    !trans->journal_entries.u64s &&
-	    !trans->accounting.u64s)
+	if (!bch2_trans_has_updates(trans))
 		goto out_reset;
 
 	ret = bch2_trans_commit_run_triggers(trans);

@@ -271,6 +271,13 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	     (_i) < (_trans)->updates + (_trans)->nr_updates;		\
 	     (_i)++)
 
+static inline bool bch2_trans_has_updates(struct btree_trans *trans)
+{
+	return trans->nr_updates ||
+		trans->journal_entries.u64s ||
+		trans->accounting.u64s;
+}
+
 static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 {
 	trans_for_each_update(trans, i)
