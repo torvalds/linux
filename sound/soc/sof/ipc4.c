@@ -576,9 +576,19 @@ EXPORT_SYMBOL(sof_ipc4_find_debug_slot_offset_by_type);
 
 static int ipc4_fw_ready(struct snd_sof_dev *sdev, struct sof_ipc4_msg *ipc4_msg)
 {
-	/* no need to re-check version/ABI for subsequent boots */
-	if (!sdev->first_boot)
+	if (!sdev->first_boot) {
+		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+
+		/*
+		 * After the initial boot only check if the libraries have been
+		 * restored when full context save is not enabled
+		 */
+		if (!ipc4_data->fw_context_save)
+			ipc4_data->libraries_restored = !!(ipc4_msg->primary &
+							   SOF_IPC4_FW_READY_LIB_RESTORED);
+
 		return 0;
+	}
 
 	sof_ipc4_create_exception_debugfs_node(sdev);
 
