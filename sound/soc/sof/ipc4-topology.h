@@ -435,6 +435,30 @@ struct sof_ipc4_src {
 	struct sof_ipc4_msg msg;
 };
 
+/*
+ * struct sof_ipc4_asrc_data - IPC data for ASRC
+ * @base_config: IPC base config data
+ * @out_freq: Output rate for sink module, passed as such from topology to FW.
+ * @asrc_mode: Control for ASRC features with bit-fields, passed as such from topolgy to FW.
+ */
+struct sof_ipc4_asrc_data {
+	struct sof_ipc4_base_module_cfg base_config;
+	uint32_t out_freq;
+	uint32_t asrc_mode;
+} __packed __aligned(4);
+
+/**
+ * struct sof_ipc4_asrc - ASRC config data
+ * @data: IPC base config data
+ * @available_fmt: Available audio format
+ * @msg: IPC4 message struct containing header and data info
+ */
+struct sof_ipc4_asrc {
+	struct sof_ipc4_asrc_data data;
+	struct sof_ipc4_available_audio_format available_fmt;
+	struct sof_ipc4_msg msg;
+};
+
 /**
  * struct sof_ipc4_base_module_cfg_ext - base module config extension containing the pin format
  * information for the module. Both @num_input_pin_fmts and @num_output_pin_fmts cannot be 0 for a
