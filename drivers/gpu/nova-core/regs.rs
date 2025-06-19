@@ -42,6 +42,13 @@ impl NV_PMC_BOOT_0 {
     }
 }
 
+/* PBUS */
+
+// TODO: this is an array of registers.
+register!(NV_PBUS_SW_SCRATCH_0E@0x00001438  {
+    31:16   frts_err_code as u16;
+});
+
 /* PFB */
 
 register!(NV_PFB_NISO_FLUSH_SYSMEM_ADDR @ 0x00100c10 {
@@ -70,6 +77,30 @@ impl NV_PFB_PRI_MMU_LOCAL_MEMORY_RANGE {
         } else {
             size
         }
+    }
+}
+
+register!(NV_PFB_PRI_MMU_WPR2_ADDR_LO@0x001fa824  {
+    31:4    lo_val as u32, "Bits 12..40 of the lower (inclusive) bound of the WPR2 region";
+});
+
+impl NV_PFB_PRI_MMU_WPR2_ADDR_LO {
+    /// Returns the lower (inclusive) bound of the WPR2 region.
+    pub(crate) fn lower_bound(self) -> u64 {
+        (self.lo_val() as u64) << 12
+    }
+}
+
+register!(NV_PFB_PRI_MMU_WPR2_ADDR_HI@0x001fa828  {
+    31:4    hi_val as u32, "Bits 12..40 of the higher (exclusive) bound of the WPR2 region";
+});
+
+impl NV_PFB_PRI_MMU_WPR2_ADDR_HI {
+    /// Returns the higher (exclusive) bound of the WPR2 region.
+    ///
+    /// A value of zero means the WPR2 region is not set.
+    pub(crate) fn higher_bound(self) -> u64 {
+        (self.hi_val() as u64) << 12
     }
 }
 

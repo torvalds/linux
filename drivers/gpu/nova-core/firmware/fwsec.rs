@@ -395,4 +395,29 @@ impl FwsecFirmware {
             ucode: ucode_signed,
         })
     }
+
+    /// Loads the FWSEC firmware into `falcon` and execute it.
+    pub(crate) fn run(
+        &self,
+        dev: &Device<device::Bound>,
+        falcon: &Falcon<Gsp>,
+        bar: &Bar0,
+    ) -> Result<()> {
+        // Reset falcon, load the firmware, and run it.
+        falcon
+            .reset(bar)
+            .inspect_err(|e| dev_err!(dev, "Failed to reset GSP falcon: {:?}\n", e))?;
+        falcon
+            .dma_load(bar, self)
+            .inspect_err(|e| dev_err!(dev, "Failed to load FWSEC firmware: {:?}\n", e))?;
+        let (mbox0, _) = falcon
+            .boot(bar, Some(0), None)
+            .inspect_err(|e| dev_err!(dev, "Failed to boot FWSEC firmware: {:?}\n", e))?;
+        if mbox0 != 0 {
+            dev_err!(dev, "FWSEC firmware returned error {}\n", mbox0);
+            Err(EIO)
+        } else {
+            Ok(())
+        }
+    }
 }
