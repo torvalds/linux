@@ -674,7 +674,9 @@ MODULE_PARM_DESC(marvell_enable, "Marvell SATA via AHCI (1 = enabled)");
 
 static int mobile_lpm_policy = -1;
 module_param(mobile_lpm_policy, int, 0644);
-MODULE_PARM_DESC(mobile_lpm_policy, "Default LPM policy for mobile chipsets");
+MODULE_PARM_DESC(mobile_lpm_policy,
+		 "Default LPM policy. Despite its name, this parameter applies "
+		 "to all chipsets, including desktop and server chipsets");
 
 static char *ahci_mask_port_map;
 module_param_named(mask_port_map, ahci_mask_port_map, charp, 0444);
