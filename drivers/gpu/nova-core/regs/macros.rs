@@ -94,6 +94,8 @@ macro_rules! register {
         register!(@io$name @ + $offset);
     };
 
+    // All rules below are helpers.
+
     // Defines the wrapper `$name` type, as well as its relevant implementations (`Debug`, `BitOr`,
     // and conversion to regular `u32`).
     (@common $name:ident $(, $comment:literal)?) => {
