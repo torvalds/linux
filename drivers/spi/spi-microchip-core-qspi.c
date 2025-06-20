@@ -194,7 +194,7 @@ static inline void mchp_coreqspi_read_op(struct mchp_coreqspi *qspi)
 	}
 }
 
-static inline void mchp_coreqspi_write_op(struct mchp_coreqspi *qspi, bool word)
+static inline void mchp_coreqspi_write_op(struct mchp_coreqspi *qspi)
 {
 	u32 control, data;
 
@@ -415,7 +415,7 @@ static int mchp_coreqspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *o
 		qspi->rxbuf = NULL;
 		qspi->tx_len = op->cmd.nbytes;
 		qspi->rx_len = 0;
-		mchp_coreqspi_write_op(qspi, false);
+		mchp_coreqspi_write_op(qspi);
 	}
 
 	qspi->txbuf = &opaddr[0];
@@ -426,7 +426,7 @@ static int mchp_coreqspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *o
 		qspi->rxbuf = NULL;
 		qspi->tx_len = op->addr.nbytes;
 		qspi->rx_len = 0;
-		mchp_coreqspi_write_op(qspi, false);
+		mchp_coreqspi_write_op(qspi);
 	}
 
 	if (op->data.nbytes) {
@@ -435,7 +435,7 @@ static int mchp_coreqspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *o
 			qspi->rxbuf = NULL;
 			qspi->rx_len = 0;
 			qspi->tx_len = op->data.nbytes;
-			mchp_coreqspi_write_op(qspi, true);
+			mchp_coreqspi_write_op(qspi);
 		} else {
 			qspi->txbuf = NULL;
 			qspi->rxbuf = (u8 *)op->data.buf.in;
