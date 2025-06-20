@@ -49,16 +49,13 @@ struct knfsd_fh {
 					 * Points to the current size while
 					 * building a new file handle.
 					 */
-	union {
-		char			fh_raw[NFS4_FHSIZE];
-		struct {
-			u8		fh_version;	/* == 1 */
-			u8		fh_auth_type;	/* deprecated */
-			u8		fh_fsid_type;
-			u8		fh_fileid_type;
-		};
-	};
+	u8		fh_raw[NFS4_FHSIZE];
 };
+
+#define fh_version		fh_raw[0]
+#define fh_auth_type		fh_raw[1]
+#define fh_fsid_type		fh_raw[2]
+#define fh_fileid_type		fh_raw[3]
 
 static inline u32 *fh_fsid(const struct knfsd_fh *fh)
 {
