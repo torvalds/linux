@@ -2601,7 +2601,7 @@ static inline long sock_rcvtimeo(const struct sock *sk, bool noblock)
 
 static inline long sock_sndtimeo(const struct sock *sk, bool noblock)
 {
-	return noblock ? 0 : sk->sk_sndtimeo;
+	return noblock ? 0 : READ_ONCE(sk->sk_sndtimeo);
 }
 
 static inline int sock_rcvlowat(const struct sock *sk, int waitall, int len)

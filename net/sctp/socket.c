@@ -9493,7 +9493,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_rcvbuf = sk->sk_rcvbuf;
 	newsk->sk_lingertime = sk->sk_lingertime;
 	newsk->sk_rcvtimeo = sk->sk_rcvtimeo;
-	newsk->sk_sndtimeo = sk->sk_sndtimeo;
+	newsk->sk_sndtimeo = READ_ONCE(sk->sk_sndtimeo);
 	newsk->sk_rxhash = sk->sk_rxhash;
 
 	newinet = inet_sk(newsk);
