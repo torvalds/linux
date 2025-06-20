@@ -3888,7 +3888,7 @@ static void free_reloc_control(struct reloc_control *rc)
  */
 static void describe_relocation(struct btrfs_block_group *block_group)
 {
-	char buf[128] = {'\0'};
+	char buf[128] = "NONE";
 
 	btrfs_describe_block_groups(block_group->flags, buf, sizeof(buf));
 

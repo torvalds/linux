@@ -758,7 +758,7 @@ static int send_header(struct send_ctx *sctx)
 {
 	struct btrfs_stream_header hdr;
 
-	strcpy(hdr.magic, BTRFS_SEND_STREAM_MAGIC);
+	strscpy(hdr.magic, BTRFS_SEND_STREAM_MAGIC);
 	hdr.version = cpu_to_le32(sctx->proto);
 	return write_buf(sctx->send_filp, &hdr, sizeof(hdr),
 					&sctx->send_off);

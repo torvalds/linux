@@ -214,10 +214,8 @@ void btrfs_describe_block_groups(u64 bg_flags, char *buf, u32 size_buf)
 	u64 flags = bg_flags;
 	u32 size_bp = size_buf;
 
-	if (!flags) {
-		strcpy(bp, "NONE");
+	if (!flags)
 		return;
-	}
 
 #define DESCRIBE_FLAG(flag, desc)						\
 	do {								\
