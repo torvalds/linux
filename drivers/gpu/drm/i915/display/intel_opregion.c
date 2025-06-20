@@ -665,11 +665,10 @@ bool intel_opregion_asle_present(struct intel_display *display)
 
 void intel_opregion_asle_intr(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_opregion *opregion = display->opregion;
 
 	if (opregion && opregion->asle)
-		queue_work(i915->unordered_wq, &opregion->asle_work);
+		queue_work(display->wq.unordered, &opregion->asle_work);
 }
 
 #define ACPI_EV_DISPLAY_SWITCH (1<<0)

@@ -236,8 +236,6 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return 0;
 
-	intel_dmc_init(display);
-
 	display->hotplug.dp_wq = alloc_ordered_workqueue("intel-dp", 0);
 	if (!display->hotplug.dp_wq) {
 		ret = -ENOMEM;
@@ -263,27 +261,35 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 		goto cleanup_wq_flip;
 	}
 
+	display->wq.unordered = alloc_workqueue("display_unordered", 0, 0);
+	if (!display->wq.unordered) {
+		ret = -ENOMEM;
+		goto cleanup_wq_cleanup;
+	}
+
+	intel_dmc_init(display);
+
 	intel_mode_config_init(display);
 
 	ret = intel_cdclk_init(display);
 	if (ret)
-		goto cleanup_wq_cleanup;
+		goto cleanup_wq_unordered;
 
 	ret = intel_color_init(display);
 	if (ret)
-		goto cleanup_wq_cleanup;
+		goto cleanup_wq_unordered;
 
 	ret = intel_dbuf_init(display);
 	if (ret)
-		goto cleanup_wq_cleanup;
+		goto cleanup_wq_unordered;
 
 	ret = intel_bw_init(display);
 	if (ret)
-		goto cleanup_wq_cleanup;
+		goto cleanup_wq_unordered;
 
 	ret = intel_pmdemand_init(display);
 	if (ret)
-		goto cleanup_wq_cleanup;
+		goto cleanup_wq_unordered;
 
 	intel_init_quirks(display);
 
@@ -291,6 +297,8 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 
 	return 0;
 
+cleanup_wq_unordered:
+	destroy_workqueue(display->wq.unordered);
 cleanup_wq_cleanup:
 	destroy_workqueue(display->wq.cleanup);
 cleanup_wq_flip:
@@ -594,6 +602,7 @@ void intel_display_driver_remove(struct intel_display *display)
 	flush_workqueue(display->wq.flip);
 	flush_workqueue(display->wq.modeset);
 	flush_workqueue(display->wq.cleanup);
+	flush_workqueue(display->wq.unordered);
 
 	/*
 	 * MST topology needs to be suspended so we don't have any calls to
@@ -606,8 +615,6 @@ void intel_display_driver_remove(struct intel_display *display)
 /* part #2: call after irq uninstall */
 void intel_display_driver_remove_noirq(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!HAS_DISPLAY(display))
 		return;
 
@@ -622,7 +629,7 @@ void intel_display_driver_remove_noirq(struct intel_display *display)
 	intel_unregister_dsm_handler();
 
 	/* flush any delayed tasks or pending work */
-	flush_workqueue(i915->unordered_wq);
+	flush_workqueue(display->wq.unordered);
 
 	intel_hdcp_component_fini(display);
 
@@ -638,6 +645,7 @@ void intel_display_driver_remove_noirq(struct intel_display *display)
 	destroy_workqueue(display->wq.flip);
 	destroy_workqueue(display->wq.modeset);
 	destroy_workqueue(display->wq.cleanup);
+	destroy_workqueue(display->wq.unordered);
 
 	intel_fbc_cleanup(display);
 }

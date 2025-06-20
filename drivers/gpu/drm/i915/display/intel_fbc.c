@@ -2011,7 +2011,7 @@ void intel_fbc_reset_underrun(struct intel_display *display)
 
 static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *i915 = to_i915(fbc->display->drm);
+	struct intel_display *display = fbc->display;
 
 	/*
 	 * There's no guarantee that underrun_detected won't be set to true
@@ -2024,7 +2024,7 @@ static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 	if (READ_ONCE(fbc->underrun_detected))
 		return;
 
-	queue_work(i915->unordered_wq, &fbc->underrun_work);
+	queue_work(display->wq.unordered, &fbc->underrun_work);
 }
 
 /**

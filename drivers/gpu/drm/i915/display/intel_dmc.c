@@ -1298,7 +1298,6 @@ out:
  */
 void intel_dmc_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc *dmc;
 
 	if (!HAS_DMC(display))
@@ -1341,7 +1340,7 @@ void intel_dmc_init(struct intel_display *display)
 	display->dmc.dmc = dmc;
 
 	drm_dbg_kms(display->drm, "Loading %s\n", dmc->fw_path);
-	queue_work(i915->unordered_wq, &dmc->work);
+	queue_work(display->wq.unordered, &dmc->work);
 
 	return;
 
