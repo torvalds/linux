@@ -32,6 +32,9 @@ struct mmap_state {
 	struct vma_munmap_struct vms;
 	struct ma_state mas_detach;
 	struct maple_tree mt_detach;
+
+	/* Determine if we can check KSM flags early in mmap() logic. */
+	bool check_ksm_early;
 };
 
 #define MMAP_STATE(name, mm_, vmi_, addr_, len_, pgoff_, flags_, file_) \
@@ -2320,6 +2323,11 @@ static void vms_abort_munmap_vmas(struct vma_munmap_struct *vms,
 	vms_complete_munmap_vmas(vms, mas_detach);
 }
 
+static void update_ksm_flags(struct mmap_state *map)
+{
+	map->flags = ksm_vma_flags(map->mm, map->file, map->flags);
+}
+
 /*
  * __mmap_prepare() - Prepare to gather any overlapping VMAs that need to be
  * unmapped once the map operation is completed, check limits, account mapping
@@ -2424,6 +2432,7 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 			!(map->flags & VM_MAYWRITE) &&
 			(vma->vm_flags & VM_MAYWRITE));
 
+	map->file = vma->vm_file;
 	map->flags = vma->vm_flags;
 
 	return 0;
@@ -2472,6 +2481,11 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 
 	if (error)
 		goto free_iter_vma;
+
+	if (!map->check_ksm_early) {
+		update_ksm_flags(map);
+		vm_flags_init(vma, map->flags);
+	}
 
 #ifdef CONFIG_SPARC64
 	/* TODO: Fix SPARC ADI! */
@@ -2592,11 +2606,6 @@ static void set_vma_user_defined_fields(struct vm_area_struct *vma,
 	vma->vm_private_data = map->vm_private_data;
 }
 
-static void update_ksm_flags(struct mmap_state *map)
-{
-	map->flags = ksm_vma_flags(map->mm, map->file, map->flags);
-}
-
 /*
  * Are we guaranteed no driver can change state such as to preclude KSM merging?
  * If so, let's set the KSM mergeable flag early so we don't break VMA merging.
@@ -2636,7 +2645,8 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	bool have_mmap_prepare = file && file->f_op->mmap_prepare;
 	VMA_ITERATOR(vmi, mm, addr);
 	MMAP_STATE(map, mm, &vmi, addr, len, pgoff, vm_flags, file);
-	bool check_ksm_early = can_set_ksm_flags_early(&map);
+
+	map.check_ksm_early = can_set_ksm_flags_early(&map);
 
 	error = __mmap_prepare(&map, uf);
 	if (!error && have_mmap_prepare)
@@ -2644,7 +2654,7 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 	if (error)
 		goto abort_munmap;
 
-	if (check_ksm_early)
+	if (map.check_ksm_early)
 		update_ksm_flags(&map);
 
 	/* Attempt to merge with adjacent VMAs... */
@@ -2656,9 +2666,6 @@ static unsigned long __mmap_region(struct file *file, unsigned long addr,
 
 	/* ...but if we can't, allocate a new VMA. */
 	if (!vma) {
-		if (!check_ksm_early)
-			update_ksm_flags(&map);
-
 		error = __mmap_new_vma(&map, &vma);
 		if (error)
 			goto unacct_error;
