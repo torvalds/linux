@@ -28,6 +28,7 @@
 #include "kunit.c"
 #include "mm.c"
 #include "mutex.c"
+#include "of.c"
 #include "page.c"
 #include "platform.c"
 #include "pci.c"

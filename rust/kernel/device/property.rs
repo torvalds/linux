@@ -61,6 +61,13 @@ impl FwNode {
         self.0.get()
     }
 
+    /// Returns `true` if `&self` is an OF node, `false` otherwise.
+    pub fn is_of_node(&self) -> bool {
+        // SAFETY: The type invariant of `Self` guarantees that `self.as_raw() is a pointer to a
+        // valid `struct fwnode_handle`.
+        unsafe { bindings::is_of_node(self.as_raw()) }
+    }
+
     /// Returns an object that implements [`Display`](core::fmt::Display) for
     /// printing the name of a node.
     ///
