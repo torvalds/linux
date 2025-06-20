@@ -1088,6 +1088,7 @@ static const struct alc_codec_rename_pci_table rename_pci_tbl[] = {
 	{ 0x10ec0668, 0x103c, 0, "ALC3662" },
 	{ 0x10ec0283, 0x17aa, 0, "ALC3239" },
 	{ 0x10ec0292, 0x17aa, 0, "ALC3232" },
+	{ 0x10ec0257, 0x12f0, 0, "ALC3328" },
 	{ } /* terminator */
 };
 
