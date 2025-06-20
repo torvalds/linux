@@ -56,10 +56,14 @@ struct knfsd_fh {
 			u8		fh_auth_type;	/* deprecated */
 			u8		fh_fsid_type;
 			u8		fh_fileid_type;
-			u32		fh_fsid[NFS4_FHSIZE / 4 - 1];
 		};
 	};
 };
+
+static inline u32 *fh_fsid(const struct knfsd_fh *fh)
+{
+	return (u32 *)&fh->fh_raw[4];
+}
 
 static inline __u32 ino_t_to_u32(ino_t ino)
 {
@@ -260,9 +264,12 @@ static inline bool fh_match(const struct knfsd_fh *fh1,
 static inline bool fh_fsid_match(const struct knfsd_fh *fh1,
 				 const struct knfsd_fh *fh2)
 {
+	u32 *fsid1 = fh_fsid(fh1);
+	u32 *fsid2 = fh_fsid(fh2);
+
 	if (fh1->fh_fsid_type != fh2->fh_fsid_type)
 		return false;
-	if (memcmp(fh1->fh_fsid, fh2->fh_fsid, key_len(fh1->fh_fsid_type)) != 0)
+	if (memcmp(fsid1, fsid2, key_len(fh1->fh_fsid_type)) != 0)
 		return false;
 	return true;
 }

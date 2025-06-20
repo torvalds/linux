@@ -172,6 +172,8 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct net *net,
 	if (len == 0)
 		return error;
 	if (fh->fh_fsid_type == FSID_MAJOR_MINOR) {
+		u32 *fsid = fh_fsid(fh);
+
 		/* deprecated, convert to type 3 */
 		len = key_len(FSID_ENCODE_DEV)/4;
 		fh->fh_fsid_type = FSID_ENCODE_DEV;
@@ -181,17 +183,17 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct net *net,
 		 * confuses sparse, so we must use __force here to
 		 * keep it from complaining.
 		 */
-		fh->fh_fsid[0] = new_encode_dev(MKDEV(ntohl((__force __be32)fh->fh_fsid[0]),
-						      ntohl((__force __be32)fh->fh_fsid[1])));
-		fh->fh_fsid[1] = fh->fh_fsid[2];
+		fsid[0] = new_encode_dev(MKDEV(ntohl((__force __be32)fsid[0]),
+					       ntohl((__force __be32)fsid[1])));
+		fsid[1] = fsid[2];
 	}
 	data_left -= len;
 	if (data_left < 0)
 		return error;
 	exp = rqst_exp_find(rqstp ? &rqstp->rq_chandle : NULL,
 			    net, client, gssclient,
-			    fh->fh_fsid_type, fh->fh_fsid);
-	fid = (struct fid *)(fh->fh_fsid + len);
+			    fh->fh_fsid_type, fh_fsid(fh));
+	fid = (struct fid *)(fh_fsid(fh) + len);
 
 	error = nfserr_stale;
 	if (IS_ERR(exp)) {
@@ -463,7 +465,7 @@ static void _fh_update(struct svc_fh *fhp, struct svc_export *exp,
 {
 	if (dentry != exp->ex_path.dentry) {
 		struct fid *fid = (struct fid *)
-			(fhp->fh_handle.fh_fsid + fhp->fh_handle.fh_size/4 - 1);
+			(fh_fsid(&fhp->fh_handle) + fhp->fh_handle.fh_size/4 - 1);
 		int maxsize = (fhp->fh_maxsize - fhp->fh_handle.fh_size)/4;
 		int fh_flags = (exp->ex_flags & NFSEXP_NOSUBTREECHECK) ? 0 :
 				EXPORT_FH_CONNECTABLE;
@@ -614,7 +616,7 @@ fh_compose(struct svc_fh *fhp, struct svc_export *exp, struct dentry *dentry,
 	fhp->fh_handle.fh_auth_type = 0;
 
 	mk_fsid(fhp->fh_handle.fh_fsid_type,
-		fhp->fh_handle.fh_fsid,
+		fh_fsid(&fhp->fh_handle),
 		ex_dev,
 		d_inode(exp->ex_path.dentry)->i_ino,
 		exp->ex_fsid, exp->ex_uuid);
