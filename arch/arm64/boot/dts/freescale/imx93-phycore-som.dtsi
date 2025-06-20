@@ -16,6 +16,10 @@
 	model = "PHYTEC phyCORE-i.MX93";
 	compatible = "phytec,imx93-phycore-som", "fsl,imx93";
 
+	aliases {
+		ethernet0 = &fec;
+	};
+
 	reserved-memory {
 		ranges;
 		#address-cells = <2>;
