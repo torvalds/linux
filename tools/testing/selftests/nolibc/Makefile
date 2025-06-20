@@ -195,14 +195,10 @@ CFLAGS_sparc32 = $(call cc-option,-m32)
 ifeq ($(origin XARCH),command line)
 CFLAGS_XARCH = $(CFLAGS_$(XARCH))
 endif
-_CFLAGS_STACKPROTECTOR = $(call cc-option,-fstack-protector-all) $(call cc-option,-mstack-protector-guard=global)
-CFLAGS_STACKPROTECTOR ?= $(call try-run, \
-	echo 'void foo(void) {}' | $(CC) -x c - -o - -S $(CLANG_CROSS_FLAGS) $(_CFLAGS_STACKPROTECTOR) | grep -q __stack_chk_guard, \
-	$(_CFLAGS_STACKPROTECTOR))
-CFLAGS_SANITIZER ?= $(call cc-option,-fsanitize=undefined -fsanitize-trap=all)
-CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables -std=c89 -W -Wall -Wextra \
-		$(call cc-option,-fno-stack-protector) $(call cc-option,-Wmissing-prototypes) \
-		$(CFLAGS_XARCH) $(CFLAGS_STACKPROTECTOR) $(CFLAGS_SANITIZER) $(CFLAGS_EXTRA)
+
+include Makefile.include
+
+CFLAGS  ?= $(CFLAGS_NOLIBC_TEST) $(CFLAGS_XARCH) $(CFLAGS_EXTRA)
 LDFLAGS :=
 
 LIBGCC := -lgcc
