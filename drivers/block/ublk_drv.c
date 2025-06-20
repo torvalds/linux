@@ -2025,10 +2025,10 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 }
 
 static int ublk_unregister_io_buf(struct io_uring_cmd *cmd,
-				  const struct ublk_queue *ubq,
+				  const struct ublk_device *ub,
 				  unsigned int index, unsigned int issue_flags)
 {
-	if (!ublk_support_zero_copy(ubq))
+	if (!(ub->dev_info.flags & UBLK_F_SUPPORT_ZERO_COPY))
 		return -EINVAL;
 
 	return io_buffer_unregister_bvec(cmd, index, issue_flags);
@@ -2229,7 +2229,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 	case UBLK_IO_REGISTER_IO_BUF:
 		return ublk_register_io_buf(cmd, ubq, io, ub_cmd->addr, issue_flags);
 	case UBLK_IO_UNREGISTER_IO_BUF:
-		return ublk_unregister_io_buf(cmd, ubq, ub_cmd->addr, issue_flags);
+		return ublk_unregister_io_buf(cmd, ub, ub_cmd->addr, issue_flags);
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
 		ret = ublk_commit_and_fetch(ubq, io, cmd, ub_cmd, issue_flags);
 		if (ret)
