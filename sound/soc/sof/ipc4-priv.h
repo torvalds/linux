@@ -126,4 +126,7 @@ size_t sof_ipc4_find_debug_slot_offset_by_type(struct snd_sof_dev *sdev,
 
 void sof_ipc4_mic_privacy_state_change(struct snd_sof_dev *sdev, bool state);
 
+enum sof_ipc4_pipeline_state;
+const char *sof_ipc4_pipeline_state_str(enum sof_ipc4_pipeline_state state);
+
 #endif
