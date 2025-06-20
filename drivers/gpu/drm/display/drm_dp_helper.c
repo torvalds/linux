@@ -4235,6 +4235,7 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
  * interface.
  * @aux: The DP aux device to use for probing
  * @bl: The &drm_edp_backlight_info struct to fill out with information on the backlight
+ * @max_luminance: max luminance when need luminance is set as true
  * @driver_pwm_freq_hz: Optional PWM frequency from the driver in hz
  * @edp_dpcd: A cached copy of the eDP DPCD
  * @current_level: Where to store the probed brightness level, if any
@@ -4251,6 +4252,7 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
  */
 int
 drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl,
+		       u32 max_luminance,
 		       u16 driver_pwm_freq_hz, const u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE],
 		       u16 *current_level, u8 *current_mode, bool need_luminance)
 {
@@ -4380,7 +4382,7 @@ int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux)
 
 	bl->aux = aux;
 
-	ret = drm_edp_backlight_init(aux, &bl->info, 0, edp_dpcd,
+	ret = drm_edp_backlight_init(aux, &bl->info, 0, 0, edp_dpcd,
 				     &current_level, &current_mode, false);
 	if (ret < 0)
 		return ret;

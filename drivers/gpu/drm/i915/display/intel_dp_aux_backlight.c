@@ -599,8 +599,10 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 			    connector->base.base.id, connector->base.name);
 	} else {
 		ret = drm_edp_backlight_init(&intel_dp->aux, &panel->backlight.edp.vesa.info,
-					     panel->vbt.backlight.pwm_freq_hz, intel_dp->edp_dpcd,
-					     &current_level, &current_mode, false);
+					     luminance_range->max_luminance,
+					     panel->vbt.backlight.pwm_freq_hz,
+					     intel_dp->edp_dpcd, &current_level, &current_mode,
+					     false);
 		if (ret < 0)
 			return ret;
 
