@@ -603,6 +603,7 @@ config PINCTRL_TH1520
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"
 	depends on ARCH_ZYNQ || COMPILE_TEST
+	depends on OF
 	select PINMUX
 	select GENERIC_PINCONF
 	help
