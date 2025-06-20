@@ -2215,8 +2215,18 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		goto out;
 
 	io = &ubq->ios[tag];
+	/* UBLK_IO_FETCH_REQ can be handled on any task, which sets io->task */
+	if (unlikely(_IOC_NR(cmd_op) == UBLK_IO_FETCH_REQ)) {
+		ret = ublk_fetch(cmd, ubq, io, ub_cmd->addr);
+		if (ret)
+			goto out;
+
+		ublk_prep_cancel(cmd, issue_flags, ubq, tag);
+		return -EIOCBQUEUED;
+	}
+
 	task = READ_ONCE(io->task);
-	if (task && task != current)
+	if (task != current)
 		goto out;
 
 	/* there is pending io cmd, something must be wrong */
@@ -2225,9 +2235,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		goto out;
 	}
 
-	/* only UBLK_IO_FETCH_REQ is allowed if io is not OWNED_BY_SRV */
-	if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV) &&
-	    _IOC_NR(cmd_op) != UBLK_IO_FETCH_REQ)
+	if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV))
 		goto out;
 
 	/*
@@ -2243,11 +2251,6 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		return ublk_register_io_buf(cmd, ubq, io, ub_cmd->addr, issue_flags);
 	case UBLK_IO_UNREGISTER_IO_BUF:
 		return ublk_unregister_io_buf(cmd, ubq, ub_cmd->addr, issue_flags);
-	case UBLK_IO_FETCH_REQ:
-		ret = ublk_fetch(cmd, ubq, io, ub_cmd->addr);
-		if (ret)
-			goto out;
-		break;
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
 		ret = ublk_commit_and_fetch(ubq, io, cmd, ub_cmd, issue_flags);
 		if (ret)
