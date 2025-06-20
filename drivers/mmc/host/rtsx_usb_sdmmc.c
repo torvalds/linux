@@ -1039,6 +1039,8 @@ static void sd_set_power_mode(struct rtsx_usb_sdmmc *host,
 	case MMC_POWER_ON:
 		/* stop to send the clock signals */
 		rtsx_usb_write_register(ucr, SD_BUS_STAT, SD_CLK_TOGGLE_EN, 0x00);
+		break;
+
 	case MMC_POWER_UNDEFINED:
 		break;
 
