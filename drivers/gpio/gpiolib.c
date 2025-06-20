@@ -286,7 +286,7 @@ EXPORT_SYMBOL_GPL(gpiod_to_gpio_device);
  * Returns:
  * True if the descriptors refer to the same physical pin. False otherwise.
  */
-bool gpiod_is_equal(struct gpio_desc *desc, struct gpio_desc *other)
+bool gpiod_is_equal(const struct gpio_desc *desc, const struct gpio_desc *other)
 {
 	return desc == other;
 }
