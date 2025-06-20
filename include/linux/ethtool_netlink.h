@@ -122,7 +122,7 @@ static inline bool ethtool_dev_mm_supported(struct net_device *dev)
 	return false;
 }
 
-static inline void ethnl_pse_send_ntf(struct phy_device *phydev,
+static inline void ethnl_pse_send_ntf(struct net_device *netdev,
 				      unsigned long notif)
 {
 }
