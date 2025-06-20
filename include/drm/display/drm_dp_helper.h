@@ -849,6 +849,7 @@ struct drm_edp_backlight_info {
 	bool lsb_reg_used : 1;
 	bool aux_enable : 1;
 	bool aux_set : 1;
+	bool luminance_set : 1;
 };
 
 int
