@@ -699,24 +699,15 @@ static inline void ublk_init_req_ref(const struct ublk_queue *ubq,
 		refcount_set(&io->ref, UBLK_REFCOUNT_INIT);
 }
 
-static inline bool ublk_get_req_ref(const struct ublk_queue *ubq,
-		struct ublk_io *io)
+static inline bool ublk_get_req_ref(struct ublk_io *io)
 {
-	if (ublk_need_req_ref(ubq))
-		return refcount_inc_not_zero(&io->ref);
-
-	return true;
+	return refcount_inc_not_zero(&io->ref);
 }
 
-static inline void ublk_put_req_ref(const struct ublk_queue *ubq,
-		struct ublk_io *io, struct request *req)
+static inline void ublk_put_req_ref(struct ublk_io *io, struct request *req)
 {
-	if (ublk_need_req_ref(ubq)) {
-		if (refcount_dec_and_test(&io->ref))
-			__ublk_complete_rq(req);
-	} else {
+	if (refcount_dec_and_test(&io->ref))
 		__ublk_complete_rq(req);
-	}
 }
 
 static inline void ublk_sub_req_ref(struct ublk_io *io, struct request *req)
@@ -2037,7 +2028,7 @@ static void ublk_io_release(void *priv)
 	if (current == io->task && io->task_registered_buffers)
 		io->task_registered_buffers--;
 	else
-		ublk_put_req_ref(ubq, io, rq);
+		ublk_put_req_ref(io, rq);
 }
 
 static int ublk_register_io_buf(struct io_uring_cmd *cmd,
@@ -2059,7 +2050,7 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 	ret = io_buffer_register_bvec(cmd, req, ublk_io_release, index,
 				      issue_flags);
 	if (ret) {
-		ublk_put_req_ref(ubq, io, req);
+		ublk_put_req_ref(io, req);
 		return ret;
 	}
 
@@ -2366,7 +2357,7 @@ static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
 	if (!req)
 		return NULL;
 
-	if (!ublk_get_req_ref(ubq, io))
+	if (!ublk_get_req_ref(io))
 		return NULL;
 
 	if (unlikely(!blk_mq_request_started(req) || req->tag != tag))
@@ -2380,7 +2371,7 @@ static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
 
 	return req;
 fail_put:
-	ublk_put_req_ref(ubq, io, req);
+	ublk_put_req_ref(io, req);
 	return NULL;
 }
 
@@ -2496,13 +2487,12 @@ static struct request *ublk_check_and_get_req(struct kiocb *iocb,
 	*off = buf_off;
 	return req;
 fail:
-	ublk_put_req_ref(ubq, *io, req);
+	ublk_put_req_ref(*io, req);
 	return ERR_PTR(-EACCES);
 }
 
 static ssize_t ublk_ch_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct ublk_queue *ubq;
 	struct request *req;
 	struct ublk_io *io;
 	size_t buf_off;
@@ -2513,15 +2503,13 @@ static ssize_t ublk_ch_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		return PTR_ERR(req);
 
 	ret = ublk_copy_user_pages(req, buf_off, to, ITER_DEST);
-	ubq = req->mq_hctx->driver_data;
-	ublk_put_req_ref(ubq, io, req);
+	ublk_put_req_ref(io, req);
 
 	return ret;
 }
 
 static ssize_t ublk_ch_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
-	struct ublk_queue *ubq;
 	struct request *req;
 	struct ublk_io *io;
 	size_t buf_off;
@@ -2532,8 +2520,7 @@ static ssize_t ublk_ch_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return PTR_ERR(req);
 
 	ret = ublk_copy_user_pages(req, buf_off, from, ITER_SOURCE);
-	ubq = req->mq_hctx->driver_data;
-	ublk_put_req_ref(ubq, io, req);
+	ublk_put_req_ref(io, req);
 
 	return ret;
 }
