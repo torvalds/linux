@@ -2234,18 +2234,16 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		ret = ublk_commit_and_fetch(ubq, io, cmd, ub_cmd, issue_flags);
 		if (ret)
 			goto out;
-		break;
+
+		ublk_prep_cancel(cmd, issue_flags, ubq, tag);
+		return -EIOCBQUEUED;
 	case UBLK_IO_NEED_GET_DATA:
 		io->addr = ub_cmd->addr;
 		if (!ublk_get_data(ubq, io))
 			return -EIOCBQUEUED;
 
 		return UBLK_IO_RES_OK;
-	default:
-		goto out;
 	}
-	ublk_prep_cancel(cmd, issue_flags, ubq, tag);
-	return -EIOCBQUEUED;
 
  out:
 	pr_devel("%s: complete: cmd op %d, tag %d ret %x io_flags %x\n",
