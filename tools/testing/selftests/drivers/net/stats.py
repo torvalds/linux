@@ -10,7 +10,7 @@ import subprocess
 import time
 from lib.py import ksft_run, ksft_exit, ksft_pr
 from lib.py import ksft_ge, ksft_eq, ksft_is, ksft_in, ksft_lt, ksft_true, ksft_raises
-from lib.py import KsftSkipEx, KsftXfailEx, KsftFailEx
+from lib.py import KsftSkipEx, KsftFailEx
 from lib.py import ksft_disruptive
 from lib.py import EthtoolFamily, NetdevFamily, RtnlFamily, NlError
 from lib.py import NetDrvEnv
@@ -31,7 +31,7 @@ def check_pause(cfg) -> None:
         ethnl.pause_get({"header": {"dev-index": cfg.ifindex}})
     except NlError as e:
         if e.error == errno.EOPNOTSUPP:
-            raise KsftXfailEx("pause not supported by the device") from e
+            raise KsftSkipEx("pause not supported by the device") from e
         raise
 
     data = ethnl.pause_get({"header": {"dev-index": cfg.ifindex,
@@ -49,7 +49,7 @@ def check_fec(cfg) -> None:
         ethnl.fec_get({"header": {"dev-index": cfg.ifindex}})
     except NlError as e:
         if e.error == errno.EOPNOTSUPP:
-            raise KsftXfailEx("FEC not supported by the device") from e
+            raise KsftSkipEx("FEC not supported by the device") from e
         raise
 
     data = ethnl.fec_get({"header": {"dev-index": cfg.ifindex,
