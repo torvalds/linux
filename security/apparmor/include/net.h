@@ -47,8 +47,9 @@
 #define NET_PEER_MASK (AA_MAY_SEND | AA_MAY_RECEIVE | AA_MAY_CONNECT |	\
 		       AA_MAY_ACCEPT)
 struct aa_sk_ctx {
-	struct aa_label *label;
-	struct aa_label *peer;
+	struct aa_label __rcu *label;
+	struct aa_label __rcu *peer;
+	struct aa_label __rcu *peer_lastupdate;	/* ptr cmp only, no deref */
 };
 
 static inline struct aa_sk_ctx *aa_sock(const struct sock *sk)

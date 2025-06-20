@@ -646,6 +646,67 @@ int aa_unix_peer_perm(const struct cred *subj_cred,
 			      peer_label);
 }
 
+/* sk_plabel for comparison only */
+static void update_sk_ctx(struct sock *sk, struct aa_label *label,
+			  struct aa_label *plabel)
+{
+	struct aa_label *l, *old;
+	struct aa_sk_ctx *ctx = aa_sock(sk);
+	bool update_sk;
+
+	rcu_read_lock();
+	update_sk = (plabel &&
+		     (plabel != rcu_access_pointer(ctx->peer_lastupdate) ||
+		      !aa_label_is_subset(plabel, rcu_dereference(ctx->peer)))) ||
+	  !__aa_subj_label_is_cached(label, rcu_dereference(ctx->label));
+	rcu_read_unlock();
+	if (!update_sk)
+		return;
+
+	spin_lock(&unix_sk(sk)->lock);
+	old = rcu_dereference_protected(ctx->label,
+					lockdep_is_held(&unix_sk(sk)->lock));
+	l = aa_label_merge(old, label, GFP_ATOMIC);
+	if (l) {
+		if (l != old) {
+			rcu_assign_pointer(ctx->label, l);
+			aa_put_label(old);
+		} else
+			aa_put_label(l);
+	}
+	if (plabel && rcu_access_pointer(ctx->peer_lastupdate) != plabel) {
+		old = rcu_dereference_protected(ctx->peer, lockdep_is_held(&unix_sk(sk)->lock));
+
+		if (old == plabel) {
+			rcu_assign_pointer(ctx->peer_lastupdate, plabel);
+		} else if (aa_label_is_subset(plabel, old)) {
+			rcu_assign_pointer(ctx->peer_lastupdate, plabel);
+			rcu_assign_pointer(ctx->peer, aa_get_label(plabel));
+			aa_put_label(old);
+		} /* else race or a subset - don't update */
+	}
+	spin_unlock(&unix_sk(sk)->lock);
+}
+
+static void update_peer_ctx(struct sock *sk, struct aa_sk_ctx *ctx,
+			    struct aa_label *label)
+{
+	struct aa_label *l, *old;
+
+	spin_lock(&unix_sk(sk)->lock);
+	old = rcu_dereference_protected(ctx->peer,
+					lockdep_is_held(&unix_sk(sk)->lock));
+	l = aa_label_merge(old, label, GFP_ATOMIC);
+	if (l) {
+		if (l != old) {
+			rcu_assign_pointer(ctx->peer, l);
+			aa_put_label(old);
+		} else
+			aa_put_label(l);
+	}
+	spin_unlock(&unix_sk(sk)->lock);
+}
+
 /* This fn is only checked if something has changed in the security
  * boundaries. Otherwise cached info off file is sufficient
  */
@@ -655,6 +716,7 @@ int aa_unix_file_perm(const struct cred *subj_cred, struct aa_label *label,
 	struct socket *sock = (struct socket *) file->private_data;
 	struct sockaddr_un *addr, *peer_addr;
 	int addrlen, peer_addrlen;
+	struct aa_label *plabel = NULL;
 	struct sock *peer_sk = NULL;
 	u32 sk_req = request & ~NET_PEER_MASK;
 	struct path path;
@@ -666,7 +728,6 @@ int aa_unix_file_perm(const struct cred *subj_cred, struct aa_label *label,
 	AA_BUG(!sock->sk);
 	AA_BUG(sock->sk->sk_family != PF_UNIX);
 
-	/* TODO: update sock label with new task label */
 	/* investigate only using lock via unix_peer_get()
 	 * addr only needs the memory barrier, but need to investigate
 	 * path
@@ -701,8 +762,12 @@ int aa_unix_file_perm(const struct cred *subj_cred, struct aa_label *label,
 			   unix_fs_perm(op, request, subj_cred, label,
 					is_unix_fs(peer_sk) ? &peer_path : NULL));
 	} else if (!is_sk_fs) {
+		struct aa_label *plabel;
 		struct aa_sk_ctx *pctx = aa_sock(peer_sk);
 
+		rcu_read_lock();
+		plabel = aa_get_label_rcu(&pctx->label);
+		rcu_read_unlock();
 		/* no fs check of aa_unix_peer_perm because conditions above
 		 * ensure they will never be done
 		 */
@@ -713,18 +778,26 @@ int aa_unix_file_perm(const struct cred *subj_cred, struct aa_label *label,
 					      peer_addr, peer_addrlen,
 					      is_unix_fs(peer_sk) ?
 							&peer_path : NULL,
-					      pctx->label),
-			       unix_peer_perm(file->f_cred, pctx->label, op,
+					      plabel),
+			       unix_peer_perm(file->f_cred, plabel, op,
 					      MAY_READ | MAY_WRITE, peer_sk,
 					      is_unix_fs(peer_sk) ?
 							&peer_path : NULL,
 					      addr, addrlen,
 					      is_sk_fs ? &path : NULL,
 					      label)));
+		if (!error && !__aa_subj_label_is_cached(plabel, label))
+			update_peer_ctx(peer_sk, pctx, label);
 	}
 	sock_put(peer_sk);
 
 out:
 
+	/* update peer cache to latest successful perm check */
+	if (error == 0)
+		update_sk_ctx(sock->sk, label, plabel);
+	aa_put_label(plabel);
+
 	return error;
 }
+

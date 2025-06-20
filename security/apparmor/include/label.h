@@ -415,6 +415,13 @@ static inline void aa_put_label(struct aa_label *l)
 		kref_put(&l->count, aa_label_kref);
 }
 
+/* wrapper fn to indicate semantics of the check */
+static inline bool __aa_subj_label_is_cached(struct aa_label *subj_label,
+					  struct aa_label *obj_label)
+{
+	return aa_label_is_subset(obj_label, subj_label);
+}
+
 
 struct aa_proxy *aa_alloc_proxy(struct aa_label *l, gfp_t gfp);
 void aa_proxy_kref(struct kref *kref);

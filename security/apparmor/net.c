@@ -292,7 +292,7 @@ static int aa_label_sk_perm(const struct cred *subj_cred,
 	AA_BUG(!label);
 	AA_BUG(!sk);
 
-	if (ctx->label != kernel_t && !unconfined(label)) {
+	if (rcu_access_pointer(ctx->label) != kernel_t && !unconfined(label)) {
 		struct aa_profile *profile;
 		DEFINE_AUDIT_SK(ad, op, subj_cred, sk);
 

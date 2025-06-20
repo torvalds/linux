@@ -561,17 +561,33 @@ static int __file_sock_perm(const char *op, const struct cred *subj_cred,
 	return error;
 }
 
-/* wrapper fn to indicate semantics of the check */
-static bool __subj_label_is_cached(struct aa_label *subj_label,
-			    struct aa_label *obj_label)
-{
-	return aa_label_is_subset(obj_label, subj_label);
-}
-
 /* for now separate fn to indicate semantics of the check */
 static bool __file_is_delegated(struct aa_label *obj_label)
 {
 	return unconfined(obj_label);
+}
+
+static bool __unix_needs_revalidation(struct file *file, struct aa_label *label,
+				      u32 request)
+{
+	struct socket *sock = (struct socket *) file->private_data;
+
+	lockdep_assert_in_rcu_read_lock();
+
+	if (!S_ISSOCK(file_inode(file)->i_mode))
+		return false;
+	if (request & NET_PEER_MASK)
+		return false;
+	if (sock->sk->sk_family == PF_UNIX) {
+		struct aa_sk_ctx *ctx = aa_sock(sock->sk);
+
+		if (rcu_access_pointer(ctx->peer) !=
+		    rcu_access_pointer(ctx->peer_lastupdate))
+			return true;
+		return !__aa_subj_label_is_cached(rcu_dereference(ctx->label),
+						  label);
+	}
+	return false;
 }
 
 /**
@@ -612,14 +628,15 @@ int aa_file_perm(const char *op, const struct cred *subj_cred,
 	 */
 	denied = request & ~fctx->allow;
 	if (unconfined(label) || __file_is_delegated(flabel) ||
-	    (!denied && __subj_label_is_cached(label, flabel))) {
+	    __unix_needs_revalidation(file, label, request) ||
+	    (!denied && __aa_subj_label_is_cached(label, flabel))) {
 		rcu_read_unlock();
 		goto done;
 	}
 
+	/* slow path - revalidate access */
 	flabel  = aa_get_newest_label(flabel);
 	rcu_read_unlock();
-	/* TODO: label cross check */
 
 	if (file->f_path.mnt && path_mediated_fs(file->f_path.dentry))
 		error = __file_path_perm(op, subj_cred, label, flabel, file,

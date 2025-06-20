@@ -508,7 +508,6 @@ static int apparmor_file_alloc_security(struct file *file)
 	struct aa_file_ctx *ctx = file_ctx(file);
 	struct aa_label *label = begin_current_label_crit_section();
 
-	spin_lock_init(&ctx->lock);
 	rcu_assign_pointer(ctx->label, aa_get_label(label));
 	end_current_label_crit_section(label);
 	return 0;
@@ -1076,12 +1075,29 @@ static int apparmor_userns_create(const struct cred *cred)
 	return error;
 }
 
+static int apparmor_sk_alloc_security(struct sock *sk, int family, gfp_t gfp)
+{
+	struct aa_sk_ctx *ctx = aa_sock(sk);
+	struct aa_label *label;
+	bool needput;
+
+	label = __begin_current_label_crit_section(&needput);
+	//spin_lock_init(&ctx->lock);
+	rcu_assign_pointer(ctx->label, aa_get_label(label));
+	rcu_assign_pointer(ctx->peer, NULL);
+	rcu_assign_pointer(ctx->peer_lastupdate, NULL);
+	__end_current_label_crit_section(label, needput);
+	return 0;
+}
+
 static void apparmor_sk_free_security(struct sock *sk)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
 
-	aa_put_label(ctx->label);
-	aa_put_label(ctx->peer);
+	/* dead these won't be updated any more */
+	aa_put_label(rcu_dereference_protected(ctx->label, true));
+	aa_put_label(rcu_dereference_protected(ctx->peer, true));
+	aa_put_label(rcu_dereference_protected(ctx->peer_lastupdate, true));
 }
 
 /**
@@ -1095,13 +1111,22 @@ static void apparmor_sk_clone_security(const struct sock *sk,
 	struct aa_sk_ctx *ctx = aa_sock(sk);
 	struct aa_sk_ctx *new = aa_sock(newsk);
 
-	if (new->label)
-		aa_put_label(new->label);
-	new->label = aa_get_label(ctx->label);
+	/* not actually in use yet */
+	if (rcu_access_pointer(ctx->label) != rcu_access_pointer(new->label)) {
+		aa_put_label(rcu_dereference_protected(new->label, true));
+		rcu_assign_pointer(new->label, aa_get_label_rcu(&ctx->label));
+	}
 
-	if (new->peer)
-		aa_put_label(new->peer);
-	new->peer = aa_get_label(ctx->peer);
+	if (rcu_access_pointer(ctx->peer) != rcu_access_pointer(new->peer)) {
+		aa_put_label(rcu_dereference_protected(new->peer, true));
+		rcu_assign_pointer(new->peer, aa_get_label_rcu(&ctx->peer));
+	}
+
+	if (rcu_access_pointer(ctx->peer_lastupdate) != rcu_access_pointer(new->peer_lastupdate)) {
+		aa_put_label(rcu_dereference_protected(new->peer_lastupdate, true));
+		rcu_assign_pointer(new->peer_lastupdate,
+				   aa_get_label_rcu(&ctx->peer_lastupdate));
+	}
 }
 
 static int unix_connect_perm(const struct cred *cred, struct aa_label *label,
@@ -1112,27 +1137,47 @@ static int unix_connect_perm(const struct cred *cred, struct aa_label *label,
 
 	error = aa_unix_peer_perm(cred, label, OP_CONNECT,
 				(AA_MAY_CONNECT | AA_MAY_SEND | AA_MAY_RECEIVE),
-				  sk, peer_sk, peer_ctx->label);
+				  sk, peer_sk,
+				  rcu_dereference_protected(peer_ctx->label,
+				     lockdep_is_held(&unix_sk(peer_sk)->lock)));
 	if (!is_unix_fs(peer_sk)) {
 		last_error(error,
 			   aa_unix_peer_perm(cred,
-				peer_ctx->label, OP_CONNECT,
+				rcu_dereference_protected(peer_ctx->label,
+				     lockdep_is_held(&unix_sk(peer_sk)->lock)),
+				OP_CONNECT,
 				(AA_MAY_ACCEPT | AA_MAY_SEND | AA_MAY_RECEIVE),
-				peer_sk, sk, label));
+							  peer_sk, sk, label));
 	}
 
 	return error;
 }
 
+/* lockdep check in unix_connect_perm - push sks here to check */
 static void unix_connect_peers(struct aa_sk_ctx *sk_ctx,
 			       struct aa_sk_ctx *peer_ctx)
 {
 	/* Cross reference the peer labels for SO_PEERSEC */
-	aa_put_label(peer_ctx->peer);
-	aa_put_label(sk_ctx->peer);
+	struct aa_label *label = rcu_dereference_protected(sk_ctx->label, true);
 
-	peer_ctx->peer = aa_get_label(sk_ctx->label);
-	sk_ctx->peer = aa_get_label(peer_ctx->label);
+	aa_get_label(label);
+	aa_put_label(rcu_dereference_protected(peer_ctx->peer,
+					     true));
+	rcu_assign_pointer(peer_ctx->peer, label);	/* transfer cnt */
+
+	label = aa_get_label(rcu_dereference_protected(peer_ctx->label,
+					     true));
+	//spin_unlock(&peer_ctx->lock);
+
+	//spin_lock(&sk_ctx->lock);
+	aa_put_label(rcu_dereference_protected(sk_ctx->peer,
+					       true));
+	aa_put_label(rcu_dereference_protected(sk_ctx->peer_lastupdate,
+					       true));
+
+	rcu_assign_pointer(sk_ctx->peer, aa_get_label(label));
+	rcu_assign_pointer(sk_ctx->peer_lastupdate, label);     /* transfer cnt */
+	//spin_unlock(&sk_ctx->lock);
 }
 
 /**
@@ -1158,8 +1203,10 @@ static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
 		return error;
 
 	/* newsk doesn't go through post_create */
-	AA_BUG(new_ctx->label);
-	new_ctx->label = aa_get_label(peer_ctx->label);
+	AA_BUG(rcu_access_pointer(new_ctx->label));
+	rcu_assign_pointer(new_ctx->label,
+			   aa_get_label(rcu_dereference_protected(peer_ctx->label,
+								  true)));
 
 	/* Cross reference the peer labels for SO_PEERSEC */
 	unix_connect_peers(sk_ctx, new_ctx);
@@ -1183,12 +1230,15 @@ static int apparmor_unix_may_send(struct socket *sock, struct socket *peer)
 
 	label = __begin_current_label_crit_section(&needput);
 	error = xcheck(aa_unix_peer_perm(current_cred(),
-					 label, OP_SENDMSG, AA_MAY_SEND,
-					 sock->sk, peer->sk, peer_ctx->label),
+				label, OP_SENDMSG, AA_MAY_SEND,
+				sock->sk, peer->sk,
+				rcu_dereference_protected(peer_ctx->label,
+							  true)),
 		       aa_unix_peer_perm(peer->file ? peer->file->f_cred : NULL,
-					 peer_ctx->label, OP_SENDMSG,
-					 AA_MAY_RECEIVE,
-					 peer->sk, sock->sk, label));
+				rcu_dereference_protected(peer_ctx->label,
+							  true),
+				OP_SENDMSG, AA_MAY_RECEIVE, peer->sk,
+				sock->sk, label));
 	__end_current_label_crit_section(label, needput);
 
 	return error;
@@ -1246,8 +1296,9 @@ static int apparmor_socket_post_create(struct socket *sock, int family,
 	if (sock->sk) {
 		struct aa_sk_ctx *ctx = aa_sock(sock->sk);
 
-		aa_put_label(ctx->label);
-		ctx->label = aa_get_label(label);
+		/* still not live */
+		aa_put_label(rcu_dereference_protected(ctx->label, true));
+		rcu_assign_pointer(ctx->label, aa_get_label(label));
 	}
 	aa_put_label(label);
 
@@ -1260,23 +1311,27 @@ static int apparmor_socket_socketpair(struct socket *socka,
 	struct aa_sk_ctx *a_ctx = aa_sock(socka->sk);
 	struct aa_sk_ctx *b_ctx = aa_sock(sockb->sk);
 	struct aa_label *label;
-	int error = 0;
 
-	aa_put_label(a_ctx->label);
-	aa_put_label(b_ctx->label);
-
+	/* socks not live yet - initial values set in sk_alloc */
 	label = begin_current_label_crit_section();
-	a_ctx->label = aa_get_label(label);
-	b_ctx->label = aa_get_label(label);
+	if (rcu_access_pointer(a_ctx->label) != label) {
+		AA_BUG("a_ctx != label");
+		aa_put_label(rcu_dereference_protected(a_ctx->label, true));
+		rcu_assign_pointer(a_ctx->label, aa_get_label(label));
+	}
+	if (rcu_access_pointer(b_ctx->label) != label) {
+		AA_BUG("b_ctx != label");
+		aa_put_label(rcu_dereference_protected(b_ctx->label, true));
+		rcu_assign_pointer(b_ctx->label, aa_get_label(label));
+	}
 
 	if (socka->sk->sk_family == PF_UNIX) {
 		/* unix socket pairs by-pass unix_stream_connect */
-		if (!error)
-			unix_connect_peers(a_ctx, b_ctx);
+		unix_connect_peers(a_ctx, b_ctx);
 	}
 	end_current_label_crit_section(label);
 
-	return error;
+	return 0;
 }
 
 /**
@@ -1430,6 +1485,7 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
 static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
+	int error;
 
 	if (!skb->secmark)
 		return 0;
@@ -1438,11 +1494,15 @@ static int apparmor_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	 * If reach here before socket_post_create hook is called, in which
 	 * case label is null, drop the packet.
 	 */
-	if (!ctx->label)
+	if (!rcu_access_pointer(ctx->label))
 		return -EACCES;
 
-	return apparmor_secmark_check(ctx->label, OP_RECVMSG, AA_MAY_RECEIVE,
-				      skb->secmark, sk);
+	rcu_read_lock();
+	error = apparmor_secmark_check(rcu_dereference(ctx->label), OP_RECVMSG,
+				       AA_MAY_RECEIVE, skb->secmark, sk);
+	rcu_read_unlock();
+
+	return error;
 }
 #endif
 
@@ -1452,8 +1512,8 @@ static struct aa_label *sk_peer_get_label(struct sock *sk)
 	struct aa_sk_ctx *ctx = aa_sock(sk);
 	struct aa_label *label = ERR_PTR(-ENOPROTOOPT);
 
-	if (ctx->peer)
-		return aa_get_label(ctx->peer);
+	if (rcu_access_pointer(ctx->peer))
+		return aa_get_label_rcu(&ctx->peer);
 
 	if (sk->sk_family != PF_UNIX)
 		return ERR_PTR(-ENOPROTOOPT);
@@ -1480,12 +1540,12 @@ static int apparmor_socket_getpeersec_stream(struct socket *sock,
 	struct aa_label *label;
 	struct aa_label *peer;
 
-	label = begin_current_label_crit_section();
 	peer = sk_peer_get_label(sock->sk);
 	if (IS_ERR(peer)) {
 		error = PTR_ERR(peer);
 		goto done;
 	}
+	label = begin_current_label_crit_section();
 	slen = aa_label_asxprint(&name, labels_ns(label), peer,
 				 FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
 				 FLAG_HIDDEN_UNCONFINED, GFP_KERNEL);
@@ -1506,9 +1566,9 @@ done_len:
 		error = -EFAULT;
 
 done_put:
+	end_current_label_crit_section(label);
 	aa_put_label(peer);
 done:
-	end_current_label_crit_section(label);
 	kfree(name);
 	return error;
 }
@@ -1544,8 +1604,9 @@ static void apparmor_sock_graft(struct sock *sk, struct socket *parent)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
 
-	if (!ctx->label)
-		ctx->label = aa_get_current_label();
+	/* setup - not live */
+	if (!rcu_access_pointer(ctx->label))
+		rcu_assign_pointer(ctx->label, aa_get_current_label());
 }
 
 #ifdef CONFIG_NETWORK_SECMARK
@@ -1553,12 +1614,17 @@ static int apparmor_inet_conn_request(const struct sock *sk, struct sk_buff *skb
 				      struct request_sock *req)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
+	int error;
 
 	if (!skb->secmark)
 		return 0;
 
-	return apparmor_secmark_check(ctx->label, OP_CONNECT, AA_MAY_CONNECT,
-				      skb->secmark, sk);
+	rcu_read_lock();
+	error = apparmor_secmark_check(rcu_dereference(ctx->label), OP_CONNECT,
+				       AA_MAY_CONNECT, skb->secmark, sk);
+	rcu_read_unlock();
+
+	return error;
 }
 #endif
 
@@ -1615,6 +1681,7 @@ static struct security_hook_list apparmor_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(getprocattr, apparmor_getprocattr),
 	LSM_HOOK_INIT(setprocattr, apparmor_setprocattr),
 
+	LSM_HOOK_INIT(sk_alloc_security, apparmor_sk_alloc_security),
 	LSM_HOOK_INIT(sk_free_security, apparmor_sk_free_security),
 	LSM_HOOK_INIT(sk_clone_security, apparmor_sk_clone_security),
 
@@ -2266,6 +2333,7 @@ static unsigned int apparmor_ip_postroute(void *priv,
 {
 	struct aa_sk_ctx *ctx;
 	struct sock *sk;
+	int error;
 
 	if (!skb->secmark)
 		return NF_ACCEPT;
@@ -2275,8 +2343,11 @@ static unsigned int apparmor_ip_postroute(void *priv,
 		return NF_ACCEPT;
 
 	ctx = aa_sock(sk);
-	if (!apparmor_secmark_check(ctx->label, OP_SENDMSG, AA_MAY_SEND,
-				    skb->secmark, sk))
+	rcu_read_lock();
+	error = apparmor_secmark_check(rcu_dereference(ctx->label), OP_SENDMSG,
+				       AA_MAY_SEND, skb->secmark, sk);
+	rcu_read_unlock();
+	if (!error)
 		return NF_ACCEPT;
 
 	return NF_DROP_ERR(-ECONNREFUSED);
