@@ -74,6 +74,8 @@ struct madvise_behavior {
 	 * traversing multiple VMAs, this is updated for each.
 	 */
 	struct madvise_behavior_range range;
+	/* The VMA and VMA preceding it (if applicable) currently targeted. */
+	struct vm_area_struct *prev, *vma;
 };
 
 #ifdef CONFIG_ANON_VMA_NAME
@@ -177,26 +179,27 @@ static int replace_anon_vma_name(struct vm_area_struct *vma,
  * Caller should ensure anon_name stability by raising its refcount even when
  * anon_name belongs to a valid vma because this function might free that vma.
  */
-static int madvise_update_vma(struct vm_area_struct *vma,
-			      struct vm_area_struct **prev, unsigned long start,
-			      unsigned long end, vm_flags_t new_flags,
-			      struct anon_vma_name *anon_name)
+static int madvise_update_vma(vm_flags_t new_flags,
+		struct madvise_behavior *madv_behavior)
 {
-	struct mm_struct *mm = vma->vm_mm;
 	int error;
-	VMA_ITERATOR(vmi, mm, start);
+	struct vm_area_struct *vma = madv_behavior->vma;
+	struct madvise_behavior_range *range = &madv_behavior->range;
+	struct anon_vma_name *anon_name = madv_behavior->anon_name;
+	VMA_ITERATOR(vmi, madv_behavior->mm, range->start);
 
 	if (new_flags == vma->vm_flags && anon_vma_name_eq(anon_vma_name(vma), anon_name)) {
-		*prev = vma;
+		madv_behavior->prev = vma;
 		return 0;
 	}
 
-	vma = vma_modify_flags_name(&vmi, *prev, vma, start, end, new_flags,
-				    anon_name);
+	vma = vma_modify_flags_name(&vmi, madv_behavior->prev, vma,
+			range->start, range->end, new_flags, anon_name);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	*prev = vma;
+	madv_behavior->vma = vma;
+	madv_behavior->prev = vma;
 
 	/* vm_flags is protected by the mmap_lock held in write mode. */
 	vma_start_write(vma);
@@ -301,15 +304,16 @@ static void shmem_swapin_range(struct vm_area_struct *vma,
 /*
  * Schedule all required I/O operations.  Do not wait for completion.
  */
-static long madvise_willneed(struct vm_area_struct *vma,
-			     struct vm_area_struct **prev,
-			     unsigned long start, unsigned long end)
+static long madvise_willneed(struct madvise_behavior *madv_behavior)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	struct vm_area_struct *vma = madv_behavior->vma;
+	struct mm_struct *mm = madv_behavior->mm;
 	struct file *file = vma->vm_file;
+	unsigned long start = madv_behavior->range.start;
+	unsigned long end = madv_behavior->range.end;
 	loff_t offset;
 
-	*prev = vma;
+	madv_behavior->prev = vma;
 #ifdef CONFIG_SWAP
 	if (!file) {
 		walk_page_range_vma(vma, start, end, &swapin_walk_ops, vma);
@@ -338,7 +342,7 @@ static long madvise_willneed(struct vm_area_struct *vma,
 	 * vma's reference to the file) can go away as soon as we drop
 	 * mmap_lock.
 	 */
-	*prev = NULL;	/* tell sys_madvise we drop mmap_lock */
+	madv_behavior->prev = NULL;	/* tell sys_madvise we drop mmap_lock */
 	get_file(file);
 	offset = (loff_t)(start - vma->vm_start)
 			+ ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
@@ -603,16 +607,19 @@ static const struct mm_walk_ops cold_walk_ops = {
 };
 
 static void madvise_cold_page_range(struct mmu_gather *tlb,
-			     struct vm_area_struct *vma,
-			     unsigned long addr, unsigned long end)
+		struct madvise_behavior *madv_behavior)
+
 {
+	struct vm_area_struct *vma = madv_behavior->vma;
+	struct madvise_behavior_range *range = &madv_behavior->range;
 	struct madvise_walk_private walk_private = {
 		.pageout = false,
 		.tlb = tlb,
 	};
 
 	tlb_start_vma(tlb, vma);
-	walk_page_range_vma(vma, addr, end, &cold_walk_ops, &walk_private);
+	walk_page_range_vma(vma, range->start, range->end, &cold_walk_ops,
+			&walk_private);
 	tlb_end_vma(tlb, vma);
 }
 
@@ -621,28 +628,26 @@ static inline bool can_madv_lru_vma(struct vm_area_struct *vma)
 	return !(vma->vm_flags & (VM_LOCKED|VM_PFNMAP|VM_HUGETLB));
 }
 
-static long madvise_cold(struct vm_area_struct *vma,
-			struct vm_area_struct **prev,
-			unsigned long start_addr, unsigned long end_addr)
+static long madvise_cold(struct madvise_behavior *madv_behavior)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	struct vm_area_struct *vma = madv_behavior->vma;
 	struct mmu_gather tlb;
 
-	*prev = vma;
+	madv_behavior->prev = vma;
 	if (!can_madv_lru_vma(vma))
 		return -EINVAL;
 
 	lru_add_drain();
-	tlb_gather_mmu(&tlb, mm);
-	madvise_cold_page_range(&tlb, vma, start_addr, end_addr);
+	tlb_gather_mmu(&tlb, madv_behavior->mm);
+	madvise_cold_page_range(&tlb, madv_behavior);
 	tlb_finish_mmu(&tlb);
 
 	return 0;
 }
 
 static void madvise_pageout_page_range(struct mmu_gather *tlb,
-			     struct vm_area_struct *vma,
-			     unsigned long addr, unsigned long end)
+		struct vm_area_struct *vma,
+		struct madvise_behavior_range *range)
 {
 	struct madvise_walk_private walk_private = {
 		.pageout = true,
@@ -650,18 +655,17 @@ static void madvise_pageout_page_range(struct mmu_gather *tlb,
 	};
 
 	tlb_start_vma(tlb, vma);
-	walk_page_range_vma(vma, addr, end, &cold_walk_ops, &walk_private);
+	walk_page_range_vma(vma, range->start, range->end, &cold_walk_ops,
+			    &walk_private);
 	tlb_end_vma(tlb, vma);
 }
 
-static long madvise_pageout(struct vm_area_struct *vma,
-			struct vm_area_struct **prev,
-			unsigned long start_addr, unsigned long end_addr)
+static long madvise_pageout(struct madvise_behavior *madv_behavior)
 {
-	struct mm_struct *mm = vma->vm_mm;
 	struct mmu_gather tlb;
+	struct vm_area_struct *vma = madv_behavior->vma;
 
-	*prev = vma;
+	madv_behavior->prev = vma;
 	if (!can_madv_lru_vma(vma))
 		return -EINVAL;
 
@@ -676,8 +680,8 @@ static long madvise_pageout(struct vm_area_struct *vma,
 		return 0;
 
 	lru_add_drain();
-	tlb_gather_mmu(&tlb, mm);
-	madvise_pageout_page_range(&tlb, vma, start_addr, end_addr);
+	tlb_gather_mmu(&tlb, madv_behavior->mm);
+	madvise_pageout_page_range(&tlb, vma, &madv_behavior->range);
 	tlb_finish_mmu(&tlb);
 
 	return 0;
@@ -840,11 +844,12 @@ static inline enum page_walk_lock get_walk_lock(enum madvise_lock_mode mode)
 	}
 }
 
-static int madvise_free_single_vma(struct madvise_behavior *madv_behavior,
-			struct vm_area_struct *vma,
-			unsigned long start_addr, unsigned long end_addr)
+static int madvise_free_single_vma(struct madvise_behavior *madv_behavior)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	struct mm_struct *mm = madv_behavior->mm;
+	struct vm_area_struct *vma = madv_behavior->vma;
+	unsigned long start_addr = madv_behavior->range.start;
+	unsigned long end_addr = madv_behavior->range.end;
 	struct mmu_notifier_range range;
 	struct mmu_gather *tlb = madv_behavior->tlb;
 	struct mm_walk_ops walk_ops = {
@@ -896,25 +901,28 @@ static int madvise_free_single_vma(struct madvise_behavior *madv_behavior,
  * An interface that causes the system to free clean pages and flush
  * dirty pages is already available as msync(MS_INVALIDATE).
  */
-static long madvise_dontneed_single_vma(struct madvise_behavior *madv_behavior,
-					struct vm_area_struct *vma,
-					unsigned long start, unsigned long end)
+static long madvise_dontneed_single_vma(struct madvise_behavior *madv_behavior)
+
 {
+	struct madvise_behavior_range *range = &madv_behavior->range;
 	struct zap_details details = {
 		.reclaim_pt = true,
 		.even_cows = true,
 	};
 
 	zap_page_range_single_batched(
-			madv_behavior->tlb, vma, start, end - start, &details);
+			madv_behavior->tlb, madv_behavior->vma, range->start,
+			range->end - range->start, &details);
 	return 0;
 }
 
-static bool madvise_dontneed_free_valid_vma(struct vm_area_struct *vma,
-					    unsigned long start,
-					    unsigned long *end,
-					    int behavior)
+static
+bool madvise_dontneed_free_valid_vma(struct madvise_behavior *madv_behavior)
 {
+	struct vm_area_struct *vma = madv_behavior->vma;
+	int behavior = madv_behavior->behavior;
+	struct madvise_behavior_range *range = &madv_behavior->range;
+
 	if (!is_vm_hugetlb_page(vma)) {
 		unsigned int forbidden = VM_PFNMAP;
 
@@ -926,7 +934,7 @@ static bool madvise_dontneed_free_valid_vma(struct vm_area_struct *vma,
 
 	if (behavior != MADV_DONTNEED && behavior != MADV_DONTNEED_LOCKED)
 		return false;
-	if (start & ~huge_page_mask(hstate_vma(vma)))
+	if (range->start & ~huge_page_mask(hstate_vma(vma)))
 		return false;
 
 	/*
@@ -935,41 +943,40 @@ static bool madvise_dontneed_free_valid_vma(struct vm_area_struct *vma,
 	 * Avoid unexpected data loss by rounding down the number of
 	 * huge pages freed.
 	 */
-	*end = ALIGN_DOWN(*end, huge_page_size(hstate_vma(vma)));
+	range->end = ALIGN_DOWN(range->end, huge_page_size(hstate_vma(vma)));
 
 	return true;
 }
 
-static long madvise_dontneed_free(struct vm_area_struct *vma,
-				  struct vm_area_struct **prev,
-				  unsigned long start, unsigned long end,
-				  struct madvise_behavior *madv_behavior)
+static long madvise_dontneed_free(struct madvise_behavior *madv_behavior)
 {
+	struct mm_struct *mm = madv_behavior->mm;
+	struct madvise_behavior_range *range = &madv_behavior->range;
 	int behavior = madv_behavior->behavior;
-	struct mm_struct *mm = vma->vm_mm;
 
-	*prev = vma;
-	if (!madvise_dontneed_free_valid_vma(vma, start, &end, behavior))
+	madv_behavior->prev = madv_behavior->vma;
+	if (!madvise_dontneed_free_valid_vma(madv_behavior))
 		return -EINVAL;
 
-	if (start == end)
+	if (range->start == range->end)
 		return 0;
 
-	if (!userfaultfd_remove(vma, start, end)) {
-		*prev = NULL; /* mmap_lock has been dropped, prev is stale */
+	if (!userfaultfd_remove(madv_behavior->vma, range->start, range->end)) {
+		struct vm_area_struct *vma;
+
+		madv_behavior->prev = NULL; /* mmap_lock has been dropped, prev is stale */
 
 		mmap_read_lock(mm);
-		vma = vma_lookup(mm, start);
+		madv_behavior->vma = vma = vma_lookup(mm, range->start);
 		if (!vma)
 			return -ENOMEM;
 		/*
 		 * Potential end adjustment for hugetlb vma is OK as
 		 * the check below keeps end within vma.
 		 */
-		if (!madvise_dontneed_free_valid_vma(vma, start, &end,
-						     behavior))
+		if (!madvise_dontneed_free_valid_vma(madv_behavior))
 			return -EINVAL;
-		if (end > vma->vm_end) {
+		if (range->end > vma->vm_end) {
 			/*
 			 * Don't fail if end > vma->vm_end. If the old
 			 * vma was split while the mmap_lock was
@@ -982,7 +989,7 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
 			 * end-vma->vm_end range, but the manager can
 			 * handle a repetition fine.
 			 */
-			end = vma->vm_end;
+			range->end = vma->vm_end;
 		}
 		/*
 		 * If the memory region between start and end was
@@ -991,16 +998,15 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
 		 * the adjustment for hugetlb vma above may have rounded
 		 * end down to the start address.
 		 */
-		if (start == end)
+		if (range->start == range->end)
 			return 0;
-		VM_WARN_ON(start > end);
+		VM_WARN_ON(range->start > range->end);
 	}
 
 	if (behavior == MADV_DONTNEED || behavior == MADV_DONTNEED_LOCKED)
-		return madvise_dontneed_single_vma(
-				madv_behavior, vma, start, end);
+		return madvise_dontneed_single_vma(madv_behavior);
 	else if (behavior == MADV_FREE)
-		return madvise_free_single_vma(madv_behavior, vma, start, end);
+		return madvise_free_single_vma(madv_behavior);
 	else
 		return -EINVAL;
 }
@@ -1048,16 +1054,17 @@ static long madvise_populate(struct madvise_behavior *madv_behavior)
  * Application wants to free up the pages and associated backing store.
  * This is effectively punching a hole into the middle of a file.
  */
-static long madvise_remove(struct vm_area_struct *vma,
-				struct vm_area_struct **prev,
-				unsigned long start, unsigned long end)
+static long madvise_remove(struct madvise_behavior *madv_behavior)
 {
 	loff_t offset;
 	int error;
 	struct file *f;
-	struct mm_struct *mm = vma->vm_mm;
+	struct mm_struct *mm = madv_behavior->mm;
+	struct vm_area_struct *vma = madv_behavior->vma;
+	unsigned long start = madv_behavior->range.start;
+	unsigned long end = madv_behavior->range.end;
 
-	*prev = NULL;	/* tell sys_madvise we drop mmap_lock */
+	madv_behavior->prev = NULL; /* tell sys_madvise we drop mmap_lock */
 
 	if (vma->vm_flags & VM_LOCKED)
 		return -EINVAL;
@@ -1169,14 +1176,14 @@ static const struct mm_walk_ops guard_install_walk_ops = {
 	.walk_lock		= PGWALK_RDLOCK,
 };
 
-static long madvise_guard_install(struct vm_area_struct *vma,
-				 struct vm_area_struct **prev,
-				 unsigned long start, unsigned long end)
+static long madvise_guard_install(struct madvise_behavior *madv_behavior)
 {
+	struct vm_area_struct *vma = madv_behavior->vma;
+	struct madvise_behavior_range *range = &madv_behavior->range;
 	long err;
 	int i;
 
-	*prev = vma;
+	madv_behavior->prev = vma;
 	if (!is_valid_guard_vma(vma, /* allow_locked = */false))
 		return -EINVAL;
 
@@ -1207,13 +1214,14 @@ static long madvise_guard_install(struct vm_area_struct *vma,
 		unsigned long nr_pages = 0;
 
 		/* Returns < 0 on error, == 0 if success, > 0 if zap needed. */
-		err = walk_page_range_mm(vma->vm_mm, start, end,
+		err = walk_page_range_mm(vma->vm_mm, range->start, range->end,
 					 &guard_install_walk_ops, &nr_pages);
 		if (err < 0)
 			return err;
 
 		if (err == 0) {
-			unsigned long nr_expected_pages = PHYS_PFN(end - start);
+			unsigned long nr_expected_pages =
+				PHYS_PFN(range->end - range->start);
 
 			VM_WARN_ON(nr_pages != nr_expected_pages);
 			return 0;
@@ -1223,7 +1231,8 @@ static long madvise_guard_install(struct vm_area_struct *vma,
 		 * OK some of the range have non-guard pages mapped, zap
 		 * them. This leaves existing guard pages in place.
 		 */
-		zap_page_range_single(vma, start, end - start, NULL);
+		zap_page_range_single(vma, range->start,
+				range->end - range->start, NULL);
 	}
 
 	/*
@@ -1279,11 +1288,12 @@ static const struct mm_walk_ops guard_remove_walk_ops = {
 	.walk_lock		= PGWALK_RDLOCK,
 };
 
-static long madvise_guard_remove(struct vm_area_struct *vma,
-				 struct vm_area_struct **prev,
-				 unsigned long start, unsigned long end)
+static long madvise_guard_remove(struct madvise_behavior *madv_behavior)
 {
-	*prev = vma;
+	struct vm_area_struct *vma = madv_behavior->vma;
+	struct madvise_behavior_range *range = &madv_behavior->range;
+
+	madv_behavior->prev = vma;
 	/*
 	 * We're ok with removing guards in mlock()'d ranges, as this is a
 	 * non-destructive action.
@@ -1291,7 +1301,7 @@ static long madvise_guard_remove(struct vm_area_struct *vma,
 	if (!is_valid_guard_vma(vma, /* allow_locked = */true))
 		return -EINVAL;
 
-	return walk_page_range_vma(vma, start, end,
+	return walk_page_range_vma(vma, range->start, range->end,
 			       &guard_remove_walk_ops, NULL);
 }
 
@@ -1300,41 +1310,38 @@ static long madvise_guard_remove(struct vm_area_struct *vma,
  * will handle splitting a vm area into separate areas, each area with its own
  * behavior.
  */
-static int madvise_vma_behavior(struct vm_area_struct *vma,
-				struct vm_area_struct **prev,
-				struct madvise_behavior *madv_behavior)
+static int madvise_vma_behavior(struct madvise_behavior *madv_behavior)
 {
 	int behavior = madv_behavior->behavior;
-	struct anon_vma_name *anon_name = madv_behavior->anon_name;
+	struct vm_area_struct *vma = madv_behavior->vma;
 	vm_flags_t new_flags = vma->vm_flags;
-	unsigned long start = madv_behavior->range.start;
-	unsigned long end = madv_behavior->range.end;
 	bool set_new_anon_name = behavior == __MADV_SET_ANON_VMA_NAME;
+	struct madvise_behavior_range *range = &madv_behavior->range;
 	int error;
 
-	if (unlikely(!can_modify_vma_madv(vma, behavior)))
+	if (unlikely(!can_modify_vma_madv(madv_behavior->vma, behavior)))
 		return -EPERM;
 
 	switch (behavior) {
 	case MADV_REMOVE:
-		return madvise_remove(vma, prev, start, end);
+		return madvise_remove(madv_behavior);
 	case MADV_WILLNEED:
-		return madvise_willneed(vma, prev, start, end);
+		return madvise_willneed(madv_behavior);
 	case MADV_COLD:
-		return madvise_cold(vma, prev, start, end);
+		return madvise_cold(madv_behavior);
 	case MADV_PAGEOUT:
-		return madvise_pageout(vma, prev, start, end);
+		return madvise_pageout(madv_behavior);
 	case MADV_FREE:
 	case MADV_DONTNEED:
 	case MADV_DONTNEED_LOCKED:
-		return madvise_dontneed_free(vma, prev, start, end,
-					     madv_behavior);
+		return madvise_dontneed_free(madv_behavior);
 	case MADV_COLLAPSE:
-		return madvise_collapse(vma, prev, start, end);
+		return madvise_collapse(vma, &madv_behavior->prev,
+					range->start, range->end);
 	case MADV_GUARD_INSTALL:
-		return madvise_guard_install(vma, prev, start, end);
+		return madvise_guard_install(madv_behavior);
 	case MADV_GUARD_REMOVE:
-		return madvise_guard_remove(vma, prev, start, end);
+		return madvise_guard_remove(madv_behavior);
 
 	/* The below behaviours update VMAs via madvise_update_vma(). */
 
@@ -1351,18 +1358,18 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 		new_flags |= VM_DONTCOPY;
 		break;
 	case MADV_DOFORK:
-		if (vma->vm_flags & VM_IO)
+		if (new_flags & VM_IO)
 			return -EINVAL;
 		new_flags &= ~VM_DONTCOPY;
 		break;
 	case MADV_WIPEONFORK:
 		/* MADV_WIPEONFORK is only supported on anonymous memory. */
-		if (vma->vm_file || vma->vm_flags & VM_SHARED)
+		if (vma->vm_file || new_flags & VM_SHARED)
 			return -EINVAL;
 		new_flags |= VM_WIPEONFORK;
 		break;
 	case MADV_KEEPONFORK:
-		if (vma->vm_flags & VM_DROPPABLE)
+		if (new_flags & VM_DROPPABLE)
 			return -EINVAL;
 		new_flags &= ~VM_WIPEONFORK;
 		break;
@@ -1370,14 +1377,15 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 		new_flags |= VM_DONTDUMP;
 		break;
 	case MADV_DODUMP:
-		if ((!is_vm_hugetlb_page(vma) && new_flags & VM_SPECIAL) ||
-		    (vma->vm_flags & VM_DROPPABLE))
+		if ((!is_vm_hugetlb_page(vma) && (new_flags & VM_SPECIAL)) ||
+		    (new_flags & VM_DROPPABLE))
 			return -EINVAL;
 		new_flags &= ~VM_DONTDUMP;
 		break;
 	case MADV_MERGEABLE:
 	case MADV_UNMERGEABLE:
-		error = ksm_madvise(vma, start, end, behavior, &new_flags);
+		error = ksm_madvise(vma, range->start, range->end,
+				behavior, &new_flags);
 		if (error)
 			goto out;
 		break;
@@ -1394,8 +1402,8 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 		break;
 	}
 
-	/* We cannot provide prev in this lock mode. */
-	VM_WARN_ON_ONCE(madv_behavior->lock_mode == MADVISE_VMA_READ_LOCK);
+	/* This is a write operation.*/
+	VM_WARN_ON_ONCE(madv_behavior->lock_mode != MADVISE_MMAP_WRITE_LOCK);
 
 	/*
 	 * madvise_update_vma() might cause a VMA merge which could put an
@@ -1403,14 +1411,12 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 	 * anon_vma_name so it doesn't disappear from under us.
 	 */
 	if (!set_new_anon_name) {
-		anon_name = anon_vma_name(vma);
-		anon_vma_name_get(anon_name);
+		madv_behavior->anon_name = anon_vma_name(vma);
+		anon_vma_name_get(madv_behavior->anon_name);
 	}
-	error = madvise_update_vma(vma, prev, start, end, new_flags,
-				   anon_name);
+	error = madvise_update_vma(new_flags, madv_behavior);
 	if (!set_new_anon_name)
-		anon_vma_name_put(anon_name);
-
+		anon_vma_name_put(madv_behavior->anon_name);
 out:
 	/*
 	 * madvise() returns EAGAIN if kernel resources, such as
@@ -1560,13 +1566,13 @@ static bool process_madvise_remote_valid(int behavior)
  * span either partially or fully.
  *
  * This function always returns with an appropriate lock held. If a VMA read
- * lock could be acquired, we return the locked VMA.
+ * lock could be acquired, we return true and set madv_behavior state
+ * accordingly.
  *
- * If a VMA read lock could not be acquired, we return NULL and expect caller to
+ * If a VMA read lock could not be acquired, we return false and expect caller to
  * fallback to mmap lock behaviour.
  */
-static
-struct vm_area_struct *try_vma_read_lock(struct madvise_behavior *madv_behavior)
+static bool try_vma_read_lock(struct madvise_behavior *madv_behavior)
 {
 	struct mm_struct *mm = madv_behavior->mm;
 	struct vm_area_struct *vma;
@@ -1583,12 +1589,14 @@ struct vm_area_struct *try_vma_read_lock(struct madvise_behavior *madv_behavior)
 		vma_end_read(vma);
 		goto take_mmap_read_lock;
 	}
-	return vma;
+	madv_behavior->prev = vma; /* Not currently required. */
+	madv_behavior->vma = vma;
+	return true;
 
 take_mmap_read_lock:
 	mmap_read_lock(mm);
 	madv_behavior->lock_mode = MADVISE_MMAP_READ_LOCK;
-	return NULL;
+	return false;
 }
 
 /*
@@ -1607,23 +1615,19 @@ int madvise_walk_vmas(struct madvise_behavior *madv_behavior)
 	struct madvise_behavior_range *range = &madv_behavior->range;
 	/* range is updated to span each VMA, so store end of entire range. */
 	unsigned long last_end = range->end;
-	struct vm_area_struct *vma;
-	struct vm_area_struct *prev;
 	int unmapped_error = 0;
 	int error;
+	struct vm_area_struct *vma;
 
 	/*
 	 * If VMA read lock is supported, apply madvise to a single VMA
 	 * tentatively, avoiding walking VMAs.
 	 */
-	if (madv_behavior->lock_mode == MADVISE_VMA_READ_LOCK) {
-		vma = try_vma_read_lock(madv_behavior);
-		if (vma) {
-			prev = vma;
-			error = madvise_vma_behavior(vma, &prev, madv_behavior);
-			vma_end_read(vma);
-			return error;
-		}
+	if (madv_behavior->lock_mode == MADVISE_VMA_READ_LOCK &&
+	    try_vma_read_lock(madv_behavior)) {
+		error = madvise_vma_behavior(madv_behavior);
+		vma_end_read(madv_behavior->vma);
+		return error;
 	}
 
 	/*
@@ -1631,11 +1635,13 @@ int madvise_walk_vmas(struct madvise_behavior *madv_behavior)
 	 * ranges, just ignore them, but return -ENOMEM at the end.
 	 * - different from the way of handling in mlock etc.
 	 */
-	vma = find_vma_prev(mm, range->start, &prev);
+	vma = find_vma_prev(mm, range->start, &madv_behavior->prev);
 	if (vma && range->start > vma->vm_start)
-		prev = vma;
+		madv_behavior->prev = vma;
 
 	for (;;) {
+		struct vm_area_struct *prev;
+
 		/* Still start < end. */
 		if (!vma)
 			return -ENOMEM;
@@ -1652,9 +1658,12 @@ int madvise_walk_vmas(struct madvise_behavior *madv_behavior)
 		range->end = min(vma->vm_end, last_end);
 
 		/* Here vma->vm_start <= range->start < range->end <= (last_end|vma->vm_end). */
-		error = madvise_vma_behavior(vma, &prev, madv_behavior);
+		madv_behavior->vma = vma;
+		error = madvise_vma_behavior(madv_behavior);
 		if (error)
 			return error;
+		prev = madv_behavior->prev;
+
 		range->start = range->end;
 		if (prev && range->start < prev->vm_end)
 			range->start = prev->vm_end;
