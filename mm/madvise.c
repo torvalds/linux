@@ -37,6 +37,8 @@
 #include "internal.h"
 #include "swap.h"
 
+#define __MADV_SET_ANON_VMA_NAME (-1)
+
 /*
  * Maximum number of attempts we make to install guard pages before we give up
  * and return -ERESTARTNOINTR to have userspace try again.
@@ -59,9 +61,13 @@ struct madvise_behavior {
 	int behavior;
 	struct mmu_gather *tlb;
 	enum madvise_lock_mode lock_mode;
+	struct anon_vma_name *anon_name;
 };
 
 #ifdef CONFIG_ANON_VMA_NAME
+static int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
+		unsigned long end, struct madvise_behavior *madv_behavior);
+
 struct anon_vma_name *anon_vma_name_alloc(const char *name)
 {
 	struct anon_vma_name *anon_name;
@@ -111,6 +117,35 @@ static int replace_anon_vma_name(struct vm_area_struct *vma,
 	anon_vma_name_put(orig_name);
 
 	return 0;
+}
+
+int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
+			  unsigned long len_in, struct anon_vma_name *anon_name)
+{
+	unsigned long end;
+	unsigned long len;
+	struct madvise_behavior madv_behavior = {
+		.behavior = __MADV_SET_ANON_VMA_NAME,
+		.lock_mode = MADVISE_MMAP_WRITE_LOCK,
+		.anon_name = anon_name,
+	};
+
+	if (start & ~PAGE_MASK)
+		return -EINVAL;
+	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
+
+	/* Check to see whether len was rounded up from small -ve to zero */
+	if (len_in && !len)
+		return -EINVAL;
+
+	end = start + len;
+	if (end < start)
+		return -EINVAL;
+
+	if (end == start)
+		return 0;
+
+	return madvise_walk_vmas(mm, start, end, &madv_behavior);
 }
 #else /* CONFIG_ANON_VMA_NAME */
 static int replace_anon_vma_name(struct vm_area_struct *vma,
@@ -1252,13 +1287,13 @@ static long madvise_guard_remove(struct vm_area_struct *vma,
 static int madvise_vma_behavior(struct vm_area_struct *vma,
 				struct vm_area_struct **prev,
 				unsigned long start, unsigned long end,
-				void *behavior_arg)
+				struct madvise_behavior *madv_behavior)
 {
-	struct madvise_behavior *arg = behavior_arg;
-	int behavior = arg->behavior;
-	int error;
-	struct anon_vma_name *anon_name;
+	int behavior = madv_behavior->behavior;
+	struct anon_vma_name *anon_name = madv_behavior->anon_name;
 	vm_flags_t new_flags = vma->vm_flags;
+	bool set_new_anon_name = behavior == __MADV_SET_ANON_VMA_NAME;
+	int error;
 
 	if (unlikely(!can_modify_vma_madv(vma, behavior)))
 		return -EPERM;
@@ -1275,7 +1310,17 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 	case MADV_FREE:
 	case MADV_DONTNEED:
 	case MADV_DONTNEED_LOCKED:
-		return madvise_dontneed_free(vma, prev, start, end, arg);
+		return madvise_dontneed_free(vma, prev, start, end,
+					     madv_behavior);
+	case MADV_COLLAPSE:
+		return madvise_collapse(vma, prev, start, end);
+	case MADV_GUARD_INSTALL:
+		return madvise_guard_install(vma, prev, start, end);
+	case MADV_GUARD_REMOVE:
+		return madvise_guard_remove(vma, prev, start, end);
+
+	/* The below behaviours update VMAs via madvise_update_vma(). */
+
 	case MADV_NORMAL:
 		new_flags = new_flags & ~VM_RAND_READ & ~VM_SEQ_READ;
 		break;
@@ -1325,21 +1370,29 @@ static int madvise_vma_behavior(struct vm_area_struct *vma,
 		if (error)
 			goto out;
 		break;
-	case MADV_COLLAPSE:
-		return madvise_collapse(vma, prev, start, end);
-	case MADV_GUARD_INSTALL:
-		return madvise_guard_install(vma, prev, start, end);
-	case MADV_GUARD_REMOVE:
-		return madvise_guard_remove(vma, prev, start, end);
+	case __MADV_SET_ANON_VMA_NAME:
+		/* Only anonymous mappings can be named */
+		if (vma->vm_file && !vma_is_anon_shmem(vma))
+			return -EBADF;
+		break;
 	}
 
 	/* We cannot provide prev in this lock mode. */
-	VM_WARN_ON_ONCE(arg->lock_mode == MADVISE_VMA_READ_LOCK);
-	anon_name = anon_vma_name(vma);
-	anon_vma_name_get(anon_name);
+	VM_WARN_ON_ONCE(madv_behavior->lock_mode == MADVISE_VMA_READ_LOCK);
+
+	/*
+	 * madvise_update_vma() might cause a VMA merge which could put an
+	 * anon_vma_name, so we must hold an additional reference on the
+	 * anon_vma_name so it doesn't disappear from under us.
+	 */
+	if (!set_new_anon_name) {
+		anon_name = anon_vma_name(vma);
+		anon_vma_name_get(anon_name);
+	}
 	error = madvise_update_vma(vma, prev, start, end, new_flags,
 				   anon_name);
-	anon_vma_name_put(anon_name);
+	if (!set_new_anon_name)
+		anon_vma_name_put(anon_name);
 
 out:
 	/*
@@ -1523,20 +1576,17 @@ take_mmap_read_lock:
 }
 
 /*
- * Walk the vmas in range [start,end), and call the visit function on each one.
- * The visit function will get start and end parameters that cover the overlap
- * between the current vma and the original range.  Any unmapped regions in the
- * original range will result in this function returning -ENOMEM while still
- * calling the visit function on all of the existing vmas in the range.
- * Must be called with the mmap_lock held for reading or writing.
+ * Walk the vmas in range [start,end), and call the madvise_vma_behavior
+ * function on each one.  The function will get start and end parameters that
+ * cover the overlap between the current vma and the original range.  Any
+ * unmapped regions in the original range will result in this function returning
+ * -ENOMEM while still calling the madvise_vma_behavior function on all of the
+ * existing vmas in the range.  Must be called with the mmap_lock held for
+ * reading or writing.
  */
 static
 int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
-		      unsigned long end, struct madvise_behavior *madv_behavior,
-		      void *arg,
-		      int (*visit)(struct vm_area_struct *vma,
-				   struct vm_area_struct **prev, unsigned long start,
-				   unsigned long end, void *arg))
+		      unsigned long end, struct madvise_behavior *madv_behavior)
 {
 	struct vm_area_struct *vma;
 	struct vm_area_struct *prev;
@@ -1548,11 +1598,12 @@ int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
 	 * If VMA read lock is supported, apply madvise to a single VMA
 	 * tentatively, avoiding walking VMAs.
 	 */
-	if (madv_behavior && madv_behavior->lock_mode == MADVISE_VMA_READ_LOCK) {
+	if (madv_behavior->lock_mode == MADVISE_VMA_READ_LOCK) {
 		vma = try_vma_read_lock(mm, madv_behavior, start, end);
 		if (vma) {
 			prev = vma;
-			error = visit(vma, &prev, start, end, arg);
+			error = madvise_vma_behavior(vma, &prev, start, end,
+						     madv_behavior);
 			vma_end_read(vma);
 			return error;
 		}
@@ -1586,7 +1637,8 @@ int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
 			tmp = end;
 
 		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
-		error = visit(vma, &prev, start, tmp, arg);
+		error = madvise_vma_behavior(vma, &prev, start, tmp,
+					     madv_behavior);
 		if (error)
 			return error;
 		start = tmp;
@@ -1602,57 +1654,6 @@ int madvise_walk_vmas(struct mm_struct *mm, unsigned long start,
 
 	return unmapped_error;
 }
-
-#ifdef CONFIG_ANON_VMA_NAME
-static int madvise_vma_anon_name(struct vm_area_struct *vma,
-				 struct vm_area_struct **prev,
-				 unsigned long start, unsigned long end,
-				 void *anon_name)
-{
-	int error;
-
-	/* Only anonymous mappings can be named */
-	if (vma->vm_file && !vma_is_anon_shmem(vma))
-		return -EBADF;
-
-	error = madvise_update_vma(vma, prev, start, end, vma->vm_flags,
-				   anon_name);
-
-	/*
-	 * madvise() returns EAGAIN if kernel resources, such as
-	 * slab, are temporarily unavailable.
-	 */
-	if (error == -ENOMEM)
-		error = -EAGAIN;
-	return error;
-}
-
-int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
-			  unsigned long len_in, struct anon_vma_name *anon_name)
-{
-	unsigned long end;
-	unsigned long len;
-
-	if (start & ~PAGE_MASK)
-		return -EINVAL;
-	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-
-	/* Check to see whether len was rounded up from small -ve to zero */
-	if (len_in && !len)
-		return -EINVAL;
-
-	end = start + len;
-	if (end < start)
-		return -EINVAL;
-
-	if (end == start)
-		return 0;
-
-	return madvise_walk_vmas(mm, start, end, NULL, anon_name,
-				 madvise_vma_anon_name);
-}
-#endif /* CONFIG_ANON_VMA_NAME */
-
 
 /*
  * Any behaviour which results in changes to the vma->vm_flags needs to
@@ -1845,8 +1846,7 @@ static int madvise_do_behavior(struct mm_struct *mm,
 	if (is_madvise_populate(behavior))
 		error = madvise_populate(mm, start, end, behavior);
 	else
-		error = madvise_walk_vmas(mm, start, end, madv_behavior,
-				madv_behavior, madvise_vma_behavior);
+		error = madvise_walk_vmas(mm, start, end, madv_behavior);
 	blk_finish_plug(&plug);
 	return error;
 }
