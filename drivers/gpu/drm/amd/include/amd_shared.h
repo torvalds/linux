@@ -396,6 +396,7 @@ enum amd_dpm_forced_level;
  *                   (such as allocating any required memory)
  * @suspend: handles IP specific hw/sw changes for suspend
  * @resume: handles IP specific hw/sw changes for resume
+ * @complete: handles IP specific changes after resume
  * @is_idle: returns current IP block idle status
  * @wait_for_idle: poll for idle
  * @check_soft_reset: check soft reset the IP block
