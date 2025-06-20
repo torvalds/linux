@@ -148,6 +148,13 @@ struct ublk_uring_cmd_pdu {
 /* atomic RW with ubq->cancel_lock */
 #define UBLK_IO_FLAG_CANCELED	0x80000000
 
+/*
+ * Initialize refcount to a large number to include any registered buffers.
+ * UBLK_IO_COMMIT_AND_FETCH_REQ will release these references minus those for
+ * any buffers registered on the io daemon task.
+ */
+#define UBLK_REFCOUNT_INIT (REFCOUNT_MAX / 2)
+
 struct ublk_io {
 	/* userspace buffer address from io cmd */
 	__u64	addr;
@@ -166,14 +173,17 @@ struct ublk_io {
 	/*
 	 * The number of uses of this I/O by the ublk server
 	 * if user copy or zero copy are enabled:
-	 * - 1 from dispatch to the server until UBLK_IO_COMMIT_AND_FETCH_REQ
+	 * - UBLK_REFCOUNT_INIT from dispatch to the server
+	 *   until UBLK_IO_COMMIT_AND_FETCH_REQ
 	 * - 1 for each inflight ublk_ch_{read,write}_iter() call
-	 * - 1 for each io_uring registered buffer
+	 * - 1 for each io_uring registered buffer not registered on task
 	 * The I/O can only be completed once all references are dropped.
 	 * User copy and buffer registration operations are only permitted
 	 * if the reference count is nonzero.
 	 */
 	refcount_t ref;
+	/* Count of buffers registered on task and not yet unregistered */
+	unsigned task_registered_buffers;
 
 	/* auto-registered buffer, valid if UBLK_IO_FLAG_AUTO_BUF_REG is set */
 	u16 buf_index;
@@ -686,7 +696,7 @@ static inline void ublk_init_req_ref(const struct ublk_queue *ubq,
 		struct ublk_io *io)
 {
 	if (ublk_need_req_ref(ubq))
-		refcount_set(&io->ref, 1);
+		refcount_set(&io->ref, UBLK_REFCOUNT_INIT);
 }
 
 static inline bool ublk_get_req_ref(const struct ublk_queue *ubq,
@@ -707,6 +717,15 @@ static inline void ublk_put_req_ref(const struct ublk_queue *ubq,
 	} else {
 		__ublk_complete_rq(req);
 	}
+}
+
+static inline void ublk_sub_req_ref(struct ublk_io *io, struct request *req)
+{
+	unsigned sub_refs = UBLK_REFCOUNT_INIT - io->task_registered_buffers;
+
+	io->task_registered_buffers = 0;
+	if (refcount_sub_and_test(sub_refs, &io->ref))
+		__ublk_complete_rq(req);
 }
 
 static inline bool ublk_need_get_data(const struct ublk_queue *ubq)
@@ -1197,7 +1216,6 @@ ublk_auto_buf_reg_fallback(const struct ublk_queue *ubq, struct ublk_io *io)
 	struct ublksrv_io_desc *iod = ublk_get_iod(ubq, tag);
 
 	iod->op_flags |= UBLK_IO_F_NEED_REG_BUF;
-	refcount_set(&io->ref, 1);
 }
 
 static bool ublk_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
@@ -1216,9 +1234,8 @@ static bool ublk_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
 		blk_mq_end_request(req, BLK_STS_IOERR);
 		return false;
 	}
-	/* one extra reference is dropped by ublk_io_release */
-	refcount_set(&io->ref, 2);
 
+	io->task_registered_buffers = 1;
 	io->buf_ctx_handle = io_uring_cmd_ctx_handle(io->cmd);
 	/* store buffer index in request payload */
 	io->buf_index = pdu->buf.index;
@@ -1230,10 +1247,10 @@ static bool ublk_prep_auto_buf_reg(struct ublk_queue *ubq,
 				   struct request *req, struct ublk_io *io,
 				   unsigned int issue_flags)
 {
+	ublk_init_req_ref(ubq, io);
 	if (ublk_support_auto_buf_reg(ubq) && ublk_rq_has_data(req))
 		return ublk_auto_buf_reg(ubq, req, io, issue_flags);
 
-	ublk_init_req_ref(ubq, io);
 	return true;
 }
 
@@ -1506,6 +1523,7 @@ static void ublk_queue_reinit(struct ublk_device *ub, struct ublk_queue *ubq)
 		}
 
 		WARN_ON_ONCE(refcount_read(&io->ref));
+		WARN_ON_ONCE(io->task_registered_buffers);
 	}
 }
 
@@ -2041,6 +2059,35 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 	return 0;
 }
 
+static int
+ublk_daemon_register_io_buf(struct io_uring_cmd *cmd,
+			    const struct ublk_queue *ubq, struct ublk_io *io,
+			    unsigned index, unsigned issue_flags)
+{
+	unsigned new_registered_buffers;
+	struct request *req = io->req;
+	int ret;
+
+	/*
+	 * Ensure there are still references for ublk_sub_req_ref() to release.
+	 * If not, fall back on the thread-safe buffer registration.
+	 */
+	new_registered_buffers = io->task_registered_buffers + 1;
+	if (unlikely(new_registered_buffers >= UBLK_REFCOUNT_INIT))
+		return ublk_register_io_buf(cmd, ubq, io, index, issue_flags);
+
+	if (!ublk_support_zero_copy(ubq) || !ublk_rq_has_data(req))
+		return -EINVAL;
+
+	ret = io_buffer_register_bvec(cmd, req, ublk_io_release, index,
+				      issue_flags);
+	if (ret)
+		return ret;
+
+	io->task_registered_buffers = new_registered_buffers;
+	return 0;
+}
+
 static int ublk_unregister_io_buf(struct io_uring_cmd *cmd,
 				  const struct ublk_device *ub,
 				  unsigned int index, unsigned int issue_flags)
@@ -2164,7 +2211,10 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 	if (unlikely(blk_should_fake_timeout(req->q)))
 		return 0;
 
-	ublk_put_req_ref(ubq, io, req);
+	if (ublk_need_req_ref(ubq))
+		ublk_sub_req_ref(io, req);
+	else
+		__ublk_complete_rq(req);
 	return 0;
 }
 
@@ -2262,7 +2312,8 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 
 	switch (_IOC_NR(cmd_op)) {
 	case UBLK_IO_REGISTER_IO_BUF:
-		return ublk_register_io_buf(cmd, ubq, io, ub_cmd->addr, issue_flags);
+		return ublk_daemon_register_io_buf(cmd, ubq, io, ub_cmd->addr,
+						   issue_flags);
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
 		ret = ublk_commit_and_fetch(ubq, io, cmd, ub_cmd, issue_flags);
 		if (ret)
@@ -2501,6 +2552,7 @@ static void ublk_deinit_queue(struct ublk_device *ub, int q_id)
 		if (io->task)
 			put_task_struct(io->task);
 		WARN_ON_ONCE(refcount_read(&io->ref));
+		WARN_ON_ONCE(io->task_registered_buffers);
 	}
 
 	if (ubq->io_cmd_buf)
