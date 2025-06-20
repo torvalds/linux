@@ -1323,7 +1323,7 @@ cxl_mem_get_rec_dram(struct cxl_memdev *cxlmd,
 		attrbs.bank = ctx->bank;
 	break;
 	case EDAC_REPAIR_RANK_SPARING:
-		attrbs.repair_type = CXL_BANK_SPARING;
+		attrbs.repair_type = CXL_RANK_SPARING;
 		break;
 	default:
 		return NULL;
