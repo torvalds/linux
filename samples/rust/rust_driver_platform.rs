@@ -44,7 +44,9 @@ impl platform::Driver for SampleDriver {
             dev_info!(dev, "Probed with info: '{}'.\n", info.0);
         }
 
-        Self::properties_parse(dev)?;
+        if dev.fwnode().is_some_and(|node| node.is_of_node()) {
+            Self::properties_parse(dev)?;
+        }
 
         let drvdata = KBox::new(Self { pdev: pdev.into() }, GFP_KERNEL)?;
 
