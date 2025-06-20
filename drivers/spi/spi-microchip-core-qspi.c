@@ -562,6 +562,7 @@ static int mchp_coreqspi_probe(struct platform_device *pdev)
 	ctlr->mode_bits = SPI_CPOL | SPI_CPHA | SPI_RX_DUAL | SPI_RX_QUAD |
 			  SPI_TX_DUAL | SPI_TX_QUAD;
 	ctlr->dev.of_node = np;
+	ctlr->min_speed_hz = clk_get_rate(qspi->clk) / 30;
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret)
