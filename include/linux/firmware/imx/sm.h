@@ -18,6 +18,14 @@
 #define SCMI_IMX_CTRL_SAI4_MCLK		4	/* WAKE SAI4 MCLK */
 #define SCMI_IMX_CTRL_SAI5_MCLK		5	/* WAKE SAI5 MCLK */
 
+#define SCMI_IMX94_CTRL_PDM_CLK_SEL	0U	/*!< AON PDM clock sel */
+#define SCMI_IMX94_CTRL_MQS1_SETTINGS	1U	/*!< AON MQS settings */
+#define SCMI_IMX94_CTRL_MQS2_SETTINGS	2U	/*!< WAKE MQS settings */
+#define SCMI_IMX94_CTRL_SAI1_MCLK	3U	/*!< AON SAI1 MCLK */
+#define SCMI_IMX94_CTRL_SAI2_MCLK	4U	/*!< WAKE SAI2 MCLK */
+#define SCMI_IMX94_CTRL_SAI3_MCLK	5U	/*!< WAKE SAI3 MCLK */
+#define SCMI_IMX94_CTRL_SAI4_MCLK	6U	/*!< WAKE SAI4 MCLK */
+
 int scmi_imx_misc_ctrl_get(u32 id, u32 *num, u32 *val);
 int scmi_imx_misc_ctrl_set(u32 id, u32 val);
 
