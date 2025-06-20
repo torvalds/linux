@@ -162,7 +162,7 @@ pub trait Driver: Send {
     type IdInfo: 'static;
 
     /// The table of OF device ids supported by the driver.
-    const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>>;
+    const OF_ID_TABLE: Option<of::IdTable<Self::IdInfo>> = None;
 
     /// Platform driver probe.
     ///
