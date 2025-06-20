@@ -1375,8 +1375,6 @@ svc_process_common(struct svc_rqst *rqstp)
 	case SVC_GARBAGE:
 		rqstp->rq_auth_stat = rpc_autherr_badcred;
 		goto err_bad_auth;
-	case SVC_SYSERR:
-		goto err_system_err;
 	case SVC_DENIED:
 		goto err_bad_auth;
 	case SVC_CLOSE:
@@ -1514,12 +1512,6 @@ err_bad_proc:
 	if (serv->sv_stats)
 		serv->sv_stats->rpcbadfmt++;
 	*rqstp->rq_accept_statp = rpc_proc_unavail;
-	goto sendit;
-
-err_system_err:
-	if (serv->sv_stats)
-		serv->sv_stats->rpcbadfmt++;
-	*rqstp->rq_accept_statp = rpc_system_err;
 	goto sendit;
 }
 
