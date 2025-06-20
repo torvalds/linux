@@ -169,8 +169,6 @@ struct lynxfb_output {
 	 * output->channel ==> &crtc->channel
 	 */
 	void *priv;
-
-	int (*proc_setBLANK)(struct lynxfb_output *output, int blank);
 };
 
 struct lynxfb_par {

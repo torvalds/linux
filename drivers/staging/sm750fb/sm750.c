@@ -571,13 +571,19 @@ exit:
 
 static int lynxfb_ops_blank(int blank, struct fb_info *info)
 {
+	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par;
 	struct lynxfb_output *output;
 
 	pr_debug("blank = %d.\n", blank);
 	par = info->par;
 	output = &par->output;
-	return output->proc_setBLANK(output, blank);
+	sm750_dev = par->dev;
+
+	if (sm750_dev->revid == SM750LE_REVISION_ID)
+		return hw_sm750le_set_blank(output, blank);
+	else
+		return hw_sm750_set_blank(output, blank);
 }
 
 static int sm750fb_set_drv(struct lynxfb_par *par)
@@ -605,8 +611,6 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	crtc->ypanstep = 1;
 	crtc->ywrapstep = 0;
 
-	output->proc_setBLANK = (sm750_dev->revid == SM750LE_REVISION_ID) ?
-				 hw_sm750le_set_blank : hw_sm750_set_blank;
 	/* chip specific phase */
 	sm750_dev->accel.de_wait = (sm750_dev->revid == SM750LE_REVISION_ID) ?
 				    hw_sm750le_de_wait : hw_sm750_de_wait;
