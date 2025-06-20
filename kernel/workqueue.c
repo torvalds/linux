@@ -67,7 +67,7 @@ enum worker_pool_flags {
 	 * CPU and none has %WORKER_UNBOUND set and concurrency management
 	 * is in effect.
 	 *
-	 * While DISASSOCIATED, the cpu may be offline and all workers have
+	 * While DISASSOCIATED, the CPU may be offline and all workers have
 	 * %WORKER_UNBOUND set and concurrency management disabled, and may
 	 * be executing on any CPU.  The pool behaves as an unbound one.
 	 *
@@ -274,7 +274,7 @@ struct pool_workqueue {
 	 * nr_active and all work items in pwq->inactive_works are marked with
 	 * WORK_STRUCT_INACTIVE. But not all WORK_STRUCT_INACTIVE work items are
 	 * in pwq->inactive_works. Some of them are ready to run in
-	 * pool->worklist or worker->scheduled. Those work itmes are only struct
+	 * pool->worklist or worker->scheduled. Those work items are only struct
 	 * wq_barrier which is used for flush_work() and should not participate
 	 * in nr_active. For non-barrier work item, it is marked with
 	 * WORK_STRUCT_INACTIVE iff it is in pwq->inactive_works.
@@ -839,7 +839,7 @@ static void set_work_pool_and_clear_pending(struct work_struct *work,
 	 * be executed before CPU#0 does STORE on line 1.  If that happens,
 	 * CPU#0 observes the PENDING bit is still set and new execution of
 	 * a @work is not queued in a hope, that CPU#1 will eventually
-	 * finish the queued @work.  Meanwhile CPU#1 does not see
+	 * finish the queued @work.  Meanwhile, CPU#1 does not see
 	 * event_indicated is set, because speculative LOAD was executed
 	 * before actual STORE.
 	 */
@@ -1517,7 +1517,7 @@ void wq_worker_tick(struct task_struct *task)
  *
  * This function is called during schedule() when a kworker is going
  * to sleep. It's used by psi to identify aggregation workers during
- * dequeuing, to allow periodic aggregation to shut-off when that
+ * dequeuing, to allow periodic aggregation to shut off when that
  * worker is the last task in the system or cgroup to go to sleep.
  *
  * As this function doesn't involve any workqueue-related locking, it
