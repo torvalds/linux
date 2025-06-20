@@ -84,8 +84,8 @@ int aa_parse_debug_params(const char *str)
 /**
  * val_mask_to_str - convert a perm mask to its short string
  * @str: character buffer to store string in (at least 10 characters)
- * @str_size: size of the @str buffer
- * @chrs: NUL-terminated character buffer of permission characters
+ * @size: size of the @str buffer
+ * @table: NUL-terminated character buffer of permission characters
  * @mask: permission mask to convert
  */
 static int val_mask_to_str(char *str, size_t size,

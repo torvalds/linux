@@ -1182,7 +1182,9 @@ static void unix_connect_peers(struct aa_sk_ctx *sk_ctx,
 
 /**
  * apparmor_unix_stream_connect - check perms before making unix domain conn
- *
+ * @sk: sk attempting to connect
+ * @peer_sk: sk that is accepting the connection
+ * @newsk: new sk created for this connection
  * peer is locked when this hook is called
  */
 static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
@@ -1216,9 +1218,10 @@ static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
 
 /**
  * apparmor_unix_may_send - check perms before conn or sending unix dgrams
+ * @sock: socket sending the message
+ * @peer: socket message is being send to
  *
  * sock and peer are locked when this hook is called
- *
  * called by: dgram_connect peer setup but path not copied to newsk
  */
 static int apparmor_unix_may_send(struct socket *sock, struct socket *peer)
@@ -1336,6 +1339,9 @@ static int apparmor_socket_socketpair(struct socket *socka,
 
 /**
  * apparmor_socket_bind - check perms before bind addr to socket
+ * @sock: socket to bind the address to
+ * @address: address that is being bound
+ * @addrlen: length of @address
  */
 static int apparmor_socket_bind(struct socket *sock,
 				struct sockaddr *address, int addrlen)
