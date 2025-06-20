@@ -45,7 +45,7 @@
 		reg = <0x2 0x40000000 0x2 0x00000000>;
 	};
 
-	reg_0p8v: regulator0 {
+	reg_0p8v: regulator-0p8v {
 		compatible = "regulator-fixed";
 
 		regulator-name = "fixed-0.8V";
@@ -55,7 +55,7 @@
 		regulator-always-on;
 	};
 
-	reg_3p3v: regulator1 {
+	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 
 		regulator-name = "fixed-3.3V";
