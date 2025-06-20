@@ -580,7 +580,7 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 		&connector->base.display_info.luminance_range;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_panel *panel = &connector->panel;
-	u16 current_level;
+	u32 current_level;
 	u8 current_mode;
 	int ret;
 
