@@ -136,6 +136,7 @@ config LEDS_TPS6131X
 	tristate "LED support for TI TPS6131x flash LED driver"
 	depends on I2C && OF
 	depends on GPIOLIB
+	depends on V4L2_FLASH_LED_CLASS || !V4L2_FLASH_LED_CLASS
 	select REGMAP_I2C
 	help
 	  This option enables support for Texas Instruments TPS61310/TPS61311
