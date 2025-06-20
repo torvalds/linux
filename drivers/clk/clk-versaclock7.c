@@ -1257,7 +1257,7 @@ static const struct vc7_chip_info vc7_rc21008a_info = {
 	.num_outputs = 8,
 };
 
-static struct regmap_range_cfg vc7_range_cfg[] = {
+static const struct regmap_range_cfg vc7_range_cfg[] = {
 {
 	.range_min = 0,
 	.range_max = VC7_MAX_REG,
