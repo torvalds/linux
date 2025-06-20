@@ -1530,6 +1530,27 @@ static int tdx_get_quote(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int tdx_setup_event_notify_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	u64 vector = tdx->vp_enter_args.r12;
+
+	if (vector < 32 || vector > 255) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_TDX;
+	vcpu->run->tdx.flags = 0;
+	vcpu->run->tdx.nr = TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT;
+	vcpu->run->tdx.setup_event_notify.ret = TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED;
+	vcpu->run->tdx.setup_event_notify.vector = vector;
+
+	vcpu->arch.complete_userspace_io = tdx_complete_simple;
+
+	return 0;
+}
+
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
@@ -1541,6 +1562,8 @@ static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 		return tdx_get_td_vm_call_info(vcpu);
 	case TDVMCALL_GET_QUOTE:
 		return tdx_get_quote(vcpu);
+	case TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT:
+		return tdx_setup_event_notify_interrupt(vcpu);
 	default:
 		break;
 	}

@@ -7196,6 +7196,10 @@ The valid value for 'flags' is:
 					u64 leaf;
 					u64 r11, r12, r13, r14;
 				} get_tdvmcall_info;
+				struct {
+					u64 ret;
+					u64 vector;
+				} setup_event_notify;
 			};
 		} tdx;
 
@@ -7225,6 +7229,9 @@ not. When completed, the generated Quote is returned via the same buffer.
 status of TDVMCALLs.  The output values for the given leaf should be
 placed in fields from ``r11`` to ``r14`` of the ``get_tdvmcall_info``
 field of the union.
+
+* ``TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT``: the guest has requested to
+set up a notification interrupt for vector ``vector``.
 
 KVM may add support for more values in the future that may cause a userspace
 exit, even without calls to ``KVM_ENABLE_CAP`` or similar.  In this case,
