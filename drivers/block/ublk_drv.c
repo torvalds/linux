@@ -2145,9 +2145,10 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
 		req->__sector = ub_cmd->zone_append_lba;
 
-	if (likely(!blk_should_fake_timeout(req->q)))
-		ublk_put_req_ref(ubq, io, req);
+	if (unlikely(blk_should_fake_timeout(req->q)))
+		return 0;
 
+	ublk_put_req_ref(ubq, io, req);
 	return 0;
 }
 
