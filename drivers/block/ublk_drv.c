@@ -2228,13 +2228,10 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		goto out;
 
 	/* there is pending io cmd, something must be wrong */
-	if (io->flags & UBLK_IO_FLAG_ACTIVE) {
+	if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV)) {
 		ret = -EBUSY;
 		goto out;
 	}
-
-	if (!(io->flags & UBLK_IO_FLAG_OWNED_BY_SRV))
-		goto out;
 
 	/*
 	 * ensure that the user issues UBLK_IO_NEED_GET_DATA
