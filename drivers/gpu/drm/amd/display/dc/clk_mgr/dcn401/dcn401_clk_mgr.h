@@ -112,4 +112,6 @@ struct clk_mgr_internal *dcn401_clk_mgr_construct(struct dc_context *ctx,
 
 void dcn401_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr);
 
+unsigned int dcn401_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type clk_type);
+
 #endif /* __DCN401_CLK_MGR_H_ */

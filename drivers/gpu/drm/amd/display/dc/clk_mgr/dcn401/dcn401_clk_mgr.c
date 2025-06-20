@@ -1500,6 +1500,35 @@ static int dcn401_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 	return 0;
 }
 
+unsigned int dcn401_get_max_clock_khz(struct clk_mgr *clk_mgr_base, enum clk_type clk_type)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	unsigned int num_clk_levels;
+
+	switch (clk_type) {
+	case CLK_TYPE_DISPCLK:
+		num_clk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_dispclk_levels;
+		return dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DISPCLK) ?
+				clk_mgr->base.bw_params->clk_table.entries[num_clk_levels - 1].dispclk_mhz * 1000 :
+				clk_mgr->base.boot_snapshot.dispclk;
+	case CLK_TYPE_DPPCLK:
+		num_clk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_dppclk_levels;
+		return dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DPPCLK) ?
+				clk_mgr->base.bw_params->clk_table.entries[num_clk_levels - 1].dppclk_mhz * 1000 :
+				clk_mgr->base.boot_snapshot.dppclk;
+	case CLK_TYPE_DSCCLK:
+		num_clk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_dispclk_levels;
+		return dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DISPCLK) ?
+				clk_mgr->base.bw_params->clk_table.entries[num_clk_levels - 1].dispclk_mhz * 1000 / 3 :
+				clk_mgr->base.boot_snapshot.dispclk / 3;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static struct clk_mgr_funcs dcn401_funcs = {
 		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 		.get_dtb_ref_clk_frequency = dcn401_get_dtb_ref_freq_khz,
@@ -1516,6 +1545,7 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.get_hard_min_memclk = dcn401_get_hard_min_memclk,
 		.get_hard_min_fclk = dcn401_get_hard_min_fclk,
 		.is_dc_mode_present = dcn401_is_dc_mode_present,
+		.get_max_clock_khz = dcn401_get_max_clock_khz,
 };
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(

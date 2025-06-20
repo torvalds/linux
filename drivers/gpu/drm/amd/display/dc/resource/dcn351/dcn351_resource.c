@@ -2125,6 +2125,8 @@ static bool dcn351_resource_construct(
 	for (i = 0; i < dc->caps.max_planes; ++i)
 		dc->caps.planes[i] = plane_cap;
 
+	dc->caps.max_odm_combine_factor = 4;
+
 	dc->cap_funcs = cap_funcs;
 
 

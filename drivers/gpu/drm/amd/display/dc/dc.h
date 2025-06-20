@@ -348,6 +348,8 @@ struct dc_caps {
 	struct dc_scl_caps scl_caps;
 	uint8_t num_of_host_routers;
 	uint8_t num_of_dpias_per_host_router;
+	/* limit of the ODM only, could be limited by other factors (like pipe count)*/
+	uint8_t max_odm_combine_factor;
 };
 
 struct dc_bug_wa {

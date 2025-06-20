@@ -341,7 +341,6 @@ void dsc401_set_config(struct display_stream_compressor *dsc, const struct dsc_c
 void dsc401_enable(struct display_stream_compressor *dsc, int opp_pipe);
 void dsc401_disable(struct display_stream_compressor *dsc);
 void dsc401_disconnect(struct display_stream_compressor *dsc);
-void dsc401_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
 #endif
 
