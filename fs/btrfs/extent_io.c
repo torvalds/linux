@@ -75,8 +75,8 @@ void btrfs_extent_buffer_leak_debug_check(struct btrfs_fs_info *fs_info)
 	while (!list_empty(&fs_info->allocated_ebs)) {
 		eb = list_first_entry(&fs_info->allocated_ebs,
 				      struct extent_buffer, leak_list);
-		pr_err(
-	"BTRFS: buffer leak start %llu len %u refs %d bflags %lu owner %llu\n",
+		btrfs_err(fs_info,
+		       "buffer leak start %llu len %u refs %d bflags %lu owner %llu",
 		       eb->start, eb->len, refcount_read(&eb->refs), eb->bflags,
 		       btrfs_header_owner(eb));
 		list_del(&eb->leak_list);

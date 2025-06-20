@@ -160,8 +160,7 @@ static int can_modify_feature(struct btrfs_feature_attr *fa)
 		clear = BTRFS_FEATURE_INCOMPAT_SAFE_CLEAR;
 		break;
 	default:
-		pr_warn("btrfs: sysfs: unknown feature set %d\n",
-				fa->feature_set);
+		btrfs_warn(NULL, "sysfs: unknown feature set %d", fa->feature_set);
 		return 0;
 	}
 
@@ -2247,7 +2246,7 @@ void btrfs_kobject_uevent(struct block_device *bdev, enum kobject_action action)
 
 	ret = kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, action);
 	if (ret)
-		pr_warn("BTRFS: Sending event '%d' to kobject: '%s' (%p): failed\n",
+		btrfs_warn(NULL, "sending event %d to kobject: '%s' (%p): failed",
 			action, kobject_name(&disk_to_dev(bdev->bd_disk)->kobj),
 			&disk_to_dev(bdev->bd_disk)->kobj);
 }

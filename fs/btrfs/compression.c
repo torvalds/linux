@@ -789,8 +789,8 @@ static void btrfs_init_workspace_manager(int type)
 	 */
 	workspace = alloc_workspace(type, 0);
 	if (IS_ERR(workspace)) {
-		pr_warn(
-	"BTRFS: cannot preallocate compression workspace, will try later\n");
+		btrfs_warn(NULL,
+			   "cannot preallocate compression workspace, will try later");
 	} else {
 		atomic_set(&wsm->total_ws, 1);
 		wsm->free_ws = 1;
@@ -888,9 +888,9 @@ again:
 					/* once per minute */ 60 * HZ,
 					/* no burst */ 1);
 
-			if (__ratelimit(&_rs)) {
-				pr_warn("BTRFS: no compression workspaces, low memory, retrying\n");
-			}
+			if (__ratelimit(&_rs))
+				btrfs_warn(NULL,
+				"no compression workspaces, low memory, retrying");
 		}
 		goto again;
 	}

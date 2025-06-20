@@ -3993,7 +3993,7 @@ int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags)
 	}
 
 	if (min_tolerated == INT_MAX) {
-		pr_warn("BTRFS: unknown raid flag: %llu", flags);
+		btrfs_warn(NULL, "unknown raid flag: %llu", flags);
 		min_tolerated = 0;
 	}
 

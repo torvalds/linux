@@ -675,8 +675,8 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_SEEDING) {
 		if (btrfs_super_incompat_flags(disk_super) &
 		    BTRFS_FEATURE_INCOMPAT_METADATA_UUID) {
-			pr_err(
-		"BTRFS: Invalid seeding and uuid-changed device detected\n");
+			btrfs_err(NULL,
+				  "invalid seeding and uuid-changed device detected");
 			goto error_free_page;
 		}
 
@@ -820,7 +820,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		if (same_fsid_diff_dev) {
 			generate_random_uuid(fs_devices->fsid);
 			fs_devices->temp_fsid = true;
-		pr_info("BTRFS: device %s (%d:%d) using temp-fsid %pU\n",
+			btrfs_info(NULL, "device %s (%d:%d) using temp-fsid %pU",
 				path, MAJOR(path_devt), MINOR(path_devt),
 				fs_devices->fsid);
 		}
@@ -1474,7 +1474,7 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 
 	devt = file_bdev(bdev_file)->bd_dev;
 	if (btrfs_skip_registration(disk_super, path, devt, mount_arg_dev)) {
-		pr_debug("BTRFS: skip registering single non-seed device %s (%d:%d)\n",
+		btrfs_debug(NULL, "skip registering single non-seed device %s (%d:%d)",
 			  path, MAJOR(devt), MINOR(devt));
 
 		btrfs_free_stale_devices(devt, NULL);
