@@ -2014,7 +2014,14 @@ static void ublk_io_release(void *priv)
 	struct ublk_queue *ubq = rq->mq_hctx->driver_data;
 	struct ublk_io *io = &ubq->ios[rq->tag];
 
-	ublk_put_req_ref(ubq, io, rq);
+	/*
+	 * task_registered_buffers may be 0 if buffers were registered off task
+	 * but unregistered on task. Or after UBLK_IO_COMMIT_AND_FETCH_REQ.
+	 */
+	if (current == io->task && io->task_registered_buffers)
+		io->task_registered_buffers--;
+	else
+		ublk_put_req_ref(ubq, io, rq);
 }
 
 static int ublk_register_io_buf(struct io_uring_cmd *cmd,
