@@ -165,14 +165,14 @@ static void userfaultfd_ctx_get(struct userfaultfd_ctx *ctx)
 static void userfaultfd_ctx_put(struct userfaultfd_ctx *ctx)
 {
 	if (refcount_dec_and_test(&ctx->refcount)) {
-		VM_BUG_ON(spin_is_locked(&ctx->fault_pending_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->fault_pending_wqh));
-		VM_BUG_ON(spin_is_locked(&ctx->fault_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->fault_wqh));
-		VM_BUG_ON(spin_is_locked(&ctx->event_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->event_wqh));
-		VM_BUG_ON(spin_is_locked(&ctx->fd_wqh.lock));
-		VM_BUG_ON(waitqueue_active(&ctx->fd_wqh));
+		VM_WARN_ON_ONCE(spin_is_locked(&ctx->fault_pending_wqh.lock));
+		VM_WARN_ON_ONCE(waitqueue_active(&ctx->fault_pending_wqh));
+		VM_WARN_ON_ONCE(spin_is_locked(&ctx->fault_wqh.lock));
+		VM_WARN_ON_ONCE(waitqueue_active(&ctx->fault_wqh));
+		VM_WARN_ON_ONCE(spin_is_locked(&ctx->event_wqh.lock));
+		VM_WARN_ON_ONCE(waitqueue_active(&ctx->event_wqh));
+		VM_WARN_ON_ONCE(spin_is_locked(&ctx->fd_wqh.lock));
+		VM_WARN_ON_ONCE(waitqueue_active(&ctx->fd_wqh));
 		mmdrop(ctx->mm);
 		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
 	}
@@ -383,12 +383,12 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	if (!ctx)
 		goto out;
 
-	BUG_ON(ctx->mm != mm);
+	VM_WARN_ON_ONCE(ctx->mm != mm);
 
 	/* Any unrecognized flag is a bug. */
-	VM_BUG_ON(reason & ~__VM_UFFD_FLAGS);
+	VM_WARN_ON_ONCE(reason & ~__VM_UFFD_FLAGS);
 	/* 0 or > 1 flags set is a bug; we expect exactly 1. */
-	VM_BUG_ON(!reason || (reason & (reason - 1)));
+	VM_WARN_ON_ONCE(!reason || (reason & (reason - 1)));
 
 	if (ctx->features & UFFD_FEATURE_SIGBUS)
 		goto out;
@@ -411,12 +411,11 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 		 * to be sure not to return SIGBUS erroneously on
 		 * nowait invocations.
 		 */
-		BUG_ON(vmf->flags & FAULT_FLAG_RETRY_NOWAIT);
+		VM_WARN_ON_ONCE(vmf->flags & FAULT_FLAG_RETRY_NOWAIT);
 #ifdef CONFIG_DEBUG_VM
 		if (printk_ratelimit()) {
-			printk(KERN_WARNING
-			       "FAULT_FLAG_ALLOW_RETRY missing %x\n",
-			       vmf->flags);
+			pr_warn("FAULT_FLAG_ALLOW_RETRY missing %x\n",
+				vmf->flags);
 			dump_stack();
 		}
 #endif
@@ -602,7 +601,7 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
 	 */
 out:
 	atomic_dec(&ctx->mmap_changing);
-	VM_BUG_ON(atomic_read(&ctx->mmap_changing) < 0);
+	VM_WARN_ON_ONCE(atomic_read(&ctx->mmap_changing) < 0);
 	userfaultfd_ctx_put(ctx);
 }
 
@@ -710,7 +709,7 @@ void dup_userfaultfd_fail(struct list_head *fcs)
 		struct userfaultfd_ctx *ctx = fctx->new;
 
 		atomic_dec(&octx->mmap_changing);
-		VM_BUG_ON(atomic_read(&octx->mmap_changing) < 0);
+		VM_WARN_ON_ONCE(atomic_read(&octx->mmap_changing) < 0);
 		userfaultfd_ctx_put(octx);
 		userfaultfd_ctx_put(ctx);
 
@@ -1317,8 +1316,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	do {
 		cond_resched();
 
-		BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
-		       !!(cur->vm_flags & __VM_UFFD_FLAGS));
+		VM_WARN_ON_ONCE(!!cur->vm_userfaultfd_ctx.ctx ^
+				!!(cur->vm_flags & __VM_UFFD_FLAGS));
 
 		/* check not compatible vmas */
 		ret = -EINVAL;
@@ -1372,7 +1371,7 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 
 		found = true;
 	} for_each_vma_range(vmi, cur, end);
-	BUG_ON(!found);
+	VM_WARN_ON_ONCE(!found);
 
 	ret = userfaultfd_register_range(ctx, vma, vm_flags, start, end,
 					 wp_async);
@@ -1464,8 +1463,8 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	do {
 		cond_resched();
 
-		BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
-		       !!(cur->vm_flags & __VM_UFFD_FLAGS));
+		VM_WARN_ON_ONCE(!!cur->vm_userfaultfd_ctx.ctx ^
+				!!(cur->vm_flags & __VM_UFFD_FLAGS));
 
 		/*
 		 * Prevent unregistering through a different userfaultfd than
@@ -1487,7 +1486,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 
 		found = true;
 	} for_each_vma_range(vmi, cur, end);
-	BUG_ON(!found);
+	VM_WARN_ON_ONCE(!found);
 
 	vma_iter_set(&vmi, start);
 	prev = vma_prev(&vmi);
@@ -1504,7 +1503,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 
 		VM_WARN_ON_ONCE(vma->vm_userfaultfd_ctx.ctx != ctx);
 		VM_WARN_ON_ONCE(!vma_can_userfault(vma, vma->vm_flags, wp_async));
-		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
+		VM_WARN_ON_ONCE(!(vma->vm_flags & VM_MAYWRITE));
 
 		if (vma->vm_start > start)
 			start = vma->vm_start;
@@ -1569,7 +1568,7 @@ static int userfaultfd_wake(struct userfaultfd_ctx *ctx,
 	 * len == 0 means wake all and we don't want to wake all here,
 	 * so check it again to be sure.
 	 */
-	VM_BUG_ON(!range.len);
+	VM_WARN_ON_ONCE(!range.len);
 
 	wake_userfault(ctx, &range);
 	ret = 0;
@@ -1626,7 +1625,7 @@ static int userfaultfd_copy(struct userfaultfd_ctx *ctx,
 		return -EFAULT;
 	if (ret < 0)
 		goto out;
-	BUG_ON(!ret);
+	VM_WARN_ON_ONCE(!ret);
 	/* len == 0 would wake all */
 	range.len = ret;
 	if (!(uffdio_copy.mode & UFFDIO_COPY_MODE_DONTWAKE)) {
@@ -1681,7 +1680,7 @@ static int userfaultfd_zeropage(struct userfaultfd_ctx *ctx,
 	if (ret < 0)
 		goto out;
 	/* len == 0 would wake all */
-	BUG_ON(!ret);
+	VM_WARN_ON_ONCE(!ret);
 	range.len = ret;
 	if (!(uffdio_zeropage.mode & UFFDIO_ZEROPAGE_MODE_DONTWAKE)) {
 		range.start = uffdio_zeropage.range.start;
@@ -1793,7 +1792,7 @@ static int userfaultfd_continue(struct userfaultfd_ctx *ctx, unsigned long arg)
 		goto out;
 
 	/* len == 0 would wake all */
-	BUG_ON(!ret);
+	VM_WARN_ON_ONCE(!ret);
 	range.len = ret;
 	if (!(uffdio_continue.mode & UFFDIO_CONTINUE_MODE_DONTWAKE)) {
 		range.start = uffdio_continue.range.start;
@@ -1850,7 +1849,7 @@ static inline int userfaultfd_poison(struct userfaultfd_ctx *ctx, unsigned long 
 		goto out;
 
 	/* len == 0 would wake all */
-	BUG_ON(!ret);
+	VM_WARN_ON_ONCE(!ret);
 	range.len = ret;
 	if (!(uffdio_poison.mode & UFFDIO_POISON_MODE_DONTWAKE)) {
 		range.start = uffdio_poison.range.start;
@@ -2111,7 +2110,7 @@ static int new_userfaultfd(int flags)
 	struct file *file;
 	int fd;
 
-	BUG_ON(!current->mm);
+	VM_WARN_ON_ONCE(!current->mm);
 
 	/* Check the UFFD_* constants for consistency.  */
 	BUILD_BUG_ON(UFFD_USER_MODE_ONLY & UFFD_SHARED_FCNTL_FLAGS);

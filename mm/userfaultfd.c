@@ -561,7 +561,7 @@ retry:
 	}
 
 	while (src_addr < src_start + len) {
-		BUG_ON(dst_addr >= dst_start + len);
+		VM_WARN_ON_ONCE(dst_addr >= dst_start + len);
 
 		/*
 		 * Serialize via vma_lock and hugetlb_fault_mutex.
@@ -602,7 +602,7 @@ retry:
 		if (unlikely(err == -ENOENT)) {
 			up_read(&ctx->map_changing_lock);
 			uffd_mfill_unlock(dst_vma);
-			BUG_ON(!folio);
+			VM_WARN_ON_ONCE(!folio);
 
 			err = copy_folio_from_user(folio,
 						   (const void __user *)src_addr, true);
@@ -614,7 +614,7 @@ retry:
 			dst_vma = NULL;
 			goto retry;
 		} else
-			BUG_ON(folio);
+			VM_WARN_ON_ONCE(folio);
 
 		if (!err) {
 			dst_addr += vma_hpagesize;
@@ -635,9 +635,9 @@ out_unlock_vma:
 out:
 	if (folio)
 		folio_put(folio);
-	BUG_ON(copied < 0);
-	BUG_ON(err > 0);
-	BUG_ON(!copied && !err);
+	VM_WARN_ON_ONCE(copied < 0);
+	VM_WARN_ON_ONCE(err > 0);
+	VM_WARN_ON_ONCE(!copied && !err);
 	return copied ? copied : err;
 }
 #else /* !CONFIG_HUGETLB_PAGE */
@@ -711,12 +711,12 @@ static __always_inline ssize_t mfill_atomic(struct userfaultfd_ctx *ctx,
 	/*
 	 * Sanitize the command parameters:
 	 */
-	BUG_ON(dst_start & ~PAGE_MASK);
-	BUG_ON(len & ~PAGE_MASK);
+	VM_WARN_ON_ONCE(dst_start & ~PAGE_MASK);
+	VM_WARN_ON_ONCE(len & ~PAGE_MASK);
 
 	/* Does the address range wrap, or is the span zero-sized? */
-	BUG_ON(src_start + len <= src_start);
-	BUG_ON(dst_start + len <= dst_start);
+	VM_WARN_ON_ONCE(src_start + len <= src_start);
+	VM_WARN_ON_ONCE(dst_start + len <= dst_start);
 
 	src_addr = src_start;
 	dst_addr = dst_start;
@@ -775,7 +775,7 @@ retry:
 	while (src_addr < src_start + len) {
 		pmd_t dst_pmdval;
 
-		BUG_ON(dst_addr >= dst_start + len);
+		VM_WARN_ON_ONCE(dst_addr >= dst_start + len);
 
 		dst_pmd = mm_alloc_pmd(dst_mm, dst_addr);
 		if (unlikely(!dst_pmd)) {
@@ -818,7 +818,7 @@ retry:
 
 			up_read(&ctx->map_changing_lock);
 			uffd_mfill_unlock(dst_vma);
-			BUG_ON(!folio);
+			VM_WARN_ON_ONCE(!folio);
 
 			kaddr = kmap_local_folio(folio, 0);
 			err = copy_from_user(kaddr,
@@ -832,7 +832,7 @@ retry:
 			flush_dcache_folio(folio);
 			goto retry;
 		} else
-			BUG_ON(folio);
+			VM_WARN_ON_ONCE(folio);
 
 		if (!err) {
 			dst_addr += PAGE_SIZE;
@@ -852,9 +852,9 @@ out_unlock:
 out:
 	if (folio)
 		folio_put(folio);
-	BUG_ON(copied < 0);
-	BUG_ON(err > 0);
-	BUG_ON(!copied && !err);
+	VM_WARN_ON_ONCE(copied < 0);
+	VM_WARN_ON_ONCE(err > 0);
+	VM_WARN_ON_ONCE(!copied && !err);
 	return copied ? copied : err;
 }
 
@@ -940,11 +940,11 @@ int mwriteprotect_range(struct userfaultfd_ctx *ctx, unsigned long start,
 	/*
 	 * Sanitize the command parameters:
 	 */
-	BUG_ON(start & ~PAGE_MASK);
-	BUG_ON(len & ~PAGE_MASK);
+	VM_WARN_ON_ONCE(start & ~PAGE_MASK);
+	VM_WARN_ON_ONCE(len & ~PAGE_MASK);
 
 	/* Does the address range wrap, or is the span zero-sized? */
-	BUG_ON(start + len <= start);
+	VM_WARN_ON_ONCE(start + len <= start);
 
 	mmap_read_lock(dst_mm);
 
@@ -1738,15 +1738,13 @@ ssize_t move_pages(struct userfaultfd_ctx *ctx, unsigned long dst_start,
 	ssize_t moved = 0;
 
 	/* Sanitize the command parameters. */
-	if (WARN_ON_ONCE(src_start & ~PAGE_MASK) ||
-	    WARN_ON_ONCE(dst_start & ~PAGE_MASK) ||
-	    WARN_ON_ONCE(len & ~PAGE_MASK))
-		goto out;
+	VM_WARN_ON_ONCE(src_start & ~PAGE_MASK);
+	VM_WARN_ON_ONCE(dst_start & ~PAGE_MASK);
+	VM_WARN_ON_ONCE(len & ~PAGE_MASK);
 
 	/* Does the address range wrap, or is the span zero-sized? */
-	if (WARN_ON_ONCE(src_start + len <= src_start) ||
-	    WARN_ON_ONCE(dst_start + len <= dst_start))
-		goto out;
+	VM_WARN_ON_ONCE(src_start + len < src_start);
+	VM_WARN_ON_ONCE(dst_start + len < dst_start);
 
 	err = uffd_move_lock(mm, dst_start, src_start, &dst_vma, &src_vma);
 	if (err)
@@ -1896,9 +1894,9 @@ out_unlock:
 	up_read(&ctx->map_changing_lock);
 	uffd_move_unlock(dst_vma, src_vma);
 out:
-	VM_WARN_ON(moved < 0);
-	VM_WARN_ON(err > 0);
-	VM_WARN_ON(!moved && !err);
+	VM_WARN_ON_ONCE(moved < 0);
+	VM_WARN_ON_ONCE(err > 0);
+	VM_WARN_ON_ONCE(!moved && !err);
 	return moved ? moved : err;
 }
 
@@ -1985,10 +1983,10 @@ int userfaultfd_register_range(struct userfaultfd_ctx *ctx,
 	for_each_vma_range(vmi, vma, end) {
 		cond_resched();
 
-		BUG_ON(!vma_can_userfault(vma, vm_flags, wp_async));
-		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
-		       vma->vm_userfaultfd_ctx.ctx != ctx);
-		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
+		VM_WARN_ON_ONCE(!vma_can_userfault(vma, vm_flags, wp_async));
+		VM_WARN_ON_ONCE(vma->vm_userfaultfd_ctx.ctx &&
+				vma->vm_userfaultfd_ctx.ctx != ctx);
+		VM_WARN_ON_ONCE(!(vma->vm_flags & VM_MAYWRITE));
 
 		/*
 		 * Nothing to do: this vma is already registered into this
@@ -2064,8 +2062,8 @@ void userfaultfd_release_all(struct mm_struct *mm,
 	prev = NULL;
 	for_each_vma(vmi, vma) {
 		cond_resched();
-		BUG_ON(!!vma->vm_userfaultfd_ctx.ctx ^
-		       !!(vma->vm_flags & __VM_UFFD_FLAGS));
+		VM_WARN_ON_ONCE(!!vma->vm_userfaultfd_ctx.ctx ^
+				!!(vma->vm_flags & __VM_UFFD_FLAGS));
 		if (vma->vm_userfaultfd_ctx.ctx != ctx) {
 			prev = vma;
 			continue;
