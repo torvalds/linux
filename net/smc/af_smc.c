@@ -487,7 +487,7 @@ static void smc_copy_sock_settings(struct sock *nsk, struct sock *osk,
 	/* options we don't get control via setsockopt for */
 	nsk->sk_type = osk->sk_type;
 	nsk->sk_sndtimeo = READ_ONCE(osk->sk_sndtimeo);
-	nsk->sk_rcvtimeo = osk->sk_rcvtimeo;
+	nsk->sk_rcvtimeo = READ_ONCE(osk->sk_rcvtimeo);
 	nsk->sk_mark = READ_ONCE(osk->sk_mark);
 	nsk->sk_priority = READ_ONCE(osk->sk_priority);
 	nsk->sk_rcvlowat = osk->sk_rcvlowat;
