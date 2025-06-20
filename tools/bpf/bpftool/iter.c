@@ -37,7 +37,7 @@ static int do_pin(int argc, char **argv)
 				return -1;
 			}
 
-			map_fd = map_parse_fd(&argc, &argv);
+			map_fd = map_parse_fd(&argc, &argv, BPF_F_RDONLY);
 			if (map_fd < 0)
 				return -1;
 
