@@ -188,7 +188,7 @@ struct ublk_io {
 	/* auto-registered buffer, valid if UBLK_IO_FLAG_AUTO_BUF_REG is set */
 	u16 buf_index;
 	void *buf_ctx_handle;
-};
+} ____cacheline_aligned_in_smp;
 
 struct ublk_queue {
 	int q_id;
