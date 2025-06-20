@@ -480,6 +480,27 @@
 		/* Same I2c bus as both cameras, depends on vcca1v8_codec for power. */
 		vcc-supply = <&vcc1v8_dvp>;
 	};
+
+	ucam: camera@36 {
+		compatible = "ovti,ov8858";
+		reg = <0x36>;
+		clocks = <&cru SCLK_CIF_OUT>; /* MIPI_MCLK1, derived from CIF_CLK0 */
+		clock-names = "xvclk";
+		dovdd-supply = <&vcc1v8_dvp>;
+		orientation = <0>; /* V4L2_CAMERA_ORIENTATION_FRONT */
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera2_rst_l &dvp_pdn0_h>;
+		powerdown-gpios = <&gpio2 RK_PB4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
+		rotation = <90>;
+
+		port {
+			ucam_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&mipi_in_ucam>;
+			};
+		};
+	};
 };
 
 &i2c3 {
@@ -521,6 +542,24 @@
 	audio-supply = <&vcca1v8_codec>;
 	sdmmc-supply = <&vccio_sd>;
 	gpio1830-supply = <&vcc_3v0>;
+	status = "okay";
+};
+
+&isp0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			mipi_in_ucam: endpoint@0 {
+				reg = <0>;
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&ucam_out>;
+			};
+		};
+	};
+};
+
+&isp0_mmu {
 	status = "okay";
 };
 
@@ -596,9 +635,15 @@
 		};
 	};
 
-	camera {
+	cameras {
 		camera_rst_l: camera-rst-l {
 			rockchip,pins = <1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		camera2_rst_l: camera2-rst-l {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		dvp_pdn0_h: dvp-pdn0-h {
+			rockchip,pins = <2 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
