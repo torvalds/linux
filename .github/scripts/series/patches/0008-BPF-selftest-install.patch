@@ -1,0 +1,35 @@
+From 5fd0e251ba091bddb302fd56436007dbf50f450f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Sun, 15 Sep 2024 16:58:21 +0200
+Subject: [PATCH 2/2] BPF selftest install
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix deps Makefile
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/bpf/Makefile | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/tools/testing/selftests/bpf/Makefile b/tools/testing/selftests/bpf/Makefile
+index df75f1beb731..f6e38b9d07f6 100644
+--- a/tools/testing/selftests/bpf/Makefile
++++ b/tools/testing/selftests/bpf/Makefile
+@@ -627,6 +627,12 @@ $(TRUNNER_BPF_SKELS_LINKED): $(TRUNNER_OUTPUT)/%: $$$$(%-deps) $(BPFTOOL) | $(TR
+ $(notdir %.skel.h): $(TRUNNER_OUTPUT)/%.skel.h
+ 	@true
+ 
++$(notdir %.lskel.h): $(TRUNNER_OUTPUT)/%.lskel.h
++	@true
++
++$(notdir %.subskel.h): $(TRUNNER_OUTPUT)/%.subskel.h
++	@true
++
+ endif
+ 
+ # ensure we set up tests.h header generation rule just once
+-- 
+2.43.0
+
