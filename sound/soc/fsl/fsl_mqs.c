@@ -388,7 +388,7 @@ static const struct fsl_mqs_soc_data fsl_mqs_imx93_data = {
 
 static const struct fsl_mqs_soc_data fsl_mqs_imx95_aon_data = {
 	.type = TYPE_REG_SM,
-	.sm_index = SCMI_IMX_CTRL_MQS1_SETTINGS,
+	.sm_index = SCMI_IMX95_CTRL_MQS1_SETTINGS,
 	.ctrl_off = 0x88,
 	.en_mask  = BIT(1),
 	.en_shift = 1,
