@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio/driver.h>
 #include <linux/iio/iio.h>
+#include <linux/minmax.h>
 #include "hid-ids.h"
 
 /* Commands codes in a raw output report */
@@ -262,10 +263,7 @@ static int mcp_i2c_write(struct mcp2221 *mcp,
 
 	idx = 0;
 	sent  = 0;
-	if (msg->len < 60)
-		len = msg->len;
-	else
-		len = 60;
+	len = min(msg->len, 60);
 
 	do {
 		mcp->txbuf[0] = type;
@@ -292,10 +290,7 @@ static int mcp_i2c_write(struct mcp2221 *mcp,
 			break;
 
 		idx = idx + len;
-		if ((msg->len - sent) < 60)
-			len = msg->len - sent;
-		else
-			len = 60;
+		len = min(msg->len - sent, 60);
 
 		/*
 		 * Testing shows delay is needed between successive writes
