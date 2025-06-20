@@ -1468,6 +1468,14 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 		       !!(cur->vm_flags & __VM_UFFD_FLAGS));
 
 		/*
+		 * Prevent unregistering through a different userfaultfd than
+		 * the one used for registration.
+		 */
+		if (cur->vm_userfaultfd_ctx.ctx &&
+		    cur->vm_userfaultfd_ctx.ctx != ctx)
+			goto out_unlock;
+
+		/*
 		 * Check not compatible vmas, not strictly required
 		 * here as not compatible vmas cannot have an
 		 * userfaultfd_ctx registered on them, but this
@@ -1490,15 +1498,12 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	for_each_vma_range(vmi, vma, end) {
 		cond_resched();
 
-		BUG_ON(!vma_can_userfault(vma, vma->vm_flags, wp_async));
-
-		/*
-		 * Nothing to do: this vma is already registered into this
-		 * userfaultfd and with the right tracking mode too.
-		 */
+		/* VMA not registered with userfaultfd. */
 		if (!vma->vm_userfaultfd_ctx.ctx)
 			goto skip;
 
+		VM_WARN_ON_ONCE(vma->vm_userfaultfd_ctx.ctx != ctx);
+		VM_WARN_ON_ONCE(!vma_can_userfault(vma, vma->vm_flags, wp_async));
 		WARN_ON(!(vma->vm_flags & VM_MAYWRITE));
 
 		if (vma->vm_start > start)
