@@ -1197,7 +1197,7 @@ err_noclose:
  * that the pages backing @xdr are unchanging.
  */
 static int svc_tcp_sendmsg(struct svc_sock *svsk, struct svc_rqst *rqstp,
-			   rpc_fraghdr marker, unsigned int *sentp)
+			   rpc_fraghdr marker, int *sentp)
 {
 	struct msghdr msg = {
 		.msg_flags	= MSG_SPLICE_PAGES,
@@ -1247,8 +1247,7 @@ static int svc_tcp_sendto(struct svc_rqst *rqstp)
 	struct xdr_buf *xdr = &rqstp->rq_res;
 	rpc_fraghdr marker = cpu_to_be32(RPC_LAST_STREAM_FRAGMENT |
 					 (u32)xdr->len);
-	unsigned int sent;
-	int err;
+	int sent, err;
 
 	svc_tcp_release_ctxt(xprt, rqstp->rq_xprt_ctxt);
 	rqstp->rq_xprt_ctxt = NULL;
