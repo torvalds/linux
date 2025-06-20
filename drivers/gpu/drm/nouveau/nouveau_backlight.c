@@ -262,7 +262,7 @@ nv50_backlight_init(struct nouveau_backlight *bl,
 				 nv_conn->base.name);
 
 			ret = drm_edp_backlight_init(&nv_conn->aux, &bl->edp_info, 0, edp_dpcd,
-						     &current_level, &current_mode);
+						     &current_level, &current_mode, false);
 			if (ret < 0)
 				return ret;
 

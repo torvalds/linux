@@ -4239,6 +4239,7 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
  * @edp_dpcd: A cached copy of the eDP DPCD
  * @current_level: Where to store the probed brightness level, if any
  * @current_mode: Where to store the currently set backlight control mode
+ * @need_luminance: Tells us if a we want to manipulate backlight using luminance values
  *
  * Initializes a &drm_edp_backlight_info struct by probing @aux for it's backlight capabilities,
  * along with also probing the current and maximum supported brightness levels.
@@ -4251,7 +4252,7 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
 int
 drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl,
 		       u16 driver_pwm_freq_hz, const u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE],
-		       u16 *current_level, u8 *current_mode)
+		       u16 *current_level, u8 *current_mode, bool need_luminance)
 {
 	int ret;
 
@@ -4262,7 +4263,7 @@ drm_edp_backlight_init(struct drm_dp_aux *aux, struct drm_edp_backlight_info *bl
 	if (edp_dpcd[2] & DP_EDP_BACKLIGHT_BRIGHTNESS_BYTE_COUNT)
 		bl->lsb_reg_used = true;
 	if ((edp_dpcd[0] & DP_EDP_15) && edp_dpcd[3] &
-	    (DP_EDP_PANEL_LUMINANCE_CONTROL_CAPABLE))
+	    (DP_EDP_PANEL_LUMINANCE_CONTROL_CAPABLE) && need_luminance)
 		bl->luminance_set = true;
 
 	/* Sanity check caps */
@@ -4380,7 +4381,7 @@ int drm_panel_dp_aux_backlight(struct drm_panel *panel, struct drm_dp_aux *aux)
 	bl->aux = aux;
 
 	ret = drm_edp_backlight_init(aux, &bl->info, 0, edp_dpcd,
-				     &current_level, &current_mode);
+				     &current_level, &current_mode, false);
 	if (ret < 0)
 		return ret;
 
