@@ -93,7 +93,7 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hrtimer_start(&rq->napi_timer, us_to_ktime(5), HRTIMER_MODE_REL);
 
 	rcu_read_unlock();
-	dev_dstats_tx_add(dev, skb->len);
+	dev_dstats_tx_add(dev, len);
 	return NETDEV_TX_OK;
 
 out_drop_free:
