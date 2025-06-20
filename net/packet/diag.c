@@ -153,7 +153,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 
 	if ((req->pdiag_show & PACKET_SHOW_INFO) &&
 	    nla_put_u32(skb, PACKET_DIAG_UID,
-			from_kuid_munged(user_ns, sock_i_uid(sk))))
+			from_kuid_munged(user_ns, sk_uid(sk))))
 		goto out_nlmsg_trim;
 
 	if ((req->pdiag_show & PACKET_SHOW_MCLIST) &&

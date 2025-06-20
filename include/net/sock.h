@@ -2092,8 +2092,6 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
-kuid_t sock_i_uid(struct sock *sk);
-
 static inline kuid_t sk_uid(const struct sock *sk)
 {
 	/* Paired with WRITE_ONCE() in sockfs_setattr() */

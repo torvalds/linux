@@ -145,8 +145,8 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 			       unsigned long *bitmap,
 			       struct sock *sk, unsigned int log)
 {
+	kuid_t uid = sk_uid(sk);
 	struct sock *sk2;
-	kuid_t uid = sock_i_uid(sk);
 
 	sk_for_each(sk2, &hslot->head) {
 		if (net_eq(sock_net(sk2), net) &&
@@ -158,7 +158,7 @@ static int udp_lib_lport_inuse(struct net *net, __u16 num,
 		    inet_rcv_saddr_equal(sk, sk2, true)) {
 			if (sk2->sk_reuseport && sk->sk_reuseport &&
 			    !rcu_access_pointer(sk->sk_reuseport_cb) &&
-			    uid_eq(uid, sock_i_uid(sk2))) {
+			    uid_eq(uid, sk_uid(sk2))) {
 				if (!bitmap)
 					return 0;
 			} else {
@@ -180,8 +180,8 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
 				struct udp_hslot *hslot2,
 				struct sock *sk)
 {
+	kuid_t uid = sk_uid(sk);
 	struct sock *sk2;
-	kuid_t uid = sock_i_uid(sk);
 	int res = 0;
 
 	spin_lock(&hslot2->lock);
@@ -195,7 +195,7 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
 		    inet_rcv_saddr_equal(sk, sk2, true)) {
 			if (sk2->sk_reuseport && sk->sk_reuseport &&
 			    !rcu_access_pointer(sk->sk_reuseport_cb) &&
-			    uid_eq(uid, sock_i_uid(sk2))) {
+			    uid_eq(uid, sk_uid(sk2))) {
 				res = 0;
 			} else {
 				res = 1;
@@ -210,7 +210,7 @@ static int udp_lib_lport_inuse2(struct net *net, __u16 num,
 static int udp_reuseport_add_sock(struct sock *sk, struct udp_hslot *hslot)
 {
 	struct net *net = sock_net(sk);
-	kuid_t uid = sock_i_uid(sk);
+	kuid_t uid = sk_uid(sk);
 	struct sock *sk2;
 
 	sk_for_each(sk2, &hslot->head) {
@@ -220,7 +220,7 @@ static int udp_reuseport_add_sock(struct sock *sk, struct udp_hslot *hslot)
 		    ipv6_only_sock(sk2) == ipv6_only_sock(sk) &&
 		    (udp_sk(sk2)->udp_port_hash == udp_sk(sk)->udp_port_hash) &&
 		    (sk2->sk_bound_dev_if == sk->sk_bound_dev_if) &&
-		    sk2->sk_reuseport && uid_eq(uid, sock_i_uid(sk2)) &&
+		    sk2->sk_reuseport && uid_eq(uid, sk_uid(sk2)) &&
 		    inet_rcv_saddr_equal(sk, sk2, false)) {
 			return reuseport_add_sock(sk, sk2,
 						  inet_rcv_saddr_any(sk));
@@ -3387,7 +3387,7 @@ static void udp4_format_sock(struct sock *sp, struct seq_file *f,
 		sk_wmem_alloc_get(sp),
 		udp_rqueue_get(sp),
 		0, 0L, 0,
-		from_kuid_munged(seq_user_ns(f), sock_i_uid(sp)),
+		from_kuid_munged(seq_user_ns(f), sk_uid(sp)),
 		0, sock_i_ino(sp),
 		refcount_read(&sp->sk_refcnt), sp,
 		atomic_read(&sp->sk_drops));
@@ -3630,7 +3630,7 @@ static int bpf_iter_udp_seq_show(struct seq_file *seq, void *v)
 		goto unlock;
 	}
 
-	uid = from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk));
+	uid = from_kuid_munged(seq_user_ns(seq), sk_uid(sk));
 	meta.seq = seq;
 	prog = bpf_iter_get_info(&meta, false);
 	ret = udp_prog_seq_show(prog, &meta, v, uid, state->bucket);

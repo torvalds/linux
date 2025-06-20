@@ -815,7 +815,7 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 			   refcount_read(&sk->sk_refcnt),
 			   sk_rmem_alloc_get(sk),
 			   sk_wmem_alloc_get(sk),
-			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
+			   from_kuid(seq_user_ns(seq), sk_uid(sk)),
 			   sock_i_ino(sk),
 			   bt->parent ? sock_i_ino(bt->parent) : 0LU);
 
