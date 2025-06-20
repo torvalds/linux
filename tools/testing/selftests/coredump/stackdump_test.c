@@ -461,10 +461,15 @@ TEST_F(coredump, socket_detect_userspace_client)
 			_exit(EXIT_FAILURE);
 		}
 
+		ret = read(fd_coredump, &c, 1);
+
 		close(fd_coredump);
 		close(fd_server);
 		close(fd_peer_pidfd);
 		close(fd_core_file);
+
+		if (ret < 1)
+			_exit(EXIT_FAILURE);
 		_exit(EXIT_SUCCESS);
 	}
 	self->pid_coredump_server = pid_coredump_server;
