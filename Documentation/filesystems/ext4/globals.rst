@@ -11,6 +11,7 @@ have static metadata at fixed locations.
    super
    group_descr
    bitmaps
+   inode_table
    mmp
    journal
    orphan
