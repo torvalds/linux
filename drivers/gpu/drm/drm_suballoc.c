@@ -42,6 +42,8 @@
 
 #include <drm/drm_suballoc.h>
 #include <drm/drm_print.h>
+
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/wait.h>

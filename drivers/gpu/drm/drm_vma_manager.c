@@ -23,6 +23,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/rbtree.h>

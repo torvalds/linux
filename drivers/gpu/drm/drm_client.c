@@ -3,6 +3,7 @@
  * Copyright 2018 Noralf Trønnes
  */
 
+#include <linux/export.h>
 #include <linux/iosys-map.h>
 #include <linux/list.h>
 #include <linux/mutex.h>

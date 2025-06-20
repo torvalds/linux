@@ -3,6 +3,7 @@
  * Copyright (c) 2024 Linaro Ltd
  */
 
+#include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>

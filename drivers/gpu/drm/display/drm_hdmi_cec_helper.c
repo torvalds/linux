@@ -8,6 +8,7 @@
 #include <drm/drm_managed.h>
 #include <drm/display/drm_hdmi_cec_helper.h>
 
+#include <linux/export.h>
 #include <linux/mutex.h>
 
 #include <media/cec.h>

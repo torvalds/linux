@@ -9,6 +9,7 @@
  */
 
 #include <linux/dmi.h>
+#include <linux/export.h>
 #include <linux/module.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_utils.h>

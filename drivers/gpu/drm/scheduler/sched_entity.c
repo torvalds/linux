@@ -21,6 +21,7 @@
  *
  */
 
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/completion.h>
 

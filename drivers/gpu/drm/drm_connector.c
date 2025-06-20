@@ -33,6 +33,7 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_utils.h>
 
+#include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/uaccess.h>

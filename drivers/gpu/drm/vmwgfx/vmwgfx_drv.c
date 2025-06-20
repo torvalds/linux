@@ -440,8 +440,10 @@ static int vmw_device_init(struct vmw_private *dev_priv)
 		vmw_write(dev_priv, SVGA_REG_CONFIG_DONE, 1);
 	}
 
-	dev_priv->last_read_seqno = vmw_fence_read(dev_priv);
-	atomic_set(&dev_priv->marker_seq, dev_priv->last_read_seqno);
+	u32 seqno = vmw_fence_read(dev_priv);
+
+	atomic_set(&dev_priv->last_read_seqno, seqno);
+	atomic_set(&dev_priv->marker_seq, seqno);
 	return 0;
 }
 
@@ -454,7 +456,7 @@ static void vmw_device_fini(struct vmw_private *vmw)
 	while (vmw_read(vmw, SVGA_REG_BUSY) != 0)
 		;
 
-	vmw->last_read_seqno = vmw_fence_read(vmw);
+	atomic_set(&vmw->last_read_seqno, vmw_fence_read(vmw));
 
 	vmw_write(vmw, SVGA_REG_CONFIG_DONE,
 		  vmw->config_done_state);

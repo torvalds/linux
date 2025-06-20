@@ -524,7 +524,7 @@ static void dispc_save_context(struct dispc_device *dispc)
 	DSSDBG("context saved\n");
 }
 
-static void dispc_restore_context(struct dispc_device *dispc)
+static noinline_for_stack void dispc_restore_context(struct dispc_device *dispc)
 {
 	int i, j;
 

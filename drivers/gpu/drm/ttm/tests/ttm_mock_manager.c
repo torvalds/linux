@@ -2,6 +2,9 @@
 /*
  * Copyright © 2023 Intel Corporation
  */
+
+#include <linux/export.h>
+
 #include <drm/ttm/ttm_resource.h>
 #include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_placement.h>

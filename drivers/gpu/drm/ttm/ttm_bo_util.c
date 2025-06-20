@@ -28,6 +28,8 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
+
+#include <linux/export.h>
 #include <linux/swap.h>
 #include <linux/vmalloc.h>
 

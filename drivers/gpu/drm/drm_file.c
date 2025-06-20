@@ -33,6 +33,7 @@
 
 #include <linux/anon_inodes.h>
 #include <linux/dma-fence.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/pci.h>

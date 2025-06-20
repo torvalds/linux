@@ -5,6 +5,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/export.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
