@@ -1310,10 +1310,10 @@ class KernelDoc:
         else:
             self.emit_msg(ln, f"Cannot find identifier on line:\n{line}")
 
-    def process_decl(self, ln, line):
-        """
-        STATE_DECLARATION: We've seen the beginning of a declaration
-        """
+    #
+    # Helper function to determine if a new section is being started.
+    #
+    def is_new_section(self, ln, line):
         if doc_sect.search(line):
             self.entry.in_doc_sect = True
             newsection = doc_sect.group(1)
@@ -1346,6 +1346,14 @@ class KernelDoc:
                 self.entry.contents += "\n"
 
             self.state = state.BODY
+            return True
+        return False
+
+    def process_decl(self, ln, line):
+        """
+        STATE_DECLARATION: We've seen the beginning of a declaration
+        """
+        if self.is_new_section(ln, line):
             return
 
         if doc_end.search(line):
@@ -1395,38 +1403,7 @@ class KernelDoc:
         """
         STATE_BODY: the bulk of a kerneldoc comment.
         """
-        if doc_sect.search(line):
-            self.entry.in_doc_sect = True
-            newsection = doc_sect.group(1)
-
-            if newsection.lower() in ["description", "context"]:
-                newsection = newsection.title()
-
-            # Special case: @return is a section, not a param description
-            if newsection.lower() in ["@return", "@returns",
-                                      "return", "returns"]:
-                newsection = "Return"
-
-            # Perl kernel-doc has a check here for contents before sections.
-            # the logic there is always false, as in_doc_sect variable is
-            # always true. So, just don't implement Wcontents_before_sections
-
-            # .title()
-            newcontents = doc_sect.group(2)
-            if not newcontents:
-                newcontents = ""
-
-            if self.entry.contents.strip("\n"):
-                self.dump_section()
-
-            self.entry.begin_section(ln, newsection)
-            self.entry.leading_space = None
-
-            self.entry.contents = newcontents.lstrip()
-            if self.entry.contents:
-                self.entry.contents += "\n"
-
-            self.state = state.BODY
+        if self.is_new_section(ln, line):
             return
 
         if doc_end.search(line):
