@@ -464,4 +464,7 @@ enum amdgpu_memory_partition
 amdgpu_gmc_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes);
 enum amdgpu_memory_partition
 amdgpu_gmc_query_memory_partition(struct amdgpu_device *adev);
+int amdgpu_gmc_init_mem_ranges(struct amdgpu_device *adev);
+void amdgpu_gmc_init_sw_mem_ranges(struct amdgpu_device *adev,
+				   struct amdgpu_mem_partition_info *mem_ranges);
 #endif
