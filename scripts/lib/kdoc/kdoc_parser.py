@@ -1351,13 +1351,10 @@ class KernelDoc:
             return True
         return False
 
-    def process_decl(self, ln, line):
-        """
-        STATE_DECLARATION: We've seen the beginning of a declaration
-        """
-        if self.is_new_section(ln, line):
-            return
-
+    #
+    # Helper function to detect (and effect) the end of a kerneldoc comment.
+    #
+    def is_comment_end(self, ln, line):
         if doc_end.search(line):
             self.dump_section()
 
@@ -1370,6 +1367,15 @@ class KernelDoc:
             self.entry.new_start_line = ln + 1
 
             self.state = state.PROTO
+            return True
+        return False
+
+
+    def process_decl(self, ln, line):
+        """
+        STATE_DECLARATION: We've seen the beginning of a declaration
+        """
+        if self.is_new_section(ln, line) or self.is_comment_end(ln, line):
             return
 
         if doc_content.search(line):
@@ -1406,21 +1412,7 @@ class KernelDoc:
         """
         STATE_BODY: the bulk of a kerneldoc comment.
         """
-        if self.is_new_section(ln, line):
-            return
-
-        if doc_end.search(line):
-            self.dump_section()
-
-            # Look for doc_com + <text> + doc_end:
-            r = KernRe(r'\s*\*\s*[a-zA-Z_0-9:\.]+\*/')
-            if r.match(line):
-                self.emit_msg(ln, f"suspicious ending line: {line}")
-
-            self.entry.prototype = ""
-            self.entry.new_start_line = ln + 1
-
-            self.state = state.PROTO
+        if self.is_new_section(ln, line) or self.is_comment_end(ln, line):
             return
 
         if doc_content.search(line):
