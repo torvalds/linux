@@ -261,6 +261,10 @@ pub struct Normal;
 /// any of the bus callbacks, such as `probe()`.
 pub struct Core;
 
+/// Semantically the same as [`Core`] but reserved for internal usage of the corresponding bus
+/// abstraction.
+pub struct CoreInternal;
+
 /// The [`Bound`] context is the context of a bus specific device reference when it is guaranteed to
 /// be bound for the duration of its lifetime.
 pub struct Bound;
@@ -270,11 +274,13 @@ mod private {
 
     impl Sealed for super::Bound {}
     impl Sealed for super::Core {}
+    impl Sealed for super::CoreInternal {}
     impl Sealed for super::Normal {}
 }
 
 impl DeviceContext for Bound {}
 impl DeviceContext for Core {}
+impl DeviceContext for CoreInternal {}
 impl DeviceContext for Normal {}
 
 /// # Safety
@@ -316,6 +322,13 @@ macro_rules! impl_device_context_deref {
         // `__impl_device_context_deref!`.
         ::kernel::__impl_device_context_deref!(unsafe {
             $device,
+            $crate::device::CoreInternal => $crate::device::Core
+        });
+
+        // SAFETY: This macro has the exact same safety requirement as
+        // `__impl_device_context_deref!`.
+        ::kernel::__impl_device_context_deref!(unsafe {
+            $device,
             $crate::device::Core => $crate::device::Bound
         });
 
@@ -345,6 +358,7 @@ macro_rules! __impl_device_context_into_aref {
 #[macro_export]
 macro_rules! impl_device_context_into_aref {
     ($device:tt) => {
+        ::kernel::__impl_device_context_into_aref!($crate::device::CoreInternal, $device);
         ::kernel::__impl_device_context_into_aref!($crate::device::Core, $device);
         ::kernel::__impl_device_context_into_aref!($crate::device::Bound, $device);
     };
