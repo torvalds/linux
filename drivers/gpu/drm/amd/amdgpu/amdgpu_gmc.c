@@ -1448,3 +1448,46 @@ bool amdgpu_gmc_need_reset_on_init(struct amdgpu_device *adev)
 
 	return false;
 }
+
+enum amdgpu_memory_partition
+amdgpu_gmc_get_vf_memory_partition(struct amdgpu_device *adev)
+{
+	switch (adev->gmc.num_mem_partitions) {
+	case 0:
+		return UNKNOWN_MEMORY_PARTITION_MODE;
+	case 1:
+		return AMDGPU_NPS1_PARTITION_MODE;
+	case 2:
+		return AMDGPU_NPS2_PARTITION_MODE;
+	case 4:
+		return AMDGPU_NPS4_PARTITION_MODE;
+	case 8:
+		return AMDGPU_NPS8_PARTITION_MODE;
+	default:
+		return AMDGPU_NPS1_PARTITION_MODE;
+	}
+}
+
+enum amdgpu_memory_partition
+amdgpu_gmc_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes)
+{
+	enum amdgpu_memory_partition mode = UNKNOWN_MEMORY_PARTITION_MODE;
+
+	if (adev->nbio.funcs &&
+	    adev->nbio.funcs->get_memory_partition_mode)
+		mode = adev->nbio.funcs->get_memory_partition_mode(adev,
+								   supp_modes);
+	else
+		dev_warn(adev->dev, "memory partition mode query is not supported\n");
+
+	return mode;
+}
+
+enum amdgpu_memory_partition
+amdgpu_gmc_query_memory_partition(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		return amdgpu_gmc_get_vf_memory_partition(adev);
+	else
+		return amdgpu_gmc_get_memory_partition(adev, NULL);
+}

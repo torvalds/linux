@@ -1383,46 +1383,6 @@ static unsigned int gmc_v9_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	return size;
 }
 
-static enum amdgpu_memory_partition
-gmc_v9_0_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes)
-{
-	enum amdgpu_memory_partition mode = UNKNOWN_MEMORY_PARTITION_MODE;
-
-	if (adev->nbio.funcs->get_memory_partition_mode)
-		mode = adev->nbio.funcs->get_memory_partition_mode(adev,
-								   supp_modes);
-
-	return mode;
-}
-
-static enum amdgpu_memory_partition
-gmc_v9_0_query_vf_memory_partition(struct amdgpu_device *adev)
-{
-	switch (adev->gmc.num_mem_partitions) {
-	case 0:
-		return UNKNOWN_MEMORY_PARTITION_MODE;
-	case 1:
-		return AMDGPU_NPS1_PARTITION_MODE;
-	case 2:
-		return AMDGPU_NPS2_PARTITION_MODE;
-	case 4:
-		return AMDGPU_NPS4_PARTITION_MODE;
-	default:
-		return AMDGPU_NPS1_PARTITION_MODE;
-	}
-
-	return AMDGPU_NPS1_PARTITION_MODE;
-}
-
-static enum amdgpu_memory_partition
-gmc_v9_0_query_memory_partition(struct amdgpu_device *adev)
-{
-	if (amdgpu_sriov_vf(adev))
-		return gmc_v9_0_query_vf_memory_partition(adev);
-
-	return gmc_v9_0_get_memory_partition(adev, NULL);
-}
-
 static bool gmc_v9_0_need_reset_on_init(struct amdgpu_device *adev)
 {
 	if (adev->nbio.funcs && adev->nbio.funcs->is_nps_switch_requested &&
@@ -1444,7 +1404,7 @@ static const struct amdgpu_gmc_funcs gmc_v9_0_gmc_funcs = {
 	.get_vm_pte = gmc_v9_0_get_vm_pte,
 	.override_vm_pte_flags = gmc_v9_0_override_vm_pte_flags,
 	.get_vbios_fb_size = gmc_v9_0_get_vbios_fb_size,
-	.query_mem_partition_mode = &gmc_v9_0_query_memory_partition,
+	.query_mem_partition_mode = &amdgpu_gmc_query_memory_partition,
 	.request_mem_partition_mode = &amdgpu_gmc_request_memory_partition,
 	.need_reset_on_init = &gmc_v9_0_need_reset_on_init,
 };
@@ -1597,7 +1557,7 @@ static void gmc_v9_0_init_nps_details(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
 		return;
 
-	mode = gmc_v9_0_get_memory_partition(adev, &supp_modes);
+	mode = amdgpu_gmc_get_memory_partition(adev, &supp_modes);
 
 	/* Mode detected by hardware and supported modes available */
 	if ((mode != UNKNOWN_MEMORY_PARTITION_MODE) && supp_modes) {
@@ -1889,7 +1849,7 @@ static bool gmc_v9_0_validate_partition_info(struct amdgpu_device *adev)
 	u32 supp_modes;
 	bool valid;
 
-	mode = gmc_v9_0_get_memory_partition(adev, &supp_modes);
+	mode = amdgpu_gmc_get_memory_partition(adev, &supp_modes);
 
 	/* Mode detected by hardware not present in supported modes */
 	if ((mode != UNKNOWN_MEMORY_PARTITION_MODE) &&
@@ -1973,7 +1933,7 @@ gmc_v9_0_init_sw_mem_ranges(struct amdgpu_device *adev,
 	u32 start_addr = 0, size;
 	int i, r, l;
 
-	mode = gmc_v9_0_query_memory_partition(adev);
+	mode = amdgpu_gmc_query_memory_partition(adev);
 
 	switch (mode) {
 	case UNKNOWN_MEMORY_PARTITION_MODE:

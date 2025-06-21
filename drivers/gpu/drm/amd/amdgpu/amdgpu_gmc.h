@@ -458,5 +458,10 @@ int amdgpu_gmc_request_memory_partition(struct amdgpu_device *adev,
 					int nps_mode);
 void amdgpu_gmc_prepare_nps_mode_change(struct amdgpu_device *adev);
 bool amdgpu_gmc_need_reset_on_init(struct amdgpu_device *adev);
-
+enum amdgpu_memory_partition
+amdgpu_gmc_get_vf_memory_partition(struct amdgpu_device *adev);
+enum amdgpu_memory_partition
+amdgpu_gmc_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes);
+enum amdgpu_memory_partition
+amdgpu_gmc_query_memory_partition(struct amdgpu_device *adev);
 #endif
