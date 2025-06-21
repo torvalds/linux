@@ -88,7 +88,7 @@ class state:
     NAME          = 1        # looking for function name
     DECLARATION   = 2        # We have seen a declaration which might not be done
     BODY          = 3        # the body of the comment
-    BODY_WITH_BLANK_LINE = 4 # the body which has a blank line
+    SPECIAL_SECTION = 4      # doc section ending with a blank line
     PROTO         = 5        # scanning prototype
     DOCBLOCK      = 6        # documentation block
     INLINE        = 7        # gathering doc outside main block
@@ -98,7 +98,7 @@ class state:
         "NAME",
         "DECLARATION",
         "BODY",
-        "BODY_WITH_BLANK_LINE",
+        "SPECIAL_SECTION",
         "PROTO",
         "DOCBLOCK",
         "INLINE",
@@ -1383,18 +1383,18 @@ class KernelDoc:
         self.emit_msg(ln, f"bad line: {line}")
 
 
+    def process_special(self, ln, line):
+        """
+        STATE_SPECIAL_SECTION: a section ending with a blank line
+        """
+        if KernRe(r"\s*\*\s*\S").match(line):
+            self.entry.begin_section(ln, dump = True)
+        self.process_body(ln, line)
+
     def process_body(self, ln, line):
         """
         STATE_BODY: the bulk of a kerneldoc comment.
         """
-
-        if self.state == state.BODY_WITH_BLANK_LINE:
-            r = KernRe(r"\s*\*\s*\S")
-            if r.match(line):
-                self.dump_section()
-                self.entry.begin_section(ln)
-                self.entry.contents = ""
-
         if doc_sect.search(line):
             self.entry.in_doc_sect = True
             newsection = doc_sect.group(1)
@@ -1452,7 +1452,7 @@ class KernelDoc:
                     self.state = state.BODY
                 else:
                     if self.entry.section != SECTION_DEFAULT:
-                        self.state = state.BODY_WITH_BLANK_LINE
+                        self.state = state.SPECIAL_SECTION
                     else:
                         self.state = state.BODY
 
@@ -1751,7 +1751,7 @@ class KernelDoc:
         state.NAME:			process_name,
         state.BODY:			process_body,
         state.DECLARATION:		process_decl,
-        state.BODY_WITH_BLANK_LINE:	process_body,
+        state.SPECIAL_SECTION:		process_special,
         state.INLINE:			process_inline,
         state.PROTO:			process_proto,
         state.DOCBLOCK:			process_docblock,
