@@ -1377,26 +1377,28 @@ class KernelDoc:
         """
         if self.is_new_section(ln, line) or self.is_comment_end(ln, line):
             return
-
+        #
+        # Look for anything with the " * " line beginning.
+        #
         if doc_content.search(line):
             cont = doc_content.group(1)
-
+            #
+            # A blank line means that we have moved out of the declaration
+            # part of the comment (without any "special section" parameter
+            # descriptions).
+            #
             if cont == "":
                 self.state = state.BODY
                 self.entry.contents += "\n"  # needed?
-
+            #
+            # Otherwise we have more of the declaration section to soak up.
+            #
             else:
-                # Continued declaration purpose
-                self.entry.declaration_purpose = self.entry.declaration_purpose.rstrip()
-                self.entry.declaration_purpose += " " + cont
-
-                r = KernRe(r"\s+")
-                self.entry.declaration_purpose = r.sub(' ',
-                                                       self.entry.declaration_purpose)
-            return
-
-        # Unknown line, ignore
-        self.emit_msg(ln, f"bad line: {line}")
+                self.entry.declaration_purpose = \
+                    trim_whitespace(self.entry.declaration_purpose + ' ' + cont)
+        else:
+            # Unknown line, ignore
+            self.emit_msg(ln, f"bad line: {line}")
 
 
     def process_special(self, ln, line):
