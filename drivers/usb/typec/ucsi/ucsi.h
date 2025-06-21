@@ -82,7 +82,8 @@ struct ucsi_operations {
 	int (*sync_control)(struct ucsi *ucsi, u64 command, u32 *cci,
 			    void *data, size_t size);
 	int (*async_control)(struct ucsi *ucsi, u64 command);
-	bool (*update_altmodes)(struct ucsi *ucsi, struct ucsi_altmode *orig,
+	bool (*update_altmodes)(struct ucsi *ucsi, u8 recipient,
+				struct ucsi_altmode *orig,
 				struct ucsi_altmode *updated);
 	void (*update_connector)(struct ucsi_connector *con);
 	void (*connector_status)(struct ucsi_connector *con);
