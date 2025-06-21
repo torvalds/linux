@@ -477,6 +477,7 @@ static int tps65219_probe(struct i2c_client *client)
 {
 	struct tps65219 *tps;
 	const struct tps65219_chip_data *pmic;
+	unsigned int chip_id;
 	bool pwr_button;
 	int ret;
 
@@ -487,8 +488,8 @@ static int tps65219_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, tps);
 
 	tps->dev = &client->dev;
-	tps->chip_id = (uintptr_t)i2c_get_match_data(client);
-	pmic = &chip_info_table[tps->chip_id];
+	chip_id = (uintptr_t)i2c_get_match_data(client);
+	pmic = &chip_info_table[chip_id];
 
 	tps->regmap = devm_regmap_init_i2c(client, &tps65219_regmap_config);
 	if (IS_ERR(tps->regmap)) {
