@@ -31,9 +31,6 @@ properties:
   reg:
     maxItems: 1
 
-  cx-supply:
-    description: Phandle to the CX regulator
-
   px-supply:
     description: Phandle to the PX regulator
 
@@ -108,18 +105,9 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,msm8974-adsp-pil
-    then:
-      required:
-        - cx-supply
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,msm8226-adsp-pil
               - qcom,msm8953-adsp-pil
+              - qcom,msm8974-adsp-pil
               - qcom,msm8996-adsp-pil
               - qcom,msm8998-adsp-pas
     then:
@@ -187,6 +175,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmcc.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
     adsp {
         compatible = "qcom,msm8974-adsp-pil";
 
@@ -204,7 +193,8 @@ examples:
         clocks = <&rpmcc RPM_CXO_CLK>;
         clock-names = "xo";
 
-        cx-supply = <&pm8841_s2>;
+        power-domains = <&rpmpd MSM8974_VDDCX>;
+        power-domain-names = "cx";
 
         memory-region = <&adsp_region>;
 
