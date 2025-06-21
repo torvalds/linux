@@ -760,6 +760,8 @@ static void mei_csi_remove(struct mei_cl_device *cldev)
 
 	pm_runtime_disable(&cldev->dev);
 
+	mei_cldev_disable(cldev);
+
 	mutex_destroy(&csi->lock);
 }
 

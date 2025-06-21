@@ -529,6 +529,8 @@ static void mei_ace_remove(struct mei_cl_device *cldev)
 
 	ace_set_camera_owner(ace, ACE_CAMERA_IVSC);
 
+	mei_cldev_disable(cldev);
+
 	mutex_destroy(&ace->lock);
 }
 
