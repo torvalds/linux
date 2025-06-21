@@ -12,9 +12,13 @@
 #include <linux/container_of.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/string.h>
 #include <linux/platform_data/lenovo-yoga-c630.h>
 #include <linux/usb/typec_dp.h>
+
+#include <drm/bridge/aux-bridge.h>
 
 #include "ucsi.h"
 
@@ -29,6 +33,7 @@
 struct yoga_c630_ucsi {
 	struct yoga_c630_ec *ec;
 	struct ucsi *ucsi;
+	struct auxiliary_device *bridge;
 	struct notifier_block nb;
 	u16 version;
 };
@@ -193,6 +198,13 @@ static void yoga_c630_ucsi_read_port0_status(struct yoga_c630_ucsi *uec)
 				      ccst == 1 ?
 				      TYPEC_ORIENTATION_REVERSE :
 				      TYPEC_ORIENTATION_NORMAL);
+
+	if (uec->bridge)
+		drm_aux_hpd_bridge_notify(&uec->bridge->dev,
+					  dppn != 0 ?
+					  connector_status_connected :
+					  connector_status_disconnected);
+
 }
 
 static int yoga_c630_ucsi_notify(struct notifier_block *nb,
@@ -237,6 +249,24 @@ static int yoga_c630_ucsi_probe(struct auxiliary_device *adev,
 	uec->ec = ec;
 	uec->nb.notifier_call = yoga_c630_ucsi_notify;
 
+	device_for_each_child_node_scoped(&adev->dev, fwnode) {
+		u32 port;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &port);
+		if (ret < 0) {
+			dev_err(&adev->dev, "missing reg property of %pfwP\n", fwnode);
+			return ret;
+		}
+
+		/* DP is only on port0 */
+		if (port != 0)
+			continue;
+
+		uec->bridge = devm_drm_dp_hpd_bridge_alloc(&adev->dev, to_of_node(fwnode));
+		if (IS_ERR(uec->bridge))
+			return PTR_ERR(uec->bridge);
+	}
+
 	uec->ucsi = ucsi_create(&adev->dev, &yoga_c630_ucsi_ops);
 	if (IS_ERR(uec->ucsi))
 		return PTR_ERR(uec->ucsi);
@@ -255,7 +285,16 @@ static int yoga_c630_ucsi_probe(struct auxiliary_device *adev,
 	if (ret)
 		goto err_unregister;
 
+	if (uec->bridge) {
+		ret = devm_drm_dp_hpd_bridge_add(&adev->dev, uec->bridge);
+		if (ret)
+			goto err_ucsi_unregister;
+	}
+
 	return 0;
+
+err_ucsi_unregister:
+	ucsi_unregister(uec->ucsi);
 
 err_unregister:
 	yoga_c630_ec_unregister_notify(uec->ec, &uec->nb);
