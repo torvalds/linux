@@ -9309,47 +9309,23 @@ static u64 cpu_shares_read_u64(struct cgroup_subsys_state *css,
 #ifdef CONFIG_CFS_BANDWIDTH
 static DEFINE_MUTEX(cfs_constraints_mutex);
 
-const u64 max_cfs_quota_period = 1 * NSEC_PER_SEC; /* 1s */
-static const u64 min_cfs_quota_period = 1 * NSEC_PER_MSEC; /* 1ms */
-/* More than 203 days if BW_SHIFT equals 20. */
-static const u64 max_cfs_runtime = MAX_BW * NSEC_PER_USEC;
-
 static int __cfs_schedulable(struct task_group *tg, u64 period, u64 runtime);
 
-static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota,
-				u64 burst)
+static int tg_set_cfs_bandwidth(struct task_group *tg,
+				u64 period_us, u64 quota_us, u64 burst_us)
 {
 	int i, ret = 0, runtime_enabled, runtime_was_enabled;
 	struct cfs_bandwidth *cfs_b = &tg->cfs_bandwidth;
+	u64 period, quota, burst;
 
-	if (tg == &root_task_group)
-		return -EINVAL;
+	period = (u64)period_us * NSEC_PER_USEC;
 
-	/*
-	 * Ensure we have at some amount of bandwidth every period.  This is
-	 * to prevent reaching a state of large arrears when throttled via
-	 * entity_tick() resulting in prolonged exit starvation.
-	 */
-	if (quota < min_cfs_quota_period || period < min_cfs_quota_period)
-		return -EINVAL;
+	if (quota_us == RUNTIME_INF)
+		quota = RUNTIME_INF;
+	else
+		quota = (u64)quota_us * NSEC_PER_USEC;
 
-	/*
-	 * Likewise, bound things on the other side by preventing insane quota
-	 * periods.  This also allows us to normalize in computing quota
-	 * feasibility.
-	 */
-	if (period > max_cfs_quota_period)
-		return -EINVAL;
-
-	/*
-	 * Bound quota to defend quota against overflow during bandwidth shift.
-	 */
-	if (quota != RUNTIME_INF && quota > max_cfs_runtime)
-		return -EINVAL;
-
-	if (quota != RUNTIME_INF && (burst > quota ||
-				     burst + quota > max_cfs_runtime))
-		return -EINVAL;
+	burst = (u64)burst_us * NSEC_PER_USEC;
 
 	/*
 	 * Prevent race between setting of cfs_rq->runtime_enabled and
@@ -9404,50 +9380,7 @@ static int tg_set_cfs_bandwidth(struct task_group *tg, u64 period, u64 quota,
 	return 0;
 }
 
-static int tg_set_cfs_quota(struct task_group *tg, long cfs_quota_us)
-{
-	u64 quota, period, burst;
-
-	period = ktime_to_ns(tg->cfs_bandwidth.period);
-	burst = tg->cfs_bandwidth.burst;
-	if (cfs_quota_us < 0)
-		quota = RUNTIME_INF;
-	else if ((u64)cfs_quota_us <= U64_MAX / NSEC_PER_USEC)
-		quota = (u64)cfs_quota_us * NSEC_PER_USEC;
-	else
-		return -EINVAL;
-
-	return tg_set_cfs_bandwidth(tg, period, quota, burst);
-}
-
-static long tg_get_cfs_quota(struct task_group *tg)
-{
-	u64 quota_us;
-
-	if (tg->cfs_bandwidth.quota == RUNTIME_INF)
-		return -1;
-
-	quota_us = tg->cfs_bandwidth.quota;
-	do_div(quota_us, NSEC_PER_USEC);
-
-	return quota_us;
-}
-
-static int tg_set_cfs_period(struct task_group *tg, long cfs_period_us)
-{
-	u64 quota, period, burst;
-
-	if ((u64)cfs_period_us > U64_MAX / NSEC_PER_USEC)
-		return -EINVAL;
-
-	period = (u64)cfs_period_us * NSEC_PER_USEC;
-	quota = tg->cfs_bandwidth.quota;
-	burst = tg->cfs_bandwidth.burst;
-
-	return tg_set_cfs_bandwidth(tg, period, quota, burst);
-}
-
-static long tg_get_cfs_period(struct task_group *tg)
+static u64 tg_get_cfs_period(struct task_group *tg)
 {
 	u64 cfs_period_us;
 
@@ -9457,21 +9390,20 @@ static long tg_get_cfs_period(struct task_group *tg)
 	return cfs_period_us;
 }
 
-static int tg_set_cfs_burst(struct task_group *tg, long cfs_burst_us)
+static u64 tg_get_cfs_quota(struct task_group *tg)
 {
-	u64 quota, period, burst;
+	u64 quota_us;
 
-	if ((u64)cfs_burst_us > U64_MAX / NSEC_PER_USEC)
-		return -EINVAL;
+	if (tg->cfs_bandwidth.quota == RUNTIME_INF)
+		return RUNTIME_INF;
 
-	burst = (u64)cfs_burst_us * NSEC_PER_USEC;
-	period = ktime_to_ns(tg->cfs_bandwidth.period);
-	quota = tg->cfs_bandwidth.quota;
+	quota_us = tg->cfs_bandwidth.quota;
+	do_div(quota_us, NSEC_PER_USEC);
 
-	return tg_set_cfs_bandwidth(tg, period, quota, burst);
+	return quota_us;
 }
 
-static long tg_get_cfs_burst(struct task_group *tg)
+static u64 tg_get_cfs_burst(struct task_group *tg)
 {
 	u64 burst_us;
 
@@ -9479,42 +9411,6 @@ static long tg_get_cfs_burst(struct task_group *tg)
 	do_div(burst_us, NSEC_PER_USEC);
 
 	return burst_us;
-}
-
-static s64 cpu_cfs_quota_read_s64(struct cgroup_subsys_state *css,
-				  struct cftype *cft)
-{
-	return tg_get_cfs_quota(css_tg(css));
-}
-
-static int cpu_cfs_quota_write_s64(struct cgroup_subsys_state *css,
-				   struct cftype *cftype, s64 cfs_quota_us)
-{
-	return tg_set_cfs_quota(css_tg(css), cfs_quota_us);
-}
-
-static u64 cpu_cfs_period_read_u64(struct cgroup_subsys_state *css,
-				   struct cftype *cft)
-{
-	return tg_get_cfs_period(css_tg(css));
-}
-
-static int cpu_cfs_period_write_u64(struct cgroup_subsys_state *css,
-				    struct cftype *cftype, u64 cfs_period_us)
-{
-	return tg_set_cfs_period(css_tg(css), cfs_period_us);
-}
-
-static u64 cpu_cfs_burst_read_u64(struct cgroup_subsys_state *css,
-				  struct cftype *cft)
-{
-	return tg_get_cfs_burst(css_tg(css));
-}
-
-static int cpu_cfs_burst_write_u64(struct cgroup_subsys_state *css,
-				   struct cftype *cftype, u64 cfs_burst_us)
-{
-	return tg_set_cfs_burst(css_tg(css), cfs_burst_us);
 }
 
 struct cfs_schedulable_data {
@@ -9651,6 +9547,143 @@ static int cpu_cfs_local_stat_show(struct seq_file *sf, void *v)
 }
 #endif /* CONFIG_CFS_BANDWIDTH */
 
+#ifdef CONFIG_GROUP_SCHED_BANDWIDTH
+const u64 max_bw_quota_period_us = 1 * USEC_PER_SEC; /* 1s */
+static const u64 min_bw_quota_period_us = 1 * USEC_PER_MSEC; /* 1ms */
+/* More than 203 days if BW_SHIFT equals 20. */
+static const u64 max_bw_runtime_us = MAX_BW;
+
+static void tg_bandwidth(struct task_group *tg,
+			 u64 *period_us_p, u64 *quota_us_p, u64 *burst_us_p)
+{
+#ifdef CONFIG_CFS_BANDWIDTH
+	if (period_us_p)
+		*period_us_p = tg_get_cfs_period(tg);
+	if (quota_us_p)
+		*quota_us_p = tg_get_cfs_quota(tg);
+	if (burst_us_p)
+		*burst_us_p = tg_get_cfs_burst(tg);
+#else /* !CONFIG_CFS_BANDWIDTH */
+	if (period_us_p)
+		*period_us_p = tg->scx.bw_period_us;
+	if (quota_us_p)
+		*quota_us_p = tg->scx.bw_quota_us;
+	if (burst_us_p)
+		*burst_us_p = tg->scx.bw_burst_us;
+#endif /* CONFIG_CFS_BANDWIDTH */
+}
+
+static u64 cpu_period_read_u64(struct cgroup_subsys_state *css,
+			       struct cftype *cft)
+{
+	u64 period_us;
+
+	tg_bandwidth(css_tg(css), &period_us, NULL, NULL);
+	return period_us;
+}
+
+static int tg_set_bandwidth(struct task_group *tg,
+			    u64 period_us, u64 quota_us, u64 burst_us)
+{
+	const u64 max_usec = U64_MAX / NSEC_PER_USEC;
+	int ret = 0;
+
+	if (tg == &root_task_group)
+		return -EINVAL;
+
+	/* Values should survive translation to nsec */
+	if (period_us > max_usec ||
+	    (quota_us != RUNTIME_INF && quota_us > max_usec) ||
+	    burst_us > max_usec)
+		return -EINVAL;
+
+	/*
+	 * Ensure we have some amount of bandwidth every period. This is to
+	 * prevent reaching a state of large arrears when throttled via
+	 * entity_tick() resulting in prolonged exit starvation.
+	 */
+	if (quota_us < min_bw_quota_period_us ||
+	    period_us < min_bw_quota_period_us)
+		return -EINVAL;
+
+	/*
+	 * Likewise, bound things on the other side by preventing insane quota
+	 * periods.  This also allows us to normalize in computing quota
+	 * feasibility.
+	 */
+	if (period_us > max_bw_quota_period_us)
+		return -EINVAL;
+
+	/*
+	 * Bound quota to defend quota against overflow during bandwidth shift.
+	 */
+	if (quota_us != RUNTIME_INF && quota_us > max_bw_runtime_us)
+		return -EINVAL;
+
+	if (quota_us != RUNTIME_INF && (burst_us > quota_us ||
+					burst_us + quota_us > max_bw_runtime_us))
+		return -EINVAL;
+
+#ifdef CONFIG_CFS_BANDWIDTH
+	ret = tg_set_cfs_bandwidth(tg, period_us, quota_us, burst_us);
+#endif /* CONFIG_CFS_BANDWIDTH */
+	if (!ret)
+		scx_group_set_bandwidth(tg, period_us, quota_us, burst_us);
+	return ret;
+}
+
+static s64 cpu_quota_read_s64(struct cgroup_subsys_state *css,
+			      struct cftype *cft)
+{
+	u64 quota_us;
+
+	tg_bandwidth(css_tg(css), NULL, &quota_us, NULL);
+	return quota_us;	/* (s64)RUNTIME_INF becomes -1 */
+}
+
+static u64 cpu_burst_read_u64(struct cgroup_subsys_state *css,
+			      struct cftype *cft)
+{
+	u64 burst_us;
+
+	tg_bandwidth(css_tg(css), NULL, NULL, &burst_us);
+	return burst_us;
+}
+
+static int cpu_period_write_u64(struct cgroup_subsys_state *css,
+				struct cftype *cftype, u64 period_us)
+{
+	struct task_group *tg = css_tg(css);
+	u64 quota_us, burst_us;
+
+	tg_bandwidth(tg, NULL, &quota_us, &burst_us);
+	return tg_set_bandwidth(tg, period_us, quota_us, burst_us);
+}
+
+static int cpu_quota_write_s64(struct cgroup_subsys_state *css,
+			       struct cftype *cftype, s64 quota_us)
+{
+	struct task_group *tg = css_tg(css);
+	u64 period_us, burst_us;
+
+	if (quota_us < 0)
+		quota_us = RUNTIME_INF;
+
+	tg_bandwidth(tg, &period_us, NULL, &burst_us);
+	return tg_set_bandwidth(tg, period_us, quota_us, burst_us);
+}
+
+static int cpu_burst_write_u64(struct cgroup_subsys_state *css,
+			       struct cftype *cftype, u64 burst_us)
+{
+	struct task_group *tg = css_tg(css);
+	u64 period_us, quota_us;
+
+	tg_bandwidth(tg, &period_us, &quota_us, NULL);
+	return tg_set_bandwidth(tg, period_us, quota_us, burst_us);
+}
+#endif /* CONFIG_GROUP_SCHED_BANDWIDTH */
+
 #ifdef CONFIG_RT_GROUP_SCHED
 static int cpu_rt_runtime_write(struct cgroup_subsys_state *css,
 				struct cftype *cft, s64 val)
@@ -9709,22 +9742,24 @@ static struct cftype cpu_legacy_files[] = {
 		.write_s64 = cpu_idle_write_s64,
 	},
 #endif
-#ifdef CONFIG_CFS_BANDWIDTH
-	{
-		.name = "cfs_quota_us",
-		.read_s64 = cpu_cfs_quota_read_s64,
-		.write_s64 = cpu_cfs_quota_write_s64,
-	},
+#ifdef CONFIG_GROUP_SCHED_BANDWIDTH
 	{
 		.name = "cfs_period_us",
-		.read_u64 = cpu_cfs_period_read_u64,
-		.write_u64 = cpu_cfs_period_write_u64,
+		.read_u64 = cpu_period_read_u64,
+		.write_u64 = cpu_period_write_u64,
+	},
+	{
+		.name = "cfs_quota_us",
+		.read_s64 = cpu_quota_read_s64,
+		.write_s64 = cpu_quota_write_s64,
 	},
 	{
 		.name = "cfs_burst_us",
-		.read_u64 = cpu_cfs_burst_read_u64,
-		.write_u64 = cpu_cfs_burst_write_u64,
+		.read_u64 = cpu_burst_read_u64,
+		.write_u64 = cpu_burst_write_u64,
 	},
+#endif
+#ifdef CONFIG_CFS_BANDWIDTH
 	{
 		.name = "stat",
 		.seq_show = cpu_cfs_stat_show,
@@ -9920,32 +9955,32 @@ static void __maybe_unused cpu_period_quota_print(struct seq_file *sf,
 }
 
 /* caller should put the current value in *@periodp before calling */
-static int __maybe_unused cpu_period_quota_parse(char *buf,
-						 u64 *periodp, u64 *quotap)
+static int __maybe_unused cpu_period_quota_parse(char *buf, u64 *period_us_p,
+						 u64 *quota_us_p)
 {
 	char tok[21];	/* U64_MAX */
 
-	if (sscanf(buf, "%20s %llu", tok, periodp) < 1)
+	if (sscanf(buf, "%20s %llu", tok, period_us_p) < 1)
 		return -EINVAL;
 
-	*periodp *= NSEC_PER_USEC;
-
-	if (sscanf(tok, "%llu", quotap))
-		*quotap *= NSEC_PER_USEC;
-	else if (!strcmp(tok, "max"))
-		*quotap = RUNTIME_INF;
-	else
-		return -EINVAL;
+	if (sscanf(tok, "%llu", quota_us_p) < 1) {
+		if (!strcmp(tok, "max"))
+			*quota_us_p = RUNTIME_INF;
+		else
+			return -EINVAL;
+	}
 
 	return 0;
 }
 
-#ifdef CONFIG_CFS_BANDWIDTH
+#ifdef CONFIG_GROUP_SCHED_BANDWIDTH
 static int cpu_max_show(struct seq_file *sf, void *v)
 {
 	struct task_group *tg = css_tg(seq_css(sf));
+	u64 period_us, quota_us;
 
-	cpu_period_quota_print(sf, tg_get_cfs_period(tg), tg_get_cfs_quota(tg));
+	tg_bandwidth(tg, &period_us, &quota_us, NULL);
+	cpu_period_quota_print(sf, period_us, quota_us);
 	return 0;
 }
 
@@ -9953,14 +9988,13 @@ static ssize_t cpu_max_write(struct kernfs_open_file *of,
 			     char *buf, size_t nbytes, loff_t off)
 {
 	struct task_group *tg = css_tg(of_css(of));
-	u64 period = tg_get_cfs_period(tg);
-	u64 burst = tg->cfs_bandwidth.burst;
-	u64 quota;
+	u64 period_us, quota_us, burst_us;
 	int ret;
 
-	ret = cpu_period_quota_parse(buf, &period, &quota);
+	tg_bandwidth(tg, &period_us, NULL, &burst_us);
+	ret = cpu_period_quota_parse(buf, &period_us, &quota_us);
 	if (!ret)
-		ret = tg_set_cfs_bandwidth(tg, period, quota, burst);
+		ret = tg_set_bandwidth(tg, period_us, quota_us, burst_us);
 	return ret ?: nbytes;
 }
 #endif /* CONFIG_CFS_BANDWIDTH */
@@ -9986,7 +10020,7 @@ static struct cftype cpu_files[] = {
 		.write_s64 = cpu_idle_write_s64,
 	},
 #endif
-#ifdef CONFIG_CFS_BANDWIDTH
+#ifdef CONFIG_GROUP_SCHED_BANDWIDTH
 	{
 		.name = "max",
 		.flags = CFTYPE_NOT_ON_ROOT,
@@ -9996,8 +10030,8 @@ static struct cftype cpu_files[] = {
 	{
 		.name = "max.burst",
 		.flags = CFTYPE_NOT_ON_ROOT,
-		.read_u64 = cpu_cfs_burst_read_u64,
-		.write_u64 = cpu_cfs_burst_write_u64,
+		.read_u64 = cpu_burst_read_u64,
+		.write_u64 = cpu_burst_write_u64,
 	},
 #endif /* CONFIG_CFS_BANDWIDTH */
 #ifdef CONFIG_UCLAMP_TASK_GROUP

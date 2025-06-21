@@ -203,6 +203,11 @@ struct scx_exit_task_args {
 struct scx_cgroup_init_args {
 	/* the weight of the cgroup [1..10000] */
 	u32			weight;
+
+	/* bandwidth control parameters from cpu.max and cpu.max.burst */
+	u64			bw_period_us;
+	u64			bw_quota_us;
+	u64			bw_burst_us;
 };
 
 enum scx_cpu_preempt_reason {
@@ -664,9 +669,31 @@ struct sched_ext_ops {
 	 * @cgrp: cgroup whose weight is being updated
 	 * @weight: new weight [1..10000]
 	 *
-	 * Update @tg's weight to @weight.
+	 * Update @cgrp's weight to @weight.
 	 */
 	void (*cgroup_set_weight)(struct cgroup *cgrp, u32 weight);
+
+	/**
+	 * @cgroup_set_bandwidth: A cgroup's bandwidth is being changed
+	 * @cgrp: cgroup whose bandwidth is being updated
+	 * @period_us: bandwidth control period
+	 * @quota_us: bandwidth control quota
+	 * @burst_us: bandwidth control burst
+	 *
+	 * Update @cgrp's bandwidth control parameters. This is from the cpu.max
+	 * cgroup interface.
+	 *
+	 * @quota_us / @period_us determines the CPU bandwidth @cgrp is entitled
+	 * to. For example, if @period_us is 1_000_000 and @quota_us is
+	 * 2_500_000. @cgrp is entitled to 2.5 CPUs. @burst_us can be
+	 * interpreted in the same fashion and specifies how much @cgrp can
+	 * burst temporarily. The specific control mechanism and thus the
+	 * interpretation of @period_us and burstiness is upto to the BPF
+	 * scheduler.
+	 */
+	void (*cgroup_set_bandwidth)(struct cgroup *cgrp,
+				     u64 period_us, u64 quota_us, u64 burst_us);
+
 #endif	/* CONFIG_EXT_GROUP_SCHED */
 
 	/*
@@ -4058,7 +4085,9 @@ static bool scx_cgroup_enabled;
 
 void scx_tg_init(struct task_group *tg)
 {
-	tg->scx_weight = CGROUP_WEIGHT_DFL;
+	tg->scx.weight = CGROUP_WEIGHT_DFL;
+	tg->scx.bw_period_us = default_bw_period_us();
+	tg->scx.bw_quota_us = RUNTIME_INF;
 }
 
 int scx_tg_online(struct task_group *tg)
@@ -4066,14 +4095,17 @@ int scx_tg_online(struct task_group *tg)
 	struct scx_sched *sch = scx_root;
 	int ret = 0;
 
-	WARN_ON_ONCE(tg->scx_flags & (SCX_TG_ONLINE | SCX_TG_INITED));
+	WARN_ON_ONCE(tg->scx.flags & (SCX_TG_ONLINE | SCX_TG_INITED));
 
 	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (scx_cgroup_enabled) {
 		if (SCX_HAS_OP(sch, cgroup_init)) {
 			struct scx_cgroup_init_args args =
-				{ .weight = tg->scx_weight };
+				{ .weight = tg->scx.weight,
+				  .bw_period_us = tg->scx.bw_period_us,
+				  .bw_quota_us = tg->scx.bw_quota_us,
+				  .bw_burst_us = tg->scx.bw_burst_us };
 
 			ret = SCX_CALL_OP_RET(sch, SCX_KF_UNLOCKED, cgroup_init,
 					      NULL, tg->css.cgroup, &args);
@@ -4081,9 +4113,9 @@ int scx_tg_online(struct task_group *tg)
 				ret = ops_sanitize_err(sch, "cgroup_init", ret);
 		}
 		if (ret == 0)
-			tg->scx_flags |= SCX_TG_ONLINE | SCX_TG_INITED;
+			tg->scx.flags |= SCX_TG_ONLINE | SCX_TG_INITED;
 	} else {
-		tg->scx_flags |= SCX_TG_ONLINE;
+		tg->scx.flags |= SCX_TG_ONLINE;
 	}
 
 	percpu_up_read(&scx_cgroup_rwsem);
@@ -4094,15 +4126,15 @@ void scx_tg_offline(struct task_group *tg)
 {
 	struct scx_sched *sch = scx_root;
 
-	WARN_ON_ONCE(!(tg->scx_flags & SCX_TG_ONLINE));
+	WARN_ON_ONCE(!(tg->scx.flags & SCX_TG_ONLINE));
 
 	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_exit) &&
-	    (tg->scx_flags & SCX_TG_INITED))
+	    (tg->scx.flags & SCX_TG_INITED))
 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_exit, NULL,
 			    tg->css.cgroup);
-	tg->scx_flags &= ~(SCX_TG_ONLINE | SCX_TG_INITED);
+	tg->scx.flags &= ~(SCX_TG_ONLINE | SCX_TG_INITED);
 
 	percpu_up_read(&scx_cgroup_rwsem);
 }
@@ -4211,11 +4243,11 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 	percpu_down_read(&scx_cgroup_rwsem);
 
 	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_weight) &&
-	    tg->scx_weight != weight)
+	    tg->scx.weight != weight)
 		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_set_weight, NULL,
 			    tg_cgrp(tg), weight);
 
-	tg->scx_weight = weight;
+	tg->scx.weight = weight;
 
 	percpu_up_read(&scx_cgroup_rwsem);
 }
@@ -4223,6 +4255,27 @@ void scx_group_set_weight(struct task_group *tg, unsigned long weight)
 void scx_group_set_idle(struct task_group *tg, bool idle)
 {
 	/* TODO: Implement ops->cgroup_set_idle() */
+}
+
+void scx_group_set_bandwidth(struct task_group *tg,
+			     u64 period_us, u64 quota_us, u64 burst_us)
+{
+	struct scx_sched *sch = scx_root;
+
+	percpu_down_read(&scx_cgroup_rwsem);
+
+	if (scx_cgroup_enabled && SCX_HAS_OP(sch, cgroup_set_bandwidth) &&
+	    (tg->scx.bw_period_us != period_us ||
+	     tg->scx.bw_quota_us != quota_us ||
+	     tg->scx.bw_burst_us != burst_us))
+		SCX_CALL_OP(sch, SCX_KF_UNLOCKED, cgroup_set_bandwidth, NULL,
+			    tg_cgrp(tg), period_us, quota_us, burst_us);
+
+	tg->scx.bw_period_us = period_us;
+	tg->scx.bw_quota_us = quota_us;
+	tg->scx.bw_burst_us = burst_us;
+
+	percpu_up_read(&scx_cgroup_rwsem);
 }
 
 static void scx_cgroup_lock(void)
@@ -4366,9 +4419,9 @@ static void scx_cgroup_exit(struct scx_sched *sch)
 	css_for_each_descendant_post(css, &root_task_group.css) {
 		struct task_group *tg = css_tg(css);
 
-		if (!(tg->scx_flags & SCX_TG_INITED))
+		if (!(tg->scx.flags & SCX_TG_INITED))
 			continue;
-		tg->scx_flags &= ~SCX_TG_INITED;
+		tg->scx.flags &= ~SCX_TG_INITED;
 
 		if (!sch->ops.cgroup_exit)
 			continue;
@@ -4400,14 +4453,19 @@ static int scx_cgroup_init(struct scx_sched *sch)
 	rcu_read_lock();
 	css_for_each_descendant_pre(css, &root_task_group.css) {
 		struct task_group *tg = css_tg(css);
-		struct scx_cgroup_init_args args = { .weight = tg->scx_weight };
+		struct scx_cgroup_init_args args = {
+			.weight = tg->scx.weight,
+			.bw_period_us = tg->scx.bw_period_us,
+			.bw_quota_us = tg->scx.bw_quota_us,
+			.bw_burst_us = tg->scx.bw_burst_us,
+		};
 
-		if ((tg->scx_flags &
+		if ((tg->scx.flags &
 		     (SCX_TG_ONLINE | SCX_TG_INITED)) != SCX_TG_ONLINE)
 			continue;
 
 		if (!sch->ops.cgroup_init) {
-			tg->scx_flags |= SCX_TG_INITED;
+			tg->scx.flags |= SCX_TG_INITED;
 			continue;
 		}
 
@@ -4422,7 +4480,7 @@ static int scx_cgroup_init(struct scx_sched *sch)
 			scx_error(sch, "ops.cgroup_init() failed (%d)", ret);
 			return ret;
 		}
-		tg->scx_flags |= SCX_TG_INITED;
+		tg->scx.flags |= SCX_TG_INITED;
 
 		rcu_read_lock();
 		css_put(css);
@@ -5902,6 +5960,7 @@ static s32 sched_ext_ops__cgroup_prep_move(struct task_struct *p, struct cgroup 
 static void sched_ext_ops__cgroup_move(struct task_struct *p, struct cgroup *from, struct cgroup *to) {}
 static void sched_ext_ops__cgroup_cancel_move(struct task_struct *p, struct cgroup *from, struct cgroup *to) {}
 static void sched_ext_ops__cgroup_set_weight(struct cgroup *cgrp, u32 weight) {}
+static void sched_ext_ops__cgroup_set_bandwidth(struct cgroup *cgrp, u64 period_us, u64 quota_us, u64 burst_us) {}
 #endif
 static void sched_ext_ops__cpu_online(s32 cpu) {}
 static void sched_ext_ops__cpu_offline(s32 cpu) {}
@@ -5939,6 +5998,7 @@ static struct sched_ext_ops __bpf_ops_sched_ext_ops = {
 	.cgroup_move		= sched_ext_ops__cgroup_move,
 	.cgroup_cancel_move	= sched_ext_ops__cgroup_cancel_move,
 	.cgroup_set_weight	= sched_ext_ops__cgroup_set_weight,
+	.cgroup_set_bandwidth	= sched_ext_ops__cgroup_set_bandwidth,
 #endif
 	.cpu_online		= sched_ext_ops__cpu_online,
 	.cpu_offline		= sched_ext_ops__cpu_offline,

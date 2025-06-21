@@ -402,6 +402,19 @@ static inline bool dl_server_active(struct sched_dl_entity *dl_se)
 
 extern struct list_head task_groups;
 
+#ifdef CONFIG_GROUP_SCHED_BANDWIDTH
+extern const u64 max_bw_quota_period_us;
+
+/*
+ * default period for group bandwidth.
+ * default: 0.1s, units: microseconds
+ */
+static inline u64 default_bw_period_us(void)
+{
+	return 100000ULL;
+}
+#endif /* CONFIG_GROUP_SCHED_BANDWIDTH */
+
 struct cfs_bandwidth {
 #ifdef CONFIG_CFS_BANDWIDTH
 	raw_spinlock_t		lock;
@@ -458,10 +471,7 @@ struct task_group {
 	struct rt_bandwidth	rt_bandwidth;
 #endif
 
-#ifdef CONFIG_EXT_GROUP_SCHED
-	u32			scx_flags;	/* SCX_TG_* */
-	u32			scx_weight;
-#endif
+	struct scx_task_group	scx;
 
 	struct rcu_head		rcu;
 	struct list_head	list;
