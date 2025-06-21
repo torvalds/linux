@@ -9,11 +9,11 @@ use crate::{
     device_id::RawDeviceId,
     devres::Devres,
     driver,
-    error::{to_result, Result},
+    error::{from_result, to_result, Result},
     io::Io,
     io::IoRaw,
     str::CStr,
-    types::{ARef, ForeignOwnable, Opaque},
+    types::{ARef, Opaque},
     ThisModule,
 };
 use core::{
@@ -65,35 +65,32 @@ impl<T: Driver + 'static> Adapter<T> {
         // `struct pci_dev`.
         //
         // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
-        let pdev = unsafe { &*pdev.cast::<Device<device::Core>>() };
+        let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct pci_device_id` and
         // does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*id.cast::<DeviceId>() };
         let info = T::ID_TABLE.info(id.index());
 
-        match T::probe(pdev, info) {
-            Ok(data) => {
-                // Let the `struct pci_dev` own a reference of the driver's private data.
-                // SAFETY: By the type invariant `pdev.as_raw` returns a valid pointer to a
-                // `struct pci_dev`.
-                unsafe { bindings::pci_set_drvdata(pdev.as_raw(), data.into_foreign() as _) };
-            }
-            Err(err) => return Error::to_errno(err),
-        }
+        from_result(|| {
+            let data = T::probe(pdev, info)?;
 
-        0
+            pdev.as_ref().set_drvdata(data);
+            Ok(0)
+        })
     }
 
     extern "C" fn remove_callback(pdev: *mut bindings::pci_dev) {
         // SAFETY: The PCI bus only ever calls the remove callback with a valid pointer to a
         // `struct pci_dev`.
-        let ptr = unsafe { bindings::pci_get_drvdata(pdev) }.cast();
+        //
+        // INVARIANT: `pdev` is valid for the duration of `remove_callback()`.
+        let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
-        // `probe_callback`, hence it's guaranteed that `ptr` points to a valid and initialized
-        // `KBox<T>` pointer created through `KBox::into_foreign`.
-        let _ = unsafe { KBox::<T>::from_foreign(ptr) };
+        // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
+        // and stored a `Pin<KBox<T>>`.
+        let _ = unsafe { pdev.as_ref().drvdata_obtain::<Pin<KBox<T>>>() };
     }
 }
 
