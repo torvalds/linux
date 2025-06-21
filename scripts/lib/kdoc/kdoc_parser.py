@@ -1316,21 +1316,25 @@ class KernelDoc:
     def is_new_section(self, ln, line):
         if doc_sect.search(line):
             self.entry.in_doc_sect = True
+            self.state = state.BODY
+            #
+            # Pick out the name of our new section, tweaking it if need be.
+            #
             newsection = doc_sect.group(1)
-
-            if newsection.lower() in ["description", "context"]:
-                newsection = newsection.title()
-
-            # Special case: @return is a section, not a param description
-            if newsection.lower() in ["@return", "@returns",
-                                      "return", "returns"]:
+            if newsection.lower() == 'description':
+                newsection = 'Description'
+            elif newsection.lower() == 'context':
+                newsection = 'Context'
+                self.state = state.SPECIAL_SECTION
+            elif newsection.lower() in ["@return", "@returns",
+                                        "return", "returns"]:
                 newsection = "Return"
-
-            # Perl kernel-doc has a check here for contents before sections.
-            # the logic there is always false, as in_doc_sect variable is
-            # always true. So, just don't implement Wcontents_before_sections
-
-            # .title()
+                self.state = state.SPECIAL_SECTION
+            elif newsection[0] == '@':
+                self.state = state.SPECIAL_SECTION
+            #
+            # Initialize the contents, and get the new section going.
+            #
             newcontents = doc_sect.group(2)
             if not newcontents:
                 newcontents = ""
@@ -1344,8 +1348,6 @@ class KernelDoc:
             self.entry.contents = newcontents.lstrip()
             if self.entry.contents:
                 self.entry.contents += "\n"
-
-            self.state = state.BODY
             return True
         return False
 
@@ -1395,8 +1397,9 @@ class KernelDoc:
         """
         STATE_SPECIAL_SECTION: a section ending with a blank line
         """
-        if KernRe(r"\s*\*\s*\S").match(line):
+        if KernRe(r"\s*\*\s*$").match(line):
             self.entry.begin_section(ln, dump = True)
+            self.state = state.BODY
         self.process_body(ln, line)
 
     def process_body(self, ln, line):
@@ -1424,20 +1427,9 @@ class KernelDoc:
             cont = doc_content.group(1)
 
             if cont == "":
-                if self.entry.section == self.section_context:
-                    self.entry.begin_section(ln, dump = True)
-                    self.state = state.BODY
-                else:
-                    if self.entry.section != SECTION_DEFAULT:
-                        self.state = state.SPECIAL_SECTION
-                    else:
-                        self.state = state.BODY
-
                     self.entry.contents += "\n"
-
             else:
-                if self.entry.section.startswith('@') or        \
-                   self.entry.section == self.section_context:
+                if self.state == state.SPECIAL_SECTION:
                     if self.entry.leading_space is None:
                         r = KernRe(r'^(\s+)')
                         if r.match(cont):
