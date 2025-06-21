@@ -22,9 +22,9 @@ static ssize_t show_state(struct device *dev, struct device_attribute *attr, cha
 	int count;
 
 	if (fps->control == 0xFFFFFFFF || fps->control > 100)
-		count = scnprintf(buf, PAGE_SIZE, "not-defined:");
+		count = sysfs_emit(buf, "not-defined:");
 	else
-		count = scnprintf(buf, PAGE_SIZE, "%lld:", fps->control);
+		count = sysfs_emit(buf, "%lld:", fps->control);
 
 	if (fps->trip_point == 0xFFFFFFFF || fps->trip_point > 9)
 		count += sysfs_emit_at(buf, count, "not-defined:");
@@ -59,7 +59,7 @@ static ssize_t show_fan_speed(struct device *dev, struct device_attribute *attr,
 	if (status)
 		return status;
 
-	return sprintf(buf, "%lld\n", fst.speed);
+	return sysfs_emit(buf, "%lld\n", fst.speed);
 }
 
 static ssize_t show_fine_grain_control(struct device *dev, struct device_attribute *attr, char *buf)
