@@ -6,10 +6,10 @@
 
 use crate::{
     acpi, bindings, container_of, device, driver,
-    error::{to_result, Result},
+    error::{from_result, to_result, Result},
     of,
     prelude::*,
-    types::{ForeignOwnable, Opaque},
+    types::Opaque,
     ThisModule,
 };
 
@@ -66,30 +66,28 @@ impl<T: Driver + 'static> Adapter<T> {
         // `struct platform_device`.
         //
         // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
-        let pdev = unsafe { &*pdev.cast::<Device<device::Core>>() };
-
+        let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal>>() };
         let info = <Self as driver::Adapter>::id_info(pdev.as_ref());
-        match T::probe(pdev, info) {
-            Ok(data) => {
-                // Let the `struct platform_device` own a reference of the driver's private data.
-                // SAFETY: By the type invariant `pdev.as_raw` returns a valid pointer to a
-                // `struct platform_device`.
-                unsafe { bindings::platform_set_drvdata(pdev.as_raw(), data.into_foreign() as _) };
-            }
-            Err(err) => return Error::to_errno(err),
-        }
 
-        0
+        from_result(|| {
+            let data = T::probe(pdev, info)?;
+
+            pdev.as_ref().set_drvdata(data);
+            Ok(0)
+        })
     }
 
     extern "C" fn remove_callback(pdev: *mut bindings::platform_device) {
-        // SAFETY: `pdev` is a valid pointer to a `struct platform_device`.
-        let ptr = unsafe { bindings::platform_get_drvdata(pdev) }.cast();
+        // SAFETY: The platform bus only ever calls the remove callback with a valid pointer to a
+        // `struct platform_device`.
+        //
+        // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
+        let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
-        // `probe_callback`, hence it's guaranteed that `ptr` points to a valid and initialized
-        // `KBox<T>` pointer created through `KBox::into_foreign`.
-        let _ = unsafe { KBox::<T>::from_foreign(ptr) };
+        // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
+        // and stored a `Pin<KBox<T>>`.
+        let _ = unsafe { pdev.as_ref().drvdata_obtain::<Pin<KBox<T>>>() };
     }
 }
 
