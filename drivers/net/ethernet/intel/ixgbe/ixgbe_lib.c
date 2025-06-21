@@ -891,7 +891,7 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 	q_vector->rx.itr = IXGBE_ITR_ADAPTIVE_MAX_USECS |
 			   IXGBE_ITR_ADAPTIVE_LATENCY;
 
-	/* intialize ITR */
+	/* initialize ITR */
 	if (txr_count && !rxr_count) {
 		/* tx only vector */
 		if (adapter->tx_itr_setting == 1)

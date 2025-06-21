@@ -238,7 +238,7 @@ struct ixgbe_thermal_sensor_data {
 #define NVM_VER_INVALID		0xFFFF
 #define NVM_ETK_VALID		0x8000
 #define NVM_INVALID_PTR		0xFFFF
-#define NVM_VER_SIZE		32   /* version sting size */
+#define NVM_VER_SIZE		32   /* version string size */
 
 struct ixgbe_nvm_version {
 	u32 etk_id;
@@ -2024,7 +2024,7 @@ enum {
 /* EEPROM Addressing bits based on type (0-small, 1-large) */
 #define IXGBE_EEC_ADDR_SIZE 0x00000400
 #define IXGBE_EEC_SIZE      0x00007800 /* EEPROM Size */
-#define IXGBE_EERD_MAX_ADDR 0x00003FFF /* EERD alows 14 bits for addr. */
+#define IXGBE_EERD_MAX_ADDR 0x00003FFF /* EERD allows 14 bits for addr. */
 
 #define IXGBE_EEC_SIZE_SHIFT          11
 #define IXGBE_EEPROM_WORD_SIZE_SHIFT  6

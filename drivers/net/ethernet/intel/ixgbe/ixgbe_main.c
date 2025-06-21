@@ -2371,7 +2371,7 @@ static struct sk_buff *ixgbe_build_skb(struct ixgbe_ring *rx_ring,
 	struct sk_buff *skb;
 
 	/* Prefetch first cache line of first page. If xdp->data_meta
-	 * is unused, this points extactly as xdp->data, otherwise we
+	 * is unused, this points exactly as xdp->data, otherwise we
 	 * likely have a consumer accessing first few bytes of meta
 	 * data, and then actual data.
 	 */
@@ -2494,7 +2494,7 @@ static void ixgbe_rx_buffer_flip(struct ixgbe_ring *rx_ring,
  * This function provides a "bounce buffer" approach to Rx interrupt
  * processing.  The advantage to this is that on systems that have
  * expensive overhead for IOMMU access this provides a means of avoiding
- * it by maintaining the mapping of the page to the syste.
+ * it by maintaining the mapping of the page to the system.
  *
  * Returns amount of work completed
  **/
@@ -5063,7 +5063,7 @@ static void ixgbe_scrub_vfta(struct ixgbe_adapter *adapter, u32 vfta_offset)
 		/* pull VLAN ID from VLVF */
 		vid = vlvf & VLAN_VID_MASK;
 
-		/* only concern outselves with a certain range */
+		/* only concern ourselves with a certain range */
 		if (vid < vid_start || vid >= vid_end)
 			continue;
 
@@ -11289,7 +11289,7 @@ void ixgbe_txrx_ring_enable(struct ixgbe_adapter *adapter, int ring)
  * ixgbe_enumerate_functions - Get the number of ports this device has
  * @adapter: adapter structure
  *
- * This function enumerates the phsyical functions co-located on a single slot,
+ * This function enumerates the physical functions co-located on a single slot,
  * in order to determine how many ports a device has. This is most useful in
  * determining the required GT/s of PCIe bandwidth necessary for optimal
  * performance.
