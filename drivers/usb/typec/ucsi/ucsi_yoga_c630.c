@@ -71,6 +71,27 @@ static int yoga_c630_ucsi_async_control(struct ucsi *ucsi, u64 command)
 	return yoga_c630_ec_ucsi_write(uec->ec, (u8*)&command);
 }
 
+static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
+				       u64 command,
+				       u32 *cci,
+				       void *data, size_t size)
+{
+	/*
+	 * EC can return AltModes present on CON1 (port0, right) for CON2
+	 * (port1, left) too. Ignore all requests going to CON2 (it doesn't
+	 * support DP anyway).
+	 */
+	if (UCSI_COMMAND(command) == UCSI_GET_ALTERNATE_MODES &&
+	    UCSI_GET_ALTMODE_GET_CONNECTOR_NUMBER(command) == 2) {
+		dev_dbg(ucsi->dev, "ignoring altmodes for con2\n");
+		memset(data, 0, size);
+		*cci = UCSI_CCI_COMMAND_COMPLETE;
+		return 0;
+	}
+
+	return ucsi_sync_control_common(ucsi, command, cci, data, size);
+}
+
 static bool yoga_c630_ucsi_update_altmodes(struct ucsi *ucsi,
 					   u8 recipient,
 					   struct ucsi_altmode *orig,
@@ -98,7 +119,7 @@ static const struct ucsi_operations yoga_c630_ucsi_ops = {
 	.read_cci = yoga_c630_ucsi_read_cci,
 	.poll_cci = yoga_c630_ucsi_read_cci,
 	.read_message_in = yoga_c630_ucsi_read_message_in,
-	.sync_control = ucsi_sync_control_common,
+	.sync_control = yoga_c630_ucsi_sync_control,
 	.async_control = yoga_c630_ucsi_async_control,
 	.update_altmodes = yoga_c630_ucsi_update_altmodes,
 };
