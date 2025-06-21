@@ -11,6 +11,11 @@ int mlx5e_ethtool_alloc(struct mlx5e_ethtool_steering **ethtool);
 void mlx5e_ethtool_free(struct mlx5e_ethtool_steering *ethtool);
 void mlx5e_ethtool_init_steering(struct mlx5e_flow_steering *fs);
 void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs);
+int mlx5e_ethtool_set_rxfh_fields(struct mlx5e_priv *priv,
+				  const struct ethtool_rxfh_fields *nfc,
+				  struct netlink_ext_ack *extack);
+int mlx5e_ethtool_get_rxfh_fields(struct mlx5e_priv *priv,
+				  struct ethtool_rxfh_fields *nfc);
 int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd);
 int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,
 			    struct ethtool_rxnfc *info, u32 *rule_locs);
@@ -20,6 +25,15 @@ static inline int mlx5e_ethtool_alloc(struct mlx5e_ethtool_steering **ethtool)
 static inline void mlx5e_ethtool_free(struct mlx5e_ethtool_steering *ethtool) { }
 static inline void mlx5e_ethtool_init_steering(struct mlx5e_flow_steering *fs) { }
 static inline void mlx5e_ethtool_cleanup_steering(struct mlx5e_flow_steering *fs) { }
+static inline int
+mlx5e_ethtool_set_rxfh_fields(struct mlx5e_priv *priv,
+			      const struct ethtool_rxfh_fields *nfc,
+			      struct netlink_ext_ack *extack)
+{ return -EOPNOTSUPP; }
+static inline int
+mlx5e_ethtool_get_rxfh_fields(struct mlx5e_priv *priv,
+			      struct ethtool_rxfh_fields *nfc)
+{ return -EOPNOTSUPP; }
 static inline int mlx5e_ethtool_set_rxnfc(struct mlx5e_priv *priv, struct ethtool_rxnfc *cmd)
 { return -EOPNOTSUPP; }
 static inline int mlx5e_ethtool_get_rxnfc(struct mlx5e_priv *priv,

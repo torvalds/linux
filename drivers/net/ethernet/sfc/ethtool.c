@@ -268,6 +268,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.rxfh_priv_size		= sizeof(struct efx_rss_context_priv),
 	.get_rxfh		= efx_ethtool_get_rxfh,
 	.set_rxfh		= efx_ethtool_set_rxfh,
+	.get_rxfh_fields	= efx_ethtool_get_rxfh_fields,
 	.create_rxfh_context	= efx_ethtool_create_rxfh_context,
 	.modify_rxfh_context	= efx_ethtool_modify_rxfh_context,
 	.remove_rxfh_context	= efx_ethtool_remove_rxfh_context,
