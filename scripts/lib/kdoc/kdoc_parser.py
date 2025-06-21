@@ -1405,10 +1405,53 @@ class KernelDoc:
         """
         STATE_SPECIAL_SECTION: a section ending with a blank line
         """
+        #
+        # If we have hit a blank line (only the " * " marker), then this
+        # section is done.
+        #
         if KernRe(r"\s*\*\s*$").match(line):
             self.entry.begin_section(ln, dump = True)
+            self.entry.contents += '\n'
             self.state = state.BODY
-        self.process_body(ln, line)
+            return
+        #
+        # Not a blank line, look for the other ways to end the section.
+        #
+        if self.is_new_section(ln, line) or self.is_comment_end(ln, line):
+            return
+        #
+        # OK, we should have a continuation of the text for this section.
+        #
+        if doc_content.search(line):
+            cont = doc_content.group(1)
+            #
+            # If the lines of text after the first in a special section have
+            # leading white space, we need to trim it out or Sphinx will get
+            # confused.  For the second line (the None case), see what we
+            # find there and remember it.
+            #
+            if self.entry.leading_space is None:
+                r = KernRe(r'^(\s+)')
+                if r.match(cont):
+                    self.entry.leading_space = len(r.group(1))
+                else:
+                    self.entry.leading_space = 0
+            #
+            # Otherwise, before trimming any leading chars, be *sure*
+            # that they are white space.  We should maybe warn if this
+            # isn't the case.
+            #
+            for i in range(0, self.entry.leading_space):
+                if cont[i] != " ":
+                    self.entry.leading_space = i
+                    break
+            #
+            # Add the trimmed result to the section and we're done.
+            #
+            self.entry.contents += cont[self.entry.leading_space:] + '\n'
+        else:
+            # Unknown line, ignore
+            self.emit_msg(ln, f"bad line: {line}")
 
     def process_body(self, ln, line):
         """
@@ -1419,37 +1462,10 @@ class KernelDoc:
 
         if doc_content.search(line):
             cont = doc_content.group(1)
-
-            if cont == "":
-                    self.entry.contents += "\n"
-            else:
-                if self.state == state.SPECIAL_SECTION:
-                    if self.entry.leading_space is None:
-                        r = KernRe(r'^(\s+)')
-                        if r.match(cont):
-                            self.entry.leading_space = len(r.group(1))
-                        else:
-                            self.entry.leading_space = 0
-
-                    # Double-check if leading space are realy spaces
-                    pos = 0
-                    for i in range(0, self.entry.leading_space):
-                        if cont[i] != " ":
-                            break
-                        pos += 1
-
-                    cont = cont[pos:]
-
-                    # NEW LOGIC:
-                    # In case it is different, update it
-                    if self.entry.leading_space != pos:
-                        self.entry.leading_space = pos
-
-                self.entry.contents += cont + "\n"
-            return
-
-        # Unknown line, ignore
-        self.emit_msg(ln, f"bad line: {line}")
+            self.entry.contents += cont + "\n"
+        else:
+            # Unknown line, ignore
+            self.emit_msg(ln, f"bad line: {line}")
 
     def process_inline(self, ln, line):
         """STATE_INLINE: docbook comments within a prototype."""
