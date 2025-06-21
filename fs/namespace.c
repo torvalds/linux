@@ -1043,6 +1043,9 @@ static void __touch_mnt_namespace(struct mnt_namespace *ns)
 static struct mountpoint *unhash_mnt(struct mount *mnt)
 {
 	struct mountpoint *mp;
+	struct mount *parent = mnt->mnt_parent;
+	if (unlikely(parent->overmount == mnt))
+		parent->overmount = NULL;
 	mnt->mnt_parent = mnt;
 	mnt->mnt_mountpoint = mnt->mnt.mnt_root;
 	list_del_init(&mnt->mnt_child);
@@ -1078,6 +1081,8 @@ void mnt_set_mountpoint(struct mount *mnt,
 
 static void __attach_mnt(struct mount *mnt, struct mount *parent)
 {
+	if (unlikely(mnt->mnt_mountpoint == parent->mnt.mnt_root))
+		parent->overmount = mnt;
 	hlist_add_head_rcu(&mnt->mnt_hash,
 			   m_hash(&parent->mnt, mnt->mnt_mountpoint));
 	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
@@ -2660,7 +2665,9 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	HLIST_HEAD(tree_list);
 	struct mnt_namespace *ns = top_mnt->mnt_ns;
 	struct mountpoint *smp;
+	struct mountpoint *secondary = NULL;
 	struct mount *child, *dest_mnt, *p;
+	struct mount *top;
 	struct hlist_node *n;
 	int err = 0;
 	bool moving = flags & MNT_TREE_MOVE, beneath = flags & MNT_TREE_BENEATH;
@@ -2669,9 +2676,15 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 	 * Preallocate a mountpoint in case the new mounts need to be
 	 * mounted beneath mounts on the same mountpoint.
 	 */
-	smp = get_mountpoint(source_mnt->mnt.mnt_root);
+	for (top = source_mnt; unlikely(top->overmount); top = top->overmount) {
+		if (!secondary && is_mnt_ns_file(top->mnt.mnt_root))
+			secondary = top->mnt_mp;
+	}
+	smp = get_mountpoint(top->mnt.mnt_root);
 	if (IS_ERR(smp))
 		return PTR_ERR(smp);
+	if (!secondary)
+		secondary = smp;
 
 	/* Is there space to add these mounts to the mount namespace? */
 	if (!moving) {
@@ -2704,7 +2717,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		unhash_mnt(source_mnt);
 		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
 		if (beneath)
-			mnt_change_mountpoint(source_mnt, smp, top_mnt);
+			mnt_change_mountpoint(top, smp, top_mnt);
 		__attach_mnt(source_mnt, source_mnt->mnt_parent);
 		mnt_notify_add(source_mnt);
 		touch_mnt_namespace(source_mnt->mnt_ns);
@@ -2719,7 +2732,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		}
 		mnt_set_mountpoint(dest_mnt, dest_mp, source_mnt);
 		if (beneath)
-			mnt_change_mountpoint(source_mnt, smp, top_mnt);
+			mnt_change_mountpoint(top, smp, top_mnt);
 		commit_tree(source_mnt);
 	}
 
@@ -2732,8 +2745,12 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		child->mnt.mnt_flags &= ~MNT_LOCKED;
 		q = __lookup_mnt(&child->mnt_parent->mnt,
 				 child->mnt_mountpoint);
-		if (q)
-			mnt_change_mountpoint(child, smp, q);
+		if (q) {
+			struct mount *r = child;
+			while (unlikely(r->overmount))
+				r = r->overmount;
+			mnt_change_mountpoint(r, secondary, q);
+		}
 		commit_tree(child);
 	}
 	put_mountpoint(smp);
