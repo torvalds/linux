@@ -1309,7 +1309,7 @@ class KernelDoc:
         """
 
         if self.state == state.BODY_WITH_BLANK_LINE:
-            r = KernRe(r"\s*\*\s?\S")
+            r = KernRe(r"\s*\*\s*\S")
             if r.match(line):
                 self.dump_section()
                 self.entry.section = SECTION_DEFAULT
