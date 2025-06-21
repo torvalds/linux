@@ -169,6 +169,15 @@ class KernelEntry:
         self.warnings.append(log_msg)
         return
 
+    #
+    # Begin a new section.
+    #
+    def begin_section(self, line_no, title = SECTION_DEFAULT, dump = False):
+        if dump:
+            self.dump_section(start_new = True)
+        self.section = title
+        self.new_start_line = line_no
+
     def dump_section(self, start_new=True):
         """
         Dumps section contents to arrays/hashes intended for that purpose.
@@ -1231,12 +1240,11 @@ class KernelDoc:
         # Check for a DOC: block and handle them specially.
         #
         if doc_block.search(line):
-            self.entry.new_start_line = ln
 
             if not doc_block.group(1):
-                self.entry.section = "Introduction"
+                self.entry.begin_section(ln, "Introduction")
             else:
-                self.entry.section = doc_block.group(1)
+                self.entry.begin_section(ln, doc_block.group(1))
 
             self.entry.identifier = self.entry.section
             self.state = state.DOCBLOCK
@@ -1270,8 +1278,7 @@ class KernelDoc:
             self.state = state.BODY
             self.entry.identifier = self.entry.identifier.strip(" ")
             # if there's no @param blocks need to set up default section here
-            self.entry.section = SECTION_DEFAULT
-            self.entry.new_start_line = ln + 1
+            self.entry.begin_section(ln + 1)
             #
             # Find the description portion, which *should* be there but
             # isn't always.
@@ -1312,8 +1319,7 @@ class KernelDoc:
             r = KernRe(r"\s*\*\s*\S")
             if r.match(line):
                 self.dump_section()
-                self.entry.section = SECTION_DEFAULT
-                self.entry.new_start_line = ln
+                self.entry.begin_section(ln)
                 self.entry.contents = ""
 
         if doc_sect.search(line):
@@ -1340,8 +1346,7 @@ class KernelDoc:
             if self.entry.contents.strip("\n"):
                 self.dump_section()
 
-            self.entry.new_start_line = ln
-            self.entry.section = newsection
+            self.entry.begin_section(ln, newsection)
             self.entry.leading_space = None
 
             self.entry.contents = newcontents.lstrip()
@@ -1370,9 +1375,7 @@ class KernelDoc:
 
             if cont == "":
                 if self.entry.section == self.section_context:
-                    self.dump_section()
-
-                    self.entry.new_start_line = ln
+                    self.entry.begin_section(ln, dump = True)
                     self.state = state.BODY
                 else:
                     if self.entry.section != SECTION_DEFAULT:
@@ -1427,8 +1430,7 @@ class KernelDoc:
 
         if self.inline_doc_state == state.INLINE_NAME and \
            doc_inline_sect.search(line):
-            self.entry.section = doc_inline_sect.group(1)
-            self.entry.new_start_line = ln
+            self.entry.begin_section(ln, doc_inline_sect.group(1))
 
             self.entry.contents = doc_inline_sect.group(2).lstrip()
             if self.entry.contents != "":
@@ -1627,7 +1629,7 @@ class KernelDoc:
         """STATE_PROTO: reading a function/whatever prototype."""
 
         if doc_inline_oneline.search(line):
-            self.entry.section = doc_inline_oneline.group(1)
+            self.entry.begin_section(ln, doc_inline_oneline.group(1))
             self.entry.contents = doc_inline_oneline.group(2)
 
             if self.entry.contents != "":
