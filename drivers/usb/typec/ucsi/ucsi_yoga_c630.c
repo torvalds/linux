@@ -7,14 +7,24 @@
  */
 #include <linux/auxiliary_bus.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/completion.h>
 #include <linux/container_of.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/string.h>
 #include <linux/platform_data/lenovo-yoga-c630.h>
+#include <linux/usb/typec_dp.h>
 
 #include "ucsi.h"
+
+#define LENOVO_EC_USB_MUX	0x08
+
+#define USB_MUX_MUXC	GENMASK(1, 0)
+#define USB_MUX_CCST	GENMASK(3, 2)
+#define USB_MUX_DPPN	GENMASK(7, 4)
+#define USB_MUX_HPDS	BIT(8)
+#define USB_MUX_HSFL	GENMASK(11, 9)
 
 struct yoga_c630_ucsi {
 	struct yoga_c630_ec *ec;
@@ -144,6 +154,12 @@ static bool yoga_c630_ucsi_update_altmodes(struct ucsi *ucsi,
 	return false;
 }
 
+static void yoga_c630_ucsi_update_connector(struct ucsi_connector *con)
+{
+	if (con->num == 1)
+		con->typec_cap.orientation_aware = true;
+}
+
 static const struct ucsi_operations yoga_c630_ucsi_ops = {
 	.read_version = yoga_c630_ucsi_read_version,
 	.read_cci = yoga_c630_ucsi_read_cci,
@@ -152,7 +168,32 @@ static const struct ucsi_operations yoga_c630_ucsi_ops = {
 	.sync_control = yoga_c630_ucsi_sync_control,
 	.async_control = yoga_c630_ucsi_async_control,
 	.update_altmodes = yoga_c630_ucsi_update_altmodes,
+	.update_connector = yoga_c630_ucsi_update_connector,
 };
+
+static void yoga_c630_ucsi_read_port0_status(struct yoga_c630_ucsi *uec)
+{
+	int val;
+	unsigned int muxc, ccst, dppn, hpds, hsfl;
+
+	val = yoga_c630_ec_read16(uec->ec, LENOVO_EC_USB_MUX);
+
+	muxc = FIELD_GET(USB_MUX_MUXC, val);
+	ccst = FIELD_GET(USB_MUX_CCST, val);
+	dppn = FIELD_GET(USB_MUX_DPPN, val);
+	hpds = FIELD_GET(USB_MUX_HPDS, val);
+	hsfl = FIELD_GET(USB_MUX_HSFL, val);
+
+	dev_dbg(uec->ucsi->dev, " mux %04x (muxc %d ccst %d dppn %d hpds %d hsfl %d)\n",
+		val,
+		muxc, ccst, dppn, hpds, hsfl);
+
+	if (uec->ucsi->connector && uec->ucsi->connector[0].port)
+		typec_set_orientation(uec->ucsi->connector[0].port,
+				      ccst == 1 ?
+				      TYPEC_ORIENTATION_REVERSE :
+				      TYPEC_ORIENTATION_NORMAL);
+}
 
 static int yoga_c630_ucsi_notify(struct notifier_block *nb,
 				 unsigned long action, void *data)
@@ -164,6 +205,7 @@ static int yoga_c630_ucsi_notify(struct notifier_block *nb,
 	switch (action) {
 	case LENOVO_EC_EVENT_USB:
 	case LENOVO_EC_EVENT_HPD:
+		yoga_c630_ucsi_read_port0_status(uec);
 		ucsi_connector_change(uec->ucsi, 1);
 		return NOTIFY_OK;
 
