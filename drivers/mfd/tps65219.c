@@ -260,7 +260,7 @@ static const struct regmap_irq_sub_irq_map tps65215_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(bit7_offsets),
 };
 
-static struct regmap_irq_sub_irq_map tps65214_sub_irq_offsets[] = {
+static const struct regmap_irq_sub_irq_map tps65214_sub_irq_offsets[] = {
 	REGMAP_IRQ_MAIN_REG_OFFSET(tps65214_bit0_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(tps65214_bit1_offsets),
 	REGMAP_IRQ_MAIN_REG_OFFSET(tps65214_bit2_offsets),
@@ -455,7 +455,7 @@ struct tps65219_chip_data {
 	int n_cells;
 };
 
-static struct tps65219_chip_data chip_info_table[] = {
+static const struct tps65219_chip_data chip_info_table[] = {
 	[TPS65214] = {
 		.irq_chip = &tps65214_irq_chip,
 		.cells = tps65214_cells,
@@ -476,7 +476,7 @@ static struct tps65219_chip_data chip_info_table[] = {
 static int tps65219_probe(struct i2c_client *client)
 {
 	struct tps65219 *tps;
-	struct tps65219_chip_data *pmic;
+	const struct tps65219_chip_data *pmic;
 	bool pwr_button;
 	int ret;
 
