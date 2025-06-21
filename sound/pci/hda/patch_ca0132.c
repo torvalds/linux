@@ -28,7 +28,7 @@
 #include "ca0132_regs.h"
 
 /* Enable this to see controls for tuning purpose. */
-/*#define ENABLE_TUNING_CONTROLS*/
+#define ENABLE_TUNING_CONTROLS
 
 #ifdef ENABLE_TUNING_CONTROLS
 #include <sound/tlv.h>
@@ -174,7 +174,7 @@ static const unsigned int effect_slider_defaults[] = {67, 65, 50, 74, 50};
 #define DSP_SPEAKER_OUT_LATENCY         7
 
 struct ct_effect {
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	const char *name;
 	hda_nid_t nid;
 	int mid; /*effect module ID*/
 	int reqs[EFFECT_VALS_MAX_COUNT]; /*effect module request*/
@@ -305,7 +305,7 @@ enum {
 };
 
 struct ct_tuning_ctl {
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	const char *name;
 	hda_nid_t parent_nid;
 	hda_nid_t nid;
 	int mid; /*effect module ID*/
@@ -418,14 +418,14 @@ static const struct ct_tuning_ctl ca0132_tuning_ctls[] = {
 #define VOICEFX_MAX_PARAM_COUNT 9
 
 struct ct_voicefx {
-	char *name;
+	const char *name;
 	hda_nid_t nid;
 	int mid;
 	int reqs[VOICEFX_MAX_PARAM_COUNT]; /*effect module request*/
 };
 
 struct ct_voicefx_preset {
-	char *name; /*preset name*/
+	const char *name; /*preset name*/
 	unsigned int vals[VOICEFX_MAX_PARAM_COUNT];
 };
 
@@ -514,14 +514,14 @@ static const struct ct_voicefx_preset ca0132_voicefx_presets[] = {
 #define EQ_PRESET_MAX_PARAM_COUNT 11
 
 struct ct_eq {
-	char *name;
+	const char *name;
 	hda_nid_t nid;
 	int mid;
 	int reqs[EQ_PRESET_MAX_PARAM_COUNT]; /*effect module request*/
 };
 
 struct ct_eq_preset {
-	char *name; /*preset name*/
+	const char *name; /*preset name*/
 	unsigned int vals[EQ_PRESET_MAX_PARAM_COUNT];
 };
 
@@ -679,7 +679,7 @@ enum {
 };
 
 struct ca0132_alt_speaker_channel_cfg {
-	char *name;
+	const char *name;
 	unsigned int val;
 };
 
@@ -755,7 +755,7 @@ static const struct ae_ca0113_output_set ae7_ca0113_output_presets = {
 /* ae5 ca0113 command sequences to set headphone gain levels. */
 #define AE5_HEADPHONE_GAIN_PRESET_MAX_COMMANDS 4
 struct ae5_headphone_gain_set {
-	char *name;
+	const char *name;
 	unsigned int vals[AE5_HEADPHONE_GAIN_PRESET_MAX_COMMANDS];
 };
 
@@ -772,7 +772,7 @@ static const struct ae5_headphone_gain_set ae5_headphone_gain_presets[] = {
 };
 
 struct ae5_filter_set {
-	char *name;
+	const char *name;
 	unsigned int val;
 };
 
@@ -4385,8 +4385,8 @@ static int add_tuning_control(struct hda_codec *codec,
 
 	knew.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-	knew.tlv.c = 0;
-	knew.tlv.p = 0;
+	knew.tlv.c = NULL;
+	knew.tlv.p = NULL;
 	switch (pnid) {
 	case VOICE_FOCUS:
 		knew.info = voice_focus_ctl_info;
@@ -4410,7 +4410,7 @@ static int add_tuning_control(struct hda_codec *codec,
 	}
 	knew.private_value =
 		HDA_COMPOSE_AMP_VAL(nid, 1, 0, type);
-	sprintf(namestr, "%s %s Volume", name, dirstr[dir]);
+	snprintf(namestr, sizeof(namestr), "%s %s Volume", name, dirstr[dir]);
 	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
 }
 
@@ -5787,7 +5787,7 @@ static int ca0132_alt_effect_slider_put(struct snd_kcontrol *kcontrol,
 static int ca0132_alt_mic_boost_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
-	char *sfx = "dB";
+	const char *sfx = "dB";
 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -5839,7 +5839,7 @@ static int ca0132_alt_mic_boost_put(struct snd_kcontrol *kcontrol,
 static int ae5_headphone_gain_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
-	char *sfx = " Ohms)";
+	const char *sfx = " Ohms)";
 	char namestr[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
