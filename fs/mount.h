@@ -84,6 +84,7 @@ struct mount {
 	struct list_head to_notify;	/* need to queue notification */
 	struct mnt_namespace *prev_ns;	/* previous namespace (NULL if none) */
 #endif
+	int mnt_t_flags;		/* namespace_sem-protected flags */
 	int mnt_id;			/* mount identifier, reused */
 	u64 mnt_id_unique;		/* mount ID unique until reboot */
 	int mnt_group_id;		/* peer group identifier */
@@ -92,6 +93,22 @@ struct mount {
 	struct hlist_head mnt_stuck_children;
 	struct mount *overmount;	/* mounted on ->mnt_root */
 } __randomize_layout;
+
+enum {
+	T_SHARED		= 1, /* mount is shared */
+	T_UNBINDABLE		= 2, /* mount is unbindable */
+	T_MARKED		= 4, /* internal mark for propagate_... */
+	T_UMOUNT_CANDIDATE	= 8, /* for propagate_umount */
+
+	/*
+	 * T_SHARED_MASK is the set of flags that should be cleared when a
+	 * mount becomes shared.  Currently, this is only the flag that says a
+	 * mount cannot be bind mounted, since this is how we create a mount
+	 * that shares events with another mount.  If you add a new T_*
+	 * flag, consider how it interacts with shared mounts.
+	 */
+	T_SHARED_MASK	= T_UNBINDABLE,
+};
 
 #define MNT_NS_INTERNAL ERR_PTR(-EINVAL) /* distinct from any mnt_namespace */
 

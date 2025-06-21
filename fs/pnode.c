@@ -112,7 +112,7 @@ static int do_make_slave(struct mount *mnt)
 }
 
 /*
- * vfsmount lock must be held for write
+ * EXCL[namespace_sem]
  */
 void change_mnt_propagation(struct mount *mnt, int type)
 {
@@ -125,9 +125,9 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		list_del_init(&mnt->mnt_slave);
 		mnt->mnt_master = NULL;
 		if (type == MS_UNBINDABLE)
-			mnt->mnt.mnt_flags |= MNT_UNBINDABLE;
+			mnt->mnt_t_flags |= T_UNBINDABLE;
 		else
-			mnt->mnt.mnt_flags &= ~MNT_UNBINDABLE;
+			mnt->mnt_t_flags &= ~T_UNBINDABLE;
 	}
 }
 
@@ -263,9 +263,9 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 		return PTR_ERR(child);
 	read_seqlock_excl(&mount_lock);
 	mnt_set_mountpoint(m, dest_mp, child);
+	read_sequnlock_excl(&mount_lock);
 	if (m->mnt_master != dest_master)
 		SET_MNT_MARK(m->mnt_master);
-	read_sequnlock_excl(&mount_lock);
 	last_dest = m;
 	last_source = child;
 	hlist_add_head(&child->mnt_hash, list);
@@ -322,13 +322,11 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		} while (n != m);
 	}
 out:
-	read_seqlock_excl(&mount_lock);
 	hlist_for_each_entry(n, tree_list, mnt_hash) {
 		m = n->mnt_parent;
 		if (m->mnt_master != dest_mnt->mnt_master)
 			CLEAR_MNT_MARK(m->mnt_master);
 	}
-	read_sequnlock_excl(&mount_lock);
 	return ret;
 }
 
@@ -447,7 +445,7 @@ void propagate_mount_unlock(struct mount *mnt)
 
 static inline bool is_candidate(struct mount *m)
 {
-	return m->mnt.mnt_flags & MNT_UMOUNT_CANDIDATE;
+	return m->mnt_t_flags & T_UMOUNT_CANDIDATE;
 }
 
 static inline bool will_be_unmounted(struct mount *m)
@@ -464,7 +462,7 @@ static void umount_one(struct mount *m, struct list_head *to_umount)
 
 static void remove_from_candidate_list(struct mount *m)
 {
-	m->mnt.mnt_flags &= ~(MNT_MARKED | MNT_UMOUNT_CANDIDATE);
+	m->mnt_t_flags &= ~(T_MARKED | T_UMOUNT_CANDIDATE);
 	list_del_init(&m->mnt_list);
 }
 
@@ -476,7 +474,7 @@ static void gather_candidates(struct list_head *set,
 	list_for_each_entry(m, set, mnt_list) {
 		if (is_candidate(m))
 			continue;
-		m->mnt.mnt_flags |= MNT_UMOUNT_CANDIDATE;
+		m->mnt_t_flags |= T_UMOUNT_CANDIDATE;
 		p = m->mnt_parent;
 		q = propagation_next(p, p);
 		while (q) {
@@ -494,7 +492,7 @@ static void gather_candidates(struct list_head *set,
 					q = skip_propagation_subtree(q, p);
 					continue;
 				}
-				child->mnt.mnt_flags |= MNT_UMOUNT_CANDIDATE;
+				child->mnt_t_flags |= T_UMOUNT_CANDIDATE;
 				if (!will_be_unmounted(child))
 					list_add(&child->mnt_list, candidates);
 			}
@@ -502,7 +500,7 @@ static void gather_candidates(struct list_head *set,
 		}
 	}
 	list_for_each_entry(m, set, mnt_list)
-		m->mnt.mnt_flags &= ~MNT_UMOUNT_CANDIDATE;
+		m->mnt_t_flags &= ~T_UMOUNT_CANDIDATE;
 }
 
 /*
@@ -519,7 +517,7 @@ static void trim_ancestors(struct mount *m)
 			return;
 		SET_MNT_MARK(m);
 		if (m != p->overmount)
-			p->mnt.mnt_flags &= ~MNT_UMOUNT_CANDIDATE;
+			p->mnt_t_flags &= ~T_UMOUNT_CANDIDATE;
 	}
 }
 

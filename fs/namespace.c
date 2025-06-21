@@ -2917,10 +2917,8 @@ static int do_change_type(struct path *path, int ms_flags)
 			goto out_unlock;
 	}
 
-	lock_mount_hash();
 	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
 		change_mnt_propagation(m, type);
-	unlock_mount_hash();
 
  out_unlock:
 	namespace_unlock();
@@ -3409,9 +3407,7 @@ static int do_set_group(struct path *from_path, struct path *to_path)
 	if (IS_MNT_SHARED(from)) {
 		to->mnt_group_id = from->mnt_group_id;
 		list_add(&to->mnt_share, &from->mnt_share);
-		lock_mount_hash();
 		set_mnt_shared(to);
-		unlock_mount_hash();
 	}
 
 	err = 0;

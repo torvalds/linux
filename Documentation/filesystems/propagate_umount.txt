@@ -453,11 +453,11 @@ original set.
 So let's go for
 	* original set ("set").  Linkage via mnt_list
 	* undecided candidates ("candidates").  Subset of a list,
-consisting of all its elements marked with a new flag (MNT_UMOUNT_CANDIDATE).
+consisting of all its elements marked with a new flag (T_UMOUNT_CANDIDATE).
 Initially all elements of the list will be marked that way; in the
 end the list will become empty and no mounts will remain marked with
 that flag.
-	* Reuse MNT_MARKED for "has been already seen by trim_ancestors()".
+	* Reuse T_MARKED for "has been already seen by trim_ancestors()".
 	* anything in U that hadn't been in the original set - elements of
 candidates will gradually be either discarded or moved there.  In other
 words, it's the candidates we have already decided to unmount.	Its role
@@ -465,13 +465,13 @@ is reasonably close to the old "to_umount", so let's use that name.
 Linkage via mnt_list.
 
 For gather_candidates() we'll need to maintain both candidates (S -
-set) and intersection of S with set.  Use MNT_UMOUNT_CANDIDATE for
+set) and intersection of S with set.  Use T_UMOUNT_CANDIDATE for
 all elements we encounter, putting the ones not already in the original
 set into the list of candidates.  When we are done, strip that flag from
 all elements of the original set.  That gives a cheap way to check
 if element belongs to S (in gather_candidates) and to candidates
 itself (at later stages).  Call that predicate is_candidate(); it would
-be m->mnt_flags & MNT_UMOUNT_CANDIDATE.
+be m->mnt_t_flags & T_UMOUNT_CANDIDATE.
 
 All elements of the original set are marked with MNT_UMOUNT and we'll
 need the same for elements added when joining the contents of to_umount
@@ -480,5 +480,5 @@ to to_umount; that's close to what the old 'umount_one' is doing, so
 let's keep that name.  It also gives us another predicate we need -
 "belongs to union of set and to_umount"; will_be_unmounted() for now.
 
-Removals from the candidates list should strip both MNT_MARKED and
-MNT_UMOUNT_CANDIDATE; call it remove_from_candidates_list().
+Removals from the candidates list should strip both T_MARKED and
+T_UMOUNT_CANDIDATE; call it remove_from_candidates_list().

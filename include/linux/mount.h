@@ -35,12 +35,8 @@ enum mount_flags {
 	MNT_SHRINKABLE	= 0x100,
 	MNT_WRITE_HOLD	= 0x200,
 
-	MNT_SHARED	= 0x1000, /* if the vfsmount is a shared mount */
-	MNT_UNBINDABLE	= 0x2000, /* if the vfsmount is a unbindable mount */
-
 	MNT_INTERNAL	= 0x4000,
 
-	MNT_UMOUNT_CANDIDATE	= 0x020000,
 	MNT_LOCK_ATIME		= 0x040000,
 	MNT_LOCK_NOEXEC		= 0x080000,
 	MNT_LOCK_NOSUID		= 0x100000,
@@ -49,25 +45,15 @@ enum mount_flags {
 	MNT_LOCKED		= 0x800000,
 	MNT_DOOMED		= 0x1000000,
 	MNT_SYNC_UMOUNT		= 0x2000000,
-	MNT_MARKED		= 0x4000000,
 	MNT_UMOUNT		= 0x8000000,
 
-	/*
-	 * MNT_SHARED_MASK is the set of flags that should be cleared when a
-	 * mount becomes shared.  Currently, this is only the flag that says a
-	 * mount cannot be bind mounted, since this is how we create a mount
-	 * that shares events with another mount.  If you add a new MNT_*
-	 * flag, consider how it interacts with shared mounts.
-	 */
-	MNT_SHARED_MASK	= MNT_UNBINDABLE,
 	MNT_USER_SETTABLE_MASK  = MNT_NOSUID | MNT_NODEV | MNT_NOEXEC
 				  | MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME
 				  | MNT_READONLY | MNT_NOSYMFOLLOW,
 	MNT_ATIME_MASK = MNT_NOATIME | MNT_NODIRATIME | MNT_RELATIME,
 
-	MNT_INTERNAL_FLAGS = MNT_SHARED | MNT_WRITE_HOLD | MNT_INTERNAL |
-			     MNT_DOOMED | MNT_SYNC_UMOUNT | MNT_MARKED |
-			     MNT_LOCKED | MNT_UMOUNT_CANDIDATE,
+	MNT_INTERNAL_FLAGS = MNT_WRITE_HOLD | MNT_INTERNAL | MNT_DOOMED |
+			     MNT_SYNC_UMOUNT | MNT_LOCKED
 };
 
 struct vfsmount {
