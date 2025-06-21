@@ -76,6 +76,28 @@ static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
 				       u32 *cci,
 				       void *data, size_t size)
 {
+	int ret;
+
+	/*
+	 * EC doesn't return connector's DP mode even though it is supported.
+	 * Fake it.
+	 */
+	if (UCSI_COMMAND(command) == UCSI_GET_ALTERNATE_MODES &&
+	    UCSI_GET_ALTMODE_GET_CONNECTOR_NUMBER(command) == 1 &&
+	    UCSI_ALTMODE_RECIPIENT(command) == UCSI_RECIPIENT_CON &&
+	    UCSI_ALTMODE_OFFSET(command) == 0) {
+		static const struct ucsi_altmode alt = {
+			.svid = USB_TYPEC_DP_SID,
+			.mid = USB_TYPEC_DP_MODE,
+		};
+
+		dev_dbg(ucsi->dev, "faking DP altmode for con1\n");
+		memset(data, 0, size);
+		memcpy(data, &alt, min(sizeof(alt), size));
+		*cci = UCSI_CCI_COMMAND_COMPLETE | UCSI_SET_CCI_LENGTH(sizeof(alt));
+		return 0;
+	}
+
 	/*
 	 * EC can return AltModes present on CON1 (port0, right) for CON2
 	 * (port1, left) too. Ignore all requests going to CON2 (it doesn't
