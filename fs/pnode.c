@@ -215,7 +215,7 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 }
 
 /* all accesses are serialized by namespace_sem */
-static struct mount *last_dest, *first_source, *last_source, *dest_master;
+static struct mount *last_dest, *first_source, *last_source;
 static struct hlist_head *list;
 
 static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
@@ -239,7 +239,7 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 		bool done;
 		for (n = m; ; n = p) {
 			p = n->mnt_master;
-			if (p == dest_master || IS_MNT_MARKED(p))
+			if (!p || IS_MNT_MARKED(p))
 				break;
 		}
 		do {
@@ -264,7 +264,7 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 	read_seqlock_excl(&mount_lock);
 	mnt_set_mountpoint(m, dest_mp, child);
 	read_sequnlock_excl(&mount_lock);
-	if (m->mnt_master != dest_master)
+	if (m->mnt_master)
 		SET_MNT_MARK(m->mnt_master);
 	last_dest = m;
 	last_source = child;
@@ -300,7 +300,8 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 	first_source = source_mnt;
 	last_source = source_mnt;
 	list = tree_list;
-	dest_master = dest_mnt->mnt_master;
+	if (dest_mnt->mnt_master)
+		SET_MNT_MARK(dest_mnt->mnt_master);
 
 	/* all peers of dest_mnt, except dest_mnt itself */
 	for (n = next_peer(dest_mnt); n != dest_mnt; n = next_peer(n)) {
@@ -324,9 +325,11 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 out:
 	hlist_for_each_entry(n, tree_list, mnt_hash) {
 		m = n->mnt_parent;
-		if (m->mnt_master != dest_mnt->mnt_master)
+		if (m->mnt_master)
 			CLEAR_MNT_MARK(m->mnt_master);
 	}
+	if (dest_mnt->mnt_master)
+		CLEAR_MNT_MARK(dest_mnt->mnt_master);
 	return ret;
 }
 
