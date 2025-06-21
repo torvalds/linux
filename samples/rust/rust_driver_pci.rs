@@ -18,7 +18,7 @@ impl Regs {
 
 type Bar0 = pci::Bar<{ Regs::END }>;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 struct TestIndex(u8);
 
 impl TestIndex {
@@ -30,6 +30,7 @@ struct SampleDriver {
     pdev: ARef<pci::Device>,
     #[pin]
     bar: Devres<Bar0>,
+    index: TestIndex,
 }
 
 kernel::pci_device_table!(
@@ -79,6 +80,7 @@ impl pci::Driver for SampleDriver {
             try_pin_init!(Self {
                 pdev: pdev.into(),
                 bar <- pdev.iomap_region_sized::<{ Regs::END }>(0, c_str!("rust_driver_pci")),
+                index: *info,
             }),
             GFP_KERNEL,
         )?;
@@ -91,6 +93,13 @@ impl pci::Driver for SampleDriver {
         );
 
         Ok(drvdata)
+    }
+
+    fn unbind(pdev: &pci::Device<Core>, this: Pin<&Self>) {
+        if let Ok(bar) = this.bar.access(pdev.as_ref()) {
+            // Reset pci-testdev by writing a new test index.
+            bar.write8(this.index.0, Regs::TEST);
+        }
     }
 }
 
