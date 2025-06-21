@@ -2,7 +2,7 @@
 #
 # Makefile for the linux kernel.
 #
-
+ 
 obj-y				+= firmware.o
 
 obj-$(CONFIG_SA1111)		+= sa1111.o
