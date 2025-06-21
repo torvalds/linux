@@ -71,6 +71,28 @@ static int yoga_c630_ucsi_async_control(struct ucsi *ucsi, u64 command)
 	return yoga_c630_ec_ucsi_write(uec->ec, (u8*)&command);
 }
 
+static bool yoga_c630_ucsi_update_altmodes(struct ucsi *ucsi,
+					   u8 recipient,
+					   struct ucsi_altmode *orig,
+					   struct ucsi_altmode *updated)
+{
+	int i;
+
+	if (orig[0].svid == 0 || recipient != UCSI_RECIPIENT_SOP)
+		return false;
+
+	/* EC is nice and repeats altmodes again and again. Ignore copies. */
+	for (i = 1; i < UCSI_MAX_ALTMODES; i++) {
+		if (orig[i].svid == orig[0].svid) {
+			dev_dbg(ucsi->dev, "Found duplicate altmodes, starting from %d\n", i);
+			memset(&orig[i], 0, (UCSI_MAX_ALTMODES - i) * sizeof(*orig));
+			break;
+		}
+	}
+
+	return false;
+}
+
 static const struct ucsi_operations yoga_c630_ucsi_ops = {
 	.read_version = yoga_c630_ucsi_read_version,
 	.read_cci = yoga_c630_ucsi_read_cci,
@@ -78,6 +100,7 @@ static const struct ucsi_operations yoga_c630_ucsi_ops = {
 	.read_message_in = yoga_c630_ucsi_read_message_in,
 	.sync_control = ucsi_sync_control_common,
 	.async_control = yoga_c630_ucsi_async_control,
+	.update_altmodes = yoga_c630_ucsi_update_altmodes,
 };
 
 static int yoga_c630_ucsi_notify(struct notifier_block *nb,
