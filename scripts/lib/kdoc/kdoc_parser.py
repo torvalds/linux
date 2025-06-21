@@ -86,7 +86,7 @@ class state:
     # Parser states
     NORMAL        = 0        # normal code
     NAME          = 1        # looking for function name
-    BODY_MAYBE    = 2        # body - or maybe more description
+    DECLARATION   = 2        # We have seen a declaration which might not be done
     BODY          = 3        # the body of the comment
     BODY_WITH_BLANK_LINE = 4 # the body which has a blank line
     PROTO         = 5        # scanning prototype
@@ -96,7 +96,7 @@ class state:
     name = [
         "NORMAL",
         "NAME",
-        "BODY_MAYBE",
+        "DECLARATION",
         "BODY",
         "BODY_WITH_BLANK_LINE",
         "PROTO",
@@ -1287,7 +1287,7 @@ class KernelDoc:
             r = KernRe("[-:](.*)")
             if r.search(line):
                 self.entry.declaration_purpose = trim_whitespace(r.group(1))
-                self.state = state.BODY_MAYBE
+                self.state = state.DECLARATION
             else:
                 self.entry.declaration_purpose = ""
 
@@ -1310,9 +1310,82 @@ class KernelDoc:
         else:
             self.emit_msg(ln, f"Cannot find identifier on line:\n{line}")
 
+    def process_decl(self, ln, line):
+        """
+        STATE_DECLARATION: We've seen the beginning of a declaration
+        """
+        if doc_sect.search(line):
+            self.entry.in_doc_sect = True
+            newsection = doc_sect.group(1)
+
+            if newsection.lower() in ["description", "context"]:
+                newsection = newsection.title()
+
+            # Special case: @return is a section, not a param description
+            if newsection.lower() in ["@return", "@returns",
+                                      "return", "returns"]:
+                newsection = "Return"
+
+            # Perl kernel-doc has a check here for contents before sections.
+            # the logic there is always false, as in_doc_sect variable is
+            # always true. So, just don't implement Wcontents_before_sections
+
+            # .title()
+            newcontents = doc_sect.group(2)
+            if not newcontents:
+                newcontents = ""
+
+            if self.entry.contents.strip("\n"):
+                self.dump_section()
+
+            self.entry.begin_section(ln, newsection)
+            self.entry.leading_space = None
+
+            self.entry.contents = newcontents.lstrip()
+            if self.entry.contents:
+                self.entry.contents += "\n"
+
+            self.state = state.BODY
+            return
+
+        if doc_end.search(line):
+            self.dump_section()
+
+            # Look for doc_com + <text> + doc_end:
+            r = KernRe(r'\s*\*\s*[a-zA-Z_0-9:\.]+\*/')
+            if r.match(line):
+                self.emit_msg(ln, f"suspicious ending line: {line}")
+
+            self.entry.prototype = ""
+            self.entry.new_start_line = ln + 1
+
+            self.state = state.PROTO
+            return
+
+        if doc_content.search(line):
+            cont = doc_content.group(1)
+
+            if cont == "":
+                self.state = state.BODY
+                self.entry.contents += "\n"  # needed?
+
+            else:
+                # Continued declaration purpose
+                self.entry.declaration_purpose = self.entry.declaration_purpose.rstrip()
+                self.entry.declaration_purpose += " " + cont
+
+                r = KernRe(r"\s+")
+                self.entry.declaration_purpose = r.sub(' ',
+                                                       self.entry.declaration_purpose)
+            return
+
+        # Unknown line, ignore
+        self.emit_msg(ln, f"bad line: {line}")
+
+
     def process_body(self, ln, line):
         """
-        STATE_BODY and STATE_BODY_MAYBE: the bulk of a kerneldoc comment.
+        STATE_BODY: the bulk of a kerneldoc comment.
         """
 
         if self.state == state.BODY_WITH_BLANK_LINE:
@@ -1384,16 +1457,6 @@ class KernelDoc:
                         self.state = state.BODY
 
                     self.entry.contents += "\n"
-
-            elif self.state == state.BODY_MAYBE:
-
-                # Continued declaration purpose
-                self.entry.declaration_purpose = self.entry.declaration_purpose.rstrip()
-                self.entry.declaration_purpose += " " + cont
-
-                r = KernRe(r"\s+")
-                self.entry.declaration_purpose = r.sub(' ',
-                                                       self.entry.declaration_purpose)
 
             else:
                 if self.entry.section.startswith('@') or        \
@@ -1687,7 +1750,7 @@ class KernelDoc:
         state.NORMAL:			process_normal,
         state.NAME:			process_name,
         state.BODY:			process_body,
-        state.BODY_MAYBE:		process_body,
+        state.DECLARATION:		process_decl,
         state.BODY_WITH_BLANK_LINE:	process_body,
         state.INLINE:			process_inline,
         state.PROTO:			process_proto,
