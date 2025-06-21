@@ -450,10 +450,10 @@ static inline struct ublk_auto_buf_reg ublk_sqe_addr_to_auto_buf_reg(
 		__u64 sqe_addr)
 {
 	struct ublk_auto_buf_reg reg = {
-		.index = sqe_addr & 0xffff,
-		.flags = (sqe_addr >> 16) & 0xff,
-		.reserved0 = (sqe_addr >> 24) & 0xff,
-		.reserved1 = sqe_addr >> 32,
+		.index = (__u16)sqe_addr,
+		.flags = (__u8)(sqe_addr >> 16),
+		.reserved0 = (__u8)(sqe_addr >> 24),
+		.reserved1 = (__u32)(sqe_addr >> 32),
 	};
 
 	return reg;
