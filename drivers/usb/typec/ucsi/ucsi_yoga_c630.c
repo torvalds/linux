@@ -111,7 +111,15 @@ static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
 		return 0;
 	}
 
-	return ucsi_sync_control_common(ucsi, command, cci, data, size);
+	ret = ucsi_sync_control_common(ucsi, command, cci, data, size);
+	if (ret < 0)
+		return ret;
+
+	/* UCSI_GET_CURRENT_CAM is off-by-one on all ports */
+	if (UCSI_COMMAND(command) == UCSI_GET_CURRENT_CAM && data)
+		((u8 *)data)[0]--;
+
+	return ret;
 }
 
 static bool yoga_c630_ucsi_update_altmodes(struct ucsi *ucsi,
