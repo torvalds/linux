@@ -6,7 +6,7 @@
 
 use crate::{
     bindings,
-    types::{ARef, Opaque},
+    types::{ARef, ForeignOwnable, Opaque},
 };
 use core::{fmt, marker::PhantomData, ptr};
 
@@ -59,6 +59,53 @@ impl Device {
     pub unsafe fn get_device(ptr: *mut bindings::device) -> ARef<Self> {
         // SAFETY: By the safety requirements ptr is valid
         unsafe { Self::as_ref(ptr) }.into()
+    }
+}
+
+impl Device<CoreInternal> {
+    /// Store a pointer to the bound driver's private data.
+    pub fn set_drvdata(&self, data: impl ForeignOwnable) {
+        // SAFETY: By the type invariants, `self.as_raw()` is a valid pointer to a `struct device`.
+        unsafe { bindings::dev_set_drvdata(self.as_raw(), data.into_foreign().cast()) }
+    }
+
+    /// Take ownership of the private data stored in this [`Device`].
+    ///
+    /// # Safety
+    ///
+    /// - Must only be called once after a preceding call to [`Device::set_drvdata`].
+    /// - The type `T` must match the type of the `ForeignOwnable` previously stored by
+    ///   [`Device::set_drvdata`].
+    pub unsafe fn drvdata_obtain<T: ForeignOwnable>(&self) -> T {
+        // SAFETY: By the type invariants, `self.as_raw()` is a valid pointer to a `struct device`.
+        let ptr = unsafe { bindings::dev_get_drvdata(self.as_raw()) };
+
+        // SAFETY:
+        // - By the safety requirements of this function, `ptr` comes from a previous call to
+        //   `into_foreign()`.
+        // - `dev_get_drvdata()` guarantees to return the same pointer given to `dev_set_drvdata()`
+        //   in `into_foreign()`.
+        unsafe { T::from_foreign(ptr.cast()) }
+    }
+
+    /// Borrow the driver's private data bound to this [`Device`].
+    ///
+    /// # Safety
+    ///
+    /// - Must only be called after a preceding call to [`Device::set_drvdata`] and before
+    ///   [`Device::drvdata_obtain`].
+    /// - The type `T` must match the type of the `ForeignOwnable` previously stored by
+    ///   [`Device::set_drvdata`].
+    pub unsafe fn drvdata_borrow<T: ForeignOwnable>(&self) -> T::Borrowed<'_> {
+        // SAFETY: By the type invariants, `self.as_raw()` is a valid pointer to a `struct device`.
+        let ptr = unsafe { bindings::dev_get_drvdata(self.as_raw()) };
+
+        // SAFETY:
+        // - By the safety requirements of this function, `ptr` comes from a previous call to
+        //   `into_foreign()`.
+        // - `dev_get_drvdata()` guarantees to return the same pointer given to `dev_set_drvdata()`
+        //   in `into_foreign()`.
+        unsafe { T::borrow(ptr.cast()) }
     }
 }
 

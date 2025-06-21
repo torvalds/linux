@@ -15,3 +15,13 @@ int rust_helper_devm_add_action_or_reset(struct device *dev,
 {
 	return devm_add_action_or_reset(dev, action, data);
 }
+
+void *rust_helper_dev_get_drvdata(const struct device *dev)
+{
+	return dev_get_drvdata(dev);
+}
+
+void rust_helper_dev_set_drvdata(struct device *dev, void *data)
+{
+	dev_set_drvdata(dev, data);
+}
