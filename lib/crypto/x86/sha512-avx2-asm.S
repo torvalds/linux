@@ -565,7 +565,7 @@ frame_size = frame_CTX + CTX_SIZE
 # stored in "data".
 # The size of the message pointed to by "data" must be an integer multiple
 # of SHA512 message blocks.
-# "nblocks" is the message length in SHA512 blocks
+# "nblocks" is the message length in SHA512 blocks.  Must be >= 1.
 ########################################################################
 SYM_FUNC_START(sha512_transform_rorx)
 	ANNOTATE_NOENDBR	# since this is called only via static_call
@@ -584,7 +584,6 @@ SYM_FUNC_START(sha512_transform_rorx)
 	and	$~(0x20 - 1), %rsp
 
 	shl	$7, NUM_BLKS	# convert to bytes
-	jz	.Ldone_hash
 	add	INP, NUM_BLKS	# pointer to end of data
 	mov	NUM_BLKS, frame_INPEND(%rsp)
 
@@ -669,8 +668,6 @@ SYM_FUNC_START(sha512_transform_rorx)
 	add	$128, INP
 	cmp	frame_INPEND(%rsp), INP
 	jne	.Lloop0
-
-.Ldone_hash:
 
 	# Restore Stack Pointer
 	mov	%rbp, %rsp
