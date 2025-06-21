@@ -1,0 +1,7 @@
+config MLCORE_DRIVER
+    tristate "MLCore Machine Learning Kernel Driver"
+    depends on PROC_FS
+    help
+      A kernel-space ML helper driver with /proc and ioctl support.
+      Useful for hybrid kernel/user-space machine learning interaction.
+

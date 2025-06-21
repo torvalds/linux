@@ -127,3 +127,11 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
+
+Miscellaneous
+=============
+
+.. toctree::
+   :maxdepth: 1
+
+   misc/mlcore_driver
