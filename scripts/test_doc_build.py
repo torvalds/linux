@@ -37,70 +37,102 @@ PYTHON_VER_CHANGES = {(8, 0, 2): PYTHON}
 
 # Sphinx versions to be installed and their incremental requirements
 SPHINX_REQUIREMENTS = {
+    # Oldest versions we support for each package required by Sphinx 3.4.3
     (3, 4, 3): {
+        "docutils": "0.16",
+        "alabaster": "0.7.12",
+        "babel": "2.8.0",
+        "certifi": "2020.6.20",
+        "docutils": "0.16",
+        "idna": "2.10",
+        "imagesize": "1.2.0",
+        "Jinja2": "2.11.2",
+        "MarkupSafe": "1.1.1",
+        "packaging": "20.4",
+        "Pygments": "2.6.1",
+        "PyYAML": "5.1",
+        "requests": "2.24.0",
+        "snowballstemmer": "2.0.0",
+        "sphinxcontrib-applehelp": "1.0.2",
+        "sphinxcontrib-devhelp": "1.0.2",
+        "sphinxcontrib-htmlhelp": "1.0.3",
+        "sphinxcontrib-jsmath": "1.0.1",
+        "sphinxcontrib-qthelp": "1.0.3",
+        "sphinxcontrib-serializinghtml": "1.1.4",
+        "urllib3": "1.25.9",
+    },
+
+    # Update package dependencies to a more modern base. The goal here
+    # is to avoid to many incremental changes for the next entries
+    (3, 5, 4): {
         "alabaster": "0.7.13",
         "babel": "2.17.0",
         "certifi": "2025.6.15",
-        "charset-normalizer": "3.4.2",
-        "docutils": "0.15",
         "idna": "3.10",
         "imagesize": "1.4.1",
         "Jinja2": "3.0.3",
         "MarkupSafe": "2.0",
         "packaging": "25.0",
         "Pygments": "2.19.1",
-        "PyYAML": "5.1",
         "requests": "2.32.4",
         "snowballstemmer": "3.0.1",
         "sphinxcontrib-applehelp": "1.0.4",
-        "sphinxcontrib-devhelp": "1.0.2",
         "sphinxcontrib-htmlhelp": "2.0.1",
-        "sphinxcontrib-jsmath": "1.0.1",
-        "sphinxcontrib-qthelp": "1.0.3",
         "sphinxcontrib-serializinghtml": "1.1.5",
-        "urllib3": "2.4.0",
     },
-    (3, 5, 4): {},
+
+    # Starting from here, ensure all docutils versions are covered with
+    # supported Sphinx versions. Other packages are upgraded only when
+    # required by pip
     (4, 0, 3): {
-        "docutils": "0.17.1",
+        "docutils": "0.17",
         "PyYAML": "5.1",
     },
-    (4, 1, 2): {},
-    (4, 3, 2): {},
+    (4, 1, 2): {
+    },
+    (4, 3, 2): {
+    },
     (4, 4, 0): {},
     (4, 5, 0): {},
     (5, 0, 2): {},
     (5, 1, 1): {},
     (5, 2, 3): {
+        "docutils": "0.17.1",
         "Jinja2": "3.1.2",
         "MarkupSafe": "2.0",
         "PyYAML": "5.3.1",
     },
-    (5, 3, 0): {
-        "docutils": "0.18.1",
-        "PyYAML": "5.3.1",
+    (5, 3, 0): {},
+    (6, 0, 1): {
+        "docutils": "0.18",
     },
-    (6, 0, 1): {},
     (6, 1, 3): {},
     (6, 2, 1): {
+        "docutils": "0.18.1",
         "PyYAML": "5.4.1",
     },
-    (7, 0, 1): {},
+    (7, 0, 1): {
+    },
     (7, 1, 2): {},
     (7, 2, 3): {
+        "docutils": "0.19",
         "PyYAML": "6.0.1",
         "sphinxcontrib-serializinghtml": "1.1.9",
     },
     (7, 3, 7): {
+        "docutils": "0.20",
         "alabaster": "0.7.14",
         "PyYAML": "6.0.1",
     },
     (7, 4, 7): {
-        "docutils": "0.20",
+        "docutils": "0.21",
         "PyYAML": "6.0.1",
     },
-    (8, 0, 2): {},
+    (8, 0, 2): {
+        "docutils": "0.21.1",
+    },
     (8, 1, 3): {
+        "docutils": "0.21.2",
         "PyYAML": "6.0.1",
         "sphinxcontrib-applehelp": "1.0.7",
         "sphinxcontrib-devhelp": "1.0.6",
