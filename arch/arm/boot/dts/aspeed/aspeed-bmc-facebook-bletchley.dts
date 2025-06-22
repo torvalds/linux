@@ -393,10 +393,13 @@
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "source";
-			data-role = "host";
-			pd-disable;
-			typec-power-opmode = "default";
+			pd-revision = /bits/ 8 <0x2 0x0 0x1 0x20>;
+			power-role = "dual";
+			try-power-role = "sink";
+			data-role = "dual";
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <10000000>;
 		};
 	};
 
@@ -479,10 +482,13 @@
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "source";
-			data-role = "host";
-			pd-disable;
-			typec-power-opmode = "default";
+			pd-revision = /bits/ 8 <0x2 0x0 0x1 0x20>;
+			power-role = "dual";
+			try-power-role = "sink";
+			data-role = "dual";
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <10000000>;
 		};
 	};
 
@@ -565,10 +571,13 @@
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "source";
-			data-role = "host";
-			pd-disable;
-			typec-power-opmode = "default";
+			pd-revision = /bits/ 8 <0x2 0x0 0x1 0x20>;
+			power-role = "dual";
+			try-power-role = "sink";
+			data-role = "dual";
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <10000000>;
 		};
 	};
 
@@ -651,10 +660,13 @@
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "source";
-			data-role = "host";
-			pd-disable;
-			typec-power-opmode = "default";
+			pd-revision = /bits/ 8 <0x2 0x0 0x1 0x20>;
+			power-role = "dual";
+			try-power-role = "sink";
+			data-role = "dual";
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <10000000>;
 		};
 	};
 
@@ -737,10 +749,13 @@
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "source";
-			data-role = "host";
-			pd-disable;
-			typec-power-opmode = "default";
+			pd-revision = /bits/ 8 <0x2 0x0 0x1 0x20>;
+			power-role = "dual";
+			try-power-role = "sink";
+			data-role = "dual";
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <10000000>;
 		};
 	};
 
@@ -823,10 +838,13 @@
 		connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
-			power-role = "source";
-			data-role = "host";
-			pd-disable;
-			typec-power-opmode = "default";
+			pd-revision = /bits/ 8 <0x2 0x0 0x1 0x20>;
+			power-role = "dual";
+			try-power-role = "sink";
+			data-role = "dual";
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			op-sink-microwatt = <10000000>;
 		};
 	};
 
