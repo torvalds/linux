@@ -3069,7 +3069,7 @@ static int tb_switch_asym_disable(struct tb_switch *sw)
  * @width: The new link width
  *
  * Set device router link width to @width from router upstream port
- * perspective. Supports also asymmetric links if the routers boths side
+ * perspective. Supports also asymmetric links if the routers both side
  * of the link supports it.
  *
  * Does nothing for host router.
