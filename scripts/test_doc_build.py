@@ -33,7 +33,19 @@ if not min_python_bin:
     min_python_bin = PYTHON
 
 # Starting from 8.0, Python 3.9 is not supported anymore.
-PYTHON_VER_CHANGES = {(8, 0, 2): PYTHON}
+PYTHON_VER_CHANGES = {(8, 0, 0): PYTHON}
+
+DEFAULT_VERSIONS_TO_TEST = [
+    (3, 4, 3),   # Minimal supported version
+    (5, 3, 0),   # CentOS Stream 9 / AlmaLinux 9
+    (6, 1, 1),   # Debian 12
+    (7, 2, 1),   # openSUSE Leap 15.6
+    (7, 2, 6),   # Ubuntu 24.04 LTS
+    (7, 4, 7),   # Ubuntu 24.10
+    (7, 3, 0),   # openSUSE Tumbleweed
+    (8, 1, 3),   # Fedora 42
+    (8, 2, 3)    # Latest version - covers rolling distros
+]
 
 # Sphinx versions to be installed and their incremental requirements
 SPHINX_REQUIREMENTS = {
@@ -64,82 +76,87 @@ SPHINX_REQUIREMENTS = {
 
     # Update package dependencies to a more modern base. The goal here
     # is to avoid to many incremental changes for the next entries
-    (3, 5, 4): {
+    (3, 5, 0): {
         "alabaster": "0.7.13",
         "babel": "2.17.0",
         "certifi": "2025.6.15",
         "idna": "3.10",
         "imagesize": "1.4.1",
-        "Jinja2": "3.0.3",
-        "MarkupSafe": "2.0",
         "packaging": "25.0",
-        "Pygments": "2.19.1",
+        "Pygments": "2.8.1",
         "requests": "2.32.4",
         "snowballstemmer": "3.0.1",
         "sphinxcontrib-applehelp": "1.0.4",
         "sphinxcontrib-htmlhelp": "2.0.1",
         "sphinxcontrib-serializinghtml": "1.1.5",
+        "urllib3": "2.0.0",
     },
 
     # Starting from here, ensure all docutils versions are covered with
     # supported Sphinx versions. Other packages are upgraded only when
     # required by pip
-    (4, 0, 3): {
-        "docutils": "0.17",
+    (4, 0, 0): {
         "PyYAML": "5.1",
     },
-    (4, 1, 2): {
+    (4, 1, 0): {
+        "docutils": "0.17",
+        "Pygments": "2.19.1",
+        "Jinja2": "3.0.3",
+        "MarkupSafe": "2.0",
     },
-    (4, 3, 2): {
-    },
+    (4, 3, 0): {},
     (4, 4, 0): {},
-    (4, 5, 0): {},
-    (5, 0, 2): {},
-    (5, 1, 1): {},
-    (5, 2, 3): {
+    (4, 5, 0): {
         "docutils": "0.17.1",
+    },
+    (5, 0, 0): {},
+    (5, 1, 0): {},
+    (5, 2, 0): {
+        "docutils": "0.18",
         "Jinja2": "3.1.2",
         "MarkupSafe": "2.0",
         "PyYAML": "5.3.1",
     },
-    (5, 3, 0): {},
-    (6, 0, 1): {
-        "docutils": "0.18",
-    },
-    (6, 1, 3): {},
-    (6, 2, 1): {
+    (5, 3, 0): {
         "docutils": "0.18.1",
+    },
+    (6, 0, 0): {},
+    (6, 1, 0): {},
+    (6, 2, 0): {
         "PyYAML": "5.4.1",
     },
-    (7, 0, 1): {
-    },
-    (7, 1, 2): {},
-    (7, 2, 3): {
+    (7, 0, 0): {},
+    (7, 1, 0): {},
+    (7, 2, 0): {
         "docutils": "0.19",
         "PyYAML": "6.0.1",
         "sphinxcontrib-serializinghtml": "1.1.9",
     },
-    (7, 3, 7): {
+    (7, 2, 6): {
         "docutils": "0.20",
+    },
+    (7, 3, 0): {
         "alabaster": "0.7.14",
         "PyYAML": "6.0.1",
+        "tomli": "2.0.1",
     },
-    (7, 4, 7): {
-        "docutils": "0.21",
+    (7, 4, 0): {
+        "docutils": "0.20.1",
         "PyYAML": "6.0.1",
     },
-    (8, 0, 2): {
-        "docutils": "0.21.1",
+    (8, 0, 0): {
+        "docutils": "0.21",
     },
-    (8, 1, 3): {
-        "docutils": "0.21.2",
+    (8, 1, 0): {
+        "docutils": "0.21.1",
         "PyYAML": "6.0.1",
         "sphinxcontrib-applehelp": "1.0.7",
         "sphinxcontrib-devhelp": "1.0.6",
         "sphinxcontrib-htmlhelp": "2.0.6",
         "sphinxcontrib-qthelp": "1.0.6",
     },
-    (8, 2, 3): {
+    (8, 2, 0): {
+        "docutils": "0.21.2",
         "PyYAML": "6.0.1",
         "sphinxcontrib-serializinghtml": "1.1.9",
     },
@@ -339,12 +356,18 @@ class SphinxVenv:
         cur_requirements = {}
         python_bin = min_python_bin
 
-        for cur_ver, new_reqs in SPHINX_REQUIREMENTS.items():
-            cur_requirements.update(new_reqs)
+        vers = set(SPHINX_REQUIREMENTS.keys()) | set(args.versions)
+
+        for cur_ver in sorted(vers):
+            if cur_ver in SPHINX_REQUIREMENTS:
+                new_reqs = SPHINX_REQUIREMENTS[cur_ver]
+                cur_requirements.update(new_reqs)
 
             if cur_ver in PYTHON_VER_CHANGES:          # pylint: disable=R1715
-
                 python_bin = PYTHON_VER_CHANGES[cur_ver]
+
+            if cur_ver not in args.versions:
+                continue
 
             if args.min_version:
                 if cur_ver < args.min_version:
@@ -373,12 +396,52 @@ def parse_version(ver_str):
     return tuple(map(int, ver_str.split(".")))
 
 
+DEFAULT_VERS = "    - "
+DEFAULT_VERS += "\n    - ".join(map(lambda v: f"{v[0]}.{v[1]}.{v[2]}",
+                                    DEFAULT_VERSIONS_TO_TEST))
+
+SCRIPT = os.path.relpath(__file__)
+
+DESCRIPTION = f"""
+This tool allows creating Python virtual environments for different
+Sphinx versions that are supported by the Linux Kernel build system.
+
+Besides creating the virtual environment, it can also test building
+the documentation using "make htmldocs".
+
+If called without "--versions" argument, it covers the versions shipped
+on major distros, plus the lowest supported version:
+
+{DEFAULT_VERS}
+
+A typical usage is to run:
+
+   {SCRIPT} -m -l sphinx_builds.log
+
+This will create one virtual env for the default version set and do a
+full htmldocs build for each version, creating a log file with the
+excecuted commands on it.
+
+NOTE: The build time can be very long, specially on old versions. Also, there
+is a known bug with Sphinx version 6.0.x: each subprocess uses a lot of
+memory. That, together with "-jauto" may cause OOM killer to cause
+failures at the doc generation. To minimize the risk, you may use the
+"-a" command line parameter to constrain the built directories and/or
+reduce the number of threads from "-jauto" to, for instance, "-j4":
+
+    {SCRIPT} -m -V 6.0.1 -a "SPHINXDIRS=process" "SPHINXOPTS='-j4'"
+
+"""
+
+
 async def main():
     """Main program"""
 
-    parser = argparse.ArgumentParser(description="Build docs for different sphinx_versions.")
+    parser = argparse.ArgumentParser(description=DESCRIPTION,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument('-V', '--version', help='Sphinx single version',
+    parser.add_argument('-V', '--versions', help='Sphinx versions to test',
+                        nargs="*", default=DEFAULT_VERSIONS_TO_TEST,
                         type=parse_version)
     parser.add_argument('--min-version', "--min", help='Sphinx minimal version',
                         type=parse_version)
@@ -391,6 +454,9 @@ async def main():
                         action='store_true')
     parser.add_argument('-m', '--make',
                         help='Make documentation',
+                        action='store_true')
+    parser.add_argument('-f', '--full',
+                        help='Add all (major,minor,latest_patch) version to the version list',
                         action='store_true')
     parser.add_argument('-i', '--wait-input',
                         help='Wait for an enter before going to the next version',
@@ -406,20 +472,10 @@ async def main():
     if not args.make_args:
         args.make_args = []
 
-    if args.version:
-        if args.min_version or args.max_version:
-            sys.exit("Use either --version or --min-version/--max-version")
-        else:
-            args.min_version = args.version
-            args.max_version = args.version
-
     sphinx_versions = sorted(list(SPHINX_REQUIREMENTS.keys()))
 
-    if not args.min_version:
-        args.min_version = sphinx_versions[0]
-
-    if not args.max_version:
-        args.max_version = sphinx_versions[-1]
+    if args.full:
+        args.versions += list(SPHINX_REQUIREMENTS.keys())
 
     venv = SphinxVenv()
     await venv.run(args)
