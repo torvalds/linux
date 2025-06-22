@@ -1105,7 +1105,7 @@ static ssize_t cifs_security_flags_proc_write(struct file *file,
 	if ((count < 1) || (count > 11))
 		return -EINVAL;
 
-	memset(flags_string, 0, 12);
+	memset(flags_string, 0, sizeof(flags_string));
 
 	if (copy_from_user(flags_string, buffer, count))
 		return -EFAULT;
