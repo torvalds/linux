@@ -1173,7 +1173,7 @@ int __meminit radix__vmemmap_populate(unsigned long start, unsigned long end, in
 				vmemmap_set_pmd(pmd, p, node, addr, next);
 				pr_debug("PMD_SIZE vmemmap mapping\n");
 				continue;
-			} else if (altmap) {
+			} else {
 				/*
 				 * A vmemmap block allocation can fail due to
 				 * alignment requirements and we trying to align
