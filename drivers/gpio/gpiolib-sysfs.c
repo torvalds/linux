@@ -741,6 +741,7 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	struct gpiodev_data *data;
 	struct gpio_chip *chip;
 	struct device *parent;
+	int err;
 
 	/*
 	 * Many systems add gpio chips for SOC support very early,
@@ -781,8 +782,9 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 						    GPIOCHIP_NAME "%d",
 						    chip->base);
 	if (IS_ERR(data->cdev_base)) {
+		err = PTR_ERR(data->cdev_base);
 		kfree(data);
-		return PTR_ERR(data->cdev_base);
+		return err;
 	}
 
 	return 0;
