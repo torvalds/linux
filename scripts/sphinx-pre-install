@@ -245,6 +245,10 @@ sub check_missing_tex($)
 
 sub get_sphinx_fname()
 {
+	if ($ENV{'SPHINXBUILD'}) {
+	    return $ENV{'SPHINXBUILD'};
+	}
+
 	my $fname = "sphinx-build";
 	return $fname if findprog($fname);
 
