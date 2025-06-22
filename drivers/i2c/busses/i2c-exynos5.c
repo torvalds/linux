@@ -879,9 +879,9 @@ static u32 exynos5_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm exynos5_i2c_algorithm = {
-	.master_xfer		= exynos5_i2c_xfer,
-	.master_xfer_atomic	= exynos5_i2c_xfer_atomic,
-	.functionality		= exynos5_i2c_func,
+	.xfer = exynos5_i2c_xfer,
+	.xfer_atomic = exynos5_i2c_xfer_atomic,
+	.functionality = exynos5_i2c_func,
 };
 
 static int exynos5_i2c_probe(struct platform_device *pdev)
