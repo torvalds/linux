@@ -29,7 +29,8 @@ jobs:
         make modules_install
   
   build-initrd:
+    needs: build-kernel
     runs-on: linux-s390x
     steps:
     - name: run dracut to create bonus 
-      run: echo ${{ secret.PASSWD }} | sudo dracut --force "initrd-myKernel.img"
+      run: echo ${{ secret.PASSWD }} | sudo dracut --force "/boot/initrd-myKernel.img"
