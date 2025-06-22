@@ -12,15 +12,28 @@ and optionally test the build.
 import argparse
 import asyncio
 import os.path
+import shutil
 import sys
 import time
 import subprocess
 
-# Minimal python version supported by the building system
-MINIMAL_PYTHON_VERSION = "python3.9"
+# Minimal python version supported by the building system.
 
-# Starting from 8.0.2, Python 3.9 becomes too old
-PYTHON_VER_CHANGES = {(8, 0, 2): "python3"}
+PYTHON = os.path.basename(sys.executable)
+
+min_python_bin = None
+
+for i in range(9, 13):
+    p = f"python3.{i}"
+    if shutil.which(p):
+        min_python_bin = p
+        break
+
+if not min_python_bin:
+    min_python_bin = PYTHON
+
+# Starting from 8.0, Python 3.9 is not supported anymore.
+PYTHON_VER_CHANGES = {(8, 0, 2): PYTHON}
 
 # Sphinx versions to be installed and their incremental requirements
 SPHINX_REQUIREMENTS = {
@@ -290,7 +303,7 @@ class SphinxVenv:
                 args.verbose = True
 
         cur_requirements = {}
-        python_bin = MINIMAL_PYTHON_VERSION
+        python_bin = min_python_bin
 
         for cur_ver, new_reqs in SPHINX_REQUIREMENTS.items():
             cur_requirements.update(new_reqs)
