@@ -1,4 +1,5 @@
 # coding=utf-8
+# SPDX-License-Identifier: MIT
 #
 # Copyright © 2016 Intel Corporation
 #

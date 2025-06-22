@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 alabaster >=0.7,<0.8
 docutils>=0.15,<0.18
 jinja2>=2.3,<3.1
