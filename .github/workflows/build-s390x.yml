@@ -6,7 +6,7 @@ on:
     
 jobs:
   build-kernel:
-    runs-on: linux-s390x
+    runs-on: [ linux-s390x ]
     steps:
     - name: configure
       run: |
