@@ -114,6 +114,13 @@ static inline struct aa_label *aa_get_current_label(void)
 	return aa_get_label(l);
 }
 
+/**
+ * __end_current_label_crit_section - end crit section begun with __begin_...
+ * @label: label obtained from __begin_current_label_crit_section
+ * @needput: output: bool set by __begin_current_label_crit_section
+ *
+ * Returns: label to use for this crit section
+ */
 static inline void __end_current_label_crit_section(struct aa_label *label,
 						    bool needput)
 {
@@ -137,6 +144,7 @@ static inline void end_current_label_crit_section(struct aa_label *label)
 
 /**
  * __begin_current_label_crit_section - current's confining label
+ * @needput: store whether the label needs to be put when ending crit section
  *
  * Returns: up to date confining label or the ns unconfined label (NOT NULL)
  *
