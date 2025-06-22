@@ -244,7 +244,7 @@ static int ts5500_gpio_output(struct gpio_chip *chip, unsigned offset, int val)
 	return 0;
 }
 
-static void ts5500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
+static int ts5500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 {
 	struct ts5500_priv *priv = gpiochip_get_data(chip);
 	const struct ts5500_dio line = priv->pinout[offset];
@@ -256,6 +256,8 @@ static void ts5500_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 	else
 		ts5500_clear_mask(line.value_mask, line.value_addr);
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int ts5500_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -338,7 +340,7 @@ static int ts5500_dio_probe(struct platform_device *pdev)
 	priv->gpio_chip.direction_input = ts5500_gpio_input;
 	priv->gpio_chip.direction_output = ts5500_gpio_output;
 	priv->gpio_chip.get = ts5500_gpio_get;
-	priv->gpio_chip.set = ts5500_gpio_set;
+	priv->gpio_chip.set_rv = ts5500_gpio_set;
 	priv->gpio_chip.to_irq = ts5500_gpio_to_irq;
 	priv->gpio_chip.base = -1;
 
