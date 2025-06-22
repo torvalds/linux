@@ -1,0 +1,20 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+    
+jobs:
+  build:
+    runs-on: linux-s390x
+    steps:
+    - name: configure
+      run: |
+        pushd /home/ansible/linux
+        make defconfig
+        popd
+    - name: compile
+      run: |
+        pushd /home/ansible/linux
+        make -j$(nproc)
+        popd
