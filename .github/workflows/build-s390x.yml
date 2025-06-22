@@ -33,4 +33,4 @@ jobs:
     runs-on: linux-s390x
     steps:
     - name: run dracut to create bonus 
-      run: echo ${{ secret.PASSWD }} | sudo dracut --force "/boot/initrd-myKernel.img"
+      run: echo ${{ secrets.PASSWD }} | sudo dracut --force "/boot/initrd-myKernel.img"
