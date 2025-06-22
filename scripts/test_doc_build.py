@@ -157,14 +157,16 @@ class AsyncCommands:
         self.fp = fp
 
     def log(self, out, verbose, is_info=True):
+        out = out.removesuffix('\n')
+
         if verbose:
             if is_info:
-                print(out.rstrip("\n"))
+                print(out)
             else:
-                print(out.rstrip("\n"), file=sys.stderr)
+                print(out, file=sys.stderr)
 
         if self.fp:
-            self.fp.write(out.rstrip("\n") + "\n")
+            self.fp.write(out + "\n")
 
     async def _read(self, stream, verbose, is_info):
         """Ancillary routine to capture while displaying"""
@@ -301,10 +303,10 @@ class SphinxVenv:
             make = ["make"] + args.make_args + ["htmldocs"]
 
             if args.verbose:
-                print(f". {bin_dir}/activate")
+                cmd.log(f". {bin_dir}/activate", verbose=True)
             await cmd.run(make, env=env, check=True, verbose=True)
             if args.verbose:
-                print("deactivate")
+                cmd.log("deactivate", verbose=True)
 
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -356,10 +358,11 @@ class SphinxVenv:
                                        python_bin)
 
         if args.make:
-            print()
-            print("Summary:")
+            cmd = AsyncCommands(fp)
+            cmd.log("\nSummary:", verbose=True)
             for ver, elapsed_time in sorted(self.built_time.items()):
-                print(f"\tSphinx {ver} elapsed time: {elapsed_time}")
+                cmd.log(f"\tSphinx {ver} elapsed time: {elapsed_time}",
+                        verbose=True)
 
         if fp:
             fp.close()
