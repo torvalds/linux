@@ -68,7 +68,6 @@
 &gmac1 {
 	status = "okay";
 	phy-mode = "rgmii";
-	phy-addr = <0xffffffff>;
 };
 
 &gmac2 {
