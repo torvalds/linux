@@ -17,6 +17,66 @@ import os
 import sphinx
 import shutil
 
+# Get Sphinx version
+major, minor, patch = sphinx.version_info[:3]
+
+# Include_patterns were added on Sphinx 5.1
+if (major < 5) or (major == 5 and minor < 1):
+    has_include_patterns = False
+else:
+    has_include_patterns = True
+    # Include patterns that don't contain directory names, in glob format
+    include_patterns = ['**.rst']
+
+# Location of Documentation/ directory
+doctree = os.path.abspath('.')
+
+# Exclude of patterns that don't contain directory names, in glob format.
+exclude_patterns = []
+
+# List of patterns that contain directory names in glob format.
+dyn_include_patterns = []
+dyn_exclude_patterns = ['output']
+
+# Properly handle include/exclude patterns
+# ----------------------------------------
+
+def update_patterns(app, config):
+
+    """
+    On Sphinx, all directories are relative to what it is passed as
+    SOURCEDIR parameter for sphinx-build. Due to that, all patterns
+    that have directory names on it need to be dynamically set, after
+    converting them to a relative patch.
+
+    As Sphinx doesn't include any patterns outside SOURCEDIR, we should
+    exclude relative patterns that start with "../".
+    """
+
+    sourcedir = app.srcdir  # full path to the source directory
+    builddir = os.environ.get("BUILDDIR")
+
+    # setup include_patterns dynamically
+    if has_include_patterns:
+        for p in dyn_include_patterns:
+            full = os.path.join(doctree, p)
+
+            rel_path = os.path.relpath(full, start = app.srcdir)
+            if rel_path.startswith("../"):
+                continue
+
+            config.include_patterns.append(rel_path)
+
+    # setup exclude_patterns dynamically
+    for p in dyn_exclude_patterns:
+        full = os.path.join(doctree, p)
+
+        rel_path = os.path.relpath(full, start = app.srcdir)
+        if rel_path.startswith("../"):
+            continue
+
+        config.exclude_patterns.append(rel_path)
+
 # helper
 # ------
 
@@ -218,10 +278,6 @@ language = 'en'
 #today = ''
 # Else, today_fmt is used as the format for a strftime call.
 #today_fmt = '%B %d, %Y'
-
-# List of patterns, relative to source directory, that match files and
-# directories to ignore when looking for source files.
-exclude_patterns = ['output']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -516,3 +572,6 @@ kerneldoc_srctree = '..'
 # the last statement in the conf.py file
 # ------------------------------------------------------------------------------
 loadConfig(globals())
+
+def setup(app):
+    app.connect('config-inited', update_patterns)
