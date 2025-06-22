@@ -1977,6 +1977,10 @@ static void rust_uaf(struct kunit *test)
 	KUNIT_EXPECT_KASAN_FAIL(test, kasan_test_rust_uaf());
 }
 
+/*
+ * copy_to_kernel_nofault() is an internal helper available when
+ * kasan_test is built-in, so it must not be visible to loadable modules.
+ */
 #ifndef MODULE
 static void copy_to_kernel_nofault_oob(struct kunit *test)
 {
