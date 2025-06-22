@@ -26,7 +26,7 @@ jobs:
     - name: move modules
       run: |
         pushd /home/ansible/linux
-        echo ${{ secrets.PASSWD }} | sudo make modules_install
+        echo ${{ secrets.PASSWD }} | sudo -S make modules_install
         popd
   
   build-initrd:
@@ -34,4 +34,4 @@ jobs:
     runs-on: linux-s390x
     steps:
     - name: run dracut to create bonus 
-      run: echo ${{ secrets.PASSWD }} | sudo dracut --force "/boot/initrd-myKernel.img"
+      run: echo ${{ secrets.PASSWD }} | sudo -S dracut --force "/boot/initrd-myKernel.img"
