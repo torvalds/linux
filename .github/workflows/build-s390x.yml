@@ -5,7 +5,7 @@ on:
     branches: [ "master" ]
     
 jobs:
-  build:
+  build-kernel:
     runs-on: linux-s390x
     steps:
     - name: configure
@@ -18,3 +18,18 @@ jobs:
         pushd /home/ansible/linux
         make -j$(nproc)
         popd
+    - name: compile modules
+      run: |
+        pushd /home/ansible/linux
+        make -j$(nproc) modules
+        popd
+    - name: move modules
+      run: |
+        pushd /home/ansible/linux
+        make modules_install
+  
+  build-initrd:
+    runs-on: linux-s390x
+    steps:
+    - name: run dracut to create bonus 
+      run: echo ${{ secret.PASSWD }} | sudo dracut --force "initrd-myKernel.img"
