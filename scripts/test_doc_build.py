@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright(c) 2025: Mauro Carvalho Chehab <mchehab+huawei@kernel.org>
 #
-# pylint: disable=R0903,R0913,R0914,R0917
+# pylint: disable=R0903,R0912,R0913,R0914,R0917,C0301
 
 """
 Install minimal supported requirements for different Sphinx versions
@@ -104,9 +104,22 @@ SPHINX_REQUIREMENTS = {
 class AsyncCommands:
     """Excecute command synchronously"""
 
-    stdout = None
-    stderr = None
-    output = None
+    def __init__(self, fp=None):
+
+        self.stdout = None
+        self.stderr = None
+        self.output = None
+        self.fp = fp
+
+    def log(self, out, verbose, is_info=True):
+        if verbose:
+            if is_info:
+                print(out.rstrip("\n"))
+            else:
+                print(out.rstrip("\n"), file=sys.stderr)
+
+        if self.fp:
+            self.fp.write(out.rstrip("\n") + "\n")
 
     async def _read(self, stream, verbose, is_info):
         """Ancillary routine to capture while displaying"""
@@ -115,16 +128,10 @@ class AsyncCommands:
             line = await stream.readline()
             if line:
                 out = line.decode("utf-8", errors="backslashreplace")
-                self.output += out
+                self.log(out, verbose, is_info)
                 if is_info:
-                    if verbose:
-                        print(out.rstrip("\n"))
-
                     self.stdout += out
                 else:
-                    if verbose:
-                        print(out.rstrip("\n"), file=sys.stderr)
-
                     self.stderr += out
             else:
                 break
@@ -140,10 +147,8 @@ class AsyncCommands:
 
         self.stdout = ""
         self.stderr = ""
-        self.output = ""
 
-        if verbose:
-            print("$ ", " ".join(cmd))
+        self.log("$ " + " ".join(cmd), verbose)
 
         proc = await asyncio.create_subprocess_exec(cmd[0],
                                                     *cmd[1:],
@@ -167,7 +172,7 @@ class AsyncCommands:
 
         if capture_output:
             if proc.returncode > 0:
-                print("Error {proc.returncode}", file=sys.stderr)
+                self.log(f"Error {proc.returncode}", verbose=True, is_info=False)
                 return ""
 
             return self.output
@@ -192,10 +197,11 @@ class SphinxVenv:
         self.built_time = {}
         self.first_run = True
 
-    async def _handle_version(self, args, cur_ver, cur_requirements, python_bin):
+    async def _handle_version(self, args, fp,
+                              cur_ver, cur_requirements, python_bin):
         """Handle a single Sphinx version"""
 
-        cmd = AsyncCommands()
+        cmd = AsyncCommands(fp)
 
         ver = ".".join(map(str, cur_ver))
 
@@ -210,10 +216,11 @@ class SphinxVenv:
         venv_dir = f"Sphinx_{ver}"
         req_file = f"requirements_{ver}.txt"
 
-        print(f"\nSphinx {ver} with {python_bin}")
+        cmd.log(f"\nSphinx {ver} with {python_bin}", verbose=True)
 
         # Create venv
-        await cmd.run([python_bin, "-m", "venv", venv_dir], check=True)
+        await cmd.run([python_bin, "-m", "venv", venv_dir],
+                      verbose=args.verbose, check=True)
         pip = os.path.join(venv_dir, "bin/pip")
 
         # Create install list
@@ -223,7 +230,7 @@ class SphinxVenv:
 
         reqs.append(f"Sphinx=={ver}")
 
-        await cmd.run([pip, "install"] + reqs, check=True, verbose=True)
+        await cmd.run([pip, "install"] + reqs, check=True, verbose=args.verbose)
 
         # Freeze environment
         result = await cmd.run([pip, "freeze"], verbose=False, check=True)
@@ -248,10 +255,11 @@ class SphinxVenv:
             await cmd.run(["make", "cleandocs"], env=env, check=True)
             make = ["make"] + args.make_args + ["htmldocs"]
 
-            print(f". {bin_dir}/activate")
-            print(" ".join(make))
-            print("deactivate")
-            await cmd.run(make, env=env, check=True)
+            if args.verbose:
+                print(f". {bin_dir}/activate")
+            await cmd.run(make, env=env, check=True, verbose=True)
+            if args.verbose:
+                print("deactivate")
 
             end_time = time.time()
             elapsed_time = end_time - start_time
@@ -264,13 +272,22 @@ class SphinxVenv:
 
             self.built_time[ver] = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-            print(f"Finished doc build for Sphinx {ver}. Elapsed time: {self.built_time[ver]}")
+            cmd.log(f"Finished doc build for Sphinx {ver}. Elapsed time: {self.built_time[ver]}", verbose=True)
 
     async def run(self, args):
         """
         Navigate though multiple Sphinx versions, handling each of them
         on a loop.
         """
+
+        if args.log:
+            fp = open(args.log, "w", encoding="utf-8")
+            if not args.verbose:
+                args.verbose = False
+        else:
+            fp = None
+            if not args.verbose:
+                args.verbose = True
 
         cur_requirements = {}
         python_bin = MINIMAL_PYTHON_VERSION
@@ -290,7 +307,7 @@ class SphinxVenv:
                 if cur_ver > args.max_version:
                     break
 
-            await self._handle_version(args, cur_ver, cur_requirements,
+            await self._handle_version(args, fp, cur_ver, cur_requirements,
                                        python_bin)
 
         if args.make:
@@ -299,6 +316,8 @@ class SphinxVenv:
             for ver, elapsed_time in sorted(self.built_time.items()):
                 print(f"\tSphinx {ver} elapsed time: {elapsed_time}")
 
+        if fp:
+            fp.close()
 
 def parse_version(ver_str):
     """Convert a version string into a tuple."""
@@ -311,7 +330,7 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Build docs for different sphinx_versions.")
 
-    parser.add_argument('-v', '--version', help='Sphinx single version',
+    parser.add_argument('-V', '--version', help='Sphinx single version',
                         type=parse_version)
     parser.add_argument('--min-version', "--min", help='Sphinx minimal version',
                         type=parse_version)
@@ -328,6 +347,11 @@ async def main():
     parser.add_argument('-i', '--wait-input',
                         help='Wait for an enter before going to the next version',
                         action='store_true')
+    parser.add_argument('-v', '--verbose',
+                        help='Verbose all commands',
+                        action='store_true')
+    parser.add_argument('-l', '--log',
+                        help='Log command output on a file')
 
     args = parser.parse_args()
 
