@@ -26,7 +26,8 @@ jobs:
     - name: move modules
       run: |
         pushd /home/ansible/linux
-        make modules_install
+        echo ${{ secrets.PASSWD }} | sudo make modules_install
+        popd
   
   build-initrd:
     needs: build-kernel
