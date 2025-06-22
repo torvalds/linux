@@ -900,7 +900,9 @@ union dmub_shared_state_ips_driver_signals {
 		uint32_t allow_ips0_rcg : 1; /**< 1 is IPS0 RCG is allowed */
 		uint32_t allow_ips1_rcg : 1; /**< 1 is IPS1 RCG is allowed */
 		uint32_t allow_ips1z8 : 1; /**< 1 is IPS1 Z8 Retention is allowed */
-		uint32_t reserved_bits : 24; /**< Reversed bits */
+		uint32_t allow_dynamic_ips1 : 1; /**< 1 if IPS1 is allowed in dynamic use cases such as VPB */
+		uint32_t allow_dynamic_ips1_z8: 1; /**< 1 if IPS1 z8 ret is allowed in dynamic use cases such as VPB */
+		uint32_t reserved_bits : 22; /**< Reversed bits */
 	} bits;
 	uint32_t all;
 };
