@@ -697,7 +697,7 @@ static int cxl_set_ecs_threshold(struct device *dev, u8 *log_cap, u16 *config,
 				      ECS_THRESHOLD_IDX_4096);
 		break;
 	default:
-		dev_dbg(dev, "Invalid CXL ECS threshold count(%d) to set\n",
+		dev_dbg(dev, "Invalid CXL ECS threshold count(%u) to set\n",
 			val);
 		dev_dbg(dev, "Supported ECS threshold counts: %u, %u, %u\n",
 			ECS_THRESHOLD_256, ECS_THRESHOLD_1024,
