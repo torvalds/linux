@@ -23,8 +23,7 @@ else
 Q=@
 endif
 
-nolibc_arch := $(patsubst arm64,aarch64,$(ARCH))
-arch_file := arch-$(nolibc_arch).h
+arch_file := arch-$(ARCH).h
 all_files := \
 		compiler.h \
 		crt.h \

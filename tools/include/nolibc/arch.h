@@ -20,7 +20,7 @@
 #elif defined(__ARM_EABI__)
 #include "arch-arm.h"
 #elif defined(__aarch64__)
-#include "arch-aarch64.h"
+#include "arch-arm64.h"
 #elif defined(__mips__)
 #include "arch-mips.h"
 #elif defined(__powerpc__)
