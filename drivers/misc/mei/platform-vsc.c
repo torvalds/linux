@@ -256,6 +256,9 @@ static int mei_vsc_hw_reset(struct mei_device *mei_dev, bool intr_enable)
 
 	vsc_tp_reset(hw->tp);
 
+	if (!intr_enable)
+		return 0;
+
 	return vsc_tp_init(hw->tp, mei_dev->dev);
 }
 
