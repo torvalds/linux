@@ -2781,8 +2781,10 @@ static int smu_v13_0_7_update_pcie_parameters(struct smu_context *smu,
 		for (i = 0; i < num_of_levels; i++) {
 			if (pcie_table->pcie_gen[i] > pcie_gen_cap ||
 				pcie_table->pcie_lane[i] > pcie_width_cap) {
-				pcie_table->pcie_gen[i] = pcie_gen_cap;
-				pcie_table->pcie_lane[i] = pcie_width_cap;
+				pcie_table->pcie_gen[i] = pcie_table->pcie_gen[i] > pcie_gen_cap ?
+										  pcie_gen_cap : pcie_table->pcie_gen[i];
+				pcie_table->pcie_lane[i] = pcie_table->pcie_lane[i] > pcie_width_cap ?
+										   pcie_width_cap : pcie_table->pcie_lane[i];
 				smu_pcie_arg = i << 16;
 				smu_pcie_arg |= pcie_table->pcie_gen[i] << 8;
 				smu_pcie_arg |= pcie_table->pcie_lane[i];
