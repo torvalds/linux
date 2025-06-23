@@ -207,17 +207,25 @@ struct ttm_lru_walk_ops {
 };
 
 /**
- * struct ttm_lru_walk - Structure describing a LRU walk.
+ * struct ttm_lru_walk_arg - Common part for the variants of BO LRU walk.
  */
-struct ttm_lru_walk {
-	/** @ops: Pointer to the ops structure. */
-	const struct ttm_lru_walk_ops *ops;
+struct ttm_lru_walk_arg {
 	/** @ctx: Pointer to the struct ttm_operation_ctx. */
 	struct ttm_operation_ctx *ctx;
 	/** @ticket: The struct ww_acquire_ctx if any. */
 	struct ww_acquire_ctx *ticket;
 	/** @trylock_only: Only use trylock for locking. */
 	bool trylock_only;
+};
+
+/**
+ * struct ttm_lru_walk - Structure describing a LRU walk.
+ */
+struct ttm_lru_walk {
+	/** @ops: Pointer to the ops structure. */
+	const struct ttm_lru_walk_ops *ops;
+	/** @arg: Common bo LRU walk arguments. */
+	struct ttm_lru_walk_arg arg;
 };
 
 s64 ttm_lru_walk_for_evict(struct ttm_lru_walk *walk, struct ttm_device *bdev,
@@ -467,11 +475,6 @@ struct ttm_bo_lru_cursor {
 	/** @res_curs: Embedded struct ttm_resource_cursor. */
 	struct ttm_resource_cursor res_curs;
 	/**
-	 * @ctx: The struct ttm_operation_ctx used while looping.
-	 * governs the locking mode.
-	 */
-	struct ttm_operation_ctx *ctx;
-	/**
 	 * @bo: Buffer object pointer if a buffer object is refcounted,
 	 * NULL otherwise.
 	 */
@@ -481,6 +484,8 @@ struct ttm_bo_lru_cursor {
 	 * unlock before the next iteration or after loop exit.
 	 */
 	bool needs_unlock;
+	/** @arg: Common BO LRU walk arguments. */
+	struct ttm_lru_walk_arg arg;
 };
 
 void ttm_bo_lru_cursor_fini(struct ttm_bo_lru_cursor *curs);

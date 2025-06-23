@@ -773,10 +773,12 @@ error_destroy_tt:
 	return ret;
 }
 
-static bool ttm_lru_walk_trylock(struct ttm_operation_ctx *ctx,
+static bool ttm_lru_walk_trylock(struct ttm_lru_walk_arg *arg,
 				 struct ttm_buffer_object *bo,
 				 bool *needs_unlock)
 {
+	struct ttm_operation_ctx *ctx = arg->ctx;
+
 	*needs_unlock = false;
 
 	if (dma_resv_trylock(bo->base.resv)) {
@@ -792,17 +794,17 @@ static bool ttm_lru_walk_trylock(struct ttm_operation_ctx *ctx,
 	return false;
 }
 
-static int ttm_lru_walk_ticketlock(struct ttm_lru_walk *walk,
+static int ttm_lru_walk_ticketlock(struct ttm_lru_walk_arg *arg,
 				   struct ttm_buffer_object *bo,
 				   bool *needs_unlock)
 {
 	struct dma_resv *resv = bo->base.resv;
 	int ret;
 
-	if (walk->ctx->interruptible)
-		ret = dma_resv_lock_interruptible(resv, walk->ticket);
+	if (arg->ctx->interruptible)
+		ret = dma_resv_lock_interruptible(resv, arg->ticket);
 	else
-		ret = dma_resv_lock(resv, walk->ticket);
+		ret = dma_resv_lock(resv, arg->ticket);
 
 	if (!ret) {
 		*needs_unlock = true;
@@ -812,7 +814,7 @@ static int ttm_lru_walk_ticketlock(struct ttm_lru_walk *walk,
 		 * after waiting for the ticketlock, revert back to
 		 * trylocking for this walk.
 		 */
-		walk->ticket = NULL;
+		arg->ticket = NULL;
 	} else if (ret == -EDEADLK) {
 		/* Caller needs to exit the ww transaction. */
 		ret = -ENOSPC;
@@ -879,10 +881,10 @@ s64 ttm_lru_walk_for_evict(struct ttm_lru_walk *walk, struct ttm_device *bdev,
 		 * since if we do it the other way around, and the trylock fails,
 		 * we need to drop the lru lock to put the bo.
 		 */
-		if (ttm_lru_walk_trylock(walk->ctx, bo, &bo_needs_unlock))
+		if (ttm_lru_walk_trylock(&walk->arg, bo, &bo_needs_unlock))
 			bo_locked = true;
-		else if (!walk->ticket || walk->ctx->no_wait_gpu ||
-			 walk->trylock_only)
+		else if (!walk->arg.ticket || walk->arg.ctx->no_wait_gpu ||
+			 walk->arg.trylock_only)
 			continue;
 
 		if (!ttm_bo_get_unless_zero(bo)) {
@@ -895,7 +897,7 @@ s64 ttm_lru_walk_for_evict(struct ttm_lru_walk *walk, struct ttm_device *bdev,
 
 		lret = 0;
 		if (!bo_locked)
-			lret = ttm_lru_walk_ticketlock(walk, bo, &bo_needs_unlock);
+			lret = ttm_lru_walk_ticketlock(&walk->arg, bo, &bo_needs_unlock);
 
 		/*
 		 * Note that in between the release of the lru lock and the
@@ -972,7 +974,7 @@ ttm_bo_lru_cursor_init(struct ttm_bo_lru_cursor *curs,
 {
 	memset(curs, 0, sizeof(*curs));
 	ttm_resource_cursor_init(&curs->res_curs, man);
-	curs->ctx = ctx;
+	curs->arg.ctx = ctx;
 
 	return curs;
 }
@@ -983,7 +985,7 @@ ttm_bo_from_res_reserved(struct ttm_resource *res, struct ttm_bo_lru_cursor *cur
 {
 	struct ttm_buffer_object *bo = res->bo;
 
-	if (!ttm_lru_walk_trylock(curs->ctx, bo, &curs->needs_unlock))
+	if (!ttm_lru_walk_trylock(&curs->arg, bo, &curs->needs_unlock))
 		return NULL;
 
 	if (!ttm_bo_get_unless_zero(bo)) {
