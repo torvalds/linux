@@ -79,6 +79,7 @@ enum sensor_idx {
 	accel_idx = 0,
 	gyro_idx = 1,
 	mag_idx = 2,
+	op_idx = 15,
 	als_idx = 19
 };
 
