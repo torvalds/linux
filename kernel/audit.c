@@ -151,6 +151,8 @@ static struct sk_buff_head audit_retry_queue;
 /* queue msgs waiting for new auditd connection */
 static struct sk_buff_head audit_hold_queue;
 
+/* Prasana Test commit*/
+
 /* queue servicing thread */
 static struct task_struct *kauditd_task;
 static DECLARE_WAIT_QUEUE_HEAD(kauditd_wait);
