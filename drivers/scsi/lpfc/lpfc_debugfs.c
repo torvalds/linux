@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2007-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -6227,8 +6227,9 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					i++;
 				}
 				lpfc_debugfs_max_slow_ring_trc = (1 << i);
-				pr_err("lpfc_debugfs_max_disc_trc changed to "
-				       "%d\n", lpfc_debugfs_max_disc_trc);
+				pr_info("lpfc_debugfs_max_slow_ring_trc "
+					"changed to %d\n",
+					lpfc_debugfs_max_slow_ring_trc);
 			}
 		}
 
@@ -6260,7 +6261,7 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		atomic_set(&phba->nvmeio_trc_cnt, 0);
 		if (lpfc_debugfs_max_nvmeio_trc) {
 			num = lpfc_debugfs_max_nvmeio_trc - 1;
-			if (num & lpfc_debugfs_max_disc_trc) {
+			if (num & lpfc_debugfs_max_nvmeio_trc) {
 				/* Change to be a power of 2 */
 				num = lpfc_debugfs_max_nvmeio_trc;
 				i = 0;
@@ -6269,10 +6270,9 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 					i++;
 				}
 				lpfc_debugfs_max_nvmeio_trc = (1 << i);
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"0575 lpfc_debugfs_max_nvmeio_trc "
-						"changed to %d\n",
-						lpfc_debugfs_max_nvmeio_trc);
+				pr_info("lpfc_debugfs_max_nvmeio_trc changed "
+					"to %d\n",
+					lpfc_debugfs_max_nvmeio_trc);
 			}
 			phba->nvmeio_trc_size = lpfc_debugfs_max_nvmeio_trc;
 
@@ -6317,8 +6317,8 @@ nvmeio_off:
 				i++;
 			}
 			lpfc_debugfs_max_disc_trc = (1 << i);
-			pr_err("lpfc_debugfs_max_disc_trc changed to %d\n",
-			       lpfc_debugfs_max_disc_trc);
+			pr_info("lpfc_debugfs_max_disc_trc changed to %d\n",
+				lpfc_debugfs_max_disc_trc);
 		}
 	}
 
