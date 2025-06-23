@@ -2566,7 +2566,7 @@ ufshcd_wait_for_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
  * @hba: per adapter instance
  * @uic_cmd: UIC command
  *
- * Return: 0 only if success.
+ * Return: 0 if successful; < 0 upon failure.
  */
 static int
 __ufshcd_send_uic_cmd(struct ufs_hba *hba, struct uic_command *uic_cmd)
@@ -3072,6 +3072,9 @@ static void ufshcd_setup_dev_cmd(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 	hba->dev_cmd.type = cmd_type;
 }
 
+/*
+ * Return: 0 upon success; < 0 upon failure.
+ */
 static int ufshcd_compose_dev_cmd(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp, enum dev_cmd_type cmd_type, int tag)
 {
@@ -3184,9 +3187,13 @@ ufshcd_dev_cmd_completion(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		break;
 	}
 
+	WARN_ONCE(err > 0, "Incorrect return value %d > 0\n", err);
 	return err;
 }
 
+/*
+ * Return: 0 upon success; < 0 upon failure.
+ */
 static int ufshcd_wait_for_dev_cmd(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp, int max_timeout)
 {
@@ -3261,6 +3268,7 @@ retry:
 		}
 	}
 
+	WARN_ONCE(err > 0, "Incorrect return value %d > 0\n", err);
 	return err;
 }
 
@@ -3278,6 +3286,9 @@ static void ufshcd_dev_man_unlock(struct ufs_hba *hba)
 	ufshcd_release(hba);
 }
 
+/*
+ * Return: 0 upon success; < 0 upon failure.
+ */
 static int ufshcd_issue_dev_cmd(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 			  const u32 tag, int timeout)
 {
@@ -3365,6 +3376,7 @@ static int ufshcd_query_flag_retry(struct ufs_hba *hba,
 		dev_err(hba->dev,
 			"%s: query flag, opcode %d, idn %d, failed with error %d after %d retries\n",
 			__func__, opcode, idn, ret, retries);
+	WARN_ONCE(ret > 0, "Incorrect return value %d > 0\n", ret);
 	return ret;
 }
 
@@ -3376,7 +3388,7 @@ static int ufshcd_query_flag_retry(struct ufs_hba *hba,
  * @index: flag index to access
  * @flag_res: the flag value after the query request completes
  *
- * Return: 0 for success, non-zero in case of failure.
+ * Return: 0 for success; < 0 upon failure.
  */
 int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 			enum flag_idn idn, u8 index, bool *flag_res)
@@ -3432,6 +3444,7 @@ int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 
 out_unlock:
 	ufshcd_dev_man_unlock(hba);
+	WARN_ONCE(err > 0, "Incorrect return value %d > 0\n", err);
 	return err;
 }
 
@@ -3444,7 +3457,7 @@ out_unlock:
  * @selector: selector field
  * @attr_val: the attribute value after the query request completes
  *
- * Return: 0 for success, non-zero in case of failure.
+ * Return: 0 upon success; < 0 upon failure.
 */
 int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 		      enum attr_idn idn, u8 index, u8 selector, u32 *attr_val)
@@ -3493,6 +3506,7 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 
 out_unlock:
 	ufshcd_dev_man_unlock(hba);
+	WARN_ONCE(err > 0, "Incorrect return value %d > 0\n", err);
 	return err;
 }
 
@@ -3507,7 +3521,7 @@ out_unlock:
  * @attr_val: the attribute value after the query request
  * completes
  *
- * Return: 0 for success, non-zero in case of failure.
+ * Return: 0 for success; < 0 upon failure.
 */
 int ufshcd_query_attr_retry(struct ufs_hba *hba,
 	enum query_opcode opcode, enum attr_idn idn, u8 index, u8 selector,
@@ -3530,9 +3544,13 @@ int ufshcd_query_attr_retry(struct ufs_hba *hba,
 		dev_err(hba->dev,
 			"%s: query attribute, idn %d, failed with error %d after %d retries\n",
 			__func__, idn, ret, QUERY_REQ_RETRIES);
+	WARN_ONCE(ret > 0, "Incorrect return value %d > 0\n", ret);
 	return ret;
 }
 
+/*
+ * Return: 0 if successful; < 0 upon failure.
+ */
 static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 			enum query_opcode opcode, enum desc_idn idn, u8 index,
 			u8 selector, u8 *desc_buf, int *buf_len)
@@ -3590,6 +3608,7 @@ static int __ufshcd_query_descriptor(struct ufs_hba *hba,
 out_unlock:
 	hba->dev_cmd.query.descriptor = NULL;
 	ufshcd_dev_man_unlock(hba);
+	WARN_ONCE(err > 0, "Incorrect return value %d > 0\n", err);
 	return err;
 }
 
@@ -3606,7 +3625,7 @@ out_unlock:
  * The buf_len parameter will contain, on return, the length parameter
  * received on the response.
  *
- * Return: 0 for success, non-zero in case of failure.
+ * Return: 0 for success; < 0 upon failure.
  */
 int ufshcd_query_descriptor_retry(struct ufs_hba *hba,
 				  enum query_opcode opcode,
@@ -3624,6 +3643,7 @@ int ufshcd_query_descriptor_retry(struct ufs_hba *hba,
 			break;
 	}
 
+	WARN_ONCE(err > 0, "Incorrect return value %d > 0\n", err);
 	return err;
 }
 
@@ -3636,7 +3656,7 @@ int ufshcd_query_descriptor_retry(struct ufs_hba *hba,
  * @param_read_buf: pointer to buffer where parameter would be read
  * @param_size: sizeof(param_read_buf)
  *
- * Return: 0 in case of success, non-zero otherwise.
+ * Return: 0 in case of success; < 0 upon failure.
  */
 int ufshcd_read_desc_param(struct ufs_hba *hba,
 			   enum desc_idn desc_id,
@@ -3703,6 +3723,7 @@ int ufshcd_read_desc_param(struct ufs_hba *hba,
 out:
 	if (is_kmalloc)
 		kfree(desc_buf);
+	WARN_ONCE(ret > 0, "Incorrect return value %d > 0\n", ret);
 	return ret;
 }
 
@@ -3816,7 +3837,7 @@ out:
  * @param_read_buf: pointer to buffer where parameter would be read
  * @param_size: sizeof(param_read_buf)
  *
- * Return: 0 in case of success, non-zero otherwise.
+ * Return: 0 in case of success; < 0 upon failure.
  */
 static inline int ufshcd_read_unit_desc_param(struct ufs_hba *hba,
 					      int lun,
@@ -4794,7 +4815,7 @@ out:
  * 3. Program UTRL and UTMRL base address
  * 4. Configure run-stop-registers
  *
- * Return: 0 on success, non-zero value on failure.
+ * Return: 0 if successful; < 0 upon failure.
  */
 int ufshcd_make_hba_operational(struct ufs_hba *hba)
 {
