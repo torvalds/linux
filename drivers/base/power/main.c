@@ -1276,10 +1276,15 @@ static bool dpm_leaf_device(struct device *dev)
 		return false;
 	}
 
-	return true;
+	/*
+	 * Since this function is required to run under dpm_list_mtx, the
+	 * list_empty() below will only return true if the device's list of
+	 * consumers is actually empty before calling it.
+	 */
+	return list_empty(&dev->links.consumers);
 }
 
-static void dpm_async_suspend_parent(struct device *dev, async_func_t func)
+static bool dpm_async_suspend_parent(struct device *dev, async_func_t func)
 {
 	guard(mutex)(&dpm_list_mtx);
 
@@ -1291,11 +1296,31 @@ static void dpm_async_suspend_parent(struct device *dev, async_func_t func)
 	 * deleted before it.
 	 */
 	if (!device_pm_initialized(dev))
-		return;
+		return false;
 
 	/* Start processing the device's parent if it is "async". */
 	if (dev->parent)
 		dpm_async_with_cleanup(dev->parent, func);
+
+	return true;
+}
+
+static void dpm_async_suspend_superior(struct device *dev, async_func_t func)
+{
+	struct device_link *link;
+	int idx;
+
+	if (!dpm_async_suspend_parent(dev, func))
+		return;
+
+	idx = device_links_read_lock();
+
+	/* Start processing the device's "async" suppliers. */
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
+		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
+			dpm_async_with_cleanup(link->supplier, func);
+
+	device_links_read_unlock(idx);
 }
 
 /**
@@ -1419,7 +1444,7 @@ Complete:
 	if (error || async_error)
 		return error;
 
-	dpm_async_suspend_parent(dev, async_suspend_noirq);
+	dpm_async_suspend_superior(dev, async_suspend_noirq);
 
 	return 0;
 }
@@ -1615,7 +1640,7 @@ Complete:
 	if (error || async_error)
 		return error;
 
-	dpm_async_suspend_parent(dev, async_suspend_late);
+	dpm_async_suspend_superior(dev, async_suspend_late);
 
 	return 0;
 }
@@ -1906,7 +1931,7 @@ static int device_suspend(struct device *dev, pm_message_t state, bool async)
 	if (error || async_error)
 		return error;
 
-	dpm_async_suspend_parent(dev, async_suspend);
+	dpm_async_suspend_superior(dev, async_suspend);
 
 	return 0;
 }
