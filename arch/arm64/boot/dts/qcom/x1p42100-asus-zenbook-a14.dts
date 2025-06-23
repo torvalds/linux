@@ -80,8 +80,12 @@
 	};
 };
 
+&gpu {
+	status = "okay";
+};
+
 &gpu_zap_shader {
-	firmware-name = "qcom/x1e80100/ASUSTeK/zenbook-a14/qcdxkmsucpurwa.mbn";
+	firmware-name = "qcom/x1p42100/ASUSTeK/zenbook-a14/qcdxkmsucpurwa.mbn";
 };
 
 &pcie4_port0 {

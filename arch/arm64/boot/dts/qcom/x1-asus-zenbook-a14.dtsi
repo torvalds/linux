@@ -645,10 +645,6 @@
 	};
 };
 
-&gpu {
-	status = "okay";
-};
-
 &i2c0 {
 	clock-frequency = <400000>;
 
