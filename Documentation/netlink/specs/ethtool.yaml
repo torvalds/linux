@@ -2492,3 +2492,9 @@ operations:
         attributes:
           - header
           - events
+
+mcast-groups:
+  list:
+    -
+      name: monitor
+      c-define-name: ethtool-mcgrp-monitor-name
