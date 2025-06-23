@@ -166,6 +166,24 @@ static const struct dvfsrc_regulator_pdata mt8195_data = {
 	.size = ARRAY_SIZE(mt8195_regulators),
 };
 
+static const unsigned int mt8196_voltages[] = {
+	575000,
+	600000,
+	650000,
+	725000,
+	825000,
+	875000,
+};
+
+static const struct regulator_desc mt8196_regulators[] = {
+	MTK_DVFSRC_VREG("dvfsrc-vcore", VCORE, mt8196_voltages),
+};
+
+static const struct dvfsrc_regulator_pdata mt8196_data = {
+	.descs = mt8196_regulators,
+	.size = ARRAY_SIZE(mt8196_regulators),
+};
+
 static int dvfsrc_vcore_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_config config = { .dev = &pdev->dev };
@@ -195,6 +213,7 @@ static const struct of_device_id mtk_dvfsrc_regulator_match[] = {
 	{ .compatible = "mediatek,mt8183-dvfsrc-regulator", .data = &mt8183_data },
 	{ .compatible = "mediatek,mt8192-dvfsrc-regulator", .data = &mt6873_data },
 	{ .compatible = "mediatek,mt8195-dvfsrc-regulator", .data = &mt8195_data },
+	{ .compatible = "mediatek,mt8196-dvfsrc-regulator", .data = &mt8196_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mtk_dvfsrc_regulator_match);
