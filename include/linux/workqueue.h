@@ -847,19 +847,6 @@ long work_on_cpu_key(int cpu, long (*fn)(void *),
 	work_on_cpu_key(_cpu, _fn, _arg, &__key);	\
 })
 
-long work_on_cpu_safe_key(int cpu, long (*fn)(void *),
-			  void *arg, struct lock_class_key *key);
-
-/*
- * A new key is defined for each caller to make sure the work
- * associated with the function doesn't share its locking class.
- */
-#define work_on_cpu_safe(_cpu, _fn, _arg)		\
-({							\
-	static struct lock_class_key __key;		\
-							\
-	work_on_cpu_safe_key(_cpu, _fn, _arg, &__key);	\
-})
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_FREEZER
