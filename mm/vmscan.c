@@ -94,10 +94,8 @@ struct scan_control {
 	unsigned long	anon_cost;
 	unsigned long	file_cost;
 
-#ifdef CONFIG_MEMCG
 	/* Swappiness value for proactive reclaim. Always use sc_swappiness()! */
 	int *proactive_swappiness;
-#endif
 
 	/* Can active folios be deactivated as part of reclaim? */
 #define DEACTIVATE_ANON 1
@@ -121,7 +119,7 @@ struct scan_control {
 	/* Has cache_trim_mode failed at least once? */
 	unsigned int cache_trim_mode_failed:1;
 
-	/* Proactive reclaim invoked by userspace through memory.reclaim */
+	/* Proactive reclaim invoked by userspace */
 	unsigned int proactive:1;
 
 	/*
@@ -7732,15 +7730,17 @@ static const match_table_t tokens = {
 	{ MEMORY_RECLAIM_NULL, NULL },
 };
 
-int user_proactive_reclaim(char *buf, struct mem_cgroup *memcg, pg_data_t *pgdat)
+int user_proactive_reclaim(char *buf,
+			   struct mem_cgroup *memcg, pg_data_t *pgdat)
 {
 	unsigned int nr_retries = MAX_RECLAIM_RETRIES;
 	unsigned long nr_to_reclaim, nr_reclaimed = 0;
 	int swappiness = -1;
 	char *old_buf, *start;
 	substring_t args[MAX_OPT_ARGS];
+	gfp_t gfp_mask = GFP_KERNEL;
 
-	if (!buf || (!memcg && !pgdat))
+	if (!buf || (!memcg && !pgdat) || (memcg && pgdat))
 		return -EINVAL;
 
 	buf = strstrip(buf);
@@ -7792,11 +7792,29 @@ int user_proactive_reclaim(char *buf, struct mem_cgroup *memcg, pg_data_t *pgdat
 			reclaim_options = MEMCG_RECLAIM_MAY_SWAP |
 					  MEMCG_RECLAIM_PROACTIVE;
 			reclaimed = try_to_free_mem_cgroup_pages(memcg,
-						 batch_size, GFP_KERNEL,
+						 batch_size, gfp_mask,
 						 reclaim_options,
 						 swappiness == -1 ? NULL : &swappiness);
 		} else {
-			return -EINVAL;
+			struct scan_control sc = {
+				.gfp_mask = current_gfp_context(gfp_mask),
+				.reclaim_idx = gfp_zone(gfp_mask),
+				.proactive_swappiness = swappiness == -1 ? NULL : &swappiness,
+				.priority = DEF_PRIORITY,
+				.may_writepage = !laptop_mode,
+				.nr_to_reclaim = max(batch_size, SWAP_CLUSTER_MAX),
+				.may_unmap = 1,
+				.may_swap = 1,
+				.proactive = 1,
+			};
+
+			if (test_and_set_bit_lock(PGDAT_RECLAIM_LOCKED,
+						  &pgdat->flags))
+				return -EBUSY;
+
+			reclaimed = __node_reclaim(pgdat, gfp_mask,
+						   batch_size, &sc);
+			clear_bit_unlock(PGDAT_RECLAIM_LOCKED, &pgdat->flags);
 		}
 
 		if (!reclaimed && !nr_retries--)
@@ -7855,3 +7873,26 @@ void check_move_unevictable_folios(struct folio_batch *fbatch)
 	}
 }
 EXPORT_SYMBOL_GPL(check_move_unevictable_folios);
+
+#if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+static ssize_t reclaim_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	int ret, nid = dev->id;
+
+	ret = user_proactive_reclaim((char *)buf, NULL, NODE_DATA(nid));
+	return ret ? -EAGAIN : count;
+}
+
+static DEVICE_ATTR_WO(reclaim);
+int reclaim_register_node(struct node *node)
+{
+	return device_create_file(&node->dev, &dev_attr_reclaim);
+}
+
+void reclaim_unregister_node(struct node *node)
+{
+	return device_remove_file(&node->dev, &dev_attr_reclaim);
+}
+#endif
