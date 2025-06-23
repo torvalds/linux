@@ -176,6 +176,7 @@ perf-util-$(CONFIG_PERF_BPF_SKEL) += btf.o
 
 ifeq ($(CONFIG_TRACE),y)
   perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf-trace-summary.o
+  perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_trace_augment.o
 endif
 
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
