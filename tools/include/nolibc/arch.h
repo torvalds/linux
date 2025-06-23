@@ -35,6 +35,8 @@
 #include "arch-sparc.h"
 #elif defined(__m68k__)
 #include "arch-m68k.h"
+#elif defined(__sh__)
+#include "arch-sh.h"
 #else
 #error Unsupported Architecture
 #endif

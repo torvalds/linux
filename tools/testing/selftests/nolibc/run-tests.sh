@@ -27,6 +27,7 @@ all_archs=(
 	loongarch
 	sparc32 sparc64
 	m68k
+	sh4
 )
 archs="${all_archs[@]}"
 
@@ -187,7 +188,7 @@ test_arch() {
 		echo "Unsupported configuration"
 		return
 	fi
-	if [ "$arch" = "m68k" ] && [ "$llvm" = "1" ]; then
+	if [ "$arch" = "m68k" -o "$arch" = "sh4" ] && [ "$llvm" = "1" ]; then
 		echo "Unsupported configuration"
 		return
 	fi
