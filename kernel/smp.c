@@ -741,32 +741,19 @@ EXPORT_SYMBOL_GPL(smp_call_function_single_async);
  *
  * Selection preference:
  *	1) current cpu if in @mask
- *	2) any cpu of current node if in @mask
- *	3) any other online cpu in @mask
+ *	2) nearest cpu in @mask, based on NUMA topology
  */
 int smp_call_function_any(const struct cpumask *mask,
 			  smp_call_func_t func, void *info, int wait)
 {
 	unsigned int cpu;
-	const struct cpumask *nodemask;
 	int ret;
 
 	/* Try for same CPU (cheapest) */
 	cpu = get_cpu();
-	if (cpumask_test_cpu(cpu, mask))
-		goto call;
+	if (!cpumask_test_cpu(cpu, mask))
+		cpu = sched_numa_find_nth_cpu(mask, 0, cpu_to_node(cpu));
 
-	/* Try for same node. */
-	nodemask = cpumask_of_node(cpu_to_node(cpu));
-	for (cpu = cpumask_first_and(nodemask, mask); cpu < nr_cpu_ids;
-	     cpu = cpumask_next_and(cpu, nodemask, mask)) {
-		if (cpu_online(cpu))
-			goto call;
-	}
-
-	/* Any online will do: smp_call_function_single handles nr_cpu_ids. */
-	cpu = cpumask_any_and(mask, cpu_online_mask);
-call:
 	ret = smp_call_function_single(cpu, func, info, wait);
 	put_cpu();
 	return ret;
