@@ -186,6 +186,14 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBSAMAMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/drm/card0/gt/gt1/rps_act_freq_mhz or /sys/class/drm/card0/device/tile0/gtN/freq0/act_freq depending on the graphics driver being used.
 .PP
+\fBTotl%C0\fP Weighted percentage of time that CPUs are busy. If N CPUs are busy during an interval, the percentage is N * 100%.
+.PP
+\fBAny%C0\fP Percentage of time that at least one CPU is busy.
+.PP
+\fBGFX%C0\fP Percentage of time that at least one GFX compute engine is busy.
+.PP
+\fBCPUGFX%\fP Percentage of time that at least one CPU is busy at the same time as at least one Graphics compute enginer is busy.
+.PP
 \fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
 .PP
 \fBPkgWatt\fP Watts consumed by the whole package.
