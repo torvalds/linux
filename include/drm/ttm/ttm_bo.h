@@ -484,8 +484,8 @@ struct ttm_bo_lru_cursor {
 	 * unlock before the next iteration or after loop exit.
 	 */
 	bool needs_unlock;
-	/** @arg: Common BO LRU walk arguments. */
-	struct ttm_lru_walk_arg arg;
+	/** @arg: Pointer to common BO LRU walk arguments. */
+	struct ttm_lru_walk_arg *arg;
 };
 
 void ttm_bo_lru_cursor_fini(struct ttm_bo_lru_cursor *curs);
@@ -493,7 +493,7 @@ void ttm_bo_lru_cursor_fini(struct ttm_bo_lru_cursor *curs);
 struct ttm_bo_lru_cursor *
 ttm_bo_lru_cursor_init(struct ttm_bo_lru_cursor *curs,
 		       struct ttm_resource_manager *man,
-		       struct ttm_operation_ctx *ctx);
+		       struct ttm_lru_walk_arg *arg);
 
 struct ttm_buffer_object *ttm_bo_lru_cursor_first(struct ttm_bo_lru_cursor *curs);
 
@@ -504,9 +504,9 @@ struct ttm_buffer_object *ttm_bo_lru_cursor_next(struct ttm_bo_lru_cursor *curs)
  */
 DEFINE_CLASS(ttm_bo_lru_cursor, struct ttm_bo_lru_cursor *,
 	     if (_T) {ttm_bo_lru_cursor_fini(_T); },
-	     ttm_bo_lru_cursor_init(curs, man, ctx),
+	     ttm_bo_lru_cursor_init(curs, man, arg),
 	     struct ttm_bo_lru_cursor *curs, struct ttm_resource_manager *man,
-	     struct ttm_operation_ctx *ctx);
+	     struct ttm_lru_walk_arg *arg);
 static inline void *
 class_ttm_bo_lru_cursor_lock_ptr(class_ttm_bo_lru_cursor_t *_T)
 { return *_T; }
@@ -517,7 +517,7 @@ class_ttm_bo_lru_cursor_lock_ptr(class_ttm_bo_lru_cursor_t *_T)
  * resources on LRU lists.
  * @_cursor: struct ttm_bo_lru_cursor to use for the iteration.
  * @_man: The resource manager whose LRU lists to iterate over.
- * @_ctx: The struct ttm_operation_context to govern the @_bo locking.
+ * @_arg: The struct ttm_lru_walk_arg to govern the LRU walk.
  * @_bo: The struct ttm_buffer_object pointer pointing to the buffer object
  * for the current iteration.
  *
@@ -530,8 +530,8 @@ class_ttm_bo_lru_cursor_lock_ptr(class_ttm_bo_lru_cursor_t *_T)
  * example a return or break statement. Exiting the loop will also unlock
  * (if needed) and unreference @_bo.
  */
-#define ttm_bo_lru_for_each_reserved_guarded(_cursor, _man, _ctx, _bo)	\
-	scoped_guard(ttm_bo_lru_cursor, _cursor, _man, _ctx)		\
+#define ttm_bo_lru_for_each_reserved_guarded(_cursor, _man, _arg, _bo)	\
+	scoped_guard(ttm_bo_lru_cursor, _cursor, _man, _arg)		\
 		for ((_bo) = ttm_bo_lru_cursor_first(_cursor); (_bo);	\
 		     (_bo) = ttm_bo_lru_cursor_next(_cursor))
 

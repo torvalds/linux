@@ -958,11 +958,11 @@ EXPORT_SYMBOL(ttm_bo_lru_cursor_fini);
  * ttm_bo_lru_cursor_init() - Initialize a struct ttm_bo_lru_cursor
  * @curs: The ttm_bo_lru_cursor to initialize.
  * @man: The ttm resource_manager whose LRU lists to iterate over.
- * @ctx: The ttm_operation_ctx to govern the locking.
+ * @arg: The ttm_lru_walk_arg to govern the walk.
  *
  * Initialize a struct ttm_bo_lru_cursor. Currently only trylocking
  * or prelocked buffer objects are available as detailed by
- * @ctx::resv and @ctx::allow_res_evict. Ticketlocking is not
+ * @arg->ctx.resv and @arg->ctx.allow_res_evict. Ticketlocking is not
  * supported.
  *
  * Return: Pointer to @curs. The function does not fail.
@@ -970,11 +970,11 @@ EXPORT_SYMBOL(ttm_bo_lru_cursor_fini);
 struct ttm_bo_lru_cursor *
 ttm_bo_lru_cursor_init(struct ttm_bo_lru_cursor *curs,
 		       struct ttm_resource_manager *man,
-		       struct ttm_operation_ctx *ctx)
+		       struct ttm_lru_walk_arg *arg)
 {
 	memset(curs, 0, sizeof(*curs));
 	ttm_resource_cursor_init(&curs->res_curs, man);
-	curs->arg.ctx = ctx;
+	curs->arg = arg;
 
 	return curs;
 }
@@ -985,7 +985,7 @@ ttm_bo_from_res_reserved(struct ttm_resource *res, struct ttm_bo_lru_cursor *cur
 {
 	struct ttm_buffer_object *bo = res->bo;
 
-	if (!ttm_lru_walk_trylock(&curs->arg, bo, &curs->needs_unlock))
+	if (!ttm_lru_walk_trylock(curs->arg, bo, &curs->needs_unlock))
 		return NULL;
 
 	if (!ttm_bo_get_unless_zero(bo)) {
