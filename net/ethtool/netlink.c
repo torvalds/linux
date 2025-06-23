@@ -878,9 +878,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!req_info)
 		return -ENOMEM;
 
-	ret = ethnl_parse_header_dev_get(req_info, info->attrs[ops->hdr_attr],
-					 genl_info_net(info), info->extack,
-					 true);
+	ret = ethnl_default_parse(req_info, info,  ops, true);
 	if (ret < 0)
 		goto out_free_req;
 
