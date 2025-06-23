@@ -67,7 +67,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
         let pdev = unsafe { &*pdev.cast::<Device<device::Core>>() };
 
-        // SAFETY: `DeviceId` is a `#[repr(transparent)` wrapper of `struct pci_device_id` and
+        // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct pci_device_id` and
         // does not add additional invariants, so it's safe to transmute.
         let id = unsafe { &*id.cast::<DeviceId>() };
         let info = T::ID_TABLE.info(id.index());
@@ -161,7 +161,7 @@ impl DeviceId {
 }
 
 // SAFETY:
-// * `DeviceId` is a `#[repr(transparent)` wrapper of `pci_device_id` and does not add
+// * `DeviceId` is a `#[repr(transparent)]` wrapper of `pci_device_id` and does not add
 //   additional invariants, so it's safe to transmute to `RawType`.
 // * `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
 unsafe impl RawDeviceId for DeviceId {

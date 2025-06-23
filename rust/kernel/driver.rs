@@ -166,7 +166,7 @@ pub trait Adapter {
             if raw_id.is_null() {
                 None
             } else {
-                // SAFETY: `DeviceId` is a `#[repr(transparent)` wrapper of `struct acpi_device_id`
+                // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct acpi_device_id`
                 // and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<acpi::DeviceId>() };
 
@@ -200,7 +200,7 @@ pub trait Adapter {
             if raw_id.is_null() {
                 None
             } else {
-                // SAFETY: `DeviceId` is a `#[repr(transparent)` wrapper of `struct of_device_id`
+                // SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct of_device_id`
                 // and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
 

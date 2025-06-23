@@ -13,7 +13,7 @@ pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 pub struct DeviceId(bindings::of_device_id);
 
 // SAFETY:
-// * `DeviceId` is a `#[repr(transparent)` wrapper of `struct of_device_id` and does not add
+// * `DeviceId` is a `#[repr(transparent)]` wrapper of `struct of_device_id` and does not add
 //   additional invariants, so it's safe to transmute to `RawType`.
 // * `DRIVER_DATA_OFFSET` is the offset to the `data` field.
 unsafe impl RawDeviceId for DeviceId {
