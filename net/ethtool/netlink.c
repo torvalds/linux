@@ -863,8 +863,8 @@ static int ethnl_default_done(struct netlink_callback *cb)
 static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	const struct ethnl_request_ops *ops;
-	struct ethnl_req_info req_info = {};
 	const u8 cmd = info->genlhdr->cmd;
+	struct ethnl_req_info *req_info;
 	struct net_device *dev;
 	int ret;
 
@@ -874,20 +874,24 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	if (GENL_REQ_ATTR_CHECK(info, ops->hdr_attr))
 		return -EINVAL;
 
-	ret = ethnl_parse_header_dev_get(&req_info, info->attrs[ops->hdr_attr],
+	req_info = kzalloc(ops->req_info_size, GFP_KERNEL);
+	if (!req_info)
+		return -ENOMEM;
+
+	ret = ethnl_parse_header_dev_get(req_info, info->attrs[ops->hdr_attr],
 					 genl_info_net(info), info->extack,
 					 true);
 	if (ret < 0)
-		return ret;
+		goto out_free_req;
 
 	if (ops->set_validate) {
-		ret = ops->set_validate(&req_info, info);
+		ret = ops->set_validate(req_info, info);
 		/* 0 means nothing to do */
 		if (ret <= 0)
 			goto out_dev;
 	}
 
-	dev = req_info.dev;
+	dev = req_info->dev;
 
 	rtnl_lock();
 	netdev_lock_ops(dev);
@@ -902,7 +906,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret < 0)
 		goto out_free_cfg;
 
-	ret = ops->set(&req_info, info);
+	ret = ops->set(req_info, info);
 	if (ret < 0)
 		goto out_ops;
 
@@ -921,7 +925,9 @@ out_tie_cfg:
 	netdev_unlock_ops(dev);
 	rtnl_unlock();
 out_dev:
-	ethnl_parse_header_dev_put(&req_info);
+	ethnl_parse_header_dev_put(req_info);
+out_free_req:
+	kfree(req_info);
 	return ret;
 }
 
