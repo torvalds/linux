@@ -237,23 +237,6 @@ static const unsigned int gxbb_aoclk_reset[] = {
 	[RESET_AO_IR_BLASTER] = 23,
 };
 
-static struct clk_regmap *gxbb_aoclk[] = {
-	&remote_ao,
-	&i2c_master_ao,
-	&i2c_slave_ao,
-	&uart1_ao,
-	&uart2_ao,
-	&ir_blaster_ao,
-	&ao_cts_oscin,
-	&ao_32k_pre,
-	&ao_32k_div,
-	&ao_32k_sel,
-	&ao_32k,
-	&ao_cts_rtc_oscin,
-	&ao_clk81,
-	&ao_cts_cec,
-};
-
 static struct clk_hw *gxbb_aoclk_hw_clks[] = {
 		[CLKID_AO_REMOTE] = &remote_ao.hw,
 		[CLKID_AO_I2C_MASTER] = &i2c_master_ao.hw,
@@ -275,8 +258,6 @@ static const struct meson_aoclk_data gxbb_aoclkc_data = {
 	.reset_reg	= AO_RTI_GEN_CNTL_REG0,
 	.num_reset	= ARRAY_SIZE(gxbb_aoclk_reset),
 	.reset		= gxbb_aoclk_reset,
-	.num_clks	= ARRAY_SIZE(gxbb_aoclk),
-	.clks		= gxbb_aoclk,
 	.hw_clks	= {
 		.hws	= gxbb_aoclk_hw_clks,
 		.num	= ARRAY_SIZE(gxbb_aoclk_hw_clks),

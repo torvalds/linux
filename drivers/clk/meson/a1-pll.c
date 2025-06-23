@@ -295,16 +295,6 @@ static struct clk_hw *a1_pll_hw_clks[] = {
 	[CLKID_HIFI_PLL]	= &hifi_pll.hw,
 };
 
-static struct clk_regmap *const a1_pll_regmaps[] = {
-	&fixed_pll_dco,
-	&fixed_pll,
-	&fclk_div2,
-	&fclk_div3,
-	&fclk_div5,
-	&fclk_div7,
-	&hifi_pll,
-};
-
 static const struct regmap_config a1_pll_regmap_cfg = {
 	.reg_bits   = 32,
 	.val_bits   = 32,
@@ -322,7 +312,7 @@ static int meson_a1_pll_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
 	struct regmap *map;
-	int clkid, i, err;
+	int clkid, err;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -333,10 +323,6 @@ static int meson_a1_pll_probe(struct platform_device *pdev)
 	if (IS_ERR(map))
 		return dev_err_probe(dev, PTR_ERR(map),
 				     "can't init regmap mmio region\n");
-
-	/* Populate regmap for the regmap backed clocks */
-	for (i = 0; i < ARRAY_SIZE(a1_pll_regmaps); i++)
-		a1_pll_regmaps[i]->map = map;
 
 	/* Register clocks */
 	for (clkid = 0; clkid < a1_pll_clks.num; clkid++) {
