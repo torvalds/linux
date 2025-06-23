@@ -277,19 +277,19 @@ enum mtk_phy_version {
 	MTK_PHY_V3,
 };
 
+/**
+ * mtk_phy_pdata - SoC specific platform data
+ * @avoid_rx_sen_degradation: Avoid TX Sensitivity level degradation (MT6795/8173 only)
+ * @sw_pll_48m_to_26m:        Workaround for V3 IP (MT8195) - switch the 48MHz PLL from
+ *                            fractional mode to integer to output 26MHz for U2PHY
+ * @sw_efuse_supported:       Switches off eFuse auto-load from PHY and applies values
+ *                            read from different nvmem (usually different eFuse array)
+ *                            that is pointed at in the device tree node for this PHY
+ * @version:                  PHY IP Version
+ */
 struct mtk_phy_pdata {
-	/* avoid RX sensitivity level degradation only for mt8173 */
 	bool avoid_rx_sen_degradation;
-	/*
-	 * workaround only for mt8195, HW fix it for others of V3,
-	 * u2phy should use integer mode instead of fractional mode of
-	 * 48M PLL, fix it by switching PLL to 26M from default 48M
-	 */
 	bool sw_pll_48m_to_26m;
-	/*
-	 * Some SoCs (e.g. mt8195) drop a bit when use auto load efuse,
-	 * support sw way, also support it for v2/v3 optionally.
-	 */
 	bool sw_efuse_supported;
 	enum mtk_phy_version version;
 };
