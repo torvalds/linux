@@ -374,7 +374,6 @@ static void intel_hdcp_clear_keys(struct intel_display *display)
 
 static int intel_hdcp_load_keys(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret;
 	u32 val;
 
@@ -399,7 +398,7 @@ static int intel_hdcp_load_keys(struct intel_display *display)
 	 * Mailbox interface.
 	 */
 	if (DISPLAY_VER(display) == 9 && !display->platform.broxton) {
-		ret = snb_pcode_write(&i915->uncore, SKL_PCODE_LOAD_HDCP_KEYS, 1);
+		ret = intel_pcode_write(display->drm, SKL_PCODE_LOAD_HDCP_KEYS, 1);
 		if (ret) {
 			drm_err(display->drm,
 				"Failed to initiate HDCP key load (%d)\n",

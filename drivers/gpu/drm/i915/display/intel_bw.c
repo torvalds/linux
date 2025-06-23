@@ -82,14 +82,13 @@ static int icl_pcode_read_qgv_point_info(struct intel_display *display,
 					 struct intel_qgv_point *sp,
 					 int point)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val = 0, val2 = 0;
 	u16 dclk;
 	int ret;
 
-	ret = snb_pcode_read(&i915->uncore, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
-			     &val, &val2);
+	ret = intel_pcode_read(display->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			       ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
+			       &val, &val2);
 	if (ret)
 		return ret;
 
@@ -110,13 +109,12 @@ static int icl_pcode_read_qgv_point_info(struct intel_display *display,
 static int adls_pcode_read_psf_gv_point_info(struct intel_display *display,
 					     struct intel_psf_gv_point *points)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val = 0;
 	int ret;
 	int i;
 
-	ret = snb_pcode_read(&i915->uncore, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
+	ret = intel_pcode_read(display->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			       ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
@@ -157,18 +155,17 @@ static bool is_sagv_enabled(struct intel_display *display, u16 points_mask)
 int icl_pcode_restrict_qgv_points(struct intel_display *display,
 				  u32 points_mask)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret;
 
 	if (DISPLAY_VER(display) >= 14)
 		return 0;
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = skl_pcode_request(&i915->uncore, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
-				points_mask,
-				ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
-				ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
-				1);
+	ret = intel_pcode_request(display->drm, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
+				  points_mask,
+				  ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
+				  ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
+				  1);
 
 	if (ret < 0) {
 		drm_err(display->drm,
