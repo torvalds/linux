@@ -758,8 +758,9 @@ process is more complicated and uses write_begin/write_end or
 dirty_folio to write data into the address_space, and
 writepages to writeback data to storage.
 
-Adding and removing pages to/from an address_space is protected by the
-inode's i_mutex.
+Removing pages from an address_space requires holding the inode's i_rwsem
+exclusively, while adding pages to the address_space requires holding the
+inode's i_mapping->invalidate_lock exclusively.
 
 When data is written to a page, the PG_Dirty flag should be set.  It
 typically remains set until writepages asks for it to be written.  This

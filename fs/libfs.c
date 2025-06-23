@@ -946,7 +946,8 @@ EXPORT_SYMBOL(simple_write_begin);
  * simple_write_end does the minimum needed for updating a folio after
  * writing is done. It has the same API signature as the .write_end of
  * address_space_operations vector. So it can just be set onto .write_end for
- * FSes that don't need any other processing. i_mutex is assumed to be held.
+ * FSes that don't need any other processing. i_rwsem is assumed to be held
+ * exclusively.
  * Block based filesystems should use generic_write_end().
  * NOTE: Even though i_size might get updated by this function, mark_inode_dirty
  * is not called, so a filesystem that actually does store data in .write_inode
@@ -973,7 +974,7 @@ static int simple_write_end(struct file *file, struct address_space *mapping,
 	}
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_mutex.
+	 * cannot change under us because we hold the i_rwsem.
 	 */
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);

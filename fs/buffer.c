@@ -2609,7 +2609,7 @@ EXPORT_SYMBOL(cont_write_begin);
  * holes and correct delalloc and unwritten extent mapping on filesystems that
  * support these features.
  *
- * We are not allowed to take the i_mutex here so we have to play games to
+ * We are not allowed to take the i_rwsem here so we have to play games to
  * protect against truncate races as the page could now be beyond EOF.  Because
  * truncate writes the inode size before removing pages, once we have the
  * page lock we can determine safely if the page is beyond EOF. If it is not
