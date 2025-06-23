@@ -1041,6 +1041,59 @@ out:
 	return ret;
 }
 
+static int unlink_refs_not_in_log(struct btrfs_trans_handle *trans,
+				  struct btrfs_path *path,
+				  struct btrfs_root *log_root,
+				  struct btrfs_key *search_key,
+				  struct btrfs_inode *dir,
+				  struct btrfs_inode *inode,
+				  u64 parent_objectid)
+{
+	struct extent_buffer *leaf = path->nodes[0];
+	unsigned long ptr;
+	unsigned long ptr_end;
+
+	/*
+	 * Check all the names in this back reference to see if they are in the
+	 * log. If so, we allow them to stay otherwise they must be unlinked as
+	 * a conflict.
+	 */
+	ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+	ptr_end = ptr + btrfs_item_size(leaf, path->slots[0]);
+	while (ptr < ptr_end) {
+		struct fscrypt_str victim_name;
+		struct btrfs_inode_ref *victim_ref;
+		int ret;
+
+		victim_ref = (struct btrfs_inode_ref *)ptr;
+		ret = read_alloc_one_name(leaf, (victim_ref + 1),
+					  btrfs_inode_ref_name_len(leaf, victim_ref),
+					  &victim_name);
+		if (ret)
+			return ret;
+
+		ret = backref_in_log(log_root, search_key, parent_objectid, &victim_name);
+		if (ret) {
+			kfree(victim_name.name);
+			if (ret < 0)
+				return ret;
+			ptr = (unsigned long)(victim_ref + 1) + victim_name.len;
+			continue;
+		}
+
+		inc_nlink(&inode->vfs_inode);
+		btrfs_release_path(path);
+
+		ret = unlink_inode_for_log_replay(trans, dir, inode, &victim_name);
+		kfree(victim_name.name);
+		if (ret)
+			return ret;
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
 static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  struct btrfs_path *path,
@@ -1065,54 +1118,19 @@ again:
 	if (ret < 0) {
 		return ret;
 	} else if (ret == 0) {
-		struct btrfs_inode_ref *victim_ref;
-		unsigned long ptr;
-		unsigned long ptr_end;
-
-		leaf = path->nodes[0];
-
-		/* are we trying to overwrite a back ref for the root directory
-		 * if so, just jump out, we're done
+		/*
+		 * Are we trying to overwrite a back ref for the root directory?
+		 * If so, we're done.
 		 */
 		if (search_key.objectid == search_key.offset)
 			return 1;
 
-		/* check all the names in this back reference to see
-		 * if they are in the log.  if so, we allow them to stay
-		 * otherwise they must be unlinked as a conflict
-		 */
-		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
-		ptr_end = ptr + btrfs_item_size(leaf, path->slots[0]);
-		while (ptr < ptr_end) {
-			struct fscrypt_str victim_name;
-
-			victim_ref = (struct btrfs_inode_ref *)ptr;
-			ret = read_alloc_one_name(leaf, (victim_ref + 1),
-				 btrfs_inode_ref_name_len(leaf, victim_ref),
-				 &victim_name);
-			if (ret)
-				return ret;
-
-			ret = backref_in_log(log_root, &search_key,
-					     parent_objectid, &victim_name);
-			if (ret < 0) {
-				kfree(victim_name.name);
-				return ret;
-			} else if (!ret) {
-				inc_nlink(&inode->vfs_inode);
-				btrfs_release_path(path);
-
-				ret = unlink_inode_for_log_replay(trans, dir, inode,
-						&victim_name);
-				kfree(victim_name.name);
-				if (ret)
-					return ret;
-				goto again;
-			}
-			kfree(victim_name.name);
-
-			ptr = (unsigned long)(victim_ref + 1) + victim_name.len;
-		}
+		ret = unlink_refs_not_in_log(trans, path, log_root, &search_key,
+					     dir, inode, parent_objectid);
+		if (ret == -EAGAIN)
+			goto again;
+		else if (ret)
+			return ret;
 	}
 	btrfs_release_path(path);
 
