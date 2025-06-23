@@ -18,6 +18,7 @@
 #include "intel_display_types.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
+#include "intel_uncore.h"
 #include "skl_watermark.h"
 
 /* Parameters for Qclk Geyserville (QGV) */
