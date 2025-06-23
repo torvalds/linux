@@ -46,7 +46,7 @@ static int gpio_reg_direction_output(struct gpio_chip *gc, unsigned offset,
 	if (r->direction & BIT(offset))
 		return -ENOTSUPP;
 
-	gc->set(gc, offset, value);
+	gc->set_rv(gc, offset, value);
 	return 0;
 }
 
@@ -57,7 +57,7 @@ static int gpio_reg_direction_input(struct gpio_chip *gc, unsigned offset)
 	return r->direction & BIT(offset) ? 0 : -ENOTSUPP;
 }
 
-static void gpio_reg_set(struct gpio_chip *gc, unsigned offset, int value)
+static int gpio_reg_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct gpio_reg *r = to_gpio_reg(gc);
 	unsigned long flags;
@@ -72,6 +72,8 @@ static void gpio_reg_set(struct gpio_chip *gc, unsigned offset, int value)
 	r->out = val;
 	writel_relaxed(val, r->reg);
 	spin_unlock_irqrestore(&r->lock, flags);
+
+	return 0;
 }
 
 static int gpio_reg_get(struct gpio_chip *gc, unsigned offset)
@@ -92,8 +94,8 @@ static int gpio_reg_get(struct gpio_chip *gc, unsigned offset)
 	return !!(val & mask);
 }
 
-static void gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
-	unsigned long *bits)
+static int gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
+				 unsigned long *bits)
 {
 	struct gpio_reg *r = to_gpio_reg(gc);
 	unsigned long flags;
@@ -102,6 +104,8 @@ static void gpio_reg_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	r->out = (r->out & ~*mask) | (*bits & *mask);
 	writel_relaxed(r->out, r->reg);
 	spin_unlock_irqrestore(&r->lock, flags);
+
+	return 0;
 }
 
 static int gpio_reg_to_irq(struct gpio_chip *gc, unsigned offset)
@@ -157,9 +161,9 @@ struct gpio_chip *gpio_reg_init(struct device *dev, void __iomem *reg,
 	r->gc.get_direction = gpio_reg_get_direction;
 	r->gc.direction_input = gpio_reg_direction_input;
 	r->gc.direction_output = gpio_reg_direction_output;
-	r->gc.set = gpio_reg_set;
+	r->gc.set_rv = gpio_reg_set;
 	r->gc.get = gpio_reg_get;
-	r->gc.set_multiple = gpio_reg_set_multiple;
+	r->gc.set_multiple_rv = gpio_reg_set_multiple;
 	if (irqs)
 		r->gc.to_irq = gpio_reg_to_irq;
 	r->gc.base = base;
