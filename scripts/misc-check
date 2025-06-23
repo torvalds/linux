@@ -62,6 +62,15 @@ check_unnecessary_include_linux_export_h () {
 	xargs -r printf "%s: warning: EXPORT_SYMBOL() is not used, but #include <linux/export.h> is present\n" >&2
 }
 
-check_tracked_ignored_files
-check_missing_include_linux_export_h
-check_unnecessary_include_linux_export_h
+case "${KBUILD_EXTRA_WARN}" in
+*1*)
+	check_tracked_ignored_files
+	;;
+esac
+
+case "${KBUILD_EXTRA_WARN}" in
+*2*)
+	check_missing_include_linux_export_h
+	check_unnecessary_include_linux_export_h
+	;;
+esac

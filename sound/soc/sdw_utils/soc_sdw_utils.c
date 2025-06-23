@@ -1205,6 +1205,8 @@ static int is_sdca_endpoint_present(struct device *dev,
 	int i;
 
 	dlc = kzalloc(sizeof(*dlc), GFP_KERNEL);
+	if (!dlc)
+		return -ENOMEM;
 
 	adr_end = &adr_dev->endpoints[end_index];
 	dai_info = &codec_info->dais[adr_end->num];

@@ -104,7 +104,7 @@ const char * const bch2_dev_write_refs[] = {
 #undef x
 
 static void __bch2_print_str(struct bch_fs *c, const char *prefix,
-			     const char *str, bool nonblocking)
+			     const char *str)
 {
 #ifdef __KERNEL__
 	struct stdio_redirect *stdio = bch2_fs_stdio_redirect(c);
@@ -114,17 +114,12 @@ static void __bch2_print_str(struct bch_fs *c, const char *prefix,
 		return;
 	}
 #endif
-	bch2_print_string_as_lines(KERN_ERR, str, nonblocking);
+	bch2_print_string_as_lines(KERN_ERR, str);
 }
 
 void bch2_print_str(struct bch_fs *c, const char *prefix, const char *str)
 {
-	__bch2_print_str(c, prefix, str, false);
-}
-
-void bch2_print_str_nonblocking(struct bch_fs *c, const char *prefix, const char *str)
-{
-	__bch2_print_str(c, prefix, str, true);
+	__bch2_print_str(c, prefix, str);
 }
 
 __printf(2, 0)
@@ -1072,12 +1067,13 @@ noinline_for_stack
 static void print_mount_opts(struct bch_fs *c)
 {
 	enum bch_opt_id i;
-	struct printbuf p = PRINTBUF;
-	bool first = true;
+	CLASS(printbuf, p)();
+	bch2_log_msg_start(c, &p);
 
 	prt_str(&p, "starting version ");
 	bch2_version_to_text(&p, c->sb.version);
 
+	bool first = true;
 	for (i = 0; i < bch2_opts_nr; i++) {
 		const struct bch_option *opt = &bch2_opt_table[i];
 		u64 v = bch2_opt_get_by_id(&c->opts, i);
@@ -1094,17 +1090,24 @@ static void print_mount_opts(struct bch_fs *c)
 	}
 
 	if (c->sb.version_incompat_allowed != c->sb.version) {
-		prt_printf(&p, "\n  allowing incompatible features above ");
+		prt_printf(&p, "\nallowing incompatible features above ");
 		bch2_version_to_text(&p, c->sb.version_incompat_allowed);
 	}
 
 	if (c->opts.verbose) {
-		prt_printf(&p, "\n  features: ");
+		prt_printf(&p, "\nfeatures: ");
 		prt_bitflags(&p, bch2_sb_features, c->sb.features);
 	}
 
-	bch_info(c, "%s", p.buf);
-	printbuf_exit(&p);
+	if (c->sb.multi_device) {
+		prt_printf(&p, "\nwith devices");
+		for_each_online_member(c, ca, BCH_DEV_READ_REF_bch2_online_devs) {
+			prt_char(&p, ' ');
+			prt_str(&p, ca->name);
+		}
+	}
+
+	bch2_print_str(c, KERN_INFO, p.buf);
 }
 
 static bool bch2_fs_may_start(struct bch_fs *c)
@@ -1994,6 +1997,22 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		if (ret)
 			goto err_late;
 	}
+
+	/*
+	 * We just changed the superblock UUID, invalidate cache and send a
+	 * uevent to update /dev/disk/by-uuid
+	 */
+	invalidate_bdev(ca->disk_sb.bdev);
+
+	char uuid_str[37];
+	snprintf(uuid_str, sizeof(uuid_str), "UUID=%pUb", &c->sb.uuid);
+
+	char *envp[] = {
+		"CHANGE=uuid",
+		uuid_str,
+		NULL,
+	};
+	kobject_uevent_env(&ca->disk_sb.bdev->bd_device.kobj, KOBJ_CHANGE, envp);
 
 	up_write(&c->state_lock);
 out:

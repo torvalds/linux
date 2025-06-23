@@ -2589,13 +2589,14 @@ static ssize_t smb_extract_folioq_to_rdma(struct iov_iter *iter,
 		size_t fsize = folioq_folio_size(folioq, slot);
 
 		if (offset < fsize) {
-			size_t part = umin(maxsize - ret, fsize - offset);
+			size_t part = umin(maxsize, fsize - offset);
 
 			if (!smb_set_sge(rdma, folio_page(folio, 0), offset, part))
 				return -EIO;
 
 			offset += part;
 			ret += part;
+			maxsize -= part;
 		}
 
 		if (offset >= fsize) {
@@ -2610,7 +2611,7 @@ static ssize_t smb_extract_folioq_to_rdma(struct iov_iter *iter,
 				slot = 0;
 			}
 		}
-	} while (rdma->nr_sge < rdma->max_sge || maxsize > 0);
+	} while (rdma->nr_sge < rdma->max_sge && maxsize > 0);
 
 	iter->folioq = folioq;
 	iter->folioq_slot = slot;

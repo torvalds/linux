@@ -17,9 +17,11 @@ properties:
   compatible:
     enum:
       - mediatek,mt6873-dvfsrc-regulator
+      - mediatek,mt6893-dvfsrc-regulator
       - mediatek,mt8183-dvfsrc-regulator
       - mediatek,mt8192-dvfsrc-regulator
       - mediatek,mt8195-dvfsrc-regulator
+      - mediatek,mt8196-dvfsrc-regulator
 
   dvfsrc-vcore:
     description: DVFSRC-controlled SoC Vcore regulator
