@@ -911,7 +911,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	swap(dev->cfg, dev->cfg_pending);
 	if (!ret)
 		goto out_ops;
-	ethtool_notify(dev, ops->set_ntf_cmd, NULL);
+	ethtool_notify(dev, ops->set_ntf_cmd);
 
 	ret = 0;
 out_ops:
@@ -1049,7 +1049,7 @@ static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_MM_NTF]		= ethnl_default_notify,
 };
 
-void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
+void ethnl_notify(struct net_device *dev, unsigned int cmd, const void *data)
 {
 	if (unlikely(!ethnl_ok))
 		return;
@@ -1062,13 +1062,18 @@ void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
 		WARN_ONCE(1, "notification %u not implemented (dev=%s)\n",
 			  cmd, netdev_name(dev));
 }
+
+void ethtool_notify(struct net_device *dev, unsigned int cmd)
+{
+	ethnl_notify(dev, cmd, NULL);
+}
 EXPORT_SYMBOL(ethtool_notify);
 
 static void ethnl_notify_features(struct netdev_notifier_info *info)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(info);
 
-	ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
+	ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF);
 }
 
 static int ethnl_netdev_event(struct notifier_block *this, unsigned long event,

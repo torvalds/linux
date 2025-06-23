@@ -23,6 +23,7 @@ void *ethnl_dump_put(struct sk_buff *skb, struct netlink_callback *cb, u8 cmd);
 void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd);
 void *ethnl_unicast_put(struct sk_buff *skb, u32 portid, u32 seq, u8 cmd);
 int ethnl_multicast(struct sk_buff *skb, struct net_device *dev);
+void ethnl_notify(struct net_device *dev, unsigned int cmd, const void *data);
 
 /**
  * ethnl_strz_size() - calculate attribute length for fixed size string
