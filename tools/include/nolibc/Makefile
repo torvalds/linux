@@ -112,7 +112,7 @@ headers_standalone: headers
 CLANG_CROSS_FLAGS := $(subst --target=s390-linux,--target=systemz-linux,$(CLANG_CROSS_FLAGS))
 
 headers_check: headers_standalone
-	for header in $(filter-out crt.h std.h,$(all_files)); do \
+	$(Q)for header in $(filter-out crt.h std.h,$(all_files)); do \
 		$(CC) $(CLANG_CROSS_FLAGS) -Wall -Werror -nostdinc -fsyntax-only -x c /dev/null \
 			-I$(or $(objtree),$(srctree))/usr/include -include $$header -include $$header || exit 1; \
 	done
