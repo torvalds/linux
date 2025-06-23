@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2024 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2025 Advanced Micro Devices, Inc. All rights reserved.
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -25,36 +25,27 @@
  *
  */
 
-#ifndef __AMDGPU_ISP_H__
-#define __AMDGPU_ISP_H__
+#ifndef __ISP_H__
+#define __ISP_H__
 
-#include <drm/amd/isp.h>
-#include <linux/pm_domain.h>
+#include <linux/types.h>
 
-#define ISP_REGS_OFFSET_END 0x629A4
+struct device;
 
-struct amdgpu_isp;
-
-struct isp_funcs {
-	int (*hw_init)(struct amdgpu_isp *isp);
-	int (*hw_fini)(struct amdgpu_isp *isp);
+struct isp_platform_data {
+	void *adev;
+	u32 asic_type;
+	resource_size_t base_rmmio_size;
 };
 
-struct amdgpu_isp {
-	struct device *parent;
-	struct amdgpu_device	*adev;
-	const struct isp_funcs	*funcs;
-	struct mfd_cell *isp_cell;
-	struct resource *isp_res;
-	struct resource *isp_i2c_res;
-	struct resource *isp_gpio_res;
-	struct isp_platform_data *isp_pdata;
-	unsigned int harvest_config;
-	const struct firmware	*fw;
-	struct generic_pm_domain ispgpd;
-};
+int isp_user_buffer_alloc(struct device *dev, void *dmabuf,
+			  void **buf_obj, u64 *buf_addr);
 
-extern const struct amdgpu_ip_block_version isp_v4_1_0_ip_block;
-extern const struct amdgpu_ip_block_version isp_v4_1_1_ip_block;
+void isp_user_buffer_free(void *buf_obj);
 
-#endif /* __AMDGPU_ISP_H__ */
+int isp_kernel_buffer_alloc(struct device *dev, u64 size,
+			    void **buf_obj, u64 *gpu_addr, void **cpu_addr);
+
+void isp_kernel_buffer_free(void **buf_obj, u64 *gpu_addr, void **cpu_addr);
+
+#endif

@@ -352,7 +352,6 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 
 	return 0;
 }
-EXPORT_SYMBOL(amdgpu_bo_create_kernel);
 
 /**
  * amdgpu_bo_create_isp_user - create user BO for isp
@@ -421,7 +420,6 @@ error_unreserve:
 
 	return r;
 }
-EXPORT_SYMBOL(amdgpu_bo_create_isp_user);
 
 /**
  * amdgpu_bo_create_kernel_at - create BO for kernel use at specific location
@@ -525,7 +523,6 @@ void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
 	if (cpu_addr)
 		*cpu_addr = NULL;
 }
-EXPORT_SYMBOL(amdgpu_bo_free_kernel);
 
 /**
  * amdgpu_bo_free_isp_user - free BO for isp use
@@ -548,7 +545,6 @@ void amdgpu_bo_free_isp_user(struct amdgpu_bo *bo)
 	}
 	amdgpu_bo_unref(&bo);
 }
-EXPORT_SYMBOL(amdgpu_bo_free_isp_user);
 
 /* Validate bo size is bit bigger than the request domain */
 static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
