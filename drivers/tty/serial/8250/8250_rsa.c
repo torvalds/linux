@@ -147,6 +147,7 @@ void rsa_enable(struct uart_8250_port *up)
 	if (up->port.uartclk == SERIAL_RSA_BAUD_BASE * 16)
 		serial_out(up, UART_RSA_FRR, 0);
 }
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_enable, "8250_base");
 
 /*
  * Attempts to turn off the RSA FIFO and resets the RSA board back to 115kbps compat mode. It is
@@ -178,6 +179,7 @@ void rsa_disable(struct uart_8250_port *up)
 		up->port.uartclk = SERIAL_RSA_BAUD_BASE_LO * 16;
 	uart_port_unlock_irq(&up->port);
 }
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_disable, "8250_base");
 
 void rsa_autoconfig(struct uart_8250_port *up)
 {
@@ -190,6 +192,7 @@ void rsa_autoconfig(struct uart_8250_port *up)
 	if (__rsa_enable(up))
 		up->port.type = PORT_RSA;
 }
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_autoconfig, "8250_base");
 
 void rsa_reset(struct uart_8250_port *up)
 {
@@ -198,6 +201,7 @@ void rsa_reset(struct uart_8250_port *up)
 
 	serial_out(up, UART_RSA_FRR, 0);
 }
+EXPORT_SYMBOL_GPL_FOR_MODULES(rsa_reset, "8250_base");
 
 #ifdef CONFIG_SERIAL_8250_DEPRECATED_OPTIONS
 #ifndef MODULE
