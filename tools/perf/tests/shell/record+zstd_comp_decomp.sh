@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Zstd perf.data compression/decompression
 
 # SPDX-License-Identifier: GPL-2.0

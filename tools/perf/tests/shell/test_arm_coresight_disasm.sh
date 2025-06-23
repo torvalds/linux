@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Check Arm CoreSight disassembly script completes without errors (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 

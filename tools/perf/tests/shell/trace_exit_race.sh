@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # perf trace exit race
 # SPDX-License-Identifier: GPL-2.0
 

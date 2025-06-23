@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Miscellaneous Intel PT testing (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
