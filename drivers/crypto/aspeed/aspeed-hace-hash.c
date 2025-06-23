@@ -449,7 +449,7 @@ static noinline int aspeed_ahash_fallback(struct ahash_request *req)
 	if (rctx->flags & SHA_FLAGS_FINUP)
 		ret = ret ?: crypto_ahash_finup(fbreq);
 	else
-		ret = ret ?: crypto_ahash_update(fbreq);
+		ret = ret ?: crypto_ahash_update(fbreq) ?:
 			     crypto_ahash_export_core(fbreq, state) ?:
 			     aspeed_sham_import(req, state);
 	HASH_REQUEST_ZERO(fbreq);
