@@ -202,6 +202,8 @@ struct shash_desc {
 #define HASH_REQUEST_CLONE(name, gfp) \
 	hash_request_clone(name, sizeof(__##name##_req), gfp)
 
+#define CRYPTO_HASH_STATESIZE(coresize, blocksize) (coresize + blocksize + 1)
+
 /**
  * struct shash_alg - synchronous message digest definition
  * @init: see struct ahash_alg
