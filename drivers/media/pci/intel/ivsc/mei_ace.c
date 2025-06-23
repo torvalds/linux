@@ -576,7 +576,7 @@ static struct mei_cl_driver mei_ace_driver = {
 
 module_mei_cl_driver(mei_ace_driver);
 
-MODULE_AUTHOR("Wentong Wu <wentong.wu@intel.com>");
+MODULE_AUTHOR("Wentong Wu");
 MODULE_AUTHOR("Zhifeng Wang <zhifeng.wang@intel.com>");
 MODULE_DESCRIPTION("Device driver for IVSC ACE");
 MODULE_LICENSE("GPL");
