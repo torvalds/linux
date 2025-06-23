@@ -150,18 +150,20 @@ void pidfs_free_pid(struct pid *pid)
 	 */
 	VFS_WARN_ON_ONCE(pid->stashed);
 
+	/*
+	 * This if an error occurred during e.g., task creation that
+	 * causes us to never go through the exit path.
+	 */
+	if (unlikely(!attr))
+		return;
+
+	/* This never had a pidfd created. */
 	if (IS_ERR(attr))
 		return;
 
-	/*
-	 * Any dentry must've been wiped from the pid by now. Otherwise
-	 * there's a reference count bug.
-	 */
-	VFS_WARN_ON_ONCE(pid->stashed);
-
-	xattrs = attr->xattrs;
+	xattrs = no_free_ptr(attr->xattrs);
 	if (xattrs)
-		simple_xattrs_free(attr->xattrs, NULL);
+		simple_xattrs_free(xattrs, NULL);
 }
 
 #ifdef CONFIG_PROC_FS
