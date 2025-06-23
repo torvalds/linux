@@ -7618,12 +7618,54 @@ static unsigned long node_pagecache_reclaimable(struct pglist_data *pgdat)
 /*
  * Try to free up some pages from this node through reclaim.
  */
-static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
+static unsigned long __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask,
+				    unsigned long nr_pages,
+				    struct scan_control *sc)
 {
-	/* Minimum pages needed in order to stay on node */
-	const unsigned long nr_pages = 1 << order;
 	struct task_struct *p = current;
 	unsigned int noreclaim_flag;
+	unsigned long pflags;
+
+	trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, sc->order,
+					   sc->gfp_mask);
+
+	cond_resched();
+	psi_memstall_enter(&pflags);
+	delayacct_freepages_start();
+	fs_reclaim_acquire(sc->gfp_mask);
+	/*
+	 * We need to be able to allocate from the reserves for RECLAIM_UNMAP
+	 */
+	noreclaim_flag = memalloc_noreclaim_save();
+	set_task_reclaim_state(p, &sc->reclaim_state);
+
+	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages ||
+	    node_page_state_pages(pgdat, NR_SLAB_RECLAIMABLE_B) > pgdat->min_slab_pages) {
+		/*
+		 * Free memory by calling shrink node with increasing
+		 * priorities until we have enough memory freed.
+		 */
+		do {
+			shrink_node(pgdat, sc);
+		} while (sc->nr_reclaimed < nr_pages && --sc->priority >= 0);
+	}
+
+	set_task_reclaim_state(p, NULL);
+	memalloc_noreclaim_restore(noreclaim_flag);
+	fs_reclaim_release(sc->gfp_mask);
+	delayacct_freepages_end();
+	psi_memstall_leave(&pflags);
+
+	trace_mm_vmscan_node_reclaim_end(sc->nr_reclaimed);
+
+	return sc->nr_reclaimed;
+}
+
+int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
+{
+	int ret;
+	/* Minimum pages needed in order to stay on node */
+	const unsigned long nr_pages = 1 << order;
 	struct scan_control sc = {
 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
 		.gfp_mask = current_gfp_context(gfp_mask),
@@ -7634,46 +7676,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 		.may_swap = 1,
 		.reclaim_idx = gfp_zone(gfp_mask),
 	};
-	unsigned long pflags;
-
-	trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
-					   sc.gfp_mask);
-
-	cond_resched();
-	psi_memstall_enter(&pflags);
-	delayacct_freepages_start();
-	fs_reclaim_acquire(sc.gfp_mask);
-	/*
-	 * We need to be able to allocate from the reserves for RECLAIM_UNMAP
-	 */
-	noreclaim_flag = memalloc_noreclaim_save();
-	set_task_reclaim_state(p, &sc.reclaim_state);
-
-	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages ||
-	    node_page_state_pages(pgdat, NR_SLAB_RECLAIMABLE_B) > pgdat->min_slab_pages) {
-		/*
-		 * Free memory by calling shrink node with increasing
-		 * priorities until we have enough memory freed.
-		 */
-		do {
-			shrink_node(pgdat, &sc);
-		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
-	}
-
-	set_task_reclaim_state(p, NULL);
-	memalloc_noreclaim_restore(noreclaim_flag);
-	fs_reclaim_release(sc.gfp_mask);
-	delayacct_freepages_end();
-	psi_memstall_leave(&pflags);
-
-	trace_mm_vmscan_node_reclaim_end(sc.nr_reclaimed);
-
-	return sc.nr_reclaimed >= nr_pages;
-}
-
-int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
-{
-	int ret;
 
 	/*
 	 * Node reclaim reclaims unmapped file backed pages and
@@ -7708,7 +7710,7 @@ int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
 	if (test_and_set_bit_lock(PGDAT_RECLAIM_LOCKED, &pgdat->flags))
 		return NODE_RECLAIM_NOSCAN;
 
-	ret = __node_reclaim(pgdat, gfp_mask, order);
+	ret = __node_reclaim(pgdat, gfp_mask, nr_pages, &sc) >= nr_pages;
 	clear_bit_unlock(PGDAT_RECLAIM_LOCKED, &pgdat->flags);
 
 	if (ret)
