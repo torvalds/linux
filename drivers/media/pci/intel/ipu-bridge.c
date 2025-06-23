@@ -815,7 +815,8 @@ int ipu_bridge_init(struct device *dev,
 		return 0;
 
 	if (!ipu_bridge_ivsc_is_ready())
-		return -EPROBE_DEFER;
+		return dev_err_probe(dev, -EPROBE_DEFER,
+				     "waiting for IVSC to become ready\n");
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
