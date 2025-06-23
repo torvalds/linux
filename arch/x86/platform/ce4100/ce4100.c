@@ -49,9 +49,9 @@ static unsigned int mem_serial_in(struct uart_port *p, int offset)
  * errata number 9 in Errata - B step.
 */
 
-static unsigned int ce4100_mem_serial_in(struct uart_port *p, int offset)
+static u32 ce4100_mem_serial_in(struct uart_port *p, unsigned int offset)
 {
-	unsigned int ret, ier, lsr;
+	u32 ret, ier, lsr;
 
 	if (offset == UART_IIR) {
 		offset = offset << p->regshift;
@@ -73,7 +73,7 @@ static unsigned int ce4100_mem_serial_in(struct uart_port *p, int offset)
 	return ret;
 }
 
-static void ce4100_mem_serial_out(struct uart_port *p, int offset, int value)
+static void ce4100_mem_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	writel(value, p->membase + offset);
