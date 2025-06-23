@@ -13,9 +13,36 @@
 #include "clk-mpll.h"
 #include "clk-pll.h"
 #include "clk-regmap.h"
-#include "s4-pll.h"
 #include "meson-clkc-utils.h"
 #include <dt-bindings/clock/amlogic,s4-pll-clkc.h>
+
+#define ANACTRL_FIXPLL_CTRL0                       0x040
+#define ANACTRL_FIXPLL_CTRL1                       0x044
+#define ANACTRL_FIXPLL_CTRL3                       0x04c
+#define ANACTRL_GP0PLL_CTRL0                       0x080
+#define ANACTRL_GP0PLL_CTRL1                       0x084
+#define ANACTRL_GP0PLL_CTRL2                       0x088
+#define ANACTRL_GP0PLL_CTRL3                       0x08c
+#define ANACTRL_GP0PLL_CTRL4                       0x090
+#define ANACTRL_GP0PLL_CTRL5                       0x094
+#define ANACTRL_GP0PLL_CTRL6                       0x098
+#define ANACTRL_HIFIPLL_CTRL0                      0x100
+#define ANACTRL_HIFIPLL_CTRL1                      0x104
+#define ANACTRL_HIFIPLL_CTRL2                      0x108
+#define ANACTRL_HIFIPLL_CTRL3                      0x10c
+#define ANACTRL_HIFIPLL_CTRL4                      0x110
+#define ANACTRL_HIFIPLL_CTRL5                      0x114
+#define ANACTRL_HIFIPLL_CTRL6                      0x118
+#define ANACTRL_MPLL_CTRL0                         0x180
+#define ANACTRL_MPLL_CTRL1                         0x184
+#define ANACTRL_MPLL_CTRL2                         0x188
+#define ANACTRL_MPLL_CTRL3                         0x18c
+#define ANACTRL_MPLL_CTRL4                         0x190
+#define ANACTRL_MPLL_CTRL5                         0x194
+#define ANACTRL_MPLL_CTRL6                         0x198
+#define ANACTRL_MPLL_CTRL7                         0x19c
+#define ANACTRL_MPLL_CTRL8                         0x1a0
+#define ANACTRL_HDMIPLL_CTRL0                      0x1c0
 
 /*
  * These clock are a fixed value (fixed_pll is 2GHz) that is initialized by ROMcode.
