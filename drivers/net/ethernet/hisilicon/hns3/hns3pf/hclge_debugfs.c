@@ -2110,7 +2110,7 @@ static int hclge_dbg_dump_mng_table(struct hclge_dev *hdev, char *buf, int len)
 	for (i = 0; i < HCLGE_DBG_MNG_TBL_MAX; i++) {
 		hclge_cmd_setup_basic_desc(&desc, HCLGE_MAC_ETHERTYPE_IDX_RD,
 					   true);
-		req0 = (struct hclge_mac_ethertype_idx_rd_cmd *)&desc.data;
+		req0 = (struct hclge_mac_ethertype_idx_rd_cmd *)desc.data;
 		req0->index = cpu_to_le16(i);
 
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);

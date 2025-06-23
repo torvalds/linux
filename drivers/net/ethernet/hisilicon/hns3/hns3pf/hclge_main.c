@@ -2358,7 +2358,7 @@ static int hclge_common_thrd_config(struct hclge_dev *hdev,
 	for (i = 0; i < 2; i++) {
 		hclge_cmd_setup_basic_desc(&desc[i],
 					   HCLGE_OPC_RX_COM_THRD_ALLOC, false);
-		req = (struct hclge_rx_com_thrd *)&desc[i].data;
+		req = (struct hclge_rx_com_thrd *)desc[i].data;
 
 		/* The first descriptor set the NEXT bit to 1 */
 		if (i == 0)
