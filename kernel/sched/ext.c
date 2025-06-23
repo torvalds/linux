@@ -1655,7 +1655,7 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
  * scx_add_event - Increase an event counter for 'name' by 'cnt'
  * @sch: scx_sched to account events for
  * @name: an event name defined in struct scx_event_stats
- * @cnt: the number of the event occured
+ * @cnt: the number of the event occurred
  *
  * This can be used when preemption is not disabled.
  */
@@ -1668,7 +1668,7 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
  * __scx_add_event - Increase an event counter for 'name' by 'cnt'
  * @sch: scx_sched to account events for
  * @name: an event name defined in struct scx_event_stats
- * @cnt: the number of the event occured
+ * @cnt: the number of the event occurred
  *
  * This should be used only when preemption is disabled.
  */
