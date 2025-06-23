@@ -7399,7 +7399,7 @@ static const struct hci_ev {
 	/* [0x2c = HCI_EV_SYNC_CONN_COMPLETE] */
 	HCI_EV(HCI_EV_SYNC_CONN_COMPLETE, hci_sync_conn_complete_evt,
 	       sizeof(struct hci_ev_sync_conn_complete)),
-	/* [0x2d = HCI_EV_EXTENDED_INQUIRY_RESULT] */
+	/* [0x2f = HCI_EV_EXTENDED_INQUIRY_RESULT] */
 	HCI_EV_VL(HCI_EV_EXTENDED_INQUIRY_RESULT,
 		  hci_extended_inquiry_result_evt,
 		  sizeof(struct hci_ev_ext_inquiry_result), HCI_MAX_EVENT_SIZE),
