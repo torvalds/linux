@@ -2,6 +2,7 @@
 #ifndef _CRYPTO_MD5_H
 #define _CRYPTO_MD5_H
 
+#include <crypto/hash.h>
 #include <linux/types.h>
 
 #define MD5_DIGEST_SIZE		16
@@ -14,6 +15,9 @@
 #define MD5_H1	0xefcdab89UL
 #define MD5_H2	0x98badcfeUL
 #define MD5_H3	0x10325476UL
+
+#define CRYPTO_MD5_STATESIZE \
+	CRYPTO_HASH_STATESIZE(MD5_STATE_SIZE, MD5_HMAC_BLOCK_SIZE)
 
 extern const u8 md5_zero_message_hash[MD5_DIGEST_SIZE];
 
