@@ -20,7 +20,7 @@ llvm=
 all_archs=(
 	i386 x86_64
 	arm64 arm armthumb
-	mips32le mips32be
+	mips32le mips32be mipsn32le mipsn32be mips64le mips64be
 	ppc ppc64 ppc64le
 	riscv32 riscv64
 	s390x s390
