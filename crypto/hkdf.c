@@ -566,7 +566,7 @@ static int __init crypto_hkdf_module_init(void)
 
 static void __exit crypto_hkdf_module_exit(void) {}
 
-module_init(crypto_hkdf_module_init);
+late_initcall(crypto_hkdf_module_init);
 module_exit(crypto_hkdf_module_exit);
 
 MODULE_LICENSE("GPL");

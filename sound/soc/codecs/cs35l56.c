@@ -706,16 +706,40 @@ static int cs35l56_write_cal(struct cs35l56_private *cs35l56)
 	return ret;
 }
 
+static int cs35l56_dsp_download_and_power_up(struct cs35l56_private *cs35l56,
+					     bool load_firmware)
+{
+	int ret;
+
+	/*
+	 * Abort the first load if it didn't find the suffixed bins and
+	 * we have an alternate fallback suffix.
+	 */
+	cs35l56->dsp.bin_mandatory = (load_firmware && cs35l56->fallback_fw_suffix);
+
+	ret = wm_adsp_power_up(&cs35l56->dsp, load_firmware);
+	if ((ret == -ENOENT) && cs35l56->dsp.bin_mandatory) {
+		cs35l56->dsp.fwf_suffix = cs35l56->fallback_fw_suffix;
+		cs35l56->fallback_fw_suffix = NULL;
+		cs35l56->dsp.bin_mandatory = false;
+		ret = wm_adsp_power_up(&cs35l56->dsp, load_firmware);
+	}
+
+	if (ret) {
+		dev_dbg(cs35l56->base.dev, "wm_adsp_power_up ret %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void cs35l56_reinit_patch(struct cs35l56_private *cs35l56)
 {
 	int ret;
 
-	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
-	ret = wm_adsp_power_up(&cs35l56->dsp, true);
-	if (ret) {
-		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
+	ret = cs35l56_dsp_download_and_power_up(cs35l56, true);
+	if (ret)
 		return;
-	}
 
 	cs35l56_write_cal(cs35l56);
 
@@ -750,11 +774,9 @@ static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing
 	 * but only if firmware is missing. If firmware is already patched just
 	 * power-up wm_adsp without downloading firmware.
 	 */
-	ret = wm_adsp_power_up(&cs35l56->dsp, !!firmware_missing);
-	if (ret) {
-		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
+	ret = cs35l56_dsp_download_and_power_up(cs35l56, firmware_missing);
+	if (ret)
 		goto err;
-	}
 
 	mutex_lock(&cs35l56->base.irq_lock);
 
@@ -853,6 +875,34 @@ err:
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
 
+static int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
+{
+	if (cs35l56->dsp.fwf_suffix)
+		return 0;
+
+	if (!cs35l56->sdw_peripheral)
+		return 0;
+
+	cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
+						 "l%uu%u",
+						 cs35l56->sdw_link_num,
+						 cs35l56->sdw_unique_id);
+	if (!cs35l56->dsp.fwf_suffix)
+		return -ENOMEM;
+
+	/*
+	 * There are published firmware files for L56 B0 silicon using
+	 * the ALSA prefix as the filename suffix. Default to trying these
+	 * first, with the new name as an alternate.
+	 */
+	if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev == 0xb0)) {
+		cs35l56->fallback_fw_suffix = cs35l56->dsp.fwf_suffix;
+		cs35l56->dsp.fwf_suffix = cs35l56->component->name_prefix;
+	}
+
+	return 0;
+}
+
 static int cs35l56_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
@@ -892,6 +942,10 @@ static int cs35l56_component_probe(struct snd_soc_component *component)
 		return -ENOMEM;
 
 	cs35l56->component = component;
+	ret = cs35l56_set_fw_suffix(cs35l56);
+	if (ret)
+		return ret;
+
 	wm_adsp2_component_probe(&cs35l56->dsp, component);
 
 	debugfs_create_bool("init_done", 0444, debugfs_root, &cs35l56->base.init_done);

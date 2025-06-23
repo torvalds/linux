@@ -254,34 +254,6 @@ out_unlock:
 	return ptr;
 }
 
-static bool execmem_cache_rox = false;
-
-void execmem_cache_make_ro(void)
-{
-	struct maple_tree *free_areas = &execmem_cache.free_areas;
-	struct maple_tree *busy_areas = &execmem_cache.busy_areas;
-	MA_STATE(mas_free, free_areas, 0, ULONG_MAX);
-	MA_STATE(mas_busy, busy_areas, 0, ULONG_MAX);
-	struct mutex *mutex = &execmem_cache.mutex;
-	void *area;
-
-	execmem_cache_rox = true;
-
-	mutex_lock(mutex);
-
-	mas_for_each(&mas_free, area, ULONG_MAX) {
-		unsigned long pages = mas_range_len(&mas_free) >> PAGE_SHIFT;
-		set_memory_ro(mas_free.index, pages);
-	}
-
-	mas_for_each(&mas_busy, area, ULONG_MAX) {
-		unsigned long pages = mas_range_len(&mas_busy) >> PAGE_SHIFT;
-		set_memory_ro(mas_busy.index, pages);
-	}
-
-	mutex_unlock(mutex);
-}
-
 static int execmem_cache_populate(struct execmem_range *range, size_t size)
 {
 	unsigned long vm_flags = VM_ALLOW_HUGE_VMAP;
@@ -302,15 +274,9 @@ static int execmem_cache_populate(struct execmem_range *range, size_t size)
 	/* fill memory with instructions that will trap */
 	execmem_fill_trapping_insns(p, alloc_size, /* writable = */ true);
 
-	if (execmem_cache_rox) {
-		err = set_memory_rox((unsigned long)p, vm->nr_pages);
-		if (err)
-			goto err_free_mem;
-	} else {
-		err = set_memory_x((unsigned long)p, vm->nr_pages);
-		if (err)
-			goto err_free_mem;
-	}
+	err = set_memory_rox((unsigned long)p, vm->nr_pages);
+	if (err)
+		goto err_free_mem;
 
 	err = execmem_cache_add(p, alloc_size);
 	if (err)

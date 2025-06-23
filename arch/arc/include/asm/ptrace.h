@@ -10,7 +10,7 @@
 #include <uapi/asm/ptrace.h>
 #include <linux/compiler.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 typedef union {
 	struct {
@@ -172,6 +172,6 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
 extern int syscall_trace_enter(struct pt_regs *);
 extern void syscall_trace_exit(struct pt_regs *);
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_PTRACE_H */
