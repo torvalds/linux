@@ -559,22 +559,6 @@ unsigned int cpumask_nth_and(unsigned int cpu, const struct cpumask *srcp1,
 }
 
 /**
- * cpumask_nth_andnot - get the Nth cpu set in 1st cpumask, and clear in 2nd.
- * @srcp1: the cpumask pointer
- * @srcp2: the cpumask pointer
- * @cpu: the Nth cpu to find, starting from 0
- *
- * Return: >= nr_cpu_ids if such cpu doesn't exist.
- */
-static __always_inline
-unsigned int cpumask_nth_andnot(unsigned int cpu, const struct cpumask *srcp1,
-							const struct cpumask *srcp2)
-{
-	return find_nth_andnot_bit(cpumask_bits(srcp1), cpumask_bits(srcp2),
-				small_cpumask_bits, cpumask_check(cpu));
-}
-
-/**
  * cpumask_nth_and_andnot - get the Nth cpu set in 1st and 2nd cpumask, and clear in 3rd.
  * @srcp1: the cpumask pointer
  * @srcp2: the cpumask pointer
