@@ -267,10 +267,9 @@ out:
 	BUG_ON(wb->sorted.size < wb->flushing.keys.nr);
 }
 
-int bch2_btree_write_buffer_insert_err(struct btree_trans *trans,
+int bch2_btree_write_buffer_insert_err(struct bch_fs *c,
 				       enum btree_id btree, struct bkey_i *k)
 {
-	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
 
 	prt_printf(&buf, "attempting to do write buffer update on non wb btree=");
@@ -332,7 +331,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		struct btree_write_buffered_key *k = &wb->flushing.keys.data[i->idx];
 
 		if (unlikely(!btree_type_uses_write_buffer(k->btree))) {
-			ret = bch2_btree_write_buffer_insert_err(trans, k->btree, &k->k);
+			ret = bch2_btree_write_buffer_insert_err(trans->c, k->btree, &k->k);
 			goto err;
 		}
 
