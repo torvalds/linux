@@ -58,7 +58,7 @@ static ssize_t show_agent_types(struct kobject *kobj, struct kobj_attribute *att
 		if (length)
 			length += sysfs_emit_at(buf, length, " ");
 
-		length += sysfs_emit_at(buf, length, agent_name[agent]);
+		length += sysfs_emit_at(buf, length, "%s", agent_name[agent]);
 	}
 
 	length += sysfs_emit_at(buf, length, "\n");

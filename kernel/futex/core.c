@@ -583,8 +583,8 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 		if (futex_get_value(&node, naddr))
 			return -EFAULT;
 
-		if (node != FUTEX_NO_NODE &&
-		    (node >= MAX_NUMNODES || !node_possible(node)))
+		if ((node != FUTEX_NO_NODE) &&
+		    ((unsigned int)node >= MAX_NUMNODES || !node_possible(node)))
 			return -EINVAL;
 	}
 
@@ -1629,6 +1629,16 @@ again:
 		mm->futex_phash_new = NULL;
 
 		if (fph) {
+			if (cur && (!cur->hash_mask || cur->immutable)) {
+				/*
+				 * If two threads simultaneously request the global
+				 * hash then the first one performs the switch,
+				 * the second one returns here.
+				 */
+				free = fph;
+				mm->futex_phash_new = new;
+				return -EBUSY;
+			}
 			if (cur && !new) {
 				/*
 				 * If we have an existing hash, but do not yet have

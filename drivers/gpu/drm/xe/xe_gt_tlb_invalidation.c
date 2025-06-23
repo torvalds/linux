@@ -138,6 +138,14 @@ void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
 	int pending_seqno;
 
 	/*
+	 * we can get here before the CTs are even initialized if we're wedging
+	 * very early, in which case there are not going to be any pending
+	 * fences so we can bail immediately.
+	 */
+	if (!xe_guc_ct_initialized(&gt->uc.guc.ct))
+		return;
+
+	/*
 	 * CT channel is already disabled at this point. No new TLB requests can
 	 * appear.
 	 */

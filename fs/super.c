@@ -964,8 +964,10 @@ void iterate_supers_type(struct file_system_type *type,
 		spin_unlock(&sb_lock);
 
 		locked = super_lock_shared(sb);
-		if (locked)
+		if (locked) {
 			f(sb, arg);
+			super_unlock_shared(sb);
+		}
 
 		spin_lock(&sb_lock);
 		if (p)

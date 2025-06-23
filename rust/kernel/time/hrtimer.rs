@@ -517,7 +517,7 @@ macro_rules! impl_has_hr_timer {
             ) -> *mut Self {
                 // SAFETY: As per the safety requirement of this function, `ptr`
                 // is pointing inside a `$timer_type`.
-                unsafe { ::kernel::container_of!(ptr, $timer_type, $field).cast_mut() }
+                unsafe { ::kernel::container_of!(ptr, $timer_type, $field) }
             }
         }
     }
