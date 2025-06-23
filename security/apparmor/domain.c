@@ -734,10 +734,8 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 			 * we don't need to care about clobbering it
 			 */
 			if (info == CONFLICTING_ATTACH_STR_IX
-			    || info == CONFLICTING_ATTACH_STR_UX) {
+			    || info == CONFLICTING_ATTACH_STR_UX)
 				perms.audit |= MAY_EXEC;
-				perms.allow |= MAY_EXEC;
-			}
 			/* hack ix fallback - improve how this is detected */
 			goto audit;
 		} else if (!new) {
