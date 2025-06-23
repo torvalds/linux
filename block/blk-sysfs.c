@@ -161,6 +161,8 @@ static ssize_t queue_##_field##_show(struct gendisk *disk, char *page)	\
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_discard_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_hw_discard_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_write_zeroes_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_hw_wzeroes_unmap_sectors)
+QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_wzeroes_unmap_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(atomic_write_max_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(atomic_write_boundary_sectors)
 QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_BYTES(max_zone_append_sectors)
@@ -202,6 +204,24 @@ static int queue_max_discard_sectors_store(struct gendisk *disk,
 		return -EINVAL;
 
 	lim->max_user_discard_sectors = max_discard_bytes >> SECTOR_SHIFT;
+	return 0;
+}
+
+static int queue_max_wzeroes_unmap_sectors_store(struct gendisk *disk,
+		const char *page, size_t count, struct queue_limits *lim)
+{
+	unsigned long max_zeroes_bytes, max_hw_zeroes_bytes;
+	ssize_t ret;
+
+	ret = queue_var_store(&max_zeroes_bytes, page, count);
+	if (ret < 0)
+		return ret;
+
+	max_hw_zeroes_bytes = lim->max_hw_wzeroes_unmap_sectors << SECTOR_SHIFT;
+	if (max_zeroes_bytes != 0 && max_zeroes_bytes != max_hw_zeroes_bytes)
+		return -EINVAL;
+
+	lim->max_user_wzeroes_unmap_sectors = max_zeroes_bytes >> SECTOR_SHIFT;
 	return 0;
 }
 
@@ -514,6 +534,10 @@ QUEUE_LIM_RO_ENTRY(queue_atomic_write_unit_min, "atomic_write_unit_min_bytes");
 
 QUEUE_RO_ENTRY(queue_write_same_max, "write_same_max_bytes");
 QUEUE_LIM_RO_ENTRY(queue_max_write_zeroes_sectors, "write_zeroes_max_bytes");
+QUEUE_LIM_RO_ENTRY(queue_max_hw_wzeroes_unmap_sectors,
+		"write_zeroes_unmap_max_hw_bytes");
+QUEUE_LIM_RW_ENTRY(queue_max_wzeroes_unmap_sectors,
+		"write_zeroes_unmap_max_bytes");
 QUEUE_LIM_RO_ENTRY(queue_max_zone_append_sectors, "zone_append_max_bytes");
 QUEUE_LIM_RO_ENTRY(queue_zone_write_granularity, "zone_write_granularity");
 
@@ -662,6 +686,8 @@ static struct attribute *queue_attrs[] = {
 	&queue_atomic_write_unit_min_entry.attr,
 	&queue_atomic_write_unit_max_entry.attr,
 	&queue_max_write_zeroes_sectors_entry.attr,
+	&queue_max_hw_wzeroes_unmap_sectors_entry.attr,
+	&queue_max_wzeroes_unmap_sectors_entry.attr,
 	&queue_max_zone_append_sectors_entry.attr,
 	&queue_zone_write_granularity_entry.attr,
 	&queue_rotational_entry.attr,
