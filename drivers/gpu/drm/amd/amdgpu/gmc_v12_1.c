@@ -361,7 +361,7 @@ static void gmc_v12_1_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 				gmc_v12_1_flush_gpu_tlb(adev, vmid, i,
 							flush_type);
 		} else {
-			gmc_v12_1_flush_gpu_tlb(adev, vmid, AMDGPU_GFXHUB(0),
+			gmc_v12_1_flush_gpu_tlb(adev, vmid, AMDGPU_GFXHUB(inst),
 						flush_type);
 		}
 	}
