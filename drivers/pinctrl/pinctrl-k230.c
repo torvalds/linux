@@ -477,6 +477,10 @@ static int k230_pinctrl_parse_groups(struct device_node *np,
 	grp->name = np->name;
 
 	list = of_get_property(np, "pinmux", &size);
+	if (!list) {
+		dev_err(dev, "failed to get pinmux property\n");
+		return -EINVAL;
+	}
 	size /= sizeof(*list);
 
 	grp->num_pins = size;
@@ -623,7 +627,7 @@ static int k230_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id k230_dt_ids[] = {
 	{ .compatible = "canaan,k230-pinctrl", },
-	{ /* sintenel */ }
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, k230_dt_ids);
 
