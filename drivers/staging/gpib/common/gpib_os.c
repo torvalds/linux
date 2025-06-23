@@ -1774,7 +1774,7 @@ static int query_board_rsv_ioctl(struct gpib_board *board, unsigned long arg)
 
 static int board_info_ioctl(const struct gpib_board *board, unsigned long arg)
 {
-	struct gpib_board_info_ioctl info;
+	struct gpib_board_info_ioctl info = { };
 	int retval;
 
 	info.pad = board->pad;
