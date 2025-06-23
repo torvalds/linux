@@ -541,7 +541,7 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	const struct hnae3_ae_ops *ops = hns3_get_ops(h);
-	int i;
+	u32 i;
 
 	if (!ops->get_strings)
 		return;
@@ -569,7 +569,7 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
 	struct hns3_nic_priv *nic_priv = handle->priv;
 	struct hns3_enet_ring *ring;
 	u8 *stat;
-	int i, j;
+	u32 i, j;
 
 	/* get stats for Tx */
 	for (i = 0; i < kinfo->num_tqps; i++) {

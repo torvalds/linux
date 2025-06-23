@@ -621,7 +621,7 @@ struct hns3_reset_type_map {
 	enum hnae3_reset_type rst_type;
 };
 
-static inline int ring_space(struct hns3_enet_ring *ring)
+static inline u32 ring_space(struct hns3_enet_ring *ring)
 {
 	/* This smp_load_acquire() pairs with smp_store_release() in
 	 * hns3_nic_reclaim_one_desc called by hns3_clean_tx_ring.
