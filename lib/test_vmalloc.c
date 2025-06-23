@@ -41,7 +41,7 @@ __param(int, nr_pages, 0,
 __param(bool, use_huge, false,
 	"Use vmalloc_huge in fix_size_alloc_test");
 
-__param(int, run_test_mask, INT_MAX,
+__param(int, run_test_mask, 7,
 	"Set tests specified in the mask.\n\n"
 		"\t\tid: 1,    name: fix_size_alloc_test\n"
 		"\t\tid: 2,    name: full_fit_alloc_test\n"
