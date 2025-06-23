@@ -595,15 +595,6 @@
 			#clock-cells = <1>;
 		};
 
-		emmc: mmc@d4281000 {
-			compatible = "spacemit,k1-sdhci";
-			reg = <0x0 0xd4281000 0x0 0x200>;
-			clocks = <&syscon_apmu CLK_SDH_AXI>, <&syscon_apmu CLK_SDH2>;
-			clock-names = "core", "io";
-			interrupts = <101>;
-			status = "disabled";
-		};
-
 		syscon_apmu: system-controller@d4282800 {
 			compatible = "spacemit,k1-syscon-apmu";
 			reg = <0x0 0xd4282800 0x0 0x400>;
@@ -831,6 +822,16 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			dma-ranges = <0x0 0x00000000 0x0 0x00000000 0x0 0x80000000>;
+
+			emmc: mmc@d4281000 {
+				compatible = "spacemit,k1-sdhci";
+				reg = <0x0 0xd4281000 0x0 0x200>;
+				clocks = <&syscon_apmu CLK_SDH_AXI>,
+					 <&syscon_apmu CLK_SDH2>;
+				clock-names = "core", "io";
+				interrupts = <101>;
+				status = "disabled";
+			};
 		};
 	};
 };
