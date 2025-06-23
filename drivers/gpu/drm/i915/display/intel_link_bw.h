@@ -11,6 +11,7 @@
 #include "intel_display_limits.h"
 
 struct intel_atomic_state;
+struct intel_connector;
 struct intel_crtc_state;
 
 struct intel_link_bw_limits {
@@ -32,5 +33,6 @@ bool intel_link_bw_set_bpp_limit_for_pipe(struct intel_atomic_state *state,
 					  enum pipe pipe);
 int intel_link_bw_atomic_check(struct intel_atomic_state *state,
 			       struct intel_link_bw_limits *new_limits);
+void intel_link_bw_connector_debugfs_add(struct intel_connector *connector);
 
 #endif

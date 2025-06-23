@@ -27,6 +27,7 @@
 
 #include "display/i9xx_plane_regs.h"
 #include "display/intel_display.h"
+#include "display/intel_display_core.h"
 
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
@@ -37,7 +38,7 @@
 #include "i915_reg.h"
 #include "intel_clock_gating.h"
 #include "intel_mchbar_regs.h"
-#include "vlv_sideband.h"
+#include "vlv_iosf_sb.h"
 
 struct drm_i915_clock_gating_funcs {
 	void (*init_clock_gating)(struct drm_i915_private *i915);
@@ -201,6 +202,7 @@ static void ilk_init_clock_gating(struct drm_i915_private *i915)
 
 static void cpt_init_clock_gating(struct drm_i915_private *i915)
 {
+	struct intel_display *display = i915->display;
 	enum pipe pipe;
 	u32 val;
 
@@ -220,7 +222,7 @@ static void cpt_init_clock_gating(struct drm_i915_private *i915)
 		val = intel_uncore_read(&i915->uncore, TRANS_CHICKEN2(pipe));
 		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
 		val &= ~TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
-		if (i915->display.vbt.fdi_rx_polarity_inverted)
+		if (display->vbt.fdi_rx_polarity_inverted)
 			val |= TRANS_CHICKEN2_FDI_POLARITY_REVERSED;
 		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_COUNTER;
 		val &= ~TRANS_CHICKEN2_DISABLE_DEEP_COLOR_MODESWITCH;

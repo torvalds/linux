@@ -6,8 +6,8 @@
 #ifndef __INTEL_CX0_PHY_REGS_H__
 #define __INTEL_CX0_PHY_REGS_H__
 
-#include "i915_reg_defs.h"
 #include "intel_display_limits.h"
+#include "intel_display_reg_defs.h"
 
 /* DDI Buffer Control */
 #define _DDI_CLK_VALFREQ_A		0x64030
@@ -284,6 +284,9 @@
 /* PIPE SPEC Defined Registers */
 #define PHY_CX0_TX_CONTROL(tx, control)	(0x400 + ((tx) - 1) * 0x200 + (control))
 #define   CONTROL2_DISABLE_SINGLE_TX	REG_BIT(6)
+
+#define PHY_CMN1_CONTROL(tx, control)	(0x800 + ((tx) - 1) * 0x200 + (control))
+#define   CONTROL0_MAC_TRANSMIT_LFPS	REG_BIT(1)
 
 /* C20 Registers */
 #define PHY_C20_WR_ADDRESS_L		0xC02

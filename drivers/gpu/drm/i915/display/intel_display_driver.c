@@ -27,6 +27,7 @@
 #include "intel_cdclk.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
+#include "intel_display_core.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_driver.h"
 #include "intel_display_irq.h"
@@ -243,10 +244,16 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 
 	intel_dmc_init(display);
 
+	display->hotplug.dp_wq = alloc_ordered_workqueue("intel-dp", 0);
+	if (!display->hotplug.dp_wq) {
+		ret = -ENOMEM;
+		goto cleanup_vga_client_pw_domain_dmc;
+	}
+
 	display->wq.modeset = alloc_ordered_workqueue("i915_modeset", 0);
 	if (!display->wq.modeset) {
 		ret = -ENOMEM;
-		goto cleanup_vga_client_pw_domain_dmc;
+		goto cleanup_wq_dp;
 	}
 
 	display->wq.flip = alloc_workqueue("i915_flip", WQ_HIGHPRI |
@@ -296,6 +303,8 @@ cleanup_wq_flip:
 	destroy_workqueue(display->wq.flip);
 cleanup_wq_modeset:
 	destroy_workqueue(display->wq.modeset);
+cleanup_wq_dp:
+	destroy_workqueue(display->hotplug.dp_wq);
 cleanup_vga_client_pw_domain_dmc:
 	intel_dmc_fini(display);
 	intel_power_domains_driver_remove(display);
@@ -466,7 +475,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	}
 
 	intel_plane_possible_crtcs_init(display);
-	intel_shared_dpll_init(display);
+	intel_dpll_init(display);
 	intel_fdi_pll_freq_update(display);
 
 	intel_update_czclk(display);
@@ -631,6 +640,7 @@ void intel_display_driver_remove_noirq(struct intel_display *display)
 
 	intel_gmbus_teardown(display);
 
+	destroy_workqueue(display->hotplug.dp_wq);
 	destroy_workqueue(display->wq.flip);
 	destroy_workqueue(display->wq.modeset);
 	destroy_workqueue(display->wq.cleanup);

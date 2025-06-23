@@ -843,7 +843,9 @@ struct drm_display_info {
 	int vics_len;
 
 	/**
-	 * @quirks: EDID based quirks. Internal to EDID parsing.
+	 * @quirks: EDID based quirks. DRM core and drivers can query the
+	 * @drm_edid_quirk quirks using drm_edid_has_quirk(), the rest of
+	 * the quirks also tracked here are internal to EDID parsing.
 	 */
 	u32 quirks;
 

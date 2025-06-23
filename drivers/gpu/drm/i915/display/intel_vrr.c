@@ -6,8 +6,8 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_vrr.h"
@@ -576,6 +576,25 @@ bool intel_vrr_always_use_vrr_tg(struct intel_display *display)
 	return false;
 }
 
+static
+void intel_vrr_set_db_point_and_transmission_line(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+
+	/*
+	 * For BMG and LNL+ onwards the EMP_AS_SDP_TL is used for programming
+	 * double buffering point and transmission line for VRR packets for
+	 * HDMI2.1/DP/eDP/DP->HDMI2.1 PCON.
+	 * Since currently we support VRR only for DP/eDP, so this is programmed
+	 * to for Adaptive Sync SDP to Vsync start.
+	 */
+	if (DISPLAY_VERx100(display) == 1401 || DISPLAY_VER(display) >= 20)
+		intel_de_write(display,
+			       EMP_AS_SDP_TL(display, cpu_transcoder),
+			       EMP_AS_SDP_DB_TL(crtc_state->vrr.vsync_start));
+}
+
 void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -595,6 +614,8 @@ void intel_vrr_enable(const struct intel_crtc_state *crtc_state)
 		       TRANS_PUSH_EN);
 
 	if (!intel_vrr_always_use_vrr_tg(display)) {
+		intel_vrr_set_db_point_and_transmission_line(crtc_state);
+
 		if (crtc_state->cmrr.enable) {
 			intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 				       VRR_CTL_VRR_ENABLE | VRR_CTL_CMRR_ENABLE |
@@ -645,6 +666,8 @@ void intel_vrr_transcoder_enable(const struct intel_crtc_state *crtc_state)
 
 	intel_de_write(display, TRANS_PUSH(display, cpu_transcoder),
 		       TRANS_PUSH_EN);
+
+	intel_vrr_set_db_point_and_transmission_line(crtc_state);
 
 	intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
 		       VRR_CTL_VRR_ENABLE | trans_vrr_ctl(crtc_state));

@@ -108,6 +108,12 @@
 #define VRR_VSYNC_START_MASK			REG_GENMASK(12, 0)
 #define VRR_VSYNC_START(vsync_start)		REG_FIELD_PREP(VRR_VSYNC_START_MASK, (vsync_start))
 
+/* Common register for HDMI EMP and DP AS SDP */
+#define _EMP_AS_SDP_TL_A			0x60204
+#define EMP_AS_SDP_DB_TL_MASK			REG_GENMASK(12, 0)
+#define EMP_AS_SDP_TL(dev_priv, trans)		_MMIO_TRANS2(dev_priv, trans, _EMP_AS_SDP_TL_A)
+#define EMP_AS_SDP_DB_TL(db_transmit_line)	REG_FIELD_PREP(EMP_AS_SDP_DB_TL_MASK, (db_transmit_line))
+
 /*CMRR Registers*/
 
 #define _TRANS_CMRR_M_LO_A			0x604F0

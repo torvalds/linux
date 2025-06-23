@@ -40,12 +40,11 @@ i915-y += \
 	intel_pcode.o \
 	intel_region_ttm.o \
 	intel_runtime_pm.o \
-	intel_sbi.o \
 	intel_step.o \
 	intel_uncore.o \
 	intel_uncore_trace.o \
 	intel_wakeref.o \
-	vlv_sideband.o \
+	vlv_iosf_sb.o \
 	vlv_suspend.o
 
 # core peripheral code
@@ -288,6 +287,7 @@ i915-y += \
 	display/intel_pmdemand.o \
 	display/intel_psr.o \
 	display/intel_quirks.o \
+	display/intel_sbi.o \
 	display/intel_sprite.o \
 	display/intel_sprite_uapi.o \
 	display/intel_tc.o \
@@ -296,7 +296,8 @@ i915-y += \
 	display/intel_wm.o \
 	display/skl_scaler.o \
 	display/skl_universal_plane.o \
-	display/skl_watermark.o
+	display/skl_watermark.o \
+	display/vlv_sideband.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o

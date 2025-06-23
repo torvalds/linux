@@ -5,9 +5,9 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
@@ -695,15 +695,14 @@ static void glk_program_nearest_filter_coefs(struct intel_display *display,
 			   GLK_PS_COEF_INDEX_SET(pipe, id, set), 0);
 }
 
-static u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set)
+static u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter)
 {
-	if (filter == DRM_SCALING_FILTER_NEAREST_NEIGHBOR) {
+	if (filter == DRM_SCALING_FILTER_NEAREST_NEIGHBOR)
 		return (PS_FILTER_PROGRAMMED |
-			PS_Y_VERT_FILTER_SELECT(set) |
-			PS_Y_HORZ_FILTER_SELECT(set) |
-			PS_UV_VERT_FILTER_SELECT(set) |
-			PS_UV_HORZ_FILTER_SELECT(set));
-	}
+			PS_Y_VERT_FILTER_SELECT(0) |
+			PS_Y_HORZ_FILTER_SELECT(0) |
+			PS_UV_VERT_FILTER_SELECT(0) |
+			PS_UV_HORZ_FILTER_SELECT(0));
 
 	return PS_FILTER_MEDIUM;
 }
@@ -761,7 +760,7 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 	id = scaler_state->scaler_id;
 
 	ps_ctrl = PS_SCALER_EN | PS_BINDING_PIPE | scaler_state->scalers[id].mode |
-		skl_scaler_get_filter_select(crtc_state->hw.scaling_filter, 0);
+		skl_scaler_get_filter_select(crtc_state->hw.scaling_filter);
 
 	trace_intel_pipe_scaler_update_arm(crtc, id, x, y, width, height);
 
@@ -827,7 +826,7 @@ skl_program_plane_scaler(struct intel_dsb *dsb,
 	}
 
 	ps_ctrl = PS_SCALER_EN | PS_BINDING_PLANE(plane->id) | scaler->mode |
-		skl_scaler_get_filter_select(plane_state->hw.scaling_filter, 0);
+		skl_scaler_get_filter_select(plane_state->hw.scaling_filter);
 
 	trace_intel_plane_scaler_update_arm(plane, scaler_id,
 					    crtc_x, crtc_y, crtc_w, crtc_h);

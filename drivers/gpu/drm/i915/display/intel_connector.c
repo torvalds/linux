@@ -208,8 +208,7 @@ enum pipe intel_connector_get_pipe(struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector);
 
-	drm_WARN_ON(display->drm,
-		    !drm_modeset_is_locked(&display->drm->mode_config.connection_mutex));
+	drm_modeset_lock_assert_held(&display->drm->mode_config.connection_mutex);
 
 	if (!connector->base.state->crtc)
 		return INVALID_PIPE;

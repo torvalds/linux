@@ -491,10 +491,6 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (err)
 		goto err;
 
-	err = xe_display_create(xe);
-	if (WARN_ON(err))
-		goto err;
-
 	return xe;
 
 err:

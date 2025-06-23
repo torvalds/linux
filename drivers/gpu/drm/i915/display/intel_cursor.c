@@ -12,7 +12,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"

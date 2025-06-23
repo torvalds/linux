@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#include "intel_display_reg_defs.h"
+
 struct intel_dkl_phy_reg {
 	u32 reg:24;
 	u32 bank_idx:4;

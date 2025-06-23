@@ -34,8 +34,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_irq.h"
-#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crt.h"
 #include "intel_crt_regs.h"
@@ -44,6 +42,7 @@
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
 #include "intel_fdi_regs.h"
