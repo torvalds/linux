@@ -407,37 +407,6 @@ int vsc_tp_register_event_cb(struct vsc_tp *tp, vsc_tp_event_cb_t event_cb,
 EXPORT_SYMBOL_NS_GPL(vsc_tp_register_event_cb, "VSC_TP");
 
 /**
- * vsc_tp_request_irq - request irq for vsc_tp device
- * @tp: vsc_tp device handle
- */
-int vsc_tp_request_irq(struct vsc_tp *tp)
-{
-	struct spi_device *spi = tp->spi;
-	struct device *dev = &spi->dev;
-	int ret;
-
-	irq_set_status_flags(spi->irq, IRQ_DISABLE_UNLAZY);
-	ret = request_threaded_irq(spi->irq, vsc_tp_isr, vsc_tp_thread_isr,
-				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				   dev_name(dev), tp);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL_NS_GPL(vsc_tp_request_irq, "VSC_TP");
-
-/**
- * vsc_tp_free_irq - free irq for vsc_tp device
- * @tp: vsc_tp device handle
- */
-void vsc_tp_free_irq(struct vsc_tp *tp)
-{
-	free_irq(tp->spi->irq, tp);
-}
-EXPORT_SYMBOL_NS_GPL(vsc_tp_free_irq, "VSC_TP");
-
-/**
  * vsc_tp_intr_synchronize - synchronize vsc_tp interrupt
  * @tp: vsc_tp device handle
  */
