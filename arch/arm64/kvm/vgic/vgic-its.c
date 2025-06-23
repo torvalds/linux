@@ -2694,6 +2694,9 @@ static int vgic_its_ctrl(struct kvm *kvm, struct vgic_its *its, u64 attr)
 	case KVM_DEV_ARM_ITS_RESTORE_TABLES:
 		ret = abi->restore_tables(its);
 		break;
+	default:
+		ret = -ENXIO;
+		break;
 	}
 
 	mutex_unlock(&its->its_lock);
