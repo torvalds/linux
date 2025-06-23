@@ -169,6 +169,8 @@ static inline bool xe_vma_is_userptr(struct xe_vma *vma)
 		!xe_vma_is_cpu_addr_mirror(vma);
 }
 
+struct xe_vma *xe_vm_find_vma_by_addr(struct xe_vm *vm, u64 page_addr);
+
 /**
  * to_userptr_vma() - Return a pointer to an embedding userptr vma
  * @vma: Pointer to the embedded struct xe_vma
@@ -225,6 +227,9 @@ struct dma_fence *xe_vm_range_rebind(struct xe_vm *vm,
 				     u8 tile_mask);
 struct dma_fence *xe_vm_range_unbind(struct xe_vm *vm,
 				     struct xe_svm_range *range);
+
+int xe_vm_range_tilemask_tlb_invalidation(struct xe_vm *vm, u64 start,
+					  u64 end, u8 tile_mask);
 
 int xe_vm_invalidate_vma(struct xe_vma *vma);
 
@@ -369,6 +374,25 @@ static inline bool xe_vm_is_validating(struct xe_vm *vm)
 	}
 	return false;
 }
+
+/**
+ * xe_vm_has_valid_gpu_mapping() - Advisory helper to check if VMA or SVM range has
+ * a valid GPU mapping
+ * @tile: The tile which the GPU mapping belongs to
+ * @tile_present: Tile present mask
+ * @tile_invalidated: Tile invalidated mask
+ *
+ * The READ_ONCEs pair with WRITE_ONCEs in either the TLB invalidation paths
+ * (xe_vm.c, xe_svm.c) or the binding paths (xe_pt.c). These are not reliable
+ * without the notifier lock in userptr or SVM cases, and not reliable without
+ * the BO dma-resv lock in the BO case. As such, they should only be used in
+ * opportunistic cases (e.g., skipping a page fault fix or not skipping a TLB
+ * invalidation) where it is harmless.
+ *
+ * Return: True is there are valid GPU pages, False otherwise
+ */
+#define xe_vm_has_valid_gpu_mapping(tile, tile_present, tile_invalidated)	\
+	((READ_ONCE(tile_present) & ~READ_ONCE(tile_invalidated)) & BIT((tile)->id))
 
 #if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
 void xe_vma_userptr_force_invalidate(struct xe_userptr_vma *uvma);

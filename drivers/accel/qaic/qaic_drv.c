@@ -29,6 +29,7 @@
 #include "mhi_controller.h"
 #include "qaic.h"
 #include "qaic_debugfs.h"
+#include "qaic_ras.h"
 #include "qaic_timesync.h"
 #include "sahara.h"
 
@@ -695,6 +696,10 @@ static int __init qaic_init(void)
 	if (ret)
 		pr_debug("qaic: qaic_bootlog_register failed %d\n", ret);
 
+	ret = qaic_ras_register();
+	if (ret)
+		pr_debug("qaic: qaic_ras_register failed %d\n", ret);
+
 	return 0;
 
 free_mhi:
@@ -722,6 +727,7 @@ static void __exit qaic_exit(void)
 	 * reinitializing the link_up state after the cleanup is done.
 	 */
 	link_up = true;
+	qaic_ras_unregister();
 	qaic_bootlog_unregister();
 	qaic_timesync_deinit();
 	sahara_unregister();

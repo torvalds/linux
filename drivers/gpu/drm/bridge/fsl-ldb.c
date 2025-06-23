@@ -298,16 +298,15 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 	struct fsl_ldb *fsl_ldb;
 	int dual_link;
 
-	fsl_ldb = devm_kzalloc(dev, sizeof(*fsl_ldb), GFP_KERNEL);
-	if (!fsl_ldb)
-		return -ENOMEM;
+	fsl_ldb = devm_drm_bridge_alloc(dev, struct fsl_ldb, bridge, &funcs);
+	if (IS_ERR(fsl_ldb))
+		return PTR_ERR(fsl_ldb);
 
 	fsl_ldb->devdata = of_device_get_match_data(dev);
 	if (!fsl_ldb->devdata)
 		return -EINVAL;
 
 	fsl_ldb->dev = &pdev->dev;
-	fsl_ldb->bridge.funcs = &funcs;
 	fsl_ldb->bridge.of_node = dev->of_node;
 
 	fsl_ldb->clk = devm_clk_get(dev, "ldb");

@@ -445,6 +445,9 @@ struct drm_ivpu_metric_streamer_get_data {
 	__u64 data_size;
 };
 
+/* Command queue flags */
+#define DRM_IVPU_CMDQ_FLAG_TURBO 0x00000001
+
 /**
  * struct drm_ivpu_cmdq_create - Create command queue for job submission
  */
@@ -462,6 +465,17 @@ struct drm_ivpu_cmdq_create {
 	 * %DRM_IVPU_JOB_PRIORITY_REALTIME
 	 */
 	__u32 priority;
+	/**
+	 * @flags:
+	 *
+	 * Supported flags:
+	 *
+	 * %DRM_IVPU_CMDQ_FLAG_TURBO
+	 *
+	 * Enable low-latency mode for the command queue. The NPU will maximize performance
+	 * when executing jobs from such queue at the cost of increased power usage.
+	 */
+	__u32 flags;
 };
 
 /**

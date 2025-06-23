@@ -13,6 +13,8 @@
  *
  */
 
+#include <linux/export.h>
+
 #include "matroxfb_base.h"
 #include "matroxfb_misc.h"
 #include "matroxfb_DAC1064.h"
@@ -32,29 +34,29 @@ struct mctl {
 #define WLMAX	0x3FF
 
 static const struct mctl g450_controls[] =
-{	{ { V4L2_CID_BRIGHTNESS, V4L2_CTRL_TYPE_INTEGER, 
+{	{ { V4L2_CID_BRIGHTNESS, V4L2_CTRL_TYPE_INTEGER,
 	  "brightness",
-	  0, WLMAX-BLMIN, 1, 370-BLMIN, 
+	  0, WLMAX-BLMIN, 1, 370-BLMIN,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.brightness) },
-	{ { V4L2_CID_CONTRAST, V4L2_CTRL_TYPE_INTEGER, 
+	{ { V4L2_CID_CONTRAST, V4L2_CTRL_TYPE_INTEGER,
 	  "contrast",
-	  0, 1023, 1, 127, 
+	  0, 1023, 1, 127,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.contrast) },
 	{ { V4L2_CID_SATURATION, V4L2_CTRL_TYPE_INTEGER,
 	  "saturation",
-	  0, 255, 1, 165, 
+	  0, 255, 1, 165,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.saturation) },
 	{ { V4L2_CID_HUE, V4L2_CTRL_TYPE_INTEGER,
 	  "hue",
-	  0, 255, 1, 0, 
+	  0, 255, 1, 0,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.hue) },
 	{ { MATROXFB_CID_TESTOUT, V4L2_CTRL_TYPE_BOOLEAN,
 	  "test output",
-	  0, 1, 1, 0, 
+	  0, 1, 1, 0,
 	  0,
 	}, offsetof(struct matrox_fb_info, altout.tvo_params.testout) },
 };
@@ -89,7 +91,7 @@ static inline int *get_ctrl_ptr(struct matrox_fb_info *minfo, unsigned int idx)
 static void tvo_fill_defaults(struct matrox_fb_info *minfo)
 {
 	unsigned int i;
-	
+
 	for (i = 0; i < G450CTRLS; i++) {
 		*get_ctrl_ptr(minfo, i) = g450_controls[i].desc.default_value;
 	}
@@ -99,7 +101,7 @@ static int cve2_get_reg(struct matrox_fb_info *minfo, int reg)
 {
 	unsigned long flags;
 	int val;
-	
+
 	matroxfb_DAC_lock_irqsave(flags);
 	matroxfb_DAC_out(minfo, 0x87, reg);
 	val = matroxfb_DAC_in(minfo, 0x88);
@@ -141,16 +143,16 @@ static void g450_compute_bwlevel(const struct matrox_fb_info *minfo, int *bl,
 
 static int g450_query_ctrl(void* md, struct v4l2_queryctrl *p) {
 	int i;
-	
+
 	i = get_ctrl_id(p->id);
 	if (i >= 0) {
 		*p = g450_controls[i].desc;
 		return 0;
 	}
 	if (i == -ENOENT) {
-		static const struct v4l2_queryctrl disctrl = 
+		static const struct v4l2_queryctrl disctrl =
 			{ .flags = V4L2_CTRL_FLAG_DISABLED };
-			
+
 		i = p->id;
 		*p = disctrl;
 		p->id = i;
@@ -163,7 +165,7 @@ static int g450_query_ctrl(void* md, struct v4l2_queryctrl *p) {
 static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 	int i;
 	struct matrox_fb_info *minfo = md;
-	
+
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
 
@@ -209,7 +211,7 @@ static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 			}
 			break;
 	}
-	
+
 
 	return 0;
 }
@@ -217,7 +219,7 @@ static int g450_set_ctrl(void* md, struct v4l2_control *p) {
 static int g450_get_ctrl(void* md, struct v4l2_control *p) {
 	int i;
 	struct matrox_fb_info *minfo = md;
-	
+
 	i = get_ctrl_id(p->id);
 	if (i < 0) return -EINVAL;
 	p->value = *get_ctrl_ptr(minfo, i);
@@ -247,22 +249,22 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	unsigned long long piic;
 	int mnp;
 	int over;
-	
+
 	r->regs[0x80] = 0x03;	/* | 0x40 for SCART */
 
 	hvis = ((mt->HDisplay << 1) + 3) & ~3;
-	
+
 	if (hvis >= 2048) {
 		hvis = 2044;
 	}
-	
+
 	piic = 1000000000ULL * hvis;
 	do_div(piic, outd->h_vis);
 
 	dprintk(KERN_DEBUG "Want %u kHz pixclock\n", (unsigned int)piic);
-	
+
 	mnp = matroxfb_g450_setclk(minfo, piic, M_VIDEO_PLL);
-	
+
 	mt->mnp = mnp;
 	mt->pixclock = g450_mnp2f(minfo, mnp);
 
@@ -275,7 +277,7 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	piic = outd->chromasc;
 	do_div(piic, mt->pixclock);
 	chromasc = piic;
-	
+
 	dprintk(KERN_DEBUG "Chroma is %08X\n", chromasc);
 
 	r->regs[0] = piic >> 24;
@@ -287,7 +289,7 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	hsl = (((outd->h_sync + pixclock) / pixclock)) & ~1;
 	hlen = hvis + hfp + hsl + hbp;
 	over = hlen & 0x0F;
-	
+
 	dprintk(KERN_DEBUG "WL: vis=%u, hf=%u, hs=%u, hb=%u, total=%u\n", hvis, hfp, hsl, hbp, hlen);
 
 	if (over) {
@@ -310,14 +312,14 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	r->regs[0x2C] = hfp;
 	r->regs[0x31] = hvis / 8;
 	r->regs[0x32] = hvis & 7;
-	
+
 	dprintk(KERN_DEBUG "PG: vis=%04X, hf=%02X, hs=%02X, hb=%02X, total=%04X\n", hvis, hfp, hsl, hbp, hlen);
 
 	r->regs[0x84] = 1;	/* x sync point */
 	r->regs[0x85] = 0;
 	hvis = hvis >> 1;
 	hlen = hlen >> 1;
-	
+
 	dprintk(KERN_DEBUG "hlen=%u hvis=%u\n", hlen, hvis);
 
 	mt->interlaced = 1;
@@ -332,13 +334,13 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 		unsigned int vtotal;
 		unsigned int vsyncend;
 		unsigned int vdisplay;
-		
+
 		vtotal = mt->VTotal;
 		vsyncend = mt->VSyncEnd;
 		vdisplay = mt->VDisplay;
 		if (vtotal < outd->v_total) {
 			unsigned int yovr = outd->v_total - vtotal;
-			
+
 			vsyncend += yovr >> 1;
 		} else if (vtotal > outd->v_total) {
 			vdisplay = outd->v_total - 4;
@@ -350,7 +352,7 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 		r->regs[0x33] = upper - 1;	/* upper blanking */
 		r->regs[0x82] = upper;		/* y sync point */
 		r->regs[0x83] = upper >> 8;
-		
+
 		mt->VDisplay = vdisplay;
 		mt->VSyncStart = outd->v_total - 2;
 		mt->VSyncEnd = outd->v_total;
@@ -509,9 +511,9 @@ static void cve2_init_TV(struct matrox_fb_info *minfo,
 	LR(0x80);
 	LR(0x82); LR(0x83);
 	LR(0x84); LR(0x85);
-	
+
 	cve2_set_reg(minfo, 0x3E, 0x01);
-	
+
 	for (i = 0; i < 0x3E; i++) {
 		LR(i);
 	}
@@ -558,7 +560,7 @@ static int matroxfb_g450_compute(void* md, struct my_timming* mt) {
 
 static int matroxfb_g450_program(void* md) {
 	struct matrox_fb_info *minfo = md;
-	
+
 	if (minfo->outputs[1].mode != MATROXFB_OUTPUT_MODE_MONITOR) {
 		cve2_init_TV(minfo, &minfo->hw.maven);
 	}

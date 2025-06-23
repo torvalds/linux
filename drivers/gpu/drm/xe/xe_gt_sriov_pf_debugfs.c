@@ -308,7 +308,7 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 	if (!xe_gt_is_media_type(gt)) {
 		debugfs_create_file_unsafe(vfid ? "ggtt_quota" : "ggtt_spare",
 					   0644, parent, parent, &ggtt_fops);
-		if (IS_DGFX(gt_to_xe(gt)))
+		if (xe_device_has_lmtt(gt_to_xe(gt)))
 			debugfs_create_file_unsafe(vfid ? "lmem_quota" : "lmem_spare",
 						   0644, parent, parent, &lmem_fops);
 	}
@@ -558,7 +558,7 @@ void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 		drm_debugfs_create_files(pf_ggtt_info,
 					 ARRAY_SIZE(pf_ggtt_info),
 					 pfdentry, minor);
-		if (IS_DGFX(gt_to_xe(gt)))
+		if (xe_device_has_lmtt(gt_to_xe(gt)))
 			drm_debugfs_create_files(pf_lmem_info,
 						 ARRAY_SIZE(pf_lmem_info),
 						 pfdentry, minor);

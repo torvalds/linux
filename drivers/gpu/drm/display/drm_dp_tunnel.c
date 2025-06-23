@@ -3,6 +3,7 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/export.h>
 #include <linux/ref_tracker.h>
 #include <linux/types.h>
 

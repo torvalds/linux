@@ -23,8 +23,10 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/printk.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
@@ -2028,6 +2030,21 @@ void __init acpi_ec_ecdt_probe(void)
 		 * Asus X50GL:
 		 * https://bugzilla.kernel.org/show_bug.cgi?id=11880
 		 */
+		goto out;
+	}
+
+	if (!strstarts(ecdt_ptr->id, "\\")) {
+		/*
+		 * The ECDT table on some MSI notebooks contains invalid data, together
+		 * with an empty ID string ("").
+		 *
+		 * Section 5.2.15 of the ACPI specification requires the ID string to be
+		 * a "fully qualified reference to the (...) embedded controller device",
+		 * so this string always has to start with a backslash.
+		 *
+		 * By verifying this we can avoid such faulty ECDT tables in a safe way.
+		 */
+		pr_err(FW_BUG "Ignoring ECDT due to invalid ID string \"%s\"\n", ecdt_ptr->id);
 		goto out;
 	}
 
