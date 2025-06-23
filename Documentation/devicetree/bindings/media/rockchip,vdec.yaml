@@ -17,6 +17,7 @@ properties:
   compatible:
     oneOf:
       - const: rockchip,rk3399-vdec
+      - const: rockchip,rk3576-vdec
       - const: rockchip,rk3588-vdec
       - items:
           - enum:
@@ -104,7 +105,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: rockchip,rk3588-vdec
+            enum:
+              - rockchip,rk3576-vdec
+              - rockchip,rk3588-vdec
     then:
       properties:
         reg:
