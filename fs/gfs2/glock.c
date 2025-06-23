@@ -609,12 +609,11 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 	if (unlikely(gl->gl_state != gl->gl_target)) {
 		struct gfs2_holder *gh = find_first_waiter(gl);
 
-		if (gh && (ret & LM_OUT_CANCELED))
-			gfs2_holder_wake(gh);
 		if (gh && !test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags)) {
 			if (ret & LM_OUT_CANCELED) {
 				list_del_init(&gh->gh_list);
 				trace_gfs2_glock_queue(gh, 0);
+				gfs2_holder_wake(gh);
 				gl->gl_target = gl->gl_state;
 				goto out;
 			}
