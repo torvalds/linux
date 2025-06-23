@@ -1413,7 +1413,7 @@ int run_stdlib(int min, int max)
 		 * Add some more chars after the \0, to test functions that overwrite the buffer set
 		 * the \0 at the exact right position.
 		 */
-		char buf[10] = "test123456";
+		char buf[11] = "test123456";
 		buf[4] = '\0';
 
 
