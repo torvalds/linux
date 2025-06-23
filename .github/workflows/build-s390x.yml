@@ -2,7 +2,7 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ "master","devel" ]
+    branches: [ "master","devel-1" ]
     
 jobs:
   build-kernel:
