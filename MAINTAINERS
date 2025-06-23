@@ -12533,6 +12533,16 @@ W:	https://wireless.wiki.kernel.org/en/users/drivers/iwlwifi
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwlwifi/iwlwifi.git
 F:	drivers/net/wireless/intel/iwlwifi/
 
+INTEL VISION SENSING CONTROLLER DRIVER
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+R:	Bingbu Cao <bingbu.cao@intel.com>
+R:	Lixu Zhang <lixu.zhang@intel.com>
+R:	Stanislaw Gruszka <stanislaw.gruszka@linux.intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+T:	git git://linuxtv.org/media.git
+F:	drivers/media/pci/intel/ivsc/
+
 INTEL WMI SLIM BOOTLOADER (SBL) FIRMWARE UPDATE DRIVER
 M:	Jithu Joseph <jithu.joseph@intel.com>
 S:	Maintained
