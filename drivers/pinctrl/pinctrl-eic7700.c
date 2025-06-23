@@ -622,8 +622,8 @@ static int eic7700_pinctrl_probe(struct platform_device *pdev)
 	struct pinctrl_dev *pctldev;
 	struct eic7700_pinctrl *pc;
 	struct regulator *regulator;
-	u32 voltage, rgmii0_mode, rgmii1_mode;
-	int ret;
+	u32 rgmii0_mode, rgmii1_mode;
+	int ret, voltage;
 
 	pc = devm_kzalloc(dev, struct_size(pc, functions, EIC7700_FUNCTIONS_COUNT), GFP_KERNEL);
 	if (!pc)
