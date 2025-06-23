@@ -351,10 +351,10 @@ static int em_i2c_unreg_slave(struct i2c_client *slave)
 }
 
 static const struct i2c_algorithm em_i2c_algo = {
-	.master_xfer = em_i2c_xfer,
+	.xfer = em_i2c_xfer,
 	.functionality = em_i2c_func,
-	.reg_slave      = em_i2c_reg_slave,
-	.unreg_slave    = em_i2c_unreg_slave,
+	.reg_slave = em_i2c_reg_slave,
+	.unreg_slave = em_i2c_unreg_slave,
 };
 
 static int em_i2c_probe(struct platform_device *pdev)
