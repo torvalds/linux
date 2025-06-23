@@ -1124,7 +1124,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 				 enum ufs_notify_change_status status)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	struct phy *phy = host->generic_phy;
+	struct phy *phy;
 	int err;
 
 	/*
@@ -1134,6 +1134,8 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 	 */
 	if (!host)
 		return 0;
+
+	phy = host->generic_phy;
 
 	switch (status) {
 	case PRE_CHANGE:
