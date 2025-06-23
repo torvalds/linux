@@ -647,12 +647,25 @@ static void dpm_async_resume_children(struct device *dev, async_func_t func)
 	/*
 	 * Start processing "async" children of the device unless it's been
 	 * started already for them.
-	 *
-	 * This could have been done for the device's "async" consumers too, but
-	 * they either need to wait for their parents or the processing has
-	 * already started for them after their parents were processed.
 	 */
 	device_for_each_child(dev, func, dpm_async_with_cleanup);
+}
+
+static void dpm_async_resume_subordinate(struct device *dev, async_func_t func)
+{
+	struct device_link *link;
+	int idx;
+
+	dpm_async_resume_children(dev, func);
+
+	idx = device_links_read_lock();
+
+	/* Start processing the device's "async" consumers. */
+	list_for_each_entry_rcu(link, &dev->links.consumers, s_node)
+		if (READ_ONCE(link->status) != DL_STATE_DORMANT)
+			dpm_async_with_cleanup(link->consumer, func);
+
+	device_links_read_unlock(idx);
 }
 
 static void dpm_clear_async_state(struct device *dev)
@@ -663,7 +676,14 @@ static void dpm_clear_async_state(struct device *dev)
 
 static bool dpm_root_device(struct device *dev)
 {
-	return !dev->parent;
+	lockdep_assert_held(&dpm_list_mtx);
+
+	/*
+	 * Since this function is required to run under dpm_list_mtx, the
+	 * list_empty() below will only return true if the device's list of
+	 * consumers is actually empty before calling it.
+	 */
+	return !dev->parent && list_empty(&dev->links.suppliers);
 }
 
 static void async_resume_noirq(void *data, async_cookie_t cookie);
@@ -752,7 +772,7 @@ Out:
 		pm_dev_err(dev, state, async ? " async noirq" : " noirq", error);
 	}
 
-	dpm_async_resume_children(dev, async_resume_noirq);
+	dpm_async_resume_subordinate(dev, async_resume_noirq);
 }
 
 static void async_resume_noirq(void *data, async_cookie_t cookie)
@@ -895,7 +915,7 @@ Out:
 		pm_dev_err(dev, state, async ? " async early" : " early", error);
 	}
 
-	dpm_async_resume_children(dev, async_resume_early);
+	dpm_async_resume_subordinate(dev, async_resume_early);
 }
 
 static void async_resume_early(void *data, async_cookie_t cookie)
@@ -1071,7 +1091,7 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 		pm_dev_err(dev, state, async ? " async" : "", error);
 	}
 
-	dpm_async_resume_children(dev, async_resume);
+	dpm_async_resume_subordinate(dev, async_resume);
 }
 
 static void async_resume(void *data, async_cookie_t cookie)
