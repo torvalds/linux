@@ -2028,6 +2028,10 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(12, 0, 0))
 			dev->node_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_ALU_OPERATIONS_SUPPORTED;
+
+		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(12, 1, 0))
+			dev->node_props.capability2 |=
+				HSA_CAP2_TRAP_DEBUG_LDS_OUT_OF_ADDR_RANGE_SUPPORTED;
 	}
 
 	kfd_topology_set_dbg_firmware_support(dev);

@@ -519,6 +519,7 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 		struct kfd_topology_device *topo_dev =
 				kfd_topology_device_by_id(target->pdds[i]->dev->id);
 		uint32_t caps = topo_dev->node_props.capability;
+		uint32_t caps2 = topo_dev->node_props.capability2;
 
 		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED) &&
 			(*flags & KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP)) {
@@ -528,6 +529,12 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 
 		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_ALU_OPERATIONS_SUPPORTED) &&
 		    (*flags & KFD_DBG_TRAP_FLAG_SINGLE_ALU_OP)) {
+			*flags = prev_flags;
+			return -EACCES;
+		}
+
+		if (!(caps2 & HSA_CAP2_TRAP_DEBUG_LDS_OUT_OF_ADDR_RANGE_SUPPORTED) &&
+		    (*flags & KFD_DBG_TRAP_FLAG_LDS_OUT_OF_ADDR_RANGE)) {
 			*flags = prev_flags;
 			return -EACCES;
 		}

@@ -46,9 +46,10 @@
  * - 1.18 - Rename pad in set_memory_policy_args to misc_process_flag
  * - 1.19 - Add a new ioctl to craete secondary kfd processes
  * - 1.20 - Trap handler support for expert scheduling mode available
+ * - 1.21 - Debugger support to subscribe to LDS out-of-address exceptions
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 20
+#define KFD_IOCTL_MINOR_VERSION 21
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -947,6 +948,7 @@ enum kfd_dbg_trap_address_watch_mode {
 enum kfd_dbg_trap_flags {
 	KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP = 1,
 	KFD_DBG_TRAP_FLAG_SINGLE_ALU_OP = 2,
+	KFD_DBG_TRAP_FLAG_LDS_OUT_OF_ADDR_RANGE = 4
 };
 
 /* Trap exceptions */
