@@ -526,7 +526,7 @@ static int mchp_corei2c_smbus_xfer(struct i2c_adapter *adap, u16 addr, unsigned 
 }
 
 static const struct i2c_algorithm mchp_corei2c_algo = {
-	.master_xfer = mchp_corei2c_xfer,
+	.xfer = mchp_corei2c_xfer,
 	.functionality = mchp_corei2c_func,
 	.smbus_xfer = mchp_corei2c_smbus_xfer,
 };

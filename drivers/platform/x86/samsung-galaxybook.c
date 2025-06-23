@@ -1403,6 +1403,7 @@ static int galaxybook_probe(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id galaxybook_device_ids[] = {
+	{ "SAM0426" },
 	{ "SAM0427" },
 	{ "SAM0428" },
 	{ "SAM0429" },

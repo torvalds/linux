@@ -45,6 +45,7 @@ static bool notests;
 module_param(notests, bool, 0644);
 MODULE_PARM_DESC(notests, "disable all crypto self-tests");
 
+#ifdef CONFIG_CRYPTO_SELFTESTS_FULL
 static bool noslowtests;
 module_param(noslowtests, bool, 0644);
 MODULE_PARM_DESC(noslowtests, "disable slow crypto self-tests");
@@ -52,6 +53,10 @@ MODULE_PARM_DESC(noslowtests, "disable slow crypto self-tests");
 static unsigned int fuzz_iterations = 100;
 module_param(fuzz_iterations, uint, 0644);
 MODULE_PARM_DESC(fuzz_iterations, "number of fuzz test iterations");
+#else
+#define noslowtests 1
+#define fuzz_iterations 0
+#endif
 
 #ifndef CONFIG_CRYPTO_SELFTESTS
 
@@ -319,9 +324,9 @@ struct testvec_config {
 
 /*
  * The following are the lists of testvec_configs to test for each algorithm
- * type when the fast crypto self-tests are enabled.  They aim to provide good
- * test coverage, while keeping the test time much shorter than the full tests
- * so that the fast tests can be used to fulfill FIPS 140 testing requirements.
+ * type when the "fast" crypto self-tests are enabled.  They aim to provide good
+ * test coverage, while keeping the test time much shorter than the "full" tests
+ * so that the "fast" tests can be enabled in a wider range of circumstances.
  */
 
 /* Configs for skciphers and aeads */
@@ -1183,14 +1188,18 @@ static void generate_random_testvec_config(struct rnd_state *rng,
 
 static void crypto_disable_simd_for_test(void)
 {
+#ifdef CONFIG_CRYPTO_SELFTESTS_FULL
 	migrate_disable();
 	__this_cpu_write(crypto_simd_disabled_for_test, true);
+#endif
 }
 
 static void crypto_reenable_simd_for_test(void)
 {
+#ifdef CONFIG_CRYPTO_SELFTESTS_FULL
 	__this_cpu_write(crypto_simd_disabled_for_test, false);
 	migrate_enable();
+#endif
 }
 
 /*

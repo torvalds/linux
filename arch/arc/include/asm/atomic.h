@@ -6,7 +6,7 @@
 #ifndef _ASM_ARC_ATOMIC_H
 #define _ASM_ARC_ATOMIC_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -31,6 +31,6 @@
 #include <asm/atomic64-arcv2.h>
 #endif
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif

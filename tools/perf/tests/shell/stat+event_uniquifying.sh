@@ -9,7 +9,8 @@ perf_tool=perf
 err=0
 
 test_event_uniquifying() {
-  # We use `clockticks` to verify the uniquify behavior.
+  # We use `clockticks` in `uncore_imc` to verify the uniquify behavior.
+  pmu="uncore_imc"
   event="clockticks"
 
   # If the `-A` option is added, the event should be uniquified.
@@ -43,11 +44,18 @@ test_event_uniquifying() {
   echo "stat event uniquifying test"
   uniquified_event_array=()
 
+  # Skip if the machine does not have `uncore_imc` device.
+  if ! ${perf_tool} list pmu | grep -q ${pmu}; then
+    echo "Target does not support PMU ${pmu} [Skipped]"
+    err=2
+    return
+  fi
+
   # Check how many uniquified events.
   while IFS= read -r line; do
     uniquified_event=$(echo "$line" | awk '{print $1}')
     uniquified_event_array+=("${uniquified_event}")
-  done < <(${perf_tool} list -v ${event} | grep "\[Kernel PMU event\]")
+  done < <(${perf_tool} list -v ${event} | grep ${pmu})
 
   perf_command="${perf_tool} stat -e $event -A -o ${stat_output} -- true"
   $perf_command

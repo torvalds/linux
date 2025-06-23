@@ -54,6 +54,8 @@ struct ath12k_generic_iter {
 #define ATH12K_DEFAULT_SCAN_LINK	IEEE80211_MLD_MAX_NUM_LINKS
 #define ATH12K_NUM_MAX_LINKS		(IEEE80211_MLD_MAX_NUM_LINKS + 1)
 
+#define ATH12K_NUM_MAX_ACTIVE_LINKS_PER_DEVICE	2
+
 enum ath12k_supported_bw {
 	ATH12K_BW_20    = 0,
 	ATH12K_BW_40    = 1,

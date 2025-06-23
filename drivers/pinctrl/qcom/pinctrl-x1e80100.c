@@ -1861,7 +1861,6 @@ static struct platform_driver x1e80100_pinctrl_driver = {
 		.of_match_table = x1e80100_pinctrl_of_match,
 	},
 	.probe = x1e80100_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init x1e80100_pinctrl_init(void)

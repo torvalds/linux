@@ -500,7 +500,7 @@ static u32 ki2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm ki2c_algo = {
-	.master_xfer   = ki2c_xfer,
+	.xfer = ki2c_xfer,
 	.functionality = ki2c_func,
 };
 

@@ -600,12 +600,14 @@ static void ahash_def_finup_done2(void *data, int err)
 
 static int ahash_def_finup_finish1(struct ahash_request *req, int err)
 {
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
 	if (err)
 		goto out;
 
 	req->base.complete = ahash_def_finup_done2;
 
-	err = crypto_ahash_final(req);
+	err = crypto_ahash_alg(tfm)->final(req);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 

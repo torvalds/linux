@@ -2255,7 +2255,8 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	<reg32 offset="0" name="0">
 		<bitfield name="CLEAR_ON_CHIP_TS" pos="0" type="boolean"/>
 		<bitfield name="CLEAR_RESOURCE_TABLE" pos="1" type="boolean"/>
-		<bitfield name="CLEAR_GLOBAL_LOCAL_TS" pos="2" type="boolean"/>
+		<bitfield name="CLEAR_BV_BR_COUNTER" pos="2" type="boolean"/>
+		<bitfield name="RESET_GLOBAL_LOCAL_TS" pos="3" type="boolean"/>
 	</reg32>
 </domain>
 
