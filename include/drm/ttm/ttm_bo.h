@@ -529,10 +529,15 @@ class_ttm_bo_lru_cursor_lock_ptr(class_ttm_bo_lru_cursor_t *_T)
  * up at looping termination, even if terminated prematurely by, for
  * example a return or break statement. Exiting the loop will also unlock
  * (if needed) and unreference @_bo.
+ *
+ * Return: If locking of a bo returns an error, then iteration is terminated
+ * and @_bo is set to a corresponding error pointer. It's illegal to
+ * dereference @_bo after loop exit.
  */
 #define ttm_bo_lru_for_each_reserved_guarded(_cursor, _man, _arg, _bo)	\
 	scoped_guard(ttm_bo_lru_cursor, _cursor, _man, _arg)		\
-		for ((_bo) = ttm_bo_lru_cursor_first(_cursor); (_bo);	\
-		     (_bo) = ttm_bo_lru_cursor_next(_cursor))
+		for ((_bo) = ttm_bo_lru_cursor_first(_cursor);		\
+		       !IS_ERR_OR_NULL(_bo);				\
+		       (_bo) = ttm_bo_lru_cursor_next(_cursor))
 
 #endif
