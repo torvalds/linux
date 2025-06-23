@@ -2447,7 +2447,7 @@ static int hns3_nic_set_features(struct net_device *netdev,
 	if ((netdev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
 	    h->ae_algo->ops->cls_flower_active(h)) {
 		netdev_err(netdev,
-			   "there are offloaded TC filters active, cannot disable HW TC offload");
+			   "there are offloaded TC filters active, cannot disable HW TC offload\n");
 		return -EINVAL;
 	}
 
