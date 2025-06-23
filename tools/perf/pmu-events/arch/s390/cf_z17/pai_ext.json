@@ -1,0 +1,261 @@
+[
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6144",
+		"EventName": "NNPA_ALL",
+		"BriefDescription": "NNPA ALL",
+		"PublicDescription": "Sums of all non zero NNPA counters"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6145",
+		"EventName": "NNPA_ADD",
+		"BriefDescription": "NNPA ADD function",
+		"PublicDescription": "NNPA-ADD function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6146",
+		"EventName": "NNPA_SUB",
+		"BriefDescription": "NNPA SUB function",
+		"PublicDescription": "NNPA-SUB function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6147",
+		"EventName": "NNPA_MUL",
+		"BriefDescription": "NNPA MUL function",
+		"PublicDescription": "NNPA-MUL function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6148",
+		"EventName": "NNPA_DIV",
+		"BriefDescription": "NNPA_DIV function",
+		"PublicDescription": "NNPA-DIV function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6149",
+		"EventName": "NNPA_MIN",
+		"BriefDescription": "NNPA MIN function",
+		"PublicDescription": "NNPA-MIN function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6150",
+		"EventName": "NNPA_MAX",
+		"BriefDescription": "NNPA MAX function",
+		"PublicDescription": "NNPA-MAX function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6151",
+		"EventName": "NNPA_LOG",
+		"BriefDescription": "NNPA LOG function",
+		"PublicDescription": "NNPA Log function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6152",
+		"EventName": "NNPA_EXP",
+		"BriefDescription": "NNPA EXP function",
+		"PublicDescription": "NNPA-EXP function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6153",
+		"EventName": "NNPA_IBM_RESERVED_9",
+		"BriefDescription": "Reserved for IBM use",
+		"PublicDescription": "Reserved for IBM use"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6154",
+		"EventName": "NNPA_RELU",
+		"BriefDescription": "NNPA RELU function",
+		"PublicDescription": "NNPA-RELU function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6155",
+		"EventName": "NNPA_TANH",
+		"BriefDescription": "NNPA TANH function",
+		"PublicDescription": "NNPA-TANH function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6156",
+		"EventName": "NNPA_SIGMOID",
+		"BriefDescription": "NNPA SIGMOID function",
+		"PublicDescription": "NNPA-SIGMOID function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6157",
+		"EventName": "NNPA_SOFTMAX",
+		"BriefDescription": "NNPA SOFTMAX function",
+		"PublicDescription": "NNPA-SOFTMAX function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6158",
+		"EventName": "NNPA_BATCHNORM",
+		"BriefDescription": "NNPA BATCHNORM function",
+		"PublicDescription": "NNPA-BATCHNORM function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6159",
+		"EventName": "NNPA_MAXPOOL2D",
+		"BriefDescription": "NNPA MAXPOOL2D function",
+		"PublicDescription": "NNPA-MAXPOOL2D function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6160",
+		"EventName": "NNPA_AVGPOOL2D",
+		"BriefDescription": "NNPA_AVGPOOL2D function",
+		"PublicDescription": "NNPA-AVGPOOL2D function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6161",
+		"EventName": "NNPA_LSTMACT",
+		"BriefDescription": "NNPA LSTMACT function",
+		"PublicDescription": "NNPA-LSTMACT function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6162",
+		"EventName": "NNPA_GRUACT",
+		"BriefDescription": "NNPA GRUACT function",
+		"PublicDescription": "NNPA-GRUACT function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6163",
+		"EventName": "NNPA_CONVOLUTION",
+		"BriefDescription": "NNPA CONVOLUTION function",
+		"PublicDescription": "NNPA-CONVOLUTION function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6164",
+		"EventName": "NNPA_MATMUL_OP",
+		"BriefDescription": "NNPA MATMUL OP function",
+		"PublicDescription": "NNPA-MATMUL-OP function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6165",
+		"EventName": "NNPA_MATMUL_OP_BCAST23",
+		"BriefDescription": "NNPA MATMUL OP BCAST23 function",
+		"PublicDescription": "NNPA-MATMUL-OP-BCAST23 function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6166",
+		"EventName": "NNPA_SMALLBATCH",
+		"BriefDescription": "NNPA Counter 22",
+		"PublicDescription": "NNPA function with conditions as described in Principles of Operation"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6167",
+		"EventName": "NNPA_LARGEDIM",
+		"BriefDescription": "NNPA Counter 23",
+		"PublicDescription": "NNPA function with conditions as described in Principles of Operation"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6168",
+		"EventName": "NNPA_SMALLTENSOR",
+		"BriefDescription": "NNPA Counter 24",
+		"PublicDescription": "NNPA function with conditions as described in Principles of Operation"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6169",
+		"EventName": "NNPA_1MFRAME",
+		"BriefDescription": "NNPA Counter 25",
+		"PublicDescription": "NNPA function with conditions as described in Principles of Operation"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6170",
+		"EventName": "NNPA_2GFRAME",
+		"BriefDescription": "NNPA Counter 26",
+		"PublicDescription": "NNPA function with conditions as described in Principles of Operation"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6171",
+		"EventName": "NNPA_ACCESSEXCEPT",
+		"BriefDescription": "NNPA Counter 27",
+		"PublicDescription": "NNPA function with conditions as described in Principles of Operation"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6172",
+		"EventName": "NNPA_TRANSFORM",
+		"BriefDescription": "NNPA-TRANSFORM function",
+		"PublicDescription": "NNPA-TRANSFORM function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6173",
+		"EventName": "NNPA_GELU",
+		"BriefDescription": "NNPA-GELU function",
+		"PublicDescription": "NNPA-GELU function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6174",
+		"EventName": "NNPA_MOMENTS",
+		"BriefDescription": "NNPA-MOMENTS function",
+		"PublicDescription": "NNPA-MOMENTS function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6175",
+		"EventName": "NNPA_LAYERNORM",
+		"BriefDescription": "NNPA-LAYERNORM function",
+		"PublicDescription": "NNPA-LAYERNORM function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6176",
+		"EventName": "NNPA_MATMUL_OP_BCAST1",
+		"BriefDescription": "NNPA-MATMUL_OP_BCAST1 function",
+		"PublicDescription": "NNPA-MATMUL-OP-BCAST1 function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6177",
+		"EventName": "NNPA_SQRT",
+		"BriefDescription": "NNPA-SQRT function",
+		"PublicDescription": "NNPA-SQRT function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6178",
+		"EventName": "NNPA_INVSQRT",
+		"BriefDescription": "NNPA-INVSQRT function",
+		"PublicDescription": "NNPA-INVSQRT function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6179",
+		"EventName": "NNPA_NORM",
+		"BriefDescription": "NNPA-NORM function",
+		"PublicDescription": "NNPA-NORM function ending with CC=0"
+	},
+	{
+		"Unit": "PAI-EXT",
+		"EventCode": "6180",
+		"EventName": "NNPA_REDUCE",
+		"BriefDescription": "NNPA-REDUCE function",
+		"PublicDescription": "NNPA-REDUCE function ending with CC=0"
+	}
+]
