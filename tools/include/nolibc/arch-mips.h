@@ -183,15 +183,11 @@ void __start(void);
 void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector __start(void)
 {
 	__asm__ volatile (
-		".set push\n"
-		".set noreorder\n"
 		"move  $a0, $sp\n"       /* save stack pointer to $a0, as arg1 of _start_c */
 		"addiu $sp, $sp, -16\n"  /* the callee expects to save a0..a3 there        */
 		"lui $t9, %hi(_start_c)\n" /* ABI requires current function address in $t9 */
 		"ori $t9, %lo(_start_c)\n"
 		"jalr $t9\n"             /* transfer to c runtime                          */
-		" nop\n"                 /* delayed slot                                   */
-		".set pop\n"
 	);
 	__nolibc_entrypoint_epilogue();
 }
