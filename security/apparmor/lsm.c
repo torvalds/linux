@@ -1186,6 +1186,10 @@ static void unix_connect_peers(struct aa_sk_ctx *sk_ctx,
  * @peer_sk: sk that is accepting the connection
  * @newsk: new sk created for this connection
  * peer is locked when this hook is called
+ *
+ * Return:
+ *   0 if connection is permitted
+ *   error code on denial or failure
  */
 static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
 					struct sock *newsk)
@@ -1221,8 +1225,16 @@ static int apparmor_unix_stream_connect(struct sock *sk, struct sock *peer_sk,
  * @sock: socket sending the message
  * @peer: socket message is being send to
  *
+ * Performs bidirectional permission checks for Unix domain socket communication:
+ * 1. Verifies sender has AA_MAY_SEND to target socket
+ * 2. Verifies receiver has AA_MAY_RECEIVE from source socket
+ *
  * sock and peer are locked when this hook is called
  * called by: dgram_connect peer setup but path not copied to newsk
+ *
+ * Return:
+ *   0 if transmission is permitted
+ *   error code on denial or failure
  */
 static int apparmor_unix_may_send(struct socket *sock, struct socket *peer)
 {
@@ -1339,9 +1351,17 @@ static int apparmor_socket_socketpair(struct socket *socka,
 
 /**
  * apparmor_socket_bind - check perms before bind addr to socket
- * @sock: socket to bind the address to
- * @address: address that is being bound
+ * @sock: socket to bind the address to (must be non-NULL)
+ * @address: address that is being bound (must be non-NULL)
  * @addrlen: length of @address
+ *
+ * Performs security checks before allowing a socket to bind to an address.
+ * Handles Unix domain sockets specially through aa_unix_bind_perm().
+ * For other socket families, uses generic permission check via aa_sk_perm().
+ *
+ * Return:
+ *   0 if binding is permitted
+ *   error code on denial or invalid parameters
  */
 static int apparmor_socket_bind(struct socket *sock,
 				struct sockaddr *address, int addrlen)
