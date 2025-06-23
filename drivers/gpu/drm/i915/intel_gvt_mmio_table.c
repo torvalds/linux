@@ -11,6 +11,7 @@
 #include "display/intel_color_regs.h"
 #include "display/intel_crt_regs.h"
 #include "display/intel_cursor_regs.h"
+#include "display/intel_display_core.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
 #include "display/intel_dp_aux_regs.h"
@@ -20,6 +21,7 @@
 #include "display/intel_lvds_regs.h"
 #include "display/intel_pfit_regs.h"
 #include "display/intel_psr_regs.h"
+#include "display/intel_sbi_regs.h"
 #include "display/intel_sprite_regs.h"
 #include "display/intel_vga_regs.h"
 #include "display/skl_universal_plane_regs.h"
@@ -32,6 +34,7 @@
 #include "i915_drv.h"
 #include "i915_pvinfo.h"
 #include "i915_reg.h"
+#include "display/intel_display_regs.h"
 #include "intel_gvt.h"
 #include "intel_mchbar_regs.h"
 

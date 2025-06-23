@@ -29,11 +29,13 @@
 #include <linux/bitops.h>
 #include <linux/cgroup_dmem.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/sprintf.h>
 #include <linux/srcu.h>
@@ -538,10 +540,15 @@ static const char *drm_get_wedge_recovery(unsigned int opt)
 	}
 }
 
+#define WEDGE_STR_LEN	32
+#define PID_STR_LEN	15
+#define COMM_STR_LEN	(TASK_COMM_LEN + 5)
+
 /**
  * drm_dev_wedged_event - generate a device wedged uevent
  * @dev: DRM device
  * @method: method(s) to be used for recovery
+ * @info: optional information about the guilty task
  *
  * This generates a device wedged uevent for the DRM device specified by @dev.
  * Recovery @method\(s) of choice will be sent in the uevent environment as
@@ -554,13 +561,13 @@ static const char *drm_get_wedge_recovery(unsigned int opt)
  *
  * Returns: 0 on success, negative error code otherwise.
  */
-int drm_dev_wedged_event(struct drm_device *dev, unsigned long method)
+int drm_dev_wedged_event(struct drm_device *dev, unsigned long method,
+			 struct drm_wedge_task_info *info)
 {
+	char event_string[WEDGE_STR_LEN], pid_string[PID_STR_LEN], comm_string[COMM_STR_LEN];
+	char *envp[] = { event_string, NULL, NULL, NULL };
 	const char *recovery = NULL;
 	unsigned int len, opt;
-	/* Event string length up to 28+ characters with available methods */
-	char event_string[32];
-	char *envp[] = { event_string, NULL };
 
 	len = scnprintf(event_string, sizeof(event_string), "%s", "WEDGED=");
 
@@ -581,6 +588,13 @@ int drm_dev_wedged_event(struct drm_device *dev, unsigned long method)
 
 	drm_info(dev, "device wedged, %s\n", method == DRM_WEDGE_RECOVERY_NONE ?
 		 "but recovered through reset" : "needs recovery");
+
+	if (info && (info->comm[0] != '\0') && (info->pid >= 0)) {
+		snprintf(pid_string, sizeof(pid_string), "PID=%u", info->pid);
+		snprintf(comm_string, sizeof(comm_string), "TASK=%s", info->comm);
+		envp[1] = pid_string;
+		envp[2] = comm_string;
+	}
 
 	return kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }

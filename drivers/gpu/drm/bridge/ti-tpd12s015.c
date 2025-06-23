@@ -116,13 +116,13 @@ static int tpd12s015_probe(struct platform_device *pdev)
 	struct gpio_desc *gpio;
 	int ret;
 
-	tpd = devm_kzalloc(&pdev->dev, sizeof(*tpd), GFP_KERNEL);
-	if (!tpd)
-		return -ENOMEM;
+	tpd = devm_drm_bridge_alloc(&pdev->dev, struct tpd12s015_device,
+				    bridge, &tpd12s015_bridge_funcs);
+	if (IS_ERR(tpd))
+		return PTR_ERR(tpd);
 
 	platform_set_drvdata(pdev, tpd);
 
-	tpd->bridge.funcs = &tpd12s015_bridge_funcs;
 	tpd->bridge.of_node = pdev->dev.of_node;
 	tpd->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 	tpd->bridge.ops = DRM_BRIDGE_OP_DETECT;

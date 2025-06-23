@@ -23,6 +23,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -203,6 +204,8 @@ static void __drm_bridge_free(struct kref *kref)
 {
 	struct drm_bridge *bridge = container_of(kref, struct drm_bridge, refcount);
 
+	if (bridge->funcs->destroy)
+		bridge->funcs->destroy(bridge);
 	kfree(bridge->container);
 }
 
@@ -1391,6 +1394,23 @@ struct drm_bridge *of_drm_find_bridge(struct device_node *np)
 }
 EXPORT_SYMBOL(of_drm_find_bridge);
 #endif
+
+/**
+ * devm_drm_put_bridge - Release a bridge reference obtained via devm
+ * @dev: device that got the bridge via devm
+ * @bridge: pointer to a struct drm_bridge obtained via devm
+ *
+ * Same as drm_bridge_put() for bridge pointers obtained via devm functions
+ * such as devm_drm_bridge_alloc().
+ *
+ * This function is a temporary workaround and MUST NOT be used. Manual
+ * handling of bridge lifetime is inherently unsafe.
+ */
+void devm_drm_put_bridge(struct device *dev, struct drm_bridge *bridge)
+{
+	devm_release_action(dev, drm_bridge_put_void, bridge);
+}
+EXPORT_SYMBOL(devm_drm_put_bridge);
 
 static void drm_bridge_debugfs_show_bridge(struct drm_printer *p,
 					   struct drm_bridge *bridge,

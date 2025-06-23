@@ -248,9 +248,11 @@ static int visionox_vtdr6130_probe(struct mipi_dsi_device *dsi)
 	struct visionox_vtdr6130 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct visionox_vtdr6130, panel,
+				   &visionox_vtdr6130_panel_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ret = devm_regulator_bulk_get_const(&dsi->dev,
 					    ARRAY_SIZE(visionox_vtdr6130_supplies),
@@ -272,9 +274,6 @@ static int visionox_vtdr6130_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_NO_EOT_PACKET |
 			  MIPI_DSI_CLOCK_NON_CONTINUOUS;
 	ctx->panel.prepare_prev_first = true;
-
-	drm_panel_init(&ctx->panel, dev, &visionox_vtdr6130_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	ctx->panel.backlight = visionox_vtdr6130_create_backlight(dsi);
 	if (IS_ERR(ctx->panel.backlight))

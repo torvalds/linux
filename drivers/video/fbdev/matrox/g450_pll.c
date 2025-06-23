@@ -14,6 +14,8 @@
  *
  */
 
+#include <linux/export.h>
+
 #include "g450_pll.h"
 #include "matroxfb_DAC1064.h"
 
@@ -258,13 +260,13 @@ static inline unsigned int g450_findworkingpll(struct matrox_fb_info *minfo,
 	unsigned int found = 0;
 	unsigned int idx;
 	unsigned int mnpfound = mnparray[0];
-		
+
 	for (idx = 0; idx < mnpcount; idx++) {
 		unsigned int sarray[3];
 		unsigned int *sptr;
 		{
 			unsigned int mnp;
-		
+
 			sptr = sarray;
 			mnp = mnparray[idx];
 			if (mnp & 0x38) {
@@ -277,7 +279,7 @@ static inline unsigned int g450_findworkingpll(struct matrox_fb_info *minfo,
 		}
 		while (sptr >= sarray) {
 			unsigned int mnp = *sptr--;
-		
+
 			if (g450_testpll(minfo, mnp - 0x0300, pll) &&
 			    g450_testpll(minfo, mnp + 0x0300, pll) &&
 			    g450_testpll(minfo, mnp - 0x0200, pll) &&
@@ -310,12 +312,12 @@ static int g450_checkcache(struct matrox_fb_info *minfo,
 			   struct matrox_pll_cache *ci, unsigned int mnp_key)
 {
 	unsigned int i;
-	
+
 	mnp_key &= G450_MNP_FREQBITS;
 	for (i = 0; i < ci->valid; i++) {
 		if (ci->data[i].mnp_key == mnp_key) {
 			unsigned int mnp;
-			
+
 			mnp = ci->data[i].mnp_value;
 			if (i) {
 				memmove(ci->data + 1, ci->data, i * sizeof(*ci->data));
@@ -343,7 +345,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			{
 				u_int8_t tmp, xpwrctrl;
 				unsigned long flags;
-				
+
 				matroxfb_DAC_lock_irqsave(flags);
 
 				xpwrctrl = matroxfb_DAC_in(minfo, M1064_XPWRCTRL);
@@ -375,7 +377,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			}
 			{
 				u_int8_t misc;
-		
+
 				misc = mga_inb(M_MISC_REG_READ) & ~0x0C;
 				switch (pll) {
 					case M_PIXEL_PLL_A:
@@ -409,13 +411,13 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 				u_int8_t tmp;
 				unsigned int mnp;
 				unsigned long flags;
-				
+
 				matroxfb_DAC_lock_irqsave(flags);
 				tmp = matroxfb_DAC_in(minfo, M1064_XPWRCTRL);
 				if (!(tmp & 2)) {
 					matroxfb_DAC_out(minfo, M1064_XPWRCTRL, tmp | 2);
 				}
-				
+
 				mnp = matroxfb_DAC_in(minfo, M1064_XPIXPLLCM) << 16;
 				mnp |= matroxfb_DAC_in(minfo, M1064_XPIXPLLCN) << 8;
 				matroxfb_DAC_unlock_irqrestore(flags);
@@ -441,7 +443,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			delta = pll_freq_delta(fout, g450_vco2f(mnp, vco));
 			for (idx = mnpcount; idx > 0; idx--) {
 				/* == is important; due to nextpll algorithm we get
-				   sorted equally good frequencies from lower VCO 
+				   sorted equally good frequencies from lower VCO
 				   frequency to higher - with <= lowest wins, while
 				   with < highest one wins */
 				if (delta <= deltaarray[idx-1]) {
@@ -472,7 +474,7 @@ static int __g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 	{
 		unsigned long flags;
 		unsigned int mnp;
-		
+
 		matroxfb_DAC_lock_irqsave(flags);
 		mnp = g450_checkcache(minfo, ci, mnparray[0]);
 		if (mnp != NO_MORE_MNP) {
@@ -495,7 +497,7 @@ int matroxfb_g450_setclk(struct matrox_fb_info *minfo, unsigned int fout,
 			 unsigned int pll)
 {
 	unsigned int* arr;
-	
+
 	arr = kmalloc(sizeof(*arr) * MNP_TABLE_SIZE * 2, GFP_KERNEL);
 	if (arr) {
 		int r;

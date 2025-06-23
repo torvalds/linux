@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef _VLV_SIDEBAND_REG_H_
-#define _VLV_SIDEBAND_REG_H_
+#ifndef _VLV_IOSF_SB_REG_H_
+#define _VLV_IOSF_SB_REG_H_
 
 /* See configdb bunit SB addr map */
 #define BUNIT_REG_BISOC				0x11
@@ -177,4 +177,4 @@
 #define  CCK_FREQUENCY_STATUS_SHIFT		8
 #define  CCK_FREQUENCY_VALUES			(0x1f << 0)
 
-#endif /* _VLV_SIDEBAND_REG_H_ */
+#endif /* _VLV_IOSF_SB_REG_H_ */

@@ -979,9 +979,11 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 	struct s6e8aa0 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(struct s6e8aa0), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct s6e8aa0, panel,
+				   &s6e8aa0_drm_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	mipi_dsi_set_drvdata(dsi, ctx);
 
@@ -1014,8 +1016,6 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 
 	ctx->brightness = GAMMA_LEVEL_NUM - 1;
 
-	drm_panel_init(&ctx->panel, dev, &s6e8aa0_drm_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 	ctx->panel.prepare_prev_first = true;
 
 	drm_panel_add(&ctx->panel);

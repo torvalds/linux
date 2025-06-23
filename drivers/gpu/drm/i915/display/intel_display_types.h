@@ -37,6 +37,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_panel.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank_work.h>
 #include <drm/intel/i915_hdcp_interface.h>
@@ -384,6 +385,9 @@ struct intel_vbt_panel_data {
 };
 
 struct intel_panel {
+	/* Simple drm_panel */
+	struct drm_panel *base;
+
 	/* Fixed EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
 	const struct drm_edid *fixed_edid;
 
@@ -550,6 +554,10 @@ struct intel_connector {
 		struct intel_dp *dp;
 	} mst;
 
+	struct {
+		int force_bpp_x16;
+	} link;
+
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
 
@@ -591,7 +599,7 @@ struct intel_atomic_state {
 
 	bool dpll_set, modeset;
 
-	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
+	struct intel_dpll_state dpll_state[I915_NUM_PLLS];
 
 	struct intel_dp_tunnel_inherited_state *inherited_dp_tunnels;
 
@@ -1075,8 +1083,8 @@ struct intel_crtc_state {
 	 * haswell. */
 	struct dpll dpll;
 
-	/* Selected dpll when shared or NULL. */
-	struct intel_shared_dpll *shared_dpll;
+	/* Selected dpll or NULL. */
+	struct intel_dpll *intel_dpll;
 
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
 	struct intel_dpll_hw_state dpll_hw_state;
@@ -1086,7 +1094,7 @@ struct intel_crtc_state {
 	 * setting shared_dpll and dpll_hw_state to one of these reserved ones.
 	 */
 	struct icl_port_dpll {
-		struct intel_shared_dpll *pll;
+		struct intel_dpll *pll;
 		struct intel_dpll_hw_state hw_state;
 	} icl_port_dplls[ICL_PORT_DPLL_COUNT];
 
@@ -1293,7 +1301,7 @@ struct intel_crtc_state {
 	enum transcoder mst_master_transcoder;
 
 	/* For DSB based pipe updates */
-	struct intel_dsb *dsb_color_vblank, *dsb_commit;
+	struct intel_dsb *dsb_color, *dsb_commit;
 	bool use_dsb;
 
 	u32 psr2_man_track_ctl;
@@ -1665,7 +1673,9 @@ struct intel_dp {
 	bool use_max_params;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 	u8 psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
-	u8 pr_dpcd;
+	u8 pr_dpcd[DP_PANEL_REPLAY_CAP_SIZE];
+#define INTEL_PR_DPCD_INDEX(pr_dpcd_register)	((pr_dpcd_register) - DP_PANEL_REPLAY_CAP_SUPPORT)
+
 	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 	u8 lttpr_common_caps[DP_LTTPR_COMMON_CAP_SIZE];

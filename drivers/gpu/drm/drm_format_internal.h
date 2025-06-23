@@ -42,7 +42,7 @@ static inline u32 drm_pixel_xrgb8888_to_r8_bt601(u32 pix)
 	u32 b =  pix & 0x000000ff;
 
 	/* ITU-R BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
-	return (3 * r + 6 * g + b) / 10;
+	return (77 * r + 150 * g + 29 * b) / 256;
 }
 
 static inline u32 drm_pixel_xrgb8888_to_rgb332(u32 pix)
@@ -109,6 +109,14 @@ static inline u32 drm_pixel_xrgb8888_to_xbgr8888(u32 pix)
 	       ((pix & 0x00ff0000) >> 16) |
 	       ((pix & 0x0000ff00)) |
 	       ((pix & 0x000000ff) << 16);
+}
+
+static inline u32 drm_pixel_xrgb8888_to_bgrx8888(u32 pix)
+{
+	return ((pix & 0xff000000) >> 24) | /* also copy filler bits */
+	       ((pix & 0x00ff0000) >> 8) |
+	       ((pix & 0x0000ff00) << 8) |
+	       ((pix & 0x000000ff) << 24);
 }
 
 static inline u32 drm_pixel_xrgb8888_to_abgr8888(u32 pix)

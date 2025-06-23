@@ -20,6 +20,8 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/export.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_event.h>
 #include <drm/drm_fourcc.h>

@@ -488,7 +488,5 @@ struct cyberpro_info {
  * Note! Writing to the Cyber20x0 registers from an interrupt
  * routine is definitely a bad idea atm.
  */
-int cyber2000fb_attach(struct cyberpro_info *info, int idx);
-void cyber2000fb_detach(int idx);
 void cyber2000fb_enable_extregs(struct cfb_info *cfb);
 void cyber2000fb_disable_extregs(struct cfb_info *cfb);

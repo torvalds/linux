@@ -399,7 +399,7 @@ static long bch2_ioctl_data(struct bch_fs *c,
 	return ret;
 }
 
-static long bch2_ioctl_fs_usage(struct bch_fs *c,
+static noinline_for_stack long bch2_ioctl_fs_usage(struct bch_fs *c,
 				struct bch_ioctl_fs_usage __user *user_arg)
 {
 	struct bch_ioctl_fs_usage arg = {};
@@ -469,7 +469,7 @@ err:
 }
 
 /* obsolete, didn't allow for new data types: */
-static long bch2_ioctl_dev_usage(struct bch_fs *c,
+static noinline_for_stack long bch2_ioctl_dev_usage(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage __user *user_arg)
 {
 	struct bch_ioctl_dev_usage arg;

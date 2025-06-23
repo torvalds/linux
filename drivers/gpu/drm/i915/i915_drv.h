@@ -32,12 +32,10 @@
 
 #include <uapi/drm/i915_drm.h>
 
+#include <linux/pci.h>
 #include <linux/pm_qos.h>
 
 #include <drm/ttm/ttm_device.h>
-
-#include "display/intel_display_limits.h"
-#include "display/intel_display_core.h"
 
 #include "gem/i915_gem_context_types.h"
 #include "gem/i915_gem_shrinker.h"
@@ -62,9 +60,11 @@
 #include "intel_step.h"
 #include "intel_uncore.h"
 
+struct dram_info;
 struct drm_i915_clock_gating_funcs;
-struct vlv_s0ix_state;
+struct intel_display;
 struct intel_pxp;
+struct vlv_s0ix_state;
 
 #define GEM_QUIRK_PIN_SWIZZLED_PAGES	BIT(0)
 
@@ -177,7 +177,7 @@ struct i915_selftest_stash {
 struct drm_i915_private {
 	struct drm_device drm;
 
-	struct intel_display display;
+	struct intel_display *display;
 
 	/* FIXME: Device release actions should all be moved to drmm_ */
 	bool do_release;
@@ -224,12 +224,10 @@ struct drm_i915_private {
 
 	bool irqs_enabled;
 
-	/* LPT/WPT IOSF sideband protection */
-	struct mutex sbi_lock;
-
 	/* VLV/CHV IOSF sideband */
 	struct {
 		struct mutex lock; /* protect sideband access */
+		unsigned long locked_unit_mask;
 		struct pm_qos_request qos;
 	} vlv_iosf_sb;
 
@@ -285,25 +283,7 @@ struct drm_i915_private {
 	u32 suspend_count;
 	struct vlv_s0ix_state *vlv_s0ix_state;
 
-	struct dram_info {
-		bool wm_lv_0_adjust_needed;
-		u8 num_channels;
-		bool symmetric_memory;
-		enum intel_dram_type {
-			INTEL_DRAM_UNKNOWN,
-			INTEL_DRAM_DDR3,
-			INTEL_DRAM_DDR4,
-			INTEL_DRAM_LPDDR3,
-			INTEL_DRAM_LPDDR4,
-			INTEL_DRAM_DDR5,
-			INTEL_DRAM_LPDDR5,
-			INTEL_DRAM_GDDR,
-			INTEL_DRAM_GDDR_ECC,
-			__INTEL_DRAM_TYPE_MAX,
-		} type;
-		u8 num_qgv_points;
-		u8 num_psf_gv_points;
-	} dram_info;
+	const struct dram_info *dram_info;
 
 	struct intel_runtime_pm runtime_pm;
 

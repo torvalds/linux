@@ -138,9 +138,10 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 {
 	struct ls037v7dw01_panel *lcd;
 
-	lcd = devm_kzalloc(&pdev->dev, sizeof(*lcd), GFP_KERNEL);
-	if (!lcd)
-		return -ENOMEM;
+	lcd = devm_drm_panel_alloc(&pdev->dev, struct ls037v7dw01_panel, panel,
+				   &ls037v7dw01_funcs, DRM_MODE_CONNECTOR_DPI);
+	if (IS_ERR(lcd))
+		return PTR_ERR(lcd);
 
 	platform_set_drvdata(pdev, lcd);
 	lcd->pdev = pdev;
@@ -180,9 +181,6 @@ static int ls037v7dw01_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get mode[2] gpio\n");
 		return PTR_ERR(lcd->ud_gpio);
 	}
-
-	drm_panel_init(&lcd->panel, &pdev->dev, &ls037v7dw01_funcs,
-		       DRM_MODE_CONNECTOR_DPI);
 
 	drm_panel_add(&lcd->panel);
 

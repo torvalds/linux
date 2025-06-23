@@ -1757,7 +1757,7 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 
 out:
 	for (enum vcpu_sysreg sr = __SANITISED_REG_START__; sr < NR_SYS_REGS; sr++)
-		(void)__vcpu_sys_reg(vcpu, sr);
+		__vcpu_rmw_sys_reg(vcpu, sr, |=, 0);
 
 	return 0;
 }

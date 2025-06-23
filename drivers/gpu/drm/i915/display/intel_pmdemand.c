@@ -7,12 +7,12 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_trace.h"
 #include "intel_pmdemand.h"
 #include "intel_step.h"

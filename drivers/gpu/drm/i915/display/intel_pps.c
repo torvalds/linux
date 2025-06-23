@@ -10,6 +10,7 @@
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_power_well.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"

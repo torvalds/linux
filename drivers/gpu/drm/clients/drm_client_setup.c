@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+#include <linux/export.h>
+
 #include <drm/clients/drm_client_setup.h>
 #include <drm/drm_device.h>
 #include <drm/drm_fourcc.h>

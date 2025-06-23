@@ -30,18 +30,18 @@
 #include "intel_display_power.h"
 #include "intel_wakeref.h"
 
-#define for_each_shared_dpll(__display, __pll, __i) \
-	for ((__i) = 0; (__i) < (__display)->dpll.num_shared_dpll && \
-		     ((__pll) = &(__display)->dpll.shared_dplls[(__i)]) ; (__i)++)
+#define for_each_dpll(__display, __pll, __i) \
+	for ((__i) = 0; (__i) < (__display)->dpll.num_dpll && \
+		     ((__pll) = &(__display)->dpll.dplls[(__i)]) ; (__i)++)
 
 enum tc_port;
 struct drm_printer;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_dpll_funcs;
 struct intel_encoder;
 struct intel_shared_dpll;
-struct intel_shared_dpll_funcs;
 
 /**
  * enum intel_dpll_id - possible DPLL ids
@@ -280,7 +280,7 @@ struct intel_dpll_hw_state {
 };
 
 /**
- * struct intel_shared_dpll_state - hold the DPLL atomic state
+ * struct intel_dpll_state - hold the DPLL atomic state
  *
  * This structure holds an atomic state for the DPLL, that can represent
  * either its current state (in struct &intel_shared_dpll) or a desired
@@ -289,7 +289,7 @@ struct intel_dpll_hw_state {
  *
  * See also intel_reserve_shared_dplls() and intel_release_shared_dplls().
  */
-struct intel_shared_dpll_state {
+struct intel_dpll_state {
 	/**
 	 * @pipe_mask: mask of pipes using this DPLL, active or not
 	 */
@@ -314,7 +314,7 @@ struct dpll_info {
 	/**
 	 * @funcs: platform specific hooks
 	 */
-	const struct intel_shared_dpll_funcs *funcs;
+	const struct intel_dpll_funcs *funcs;
 
 	/**
 	 * @id: unique identifier for this DPLL
@@ -344,16 +344,16 @@ struct dpll_info {
 };
 
 /**
- * struct intel_shared_dpll - display PLL with tracked state and users
+ * struct intel_dpll - display PLL with tracked state and users
  */
-struct intel_shared_dpll {
+struct intel_dpll {
 	/**
 	 * @state:
 	 *
 	 * Store the state for the pll, including its hw state
 	 * and CRTCs using it.
 	 */
-	struct intel_shared_dpll_state state;
+	struct intel_dpll_state state;
 
 	/**
 	 * @index: index for atomic state
@@ -387,41 +387,41 @@ struct intel_shared_dpll {
 #define SKL_DPLL2 2
 #define SKL_DPLL3 3
 
-/* shared dpll functions */
-struct intel_shared_dpll *
-intel_get_shared_dpll_by_id(struct intel_display *display,
-			    enum intel_dpll_id id);
-void assert_shared_dpll(struct intel_display *display,
-			struct intel_shared_dpll *pll,
-			bool state);
-#define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
-#define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
-int intel_compute_shared_dplls(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc,
-			       struct intel_encoder *encoder);
-int intel_reserve_shared_dplls(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc,
-			       struct intel_encoder *encoder);
-void intel_release_shared_dplls(struct intel_atomic_state *state,
-				struct intel_crtc *crtc);
-void intel_unreference_shared_dpll_crtc(const struct intel_crtc *crtc,
-					const struct intel_shared_dpll *pll,
-					struct intel_shared_dpll_state *shared_dpll_state);
+/* dpll functions */
+struct intel_dpll *
+intel_get_dpll_by_id(struct intel_display *display,
+		     enum intel_dpll_id id);
+void assert_dpll(struct intel_display *display,
+		 struct intel_dpll *pll,
+		 bool state);
+#define assert_dpll_enabled(d, p) assert_dpll(d, p, true)
+#define assert_dpll_disabled(d, p) assert_dpll(d, p, false)
+int intel_dpll_compute(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc,
+		       struct intel_encoder *encoder);
+int intel_dpll_reserve(struct intel_atomic_state *state,
+		       struct intel_crtc *crtc,
+		       struct intel_encoder *encoder);
+void intel_dpll_release(struct intel_atomic_state *state,
+			struct intel_crtc *crtc);
+void intel_dpll_crtc_put(const struct intel_crtc *crtc,
+			 const struct intel_dpll *pll,
+			 struct intel_dpll_state *shared_dpll_state);
 void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
 			      enum icl_port_dpll_id port_dpll_id);
-void intel_update_active_dpll(struct intel_atomic_state *state,
+void intel_dpll_update_active(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc,
 			      struct intel_encoder *encoder);
 int intel_dpll_get_freq(struct intel_display *display,
-			const struct intel_shared_dpll *pll,
+			const struct intel_dpll *pll,
 			const struct intel_dpll_hw_state *dpll_hw_state);
 bool intel_dpll_get_hw_state(struct intel_display *display,
-			     struct intel_shared_dpll *pll,
+			     struct intel_dpll *pll,
 			     struct intel_dpll_hw_state *dpll_hw_state);
-void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
-void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
-void intel_shared_dpll_swap_state(struct intel_atomic_state *state);
-void intel_shared_dpll_init(struct intel_display *display);
+void intel_dpll_enable(const struct intel_crtc_state *crtc_state);
+void intel_dpll_disable(const struct intel_crtc_state *crtc_state);
+void intel_dpll_swap_state(struct intel_atomic_state *state);
+void intel_dpll_init(struct intel_display *display);
 void intel_dpll_update_ref_clks(struct intel_display *display);
 void intel_dpll_readout_hw_state(struct intel_display *display);
 void intel_dpll_sanitize_state(struct intel_display *display);
@@ -435,8 +435,8 @@ bool intel_dpll_compare_hw_state(struct intel_display *display,
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
 
-void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
-				    struct intel_crtc *crtc);
-void intel_shared_dpll_verify_disabled(struct intel_atomic_state *state);
+void intel_dpll_state_verify(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc);
+void intel_dpll_verify_disabled(struct intel_atomic_state *state);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

@@ -93,6 +93,10 @@ static inline struct drm_sysfb_device *to_drm_sysfb_device(struct drm_device *de
  * Plane
  */
 
+size_t drm_sysfb_build_fourcc_list(struct drm_device *dev,
+				   const u32 *native_fourccs, size_t native_nfourccs,
+				   u32 *fourccs_out, size_t nfourccs_out);
+
 int drm_sysfb_plane_helper_atomic_check(struct drm_plane *plane,
 					struct drm_atomic_state *new_state);
 void drm_sysfb_plane_helper_atomic_update(struct drm_plane *plane,

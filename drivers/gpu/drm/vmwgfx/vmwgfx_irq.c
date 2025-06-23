@@ -123,26 +123,17 @@ static bool vmw_fifo_idle(struct vmw_private *dev_priv, uint32_t seqno)
 	return (vmw_read(dev_priv, SVGA_REG_BUSY) == 0);
 }
 
-void vmw_update_seqno(struct vmw_private *dev_priv)
-{
-	uint32_t seqno = vmw_fence_read(dev_priv);
-
-	if (dev_priv->last_read_seqno != seqno) {
-		dev_priv->last_read_seqno = seqno;
-		vmw_fences_update(dev_priv->fman);
-	}
-}
-
 bool vmw_seqno_passed(struct vmw_private *dev_priv,
 			 uint32_t seqno)
 {
 	bool ret;
+	u32 last_read_seqno = atomic_read_acquire(&dev_priv->last_read_seqno);
 
-	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
+	if (last_read_seqno - seqno < VMW_FENCE_WRAP)
 		return true;
 
-	vmw_update_seqno(dev_priv);
-	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
+	last_read_seqno = vmw_fences_update(dev_priv->fman);
+	if (last_read_seqno - seqno < VMW_FENCE_WRAP)
 		return true;
 
 	if (!vmw_has_fences(dev_priv) && vmw_fifo_idle(dev_priv, seqno))
@@ -239,51 +230,59 @@ out_err:
 	return ret;
 }
 
-void vmw_generic_waiter_add(struct vmw_private *dev_priv,
+bool vmw_generic_waiter_add(struct vmw_private *dev_priv,
 			    u32 flag, int *waiter_count)
 {
-	spin_lock_bh(&dev_priv->waiter_lock);
+	bool hw_programmed = false;
+
+	spin_lock(&dev_priv->waiter_lock);
 	if ((*waiter_count)++ == 0) {
 		vmw_irq_status_write(dev_priv, flag);
 		dev_priv->irq_mask |= flag;
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
+		hw_programmed = true;
 	}
-	spin_unlock_bh(&dev_priv->waiter_lock);
+	spin_unlock(&dev_priv->waiter_lock);
+	return hw_programmed;
 }
 
-void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
+bool vmw_generic_waiter_remove(struct vmw_private *dev_priv,
 			       u32 flag, int *waiter_count)
 {
-	spin_lock_bh(&dev_priv->waiter_lock);
+	bool hw_programmed = false;
+
+	spin_lock(&dev_priv->waiter_lock);
 	if (--(*waiter_count) == 0) {
 		dev_priv->irq_mask &= ~flag;
 		vmw_write(dev_priv, SVGA_REG_IRQMASK, dev_priv->irq_mask);
+		hw_programmed = true;
 	}
-	spin_unlock_bh(&dev_priv->waiter_lock);
+	spin_unlock(&dev_priv->waiter_lock);
+	return hw_programmed;
 }
 
-void vmw_seqno_waiter_add(struct vmw_private *dev_priv)
+bool vmw_seqno_waiter_add(struct vmw_private *dev_priv)
 {
-	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
-			       &dev_priv->fence_queue_waiters);
+	return vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
+					&dev_priv->fence_queue_waiters);
 }
 
-void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
+bool vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
 {
-	vmw_generic_waiter_remove(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
-				  &dev_priv->fence_queue_waiters);
+	return vmw_generic_waiter_remove(dev_priv, SVGA_IRQFLAG_ANY_FENCE,
+					&dev_priv->fence_queue_waiters);
 }
 
-void vmw_goal_waiter_add(struct vmw_private *dev_priv)
+bool vmw_goal_waiter_add(struct vmw_private *dev_priv)
 {
-	vmw_generic_waiter_add(dev_priv, vmw_irqflag_fence_goal(dev_priv),
-			       &dev_priv->goal_queue_waiters);
+	return vmw_generic_waiter_add(dev_priv, vmw_irqflag_fence_goal(dev_priv),
+					&dev_priv->goal_queue_waiters);
 }
 
-void vmw_goal_waiter_remove(struct vmw_private *dev_priv)
+bool vmw_goal_waiter_remove(struct vmw_private *dev_priv)
 {
-	vmw_generic_waiter_remove(dev_priv, vmw_irqflag_fence_goal(dev_priv),
-				  &dev_priv->goal_queue_waiters);
+	return vmw_generic_waiter_remove(dev_priv, vmw_irqflag_fence_goal(dev_priv),
+					&dev_priv->goal_queue_waiters);
 }
 
 static void vmw_irq_preinstall(struct drm_device *dev)
