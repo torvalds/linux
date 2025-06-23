@@ -547,9 +547,9 @@ void hns3_set_vector_coalesce_rx_ql(struct hns3_enet_tqp_vector *tqp_vector,
 static void hns3_vector_coalesce_init(struct hns3_enet_tqp_vector *tqp_vector,
 				      struct hns3_nic_priv *priv)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
 	struct hns3_enet_coalesce *tx_coal = &tqp_vector->tx_group.coal;
 	struct hns3_enet_coalesce *rx_coal = &tqp_vector->rx_group.coal;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(priv->ae_handle);
 	struct hns3_enet_coalesce *ptx_coal = &priv->tx_coal;
 	struct hns3_enet_coalesce *prx_coal = &priv->rx_coal;
 
@@ -1304,7 +1304,7 @@ static int hns3_get_l4_protocol(struct sk_buff *skb, u8 *ol4_proto,
 static bool hns3_tunnel_csum_bug(struct sk_buff *skb)
 {
 	struct hns3_nic_priv *priv = netdev_priv(skb->dev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(priv->ae_handle);
 	union l4_hdr_info l4;
 
 	/* device version above V3(include V3), the hardware can
@@ -1504,7 +1504,7 @@ static int hns3_handle_vtags(struct hns3_enet_ring *tx_ring,
 	 * VLAN enabled, only one VLAN header is allowed in skb, otherwise it
 	 * will cause RAS error.
 	 */
-	ae_dev = pci_get_drvdata(handle->pdev);
+	ae_dev = hns3_get_ae_dev(handle);
 	if (unlikely(skb_vlan_tagged_multi(skb) &&
 		     ae_dev->dev_version <= HNAE3_DEVICE_VERSION_V2 &&
 		     handle->port_base_vlan_state ==
@@ -4747,7 +4747,7 @@ map_ring_fail:
 
 static void hns3_nic_init_coal_cfg(struct hns3_nic_priv *priv)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(priv->ae_handle);
 	struct hns3_enet_coalesce *tx_coal = &priv->tx_coal;
 	struct hns3_enet_coalesce *rx_coal = &priv->rx_coal;
 
@@ -5226,7 +5226,7 @@ static void hns3_info_show(struct hns3_nic_priv *priv)
 static void hns3_set_cq_period_mode(struct hns3_nic_priv *priv,
 				    enum dim_cq_period_mode mode, bool is_tx)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(priv->ae_handle);
 	struct hnae3_handle *handle = priv->ae_handle;
 	int i;
 
@@ -5264,7 +5264,7 @@ void hns3_cq_period_mode_init(struct hns3_nic_priv *priv,
 
 static void hns3_state_init(struct hnae3_handle *handle)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
 	struct net_device *netdev = handle->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 
