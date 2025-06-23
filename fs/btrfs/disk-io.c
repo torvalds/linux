@@ -884,7 +884,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	btrfs_set_root_used(&root->root_item, leaf->len);
 	btrfs_set_root_last_snapshot(&root->root_item, 0);
 	btrfs_set_root_dirid(&root->root_item, 0);
-	if (is_fstree(objectid))
+	if (btrfs_is_fstree(objectid))
 		generate_random_guid(root->root_item.uuid);
 	else
 		export_guid(root->root_item.uuid, &guid_null);
@@ -1104,7 +1104,7 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 
 	if (btrfs_root_id(root) != BTRFS_TREE_LOG_OBJECTID &&
 	    !btrfs_is_data_reloc_root(root) &&
-	    is_fstree(btrfs_root_id(root))) {
+	    btrfs_is_fstree(btrfs_root_id(root))) {
 		set_bit(BTRFS_ROOT_SHAREABLE, &root->state);
 		btrfs_check_and_init_root_item(&root->root_item);
 	}
@@ -1113,7 +1113,7 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 	 * Don't assign anonymous block device to roots that are not exposed to
 	 * userspace, the id pool is limited to 1M
 	 */
-	if (is_fstree(btrfs_root_id(root)) &&
+	if (btrfs_is_fstree(btrfs_root_id(root)) &&
 	    btrfs_root_refs(&root->root_item) > 0) {
 		if (!anon_dev) {
 			ret = get_anon_bdev(&root->anon_dev);
@@ -1315,7 +1315,7 @@ static struct btrfs_root *btrfs_get_root_ref(struct btrfs_fs_info *fs_info,
 	 * This is namely for free-space-tree and quota tree, which can change
 	 * at runtime and should only be grabbed from fs_info.
 	 */
-	if (!is_fstree(objectid) && objectid != BTRFS_DATA_RELOC_TREE_OBJECTID)
+	if (!btrfs_is_fstree(objectid) && objectid != BTRFS_DATA_RELOC_TREE_OBJECTID)
 		return ERR_PTR(-ENOENT);
 again:
 	root = btrfs_lookup_fs_root(fs_info, objectid);

@@ -1545,7 +1545,7 @@ static void free_head_ref_squota_rsv(struct btrfs_fs_info *fs_info,
 	 * where it has already been unset.
 	 */
 	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE ||
-	    !href->is_data || !is_fstree(root))
+	    !href->is_data || !btrfs_is_fstree(root))
 		return;
 
 	btrfs_qgroup_free_refroot(fs_info, root, href->reserved_bytes,
@@ -4963,7 +4963,7 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 
 	ASSERT(generic_ref.ref_root != BTRFS_TREE_LOG_OBJECTID);
 
-	if (btrfs_is_data_reloc_root(root) && is_fstree(root->relocation_src_root))
+	if (btrfs_is_data_reloc_root(root) && btrfs_is_fstree(root->relocation_src_root))
 		generic_ref.owning_root = root->relocation_src_root;
 
 	btrfs_init_data_ref(&generic_ref, owner, offset, 0, false);
@@ -5887,7 +5887,7 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 					return ret;
 				}
 			}
-			if (is_fstree(btrfs_root_id(root))) {
+			if (btrfs_is_fstree(btrfs_root_id(root))) {
 				ret = btrfs_qgroup_trace_leaf_items(trans, eb);
 				if (ret) {
 					btrfs_err_rl(fs_info,

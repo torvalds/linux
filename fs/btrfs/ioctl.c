@@ -2889,7 +2889,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 		ret = PTR_ERR(new_root);
 		goto out;
 	}
-	if (!is_fstree(btrfs_root_id(new_root))) {
+	if (!btrfs_is_fstree(btrfs_root_id(new_root))) {
 		ret = -ENOENT;
 		goto out_free;
 	}
@@ -3832,7 +3832,7 @@ static long btrfs_ioctl_qgroup_create(struct file *file, void __user *arg)
 		goto out;
 	}
 
-	if (sa->create && is_fstree(sa->qgroupid)) {
+	if (sa->create && btrfs_is_fstree(sa->qgroupid)) {
 		ret = -EINVAL;
 		goto out;
 	}

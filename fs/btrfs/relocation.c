@@ -2625,7 +2625,7 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 		 * tree.
 		 */
 		if (block->owner &&
-		    (!is_fstree(block->owner) ||
+		    (!btrfs_is_fstree(block->owner) ||
 		     block->owner == BTRFS_DATA_RELOC_TREE_OBJECTID)) {
 			ret = relocate_cowonly_block(trans, rc, block, path);
 			if (ret)

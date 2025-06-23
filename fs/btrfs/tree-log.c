@@ -144,7 +144,7 @@ static struct btrfs_inode *btrfs_iget_logging(u64 objectid, struct btrfs_root *r
 	struct btrfs_inode *inode;
 
 	/* Only meant to be called for subvolume roots and not for log roots. */
-	ASSERT(is_fstree(btrfs_root_id(root)));
+	ASSERT(btrfs_is_fstree(btrfs_root_id(root)));
 
 	/*
 	 * We're holding a transaction handle whether we are logging or
