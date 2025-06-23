@@ -339,9 +339,8 @@ udp_tunnel_nic_set_port_priv(struct net_device *dev, unsigned int table,
 			     unsigned int idx, u8 priv)
 {
 	if (udp_tunnel_nic_ops) {
-		udp_tunnel_nic_ops->lock(dev);
+		udp_tunnel_nic_ops->assert_locked(dev);
 		udp_tunnel_nic_ops->set_port_priv(dev, table, idx, priv);
-		udp_tunnel_nic_ops->unlock(dev);
 	}
 }
 
