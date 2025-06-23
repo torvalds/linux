@@ -110,13 +110,12 @@ int snb_pcode_read(struct intel_uncore *uncore, u32 mbox, u32 *val, u32 *val1)
 }
 
 int snb_pcode_write_timeout(struct intel_uncore *uncore, u32 mbox, u32 val,
-			    int fast_timeout_us, int slow_timeout_ms)
+			    int timeout_ms)
 {
 	int err;
 
 	mutex_lock(&uncore->i915->sb_lock);
-	err = __snb_pcode_rw(uncore, mbox, &val, NULL,
-			     fast_timeout_us, slow_timeout_ms, false);
+	err = __snb_pcode_rw(uncore, mbox, &val, NULL, 250, timeout_ms, false);
 	mutex_unlock(&uncore->i915->sb_lock);
 
 	if (err) {

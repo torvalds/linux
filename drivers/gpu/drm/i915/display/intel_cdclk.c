@@ -2148,7 +2148,7 @@ static void bxt_set_cdclk(struct intel_display *display,
 		 */
 		ret = snb_pcode_write_timeout(&dev_priv->uncore,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
-					      0x80000000, 150, 2);
+					      0x80000000, 2);
 
 	if (ret) {
 		drm_err(display->drm,
@@ -2188,8 +2188,7 @@ static void bxt_set_cdclk(struct intel_display *display,
 		 */
 		ret = snb_pcode_write_timeout(&dev_priv->uncore,
 					      HSW_PCODE_DE_WRITE_FREQ_REQ,
-					      cdclk_config->voltage_level,
-					      150, 2);
+					      cdclk_config->voltage_level, 2);
 	}
 	if (ret) {
 		drm_err(display->drm,

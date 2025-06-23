@@ -10,11 +10,9 @@
 #include "xe_pcode.h"
 
 static inline int
-snb_pcode_write_timeout(struct intel_uncore *uncore, u32 mbox, u32 val,
-			int fast_timeout_us, int slow_timeout_ms)
+snb_pcode_write_timeout(struct intel_uncore *uncore, u32 mbox, u32 val, int timeout_ms)
 {
-	return xe_pcode_write_timeout(__compat_uncore_to_tile(uncore), mbox, val,
-				      slow_timeout_ms ?: 1);
+	return xe_pcode_write_timeout(__compat_uncore_to_tile(uncore), mbox, val, timeout_ms);
 }
 
 static inline int
