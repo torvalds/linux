@@ -227,3 +227,12 @@ Contact:	Jiaqi Yan <jiaqiyan@google.com>
 Description:
 		Of the raw poisoned pages on a NUMA node, how many pages are
 		recovered by memory error recovery attempt.
+
+What:		/sys/devices/system/node/nodeX/reclaim
+Date:		June 2025
+Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Description:
+		Perform user-triggered proactive reclaim on a NUMA node.
+		This interface is equivalent to the memcg variant.
+
+		See Documentation/admin-guide/cgroup-v2.rst
