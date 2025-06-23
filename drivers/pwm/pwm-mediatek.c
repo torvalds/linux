@@ -36,7 +36,7 @@
 struct pwm_mediatek_of_data {
 	unsigned int num_pwms;
 	bool pwm45_fixup;
-	bool has_ck_26m_sel;
+	u16 pwm_ck_26m_sel_reg;
 	const unsigned int *reg_offset;
 };
 
@@ -136,8 +136,8 @@ static int pwm_mediatek_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* Make sure we use the bus clock and not the 26MHz clock */
-	if (pc->soc->has_ck_26m_sel)
-		writel(0, pc->regs + PWM_CK_26M_SEL);
+	if (pc->soc->pwm_ck_26m_sel_reg)
+		writel(0, pc->regs + pc->soc->pwm_ck_26m_sel_reg);
 
 	/* Using resolution in picosecond gets accuracy higher */
 	resolution = (u64)NSEC_PER_SEC * 1000;
@@ -294,84 +294,78 @@ static int pwm_mediatek_probe(struct platform_device *pdev)
 static const struct pwm_mediatek_of_data mt2712_pwm_data = {
 	.num_pwms = 8,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = false,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt6795_pwm_data = {
 	.num_pwms = 7,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = false,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt7622_pwm_data = {
 	.num_pwms = 6,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = true,
+	.pwm_ck_26m_sel_reg = PWM_CK_26M_SEL,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt7623_pwm_data = {
 	.num_pwms = 5,
 	.pwm45_fixup = true,
-	.has_ck_26m_sel = false,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt7628_pwm_data = {
 	.num_pwms = 4,
 	.pwm45_fixup = true,
-	.has_ck_26m_sel = false,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt7629_pwm_data = {
 	.num_pwms = 1,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = false,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt7981_pwm_data = {
 	.num_pwms = 3,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = true,
+	.pwm_ck_26m_sel_reg = PWM_CK_26M_SEL,
 	.reg_offset = mtk_pwm_reg_offset_v2,
 };
 
 static const struct pwm_mediatek_of_data mt7986_pwm_data = {
 	.num_pwms = 2,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = true,
+	.pwm_ck_26m_sel_reg = PWM_CK_26M_SEL,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt7988_pwm_data = {
 	.num_pwms = 8,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = false,
 	.reg_offset = mtk_pwm_reg_offset_v2,
 };
 
 static const struct pwm_mediatek_of_data mt8183_pwm_data = {
 	.num_pwms = 4,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = true,
+	.pwm_ck_26m_sel_reg = PWM_CK_26M_SEL,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt8365_pwm_data = {
 	.num_pwms = 3,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = true,
+	.pwm_ck_26m_sel_reg = PWM_CK_26M_SEL,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
 static const struct pwm_mediatek_of_data mt8516_pwm_data = {
 	.num_pwms = 5,
 	.pwm45_fixup = false,
-	.has_ck_26m_sel = true,
+	.pwm_ck_26m_sel_reg = PWM_CK_26M_SEL,
 	.reg_offset = mtk_pwm_reg_offset_v1,
 };
 
