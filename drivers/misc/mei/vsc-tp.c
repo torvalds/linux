@@ -547,8 +547,6 @@ static void vsc_tp_shutdown(struct spi_device *spi)
 
 	mutex_destroy(&tp->mutex);
 
-	vsc_tp_reset(tp);
-
 	free_irq(spi->irq, tp);
 }
 
