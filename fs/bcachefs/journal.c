@@ -1283,7 +1283,7 @@ static int bch2_set_nr_journal_buckets_loop(struct bch_fs *c, struct bch_dev *ca
 			ret = 0; /* wait and retry */
 
 		bch2_disk_reservation_put(c, &disk_res);
-		closure_sync(&cl);
+		bch2_wait_on_allocator(c, &cl);
 	}
 
 	return ret;
