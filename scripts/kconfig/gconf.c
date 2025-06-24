@@ -378,6 +378,7 @@ gboolean on_window1_delete_event(GtkWidget * widget, GdkEvent * event,
 {
 	GtkWidget *dialog, *label;
 	gint result;
+	gint ret = FALSE;
 
 	if (!conf_get_changed())
 		return FALSE;
@@ -404,17 +405,19 @@ gboolean on_window1_delete_event(GtkWidget * widget, GdkEvent * event,
 	switch (result) {
 	case GTK_RESPONSE_YES:
 		on_save_activate(NULL, NULL);
-		return FALSE;
+		break;
 	case GTK_RESPONSE_NO:
-		return FALSE;
+		break;
 	case GTK_RESPONSE_CANCEL:
 	case GTK_RESPONSE_DELETE_EVENT:
 	default:
-		gtk_widget_destroy(dialog);
-		return TRUE;
+		ret = TRUE;
+		break;
 	}
 
-	return FALSE;
+	gtk_widget_destroy(dialog);
+
+	return ret;
 }
 
 
