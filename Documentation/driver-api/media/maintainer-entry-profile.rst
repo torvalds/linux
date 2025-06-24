@@ -75,7 +75,7 @@ The media maintainers that work on specific areas of the subsystem are:
     Sean Young <sean@mess.org>
 
 - HDMI CEC:
-    Hans Verkuil <hverkuil@xs4all.nl>
+    Hans Verkuil <hverkuil@kernel.org>
 
 - Media controller drivers:
     Laurent Pinchart <laurent.pinchart@ideasonboard.com>
@@ -84,7 +84,7 @@ The media maintainers that work on specific areas of the subsystem are:
     Sakari Ailus <sakari.ailus@linux.intel.com>
 
 - V4L2 drivers and core V4L2 frameworks:
-    Hans Verkuil <hverkuil@xs4all.nl>
+    Hans Verkuil <hverkuil@kernel.org>
 
 The subsystem maintainer is:
   Mauro Carvalho Chehab <mchehab@kernel.org>
