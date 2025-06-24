@@ -922,7 +922,7 @@ static int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
 			mutex_unlock(&(adapter_to_dvobj(padapter)->hw_init_mutex));
 		}
 	} else {
-		status =  (_SUCCESS == ips_netdrv_open(padapter)) ? (0) : (-1);
+		status =  (ips_netdrv_open(padapter) == _SUCCESS) ? (0) : (-1);
 	}
 
 	return status;
