@@ -14,7 +14,7 @@
  *
  *  Refactored and updated to the latest v4l core frameworks:
  *
- *  Copyright (C) 2014 Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2014 Hans Verkuil <hverkuil@kernel.org>
  */
 
 #include <linux/init.h>
@@ -37,7 +37,7 @@
 
 MODULE_DESCRIPTION("v4l2 driver module for tw6800 based video capture cards");
 MODULE_AUTHOR("William M. Brack");
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_LICENSE("GPL");
 
 static unsigned int latency = UNSET;

@@ -4,7 +4,7 @@
  *
  *  Derived from cx25840-vbi.c
  *
- *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2007  Hans Verkuil <hverkuil@kernel.org>
  */
 
 

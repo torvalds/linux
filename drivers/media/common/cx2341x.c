@@ -2,7 +2,7 @@
 /*
  * cx2341x - generic code for cx23415/6/8 based devices
  *
- * Copyright (C) 2006 Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (C) 2006 Hans Verkuil <hverkuil@kernel.org>
  */
 
 

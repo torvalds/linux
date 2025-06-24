@@ -3,7 +3,7 @@
     tea6415c - i2c-driver for the tea6415c by SGS Thomson
 
     Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
-    Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
+    Copyright (C) 2008 Hans Verkuil <hverkuil@kernel.org>
 
     The tea6415c is a bus controlled video-matrix-switch
     with 8 inputs and 6 outputs.

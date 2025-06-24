@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2012 Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (c) 2012 Hans Verkuil <hverkuil@kernel.org>
  */
 
 /* kernel includes */
@@ -18,7 +18,7 @@
 #include <linux/mutex.h>
 
 /* driver and module definitions */
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_DESCRIPTION("Keene FM Transmitter driver");
 MODULE_LICENSE("GPL");
 

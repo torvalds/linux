@@ -3,7 +3,7 @@
     tea6420 - i2c-driver for the tea6420 by SGS Thomson
 
     Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
-    Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
+    Copyright (C) 2008 Hans Verkuil <hverkuil@kernel.org>
 
     The tea6420 is a bus controlled audio-matrix with 5 stereo inputs,
     4 stereo outputs and gain control for each output.

@@ -6,7 +6,7 @@
  *
  * Based on saa7115 driver
  *
- * Copyright (C) 2005 Hans Verkuil <hverkuil@xs4all.nl>
+ * Copyright (C) 2005 Hans Verkuil <hverkuil@kernel.org>
  * - Cleanup
  * - V4L2 API update
  * - sound fixes
