@@ -759,7 +759,7 @@ static void qmi_stop_session(void)
 			subs = find_substream(pcm_card_num, info->pcm_dev_num,
 					      info->direction);
 			if (!subs || !chip || atomic_read(&chip->shutdown)) {
-				dev_err(&subs->dev->dev,
+				dev_err(&uadev[idx].udev->dev,
 					"no sub for c#%u dev#%u dir%u\n",
 					info->pcm_card_num,
 					info->pcm_dev_num,
