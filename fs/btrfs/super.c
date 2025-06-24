@@ -1876,15 +1876,6 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 
 	bdev = fs_devices->latest_dev->bdev;
 
-	/*
-	 * From now on the error handling is not straightforward.
-	 *
-	 * If successful, this will transfer the fs_info into the super block,
-	 * and fc->s_fs_info will be NULL.  However if there's an existing
-	 * super, we'll still have fc->s_fs_info populated.  If we error
-	 * completely out it'll be cleaned up when we drop the fs_context,
-	 * otherwise it's tied to the lifetime of the super_block.
-	 */
 	sb = sget_fc(fc, btrfs_fc_test_super, set_anon_super_fc);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
@@ -1894,6 +1885,20 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 	set_device_specific_options(fs_info);
 
 	if (sb->s_root) {
+		/*
+		 * Not the first mount of the fs thus got an existing super block.
+		 *
+		 * Will reuse the returned super block, fs_info and fs_devices.
+		 */
+		ASSERT(fc->s_fs_info == fs_info);
+
+		/*
+		 * fc->s_fs_info is not touched and will be later freed by
+		 * put_fs_context() through btrfs_free_fs_context().
+		 *
+		 * But we have opened fs_devices at the beginning of the
+		 * function, thus still need to close them manually.
+		 */
 		btrfs_close_devices(fs_devices);
 		/*
 		 * At this stage we may have RO flag mismatch between
@@ -1902,6 +1907,13 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		 * needed.
 		 */
 	} else {
+		/*
+		 * The first mount of the fs thus a new superblock, fc->s_fs_info
+		 * should be NULL, and the owner ship of our fs_info and fs_devices is
+		 * transferred to the super block.
+		 */
+		ASSERT(fc->s_fs_info == NULL);
+
 		snprintf(sb->s_id, sizeof(sb->s_id), "%pg", bdev);
 		shrinker_debugfs_rename(sb->s_shrink, "sb-btrfs:%s", sb->s_id);
 		btrfs_sb(sb)->bdev_holder = &btrfs_fs_type;
