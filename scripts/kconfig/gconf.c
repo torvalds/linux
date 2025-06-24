@@ -47,8 +47,6 @@ GdkColor color;
 
 GtkTreeStore *tree1, *tree2, *tree;
 GtkTreeModel *model1, *model2;
-static GtkTreeIter *parents[256];
-static gint indent;
 
 static struct menu *current; // current node for SINGLE view
 static struct menu *browsed; // browsed node for SPLIT view
@@ -153,8 +151,6 @@ static void init_main_window(const gchar *glade_file)
 
 static void init_tree_model(void)
 {
-	gint i;
-
 	tree = tree2 = gtk_tree_store_new(COL_NUMBER,
 					  G_TYPE_STRING, G_TYPE_STRING,
 					  G_TYPE_STRING, G_TYPE_STRING,
@@ -165,9 +161,6 @@ static void init_tree_model(void)
 					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
 					  G_TYPE_BOOLEAN);
 	model2 = GTK_TREE_MODEL(tree2);
-
-	for (parents[0] = NULL, i = 1; i < 256; i++)
-		parents[i] = (GtkTreeIter *) g_malloc(sizeof(GtkTreeIter));
 
 	tree1 = gtk_tree_store_new(COL_NUMBER,
 				   G_TYPE_STRING, G_TYPE_STRING,
@@ -1131,18 +1124,6 @@ static void set_node(GtkTreeIter * node, struct menu *menu, gchar ** row)
 	g_object_unref(pix);
 }
 
-
-/* Add a node to the tree */
-static void place_node(struct menu *menu, char **row)
-{
-	GtkTreeIter *parent = parents[indent - 1];
-	GtkTreeIter *node = parents[indent];
-
-	gtk_tree_store_append(tree, node, parent);
-	set_node(node, menu, row);
-}
-
-
 /* Find a node in the GTK+ tree */
 static GtkTreeIter found;
 
@@ -1192,9 +1173,6 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 	GtkTreeIter *sibling;
 	struct symbol *sym;
 	struct menu *menu1, *menu2;
-
-	if (src == &rootmenu)
-		indent = 1;
 
 	valid = gtk_tree_model_iter_children(model2, child2, dst);
 	for (child1 = src->list; child1; child1 = child1->next) {
@@ -1253,9 +1231,7 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 			set_node(child2, menu1, fill_row(menu1));
 		}
 
-		indent++;
 		update_tree(child1, child2);
-		indent--;
 
 		valid = gtk_tree_model_iter_next(model2, child2);
 	}
@@ -1263,16 +1239,15 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 
 
 /* Display the whole tree (single/split/full view) */
-static void display_tree(struct menu *menu)
+static void _display_tree(struct menu *menu, GtkTreeIter *parent)
 {
 	struct property *prop;
 	struct menu *child;
 	enum prop_type ptype;
+	GtkTreeIter iter;
 
-	if (menu == &rootmenu) {
-		indent = 1;
+	if (menu == &rootmenu)
 		current = &rootmenu;
-	}
 
 	for (child = menu->list; child; child = child->next) {
 		prop = child->prompt;
@@ -1290,8 +1265,10 @@ static void display_tree(struct menu *menu)
 
 		if ((opt_mode == OPT_NORMAL && menu_is_visible(child)) ||
 		    (opt_mode == OPT_PROMPT && menu_has_prompt(child)) ||
-		    (opt_mode == OPT_ALL    && menu_get_prompt(child)))
-			place_node(child, fill_row(child));
+		    (opt_mode == OPT_ALL    && menu_get_prompt(child))) {
+			gtk_tree_store_append(tree, &iter, parent);
+			set_node(&iter, child, fill_row(child));
+		}
 
 		if ((view_mode != FULL_VIEW) && (ptype == P_MENU)
 		    && (tree == tree2))
@@ -1308,12 +1285,14 @@ static void display_tree(struct menu *menu)
 
 		if (((view_mode == SINGLE_VIEW) && (menu->flags & MENU_ROOT))
 		    || (view_mode == FULL_VIEW)
-		    || (view_mode == SPLIT_VIEW)) {
-			indent++;
-			display_tree(child);
-			indent--;
-		}
+		    || (view_mode == SPLIT_VIEW))
+			_display_tree(child, &iter);
 	}
+}
+
+static void display_tree(struct menu *menu)
+{
+	_display_tree(menu, NULL);
 }
 
 /* Display a part of the tree starting at current node (single/split view) */
