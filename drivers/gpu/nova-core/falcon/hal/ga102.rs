@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use core::marker::PhantomData;
-use core::time::Duration;
 
 use kernel::device;
 use kernel::prelude::*;
+use kernel::time::Delta;
 
 use crate::driver::Bar0;
 use crate::falcon::{
@@ -23,7 +23,7 @@ fn select_core_ga102<E: FalconEngine>(bar: &Bar0) -> Result {
             .write(bar, E::BASE);
 
         // TIMEOUT: falcon core should take less than 10ms to report being enabled.
-        util::wait_on(Duration::from_millis(10), || {
+        util::wait_on(Delta::from_millis(10), || {
             let r = regs::NV_PRISCV_RISCV_BCR_CTRL::read(bar, E::BASE);
             if r.valid() {
                 Some(())

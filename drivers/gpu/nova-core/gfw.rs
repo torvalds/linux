@@ -6,10 +6,9 @@
 //! the GPU is considered unusable until this step is completed, so we must wait on it before
 //! performing driver initialization.
 
-use core::time::Duration;
-
 use kernel::bindings;
 use kernel::prelude::*;
+use kernel::time::Delta;
 
 use crate::driver::Bar0;
 use crate::regs;
@@ -19,7 +18,7 @@ use crate::util;
 pub(crate) fn wait_gfw_boot_completion(bar: &Bar0) -> Result {
     // TIMEOUT: arbitrarily large value. GFW starts running immediately after the GPU is put out of
     // reset, and should complete in less time than that.
-    util::wait_on(Duration::from_secs(4), || {
+    util::wait_on(Delta::from_secs(4), || {
         // Check that FWSEC has lowered its protection level before reading the GFW_BOOT
         // status.
         let gfw_booted = regs::NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK::read(bar)

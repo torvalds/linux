@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use core::time::Duration;
-
 use kernel::prelude::*;
-use kernel::time::Instant;
+use kernel::time::{Delta, Instant};
 
 pub(crate) const fn to_lowercase_bytes<const N: usize>(s: &str) -> [u8; N] {
     let src = s.as_bytes();
@@ -34,7 +32,7 @@ pub(crate) const fn const_bytes_to_str(bytes: &[u8]) -> &str {
 ///
 /// TODO[DLAY]: replace with `read_poll_timeout` once it is available.
 /// (https://lore.kernel.org/lkml/20250220070611.214262-8-fujita.tomonori@gmail.com/)
-pub(crate) fn wait_on<R, F: Fn() -> Option<R>>(timeout: Duration, cond: F) -> Result<R> {
+pub(crate) fn wait_on<R, F: Fn() -> Option<R>>(timeout: Delta, cond: F) -> Result<R> {
     let start_time = Instant::now();
 
     loop {
@@ -42,7 +40,7 @@ pub(crate) fn wait_on<R, F: Fn() -> Option<R>>(timeout: Duration, cond: F) -> Re
             return Ok(ret);
         }
 
-        if start_time.elapsed().as_nanos() > timeout.as_nanos() as i64 {
+        if start_time.elapsed().as_nanos() > timeout.as_nanos() {
             return Err(ETIMEDOUT);
         }
     }

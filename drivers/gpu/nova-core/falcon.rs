@@ -3,11 +3,11 @@
 //! Falcon microprocessor base support
 
 use core::ops::Deref;
-use core::time::Duration;
 use hal::FalconHal;
 use kernel::bindings;
 use kernel::device;
 use kernel::prelude::*;
+use kernel::time::Delta;
 use kernel::types::ARef;
 
 use crate::dma::DmaObject;
@@ -353,7 +353,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// Wait for memory scrubbing to complete.
     fn reset_wait_mem_scrubbing(&self, bar: &Bar0) -> Result {
         // TIMEOUT: memory scrubbing should complete in less than 20ms.
-        util::wait_on(Duration::from_millis(20), || {
+        util::wait_on(Delta::from_millis(20), || {
             if regs::NV_PFALCON_FALCON_HWCFG2::read(bar, E::BASE).mem_scrubbing_done() {
                 Some(())
             } else {
@@ -368,7 +368,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
 
         // According to OpenRM's `kflcnPreResetWait_GA102` documentation, HW sometimes does not set
         // RESET_READY so a non-failing timeout is used.
-        let _ = util::wait_on(Duration::from_micros(150), || {
+        let _ = util::wait_on(Delta::from_micros(150), || {
             let r = regs::NV_PFALCON_FALCON_HWCFG2::read(bar, E::BASE);
             if r.reset_ready() {
                 Some(())
@@ -381,7 +381,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
 
         // TODO[DLAY]: replace with udelay() or equivalent once available.
         // TIMEOUT: falcon engine should not take more than 10us to reset.
-        let _: Result = util::wait_on(Duration::from_micros(10), || None);
+        let _: Result = util::wait_on(Delta::from_micros(10), || None);
 
         regs::NV_PFALCON_FALCON_ENGINE::alter(bar, E::BASE, |v| v.set_reset(false));
 
@@ -472,7 +472,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             // Wait for the transfer to complete.
             // TIMEOUT: arbitrarily large value, no DMA transfer to the falcon's small memories
             // should ever take that long.
-            util::wait_on(Duration::from_secs(2), || {
+            util::wait_on(Delta::from_secs(2), || {
                 let r = regs::NV_PFALCON_FALCON_DMATRFCMD::read(bar, E::BASE);
                 if r.idle() {
                     Some(())
@@ -542,7 +542,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         }
 
         // TIMEOUT: arbitrarily large value, firmwares should complete in less than 2 seconds.
-        util::wait_on(Duration::from_secs(2), || {
+        util::wait_on(Delta::from_secs(2), || {
             let r = regs::NV_PFALCON_FALCON_CPUCTL::read(bar, E::BASE);
             if r.halted() {
                 Some(())
