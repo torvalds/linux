@@ -517,7 +517,6 @@
 		      <property name="left_margin">0</property>
 		      <property name="right_margin">0</property>
 		      <property name="indent">0</property>
-		      <property name="text" translatable="yes">Sorry, no help available for this option yet.</property>
 		    </widget>
 		  </child>
 		</widget>
