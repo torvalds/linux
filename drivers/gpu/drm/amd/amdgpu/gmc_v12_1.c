@@ -307,9 +307,6 @@ static void gmc_v12_1_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 static void gmc_v12_1_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 				    uint32_t vmhub, uint32_t flush_type)
 {
-	if (AMDGPU_IS_GFXHUB(vmhub) && !adev->gfx.is_poweron)
-		return;
-
 	/* This is necessary for SRIOV as well as for GFXOFF to function
 	 * properly under bare metal
 	 */
