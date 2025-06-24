@@ -2055,10 +2055,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
 			     NETLINK_CB(skb).portid, extack);
-	if (!err && ndm_flags & (NTF_USE | NTF_MANAGED)) {
+	if (!err && ndm_flags & (NTF_USE | NTF_MANAGED))
 		neigh_event_send(neigh, NULL);
-		err = 0;
-	}
 	neigh_release(neigh);
 out:
 	return err;
