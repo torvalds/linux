@@ -2233,15 +2233,15 @@ static void serial8250_init_mctrl(struct uart_port *port)
 static void serial8250_iir_txen_test(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-	bool lsr_TEMT, iir_NOINT;
+	bool lsr_temt, iir_noint;
 
 	if (port->quirks & UPQ_NO_TXEN_TEST)
 		return;
 
 	/* Do a quick test to see if we receive an interrupt when we enable the TX irq. */
 	serial_port_out(port, UART_IER, UART_IER_THRI);
-	lsr_TEMT = serial_port_in(port, UART_LSR) & UART_LSR_TEMT;
-	iir_NOINT = serial_port_in(port, UART_IIR) & UART_IIR_NO_INT;
+	lsr_temt = serial_port_in(port, UART_LSR) & UART_LSR_TEMT;
+	iir_noint = serial_port_in(port, UART_IIR) & UART_IIR_NO_INT;
 	serial_port_out(port, UART_IER, 0);
 
 	/*
@@ -2253,7 +2253,7 @@ static void serial8250_iir_txen_test(struct uart_port *port)
 	 * variable. So, in case of UPQ_NO_TXEN_TEST, let's just don't test if we receive TX irq.
 	 * This way, we'll never enable UART_BUG_TXEN.
 	 */
-	if (lsr_TEMT && iir_NOINT) {
+	if (lsr_temt && iir_noint) {
 		if (!(up->bugs & UART_BUG_TXEN)) {
 			up->bugs |= UART_BUG_TXEN;
 			dev_dbg(port->dev, "enabling bad tx status workarounds\n");
