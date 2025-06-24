@@ -26,6 +26,7 @@
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fixed.h"
+#include "intel_flipq.h"
 #include "intel_pcode.h"
 #include "intel_plane.h"
 #include "intel_wm.h"
@@ -2897,11 +2898,15 @@ intel_program_dpkgc_latency(struct intel_atomic_state *state)
 
 	latency = skl_watermark_max_latency(display, 1);
 
+	/* FIXME runtime changes to enable_flipq are racy */
+	if (display->params.enable_flipq)
+		added_wake_time = intel_flipq_exec_time_us(display);
+
 	/*
 	 * Wa_22020432604
 	 * "PKG_C_LATENCY Added Wake Time field is not working"
 	 */
-	if (latency && (DISPLAY_VER(display) == 20 || DISPLAY_VER(display) == 30)) {
+	if (latency && IS_DISPLAY_VER(display, 20, 30)) {
 		latency += added_wake_time;
 		added_wake_time = 0;
 	}
