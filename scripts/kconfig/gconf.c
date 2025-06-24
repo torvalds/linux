@@ -62,239 +62,11 @@ static void display_tree(struct menu *menu);
 static void display_tree_part(void);
 static void update_tree(struct menu *src, GtkTreeIter * dst);
 
-static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
-				GtkStyle *style, gchar *btn_name, gchar **xpm)
-{
-	GdkPixmap *pixmap;
-	GdkBitmap *mask;
-	GtkToolButton *button;
-	GtkWidget *image;
-
-	pixmap = gdk_pixmap_create_from_xpm_d(window, &mask,
-					      &style->bg[GTK_STATE_NORMAL],
-					      xpm);
-
-	button = GTK_TOOL_BUTTON(glade_xml_get_widget(xml, btn_name));
-	image = gtk_image_new_from_pixmap(pixmap, mask);
-	gtk_widget_show(image);
-	gtk_tool_button_set_icon_widget(button, image);
-}
-
 static void conf_changed(bool dirty)
 {
 	gtk_widget_set_sensitive(save_btn, dirty);
 	gtk_widget_set_sensitive(save_menu_item, dirty);
 }
-
-/* Main Window Initialization */
-static void init_main_window(const gchar *glade_file)
-{
-	GladeXML *xml;
-	GtkWidget *widget;
-	GtkTextBuffer *txtbuf;
-	GtkStyle *style;
-
-	xml = glade_xml_new(glade_file, "window1", NULL);
-	if (!xml)
-		g_error("GUI loading failed !\n");
-	glade_xml_signal_autoconnect(xml);
-
-	main_wnd = glade_xml_get_widget(xml, "window1");
-	hpaned = glade_xml_get_widget(xml, "hpaned1");
-	vpaned = glade_xml_get_widget(xml, "vpaned1");
-	tree1_w = glade_xml_get_widget(xml, "treeview1");
-	tree2_w = glade_xml_get_widget(xml, "treeview2");
-	text_w = glade_xml_get_widget(xml, "textview3");
-
-	back_btn = glade_xml_get_widget(xml, "button1");
-	gtk_widget_set_sensitive(back_btn, FALSE);
-
-	widget = glade_xml_get_widget(xml, "show_name1");
-	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
-				       show_name);
-
-	widget = glade_xml_get_widget(xml, "show_range1");
-	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
-				       show_range);
-
-	widget = glade_xml_get_widget(xml, "show_data1");
-	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
-				       show_value);
-
-	save_btn = glade_xml_get_widget(xml, "button3");
-	save_menu_item = glade_xml_get_widget(xml, "save1");
-	conf_set_changed_callback(conf_changed);
-
-	style = gtk_widget_get_style(main_wnd);
-
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button4", (gchar **) xpm_single_view);
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button5", (gchar **) xpm_split_view);
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button6", (gchar **) xpm_tree_view);
-
-	txtbuf = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_w));
-	tag1 = gtk_text_buffer_create_tag(txtbuf, "mytag1",
-					  "foreground", "red",
-					  "weight", PANGO_WEIGHT_BOLD,
-					  NULL);
-	tag2 = gtk_text_buffer_create_tag(txtbuf, "mytag2",
-					  /*"style", PANGO_STYLE_OBLIQUE, */
-					  NULL);
-
-	gtk_window_set_title(GTK_WINDOW(main_wnd), rootmenu.prompt->text);
-
-	gtk_widget_show(main_wnd);
-}
-
-static void init_tree_model(void)
-{
-	tree = tree2 = gtk_tree_store_new(COL_NUMBER,
-					  G_TYPE_STRING, G_TYPE_STRING,
-					  G_TYPE_STRING, G_TYPE_STRING,
-					  G_TYPE_STRING, G_TYPE_STRING,
-					  G_TYPE_POINTER, GDK_TYPE_COLOR,
-					  G_TYPE_BOOLEAN, GDK_TYPE_PIXBUF,
-					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-					  G_TYPE_BOOLEAN);
-	model2 = GTK_TREE_MODEL(tree2);
-
-	tree1 = gtk_tree_store_new(COL_NUMBER,
-				   G_TYPE_STRING, G_TYPE_STRING,
-				   G_TYPE_STRING, G_TYPE_STRING,
-				   G_TYPE_STRING, G_TYPE_STRING,
-				   G_TYPE_POINTER, GDK_TYPE_COLOR,
-				   G_TYPE_BOOLEAN, GDK_TYPE_PIXBUF,
-				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-				   G_TYPE_BOOLEAN);
-	model1 = GTK_TREE_MODEL(tree1);
-}
-
-static void init_left_tree(void)
-{
-	GtkTreeView *view = GTK_TREE_VIEW(tree1_w);
-	GtkCellRenderer *renderer;
-	GtkTreeSelection *sel;
-	GtkTreeViewColumn *column;
-
-	gtk_tree_view_set_model(view, model1);
-
-	column = gtk_tree_view_column_new();
-	gtk_tree_view_append_column(view, column);
-	gtk_tree_view_column_set_title(column, "Options");
-
-	renderer = gtk_cell_renderer_toggle_new();
-	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
-					renderer, FALSE);
-	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
-					    renderer,
-					    "active", COL_BTNACT,
-					    "inconsistent", COL_BTNINC,
-					    "visible", COL_BTNVIS,
-					    "radio", COL_BTNRAD, NULL);
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
-					renderer, FALSE);
-	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
-					    renderer,
-					    "text", COL_OPTION,
-					    "foreground-gdk",
-					    COL_COLOR, NULL);
-
-	sel = gtk_tree_view_get_selection(view);
-	gtk_tree_selection_set_mode(sel, GTK_SELECTION_SINGLE);
-}
-
-static void renderer_edited(GtkCellRendererText * cell,
-			    const gchar * path_string,
-			    const gchar * new_text, gpointer user_data);
-
-static void init_right_tree(void)
-{
-	GtkTreeView *view = GTK_TREE_VIEW(tree2_w);
-	GtkCellRenderer *renderer;
-	GtkTreeSelection *sel;
-	GtkTreeViewColumn *column;
-	gint i;
-
-	gtk_tree_view_set_model(view, model2);
-
-	column = gtk_tree_view_column_new();
-	gtk_tree_view_append_column(view, column);
-	gtk_tree_view_column_set_title(column, "Options");
-
-	renderer = gtk_cell_renderer_pixbuf_new();
-	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
-					renderer, FALSE);
-	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
-					    renderer,
-					    "pixbuf", COL_PIXBUF,
-					    "visible", COL_PIXVIS, NULL);
-	renderer = gtk_cell_renderer_toggle_new();
-	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
-					renderer, FALSE);
-	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
-					    renderer,
-					    "active", COL_BTNACT,
-					    "inconsistent", COL_BTNINC,
-					    "visible", COL_BTNVIS,
-					    "radio", COL_BTNRAD, NULL);
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
-					renderer, FALSE);
-	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
-					    renderer,
-					    "text", COL_OPTION,
-					    "foreground-gdk",
-					    COL_COLOR, NULL);
-
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_insert_column_with_attributes(view, -1,
-						    "Name", renderer,
-						    "text", COL_NAME,
-						    "foreground-gdk",
-						    COL_COLOR, NULL);
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_insert_column_with_attributes(view, -1,
-						    "N", renderer,
-						    "text", COL_NO,
-						    "foreground-gdk",
-						    COL_COLOR, NULL);
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_insert_column_with_attributes(view, -1,
-						    "M", renderer,
-						    "text", COL_MOD,
-						    "foreground-gdk",
-						    COL_COLOR, NULL);
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_insert_column_with_attributes(view, -1,
-						    "Y", renderer,
-						    "text", COL_YES,
-						    "foreground-gdk",
-						    COL_COLOR, NULL);
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_insert_column_with_attributes(view, -1,
-						    "Value", renderer,
-						    "text", COL_VALUE,
-						    "editable",
-						    COL_EDIT,
-						    "foreground-gdk",
-						    COL_COLOR, NULL);
-	g_signal_connect(G_OBJECT(renderer), "edited",
-			 G_CALLBACK(renderer_edited), NULL);
-
-	for (i = 0; i < COL_VALUE; i++) {
-		column = gtk_tree_view_get_column(view, i);
-		gtk_tree_view_column_set_resizable(column, TRUE);
-	}
-
-	sel = gtk_tree_view_get_selection(view);
-	gtk_tree_selection_set_mode(sel, GTK_SELECTION_SINGLE);
-}
-
 
 /* Utility Functions */
 
@@ -1324,6 +1096,228 @@ static void fixup_rootmenu(struct menu *menu)
 	}
 }
 
+/* Main Window Initialization */
+static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
+				GtkStyle *style, gchar *btn_name, gchar **xpm)
+{
+	GdkPixmap *pixmap;
+	GdkBitmap *mask;
+	GtkToolButton *button;
+	GtkWidget *image;
+
+	pixmap = gdk_pixmap_create_from_xpm_d(window, &mask,
+					      &style->bg[GTK_STATE_NORMAL],
+					      xpm);
+
+	button = GTK_TOOL_BUTTON(glade_xml_get_widget(xml, btn_name));
+	image = gtk_image_new_from_pixmap(pixmap, mask);
+	gtk_widget_show(image);
+	gtk_tool_button_set_icon_widget(button, image);
+}
+
+static void init_main_window(const gchar *glade_file)
+{
+	GladeXML *xml;
+	GtkWidget *widget;
+	GtkTextBuffer *txtbuf;
+	GtkStyle *style;
+
+	xml = glade_xml_new(glade_file, "window1", NULL);
+	if (!xml)
+		g_error("GUI loading failed !\n");
+	glade_xml_signal_autoconnect(xml);
+
+	main_wnd = glade_xml_get_widget(xml, "window1");
+	hpaned = glade_xml_get_widget(xml, "hpaned1");
+	vpaned = glade_xml_get_widget(xml, "vpaned1");
+	tree1_w = glade_xml_get_widget(xml, "treeview1");
+	tree2_w = glade_xml_get_widget(xml, "treeview2");
+	text_w = glade_xml_get_widget(xml, "textview3");
+
+	back_btn = glade_xml_get_widget(xml, "button1");
+	gtk_widget_set_sensitive(back_btn, FALSE);
+
+	widget = glade_xml_get_widget(xml, "show_name1");
+	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
+				       show_name);
+
+	widget = glade_xml_get_widget(xml, "show_range1");
+	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
+				       show_range);
+
+	widget = glade_xml_get_widget(xml, "show_data1");
+	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
+				       show_value);
+
+	save_btn = glade_xml_get_widget(xml, "button3");
+	save_menu_item = glade_xml_get_widget(xml, "save1");
+	conf_set_changed_callback(conf_changed);
+
+	style = gtk_widget_get_style(main_wnd);
+
+	replace_button_icon(xml, main_wnd->window, style,
+			    "button4", (gchar **) xpm_single_view);
+	replace_button_icon(xml, main_wnd->window, style,
+			    "button5", (gchar **) xpm_split_view);
+	replace_button_icon(xml, main_wnd->window, style,
+			    "button6", (gchar **) xpm_tree_view);
+
+	txtbuf = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_w));
+	tag1 = gtk_text_buffer_create_tag(txtbuf, "mytag1",
+					  "foreground", "red",
+					  "weight", PANGO_WEIGHT_BOLD,
+					  NULL);
+	tag2 = gtk_text_buffer_create_tag(txtbuf, "mytag2",
+					  /*"style", PANGO_STYLE_OBLIQUE, */
+					  NULL);
+
+	gtk_window_set_title(GTK_WINDOW(main_wnd), rootmenu.prompt->text);
+
+	gtk_widget_show(main_wnd);
+}
+
+static void init_tree_model(void)
+{
+	tree = tree2 = gtk_tree_store_new(COL_NUMBER,
+					  G_TYPE_STRING, G_TYPE_STRING,
+					  G_TYPE_STRING, G_TYPE_STRING,
+					  G_TYPE_STRING, G_TYPE_STRING,
+					  G_TYPE_POINTER, GDK_TYPE_COLOR,
+					  G_TYPE_BOOLEAN, GDK_TYPE_PIXBUF,
+					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+					  G_TYPE_BOOLEAN);
+	model2 = GTK_TREE_MODEL(tree2);
+
+	tree1 = gtk_tree_store_new(COL_NUMBER,
+				   G_TYPE_STRING, G_TYPE_STRING,
+				   G_TYPE_STRING, G_TYPE_STRING,
+				   G_TYPE_STRING, G_TYPE_STRING,
+				   G_TYPE_POINTER, GDK_TYPE_COLOR,
+				   G_TYPE_BOOLEAN, GDK_TYPE_PIXBUF,
+				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+				   G_TYPE_BOOLEAN);
+	model1 = GTK_TREE_MODEL(tree1);
+}
+
+static void init_left_tree(void)
+{
+	GtkTreeView *view = GTK_TREE_VIEW(tree1_w);
+	GtkCellRenderer *renderer;
+	GtkTreeSelection *sel;
+	GtkTreeViewColumn *column;
+
+	gtk_tree_view_set_model(view, model1);
+
+	column = gtk_tree_view_column_new();
+	gtk_tree_view_append_column(view, column);
+	gtk_tree_view_column_set_title(column, "Options");
+
+	renderer = gtk_cell_renderer_toggle_new();
+	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
+					renderer, FALSE);
+	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
+					    renderer,
+					    "active", COL_BTNACT,
+					    "inconsistent", COL_BTNINC,
+					    "visible", COL_BTNVIS,
+					    "radio", COL_BTNRAD, NULL);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
+					renderer, FALSE);
+	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
+					    renderer,
+					    "text", COL_OPTION,
+					    "foreground-gdk",
+					    COL_COLOR, NULL);
+
+	sel = gtk_tree_view_get_selection(view);
+	gtk_tree_selection_set_mode(sel, GTK_SELECTION_SINGLE);
+}
+
+static void init_right_tree(void)
+{
+	GtkTreeView *view = GTK_TREE_VIEW(tree2_w);
+	GtkCellRenderer *renderer;
+	GtkTreeSelection *sel;
+	GtkTreeViewColumn *column;
+	gint i;
+
+	gtk_tree_view_set_model(view, model2);
+
+	column = gtk_tree_view_column_new();
+	gtk_tree_view_append_column(view, column);
+	gtk_tree_view_column_set_title(column, "Options");
+
+	renderer = gtk_cell_renderer_pixbuf_new();
+	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
+					renderer, FALSE);
+	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
+					    renderer,
+					    "pixbuf", COL_PIXBUF,
+					    "visible", COL_PIXVIS, NULL);
+	renderer = gtk_cell_renderer_toggle_new();
+	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
+					renderer, FALSE);
+	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
+					    renderer,
+					    "active", COL_BTNACT,
+					    "inconsistent", COL_BTNINC,
+					    "visible", COL_BTNVIS,
+					    "radio", COL_BTNRAD, NULL);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_column_pack_start(GTK_TREE_VIEW_COLUMN(column),
+					renderer, FALSE);
+	gtk_tree_view_column_set_attributes(GTK_TREE_VIEW_COLUMN(column),
+					    renderer,
+					    "text", COL_OPTION,
+					    "foreground-gdk",
+					    COL_COLOR, NULL);
+
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_insert_column_with_attributes(view, -1,
+						    "Name", renderer,
+						    "text", COL_NAME,
+						    "foreground-gdk",
+						    COL_COLOR, NULL);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_insert_column_with_attributes(view, -1,
+						    "N", renderer,
+						    "text", COL_NO,
+						    "foreground-gdk",
+						    COL_COLOR, NULL);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_insert_column_with_attributes(view, -1,
+						    "M", renderer,
+						    "text", COL_MOD,
+						    "foreground-gdk",
+						    COL_COLOR, NULL);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_insert_column_with_attributes(view, -1,
+						    "Y", renderer,
+						    "text", COL_YES,
+						    "foreground-gdk",
+						    COL_COLOR, NULL);
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_insert_column_with_attributes(view, -1,
+						    "Value", renderer,
+						    "text", COL_VALUE,
+						    "editable",
+						    COL_EDIT,
+						    "foreground-gdk",
+						    COL_COLOR, NULL);
+	g_signal_connect(G_OBJECT(renderer), "edited",
+			 G_CALLBACK(renderer_edited), NULL);
+
+	for (i = 0; i < COL_VALUE; i++) {
+		column = gtk_tree_view_get_column(view, i);
+		gtk_tree_view_column_set_resizable(column, TRUE);
+	}
+
+	sel = gtk_tree_view_get_selection(view);
+	gtk_tree_selection_set_mode(sel, GTK_SELECTION_SINGLE);
+}
 
 /* Main */
 int main(int ac, char *av[])
