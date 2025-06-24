@@ -56,7 +56,7 @@
 #endif
 
 #ifndef PIDFD_SELF_THREAD_GROUP
-#define PIDFD_SELF_THREAD_GROUP		-20000 /* Current thread group leader. */
+#define PIDFD_SELF_THREAD_GROUP		-10001 /* Current thread group leader. */
 #endif
 
 #ifndef PIDFD_SELF

@@ -108,7 +108,7 @@
  * group leader...
  */
 #define PIDFD_SELF_THREAD		-10000 /* Current thread. */
-#define PIDFD_SELF_THREAD_GROUP		-20000 /* Current thread group leader. */
+#define PIDFD_SELF_THREAD_GROUP		-10001 /* Current thread group leader. */
 
 
 /* Generic flags for the *at(2) family of syscalls. */
