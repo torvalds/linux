@@ -20,6 +20,7 @@
 #include "debug.h"
 #include "evsel.h"
 #include "pmu.h"
+#include "drm_pmu.h"
 #include "hwmon_pmu.h"
 #include "pmus.h"
 #include "tool_pmu.h"
@@ -1627,6 +1628,8 @@ int perf_pmu__config_terms(const struct perf_pmu *pmu,
 
 	if (perf_pmu__is_hwmon(pmu))
 		return hwmon_pmu__config_terms(pmu, attr, terms, err);
+	if (perf_pmu__is_drm(pmu))
+		return drm_pmu__config_terms(pmu, attr, terms, err);
 
 	list_for_each_entry(term, &terms->terms, list) {
 		if (pmu_config_term(pmu, attr, term, terms, zero, apply_hardcoded, err))
@@ -1765,6 +1768,10 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 
 	if (perf_pmu__is_hwmon(pmu)) {
 		ret = hwmon_pmu__check_alias(head_terms, info, err);
+		goto out;
+	}
+	if (perf_pmu__is_drm(pmu)) {
+		ret = drm_pmu__check_alias(pmu, head_terms, info, err);
 		goto out;
 	}
 
@@ -1949,6 +1956,8 @@ bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name)
 		return false;
 	if (perf_pmu__is_hwmon(pmu))
 		return hwmon_pmu__have_event(pmu, name);
+	if (perf_pmu__is_drm(pmu))
+		return drm_pmu__have_event(pmu, name);
 	if (perf_pmu__find_alias(pmu, name, /*load=*/ true) != NULL)
 		return true;
 	if (pmu->cpu_aliases_added || !pmu->events_table)
@@ -1962,6 +1971,8 @@ size_t perf_pmu__num_events(struct perf_pmu *pmu)
 
 	if (perf_pmu__is_hwmon(pmu))
 		return hwmon_pmu__num_events(pmu);
+	if (perf_pmu__is_drm(pmu))
+		return drm_pmu__num_events(pmu);
 
 	pmu_aliases_parse(pmu);
 	nr = pmu->sysfs_aliases + pmu->sys_json_aliases;
@@ -2030,6 +2041,8 @@ int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 
 	if (perf_pmu__is_hwmon(pmu))
 		return hwmon_pmu__for_each_event(pmu, state, cb);
+	if (perf_pmu__is_drm(pmu))
+		return drm_pmu__for_each_event(pmu, state, cb);
 
 	strbuf_init(&sb, /*hint=*/ 0);
 	pmu_aliases_parse(pmu);
@@ -2511,6 +2524,8 @@ void perf_pmu__delete(struct perf_pmu *pmu)
 
 	if (perf_pmu__is_hwmon(pmu))
 		hwmon_pmu__exit(pmu);
+	else if (perf_pmu__is_drm(pmu))
+		drm_pmu__exit(pmu);
 
 	perf_pmu__del_formats(&pmu->format);
 	perf_pmu__del_aliases(pmu);

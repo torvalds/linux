@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include "cpumap.h"
 #include "debug.h"
+#include "drm_pmu.h"
 #include "evsel.h"
 #include "pmus.h"
 #include "pmu.h"
@@ -43,16 +44,19 @@ enum perf_tool_pmu_type {
 	PERF_TOOL_PMU_TYPE_PE_OTHER,
 	PERF_TOOL_PMU_TYPE_TOOL,
 	PERF_TOOL_PMU_TYPE_HWMON,
+	PERF_TOOL_PMU_TYPE_DRM,
 
 #define PERF_TOOL_PMU_TYPE_PE_CORE_MASK (1 << PERF_TOOL_PMU_TYPE_PE_CORE)
 #define PERF_TOOL_PMU_TYPE_PE_OTHER_MASK (1 << PERF_TOOL_PMU_TYPE_PE_OTHER)
 #define PERF_TOOL_PMU_TYPE_TOOL_MASK (1 << PERF_TOOL_PMU_TYPE_TOOL)
 #define PERF_TOOL_PMU_TYPE_HWMON_MASK (1 << PERF_TOOL_PMU_TYPE_HWMON)
+#define PERF_TOOL_PMU_TYPE_DRM_MASK (1 << PERF_TOOL_PMU_TYPE_DRM)
 
 #define PERF_TOOL_PMU_TYPE_ALL_MASK (PERF_TOOL_PMU_TYPE_PE_CORE_MASK |	\
 					PERF_TOOL_PMU_TYPE_PE_OTHER_MASK | \
 					PERF_TOOL_PMU_TYPE_TOOL_MASK |	\
-					PERF_TOOL_PMU_TYPE_HWMON_MASK)
+					PERF_TOOL_PMU_TYPE_HWMON_MASK | \
+					PERF_TOOL_PMU_TYPE_DRM_MASK)
 };
 static unsigned int read_pmu_types;
 
@@ -173,6 +177,8 @@ struct perf_pmu *perf_pmus__find(const char *name)
 	/* Looking up an individual perf event PMU failed, check if a tool PMU should be read. */
 	if (!strncmp(name, "hwmon_", 6))
 		to_read_pmus |= PERF_TOOL_PMU_TYPE_HWMON_MASK;
+	else if (!strncmp(name, "drm_", 4))
+		to_read_pmus |= PERF_TOOL_PMU_TYPE_DRM_MASK;
 	else if (!strcmp(name, "tool"))
 		to_read_pmus |= PERF_TOOL_PMU_TYPE_TOOL_MASK;
 
@@ -273,6 +279,10 @@ skip_pe_pmus:
 	    (read_pmu_types & PERF_TOOL_PMU_TYPE_HWMON_MASK) == 0)
 		perf_pmus__read_hwmon_pmus(&other_pmus);
 
+	if ((to_read_types & PERF_TOOL_PMU_TYPE_DRM_MASK) != 0 &&
+	    (read_pmu_types & PERF_TOOL_PMU_TYPE_DRM_MASK) == 0)
+		perf_pmus__read_drm_pmus(&other_pmus);
+
 	list_sort(NULL, &other_pmus, pmus_cmp);
 
 	read_pmu_types |= to_read_types;
@@ -305,6 +315,8 @@ struct perf_pmu *perf_pmus__find_by_type(unsigned int type)
 	if (type >= PERF_PMU_TYPE_PE_START && type <= PERF_PMU_TYPE_PE_END) {
 		to_read_pmus = PERF_TOOL_PMU_TYPE_PE_CORE_MASK |
 			PERF_TOOL_PMU_TYPE_PE_OTHER_MASK;
+	} else if (type >= PERF_PMU_TYPE_DRM_START && type <= PERF_PMU_TYPE_DRM_END) {
+		to_read_pmus = PERF_TOOL_PMU_TYPE_DRM_MASK;
 	} else if (type >= PERF_PMU_TYPE_HWMON_START && type <= PERF_PMU_TYPE_HWMON_END) {
 		to_read_pmus = PERF_TOOL_PMU_TYPE_HWMON_MASK;
 	} else {
@@ -371,6 +383,10 @@ struct perf_pmu *perf_pmus__scan_for_event(struct perf_pmu *pmu, const char *eve
 		if (parse_hwmon_filename(event, &type, &number, /*item=*/NULL, /*alarm=*/NULL))
 			to_read_pmus |= PERF_TOOL_PMU_TYPE_HWMON_MASK;
 
+		/* Could the event be a DRM event? */
+		if (strlen(event) > 4 && strncmp("drm-", event, 4) == 0)
+			to_read_pmus |= PERF_TOOL_PMU_TYPE_DRM_MASK;
+
 		pmu_read_sysfs(to_read_pmus);
 		pmu = list_prepare_entry(pmu, &core_pmus, list);
 	}
@@ -403,11 +419,17 @@ struct perf_pmu *perf_pmus__scan_matching_wildcard(struct perf_pmu *pmu, const c
 		 * Hwmon PMUs have an alias from a sysfs name like hwmon0,
 		 * hwmon1, etc. or have a name of hwmon_<name>. They therefore
 		 * can only have a wildcard match if the wildcard begins with
-		 * "hwmon".
+		 * "hwmon". Similarly drm PMUs must start "drm_", avoid reading
+		 * such events unless the PMU could match.
 		 */
-		if (strisglob(wildcard) ||
-		    (strlen(wildcard) >= 5 && strncmp("hwmon", wildcard, 5) == 0))
+		if (strisglob(wildcard)) {
+			to_read_pmus |= PERF_TOOL_PMU_TYPE_HWMON_MASK |
+				PERF_TOOL_PMU_TYPE_DRM_MASK;
+		} else if (strlen(wildcard) >= 4 && strncmp("drm_", wildcard, 4) == 0) {
+			to_read_pmus |= PERF_TOOL_PMU_TYPE_DRM_MASK;
+		} else if (strlen(wildcard) >= 5 && strncmp("hwmon", wildcard, 5) == 0) {
 			to_read_pmus |= PERF_TOOL_PMU_TYPE_HWMON_MASK;
+		}
 
 		pmu_read_sysfs(to_read_pmus);
 		pmu = list_prepare_entry(pmu, &core_pmus, list);
