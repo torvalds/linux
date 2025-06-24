@@ -32,20 +32,20 @@ static gboolean show_range = TRUE;
 static gboolean show_value = TRUE;
 static int opt_mode = OPT_NORMAL;
 
-GtkWidget *main_wnd = NULL;
-GtkWidget *tree1_w = NULL;	// left  frame
-GtkWidget *tree2_w = NULL;	// right frame
-GtkWidget *text_w = NULL;
-GtkWidget *hpaned = NULL;
-GtkWidget *vpaned = NULL;
-GtkWidget *back_btn = NULL;
-GtkWidget *save_btn = NULL;
-GtkWidget *save_menu_item = NULL;
+static GtkWidget *main_wnd;
+static GtkWidget *tree1_w;	// left  frame
+static GtkWidget *tree2_w;	// right frame
+static GtkWidget *text_w;
+static GtkWidget *hpaned;
+static GtkWidget *vpaned;
+static GtkWidget *back_btn;
+static GtkWidget *save_btn;
+static GtkWidget *save_menu_item;
 
-GtkTextTag *tag1, *tag2;
+static GtkTextTag *tag1, *tag2;
 
-GtkTreeStore *tree1, *tree2, *tree;
-GtkTreeModel *model1, *model2;
+static GtkTreeStore *tree1, *tree2, *tree;
+static GtkTreeModel *model1, *model2;
 
 static struct menu *current; // current node for SINGLE view
 static struct menu *browsed; // browsed node for SPLIT view
