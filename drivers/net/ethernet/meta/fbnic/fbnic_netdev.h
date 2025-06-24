@@ -4,8 +4,8 @@
 #ifndef _FBNIC_NETDEV_H_
 #define _FBNIC_NETDEV_H_
 
-#include <linux/types.h>
 #include <linux/phylink.h>
+#include <linux/types.h>
 
 #include "fbnic_csr.h"
 #include "fbnic_rpc.h"
