@@ -4565,11 +4565,8 @@ again:
 		return entry;
 
 	if (!empty) {
-		if (mas->index <= min) {
-			mas->status = ma_underflow;
-			return NULL;
-		}
-
+		if (mas->index <= min)
+			goto underflow;
 		goto again;
 	}
 
