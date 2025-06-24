@@ -78,7 +78,7 @@ fn program_brom_ga102<E: FalconEngine>(bar: &Bar0, params: &FalconBromParams) ->
         .set_value(params.pkc_data_offset)
         .write(bar, E::BASE);
     regs::NV_PFALCON2_FALCON_BROM_ENGIDMASK::default()
-        .set_value(params.engine_id_mask as u32)
+        .set_value(u32::from(params.engine_id_mask))
         .write(bar, E::BASE);
     regs::NV_PFALCON2_FALCON_BROM_CURR_UCODE_ID::default()
         .set_ucode_id(params.ucode_id)

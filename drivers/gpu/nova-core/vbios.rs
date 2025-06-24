@@ -494,10 +494,10 @@ impl PciRomHeader {
         if data.len() >= 30 {
             // Read size_of_block at offset 0x1A.
             size_of_block = Some(
-                (data[29] as u32) << 24
-                    | (data[28] as u32) << 16
-                    | (data[27] as u32) << 8
-                    | (data[26] as u32),
+                u32::from(data[29]) << 24
+                    | u32::from(data[28]) << 16
+                    | u32::from(data[27]) << 8
+                    | u32::from(data[26]),
             );
         }
 

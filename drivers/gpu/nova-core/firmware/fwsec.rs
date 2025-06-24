@@ -346,7 +346,7 @@ impl FwsecFirmware {
         let desc = bios.fwsec_image().header(dev)?;
         let ucode_signed = if desc.signature_count != 0 {
             let sig_base_img = (desc.imem_load_size + desc.pkc_data_offset) as usize;
-            let desc_sig_versions = desc.signature_versions as u32;
+            let desc_sig_versions = u32::from(desc.signature_versions);
             let reg_fuse_version =
                 falcon.signature_reg_fuse_version(bar, desc.engine_id_mask, desc.ucode_id)?;
             dev_dbg!(

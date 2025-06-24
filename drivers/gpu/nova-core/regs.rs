@@ -68,7 +68,7 @@ register!(NV_PFB_PRI_MMU_LOCAL_MEMORY_RANGE @ 0x00100ce0 {
 impl NV_PFB_PRI_MMU_LOCAL_MEMORY_RANGE {
     /// Returns the usable framebuffer size, in bytes.
     pub(crate) fn usable_fb_size(self) -> u64 {
-        let size = ((self.lower_mag() as u64) << (self.lower_scale() as u64))
+        let size = (u64::from(self.lower_mag()) << u64::from(self.lower_scale()))
             * kernel::sizes::SZ_1M as u64;
 
         if self.ecc_mode_enabled() {
@@ -87,7 +87,7 @@ register!(NV_PFB_PRI_MMU_WPR2_ADDR_LO@0x001fa824  {
 impl NV_PFB_PRI_MMU_WPR2_ADDR_LO {
     /// Returns the lower (inclusive) bound of the WPR2 region.
     pub(crate) fn lower_bound(self) -> u64 {
-        (self.lo_val() as u64) << 12
+        u64::from(self.lo_val()) << 12
     }
 }
 
@@ -100,7 +100,7 @@ impl NV_PFB_PRI_MMU_WPR2_ADDR_HI {
     ///
     /// A value of zero means the WPR2 region is not set.
     pub(crate) fn higher_bound(self) -> u64 {
-        (self.hi_val() as u64) << 12
+        u64::from(self.hi_val()) << 12
     }
 }
 
@@ -158,7 +158,7 @@ impl NV_PDISP_VGA_WORKSPACE_BASE {
     /// Returns the base address of the VGA workspace, or `None` if none exists.
     pub(crate) fn vga_workspace_addr(self) -> Option<u64> {
         if self.status_valid() {
-            Some((self.addr() as u64) << 16)
+            Some(u64::from(self.addr()) << 16)
         } else {
             None
         }

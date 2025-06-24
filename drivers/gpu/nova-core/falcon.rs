@@ -428,7 +428,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
                 fw.dma_handle_with_offset(load_offsets.src_start as usize)?,
             ),
         };
-        if dma_start % DMA_LEN as bindings::dma_addr_t > 0 {
+        if dma_start % bindings::dma_addr_t::from(DMA_LEN) > 0 {
             dev_err!(
                 self.dev,
                 "DMA transfer start addresses must be a multiple of {}",
