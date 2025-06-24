@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <time.h>
 
-enum {
+enum view_mode {
 	SINGLE_VIEW, SPLIT_VIEW, FULL_VIEW
 };
 
@@ -116,6 +116,39 @@ static void text_insert_msg(const char *title, const char *message)
 					 NULL);
 }
 
+static void set_view_mode(enum view_mode mode)
+{
+	view_mode = mode;
+
+	if (mode == SPLIT_VIEW) { // two panes
+		gint w;
+
+		gtk_widget_show(tree1_w);
+		gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, NULL);
+		gtk_paned_set_position(GTK_PANED(hpaned), w / 2);
+	} else {
+		gtk_widget_hide(tree1_w);
+		gtk_paned_set_position(GTK_PANED(hpaned), 0);
+	}
+
+	switch (mode) {
+	case SINGLE_VIEW:
+		current = &rootmenu;
+		display_tree_part();
+		break;
+	case SPLIT_VIEW:
+		gtk_tree_store_clear(tree2);
+		display_list();
+		break;
+	case FULL_VIEW:
+		gtk_tree_store_clear(tree2);
+		display_tree(&rootmenu);
+		break;
+	}
+
+	if (mode != SINGLE_VIEW)
+		gtk_widget_set_sensitive(back_btn, FALSE);
+}
 
 /* Main Windows Callbacks */
 
@@ -435,35 +468,19 @@ void on_load_clicked(GtkButton * button, gpointer user_data)
 
 void on_single_clicked(GtkButton * button, gpointer user_data)
 {
-	view_mode = SINGLE_VIEW;
-	gtk_widget_hide(tree1_w);
-	current = &rootmenu;
-	display_tree_part();
+	set_view_mode(SINGLE_VIEW);
 }
 
 
 void on_split_clicked(GtkButton * button, gpointer user_data)
 {
-	gint w;
-	view_mode = SPLIT_VIEW;
-	gtk_widget_show(tree1_w);
-	gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, NULL);
-	gtk_paned_set_position(GTK_PANED(hpaned), w / 2);
-	gtk_tree_store_clear(tree2);
-	display_list();
-
-	/* Disable back btn, like in full mode. */
-	gtk_widget_set_sensitive(back_btn, FALSE);
+	set_view_mode(SPLIT_VIEW);
 }
 
 
 void on_full_clicked(GtkButton * button, gpointer user_data)
 {
-	view_mode = FULL_VIEW;
-	gtk_widget_hide(tree1_w);
-	gtk_tree_store_clear(tree2);
-	display_tree(&rootmenu);
-	gtk_widget_set_sensitive(back_btn, FALSE);
+	set_view_mode(FULL_VIEW);
 }
 
 
@@ -1039,11 +1056,6 @@ static void _display_tree(struct menu *menu, GtkTreeIter *parent)
 		    || (view_mode == FULL_VIEW)
 		    || (view_mode == SPLIT_VIEW))*/
 
-		/* Change paned position if the view is not in 'split mode' */
-		if (view_mode == SINGLE_VIEW || view_mode == FULL_VIEW) {
-			gtk_paned_set_position(GTK_PANED(hpaned), 0);
-		}
-
 		if (((view_mode == SINGLE_VIEW) && (menu->flags & MENU_ROOT))
 		    || (view_mode == FULL_VIEW)
 		    || (view_mode == SPLIT_VIEW))
@@ -1368,17 +1380,7 @@ int main(int ac, char *av[])
 
 	conf_read(NULL);
 
-	switch (view_mode) {
-	case SINGLE_VIEW:
-		display_tree_part();
-		break;
-	case SPLIT_VIEW:
-		display_list();
-		break;
-	case FULL_VIEW:
-		display_tree(&rootmenu);
-		break;
-	}
+	set_view_mode(view_mode);
 
 	gtk_main();
 
