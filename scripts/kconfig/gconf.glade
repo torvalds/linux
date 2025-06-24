@@ -214,13 +214,6 @@
       </child>
 
       <child>
-	<widget class="GtkHandleBox" id="handlebox1">
-	  <property name="visible">True</property>
-	  <property name="shadow_type">GTK_SHADOW_OUT</property>
-	  <property name="handle_position">GTK_POS_LEFT</property>
-	  <property name="snap_edge">GTK_POS_TOP</property>
-
-	  <child>
 	    <widget class="GtkToolbar" id="toolbar1">
 	      <property name="visible">True</property>
 	      <property name="orientation">GTK_ORIENTATION_HORIZONTAL</property>
@@ -420,8 +413,6 @@
 		</packing>
 	      </child>
 	    </widget>
-	  </child>
-	</widget>
 	<packing>
 	  <property name="padding">0</property>
 	  <property name="expand">False</property>
