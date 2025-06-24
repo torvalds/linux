@@ -38,8 +38,7 @@ static GtkWidget *tree2_w;	// right frame
 static GtkWidget *text_w;
 static GtkWidget *hpaned;
 static GtkWidget *vpaned;
-static GtkWidget *back_btn;
-static GtkWidget *save_btn;
+static GtkWidget *back_btn, *save_btn, *single_btn, *split_btn, *full_btn;
 static GtkWidget *save_menu_item;
 
 static GtkTextTag *tag1, *tag2;
@@ -131,18 +130,25 @@ static void set_view_mode(enum view_mode mode)
 		gtk_paned_set_position(GTK_PANED(hpaned), 0);
 	}
 
+	gtk_widget_set_sensitive(single_btn, TRUE);
+	gtk_widget_set_sensitive(split_btn, TRUE);
+	gtk_widget_set_sensitive(full_btn, TRUE);
+
 	switch (mode) {
 	case SINGLE_VIEW:
 		current = &rootmenu;
 		display_tree_part();
+		gtk_widget_set_sensitive(single_btn, FALSE);
 		break;
 	case SPLIT_VIEW:
 		gtk_tree_store_clear(tree2);
 		display_list();
+		gtk_widget_set_sensitive(split_btn, FALSE);
 		break;
 	case FULL_VIEW:
 		gtk_tree_store_clear(tree2);
 		display_tree(&rootmenu);
+		gtk_widget_set_sensitive(full_btn, FALSE);
 		break;
 	}
 
@@ -1167,10 +1173,15 @@ static void init_main_window(const gchar *glade_file)
 
 	style = gtk_widget_get_style(main_wnd);
 
+	single_btn = glade_xml_get_widget(xml, "button4");
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button4", (gchar **) xpm_single_view);
+
+	split_btn = glade_xml_get_widget(xml, "button5");
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button5", (gchar **) xpm_split_view);
+
+	full_btn = glade_xml_get_widget(xml, "button6");
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button6", (gchar **) xpm_tree_view);
 
