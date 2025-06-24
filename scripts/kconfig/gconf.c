@@ -673,10 +673,10 @@ void on_single_clicked(GtkButton * button, gpointer user_data)
 
 void on_split_clicked(GtkButton * button, gpointer user_data)
 {
-	gint w, h;
+	gint w;
 	view_mode = SPLIT_VIEW;
 	gtk_widget_show(tree1_w);
-	gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, &h);
+	gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, NULL);
 	gtk_paned_set_position(GTK_PANED(hpaned), w / 2);
 	gtk_tree_store_clear(tree2);
 	display_list();
