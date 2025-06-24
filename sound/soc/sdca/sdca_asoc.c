@@ -93,6 +93,7 @@ static bool readonly_control(struct sdca_control *control)
 
 /**
  * sdca_asoc_count_component - count the various component parts
+ * @dev: Pointer to the device against which allocations will be done.
  * @function: Pointer to the Function information.
  * @num_widgets: Output integer pointer, will be filled with the
  * required number of DAPM widgets for the Function.
@@ -997,7 +998,7 @@ static int populate_pin_switch(struct device *dev,
  * sdca_asoc_populate_controls - fill in an array of ALSA controls for a Function
  * @dev: Pointer to the device against which allocations will be done.
  * @function: Pointer to the Function information.
- * @route: Array of ALSA controls to be populated.
+ * @kctl: Array of ALSA controls to be populated.
  *
  * This function populates an array of ALSA controls from the DisCo
  * information for a particular SDCA Function. Typically,
@@ -1244,7 +1245,11 @@ EXPORT_SYMBOL_NS(sdca_asoc_populate_dais, "SND_SOC_SDCA");
  * sdca_asoc_populate_component - fill in a component driver for a Function
  * @dev: Pointer to the device against which allocations will be done.
  * @function: Pointer to the Function information.
- * @copmonent_drv: Pointer to the component driver to be populated.
+ * @component_drv: Pointer to the component driver to be populated.
+ * @dai_drv: Pointer to the DAI driver array to be allocated and populated.
+ * @num_dai_drv: Pointer to integer that will be populated with the number of
+ * DAI drivers.
+ * @ops: DAI ops pointer that will be used for each DAI driver.
  *
  * This function populates a snd_soc_component_driver structure based
  * on the DisCo information for a particular SDCA Function. It does
