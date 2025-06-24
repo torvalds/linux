@@ -38,7 +38,7 @@ enum PS_TYPE {
 struct ps_device {
 	struct list_head list;
 	struct hid_device *hdev;
-	spinlock_t lock;
+	spinlock_t lock; /* Sync between event handler and workqueue */
 
 	u32 player_id;
 
