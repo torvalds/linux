@@ -54,6 +54,8 @@ static __attribute__((constructor)) void setup_sizes(void)
 
 	mfd_buffer = memfd_mmap(BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
 				&mfd);
+	assert(mfd_buffer != MAP_FAILED);
+	assert(mfd > 0);
 }
 
 FIXTURE(iommufd)
