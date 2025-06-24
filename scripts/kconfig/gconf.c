@@ -215,7 +215,6 @@ static void init_left_tree(void)
 
 	sel = gtk_tree_view_get_selection(view);
 	gtk_tree_selection_set_mode(sel, GTK_SELECTION_SINGLE);
-	gtk_widget_realize(tree1_w);
 }
 
 static void renderer_edited(GtkCellRendererText * cell,
@@ -967,7 +966,6 @@ on_treeview1_button_press_event(GtkWidget * widget,
 		display_tree_part();
 	}
 
-	gtk_widget_realize(tree2_w);
 	gtk_tree_view_set_cursor(view, path, NULL, FALSE);
 	gtk_widget_grab_focus(tree2_w);
 
