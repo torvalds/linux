@@ -134,8 +134,8 @@ static int replace_anon_vma_name(struct vm_area_struct *vma,
 	return 0;
 }
 
-int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
-			  unsigned long len_in, struct anon_vma_name *anon_name)
+static int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
+		unsigned long len_in, struct anon_vma_name *anon_name)
 {
 	unsigned long end;
 	unsigned long len;
@@ -2096,3 +2096,51 @@ free_iov:
 out:
 	return ret;
 }
+
+#ifdef CONFIG_ANON_VMA_NAME
+
+#define ANON_VMA_NAME_MAX_LEN		80
+#define ANON_VMA_NAME_INVALID_CHARS	"\\`$[]"
+
+static inline bool is_valid_name_char(char ch)
+{
+	/* printable ascii characters, excluding ANON_VMA_NAME_INVALID_CHARS */
+	return ch > 0x1f && ch < 0x7f &&
+		!strchr(ANON_VMA_NAME_INVALID_CHARS, ch);
+}
+
+int set_anon_vma_name(unsigned long addr, unsigned long size,
+		      const char __user *uname)
+{
+	struct anon_vma_name *anon_name = NULL;
+	struct mm_struct *mm = current->mm;
+	int error;
+
+	if (uname) {
+		char *name, *pch;
+
+		name = strndup_user(uname, ANON_VMA_NAME_MAX_LEN);
+		if (IS_ERR(name))
+			return PTR_ERR(name);
+
+		for (pch = name; *pch != '\0'; pch++) {
+			if (!is_valid_name_char(*pch)) {
+				kfree(name);
+				return -EINVAL;
+			}
+		}
+		/* anon_vma has its own copy */
+		anon_name = anon_vma_name_alloc(name);
+		kfree(name);
+		if (!anon_name)
+			return -ENOMEM;
+	}
+
+	mmap_write_lock(mm);
+	error = madvise_set_anon_name(mm, addr, size, anon_name);
+	mmap_write_unlock(mm);
+	anon_vma_name_put(anon_name);
+
+	return error;
+}
+#endif
