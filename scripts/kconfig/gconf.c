@@ -1100,21 +1100,17 @@ static void fixup_rootmenu(struct menu *menu)
 }
 
 /* Main Window Initialization */
-static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
-				GtkStyle *style, gchar *btn_name, gchar **xpm)
+static void replace_button_icon(GtkWidget *widget, const char * const xpm[])
 {
 	GdkPixbuf *pixbuf;
 	GtkWidget *image;
-	GtkToolButton *button;
 
 	pixbuf = gdk_pixbuf_new_from_xpm_data((const char **)xpm);
 	image = gtk_image_new_from_pixbuf(pixbuf);
 	g_object_unref(pixbuf);
 
-	button = GTK_TOOL_BUTTON(glade_xml_get_widget(xml, btn_name));
-
 	gtk_widget_show(image);
-	gtk_tool_button_set_icon_widget(button, image);
+	gtk_tool_button_set_icon_widget(GTK_TOOL_BUTTON(widget), image);
 }
 
 static void init_main_window(const gchar *glade_file)
@@ -1122,7 +1118,6 @@ static void init_main_window(const gchar *glade_file)
 	GladeXML *xml;
 	GtkWidget *widget;
 	GtkTextBuffer *txtbuf;
-	GtkStyle *style;
 
 	xml = glade_xml_new(glade_file, "window1", NULL);
 	if (!xml)
@@ -1229,25 +1224,20 @@ static void init_main_window(const gchar *glade_file)
 	g_signal_connect(save_btn, "clicked",
 			 G_CALLBACK(on_save_clicked), NULL);
 
-	style = gtk_widget_get_style(main_wnd);
-
 	single_btn = glade_xml_get_widget(xml, "button4");
 	g_signal_connect(single_btn, "clicked",
 			 G_CALLBACK(on_single_clicked), NULL);
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button4", (gchar **) xpm_single_view);
+	replace_button_icon(single_btn, xpm_single_view);
 
 	split_btn = glade_xml_get_widget(xml, "button5");
 	g_signal_connect(split_btn, "clicked",
 			 G_CALLBACK(on_split_clicked), NULL);
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button5", (gchar **) xpm_split_view);
+	replace_button_icon(split_btn, xpm_split_view);
 
 	full_btn = glade_xml_get_widget(xml, "button6");
 	g_signal_connect(full_btn, "clicked",
 			 G_CALLBACK(on_full_clicked), NULL);
-	replace_button_icon(xml, main_wnd->window, style,
-			    "button6", (gchar **) xpm_tree_view);
+	replace_button_icon(full_btn, xpm_tree_view);
 
 	widget = glade_xml_get_widget(xml, "button7");
 	g_signal_connect(widget, "clicked",
