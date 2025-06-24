@@ -156,83 +156,6 @@ static void set_view_mode(enum view_mode mode)
 		gtk_widget_set_sensitive(back_btn, FALSE);
 }
 
-/* Main Windows Callbacks */
-
-void on_save_activate(GtkMenuItem * menuitem, gpointer user_data);
-gboolean on_window1_delete_event(GtkWidget * widget, GdkEvent * event,
-				 gpointer user_data)
-{
-	GtkWidget *dialog, *label;
-	gint result;
-	gint ret = FALSE;
-
-	if (!conf_get_changed())
-		return FALSE;
-
-	dialog = gtk_dialog_new_with_buttons("Warning !",
-					     GTK_WINDOW(main_wnd),
-					     (GtkDialogFlags)
-					     (GTK_DIALOG_MODAL |
-					      GTK_DIALOG_DESTROY_WITH_PARENT),
-					     GTK_STOCK_OK,
-					     GTK_RESPONSE_YES,
-					     GTK_STOCK_NO,
-					     GTK_RESPONSE_NO,
-					     GTK_STOCK_CANCEL,
-					     GTK_RESPONSE_CANCEL, NULL);
-	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
-					GTK_RESPONSE_CANCEL);
-
-	label = gtk_label_new("\nSave configuration ?\n");
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), label);
-	gtk_widget_show(label);
-
-	result = gtk_dialog_run(GTK_DIALOG(dialog));
-	switch (result) {
-	case GTK_RESPONSE_YES:
-		on_save_activate(NULL, NULL);
-		break;
-	case GTK_RESPONSE_NO:
-		break;
-	case GTK_RESPONSE_CANCEL:
-	case GTK_RESPONSE_DELETE_EVENT:
-	default:
-		ret = TRUE;
-		break;
-	}
-
-	gtk_widget_destroy(dialog);
-
-	return ret;
-}
-
-
-void on_window1_destroy(GtkObject * object, gpointer user_data)
-{
-	gtk_main_quit();
-}
-
-
-void
-on_window1_size_request(GtkWidget * widget,
-			GtkRequisition * requisition, gpointer user_data)
-{
-	static gint old_h;
-	gint w, h;
-
-	if (widget->window == NULL)
-		gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, &h);
-	else
-		gdk_window_get_size(widget->window, &w, &h);
-
-	if (h == old_h)
-		return;
-	old_h = h;
-
-	gtk_paned_set_position(GTK_PANED(vpaned), 2 * h / 3);
-}
-
-
 /* Menu & Toolbar Callbacks */
 
 
@@ -310,14 +233,6 @@ void on_save_as1_activate(GtkMenuItem * menuitem, gpointer user_data)
 				 (gpointer) fs);
 	gtk_widget_show(fs);
 }
-
-
-void on_quit1_activate(GtkMenuItem * menuitem, gpointer user_data)
-{
-	if (!on_window1_delete_event(NULL, NULL, NULL))
-		gtk_widget_destroy(GTK_WIDGET(main_wnd));
-}
-
 
 void on_show_name1_activate(GtkMenuItem * menuitem, gpointer user_data)
 {
@@ -501,6 +416,84 @@ void on_expand_clicked(GtkButton * button, gpointer user_data)
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(tree2_w));
 }
 
+/* Main Windows Callbacks */
+
+void on_window1_destroy(GtkObject *object, gpointer user_data)
+{
+	gtk_main_quit();
+}
+
+void on_window1_size_request(GtkWidget *widget,
+				    GtkRequisition *requisition,
+				    gpointer user_data)
+{
+	static gint old_h;
+	gint w, h;
+
+	if (widget->window == NULL)
+		gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, &h);
+	else
+		gdk_window_get_size(widget->window, &w, &h);
+
+	if (h == old_h)
+		return;
+	old_h = h;
+
+	gtk_paned_set_position(GTK_PANED(vpaned), 2 * h / 3);
+}
+
+gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
+					gpointer user_data)
+{
+	GtkWidget *dialog, *label;
+	gint result;
+	gint ret = FALSE;
+
+	if (!conf_get_changed())
+		return FALSE;
+
+	dialog = gtk_dialog_new_with_buttons("Warning !",
+					     GTK_WINDOW(main_wnd),
+					     (GtkDialogFlags)
+					     (GTK_DIALOG_MODAL |
+					      GTK_DIALOG_DESTROY_WITH_PARENT),
+					     GTK_STOCK_OK,
+					     GTK_RESPONSE_YES,
+					     GTK_STOCK_NO,
+					     GTK_RESPONSE_NO,
+					     GTK_STOCK_CANCEL,
+					     GTK_RESPONSE_CANCEL, NULL);
+	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
+					GTK_RESPONSE_CANCEL);
+
+	label = gtk_label_new("\nSave configuration ?\n");
+	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), label);
+	gtk_widget_show(label);
+
+	result = gtk_dialog_run(GTK_DIALOG(dialog));
+	switch (result) {
+	case GTK_RESPONSE_YES:
+		on_save_activate(NULL, NULL);
+		break;
+	case GTK_RESPONSE_NO:
+		break;
+	case GTK_RESPONSE_CANCEL:
+	case GTK_RESPONSE_DELETE_EVENT:
+	default:
+		ret = TRUE;
+		break;
+	}
+
+	gtk_widget_destroy(dialog);
+
+	return ret;
+}
+
+void on_quit1_activate(GtkMenuItem *menuitem, gpointer user_data)
+{
+	if (!on_window1_delete_event(NULL, NULL, NULL))
+		gtk_widget_destroy(GTK_WIDGET(main_wnd));
+}
 
 /* CTree Callbacks */
 
