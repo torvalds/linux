@@ -2230,16 +2230,19 @@ static void serial8250_init_mctrl(struct uart_port *port)
 	serial8250_set_mctrl(port, port->mctrl);
 }
 
-static void serial8250_initialize(struct uart_port *port)
+static void serial8250_iir_txen_test(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
-	unsigned long flags;
 	bool lsr_TEMT, iir_NOINT;
 
-	serial_port_out(port, UART_LCR, UART_LCR_WLEN8);
+	if (port->quirks & UPQ_NO_TXEN_TEST)
+		return;
 
-	uart_port_lock_irqsave(port, &flags);
-	serial8250_init_mctrl(port);
+	/* Do a quick test to see if we receive an interrupt when we enable the TX irq. */
+	serial_port_out(port, UART_IER, UART_IER_THRI);
+	lsr_TEMT = serial_port_in(port, UART_LSR) & UART_LSR_TEMT;
+	iir_NOINT = serial_port_in(port, UART_IIR) & UART_IIR_NO_INT;
+	serial_port_out(port, UART_IER, 0);
 
 	/*
 	 * Serial over Lan (SoL) hack:
@@ -2247,26 +2250,30 @@ static void serial8250_initialize(struct uart_port *port)
 	 * Lan.  Those chips take a longer time than a normal serial device to signalize that a
 	 * transmission data was queued. Due to that, the above test generally fails. One solution
 	 * would be to delay the reading of iir. However, this is not reliable, since the timeout is
-	 * variable. So, let's just don't test if we receive TX irq.  This way, we'll never enable
-	 * UART_BUG_TXEN.
+	 * variable. So, in case of UPQ_NO_TXEN_TEST, let's just don't test if we receive TX irq.
+	 * This way, we'll never enable UART_BUG_TXEN.
 	 */
-	if (!(port->quirks & UPQ_NO_TXEN_TEST)) {
-		/* Do a quick test to see if we receive an interrupt when we enable the TX irq. */
-		serial_port_out(port, UART_IER, UART_IER_THRI);
-		lsr_TEMT = serial_port_in(port, UART_LSR) & UART_LSR_TEMT;
-		iir_NOINT = serial_port_in(port, UART_IIR) & UART_IIR_NO_INT;
-		serial_port_out(port, UART_IER, 0);
-
-		if (lsr_TEMT && iir_NOINT) {
-			if (!(up->bugs & UART_BUG_TXEN)) {
-				up->bugs |= UART_BUG_TXEN;
-				dev_dbg(port->dev, "enabling bad tx status workarounds\n");
-			}
-		} else {
-			up->bugs &= ~UART_BUG_TXEN;
+	if (lsr_TEMT && iir_NOINT) {
+		if (!(up->bugs & UART_BUG_TXEN)) {
+			up->bugs |= UART_BUG_TXEN;
+			dev_dbg(port->dev, "enabling bad tx status workarounds\n");
 		}
+		return;
 	}
 
+	/* FIXME: why is this needed? */
+	up->bugs &= ~UART_BUG_TXEN;
+}
+
+static void serial8250_initialize(struct uart_port *port)
+{
+	unsigned long flags;
+
+	serial_port_out(port, UART_LCR, UART_LCR_WLEN8);
+
+	uart_port_lock_irqsave(port, &flags);
+	serial8250_init_mctrl(port);
+	serial8250_iir_txen_test(port);
 	uart_port_unlock_irqrestore(port, flags);
 }
 
