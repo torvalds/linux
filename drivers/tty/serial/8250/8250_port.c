@@ -2216,15 +2216,8 @@ static void serial8250_THRE_test(struct uart_port *port)
 		up->bugs |= UART_BUG_THRE;
 }
 
-static void serial8250_initialize(struct uart_port *port)
+static void serial8250_init_mctrl(struct uart_port *port)
 {
-	struct uart_8250_port *up = up_to_u8250p(port);
-	unsigned long flags;
-	bool lsr_TEMT, iir_NOINT;
-
-	serial_port_out(port, UART_LCR, UART_LCR_WLEN8);
-
-	uart_port_lock_irqsave(port, &flags);
 	if (port->flags & UPF_FOURPORT) {
 		if (!port->irq)
 			port->mctrl |= TIOCM_OUT1;
@@ -2235,6 +2228,18 @@ static void serial8250_initialize(struct uart_port *port)
 	}
 
 	serial8250_set_mctrl(port, port->mctrl);
+}
+
+static void serial8250_initialize(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned long flags;
+	bool lsr_TEMT, iir_NOINT;
+
+	serial_port_out(port, UART_LCR, UART_LCR_WLEN8);
+
+	uart_port_lock_irqsave(port, &flags);
+	serial8250_init_mctrl(port);
 
 	/*
 	 * Serial over Lan (SoL) hack:
