@@ -913,8 +913,6 @@ on_treeview2_key_press_event(GtkWidget * widget,
 			gtk_tree_view_expand_row(view, path, FALSE);
 		return TRUE;
 	}
-	if (event->keyval == GDK_KP_Enter) {
-	}
 	if (widget == tree1_w)
 		return FALSE;
 
