@@ -4673,6 +4673,41 @@ bool scx_allow_ttwu_queue(const struct task_struct *p)
 }
 
 /**
+ * scx_rcu_cpu_stall - sched_ext RCU CPU stall handler
+ *
+ * While there are various reasons why RCU CPU stalls can occur on a system
+ * that may not be caused by the current BPF scheduler, try kicking out the
+ * current scheduler in an attempt to recover the system to a good state before
+ * issuing panics.
+ */
+bool scx_rcu_cpu_stall(void)
+{
+	struct scx_sched *sch;
+
+	rcu_read_lock();
+
+	sch = rcu_dereference(scx_root);
+	if (unlikely(!sch)) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	switch (scx_enable_state()) {
+	case SCX_ENABLING:
+	case SCX_ENABLED:
+		break;
+	default:
+		rcu_read_unlock();
+		return false;
+	}
+
+	scx_error(sch, "RCU CPU stall detected!");
+	rcu_read_unlock();
+
+	return true;
+}
+
+/**
  * scx_softlockup - sched_ext softlockup handler
  * @dur_s: number of seconds of CPU stuck due to soft lockup
  *

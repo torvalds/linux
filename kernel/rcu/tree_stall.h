@@ -134,6 +134,13 @@ static void panic_on_rcu_stall(void)
 {
 	static int cpu_stall;
 
+	/*
+	 * Attempt to kick out the BPF scheduler if it's installed and defer
+	 * the panic to give the system a chance to recover.
+	 */
+	if (scx_rcu_cpu_stall())
+		return;
+
 	if (++cpu_stall < sysctl_max_rcu_stall_to_panic)
 		return;
 
