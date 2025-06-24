@@ -628,7 +628,7 @@ static void on_window1_size_request(GtkWidget *widget,
 static gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
 					gpointer user_data)
 {
-	GtkWidget *dialog, *label;
+	GtkWidget *dialog, *label, *content_area;
 	gint result;
 	gint ret = FALSE;
 
@@ -650,7 +650,8 @@ static gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
 					GTK_RESPONSE_CANCEL);
 
 	label = gtk_label_new("\nSave configuration ?\n");
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), label);
+	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show(label);
 
 	result = gtk_dialog_run(GTK_DIALOG(dialog));
