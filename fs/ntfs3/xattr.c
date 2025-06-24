@@ -552,6 +552,10 @@ struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	int err;
 	void *buf;
 
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return ERR_PTR(-EINVAL);
+
 	/* Allocate PATH_MAX bytes. */
 	buf = __getname();
 	if (!buf)
@@ -599,6 +603,10 @@ static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 	int err;
 	int flags;
 	umode_t mode;
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ntfs_i(inode))))
+		return -EINVAL;
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
@@ -730,6 +738,10 @@ ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct ntfs_inode *ni = ntfs_i(inode);
 	ssize_t ret;
 
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
+
 	if (!(ni->ni_flags & NI_FLAG_EA)) {
 		/* no xattr in file */
 		return 0;
@@ -750,6 +762,10 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 {
 	int err;
 	struct ntfs_inode *ni = ntfs_i(inode);
+
+	/* Avoid any operation if inode is bad. */
+	if (unlikely(is_bad_ni(ni)))
+		return -EINVAL;
 
 	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
 		return -EIO;

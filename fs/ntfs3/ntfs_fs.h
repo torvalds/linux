@@ -377,6 +377,13 @@ struct ntfs_inode {
 	 */
 	u8 mi_loaded;
 
+	/* 
+	 * Use this field to avoid any write(s).
+	 * If inode is bad during initialization - use make_bad_inode
+	 * If inode is bad during operations - use this field
+	 */
+	u8 ni_bad;
+
 	union {
 		struct ntfs_index dir;
 		struct {
@@ -1022,6 +1029,11 @@ static inline bool is_compressed(const struct ntfs_inode *ni)
 {
 	return (ni->std_fa & FILE_ATTRIBUTE_COMPRESSED) ||
 	       (ni->ni_flags & NI_FLAG_COMPRESSED_MASK);
+}
+
+static inline bool is_bad_ni(const struct ntfs_inode *ni)
+{
+	return ni->ni_bad;
 }
 
 static inline int ni_ext_compress_bits(const struct ntfs_inode *ni)
