@@ -204,11 +204,11 @@ fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
 
 /// Produces a pointer to an object from a pointer to one of its fields.
 ///
-/// If you encounter a type mismatch due to the [`Opaque`] type, then use [`Opaque::raw_get`] or
+/// If you encounter a type mismatch due to the [`Opaque`] type, then use [`Opaque::cast_into`] or
 /// [`Opaque::cast_from`] to resolve the mismatch.
 ///
 /// [`Opaque`]: crate::types::Opaque
-/// [`Opaque::raw_get`]: crate::types::Opaque::raw_get
+/// [`Opaque::cast_into`]: crate::types::Opaque::cast_into
 /// [`Opaque::cast_from`]: crate::types::Opaque::cast_from
 ///
 /// # Safety

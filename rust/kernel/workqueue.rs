@@ -403,7 +403,7 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
         //
         // A pointer cast would also be ok due to `#[repr(transparent)]`. We use `addr_of!` so that
         // the compiler does not complain that the `work` field is unused.
-        unsafe { Opaque::raw_get(core::ptr::addr_of!((*ptr).work)) }
+        unsafe { Opaque::cast_into(core::ptr::addr_of!((*ptr).work)) }
     }
 }
 

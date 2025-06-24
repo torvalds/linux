@@ -377,7 +377,7 @@ impl<T> Opaque<T> {
         // initialize the `T`.
         unsafe {
             pin_init::pin_init_from_closure::<_, ::core::convert::Infallible>(move |slot| {
-                init_func(Self::raw_get(slot));
+                init_func(Self::cast_into(slot));
                 Ok(())
             })
         }
@@ -397,7 +397,7 @@ impl<T> Opaque<T> {
         // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to not fully
         // initialize the `T`.
         unsafe {
-            pin_init::pin_init_from_closure::<_, E>(move |slot| init_func(Self::raw_get(slot)))
+            pin_init::pin_init_from_closure::<_, E>(move |slot| init_func(Self::cast_into(slot)))
         }
     }
 
@@ -410,11 +410,11 @@ impl<T> Opaque<T> {
     ///
     /// This function is useful to get access to the value without creating intermediate
     /// references.
-    pub const fn raw_get(this: *const Self) -> *mut T {
+    pub const fn cast_into(this: *const Self) -> *mut T {
         UnsafeCell::raw_get(this.cast::<UnsafeCell<MaybeUninit<T>>>()).cast::<T>()
     }
 
-    /// The opposite operation of [`Opaque::raw_get`].
+    /// The opposite operation of [`Opaque::cast_into`].
     pub const fn cast_from(this: *const T) -> *const Self {
         this.cast()
     }

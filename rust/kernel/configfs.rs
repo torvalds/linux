@@ -279,7 +279,7 @@ impl<Data> Group<Data> {
 // within the `group` field.
 unsafe impl<Data> HasGroup<Data> for Group<Data> {
     unsafe fn group(this: *const Self) -> *const bindings::config_group {
-        Opaque::raw_get(
+        Opaque::cast_into(
             // SAFETY: By impl and function safety requirements this field
             // projection is within bounds of the allocation.
             unsafe { &raw const (*this).group },

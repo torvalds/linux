@@ -148,7 +148,7 @@ impl<T> HrTimer<T> {
         // SAFETY: The field projection to `timer` does not go out of bounds,
         // because the caller of this function promises that `this` points to an
         // allocation of at least the size of `Self`.
-        unsafe { Opaque::raw_get(core::ptr::addr_of!((*this).timer)) }
+        unsafe { Opaque::cast_into(core::ptr::addr_of!((*this).timer)) }
     }
 
     /// Cancel an initialized and potentially running timer.

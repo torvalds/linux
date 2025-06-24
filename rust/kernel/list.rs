@@ -284,7 +284,7 @@ impl<const ID: u64> ListLinks<ID> {
     #[inline]
     unsafe fn fields(me: *mut Self) -> *mut ListLinksFields {
         // SAFETY: The caller promises that the pointer is valid.
-        unsafe { Opaque::raw_get(ptr::addr_of!((*me).inner)) }
+        unsafe { Opaque::cast_into(ptr::addr_of!((*me).inner)) }
     }
 
     /// # Safety

@@ -100,13 +100,13 @@
 //!                 let foo = addr_of_mut!((*slot).foo);
 //!
 //!                 // Initialize the `foo`
-//!                 bindings::init_foo(Opaque::raw_get(foo));
+//!                 bindings::init_foo(Opaque::cast_into(foo));
 //!
 //!                 // Try to enable it.
-//!                 let err = bindings::enable_foo(Opaque::raw_get(foo), flags);
+//!                 let err = bindings::enable_foo(Opaque::cast_into(foo), flags);
 //!                 if err != 0 {
 //!                     // Enabling has failed, first clean up the foo and then return the error.
-//!                     bindings::destroy_foo(Opaque::raw_get(foo));
+//!                     bindings::destroy_foo(Opaque::cast_into(foo));
 //!                     return Err(Error::from_errno(err));
 //!                 }
 //!
