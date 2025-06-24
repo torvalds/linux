@@ -841,7 +841,7 @@ static gboolean on_treeview2_key_press_event(GtkWidget *widget,
 	if (path == NULL)
 		return FALSE;
 
-	if (event->keyval == GDK_space) {
+	if (event->keyval == GDK_KEY_space) {
 		if (gtk_tree_view_row_expanded(view, path))
 			gtk_tree_view_collapse_row(view, path);
 		else
