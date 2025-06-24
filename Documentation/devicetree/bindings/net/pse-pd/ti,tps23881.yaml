@@ -30,10 +30,12 @@ properties:
     maxItems: 1
 
   channels:
-    description: each set of 8 ports can be assigned to one physical
-      channels or two for PoE4. This parameter describes the configuration
-      of the ports conversion matrix that establishes relationship between
-      the logical ports and the physical channels.
+    description: |
+      Defines the 8 physical delivery channels on the controller that can
+      be referenced by PSE PIs through their "pairsets" property. The actual
+      port matrix mapping is created when PSE PIs reference these channels in
+      their pairsets. For 4-pair operation, two channels from the same group
+      (0-3 or 4-7) must be referenced by a single PSE PI.
     type: object
     additionalProperties: false
 

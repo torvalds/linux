@@ -159,7 +159,13 @@ struct ethtool_pse_control_status {
 /**
  * struct pse_controller_ops - PSE controller driver callbacks
  *
- * @setup_pi_matrix: setup PI matrix of the PSE controller
+ * @setup_pi_matrix: Setup PI matrix of the PSE controller.
+ *		     The PSE PIs devicetree nodes have already been parsed by
+ *		     of_load_pse_pis() and the pcdev->pi[x]->pairset[y].np
+ *		     populated. This callback should establish the
+ *		     relationship between the PSE controller hardware ports
+ *		     and the PSE Power Interfaces, either through software
+ *		     mapping or hardware configuration.
  * @pi_get_admin_state: Get the operational state of the PSE PI. This ops
  *			is mandatory.
  * @pi_get_pw_status: Get the power detection status of the PSE PI. This
