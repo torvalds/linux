@@ -717,6 +717,7 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 		nr_uarts++;
 	}
 
+	/* Check if it is CIR already. We check this below again, see there why. */
 	if (uart->port.type == PORT_8250_CIR) {
 		ret = -ENODEV;
 		goto unlock;
@@ -815,6 +816,7 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 	if (up->dl_write)
 		uart->dl_write = up->dl_write;
 
+	/* Check the type (again)! It might have changed by the port.type assignment above. */
 	if (uart->port.type != PORT_8250_CIR) {
 		if (uart_console_registered(&uart->port))
 			pm_runtime_get_sync(uart->port.dev);
