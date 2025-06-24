@@ -15,6 +15,44 @@ MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("NET_IONIC");
 
+static const struct ib_device_ops ionic_dev_ops = {
+	.owner = THIS_MODULE,
+	.driver_id = RDMA_DRIVER_IONIC,
+	.uverbs_abi_ver = IONIC_ABI_VERSION,
+
+	.alloc_ucontext = ionic_alloc_ucontext,
+	.dealloc_ucontext = ionic_dealloc_ucontext,
+	.mmap = ionic_mmap,
+	.mmap_free = ionic_mmap_free,
+	.alloc_pd = ionic_alloc_pd,
+	.dealloc_pd = ionic_dealloc_pd,
+	.create_ah = ionic_create_ah,
+	.query_ah = ionic_query_ah,
+	.destroy_ah = ionic_destroy_ah,
+	.create_user_ah = ionic_create_ah,
+	.get_dma_mr = ionic_get_dma_mr,
+	.reg_user_mr = ionic_reg_user_mr,
+	.reg_user_mr_dmabuf = ionic_reg_user_mr_dmabuf,
+	.dereg_mr = ionic_dereg_mr,
+	.alloc_mr = ionic_alloc_mr,
+	.map_mr_sg = ionic_map_mr_sg,
+	.alloc_mw = ionic_alloc_mw,
+	.dealloc_mw = ionic_dealloc_mw,
+	.create_cq = ionic_create_cq,
+	.destroy_cq = ionic_destroy_cq,
+	.create_qp = ionic_create_qp,
+	.modify_qp = ionic_modify_qp,
+	.query_qp = ionic_query_qp,
+	.destroy_qp = ionic_destroy_qp,
+
+	INIT_RDMA_OBJ_SIZE(ib_ucontext, ionic_ctx, ibctx),
+	INIT_RDMA_OBJ_SIZE(ib_pd, ionic_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_ah, ionic_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, ionic_vcq, ibcq),
+	INIT_RDMA_OBJ_SIZE(ib_qp, ionic_qp, ibqp),
+	INIT_RDMA_OBJ_SIZE(ib_mw, ionic_mr, ibmw),
+};
+
 static void ionic_init_resids(struct ionic_ibdev *dev)
 {
 	ionic_resid_init(&dev->inuse_cqid, dev->lif_cfg.cq_count);
@@ -48,6 +86,8 @@ static void ionic_destroy_ibdev(struct ionic_ibdev *dev)
 	ib_unregister_device(&dev->ibdev);
 	ionic_destroy_rdma_admin(dev);
 	ionic_destroy_resids(dev);
+	WARN_ON(!xa_empty(&dev->qp_tbl));
+	xa_destroy(&dev->qp_tbl);
 	WARN_ON(!xa_empty(&dev->cq_tbl));
 	xa_destroy(&dev->cq_tbl);
 	ib_dealloc_device(&dev->ibdev);
@@ -69,6 +109,7 @@ static struct ionic_ibdev *ionic_create_ibdev(struct ionic_aux_dev *ionic_adev)
 
 	ionic_fill_lif_cfg(ionic_adev->lif, &dev->lif_cfg);
 
+	xa_init_flags(&dev->qp_tbl, GFP_ATOMIC);
 	xa_init_flags(&dev->cq_tbl, GFP_ATOMIC);
 
 	ionic_init_resids(dev);
@@ -100,6 +141,8 @@ static struct ionic_ibdev *ionic_create_ibdev(struct ionic_aux_dev *ionic_adev)
 	if (rc)
 		goto err_admin;
 
+	ib_set_device_ops(&dev->ibdev, &ionic_dev_ops);
+
 	rc = ib_register_device(ibdev, "ionic_%d", ibdev->dev.parent);
 	if (rc)
 		goto err_register;
@@ -112,6 +155,7 @@ err_admin:
 	ionic_destroy_rdma_admin(dev);
 err_reset:
 	ionic_destroy_resids(dev);
+	xa_destroy(&dev->qp_tbl);
 	xa_destroy(&dev->cq_tbl);
 	ib_dealloc_device(&dev->ibdev);
 
