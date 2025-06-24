@@ -5,6 +5,7 @@
  *  Copyright (c) 2020-2022 Sony Interactive Entertainment
  */
 
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/crc32.h>
 #include <linux/device.h>
@@ -111,34 +112,45 @@ struct ps_led_info {
 #define DS_BUTTONS2_MIC_MUTE	BIT(2)
 
 /* Status field of DualSense input report. */
-#define DS_STATUS_BATTERY_CAPACITY	GENMASK(3, 0)
-#define DS_STATUS_CHARGING		GENMASK(7, 4)
-#define DS_STATUS_CHARGING_SHIFT	4
+#define DS_STATUS_BATTERY_CAPACITY		GENMASK(3, 0)
+#define DS_STATUS_CHARGING			GENMASK(7, 4)
 
 /* Feature version from DualSense Firmware Info report. */
-#define DS_FEATURE_VERSION(major, minor) ((major & 0xff) << 8 | (minor & 0xff))
-
+#define DS_FEATURE_VERSION_MINOR		GENMASK(7, 0)
+#define DS_FEATURE_VERSION_MAJOR		GENMASK(15, 8)
+#define DS_FEATURE_VERSION(major, minor)	(FIELD_PREP(DS_FEATURE_VERSION_MAJOR, major) | \
+						 FIELD_PREP(DS_FEATURE_VERSION_MINOR, minor))
 /*
  * Status of a DualSense touch point contact.
  * Contact IDs, with highest bit set are 'inactive'
  * and any associated data is then invalid.
  */
-#define DS_TOUCH_POINT_INACTIVE BIT(7)
+#define DS_TOUCH_POINT_INACTIVE			BIT(7)
+#define DS_TOUCH_POINT_X_LO			GENMASK(7, 0)
+#define DS_TOUCH_POINT_X_HI			GENMASK(11, 8)
+#define DS_TOUCH_POINT_X(hi, lo)		(FIELD_PREP(DS_TOUCH_POINT_X_HI, hi) | \
+						 FIELD_PREP(DS_TOUCH_POINT_X_LO, lo))
+#define DS_TOUCH_POINT_Y_LO			GENMASK(3, 0)
+#define DS_TOUCH_POINT_Y_HI			GENMASK(11, 4)
+#define DS_TOUCH_POINT_Y(hi, lo)		(FIELD_PREP(DS_TOUCH_POINT_Y_HI, hi) | \
+						 FIELD_PREP(DS_TOUCH_POINT_Y_LO, lo))
 
  /* Magic value required in tag field of Bluetooth output report. */
-#define DS_OUTPUT_TAG 0x10
+#define DS_OUTPUT_TAG				0x10
+#define DS_OUTPUT_SEQ_TAG			GENMASK(3, 0)
+#define DS_OUTPUT_SEQ_NO			GENMASK(7, 4)
 /* Flags for DualSense output report. */
-#define DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION BIT(0)
-#define DS_OUTPUT_VALID_FLAG0_HAPTICS_SELECT BIT(1)
-#define DS_OUTPUT_VALID_FLAG1_MIC_MUTE_LED_CONTROL_ENABLE BIT(0)
-#define DS_OUTPUT_VALID_FLAG1_POWER_SAVE_CONTROL_ENABLE BIT(1)
-#define DS_OUTPUT_VALID_FLAG1_LIGHTBAR_CONTROL_ENABLE BIT(2)
-#define DS_OUTPUT_VALID_FLAG1_RELEASE_LEDS BIT(3)
-#define DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE BIT(4)
-#define DS_OUTPUT_VALID_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE BIT(1)
-#define DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2 BIT(2)
-#define DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE BIT(4)
-#define DS_OUTPUT_LIGHTBAR_SETUP_LIGHT_OUT BIT(1)
+#define DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION		BIT(0)
+#define DS_OUTPUT_VALID_FLAG0_HAPTICS_SELECT			BIT(1)
+#define DS_OUTPUT_VALID_FLAG1_MIC_MUTE_LED_CONTROL_ENABLE	BIT(0)
+#define DS_OUTPUT_VALID_FLAG1_POWER_SAVE_CONTROL_ENABLE		BIT(1)
+#define DS_OUTPUT_VALID_FLAG1_LIGHTBAR_CONTROL_ENABLE		BIT(2)
+#define DS_OUTPUT_VALID_FLAG1_RELEASE_LEDS			BIT(3)
+#define DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE	BIT(4)
+#define DS_OUTPUT_VALID_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE	BIT(1)
+#define DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2		BIT(2)
+#define DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE			BIT(4)
+#define DS_OUTPUT_LIGHTBAR_SETUP_LIGHT_OUT			BIT(1)
 
 /* DualSense hardware limits */
 #define DS_ACC_RES_PER_G	8192
@@ -315,7 +327,9 @@ struct dualsense_output_report {
  * Contact IDs, with highest bit set are 'inactive'
  * and any associated data is then invalid.
  */
-#define DS4_TOUCH_POINT_INACTIVE BIT(7)
+#define DS4_TOUCH_POINT_INACTIVE	BIT(7)
+#define DS4_TOUCH_POINT_X(hi, lo)	DS_TOUCH_POINT_X(hi, lo)
+#define DS4_TOUCH_POINT_Y(hi, lo)	DS_TOUCH_POINT_Y(hi, lo)
 
 /* Status field of DualShock4 input report. */
 #define DS4_STATUS0_BATTERY_CAPACITY	GENMASK(3, 0)
@@ -1194,7 +1208,8 @@ static void dualsense_init_output_report(struct dualsense *ds, struct dualsense_
 		 * Highest 4-bit is a sequence number, which needs to be increased
 		 * every report. Lowest 4-bit is tag and can be zero for now.
 		 */
-		bt->seq_tag = (ds->output_seq << 4) | 0x0;
+		bt->seq_tag = FIELD_PREP(DS_OUTPUT_SEQ_NO, ds->output_seq) |
+			      FIELD_PREP(DS_OUTPUT_SEQ_TAG, 0x0);
 		if (++ds->output_seq == 16)
 			ds->output_seq = 0;
 
@@ -1439,19 +1454,18 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 		input_mt_report_slot_state(ds->touchpad, MT_TOOL_FINGER, active);
 
 		if (active) {
-			int x = (point->x_hi << 8) | point->x_lo;
-			int y = (point->y_hi << 4) | point->y_lo;
-
-			input_report_abs(ds->touchpad, ABS_MT_POSITION_X, x);
-			input_report_abs(ds->touchpad, ABS_MT_POSITION_Y, y);
+			input_report_abs(ds->touchpad, ABS_MT_POSITION_X,
+					 DS_TOUCH_POINT_X(point->x_hi, point->x_lo));
+			input_report_abs(ds->touchpad, ABS_MT_POSITION_Y,
+					 DS_TOUCH_POINT_Y(point->y_hi, point->y_lo));
 		}
 	}
 	input_mt_sync_frame(ds->touchpad);
 	input_report_key(ds->touchpad, BTN_LEFT, ds_report->buttons[2] & DS_BUTTONS2_TOUCHPAD);
 	input_sync(ds->touchpad);
 
-	battery_data = ds_report->status & DS_STATUS_BATTERY_CAPACITY;
-	charging_status = (ds_report->status & DS_STATUS_CHARGING) >> DS_STATUS_CHARGING_SHIFT;
+	battery_data = FIELD_GET(DS_STATUS_BATTERY_CAPACITY, ds_report->status);
+	charging_status = FIELD_GET(DS_STATUS_CHARGING, ds_report->status);
 
 	switch (charging_status) {
 	case 0x0:
@@ -2351,11 +2365,10 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 			input_mt_report_slot_state(ds4->touchpad, MT_TOOL_FINGER, active);
 
 			if (active) {
-				int x = (point->x_hi << 8) | point->x_lo;
-				int y = (point->y_hi << 4) | point->y_lo;
-
-				input_report_abs(ds4->touchpad, ABS_MT_POSITION_X, x);
-				input_report_abs(ds4->touchpad, ABS_MT_POSITION_Y, y);
+				input_report_abs(ds4->touchpad, ABS_MT_POSITION_X,
+						 DS4_TOUCH_POINT_X(point->x_hi, point->x_lo));
+				input_report_abs(ds4->touchpad, ABS_MT_POSITION_Y,
+						 DS4_TOUCH_POINT_Y(point->y_hi, point->y_lo));
 			}
 		}
 		input_mt_sync_frame(ds4->touchpad);
