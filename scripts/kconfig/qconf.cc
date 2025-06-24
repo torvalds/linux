@@ -127,6 +127,9 @@ void ConfigItem::updateMenu(void)
 		goto set_prompt;
 	case M_CHOICE:
 		setIcon(promptColIdx, QIcon());
+		sym = sym_calc_choice(menu);
+		if (sym)
+			setText(dataColIdx, sym->name);
 		goto set_prompt;
 	default:
 		;
@@ -189,7 +192,11 @@ void ConfigItem::testUpdateMenu(void)
 	if (!menu)
 		return;
 
-	sym_calc_value(menu->sym);
+	if (menu->type == M_CHOICE)
+		sym_calc_choice(menu);
+	else
+		sym_calc_value(menu->sym);
+
 	if (menu->flags & MENU_CHANGED) {
 		/* the menu entry changed, so update all list items */
 		menu->flags &= ~MENU_CHANGED;
