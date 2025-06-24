@@ -14180,6 +14180,7 @@ M:	Binbin Zhou <zhoubinbin@loongson.cn>
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/mmc/loongson,ls2k0500-mmc.yaml
+F:	drivers/mmc/host/loongson2-mmc.c
 
 LOONGSON-2 SOC SERIES PM DRIVER
 M:	Yinbo Zhu <zhuyinbo@loongson.cn>
