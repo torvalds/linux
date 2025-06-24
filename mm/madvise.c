@@ -176,25 +176,29 @@ static int replace_anon_vma_name(struct vm_area_struct *vma,
 }
 #endif /* CONFIG_ANON_VMA_NAME */
 /*
- * Update the vm_flags on region of a vma, splitting it or merging it as
- * necessary.  Must be called with mmap_lock held for writing;
- * Caller should ensure anon_name stability by raising its refcount even when
- * anon_name belongs to a valid vma because this function might free that vma.
+ * Update the vm_flags and/or anon_name on region of a vma, splitting it or
+ * merging it as necessary. Must be called with mmap_lock held for writing.
  */
 static int madvise_update_vma(vm_flags_t new_flags,
 		struct madvise_behavior *madv_behavior)
 {
-	int error;
 	struct vm_area_struct *vma = madv_behavior->vma;
 	struct madvise_behavior_range *range = &madv_behavior->range;
 	struct anon_vma_name *anon_name = madv_behavior->anon_name;
+	bool set_new_anon_name = madv_behavior->behavior == __MADV_SET_ANON_VMA_NAME;
 	VMA_ITERATOR(vmi, madv_behavior->mm, range->start);
 
-	if (new_flags == vma->vm_flags && anon_vma_name_eq(anon_vma_name(vma), anon_name))
+	if (new_flags == vma->vm_flags && (!set_new_anon_name ||
+			anon_vma_name_eq(anon_vma_name(vma), anon_name)))
 		return 0;
 
-	vma = vma_modify_flags_name(&vmi, madv_behavior->prev, vma,
+	if (set_new_anon_name)
+		vma = vma_modify_flags_name(&vmi, madv_behavior->prev, vma,
 			range->start, range->end, new_flags, anon_name);
+	else
+		vma = vma_modify_flags(&vmi, madv_behavior->prev, vma,
+			range->start, range->end, new_flags);
+
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -203,11 +207,8 @@ static int madvise_update_vma(vm_flags_t new_flags,
 	/* vm_flags is protected by the mmap_lock held in write mode. */
 	vma_start_write(vma);
 	vm_flags_reset(vma, new_flags);
-	if (!vma->vm_file || vma_is_anon_shmem(vma)) {
-		error = replace_anon_vma_name(vma, anon_name);
-		if (error)
-			return error;
-	}
+	if (set_new_anon_name)
+		return replace_anon_vma_name(vma, anon_name);
 
 	return 0;
 }
@@ -1313,7 +1314,6 @@ static int madvise_vma_behavior(struct madvise_behavior *madv_behavior)
 	int behavior = madv_behavior->behavior;
 	struct vm_area_struct *vma = madv_behavior->vma;
 	vm_flags_t new_flags = vma->vm_flags;
-	bool set_new_anon_name = behavior == __MADV_SET_ANON_VMA_NAME;
 	struct madvise_behavior_range *range = &madv_behavior->range;
 	int error;
 
@@ -1403,18 +1403,7 @@ static int madvise_vma_behavior(struct madvise_behavior *madv_behavior)
 	/* This is a write operation.*/
 	VM_WARN_ON_ONCE(madv_behavior->lock_mode != MADVISE_MMAP_WRITE_LOCK);
 
-	/*
-	 * madvise_update_vma() might cause a VMA merge which could put an
-	 * anon_vma_name, so we must hold an additional reference on the
-	 * anon_vma_name so it doesn't disappear from under us.
-	 */
-	if (!set_new_anon_name) {
-		madv_behavior->anon_name = anon_vma_name(vma);
-		anon_vma_name_get(madv_behavior->anon_name);
-	}
 	error = madvise_update_vma(new_flags, madv_behavior);
-	if (!set_new_anon_name)
-		anon_vma_name_put(madv_behavior->anon_name);
 out:
 	/*
 	 * madvise() returns EAGAIN if kernel resources, such as
