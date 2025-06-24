@@ -313,10 +313,8 @@ static void on_introduction1_activate(GtkMenuItem *menuitem, gpointer user_data)
 					GTK_DIALOG_DESTROY_WITH_PARENT,
 					GTK_MESSAGE_INFO,
 					GTK_BUTTONS_CLOSE, "%s", intro_text);
-	g_signal_connect_swapped(GTK_OBJECT(dialog), "response",
-				 G_CALLBACK(gtk_widget_destroy),
-				 GTK_OBJECT(dialog));
-	gtk_widget_show_all(dialog);
+	gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
 }
 
 static void on_about1_activate(GtkMenuItem *menuitem, gpointer user_data)
@@ -330,10 +328,8 @@ static void on_about1_activate(GtkMenuItem *menuitem, gpointer user_data)
 					GTK_DIALOG_DESTROY_WITH_PARENT,
 					GTK_MESSAGE_INFO,
 					GTK_BUTTONS_CLOSE, "%s", about_text);
-	g_signal_connect_swapped(GTK_OBJECT(dialog), "response",
-				 G_CALLBACK(gtk_widget_destroy),
-				 GTK_OBJECT(dialog));
-	gtk_widget_show_all(dialog);
+	gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
 }
 
 static void on_license1_activate(GtkMenuItem *menuitem, gpointer user_data)
@@ -348,10 +344,8 @@ static void on_license1_activate(GtkMenuItem *menuitem, gpointer user_data)
 					GTK_DIALOG_DESTROY_WITH_PARENT,
 					GTK_MESSAGE_INFO,
 					GTK_BUTTONS_CLOSE, "%s", license_text);
-	g_signal_connect_swapped(GTK_OBJECT(dialog), "response",
-				 G_CALLBACK(gtk_widget_destroy),
-				 GTK_OBJECT(dialog));
-	gtk_widget_show_all(dialog);
+	gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
 }
 
 /* toolbar handlers */
