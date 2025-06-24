@@ -154,9 +154,9 @@ struct ps_led_info {
 
 /* DualSense hardware limits */
 #define DS_ACC_RES_PER_G	8192
-#define DS_ACC_RANGE		(4*DS_ACC_RES_PER_G)
+#define DS_ACC_RANGE		(4 * DS_ACC_RES_PER_G)
 #define DS_GYRO_RES_PER_DEG_S	1024
-#define DS_GYRO_RANGE		(2048*DS_GYRO_RES_PER_DEG_S)
+#define DS_GYRO_RANGE		(2048 * DS_GYRO_RES_PER_DEG_S)
 #define DS_TOUCHPAD_WIDTH	1920
 #define DS_TOUCHPAD_HEIGHT	1080
 
@@ -363,9 +363,9 @@ struct dualsense_output_report {
 
 /* DualShock4 hardware limits */
 #define DS4_ACC_RES_PER_G	8192
-#define DS4_ACC_RANGE		(4*DS_ACC_RES_PER_G)
+#define DS4_ACC_RANGE		(4 * DS_ACC_RES_PER_G)
 #define DS4_GYRO_RES_PER_DEG_S	1024
-#define DS4_GYRO_RANGE		(2048*DS_GYRO_RES_PER_DEG_S)
+#define DS4_GYRO_RANGE		(2048 * DS_GYRO_RES_PER_DEG_S)
 #define DS4_LIGHTBAR_MAX_BLINK	255 /* 255 centiseconds */
 #define DS4_TOUCHPAD_WIDTH	1920
 #define DS4_TOUCHPAD_HEIGHT	942
@@ -1015,19 +1015,19 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds->gyro_calib_data[0].abs_code = ABS_RX;
 	ds->gyro_calib_data[0].bias = 0;
-	ds->gyro_calib_data[0].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
+	ds->gyro_calib_data[0].sens_numer = speed_2x * DS_GYRO_RES_PER_DEG_S;
 	ds->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
 			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds->gyro_calib_data[1].abs_code = ABS_RY;
 	ds->gyro_calib_data[1].bias = 0;
-	ds->gyro_calib_data[1].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
+	ds->gyro_calib_data[1].sens_numer = speed_2x * DS_GYRO_RES_PER_DEG_S;
 	ds->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
 			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds->gyro_calib_data[2].abs_code = ABS_RZ;
 	ds->gyro_calib_data[2].bias = 0;
-	ds->gyro_calib_data[2].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
+	ds->gyro_calib_data[2].sens_numer = speed_2x * DS_GYRO_RES_PER_DEG_S;
 	ds->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
 			abs(gyro_roll_minus - gyro_roll_bias);
 
@@ -1053,19 +1053,19 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	range_2g = acc_x_plus - acc_x_minus;
 	ds->accel_calib_data[0].abs_code = ABS_X;
 	ds->accel_calib_data[0].bias = acc_x_plus - range_2g / 2;
-	ds->accel_calib_data[0].sens_numer = 2*DS_ACC_RES_PER_G;
+	ds->accel_calib_data[0].sens_numer = 2 * DS_ACC_RES_PER_G;
 	ds->accel_calib_data[0].sens_denom = range_2g;
 
 	range_2g = acc_y_plus - acc_y_minus;
 	ds->accel_calib_data[1].abs_code = ABS_Y;
 	ds->accel_calib_data[1].bias = acc_y_plus - range_2g / 2;
-	ds->accel_calib_data[1].sens_numer = 2*DS_ACC_RES_PER_G;
+	ds->accel_calib_data[1].sens_numer = 2 * DS_ACC_RES_PER_G;
 	ds->accel_calib_data[1].sens_denom = range_2g;
 
 	range_2g = acc_z_plus - acc_z_minus;
 	ds->accel_calib_data[2].abs_code = ABS_Z;
 	ds->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
-	ds->accel_calib_data[2].sens_numer = 2*DS_ACC_RES_PER_G;
+	ds->accel_calib_data[2].sens_numer = 2 * DS_ACC_RES_PER_G;
 	ds->accel_calib_data[2].sens_denom = range_2g;
 
 	/*
@@ -1881,19 +1881,19 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds4->gyro_calib_data[0].abs_code = ABS_RX;
 	ds4->gyro_calib_data[0].bias = 0;
-	ds4->gyro_calib_data[0].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[0].sens_numer = speed_2x * DS4_GYRO_RES_PER_DEG_S;
 	ds4->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
 			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds4->gyro_calib_data[1].abs_code = ABS_RY;
 	ds4->gyro_calib_data[1].bias = 0;
-	ds4->gyro_calib_data[1].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[1].sens_numer = speed_2x * DS4_GYRO_RES_PER_DEG_S;
 	ds4->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
 			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds4->gyro_calib_data[2].abs_code = ABS_RZ;
 	ds4->gyro_calib_data[2].bias = 0;
-	ds4->gyro_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[2].sens_numer = speed_2x * DS4_GYRO_RES_PER_DEG_S;
 	ds4->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
 			abs(gyro_roll_minus - gyro_roll_bias);
 
@@ -1904,19 +1904,19 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	range_2g = acc_x_plus - acc_x_minus;
 	ds4->accel_calib_data[0].abs_code = ABS_X;
 	ds4->accel_calib_data[0].bias = acc_x_plus - range_2g / 2;
-	ds4->accel_calib_data[0].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[0].sens_numer = 2 * DS4_ACC_RES_PER_G;
 	ds4->accel_calib_data[0].sens_denom = range_2g;
 
 	range_2g = acc_y_plus - acc_y_minus;
 	ds4->accel_calib_data[1].abs_code = ABS_Y;
 	ds4->accel_calib_data[1].bias = acc_y_plus - range_2g / 2;
-	ds4->accel_calib_data[1].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[1].sens_numer = 2 * DS4_ACC_RES_PER_G;
 	ds4->accel_calib_data[1].sens_denom = range_2g;
 
 	range_2g = acc_z_plus - acc_z_minus;
 	ds4->accel_calib_data[2].abs_code = ABS_Z;
 	ds4->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
-	ds4->accel_calib_data[2].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[2].sens_numer = 2 * DS4_ACC_RES_PER_G;
 	ds4->accel_calib_data[2].sens_denom = range_2g;
 
 transfer_failed:
@@ -2058,8 +2058,10 @@ static int dualshock4_led_set_blink(struct led_classdev *led, unsigned long *del
 		ds4->lightbar_blink_off = 50;
 	} else {
 		/* Blink delays in centiseconds. */
-		ds4->lightbar_blink_on = min_t(unsigned long, *delay_on/10, DS4_LIGHTBAR_MAX_BLINK);
-		ds4->lightbar_blink_off = min_t(unsigned long, *delay_off/10, DS4_LIGHTBAR_MAX_BLINK);
+		ds4->lightbar_blink_on = min_t(unsigned long, *delay_on / 10,
+					       DS4_LIGHTBAR_MAX_BLINK);
+		ds4->lightbar_blink_off = min_t(unsigned long, *delay_off / 10,
+						DS4_LIGHTBAR_MAX_BLINK);
 	}
 
 	ds4->update_lightbar_blink = true;
@@ -2339,7 +2341,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	/* Convert timestamp (in 5.33us unit) to timestamp_us */
 	sensor_timestamp = le16_to_cpu(ds4_report->sensor_timestamp);
 	if (!ds4->sensor_timestamp_initialized) {
-		ds4->sensor_timestamp_us = DIV_ROUND_CLOSEST(sensor_timestamp*16, 3);
+		ds4->sensor_timestamp_us = DIV_ROUND_CLOSEST(sensor_timestamp * 16, 3);
 		ds4->sensor_timestamp_initialized = true;
 	} else {
 		uint16_t delta;
@@ -2348,7 +2350,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 			delta = (U16_MAX - ds4->prev_sensor_timestamp + sensor_timestamp + 1);
 		else
 			delta = sensor_timestamp - ds4->prev_sensor_timestamp;
-		ds4->sensor_timestamp_us += DIV_ROUND_CLOSEST(delta*16, 3);
+		ds4->sensor_timestamp_us += DIV_ROUND_CLOSEST(delta * 16, 3);
 	}
 	ds4->prev_sensor_timestamp = sensor_timestamp;
 	input_event(ds4->sensors, EV_MSC, MSC_TIMESTAMP, ds4->sensor_timestamp_us);
