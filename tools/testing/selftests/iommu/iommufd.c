@@ -1748,13 +1748,15 @@ TEST_F(iommufd_mock_domain, all_aligns)
 	unsigned int end;
 	uint8_t *buf;
 	int prot = PROT_READ | PROT_WRITE;
-	int mfd;
+	int mfd = -1;
 
 	if (variant->file)
 		buf = memfd_mmap(buf_size, prot, MAP_SHARED, &mfd);
 	else
 		buf = mmap(0, buf_size, prot, self->mmap_flags, -1, 0);
 	ASSERT_NE(MAP_FAILED, buf);
+	if (variant->file)
+		ASSERT_GT(mfd, 0);
 	check_refs(buf, buf_size, 0);
 
 	/*
@@ -1800,13 +1802,15 @@ TEST_F(iommufd_mock_domain, all_aligns_copy)
 	unsigned int end;
 	uint8_t *buf;
 	int prot = PROT_READ | PROT_WRITE;
-	int mfd;
+	int mfd = -1;
 
 	if (variant->file)
 		buf = memfd_mmap(buf_size, prot, MAP_SHARED, &mfd);
 	else
 		buf = mmap(0, buf_size, prot, self->mmap_flags, -1, 0);
 	ASSERT_NE(MAP_FAILED, buf);
+	if (variant->file)
+		ASSERT_GT(mfd, 0);
 	check_refs(buf, buf_size, 0);
 
 	/*
