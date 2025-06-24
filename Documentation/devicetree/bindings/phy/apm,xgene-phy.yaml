@@ -8,7 +8,7 @@ title: APM X-Gene 15Gbps Multi-purpose PHY
 
 maintainers:
   - Khuong Dinh <khuong@os.amperecomputing.com>
-  
+
 description:
   PHY nodes are defined to describe on-chip 15Gbps Multi-purpose PHY. Each
   PHY (pair of lanes) has its own node.
