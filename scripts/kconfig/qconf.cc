@@ -577,7 +577,7 @@ void ConfigList::setParentMenu(void)
 	oldroot = rootEntry;
 	if (rootEntry == &rootmenu)
 		return;
-	setRootMenu(menu_get_parent_menu(rootEntry->parent));
+	setRootMenu(menu_get_menu_or_parent_menu(rootEntry->parent));
 
 	QTreeWidgetItemIterator it(this);
 	while (*it) {
@@ -1540,7 +1540,7 @@ void ConfigMainWindow::setMenuLink(struct menu *menu)
 	switch (configList->mode) {
 	case singleMode:
 		list = configList;
-		parent = menu_get_parent_menu(menu);
+		parent = menu_get_menu_or_parent_menu(menu);
 		if (!parent)
 			return;
 		list->setRootMenu(parent);
@@ -1551,7 +1551,7 @@ void ConfigMainWindow::setMenuLink(struct menu *menu)
 			configList->clearSelection();
 			list = configList;
 		} else {
-			parent = menu_get_parent_menu(menu->parent);
+			parent = menu_get_menu_or_parent_menu(menu->parent);
 			if (!parent)
 				return;
 

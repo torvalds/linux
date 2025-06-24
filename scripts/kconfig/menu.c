@@ -575,7 +575,13 @@ const char *menu_get_prompt(const struct menu *menu)
 	return NULL;
 }
 
-struct menu *menu_get_parent_menu(struct menu *menu)
+/**
+ * menu_get_menu_or_parent_menu - return the parent menu or the menu itself
+ * @menu: pointer to the menu
+ * return: the parent menu. If the given argument is already a menu, return
+ *         itself.
+ */
+struct menu *menu_get_menu_or_parent_menu(struct menu *menu)
 {
 	enum prop_type type;
 
