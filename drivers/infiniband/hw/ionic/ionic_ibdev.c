@@ -15,9 +15,41 @@ MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("NET_IONIC");
 
+static void ionic_init_resids(struct ionic_ibdev *dev)
+{
+	ionic_resid_init(&dev->inuse_cqid, dev->lif_cfg.cq_count);
+	dev->half_cqid_udma_shift =
+		order_base_2(dev->lif_cfg.cq_count / dev->lif_cfg.udma_count);
+	ionic_resid_init(&dev->inuse_pdid, IONIC_MAX_PD);
+	ionic_resid_init(&dev->inuse_ahid, dev->lif_cfg.nahs_per_lif);
+	ionic_resid_init(&dev->inuse_mrid, dev->lif_cfg.nmrs_per_lif);
+	/* skip reserved lkey */
+	dev->next_mrkey = 1;
+	ionic_resid_init(&dev->inuse_qpid, dev->lif_cfg.qp_count);
+	/* skip reserved SMI and GSI qpids */
+	dev->half_qpid_udma_shift =
+		order_base_2(dev->lif_cfg.qp_count / dev->lif_cfg.udma_count);
+	ionic_resid_init(&dev->inuse_dbid, dev->lif_cfg.dbid_count);
+}
+
+static void ionic_destroy_resids(struct ionic_ibdev *dev)
+{
+	ionic_resid_destroy(&dev->inuse_cqid);
+	ionic_resid_destroy(&dev->inuse_pdid);
+	ionic_resid_destroy(&dev->inuse_ahid);
+	ionic_resid_destroy(&dev->inuse_mrid);
+	ionic_resid_destroy(&dev->inuse_qpid);
+	ionic_resid_destroy(&dev->inuse_dbid);
+}
+
 static void ionic_destroy_ibdev(struct ionic_ibdev *dev)
 {
+	ionic_kill_rdma_admin(dev, false);
 	ib_unregister_device(&dev->ibdev);
+	ionic_destroy_rdma_admin(dev);
+	ionic_destroy_resids(dev);
+	WARN_ON(!xa_empty(&dev->cq_tbl));
+	xa_destroy(&dev->cq_tbl);
 	ib_dealloc_device(&dev->ibdev);
 }
 
@@ -36,6 +68,18 @@ static struct ionic_ibdev *ionic_create_ibdev(struct ionic_aux_dev *ionic_adev)
 		return ERR_PTR(-EINVAL);
 
 	ionic_fill_lif_cfg(ionic_adev->lif, &dev->lif_cfg);
+
+	xa_init_flags(&dev->cq_tbl, GFP_ATOMIC);
+
+	ionic_init_resids(dev);
+
+	rc = ionic_rdma_reset_devcmd(dev);
+	if (rc)
+		goto err_reset;
+
+	rc = ionic_create_rdma_admin(dev);
+	if (rc)
+		goto err_admin;
 
 	ibdev = &dev->ibdev;
 	ibdev->dev.parent = dev->lif_cfg.hwdev;
@@ -64,6 +108,11 @@ static struct ionic_ibdev *ionic_create_ibdev(struct ionic_aux_dev *ionic_adev)
 
 err_register:
 err_admin:
+	ionic_kill_rdma_admin(dev, false);
+	ionic_destroy_rdma_admin(dev);
+err_reset:
+	ionic_destroy_resids(dev);
+	xa_destroy(&dev->cq_tbl);
 	ib_dealloc_device(&dev->ibdev);
 
 	return ERR_PTR(rc);
@@ -114,6 +163,10 @@ static int __init ionic_mod_init(void)
 {
 	int rc;
 
+	ionic_evt_workq = create_workqueue(DRIVER_NAME "-evt");
+	if (!ionic_evt_workq)
+		return -ENOMEM;
+
 	rc = auxiliary_driver_register(&ionic_aux_r_driver);
 	if (rc)
 		goto err_aux;
@@ -121,12 +174,15 @@ static int __init ionic_mod_init(void)
 	return 0;
 
 err_aux:
+	destroy_workqueue(ionic_evt_workq);
+
 	return rc;
 }
 
 static void __exit ionic_mod_exit(void)
 {
 	auxiliary_driver_unregister(&ionic_aux_r_driver);
+	destroy_workqueue(ionic_evt_workq);
 }
 
 module_init(ionic_mod_init);
