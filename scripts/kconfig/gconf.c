@@ -976,10 +976,7 @@ static void display_tree(GtkTreeStore *store, struct menu *menu)
 static void display_tree_part(void)
 {
 	gtk_tree_store_clear(tree2);
-	if (view_mode == SINGLE_VIEW || view_mode == SPLIT_VIEW)
-		display_tree(tree2, browsed);
-	else if (view_mode == FULL_VIEW)
-		display_tree(tree2, &rootmenu);
+	display_tree(tree2, browsed);
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(tree2_w));
 }
 
