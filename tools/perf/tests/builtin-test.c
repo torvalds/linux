@@ -4,6 +4,7 @@
  *
  * Builtin regression testing command: ever growing number of sanity tests
  */
+#include <ctype.h>
 #include <fcntl.h>
 #include <errno.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
@@ -159,6 +160,71 @@ static struct test_workload *workloads[] = {
 #define test_suite__for_each_test_case(suite, idx)			\
 	for (idx = 0; (suite)->test_cases && (suite)->test_cases[idx].name != NULL; idx++)
 
+static void close_parent_fds(void)
+{
+	DIR *dir = opendir("/proc/self/fd");
+	struct dirent *ent;
+
+	while ((ent = readdir(dir))) {
+		char *end;
+		long fd;
+
+		if (ent->d_type != DT_LNK)
+			continue;
+
+		if (!isdigit(ent->d_name[0]))
+			continue;
+
+		fd = strtol(ent->d_name, &end, 10);
+		if (*end)
+			continue;
+
+		if (fd <= 3 || fd == dirfd(dir))
+			continue;
+
+		close(fd);
+	}
+	closedir(dir);
+}
+
+static void check_leaks(void)
+{
+	DIR *dir = opendir("/proc/self/fd");
+	struct dirent *ent;
+	int leaks = 0;
+
+	while ((ent = readdir(dir))) {
+		char path[PATH_MAX];
+		char *end;
+		long fd;
+		ssize_t len;
+
+		if (ent->d_type != DT_LNK)
+			continue;
+
+		if (!isdigit(ent->d_name[0]))
+			continue;
+
+		fd = strtol(ent->d_name, &end, 10);
+		if (*end)
+			continue;
+
+		if (fd <= 3 || fd == dirfd(dir))
+			continue;
+
+		leaks++;
+		len = readlinkat(dirfd(dir), ent->d_name, path, sizeof(path));
+		if (len > 0 && (size_t)len < sizeof(path))
+			path[len] = '\0';
+		else
+			strncpy(path, ent->d_name, sizeof(path));
+		pr_err("Leak of file descriptor %s that opened: '%s'\n", ent->d_name, path);
+	}
+	closedir(dir);
+	if (leaks)
+		abort();
+}
+
 static int test_suite__num_test_cases(const struct test_suite *t)
 {
 	int num;
@@ -256,6 +322,8 @@ static int run_test_child(struct child_process *process)
 	struct child_test *child = container_of(process, struct child_test, process);
 	int err;
 
+	close_parent_fds();
+
 	err = sigsetjmp(run_test_jmp_buf, 1);
 	if (err) {
 		/* Received signal. */
@@ -271,6 +339,7 @@ static int run_test_child(struct child_process *process)
 	err = test_function(child->test, child->test_case_num)(child->test, child->test_case_num);
 	pr_debug("---- end(%d) ----\n", err);
 
+	check_leaks();
 err_out:
 	fflush(NULL);
 	for (size_t i = 0; i < ARRAY_SIZE(signals); i++)
