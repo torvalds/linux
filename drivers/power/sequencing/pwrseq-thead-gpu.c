@@ -21,6 +21,7 @@
 #include <linux/of.h>
 #include <linux/pwrseq/provider.h>
 #include <linux/reset.h>
+#include <linux/slab.h>
 
 #include <dt-bindings/power/thead,th1520-power.h>
 
