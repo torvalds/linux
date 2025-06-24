@@ -47,6 +47,7 @@ static GtkTreeStore *tree1, *tree2;
 static GtkTreeModel *model1, *model2;
 
 static struct menu *browsed; // browsed menu for SINGLE/SPLIT view
+static struct menu *selected; // selected entry
 
 enum {
 	COL_OPTION, COL_NAME, COL_NO, COL_MOD, COL_YES, COL_VALUE,
@@ -114,6 +115,49 @@ static void text_insert_msg(const char *title, const char *message)
 					 NULL);
 }
 
+static void _select_menu(GtkTreeView *view, GtkTreeModel *model,
+			 GtkTreeIter *parent, struct menu *match)
+{
+	GtkTreeIter iter;
+	gboolean valid;
+
+	valid = gtk_tree_model_iter_children(model, &iter, parent);
+	while (valid) {
+		struct menu *menu;
+
+		gtk_tree_model_get(model, &iter, COL_MENU, &menu, -1);
+
+		if (menu == match) {
+			GtkTreeSelection *selection;
+			GtkTreePath *path;
+
+			/*
+			 * Expand parents to reflect the selection, and
+			 * scroll down to it.
+			 */
+			path = gtk_tree_model_get_path(model, &iter);
+			gtk_tree_view_expand_to_path(view, path);
+			gtk_tree_view_scroll_to_cell(view, path, NULL, TRUE,
+						     0.5, 0.0);
+			gtk_tree_path_free(path);
+
+			selection = gtk_tree_view_get_selection(view);
+			gtk_tree_selection_select_iter(selection, &iter);
+
+			text_insert_help(menu);
+		}
+
+		_select_menu(view, model, &iter, match);
+
+		valid = gtk_tree_model_iter_next(model, &iter);
+	}
+}
+
+static void select_menu(GtkTreeView *view, struct menu *match)
+{
+	_select_menu(view, gtk_tree_view_get_model(view), NULL, match);
+}
+
 static void set_view_mode(enum view_mode mode)
 {
 	view_mode = mode;
@@ -135,24 +179,39 @@ static void set_view_mode(enum view_mode mode)
 
 	switch (mode) {
 	case SINGLE_VIEW:
-		browsed = &rootmenu;
+		if (selected)
+			browsed = menu_get_parent_menu(selected) ?: &rootmenu;
+		else
+			browsed = &rootmenu;
 		display_tree_part();
+		text_insert_msg("", "");
+		select_menu(GTK_TREE_VIEW(tree2_w), selected);
 		gtk_widget_set_sensitive(single_btn, FALSE);
 		break;
 	case SPLIT_VIEW:
+		browsed = selected;
+		while (browsed && !(browsed->flags & MENU_ROOT))
+			browsed = browsed->parent;
 		gtk_tree_store_clear(tree2);
 		display_list();
+		if (browsed)
+			display_tree(tree2, browsed);
+		text_insert_msg("", "");
+		select_menu(GTK_TREE_VIEW(tree1_w), browsed);
+		select_menu(GTK_TREE_VIEW(tree2_w), selected);
 		gtk_widget_set_sensitive(split_btn, FALSE);
 		break;
 	case FULL_VIEW:
 		gtk_tree_store_clear(tree2);
 		display_tree(tree2, &rootmenu);
+		text_insert_msg("", "");
+		select_menu(GTK_TREE_VIEW(tree2_w), selected);
 		gtk_widget_set_sensitive(full_btn, FALSE);
 		break;
 	}
 
-	if (mode != SINGLE_VIEW)
-		gtk_widget_set_sensitive(back_btn, FALSE);
+	gtk_widget_set_sensitive(back_btn,
+				 mode == SINGLE_VIEW && browsed != &rootmenu);
 }
 
 /* Menu & Toolbar Callbacks */
@@ -604,6 +663,8 @@ static gboolean on_treeview2_button_press_event(GtkWidget *widget,
 		return FALSE;
 	gtk_tree_model_get(model, &iter, COL_MENU, &menu, -1);
 
+	selected = menu;
+
 	col = column2index(column);
 	if (event->type == GDK_2BUTTON_PRESS) {
 		enum prop_type ptype;
@@ -713,8 +774,12 @@ static gboolean on_treeview1_button_press_event(GtkWidget *widget,
 	if (event->type == GDK_2BUTTON_PRESS)
 		toggle_sym_value(menu);
 
-	browsed = menu;
-	display_tree_part();
+	selected = menu;
+
+	if (menu->type == M_MENU) {
+		browsed = menu;
+		display_tree_part();
+	}
 
 	gtk_tree_view_set_cursor(view, path, NULL, FALSE);
 	gtk_widget_grab_focus(tree2_w);
@@ -1007,10 +1072,16 @@ static void _display_tree(GtkTreeStore *tree, struct menu *menu,
 	enum prop_type ptype;
 	GtkTreeIter iter;
 
-	if (menu == &rootmenu)
-		browsed = &rootmenu;
-
 	for (child = menu->list; child; child = child->next) {
+		/*
+		 * REVISIT:
+		 * menu_finalize() creates empty "if" entries.
+		 * Do not confuse gtk_tree_model_get(), which would otherwise
+		 * return "if" menu entry.
+		 */
+		if (child->type == M_IF)
+			continue;
+
 		prop = child->prompt;
 		ptype = prop ? prop->type : P_UNKNOWN;
 
