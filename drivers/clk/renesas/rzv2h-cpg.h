@@ -9,6 +9,7 @@
 #define __RENESAS_RZV2H_CPG_H__
 
 #include <linux/bitfield.h>
+#include <linux/types.h>
 
 /**
  * struct pll - Structure for PLL configuration
