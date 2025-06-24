@@ -320,6 +320,15 @@ enum sdca_selected_mode_range {
 };
 
 /**
+ * enum sdca_detected_mode_values - Predefined GE Detected Mode values
+ */
+enum sdca_detected_mode_values {
+	SDCA_DETECTED_MODE_JACK_UNPLUGGED		= 0,
+	SDCA_DETECTED_MODE_JACK_UNKNOWN			= 1,
+	SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS	= 2,
+};
+
+/**
  * enum sdca_spe_controls - SDCA Controls for Security & Privacy Unit
  *
  * Control Selectors for Security & Privacy Unit from SDCA

@@ -246,12 +246,12 @@ static int entity_early_parse_ge(struct device *dev,
 	if (!values)
 		return -ENOMEM;
 
-	texts[0] = "No Jack";
+	texts[0] = "Jack Unplugged";
 	texts[1] = "Jack Unknown";
 	texts[2] = "Detection in Progress";
-	values[0] = 0;
-	values[1] = 1;
-	values[2] = 2;
+	values[0] = SDCA_DETECTED_MODE_JACK_UNPLUGGED;
+	values[1] = SDCA_DETECTED_MODE_JACK_UNKNOWN;
+	values[2] = SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS;
 	for (i = 0; i < range->rows; i++) {
 		enum sdca_terminal_type type;
 
