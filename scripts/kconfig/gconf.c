@@ -296,6 +296,13 @@ static void update_tree(GtkTreeStore *store)
 	update_row_visibility();
 }
 
+static void update_trees(void)
+{
+	if (view_mode == SPLIT_VIEW)
+		update_tree(tree1);
+	update_tree(tree2);
+}
+
 static void set_view_mode(enum view_mode mode)
 {
 	view_mode = mode;
@@ -380,7 +387,7 @@ static void on_load1_activate(GtkMenuItem *menuitem, gpointer user_data)
 			text_insert_msg("Error",
 					"Unable to load configuration!");
 		else
-			display_tree_part();
+			update_trees();
 
 		g_free(filename);
 	}
@@ -699,7 +706,7 @@ static void renderer_edited(GtkCellRendererText * cell,
 
 	sym_set_string_value(sym, new_def);
 
-	update_tree(tree2);
+	update_trees();
 
 free:
 	gtk_tree_path_free(path);
@@ -729,14 +736,7 @@ static void change_sym_value(struct menu *menu, gint col)
 		if (!sym_tristate_within_range(sym, newval))
 			newval = yes;
 		sym_set_tristate_value(sym, newval);
-		if (view_mode == FULL_VIEW)
-			update_tree(tree2);
-		else if (view_mode == SPLIT_VIEW) {
-			update_tree(tree2);
-			display_list();
-		}
-		else if (view_mode == SINGLE_VIEW)
-			display_tree_part();	//fixme: keep exp/coll
+		update_trees();
 		break;
 	case S_INT:
 	case S_HEX:
@@ -752,14 +752,7 @@ static void toggle_sym_value(struct menu *menu)
 		return;
 
 	sym_toggle_tristate_value(menu->sym);
-	if (view_mode == FULL_VIEW)
-		update_tree(tree2);
-	else if (view_mode == SPLIT_VIEW) {
-		update_tree(tree2);
-		display_list();
-	}
-	else if (view_mode == SINGLE_VIEW)
-		display_tree_part();	//fixme: keep exp/coll
+	update_trees();
 }
 
 static gint column2index(GtkTreeViewColumn * column)
