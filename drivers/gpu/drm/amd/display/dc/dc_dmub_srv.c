@@ -2072,8 +2072,8 @@ bool dmub_lsdma_send_tiled_to_tiled_copy_command(
 	lsdma_data->u.tiled_copy_data.dst_swizzle_mode = params.swizzle_mode;
 	lsdma_data->u.tiled_copy_data.src_element_size = params.element_size;
 	lsdma_data->u.tiled_copy_data.dst_element_size = params.element_size;
-	lsdma_data->u.tiled_copy_data.rect_x           = params.rect_x;
-	lsdma_data->u.tiled_copy_data.rect_y           = params.rect_y;
+	lsdma_data->u.tiled_copy_data.rect_x           = params.rect_x - 1;
+	lsdma_data->u.tiled_copy_data.rect_y           = params.rect_y - 1;
 	lsdma_data->u.tiled_copy_data.dcc              = params.dcc;
 	lsdma_data->u.tiled_copy_data.tmz              = params.tmz;
 	lsdma_data->u.tiled_copy_data.read_compress    = params.read_compress;
