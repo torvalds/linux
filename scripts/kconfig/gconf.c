@@ -1145,8 +1145,8 @@ static void init_main_window(const gchar *glade_file)
 	tree2_w = glade_xml_get_widget(xml, "treeview2");
 	text_w = glade_xml_get_widget(xml, "textview3");
 
-	back_btn = glade_xml_get_widget(xml, "button1");
-	gtk_widget_set_sensitive(back_btn, FALSE);
+	/* menubar */
+	save_menu_item = glade_xml_get_widget(xml, "save1");
 
 	widget = glade_xml_get_widget(xml, "show_name1");
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
@@ -1160,9 +1160,11 @@ static void init_main_window(const gchar *glade_file)
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
 				       show_value);
 
+	/* toolbar */
+	back_btn = glade_xml_get_widget(xml, "button1");
+	gtk_widget_set_sensitive(back_btn, FALSE);
+
 	save_btn = glade_xml_get_widget(xml, "button3");
-	save_menu_item = glade_xml_get_widget(xml, "save1");
-	conf_set_changed_callback(conf_changed);
 
 	style = gtk_widget_get_style(main_wnd);
 
@@ -1190,6 +1192,8 @@ static void init_main_window(const gchar *glade_file)
 	gtk_window_set_title(GTK_WINDOW(main_wnd), rootmenu.prompt->text);
 
 	gtk_widget_show(main_wnd);
+
+	conf_set_changed_callback(conf_changed);
 }
 
 static void init_tree_model(void)
