@@ -1841,7 +1841,6 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 	struct btrfs_fs_info *fs_info = fc->s_fs_info;
 	struct btrfs_fs_context *ctx = fc->fs_private;
 	struct btrfs_fs_devices *fs_devices = NULL;
-	struct block_device *bdev;
 	struct btrfs_device *device;
 	struct super_block *sb;
 	blk_mode_t mode = btrfs_open_mode(fc);
@@ -1860,23 +1859,26 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		mutex_unlock(&uuid_mutex);
 		return PTR_ERR(device);
 	}
-
 	fs_devices = device->fs_devices;
+	/*
+	 * We can not hold uuid_mutex calling sget_fc(), it will lead to a
+	 * locking order reversal with s_umount.
+	 *
+	 * So here we increase the holding number of fs_devices, this will ensure
+	 * the fs_devices itself won't be freed.
+	 */
+	btrfs_fs_devices_inc_holding(fs_devices);
+	mutex_unlock(&uuid_mutex);
+
 	fs_info->fs_devices = fs_devices;
 
-	ret = btrfs_open_devices(fs_devices, mode, &btrfs_fs_type);
-	mutex_unlock(&uuid_mutex);
-	if (ret)
-		return ret;
-
-	if (!(fc->sb_flags & SB_RDONLY) && fs_devices->rw_devices == 0)
-		return -EACCES;
-
-	bdev = fs_devices->latest_dev->bdev;
-
 	sb = sget_fc(fc, btrfs_fc_test_super, set_anon_super_fc);
-	if (IS_ERR(sb))
+	if (IS_ERR(sb)) {
+		mutex_lock(&uuid_mutex);
+		btrfs_fs_devices_dec_holding(fs_devices);
+		mutex_unlock(&uuid_mutex);
 		return PTR_ERR(sb);
+	}
 
 	set_device_specific_options(fs_info);
 
@@ -1888,11 +1890,17 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		 *
 		 * fc->s_fs_info is not touched and will be later freed by
 		 * put_fs_context() through btrfs_free_fs_context().
-		 *
-		 * And the fs_info->fs_devices will also be closed by
-		 * btrfs_free_fs_context().
 		 */
 		ASSERT(fc->s_fs_info == fs_info);
+
+		mutex_lock(&uuid_mutex);
+		btrfs_fs_devices_dec_holding(fs_devices);
+		mutex_unlock(&uuid_mutex);
+		/*
+		 * But the fs_info->fs_devices is not opened, we should not let
+		 * btrfs_free_fs_context() to close them.
+		 */
+		fs_info->fs_devices = NULL;
 
 		/*
 		 * At this stage we may have RO flag mismatch between
@@ -1901,6 +1909,8 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		 * needed.
 		 */
 	} else {
+		struct block_device *bdev;
+
 		/*
 		 * The first mount of the fs thus a new superblock, fc->s_fs_info
 		 * should be NULL, and the owner ship of our fs_info and fs_devices is
@@ -1908,6 +1918,19 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		 */
 		ASSERT(fc->s_fs_info == NULL);
 
+		mutex_lock(&uuid_mutex);
+		btrfs_fs_devices_dec_holding(fs_devices);
+		ret = btrfs_open_devices(fs_devices, mode, &btrfs_fs_type);
+		mutex_unlock(&uuid_mutex);
+		if (ret < 0) {
+			deactivate_locked_super(sb);
+			return ret;
+		}
+		if (!(fc->sb_flags & SB_RDONLY) && fs_devices->rw_devices == 0) {
+			deactivate_locked_super(sb);
+			return -EACCES;
+		}
+		bdev = fs_devices->latest_dev->bdev;
 		snprintf(sb->s_id, sizeof(sb->s_id), "%pg", bdev);
 		shrinker_debugfs_rename(sb->s_shrink, "sb-btrfs:%s", sb->s_id);
 		btrfs_sb(sb)->bdev_holder = &btrfs_fs_type;
