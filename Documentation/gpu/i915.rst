@@ -204,6 +204,12 @@ DMC Firmware Support
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc.c
    :internal:
 
+DMC Flip Queue
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_flipq.c
+   :doc: DMC Flip Queue
+
 DMC wakelock support
 --------------------
 

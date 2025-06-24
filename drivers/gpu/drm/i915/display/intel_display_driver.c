@@ -44,6 +44,7 @@
 #include "intel_fbc.h"
 #include "intel_fbdev.h"
 #include "intel_fdi.h"
+#include "intel_flipq.h"
 #include "intel_gmbus.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
@@ -536,6 +537,8 @@ int intel_display_driver_probe(struct intel_display *display)
 	 * happen during gem/ggtt init.
 	 */
 	intel_hdcp_component_init(display);
+
+	intel_flipq_init(display);
 
 	/*
 	 * Force all active planes to recompute their states. So that on

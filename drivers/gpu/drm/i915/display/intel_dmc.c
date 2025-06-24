@@ -24,6 +24,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/firmware.h>
+#include <drm/drm_vblank.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -35,6 +36,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
+#include "intel_flipq.h"
 #include "intel_step.h"
 
 /**
@@ -737,6 +739,8 @@ void intel_dmc_enable_pipe(const struct intel_crtc_state *crtc_state)
 	assert_dmc_loaded(display, dmc_id);
 
 	if (DISPLAY_VER(display) >= 20) {
+		intel_flipq_reset(display, pipe);
+
 		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), pipedmc_interrupt_mask(display));
 		intel_de_write(display, PIPEDMC_INTERRUPT_MASK(pipe), ~pipedmc_interrupt_mask(display));
 	}
@@ -765,6 +769,8 @@ void intel_dmc_disable_pipe(const struct intel_crtc_state *crtc_state)
 	if (DISPLAY_VER(display) >= 20) {
 		intel_de_write(display, PIPEDMC_INTERRUPT_MASK(pipe), ~0);
 		intel_de_write(display, PIPEDMC_INTERRUPT(pipe), pipedmc_interrupt_mask(display));
+
+		intel_flipq_reset(display, pipe);
 	}
 }
 
@@ -852,6 +858,13 @@ void intel_dmc_load_program(struct intel_display *display)
 		dmc_load_program(display, dmc_id);
 		assert_dmc_loaded(display, dmc_id);
 	}
+
+	if (DISPLAY_VER(display) >= 20)
+		intel_de_write(display, DMC_FQ_W2_PTS_CFG_SEL,
+			       PIPE_D_DMC_W2_PTS_CONFIG_SELECT(PIPE_D) |
+			       PIPE_C_DMC_W2_PTS_CONFIG_SELECT(PIPE_C) |
+			       PIPE_B_DMC_W2_PTS_CONFIG_SELECT(PIPE_B) |
+			       PIPE_A_DMC_W2_PTS_CONFIG_SELECT(PIPE_A));
 
 	power_domains->dc_state = 0;
 
@@ -1371,6 +1384,17 @@ void intel_dmc_suspend(struct intel_display *display)
 		intel_dmc_runtime_pm_put(display);
 }
 
+void intel_dmc_wait_fw_load(struct intel_display *display)
+{
+	struct intel_dmc *dmc = display_to_dmc(display);
+
+	if (!HAS_DMC(display))
+		return;
+
+	if (dmc)
+		flush_work(&dmc->work);
+}
+
 /**
  * intel_dmc_resume() - init DMC firmware during system resume
  * @display: display instance
@@ -1605,4 +1629,31 @@ void intel_pipedmc_irq_handler(struct intel_display *display, enum pipe pipe)
 	if (tmp)
 		drm_err(display->drm, "[CRTC:%d:%s]] PIPEDMC interrupt vector 0x%x\n",
 			crtc->base.base.id, crtc->base.name, tmp);
+}
+
+void intel_pipedmc_enable_event(struct intel_crtc *crtc,
+				enum pipedmc_event_id event)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(crtc->pipe);
+
+	dmc_configure_event(display, dmc_id, event, true);
+}
+
+void intel_pipedmc_disable_event(struct intel_crtc *crtc,
+				 enum pipedmc_event_id event)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(crtc->pipe);
+
+	dmc_configure_event(display, dmc_id, event, false);
+}
+
+u32 intel_pipedmc_start_mmioaddr(struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_dmc *dmc = display_to_dmc(display);
+	enum intel_dmc_id dmc_id = PIPE_TO_DMC_ID(crtc->pipe);
+
+	return dmc ? dmc->dmc_info[dmc_id].start_mmioaddr : 0;
 }
