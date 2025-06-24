@@ -834,8 +834,8 @@ static int cxl_pmu_probe(struct device *dev)
 	if (rc)
 		return rc;
 
-	info->hw_events = devm_kcalloc(dev, sizeof(*info->hw_events),
-				       info->num_counters, GFP_KERNEL);
+	info->hw_events = devm_kcalloc(dev, info->num_counters,
+				       sizeof(*info->hw_events), GFP_KERNEL);
 	if (!info->hw_events)
 		return -ENOMEM;
 
