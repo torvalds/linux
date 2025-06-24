@@ -175,13 +175,10 @@ static struct pcpu *pcpu_find_address(const struct cpumask *mask, u16 address)
 
 static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 {
-	int order;
-
 	if (test_and_set_bit(ec_bit, &pcpu->ec_mask))
 		return;
-	order = pcpu_running(pcpu) ? SIGP_EXTERNAL_CALL : SIGP_EMERGENCY_SIGNAL;
 	pcpu->ec_clk = get_tod_clock_fast();
-	pcpu_sigp_retry(pcpu, order, 0);
+	pcpu_sigp_retry(pcpu, SIGP_EXTERNAL_CALL, 0);
 }
 
 static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
