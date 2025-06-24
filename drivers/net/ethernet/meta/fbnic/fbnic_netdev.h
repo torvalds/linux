@@ -42,9 +42,8 @@ struct fbnic_net {
 	struct phylink_config phylink_config;
 	struct phylink_pcs phylink_pcs;
 
-	/* TBD: Remove these when phylink supports FEC and lane config */
+	u8 aui;
 	u8 fec;
-	u8 link_mode;
 
 	/* Cached top bits of the HW time counter for 40b -> 64b conversion */
 	u32 time_high;
@@ -93,5 +92,13 @@ void fbnic_time_stop(struct fbnic_net *fbn);
 void __fbnic_set_rx_mode(struct net_device *netdev);
 void fbnic_clear_rx_mode(struct net_device *netdev);
 
+void fbnic_phylink_get_pauseparam(struct net_device *netdev,
+				  struct ethtool_pauseparam *pause);
+int fbnic_phylink_set_pauseparam(struct net_device *netdev,
+				 struct ethtool_pauseparam *pause);
+int fbnic_phylink_ethtool_ksettings_get(struct net_device *netdev,
+					struct ethtool_link_ksettings *cmd);
+int fbnic_phylink_get_fecparam(struct net_device *netdev,
+			       struct ethtool_fecparam *fecparam);
 int fbnic_phylink_init(struct net_device *netdev);
 #endif /* _FBNIC_NETDEV_H_ */
