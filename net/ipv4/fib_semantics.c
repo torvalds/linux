@@ -1640,8 +1640,7 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 	    nla_put_u32(skb, RTA_OIF, nhc->nhc_dev->ifindex))
 		goto nla_put_failure;
 
-	if (nhc->nhc_lwtstate &&
-	    lwtunnel_fill_encap(skb, nhc->nhc_lwtstate,
+	if (lwtunnel_fill_encap(skb, nhc->nhc_lwtstate,
 				RTA_ENCAP, RTA_ENCAP_TYPE) < 0)
 		goto nla_put_failure;
 

@@ -985,8 +985,7 @@ static int nh_fill_node(struct sk_buff *skb, struct nexthop *nh,
 		break;
 	}
 
-	if (nhi->fib_nhc.nhc_lwtstate &&
-	    lwtunnel_fill_encap(skb, nhi->fib_nhc.nhc_lwtstate,
+	if (lwtunnel_fill_encap(skb, nhi->fib_nhc.nhc_lwtstate,
 				NHA_ENCAP, NHA_ENCAP_TYPE) < 0)
 		goto nla_put_failure;
 
