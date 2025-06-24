@@ -110,6 +110,7 @@
 #define PIDFD_SELF_THREAD		-10000 /* Current thread. */
 #define PIDFD_SELF_THREAD_GROUP		-10001 /* Current thread group leader. */
 
+#define FD_INVALID			-10009 /* Invalid file descriptor: -10000 - EBADF = -10009 */
 
 /* Generic flags for the *at(2) family of syscalls. */
 
