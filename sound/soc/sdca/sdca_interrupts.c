@@ -7,6 +7,7 @@
  * https://www.mipi.org/mipi-sdca-v1-0-download
  */
 
+#include <linux/bitmap.h>
 #include <linux/bits.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
@@ -18,6 +19,7 @@
 #include <sound/sdca_function.h>
 #include <sound/sdca_interrupts.h>
 #include <sound/soc-component.h>
+#include <sound/soc.h>
 
 #define IRQ_SDCA(number) REGMAP_IRQ_REG(number, ((number) / BITS_PER_BYTE), \
 					SDW_SCP_SDCA_INTMASK_SDCA_##number)
@@ -76,6 +78,143 @@ static irqreturn_t base_handler(int irq, void *data)
 	struct device *dev = interrupt->component->dev;
 
 	dev_info(dev, "%s irq without full handling\n", interrupt->name);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t function_status_handler(int irq, void *data)
+{
+	struct sdca_interrupt *interrupt = data;
+	struct device *dev = interrupt->component->dev;
+	unsigned int reg, val;
+	unsigned long status;
+	unsigned int mask;
+	int ret;
+
+	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
+			   interrupt->control->sel, 0);
+
+	ret = regmap_read(interrupt->component->regmap, reg, &val);
+	if (ret < 0) {
+		dev_err(dev, "failed to read function status: %d\n", ret);
+		return IRQ_NONE;
+	}
+
+	dev_dbg(dev, "function status: %#x\n", val);
+
+	status = val;
+	for_each_set_bit(mask, &status, BITS_PER_BYTE) {
+		mask = 1 << mask;
+
+		switch (mask) {
+		case SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION:
+			//FIXME: Add init writes
+			break;
+		case SDCA_CTL_ENTITY_0_FUNCTION_FAULT:
+			dev_err(dev, "function fault\n");
+			break;
+		case SDCA_CTL_ENTITY_0_UMP_SEQUENCE_FAULT:
+			dev_err(dev, "ump sequence fault\n");
+			break;
+		case SDCA_CTL_ENTITY_0_FUNCTION_BUSY:
+			dev_info(dev, "unexpected function busy\n");
+			break;
+		case SDCA_CTL_ENTITY_0_DEVICE_NEWLY_ATTACHED:
+		case SDCA_CTL_ENTITY_0_INTS_DISABLED_ABNORMALLY:
+		case SDCA_CTL_ENTITY_0_STREAMING_STOPPED_ABNORMALLY:
+		case SDCA_CTL_ENTITY_0_FUNCTION_HAS_BEEN_RESET:
+			break;
+		}
+	}
+
+	ret = regmap_write(interrupt->component->regmap, reg, val);
+	if (ret < 0) {
+		dev_err(dev, "failed to clear function status: %d\n", ret);
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t detected_mode_handler(int irq, void *data)
+{
+	struct sdca_interrupt *interrupt = data;
+	struct snd_soc_component *component = interrupt->component;
+	struct device *dev = component->dev;
+	struct snd_soc_card *card = component->card;
+	struct rw_semaphore *rwsem = &card->snd_card->controls_rwsem;
+	struct snd_kcontrol *kctl = interrupt->priv;
+	struct snd_ctl_elem_value ucontrol;
+	struct soc_enum *soc_enum;
+	unsigned int reg, val;
+	int ret;
+
+	if (!kctl) {
+		const char *name __free(kfree) = kasprintf(GFP_KERNEL, "%s %s",
+							   interrupt->entity->label,
+							   SDCA_CTL_SELECTED_MODE_NAME);
+
+		if (!name)
+			return -ENOMEM;
+
+		kctl = snd_soc_component_get_kcontrol(component, name);
+		if (!kctl) {
+			dev_dbg(dev, "control not found: %s\n", name);
+			return IRQ_NONE;
+		}
+
+		interrupt->priv = kctl;
+	}
+
+	soc_enum = (struct soc_enum *)kctl->private_value;
+
+	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
+			   interrupt->control->sel, 0);
+
+	ret = regmap_read(component->regmap, reg, &val);
+	if (ret < 0) {
+		dev_err(dev, "failed to read detected mode: %d\n", ret);
+		return IRQ_NONE;
+	}
+
+	switch (val) {
+	case SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS:
+	case SDCA_DETECTED_MODE_JACK_UNKNOWN:
+		reg = SDW_SDCA_CTL(interrupt->function->desc->adr,
+				   interrupt->entity->id,
+				   SDCA_CTL_GE_SELECTED_MODE, 0);
+
+		/*
+		 * Selected mode is not normally marked as volatile register
+		 * (RW), but here force a read from the hardware. If the
+		 * detected mode is unknown we need to see what the device
+		 * selected as a "safe" option.
+		 */
+		regcache_drop_region(component->regmap, reg, reg);
+
+		ret = regmap_read(component->regmap, reg, &val);
+		if (ret) {
+			dev_err(dev, "failed to re-check selected mode: %d\n", ret);
+			return IRQ_NONE;
+		}
+		break;
+	default:
+		break;
+	}
+
+	dev_dbg(dev, "%s: %#x\n", interrupt->name, val);
+
+	ucontrol.value.enumerated.item[0] = snd_soc_enum_val_to_item(soc_enum, val);
+
+	down_write(rwsem);
+	ret = kctl->put(kctl, &ucontrol);
+	up_write(rwsem);
+	if (ret < 0) {
+		dev_err(dev, "failed to update selected mode: %d\n", ret);
+		return IRQ_NONE;
+	}
+
+	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 
 	return IRQ_HANDLED;
 }
@@ -202,6 +341,7 @@ int sdca_irq_populate(struct sdca_function_data *function,
 			struct sdca_control *control = &entity->controls[j];
 			int irq = control->interrupt_position;
 			struct sdca_interrupt *interrupt;
+			irq_handler_t handler;
 			const char *name;
 			int ret;
 
@@ -226,8 +366,23 @@ int sdca_irq_populate(struct sdca_function_data *function,
 			if (ret)
 				return ret;
 
+			handler = base_handler;
+
+			switch (entity->type) {
+			case SDCA_ENTITY_TYPE_ENTITY_0:
+				if (control->sel == SDCA_CTL_ENTITY_0_FUNCTION_STATUS)
+					handler = function_status_handler;
+				break;
+			case SDCA_ENTITY_TYPE_GE:
+				if (control->sel == SDCA_CTL_GE_DETECTED_MODE)
+					handler = detected_mode_handler;
+				break;
+			default:
+				break;
+			}
+
 			ret = sdca_irq_request_locked(dev, info, irq, interrupt->name,
-						      base_handler, interrupt);
+						      handler, interrupt);
 			if (ret) {
 				dev_err(dev, "failed to request irq %s: %d\n",
 					name, ret);
