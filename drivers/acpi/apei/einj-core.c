@@ -913,7 +913,7 @@ static ssize_t u128_write(struct file *f, const char __user *buf, size_t count, 
 	u8 tmp[COMPONENT_LEN];
 	char byte[3] = {};
 	char *s, *e;
-	size_t c;
+	ssize_t c;
 	long val;
 	int i;
 
