@@ -2,7 +2,7 @@
 /*
  *  V4L2 controls support header.
  *
- *  Copyright (C) 2010  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2010  Hans Verkuil <hverkuil@kernel.org>
  */
 
 #ifndef _V4L2_CTRLS_H

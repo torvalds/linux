@@ -2,7 +2,7 @@
 /*
     saa7127.h - definition for saa7126/7/8/9 inputs/outputs
 
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2006 Hans Verkuil (hverkuil@kernel.org)
 
 */
 

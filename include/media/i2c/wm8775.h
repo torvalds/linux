@@ -2,7 +2,7 @@
 /*
     wm8775.h - definition for wm8775 inputs and outputs
 
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2006 Hans Verkuil (hverkuil@kernel.org)
 
 */
 

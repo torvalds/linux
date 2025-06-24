@@ -2,7 +2,7 @@
 /*
     bt819.h - bt819 notifications
 
-    Copyright (C) 2009 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2009 Hans Verkuil (hverkuil@kernel.org)
 
 */
 

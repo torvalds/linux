@@ -7,7 +7,7 @@
     Each ioctl begins with VIDIOC_INT_ to clearly mark that it is an internal
     define,
 
-    Copyright (C) 2005  Hans Verkuil <hverkuil@xs4all.nl>
+    Copyright (C) 2005  Hans Verkuil <hverkuil@kernel.org>
 
  */
 

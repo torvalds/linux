@@ -2,7 +2,7 @@
 /*
  *  V4L2 sub-device support header.
  *
- *  Copyright (C) 2008  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Hans Verkuil <hverkuil@kernel.org>
  */
 
 #ifndef _V4L2_SUBDEV_H

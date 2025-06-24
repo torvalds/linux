@@ -2,7 +2,7 @@
 /*
     cs5345.h - definition for cs5345 inputs and outputs
 
-    Copyright (C) 2007 Hans Verkuil (hverkuil@xs4all.nl)
+    Copyright (C) 2007 Hans Verkuil (hverkuil@kernel.org)
 
 */
 
