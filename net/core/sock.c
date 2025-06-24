@@ -818,12 +818,10 @@ EXPORT_SYMBOL(sock_set_priority);
 
 void sock_set_sndtimeo(struct sock *sk, s64 secs)
 {
-	lock_sock(sk);
 	if (secs && secs < MAX_SCHEDULE_TIMEOUT / HZ - 1)
 		WRITE_ONCE(sk->sk_sndtimeo, secs * HZ);
 	else
 		WRITE_ONCE(sk->sk_sndtimeo, MAX_SCHEDULE_TIMEOUT);
-	release_sock(sk);
 }
 EXPORT_SYMBOL(sock_set_sndtimeo);
 
@@ -1287,6 +1285,14 @@ int sk_setsockopt(struct sock *sk, int level, int optname,
 	case SO_DEVMEM_DONTNEED:
 		return sock_devmem_dontneed(sk, optval, optlen);
 #endif
+	case SO_SNDTIMEO_OLD:
+	case SO_SNDTIMEO_NEW:
+		return sock_set_timeout(&sk->sk_sndtimeo, optval,
+					optlen, optname == SO_SNDTIMEO_OLD);
+	case SO_RCVTIMEO_OLD:
+	case SO_RCVTIMEO_NEW:
+		return sock_set_timeout(&sk->sk_rcvtimeo, optval,
+					optlen, optname == SO_RCVTIMEO_OLD);
 	}
 
 	sockopt_lock_sock(sk);
@@ -1442,18 +1448,6 @@ set_sndbuf:
 			WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
 		break;
 		}
-	case SO_RCVTIMEO_OLD:
-	case SO_RCVTIMEO_NEW:
-		ret = sock_set_timeout(&sk->sk_rcvtimeo, optval,
-				       optlen, optname == SO_RCVTIMEO_OLD);
-		break;
-
-	case SO_SNDTIMEO_OLD:
-	case SO_SNDTIMEO_NEW:
-		ret = sock_set_timeout(&sk->sk_sndtimeo, optval,
-				       optlen, optname == SO_SNDTIMEO_OLD);
-		break;
-
 	case SO_ATTACH_FILTER: {
 		struct sock_fprog fprog;
 
