@@ -576,6 +576,20 @@ const char *menu_get_prompt(const struct menu *menu)
 }
 
 /**
+ * menu_get_parent_menu - return the parent menu or NULL
+ * @menu: pointer to the menu
+ * return: the parent menu, or NULL if there is no parent.
+ */
+struct menu *menu_get_parent_menu(struct menu *menu)
+{
+	for (menu = menu->parent; menu; menu = menu->parent)
+		if (menu->type == M_MENU)
+			return menu;
+
+	return NULL;
+}
+
+/**
  * menu_get_menu_or_parent_menu - return the parent menu or the menu itself
  * @menu: pointer to the menu
  * return: the parent menu. If the given argument is already a menu, return
