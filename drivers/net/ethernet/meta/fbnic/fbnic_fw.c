@@ -338,6 +338,16 @@ unlock_mbx:
 	return err;
 }
 
+void fbnic_mbx_clear_cmpl(struct fbnic_dev *fbd,
+			  struct fbnic_fw_completion *fw_cmpl)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	fbnic_mbx_clear_cmpl_slot(fbd, fw_cmpl);
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+}
+
 static void fbnic_fw_release_cmpl_data(struct kref *kref)
 {
 	struct fbnic_fw_completion *cmpl_data;
@@ -1261,16 +1271,6 @@ struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type)
 	kref_init(&cmpl->ref_count);
 
 	return cmpl;
-}
-
-void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,
-			 struct fbnic_fw_completion *fw_cmpl)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
-	fbnic_mbx_clear_cmpl_slot(fbd, fw_cmpl);
-	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
 }
 
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *fw_cmpl)

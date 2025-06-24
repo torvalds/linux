@@ -796,7 +796,7 @@ static int fbnic_mac_get_sensor_asic(struct fbnic_dev *fbd, int id,
 
 	*val = *sensor;
 exit_cleanup:
-	fbnic_fw_clear_cmpl(fbd, fw_cmpl);
+	fbnic_mbx_clear_cmpl(fbd, fw_cmpl);
 exit_free:
 	fbnic_fw_put_cmpl(fw_cmpl);
 
