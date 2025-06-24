@@ -32,7 +32,6 @@
 #include <asm/set_memory.h>
 #include <asm/text-patching.h>
 #include <asm/unwind.h>
-#include "bpf_jit.h"
 
 struct bpf_jit {
 	u32 seen;		/* Flags to remember seen eBPF instructions */
@@ -54,7 +53,7 @@ struct bpf_jit {
 	int prologue_plt;	/* Start of prologue hotpatch PLT */
 	int kern_arena;		/* Pool offset of kernel arena address */
 	u64 user_arena;		/* User arena address */
-	u32 frame_off;		/* Offset of frame from %r15 */
+	u32 frame_off;		/* Offset of struct bpf_prog from %r15 */
 };
 
 #define SEEN_MEM	BIT(0)		/* use mem[] for temporary storage */
@@ -427,11 +426,25 @@ static void jit_fill_hole(void *area, unsigned int size)
 }
 
 /*
+ * Caller-allocated part of the frame.
+ * Thanks to packed stack, its otherwise unused initial part can be used for
+ * the BPF stack and for the next frame.
+ */
+struct prog_frame {
+	u64 unused[8];
+	/* BPF stack starts here and grows towards 0 */
+	u32 tail_call_cnt;
+	u32 pad;
+	u64 r6[10];  /* r6 - r15 */
+	u64 backchain;
+} __packed;
+
+/*
  * Save registers from "rs" (register start) to "re" (register end) on stack
  */
 static void save_regs(struct bpf_jit *jit, u32 rs, u32 re)
 {
-	u32 off = STK_OFF_R6 + (rs - 6) * 8;
+	u32 off = offsetof(struct prog_frame, r6) + (rs - 6) * 8;
 
 	if (rs == re)
 		/* stg %rs,off(%r15) */
@@ -446,7 +459,7 @@ static void save_regs(struct bpf_jit *jit, u32 rs, u32 re)
  */
 static void restore_regs(struct bpf_jit *jit, u32 rs, u32 re)
 {
-	u32 off = jit->frame_off + STK_OFF_R6 + (rs - 6) * 8;
+	u32 off = jit->frame_off + offsetof(struct prog_frame, r6) + (rs - 6) * 8;
 
 	if (rs == re)
 		/* lg %rs,off(%r15) */
@@ -570,10 +583,12 @@ static void bpf_jit_plt(struct bpf_plt *plt, void *ret, void *target)
  * Emit function prologue
  *
  * Save registers and create stack frame if necessary.
- * See stack frame layout description in "bpf_jit.h"!
+ * Stack frame layout is described by struct prog_frame.
  */
 static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp)
 {
+	BUILD_BUG_ON(sizeof(struct prog_frame) != STACK_FRAME_OVERHEAD);
+
 	/* No-op for hotpatching */
 	/* brcl 0,prologue_plt */
 	EMIT6_PCREL_RILC(0xc0040000, 0, jit->prologue_plt);
@@ -581,8 +596,9 @@ static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp)
 
 	if (!bpf_is_subprog(fp)) {
 		/* Initialize the tail call counter in the main program. */
-		/* xc STK_OFF_TCCNT(4,%r15),STK_OFF_TCCNT(%r15) */
-		_EMIT6(0xd703f000 | STK_OFF_TCCNT, 0xf000 | STK_OFF_TCCNT);
+		/* xc tail_call_cnt(4,%r15),tail_call_cnt(%r15) */
+		_EMIT6(0xd703f000 | offsetof(struct prog_frame, tail_call_cnt),
+		       0xf000 | offsetof(struct prog_frame, tail_call_cnt));
 	} else {
 		/*
 		 * Skip the tail call counter initialization in subprograms.
@@ -625,13 +641,15 @@ static void bpf_jit_prologue(struct bpf_jit *jit, struct bpf_prog *fp)
 	if (is_first_pass(jit) || (jit->seen & SEEN_STACK)) {
 		/* lgr %w1,%r15 (backchain) */
 		EMIT4(0xb9040000, REG_W1, REG_15);
-		/* la %bfp,STK_160_UNUSED(%r15) (BPF frame pointer) */
-		EMIT4_DISP(0x41000000, BPF_REG_FP, REG_15, STK_160_UNUSED);
+		/* la %bfp,unused_end(%r15) (BPF frame pointer) */
+		EMIT4_DISP(0x41000000, BPF_REG_FP, REG_15,
+			   offsetofend(struct prog_frame, unused));
 		/* aghi %r15,-frame_off */
 		EMIT4_IMM(0xa70b0000, REG_15, -jit->frame_off);
-		/* stg %w1,152(%r15) (backchain) */
+		/* stg %w1,backchain(%r15) */
 		EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0,
-			      REG_15, 152);
+			      REG_15,
+			      offsetof(struct prog_frame, backchain));
 	}
 }
 
@@ -1774,9 +1792,10 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		 * Note 2: We assume that the verifier does not let us call the
 		 * main program, which clears the tail call counter on entry.
 		 */
-		/* mvc STK_OFF_TCCNT(4,%r15),frame_off+STK_OFF_TCCNT(%r15) */
-		_EMIT6(0xd203f000 | STK_OFF_TCCNT,
-		       0xf000 | (jit->frame_off + STK_OFF_TCCNT));
+		/* mvc tail_call_cnt(4,%r15),frame_off+tail_call_cnt(%r15) */
+		_EMIT6(0xd203f000 | offsetof(struct prog_frame, tail_call_cnt),
+		       0xf000 | (jit->frame_off +
+				 offsetof(struct prog_frame, tail_call_cnt)));
 
 		/* Sign-extend the kfunc arguments. */
 		if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
@@ -1827,7 +1846,8 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		 *         goto out;
 		 */
 
-		off = jit->frame_off + STK_OFF_TCCNT;
+		off = jit->frame_off +
+		      offsetof(struct prog_frame, tail_call_cnt);
 		/* lhi %w0,1 */
 		EMIT4_IMM(0xa7080000, REG_W0, 1);
 		/* laal %w1,%w0,off(%r15) */
@@ -2160,7 +2180,9 @@ static int bpf_jit_prog(struct bpf_jit *jit, struct bpf_prog *fp,
 	jit->prg = 0;
 	jit->excnt = 0;
 	if (is_first_pass(jit) || (jit->seen & SEEN_STACK))
-		jit->frame_off = STK_OFF + round_up(fp->aux->stack_depth, 8);
+		jit->frame_off = sizeof(struct prog_frame) -
+				 offsetofend(struct prog_frame, unused) +
+				 round_up(fp->aux->stack_depth, 8);
 	else
 		jit->frame_off = 0;
 
@@ -2642,9 +2664,10 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	/* stg %r1,backchain_off(%r15) */
 	EMIT6_DISP_LH(0xe3000000, 0x0024, REG_1, REG_0, REG_15,
 		      tjit->backchain_off);
-	/* mvc tccnt_off(4,%r15),stack_size+STK_OFF_TCCNT(%r15) */
+	/* mvc tccnt_off(4,%r15),stack_size+tail_call_cnt(%r15) */
 	_EMIT6(0xd203f000 | tjit->tccnt_off,
-	       0xf000 | (tjit->stack_size + STK_OFF_TCCNT));
+	       0xf000 | (tjit->stack_size +
+			 offsetof(struct prog_frame, tail_call_cnt)));
 	/* stmg %r2,%rN,fwd_reg_args_off(%r15) */
 	if (nr_reg_args)
 		EMIT6_DISP_LH(0xeb000000, 0x0024, REG_2,
@@ -2781,8 +2804,9 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 				       (nr_stack_args * sizeof(u64) - 1) << 16 |
 				       tjit->stack_args_off,
 			       0xf000 | tjit->orig_stack_args_off);
-		/* mvc STK_OFF_TCCNT(4,%r15),tccnt_off(%r15) */
-		_EMIT6(0xd203f000 | STK_OFF_TCCNT, 0xf000 | tjit->tccnt_off);
+		/* mvc tail_call_cnt(4,%r15),tccnt_off(%r15) */
+		_EMIT6(0xd203f000 | offsetof(struct prog_frame, tail_call_cnt),
+		       0xf000 | tjit->tccnt_off);
 		/* lgr %r1,%r8 */
 		EMIT4(0xb9040000, REG_1, REG_8);
 		/* %r1() */
@@ -2839,8 +2863,9 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	if (flags & (BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_RET_FENTRY_RET))
 		EMIT6_DISP_LH(0xe3000000, 0x0004, REG_2, REG_0, REG_15,
 			      tjit->retval_off);
-	/* mvc stack_size+STK_OFF_TCCNT(4,%r15),tccnt_off(%r15) */
-	_EMIT6(0xd203f000 | (tjit->stack_size + STK_OFF_TCCNT),
+	/* mvc stack_size+tail_call_cnt(4,%r15),tccnt_off(%r15) */
+	_EMIT6(0xd203f000 | (tjit->stack_size +
+			     offsetof(struct prog_frame, tail_call_cnt)),
 	       0xf000 | tjit->tccnt_off);
 	/* aghi %r15,stack_size */
 	EMIT4_IMM(0xa70b0000, REG_15, tjit->stack_size);
