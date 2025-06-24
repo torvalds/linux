@@ -1843,7 +1843,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * a function to initialize that data.
 	 */
 	if (shost->hostt->cmd_size && !shost->hostt->init_cmd_priv)
-		memset(cmd + 1, 0, shost->hostt->cmd_size);
+		memset(scsi_cmd_priv(cmd), 0, shost->hostt->cmd_size);
 
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		ret = scsi_prepare_cmd(req);
