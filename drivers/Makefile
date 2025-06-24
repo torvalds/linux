@@ -10,6 +10,8 @@ obj-y				+= cache/
 obj-y				+= irqchip/
 obj-y				+= bus/
 
+obj-$(CONFIG_LKSS_DRIVERS)	+= lkss/
+
 obj-$(CONFIG_GENERIC_PHY)	+= phy/
 
 # GPIO must come after pinctrl as gpios may need to mux pins etc

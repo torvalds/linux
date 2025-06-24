@@ -1,0 +1,4 @@
+obj-$(CONFIG_LKSS_DRIVERS_LAB1)	+= lab1/
+obj-$(CONFIG_LKSS_DRIVERS_LAB2)	+= lab2/
+obj-$(CONFIG_LKSS_DRIVERS_LAB3) += lab3/
+obj-$(CONFIG_LKSS_DRIVERS_LAB4) += lab4/

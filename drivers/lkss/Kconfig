@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig LKSS_DRIVERS
+	bool "Linux Kernel Summer School drivers"
+	default n
+	help
+	  Enable support for Linux Kernel Summer School drivers.
+
+if LKSS_DRIVERS
+
+config LKSS_DRIVERS_LAB1
+        tristate "Linux Kernel Summer School lab 1 drivers"
+        default n
+        help
+          Enable support for lab 1 drivers.
+
+source "drivers/lkss/lab1/Kconfig"
+
+config LKSS_DRIVERS_LAB2
+	tristate "Linux Kernel Summer School lab 2 drivers"
+	default n
+	help
+	  Enable support for lab 2 drivers.
+
+source "drivers/lkss/lab2/Kconfig"
+
+config LKSS_DRIVERS_LAB3
+        tristate "Linux Kernel Summer School lab 3 drivers"
+        default n
+        help
+          Enable support for lab 3 drivers.
+
+source "drivers/lkss/lab3/Kconfig"
+
+config LKSS_DRIVERS_LAB4
+        tristate "Linux Kernel Summer School lab 4 drivers"
+        default n
+        help
+          Enable support for lab 4 drivers.
+
+source "drivers/lkss/lab4/Kconfig"
+
+endif # LKSS_DRIVERS

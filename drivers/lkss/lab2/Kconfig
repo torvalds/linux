@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+if LKSS_DRIVERS_LAB2
+endif # LKSS_DRIVERS_LAB2
