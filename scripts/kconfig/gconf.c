@@ -43,7 +43,6 @@ GtkWidget *save_btn = NULL;
 GtkWidget *save_menu_item = NULL;
 
 GtkTextTag *tag1, *tag2;
-GdkColor color;
 
 GtkTreeStore *tree1, *tree2, *tree;
 GtkTreeModel *model1, *model2;
