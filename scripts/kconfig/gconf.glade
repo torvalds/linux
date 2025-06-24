@@ -48,18 +48,6 @@
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_load1_activate"/>
 		      <accelerator key="L" modifiers="GDK_CONTROL_MASK" signal="activate"/>
-
-		      <child internal-child="image">
-			<widget class="GtkImage" id="image39">
-			  <property name="visible">True</property>
-			  <property name="stock">gtk-open</property>
-			  <property name="icon_size">1</property>
-			  <property name="xalign">0.5</property>
-			  <property name="yalign">0.5</property>
-			  <property name="xpad">0</property>
-			  <property name="ypad">0</property>
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 
@@ -71,18 +59,6 @@
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_save_activate"/>
 		      <accelerator key="S" modifiers="GDK_CONTROL_MASK" signal="activate"/>
-
-		      <child internal-child="image">
-			<widget class="GtkImage" id="image40">
-			  <property name="visible">True</property>
-			  <property name="stock">gtk-save</property>
-			  <property name="icon_size">1</property>
-			  <property name="xalign">0.5</property>
-			  <property name="yalign">0.5</property>
-			  <property name="xpad">0</property>
-			  <property name="ypad">0</property>
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 
@@ -93,18 +69,6 @@
 		      <property name="label" translatable="yes">Save _as</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_save_as1_activate"/>
-
-		      <child internal-child="image">
-			<widget class="GtkImage" id="image41">
-			  <property name="visible">True</property>
-			  <property name="stock">gtk-save-as</property>
-			  <property name="icon_size">1</property>
-			  <property name="xalign">0.5</property>
-			  <property name="yalign">0.5</property>
-			  <property name="xpad">0</property>
-			  <property name="ypad">0</property>
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 
@@ -121,18 +85,6 @@
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_quit1_activate"/>
 		      <accelerator key="Q" modifiers="GDK_CONTROL_MASK" signal="activate"/>
-
-		      <child internal-child="image">
-			<widget class="GtkImage" id="image42">
-			  <property name="visible">True</property>
-			  <property name="stock">gtk-quit</property>
-			  <property name="icon_size">1</property>
-			  <property name="xalign">0.5</property>
-			  <property name="yalign">0.5</property>
-			  <property name="xpad">0</property>
-			  <property name="ypad">0</property>
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 		</widget>
@@ -244,18 +196,6 @@
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_introduction1_activate" last_modification_time="Fri, 15 Nov 2002 20:26:30 GMT"/>
 		      <accelerator key="I" modifiers="GDK_CONTROL_MASK" signal="activate"/>
-
-		      <child internal-child="image">
-			<widget class="GtkImage" id="image43">
-			  <property name="visible">True</property>
-			  <property name="stock">gtk-dialog-question</property>
-			  <property name="icon_size">1</property>
-			  <property name="xalign">0.5</property>
-			  <property name="yalign">0.5</property>
-			  <property name="xpad">0</property>
-			  <property name="ypad">0</property>
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 
@@ -266,18 +206,6 @@
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_about1_activate" last_modification_time="Fri, 15 Nov 2002 20:26:30 GMT"/>
 		      <accelerator key="A" modifiers="GDK_CONTROL_MASK" signal="activate"/>
-
-		      <child internal-child="image">
-			<widget class="GtkImage" id="image44">
-			  <property name="visible">True</property>
-			  <property name="stock">gtk-properties</property>
-			  <property name="icon_size">1</property>
-			  <property name="xalign">0.5</property>
-			  <property name="yalign">0.5</property>
-			  <property name="xpad">0</property>
-			  <property name="ypad">0</property>
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 
@@ -287,18 +215,6 @@
 		      <property name="label" translatable="yes">_License</property>
 		      <property name="use_underline">True</property>
 		      <signal name="activate" handler="on_license1_activate" last_modification_time="Fri, 15 Nov 2002 20:26:30 GMT"/>
-
-		      <child internal-child="image">
-			<widget class="GtkImage" id="image45">
-			  <property name="visible">True</property>
-			  <property name="stock">gtk-justify-fill</property>
-			  <property name="icon_size">1</property>
-			  <property name="xalign">0.5</property>
-			  <property name="yalign">0.5</property>
-			  <property name="xpad">0</property>
-			  <property name="ypad">0</property>
-			</widget>
-		      </child>
 		    </widget>
 		  </child>
 		</widget>
