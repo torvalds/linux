@@ -30,7 +30,6 @@ static gint view_mode = FULL_VIEW;
 static gboolean show_name = TRUE;
 static gboolean show_range = TRUE;
 static gboolean show_value = TRUE;
-static gboolean resizeable = FALSE;
 static int opt_mode = OPT_NORMAL;
 
 GtkWidget *main_wnd = NULL;
@@ -312,11 +311,9 @@ static void init_right_tree(void)
 	column = gtk_tree_view_get_column(view, COL_VALUE);
 	gtk_tree_view_column_set_visible(column, show_value);
 
-	if (resizeable) {
-		for (i = 0; i < COL_VALUE; i++) {
-			column = gtk_tree_view_get_column(view, i);
-			gtk_tree_view_column_set_resizable(column, TRUE);
-		}
+	for (i = 0; i < COL_VALUE; i++) {
+		column = gtk_tree_view_get_column(view, i);
+		gtk_tree_view_column_set_resizable(column, TRUE);
 	}
 
 	sel = gtk_tree_view_get_selection(view);
