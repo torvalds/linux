@@ -515,7 +515,8 @@ int intel_panel_register(struct intel_connector *connector)
 	if (ret)
 		return ret;
 
-	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI) {
+	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DSI ||
+	    connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		struct device *dev = connector->base.kdev;
 		struct drm_panel *base;
 
