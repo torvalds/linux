@@ -822,13 +822,10 @@ on_treeview2_button_press_event(GtkWidget * widget,
 	GtkTreeIter iter;
 	struct menu *menu;
 	gint col;
-
 	gint tx = (gint) event->x;
 	gint ty = (gint) event->y;
-	gint cx, cy;
 
-	gtk_tree_view_get_path_at_pos(view, tx, ty, &path, &column, &cx,
-				      &cy);
+	gtk_tree_view_get_path_at_pos(view, tx, ty, &path, &column, NULL, NULL);
 	if (path == NULL)
 		return FALSE;
 
@@ -871,12 +868,11 @@ on_treeview2_key_press_event(GtkWidget * widget,
 {
 	GtkTreeView *view = GTK_TREE_VIEW(widget);
 	GtkTreePath *path;
-	GtkTreeViewColumn *column;
 	GtkTreeIter iter;
 	struct menu *menu;
 	gint col;
 
-	gtk_tree_view_get_cursor(view, &path, &column);
+	gtk_tree_view_get_cursor(view, &path, NULL);
 	if (path == NULL)
 		return FALSE;
 
@@ -930,16 +926,12 @@ on_treeview1_button_press_event(GtkWidget * widget,
 {
 	GtkTreeView *view = GTK_TREE_VIEW(widget);
 	GtkTreePath *path;
-	GtkTreeViewColumn *column;
 	GtkTreeIter iter;
 	struct menu *menu;
-
 	gint tx = (gint) event->x;
 	gint ty = (gint) event->y;
-	gint cx, cy;
 
-	gtk_tree_view_get_path_at_pos(view, tx, ty, &path, &column, &cx,
-				      &cy);
+	gtk_tree_view_get_path_at_pos(view, tx, ty, &path, NULL, NULL, NULL);
 	if (path == NULL)
 		return FALSE;
 
