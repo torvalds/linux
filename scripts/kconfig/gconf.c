@@ -173,7 +173,7 @@ load_filename(GtkFileSelection * file_selector, gpointer user_data)
 		display_tree_part();
 }
 
-void on_load1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_load1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkWidget *fs;
 
@@ -192,8 +192,7 @@ void on_load1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	gtk_widget_show(fs);
 }
 
-
-void on_save_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_save_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	if (conf_write(NULL))
 		text_insert_msg("Error", "Unable to save configuration !");
@@ -215,7 +214,7 @@ store_filename(GtkFileSelection * file_selector, gpointer user_data)
 	gtk_widget_destroy(GTK_WIDGET(user_data));
 }
 
-void on_save_as1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_save_as1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkWidget *fs;
 
@@ -234,7 +233,7 @@ void on_save_as1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	gtk_widget_show(fs);
 }
 
-void on_show_name1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_show_name1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkTreeViewColumn *col;
 
@@ -244,8 +243,7 @@ void on_show_name1_activate(GtkMenuItem * menuitem, gpointer user_data)
 		gtk_tree_view_column_set_visible(col, show_name);
 }
 
-
-void on_show_range1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_show_range1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkTreeViewColumn *col;
 
@@ -262,8 +260,7 @@ void on_show_range1_activate(GtkMenuItem * menuitem, gpointer user_data)
 
 }
 
-
-void on_show_data1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_show_data1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkTreeViewColumn *col;
 
@@ -273,35 +270,31 @@ void on_show_data1_activate(GtkMenuItem * menuitem, gpointer user_data)
 		gtk_tree_view_column_set_visible(col, show_value);
 }
 
-
-void
-on_set_option_mode1_activate(GtkMenuItem *menuitem, gpointer user_data)
+static void on_set_option_mode1_activate(GtkMenuItem *menuitem,
+					 gpointer user_data)
 {
 	opt_mode = OPT_NORMAL;
 	gtk_tree_store_clear(tree2);
 	display_tree(&rootmenu);	/* instead of update_tree to speed-up */
 }
 
-
-void
-on_set_option_mode2_activate(GtkMenuItem *menuitem, gpointer user_data)
+static void on_set_option_mode2_activate(GtkMenuItem *menuitem,
+					 gpointer user_data)
 {
 	opt_mode = OPT_ALL;
 	gtk_tree_store_clear(tree2);
 	display_tree(&rootmenu);	/* instead of update_tree to speed-up */
 }
 
-
-void
-on_set_option_mode3_activate(GtkMenuItem *menuitem, gpointer user_data)
+static void on_set_option_mode3_activate(GtkMenuItem *menuitem,
+					 gpointer user_data)
 {
 	opt_mode = OPT_PROMPT;
 	gtk_tree_store_clear(tree2);
 	display_tree(&rootmenu);	/* instead of update_tree to speed-up */
 }
 
-
-void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_introduction1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
 	const gchar *intro_text =
@@ -328,8 +321,7 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	gtk_widget_show_all(dialog);
 }
 
-
-void on_about1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_about1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
 	const gchar *about_text =
@@ -346,8 +338,7 @@ void on_about1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	gtk_widget_show_all(dialog);
 }
 
-
-void on_license1_activate(GtkMenuItem * menuitem, gpointer user_data)
+static void on_license1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkWidget *dialog;
 	const gchar *license_text =
@@ -365,8 +356,8 @@ void on_license1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	gtk_widget_show_all(dialog);
 }
 
-
-void on_back_clicked(GtkButton * button, gpointer user_data)
+/* toolbar handlers */
+static void on_back_clicked(GtkButton *button, gpointer user_data)
 {
 	enum prop_type ptype;
 
@@ -380,50 +371,44 @@ void on_back_clicked(GtkButton * button, gpointer user_data)
 		gtk_widget_set_sensitive(back_btn, FALSE);
 }
 
-
-void on_load_clicked(GtkButton * button, gpointer user_data)
+static void on_load_clicked(GtkButton *button, gpointer user_data)
 {
 	on_load1_activate(NULL, user_data);
 }
 
-
-void on_single_clicked(GtkButton * button, gpointer user_data)
+static void on_single_clicked(GtkButton *button, gpointer user_data)
 {
 	set_view_mode(SINGLE_VIEW);
 }
 
-
-void on_split_clicked(GtkButton * button, gpointer user_data)
+static void on_split_clicked(GtkButton *button, gpointer user_data)
 {
 	set_view_mode(SPLIT_VIEW);
 }
 
-
-void on_full_clicked(GtkButton * button, gpointer user_data)
+static void on_full_clicked(GtkButton *button, gpointer user_data)
 {
 	set_view_mode(FULL_VIEW);
 }
 
-
-void on_collapse_clicked(GtkButton * button, gpointer user_data)
+static void on_collapse_clicked(GtkButton *button, gpointer user_data)
 {
 	gtk_tree_view_collapse_all(GTK_TREE_VIEW(tree2_w));
 }
 
-
-void on_expand_clicked(GtkButton * button, gpointer user_data)
+static void on_expand_clicked(GtkButton *button, gpointer user_data)
 {
 	gtk_tree_view_expand_all(GTK_TREE_VIEW(tree2_w));
 }
 
 /* Main Windows Callbacks */
 
-void on_window1_destroy(GtkObject *object, gpointer user_data)
+static void on_window1_destroy(GtkObject *object, gpointer user_data)
 {
 	gtk_main_quit();
 }
 
-void on_window1_size_request(GtkWidget *widget,
+static void on_window1_size_request(GtkWidget *widget,
 				    GtkRequisition *requisition,
 				    gpointer user_data)
 {
@@ -442,7 +427,7 @@ void on_window1_size_request(GtkWidget *widget,
 	gtk_paned_set_position(GTK_PANED(vpaned), 2 * h / 3);
 }
 
-gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
+static gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
 					gpointer user_data)
 {
 	GtkWidget *dialog, *label;
@@ -489,7 +474,7 @@ gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
 	return ret;
 }
 
-void on_quit1_activate(GtkMenuItem *menuitem, gpointer user_data)
+static void on_quit1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
 	if (!on_window1_delete_event(NULL, NULL, NULL))
 		gtk_widget_destroy(GTK_WIDGET(main_wnd));
@@ -599,9 +584,9 @@ static gint column2index(GtkTreeViewColumn * column)
 
 
 /* User click: update choice (full) or goes down (single) */
-gboolean
-on_treeview2_button_press_event(GtkWidget * widget,
-				GdkEventButton * event, gpointer user_data)
+static gboolean on_treeview2_button_press_event(GtkWidget *widget,
+						GdkEventButton *event,
+						gpointer user_data)
 {
 	GtkTreeView *view = GTK_TREE_VIEW(widget);
 	GtkTreePath *path;
@@ -649,9 +634,9 @@ on_treeview2_button_press_event(GtkWidget * widget,
 }
 
 /* Key pressed: update choice */
-gboolean
-on_treeview2_key_press_event(GtkWidget * widget,
-			     GdkEventKey * event, gpointer user_data)
+static gboolean on_treeview2_key_press_event(GtkWidget *widget,
+					     GdkEventKey *event,
+					     gpointer user_data)
 {
 	GtkTreeView *view = GTK_TREE_VIEW(widget);
 	GtkTreePath *path;
@@ -691,8 +676,8 @@ on_treeview2_key_press_event(GtkWidget * widget,
 
 
 /* Row selection changed: update help */
-void
-on_treeview2_cursor_changed(GtkTreeView * treeview, gpointer user_data)
+static void on_treeview2_cursor_changed(GtkTreeView *treeview,
+					gpointer user_data)
 {
 	GtkTreeSelection *selection;
 	GtkTreeIter iter;
@@ -707,9 +692,9 @@ on_treeview2_cursor_changed(GtkTreeView * treeview, gpointer user_data)
 
 
 /* User click: display sub-tree in the right frame. */
-gboolean
-on_treeview1_button_press_event(GtkWidget * widget,
-				GdkEventButton * event, gpointer user_data)
+static gboolean on_treeview1_button_press_event(GtkWidget *widget,
+						GdkEventButton *event,
+						gpointer user_data)
 {
 	GtkTreeView *view = GTK_TREE_VIEW(widget);
 	GtkTreePath *path;
@@ -1139,46 +1124,133 @@ static void init_main_window(const gchar *glade_file)
 	glade_xml_signal_autoconnect(xml);
 
 	main_wnd = glade_xml_get_widget(xml, "window1");
+	g_signal_connect(main_wnd, "destroy",
+			 G_CALLBACK(on_window1_destroy), NULL);
+	g_signal_connect(main_wnd, "size_request",
+			 G_CALLBACK(on_window1_size_request), NULL);
+	g_signal_connect(main_wnd, "delete_event",
+			 G_CALLBACK(on_window1_delete_event), NULL);
+
 	hpaned = glade_xml_get_widget(xml, "hpaned1");
 	vpaned = glade_xml_get_widget(xml, "vpaned1");
 	tree1_w = glade_xml_get_widget(xml, "treeview1");
+	g_signal_connect(tree1_w, "cursor_changed",
+			 G_CALLBACK(on_treeview2_cursor_changed), NULL);
+	g_signal_connect(tree1_w, "button_press_event",
+			 G_CALLBACK(on_treeview1_button_press_event), NULL);
+	g_signal_connect(tree1_w, "key_press_event",
+			 G_CALLBACK(on_treeview2_key_press_event), NULL);
+
 	tree2_w = glade_xml_get_widget(xml, "treeview2");
+	g_signal_connect(tree2_w, "cursor_changed",
+			 G_CALLBACK(on_treeview2_cursor_changed), NULL);
+	g_signal_connect(tree2_w, "button_press_event",
+			 G_CALLBACK(on_treeview2_button_press_event), NULL);
+	g_signal_connect(tree2_w, "key_press_event",
+			 G_CALLBACK(on_treeview2_key_press_event), NULL);
+
 	text_w = glade_xml_get_widget(xml, "textview3");
 
 	/* menubar */
+	widget = glade_xml_get_widget(xml, "load1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_load1_activate), NULL);
+
 	save_menu_item = glade_xml_get_widget(xml, "save1");
+	g_signal_connect(save_menu_item, "activate",
+			 G_CALLBACK(on_save_activate), NULL);
+
+	widget = glade_xml_get_widget(xml, "save_as1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_save_as1_activate), NULL);
+
+	widget = glade_xml_get_widget(xml, "quit1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_quit1_activate), NULL);
 
 	widget = glade_xml_get_widget(xml, "show_name1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_show_name1_activate), NULL);
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
 				       show_name);
 
 	widget = glade_xml_get_widget(xml, "show_range1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_show_range1_activate), NULL);
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
 				       show_range);
 
 	widget = glade_xml_get_widget(xml, "show_data1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_show_data1_activate), NULL);
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
 				       show_value);
 
+	widget = glade_xml_get_widget(xml, "set_option_mode1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_set_option_mode1_activate), NULL);
+
+	widget = glade_xml_get_widget(xml, "set_option_mode2");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_set_option_mode2_activate), NULL);
+
+	widget = glade_xml_get_widget(xml, "set_option_mode3");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_set_option_mode3_activate), NULL);
+
+	widget = glade_xml_get_widget(xml, "introduction1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_introduction1_activate), NULL);
+
+	widget = glade_xml_get_widget(xml, "about1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_about1_activate), NULL);
+
+	widget = glade_xml_get_widget(xml, "license1");
+	g_signal_connect(widget, "activate",
+			 G_CALLBACK(on_license1_activate), NULL);
+
 	/* toolbar */
 	back_btn = glade_xml_get_widget(xml, "button1");
+	g_signal_connect(back_btn, "clicked",
+			 G_CALLBACK(on_back_clicked), NULL);
 	gtk_widget_set_sensitive(back_btn, FALSE);
 
+	widget = glade_xml_get_widget(xml, "button2");
+	g_signal_connect(widget, "clicked",
+			 G_CALLBACK(on_load_clicked), NULL);
+
 	save_btn = glade_xml_get_widget(xml, "button3");
+	g_signal_connect(save_btn, "clicked",
+			 G_CALLBACK(on_save_activate), NULL);
 
 	style = gtk_widget_get_style(main_wnd);
 
 	single_btn = glade_xml_get_widget(xml, "button4");
+	g_signal_connect(single_btn, "clicked",
+			 G_CALLBACK(on_single_clicked), NULL);
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button4", (gchar **) xpm_single_view);
 
 	split_btn = glade_xml_get_widget(xml, "button5");
+	g_signal_connect(split_btn, "clicked",
+			 G_CALLBACK(on_split_clicked), NULL);
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button5", (gchar **) xpm_split_view);
 
 	full_btn = glade_xml_get_widget(xml, "button6");
+	g_signal_connect(full_btn, "clicked",
+			 G_CALLBACK(on_full_clicked), NULL);
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button6", (gchar **) xpm_tree_view);
+
+	widget = glade_xml_get_widget(xml, "button7");
+	g_signal_connect(widget, "clicked",
+			 G_CALLBACK(on_collapse_clicked), NULL);
+
+	widget = glade_xml_get_widget(xml, "button8");
+	g_signal_connect(widget, "clicked",
+			 G_CALLBACK(on_expand_clicked), NULL);
 
 	txtbuf = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_w));
 	tag1 = gtk_text_buffer_create_tag(txtbuf, "mytag1",
