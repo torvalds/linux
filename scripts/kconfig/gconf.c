@@ -46,8 +46,7 @@ static GtkTextTag *tag1, *tag2;
 static GtkTreeStore *tree1, *tree2;
 static GtkTreeModel *model1, *model2;
 
-static struct menu *current; // current node for SINGLE view
-static struct menu *browsed; // browsed node for SPLIT view
+static struct menu *browsed; // browsed menu for SINGLE/SPLIT view
 
 enum {
 	COL_OPTION, COL_NAME, COL_NO, COL_MOD, COL_YES, COL_VALUE,
@@ -136,7 +135,7 @@ static void set_view_mode(enum view_mode mode)
 
 	switch (mode) {
 	case SINGLE_VIEW:
-		current = &rootmenu;
+		browsed = &rootmenu;
 		display_tree_part();
 		gtk_widget_set_sensitive(single_btn, FALSE);
 		break;
@@ -353,13 +352,13 @@ static void on_back_clicked(GtkButton *button, gpointer user_data)
 {
 	enum prop_type ptype;
 
-	current = current->parent;
-	ptype = current->prompt ? current->prompt->type : P_UNKNOWN;
+	browsed = browsed->parent;
+	ptype = browsed->prompt ? browsed->prompt->type : P_UNKNOWN;
 	if (ptype != P_MENU)
-		current = current->parent;
+		browsed = browsed->parent;
 	display_tree_part();
 
-	if (current == &rootmenu)
+	if (browsed == &rootmenu)
 		gtk_widget_set_sensitive(back_btn, FALSE);
 }
 
@@ -612,7 +611,7 @@ static gboolean on_treeview2_button_press_event(GtkWidget *widget,
 
 		if (ptype == P_MENU && view_mode != FULL_VIEW && col == COL_OPTION) {
 			// goes down into menu
-			current = menu;
+			browsed = menu;
 			display_tree_part();
 			gtk_widget_set_sensitive(back_btn, TRUE);
 		} else if (col == COL_OPTION) {
@@ -711,14 +710,11 @@ static gboolean on_treeview1_button_press_event(GtkWidget *widget,
 	gtk_tree_model_get_iter(model, &iter, path);
 	gtk_tree_model_get(model, &iter, COL_MENU, &menu, -1);
 
-	if (event->type == GDK_2BUTTON_PRESS) {
+	if (event->type == GDK_2BUTTON_PRESS)
 		toggle_sym_value(menu);
-		current = menu;
-		display_tree_part();
-	} else {
-		browsed = menu;
-		display_tree_part();
-	}
+
+	browsed = menu;
+	display_tree_part();
 
 	gtk_tree_view_set_cursor(view, path, NULL, FALSE);
 	gtk_widget_grab_focus(tree2_w);
@@ -1012,7 +1008,7 @@ static void _display_tree(GtkTreeStore *tree, struct menu *menu,
 	GtkTreeIter iter;
 
 	if (menu == &rootmenu)
-		current = &rootmenu;
+		browsed = &rootmenu;
 
 	for (child = menu->list; child; child = child->next) {
 		prop = child->prompt;
@@ -1059,9 +1055,7 @@ static void display_tree(GtkTreeStore *store, struct menu *menu)
 static void display_tree_part(void)
 {
 	gtk_tree_store_clear(tree2);
-	if (view_mode == SINGLE_VIEW)
-		display_tree(tree2, current);
-	else if (view_mode == SPLIT_VIEW)
+	if (view_mode == SINGLE_VIEW || view_mode == SPLIT_VIEW)
 		display_tree(tree2, browsed);
 	else if (view_mode == FULL_VIEW)
 		display_tree(tree2, &rootmenu);
