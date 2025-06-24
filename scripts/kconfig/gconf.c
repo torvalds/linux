@@ -678,8 +678,7 @@ void on_split_clicked(GtkButton * button, gpointer user_data)
 	gtk_widget_show(tree1_w);
 	gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, &h);
 	gtk_paned_set_position(GTK_PANED(hpaned), w / 2);
-	if (tree2)
-		gtk_tree_store_clear(tree2);
+	gtk_tree_store_clear(tree2);
 	display_list();
 
 	/* Disable back btn, like in full mode. */
@@ -691,8 +690,7 @@ void on_full_clicked(GtkButton * button, gpointer user_data)
 {
 	view_mode = FULL_VIEW;
 	gtk_widget_hide(tree1_w);
-	if (tree2)
-		gtk_tree_store_clear(tree2);
+	gtk_tree_store_clear(tree2);
 	display_tree(&rootmenu);
 	gtk_widget_set_sensitive(back_btn, FALSE);
 }
@@ -1298,8 +1296,7 @@ static void display_tree(struct menu *menu)
 /* Display a part of the tree starting at current node (single/split view) */
 static void display_tree_part(void)
 {
-	if (tree2)
-		gtk_tree_store_clear(tree2);
+	gtk_tree_store_clear(tree2);
 	if (view_mode == SINGLE_VIEW)
 		display_tree(current);
 	else if (view_mode == SPLIT_VIEW)
@@ -1312,8 +1309,7 @@ static void display_tree_part(void)
 /* Display the list in the left frame (split view) */
 static void display_list(void)
 {
-	if (tree1)
-		gtk_tree_store_clear(tree1);
+	gtk_tree_store_clear(tree1);
 
 	tree = tree1;
 	display_tree(&rootmenu);
