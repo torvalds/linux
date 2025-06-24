@@ -1612,6 +1612,10 @@ struct dso *dso__get(struct dso *dso)
 
 void dso__put(struct dso *dso)
 {
+#ifdef REFCNT_CHECKING
+	if (dso && dso__data(dso) && refcount_read(&RC_CHK_ACCESS(dso)->refcnt) == 2)
+		dso__data_close(dso);
+#endif
 	if (dso && refcount_dec_and_test(&RC_CHK_ACCESS(dso)->refcnt))
 		dso__delete(dso);
 	else
