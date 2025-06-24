@@ -477,6 +477,10 @@ static int k230_pinctrl_parse_groups(struct device_node *np,
 	grp->name = np->name;
 
 	list = of_get_property(np, "pinmux", &size);
+	if (!list) {
+		dev_err(dev, "failed to get pinmux property\n");
+		return -EINVAL;
+	}
 	size /= sizeof(*list);
 
 	grp->num_pins = size;
@@ -586,6 +590,7 @@ static int k230_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct k230_pinctrl *info;
 	struct pinctrl_desc *pctl;
+	int ret;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -611,19 +616,21 @@ static int k230_pinctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(info->regmap_base),
 				     "failed to init regmap\n");
 
+	ret = k230_pinctrl_parse_dt(pdev, info);
+	if (ret)
+		return ret;
+
 	info->pctl_dev = devm_pinctrl_register(dev, pctl, info);
 	if (IS_ERR(info->pctl_dev))
 		return dev_err_probe(dev, PTR_ERR(info->pctl_dev),
 				     "devm_pinctrl_register failed\n");
-
-	k230_pinctrl_parse_dt(pdev, info);
 
 	return 0;
 }
 
 static const struct of_device_id k230_dt_ids[] = {
 	{ .compatible = "canaan,k230-pinctrl", },
-	{ /* sintenel */ }
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, k230_dt_ids);
 
