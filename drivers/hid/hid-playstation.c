@@ -338,7 +338,7 @@ struct dualsense_output_report {
 /* Battery status within batery_status field. */
 #define DS4_BATTERY_STATUS_FULL		11
 /* Status1 bit2 contains dongle connection state:
- * 0 = connectd
+ * 0 = connected
  * 1 = disconnected
  */
 #define DS4_STATUS1_DONGLE_STATE	BIT(2)
@@ -2169,7 +2169,7 @@ static void dualshock4_output_worker(struct work_struct *work)
 
 	if (ds4->update_lightbar) {
 		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED;
-		/* Comptabile behavior with hid-sony, which used a dummy global LED to
+		/* Compatible behavior with hid-sony, which used a dummy global LED to
 		 * allow enabling/disabling the lightbar. The global LED maps to
 		 * lightbar_enabled.
 		 */
