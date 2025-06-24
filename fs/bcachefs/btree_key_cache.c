@@ -580,6 +580,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	bool kick_reclaim = false;
 
 	BUG_ON(insert->k.u64s > ck->u64s);
+	BUG_ON(bkey_deleted(&insert->k));
 
 	bkey_copy(ck->k, insert);
 

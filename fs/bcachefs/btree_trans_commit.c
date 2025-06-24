@@ -46,6 +46,9 @@ void bch2_trans_commit_flags_to_text(struct printbuf *out, enum bch_trans_commit
 static void verify_update_old_key(struct btree_trans *trans, struct btree_insert_entry *i)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
+	if (i->key_cache_flushing)
+		return;
+
 	struct bch_fs *c = trans->c;
 	struct bkey u;
 	struct bkey_s_c k = bch2_btree_path_peek_slot_exact(trans->paths + i->path, &u);
@@ -337,6 +340,9 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 
 	BUG_ON(!bpos_eq(i->k->k.p, path->pos));
 	BUG_ON(i->cached	!= path->cached);
+	BUG_ON(i->cached &&
+	       !i->key_cache_already_flushed  &&
+	       bkey_deleted(&i->k->k));;
 	BUG_ON(i->level		!= path->level);
 	BUG_ON(i->btree_id	!= path->btree_id);
 	BUG_ON(i->bkey_type	!= __btree_node_type(path->level, path->btree_id));

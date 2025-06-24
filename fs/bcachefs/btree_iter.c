@@ -645,6 +645,7 @@ static void bch2_trans_revalidate_updates_in_node(struct btree_trans *trans, str
 
 	trans_for_each_update(trans, i)
 		if (!i->cached &&
+		    !i->key_cache_flushing &&
 		    i->level	== b->c.level &&
 		    i->btree_id	== b->c.btree_id &&
 		    bpos_cmp(i->k->k.p, b->data->min_key) >= 0 &&

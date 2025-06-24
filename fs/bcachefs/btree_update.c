@@ -325,47 +325,11 @@ err:
 	return ret;
 }
 
-static noinline int flush_new_cached_update(struct btree_trans *trans,
-					    struct btree_insert_entry *i,
-					    enum btree_iter_update_trigger_flags flags,
-					    unsigned long ip)
-{
-	struct bkey k;
-	int ret;
-
-	btree_path_idx_t path_idx =
-		bch2_path_get(trans, i->btree_id, i->old_k.p, 1, 0,
-			      BTREE_ITER_intent, _THIS_IP_);
-	ret = bch2_btree_path_traverse(trans, path_idx, 0);
-	if (ret)
-		goto out;
-
-	struct btree_path *btree_path = trans->paths + path_idx;
-
-	/*
-	 * The old key in the insert entry might actually refer to an existing
-	 * key in the btree that has been deleted from cache and not yet
-	 * flushed. Check for this and skip the flush so we don't run triggers
-	 * against a stale key.
-	 */
-	bch2_btree_path_peek_slot_exact(btree_path, &k);
-	if (!bkey_deleted(&k))
-		goto out;
-
-	i->key_cache_already_flushed = true;
-	i->flags |= BTREE_TRIGGER_norun;
-
-	btree_path_set_should_be_locked(trans, btree_path);
-	ret = bch2_trans_update_by_path(trans, path_idx, i->k, flags, ip);
-out:
-	bch2_path_put(trans, path_idx, true);
-	return ret;
-}
-
-static int __must_check
-bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
-			  struct bkey_i *k, enum btree_iter_update_trigger_flags flags,
-			  unsigned long ip)
+static inline struct btree_insert_entry *
+__btree_trans_update_by_path(struct btree_trans *trans,
+			     btree_path_idx_t path_idx,
+			     struct bkey_i *k, enum btree_iter_update_trigger_flags flags,
+			     unsigned long ip)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i, n;
@@ -436,6 +400,58 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 	__btree_path_get(trans, trans->paths + i->path, true);
 
 	trace_update_by_path(trans, path, i, overwrite);
+	return i;
+}
+
+static noinline int flush_new_cached_update(struct btree_trans *trans,
+					    struct btree_insert_entry *i,
+					    enum btree_iter_update_trigger_flags flags,
+					    unsigned long ip)
+{
+	btree_path_idx_t path_idx =
+		bch2_path_get(trans, i->btree_id, i->old_k.p, 1, 0,
+			      BTREE_ITER_intent, _THIS_IP_);
+	int ret = bch2_btree_path_traverse(trans, path_idx, 0);
+	if (ret)
+		goto out;
+
+	struct btree_path *btree_path = trans->paths + path_idx;
+
+	btree_path_set_should_be_locked(trans, btree_path);
+#if 0
+	/*
+	 * The old key in the insert entry might actually refer to an existing
+	 * key in the btree that has been deleted from cache and not yet
+	 * flushed. Check for this and skip the flush so we don't run triggers
+	 * against a stale key.
+	 */
+	struct bkey k;
+	bch2_btree_path_peek_slot_exact(btree_path, &k);
+	if (!bkey_deleted(&k))
+		goto out;
+#endif
+	i->key_cache_already_flushed = true;
+	i->flags |= BTREE_TRIGGER_norun;
+
+	struct bkey old_k		= i->old_k;
+	const struct bch_val *old_v	= i->old_v;
+
+	i = __btree_trans_update_by_path(trans, path_idx, i->k, flags, _THIS_IP_);
+
+	i->old_k		= old_k;
+	i->old_v		= old_v;
+	i->key_cache_flushing	= true;
+out:
+	bch2_path_put(trans, path_idx, true);
+	return ret;
+}
+
+static int __must_check
+bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
+			  struct bkey_i *k, enum btree_iter_update_trigger_flags flags,
+			  unsigned long ip)
+{
+	struct btree_insert_entry *i = __btree_trans_update_by_path(trans, path_idx, k, flags, ip);
 
 	/*
 	 * If a key is present in the key cache, it must also exist in the
@@ -444,10 +460,9 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 	 * the key cache - but the key has to exist in the btree for that to
 	 * work:
 	 */
-	if (path->cached && !i->old_btree_u64s)
-		return flush_new_cached_update(trans, i, flags, ip);
-
-	return 0;
+	return i->cached && (!i->old_btree_u64s || bkey_deleted(&k->k))
+		? flush_new_cached_update(trans, i, flags, ip)
+		: 0;
 }
 
 static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
