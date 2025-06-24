@@ -7718,6 +7718,7 @@ F:	include/uapi/drm/nouveau_drm.h
 
 CORE DRIVER FOR NVIDIA GPUS [RUST]
 M:	Danilo Krummrich <dakr@kernel.org>
+M:	Alexandre Courbot <acourbot@nvidia.com>
 L:	nouveau@lists.freedesktop.org
 S:	Supported
 Q:	https://patchwork.freedesktop.org/project/nouveau/
