@@ -1121,7 +1121,6 @@ static void init_main_window(const gchar *glade_file)
 	xml = glade_xml_new(glade_file, "window1", NULL);
 	if (!xml)
 		g_error("GUI loading failed !\n");
-	glade_xml_signal_autoconnect(xml);
 
 	main_wnd = glade_xml_get_widget(xml, "window1");
 	g_signal_connect(main_wnd, "destroy",
