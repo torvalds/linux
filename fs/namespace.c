@@ -5307,16 +5307,12 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 			kattr.kflags |= MOUNT_KATTR_RECURSE;
 
 		ret = wants_mount_setattr(uattr, usize, &kattr);
-		if (ret < 0)
-			return ret;
-
-		if (ret) {
+		if (ret > 0) {
 			ret = do_mount_setattr(&file->f_path, &kattr);
-			if (ret)
-				return ret;
-
 			finish_mount_kattr(&kattr);
 		}
+		if (ret)
+			return ret;
 	}
 
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
