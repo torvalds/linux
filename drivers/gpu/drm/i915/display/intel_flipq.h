@@ -31,5 +31,7 @@ void intel_flipq_add(struct intel_crtc *crtc,
 int intel_flipq_exec_time_us(struct intel_display *display);
 void intel_flipq_wait_dmc_halt(struct intel_dsb *dsb, struct intel_crtc *crtc);
 void intel_flipq_unhalt_dmc(struct intel_dsb *dsb, struct intel_crtc *crtc);
+void intel_flipq_dump(struct intel_crtc *crtc,
+		      enum intel_flipq_id flip_queue_id);
 
 #endif /* __INTEL_FLIPQ_H__ */
