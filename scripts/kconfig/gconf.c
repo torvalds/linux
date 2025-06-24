@@ -1103,17 +1103,16 @@ static void fixup_rootmenu(struct menu *menu)
 static void replace_button_icon(GladeXML *xml, GdkDrawable *window,
 				GtkStyle *style, gchar *btn_name, gchar **xpm)
 {
-	GdkPixmap *pixmap;
-	GdkBitmap *mask;
-	GtkToolButton *button;
+	GdkPixbuf *pixbuf;
 	GtkWidget *image;
+	GtkToolButton *button;
 
-	pixmap = gdk_pixmap_create_from_xpm_d(window, &mask,
-					      &style->bg[GTK_STATE_NORMAL],
-					      xpm);
+	pixbuf = gdk_pixbuf_new_from_xpm_data((const char **)xpm);
+	image = gtk_image_new_from_pixbuf(pixbuf);
+	g_object_unref(pixbuf);
 
 	button = GTK_TOOL_BUTTON(glade_xml_get_widget(xml, btn_name));
-	image = gtk_image_new_from_pixmap(pixmap, mask);
+
 	gtk_widget_show(image);
 	gtk_tool_button_set_icon_widget(button, image);
 }
