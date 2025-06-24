@@ -341,12 +341,12 @@ static int pwrseq_qcom_wcn_match(struct pwrseq_device *pwrseq,
 	 * device.
 	 */
 	if (!of_property_present(dev_node, "vddaon-supply"))
-		return 0;
+		return PWRSEQ_NO_MATCH;
 
 	struct device_node *reg_node __free(device_node) =
 			of_parse_phandle(dev_node, "vddaon-supply", 0);
 	if (!reg_node)
-		return 0;
+		return PWRSEQ_NO_MATCH;
 
 	/*
 	 * `reg_node` is the PMU AON regulator, its parent is the `regulators`
@@ -355,9 +355,9 @@ static int pwrseq_qcom_wcn_match(struct pwrseq_device *pwrseq,
 	 */
 	if (!reg_node->parent || !reg_node->parent->parent ||
 	    reg_node->parent->parent != ctx->of_node)
-		return 0;
+		return PWRSEQ_NO_MATCH;
 
-	return 1;
+	return PWRSEQ_MATCH_OK;
 }
 
 static int pwrseq_qcom_wcn_probe(struct platform_device *pdev)
