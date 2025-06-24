@@ -297,17 +297,6 @@ static void init_right_tree(void)
 	g_signal_connect(G_OBJECT(renderer), "edited",
 			 G_CALLBACK(renderer_edited), NULL);
 
-	column = gtk_tree_view_get_column(view, COL_NAME);
-	gtk_tree_view_column_set_visible(column, show_name);
-	column = gtk_tree_view_get_column(view, COL_NO);
-	gtk_tree_view_column_set_visible(column, show_range);
-	column = gtk_tree_view_get_column(view, COL_MOD);
-	gtk_tree_view_column_set_visible(column, show_range);
-	column = gtk_tree_view_get_column(view, COL_YES);
-	gtk_tree_view_column_set_visible(column, show_range);
-	column = gtk_tree_view_get_column(view, COL_VALUE);
-	gtk_tree_view_column_set_visible(column, show_value);
-
 	for (i = 0; i < COL_VALUE; i++) {
 		column = gtk_tree_view_get_column(view, i);
 		gtk_tree_view_column_set_resizable(column, TRUE);
