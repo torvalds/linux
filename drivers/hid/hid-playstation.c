@@ -1531,9 +1531,9 @@ static void dualsense_remove(struct ps_device *ps_dev)
 static int dualsense_reset_leds(struct dualsense *ds)
 {
 	struct dualsense_output_report report;
-	u8 *buf;
+	struct dualsense_output_report_bt *buf;
 
-	buf = kzalloc(sizeof(struct dualsense_output_report_bt), GFP_KERNEL);
+	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
