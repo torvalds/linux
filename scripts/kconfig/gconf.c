@@ -487,19 +487,21 @@ static void renderer_edited(GtkCellRendererText * cell,
 			    const gchar * path_string,
 			    const gchar * new_text, gpointer user_data)
 {
+	GtkTreeView *view = GTK_TREE_VIEW(user_data);
+	GtkTreeModel *model = gtk_tree_view_get_model(view);
 	GtkTreePath *path = gtk_tree_path_new_from_string(path_string);
 	GtkTreeIter iter;
 	const char *old_def, *new_def;
 	struct menu *menu;
 	struct symbol *sym;
 
-	if (!gtk_tree_model_get_iter(model2, &iter, path))
+	if (!gtk_tree_model_get_iter(model, &iter, path))
 		goto free;
 
-	gtk_tree_model_get(model2, &iter, COL_MENU, &menu, -1);
+	gtk_tree_model_get(model, &iter, COL_MENU, &menu, -1);
 	sym = menu->sym;
 
-	gtk_tree_model_get(model2, &iter, COL_VALUE, &old_def, -1);
+	gtk_tree_model_get(model, &iter, COL_VALUE, &old_def, -1);
 	new_def = new_text;
 
 	sym_set_string_value(sym, new_def);
@@ -1399,7 +1401,7 @@ static void init_right_tree(void)
 						    "foreground-gdk",
 						    COL_COLOR, NULL);
 	g_signal_connect(G_OBJECT(renderer), "edited",
-			 G_CALLBACK(renderer_edited), NULL);
+			 G_CALLBACK(renderer_edited), tree2_w);
 
 	for (i = 0; i < COL_VALUE; i++) {
 		column = gtk_tree_view_get_column(view, i);
