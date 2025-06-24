@@ -1254,17 +1254,13 @@ static gboolean visible_func(GtkTreeModel *model, GtkTreeIter  *iter,
 		(opt_mode == OPT_PROMPT && menu_has_prompt(menu));
 }
 
-static void init_tree_model(void)
+static void init_left_tree(void)
 {
-	tree2 = gtk_tree_store_new(COL_NUMBER,
-					  G_TYPE_STRING, G_TYPE_STRING,
-					  G_TYPE_STRING, G_TYPE_STRING,
-					  G_TYPE_STRING, G_TYPE_STRING,
-					  G_TYPE_POINTER, GDK_TYPE_COLOR,
-					  G_TYPE_BOOLEAN, GDK_TYPE_PIXBUF,
-					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
-					  G_TYPE_BOOLEAN);
+	GtkTreeView *view = GTK_TREE_VIEW(tree1_w);
+	GtkCellRenderer *renderer;
+	GtkTreeSelection *sel;
+	GtkTreeViewColumn *column;
+	GtkTreeModel *filter;
 
 	tree1 = gtk_tree_store_new(COL_NUMBER,
 				   G_TYPE_STRING, G_TYPE_STRING,
@@ -1275,15 +1271,6 @@ static void init_tree_model(void)
 				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
 				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
 				   G_TYPE_BOOLEAN);
-}
-
-static void init_left_tree(void)
-{
-	GtkTreeView *view = GTK_TREE_VIEW(tree1_w);
-	GtkCellRenderer *renderer;
-	GtkTreeSelection *sel;
-	GtkTreeViewColumn *column;
-	GtkTreeModel *filter;
 
 	filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(tree1), NULL);
 
@@ -1325,6 +1312,16 @@ static void init_right_tree(void)
 	GtkTreeViewColumn *column;
 	GtkTreeModel *filter;
 	gint i;
+
+	tree2 = gtk_tree_store_new(COL_NUMBER,
+				   G_TYPE_STRING, G_TYPE_STRING,
+				   G_TYPE_STRING, G_TYPE_STRING,
+				   G_TYPE_STRING, G_TYPE_STRING,
+				   G_TYPE_POINTER, GDK_TYPE_COLOR,
+				   G_TYPE_BOOLEAN, GDK_TYPE_PIXBUF,
+				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+				   G_TYPE_BOOLEAN);
 
 	filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(tree2), NULL);
 
@@ -1448,7 +1445,6 @@ int main(int ac, char *av[])
 
 	/* Load the interface and connect signals */
 	init_main_window(glade_file);
-	init_tree_model();
 	init_left_tree();
 	init_right_tree();
 
