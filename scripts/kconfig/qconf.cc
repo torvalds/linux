@@ -92,7 +92,6 @@ void ConfigItem::updateMenu(void)
 {
 	ConfigList* list;
 	struct symbol* sym;
-	struct property *prop;
 	QString prompt;
 	int type;
 	tristate expr;
@@ -105,11 +104,10 @@ void ConfigItem::updateMenu(void)
 	}
 
 	sym = menu->sym;
-	prop = menu->prompt;
 	prompt = menu_get_prompt(menu);
 
-	if (prop) switch (prop->type) {
-	case P_MENU:
+	switch (menu->type) {
+	case M_MENU:
 		if (list->mode == singleMode) {
 			/* a menuconfig entry is displayed differently
 			 * depending whether it's at the view root or a child.
@@ -123,9 +121,12 @@ void ConfigItem::updateMenu(void)
 			setIcon(promptColIdx, QIcon());
 		}
 		goto set_prompt;
-	case P_COMMENT:
+	case M_COMMENT:
 		setIcon(promptColIdx, QIcon());
 		prompt = "*** " + prompt + " ***";
+		goto set_prompt;
+	case M_CHOICE:
+		setIcon(promptColIdx, QIcon());
 		goto set_prompt;
 	default:
 		;
