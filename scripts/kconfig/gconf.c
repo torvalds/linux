@@ -44,7 +44,6 @@ static GtkWidget *save_menu_item;
 static GtkTextTag *tag1, *tag2;
 
 static GtkTreeStore *tree1, *tree2;
-static GtkTreeModel *model1, *model2;
 
 static struct menu *browsed; // browsed menu for SINGLE/SPLIT view
 static struct menu *selected; // selected entry
@@ -1266,7 +1265,6 @@ static void init_tree_model(void)
 					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
 					  G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
 					  G_TYPE_BOOLEAN);
-	model2 = GTK_TREE_MODEL(tree2);
 
 	tree1 = gtk_tree_store_new(COL_NUMBER,
 				   G_TYPE_STRING, G_TYPE_STRING,
@@ -1277,7 +1275,6 @@ static void init_tree_model(void)
 				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
 				   G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
 				   G_TYPE_BOOLEAN);
-	model1 = GTK_TREE_MODEL(tree1);
 }
 
 static void init_left_tree(void)
@@ -1288,7 +1285,7 @@ static void init_left_tree(void)
 	GtkTreeViewColumn *column;
 	GtkTreeModel *filter;
 
-	filter = gtk_tree_model_filter_new(model1, NULL);
+	filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(tree1), NULL);
 
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(filter),
 					       visible_func, NULL, NULL);
@@ -1329,7 +1326,7 @@ static void init_right_tree(void)
 	GtkTreeModel *filter;
 	gint i;
 
-	filter = gtk_tree_model_filter_new(model2, NULL);
+	filter = gtk_tree_model_filter_new(GTK_TREE_MODEL(tree2), NULL);
 
 	gtk_tree_model_filter_set_visible_func(GTK_TREE_MODEL_FILTER(filter),
 					       visible_func, NULL, NULL);
