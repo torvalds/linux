@@ -51,15 +51,6 @@ struct tcf_gate {
 
 #define to_gate(a) ((struct tcf_gate *)a)
 
-static inline bool is_tcf_gate(const struct tc_action *a)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->id == TCA_ID_GATE)
-		return true;
-#endif
-	return false;
-}
-
 static inline s32 tcf_gate_prio(const struct tc_action *a)
 {
 	s32 tcfg_prio;

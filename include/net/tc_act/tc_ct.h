@@ -92,13 +92,4 @@ static inline void
 tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie) { }
 #endif
 
-static inline bool is_tcf_ct(const struct tc_action *a)
-{
-#if defined(CONFIG_NET_CLS_ACT) && IS_ENABLED(CONFIG_NF_CONNTRACK)
-	if (a->ops && a->ops->id == TCA_ID_CT)
-		return true;
-#endif
-	return false;
-}
-
 #endif /* __NET_TC_CT_H */

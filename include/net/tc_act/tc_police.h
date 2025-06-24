@@ -44,15 +44,6 @@ struct tc_police_compat {
 	struct tc_ratespec	peakrate;
 };
 
-static inline bool is_tcf_police(const struct tc_action *act)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (act->ops && act->ops->id == TCA_ID_POLICE)
-		return true;
-#endif
-	return false;
-}
-
 static inline u64 tcf_police_rate_bytes_ps(const struct tc_action *act)
 {
 	struct tcf_police *police = to_police(act);
