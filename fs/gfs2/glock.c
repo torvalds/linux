@@ -616,14 +616,6 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 				list_del_init(&gh->gh_list);
 				trace_gfs2_glock_queue(gh, 0);
 				gl->gl_target = gl->gl_state;
-				gh = find_first_waiter(gl);
-				if (gh) {
-					gl->gl_target = gh->gh_state;
-					if (do_promote(gl))
-						goto out;
-					do_xmote(gl, gh, gl->gl_target);
-					return;
-				}
 				goto out;
 			}
 			/* Some error or failed "try lock" - report it */
