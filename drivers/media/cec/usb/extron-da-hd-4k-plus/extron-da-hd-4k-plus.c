@@ -28,7 +28,7 @@
 
 #include "extron-da-hd-4k-plus.h"
 
-MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hverkuil@kernel.org>");
 MODULE_DESCRIPTION("Extron DA HD 4K PLUS HDMI CEC driver");
 MODULE_LICENSE("GPL");
 

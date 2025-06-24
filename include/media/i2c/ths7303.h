@@ -5,7 +5,7 @@
  * Copyright 2013 Cisco Systems, Inc. and/or its affiliates.
  *
  * Contributors:
- *     Hans Verkuil <hansverk@cisco.com>
+ *     Hans Verkuil <hverkuil@kernel.org>
  *     Lad, Prabhakar <prabhakar.lad@ti.com>
  *     Martin Bugge <marbugge@cisco.com>
  */
