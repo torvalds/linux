@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: NVIDIA Tegra HDMI CEC
 
 maintainers:
-  - Hans Verkuil <hverkuil-cisco@xs4all.nl>
+  - Hans Verkuil <hverkuil@kernel.org>
 
 allOf:
   - $ref: cec-common.yaml#
