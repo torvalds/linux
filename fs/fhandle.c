@@ -170,21 +170,25 @@ SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
 
 static int get_path_anchor(int fd, struct path *root)
 {
+	if (fd >= 0) {
+		CLASS(fd, f)(fd);
+		if (fd_empty(f))
+			return -EBADF;
+		*root = fd_file(f)->f_path;
+		path_get(root);
+		return 0;
+	}
+
 	if (fd == AT_FDCWD) {
 		struct fs_struct *fs = current->fs;
 		spin_lock(&fs->lock);
 		*root = fs->pwd;
 		path_get(root);
 		spin_unlock(&fs->lock);
-	} else {
-		CLASS(fd, f)(fd);
-		if (fd_empty(f))
-			return -EBADF;
-		*root = fd_file(f)->f_path;
-		path_get(root);
+		return 0;
 	}
 
-	return 0;
+	return -EBADF;
 }
 
 static int vfs_dentry_acceptable(void *context, struct dentry *dentry)
