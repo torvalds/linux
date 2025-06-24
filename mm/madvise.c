@@ -133,38 +133,6 @@ static int replace_anon_vma_name(struct vm_area_struct *vma,
 
 	return 0;
 }
-
-static int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
-		unsigned long len_in, struct anon_vma_name *anon_name)
-{
-	unsigned long end;
-	unsigned long len;
-	struct madvise_behavior madv_behavior = {
-		.mm = mm,
-		.behavior = __MADV_SET_ANON_VMA_NAME,
-		.lock_mode = MADVISE_MMAP_WRITE_LOCK,
-		.anon_name = anon_name,
-	};
-
-	if (start & ~PAGE_MASK)
-		return -EINVAL;
-	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-
-	/* Check to see whether len was rounded up from small -ve to zero */
-	if (len_in && !len)
-		return -EINVAL;
-
-	end = start + len;
-	if (end < start)
-		return -EINVAL;
-
-	if (end == start)
-		return 0;
-
-	madv_behavior.range.start = start;
-	madv_behavior.range.end = end;
-	return madvise_walk_vmas(&madv_behavior);
-}
 #else /* CONFIG_ANON_VMA_NAME */
 static int replace_anon_vma_name(struct vm_area_struct *vma,
 				 struct anon_vma_name *anon_name)
@@ -2107,6 +2075,38 @@ static inline bool is_valid_name_char(char ch)
 	/* printable ascii characters, excluding ANON_VMA_NAME_INVALID_CHARS */
 	return ch > 0x1f && ch < 0x7f &&
 		!strchr(ANON_VMA_NAME_INVALID_CHARS, ch);
+}
+
+static int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
+		unsigned long len_in, struct anon_vma_name *anon_name)
+{
+	unsigned long end;
+	unsigned long len;
+	struct madvise_behavior madv_behavior = {
+		.mm = mm,
+		.behavior = __MADV_SET_ANON_VMA_NAME,
+		.lock_mode = MADVISE_MMAP_WRITE_LOCK,
+		.anon_name = anon_name,
+	};
+
+	if (start & ~PAGE_MASK)
+		return -EINVAL;
+	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
+
+	/* Check to see whether len was rounded up from small -ve to zero */
+	if (len_in && !len)
+		return -EINVAL;
+
+	end = start + len;
+	if (end < start)
+		return -EINVAL;
+
+	if (end == start)
+		return 0;
+
+	madv_behavior.range.start = start;
+	madv_behavior.range.end = end;
+	return madvise_walk_vmas(&madv_behavior);
 }
 
 int set_anon_vma_name(unsigned long addr, unsigned long size,
