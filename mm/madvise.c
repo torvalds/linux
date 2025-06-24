@@ -2082,10 +2082,10 @@ static int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
 {
 	unsigned long end;
 	unsigned long len;
+	int error;
 	struct madvise_behavior madv_behavior = {
 		.mm = mm,
 		.behavior = __MADV_SET_ANON_VMA_NAME,
-		.lock_mode = MADVISE_MMAP_WRITE_LOCK,
 		.anon_name = anon_name,
 	};
 
@@ -2106,7 +2106,14 @@ static int madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
 
 	madv_behavior.range.start = start;
 	madv_behavior.range.end = end;
-	return madvise_walk_vmas(&madv_behavior);
+
+	error = madvise_lock(&madv_behavior);
+	if (error)
+		return error;
+	error = madvise_walk_vmas(&madv_behavior);
+	madvise_unlock(&madv_behavior);
+
+	return error;
 }
 
 int set_anon_vma_name(unsigned long addr, unsigned long size,
@@ -2136,9 +2143,7 @@ int set_anon_vma_name(unsigned long addr, unsigned long size,
 			return -ENOMEM;
 	}
 
-	mmap_write_lock(mm);
 	error = madvise_set_anon_name(mm, addr, size, anon_name);
-	mmap_write_unlock(mm);
 	anon_vma_name_put(anon_name);
 
 	return error;
