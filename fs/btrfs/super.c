@@ -1869,18 +1869,14 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 	if (ret)
 		return ret;
 
-	if (!(fc->sb_flags & SB_RDONLY) && fs_devices->rw_devices == 0) {
-		ret = -EACCES;
-		goto error;
-	}
+	if (!(fc->sb_flags & SB_RDONLY) && fs_devices->rw_devices == 0)
+		return -EACCES;
 
 	bdev = fs_devices->latest_dev->bdev;
 
 	sb = sget_fc(fc, btrfs_fc_test_super, set_anon_super_fc);
-	if (IS_ERR(sb)) {
-		ret = PTR_ERR(sb);
-		goto error;
-	}
+	if (IS_ERR(sb))
+		return PTR_ERR(sb);
 
 	set_device_specific_options(fs_info);
 
@@ -1889,17 +1885,15 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		 * Not the first mount of the fs thus got an existing super block.
 		 *
 		 * Will reuse the returned super block, fs_info and fs_devices.
-		 */
-		ASSERT(fc->s_fs_info == fs_info);
-
-		/*
+		 *
 		 * fc->s_fs_info is not touched and will be later freed by
 		 * put_fs_context() through btrfs_free_fs_context().
 		 *
-		 * But we have opened fs_devices at the beginning of the
-		 * function, thus still need to close them manually.
+		 * And the fs_info->fs_devices will also be closed by
+		 * btrfs_free_fs_context().
 		 */
-		btrfs_close_devices(fs_devices);
+		ASSERT(fc->s_fs_info == fs_info);
+
 		/*
 		 * At this stage we may have RO flag mismatch between
 		 * fc->sb_flags and sb->s_flags.  Caller should detect such
@@ -1928,10 +1922,6 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 
 	fc->root = dget(sb->s_root);
 	return 0;
-
-error:
-	btrfs_close_devices(fs_devices);
-	return ret;
 }
 
 /*
