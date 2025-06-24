@@ -19,10 +19,10 @@ struct fbnic_fw_mbx {
 };
 
 // FW_VER_MAX_SIZE must match ETHTOOL_FWVERS_LEN
-#define FBNIC_FW_VER_MAX_SIZE	                32
+#define FBNIC_FW_VER_MAX_SIZE			32
 // Formatted version is in the format XX.YY.ZZ_RRR_COMMIT
 #define FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE	(FBNIC_FW_VER_MAX_SIZE - 13)
-#define FBNIC_FW_LOG_MAX_SIZE	                256
+#define FBNIC_FW_LOG_MAX_SIZE			256
 
 struct fbnic_fw_ver {
 	u32 version;

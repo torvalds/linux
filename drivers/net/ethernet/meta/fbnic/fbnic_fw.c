@@ -376,11 +376,11 @@ fbnic_fw_get_cmpl_by_type(struct fbnic_dev *fbd, u32 msg_type)
  *
  * Return:
  *   One the following values:
- *     -EOPNOTSUPP: Is not ASIC so mailbox is not supported
- *     -ENODEV: Device I/O error
- *     -ENOMEM: Failed to allocate message
- *     -EBUSY: No space in mailbox
- *     -ENOSPC: DMA mapping failed
+ *	-EOPNOTSUPP: Is not ASIC so mailbox is not supported
+ *	-ENODEV: Device I/O error
+ *	-ENOMEM: Failed to allocate message
+ *	-EBUSY: No space in mailbox
+ *	-ENOSPC: DMA mapping failed
  *
  * This function sends a single TLV header indicating the host wants to take
  * some action. However there are no other side effects which means that any
