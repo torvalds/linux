@@ -189,7 +189,6 @@ static void init_left_tree(void)
 	GtkTreeViewColumn *column;
 
 	gtk_tree_view_set_model(view, model1);
-	gtk_tree_view_set_rules_hint(view, TRUE);
 
 	column = gtk_tree_view_column_new();
 	gtk_tree_view_append_column(view, column);
@@ -230,7 +229,6 @@ static void init_right_tree(void)
 	gint i;
 
 	gtk_tree_view_set_model(view, model2);
-	gtk_tree_view_set_rules_hint(view, TRUE);
 
 	column = gtk_tree_view_column_new();
 	gtk_tree_view_append_column(view, column);
