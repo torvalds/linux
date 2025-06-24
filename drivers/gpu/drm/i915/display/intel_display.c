@@ -7393,6 +7393,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	display->funcs.display->commit_modeset_enables(state);
 
+	/* FIXME probably need to sequence this properly */
 	intel_program_dpkgc_latency(state);
 
 	intel_wait_for_vblank_workers(state);

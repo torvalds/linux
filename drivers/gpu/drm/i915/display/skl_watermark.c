@@ -2857,64 +2857,75 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 	return 0;
 }
 
-/*
- * If Fixed Refresh Rate or For VRR case Vmin = Vmax = Flipline:
- * Program DEEP PKG_C_LATENCY Pkg C with highest valid latency from
- * watermark level1 and up and above. If watermark level 1 is
- * invalid program it with all 1's.
- * Program PKG_C_LATENCY Added Wake Time = DSB execution time
- * If Variable Refresh Rate where Vmin != Vmax != Flipline:
- * Program DEEP PKG_C_LATENCY Pkg C with all 1's.
- * Program PKG_C_LATENCY Added Wake Time = 0
- */
+static int pkgc_max_linetime(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i, max_linetime;
+
+	/*
+	 * Apparenty the hardware uses WM_LINETIME internally for
+	 * this stuff, compute everything based on that.
+	 */
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		display->pkgc.disable[crtc->pipe] = crtc_state->vrr.enable;
+		display->pkgc.linetime[crtc->pipe] = DIV_ROUND_UP(crtc_state->linetime, 8);
+	}
+
+	max_linetime = 0;
+	for_each_intel_crtc(display->drm, crtc) {
+		if (display->pkgc.disable[crtc->pipe])
+			return 0;
+
+		max_linetime = max(display->pkgc.linetime[crtc->pipe], max_linetime);
+	}
+
+	return max_linetime;
+}
+
 void
 intel_program_dpkgc_latency(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct intel_crtc *crtc;
-	struct intel_crtc_state *new_crtc_state;
-	u32 latency = LNL_PKG_C_LATENCY_MASK;
-	u32 added_wake_time = 0;
-	u32 max_linetime = 0;
-	u32 clear, val;
-	bool fixed_refresh_rate = false;
-	int i;
+	int max_linetime, latency, added_wake_time = 0;
 
 	if (DISPLAY_VER(display) < 20)
 		return;
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
-		if (!new_crtc_state->vrr.enable ||
-		    (new_crtc_state->vrr.vmin == new_crtc_state->vrr.vmax &&
-		     new_crtc_state->vrr.vmin == new_crtc_state->vrr.flipline))
-			fixed_refresh_rate = true;
+	mutex_lock(&display->wm.wm_mutex);
 
-		max_linetime = max(new_crtc_state->linetime, max_linetime);
+	latency = skl_watermark_max_latency(display, 1);
+
+	/*
+	 * Wa_22020432604
+	 * "PKG_C_LATENCY Added Wake Time field is not working"
+	 */
+	if (latency && (DISPLAY_VER(display) == 20 || DISPLAY_VER(display) == 30)) {
+		latency += added_wake_time;
+		added_wake_time = 0;
 	}
 
-	if (fixed_refresh_rate) {
-		latency = skl_watermark_max_latency(display, 1);
+	max_linetime = pkgc_max_linetime(state);
 
-		/* Wa_22020432604 */
-		if ((DISPLAY_VER(display) == 20 || DISPLAY_VER(display) == 30) && !latency) {
-			latency += added_wake_time;
-			added_wake_time = 0;
-		}
-
-		/* Wa_22020299601 */
-		if ((latency && max_linetime) &&
-		    (DISPLAY_VER(display) == 20 || DISPLAY_VER(display) == 30)) {
-			latency = max_linetime * DIV_ROUND_UP(latency, max_linetime);
-		} else if (!latency) {
-			latency = LNL_PKG_C_LATENCY_MASK;
-		}
+	if (max_linetime == 0 || latency == 0) {
+		latency = REG_FIELD_GET(LNL_PKG_C_LATENCY_MASK,
+					LNL_PKG_C_LATENCY_MASK);
+		added_wake_time = 0;
+	} else {
+		/*
+		 * Wa_22020299601
+		 * "Increase the latency programmed in PKG_C_LATENCY Pkg C Latency to be a
+		 *  multiple of the pipeline time from WM_LINETIME"
+		 */
+		latency = roundup(latency, max_linetime);
 	}
 
-	clear = LNL_ADDED_WAKE_TIME_MASK | LNL_PKG_C_LATENCY_MASK;
-	val = REG_FIELD_PREP(LNL_PKG_C_LATENCY_MASK, latency) |
-		REG_FIELD_PREP(LNL_ADDED_WAKE_TIME_MASK, added_wake_time);
+	intel_de_write(display, LNL_PKG_C_LATENCY,
+		       REG_FIELD_PREP(LNL_ADDED_WAKE_TIME_MASK, added_wake_time) |
+		       REG_FIELD_PREP(LNL_PKG_C_LATENCY_MASK, latency));
 
-	intel_de_rmw(display, LNL_PKG_C_LATENCY, clear, val);
+	mutex_unlock(&display->wm.wm_mutex);
 }
 
 static int
