@@ -163,6 +163,61 @@ static inline int to_ionic_qp_flags(int access, bool sqd_notify,
 	return flags;
 }
 
+/* cqe non-admin status indicated in status_length field when err bit is set */
+enum ionic_status {
+	IONIC_STS_OK,
+	IONIC_STS_LOCAL_LEN_ERR,
+	IONIC_STS_LOCAL_QP_OPER_ERR,
+	IONIC_STS_LOCAL_PROT_ERR,
+	IONIC_STS_WQE_FLUSHED_ERR,
+	IONIC_STS_MEM_MGMT_OPER_ERR,
+	IONIC_STS_BAD_RESP_ERR,
+	IONIC_STS_LOCAL_ACC_ERR,
+	IONIC_STS_REMOTE_INV_REQ_ERR,
+	IONIC_STS_REMOTE_ACC_ERR,
+	IONIC_STS_REMOTE_OPER_ERR,
+	IONIC_STS_RETRY_EXCEEDED,
+	IONIC_STS_RNR_RETRY_EXCEEDED,
+	IONIC_STS_XRC_VIO_ERR,
+	IONIC_STS_LOCAL_SGL_INV_ERR,
+};
+
+static inline int ionic_to_ib_status(int sts)
+{
+	switch (sts) {
+	case IONIC_STS_OK:
+		return IB_WC_SUCCESS;
+	case IONIC_STS_LOCAL_LEN_ERR:
+		return IB_WC_LOC_LEN_ERR;
+	case IONIC_STS_LOCAL_QP_OPER_ERR:
+	case IONIC_STS_LOCAL_SGL_INV_ERR:
+		return IB_WC_LOC_QP_OP_ERR;
+	case IONIC_STS_LOCAL_PROT_ERR:
+		return IB_WC_LOC_PROT_ERR;
+	case IONIC_STS_WQE_FLUSHED_ERR:
+		return IB_WC_WR_FLUSH_ERR;
+	case IONIC_STS_MEM_MGMT_OPER_ERR:
+		return IB_WC_MW_BIND_ERR;
+	case IONIC_STS_BAD_RESP_ERR:
+		return IB_WC_BAD_RESP_ERR;
+	case IONIC_STS_LOCAL_ACC_ERR:
+		return IB_WC_LOC_ACCESS_ERR;
+	case IONIC_STS_REMOTE_INV_REQ_ERR:
+		return IB_WC_REM_INV_REQ_ERR;
+	case IONIC_STS_REMOTE_ACC_ERR:
+		return IB_WC_REM_ACCESS_ERR;
+	case IONIC_STS_REMOTE_OPER_ERR:
+		return IB_WC_REM_OP_ERR;
+	case IONIC_STS_RETRY_EXCEEDED:
+		return IB_WC_RETRY_EXC_ERR;
+	case IONIC_STS_RNR_RETRY_EXCEEDED:
+		return IB_WC_RNR_RETRY_EXC_ERR;
+	case IONIC_STS_XRC_VIO_ERR:
+	default:
+		return IB_WC_GENERAL_ERR;
+	}
+}
+
 /* admin queue qp type */
 enum ionic_qp_type {
 	IONIC_QPT_RC,
@@ -294,6 +349,24 @@ struct ionic_v1_cqe {
 	__be32				qid_type_flags;
 };
 
+/* bits for cqe recv */
+enum ionic_v1_cqe_src_qpn_bits {
+	IONIC_V1_CQE_RECV_QPN_MASK	= 0xffffff,
+	IONIC_V1_CQE_RECV_OP_SHIFT	= 24,
+
+	/* MASK could be 0x3, but need 0x1f for makeshift values:
+	 * OP_TYPE_RDMA_OPER_WITH_IMM, OP_TYPE_SEND_RCVD
+	 */
+	IONIC_V1_CQE_RECV_OP_MASK	= 0x1f,
+	IONIC_V1_CQE_RECV_OP_SEND	= 0,
+	IONIC_V1_CQE_RECV_OP_SEND_INV	= 1,
+	IONIC_V1_CQE_RECV_OP_SEND_IMM	= 2,
+	IONIC_V1_CQE_RECV_OP_RDMA_IMM	= 3,
+
+	IONIC_V1_CQE_RECV_IS_IPV4	= BIT(7 + IONIC_V1_CQE_RECV_OP_SHIFT),
+	IONIC_V1_CQE_RECV_IS_VLAN	= BIT(6 + IONIC_V1_CQE_RECV_OP_SHIFT),
+};
+
 /* bits for cqe qid_type_flags */
 enum ionic_v1_cqe_qtf_bits {
 	IONIC_V1_CQE_COLOR		= BIT(0),
@@ -316,6 +389,16 @@ static inline bool ionic_v1_cqe_color(struct ionic_v1_cqe *cqe)
 static inline bool ionic_v1_cqe_error(struct ionic_v1_cqe *cqe)
 {
 	return cqe->qid_type_flags & cpu_to_be32(IONIC_V1_CQE_ERROR);
+}
+
+static inline bool ionic_v1_cqe_recv_is_ipv4(struct ionic_v1_cqe *cqe)
+{
+	return cqe->recv.src_qpn_op & cpu_to_be32(IONIC_V1_CQE_RECV_IS_IPV4);
+}
+
+static inline bool ionic_v1_cqe_recv_is_vlan(struct ionic_v1_cqe *cqe)
+{
+	return cqe->recv.src_qpn_op & cpu_to_be32(IONIC_V1_CQE_RECV_IS_VLAN);
 }
 
 static inline void ionic_v1_cqe_clean(struct ionic_v1_cqe *cqe)
@@ -442,6 +525,28 @@ enum ionic_v1_op {
 	IONIC_V1_FLAG_SPEC32		= (1u << 12),
 	IONIC_V1_FLAG_SPEC16		= (2u << 12),
 	IONIC_V1_SPEC_FIRST_SGE		= 2,
+};
+
+/* queue pair v2 send opcodes */
+enum ionic_v2_op {
+	IONIC_V2_OPSL_OUT          = 0x20,
+	IONIC_V2_OPSL_IMM          = 0x40,
+	IONIC_V2_OPSL_INV          = 0x80,
+
+	IONIC_V2_OP_SEND           = 0x0 | IONIC_V2_OPSL_OUT,
+	IONIC_V2_OP_SEND_IMM       = IONIC_V2_OP_SEND | IONIC_V2_OPSL_IMM,
+	IONIC_V2_OP_SEND_INV       = IONIC_V2_OP_SEND | IONIC_V2_OPSL_INV,
+
+	IONIC_V2_OP_RDMA_WRITE     = 0x1 | IONIC_V2_OPSL_OUT,
+	IONIC_V2_OP_RDMA_WRITE_IMM = IONIC_V2_OP_RDMA_WRITE | IONIC_V2_OPSL_IMM,
+
+	IONIC_V2_OP_RDMA_READ      = 0x2,
+
+	IONIC_V2_OP_ATOMIC_CS      = 0x4,
+	IONIC_V2_OP_ATOMIC_FA      = 0x5,
+	IONIC_V2_OP_REG_MR         = 0x6,
+	IONIC_V2_OP_LOCAL_INV      = 0x7,
+	IONIC_V2_OP_BIND_MW        = 0x8,
 };
 
 static inline size_t ionic_v1_send_wqe_min_size(int min_sge, int min_data,

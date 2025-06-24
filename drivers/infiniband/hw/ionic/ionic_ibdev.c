@@ -45,6 +45,11 @@ static const struct ib_device_ops ionic_dev_ops = {
 	.query_qp = ionic_query_qp,
 	.destroy_qp = ionic_destroy_qp,
 
+	.post_send = ionic_post_send,
+	.post_recv = ionic_post_recv,
+	.poll_cq = ionic_poll_cq,
+	.req_notify_cq = ionic_req_notify_cq,
+
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, ionic_ctx, ibctx),
 	INIT_RDMA_OBJ_SIZE(ib_pd, ionic_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ah, ionic_ah, ibah),

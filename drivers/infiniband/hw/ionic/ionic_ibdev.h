@@ -393,6 +393,11 @@ static inline u32 ionic_obj_dbid(struct ionic_ibdev *dev,
 	return ionic_ctx_dbid(dev, to_ionic_ctx_uobj(uobj));
 }
 
+static inline bool ionic_ibop_is_local(enum ib_wr_opcode op)
+{
+	return op == IB_WR_LOCAL_INV || op == IB_WR_REG_MR;
+}
+
 static inline void ionic_qp_complete(struct kref *kref)
 {
 	struct ionic_qp *qp = container_of(kref, struct ionic_qp, qp_kref);
@@ -466,8 +471,17 @@ int ionic_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		   struct ib_qp_init_attr *init_attr);
 int ionic_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 
+/* ionic_datapath.c */
+int ionic_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		    const struct ib_send_wr **bad);
+int ionic_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		    const struct ib_recv_wr **bad);
+int ionic_poll_cq(struct ib_cq *ibcq, int nwc, struct ib_wc *wc);
+int ionic_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+
 /* ionic_pgtbl.c */
 __le64 ionic_pgtbl_dma(struct ionic_tbl_buf *buf, u64 va);
+__be64 ionic_pgtbl_off(struct ionic_tbl_buf *buf, u64 va);
 int ionic_pgtbl_page(struct ionic_tbl_buf *buf, u64 dma);
 int ionic_pgtbl_init(struct ionic_ibdev *dev,
 		     struct ionic_tbl_buf *buf,

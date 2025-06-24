@@ -26,6 +26,17 @@ __le64 ionic_pgtbl_dma(struct ionic_tbl_buf *buf, u64 va)
 	return cpu_to_le64(dma + (va & pg_mask));
 }
 
+__be64 ionic_pgtbl_off(struct ionic_tbl_buf *buf, u64 va)
+{
+	if (buf->tbl_pages > 1) {
+		u64 pg_mask = BIT_ULL(buf->page_size_log2) - 1;
+
+		return cpu_to_be64(va & pg_mask);
+	}
+
+	return 0;
+}
+
 int ionic_pgtbl_page(struct ionic_tbl_buf *buf, u64 dma)
 {
 	if (unlikely(buf->tbl_pages == buf->tbl_limit))
