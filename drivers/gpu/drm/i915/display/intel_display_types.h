@@ -146,6 +146,8 @@ struct intel_framebuffer {
 
 	unsigned int min_alignment;
 	unsigned int vtd_guard;
+
+	unsigned int (*panic_tiling)(unsigned int x, unsigned int y, unsigned int width);
 };
 
 enum intel_hotplug_state {
