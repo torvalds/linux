@@ -158,38 +158,38 @@ static void set_view_mode(enum view_mode mode)
 
 /* Menu & Toolbar Callbacks */
 
-
-static void
-load_filename(GtkFileSelection * file_selector, gpointer user_data)
-{
-	const gchar *fn;
-
-	fn = gtk_file_selection_get_filename(GTK_FILE_SELECTION
-					     (user_data));
-
-	if (conf_read(fn))
-		text_insert_msg("Error", "Unable to load configuration !");
-	else
-		display_tree_part();
-}
-
 static void on_load1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
-	GtkWidget *fs;
+	GtkWidget *dialog;
+	GtkFileChooser *chooser;
+	gint res;
 
-	fs = gtk_file_selection_new("Load file...");
-	g_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(fs)->ok_button),
-			 "clicked",
-			 G_CALLBACK(load_filename), (gpointer) fs);
-	g_signal_connect_swapped(GTK_OBJECT
-				 (GTK_FILE_SELECTION(fs)->ok_button),
-				 "clicked", G_CALLBACK(gtk_widget_destroy),
-				 (gpointer) fs);
-	g_signal_connect_swapped(GTK_OBJECT
-				 (GTK_FILE_SELECTION(fs)->cancel_button),
-				 "clicked", G_CALLBACK(gtk_widget_destroy),
-				 (gpointer) fs);
-	gtk_widget_show(fs);
+	dialog = gtk_file_chooser_dialog_new("Load file...",
+					     GTK_WINDOW(user_data),
+					     GTK_FILE_CHOOSER_ACTION_OPEN,
+					     "_Cancel", GTK_RESPONSE_CANCEL,
+					     "_Open", GTK_RESPONSE_ACCEPT,
+					     NULL);
+
+	chooser = GTK_FILE_CHOOSER(dialog);
+	gtk_file_chooser_set_filename(chooser, conf_get_configname());
+
+	res = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (res == GTK_RESPONSE_ACCEPT) {
+		char *filename;
+
+		filename = gtk_file_chooser_get_filename(chooser);
+
+		if (conf_read(filename))
+			text_insert_msg("Error",
+					"Unable to load configuration!");
+		else
+			display_tree_part();
+
+		g_free(filename);
+	}
+
+	gtk_widget_destroy(GTK_WIDGET(dialog));
 }
 
 static void on_save_activate(GtkMenuItem *menuitem, gpointer user_data)
