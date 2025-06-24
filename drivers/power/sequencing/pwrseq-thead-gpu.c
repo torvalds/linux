@@ -124,24 +124,25 @@ static int pwrseq_thead_gpu_match(struct pwrseq_device *pwrseq,
 
 	/* We only match the specific T-HEAD TH1520 GPU compatible */
 	if (!of_device_is_compatible(dev->of_node, "thead,th1520-gpu"))
-		return 0;
+		return PWRSEQ_NO_MATCH;
 
 	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
 					 "#power-domain-cells", 0, &pwr_spec);
 	if (ret)
-		return 0;
+		return PWRSEQ_NO_MATCH;
 
 	/* Additionally verify consumer device has AON as power-domain */
 	if (pwr_spec.np != ctx->aon_node || pwr_spec.args[0] != TH1520_GPU_PD) {
 		of_node_put(pwr_spec.np);
-		return 0;
+		return PWRSEQ_NO_MATCH;
 	}
 
 	of_node_put(pwr_spec.np);
 
 	/* If a consumer is already bound, only allow a re-match from it */
 	if (ctx->consumer_node)
-		return ctx->consumer_node == dev->of_node ? 1 : 0;
+		return ctx->consumer_node == dev->of_node ?
+				PWRSEQ_MATCH_OK : PWRSEQ_NO_MATCH;
 
 	ctx->num_clks = ARRAY_SIZE(clk_names);
 	ctx->clks = kcalloc(ctx->num_clks, sizeof(*ctx->clks), GFP_KERNEL);
@@ -163,7 +164,7 @@ static int pwrseq_thead_gpu_match(struct pwrseq_device *pwrseq,
 
 	ctx->consumer_node = of_node_get(dev->of_node);
 
-	return 1;
+	return PWRSEQ_MATCH_OK;
 
 err_put_clks:
 	clk_bulk_put(ctx->num_clks, ctx->clks);
