@@ -295,7 +295,9 @@ static void amdgpu_fence_fallback(struct timer_list *t)
 					      fence_drv.fallback_timer);
 
 	if (amdgpu_fence_process(ring))
-		DRM_WARN("Fence fallback timer expired on ring %s\n", ring->name);
+		dev_warn(ring->adev->dev,
+			 "Fence fallback timer expired on ring %s\n",
+			 ring->name);
 }
 
 /**
