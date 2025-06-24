@@ -31,6 +31,14 @@
 static struct kmem_cache *pidfs_attr_cachep __ro_after_init;
 static struct kmem_cache *pidfs_xattr_cachep __ro_after_init;
 
+static struct path pidfs_root_path = {};
+
+void pidfs_get_root(struct path *path)
+{
+	*path = pidfs_root_path;
+	path_get(path);
+}
+
 /*
  * Stashes information that userspace needs to access even after the
  * process has been reaped.
@@ -1068,4 +1076,7 @@ void __init pidfs_init(void)
 	pidfs_mnt = kern_mount(&pidfs_type);
 	if (IS_ERR(pidfs_mnt))
 		panic("Failed to mount pidfs pseudo filesystem");
+
+	pidfs_root_path.mnt = pidfs_mnt;
+	pidfs_root_path.dentry = pidfs_mnt->mnt_root;
 }

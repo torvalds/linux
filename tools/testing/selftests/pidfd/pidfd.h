@@ -19,6 +19,10 @@
 #include "../kselftest.h"
 #include "../clone3/clone3_selftests.h"
 
+#ifndef FD_PIDFS_ROOT
+#define FD_PIDFS_ROOT -10002
+#endif
+
 #ifndef P_PIDFD
 #define P_PIDFD 3
 #endif
@@ -56,7 +60,7 @@
 #endif
 
 #ifndef PIDFD_SELF_THREAD_GROUP
-#define PIDFD_SELF_THREAD_GROUP		-20000 /* Current thread group leader. */
+#define PIDFD_SELF_THREAD_GROUP		-10001 /* Current thread group leader. */
 #endif
 
 #ifndef PIDFD_SELF
