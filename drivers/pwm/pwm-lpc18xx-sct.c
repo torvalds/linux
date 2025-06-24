@@ -100,8 +100,6 @@ struct lpc18xx_pwm_chip {
 	u64 max_period_ns;
 	unsigned int period_event;
 	unsigned long event_map;
-	struct mutex res_lock;
-	struct mutex period_lock;
 	struct lpc18xx_pwm_data channeldata[LPC18XX_NUM_PWMS];
 };
 
@@ -129,8 +127,6 @@ static void lpc18xx_pwm_set_conflict_res(struct lpc18xx_pwm_chip *lpc18xx_pwm,
 {
 	u32 val;
 
-	mutex_lock(&lpc18xx_pwm->res_lock);
-
 	/*
 	 * Simultaneous set and clear may happen on an output, that is the case
 	 * when duty_ns == period_ns. LPC18xx SCT allows to set a conflict
@@ -140,8 +136,6 @@ static void lpc18xx_pwm_set_conflict_res(struct lpc18xx_pwm_chip *lpc18xx_pwm,
 	val &= ~LPC18XX_PWM_RES_MASK(pwm->hwpwm);
 	val |= LPC18XX_PWM_RES(pwm->hwpwm, action);
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_RES_BASE, val);
-
-	mutex_unlock(&lpc18xx_pwm->res_lock);
 }
 
 static void lpc18xx_pwm_config_period(struct pwm_chip *chip, u64 period_ns)
@@ -200,8 +194,6 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -ERANGE;
 	}
 
-	mutex_lock(&lpc18xx_pwm->period_lock);
-
 	requested_events = bitmap_weight(&lpc18xx_pwm->event_map,
 					 LPC18XX_PWM_EVENT_MAX);
 
@@ -214,7 +206,6 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	    lpc18xx_pwm->period_ns) {
 		dev_err(pwmchip_parent(chip), "conflicting period requested for PWM %u\n",
 			pwm->hwpwm);
-		mutex_unlock(&lpc18xx_pwm->period_lock);
 		return -EBUSY;
 	}
 
@@ -223,8 +214,6 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		lpc18xx_pwm->period_ns = period_ns;
 		lpc18xx_pwm_config_period(chip, period_ns);
 	}
-
-	mutex_unlock(&lpc18xx_pwm->period_lock);
 
 	lpc18xx_pwm_config_duty(chip, pwm, duty_ns);
 
@@ -376,9 +365,6 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	 */
 	if (lpc18xx_pwm->clk_rate > NSEC_PER_SEC)
 		return dev_err_probe(&pdev->dev, -EINVAL, "pwm clock to fast\n");
-
-	mutex_init(&lpc18xx_pwm->res_lock);
-	mutex_init(&lpc18xx_pwm->period_lock);
 
 	lpc18xx_pwm->max_period_ns =
 		mul_u64_u64_div_u64(NSEC_PER_SEC, LPC18XX_PWM_TIMER_MAX, lpc18xx_pwm->clk_rate);
