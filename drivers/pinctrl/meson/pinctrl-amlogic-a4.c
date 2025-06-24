@@ -123,7 +123,7 @@ static const char *aml_bank_name[31] = {
 "GPIOCC", "TEST_N", "ANALOG"
 };
 
-const struct multi_mux multi_mux_s7[] = {
+static const struct multi_mux multi_mux_s7[] = {
 	{
 		.m_bank_id = AMLOGIC_GPIO_CC,
 		.m_bit_offs = 24,
@@ -132,12 +132,12 @@ const struct multi_mux multi_mux_s7[] = {
 	},
 };
 
-const struct aml_pctl_data s7_priv_data = {
+static const struct aml_pctl_data s7_priv_data = {
 	.number = ARRAY_SIZE(multi_mux_s7),
 	.p_mux = multi_mux_s7,
 };
 
-const struct multi_mux multi_mux_s6[] = {
+static const struct multi_mux multi_mux_s6[] = {
 	{
 		.m_bank_id = AMLOGIC_GPIO_CC,
 		.m_bit_offs = 24,
@@ -151,7 +151,7 @@ const struct multi_mux multi_mux_s6[] = {
 	},
 };
 
-const struct aml_pctl_data s6_priv_data = {
+static const struct aml_pctl_data s6_priv_data = {
 	.number = ARRAY_SIZE(multi_mux_s6),
 	.p_mux = multi_mux_s6,
 };
