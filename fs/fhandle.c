@@ -188,6 +188,11 @@ static int get_path_anchor(int fd, struct path *root)
 		return 0;
 	}
 
+	if (fd == FD_PIDFS_ROOT) {
+		pidfs_get_root(root);
+		return 0;
+	}
+
 	return -EBADF;
 }
 
