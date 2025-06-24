@@ -640,11 +640,11 @@ static gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
 					     (GtkDialogFlags)
 					     (GTK_DIALOG_MODAL |
 					      GTK_DIALOG_DESTROY_WITH_PARENT),
-					     GTK_STOCK_OK,
+					     "_OK",
 					     GTK_RESPONSE_YES,
-					     GTK_STOCK_NO,
+					     "_No",
 					     GTK_RESPONSE_NO,
-					     GTK_STOCK_CANCEL,
+					     "_Cancel",
 					     GTK_RESPONSE_CANCEL, NULL);
 	gtk_dialog_set_default_response(GTK_DIALOG(dialog),
 					GTK_RESPONSE_CANCEL);
