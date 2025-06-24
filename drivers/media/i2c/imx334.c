@@ -118,6 +118,9 @@
 #define IMX334_REG_TP			CCI_REG8(0x329e)
 #define IMX334_TP_COLOR_HBARS		0xa
 #define IMX334_TP_COLOR_VBARS		0xb
+#define IMX334_TP_BLACK			0x0
+#define IMX334_TP_WHITE			0x1
+#define IMX334_TP_BLACK_GREY		0xc
 
 #define IMX334_TPG_EN_DOUT		CCI_REG8(0x329c)
 #define IMX334_TP_ENABLE		0x1
@@ -398,12 +401,18 @@ static const char * const imx334_test_pattern_menu[] = {
 	"Disabled",
 	"Vertical Color Bars",
 	"Horizontal Color Bars",
+	"Black and Grey Bars",
+	"Black Color",
+	"White Color",
 };
 
 static const int imx334_test_pattern_val[] = {
 	IMX334_TP_DISABLE,
 	IMX334_TP_COLOR_HBARS,
 	IMX334_TP_COLOR_VBARS,
+	IMX334_TP_BLACK_GREY,
+	IMX334_TP_BLACK,
+	IMX334_TP_WHITE,
 };
 
 static const struct cci_reg_sequence raw10_framefmt_regs[] = {
