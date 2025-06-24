@@ -7,6 +7,7 @@
 #include <linux/types.h>
 
 struct drm_gem_object;
+struct intel_framebuffer;
 struct seq_file;
 struct vm_area_struct;
 
@@ -23,5 +24,6 @@ struct intel_frontbuffer *intel_bo_set_frontbuffer(struct drm_gem_object *obj,
 						   struct intel_frontbuffer *front);
 
 void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj);
+struct intel_framebuffer *intel_bo_alloc_framebuffer(void);
 
 #endif /* __INTEL_BO__ */

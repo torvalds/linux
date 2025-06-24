@@ -6,6 +6,7 @@
 #include <drm/drm_cache.h>
 #include <linux/vmalloc.h>
 
+#include "display/intel_display_types.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_tlb.h"
 
@@ -352,6 +353,27 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 		kvfree(pfns);
 
 	return vaddr ?: ERR_PTR(-ENOMEM);
+}
+
+struct i915_panic_data {
+	struct page **pages;
+	int page;
+	void *vaddr;
+};
+
+struct i915_framebuffer {
+	struct intel_framebuffer base;
+	struct i915_panic_data panic;
+};
+
+struct intel_framebuffer *i915_gem_object_alloc_framebuffer(void)
+{
+	struct i915_framebuffer *i915_fb;
+
+	i915_fb = kzalloc(sizeof(*i915_fb), GFP_KERNEL);
+	if (i915_fb)
+		return &i915_fb->base;
+	return NULL;
 }
 
 /* get, pin, and map the pages of the object into kernel space */

@@ -2346,7 +2346,7 @@ intel_framebuffer_create(struct drm_gem_object *obj,
 	struct intel_framebuffer *intel_fb;
 	int ret;
 
-	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	intel_fb = intel_bo_alloc_framebuffer();
 	if (!intel_fb)
 		return ERR_PTR(-ENOMEM);
 

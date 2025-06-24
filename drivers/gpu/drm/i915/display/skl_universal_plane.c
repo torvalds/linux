@@ -3029,7 +3029,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 		return;
 	}
 
-	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
+	intel_fb = intel_bo_alloc_framebuffer();
 	if (!intel_fb) {
 		drm_dbg_kms(display->drm, "failed to alloc fb\n");
 		return;

@@ -3,6 +3,8 @@
 
 #include <drm/drm_gem.h>
 
+#include "intel_display_types.h"
+
 #include "xe_bo.h"
 #include "intel_bo.h"
 
@@ -59,3 +61,25 @@ void intel_bo_describe(struct seq_file *m, struct drm_gem_object *obj)
 {
 	/* FIXME */
 }
+
+struct xe_panic_data {
+	struct page **pages;
+	int page;
+	void *vaddr;
+};
+
+struct xe_framebuffer {
+	struct intel_framebuffer base;
+	struct xe_panic_data panic;
+};
+
+struct intel_framebuffer *intel_bo_alloc_framebuffer(void)
+{
+	struct xe_framebuffer *xe_fb;
+
+	xe_fb = kzalloc(sizeof(*xe_fb), GFP_KERNEL);
+	if (xe_fb)
+		return &xe_fb->base;
+	return NULL;
+}
+
