@@ -117,19 +117,22 @@
 	};
 
 	clocks {
-		slow_xtal: slow_xtal {
+		slow_xtal: clock-slowxtal {
 			compatible = "fixed-clock";
+			clock-output-names = "slow_xtal";
 			#clock-cells = <0>;
 		};
 
-		main_xtal: main_xtal {
+		main_xtal: clock-mainxtal {
 			compatible = "fixed-clock";
+			clock-output-names = "main_xtal";
 			#clock-cells = <0>;
 		};
 
-		usb_clk: usb_clk {
+		usb_clk: clock-usbclk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
+			clock-output-names = "usb_clk";
 			clock-frequency = <48000000>;
 		};
 	};
