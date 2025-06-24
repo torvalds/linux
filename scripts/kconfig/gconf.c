@@ -1367,7 +1367,6 @@ int main(int ac, char *av[])
 	gchar *glade_file;
 
 	/* GTK stuffs */
-	gtk_set_locale();
 	gtk_init(&ac, &av);
 	glade_init();
 
