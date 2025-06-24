@@ -137,7 +137,8 @@ size_t alloc_tag_top_users(struct codetag_bytes *tags, size_t count, bool can_sl
 
 	if (IS_ERR_OR_NULL(alloc_tag_cttype))
 		return 0;
-	else if (can_sleep)
+
+	if (can_sleep)
 		codetag_lock_module_list(alloc_tag_cttype, true);
 	else if (!codetag_trylock_module_list(alloc_tag_cttype))
 		return 0;
