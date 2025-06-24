@@ -129,7 +129,6 @@ static void init_main_window(const gchar *glade_file)
 	conf_set_changed_callback(conf_changed);
 
 	style = gtk_widget_get_style(main_wnd);
-	widget = glade_xml_get_widget(xml, "toolbar1");
 
 	replace_button_icon(xml, main_wnd->window, style,
 			    "button4", (gchar **) xpm_single_view);
