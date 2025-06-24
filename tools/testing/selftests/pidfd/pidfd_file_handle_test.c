@@ -500,4 +500,64 @@ TEST_F(file_handle, valid_name_to_handle_at_flags)
 	ASSERT_EQ(close(pidfd), 0);
 }
 
+/*
+ * That we decode a file handle without having to pass a pidfd.
+ */
+TEST_F(file_handle, decode_purely_based_on_file_handle)
+{
+	int mnt_id;
+	struct file_handle *fh;
+	int pidfd = -EBADF;
+	struct stat st1, st2;
+
+	fh = malloc(sizeof(struct file_handle) + MAX_HANDLE_SZ);
+	ASSERT_NE(fh, NULL);
+	memset(fh, 0, sizeof(struct file_handle) + MAX_HANDLE_SZ);
+	fh->handle_bytes = MAX_HANDLE_SZ;
+
+	ASSERT_EQ(name_to_handle_at(self->child_pidfd1, "", fh, &mnt_id, AT_EMPTY_PATH), 0);
+
+	ASSERT_EQ(fstat(self->child_pidfd1, &st1), 0);
+
+	pidfd = open_by_handle_at(FD_PIDFS_ROOT, fh, 0);
+	ASSERT_GE(pidfd, 0);
+
+	ASSERT_EQ(fstat(pidfd, &st2), 0);
+	ASSERT_TRUE(st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino);
+
+	ASSERT_EQ(close(pidfd), 0);
+
+	pidfd = open_by_handle_at(FD_PIDFS_ROOT, fh, O_CLOEXEC);
+	ASSERT_GE(pidfd, 0);
+
+	ASSERT_EQ(fstat(pidfd, &st2), 0);
+	ASSERT_TRUE(st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino);
+
+	ASSERT_EQ(close(pidfd), 0);
+
+	pidfd = open_by_handle_at(FD_PIDFS_ROOT, fh, O_NONBLOCK);
+	ASSERT_GE(pidfd, 0);
+
+	ASSERT_EQ(fstat(pidfd, &st2), 0);
+	ASSERT_TRUE(st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino);
+
+	ASSERT_EQ(close(pidfd), 0);
+
+	pidfd = open_by_handle_at(self->pidfd, fh, 0);
+	ASSERT_GE(pidfd, 0);
+
+	ASSERT_EQ(fstat(pidfd, &st2), 0);
+	ASSERT_TRUE(st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino);
+
+	ASSERT_EQ(close(pidfd), 0);
+
+	pidfd = open_by_handle_at(-EBADF, fh, 0);
+	ASSERT_LT(pidfd, 0);
+
+	pidfd = open_by_handle_at(AT_FDCWD, fh, 0);
+	ASSERT_LT(pidfd, 0);
+
+	free(fh);
+}
+
 TEST_HARNESS_MAIN

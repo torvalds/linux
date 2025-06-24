@@ -19,6 +19,10 @@
 #include "../kselftest.h"
 #include "../clone3/clone3_selftests.h"
 
+#ifndef FD_PIDFS_ROOT
+#define FD_PIDFS_ROOT -10002
+#endif
+
 #ifndef P_PIDFD
 #define P_PIDFD 3
 #endif
