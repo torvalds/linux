@@ -20,6 +20,17 @@ pub(crate) mod gsp;
 mod hal;
 pub(crate) mod sec2;
 
+// TODO[FPRI]: Replace with `ToPrimitive`.
+macro_rules! impl_from_enum_to_u32 {
+    ($enum_type:ty) => {
+        impl From<$enum_type> for u32 {
+            fn from(value: $enum_type) -> Self {
+                value as u32
+            }
+        }
+    };
+}
+
 /// Revision number of a falcon core, used in the [`crate::regs::NV_PFALCON_FALCON_HWCFG1`]
 /// register.
 #[repr(u8)]
@@ -34,6 +45,7 @@ pub(crate) enum FalconCoreRev {
     Rev6 = 6,
     Rev7 = 7,
 }
+impl_from_enum_to_u32!(FalconCoreRev);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconCoreRev {
@@ -68,6 +80,7 @@ pub(crate) enum FalconCoreRevSubversion {
     Subversion2 = 2,
     Subversion3 = 3,
 }
+impl_from_enum_to_u32!(FalconCoreRevSubversion);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconCoreRevSubversion {
@@ -102,6 +115,7 @@ pub(crate) enum FalconSecurityModel {
     /// High-Secure: runs signed code with full privileges. Signature is validated by boot ROM.
     Heavy = 3,
 }
+impl_from_enum_to_u32!(FalconSecurityModel);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconSecurityModel {
@@ -130,6 +144,7 @@ pub(crate) enum FalconModSelAlgo {
     #[default]
     Rsa3k = 1,
 }
+impl_from_enum_to_u32!(FalconModSelAlgo);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconModSelAlgo {
@@ -151,6 +166,7 @@ pub(crate) enum DmaTrfCmdSize {
     #[default]
     Size256B = 0x6,
 }
+impl_from_enum_to_u32!(DmaTrfCmdSize);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for DmaTrfCmdSize {
@@ -173,6 +189,7 @@ pub(crate) enum PeregrineCoreSelect {
     /// RISC-V core is active.
     Riscv = 1,
 }
+impl_from_enum_to_u32!(PeregrineCoreSelect);
 
 impl From<bool> for PeregrineCoreSelect {
     fn from(value: bool) -> Self {
@@ -203,6 +220,7 @@ pub(crate) enum FalconFbifTarget {
     /// Non-coherent system memory.
     NoncoherentSysmem = 2,
 }
+impl_from_enum_to_u32!(FalconFbifTarget);
 
 // TODO[FPRI]: replace with `FromPrimitive`.
 impl TryFrom<u8> for FalconFbifTarget {
@@ -229,6 +247,7 @@ pub(crate) enum FalconFbifMemType {
     /// Physical memory addresses.
     Physical = 1,
 }
+impl_from_enum_to_u32!(FalconFbifMemType);
 
 /// Conversion from a single-bit register field.
 impl From<bool> for FalconFbifMemType {
