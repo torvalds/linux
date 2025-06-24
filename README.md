@@ -1,1 +1,1 @@
-Documentation/lkl.txt
+Documentation/lkl/lkl.txt

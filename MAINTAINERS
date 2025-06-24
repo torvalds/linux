@@ -12158,6 +12158,7 @@ M:	Octavian Purdila <octavian.purdila@intel.com>
 M:	Hajime Tazaki <thehajime@gmail.com>
 L:	linux-kernel-library@freelists.org
 S:	Maintained
+F:	Documentation/lkl/
 F:	arch/lkl/
 F:	tools/lkl/
 
