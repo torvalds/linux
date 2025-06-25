@@ -830,10 +830,10 @@ hclge_dbg_dump_reg_tqp(struct hclge_dev *hdev,
 {
 	const struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
 	const struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
+	u32 index, entry, i, cnt, min_num;
 	struct hclge_desc *desc_src;
-	u32 index, entry, i, cnt;
-	int bd_num, min_num, ret;
 	struct hclge_desc *desc;
+	int bd_num, ret;
 
 	ret = hclge_dbg_get_dfx_bd_num(hdev, reg_msg->offset, &bd_num);
 	if (ret)
@@ -885,9 +885,9 @@ hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 	const struct hclge_dbg_reg_common_msg *reg_msg = &reg_info->reg_msg;
 	const struct hclge_dbg_dfx_message *dfx_message = reg_info->dfx_msg;
 	struct hclge_desc *desc_src;
-	int bd_num, min_num, ret;
+	int bd_num, min_num, ret, i;
 	struct hclge_desc *desc;
-	u32 entry, i;
+	u32 entry;
 
 	ret = hclge_dbg_get_dfx_bd_num(hdev, reg_msg->offset, &bd_num);
 	if (ret)
@@ -1279,7 +1279,7 @@ static int hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev,
 {
 	const struct hclge_dbg_reg_type_info *reg_info;
 	int pos = 0, ret = 0;
-	int i;
+	u32 i;
 
 	for (i = 0; i < ARRAY_SIZE(hclge_dbg_reg_info); i++) {
 		reg_info = &hclge_dbg_reg_info[i];
@@ -2110,7 +2110,7 @@ static int hclge_dbg_dump_mng_table(struct hclge_dev *hdev, char *buf, int len)
 	for (i = 0; i < HCLGE_DBG_MNG_TBL_MAX; i++) {
 		hclge_cmd_setup_basic_desc(&desc, HCLGE_MAC_ETHERTYPE_IDX_RD,
 					   true);
-		req0 = (struct hclge_mac_ethertype_idx_rd_cmd *)&desc.data;
+		req0 = (struct hclge_mac_ethertype_idx_rd_cmd *)desc.data;
 		req0->index = cpu_to_le16(i);
 
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -2648,9 +2648,8 @@ static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
 	struct hclge_mac_node *mac_node, *tmp;
 	struct hclge_vport *vport;
 	struct list_head *list;
-	u32 func_id;
+	u32 func_id, i;
 	int pos = 0;
-	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mac_list_items); i++)
 		result[i] = &data_str[i][0];

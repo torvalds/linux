@@ -348,7 +348,7 @@ static int hclge_comm_cmd_csq_clean(struct hclge_comm_hw *hw)
 static int hclge_comm_cmd_csq_done(struct hclge_comm_hw *hw)
 {
 	u32 head = hclge_comm_read_dev(hw, HCLGE_COMM_NIC_CSQ_HEAD_REG);
-	return head == hw->cmq.csq.next_to_use;
+	return head == (u32)hw->cmq.csq.next_to_use;
 }
 
 static u32 hclge_get_cmdq_tx_timeout(u16 opcode, u32 tx_timeout)
