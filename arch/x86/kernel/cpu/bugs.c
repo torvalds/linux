@@ -1171,6 +1171,21 @@ static enum retbleed_mitigation retbleed_mitigation __ro_after_init =
 
 static int __ro_after_init retbleed_nosmt = false;
 
+enum srso_mitigation {
+	SRSO_MITIGATION_NONE,
+	SRSO_MITIGATION_AUTO,
+	SRSO_MITIGATION_UCODE_NEEDED,
+	SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED,
+	SRSO_MITIGATION_MICROCODE,
+	SRSO_MITIGATION_NOSMT,
+	SRSO_MITIGATION_SAFE_RET,
+	SRSO_MITIGATION_IBPB,
+	SRSO_MITIGATION_IBPB_ON_VMEXIT,
+	SRSO_MITIGATION_BP_SPEC_REDUCE,
+};
+
+static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_AUTO;
+
 static int __init retbleed_parse_cmdline(char *str)
 {
 	if (!str)
@@ -1279,6 +1294,10 @@ static void __init retbleed_update_mitigation(void)
 	 /* ITS can also enable stuffing */
 	if (its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF)
 		retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
+
+	/* If SRSO is using IBPB, that works for retbleed too */
+	if (srso_mitigation == SRSO_MITIGATION_IBPB)
+		retbleed_mitigation = RETBLEED_MITIGATION_IBPB;
 
 	if (retbleed_mitigation == RETBLEED_MITIGATION_STUFF &&
 	    !cdt_possible(spectre_v2_enabled)) {
@@ -2845,19 +2864,6 @@ early_param("l1tf", l1tf_cmdline);
 #undef pr_fmt
 #define pr_fmt(fmt)	"Speculative Return Stack Overflow: " fmt
 
-enum srso_mitigation {
-	SRSO_MITIGATION_NONE,
-	SRSO_MITIGATION_AUTO,
-	SRSO_MITIGATION_UCODE_NEEDED,
-	SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED,
-	SRSO_MITIGATION_MICROCODE,
-	SRSO_MITIGATION_NOSMT,
-	SRSO_MITIGATION_SAFE_RET,
-	SRSO_MITIGATION_IBPB,
-	SRSO_MITIGATION_IBPB_ON_VMEXIT,
-	SRSO_MITIGATION_BP_SPEC_REDUCE,
-};
-
 static const char * const srso_strings[] = {
 	[SRSO_MITIGATION_NONE]			= "Vulnerable",
 	[SRSO_MITIGATION_UCODE_NEEDED]		= "Vulnerable: No microcode",
@@ -2869,8 +2875,6 @@ static const char * const srso_strings[] = {
 	[SRSO_MITIGATION_IBPB_ON_VMEXIT]	= "Mitigation: IBPB on VMEXIT only",
 	[SRSO_MITIGATION_BP_SPEC_REDUCE]	= "Mitigation: Reduced Speculation"
 };
-
-static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_AUTO;
 
 static int __init srso_parse_cmdline(char *str)
 {
