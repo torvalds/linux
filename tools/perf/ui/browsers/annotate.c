@@ -345,6 +345,23 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 	browser->curr_hot = rb_last(&browser->entries);
 }
 
+static struct annotation_line *annotate_browser__find_new_asm_line(
+					struct annotate_browser *browser,
+					int idx_asm)
+{
+	struct annotation_line *al;
+	struct list_head *head = browser->b.entries;
+
+	/* find an annotation line in the new list with the same idx_asm */
+	list_for_each_entry(al, head, node) {
+		if (al->idx_asm == idx_asm)
+			return al;
+	}
+
+	/* There are no asm lines */
+	return NULL;
+}
+
 static struct annotation_line *annotate_browser__find_next_asm_line(
 					struct annotate_browser *browser,
 					struct annotation_line *al)
@@ -368,7 +385,31 @@ static struct annotation_line *annotate_browser__find_next_asm_line(
 	return NULL;
 }
 
-static bool annotate_browser__toggle_source(struct annotate_browser *browser)
+static bool annotation__has_source(struct annotation *notes)
+{
+	struct annotation_line *al;
+	bool found_asm = false;
+
+	/* Let's skip the first non-asm lines which present regardless of source. */
+	list_for_each_entry(al, &notes->src->source, node) {
+		if (al->offset >= 0) {
+			found_asm = true;
+			break;
+		}
+	}
+
+	if (found_asm) {
+		/* After assembly lines, any line without offset means source. */
+		list_for_each_entry_continue(al, &notes->src->source, node) {
+			if (al->offset == -1)
+				return true;
+		}
+	}
+	return false;
+}
+
+static bool annotate_browser__toggle_source(struct annotate_browser *browser,
+					    struct evsel *evsel)
 {
 	struct annotation *notes = browser__annotation(&browser->b);
 	struct annotation_line *al;
@@ -376,6 +417,39 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
 	al = list_entry(browser->b.top, struct annotation_line, node);
+
+	if (!annotate_opts.annotate_src)
+		annotate_opts.annotate_src = true;
+
+	/*
+	 * It's about to get source code annotation for the first time.
+	 * Drop the existing annotation_lines and get the new one with source.
+	 * And then move to the original line at the same asm index.
+	 */
+	if (annotate_opts.hide_src_code && !notes->src->tried_source) {
+		struct map_symbol *ms = browser->b.priv;
+		int orig_idx_asm = al->idx_asm;
+
+		/* annotate again with source code info */
+		annotate_opts.hide_src_code = false;
+		annotated_source__purge(notes->src);
+		symbol__annotate2(ms, evsel, &browser->arch);
+		annotate_opts.hide_src_code = true;
+
+		/* should be after annotated_source__purge() */
+		notes->src->tried_source = true;
+
+		if (!annotation__has_source(notes))
+			ui__warning("Annotation has no source code.");
+
+		browser->b.entries = &notes->src->source;
+		al = annotate_browser__find_new_asm_line(browser, orig_idx_asm);
+		if (unlikely(al == NULL)) {
+			al = list_first_entry(&notes->src->source,
+					      struct annotation_line, node);
+		}
+		browser->b.seek(&browser->b, al->idx_asm, SEEK_SET);
+	}
 
 	if (annotate_opts.hide_src_code) {
 		if (al->idx_asm < offset)
@@ -833,7 +907,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 			nd = browser->curr_hot;
 			break;
 		case 's':
-			if (annotate_browser__toggle_source(browser))
+			if (annotate_browser__toggle_source(browser, evsel))
 				ui_helpline__puts(help);
 			annotate__scnprintf_title(hists, title, sizeof(title));
 			annotate_browser__show(&browser->b, title, help);
@@ -1011,6 +1085,12 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 			ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 			return -1;
 		}
+
+		if (!annotate_opts.hide_src_code) {
+			notes->src->tried_source = true;
+			if (!annotation__has_source(notes))
+				ui__warning("Annotation has no source code.");
+		}
 	}
 
 	ui_helpline__push("Press ESC to exit");
@@ -1025,7 +1105,7 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 
 	ret = annotate_browser__run(&browser, evsel, hbt);
 
-	if(not_annotated)
+	if (not_annotated && !notes->src->tried_source)
 		annotated_source__purge(notes->src);
 
 	return ret;
