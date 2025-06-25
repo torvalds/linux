@@ -70,10 +70,8 @@ static int do_make_slave(struct mount *mnt)
 	struct mount *master, *slave_mnt;
 
 	if (list_empty(&mnt->mnt_share)) {
-		if (IS_MNT_SHARED(mnt)) {
-			mnt_release_group_id(mnt);
-			CLEAR_MNT_SHARED(mnt);
-		}
+		mnt_release_group_id(mnt);
+		CLEAR_MNT_SHARED(mnt);
 		master = mnt->mnt_master;
 		if (!master) {
 			struct list_head *p = &mnt->mnt_slave_list;
@@ -119,7 +117,8 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		set_mnt_shared(mnt);
 		return;
 	}
-	do_make_slave(mnt);
+	if (IS_MNT_SHARED(mnt))
+		do_make_slave(mnt);
 	list_del_init(&mnt->mnt_slave);
 	if (type == MS_SLAVE) {
 		if (mnt->mnt_master)
