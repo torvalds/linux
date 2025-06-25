@@ -715,8 +715,6 @@ struct btrfs_fs_info {
 	u32 data_chunk_allocations;
 	u32 metadata_ratio;
 
-	void *bdev_holder;
-
 	/* Private scrub information */
 	struct mutex scrub_lock;
 	atomic_t scrubs_running;
@@ -781,7 +779,7 @@ struct btrfs_fs_info {
 
 	struct btrfs_delayed_root *delayed_root;
 
-	/* Entries are eb->start / sectorsize */
+	/* Entries are eb->start >> nodesize_bits */
 	struct xarray buffer_tree;
 
 	/* Next backup root to be overwritten */
@@ -813,6 +811,7 @@ struct btrfs_fs_info {
 
 	/* Cached block sizes */
 	u32 nodesize;
+	u32 nodesize_bits;
 	u32 sectorsize;
 	/* ilog2 of sectorsize, use to avoid 64bit division */
 	u32 sectorsize_bits;
