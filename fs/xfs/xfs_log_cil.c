@@ -793,8 +793,10 @@ xlog_cil_ail_insert(
 		struct xfs_log_item	*lip = lv->lv_item;
 		xfs_lsn_t		item_lsn;
 
-		if (aborted)
+		if (aborted) {
+			trace_xlog_ail_insert_abort(lip);
 			set_bit(XFS_LI_ABORTED, &lip->li_flags);
+		}
 
 		if (lip->li_ops->flags & XFS_ITEM_RELEASE_WHEN_COMMITTED) {
 			lip->li_ops->iop_release(lip);
