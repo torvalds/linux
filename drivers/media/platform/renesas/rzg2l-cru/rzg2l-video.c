@@ -939,15 +939,7 @@ static void rzg2l_cru_format_align(struct rzg2l_cru_dev *cru,
 	v4l_bound_align_image(&pix->width, 320, info->max_width, 1,
 			      &pix->height, 240, info->max_height, 2, 0);
 
-	if (info->has_stride) {
-		u32 stride = clamp(pix->bytesperline, pix->width * fmt->bpp,
-				   RZG2L_CRU_STRIDE_MAX);
-		pix->bytesperline = round_up(stride, RZG2L_CRU_STRIDE_ALIGN);
-	} else {
-		pix->bytesperline = pix->width * fmt->bpp;
-	}
-
-	pix->sizeimage = pix->bytesperline * pix->height;
+	v4l2_fill_pixfmt(pix, pix->pixelformat, pix->width, pix->height);
 
 	dev_dbg(cru->dev, "Format %ux%u bpl: %u size: %u\n",
 		pix->width, pix->height, pix->bytesperline, pix->sizeimage);
