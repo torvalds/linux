@@ -346,7 +346,7 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 
 	/* firmware will calculate the qclk_gv_index, requirement is set to 0 */
 	new_pmdemand_state->params.qclk_gv_index = 0;
-	new_pmdemand_state->params.qclk_gv_bw = new_bw_state->qgv_point_peakbw;
+	new_pmdemand_state->params.qclk_gv_bw = intel_bw_qgv_point_peakbw(new_bw_state);
 
 	new_dbuf_state = intel_atomic_get_dbuf_state(state);
 	if (IS_ERR(new_dbuf_state))

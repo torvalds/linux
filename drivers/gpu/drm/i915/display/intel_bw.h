@@ -79,5 +79,6 @@ bool intel_bw_can_enable_sagv(struct intel_display *display,
 			      const struct intel_bw_state *bw_state);
 void icl_sagv_pre_plane_update(struct intel_atomic_state *state);
 void icl_sagv_post_plane_update(struct intel_atomic_state *state);
+int intel_bw_qgv_point_peakbw(const struct intel_bw_state *bw_state);
 
 #endif /* __INTEL_BW_H__ */

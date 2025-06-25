@@ -1739,3 +1739,8 @@ bool intel_bw_can_enable_sagv(struct intel_display *display,
 
 	return bw_state->pipe_sagv_reject == 0;
 }
+
+int intel_bw_qgv_point_peakbw(const struct intel_bw_state *bw_state)
+{
+	return bw_state->qgv_point_peakbw;
+}
