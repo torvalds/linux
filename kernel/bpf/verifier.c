@@ -44,6 +44,10 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
 #undef BPF_LINK_TYPE
 };
 
+enum bpf_features {
+	__MAX_BPF_FEAT,
+};
+
 struct bpf_mem_alloc bpf_global_percpu_ma;
 static bool bpf_global_percpu_ma_set;
 
@@ -24438,6 +24442,8 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	int i, len, ret = -EINVAL, err;
 	u32 log_true_size;
 	bool is_priv;
+
+	BTF_TYPE_EMIT(enum bpf_features);
 
 	/* no program is valid */
 	if (ARRAY_SIZE(bpf_verifier_ops) == 0)
