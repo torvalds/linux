@@ -3834,3 +3834,8 @@ void intel_init_cdclk_hooks(struct intel_display *display)
 		     "Unknown platform. Assuming i830\n"))
 		display->funcs.cdclk = &i830_cdclk_funcs;
 }
+
+int intel_cdclk_logical(const struct intel_cdclk_state *cdclk_state)
+{
+	return cdclk_state->logical.cdclk;
+}

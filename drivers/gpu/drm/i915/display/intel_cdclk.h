@@ -97,4 +97,6 @@ void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc);
 int intel_cdclk_init(struct intel_display *display);
 void intel_cdclk_debugfs_register(struct intel_display *display);
 
+int intel_cdclk_logical(const struct intel_cdclk_state *cdclk_state);
+
 #endif /* __INTEL_CDCLK_H__ */

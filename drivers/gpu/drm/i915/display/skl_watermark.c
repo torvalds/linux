@@ -2178,7 +2178,7 @@ cdclk_prefill_adjustment(const struct intel_crtc_state *crtc_state)
 	}
 
 	return min(1, DIV_ROUND_UP(crtc_state->pixel_rate,
-				   2 * cdclk_state->logical.cdclk));
+				   2 * intel_cdclk_logical(cdclk_state)));
 }
 
 static int

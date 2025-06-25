@@ -265,7 +265,7 @@ int hsw_ips_compute_config(struct intel_atomic_state *state,
 			return PTR_ERR(cdclk_state);
 
 		/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-		if (crtc_state->pixel_rate > cdclk_state->logical.cdclk * 95 / 100)
+		if (crtc_state->pixel_rate > intel_cdclk_logical(cdclk_state) * 95 / 100)
 			return 0;
 	}
 
