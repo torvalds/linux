@@ -290,14 +290,40 @@ static long ptp_enable_pps(struct ptp_clock *ptp, bool enable)
 		return ops->enable(ops, &req, enable);
 }
 
+static long ptp_sys_offset_precise(struct ptp_clock *ptp, void __user *arg)
+{
+	struct ptp_sys_offset_precise precise_offset;
+	struct system_device_crosststamp xtstamp;
+	struct timespec64 ts;
+	int err;
+
+	if (!ptp->info->getcrosststamp)
+		return -EOPNOTSUPP;
+
+	err = ptp->info->getcrosststamp(ptp->info, &xtstamp);
+	if (err)
+		return err;
+
+	memset(&precise_offset, 0, sizeof(precise_offset));
+	ts = ktime_to_timespec64(xtstamp.device);
+	precise_offset.device.sec = ts.tv_sec;
+	precise_offset.device.nsec = ts.tv_nsec;
+	ts = ktime_to_timespec64(xtstamp.sys_realtime);
+	precise_offset.sys_realtime.sec = ts.tv_sec;
+	precise_offset.sys_realtime.nsec = ts.tv_nsec;
+	ts = ktime_to_timespec64(xtstamp.sys_monoraw);
+	precise_offset.sys_monoraw.sec = ts.tv_sec;
+	precise_offset.sys_monoraw.nsec = ts.tv_nsec;
+
+	return copy_to_user(arg, &precise_offset, sizeof(precise_offset)) ? -EFAULT : 0;
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
 	struct ptp_clock *ptp =
 		container_of(pccontext->clk, struct ptp_clock, clock);
 	struct ptp_sys_offset_extended *extoff = NULL;
-	struct ptp_sys_offset_precise precise_offset;
-	struct system_device_crosststamp xtstamp;
 	struct ptp_clock_info *ops = ptp->info;
 	struct ptp_sys_offset *sysoff = NULL;
 	struct timestamp_event_queue *tsevq;
@@ -340,28 +366,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 
 	case PTP_SYS_OFFSET_PRECISE:
 	case PTP_SYS_OFFSET_PRECISE2:
-		if (!ptp->info->getcrosststamp) {
-			err = -EOPNOTSUPP;
-			break;
-		}
-		err = ptp->info->getcrosststamp(ptp->info, &xtstamp);
-		if (err)
-			break;
-
-		memset(&precise_offset, 0, sizeof(precise_offset));
-		ts = ktime_to_timespec64(xtstamp.device);
-		precise_offset.device.sec = ts.tv_sec;
-		precise_offset.device.nsec = ts.tv_nsec;
-		ts = ktime_to_timespec64(xtstamp.sys_realtime);
-		precise_offset.sys_realtime.sec = ts.tv_sec;
-		precise_offset.sys_realtime.nsec = ts.tv_nsec;
-		ts = ktime_to_timespec64(xtstamp.sys_monoraw);
-		precise_offset.sys_monoraw.sec = ts.tv_sec;
-		precise_offset.sys_monoraw.nsec = ts.tv_nsec;
-		if (copy_to_user((void __user *)arg, &precise_offset,
-				 sizeof(precise_offset)))
-			err = -EFAULT;
-		break;
+		return ptp_sys_offset_precise(ptp, argptr);
 
 	case PTP_SYS_OFFSET_EXTENDED:
 	case PTP_SYS_OFFSET_EXTENDED2:
