@@ -826,6 +826,10 @@ static ssize_t error_type_set(struct file *file, const char __user *buf,
 	int rc;
 	u64 val;
 
+	/* Leave the last character for the NUL terminator */
+	if (count > sizeof(einj_buf) - 1)
+		return -EINVAL;
+
 	memset(einj_buf, 0, sizeof(einj_buf));
 	if (copy_from_user(einj_buf, buf, count))
 		return -EFAULT;
