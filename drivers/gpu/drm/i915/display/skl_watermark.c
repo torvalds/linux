@@ -39,6 +39,18 @@
  */
 #define DSB_EXE_TIME 100
 
+struct intel_dbuf_state {
+	struct intel_global_state base;
+
+	struct skl_ddb_entry ddb[I915_MAX_PIPES];
+	unsigned int weight[I915_MAX_PIPES];
+	u8 slices[I915_MAX_PIPES];
+	u8 enabled_slices;
+	u8 active_pipes;
+	u8 mdclk_cdclk_ratio;
+	bool joined_mbus;
+};
+
 #define to_intel_dbuf_state(global_state) \
 	container_of_const((global_state), struct intel_dbuf_state, base)
 

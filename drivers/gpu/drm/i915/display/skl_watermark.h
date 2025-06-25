@@ -8,17 +8,16 @@
 
 #include <linux/types.h>
 
-#include "intel_display_limits.h"
-#include "intel_global_state.h"
-#include "intel_wm_types.h"
-
+enum plane_id;
 struct intel_atomic_state;
 struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_dbuf_state;
 struct intel_display;
 struct intel_plane;
 struct intel_plane_state;
+struct skl_ddb_entry;
 struct skl_pipe_wm;
 struct skl_wm_level;
 
@@ -62,18 +61,6 @@ const struct skl_wm_level *skl_plane_trans_wm(const struct skl_pipe_wm *pipe_wm,
 unsigned int skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 					  struct intel_plane *plane, int width,
 					  int height, int cpp);
-
-struct intel_dbuf_state {
-	struct intel_global_state base;
-
-	struct skl_ddb_entry ddb[I915_MAX_PIPES];
-	unsigned int weight[I915_MAX_PIPES];
-	u8 slices[I915_MAX_PIPES];
-	u8 enabled_slices;
-	u8 active_pipes;
-	u8 mdclk_cdclk_ratio;
-	bool joined_mbus;
-};
 
 struct intel_dbuf_state *
 intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
