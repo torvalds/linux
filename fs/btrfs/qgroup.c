@@ -1161,11 +1161,6 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 
 			qgroup = add_qgroup_rb(fs_info, prealloc, found_key.offset);
 			prealloc = NULL;
-			if (IS_ERR(qgroup)) {
-				ret = PTR_ERR(qgroup);
-				btrfs_abort_transaction(trans, ret);
-				goto out_free_path;
-			}
 			ret = btrfs_sysfs_add_one_qgroup(fs_info, qgroup);
 			if (ret < 0) {
 				btrfs_abort_transaction(trans, ret);
