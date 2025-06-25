@@ -3266,6 +3266,22 @@ static inline bool is_dot_dotdot(const char *name, size_t len)
 		(len == 1 || (len == 2 && name[1] == '.'));
 }
 
+/**
+ * name_contains_dotdot - check if a file name contains ".." path components
+ *
+ * Search for ".." surrounded by either '/' or start/end of string.
+ */
+static inline bool name_contains_dotdot(const char *name)
+{
+	size_t name_len;
+
+	name_len = strlen(name);
+	return strcmp(name, "..") == 0 ||
+	       strncmp(name, "../", 3) == 0 ||
+	       strstr(name, "/../") != NULL ||
+	       (name_len >= 3 && strcmp(name + name_len - 3, "/..") == 0);
+}
+
 #include <linux/err.h>
 
 /* needed for stackable file system support */
