@@ -46,6 +46,13 @@
  *       Monitor ranges (GTF): 50-70 Hz V, 30-70 kHz H, max dotclock 150 MHz
  *     Dummy Descriptor:
  * Checksum: 0xab
+ *
+ * ----------------
+ *
+ * edid-decode 1.30.0-5367
+ * edid-decode SHA: 41ebf7135691 2025-05-01 10:19:22
+ *
+ * EDID conformity: PASS
  */
 static const unsigned char test_edid_dvi_1080p[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x31, 0xd8, 0x2a, 0x00,
@@ -62,6 +69,10 @@ static const unsigned char test_edid_dvi_1080p[] = {
 };
 
 /*
+ *
+ * This edid is intentionally broken with the 100MHz limit. It's meant
+ * to be used only with tests in unusual situations.
+ *
  * edid-decode (hex):
  *
  * 00 ff ff ff ff ff ff 00 31 d8 2a 00 00 00 00 00
@@ -136,6 +147,18 @@ static const unsigned char test_edid_dvi_1080p[] = {
  *     Source physical address: 1.2.3.4
  *     Maximum TMDS clock: 100 MHz
  * Checksum: 0x10  Unused space in Extension Block: 106 bytes
+ *
+ * ----------------
+ *
+ * edid-decode 1.30.0-5367
+ * edid-decode SHA: 41ebf7135691 2025-05-01 10:19:22
+ *
+ * Failures:
+ *
+ * EDID:
+ *   CTA-861: The maximum HDMI TMDS clock is 100000 kHz, but one or more video timings go up to 148500 kHz.
+ *
+ * EDID conformity: FAIL
  */
 static const unsigned char test_edid_hdmi_1080p_rgb_max_100mhz[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x31, 0xd8, 0x2a, 0x00,
@@ -237,6 +260,13 @@ static const unsigned char test_edid_hdmi_1080p_rgb_max_100mhz[] = {
  *     Source physical address: 1.2.3.4
  *     Maximum TMDS clock: 200 MHz
  * Checksum: 0xfc  Unused space in Extension Block: 106 bytes
+ *
+ * ----------------
+ *
+ * edid-decode 1.30.0-5367
+ * edid-decode SHA: 41ebf7135691 2025-05-01 10:19:22
+ *
+ * EDID conformity: PASS
  */
 static const unsigned char test_edid_hdmi_1080p_rgb_max_200mhz[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x31, 0xd8, 0x2a, 0x00,
@@ -338,6 +368,13 @@ static const unsigned char test_edid_hdmi_1080p_rgb_max_200mhz[] = {
  *     Source physical address: 1.2.3.4
  *     Maximum TMDS clock: 340 MHz
  * Checksum: 0xe0  Unused space in Extension Block: 106 bytes
+ *
+ * ----------------
+ *
+ * edid-decode 1.30.0-5367
+ * edid-decode SHA: 41ebf7135691 2025-05-01 10:19:22
+ *
+ * EDID conformity: PASS
  */
 static const unsigned char test_edid_hdmi_1080p_rgb_max_340mhz[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x31, 0xd8, 0x2a, 0x00,
@@ -445,6 +482,13 @@ static const unsigned char test_edid_hdmi_1080p_rgb_max_340mhz[] = {
  *     DC_Y444
  *     Maximum TMDS clock: 200 MHz
  * Checksum: 0xd4  Unused space in Extension Block: 106 bytes
+ *
+ * ----------------
+ *
+ * edid-decode 1.30.0-5367
+ * edid-decode SHA: 41ebf7135691 2025-05-01 10:19:22
+ *
+ * EDID conformity: PASS
  */
 static const unsigned char test_edid_hdmi_1080p_rgb_yuv_dc_max_200mhz[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x31, 0xd8, 0x2a, 0x00,
@@ -552,6 +596,13 @@ static const unsigned char test_edid_hdmi_1080p_rgb_yuv_dc_max_200mhz[] = {
  *     DC_Y444
  *     Maximum TMDS clock: 340 MHz
  * Checksum: 0xb8  Unused space in Extension Block: 106 bytes
+ *
+ * ----------------
+ *
+ * edid-decode 1.30.0-5367
+ * edid-decode SHA: 41ebf7135691 2025-05-01 10:19:22
+ *
+ * EDID conformity: PASS
  */
 static const unsigned char test_edid_hdmi_1080p_rgb_yuv_dc_max_340mhz[] = {
 	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x31, 0xd8, 0x2a, 0x00,
