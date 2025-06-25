@@ -41,6 +41,7 @@ extern const struct k_clock clock_posix_dynamic;
 extern const struct k_clock clock_process;
 extern const struct k_clock clock_thread;
 extern const struct k_clock alarm_clock;
+extern const struct k_clock clock_aux;
 
 void posix_timer_queue_signal(struct k_itimer *timr);
 

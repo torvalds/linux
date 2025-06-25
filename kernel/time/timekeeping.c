@@ -2655,6 +2655,7 @@ EXPORT_SYMBOL(hardpps);
 #endif /* CONFIG_NTP_PPS */
 
 #ifdef CONFIG_POSIX_AUX_CLOCKS
+#include "posix-timers.h"
 
 /*
  * Bitmap for the activated auxiliary timekeepers to allow lockless quick
@@ -2748,6 +2749,26 @@ bool ktime_get_aux_ts64(clockid_t id, struct timespec64 *ts)
 	return true;
 }
 EXPORT_SYMBOL_GPL(ktime_get_aux_ts64);
+
+static int aux_get_res(clockid_t id, struct timespec64 *tp)
+{
+	if (!clockid_aux_valid(id))
+		return -ENODEV;
+
+	tp->tv_sec = 0;
+	tp->tv_nsec = 1;
+	return 0;
+}
+
+static int aux_get_timespec(clockid_t id, struct timespec64 *tp)
+{
+	return ktime_get_aux_ts64(id, tp) ? 0 : -ENODEV;
+}
+
+const struct k_clock clock_aux = {
+	.clock_getres		= aux_get_res,
+	.clock_get_timespec	= aux_get_timespec,
+};
 
 static __init void tk_aux_setup(void)
 {
