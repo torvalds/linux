@@ -45,6 +45,7 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
 };
 
 enum bpf_features {
+	BPF_FEAT_RDONLY_CAST_TO_VOID = 0,
 	__MAX_BPF_FEAT,
 };
 
@@ -7539,6 +7540,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		}
 	} else if (base_type(reg->type) == PTR_TO_MEM) {
 		bool rdonly_mem = type_is_rdonly_mem(reg->type);
+		bool rdonly_untrusted = rdonly_mem && (reg->type & PTR_UNTRUSTED);
 
 		if (type_may_be_null(reg->type)) {
 			verbose(env, "R%d invalid mem access '%s'\n", regno,
@@ -7558,8 +7560,13 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			return -EACCES;
 		}
 
-		err = check_mem_region_access(env, regno, off, size,
-					      reg->mem_size, false);
+		/*
+		 * Accesses to untrusted PTR_TO_MEM are done through probe
+		 * instructions, hence no need to check bounds in that case.
+		 */
+		if (!rdonly_untrusted)
+			err = check_mem_region_access(env, regno, off, size,
+						      reg->mem_size, false);
 		if (!err && value_regno >= 0 && (t == BPF_READ || rdonly_mem))
 			mark_reg_unknown(env, regs, value_regno);
 	} else if (reg->type == PTR_TO_CTX) {
@@ -13606,16 +13613,24 @@ static int check_special_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_ca
 		regs[BPF_REG_0].btf_id = meta->ret_btf_id;
 	} else if (meta->func_id == special_kfunc_list[KF_bpf_rdonly_cast]) {
 		ret_t = btf_type_by_id(desc_btf, meta->arg_constant.value);
-		if (!ret_t || !btf_type_is_struct(ret_t)) {
+		if (!ret_t) {
+			verbose(env, "Unknown type ID %lld passed to kfunc bpf_rdonly_cast\n",
+				meta->arg_constant.value);
+			return -EINVAL;
+		} else if (btf_type_is_struct(ret_t)) {
+			mark_reg_known_zero(env, regs, BPF_REG_0);
+			regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
+			regs[BPF_REG_0].btf = desc_btf;
+			regs[BPF_REG_0].btf_id = meta->arg_constant.value;
+		} else if (btf_type_is_void(ret_t)) {
+			mark_reg_known_zero(env, regs, BPF_REG_0);
+			regs[BPF_REG_0].type = PTR_TO_MEM | MEM_RDONLY | PTR_UNTRUSTED;
+			regs[BPF_REG_0].mem_size = 0;
+		} else {
 			verbose(env,
-				"kfunc bpf_rdonly_cast type ID argument must be of a struct\n");
+				"kfunc bpf_rdonly_cast type ID argument must be of a struct or void\n");
 			return -EINVAL;
 		}
-
-		mark_reg_known_zero(env, regs, BPF_REG_0);
-		regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
-		regs[BPF_REG_0].btf = desc_btf;
-		regs[BPF_REG_0].btf_id = meta->arg_constant.value;
 	} else if (meta->func_id == special_kfunc_list[KF_bpf_dynptr_slice] ||
 		   meta->func_id == special_kfunc_list[KF_bpf_dynptr_slice_rdwr]) {
 		enum bpf_type_flag type_flag = get_dynptr_type_flag(meta->initialized_dynptr.type);
@@ -14413,6 +14428,13 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 			dst, reg_type_str(env, ptr_reg->type));
 		return -EACCES;
 	}
+
+	/*
+	 * Accesses to untrusted PTR_TO_MEM are done through probe
+	 * instructions, hence no need to track offsets.
+	 */
+	if (base_type(ptr_reg->type) == PTR_TO_MEM && (ptr_reg->type & PTR_UNTRUSTED))
+		return 0;
 
 	switch (base_type(ptr_reg->type)) {
 	case PTR_TO_CTX:
@@ -19622,10 +19644,27 @@ static bool reg_type_mismatch(enum bpf_reg_type src, enum bpf_reg_type prev)
 			       !reg_type_mismatch_ok(prev));
 }
 
+static bool is_ptr_to_mem_or_btf_id(enum bpf_reg_type type)
+{
+	switch (base_type(type)) {
+	case PTR_TO_MEM:
+	case PTR_TO_BTF_ID:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_ptr_to_mem(enum bpf_reg_type type)
+{
+	return base_type(type) == PTR_TO_MEM;
+}
+
 static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type type,
 			     bool allow_trust_mismatch)
 {
 	enum bpf_reg_type *prev_type = &env->insn_aux_data[env->insn_idx].ptr_type;
+	enum bpf_reg_type merged_type;
 
 	if (*prev_type == NOT_INIT) {
 		/* Saw a valid insn
@@ -19642,15 +19681,24 @@ static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type typ
 		 * Reject it.
 		 */
 		if (allow_trust_mismatch &&
-		    base_type(type) == PTR_TO_BTF_ID &&
-		    base_type(*prev_type) == PTR_TO_BTF_ID) {
+		    is_ptr_to_mem_or_btf_id(type) &&
+		    is_ptr_to_mem_or_btf_id(*prev_type)) {
 			/*
 			 * Have to support a use case when one path through
 			 * the program yields TRUSTED pointer while another
 			 * is UNTRUSTED. Fallback to UNTRUSTED to generate
 			 * BPF_PROBE_MEM/BPF_PROBE_MEMSX.
+			 * Same behavior of MEM_RDONLY flag.
 			 */
-			*prev_type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
+			if (is_ptr_to_mem(type) || is_ptr_to_mem(*prev_type))
+				merged_type = PTR_TO_MEM;
+			else
+				merged_type = PTR_TO_BTF_ID;
+			if ((type & PTR_UNTRUSTED) || (*prev_type & PTR_UNTRUSTED))
+				merged_type |= PTR_UNTRUSTED;
+			if ((type & MEM_RDONLY) || (*prev_type & MEM_RDONLY))
+				merged_type |= MEM_RDONLY;
+			*prev_type = merged_type;
 		} else {
 			verbose(env, "same insn cannot be used with different pointers\n");
 			return -EINVAL;
@@ -21258,6 +21306,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		 * for this case.
 		 */
 		case PTR_TO_BTF_ID | MEM_ALLOC | PTR_UNTRUSTED:
+		case PTR_TO_MEM | MEM_RDONLY | PTR_UNTRUSTED:
 			if (type == BPF_READ) {
 				if (BPF_MODE(insn->code) == BPF_MEM)
 					insn->code = BPF_LDX | BPF_PROBE_MEM |
