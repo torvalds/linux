@@ -3370,18 +3370,49 @@ static void update_cpu_capabilities(u16 scope_mask)
 
 	scope_mask &= ARM64_CPUCAP_SCOPE_MASK;
 	for (i = 0; i < ARM64_NCAPS; i++) {
+		bool match_all = false;
+		bool caps_set = false;
+		bool boot_cpu = false;
+
 		caps = cpucap_ptrs[i];
-		if (!caps || !(caps->type & scope_mask) ||
-		    cpus_have_cap(caps->capability) ||
-		    !caps->matches(caps, cpucap_default_scope(caps)))
+		if (!caps || !(caps->type & scope_mask))
 			continue;
 
-		if (caps->desc && !caps->cpus)
+		match_all = cpucap_match_all_early_cpus(caps);
+		caps_set = cpus_have_cap(caps->capability);
+		boot_cpu = scope_mask & SCOPE_BOOT_CPU;
+
+		/*
+		 * Unless it's a match-all CPUs feature, avoid probing if
+		 * already detected.
+		 */
+		if (!match_all && caps_set)
+			continue;
+
+		/*
+		 * A match-all CPUs capability is only set when probing the
+		 * boot CPU. It may be cleared subsequently if not detected on
+		 * secondary ones.
+		 */
+		if (match_all && !caps_set && !boot_cpu)
+			continue;
+
+		if (!caps->matches(caps, cpucap_default_scope(caps))) {
+			if (match_all)
+				__clear_bit(caps->capability, system_cpucaps);
+			continue;
+		}
+
+		/*
+		 * Match-all CPUs capabilities are logged later when the
+		 * system capabilities are finalised.
+		 */
+		if (!match_all && caps->desc && !caps->cpus)
 			pr_info("detected: %s\n", caps->desc);
 
 		__set_bit(caps->capability, system_cpucaps);
 
-		if ((scope_mask & SCOPE_BOOT_CPU) && (caps->type & SCOPE_BOOT_CPU))
+		if (boot_cpu && (caps->type & SCOPE_BOOT_CPU))
 			set_bit(caps->capability, boot_cpucaps);
 	}
 }
@@ -3782,17 +3813,24 @@ static void __init setup_system_capabilities(void)
 	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
 	apply_alternatives_all();
 
-	/*
-	 * Log any cpucaps with a cpumask as these aren't logged by
-	 * update_cpu_capabilities().
-	 */
 	for (int i = 0; i < ARM64_NCAPS; i++) {
 		const struct arm64_cpu_capabilities *caps = cpucap_ptrs[i];
 
-		if (caps && caps->cpus && caps->desc &&
-			cpumask_any(caps->cpus) < nr_cpu_ids)
+		if (!caps || !caps->desc)
+			continue;
+
+		/*
+		 * Log any cpucaps with a cpumask as these aren't logged by
+		 * update_cpu_capabilities().
+		 */
+		if (caps->cpus && cpumask_any(caps->cpus) < nr_cpu_ids)
 			pr_info("detected: %s on CPU%*pbl\n",
 				caps->desc, cpumask_pr_args(caps->cpus));
+
+		/* Log match-all CPUs capabilities */
+		if (cpucap_match_all_early_cpus(caps) &&
+		    cpus_have_cap(caps->capability))
+			pr_info("detected: %s\n", caps->desc);
 	}
 
 	/*
