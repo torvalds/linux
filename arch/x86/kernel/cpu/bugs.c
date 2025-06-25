@@ -2851,6 +2851,7 @@ enum srso_mitigation {
 	SRSO_MITIGATION_UCODE_NEEDED,
 	SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED,
 	SRSO_MITIGATION_MICROCODE,
+	SRSO_MITIGATION_NOSMT,
 	SRSO_MITIGATION_SAFE_RET,
 	SRSO_MITIGATION_IBPB,
 	SRSO_MITIGATION_IBPB_ON_VMEXIT,
@@ -2862,6 +2863,7 @@ static const char * const srso_strings[] = {
 	[SRSO_MITIGATION_UCODE_NEEDED]		= "Vulnerable: No microcode",
 	[SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED]	= "Vulnerable: Safe RET, no microcode",
 	[SRSO_MITIGATION_MICROCODE]		= "Vulnerable: Microcode, no safe RET",
+	[SRSO_MITIGATION_NOSMT]			= "Mitigation: SMT disabled",
 	[SRSO_MITIGATION_SAFE_RET]		= "Mitigation: Safe RET",
 	[SRSO_MITIGATION_IBPB]			= "Mitigation: IBPB",
 	[SRSO_MITIGATION_IBPB_ON_VMEXIT]	= "Mitigation: IBPB on VMEXIT only",
@@ -2914,8 +2916,7 @@ static void __init srso_select_mitigation(void)
 		 * IBPB microcode has been applied.
 		 */
 		if (boot_cpu_data.x86 < 0x19 && !cpu_smt_possible()) {
-			setup_force_cpu_cap(X86_FEATURE_SRSO_NO);
-			srso_mitigation = SRSO_MITIGATION_NONE;
+			srso_mitigation = SRSO_MITIGATION_NOSMT;
 			return;
 		}
 	} else {
@@ -2968,8 +2969,7 @@ static void __init srso_update_mitigation(void)
 		srso_mitigation = SRSO_MITIGATION_IBPB;
 
 	if (boot_cpu_has_bug(X86_BUG_SRSO) &&
-	    !cpu_mitigations_off() &&
-	    !boot_cpu_has(X86_FEATURE_SRSO_NO))
+	    !cpu_mitigations_off())
 		pr_info("%s\n", srso_strings[srso_mitigation]);
 }
 
@@ -3265,9 +3265,6 @@ static ssize_t retbleed_show_state(char *buf)
 
 static ssize_t srso_show_state(char *buf)
 {
-	if (boot_cpu_has(X86_FEATURE_SRSO_NO))
-		return sysfs_emit(buf, "Mitigation: SMT disabled\n");
-
 	return sysfs_emit(buf, "%s\n", srso_strings[srso_mitigation]);
 }
 
