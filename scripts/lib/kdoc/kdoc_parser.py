@@ -151,8 +151,6 @@ class KernelEntry:
 
         # State flags
         self.brcount = 0
-
-        self.in_doc_sect = False
         self.declaration_start_line = ln + 1
 
     # TODO: rename to emit_message after removal of kernel-doc.pl
@@ -1227,7 +1225,6 @@ class KernelDoc:
 
         # start a new entry
         self.reset_state(ln)
-        self.entry.in_doc_sect = False
 
         # next line is always the function name
         self.state = state.NAME
@@ -1315,7 +1312,6 @@ class KernelDoc:
     #
     def is_new_section(self, ln, line):
         if doc_sect.search(line):
-            self.entry.in_doc_sect = True
             self.state = state.BODY
             #
             # Pick out the name of our new section, tweaking it if need be.
