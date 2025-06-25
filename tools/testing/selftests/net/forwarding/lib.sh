@@ -526,9 +526,9 @@ setup_wait_dev_with_timeout()
 	return 1
 }
 
-setup_wait()
+setup_wait_n()
 {
-	local num_netifs=${1:-$NUM_NETIFS}
+	local num_netifs=$1; shift
 	local i
 
 	for ((i = 1; i <= num_netifs; ++i)); do
@@ -537,6 +537,11 @@ setup_wait()
 
 	# Make sure links are ready.
 	sleep $WAIT_TIME
+}
+
+setup_wait()
+{
+	setup_wait_n "$NUM_NETIFS"
 }
 
 wait_for_dev()

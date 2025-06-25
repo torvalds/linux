@@ -765,7 +765,7 @@ ipv6_mcroute_fdb_sep_rx()
 trap cleanup EXIT
 
 setup_prepare
-setup_wait "$NUM_NETIFS"
+setup_wait
 tests_run
 
 exit "$EXIT_STATUS"
