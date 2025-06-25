@@ -1433,18 +1433,18 @@ EXPORT_SYMBOL(do_settimeofday64);
 
 /**
  * __timekeeping_inject_offset - Adds or subtracts from the current time.
+ * @tkd:	Pointer to the timekeeper to modify
  * @ts:		Pointer to the timespec variable containing the offset
  *
  * Adds or subtracts an offset value from the current time.
  */
-static int __timekeeping_inject_offset(const struct timespec64 *ts)
+static int __timekeeping_inject_offset(struct tk_data *tkd, const struct timespec64 *ts)
 {
-	struct timekeeper *tks = &tk_core.shadow_timekeeper;
+	struct timekeeper *tks = &tkd->shadow_timekeeper;
 	struct timespec64 tmp;
 
 	if (ts->tv_nsec < 0 || ts->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
-
 
 	timekeeping_forward_now(tks);
 
@@ -1452,13 +1452,13 @@ static int __timekeeping_inject_offset(const struct timespec64 *ts)
 	tmp = timespec64_add(tk_xtime(tks), *ts);
 	if (timespec64_compare(&tks->wall_to_monotonic, ts) > 0 ||
 	    !timespec64_valid_settod(&tmp)) {
-		timekeeping_restore_shadow(&tk_core);
+		timekeeping_restore_shadow(tkd);
 		return -EINVAL;
 	}
 
 	tk_xtime_add(tks, ts);
 	tk_set_wall_to_mono(tks, timespec64_sub(tks->wall_to_monotonic, *ts));
-	timekeeping_update_from_shadow(&tk_core, TK_UPDATE_ALL);
+	timekeeping_update_from_shadow(tkd, TK_UPDATE_ALL);
 	return 0;
 }
 
@@ -1467,7 +1467,7 @@ static int timekeeping_inject_offset(const struct timespec64 *ts)
 	int ret;
 
 	scoped_guard (raw_spinlock_irqsave, &tk_core.lock)
-		ret = __timekeeping_inject_offset(ts);
+		ret = __timekeeping_inject_offset(&tk_core, ts);
 
 	/* Signal hrtimers about time change */
 	if (!ret)
@@ -2568,6 +2568,7 @@ EXPORT_SYMBOL_GPL(random_get_entropy_fallback);
  */
 int do_adjtimex(struct __kernel_timex *txc)
 {
+	struct tk_data *tkd = &tk_core;
 	struct timespec64 delta, ts;
 	struct audit_ntp_data ad;
 	bool offset_set = false;
@@ -2585,16 +2586,19 @@ int do_adjtimex(struct __kernel_timex *txc)
 	ktime_get_real_ts64(&ts);
 	add_device_randomness(&ts, sizeof(ts));
 
-	scoped_guard (raw_spinlock_irqsave, &tk_core.lock) {
-		struct timekeeper *tks = &tk_core.shadow_timekeeper;
+	scoped_guard (raw_spinlock_irqsave, &tkd->lock) {
+		struct timekeeper *tks = &tkd->shadow_timekeeper;
 		s32 orig_tai, tai;
+
+		if (!tks->clock_valid)
+			return -ENODEV;
 
 		if (txc->modes & ADJ_SETOFFSET) {
 			delta.tv_sec  = txc->time.tv_sec;
 			delta.tv_nsec = txc->time.tv_usec;
 			if (!(txc->modes & ADJ_NANO))
 				delta.tv_nsec *= 1000;
-			ret = __timekeeping_inject_offset(&delta);
+			ret = __timekeeping_inject_offset(tkd, &delta);
 			if (ret)
 				return ret;
 
@@ -2607,7 +2611,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 
 		if (tai != orig_tai) {
 			__timekeeping_set_tai_offset(tks, tai);
-			timekeeping_update_from_shadow(&tk_core, TK_CLOCK_WAS_SET);
+			timekeeping_update_from_shadow(tkd, TK_CLOCK_WAS_SET);
 			clock_set = true;
 		} else {
 			tk_update_leap_state_all(&tk_core);
@@ -2615,7 +2619,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 
 		/* Update the multiplier immediately if frequency was set directly */
 		if (txc->modes & (ADJ_FREQUENCY | ADJ_TICK))
-			clock_set |= __timekeeping_advance(&tk_core, TK_ADV_FREQ);
+			clock_set |= __timekeeping_advance(tkd, TK_ADV_FREQ);
 	}
 
 	if (txc->modes & ADJ_SETOFFSET)
