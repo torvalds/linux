@@ -106,8 +106,7 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 
 int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 {
-	struct ptp_clock *ptp =
-		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct ptp_clock *ptp = container_of(pccontext->clk, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue;
 	char debugfsname[32];
 
@@ -536,67 +535,46 @@ __poll_t ptp_poll(struct posix_clock_context *pccontext, struct file *fp,
 ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
 		 char __user *buf, size_t cnt)
 {
-	struct ptp_clock *ptp =
-		container_of(pccontext->clk, struct ptp_clock, clock);
+	struct ptp_clock *ptp =	container_of(pccontext->clk, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue;
 	struct ptp_extts_event *event;
-	int result;
+	ssize_t result;
 
 	queue = pccontext->private_clkdata;
-	if (!queue) {
-		result = -EINVAL;
-		goto exit;
-	}
+	if (!queue)
+		return -EINVAL;
 
-	if (cnt % sizeof(struct ptp_extts_event) != 0) {
-		result = -EINVAL;
-		goto exit;
-	}
+	if (cnt % sizeof(*event) != 0)
+		return -EINVAL;
 
 	if (cnt > EXTTS_BUFSIZE)
 		cnt = EXTTS_BUFSIZE;
 
-	cnt = cnt / sizeof(struct ptp_extts_event);
-
-	if (wait_event_interruptible(ptp->tsev_wq,
-				     ptp->defunct || queue_cnt(queue))) {
+	if (wait_event_interruptible(ptp->tsev_wq, ptp->defunct || queue_cnt(queue)))
 		return -ERESTARTSYS;
-	}
 
-	if (ptp->defunct) {
-		result = -ENODEV;
-		goto exit;
-	}
+	if (ptp->defunct)
+		return -ENODEV;
 
 	event = kmalloc(EXTTS_BUFSIZE, GFP_KERNEL);
-	if (!event) {
-		result = -ENOMEM;
-		goto exit;
-	}
+	if (!event)
+		return -ENOMEM;
 
 	scoped_guard(spinlock_irq, &queue->lock) {
-		size_t qcnt = queue_cnt(queue);
+		size_t qcnt = min((size_t)queue_cnt(queue), cnt / sizeof(*event));
 
-		if (cnt > qcnt)
-			cnt = qcnt;
-
-		for (size_t i = 0; i < cnt; i++) {
+		for (size_t i = 0; i < qcnt; i++) {
 			event[i] = queue->buf[queue->head];
 			/* Paired with READ_ONCE() in queue_cnt() */
 			WRITE_ONCE(queue->head, (queue->head + 1) % PTP_MAX_TIMESTAMPS);
 		}
+		cnt = qcnt * sizeof(*event);
 	}
-
-	cnt = cnt * sizeof(struct ptp_extts_event);
 
 	result = cnt;
-	if (copy_to_user(buf, event, cnt)) {
+	if (copy_to_user(buf, event, cnt))
 		result = -EFAULT;
-		goto free_event;
-	}
 
-free_event:
 	kfree(event);
-exit:
 	return result;
 }
