@@ -163,20 +163,20 @@ impl Device {
         let phydev = self.0.get();
         // SAFETY: The struct invariant ensures that we may access
         // this field without additional synchronization.
-        unsafe { (*phydev).speed = speed as i32 };
+        unsafe { (*phydev).speed = speed as c_int };
     }
 
     /// Sets duplex mode.
     pub fn set_duplex(&mut self, mode: DuplexMode) {
         let phydev = self.0.get();
         let v = match mode {
-            DuplexMode::Full => bindings::DUPLEX_FULL as i32,
-            DuplexMode::Half => bindings::DUPLEX_HALF as i32,
-            DuplexMode::Unknown => bindings::DUPLEX_UNKNOWN as i32,
+            DuplexMode::Full => bindings::DUPLEX_FULL,
+            DuplexMode::Half => bindings::DUPLEX_HALF,
+            DuplexMode::Unknown => bindings::DUPLEX_UNKNOWN,
         };
         // SAFETY: The struct invariant ensures that we may access
         // this field without additional synchronization.
-        unsafe { (*phydev).duplex = v };
+        unsafe { (*phydev).duplex = v as c_int };
     }
 
     /// Reads a PHY register.
