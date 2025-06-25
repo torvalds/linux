@@ -25,7 +25,6 @@
 #define CL_COPY_UNBINDABLE	0x04
 #define CL_MAKE_SHARED 		0x08
 #define CL_PRIVATE 		0x10
-#define CL_SHARED_TO_SLAVE	0x20
 #define CL_COPY_MNT_NS_FILE	0x40
 
 /*
