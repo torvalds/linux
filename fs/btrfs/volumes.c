@@ -18,7 +18,6 @@
 #include "transaction.h"
 #include "volumes.h"
 #include "raid56.h"
-#include "rcu-string.h"
 #include "dev-replace.h"
 #include "sysfs.h"
 #include "tree-checker.h"

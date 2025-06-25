@@ -9,7 +9,6 @@
 #include "ctree.h"
 #include "volumes.h"
 #include "zoned.h"
-#include "rcu-string.h"
 #include "disk-io.h"
 #include "block-group.h"
 #include "dev-replace.h"

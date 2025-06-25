@@ -21,7 +21,6 @@
 #include <uapi/linux/btrfs.h>
 #include <uapi/linux/btrfs_tree.h>
 #include "messages.h"
-#include "rcu-string.h"
 #include "extent-io-tree.h"
 
 struct block_device;
