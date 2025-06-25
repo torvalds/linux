@@ -911,14 +911,14 @@ static long blkdev_fallocate(struct file *file, int mode, loff_t start,
 	return error;
 }
 
-static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
+static int blkdev_mmap_prepare(struct vm_area_desc *desc)
 {
-	struct inode *bd_inode = bdev_file_inode(file);
+	struct file *file = desc->file;
 
-	if (bdev_read_only(I_BDEV(bd_inode)))
-		return generic_file_readonly_mmap(file, vma);
+	if (bdev_read_only(I_BDEV(bdev_file_inode(file))))
+		return generic_file_readonly_mmap_prepare(desc);
 
-	return generic_file_mmap(file, vma);
+	return generic_file_mmap_prepare(desc);
 }
 
 const struct file_operations def_blk_fops = {
@@ -928,7 +928,7 @@ const struct file_operations def_blk_fops = {
 	.read_iter	= blkdev_read_iter,
 	.write_iter	= blkdev_write_iter,
 	.iopoll		= iocb_bio_iopoll,
-	.mmap		= blkdev_mmap,
+	.mmap_prepare	= blkdev_mmap_prepare,
 	.fsync		= blkdev_fsync,
 	.unlocked_ioctl	= blkdev_ioctl,
 #ifdef CONFIG_COMPAT

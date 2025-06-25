@@ -333,13 +333,13 @@ int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
 	if (WARN_ON_ONCE(!(file->f_mode & FMODE_BACKING)))
 		return -EIO;
 
-	if (!file->f_op->mmap)
+	if (!can_mmap_file(file))
 		return -ENODEV;
 
 	vma_set_file(vma, file);
 
 	old_cred = override_creds(ctx->cred);
-	ret = call_mmap(vma->vm_file, vma);
+	ret = vfs_mmap(vma->vm_file, vma);
 	revert_creds(old_cred);
 
 	if (ctx->accessed)
