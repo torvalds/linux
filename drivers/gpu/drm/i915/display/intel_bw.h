@@ -67,8 +67,6 @@ intel_atomic_get_bw_state(struct intel_atomic_state *state);
 void intel_bw_init_hw(struct intel_display *display);
 int intel_bw_init(struct intel_display *display);
 int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms);
-int icl_pcode_restrict_qgv_points(struct intel_display *display,
-				  u32 points_mask);
 int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 			    bool *need_cdclk_calc);
 int intel_bw_min_cdclk(struct intel_display *display,
@@ -79,5 +77,7 @@ void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc);
 bool intel_bw_pmdemand_needs_update(struct intel_atomic_state *state);
 bool intel_bw_can_enable_sagv(struct intel_display *display,
 			      const struct intel_bw_state *bw_state);
+void icl_sagv_pre_plane_update(struct intel_atomic_state *state);
+void icl_sagv_post_plane_update(struct intel_atomic_state *state);
 
 #endif /* __INTEL_BW_H__ */

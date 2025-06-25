@@ -153,8 +153,8 @@ static bool is_sagv_enabled(struct intel_display *display, u16 points_mask)
 			      ICL_PCODE_REQ_QGV_PT_MASK);
 }
 
-int icl_pcode_restrict_qgv_points(struct intel_display *display,
-				  u32 points_mask)
+static int icl_pcode_restrict_qgv_points(struct intel_display *display,
+					 u32 points_mask)
 {
 	int ret;
 
@@ -979,6 +979,70 @@ static void icl_force_disable_sagv(struct intel_display *display,
 		    bw_state->qgv_points_mask);
 
 	icl_pcode_restrict_qgv_points(display, bw_state->qgv_points_mask);
+}
+
+void icl_sagv_pre_plane_update(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_bw_state *old_bw_state =
+		intel_atomic_get_old_bw_state(state);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
+	u16 old_mask, new_mask;
+
+	if (!new_bw_state)
+		return;
+
+	old_mask = old_bw_state->qgv_points_mask;
+	new_mask = old_bw_state->qgv_points_mask | new_bw_state->qgv_points_mask;
+
+	if (old_mask == new_mask)
+		return;
+
+	WARN_ON(!new_bw_state->base.changed);
+
+	drm_dbg_kms(display->drm, "Restricting QGV points: 0x%x -> 0x%x\n",
+		    old_mask, new_mask);
+
+	/*
+	 * Restrict required qgv points before updating the configuration.
+	 * According to BSpec we can't mask and unmask qgv points at the same
+	 * time. Also masking should be done before updating the configuration
+	 * and unmasking afterwards.
+	 */
+	icl_pcode_restrict_qgv_points(display, new_mask);
+}
+
+void icl_sagv_post_plane_update(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_bw_state *old_bw_state =
+		intel_atomic_get_old_bw_state(state);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
+	u16 old_mask, new_mask;
+
+	if (!new_bw_state)
+		return;
+
+	old_mask = old_bw_state->qgv_points_mask | new_bw_state->qgv_points_mask;
+	new_mask = new_bw_state->qgv_points_mask;
+
+	if (old_mask == new_mask)
+		return;
+
+	WARN_ON(!new_bw_state->base.changed);
+
+	drm_dbg_kms(display->drm, "Relaxing QGV points: 0x%x -> 0x%x\n",
+		    old_mask, new_mask);
+
+	/*
+	 * Allow required qgv points after updating the configuration.
+	 * According to BSpec we can't mask and unmask qgv points at the same
+	 * time. Also masking should be done before updating the configuration
+	 * and unmasking afterwards.
+	 */
+	icl_pcode_restrict_qgv_points(display, new_mask);
 }
 
 static int mtl_find_qgv_points(struct intel_display *display,
