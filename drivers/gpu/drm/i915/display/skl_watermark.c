@@ -39,6 +39,14 @@
  */
 #define DSB_EXE_TIME 100
 
+#define to_intel_dbuf_state(global_state) \
+	container_of_const((global_state), struct intel_dbuf_state, base)
+
+#define intel_atomic_get_old_dbuf_state(state) \
+	to_intel_dbuf_state(intel_atomic_get_old_global_obj_state(state, &to_intel_display(state)->dbuf.obj))
+#define intel_atomic_get_new_dbuf_state(state) \
+	to_intel_dbuf_state(intel_atomic_get_new_global_obj_state(state, &to_intel_display(state)->dbuf.obj))
+
 static void skl_sagv_disable(struct intel_display *display);
 
 /* Stores plane specific WM parameters */
@@ -3694,6 +3702,28 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 	WARN_ON(!new_dbuf_state->base.changed);
 
 	gen9_dbuf_slices_update(display, new_slices);
+}
+
+bool intel_dbuf_pmdemand_needs_update(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_dbuf_state *new_dbuf_state, *old_dbuf_state;
+
+	new_dbuf_state = intel_atomic_get_new_dbuf_state(state);
+	old_dbuf_state = intel_atomic_get_old_dbuf_state(state);
+
+	if (new_dbuf_state &&
+	    new_dbuf_state->active_pipes != old_dbuf_state->active_pipes)
+		return true;
+
+	if (DISPLAY_VER(display) < 30) {
+		if (new_dbuf_state &&
+		    new_dbuf_state->enabled_slices !=
+		    old_dbuf_state->enabled_slices)
+			return true;
+	}
+
+	return false;
 }
 
 static void skl_mbus_sanitize(struct intel_display *display)

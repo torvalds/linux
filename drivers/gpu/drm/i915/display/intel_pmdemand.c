@@ -294,11 +294,9 @@ intel_pmdemand_connector_needs_update(struct intel_atomic_state *state)
 
 static bool intel_pmdemand_needs_update(struct intel_atomic_state *state)
 {
-	struct intel_display *display = to_intel_display(state);
 	const struct intel_bw_state *new_bw_state, *old_bw_state;
 	const struct intel_cdclk_state *new_cdclk_state, *old_cdclk_state;
 	const struct intel_crtc_state *new_crtc_state, *old_crtc_state;
-	const struct intel_dbuf_state *new_dbuf_state, *old_dbuf_state;
 	struct intel_crtc *crtc;
 	int i;
 
@@ -308,18 +306,8 @@ static bool intel_pmdemand_needs_update(struct intel_atomic_state *state)
 	    old_bw_state->qgv_point_peakbw)
 		return true;
 
-	new_dbuf_state = intel_atomic_get_new_dbuf_state(state);
-	old_dbuf_state = intel_atomic_get_old_dbuf_state(state);
-	if (new_dbuf_state &&
-	    new_dbuf_state->active_pipes != old_dbuf_state->active_pipes)
+	if (intel_dbuf_pmdemand_needs_update(state))
 		return true;
-
-	if (DISPLAY_VER(display) < 30) {
-		if (new_dbuf_state &&
-		    new_dbuf_state->enabled_slices !=
-		    old_dbuf_state->enabled_slices)
-			return true;
-	}
 
 	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
 	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
