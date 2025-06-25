@@ -2092,11 +2092,15 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 	struct xe_gt *gt = guc_to_gt(guc);
 	struct xe_exec_queue *q;
 	u32 guc_id;
+	u32 type = XE_GUC_CAT_ERR_TYPE_INVALID;
 
-	if (unlikely(len < 1))
+	if (unlikely(!len || len > 2))
 		return -EPROTO;
 
 	guc_id = msg[0];
+
+	if (len == 2)
+		type = msg[1];
 
 	if (guc_id == GUC_ID_UNKNOWN) {
 		/*
@@ -2111,8 +2115,19 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 	if (unlikely(!q))
 		return -EPROTO;
 
-	xe_gt_dbg(gt, "Engine memory cat error: engine_class=%s, logical_mask: 0x%x, guc_id=%d",
-		  xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
+	/*
+	 * The type is HW-defined and changes based on platform, so we don't
+	 * decode it in the kernel and only check if it is valid.
+	 * See bspec 54047 and 72187 for details.
+	 */
+	if (type != XE_GUC_CAT_ERR_TYPE_INVALID)
+		xe_gt_dbg(gt,
+			  "Engine memory CAT error [%u]: class=%s, logical_mask: 0x%x, guc_id=%d",
+			  type, xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
+	else
+		xe_gt_dbg(gt,
+			  "Engine memory CAT error: class=%s, logical_mask: 0x%x, guc_id=%d",
+			  xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
 
 	trace_xe_exec_queue_memory_cat_error(q);
 

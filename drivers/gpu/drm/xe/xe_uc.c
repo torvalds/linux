@@ -162,6 +162,10 @@ static int vf_uc_load_hw(struct xe_uc *uc)
 
 	uc->guc.submission_state.enabled = true;
 
+	err = xe_guc_opt_in_features_enable(&uc->guc);
+	if (err)
+		return err;
+
 	err = xe_gt_record_default_lrcs(uc_to_gt(uc));
 	if (err)
 		return err;

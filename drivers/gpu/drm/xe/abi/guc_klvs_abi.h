@@ -16,6 +16,7 @@
  *  +===+=======+==============================================================+
  *  | 0 | 31:16 | **KEY** - KLV key identifier                                 |
  *  |   |       |   - `GuC Self Config KLVs`_                                  |
+ *  |   |       |   - `GuC Opt In Feature KLVs`_                               |
  *  |   |       |   - `GuC VGT Policy KLVs`_                                   |
  *  |   |       |   - `GuC VF Configuration KLVs`_                             |
  *  |   |       |                                                              |
@@ -123,6 +124,20 @@ enum  {
 
 	GUC_CONTEXT_POLICIES_KLV_NUM_IDS = 5,
 };
+
+/**
+ * DOC: GuC Opt In Feature KLVs
+ *
+ * `GuC KLV`_ keys available for use with OPT_IN_FEATURE_KLV
+ *
+ *  _`GUC_KLV_OPT_IN_FEATURE_EXT_CAT_ERR_TYPE` : 0x4001
+ *      Adds an extra dword to the XE_GUC_ACTION_NOTIFY_MEMORY_CAT_ERROR G2H
+ *      containing the type of the CAT error. On HW that does not support
+ *      reporting the CAT error type, the extra dword is set to 0xdeadbeef.
+ */
+
+#define GUC_KLV_OPT_IN_FEATURE_EXT_CAT_ERR_TYPE_KEY 0x4001
+#define GUC_KLV_OPT_IN_FEATURE_EXT_CAT_ERR_TYPE_LEN 0u
 
 /**
  * DOC: GuC VGT Policy KLVs
