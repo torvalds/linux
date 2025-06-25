@@ -453,7 +453,7 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 
 	xe_gt_assert(gt, !xe_guc_ct_enabled(ct));
 
-	xe_map_memset(xe, &ct->bo->vmap, 0, 0, ct->bo->size);
+	xe_map_memset(xe, &ct->bo->vmap, 0, 0, xe_bo_size(ct->bo));
 	guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->bo->vmap);
 	guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->bo->vmap);
 
@@ -1907,7 +1907,7 @@ static struct xe_guc_ct_snapshot *guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bo
 		return NULL;
 
 	if (ct->bo && want_ctb) {
-		snapshot->ctb_size = ct->bo->size;
+		snapshot->ctb_size = xe_bo_size(ct->bo);
 		snapshot->ctb = kmalloc(snapshot->ctb_size, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	}
 

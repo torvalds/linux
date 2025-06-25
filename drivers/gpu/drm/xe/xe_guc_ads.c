@@ -890,7 +890,7 @@ void xe_guc_ads_populate_minimal(struct xe_guc_ads *ads)
 
 	xe_gt_assert(gt, ads->bo);
 
-	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, ads->bo->size);
+	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, xe_bo_size(ads->bo));
 	guc_policies_init(ads);
 	guc_golden_lrc_init(ads);
 	guc_mapping_table_init_invalid(gt, &info_map);
@@ -914,7 +914,7 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 
 	xe_gt_assert(gt, ads->bo);
 
-	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, ads->bo->size);
+	xe_map_memset(ads_to_xe(ads), ads_to_map(ads), 0, 0, xe_bo_size(ads->bo));
 	guc_policies_init(ads);
 	fill_engine_enable_masks(gt, &info_map);
 	guc_mmio_reg_state_init(ads);

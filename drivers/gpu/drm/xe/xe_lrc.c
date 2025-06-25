@@ -975,7 +975,7 @@ struct wa_bb_setup {
 
 static size_t wa_bb_offset(struct xe_lrc *lrc)
 {
-	return lrc->bo->size - LRC_WA_BB_SIZE;
+	return xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE;
 }
 
 static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
@@ -1859,7 +1859,7 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 	snapshot->seqno = xe_lrc_seqno(lrc);
 	snapshot->lrc_bo = xe_bo_get(lrc->bo);
 	snapshot->lrc_offset = xe_lrc_pphwsp_offset(lrc);
-	snapshot->lrc_size = lrc->bo->size - snapshot->lrc_offset -
+	snapshot->lrc_size = xe_bo_size(lrc->bo) - snapshot->lrc_offset -
 		LRC_WA_BB_SIZE;
 	snapshot->lrc_snapshot = NULL;
 	snapshot->ctx_timestamp = lower_32_bits(xe_lrc_ctx_timestamp(lrc));

@@ -227,7 +227,7 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 			goto out_unlock;
 		}
 
-		ret = xe_ggtt_node_insert_locked(vma->node, bo->size, align, 0);
+		ret = xe_ggtt_node_insert_locked(vma->node, xe_bo_size(bo), align, 0);
 		if (ret) {
 			xe_ggtt_node_fini(vma->node);
 			goto out_unlock;

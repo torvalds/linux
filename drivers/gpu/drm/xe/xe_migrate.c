@@ -203,7 +203,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	BUILD_BUG_ON(!(NUM_KERNEL_PDE & 1));
 
 	/* Need to be sure everything fits in the first PT, or create more */
-	xe_tile_assert(tile, m->batch_base_ofs + batch->size < SZ_2M);
+	xe_tile_assert(tile, m->batch_base_ofs + xe_bo_size(batch) < SZ_2M);
 
 	bo = xe_bo_create_pin_map(vm->xe, tile, vm,
 				  num_entries * XE_PAGE_SIZE,
@@ -214,7 +214,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		return PTR_ERR(bo);
 
 	/* PT30 & PT31 reserved for 2M identity map */
-	pt29_ofs = bo->size - 3 * XE_PAGE_SIZE;
+	pt29_ofs = xe_bo_size(bo) - 3 * XE_PAGE_SIZE;
 	entry = vm->pt_ops->pde_encode_bo(bo, pt29_ofs, pat_index);
 	xe_pt_write(xe, &vm->pt_root[id]->bo->vmap, 0, entry);
 
@@ -236,7 +236,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	if (!IS_DGFX(xe)) {
 		/* Write out batch too */
 		m->batch_base_ofs = NUM_PT_SLOTS * XE_PAGE_SIZE;
-		for (i = 0; i < batch->size;
+		for (i = 0; i < xe_bo_size(batch);
 		     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {
 			entry = vm->pt_ops->pte_encode_bo(batch, i,
@@ -247,13 +247,13 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 			level++;
 		}
 		if (xe->info.has_usm) {
-			xe_tile_assert(tile, batch->size == SZ_1M);
+			xe_tile_assert(tile, xe_bo_size(batch) == SZ_1M);
 
 			batch = tile->primary_gt->usm.bb_pool->bo;
 			m->usm_batch_base_ofs = m->batch_base_ofs + SZ_1M;
-			xe_tile_assert(tile, batch->size == SZ_512K);
+			xe_tile_assert(tile, xe_bo_size(batch) == SZ_512K);
 
-			for (i = 0; i < batch->size;
+			for (i = 0; i < xe_bo_size(batch);
 			     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
 			     XE_PAGE_SIZE) {
 				entry = vm->pt_ops->pte_encode_bo(batch, i,
@@ -306,7 +306,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 	/* Identity map the entire vram at 256GiB offset */
 	if (IS_DGFX(xe)) {
-		u64 pt30_ofs = bo->size - 2 * XE_PAGE_SIZE;
+		u64 pt30_ofs = xe_bo_size(bo) - 2 * XE_PAGE_SIZE;
 
 		xe_migrate_program_identity(xe, vm, bo, map_ofs, IDENTITY_OFFSET,
 					    pat_index, pt30_ofs);
@@ -321,7 +321,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 			u16 comp_pat_index = xe->pat.idx[XE_CACHE_NONE_COMPRESSION];
 			u64 vram_offset = IDENTITY_OFFSET +
 				DIV_ROUND_UP_ULL(xe->mem.vram.actual_physical_size, SZ_1G);
-			u64 pt31_ofs = bo->size - XE_PAGE_SIZE;
+			u64 pt31_ofs = xe_bo_size(bo) - XE_PAGE_SIZE;
 
 			xe_assert(xe, xe->mem.vram.actual_physical_size <= (MAX_NUM_PTE -
 						IDENTITY_OFFSET - IDENTITY_OFFSET / 2) * SZ_1G);
@@ -768,7 +768,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 	struct xe_gt *gt = m->tile->primary_gt;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct dma_fence *fence = NULL;
-	u64 size = src_bo->size;
+	u64 size = xe_bo_size(src_bo);
 	struct xe_res_cursor src_it, dst_it, ccs_it;
 	u64 src_L0_ofs, dst_L0_ofs;
 	u32 src_L0_pt, dst_L0_pt;
@@ -791,7 +791,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 	if (XE_WARN_ON(copy_ccs && src_bo != dst_bo))
 		return ERR_PTR(-EINVAL);
 
-	if (src_bo != dst_bo && XE_WARN_ON(src_bo->size != dst_bo->size))
+	if (src_bo != dst_bo && XE_WARN_ON(xe_bo_size(src_bo) != xe_bo_size(dst_bo)))
 		return ERR_PTR(-EINVAL);
 
 	if (!src_is_vram)
@@ -1064,7 +1064,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 	struct xe_device *xe = gt_to_xe(gt);
 	bool clear_only_system_ccs = false;
 	struct dma_fence *fence = NULL;
-	u64 size = bo->size;
+	u64 size = xe_bo_size(bo);
 	struct xe_res_cursor src_it;
 	struct ttm_resource *src = dst;
 	int err;
@@ -1076,9 +1076,9 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		clear_only_system_ccs = true;
 
 	if (!clear_vram)
-		xe_res_first_sg(xe_bo_sg(bo), 0, bo->size, &src_it);
+		xe_res_first_sg(xe_bo_sg(bo), 0, xe_bo_size(bo), &src_it);
 	else
-		xe_res_first(src, 0, bo->size, &src_it);
+		xe_res_first(src, 0, xe_bo_size(bo), &src_it);
 
 	while (size) {
 		u64 clear_L0_ofs;
@@ -1407,7 +1407,7 @@ __xe_migrate_update_pgtables(struct xe_migrate *m,
 					if (idx == chunk)
 						goto next_cmd;
 
-					xe_tile_assert(tile, pt_bo->size == SZ_4K);
+					xe_tile_assert(tile, xe_bo_size(pt_bo) == SZ_4K);
 
 					/* Map a PT at most once */
 					if (pt_bo->update_index < 0)
@@ -1868,7 +1868,7 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 	if (IS_ERR(dma_addr))
 		return PTR_ERR(dma_addr);
 
-	xe_res_first(bo->ttm.resource, offset, bo->size - offset, &cursor);
+	xe_res_first(bo->ttm.resource, offset, xe_bo_size(bo) - offset, &cursor);
 
 	do {
 		struct dma_fence *__fence;

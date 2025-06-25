@@ -386,11 +386,11 @@ static void lmtt_insert_bo(struct xe_lmtt *lmtt, unsigned int vfid, struct xe_bo
 	u64 addr, vram_offset;
 
 	lmtt_assert(lmtt, IS_ALIGNED(start, page_size));
-	lmtt_assert(lmtt, IS_ALIGNED(bo->size, page_size));
+	lmtt_assert(lmtt, IS_ALIGNED(xe_bo_size(bo), page_size));
 	lmtt_assert(lmtt, xe_bo_is_vram(bo));
 
 	vram_offset = vram_region_gpu_offset(bo->ttm.resource);
-	xe_res_first(bo->ttm.resource, 0, bo->size, &cur);
+	xe_res_first(bo->ttm.resource, 0, xe_bo_size(bo), &cur);
 	while (cur.remaining) {
 		addr = xe_res_dma(&cur);
 		addr += vram_offset; /* XXX */

@@ -60,7 +60,7 @@ static u32 guc_bo_ggtt_addr(struct xe_guc *guc,
 	/* GuC addresses above GUC_GGTT_TOP don't map through the GTT */
 	xe_assert(xe, addr >= xe_wopcm_size(guc_to_xe(guc)));
 	xe_assert(xe, addr < GUC_GGTT_TOP);
-	xe_assert(xe, bo->size <= GUC_GGTT_TOP - addr);
+	xe_assert(xe, xe_bo_size(bo) <= GUC_GGTT_TOP - addr);
 
 	return addr;
 }
@@ -421,7 +421,7 @@ static int guc_g2g_register(struct xe_guc *near_guc, struct xe_gt *far_gt, u32 t
 	buf = base + G2G_DESC_AREA_SIZE + slot * G2G_BUFFER_SIZE;
 
 	xe_assert(xe, (desc - base + G2G_DESC_SIZE) <= G2G_DESC_AREA_SIZE);
-	xe_assert(xe, (buf - base + G2G_BUFFER_SIZE) <= g2g_bo->size);
+	xe_assert(xe, (buf - base + G2G_BUFFER_SIZE) <= xe_bo_size(g2g_bo));
 
 	return guc_action_register_g2g_buffer(near_guc, type, far_tile, far_dev,
 					      desc, buf, G2G_BUFFER_SIZE);
