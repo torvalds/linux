@@ -314,7 +314,8 @@ int iwl_mvm_op_set_antenna(struct ieee80211_hw *hw, int radio_idx, u32 tx_ant,
 
 	/* This has been tested on those devices only */
 	if (mvm->trans->mac_cfg->device_family != IWL_DEVICE_FAMILY_9000 &&
-	    mvm->trans->mac_cfg->device_family != IWL_DEVICE_FAMILY_22000)
+	    mvm->trans->mac_cfg->device_family != IWL_DEVICE_FAMILY_22000 &&
+	    mvm->trans->mac_cfg->device_family != IWL_DEVICE_FAMILY_AX210)
 		return -EOPNOTSUPP;
 
 	if (!mvm->nvm_data)

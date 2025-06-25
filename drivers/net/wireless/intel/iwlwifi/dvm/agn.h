@@ -397,6 +397,8 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
  * returns a (newly allocated) struct containing all the
  * relevant values for driver use. The struct must be freed
  * later with iwl_free_nvm_data().
+ *
+ * Return: the parsed NVM data
  */
 struct iwl_nvm_data *
 iwl_parse_eeprom_data(struct iwl_trans *trans, const struct iwl_rf_cfg *cfg,

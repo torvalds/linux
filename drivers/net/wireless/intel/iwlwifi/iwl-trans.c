@@ -14,8 +14,8 @@
 #include "iwl-fh.h"
 #include <linux/dmapool.h>
 #include "fw/api/commands.h"
-#include "pcie/internal.h"
-#include "iwl-context-info-v2.h"
+#include "pcie/gen1_2/internal.h"
+#include "pcie/iwl-context-info-v2.h"
 
 struct iwl_trans_dev_restart_data {
 	struct list_head list;
@@ -497,7 +497,19 @@ IWL_EXPORT_SYMBOL(iwl_trans_read_mem);
 int iwl_trans_write_mem(struct iwl_trans *trans, u32 addr,
 			const void *buf, int dwords)
 {
-	return iwl_trans_pcie_write_mem(trans, addr, buf, dwords);
+	int offs, ret = 0;
+	const u32 *vals = buf;
+
+	if (iwl_trans_grab_nic_access(trans)) {
+		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
+		for (offs = 0; offs < dwords; offs++)
+			iwl_write32(trans, HBUS_TARG_MEM_WDAT,
+				    vals ? vals[offs] : 0);
+		iwl_trans_release_nic_access(trans);
+	} else {
+		ret = -EBUSY;
+	}
+	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_trans_write_mem);
 

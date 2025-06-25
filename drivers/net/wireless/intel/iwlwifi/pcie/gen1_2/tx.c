@@ -25,6 +25,7 @@
 #include "iwl-op-mode.h"
 #include "internal.h"
 #include "fw/api/tx.h"
+#include "pcie/utils.h"
 
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
@@ -203,8 +204,8 @@ static void iwl_pcie_clear_cmd_in_flight(struct iwl_trans *trans)
 	}
 
 	trans_pcie->cmd_hold_nic_awake = false;
-	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	iwl_trans_clear_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	spin_unlock(&trans_pcie->reg_lock);
 }
 
@@ -494,9 +495,9 @@ void iwl_pcie_tx_start(struct iwl_trans *trans)
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
 
 	/* reset context data, TX status and translation data */
-	iwl_trans_pcie_write_mem(trans, trans_pcie->scd_base_addr +
-					SCD_CONTEXT_MEM_LOWER_BOUND,
-				 NULL, clear_dwords);
+	iwl_trans_write_mem(trans, trans_pcie->scd_base_addr +
+				   SCD_CONTEXT_MEM_LOWER_BOUND,
+			    NULL, clear_dwords);
 
 	iwl_write_prph(trans, SCD_DRAM_BASE_ADDR,
 		       trans_pcie->txqs.scd_bc_tbls.dma >> 10);
@@ -1292,9 +1293,8 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	if (configure_scd) {
 		iwl_scd_txq_set_inactive(trans, txq_id);
 
-		iwl_trans_pcie_write_mem(trans, stts_addr,
-					 (const void *)zero_val,
-					 ARRAY_SIZE(zero_val));
+		iwl_trans_write_mem(trans, stts_addr, (const void *)zero_val,
+				    ARRAY_SIZE(zero_val));
 	}
 
 	iwl_pcie_txq_unmap(trans, txq_id);

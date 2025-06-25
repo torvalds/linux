@@ -332,7 +332,7 @@ iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 	ret = iwl_trans_load_pnvm(trans, pnvm_data, capa);
 	if (ret)
 		goto free;
-	IWL_INFO(trans, "loaded PNVM version %08x\n", pnvm_data->version);
+	IWL_DEBUG_INFO(trans, "loaded PNVM version %08x\n", pnvm_data->version);
 
 set:
 	iwl_trans_set_pnvm(trans, capa);
