@@ -395,6 +395,26 @@ static long ptp_sys_offset(struct ptp_clock *ptp, void __user *arg)
 	return copy_to_user(arg, sysoff, sizeof(*sysoff)) ? -EFAULT : 0;
 }
 
+static long ptp_pin_getfunc(struct ptp_clock *ptp, unsigned int cmd, void __user *arg)
+{
+	struct ptp_clock_info *ops = ptp->info;
+	struct ptp_pin_desc pd;
+
+	if (copy_from_user(&pd, arg, sizeof(pd)))
+		return -EFAULT;
+
+	if (cmd == PTP_PIN_GETFUNC2 && !mem_is_zero(pd.rsv, sizeof(pd.rsv)))
+		return -EINVAL;
+
+	if (pd.index >= ops->n_pins)
+		return -EINVAL;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		pd = ops->pin_config[array_index_nospec(pd.index, ops->n_pins)];
+
+	return copy_to_user(arg, &pd, sizeof(pd)) ? -EFAULT : 0;
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
@@ -450,35 +470,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 
 	case PTP_PIN_GETFUNC:
 	case PTP_PIN_GETFUNC2:
-		if (copy_from_user(&pd, (void __user *)arg, sizeof(pd))) {
-			err = -EFAULT;
-			break;
-		}
-		if ((pd.rsv[0] || pd.rsv[1] || pd.rsv[2]
-				|| pd.rsv[3] || pd.rsv[4])
-			&& cmd == PTP_PIN_GETFUNC2) {
-			err = -EINVAL;
-			break;
-		} else if (cmd == PTP_PIN_GETFUNC) {
-			pd.rsv[0] = 0;
-			pd.rsv[1] = 0;
-			pd.rsv[2] = 0;
-			pd.rsv[3] = 0;
-			pd.rsv[4] = 0;
-		}
-		pin_index = pd.index;
-		if (pin_index >= ops->n_pins) {
-			err = -EINVAL;
-			break;
-		}
-		pin_index = array_index_nospec(pin_index, ops->n_pins);
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		pd = ops->pin_config[pin_index];
-		mutex_unlock(&ptp->pincfg_mux);
-		if (!err && copy_to_user((void __user *)arg, &pd, sizeof(pd)))
-			err = -EFAULT;
-		break;
+		return ptp_pin_getfunc(ptp, cmd, argptr);
 
 	case PTP_PIN_SETFUNC:
 	case PTP_PIN_SETFUNC2:
