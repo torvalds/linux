@@ -34,6 +34,19 @@
 #include "vlv_iosf_sb_reg.h"
 #include "vlv_sideband.h"
 
+/*
+ * PG0 is HW controlled, so doesn't have a corresponding power well control knob
+ * SKL_DISP_PW1_IDX..SKL_DISP_PW2_IDX -> PG1..PG2
+ */
+#define  SKL_PW_CTL_IDX_TO_PG(pw_idx)		\
+	((pw_idx) - SKL_PW_CTL_IDX_PW_1 + SKL_PG1)
+/*
+ * PG0 is HW controlled, so doesn't have a corresponding power well control knob
+ * ICL_DISP_PW1_IDX..ICL_DISP_PW4_IDX -> PG1..PG4
+ */
+#define  ICL_PW_CTL_IDX_TO_PG(pw_idx)		\
+	((pw_idx) - ICL_PW_CTL_IDX_PW_1 + SKL_PG1)
+
 struct i915_power_well_regs {
 	i915_reg_t bios;
 	i915_reg_t driver;
