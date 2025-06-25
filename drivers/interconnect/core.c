@@ -20,7 +20,7 @@
 
 #include "internal.h"
 
-#define ICC_DYN_ID_START 10000
+#define ICC_DYN_ID_START 100000
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -818,6 +818,9 @@ EXPORT_SYMBOL_GPL(icc_put);
 static struct icc_node *icc_node_create_nolock(int id)
 {
 	struct icc_node *node;
+
+	if (id >= ICC_DYN_ID_START)
+		return ERR_PTR(-EINVAL);
 
 	/* check if node already exists */
 	node = node_find(id);
