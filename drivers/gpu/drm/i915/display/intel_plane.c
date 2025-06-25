@@ -333,7 +333,7 @@ int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 	 * display blinking due to constant cdclk changes.
 	 */
 	if (new_crtc_state->min_cdclk[plane->id] <=
-	    cdclk_state->min_cdclk[crtc->pipe])
+	    intel_cdclk_min_cdclk(cdclk_state, crtc->pipe))
 		return 0;
 
 	drm_dbg_kms(display->drm,
@@ -341,7 +341,7 @@ int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 		    plane->base.base.id, plane->base.name,
 		    new_crtc_state->min_cdclk[plane->id],
 		    crtc->base.base.id, crtc->base.name,
-		    cdclk_state->min_cdclk[crtc->pipe]);
+		    intel_cdclk_min_cdclk(cdclk_state, crtc->pipe));
 	*need_cdclk_calc = true;
 
 	return 0;

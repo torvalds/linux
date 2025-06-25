@@ -3839,3 +3839,8 @@ int intel_cdclk_logical(const struct intel_cdclk_state *cdclk_state)
 {
 	return cdclk_state->logical.cdclk;
 }
+
+int intel_cdclk_min_cdclk(const struct intel_cdclk_state *cdclk_state, enum pipe pipe)
+{
+	return cdclk_state->min_cdclk[pipe];
+}
