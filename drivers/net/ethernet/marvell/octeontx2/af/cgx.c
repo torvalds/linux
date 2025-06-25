@@ -1200,16 +1200,16 @@ static void otx2_map_ethtool_link_modes(u64 bitmask,
 {
 	switch (bitmask) {
 	case ETHTOOL_LINK_MODE_10baseT_Half_BIT:
-		set_mod_args(args, 10, 1, 1, BIT_ULL(CGX_MODE_SGMII));
+		set_mod_args(args, 10, 1, 1, BIT_ULL(CGX_MODE_SGMII_10M_BIT));
 		break;
 	case  ETHTOOL_LINK_MODE_10baseT_Full_BIT:
-		set_mod_args(args, 10, 0, 1, BIT_ULL(CGX_MODE_SGMII));
+		set_mod_args(args, 10, 0, 1, BIT_ULL(CGX_MODE_SGMII_10M_BIT));
 		break;
 	case  ETHTOOL_LINK_MODE_100baseT_Half_BIT:
-		set_mod_args(args, 100, 1, 1, BIT_ULL(CGX_MODE_SGMII));
+		set_mod_args(args, 100, 1, 1, BIT_ULL(CGX_MODE_SGMII_100M_BIT));
 		break;
 	case  ETHTOOL_LINK_MODE_100baseT_Full_BIT:
-		set_mod_args(args, 100, 0, 1, BIT_ULL(CGX_MODE_SGMII));
+		set_mod_args(args, 100, 0, 1, BIT_ULL(CGX_MODE_SGMII_100M_BIT));
 		break;
 	case  ETHTOOL_LINK_MODE_1000baseT_Half_BIT:
 		set_mod_args(args, 1000, 1, 1, BIT_ULL(CGX_MODE_SGMII));
