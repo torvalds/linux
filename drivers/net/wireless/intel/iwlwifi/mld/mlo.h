@@ -157,6 +157,8 @@ struct iwl_mld_link_sel_data {
 	u16 grade;
 };
 
+void iwl_mld_emlsr_block_tmp_non_bss(struct iwl_mld *mld);
+
 #if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
 u32 iwl_mld_emlsr_pair_state(struct ieee80211_vif *vif,
 			     struct iwl_mld_link_sel_data *a,

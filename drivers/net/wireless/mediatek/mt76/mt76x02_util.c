@@ -548,7 +548,7 @@ void mt76x02_set_tx_ackto(struct mt76x02_dev *dev)
 EXPORT_SYMBOL_GPL(mt76x02_set_tx_ackto);
 
 void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
-				s16 coverage_class)
+				int radio_idx, s16 coverage_class)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
@@ -559,7 +559,7 @@ void mt76x02_set_coverage_class(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(mt76x02_set_coverage_class);
 
-int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
+int mt76x02_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx, u32 val)
 {
 	struct mt76x02_dev *dev = hw->priv;
 

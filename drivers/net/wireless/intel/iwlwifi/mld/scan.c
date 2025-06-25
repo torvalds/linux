@@ -1752,6 +1752,10 @@ int iwl_mld_regular_scan_start(struct iwl_mld *mld, struct ieee80211_vif *vif,
 			       struct cfg80211_scan_request *req,
 			       struct ieee80211_scan_ies *ies)
 {
+
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
+		iwl_mld_emlsr_block_tmp_non_bss(mld);
+
 	return _iwl_mld_single_scan_start(mld, vif, req, ies,
 					  IWL_MLD_SCAN_REGULAR);
 }
@@ -1800,21 +1804,33 @@ static void iwl_mld_int_mlo_scan_start(struct iwl_mld *mld,
 	IWL_DEBUG_SCAN(mld, "Internal MLO scan: ret=%d\n", ret);
 }
 
+#define IWL_MLD_MLO_SCAN_BLOCKOUT_TIME		5 /* seconds */
+
 void iwl_mld_int_mlo_scan(struct iwl_mld *mld, struct ieee80211_vif *vif)
 {
 	struct ieee80211_channel *channels[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 	unsigned long usable_links = ieee80211_vif_usable_links(vif);
 	size_t n_channels = 0;
 	u8 link_id;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
-	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif) ||
-	    hweight16(vif->valid_links) == 1)
+	if (!IWL_MLD_AUTO_EML_ENABLE || !vif->cfg.assoc ||
+	    !ieee80211_vif_is_mld(vif) || hweight16(vif->valid_links) == 1)
 		return;
 
 	if (mld->scan.status & IWL_MLD_SCAN_INT_MLO) {
 		IWL_DEBUG_SCAN(mld, "Internal MLO scan is already running\n");
+		return;
+	}
+
+	if (mld_vif->last_link_activation_time > ktime_get_boottime_seconds() -
+						 IWL_MLD_MLO_SCAN_BLOCKOUT_TIME) {
+		/* timing doesn't matter much, so use the blockout time */
+		wiphy_delayed_work_queue(mld->wiphy,
+					 &mld_vif->mlo_scan_start_wk,
+					 IWL_MLD_MLO_SCAN_BLOCKOUT_TIME);
 		return;
 	}
 

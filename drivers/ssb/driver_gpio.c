@@ -45,12 +45,14 @@ static int ssb_gpio_chipco_get_value(struct gpio_chip *chip, unsigned int gpio)
 	return !!ssb_chipco_gpio_in(&bus->chipco, 1 << gpio);
 }
 
-static void ssb_gpio_chipco_set_value(struct gpio_chip *chip, unsigned int gpio,
-				      int value)
+static int ssb_gpio_chipco_set_value(struct gpio_chip *chip, unsigned int gpio,
+				     int value)
 {
 	struct ssb_bus *bus = gpiochip_get_data(chip);
 
 	ssb_chipco_gpio_out(&bus->chipco, 1 << gpio, value ? 1 << gpio : 0);
+
+	return 0;
 }
 
 static int ssb_gpio_chipco_direction_input(struct gpio_chip *chip,
@@ -223,7 +225,7 @@ static int ssb_gpio_chipco_init(struct ssb_bus *bus)
 	chip->request		= ssb_gpio_chipco_request;
 	chip->free		= ssb_gpio_chipco_free;
 	chip->get		= ssb_gpio_chipco_get_value;
-	chip->set		= ssb_gpio_chipco_set_value;
+	chip->set_rv		= ssb_gpio_chipco_set_value;
 	chip->direction_input	= ssb_gpio_chipco_direction_input;
 	chip->direction_output	= ssb_gpio_chipco_direction_output;
 #if IS_ENABLED(CONFIG_SSB_EMBEDDED)

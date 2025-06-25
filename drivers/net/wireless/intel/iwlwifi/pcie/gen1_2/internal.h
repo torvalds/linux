@@ -22,7 +22,7 @@
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
 #include "iwl-drv.h"
-#include "iwl-context-info.h"
+#include "pcie/iwl-context-info.h"
 
 /*
  * RX related structures and functions
@@ -39,7 +39,7 @@ struct iwl_host_cmd;
  * trans_pcie layer */
 
 /**
- * struct iwl_rx_mem_buffer
+ * struct iwl_rx_mem_buffer - driver-side RX buffer descriptor
  * @page_dma: bus address of rxb page
  * @page: driver's pointer to the rxb page
  * @list: list entry for the membuffer
@@ -190,6 +190,7 @@ struct iwl_rb_allocator {
  * iwl_get_closed_rb_stts - get closed rb stts from different structs
  * @trans: transport pointer (for configuration)
  * @rxq: the rxq to get the rb stts from
+ * Return: last closed RB index
  */
 static inline u16 iwl_get_closed_rb_stts(struct iwl_trans *trans,
 					 struct iwl_rxq *rxq)
@@ -382,8 +383,7 @@ struct iwl_pcie_txqs {
  * @irq_lock: lock to synchronize IRQ handling
  * @txq_memory: TXQ allocation array
  * @sx_waitq: waitqueue for Sx transitions
- * @sx_complete: completion for Sx transitions
- * @pcie_dbg_dumped_once: indicates PCIe regs were dumped already
+ * @sx_state: state tracking Sx transitions
  * @opmode_down: indicates opmode went away
  * @num_rx_bufs: number of RX buffers to allocate/use
  * @affinity_mask: IRQ affinity mask for each RX queue
@@ -448,13 +448,17 @@ struct iwl_trans_pcie {
 	u8 __iomem *hw_base;
 
 	bool ucode_write_complete;
-	bool sx_complete;
+	enum {
+		IWL_SX_INVALID = 0,
+		IWL_SX_WAITING,
+		IWL_SX_ERROR,
+		IWL_SX_COMPLETE,
+	} sx_state;
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t sx_waitq;
 
 	u16 num_rx_bufs;
 
-	bool pcie_dbg_dumped_once;
 	u32 rx_page_order;
 	u32 rx_buf_bytes;
 	u32 supported_dma_mask;
@@ -698,6 +702,7 @@ static inline void iwl_txq_stop(struct iwl_trans *trans, struct iwl_txq *txq)
  * iwl_txq_inc_wrap - increment queue index, wrap back to beginning
  * @trans: the transport (for configuration data)
  * @index: current index
+ * Return: the queue index incremented, subject to wrapping
  */
 static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 {
@@ -709,6 +714,7 @@ static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
  * iwl_txq_dec_wrap - decrement queue index, wrap back to end
  * @trans: the transport (for configuration data)
  * @index: current index
+ * Return: the queue index decremented, subject to wrapping
  */
 static inline int iwl_txq_dec_wrap(struct iwl_trans *trans, int index)
 {
@@ -1028,40 +1034,12 @@ static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
 		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 }
 
-static inline void __iwl_trans_pcie_set_bits_mask(struct iwl_trans *trans,
-						  u32 reg, u32 mask, u32 value)
-{
-	u32 v;
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	WARN_ON_ONCE(value & ~mask);
-#endif
-
-	v = iwl_read32(trans, reg);
-	v &= ~mask;
-	v |= value;
-	iwl_write32(trans, reg, v);
-}
-
-static inline void __iwl_trans_pcie_clear_bit(struct iwl_trans *trans,
-					      u32 reg, u32 mask)
-{
-	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, 0);
-}
-
-static inline void __iwl_trans_pcie_set_bit(struct iwl_trans *trans,
-					    u32 reg, u32 mask)
-{
-	__iwl_trans_pcie_set_bits_mask(trans, reg, mask, mask);
-}
-
 static inline bool iwl_pcie_dbg_on(struct iwl_trans *trans)
 {
 	return (trans->dbg.dest_tlv || iwl_trans_dbg_ini_valid(trans));
 }
 
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq);
-void iwl_trans_pcie_dump_regs(struct iwl_trans *trans);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
@@ -1074,6 +1052,7 @@ void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
 /* common trans ops for all generations transports */
 void iwl_trans_pcie_op_mode_enter(struct iwl_trans *trans);
+int _iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 int iwl_trans_pcie_start_hw(struct iwl_trans *trans);
 void iwl_trans_pcie_op_mode_leave(struct iwl_trans *trans);
 void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val);
@@ -1083,8 +1062,6 @@ u32 iwl_trans_pcie_read_prph(struct iwl_trans *trans, u32 reg);
 void iwl_trans_pcie_write_prph(struct iwl_trans *trans, u32 addr, u32 val);
 int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 			    void *buf, int dwords);
-int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
-			     const void *buf, int dwords);
 int iwl_trans_pcie_sw_reset(struct iwl_trans *trans, bool retake_ownership);
 struct iwl_trans_dump_data *
 iwl_trans_pcie_dump_data(struct iwl_trans *trans, u32 dump_mask,

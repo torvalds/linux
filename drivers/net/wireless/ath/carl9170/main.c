@@ -890,7 +890,7 @@ static void carl9170_stat_work(struct work_struct *work)
 		round_jiffies(msecs_to_jiffies(CARL9170_STAT_WORK)));
 }
 
-static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
+static int carl9170_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct ar9170 *ar = hw->priv;
 	int err = 0;

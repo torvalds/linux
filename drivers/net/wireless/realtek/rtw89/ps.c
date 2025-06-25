@@ -137,6 +137,8 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			can_ps_mode = false;
 	}
 
+	rtw89_fw_h2c_rf_ps_info(rtwdev, rtwvif);
+
 	if (RTW89_CHK_FW_FEATURE(LPS_CH_INFO, &rtwdev->fw))
 		rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
 	else
@@ -236,12 +238,22 @@ static void rtw89_tsf32_toggle(struct rtw89_dev *rtwdev,
 		rtw89_fw_h2c_tsf32_toggle(rtwdev, rtwvif_link, false);
 }
 
-static void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
-				      struct rtw89_vif_link *rtwvif_link,
-				      struct ieee80211_bss_conf *bss_conf)
+void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
+			       struct rtw89_vif_link *rtwvif_link,
+			       struct ieee80211_bss_conf *bss_conf)
 {
 	enum rtw89_p2pps_action act;
+	u8 oppps_ctwindow;
 	u8 noa_id;
+
+	rcu_read_lock();
+
+	if (!bss_conf)
+		bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+
+	oppps_ctwindow = bss_conf->p2p_noa_attr.oppps_ctwindow;
+
+	rcu_read_unlock();
 
 	if (rtwvif_link->last_noa_nr == 0)
 		return;
@@ -252,8 +264,8 @@ static void rtw89_p2p_disable_all_noa(struct rtw89_dev *rtwdev,
 		else
 			act = RTW89_P2P_ACT_REMOVE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif_link, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, bss_conf,
-				     NULL, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, NULL,
+				     act, noa_id, oppps_ctwindow);
 	}
 }
 
@@ -275,8 +287,8 @@ static void rtw89_p2p_update_noa(struct rtw89_dev *rtwdev,
 		else
 			act = RTW89_P2P_ACT_UPDATE;
 		rtw89_tsf32_toggle(rtwdev, rtwvif_link, act);
-		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, bss_conf,
-				     desc, act, noa_id);
+		rtw89_fw_h2c_p2p_act(rtwdev, rtwvif_link, desc, act, noa_id,
+				     bss_conf->p2p_noa_attr.oppps_ctwindow);
 	}
 	rtwvif_link->last_noa_nr = noa_id;
 }

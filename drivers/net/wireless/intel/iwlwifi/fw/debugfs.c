@@ -198,7 +198,7 @@ void iwl_fw_trigger_timestamp(struct iwl_fw_runtime *fwrt, u32 delay)
 
 	iwl_fw_cancel_timestamp(fwrt);
 
-	fwrt->timestamp.delay = msecs_to_jiffies(delay * 1000);
+	fwrt->timestamp.delay = secs_to_jiffies(delay);
 
 	schedule_delayed_work(&fwrt->timestamp.wk,
 			      round_jiffies_relative(fwrt->timestamp.delay));

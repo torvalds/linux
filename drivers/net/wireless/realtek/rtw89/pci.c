@@ -4353,6 +4353,43 @@ static int __maybe_unused rtw89_pci_resume(struct device *dev)
 SIMPLE_DEV_PM_OPS(rtw89_pm_ops, rtw89_pci_suspend, rtw89_pci_resume);
 EXPORT_SYMBOL(rtw89_pm_ops);
 
+static pci_ers_result_t rtw89_pci_io_error_detected(struct pci_dev *pdev,
+						    pci_channel_state_t state)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	netif_device_detach(netdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t rtw89_pci_io_slot_reset(struct pci_dev *pdev)
+{
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct rtw89_dev *rtwdev = hw->priv;
+
+	rtw89_ser_notify(rtwdev, MAC_AX_ERR_ASSERTION);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void rtw89_pci_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+
+	/* ack any pending wake events, disable PME */
+	pci_enable_wake(pdev, PCI_D0, 0);
+
+	netif_device_attach(netdev);
+}
+
+const struct pci_error_handlers rtw89_pci_err_handler = {
+	.error_detected = rtw89_pci_io_error_detected,
+	.slot_reset = rtw89_pci_io_slot_reset,
+	.resume = rtw89_pci_io_resume,
+};
+EXPORT_SYMBOL(rtw89_pci_err_handler);
+
 const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 	.isr_rdu = B_AX_RDU_INT,
 	.isr_halt_c2h = B_AX_HALT_C2H_INT_EN,

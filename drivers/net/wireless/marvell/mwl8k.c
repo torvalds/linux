@@ -3369,7 +3369,8 @@ struct mwl8k_cmd_set_rts_threshold {
 } __packed;
 
 static int
-mwl8k_cmd_set_rts_threshold(struct ieee80211_hw *hw, int rts_thresh)
+mwl8k_cmd_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+			    int rts_thresh)
 {
 	struct mwl8k_cmd_set_rts_threshold *cmd;
 	int rc;
@@ -4955,7 +4956,7 @@ fail:
 	wiphy_err(hw->wiphy, "Firmware restart failed\n");
 }
 
-static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
+static int mwl8k_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct ieee80211_conf *conf = &hw->conf;
 	struct mwl8k_priv *priv = hw->priv;
@@ -5321,9 +5322,10 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 	mwl8k_fw_unlock(hw);
 }
 
-static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				   u32 value)
 {
-	return mwl8k_cmd_set_rts_threshold(hw, value);
+	return mwl8k_cmd_set_rts_threshold(hw, radio_idx, value);
 }
 
 static int mwl8k_sta_remove(struct ieee80211_hw *hw,
@@ -6056,7 +6058,7 @@ static int mwl8k_reload_firmware(struct ieee80211_hw *hw, char *fw_image)
 	if (rc)
 		goto fail;
 
-	rc = mwl8k_config(hw, ~0);
+	rc = mwl8k_config(hw, -1, ~0);
 	if (rc)
 		goto fail;
 

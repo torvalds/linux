@@ -146,7 +146,7 @@ void ieee80211_recalc_idle(struct ieee80211_local *local)
 {
 	u32 change = __ieee80211_recalc_idle(local, false);
 	if (change)
-		ieee80211_hw_config(local, change);
+		ieee80211_hw_config(local, -1, change);
 }
 
 static int ieee80211_verify_mac(struct ieee80211_sub_if_data *sdata, u8 *addr,
@@ -726,7 +726,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 
 	/* do after stop to avoid reconfiguring when we stop anyway */
 	ieee80211_configure_filter(local);
-	ieee80211_hw_config(local, hw_reconf_flags);
+	ieee80211_hw_config(local, -1, hw_reconf_flags);
 
 	if (local->virt_monitors == local->open_count)
 		ieee80211_add_virtual_monitor(local);
@@ -1491,7 +1491,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	if (local->open_count == 1)
 		ieee80211_hw_conf_init(local);
 	else if (hw_reconf_flags)
-		ieee80211_hw_config(local, hw_reconf_flags);
+		ieee80211_hw_config(local, -1, hw_reconf_flags);
 
 	ieee80211_recalc_ps(local);
 

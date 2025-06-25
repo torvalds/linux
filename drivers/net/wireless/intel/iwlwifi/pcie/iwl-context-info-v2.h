@@ -130,11 +130,11 @@ struct iwl_prph_scratch_pnvm_cfg {
 } __packed; /* PERIPH_SCRATCH_PNVM_CFG_S */
 
 /**
- * struct iwl_prph_scrath_mem_desc_addr_array
+ * struct iwl_prph_scratch_mem_desc_addr_array - DRAM
  * @mem_descs: array of dram addresses.
- * Each address is the beggining of a pnvm payload.
+ * Each address is the beginning of a PNVM payload.
  */
-struct iwl_prph_scrath_mem_desc_addr_array {
+struct iwl_prph_scratch_mem_desc_addr_array {
 	__le64 mem_descs[IPC_DRAM_MAP_ENTRY_NUM_MAX];
 } __packed; /* PERIPH_SCRATCH_MEM_DESC_ADDR_ARRAY_S_VER_1 */
 

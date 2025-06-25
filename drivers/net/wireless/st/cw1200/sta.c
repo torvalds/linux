@@ -321,7 +321,7 @@ int cw1200_change_interface(struct ieee80211_hw *dev,
 	return ret;
 }
 
-int cw1200_config(struct ieee80211_hw *dev, u32 changed)
+int cw1200_config(struct ieee80211_hw *dev, int radio_idx, u32 changed)
 {
 	int ret = 0;
 	struct cw1200_common *priv = dev->priv;
@@ -857,7 +857,8 @@ void cw1200_wep_key_work(struct work_struct *work)
 	wsm_unlock_tx(priv);
 }
 
-int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+int cw1200_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+			     u32 value)
 {
 	int ret = 0;
 	__le32 val32;

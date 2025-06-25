@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * KUnit tests for channel helper functions
+ * KUnit tests for utilities
  *
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
-#include <net/mac80211.h>
-#include "../mvm.h"
+#include "../iwl-utils.h"
 #include <kunit/test.h>
 
-MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
+MODULE_IMPORT_NS("IWLWIFI");
 
-static const struct acs_average_db_case {
+static const struct average_neg_db_case {
 	const char *desc;
 	u8 neg_dbm[22];
 	s8 result;
-} acs_average_db_cases[] = {
+} average_neg_db_cases[] = {
 	{
 		.desc = "Smallest possible value, all filled",
 		.neg_dbm = {
@@ -73,38 +72,38 @@ static const struct acs_average_db_case {
 	},
 };
 
-KUNIT_ARRAY_PARAM_DESC(acs_average_db, acs_average_db_cases, desc)
+KUNIT_ARRAY_PARAM_DESC(average_neg_db, average_neg_db_cases, desc)
 
-static void test_acs_average_db(struct kunit *test)
+static void test_average_neg_db(struct kunit *test)
 {
-	const struct acs_average_db_case *params = test->param_value;
-	struct iwl_umac_scan_channel_survey_notif notif;
+	const struct average_neg_db_case *params = test->param_value;
+	u8 reversed[ARRAY_SIZE(params->neg_dbm)];
 	int i;
 
 	/* Test the values in the given order */
-	for (i = 0; i < ARRAY_SIZE(params->neg_dbm); i++)
-		notif.noise[i] = params->neg_dbm[i];
 	KUNIT_ASSERT_EQ(test,
-			iwl_mvm_average_dbm_values(&notif),
+			iwl_average_neg_dbm(params->neg_dbm,
+					    ARRAY_SIZE(params->neg_dbm)),
 			params->result);
 
 	/* Test in reverse order */
 	for (i = 0; i < ARRAY_SIZE(params->neg_dbm); i++)
-		notif.noise[ARRAY_SIZE(params->neg_dbm) - i - 1] =
+		reversed[ARRAY_SIZE(params->neg_dbm) - i - 1] =
 			params->neg_dbm[i];
 	KUNIT_ASSERT_EQ(test,
-			iwl_mvm_average_dbm_values(&notif),
+			iwl_average_neg_dbm(reversed,
+					    ARRAY_SIZE(params->neg_dbm)),
 			params->result);
 }
 
-static struct kunit_case acs_average_db_case[] = {
-	KUNIT_CASE_PARAM(test_acs_average_db, acs_average_db_gen_params),
+static struct kunit_case average_db_case[] = {
+	KUNIT_CASE_PARAM(test_average_neg_db, average_neg_db_gen_params),
 	{}
 };
 
-static struct kunit_suite acs_average_db = {
-	.name = "iwlmvm-acs-average-db",
-	.test_cases = acs_average_db_case,
+static struct kunit_suite average_db = {
+	.name = "iwl-average-db",
+	.test_cases = average_db_case,
 };
 
-kunit_test_suite(acs_average_db);
+kunit_test_suite(average_db);
