@@ -248,7 +248,7 @@ static void skl_sagv_pre_plane_update(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return;
 
-	if (!intel_can_enable_sagv(display, new_bw_state))
+	if (!intel_bw_can_enable_sagv(display, new_bw_state))
 		skl_sagv_disable(display);
 }
 
@@ -261,7 +261,7 @@ static void skl_sagv_post_plane_update(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return;
 
-	if (intel_can_enable_sagv(display, new_bw_state))
+	if (intel_bw_can_enable_sagv(display, new_bw_state))
 		skl_sagv_enable(display);
 }
 
@@ -460,16 +460,6 @@ bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		return tgl_crtc_can_enable_sagv(crtc_state);
 	else
 		return skl_crtc_can_enable_sagv(crtc_state);
-}
-
-bool intel_can_enable_sagv(struct intel_display *display,
-			   const struct intel_bw_state *bw_state)
-{
-	if (DISPLAY_VER(display) < 11 &&
-	    bw_state->active_pipes && !is_power_of_2(bw_state->active_pipes))
-		return false;
-
-	return bw_state->pipe_sagv_reject == 0;
 }
 
 static u16 skl_ddb_entry_init(struct skl_ddb_entry *entry,
@@ -3035,7 +3025,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 		 * drm_atomic_check_only() gets upset if we pull more crtcs
 		 * into the state, so we have to calculate this based on the
 		 * individual intel_crtc_can_enable_sagv() rather than
-		 * the overall intel_can_enable_sagv(). Otherwise the
+		 * the overall intel_bw_can_enable_sagv(). Otherwise the
 		 * crtcs not included in the commit would not switch to the
 		 * SAGV watermarks when we are about to enable SAGV, and that
 		 * would lead to underruns. This does mean extra power draw

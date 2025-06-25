@@ -1001,7 +1001,7 @@ static int mtl_find_qgv_points(struct intel_display *display,
 	 * for qgv peak bw in PM Demand request. So assign UINT_MAX if SAGV is
 	 * not enabled. PM Demand code will clamp the value for the register
 	 */
-	if (!intel_can_enable_sagv(display, new_bw_state)) {
+	if (!intel_bw_can_enable_sagv(display, new_bw_state)) {
 		new_bw_state->qgv_point_peakbw = U16_MAX;
 		drm_dbg_kms(display->drm, "No SAGV, use UINT_MAX as peak bw.");
 		return 0;
@@ -1114,7 +1114,7 @@ static int icl_find_qgv_points(struct intel_display *display,
 	 * we can't enable SAGV due to the increased memory latency it may
 	 * cause.
 	 */
-	if (!intel_can_enable_sagv(display, new_bw_state)) {
+	if (!intel_bw_can_enable_sagv(display, new_bw_state)) {
 		qgv_points = icl_max_bw_qgv_point_mask(display, num_active_planes);
 		drm_dbg_kms(display->drm, "No SAGV, using single QGV point mask 0x%x\n",
 			    qgv_points);
@@ -1481,8 +1481,8 @@ static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return 0;
 
-	if (intel_can_enable_sagv(display, new_bw_state) !=
-	    intel_can_enable_sagv(display, old_bw_state)) {
+	if (intel_bw_can_enable_sagv(display, new_bw_state) !=
+	    intel_bw_can_enable_sagv(display, old_bw_state)) {
 		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
 		if (ret)
 			return ret;
@@ -1528,8 +1528,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
 	new_bw_state = intel_atomic_get_new_bw_state(state);
 
 	if (new_bw_state &&
-	    intel_can_enable_sagv(display, old_bw_state) !=
-	    intel_can_enable_sagv(display, new_bw_state))
+	    intel_bw_can_enable_sagv(display, old_bw_state) !=
+	    intel_bw_can_enable_sagv(display, new_bw_state))
 		changed = true;
 
 	/*
@@ -1664,4 +1664,14 @@ bool intel_bw_pmdemand_needs_update(struct intel_atomic_state *state)
 		return true;
 
 	return false;
+}
+
+bool intel_bw_can_enable_sagv(struct intel_display *display,
+			      const struct intel_bw_state *bw_state)
+{
+	if (DISPLAY_VER(display) < 11 &&
+	    bw_state->active_pipes && !is_power_of_2(bw_state->active_pipes))
+		return false;
+
+	return bw_state->pipe_sagv_reject == 0;
 }

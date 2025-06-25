@@ -10,7 +10,6 @@
 
 enum plane_id;
 struct intel_atomic_state;
-struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dbuf_state;
@@ -26,8 +25,6 @@ u8 intel_enabled_dbuf_slices_mask(struct intel_display *display);
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);
 bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state);
-bool intel_can_enable_sagv(struct intel_display *display,
-			   const struct intel_bw_state *bw_state);
 bool intel_has_sagv(struct intel_display *display);
 
 u32 skl_ddb_dbuf_slice_mask(struct intel_display *display,

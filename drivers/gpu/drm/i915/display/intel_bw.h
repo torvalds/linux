@@ -77,5 +77,7 @@ void intel_bw_update_hw_state(struct intel_display *display);
 void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc);
 
 bool intel_bw_pmdemand_needs_update(struct intel_atomic_state *state);
+bool intel_bw_can_enable_sagv(struct intel_display *display,
+			      const struct intel_bw_state *bw_state);
 
 #endif /* __INTEL_BW_H__ */
