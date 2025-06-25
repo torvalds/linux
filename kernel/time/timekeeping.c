@@ -119,8 +119,10 @@ static struct tk_fast tk_fast_raw  ____cacheline_aligned = {
 
 #ifdef CONFIG_POSIX_AUX_CLOCKS
 static __init void tk_aux_setup(void);
+static void tk_aux_update_clocksource(void);
 #else
 static inline void tk_aux_setup(void) { }
+static inline void tk_aux_update_clocksource(void) { }
 #endif
 
 unsigned long timekeeper_lock_irqsave(void)
@@ -1548,6 +1550,8 @@ static int change_clocksource(void *data)
 		timekeeping_update_from_shadow(&tk_core, TK_UPDATE_ALL);
 	}
 
+	tk_aux_update_clocksource();
+
 	if (old) {
 		if (old->disable)
 			old->disable(old);
@@ -2651,6 +2655,35 @@ EXPORT_SYMBOL(hardpps);
 #endif /* CONFIG_NTP_PPS */
 
 #ifdef CONFIG_POSIX_AUX_CLOCKS
+
+/*
+ * Bitmap for the activated auxiliary timekeepers to allow lockless quick
+ * checks in the hot paths without touching extra cache lines. If set, then
+ * the state of the corresponding timekeeper has to be re-checked under
+ * timekeeper::lock.
+ */
+static unsigned long aux_timekeepers;
+
+/* Invoked from timekeeping after a clocksource change */
+static void tk_aux_update_clocksource(void)
+{
+	unsigned long active = READ_ONCE(aux_timekeepers);
+	unsigned int id;
+
+	for_each_set_bit(id, &active, BITS_PER_LONG) {
+		struct tk_data *tkd = &timekeeper_data[id + TIMEKEEPER_AUX_FIRST];
+		struct timekeeper *tks = &tkd->shadow_timekeeper;
+
+		guard(raw_spinlock_irqsave)(&tkd->lock);
+		if (!tks->clock_valid)
+			continue;
+
+		timekeeping_forward_now(tks);
+		tk_setup_internals(tks, tk_core.timekeeper.tkr_mono.clock);
+		timekeeping_update_from_shadow(tkd, TK_UPDATE_ALL);
+	}
+}
+
 static __init void tk_aux_setup(void)
 {
 	for (int i = TIMEKEEPER_AUX_FIRST; i <= TIMEKEEPER_AUX_LAST; i++)
