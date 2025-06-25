@@ -223,6 +223,61 @@ static long ptp_extts_request(struct ptp_clock *ptp, unsigned int cmd, void __us
 		return ops->enable(ops, &req, req.extts.flags & PTP_ENABLE_FEATURE ? 1 : 0);
 }
 
+static long ptp_perout_request(struct ptp_clock *ptp, unsigned int cmd, void __user *arg)
+{
+	struct ptp_clock_request req = { .type = PTP_CLK_REQ_PEROUT };
+	struct ptp_perout_request *perout = &req.perout;
+	struct ptp_clock_info *ops = ptp->info;
+
+	if (copy_from_user(perout, arg, sizeof(*perout)))
+		return -EFAULT;
+
+	if (cmd == PTP_PEROUT_REQUEST2) {
+		if (perout->flags & ~PTP_PEROUT_VALID_FLAGS)
+			return -EINVAL;
+
+		/*
+		 * The "on" field has undefined meaning if
+		 * PTP_PEROUT_DUTY_CYCLE isn't set, we must still treat it
+		 * as reserved, which must be set to zero.
+		 */
+		if (!(perout->flags & PTP_PEROUT_DUTY_CYCLE) &&
+		    !mem_is_zero(perout->rsv, sizeof(perout->rsv)))
+			return -EINVAL;
+
+		if (perout->flags & PTP_PEROUT_DUTY_CYCLE) {
+			/* The duty cycle must be subunitary. */
+			if (perout->on.sec > perout->period.sec ||
+			    (perout->on.sec == perout->period.sec &&
+			     perout->on.nsec > perout->period.nsec))
+				return -ERANGE;
+		}
+
+		if (perout->flags & PTP_PEROUT_PHASE) {
+			/*
+			 * The phase should be specified modulo the period,
+			 * therefore anything equal or larger than 1 period
+			 * is invalid.
+			 */
+			if (perout->phase.sec > perout->period.sec ||
+			    (perout->phase.sec == perout->period.sec &&
+			     perout->phase.nsec >= perout->period.nsec))
+				return -ERANGE;
+		}
+	} else {
+		perout->flags &= PTP_PEROUT_V1_VALID_FLAGS;
+		memset(perout->rsv, 0, sizeof(perout->rsv));
+	}
+
+	if (perout->index >= ops->n_per_out)
+		return -EINVAL;
+	if (perout->flags & ~ops->supported_perout_flags)
+		return -EOPNOTSUPP;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		return ops->enable(ops, &req, perout->period.sec || perout->period.nsec);
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
@@ -262,77 +317,9 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 
 	case PTP_PEROUT_REQUEST:
 	case PTP_PEROUT_REQUEST2:
-		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0) {
-			err = -EACCES;
-			break;
-		}
-		memset(&req, 0, sizeof(req));
-
-		if (copy_from_user(&req.perout, (void __user *)arg,
-				   sizeof(req.perout))) {
-			err = -EFAULT;
-			break;
-		}
-		if (cmd == PTP_PEROUT_REQUEST2) {
-			struct ptp_perout_request *perout = &req.perout;
-
-			if (perout->flags & ~PTP_PEROUT_VALID_FLAGS) {
-				err = -EINVAL;
-				break;
-			}
-			/*
-			 * The "on" field has undefined meaning if
-			 * PTP_PEROUT_DUTY_CYCLE isn't set, we must still treat
-			 * it as reserved, which must be set to zero.
-			 */
-			if (!(perout->flags & PTP_PEROUT_DUTY_CYCLE) &&
-			    (perout->rsv[0] || perout->rsv[1] ||
-			     perout->rsv[2] || perout->rsv[3])) {
-				err = -EINVAL;
-				break;
-			}
-			if (perout->flags & PTP_PEROUT_DUTY_CYCLE) {
-				/* The duty cycle must be subunitary. */
-				if (perout->on.sec > perout->period.sec ||
-				    (perout->on.sec == perout->period.sec &&
-				     perout->on.nsec > perout->period.nsec)) {
-					err = -ERANGE;
-					break;
-				}
-			}
-			if (perout->flags & PTP_PEROUT_PHASE) {
-				/*
-				 * The phase should be specified modulo the
-				 * period, therefore anything equal or larger
-				 * than 1 period is invalid.
-				 */
-				if (perout->phase.sec > perout->period.sec ||
-				    (perout->phase.sec == perout->period.sec &&
-				     perout->phase.nsec >= perout->period.nsec)) {
-					err = -ERANGE;
-					break;
-				}
-			}
-		} else if (cmd == PTP_PEROUT_REQUEST) {
-			req.perout.flags &= PTP_PEROUT_V1_VALID_FLAGS;
-			req.perout.rsv[0] = 0;
-			req.perout.rsv[1] = 0;
-			req.perout.rsv[2] = 0;
-			req.perout.rsv[3] = 0;
-		}
-		if (req.perout.index >= ops->n_per_out) {
-			err = -EINVAL;
-			break;
-		}
-		if (req.perout.flags & ~ptp->info->supported_perout_flags)
-			return -EOPNOTSUPP;
-		req.type = PTP_CLK_REQ_PEROUT;
-		enable = req.perout.period.sec || req.perout.period.nsec;
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		err = ops->enable(ops, &req, enable);
-		mutex_unlock(&ptp->pincfg_mux);
-		break;
+		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0)
+			return -EACCES;
+		return ptp_perout_request(ptp, cmd, argptr);
 
 	case PTP_ENABLE_PPS:
 	case PTP_ENABLE_PPS2:
