@@ -1127,6 +1127,10 @@ struct fuse_backing_map {
 					     struct fuse_backing_map)
 #define FUSE_DEV_IOC_BACKING_CLOSE	_IOW(FUSE_DEV_IOC_MAGIC, 2, uint32_t)
 
+/*
+ * The uint64_t offset is derived from kernel loff_t and
+ * is therefore signed.
+ */
 struct fuse_lseek_in {
 	uint64_t	fh;
 	uint64_t	offset;
