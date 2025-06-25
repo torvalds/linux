@@ -317,8 +317,7 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	 */
 	if (!vm->is_compute_context || !vm->process_info)
 		return 0;
-	if (!drm_gem_is_imported(obj) ||
-	    !dma_buf_is_dynamic(obj->import_attach->dmabuf))
+	if (!drm_gem_is_imported(obj) || !dma_buf_is_dynamic(obj->dma_buf))
 		return 0;
 	mutex_lock_nested(&vm->process_info->lock, 1);
 	if (!WARN_ON(!vm->process_info->eviction_fence)) {
