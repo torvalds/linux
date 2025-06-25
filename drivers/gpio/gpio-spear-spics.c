@@ -51,7 +51,8 @@ struct spear_spics {
 	struct gpio_chip	chip;
 };
 
-static void spics_set_value(struct gpio_chip *chip, unsigned offset, int value)
+static int spics_set_value(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct spear_spics *spics = gpiochip_get_data(chip);
 	u32 tmp;
@@ -68,13 +69,14 @@ static void spics_set_value(struct gpio_chip *chip, unsigned offset, int value)
 	tmp &= ~(0x1 << spics->cs_value_bit);
 	tmp |= value << spics->cs_value_bit;
 	writel_relaxed(tmp, spics->base + spics->perip_cfg);
+
+	return 0;
 }
 
 static int spics_direction_output(struct gpio_chip *chip, unsigned offset,
 		int value)
 {
-	spics_set_value(chip, offset, value);
-	return 0;
+	return spics_set_value(chip, offset, value);
 }
 
 static int spics_request(struct gpio_chip *chip, unsigned offset)
@@ -138,7 +140,7 @@ static int spics_gpio_probe(struct platform_device *pdev)
 	spics->chip.request = spics_request;
 	spics->chip.free = spics_free;
 	spics->chip.direction_output = spics_direction_output;
-	spics->chip.set = spics_set_value;
+	spics->chip.set_rv = spics_set_value;
 	spics->chip.label = dev_name(&pdev->dev);
 	spics->chip.parent = &pdev->dev;
 	spics->chip.owner = THIS_MODULE;
