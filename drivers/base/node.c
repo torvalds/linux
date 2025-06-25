@@ -500,7 +500,7 @@ static ssize_t node_read_meminfo(struct device *dev,
 			     nid, K(node_page_state(pgdat, NR_SECONDARY_PAGETABLE)),
 			     nid, 0UL,
 			     nid, 0UL,
-			     nid, K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+			     nid, 0UL,
 			     nid, K(sreclaimable +
 				    node_page_state(pgdat, NR_KERNEL_MISC_RECLAIMABLE)),
 			     nid, K(sreclaimable + sunreclaimable),

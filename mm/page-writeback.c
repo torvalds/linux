@@ -1101,9 +1101,7 @@ static void wb_position_ratio(struct dirty_throttle_control *dtc)
 	 * such filesystems balance_dirty_pages always checks wb counters
 	 * against wb limits. Even if global "nr_dirty" is under "freerun".
 	 * This is especially important for fuse which sets bdi->max_ratio to
-	 * 1% by default. Without strictlimit feature, fuse writeback may
-	 * consume arbitrary amount of RAM because it is accounted in
-	 * NR_WRITEBACK_TEMP which is not involved in calculating "nr_dirty".
+	 * 1% by default.
 	 *
 	 * Here, in wb_position_ratio(), we calculate pos_ratio based on
 	 * two values: wb_dirty and wb_thresh. Let's consider an example:
