@@ -278,6 +278,18 @@ static long ptp_perout_request(struct ptp_clock *ptp, unsigned int cmd, void __u
 		return ops->enable(ops, &req, perout->period.sec || perout->period.nsec);
 }
 
+static long ptp_enable_pps(struct ptp_clock *ptp, bool enable)
+{
+	struct ptp_clock_request req = { .type = PTP_CLK_REQ_PPS };
+	struct ptp_clock_info *ops = ptp->info;
+
+	if (!capable(CAP_SYS_TIME))
+		return -EPERM;
+
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &ptp->pincfg_mux)
+		return ops->enable(ops, &req, enable);
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
@@ -290,13 +302,12 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	struct ptp_sys_offset *sysoff = NULL;
 	struct timestamp_event_queue *tsevq;
 	struct ptp_system_timestamp sts;
-	struct ptp_clock_request req;
 	struct ptp_clock_time *pct;
 	unsigned int i, pin_index;
 	struct ptp_pin_desc pd;
 	struct timespec64 ts;
-	int enable, err = 0;
 	void __user *argptr;
+	int err = 0;
 
 	if (in_compat_syscall() && cmd != PTP_ENABLE_PPS && cmd != PTP_ENABLE_PPS2)
 		arg = (unsigned long)compat_ptr(arg);
@@ -323,21 +334,9 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 
 	case PTP_ENABLE_PPS:
 	case PTP_ENABLE_PPS2:
-		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0) {
-			err = -EACCES;
-			break;
-		}
-		memset(&req, 0, sizeof(req));
-
-		if (!capable(CAP_SYS_TIME))
-			return -EPERM;
-		req.type = PTP_CLK_REQ_PPS;
-		enable = arg ? 1 : 0;
-		if (mutex_lock_interruptible(&ptp->pincfg_mux))
-			return -ERESTARTSYS;
-		err = ops->enable(ops, &req, enable);
-		mutex_unlock(&ptp->pincfg_mux);
-		break;
+		if ((pccontext->fp->f_mode & FMODE_WRITE) == 0)
+			return -EACCES;
+		return ptp_enable_pps(ptp, !!arg);
 
 	case PTP_SYS_OFFSET_PRECISE:
 	case PTP_SYS_OFFSET_PRECISE2:
