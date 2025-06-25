@@ -1377,7 +1377,10 @@ static int btrfs_wq_run_delayed_node(struct btrfs_delayed_root *delayed_root,
 
 void btrfs_assert_delayed_root_empty(struct btrfs_fs_info *fs_info)
 {
-	WARN_ON(btrfs_first_delayed_node(fs_info->delayed_root));
+	struct btrfs_delayed_node *node = btrfs_first_delayed_node(fs_info->delayed_root);
+
+	if (WARN_ON(node))
+		refcount_dec(&node->refs);
 }
 
 static bool could_end_wait(struct btrfs_delayed_root *delayed_root, int seq)
