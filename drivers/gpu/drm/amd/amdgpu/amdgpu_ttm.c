@@ -1061,7 +1061,7 @@ static void amdgpu_ttm_backend_unbind(struct ttm_device *bdev,
 	/* if the pages have userptr pinning then clear that first */
 	if (gtt->userptr) {
 		amdgpu_ttm_tt_unpin_userptr(bdev, ttm);
-	} else if (ttm->sg && gtt->gobj->import_attach) {
+	} else if (ttm->sg && drm_gem_is_imported(gtt->gobj)) {
 		struct dma_buf_attachment *attach;
 
 		attach = gtt->gobj->import_attach;
