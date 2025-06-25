@@ -1173,8 +1173,8 @@ struct rtw_pwr_track_tbl {
 };
 
 enum rtw_wlan_cpu {
-	RTW_WCPU_11AC,
-	RTW_WCPU_11N,
+	RTW_WCPU_3081,
+	RTW_WCPU_8051,
 };
 
 enum rtw_fw_fifo_sel {
@@ -2166,14 +2166,14 @@ static inline void rtw_chip_efuse_grant_off(struct rtw_dev *rtwdev)
 		rtwdev->chip->ops->efuse_grant(rtwdev, false);
 }
 
-static inline bool rtw_chip_wcpu_11n(struct rtw_dev *rtwdev)
+static inline bool rtw_chip_wcpu_8051(struct rtw_dev *rtwdev)
 {
-	return rtwdev->chip->wlan_cpu == RTW_WCPU_11N;
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_8051;
 }
 
-static inline bool rtw_chip_wcpu_11ac(struct rtw_dev *rtwdev)
+static inline bool rtw_chip_wcpu_3081(struct rtw_dev *rtwdev)
 {
-	return rtwdev->chip->wlan_cpu == RTW_WCPU_11AC;
+	return rtwdev->chip->wlan_cpu == RTW_WCPU_3081;
 }
 
 static inline bool rtw_chip_has_rx_ldpc(struct rtw_dev *rtwdev)

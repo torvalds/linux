@@ -229,7 +229,7 @@ static bool rtl8821ae_get_btc_status(void)
 	return true;
 }
 
-static struct rtl_hal_ops rtl8821ae_hal_ops = {
+static const struct rtl_hal_ops rtl8821ae_hal_ops = {
 	.init_sw_vars = rtl8821ae_init_sw_vars,
 	.deinit_sw_vars = rtl8821ae_deinit_sw_vars,
 	.read_eeprom_info = rtl8821ae_read_eeprom_info,

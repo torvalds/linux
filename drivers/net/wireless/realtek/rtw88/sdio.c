@@ -547,7 +547,7 @@ static int rtw_sdio_check_free_txpg(struct rtw_dev *rtwdev, u8 queue,
 {
 	unsigned int pages_free, pages_needed;
 
-	if (rtw_chip_wcpu_11n(rtwdev)) {
+	if (rtw_chip_wcpu_8051(rtwdev)) {
 		u32 free_txpg;
 
 		free_txpg = rtw_sdio_read32(rtwdev, REG_SDIO_FREE_TXPG);
@@ -1030,7 +1030,7 @@ static void rtw_sdio_rx_isr(struct rtw_dev *rtwdev)
 	u32 rx_len, hisr, total_rx_bytes = 0;
 
 	do {
-		if (rtw_chip_wcpu_11n(rtwdev))
+		if (rtw_chip_wcpu_8051(rtwdev))
 			rx_len = rtw_read16(rtwdev, REG_SDIO_RX0_REQ_LEN);
 		else
 			rx_len = rtw_read32(rtwdev, REG_SDIO_RX0_REQ_LEN);
@@ -1042,7 +1042,7 @@ static void rtw_sdio_rx_isr(struct rtw_dev *rtwdev)
 
 		total_rx_bytes += rx_len;
 
-		if (rtw_chip_wcpu_11n(rtwdev)) {
+		if (rtw_chip_wcpu_8051(rtwdev)) {
 			/* Stop if no more RX requests are pending, even if
 			 * rx_len could be greater than zero in the next
 			 * iteration. This is needed because the RX buffer may
@@ -1054,7 +1054,7 @@ static void rtw_sdio_rx_isr(struct rtw_dev *rtwdev)
 			 */
 			hisr = rtw_read32(rtwdev, REG_SDIO_HISR);
 		} else {
-			/* RTW_WCPU_11AC chips have improved hardware or
+			/* RTW_WCPU_3081 chips have improved hardware or
 			 * firmware and can use rx_len unconditionally.
 			 */
 			hisr = REG_SDIO_HISR_RX_REQUEST;

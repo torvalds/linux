@@ -1381,9 +1381,9 @@ static u8 _rtl8723e_get_chnl_group(u8 chnl)
 	return group;
 }
 
-static void _rtl8723e_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
-						  bool autoload_fail,
-						  u8 *hwinfo)
+static noinline_for_stack void
+_rtl8723e_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
+				      bool autoload_fail, u8 *hwinfo)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));

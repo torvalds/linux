@@ -41,7 +41,7 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	}
 	rtw_write32(rtwdev, REG_WMAC_TRXPTCL_CTL, value32);
 
-	if (rtw_chip_wcpu_11n(rtwdev))
+	if (rtw_chip_wcpu_8051(rtwdev))
 		return;
 
 	value32 = rtw_read32(rtwdev, REG_AFE_CTRL1) & ~(BIT_MAC_CLK_SEL);
@@ -67,7 +67,7 @@ static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 
 	rtw_write8(rtwdev, REG_RSV_CTRL, 0);
 
-	if (rtw_chip_wcpu_11n(rtwdev)) {
+	if (rtw_chip_wcpu_8051(rtwdev)) {
 		if (rtw_read32(rtwdev, REG_SYS_CFG1) & BIT_LDO)
 			rtw_write8(rtwdev, REG_LDO_SWR_CTRL, LDO_SEL);
 		else
@@ -278,7 +278,7 @@ static int rtw_mac_power_switch(struct rtw_dev *rtwdev, bool pwr_on)
 	bool cur_pwr;
 	int ret;
 
-	if (rtw_chip_wcpu_11ac(rtwdev)) {
+	if (rtw_chip_wcpu_3081(rtwdev)) {
 		rpwm = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
 
 		/* Check FW still exist or not */
@@ -369,7 +369,7 @@ static int __rtw_mac_init_system_cfg_legacy(struct rtw_dev *rtwdev)
 
 static int rtw_mac_init_system_cfg(struct rtw_dev *rtwdev)
 {
-	if (rtw_chip_wcpu_11n(rtwdev))
+	if (rtw_chip_wcpu_8051(rtwdev))
 		return __rtw_mac_init_system_cfg_legacy(rtwdev);
 
 	return __rtw_mac_init_system_cfg(rtwdev);
@@ -981,7 +981,7 @@ out:
 static
 int _rtw_download_firmware(struct rtw_dev *rtwdev, struct rtw_fw_state *fw)
 {
-	if (rtw_chip_wcpu_11n(rtwdev))
+	if (rtw_chip_wcpu_8051(rtwdev))
 		return __rtw_download_firmware_legacy(rtwdev, fw);
 
 	return __rtw_download_firmware(rtwdev, fw);
@@ -1122,7 +1122,7 @@ static int txdma_queue_mapping(struct rtw_dev *rtwdev)
 
 	rtw_write8(rtwdev, REG_CR, 0);
 	rtw_write8(rtwdev, REG_CR, MAC_TRX_ENABLE);
-	if (rtw_chip_wcpu_11ac(rtwdev))
+	if (rtw_chip_wcpu_3081(rtwdev))
 		rtw_write32(rtwdev, REG_H2CQ_CSR, BIT_H2CQ_FULL);
 
 	if (rtw_hci_type(rtwdev) == RTW_HCI_TYPE_SDIO) {
@@ -1145,7 +1145,7 @@ int rtw_set_trx_fifo_info(struct rtw_dev *rtwdev)
 	/* config rsvd page num */
 	fifo->rsvd_drv_pg_num = chip->rsvd_drv_pg_num;
 	fifo->txff_pg_num = chip->txff_size / chip->page_size;
-	if (rtw_chip_wcpu_11n(rtwdev))
+	if (rtw_chip_wcpu_8051(rtwdev))
 		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num;
 	else
 		fifo->rsvd_pg_num = fifo->rsvd_drv_pg_num +
@@ -1163,7 +1163,7 @@ int rtw_set_trx_fifo_info(struct rtw_dev *rtwdev)
 	fifo->rsvd_boundary = fifo->txff_pg_num - fifo->rsvd_pg_num;
 
 	cur_pg_addr = fifo->txff_pg_num;
-	if (rtw_chip_wcpu_11ac(rtwdev)) {
+	if (rtw_chip_wcpu_3081(rtwdev)) {
 		cur_pg_addr -= csi_buf_pg_num;
 		fifo->rsvd_csibuf_addr = cur_pg_addr;
 		cur_pg_addr -= RSVD_PG_FW_TXBUF_NUM;
@@ -1292,7 +1292,7 @@ static int priority_queue_cfg(struct rtw_dev *rtwdev)
 
 	pubq_num = fifo->acq_pg_num - pg_tbl->hq_num - pg_tbl->lq_num -
 		   pg_tbl->nq_num - pg_tbl->exq_num - pg_tbl->gapq_num;
-	if (rtw_chip_wcpu_11n(rtwdev))
+	if (rtw_chip_wcpu_8051(rtwdev))
 		return __priority_queue_cfg_legacy(rtwdev, pg_tbl, pubq_num);
 	else
 		return __priority_queue_cfg(rtwdev, pg_tbl, pubq_num);
@@ -1308,7 +1308,7 @@ static int init_h2c(struct rtw_dev *rtwdev)
 	u32 h2cq_free;
 	u32 wp, rp;
 
-	if (rtw_chip_wcpu_11n(rtwdev))
+	if (rtw_chip_wcpu_8051(rtwdev))
 		return 0;
 
 	h2cq_addr = fifo->rsvd_h2cq_addr << TX_PAGE_SIZE_SHIFT;
@@ -1375,7 +1375,7 @@ static int rtw_drv_info_cfg(struct rtw_dev *rtwdev)
 	u8 value8;
 
 	rtw_write8(rtwdev, REG_RX_DRVINFO_SZ, PHY_STATUS_SIZE);
-	if (rtw_chip_wcpu_11ac(rtwdev)) {
+	if (rtw_chip_wcpu_3081(rtwdev)) {
 		value8 = rtw_read8(rtwdev, REG_TRXFF_BNDY + 1);
 		value8 &= 0xF0;
 		/* For rxdesc len = 0 issue */

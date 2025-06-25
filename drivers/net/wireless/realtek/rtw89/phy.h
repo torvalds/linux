@@ -252,6 +252,7 @@ enum rtw89_phy_status_bitmap {
 	RTW89_HT_PKT          = 13,
 	RTW89_VHT_PKT         = 14,
 	RTW89_HE_PKT          = 15,
+	RTW89_EHT_PKT         = 16,
 
 	RTW89_PHYSTS_BITMAP_NUM
 };

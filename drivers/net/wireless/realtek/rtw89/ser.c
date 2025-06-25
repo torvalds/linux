@@ -566,21 +566,22 @@ static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 filter_model_addr = mac->filter_model_addr;
 	u32 indir_access_addr = mac->indir_access_addr;
+	u32 mem_page_size = mac->mem_page_size;
 	u32 *ptr = (u32 *)buf;
 	u32 base_addr, start_page, residue;
 	u32 cnt = 0;
 	u32 i;
 
-	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
-	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
+	start_page = start_addr / mem_page_size;
+	residue = start_addr % mem_page_size;
 	base_addr = mac->mem_base_addrs[sel];
-	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
+	base_addr += start_page * mem_page_size;
 
 	while (cnt < len) {
 		rtw89_write32(rtwdev, filter_model_addr, base_addr);
 
 		for (i = indir_access_addr + residue;
-		     i < indir_access_addr + MAC_MEM_DUMP_PAGE_SIZE;
+		     i < indir_access_addr + mem_page_size;
 		     i += 4, ptr++) {
 			*ptr = rtw89_read32(rtwdev, i);
 			cnt += 4;
@@ -589,7 +590,7 @@ static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 		}
 
 		residue = 0;
-		base_addr += MAC_MEM_DUMP_PAGE_SIZE;
+		base_addr += mem_page_size;
 	}
 }
 
