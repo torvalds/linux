@@ -164,7 +164,7 @@ struct sched_ext_entity {
 
 	/*
 	 * Runtime budget in nsecs. This is usually set through
-	 * scx_bpf_dispatch() but can also be modified directly by the BPF
+	 * scx_bpf_dsq_insert() but can also be modified directly by the BPF
 	 * scheduler. Automatically decreased by SCX as the task executes. On
 	 * depletion, a scheduling event is triggered.
 	 *
@@ -176,10 +176,10 @@ struct sched_ext_entity {
 
 	/*
 	 * Used to order tasks when dispatching to the vtime-ordered priority
-	 * queue of a dsq. This is usually set through scx_bpf_dispatch_vtime()
-	 * but can also be modified directly by the BPF scheduler. Modifying it
-	 * while a task is queued on a dsq may mangle the ordering and is not
-	 * recommended.
+	 * queue of a dsq. This is usually set through
+	 * scx_bpf_dsq_insert_vtime() but can also be modified directly by the
+	 * BPF scheduler. Modifying it while a task is queued on a dsq may
+	 * mangle the ordering and is not recommended.
 	 */
 	u64			dsq_vtime;
 
