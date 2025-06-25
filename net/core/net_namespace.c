@@ -796,11 +796,19 @@ static __net_init int net_ns_net_init(struct net *net)
 #ifdef CONFIG_NET_NS
 	net->ns.ops = &netns_operations;
 #endif
+	if (net == &init_net) {
+		net->ns.inum = PROC_NET_INIT_INO;
+		return 0;
+	}
 	return ns_alloc_inum(&net->ns);
 }
 
 static __net_exit void net_ns_net_exit(struct net *net)
 {
+	/*
+	 * Initial network namespace doesn't exit so we don't need any
+	 * special checks here.
+	 */
 	ns_free_inum(&net->ns);
 }
 
