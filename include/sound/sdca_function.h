@@ -11,6 +11,7 @@
 
 #include <linux/bits.h>
 #include <linux/types.h>
+#include <linux/hid.h>
 
 struct device;
 struct sdca_entity;
@@ -1041,6 +1042,32 @@ struct sdca_entity_ge {
 };
 
 /**
+ * struct sdca_entity_hide - information specific to HIDE Entities
+ * @hid: HID device structure
+ * @hidtx_ids: HIDTx Report ID
+ * @num_hidtx_ids: number of HIDTx Report ID
+ * @hidrx_ids: HIDRx Report ID
+ * @num_hidrx_ids: number of HIDRx Report ID
+ * @hide_reside_function_num: indicating which Audio Function Numbers within this Device
+ * @max_delay: the maximum time in microseconds allowed for the Device to change the ownership from Device to Host
+ * @af_number_list: which Audio Function Numbers within this Device are sending/receiving the messages in this HIDE
+ * @hid_desc: HID descriptor for the HIDE Entity
+ * @hid_report_desc: HID Report Descriptor for the HIDE Entity
+ */
+struct sdca_entity_hide {
+	struct hid_device *hid;
+	unsigned int *hidtx_ids;
+	int num_hidtx_ids;
+	unsigned int *hidrx_ids;
+	int num_hidrx_ids;
+	unsigned int hide_reside_function_num;
+	unsigned int max_delay;
+	unsigned int af_number_list[SDCA_MAX_FUNCTION_COUNT];
+	struct hid_descriptor hid_desc;
+	unsigned char *hid_report_desc;
+};
+
+/**
  * struct sdca_entity - information for one SDCA Entity
  * @label: String such as "OT 12".
  * @id: Identifier used for addressing.
@@ -1055,6 +1082,7 @@ struct sdca_entity_ge {
  * @cs: Clock Source specific Entity properties.
  * @pde: Power Domain Entity specific Entity properties.
  * @ge: Group Entity specific Entity properties.
+ * @hide: HIDE Entity specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
@@ -1071,6 +1099,7 @@ struct sdca_entity {
 		struct sdca_entity_cs cs;
 		struct sdca_entity_pde pde;
 		struct sdca_entity_ge ge;
+		struct sdca_entity_hide hide;
 	};
 };
 

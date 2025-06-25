@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
+#include <sound/sdca_hid.h>
 
 /*
  * Should be long enough to encompass all the MIPI DisCo properties.
@@ -1220,6 +1221,93 @@ bad_list:
 	return -EINVAL;
 }
 
+static int
+find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
+		      struct fwnode_handle *entity_node, struct sdca_entity *entity)
+{
+	struct sdca_entity_hide *hide = &entity->hide;
+	unsigned int delay, *af_list = hide->af_number_list;
+	int nval, ret;
+	unsigned char *report_desc = NULL;
+
+	ret = fwnode_property_read_u32(entity_node,
+				       "mipi-sdca-RxUMP-ownership-transition-maxdelay", &delay);
+	if (!ret)
+		hide->max_delay = delay;
+
+	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDTx-supported-report-ids");
+	if (nval > 0) {
+		hide->num_hidtx_ids = nval;
+		hide->hidtx_ids = devm_kcalloc(dev, hide->num_hidtx_ids,
+					       sizeof(*hide->hidtx_ids), GFP_KERNEL);
+		if (!hide->hidtx_ids)
+			return -ENOMEM;
+
+		ret = fwnode_property_read_u32_array(entity_node,
+						     "mipi-sdca-HIDTx-supported-report-ids",
+						     hide->hidtx_ids,
+						     hide->num_hidtx_ids);
+		if (ret < 0)
+			return ret;
+	}
+
+	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDRx-supported-report-ids");
+	if (nval > 0) {
+		hide->num_hidrx_ids = nval;
+		hide->hidrx_ids = devm_kcalloc(dev, hide->num_hidrx_ids,
+					       sizeof(*hide->hidrx_ids), GFP_KERNEL);
+		if (!hide->hidrx_ids)
+			return -ENOMEM;
+
+		ret = fwnode_property_read_u32_array(entity_node,
+						     "mipi-sdca-HIDRx-supported-report-ids",
+						     hide->hidrx_ids,
+						     hide->num_hidrx_ids);
+		if (ret < 0)
+			return ret;
+	}
+
+	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-hide-related-audio-function-list");
+	if (nval <= 0) {
+		dev_err(dev, "%pfwP: audio function numbers list missing: %d\n",
+			entity_node, nval);
+		return -EINVAL;
+	} else if (nval > SDCA_MAX_FUNCTION_COUNT) {
+		dev_err(dev, "%pfwP: maximum number of audio function exceeded\n", entity_node);
+		return -EINVAL;
+	}
+
+	hide->hide_reside_function_num = nval;
+	fwnode_property_read_u32_array(entity_node,
+				       "mipi-sdca-hide-related-audio-function-list", af_list, nval);
+
+	nval = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
+	if (nval)
+		fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
+					      (u8 *)&hide->hid_desc, nval);
+
+	if (hide->hid_desc.bNumDescriptors) {
+		nval = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
+		if (nval) {
+			report_desc = devm_kzalloc(dev, nval, GFP_KERNEL);
+			if (!report_desc)
+				return -ENOMEM;
+			hide->hid_report_desc = report_desc;
+			fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
+						      report_desc, nval);
+
+			/* add HID device */
+			ret = sdca_add_hid_device(dev, entity);
+			if (ret) {
+				dev_err(dev, "%pfwP: failed to add HID device: %d\n", entity_node, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -1260,6 +1348,9 @@ static int find_sdca_entity(struct device *dev,
 		break;
 	case SDCA_ENTITY_TYPE_GE:
 		ret = find_sdca_entity_ge(dev, entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_HIDE:
+		ret = find_sdca_entity_hide(dev, function_node, entity_node, entity);
 		break;
 	default:
 		break;
@@ -1850,3 +1941,4 @@ EXPORT_SYMBOL_NS(sdca_parse_function, "SND_SOC_SDCA");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA library");
+MODULE_IMPORT_NS("SND_SOC_SDCA_HID");

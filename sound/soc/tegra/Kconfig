@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
+menu "Tegra"
+
 config SND_SOC_TEGRA
 	tristate "SoC Audio for the Tegra System-on-Chip"
 	depends on (ARCH_TEGRA && TEGRA20_APB_DMA) || COMPILE_TEST
@@ -293,3 +295,5 @@ config SND_SOC_TEGRA_SGTL5000
 	  Colibri T30.
 
 endif
+
+endmenu
