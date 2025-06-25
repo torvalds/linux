@@ -1371,4 +1371,165 @@ __naked void mult_sign_ovf(void)
 	  __imm(bpf_skb_store_bytes)
 	: __clobber_all);
 }
+
+SEC("socket")
+__description("64-bit addition, all outcomes overflow")
+__success __log_level(2)
+__msg("5: (0f) r3 += r3 {{.*}} R3_w=scalar(umin=0x4000000000000000,umax=0xfffffffffffffffe)")
+__retval(0)
+__naked void add64_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r4 = r0;"
+	"r3 = 0xa000000000000000 ll;"
+	"r3 |= r4;"
+	"r3 += r3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("64-bit addition, partial overflow, result in unbounded reg")
+__success __log_level(2)
+__msg("4: (0f) r3 += r3 {{.*}} R3_w=scalar()")
+__retval(0)
+__naked void add64_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r4 = r0;"
+	"r3 = 2;"
+	"r3 |= r4;"
+	"r3 += r3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit addition overflow, all outcomes overflow")
+__success __log_level(2)
+__msg("4: (0c) w3 += w3 {{.*}} R3_w=scalar(smin=umin=umin32=0x40000000,smax=umax=umax32=0xfffffffe,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void add32_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w4 = w0;"
+	"w3 = 0xa0000000;"
+	"w3 |= w4;"
+	"w3 += w3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit addition, partial overflow, result in unbounded u32 bounds")
+__success __log_level(2)
+__msg("4: (0c) w3 += w3 {{.*}} R3_w=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void add32_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w4 = w0;"
+	"w3 = 2;"
+	"w3 |= w4;"
+	"w3 += w3;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("64-bit subtraction, all outcomes underflow")
+__success __log_level(2)
+__msg("6: (1f) r3 -= r1 {{.*}} R3_w=scalar(umin=1,umax=0x8000000000000000)")
+__retval(0)
+__naked void sub64_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r1 = r0;"
+	"r2 = 0x8000000000000000 ll;"
+	"r1 |= r2;"
+	"r3 = 0;"
+	"r3 -= r1;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("64-bit subtration, partial overflow, result in unbounded reg")
+__success __log_level(2)
+__msg("3: (1f) r3 -= r2 {{.*}} R3_w=scalar()")
+__retval(0)
+__naked void sub64_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r3 = r0;"
+	"r2 = 1;"
+	"r3 -= r2;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit subtraction overflow, all outcomes underflow")
+__success __log_level(2)
+__msg("5: (1c) w3 -= w1 {{.*}} R3_w=scalar(smin=umin=umin32=1,smax=umax=umax32=0x80000000,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void sub32_full_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w1 = w0;"
+	"w2 = 0x80000000;"
+	"w1 |= w2;"
+	"w3 = 0;"
+	"w3 -= w1;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__description("32-bit subtration, partial overflow, result in unbounded u32 bounds")
+__success __log_level(2)
+__msg("3: (1c) w3 -= w2 {{.*}} R3_w=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
+__retval(0)
+__naked void sub32_partial_overflow(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"w3 = w0;"
+	"w2 = 1;"
+	"w3 -= w2;"
+	"r0 = 0;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
