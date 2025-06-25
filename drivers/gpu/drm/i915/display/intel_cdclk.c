@@ -3840,6 +3840,16 @@ int intel_cdclk_logical(const struct intel_cdclk_state *cdclk_state)
 	return cdclk_state->logical.cdclk;
 }
 
+int intel_cdclk_actual(const struct intel_cdclk_state *cdclk_state)
+{
+	return cdclk_state->actual.cdclk;
+}
+
+int intel_cdclk_actual_voltage_level(const struct intel_cdclk_state *cdclk_state)
+{
+	return cdclk_state->actual.voltage_level;
+}
+
 int intel_cdclk_min_cdclk(const struct intel_cdclk_state *cdclk_state, enum pipe pipe)
 {
 	return cdclk_state->min_cdclk[pipe];

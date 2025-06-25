@@ -360,9 +360,9 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 		return PTR_ERR(new_cdclk_state);
 
 	new_pmdemand_state->params.voltage_index =
-		new_cdclk_state->actual.voltage_level;
+		intel_cdclk_actual_voltage_level(new_cdclk_state);
 	new_pmdemand_state->params.cdclk_freq_mhz =
-		DIV_ROUND_UP(new_cdclk_state->actual.cdclk, 1000);
+		DIV_ROUND_UP(intel_cdclk_actual(new_cdclk_state), 1000);
 
 	intel_pmdemand_update_max_ddiclk(display, state, new_pmdemand_state);
 
