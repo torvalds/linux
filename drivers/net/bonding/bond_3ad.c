@@ -1378,7 +1378,7 @@ static void ad_tx_machine(struct port *port)
 	/* check if tx timer expired, to verify that we do not send more than
 	 * 3 packets per second
 	 */
-	if (port->sm_tx_timer_counter && !(--port->sm_tx_timer_counter)) {
+	if (!port->sm_tx_timer_counter || !(--port->sm_tx_timer_counter)) {
 		/* check if there is something to send */
 		if (port->ntt && (port->sm_vars & AD_PORT_LACP_ENABLED)) {
 			__update_lacpdu_from_port(port);
@@ -1393,12 +1393,13 @@ static void ad_tx_machine(struct port *port)
 				 * again until demanded
 				 */
 				port->ntt = false;
+
+				/* restart tx timer(to verify that we will not
+				 * exceed AD_MAX_TX_IN_SECOND
+				 */
+				port->sm_tx_timer_counter = ad_ticks_per_sec / AD_MAX_TX_IN_SECOND;
 			}
 		}
-		/* restart tx timer(to verify that we will not exceed
-		 * AD_MAX_TX_IN_SECOND
-		 */
-		port->sm_tx_timer_counter = ad_ticks_per_sec/AD_MAX_TX_IN_SECOND;
 	}
 }
 
