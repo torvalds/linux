@@ -56,6 +56,10 @@ struct pcie_tlp_log;
  */
 #define PCIE_RESET_CONFIG_WAIT_MS	100
 
+/* Parameters for the waiting for link up routine */
+#define PCIE_LINK_WAIT_MAX_RETRIES	10
+#define PCIE_LINK_WAIT_SLEEP_MS		90
+
 /* Message Routing (r[2:0]); PCIe r6.0, sec 2.2.8 */
 #define PCIE_MSG_TYPE_R_RC	0
 #define PCIE_MSG_TYPE_R_ADDR	1
