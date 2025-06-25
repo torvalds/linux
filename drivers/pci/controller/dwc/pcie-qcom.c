@@ -1564,6 +1564,7 @@ static irqreturn_t qcom_pcie_global_irq_thread(int irq, void *data)
 	writel_relaxed(status, pcie->parf + PARF_INT_ALL_CLEAR);
 
 	if (FIELD_GET(PARF_INT_ALL_LINK_UP, status)) {
+		msleep(PCIE_RESET_CONFIG_WAIT_MS);
 		dev_dbg(dev, "Received Link up event. Starting enumeration!\n");
 		/* Rescan the bus to enumerate endpoint devices */
 		pci_lock_rescan_remove();
