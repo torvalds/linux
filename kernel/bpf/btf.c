@@ -858,26 +858,37 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
 EXPORT_SYMBOL_GPL(btf_type_by_id);
 
 /*
- * Regular int is not a bit field and it must be either
- * u8/u16/u32/u64 or __int128.
+ * Check that the type @t is a regular int. This means that @t is not
+ * a bit field and it has the same size as either of u8/u16/u32/u64
+ * or __int128. If @expected_size is not zero, then size of @t should
+ * be the same. A caller should already have checked that the type @t
+ * is an integer.
  */
+static bool __btf_type_int_is_regular(const struct btf_type *t, size_t expected_size)
+{
+	u32 int_data = btf_type_int(t);
+	u8 nr_bits = BTF_INT_BITS(int_data);
+	u8 nr_bytes = BITS_ROUNDUP_BYTES(nr_bits);
+
+	return BITS_PER_BYTE_MASKED(nr_bits) == 0 &&
+	       BTF_INT_OFFSET(int_data) == 0 &&
+	       (nr_bytes <= 16 && is_power_of_2(nr_bytes)) &&
+	       (expected_size == 0 || nr_bytes == expected_size);
+}
+
 static bool btf_type_int_is_regular(const struct btf_type *t)
 {
-	u8 nr_bits, nr_bytes;
-	u32 int_data;
+	return __btf_type_int_is_regular(t, 0);
+}
 
-	int_data = btf_type_int(t);
-	nr_bits = BTF_INT_BITS(int_data);
-	nr_bytes = BITS_ROUNDUP_BYTES(nr_bits);
-	if (BITS_PER_BYTE_MASKED(nr_bits) ||
-	    BTF_INT_OFFSET(int_data) ||
-	    (nr_bytes != sizeof(u8) && nr_bytes != sizeof(u16) &&
-	     nr_bytes != sizeof(u32) && nr_bytes != sizeof(u64) &&
-	     nr_bytes != (2 * sizeof(u64)))) {
-		return false;
-	}
+bool btf_type_is_i32(const struct btf_type *t)
+{
+	return btf_type_is_int(t) && __btf_type_int_is_regular(t, 4);
+}
 
-	return true;
+bool btf_type_is_i64(const struct btf_type *t)
+{
+	return btf_type_is_int(t) && __btf_type_int_is_regular(t, 8);
 }
 
 /*
