@@ -710,12 +710,6 @@ static bool coredump_sock_connect(struct core_name *cn, struct coredump_params *
 
 	retval = kernel_connect(socket, (struct sockaddr *)(&addr), addr_len,
 				O_NONBLOCK | SOCK_COREDUMP);
-	/*
-	 * ... Make sure to only put our reference after connect() took
-	 * its own reference keeping the pidfs entry alive ...
-	 */
-	pidfs_put_pid(cprm->pid);
-
 	if (retval) {
 		if (retval == -EAGAIN)
 			coredump_report_failure("Coredump socket %s receive queue full", addr.sun_path);
