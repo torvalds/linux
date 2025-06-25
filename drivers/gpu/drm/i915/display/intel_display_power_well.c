@@ -36,16 +36,15 @@
 
 /*
  * PG0 is HW controlled, so doesn't have a corresponding power well control knob
- * SKL_DISP_PW1_IDX..SKL_DISP_PW2_IDX -> PG1..PG2
+ *
+ * {ICL,SKL}_DISP_PW1_IDX..{ICL,SKL}_DISP_PW4_IDX -> PG1..PG4
  */
-#define  SKL_PW_CTL_IDX_TO_PG(pw_idx)		\
-	((pw_idx) - SKL_PW_CTL_IDX_PW_1 + SKL_PG1)
-/*
- * PG0 is HW controlled, so doesn't have a corresponding power well control knob
- * ICL_DISP_PW1_IDX..ICL_DISP_PW4_IDX -> PG1..PG4
- */
-#define  ICL_PW_CTL_IDX_TO_PG(pw_idx)		\
-	((pw_idx) - ICL_PW_CTL_IDX_PW_1 + SKL_PG1)
+static enum skl_power_gate pw_idx_to_pg(struct intel_display *display, int pw_idx)
+{
+	int pw1_idx = DISPLAY_VER(display) >= 11 ? ICL_PW_CTL_IDX_PW_1 : SKL_PW_CTL_IDX_PW_1;
+
+	return pw_idx - pw1_idx + SKL_PG1;
+}
 
 struct i915_power_well_regs {
 	i915_reg_t bios;
@@ -363,8 +362,7 @@ static void hsw_power_well_enable(struct intel_display *display,
 	if (power_well->desc->has_fuses) {
 		enum skl_power_gate pg;
 
-		pg = DISPLAY_VER(display) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
-						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
+		pg = pw_idx_to_pg(display, pw_idx);
 
 		/* Wa_16013190616:adlp */
 		if (display->platform.alderlake_p && pg == SKL_PG1)
@@ -388,8 +386,8 @@ static void hsw_power_well_enable(struct intel_display *display,
 	if (power_well->desc->has_fuses) {
 		enum skl_power_gate pg;
 
-		pg = DISPLAY_VER(display) >= 11 ? ICL_PW_CTL_IDX_TO_PG(pw_idx) :
-						 SKL_PW_CTL_IDX_TO_PG(pw_idx);
+		pg = pw_idx_to_pg(display, pw_idx);
+
 		gen9_wait_for_power_well_fuses(display, pg);
 	}
 
