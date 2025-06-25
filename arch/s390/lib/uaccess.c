@@ -150,20 +150,16 @@ EXPORT_SYMBOL(_copy_to_user_key);
 
 #define CMPXCHG_USER_KEY_MAX_LOOPS 128
 
-int __kprobes __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
-				  unsigned char old, unsigned char new, unsigned long key)
+static nokprobe_inline int __cmpxchg_user_key_small(unsigned long address, unsigned int *uval,
+						    unsigned int old, unsigned int new,
+						    unsigned int mask, unsigned long key)
 {
-	unsigned int prev, shift, mask, _old, _new;
 	unsigned long count;
+	unsigned int prev;
 	bool sacf_flag;
 	int rc = 0;
 
 	skey_regions_initialize();
-	shift = (3 ^ (address & 3)) << 3;
-	address ^= address & 3;
-	_old = (unsigned int)old << shift;
-	_new = (unsigned int)new << shift;
-	mask = ~(0xff << shift);
 	sacf_flag = enable_sacf_uaccess();
 	asm_inline volatile(
 		"20:	spka	0(%[key])\n"
@@ -193,8 +189,8 @@ int __kprobes __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
 		: [rc] "+&d" (rc),
 		[prev] "=&d" (prev),
 		[address] "+Q" (*(int *)address),
-		[tmp] "+&d" (_old),
-		[new] "+&d" (_new),
+		[tmp] "+&d" (old),
+		[new] "+&d" (new),
 		[mask] "+&d" (mask),
 		[count] "=a" (count)
 		: [key] "%[count]" (key << 4),
@@ -202,9 +198,25 @@ int __kprobes __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
 		[max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
 		: "memory", "cc");
 	disable_sacf_uaccess(sacf_flag);
-	*uval = prev >> shift;
+	*uval = prev;
 	if (!count)
 		rc = -EAGAIN;
+	return rc;
+}
+
+int __kprobes __cmpxchg_user_key1(unsigned long address, unsigned char *uval,
+				  unsigned char old, unsigned char new, unsigned long key)
+{
+	unsigned int prev, shift, mask, _old, _new;
+	int rc;
+
+	shift = (3 ^ (address & 3)) << 3;
+	address ^= address & 3;
+	_old = (unsigned int)old << shift;
+	_new = (unsigned int)new << shift;
+	mask = ~(0xff << shift);
+	rc = __cmpxchg_user_key_small(address, &prev, _old, _new, mask, key);
+	*uval = prev >> shift;
 	return rc;
 }
 EXPORT_SYMBOL(__cmpxchg_user_key1);
@@ -213,57 +225,15 @@ int __kprobes __cmpxchg_user_key2(unsigned long address, unsigned short *uval,
 				  unsigned short old, unsigned short new, unsigned long key)
 {
 	unsigned int prev, shift, mask, _old, _new;
-	unsigned long count;
-	bool sacf_flag;
-	int rc = 0;
+	int rc;
 
-	skey_regions_initialize();
 	shift = (2 ^ (address & 2)) << 3;
 	address ^= address & 2;
 	_old = (unsigned int)old << shift;
 	_new = (unsigned int)new << shift;
 	mask = ~(0xffff << shift);
-	sacf_flag = enable_sacf_uaccess();
-	asm_inline volatile(
-		"20:	spka	0(%[key])\n"
-		"	sacf	256\n"
-		"	llill	%[count],%[max_loops]\n"
-		"0:	l	%[prev],%[address]\n"
-		"1:	nr	%[prev],%[mask]\n"
-		"	xilf	%[mask],0xffffffff\n"
-		"	or	%[new],%[prev]\n"
-		"	or	%[prev],%[tmp]\n"
-		"2:	lr	%[tmp],%[prev]\n"
-		"3:	cs	%[prev],%[new],%[address]\n"
-		"4:	jnl	5f\n"
-		"	xr	%[tmp],%[prev]\n"
-		"	xr	%[new],%[tmp]\n"
-		"	nr	%[tmp],%[mask]\n"
-		"	jnz	5f\n"
-		"	brct	%[count],2b\n"
-		"5:	sacf	768\n"
-		"	spka	%[default_key]\n"
-		"21:\n"
-		EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
-		EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
-		SKEY_REGION(20b, 21b)
-		: [rc] "+&d" (rc),
-		[prev] "=&d" (prev),
-		[address] "+Q" (*(int *)address),
-		[tmp] "+&d" (_old),
-		[new] "+&d" (_new),
-		[mask] "+&d" (mask),
-		[count] "=a" (count)
-		: [key] "%[count]" (key << 4),
-		[default_key] "J" (PAGE_DEFAULT_KEY),
-		[max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
-		: "memory", "cc");
-	disable_sacf_uaccess(sacf_flag);
+	rc = __cmpxchg_user_key_small(address, &prev, _old, _new, mask, key);
 	*uval = prev >> shift;
-	if (!count)
-		rc = -EAGAIN;
 	return rc;
 }
 EXPORT_SYMBOL(__cmpxchg_user_key2);
