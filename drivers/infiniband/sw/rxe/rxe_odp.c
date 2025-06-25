@@ -470,10 +470,10 @@ static int rxe_ib_prefetch_sg_list(struct ib_pd *ibpd,
 		mr = lookup_mr(pd, IB_ACCESS_LOCAL_WRITE,
 			       sg_list[i].lkey, RXE_LOOKUP_LOCAL);
 
-		if (IS_ERR(mr)) {
+		if (!mr) {
 			rxe_dbg_pd(pd, "mr with lkey %x not found\n",
 				   sg_list[i].lkey);
-			return PTR_ERR(mr);
+			return -EINVAL;
 		}
 
 		if (advice == IB_UVERBS_ADVISE_MR_ADVICE_PREFETCH_WRITE &&
@@ -535,8 +535,10 @@ static int rxe_ib_advise_mr_prefetch(struct ib_pd *ibpd,
 		/* Takes a reference, which will be released in the queued work */
 		mr = lookup_mr(pd, IB_ACCESS_LOCAL_WRITE,
 			       sg_list[i].lkey, RXE_LOOKUP_LOCAL);
-		if (IS_ERR(mr))
+		if (!mr) {
+			mr = ERR_PTR(-EINVAL);
 			goto err;
+		}
 
 		work->frags[i].io_virt = sg_list[i].addr;
 		work->frags[i].length = sg_list[i].length;
