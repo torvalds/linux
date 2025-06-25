@@ -331,13 +331,10 @@ static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 static int gpio_rcar_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 				  unsigned long *bits)
 {
+	u32 bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
-	u32 bankmask, outputs, m, val = 0;
+	u32 outputs, m, val = 0;
 	unsigned long flags;
-
-	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
-	if (!bankmask)
-		return 0;
 
 	if (p->info.has_always_in) {
 		bits[0] = gpio_rcar_read(p, INDT) & bankmask;
@@ -372,13 +369,10 @@ static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
 static void gpio_rcar_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 				   unsigned long *bits)
 {
+	u32 bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 	unsigned long flags;
-	u32 val, bankmask;
-
-	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
-	if (!bankmask)
-		return;
+	u32 val;
 
 	raw_spin_lock_irqsave(&p->lock, flags);
 	val = gpio_rcar_read(p, OUTDT);
