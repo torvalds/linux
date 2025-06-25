@@ -21,12 +21,12 @@ static inline struct mount *next_peer(struct mount *p)
 
 static inline struct mount *first_slave(struct mount *p)
 {
-	return list_entry(p->mnt_slave_list.next, struct mount, mnt_slave);
+	return hlist_entry(p->mnt_slave_list.first, struct mount, mnt_slave);
 }
 
 static inline struct mount *next_slave(struct mount *p)
 {
-	return list_entry(p->mnt_slave.next, struct mount, mnt_slave);
+	return hlist_entry(p->mnt_slave.next, struct mount, mnt_slave);
 }
 
 static struct mount *get_peer_under_root(struct mount *mnt,
@@ -85,21 +85,18 @@ static struct mount *propagation_source(struct mount *mnt)
 
 static void transfer_propagation(struct mount *mnt, struct mount *to)
 {
-	struct mount *slave_mnt;
-	if (!to) {
-		struct list_head *p = &mnt->mnt_slave_list;
-		while (!list_empty(p)) {
-			slave_mnt = list_first_entry(p,
-					struct mount, mnt_slave);
-			list_del_init(&slave_mnt->mnt_slave);
-			slave_mnt->mnt_master = NULL;
-		}
-		return;
+	struct hlist_node *p = NULL, *n;
+	struct mount *m;
+
+	hlist_for_each_entry_safe(m, n, &mnt->mnt_slave_list, mnt_slave) {
+		m->mnt_master = to;
+		if (!to)
+			hlist_del_init(&m->mnt_slave);
+		else
+			p = &m->mnt_slave;
 	}
-	list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
-		slave_mnt->mnt_master = to;
-	list_splice(&mnt->mnt_slave_list, to->mnt_slave_list.prev);
-	INIT_LIST_HEAD(&mnt->mnt_slave_list);
+	if (p)
+		hlist_splice_init(&mnt->mnt_slave_list, p, &to->mnt_slave_list);
 }
 
 /*
@@ -124,10 +121,10 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		transfer_propagation(mnt, m);
 		mnt->mnt_master = m;
 	}
-	list_del_init(&mnt->mnt_slave);
+	hlist_del_init(&mnt->mnt_slave);
 	if (type == MS_SLAVE) {
 		if (mnt->mnt_master)
-			list_add(&mnt->mnt_slave,
+			hlist_add_head(&mnt->mnt_slave,
 				 &mnt->mnt_master->mnt_slave_list);
 	} else {
 		mnt->mnt_master = NULL;
@@ -147,7 +144,7 @@ static struct mount *__propagation_next(struct mount *m,
 		if (master == origin->mnt_master) {
 			struct mount *next = next_peer(m);
 			return (next == origin) ? NULL : next;
-		} else if (m->mnt_slave.next != &master->mnt_slave_list)
+		} else if (m->mnt_slave.next)
 			return next_slave(m);
 
 		/* back at master */
@@ -169,7 +166,7 @@ static struct mount *propagation_next(struct mount *m,
 					 struct mount *origin)
 {
 	/* are there any slaves of this mount? */
-	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
+	if (!IS_MNT_NEW(m) && !hlist_empty(&m->mnt_slave_list))
 		return first_slave(m);
 
 	return __propagation_next(m, origin);
@@ -194,7 +191,7 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 	while (1) {
 		while (1) {
 			struct mount *next;
-			if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
+			if (!IS_MNT_NEW(m) && !hlist_empty(&m->mnt_slave_list))
 				return first_slave(m);
 			next = next_peer(m);
 			if (m->mnt_group_id == origin->mnt_group_id) {
@@ -207,7 +204,7 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 		/* m is the last peer */
 		while (1) {
 			struct mount *master = m->mnt_master;
-			if (m->mnt_slave.next != &master->mnt_slave_list)
+			if (m->mnt_slave.next)
 				return next_slave(m);
 			m = next_peer(master);
 			if (master->mnt_group_id == origin->mnt_group_id)

@@ -380,8 +380,8 @@ static struct mount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&mnt->mnt_list);
 		INIT_LIST_HEAD(&mnt->mnt_expire);
 		INIT_LIST_HEAD(&mnt->mnt_share);
-		INIT_LIST_HEAD(&mnt->mnt_slave_list);
-		INIT_LIST_HEAD(&mnt->mnt_slave);
+		INIT_HLIST_HEAD(&mnt->mnt_slave_list);
+		INIT_HLIST_NODE(&mnt->mnt_slave);
 		INIT_HLIST_NODE(&mnt->mnt_mp_list);
 		INIT_HLIST_HEAD(&mnt->mnt_stuck_children);
 		RB_CLEAR_NODE(&mnt->mnt_node);
@@ -1348,10 +1348,10 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 
 	if ((flag & CL_SLAVE) ||
 	    ((flag & CL_SHARED_TO_SLAVE) && IS_MNT_SHARED(old))) {
-		list_add(&mnt->mnt_slave, &old->mnt_slave_list);
+		hlist_add_head(&mnt->mnt_slave, &old->mnt_slave_list);
 		mnt->mnt_master = old;
 	} else if (IS_MNT_SLAVE(old)) {
-		list_add(&mnt->mnt_slave, &old->mnt_slave);
+		hlist_add_behind(&mnt->mnt_slave, &old->mnt_slave);
 		mnt->mnt_master = old->mnt_master;
 	}
 	return mnt;
@@ -3398,10 +3398,8 @@ static int do_set_group(struct path *from_path, struct path *to_path)
 		goto out;
 
 	if (IS_MNT_SLAVE(from)) {
-		struct mount *m = from->mnt_master;
-
-		list_add(&to->mnt_slave, &from->mnt_slave);
-		to->mnt_master = m;
+		hlist_add_behind(&to->mnt_slave, &from->mnt_slave);
+		to->mnt_master = from->mnt_master;
 	}
 
 	if (IS_MNT_SHARED(from)) {
