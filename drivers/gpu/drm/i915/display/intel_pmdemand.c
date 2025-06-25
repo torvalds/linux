@@ -294,16 +294,12 @@ intel_pmdemand_connector_needs_update(struct intel_atomic_state *state)
 
 static bool intel_pmdemand_needs_update(struct intel_atomic_state *state)
 {
-	const struct intel_bw_state *new_bw_state, *old_bw_state;
 	const struct intel_cdclk_state *new_cdclk_state, *old_cdclk_state;
 	const struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
-	new_bw_state = intel_atomic_get_new_bw_state(state);
-	old_bw_state = intel_atomic_get_old_bw_state(state);
-	if (new_bw_state && new_bw_state->qgv_point_peakbw !=
-	    old_bw_state->qgv_point_peakbw)
+	if (intel_bw_pmdemand_needs_update(state))
 		return true;
 
 	if (intel_dbuf_pmdemand_needs_update(state))

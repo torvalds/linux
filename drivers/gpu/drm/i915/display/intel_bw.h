@@ -76,4 +76,6 @@ int intel_bw_min_cdclk(struct intel_display *display,
 void intel_bw_update_hw_state(struct intel_display *display);
 void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc);
 
+bool intel_bw_pmdemand_needs_update(struct intel_atomic_state *state);
+
 #endif /* __INTEL_BW_H__ */

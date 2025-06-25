@@ -1651,3 +1651,17 @@ int intel_bw_init(struct intel_display *display)
 
 	return 0;
 }
+
+bool intel_bw_pmdemand_needs_update(struct intel_atomic_state *state)
+{
+	const struct intel_bw_state *new_bw_state, *old_bw_state;
+
+	new_bw_state = intel_atomic_get_new_bw_state(state);
+	old_bw_state = intel_atomic_get_old_bw_state(state);
+
+	if (new_bw_state &&
+	    new_bw_state->qgv_point_peakbw != old_bw_state->qgv_point_peakbw)
+		return true;
+
+	return false;
+}
