@@ -358,12 +358,12 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 
 	if (DISPLAY_VER(display) < 30) {
 		new_pmdemand_state->params.active_dbufs =
-			min_t(u8, hweight8(new_dbuf_state->enabled_slices), 3);
+			min_t(u8, intel_dbuf_num_enabled_slices(new_dbuf_state), 3);
 		new_pmdemand_state->params.active_pipes =
-			min_t(u8, hweight8(new_dbuf_state->active_pipes), 3);
+			min_t(u8, intel_dbuf_num_active_pipes(new_dbuf_state), 3);
 	} else {
 		new_pmdemand_state->params.active_pipes =
-			min_t(u8, hweight8(new_dbuf_state->active_pipes), INTEL_NUM_PIPES(display));
+			min_t(u8, intel_dbuf_num_active_pipes(new_dbuf_state), INTEL_NUM_PIPES(display));
 	}
 
 	new_cdclk_state = intel_atomic_get_cdclk_state(state);

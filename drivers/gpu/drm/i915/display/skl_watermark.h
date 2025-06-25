@@ -78,6 +78,9 @@ struct intel_dbuf_state {
 struct intel_dbuf_state *
 intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
 
+int intel_dbuf_num_enabled_slices(const struct intel_dbuf_state *dbuf_state);
+int intel_dbuf_num_active_pipes(const struct intel_dbuf_state *dbuf_state);
+
 int intel_dbuf_init(struct intel_display *display);
 int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
 					   int ratio);

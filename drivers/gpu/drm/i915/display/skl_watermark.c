@@ -3704,6 +3704,16 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 	gen9_dbuf_slices_update(display, new_slices);
 }
 
+int intel_dbuf_num_enabled_slices(const struct intel_dbuf_state *dbuf_state)
+{
+	return hweight8(dbuf_state->enabled_slices);
+}
+
+int intel_dbuf_num_active_pipes(const struct intel_dbuf_state *dbuf_state)
+{
+	return hweight8(dbuf_state->active_pipes);
+}
+
 bool intel_dbuf_pmdemand_needs_update(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
