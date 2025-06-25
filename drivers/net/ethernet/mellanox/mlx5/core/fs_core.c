@@ -2228,6 +2228,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	struct mlx5_flow_handle *rule;
 	struct match_list *iter;
 	bool take_write = false;
+	bool try_again = false;
 	struct fs_fte *fte;
 	u64  version = 0;
 	int err;
@@ -2292,6 +2293,7 @@ skip_search:
 		nested_down_write_ref_node(&g->node, FS_LOCK_PARENT);
 
 		if (!g->node.active) {
+			try_again = true;
 			up_write_ref_node(&g->node, false);
 			continue;
 		}
@@ -2313,7 +2315,8 @@ skip_search:
 			tree_put_node(&fte->node, false);
 		return rule;
 	}
-	rule = ERR_PTR(-ENOENT);
+	err = try_again ? -EAGAIN : -ENOENT;
+	rule = ERR_PTR(err);
 out:
 	kmem_cache_free(steering->ftes_cache, fte);
 	return rule;
@@ -3242,34 +3245,48 @@ static int
 init_rdma_transport_rx_root_ns_one(struct mlx5_flow_steering *steering,
 				   int vport_idx)
 {
+	struct mlx5_flow_root_namespace *root_ns;
 	struct fs_prio *prio;
+	int i;
 
 	steering->rdma_transport_rx_root_ns[vport_idx] =
 		create_root_ns(steering, FS_FT_RDMA_TRANSPORT_RX);
 	if (!steering->rdma_transport_rx_root_ns[vport_idx])
 		return -ENOMEM;
 
-	/* create 1 prio*/
-	prio = fs_create_prio(&steering->rdma_transport_rx_root_ns[vport_idx]->ns,
-			      MLX5_RDMA_TRANSPORT_BYPASS_PRIO, 1);
-	return PTR_ERR_OR_ZERO(prio);
+	root_ns = steering->rdma_transport_rx_root_ns[vport_idx];
+
+	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
+		prio = fs_create_prio(&root_ns->ns, i, 1);
+		if (IS_ERR(prio))
+			return PTR_ERR(prio);
+	}
+	set_prio_attrs(root_ns);
+	return 0;
 }
 
 static int
 init_rdma_transport_tx_root_ns_one(struct mlx5_flow_steering *steering,
 				   int vport_idx)
 {
+	struct mlx5_flow_root_namespace *root_ns;
 	struct fs_prio *prio;
+	int i;
 
 	steering->rdma_transport_tx_root_ns[vport_idx] =
 		create_root_ns(steering, FS_FT_RDMA_TRANSPORT_TX);
 	if (!steering->rdma_transport_tx_root_ns[vport_idx])
 		return -ENOMEM;
 
-	/* create 1 prio*/
-	prio = fs_create_prio(&steering->rdma_transport_tx_root_ns[vport_idx]->ns,
-			      MLX5_RDMA_TRANSPORT_BYPASS_PRIO, 1);
-	return PTR_ERR_OR_ZERO(prio);
+	root_ns = steering->rdma_transport_tx_root_ns[vport_idx];
+
+	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
+		prio = fs_create_prio(&root_ns->ns, i, 1);
+		if (IS_ERR(prio))
+			return PTR_ERR(prio);
+	}
+	set_prio_attrs(root_ns);
+	return 0;
 }
 
 static int init_rdma_transport_rx_root_ns(struct mlx5_flow_steering *steering)
