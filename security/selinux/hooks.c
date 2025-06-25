@@ -3181,6 +3181,8 @@ static inline void task_avdcache_update(struct task_security_struct *tsec,
 	tsec->avdcache.dir[spot].audited = audited;
 	tsec->avdcache.dir[spot].allowed = avd->allowed;
 	tsec->avdcache.dir[spot].permissive = avd->flags & AVD_FLAGS_PERMISSIVE;
+	tsec->avdcache.permissive_neveraudit =
+		(avd->flags == (AVD_FLAGS_PERMISSIVE|AVD_FLAGS_NEVERAUDIT));
 }
 
 /**
@@ -3207,10 +3209,13 @@ static int selinux_inode_permission(struct inode *inode, int requested)
 	if (!mask)
 		return 0;
 
+	tsec = selinux_cred(current_cred());
+	if (task_avdcache_permnoaudit(tsec))
+		return 0;
+
 	isec = inode_security_rcu(inode, requested & MAY_NOT_BLOCK);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
-	tsec = selinux_cred(current_cred());
 	perms = file_mask_to_av(inode->i_mode, mask);
 
 	rc = task_avdcache_search(tsec, isec, &avdc);
@@ -3274,6 +3279,13 @@ static int selinux_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 static int selinux_inode_getattr(const struct path *path)
 {
+	struct task_security_struct *tsec;
+
+	tsec = selinux_cred(current_cred());
+
+	if (task_avdcache_permnoaudit(tsec))
+		return 0;
+
 	return path_has_perm(current_cred(), path, FILE__GETATTR);
 }
 
