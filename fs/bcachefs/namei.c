@@ -175,6 +175,16 @@ int bch2_create_trans(struct btree_trans *trans,
 		new_inode->bi_dir_offset	= dir_offset;
 	}
 
+	if (S_ISDIR(mode)) {
+		ret = bch2_maybe_propagate_has_case_insensitive(trans,
+				(subvol_inum) {
+					new_inode->bi_subvol ?: dir.subvol,
+					new_inode->bi_inum },
+				new_inode);
+		if (ret)
+			goto err;
+	}
+
 	if (S_ISDIR(mode) &&
 	    !new_inode->bi_subvol)
 		new_inode->bi_depth = dir_u->bi_depth + 1;

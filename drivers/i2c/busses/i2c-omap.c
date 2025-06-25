@@ -1201,9 +1201,9 @@ omap_i2c_isr_thread(int this_irq, void *dev_id)
 }
 
 static const struct i2c_algorithm omap_i2c_algo = {
-	.master_xfer	= omap_i2c_xfer_irq,
-	.master_xfer_atomic	= omap_i2c_xfer_polling,
-	.functionality	= omap_i2c_func,
+	.xfer = omap_i2c_xfer_irq,
+	.xfer_atomic = omap_i2c_xfer_polling,
+	.functionality = omap_i2c_func,
 };
 
 static const struct i2c_adapter_quirks omap_i2c_quirks = {

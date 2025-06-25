@@ -951,6 +951,8 @@ static const struct ath12k_hw_regs qcn9274_v1_regs = {
 	.hal_umac_ce0_dest_reg_base = 0x01b81000,
 	.hal_umac_ce1_src_reg_base = 0x01b82000,
 	.hal_umac_ce1_dest_reg_base = 0x01b83000,
+
+	.gcc_gcc_pcie_hot_rst = 0x1e38338,
 };
 
 static const struct ath12k_hw_regs qcn9274_v2_regs = {
@@ -1042,6 +1044,8 @@ static const struct ath12k_hw_regs qcn9274_v2_regs = {
 	.hal_umac_ce0_dest_reg_base = 0x01b81000,
 	.hal_umac_ce1_src_reg_base = 0x01b82000,
 	.hal_umac_ce1_dest_reg_base = 0x01b83000,
+
+	.gcc_gcc_pcie_hot_rst = 0x1e38338,
 };
 
 static const struct ath12k_hw_regs ipq5332_regs = {
@@ -1215,6 +1219,8 @@ static const struct ath12k_hw_regs wcn7850_regs = {
 	.hal_umac_ce0_dest_reg_base = 0x01b81000,
 	.hal_umac_ce1_src_reg_base = 0x01b82000,
 	.hal_umac_ce1_dest_reg_base = 0x01b83000,
+
+	.gcc_gcc_pcie_hot_rst = 0x1e40304,
 };
 
 static const struct ath12k_hw_hal_params ath12k_hw_hal_params_qcn9274 = {

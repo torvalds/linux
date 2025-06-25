@@ -121,7 +121,7 @@ r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle, bool external)
 			page_shift -= desc->bits;
 
 			ctrl->levels[i].physAddress = pd->pt[0]->addr;
-			ctrl->levels[i].size = (1 << desc->bits) * desc->size;
+			ctrl->levels[i].size = BIT_ULL(desc->bits) * desc->size;
 			ctrl->levels[i].aperture = 1;
 			ctrl->levels[i].pageShift = page_shift;
 

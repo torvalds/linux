@@ -336,7 +336,7 @@ static int iso_connect_bis(struct sock *sk)
 	struct hci_dev  *hdev;
 	int err;
 
-	BT_DBG("%pMR", &iso_pi(sk)->src);
+	BT_DBG("%pMR (SID 0x%2.2x)", &iso_pi(sk)->src, iso_pi(sk)->bc_sid);
 
 	hdev = hci_get_route(&iso_pi(sk)->dst, &iso_pi(sk)->src,
 			     iso_pi(sk)->src_type);
@@ -365,7 +365,7 @@ static int iso_connect_bis(struct sock *sk)
 
 	/* Just bind if DEFER_SETUP has been set */
 	if (test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
-		hcon = hci_bind_bis(hdev, &iso_pi(sk)->dst,
+		hcon = hci_bind_bis(hdev, &iso_pi(sk)->dst, iso_pi(sk)->bc_sid,
 				    &iso_pi(sk)->qos, iso_pi(sk)->base_len,
 				    iso_pi(sk)->base);
 		if (IS_ERR(hcon)) {
@@ -375,12 +375,16 @@ static int iso_connect_bis(struct sock *sk)
 	} else {
 		hcon = hci_connect_bis(hdev, &iso_pi(sk)->dst,
 				       le_addr_type(iso_pi(sk)->dst_type),
-				       &iso_pi(sk)->qos, iso_pi(sk)->base_len,
-				       iso_pi(sk)->base);
+				       iso_pi(sk)->bc_sid, &iso_pi(sk)->qos,
+				       iso_pi(sk)->base_len, iso_pi(sk)->base);
 		if (IS_ERR(hcon)) {
 			err = PTR_ERR(hcon);
 			goto unlock;
 		}
+
+		/* Update SID if it was not set */
+		if (iso_pi(sk)->bc_sid == HCI_SID_INVALID)
+			iso_pi(sk)->bc_sid = hcon->sid;
 	}
 
 	conn = iso_conn_add(hcon);
@@ -1337,10 +1341,13 @@ static int iso_sock_getname(struct socket *sock, struct sockaddr *addr,
 	addr->sa_family = AF_BLUETOOTH;
 
 	if (peer) {
+		struct hci_conn *hcon = iso_pi(sk)->conn ?
+					iso_pi(sk)->conn->hcon : NULL;
+
 		bacpy(&sa->iso_bdaddr, &iso_pi(sk)->dst);
 		sa->iso_bdaddr_type = iso_pi(sk)->dst_type;
 
-		if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
+		if (hcon && hcon->type == BIS_LINK) {
 			sa->iso_bc->bc_sid = iso_pi(sk)->bc_sid;
 			sa->iso_bc->bc_num_bis = iso_pi(sk)->bc_num_bis;
 			memcpy(sa->iso_bc->bc_bis, iso_pi(sk)->bc_bis,
