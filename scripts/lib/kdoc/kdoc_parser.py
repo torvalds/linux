@@ -1211,16 +1211,17 @@ class KernelDoc:
 
         if export_symbol.search(line):
             symbol = export_symbol.group(2)
-            for suffix in suffixes:
-                symbol = symbol.removesuffix(suffix)
-            function_set.add(symbol)
-            return
-
-        if export_symbol_ns.search(line):
+        elif export_symbol_ns.search(line):
             symbol = export_symbol_ns.group(2)
-            for suffix in suffixes:
-                symbol = symbol.removesuffix(suffix)
-            function_set.add(symbol)
+        else:
+            return False
+        #
+        # Found an export, trim out any special suffixes
+        #
+        for suffix in suffixes:
+            symbol = symbol.removesuffix(suffix)
+        function_set.add(symbol)
+        return True
 
     def process_normal(self, ln, line):
         """
@@ -1767,13 +1768,10 @@ class KernelDoc:
                     # it was read twice. Here, we use the already-existing
                     # loop to parse exported symbols as well.
                     #
-                    # TODO: It should be noticed that not all states are
-                    # needed here. On a future cleanup, process export only
-                    # at the states that aren't handling comment markups.
-                    self.process_export(export_table, line)
-
-                    # Hand this line to the appropriate state handler
-                    self.state_actions[self.state](self, ln, line)
+                    if (self.state != state.NORMAL) or \
+                       not self.process_export(export_table, line):
+                        # Hand this line to the appropriate state handler
+                        self.state_actions[self.state](self, ln, line)
 
         except OSError:
             self.config.log.error(f"Error: Cannot open file {self.fname}")
