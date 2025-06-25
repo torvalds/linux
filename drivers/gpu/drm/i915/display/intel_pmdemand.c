@@ -294,7 +294,6 @@ intel_pmdemand_connector_needs_update(struct intel_atomic_state *state)
 
 static bool intel_pmdemand_needs_update(struct intel_atomic_state *state)
 {
-	const struct intel_cdclk_state *new_cdclk_state, *old_cdclk_state;
 	const struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
 	int i;
@@ -305,13 +304,7 @@ static bool intel_pmdemand_needs_update(struct intel_atomic_state *state)
 	if (intel_dbuf_pmdemand_needs_update(state))
 		return true;
 
-	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
-	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
-	if (new_cdclk_state &&
-	    (new_cdclk_state->actual.cdclk !=
-	     old_cdclk_state->actual.cdclk ||
-	     new_cdclk_state->actual.voltage_level !=
-	     old_cdclk_state->actual.voltage_level))
+	if (intel_cdclk_pmdemand_needs_update(state))
 		return true;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,

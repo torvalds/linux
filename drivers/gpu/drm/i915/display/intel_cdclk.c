@@ -3849,3 +3849,18 @@ int intel_cdclk_bw_min_cdclk(const struct intel_cdclk_state *cdclk_state)
 {
 	return cdclk_state->bw_min_cdclk;
 }
+
+bool intel_cdclk_pmdemand_needs_update(struct intel_atomic_state *state)
+{
+	const struct intel_cdclk_state *new_cdclk_state, *old_cdclk_state;
+
+	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
+	old_cdclk_state = intel_atomic_get_old_cdclk_state(state);
+
+	if (new_cdclk_state &&
+	    (new_cdclk_state->actual.cdclk != old_cdclk_state->actual.cdclk ||
+	     new_cdclk_state->actual.voltage_level != old_cdclk_state->actual.voltage_level))
+		return true;
+
+	return false;
+}
