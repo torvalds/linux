@@ -129,7 +129,6 @@ class KernelEntry:
         self.config = config
 
         self._contents = []
-        self.function = ""
         self.sectcheck = ""
         self.struct_actual = ""
         self.prototype = ""
