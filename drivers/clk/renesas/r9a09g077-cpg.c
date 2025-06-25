@@ -67,7 +67,7 @@ enum rzt2h_clk_types {
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R9A09G077_CLK_PCLKL,
+	LAST_DT_CORE_CLK = R9A09G077_SDHI_CLKHS,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -76,9 +76,11 @@ enum clk_ids {
 	CLK_LOCO,
 	CLK_PLL0,
 	CLK_PLL1,
+	CLK_PLL2,
 	CLK_PLL4,
 	CLK_SEL_CLK_PLL0,
 	CLK_SEL_CLK_PLL1,
+	CLK_SEL_CLK_PLL2,
 	CLK_SEL_CLK_PLL4,
 	CLK_PLL4D1,
 	CLK_SCI0ASYNC,
@@ -105,6 +107,7 @@ static const struct clk_div_table dtable_24_25_30_32[] = {
 
 static const char * const sel_clk_pll0[] = { ".loco", ".pll0" };
 static const char * const sel_clk_pll1[] = { ".loco", ".pll1" };
+static const char * const sel_clk_pll2[] = { ".loco", ".pll2" };
 static const char * const sel_clk_pll4[] = { ".loco", ".pll4" };
 
 static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
@@ -115,12 +118,15 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 	DEF_RATE(".loco", CLK_LOCO, 1000 * 1000),
 	DEF_FIXED(".pll0", CLK_PLL0, CLK_EXTAL, 1, 48),
 	DEF_FIXED(".pll1", CLK_PLL1, CLK_EXTAL, 1, 40),
+	DEF_FIXED(".pll2", CLK_PLL2, CLK_EXTAL, 1, 32),
 	DEF_FIXED(".pll4", CLK_PLL4, CLK_EXTAL, 1, 96),
 
 	DEF_MUX(".sel_clk_pll0", CLK_SEL_CLK_PLL0, SEL_PLL,
 		sel_clk_pll0, ARRAY_SIZE(sel_clk_pll0), CLK_MUX_READ_ONLY),
 	DEF_MUX(".sel_clk_pll1", CLK_SEL_CLK_PLL1, SEL_PLL,
 		sel_clk_pll1, ARRAY_SIZE(sel_clk_pll1), CLK_MUX_READ_ONLY),
+	DEF_MUX(".sel_clk_pll2", CLK_SEL_CLK_PLL2, SEL_PLL,
+		sel_clk_pll2, ARRAY_SIZE(sel_clk_pll2), CLK_MUX_READ_ONLY),
 	DEF_MUX(".sel_clk_pll4", CLK_SEL_CLK_PLL4, SEL_PLL,
 		sel_clk_pll4, ARRAY_SIZE(sel_clk_pll4), CLK_MUX_READ_ONLY),
 
@@ -142,10 +148,14 @@ static const struct cpg_core_clk r9a09g077_core_clks[] __initconst = {
 	DEF_FIXED("PCLKGPTL", R9A09G077_CLK_PCLKGPTL, CLK_SEL_CLK_PLL1, 2, 1),
 	DEF_FIXED("PCLKM", R9A09G077_CLK_PCLKM, CLK_SEL_CLK_PLL1, 8, 1),
 	DEF_FIXED("PCLKL", R9A09G077_CLK_PCLKL, CLK_SEL_CLK_PLL1, 16, 1),
+	DEF_FIXED("PCLKAM", R9A09G077_CLK_PCLKAM, CLK_PLL4D1, 12, 1),
+	DEF_FIXED("SDHI_CLKHS", R9A09G077_SDHI_CLKHS, CLK_SEL_CLK_PLL2, 1, 1),
 };
 
 static const struct mssr_mod_clk r9a09g077_mod_clks[] __initconst = {
 	DEF_MOD("sci0fck", 8, CLK_SCI0ASYNC),
+	DEF_MOD("sdhi0", 1212, R9A09G077_CLK_PCLKAM),
+	DEF_MOD("sdhi1", 1213, R9A09G077_CLK_PCLKAM),
 };
 
 static struct clk * __init
