@@ -356,18 +356,54 @@ static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg)
 	return copy_to_user(arg, extoff, sizeof(*extoff)) ? -EFAULT : 0;
 }
 
+static long ptp_sys_offset(struct ptp_clock *ptp, void __user *arg)
+{
+	struct ptp_sys_offset *sysoff __free(kfree) = NULL;
+	struct ptp_clock_time *pct;
+	struct timespec64 ts;
+
+	sysoff = memdup_user(arg, sizeof(*sysoff));
+	if (IS_ERR(sysoff))
+		return PTR_ERR(sysoff);
+
+	if (sysoff->n_samples > PTP_MAX_SAMPLES)
+		return -EINVAL;
+
+	pct = &sysoff->ts[0];
+	for (unsigned int i = 0; i < sysoff->n_samples; i++) {
+		struct ptp_clock_info *ops = ptp->info;
+		int err;
+
+		ktime_get_real_ts64(&ts);
+		pct->sec = ts.tv_sec;
+		pct->nsec = ts.tv_nsec;
+		pct++;
+		if (ops->gettimex64)
+			err = ops->gettimex64(ops, &ts, NULL);
+		else
+			err = ops->gettime64(ops, &ts);
+		if (err)
+			return err;
+		pct->sec = ts.tv_sec;
+		pct->nsec = ts.tv_nsec;
+		pct++;
+	}
+	ktime_get_real_ts64(&ts);
+	pct->sec = ts.tv_sec;
+	pct->nsec = ts.tv_nsec;
+
+	return copy_to_user(arg, sysoff, sizeof(*sysoff)) ? -EFAULT : 0;
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
 	struct ptp_clock *ptp =
 		container_of(pccontext->clk, struct ptp_clock, clock);
 	struct ptp_clock_info *ops = ptp->info;
-	struct ptp_sys_offset *sysoff = NULL;
 	struct timestamp_event_queue *tsevq;
-	struct ptp_clock_time *pct;
 	unsigned int i, pin_index;
 	struct ptp_pin_desc pd;
-	struct timespec64 ts;
 	void __user *argptr;
 	int err = 0;
 
@@ -410,38 +446,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 
 	case PTP_SYS_OFFSET:
 	case PTP_SYS_OFFSET2:
-		sysoff = memdup_user((void __user *)arg, sizeof(*sysoff));
-		if (IS_ERR(sysoff)) {
-			err = PTR_ERR(sysoff);
-			sysoff = NULL;
-			break;
-		}
-		if (sysoff->n_samples > PTP_MAX_SAMPLES) {
-			err = -EINVAL;
-			break;
-		}
-		pct = &sysoff->ts[0];
-		for (i = 0; i < sysoff->n_samples; i++) {
-			ktime_get_real_ts64(&ts);
-			pct->sec = ts.tv_sec;
-			pct->nsec = ts.tv_nsec;
-			pct++;
-			if (ops->gettimex64)
-				err = ops->gettimex64(ops, &ts, NULL);
-			else
-				err = ops->gettime64(ops, &ts);
-			if (err)
-				goto out;
-			pct->sec = ts.tv_sec;
-			pct->nsec = ts.tv_nsec;
-			pct++;
-		}
-		ktime_get_real_ts64(&ts);
-		pct->sec = ts.tv_sec;
-		pct->nsec = ts.tv_nsec;
-		if (copy_to_user((void __user *)arg, sysoff, sizeof(*sysoff)))
-			err = -EFAULT;
-		break;
+		return ptp_sys_offset(ptp, argptr);
 
 	case PTP_PIN_GETFUNC:
 	case PTP_PIN_GETFUNC2:
@@ -529,9 +534,6 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 		err = -ENOTTY;
 		break;
 	}
-
-out:
-	kfree(sysoff);
 	return err;
 }
 
