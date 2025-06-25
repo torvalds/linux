@@ -99,5 +99,6 @@ void intel_cdclk_debugfs_register(struct intel_display *display);
 
 int intel_cdclk_logical(const struct intel_cdclk_state *cdclk_state);
 int intel_cdclk_min_cdclk(const struct intel_cdclk_state *cdclk_state, enum pipe pipe);
+int intel_cdclk_bw_min_cdclk(const struct intel_cdclk_state *cdclk_state);
 
 #endif /* __INTEL_CDCLK_H__ */

@@ -1468,12 +1468,12 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 	 * requirements. This can reduce back and forth
 	 * display blinking due to constant cdclk changes.
 	 */
-	if (new_min_cdclk <= cdclk_state->bw_min_cdclk)
+	if (new_min_cdclk <= intel_cdclk_bw_min_cdclk(cdclk_state))
 		return 0;
 
 	drm_dbg_kms(display->drm,
 		    "new bandwidth min cdclk (%d kHz) > old min cdclk (%d kHz)\n",
-		    new_min_cdclk, cdclk_state->bw_min_cdclk);
+		    new_min_cdclk, intel_cdclk_bw_min_cdclk(cdclk_state));
 	*need_cdclk_calc = true;
 
 	return 0;
