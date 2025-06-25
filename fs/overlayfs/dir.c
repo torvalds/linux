@@ -107,7 +107,7 @@ out:
 }
 
 /* Caller must hold i_mutex on both workdir and dir */
-int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct inode *dir,
+int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
 			     struct dentry *dentry)
 {
 	struct inode *wdir = ofs->workdir->d_inode;
@@ -123,7 +123,7 @@ int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct inode *dir,
 	if (d_is_dir(dentry))
 		flags = RENAME_EXCHANGE;
 
-	err = ovl_do_rename(ofs, wdir, whiteout, dir, dentry, flags);
+	err = ovl_do_rename(ofs, ofs->workdir, whiteout, dir, dentry, flags);
 	if (err)
 		goto kill_whiteout;
 	if (flags)
@@ -384,7 +384,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (err)
 		goto out_cleanup;
 
-	err = ovl_do_rename(ofs, wdir, opaquedir, udir, upper, RENAME_EXCHANGE);
+	err = ovl_do_rename(ofs, workdir, opaquedir, upperdir, upper, RENAME_EXCHANGE);
 	if (err)
 		goto out_cleanup;
 
@@ -491,14 +491,14 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 		if (err)
 			goto out_cleanup;
 
-		err = ovl_do_rename(ofs, wdir, newdentry, udir, upper,
+		err = ovl_do_rename(ofs, workdir, newdentry, upperdir, upper,
 				    RENAME_EXCHANGE);
 		if (err)
 			goto out_cleanup;
 
 		ovl_cleanup(ofs, wdir, upper);
 	} else {
-		err = ovl_do_rename(ofs, wdir, newdentry, udir, upper, 0);
+		err = ovl_do_rename(ofs, workdir, newdentry, upperdir, upper, 0);
 		if (err)
 			goto out_cleanup;
 	}
@@ -774,7 +774,7 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 		goto out_dput_upper;
 	}
 
-	err = ovl_cleanup_and_whiteout(ofs, d_inode(upperdir), upper);
+	err = ovl_cleanup_and_whiteout(ofs, upperdir, upper);
 	if (err)
 		goto out_d_drop;
 
@@ -1246,8 +1246,8 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	if (err)
 		goto out_dput;
 
-	err = ovl_do_rename(ofs, old_upperdir->d_inode, olddentry,
-			    new_upperdir->d_inode, newdentry, flags);
+	err = ovl_do_rename(ofs, old_upperdir, olddentry,
+			    new_upperdir, newdentry, flags);
 	if (err)
 		goto out_dput;
 

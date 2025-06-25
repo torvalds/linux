@@ -837,7 +837,7 @@ static inline void inode_fake_hash(struct inode *inode)
 }
 
 /*
- * inode->i_mutex nesting subclasses for the lock validator:
+ * inode->i_rwsem nesting subclasses for the lock validator:
  *
  * 0: the object of the current VFS operation
  * 1: parent
@@ -989,7 +989,7 @@ static inline loff_t i_size_read(const struct inode *inode)
 
 /*
  * NOTE: unlike i_size_read(), i_size_write() does need locking around it
- * (normally i_mutex), otherwise on 32bit/SMP an update of i_size_seqcount
+ * (normally i_rwsem), otherwise on 32bit/SMP an update of i_size_seqcount
  * can be lost, resulting in subsequent i_size_read() calls spinning forever.
  */
 static inline void i_size_write(struct inode *inode, loff_t i_size)
@@ -1921,7 +1921,7 @@ static inline void sb_end_intwrite(struct super_block *sb)
  * freeze protection should be the outermost lock. In particular, we have:
  *
  * sb_start_write
- *   -> i_mutex			(write path, truncate, directory ops, ...)
+ *   -> i_rwsem			(write path, truncate, directory ops, ...)
  *   -> s_umount		(freeze_super, thaw_super)
  */
 static inline void sb_start_write(struct super_block *sb)
@@ -2004,20 +2004,20 @@ int vfs_unlink(struct mnt_idmap *, struct inode *, struct dentry *,
 /**
  * struct renamedata - contains all information required for renaming
  * @old_mnt_idmap:     idmap of the old mount the inode was found from
- * @old_dir:           parent of source
+ * @old_parent:        parent of source
  * @old_dentry:                source
  * @new_mnt_idmap:     idmap of the new mount the inode was found from
- * @new_dir:           parent of destination
+ * @new_parent:        parent of destination
  * @new_dentry:                destination
  * @delegated_inode:   returns an inode needing a delegation break
  * @flags:             rename flags
  */
 struct renamedata {
 	struct mnt_idmap *old_mnt_idmap;
-	struct inode *old_dir;
+	struct dentry *old_parent;
 	struct dentry *old_dentry;
 	struct mnt_idmap *new_mnt_idmap;
-	struct inode *new_dir;
+	struct dentry *new_parent;
 	struct dentry *new_dentry;
 	struct inode **delegated_inode;
 	unsigned int flags;
