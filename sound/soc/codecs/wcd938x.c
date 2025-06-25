@@ -25,6 +25,9 @@
 #include "wcd-mbhc-v2.h"
 #include "wcd938x.h"
 
+#define CHIPID_WCD9380			0x0
+#define CHIPID_WCD9385			0x5
+
 #define WCD938X_MAX_MICBIAS		(4)
 #define WCD938X_MBHC_MAX_BUTTONS	(8)
 #define TX_ADC_MAX			(4)
@@ -71,11 +74,6 @@
 #define WCD938X_EAR_PA_GAIN_TLV(xname, reg, shift, max, invert, tlv_array) \
 	SOC_SINGLE_EXT_TLV(xname, reg, shift, max, invert, snd_soc_get_volsw, \
 			   wcd938x_ear_pa_put_gain, tlv_array)
-
-enum {
-	WCD9380 = 0,
-	WCD9385 = 5,
-};
 
 enum {
 	/* INTR_CTRL_INT_MASK_0 */
@@ -3119,7 +3117,7 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 	disable_irq_nosync(wcd938x->aux_pdm_wd_int);
 
 	switch (variant) {
-	case WCD9380:
+	case CHIPID_WCD9380:
 		ret = snd_soc_add_component_controls(component, wcd9380_snd_controls,
 					ARRAY_SIZE(wcd9380_snd_controls));
 		if (ret < 0) {
@@ -3129,7 +3127,7 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 			goto err_free_aux_pdm_wd_int;
 		}
 		break;
-	case WCD9385:
+	case CHIPID_WCD9385:
 		ret = snd_soc_add_component_controls(component, wcd9385_snd_controls,
 					ARRAY_SIZE(wcd9385_snd_controls));
 		if (ret < 0) {
