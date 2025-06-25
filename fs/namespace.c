@@ -5298,7 +5298,7 @@ static void statmount_mnt_basic(struct kstatmount *s)
 	s->sm.mnt_parent_id_old = m->mnt_parent->mnt_id;
 	s->sm.mnt_attr = mnt_to_attr_flags(&m->mnt);
 	s->sm.mnt_propagation = mnt_to_propagation_flags(m);
-	s->sm.mnt_peer_group = IS_MNT_SHARED(m) ? m->mnt_group_id : 0;
+	s->sm.mnt_peer_group = m->mnt_group_id;
 	s->sm.mnt_master = IS_MNT_SLAVE(m) ? m->mnt_master->mnt_group_id : 0;
 }
 
