@@ -740,6 +740,7 @@ int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_card *card = rtd->card;
 	struct asoc_sdw_codec_info *codec_info;
 	struct snd_soc_dai *dai;
+	const char *spk_components="";
 	int dai_index;
 	int ret;
 	int i;
@@ -792,7 +793,32 @@ skip_add_controls_widgets:
 			if (ret)
 				return ret;
 		}
+
+		/* Generate the spk component string for card->components string */
+		if (codec_info->dais[dai_index].dai_type == SOC_SDW_DAI_TYPE_AMP &&
+		    codec_info->dais[dai_index].component_name) {
+			if (strlen (spk_components) == 0)
+				spk_components =
+					devm_kasprintf(card->dev, GFP_KERNEL, "%s",
+						       codec_info->dais[dai_index].component_name);
+			else
+				/* Append component name to spk_components */
+				spk_components =
+					devm_kasprintf(card->dev, GFP_KERNEL,
+						       "%s+%s", spk_components,
+						       codec_info->dais[dai_index].component_name);
+		}
+
 		codec_info->dais[dai_index].rtd_init_done = true;
+
+	}
+
+	if (strlen (spk_components) > 0) {
+		/* Update card components for speaker components */
+		card->components = devm_kasprintf(card->dev, GFP_KERNEL, "%s spk:%s",
+						  card->components, spk_components);
+		if (!card->components)
+			return -ENOMEM;
 	}
 
 	return 0;
