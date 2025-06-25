@@ -2003,16 +2003,6 @@ config MENELAUS
 	  and other features that are often used in portable devices like
 	  cell phones and PDAs.
 
-config MFD_WL1273_CORE
-	tristate "TI WL1273 FM radio"
-	depends on I2C
-	select MFD_CORE
-	default n
-	help
-	  This is the core driver for the TI WL1273 FM radio. This MFD
-	  driver connects the radio-wl1273 V4L2 module and the wl1273
-	  audio codec.
-
 config MFD_LM3533
 	tristate "TI/National Semiconductor LM3533 Lighting Power chip"
 	depends on I2C
