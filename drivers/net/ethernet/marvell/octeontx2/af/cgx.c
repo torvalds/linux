@@ -1182,6 +1182,9 @@ static int cgx_link_usertable_index_map(int speed)
 static void set_mod_args(struct cgx_set_link_mode_args *args,
 			 u32 speed, u8 duplex, u8 autoneg, u64 mode)
 {
+	int mode_baseidx;
+	u8 cgx_mode;
+
 	/* Fill default values incase of user did not pass
 	 * valid parameters
 	 */
@@ -1191,8 +1194,18 @@ static void set_mod_args(struct cgx_set_link_mode_args *args,
 		args->speed = speed;
 	if (args->an == AUTONEG_UNKNOWN)
 		args->an = autoneg;
+
+	/* Derive mode_base_idx and mode fields based
+	 * on cgx_mode value
+	 */
+	cgx_mode = find_first_bit((unsigned long *)&mode,
+				  CGX_MODE_MAX);
 	args->mode = mode;
-	args->ports = 0;
+	mode_baseidx = cgx_mode - 41;
+	if (mode_baseidx > 0) {
+		args->mode_baseidx = 1;
+		args->mode = BIT_ULL(mode_baseidx);
+	}
 }
 
 static void otx2_map_ethtool_link_modes(u64 bitmask,
@@ -1499,7 +1512,7 @@ int cgx_set_link_mode(void *cgxd, struct cgx_set_link_mode_args args,
 			cgx_link_usertable_index_map(args.speed), req);
 	req = FIELD_SET(CMDMODECHANGE_DUPLEX, args.duplex, req);
 	req = FIELD_SET(CMDMODECHANGE_AN, args.an, req);
-	req = FIELD_SET(CMDMODECHANGE_PORT, args.ports, req);
+	req = FIELD_SET(CMDMODECHANGE_MODE_BASEIDX, args.mode_baseidx, req);
 	req = FIELD_SET(CMDMODECHANGE_FLAGS, args.mode, req);
 
 	return cgx_fwi_cmd_generic(req, &resp, cgx, lmac_id);

@@ -282,7 +282,12 @@ struct cgx_lnk_sts {
 #define CMDMODECHANGE_SPEED		GENMASK_ULL(11, 8)
 #define CMDMODECHANGE_DUPLEX		GENMASK_ULL(12, 12)
 #define CMDMODECHANGE_AN		GENMASK_ULL(13, 13)
-#define CMDMODECHANGE_PORT		GENMASK_ULL(21, 14)
+/* this field categorize the mode ID(FLAGS) range to accommodate
+ * more modes.
+ * To specify mode ID range of 0 - 41, this field will be 0.
+ * To specify mode ID range of 42 - 83, this field will be 1.
+ */
+#define CMDMODECHANGE_MODE_BASEIDX	GENMASK_ULL(21, 20)
 #define CMDMODECHANGE_FLAGS		GENMASK_ULL(63, 22)
 
 /* LINK_BRING_UP command timeout */
