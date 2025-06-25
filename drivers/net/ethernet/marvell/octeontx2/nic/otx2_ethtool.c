@@ -1212,23 +1212,10 @@ static int otx2_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
-static void otx2_get_advertised_mode(const struct ethtool_link_ksettings *cmd,
-				     u64 *mode)
-{
-	u32 bit_pos;
-
-	/* Firmware does not support requesting multiple advertised modes
-	 * return first set bit
-	 */
-	bit_pos = find_first_bit(cmd->link_modes.advertising,
-				 __ETHTOOL_LINK_MODE_MASK_NBITS);
-	if (bit_pos != __ETHTOOL_LINK_MODE_MASK_NBITS)
-		*mode = bit_pos;
-}
-
 static int otx2_set_link_ksettings(struct net_device *netdev,
 				   const struct ethtool_link_ksettings *cmd)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct otx2_nic *pf = netdev_priv(netdev);
 	struct ethtool_link_ksettings cur_ks;
 	struct cgx_set_link_mode_req *req;
@@ -1265,7 +1252,20 @@ static int otx2_set_link_ksettings(struct net_device *netdev,
 	 */
 	req->args.duplex = cmd->base.duplex ^ 0x1;
 	req->args.an = cmd->base.autoneg;
-	otx2_get_advertised_mode(cmd, &req->args.mode);
+	/* Mask unsupported modes and send message to AF */
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_NONE_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_BASER_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_FEC_RS_BIT, mask);
+
+	linkmode_copy(req->args.advertising,
+		      cmd->link_modes.advertising);
+	linkmode_andnot(req->args.advertising,
+			req->args.advertising, mask);
+
+	/* inform AF that we need parse this differently */
+	if (bitmap_weight(req->args.advertising,
+			  __ETHTOOL_LINK_MODE_MASK_NBITS) >= 2)
+		req->args.multimode = true;
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
 end:

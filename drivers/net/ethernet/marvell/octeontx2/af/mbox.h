@@ -10,6 +10,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/sizes.h>
+#include <linux/ethtool.h>
 
 #include "rvu_struct.h"
 #include "common.h"
@@ -658,7 +659,8 @@ struct cgx_lmac_fwdata_s {
 	u64 supported_link_modes;
 	/* only applicable if AN is supported */
 	u64 advertised_fec;
-	u64 advertised_link_modes;
+	u64 advertised_link_modes_own:1; /* CGX_CMD_OWN */
+	u64 advertised_link_modes:63;
 	/* Only applicable if SFP/QSFP slot is present */
 	struct sfp_eeprom_s sfp_eeprom;
 	struct phy_s phy;
@@ -676,11 +678,12 @@ struct cgx_set_link_mode_args {
 	u8 duplex;
 	u8 an;
 	u8 mode_baseidx;
+	u8 multimode;
 	u64 mode;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 };
 
 struct cgx_set_link_mode_req {
-#define AUTONEG_UNKNOWN		0xff
 	struct mbox_msghdr hdr;
 	struct cgx_set_link_mode_args args;
 };
