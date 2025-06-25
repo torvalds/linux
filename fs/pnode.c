@@ -83,19 +83,10 @@ static struct mount *propagation_source(struct mount *mnt)
 	return mnt;
 }
 
-static int do_make_slave(struct mount *mnt)
+static void transfer_propagation(struct mount *mnt, struct mount *to)
 {
-	struct mount *master = propagation_source(mnt);
 	struct mount *slave_mnt;
-
-	if (list_empty(&mnt->mnt_share)) {
-		mnt_release_group_id(mnt);
-	} else {
-		list_del_init(&mnt->mnt_share);
-		mnt->mnt_group_id = 0;
-	}
-	CLEAR_MNT_SHARED(mnt);
-	if (!master) {
+	if (!to) {
 		struct list_head *p = &mnt->mnt_slave_list;
 		while (!list_empty(p)) {
 			slave_mnt = list_first_entry(p,
@@ -103,14 +94,12 @@ static int do_make_slave(struct mount *mnt)
 			list_del_init(&slave_mnt->mnt_slave);
 			slave_mnt->mnt_master = NULL;
 		}
-		return 0;
+		return;
 	}
 	list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
-		slave_mnt->mnt_master = master;
-	list_splice(&mnt->mnt_slave_list, master->mnt_slave_list.prev);
+		slave_mnt->mnt_master = to;
+	list_splice(&mnt->mnt_slave_list, to->mnt_slave_list.prev);
 	INIT_LIST_HEAD(&mnt->mnt_slave_list);
-	mnt->mnt_master = master;
-	return 0;
 }
 
 /*
@@ -122,8 +111,19 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		set_mnt_shared(mnt);
 		return;
 	}
-	if (IS_MNT_SHARED(mnt))
-		do_make_slave(mnt);
+	if (IS_MNT_SHARED(mnt)) {
+		struct mount *m = propagation_source(mnt);
+
+		if (list_empty(&mnt->mnt_share)) {
+			mnt_release_group_id(mnt);
+		} else {
+			list_del_init(&mnt->mnt_share);
+			mnt->mnt_group_id = 0;
+		}
+		CLEAR_MNT_SHARED(mnt);
+		transfer_propagation(mnt, m);
+		mnt->mnt_master = m;
+	}
 	list_del_init(&mnt->mnt_slave);
 	if (type == MS_SLAVE) {
 		if (mnt->mnt_master)
