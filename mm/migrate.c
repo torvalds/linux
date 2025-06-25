@@ -2449,8 +2449,9 @@ static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
 
 			pages32 += chunk_nr;
 			pages = (const void __user * __user *) pages32;
-		} else
+		} else {
 			pages += chunk_nr;
+		}
 		status += chunk_nr;
 		nr_pages -= chunk_nr;
 	}
