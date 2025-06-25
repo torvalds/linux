@@ -104,13 +104,14 @@ static void transfer_propagation(struct mount *mnt, struct mount *to)
  */
 void change_mnt_propagation(struct mount *mnt, int type)
 {
+	struct mount *m = mnt->mnt_master;
+
 	if (type == MS_SHARED) {
 		set_mnt_shared(mnt);
 		return;
 	}
 	if (IS_MNT_SHARED(mnt)) {
-		struct mount *m = propagation_source(mnt);
-
+		m = propagation_source(mnt);
 		if (list_empty(&mnt->mnt_share)) {
 			mnt_release_group_id(mnt);
 		} else {
@@ -119,13 +120,12 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		}
 		CLEAR_MNT_SHARED(mnt);
 		transfer_propagation(mnt, m);
-		mnt->mnt_master = m;
 	}
 	hlist_del_init(&mnt->mnt_slave);
 	if (type == MS_SLAVE) {
-		if (mnt->mnt_master)
-			hlist_add_head(&mnt->mnt_slave,
-				 &mnt->mnt_master->mnt_slave_list);
+		mnt->mnt_master = m;
+		if (m)
+			hlist_add_head(&mnt->mnt_slave, &m->mnt_slave_list);
 	} else {
 		mnt->mnt_master = NULL;
 		if (type == MS_UNBINDABLE)
