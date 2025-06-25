@@ -2458,9 +2458,9 @@ static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 			 void (mbox_handler)(struct work_struct *),
 			 void (mbox_up_handler)(struct work_struct *))
 {
-	int err = -EINVAL, i, dir, dir_up;
 	void __iomem **mbox_regions;
 	struct ng_rvu *ng_rvu_mbox;
+	int err, i, dir, dir_up;
 	void __iomem *reg_base;
 	struct rvu_work *mwork;
 	unsigned long *pf_bmap;
@@ -2526,6 +2526,7 @@ static int rvu_mbox_init(struct rvu *rvu, struct mbox_wq_info *mw,
 			goto free_regions;
 		break;
 	default:
+		err = -EINVAL;
 		goto free_regions;
 	}
 
