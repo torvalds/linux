@@ -2765,9 +2765,53 @@ static int aux_get_timespec(clockid_t id, struct timespec64 *tp)
 	return ktime_get_aux_ts64(id, tp) ? 0 : -ENODEV;
 }
 
+static int aux_clock_set(const clockid_t id, const struct timespec64 *tnew)
+{
+	struct tk_data *aux_tkd = aux_get_tk_data(id);
+	struct timekeeper *aux_tks;
+	ktime_t tnow, nsecs;
+
+	if (!timespec64_valid_settod(tnew))
+		return -EINVAL;
+	if (!aux_tkd)
+		return -ENODEV;
+
+	aux_tks = &aux_tkd->shadow_timekeeper;
+
+	guard(raw_spinlock_irq)(&aux_tkd->lock);
+	if (!aux_tks->clock_valid)
+		return -ENODEV;
+
+	/* Forward the timekeeper base time */
+	timekeeping_forward_now(aux_tks);
+	/*
+	 * Get the updated base time. tkr_mono.base has not been
+	 * updated yet, so do that first. That makes the update
+	 * in timekeeping_update_from_shadow() redundant, but
+	 * that's harmless. After that @tnow can be calculated
+	 * by using tkr_mono::cycle_last, which has been set
+	 * by timekeeping_forward_now().
+	 */
+	tk_update_ktime_data(aux_tks);
+	nsecs = timekeeping_cycles_to_ns(&aux_tks->tkr_mono, aux_tks->tkr_mono.cycle_last);
+	tnow = ktime_add(aux_tks->tkr_mono.base, nsecs);
+
+	/*
+	 * Calculate the new AUX offset as delta to @tnow ("monotonic").
+	 * That avoids all the tk::xtime back and forth conversions as
+	 * xtime ("realtime") is not applicable for auxiliary clocks and
+	 * kept in sync with "monotonic".
+	 */
+	aux_tks->offs_aux = ktime_sub(timespec64_to_ktime(*tnew), tnow);
+
+	timekeeping_update_from_shadow(aux_tkd, TK_UPDATE_ALL);
+	return 0;
+}
+
 const struct k_clock clock_aux = {
 	.clock_getres		= aux_get_res,
 	.clock_get_timespec	= aux_get_timespec,
+	.clock_set		= aux_clock_set,
 };
 
 static __init void tk_aux_setup(void)
