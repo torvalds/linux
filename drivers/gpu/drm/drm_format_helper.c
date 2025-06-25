@@ -559,18 +559,6 @@ static void drm_fb_xrgb8888_to_rgb565_line(void *dbuf, const void *sbuf, unsigne
 	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_rgb565);
 }
 
-static __always_inline u32 drm_xrgb8888_to_rgb565_swab(u32 pix)
-{
-	return swab16(drm_pixel_xrgb8888_to_rgb565(pix));
-}
-
-/* TODO: implement this helper as conversion to RGB565|BIG_ENDIAN */
-static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
-						unsigned int pixels)
-{
-	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_xrgb8888_to_rgb565_swab);
-}
-
 /**
  * drm_fb_xrgb8888_to_rgb565 - Convert XRGB8888 to RGB565 clip buffer
  * @dst: Array of RGB565 destination buffers
@@ -580,7 +568,6 @@ static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  * @state: Transform and conversion state
- * @swab: Swap bytes
  *
  * This function copies parts of a framebuffer to display memory and converts the
  * color format during the process. Destination and framebuffer formats must match. The
@@ -595,23 +582,56 @@ static void drm_fb_xrgb8888_to_rgb565_swab_line(void *dbuf, const void *sbuf,
  */
 void drm_fb_xrgb8888_to_rgb565(struct iosys_map *dst, const unsigned int *dst_pitch,
 			       const struct iosys_map *src, const struct drm_framebuffer *fb,
-			       const struct drm_rect *clip, struct drm_format_conv_state *state,
-			       bool swab)
+			       const struct drm_rect *clip, struct drm_format_conv_state *state)
 {
 	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
 		2,
 	};
 
-	void (*xfrm_line)(void *dbuf, const void *sbuf, unsigned int npixels);
-
-	if (swab)
-		xfrm_line = drm_fb_xrgb8888_to_rgb565_swab_line;
-	else
-		xfrm_line = drm_fb_xrgb8888_to_rgb565_line;
-
-	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false, state, xfrm_line);
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false, state,
+		    drm_fb_xrgb8888_to_rgb565_line);
 }
 EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565);
+
+static void drm_fb_xrgb8888_to_rgb565be_line(void *dbuf, const void *sbuf,
+					     unsigned int pixels)
+{
+	drm_fb_xfrm_line_32to16(dbuf, sbuf, pixels, drm_pixel_xrgb8888_to_rgb565be);
+}
+
+/**
+ * drm_fb_xrgb8888_to_rgb565be - Convert XRGB8888 to RGB565|DRM_FORMAT_BIG_ENDIAN clip buffer
+ * @dst: Array of RGB565BE destination buffers
+ * @dst_pitch: Array of numbers of bytes between the start of two consecutive scanlines
+ *             within @dst; can be NULL if scanlines are stored next to each other.
+ * @src: Array of XRGB8888 source buffer
+ * @fb: DRM framebuffer
+ * @clip: Clip rectangle area to copy
+ * @state: Transform and conversion state
+ *
+ * This function copies parts of a framebuffer to display memory and converts the
+ * color format during the process. Destination and framebuffer formats must match. The
+ * parameters @dst, @dst_pitch and @src refer to arrays. Each array must have at
+ * least as many entries as there are planes in @fb's format. Each entry stores the
+ * value for the format's respective color plane at the same index.
+ *
+ * This function does not apply clipping on @dst (i.e. the destination is at the
+ * top-left corner).
+ *
+ * Drivers can use this function for RGB565BE devices that don't support XRGB8888 natively.
+ */
+void drm_fb_xrgb8888_to_rgb565be(struct iosys_map *dst, const unsigned int *dst_pitch,
+				 const struct iosys_map *src, const struct drm_framebuffer *fb,
+				 const struct drm_rect *clip, struct drm_format_conv_state *state)
+{
+	static const u8 dst_pixsize[DRM_FORMAT_MAX_PLANES] = {
+		2,
+	};
+
+	drm_fb_xfrm(dst, dst_pitch, dst_pixsize, src, fb, clip, false, state,
+		    drm_fb_xrgb8888_to_rgb565be_line);
+}
+EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb565be);
 
 static void drm_fb_xrgb8888_to_xrgb1555_line(void *dbuf, const void *sbuf, unsigned int pixels)
 {
@@ -1188,7 +1208,7 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 		return 0;
 	} else if (fb_format == DRM_FORMAT_XRGB8888) {
 		if (dst_format == DRM_FORMAT_RGB565) {
-			drm_fb_xrgb8888_to_rgb565(dst, dst_pitch, src, fb, clip, state, false);
+			drm_fb_xrgb8888_to_rgb565(dst, dst_pitch, src, fb, clip, state);
 			return 0;
 		} else if (dst_format == DRM_FORMAT_XRGB1555) {
 			drm_fb_xrgb8888_to_xrgb1555(dst, dst_pitch, src, fb, clip, state);
