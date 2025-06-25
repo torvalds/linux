@@ -1400,8 +1400,8 @@ bool amdgpu_is_kicker_fw(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(kicker_device_list); i++) {
 		if (adev->pdev->device == kicker_device_list[i].device &&
-			adev->pdev->revision == kicker_device_list[i].revision)
-		return true;
+		    adev->pdev->revision == kicker_device_list[i].revision)
+			return true;
 	}
 
 	return false;
