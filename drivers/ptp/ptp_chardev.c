@@ -441,21 +441,27 @@ static long ptp_mask_clear_all(struct timestamp_event_queue *tsevq)
 	return 0;
 }
 
+static long ptp_mask_en_single(struct timestamp_event_queue *tsevq, void __user *arg)
+{
+	unsigned int channel;
+
+	if (copy_from_user(&channel, arg, sizeof(channel)))
+		return -EFAULT;
+	if (channel >= PTP_MAX_CHANNELS)
+		return -EFAULT;
+	set_bit(channel, tsevq->mask);
+	return 0;
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
-	struct ptp_clock *ptp =
-		container_of(pccontext->clk, struct ptp_clock, clock);
-	struct timestamp_event_queue *tsevq;
+	struct ptp_clock *ptp = container_of(pccontext->clk, struct ptp_clock, clock);
 	void __user *argptr;
-	unsigned int i;
-	int err = 0;
 
 	if (in_compat_syscall() && cmd != PTP_ENABLE_PPS && cmd != PTP_ENABLE_PPS2)
 		arg = (unsigned long)compat_ptr(arg);
 	argptr = (void __force __user *)arg;
-
-	tsevq = pccontext->private_clkdata;
 
 	switch (cmd) {
 	case PTP_CLOCK_GETCAPS:
@@ -506,22 +512,11 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 		return ptp_mask_clear_all(pccontext->private_clkdata);
 
 	case PTP_MASK_EN_SINGLE:
-		if (copy_from_user(&i, (void __user *)arg, sizeof(i))) {
-			err = -EFAULT;
-			break;
-		}
-		if (i >= PTP_MAX_CHANNELS) {
-			err = -EFAULT;
-			break;
-		}
-		set_bit(i, tsevq->mask);
-		break;
+		return ptp_mask_en_single(pccontext->private_clkdata, argptr);
 
 	default:
-		err = -ENOTTY;
-		break;
+		return -ENOTTY;
 	}
-	return err;
 }
 
 __poll_t ptp_poll(struct posix_clock_context *pccontext, struct file *fp,
