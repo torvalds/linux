@@ -2492,3 +2492,16 @@ operations:
         attributes:
           - header
           - events
+    -
+      name: rss-ntf
+      doc: |
+        Notification for change in RSS configuration.
+        For additional contexts only modifications are modified, not creation
+        or removal of the contexts.
+      notify: rss-get
+
+mcast-groups:
+  list:
+    -
+      name: monitor
+      c-define-name: ethtool-mcgrp-monitor-name

@@ -863,8 +863,8 @@ static int ethnl_default_done(struct netlink_callback *cb)
 static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	const struct ethnl_request_ops *ops;
-	struct ethnl_req_info req_info = {};
 	const u8 cmd = info->genlhdr->cmd;
+	struct ethnl_req_info *req_info;
 	struct net_device *dev;
 	int ret;
 
@@ -874,20 +874,22 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	if (GENL_REQ_ATTR_CHECK(info, ops->hdr_attr))
 		return -EINVAL;
 
-	ret = ethnl_parse_header_dev_get(&req_info, info->attrs[ops->hdr_attr],
-					 genl_info_net(info), info->extack,
-					 true);
+	req_info = kzalloc(ops->req_info_size, GFP_KERNEL);
+	if (!req_info)
+		return -ENOMEM;
+
+	ret = ethnl_default_parse(req_info, info,  ops, true);
 	if (ret < 0)
-		return ret;
+		goto out_free_req;
 
 	if (ops->set_validate) {
-		ret = ops->set_validate(&req_info, info);
+		ret = ops->set_validate(req_info, info);
 		/* 0 means nothing to do */
 		if (ret <= 0)
 			goto out_dev;
 	}
 
-	dev = req_info.dev;
+	dev = req_info->dev;
 
 	rtnl_lock();
 	netdev_lock_ops(dev);
@@ -902,14 +904,14 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	if (ret < 0)
 		goto out_free_cfg;
 
-	ret = ops->set(&req_info, info);
+	ret = ops->set(req_info, info);
 	if (ret < 0)
 		goto out_ops;
 
 	swap(dev->cfg, dev->cfg_pending);
 	if (!ret)
 		goto out_ops;
-	ethtool_notify(dev, ops->set_ntf_cmd, NULL);
+	ethnl_notify(dev, ops->set_ntf_cmd, req_info);
 
 	ret = 0;
 out_ops:
@@ -921,7 +923,9 @@ out_tie_cfg:
 	netdev_unlock_ops(dev);
 	rtnl_unlock();
 out_dev:
-	ethnl_parse_header_dev_put(&req_info);
+	ethnl_parse_header_dev_put(req_info);
+out_free_req:
+	kfree(req_info);
 	return ret;
 }
 
@@ -942,11 +946,12 @@ ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_MODULE_NTF]	= &ethnl_module_request_ops,
 	[ETHTOOL_MSG_PLCA_NTF]		= &ethnl_plca_cfg_request_ops,
 	[ETHTOOL_MSG_MM_NTF]		= &ethnl_mm_request_ops,
+	[ETHTOOL_MSG_RSS_NTF]		= &ethnl_rss_request_ops,
 };
 
 /* default notification handler */
 static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
-				 const void *data)
+				 const struct ethnl_req_info *orig_req_info)
 {
 	struct ethnl_reply_data *reply_data;
 	const struct ethnl_request_ops *ops;
@@ -975,6 +980,11 @@ static void ethnl_default_notify(struct net_device *dev, unsigned int cmd,
 
 	req_info->dev = dev;
 	req_info->flags |= ETHTOOL_FLAG_COMPACT_BITSETS;
+	if (orig_req_info) {
+		req_info->phy_index = orig_req_info->phy_index;
+		memcpy(&req_info[1], &orig_req_info[1],
+		       ops->req_info_size - sizeof(*req_info));
+	}
 
 	netdev_ops_assert_locked(dev);
 
@@ -1025,7 +1035,7 @@ err_rep:
 /* notifications */
 
 typedef void (*ethnl_notify_handler_t)(struct net_device *dev, unsigned int cmd,
-				       const void *data);
+				       const struct ethnl_req_info *req_info);
 
 static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_LINKINFO_NTF]	= ethnl_default_notify,
@@ -1043,9 +1053,11 @@ static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_MODULE_NTF]	= ethnl_default_notify,
 	[ETHTOOL_MSG_PLCA_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_MM_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_RSS_NTF]		= ethnl_default_notify,
 };
 
-void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
+void ethnl_notify(struct net_device *dev, unsigned int cmd,
+		  const struct ethnl_req_info *req_info)
 {
 	if (unlikely(!ethnl_ok))
 		return;
@@ -1053,10 +1065,15 @@ void ethtool_notify(struct net_device *dev, unsigned int cmd, const void *data)
 
 	if (likely(cmd < ARRAY_SIZE(ethnl_notify_handlers) &&
 		   ethnl_notify_handlers[cmd]))
-		ethnl_notify_handlers[cmd](dev, cmd, data);
+		ethnl_notify_handlers[cmd](dev, cmd, req_info);
 	else
 		WARN_ONCE(1, "notification %u not implemented (dev=%s)\n",
 			  cmd, netdev_name(dev));
+}
+
+void ethtool_notify(struct net_device *dev, unsigned int cmd)
+{
+	ethnl_notify(dev, cmd, NULL);
 }
 EXPORT_SYMBOL(ethtool_notify);
 
@@ -1064,7 +1081,7 @@ static void ethnl_notify_features(struct netdev_notifier_info *info)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(info);
 
-	ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF, NULL);
+	ethtool_notify(dev, ETHTOOL_MSG_FEATURES_NTF);
 }
 
 static int ethnl_netdev_event(struct notifier_block *this, unsigned long event,

@@ -23,6 +23,8 @@ void *ethnl_dump_put(struct sk_buff *skb, struct netlink_callback *cb, u8 cmd);
 void *ethnl_bcastmsg_put(struct sk_buff *skb, u8 cmd);
 void *ethnl_unicast_put(struct sk_buff *skb, u32 portid, u32 seq, u8 cmd);
 int ethnl_multicast(struct sk_buff *skb, struct net_device *dev);
+void ethnl_notify(struct net_device *dev, unsigned int cmd,
+		  const struct ethnl_req_info *req_info);
 
 /**
  * ethnl_strz_size() - calculate attribute length for fixed size string
@@ -337,6 +339,8 @@ int ethnl_sock_priv_set(struct sk_buff *skb, struct net_device *dev, u32 portid,
  *	header is already filled on entry, the rest up to @repdata_offset
  *	is zero initialized. This callback should only modify type specific
  *	request info by parsed attributes from request message.
+ *	Called for both GET and SET. Information parsed for SET will
+ *	be conveyed to the req_info used during NTF generation.
  * @prepare_data:
  *	Retrieve and prepare data needed to compose a reply message. Calls to
  *	ethtool_ops handlers are limited to this callback. Common reply data

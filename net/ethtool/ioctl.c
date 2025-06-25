@@ -617,8 +617,8 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 
 	err = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 	if (err >= 0) {
-		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
-		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF);
 	}
 	return err;
 }
@@ -708,8 +708,8 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 		__ETHTOOL_LINK_MODE_MASK_NU32;
 	ret = dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 	if (ret >= 0) {
-		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF, NULL);
-		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKINFO_NTF);
+		ethtool_notify(dev, ETHTOOL_MSG_LINKMODES_NTF);
 	}
 	return ret;
 }
@@ -1502,6 +1502,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	struct ethtool_rxfh rxfh;
 	bool locked = false; /* dev->ethtool->rss_lock taken */
 	bool create = false;
+	bool mod = false;
 	u8 *rss_config;
 	int ret;
 
@@ -1688,6 +1689,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		}
 		goto out;
 	}
+	mod = !create && !rxfh_dev.rss_delete;
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, rss_context),
 			 &rxfh_dev.rss_context, sizeof(rxfh_dev.rss_context)))
@@ -1757,6 +1759,8 @@ out:
 	if (locked)
 		mutex_unlock(&dev->ethtool->rss_lock);
 	kfree(rss_config);
+	if (mod)
+		ethtool_rss_notify(dev, rxfh.rss_context);
 	return ret;
 }
 
@@ -1868,7 +1872,7 @@ static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 		return ret;
 
 	dev->ethtool->wol_enabled = !!wol.wolopts;
-	ethtool_notify(dev, ETHTOOL_MSG_WOL_NTF, NULL);
+	ethtool_notify(dev, ETHTOOL_MSG_WOL_NTF);
 
 	return 0;
 }
@@ -1944,7 +1948,7 @@ static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 	eee_to_keee(&keee, &eee);
 	ret = dev->ethtool_ops->set_eee(dev, &keee);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF);
 	return ret;
 }
 
@@ -2184,7 +2188,7 @@ static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
 	ret = dev->ethtool_ops->set_coalesce(dev, &coalesce, &kernel_coalesce,
 					     NULL);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_COALESCE_NTF);
 	return ret;
 }
 
@@ -2228,7 +2232,7 @@ static int ethtool_set_ringparam(struct net_device *dev, void __user *useraddr)
 	ret = dev->ethtool_ops->set_ringparam(dev, &ringparam,
 					      &kernel_ringparam, NULL);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_RINGS_NTF);
 	return ret;
 }
 
@@ -2295,7 +2299,7 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_CHANNELS_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_CHANNELS_NTF);
 	return ret;
 }
 
@@ -2326,7 +2330,7 @@ static int ethtool_set_pauseparam(struct net_device *dev, void __user *useraddr)
 
 	ret = dev->ethtool_ops->set_pauseparam(dev, &pauseparam);
 	if (!ret)
-		ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF, NULL);
+		ethtool_notify(dev, ETHTOOL_MSG_PAUSE_NTF);
 	return ret;
 }
 
@@ -3328,7 +3332,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		rc = ethtool_set_value_void(dev, useraddr,
 				       dev->ethtool_ops->set_msglevel);
 		if (!rc)
-			ethtool_notify(dev, ETHTOOL_MSG_DEBUG_NTF, NULL);
+			ethtool_notify(dev, ETHTOOL_MSG_DEBUG_NTF);
 		break;
 	case ETHTOOL_GEEE:
 		rc = ethtool_get_eee(dev, useraddr);
@@ -3392,7 +3396,7 @@ __dev_ethtool(struct net *net, struct ifreq *ifr, void __user *useraddr,
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
 				       dev->ethtool_ops->get_priv_flags);
 		if (!rc)
-			ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF, NULL);
+			ethtool_notify(dev, ETHTOOL_MSG_PRIVFLAGS_NTF);
 		break;
 	case ETHTOOL_SPFLAGS:
 		rc = ethtool_set_value(dev, useraddr,
