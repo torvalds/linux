@@ -2439,7 +2439,7 @@ static ssize_t cmb_show(struct device *dev, struct device_attribute *attr,
 {
 	struct nvme_dev *ndev = to_nvme_dev(dev_get_drvdata(dev));
 
-	return sysfs_emit(buf, "cmbloc : x%08x\ncmbsz  : x%08x\n",
+	return sysfs_emit(buf, "cmbloc : 0x%08x\ncmbsz  : 0x%08x\n",
 		       ndev->cmbloc, ndev->cmbsz);
 }
 static DEVICE_ATTR_RO(cmb);

@@ -69,7 +69,7 @@ enum nvme_quirks {
 	NVME_QUIRK_IDENTIFY_CNS			= (1 << 1),
 
 	/*
-	 * The controller deterministically returns O's on reads to
+	 * The controller deterministically returns 0's on reads to
 	 * logical blocks that deallocate was called on.
 	 */
 	NVME_QUIRK_DEALLOCATE_ZEROES		= (1 << 2),
