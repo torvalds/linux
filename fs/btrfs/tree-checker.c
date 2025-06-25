@@ -1571,7 +1571,7 @@ static int check_extent_item(struct extent_buffer *leaf,
 				   inline_type);
 			return -EUCLEAN;
 		}
-		if (inline_type < last_type) {
+		if (unlikely(inline_type < last_type)) {
 			extent_err(leaf, slot,
 				   "inline ref out-of-order: has type %u, prev type %u",
 				   inline_type, last_type);
@@ -1580,7 +1580,7 @@ static int check_extent_item(struct extent_buffer *leaf,
 		/* Type changed, allow the sequence starts from U64_MAX again. */
 		if (inline_type > last_type)
 			last_seq = U64_MAX;
-		if (seq > last_seq) {
+		if (unlikely(seq > last_seq)) {
 			extent_err(leaf, slot,
 "inline ref out-of-order: has type %u offset %llu seq 0x%llx, prev type %u seq 0x%llx",
 				   inline_type, inline_offset, seq,
@@ -1929,7 +1929,7 @@ static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
 		break;
 	}
 
-	if (ret)
+	if (unlikely(ret))
 		return BTRFS_TREE_BLOCK_INVALID_ITEM;
 	return BTRFS_TREE_BLOCK_CLEAN;
 }
@@ -2229,9 +2229,8 @@ int btrfs_verify_level_key(struct extent_buffer *eb,
 	int ret;
 
 	found_level = btrfs_header_level(eb);
-	if (found_level != check->level) {
-		WARN(IS_ENABLED(CONFIG_BTRFS_DEBUG),
-		     KERN_ERR "BTRFS: tree level check failed\n");
+	if (unlikely(found_level != check->level)) {
+		DEBUG_WARN();
 		btrfs_err(fs_info,
 "tree level mismatch detected, bytenr=%llu level expected=%u has=%u",
 			  eb->start, check->level, found_level);
@@ -2251,11 +2250,11 @@ int btrfs_verify_level_key(struct extent_buffer *eb,
 		return 0;
 
 	/* We have @first_key, so this @eb must have at least one item */
-	if (btrfs_header_nritems(eb) == 0) {
+	if (unlikely(btrfs_header_nritems(eb) == 0)) {
 		btrfs_err(fs_info,
 		"invalid tree nritems, bytenr=%llu nritems=0 expect >0",
 			  eb->start);
-		WARN_ON(IS_ENABLED(CONFIG_BTRFS_DEBUG));
+		DEBUG_WARN();
 		return -EUCLEAN;
 	}
 
@@ -2263,11 +2262,10 @@ int btrfs_verify_level_key(struct extent_buffer *eb,
 		btrfs_node_key_to_cpu(eb, &found_key, 0);
 	else
 		btrfs_item_key_to_cpu(eb, &found_key, 0);
-	ret = btrfs_comp_cpu_keys(&check->first_key, &found_key);
 
-	if (ret) {
-		WARN(IS_ENABLED(CONFIG_BTRFS_DEBUG),
-		     KERN_ERR "BTRFS: tree first key check failed\n");
+	ret = btrfs_comp_cpu_keys(&check->first_key, &found_key);
+	if (unlikely(ret)) {
+		DEBUG_WARN();
 		btrfs_err(fs_info,
 "tree first key mismatch detected, bytenr=%llu parent_transid=%llu key expected=(%llu,%u,%llu) has=(%llu,%u,%llu)",
 			  eb->start, check->transid, check->first_key.objectid,

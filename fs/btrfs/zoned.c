@@ -989,7 +989,7 @@ int btrfs_advance_sb_log(struct btrfs_device *device, int mirror)
 	}
 
 	/* All the zones are FULL. Should not reach here. */
-	ASSERT(0);
+	DEBUG_WARN("unexpected state, all zones full");
 	return -EIO;
 }
 
@@ -1403,7 +1403,8 @@ static int btrfs_load_block_group_single(struct btrfs_block_group *bg,
 static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 				      struct btrfs_chunk_map *map,
 				      struct zone_info *zone_info,
-				      unsigned long *active)
+				      unsigned long *active,
+				      u64 last_alloc)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
 
@@ -1426,6 +1427,13 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 			  zone_info[1].physical);
 		return -EIO;
 	}
+
+	if (zone_info[0].alloc_offset == WP_CONVENTIONAL)
+		zone_info[0].alloc_offset = last_alloc;
+
+	if (zone_info[1].alloc_offset == WP_CONVENTIONAL)
+		zone_info[1].alloc_offset = last_alloc;
+
 	if (zone_info[0].alloc_offset != zone_info[1].alloc_offset) {
 		btrfs_err(bg->fs_info,
 			  "zoned: write pointer offset mismatch of zones in DUP profile");
@@ -1446,7 +1454,8 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 static int btrfs_load_block_group_raid1(struct btrfs_block_group *bg,
 					struct btrfs_chunk_map *map,
 					struct zone_info *zone_info,
-					unsigned long *active)
+					unsigned long *active,
+					u64 last_alloc)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
 	int i;
@@ -1461,9 +1470,11 @@ static int btrfs_load_block_group_raid1(struct btrfs_block_group *bg,
 	bg->zone_capacity = min_not_zero(zone_info[0].capacity, zone_info[1].capacity);
 
 	for (i = 0; i < map->num_stripes; i++) {
-		if (zone_info[i].alloc_offset == WP_MISSING_DEV ||
-		    zone_info[i].alloc_offset == WP_CONVENTIONAL)
+		if (zone_info[i].alloc_offset == WP_MISSING_DEV)
 			continue;
+
+		if (zone_info[i].alloc_offset == WP_CONVENTIONAL)
+			zone_info[i].alloc_offset = last_alloc;
 
 		if ((zone_info[0].alloc_offset != zone_info[i].alloc_offset) &&
 		    !btrfs_test_opt(fs_info, DEGRADED)) {
@@ -1494,7 +1505,8 @@ static int btrfs_load_block_group_raid1(struct btrfs_block_group *bg,
 static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 					struct btrfs_chunk_map *map,
 					struct zone_info *zone_info,
-					unsigned long *active)
+					unsigned long *active,
+					u64 last_alloc)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
 
@@ -1505,9 +1517,28 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 	}
 
 	for (int i = 0; i < map->num_stripes; i++) {
-		if (zone_info[i].alloc_offset == WP_MISSING_DEV ||
-		    zone_info[i].alloc_offset == WP_CONVENTIONAL)
+		if (zone_info[i].alloc_offset == WP_MISSING_DEV)
 			continue;
+
+		if (zone_info[i].alloc_offset == WP_CONVENTIONAL) {
+			u64 stripe_nr, full_stripe_nr;
+			u64 stripe_offset;
+			int stripe_index;
+
+			stripe_nr = div64_u64(last_alloc, map->stripe_size);
+			stripe_offset = stripe_nr * map->stripe_size;
+			full_stripe_nr = div_u64(stripe_nr, map->num_stripes);
+			div_u64_rem(stripe_nr, map->num_stripes, &stripe_index);
+
+			zone_info[i].alloc_offset =
+				full_stripe_nr * map->stripe_size;
+
+			if (stripe_index > i)
+				zone_info[i].alloc_offset += map->stripe_size;
+			else if (stripe_index == i)
+				zone_info[i].alloc_offset +=
+					(last_alloc - stripe_offset);
+		}
 
 		if (test_bit(0, active) != test_bit(i, active)) {
 			if (!btrfs_zone_activate(bg))
@@ -1526,7 +1557,8 @@ static int btrfs_load_block_group_raid0(struct btrfs_block_group *bg,
 static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 					 struct btrfs_chunk_map *map,
 					 struct zone_info *zone_info,
-					 unsigned long *active)
+					 unsigned long *active,
+					 u64 last_alloc)
 {
 	struct btrfs_fs_info *fs_info = bg->fs_info;
 
@@ -1537,8 +1569,7 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 	}
 
 	for (int i = 0; i < map->num_stripes; i++) {
-		if (zone_info[i].alloc_offset == WP_MISSING_DEV ||
-		    zone_info[i].alloc_offset == WP_CONVENTIONAL)
+		if (zone_info[i].alloc_offset == WP_MISSING_DEV)
 			continue;
 
 		if (test_bit(0, active) != test_bit(i, active)) {
@@ -1547,6 +1578,29 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 		} else {
 			if (test_bit(0, active))
 				set_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &bg->runtime_flags);
+		}
+
+		if (zone_info[i].alloc_offset == WP_CONVENTIONAL) {
+			u64 stripe_nr, full_stripe_nr;
+			u64 stripe_offset;
+			int stripe_index;
+
+			stripe_nr = div64_u64(last_alloc, map->stripe_size);
+			stripe_offset = stripe_nr * map->stripe_size;
+			full_stripe_nr = div_u64(stripe_nr,
+					 map->num_stripes / map->sub_stripes);
+			div_u64_rem(stripe_nr,
+				    (map->num_stripes / map->sub_stripes),
+				    &stripe_index);
+
+			zone_info[i].alloc_offset =
+				full_stripe_nr * map->stripe_size;
+
+			if (stripe_index > (i / map->sub_stripes))
+				zone_info[i].alloc_offset += map->stripe_size;
+			else if (stripe_index == (i / map->sub_stripes))
+				zone_info[i].alloc_offset +=
+					(last_alloc - stripe_offset);
 		}
 
 		if ((i % map->sub_stripes) == 0) {
@@ -1637,18 +1691,22 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		ret = btrfs_load_block_group_single(cache, &zone_info[0], active);
 		break;
 	case BTRFS_BLOCK_GROUP_DUP:
-		ret = btrfs_load_block_group_dup(cache, map, zone_info, active);
+		ret = btrfs_load_block_group_dup(cache, map, zone_info, active,
+						 last_alloc);
 		break;
 	case BTRFS_BLOCK_GROUP_RAID1:
 	case BTRFS_BLOCK_GROUP_RAID1C3:
 	case BTRFS_BLOCK_GROUP_RAID1C4:
-		ret = btrfs_load_block_group_raid1(cache, map, zone_info, active);
+		ret = btrfs_load_block_group_raid1(cache, map, zone_info,
+						   active, last_alloc);
 		break;
 	case BTRFS_BLOCK_GROUP_RAID0:
-		ret = btrfs_load_block_group_raid0(cache, map, zone_info, active);
+		ret = btrfs_load_block_group_raid0(cache, map, zone_info,
+						   active, last_alloc);
 		break;
 	case BTRFS_BLOCK_GROUP_RAID10:
-		ret = btrfs_load_block_group_raid10(cache, map, zone_info, active);
+		ret = btrfs_load_block_group_raid10(cache, map, zone_info,
+						    active, last_alloc);
 		break;
 	case BTRFS_BLOCK_GROUP_RAID5:
 	case BTRFS_BLOCK_GROUP_RAID6:
@@ -1797,12 +1855,12 @@ static void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered,
 	ordered->disk_bytenr = logical;
 
 	write_lock(&em_tree->lock);
-	em = search_extent_mapping(em_tree, ordered->file_offset,
-				   ordered->num_bytes);
+	em = btrfs_search_extent_mapping(em_tree, ordered->file_offset,
+					 ordered->num_bytes);
 	/* The em should be a new COW extent, thus it should not have an offset. */
 	ASSERT(em->offset == 0);
 	em->disk_bytenr = logical;
-	free_extent_map(em);
+	btrfs_free_extent_map(em);
 	write_unlock(&em_tree->lock);
 }
 
@@ -1812,8 +1870,8 @@ static bool btrfs_zoned_split_ordered(struct btrfs_ordered_extent *ordered,
 	struct btrfs_ordered_extent *new;
 
 	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags) &&
-	    split_extent_map(ordered->inode, ordered->file_offset,
-			     ordered->num_bytes, len, logical))
+	    btrfs_split_extent_map(ordered->inode, ordered->file_offset,
+				   ordered->num_bytes, len, logical))
 		return false;
 
 	new = btrfs_split_ordered_extent(ordered, len);
@@ -2171,27 +2229,15 @@ static void wait_eb_writebacks(struct btrfs_block_group *block_group)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	const u64 end = block_group->start + block_group->length;
-	struct radix_tree_iter iter;
 	struct extent_buffer *eb;
-	void __rcu **slot;
+	unsigned long index, start = (block_group->start >> fs_info->sectorsize_bits);
 
 	rcu_read_lock();
-	radix_tree_for_each_slot(slot, &fs_info->buffer_radix, &iter,
-				 block_group->start >> fs_info->sectorsize_bits) {
-		eb = radix_tree_deref_slot(slot);
-		if (!eb)
-			continue;
-		if (radix_tree_deref_retry(eb)) {
-			slot = radix_tree_iter_retry(&iter);
-			continue;
-		}
-
+	xa_for_each_start(&fs_info->buffer_tree, index, eb, start) {
 		if (eb->start < block_group->start)
 			continue;
 		if (eb->start >= end)
 			break;
-
-		slot = radix_tree_iter_resume(slot, &iter);
 		rcu_read_unlock();
 		wait_on_extent_buffer_writeback(eb);
 		rcu_read_lock();

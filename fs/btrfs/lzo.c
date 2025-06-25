@@ -252,9 +252,8 @@ int lzo_compress_folios(struct list_head *ws, struct address_space *mapping,
 		/* Compress at most one sector of data each time */
 		in_len = min_t(u32, start + len - cur_in, sectorsize - sector_off);
 		ASSERT(in_len);
-		data_in = kmap_local_folio(folio_in, 0);
-		ret = lzo1x_1_compress(data_in +
-				       offset_in_page(cur_in), in_len,
+		data_in = kmap_local_folio(folio_in, offset_in_folio(folio_in, cur_in));
+		ret = lzo1x_1_compress(data_in, in_len,
 				       workspace->cbuf, &out_len,
 				       workspace->mem);
 		kunmap_local(data_in);

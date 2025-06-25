@@ -69,7 +69,8 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage *subpage;
 
 	/* For metadata we don't support large folio yet. */
-	ASSERT(!folio_test_large(folio));
+	if (type == BTRFS_SUBPAGE_METADATA)
+		ASSERT(!folio_test_large(folio));
 
 	/*
 	 * We have cases like a dummy extent buffer page, which is not mapped
@@ -181,9 +182,6 @@ void btrfs_folio_dec_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *
 static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 				 struct folio *folio, u64 start, u32 len)
 {
-	/* For subpage support, the folio must be single page. */
-	ASSERT(folio_order(folio) == 0);
-
 	/* Basic checks */
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&

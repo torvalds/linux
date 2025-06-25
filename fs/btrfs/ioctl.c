@@ -1446,8 +1446,8 @@ out:
 	return ret;
 }
 
-static noinline int key_in_sk(const struct btrfs_key *key,
-			      const struct btrfs_ioctl_search_key *sk)
+static noinline bool key_in_sk(const struct btrfs_key *key,
+			       const struct btrfs_ioctl_search_key *sk)
 {
 	struct btrfs_key test;
 	int ret;
@@ -1458,7 +1458,7 @@ static noinline int key_in_sk(const struct btrfs_key *key,
 
 	ret = btrfs_comp_cpu_keys(key, &test);
 	if (ret < 0)
-		return 0;
+		return false;
 
 	test.objectid = sk->max_objectid;
 	test.type = sk->max_type;
@@ -1466,8 +1466,8 @@ static noinline int key_in_sk(const struct btrfs_key *key,
 
 	ret = btrfs_comp_cpu_keys(key, &test);
 	if (ret > 0)
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static noinline int copy_to_sk(struct btrfs_path *path,
@@ -3142,7 +3142,7 @@ static long btrfs_ioctl_scrub(struct file *file, void __user *arg)
 		return -EPERM;
 
 	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
-		btrfs_err(fs_info, "scrub is not supported on extent tree v2 yet");
+		btrfs_err(fs_info, "scrub: extent tree v2 not yet supported");
 		return -EINVAL;
 	}
 
@@ -4510,7 +4510,7 @@ static int btrfs_ioctl_encoded_read(struct file *file, void __user *argp,
 						 args.compression, &unlocked);
 
 		if (!unlocked) {
-			unlock_extent(io_tree, start, lockend, &cached_state);
+			btrfs_unlock_extent(io_tree, start, lockend, &cached_state);
 			btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 		}
 	}
@@ -4699,7 +4699,7 @@ static void btrfs_uring_read_finished(struct io_uring_cmd *cmd, unsigned int iss
 	ret = priv->count;
 
 out:
-	unlock_extent(io_tree, priv->start, priv->lockend, &priv->cached_state);
+	btrfs_unlock_extent(io_tree, priv->start, priv->lockend, &priv->cached_state);
 	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 
 	io_uring_cmd_done(cmd, ret, 0, issue_flags);
@@ -4788,7 +4788,7 @@ static int btrfs_uring_read_extent(struct kiocb *iocb, struct iov_iter *iter,
 	return -EIOCBQUEUED;
 
 out_fail:
-	unlock_extent(io_tree, start, lockend, &cached_state);
+	btrfs_unlock_extent(io_tree, start, lockend, &cached_state);
 	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 	kfree(priv);
 	return ret;
@@ -4913,7 +4913,7 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
 			 (const char *)&data->args + copy_end_kernel,
 			 sizeof(data->args) - copy_end_kernel)) {
 		if (ret == -EIOCBQUEUED) {
-			unlock_extent(io_tree, start, lockend, &cached_state);
+			btrfs_unlock_extent(io_tree, start, lockend, &cached_state);
 			btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 		}
 		ret = -EFAULT;
