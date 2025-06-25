@@ -1267,3 +1267,14 @@ to have them set.  Better yet, think hard whether you need different
 ->d_op for different dentries - if not, just use set_default_d_op()
 at mount time and be done with that.  Currently procfs is the only
 thing that really needs ->d_op varying between dentries.
+
+---
+
+**mandatory**
+
+collect_mounts()/drop_collected_mounts()/iterate_mounts() are gone now.
+Replacement is collect_paths()/drop_collected_path(), with no special
+iterator needed.  Instead of a cloned mount tree, the new interface returns
+an array of struct path, one for each mount collect_mounts() would've
+created.  These struct path point to locations in the caller's namespace
+that would be roots of the cloned mounts.
