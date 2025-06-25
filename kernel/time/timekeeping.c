@@ -2585,17 +2585,18 @@ unsigned long random_get_entropy_fallback(void)
 }
 EXPORT_SYMBOL_GPL(random_get_entropy_fallback);
 
-/**
- * do_adjtimex() - Accessor function to NTP __do_adjtimex function
- * @txc:	Pointer to kernel_timex structure containing NTP parameters
- */
-int do_adjtimex(struct __kernel_timex *txc)
+struct adjtimex_result {
+	struct audit_ntp_data	ad;
+	struct timespec64	delta;
+	bool			clock_set;
+};
+
+static int __do_adjtimex(struct tk_data *tkd, struct __kernel_timex *txc,
+			 struct adjtimex_result *result)
 {
-	struct tk_data *tkd = &tk_core;
-	struct timespec64 delta, ts;
-	struct audit_ntp_data ad;
-	bool offset_set = false;
-	bool clock_set = false;
+	struct timekeeper *tks = &tkd->shadow_timekeeper;
+	struct timespec64 ts;
+	s32 orig_tai, tai;
 	int ret;
 
 	/* Validate the data before disabling interrupts */
@@ -2604,56 +2605,65 @@ int do_adjtimex(struct __kernel_timex *txc)
 		return ret;
 	add_device_randomness(txc, sizeof(*txc));
 
-	audit_ntp_init(&ad);
-
 	ktime_get_real_ts64(&ts);
 	add_device_randomness(&ts, sizeof(ts));
 
-	scoped_guard (raw_spinlock_irqsave, &tkd->lock) {
-		struct timekeeper *tks = &tkd->shadow_timekeeper;
-		s32 orig_tai, tai;
+	guard(raw_spinlock_irqsave)(&tkd->lock);
 
-		if (!tks->clock_valid)
-			return -ENODEV;
+	if (!tks->clock_valid)
+		return -ENODEV;
 
-		if (txc->modes & ADJ_SETOFFSET) {
-			delta.tv_sec  = txc->time.tv_sec;
-			delta.tv_nsec = txc->time.tv_usec;
-			if (!(txc->modes & ADJ_NANO))
-				delta.tv_nsec *= 1000;
-			ret = __timekeeping_inject_offset(tkd, &delta);
-			if (ret)
-				return ret;
-
-			offset_set = delta.tv_sec != 0;
-			clock_set = true;
-		}
-
-		orig_tai = tai = tks->tai_offset;
-		ret = ntp_adjtimex(tks->id, txc, &ts, &tai, &ad);
-
-		if (tai != orig_tai) {
-			__timekeeping_set_tai_offset(tks, tai);
-			timekeeping_update_from_shadow(tkd, TK_CLOCK_WAS_SET);
-			clock_set = true;
-		} else {
-			tk_update_leap_state_all(&tk_core);
-		}
-
-		/* Update the multiplier immediately if frequency was set directly */
-		if (txc->modes & (ADJ_FREQUENCY | ADJ_TICK))
-			clock_set |= __timekeeping_advance(tkd, TK_ADV_FREQ);
+	if (txc->modes & ADJ_SETOFFSET) {
+		result->delta.tv_sec  = txc->time.tv_sec;
+		result->delta.tv_nsec = txc->time.tv_usec;
+		if (!(txc->modes & ADJ_NANO))
+			result->delta.tv_nsec *= 1000;
+		ret = __timekeeping_inject_offset(tkd, &result->delta);
+		if (ret)
+			return ret;
+		result->clock_set = true;
 	}
 
+	orig_tai = tai = tks->tai_offset;
+	ret = ntp_adjtimex(tks->id, txc, &ts, &tai, &result->ad);
+
+	if (tai != orig_tai) {
+		__timekeeping_set_tai_offset(tks, tai);
+		timekeeping_update_from_shadow(tkd, TK_CLOCK_WAS_SET);
+		result->clock_set = true;
+	} else {
+		tk_update_leap_state_all(&tk_core);
+	}
+
+	/* Update the multiplier immediately if frequency was set directly */
+	if (txc->modes & (ADJ_FREQUENCY | ADJ_TICK))
+		result->clock_set |= __timekeeping_advance(tkd, TK_ADV_FREQ);
+
+	return ret;
+}
+
+/**
+ * do_adjtimex() - Accessor function to NTP __do_adjtimex function
+ * @txc:	Pointer to kernel_timex structure containing NTP parameters
+ */
+int do_adjtimex(struct __kernel_timex *txc)
+{
+	struct adjtimex_result result = { };
+	int ret;
+
+	ret = __do_adjtimex(&tk_core, txc, &result);
+	if (ret < 0)
+		return ret;
+
 	if (txc->modes & ADJ_SETOFFSET)
-		audit_tk_injoffset(delta);
+		audit_tk_injoffset(result.delta);
 
-	audit_ntp_log(&ad);
+	audit_ntp_log(&result.ad);
 
-	if (clock_set)
+	if (result.clock_set)
 		clock_was_set(CLOCK_SET_WALL);
 
-	ntp_notify_cmos_timer(offset_set);
+	ntp_notify_cmos_timer(result.delta.tv_sec != 0);
 
 	return ret;
 }
