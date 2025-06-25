@@ -84,16 +84,10 @@ bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 
 void intel_display_driver_init_hw(struct intel_display *display)
 {
-	struct intel_cdclk_state *cdclk_state;
-
 	if (!HAS_DISPLAY(display))
 		return;
 
-	cdclk_state = to_intel_cdclk_state(display->cdclk.obj.state);
-
-	intel_update_cdclk(display);
-	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
-	cdclk_state->logical = cdclk_state->actual = display->cdclk.hw;
+	intel_cdclk_read_hw(display);
 
 	intel_display_wa_apply(display);
 }

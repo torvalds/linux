@@ -3869,3 +3869,15 @@ void intel_cdclk_force_min_cdclk(struct intel_cdclk_state *cdclk_state, int forc
 {
 	cdclk_state->force_min_cdclk = force_min_cdclk;
 }
+
+void intel_cdclk_read_hw(struct intel_display *display)
+{
+	struct intel_cdclk_state *cdclk_state;
+
+	cdclk_state = to_intel_cdclk_state(display->cdclk.obj.state);
+
+	intel_update_cdclk(display);
+	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
+	cdclk_state->actual = display->cdclk.hw;
+	cdclk_state->logical = display->cdclk.hw;
+}
