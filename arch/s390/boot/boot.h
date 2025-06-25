@@ -74,6 +74,7 @@ void print_stacktrace(unsigned long sp);
 void error(char *m);
 int get_random(unsigned long limit, unsigned long *value);
 void boot_rb_dump(void);
+void __noreturn jump_to_kernel(psw_t *psw);
 
 #ifndef boot_fmt
 #define boot_fmt(fmt)	fmt

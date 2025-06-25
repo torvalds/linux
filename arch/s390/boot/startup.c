@@ -642,5 +642,5 @@ void startup_kernel(void)
 	psw.addr = __kaslr_offset + vmlinux.entry;
 	psw.mask = PSW_KERNEL_BITS;
 	boot_debug("Starting kernel at:  0x%016lx\n", psw.addr);
-	__load_psw(psw);
+	jump_to_kernel(&psw);
 }
