@@ -1431,6 +1431,11 @@ int do_settimeofday64(const struct timespec64 *ts)
 }
 EXPORT_SYMBOL(do_settimeofday64);
 
+static inline bool timekeeper_is_core_tk(struct timekeeper *tk)
+{
+	return !IS_ENABLED(CONFIG_POSIX_AUX_CLOCKS) || tk->id == TIMEKEEPER_CORE;
+}
+
 /**
  * __timekeeping_inject_offset - Adds or subtracts from the current time.
  * @tkd:	Pointer to the timekeeper to modify
@@ -1448,16 +1453,34 @@ static int __timekeeping_inject_offset(struct tk_data *tkd, const struct timespe
 
 	timekeeping_forward_now(tks);
 
-	/* Make sure the proposed value is valid */
-	tmp = timespec64_add(tk_xtime(tks), *ts);
-	if (timespec64_compare(&tks->wall_to_monotonic, ts) > 0 ||
-	    !timespec64_valid_settod(&tmp)) {
-		timekeeping_restore_shadow(tkd);
-		return -EINVAL;
+	if (timekeeper_is_core_tk(tks)) {
+		/* Make sure the proposed value is valid */
+		tmp = timespec64_add(tk_xtime(tks), *ts);
+		if (timespec64_compare(&tks->wall_to_monotonic, ts) > 0 ||
+		    !timespec64_valid_settod(&tmp)) {
+			timekeeping_restore_shadow(tkd);
+			return -EINVAL;
+		}
+
+		tk_xtime_add(tks, ts);
+		tk_set_wall_to_mono(tks, timespec64_sub(tks->wall_to_monotonic, *ts));
+	} else {
+		struct tk_read_base *tkr_mono = &tks->tkr_mono;
+		ktime_t now, offs;
+
+		/* Get the current time */
+		now = ktime_add_ns(tkr_mono->base, timekeeping_get_ns(tkr_mono));
+		/* Add the relative offset change */
+		offs = ktime_add(tks->offs_aux, timespec64_to_ktime(*ts));
+
+		/* Prevent that the resulting time becomes negative */
+		if (ktime_add(now, offs) < 0) {
+			timekeeping_restore_shadow(tkd);
+			return -EINVAL;
+		}
+		tks->offs_aux = offs;
 	}
 
-	tk_xtime_add(tks, ts);
-	tk_set_wall_to_mono(tks, timespec64_sub(tks->wall_to_monotonic, *ts));
 	timekeeping_update_from_shadow(tkd, TK_UPDATE_ALL);
 	return 0;
 }
