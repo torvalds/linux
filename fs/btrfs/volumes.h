@@ -114,7 +114,8 @@ struct btrfs_device {
 	struct btrfs_fs_devices *fs_devices;
 	struct btrfs_fs_info *fs_info;
 
-	struct rcu_string __rcu *name;
+	/* Device path or NULL if missing. */
+	const char __rcu *name;
 
 	u64 generation;
 
@@ -855,7 +856,7 @@ static inline const char *btrfs_dev_name(const struct btrfs_device *device)
 	if (!device || test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
 		return "<missing disk>";
 	else
-		return rcu_str_deref(device->name);
+		return rcu_dereference(device->name);
 }
 
 static inline void btrfs_warn_unknown_chunk_allocation(enum btrfs_chunk_allocation_policy pol)
