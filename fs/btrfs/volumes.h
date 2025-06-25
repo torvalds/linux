@@ -422,6 +422,17 @@ struct btrfs_fs_devices {
 	/* Count fs-devices opened. */
 	int opened;
 
+	/*
+	 * Counter of the processes that are holding this fs_devices but not
+	 * yet opened.
+	 * This is for mounting handling, as we can only open the fs_devices
+	 * after a super block is created.
+	 * But we can not hold uuid_mutex during sget_fc(), thus we have to
+	 * hold the fs_devices (meaning it can not be released) until a super
+	 * block is returned.
+	 */
+	int holding;
+
 	/* Set when we find or add a device that doesn't have the nonrot flag set. */
 	bool rotating;
 	/* Devices support TRIM/discard commands. */
@@ -667,7 +678,7 @@ enum btrfs_map_op {
 	BTRFS_MAP_GET_READ_MIRRORS,
 };
 
-static inline enum btrfs_map_op btrfs_op(struct bio *bio)
+static inline enum btrfs_map_op btrfs_op(const struct bio *bio)
 {
 	switch (bio_op(bio)) {
 	case REQ_OP_WRITE:
@@ -719,7 +730,7 @@ struct btrfs_block_group *btrfs_create_chunk(struct btrfs_trans_handle *trans,
 void btrfs_mapping_tree_free(struct btrfs_fs_info *fs_info);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       blk_mode_t flags, void *holder);
-struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
+struct btrfs_device *btrfs_scan_one_device(const char *path,
 					   bool mount_arg_dev);
 int btrfs_forget_devices(dev_t devt);
 void btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
@@ -852,6 +863,20 @@ static inline const char *btrfs_dev_name(const struct btrfs_device *device)
 static inline void btrfs_warn_unknown_chunk_allocation(enum btrfs_chunk_allocation_policy pol)
 {
 	WARN_ONCE(1, "unknown allocation policy %d, fallback to regular", pol);
+}
+
+static inline void btrfs_fs_devices_inc_holding(struct btrfs_fs_devices *fs_devices)
+{
+	lockdep_assert_held(&uuid_mutex);
+	ASSERT(fs_devices->holding >= 0);
+	fs_devices->holding++;
+}
+
+static inline void btrfs_fs_devices_dec_holding(struct btrfs_fs_devices *fs_devices)
+{
+	lockdep_assert_held(&uuid_mutex);
+	ASSERT(fs_devices->holding > 0);
+	fs_devices->holding--;
 }
 
 void btrfs_commit_device_sizes(struct btrfs_transaction *trans);

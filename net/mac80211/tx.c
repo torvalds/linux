@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * Transmit and frame generation functions.
  */
@@ -5016,12 +5016,25 @@ static void ieee80211_set_beacon_cntdwn(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-static u8 __ieee80211_beacon_update_cntdwn(struct beacon_data *beacon)
+static u8 __ieee80211_beacon_update_cntdwn(struct ieee80211_link_data *link,
+					   struct beacon_data *beacon)
 {
-	beacon->cntdwn_current_counter--;
+	if (beacon->cntdwn_current_counter == 1) {
+		/*
+		 * Channel switch handling is done by a worker thread while
+		 * beacons get pulled from hardware timers. It's therefore
+		 * possible that software threads are slow enough to not be
+		 * able to complete CSA handling in a single beacon interval,
+		 * in which case we get here. There isn't much to do about
+		 * it, other than letting the user know that the AP isn't
+		 * behaving correctly.
+		 */
+		link_err_once(link,
+			      "beacon TX faster than countdown (channel/color switch) completion\n");
+		return 0;
+	}
 
-	/* the counter should never reach 0 */
-	WARN_ON_ONCE(!beacon->cntdwn_current_counter);
+	beacon->cntdwn_current_counter--;
 
 	return beacon->cntdwn_current_counter;
 }
@@ -5052,7 +5065,7 @@ u8 ieee80211_beacon_update_cntdwn(struct ieee80211_vif *vif, unsigned int link_i
 	if (!beacon)
 		goto unlock;
 
-	count = __ieee80211_beacon_update_cntdwn(beacon);
+	count = __ieee80211_beacon_update_cntdwn(link, beacon);
 
 unlock:
 	rcu_read_unlock();
@@ -5450,7 +5463,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 
 		if (beacon->cntdwn_counter_offsets[0]) {
 			if (!is_template)
-				__ieee80211_beacon_update_cntdwn(beacon);
+				__ieee80211_beacon_update_cntdwn(link, beacon);
 
 			ieee80211_set_beacon_cntdwn(sdata, beacon, link);
 		}
@@ -5482,7 +5495,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 				 * for now we leave it consistent with overall
 				 * mac80211's behavior.
 				 */
-				__ieee80211_beacon_update_cntdwn(beacon);
+				__ieee80211_beacon_update_cntdwn(link, beacon);
 
 			ieee80211_set_beacon_cntdwn(sdata, beacon, link);
 		}

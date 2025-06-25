@@ -60,6 +60,14 @@ static int compare_inode_defrag(const struct inode_defrag *defrag1,
 		return 0;
 }
 
+static int inode_defrag_cmp(struct rb_node *new, const struct rb_node *existing)
+{
+	const struct inode_defrag *new_defrag = rb_entry(new, struct inode_defrag, rb_node);
+	const struct inode_defrag *existing_defrag = rb_entry(existing, struct inode_defrag, rb_node);
+
+	return compare_inode_defrag(new_defrag, existing_defrag);
+}
+
 /*
  * Insert a record for an inode into the defrag tree.  The lock must be held
  * already.
@@ -71,37 +79,23 @@ static int btrfs_insert_inode_defrag(struct btrfs_inode *inode,
 				     struct inode_defrag *defrag)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct inode_defrag *entry;
-	struct rb_node **p;
-	struct rb_node *parent = NULL;
-	int ret;
+	struct rb_node *node;
 
-	p = &fs_info->defrag_inodes.rb_node;
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct inode_defrag, rb_node);
+	node = rb_find_add(&defrag->rb_node, &fs_info->defrag_inodes, inode_defrag_cmp);
+	if (node) {
+		struct inode_defrag *entry;
 
-		ret = compare_inode_defrag(defrag, entry);
-		if (ret < 0)
-			p = &parent->rb_left;
-		else if (ret > 0)
-			p = &parent->rb_right;
-		else {
-			/*
-			 * If we're reinserting an entry for an old defrag run,
-			 * make sure to lower the transid of our existing
-			 * record.
-			 */
-			if (defrag->transid < entry->transid)
-				entry->transid = defrag->transid;
-			entry->extent_thresh = min(defrag->extent_thresh,
-						   entry->extent_thresh);
-			return -EEXIST;
-		}
+		entry = rb_entry(node, struct inode_defrag, rb_node);
+		/*
+		 * If we're reinserting an entry for an old defrag run, make
+		 * sure to lower the transid of our existing record.
+		 */
+		if (defrag->transid < entry->transid)
+			entry->transid = defrag->transid;
+		entry->extent_thresh = min(defrag->extent_thresh, entry->extent_thresh);
+		return -EEXIST;
 	}
 	set_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags);
-	rb_link_node(&defrag->rb_node, parent, p);
-	rb_insert_color(&defrag->rb_node, &fs_info->defrag_inodes);
 	return 0;
 }
 
@@ -854,8 +848,8 @@ static struct folio *defrag_prepare_one_folio(struct btrfs_inode *inode, pgoff_t
 {
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
-	u64 folio_start;
-	u64 folio_end;
+	u64 lock_start;
+	u64 lock_end;
 	struct extent_state *cached_state = NULL;
 	struct folio *folio;
 	int ret;
@@ -891,15 +885,15 @@ again:
 		return ERR_PTR(ret);
 	}
 
-	folio_start = folio_pos(folio);
-	folio_end = folio_pos(folio) + folio_size(folio) - 1;
+	lock_start = folio_pos(folio);
+	lock_end = folio_end(folio) - 1;
 	/* Wait for any existing ordered extent in the range */
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
 
-		btrfs_lock_extent(&inode->io_tree, folio_start, folio_end, &cached_state);
-		ordered = btrfs_lookup_ordered_range(inode, folio_start, folio_size(folio));
-		btrfs_unlock_extent(&inode->io_tree, folio_start, folio_end, &cached_state);
+		btrfs_lock_extent(&inode->io_tree, lock_start, lock_end, &cached_state);
+		ordered = btrfs_lookup_ordered_range(inode, lock_start, folio_size(folio));
+		btrfs_unlock_extent(&inode->io_tree, lock_start, lock_end, &cached_state);
 		if (!ordered)
 			break;
 
@@ -1184,8 +1178,7 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 
 		if (!folio)
 			break;
-		if (start >= folio_pos(folio) + folio_size(folio) ||
-		    start + len <= folio_pos(folio))
+		if (start >= folio_end(folio) || start + len <= folio_pos(folio))
 			continue;
 		btrfs_folio_clamp_clear_checked(fs_info, folio, start, len);
 		btrfs_folio_clamp_set_dirty(fs_info, folio, start, len);
@@ -1226,7 +1219,7 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 			folios[i] = NULL;
 			goto free_folios;
 		}
-		cur = folio_pos(folios[i]) + folio_size(folios[i]);
+		cur = folio_end(folios[i]);
 	}
 	for (int i = 0; i < nr_pages; i++) {
 		if (!folios[i])
