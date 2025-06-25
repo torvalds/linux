@@ -104,7 +104,6 @@ static int do_make_slave(struct mount *mnt)
 	}
 	list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
 		slave_mnt->mnt_master = master;
-	list_move(&mnt->mnt_slave, &master->mnt_slave_list);
 	list_splice(&mnt->mnt_slave_list, master->mnt_slave_list.prev);
 	INIT_LIST_HEAD(&mnt->mnt_slave_list);
 	mnt->mnt_master = master;
@@ -121,8 +120,12 @@ void change_mnt_propagation(struct mount *mnt, int type)
 		return;
 	}
 	do_make_slave(mnt);
-	if (type != MS_SLAVE) {
-		list_del_init(&mnt->mnt_slave);
+	list_del_init(&mnt->mnt_slave);
+	if (type == MS_SLAVE) {
+		if (mnt->mnt_master)
+			list_add(&mnt->mnt_slave,
+				 &mnt->mnt_master->mnt_slave_list);
+	} else {
 		mnt->mnt_master = NULL;
 		if (type == MS_UNBINDABLE)
 			mnt->mnt_t_flags |= T_UNBINDABLE;
