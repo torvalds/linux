@@ -90,7 +90,7 @@ static int tng_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(readl(gplr) & BIT(shift));
 }
 
-static void tng_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int tng_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct tng_gpio *priv = gpiochip_get_data(chip);
 	void __iomem *reg;
@@ -101,6 +101,8 @@ static void tng_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	writel(BIT(shift), reg);
+
+	return 0;
 }
 
 static int tng_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
@@ -428,7 +430,7 @@ int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio)
 	gpio->chip.direction_input = tng_gpio_direction_input;
 	gpio->chip.direction_output = tng_gpio_direction_output;
 	gpio->chip.get = tng_gpio_get;
-	gpio->chip.set = tng_gpio_set;
+	gpio->chip.set_rv = tng_gpio_set;
 	gpio->chip.get_direction = tng_gpio_get_direction;
 	gpio->chip.set_config = tng_gpio_set_config;
 	gpio->chip.base = info->base;
