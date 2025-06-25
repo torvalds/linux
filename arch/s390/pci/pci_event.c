@@ -54,6 +54,7 @@ static inline bool ers_result_indicates_abort(pci_ers_result_t ers_res)
 	case PCI_ERS_RESULT_CAN_RECOVER:
 	case PCI_ERS_RESULT_RECOVERED:
 	case PCI_ERS_RESULT_NEED_RESET:
+	case PCI_ERS_RESULT_NONE:
 		return false;
 	default:
 		return true;
@@ -77,10 +78,6 @@ static bool is_driver_supported(struct pci_driver *driver)
 	if (!driver || !driver->err_handler)
 		return false;
 	if (!driver->err_handler->error_detected)
-		return false;
-	if (!driver->err_handler->slot_reset)
-		return false;
-	if (!driver->err_handler->resume)
 		return false;
 	return true;
 }
@@ -118,16 +115,18 @@ static pci_ers_result_t zpci_event_do_error_state_clear(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_NEED_RESET;
 	}
 
-	if (driver->err_handler->mmio_enabled) {
+	if (driver->err_handler->mmio_enabled)
 		ers_res = driver->err_handler->mmio_enabled(pdev);
-		if (ers_result_indicates_abort(ers_res)) {
-			pr_info("%s: Automatic recovery failed after MMIO re-enable\n",
-				pci_name(pdev));
-			return ers_res;
-		} else if (ers_res == PCI_ERS_RESULT_NEED_RESET) {
-			pr_debug("%s: Driver needs reset to recover\n", pci_name(pdev));
-			return ers_res;
-		}
+	else
+		ers_res = PCI_ERS_RESULT_NONE;
+
+	if (ers_result_indicates_abort(ers_res)) {
+		pr_info("%s: Automatic recovery failed after MMIO re-enable\n",
+			pci_name(pdev));
+		return ers_res;
+	} else if (ers_res == PCI_ERS_RESULT_NEED_RESET) {
+		pr_debug("%s: Driver needs reset to recover\n", pci_name(pdev));
+		return ers_res;
 	}
 
 	pr_debug("%s: Unblocking DMA\n", pci_name(pdev));
@@ -154,7 +153,12 @@ static pci_ers_result_t zpci_event_do_reset(struct pci_dev *pdev,
 		return ers_res;
 	}
 	pdev->error_state = pci_channel_io_normal;
-	ers_res = driver->err_handler->slot_reset(pdev);
+
+	if (driver->err_handler->slot_reset)
+		ers_res = driver->err_handler->slot_reset(pdev);
+	else
+		ers_res = PCI_ERS_RESULT_NONE;
+
 	if (ers_result_indicates_abort(ers_res)) {
 		pr_info("%s: Automatic recovery failed after slot reset\n", pci_name(pdev));
 		return ers_res;
@@ -218,7 +222,7 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 		goto out_unlock;
 	}
 
-	if (ers_res == PCI_ERS_RESULT_CAN_RECOVER) {
+	if (ers_res != PCI_ERS_RESULT_NEED_RESET) {
 		ers_res = zpci_event_do_error_state_clear(pdev, driver);
 		if (ers_result_indicates_abort(ers_res)) {
 			status_str = "failed (abort on MMIO enable)";
@@ -228,6 +232,16 @@ static pci_ers_result_t zpci_event_attempt_error_recovery(struct pci_dev *pdev)
 
 	if (ers_res == PCI_ERS_RESULT_NEED_RESET)
 		ers_res = zpci_event_do_reset(pdev, driver);
+
+	/*
+	 * ers_res can be PCI_ERS_RESULT_NONE either because the driver
+	 * decided to return it, indicating that it abstains from voting
+	 * on how to recover, or because it didn't implement the callback.
+	 * Both cases assume, that if there is nothing else causing a
+	 * disconnect, we recovered successfully.
+	 */
+	if (ers_res == PCI_ERS_RESULT_NONE)
+		ers_res = PCI_ERS_RESULT_RECOVERED;
 
 	if (ers_res != PCI_ERS_RESULT_RECOVERED) {
 		pr_err("%s: Automatic recovery failed; operator intervention is required\n",
