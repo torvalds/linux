@@ -2875,10 +2875,26 @@ static int aux_clock_set(const clockid_t id, const struct timespec64 *tnew)
 	return 0;
 }
 
+static int aux_clock_adj(const clockid_t id, struct __kernel_timex *txc)
+{
+	struct tk_data *aux_tkd = aux_get_tk_data(id);
+	struct adjtimex_result result = { };
+
+	if (!aux_tkd)
+		return -ENODEV;
+
+	/*
+	 * @result is ignored for now as there are neither hrtimers nor a
+	 * RTC related to auxiliary clocks for now.
+	 */
+	return __do_adjtimex(aux_tkd, txc, &result);
+}
+
 const struct k_clock clock_aux = {
 	.clock_getres		= aux_get_res,
 	.clock_get_timespec	= aux_get_timespec,
 	.clock_set		= aux_clock_set,
+	.clock_adj		= aux_clock_adj,
 };
 
 static __init void tk_aux_setup(void)
