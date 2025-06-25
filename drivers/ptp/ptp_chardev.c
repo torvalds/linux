@@ -110,7 +110,6 @@ int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 		container_of(pccontext->clk, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue;
 	char debugfsname[32];
-	unsigned long flags;
 
 	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
 	if (!queue)
@@ -122,9 +121,8 @@ int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 	}
 	bitmap_set(queue->mask, 0, PTP_MAX_CHANNELS);
 	spin_lock_init(&queue->lock);
-	spin_lock_irqsave(&ptp->tsevqs_lock, flags);
-	list_add_tail(&queue->qlist, &ptp->tsevqs);
-	spin_unlock_irqrestore(&ptp->tsevqs_lock, flags);
+	scoped_guard(spinlock_irq, &ptp->tsevqs_lock)
+		list_add_tail(&queue->qlist, &ptp->tsevqs);
 	pccontext->private_clkdata = queue;
 
 	/* Debugfs contents */
@@ -143,15 +141,13 @@ int ptp_open(struct posix_clock_context *pccontext, fmode_t fmode)
 int ptp_release(struct posix_clock_context *pccontext)
 {
 	struct timestamp_event_queue *queue = pccontext->private_clkdata;
-	unsigned long flags;
 	struct ptp_clock *ptp =
 		container_of(pccontext->clk, struct ptp_clock, clock);
 
 	debugfs_remove(queue->debugfs_instance);
 	pccontext->private_clkdata = NULL;
-	spin_lock_irqsave(&ptp->tsevqs_lock, flags);
-	list_del(&queue->qlist);
-	spin_unlock_irqrestore(&ptp->tsevqs_lock, flags);
+	scoped_guard(spinlock_irq, &ptp->tsevqs_lock)
+		list_del(&queue->qlist);
 	bitmap_free(queue->mask);
 	kfree(queue);
 	return 0;
@@ -544,8 +540,6 @@ ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
 		container_of(pccontext->clk, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue;
 	struct ptp_extts_event *event;
-	unsigned long flags;
-	size_t qcnt, i;
 	int result;
 
 	queue = pccontext->private_clkdata;
@@ -580,20 +574,18 @@ ssize_t ptp_read(struct posix_clock_context *pccontext, uint rdflags,
 		goto exit;
 	}
 
-	spin_lock_irqsave(&queue->lock, flags);
+	scoped_guard(spinlock_irq, &queue->lock) {
+		size_t qcnt = queue_cnt(queue);
 
-	qcnt = queue_cnt(queue);
+		if (cnt > qcnt)
+			cnt = qcnt;
 
-	if (cnt > qcnt)
-		cnt = qcnt;
-
-	for (i = 0; i < cnt; i++) {
-		event[i] = queue->buf[queue->head];
-		/* Paired with READ_ONCE() in queue_cnt() */
-		WRITE_ONCE(queue->head, (queue->head + 1) % PTP_MAX_TIMESTAMPS);
+		for (size_t i = 0; i < cnt; i++) {
+			event[i] = queue->buf[queue->head];
+			/* Paired with READ_ONCE() in queue_cnt() */
+			WRITE_ONCE(queue->head, (queue->head + 1) % PTP_MAX_TIMESTAMPS);
+		}
 	}
-
-	spin_unlock_irqrestore(&queue->lock, flags);
 
 	cnt = cnt * sizeof(struct ptp_extts_event);
 
