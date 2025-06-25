@@ -103,6 +103,9 @@ struct kvm_mmu_page {
 		int root_count;
 		refcount_t tdp_mmu_root_count;
 	};
+
+	bool has_mapped_host_mmio;
+
 	union {
 		/* These two members aren't used for TDP MMU */
 		struct {
