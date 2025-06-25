@@ -435,6 +435,12 @@ static long ptp_pin_setfunc(struct ptp_clock *ptp, unsigned int cmd, void __user
 		return ptp_set_pinfunc(ptp, pin_index, pd.func, pd.chan);
 }
 
+static long ptp_mask_clear_all(struct timestamp_event_queue *tsevq)
+{
+	bitmap_clear(tsevq->mask, 0, PTP_MAX_CHANNELS);
+	return 0;
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
@@ -497,8 +503,7 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 		return ptp_pin_setfunc(ptp, cmd, argptr);
 
 	case PTP_MASK_CLEAR_ALL:
-		bitmap_clear(tsevq->mask, 0, PTP_MAX_CHANNELS);
-		break;
+		return ptp_mask_clear_all(pccontext->private_clkdata);
 
 	case PTP_MASK_EN_SINGLE:
 		if (copy_from_user(&i, (void __user *)arg, sizeof(i))) {
