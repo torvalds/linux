@@ -15182,6 +15182,7 @@ static bool is_safe_to_compute_dst_reg_range(struct bpf_insn *insn,
 	switch (BPF_OP(insn->code)) {
 	case BPF_ADD:
 	case BPF_SUB:
+	case BPF_NEG:
 	case BPF_AND:
 	case BPF_XOR:
 	case BPF_OR:
@@ -15249,6 +15250,13 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 		scalar32_min_max_sub(dst_reg, &src_reg);
 		scalar_min_max_sub(dst_reg, &src_reg);
 		dst_reg->var_off = tnum_sub(dst_reg->var_off, src_reg.var_off);
+		break;
+	case BPF_NEG:
+		env->fake_reg[0] = *dst_reg;
+		__mark_reg_known(dst_reg, 0);
+		scalar32_min_max_sub(dst_reg, &env->fake_reg[0]);
+		scalar_min_max_sub(dst_reg, &env->fake_reg[0]);
+		dst_reg->var_off = tnum_neg(env->fake_reg[0].var_off);
 		break;
 	case BPF_MUL:
 		dst_reg->var_off = tnum_mul(dst_reg->var_off, src_reg.var_off);
@@ -15473,7 +15481,14 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		}
 
 		/* check dest operand */
-		err = check_reg_arg(env, insn->dst_reg, DST_OP);
+		if (opcode == BPF_NEG) {
+			err = check_reg_arg(env, insn->dst_reg, DST_OP_NO_MARK);
+			err = err ?: adjust_scalar_min_max_vals(env, insn,
+							 &regs[insn->dst_reg],
+							 regs[insn->dst_reg]);
+		} else {
+			err = check_reg_arg(env, insn->dst_reg, DST_OP);
+		}
 		if (err)
 			return err;
 
