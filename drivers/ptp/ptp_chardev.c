@@ -157,6 +157,26 @@ int ptp_release(struct posix_clock_context *pccontext)
 	return 0;
 }
 
+static long ptp_clock_getcaps(struct ptp_clock *ptp, void __user *arg)
+{
+	struct ptp_clock_caps caps = {
+		.max_adj		= ptp->info->max_adj,
+		.n_alarm		= ptp->info->n_alarm,
+		.n_ext_ts		= ptp->info->n_ext_ts,
+		.n_per_out		= ptp->info->n_per_out,
+		.pps			= ptp->info->pps,
+		.n_pins			= ptp->info->n_pins,
+		.cross_timestamping	= ptp->info->getcrosststamp != NULL,
+		.adjust_phase		= ptp->info->adjphase != NULL &&
+					  ptp->info->getmaxphase != NULL,
+	};
+
+	if (caps.adjust_phase)
+		caps.max_phase_adj = ptp->info->getmaxphase(ptp->info);
+
+	return copy_to_user(arg, &caps, sizeof(caps)) ? -EFAULT : 0;
+}
+
 long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	       unsigned long arg)
 {
@@ -171,37 +191,22 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	struct timestamp_event_queue *tsevq;
 	struct ptp_system_timestamp sts;
 	struct ptp_clock_request req;
-	struct ptp_clock_caps caps;
 	struct ptp_clock_time *pct;
 	struct ptp_pin_desc pd;
 	struct timespec64 ts;
 	int enable, err = 0;
+	void __user *argptr;
 
 	if (in_compat_syscall() && cmd != PTP_ENABLE_PPS && cmd != PTP_ENABLE_PPS2)
 		arg = (unsigned long)compat_ptr(arg);
+	argptr = (void __force __user *)arg;
 
 	tsevq = pccontext->private_clkdata;
 
 	switch (cmd) {
-
 	case PTP_CLOCK_GETCAPS:
 	case PTP_CLOCK_GETCAPS2:
-		memset(&caps, 0, sizeof(caps));
-
-		caps.max_adj = ptp->info->max_adj;
-		caps.n_alarm = ptp->info->n_alarm;
-		caps.n_ext_ts = ptp->info->n_ext_ts;
-		caps.n_per_out = ptp->info->n_per_out;
-		caps.pps = ptp->info->pps;
-		caps.n_pins = ptp->info->n_pins;
-		caps.cross_timestamping = ptp->info->getcrosststamp != NULL;
-		caps.adjust_phase = ptp->info->adjphase != NULL &&
-				    ptp->info->getmaxphase != NULL;
-		if (caps.adjust_phase)
-			caps.max_phase_adj = ptp->info->getmaxphase(ptp->info);
-		if (copy_to_user((void __user *)arg, &caps, sizeof(caps)))
-			err = -EFAULT;
-		break;
+		return ptp_clock_getcaps(ptp, argptr);
 
 	case PTP_EXTTS_REQUEST:
 	case PTP_EXTTS_REQUEST2:
