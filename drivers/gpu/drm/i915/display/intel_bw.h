@@ -8,52 +8,14 @@
 
 #include <drm/drm_atomic.h>
 
-#include "intel_display_limits.h"
-#include "intel_display_power.h"
-#include "intel_global_state.h"
-
 struct intel_atomic_state;
+struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_display;
+struct intel_global_state;
 
-struct intel_dbuf_bw {
-	unsigned int max_bw[I915_MAX_DBUF_SLICES];
-	u8 active_planes[I915_MAX_DBUF_SLICES];
-};
-
-struct intel_bw_state {
-	struct intel_global_state base;
-	struct intel_dbuf_bw dbuf_bw[I915_MAX_PIPES];
-
-	/*
-	 * Contains a bit mask, used to determine, whether correspondent
-	 * pipe allows SAGV or not.
-	 */
-	u8 pipe_sagv_reject;
-
-	/* bitmask of active pipes */
-	u8 active_pipes;
-
-	/*
-	 * From MTL onwards, to lock a QGV point, punit expects the peak BW of
-	 * the selected QGV point as the parameter in multiples of 100MB/s
-	 */
-	u16 qgv_point_peakbw;
-
-	/*
-	 * Current QGV points mask, which restricts
-	 * some particular SAGV states, not to confuse
-	 * with pipe_sagv_mask.
-	 */
-	u16 qgv_points_mask;
-
-	unsigned int data_rate[I915_MAX_PIPES];
-	u8 num_active_planes[I915_MAX_PIPES];
-};
-
-#define to_intel_bw_state(global_state) \
-	container_of_const((global_state), struct intel_bw_state, base)
+struct intel_bw_state *to_intel_bw_state(struct intel_global_state *obj_state);
 
 struct intel_bw_state *
 intel_atomic_get_old_bw_state(struct intel_atomic_state *state);

@@ -21,6 +21,41 @@
 #include "intel_uncore.h"
 #include "skl_watermark.h"
 
+struct intel_dbuf_bw {
+	unsigned int max_bw[I915_MAX_DBUF_SLICES];
+	u8 active_planes[I915_MAX_DBUF_SLICES];
+};
+
+struct intel_bw_state {
+	struct intel_global_state base;
+	struct intel_dbuf_bw dbuf_bw[I915_MAX_PIPES];
+
+	/*
+	 * Contains a bit mask, used to determine, whether correspondent
+	 * pipe allows SAGV or not.
+	 */
+	u8 pipe_sagv_reject;
+
+	/* bitmask of active pipes */
+	u8 active_pipes;
+
+	/*
+	 * From MTL onwards, to lock a QGV point, punit expects the peak BW of
+	 * the selected QGV point as the parameter in multiples of 100MB/s
+	 */
+	u16 qgv_point_peakbw;
+
+	/*
+	 * Current QGV points mask, which restricts
+	 * some particular SAGV states, not to confuse
+	 * with pipe_sagv_mask.
+	 */
+	u16 qgv_points_mask;
+
+	unsigned int data_rate[I915_MAX_PIPES];
+	u8 num_active_planes[I915_MAX_PIPES];
+};
+
 /* Parameters for Qclk Geyserville (QGV) */
 struct intel_qgv_point {
 	u16 dclk, t_rp, t_rdpre, t_rc, t_ras, t_rcd;
@@ -870,6 +905,11 @@ static unsigned int intel_bw_data_rate(struct intel_display *display,
 		data_rate = DIV_ROUND_UP(data_rate * 105, 100);
 
 	return data_rate;
+}
+
+struct intel_bw_state *to_intel_bw_state(struct intel_global_state *obj_state)
+{
+	return container_of(obj_state, struct intel_bw_state, base);
 }
 
 struct intel_bw_state *
