@@ -28,10 +28,12 @@ struct iomap_dio {
 	const struct iomap_dio_ops *dops;
 	loff_t			i_size;   // 파일 전체 크기
 	loff_t			size;     // 디바이스로 제출한 누적 바이트
+  /* LDY */
   atomic64_t  done;     // DMA 완료된 누적 바이트
   u64         early_threshold; // 조기 완료 임계값
   bool        early_done;      // 조기 완료 확인
-	atomic_t		ref;      // 참조하고 있는 bio 수?
+  /* LDY */
+	atomic_t		ref;      // 참조하고 있는 request 수
 	unsigned long	flags;
 	int			error;
 	bool			wait_for_completion;
@@ -61,6 +63,12 @@ void print_dio(char *func_name, struct iomap_dio *dio) {
   pr_info(KERN_INFO "%s():\n", func_name);
   pr_info(KERN_INFO "  struct dio:\n    dio->i_size=%lld\n    dio->size=%lld\n    dio->done=%lld\n    dio->early_threshold=%lld\n    dio->ref=%d\n    dio->wait_for_completion=%d\n",
           dio->i_size, dio->size, atomic64_read(&dio->done), dio->early_threshold, atomic_read(&dio->ref), dio->wait_for_completion);
+}
+
+void print_log(char *func_name) {
+  struct timespec64 ts;
+  ktime_get_real_ts64(&ts);
+  pr_info("[K %lld.%09lu] %s\n", (long long)ts.tv_sec, ts.tv_nsec, func_name);
 }
 
 int iomap_dio_iopoll(struct kiocb *kiocb, bool spin)
@@ -168,31 +176,26 @@ static void iomap_dio_bio_end_io(struct bio *bio)
   struct dio_bio_ctx *ctx = bio->bi_private;
   struct iomap_dio *dio = ctx->dio;
 	bool should_dirty = (dio->flags & IOMAP_DIO_DIRTY);
-  //pr_info(KERN_INFO "iomap_dio_bio_end_io - 진입\n");
-  //print_dio("iomap_dio_bio_end_io - 진입 직후", dio);
+  print_log("iomap_dio_bio_end_io(): 진입");
   if (bio->bi_status)
 		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
 
   // LDY  
-  //pr_info(KERN_INFO "iomap_dio_bio_end_io - ctx->bytes=%u\n", ctx->bytes);
   atomic64_add(ctx->bytes, &dio->done);
 
-  if ((atomic64_read(&dio->done) >= dio->early_threshold) && !dio->early_done) {
+  if (dio->wait_for_completion && (atomic64_read(&dio->done) >= dio->early_threshold) && !dio->early_done) {
+    print_log("iomap_dio_bio_end_io(): 조기 완료\n");
     dio->early_done = 1;
-      /*
-      struct task_struct *waiter = cmpxchg(&dio->submit.waiter,
-                                         waiter,
-                                         NULL);
-      */
+    struct task_struct *waiter = dio->submit.waiter;
+ 		WRITE_ONCE(dio->submit.waiter, NULL);
+    blk_wake_io_task(waiter);
+    /*
     struct task_struct *waiter = READ_ONCE(dio->submit.waiter);
     if (waiter && cmpxchg(&dio->submit.waiter, waiter, NULL) == waiter) {
       smp_mb();
       blk_wake_io_task(waiter);
     }
-      /*
-      if (waiter)
-        blk_wake_io_task(waiter);
-      */
+    */
   }
 
   if (atomic_dec_and_test(&dio->ref)) {
@@ -210,7 +213,7 @@ static void iomap_dio_bio_end_io(struct bio *bio)
 		  blk_wake_io_task(waiter);
     } 
   }
-  
+  /* LDY */  
 
   /*
   if (atomic_dec_and_test(&dio->ref)) {
@@ -372,7 +375,9 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		bio->bi_write_hint = dio->iocb->ki_hint;
 		bio->bi_ioprio = dio->iocb->ki_ioprio;
 		//bio->bi_private = dio;
+    /* LDY */
     bio->bi_private = ctx;
+    /* LDY */
 		bio->bi_end_io = iomap_dio_bio_end_io;
 		bio->bi_opf = bio_opf;
 
@@ -389,7 +394,9 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 		}
 
 		n = bio->bi_iter.bi_size;
+    /* LDY */
     ctx->bytes = n;
+    /* LDY */
 		if (dio->flags & IOMAP_DIO_WRITE) {
 			task_io_account_write(n);
 		} else {
@@ -545,11 +552,11 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	dio->dops = dops;
 	dio->error = 0;
 	dio->flags = 0;
-  // LDY
+  /* LDY */
   atomic64_set(&dio->done, 0);
-  dio->early_threshold = (iomi.len / 4);
+  dio->early_threshold = 0;
   dio->early_done = 0;
-
+  /* LDY */
 	dio->submit.iter = iter;
 	dio->submit.waiter = current;
 	dio->submit.cookie = BLK_QC_T_NONE;
@@ -595,7 +602,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 		if ((iocb->ki_flags & (IOCB_DSYNC | IOCB_SYNC)) == IOCB_DSYNC)
 			dio->flags |= IOMAP_DIO_WRITE_FUA;
 	}
-  //print_dio("__iomap_dio_rw - dio 초기화 이후", dio);
+  print_log("__iomap_dio_rw(): dio 초기화 이후");
   
 	if (dio_flags & IOMAP_DIO_OVERWRITE_ONLY) {
 		ret = -EAGAIN;
@@ -635,7 +642,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	blk_start_plug(&plug);
 	while ((ret = iomap_iter(&iomi, ops)) > 0) {
 		iomi.processed = iomap_dio_iter(&iomi, dio);
-    //print_dio("__iomap_dio_rw - while() 내부 iomap_dio_iter 호출 후", dio);
   }
 	blk_finish_plug(&plug);
 
@@ -689,8 +695,10 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
       //print_dio("__iomap_dio_rw - for(;;) 내부", dio);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
-			if (!READ_ONCE(dio->submit.waiter))
+			if (!READ_ONCE(dio->submit.waiter)) {
+        print_log("__iomap_dio_rw(): 루프 탈출");
 				break;
+      }
 
 			if (!(iocb->ki_flags & IOCB_HIPRI) ||
 			    !dio->submit.last_queue ||
