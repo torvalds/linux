@@ -675,8 +675,6 @@ static bool __read_mostly monitoring_on;
  */
 bool rv_monitoring_on(void)
 {
-	/* Ensures that concurrent monitors read consistent monitoring_on */
-	smp_rmb();
 	return READ_ONCE(monitoring_on);
 }
 
@@ -696,8 +694,6 @@ static ssize_t monitoring_on_read_data(struct file *filp, char __user *user_buf,
 static void turn_monitoring_off(void)
 {
 	WRITE_ONCE(monitoring_on, false);
-	/* Ensures that concurrent monitors read consistent monitoring_on */
-	smp_wmb();
 }
 
 static void reset_all_monitors(void)
@@ -713,8 +709,6 @@ static void reset_all_monitors(void)
 static void turn_monitoring_on(void)
 {
 	WRITE_ONCE(monitoring_on, true);
-	/* Ensures that concurrent monitors read consistent monitoring_on */
-	smp_wmb();
 }
 
 static void turn_monitoring_on_with_reset(void)
