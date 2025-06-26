@@ -180,13 +180,12 @@ static void vmd_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 static void vmd_irq_enable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&list_lock, flags);
-	WARN_ON(vmdirq->enabled);
-	list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
-	vmdirq->enabled = true;
-	raw_spin_unlock_irqrestore(&list_lock, flags);
+	scoped_guard(raw_spinlock_irqsave, &list_lock) {
+		WARN_ON(vmdirq->enabled);
+		list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
+		vmdirq->enabled = true;
+	}
 
 	data->chip->irq_unmask(data);
 }
@@ -194,16 +193,15 @@ static void vmd_irq_enable(struct irq_data *data)
 static void vmd_irq_disable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
-	unsigned long flags;
 
 	data->chip->irq_mask(data);
 
-	raw_spin_lock_irqsave(&list_lock, flags);
-	if (vmdirq->enabled) {
-		list_del_rcu(&vmdirq->node);
-		vmdirq->enabled = false;
+	scoped_guard(raw_spinlock_irqsave, &list_lock) {
+		if (vmdirq->enabled) {
+			list_del_rcu(&vmdirq->node);
+			vmdirq->enabled = false;
+		}
 	}
-	raw_spin_unlock_irqrestore(&list_lock, flags);
 }
 
 static struct irq_chip vmd_msi_controller = {
@@ -225,7 +223,6 @@ static irq_hw_number_t vmd_get_hwirq(struct msi_domain_info *info,
  */
 static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd, struct msi_desc *desc)
 {
-	unsigned long flags;
 	int i, best;
 
 	if (vmd->msix_count == 1 + vmd->first_vec)
@@ -242,13 +239,13 @@ static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd, struct msi_desc *d
 		return &vmd->irqs[vmd->first_vec];
 	}
 
-	raw_spin_lock_irqsave(&list_lock, flags);
-	best = vmd->first_vec + 1;
-	for (i = best; i < vmd->msix_count; i++)
-		if (vmd->irqs[i].count < vmd->irqs[best].count)
-			best = i;
-	vmd->irqs[best].count++;
-	raw_spin_unlock_irqrestore(&list_lock, flags);
+	scoped_guard(raw_spinlock_irq, &list_lock) {
+		best = vmd->first_vec + 1;
+		for (i = best; i < vmd->msix_count; i++)
+			if (vmd->irqs[i].count < vmd->irqs[best].count)
+				best = i;
+		vmd->irqs[best].count++;
+	}
 
 	return &vmd->irqs[best];
 }
@@ -277,14 +274,12 @@ static void vmd_msi_free(struct irq_domain *domain,
 			struct msi_domain_info *info, unsigned int virq)
 {
 	struct vmd_irq *vmdirq = irq_get_chip_data(virq);
-	unsigned long flags;
 
 	synchronize_srcu(&vmdirq->irq->srcu);
 
 	/* XXX: Potential optimization to rebalance */
-	raw_spin_lock_irqsave(&list_lock, flags);
-	vmdirq->irq->count--;
-	raw_spin_unlock_irqrestore(&list_lock, flags);
+	scoped_guard(raw_spinlock_irq, &list_lock)
+		vmdirq->irq->count--;
 
 	kfree(vmdirq);
 }
@@ -387,29 +382,24 @@ static int vmd_pci_read(struct pci_bus *bus, unsigned int devfn, int reg,
 {
 	struct vmd_dev *vmd = vmd_from_bus(bus);
 	void __iomem *addr = vmd_cfg_addr(vmd, bus, devfn, reg, len);
-	unsigned long flags;
-	int ret = 0;
 
 	if (!addr)
 		return -EFAULT;
 
-	raw_spin_lock_irqsave(&vmd->cfg_lock, flags);
+	guard(raw_spinlock_irqsave)(&vmd->cfg_lock);
 	switch (len) {
 	case 1:
 		*value = readb(addr);
-		break;
+		return 0;
 	case 2:
 		*value = readw(addr);
-		break;
+		return 0;
 	case 4:
 		*value = readl(addr);
-		break;
+		return 0;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	raw_spin_unlock_irqrestore(&vmd->cfg_lock, flags);
-	return ret;
 }
 
 /*
@@ -422,32 +412,27 @@ static int vmd_pci_write(struct pci_bus *bus, unsigned int devfn, int reg,
 {
 	struct vmd_dev *vmd = vmd_from_bus(bus);
 	void __iomem *addr = vmd_cfg_addr(vmd, bus, devfn, reg, len);
-	unsigned long flags;
-	int ret = 0;
 
 	if (!addr)
 		return -EFAULT;
 
-	raw_spin_lock_irqsave(&vmd->cfg_lock, flags);
+	guard(raw_spinlock_irqsave)(&vmd->cfg_lock);
 	switch (len) {
 	case 1:
 		writeb(value, addr);
 		readb(addr);
-		break;
+		return 0;
 	case 2:
 		writew(value, addr);
 		readw(addr);
-		break;
+		return 0;
 	case 4:
 		writel(value, addr);
 		readl(addr);
-		break;
+		return 0;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	raw_spin_unlock_irqrestore(&vmd->cfg_lock, flags);
-	return ret;
 }
 
 static struct pci_ops vmd_ops = {
