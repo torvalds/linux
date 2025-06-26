@@ -12794,7 +12794,7 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	 * proceeding with registration.
 	 */
 	for_each_ar(ah, ar, i)
-		complete(&ar->regd_update_completed);
+		complete_all(&ar->regd_update_completed);
 
 	ret = ieee80211_register_hw(hw);
 	if (ret) {

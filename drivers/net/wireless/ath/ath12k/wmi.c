@@ -6769,7 +6769,7 @@ out:
 	 * before registering the hardware.
 	 */
 	if (ar)
-		complete(&ar->regd_update_completed);
+		complete_all(&ar->regd_update_completed);
 
 	return ret;
 }
