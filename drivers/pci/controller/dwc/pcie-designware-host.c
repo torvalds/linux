@@ -10,6 +10,7 @@
 
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
@@ -23,35 +24,21 @@
 static struct pci_ops dw_pcie_ops;
 static struct pci_ops dw_child_pcie_ops;
 
-static void dw_msi_ack_irq(struct irq_data *d)
-{
-	irq_chip_ack_parent(d);
-}
+#define DW_PCIE_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS		| \
+				    MSI_FLAG_USE_DEF_CHIP_OPS		| \
+				    MSI_FLAG_NO_AFFINITY		| \
+				    MSI_FLAG_PCI_MSI_MASK_PARENT)
+#define DW_PCIE_MSI_FLAGS_SUPPORTED (MSI_FLAG_MULTI_PCI_MSI		| \
+				     MSI_FLAG_PCI_MSIX			| \
+				     MSI_GENERIC_FLAGS_MASK)
 
-static void dw_msi_mask_irq(struct irq_data *d)
-{
-	pci_msi_mask_irq(d);
-	irq_chip_mask_parent(d);
-}
-
-static void dw_msi_unmask_irq(struct irq_data *d)
-{
-	pci_msi_unmask_irq(d);
-	irq_chip_unmask_parent(d);
-}
-
-static struct irq_chip dw_pcie_msi_irq_chip = {
-	.name = "PCI-MSI",
-	.irq_ack = dw_msi_ack_irq,
-	.irq_mask = dw_msi_mask_irq,
-	.irq_unmask = dw_msi_unmask_irq,
-};
-
-static struct msi_domain_info dw_pcie_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX |
-		  MSI_FLAG_MULTI_PCI_MSI,
-	.chip	= &dw_pcie_msi_irq_chip,
+static const struct msi_parent_ops dw_pcie_msi_parent_ops = {
+	.required_flags		= DW_PCIE_MSI_FLAGS_REQUIRED,
+	.supported_flags	= DW_PCIE_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
+	.prefix			= "DW-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 /* MSI int handler */
@@ -227,23 +214,16 @@ static const struct irq_domain_ops dw_pcie_msi_domain_ops = {
 int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-	struct fwnode_handle *fwnode = dev_fwnode(pci->dev);
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(pci->dev),
+		.ops		= &dw_pcie_msi_domain_ops,
+		.size		= pp->num_vectors,
+		.host_data	= pp,
+	};
 
-	pp->irq_domain = irq_domain_create_linear(fwnode, pp->num_vectors,
-					       &dw_pcie_msi_domain_ops, pp);
+	pp->irq_domain = msi_create_parent_irq_domain(&info, &dw_pcie_msi_parent_ops);
 	if (!pp->irq_domain) {
 		dev_err(pci->dev, "Failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
-
-	irq_domain_update_bus_token(pp->irq_domain, DOMAIN_BUS_NEXUS);
-
-	pp->msi_domain = pci_msi_create_irq_domain(fwnode,
-						   &dw_pcie_msi_domain_info,
-						   pp->irq_domain);
-	if (!pp->msi_domain) {
-		dev_err(pci->dev, "Failed to create MSI domain\n");
-		irq_domain_remove(pp->irq_domain);
 		return -ENOMEM;
 	}
 
@@ -260,7 +240,6 @@ static void dw_pcie_free_msi(struct dw_pcie_rp *pp)
 							 NULL, NULL);
 	}
 
-	irq_domain_remove(pp->msi_domain);
 	irq_domain_remove(pp->irq_domain);
 }
 

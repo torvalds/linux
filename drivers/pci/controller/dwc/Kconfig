@@ -19,6 +19,7 @@ config PCIE_DW_DEBUGFS
 config PCIE_DW_HOST
 	bool
 	select PCIE_DW
+	select IRQ_MSI_LIB
 
 config PCIE_DW_EP
 	bool
