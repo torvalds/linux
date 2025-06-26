@@ -26,6 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -134,6 +135,14 @@ struct panel_desc {
 
 	/** @connector_type: LVDS, eDP, DSI, DPI, etc. */
 	int connector_type;
+};
+
+struct panel_desc_dsi {
+	struct panel_desc desc;
+
+	unsigned long flags;
+	enum mipi_dsi_pixel_format format;
+	unsigned int lanes;
 };
 
 struct panel_simple {
@@ -567,14 +576,48 @@ static int panel_simple_override_nondefault_lvds_datamapping(struct device *dev,
 	return 0;
 }
 
-static struct panel_simple *panel_simple_probe(struct device *dev, const struct panel_desc *desc)
+static const struct panel_desc *panel_simple_get_desc(struct device *dev)
 {
+	if (IS_ENABLED(CONFIG_DRM_MIPI_DSI) &&
+	    dev_is_mipi_dsi(dev)) {
+		const struct panel_desc_dsi *dsi_desc;
+
+		dsi_desc = of_device_get_match_data(dev);
+		if (!dsi_desc)
+			return ERR_PTR(-ENODEV);
+
+		return &dsi_desc->desc;
+	}
+
+	if (dev_is_platform(dev)) {
+		const struct panel_desc *desc;
+
+		desc = of_device_get_match_data(dev);
+		if (!desc)
+			return ERR_PTR(-ENODEV);
+
+		if (desc == &panel_dpi)
+			return panel_dpi_probe(dev);
+
+		return desc;
+	}
+
+	return ERR_PTR(-ENODEV);
+}
+
+static struct panel_simple *panel_simple_probe(struct device *dev)
+{
+	const struct panel_desc *desc;
 	struct panel_simple *panel;
 	struct display_timing dt;
 	struct device_node *ddc;
 	int connector_type;
 	u32 bus_flags;
 	int err;
+
+	desc = panel_simple_get_desc(dev);
+	if (IS_ERR(desc))
+		return ERR_CAST(desc);
 
 	panel = devm_drm_panel_alloc(dev, struct panel_simple, base,
 				     &panel_simple_funcs, desc->connector_type);
@@ -608,19 +651,9 @@ static struct panel_simple *panel_simple_probe(struct device *dev, const struct 
 			return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	if (desc == &panel_dpi) {
-		/* Handle the generic panel-dpi binding */
-		desc = panel_dpi_probe(dev);
-		if (IS_ERR(desc)) {
-			err = PTR_ERR(desc);
-			goto free_ddc;
-		}
-
-		panel->desc = desc;
-	} else {
-		if (!of_get_display_timing(dev->of_node, "panel-timing", &dt))
-			panel_simple_parse_panel_timing_node(dev, panel, &dt);
-	}
+	if ((desc != &panel_dpi) &&
+	    !of_get_display_timing(dev->of_node, "panel-timing", &dt))
+		panel_simple_parse_panel_timing_node(dev, panel, &dt);
 
 	if (desc->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 		/* Optional data-mapping property for overriding bus format */
@@ -5376,14 +5409,9 @@ MODULE_DEVICE_TABLE(of, platform_of_match);
 
 static int panel_simple_platform_probe(struct platform_device *pdev)
 {
-	const struct panel_desc *desc;
 	struct panel_simple *panel;
 
-	desc = of_device_get_match_data(&pdev->dev);
-	if (!desc)
-		return -ENODEV;
-
-	panel = panel_simple_probe(&pdev->dev, desc);
+	panel = panel_simple_probe(&pdev->dev);
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
 
@@ -5415,14 +5443,6 @@ static struct platform_driver panel_simple_platform_driver = {
 	.probe = panel_simple_platform_probe,
 	.remove = panel_simple_platform_remove,
 	.shutdown = panel_simple_platform_shutdown,
-};
-
-struct panel_desc_dsi {
-	struct panel_desc desc;
-
-	unsigned long flags;
-	enum mipi_dsi_pixel_format format;
-	unsigned int lanes;
 };
 
 static const struct drm_display_mode auo_b080uan01_mode = {
@@ -5661,11 +5681,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	struct panel_simple *panel;
 	int err;
 
-	desc = of_device_get_match_data(&dsi->dev);
-	if (!desc)
-		return -ENODEV;
-
-	panel = panel_simple_probe(&dsi->dev, &desc->desc);
+	panel = panel_simple_probe(&dsi->dev);
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
 
