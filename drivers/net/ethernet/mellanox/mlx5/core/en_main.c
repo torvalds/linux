@@ -952,6 +952,8 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 	if (xsk) {
 		err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
 						 MEM_TYPE_XSK_BUFF_POOL, NULL);
+		if (err)
+			goto err_free_by_rq_type;
 		xsk_pool_set_rxq_info(rq->xsk_pool, &rq->xdp_rxq);
 	} else {
 		/* Create a page_pool and register it with rxq */
@@ -985,12 +987,13 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		}
 		if (!rq->hd_page_pool)
 			rq->hd_page_pool = rq->page_pool;
-		if (xdp_rxq_info_is_reg(&rq->xdp_rxq))
+		if (xdp_rxq_info_is_reg(&rq->xdp_rxq)) {
 			err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
 							 MEM_TYPE_PAGE_POOL, rq->page_pool);
+			if (err)
+				goto err_destroy_page_pool;
+		}
 	}
-	if (err)
-		goto err_destroy_page_pool;
 
 	for (i = 0; i < wq_sz; i++) {
 		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
