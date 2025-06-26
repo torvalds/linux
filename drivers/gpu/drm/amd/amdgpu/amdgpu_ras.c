@@ -3006,6 +3006,15 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 		return 0;
 	}
 
+	if (!con->eeprom_control.is_eeprom_valid) {
+		dev_warn(adev->dev,
+			"Failed to save EEPROM table data because of EEPROM data corruption!");
+		if (new_cnt)
+			*new_cnt = 0;
+
+		return 0;
+	}
+
 	mutex_lock(&con->recovery_lock);
 	control = &con->eeprom_control;
 	data = con->eh_data;
@@ -3491,8 +3500,7 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 
 	control = &con->eeprom_control;
 	ret = amdgpu_ras_eeprom_init(control);
-	if (ret)
-		return ret;
+	control->is_eeprom_valid = !ret;
 
 	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
 		control->ras_num_pa_recs = control->ras_num_recs;
@@ -3501,10 +3509,12 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 	    adev->umc.ras->get_retire_flip_bits)
 		adev->umc.ras->get_retire_flip_bits(adev);
 
-	if (control->ras_num_recs) {
+	if (control->ras_num_recs && control->is_eeprom_valid) {
 		ret = amdgpu_ras_load_bad_pages(adev);
-		if (ret)
-			return ret;
+		if (ret) {
+			control->is_eeprom_valid = false;
+			return 0;
+		}
 
 		amdgpu_dpm_send_hbm_bad_pages_num(
 			adev, control->ras_num_bad_pages);
@@ -3523,7 +3533,7 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 					dev_warn(adev->dev, "Failed to format RAS EEPROM data in V3 version!\n");
 	}
 
-	return ret;
+	return 0;
 }
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info)
