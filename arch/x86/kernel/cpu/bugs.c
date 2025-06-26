@@ -2902,8 +2902,6 @@ early_param("spec_rstack_overflow", srso_parse_cmdline);
 
 static void __init srso_select_mitigation(void)
 {
-	bool has_microcode;
-
 	if (!boot_cpu_has_bug(X86_BUG_SRSO) || cpu_mitigations_off())
 		srso_mitigation = SRSO_MITIGATION_NONE;
 
@@ -2913,23 +2911,30 @@ static void __init srso_select_mitigation(void)
 	if (srso_mitigation == SRSO_MITIGATION_AUTO)
 		srso_mitigation = SRSO_MITIGATION_SAFE_RET;
 
-	has_microcode = boot_cpu_has(X86_FEATURE_IBPB_BRTYPE);
-	if (has_microcode) {
-		/*
-		 * Zen1/2 with SMT off aren't vulnerable after the right
-		 * IBPB microcode has been applied.
-		 */
-		if (boot_cpu_data.x86 < 0x19 && !cpu_smt_possible()) {
-			srso_mitigation = SRSO_MITIGATION_NOSMT;
-			return;
-		}
-	} else {
+	/* Zen1/2 with SMT off aren't vulnerable to SRSO. */
+	if (boot_cpu_data.x86 < 0x19 && !cpu_smt_possible()) {
+		srso_mitigation = SRSO_MITIGATION_NOSMT;
+		return;
+	}
+
+	if (!boot_cpu_has(X86_FEATURE_IBPB_BRTYPE)) {
 		pr_warn("IBPB-extending microcode not applied!\n");
 		pr_warn(SRSO_NOTICE);
+
+		/*
+		 * Safe-RET provides partial mitigation without microcode, but
+		 * other mitigations require microcode to provide any
+		 * mitigations.
+		 */
+		if (srso_mitigation == SRSO_MITIGATION_SAFE_RET)
+			srso_mitigation = SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED;
+		else
+			srso_mitigation = SRSO_MITIGATION_UCODE_NEEDED;
 	}
 
 	switch (srso_mitigation) {
 	case SRSO_MITIGATION_SAFE_RET:
+	case SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED:
 		if (boot_cpu_has(X86_FEATURE_SRSO_USER_KERNEL_NO)) {
 			srso_mitigation = SRSO_MITIGATION_IBPB_ON_VMEXIT;
 			goto ibpb_on_vmexit;
@@ -2939,9 +2944,6 @@ static void __init srso_select_mitigation(void)
 			pr_err("WARNING: kernel not compiled with MITIGATION_SRSO.\n");
 			srso_mitigation = SRSO_MITIGATION_NONE;
 		}
-
-		if (!has_microcode)
-			srso_mitigation = SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED;
 		break;
 ibpb_on_vmexit:
 	case SRSO_MITIGATION_IBPB_ON_VMEXIT:
@@ -2956,9 +2958,6 @@ ibpb_on_vmexit:
 			pr_err("WARNING: kernel not compiled with MITIGATION_IBPB_ENTRY.\n");
 			srso_mitigation = SRSO_MITIGATION_NONE;
 		}
-
-		if (!has_microcode)
-			srso_mitigation = SRSO_MITIGATION_UCODE_NEEDED;
 		break;
 	default:
 		break;
