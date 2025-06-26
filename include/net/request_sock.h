@@ -39,8 +39,6 @@ struct request_sock_ops {
 	void		(*syn_ack_timeout)(const struct request_sock *req);
 };
 
-int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req);
-
 struct saved_syn {
 	u32 mac_hdrlen;
 	u32 network_hdrlen;
