@@ -1312,9 +1312,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 	switch (cmd->qp_type) {
 	case IB_QPT_RAW_PACKET:
-		if (!capable(CAP_NET_RAW))
+		if (!rdma_uattrs_has_raw_cap(attrs))
 			return -EPERM;
-		break;
+		fallthrough;
 	case IB_QPT_RC:
 	case IB_QPT_UC:
 	case IB_QPT_UD:
