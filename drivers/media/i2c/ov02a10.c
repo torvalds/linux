@@ -885,7 +885,7 @@ static int ov02a10_probe(struct i2c_client *client)
 		ov02a10->fmt.code = MEDIA_BUS_FMT_SRGGB10_1X10;
 	}
 
-	ov02a10->eclk = devm_clk_get(dev, "eclk");
+	ov02a10->eclk = devm_v4l2_sensor_clk_get(dev, "eclk");
 	if (IS_ERR(ov02a10->eclk))
 		return dev_err_probe(dev, PTR_ERR(ov02a10->eclk),
 				     "failed to get eclk\n");
