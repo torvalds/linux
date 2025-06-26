@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use kernel::{auxiliary, bindings, c_str, device::Core, pci, prelude::*};
+use kernel::{auxiliary, bindings, c_str, device::Core, pci, prelude::*, sync::Arc};
 
 use crate::gpu::Gpu;
 
@@ -34,7 +34,10 @@ impl pci::Driver for NovaCore {
         pdev.enable_device_mem()?;
         pdev.set_master();
 
-        let bar = pdev.iomap_region_sized::<BAR0_SIZE>(0, c_str!("nova-core/bar0"))?;
+        let bar = Arc::pin_init(
+            pdev.iomap_region_sized::<BAR0_SIZE>(0, c_str!("nova-core/bar0")),
+            GFP_KERNEL,
+        )?;
 
         let this = KBox::pin_init(
             try_pin_init!(Self {
