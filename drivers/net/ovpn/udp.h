@@ -15,11 +15,11 @@ struct ovpn_peer;
 struct ovpn_priv;
 struct socket;
 
-int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock,
+int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock, struct socket *sock,
 			   struct ovpn_priv *ovpn);
 void ovpn_udp_socket_detach(struct ovpn_socket *ovpn_sock);
 
-void ovpn_udp_send_skb(struct ovpn_peer *peer, struct socket *sock,
+void ovpn_udp_send_skb(struct ovpn_peer *peer, struct sock *sk,
 		       struct sk_buff *skb);
 
 #endif /* _NET_OVPN_UDP_H_ */

@@ -821,7 +821,7 @@ tape_delayed_next_request(struct work_struct *work)
 
 static void tape_long_busy_timeout(struct timer_list *t)
 {
-	struct tape_device *device = from_timer(device, t, lb_timeout);
+	struct tape_device *device = timer_container_of(device, t, lb_timeout);
 	struct tape_request *request;
 
 	spin_lock_irq(get_ccwdev_lock(device->cdev));

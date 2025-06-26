@@ -80,7 +80,7 @@ enum {
  * @transport:	Holds the fabric transport "technology name" (for a lack of
  *		better description) that will be used by an NVMe controller
  *		being added.
- * @subsysnqn:	Hold the fully qualified NQN subystem name (format defined
+ * @subsysnqn:	Hold the fully qualified NQN subsystem name (format defined
  *		in the NVMe specification, "NVMe Qualified Names").
  * @traddr:	The transport-specific TRADDR field for a port on the
  *              subsystem which is adding a controller.
@@ -156,7 +156,7 @@ struct nvmf_ctrl_options {
  * @create_ctrl():	function pointer that points to a non-NVMe
  *			implementation-specific fabric technology
  *			that would go into starting up that fabric
- *			for the purpose of conneciton to an NVMe controller
+ *			for the purpose of connection to an NVMe controller
  *			using that fabric technology.
  *
  * Notes:
@@ -165,7 +165,7 @@ struct nvmf_ctrl_options {
  *	2. create_ctrl() must be defined (even if it does nothing)
  *	3. struct nvmf_transport_ops must be statically allocated in the
  *	   modules .bss section so that a pure module_get on @module
- *	   prevents the memory from beeing freed.
+ *	   prevents the memory from being freed.
  */
 struct nvmf_transport_ops {
 	struct list_head	entry;

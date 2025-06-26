@@ -14,11 +14,13 @@ properties:
     oneOf:
       - enum:
           - google,gs101-dwusb3
+          - samsung,exynos2200-dwusb3
           - samsung,exynos5250-dwusb3
           - samsung,exynos5433-dwusb3
           - samsung,exynos7-dwusb3
           - samsung,exynos7870-dwusb3
           - samsung,exynos850-dwusb3
+          - samsung,exynosautov920-dwusb3
       - items:
           - const: samsung,exynos990-dwusb3
           - const: samsung,exynos850-dwusb3
@@ -78,6 +80,19 @@ allOf:
             - const: link_pclk
       required:
         - vdd10-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos2200-dwusb3
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          items:
+            - const: link_aclk
 
   - if:
       properties:
@@ -164,6 +179,21 @@ allOf:
             - const: ref
       required:
         - vdd10-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynosautov920-dwusb3
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: ref
+            - const: susp_clk
 
 additionalProperties: false
 

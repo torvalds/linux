@@ -56,7 +56,7 @@ struct dm_delay_info {
 
 static void handle_delayed_timer(struct timer_list *t)
 {
-	struct delay_c *dc = from_timer(dc, t, delay_timer);
+	struct delay_c *dc = timer_container_of(dc, t, delay_timer);
 
 	queue_work(dc->kdelayd_wq, &dc->flush_expired_bios);
 }

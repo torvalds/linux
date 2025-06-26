@@ -35,7 +35,8 @@
 static void
 tape_std_assign_timeout(struct timer_list *t)
 {
-	struct tape_request *	request = from_timer(request, t, timer);
+	struct tape_request *	request = timer_container_of(request, t,
+								  timer);
 	struct tape_device *	device = request->device;
 	int rc;
 

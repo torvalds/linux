@@ -747,8 +747,6 @@ static int ni_pcidio_change(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	memset(s->async->prealloc_buf, 0xaa, s->async->prealloc_bufsz);
-
 	return 0;
 }
 

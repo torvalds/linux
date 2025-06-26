@@ -815,10 +815,10 @@ static inline void usb_mark_last_busy(struct usb_device *udev)
 
 #else
 
-static inline int usb_enable_autosuspend(struct usb_device *udev)
-{ return 0; }
-static inline int usb_disable_autosuspend(struct usb_device *udev)
-{ return 0; }
+static inline void usb_enable_autosuspend(struct usb_device *udev)
+{ }
+static inline void usb_disable_autosuspend(struct usb_device *udev)
+{ }
 
 static inline int usb_autopm_get_interface(struct usb_interface *intf)
 { return 0; }

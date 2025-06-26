@@ -795,7 +795,7 @@ static void phy_hard_reset_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 
 static void start_phys_v1_hw(struct timer_list *t)
 {
-	struct hisi_hba *hisi_hba = from_timer(hisi_hba, t, timer);
+	struct hisi_hba *hisi_hba = timer_container_of(hisi_hba, t, timer);
 	int i;
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {

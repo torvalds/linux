@@ -13,6 +13,7 @@
 #include <asm/hwcap.h>
 #include <asm/insn-def.h>
 #include <asm/cpufeature-macros.h>
+#include <asm/processor.h>
 
 #define __arch_xchg_masked(sc_sfx, swap_sfx, prepend, sc_append,		\
 			   swap_append, r, p, n)				\
@@ -37,6 +38,7 @@
 										\
 		__asm__ __volatile__ (						\
 		       prepend							\
+		       PREFETCHW_ASM(%5)					\
 		       "0:	lr.w %0, %2\n"					\
 		       "	and  %1, %0, %z4\n"				\
 		       "	or   %1, %1, %z3\n"				\
@@ -44,7 +46,7 @@
 		       "	bnez %1, 0b\n"					\
 		       sc_append						\
 		       : "=&r" (__retx), "=&r" (__rc), "+A" (*(__ptr32b))	\
-		       : "rJ" (__newx), "rJ" (~__mask)				\
+		       : "rJ" (__newx), "rJ" (~__mask), "rJ" (__ptr32b)		\
 		       : "memory");						\
 										\
 		r = (__typeof__(*(p)))((__retx & __mask) >> __s);		\

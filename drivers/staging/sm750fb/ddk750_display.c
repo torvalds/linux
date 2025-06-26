@@ -3,7 +3,6 @@
 #include "ddk750_chip.h"
 #include "ddk750_display.h"
 #include "ddk750_power.h"
-#include "ddk750_dvi.h"
 
 static void set_display_control(int ctrl, int disp_state)
 {

@@ -134,7 +134,7 @@ static __be32 jbd2_superblock_csum(journal_superblock_t *sb)
 
 static void commit_timeout(struct timer_list *t)
 {
-	journal_t *journal = from_timer(journal, t, j_commit_timer);
+	journal_t *journal = timer_container_of(journal, t, j_commit_timer);
 
 	wake_up_process(journal->j_task);
 }

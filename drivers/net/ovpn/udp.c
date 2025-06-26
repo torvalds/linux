@@ -43,7 +43,7 @@ static struct ovpn_socket *ovpn_socket_from_udp_sock(struct sock *sk)
 		return NULL;
 
 	/* make sure that sk matches our stored transport socket */
-	if (unlikely(!ovpn_sock->sock || sk != ovpn_sock->sock->sk))
+	if (unlikely(!ovpn_sock->sk || sk != ovpn_sock->sk))
 		return NULL;
 
 	return ovpn_sock;
@@ -335,32 +335,22 @@ out:
 /**
  * ovpn_udp_send_skb - prepare skb and send it over via UDP
  * @peer: the destination peer
- * @sock: the RCU protected peer socket
+ * @sk: peer socket
  * @skb: the packet to send
  */
-void ovpn_udp_send_skb(struct ovpn_peer *peer, struct socket *sock,
+void ovpn_udp_send_skb(struct ovpn_peer *peer, struct sock *sk,
 		       struct sk_buff *skb)
 {
-	int ret = -1;
+	int ret;
 
 	skb->dev = peer->ovpn->dev;
 	/* no checksum performed at this layer */
 	skb->ip_summed = CHECKSUM_NONE;
 
-	/* get socket info */
-	if (unlikely(!sock)) {
-		net_warn_ratelimited("%s: no sock for remote peer %u\n",
-				     netdev_name(peer->ovpn->dev), peer->id);
-		goto out;
-	}
-
 	/* crypto layer -> transport (UDP) */
-	ret = ovpn_udp_output(peer, &peer->dst_cache, sock->sk, skb);
-out:
-	if (unlikely(ret < 0)) {
+	ret = ovpn_udp_output(peer, &peer->dst_cache, sk, skb);
+	if (unlikely(ret < 0))
 		kfree_skb(skb);
-		return;
-	}
 }
 
 static void ovpn_udp_encap_destroy(struct sock *sk)
@@ -383,6 +373,7 @@ static void ovpn_udp_encap_destroy(struct sock *sk)
 /**
  * ovpn_udp_socket_attach - set udp-tunnel CBs on socket and link it to ovpn
  * @ovpn_sock: socket to configure
+ * @sock: the socket container to be passed to setup_udp_tunnel_sock()
  * @ovpn: the openvp instance to link
  *
  * After invoking this function, the sock will be controlled by ovpn so that
@@ -390,7 +381,7 @@ static void ovpn_udp_encap_destroy(struct sock *sk)
  *
  * Return: 0 on success or a negative error code otherwise
  */
-int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock,
+int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock, struct socket *sock,
 			   struct ovpn_priv *ovpn)
 {
 	struct udp_tunnel_sock_cfg cfg = {
@@ -398,17 +389,16 @@ int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock,
 		.encap_rcv = ovpn_udp_encap_recv,
 		.encap_destroy = ovpn_udp_encap_destroy,
 	};
-	struct socket *sock = ovpn_sock->sock;
 	struct ovpn_socket *old_data;
 	int ret;
 
 	/* make sure no pre-existing encapsulation handler exists */
 	rcu_read_lock();
-	old_data = rcu_dereference_sk_user_data(sock->sk);
+	old_data = rcu_dereference_sk_user_data(ovpn_sock->sk);
 	if (!old_data) {
 		/* socket is currently unused - we can take it */
 		rcu_read_unlock();
-		setup_udp_tunnel_sock(sock_net(sock->sk), sock, &cfg);
+		setup_udp_tunnel_sock(sock_net(ovpn_sock->sk), sock, &cfg);
 		return 0;
 	}
 
@@ -421,7 +411,7 @@ int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock,
 	 * Unlikely TCP, a single UDP socket can be used to talk to many remote
 	 * hosts and therefore openvpn instantiates one only for all its peers
 	 */
-	if ((READ_ONCE(udp_sk(sock->sk)->encap_type) == UDP_ENCAP_OVPNINUDP) &&
+	if ((READ_ONCE(udp_sk(ovpn_sock->sk)->encap_type) == UDP_ENCAP_OVPNINUDP) &&
 	    old_data->ovpn == ovpn) {
 		netdev_dbg(ovpn->dev,
 			   "provided socket already owned by this interface\n");
@@ -442,8 +432,16 @@ int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock,
  */
 void ovpn_udp_socket_detach(struct ovpn_socket *ovpn_sock)
 {
-	struct udp_tunnel_sock_cfg cfg = { };
+	struct sock *sk = ovpn_sock->sk;
 
-	setup_udp_tunnel_sock(sock_net(ovpn_sock->sock->sk), ovpn_sock->sock,
-			      &cfg);
+	/* Re-enable multicast loopback */
+	inet_set_bit(MC_LOOP, sk);
+	/* Disable CHECKSUM_UNNECESSARY to CHECKSUM_COMPLETE conversion */
+	inet_dec_convert_csum(sk);
+
+	WRITE_ONCE(udp_sk(sk)->encap_type, 0);
+	WRITE_ONCE(udp_sk(sk)->encap_rcv, NULL);
+	WRITE_ONCE(udp_sk(sk)->encap_destroy, NULL);
+
+	rcu_assign_sk_user_data(sk, NULL);
 }

@@ -85,6 +85,7 @@ static inline void flush_icache_range(unsigned long start, unsigned long end)
 
 extern unsigned int riscv_cbom_block_size;
 extern unsigned int riscv_cboz_block_size;
+extern unsigned int riscv_cbop_block_size;
 void riscv_init_cbo_blocksizes(void);
 
 #ifdef CONFIG_RISCV_DMA_NONCOHERENT

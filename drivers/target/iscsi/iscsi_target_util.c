@@ -851,7 +851,8 @@ static int iscsit_add_nopin(struct iscsit_conn *conn, int want_response)
 
 void iscsit_handle_nopin_response_timeout(struct timer_list *t)
 {
-	struct iscsit_conn *conn = from_timer(conn, t, nopin_response_timer);
+	struct iscsit_conn *conn = timer_container_of(conn, t,
+						      nopin_response_timer);
 	struct iscsit_session *sess = conn->sess;
 
 	iscsit_inc_conn_usage_count(conn);
@@ -931,7 +932,7 @@ void iscsit_stop_nopin_response_timer(struct iscsit_conn *conn)
 
 void iscsit_handle_nopin_timeout(struct timer_list *t)
 {
-	struct iscsit_conn *conn = from_timer(conn, t, nopin_timer);
+	struct iscsit_conn *conn = timer_container_of(conn, t, nopin_timer);
 
 	iscsit_inc_conn_usage_count(conn);
 
@@ -998,7 +999,7 @@ void iscsit_stop_nopin_timer(struct iscsit_conn *conn)
 
 void iscsit_login_timeout(struct timer_list *t)
 {
-	struct iscsit_conn *conn = from_timer(conn, t, login_timer);
+	struct iscsit_conn *conn = timer_container_of(conn, t, login_timer);
 	struct iscsi_login *login = conn->login;
 
 	pr_debug("Entering iscsi_target_login_timeout >>>>>>>>>>>>>>>>>>>\n");

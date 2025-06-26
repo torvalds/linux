@@ -125,7 +125,7 @@ void tw686x_enable_channel(struct tw686x_dev *dev, unsigned int channel)
  */
 static void tw686x_dma_delay(struct timer_list *t)
 {
-	struct tw686x_dev *dev = from_timer(dev, t, dma_delay_timer);
+	struct tw686x_dev *dev = timer_container_of(dev, t, dma_delay_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->lock, flags);

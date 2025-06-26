@@ -467,7 +467,8 @@ static irqreturn_t meson_mx_mmc_irq_thread(int irq, void *irq_data)
 
 static void meson_mx_mmc_timeout(struct timer_list *t)
 {
-	struct meson_mx_mmc_host *host = from_timer(host, t, cmd_timeout);
+	struct meson_mx_mmc_host *host = timer_container_of(host, t,
+							    cmd_timeout);
 	unsigned long irqflags;
 	u32 irqc;
 

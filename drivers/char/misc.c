@@ -58,9 +58,8 @@ static LIST_HEAD(misc_list);
 static DEFINE_MUTEX(misc_mtx);
 
 /*
- * Assigned numbers, used for dynamic minors
+ * Assigned numbers.
  */
-#define DYNAMIC_MINORS 128 /* like dynamic majors */
 static DEFINE_IDA(misc_minors_ida);
 
 static int misc_minor_alloc(int minor)
@@ -69,34 +68,17 @@ static int misc_minor_alloc(int minor)
 
 	if (minor == MISC_DYNAMIC_MINOR) {
 		/* allocate free id */
-		ret = ida_alloc_max(&misc_minors_ida, DYNAMIC_MINORS - 1, GFP_KERNEL);
-		if (ret >= 0) {
-			ret = DYNAMIC_MINORS - ret - 1;
-		} else {
-			ret = ida_alloc_range(&misc_minors_ida, MISC_DYNAMIC_MINOR + 1,
-					      MINORMASK, GFP_KERNEL);
-		}
+		ret = ida_alloc_range(&misc_minors_ida, MISC_DYNAMIC_MINOR + 1,
+				      MINORMASK, GFP_KERNEL);
 	} else {
-		/* specific minor, check if it is in dynamic or misc dynamic range  */
-		if (minor < DYNAMIC_MINORS) {
-			minor = DYNAMIC_MINORS - minor - 1;
-			ret = ida_alloc_range(&misc_minors_ida, minor, minor, GFP_KERNEL);
-		} else if (minor > MISC_DYNAMIC_MINOR) {
-			ret = ida_alloc_range(&misc_minors_ida, minor, minor, GFP_KERNEL);
-		} else {
-			/* case of non-dynamic minors, no need to allocate id */
-			ret = 0;
-		}
+		ret = ida_alloc_range(&misc_minors_ida, minor, minor, GFP_KERNEL);
 	}
 	return ret;
 }
 
 static void misc_minor_free(int minor)
 {
-	if (minor < DYNAMIC_MINORS)
-		ida_free(&misc_minors_ida, DYNAMIC_MINORS - minor - 1);
-	else if (minor > MISC_DYNAMIC_MINOR)
-		ida_free(&misc_minors_ida, minor);
+	ida_free(&misc_minors_ida, minor);
 }
 
 #ifdef CONFIG_PROC_FS

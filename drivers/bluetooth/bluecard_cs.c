@@ -158,7 +158,7 @@ static void bluecard_detach(struct pcmcia_device *p_dev);
 
 static void bluecard_activity_led_timeout(struct timer_list *t)
 {
-	struct bluecard_info *info = from_timer(info, t, timer);
+	struct bluecard_info *info = timer_container_of(info, t, timer);
 	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_ACTIVITY, &(info->hw_state))) {

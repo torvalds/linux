@@ -447,7 +447,7 @@ EXPORT_SYMBOL_GPL(fcoe_check_wait_queue);
  */
 void fcoe_queue_timer(struct timer_list *t)
 {
-	struct fcoe_port *port = from_timer(port, t, timer);
+	struct fcoe_port *port = timer_container_of(port, t, timer);
 
 	fcoe_check_wait_queue(port->lport, NULL);
 }

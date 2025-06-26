@@ -949,7 +949,7 @@ static void iwl_dbg_tlv_apply_config(struct iwl_fw_runtime *fwrt,
 static void iwl_dbg_tlv_periodic_trig_handler(struct timer_list *t)
 {
 	struct iwl_dbg_tlv_timer_node *timer_node =
-		from_timer(timer_node, t, timer);
+		timer_container_of(timer_node, t, timer);
 	struct iwl_fwrt_dump_data dump_data = {
 		.trig = (void *)timer_node->tlv->data,
 	};

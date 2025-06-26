@@ -900,7 +900,7 @@ static ssize_t pac1921_read_scale_avail(struct iio_dev *indio_dev,
 
 static const struct iio_chan_spec_ext_info pac1921_ext_info_voltage[] = {
 	PAC1921_EXT_INFO_SCALE_AVAIL,
-	{}
+	{ }
 };
 
 static const struct iio_chan_spec_ext_info pac1921_ext_info_current[] = {
@@ -911,7 +911,7 @@ static const struct iio_chan_spec_ext_info pac1921_ext_info_current[] = {
 		.write = pac1921_write_shunt_resistor,
 		.shared = IIO_SEPARATE,
 	},
-	{}
+	{ }
 };
 
 static const struct iio_event_spec pac1921_overflow_event[] = {
@@ -1044,7 +1044,8 @@ static irqreturn_t pac1921_trigger_handler(int irq, void *p)
 		priv->scan.chan[ch++] = val;
 	}
 
-	iio_push_to_buffers_with_timestamp(idev, &priv->scan, pf->timestamp);
+	iio_push_to_buffers_with_ts(idev, &priv->scan, sizeof(priv->scan),
+				    pf->timestamp);
 
 done:
 	iio_trigger_notify_done(idev->trig);

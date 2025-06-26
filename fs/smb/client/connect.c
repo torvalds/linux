@@ -116,13 +116,9 @@ static void smb2_query_server_interfaces(struct work_struct *work)
 	rc = server->ops->query_server_interfaces(xid, tcon, false);
 	free_xid(xid);
 
-	if (rc) {
-		if (rc == -EOPNOTSUPP)
-			return;
-
+	if (rc)
 		cifs_dbg(FYI, "%s: failed to query server interfaces: %d\n",
 				__func__, rc);
-	}
 
 	queue_delayed_work(cifsiod_wq, &tcon->query_interfaces,
 			   (SMB_INTERFACE_POLL_INTERVAL * HZ));
@@ -3722,9 +3718,15 @@ int cifs_mount_get_tcon(struct cifs_mount_ctx *mnt_ctx)
 		goto out;
 	}
 
-	/* if new SMB3.11 POSIX extensions are supported do not remap / and \ */
-	if (tcon->posix_extensions)
+	/*
+	 * if new SMB3.11 POSIX extensions are supported, do not change anything in the
+	 * path (i.e., do not remap / and \ and do not map any special characters)
+	 */
+	if (tcon->posix_extensions) {
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_POSIX_PATHS;
+		cifs_sb->mnt_cifs_flags &= ~(CIFS_MOUNT_MAP_SFM_CHR |
+					     CIFS_MOUNT_MAP_SPECIAL_CHR);
+	}
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	/* tell server which Unix caps we support */
@@ -4197,6 +4199,7 @@ retry:
 		return 0;
 	}
 
+	server->lstrp = jiffies;
 	server->tcpStatus = CifsInNegotiate;
 	spin_unlock(&server->srv_lock);
 

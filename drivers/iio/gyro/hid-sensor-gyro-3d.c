@@ -375,7 +375,7 @@ static const struct platform_device_id hid_gyro_3d_ids[] = {
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-200076",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hid_gyro_3d_ids);
 

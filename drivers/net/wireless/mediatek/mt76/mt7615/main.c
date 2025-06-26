@@ -1043,7 +1043,7 @@ void mt7615_roc_work(struct work_struct *work)
 
 void mt7615_roc_timer(struct timer_list *timer)
 {
-	struct mt7615_phy *phy = from_timer(phy, timer, roc_timer);
+	struct mt7615_phy *phy = timer_container_of(phy, timer, roc_timer);
 
 	ieee80211_queue_work(phy->mt76->hw, &phy->roc_work);
 }

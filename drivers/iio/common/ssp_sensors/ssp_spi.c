@@ -104,7 +104,7 @@ static struct ssp_msg *ssp_create_msg(u8 cmd, u16 len, u16 opt, u32 data)
 /*
  * It is a bit heavy to do it this way but often the function is used to compose
  * the message from smaller chunks which are placed on the stack.  Often the
- * chunks are small so memcpy should be optimalized.
+ * chunks are small so memcpy should be optimized.
  */
 static inline void ssp_fill_buffer(struct ssp_msg *m, unsigned int offset,
 				   const void *src, unsigned int len)

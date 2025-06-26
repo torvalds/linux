@@ -822,7 +822,7 @@ static int magicmouse_fetch_battery(struct hid_device *hdev)
 
 static void magicmouse_battery_timer_tick(struct timer_list *t)
 {
-	struct magicmouse_sc *msc = from_timer(msc, t, battery_timer);
+	struct magicmouse_sc *msc = timer_container_of(msc, t, battery_timer);
 	struct hid_device *hdev = msc->hdev;
 
 	if (magicmouse_fetch_battery(hdev) == 0) {

@@ -169,7 +169,7 @@ void inet_twsk_hashdance_schedule(struct inet_timewait_sock *tw,
 
 static void tw_timer_handler(struct timer_list *t)
 {
-	struct inet_timewait_sock *tw = from_timer(tw, t, tw_timer);
+	struct inet_timewait_sock *tw = timer_container_of(tw, t, tw_timer);
 
 	inet_twsk_kill(tw);
 }

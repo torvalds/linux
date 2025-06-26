@@ -854,7 +854,7 @@ xprt_schedule_autodisconnect(struct rpc_xprt *xprt)
 static void
 xprt_init_autodisconnect(struct timer_list *t)
 {
-	struct rpc_xprt *xprt = from_timer(xprt, t, timer);
+	struct rpc_xprt *xprt = timer_container_of(xprt, t, timer);
 
 	if (!RB_EMPTY_ROOT(&xprt->recv_queue))
 		return;

@@ -111,7 +111,7 @@ static void sa1100_mctrl_check(struct sa1100_port *sport)
  */
 static void sa1100_timeout(struct timer_list *t)
 {
-	struct sa1100_port *sport = from_timer(sport, t, timer);
+	struct sa1100_port *sport = timer_container_of(sport, t, timer);
 	unsigned long flags;
 
 	if (sport->port.state) {

@@ -605,7 +605,7 @@ static void efx_mcdi_ev_cpl(struct efx_nic *efx, unsigned int seqno,
 
 static void efx_mcdi_timeout_async(struct timer_list *t)
 {
-	struct efx_mcdi_iface *mcdi = from_timer(mcdi, t, async_timer);
+	struct efx_mcdi_iface *mcdi = timer_container_of(mcdi, t, async_timer);
 
 	efx_mcdi_complete_async(mcdi, true);
 }

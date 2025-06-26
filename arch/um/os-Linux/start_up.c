@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
+ * Copyright (C) 2021 Benjamin Berg <benjamin@sipsolutions.net>
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
@@ -24,6 +25,13 @@
 #include <kern_util.h>
 #include <mem_user.h>
 #include <ptrace_user.h>
+#include <stdbool.h>
+#include <stub-data.h>
+#include <sys/prctl.h>
+#include <linux/seccomp.h>
+#include <linux/filter.h>
+#include <sysdep/mcontext.h>
+#include <sysdep/stub.h>
 #include <registers.h>
 #include <skas.h>
 #include "internal.h"
@@ -224,6 +232,140 @@ static void __init check_ptrace(void)
 	check_sysemu();
 }
 
+extern unsigned long host_fp_size;
+extern unsigned long exec_regs[MAX_REG_NR];
+extern unsigned long *exec_fp_regs;
+
+__initdata static struct stub_data *seccomp_test_stub_data;
+
+static void __init sigsys_handler(int sig, siginfo_t *info, void *p)
+{
+	ucontext_t *uc = p;
+
+	/* Stow away the location of the mcontext in the stack */
+	seccomp_test_stub_data->mctx_offset = (unsigned long)&uc->uc_mcontext -
+					      (unsigned long)&seccomp_test_stub_data->sigstack[0];
+
+	/* Prevent libc from clearing memory (mctx_offset in particular) */
+	syscall(__NR_exit, 0);
+}
+
+static int __init seccomp_helper(void *data)
+{
+	static struct sock_filter filter[] = {
+		BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+			 offsetof(struct seccomp_data, nr)),
+		BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_clock_nanosleep, 1, 0),
+		BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+		BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRAP),
+	};
+	static struct sock_fprog prog = {
+		.len = ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+	struct sigaction sa;
+
+	/* close_range is needed for the stub */
+	if (stub_syscall3(__NR_close_range, 1, ~0U, 0))
+		exit(1);
+
+	set_sigstack(seccomp_test_stub_data->sigstack,
+			sizeof(seccomp_test_stub_data->sigstack));
+
+	sa.sa_flags = SA_ONSTACK | SA_NODEFER | SA_SIGINFO;
+	sa.sa_sigaction = (void *) sigsys_handler;
+	sa.sa_restorer = NULL;
+	if (sigaction(SIGSYS, &sa, NULL) < 0)
+		exit(2);
+
+	prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	if (syscall(__NR_seccomp, SECCOMP_SET_MODE_FILTER,
+			SECCOMP_FILTER_FLAG_TSYNC, &prog) != 0)
+		exit(3);
+
+	sleep(0);
+
+	/* Never reached. */
+	_exit(4);
+}
+
+static bool __init init_seccomp(void)
+{
+	int pid;
+	int status;
+	int n;
+	unsigned long sp;
+
+	/*
+	 * We check that we can install a seccomp filter and then exit(0)
+	 * from a trapped syscall.
+	 *
+	 * Note that we cannot verify that no seccomp filter already exists
+	 * for a syscall that results in the process/thread to be killed.
+	 */
+
+	os_info("Checking that seccomp filters can be installed...");
+
+	seccomp_test_stub_data = mmap(0, sizeof(*seccomp_test_stub_data),
+				      PROT_READ | PROT_WRITE,
+				      MAP_SHARED | MAP_ANON, 0, 0);
+
+	/* Use the syscall data area as stack, we just need something */
+	sp = (unsigned long)&seccomp_test_stub_data->syscall_data +
+	     sizeof(seccomp_test_stub_data->syscall_data) -
+	     sizeof(void *);
+	pid = clone(seccomp_helper, (void *)sp, CLONE_VFORK | CLONE_VM, NULL);
+
+	if (pid < 0)
+		fatal_perror("check_seccomp : clone failed");
+
+	CATCH_EINTR(n = waitpid(pid, &status, __WCLONE));
+	if (n < 0)
+		fatal_perror("check_seccomp : waitpid failed");
+
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+		struct uml_pt_regs *regs;
+		unsigned long fp_size;
+		int r;
+
+		/* Fill in the host_fp_size from the mcontext. */
+		regs = calloc(1, sizeof(struct uml_pt_regs));
+		get_stub_state(regs, seccomp_test_stub_data, &fp_size);
+		host_fp_size = fp_size;
+		free(regs);
+
+		/* Repeat with the correct size */
+		regs = calloc(1, sizeof(struct uml_pt_regs) + host_fp_size);
+		r = get_stub_state(regs, seccomp_test_stub_data, NULL);
+
+		/* Store as the default startup registers */
+		exec_fp_regs = malloc(host_fp_size);
+		memcpy(exec_regs, regs->gp, sizeof(exec_regs));
+		memcpy(exec_fp_regs, regs->fp, host_fp_size);
+
+		munmap(seccomp_test_stub_data, sizeof(*seccomp_test_stub_data));
+
+		free(regs);
+
+		if (r) {
+			os_info("failed to fetch registers: %d\n", r);
+			return false;
+		}
+
+		os_info("OK\n");
+		return true;
+	}
+
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 2)
+		os_info("missing\n");
+	else
+		os_info("error\n");
+
+	munmap(seccomp_test_stub_data, sizeof(*seccomp_test_stub_data));
+	return false;
+}
+
+
 static void __init check_coredump_limit(void)
 {
 	struct rlimit lim;
@@ -278,6 +420,44 @@ void  __init get_host_cpu_features(
 	}
 }
 
+static int seccomp_config __initdata;
+
+static int __init uml_seccomp_config(char *line, int *add)
+{
+	*add = 0;
+
+	if (strcmp(line, "off") == 0)
+		seccomp_config = 0;
+	else if (strcmp(line, "auto") == 0)
+		seccomp_config = 1;
+	else if (strcmp(line, "on") == 0)
+		seccomp_config = 2;
+	else
+		fatal("Invalid seccomp option '%s', expected on/auto/off\n",
+		      line);
+
+	return 0;
+}
+
+__uml_setup("seccomp=", uml_seccomp_config,
+"seccomp=<on/auto/off>\n"
+"    Configure whether or not SECCOMP is used. With SECCOMP, userspace\n"
+"    processes work collaboratively with the kernel instead of being\n"
+"    traced using ptrace. All syscalls from the application are caught and\n"
+"    redirected using a signal. This signal handler in turn is permitted to\n"
+"    do the selected set of syscalls to communicate with the UML kernel and\n"
+"    do the required memory management.\n"
+"\n"
+"    This method is overall faster than the ptrace based userspace, primarily\n"
+"    because it reduces the number of context switches for (minor) page faults.\n"
+"\n"
+"    However, the SECCOMP filter is not (yet) restrictive enough to prevent\n"
+"    userspace from reading and writing all physical memory. Userspace\n"
+"    processes could also trick the stub into disabling SIGALRM which\n"
+"    prevents it from being interrupted for scheduling purposes.\n"
+"\n"
+"    This is insecure and should only be used with a trusted userspace\n\n"
+);
 
 void __init os_early_checks(void)
 {
@@ -286,12 +466,23 @@ void __init os_early_checks(void)
 	/* Print out the core dump limits early */
 	check_coredump_limit();
 
-	check_ptrace();
-
 	/* Need to check this early because mmapping happens before the
 	 * kernel is running.
 	 */
 	check_tmpexec();
+
+	if (seccomp_config) {
+		if (init_seccomp()) {
+			using_seccomp = 1;
+			return;
+		}
+
+		if (seccomp_config == 2)
+			fatal("SECCOMP userspace requested but not functional!\n");
+	}
+
+	using_seccomp = 0;
+	check_ptrace();
 
 	pid = start_ptraced_child();
 	if (init_pid_registers(pid))

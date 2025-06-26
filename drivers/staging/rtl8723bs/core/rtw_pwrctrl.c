@@ -8,7 +8,6 @@
 #include <hal_data.h>
 #include <linux/jiffies.h>
 
-
 void _ips_enter(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
@@ -56,9 +55,8 @@ int _ips_leave(struct adapter *padapter)
 		pwrpriv->ips_leave_cnts++;
 
 		result = rtw_ips_pwr_up(padapter);
-		if (result == _SUCCESS) {
+		if (result == _SUCCESS)
 			pwrpriv->rf_pwrstate = rf_on;
-		}
 		pwrpriv->bips_processing = false;
 
 		pwrpriv->bkeepfwalive = false;
@@ -177,7 +175,7 @@ exit:
 static void pwr_state_check_handler(struct timer_list *t)
 {
 	struct pwrctrl_priv *pwrctrlpriv =
-		from_timer(pwrctrlpriv, t, pwr_state_check_timer);
+		timer_container_of(pwrctrlpriv, t, pwr_state_check_timer);
 	struct adapter *padapter = pwrctrlpriv->adapter;
 
 	rtw_ps_cmd(padapter);
@@ -549,9 +547,8 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 
 		LPS_Leave_check(Adapter);
 	} else {
-		if (adapter_to_pwrctl(Adapter)->rf_pwrstate == rf_off) {
+		if (adapter_to_pwrctl(Adapter)->rf_pwrstate == rf_off)
 			ips_leave(Adapter);
-		}
 	}
 }
 
@@ -677,7 +674,8 @@ exit:
  */
 static void pwr_rpwm_timeout_handler(struct timer_list *t)
 {
-	struct pwrctrl_priv *pwrpriv = from_timer(pwrpriv, t, pwr_rpwm_timer);
+	struct pwrctrl_priv *pwrpriv = timer_container_of(pwrpriv, t,
+							  pwr_rpwm_timer);
 
 	if ((pwrpriv->rpwm == pwrpriv->cpwm) || (pwrpriv->cpwm >= PS_STATE_S2))
 		return;
@@ -995,7 +993,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	pwrctrlpriv->wowlan_mode = false;
 	pwrctrlpriv->wowlan_ap_mode = false;
 }
-
 
 void rtw_free_pwrctrl_priv(struct adapter *adapter)
 {

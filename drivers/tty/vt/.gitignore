@@ -2,3 +2,6 @@
 /conmakehash
 /consolemap_deftbl.c
 /defkeymap.c
+/ucs_fallback_table.h
+/ucs_recompose_table.h
+/ucs_width_table.h

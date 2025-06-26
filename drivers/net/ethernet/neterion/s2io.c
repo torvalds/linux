@@ -4195,7 +4195,7 @@ pci_map_failed:
 static void
 s2io_alarm_handle(struct timer_list *t)
 {
-	struct s2io_nic *sp = from_timer(sp, t, alarm_timer);
+	struct s2io_nic *sp = timer_container_of(sp, t, alarm_timer);
 	struct net_device *dev = sp->dev;
 
 	s2io_handle_errors(dev);

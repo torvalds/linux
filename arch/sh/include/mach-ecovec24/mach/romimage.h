@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* EcoVec board specific boot code:
  * converts the "partner-jet-script.txt" script into assembly
@@ -22,7 +22,7 @@
 1 :	.long 0xa8000000
 2 :
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 /* Ecovec board specific information:
  *
@@ -45,4 +45,4 @@ static inline void mmcif_update_progress(int nr)
 	__raw_writeb(1 << (nr - 1), PGDR);
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */

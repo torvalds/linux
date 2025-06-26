@@ -114,7 +114,7 @@ static enum ib_wc_opcode wr_to_wc_opcode(enum ib_wr_opcode opcode)
 
 void retransmit_timer(struct timer_list *t)
 {
-	struct rxe_qp *qp = from_timer(qp, t, retrans_timer);
+	struct rxe_qp *qp = timer_container_of(qp, t, retrans_timer);
 	unsigned long flags;
 
 	rxe_dbg_qp(qp, "retransmit timer fired\n");

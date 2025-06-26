@@ -1065,7 +1065,7 @@ EXPORT_IPV6_MOD(inet_csk_reqsk_queue_drop_and_put);
 
 static void reqsk_timer_handler(struct timer_list *t)
 {
-	struct request_sock *req = from_timer(req, t, rsk_timer);
+	struct request_sock *req = timer_container_of(req, t, rsk_timer);
 	struct request_sock *nreq = NULL, *oreq = req;
 	struct sock *sk_listener = req->rsk_listener;
 	struct inet_connection_sock *icsk;

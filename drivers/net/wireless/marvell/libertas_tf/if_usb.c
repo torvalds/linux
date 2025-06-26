@@ -113,7 +113,7 @@ static void if_usb_setup_firmware(struct lbtf_private *priv)
 
 static void if_usb_fw_timeo(struct timer_list *t)
 {
-	struct if_usb_card *cardp = from_timer(cardp, t, fw_timeout);
+	struct if_usb_card *cardp = timer_container_of(cardp, t, fw_timeout);
 
 	lbtf_deb_enter(LBTF_DEB_USB);
 	if (!cardp->fwdnldover) {

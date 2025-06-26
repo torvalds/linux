@@ -1564,7 +1564,7 @@ static void tcmu_device_timedout(struct tcmu_dev *udev)
 
 static void tcmu_cmd_timedout(struct timer_list *t)
 {
-	struct tcmu_dev *udev = from_timer(udev, t, cmd_timer);
+	struct tcmu_dev *udev = timer_container_of(udev, t, cmd_timer);
 
 	pr_debug("%s cmd timeout has expired\n", udev->name);
 	tcmu_device_timedout(udev);
@@ -1572,7 +1572,7 @@ static void tcmu_cmd_timedout(struct timer_list *t)
 
 static void tcmu_qfull_timedout(struct timer_list *t)
 {
-	struct tcmu_dev *udev = from_timer(udev, t, qfull_timer);
+	struct tcmu_dev *udev = timer_container_of(udev, t, qfull_timer);
 
 	pr_debug("%s qfull timeout has expired\n", udev->name);
 	tcmu_device_timedout(udev);

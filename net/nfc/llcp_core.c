@@ -243,7 +243,8 @@ static void nfc_llcp_timeout_work(struct work_struct *work)
 
 static void nfc_llcp_symm_timer(struct timer_list *t)
 {
-	struct nfc_llcp_local *local = from_timer(local, t, link_timer);
+	struct nfc_llcp_local *local = timer_container_of(local, t,
+							  link_timer);
 
 	pr_err("SYMM timeout\n");
 
@@ -286,7 +287,8 @@ static void nfc_llcp_sdreq_timeout_work(struct work_struct *work)
 
 static void nfc_llcp_sdreq_timer(struct timer_list *t)
 {
-	struct nfc_llcp_local *local = from_timer(local, t, sdreq_timer);
+	struct nfc_llcp_local *local = timer_container_of(local, t,
+							  sdreq_timer);
 
 	schedule_work(&local->sdreq_timeout_work);
 }

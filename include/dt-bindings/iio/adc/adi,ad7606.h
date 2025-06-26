@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+
+#ifndef _DT_BINDINGS_ADI_AD7606_H
+#define _DT_BINDINGS_ADI_AD7606_H
+
+#define AD7606_TRIGGER_EVENT_BUSY	0
+#define AD7606_TRIGGER_EVENT_FRSTDATA	1
+
+#endif /* _DT_BINDINGS_ADI_AD7606_H */

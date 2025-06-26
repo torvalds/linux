@@ -702,7 +702,7 @@ static const struct of_device_id adi_axi_adc_of_match[] = {
 	{ .compatible = "adi,axi-adc-10.0.a", .data = &adc_generic },
 	{ .compatible = "adi,axi-ad485x", .data = &adi_axi_ad485x },
 	{ .compatible = "adi,axi-ad7606x", .data = &adc_ad7606 },
-	{ /* end of list */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, adi_axi_adc_of_match);
 

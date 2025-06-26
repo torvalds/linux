@@ -1812,7 +1812,7 @@ static int mxser_probe(struct pci_dev *pdev,
 
 	/* io address */
 	ioaddress = pci_resource_start(pdev, 2);
-	retval = pci_request_region(pdev, 2, "mxser(IO)");
+	retval = pcim_request_region(pdev, 2, "mxser(IO)");
 	if (retval)
 		goto err_zero;
 
@@ -1822,7 +1822,7 @@ static int mxser_probe(struct pci_dev *pdev,
 
 	/* vector */
 	ioaddress = pci_resource_start(pdev, 3);
-	retval = pci_request_region(pdev, 3, "mxser(vector)");
+	retval = pcim_request_region(pdev, 3, "mxser(vector)");
 	if (retval)
 		goto err_zero;
 	brd->vector = ioaddress;

@@ -1453,8 +1453,8 @@ static void falcon_stats_complete(struct ef4_nic *efx)
 
 static void falcon_stats_timer_func(struct timer_list *t)
 {
-	struct falcon_nic_data *nic_data = from_timer(nic_data, t,
-						      stats_timer);
+	struct falcon_nic_data *nic_data = timer_container_of(nic_data, t,
+							      stats_timer);
 	struct ef4_nic *efx = nic_data->efx;
 
 	spin_lock(&efx->stats_lock);

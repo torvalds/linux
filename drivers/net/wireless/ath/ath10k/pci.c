@@ -591,7 +591,7 @@ skip:
 
 static void ath10k_pci_ps_timer(struct timer_list *t)
 {
-	struct ath10k_pci *ar_pci = from_timer(ar_pci, t, ps_timer);
+	struct ath10k_pci *ar_pci = timer_container_of(ar_pci, t, ps_timer);
 	struct ath10k *ar = ar_pci->ar;
 	unsigned long flags;
 
@@ -844,7 +844,8 @@ void ath10k_pci_rx_post(struct ath10k *ar)
 
 void ath10k_pci_rx_replenish_retry(struct timer_list *t)
 {
-	struct ath10k_pci *ar_pci = from_timer(ar_pci, t, rx_post_retry);
+	struct ath10k_pci *ar_pci = timer_container_of(ar_pci, t,
+						       rx_post_retry);
 	struct ath10k *ar = ar_pci->ar;
 
 	ath10k_pci_rx_post(ar);

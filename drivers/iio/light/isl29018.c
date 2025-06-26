@@ -824,7 +824,7 @@ static const struct acpi_device_id isl29018_acpi_match[] = {
 	{"ISL29018", isl29018},
 	{"ISL29023", isl29023},
 	{"ISL29035", isl29035},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, isl29018_acpi_match);
 
@@ -832,7 +832,7 @@ static const struct i2c_device_id isl29018_id[] = {
 	{"isl29018", isl29018},
 	{"isl29023", isl29023},
 	{"isl29035", isl29035},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl29018_id);
 

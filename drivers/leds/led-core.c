@@ -64,7 +64,8 @@ static int __led_set_brightness_blocking(struct led_classdev *led_cdev, unsigned
 
 static void led_timer_function(struct timer_list *t)
 {
-	struct led_classdev *led_cdev = from_timer(led_cdev, t, blink_timer);
+	struct led_classdev *led_cdev = timer_container_of(led_cdev, t,
+							   blink_timer);
 	unsigned long brightness;
 	unsigned long delay;
 

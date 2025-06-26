@@ -78,7 +78,7 @@ static void rose_ftimer_expiry(struct timer_list *t)
 
 static void rose_t0timer_expiry(struct timer_list *t)
 {
-	struct rose_neigh *neigh = from_timer(neigh, t, t0timer);
+	struct rose_neigh *neigh = timer_container_of(neigh, t, t0timer);
 
 	rose_transmit_restart_request(neigh);
 

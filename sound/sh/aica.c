@@ -284,8 +284,8 @@ static void run_spu_dma(struct work_struct *work)
 
 static void aica_period_elapsed(struct timer_list *t)
 {
-	struct snd_card_aica *dreamcastcard = from_timer(dreamcastcard,
-							      t, timer);
+	struct snd_card_aica *dreamcastcard = timer_container_of(dreamcastcard,
+								 t, timer);
 	struct snd_pcm_substream *substream = dreamcastcard->substream;
 	/*timer function - so cannot sleep */
 	int play_period;

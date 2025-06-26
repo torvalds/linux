@@ -236,6 +236,7 @@ static void __init cps_smp_setup(void)
 			/* Use the number of VPEs in cluster 0 core 0 for smp_num_siblings */
 			if (!cl && !c)
 				smp_num_siblings = core_vpes;
+			cpumask_set_cpu(nvpes, &__cpu_primary_thread_mask);
 
 			for (v = 0; v < min_t(int, core_vpes, NR_CPUS - nvpes); v++) {
 				cpu_set_cluster(&cpu_data[nvpes + v], cl);
@@ -368,6 +369,7 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	cl = cpu_cluster(&current_cpu_data);
 	c = cpu_core(&current_cpu_data);
 	cluster_bootcfg = &mips_cps_cluster_bootcfg[cl];
+	cpu_smt_set_num_threads(core_vpes, core_vpes);
 	core_bootcfg = &cluster_bootcfg->core_config[c];
 	bitmap_set(cluster_bootcfg->core_power, cpu_core(&current_cpu_data), 1);
 	atomic_set(&core_bootcfg->vpe_mask, 1 << cpu_vpe_id(&current_cpu_data));

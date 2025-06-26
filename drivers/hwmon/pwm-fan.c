@@ -78,7 +78,7 @@ static irqreturn_t pulse_handler(int irq, void *dev_id)
 
 static void sample_timer(struct timer_list *t)
 {
-	struct pwm_fan_ctx *ctx = from_timer(ctx, t, rpm_timer);
+	struct pwm_fan_ctx *ctx = timer_container_of(ctx, t, rpm_timer);
 	unsigned int delta = ktime_ms_delta(ktime_get(), ctx->sample_start);
 	int i;
 

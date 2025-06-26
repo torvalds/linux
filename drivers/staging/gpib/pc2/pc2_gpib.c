@@ -90,7 +90,7 @@ irqreturn_t pc2a_interrupt(int irq, void *arg)
 }
 
 // wrappers for interface functions
-static int pc2_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int pc2_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 		    size_t *bytes_read)
 {
 	struct pc2_priv *priv = board->private_data;
@@ -98,7 +98,7 @@ static int pc2_read(struct gpib_board *board, uint8_t *buffer, size_t length, in
 	return nec7210_read(board, &priv->nec7210_priv, buffer, length, end, bytes_read);
 }
 
-static int pc2_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
+static int pc2_write(struct gpib_board *board, u8 *buffer, size_t length, int send_eoi,
 		     size_t *bytes_written)
 {
 	struct pc2_priv *priv = board->private_data;
@@ -106,7 +106,8 @@ static int pc2_write(struct gpib_board *board, uint8_t *buffer, size_t length, i
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int pc2_command(struct gpib_board *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+static int pc2_command(struct gpib_board *board, u8 *buffer,
+		       size_t length, size_t *bytes_written)
 {
 	struct pc2_priv *priv = board->private_data;
 
@@ -127,11 +128,11 @@ static int pc2_go_to_standby(struct gpib_board *board)
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-static void pc2_request_system_control(struct gpib_board *board, int request_control)
+static int pc2_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct pc2_priv *priv = board->private_data;
 
-	nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
+	return nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
 }
 
 static void pc2_interface_clear(struct gpib_board *board, int assert)
@@ -148,7 +149,7 @@ static void pc2_remote_enable(struct gpib_board *board, int enable)
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int pc2_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int pc2_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct pc2_priv *priv = board->private_data;
 
@@ -183,14 +184,14 @@ static int pc2_secondary_address(struct gpib_board *board, unsigned int address,
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int pc2_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int pc2_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct pc2_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-static void pc2_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void pc2_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 	struct pc2_priv *priv = board->private_data;
 
@@ -204,14 +205,14 @@ static void pc2_parallel_poll_response(struct gpib_board *board, int ist)
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-static void pc2_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void pc2_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	struct pc2_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-static uint8_t pc2_serial_poll_status(struct gpib_board *board)
+static u8 pc2_serial_poll_status(struct gpib_board *board)
 {
 	struct pc2_priv *priv = board->private_data;
 
@@ -251,7 +252,7 @@ static void free_private(struct gpib_board *board)
 	board->private_data = NULL;
 }
 
-static int pc2_generic_attach(struct gpib_board *board, const gpib_board_config_t *config,
+static int pc2_generic_attach(struct gpib_board *board, const struct gpib_board_config *config,
 			      enum nec7210_chipset chipset)
 {
 	struct pc2_priv *pc2_priv;
@@ -267,8 +268,9 @@ static int pc2_generic_attach(struct gpib_board *board, const gpib_board_config_
 	nec_priv->type = chipset;
 
 #ifndef PC2_DMA
-	/* board->dev hasn't been initialized, so forget about DMA until this driver
-	 *  is adapted to use isa_register_driver.
+	/*
+	 * board->dev hasn't been initialized, so forget about DMA until this driver
+	 * is adapted to use isa_register_driver.
 	 */
 	if (config->ibdma)
 	// driver needs to be adapted to use isa_register_driver to get a struct device*
@@ -294,7 +296,7 @@ static int pc2_generic_attach(struct gpib_board *board, const gpib_board_config_
 	return 0;
 }
 
-static int pc2_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	int isr_flags = 0;
 	struct pc2_priv *pc2_priv;
@@ -365,7 +367,7 @@ static void pc2_detach(struct gpib_board *board)
 	free_private(board);
 }
 
-static int pc2a_common_attach(struct gpib_board *board, const gpib_board_config_t *config,
+static int pc2a_common_attach(struct gpib_board *board, const struct gpib_board_config *config,
 			      unsigned int num_registers, enum nec7210_chipset chipset)
 {
 	unsigned int i, j;
@@ -459,17 +461,17 @@ static int pc2a_common_attach(struct gpib_board *board, const gpib_board_config_
 	return 0;
 }
 
-static int pc2a_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2a_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return pc2a_common_attach(board, config, pc2a_iosize, NEC7210);
 }
 
-static int pc2a_cb7210_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2a_cb7210_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return pc2a_common_attach(board, config, pc2a_iosize, CB7210);
 }
 
-static int pc2_2a_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int pc2_2a_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	return pc2a_common_attach(board, config, pc2_2a_iosize, NAT4882);
 }
@@ -517,7 +519,7 @@ static void pc2_2a_detach(struct gpib_board *board)
 	pc2a_common_detach(board, pc2_2a_iosize);
 }
 
-static gpib_interface_t pc2_interface = {
+static struct gpib_interface pc2_interface = {
 	.name =	"pcII",
 	.attach =	pc2_attach,
 	.detach =	pc2_detach,
@@ -545,7 +547,7 @@ static gpib_interface_t pc2_interface = {
 	.return_to_local = pc2_return_to_local,
 };
 
-static gpib_interface_t pc2a_interface = {
+static struct gpib_interface pc2a_interface = {
 	.name =	"pcIIa",
 	.attach =	pc2a_attach,
 	.detach =	pc2a_detach,
@@ -573,7 +575,7 @@ static gpib_interface_t pc2a_interface = {
 	.return_to_local = pc2_return_to_local,
 };
 
-static gpib_interface_t pc2a_cb7210_interface = {
+static struct gpib_interface pc2a_cb7210_interface = {
 	.name =	"pcIIa_cb7210",
 	.attach =	pc2a_cb7210_attach,
 	.detach =	pc2a_detach,
@@ -601,7 +603,7 @@ static gpib_interface_t pc2a_cb7210_interface = {
 	.return_to_local = pc2_return_to_local,
 };
 
-static gpib_interface_t pc2_2a_interface = {
+static struct gpib_interface pc2_2a_interface = {
 	.name =	"pcII_IIa",
 	.attach =	pc2_2a_attach,
 	.detach =	pc2_2a_detach,

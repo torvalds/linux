@@ -349,10 +349,6 @@ int iwl_mld_load_fw(struct iwl_mld *mld)
 	if (ret)
 		goto err;
 
-	ret = iwl_mld_init_mcc(mld);
-	if (ret)
-		goto err;
-
 	mld->fw_status.running = true;
 
 	return 0;
@@ -543,6 +539,10 @@ int iwl_mld_start_fw(struct iwl_mld *mld)
 	IWL_DEBUG_INFO(mld, "uCode started.\n");
 
 	ret = iwl_mld_config_fw(mld);
+	if (ret)
+		goto error;
+
+	ret = iwl_mld_init_mcc(mld);
 	if (ret)
 		goto error;
 

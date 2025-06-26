@@ -74,7 +74,7 @@ static void set(struct intel_uncore *uncore, i915_reg_t reg, u32 val)
 
 static void rps_timer(struct timer_list *t)
 {
-	struct intel_rps *rps = from_timer(rps, t, timer);
+	struct intel_rps *rps = timer_container_of(rps, t, timer);
 	struct intel_gt *gt = rps_to_gt(rps);
 	struct intel_engine_cs *engine;
 	ktime_t dt, last, timestamp;

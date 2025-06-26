@@ -467,7 +467,7 @@ static void ps_work_func(struct work_struct *work)
 
 static void ps_timeout_func(struct timer_list *t)
 {
-	struct ps_data *data = from_timer(data, t, ps_timer);
+	struct ps_data *data = timer_container_of(data, t, ps_timer);
 	struct hci_dev *hdev = data->hdev;
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 
@@ -533,6 +533,8 @@ static int ps_setup(struct hci_dev *hdev)
 					ps_host_wakeup_irq_handler,
 					IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
 					dev_name(&serdev->dev), nxpdev);
+		if (ret)
+			bt_dev_info(hdev, "error setting wakeup IRQ handler, ignoring\n");
 		disable_irq(psdata->irq_handler);
 		device_init_wakeup(&serdev->dev, true);
 	}

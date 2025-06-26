@@ -558,7 +558,7 @@ tegra210_emc_table_register_offsets = {
 
 static void tegra210_emc_train(struct timer_list *timer)
 {
-	struct tegra210_emc *emc = from_timer(emc, timer, training);
+	struct tegra210_emc *emc = timer_container_of(emc, timer, training);
 	unsigned long flags;
 
 	if (!emc->last)
@@ -614,7 +614,8 @@ static unsigned int tegra210_emc_get_temperature(struct tegra210_emc *emc)
 
 static void tegra210_emc_poll_refresh(struct timer_list *timer)
 {
-	struct tegra210_emc *emc = from_timer(emc, timer, refresh_timer);
+	struct tegra210_emc *emc = timer_container_of(emc, timer,
+						      refresh_timer);
 	unsigned int temperature;
 
 	if (!emc->debugfs.temperature)

@@ -700,7 +700,7 @@ void iwl_txq_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 
 static void iwl_txq_stuck_timer(struct timer_list *t)
 {
-	struct iwl_txq *txq = from_timer(txq, t, stuck_timer);
+	struct iwl_txq *txq = timer_container_of(txq, t, stuck_timer);
 	struct iwl_trans *trans = txq->trans;
 
 	spin_lock(&txq->lock);

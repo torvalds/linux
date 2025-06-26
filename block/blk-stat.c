@@ -76,7 +76,7 @@ void blk_stat_add(struct request *rq, u64 now)
 
 static void blk_stat_timer_fn(struct timer_list *t)
 {
-	struct blk_stat_callback *cb = from_timer(cb, t, timer);
+	struct blk_stat_callback *cb = timer_container_of(cb, t, timer);
 	unsigned int bucket;
 	int cpu;
 

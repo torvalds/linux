@@ -134,7 +134,7 @@ void ovpn_decrypt_post(void *data, int ret)
 
 	rcu_read_lock();
 	sock = rcu_dereference(peer->sock);
-	if (sock && sock->sock->sk->sk_protocol == IPPROTO_UDP)
+	if (sock && sock->sk->sk_protocol == IPPROTO_UDP)
 		/* check if this peer changed local or remote endpoint */
 		ovpn_peer_endpoints_update(peer, skb);
 	rcu_read_unlock();
@@ -270,12 +270,12 @@ void ovpn_encrypt_post(void *data, int ret)
 	if (unlikely(!sock))
 		goto err_unlock;
 
-	switch (sock->sock->sk->sk_protocol) {
+	switch (sock->sk->sk_protocol) {
 	case IPPROTO_UDP:
-		ovpn_udp_send_skb(peer, sock->sock, skb);
+		ovpn_udp_send_skb(peer, sock->sk, skb);
 		break;
 	case IPPROTO_TCP:
-		ovpn_tcp_send_skb(peer, sock->sock, skb);
+		ovpn_tcp_send_skb(peer, sock->sk, skb);
 		break;
 	default:
 		/* no transport configured yet */

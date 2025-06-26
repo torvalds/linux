@@ -34,7 +34,7 @@ enum hmc5843_ids {
  * @regmap:		hardware access register maps
  * @variant:		describe chip variants
  * @scan:		buffer to pack data for passing to
- *			iio_push_to_buffers_with_timestamp()
+ *			iio_push_to_buffers_with_ts()
  */
 struct hmc5843_data {
 	struct device *dev;

@@ -160,7 +160,7 @@ static const struct iio_chan_spec_ext_info ad5624r_ext_info[] = {
 	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE,
 		 &ad5624r_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ad5624r_powerdown_mode_enum),
-	{ },
+	{ }
 };
 
 #define AD5624R_CHANNEL(_chan, _bits) { \
@@ -266,7 +266,7 @@ static const struct spi_device_id ad5624r_id[] = {
 	{"ad5624r5", ID_AD5624R5},
 	{"ad5644r5", ID_AD5644R5},
 	{"ad5664r5", ID_AD5664R5},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5624r_id);
 

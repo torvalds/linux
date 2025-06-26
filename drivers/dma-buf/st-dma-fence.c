@@ -375,7 +375,7 @@ struct wait_timer {
 
 static void wait_timer(struct timer_list *timer)
 {
-	struct wait_timer *wt = from_timer(wt, timer, timer);
+	struct wait_timer *wt = timer_container_of(wt, timer, timer);
 
 	dma_fence_signal(wt->f);
 }

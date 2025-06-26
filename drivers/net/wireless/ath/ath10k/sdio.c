@@ -1447,7 +1447,8 @@ release:
 
 static void ath10k_sdio_sleep_timer_handler(struct timer_list *t)
 {
-	struct ath10k_sdio *ar_sdio = from_timer(ar_sdio, t, sleep_timer);
+	struct ath10k_sdio *ar_sdio = timer_container_of(ar_sdio, t,
+							 sleep_timer);
 
 	ar_sdio->mbox_state = SDIO_MBOX_REQUEST_TO_SLEEP_STATE;
 	queue_work(ar_sdio->workqueue, &ar_sdio->wr_async_work);
