@@ -1,9 +1,0 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
-/*
- * Google Trogdor dts fragment for clamshells
- *
- * Copyright 2024 Google LLC.
- */
-
-/* This file must be included after sc7180-trogdor.dtsi to modify cros_ec */
-#include <arm/cros-ec-keyboard.dtsi>

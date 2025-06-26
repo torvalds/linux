@@ -1,1 +1,0 @@
-../../../../../../arch/powerpc/include/asm/extable.h

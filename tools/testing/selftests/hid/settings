@@ -1,3 +1,0 @@
-# HID tests can be long, so give a little bit more time
-# to them
-timeout=200

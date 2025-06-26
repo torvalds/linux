@@ -1,8 +1,0 @@
-// SPDX-License-Identifier: BSD-3-Clause
-/*
- * Google Herobrine dts fragment for PRO SKUs
- *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
- */
-
-/delete-node/ &vreg_s9c_0p676;

@@ -1,3 +1,0 @@
-# riscv64 deny list for BPF CI and local vmtest
-exceptions					# JIT does not support exceptions
-tailcalls/tailcall_bpf2bpf*			# JIT does not support mixing bpf2bpf and tailcalls
