@@ -590,9 +590,12 @@ exit:
 	 * to be submitted to the queues after the reset is complete.
 	 */
 	if (!ret) {
+		amdgpu_fence_driver_force_completion(gfx_ring);
 		drm_sched_wqueue_start(&gfx_ring->sched);
-		if (adev->sdma.has_page_queue)
+		if (adev->sdma.has_page_queue) {
+			amdgpu_fence_driver_force_completion(page_ring);
 			drm_sched_wqueue_start(&page_ring->sched);
+		}
 	}
 	mutex_unlock(&sdma_instance->engine_reset_mutex);
 

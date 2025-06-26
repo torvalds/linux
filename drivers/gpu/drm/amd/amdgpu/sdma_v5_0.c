@@ -1618,10 +1618,8 @@ static int sdma_v5_0_restore_queue(struct amdgpu_ring *ring)
 
 	r = sdma_v5_0_gfx_resume_instance(adev, inst_id, true);
 	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
-	if (r)
-		return r;
-	amdgpu_fence_driver_force_completion(ring);
-	return 0;
+
+	return r;
 }
 
 static int sdma_v5_0_ring_preempt_ib(struct amdgpu_ring *ring)
