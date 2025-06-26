@@ -1973,13 +1973,13 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 
 static u64 calc_pct_ratio(u64 x, u64 y)
 {
-	int err;
+	int ret;
 
 	if (!y)
 		return 0;
 again:
-	err = check_mul_overflow(100, x, &x);
-	if (err)
+	ret = check_mul_overflow(100, x, &x);
+	if (ret)
 		goto lose_precision;
 	return div64_u64(x, y);
 lose_precision:
@@ -2139,7 +2139,7 @@ void btrfs_set_periodic_reclaim_ready(struct btrfs_space_info *space_info, bool 
 	}
 }
 
-bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info)
+static bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info)
 {
 	bool ret;
 
