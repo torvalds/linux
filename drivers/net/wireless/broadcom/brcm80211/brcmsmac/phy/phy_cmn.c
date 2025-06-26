@@ -2555,27 +2555,6 @@ end:
 	return rssi;
 }
 
-void wlc_phy_freqtrack_start(struct brcms_phy_pub *pih)
-{
-	return;
-}
-
-void wlc_phy_freqtrack_end(struct brcms_phy_pub *pih)
-{
-	return;
-}
-
-void wlc_phy_set_deaf(struct brcms_phy_pub *ppi, bool user_flag)
-{
-	struct brcms_phy *pi;
-	pi = (struct brcms_phy *) ppi;
-
-	if (ISLCNPHY(pi))
-		wlc_lcnphy_deaf_mode(pi, true);
-	else if (ISNPHY(pi))
-		wlc_nphy_deaf_mode(pi, true);
-}
-
 void wlc_phy_watchdog(struct brcms_phy_pub *pih)
 {
 	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
@@ -2634,28 +2613,6 @@ void wlc_phy_watchdog(struct brcms_phy_pub *pih)
 						       PHY_PERICAL_WATCHDOG);
 		}
 	}
-}
-
-void wlc_phy_BSSinit(struct brcms_phy_pub *pih, bool bonlyap, int rssi)
-{
-	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
-	uint i;
-	uint k;
-
-	for (i = 0; i < MA_WINDOW_SZ; i++)
-		pi->sh->phy_noise_window[i] = (s8) (rssi & 0xff);
-	if (ISLCNPHY(pi)) {
-		for (i = 0; i < MA_WINDOW_SZ; i++)
-			pi->sh->phy_noise_window[i] =
-				PHY_NOISE_FIXED_VAL_LCNPHY;
-	}
-	pi->sh->phy_noise_index = 0;
-
-	for (i = 0; i < PHY_NOISE_WINDOW_SZ; i++) {
-		for (k = WL_ANT_IDX_1; k < WL_ANT_RX_MAX; k++)
-			pi->nphy_noise_win[k][i] = PHY_NOISE_FIXED_VAL_NPHY;
-	}
-	pi->nphy_noise_index = 0;
 }
 
 void
@@ -2812,14 +2769,6 @@ void wlc_phy_stf_chain_set(struct brcms_phy_pub *pih, u8 txchain, u8 rxchain)
 	pi->pubpi.phy_corenum = (u8)hweight8(pi->sh->phyrxchain);
 }
 
-void wlc_phy_stf_chain_get(struct brcms_phy_pub *pih, u8 *txchain, u8 *rxchain)
-{
-	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
-
-	*txchain = pi->sh->phytxchain;
-	*rxchain = pi->sh->phyrxchain;
-}
-
 u8 wlc_phy_stf_chain_active_get(struct brcms_phy_pub *pih)
 {
 	s16 nphy_currtemp;
@@ -2852,89 +2801,12 @@ u8 wlc_phy_stf_chain_active_get(struct brcms_phy_pub *pih)
 	return active_bitmap;
 }
 
-s8 wlc_phy_stf_ssmode_get(struct brcms_phy_pub *pih, u16 chanspec)
-{
-	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
-	u8 siso_mcs_id, cdd_mcs_id;
-
-	siso_mcs_id =
-		(CHSPEC_IS40(chanspec)) ? TXP_FIRST_MCS_40_SISO :
-		TXP_FIRST_MCS_20_SISO;
-	cdd_mcs_id =
-		(CHSPEC_IS40(chanspec)) ? TXP_FIRST_MCS_40_CDD :
-		TXP_FIRST_MCS_20_CDD;
-
-	if (pi->tx_power_target[siso_mcs_id] >
-	    (pi->tx_power_target[cdd_mcs_id] + 12))
-		return PHY_TXC1_MODE_SISO;
-	else
-		return PHY_TXC1_MODE_CDD;
-}
-
 const u8 *wlc_phy_get_ofdm_rate_lookup(void)
 {
 	return ofdm_rate_lookup;
 }
 
-void wlc_lcnphy_epa_switch(struct brcms_phy *pi, bool mode)
-{
-	if ((pi->sh->chip == BCMA_CHIP_ID_BCM4313) &&
-	    (pi->sh->boardflags & BFL_FEM)) {
-		if (mode) {
-			u16 txant = 0;
-			txant = wlapi_bmac_get_txant(pi->sh->physhim);
-			if (txant == 1) {
-				mod_phy_reg(pi, 0x44d, (0x1 << 2), (1) << 2);
-
-				mod_phy_reg(pi, 0x44c, (0x1 << 2), (1) << 2);
-
-			}
-
-			bcma_chipco_gpio_control(&pi->d11core->bus->drv_cc,
-						 0x0, 0x0);
-			bcma_chipco_gpio_out(&pi->d11core->bus->drv_cc,
-					     ~0x40, 0x40);
-			bcma_chipco_gpio_outen(&pi->d11core->bus->drv_cc,
-					       ~0x40, 0x40);
-		} else {
-			mod_phy_reg(pi, 0x44c, (0x1 << 2), (0) << 2);
-
-			mod_phy_reg(pi, 0x44d, (0x1 << 2), (0) << 2);
-
-			bcma_chipco_gpio_out(&pi->d11core->bus->drv_cc,
-					     ~0x40, 0x00);
-			bcma_chipco_gpio_outen(&pi->d11core->bus->drv_cc,
-					       ~0x40, 0x00);
-			bcma_chipco_gpio_control(&pi->d11core->bus->drv_cc,
-						 0x0, 0x40);
-		}
-	}
-}
-
 void wlc_phy_ldpc_override_set(struct brcms_phy_pub *ppi, bool ldpc)
 {
 	return;
-}
-
-void
-wlc_phy_get_pwrdet_offsets(struct brcms_phy *pi, s8 *cckoffset, s8 *ofdmoffset)
-{
-	*cckoffset = 0;
-	*ofdmoffset = 0;
-}
-
-s8 wlc_phy_upd_rssi_offset(struct brcms_phy *pi, s8 rssi, u16 chanspec)
-{
-
-	return rssi;
-}
-
-bool wlc_phy_txpower_ipa_ison(struct brcms_phy_pub *ppi)
-{
-	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
-
-	if (ISNPHY(pi))
-		return wlc_phy_n_txpower_ipa_ison(pi);
-	else
-		return false;
 }
