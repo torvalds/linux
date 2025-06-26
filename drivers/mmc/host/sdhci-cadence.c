@@ -144,7 +144,7 @@ static unsigned int sdhci_cdns_phy_param_count(struct device_node *np)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sdhci_cdns_phy_cfgs); i++)
-		if (of_property_read_bool(np, sdhci_cdns_phy_cfgs[i].property))
+		if (of_property_present(np, sdhci_cdns_phy_cfgs[i].property))
 			count++;
 
 	return count;
