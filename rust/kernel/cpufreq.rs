@@ -13,7 +13,7 @@ use crate::{
     cpu::CpuId,
     cpumask,
     device::{Bound, Device},
-    devres::Devres,
+    devres,
     error::{code::*, from_err_ptr, from_result, to_result, Result, VTABLE_DEFAULT_ERROR},
     ffi::{c_char, c_ulong},
     prelude::*,
@@ -1046,10 +1046,13 @@ impl<T: Driver> Registration<T> {
 
     /// Same as [`Registration::new`], but does not return a [`Registration`] instance.
     ///
-    /// Instead the [`Registration`] is owned by [`Devres`] and will be revoked / dropped, once the
+    /// Instead the [`Registration`] is owned by [`devres::register`] and will be dropped, once the
     /// device is detached.
-    pub fn new_foreign_owned(dev: &Device<Bound>) -> Result {
-        Devres::new_foreign_owned(dev, Self::new()?, GFP_KERNEL)
+    pub fn new_foreign_owned(dev: &Device<Bound>) -> Result
+    where
+        T: 'static,
+    {
+        devres::register(dev, Self::new()?, GFP_KERNEL)
     }
 }
 
