@@ -60,19 +60,12 @@ static int alpine_msix_allocate_sgi(struct alpine_msix_data *priv, int num_req)
 {
 	int first;
 
-	spin_lock(&priv->msi_map_lock);
-
-	first = bitmap_find_next_zero_area(priv->msi_map, priv->num_spis, 0,
-					   num_req, 0);
-	if (first >= priv->num_spis) {
-		spin_unlock(&priv->msi_map_lock);
+	guard(spinlock)(&priv->msi_map_lock);
+	first = bitmap_find_next_zero_area(priv->msi_map, priv->num_spis, 0, num_req, 0);
+	if (first >= priv->num_spis)
 		return -ENOSPC;
-	}
 
 	bitmap_set(priv->msi_map, first, num_req);
-
-	spin_unlock(&priv->msi_map_lock);
-
 	return priv->spi_first + first;
 }
 
@@ -80,11 +73,8 @@ static void alpine_msix_free_sgi(struct alpine_msix_data *priv, unsigned int sgi
 {
 	int first = sgi - priv->spi_first;
 
-	spin_lock(&priv->msi_map_lock);
-
+	guard(spinlock)(&priv->msi_map_lock);
 	bitmap_clear(priv->msi_map, first, num_req);
-
-	spin_unlock(&priv->msi_map_lock);
 }
 
 static void alpine_msix_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
