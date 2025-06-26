@@ -642,9 +642,11 @@ struct smack_known *smk_import_entry(const char *string, int len)
 
 /**
  * smk_import_valid_label - import a label, return the list entry
- * @label a text string that is a valid Smack label, not null-terminated
+ * @label: a text string that is a valid Smack label, not null-terminated
+ * @label_len: the length of the text string in the @label
+ * @gfp: the GFP mask used for allocating memory for the @label text string copy
  *
- * Returns: see description of smk_import_entry()
+ * Return: see description of smk_import_entry()
  */
 struct smack_known *
 smk_import_valid_label(const char *label, int label_len, gfp_t gfp)
