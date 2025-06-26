@@ -292,9 +292,10 @@ static int s5k6a3_probe(struct i2c_client *client)
 	mutex_init(&sensor->lock);
 	sensor->dev = dev;
 
-	sensor->clock = devm_clk_get(sensor->dev, S5K6A3_CLK_NAME);
+	sensor->clock = devm_v4l2_sensor_clk_get(sensor->dev, S5K6A3_CLK_NAME);
 	if (IS_ERR(sensor->clock))
-		return PTR_ERR(sensor->clock);
+		return dev_err_probe(sensor->dev, PTR_ERR(sensor->clock),
+				     "failed to get extclk\n");
 
 	sensor->gpio_reset = devm_gpiod_get(dev, NULL, GPIOD_OUT_HIGH);
 	ret = PTR_ERR_OR_ZERO(sensor->gpio_reset);
