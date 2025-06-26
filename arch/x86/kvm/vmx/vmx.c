@@ -1344,22 +1344,35 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 }
 
 #ifdef CONFIG_X86_64
-static u64 vmx_read_guest_kernel_gs_base(struct vcpu_vmx *vmx)
+static u64 vmx_read_guest_host_msr(struct vcpu_vmx *vmx, u32 msr, u64 *cache)
 {
 	preempt_disable();
 	if (vmx->vt.guest_state_loaded)
-		rdmsrq(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+		*cache = read_msr(msr);
 	preempt_enable();
-	return vmx->msr_guest_kernel_gs_base;
+	return *cache;
+}
+
+static void vmx_write_guest_host_msr(struct vcpu_vmx *vmx, u32 msr, u64 data,
+				     u64 *cache)
+{
+	preempt_disable();
+	if (vmx->vt.guest_state_loaded)
+		wrmsrns(msr, data);
+	preempt_enable();
+	*cache = data;
+}
+
+static u64 vmx_read_guest_kernel_gs_base(struct vcpu_vmx *vmx)
+{
+	return vmx_read_guest_host_msr(vmx, MSR_KERNEL_GS_BASE,
+				       &vmx->msr_guest_kernel_gs_base);
 }
 
 static void vmx_write_guest_kernel_gs_base(struct vcpu_vmx *vmx, u64 data)
 {
-	preempt_disable();
-	if (vmx->vt.guest_state_loaded)
-		wrmsrq(MSR_KERNEL_GS_BASE, data);
-	preempt_enable();
-	vmx->msr_guest_kernel_gs_base = data;
+	vmx_write_guest_host_msr(vmx, MSR_KERNEL_GS_BASE, data,
+				 &vmx->msr_guest_kernel_gs_base);
 }
 #endif
 
