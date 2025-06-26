@@ -1129,9 +1129,10 @@ static int mt9v111_probe(struct i2c_client *client)
 	mt9v111->dev = &client->dev;
 	mt9v111->client = client;
 
-	mt9v111->clk = devm_clk_get(&client->dev, NULL);
+	mt9v111->clk = devm_v4l2_sensor_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9v111->clk))
-		return PTR_ERR(mt9v111->clk);
+		return dev_err_probe(&client->dev, PTR_ERR(mt9v111->clk),
+				     "failed to get the clock\n");
 
 	mt9v111->sysclk = clk_get_rate(mt9v111->clk);
 	if (mt9v111->sysclk > MT9V111_MAX_CLKIN)
