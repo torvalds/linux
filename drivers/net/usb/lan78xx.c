@@ -2831,6 +2831,10 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	if (ret < 0)
 		return ret;
 
+	ret = lan78xx_mac_prepare_for_phy(dev);
+	if (ret < 0)
+		goto phylink_uninit;
+
 	/* If no PHY is found, set up a fixed link. It is very specific to
 	 * the LAN7801 and is used in special cases like EVB-KSZ9897-1 where
 	 * LAN7801 acts as a USB-to-Ethernet interface to a switch without
@@ -2840,11 +2844,12 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 		ret = lan78xx_set_fixed_link(dev);
 		if (ret < 0)
 			goto phylink_uninit;
-	}
 
-	ret = lan78xx_mac_prepare_for_phy(dev);
-	if (ret < 0)
-		goto phylink_uninit;
+		/* No PHY found, so set up a fixed link and return early.
+		 * No need to configure PHY IRQ or attach to phylink.
+		 */
+		return 0;
+	}
 
 	/* if phyirq is not set, use polling mode in phylib */
 	if (dev->domain_data.phyirq > 0)
