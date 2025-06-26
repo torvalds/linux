@@ -1396,7 +1396,7 @@ static int imx214_probe(struct i2c_client *client)
 
 	imx214->dev = dev;
 
-	imx214->xclk = devm_clk_get(dev, NULL);
+	imx214->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(imx214->xclk))
 		return dev_err_probe(dev, PTR_ERR(imx214->xclk),
 				     "failed to get xclk\n");
