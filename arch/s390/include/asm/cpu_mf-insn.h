@@ -8,7 +8,7 @@
 #ifndef _ASM_S390_CPU_MF_INSN_H
 #define _ASM_S390_CPU_MF_INSN_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* Macro to generate the STCCTM instruction with a customized
  * M3 field designating the counter set.
@@ -17,6 +17,6 @@
 	.insn	rsy,0xeb0000000017,\r1,\m3 & 0xf,\db2
 .endm
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif

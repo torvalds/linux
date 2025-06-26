@@ -3,9 +3,10 @@
 #define _ASM_S390_NOSPEC_ASM_H
 
 #include <linux/linkage.h>
+#include <linux/export.h>
 #include <asm/dwarf.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #ifdef CC_USING_EXPOLINE
 
@@ -128,6 +129,6 @@
 	.endm
 #endif /* CC_USING_EXPOLINE */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_S390_NOSPEC_ASM_H */

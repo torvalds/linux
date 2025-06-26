@@ -7,6 +7,7 @@
 #include <asm/cpacf.h>
 #include <crypto/internal/sha2.h>
 #include <linux/cpufeature.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 

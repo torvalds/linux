@@ -11,12 +11,12 @@
 #ifndef __ARCH_S390_NET_BPF_JIT_H
 #define __ARCH_S390_NET_BPF_JIT_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/filter.h>
 #include <linux/types.h>
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * Stackframe layout (packed stack):

@@ -54,7 +54,7 @@
 			 PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_MCHECK | \
 			 PSW_MASK_PSTATE | PSW_ASC_PRIMARY)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct psw_bits {
 	unsigned long	     :	1;
@@ -292,5 +292,5 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 	regs->gprs[2] = rc;
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* _S390_PTRACE_H */
