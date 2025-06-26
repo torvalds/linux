@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
@@ -353,16 +354,19 @@ static const struct irq_domain_ops intx_domain_ops = {
 	.map = mobiveil_pcie_intx_map,
 };
 
-static struct irq_chip mobiveil_msi_irq_chip = {
-	.name = "Mobiveil PCIe MSI",
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
-};
+#define MOBIVEIL_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS		| \
+				     MSI_FLAG_USE_DEF_CHIP_OPS		| \
+				     MSI_FLAG_NO_AFFINITY)
 
-static struct msi_domain_info mobiveil_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
-	.chip	= &mobiveil_msi_irq_chip,
+#define MOBIVEIL_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK		| \
+				      MSI_FLAG_PCI_MSIX)
+
+static const struct msi_parent_ops mobiveil_msi_parent_ops = {
+	.required_flags		= MOBIVEIL_MSI_FLAGS_REQUIRED,
+	.supported_flags	= MOBIVEIL_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "Mobiveil-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static void mobiveil_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
@@ -435,23 +439,20 @@ static const struct irq_domain_ops msi_domain_ops = {
 static int mobiveil_allocate_msi_domains(struct mobiveil_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct mobiveil_msi *msi = &pcie->rp.msi;
 
 	mutex_init(&msi->lock);
-	msi->dev_domain = irq_domain_create_linear(NULL, msi->num_of_vectors,
-						   &msi_domain_ops, pcie);
-	if (!msi->dev_domain) {
-		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &mobiveil_msi_domain_info,
-						    msi->dev_domain);
-	if (!msi->msi_domain) {
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(dev),
+		.ops		= &msi_domain_ops,
+		.host_data	= pcie,
+		.size		= msi->num_of_vectors,
+	};
+
+	msi->dev_domain = msi_create_parent_irq_domain(&info, &mobiveil_msi_parent_ops);
+	if (!msi->dev_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
-		irq_domain_remove(msi->dev_domain);
 		return -ENOMEM;
 	}
 
