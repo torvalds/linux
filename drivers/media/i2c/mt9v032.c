@@ -1058,9 +1058,10 @@ static int mt9v032_probe(struct i2c_client *client)
 	if (IS_ERR(mt9v032->regmap))
 		return PTR_ERR(mt9v032->regmap);
 
-	mt9v032->clk = devm_clk_get(&client->dev, NULL);
+	mt9v032->clk = devm_v4l2_sensor_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9v032->clk))
-		return PTR_ERR(mt9v032->clk);
+		return dev_err_probe(&client->dev, PTR_ERR(mt9v032->clk),
+				     "failed to get the clock\n");
 
 	mt9v032->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
 						      GPIOD_OUT_HIGH);
