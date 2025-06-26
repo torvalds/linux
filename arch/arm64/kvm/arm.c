@@ -2129,7 +2129,7 @@ static void cpu_hyp_init(void *discard)
 
 static void cpu_hyp_uninit(void *discard)
 {
-	if (__this_cpu_read(kvm_hyp_initialized)) {
+	if (!is_protected_kvm_enabled() && __this_cpu_read(kvm_hyp_initialized)) {
 		cpu_hyp_reset();
 		__this_cpu_write(kvm_hyp_initialized, 0);
 	}
@@ -2345,6 +2345,9 @@ static void __init teardown_hyp_mode(void)
 
 	free_hyp_pgds();
 	for_each_possible_cpu(cpu) {
+		if (per_cpu(kvm_hyp_initialized, cpu))
+			continue;
+
 		free_pages(per_cpu(kvm_arm_hyp_stack_base, cpu), NVHE_STACK_SHIFT - PAGE_SHIFT);
 
 		if (!kvm_nvhe_sym(kvm_arm_hyp_percpu_base)[cpu])
