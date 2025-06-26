@@ -14,6 +14,7 @@
 
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -34,26 +35,6 @@ struct alpine_msix_data {
 	u32		spi_first;	/* The SGI number that MSIs start */
 	u32		num_spis;	/* The number of SGIs for MSIs */
 	unsigned long	*msi_map;
-};
-
-static void alpine_msix_mask_msi_irq(struct irq_data *d)
-{
-	pci_msi_mask_irq(d);
-	irq_chip_mask_parent(d);
-}
-
-static void alpine_msix_unmask_msi_irq(struct irq_data *d)
-{
-	pci_msi_unmask_irq(d);
-	irq_chip_unmask_parent(d);
-}
-
-static struct irq_chip alpine_msix_irq_chip = {
-	.name			= "MSIx",
-	.irq_mask		= alpine_msix_mask_msi_irq,
-	.irq_unmask		= alpine_msix_unmask_msi_irq,
-	.irq_eoi		= irq_chip_eoi_parent,
-	.irq_set_affinity	= irq_chip_set_affinity_parent,
 };
 
 static int alpine_msix_allocate_sgi(struct alpine_msix_data *priv, int num_req)
@@ -87,12 +68,6 @@ static void alpine_msix_compose_msi_msg(struct irq_data *data, struct msi_msg *m
 	msg->address_lo = lower_32_bits(msg_addr);
 	msg->data = 0;
 }
-
-static struct msi_domain_info alpine_msix_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_PCI_MSIX,
-	.chip	= &alpine_msix_irq_chip,
-};
 
 static struct irq_chip middle_irq_chip = {
 	.name			= "alpine_msix_middle",
@@ -164,13 +139,35 @@ static void alpine_msix_middle_domain_free(struct irq_domain *domain, unsigned i
 }
 
 static const struct irq_domain_ops alpine_msix_middle_domain_ops = {
+	.select	= msi_lib_irq_domain_select,
 	.alloc	= alpine_msix_middle_domain_alloc,
 	.free	= alpine_msix_middle_domain_free,
 };
 
+#define ALPINE_MSI_FLAGS_REQUIRED  (MSI_FLAG_USE_DEF_DOM_OPS |		\
+				    MSI_FLAG_USE_DEF_CHIP_OPS |		\
+				    MSI_FLAG_PCI_MSI_MASK_PARENT)
+
+#define ALPINE_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK |		\
+				    MSI_FLAG_PCI_MSIX)
+
+static struct msi_parent_ops alpine_msi_parent_ops = {
+	.supported_flags	= ALPINE_MSI_FLAGS_SUPPORTED,
+	.required_flags		= ALPINE_MSI_FLAGS_REQUIRED,
+	.chip_flags		= MSI_CHIP_FLAG_SET_EOI,
+	.bus_select_token	= DOMAIN_BUS_NEXUS,
+	.bus_select_mask	= MATCH_PCI_MSI,
+	.prefix			= "ALPINE-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
+};
+
 static int alpine_msix_init_domains(struct alpine_msix_data *priv, struct device_node *node)
 {
-	struct irq_domain *middle_domain, *msi_domain, *gic_domain;
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(node),
+		.ops		= &alpine_msix_middle_domain_ops,
+		.host_data	= priv,
+	};
 	struct device_node *gic_node;
 
 	gic_node = of_irq_find_parent(node);
@@ -179,29 +176,17 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv, struct device
 		return -ENODEV;
 	}
 
-	gic_domain = irq_find_host(gic_node);
+	info.parent = irq_find_host(gic_node);
 	of_node_put(gic_node);
-	if (!gic_domain) {
+	if (!info.parent) {
 		pr_err("Failed to find the GIC domain\n");
 		return -ENXIO;
 	}
 
-	middle_domain = irq_domain_create_hierarchy(gic_domain, 0, 0, NULL,
-						    &alpine_msix_middle_domain_ops, priv);
-	if (!middle_domain) {
-		pr_err("Failed to create the MSIX middle domain\n");
-		return -ENOMEM;
-	}
-
-	msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node),
-					       &alpine_msix_domain_info,
-					       middle_domain);
-	if (!msi_domain) {
+	if (!msi_create_parent_irq_domain(&info, &alpine_msi_parent_ops)) {
 		pr_err("Failed to create MSI domain\n");
-		irq_domain_remove(middle_domain);
 		return -ENOMEM;
 	}
-
 	return 0;
 }
 
