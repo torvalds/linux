@@ -38,6 +38,7 @@ ioctl with TDX specific sub-ioctl() commands.
           KVM_TDX_INIT_MEM_REGION,
           KVM_TDX_FINALIZE_VM,
           KVM_TDX_GET_CPUID,
+          KVM_TDX_TERMINATE_VM,
 
           KVM_TDX_CMD_NR_MAX,
   };
@@ -79,7 +80,20 @@ to be configured to the TDX guest.
   struct kvm_tdx_capabilities {
         __u64 supported_attrs;
         __u64 supported_xfam;
-        __u64 reserved[254];
+
+        /* TDG.VP.VMCALL hypercalls executed in kernel and forwarded to
+         * userspace, respectively
+         */
+        __u64 kernel_tdvmcallinfo_1_r11;
+        __u64 user_tdvmcallinfo_1_r11;
+
+        /* TDG.VP.VMCALL instruction executions subfunctions executed in kernel
+         * and forwarded to userspace, respectively
+         */
+        __u64 kernel_tdvmcallinfo_1_r12;
+        __u64 user_tdvmcallinfo_1_r12;
+
+        __u64 reserved[250];
 
         /* Configurable CPUID bits for userspace */
         struct kvm_cpuid2 cpuid;
@@ -213,6 +227,21 @@ struct kvm_cpuid2.
 	  __u32 edx;
 	  __u32 padding[3];
   };
+
+KVM_TDX_TERMINATE_VM
+--------------------
+:Type: vm ioctl
+:Returns: 0 on success, <0 on error
+
+Release Host Key ID (HKID) to allow more efficient reclaim of private memory.
+After this, the TD is no longer in a runnable state.
+
+Using KVM_TDX_TERMINATE_VM is optional.
+
+- id: KVM_TDX_TERMINATE_VM
+- flags: must be 0
+- data: must be 0
+- hw_error: must be 0
 
 KVM TDX creation flow
 =====================
