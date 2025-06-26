@@ -997,7 +997,7 @@ static int imx334_parse_hw_config(struct imx334 *imx334)
 				     "failed to get reset gpio\n");
 
 	/* Get sensor input clock */
-	imx334->inclk = devm_clk_get(imx334->dev, NULL);
+	imx334->inclk = devm_v4l2_sensor_clk_get(imx334->dev, NULL);
 	if (IS_ERR(imx334->inclk))
 		return dev_err_probe(imx334->dev, PTR_ERR(imx334->inclk),
 					 "could not get inclk\n");
