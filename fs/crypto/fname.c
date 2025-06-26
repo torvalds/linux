@@ -11,11 +11,13 @@
  * This has not yet undergone a rigorous security audit.
  */
 
-#include <linux/namei.h>
-#include <linux/scatterlist.h>
 #include <crypto/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/skcipher.h>
+#include <linux/export.h>
+#include <linux/namei.h>
+#include <linux/scatterlist.h>
+
 #include "fscrypt_private.h"
 
 /*
