@@ -29,11 +29,11 @@
 #define ALPINE_MSIX_SPI_TARGET_CLUSTER0		BIT(16)
 
 struct alpine_msix_data {
-	spinlock_t msi_map_lock;
-	phys_addr_t addr;
-	u32 spi_first;		/* The SGI number that MSIs start */
-	u32 num_spis;		/* The number of SGIs for MSIs */
-	unsigned long *msi_map;
+	spinlock_t	msi_map_lock;
+	phys_addr_t	addr;
+	u32		spi_first;	/* The SGI number that MSIs start */
+	u32		num_spis;	/* The number of SGIs for MSIs */
+	unsigned long	*msi_map;
 };
 
 static void alpine_msix_mask_msi_irq(struct irq_data *d)
@@ -76,8 +76,7 @@ static int alpine_msix_allocate_sgi(struct alpine_msix_data *priv, int num_req)
 	return priv->spi_first + first;
 }
 
-static void alpine_msix_free_sgi(struct alpine_msix_data *priv, unsigned sgi,
-				 int num_req)
+static void alpine_msix_free_sgi(struct alpine_msix_data *priv, unsigned int sgi, int num_req)
 {
 	int first = sgi - priv->spi_first;
 
@@ -88,14 +87,12 @@ static void alpine_msix_free_sgi(struct alpine_msix_data *priv, unsigned sgi,
 	spin_unlock(&priv->msi_map_lock);
 }
 
-static void alpine_msix_compose_msi_msg(struct irq_data *data,
-					struct msi_msg *msg)
+static void alpine_msix_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct alpine_msix_data *priv = irq_data_get_irq_chip_data(data);
 	phys_addr_t msg_addr = priv->addr;
 
 	msg_addr |= (data->hwirq << 3);
-
 	msg->address_hi = upper_32_bits(msg_addr);
 	msg->address_lo = lower_32_bits(msg_addr);
 	msg->data = 0;
@@ -116,8 +113,7 @@ static struct irq_chip middle_irq_chip = {
 	.irq_compose_msi_msg	= alpine_msix_compose_msi_msg,
 };
 
-static int alpine_msix_gic_domain_alloc(struct irq_domain *domain,
-					unsigned int virq, int sgi)
+static int alpine_msix_gic_domain_alloc(struct irq_domain *domain, unsigned int virq, int sgi)
 {
 	struct irq_fwspec fwspec;
 	struct irq_data *d;
@@ -138,12 +134,10 @@ static int alpine_msix_gic_domain_alloc(struct irq_domain *domain,
 
 	d = irq_domain_get_irq_data(domain->parent, virq);
 	d->chip->irq_set_type(d, IRQ_TYPE_EDGE_RISING);
-
 	return 0;
 }
 
-static int alpine_msix_middle_domain_alloc(struct irq_domain *domain,
-					   unsigned int virq,
+static int alpine_msix_middle_domain_alloc(struct irq_domain *domain, unsigned int virq,
 					   unsigned int nr_irqs, void *args)
 {
 	struct alpine_msix_data *priv = domain->host_data;
@@ -161,7 +155,6 @@ static int alpine_msix_middle_domain_alloc(struct irq_domain *domain,
 		irq_domain_set_hwirq_and_chip(domain, virq + i, sgi + i,
 					      &middle_irq_chip, priv);
 	}
-
 	return 0;
 
 err_sgi:
@@ -170,8 +163,7 @@ err_sgi:
 	return err;
 }
 
-static void alpine_msix_middle_domain_free(struct irq_domain *domain,
-					   unsigned int virq,
+static void alpine_msix_middle_domain_free(struct irq_domain *domain, unsigned int virq,
 					   unsigned int nr_irqs)
 {
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
@@ -186,8 +178,7 @@ static const struct irq_domain_ops alpine_msix_middle_domain_ops = {
 	.free	= alpine_msix_middle_domain_free,
 };
 
-static int alpine_msix_init_domains(struct alpine_msix_data *priv,
-				    struct device_node *node)
+static int alpine_msix_init_domains(struct alpine_msix_data *priv, struct device_node *node)
 {
 	struct irq_domain *middle_domain, *msi_domain, *gic_domain;
 	struct device_node *gic_node;
@@ -224,8 +215,7 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv,
 	return 0;
 }
 
-static int alpine_msix_init(struct device_node *node,
-			    struct device_node *parent)
+static int alpine_msix_init(struct device_node *node, struct device_node *parent)
 {
 	struct alpine_msix_data *priv;
 	struct resource res;
@@ -271,8 +261,7 @@ static int alpine_msix_init(struct device_node *node,
 		goto err_priv;
 	}
 
-	pr_debug("Registering %d msixs, starting at %d\n",
-		 priv->num_spis, priv->spi_first);
+	pr_debug("Registering %d msixs, starting at %d\n", priv->num_spis, priv->spi_first);
 
 	ret = alpine_msix_init_domains(priv, node);
 	if (ret)
