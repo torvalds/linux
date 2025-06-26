@@ -223,21 +223,21 @@ static const struct msi_parent_ops imx_mu_msi_parent_ops = {
 
 static int imx_mu_msi_domains_init(struct imx_mu_msi *msi_data, struct device *dev)
 {
-	struct fwnode_handle *fwnodes = dev_fwnode(dev);
+	struct irq_domain_info info = {
+		.ops		= &imx_mu_msi_domain_ops,
+		.fwnode		= dev_fwnode(dev),
+		.size		= IMX_MU_CHANS,
+		.host_data	= msi_data,
+	};
 	struct irq_domain *parent;
 
 	/* Initialize MSI domain parent */
-	parent = irq_domain_create_linear(fwnodes, IMX_MU_CHANS,
-					  &imx_mu_msi_domain_ops, msi_data);
+	parent = msi_create_parent_irq_domain(&info, &imx_mu_msi_parent_ops);
 	if (!parent) {
 		dev_err(dev, "failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
-
-	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
 	parent->dev = parent->pm_dev = dev;
-	parent->flags |= IRQ_DOMAIN_FLAG_MSI_PARENT;
-	parent->msi_parent_ops = &imx_mu_msi_parent_ops;
 	return 0;
 }
 
