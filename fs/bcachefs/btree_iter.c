@@ -3333,6 +3333,8 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 		bool lock_dropped = false;
 		void *new_mem = allocate_dropping_locks_norelock(trans, lock_dropped,
 					krealloc(trans->mem, new_bytes, _gfp));
+		(void)lock_dropped;
+
 		if (!new_mem) {
 			new_mem = mempool_alloc(&trans->c->btree_trans_mem_pool, GFP_KERNEL);
 			new_bytes = BTREE_TRANS_MEM_MAX;
