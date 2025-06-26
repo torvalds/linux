@@ -18,7 +18,7 @@ use crate::{
 };
 
 #[pin_data]
-struct DevresInner<T> {
+struct DevresInner<T: Send> {
     dev: ARef<Device>,
     callback: unsafe extern "C" fn(*mut c_void),
     #[pin]
@@ -95,9 +95,9 @@ struct DevresInner<T> {
 /// # Ok(())
 /// # }
 /// ```
-pub struct Devres<T>(Arc<DevresInner<T>>);
+pub struct Devres<T: Send>(Arc<DevresInner<T>>);
 
-impl<T> DevresInner<T> {
+impl<T: Send> DevresInner<T> {
     fn new(dev: &Device<Bound>, data: T, flags: Flags) -> Result<Arc<DevresInner<T>>> {
         let inner = Arc::pin_init(
             pin_init!( DevresInner {
@@ -175,7 +175,7 @@ impl<T> DevresInner<T> {
     }
 }
 
-impl<T> Devres<T> {
+impl<T: Send> Devres<T> {
     /// Creates a new [`Devres`] instance of the given `data`. The `data` encapsulated within the
     /// returned `Devres` instance' `data` will be revoked once the device is detached.
     pub fn new(dev: &Device<Bound>, data: T, flags: Flags) -> Result<Self> {
@@ -247,7 +247,7 @@ impl<T> Devres<T> {
     }
 }
 
-impl<T> Drop for Devres<T> {
+impl<T: Send> Drop for Devres<T> {
     fn drop(&mut self) {
         // SAFETY: When `drop` runs, it is guaranteed that nobody is accessing the revocable data
         // anymore, hence it is safe not to wait for the grace period to finish.
