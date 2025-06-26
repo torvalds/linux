@@ -255,7 +255,7 @@ EXPORT_SYMBOL(rdma_nl_put_driver_u64_hex);
 
 bool rdma_nl_get_privileged_qkey(void)
 {
-	return privileged_qkey || capable(CAP_NET_RAW);
+	return privileged_qkey;
 }
 EXPORT_SYMBOL(rdma_nl_get_privileged_qkey);
 
