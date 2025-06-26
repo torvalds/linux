@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "actions.h"
 #include "osnoise.h"
 
 /*
@@ -22,7 +23,6 @@ struct timerlat_params {
 	/* Common params */
 	char			*cpus;
 	cpu_set_t		monitored_cpus;
-	char			*trace_output;
 	char			*cgroup_name;
 	unsigned long long	runtime;
 	long long		stop_us;
@@ -48,6 +48,7 @@ struct timerlat_params {
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 	enum timerlat_tracing_mode mode;
+	struct actions actions;
 	union {
 		struct {
 			/* top only */

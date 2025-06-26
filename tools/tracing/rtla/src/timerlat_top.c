@@ -516,6 +516,7 @@ static void timerlat_top_usage(char *usage)
 		"	     --warm-up s: let the workload run for s seconds before collecting data",
 		"	     --trace-buffer-size kB: set the per-cpu trace buffer size in kB",
 		"	     --deepest-idle-state n: only go down to idle state n on cpus used by timerlat to reduce exit from idle latency",
+		"	     --on-threshold <action>: define action to be executed at latency threshold, multiple are allowed",
 		NULL,
 	};
 
@@ -545,10 +546,13 @@ static struct timerlat_params
 	long long auto_thresh;
 	int retval;
 	int c;
+	char *trace_output = NULL;
 
 	params = calloc(1, sizeof(*params));
 	if (!params)
 		exit(1);
+
+	actions_init(&params->actions);
 
 	/* disabled by default */
 	params->dma_latency = -1;
@@ -592,6 +596,7 @@ static struct timerlat_params
 			{"warm-up",		required_argument,	0, '6'},
 			{"trace-buffer-size",	required_argument,	0, '7'},
 			{"deepest-idle-state",	required_argument,	0, '8'},
+			{"on-threshold",	required_argument,	0, '9'},
 			{0, 0, 0, 0}
 		};
 
@@ -617,7 +622,7 @@ static struct timerlat_params
 			params->print_stack = auto_thresh;
 
 			/* set trace */
-			params->trace_output = "timerlat_trace.txt";
+			trace_output = "timerlat_trace.txt";
 			break;
 		case '5':
 			/* it is here because it is similar to -a */
@@ -712,14 +717,13 @@ static struct timerlat_params
 		case 't':
 			if (optarg) {
 				if (optarg[0] == '=')
-					params->trace_output = &optarg[1];
+					trace_output = &optarg[1];
 				else
-					params->trace_output = &optarg[0];
+					trace_output = &optarg[0];
 			} else if (optind < argc && argv[optind][0] != '-')
-				params->trace_output = argv[optind];
+				trace_output = argv[optind];
 			else
-				params->trace_output = "timerlat_trace.txt";
-
+				trace_output = "timerlat_trace.txt";
 			break;
 		case 'u':
 			params->user_workload = true;
@@ -771,10 +775,20 @@ static struct timerlat_params
 		case '8':
 			params->deepest_idle_state = get_llong_from_str(optarg);
 			break;
+		case '9':
+			retval = actions_parse(&params->actions, optarg);
+			if (retval) {
+				err_msg("Invalid action %s\n", optarg);
+				exit(EXIT_FAILURE);
+			}
+			break;
 		default:
 			timerlat_top_usage("Invalid option");
 		}
 	}
+
+	if (trace_output)
+		actions_add_trace_output(&params->actions, trace_output);
 
 	if (geteuid()) {
 		err_msg("rtla needs root permission\n");
@@ -797,7 +811,8 @@ static struct timerlat_params
 	 * If auto-analysis or trace output is enabled, switch from BPF mode to
 	 * mixed mode
 	 */
-	if (params->mode == TRACING_MODE_BPF && params->trace_output && !params->no_aa)
+	if (params->mode == TRACING_MODE_BPF &&
+	    (params->actions.present[ACTION_TRACE_OUTPUT] || !params->no_aa))
 		params->mode = TRACING_MODE_MIXED;
 
 	return params;
@@ -1099,12 +1114,13 @@ int timerlat_top_main(int argc, char *argv[])
 		}
 	}
 
-	if (params->trace_output) {
+	if (params->actions.present[ACTION_TRACE_OUTPUT]) {
 		record = osnoise_init_trace_tool("timerlat");
 		if (!record) {
 			err_msg("Failed to enable the trace instance\n");
 			goto out_free;
 		}
+		params->actions.trace_output_inst = record->trace.inst;
 
 		if (params->events) {
 			retval = trace_events_enable(&record->trace, params->events);
@@ -1171,7 +1187,7 @@ int timerlat_top_main(int argc, char *argv[])
 	 * tracing while enabling other instances. The trace instance is the
 	 * one with most valuable information.
 	 */
-	if (params->trace_output)
+	if (params->actions.present[ACTION_TRACE_OUTPUT])
 		trace_instance_start(&record->trace);
 	if (!params->no_aa)
 		trace_instance_start(&aa->trace);
@@ -1214,8 +1230,7 @@ int timerlat_top_main(int argc, char *argv[])
 		if (!params->no_aa)
 			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
 
-		save_trace_to_file(record ? record->trace.inst : NULL,
-				   params->trace_output);
+		actions_perform(&params->actions);
 		return_value = FAILED;
 	} else if (params->aa_only) {
 		/*
@@ -1248,6 +1263,7 @@ out_free:
 		osnoise_destroy_tool(aa);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(top);
+	actions_destroy(&params->actions);
 	if (params->mode != TRACING_MODE_TRACEFS)
 		timerlat_bpf_destroy();
 	free(params);
