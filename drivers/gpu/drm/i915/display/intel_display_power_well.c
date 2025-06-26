@@ -320,8 +320,8 @@ static void hsw_wait_for_power_well_disable(struct intel_display *display,
 {
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	int pw_idx = i915_power_well_instance(power_well)->hsw.idx;
-	bool disabled;
 	u32 reqs;
+	int ret;
 
 	/*
 	 * Bspec doesn't require waiting for PWs to get disabled, but still do
@@ -332,11 +332,17 @@ static void hsw_wait_for_power_well_disable(struct intel_display *display,
 	 * Skip the wait in case any of the request bits are set and print a
 	 * diagnostic message.
 	 */
-	wait_for((disabled = !(intel_de_read(display, regs->driver) &
-			       HSW_PWR_WELL_CTL_STATE(pw_idx))) ||
-		 (reqs = hsw_power_well_requesters(display, regs, pw_idx)), 1);
-	if (disabled)
+	reqs = hsw_power_well_requesters(display, regs, pw_idx);
+
+	ret = intel_de_wait_for_clear(display, regs->driver,
+				      HSW_PWR_WELL_CTL_STATE(pw_idx),
+				      reqs ? 0 : 1);
+	if (!ret)
 		return;
+
+	/* Refresh requesters in case they popped up during the wait. */
+	if (!reqs)
+		reqs = hsw_power_well_requesters(display, regs, pw_idx);
 
 	drm_dbg_kms(display->drm,
 		    "%s forced on (bios:%d driver:%d kvmr:%d debug:%d)\n",
