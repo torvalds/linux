@@ -841,7 +841,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	else if (mode == FALLOC_FL_COLLAPSE_RANGE)
 		ret = bchfs_fcollapse_finsert(inode, offset, len, false);
 	else
-		ret = -EOPNOTSUPP;
+		ret = bch_err_throw(c, unsupported_fallocate_mode);
 err:
 	bch2_pagecache_block_put(inode);
 	inode_unlock(&inode->v);
