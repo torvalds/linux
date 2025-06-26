@@ -567,7 +567,7 @@ static int panel_simple_override_nondefault_lvds_datamapping(struct device *dev,
 	return 0;
 }
 
-static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
+static struct panel_simple *panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 {
 	struct panel_simple *panel;
 	struct display_timing dt;
@@ -579,24 +579,24 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	panel = devm_drm_panel_alloc(dev, struct panel_simple, base,
 				     &panel_simple_funcs, desc->connector_type);
 	if (IS_ERR(panel))
-		return PTR_ERR(panel);
+		return ERR_CAST(panel);
 
 	panel->desc = desc;
 
 	panel->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(panel->supply))
-		return PTR_ERR(panel->supply);
+		return ERR_CAST(panel->supply);
 
 	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(panel->enable_gpio))
-		return dev_err_probe(dev, PTR_ERR(panel->enable_gpio),
-				     "failed to request GPIO\n");
+		return dev_err_cast_probe(dev, panel->enable_gpio,
+					  "failed to request GPIO\n");
 
 	err = of_drm_get_panel_orientation(dev->of_node, &panel->orientation);
 	if (err) {
 		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, err);
-		return err;
+		return ERR_PTR(err);
 	}
 
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
@@ -605,7 +605,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		of_node_put(ddc);
 
 		if (!panel->ddc)
-			return -EPROBE_DEFER;
+			return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	if (desc == &panel_dpi) {
@@ -703,7 +703,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	drm_panel_add(&panel->base);
 
-	return 0;
+	return panel;
 
 disable_pm_runtime:
 	pm_runtime_dont_use_autosuspend(dev);
@@ -712,7 +712,7 @@ free_ddc:
 	if (panel->ddc)
 		put_device(&panel->ddc->dev);
 
-	return err;
+	return ERR_PTR(err);
 }
 
 static void panel_simple_shutdown(struct device *dev)
@@ -5377,12 +5377,17 @@ MODULE_DEVICE_TABLE(of, platform_of_match);
 static int panel_simple_platform_probe(struct platform_device *pdev)
 {
 	const struct panel_desc *desc;
+	struct panel_simple *panel;
 
 	desc = of_device_get_match_data(&pdev->dev);
 	if (!desc)
 		return -ENODEV;
 
-	return panel_simple_probe(&pdev->dev, desc);
+	panel = panel_simple_probe(&pdev->dev, desc);
+	if (IS_ERR(panel))
+		return PTR_ERR(panel);
+
+	return 0;
 }
 
 static void panel_simple_platform_remove(struct platform_device *pdev)
@@ -5653,16 +5658,18 @@ MODULE_DEVICE_TABLE(of, dsi_of_match);
 static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 {
 	const struct panel_desc_dsi *desc;
+	struct panel_simple *panel;
 	int err;
 
 	desc = of_device_get_match_data(&dsi->dev);
 	if (!desc)
 		return -ENODEV;
 
-	err = panel_simple_probe(&dsi->dev, &desc->desc);
-	if (err < 0)
-		return err;
+	panel = panel_simple_probe(&dsi->dev, &desc->desc);
+	if (IS_ERR(panel))
+		return PTR_ERR(panel);
 
+	desc = container_of(panel->desc, struct panel_desc_dsi, desc);
 	dsi->mode_flags = desc->flags;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
