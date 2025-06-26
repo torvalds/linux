@@ -563,6 +563,12 @@ struct dc_info_packet_128 {
 	uint8_t sb[128];
 };
 
+struct dc_edid_read_policy {
+	uint32_t max_retry_count;
+	uint32_t delay_time_ms;
+	uint32_t ignore_checksum;
+};
+
 #define DC_PLANE_UPDATE_TIMES_MAX 10
 
 struct dc_plane_flip_time {
