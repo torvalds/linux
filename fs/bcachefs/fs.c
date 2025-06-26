@@ -722,7 +722,6 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		inode = NULL;
 
-#ifdef CONFIG_UNICODE
 	if (!inode && IS_CASEFOLDED(vdir)) {
 		/*
 		 * Do not cache a negative dentry in casefolded directories
@@ -737,7 +736,6 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 		 */
 		return NULL;
 	}
-#endif
 
 	return d_splice_alias(&inode->v, dentry);
 }
@@ -2566,9 +2564,10 @@ got_sb:
 	sb->s_shrink->seeks = 0;
 
 #ifdef CONFIG_UNICODE
-	sb->s_encoding = c->cf_encoding;
-#endif
+	if (bch2_fs_casefold_enabled(c))
+		sb->s_encoding = c->cf_encoding;
 	generic_set_sb_d_ops(sb);
+#endif
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);

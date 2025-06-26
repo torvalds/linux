@@ -863,9 +863,7 @@ struct bch_fs {
 	DARRAY(enum bcachefs_metadata_version)
 				incompat_versions_requested;
 
-#ifdef CONFIG_UNICODE
 	struct unicode_map	*cf_encoding;
-#endif
 
 	struct bch_sb_handle	disk_sb;
 
@@ -1283,6 +1281,15 @@ static inline bool bch2_discard_opt_enabled(struct bch_fs *c, struct bch_dev *ca
 	return test_bit(BCH_FS_discard_mount_opt_set, &c->flags)
 		? c->opts.discard
 		: ca->mi.discard;
+}
+
+static inline bool bch2_fs_casefold_enabled(struct bch_fs *c)
+{
+#ifdef CONFIG_UNICODE
+	return !c->opts.casefold_disabled;
+#else
+	return false;
+#endif
 }
 
 #endif /* _BCACHEFS_H */
