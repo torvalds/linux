@@ -951,8 +951,6 @@ static void perf_cgroup_switch(struct task_struct *task)
 	if (READ_ONCE(cpuctx->cgrp) == NULL)
 		return;
 
-	WARN_ON_ONCE(cpuctx->ctx.nr_cgroups == 0);
-
 	cgrp = perf_cgroup_from_task(task, NULL);
 	if (READ_ONCE(cpuctx->cgrp) == cgrp)
 		return;
@@ -963,6 +961,8 @@ static void perf_cgroup_switch(struct task_struct *task)
 	 */
 	if (READ_ONCE(cpuctx->cgrp) == NULL)
 		return;
+
+	WARN_ON_ONCE(cpuctx->ctx.nr_cgroups == 0);
 
 	perf_ctx_disable(&cpuctx->ctx, true);
 
