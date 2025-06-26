@@ -21,6 +21,9 @@ struct io_buffer_list {
 		struct list_head buf_list;
 		struct io_uring_buf_ring *buf_ring;
 	};
+	/* count of classic/legacy buffers in buffer list */
+	int nbufs;
+
 	__u16 bgid;
 
 	/* below is for ring provided buffers */

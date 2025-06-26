@@ -572,7 +572,7 @@ static const struct iio_chan_spec_ext_info ad7280_cell_ext_info[] = {
 		.write = ad7280_store_balance_timer,
 		.shared = IIO_SEPARATE,
 	},
-	{}
+	{ }
 };
 
 static const struct iio_event_spec ad7280_events[] = {

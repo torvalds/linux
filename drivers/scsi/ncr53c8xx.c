@@ -7923,7 +7923,7 @@ irqreturn_t ncr53c8xx_intr(int irq, void *dev_id)
 
 static void ncr53c8xx_timeout(struct timer_list *t)
 {
-	struct ncb *np = from_timer(np, t, timer);
+	struct ncb *np = timer_container_of(np, t, timer);
 	unsigned long flags;
 	struct scsi_cmnd *done_list;
 

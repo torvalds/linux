@@ -37,6 +37,90 @@ include $(srctree)/scripts/Makefile.compiler
 include $(kbuild-file)
 include $(srctree)/scripts/Makefile.lib
 
+# flags that take effect in current and sub directories
+KBUILD_AFLAGS += $(subdir-asflags-y)
+KBUILD_CFLAGS += $(subdir-ccflags-y)
+KBUILD_RUSTFLAGS += $(subdir-rustflags-y)
+
+# Figure out what we need to build from the various variables
+# ===========================================================================
+
+# When an object is listed to be built compiled-in and modular,
+# only build the compiled-in version
+obj-m := $(filter-out $(obj-y),$(obj-m))
+
+# Libraries are always collected in one lib file.
+# Filter out objects already built-in
+lib-y := $(filter-out $(obj-y), $(sort $(lib-y) $(lib-m)))
+
+# Subdirectories we need to descend into
+subdir-ym := $(sort $(subdir-y) $(subdir-m) \
+			$(patsubst %/,%, $(filter %/, $(obj-y) $(obj-m))))
+
+# Handle objects in subdirs:
+# - If we encounter foo/ in $(obj-y), replace it by foo/built-in.a and
+#   foo/modules.order
+# - If we encounter foo/ in $(obj-m), replace it by foo/modules.order
+#
+# Generate modules.order to determine modorder. Unfortunately, we don't have
+# information about ordering between -y and -m subdirs. Just put -y's first.
+
+ifdef need-modorder
+obj-m := $(patsubst %/,%/modules.order, $(filter %/, $(obj-y)) $(obj-m))
+else
+obj-m := $(filter-out %/, $(obj-m))
+endif
+
+ifdef need-builtin
+obj-y		:= $(patsubst %/, %/built-in.a, $(obj-y))
+else
+obj-y		:= $(filter-out %/, $(obj-y))
+endif
+
+# Expand $(foo-objs) $(foo-y) etc. by replacing their individuals
+suffix-search = $(strip $(foreach s, $3, $($(1:%$(strip $2)=%$s))))
+# List composite targets that are constructed by combining other targets
+multi-search = $(sort $(foreach m, $1, $(if $(call suffix-search, $m, $2, $3 -), $m)))
+# List primitive targets that are compiled from source files
+real-search = $(foreach m, $1, $(if $(call suffix-search, $m, $2, $3 -), $(call suffix-search, $m, $2, $3), $m))
+
+# If $(foo-objs), $(foo-y), $(foo-m), or $(foo-) exists, foo.o is a composite object
+multi-obj-y := $(call multi-search, $(obj-y), .o, -objs -y)
+multi-obj-m := $(call multi-search, $(obj-m), .o, -objs -y -m)
+multi-obj-ym := $(multi-obj-y) $(multi-obj-m)
+
+# Replace multi-part objects by their individual parts,
+# including built-in.a from subdirectories
+real-obj-y := $(call real-search, $(obj-y), .o, -objs -y)
+real-obj-m := $(call real-search, $(obj-m), .o, -objs -y -m)
+
+always-y += $(always-m)
+
+# hostprogs-always-y += foo
+# ... is a shorthand for
+# hostprogs += foo
+# always-y  += foo
+hostprogs += $(hostprogs-always-y) $(hostprogs-always-m)
+always-y += $(hostprogs-always-y) $(hostprogs-always-m)
+
+# userprogs-always-y is likewise.
+userprogs += $(userprogs-always-y) $(userprogs-always-m)
+always-y += $(userprogs-always-y) $(userprogs-always-m)
+
+# Add subdir path
+
+ifneq ($(obj),.)
+extra-y		:= $(addprefix $(obj)/, $(extra-y))
+always-y	:= $(addprefix $(obj)/, $(always-y))
+targets		:= $(addprefix $(obj)/, $(targets))
+obj-m		:= $(addprefix $(obj)/, $(obj-m))
+lib-y		:= $(addprefix $(obj)/, $(lib-y))
+real-obj-y	:= $(addprefix $(obj)/, $(real-obj-y))
+real-obj-m	:= $(addprefix $(obj)/, $(real-obj-m))
+multi-obj-m	:= $(addprefix $(obj)/, $(multi-obj-m))
+subdir-ym	:= $(addprefix $(obj)/, $(subdir-ym))
+endif
+
 ifndef obj
 $(warning kbuild: Makefile.build is included improperly)
 endif

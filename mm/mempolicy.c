@@ -3708,15 +3708,13 @@ static void wi_state_free(void)
 			lockdep_is_held(&wi_state_lock));
 	if (!old_wi_state) {
 		mutex_unlock(&wi_state_lock);
-		goto out;
+		return;
 	}
 
 	rcu_assign_pointer(wi_state, NULL);
 	mutex_unlock(&wi_state_lock);
 	synchronize_rcu();
 	kfree(old_wi_state);
-out:
-	kfree(&wi_group->wi_kobj);
 }
 
 static struct kobj_attribute wi_auto_attr =

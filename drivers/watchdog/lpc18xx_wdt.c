@@ -77,7 +77,8 @@ static int lpc18xx_wdt_feed(struct watchdog_device *wdt_dev)
 
 static void lpc18xx_wdt_timer_feed(struct timer_list *t)
 {
-	struct lpc18xx_wdt_dev *lpc18xx_wdt = from_timer(lpc18xx_wdt, t, timer);
+	struct lpc18xx_wdt_dev *lpc18xx_wdt = timer_container_of(lpc18xx_wdt,
+								 t, timer);
 	struct watchdog_device *wdt_dev = &lpc18xx_wdt->wdt_dev;
 
 	lpc18xx_wdt_feed(wdt_dev);

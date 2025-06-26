@@ -907,7 +907,7 @@ EXPORT_SYMBOL(ath11k_ce_rx_post_buf);
 
 void ath11k_ce_rx_replenish_retry(struct timer_list *t)
 {
-	struct ath11k_base *ab = from_timer(ab, t, rx_replenish_retry);
+	struct ath11k_base *ab = timer_container_of(ab, t, rx_replenish_retry);
 
 	ath11k_ce_rx_post_buf(ab);
 }

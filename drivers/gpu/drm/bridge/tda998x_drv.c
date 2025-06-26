@@ -751,7 +751,8 @@ tda998x_reset(struct tda998x_priv *priv)
  */
 static void tda998x_edid_delay_done(struct timer_list *t)
 {
-	struct tda998x_priv *priv = from_timer(priv, t, edid_delay_timer);
+	struct tda998x_priv *priv = timer_container_of(priv, t,
+						       edid_delay_timer);
 
 	priv->edid_delay_active = false;
 	wake_up(&priv->edid_delay_waitq);

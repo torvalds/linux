@@ -2220,7 +2220,8 @@ label_lps_done:
 
 void rtl_watch_dog_timer_callback(struct timer_list *t)
 {
-	struct rtl_priv *rtlpriv = from_timer(rtlpriv, t, works.watchdog_timer);
+	struct rtl_priv *rtlpriv = timer_container_of(rtlpriv, t,
+						      works.watchdog_timer);
 
 	queue_delayed_work(rtlpriv->works.rtl_wq,
 			   &rtlpriv->works.watchdog_wq, 0);

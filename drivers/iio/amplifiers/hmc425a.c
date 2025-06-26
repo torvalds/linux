@@ -270,7 +270,7 @@ static const struct iio_chan_spec_ext_info ltc6373_ext_info[] = {
 		.write = ltc6373_write_powerdown,
 		.shared = IIO_SEPARATE,
 	},
-	{}
+	{ }
 };
 
 #define HMC425A_CHAN(_channel)						\
@@ -398,7 +398,6 @@ static int hmc425a_probe(struct platform_device *pdev)
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
-/* Match table for of_platform binding */
 static const struct of_device_id hmc425a_of_match[] = {
 	{ .compatible = "adi,hmc425a",
 	  .data = &hmc425a_chip_info_tbl[ID_HMC425A]},
@@ -408,7 +407,7 @@ static const struct of_device_id hmc425a_of_match[] = {
 	  .data = &hmc425a_chip_info_tbl[ID_ADRF5740]},
 	{ .compatible = "adi,ltc6373",
 	  .data = &hmc425a_chip_info_tbl[ID_LTC6373]},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, hmc425a_of_match);
 

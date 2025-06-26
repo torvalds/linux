@@ -44,6 +44,11 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
 #undef BPF_LINK_TYPE
 };
 
+enum bpf_features {
+	BPF_FEAT_RDONLY_CAST_TO_VOID = 0,
+	__MAX_BPF_FEAT,
+};
+
 struct bpf_mem_alloc bpf_global_percpu_ma;
 static bool bpf_global_percpu_ma_set;
 
@@ -7092,8 +7097,7 @@ BTF_TYPE_SAFE_TRUSTED(struct file) {
 	struct inode *f_inode;
 };
 
-BTF_TYPE_SAFE_TRUSTED(struct dentry) {
-	/* no negative dentry-s in places where bpf can see it */
+BTF_TYPE_SAFE_TRUSTED_OR_NULL(struct dentry) {
 	struct inode *d_inode;
 };
 
@@ -7131,7 +7135,6 @@ static bool type_is_trusted(struct bpf_verifier_env *env,
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct bpf_iter__task));
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct linux_binprm));
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct file));
-	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct dentry));
 
 	return btf_nested_type_is_trusted(&env->log, reg, field_name, btf_id, "__safe_trusted");
 }
@@ -7141,6 +7144,7 @@ static bool type_is_trusted_or_null(struct bpf_verifier_env *env,
 				    const char *field_name, u32 btf_id)
 {
 	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED_OR_NULL(struct socket));
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED_OR_NULL(struct dentry));
 
 	return btf_nested_type_is_trusted(&env->log, reg, field_name, btf_id,
 					  "__safe_trusted_or_null");
@@ -7535,6 +7539,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		}
 	} else if (base_type(reg->type) == PTR_TO_MEM) {
 		bool rdonly_mem = type_is_rdonly_mem(reg->type);
+		bool rdonly_untrusted = rdonly_mem && (reg->type & PTR_UNTRUSTED);
 
 		if (type_may_be_null(reg->type)) {
 			verbose(env, "R%d invalid mem access '%s'\n", regno,
@@ -7554,8 +7559,13 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			return -EACCES;
 		}
 
-		err = check_mem_region_access(env, regno, off, size,
-					      reg->mem_size, false);
+		/*
+		 * Accesses to untrusted PTR_TO_MEM are done through probe
+		 * instructions, hence no need to check bounds in that case.
+		 */
+		if (!rdonly_untrusted)
+			err = check_mem_region_access(env, regno, off, size,
+						      reg->mem_size, false);
 		if (!err && value_regno >= 0 && (t == BPF_READ || rdonly_mem))
 			mark_reg_unknown(env, regs, value_regno);
 	} else if (reg->type == PTR_TO_CTX) {
@@ -13602,16 +13612,24 @@ static int check_special_kfunc(struct bpf_verifier_env *env, struct bpf_kfunc_ca
 		regs[BPF_REG_0].btf_id = meta->ret_btf_id;
 	} else if (meta->func_id == special_kfunc_list[KF_bpf_rdonly_cast]) {
 		ret_t = btf_type_by_id(desc_btf, meta->arg_constant.value);
-		if (!ret_t || !btf_type_is_struct(ret_t)) {
+		if (!ret_t) {
+			verbose(env, "Unknown type ID %lld passed to kfunc bpf_rdonly_cast\n",
+				meta->arg_constant.value);
+			return -EINVAL;
+		} else if (btf_type_is_struct(ret_t)) {
+			mark_reg_known_zero(env, regs, BPF_REG_0);
+			regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
+			regs[BPF_REG_0].btf = desc_btf;
+			regs[BPF_REG_0].btf_id = meta->arg_constant.value;
+		} else if (btf_type_is_void(ret_t)) {
+			mark_reg_known_zero(env, regs, BPF_REG_0);
+			regs[BPF_REG_0].type = PTR_TO_MEM | MEM_RDONLY | PTR_UNTRUSTED;
+			regs[BPF_REG_0].mem_size = 0;
+		} else {
 			verbose(env,
-				"kfunc bpf_rdonly_cast type ID argument must be of a struct\n");
+				"kfunc bpf_rdonly_cast type ID argument must be of a struct or void\n");
 			return -EINVAL;
 		}
-
-		mark_reg_known_zero(env, regs, BPF_REG_0);
-		regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
-		regs[BPF_REG_0].btf = desc_btf;
-		regs[BPF_REG_0].btf_id = meta->arg_constant.value;
 	} else if (meta->func_id == special_kfunc_list[KF_bpf_dynptr_slice] ||
 		   meta->func_id == special_kfunc_list[KF_bpf_dynptr_slice_rdwr]) {
 		enum bpf_type_flag type_flag = get_dynptr_type_flag(meta->initialized_dynptr.type);
@@ -14410,6 +14428,13 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 
+	/*
+	 * Accesses to untrusted PTR_TO_MEM are done through probe
+	 * instructions, hence no need to track offsets.
+	 */
+	if (base_type(ptr_reg->type) == PTR_TO_MEM && (ptr_reg->type & PTR_UNTRUSTED))
+		return 0;
+
 	switch (base_type(ptr_reg->type)) {
 	case PTR_TO_CTX:
 	case PTR_TO_MAP_VALUE:
@@ -14605,14 +14630,25 @@ static void scalar32_min_max_add(struct bpf_reg_state *dst_reg,
 	s32 *dst_smax = &dst_reg->s32_max_value;
 	u32 *dst_umin = &dst_reg->u32_min_value;
 	u32 *dst_umax = &dst_reg->u32_max_value;
+	u32 umin_val = src_reg->u32_min_value;
+	u32 umax_val = src_reg->u32_max_value;
+	bool min_overflow, max_overflow;
 
 	if (check_add_overflow(*dst_smin, src_reg->s32_min_value, dst_smin) ||
 	    check_add_overflow(*dst_smax, src_reg->s32_max_value, dst_smax)) {
 		*dst_smin = S32_MIN;
 		*dst_smax = S32_MAX;
 	}
-	if (check_add_overflow(*dst_umin, src_reg->u32_min_value, dst_umin) ||
-	    check_add_overflow(*dst_umax, src_reg->u32_max_value, dst_umax)) {
+
+	/* If either all additions overflow or no additions overflow, then
+	 * it is okay to set: dst_umin = dst_umin + src_umin, dst_umax =
+	 * dst_umax + src_umax. Otherwise (some additions overflow), set
+	 * the output bounds to unbounded.
+	 */
+	min_overflow = check_add_overflow(*dst_umin, umin_val, dst_umin);
+	max_overflow = check_add_overflow(*dst_umax, umax_val, dst_umax);
+
+	if (!min_overflow && max_overflow) {
 		*dst_umin = 0;
 		*dst_umax = U32_MAX;
 	}
@@ -14625,14 +14661,25 @@ static void scalar_min_max_add(struct bpf_reg_state *dst_reg,
 	s64 *dst_smax = &dst_reg->smax_value;
 	u64 *dst_umin = &dst_reg->umin_value;
 	u64 *dst_umax = &dst_reg->umax_value;
+	u64 umin_val = src_reg->umin_value;
+	u64 umax_val = src_reg->umax_value;
+	bool min_overflow, max_overflow;
 
 	if (check_add_overflow(*dst_smin, src_reg->smin_value, dst_smin) ||
 	    check_add_overflow(*dst_smax, src_reg->smax_value, dst_smax)) {
 		*dst_smin = S64_MIN;
 		*dst_smax = S64_MAX;
 	}
-	if (check_add_overflow(*dst_umin, src_reg->umin_value, dst_umin) ||
-	    check_add_overflow(*dst_umax, src_reg->umax_value, dst_umax)) {
+
+	/* If either all additions overflow or no additions overflow, then
+	 * it is okay to set: dst_umin = dst_umin + src_umin, dst_umax =
+	 * dst_umax + src_umax. Otherwise (some additions overflow), set
+	 * the output bounds to unbounded.
+	 */
+	min_overflow = check_add_overflow(*dst_umin, umin_val, dst_umin);
+	max_overflow = check_add_overflow(*dst_umax, umax_val, dst_umax);
+
+	if (!min_overflow && max_overflow) {
 		*dst_umin = 0;
 		*dst_umax = U64_MAX;
 	}
@@ -14643,8 +14690,11 @@ static void scalar32_min_max_sub(struct bpf_reg_state *dst_reg,
 {
 	s32 *dst_smin = &dst_reg->s32_min_value;
 	s32 *dst_smax = &dst_reg->s32_max_value;
+	u32 *dst_umin = &dst_reg->u32_min_value;
+	u32 *dst_umax = &dst_reg->u32_max_value;
 	u32 umin_val = src_reg->u32_min_value;
 	u32 umax_val = src_reg->u32_max_value;
+	bool min_underflow, max_underflow;
 
 	if (check_sub_overflow(*dst_smin, src_reg->s32_max_value, dst_smin) ||
 	    check_sub_overflow(*dst_smax, src_reg->s32_min_value, dst_smax)) {
@@ -14652,14 +14702,18 @@ static void scalar32_min_max_sub(struct bpf_reg_state *dst_reg,
 		*dst_smin = S32_MIN;
 		*dst_smax = S32_MAX;
 	}
-	if (dst_reg->u32_min_value < umax_val) {
-		/* Overflow possible, we know nothing */
-		dst_reg->u32_min_value = 0;
-		dst_reg->u32_max_value = U32_MAX;
-	} else {
-		/* Cannot overflow (as long as bounds are consistent) */
-		dst_reg->u32_min_value -= umax_val;
-		dst_reg->u32_max_value -= umin_val;
+
+	/* If either all subtractions underflow or no subtractions
+	 * underflow, it is okay to set: dst_umin = dst_umin - src_umax,
+	 * dst_umax = dst_umax - src_umin. Otherwise (some subtractions
+	 * underflow), set the output bounds to unbounded.
+	 */
+	min_underflow = check_sub_overflow(*dst_umin, umax_val, dst_umin);
+	max_underflow = check_sub_overflow(*dst_umax, umin_val, dst_umax);
+
+	if (min_underflow && !max_underflow) {
+		*dst_umin = 0;
+		*dst_umax = U32_MAX;
 	}
 }
 
@@ -14668,8 +14722,11 @@ static void scalar_min_max_sub(struct bpf_reg_state *dst_reg,
 {
 	s64 *dst_smin = &dst_reg->smin_value;
 	s64 *dst_smax = &dst_reg->smax_value;
+	u64 *dst_umin = &dst_reg->umin_value;
+	u64 *dst_umax = &dst_reg->umax_value;
 	u64 umin_val = src_reg->umin_value;
 	u64 umax_val = src_reg->umax_value;
+	bool min_underflow, max_underflow;
 
 	if (check_sub_overflow(*dst_smin, src_reg->smax_value, dst_smin) ||
 	    check_sub_overflow(*dst_smax, src_reg->smin_value, dst_smax)) {
@@ -14677,14 +14734,18 @@ static void scalar_min_max_sub(struct bpf_reg_state *dst_reg,
 		*dst_smin = S64_MIN;
 		*dst_smax = S64_MAX;
 	}
-	if (dst_reg->umin_value < umax_val) {
-		/* Overflow possible, we know nothing */
-		dst_reg->umin_value = 0;
-		dst_reg->umax_value = U64_MAX;
-	} else {
-		/* Cannot overflow (as long as bounds are consistent) */
-		dst_reg->umin_value -= umax_val;
-		dst_reg->umax_value -= umin_val;
+
+	/* If either all subtractions underflow or no subtractions
+	 * underflow, it is okay to set: dst_umin = dst_umin - src_umax,
+	 * dst_umax = dst_umax - src_umin. Otherwise (some subtractions
+	 * underflow), set the output bounds to unbounded.
+	 */
+	min_underflow = check_sub_overflow(*dst_umin, umax_val, dst_umin);
+	max_underflow = check_sub_overflow(*dst_umax, umin_val, dst_umax);
+
+	if (min_underflow && !max_underflow) {
+		*dst_umin = 0;
+		*dst_umax = U64_MAX;
 	}
 }
 
@@ -15146,6 +15207,7 @@ static bool is_safe_to_compute_dst_reg_range(struct bpf_insn *insn,
 	switch (BPF_OP(insn->code)) {
 	case BPF_ADD:
 	case BPF_SUB:
+	case BPF_NEG:
 	case BPF_AND:
 	case BPF_XOR:
 	case BPF_OR:
@@ -15213,6 +15275,13 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 		scalar32_min_max_sub(dst_reg, &src_reg);
 		scalar_min_max_sub(dst_reg, &src_reg);
 		dst_reg->var_off = tnum_sub(dst_reg->var_off, src_reg.var_off);
+		break;
+	case BPF_NEG:
+		env->fake_reg[0] = *dst_reg;
+		__mark_reg_known(dst_reg, 0);
+		scalar32_min_max_sub(dst_reg, &env->fake_reg[0]);
+		scalar_min_max_sub(dst_reg, &env->fake_reg[0]);
+		dst_reg->var_off = tnum_neg(env->fake_reg[0].var_off);
 		break;
 	case BPF_MUL:
 		dst_reg->var_off = tnum_mul(dst_reg->var_off, src_reg.var_off);
@@ -15437,7 +15506,14 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		}
 
 		/* check dest operand */
-		err = check_reg_arg(env, insn->dst_reg, DST_OP);
+		if (opcode == BPF_NEG) {
+			err = check_reg_arg(env, insn->dst_reg, DST_OP_NO_MARK);
+			err = err ?: adjust_scalar_min_max_vals(env, insn,
+							 &regs[insn->dst_reg],
+							 regs[insn->dst_reg]);
+		} else {
+			err = check_reg_arg(env, insn->dst_reg, DST_OP);
+		}
 		if (err)
 			return err;
 
@@ -19567,10 +19643,27 @@ static bool reg_type_mismatch(enum bpf_reg_type src, enum bpf_reg_type prev)
 			       !reg_type_mismatch_ok(prev));
 }
 
+static bool is_ptr_to_mem_or_btf_id(enum bpf_reg_type type)
+{
+	switch (base_type(type)) {
+	case PTR_TO_MEM:
+	case PTR_TO_BTF_ID:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_ptr_to_mem(enum bpf_reg_type type)
+{
+	return base_type(type) == PTR_TO_MEM;
+}
+
 static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type type,
 			     bool allow_trust_mismatch)
 {
 	enum bpf_reg_type *prev_type = &env->insn_aux_data[env->insn_idx].ptr_type;
+	enum bpf_reg_type merged_type;
 
 	if (*prev_type == NOT_INIT) {
 		/* Saw a valid insn
@@ -19587,15 +19680,24 @@ static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type typ
 		 * Reject it.
 		 */
 		if (allow_trust_mismatch &&
-		    base_type(type) == PTR_TO_BTF_ID &&
-		    base_type(*prev_type) == PTR_TO_BTF_ID) {
+		    is_ptr_to_mem_or_btf_id(type) &&
+		    is_ptr_to_mem_or_btf_id(*prev_type)) {
 			/*
 			 * Have to support a use case when one path through
 			 * the program yields TRUSTED pointer while another
 			 * is UNTRUSTED. Fallback to UNTRUSTED to generate
 			 * BPF_PROBE_MEM/BPF_PROBE_MEMSX.
+			 * Same behavior of MEM_RDONLY flag.
 			 */
-			*prev_type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
+			if (is_ptr_to_mem(type) || is_ptr_to_mem(*prev_type))
+				merged_type = PTR_TO_MEM;
+			else
+				merged_type = PTR_TO_BTF_ID;
+			if ((type & PTR_UNTRUSTED) || (*prev_type & PTR_UNTRUSTED))
+				merged_type |= PTR_UNTRUSTED;
+			if ((type & MEM_RDONLY) || (*prev_type & MEM_RDONLY))
+				merged_type |= MEM_RDONLY;
+			*prev_type = merged_type;
 		} else {
 			verbose(env, "same insn cannot be used with different pointers\n");
 			return -EINVAL;
@@ -21203,6 +21305,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		 * for this case.
 		 */
 		case PTR_TO_BTF_ID | MEM_ALLOC | PTR_UNTRUSTED:
+		case PTR_TO_MEM | MEM_RDONLY | PTR_UNTRUSTED:
 			if (type == BPF_READ) {
 				if (BPF_MODE(insn->code) == BPF_MEM)
 					insn->code = BPF_LDX | BPF_PROBE_MEM |
@@ -24387,6 +24490,8 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	int i, len, ret = -EINVAL, err;
 	u32 log_true_size;
 	bool is_priv;
+
+	BTF_TYPE_EMIT(enum bpf_features);
 
 	/* no program is valid */
 	if (ARRAY_SIZE(bpf_verifier_ops) == 0)

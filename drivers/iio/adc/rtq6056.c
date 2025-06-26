@@ -666,7 +666,8 @@ static irqreturn_t rtq6056_buffer_trigger_handler(int irq, void *p)
 		data.vals[i++] = raw;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data, iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data, sizeof(data),
+				    iio_get_time_ns(indio_dev));
 
 out:
 	pm_runtime_mark_last_busy(dev);

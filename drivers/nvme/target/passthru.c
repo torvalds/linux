@@ -99,7 +99,7 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 
 	/*
 	 * The passthru NVMe driver may have a limit on the number of segments
-	 * which depends on the host's memory fragementation. To solve this,
+	 * which depends on the host's memory fragmentation. To solve this,
 	 * ensure mdts is limited to the pages equal to the number of segments.
 	 */
 	max_hw_sectors = min_not_zero(pctrl->max_segments << PAGE_SECTORS_SHIFT,

@@ -184,8 +184,8 @@ void schedule_deferred_list_work(struct svm_range_list *svms);
 void svm_range_dma_unmap_dev(struct device *dev, dma_addr_t *dma_addr,
 			 unsigned long offset, unsigned long npages);
 void svm_range_dma_unmap(struct svm_range *prange);
-int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
-		       uint64_t *svm_priv_data_size);
+void svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
+			uint64_t *svm_priv_data_size);
 int kfd_criu_checkpoint_svm(struct kfd_process *p,
 			    uint8_t __user *user_priv_data,
 			    uint64_t *priv_offset);
@@ -237,13 +237,12 @@ static inline int svm_range_schedule_evict_svm_bo(
 	return -EINVAL;
 }
 
-static inline int svm_range_get_info(struct kfd_process *p,
-				     uint32_t *num_svm_ranges,
-				     uint64_t *svm_priv_data_size)
+static inline void svm_range_get_info(struct kfd_process *p,
+				      uint32_t *num_svm_ranges,
+				      uint64_t *svm_priv_data_size)
 {
 	*num_svm_ranges = 0;
 	*svm_priv_data_size = 0;
-	return 0;
 }
 
 static inline int kfd_criu_checkpoint_svm(struct kfd_process *p,

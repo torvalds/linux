@@ -10,7 +10,7 @@ config SENSORS_LIS3_SPI
 	help
 	  This driver provides support for the LIS3LV02Dx accelerometer connected
 	  via SPI. The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
+	  /sys/devices/faux/lis3lv02d.
 
 	  This driver also provides an absolute input class device, allowing
 	  the laptop to act as a pinball machine-esque joystick.
@@ -26,7 +26,7 @@ config SENSORS_LIS3_I2C
 	help
 	  This driver provides support for the LIS3LV02Dx accelerometer connected
 	  via I2C. The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
+	  /sys/devices/faux/lis3lv02d.
 
 	  This driver also provides an absolute input class device, allowing
 	  the device to act as a pinball machine-esque joystick.

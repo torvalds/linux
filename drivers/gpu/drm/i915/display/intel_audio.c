@@ -397,6 +397,19 @@ hsw_audio_config_update(struct intel_encoder *encoder,
 		hsw_hdmi_audio_config_update(encoder, crtc_state);
 }
 
+static void intel_audio_sdp_split_update(const struct intel_crtc_state *crtc_state,
+					 bool enable)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	enum transcoder trans = crtc_state->cpu_transcoder;
+
+	if (!HAS_DP20(display))
+		return;
+
+	intel_de_rmw(display, AUD_DP_2DOT0_CTRL(trans), AUD_ENABLE_SDP_SPLIT,
+		     enable && crtc_state->sdp_split_enable ? AUD_ENABLE_SDP_SPLIT : 0);
+}
+
 static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *old_crtc_state,
 				    const struct drm_connector_state *old_conn_state)
@@ -429,6 +442,8 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 
 	if (needs_wa_14020863754(display))
 		intel_de_rmw(display, AUD_CHICKENBIT_REG3, DACBE_DISABLE_MIN_HBLANK_FIX, 0);
+
+	intel_audio_sdp_split_update(old_crtc_state, false);
 
 	mutex_unlock(&display->audio.mutex);
 }
@@ -555,6 +570,8 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP))
 		enable_audio_dsc_wa(encoder, crtc_state);
 
+	intel_audio_sdp_split_update(crtc_state, true);
+
 	if (needs_wa_14020863754(display))
 		intel_de_rmw(display, AUD_CHICKENBIT_REG3, 0, DACBE_DISABLE_MIN_HBLANK_FIX);
 
@@ -679,16 +696,6 @@ static void ibx_audio_codec_enable(struct intel_encoder *encoder,
 		      audio_config_hdmi_pixel_clock(crtc_state)));
 
 	mutex_unlock(&display->audio.mutex);
-}
-
-void intel_audio_sdp_split_update(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(crtc_state);
-	enum transcoder trans = crtc_state->cpu_transcoder;
-
-	if (HAS_DP20(display))
-		intel_de_rmw(display, AUD_DP_2DOT0_CTRL(trans), AUD_ENABLE_SDP_SPLIT,
-			     crtc_state->sdp_split_enable ? AUD_ENABLE_SDP_SPLIT : 0);
 }
 
 bool intel_audio_compute_config(struct intel_encoder *encoder,

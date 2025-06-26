@@ -3507,9 +3507,6 @@ static void intel_ddi_enable(struct intel_atomic_state *state,
 
 	intel_vrr_transcoder_enable(crtc_state);
 
-	/* Enable/Disable DP2.0 SDP split config before transcoder */
-	intel_audio_sdp_split_update(crtc_state);
-
 	/* 128b/132b SST */
 	if (!is_hdmi && intel_dp_is_uhbr(crtc_state)) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);

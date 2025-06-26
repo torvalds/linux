@@ -169,7 +169,7 @@ unlock:
 /* Timer function for re-enabling ASPM in the absence of interrupt activity */
 static  void aspm_ctx_timer_function(struct timer_list *t)
 {
-	struct hfi1_ctxtdata *rcd = from_timer(rcd, t, aspm_timer);
+	struct hfi1_ctxtdata *rcd = timer_container_of(rcd, t, aspm_timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(&rcd->aspm_lock, flags);

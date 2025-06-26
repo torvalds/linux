@@ -176,7 +176,7 @@ static const struct iio_chan_spec_ext_info ltc2632_ext_info[] = {
 		.write = ltc2632_write_dac_powerdown,
 		.shared = IIO_SEPARATE,
 	},
-	{ },
+	{ }
 };
 
 #define LTC2632_CHANNEL(_chan, _bits) { \
@@ -372,7 +372,7 @@ static const struct spi_device_id ltc2632_id[] = {
 	{ "ltc2636-h12", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636H12] },
 	{ "ltc2636-h10", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636H10] },
 	{ "ltc2636-h8", (kernel_ulong_t)&ltc2632_chip_info_tbl[ID_LTC2636H8] },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ltc2632_id);
 
@@ -432,7 +432,7 @@ static const struct of_device_id ltc2632_of_match[] = {
 		.compatible = "lltc,ltc2636-h8",
 		.data = &ltc2632_chip_info_tbl[ID_LTC2636H8]
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc2632_of_match);
 

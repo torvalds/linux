@@ -570,7 +570,7 @@ static inline void ioc3_setup_duplex(struct ioc3_private *ip)
 
 static void ioc3_timer(struct timer_list *t)
 {
-	struct ioc3_private *ip = from_timer(ip, t, ioc3_timer);
+	struct ioc3_private *ip = timer_container_of(ip, t, ioc3_timer);
 
 	/* Print the link status if it has changed */
 	mii_check_media(&ip->mii, 1, 0);

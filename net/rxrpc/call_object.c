@@ -64,7 +64,7 @@ void rxrpc_poke_call(struct rxrpc_call *call, enum rxrpc_call_poke_trace what)
 
 static void rxrpc_call_timer_expired(struct timer_list *t)
 {
-	struct rxrpc_call *call = from_timer(call, t, timer);
+	struct rxrpc_call *call = timer_container_of(call, t, timer);
 
 	_enter("%d", call->debug_id);
 

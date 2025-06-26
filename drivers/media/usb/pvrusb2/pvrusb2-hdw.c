@@ -3562,7 +3562,7 @@ struct hdw_timer {
 
 static void pvr2_ctl_timeout(struct timer_list *t)
 {
-	struct hdw_timer *timer = from_timer(timer, t, timer);
+	struct hdw_timer *timer = timer_container_of(timer, t, timer);
 	struct pvr2_hdw *hdw = timer->hdw;
 
 	if (hdw->ctl_write_pend_flag || hdw->ctl_read_pend_flag) {
@@ -4421,7 +4421,7 @@ static int state_eval_encoder_run(struct pvr2_hdw *hdw)
 /* Timeout function for quiescent timer. */
 static void pvr2_hdw_quiescent_timeout(struct timer_list *t)
 {
-	struct pvr2_hdw *hdw = from_timer(hdw, t, quiescent_timer);
+	struct pvr2_hdw *hdw = timer_container_of(hdw, t, quiescent_timer);
 	hdw->state_decoder_quiescent = !0;
 	trace_stbit("state_decoder_quiescent",hdw->state_decoder_quiescent);
 	hdw->state_stale = !0;
@@ -4432,7 +4432,8 @@ static void pvr2_hdw_quiescent_timeout(struct timer_list *t)
 /* Timeout function for decoder stabilization timer. */
 static void pvr2_hdw_decoder_stabilization_timeout(struct timer_list *t)
 {
-	struct pvr2_hdw *hdw = from_timer(hdw, t, decoder_stabilization_timer);
+	struct pvr2_hdw *hdw = timer_container_of(hdw, t,
+						  decoder_stabilization_timer);
 	hdw->state_decoder_ready = !0;
 	trace_stbit("state_decoder_ready", hdw->state_decoder_ready);
 	hdw->state_stale = !0;
@@ -4443,7 +4444,7 @@ static void pvr2_hdw_decoder_stabilization_timeout(struct timer_list *t)
 /* Timeout function for encoder wait timer. */
 static void pvr2_hdw_encoder_wait_timeout(struct timer_list *t)
 {
-	struct pvr2_hdw *hdw = from_timer(hdw, t, encoder_wait_timer);
+	struct pvr2_hdw *hdw = timer_container_of(hdw, t, encoder_wait_timer);
 	hdw->state_encoder_waitok = !0;
 	trace_stbit("state_encoder_waitok",hdw->state_encoder_waitok);
 	hdw->state_stale = !0;
@@ -4454,7 +4455,7 @@ static void pvr2_hdw_encoder_wait_timeout(struct timer_list *t)
 /* Timeout function for encoder run timer. */
 static void pvr2_hdw_encoder_run_timeout(struct timer_list *t)
 {
-	struct pvr2_hdw *hdw = from_timer(hdw, t, encoder_run_timer);
+	struct pvr2_hdw *hdw = timer_container_of(hdw, t, encoder_run_timer);
 	if (!hdw->state_encoder_runok) {
 		hdw->state_encoder_runok = !0;
 		trace_stbit("state_encoder_runok",hdw->state_encoder_runok);

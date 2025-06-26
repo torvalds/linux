@@ -76,7 +76,7 @@ config DRM_AMDGPU_USERPTR
 
 config DRM_AMD_ISP
 	bool "Enable AMD Image Signal Processor IP support"
-	depends on DRM_AMDGPU
+	depends on DRM_AMDGPU && ACPI
 	select MFD_CORE
 	select PM_GENERIC_DOMAINS if PM
 	help

@@ -44,6 +44,7 @@
 #include "sdma_v6_0.h"
 #include "v11_structs.h"
 #include "mes_userqueue.h"
+#include "amdgpu_userq_fence.h"
 
 MODULE_FIRMWARE("amdgpu/sdma_6_0_0.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_0_1.bin");
@@ -893,6 +894,9 @@ static int sdma_v6_0_mqd_init(struct amdgpu_device *adev, void *mqd,
 	m->sdmax_rlcx_csa_addr_lo = lower_32_bits(prop->csa_addr);
 	m->sdmax_rlcx_csa_addr_hi = upper_32_bits(prop->csa_addr);
 
+	m->sdmax_rlcx_f32_dbg0 = lower_32_bits(prop->fence_address);
+	m->sdmax_rlcx_f32_dbg1 = upper_32_bits(prop->fence_address);
+
 	return 0;
 }
 
@@ -1315,6 +1319,13 @@ static int sdma_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	/* SDMA user fence event */
+	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GFX,
+			      GFX_11_0_0__SRCID__SDMA_FENCE,
+			      &adev->sdma.fence_irq);
+	if (r)
+		return r;
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
@@ -1575,24 +1586,8 @@ static int sdma_v6_0_process_trap_irq(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	int instances, queue;
-	uint32_t mes_queue_id = entry->src_data[0];
 
 	DRM_DEBUG("IH: SDMA trap\n");
-
-	if (adev->enable_mes && (mes_queue_id & AMDGPU_FENCE_MES_QUEUE_FLAG)) {
-		struct amdgpu_mes_queue *queue;
-
-		mes_queue_id &= AMDGPU_FENCE_MES_QUEUE_ID_MASK;
-
-		spin_lock(&adev->mes.queue_id_lock);
-		queue = idr_find(&adev->mes.queue_id_idr, mes_queue_id);
-		if (queue) {
-			DRM_DEBUG("process smda queue id = %d\n", mes_queue_id);
-			amdgpu_fence_process(queue->ring);
-		}
-		spin_unlock(&adev->mes.queue_id_lock);
-		return 0;
-	}
 
 	queue = entry->ring_id & 0xf;
 	instances = (entry->ring_id & 0xf0) >> 4;
@@ -1612,6 +1607,29 @@ static int sdma_v6_0_process_trap_irq(struct amdgpu_device *adev,
 		}
 		break;
 	}
+	return 0;
+}
+
+static int sdma_v6_0_process_fence_irq(struct amdgpu_device *adev,
+				       struct amdgpu_irq_src *source,
+				       struct amdgpu_iv_entry *entry)
+{
+	u32 doorbell_offset = entry->src_data[0];
+
+	if (adev->enable_mes && doorbell_offset) {
+		struct amdgpu_userq_fence_driver *fence_drv = NULL;
+		struct xarray *xa = &adev->userq_xa;
+		unsigned long flags;
+
+		doorbell_offset >>= SDMA0_QUEUE0_DOORBELL_OFFSET__OFFSET__SHIFT;
+
+		xa_lock_irqsave(xa, flags);
+		fence_drv = xa_load(xa, doorbell_offset);
+		if (fence_drv)
+			amdgpu_userq_fence_driver_process(fence_drv);
+		xa_unlock_irqrestore(xa, flags);
+	}
+
 	return 0;
 }
 
@@ -1751,6 +1769,10 @@ static const struct amdgpu_irq_src_funcs sdma_v6_0_trap_irq_funcs = {
 	.process = sdma_v6_0_process_trap_irq,
 };
 
+static const struct amdgpu_irq_src_funcs sdma_v6_0_fence_irq_funcs = {
+	.process = sdma_v6_0_process_fence_irq,
+};
+
 static const struct amdgpu_irq_src_funcs sdma_v6_0_illegal_inst_irq_funcs = {
 	.process = sdma_v6_0_process_illegal_inst_irq,
 };
@@ -1760,6 +1782,7 @@ static void sdma_v6_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_INSTANCE0 +
 					adev->sdma.num_instances;
 	adev->sdma.trap_irq.funcs = &sdma_v6_0_trap_irq_funcs;
+	adev->sdma.fence_irq.funcs = &sdma_v6_0_fence_irq_funcs;
 	adev->sdma.illegal_inst_irq.funcs = &sdma_v6_0_illegal_inst_irq_funcs;
 }
 

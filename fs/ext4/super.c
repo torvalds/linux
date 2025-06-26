@@ -3627,7 +3627,7 @@ int ext4_feature_set_ok(struct super_block *sb, int readonly)
  */
 static void print_daily_error_info(struct timer_list *t)
 {
-	struct ext4_sb_info *sbi = from_timer(sbi, t, s_err_report);
+	struct ext4_sb_info *sbi = timer_container_of(sbi, t, s_err_report);
 	struct super_block *sb = sbi->s_sb;
 	struct ext4_super_block *es = sbi->s_es;
 

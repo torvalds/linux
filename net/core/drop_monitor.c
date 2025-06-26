@@ -208,7 +208,7 @@ static void send_dm_alert(struct work_struct *work)
  */
 static void sched_send_work(struct timer_list *t)
 {
-	struct per_cpu_dm_data *data = from_timer(data, t, send_timer);
+	struct per_cpu_dm_data *data = timer_container_of(data, t, send_timer);
 
 	schedule_work(&data->dm_alert_work);
 }

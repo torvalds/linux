@@ -118,6 +118,22 @@ config SND_SOC_QDSP6_PRM
 	tristate
 	select SND_SOC_QDSP6_PRM_LPASS_CLOCKS
 
+config SND_SOC_QCOM_OFFLOAD_UTILS
+	tristate
+
+config SND_SOC_QDSP6_USB
+    tristate "SoC ALSA USB offloading backing for QDSP6"
+    depends on SND_SOC_USB
+    select AUXILIARY_BUS
+    select SND_SOC_QCOM_OFFLOAD_UTILS
+
+    help
+      Adds support for USB offloading for QDSP6 ASoC
+      based platform sound cards.  This will enable the
+      Q6USB DPCM backend DAI link, which will interact
+      with the SoC USB framework to initialize a session
+      with active USB SND devices.
+
 config SND_SOC_QDSP6
 	tristate "SoC ALSA audio driver for QDSP6"
 	depends on QCOM_APR

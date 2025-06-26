@@ -231,6 +231,10 @@ __retval(1)
 __naked void ptr_unknown_vs_unknown_lt(void)
 {
 	asm volatile ("					\
+	r8 = r1;					\
+	call %[bpf_get_prandom_u32];			\
+	r9 = r0;					\
+	r1 = r8;					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -245,11 +249,11 @@ l1_%=:	call %[bpf_map_lookup_elem];			\
 	r4 = *(u8*)(r0 + 0);				\
 	if r4 == 1 goto l3_%=;				\
 	r1 = 6;						\
-	r1 = -r1;					\
+	r1 = r9;					\
 	r1 &= 0x3;					\
 	goto l4_%=;					\
 l3_%=:	r1 = 6;						\
-	r1 = -r1;					\
+	r1 = r9;					\
 	r1 &= 0x7;					\
 l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
@@ -259,7 +263,8 @@ l2_%=:	r0 = 1;						\
 	: __imm(bpf_map_lookup_elem),
 	  __imm_addr(map_array_48b),
 	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len)),
+	  __imm(bpf_get_prandom_u32)
 	: __clobber_all);
 }
 
@@ -271,6 +276,10 @@ __retval(1)
 __naked void ptr_unknown_vs_unknown_gt(void)
 {
 	asm volatile ("					\
+	r8 = r1;					\
+	call %[bpf_get_prandom_u32];			\
+	r9 = r0;					\
+	r1 = r8;					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -285,11 +294,11 @@ l1_%=:	call %[bpf_map_lookup_elem];			\
 	r4 = *(u8*)(r0 + 0);				\
 	if r4 == 1 goto l3_%=;				\
 	r1 = 6;						\
-	r1 = -r1;					\
+	r1 = r9;					\
 	r1 &= 0x7;					\
 	goto l4_%=;					\
 l3_%=:	r1 = 6;						\
-	r1 = -r1;					\
+	r1 = r9;					\
 	r1 &= 0x3;					\
 l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
@@ -299,7 +308,8 @@ l2_%=:	r0 = 1;						\
 	: __imm(bpf_map_lookup_elem),
 	  __imm_addr(map_array_48b),
 	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len)),
+	  __imm(bpf_get_prandom_u32)
 	: __clobber_all);
 }
 

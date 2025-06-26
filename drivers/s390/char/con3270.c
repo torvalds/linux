@@ -525,7 +525,7 @@ static void tty3270_update_lines_all(struct tty3270 *tp, struct raw3270_request 
  */
 static void tty3270_update(struct timer_list *t)
 {
-	struct tty3270 *tp = from_timer(tp, t, timer);
+	struct tty3270 *tp = timer_container_of(tp, t, timer);
 	struct raw3270_request *wrq;
 	u8 cmd = TC_WRITE;
 	int rc, len;

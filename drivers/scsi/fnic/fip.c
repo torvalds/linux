@@ -777,7 +777,7 @@ void fnic_work_on_fip_timer(struct work_struct *work)
  */
 void fnic_handle_fip_timer(struct timer_list *t)
 {
-	struct fnic *fnic = from_timer(fnic, t, retry_fip_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, retry_fip_timer);
 
 	INIT_WORK(&fnic->fip_timer_work, fnic_work_on_fip_timer);
 	queue_work(fnic_fip_queue, &fnic->fip_timer_work);
@@ -790,7 +790,7 @@ void fnic_handle_fip_timer(struct timer_list *t)
 void fnic_handle_enode_ka_timer(struct timer_list *t)
 {
 	uint8_t *frame;
-	struct fnic *fnic = from_timer(fnic, t, enode_ka_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, enode_ka_timer);
 
 	struct fnic_iport_s *iport = &fnic->iport;
 	struct fip_enode_ka *penode_ka;
@@ -843,7 +843,7 @@ void fnic_handle_enode_ka_timer(struct timer_list *t)
 void fnic_handle_vn_ka_timer(struct timer_list *t)
 {
 	uint8_t *frame;
-	struct fnic *fnic = from_timer(fnic, t, vn_ka_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, vn_ka_timer);
 
 	struct fnic_iport_s *iport = &fnic->iport;
 	struct fip_vn_port_ka *pvn_port_ka;
@@ -998,7 +998,7 @@ void fnic_work_on_fcs_ka_timer(struct work_struct *work)
  */
 void fnic_handle_fcs_ka_timer(struct timer_list *t)
 {
-	struct fnic *fnic = from_timer(fnic, t, fcs_ka_timer);
+	struct fnic *fnic = timer_container_of(fnic, t, fcs_ka_timer);
 
 	INIT_WORK(&fnic->fip_timer_work, fnic_work_on_fcs_ka_timer);
 	queue_work(fnic_fip_queue, &fnic->fip_timer_work);

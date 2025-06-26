@@ -653,7 +653,7 @@ out:
 
 void mesh_plink_timer(struct timer_list *t)
 {
-	struct mesh_sta *mesh = from_timer(mesh, t, plink_timer);
+	struct mesh_sta *mesh = timer_container_of(mesh, t, plink_timer);
 	struct sta_info *sta;
 	u16 reason = 0;
 	struct ieee80211_sub_if_data *sdata;

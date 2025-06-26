@@ -257,7 +257,8 @@ static void ath10k_htt_rx_msdu_buff_replenish(struct ath10k_htt *htt)
 
 static void ath10k_htt_rx_ring_refill_retry(struct timer_list *t)
 {
-	struct ath10k_htt *htt = from_timer(htt, t, rx_ring.refill_retry_timer);
+	struct ath10k_htt *htt = timer_container_of(htt, t,
+						    rx_ring.refill_retry_timer);
 
 	ath10k_htt_rx_msdu_buff_replenish(htt);
 }

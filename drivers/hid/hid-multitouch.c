@@ -1745,7 +1745,7 @@ static void mt_release_contacts(struct hid_device *hid)
 
 static void mt_expired_timeout(struct timer_list *t)
 {
-	struct mt_device *td = from_timer(td, t, release_timer);
+	struct mt_device *td = timer_container_of(td, t, release_timer);
 	struct hid_device *hdev = td->hdev;
 
 	/*

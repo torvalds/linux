@@ -1542,7 +1542,8 @@ int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
 
 static void sta_info_cleanup(struct timer_list *t)
 {
-	struct ieee80211_local *local = from_timer(local, t, sta_cleanup);
+	struct ieee80211_local *local = timer_container_of(local, t,
+							   sta_cleanup);
 	struct sta_info *sta;
 	bool timer_needed = false;
 

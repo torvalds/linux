@@ -319,7 +319,7 @@ static ssize_t admv1013_write(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	return ret ? ret : len;
+	return len;
 }
 
 static int admv1013_update_quad_filters(struct admv1013_state *st)
@@ -407,7 +407,7 @@ static int admv1013_freq_change(struct notifier_block *nb, unsigned long action,
 static const struct iio_chan_spec_ext_info admv1013_ext_info[] = {
 	_ADMV1013_EXT_INFO("i_calibphase", IIO_SEPARATE, ADMV1013_RFMOD_I_CALIBPHASE),
 	_ADMV1013_EXT_INFO("q_calibphase", IIO_SEPARATE, ADMV1013_RFMOD_Q_CALIBPHASE),
-	{ },
+	{ }
 };
 
 #define ADMV1013_CHAN_PHASE(_channel, _channel2, _admv1013_ext_info) {		\
@@ -615,13 +615,13 @@ static int admv1013_probe(struct spi_device *spi)
 
 static const struct spi_device_id admv1013_id[] = {
 	{ "admv1013", 0 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, admv1013_id);
 
 static const struct of_device_id admv1013_of_match[] = {
 	{ .compatible = "adi,admv1013" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, admv1013_of_match);
 

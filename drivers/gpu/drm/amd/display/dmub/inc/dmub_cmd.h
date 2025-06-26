@@ -2139,33 +2139,12 @@ union dmub_cmd_fams2_config {
 	} stream_v1; //v1
 };
 
-struct dmub_fams2_config_v2 {
-	struct dmub_cmd_fams2_global_config global;
-	struct dmub_fams2_stream_static_state_v1 stream_v1[DMUB_MAX_STREAMS]; //v1
-};
-
 /**
  * DMUB rb command definition for FAMS2 (merged SubVP, FPO, Legacy)
  */
 struct dmub_rb_cmd_fams2 {
 	struct dmub_cmd_header header;
 	union dmub_cmd_fams2_config config;
-};
-
-/**
- * Indirect buffer descriptor
- */
-struct dmub_ib_data {
-	union dmub_addr src; // location of indirect buffer in memory
-	uint16_t size; // indirect buffer size in bytes
-};
-
-/**
- * DMUB rb command definition for commands passed over indirect buffer
- */
-struct dmub_rb_cmd_ib {
-	struct dmub_cmd_header header;
-	struct dmub_ib_data ib_data;
 };
 
 /**
@@ -2191,11 +2170,6 @@ enum dmub_cmd_idle_opt_type {
 	 * DCN hardware notify power state.
 	 */
 	DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE = 3,
-
-	/**
-	 * DCN notify to release HW.
-	 */
-	 DMUB_CMD__IDLE_OPT_RELEASE_HW = 4,
 };
 
 /**
@@ -2957,9 +2931,8 @@ enum dmub_cmd_fams_type {
 	 */
 	DMUB_CMD__FAMS_SET_MANUAL_TRIGGER = 3,
 	DMUB_CMD__FAMS2_CONFIG = 4,
-	DMUB_CMD__FAMS2_IB_CONFIG = 5,
-	DMUB_CMD__FAMS2_DRR_UPDATE = 6,
-	DMUB_CMD__FAMS2_FLIP = 7,
+	DMUB_CMD__FAMS2_DRR_UPDATE = 5,
+	DMUB_CMD__FAMS2_FLIP = 6,
 };
 
 /**
@@ -5953,10 +5926,7 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
 	 */
 	struct dmub_rb_cmd_assr_enable assr_enable;
-
 	struct dmub_rb_cmd_fams2 fams2_config;
-
-	struct dmub_rb_cmd_ib ib_fams2_config;
 
 	struct dmub_rb_cmd_fams2_drr_update fams2_drr_update;
 

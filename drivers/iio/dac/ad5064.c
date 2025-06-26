@@ -378,7 +378,7 @@ static const struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ad5064_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ad5064_powerdown_mode_enum),
-	{ },
+	{ }
 };
 
 static const struct iio_chan_spec_ext_info ltc2617_ext_info[] = {
@@ -390,7 +390,7 @@ static const struct iio_chan_spec_ext_info ltc2617_ext_info[] = {
 	},
 	IIO_ENUM("powerdown_mode", IIO_SEPARATE, &ltc2617_powerdown_mode_enum),
 	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ltc2617_powerdown_mode_enum),
-	{ },
+	{ }
 };
 
 #define AD5064_CHANNEL(chan, addr, bits, _shift, _ext_info) {		\
@@ -936,7 +936,7 @@ static const struct spi_device_id ad5064_spi_ids[] = {
 	{"ad5668-1", ID_AD5668_1},
 	{"ad5668-2", ID_AD5668_2},
 	{"ad5668-3", ID_AD5668_2}, /* similar enough to ad5668-2 */
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5064_spi_ids);
 
@@ -1048,7 +1048,7 @@ static const struct i2c_device_id ad5064_i2c_ids[] = {
 	{"ltc2635-h10", ID_LTC2635_H10},
 	{"ltc2635-l8", ID_LTC2635_L8},
 	{"ltc2635-h8", ID_LTC2635_H8},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5064_i2c_ids);
 

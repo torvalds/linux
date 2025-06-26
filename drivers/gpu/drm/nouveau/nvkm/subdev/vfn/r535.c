@@ -42,7 +42,7 @@ r535_vfn_new(const struct nvkm_vfn_func *hw,
 		return -ENOMEM;
 
 	rm->dtor = r535_vfn_dtor;
-	rm->intr = &tu102_vfn_intr,
+	rm->intr = &tu102_vfn_intr;
 	rm->user.addr = 0x030000;
 	rm->user.size = 0x010000;
 	rm->user.base.minver = -1;

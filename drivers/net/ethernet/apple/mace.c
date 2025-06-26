@@ -805,7 +805,7 @@ static irqreturn_t mace_interrupt(int irq, void *dev_id)
 
 static void mace_tx_timeout(struct timer_list *t)
 {
-    struct mace_data *mp = from_timer(mp, t, tx_timeout);
+    struct mace_data *mp = timer_container_of(mp, t, tx_timeout);
     struct net_device *dev = macio_get_drvdata(mp->mdev);
     volatile struct mace __iomem *mb = mp->mace;
     volatile struct dbdma_regs __iomem *td = mp->tx_dma;

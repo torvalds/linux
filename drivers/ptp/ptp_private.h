@@ -100,10 +100,20 @@ static inline bool ptp_vclock_in_use(struct ptp_clock *ptp)
 {
 	bool in_use = false;
 
+	/* Virtual clocks can't be stacked on top of virtual clocks.
+	 * Avoid acquiring the n_vclocks_mux on virtual clocks, to allow this
+	 * function to be called from code paths where the n_vclocks_mux of the
+	 * parent physical clock is already held. Functionally that's not an
+	 * issue, but lockdep would complain, because they have the same lock
+	 * class.
+	 */
+	if (ptp->is_virtual_clock)
+		return false;
+
 	if (mutex_lock_interruptible(&ptp->n_vclocks_mux))
 		return true;
 
-	if (!ptp->is_virtual_clock && ptp->n_vclocks)
+	if (ptp->n_vclocks)
 		in_use = true;
 
 	mutex_unlock(&ptp->n_vclocks_mux);

@@ -1370,8 +1370,8 @@ mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx,
 	struct mlx5hws_cmd_set_fte_attr fte_attr = {0};
 	struct mlx5hws_cmd_forward_tbl *fw_island;
 	struct mlx5hws_action *action;
-	u32 i /*, packet_reformat_id*/;
-	int ret;
+	int ret, last_dest_idx = -1;
+	u32 i;
 
 	if (num_dest <= 1) {
 		mlx5hws_err(ctx, "Action must have multiple dests\n");
@@ -1401,11 +1401,8 @@ mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx,
 			dest_list[i].destination_id = dests[i].dest->dest_obj.obj_id;
 			fte_attr.action_flags |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 			fte_attr.ignore_flow_level = ignore_flow_level;
-			/* ToDo: In SW steering we have a handling of 'go to WIRE'
-			 * destination here by upper layer setting 'is_wire_ft' flag
-			 * if the destination is wire.
-			 * This is because uplink should be last dest in the list.
-			 */
+			if (dests[i].is_wire_ft)
+				last_dest_idx = i;
 			break;
 		case MLX5HWS_ACTION_TYP_VPORT:
 			dest_list[i].destination_type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
@@ -1428,6 +1425,9 @@ mlx5hws_action_create_dest_array(struct mlx5hws_context *ctx,
 			goto free_dest_list;
 		}
 	}
+
+	if (last_dest_idx != -1)
+		swap(dest_list[last_dest_idx], dest_list[num_dest - 1]);
 
 	fte_attr.dests_num = num_dest;
 	fte_attr.dests = dest_list;

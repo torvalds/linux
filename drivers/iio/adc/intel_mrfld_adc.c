@@ -174,7 +174,7 @@ static const struct iio_map iio_maps[] = {
 	IIO_MAP("CH6", "bcove-temp",    "SYSTEMP0"),
 	IIO_MAP("CH7", "bcove-temp",    "SYSTEMP1"),
 	IIO_MAP("CH8", "bcove-temp",    "SYSTEMP2"),
-	{}
+	{ }
 };
 
 static int mrfld_adc_probe(struct platform_device *pdev)
@@ -222,7 +222,7 @@ static int mrfld_adc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id mrfld_adc_id_table[] = {
 	{ .name = "mrfld_bcove_adc" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, mrfld_adc_id_table);
 

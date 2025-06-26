@@ -2442,7 +2442,7 @@ void fib6_run_gc(unsigned long expires, struct net *net, bool force)
 
 static void fib6_gc_timer_cb(struct timer_list *t)
 {
-	struct net *arg = from_timer(arg, t, ipv6.ip6_fib_timer);
+	struct net *arg = timer_container_of(arg, t, ipv6.ip6_fib_timer);
 
 	fib6_run_gc(0, arg, true);
 }

@@ -100,7 +100,7 @@ static void idletimer_tg_work(struct work_struct *work)
 
 static void idletimer_tg_expired(struct timer_list *t)
 {
-	struct idletimer_tg *timer = from_timer(timer, t, timer);
+	struct idletimer_tg *timer = timer_container_of(timer, t, timer);
 
 	pr_debug("timer %s expired\n", timer->attr.attr.name);
 

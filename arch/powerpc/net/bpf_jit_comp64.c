@@ -820,13 +820,12 @@ emit_clear:
 		case BPF_ST | BPF_NOSPEC:
 			sync_emitted = false;
 			ori31_emitted = false;
-#ifdef CONFIG_PPC_E500
-			if (!bpf_jit_bypass_spec_v1()) {
+			if (IS_ENABLED(CONFIG_PPC_E500) &&
+			    !bpf_jit_bypass_spec_v1()) {
 				EMIT(PPC_RAW_ISYNC());
 				EMIT(PPC_RAW_SYNC());
 				sync_emitted = true;
 			}
-#endif
 			if (!bpf_jit_bypass_spec_v4()) {
 				switch (stf_barrier) {
 				case STF_BARRIER_EIEIO:
@@ -849,10 +848,10 @@ emit_clear:
 					break;
 				}
 			}
-#ifdef CONFIG_PPC_BOOK3S_64
-			if (!bpf_jit_bypass_spec_v1() && !ori31_emitted)
+			if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
+			    !bpf_jit_bypass_spec_v1() &&
+			    !ori31_emitted)
 				EMIT(PPC_RAW_ORI(_R31, _R31, 0));
-#endif
 			break;
 
 		/*

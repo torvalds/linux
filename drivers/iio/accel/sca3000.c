@@ -1541,7 +1541,7 @@ static const struct spi_device_id sca3000_id[] = {
 	{"sca3000_e02", e02},
 	{"sca3000_e04", e04},
 	{"sca3000_e05", e05},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, sca3000_id);
 

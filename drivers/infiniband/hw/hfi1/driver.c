@@ -1315,7 +1315,8 @@ void shutdown_led_override(struct hfi1_pportdata *ppd)
 
 static void run_led_override(struct timer_list *t)
 {
-	struct hfi1_pportdata *ppd = from_timer(ppd, t, led_override_timer);
+	struct hfi1_pportdata *ppd = timer_container_of(ppd, t,
+							led_override_timer);
 	struct hfi1_devdata *dd = ppd->dd;
 	unsigned long timeout;
 	int phase_idx;

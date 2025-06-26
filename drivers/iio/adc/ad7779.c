@@ -595,7 +595,8 @@ static irqreturn_t ad7779_trigger_handler(int irq, void *p)
 		goto exit_handler;
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->data, pf->timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &st->data, sizeof(st->data),
+				    pf->timestamp);
 
 exit_handler:
 	iio_trigger_notify_done(indio_dev->trig);

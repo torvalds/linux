@@ -351,9 +351,10 @@ enum DC_DEBUG_MASK {
 	DC_DISABLE_HDMI_CEC = 0x10000,
 
 	/**
-	 * @DC_DISABLE_SUBVP: If set, disable DCN Sub-Viewport feature in amdgpu driver.
+	 * @DC_DISABLE_SUBVP_FAMS: If set, disable DCN Sub-Viewport & Firmware Assisted
+	 * Memory Clock Switching (FAMS) feature in amdgpu driver.
 	 */
-	DC_DISABLE_SUBVP = 0x20000,
+	DC_DISABLE_SUBVP_FAMS = 0x20000,
 	/**
 	 * @DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE: If set, disable support for custom brightness curves
 	 */
@@ -370,6 +371,11 @@ enum DC_DEBUG_MASK {
 	 * path failure, retry using legacy SW path.
 	 */
 	DC_HDCP_LC_ENABLE_SW_FALLBACK = 0x100000,
+
+	/**
+	 * @DC_SKIP_DETECTION_LT: If set, skip detection link training
+	 */
+	DC_SKIP_DETECTION_LT = 0x200000,
 };
 
 enum amd_dpm_forced_level;

@@ -166,7 +166,7 @@ static int appletb_tb_key_to_slot(unsigned int code)
 
 static void appletb_inactivity_timer(struct timer_list *t)
 {
-	struct appletb_kbd *kbd = from_timer(kbd, t, inactivity_timer);
+	struct appletb_kbd *kbd = timer_container_of(kbd, t, inactivity_timer);
 
 	if (kbd->backlight_dev && appletb_tb_autodim) {
 		if (!kbd->has_dimmed) {

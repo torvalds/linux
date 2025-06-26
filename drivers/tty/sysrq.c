@@ -712,7 +712,8 @@ static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 
 static void sysrq_do_reset(struct timer_list *t)
 {
-	struct sysrq_state *state = from_timer(state, t, keyreset_timer);
+	struct sysrq_state *state = timer_container_of(state, t,
+						       keyreset_timer);
 
 	state->reset_requested = true;
 

@@ -66,6 +66,7 @@ struct xe_device_desc {
 	u8 has_heci_gscfi:1;
 	u8 has_heci_cscfi:1;
 	u8 has_llc:1;
+	u8 has_mbx_power_limits:1;
 	u8 has_pxp:1;
 	u8 has_sriov:1;
 	u8 needs_scratch:1;
@@ -306,6 +307,7 @@ static const struct xe_device_desc dg2_desc = {
 	DG2_FEATURES,
 	.has_display = true,
 	.has_fan_control = true,
+	.has_mbx_power_limits = false,
 };
 
 static const __maybe_unused struct xe_device_desc pvc_desc = {
@@ -317,6 +319,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.has_heci_gscfi = 1,
 	.max_remote_tiles = 1,
 	.require_force_probe = true,
+	.has_mbx_power_limits = false,
 };
 
 static const struct xe_device_desc mtl_desc = {
@@ -342,6 +345,7 @@ static const struct xe_device_desc bmg_desc = {
 	.dma_mask_size = 46,
 	.has_display = true,
 	.has_fan_control = true,
+	.has_mbx_power_limits = true,
 	.has_heci_cscfi = 1,
 	.needs_scratch = true,
 };
@@ -584,6 +588,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.dma_mask_size = desc->dma_mask_size;
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_fan_control = desc->has_fan_control;
+	xe->info.has_mbx_power_limits = desc->has_mbx_power_limits;
 	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
 	xe->info.has_heci_cscfi = desc->has_heci_cscfi;
 	xe->info.has_llc = desc->has_llc;

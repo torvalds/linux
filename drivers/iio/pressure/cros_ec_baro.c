@@ -192,7 +192,7 @@ static const struct platform_device_id cros_ec_baro_ids[] = {
 	{
 		.name = "cros-ec-baro",
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_baro_ids);
 

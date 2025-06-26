@@ -790,7 +790,7 @@ static int queue_if_no_path(struct multipath *m, bool f_queue_if_no_path,
  */
 static void queue_if_no_path_timeout_work(struct timer_list *t)
 {
-	struct multipath *m = from_timer(m, t, nopath_timer);
+	struct multipath *m = timer_container_of(m, t, nopath_timer);
 
 	DMWARN("queue_if_no_path timeout on %s, failing queued IO",
 	       dm_table_device_name(m->ti->table));

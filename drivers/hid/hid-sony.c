@@ -545,7 +545,7 @@ static void ghl_magic_poke_cb(struct urb *urb)
 static void ghl_magic_poke(struct timer_list *t)
 {
 	int ret;
-	struct sony_sc *sc = from_timer(sc, t, ghl_poke_timer);
+	struct sony_sc *sc = timer_container_of(sc, t, ghl_poke_timer);
 
 	ret = usb_submit_urb(sc->ghl_urb, GFP_ATOMIC);
 	if (ret < 0)

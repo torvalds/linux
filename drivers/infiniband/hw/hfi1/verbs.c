@@ -554,7 +554,7 @@ void hfi1_16B_rcv(struct hfi1_packet *packet)
  */
 static void mem_timer(struct timer_list *t)
 {
-	struct hfi1_ibdev *dev = from_timer(dev, t, mem_timer);
+	struct hfi1_ibdev *dev = timer_container_of(dev, t, mem_timer);
 	struct list_head *list = &dev->memwait;
 	struct rvt_qp *qp = NULL;
 	struct iowait *wait;

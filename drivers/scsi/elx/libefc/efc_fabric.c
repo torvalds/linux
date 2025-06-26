@@ -886,7 +886,7 @@ __efc_ns_idle(struct efc_sm_ctx *ctx, enum efc_sm_event evt, void *arg)
 static void
 gidpt_delay_timer_cb(struct timer_list *t)
 {
-	struct efc_node *node = from_timer(node, t, gidpt_delay_timer);
+	struct efc_node *node = timer_container_of(node, t, gidpt_delay_timer);
 
 	timer_delete(&node->gidpt_delay_timer);
 

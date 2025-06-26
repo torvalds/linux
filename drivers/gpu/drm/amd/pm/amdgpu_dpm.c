@@ -1697,6 +1697,28 @@ int amdgpu_dpm_is_overdrive_supported(struct amdgpu_device *adev)
 	}
 }
 
+int amdgpu_dpm_is_overdrive_enabled(struct amdgpu_device *adev)
+{
+	if (is_support_sw_smu(adev)) {
+		struct smu_context *smu = adev->powerplay.pp_handle;
+
+		return smu->od_enabled;
+	} else {
+		struct pp_hwmgr *hwmgr;
+
+		/*
+		 * dpm on some legacy asics don't carry od_enabled member
+		 * as its pp_handle is casted directly from adev.
+		 */
+		if (amdgpu_dpm_is_legacy_dpm(adev))
+			return false;
+
+		hwmgr = (struct pp_hwmgr *)adev->powerplay.pp_handle;
+
+		return hwmgr->od_enabled;
+	}
+}
+
 int amdgpu_dpm_set_pp_table(struct amdgpu_device *adev,
 			    const char *buf,
 			    size_t size)
@@ -2015,6 +2037,38 @@ int amdgpu_dpm_get_dpm_clock_table(struct amdgpu_device *adev,
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->get_dpm_clock_table(adev->powerplay.pp_handle,
 					    clock_table);
+	mutex_unlock(&adev->pm.mutex);
+
+	return ret;
+}
+
+/**
+ * amdgpu_dpm_get_xcp_metrics - Retrieve metrics for a specific compute
+ * partition
+ * @adev: Pointer to the device.
+ * @xcp_id: Identifier of the XCP for which metrics are to be retrieved.
+ * @table: Pointer to a buffer where the metrics will be stored. If NULL, the
+ * function returns the size of the metrics structure.
+ *
+ * This function retrieves metrics for a specific XCP, including details such as
+ * VCN/JPEG activity, clock frequencies, and other performance metrics. If the
+ * table parameter is NULL, the function returns the size of the metrics
+ * structure without populating it.
+ *
+ * Return: Size of the metrics structure on success, or a negative error code on failure.
+ */
+ssize_t amdgpu_dpm_get_xcp_metrics(struct amdgpu_device *adev, int xcp_id,
+				   void *table)
+{
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	int ret = 0;
+
+	if (!pp_funcs->get_xcp_metrics)
+		return 0;
+
+	mutex_lock(&adev->pm.mutex);
+	ret = pp_funcs->get_xcp_metrics(adev->powerplay.pp_handle, xcp_id,
+					table);
 	mutex_unlock(&adev->pm.mutex);
 
 	return ret;

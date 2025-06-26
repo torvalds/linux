@@ -41,5 +41,13 @@ if _have_feature "AUTO_BUF_REG"; then
 fi
 wait
 
+if _have_feature "PER_IO_DAEMON"; then
+	ublk_io_and_remove 8G -t null -q 4 --auto_zc --nthreads 8 --per_io_tasks &
+	ublk_io_and_remove 256M -t loop -q 4 --auto_zc --nthreads 8 --per_io_tasks "${UBLK_BACKFILES[0]}" &
+	ublk_io_and_remove 256M -t stripe -q 4 --auto_zc --nthreads 8 --per_io_tasks "${UBLK_BACKFILES[1]}" "${UBLK_BACKFILES[2]}" &
+	ublk_io_and_remove 8G -t null -q 4 -z --auto_zc --auto_zc_fallback --nthreads 8 --per_io_tasks &
+fi
+wait
+
 _cleanup_test "stress"
 _show_result $TID $ERR_CODE

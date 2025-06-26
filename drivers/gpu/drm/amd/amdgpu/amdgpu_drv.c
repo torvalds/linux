@@ -2913,8 +2913,8 @@ static int amdgpu_drm_release(struct inode *inode, struct file *filp)
 
 	if (fpriv) {
 		fpriv->evf_mgr.fd_closing = true;
-		amdgpu_userq_mgr_fini(&fpriv->userq_mgr);
 		amdgpu_eviction_fence_destroy(&fpriv->evf_mgr);
+		amdgpu_userq_mgr_fini(&fpriv->userq_mgr);
 	}
 
 	return drm_release(inode, filp);
