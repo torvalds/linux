@@ -1122,14 +1122,9 @@ __getblk_slow(struct block_device *bdev, sector_t block,
 {
 	bool blocking = gfpflags_allow_blocking(gfp);
 
-	if (unlikely(size & (bdev_logical_block_size(bdev) - 1) ||
-		     (size < 512 || size > PAGE_SIZE))) {
-		printk(KERN_ERR "getblk(): invalid block size %d requested\n",
-					size);
-		printk(KERN_ERR "logical block size: %d\n",
-					bdev_logical_block_size(bdev));
-
-		dump_stack();
+	if (WARN_ON_ONCE(!IS_ALIGNED(size, bdev_logical_block_size(bdev)))) {
+		printk(KERN_ERR "getblk(): block size %d not aligned to logical block size %d\n",
+		       size, bdev_logical_block_size(bdev));
 		return NULL;
 	}
 
