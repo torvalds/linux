@@ -493,7 +493,7 @@ enum {
 
 #define FBNIC_PTP_ADD_VAL_NS		0x04806		/* 0x12018 */
 #define FBNIC_PTP_ADD_VAL_NS_MASK		CSR_GENMASK(15, 0)
-#define FBNIC_PTP_ADD_VAL_SUBNS		0x04807	/* 0x1201c */
+#define FBNIC_PTP_ADD_VAL_SUBNS		0x04807		/* 0x1201c */
 
 #define FBNIC_PTP_CTR_VAL_HI		0x04808		/* 0x12020 */
 #define FBNIC_PTP_CTR_VAL_LO		0x04809		/* 0x12024 */
@@ -816,16 +816,12 @@ enum {
 #define FBNIC_CSR_START_MAC_STAT	0x11a00
 #define FBNIC_MAC_STAT_RX_BYTE_COUNT_L	0x11a08		/* 0x46820 */
 #define FBNIC_MAC_STAT_RX_BYTE_COUNT_H	0x11a09		/* 0x46824 */
-#define FBNIC_MAC_STAT_RX_ALIGN_ERROR_L \
-					0x11a0a		/* 0x46828 */
-#define FBNIC_MAC_STAT_RX_ALIGN_ERROR_H \
-					0x11a0b		/* 0x4682c */
+#define FBNIC_MAC_STAT_RX_ALIGN_ERROR_L	0x11a0a		/* 0x46828 */
+#define FBNIC_MAC_STAT_RX_ALIGN_ERROR_H	0x11a0b		/* 0x4682c */
 #define FBNIC_MAC_STAT_RX_TOOLONG_L	0x11a0e		/* 0x46838 */
 #define FBNIC_MAC_STAT_RX_TOOLONG_H	0x11a0f		/* 0x4683c */
-#define FBNIC_MAC_STAT_RX_RECEIVED_OK_L	\
-					0x11a12		/* 0x46848 */
-#define FBNIC_MAC_STAT_RX_RECEIVED_OK_H	\
-					0x11a13		/* 0x4684c */
+#define FBNIC_MAC_STAT_RX_RECEIVED_OK_L	0x11a12		/* 0x46848 */
+#define FBNIC_MAC_STAT_RX_RECEIVED_OK_H	0x11a13		/* 0x4684c */
 #define FBNIC_MAC_STAT_RX_PACKET_BAD_FCS_L \
 					0x11a14		/* 0x46850 */
 #define FBNIC_MAC_STAT_RX_PACKET_BAD_FCS_H \
@@ -882,10 +878,8 @@ enum {
 					0x11a42		/* 0x46908 */
 #define FBNIC_MAC_STAT_TX_TRANSMITTED_OK_H \
 					0x11a43		/* 0x4690c */
-#define FBNIC_MAC_STAT_TX_IFOUTERRORS_L \
-					0x11a46		/* 0x46918 */
-#define FBNIC_MAC_STAT_TX_IFOUTERRORS_H \
-					0x11a47		/* 0x4691c */
+#define FBNIC_MAC_STAT_TX_IFOUTERRORS_L	0x11a46		/* 0x46918 */
+#define FBNIC_MAC_STAT_TX_IFOUTERRORS_H	0x11a47		/* 0x4691c */
 #define FBNIC_MAC_STAT_TX_MULTICAST_L	0x11a4a		/* 0x46928 */
 #define FBNIC_MAC_STAT_TX_MULTICAST_H	0x11a4b		/* 0x4692c */
 #define FBNIC_MAC_STAT_TX_BROADCAST_L	0x11a4c		/* 0x46930 */
@@ -969,7 +963,7 @@ enum {
 					0x3107e		/* 0xc41f8 */
 #define FBNIC_PUL_USER_OB_RD_DBG_CNT_NP_CRED_63_32 \
 					0x3107f		/* 0xc41fc */
-#define FBNIC_CSR_END_PUL_USER	0x310ea	/* CSR section delimiter */
+#define FBNIC_CSR_END_PUL_USER		0x310ea	/* CSR section delimiter */
 
 /* Queue Registers
  *

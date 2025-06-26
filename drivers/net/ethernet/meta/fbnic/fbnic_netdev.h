@@ -4,8 +4,8 @@
 #ifndef _FBNIC_NETDEV_H_
 #define _FBNIC_NETDEV_H_
 
-#include <linux/types.h>
 #include <linux/phylink.h>
+#include <linux/types.h>
 
 #include "fbnic_csr.h"
 #include "fbnic_rpc.h"
@@ -66,7 +66,7 @@ struct fbnic_net {
 	struct fbnic_queue_stats rx_stats;
 	u64 link_down_events;
 
-	/* Time stampinn filter config */
+	/* Time stamping filter config */
 	struct kernel_hwtstamp_config hwtstamp_config;
 };
 
@@ -81,6 +81,7 @@ int fbnic_netdev_register(struct net_device *netdev);
 void fbnic_netdev_unregister(struct net_device *netdev);
 void fbnic_reset_queues(struct fbnic_net *fbn,
 			unsigned int tx, unsigned int rx);
+
 void fbnic_set_ethtool_ops(struct net_device *dev);
 
 int fbnic_ptp_setup(struct fbnic_dev *fbd);
