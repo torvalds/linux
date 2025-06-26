@@ -2395,10 +2395,10 @@ static int mt9m114_probe(struct i2c_client *client)
 		return ret;
 
 	/* Acquire clocks, GPIOs and regulators. */
-	sensor->clk = devm_clk_get(dev, NULL);
+	sensor->clk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(sensor->clk)) {
-		ret = PTR_ERR(sensor->clk);
-		dev_err_probe(dev, ret, "Failed to get clock\n");
+		ret = dev_err_probe(dev, PTR_ERR(sensor->clk),
+				    "Failed to get clock\n");
 		goto error_ep_free;
 	}
 
