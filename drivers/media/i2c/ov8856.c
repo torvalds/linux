@@ -2274,12 +2274,10 @@ static int ov8856_get_hwcfg(struct ov8856 *ov8856, struct device *dev)
 		return ret;
 
 	if (!is_acpi_node(fwnode)) {
-		ov8856->xvclk = devm_clk_get(dev, "xvclk");
-		if (IS_ERR(ov8856->xvclk)) {
-			dev_err_probe(dev, PTR_ERR(ov8856->xvclk),
-				      "could not get xvclk clock\n");
-			return PTR_ERR(ov8856->xvclk);
-		}
+		ov8856->xvclk = devm_v4l2_sensor_clk_get(dev, "xvclk");
+		if (IS_ERR(ov8856->xvclk))
+			return dev_err_probe(dev, PTR_ERR(ov8856->xvclk),
+					     "could not get xvclk clock\n");
 
 		clk_set_rate(ov8856->xvclk, xvclk_rate);
 		xvclk_rate = clk_get_rate(ov8856->xvclk);
