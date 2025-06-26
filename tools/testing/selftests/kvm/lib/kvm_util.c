@@ -605,15 +605,14 @@ struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm)
 	return vm_vcpu_recreate(vm, 0);
 }
 
-void kvm_pin_this_task_to_pcpu(uint32_t pcpu)
+int __pin_task_to_cpu(pthread_t task, int cpu)
 {
-	cpu_set_t mask;
-	int r;
+	cpu_set_t cpuset;
 
-	CPU_ZERO(&mask);
-	CPU_SET(pcpu, &mask);
-	r = sched_setaffinity(0, sizeof(mask), &mask);
-	TEST_ASSERT(!r, "sched_setaffinity() failed for pCPU '%u'.", pcpu);
+	CPU_ZERO(&cpuset);
+	CPU_SET(cpu, &cpuset);
+
+	return pthread_setaffinity_np(task, sizeof(cpuset), &cpuset);
 }
 
 static uint32_t parse_pcpu(const char *cpu_str, const cpu_set_t *allowed_mask)
@@ -667,7 +666,7 @@ void kvm_parse_vcpu_pinning(const char *pcpus_string, uint32_t vcpu_to_pcpu[],
 
 	/* 2. Check if the main worker needs to be pinned. */
 	if (cpu) {
-		kvm_pin_this_task_to_pcpu(parse_pcpu(cpu, &allowed_mask));
+		pin_self_to_cpu(parse_pcpu(cpu, &allowed_mask));
 		cpu = strtok(NULL, delim);
 	}
 
