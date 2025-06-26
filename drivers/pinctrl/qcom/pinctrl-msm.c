@@ -1442,7 +1442,7 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 	girq->handler = handle_bad_irq;
 	girq->parents[0] = pctrl->irq;
 
-	ret = gpiochip_add_data(&pctrl->chip, pctrl);
+	ret = devm_gpiochip_add_data(pctrl->dev, &pctrl->chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "Failed register gpiochip\n");
 		return ret;
@@ -1463,7 +1463,6 @@ static int msm_gpio_init(struct msm_pinctrl *pctrl)
 			dev_name(pctrl->dev), 0, 0, chip->ngpio);
 		if (ret) {
 			dev_err(pctrl->dev, "Failed to add pin range\n");
-			gpiochip_remove(&pctrl->chip);
 			return ret;
 		}
 	}
@@ -1598,14 +1597,6 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 }
 EXPORT_SYMBOL(msm_pinctrl_probe);
-
-void msm_pinctrl_remove(struct platform_device *pdev)
-{
-	struct msm_pinctrl *pctrl = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&pctrl->chip);
-}
-EXPORT_SYMBOL(msm_pinctrl_remove);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. TLMM driver");
 MODULE_LICENSE("GPL v2");

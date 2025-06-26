@@ -561,68 +561,6 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 		vcpu_set_flag((v), e);					\
 	} while (0)
 
-#define __build_check_all_or_none(r, bits)				\
-	BUILD_BUG_ON(((r) & (bits)) && ((r) & (bits)) != (bits))
-
-#define __cpacr_to_cptr_clr(clr, set)					\
-	({								\
-		u64 cptr = 0;						\
-									\
-		if ((set) & CPACR_EL1_FPEN)				\
-			cptr |= CPTR_EL2_TFP;				\
-		if ((set) & CPACR_EL1_ZEN)				\
-			cptr |= CPTR_EL2_TZ;				\
-		if ((set) & CPACR_EL1_SMEN)				\
-			cptr |= CPTR_EL2_TSM;				\
-		if ((clr) & CPACR_EL1_TTA)				\
-			cptr |= CPTR_EL2_TTA;				\
-		if ((clr) & CPTR_EL2_TAM)				\
-			cptr |= CPTR_EL2_TAM;				\
-		if ((clr) & CPTR_EL2_TCPAC)				\
-			cptr |= CPTR_EL2_TCPAC;				\
-									\
-		cptr;							\
-	})
-
-#define __cpacr_to_cptr_set(clr, set)					\
-	({								\
-		u64 cptr = 0;						\
-									\
-		if ((clr) & CPACR_EL1_FPEN)				\
-			cptr |= CPTR_EL2_TFP;				\
-		if ((clr) & CPACR_EL1_ZEN)				\
-			cptr |= CPTR_EL2_TZ;				\
-		if ((clr) & CPACR_EL1_SMEN)				\
-			cptr |= CPTR_EL2_TSM;				\
-		if ((set) & CPACR_EL1_TTA)				\
-			cptr |= CPTR_EL2_TTA;				\
-		if ((set) & CPTR_EL2_TAM)				\
-			cptr |= CPTR_EL2_TAM;				\
-		if ((set) & CPTR_EL2_TCPAC)				\
-			cptr |= CPTR_EL2_TCPAC;				\
-									\
-		cptr;							\
-	})
-
-#define cpacr_clear_set(clr, set)					\
-	do {								\
-		BUILD_BUG_ON((set) & CPTR_VHE_EL2_RES0);		\
-		BUILD_BUG_ON((clr) & CPACR_EL1_E0POE);			\
-		__build_check_all_or_none((clr), CPACR_EL1_FPEN);	\
-		__build_check_all_or_none((set), CPACR_EL1_FPEN);	\
-		__build_check_all_or_none((clr), CPACR_EL1_ZEN);	\
-		__build_check_all_or_none((set), CPACR_EL1_ZEN);	\
-		__build_check_all_or_none((clr), CPACR_EL1_SMEN);	\
-		__build_check_all_or_none((set), CPACR_EL1_SMEN);	\
-									\
-		if (has_vhe() || has_hvhe())				\
-			sysreg_clear_set(cpacr_el1, clr, set);		\
-		else							\
-			sysreg_clear_set(cptr_el2,			\
-					 __cpacr_to_cptr_clr(clr, set),	\
-					 __cpacr_to_cptr_set(clr, set));\
-	} while (0)
-
 /*
  * Returns a 'sanitised' view of CPTR_EL2, translating from nVHE to the VHE
  * format if E2H isn't set.

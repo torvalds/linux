@@ -244,6 +244,14 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 	__asm__ ("" : "=r" (var) : "0" (var))
 #endif
 
+#ifndef __BUILD_BUG_ON_ZERO_MSG
+#if defined(__clang__)
+#define __BUILD_BUG_ON_ZERO_MSG(e, msg, ...) ((int)(sizeof(struct { int:(-!!(e)); })))
+#else
+#define __BUILD_BUG_ON_ZERO_MSG(e, msg, ...) ((int)sizeof(struct {_Static_assert(!(e), msg);}))
+#endif
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _TOOLS_LINUX_COMPILER_H */

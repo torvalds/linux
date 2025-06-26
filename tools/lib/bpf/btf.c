@@ -1384,12 +1384,12 @@ static struct btf *btf_parse_raw_mmap(const char *path, struct btf *base_btf)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		return libbpf_err_ptr(-errno);
+		return ERR_PTR(-errno);
 
 	if (fstat(fd, &st) < 0) {
 		err = -errno;
 		close(fd);
-		return libbpf_err_ptr(err);
+		return ERR_PTR(err);
 	}
 
 	data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -1397,7 +1397,7 @@ static struct btf *btf_parse_raw_mmap(const char *path, struct btf *base_btf)
 	close(fd);
 
 	if (data == MAP_FAILED)
-		return libbpf_err_ptr(err);
+		return ERR_PTR(err);
 
 	btf = btf_new(data, st.st_size, base_btf, true);
 	if (IS_ERR(btf))

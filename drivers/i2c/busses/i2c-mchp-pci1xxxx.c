@@ -1048,7 +1048,7 @@ static u32 pci1xxxx_i2c_get_funcs(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm pci1xxxx_i2c_algo = {
-	.master_xfer = pci1xxxx_i2c_xfer,
+	.xfer = pci1xxxx_i2c_xfer,
 	.functionality = pci1xxxx_i2c_get_funcs,
 };
 

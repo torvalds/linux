@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Portions
- * Copyright (C) 2022 - 2024 Intel Corporation
+ * Copyright (C) 2022 - 2025 Intel Corporation
  */
 #ifndef __MAC80211_DEBUG_H
 #define __MAC80211_DEBUG_H
+#include <linux/once_lite.h>
 #include <net/cfg80211.h>
 
 #ifdef CONFIG_MAC80211_OCB_DEBUG
@@ -152,6 +153,8 @@ do {									\
 		else							\
 			_sdata_err((link)->sdata, fmt, ##__VA_ARGS__);	\
 	} while (0)
+#define link_err_once(link, fmt, ...)					\
+	DO_ONCE_LITE(link_err, link, fmt, ##__VA_ARGS__)
 #define link_id_info(sdata, link_id, fmt, ...)				\
 	do {								\
 		if (ieee80211_vif_is_mld(&sdata->vif))			\
