@@ -908,8 +908,6 @@ void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val);
 
 void wlc_phyreg_enter(struct brcms_phy_pub *pih);
 void wlc_phyreg_exit(struct brcms_phy_pub *pih);
-void wlc_radioreg_enter(struct brcms_phy_pub *pih);
-void wlc_radioreg_exit(struct brcms_phy_pub *pih);
 
 void wlc_phy_read_table(struct brcms_phy *pi,
 			const struct phytbl_info *ptbl_info,
@@ -921,7 +919,6 @@ void wlc_phy_table_addr(struct brcms_phy *pi, uint tbl_id, uint tbl_offset,
 			u16 tblAddr, u16 tblDataHi, u16 tblDataLo);
 void wlc_phy_table_data_write(struct brcms_phy *pi, uint width, u32 val);
 
-void write_phy_channel_reg(struct brcms_phy *pi, uint val);
 void wlc_phy_txpower_update_shm(struct brcms_phy *pi);
 
 u8 wlc_phy_nbits(s32 value);

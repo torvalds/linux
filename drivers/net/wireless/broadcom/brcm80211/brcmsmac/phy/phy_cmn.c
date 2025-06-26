@@ -127,23 +127,6 @@ void wlc_phyreg_exit(struct brcms_phy_pub *pih)
 	wlapi_bmac_ucode_wake_override_phyreg_clear(pi->sh->physhim);
 }
 
-void wlc_radioreg_enter(struct brcms_phy_pub *pih)
-{
-	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
-	wlapi_bmac_mctrl(pi->sh->physhim, MCTL_LOCK_RADIO, MCTL_LOCK_RADIO);
-
-	udelay(10);
-}
-
-void wlc_radioreg_exit(struct brcms_phy_pub *pih)
-{
-	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
-
-	(void)bcma_read16(pi->d11core, D11REGOFFS(phyversion));
-	pi->phy_wreg = 0;
-	wlapi_bmac_mctrl(pi->sh->physhim, MCTL_LOCK_RADIO, 0);
-}
-
 u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 {
 	u16 data;
@@ -261,11 +244,6 @@ void mod_radio_reg(struct brcms_phy *pi, u16 addr, u16 mask, u16 val)
 
 	rval = read_radio_reg(pi, addr);
 	write_radio_reg(pi, addr, (rval & ~mask) | (val & mask));
-}
-
-void write_phy_channel_reg(struct brcms_phy *pi, uint val)
-{
-	bcma_write16(pi->d11core, D11REGOFFS(phychannel), val);
 }
 
 u16 read_phy_reg(struct brcms_phy *pi, u16 addr)
@@ -692,18 +670,6 @@ void wlc_phy_por_inform(struct brcms_phy_pub *ppi)
 	pi->phy_init_por = true;
 }
 
-void wlc_phy_edcrs_lock(struct brcms_phy_pub *pih, bool lock)
-{
-	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
-
-	pi->edcrs_threshold_lock = lock;
-
-	write_phy_reg(pi, 0x22c, 0x46b);
-	write_phy_reg(pi, 0x22d, 0x46b);
-	write_phy_reg(pi, 0x22e, 0x3c0);
-	write_phy_reg(pi, 0x22f, 0x3c0);
-}
-
 void wlc_phy_initcal_enable(struct brcms_phy_pub *pih, bool initcal)
 {
 	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
@@ -1083,20 +1049,6 @@ void wlc_phy_mute_upd(struct brcms_phy_pub *pih, bool mute, u32 flags)
 	return;
 }
 
-void wlc_phy_clear_tssi(struct brcms_phy_pub *pih)
-{
-	struct brcms_phy *pi = container_of(pih, struct brcms_phy, pubpi_ro);
-
-	if (ISNPHY(pi)) {
-		return;
-	} else {
-		wlapi_bmac_write_shm(pi->sh->physhim, M_B_TSSI_0, NULL_TSSI_W);
-		wlapi_bmac_write_shm(pi->sh->physhim, M_B_TSSI_1, NULL_TSSI_W);
-		wlapi_bmac_write_shm(pi->sh->physhim, M_G_TSSI_0, NULL_TSSI_W);
-		wlapi_bmac_write_shm(pi->sh->physhim, M_G_TSSI_1, NULL_TSSI_W);
-	}
-}
-
 static bool wlc_phy_cal_txpower_recalc_sw(struct brcms_phy *pi)
 {
 	return false;
@@ -1136,13 +1088,6 @@ void wlc_phy_switch_radio(struct brcms_phy_pub *pih, bool on)
 	}
 }
 
-u16 wlc_phy_bw_state_get(struct brcms_phy_pub *ppi)
-{
-	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
-
-	return pi->bw;
-}
-
 void wlc_phy_bw_state_set(struct brcms_phy_pub *ppi, u16 bw)
 {
 	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
@@ -1180,36 +1125,6 @@ void wlc_phy_chanspec_set(struct brcms_phy_pub *ppi, u16 chanspec)
 	if (chanspec_set)
 		(*chanspec_set)(pi, chanspec);
 
-}
-
-int wlc_phy_chanspec_freq2bandrange_lpssn(uint freq)
-{
-	int range = -1;
-
-	if (freq < 2500)
-		range = WL_CHAN_FREQ_RANGE_2G;
-	else if (freq <= 5320)
-		range = WL_CHAN_FREQ_RANGE_5GL;
-	else if (freq <= 5700)
-		range = WL_CHAN_FREQ_RANGE_5GM;
-	else
-		range = WL_CHAN_FREQ_RANGE_5GH;
-
-	return range;
-}
-
-int wlc_phy_chanspec_bandrange_get(struct brcms_phy *pi, u16 chanspec)
-{
-	int range = -1;
-	uint channel = CHSPEC_CHANNEL(chanspec);
-	uint freq = wlc_phy_channel2freq(channel);
-
-	if (ISNPHY(pi))
-		range = wlc_phy_get_chan_freq_range_nphy(pi, channel);
-	else if (ISLCNPHY(pi))
-		range = wlc_phy_chanspec_freq2bandrange_lpssn(freq);
-
-	return range;
 }
 
 void wlc_phy_chanspec_ch14_widefilter_set(struct brcms_phy_pub *ppi,
@@ -1252,50 +1167,6 @@ wlc_phy_chanspec_band_validch(struct brcms_phy_pub *ppi, uint band,
 		    (band == BRCM_BAND_5G && channel > CH_MAX_2G_CHANNEL))
 			setbit(channels->vec, channel);
 	}
-}
-
-u16 wlc_phy_chanspec_band_firstch(struct brcms_phy_pub *ppi, uint band)
-{
-	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
-	uint i;
-	uint channel;
-	u16 chspec;
-
-	for (i = 0; i < ARRAY_SIZE(chan_info_all); i++) {
-		channel = chan_info_all[i].chan;
-
-		if (ISNPHY(pi) && pi->bw == WL_CHANSPEC_BW_40) {
-			uint j;
-
-			for (j = 0; j < ARRAY_SIZE(chan_info_all); j++) {
-				if (chan_info_all[j].chan ==
-				    channel + CH_10MHZ_APART)
-					break;
-			}
-
-			if (j == ARRAY_SIZE(chan_info_all))
-				continue;
-
-			channel = upper_20_sb(channel);
-			chspec =  channel | WL_CHANSPEC_BW_40 |
-				  WL_CHANSPEC_CTL_SB_LOWER;
-			if (band == BRCM_BAND_2G)
-				chspec |= WL_CHANSPEC_BAND_2G;
-			else
-				chspec |= WL_CHANSPEC_BAND_5G;
-		} else
-			chspec = ch20mhz_chspec(channel);
-
-		if ((pi->a_band_high_disable) && (channel >= FIRST_REF5_CHANNUM)
-		    && (channel <= LAST_REF5_CHANNUM))
-			continue;
-
-		if ((band == BRCM_BAND_2G && channel <= CH_MAX_2G_CHANNEL) ||
-		    (band == BRCM_BAND_5G && channel > CH_MAX_2G_CHANNEL))
-			return chspec;
-	}
-
-	return (u16) INVCHANSPEC;
 }
 
 int wlc_phy_txpower_get(struct brcms_phy_pub *ppi, uint *qdbm, bool *override)
