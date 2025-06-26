@@ -12,6 +12,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -203,11 +204,6 @@ static void xilinx_msi_top_irq_ack(struct irq_data *d)
 	 */
 }
 
-static struct irq_chip xilinx_msi_top_chip = {
-	.name		= "PCIe MSI",
-	.irq_ack	= xilinx_msi_top_irq_ack,
-};
-
 static void xilinx_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct xilinx_pcie *pcie = irq_data_get_irq_chip_data(data);
@@ -264,29 +260,42 @@ static const struct irq_domain_ops xilinx_msi_domain_ops = {
 	.free	= xilinx_msi_domain_free,
 };
 
-static struct msi_domain_info xilinx_msi_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY,
-	.chip	= &xilinx_msi_top_chip,
+static bool xilinx_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
+				     struct irq_domain *real_parent, struct msi_domain_info *info)
+{
+	struct irq_chip *chip = info->chip;
+
+	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
+		return false;
+
+	chip->irq_ack = xilinx_msi_top_irq_ack;
+	return true;
+}
+
+#define XILINX_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				   MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				   MSI_FLAG_NO_AFFINITY)
+
+static const struct msi_parent_ops xilinx_msi_parent_ops = {
+	.required_flags		= XILINX_MSI_FLAGS_REQUIRED,
+	.supported_flags	= MSI_GENERIC_FLAGS_MASK,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.prefix			= "xilinx-",
+	.init_dev_msi_info	= xilinx_init_dev_msi_info,
 };
 
 static int xilinx_allocate_msi_domains(struct xilinx_pcie *pcie)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(pcie->dev);
-	struct irq_domain *parent;
+	struct irq_domain_info info = {
+		.fwnode		= dev_fwnode(pcie->dev),
+		.ops		= &xilinx_msi_domain_ops,
+		.host_data	= pcie,
+		.size		= XILINX_NUM_MSI_IRQS,
+	};
 
-	parent = irq_domain_create_linear(fwnode, XILINX_NUM_MSI_IRQS,
-					  &xilinx_msi_domain_ops, pcie);
-	if (!parent) {
-		dev_err(pcie->dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
-	irq_domain_update_bus_token(parent, DOMAIN_BUS_NEXUS);
-
-	pcie->msi_domain = pci_msi_create_irq_domain(fwnode, &xilinx_msi_info, parent);
+	pcie->msi_domain = msi_create_parent_irq_domain(&info, &xilinx_msi_parent_ops);
 	if (!pcie->msi_domain) {
 		dev_err(pcie->dev, "failed to create MSI domain\n");
-		irq_domain_remove(parent);
 		return -ENOMEM;
 	}
 
@@ -295,10 +304,7 @@ static int xilinx_allocate_msi_domains(struct xilinx_pcie *pcie)
 
 static void xilinx_free_msi_domains(struct xilinx_pcie *pcie)
 {
-	struct irq_domain *parent = pcie->msi_domain->parent;
-
 	irq_domain_remove(pcie->msi_domain);
-	irq_domain_remove(parent);
 }
 
 /* INTx Functions */
