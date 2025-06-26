@@ -1249,6 +1249,26 @@ an extra reference to new mount - it should be returned with refcount 1.
 
 ---
 
+**mandatory**
+
+If your filesystem sets the default dentry_operations, use set_default_d_op()
+rather than manually setting sb->s_d_op.
+
+---
+
+**mandatory**
+
+d_set_d_op() is no longer exported (or public, for that matter); _if_
+your filesystem really needed that, make use of d_splice_alias_ops()
+to have them set.  Better yet, think hard whether you need different
+->d_op for different dentries - if not, just use set_default_d_op()
+at mount time and be done with that.  Currently procfs is the only
+thing that really needs ->d_op varying between dentries.
+
+---
+
+**mandatory**
+
 collect_mounts()/drop_collected_mounts()/iterate_mounts() are gone now.
 Replacement is collect_paths()/drop_collected_path(), with no special
 iterator needed.  Instead of a cloned mount tree, the new interface returns

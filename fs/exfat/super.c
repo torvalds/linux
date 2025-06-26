@@ -667,9 +667,9 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	if (sbi->options.utf8)
-		sb->s_d_op = &exfat_utf8_dentry_ops;
+		set_default_d_op(sb, &exfat_utf8_dentry_ops);
 	else
-		sb->s_d_op = &exfat_dentry_ops;
+		set_default_d_op(sb, &exfat_dentry_ops);
 
 	root_inode = new_inode(sb);
 	if (!root_inode) {

@@ -260,9 +260,9 @@ cifs_read_super(struct super_block *sb)
 	}
 
 	if (tcon->nocase)
-		sb->s_d_op = &cifs_ci_dentry_ops;
+		set_default_d_op(sb, &cifs_ci_dentry_ops);
 	else
-		sb->s_d_op = &cifs_dentry_ops;
+		set_default_d_op(sb, &cifs_dentry_ops);
 
 	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
