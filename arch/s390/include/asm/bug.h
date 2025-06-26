@@ -8,26 +8,24 @@
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 
-#define __EMIT_BUG(x) do {					\
+#define __EMIT_BUG(cond_str, x) do {				\
 	asm_inline volatile(					\
 		"0:	mc	0,0\n"				\
-		".section .rodata.str,\"aMS\",@progbits,1\n"	\
-		"1:	.asciz	\""__FILE__"\"\n"		\
-		".previous\n"					\
 		".section __bug_table,\"aw\"\n"			\
-		"2:	.long	0b-.\n"				\
-		"	.long	1b-.\n"				\
-		"	.short	%0,%1\n"			\
-		"	.org	2b+%2\n"			\
+		"1:	.long	0b-.\n"				\
+		"	.long	%0-.\n"				\
+		"	.short	%1,%2\n"			\
+		"	.org	1b+%3\n"			\
 		".previous\n"					\
-		: : "i" (__LINE__),				\
+		: : "i" (WARN_CONDITION_STR(cond_str) __FILE__),\
+		    "i" (__LINE__),				\
 		    "i" (x),					\
 		    "i" (sizeof(struct bug_entry)));		\
 } while (0)
 
 #else /* CONFIG_DEBUG_BUGVERBOSE */
 
-#define __EMIT_BUG(x) do {					\
+#define __EMIT_BUG(cond_str, x) do {				\
 	asm_inline volatile(					\
 		"0:	mc	0,0\n"				\
 		".section __bug_table,\"aw\"\n"			\
@@ -42,12 +40,12 @@
 #endif /* CONFIG_DEBUG_BUGVERBOSE */
 
 #define BUG() do {					\
-	__EMIT_BUG(0);					\
+	__EMIT_BUG("", 0);				\
 	unreachable();					\
 } while (0)
 
-#define __WARN_FLAGS(flags) do {			\
-	__EMIT_BUG(BUGFLAG_WARNING|(flags));		\
+#define __WARN_FLAGS(cond_str, flags) do {		\
+	__EMIT_BUG(cond_str, BUGFLAG_WARNING|(flags));	\
 } while (0)
 
 #define WARN_ON(x) ({					\
