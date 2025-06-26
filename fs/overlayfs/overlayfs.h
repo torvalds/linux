@@ -355,19 +355,19 @@ static inline int ovl_do_remove_acl(struct ovl_fs *ofs, struct dentry *dentry,
 	return vfs_remove_acl(ovl_upper_mnt_idmap(ofs), dentry, acl_name);
 }
 
-static inline int ovl_do_rename(struct ovl_fs *ofs, struct inode *olddir,
-				struct dentry *olddentry, struct inode *newdir,
+static inline int ovl_do_rename(struct ovl_fs *ofs, struct dentry *olddir,
+				struct dentry *olddentry, struct dentry *newdir,
 				struct dentry *newdentry, unsigned int flags)
 {
 	int err;
 	struct renamedata rd = {
 		.old_mnt_idmap	= ovl_upper_mnt_idmap(ofs),
-		.old_dir 	= olddir,
-		.old_dentry 	= olddentry,
+		.old_parent	= olddir,
+		.old_dentry	= olddentry,
 		.new_mnt_idmap	= ovl_upper_mnt_idmap(ofs),
-		.new_dir 	= newdir,
-		.new_dentry 	= newdentry,
-		.flags 		= flags,
+		.new_parent	= newdir,
+		.new_dentry	= newdentry,
+		.flags		= flags,
 	};
 
 	pr_debug("rename(%pd2, %pd2, 0x%x)\n", olddentry, newdentry, flags);
@@ -448,6 +448,12 @@ void ovl_dentry_init_reval(struct dentry *dentry, struct dentry *upperdentry,
 void ovl_dentry_init_flags(struct dentry *dentry, struct dentry *upperdentry,
 			   struct ovl_entry *oe, unsigned int mask);
 bool ovl_dentry_weird(struct dentry *dentry);
+
+static inline bool ovl_dentry_casefolded(struct dentry *dentry)
+{
+	return sb_has_encoding(dentry->d_sb) && IS_CASEFOLDED(d_inode(dentry));
+}
+
 enum ovl_path_type ovl_path_type(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
 void ovl_path_lower(struct dentry *dentry, struct path *path);
@@ -828,7 +834,7 @@ static inline void ovl_copyflags(struct inode *from, struct inode *to)
 
 /* dir.c */
 extern const struct inode_operations ovl_dir_inode_operations;
-int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct inode *dir,
+int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
 			     struct dentry *dentry);
 struct ovl_cattr {
 	dev_t rdev;

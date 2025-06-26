@@ -682,13 +682,15 @@ static const struct vm_operations_struct exfat_file_vm_ops = {
 	.page_mkwrite	= exfat_page_mkwrite,
 };
 
-static int exfat_file_mmap(struct file *file, struct vm_area_struct *vma)
+static int exfat_file_mmap_prepare(struct vm_area_desc *desc)
 {
-	if (unlikely(exfat_forced_shutdown(file_inode(file)->i_sb)))
+	struct file *file = desc->file;
+
+	if (unlikely(exfat_forced_shutdown(file_inode(desc->file)->i_sb)))
 		return -EIO;
 
 	file_accessed(file);
-	vma->vm_ops = &exfat_file_vm_ops;
+	desc->vm_ops = &exfat_file_vm_ops;
 	return 0;
 }
 
@@ -709,7 +711,7 @@ const struct file_operations exfat_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = exfat_compat_ioctl,
 #endif
-	.mmap		= exfat_file_mmap,
+	.mmap_prepare	= exfat_file_mmap_prepare,
 	.fsync		= exfat_file_fsync,
 	.splice_read	= exfat_splice_read,
 	.splice_write	= iter_file_splice_write,
