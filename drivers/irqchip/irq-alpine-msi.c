@@ -207,11 +207,10 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv, struct device
 
 static int alpine_msix_init(struct device_node *node, struct device_node *parent)
 {
-	struct alpine_msix_data *priv;
+	struct alpine_msix_data *priv __free(kfree) = kzalloc(sizeof(*priv), GFP_KERNEL);
 	struct resource res;
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -220,7 +219,7 @@ static int alpine_msix_init(struct device_node *node, struct device_node *parent
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret) {
 		pr_err("Failed to allocate resource\n");
-		goto err_priv;
+		return ret;
 	}
 
 	/*
@@ -235,34 +234,28 @@ static int alpine_msix_init(struct device_node *node, struct device_node *parent
 
 	if (of_property_read_u32(node, "al,msi-base-spi", &priv->spi_first)) {
 		pr_err("Unable to parse MSI base\n");
-		ret = -EINVAL;
-		goto err_priv;
+		return -EINVAL;
 	}
 
 	if (of_property_read_u32(node, "al,msi-num-spis", &priv->num_spis)) {
 		pr_err("Unable to parse MSI numbers\n");
-		ret = -EINVAL;
-		goto err_priv;
+		return -EINVAL;
 	}
 
-	priv->msi_map = bitmap_zalloc(priv->num_spis, GFP_KERNEL);
-	if (!priv->msi_map) {
-		ret = -ENOMEM;
-		goto err_priv;
-	}
+	unsigned long *msi_map __free(kfree) = bitmap_zalloc(priv->num_spis, GFP_KERNEL);
+
+	if (!msi_map)
+		return -ENOMEM;
+	priv->msi_map = msi_map;
 
 	pr_debug("Registering %d msixs, starting at %d\n", priv->num_spis, priv->spi_first);
 
 	ret = alpine_msix_init_domains(priv, node);
 	if (ret)
-		goto err_map;
+		return ret;
 
+	retain_and_null_ptr(priv);
+	retain_and_null_ptr(msi_map);
 	return 0;
-
-err_map:
-	bitmap_free(priv->msi_map);
-err_priv:
-	kfree(priv);
-	return ret;
 }
 IRQCHIP_DECLARE(alpine_msix, "al,alpine-msix", alpine_msix_init);
