@@ -108,8 +108,7 @@ class state:
     INLINE_NA     = 0 # not applicable ($state != INLINE)
     INLINE_NAME   = 1 # looking for member name (@foo:)
     INLINE_TEXT   = 2 # looking for member documentation
-    INLINE_END    = 3 # done
-    INLINE_ERROR  = 4 # error - Comment without header was found.
+    INLINE_ERROR  = 3 # error - Comment without header was found.
                       # Spit a warning as it's not
                       # proper kernel-doc and ignore the rest.
 
@@ -117,7 +116,6 @@ class state:
         "",
         "_NAME",
         "_TEXT",
-        "_END",
         "_ERROR",
     ]
 
