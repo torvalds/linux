@@ -34,7 +34,7 @@ static void iwl_mvm_mld_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 					    WIDE_ID(MAC_CONF_GROUP,
 						    MAC_CONFIG_CMD), 0);
 
-	if (WARN_ON(cmd_ver < 1 && cmd_ver > 3))
+	if (WARN_ON(cmd_ver < 1 || cmd_ver > 3))
 		return;
 
 	cmd->id_and_color = cpu_to_le32(mvmvif->id);

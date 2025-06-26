@@ -814,11 +814,11 @@ static int aspeed_i2c_unreg_slave(struct i2c_client *client)
 #endif /* CONFIG_I2C_SLAVE */
 
 static const struct i2c_algorithm aspeed_i2c_algo = {
-	.master_xfer	= aspeed_i2c_master_xfer,
-	.functionality	= aspeed_i2c_functionality,
+	.xfer = aspeed_i2c_master_xfer,
+	.functionality = aspeed_i2c_functionality,
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	.reg_slave	= aspeed_i2c_reg_slave,
-	.unreg_slave	= aspeed_i2c_unreg_slave,
+	.reg_slave = aspeed_i2c_reg_slave,
+	.unreg_slave = aspeed_i2c_unreg_slave,
 #endif /* CONFIG_I2C_SLAVE */
 };
 

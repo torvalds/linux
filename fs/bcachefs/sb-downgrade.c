@@ -253,6 +253,7 @@ DOWNGRADE_TABLE()
 
 static int downgrade_table_extra(struct bch_fs *c, darray_char *table)
 {
+	unsigned dst_offset = table->nr;
 	struct bch_sb_field_downgrade_entry *dst = (void *) &darray_top(*table);
 	unsigned bytes = sizeof(*dst) + sizeof(dst->errors[0]) * le16_to_cpu(dst->nr_errors);
 	int ret = 0;
@@ -268,6 +269,9 @@ static int downgrade_table_extra(struct bch_fs *c, darray_char *table)
 			if (ret)
 				return ret;
 
+			dst = (void *) &table->data[dst_offset];
+			dst->nr_errors = cpu_to_le16(nr_errors + 1);
+
 			/* open coded __set_bit_le64, as dst is packed and
 			 * dst->recovery_passes is misaligned */
 			unsigned b = BCH_RECOVERY_PASS_STABLE_check_allocations;
@@ -278,7 +282,6 @@ static int downgrade_table_extra(struct bch_fs *c, darray_char *table)
 		break;
 	}
 
-	dst->nr_errors = cpu_to_le16(nr_errors);
 	return ret;
 }
 
