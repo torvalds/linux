@@ -1182,7 +1182,7 @@ out_drop:
 
 static noinline int __btrfs_ioctl_snap_create(struct file *file,
 				struct mnt_idmap *idmap,
-				const char *name, unsigned long fd, int subvol,
+				const char *name, unsigned long fd, bool subvol,
 				bool readonly,
 				struct btrfs_qgroup_inherit *inherit)
 {
@@ -1276,7 +1276,7 @@ out:
 }
 
 static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
-					       void __user *arg, int subvol)
+					       void __user *arg, bool subvol)
 {
 	struct btrfs_ioctl_vol_args_v2 *vol_args;
 	int ret;
