@@ -139,6 +139,15 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 }
 
 static int
+rss_prepare(const struct rss_req_info *request, struct net_device *dev,
+	    struct rss_reply_data *data, const struct genl_info *info)
+{
+	if (request->rss_context)
+		return rss_prepare_ctx(request, dev, data, info);
+	return rss_prepare_get(request, dev, data, info);
+}
+
+static int
 rss_prepare_data(const struct ethnl_req_info *req_base,
 		 struct ethnl_reply_data *reply_base,
 		 const struct genl_info *info)
@@ -147,20 +156,22 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	struct rss_req_info *request = RSS_REQINFO(req_base);
 	struct net_device *dev = reply_base->dev;
 	const struct ethtool_ops *ops;
+	int ret;
 
 	ops = dev->ethtool_ops;
 	if (!ops->get_rxfh)
 		return -EOPNOTSUPP;
 
 	/* Some drivers don't handle rss_context */
-	if (request->rss_context) {
-		if (!ops->cap_rss_ctx_supported && !ops->create_rxfh_context)
-			return -EOPNOTSUPP;
+	if (request->rss_context &&
+	    !ops->cap_rss_ctx_supported && !ops->create_rxfh_context)
+		return -EOPNOTSUPP;
 
-		return rss_prepare_ctx(request, dev, data, info);
-	}
+	mutex_lock(&dev->ethtool->rss_lock);
+	ret = rss_prepare(request, dev, data, info);
+	mutex_unlock(&dev->ethtool->rss_lock);
 
-	return rss_prepare_get(request, dev, data, info);
+	return ret;
 }
 
 static int

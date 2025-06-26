@@ -1079,16 +1079,17 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	    !ops->rxfh_per_ctx_fields)
 		return -EINVAL;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	if (ops->get_rxfh) {
 		struct ethtool_rxfh_param rxfh = {};
 
 		rc = ops->get_rxfh(dev, &rxfh);
 		if (rc)
-			return rc;
+			goto exit_unlock;
 
 		rc = ethtool_check_xfrm_rxfh(rxfh.input_xfrm, info.data);
 		if (rc)
-			return rc;
+			goto exit_unlock;
 	}
 
 	fields.data = info.data;
@@ -1096,8 +1097,8 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	if (info.flow_type & FLOW_RSS)
 		fields.rss_context = info.rss_context;
 
-	mutex_lock(&dev->ethtool->rss_lock);
 	rc = ops->set_rxfh_fields(dev, &fields, NULL);
+exit_unlock:
 	mutex_unlock(&dev->ethtool->rss_lock);
 	return rc;
 }
@@ -1274,7 +1275,9 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 	if (!rxfh.indir)
 		return -ENOMEM;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
+	mutex_unlock(&dev->ethtool->rss_lock);
 	if (ret)
 		goto out;
 	if (copy_to_user(useraddr +
@@ -1413,6 +1416,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (user_key_size)
 		rxfh_dev.key = rss_config + indir_bytes;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	if (rxfh.rss_context) {
 		ctx = xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context);
 		if (!ctx) {
@@ -1458,6 +1462,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 		ret = -EFAULT;
 	}
 out:
+	mutex_unlock(&dev->ethtool->rss_lock);
 	kfree(rss_config);
 
 	return ret;
