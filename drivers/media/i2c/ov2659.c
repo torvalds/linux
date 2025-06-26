@@ -1437,9 +1437,10 @@ static int ov2659_probe(struct i2c_client *client)
 	ov2659->pdata = pdata;
 	ov2659->client = client;
 
-	ov2659->clk = devm_clk_get(&client->dev, "xvclk");
+	ov2659->clk = devm_v4l2_sensor_clk_get(&client->dev, "xvclk");
 	if (IS_ERR(ov2659->clk))
-		return PTR_ERR(ov2659->clk);
+		return dev_err_probe(&client->dev, PTR_ERR(ov2659->clk),
+				     "failed to get xvclk\n");
 
 	ov2659->xvclk_frequency = clk_get_rate(ov2659->clk);
 	if (ov2659->xvclk_frequency < 6000000 ||
