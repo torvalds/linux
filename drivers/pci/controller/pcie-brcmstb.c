@@ -12,6 +12,7 @@
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -265,7 +266,6 @@ struct brcm_msi {
 	struct device		*dev;
 	void __iomem		*base;
 	struct device_node	*np;
-	struct irq_domain	*msi_domain;
 	struct irq_domain	*inner_domain;
 	struct mutex		lock; /* guards the alloc/free operations */
 	u64			target_addr;
@@ -465,17 +465,20 @@ static void brcm_pcie_set_outbound_win(struct brcm_pcie *pcie,
 	writel(tmp, pcie->base + PCIE_MEM_WIN0_LIMIT_HI(win));
 }
 
-static struct irq_chip brcm_msi_irq_chip = {
-	.name            = "BRCM STB PCIe MSI",
-	.irq_ack         = irq_chip_ack_parent,
-	.irq_mask        = pci_msi_mask_irq,
-	.irq_unmask      = pci_msi_unmask_irq,
-};
+#define BRCM_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS	| \
+				 MSI_FLAG_USE_DEF_CHIP_OPS	| \
+				 MSI_FLAG_NO_AFFINITY)
 
-static struct msi_domain_info brcm_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_NO_AFFINITY | MSI_FLAG_MULTI_PCI_MSI,
-	.chip	= &brcm_msi_irq_chip,
+#define BRCM_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK	| \
+				  MSI_FLAG_MULTI_PCI_MSI)
+
+static const struct msi_parent_ops brcm_msi_parent_ops = {
+	.required_flags		= BRCM_MSI_FLAGS_REQUIRED,
+	.supported_flags	= BRCM_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_PCI_MSI,
+	.chip_flags		= MSI_CHIP_FLAG_SET_ACK,
+	.prefix			= "BRCM-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static void brcm_pcie_msi_isr(struct irq_desc *desc)
@@ -581,21 +584,18 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int brcm_allocate_domains(struct brcm_msi *msi)
 {
-	struct fwnode_handle *fwnode = of_fwnode_handle(msi->np);
 	struct device *dev = msi->dev;
 
-	msi->inner_domain = irq_domain_create_linear(NULL, msi->nr, &msi_domain_ops, msi);
-	if (!msi->inner_domain) {
-		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
-	}
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(msi->np),
+		.ops		= &msi_domain_ops,
+		.host_data	= msi,
+		.size		= msi->nr,
+	};
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
-						    &brcm_msi_domain_info,
-						    msi->inner_domain);
-	if (!msi->msi_domain) {
+	msi->inner_domain = msi_create_parent_irq_domain(&info, &brcm_msi_parent_ops);
+	if (!msi->inner_domain) {
 		dev_err(dev, "failed to create MSI domain\n");
-		irq_domain_remove(msi->inner_domain);
 		return -ENOMEM;
 	}
 
@@ -604,7 +604,6 @@ static int brcm_allocate_domains(struct brcm_msi *msi)
 
 static void brcm_free_domains(struct brcm_msi *msi)
 {
-	irq_domain_remove(msi->msi_domain);
 	irq_domain_remove(msi->inner_domain);
 }
 
