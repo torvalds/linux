@@ -892,13 +892,13 @@ static inline int btrfs_may_create(struct mnt_idmap *idmap,
  * sys_mkdirat and vfs_mkdir, but we only do a single component lookup
  * inside this filesystem so it's quite a bit simpler.
  */
-static noinline int btrfs_mksubvol(const struct path *parent,
+static noinline int btrfs_mksubvol(struct dentry *parent,
 				   struct mnt_idmap *idmap,
 				   struct qstr *qname, struct btrfs_root *snap_src,
 				   bool readonly,
 				   struct btrfs_qgroup_inherit *inherit)
 {
-	struct inode *dir = d_inode(parent->dentry);
+	struct inode *dir = d_inode(parent);
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(dir);
 	struct dentry *dentry;
 	struct fscrypt_str name_str = FSTR_INIT((char *)qname->name, qname->len);
@@ -908,7 +908,7 @@ static noinline int btrfs_mksubvol(const struct path *parent,
 	if (ret == -EINTR)
 		return ret;
 
-	dentry = lookup_one(idmap, qname, parent->dentry);
+	dentry = lookup_one(idmap, qname, parent);
 	ret = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out_unlock;
@@ -946,7 +946,7 @@ out_unlock:
 	return ret;
 }
 
-static noinline int btrfs_mksnapshot(const struct path *parent,
+static noinline int btrfs_mksnapshot(struct dentry *parent,
 				   struct mnt_idmap *idmap,
 				   struct qstr *qname,
 				   struct btrfs_root *root,
@@ -1208,7 +1208,7 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 	}
 
 	if (subvol) {
-		ret = btrfs_mksubvol(&file->f_path, idmap, &qname, NULL,
+		ret = btrfs_mksubvol(file_dentry(file), idmap, &qname, NULL,
 				     readonly, inherit);
 	} else {
 		CLASS(fd, src)(fd);
@@ -1239,7 +1239,7 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 			 */
 			ret = -EINVAL;
 		} else {
-			ret = btrfs_mksnapshot(&file->f_path, idmap, &qname,
+			ret = btrfs_mksnapshot(file_dentry(file), idmap, &qname,
 					       BTRFS_I(src_inode)->root,
 					       readonly, inherit);
 		}
