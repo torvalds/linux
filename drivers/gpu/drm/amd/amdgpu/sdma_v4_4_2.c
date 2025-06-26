@@ -1668,7 +1668,7 @@ static int sdma_v4_4_2_reset_queue(struct amdgpu_ring *ring,
 		return -EOPNOTSUPP;
 
 	amdgpu_amdkfd_suspend(adev, true);
-	r = amdgpu_sdma_reset_engine(adev, id);
+	r = amdgpu_sdma_reset_engine(adev, id, false);
 	amdgpu_amdkfd_resume(adev, true);
 	return r;
 }
