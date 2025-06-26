@@ -233,9 +233,10 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 	unsigned long ext_freq;
 	int ret;
 
-	mt9p031->clk = devm_clk_get(&client->dev, NULL);
+	mt9p031->clk = devm_v4l2_sensor_clk_get(&client->dev, NULL);
 	if (IS_ERR(mt9p031->clk))
-		return PTR_ERR(mt9p031->clk);
+		return dev_err_probe(&client->dev, PTR_ERR(mt9p031->clk),
+				     "failed to get the clock\n");
 
 	ret = clk_set_rate(mt9p031->clk, mt9p031->ext_freq);
 	if (ret < 0)
