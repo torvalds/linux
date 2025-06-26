@@ -1556,9 +1556,11 @@ static int s5c73m3_get_dt_data(struct s5c73m3 *state)
 	if (!node)
 		return -EINVAL;
 
-	state->clock = devm_clk_get(dev, S5C73M3_CLK_NAME);
+	state->clock = devm_v4l2_sensor_clk_get(dev, S5C73M3_CLK_NAME);
 	if (IS_ERR(state->clock))
-		return PTR_ERR(state->clock);
+		return dev_err_probe(dev, PTR_ERR(state->clock),
+				     "Failed to get the clock %s\n",
+				     S5C73M3_CLK_NAME);
 
 	if (of_property_read_u32(node, "clock-frequency",
 				 &state->mclk_frequency)) {
