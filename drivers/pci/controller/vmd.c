@@ -7,6 +7,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/msi.h>
@@ -174,9 +175,6 @@ static void vmd_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	msg->arch_addr_lo.destid_0_7 = index_from_irqs(vmd, irq);
 }
 
-/*
- * We rely on MSI_FLAG_USE_DEF_CHIP_OPS to set the IRQ mask/unmask ops.
- */
 static void vmd_irq_enable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
@@ -186,15 +184,17 @@ static void vmd_irq_enable(struct irq_data *data)
 		list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
 		vmdirq->enabled = true;
 	}
+}
 
+static void vmd_pci_msi_enable(struct irq_data *data)
+{
+	vmd_irq_enable(data->parent_data);
 	data->chip->irq_unmask(data);
 }
 
 static void vmd_irq_disable(struct irq_data *data)
 {
 	struct vmd_irq *vmdirq = data->chip_data;
-
-	data->chip->irq_mask(data);
 
 	scoped_guard(raw_spinlock_irqsave, &list_lock) {
 		if (vmdirq->enabled) {
@@ -204,18 +204,16 @@ static void vmd_irq_disable(struct irq_data *data)
 	}
 }
 
+static void vmd_pci_msi_disable(struct irq_data *data)
+{
+	data->chip->irq_mask(data);
+	vmd_irq_disable(data->parent_data);
+}
+
 static struct irq_chip vmd_msi_controller = {
 	.name			= "VMD-MSI",
-	.irq_enable		= vmd_irq_enable,
-	.irq_disable		= vmd_irq_disable,
 	.irq_compose_msi_msg	= vmd_compose_msi_msg,
 };
-
-static irq_hw_number_t vmd_get_hwirq(struct msi_domain_info *info,
-				     msi_alloc_info_t *arg)
-{
-	return 0;
-}
 
 /*
  * XXX: We can be even smarter selecting the best IRQ once we solve the
@@ -250,72 +248,107 @@ static struct vmd_irq_list *vmd_next_irq(struct vmd_dev *vmd, struct msi_desc *d
 	return &vmd->irqs[best];
 }
 
-static int vmd_msi_init(struct irq_domain *domain, struct msi_domain_info *info,
-			unsigned int virq, irq_hw_number_t hwirq,
-			msi_alloc_info_t *arg)
+static void vmd_msi_free(struct irq_domain *domain, unsigned int virq,
+			 unsigned int nr_irqs);
+
+static int vmd_msi_alloc(struct irq_domain *domain, unsigned int virq,
+			 unsigned int nr_irqs, void *arg)
 {
-	struct msi_desc *desc = arg->desc;
-	struct vmd_dev *vmd = vmd_from_bus(msi_desc_to_pci_dev(desc)->bus);
-	struct vmd_irq *vmdirq = kzalloc(sizeof(*vmdirq), GFP_KERNEL);
+	struct msi_desc *desc = ((msi_alloc_info_t *)arg)->desc;
+	struct vmd_dev *vmd = domain->host_data;
+	struct vmd_irq *vmdirq;
 
-	if (!vmdirq)
-		return -ENOMEM;
+	for (int i = 0; i < nr_irqs; ++i) {
+		vmdirq = kzalloc(sizeof(*vmdirq), GFP_KERNEL);
+		if (!vmdirq) {
+			vmd_msi_free(domain, virq, i);
+			return -ENOMEM;
+		}
 
-	INIT_LIST_HEAD(&vmdirq->node);
-	vmdirq->irq = vmd_next_irq(vmd, desc);
-	vmdirq->virq = virq;
+		INIT_LIST_HEAD(&vmdirq->node);
+		vmdirq->irq = vmd_next_irq(vmd, desc);
+		vmdirq->virq = virq + i;
 
-	irq_domain_set_info(domain, virq, vmdirq->irq->virq, info->chip, vmdirq,
-			    handle_untracked_irq, vmd, NULL);
+		irq_domain_set_info(domain, virq + i, vmdirq->irq->virq,
+				    &vmd_msi_controller, vmdirq,
+				    handle_untracked_irq, vmd, NULL);
+	}
+
 	return 0;
 }
 
-static void vmd_msi_free(struct irq_domain *domain,
-			struct msi_domain_info *info, unsigned int virq)
+static void vmd_msi_free(struct irq_domain *domain, unsigned int virq,
+			 unsigned int nr_irqs)
 {
-	struct vmd_irq *vmdirq = irq_get_chip_data(virq);
+	struct vmd_irq *vmdirq;
 
-	synchronize_srcu(&vmdirq->irq->srcu);
+	for (int i = 0; i < nr_irqs; ++i) {
+		vmdirq = irq_get_chip_data(virq + i);
 
-	/* XXX: Potential optimization to rebalance */
-	scoped_guard(raw_spinlock_irq, &list_lock)
-		vmdirq->irq->count--;
+		synchronize_srcu(&vmdirq->irq->srcu);
 
-	kfree(vmdirq);
+		/* XXX: Potential optimization to rebalance */
+		scoped_guard(raw_spinlock_irq, &list_lock)
+			vmdirq->irq->count--;
+
+		kfree(vmdirq);
+	}
 }
 
-static int vmd_msi_prepare(struct irq_domain *domain, struct device *dev,
-			   int nvec, msi_alloc_info_t *arg)
+static const struct irq_domain_ops vmd_msi_domain_ops = {
+	.alloc		= vmd_msi_alloc,
+	.free		= vmd_msi_free,
+};
+
+static bool vmd_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
+				  struct irq_domain *real_parent,
+				  struct msi_domain_info *info)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct vmd_dev *vmd = vmd_from_bus(pdev->bus);
+	if (WARN_ON_ONCE(info->bus_token != DOMAIN_BUS_PCI_DEVICE_MSIX))
+		return false;
 
-	if (nvec > vmd->msix_count)
-		return vmd->msix_count;
+	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
+		return false;
 
-	memset(arg, 0, sizeof(*arg));
+	info->chip->irq_enable		= vmd_pci_msi_enable;
+	info->chip->irq_disable		= vmd_pci_msi_disable;
+	return true;
+}
+
+#define VMD_MSI_FLAGS_SUPPORTED	(MSI_GENERIC_FLAGS_MASK | MSI_FLAG_PCI_MSIX)
+#define VMD_MSI_FLAGS_REQUIRED	(MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_NO_AFFINITY)
+
+static const struct msi_parent_ops vmd_msi_parent_ops = {
+	.supported_flags	= VMD_MSI_FLAGS_SUPPORTED,
+	.required_flags		= VMD_MSI_FLAGS_REQUIRED,
+	.bus_select_token	= DOMAIN_BUS_VMD_MSI,
+	.bus_select_mask	= MATCH_PCI_MSI,
+	.prefix			= "VMD-",
+	.init_dev_msi_info	= vmd_init_dev_msi_info,
+};
+
+static int vmd_create_irq_domain(struct vmd_dev *vmd)
+{
+	struct irq_domain_info info = {
+		.size		= vmd->msix_count,
+		.ops		= &vmd_msi_domain_ops,
+		.host_data	= vmd,
+	};
+
+	info.fwnode = irq_domain_alloc_named_id_fwnode("VMD-MSI",
+						       vmd->sysdata.domain);
+	if (!info.fwnode)
+		return -ENODEV;
+
+	vmd->irq_domain = msi_create_parent_irq_domain(&info,
+						       &vmd_msi_parent_ops);
+	if (!vmd->irq_domain) {
+		irq_domain_free_fwnode(info.fwnode);
+		return -ENODEV;
+	}
+
 	return 0;
 }
-
-static void vmd_set_desc(msi_alloc_info_t *arg, struct msi_desc *desc)
-{
-	arg->desc = desc;
-}
-
-static struct msi_domain_ops vmd_msi_domain_ops = {
-	.get_hwirq	= vmd_get_hwirq,
-	.msi_init	= vmd_msi_init,
-	.msi_free	= vmd_msi_free,
-	.msi_prepare	= vmd_msi_prepare,
-	.set_desc	= vmd_set_desc,
-};
-
-static struct msi_domain_info vmd_msi_domain_info = {
-	.flags		= MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-			  MSI_FLAG_NO_AFFINITY | MSI_FLAG_PCI_MSIX,
-	.ops		= &vmd_msi_domain_ops,
-	.chip		= &vmd_msi_controller,
-};
 
 static void vmd_set_msi_remapping(struct vmd_dev *vmd, bool enable)
 {
@@ -325,23 +358,6 @@ static void vmd_set_msi_remapping(struct vmd_dev *vmd, bool enable)
 	reg = enable ? (reg & ~VMCONFIG_MSI_REMAP) :
 		       (reg | VMCONFIG_MSI_REMAP);
 	pci_write_config_word(vmd->dev, PCI_REG_VMCONFIG, reg);
-}
-
-static int vmd_create_irq_domain(struct vmd_dev *vmd)
-{
-	struct fwnode_handle *fn;
-
-	fn = irq_domain_alloc_named_id_fwnode("VMD-MSI", vmd->sysdata.domain);
-	if (!fn)
-		return -ENODEV;
-
-	vmd->irq_domain = pci_msi_create_irq_domain(fn, &vmd_msi_domain_info, NULL);
-	if (!vmd->irq_domain) {
-		irq_domain_free_fwnode(fn);
-		return -ENODEV;
-	}
-
-	return 0;
 }
 
 static void vmd_remove_irq_domain(struct vmd_dev *vmd)
@@ -874,12 +890,6 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 		ret = vmd_create_irq_domain(vmd);
 		if (ret)
 			return ret;
-
-		/*
-		 * Override the IRQ domain bus token so the domain can be
-		 * distinguished from a regular PCI/MSI domain.
-		 */
-		irq_domain_update_bus_token(vmd->irq_domain, DOMAIN_BUS_VMD_MSI);
 	} else {
 		vmd_set_msi_remapping(vmd, false);
 	}

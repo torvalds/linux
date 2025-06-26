@@ -156,6 +156,7 @@ config PCI_IXP4XX
 config VMD
 	depends on PCI_MSI && X86_64 && !UML
 	tristate "Intel Volume Management Device Driver"
+	select IRQ_MSI_LIB
 	help
 	  Adds support for the Intel Volume Management Device (VMD). VMD is a
 	  secondary PCI host bridge that allows PCI Express root ports,
