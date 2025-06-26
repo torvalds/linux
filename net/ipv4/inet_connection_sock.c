@@ -886,7 +886,7 @@ static void syn_ack_recalc(struct request_sock *req,
 
 int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req)
 {
-	int err = req->rsk_ops->rtx_syn_ack(parent, req);
+	int err = tcp_rtx_synack(parent, req);
 
 	if (!err)
 		req->num_retrans++;
