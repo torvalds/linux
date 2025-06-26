@@ -48,7 +48,10 @@ struct timerlat_params {
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 	enum timerlat_tracing_mode mode;
-	struct actions actions;
+
+	struct actions threshold_actions;
+	struct actions end_actions;
+
 	union {
 		struct {
 			/* top only */
