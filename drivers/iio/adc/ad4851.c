@@ -444,10 +444,12 @@ static int ad4851_setup(struct ad4851_state *st)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->regmap, AD4851_REG_INTERFACE_CONFIG_A,
-			   AD4851_SDO_ENABLE);
-	if (ret)
-		return ret;
+	if (!(st->spi->mode & SPI_3WIRE)) {
+		ret = regmap_write(st->regmap, AD4851_REG_INTERFACE_CONFIG_A,
+				   AD4851_SDO_ENABLE);
+		if (ret)
+			return ret;
+	}
 
 	ret = regmap_read(st->regmap, AD4851_REG_PRODUCT_ID_L, &product_id);
 	if (ret)
