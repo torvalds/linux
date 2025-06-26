@@ -77,7 +77,7 @@ l0_%=:	exit;						\
 
 SEC("tc")
 __description("MOD32 overflow, check 1")
-__success __retval(INT_MIN)
+__success __retval(_INT_MIN)
 __naked void mod32_overflow_check_1(void)
 {
 	asm volatile ("					\
@@ -92,7 +92,7 @@ __naked void mod32_overflow_check_1(void)
 
 SEC("tc")
 __description("MOD32 overflow, check 2")
-__success __retval(INT_MIN)
+__success __retval(_INT_MIN)
 __naked void mod32_overflow_check_2(void)
 {
 	asm volatile ("					\
