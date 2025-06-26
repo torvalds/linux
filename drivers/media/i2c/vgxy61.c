@@ -1761,11 +1761,11 @@ static int vgxy61_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	sensor->xclk = devm_clk_get(dev, NULL);
-	if (IS_ERR(sensor->xclk)) {
-		dev_err(dev, "failed to get xclk\n");
-		return PTR_ERR(sensor->xclk);
-	}
+	sensor->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
+	if (IS_ERR(sensor->xclk))
+		return dev_err_probe(dev, PTR_ERR(sensor->xclk),
+				     "failed to get xclk\n");
+
 	sensor->clk_freq = clk_get_rate(sensor->xclk);
 	if (sensor->clk_freq < 6 * HZ_PER_MHZ ||
 	    sensor->clk_freq > 27 * HZ_PER_MHZ) {
