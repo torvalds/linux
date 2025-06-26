@@ -1433,11 +1433,10 @@ static int et8ek8_probe(struct i2c_client *client)
 		return PTR_ERR(sensor->vana);
 	}
 
-	sensor->ext_clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(sensor->ext_clk)) {
-		dev_err(&client->dev, "could not get clock\n");
-		return PTR_ERR(sensor->ext_clk);
-	}
+	sensor->ext_clk = devm_v4l2_sensor_clk_get(dev, NULL);
+	if (IS_ERR(sensor->ext_clk))
+		return dev_err_probe(&client->dev, PTR_ERR(sensor->ext_clk),
+				     "could not get clock\n");
 
 	ret = of_property_read_u32(dev->of_node, "clock-frequency",
 				   &sensor->xclk_freq);
