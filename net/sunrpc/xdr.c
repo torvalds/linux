@@ -993,21 +993,18 @@ EXPORT_SYMBOL_GPL(xdr_init_encode);
  * xdr_init_encode_pages - Initialize an xdr_stream for encoding into pages
  * @xdr: pointer to xdr_stream struct
  * @buf: pointer to XDR buffer into which to encode data
- * @pages: list of pages to decode into
- * @rqst: pointer to controlling rpc_rqst, for debugging
  *
  */
-void xdr_init_encode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
-			   struct page **pages, struct rpc_rqst *rqst)
+void xdr_init_encode_pages(struct xdr_stream *xdr, struct xdr_buf *buf)
 {
 	xdr_reset_scratch_buffer(xdr);
 
 	xdr->buf = buf;
-	xdr->page_ptr = pages;
+	xdr->page_ptr = buf->pages;
 	xdr->iov = NULL;
-	xdr->p = page_address(*pages);
+	xdr->p = page_address(*xdr->page_ptr);
 	xdr->end = (void *)xdr->p + min_t(u32, buf->buflen, PAGE_SIZE);
-	xdr->rqst = rqst;
+	xdr->rqst = NULL;
 }
 EXPORT_SYMBOL_GPL(xdr_init_encode_pages);
 
