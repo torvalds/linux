@@ -516,13 +516,19 @@ static void debugfs_reap_work(struct work_struct *work)
 	} while (reaped);
 }
 
-static int __init ref_tracker_debugfs_init(void)
+static int __init ref_tracker_debugfs_postcore_init(void)
 {
 	INIT_WORK(&debugfs_reap_worker, debugfs_reap_work);
 	xa_init_flags(&debugfs_dentries, XA_FLAGS_LOCK_IRQ);
 	xa_init_flags(&debugfs_symlinks, XA_FLAGS_LOCK_IRQ);
+	return 0;
+}
+postcore_initcall(ref_tracker_debugfs_postcore_init);
+
+static int __init ref_tracker_debugfs_late_init(void)
+{
 	ref_tracker_debug_dir = debugfs_create_dir("ref_tracker", NULL);
 	return 0;
 }
-late_initcall(ref_tracker_debugfs_init);
+late_initcall(ref_tracker_debugfs_late_init);
 #endif /* CONFIG_DEBUG_FS */
