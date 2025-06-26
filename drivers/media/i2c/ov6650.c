@@ -898,12 +898,10 @@ static int ov6650_video_probe(struct v4l2_subdev *sd)
 	u8 pidh, pidl, midh, midl;
 	int i, ret = 0;
 
-	priv->clk = devm_clk_get(&client->dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		ret = PTR_ERR(priv->clk);
-		dev_err(&client->dev, "clk request err: %d\n", ret);
-		return ret;
-	}
+	priv->clk = devm_v4l2_sensor_clk_get(&client->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(&client->dev, PTR_ERR(priv->clk),
+				     "clk request err\n");
 
 	rate = clk_get_rate(priv->clk);
 	for (i = 0; rate && i < ARRAY_SIZE(ov6650_xclk); i++) {
