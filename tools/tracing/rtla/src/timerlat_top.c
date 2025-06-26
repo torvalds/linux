@@ -559,6 +559,9 @@ static struct timerlat_params
 	/* display data in microseconds */
 	params->output_divisor = 1000;
 
+	/* default to BPF mode */
+	params->mode = TRACING_MODE_BPF;
+
 	while (1) {
 		static struct option long_options[] = {
 			{"auto",		required_argument,	0, 'a'},
@@ -790,6 +793,13 @@ static struct timerlat_params
 	if (params->kernel_workload && params->user_workload)
 		timerlat_top_usage("--kernel-threads and --user-threads are mutually exclusive!");
 
+	/*
+	 * If auto-analysis or trace output is enabled, switch from BPF mode to
+	 * mixed mode
+	 */
+	if (params->mode == TRACING_MODE_BPF && params->trace_output && !params->no_aa)
+		params->mode = TRACING_MODE_MIXED;
+
 	return params;
 }
 
@@ -994,7 +1004,6 @@ int timerlat_top_main(int argc, char *argv[])
 	char *max_lat;
 	int retval;
 	int nr_cpus, i;
-	bool no_bpf = false;
 
 	params = timerlat_top_parse_args(argc, argv);
 	if (!params)
@@ -1006,36 +1015,36 @@ int timerlat_top_main(int argc, char *argv[])
 		goto out_exit;
 	}
 
+	trace = &top->trace;
+	/*
+	 * Save trace instance into global variable so that SIGINT can stop
+	 * the timerlat tracer.
+	 * Otherwise, rtla could loop indefinitely when overloaded.
+	 */
+	top_inst = trace;
+
+	/*
+	 * Try to enable BPF, unless disabled explicitly.
+	 * If BPF enablement fails, fall back to tracefs mode.
+	 */
+	if (getenv("RTLA_NO_BPF") && strncmp(getenv("RTLA_NO_BPF"), "1", 2) == 0) {
+		debug_msg("RTLA_NO_BPF set, disabling BPF\n");
+		params->mode = TRACING_MODE_TRACEFS;
+	} else if (!tep_find_event_by_name(trace->tep, "osnoise", "timerlat_sample")) {
+		debug_msg("osnoise:timerlat_sample missing, disabling BPF\n");
+		params->mode = TRACING_MODE_TRACEFS;
+	} else {
+		retval = timerlat_bpf_init(params);
+		if (retval) {
+			debug_msg("Could not enable BPF\n");
+			params->mode = TRACING_MODE_TRACEFS;
+		}
+	}
+
 	retval = timerlat_top_apply_config(top, params);
 	if (retval) {
 		err_msg("Could not apply config\n");
 		goto out_free;
-	}
-
-	trace = &top->trace;
-	/*
-	* Save trace instance into global variable so that SIGINT can stop
-	* the timerlat tracer.
-	* Otherwise, rtla could loop indefinitely when overloaded.
-	*/
-	top_inst = trace;
-
-	if (getenv("RTLA_NO_BPF") && strncmp(getenv("RTLA_NO_BPF"), "1", 2) == 0) {
-		debug_msg("RTLA_NO_BPF set, disabling BPF\n");
-		no_bpf = true;
-	}
-
-	if (!no_bpf && !tep_find_event_by_name(trace->tep, "osnoise", "timerlat_sample")) {
-		debug_msg("osnoise:timerlat_sample missing, disabling BPF\n");
-		no_bpf = true;
-	}
-
-	if (!no_bpf) {
-		retval = timerlat_bpf_init(params);
-		if (retval) {
-			debug_msg("Could not enable BPF\n");
-			no_bpf = true;
-		}
 	}
 
 	retval = enable_timerlat(trace);
@@ -1166,7 +1175,7 @@ int timerlat_top_main(int argc, char *argv[])
 		trace_instance_start(&record->trace);
 	if (!params->no_aa)
 		trace_instance_start(&aa->trace);
-	if (no_bpf) {
+	if (params->mode == TRACING_MODE_TRACEFS) {
 		trace_instance_start(trace);
 	} else {
 		retval = timerlat_bpf_attach();
@@ -1179,7 +1188,7 @@ int timerlat_top_main(int argc, char *argv[])
 	top->start_time = time(NULL);
 	timerlat_top_set_signals(params);
 
-	if (no_bpf)
+	if (params->mode == TRACING_MODE_TRACEFS)
 		retval = timerlat_top_main_loop(top, record, params, &params_u);
 	else
 		retval = timerlat_top_bpf_main_loop(top, record, params, &params_u);
@@ -1187,7 +1196,7 @@ int timerlat_top_main(int argc, char *argv[])
 	if (retval)
 		goto out_top;
 
-	if (!no_bpf)
+	if (params->mode != TRACING_MODE_TRACEFS)
 		timerlat_bpf_detach();
 
 	if (params->user_workload && !params_u.stopped_running) {
@@ -1239,6 +1248,8 @@ out_free:
 		osnoise_destroy_tool(aa);
 	osnoise_destroy_tool(record);
 	osnoise_destroy_tool(top);
+	if (params->mode != TRACING_MODE_TRACEFS)
+		timerlat_bpf_destroy();
 	free(params);
 	free_cpu_idle_disable_states();
 out_exit:
