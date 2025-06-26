@@ -439,8 +439,6 @@ static const struct drm_panel_funcs panel_simple_funcs = {
 	.get_timings = panel_simple_get_timings,
 };
 
-static struct panel_desc panel_dpi;
-
 static struct panel_desc *panel_dpi_probe(struct device *dev)
 {
 	struct display_timing *timing;
@@ -593,11 +591,17 @@ static const struct panel_desc *panel_simple_get_desc(struct device *dev)
 		const struct panel_desc *desc;
 
 		desc = of_device_get_match_data(dev);
-		if (!desc)
-			return ERR_PTR(-ENODEV);
-
-		if (desc == &panel_dpi)
-			return panel_dpi_probe(dev);
+		if (!desc) {
+			/*
+			 * panel-dpi probes without a descriptor and
+			 * panel_dpi_probe() will initialize one for us
+			 * based on the device tree.
+			 */
+			if (of_device_is_compatible(dev->of_node, "panel-dpi"))
+				return panel_dpi_probe(dev);
+			else
+				return ERR_PTR(-ENODEV);
+		}
 
 		return desc;
 	}
@@ -651,7 +655,7 @@ static struct panel_simple *panel_simple_probe(struct device *dev)
 			return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	if ((desc != &panel_dpi) &&
+	if (!of_device_is_compatible(dev->of_node, "panel-dpi") &&
 	    !of_get_display_timing(dev->of_node, "panel-timing", &dt))
 		panel_simple_parse_panel_timing_node(dev, panel, &dt);
 
@@ -5400,7 +5404,12 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		/* Must be the last entry */
 		.compatible = "panel-dpi",
-		.data = &panel_dpi,
+
+		/*
+		 * Explicitly NULL, the panel_desc structure will be
+		 * allocated by panel_dpi_probe().
+		 */
+		.data = NULL,
 	}, {
 		/* sentinel */
 	}
