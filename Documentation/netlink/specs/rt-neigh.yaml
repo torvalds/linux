@@ -79,6 +79,7 @@ definitions:
     entries:
       - managed
       - locked
+      - ext-validated
   -
     name: rtm-type
     type: enum

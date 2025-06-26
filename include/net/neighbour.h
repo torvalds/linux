@@ -261,13 +261,15 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_EXT_LEARNED		BIT(5)
 #define NEIGH_UPDATE_F_ISROUTER			BIT(6)
 #define NEIGH_UPDATE_F_ADMIN			BIT(7)
+#define NEIGH_UPDATE_F_EXT_VALIDATED		BIT(8)
 
 /* In-kernel representation for NDA_FLAGS_EXT flags: */
 #define NTF_OLD_MASK		0xff
 #define NTF_EXT_SHIFT		8
-#define NTF_EXT_MASK		(NTF_EXT_MANAGED)
+#define NTF_EXT_MASK		(NTF_EXT_MANAGED | NTF_EXT_EXT_VALIDATED)
 
 #define NTF_MANAGED		(NTF_EXT_MANAGED << NTF_EXT_SHIFT)
+#define NTF_EXT_VALIDATED	(NTF_EXT_EXT_VALIDATED << NTF_EXT_SHIFT)
 
 extern const struct nla_policy nda_policy[];
 
