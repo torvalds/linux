@@ -1,4 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 if LKSS_DRIVERS_LAB1
+
+config LKSS_DRIVERS_LAB1_EX1
+	tristate "Lab 1 Ex 1 - Hello World"
+	default n
+	help
+	  Compile Lab 1 exercise 1 - "Hello World"
+
 endif # LKSS_DRIVERS_LAB1
