@@ -272,12 +272,18 @@
 #define TRF7970A_MODULATOR_EN_OOK		BIT(6)
 #define TRF7970A_MODULATOR_27MHZ		BIT(7)
 
+#define TRF7970A_RX_GAIN_REDUCTION_MAX_DB	15
+#define TRF7970A_RX_GAIN_REDUCTION_DB_PER_LSB	5
 #define TRF7970A_RX_SPECIAL_SETTINGS_NO_LIM	BIT(0)
 #define TRF7970A_RX_SPECIAL_SETTINGS_AGCR	BIT(1)
-#define TRF7970A_RX_SPECIAL_SETTINGS_GD_0DB	(0x0 << 2)
-#define TRF7970A_RX_SPECIAL_SETTINGS_GD_5DB	(0x1 << 2)
-#define TRF7970A_RX_SPECIAL_SETTINGS_GD_10DB	(0x2 << 2)
-#define TRF7970A_RX_SPECIAL_SETTINGS_GD_15DB	(0x3 << 2)
+#define TRF7970A_RX_SPECIAL_SETTINGS_GD_SHIFT	2
+#define TRF7970A_RX_SPECIAL_SETTINGS_GD_MAX	(0x3)
+#define TRF7970A_RX_SPECIAL_SETTINGS_GD_MASK	(TRF7970A_RX_SPECIAL_SETTINGS_GD_MAX << \
+							TRF7970A_RX_SPECIAL_SETTINGS_GD_SHIFT)
+#define TRF7970A_RX_SPECIAL_SETTINGS_GD_0DB	(0x0 << TRF7970A_RX_SPECIAL_SETTINGS_GD_SHIFT)
+#define TRF7970A_RX_SPECIAL_SETTINGS_GD_5DB	(0x1 << TRF7970A_RX_SPECIAL_SETTINGS_GD_SHIFT)
+#define TRF7970A_RX_SPECIAL_SETTINGS_GD_10DB	(0x2 << TRF7970A_RX_SPECIAL_SETTINGS_GD_SHIFT)
+#define TRF7970A_RX_SPECIAL_SETTINGS_GD_15DB	(0x3 << TRF7970A_RX_SPECIAL_SETTINGS_GD_SHIFT)
 #define TRF7970A_RX_SPECIAL_SETTINGS_HBT	BIT(4)
 #define TRF7970A_RX_SPECIAL_SETTINGS_M848	BIT(5)
 #define TRF7970A_RX_SPECIAL_SETTINGS_C424	BIT(6)
@@ -452,6 +458,8 @@ struct trf7970a {
 	unsigned int			timeout;
 	bool				ignore_timeout;
 	struct delayed_work		timeout_work;
+	u8				rx_gain_reduction;
+	bool			custom_rx_gain_reduction;
 };
 
 static int trf7970a_cmd(struct trf7970a *trf, u8 opcode)
@@ -547,6 +555,41 @@ static int trf7970a_read_irqstatus(struct trf7970a *trf, u8 *status)
 			__func__, ret);
 	else
 		*status = buf[0];
+
+	return ret;
+}
+
+static int trf7970a_update_rx_gain_reduction(struct trf7970a *trf)
+{
+	int ret = 0;
+	u8 reg;
+
+	if (!trf->custom_rx_gain_reduction)
+		return 0;
+
+	ret = trf7970a_read(trf, TRF7970A_RX_SPECIAL_SETTINGS, &reg);
+	if (ret)
+		return ret;
+	reg &= ~(TRF7970A_RX_SPECIAL_SETTINGS_GD_MASK);
+	reg |= trf->rx_gain_reduction;
+
+	ret = trf7970a_write(trf, TRF7970A_RX_SPECIAL_SETTINGS, reg);
+
+	return ret;
+}
+
+static int trf7970a_update_iso_ctrl_register(struct trf7970a *trf, u8 iso_ctrl)
+{
+	int ret;
+
+	ret = trf7970a_write(trf, TRF7970A_ISO_CTRL, iso_ctrl);
+	if (ret)
+		return ret;
+	/*
+	 * Every time the ISO_CTRL register is written, the RX special setting register is reset by
+	 * the chip. When a custom gain reguduction is required, it should be rewritten now.
+	 */
+	ret = trf7970a_update_rx_gain_reduction(trf);
 
 	return ret;
 }
@@ -930,8 +973,7 @@ static irqreturn_t trf7970a_irq(int irq, void *dev_id)
 			}
 
 			if (iso_ctrl != trf->iso_ctrl) {
-				ret = trf7970a_write(trf, TRF7970A_ISO_CTRL,
-						     iso_ctrl);
+				ret = trf7970a_update_iso_ctrl_register(trf, iso_ctrl);
 				if (ret)
 					goto err_unlock_exit;
 
@@ -1032,6 +1074,11 @@ static int trf7970a_init(struct trf7970a *trf)
 	dev_dbg(trf->dev, "Initializing device - state: %d\n", trf->state);
 
 	ret = trf7970a_cmd(trf, TRF7970A_CMD_SOFT_INIT);
+	if (ret)
+		goto err_out;
+
+	/* Set the gain reduction after soft init */
+	ret = trf7970a_update_rx_gain_reduction(trf);
 	if (ret)
 		goto err_out;
 
@@ -1309,7 +1356,7 @@ static int trf7970a_in_config_framing(struct trf7970a *trf, int framing)
 	}
 
 	if (iso_ctrl != trf->iso_ctrl) {
-		ret = trf7970a_write(trf, TRF7970A_ISO_CTRL, iso_ctrl);
+		ret = trf7970a_update_iso_ctrl_register(trf, iso_ctrl);
 		if (ret)
 			return ret;
 
@@ -1441,7 +1488,7 @@ static int trf7970a_per_cmd_config(struct trf7970a *trf,
 		}
 
 		if (iso_ctrl != trf->iso_ctrl) {
-			ret = trf7970a_write(trf, TRF7970A_ISO_CTRL, iso_ctrl);
+			ret = trf7970a_update_iso_ctrl_register(trf, iso_ctrl);
 			if (ret)
 				return ret;
 
@@ -1605,8 +1652,7 @@ static int trf7970a_tg_config_rf_tech(struct trf7970a *trf, int tech)
 	 */
 	if ((trf->framing == NFC_DIGITAL_FRAMING_NFC_DEP_ACTIVATED) &&
 	    (trf->iso_ctrl_tech != trf->iso_ctrl)) {
-		ret = trf7970a_write(trf, TRF7970A_ISO_CTRL,
-				     trf->iso_ctrl_tech);
+		ret = trf7970a_update_iso_ctrl_register(trf, trf->iso_ctrl_tech);
 
 		trf->iso_ctrl = trf->iso_ctrl_tech;
 	}
@@ -1654,7 +1700,7 @@ static int trf7970a_tg_config_framing(struct trf7970a *trf, int framing)
 	trf->framing = framing;
 
 	if (iso_ctrl != trf->iso_ctrl) {
-		ret = trf7970a_write(trf, TRF7970A_ISO_CTRL, iso_ctrl);
+		ret = trf7970a_update_iso_ctrl_register(trf, iso_ctrl);
 		if (ret)
 			return ret;
 
@@ -1752,6 +1798,10 @@ static int _trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
 			     TRF7970A_RX_SPECIAL_SETTINGS_M848 |
 			     TRF7970A_RX_SPECIAL_SETTINGS_C424 |
 			     TRF7970A_RX_SPECIAL_SETTINGS_C212);
+	if (ret)
+		goto out_err;
+
+	ret = trf7970a_update_rx_gain_reduction(trf);
 	if (ret)
 		goto out_err;
 
@@ -1945,6 +1995,10 @@ static int trf7970a_startup(struct trf7970a *trf)
 	if (ret)
 		return ret;
 
+	ret = trf7970a_update_rx_gain_reduction(trf);
+	if (ret)
+		return ret;
+
 	pm_runtime_set_active(trf->dev);
 	pm_runtime_enable(trf->dev);
 	pm_runtime_mark_last_busy(trf->dev);
@@ -1993,6 +2047,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	struct trf7970a *trf;
 	int uvolts, autosuspend_delay, ret;
 	u32 clk_freq = TRF7970A_13MHZ_CLOCK_FREQUENCY;
+	u32 rx_gain_reduction_db;
 
 	if (!np) {
 		dev_err(&spi->dev, "No Device Tree entry\n");
@@ -2052,6 +2107,20 @@ static int trf7970a_probe(struct spi_device *spi)
 		dev_dbg(trf->dev, "trf7970a configured for 27MHz crystal\n");
 	} else {
 		trf->modulator_sys_clk_ctrl = 0;
+	}
+
+	if (of_property_read_u32(np, "ti,rx-gain-reduction-db", &rx_gain_reduction_db) == 0) {
+		if (rx_gain_reduction_db > TRF7970A_RX_GAIN_REDUCTION_MAX_DB) {
+			dev_warn(trf->dev, "RX Gain reduction too high. Ignored\n");
+		} else if ((rx_gain_reduction_db % TRF7970A_RX_GAIN_REDUCTION_DB_PER_LSB)) {
+			dev_warn(trf->dev, "RX Gain must be set in 5 dB increments. Ignored\n");
+		} else {
+			dev_dbg(trf->dev, "RX gain set to -%udB\n", rx_gain_reduction_db);
+			trf->rx_gain_reduction = ((rx_gain_reduction_db /
+				TRF7970A_RX_GAIN_REDUCTION_DB_PER_LSB) <<
+				TRF7970A_RX_SPECIAL_SETTINGS_GD_SHIFT);
+			trf->custom_rx_gain_reduction = true;
+		}
 	}
 
 	ret = devm_request_threaded_irq(trf->dev, spi->irq, NULL,
