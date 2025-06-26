@@ -1967,7 +1967,7 @@ static int s5k5baf_probe(struct i2c_client *c)
 	if (ret < 0)
 		goto err_me;
 
-	state->clock = devm_clk_get(state->sd.dev, S5K5BAF_CLK_NAME);
+	state->clock = devm_v4l2_sensor_clk_get(state->sd.dev, S5K5BAF_CLK_NAME);
 	if (IS_ERR(state->clock)) {
 		ret = -EPROBE_DEFER;
 		goto err_me;
