@@ -317,6 +317,7 @@ static struct irq_domain *__irq_domain_instantiate(const struct irq_domain_info 
 
 	domain->flags |= info->domain_flags;
 	domain->exit = info->exit;
+	domain->dev = info->dev;
 
 #ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
 	if (info->parent) {
