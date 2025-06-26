@@ -303,9 +303,8 @@ config PINCTRL_RZN1
 	  This selects pinctrl driver for Renesas RZ/N1 devices.
 
 config PINCTRL_RZV2M
-	bool "pin control support for RZ/V2M"
+	bool "pin control support for RZ/V2M" if COMPILE_TEST
 	depends on OF
-	depends on ARCH_R9A09G011 || COMPILE_TEST
 	select GPIOLIB
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
