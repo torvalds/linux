@@ -5394,7 +5394,8 @@ static void fixup_detailed_cea_mode_clock(struct drm_connector *connector,
 
 static void drm_calculate_luminance_range(struct drm_connector *connector)
 {
-	struct hdr_static_metadata *hdr_metadata = &connector->hdr_sink_metadata.hdmi_type1;
+	const struct hdr_static_metadata *hdr_metadata =
+		&connector->display_info.hdr_sink_metadata.hdmi_type1;
 	struct drm_luminance_range_info *luminance_range =
 		&connector->display_info.luminance_range;
 	static const u8 pre_computed_values[] = {
@@ -5455,21 +5456,21 @@ static uint8_t hdr_metadata_type(const u8 *edid_ext)
 static void
 drm_parse_hdr_metadata_block(struct drm_connector *connector, const u8 *db)
 {
+	struct hdr_static_metadata *hdr_metadata =
+		&connector->display_info.hdr_sink_metadata.hdmi_type1;
 	u16 len;
 
 	len = cea_db_payload_len(db);
 
-	connector->hdr_sink_metadata.hdmi_type1.eotf =
-						eotf_supported(db);
-	connector->hdr_sink_metadata.hdmi_type1.metadata_type =
-						hdr_metadata_type(db);
+	hdr_metadata->eotf = eotf_supported(db);
+	hdr_metadata->metadata_type = hdr_metadata_type(db);
 
 	if (len >= 4)
-		connector->hdr_sink_metadata.hdmi_type1.max_cll = db[4];
+		hdr_metadata->max_cll = db[4];
 	if (len >= 5)
-		connector->hdr_sink_metadata.hdmi_type1.max_fall = db[5];
+		hdr_metadata->max_fall = db[5];
 	if (len >= 6) {
-		connector->hdr_sink_metadata.hdmi_type1.min_cll = db[6];
+		hdr_metadata->min_cll = db[6];
 
 		/* Calculate only when all values are available */
 		drm_calculate_luminance_range(connector);
@@ -6617,7 +6618,7 @@ static void drm_reset_display_info(struct drm_connector *connector)
 	info->has_hdmi_infoframe = false;
 	info->rgb_quant_range_selectable = false;
 	memset(&info->hdmi, 0, sizeof(info->hdmi));
-	memset(&connector->hdr_sink_metadata, 0, sizeof(connector->hdr_sink_metadata));
+	memset(&info->hdr_sink_metadata, 0, sizeof(info->hdr_sink_metadata));
 
 	info->edid_hdmi_rgb444_dc_modes = 0;
 	info->edid_hdmi_ycbcr444_dc_modes = 0;

@@ -1687,7 +1687,7 @@ EXPORT_SYMBOL(drm_hdmi_connector_get_output_format_name);
  *	structure from userspace. This is received as blob and stored in
  *	&drm_connector_state.hdr_output_metadata. It parses EDID and saves the
  *	sink metadata in &struct hdr_sink_metadata, as
- *	&drm_connector.hdr_sink_metadata.  Driver uses
+ *	&drm_connector.display_info.hdr_sink_metadata.  Driver uses
  *	drm_hdmi_infoframe_set_hdr_metadata() helper to set the HDR metadata,
  *	hdmi_drm_infoframe_pack() to pack the infoframe as per spec, in case of
  *	HDMI encoder.
