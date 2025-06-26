@@ -1096,7 +1096,10 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	if (info.flow_type & FLOW_RSS)
 		fields.rss_context = info.rss_context;
 
-	return ops->set_rxfh_fields(dev, &fields, NULL);
+	mutex_lock(&dev->ethtool->rss_lock);
+	rc = ops->set_rxfh_fields(dev, &fields, NULL);
+	mutex_unlock(&dev->ethtool->rss_lock);
+	return rc;
 }
 
 static noinline_for_stack int
@@ -1123,7 +1126,9 @@ ethtool_get_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	if (info.flow_type & FLOW_RSS)
 		fields.rss_context = info.rss_context;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	ret = ops->get_rxfh_fields(dev, &fields);
+	mutex_unlock(&dev->ethtool->rss_lock);
 	if (ret < 0)
 		return ret;
 
@@ -1553,10 +1558,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
 
-	ret = ethtool_check_flow_types(dev, rxfh.input_xfrm);
-	if (ret)
-		return ret;
-
 	indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 
 	/* Check settings which may be global rather than per RSS-context */
@@ -1616,6 +1617,10 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	}
 
 	mutex_lock(&dev->ethtool->rss_lock);
+
+	ret = ethtool_check_flow_types(dev, rxfh.input_xfrm);
+	if (ret)
+		goto out_unlock;
 
 	if (rxfh.rss_context && rxfh_dev.rss_delete) {
 		ret = ethtool_check_rss_ctx_busy(dev, rxfh.rss_context);
