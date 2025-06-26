@@ -894,22 +894,21 @@ static inline int btrfs_may_create(struct mnt_idmap *idmap,
  */
 static noinline int btrfs_mksubvol(const struct path *parent,
 				   struct mnt_idmap *idmap,
-				   const char *name, int namelen,
-				   struct btrfs_root *snap_src,
+				   struct qstr *qname, struct btrfs_root *snap_src,
 				   bool readonly,
 				   struct btrfs_qgroup_inherit *inherit)
 {
 	struct inode *dir = d_inode(parent->dentry);
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(dir);
 	struct dentry *dentry;
-	struct fscrypt_str name_str = FSTR_INIT((char *)name, namelen);
+	struct fscrypt_str name_str = FSTR_INIT((char *)qname->name, qname->len);
 	int ret;
 
 	ret = down_write_killable_nested(&dir->i_rwsem, I_MUTEX_PARENT);
 	if (ret == -EINTR)
 		return ret;
 
-	dentry = lookup_one(idmap, &QSTR_LEN(name, namelen), parent->dentry);
+	dentry = lookup_one(idmap, qname, parent->dentry);
 	ret = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto out_unlock;
@@ -949,7 +948,7 @@ out_unlock:
 
 static noinline int btrfs_mksnapshot(const struct path *parent,
 				   struct mnt_idmap *idmap,
-				   const char *name, int namelen,
+				   struct qstr *qname,
 				   struct btrfs_root *root,
 				   bool readonly,
 				   struct btrfs_qgroup_inherit *inherit)
@@ -976,8 +975,8 @@ static noinline int btrfs_mksnapshot(const struct path *parent,
 
 	btrfs_wait_ordered_extents(root, U64_MAX, NULL);
 
-	ret = btrfs_mksubvol(parent, idmap, name, namelen,
-			     root, readonly, inherit);
+	ret = btrfs_mksubvol(parent, idmap, qname, root, readonly, inherit);
+
 	atomic_dec(&root->snapshot_force_cow);
 out:
 	btrfs_drew_read_unlock(&root->snapshot_lock);
@@ -1187,8 +1186,8 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 				bool readonly,
 				struct btrfs_qgroup_inherit *inherit)
 {
-	int namelen;
 	int ret = 0;
+	struct qstr qname = QSTR_INIT(name, strlen(name));
 
 	if (!S_ISDIR(file_inode(file)->i_mode))
 		return -ENOTDIR;
@@ -1197,21 +1196,20 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 	if (ret)
 		goto out;
 
-	namelen = strlen(name);
 	if (strchr(name, '/')) {
 		ret = -EINVAL;
 		goto out_drop_write;
 	}
 
-	if (name[0] == '.' &&
-	   (namelen == 1 || (name[1] == '.' && namelen == 2))) {
+	if (qname.name[0] == '.' &&
+	   (qname.len == 1 || (qname.name[1] == '.' && qname.len == 2))) {
 		ret = -EEXIST;
 		goto out_drop_write;
 	}
 
 	if (subvol) {
-		ret = btrfs_mksubvol(&file->f_path, idmap, name,
-				     namelen, NULL, readonly, inherit);
+		ret = btrfs_mksubvol(&file->f_path, idmap, &qname, NULL,
+				     readonly, inherit);
 	} else {
 		CLASS(fd, src)(fd);
 		struct inode *src_inode;
@@ -1241,8 +1239,7 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 			 */
 			ret = -EINVAL;
 		} else {
-			ret = btrfs_mksnapshot(&file->f_path, idmap,
-					       name, namelen,
+			ret = btrfs_mksnapshot(&file->f_path, idmap, &qname,
 					       BTRFS_I(src_inode)->root,
 					       readonly, inherit);
 		}
