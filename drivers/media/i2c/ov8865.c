@@ -2956,7 +2956,6 @@ static int ov8865_probe(struct i2c_client *client)
 	struct ov8865_sensor *sensor;
 	struct v4l2_subdev *subdev;
 	struct media_pad *pad;
-	unsigned int rate = 0;
 	unsigned int i;
 	int ret;
 
@@ -3020,39 +3019,14 @@ static int ov8865_probe(struct i2c_client *client)
 
 	/* External Clock */
 
-	sensor->extclk = devm_clk_get(dev, NULL);
-	if (PTR_ERR(sensor->extclk) == -ENOENT) {
-		dev_info(dev, "no external clock found, continuing...\n");
-		sensor->extclk = NULL;
-	} else if (IS_ERR(sensor->extclk)) {
-		dev_err(dev, "failed to get external clock\n");
-		ret = PTR_ERR(sensor->extclk);
+	sensor->extclk = devm_v4l2_sensor_clk_get(dev, NULL);
+	if (IS_ERR(sensor->extclk)) {
+		ret = dev_err_probe(dev, PTR_ERR(sensor->extclk),
+				    "failed to get external clock\n");
 		goto error_endpoint;
 	}
 
-	/*
-	 * We could have either a 24MHz or 19.2MHz clock rate from either dt or
-	 * ACPI...but we also need to support the weird IPU3 case which will
-	 * have an external clock AND a clock-frequency property. Check for the
-	 * clock-frequency property and if found, set that rate if we managed
-	 * to acquire a clock. This should cover the ACPI case. If the system
-	 * uses devicetree then the configured rate should already be set, so
-	 * we can just read it.
-	 */
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-				       &rate);
-	if (!ret && sensor->extclk) {
-		ret = clk_set_rate(sensor->extclk, rate);
-		if (ret) {
-			dev_err_probe(dev, ret, "failed to set clock rate\n");
-			goto error_endpoint;
-		}
-	} else if (ret && !sensor->extclk) {
-		dev_err_probe(dev, ret, "invalid clock config\n");
-		goto error_endpoint;
-	}
-
-	sensor->extclk_rate = rate ? rate : clk_get_rate(sensor->extclk);
+	sensor->extclk_rate = clk_get_rate(sensor->extclk);
 
 	for (i = 0; i < ARRAY_SIZE(supported_extclk_rates); i++) {
 		if (sensor->extclk_rate == supported_extclk_rates[i])
