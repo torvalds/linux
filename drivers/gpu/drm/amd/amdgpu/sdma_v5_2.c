@@ -1469,11 +1469,15 @@ static int sdma_v5_2_reset_queue(struct amdgpu_ring *ring,
 		return -EINVAL;
 	}
 
-	amdgpu_amdkfd_suspend(adev, true);
-	r = amdgpu_sdma_reset_engine(adev, ring->me, false);
-	amdgpu_amdkfd_resume(adev, true);
+	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
 
-	return r;
+	amdgpu_amdkfd_suspend(adev, true);
+	r = amdgpu_sdma_reset_engine(adev, ring->me, true);
+	amdgpu_amdkfd_resume(adev, true);
+	if (r)
+		return r;
+
+	return amdgpu_ring_reset_helper_end(ring, timedout_fence);
 }
 
 static int sdma_v5_2_stop_queue(struct amdgpu_ring *ring)
