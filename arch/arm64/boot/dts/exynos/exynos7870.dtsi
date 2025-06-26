@@ -327,6 +327,7 @@
 				phys = <&usbdrd_phy 0>;
 
 				usb-role-switch;
+				snps,usb2-gadget-lpm-disable;
 			};
 		};
 
