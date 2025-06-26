@@ -70,6 +70,13 @@ module_param_named(enable, enable_param, bool, 0);
 MODULE_PARM_DESC(enable, "Enable KUnit tests");
 
 /*
+ * Configure the base timeout.
+ */
+static unsigned long kunit_base_timeout = CONFIG_KUNIT_DEFAULT_TIMEOUT;
+module_param_named(timeout, kunit_base_timeout, ulong, 0644);
+MODULE_PARM_DESC(timeout, "Set the base timeout for Kunit test cases");
+
+/*
  * KUnit statistic mode:
  * 0 - disabled
  * 1 - only when there is more than one subtest
@@ -393,12 +400,6 @@ static int kunit_timeout_mult(enum kunit_speed speed)
 static unsigned long kunit_test_timeout(struct kunit_suite *suite, struct kunit_case *test_case)
 {
 	int mult = 1;
-	/*
-	 * TODO: Make the default (base) timeout configurable, so that users with
-	 * particularly slow or fast machines can successfully run tests, while
-	 * still taking advantage of the relative speed.
-	 */
-	unsigned long default_timeout = 300;
 
 	/*
 	 * The default test timeout is 300 seconds and will be adjusted by mult
@@ -409,7 +410,7 @@ static unsigned long kunit_test_timeout(struct kunit_suite *suite, struct kunit_
 		mult = kunit_timeout_mult(suite->attr.speed);
 	if (test_case->attr.speed != KUNIT_SPEED_UNSET)
 		mult = kunit_timeout_mult(test_case->attr.speed);
-	return mult * default_timeout * msecs_to_jiffies(MSEC_PER_SEC);
+	return mult * kunit_base_timeout * msecs_to_jiffies(MSEC_PER_SEC);
 }
 
 
