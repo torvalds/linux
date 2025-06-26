@@ -7,6 +7,7 @@ enum action_type {
 	ACTION_TRACE_OUTPUT,
 	ACTION_SIGNAL,
 	ACTION_SHELL,
+	ACTION_CONTINUE,
 	ACTION_FIELD_N
 };
 
@@ -35,6 +36,7 @@ struct actions {
 	struct action *list;
 	int len, size;
 	bool present[ACTION_FIELD_N];
+	bool continue_flag;
 
 	/* External dependencies */
 	struct tracefs_instance *trace_output_inst;
@@ -45,5 +47,6 @@ void actions_destroy(struct actions *self);
 int actions_add_trace_output(struct actions *self, const char *trace_output);
 int actions_add_signal(struct actions *self, int signal, int pid);
 int actions_add_shell(struct actions *self, const char *command);
+int actions_add_continue(struct actions *self);
 int actions_parse(struct actions *self, const char *trigger);
-int actions_perform(const struct actions *self);
+int actions_perform(struct actions *self);

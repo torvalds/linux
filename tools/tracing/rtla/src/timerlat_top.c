@@ -906,6 +906,7 @@ timerlat_top_set_signals(struct timerlat_params *params)
 static int
 timerlat_top_main_loop(struct osnoise_tool *top,
 		       struct osnoise_tool *record,
+		       struct osnoise_tool *aa,
 		       struct timerlat_params *params,
 		       struct timerlat_u_params *params_u)
 {
@@ -932,8 +933,20 @@ timerlat_top_main_loop(struct osnoise_tool *top,
 		if (!params->quiet)
 			timerlat_print_stats(params, top);
 
-		if (osnoise_trace_is_off(top, record))
-			break;
+		if (osnoise_trace_is_off(top, record)) {
+			actions_perform(&params->actions);
+
+			if (!params->actions.continue_flag)
+				/* continue flag not set, break */
+				break;
+
+			/* continue action reached, re-enable tracing */
+			if (params->actions.present[ACTION_TRACE_OUTPUT])
+				trace_instance_start(&record->trace);
+			if (!params->no_aa)
+				trace_instance_start(&aa->trace);
+			trace_instance_start(trace);
+		}
 
 		/* is there still any user-threads ? */
 		if (params->user_workload) {
@@ -953,6 +966,7 @@ timerlat_top_main_loop(struct osnoise_tool *top,
 static int
 timerlat_top_bpf_main_loop(struct osnoise_tool *top,
 			   struct osnoise_tool *record,
+			   struct osnoise_tool *aa,
 			   struct timerlat_params *params,
 			   struct timerlat_u_params *params_u)
 {
@@ -964,22 +978,9 @@ timerlat_top_bpf_main_loop(struct osnoise_tool *top,
 		return 0;
 	}
 
-	if (params->quiet) {
-		/* Quiet mode: wait for stop and then, print results */
-		timerlat_bpf_wait(-1);
-
-		retval = timerlat_top_bpf_pull_data(top);
-		if (retval) {
-			err_msg("Error pulling BPF data\n");
-			return retval;
-		}
-
-		return 0;
-	}
-
 	/* Pull and display data in a loop */
 	while (!stop_tracing) {
-		wait_retval = timerlat_bpf_wait(params->sleep_time);
+		wait_retval = timerlat_bpf_wait(params->quiet ? -1 : params->sleep_time);
 
 		retval = timerlat_top_bpf_pull_data(top);
 		if (retval) {
@@ -987,11 +988,24 @@ timerlat_top_bpf_main_loop(struct osnoise_tool *top,
 			return retval;
 		}
 
-		timerlat_print_stats(params, top);
+		if (!params->quiet)
+			timerlat_print_stats(params, top);
 
-		if (wait_retval == 1)
+		if (wait_retval == 1) {
 			/* Stopping requested by tracer */
-			break;
+			actions_perform(&params->actions);
+
+			if (!params->actions.continue_flag)
+				/* continue flag not set, break */
+				break;
+
+			/* continue action reached, re-enable tracing */
+			if (params->actions.present[ACTION_TRACE_OUTPUT])
+				trace_instance_start(&record->trace);
+			if (!params->no_aa)
+				trace_instance_start(&aa->trace);
+			timerlat_bpf_restart_tracing();
+		}
 
 		/* is there still any user-threads ? */
 		if (params->user_workload) {
@@ -1205,9 +1219,9 @@ int timerlat_top_main(int argc, char *argv[])
 	timerlat_top_set_signals(params);
 
 	if (params->mode == TRACING_MODE_TRACEFS)
-		retval = timerlat_top_main_loop(top, record, params, &params_u);
+		retval = timerlat_top_main_loop(top, record, aa, params, &params_u);
 	else
-		retval = timerlat_top_bpf_main_loop(top, record, params, &params_u);
+		retval = timerlat_top_bpf_main_loop(top, record, aa, params, &params_u);
 
 	if (retval)
 		goto out_top;
@@ -1230,7 +1244,6 @@ int timerlat_top_main(int argc, char *argv[])
 		if (!params->no_aa)
 			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
 
-		actions_perform(&params->actions);
 		return_value = FAILED;
 	} else if (params->aa_only) {
 		/*

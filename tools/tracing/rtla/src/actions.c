@@ -17,6 +17,7 @@ actions_init(struct actions *self)
 	self->size = action_default_size;
 	self->list = calloc(self->size, sizeof(struct action));
 	self->len = 0;
+	self->continue_flag = false;
 
 	memset(&self->present, 0, sizeof(self->present));
 
@@ -109,6 +110,20 @@ actions_add_shell(struct actions *self, const char *command)
 }
 
 /*
+ * actions_add_continue - add an action to resume measurement
+ */
+int
+actions_add_continue(struct actions *self)
+{
+	struct action *action = actions_new(self);
+
+	self->present[ACTION_CONTINUE] = true;
+	action->type = ACTION_CONTINUE;
+
+	return 0;
+}
+
+/*
  * actions_parse - add an action based on text specification
  */
 int
@@ -133,6 +148,8 @@ actions_parse(struct actions *self, const char *trigger)
 		type = ACTION_SIGNAL;
 	else if (strcmp(token, "shell") == 0)
 		type = ACTION_SHELL;
+	else if (strcmp(token, "continue") == 0)
+		type = ACTION_CONTINUE;
 	else
 		/* Invalid trigger type */
 		return -1;
@@ -187,6 +204,11 @@ actions_parse(struct actions *self, const char *trigger)
 		if (strlen(token) > 8 && strncmp(token, "command=", 8) == 0)
 			return actions_add_shell(self, token + 8);
 		return -1;
+	case ACTION_CONTINUE:
+		/* Takes no argument */
+		if (token != NULL)
+			return -1;
+		return actions_add_continue(self);
 	default:
 		return -1;
 	}
@@ -196,7 +218,7 @@ actions_parse(struct actions *self, const char *trigger)
  * actions_perform - perform all actions
  */
 int
-actions_perform(const struct actions *self)
+actions_perform(struct actions *self)
 {
 	int pid, retval;
 	const struct action *action;
@@ -226,6 +248,9 @@ actions_perform(const struct actions *self)
 			if (retval)
 				return retval;
 			break;
+		case ACTION_CONTINUE:
+			self->continue_flag = true;
+			return 0;
 		default:
 			break;
 		}

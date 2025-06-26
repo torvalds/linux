@@ -1374,8 +1374,20 @@ int timerlat_hist_main(int argc, char *argv[])
 				goto out_hist;
 			}
 
-			if (osnoise_trace_is_off(tool, record))
-				break;
+			if (osnoise_trace_is_off(tool, record)) {
+				actions_perform(&params->actions);
+
+				if (!params->actions.continue_flag)
+					/* continue flag not set, break */
+					break;
+
+				/* continue action reached, re-enable tracing */
+				if (params->actions.present[ACTION_TRACE_OUTPUT])
+					trace_instance_start(&record->trace);
+				if (!params->no_aa)
+					trace_instance_start(&aa->trace);
+				trace_instance_start(trace);
+			}
 
 			/* is there still any user-threads ? */
 			if (params->user_workload) {
@@ -1385,8 +1397,27 @@ int timerlat_hist_main(int argc, char *argv[])
 				}
 			}
 		}
-	} else
-		timerlat_bpf_wait(-1);
+	} else {
+		while (!stop_tracing) {
+			timerlat_bpf_wait(-1);
+
+			if (!stop_tracing) {
+				/* Threshold overflow, perform actions on threshold */
+				actions_perform(&params->actions);
+
+				if (!params->actions.continue_flag)
+					/* continue flag not set, break */
+					break;
+
+				/* continue action reached, re-enable tracing */
+				if (params->actions.present[ACTION_TRACE_OUTPUT])
+					trace_instance_start(&record->trace);
+				if (!params->no_aa)
+					trace_instance_start(&aa->trace);
+				timerlat_bpf_restart_tracing();
+			}
+		}
+	}
 
 	if (params->mode != TRACING_MODE_TRACEFS) {
 		timerlat_bpf_detach();
@@ -1412,7 +1443,6 @@ int timerlat_hist_main(int argc, char *argv[])
 		if (!params->no_aa)
 			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
 
-		actions_perform(&params->actions);
 		return_value = FAILED;
 	}
 
