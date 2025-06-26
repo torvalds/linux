@@ -783,11 +783,11 @@ static int ov2685_probe(struct i2c_client *client)
 	ov2685->client = client;
 	ov2685->cur_mode = &supported_modes[0];
 
-	ov2685->xvclk = devm_clk_get(dev, "xvclk");
-	if (IS_ERR(ov2685->xvclk)) {
-		dev_err(dev, "Failed to get xvclk\n");
-		return -EINVAL;
-	}
+	ov2685->xvclk = devm_v4l2_sensor_clk_get(dev, "xvclk");
+	if (IS_ERR(ov2685->xvclk))
+		return dev_err_probe(dev, PTR_ERR(ov2685->xvclk),
+				     "Failed to get xvclk\n");
+
 	ret = clk_set_rate(ov2685->xvclk, OV2685_XVCLK_FREQ);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set xvclk rate (24MHz)\n");
