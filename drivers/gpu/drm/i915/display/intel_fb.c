@@ -1286,10 +1286,10 @@ bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb)
 
 bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 {
+	struct intel_display *display = to_intel_display(plane_state);
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
-	return DISPLAY_VER(dev_priv) < 4 ||
+	return DISPLAY_VER(display) < 4 ||
 		(plane->fbc && !plane_state->no_fbc_reason &&
 		 plane_state->view.gtt.type == I915_GTT_VIEW_NORMAL);
 }
