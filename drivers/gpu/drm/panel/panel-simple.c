@@ -432,8 +432,7 @@ static const struct drm_panel_funcs panel_simple_funcs = {
 
 static struct panel_desc panel_dpi;
 
-static int panel_dpi_probe(struct device *dev,
-			   struct panel_simple *panel)
+static struct panel_desc *panel_dpi_probe(struct device *dev)
 {
 	struct display_timing *timing;
 	const struct device_node *np;
@@ -445,17 +444,17 @@ static int panel_dpi_probe(struct device *dev,
 	np = dev->of_node;
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	timing = devm_kzalloc(dev, sizeof(*timing), GFP_KERNEL);
 	if (!timing)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	ret = of_get_display_timing(np, "panel-timing", timing);
 	if (ret < 0) {
 		dev_err(dev, "%pOF: no panel-timing node found for \"panel-dpi\" binding\n",
 			np);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	desc->timings = timing;
@@ -473,9 +472,7 @@ static int panel_dpi_probe(struct device *dev,
 	/* We do not know the connector for the DT node, so guess it */
 	desc->connector_type = DRM_MODE_CONNECTOR_DPI;
 
-	panel->desc = desc;
-
-	return 0;
+	return desc;
 }
 
 #define PANEL_SIMPLE_BOUNDS_CHECK(to_check, bounds, field) \
@@ -613,10 +610,13 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	if (desc == &panel_dpi) {
 		/* Handle the generic panel-dpi binding */
-		err = panel_dpi_probe(dev, panel);
-		if (err)
+		desc = panel_dpi_probe(dev);
+		if (IS_ERR(desc)) {
+			err = PTR_ERR(desc);
 			goto free_ddc;
-		desc = panel->desc;
+		}
+
+		panel->desc = desc;
 	} else {
 		if (!of_get_display_timing(dev->of_node, "panel-timing", &dt))
 			panel_simple_parse_panel_timing_node(dev, panel, &dt);
