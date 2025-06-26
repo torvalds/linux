@@ -1188,7 +1188,7 @@ static int imx219_probe(struct i2c_client *client)
 				     "failed to initialize CCI\n");
 
 	/* Get system clock (xclk) */
-	imx219->xclk = devm_clk_get(dev, NULL);
+	imx219->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(imx219->xclk))
 		return dev_err_probe(dev, PTR_ERR(imx219->xclk),
 				     "failed to get xclk\n");
