@@ -21,11 +21,11 @@ struct qcom_ubwc_cfg_data {
 	 * UBWC 1.0 always enables all three levels.
 	 * UBWC 2.0 removes level 1 bank swizzling, leaving levels 2 & 3.
 	 * UBWC 4.0 adds the optional ability to disable levels 2 & 3.
-	 *
-	 * This is a bitmask where BIT(0) enables level 1, BIT(1)
-	 * controls level 2, and BIT(2) enables level 3.
 	 */
 	u32 ubwc_swizzle;
+#define UBWC_SWIZZLE_ENABLE_LVL1	BIT(0)
+#define UBWC_SWIZZLE_ENABLE_LVL2	BIT(1)
+#define UBWC_SWIZZLE_ENABLE_LVL3	BIT(2)
 
 	/**
 	 * @highest_bank_bit: Highest Bank Bit
@@ -66,7 +66,7 @@ static inline bool qcom_ubwc_get_ubwc_mode(const struct qcom_ubwc_cfg_data *cfg)
 {
 	bool ret = cfg->ubwc_enc_version == UBWC_1_0;
 
-	if (ret && !(cfg->ubwc_swizzle & BIT(0)))
+	if (ret && !(cfg->ubwc_swizzle & UBWC_SWIZZLE_ENABLE_LVL1))
 		pr_err("UBWC config discrepancy - level 1 swizzling disabled on UBWC 1.0\n");
 
 	return ret;
