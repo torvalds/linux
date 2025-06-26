@@ -2444,7 +2444,14 @@ static int do_pages_stat(struct mm_struct *mm, unsigned long nr_pages,
 		if (copy_to_user(status, chunk_status, chunk_nr * sizeof(*status)))
 			break;
 
-		pages += chunk_nr;
+		if (in_compat_syscall()) {
+			compat_uptr_t __user *pages32 = (compat_uptr_t __user *)pages;
+
+			pages32 += chunk_nr;
+			pages = (const void __user * __user *) pages32;
+		} else {
+			pages += chunk_nr;
+		}
 		status += chunk_nr;
 		nr_pages -= chunk_nr;
 	}
