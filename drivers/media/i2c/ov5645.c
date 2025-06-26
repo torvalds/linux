@@ -1044,7 +1044,7 @@ static int ov5645_probe(struct i2c_client *client)
 				     "invalid bus type, must be CSI2\n");
 
 	/* get system clock (xclk) */
-	ov5645->xclk = devm_clk_get(dev, NULL);
+	ov5645->xclk = devm_v4l2_sensor_clk_get(dev, NULL);
 	if (IS_ERR(ov5645->xclk))
 		return dev_err_probe(dev, PTR_ERR(ov5645->xclk),
 				     "could not get xclk");
