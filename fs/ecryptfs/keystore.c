@@ -355,7 +355,7 @@ parse_tag_67_packet(struct ecryptfs_key_record *key_rec,
 	int rc;
 
 	/*
-	 *              ***** TAG 65 Packet Format *****
+	 *              ***** TAG 67 Packet Format *****
 	 *    | Content Type                       | 1 byte       |
 	 *    | Status Indicator                   | 1 byte       |
 	 *    | Encrypted File Encryption Key Size | 1 or 2 bytes |
@@ -880,7 +880,7 @@ struct ecryptfs_parse_tag_70_packet_silly_stack {
  * @filename: This function kmalloc's the memory for the filename
  * @filename_size: This function sets this to the amount of memory
  *                 kmalloc'd for the filename
- * @packet_size: This function sets this to the the number of octets
+ * @packet_size: This function sets this to the number of octets
  *               in the packet parsed
  * @mount_crypt_stat: The mount-wide cryptographic context
  * @data: The memory location containing the start of the tag 70
