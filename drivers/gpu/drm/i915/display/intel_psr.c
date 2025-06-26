@@ -28,7 +28,6 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_vblank.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_alpm.h"
 #include "intel_atomic.h"
@@ -48,6 +47,7 @@
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 #include "intel_snps_phy.h"
+#include "intel_step.h"
 #include "intel_vblank.h"
 #include "intel_vrr.h"
 #include "skl_universal_plane.h"

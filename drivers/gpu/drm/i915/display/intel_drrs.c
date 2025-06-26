@@ -5,7 +5,8 @@
 
 #include <linux/debugfs.h>
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "intel_atomic.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
