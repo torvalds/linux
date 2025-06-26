@@ -13,6 +13,7 @@ config PCI_AARDVARK
 	depends on OF
 	depends on PCI_MSI
 	select PCI_BRIDGE_EMUL
+	select IRQ_MSI_LIB
 	help
 	 Add support for Aardvark 64bit PCIe Host Controller. This
 	 controller is part of the South Bridge of the Marvel Armada
