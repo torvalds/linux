@@ -142,7 +142,7 @@ static const struct {
 static const struct {
 	int reg;
 	char name[ETH_GSTRING_LEN] __nonstring;
-} enetc_port_counters[] = {
+} enetc_pm_counters[] = {
 	{ ENETC_PM_REOCT(0),	"MAC rx ethernet octets" },
 	{ ENETC_PM_RALN(0),	"MAC rx alignment errors" },
 	{ ENETC_PM_RXPF(0),	"MAC rx valid pause frames" },
@@ -194,6 +194,12 @@ static const struct {
 	{ ENETC_PM_TSCOL(0),	"MAC tx single collisions" },
 	{ ENETC_PM_TLCOL(0),	"MAC tx late collisions" },
 	{ ENETC_PM_TECOL(0),	"MAC tx excessive collisions" },
+};
+
+static const struct {
+	int reg;
+	char name[ETH_GSTRING_LEN] __nonstring;
+} enetc_port_counters[] = {
 	{ ENETC_UFDMF,		"SI MAC nomatch u-cast discards" },
 	{ ENETC_MFDMF,		"SI MAC nomatch m-cast discards" },
 	{ ENETC_PBFDSIR,	"SI MAC nomatch b-cast discards" },
@@ -240,6 +246,7 @@ static int enetc_get_sset_count(struct net_device *ndev, int sset)
 		return len;
 
 	len += ARRAY_SIZE(enetc_port_counters);
+	len += ARRAY_SIZE(enetc_pm_counters);
 
 	return len;
 }
@@ -265,6 +272,9 @@ static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 
 		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
 			ethtool_cpy(&data, enetc_port_counters[i].name);
+
+		for (i = 0; i < ARRAY_SIZE(enetc_pm_counters); i++)
+			ethtool_cpy(&data, enetc_pm_counters[i].name);
 
 		break;
 	}
@@ -302,6 +312,9 @@ static void enetc_get_ethtool_stats(struct net_device *ndev,
 
 	for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
 		data[o++] = enetc_port_rd(hw, enetc_port_counters[i].reg);
+
+	for (i = 0; i < ARRAY_SIZE(enetc_pm_counters); i++)
+		data[o++] = enetc_port_rd64(hw, enetc_pm_counters[i].reg);
 }
 
 static void enetc_pause_stats(struct enetc_hw *hw, int mac,
