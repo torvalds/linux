@@ -1,0 +1,209 @@
+soc/arm
+	arm/gpio-cleanup
+		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/arm-gpio-set-conversion-for-v6.16-rc1
+	omap/soc
+		git://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/soc-signed
+	patch
+		ARM: s3c: stop including gpio.h
+	davinci/remove-da830
+		https://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux tags/davinci-updates-for-v6.16-rc1
+	broadcom/maintainer
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/maintainers
+
+soc/dt
+	patch
+		ARM: dts: marvell: use correct ohci/ehci node names
+		ARM: dts: nxp: lpc: use correct ohci/ehci node names
+		ARM: dts: st: use correct ohci/ehci node names
+		ARM: dts: ti: omap: use correct ohci/ehci node names
+		ARM: dts: vt8500: use correct ohci/ehci node names
+	socfpga/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux tags/socfpga_dts_updates_for_v6.15
+	renesas/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dt-bindings-for-v6.16-tag1
+	renesas/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag1
+	renesas/dt-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag2
+	broadcom/dt
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/devicetree
+	broadcom/dt-64
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/devicetree-arm64
+	asahi/dt
+		https://github.com/AsahiLinux/linux tags/asahi-soc-dt-6.16
+	rockchip/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-1
+	rockchip/dt32
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts32-1
+	tegra/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-dt-bindings
+	tegra/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-arm64-dt
+	tegra/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/tegra/linux tags/tegra-for-6.16-arm-dt
+	omap/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/dt-signed
+	imx/dt-bindings
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-bindings-6.16
+	nxp/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt-6.16
+	imx/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-dt64-6.16
+	patch
+		dt-bindings: clock: socfpga: convert to yaml
+	thead/dt
+		https://github.com/pdp7/linux tags/thead-dt-for-v6.16
+	patch
+		arm64: dts: blaize-blzp1600: Enable GPIO support
+	k3/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-k3-dt-for-v6.16
+	patch
+		ARM: dts: samsung: sp5v210-aries: Align wifi node name with bindings
+	samsung/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-dt64-6.16
+	amlogic/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm-dt-for-v6.16
+	amlogic/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-arm64-dt-for-v6.16
+	dt/cleanup-64
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt64-cleanup-6.16
+	patch
+		arm64: dts: nuvoton: Add pinctrl
+	nuvoton/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/joel/bmc tags/nuvoton-arm-6.16-devicetree
+	qcom/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-for-6.16
+	vt8500/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/dt-vt8500-6.16
+	qcom/dt32
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm32-for-6.16
+	spacemit/dt
+		https://github.com/spacemit-com/linux tags/spacemit-dt-for-6.16-1
+	stm32/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32 tags/stm32-dt-for-v6.16-1
+	sunxi/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-dt-for-6.16
+	at91/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux tags/at91-dt-6.16
+	microchip/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux tags/microchip-dt64-6.16
+	riscv/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-dt-for-v6.16
+	renesas/dt-3
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag3
+	renesas/dt-4
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-dts-for-v6.16-tag4
+	mvebu/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu tags/mvebu-dt64-6.16-1
+	rockchip/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-2
+	rockchip/dt64-3
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts64-3
+	rockchip/dt32-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-dts32-2
+	mediatek/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/mtk-dts64-for-v6.16-2
+	qcom/dt32-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm32-for-6.16-2
+	qcom/dt64-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-for-6.16-2
+	juno/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/juno-updates-6.16
+
+soc/drivers
+	renesas/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-drivers-for-v6.16-tag1
+	samsung/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-6.16
+	broadcom/drivers
+		https://github.com/Broadcom/stblinux tags/arm-soc/for-6.16/drivers
+	mediatek/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/mtk-soc-for-v6.16
+	firmware/arm-scmi
+		https://git.kernel.org/pub/scm/linux/kernel/git/sudeep.holla/linux tags/scmi-updates-6.16
+	drivers/memory-renesas
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-renesas-6.16
+	drivers/memory
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-6.16
+	hisi/drivers
+		https://github.com/hisilicon/linux-hisi tags/hisi-drivers-for-6.16
+	drivers/tee-amd
+		https://git.kernel.org/pub/scm/linux/kernel/git/jenswi/linux-tee tags/amd-tee-for-v6.16
+	renesas/drivers-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-drivers-for-v6.16-tag2
+	drivers/tee
+		https://git.kernel.org/pub/scm/linux/kernel/git/jenswi/linux-tee tags/tee-for-v6.16
+	omap/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/khilman/linux-omap tags/omap-for-v6.16/drivers-signed
+	cznic/platform
+		https://git.kernel.org/pub/scm/linux/kernel/git/soc/soc cznic/platform
+	imx/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-drivers-6.16
+	drivers/reset
+		git://git.pengutronix.de/pza/linux tags/reset-for-v6.16
+	ti/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-driver-soc-for-v6.16
+	amlogic/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-driver-for-v6.16
+	vt8500/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-dt tags/soc-drivers-6.16
+	qcom/drivers
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-for-6.16
+	sophgo/drivers
+		https://github.com/sophgo/linux tags/riscv-sophgo-soc-for-v6.16
+	patch
+		ARM: aspeed: Don't select SRAM
+		soc: aspeed: lpc: Fix impossible judgment condition
+		soc: aspeed: Add NULL check in aspeed_lpc_enable_snoop()
+	samsung/drivers-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-drivers-6.16-2
+	drivers/memory-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux-mem-ctrl tags/memory-controller-drv-6.16-2
+	drivers/cache
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-cache-for-v6.16
+	qcom/drivers-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-drivers-for-6.16-2
+
+soc/defconfig
+	renesas/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel tags/renesas-arm-defconfig-for-v6.16-tag2
+	imx/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-defconfig-6.16
+	k3/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/ti/linux tags/ti-k3-config-for-v6.16
+	patch
+		arm64: defconfig: enable ACPM protocol and Exynos mailbox
+	riscv/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux tags/riscv-config-for-v6.16
+	qcom/defconfig-2
+		https://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux tags/qcom-arm64-defconfig-for-6.16-2
+	mediate/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mediatek/linux tags/mtk-defconfig-for-v6.16
+	rockchip/defconfig
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.16-rockchip-defconfig64-1
+
+soc/late
+
+arm/fixes
+	<no branch> (4bf593be2e462623c4c34c7e3b604eb3f8f9de45)
+		https://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip tags/v6.15-rockchip-dtsfixes1
+	<no branch> (0f67578587bb9e5a8eecfcdf6b8a501b5bd90526)
+		https://git.kernel.org/pub/scm/linux/kernel/git/amlogic/linux tags/amlogic-fixes-for-v6.15
+	<no branch> (3e6244429ba38f8dee3336b8b805948276b281ab)
+		https://github.com/sophgo/linux tags/riscv-sophgo-dt-fixes-for-v6.15-rc1
+	<no branch> (dc5befecbe2683ac49fc8dc76aade35e62f4cf30)
+		https://github.com/AsahiLinux/linux tags/asahi-soc-fixes-6.15
+	patch
+		MAINTAINERS: delete email for Shiraz Hashim
+		arm64: dts: amazon: Fix simple-bus node name schema warnings
+	<no branch> (c6888983134e2ccc2db8ffd2720b0d4826d952e4)
+		https://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux tags/imx-fixes-6.15-2
+	exynos-fixes
+		https://git.kernel.org/pub/scm/linux/kernel/git/krzk/linux tags/samsung-fixes-6.15
+	patch
+		arm64: defconfig: Ensure CRYPTO_CHACHA20_NEON is selected
+	<no branch> (573f99c7585f597630f14596550c79e73ffaeef4)
+		https://git.kernel.org/pub/scm/linux/kernel/git/sunxi/linux tags/sunxi-fixes-for-6.15
+	<no branch> (b04f0d89e880bc2cca6a5c73cf287082c91878da)
+		https://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu tags/mvebu-fixes-6.15-1
+
