@@ -1313,8 +1313,7 @@ static int ioctl_get_cycle_timer(struct client *client, union ioctl_arg *arg)
 static void iso_resource_work(struct work_struct *work)
 {
 	struct iso_resource_event *e;
-	struct iso_resource *r =
-			container_of(work, struct iso_resource, work.work);
+	struct iso_resource *r = from_work(r, work, work.work);
 	struct client *client = r->client;
 	unsigned long index = r->resource.handle;
 	int generation, channel, bandwidth, todo;
