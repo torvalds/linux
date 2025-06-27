@@ -7,7 +7,7 @@
 #ifndef _VDSO_ARCH_DATA_H
 #define _VDSO_ARCH_DATA_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/asm.h>
 #include <asm/vdso.h>
@@ -20,6 +20,6 @@ struct vdso_arch_data {
 	struct vdso_pcpu_data pdata[NR_CPUS];
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif
