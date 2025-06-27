@@ -5,14 +5,11 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
-#include <linux/mutex.h>
-
-#include <linux/version.h>
-#include <net/page_pool/helpers.h>
-
 #include <linux/interrupt.h>
 #include <linux/limits.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <net/page_pool/helpers.h>
 
 #include "time_bench.h"
 
