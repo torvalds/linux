@@ -413,8 +413,8 @@ static void rts5264_init_from_hw(struct rtsx_pcr *pcr)
 {
 	struct pci_dev *pdev = pcr->pci;
 	u32 lval1, lval2, i;
-	u16 setting_reg1, setting_reg2;
-	u8 valid, efuse_valid, tmp;
+	u16 setting_reg1, setting_reg2, phy_val;
+	u8 valid, efuse_valid, tmp, efuse_len;
 
 	rtsx_pci_write_register(pcr, RTS5264_REG_PME_FORCE_CTL,
 		REG_EFUSE_POR | REG_EFUSE_POWER_MASK,
@@ -433,6 +433,8 @@ static void rts5264_init_from_hw(struct rtsx_pcr *pcr)
 			break;
 	}
 	rtsx_pci_read_register(pcr, RTS5264_EFUSE_READ_DATA, &tmp);
+	efuse_len = ((tmp & 0x70) >> 4);
+	pcr_dbg(pcr, "Load efuse len: 0x%x\n", efuse_len);
 	efuse_valid = ((tmp & 0x0C) >> 2);
 	pcr_dbg(pcr, "Load efuse valid: 0x%x\n", efuse_valid);
 
@@ -444,6 +446,58 @@ static void rts5264_init_from_hw(struct rtsx_pcr *pcr)
 	rtsx_pci_write_register(pcr, RTS5264_REG_PME_FORCE_CTL,
 		REG_EFUSE_POR, 0);
 	pcr_dbg(pcr, "Disable efuse por!\n");
+
+	if (is_version(pcr, PID_5264, RTS5264_IC_VER_B)) {
+		pci_write_config_dword(pdev, 0x718, 0x0007C000);
+		rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE, 0xFF, 0x88);
+		rtsx_pci_read_phy_register(pcr, _PHY_REV0, &phy_val);
+		phy_val &= 0xFFFD;
+
+		if (efuse_len == 0) {
+			rtsx_pci_write_register(pcr, RTS5264_FW_CFG_INFO2, 0x0F, 0x0F);
+			rtsx_pci_write_register(pcr, 0xFF14, 0xFF, 0x79);
+			rtsx_pci_write_register(pcr, 0xFF15, 0xFF, 0xFF);
+			rtsx_pci_write_register(pcr, 0xFF16, 0xFF, 0x3D);
+			rtsx_pci_write_register(pcr, 0xFF17, 0xFF, 0xFE);
+
+			rtsx_pci_write_register(pcr, 0xFF18, 0xFF, 0x5B);
+			rtsx_pci_write_register(pcr, 0xFF19, 0xFF, 0xFF);
+			rtsx_pci_write_register(pcr, 0xFF1A, 0xFF, 0x3E);
+			rtsx_pci_write_register(pcr, 0xFF1B, 0xFF, 0xFE);
+
+			rtsx_pci_write_register(pcr, 0xFF1C, 0xFF, 0x00);
+			rtsx_pci_write_register(pcr, 0xFF1D, 0xFF, 0xFF);
+			rtsx_pci_write_register(pcr, 0xFF1E, 0xFF, 0x3F);
+			rtsx_pci_write_register(pcr, 0xFF1F, 0xFF, 0xFE);
+
+			rtsx_pci_write_register(pcr, 0xFF20, 0xFF, 0x81);
+			rtsx_pci_write_register(pcr, 0xFF21, 0xFF, 0xFF);
+			rtsx_pci_write_register(pcr, 0xFF22, 0xFF, 0x3C);
+			rtsx_pci_write_register(pcr, 0xFF23, 0xFF, 0xFE);
+		}
+
+		rtsx_pci_write_register(pcr, 0xFF24, 0xFF, 0x79);
+		rtsx_pci_write_register(pcr, 0xFF25, 0xFF, 0x5B);
+		rtsx_pci_write_register(pcr, 0xFF26, 0xFF, 0x00);
+		rtsx_pci_write_register(pcr, 0xFF27, 0xFF, 0x40);
+
+		rtsx_pci_write_register(pcr, 0xFF28, 0xFF, (u8)phy_val);
+		rtsx_pci_write_register(pcr, 0xFF29, 0xFF, (u8)(phy_val >> 8));
+		rtsx_pci_write_register(pcr, 0xFF2A, 0xFF, 0x19);
+		rtsx_pci_write_register(pcr, 0xFF2B, 0xFF, 0x40);
+
+		rtsx_pci_write_register(pcr, 0xFF2C, 0xFF, 0x20);
+		rtsx_pci_write_register(pcr, 0xFF2D, 0xFF, 0xDA);
+		rtsx_pci_write_register(pcr, 0xFF2E, 0xFF, 0x0A);
+		rtsx_pci_write_register(pcr, 0xFF2F, 0xFF, 0x40);
+
+		rtsx_pci_write_register(pcr, 0xFF30, 0xFF, 0x20);
+		rtsx_pci_write_register(pcr, 0xFF31, 0xFF, 0xD2);
+		rtsx_pci_write_register(pcr, 0xFF32, 0xFF, 0x0A);
+		rtsx_pci_write_register(pcr, 0xFF33, 0xFF, 0x40);
+	} else {
+		rtsx_pci_write_register(pcr, AUTOLOAD_CFG_BASE, 0x80, 0x80);
+	}
 
 	if (efuse_valid == 2 || efuse_valid == 3) {
 		if (valid == 3) {
@@ -617,6 +671,9 @@ static int rts5264_optimize_phy(struct rtsx_pcr *pcr)
 		if ((val & 0xFE00) > 0x3800)
 			rtsx_pci_update_phy(pcr, _PHY_REV0, 0x1FF, 0x3800);
 	}
+
+	if (is_version(pcr, PID_5264, RTS5264_IC_VER_B))
+		rtsx_pci_write_phy_register(pcr, 0x00, 0x5B79);
 
 	return 0;
 }
@@ -820,7 +877,7 @@ int rts5264_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 			SSC_DEPTH_MASK, ssc_depth);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_DIV_N_0, 0xFF, n);
 
-	if (is_version(pcr, 0x5264, IC_VER_A)) {
+	if (is_version(pcr, PID_5264, RTS5264_IC_VER_A)) {
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SSC_CTL1, SSC_RSTB, 0);
 		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, RTS5264_CARD_CLK_SRC2,
 			RTS5264_REG_BIG_KVCO_A, 0);

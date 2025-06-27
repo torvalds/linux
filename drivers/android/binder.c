@@ -3144,10 +3144,8 @@ static void binder_transaction(struct binder_proc *proc,
 		}
 		if (!target_node) {
 			binder_txn_error("%d:%d cannot find target node\n",
-				thread->pid, proc->pid);
-			/*
-			 * return_error is set above
-			 */
+					 proc->pid, thread->pid);
+			/* return_error is set above */
 			return_error_param = -EINVAL;
 			return_error_line = __LINE__;
 			goto err_dead_binder;

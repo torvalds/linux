@@ -1156,7 +1156,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *a,
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s", cldev->name);
+	return sysfs_emit(buf, "%s", cldev->name);
 }
 static DEVICE_ATTR_RO(name);
 
@@ -1166,7 +1166,7 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
 
-	return sprintf(buf, "%pUl", uuid);
+	return sysfs_emit(buf, "%pUl", uuid);
 }
 static DEVICE_ATTR_RO(uuid);
 
@@ -1176,7 +1176,7 @@ static ssize_t version_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	u8 version = mei_me_cl_ver(cldev->me_cl);
 
-	return sprintf(buf, "%02X", version);
+	return sysfs_emit(buf, "%02X", version);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -1187,8 +1187,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 	const uuid_le *uuid = mei_me_cl_uuid(cldev->me_cl);
 	u8 version = mei_me_cl_ver(cldev->me_cl);
 
-	return scnprintf(buf, PAGE_SIZE, "mei:%s:%pUl:%02X:",
-			 cldev->name, uuid, version);
+	return sysfs_emit(buf, "mei:%s:%pUl:%02X:", cldev->name, uuid, version);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -1198,7 +1197,7 @@ static ssize_t max_conn_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	u8 maxconn = mei_me_cl_max_conn(cldev->me_cl);
 
-	return sprintf(buf, "%d", maxconn);
+	return sysfs_emit(buf, "%d", maxconn);
 }
 static DEVICE_ATTR_RO(max_conn);
 
@@ -1208,7 +1207,7 @@ static ssize_t fixed_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	u8 fixed = mei_me_cl_fixed(cldev->me_cl);
 
-	return sprintf(buf, "%d", fixed);
+	return sysfs_emit(buf, "%d", fixed);
 }
 static DEVICE_ATTR_RO(fixed);
 
@@ -1218,7 +1217,7 @@ static ssize_t vtag_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	bool vt = mei_me_cl_vt(cldev->me_cl);
 
-	return sprintf(buf, "%d", vt);
+	return sysfs_emit(buf, "%d", vt);
 }
 static DEVICE_ATTR_RO(vtag);
 
@@ -1228,7 +1227,7 @@ static ssize_t max_len_show(struct device *dev, struct device_attribute *a,
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	u32 maxlen = mei_me_cl_max_len(cldev->me_cl);
 
-	return sprintf(buf, "%u", maxlen);
+	return sysfs_emit(buf, "%u", maxlen);
 }
 static DEVICE_ATTR_RO(max_len);
 
@@ -1301,10 +1300,16 @@ static void mei_dev_bus_put(struct mei_device *bus)
 static void mei_cl_bus_dev_release(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
+	struct mei_device *mdev = cldev->cl->dev;
+	struct mei_cl *cl;
 
 	mei_cl_flush_queues(cldev->cl, NULL);
 	mei_me_cl_put(cldev->me_cl);
 	mei_dev_bus_put(cldev->bus);
+
+	list_for_each_entry(cl, &mdev->file_list, link)
+		WARN_ON(cl == cldev->cl);
+
 	kfree(cldev->cl);
 	kfree(cldev);
 }

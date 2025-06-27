@@ -2516,8 +2516,8 @@ config TEST_IDA
 	tristate "Perform selftest on IDA functions"
 
 config TEST_MISC_MINOR
-	tristate "miscdevice KUnit test" if !KUNIT_ALL_TESTS
-	depends on KUNIT
+	bool "miscdevice KUnit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
 	default KUNIT_ALL_TESTS
 	help
 	  Kunit test for miscdevice API, specially its behavior in respect to

@@ -269,28 +269,6 @@ static int ctx_fire_notification(u32 context_id, u32 priv_flags)
 }
 
 /*
- * Returns the current number of pending datagrams. The call may
- * also serve as a synchronization point for the datagram queue,
- * as no enqueue operations can occur concurrently.
- */
-int vmci_ctx_pending_datagrams(u32 cid, u32 *pending)
-{
-	struct vmci_ctx *context;
-
-	context = vmci_ctx_get(cid);
-	if (context == NULL)
-		return VMCI_ERROR_INVALID_ARGS;
-
-	spin_lock(&context->lock);
-	if (pending)
-		*pending = context->pending_datagrams;
-	spin_unlock(&context->lock);
-	vmci_ctx_put(context);
-
-	return VMCI_SUCCESS;
-}
-
-/*
  * Queues a VMCI datagram for the appropriate target VM context.
  */
 int vmci_ctx_enqueue_datagram(u32 cid, struct vmci_datagram *dg)
@@ -989,38 +967,6 @@ int vmci_ctx_dbell_destroy(u32 context_id, struct vmci_handle handle)
 
 	return vmci_handle_is_invalid(removed_handle) ?
 	    VMCI_ERROR_NOT_FOUND : VMCI_SUCCESS;
-}
-
-/*
- * Unregisters all doorbell handles that were previously
- * registered with vmci_ctx_dbell_create.
- */
-int vmci_ctx_dbell_destroy_all(u32 context_id)
-{
-	struct vmci_ctx *context;
-	struct vmci_handle handle;
-
-	if (context_id == VMCI_INVALID_ID)
-		return VMCI_ERROR_INVALID_ARGS;
-
-	context = vmci_ctx_get(context_id);
-	if (context == NULL)
-		return VMCI_ERROR_NOT_FOUND;
-
-	spin_lock(&context->lock);
-	do {
-		struct vmci_handle_arr *arr = context->doorbell_array;
-		handle = vmci_handle_arr_remove_tail(arr);
-	} while (!vmci_handle_is_invalid(handle));
-	do {
-		struct vmci_handle_arr *arr = context->pending_doorbell_array;
-		handle = vmci_handle_arr_remove_tail(arr);
-	} while (!vmci_handle_is_invalid(handle));
-	spin_unlock(&context->lock);
-
-	vmci_ctx_put(context);
-
-	return VMCI_SUCCESS;
 }
 
 /*
