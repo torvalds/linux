@@ -55,6 +55,28 @@ struct kvm_host_values {
 
 void kvm_spurious_fault(void);
 
+#define SIZE_OF_MEMSLOTS_HASHTABLE \
+	(sizeof(((struct kvm_memslots *)0)->id_hash) * 2 * KVM_MAX_NR_ADDRESS_SPACES)
+
+/* Sanity check the size of the memslot hash tables. */
+static_assert(SIZE_OF_MEMSLOTS_HASHTABLE ==
+	      (1024 * (1 + IS_ENABLED(CONFIG_X86_64)) * (1 + IS_ENABLED(CONFIG_KVM_SMM))));
+
+/*
+ * Assert that "struct kvm_{svm,vmx,tdx}" is an order-0 or order-1 allocation.
+ * Spilling over to an order-2 allocation isn't fundamentally problematic, but
+ * isn't expected to happen in the foreseeable future (O(years)).  Assert that
+ * the size is an order-0 allocation when ignoring the memslot hash tables, to
+ * help detect and debug unexpected size increases.
+ */
+#define KVM_SANITY_CHECK_VM_STRUCT_SIZE(x)						\
+do {											\
+	BUILD_BUG_ON(get_order(sizeof(struct x) - SIZE_OF_MEMSLOTS_HASHTABLE) &&	\
+		     !IS_ENABLED(CONFIG_DEBUG_KERNEL) && !IS_ENABLED(CONFIG_KASAN));	\
+	BUILD_BUG_ON(get_order(sizeof(struct x)) > 1 &&					\
+		     !IS_ENABLED(CONFIG_DEBUG_KERNEL) && !IS_ENABLED(CONFIG_KASAN));	\
+} while (0)
+
 #define KVM_NESTED_VMENTER_CONSISTENCY_CHECK(consistency_check)		\
 ({									\
 	bool failed = (consistency_check);				\

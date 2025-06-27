@@ -248,8 +248,8 @@ static void pit_do_work(struct kthread_work *work)
 	if (atomic_read(&ps->reinject) && !atomic_xchg(&ps->irq_ack, 0))
 		return;
 
-	kvm_set_irq(kvm, pit->irq_source_id, 0, 1, false);
-	kvm_set_irq(kvm, pit->irq_source_id, 0, 0, false);
+	kvm_set_irq(kvm, KVM_PIT_IRQ_SOURCE_ID, 0, 1, false);
+	kvm_set_irq(kvm, KVM_PIT_IRQ_SOURCE_ID, 0, 0, false);
 
 	/*
 	 * Provides NMI watchdog support via Virtual Wire mode.
@@ -288,7 +288,7 @@ static inline void kvm_pit_reset_reinject(struct kvm_pit *pit)
 	atomic_set(&pit->pit_state.irq_ack, 1);
 }
 
-void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
+static void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 {
 	struct kvm_kpit_state *ps = &pit->pit_state;
 	struct kvm *kvm = pit->kvm;
@@ -400,8 +400,8 @@ static void pit_load_count(struct kvm_pit *pit, int channel, u32 val)
 	}
 }
 
-void kvm_pit_load_count(struct kvm_pit *pit, int channel, u32 val,
-		int hpet_legacy_start)
+static void kvm_pit_load_count(struct kvm_pit *pit, int channel, u32 val,
+			       int hpet_legacy_start)
 {
 	u8 saved_mode;
 
@@ -649,6 +649,79 @@ static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
 		kvm_pit_reset_reinject(pit);
 }
 
+int kvm_vm_ioctl_get_pit(struct kvm *kvm, struct kvm_pit_state *ps)
+{
+	struct kvm_kpit_state *kps = &kvm->arch.vpit->pit_state;
+
+	BUILD_BUG_ON(sizeof(*ps) != sizeof(kps->channels));
+
+	mutex_lock(&kps->lock);
+	memcpy(ps, &kps->channels, sizeof(*ps));
+	mutex_unlock(&kps->lock);
+	return 0;
+}
+
+int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps)
+{
+	int i;
+	struct kvm_pit *pit = kvm->arch.vpit;
+
+	mutex_lock(&pit->pit_state.lock);
+	memcpy(&pit->pit_state.channels, ps, sizeof(*ps));
+	for (i = 0; i < 3; i++)
+		kvm_pit_load_count(pit, i, ps->channels[i].count, 0);
+	mutex_unlock(&pit->pit_state.lock);
+	return 0;
+}
+
+int kvm_vm_ioctl_get_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
+{
+	mutex_lock(&kvm->arch.vpit->pit_state.lock);
+	memcpy(ps->channels, &kvm->arch.vpit->pit_state.channels,
+		sizeof(ps->channels));
+	ps->flags = kvm->arch.vpit->pit_state.flags;
+	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
+	memset(&ps->reserved, 0, sizeof(ps->reserved));
+	return 0;
+}
+
+int kvm_vm_ioctl_set_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
+{
+	int start = 0;
+	int i;
+	u32 prev_legacy, cur_legacy;
+	struct kvm_pit *pit = kvm->arch.vpit;
+
+	mutex_lock(&pit->pit_state.lock);
+	prev_legacy = pit->pit_state.flags & KVM_PIT_FLAGS_HPET_LEGACY;
+	cur_legacy = ps->flags & KVM_PIT_FLAGS_HPET_LEGACY;
+	if (!prev_legacy && cur_legacy)
+		start = 1;
+	memcpy(&pit->pit_state.channels, &ps->channels,
+	       sizeof(pit->pit_state.channels));
+	pit->pit_state.flags = ps->flags;
+	for (i = 0; i < 3; i++)
+		kvm_pit_load_count(pit, i, pit->pit_state.channels[i].count,
+				   start && i == 0);
+	mutex_unlock(&pit->pit_state.lock);
+	return 0;
+}
+
+int kvm_vm_ioctl_reinject(struct kvm *kvm, struct kvm_reinject_control *control)
+{
+	struct kvm_pit *pit = kvm->arch.vpit;
+
+	/* pit->pit_state.lock was overloaded to prevent userspace from getting
+	 * an inconsistent state after running multiple KVM_REINJECT_CONTROL
+	 * ioctls in parallel.  Use a separate lock if that ioctl isn't rare.
+	 */
+	mutex_lock(&pit->pit_state.lock);
+	kvm_pit_set_reinject(pit, control->pit_reinject);
+	mutex_unlock(&pit->pit_state.lock);
+
+	return 0;
+}
+
 static const struct kvm_io_device_ops pit_dev_ops = {
 	.read     = pit_ioport_read,
 	.write    = pit_ioport_write,
@@ -670,10 +743,6 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	pit = kzalloc(sizeof(struct kvm_pit), GFP_KERNEL_ACCOUNT);
 	if (!pit)
 		return NULL;
-
-	pit->irq_source_id = kvm_request_irq_source_id(kvm);
-	if (pit->irq_source_id < 0)
-		goto fail_request;
 
 	mutex_init(&pit->pit_state.lock);
 
@@ -726,8 +795,6 @@ fail_register_pit:
 	kvm_pit_set_reinject(pit, false);
 	kthread_destroy_worker(pit->worker);
 fail_kthread:
-	kvm_free_irq_source_id(kvm, pit->irq_source_id);
-fail_request:
 	kfree(pit);
 	return NULL;
 }
@@ -744,7 +811,6 @@ void kvm_free_pit(struct kvm *kvm)
 		kvm_pit_set_reinject(pit, false);
 		hrtimer_cancel(&pit->pit_state.timer);
 		kthread_destroy_worker(pit->worker);
-		kvm_free_irq_source_id(kvm, pit->irq_source_id);
 		kfree(pit);
 	}
 }

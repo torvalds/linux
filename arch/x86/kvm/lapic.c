@@ -1455,7 +1455,7 @@ static bool kvm_ioapic_handles_vector(struct kvm_lapic *apic, int vector)
 
 static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 {
-	int trigger_mode;
+	int __maybe_unused trigger_mode;
 
 	/* Eoi the ioapic only if the ioapic doesn't own the vector. */
 	if (!kvm_ioapic_handles_vector(apic, vector))
@@ -1476,12 +1476,14 @@ static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 		return;
 	}
 
+#ifdef CONFIG_KVM_IOAPIC
 	if (apic_test_vector(vector, apic->regs + APIC_TMR))
 		trigger_mode = IOAPIC_LEVEL_TRIG;
 	else
 		trigger_mode = IOAPIC_EDGE_TRIG;
 
 	kvm_ioapic_update_eoi(apic->vcpu, vector, trigger_mode);
+#endif
 }
 
 static int apic_set_eoi(struct kvm_lapic *apic)
@@ -3146,8 +3148,11 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 		kvm_x86_call(hwapic_isr_update)(vcpu, apic_find_highest_isr(apic));
 	}
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
+
+#ifdef CONFIG_KVM_IOAPIC
 	if (ioapic_in_kernel(vcpu->kvm))
 		kvm_rtc_eoi_tracking_restore_one(vcpu);
+#endif
 
 	vcpu->arch.apic_arb_prio = 0;
 

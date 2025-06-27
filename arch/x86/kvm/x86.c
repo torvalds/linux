@@ -226,6 +226,9 @@ EXPORT_SYMBOL_GPL(allow_smaller_maxphyaddr);
 bool __read_mostly enable_apicv = true;
 EXPORT_SYMBOL_GPL(enable_apicv);
 
+bool __read_mostly enable_ipiv = true;
+EXPORT_SYMBOL_GPL(enable_ipiv);
+
 bool __read_mostly enable_device_posted_irqs = true;
 EXPORT_SYMBOL_GPL(enable_device_posted_irqs);
 
@@ -4632,17 +4635,20 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_EXT_CPUID:
 	case KVM_CAP_EXT_EMUL_CPUID:
 	case KVM_CAP_CLOCKSOURCE:
+#ifdef CONFIG_KVM_IOAPIC
 	case KVM_CAP_PIT:
+	case KVM_CAP_PIT2:
+	case KVM_CAP_PIT_STATE2:
+	case KVM_CAP_REINJECT_CONTROL:
+#endif
 	case KVM_CAP_NOP_IO_DELAY:
 	case KVM_CAP_MP_STATE:
 	case KVM_CAP_SYNC_MMU:
 	case KVM_CAP_USER_NMI:
-	case KVM_CAP_REINJECT_CONTROL:
 	case KVM_CAP_IRQ_INJECT_STATUS:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_IOEVENTFD_NO_LENGTH:
-	case KVM_CAP_PIT2:
-	case KVM_CAP_PIT_STATE2:
+
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
 	case KVM_CAP_VCPU_EVENTS:
 #ifdef CONFIG_KVM_HYPERV
@@ -5485,12 +5491,6 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 
 	if ((events->exception.injected || events->exception.pending) &&
 	    (events->exception.nr > 31 || events->exception.nr == NMI_VECTOR))
-		return -EINVAL;
-
-	/* INITs are latched while in SMM */
-	if (events->flags & KVM_VCPUEVENT_VALID_SMM &&
-	    (events->smi.smm || events->smi.pending) &&
-	    vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED)
 		return -EINVAL;
 
 	process_nmi(vcpu);
@@ -6395,135 +6395,6 @@ static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 	return 0;
 }
 
-static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
-{
-	struct kvm_pic *pic = kvm->arch.vpic;
-	int r;
-
-	r = 0;
-	switch (chip->chip_id) {
-	case KVM_IRQCHIP_PIC_MASTER:
-		memcpy(&chip->chip.pic, &pic->pics[0],
-			sizeof(struct kvm_pic_state));
-		break;
-	case KVM_IRQCHIP_PIC_SLAVE:
-		memcpy(&chip->chip.pic, &pic->pics[1],
-			sizeof(struct kvm_pic_state));
-		break;
-	case KVM_IRQCHIP_IOAPIC:
-		kvm_get_ioapic(kvm, &chip->chip.ioapic);
-		break;
-	default:
-		r = -EINVAL;
-		break;
-	}
-	return r;
-}
-
-static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
-{
-	struct kvm_pic *pic = kvm->arch.vpic;
-	int r;
-
-	r = 0;
-	switch (chip->chip_id) {
-	case KVM_IRQCHIP_PIC_MASTER:
-		spin_lock(&pic->lock);
-		memcpy(&pic->pics[0], &chip->chip.pic,
-			sizeof(struct kvm_pic_state));
-		spin_unlock(&pic->lock);
-		break;
-	case KVM_IRQCHIP_PIC_SLAVE:
-		spin_lock(&pic->lock);
-		memcpy(&pic->pics[1], &chip->chip.pic,
-			sizeof(struct kvm_pic_state));
-		spin_unlock(&pic->lock);
-		break;
-	case KVM_IRQCHIP_IOAPIC:
-		kvm_set_ioapic(kvm, &chip->chip.ioapic);
-		break;
-	default:
-		r = -EINVAL;
-		break;
-	}
-	kvm_pic_update_irq(pic);
-	return r;
-}
-
-static int kvm_vm_ioctl_get_pit(struct kvm *kvm, struct kvm_pit_state *ps)
-{
-	struct kvm_kpit_state *kps = &kvm->arch.vpit->pit_state;
-
-	BUILD_BUG_ON(sizeof(*ps) != sizeof(kps->channels));
-
-	mutex_lock(&kps->lock);
-	memcpy(ps, &kps->channels, sizeof(*ps));
-	mutex_unlock(&kps->lock);
-	return 0;
-}
-
-static int kvm_vm_ioctl_set_pit(struct kvm *kvm, struct kvm_pit_state *ps)
-{
-	int i;
-	struct kvm_pit *pit = kvm->arch.vpit;
-
-	mutex_lock(&pit->pit_state.lock);
-	memcpy(&pit->pit_state.channels, ps, sizeof(*ps));
-	for (i = 0; i < 3; i++)
-		kvm_pit_load_count(pit, i, ps->channels[i].count, 0);
-	mutex_unlock(&pit->pit_state.lock);
-	return 0;
-}
-
-static int kvm_vm_ioctl_get_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
-{
-	mutex_lock(&kvm->arch.vpit->pit_state.lock);
-	memcpy(ps->channels, &kvm->arch.vpit->pit_state.channels,
-		sizeof(ps->channels));
-	ps->flags = kvm->arch.vpit->pit_state.flags;
-	mutex_unlock(&kvm->arch.vpit->pit_state.lock);
-	memset(&ps->reserved, 0, sizeof(ps->reserved));
-	return 0;
-}
-
-static int kvm_vm_ioctl_set_pit2(struct kvm *kvm, struct kvm_pit_state2 *ps)
-{
-	int start = 0;
-	int i;
-	u32 prev_legacy, cur_legacy;
-	struct kvm_pit *pit = kvm->arch.vpit;
-
-	mutex_lock(&pit->pit_state.lock);
-	prev_legacy = pit->pit_state.flags & KVM_PIT_FLAGS_HPET_LEGACY;
-	cur_legacy = ps->flags & KVM_PIT_FLAGS_HPET_LEGACY;
-	if (!prev_legacy && cur_legacy)
-		start = 1;
-	memcpy(&pit->pit_state.channels, &ps->channels,
-	       sizeof(pit->pit_state.channels));
-	pit->pit_state.flags = ps->flags;
-	for (i = 0; i < 3; i++)
-		kvm_pit_load_count(pit, i, pit->pit_state.channels[i].count,
-				   start && i == 0);
-	mutex_unlock(&pit->pit_state.lock);
-	return 0;
-}
-
-static int kvm_vm_ioctl_reinject(struct kvm *kvm,
-				 struct kvm_reinject_control *control)
-{
-	struct kvm_pit *pit = kvm->arch.vpit;
-
-	/* pit->pit_state.lock was overloaded to prevent userspace from getting
-	 * an inconsistent state after running multiple KVM_REINJECT_CONTROL
-	 * ioctls in parallel.  Use a separate lock if that ioctl isn't rare.
-	 */
-	mutex_lock(&pit->pit_state.lock);
-	kvm_pit_set_reinject(pit, control->pit_reinject);
-	mutex_unlock(&pit->pit_state.lock);
-
-	return 0;
-}
-
 void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
 
@@ -6541,18 +6412,6 @@ void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_vcpu_kick(vcpu);
-}
-
-int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event,
-			bool line_status)
-{
-	if (!irqchip_in_kernel(kvm))
-		return -ENXIO;
-
-	irq_event->status = kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID,
-					irq_event->irq, irq_event->level,
-					line_status);
-	return 0;
 }
 
 int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
@@ -7066,9 +6925,11 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 	struct kvm *kvm = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	int r = -ENOTTY;
+
+#ifdef CONFIG_KVM_IOAPIC
 	/*
 	 * This union makes it completely explicit to gcc-3.x
-	 * that these two variables' stack usage should be
+	 * that these three variables' stack usage should be
 	 * combined, not added together.
 	 */
 	union {
@@ -7076,6 +6937,7 @@ int kvm_arch_vm_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 		struct kvm_pit_state2 ps2;
 		struct kvm_pit_config pit_config;
 	} u;
+#endif
 
 	switch (ioctl) {
 	case KVM_SET_TSS_ADDR:
@@ -7099,6 +6961,7 @@ set_identity_unlock:
 	case KVM_SET_NR_MMU_PAGES:
 		r = kvm_vm_ioctl_set_nr_mmu_pages(kvm, arg);
 		break;
+#ifdef CONFIG_KVM_IOAPIC
 	case KVM_CREATE_IRQCHIP: {
 		mutex_lock(&kvm->lock);
 
@@ -7120,7 +6983,7 @@ set_identity_unlock:
 			goto create_irqchip_unlock;
 		}
 
-		r = kvm_setup_default_irq_routing(kvm);
+		r = kvm_setup_default_ioapic_and_pic_routing(kvm);
 		if (r) {
 			kvm_ioapic_destroy(kvm);
 			kvm_pic_destroy(kvm);
@@ -7168,7 +7031,7 @@ set_identity_unlock:
 		}
 
 		r = -ENXIO;
-		if (!irqchip_kernel(kvm))
+		if (!irqchip_full(kvm))
 			goto get_irqchip_out;
 		r = kvm_vm_ioctl_get_irqchip(kvm, chip);
 		if (r)
@@ -7192,7 +7055,7 @@ set_identity_unlock:
 		}
 
 		r = -ENXIO;
-		if (!irqchip_kernel(kvm))
+		if (!irqchip_full(kvm))
 			goto set_irqchip_out;
 		r = kvm_vm_ioctl_set_irqchip(kvm, chip);
 	set_irqchip_out:
@@ -7265,6 +7128,7 @@ set_pit2_out:
 		r = kvm_vm_ioctl_reinject(kvm, &control);
 		break;
 	}
+#endif
 	case KVM_SET_BOOT_CPU_ID:
 		r = 0;
 		mutex_lock(&kvm->lock);
@@ -10724,8 +10588,10 @@ static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 
 	if (irqchip_split(vcpu->kvm))
 		kvm_scan_ioapic_routes(vcpu, vcpu->arch.ioapic_handled_vectors);
+#ifdef CONFIG_KVM_IOAPIC
 	else if (ioapic_in_kernel(vcpu->kvm))
 		kvm_ioapic_scan_entry(vcpu, vcpu->arch.ioapic_handled_vectors);
+#endif
 
 	if (is_guest_mode(vcpu))
 		vcpu->arch.load_eoi_exitmap_pending = true;
@@ -10779,6 +10645,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		dm_request_for_irq_injection(vcpu) &&
 		kvm_cpu_accept_dm_intr(vcpu);
 	fastpath_t exit_fastpath;
+	u64 run_flags, debug_ctl;
 
 	bool req_immediate_exit = false;
 
@@ -10926,8 +10793,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_vcpu_update_apicv(vcpu);
 		if (kvm_check_request(KVM_REQ_APF_READY, vcpu))
 			kvm_check_async_pf_completion(vcpu);
+
+		/*
+		 * Recalc MSR intercepts as userspace may want to intercept
+		 * accesses to MSRs that KVM would otherwise pass through to
+		 * the guest.
+		 */
 		if (kvm_check_request(KVM_REQ_MSR_FILTER_CHANGED, vcpu))
-			kvm_x86_call(msr_filter_changed)(vcpu);
+			kvm_x86_call(recalc_msr_intercepts)(vcpu);
 
 		if (kvm_check_request(KVM_REQ_UPDATE_CPU_DIRTY_LOGGING, vcpu))
 			kvm_x86_call(update_cpu_dirty_logging)(vcpu);
@@ -11023,8 +10896,11 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		goto cancel_injection;
 	}
 
-	if (req_immediate_exit)
+	run_flags = 0;
+	if (req_immediate_exit) {
+		run_flags |= KVM_RUN_FORCE_IMMEDIATE_EXIT;
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
+	}
 
 	fpregs_assert_state_consistent();
 	if (test_thread_flag(TIF_NEED_FPU_LOAD))
@@ -11042,12 +10918,22 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		set_debugreg(vcpu->arch.eff_db[3], 3);
 		/* When KVM_DEBUGREG_WONT_EXIT, dr6 is accessible in guest. */
 		if (unlikely(vcpu->arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT))
-			kvm_x86_call(set_dr6)(vcpu, vcpu->arch.dr6);
+			run_flags |= KVM_RUN_LOAD_GUEST_DR6;
 	} else if (unlikely(hw_breakpoint_active())) {
 		set_debugreg(DR7_FIXED_1, 7);
 	}
 
-	vcpu->arch.host_debugctl = get_debugctlmsr();
+	/*
+	 * Refresh the host DEBUGCTL snapshot after disabling IRQs, as DEBUGCTL
+	 * can be modified in IRQ context, e.g. via SMP function calls.  Inform
+	 * vendor code if any host-owned bits were changed, e.g. so that the
+	 * value loaded into hardware while running the guest can be updated.
+	 */
+	debug_ctl = get_debugctlmsr();
+	if ((debug_ctl ^ vcpu->arch.host_debugctl) & kvm_x86_ops.HOST_OWNED_DEBUGCTL &&
+	    !vcpu->arch.guest_state_protected)
+		run_flags |= KVM_RUN_LOAD_DEBUGCTL;
+	vcpu->arch.host_debugctl = debug_ctl;
 
 	guest_timing_enter_irqoff();
 
@@ -11061,8 +10947,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		WARN_ON_ONCE((kvm_vcpu_apicv_activated(vcpu) != kvm_vcpu_apicv_active(vcpu)) &&
 			     (kvm_get_apic_mode(vcpu) != LAPIC_MODE_DISABLED));
 
-		exit_fastpath = kvm_x86_call(vcpu_run)(vcpu,
-						       req_immediate_exit);
+		exit_fastpath = kvm_x86_call(vcpu_run)(vcpu, run_flags);
 		if (likely(exit_fastpath != EXIT_FASTPATH_REENTER_GUEST))
 			break;
 
@@ -11073,6 +10958,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			exit_fastpath = EXIT_FASTPATH_EXIT_HANDLED;
 			break;
 		}
+
+		run_flags = 0;
 
 		/* Note, VM-Exits that go down the "slow" path are accounted below. */
 		++vcpu->stat.exits;
@@ -11547,6 +11434,28 @@ static void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	trace_kvm_fpu(0);
 }
 
+static int kvm_x86_vcpu_pre_run(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * SIPI_RECEIVED is obsolete; KVM leaves the vCPU in Wait-For-SIPI and
+	 * tracks the pending SIPI separately.  SIPI_RECEIVED is still accepted
+	 * by KVM_SET_VCPU_EVENTS for backwards compatibility, but should be
+	 * converted to INIT_RECEIVED.
+	 */
+	if (WARN_ON_ONCE(vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED))
+		return -EINVAL;
+
+	/*
+	 * Disallow running the vCPU if userspace forced it into an impossible
+	 * MP_STATE, e.g. if the vCPU is in WFS but SIPI is blocked.
+	 */
+	if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED &&
+	    !kvm_apic_init_sipi_allowed(vcpu))
+		return -EINVAL;
+
+	return kvm_x86_call(vcpu_pre_run)(vcpu);
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_queued_exception *ex = &vcpu->arch.exception;
@@ -11649,7 +11558,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	r = kvm_x86_call(vcpu_pre_run)(vcpu);
+	r = kvm_x86_vcpu_pre_run(vcpu);
 	if (r <= 0)
 		goto out;
 
@@ -11893,21 +11802,16 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * Pending INITs are reported using KVM_SET_VCPU_EVENTS, disallow
-	 * forcing the guest into INIT/SIPI if those events are supposed to be
-	 * blocked.  KVM prioritizes SMI over INIT, so reject INIT/SIPI state
-	 * if an SMI is pending as well.
+	 * SIPI_RECEIVED is obsolete and no longer used internally; KVM instead
+	 * leaves the vCPU in INIT_RECIEVED (Wait-For-SIPI) and pends the SIPI.
+	 * Translate SIPI_RECEIVED as appropriate for backwards compatibility.
 	 */
-	if ((!kvm_apic_init_sipi_allowed(vcpu) || vcpu->arch.smi_pending) &&
-	    (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED ||
-	     mp_state->mp_state == KVM_MP_STATE_INIT_RECEIVED))
-		goto out;
-
 	if (mp_state->mp_state == KVM_MP_STATE_SIPI_RECEIVED) {
-		kvm_set_mp_state(vcpu, KVM_MP_STATE_INIT_RECEIVED);
+		mp_state->mp_state = KVM_MP_STATE_INIT_RECEIVED;
 		set_bit(KVM_APIC_SIPI, &vcpu->arch.apic->pending_events);
-	} else
-		kvm_set_mp_state(vcpu, mp_state->mp_state);
+	}
+
+	kvm_set_mp_state(vcpu, mp_state->mp_state);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	ret = 0;
@@ -12789,20 +12693,15 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	if (ret)
 		goto out;
 
-	kvm_mmu_init_vm(kvm);
+	ret = kvm_mmu_init_vm(kvm);
+	if (ret)
+		goto out_cleanup_page_track;
 
 	ret = kvm_x86_call(vm_init)(kvm);
 	if (ret)
 		goto out_uninit_mmu;
 
-	INIT_HLIST_HEAD(&kvm->arch.mask_notifier_list);
 	atomic_set(&kvm->arch.noncoherent_dma_count, 0);
-
-	/* Reserve bit 0 of irq_sources_bitmap for userspace irq source */
-	set_bit(KVM_USERSPACE_IRQ_SOURCE_ID, &kvm->arch.irq_sources_bitmap);
-	/* Reserve bit 1 of irq_sources_bitmap for irqfd-resampler */
-	set_bit(KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-		&kvm->arch.irq_sources_bitmap);
 
 	raw_spin_lock_init(&kvm->arch.tsc_write_lock);
 	mutex_init(&kvm->arch.apic_map_lock);
@@ -12842,6 +12741,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 out_uninit_mmu:
 	kvm_mmu_uninit_vm(kvm);
+out_cleanup_page_track:
 	kvm_page_track_cleanup(kvm);
 out:
 	return ret;
@@ -12934,7 +12834,9 @@ void kvm_arch_pre_destroy_vm(struct kvm *kvm)
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_sync_work);
 	cancel_delayed_work_sync(&kvm->arch.kvmclock_update_work);
 
+#ifdef CONFIG_KVM_IOAPIC
 	kvm_free_pit(kvm);
+#endif
 
 	kvm_mmu_pre_destroy_vm(kvm);
 	static_call_cond(kvm_x86_vm_pre_destroy)(kvm);
@@ -12958,8 +12860,10 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	}
 	kvm_destroy_vcpus(kvm);
 	kvm_free_msr_filter(srcu_dereference_check(kvm->arch.msr_filter, &kvm->srcu, 1));
+#ifdef CONFIG_KVM_IOAPIC
 	kvm_pic_destroy(kvm);
 	kvm_ioapic_destroy(kvm);
+#endif
 	kvfree(rcu_dereference_check(kvm->arch.apic_map, 1));
 	kfree(srcu_dereference_check(kvm->arch.pmu_event_filter, &kvm->srcu, 1));
 	kvm_mmu_uninit_vm(kvm);
@@ -13569,25 +13473,6 @@ bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu)
 		return kvm_lapic_enabled(vcpu) && apf_pageready_slot_free(vcpu);
 }
 
-void kvm_arch_start_assignment(struct kvm *kvm)
-{
-	if (atomic_inc_return(&kvm->arch.assigned_device_count) == 1)
-		kvm_x86_call(pi_start_assignment)(kvm);
-}
-EXPORT_SYMBOL_GPL(kvm_arch_start_assignment);
-
-void kvm_arch_end_assignment(struct kvm *kvm)
-{
-	atomic_dec(&kvm->arch.assigned_device_count);
-}
-EXPORT_SYMBOL_GPL(kvm_arch_end_assignment);
-
-bool noinstr kvm_arch_has_assigned_device(struct kvm *kvm)
-{
-	return raw_atomic_read(&kvm->arch.assigned_device_count);
-}
-EXPORT_SYMBOL_GPL(kvm_arch_has_assigned_device);
-
 static void kvm_noncoherent_dma_assignment_start_or_stop(struct kvm *kvm)
 {
 	/*
@@ -13622,77 +13507,6 @@ bool kvm_arch_has_noncoherent_dma(struct kvm *kvm)
 	return atomic_read(&kvm->arch.noncoherent_dma_count);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_has_noncoherent_dma);
-
-int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
-				      struct irq_bypass_producer *prod)
-{
-	struct kvm_kernel_irqfd *irqfd =
-		container_of(cons, struct kvm_kernel_irqfd, consumer);
-	struct kvm *kvm = irqfd->kvm;
-	int ret;
-
-	kvm_arch_start_assignment(irqfd->kvm);
-
-	spin_lock_irq(&kvm->irqfds.lock);
-	irqfd->producer = prod;
-
-	ret = kvm_x86_call(pi_update_irte)(irqfd->kvm,
-					   prod->irq, irqfd->gsi, 1);
-	if (ret)
-		kvm_arch_end_assignment(irqfd->kvm);
-
-	spin_unlock_irq(&kvm->irqfds.lock);
-
-
-	return ret;
-}
-
-void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
-				      struct irq_bypass_producer *prod)
-{
-	int ret;
-	struct kvm_kernel_irqfd *irqfd =
-		container_of(cons, struct kvm_kernel_irqfd, consumer);
-	struct kvm *kvm = irqfd->kvm;
-
-	WARN_ON(irqfd->producer != prod);
-
-	/*
-	 * When producer of consumer is unregistered, we change back to
-	 * remapped mode, so we can re-use the current implementation
-	 * when the irq is masked/disabled or the consumer side (KVM
-	 * int this case doesn't want to receive the interrupts.
-	*/
-	spin_lock_irq(&kvm->irqfds.lock);
-	irqfd->producer = NULL;
-
-	ret = kvm_x86_call(pi_update_irte)(irqfd->kvm,
-					   prod->irq, irqfd->gsi, 0);
-	if (ret)
-		printk(KERN_INFO "irq bypass consumer (token %p) unregistration"
-		       " fails: %d\n", irqfd->consumer.token, ret);
-
-	spin_unlock_irq(&kvm->irqfds.lock);
-
-
-	kvm_arch_end_assignment(irqfd->kvm);
-}
-
-int kvm_arch_update_irqfd_routing(struct kvm *kvm, unsigned int host_irq,
-				   uint32_t guest_irq, bool set)
-{
-	return kvm_x86_call(pi_update_irte)(kvm, host_irq, guest_irq, set);
-}
-
-bool kvm_arch_irqfd_route_changed(struct kvm_kernel_irq_routing_entry *old,
-				  struct kvm_kernel_irq_routing_entry *new)
-{
-	if (old->type != KVM_IRQ_ROUTING_MSI ||
-	    new->type != KVM_IRQ_ROUTING_MSI)
-		return true;
-
-	return !!memcmp(&old->msi, &new->msi, sizeof(new->msi));
-}
 
 bool kvm_vector_hashing_enabled(void)
 {
@@ -14093,7 +13907,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_nested_intercepts);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_write_tsc_offset);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_ple_window_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_pml_full);
-EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_pi_irte_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_avic_unaccelerated_access);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_avic_incomplete_ipi);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_avic_ga_log);

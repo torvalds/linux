@@ -497,15 +497,19 @@ static int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
 	return ret;
 }
 
-int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vpidx, u32 sint)
+int kvm_hv_synic_set_irq(struct kvm_kernel_irq_routing_entry *e, struct kvm *kvm,
+			 int irq_source_id, int level, bool line_status)
 {
 	struct kvm_vcpu_hv_synic *synic;
 
-	synic = synic_get(kvm, vpidx);
+	if (!level)
+		return -1;
+
+	synic = synic_get(kvm, e->hv_sint.vcpu);
 	if (!synic)
 		return -EINVAL;
 
-	return synic_set_irq(synic, sint);
+	return synic_set_irq(synic, e->hv_sint.sint);
 }
 
 void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
@@ -1979,6 +1983,9 @@ int kvm_hv_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
 		if (entries[i] == KVM_HV_TLB_FLUSHALL_ENTRY)
 			goto out_flush_all;
 
+		if (is_noncanonical_invlpg_address(entries[i], vcpu))
+			continue;
+
 		/*
 		 * Lower 12 bits of 'address' encode the number of additional
 		 * pages to flush.
@@ -2001,11 +2008,11 @@ out_flush_all:
 static u64 kvm_hv_flush_tlb(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 {
 	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
+	unsigned long *vcpu_mask = hv_vcpu->vcpu_mask;
 	u64 *sparse_banks = hv_vcpu->sparse_banks;
 	struct kvm *kvm = vcpu->kvm;
 	struct hv_tlb_flush_ex flush_ex;
 	struct hv_tlb_flush flush;
-	DECLARE_BITMAP(vcpu_mask, KVM_MAX_VCPUS);
 	struct kvm_vcpu_hv_tlb_flush_fifo *tlb_flush_fifo;
 	/*
 	 * Normally, there can be no more than 'KVM_HV_TLB_FLUSH_FIFO_SIZE'
