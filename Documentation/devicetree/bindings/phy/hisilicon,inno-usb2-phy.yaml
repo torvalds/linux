@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/hisilicon,inno-usb2-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HiSilicon INNO USB2 PHY
+
+maintainers:
+  - Pengcheng Li <lpc.li@hisilicon.com>
+
+description:
+  The INNO USB2 PHY device should be a child node of peripheral controller that
+  contains the PHY configuration register, and each device supports up to 2 PHY
+  ports which are represented as child nodes of INNO USB2 PHY device.
+
+properties:
+  compatible:
+    enum:
+      - hisilicon,hi3798cv200-usb2-phy
+      - hisilicon,hi3798mv100-usb2-phy
+      - hisilicon,inno-usb2-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^phy@[0-1]$":
+    description: PHY port subnode
+    type: object
+    additionalProperties: false
+
+    properties:
+      reg:
+        maximum: 1
+
+      "#phy-cells":
+        const: 0
+
+      resets:
+        maxItems: 1
+
+    required:
+      - reg
+      - "#phy-cells"
+      - resets
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+  - "#address-cells"
+  - "#size-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/histb-clock.h>
+
+    usb2-phy@120 {
+        compatible = "hisilicon,hi3798cv200-usb2-phy";
+        reg = <0x120 0x4>;
+        clocks = <&crg HISTB_USB2_PHY1_REF_CLK>;
+        resets = <&crg 0xbc 4>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        phy@0 {
+            reg = <0>;
+            #phy-cells = <0>;
+            resets = <&crg 0xbc 8>;
+        };
+
+        phy@1 {
+            reg = <1>;
+            #phy-cells = <0>;
+            resets = <&crg 0xbc 9>;
+        };
+    };

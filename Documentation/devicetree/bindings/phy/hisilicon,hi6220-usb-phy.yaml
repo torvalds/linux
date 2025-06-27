@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/hisilicon,hi6220-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Hisilicon hi6220 USB PHY
+
+maintainers:
+  - Zhangfei Gao <zhangfei.gao@linaro.org>
+
+properties:
+  compatible:
+    const: hisilicon,hi6220-usb-phy
+
+  '#phy-cells':
+    const: 0
+
+  phy-supply:
+    description: PHY power supply.
+
+  hisilicon,peripheral-syscon:
+    description: Phandle to the system controller for PHY control.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+additionalProperties: false
+
+examples:
+  - |
+    usbphy {
+        compatible = "hisilicon,hi6220-usb-phy";
+        #phy-cells = <0>;
+        phy-supply = <&fixed_5v_hub>;
+        hisilicon,peripheral-syscon = <&sys_ctrl>;
+    };

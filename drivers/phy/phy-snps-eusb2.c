@@ -256,7 +256,7 @@ static int exynos_eusb2_ref_clk_init(struct snps_eusb2_hsphy *phy)
 	}
 
 	if (!config) {
-		dev_err(&phy->phy->dev, "unsupported ref_clk_freq:%lu\n", ref_clk_freq);
+		dev_err(&phy->phy->dev, "unsupported ref_clk_freq: %lu\n", ref_clk_freq);
 		return -EINVAL;
 	}
 
@@ -293,7 +293,7 @@ static int qcom_eusb2_ref_clk_init(struct snps_eusb2_hsphy *phy)
 	}
 
 	if (!config) {
-		dev_err(&phy->phy->dev, "unsupported ref_clk_freq:%lu\n", ref_clk_freq);
+		dev_err(&phy->phy->dev, "unsupported ref_clk_freq: %lu\n", ref_clk_freq);
 		return -EINVAL;
 	}
 
@@ -461,39 +461,40 @@ static int snps_eusb2_hsphy_init(struct phy *p)
 
 	ret = phy_init(phy->repeater);
 	if (ret) {
-		dev_err(&p->dev, "repeater init failed. %d\n", ret);
+		dev_err(&p->dev, "repeater init failed: %d\n", ret);
 		goto disable_vreg;
 	}
 
 	ret = clk_bulk_prepare_enable(phy->data->num_clks, phy->clks);
 	if (ret) {
-		dev_err(&p->dev, "failed to enable ref clock, %d\n", ret);
-		goto disable_vreg;
+		dev_err(&p->dev, "failed to enable ref clock: %d\n", ret);
+		goto exit_repeater;
 	}
 
 	ret = reset_control_assert(phy->phy_reset);
 	if (ret) {
-		dev_err(&p->dev, "failed to assert phy_reset, %d\n", ret);
-		goto disable_ref_clk;
+		dev_err(&p->dev, "failed to assert phy_reset: %d\n", ret);
+		goto disable_clks;
 	}
 
 	usleep_range(100, 150);
 
 	ret = reset_control_deassert(phy->phy_reset);
 	if (ret) {
-		dev_err(&p->dev, "failed to de-assert phy_reset, %d\n", ret);
-		goto disable_ref_clk;
+		dev_err(&p->dev, "failed to de-assert phy_reset: %d\n", ret);
+		goto disable_clks;
 	}
 
 	ret = phy->data->phy_init(p);
 	if (ret)
-		goto disable_ref_clk;
+		goto disable_clks;
 
 	return 0;
 
-disable_ref_clk:
+disable_clks:
 	clk_bulk_disable_unprepare(phy->data->num_clks, phy->clks);
-
+exit_repeater:
+	phy_exit(phy->repeater);
 disable_vreg:
 	regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
 
@@ -504,7 +505,7 @@ static int snps_eusb2_hsphy_exit(struct phy *p)
 {
 	struct snps_eusb2_hsphy *phy = phy_get_drvdata(p);
 
-	clk_disable_unprepare(phy->ref_clk);
+	clk_bulk_disable_unprepare(phy->data->num_clks, phy->clks);
 
 	regulator_bulk_disable(ARRAY_SIZE(phy->vregs), phy->vregs);
 
@@ -551,7 +552,7 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 	if (!phy->clks)
 		return -ENOMEM;
 
-	for (int i = 0; i < phy->data->num_clks; ++i)
+	for (i = 0; i < phy->data->num_clks; ++i)
 		phy->clks[i].id = phy->data->clk_names[i];
 
 	ret = devm_clk_bulk_get(dev, phy->data->num_clks, phy->clks);
@@ -560,7 +561,7 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 				     "failed to get phy clock(s)\n");
 
 	phy->ref_clk = NULL;
-	for (int i = 0; i < phy->data->num_clks; ++i) {
+	for (i = 0; i < phy->data->num_clks; ++i) {
 		if (!strcmp(phy->clks[i].id, "ref")) {
 			phy->ref_clk = phy->clks[i].clk;
 			break;
@@ -580,14 +581,14 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret,
 				     "failed to get regulator supplies\n");
 
-	phy->repeater = devm_of_phy_optional_get(dev, np, 0);
+	phy->repeater = devm_of_phy_optional_get(dev, np, NULL);
 	if (IS_ERR(phy->repeater))
 		return dev_err_probe(dev, PTR_ERR(phy->repeater),
 				     "failed to get repeater\n");
 
 	generic_phy = devm_phy_create(dev, NULL, &snps_eusb2_hsphy_ops);
 	if (IS_ERR(generic_phy)) {
-		dev_err(dev, "failed to create phy %d\n", ret);
+		dev_err(dev, "failed to create phy: %d\n", ret);
 		return PTR_ERR(generic_phy);
 	}
 
@@ -597,8 +598,6 @@ static int snps_eusb2_hsphy_probe(struct platform_device *pdev)
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (IS_ERR(phy_provider))
 		return PTR_ERR(phy_provider);
-
-	dev_info(dev, "Registered Snps-eUSB2 phy\n");
 
 	return 0;
 }
@@ -610,7 +609,9 @@ static const struct of_device_id snps_eusb2_hsphy_of_match_table[] = {
 	}, {
 		.compatible = "samsung,exynos2200-eusb2-phy",
 		.data = &exynos2200_snps_eusb2_phy,
-	}, { },
+	}, {
+		/* sentinel */
+	}
 };
 MODULE_DEVICE_TABLE(of, snps_eusb2_hsphy_of_match_table);
 
