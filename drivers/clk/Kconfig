@@ -61,7 +61,6 @@ config LMK04832
 config COMMON_CLK_APPLE_NCO
 	tristate "Clock driver for Apple SoC NCOs"
 	depends on ARCH_APPLE || COMPILE_TEST
-	default ARCH_APPLE
 	help
 	  This driver supports NCO (Numerically Controlled Oscillator) blocks
 	  found on Apple SoCs such as t8103 (M1). The blocks are typically

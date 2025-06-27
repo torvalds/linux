@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/marvell,dove-divider-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Dove PLL Divider Clock
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+description: >
+  Marvell Dove has a 2GHz PLL, which feeds into a set of dividers to provide
+  high speed clocks for a number of peripherals.  These dividers are part of the
+  PMU, and thus this node should be a child of the PMU node.
+
+  The following clocks are provided:
+
+    ID	Clock
+    -------------
+    0	AXI bus clock
+    1	GPU clock
+    2	VMeta clock
+    3	LCD clock
+
+properties:
+  compatible:
+    const: marvell,dove-divider-clock
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@64 {
+        compatible = "marvell,dove-divider-clock";
+        reg = <0x0064 0x8>;
+        #clock-cells = <1>;
+    };

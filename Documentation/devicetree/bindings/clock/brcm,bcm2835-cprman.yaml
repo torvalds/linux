@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/brcm,bcm2835-cprman.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM2835 CPRMAN clocks
+
+maintainers:
+  - Stefan Wahren <wahrenst@gmx.net>
+  - Raspberry Pi Kernel Maintenance <kernel-list@raspberrypi.com>
+
+description:
+  The CPRMAN clock controller generates clocks in the audio power domain of the
+  BCM2835.  There is a level of PLLs deriving from an external oscillator, a
+  level of PLL dividers that produce channels off of the few PLLs, and a level
+  of mostly-generic clock generators sourcing from the PLL channels.  Most other
+  hardware components source from the clock generators, but a few (like the ARM
+  or HDMI) will source from the PLL dividers directly.
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm2711-cprman
+      - brcm,bcm2835-cprman
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: External oscillator clock.
+      - description: DSI0 byte clock.
+      - description: DSI0 DDR2 clock.
+      - description: DSI0 DDR clock.
+      - description: DSI1 byte clock.
+      - description: DSI1 DDR2 clock.
+      - description: DSI1 DDR clock.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - '#clock-cells'
+  - reg
+  - clocks
+
+examples:
+  - |
+    clock-controller@7e101000 {
+        compatible = "brcm,bcm2835-cprman";
+        reg = <0x7e101000 0x2000>;
+        #clock-cells = <1>;
+        clocks = <&clk_osc>;
+    };
