@@ -3451,7 +3451,7 @@ err_out:
 }
 
 /**
- * bpf_strlen - Calculate the length of a length-limited string
+ * bpf_strnlen - Calculate the length of a length-limited string
  * @s__ign: The string
  * @count: The maximum number of characters to count
  *
@@ -3541,8 +3541,8 @@ err_out:
 }
 
 /**
- * strcspn - Calculate the length of the initial substring of @s__ign which
- *           does not contain letters in @reject__ign
+ * bpf_strcspn - Calculate the length of the initial substring of @s__ign which
+ *               does not contain letters in @reject__ign
  * @s__ign: The string to be searched
  * @reject__ign: The string to search for
  *
