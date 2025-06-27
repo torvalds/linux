@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/ti,da830-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI DA8xx/OMAP-L1xx/AM18xx USB PHY
+
+maintainers:
+  - David Lechner <david@lechnology.com>
+
+description: >
+  This device controls the PHY for both the USB 1.1 OHCI and USB 2.0 OTG
+  controllers on DA8xx SoCs.
+
+  It also requires a "syscon" node with compatible = "ti,da830-cfgchip", "syscon"
+  to access the CFGCHIP2 register.
+
+properties:
+  compatible:
+    items:
+      - const: ti,da830-usb-phy
+
+  '#phy-cells':
+    const: 1
+    description:
+      Consumers of this device should use index 0 for the USB 2.0 phy device and
+      index 1 for the USB 1.1 phy device.
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: usb0_clk48
+      - const: usb1_clk48
+
+required:
+  - compatible
+  - '#phy-cells'
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    usb-phy {
+        compatible = "ti,da830-usb-phy";
+        #phy-cells = <1>;
+        clocks = <&usb_phy_clk 0>, <&usb_phy_clk 1>;
+        clock-names = "usb0_clk48", "usb1_clk48";
+    };
