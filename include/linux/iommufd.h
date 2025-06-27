@@ -101,7 +101,7 @@ struct iommufd_viommu {
 	struct list_head veventqs;
 	struct rw_semaphore veventqs_rwsem;
 
-	unsigned int type;
+	enum iommu_viommu_type type;
 };
 
 /**
@@ -171,8 +171,9 @@ static inline void iommufd_access_unpin_pages(struct iommufd_access *access,
 {
 }
 
-static inline int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
-		      void *data, size_t len, unsigned int flags)
+static inline int iommufd_access_rw(struct iommufd_access *access,
+				    unsigned long iova, void *data, size_t len,
+				    unsigned int flags)
 {
 	return -EOPNOTSUPP;
 }
@@ -189,9 +190,6 @@ static inline int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx)
 #endif /* CONFIG_IOMMUFD */
 
 #if IS_ENABLED(CONFIG_IOMMUFD_DRIVER_CORE)
-struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
-					     size_t size,
-					     enum iommufd_object_type type);
 struct device *iommufd_viommu_find_dev(struct iommufd_viommu *viommu,
 				       unsigned long vdev_id);
 int iommufd_viommu_get_vdev_id(struct iommufd_viommu *viommu,
@@ -200,13 +198,6 @@ int iommufd_viommu_report_event(struct iommufd_viommu *viommu,
 				enum iommu_veventq_type type, void *event_data,
 				size_t data_len);
 #else /* !CONFIG_IOMMUFD_DRIVER_CORE */
-static inline struct iommufd_object *
-_iommufd_object_alloc(struct iommufd_ctx *ictx, size_t size,
-		      enum iommufd_object_type type)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
 static inline struct device *
 iommufd_viommu_find_dev(struct iommufd_viommu *viommu, unsigned long vdev_id)
 {
@@ -228,21 +219,9 @@ static inline int iommufd_viommu_report_event(struct iommufd_viommu *viommu,
 }
 #endif /* CONFIG_IOMMUFD_DRIVER_CORE */
 
-/*
- * Helpers for IOMMU driver to allocate driver structures that will be freed by
- * the iommufd core. The free op will be called prior to freeing the memory.
- */
-#define iommufd_viommu_alloc(ictx, drv_struct, member, viommu_ops)             \
-	({                                                                     \
-		drv_struct *ret;                                               \
-									       \
-		static_assert(__same_type(struct iommufd_viommu,               \
-					  ((drv_struct *)NULL)->member));      \
-		static_assert(offsetof(drv_struct, member.obj) == 0);          \
-		ret = (drv_struct *)_iommufd_object_alloc(                     \
-			ictx, sizeof(drv_struct), IOMMUFD_OBJ_VIOMMU);         \
-		if (!IS_ERR(ret))                                              \
-			ret->member.ops = viommu_ops;                          \
-		ret;                                                           \
-	})
+#define VIOMMU_STRUCT_SIZE(drv_struct, member)                                 \
+	(sizeof(drv_struct) +                                                  \
+	 BUILD_BUG_ON_ZERO(offsetof(drv_struct, member)) +                     \
+	 BUILD_BUG_ON_ZERO(!__same_type(struct iommufd_viommu,                 \
+					((drv_struct *)NULL)->member)))
 #endif

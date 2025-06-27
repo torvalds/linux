@@ -1287,8 +1287,7 @@ static int pfn_reader_first(struct pfn_reader *pfns, struct iopt_pages *pages,
 }
 
 static struct iopt_pages *iopt_alloc_pages(unsigned long start_byte,
-					   unsigned long length,
-					   bool writable)
+					   unsigned long length, bool writable)
 {
 	struct iopt_pages *pages;
 
@@ -1328,7 +1327,7 @@ struct iopt_pages *iopt_alloc_user_pages(void __user *uptr,
 	struct iopt_pages *pages;
 	unsigned long end;
 	void __user *uptr_down =
-		(void __user *) ALIGN_DOWN((uintptr_t)uptr, PAGE_SIZE);
+		(void __user *)ALIGN_DOWN((uintptr_t)uptr, PAGE_SIZE);
 
 	if (check_add_overflow((unsigned long)uptr, length, &end))
 		return ERR_PTR(-EOVERFLOW);
@@ -2111,8 +2110,8 @@ iopt_pages_get_exact_access(struct iopt_pages *pages, unsigned long index,
  * This should be undone through a matching call to iopt_area_remove_access()
  */
 int iopt_area_add_access(struct iopt_area *area, unsigned long start_index,
-			  unsigned long last_index, struct page **out_pages,
-			  unsigned int flags)
+			 unsigned long last_index, struct page **out_pages,
+			 unsigned int flags)
 {
 	struct iopt_pages *pages = area->pages;
 	struct iopt_pages_access *access;
