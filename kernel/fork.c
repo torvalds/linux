@@ -3215,7 +3215,7 @@ int unshare_files(void)
 	return 0;
 }
 
-int sysctl_max_threads(const struct ctl_table *table, int write,
+static int sysctl_max_threads(const struct ctl_table *table, int write,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
@@ -3237,3 +3237,21 @@ int sysctl_max_threads(const struct ctl_table *table, int write,
 
 	return 0;
 }
+
+static const struct ctl_table fork_sysctl_table[] = {
+	{
+		.procname	= "threads-max",
+		.data		= NULL,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= sysctl_max_threads,
+	},
+};
+
+static int __init init_fork_sysctl(void)
+{
+	register_sysctl_init("kernel", fork_sysctl_table);
+	return 0;
+}
+
+subsys_initcall(init_fork_sysctl);
