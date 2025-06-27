@@ -2373,7 +2373,7 @@ int ip6_mr_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	int err;
 	int vif;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
+	guard(rcu)();
 
 	if (IP6CB(skb)->flags & IP6SKB_FORWARDED)
 		goto ip6_output;
