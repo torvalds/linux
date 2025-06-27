@@ -7,6 +7,7 @@
  *  Author(s): Stefan Weinhuber <wein@de.ibm.com>
  */
 
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>

@@ -4,7 +4,7 @@
 
 #define HAVE_JUMP_LABEL_BATCH
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 #include <linux/stringify.h>
@@ -51,5 +51,5 @@ label:
 	return true;
 }
 
-#endif  /* __ASSEMBLY__ */
+#endif  /* __ASSEMBLER__ */
 #endif

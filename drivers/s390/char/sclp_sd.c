@@ -16,7 +16,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/async.h>
-#include <linux/export.h>
 #include <linux/mutex.h>
 
 #include <asm/pgalloc.h>
