@@ -8,9 +8,9 @@ This document describes the DMA API.  For a more gentle introduction
 of the API (and actual examples), see Documentation/core-api/dma-api-howto.rst.
 
 This API is split into two pieces.  Part I describes the basic API.
-Part II describes extensions for supporting non-consistent memory
+Part II describes extensions for supporting non-coherent memory
 machines.  Unless you know that your driver absolutely has to support
-non-consistent platforms (this is usually only legacy platforms) you
+non-coherent platforms (this is usually only legacy platforms) you
 should only use the API described in part I.
 
 Part I - DMA API
@@ -33,13 +33,13 @@ Part Ia - Using large DMA-coherent buffers
 	dma_alloc_coherent(struct device *dev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag)
 
-Consistent memory is memory for which a write by either the device or
+Coherent memory is memory for which a write by either the device or
 the processor can immediately be read by the processor or device
 without having to worry about caching effects.  (You may however need
 to make sure to flush the processor's write buffers before telling
 devices to read that memory.)
 
-This routine allocates a region of <size> bytes of consistent memory.
+This routine allocates a region of <size> bytes of coherent memory.
 
 It returns a pointer to the allocated region (in the processor's virtual
 address space) or NULL if the allocation failed.
@@ -48,9 +48,9 @@ It also returns a <dma_handle> which may be cast to an unsigned integer the
 same width as the bus and given to the device as the DMA address base of
 the region.
 
-Note: consistent memory can be expensive on some platforms, and the
+Note: coherent memory can be expensive on some platforms, and the
 minimum allocation length may be as big as a page, so you should
-consolidate your requests for consistent memory as much as possible.
+consolidate your requests for coherent memory as much as possible.
 The simplest way to do that is to use the dma_pool calls (see below).
 
 The flag parameter (dma_alloc_coherent() only) allows the caller to
@@ -64,7 +64,7 @@ the returned memory, like GFP_DMA).
 	dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 			  dma_addr_t dma_handle)
 
-Free a region of consistent memory you previously allocated.  dev,
+Free a region of coherent memory you previously allocated.  dev,
 size and dma_handle must all be the same as those passed into
 dma_alloc_coherent().  cpu_addr must be the virtual address returned by
 the dma_alloc_coherent().
