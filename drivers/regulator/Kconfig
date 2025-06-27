@@ -1153,6 +1153,17 @@ config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 	  touchscreen unit. The regulator is used to enable power to the
 	  TC358762, display and to control backlight.
 
+config REGULATOR_RASPBERRYPI_TOUCHSCREEN_V2
+	tristate "Raspberry Pi 7-inch touchscreen panel V2 regulator"
+	depends on GPIOLIB
+	depends on I2C && OF
+	select GPIO_REGMAP
+	select REGMAP_I2C
+	help
+	  This driver supports regulator on the V2 Raspberry Pi touchscreen
+	  unit. The regulator is used to enable power to the display and to
+	  control backlight PWM.
+
 config REGULATOR_RC5T583
 	tristate "RICOH RC5T583 Power regulators"
 	depends on MFD_RC5T583

@@ -134,9 +134,19 @@ static void voltage_change_done(struct regulator_dev *rdev, unsigned int sel,
 
 	if (*mask) {
 		/*
-		 * Let's allow scheduling as we use I2C anyways. We just need to
-		 * guarantee minimum of 1ms sleep - it shouldn't matter if we
-		 * exceed it due to the scheduling.
+		 * We had fault detection disabled for the duration of the
+		 * voltage change.
+		 *
+		 * According to HW colleagues the maximum time it takes is
+		 * 1000us. I assume that on systems with light load this
+		 * might be less - and we could probably use DT to give
+		 * system specific delay value if performance matters.
+		 *
+		 * Well, knowing we use I2C here and can add scheduling delays
+		 * I don't think it is worth the hassle and I just add fixed
+		 * 1ms sleep here (and allow scheduling). If this turns out to
+		 * be a problem we can change it to delay and make the delay
+		 * time configurable.
 		 */
 		msleep(1);
 
@@ -173,16 +183,7 @@ static int voltage_change_prepare(struct regulator_dev *rdev, unsigned int sel,
 		/*
 		 * If we increase LDO voltage when LDO is enabled we need to
 		 * disable the power-good detection until voltage has reached
-		 * the new level. According to HW colleagues the maximum time
-		 * it takes is 1000us. I assume that on systems with light load
-		 * this might be less - and we could probably use DT to give
-		 * system specific delay value if performance matters.
-		 *
-		 * Well, knowing we use I2C here and can add scheduling delays
-		 * I don't think it is worth the hassle and I just add fixed
-		 * 1ms sleep here (and allow scheduling). If this turns out to
-		 * be a problem we can change it to delay and make the delay
-		 * time configurable.
+		 * the new level.
 		 */
 		if (new > now) {
 			int tmp;
