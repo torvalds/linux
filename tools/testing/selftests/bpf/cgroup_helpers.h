@@ -26,6 +26,10 @@ int join_cgroup(const char *relative_path);
 int join_root_cgroup(void);
 int join_parent_cgroup(const char *relative_path);
 
+int set_cgroup_xattr(const char *relative_path,
+		     const char *name,
+		     const char *value);
+
 int setup_cgroup_environment(void);
 void cleanup_cgroup_environment(void);
 
