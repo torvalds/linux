@@ -2245,12 +2245,11 @@ static enum cmn_node_type arm_cmn_subtype(enum cmn_node_type type)
 
 static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 {
-	void __iomem *cfg_region;
+	void __iomem *cfg_region, __iomem *xp_region;
 	struct arm_cmn_node cfg, *dn;
 	struct arm_cmn_dtm *dtm;
 	enum cmn_part part;
 	u16 child_count, child_poff;
-	u32 xp_offset[CMN_MAX_XPS];
 	u64 reg;
 	int i, j;
 	size_t sz;
@@ -2302,11 +2301,12 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	cmn->num_dns = cmn->num_xps;
 
 	/* Pass 1: visit the XPs, enumerate their children */
+	cfg_region += child_poff;
 	for (i = 0; i < cmn->num_xps; i++) {
-		reg = readq_relaxed(cfg_region + child_poff + i * 8);
-		xp_offset[i] = reg & CMN_CHILD_NODE_ADDR;
+		reg = readq_relaxed(cfg_region + i * 8);
+		xp_region = cmn->base + (reg & CMN_CHILD_NODE_ADDR);
 
-		reg = readq_relaxed(cmn->base + xp_offset[i] + CMN_CHILD_INFO);
+		reg = readq_relaxed(xp_region + CMN_CHILD_INFO);
 		cmn->num_dns += FIELD_GET(CMN_CI_CHILD_COUNT, reg);
 	}
 
@@ -2332,11 +2332,12 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 	cmn->dns = dn;
 	cmn->dtms = dtm;
 	for (i = 0; i < cmn->num_xps; i++) {
-		void __iomem *xp_region = cmn->base + xp_offset[i];
 		struct arm_cmn_node *xp = dn++;
 		unsigned int xp_ports = 0;
 
-		arm_cmn_init_node_info(cmn, xp_offset[i], xp);
+		reg = readq_relaxed(cfg_region + i * 8);
+		xp_region = cmn->base + (reg & CMN_CHILD_NODE_ADDR);
+		arm_cmn_init_node_info(cmn, reg & CMN_CHILD_NODE_ADDR, xp);
 		/*
 		 * Thanks to the order in which XP logical IDs seem to be
 		 * assigned, we can handily infer the mesh X dimension by
