@@ -19,7 +19,7 @@
 #define RTW8851B_RXK_GROUP_NR 4
 #define RTW8851B_RXK_GROUP_IDX_NR 2
 #define RTW8851B_TXK_GROUP_NR 1
-#define RTW8851B_IQK_VER 0x2a
+#define RTW8851B_IQK_VER 0x14
 #define RTW8851B_IQK_SS 1
 #define RTW8851B_LOK_GRAM 10
 #define RTW8851B_TSSI_PATH_NR 1
@@ -1107,10 +1107,43 @@ static void _iqk_rxclk_setting(struct rtw89_dev *rtwdev, u8 path)
 
 	rtw89_write_rf(rtwdev, path, RR_RXBB2, RR_RXBB2_CKT, 0x1);
 
-	if (iqk_info->iqk_bw[path] == RTW89_CHANNEL_WIDTH_80)
+	if (iqk_info->iqk_bw[path] == RTW89_CHANNEL_WIDTH_80) {
+		rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RXK, 0x0101);
+		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK, B_DPD_GDIS, 0x1);
+
+		_rxck_force(rtwdev, path, true, ADC_960M);
+
 		rtw89_rfk_parser(rtwdev, &rtw8851b_iqk_rxclk_80_defs_tbl);
-	else
+	} else {
+		rtw89_phy_write32_mask(rtwdev, R_ADC_FIFO, B_ADC_FIFO_RXK, 0x0101);
+		rtw89_phy_write32_mask(rtwdev, R_UPD_CLK, B_DPD_GDIS, 0x1);
+
+		_rxck_force(rtwdev, path, true, ADC_960M);
+
 		rtw89_rfk_parser(rtwdev, &rtw8851b_iqk_rxclk_others_defs_tbl);
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, (2)before RXK IQK\n", path);
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[07:10] = 0x%x\n", path,
+		    0xc0d4, rtw89_phy_read32_mask(rtwdev, 0xc0d4, GENMASK(10, 7)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[11:14] = 0x%x\n", path,
+		    0xc0d4, rtw89_phy_read32_mask(rtwdev, 0xc0d4, GENMASK(14, 11)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[26:27] = 0x%x\n", path,
+		    0xc0d4, rtw89_phy_read32_mask(rtwdev, 0xc0d4, GENMASK(27, 26)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[05:08] = 0x%x\n", path,
+		    0xc0d8, rtw89_phy_read32_mask(rtwdev, 0xc0d8, GENMASK(8, 5)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[17:21] = 0x%x\n", path,
+		    0xc0c4, rtw89_phy_read32_mask(rtwdev, 0xc0c4, GENMASK(21, 17)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[16:31] = 0x%x\n", path,
+		    0xc0e8, rtw89_phy_read32_mask(rtwdev, 0xc0e8, GENMASK(31, 16)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[04:05] = 0x%x\n", path,
+		    0xc0e4, rtw89_phy_read32_mask(rtwdev, 0xc0e4, GENMASK(5, 4)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[23:31]  = 0x%x\n", path,
+		    0x12a0, rtw89_phy_read32_mask(rtwdev, 0x12a0, GENMASK(31, 23)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[13:14] = 0x%x\n", path,
+		    0xc0ec, rtw89_phy_read32_mask(rtwdev, 0xc0ec, GENMASK(14, 13)));
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]S%x, 0x%x[16:23] = 0x%x\n", path,
+		    0xc0ec, rtw89_phy_read32_mask(rtwdev, 0xc0ec, GENMASK(23, 16)));
 }
 
 static bool _txk_5g_group_sel(struct rtw89_dev *rtwdev,
@@ -1616,6 +1649,14 @@ static void _iqk_macbb_setting(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK]===>%s\n", __func__);
 
 	rtw89_rfk_parser(rtwdev, &rtw8851b_iqk_macbb_defs_tbl);
+
+	_txck_force(rtwdev, path, true, DAC_960M);
+
+	rtw89_phy_write32_mask(rtwdev, R_UPD_CLK, B_DPD_GDIS, 0x1);
+
+	_rxck_force(rtwdev, path, true, ADC_1920M);
+
+	rtw89_rfk_parser(rtwdev, &rtw8851b_iqk_macbb_bh_defs_tbl);
 }
 
 static void _iqk_init(struct rtw89_dev *rtwdev)

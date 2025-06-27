@@ -18,6 +18,7 @@ extern const struct rtw89_rfk_tbl rtw8851b_iqk_txk_2ghz_defs_tbl;
 extern const struct rtw89_rfk_tbl rtw8851b_iqk_txk_5ghz_defs_tbl;
 extern const struct rtw89_rfk_tbl rtw8851b_iqk_afebb_restore_defs_tbl;
 extern const struct rtw89_rfk_tbl rtw8851b_iqk_macbb_defs_tbl;
+extern const struct rtw89_rfk_tbl rtw8851b_iqk_macbb_bh_defs_tbl;
 extern const struct rtw89_rfk_tbl rtw8851b_tssi_sys_defs_tbl;
 extern const struct rtw89_rfk_tbl rtw8851b_tssi_sys_a_defs_2g_tbl;
 extern const struct rtw89_rfk_tbl rtw8851b_tssi_sys_a_defs_5g_tbl;
