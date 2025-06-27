@@ -712,12 +712,22 @@ static void rtw8851b_phycap_parsing_gain_comp(struct rtw89_dev *rtwdev, u8 *phyc
 	gain->comp_valid = valid;
 }
 
+static void rtw8851b_phycap_parsing_adc_td(struct rtw89_dev *rtwdev, u8 *phycap_map)
+{
+	u32 phycap_addr = rtwdev->chip->phycap_addr;
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	const u32 addr_adc_td = 0x5AF;
+
+	efuse->adc_td = phycap_map[addr_adc_td - phycap_addr] & GENMASK(4, 0);
+}
+
 static int rtw8851b_read_phycap(struct rtw89_dev *rtwdev, u8 *phycap_map)
 {
 	rtw8851b_phycap_parsing_tssi(rtwdev, phycap_map);
 	rtw8851b_phycap_parsing_thermal_trim(rtwdev, phycap_map);
 	rtw8851b_phycap_parsing_pa_bias_trim(rtwdev, phycap_map);
 	rtw8851b_phycap_parsing_gain_comp(rtwdev, phycap_map);
+	rtw8851b_phycap_parsing_adc_td(rtwdev, phycap_map);
 
 	return 0;
 }
@@ -1083,10 +1093,26 @@ static void rtw8851b_ctrl_ch(struct rtw89_dev *rtwdev,
 
 static void rtw8851b_bw_setting(struct rtw89_dev *rtwdev, u8 bw)
 {
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	u8 adc_bw_sel;
+
+	switch (efuse->adc_td) {
+	default:
+	case 0x19:
+		adc_bw_sel = 0x4;
+		break;
+	case 0x11:
+		adc_bw_sel = 0x5;
+		break;
+	case 0x9:
+		adc_bw_sel = 0x3;
+		break;
+	}
+
 	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_CTL, 0x8);
 	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_EN, 0x2);
 	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_BW0, 0x2);
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1, B_P0_CFCH_BW1, 0x4);
+	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1, B_P0_CFCH_BW1, adc_bw_sel);
 	rtw89_phy_write32_mask(rtwdev, R_DRCK, B_DRCK_MUL, 0xf);
 	rtw89_phy_write32_mask(rtwdev, R_ADCMOD, B_ADCMOD_LP, 0xa);
 	rtw89_phy_write32_mask(rtwdev, R_P0_RXCK, B_P0_RXCK_ADJ, 0x92);
