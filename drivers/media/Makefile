@@ -25,6 +25,8 @@ obj-y += rc/
 
 obj-$(CONFIG_CEC_CORE) += cec/
 
+obj-$(CONFIG_MEDIA_VIRTIO) += virtio/
+
 #
 # Finally, merge the drivers that require the core
 #
