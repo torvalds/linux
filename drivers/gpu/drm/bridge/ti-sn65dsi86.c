@@ -1728,11 +1728,6 @@ static int ti_sn_bridge_gpio_set(struct gpio_chip *chip, unsigned int offset,
 {
 	struct ti_sn65dsi86 *pdata = gpiochip_get_data(chip);
 
-	if (!test_bit(offset, pdata->gchip_output)) {
-		dev_err(pdata->dev, "Ignoring GPIO set while input\n");
-		return -EPERM;
-	}
-
 	val &= 1;
 	return regmap_update_bits(pdata->regmap, SN_GPIO_IO_REG,
 				  BIT(SN_GPIO_OUTPUT_SHIFT + offset),
