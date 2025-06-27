@@ -1983,6 +1983,8 @@ static int bq24190_get_config(struct bq24190_dev_info *bdi)
 		v = info->constant_charge_voltage_max_uv;
 		if (v >= bq24190_cvc_vreg_values[0] && v <= bdi->vreg_max)
 			bdi->vreg = bdi->vreg_max = v;
+
+		power_supply_put_battery_info(bdi->charger, info);
 	}
 
 	return 0;

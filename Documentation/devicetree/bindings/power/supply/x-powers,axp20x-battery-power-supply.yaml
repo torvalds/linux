@@ -26,11 +26,7 @@ properties:
           - const: x-powers,axp813-battery-power-supply
       - const: x-powers,axp813-battery-power-supply
 
-  monitored-battery:
-    description:
-      Specifies the phandle of an optional simple-battery connected to
-      this gauge.
-    $ref: /schemas/types.yaml#/definitions/phandle
+  monitored-battery: true
 
   x-powers,no-thermistor:
     type: boolean
