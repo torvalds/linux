@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 
+#include "include/af_unix.h"
 #include "include/apparmor.h"
 #include "include/audit.h"
 #include "include/cred.h"
@@ -168,8 +169,9 @@ static int path_name(const char *op, const struct cred *subj_cred,
 
 struct aa_perms default_perms = {};
 /**
- * aa_lookup_fperms - convert dfa compressed perms to internal perms
- * @file_rules: the aa_policydb to lookup perms for  (NOT NULL)
+ * aa_lookup_condperms - convert dfa compressed perms to internal perms
+ * @subj_uid: uid to use for subject owner test
+ * @rules: the aa_policydb to lookup perms for  (NOT NULL)
  * @state: state in dfa
  * @cond:  conditions to consider  (NOT NULL)
  *
@@ -177,18 +179,21 @@ struct aa_perms default_perms = {};
  *
  * Returns: a pointer to a file permission set
  */
-struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
-				 aa_state_t state, struct path_cond *cond)
+struct aa_perms *aa_lookup_condperms(kuid_t subj_uid, struct aa_policydb *rules,
+				     aa_state_t state, struct path_cond *cond)
 {
-	unsigned int index = ACCEPT_TABLE(file_rules->dfa)[state];
+	unsigned int index = ACCEPT_TABLE(rules->dfa)[state];
 
-	if (!(file_rules->perms))
+	if (!(rules->perms))
 		return &default_perms;
 
-	if (uid_eq(current_fsuid(), cond->uid))
-		return &(file_rules->perms[index]);
+	if ((ACCEPT_TABLE2(rules->dfa)[state] & ACCEPT_FLAG_OWNER)) {
+		if (uid_eq(subj_uid, cond->uid))
+			return &(rules->perms[index]);
+		return &(rules->perms[index + 1]);
+	}
 
-	return &(file_rules->perms[index + 1]);
+	return &(rules->perms[index]);
 }
 
 /**
@@ -207,21 +212,23 @@ aa_state_t aa_str_perms(struct aa_policydb *file_rules, aa_state_t start,
 {
 	aa_state_t state;
 	state = aa_dfa_match(file_rules->dfa, start, name);
-	*perms = *(aa_lookup_fperms(file_rules, state, cond));
+	*perms = *(aa_lookup_condperms(current_fsuid(), file_rules, state,
+				       cond));
 
 	return state;
 }
 
-static int __aa_path_perm(const char *op, const struct cred *subj_cred,
-			  struct aa_profile *profile, const char *name,
-			  u32 request, struct path_cond *cond, int flags,
-			  struct aa_perms *perms)
+int __aa_path_perm(const char *op, const struct cred *subj_cred,
+		   struct aa_profile *profile, const char *name,
+		   u32 request, struct path_cond *cond, int flags,
+		   struct aa_perms *perms)
 {
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
 	int e = 0;
 
-	if (profile_unconfined(profile))
+	if (profile_unconfined(profile) ||
+	    ((flags & PATH_SOCK_COND) && !RULE_MEDIATES_v9NET(rules)))
 		return 0;
 	aa_str_perms(rules->file, rules->file->start[AA_CLASS_FILE],
 		     name, cond, perms);
@@ -534,27 +541,37 @@ static int __file_sock_perm(const char *op, const struct cred *subj_cred,
 			    struct aa_label *flabel, struct file *file,
 			    u32 request, u32 denied)
 {
-	struct socket *sock = (struct socket *) file->private_data;
 	int error;
-
-	AA_BUG(!sock);
 
 	/* revalidation due to label out of date. No revocation at this time */
 	if (!denied && aa_label_is_subset(flabel, label))
 		return 0;
 
 	/* TODO: improve to skip profiles cached in flabel */
-	error = aa_sock_file_perm(subj_cred, label, op, request, sock);
+	error = aa_sock_file_perm(subj_cred, label, op, request, file);
 	if (denied) {
 		/* TODO: improve to skip profiles checked above */
 		/* check every profile in file label to is cached */
 		last_error(error, aa_sock_file_perm(subj_cred, flabel, op,
-						    request, sock));
+						    request, file));
 	}
 	if (!error)
 		update_file_ctx(file_ctx(file), label, request);
 
 	return error;
+}
+
+/* wrapper fn to indicate semantics of the check */
+static bool __subj_label_is_cached(struct aa_label *subj_label,
+			    struct aa_label *obj_label)
+{
+	return aa_label_is_subset(obj_label, subj_label);
+}
+
+/* for now separate fn to indicate semantics of the check */
+static bool __file_is_delegated(struct aa_label *obj_label)
+{
+	return unconfined(obj_label);
 }
 
 /**
@@ -594,8 +611,8 @@ int aa_file_perm(const char *op, const struct cred *subj_cred,
 	 *       delegation from unconfined tasks
 	 */
 	denied = request & ~fctx->allow;
-	if (unconfined(label) || unconfined(flabel) ||
-	    (!denied && aa_label_is_subset(flabel, label))) {
+	if (unconfined(label) || __file_is_delegated(flabel) ||
+	    (!denied && __subj_label_is_cached(label, flabel))) {
 		rcu_read_unlock();
 		goto done;
 	}

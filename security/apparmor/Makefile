@@ -6,7 +6,7 @@ obj-$(CONFIG_SECURITY_APPARMOR) += apparmor.o
 apparmor-y := apparmorfs.o audit.o capability.o task.o ipc.o lib.o match.o \
               path.o domain.o policy.o policy_unpack.o procattr.o lsm.o \
               resource.o secid.o file.o policy_ns.o label.o mount.o net.o \
-              policy_compat.o
+              policy_compat.o af_unix.o
 apparmor-$(CONFIG_SECURITY_APPARMOR_HASH) += crypto.o
 
 obj-$(CONFIG_SECURITY_APPARMOR_KUNIT_TEST) += apparmor_policy_unpack_test.o
@@ -28,7 +28,7 @@ clean-files := capability_names.h rlim_names.h net_names.h
 # to
 #    #define AA_SFS_AF_MASK "local inet"
 quiet_cmd_make-af = GEN     $@
-cmd_make-af = echo "static const char *address_family_names[] = {" > $@ ;\
+cmd_make-af = echo "static const char *const address_family_names[] = {" > $@ ;\
 	sed $< >>$@ -r -n -e "/AF_MAX/d" -e "/AF_LOCAL/d" -e "/AF_ROUTE/d" -e \
 	 's/^\#define[ \t]+AF_([A-Z0-9_]+)[ \t]+([0-9]+)(.*)/[\2] = "\L\1",/p';\
 	echo "};" >> $@ ;\
@@ -43,7 +43,7 @@ cmd_make-af = echo "static const char *address_family_names[] = {" > $@ ;\
 # to
 #    [1] = "stream",
 quiet_cmd_make-sock = GEN     $@
-cmd_make-sock = echo "static const char *sock_type_names[] = {" >> $@ ;\
+cmd_make-sock = echo "static const char *const sock_type_names[] = {" >> $@ ;\
 	sed $^ >>$@ -r -n \
 	-e 's/^\tSOCK_([A-Z0-9_]+)[\t]+=[ \t]+([0-9]+)(.*)/[\2] = "\L\1",/p';\
 	echo "};" >> $@
