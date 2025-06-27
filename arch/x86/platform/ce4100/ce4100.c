@@ -49,33 +49,36 @@ static unsigned int mem_serial_in(struct uart_port *p, int offset)
  * errata number 9 in Errata - B step.
 */
 
-static unsigned int ce4100_mem_serial_in(struct uart_port *p, int offset)
+static u32 ce4100_mem_serial_in(struct uart_port *p, unsigned int offset)
 {
-	unsigned int ret, ier, lsr;
+	u32 ret, ier, lsr;
 
-	if (offset == UART_IIR) {
-		offset = offset << p->regshift;
-		ret = readl(p->membase + offset);
-		if (ret & UART_IIR_NO_INT) {
-			/* see if the TX interrupt should have really set */
-			ier = mem_serial_in(p, UART_IER);
-			/* see if the UART's XMIT interrupt is enabled */
-			if (ier & UART_IER_THRI) {
-				lsr = mem_serial_in(p, UART_LSR);
-				/* now check to see if the UART should be
-				   generating an interrupt (but isn't) */
-				if (lsr & (UART_LSR_THRE | UART_LSR_TEMT))
-					ret &= ~UART_IIR_NO_INT;
-			}
-		}
-	} else
-		ret =  mem_serial_in(p, offset);
+	if (offset != UART_IIR)
+		return mem_serial_in(p, offset);
+
+	offset <<= p->regshift;
+
+	ret = readl(p->membase + offset);
+	if (!(ret & UART_IIR_NO_INT))
+		return ret;
+
+	/* see if the TX interrupt should have really set */
+	ier = mem_serial_in(p, UART_IER);
+	/* see if the UART's XMIT interrupt is enabled */
+	if (!(ier & UART_IER_THRI))
+		return ret;
+
+	lsr = mem_serial_in(p, UART_LSR);
+	/* now check to see if the UART should be generating an interrupt (but isn't) */
+	if (lsr & (UART_LSR_THRE | UART_LSR_TEMT))
+		ret &= ~UART_IIR_NO_INT;
+
 	return ret;
 }
 
-static void ce4100_mem_serial_out(struct uart_port *p, int offset, int value)
+static void ce4100_mem_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
-	offset = offset << p->regshift;
+	offset <<= p->regshift;
 	writel(value, p->membase + offset);
 }
 
