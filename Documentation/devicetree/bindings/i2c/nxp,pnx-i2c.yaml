@@ -22,6 +22,9 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
   clock-frequency:
     default: 100000
 
