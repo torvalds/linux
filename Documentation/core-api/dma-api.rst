@@ -184,6 +184,26 @@ segments, the function returns 0.
 Part Id - Streaming DMA mappings
 --------------------------------
 
+Streaming DMA allows to map an existing buffer for DMA transfers and then
+unmap it when finished.  Map functions are not guaranteed to succeed, so the
+return value must be checked.
+
+.. note::
+
+	In particular, mapping may fail for memory not addressable by the
+	device, e.g. if it is not within the DMA mask of the device and/or a
+	connecting bus bridge.  Streaming DMA functions try to overcome such
+	addressing constraints, either by using an IOMMU (a device which maps
+	I/O DMA addresses to physical memory addresses), or by copying the
+	data to/from a bounce buffer if the kernel is configured with a
+	:doc:`SWIOTLB <swiotlb>`.  However, these methods are not always
+	available, and even if they are, they may still fail for a number of
+	reasons.
+
+	In short, a device driver may need to be wary of where buffers are
+	located in physical memory, especially if the DMA mask is less than 32
+	bits.
+
 ::
 
 	dma_addr_t
@@ -204,26 +224,12 @@ DMA_BIDIRECTIONAL	direction isn't known
 
 .. note::
 
-	Not all memory regions in a machine can be mapped by this API.
-	Further, contiguous kernel virtual space may not be contiguous as
+	Contiguous kernel virtual space may not be contiguous as
 	physical memory.  Since this API does not provide any scatter/gather
 	capability, it will fail if the user tries to map a non-physically
 	contiguous piece of memory.  For this reason, memory to be mapped by
 	this API should be obtained from sources which guarantee it to be
 	physically contiguous (like kmalloc).
-
-	Further, the DMA address of the memory must be within the dma_mask of
-	the device.  To ensure that the memory allocated by kmalloc is within
-	the dma_mask, the driver may specify various platform-dependent flags
-	to restrict the DMA address range of the allocation (e.g., on x86,
-	GFP_DMA guarantees to be within the first 16MB of available DMA
-	addresses, as required by ISA devices).
-
-	Note also that the above constraints on physical contiguity and
-	dma_mask may not apply if the platform has an IOMMU (a device which
-	maps an I/O DMA address to a physical memory address).  However, to be
-	portable, device driver writers may *not* assume that such an IOMMU
-	exists.
 
 .. warning::
 
