@@ -19,6 +19,8 @@
 #include "cgroup_util.h"
 #include "../../clone3/clone3_selftests.h"
 
+bool cg_test_v1_named;
+
 /* Returns read len on success, or -errno on failure. */
 ssize_t read_text(const char *path, char *buf, size_t max_len)
 {
@@ -361,7 +363,7 @@ int cg_enter_current(const char *cgroup)
 
 int cg_enter_current_thread(const char *cgroup)
 {
-	return cg_write(cgroup, "cgroup.threads", "0");
+	return cg_write(cgroup, CG_THREADS_FILE, "0");
 }
 
 int cg_run(const char *cgroup,
