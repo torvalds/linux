@@ -97,6 +97,8 @@ DMA pools
 .. kernel-doc:: mm/dmapool.c
    :export:
 
+.. kernel-doc:: include/linux/dmapool.h
+
 More Memory Management Functions
 ================================
 
