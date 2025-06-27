@@ -322,10 +322,10 @@ action (e.g. reduce current DMA mapping usage or delay and try again later).
 	dma_map_sg(struct device *dev, struct scatterlist *sg,
 		   int nents, enum dma_data_direction direction)
 
-Returns: the number of DMA address segments mapped (this may be shorter
-than <nents> passed in if some elements of the scatter/gather list are
-physically or virtually adjacent and an IOMMU maps them with a single
-entry).
+Maps a scatter/gather list for DMA. Returns the number of DMA address segments
+mapped, which may be smaller than <nents> passed in if several consecutive
+sglist entries are merged (e.g. with an IOMMU, or if some adjacent segments
+just happen to be physically contiguous).
 
 Please note that the sg cannot be mapped again if it has been mapped once.
 The mapping process is allowed to destroy information in the sg.
@@ -349,9 +349,8 @@ With scatterlists, you use the resulting mapping like this::
 where nents is the number of entries in the sglist.
 
 The implementation is free to merge several consecutive sglist entries
-into one (e.g. with an IOMMU, or if several pages just happen to be
-physically contiguous) and returns the actual number of sg entries it
-mapped them to. On failure 0, is returned.
+into one.  The returned number is the actual number of sg entries it
+mapped them to. On failure, 0 is returned.
 
 Then you should loop count times (note: this can be less than nents times)
 and use sg_dma_address() and sg_dma_len() macros where you previously
