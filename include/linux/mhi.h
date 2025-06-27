@@ -306,6 +306,7 @@ struct mhi_controller_config {
  *           if fw_image is NULL and fbc_download is true (optional)
  * @fw_sz: Firmware image data size for normal booting, used only if fw_image
  *         is NULL and fbc_download is true (optional)
+ * @prev_fw_sz: Previous firmware image data size, when fbc_download is true
  * @edl_image: Firmware image name for emergency download mode (optional)
  * @rddm_size: RAM dump size that host should allocate for debugging purpose
  * @sbl_size: SBL image size downloaded through BHIe (optional)
@@ -382,6 +383,7 @@ struct mhi_controller {
 	const char *fw_image;
 	const u8 *fw_data;
 	size_t fw_sz;
+	size_t prev_fw_sz;
 	const char *edl_image;
 	size_t rddm_size;
 	size_t sbl_size;
@@ -636,22 +638,24 @@ int mhi_sync_power_up(struct mhi_controller *mhi_cntrl);
 /**
  * mhi_power_down - Power down the MHI device and also destroy the
  *                  'struct device' for the channels associated with it.
- *                  See also mhi_power_down_keep_dev() which is a variant
- *                  of this API that keeps the 'struct device' for channels
- *                  (useful during suspend/hibernation).
  * @mhi_cntrl: MHI controller
  * @graceful: Link is still accessible, so do a graceful shutdown process
+ *
+ * See also mhi_power_down_keep_dev() which is a variant of this API that keeps
+ * the 'struct device' for channels and memory for BHIe tables (useful during
+ * suspend/hibernation).
  */
 void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful);
 
 /**
  * mhi_power_down_keep_dev - Power down the MHI device but keep the 'struct
  *                           device' for the channels associated with it.
- *                           This is a variant of 'mhi_power_down()' and
- *                           useful in scenarios such as suspend/hibernation
- *                           where destroying of the 'struct device' is not
- *                           needed.
  * @mhi_cntrl: MHI controller
+ *
+ * This is a variant of 'mhi_power_down()' and is useful in scenarios such as
+ * suspend/hibernation where destroying the 'struct device' and freeing the
+ * memory for BHIe tables are not needed.
+ *
  * @graceful: Link is still accessible, so do a graceful shutdown process
  */
 void mhi_power_down_keep_dev(struct mhi_controller *mhi_cntrl, bool graceful);

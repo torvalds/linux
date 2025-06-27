@@ -176,7 +176,7 @@ static int mhi_alloc_aligned_ring(struct mhi_controller *mhi_cntrl,
 	return 0;
 }
 
-void mhi_deinit_free_irq(struct mhi_controller *mhi_cntrl)
+static void mhi_deinit_free_irq(struct mhi_controller *mhi_cntrl)
 {
 	int i;
 	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
@@ -191,7 +191,7 @@ void mhi_deinit_free_irq(struct mhi_controller *mhi_cntrl)
 	free_irq(mhi_cntrl->irq[0], mhi_cntrl);
 }
 
-int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
+static int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
@@ -254,7 +254,7 @@ error_request:
 	return ret;
 }
 
-void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
+static void __mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
 {
 	int i;
 	struct mhi_ctxt *mhi_ctxt = mhi_cntrl->mhi_ctxt;
@@ -299,7 +299,7 @@ void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	mhi_cntrl->mhi_ctxt = NULL;
 }
 
-int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
+static int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_ctxt *mhi_ctxt;
 	struct mhi_chan_ctxt *chan_ctxt;
@@ -1173,8 +1173,9 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 		/*
 		 * Allocate RDDM table for debugging purpose if specified
 		 */
-		mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
-				     mhi_cntrl->rddm_size);
+		if (!mhi_cntrl->rddm_image)
+			mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
+					     mhi_cntrl->rddm_size);
 		if (mhi_cntrl->rddm_image) {
 			ret = mhi_rddm_prepare(mhi_cntrl,
 					       mhi_cntrl->rddm_image);
@@ -1191,7 +1192,7 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 	return 0;
 
 error_reg_offset:
-	mhi_deinit_dev_ctxt(mhi_cntrl);
+	__mhi_deinit_dev_ctxt(mhi_cntrl);
 
 error_dev_ctxt:
 	mutex_unlock(&mhi_cntrl->pm_mutex);
@@ -1199,6 +1200,14 @@ error_dev_ctxt:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mhi_prepare_for_power_up);
+
+void mhi_deinit_dev_ctxt(struct mhi_controller *mhi_cntrl)
+{
+	mhi_cntrl->bhi = NULL;
+	mhi_cntrl->bhie = NULL;
+
+	__mhi_deinit_dev_ctxt(mhi_cntrl);
+}
 
 void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl)
 {
@@ -1211,9 +1220,6 @@ void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl)
 		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->rddm_image);
 		mhi_cntrl->rddm_image = NULL;
 	}
-
-	mhi_cntrl->bhi = NULL;
-	mhi_cntrl->bhie = NULL;
 
 	mhi_deinit_dev_ctxt(mhi_cntrl);
 }

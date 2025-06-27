@@ -1435,7 +1435,7 @@ exit_unprepare_channel:
 	mutex_unlock(&mhi_chan->mutex);
 }
 
-int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
+static int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
 			struct mhi_chan *mhi_chan, unsigned int flags)
 {
 	int ret = 0;
