@@ -184,6 +184,11 @@ struct scsi_device {
 	 */
 	unsigned force_runtime_start_on_system_start:1;
 
+	/*
+	 * Set if the device is an ATA device.
+	 */
+	unsigned is_ata:1;
+
 	unsigned removable:1;
 	unsigned changed:1;	/* Data invalid due to media change */
 	unsigned busy:1;	/* Used to prevent races */
