@@ -7,9 +7,13 @@
  * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@gmail.com>
  */
 
-#include <linux/kernel.h>
+#include <linux/err.h>
+#include <linux/types.h>
+
 #include <linux/platform_data/simplefb.h>
 
+struct device;
+struct platform_device;
 struct screen_info;
 
 enum {
