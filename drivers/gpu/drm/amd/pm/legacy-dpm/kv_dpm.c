@@ -2886,16 +2886,18 @@ kv_dpm_print_power_state(void *handle, void *request_ps)
 	struct kv_ps *ps = kv_get_ps(rps);
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_dpm_print_class_info(rps->class, rps->class2);
-	amdgpu_dpm_print_cap_info(rps->caps);
-	printk("\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+	amdgpu_dpm_dbg_print_class_info(adev, rps->class, rps->class2);
+	amdgpu_dpm_dbg_print_cap_info(adev, rps->caps);
+	drm_dbg(adev_to_drm(adev), "vclk: %d, dclk: %d\n",
+		rps->vclk, rps->dclk);
 	for (i = 0; i < ps->num_levels; i++) {
 		struct kv_pl *pl = &ps->levels[i];
-		printk("\t\tpower level %d    sclk: %u vddc: %u\n",
-		       i, pl->sclk,
-		       kv_convert_8bit_index_to_voltage(adev, pl->vddc_index));
+		drm_dbg(adev_to_drm(adev),
+			"power level %d    sclk: %u vddc: %u\n",
+			i, pl->sclk,
+			kv_convert_8bit_index_to_voltage(adev, pl->vddc_index));
 	}
-	amdgpu_dpm_print_ps_status(adev, rps);
+	amdgpu_dpm_dbg_print_ps_status(adev, rps);
 }
 
 static void kv_dpm_fini(struct amdgpu_device *adev)
