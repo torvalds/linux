@@ -41,6 +41,8 @@ properties:
           - adi,ad5110
             # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
           - adi,adp5589
+            # Analog Devices ADT7411 Temperature Sensor and 8-channel ADC
+          - adi,adt7411
             # Analog Devices LT7182S Dual Channel 6A, 20V PolyPhase Step-Down Silent Switcher
           - adi,lt7182s
             # AMS iAQ-Core VOC Sensor
@@ -309,6 +311,8 @@ properties:
           - national,lm92
             # Nuvoton Temperature Sensor
           - nuvoton,w83773g
+            # NXP ISP1301 USB transceiver
+          - nxp,isp1301
             # OKI ML86V7667 video decoder
           - oki,ml86v7667
             # ON Semiconductor ADT7462 Temperature, Voltage Monitor and Fan Controller

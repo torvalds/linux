@@ -7532,7 +7532,7 @@ F:	drivers/gpu/drm/panel/panel-himax-hx8394.c
 DRM DRIVER FOR HX8357D PANELS
 S:	Orphan
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
-F:	Documentation/devicetree/bindings/display/himax,hx8357d.txt
+F:	Documentation/devicetree/bindings/display/himax,hx8357.yaml
 F:	drivers/gpu/drm/tiny/hx8357d.c
 
 DRM DRIVER FOR HYPERV SYNTHETIC VIDEO DEVICE
@@ -7826,7 +7826,7 @@ DRM DRIVER FOR SITRONIX ST7586 PANELS
 M:	David Lechner <david@lechnology.com>
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
-F:	Documentation/devicetree/bindings/display/sitronix,st7586.txt
+F:	Documentation/devicetree/bindings/display/sitronix,st7586.yaml
 F:	drivers/gpu/drm/sitronix/st7586.c
 
 DRM DRIVER FOR SITRONIX ST7571 PANELS
