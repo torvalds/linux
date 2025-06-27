@@ -12502,17 +12502,6 @@ struct mlx5_ifc_affiliated_event_header_bits {
 };
 
 enum {
-	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = BIT_ULL(0xc),
-	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC = BIT_ULL(0x13),
-	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_SAMPLER = BIT_ULL(0x20),
-	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_FLOW_METER_ASO = BIT_ULL(0x24),
-};
-
-enum {
-	MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_RDMA_CTRL = BIT_ULL(0x13),
-};
-
-enum {
 	MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = 0xc,
 	MLX5_GENERAL_OBJECT_TYPES_IPSEC = 0x13,
 	MLX5_GENERAL_OBJECT_TYPES_SAMPLER = 0x20,
@@ -12520,7 +12509,26 @@ enum {
 	MLX5_GENERAL_OBJECT_TYPES_MACSEC = 0x27,
 	MLX5_GENERAL_OBJECT_TYPES_INT_KEK = 0x47,
 	MLX5_GENERAL_OBJECT_TYPES_RDMA_CTRL = 0x53,
+	MLX5_GENERAL_OBJECT_TYPES_PCIE_CONG_EVENT = 0x58,
 	MLX5_GENERAL_OBJECT_TYPES_FLOW_TABLE_ALIAS = 0xff15,
+};
+
+enum {
+	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY =
+		BIT_ULL(MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY),
+	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC =
+		BIT_ULL(MLX5_GENERAL_OBJECT_TYPES_IPSEC),
+	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_SAMPLER =
+		BIT_ULL(MLX5_GENERAL_OBJECT_TYPES_SAMPLER),
+	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_FLOW_METER_ASO =
+		BIT_ULL(MLX5_GENERAL_OBJECT_TYPES_FLOW_METER_ASO),
+};
+
+enum {
+	MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_RDMA_CTRL =
+		BIT_ULL(MLX5_GENERAL_OBJECT_TYPES_RDMA_CTRL - 0x40),
+	MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_PCIE_CONG_EVENT =
+		BIT_ULL(MLX5_GENERAL_OBJECT_TYPES_PCIE_CONG_EVENT - 0x40),
 };
 
 enum {
@@ -13277,6 +13285,43 @@ struct mlx5_ifc_mrtcq_reg_bits {
 	u8         rt_clock_identity[0x40];
 
 	u8         reserved_at_80[0x180];
+};
+
+struct mlx5_ifc_pcie_cong_event_obj_bits {
+	u8         modify_select_field[0x40];
+
+	u8         inbound_event_en[0x1];
+	u8         outbound_event_en[0x1];
+	u8         reserved_at_42[0x1e];
+
+	u8         reserved_at_60[0x1];
+	u8         inbound_cong_state[0x3];
+	u8         reserved_at_64[0x1];
+	u8         outbound_cong_state[0x3];
+	u8         reserved_at_68[0x18];
+
+	u8         inbound_cong_low_threshold[0x10];
+	u8         inbound_cong_high_threshold[0x10];
+
+	u8         outbound_cong_low_threshold[0x10];
+	u8         outbound_cong_high_threshold[0x10];
+
+	u8         reserved_at_e0[0x340];
+};
+
+struct mlx5_ifc_pcie_cong_event_cmd_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits hdr;
+	struct mlx5_ifc_pcie_cong_event_obj_bits cong_obj;
+};
+
+struct mlx5_ifc_pcie_cong_event_cmd_out_bits {
+	struct mlx5_ifc_general_obj_out_cmd_hdr_bits hdr;
+	struct mlx5_ifc_pcie_cong_event_obj_bits cong_obj;
+};
+
+enum mlx5e_pcie_cong_event_mod_field {
+	MLX5_PCIE_CONG_EVENT_MOD_EVENT_EN = BIT(0),
+	MLX5_PCIE_CONG_EVENT_MOD_THRESH   = BIT(2),
 };
 
 #endif /* MLX5_IFC_H */
