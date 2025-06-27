@@ -27,6 +27,9 @@ struct s390_sha_ctx {
 			u64 state[SHA512_DIGEST_SIZE / sizeof(u64)];
 			u64 count_hi;
 		} sha512;
+		struct {
+			__le64 state[SHA3_STATE_SIZE / sizeof(u64)];
+		} sha3;
 	};
 	int func;		/* KIMD function to use */
 	bool first_message_part;

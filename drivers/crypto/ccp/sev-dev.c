@@ -1276,8 +1276,10 @@ static int __sev_platform_init_handle_init_ex_path(struct sev_device *sev)
 
 static int __sev_platform_init_locked(int *error)
 {
-	int rc, psp_ret = SEV_RET_NO_FW_CALL;
+	int rc, psp_ret, dfflush_error;
 	struct sev_device *sev;
+
+	psp_ret = dfflush_error = SEV_RET_NO_FW_CALL;
 
 	if (!psp_master || !psp_master->sev_data)
 		return -ENODEV;
@@ -1320,10 +1322,10 @@ static int __sev_platform_init_locked(int *error)
 
 	/* Prepare for first SEV guest launch after INIT */
 	wbinvd_on_all_cpus();
-	rc = __sev_do_cmd_locked(SEV_CMD_DF_FLUSH, NULL, error);
+	rc = __sev_do_cmd_locked(SEV_CMD_DF_FLUSH, NULL, &dfflush_error);
 	if (rc) {
 		dev_err(sev->dev, "SEV: DF_FLUSH failed %#x, rc %d\n",
-			*error, rc);
+			dfflush_error, rc);
 		return rc;
 	}
 
@@ -1785,8 +1787,14 @@ static int __sev_snp_shutdown_locked(int *error, bool panic)
 	sev->snp_initialized = false;
 	dev_dbg(sev->dev, "SEV-SNP firmware shutdown\n");
 
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &snp_panic_notifier);
+	/*
+	 * __sev_snp_shutdown_locked() deadlocks when it tries to unregister
+	 * itself during panic as the panic notifier is called with RCU read
+	 * lock held and notifier unregistration does RCU synchronization.
+	 */
+	if (!panic)
+		atomic_notifier_chain_unregister(&panic_notifier_list,
+						 &snp_panic_notifier);
 
 	/* Reset TMR size back to default */
 	sev_es_tmr_size = SEV_TMR_SIZE;

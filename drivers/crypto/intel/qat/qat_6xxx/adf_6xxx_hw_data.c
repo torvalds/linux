@@ -76,6 +76,10 @@ static const unsigned long thrd_mask_dcc[ADF_6XXX_MAX_ACCELENGINES] = {
 	0x00, 0x00, 0x00, 0x00, 0x07, 0x07, 0x03, 0x03, 0x00
 };
 
+static const unsigned long thrd_mask_dcpr[ADF_6XXX_MAX_ACCELENGINES] = {
+	0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x00
+};
+
 static const char *const adf_6xxx_fw_objs[] = {
 	[ADF_FW_CY_OBJ] = ADF_6XXX_CY_OBJ,
 	[ADF_FW_DC_OBJ] = ADF_6XXX_DC_OBJ,
@@ -126,6 +130,9 @@ static int get_service(unsigned long *mask)
 	if (test_and_clear_bit(SVC_DCC, mask))
 		return SVC_DCC;
 
+	if (test_and_clear_bit(SVC_DECOMP, mask))
+		return SVC_DECOMP;
+
 	return -EINVAL;
 }
 
@@ -139,6 +146,8 @@ static enum adf_cfg_service_type get_ring_type(enum adf_services service)
 	case SVC_DC:
 	case SVC_DCC:
 		return COMP;
+	case SVC_DECOMP:
+		return DECOMP;
 	default:
 		return UNUSED;
 	}
@@ -155,6 +164,8 @@ static const unsigned long *get_thrd_mask(enum adf_services service)
 		return thrd_mask_cpr;
 	case SVC_DCC:
 		return thrd_mask_dcc;
+	case SVC_DECOMP:
+		return thrd_mask_dcpr;
 	default:
 		return NULL;
 	}
@@ -618,7 +629,6 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
-		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 	if (fusectl1 & ICP_ACCEL_GEN6_MASK_AUTH_SLICE) {
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
@@ -627,7 +637,15 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
 
-	capabilities_asym = 0;
+	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			    ICP_ACCEL_CAPABILITIES_SM2 |
+			    ICP_ACCEL_CAPABILITIES_ECEDMONT;
+
+	if (fusectl1 & ICP_ACCEL_GEN6_MASK_PKE_SLICE) {
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_SM2;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+	}
 
 	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
 			  ICP_ACCEL_CAPABILITIES_LZ4_COMPRESSION |
@@ -648,7 +666,7 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		caps |= capabilities_asym;
 	if (test_bit(SVC_SYM, &mask))
 		caps |= capabilities_sym;
-	if (test_bit(SVC_DC, &mask))
+	if (test_bit(SVC_DC, &mask) || test_bit(SVC_DECOMP, &mask))
 		caps |= capabilities_dc;
 	if (test_bit(SVC_DCC, &mask)) {
 		/*

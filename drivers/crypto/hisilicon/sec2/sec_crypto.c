@@ -965,6 +965,7 @@ static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 	struct sec_qp_ctx *qp_ctx = req->qp_ctx;
 	struct sec_alg_res *res = &qp_ctx->res[req->req_id];
 	struct device *dev = ctx->dev;
+	enum dma_data_direction src_direction;
 	int ret;
 
 	if (req->use_pbuf) {
@@ -990,10 +991,11 @@ static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 		a_req->out_mac_dma = res->out_mac_dma;
 	}
 
+	src_direction = dst == src ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 	req->in = hisi_acc_sg_buf_map_to_hw_sgl(dev, src,
 						qp_ctx->c_in_pool,
 						req->req_id,
-						&req->in_dma);
+						&req->in_dma, src_direction);
 	if (IS_ERR(req->in)) {
 		dev_err(dev, "fail to dma map input sgl buffers!\n");
 		return PTR_ERR(req->in);
@@ -1003,7 +1005,7 @@ static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 		ret = sec_aead_mac_init(a_req);
 		if (unlikely(ret)) {
 			dev_err(dev, "fail to init mac data for ICV!\n");
-			hisi_acc_sg_buf_unmap(dev, src, req->in);
+			hisi_acc_sg_buf_unmap(dev, src, req->in, src_direction);
 			return ret;
 		}
 	}
@@ -1015,11 +1017,12 @@ static int sec_cipher_map(struct sec_ctx *ctx, struct sec_req *req,
 		c_req->c_out = hisi_acc_sg_buf_map_to_hw_sgl(dev, dst,
 							     qp_ctx->c_out_pool,
 							     req->req_id,
-							     &c_req->c_out_dma);
+							     &c_req->c_out_dma,
+							     DMA_FROM_DEVICE);
 
 		if (IS_ERR(c_req->c_out)) {
 			dev_err(dev, "fail to dma map output sgl buffers!\n");
-			hisi_acc_sg_buf_unmap(dev, src, req->in);
+			hisi_acc_sg_buf_unmap(dev, src, req->in, src_direction);
 			return PTR_ERR(c_req->c_out);
 		}
 	}
@@ -1036,10 +1039,12 @@ static void sec_cipher_unmap(struct sec_ctx *ctx, struct sec_req *req,
 	if (req->use_pbuf) {
 		sec_cipher_pbuf_unmap(ctx, req, dst);
 	} else {
-		if (dst != src)
-			hisi_acc_sg_buf_unmap(dev, src, req->in);
-
-		hisi_acc_sg_buf_unmap(dev, dst, c_req->c_out);
+		if (dst != src) {
+			hisi_acc_sg_buf_unmap(dev, dst, c_req->c_out, DMA_FROM_DEVICE);
+			hisi_acc_sg_buf_unmap(dev, src, req->in, DMA_TO_DEVICE);
+		} else {
+			hisi_acc_sg_buf_unmap(dev, src, req->in, DMA_BIDIRECTIONAL);
+		}
 	}
 }
 
