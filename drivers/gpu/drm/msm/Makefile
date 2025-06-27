@@ -135,7 +135,6 @@ msm-display-$(CONFIG_DEBUG_FS) += \
 	dp/dp_debug.o
 
 msm-display-$(CONFIG_DRM_MSM_DP)+= dp/dp_aux.o \
-	dp/dp_catalog.o \
 	dp/dp_ctrl.o \
 	dp/dp_display.o \
 	dp/dp_drm.o \
