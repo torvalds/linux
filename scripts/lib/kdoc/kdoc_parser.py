@@ -1448,31 +1448,30 @@ class KernelDoc:
             # Unknown line, ignore
             self.emit_msg(ln, f"bad line: {line}")
 
-    def process_inline(self, ln, line):
-        """STATE_INLINE: docbook comments within a prototype."""
+    def process_inline_name(self, ln, line):
+        """STATE_INLINE_NAME: beginning of docbook comments within a prototype."""
 
-        if self.state == state.INLINE_NAME and \
-           doc_inline_sect.search(line):
+        if doc_inline_sect.search(line):
             self.entry.begin_section(ln, doc_inline_sect.group(1))
-
             self.entry.add_text(doc_inline_sect.group(2).lstrip())
             self.state = state.INLINE_TEXT
-            # Documentation block end */
-            return
+        elif doc_inline_end.search(line):
+            self.dump_section()
+            self.state = state.PROTO
+        elif doc_content.search(line):
+            self.emit_msg(ln, f"Incorrect use of kernel-doc format: {line}")
+            self.state = state.PROTO
+        # else ... ??
+
+    def process_inline_text(self, ln, line):
+        """STATE_INLINE_TEXT: docbook comments within a prototype."""
 
         if doc_inline_end.search(line):
             self.dump_section()
             self.state = state.PROTO
-            return
-
-        if doc_content.search(line):
-            if self.state == state.INLINE_TEXT:
-                self.entry.add_text(doc_content.group(1))
-
-            elif self.state == state.INLINE_NAME:
-                self.emit_msg(ln,
-                              f"Incorrect use of kernel-doc format: {line}")
-                self.state = state.PROTO
+        elif doc_content.search(line):
+            self.entry.add_text(doc_content.group(1))
+        # else ... ??
 
     def syscall_munge(self, ln, proto):         # pylint: disable=W0613
         """
@@ -1699,8 +1698,8 @@ class KernelDoc:
         state.BODY:			process_body,
         state.DECLARATION:		process_decl,
         state.SPECIAL_SECTION:		process_special,
-        state.INLINE_NAME:		process_inline,
-        state.INLINE_TEXT:		process_inline,
+        state.INLINE_NAME:		process_inline_name,
+        state.INLINE_TEXT:		process_inline_text,
         state.PROTO:			process_proto,
         state.DOCBLOCK:			process_docblock,
         }
