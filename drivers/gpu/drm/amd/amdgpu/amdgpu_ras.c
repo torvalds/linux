@@ -3306,7 +3306,6 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 	uint64_t de_queried_count;
 	uint32_t new_detect_count, total_detect_count;
 	uint32_t need_query_count = poison_creation_count;
-	bool query_data_timeout = false;
 	enum ras_event_type type = RAS_EVENT_TYPE_POISON_CREATION;
 
 	memset(&info, 0, sizeof(info));
@@ -3335,20 +3334,12 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 				timeout = MAX_UMC_POISON_POLLING_TIME_ASYNC;
 
 			if (timeout) {
-				if (!--timeout) {
-					query_data_timeout = true;
+				if (!--timeout)
 					break;
-				}
 				msleep(1);
 			}
 		}
 	} while (total_detect_count < need_query_count);
-
-	if (query_data_timeout) {
-		dev_warn(adev->dev, "Can't find deferred error! count: %u\n",
-			(need_query_count - total_detect_count));
-		return -ENOENT;
-	}
 
 	if (total_detect_count)
 		schedule_delayed_work(&ras->page_retirement_dwork, 0);
