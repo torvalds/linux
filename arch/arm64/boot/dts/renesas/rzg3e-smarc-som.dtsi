@@ -182,6 +182,15 @@
 			pinmux = <RZG3E_PORT_PINMUX(K, 2, 1)>; /* SD2PWEN */
 		};
 	};
+
+	xspi_pins: xspi0 {
+		pinmux = <RZG3E_PORT_PINMUX(M, 0, 0)>, /* XSPI0_IO0 */
+			 <RZG3E_PORT_PINMUX(M, 1, 0)>, /* XSPI0_IO1 */
+			 <RZG3E_PORT_PINMUX(M, 2, 0)>, /* XSPI0_IO2 */
+			 <RZG3E_PORT_PINMUX(M, 3, 0)>, /* XSPI0_IO3 */
+			 <RZG3E_PORT_PINMUX(L, 0, 0)>, /* XSPI0_CKP */
+			 <RZG3E_PORT_PINMUX(L, 1, 0)>; /* XSPI0_CS0 */
+	};
 };
 
 &qextal_clk {
@@ -244,4 +253,41 @@
 
 &wdt1 {
 	status = "okay";
+};
+
+&xspi {
+	pinctrl-0 = <&xspi_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		vcc-supply = <&reg_1p8v>;
+		m25p,fast-read;
+		spi-max-frequency = <50000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "bl2";
+				reg = <0x00000000 0x00060000>;
+			};
+
+			partition@60000 {
+				label = "fip";
+				reg = <0x00060000 0x007a0000>;
+			};
+
+			partition@800000 {
+				label = "user";
+				reg = <0x800000 0x800000>;
+			};
+		};
+	};
 };
