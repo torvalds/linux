@@ -1969,7 +1969,7 @@ int pm_runtime_force_suspend(struct device *dev)
 	int ret;
 
 	pm_runtime_disable(dev);
-	if (pm_runtime_status_suspended(dev))
+	if (pm_runtime_status_suspended(dev) || dev->power.needs_force_resume)
 		return 0;
 
 	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
@@ -1984,15 +1984,16 @@ int pm_runtime_force_suspend(struct device *dev)
 	/*
 	 * If the device can stay in suspend after the system-wide transition
 	 * to the working state that will follow, drop the children counter of
-	 * its parent, but set its status to RPM_SUSPENDED anyway in case this
-	 * function will be called again for it in the meantime.
+	 * its parent and the usage counters of its suppliers.  Otherwise, set
+	 * power.needs_force_resume to let pm_runtime_force_resume() know that
+	 * the device needs to be taken care of and to prevent this function
+	 * from handling the device again in case the device is passed to it
+	 * once more subsequently.
 	 */
-	if (pm_runtime_need_not_resume(dev)) {
+	if (pm_runtime_need_not_resume(dev))
 		pm_runtime_set_suspended(dev);
-	} else {
-		__update_runtime_status(dev, RPM_SUSPENDED);
+	else
 		dev->power.needs_force_resume = true;
-	}
 
 	return 0;
 
@@ -2032,12 +2033,6 @@ int pm_runtime_force_resume(struct device *dev)
 	if (!dev->power.needs_force_resume && (!dev_pm_smart_suspend(dev) ||
 	    pm_runtime_status_suspended(dev)))
 		goto out;
-
-	/*
-	 * The value of the parent's children counter is correct already, so
-	 * just update the status of the device.
-	 */
-	__update_runtime_status(dev, RPM_ACTIVE);
 
 	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
