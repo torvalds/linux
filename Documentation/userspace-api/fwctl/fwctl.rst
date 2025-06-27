@@ -54,7 +54,7 @@ operated by the block layer but also comes with a set of RPCs to administer the
 construction of drives within the HW RAID.
 
 In the past when devices were more single function, individual subsystems would
-grow different approaches to solving some of these common problems. For instance
+grow different approaches to solving some of these common problems. For instance,
 monitoring device health, manipulating its FLASH, debugging the FW,
 provisioning, all have various unique interfaces across the kernel.
 
@@ -87,7 +87,7 @@ device today may broadly have several function-level scopes:
  3. Multiple VM functions tightly scoped within the VM
 
 The device may create a logical parent/child relationship between these scopes.
-For instance a child VM's FW may be within the scope of the hypervisor FW. It is
+For instance, a child VM's FW may be within the scope of the hypervisor FW. It is
 quite common in the VFIO world that the hypervisor environment has a complex
 provisioning/profiling/configuration responsibility for the function VFIO
 assigns to the VM.
@@ -105,19 +105,19 @@ some general scopes of action (see enum fwctl_rpc_scope):
 
  3. Write access to function & child debug information strictly compatible with
     the principles of kernel lockdown and kernel integrity protection. Triggers
-    a kernel Taint.
+    a kernel taint.
 
- 4. Full debug device access. Triggers a kernel Taint, requires CAP_SYS_RAWIO.
+ 4. Full debug device access. Triggers a kernel taint, requires CAP_SYS_RAWIO.
 
 User space will provide a scope label on each RPC and the kernel must enforce the
 above CAPs and taints based on that scope. A combination of kernel and FW can
 enforce that RPCs are placed in the correct scope by user space.
 
-Denied behavior
----------------
+Disallowed behavior
+-------------------
 
 There are many things this interface must not allow user space to do (without a
-Taint or CAP), broadly derived from the principles of kernel lockdown. Some
+taint or CAP), broadly derived from the principles of kernel lockdown. Some
 examples:
 
  1. DMA to/from arbitrary memory, hang the system, compromise FW integrity with
@@ -138,8 +138,8 @@ examples:
 fwctl is not a replacement for device direct access subsystems like uacce or
 VFIO.
 
-Operations exposed through fwctl's non-taining interfaces should be fully
-sharable with other users of the device. For instance exposing a RPC through
+Operations exposed through fwctl's non-tainting interfaces should be fully
+sharable with other users of the device. For instance, exposing a RPC through
 fwctl should never prevent a kernel subsystem from also concurrently using that
 same RPC or hardware unit down the road. In such cases fwctl will be less
 important than proper kernel subsystems that eventually emerge. Mistakes in this
@@ -225,12 +225,12 @@ subsystems.
 
 Each device type must be mindful of Linux's philosophy for stable ABI. The FW
 RPC interface does not have to meet a strictly stable ABI, but it does need to
-meet an expectation that userspace tools that are deployed and in significant
+meet an expectation that user space tools that are deployed and in significant
 use don't needlessly break. FW upgrade and kernel upgrade should keep widely
 deployed tooling working.
 
 Development and debugging focused RPCs under more permissive scopes can have
-less stabilitiy if the tools using them are only run under exceptional
+less stability if the tools using them are only run under exceptional
 circumstances and not for every day use of the device. Debugging tools may even
 require exact version matching as they may require something similar to DWARF
 debug information from the FW binary.
@@ -261,7 +261,7 @@ Some examples:
  - HW RAID controllers. This includes RPCs to do things like compose drives into
    a RAID volume, configure RAID parameters, monitor the HW and more.
 
- - Baseboard managers. RPCs for configuring settings in the device and more
+ - Baseboard managers. RPCs for configuring settings in the device and more.
 
  - NVMe vendor command capsules. nvme-cli provides access to some monitoring
    functions that different products have defined, but more exist.
@@ -269,15 +269,15 @@ Some examples:
  - CXL also has a NVMe-like vendor command system.
 
  - DRM allows user space drivers to send commands to the device via kernel
-   mediation
+   mediation.
 
  - RDMA allows user space drivers to directly push commands to the device
-   without kernel involvement
+   without kernel involvement.
 
  - Various “raw” APIs, raw HID (SDL2), raw USB, NVMe Generic Interface, etc.
 
 The first 4 are examples of areas that fwctl intends to cover. The latter three
-are examples of denied behavior as they fully overlap with the primary purpose
+are examples of disallowed behavior as they fully overlap with the primary purpose
 of a kernel subsystem.
 
 Some key lessons learned from these past efforts are the importance of having a

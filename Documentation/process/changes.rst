@@ -43,7 +43,6 @@ util-linux             2.10o            mount --version
 kmod                   13               depmod -V
 e2fsprogs              1.41.4           e2fsck -V
 jfsutils               1.1.3            fsck.jfs -V
-reiserfsprogs          3.6.3            reiserfsck -V
 xfsprogs               2.6.0            xfs_db -V
 squashfs-tools         4.0              mksquashfs -version
 btrfs-progs            0.18             btrfs --version
@@ -261,14 +260,6 @@ The following utilities are available:
 - ``mkfs.jfs`` - create a JFS formatted partition.
 
 - other file system utilities are also available in this package.
-
-Reiserfsprogs
--------------
-
-The reiserfsprogs package should be used for reiserfs-3.6.x
-(Linux kernels 2.4.x). It is a combined package and contains working
-versions of ``mkreiserfs``, ``resize_reiserfs``, ``debugreiserfs`` and
-``reiserfsck``. These utils work on both i386 and alpha platforms.
 
 Xfsprogs
 --------
@@ -492,11 +483,6 @@ JFSutils
 --------
 
 - <https://jfs.sourceforge.net/>
-
-Reiserfsprogs
--------------
-
-- <https://git.kernel.org/pub/scm/linux/kernel/git/jeffm/reiserfsprogs.git/>
 
 Xfsprogs
 --------
