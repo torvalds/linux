@@ -13,6 +13,7 @@
 
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-v5.h>
+#include <linux/irqchip/arm-vgic-info.h>
 
 #include <asm/cpufeature.h>
 #include <asm/exception.h>
@@ -1058,6 +1059,36 @@ static void gicv5_set_cpuif_idbits(void)
 	}
 }
 
+#ifdef CONFIG_KVM
+static struct gic_kvm_info gic_v5_kvm_info __initdata;
+
+static bool __init gicv5_cpuif_has_gcie_legacy(void)
+{
+	u64 idr0 = read_sysreg_s(SYS_ICC_IDR0_EL1);
+	return !!FIELD_GET(ICC_IDR0_EL1_GCIE_LEGACY, idr0);
+}
+
+static void __init gic_of_setup_kvm_info(struct device_node *node)
+{
+	gic_v5_kvm_info.type = GIC_V5;
+	gic_v5_kvm_info.has_gcie_v3_compat = gicv5_cpuif_has_gcie_legacy();
+
+	/* GIC Virtual CPU interface maintenance interrupt */
+	gic_v5_kvm_info.no_maint_irq_mask = false;
+	gic_v5_kvm_info.maint_irq = irq_of_parse_and_map(node, 0);
+	if (!gic_v5_kvm_info.maint_irq) {
+		pr_warn("cannot find GICv5 virtual CPU interface maintenance interrupt\n");
+		return;
+	}
+
+	vgic_set_kvm_info(&gic_v5_kvm_info);
+}
+#else
+static inline void __init gic_of_setup_kvm_info(struct device_node *node)
+{
+}
+#endif // CONFIG_KVM
+
 static int __init gicv5_of_init(struct device_node *node, struct device_node *parent)
 {
 	int ret = gicv5_irs_of_probe(node);
@@ -1089,6 +1120,8 @@ static int __init gicv5_of_init(struct device_node *node, struct device_node *pa
 	gicv5_smp_init();
 
 	gicv5_irs_its_probe();
+
+	gic_of_setup_kvm_info(node);
 
 	return 0;
 
