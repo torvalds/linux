@@ -79,10 +79,7 @@ static int hp_82341_accel_read(struct gpib_board *board, u8 *buffer, size_t leng
 		int j;
 		int count;
 
-		if (num_fifo_bytes - i < hp_82341_fifo_size)
-			block_size = num_fifo_bytes - i;
-		else
-			block_size = hp_82341_fifo_size;
+		block_size = min(num_fifo_bytes - i, hp_82341_fifo_size);
 		set_transfer_counter(hp_priv, block_size);
 		outb(ENABLE_TI_BUFFER_BIT | DIRECTION_GPIB_TO_HOST_BIT, hp_priv->iobase[3] +
 		     BUFFER_CONTROL_REG);
@@ -195,10 +192,7 @@ static int hp_82341_accel_write(struct gpib_board *board, u8 *buffer, size_t len
 	for (i = 0; i < fifo_xfer_len;) {
 		int block_size;
 
-		if (fifo_xfer_len - i < hp_82341_fifo_size)
-			block_size = fifo_xfer_len - i;
-		else
-			block_size = hp_82341_fifo_size;
+		block_size = min(fifo_xfer_len - i, hp_82341_fifo_size);
 		set_transfer_counter(hp_priv, block_size);
 		// load data into board's fifo
 		for (j = 0; j < block_size;) {
