@@ -136,7 +136,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	sound {
+	sound: sound {
 		compatible = "fsl,imx-audio-tlv320aic32x4";
 		model = "tqm-tlv320aic32";
 		ssi-controller = <&sai3>;

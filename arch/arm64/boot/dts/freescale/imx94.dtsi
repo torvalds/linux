@@ -785,6 +785,7 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			gpio-ranges = <&scmi_iomuxc 0 4 32>;
+			ngpios = <32>;
 		};
 
 		gpio3: gpio@43820000 {
@@ -797,6 +798,7 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			gpio-ranges = <&scmi_iomuxc 0 36 26>;
+			ngpios = <26>;
 		};
 
 		gpio4: gpio@43840000 {
@@ -810,6 +812,7 @@
 			gpio-controller;
 			gpio-ranges = <&scmi_iomuxc 0 62 4>, <&scmi_iomuxc 4 0 4>,
 				      <&scmi_iomuxc 8 140 12>, <&scmi_iomuxc 20 164 12>;
+			ngpios = <32>;
 		};
 
 		gpio5: gpio@43850000 {
@@ -822,6 +825,7 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			gpio-ranges = <&scmi_iomuxc 0 108 32>;
+			ngpios = <32>;
 		};
 
 		gpio6: gpio@43860000 {
@@ -834,6 +838,7 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			gpio-ranges = <&scmi_iomuxc 0 66 32>;
+			ngpios = <32>;
 		};
 
 		gpio7: gpio@43870000 {
@@ -846,6 +851,8 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			gpio-ranges = <&scmi_iomuxc 0 98 10>, <&scmi_iomuxc 16 152 12>;
+			gpio-reserved-ranges = <10 6>;
+			ngpios = <28>;
 		};
 
 		aips1: bus@44000000 {
