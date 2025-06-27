@@ -1109,39 +1109,56 @@ static void rtw8851b_bw_setting(struct rtw89_dev *rtwdev, u8 bw)
 		break;
 	}
 
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_CTL, 0x8);
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_EN, 0x2);
-	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_BW0, 0x2);
 	rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW1, B_P0_CFCH_BW1, adc_bw_sel);
 	rtw89_phy_write32_mask(rtwdev, R_DRCK, B_DRCK_MUL, 0xf);
 	rtw89_phy_write32_mask(rtwdev, R_ADCMOD, B_ADCMOD_LP, 0xa);
-	rtw89_phy_write32_mask(rtwdev, R_P0_RXCK, B_P0_RXCK_ADJ, 0x92);
+	rtw89_phy_write32_mask(rtwdev, R_DCIM, B_DCIM_RC, 0x3);
 
 	switch (bw) {
 	case RTW89_CHANNEL_WIDTH_5:
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_CTL, 0x8);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_EN, 0x2);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_BW0, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_DCIM, B_DCIM_FR, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_WDADC, B_WDADC_SEL, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_ADDCK0D, B_ADDCK_DS, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_P0_RXCK, B_P0_RXCK_ADJ, 0x92);
 		break;
 	case RTW89_CHANNEL_WIDTH_10:
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_CTL, 0x8);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_EN, 0x2);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_BW0, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_DCIM, B_DCIM_FR, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_WDADC, B_WDADC_SEL, 0x1);
 		rtw89_phy_write32_mask(rtwdev, R_ADDCK0D, B_ADDCK_DS, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_P0_RXCK, B_P0_RXCK_ADJ, 0x92);
 		break;
 	case RTW89_CHANNEL_WIDTH_20:
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_CTL, 0x8);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_EN, 0x2);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_BW0, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_DCIM, B_DCIM_FR, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_WDADC, B_WDADC_SEL, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_ADDCK0D, B_ADDCK_DS, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_P0_RXCK, B_P0_RXCK_ADJ, 0x92);
 		break;
 	case RTW89_CHANNEL_WIDTH_40:
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_CTL, 0x8);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_EN, 0x2);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_BW0, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_DCIM, B_DCIM_FR, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_WDADC, B_WDADC_SEL, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_ADDCK0D, B_ADDCK_DS, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_P0_RXCK, B_P0_RXCK_ADJ, 0x92);
 		break;
 	case RTW89_CHANNEL_WIDTH_80:
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_CTL, 0x8);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_EN, 0x2);
+		rtw89_phy_write32_mask(rtwdev, R_P0_CFCH_BW0, B_P0_CFCH_BW0, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_DCIM, B_DCIM_FR, 0x0);
 		rtw89_phy_write32_mask(rtwdev, R_WDADC, B_WDADC_SEL, 0x2);
 		rtw89_phy_write32_mask(rtwdev, R_ADDCK0D, B_ADDCK_DS, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_P0_RXCK, B_P0_RXCK_ADJ, 0x92);
 		break;
 	default:
 		rtw89_warn(rtwdev, "Fail to set ADC\n");
