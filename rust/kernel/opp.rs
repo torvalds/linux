@@ -514,9 +514,9 @@ impl<T: ConfigOps + Default> Config<T> {
         dev: *mut bindings::device,
         opp_table: *mut bindings::opp_table,
         opp: *mut bindings::dev_pm_opp,
-        _data: *mut kernel::ffi::c_void,
+        _data: *mut c_void,
         scaling_down: bool,
-    ) -> kernel::ffi::c_int {
+    ) -> c_int {
         from_result(|| {
             // SAFETY: 'dev' is guaranteed by the C code to be valid.
             let dev = unsafe { Device::get_device(dev) };
@@ -540,8 +540,8 @@ impl<T: ConfigOps + Default> Config<T> {
         old_opp: *mut bindings::dev_pm_opp,
         new_opp: *mut bindings::dev_pm_opp,
         regulators: *mut *mut bindings::regulator,
-        count: kernel::ffi::c_uint,
-    ) -> kernel::ffi::c_int {
+        count: c_uint,
+    ) -> c_int {
         from_result(|| {
             // SAFETY: 'dev' is guaranteed by the C code to be valid.
             let dev = unsafe { Device::get_device(dev) };
