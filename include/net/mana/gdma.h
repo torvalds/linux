@@ -62,6 +62,7 @@ enum gdma_eqe_type {
 	GDMA_EQE_HWC_FPGA_RECONFIG	= 132,
 	GDMA_EQE_HWC_SOC_RECONFIG_DATA	= 133,
 	GDMA_EQE_HWC_SOC_SERVICE	= 134,
+	GDMA_EQE_HWC_RESET_REQUEST	= 135,
 	GDMA_EQE_RNIC_QP_FATAL		= 176,
 };
 
@@ -584,6 +585,9 @@ enum {
 /* Driver supports dynamic MSI-X vector allocation */
 #define GDMA_DRV_CAP_FLAG_1_DYNAMIC_IRQ_ALLOC_SUPPORT BIT(13)
 
+/* Driver can self reset on EQE notification */
+#define GDMA_DRV_CAP_FLAG_1_SELF_RESET_ON_EQE BIT(14)
+
 /* Driver can self reset on FPGA Reconfig EQE notification */
 #define GDMA_DRV_CAP_FLAG_1_HANDLE_RECONFIG_EQE BIT(17)
 
@@ -594,6 +598,7 @@ enum {
 	 GDMA_DRV_CAP_FLAG_1_VARIABLE_INDIRECTION_TABLE_SUPPORT | \
 	 GDMA_DRV_CAP_FLAG_1_DEV_LIST_HOLES_SUP | \
 	 GDMA_DRV_CAP_FLAG_1_DYNAMIC_IRQ_ALLOC_SUPPORT | \
+	 GDMA_DRV_CAP_FLAG_1_SELF_RESET_ON_EQE | \
 	 GDMA_DRV_CAP_FLAG_1_HANDLE_RECONFIG_EQE)
 
 #define GDMA_DRV_CAP_FLAGS2 0
@@ -920,5 +925,10 @@ void mana_register_debugfs(void);
 void mana_unregister_debugfs(void);
 
 int mana_rdma_service_event(struct gdma_context *gc, enum gdma_service_type event);
+
+int mana_gd_suspend(struct pci_dev *pdev, pm_message_t state);
+int mana_gd_resume(struct pci_dev *pdev);
+
+bool mana_need_log(struct gdma_context *gc, int err);
 
 #endif /* _GDMA_H */
