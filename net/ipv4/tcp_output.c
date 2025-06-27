@@ -4425,6 +4425,7 @@ int tcp_rtx_synack(const struct sock *sk, struct request_sock *req)
 			tcp_sk_rw(sk)->total_retrans++;
 		}
 		trace_tcp_retransmit_synack(sk, req);
+		req->num_retrans++;
 	}
 	return res;
 }

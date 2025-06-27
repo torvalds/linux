@@ -884,15 +884,6 @@ static void syn_ack_recalc(struct request_sock *req,
 		  req->num_timeout >= rskq_defer_accept - 1;
 }
 
-int inet_rtx_syn_ack(const struct sock *parent, struct request_sock *req)
-{
-	int err = req->rsk_ops->rtx_syn_ack(parent, req);
-
-	if (!err)
-		req->num_retrans++;
-	return err;
-}
-
 static struct request_sock *
 reqsk_alloc_noprof(const struct request_sock_ops *ops, struct sock *sk_listener,
 		   bool attach_listener)
@@ -1132,7 +1123,7 @@ static void reqsk_timer_handler(struct timer_list *t)
 	req->rsk_ops->syn_ack_timeout(req);
 	if (!expire &&
 	    (!resend ||
-	     !inet_rtx_syn_ack(sk_listener, req) ||
+	     !tcp_rtx_synack(sk_listener, req) ||
 	     inet_rsk(req)->acked)) {
 		if (req->num_timeout++ == 0)
 			atomic_dec(&queue->young);
