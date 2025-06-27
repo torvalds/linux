@@ -94,6 +94,23 @@ struct smuxed {
 		.width = (_width), \
 	})
 
+/**
+ * struct fixed_mod_conf - Structure for fixed module configuration
+ *
+ * @mon_index: monitor index
+ * @mon_bit: monitor bit
+ */
+struct fixed_mod_conf {
+	u8 mon_index;
+	u8 mon_bit;
+};
+
+#define FIXED_MOD_CONF_PACK(_index, _bit) \
+	((struct fixed_mod_conf){ \
+		.mon_index = (_index), \
+		.mon_bit = (_bit), \
+	})
+
 #define CPG_SSEL0		(0x300)
 #define CPG_SSEL1		(0x304)
 #define CPG_CDDIV0		(0x400)
@@ -152,6 +169,7 @@ struct cpg_core_clk {
 		struct ddiv ddiv;
 		struct pll pll;
 		struct smuxed smux;
+		struct fixed_mod_conf fixed_mod;
 	} cfg;
 	const struct clk_div_table *dtable;
 	const char * const *parent_names;
@@ -164,6 +182,7 @@ enum clk_types {
 	/* Generic */
 	CLK_TYPE_IN,		/* External Clock Input */
 	CLK_TYPE_FF,		/* Fixed Factor Clock */
+	CLK_TYPE_FF_MOD_STATUS,	/* Fixed Factor Clock which can report the status of module clock */
 	CLK_TYPE_PLL,
 	CLK_TYPE_DDIV,		/* Dynamic Switching Divider */
 	CLK_TYPE_SMUX,		/* Static Mux */
@@ -179,6 +198,9 @@ enum clk_types {
 	DEF_TYPE(_name, _id, CLK_TYPE_IN)
 #define DEF_FIXED(_name, _id, _parent, _mult, _div) \
 	DEF_BASE(_name, _id, CLK_TYPE_FF, _parent, .div = _div, .mult = _mult)
+#define DEF_FIXED_MOD_STATUS(_name, _id, _parent, _mult, _div, _gate) \
+	DEF_BASE(_name, _id, CLK_TYPE_FF_MOD_STATUS, _parent, .div = _div, \
+		 .mult = _mult, .cfg.fixed_mod = _gate)
 #define DEF_DDIV(_name, _id, _parent, _ddiv_packed, _dtable) \
 	DEF_TYPE(_name, _id, CLK_TYPE_DDIV, \
 		.cfg.ddiv = _ddiv_packed, \
