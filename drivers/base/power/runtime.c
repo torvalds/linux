@@ -1958,6 +1958,23 @@ void pm_runtime_drop_link(struct device_link *link)
 	pm_request_idle(link->supplier);
 }
 
+static pm_callback_t get_callback(struct device *dev, size_t cb_offset)
+{
+	/*
+	 * Setting power.strict_midlayer means that the middle layer
+	 * code does not want its runtime PM callbacks to be invoked via
+	 * pm_runtime_force_suspend() and pm_runtime_force_resume(), so
+	 * return a direct pointer to the driver callback in that case.
+	 */
+	if (dev_pm_strict_midlayer_is_set(dev))
+		return __rpm_get_driver_callback(dev, cb_offset);
+
+	return __rpm_get_callback(dev, cb_offset);
+}
+
+#define GET_CALLBACK(dev, callback) \
+		get_callback(dev, offsetof(struct dev_pm_ops, callback))
+
 /**
  * pm_runtime_force_suspend - Force a device into suspend state if needed.
  * @dev: Device to suspend.
@@ -1984,7 +2001,7 @@ int pm_runtime_force_suspend(struct device *dev)
 	if (pm_runtime_status_suspended(dev) || dev->power.needs_force_resume)
 		return 0;
 
-	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
+	callback = GET_CALLBACK(dev, runtime_suspend);
 
 	dev_pm_enable_wake_irq_check(dev, true);
 	ret = callback ? callback(dev) : 0;
@@ -2046,7 +2063,7 @@ int pm_runtime_force_resume(struct device *dev)
 	    pm_runtime_status_suspended(dev)))
 		goto out;
 
-	callback = RPM_GET_CALLBACK(dev, runtime_resume);
+	callback = GET_CALLBACK(dev, runtime_resume);
 
 	dev_pm_disable_wake_irq_check(dev, false);
 	ret = callback ? callback(dev) : 0;
