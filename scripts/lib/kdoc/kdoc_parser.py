@@ -91,7 +91,8 @@ class state:
     SPECIAL_SECTION = 4      # doc section ending with a blank line
     PROTO         = 5        # scanning prototype
     DOCBLOCK      = 6        # documentation block
-    INLINE        = 7        # gathering doc outside main block
+    INLINE_NAME   = 7        # gathering doc outside main block
+    INLINE_TEXT   = 8	     # reading the body of inline docs
 
     name = [
         "NORMAL",
@@ -101,23 +102,10 @@ class state:
         "SPECIAL_SECTION",
         "PROTO",
         "DOCBLOCK",
-        "INLINE",
+        "INLINE_NAME",
+        "INLINE_TEXT",
     ]
 
-    # Inline documentation state
-    INLINE_NA     = 0 # not applicable ($state != INLINE)
-    INLINE_NAME   = 1 # looking for member name (@foo:)
-    INLINE_TEXT   = 2 # looking for member documentation
-    INLINE_ERROR  = 3 # error - Comment without header was found.
-                      # Spit a warning as it's not
-                      # proper kernel-doc and ignore the rest.
-
-    inline_name = [
-        "",
-        "_NAME",
-        "_TEXT",
-        "_ERROR",
-    ]
 
 SECTION_DEFAULT = "Description"  # default section
 
@@ -246,7 +234,6 @@ class KernelDoc:
 
         # Initial state for the state machines
         self.state = state.NORMAL
-        self.inline_doc_state = state.INLINE_NA
 
         # Store entry currently being processed
         self.entry = None
@@ -323,7 +310,6 @@ class KernelDoc:
 
         # State flags
         self.state = state.NORMAL
-        self.inline_doc_state = state.INLINE_NA
 
     def push_parameter(self, ln, decl_type, param, dtype,
                        org_arg, declaration_name):
@@ -1465,30 +1451,28 @@ class KernelDoc:
     def process_inline(self, ln, line):
         """STATE_INLINE: docbook comments within a prototype."""
 
-        if self.inline_doc_state == state.INLINE_NAME and \
+        if self.state == state.INLINE_NAME and \
            doc_inline_sect.search(line):
             self.entry.begin_section(ln, doc_inline_sect.group(1))
 
             self.entry.add_text(doc_inline_sect.group(2).lstrip())
-            self.inline_doc_state = state.INLINE_TEXT
+            self.state = state.INLINE_TEXT
             # Documentation block end */
             return
 
         if doc_inline_end.search(line):
             self.dump_section()
             self.state = state.PROTO
-            self.inline_doc_state = state.INLINE_NA
             return
 
         if doc_content.search(line):
-            if self.inline_doc_state == state.INLINE_TEXT:
+            if self.state == state.INLINE_TEXT:
                 self.entry.add_text(doc_content.group(1))
 
-            elif self.inline_doc_state == state.INLINE_NAME:
+            elif self.state == state.INLINE_NAME:
                 self.emit_msg(ln,
                               f"Incorrect use of kernel-doc format: {line}")
-
-                self.inline_doc_state = state.INLINE_ERROR
+                self.state = state.PROTO
 
     def syscall_munge(self, ln, proto):         # pylint: disable=W0613
         """
@@ -1664,8 +1648,7 @@ class KernelDoc:
             self.dump_section()
 
         elif doc_inline_start.search(line):
-            self.state = state.INLINE
-            self.inline_doc_state = state.INLINE_NAME
+            self.state = state.INLINE_NAME
 
         elif self.entry.decl_type == 'function':
             self.process_proto_function(ln, line)
@@ -1716,7 +1699,8 @@ class KernelDoc:
         state.BODY:			process_body,
         state.DECLARATION:		process_decl,
         state.SPECIAL_SECTION:		process_special,
-        state.INLINE:			process_inline,
+        state.INLINE_NAME:		process_inline,
+        state.INLINE_TEXT:		process_inline,
         state.PROTO:			process_proto,
         state.DOCBLOCK:			process_docblock,
         }
@@ -1756,9 +1740,8 @@ class KernelDoc:
                             prev = ""
                             prev_ln = None
 
-                    self.config.log.debug("%d %s%s: %s",
+                    self.config.log.debug("%d %s: %s",
                                           ln, state.name[self.state],
-                                          state.inline_name[self.inline_doc_state],
                                           line)
 
                     # This is an optimization over the original script.
