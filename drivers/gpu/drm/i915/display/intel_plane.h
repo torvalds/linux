@@ -3,8 +3,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
-#ifndef __INTEL_ATOMIC_PLANE_H__
-#define __INTEL_ATOMIC_PLANE_H__
+#ifndef __INTEL_PLANE_H__
+#define __INTEL_PLANE_H__
 
 #include <linux/types.h>
 
@@ -69,15 +69,13 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_crtc_state *crtc_state,
 					const struct intel_plane_state *old_plane_state,
 					struct intel_plane_state *intel_state);
-int intel_plane_atomic_check(struct intel_atomic_state *state,
-			     struct intel_plane *plane);
 int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 			       struct intel_plane *plane,
 			       bool *need_cdclk_calc);
-int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
-				      struct intel_crtc_state *crtc_state,
-				      int min_scale, int max_scale,
-				      bool can_position);
+int intel_plane_check_clipping(struct intel_plane_state *plane_state,
+			       struct intel_crtc_state *crtc_state,
+			       int min_scale, int max_scale,
+			       bool can_position);
 int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state);
 void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 			       struct intel_plane_state *plane_state);
@@ -85,13 +83,13 @@ void intel_plane_helper_add(struct intel_plane *plane);
 bool intel_plane_needs_physical(struct intel_plane *plane);
 void intel_plane_init_cursor_vblank_work(struct intel_plane_state *old_plane_state,
 					 struct intel_plane_state *new_plane_state);
-int intel_atomic_add_affected_planes(struct intel_atomic_state *state,
-				     struct intel_crtc *crtc);
-int intel_atomic_check_planes(struct intel_atomic_state *state);
+int intel_plane_add_affected(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc);
+int intel_plane_atomic_check(struct intel_atomic_state *state);
 
 u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state);
 bool intel_plane_format_mod_supported_async(struct drm_plane *plane,
 					    u32 format,
 					    u64 modifier);
 
-#endif /* __INTEL_ATOMIC_PLANE_H__ */
+#endif /* __INTEL_PLANE_H__ */

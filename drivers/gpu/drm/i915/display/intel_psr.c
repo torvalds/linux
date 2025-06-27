@@ -448,7 +448,6 @@ static void psr_event_print(struct intel_display *display,
 void intel_psr_irq_handler(struct intel_dp *intel_dp, u32 psr_iir)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 	ktime_t time_ns =  ktime_get();
 
@@ -493,7 +492,7 @@ void intel_psr_irq_handler(struct intel_dp *intel_dp, u32 psr_iir)
 		intel_de_rmw(display, psr_imr_reg(display, cpu_transcoder),
 			     0, psr_irq_psr_error_bit_get(intel_dp));
 
-		queue_work(dev_priv->unordered_wq, &intel_dp->psr.work);
+		queue_work(display->wq.unordered, &intel_dp->psr.work);
 	}
 }
 
@@ -3320,7 +3319,6 @@ tgl_dc3co_flush_locked(struct intel_dp *intel_dp, unsigned int frontbuffer_bits,
 		       enum fb_op_origin origin)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (!intel_dp->psr.dc3co_exitline || !intel_dp->psr.sel_update_enabled ||
 	    !intel_dp->psr.active)
@@ -3335,14 +3333,13 @@ tgl_dc3co_flush_locked(struct intel_dp *intel_dp, unsigned int frontbuffer_bits,
 		return;
 
 	tgl_psr2_enable_dc3co(intel_dp);
-	mod_delayed_work(i915->unordered_wq, &intel_dp->psr.dc3co_work,
+	mod_delayed_work(display->wq.unordered, &intel_dp->psr.dc3co_work,
 			 intel_dp->psr.dc3co_exit_delay);
 }
 
 static void _psr_flush_handle(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
 	if (intel_dp->psr.psr2_sel_fetch_enabled) {
 		if (intel_dp->psr.psr2_sel_fetch_cff_enabled) {
@@ -3367,7 +3364,7 @@ static void _psr_flush_handle(struct intel_dp *intel_dp)
 
 	if (!intel_dp->psr.psr2_sel_fetch_enabled && !intel_dp->psr.active &&
 	    !intel_dp->psr.busy_frontbuffer_bits)
-		queue_work(dev_priv->unordered_wq, &intel_dp->psr.work);
+		queue_work(display->wq.unordered, &intel_dp->psr.work);
 }
 
 /**

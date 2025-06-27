@@ -8,10 +8,9 @@
 
 #include <linux/types.h>
 
-#include "intel_display_limits.h"
-#include "intel_global_state.h"
-
+enum pipe;
 struct intel_atomic_state;
+struct intel_cdclk_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_display;
@@ -21,42 +20,6 @@ struct intel_cdclk_config {
 	u8 voltage_level;
 	/* This field is only valid for Xe2LPD and above. */
 	bool joined_mbus;
-};
-
-struct intel_cdclk_state {
-	struct intel_global_state base;
-
-	/*
-	 * Logical configuration of cdclk (used for all scaling,
-	 * watermark, etc. calculations and checks). This is
-	 * computed as if all enabled crtcs were active.
-	 */
-	struct intel_cdclk_config logical;
-
-	/*
-	 * Actual configuration of cdclk, can be different from the
-	 * logical configuration only when all crtc's are DPMS off.
-	 */
-	struct intel_cdclk_config actual;
-
-	/* minimum acceptable cdclk to satisfy bandwidth requirements */
-	int bw_min_cdclk;
-	/* minimum acceptable cdclk for each pipe */
-	int min_cdclk[I915_MAX_PIPES];
-	/* minimum acceptable voltage level for each pipe */
-	u8 min_voltage_level[I915_MAX_PIPES];
-
-	/* pipe to which cd2x update is synchronized */
-	enum pipe pipe;
-
-	/* forced minimum cdclk for glk+ audio w/a */
-	int force_min_cdclk;
-
-	/* bitmask of active pipes */
-	u8 active_pipes;
-
-	/* update cdclk with pipes disabled */
-	bool disable_pipes;
 };
 
 void intel_cdclk_init_hw(struct intel_display *display);
@@ -96,5 +59,14 @@ void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc);
 
 int intel_cdclk_init(struct intel_display *display);
 void intel_cdclk_debugfs_register(struct intel_display *display);
+
+int intel_cdclk_logical(const struct intel_cdclk_state *cdclk_state);
+int intel_cdclk_actual(const struct intel_cdclk_state *cdclk_state);
+int intel_cdclk_actual_voltage_level(const struct intel_cdclk_state *cdclk_state);
+int intel_cdclk_min_cdclk(const struct intel_cdclk_state *cdclk_state, enum pipe pipe);
+int intel_cdclk_bw_min_cdclk(const struct intel_cdclk_state *cdclk_state);
+bool intel_cdclk_pmdemand_needs_update(struct intel_atomic_state *state);
+void intel_cdclk_force_min_cdclk(struct intel_cdclk_state *cdclk_state, int force_min_cdclk);
+void intel_cdclk_read_hw(struct intel_display *display);
 
 #endif /* __INTEL_CDCLK_H__ */

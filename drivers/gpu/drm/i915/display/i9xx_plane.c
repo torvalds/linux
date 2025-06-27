@@ -15,7 +15,6 @@
 #include "i9xx_plane.h"
 #include "i9xx_plane_regs.h"
 #include "intel_atomic.h"
-#include "intel_atomic_plane.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_regs.h"
@@ -23,6 +22,7 @@
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+#include "intel_plane.h"
 #include "intel_sprite.h"
 
 /* Primary plane formats for gen <= 3 */
@@ -336,10 +336,10 @@ i9xx_plane_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						DRM_PLANE_NO_SCALING,
-						DRM_PLANE_NO_SCALING,
-						i9xx_plane_has_windowing(plane));
+	ret = intel_plane_check_clipping(plane_state, crtc_state,
+					 DRM_PLANE_NO_SCALING,
+					 DRM_PLANE_NO_SCALING,
+					 i9xx_plane_has_windowing(plane));
 	if (ret)
 		return ret;
 

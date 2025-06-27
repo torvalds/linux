@@ -45,7 +45,6 @@
 #include "i915_scheduler_types.h"
 #include "i915_vma.h"
 #include "i9xx_plane_regs.h"
-#include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
 #include "intel_cursor.h"
 #include "intel_display_rps.h"
@@ -53,6 +52,7 @@
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
+#include "intel_plane.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
 #include "skl_watermark.h"
@@ -333,7 +333,7 @@ int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 	 * display blinking due to constant cdclk changes.
 	 */
 	if (new_crtc_state->min_cdclk[plane->id] <=
-	    cdclk_state->min_cdclk[crtc->pipe])
+	    intel_cdclk_min_cdclk(cdclk_state, crtc->pipe))
 		return 0;
 
 	drm_dbg_kms(display->drm,
@@ -341,7 +341,7 @@ int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
 		    plane->base.base.id, plane->base.name,
 		    new_crtc_state->min_cdclk[plane->id],
 		    crtc->base.base.id, crtc->base.name,
-		    cdclk_state->min_cdclk[crtc->pipe]);
+		    intel_cdclk_min_cdclk(cdclk_state, crtc->pipe));
 	*need_cdclk_calc = true;
 
 	return 0;
@@ -734,8 +734,8 @@ intel_crtc_get_plane(struct intel_crtc *crtc, enum plane_id plane_id)
 	return NULL;
 }
 
-int intel_plane_atomic_check(struct intel_atomic_state *state,
-			     struct intel_plane *plane)
+static int plane_atomic_check(struct intel_atomic_state *state,
+			      struct intel_plane *plane)
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_plane_state *new_plane_state =
@@ -983,10 +983,10 @@ void intel_crtc_planes_update_arm(struct intel_dsb *dsb,
 		i9xx_crtc_planes_update_arm(dsb, state, crtc);
 }
 
-int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
-				      struct intel_crtc_state *crtc_state,
-				      int min_scale, int max_scale,
-				      bool can_position)
+int intel_plane_check_clipping(struct intel_plane_state *plane_state,
+			       struct intel_crtc_state *crtc_state,
+			       int min_scale, int max_scale,
+			       bool can_position)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
@@ -1085,7 +1085,8 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 
 		/* Wa_16023981245 */
 		if ((DISPLAY_VERx100(display) == 2000 ||
-		     DISPLAY_VERx100(display) == 3000) &&
+		     DISPLAY_VERx100(display) == 3000 ||
+		     DISPLAY_VERx100(display) == 3002) &&
 		     src_x % 2 != 0)
 			hsub = 2;
 	} else {
@@ -1433,8 +1434,8 @@ static int intel_crtc_add_planes_to_state(struct intel_atomic_state *state,
 	return 0;
 }
 
-int intel_atomic_add_affected_planes(struct intel_atomic_state *state,
-				     struct intel_crtc *crtc)
+int intel_plane_add_affected(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -1528,7 +1529,7 @@ static int intel_add_affected_planes(struct intel_atomic_state *state)
 	return 0;
 }
 
-int intel_atomic_check_planes(struct intel_atomic_state *state)
+int intel_plane_atomic_check(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
@@ -1542,7 +1543,7 @@ int intel_atomic_check_planes(struct intel_atomic_state *state)
 		return ret;
 
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		ret = intel_plane_atomic_check(state, plane);
+		ret = plane_atomic_check(state, plane);
 		if (ret) {
 			drm_dbg_atomic(display->drm,
 				       "[PLANE:%d:%s] atomic driver check failed\n",

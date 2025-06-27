@@ -9,9 +9,7 @@
 #include <drm/drm_fourcc.h>
 
 #include "pxp/intel_pxp.h"
-
 #include "i915_drv.h"
-#include "intel_atomic_plane.h"
 #include "intel_bo.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
@@ -21,6 +19,7 @@
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
+#include "intel_plane.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 #include "skl_scaler.h"
@@ -2328,8 +2327,8 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 		max_scale = skl_plane_max_scale(display, fb);
 	}
 
-	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						min_scale, max_scale, true);
+	ret = intel_plane_check_clipping(plane_state, crtc_state,
+					 min_scale, max_scale, true);
 	if (ret)
 		return ret;
 

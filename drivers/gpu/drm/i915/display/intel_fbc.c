@@ -1576,7 +1576,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		if (IS_ERR(cdclk_state))
 			return PTR_ERR(cdclk_state);
 
-		if (crtc_state->pixel_rate >= cdclk_state->logical.cdclk * 95 / 100) {
+		if (crtc_state->pixel_rate >= intel_cdclk_logical(cdclk_state) * 95 / 100) {
 			plane_state->no_fbc_reason = "pixel rate too high";
 			return 0;
 		}
@@ -2011,7 +2011,7 @@ void intel_fbc_reset_underrun(struct intel_display *display)
 
 static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *i915 = to_i915(fbc->display->drm);
+	struct intel_display *display = fbc->display;
 
 	/*
 	 * There's no guarantee that underrun_detected won't be set to true
@@ -2024,7 +2024,7 @@ static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 	if (READ_ONCE(fbc->underrun_detected))
 		return;
 
-	queue_work(i915->unordered_wq, &fbc->underrun_work);
+	queue_work(display->wq.unordered, &fbc->underrun_work);
 }
 
 /**

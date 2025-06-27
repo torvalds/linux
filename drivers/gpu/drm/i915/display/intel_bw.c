@@ -18,7 +18,43 @@
 #include "intel_display_types.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
+#include "intel_uncore.h"
 #include "skl_watermark.h"
+
+struct intel_dbuf_bw {
+	unsigned int max_bw[I915_MAX_DBUF_SLICES];
+	u8 active_planes[I915_MAX_DBUF_SLICES];
+};
+
+struct intel_bw_state {
+	struct intel_global_state base;
+	struct intel_dbuf_bw dbuf_bw[I915_MAX_PIPES];
+
+	/*
+	 * Contains a bit mask, used to determine, whether correspondent
+	 * pipe allows SAGV or not.
+	 */
+	u8 pipe_sagv_reject;
+
+	/* bitmask of active pipes */
+	u8 active_pipes;
+
+	/*
+	 * From MTL onwards, to lock a QGV point, punit expects the peak BW of
+	 * the selected QGV point as the parameter in multiples of 100MB/s
+	 */
+	u16 qgv_point_peakbw;
+
+	/*
+	 * Current QGV points mask, which restricts
+	 * some particular SAGV states, not to confuse
+	 * with pipe_sagv_mask.
+	 */
+	u16 qgv_points_mask;
+
+	unsigned int data_rate[I915_MAX_PIPES];
+	u8 num_active_planes[I915_MAX_PIPES];
+};
 
 /* Parameters for Qclk Geyserville (QGV) */
 struct intel_qgv_point {
@@ -82,14 +118,13 @@ static int icl_pcode_read_qgv_point_info(struct intel_display *display,
 					 struct intel_qgv_point *sp,
 					 int point)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val = 0, val2 = 0;
 	u16 dclk;
 	int ret;
 
-	ret = snb_pcode_read(&i915->uncore, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			     ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
-			     &val, &val2);
+	ret = intel_pcode_read(display->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			       ICL_PCODE_MEM_SS_READ_QGV_POINT_INFO(point),
+			       &val, &val2);
 	if (ret)
 		return ret;
 
@@ -110,13 +145,12 @@ static int icl_pcode_read_qgv_point_info(struct intel_display *display,
 static int adls_pcode_read_psf_gv_point_info(struct intel_display *display,
 					     struct intel_psf_gv_point *points)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val = 0;
 	int ret;
 	int i;
 
-	ret = snb_pcode_read(&i915->uncore, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-			     ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
+	ret = intel_pcode_read(display->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			       ADL_PCODE_MEM_SS_READ_PSF_GV_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
@@ -154,21 +188,20 @@ static bool is_sagv_enabled(struct intel_display *display, u16 points_mask)
 			      ICL_PCODE_REQ_QGV_PT_MASK);
 }
 
-int icl_pcode_restrict_qgv_points(struct intel_display *display,
-				  u32 points_mask)
+static int icl_pcode_restrict_qgv_points(struct intel_display *display,
+					 u32 points_mask)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret;
 
 	if (DISPLAY_VER(display) >= 14)
 		return 0;
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = skl_pcode_request(&i915->uncore, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
-				points_mask,
-				ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
-				ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
-				1);
+	ret = intel_pcode_request(display->drm, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
+				  points_mask,
+				  ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
+				  ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
+				  1);
 
 	if (ret < 0) {
 		drm_err(display->drm,
@@ -416,6 +449,13 @@ static const struct intel_sa_info xe2_hpd_ecc_sa_info = {
 static const struct intel_sa_info xe3lpd_sa_info = {
 	.deburst = 32,
 	.deprogbwlimit = 65, /* GB/s */
+	.displayrtids = 256,
+	.derating = 10,
+};
+
+static const struct intel_sa_info xe3lpd_3002_sa_info = {
+	.deburst = 32,
+	.deprogbwlimit = 22, /* GB/s */
 	.displayrtids = 256,
 	.derating = 10,
 };
@@ -771,7 +811,9 @@ void intel_bw_init_hw(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return;
 
-	if (DISPLAY_VER(display) >= 30)
+	if (DISPLAY_VERx100(display) >= 3002)
+		tgl_get_bw_info(display, dram_info, &xe3lpd_3002_sa_info);
+	else if (DISPLAY_VER(display) >= 30)
 		tgl_get_bw_info(display, dram_info, &xe3lpd_sa_info);
 	else if (DISPLAY_VERx100(display) >= 1401 && display->platform.dgfx &&
 		 dram_info->type == INTEL_DRAM_GDDR_ECC)
@@ -863,6 +905,11 @@ static unsigned int intel_bw_data_rate(struct intel_display *display,
 		data_rate = DIV_ROUND_UP(data_rate * 105, 100);
 
 	return data_rate;
+}
+
+struct intel_bw_state *to_intel_bw_state(struct intel_global_state *obj_state)
+{
+	return container_of(obj_state, struct intel_bw_state, base);
 }
 
 struct intel_bw_state *
@@ -974,6 +1021,70 @@ static void icl_force_disable_sagv(struct intel_display *display,
 	icl_pcode_restrict_qgv_points(display, bw_state->qgv_points_mask);
 }
 
+void icl_sagv_pre_plane_update(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_bw_state *old_bw_state =
+		intel_atomic_get_old_bw_state(state);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
+	u16 old_mask, new_mask;
+
+	if (!new_bw_state)
+		return;
+
+	old_mask = old_bw_state->qgv_points_mask;
+	new_mask = old_bw_state->qgv_points_mask | new_bw_state->qgv_points_mask;
+
+	if (old_mask == new_mask)
+		return;
+
+	WARN_ON(!new_bw_state->base.changed);
+
+	drm_dbg_kms(display->drm, "Restricting QGV points: 0x%x -> 0x%x\n",
+		    old_mask, new_mask);
+
+	/*
+	 * Restrict required qgv points before updating the configuration.
+	 * According to BSpec we can't mask and unmask qgv points at the same
+	 * time. Also masking should be done before updating the configuration
+	 * and unmasking afterwards.
+	 */
+	icl_pcode_restrict_qgv_points(display, new_mask);
+}
+
+void icl_sagv_post_plane_update(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_bw_state *old_bw_state =
+		intel_atomic_get_old_bw_state(state);
+	const struct intel_bw_state *new_bw_state =
+		intel_atomic_get_new_bw_state(state);
+	u16 old_mask, new_mask;
+
+	if (!new_bw_state)
+		return;
+
+	old_mask = old_bw_state->qgv_points_mask | new_bw_state->qgv_points_mask;
+	new_mask = new_bw_state->qgv_points_mask;
+
+	if (old_mask == new_mask)
+		return;
+
+	WARN_ON(!new_bw_state->base.changed);
+
+	drm_dbg_kms(display->drm, "Relaxing QGV points: 0x%x -> 0x%x\n",
+		    old_mask, new_mask);
+
+	/*
+	 * Allow required qgv points after updating the configuration.
+	 * According to BSpec we can't mask and unmask qgv points at the same
+	 * time. Also masking should be done before updating the configuration
+	 * and unmasking afterwards.
+	 */
+	icl_pcode_restrict_qgv_points(display, new_mask);
+}
+
 static int mtl_find_qgv_points(struct intel_display *display,
 			       unsigned int data_rate,
 			       unsigned int num_active_planes,
@@ -994,7 +1105,7 @@ static int mtl_find_qgv_points(struct intel_display *display,
 	 * for qgv peak bw in PM Demand request. So assign UINT_MAX if SAGV is
 	 * not enabled. PM Demand code will clamp the value for the register
 	 */
-	if (!intel_can_enable_sagv(display, new_bw_state)) {
+	if (!intel_bw_can_enable_sagv(display, new_bw_state)) {
 		new_bw_state->qgv_point_peakbw = U16_MAX;
 		drm_dbg_kms(display->drm, "No SAGV, use UINT_MAX as peak bw.");
 		return 0;
@@ -1107,7 +1218,7 @@ static int icl_find_qgv_points(struct intel_display *display,
 	 * we can't enable SAGV due to the increased memory latency it may
 	 * cause.
 	 */
-	if (!intel_can_enable_sagv(display, new_bw_state)) {
+	if (!intel_bw_can_enable_sagv(display, new_bw_state)) {
 		qgv_points = icl_max_bw_qgv_point_mask(display, num_active_planes);
 		drm_dbg_kms(display->drm, "No SAGV, using single QGV point mask 0x%x\n",
 			    qgv_points);
@@ -1357,12 +1468,12 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 	 * requirements. This can reduce back and forth
 	 * display blinking due to constant cdclk changes.
 	 */
-	if (new_min_cdclk <= cdclk_state->bw_min_cdclk)
+	if (new_min_cdclk <= intel_cdclk_bw_min_cdclk(cdclk_state))
 		return 0;
 
 	drm_dbg_kms(display->drm,
 		    "new bandwidth min cdclk (%d kHz) > old min cdclk (%d kHz)\n",
-		    new_min_cdclk, cdclk_state->bw_min_cdclk);
+		    new_min_cdclk, intel_cdclk_bw_min_cdclk(cdclk_state));
 	*need_cdclk_calc = true;
 
 	return 0;
@@ -1474,8 +1585,8 @@ static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return 0;
 
-	if (intel_can_enable_sagv(display, new_bw_state) !=
-	    intel_can_enable_sagv(display, old_bw_state)) {
+	if (intel_bw_can_enable_sagv(display, new_bw_state) !=
+	    intel_bw_can_enable_sagv(display, old_bw_state)) {
 		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
 		if (ret)
 			return ret;
@@ -1521,8 +1632,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state, bool any_ms)
 	new_bw_state = intel_atomic_get_new_bw_state(state);
 
 	if (new_bw_state &&
-	    intel_can_enable_sagv(display, old_bw_state) !=
-	    intel_can_enable_sagv(display, new_bw_state))
+	    intel_bw_can_enable_sagv(display, old_bw_state) !=
+	    intel_bw_can_enable_sagv(display, new_bw_state))
 		changed = true;
 
 	/*
@@ -1643,4 +1754,33 @@ int intel_bw_init(struct intel_display *display)
 		icl_force_disable_sagv(display, state);
 
 	return 0;
+}
+
+bool intel_bw_pmdemand_needs_update(struct intel_atomic_state *state)
+{
+	const struct intel_bw_state *new_bw_state, *old_bw_state;
+
+	new_bw_state = intel_atomic_get_new_bw_state(state);
+	old_bw_state = intel_atomic_get_old_bw_state(state);
+
+	if (new_bw_state &&
+	    new_bw_state->qgv_point_peakbw != old_bw_state->qgv_point_peakbw)
+		return true;
+
+	return false;
+}
+
+bool intel_bw_can_enable_sagv(struct intel_display *display,
+			      const struct intel_bw_state *bw_state)
+{
+	if (DISPLAY_VER(display) < 11 &&
+	    bw_state->active_pipes && !is_power_of_2(bw_state->active_pipes))
+		return false;
+
+	return bw_state->pipe_sagv_reject == 0;
+}
+
+int intel_bw_qgv_point_peakbw(const struct intel_bw_state *bw_state)
+{
+	return bw_state->qgv_point_peakbw;
 }

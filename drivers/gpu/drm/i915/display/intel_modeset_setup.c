@@ -961,7 +961,7 @@ void intel_modeset_setup_hw_state(struct intel_display *display,
 		drm_crtc_vblank_reset(&crtc->base);
 
 		if (crtc_state->hw.active) {
-			intel_dmc_enable_pipe(display, crtc->pipe);
+			intel_dmc_enable_pipe(crtc_state);
 			intel_crtc_vblank_on(crtc_state);
 		}
 	}
