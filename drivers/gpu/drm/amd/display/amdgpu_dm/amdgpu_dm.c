@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2015 Advanced Micro Devices, Inc.
  *
@@ -10395,6 +10396,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 				if (amdgpu_dm_crc_window_is_activated(crtc)) {
 					uint8_t cnt;
+
 					spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 					for (cnt = 0; cnt < MAX_CRC_WINDOW_NUM; cnt++) {
 						if (acrtc->dm_irq_params.window_param[cnt].enable) {
