@@ -16,12 +16,6 @@
 static int verbose = 1;
 #define MY_POOL_SIZE 1024
 
-static void _page_pool_put_page(struct page_pool *pool, struct page *page,
-				bool allow_direct)
-{
-	page_pool_put_page(pool, page, -1, allow_direct);
-}
-
 /* Makes tests selectable. Useful for perf-record to analyze a single test.
  * Hint: Bash shells support writing binary number like: $((2#101010)
  *
@@ -121,7 +115,7 @@ static void pp_fill_ptr_ring(struct page_pool *pp, int elems)
 	for (i = 0; i < elems; i++)
 		array[i] = page_pool_alloc_pages(pp, gfp_mask);
 	for (i = 0; i < elems; i++)
-		_page_pool_put_page(pp, array[i], false);
+		page_pool_put_page(pp, array[i], -1, false);
 
 	kfree(array);
 }
@@ -180,14 +174,14 @@ static int time_bench_page_pool(struct time_bench_record *rec, void *data,
 
 		} else if (type == type_ptr_ring) {
 			/* Normal return path */
-			_page_pool_put_page(pp, page, false);
+			page_pool_put_page(pp, page, -1, false);
 
 		} else if (type == type_page_allocator) {
 			/* Test if not pages are recycled, but instead
 			 * returned back into systems page allocator
 			 */
 			get_page(page); /* cause no-recycling */
-			_page_pool_put_page(pp, page, false);
+			page_pool_put_page(pp, page, -1, false);
 			put_page(page);
 		} else {
 			BUILD_BUG();
