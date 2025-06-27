@@ -622,7 +622,7 @@ extern const struct dcn_ip_params dcn10_ip_defaults;
 bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 void dcn_get_soc_clks(
 		struct dc *dc,

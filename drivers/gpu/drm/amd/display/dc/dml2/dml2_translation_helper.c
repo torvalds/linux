@@ -1189,22 +1189,6 @@ static unsigned int map_plane_to_dml_display_cfg(const struct dml2_context *dml2
 	return location;
 }
 
-static void apply_legacy_svp_drr_settings(struct dml2_context *dml2, const struct dc_state *state, struct dml_display_cfg_st *dml_dispcfg)
-{
-	int i;
-
-	if (state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
-		ASSERT(state->stream_count == 1);
-		dml_dispcfg->timing.DRRDisplay[0] = true;
-	} else if (state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid) {
-
-		for (i = 0; i < dml_dispcfg->num_timings; i++) {
-			if (dml2->v20.scratch.dml_to_dc_pipe_mapping.disp_cfg_to_stream_id[i] == state->streams[state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index]->stream_id)
-				dml_dispcfg->timing.DRRDisplay[i] = true;
-		}
-	}
-}
-
 static void dml2_populate_pipe_to_plane_index_mapping(struct dml2_context *dml2, struct dc_state *state)
 {
 	unsigned int i;
@@ -1437,9 +1421,6 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 			}
 		}
 	}
-
-	if (!dml2->config.use_native_pstate_optimization)
-		apply_legacy_svp_drr_settings(dml2, context, dml_dispcfg);
 }
 
 void dml2_update_pipe_ctx_dchub_regs(struct _vcs_dpi_dml_display_rq_regs_st *rq_regs,

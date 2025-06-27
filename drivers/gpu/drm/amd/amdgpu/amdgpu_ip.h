@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Advanced Micro Devices, Inc.
+ * Copyright 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,30 +19,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
-#ifndef __LINK_VALIDATION_H__
-#define __LINK_VALIDATION_H__
-#include "link.h"
 
-enum dc_status link_validate_mode_timing(
-		const struct dc_stream_state *stream,
-		struct dc_link *link,
-		const struct dc_crtc_timing *timing);
-bool link_validate_dpia_bandwidth(
-		const struct dc_stream_state *stream,
-		const unsigned int num_streams);
-enum dc_status link_validate_dp_tunnel_bandwidth(
-		const struct dc *dc,
-		const struct dc_state *new_ctx);
-uint32_t dp_link_bandwidth_kbps(
-	const struct dc_link *link,
-	const struct dc_link_settings *link_settings);
+#ifndef __AMDGPU_IP_H__
+#define __AMDGPU_IP_H__
 
+void amdgpu_ip_map_init(struct amdgpu_device *adev);
 
-uint32_t dp_required_hblank_size_bytes(
-	const struct dc_link *link,
-	struct dp_audio_bandwidth_params *audio_params);
-
-#endif /* __LINK_VALIDATION_H__ */
+#endif /* __AMDGPU_IP_H__ */

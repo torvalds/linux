@@ -144,6 +144,7 @@ enum AMDGPU_DEBUG_MASK {
 	AMDGPU_DEBUG_DISABLE_GPU_RING_RESET = BIT(6),
 	AMDGPU_DEBUG_SMU_POOL = BIT(7),
 	AMDGPU_DEBUG_VM_USERPTR = BIT(8),
+	AMDGPU_DEBUG_DISABLE_RAS_CE_LOG = BIT(9)
 };
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -2278,6 +2279,11 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 		pr_info("debug: VM mode debug for userptr is enabled\n");
 		adev->debug_vm_userptr = true;
 	}
+
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_DISABLE_RAS_CE_LOG) {
+		pr_info("debug: disable kernel logs of correctable errors\n");
+		adev->debug_disable_ce_logs = true;
+	}
 }
 
 static unsigned long amdgpu_fix_asic_type(struct pci_dev *pdev, unsigned long flags)
@@ -2570,7 +2576,7 @@ static int amdgpu_pmops_prepare(struct device *dev)
 
 static void amdgpu_pmops_complete(struct device *dev)
 {
-	/* nothing to do */
+	amdgpu_device_complete(dev_get_drvdata(dev));
 }
 
 static int amdgpu_pmops_suspend(struct device *dev)
@@ -2906,20 +2912,6 @@ done:
 	return ret;
 }
 
-static int amdgpu_drm_release(struct inode *inode, struct file *filp)
-{
-	struct drm_file *file_priv = filp->private_data;
-	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
-
-	if (fpriv) {
-		fpriv->evf_mgr.fd_closing = true;
-		amdgpu_eviction_fence_destroy(&fpriv->evf_mgr);
-		amdgpu_userq_mgr_fini(&fpriv->userq_mgr);
-	}
-
-	return drm_release(inode, filp);
-}
-
 long amdgpu_drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg)
 {
@@ -2971,7 +2963,7 @@ static const struct file_operations amdgpu_driver_kms_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.flush = amdgpu_flush,
-	.release = amdgpu_drm_release,
+	.release = drm_release,
 	.unlocked_ioctl = amdgpu_drm_ioctl,
 	.mmap = drm_gem_mmap,
 	.poll = drm_poll,
@@ -3107,10 +3099,6 @@ static int __init amdgpu_init(void)
 	if (r)
 		goto error_sync;
 
-	r = amdgpu_fence_slab_init();
-	if (r)
-		goto error_fence;
-
 	r = amdgpu_userq_fence_slab_init();
 	if (r)
 		goto error_fence;
@@ -3145,7 +3133,6 @@ static void __exit amdgpu_exit(void)
 	amdgpu_unregister_atpx_handler();
 	amdgpu_acpi_release();
 	amdgpu_sync_fini();
-	amdgpu_fence_slab_fini();
 	amdgpu_userq_fence_slab_fini();
 	mmu_notifier_synchronize();
 	amdgpu_xcp_drv_release();

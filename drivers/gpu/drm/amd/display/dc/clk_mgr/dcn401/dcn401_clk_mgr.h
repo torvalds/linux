@@ -105,6 +105,7 @@ struct dcn401_clk_mgr {
 };
 
 void dcn401_init_clocks(struct clk_mgr *clk_mgr_base);
+bool dcn401_is_dc_mode_present(struct clk_mgr *clk_mgr_base);
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(struct dc_context *ctx,
 		struct dccg *dccg);

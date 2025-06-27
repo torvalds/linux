@@ -1917,6 +1917,7 @@ struct display_mode_lib_st {
 struct dml_mode_support_ex_params_st {
 	struct display_mode_lib_st *mode_lib;
 	const struct dml_display_cfg_st *in_display_cfg;
+	dml_uint_t in_start_state_idx;
 	dml_uint_t out_lowest_state_idx;
 	struct dml_mode_support_info_st *out_evaluation_info;
 };

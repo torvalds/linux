@@ -519,3 +519,9 @@ bool dc_link_dp_dpia_validate(struct dc *dc, const struct dc_stream_state *strea
 {
 	return dc->link_srv->validate_dpia_bandwidth(streams, count);
 }
+
+enum dc_status dc_link_validate_dp_tunneling_bandwidth(const struct dc *dc, const struct dc_state *new_ctx)
+{
+	return dc->link_srv->validate_dp_tunnel_bandwidth(dc, new_ctx);
+}
+

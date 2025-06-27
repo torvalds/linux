@@ -252,6 +252,7 @@ static int psp_early_init(struct amdgpu_ip_block *ip_block)
 		break;
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 3):
+		adev->psp.sup_ifwi_up = !amdgpu_sriov_vf(adev);
 		psp_v14_0_set_psp_funcs(psp);
 		break;
 	case IP_VERSION(14, 0, 5):
@@ -596,6 +597,10 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 		udelay(1);
 	}
 
+	dev_err(adev->dev,
+		"psp reg (0x%x) wait timed out, mask: %x, read: %x exp: %x",
+		reg_index, mask, val, reg_val);
+
 	return -ETIME;
 }
 
@@ -654,6 +659,10 @@ static const char *psp_gfx_cmd_name(enum psp_gfx_cmd_id cmd_id)
 		return "BOOT_CFG";
 	case GFX_CMD_ID_CONFIG_SQ_PERFMON:
 		return "CONFIG_SQ_PERFMON";
+	case GFX_CMD_ID_FB_FW_RESERV_ADDR:
+		return "FB_FW_RESERV_ADDR";
+	case GFX_CMD_ID_FB_FW_RESERV_EXT_ADDR:
+		return "FB_FW_RESERV_EXT_ADDR";
 	default:
 		return "UNKNOWN CMD";
 	}
@@ -871,6 +880,8 @@ static int psp_tmr_init(struct psp_context *psp)
 					      &psp->tmr_bo, &psp->tmr_mc_addr,
 					      pptr);
 	}
+	if (amdgpu_virt_xgmi_migrate_enabled(psp->adev) && psp->tmr_bo)
+		psp->tmr_mc_addr = amdgpu_bo_fb_aper_addr(psp->tmr_bo);
 
 	return ret;
 }
@@ -982,6 +993,93 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	release_psp_cmd_buf(psp);
 
 	return ret;
+}
+
+static int psp_get_fw_reservation_info(struct psp_context *psp,
+						   uint32_t cmd_id,
+						   uint64_t *addr,
+						   uint32_t *size)
+{
+	int ret;
+	uint32_t status;
+	struct psp_gfx_cmd_resp *cmd;
+
+	cmd = acquire_psp_cmd_buf(psp);
+
+	cmd->cmd_id = cmd_id;
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd,
+				 psp->fence_buf_mc_addr);
+	if (ret) {
+		release_psp_cmd_buf(psp);
+		return ret;
+	}
+
+	status = cmd->resp.status;
+	if (status == PSP_ERR_UNKNOWN_COMMAND) {
+		release_psp_cmd_buf(psp);
+		*addr = 0;
+		*size = 0;
+		return 0;
+	}
+
+	*addr = (uint64_t)cmd->resp.uresp.fw_reserve_info.reserve_base_address_hi << 32 |
+		cmd->resp.uresp.fw_reserve_info.reserve_base_address_lo;
+	*size = cmd->resp.uresp.fw_reserve_info.reserve_size;
+
+	release_psp_cmd_buf(psp);
+
+	return 0;
+}
+
+int psp_update_fw_reservation(struct psp_context *psp)
+{
+	int ret;
+	uint64_t reserv_addr, reserv_addr_ext;
+	uint32_t reserv_size, reserv_size_ext;
+	struct amdgpu_device *adev = psp->adev;
+
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(14, 0, 2)) &&
+	    (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(14, 0, 3)))
+		return 0;
+
+	ret = psp_get_fw_reservation_info(psp, GFX_CMD_ID_FB_FW_RESERV_ADDR, &reserv_addr, &reserv_size);
+	if (ret)
+		return ret;
+	ret = psp_get_fw_reservation_info(psp, GFX_CMD_ID_FB_FW_RESERV_EXT_ADDR, &reserv_addr_ext, &reserv_size_ext);
+	if (ret)
+		return ret;
+
+	if (reserv_addr != adev->gmc.real_vram_size - reserv_size) {
+		dev_warn(adev->dev, "reserve fw region is not valid!\n");
+		return 0;
+	}
+
+	amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory, NULL, NULL);
+
+	reserv_size = roundup(reserv_size, SZ_1M);
+
+	ret = amdgpu_bo_create_kernel_at(adev, reserv_addr, reserv_size, &adev->mman.fw_reserved_memory, NULL);
+	if (ret) {
+		dev_err(adev->dev, "reserve fw region failed(%d)!\n", ret);
+		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory, NULL, NULL);
+		return ret;
+	}
+
+	reserv_size_ext = roundup(reserv_size_ext, SZ_1M);
+
+	ret = amdgpu_bo_create_kernel_at(adev, reserv_addr_ext, reserv_size_ext,
+					 &adev->mman.fw_reserved_memory_extend, NULL);
+	if (ret) {
+		dev_err(adev->dev, "reserve extend fw region failed(%d)!\n", ret);
+		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory_extend, NULL, NULL);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int psp_boot_config_get(struct amdgpu_device *adev, uint32_t *boot_cfg)
@@ -1269,6 +1367,11 @@ int psp_ta_load(struct psp_context *psp, struct ta_context *context)
 
 	psp_copy_fw(psp, context->bin_desc.start_addr,
 		    context->bin_desc.size_bytes);
+
+	if (amdgpu_virt_xgmi_migrate_enabled(psp->adev) &&
+		context->mem_context.shared_bo)
+		context->mem_context.shared_mc_addr =
+			amdgpu_bo_fb_aper_addr(context->mem_context.shared_bo);
 
 	psp_prep_ta_load_cmd_buf(cmd, psp->fw_pri_mc_addr, context);
 
@@ -2337,10 +2440,26 @@ bool amdgpu_psp_tos_reload_needed(struct amdgpu_device *adev)
 	return false;
 }
 
+static void psp_update_gpu_addresses(struct amdgpu_device *adev)
+{
+	struct psp_context *psp = &adev->psp;
+
+	if (psp->cmd_buf_bo && psp->cmd_buf_mem) {
+		psp->fw_pri_mc_addr = amdgpu_bo_fb_aper_addr(psp->fw_pri_bo);
+		psp->fence_buf_mc_addr = amdgpu_bo_fb_aper_addr(psp->fence_buf_bo);
+		psp->cmd_buf_mc_addr = amdgpu_bo_fb_aper_addr(psp->cmd_buf_bo);
+	}
+	if (adev->firmware.rbuf && psp->km_ring.ring_mem)
+		psp->km_ring.ring_mem_mc_addr = amdgpu_bo_fb_aper_addr(adev->firmware.rbuf);
+}
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
 	int ret;
+
+	if (amdgpu_virt_xgmi_migrate_enabled(adev))
+		psp_update_gpu_addresses(adev);
 
 	if (!amdgpu_sriov_vf(adev)) {
 		if ((is_psp_fw_valid(psp->kdb)) &&
@@ -2438,6 +2557,14 @@ static int psp_hw_start(struct psp_context *psp)
 	if (ret) {
 		dev_err(adev->dev, "PSP create ring failed!\n");
 		return ret;
+	}
+
+	if (!amdgpu_in_reset(adev) && !adev->in_suspend) {
+		ret = psp_update_fw_reservation(psp);
+		if (ret) {
+			dev_err(adev->dev, "update fw reservation failed!\n");
+			return ret;
+		}
 	}
 
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))

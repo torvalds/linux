@@ -2,8 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-#include <linux/vmalloc.h>
-
 #include "dml2_internal_types.h"
 #include "dml_top.h"
 #include "dml2_core_dcn4_calcs.h"
@@ -328,12 +326,13 @@ static bool dml21_check_mode_support(const struct dc *in_dc, struct dc_state *co
 	return true;
 }
 
-bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx, bool fast_validate)
+bool dml21_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx,
+	enum dc_validate_mode validate_mode)
 {
 	bool out = false;
 
-	/* Use dml_validate_only for fast_validate path */
-	if (fast_validate)
+	/* Use dml21_check_mode_support for DC_VALIDATE_MODE_ONLY and DC_VALIDATE_MODE_AND_STATE_INDEX path */
+	if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING)
 		out = dml21_check_mode_support(in_dc, context, dml_ctx);
 	else
 		out = dml21_mode_check_and_programming(in_dc, context, dml_ctx);

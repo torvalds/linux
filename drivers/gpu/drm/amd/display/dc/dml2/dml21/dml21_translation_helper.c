@@ -11,6 +11,15 @@
 #include "dml21_translation_helper.h"
 #include "bounding_boxes/dcn4_soc_bb.h"
 
+static void dml21_apply_dmub_bb_params(struct dml2_soc_bb *soc_bb, const void *dmub_bb_params, const struct dc *in_dc)
+{
+	switch (in_dc->ctx->dce_version) {
+	case DCN_VERSION_4_01:
+	default:
+		break;
+	}
+}
+
 static void dml21_init_socbb_params(struct dml2_initialize_instance_in_out *dml_init,
 		const struct dml2_configuration_options *config,
 		const struct dc *in_dc)
@@ -21,16 +30,16 @@ static void dml21_init_socbb_params(struct dml2_initialize_instance_in_out *dml_
 	switch (in_dc->ctx->dce_version) {
 	case DCN_VERSION_4_01:
 	default:
-		if (config->bb_from_dmub)
-			soc_bb = config->bb_from_dmub;
-		else
-			soc_bb = &dml2_socbb_dcn401;
+		soc_bb = &dml2_socbb_dcn401;
 
 		qos_params = &dml_dcn4_variant_a_soc_qos_params;
 	}
 
 	/* patch soc bb */
 	memcpy(&dml_init->soc_bb, soc_bb, sizeof(struct dml2_soc_bb));
+
+	if (config->bb_from_dmub)
+		dml21_apply_dmub_bb_params(&dml_init->soc_bb, config->bb_from_dmub, in_dc);
 
 	/* patch qos params */
 	memcpy(&dml_init->soc_bb.qos_parameters, qos_params, sizeof(struct dml2_soc_qos_parameters));
@@ -726,7 +735,6 @@ static void populate_dml21_surface_config_from_plane_state(
 	switch (plane_state->tiling_info.gfxversion) {
 	case DcGfxVersion7:
 	case DcGfxVersion8:
-		// Placeholder for programming the array_mode
 		break;
 	case DcGfxVersion9:
 	case DcGfxVersion10:
@@ -889,10 +897,8 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 		case DC_CM2_GPU_MEM_SIZE_171717:
 			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_17_cube;
 			break;
-		case DC_CM2_GPU_MEM_SIZE_333333:
-			plane->tdlut.tdlut_width_mode = dml2_tdlut_width_33_cube;
-			break;
 		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
+		default:
 			//plane->tdlut.tdlut_width_mode = dml2_tdlut_width_flatten; // dml2_tdlut_width_flatten undefined
 			break;
 		}

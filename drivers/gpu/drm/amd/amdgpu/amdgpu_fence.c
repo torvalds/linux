@@ -41,21 +41,6 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_reset.h"
 
-static struct kmem_cache *amdgpu_fence_slab;
-
-int amdgpu_fence_slab_init(void)
-{
-	amdgpu_fence_slab = KMEM_CACHE(amdgpu_fence, SLAB_HWCACHE_ALIGN);
-	if (!amdgpu_fence_slab)
-		return -ENOMEM;
-	return 0;
-}
-
-void amdgpu_fence_slab_fini(void)
-{
-	rcu_barrier();
-	kmem_cache_destroy(amdgpu_fence_slab);
-}
 /*
  * Cast helper
  */
@@ -131,9 +116,9 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f, struct amd
 	int r;
 
 	if (job == NULL) {
-		/* create a sperate hw fence */
-		am_fence = kmem_cache_alloc(amdgpu_fence_slab, GFP_ATOMIC);
-		if (am_fence == NULL)
+		/* create a separate hw fence */
+		am_fence = kzalloc(sizeof(*am_fence), GFP_KERNEL);
+		if (!am_fence)
 			return -ENOMEM;
 	} else {
 		/* take use of job-embedded fence */
@@ -814,7 +799,7 @@ static void amdgpu_fence_free(struct rcu_head *rcu)
 	struct dma_fence *f = container_of(rcu, struct dma_fence, rcu);
 
 	/* free fence_slab if it's separated fence*/
-	kmem_cache_free(amdgpu_fence_slab, to_amdgpu_fence(f));
+	kfree(to_amdgpu_fence(f));
 }
 
 /**
