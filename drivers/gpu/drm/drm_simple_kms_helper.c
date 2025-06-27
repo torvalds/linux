@@ -3,6 +3,7 @@
  * Copyright (C) 2016 Noralf Trønnes
  */
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 

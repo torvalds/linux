@@ -14,6 +14,7 @@
 #include "intel_display.h"
 #include "intel_display_driver.h"
 #include "intel_display_power_map.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dp.h"

@@ -7,6 +7,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <linux/hmm.h>
 #include <linux/memremap.h>
 #include <linux/migrate.h>
@@ -979,6 +980,40 @@ static void drm_gpusvm_driver_lock_held(struct drm_gpusvm *gpusvm)
 {
 }
 #endif
+
+/**
+ * drm_gpusvm_find_vma_start() - Find start address for first VMA in range
+ * @gpusvm: Pointer to the GPU SVM structure
+ * @start: The inclusive start user address.
+ * @end: The exclusive end user address.
+ *
+ * Returns: The start address of first VMA within the provided range,
+ * ULONG_MAX otherwise. Assumes start_addr < end_addr.
+ */
+unsigned long
+drm_gpusvm_find_vma_start(struct drm_gpusvm *gpusvm,
+			  unsigned long start,
+			  unsigned long end)
+{
+	struct mm_struct *mm = gpusvm->mm;
+	struct vm_area_struct *vma;
+	unsigned long addr = ULONG_MAX;
+
+	if (!mmget_not_zero(mm))
+		return addr;
+
+	mmap_read_lock(mm);
+
+	vma = find_vma_intersection(mm, start, end);
+	if (vma)
+		addr =  vma->vm_start;
+
+	mmap_read_unlock(mm);
+	mmput(mm);
+
+	return addr;
+}
+EXPORT_SYMBOL_GPL(drm_gpusvm_find_vma_start);
 
 /**
  * drm_gpusvm_range_find_or_insert() - Find or insert GPU SVM range

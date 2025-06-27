@@ -6390,8 +6390,17 @@ end_reset:
 
 	atomic_set(&adev->reset_domain->reset_res, r);
 
-	if (!r)
-		drm_dev_wedged_event(adev_to_drm(adev), DRM_WEDGE_RECOVERY_NONE);
+	if (!r) {
+		struct amdgpu_task_info *ti = NULL;
+
+		if (job)
+			ti = amdgpu_vm_get_task_info_pasid(adev, job->pasid);
+
+		drm_dev_wedged_event(adev_to_drm(adev), DRM_WEDGE_RECOVERY_NONE,
+				     ti ? &ti->task : NULL);
+
+		amdgpu_vm_put_task_info(ti);
+	}
 
 	return r;
 }

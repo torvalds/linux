@@ -391,9 +391,11 @@ static int raydium_rm67200_probe(struct mipi_dsi_device *dsi)
 	struct raydium_rm67200 *ctx;
 	int ret = 0;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct raydium_rm67200, panel,
+				   &raydium_rm67200_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ctx->panel_info = device_get_match_data(dev);
 	if (!ctx->panel_info)
@@ -420,9 +422,6 @@ static int raydium_rm67200_probe(struct mipi_dsi_device *dsi)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 			  MIPI_DSI_MODE_LPM;
 	ctx->panel.prepare_prev_first = true;
-
-	drm_panel_init(&ctx->panel, dev, &raydium_rm67200_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	ret = drm_panel_of_backlight(&ctx->panel);
 	if (ret)

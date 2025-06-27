@@ -33,6 +33,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_format_helper.h>
@@ -70,31 +71,44 @@ static unsigned long ast_fb_vram_size(struct ast_device *ast)
 	return cursor_offset - offset;
 }
 
-static inline void ast_load_palette_index(struct ast_device *ast,
-				     u8 index, u8 red, u8 green,
-				     u8 blue)
+static void ast_set_gamma_lut(struct drm_crtc *crtc, unsigned int index,
+			      u16 red, u16 green, u16 blue)
 {
-	ast_io_write8(ast, AST_IO_VGADWR, index);
+	struct drm_device *dev = crtc->dev;
+	struct ast_device *ast = to_ast_device(dev);
+	u8 i8 = index & 0xff;
+	u8 r8 = red >> 8;
+	u8 g8 = green >> 8;
+	u8 b8 = blue >> 8;
+
+	if (drm_WARN_ON_ONCE(dev, index != i8))
+		return; /* driver bug */
+
+	ast_io_write8(ast, AST_IO_VGADWR, i8);
 	ast_io_read8(ast, AST_IO_VGASRI);
-	ast_io_write8(ast, AST_IO_VGAPDR, red);
+	ast_io_write8(ast, AST_IO_VGAPDR, r8);
 	ast_io_read8(ast, AST_IO_VGASRI);
-	ast_io_write8(ast, AST_IO_VGAPDR, green);
+	ast_io_write8(ast, AST_IO_VGAPDR, g8);
 	ast_io_read8(ast, AST_IO_VGASRI);
-	ast_io_write8(ast, AST_IO_VGAPDR, blue);
+	ast_io_write8(ast, AST_IO_VGAPDR, b8);
 	ast_io_read8(ast, AST_IO_VGASRI);
 }
 
-static void ast_crtc_set_gamma_linear(struct ast_device *ast,
-				      const struct drm_format_info *format)
+static void ast_crtc_fill_gamma(struct ast_device *ast,
+				const struct drm_format_info *format)
 {
-	int i;
+	struct drm_crtc *crtc = &ast->crtc;
 
 	switch (format->format) {
-	case DRM_FORMAT_C8: /* In this case, gamma table is used as color palette */
+	case DRM_FORMAT_C8:
+		/* gamma table is used as color palette */
+		drm_crtc_fill_palette_8(crtc, ast_set_gamma_lut);
+		break;
 	case DRM_FORMAT_RGB565:
+		/* also uses 8-bit gamma ramp on low-color modes */
+		fallthrough;
 	case DRM_FORMAT_XRGB8888:
-		for (i = 0; i < AST_LUT_SIZE; i++)
-			ast_load_palette_index(ast, i, i, i, i);
+		drm_crtc_fill_gamma_888(crtc, ast_set_gamma_lut);
 		break;
 	default:
 		drm_warn_once(&ast->base, "Unsupported format %p4cc for gamma correction\n",
@@ -103,21 +117,22 @@ static void ast_crtc_set_gamma_linear(struct ast_device *ast,
 	}
 }
 
-static void ast_crtc_set_gamma(struct ast_device *ast,
-			       const struct drm_format_info *format,
-			       struct drm_color_lut *lut)
+static void ast_crtc_load_gamma(struct ast_device *ast,
+				const struct drm_format_info *format,
+				struct drm_color_lut *lut)
 {
-	int i;
+	struct drm_crtc *crtc = &ast->crtc;
 
 	switch (format->format) {
-	case DRM_FORMAT_C8: /* In this case, gamma table is used as color palette */
+	case DRM_FORMAT_C8:
+		/* gamma table is used as color palette */
+		drm_crtc_load_palette_8(crtc, lut, ast_set_gamma_lut);
+		break;
 	case DRM_FORMAT_RGB565:
+		/* also uses 8-bit gamma ramp on low-color modes */
+		fallthrough;
 	case DRM_FORMAT_XRGB8888:
-		for (i = 0; i < AST_LUT_SIZE; i++)
-			ast_load_palette_index(ast, i,
-					       lut[i].red >> 8,
-					       lut[i].green >> 8,
-					       lut[i].blue >> 8);
+		drm_crtc_load_gamma_888(crtc, lut, ast_set_gamma_lut);
 		break;
 	default:
 		drm_warn_once(&ast->base, "Unsupported format %p4cc for gamma correction\n",
@@ -810,11 +825,11 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	 */
 	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
 		if (crtc_state->gamma_lut)
-			ast_crtc_set_gamma(ast,
-					   ast_crtc_state->format,
-					   crtc_state->gamma_lut->data);
+			ast_crtc_load_gamma(ast,
+					    ast_crtc_state->format,
+					    crtc_state->gamma_lut->data);
 		else
-			ast_crtc_set_gamma_linear(ast, ast_crtc_state->format);
+			ast_crtc_fill_gamma(ast, ast_crtc_state->format);
 	}
 }
 

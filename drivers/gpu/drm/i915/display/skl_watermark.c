@@ -7,6 +7,8 @@
 
 #include <drm/drm_blend.h>
 
+#include "soc/intel_dram.h"
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
@@ -19,6 +21,7 @@
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
@@ -3184,8 +3187,6 @@ void skl_watermark_ipc_update(struct intel_display *display)
 
 static bool skl_watermark_ipc_can_enable(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	/* Display WA #0477 WaDisableIPC: skl */
 	if (display->platform.skylake)
 		return false;
@@ -3193,8 +3194,11 @@ static bool skl_watermark_ipc_can_enable(struct intel_display *display)
 	/* Display WA #1141: SKL:all KBL:all CFL */
 	if (display->platform.kabylake ||
 	    display->platform.coffeelake ||
-	    display->platform.cometlake)
-		return i915->dram_info.symmetric_memory;
+	    display->platform.cometlake) {
+		const struct dram_info *dram_info = intel_dram_info(display->drm);
+
+		return dram_info->symmetric_memory;
+	}
 
 	return true;
 }
@@ -3213,8 +3217,7 @@ static void
 adjust_wm_latency(struct intel_display *display,
 		  u16 wm[], int num_levels, int read_latency)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	bool wm_lv_0_adjust_needed = i915->dram_info.wm_lv_0_adjust_needed;
+	const struct dram_info *dram_info = intel_dram_info(display->drm);
 	int i, level;
 
 	/*
@@ -3250,7 +3253,7 @@ adjust_wm_latency(struct intel_display *display,
 	 * any underrun. If not able to get Dimm info assume 16GB dimm
 	 * to avoid any underrun.
 	 */
-	if (wm_lv_0_adjust_needed)
+	if (!display->platform.dg2 && dram_info->wm_lv_0_adjust_needed)
 		wm[0] += 1;
 }
 

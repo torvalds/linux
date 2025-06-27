@@ -24,6 +24,8 @@
 #include <drm/drm_managed.h>
 #include <linux/pm_runtime.h>
 
+#include "display/intel_display_core.h"
+
 #include "gt/intel_gt.h"
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
@@ -2642,7 +2644,7 @@ static void driver_initiated_flr(struct intel_uncore *uncore)
 	 * is still pending (unless the HW is totally dead), but better to be
 	 * safe in case something unexpected happens
 	 */
-	ret = intel_wait_for_register_fw(uncore, GU_CNTL, DRIVERFLR, 0, flr_timeout_ms);
+	ret = intel_wait_for_register_fw(uncore, GU_CNTL, DRIVERFLR, 0, flr_timeout_ms, NULL);
 	if (ret) {
 		drm_err(&i915->drm,
 			"Failed to wait for Driver-FLR bit to clear! %d\n",
@@ -2657,7 +2659,7 @@ static void driver_initiated_flr(struct intel_uncore *uncore)
 	/* Wait for hardware teardown to complete */
 	ret = intel_wait_for_register_fw(uncore, GU_CNTL,
 					 DRIVERFLR, 0,
-					 flr_timeout_ms);
+					 flr_timeout_ms, NULL);
 	if (ret) {
 		drm_err(&i915->drm, "Driver-FLR-teardown wait completion failed! %d\n", ret);
 		return;
@@ -2666,7 +2668,7 @@ static void driver_initiated_flr(struct intel_uncore *uncore)
 	/* Wait for hardware/firmware re-init to complete */
 	ret = intel_wait_for_register_fw(uncore, GU_DEBUG,
 					 DRIVERFLR_STATUS, DRIVERFLR_STATUS,
-					 flr_timeout_ms);
+					 flr_timeout_ms, NULL);
 	if (ret) {
 		drm_err(&i915->drm, "Driver-FLR-reinit wait completion failed! %d\n", ret);
 		return;

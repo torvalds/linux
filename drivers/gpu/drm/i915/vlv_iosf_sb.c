@@ -6,9 +6,7 @@
 #include "i915_drv.h"
 #include "i915_iosf_mbi.h"
 #include "i915_reg.h"
-#include "vlv_sideband.h"
-
-#include "display/intel_dpio_phy.h"
+#include "vlv_iosf_sb.h"
 
 /*
  * IOSF sideband, see VLV2_SidebandMsg_HAS.docx and
@@ -57,19 +55,29 @@ static void __vlv_punit_put(struct drm_i915_private *i915)
 	iosf_mbi_punit_release();
 }
 
-void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports)
+void vlv_iosf_sb_get(struct drm_device *drm, unsigned long unit_mask)
 {
-	if (ports & BIT(VLV_IOSF_SB_PUNIT))
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	if (unit_mask & BIT(VLV_IOSF_SB_PUNIT))
 		__vlv_punit_get(i915);
 
 	mutex_lock(&i915->vlv_iosf_sb.lock);
+
+	i915->vlv_iosf_sb.locked_unit_mask |= unit_mask;
 }
 
-void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports)
+void vlv_iosf_sb_put(struct drm_device *drm, unsigned long unit_mask)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	i915->vlv_iosf_sb.locked_unit_mask &= ~unit_mask;
+
+	drm_WARN_ON(drm, i915->vlv_iosf_sb.locked_unit_mask);
+
 	mutex_unlock(&i915->vlv_iosf_sb.lock);
 
-	if (ports & BIT(VLV_IOSF_SB_PUNIT))
+	if (unit_mask & BIT(VLV_IOSF_SB_PUNIT))
 		__vlv_punit_put(i915);
 }
 
@@ -123,131 +131,83 @@ static int vlv_sideband_rw(struct drm_i915_private *i915,
 	return err;
 }
 
-u32 vlv_punit_read(struct drm_i915_private *i915, u32 addr)
+static u32 unit_to_devfn(enum vlv_iosf_sb_unit unit)
 {
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
-			SB_CRRDDA_NP, addr, &val);
-
-	return val;
-}
-
-int vlv_punit_write(struct drm_i915_private *i915, u32 addr, u32 val)
-{
-	return vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_PUNIT,
-			       SB_CRWRDA_NP, addr, &val);
-}
-
-u32 vlv_bunit_read(struct drm_i915_private *i915, u32 reg)
-{
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_BUNIT,
-			SB_CRRDDA_NP, reg, &val);
-
-	return val;
-}
-
-void vlv_bunit_write(struct drm_i915_private *i915, u32 reg, u32 val)
-{
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_BUNIT,
-			SB_CRWRDA_NP, reg, &val);
-}
-
-u32 vlv_nc_read(struct drm_i915_private *i915, u8 addr)
-{
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_NC,
-			SB_CRRDDA_NP, addr, &val);
-
-	return val;
-}
-
-u32 vlv_cck_read(struct drm_i915_private *i915, u32 reg)
-{
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCK,
-			SB_CRRDDA_NP, reg, &val);
-
-	return val;
-}
-
-void vlv_cck_write(struct drm_i915_private *i915, u32 reg, u32 val)
-{
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCK,
-			SB_CRWRDA_NP, reg, &val);
-}
-
-u32 vlv_ccu_read(struct drm_i915_private *i915, u32 reg)
-{
-	u32 val = 0;
-
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCU,
-			SB_CRRDDA_NP, reg, &val);
-
-	return val;
-}
-
-void vlv_ccu_write(struct drm_i915_private *i915, u32 reg, u32 val)
-{
-	vlv_sideband_rw(i915, PCI_DEVFN(0, 0), IOSF_PORT_CCU,
-			SB_CRWRDA_NP, reg, &val);
-}
-
-static u32 vlv_dpio_phy_iosf_port(struct drm_i915_private *i915, enum dpio_phy phy)
-{
-	/*
-	 * IOSF_PORT_DPIO: VLV x2 PHY (DP/HDMI B and C), CHV x1 PHY (DP/HDMI D)
-	 * IOSF_PORT_DPIO_2: CHV x2 PHY (DP/HDMI B and C)
-	 */
-	if (IS_CHERRYVIEW(i915))
-		return phy == DPIO_PHY0 ? IOSF_PORT_DPIO_2 : IOSF_PORT_DPIO;
+	if (unit == VLV_IOSF_SB_DPIO || unit == VLV_IOSF_SB_DPIO_2 ||
+	    unit == VLV_IOSF_SB_FLISDSI)
+		return DPIO_DEVFN;
 	else
+		return PCI_DEVFN(0, 0);
+}
+
+static u32 unit_to_port(enum vlv_iosf_sb_unit unit)
+{
+	switch (unit) {
+	case VLV_IOSF_SB_BUNIT:
+		return IOSF_PORT_BUNIT;
+	case VLV_IOSF_SB_CCK:
+		return IOSF_PORT_CCK;
+	case VLV_IOSF_SB_CCU:
+		return IOSF_PORT_CCU;
+	case VLV_IOSF_SB_DPIO:
 		return IOSF_PORT_DPIO;
+	case VLV_IOSF_SB_DPIO_2:
+		return IOSF_PORT_DPIO_2;
+	case VLV_IOSF_SB_FLISDSI:
+		return IOSF_PORT_FLISDSI;
+	case VLV_IOSF_SB_GPIO:
+		return 0; /* FIXME: unused */
+	case VLV_IOSF_SB_NC:
+		return IOSF_PORT_NC;
+	case VLV_IOSF_SB_PUNIT:
+		return IOSF_PORT_PUNIT;
+	default:
+		return 0;
+	}
 }
 
-u32 vlv_dpio_read(struct drm_i915_private *i915, enum dpio_phy phy, int reg)
+static u32 unit_to_opcode(enum vlv_iosf_sb_unit unit, bool write)
 {
-	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
-	u32 val = 0;
+	if (unit == VLV_IOSF_SB_DPIO || unit == VLV_IOSF_SB_DPIO_2)
+		return write ? SB_MWR_NP : SB_MRD_NP;
+	else
+		return write ? SB_CRWRDA_NP : SB_CRRDDA_NP;
+}
 
-	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MRD_NP, reg, &val);
+u32 vlv_iosf_sb_read(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+	u32 devfn, port, opcode, val = 0;
 
-	/*
-	 * FIXME: There might be some registers where all 1's is a valid value,
-	 * so ideally we should check the register offset instead...
-	 */
-	drm_WARN(&i915->drm, val == 0xffffffff,
-		 "DPIO PHY%d read reg 0x%x == 0x%x\n",
-		 phy, reg, val);
+	devfn = unit_to_devfn(unit);
+	port = unit_to_port(unit);
+	opcode = unit_to_opcode(unit, false);
+
+	if (drm_WARN_ONCE(&i915->drm, !port, "invalid unit %d\n", unit))
+		return 0;
+
+	drm_WARN_ON(&i915->drm, !(i915->vlv_iosf_sb.locked_unit_mask & BIT(unit)));
+
+	vlv_sideband_rw(i915, devfn, port, opcode, addr, &val);
 
 	return val;
 }
 
-void vlv_dpio_write(struct drm_i915_private *i915,
-		    enum dpio_phy phy, int reg, u32 val)
+int vlv_iosf_sb_write(struct drm_device *drm, enum vlv_iosf_sb_unit unit, u32 addr, u32 val)
 {
-	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
+	struct drm_i915_private *i915 = to_i915(drm);
+	u32 devfn, port, opcode;
 
-	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MWR_NP, reg, &val);
-}
+	devfn = unit_to_devfn(unit);
+	port = unit_to_port(unit);
+	opcode = unit_to_opcode(unit, true);
 
-u32 vlv_flisdsi_read(struct drm_i915_private *i915, u32 reg)
-{
-	u32 val = 0;
+	if (drm_WARN_ONCE(&i915->drm, !port, "invalid unit %d\n", unit))
+		return -EINVAL;
 
-	vlv_sideband_rw(i915, DPIO_DEVFN, IOSF_PORT_FLISDSI, SB_CRRDDA_NP,
-			reg, &val);
-	return val;
-}
+	drm_WARN_ON(&i915->drm, !(i915->vlv_iosf_sb.locked_unit_mask & BIT(unit)));
 
-void vlv_flisdsi_write(struct drm_i915_private *i915, u32 reg, u32 val)
-{
-	vlv_sideband_rw(i915, DPIO_DEVFN, IOSF_PORT_FLISDSI, SB_CRWRDA_NP,
-			reg, &val);
+	return vlv_sideband_rw(i915, devfn, port, opcode, addr, &val);
 }
 
 void vlv_iosf_sb_init(struct drm_i915_private *i915)

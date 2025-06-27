@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>

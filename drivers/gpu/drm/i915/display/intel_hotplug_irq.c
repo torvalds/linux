@@ -9,6 +9,7 @@
 #include "i915_utils.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp_aux.h"
 #include "intel_gmbus.h"

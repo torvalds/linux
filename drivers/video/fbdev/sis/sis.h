@@ -673,9 +673,7 @@ unsigned int	sisfb_read_mio_pci_word(struct SiS_Private *SiS_Pr, int reg);
 
 /* SiS-specific exported functions */
 void			sis_malloc(struct sis_memreq *req);
-void			sis_malloc_new(struct pci_dev *pdev, struct sis_memreq *req);
 void			sis_free(u32 base);
-void			sis_free_new(struct pci_dev *pdev, u32 base);
 
 /* Routines from init.c/init301.c */
 extern unsigned short	SiS_GetModeID_LCD(int VGAEngine, unsigned int VBFlags, int HDisplay,

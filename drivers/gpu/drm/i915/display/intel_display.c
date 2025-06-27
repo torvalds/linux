@@ -67,13 +67,14 @@
 #include "intel_crt.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
+#include "intel_cursor.h"
 #include "intel_cursor_regs.h"
 #include "intel_cx0_phy.h"
-#include "intel_cursor.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
 #include "intel_display_power.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
@@ -105,7 +106,6 @@
 #include "intel_panel.h"
 #include "intel_pch_display.h"
 #include "intel_pch_refclk.h"
-#include "intel_pcode.h"
 #include "intel_pfit.h"
 #include "intel_pipe_crc.h"
 #include "intel_plane_initial.h"
@@ -140,46 +140,47 @@ static void bdw_set_pipe_misc(struct intel_dsb *dsb,
 			      const struct intel_crtc_state *crtc_state);
 
 /* returns HPLL frequency in kHz */
-int vlv_get_hpll_vco(struct drm_i915_private *dev_priv)
+int vlv_get_hpll_vco(struct drm_device *drm)
 {
 	int hpll_freq, vco_freq[] = { 800, 1600, 2000, 2400 };
 
 	/* Obtain SKU information */
-	hpll_freq = vlv_cck_read(dev_priv, CCK_FUSE_REG) &
+	hpll_freq = vlv_cck_read(drm, CCK_FUSE_REG) &
 		CCK_FUSE_HPLL_FREQ_MASK;
 
 	return vco_freq[hpll_freq] * 1000;
 }
 
-int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
+int vlv_get_cck_clock(struct drm_device *drm,
 		      const char *name, u32 reg, int ref_freq)
 {
 	u32 val;
 	int divider;
 
-	val = vlv_cck_read(dev_priv, reg);
+	val = vlv_cck_read(drm, reg);
 	divider = val & CCK_FREQUENCY_VALUES;
 
-	drm_WARN(&dev_priv->drm, (val & CCK_FREQUENCY_STATUS) !=
+	drm_WARN(drm, (val & CCK_FREQUENCY_STATUS) !=
 		 (divider << CCK_FREQUENCY_STATUS_SHIFT),
 		 "%s change in progress\n", name);
 
 	return DIV_ROUND_CLOSEST(ref_freq << 1, divider + 1);
 }
 
-int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
+int vlv_get_cck_clock_hpll(struct drm_device *drm,
 			   const char *name, u32 reg)
 {
+	struct drm_i915_private *dev_priv = to_i915(drm);
 	int hpll;
 
-	vlv_cck_get(dev_priv);
+	vlv_cck_get(drm);
 
 	if (dev_priv->hpll_freq == 0)
-		dev_priv->hpll_freq = vlv_get_hpll_vco(dev_priv);
+		dev_priv->hpll_freq = vlv_get_hpll_vco(drm);
 
-	hpll = vlv_get_cck_clock(dev_priv, name, reg, dev_priv->hpll_freq);
+	hpll = vlv_get_cck_clock(drm, name, reg, dev_priv->hpll_freq);
 
-	vlv_cck_put(dev_priv);
+	vlv_cck_put(drm);
 
 	return hpll;
 }
@@ -191,7 +192,7 @@ void intel_update_czclk(struct intel_display *display)
 	if (!display->platform.valleyview && !display->platform.cherryview)
 		return;
 
-	dev_priv->czclk_freq = vlv_get_cck_clock_hpll(dev_priv, "czclk",
+	dev_priv->czclk_freq = vlv_get_cck_clock_hpll(display->drm, "czclk",
 						      CCK_CZ_CLOCK_CONTROL);
 
 	drm_dbg_kms(display->drm, "CZ clock rate: %d kHz\n", dev_priv->czclk_freq);
@@ -1325,7 +1326,7 @@ static void intel_encoders_update_prepare(struct intel_atomic_state *state)
 			if (intel_crtc_needs_modeset(new_crtc_state))
 				continue;
 
-			new_crtc_state->shared_dpll = old_crtc_state->shared_dpll;
+			new_crtc_state->intel_dpll = old_crtc_state->intel_dpll;
 			new_crtc_state->dpll_hw_state = old_crtc_state->dpll_hw_state;
 		}
 	}
@@ -1663,8 +1664,8 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	intel_encoders_pre_pll_enable(state, crtc);
 
-	if (new_crtc_state->shared_dpll)
-		intel_enable_shared_dpll(new_crtc_state);
+	if (new_crtc_state->intel_dpll)
+		intel_dpll_enable(new_crtc_state);
 
 	intel_encoders_pre_enable(state, crtc);
 
@@ -1793,7 +1794,7 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 	intel_encoders_disable(state, crtc);
 	intel_encoders_post_disable(state, crtc);
 
-	intel_disable_shared_dpll(old_crtc_state);
+	intel_dpll_disable(old_crtc_state);
 
 	intel_encoders_post_pll_disable(state, crtc);
 
@@ -1959,7 +1960,7 @@ static void get_crtc_power_domains(struct intel_crtc_state *crtc_state,
 	if (HAS_DDI(display) && crtc_state->has_audio)
 		set_bit(POWER_DOMAIN_AUDIO_MMIO, mask->bits);
 
-	if (crtc_state->shared_dpll)
+	if (crtc_state->intel_dpll)
 		set_bit(POWER_DOMAIN_DISPLAY_CORE, mask->bits);
 
 	if (crtc_state->dsc.compression_enable)
@@ -4225,7 +4226,7 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 		crtc_state->update_wm_post = true;
 
 	if (intel_crtc_needs_modeset(crtc_state)) {
-		ret = intel_dpll_crtc_get_shared_dpll(state, crtc);
+		ret = intel_dpll_crtc_get_dpll(state, crtc);
 		if (ret)
 			return ret;
 	}
@@ -4318,6 +4319,22 @@ compute_sink_pipe_bpp(const struct drm_connector_state *conn_state,
 	return 0;
 }
 
+int intel_display_min_pipe_bpp(void)
+{
+	return 6 * 3;
+}
+
+int intel_display_max_pipe_bpp(struct intel_display *display)
+{
+	if (display->platform.g4x || display->platform.valleyview ||
+	    display->platform.cherryview)
+		return 10*3;
+	else if (DISPLAY_VER(display) >= 5)
+		return 12*3;
+	else
+		return 8*3;
+}
+
 static int
 compute_baseline_pipe_bpp(struct intel_atomic_state *state,
 			  struct intel_crtc *crtc)
@@ -4327,17 +4344,9 @@ compute_baseline_pipe_bpp(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
-	int bpp, i;
+	int i;
 
-	if (display->platform.g4x || display->platform.valleyview ||
-	    display->platform.cherryview)
-		bpp = 10*3;
-	else if (DISPLAY_VER(display) >= 5)
-		bpp = 12*3;
-	else
-		bpp = 8*3;
-
-	crtc_state->pipe_bpp = bpp;
+	crtc_state->pipe_bpp = intel_display_max_pipe_bpp(display);
 
 	/* Clamp display bpp to connector max bpp */
 	for_each_new_connector_in_state(&state->base, connector, connector_state, i) {
@@ -4501,7 +4510,7 @@ copy_joiner_crtc_state_modeset(struct intel_atomic_state *state,
 	/* preserve some things from the slave's original crtc state */
 	saved_state->uapi = secondary_crtc_state->uapi;
 	saved_state->scaler_state = secondary_crtc_state->scaler_state;
-	saved_state->shared_dpll = secondary_crtc_state->shared_dpll;
+	saved_state->intel_dpll = secondary_crtc_state->intel_dpll;
 	saved_state->crc_enabled = secondary_crtc_state->crc_enabled;
 
 	intel_crtc_free_hw_state(secondary_crtc_state);
@@ -4564,7 +4573,7 @@ intel_crtc_prepare_cleared_state(struct intel_atomic_state *state,
 	saved_state->uapi = crtc_state->uapi;
 	saved_state->inherited = crtc_state->inherited;
 	saved_state->scaler_state = crtc_state->scaler_state;
-	saved_state->shared_dpll = crtc_state->shared_dpll;
+	saved_state->intel_dpll = crtc_state->intel_dpll;
 	saved_state->dpll_hw_state = crtc_state->dpll_hw_state;
 	memcpy(saved_state->icl_port_dplls, crtc_state->icl_port_dplls,
 	       sizeof(saved_state->icl_port_dplls));
@@ -5318,7 +5327,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(double_wide);
 
 	if (display->dpll.mgr)
-		PIPE_CONF_CHECK_P(shared_dpll);
+		PIPE_CONF_CHECK_P(intel_dpll);
 
 	/* FIXME convert everything over the dpll_mgr */
 	if (display->dpll.mgr || HAS_GMCH(display))
@@ -6428,7 +6437,7 @@ int intel_atomic_check(struct drm_device *dev,
 
 		any_ms = true;
 
-		intel_release_shared_dplls(state, crtc);
+		intel_dpll_release(state, crtc);
 	}
 
 	if (any_ms && !check_digital_port_conflicts(state)) {
@@ -6630,6 +6639,7 @@ static void commit_pipe_post_planes(struct intel_atomic_state *state,
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+	bool modeset = intel_crtc_needs_modeset(new_crtc_state);
 
 	drm_WARN_ON(display->drm, new_crtc_state->use_dsb);
 
@@ -6638,9 +6648,14 @@ static void commit_pipe_post_planes(struct intel_atomic_state *state,
 	 * get a catastrophic underrun even if the two operations
 	 * end up happening in two different frames.
 	 */
-	if (DISPLAY_VER(display) >= 9 &&
-	    !intel_crtc_needs_modeset(new_crtc_state))
+	if (DISPLAY_VER(display) >= 9 && !modeset)
 		skl_detach_scalers(NULL, new_crtc_state);
+
+	if (!modeset &&
+	    intel_crtc_needs_color_update(new_crtc_state) &&
+	    !intel_color_uses_dsb(new_crtc_state) &&
+	    HAS_DOUBLE_BUFFERED_LUT(display))
+		intel_color_load_luts(new_crtc_state);
 
 	if (intel_crtc_vrr_enabling(state, crtc))
 		intel_vrr_enable(new_crtc_state);
@@ -6733,13 +6748,13 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	if (new_crtc_state->use_dsb) {
 		intel_crtc_prepare_vblank_event(new_crtc_state, &crtc->dsb_event);
 
-		intel_dsb_commit(new_crtc_state->dsb_commit, false);
+		intel_dsb_commit(new_crtc_state->dsb_commit);
 	} else {
 		/* Perform vblank evasion around commit operation */
 		intel_pipe_update_start(state, crtc);
 
 		if (new_crtc_state->dsb_commit)
-			intel_dsb_commit(new_crtc_state->dsb_commit, false);
+			intel_dsb_commit(new_crtc_state->dsb_commit);
 
 		commit_pipe_pre_planes(state, crtc);
 
@@ -7184,7 +7199,7 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 
-	if (!new_crtc_state->use_dsb && !new_crtc_state->dsb_color_vblank)
+	if (!new_crtc_state->use_dsb && !new_crtc_state->dsb_color)
 		return;
 
 	/*
@@ -7230,20 +7245,24 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 		if (DISPLAY_VER(display) >= 9)
 			skl_detach_scalers(new_crtc_state->dsb_commit,
 					   new_crtc_state);
-
-		if (!new_crtc_state->dsb_color_vblank) {
-			intel_dsb_wait_vblanks(new_crtc_state->dsb_commit, 1);
-
-			intel_vrr_send_push(new_crtc_state->dsb_commit, new_crtc_state);
-			intel_dsb_wait_vblank_delay(state, new_crtc_state->dsb_commit);
-			intel_vrr_check_push_sent(new_crtc_state->dsb_commit, new_crtc_state);
-			intel_dsb_interrupt(new_crtc_state->dsb_commit);
-		}
 	}
 
-	if (new_crtc_state->dsb_color_vblank)
+	if (intel_color_uses_chained_dsb(new_crtc_state))
 		intel_dsb_chain(state, new_crtc_state->dsb_commit,
-				new_crtc_state->dsb_color_vblank, true);
+				new_crtc_state->dsb_color, true);
+	else if (intel_color_uses_gosub_dsb(new_crtc_state))
+		intel_dsb_gosub(new_crtc_state->dsb_commit,
+				new_crtc_state->dsb_color);
+
+	if (new_crtc_state->use_dsb && !intel_color_uses_chained_dsb(new_crtc_state)) {
+		intel_dsb_wait_vblanks(new_crtc_state->dsb_commit, 1);
+
+		intel_vrr_send_push(new_crtc_state->dsb_commit, new_crtc_state);
+		intel_dsb_wait_vblank_delay(state, new_crtc_state->dsb_commit);
+		intel_vrr_check_push_sent(new_crtc_state->dsb_commit,
+					  new_crtc_state);
+		intel_dsb_interrupt(new_crtc_state->dsb_commit);
+	}
 
 	intel_dsb_finish(new_crtc_state->dsb_commit);
 }
@@ -7432,7 +7451,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		 *
 		 * FIXME get rid of this funny new->old swapping
 		 */
-		old_crtc_state->dsb_color_vblank = fetch_and_zero(&new_crtc_state->dsb_color_vblank);
+		old_crtc_state->dsb_color = fetch_and_zero(&new_crtc_state->dsb_color);
 		old_crtc_state->dsb_commit = fetch_and_zero(&new_crtc_state->dsb_commit);
 	}
 
@@ -7525,7 +7544,7 @@ static int intel_atomic_swap_state(struct intel_atomic_state *state)
 
 	intel_atomic_swap_global_state(state);
 
-	intel_shared_dpll_swap_state(state);
+	intel_dpll_swap_state(state);
 
 	intel_atomic_track_fbs(state);
 

@@ -8,6 +8,7 @@
  */
 #include <linux/completion.h>
 #include <linux/hdmi.h>
+#include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -1045,9 +1046,10 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 		return ERR_PTR(-ENODEV);
 	}
 
-	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
-	if (!hdmi)
-		return ERR_PTR(-ENOMEM);
+	hdmi = devm_drm_bridge_alloc(dev, struct dw_hdmi_qp, bridge,
+				     &dw_hdmi_qp_bridge_funcs);
+	if (IS_ERR(hdmi))
+		return ERR_CAST(hdmi);
 
 	hdmi->dev = dev;
 
@@ -1073,7 +1075,6 @@ struct dw_hdmi_qp *dw_hdmi_qp_bind(struct platform_device *pdev,
 		return ERR_PTR(ret);
 
 	hdmi->bridge.driver_private = hdmi;
-	hdmi->bridge.funcs = &dw_hdmi_qp_bridge_funcs;
 	hdmi->bridge.ops = DRM_BRIDGE_OP_DETECT |
 			   DRM_BRIDGE_OP_EDID |
 			   DRM_BRIDGE_OP_HDMI |

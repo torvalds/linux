@@ -14,6 +14,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/irq.h>
 #include <linux/media-bus-format.h>
 #include <linux/of.h>

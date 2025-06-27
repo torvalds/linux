@@ -197,9 +197,7 @@ static int xe_bo_restore_and_map_ggtt(struct xe_bo *bo)
 			if (tile != bo->tile && !(bo->flags & XE_BO_FLAG_GGTTx(tile)))
 				continue;
 
-			mutex_lock(&tile->mem.ggtt->lock);
-			xe_ggtt_map_bo(tile->mem.ggtt, bo);
-			mutex_unlock(&tile->mem.ggtt->lock);
+			xe_ggtt_map_bo_unlocked(tile->mem.ggtt, bo);
 		}
 	}
 

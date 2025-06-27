@@ -45,21 +45,6 @@ static struct xe_vm *range_to_vm(struct drm_gpusvm_range *r)
 	return gpusvm_to_vm(r->gpusvm);
 }
 
-static unsigned long xe_svm_range_start(struct xe_svm_range *range)
-{
-	return drm_gpusvm_range_start(&range->base);
-}
-
-static unsigned long xe_svm_range_end(struct xe_svm_range *range)
-{
-	return drm_gpusvm_range_end(&range->base);
-}
-
-static unsigned long xe_svm_range_size(struct xe_svm_range *range)
-{
-	return drm_gpusvm_range_size(&range->base);
-}
-
 #define range_debug(r__, operaton__)					\
 	vm_dbg(&range_to_vm(&(r__)->base)->xe->drm,			\
 	       "%s: asid=%u, gpusvm=%p, vram=%d,%d, seqno=%lu, " \
@@ -101,11 +86,6 @@ static void xe_svm_range_free(struct drm_gpusvm_range *range)
 {
 	xe_vm_put(range_to_vm(range));
 	kfree(range);
-}
-
-static struct xe_svm_range *to_xe_range(struct drm_gpusvm_range *r)
-{
-	return container_of(r, struct xe_svm_range, base);
 }
 
 static void
@@ -161,7 +141,12 @@ xe_svm_range_notifier_event_begin(struct xe_vm *vm, struct drm_gpusvm_range *r,
 	for_each_tile(tile, xe, id)
 		if (xe_pt_zap_ptes_range(tile, vm, range)) {
 			tile_mask |= BIT(id);
-			range->tile_invalidated |= BIT(id);
+			/*
+			 * WRITE_ONCE pairs with READ_ONCE in
+			 * xe_vm_has_valid_gpu_mapping()
+			 */
+			WRITE_ONCE(range->tile_invalidated,
+				   range->tile_invalidated | BIT(id));
 		}
 
 	return tile_mask;
@@ -187,14 +172,9 @@ static void xe_svm_invalidate(struct drm_gpusvm *gpusvm,
 {
 	struct xe_vm *vm = gpusvm_to_vm(gpusvm);
 	struct xe_device *xe = vm->xe;
-	struct xe_tile *tile;
 	struct drm_gpusvm_range *r, *first;
-	struct xe_gt_tlb_invalidation_fence
-		fence[XE_MAX_TILES_PER_DEVICE * XE_MAX_GT_PER_TILE];
 	u64 adj_start = mmu_range->start, adj_end = mmu_range->end;
 	u8 tile_mask = 0;
-	u8 id;
-	u32 fence_id = 0;
 	long err;
 
 	xe_svm_assert_in_notifier(vm);
@@ -240,42 +220,8 @@ static void xe_svm_invalidate(struct drm_gpusvm *gpusvm,
 
 	xe_device_wmb(xe);
 
-	for_each_tile(tile, xe, id) {
-		if (tile_mask & BIT(id)) {
-			int err;
-
-			xe_gt_tlb_invalidation_fence_init(tile->primary_gt,
-							  &fence[fence_id], true);
-
-			err = xe_gt_tlb_invalidation_range(tile->primary_gt,
-							   &fence[fence_id],
-							   adj_start,
-							   adj_end,
-							   vm->usm.asid);
-			if (WARN_ON_ONCE(err < 0))
-				goto wait;
-			++fence_id;
-
-			if (!tile->media_gt)
-				continue;
-
-			xe_gt_tlb_invalidation_fence_init(tile->media_gt,
-							  &fence[fence_id], true);
-
-			err = xe_gt_tlb_invalidation_range(tile->media_gt,
-							   &fence[fence_id],
-							   adj_start,
-							   adj_end,
-							   vm->usm.asid);
-			if (WARN_ON_ONCE(err < 0))
-				goto wait;
-			++fence_id;
-		}
-	}
-
-wait:
-	for (id = 0; id < fence_id; ++id)
-		xe_gt_tlb_invalidation_fence_wait(&fence[id]);
+	err = xe_vm_range_tilemask_tlb_invalidation(vm, adj_start, adj_end, tile_mask);
+	WARN_ON_ONCE(err);
 
 range_notifier_event_end:
 	r = first;
@@ -662,13 +608,72 @@ static bool xe_svm_range_is_valid(struct xe_svm_range *range,
 				  struct xe_tile *tile,
 				  bool devmem_only)
 {
-	/*
-	 * Advisory only check whether the range currently has a valid mapping,
-	 * READ_ONCE pairs with WRITE_ONCE in xe_pt.c
-	 */
-	return ((READ_ONCE(range->tile_present) &
-		 ~READ_ONCE(range->tile_invalidated)) & BIT(tile->id)) &&
-		(!devmem_only || xe_svm_range_in_vram(range));
+	return (xe_vm_has_valid_gpu_mapping(tile, range->tile_present,
+					    range->tile_invalidated) &&
+		(!devmem_only || xe_svm_range_in_vram(range)));
+}
+
+/** xe_svm_range_migrate_to_smem() - Move range pages from VRAM to SMEM
+ * @vm: xe_vm pointer
+ * @range: Pointer to the SVM range structure
+ *
+ * The xe_svm_range_migrate_to_smem() checks range has pages in VRAM
+ * and migrates them to SMEM
+ */
+void xe_svm_range_migrate_to_smem(struct xe_vm *vm, struct xe_svm_range *range)
+{
+	if (xe_svm_range_in_vram(range))
+		drm_gpusvm_range_evict(&vm->svm.gpusvm, &range->base);
+}
+
+/**
+ * xe_svm_range_validate() - Check if the SVM range is valid
+ * @vm: xe_vm pointer
+ * @range: Pointer to the SVM range structure
+ * @tile_mask: Mask representing the tiles to be checked
+ * @devmem_preferred : if true range needs to be in devmem
+ *
+ * The xe_svm_range_validate() function checks if a range is
+ * valid and located in the desired memory region.
+ *
+ * Return: true if the range is valid, false otherwise
+ */
+bool xe_svm_range_validate(struct xe_vm *vm,
+			   struct xe_svm_range *range,
+			   u8 tile_mask, bool devmem_preferred)
+{
+	bool ret;
+
+	xe_svm_notifier_lock(vm);
+
+	ret = (range->tile_present & ~range->tile_invalidated & tile_mask) == tile_mask &&
+	       (devmem_preferred == range->base.flags.has_devmem_pages);
+
+	xe_svm_notifier_unlock(vm);
+
+	return ret;
+}
+
+/**
+ * xe_svm_find_vma_start - Find start of CPU VMA
+ * @vm: xe_vm pointer
+ * @start: start address
+ * @end: end address
+ * @vma: Pointer to struct xe_vma
+ *
+ *
+ * This function searches for a cpu vma, within the specified
+ * range [start, end] in the given VM. It adjusts the range based on the
+ * xe_vma start and end addresses. If no cpu VMA is found, it returns ULONG_MAX.
+ *
+ * Return: The starting address of the VMA within the range,
+ * or ULONG_MAX if no VMA is found
+ */
+u64 xe_svm_find_vma_start(struct xe_vm *vm, u64 start, u64 end, struct xe_vma *vma)
+{
+	return drm_gpusvm_find_vma_start(&vm->svm.gpusvm,
+					 max(start, xe_vma_start(vma)),
+					 min(end, xe_vma_end(vma)));
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
@@ -677,9 +682,19 @@ static struct xe_vram_region *tile_to_vr(struct xe_tile *tile)
 	return &tile->mem.vram;
 }
 
-static int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
-			     struct xe_svm_range *range,
-			     const struct drm_gpusvm_ctx *ctx)
+/**
+ * xe_svm_alloc_vram()- Allocate device memory pages for range,
+ * migrating existing data.
+ * @vm: The VM.
+ * @tile: tile to allocate vram from
+ * @range: SVM range
+ * @ctx: DRM GPU SVM context
+ *
+ * Return: 0 on success, error code on failure.
+ */
+int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
+		      struct xe_svm_range *range,
+		      const struct drm_gpusvm_ctx *ctx)
 {
 	struct mm_struct *mm = vm->svm.gpusvm.mm;
 	struct xe_vram_region *vr = tile_to_vr(tile);
@@ -733,13 +748,6 @@ unlock:
 
 	return err;
 }
-#else
-static int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
-			     struct xe_svm_range *range,
-			     const struct drm_gpusvm_ctx *ctx)
-{
-	return -EOPNOTSUPP;
-}
 #endif
 
 static bool supports_4K_migration(struct xe_device *xe)
@@ -750,21 +758,31 @@ static bool supports_4K_migration(struct xe_device *xe)
 	return true;
 }
 
-static bool xe_svm_range_needs_migrate_to_vram(struct xe_svm_range *range,
-					       struct xe_vma *vma)
+/**
+ * xe_svm_range_needs_migrate_to_vram() - SVM range needs migrate to VRAM or not
+ * @range: SVM range for which migration needs to be decided
+ * @vma: vma which has range
+ * @preferred_region_is_vram: preferred region for range is vram
+ *
+ * Return: True for range needing migration and migration is supported else false
+ */
+bool xe_svm_range_needs_migrate_to_vram(struct xe_svm_range *range, struct xe_vma *vma,
+					bool preferred_region_is_vram)
 {
 	struct xe_vm *vm = range_to_vm(&range->base);
 	u64 range_size = xe_svm_range_size(range);
 
-	if (!range->base.flags.migrate_devmem)
+	if (!range->base.flags.migrate_devmem || !preferred_region_is_vram)
 		return false;
 
-	if (xe_svm_range_in_vram(range)) {
-		drm_dbg(&vm->xe->drm, "Range is already in VRAM\n");
+	xe_assert(vm->xe, IS_DGFX(vm->xe));
+
+	if (preferred_region_is_vram && xe_svm_range_in_vram(range)) {
+		drm_info(&vm->xe->drm, "Range is already in VRAM\n");
 		return false;
 	}
 
-	if (range_size < SZ_64K && !supports_4K_migration(vm->xe)) {
+	if (preferred_region_is_vram && range_size < SZ_64K && !supports_4K_migration(vm->xe)) {
 		drm_dbg(&vm->xe->drm, "Platform doesn't support SZ_4K range migration\n");
 		return false;
 	}
@@ -798,14 +816,13 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 		.devmem_only = atomic && IS_DGFX(vm->xe) &&
 			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR),
 		.timeslice_ms = atomic && IS_DGFX(vm->xe) &&
-			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR) ? 5 : 0,
+			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR) ?
+			vm->xe->atomic_svm_timeslice_ms : 0,
 	};
 	struct xe_svm_range *range;
-	struct drm_gpusvm_range *r;
-	struct drm_exec exec;
 	struct dma_fence *fence;
-	int migrate_try_count = ctx.devmem_only ? 3 : 1;
 	struct xe_tile *tile = gt_to_tile(gt);
+	int migrate_try_count = ctx.devmem_only ? 3 : 1;
 	ktime_t end = 0;
 	int err;
 
@@ -820,23 +837,21 @@ retry:
 	if (err)
 		return err;
 
-	r = drm_gpusvm_range_find_or_insert(&vm->svm.gpusvm, fault_addr,
-					    xe_vma_start(vma), xe_vma_end(vma),
-					    &ctx);
-	if (IS_ERR(r))
-		return PTR_ERR(r);
+	range = xe_svm_range_find_or_insert(vm, fault_addr, vma, &ctx);
 
-	if (ctx.devmem_only && !r->flags.migrate_devmem)
+	if (IS_ERR(range))
+		return PTR_ERR(range);
+
+	if (ctx.devmem_only && !range->base.flags.migrate_devmem)
 		return -EACCES;
 
-	range = to_xe_range(r);
 	if (xe_svm_range_is_valid(range, tile, ctx.devmem_only))
 		return 0;
 
 	range_debug(range, "PAGE FAULT");
 
 	if (--migrate_try_count >= 0 &&
-	    xe_svm_range_needs_migrate_to_vram(range, vma)) {
+	    xe_svm_range_needs_migrate_to_vram(range, vma, IS_DGFX(vm->xe))) {
 		err = xe_svm_alloc_vram(vm, tile, range, &ctx);
 		ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
 		if (err) {
@@ -855,16 +870,11 @@ retry:
 	}
 
 	range_debug(range, "GET PAGES");
-	err = drm_gpusvm_range_get_pages(&vm->svm.gpusvm, r, &ctx);
+	err = xe_svm_range_get_pages(vm, range, &ctx);
 	/* Corner where CPU mappings have changed */
 	if (err == -EOPNOTSUPP || err == -EFAULT || err == -EPERM) {
 		ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
 		if (migrate_try_count > 0 || !ctx.devmem_only) {
-			if (err == -EOPNOTSUPP) {
-				range_debug(range, "PAGE FAULT - EVICT PAGES");
-				drm_gpusvm_range_evict(&vm->svm.gpusvm,
-						       &range->base);
-			}
 			drm_dbg(&vm->xe->drm,
 				"Get pages failed, falling back to retrying, asid=%u, gpusvm=%p, errno=%pe\n",
 				vm->usm.asid, &vm->svm.gpusvm, ERR_PTR(err));
@@ -884,30 +894,21 @@ retry:
 	range_debug(range, "PAGE FAULT - BIND");
 
 retry_bind:
-	drm_exec_init(&exec, 0, 0);
-	drm_exec_until_all_locked(&exec) {
-		err = drm_exec_lock_obj(&exec, vm->gpuvm.r_obj);
-		drm_exec_retry_on_contention(&exec);
-		if (err) {
-			drm_exec_fini(&exec);
-			goto err_out;
+	xe_vm_lock(vm, false);
+	fence = xe_vm_range_rebind(vm, vma, range, BIT(tile->id));
+	if (IS_ERR(fence)) {
+		xe_vm_unlock(vm);
+		err = PTR_ERR(fence);
+		if (err == -EAGAIN) {
+			ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
+			range_debug(range, "PAGE FAULT - RETRY BIND");
+			goto retry;
 		}
-
-		fence = xe_vm_range_rebind(vm, vma, range, BIT(tile->id));
-		if (IS_ERR(fence)) {
-			drm_exec_fini(&exec);
-			err = PTR_ERR(fence);
-			if (err == -EAGAIN) {
-				ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
-				range_debug(range, "PAGE FAULT - RETRY BIND");
-				goto retry;
-			}
-			if (xe_vm_validate_should_retry(&exec, err, &end))
-				goto retry_bind;
-			goto err_out;
-		}
+		if (xe_vm_validate_should_retry(NULL, err, &end))
+			goto retry_bind;
+		goto err_out;
 	}
-	drm_exec_fini(&exec);
+	xe_vm_unlock(vm);
 
 	dma_fence_wait(fence, false);
 	dma_fence_put(fence);
@@ -944,6 +945,56 @@ bool xe_svm_has_mapping(struct xe_vm *vm, u64 start, u64 end)
 int xe_svm_bo_evict(struct xe_bo *bo)
 {
 	return drm_gpusvm_evict_to_ram(&bo->devmem_allocation);
+}
+
+/**
+ * xe_svm_range_find_or_insert- Find or insert GPU SVM range
+ * @vm: xe_vm pointer
+ * @addr: address for which range needs to be found/inserted
+ * @vma:  Pointer to struct xe_vma which mirrors CPU
+ * @ctx: GPU SVM context
+ *
+ * This function finds or inserts a newly allocated a SVM range based on the
+ * address.
+ *
+ * Return: Pointer to the SVM range on success, ERR_PTR() on failure.
+ */
+struct xe_svm_range *xe_svm_range_find_or_insert(struct xe_vm *vm, u64 addr,
+						 struct xe_vma *vma, struct drm_gpusvm_ctx *ctx)
+{
+	struct drm_gpusvm_range *r;
+
+	r = drm_gpusvm_range_find_or_insert(&vm->svm.gpusvm, max(addr, xe_vma_start(vma)),
+					    xe_vma_start(vma), xe_vma_end(vma), ctx);
+	if (IS_ERR(r))
+		return ERR_PTR(PTR_ERR(r));
+
+	return to_xe_range(r);
+}
+
+/**
+ * xe_svm_range_get_pages() - Get pages for a SVM range
+ * @vm: Pointer to the struct xe_vm
+ * @range: Pointer to the xe SVM range structure
+ * @ctx: GPU SVM context
+ *
+ * This function gets pages for a SVM range and ensures they are mapped for
+ * DMA access. In case of failure with -EOPNOTSUPP, it evicts the range.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int xe_svm_range_get_pages(struct xe_vm *vm, struct xe_svm_range *range,
+			   struct drm_gpusvm_ctx *ctx)
+{
+	int err = 0;
+
+	err = drm_gpusvm_range_get_pages(&vm->svm.gpusvm, &range->base, ctx);
+	if (err == -EOPNOTSUPP) {
+		range_debug(range, "PAGE FAULT - EVICT PAGES");
+		drm_gpusvm_range_evict(&vm->svm.gpusvm, &range->base);
+	}
+
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
@@ -1024,6 +1075,13 @@ int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 	return 0;
 }
 #else
+int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
+		      struct xe_svm_range *range,
+		      const struct drm_gpusvm_ctx *ctx)
+{
+	return -EOPNOTSUPP;
+}
+
 int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 {
 	return 0;

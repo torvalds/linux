@@ -417,6 +417,8 @@ int xe_gt_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
+	xe_mocs_init_early(gt);
+
 	return 0;
 }
 
@@ -633,8 +635,6 @@ int xe_gt_init(struct xe_gt *gt)
 	err = xe_gt_pagefault_init(gt);
 	if (err)
 		return err;
-
-	xe_mocs_init_early(gt);
 
 	err = xe_gt_sysfs_init(gt);
 	if (err)

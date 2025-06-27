@@ -26,6 +26,8 @@
  * for more details.
  *
  */
+
+#include <linux/export.h>
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -1482,13 +1484,12 @@ int fb_validate_mode(const struct fb_var_screeninfo *var, struct fb_info *info)
 		-EINVAL : 0;
 }
 
-#if defined(CONFIG_FIRMWARE_EDID) && defined(CONFIG_X86)
-
 /*
  * We need to ensure that the EDID block is only returned for
  * the primary graphics adapter.
  */
 
+#if defined(CONFIG_FIRMWARE_EDID)
 const unsigned char *fb_firmware_edid(struct device *device)
 {
 	struct pci_dev *dev = NULL;

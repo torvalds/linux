@@ -514,9 +514,9 @@ static int shrink_test_run_device(struct xe_device *xe)
 		 * other way around, they may not be subject to swapping...
 		 */
 		if (alloced < purgeable) {
-			xe_ttm_tt_account_subtract(&xe_tt->ttm);
+			xe_ttm_tt_account_subtract(xe, &xe_tt->ttm);
 			xe_tt->purgeable = true;
-			xe_ttm_tt_account_add(&xe_tt->ttm);
+			xe_ttm_tt_account_add(xe, &xe_tt->ttm);
 			bo->ttm.priority = 0;
 			spin_lock(&bo->ttm.bdev->lru_lock);
 			ttm_bo_move_to_lru_tail(&bo->ttm);

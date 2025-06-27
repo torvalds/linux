@@ -8,12 +8,14 @@
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
 
+#include "pxp/intel_pxp.h"
+
 #include "i915_drv.h"
-#include "i915_reg.h"
 #include "intel_atomic_plane.h"
 #include "intel_bo.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
@@ -25,7 +27,6 @@
 #include "skl_universal_plane.h"
 #include "skl_universal_plane_regs.h"
 #include "skl_watermark.h"
-#include "pxp/intel_pxp.h"
 
 static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_C8,

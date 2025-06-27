@@ -3,13 +3,17 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include "i915_drv.h"
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_panel.h"
 #include "intel_pch_refclk.h"
 #include "intel_sbi.h"
+#include "intel_sbi_regs.h"
 
 static void lpt_fdi_reset_mphy(struct intel_display *display)
 {
@@ -29,95 +33,93 @@ static void lpt_fdi_reset_mphy(struct intel_display *display)
 /* WaMPhyProgramming:hsw */
 static void lpt_fdi_program_mphy(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 tmp;
 
 	lpt_fdi_reset_mphy(display);
 
-	tmp = intel_sbi_read(dev_priv, 0x8008, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x8008, SBI_MPHY);
 	tmp &= ~(0xFF << 24);
 	tmp |= (0x12 << 24);
-	intel_sbi_write(dev_priv, 0x8008, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x8008, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x2008, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x2008, SBI_MPHY);
 	tmp |= (1 << 11);
-	intel_sbi_write(dev_priv, 0x2008, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x2008, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x2108, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x2108, SBI_MPHY);
 	tmp |= (1 << 11);
-	intel_sbi_write(dev_priv, 0x2108, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x2108, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x206C, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x206C, SBI_MPHY);
 	tmp |= (1 << 24) | (1 << 21) | (1 << 18);
-	intel_sbi_write(dev_priv, 0x206C, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x206C, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x216C, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x216C, SBI_MPHY);
 	tmp |= (1 << 24) | (1 << 21) | (1 << 18);
-	intel_sbi_write(dev_priv, 0x216C, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x216C, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x2080, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x2080, SBI_MPHY);
 	tmp &= ~(7 << 13);
 	tmp |= (5 << 13);
-	intel_sbi_write(dev_priv, 0x2080, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x2080, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x2180, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x2180, SBI_MPHY);
 	tmp &= ~(7 << 13);
 	tmp |= (5 << 13);
-	intel_sbi_write(dev_priv, 0x2180, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x2180, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x208C, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x208C, SBI_MPHY);
 	tmp &= ~0xFF;
 	tmp |= 0x1C;
-	intel_sbi_write(dev_priv, 0x208C, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x208C, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x218C, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x218C, SBI_MPHY);
 	tmp &= ~0xFF;
 	tmp |= 0x1C;
-	intel_sbi_write(dev_priv, 0x218C, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x218C, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x2098, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x2098, SBI_MPHY);
 	tmp &= ~(0xFF << 16);
 	tmp |= (0x1C << 16);
-	intel_sbi_write(dev_priv, 0x2098, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x2098, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x2198, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x2198, SBI_MPHY);
 	tmp &= ~(0xFF << 16);
 	tmp |= (0x1C << 16);
-	intel_sbi_write(dev_priv, 0x2198, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x2198, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x20C4, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x20C4, SBI_MPHY);
 	tmp |= (1 << 27);
-	intel_sbi_write(dev_priv, 0x20C4, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x20C4, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x21C4, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x21C4, SBI_MPHY);
 	tmp |= (1 << 27);
-	intel_sbi_write(dev_priv, 0x21C4, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x21C4, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x20EC, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x20EC, SBI_MPHY);
 	tmp &= ~(0xF << 28);
 	tmp |= (4 << 28);
-	intel_sbi_write(dev_priv, 0x20EC, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x20EC, tmp, SBI_MPHY);
 
-	tmp = intel_sbi_read(dev_priv, 0x21EC, SBI_MPHY);
+	tmp = intel_sbi_read(display, 0x21EC, SBI_MPHY);
 	tmp &= ~(0xF << 28);
 	tmp |= (4 << 28);
-	intel_sbi_write(dev_priv, 0x21EC, tmp, SBI_MPHY);
+	intel_sbi_write(display, 0x21EC, tmp, SBI_MPHY);
 }
 
 void lpt_disable_iclkip(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 temp;
 
 	intel_de_write(display, PIXCLK_GATE, PIXCLK_GATE_GATE);
 
-	intel_sbi_lock(dev_priv);
+	intel_sbi_lock(display);
 
-	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
+	temp = intel_sbi_read(display, SBI_SSCCTL6, SBI_ICLK);
 	temp |= SBI_SSCCTL_DISABLE;
-	intel_sbi_write(dev_priv, SBI_SSCCTL6, temp, SBI_ICLK);
+	intel_sbi_write(display, SBI_SSCCTL6, temp, SBI_ICLK);
 
-	intel_sbi_unlock(dev_priv);
+	intel_sbi_unlock(display);
 }
 
 struct iclkip_params {
@@ -178,8 +180,6 @@ int lpt_iclkip(const struct intel_crtc_state *crtc_state)
 void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	int clock = crtc_state->hw.adjusted_mode.crtc_clock;
 	struct iclkip_params p;
 	u32 temp;
@@ -199,30 +199,30 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 		    "iCLKIP clock: found settings for %dKHz refresh rate: auxdiv=%x, divsel=%x, phasedir=%x, phaseinc=%x\n",
 		    clock, p.auxdiv, p.divsel, p.phasedir, p.phaseinc);
 
-	intel_sbi_lock(dev_priv);
+	intel_sbi_lock(display);
 
 	/* Program SSCDIVINTPHASE6 */
-	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
+	temp = intel_sbi_read(display, SBI_SSCDIVINTPHASE6, SBI_ICLK);
 	temp &= ~SBI_SSCDIVINTPHASE_DIVSEL_MASK;
 	temp |= SBI_SSCDIVINTPHASE_DIVSEL(p.divsel);
 	temp &= ~SBI_SSCDIVINTPHASE_INCVAL_MASK;
 	temp |= SBI_SSCDIVINTPHASE_INCVAL(p.phaseinc);
 	temp |= SBI_SSCDIVINTPHASE_DIR(p.phasedir);
 	temp |= SBI_SSCDIVINTPHASE_PROPAGATE;
-	intel_sbi_write(dev_priv, SBI_SSCDIVINTPHASE6, temp, SBI_ICLK);
+	intel_sbi_write(display, SBI_SSCDIVINTPHASE6, temp, SBI_ICLK);
 
 	/* Program SSCAUXDIV */
-	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6, SBI_ICLK);
+	temp = intel_sbi_read(display, SBI_SSCAUXDIV6, SBI_ICLK);
 	temp &= ~SBI_SSCAUXDIV_FINALDIV2SEL(1);
 	temp |= SBI_SSCAUXDIV_FINALDIV2SEL(p.auxdiv);
-	intel_sbi_write(dev_priv, SBI_SSCAUXDIV6, temp, SBI_ICLK);
+	intel_sbi_write(display, SBI_SSCAUXDIV6, temp, SBI_ICLK);
 
 	/* Enable modulator and associated divider */
-	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
+	temp = intel_sbi_read(display, SBI_SSCCTL6, SBI_ICLK);
 	temp &= ~SBI_SSCCTL_DISABLE;
-	intel_sbi_write(dev_priv, SBI_SSCCTL6, temp, SBI_ICLK);
+	intel_sbi_write(display, SBI_SSCCTL6, temp, SBI_ICLK);
 
-	intel_sbi_unlock(dev_priv);
+	intel_sbi_unlock(display);
 
 	/* Wait for initialization time */
 	udelay(24);
@@ -232,7 +232,6 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 
 int lpt_get_iclkip(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct iclkip_params p;
 	u32 temp;
 
@@ -241,25 +240,25 @@ int lpt_get_iclkip(struct intel_display *display)
 
 	iclkip_params_init(&p);
 
-	intel_sbi_lock(dev_priv);
+	intel_sbi_lock(display);
 
-	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
+	temp = intel_sbi_read(display, SBI_SSCCTL6, SBI_ICLK);
 	if (temp & SBI_SSCCTL_DISABLE) {
-		intel_sbi_unlock(dev_priv);
+		intel_sbi_unlock(display);
 		return 0;
 	}
 
-	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
+	temp = intel_sbi_read(display, SBI_SSCDIVINTPHASE6, SBI_ICLK);
 	p.divsel = (temp & SBI_SSCDIVINTPHASE_DIVSEL_MASK) >>
 		SBI_SSCDIVINTPHASE_DIVSEL_SHIFT;
 	p.phaseinc = (temp & SBI_SSCDIVINTPHASE_INCVAL_MASK) >>
 		SBI_SSCDIVINTPHASE_INCVAL_SHIFT;
 
-	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6, SBI_ICLK);
+	temp = intel_sbi_read(display, SBI_SSCAUXDIV6, SBI_ICLK);
 	p.auxdiv = (temp & SBI_SSCAUXDIV_FINALDIV2SEL_MASK) >>
 		SBI_SSCAUXDIV_FINALDIV2SEL_SHIFT;
 
-	intel_sbi_unlock(dev_priv);
+	intel_sbi_unlock(display);
 
 	p.desired_divisor = (p.divsel + 2) * p.iclk_pi_range + p.phaseinc;
 
@@ -275,7 +274,6 @@ int lpt_get_iclkip(struct intel_display *display)
 static void lpt_enable_clkout_dp(struct intel_display *display,
 				 bool with_spread, bool with_fdi)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 reg, tmp;
 
 	if (drm_WARN(display->drm, with_fdi && !with_spread,
@@ -285,57 +283,56 @@ static void lpt_enable_clkout_dp(struct intel_display *display,
 		     with_fdi, "LP PCH doesn't have FDI\n"))
 		with_fdi = false;
 
-	intel_sbi_lock(dev_priv);
+	intel_sbi_lock(display);
 
-	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	tmp = intel_sbi_read(display, SBI_SSCCTL, SBI_ICLK);
 	tmp &= ~SBI_SSCCTL_DISABLE;
 	tmp |= SBI_SSCCTL_PATHALT;
-	intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+	intel_sbi_write(display, SBI_SSCCTL, tmp, SBI_ICLK);
 
 	udelay(24);
 
 	if (with_spread) {
-		tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+		tmp = intel_sbi_read(display, SBI_SSCCTL, SBI_ICLK);
 		tmp &= ~SBI_SSCCTL_PATHALT;
-		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+		intel_sbi_write(display, SBI_SSCCTL, tmp, SBI_ICLK);
 
 		if (with_fdi)
 			lpt_fdi_program_mphy(display);
 	}
 
 	reg = HAS_PCH_LPT_LP(display) ? SBI_GEN0 : SBI_DBUFF0;
-	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
+	tmp = intel_sbi_read(display, reg, SBI_ICLK);
 	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
-	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
+	intel_sbi_write(display, reg, tmp, SBI_ICLK);
 
-	intel_sbi_unlock(dev_priv);
+	intel_sbi_unlock(display);
 }
 
 /* Sequence to disable CLKOUT_DP */
 void lpt_disable_clkout_dp(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 reg, tmp;
 
-	intel_sbi_lock(dev_priv);
+	intel_sbi_lock(display);
 
 	reg = HAS_PCH_LPT_LP(display) ? SBI_GEN0 : SBI_DBUFF0;
-	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
+	tmp = intel_sbi_read(display, reg, SBI_ICLK);
 	tmp &= ~SBI_GEN0_CFG_BUFFENABLE_DISABLE;
-	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
+	intel_sbi_write(display, reg, tmp, SBI_ICLK);
 
-	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
+	tmp = intel_sbi_read(display, SBI_SSCCTL, SBI_ICLK);
 	if (!(tmp & SBI_SSCCTL_DISABLE)) {
 		if (!(tmp & SBI_SSCCTL_PATHALT)) {
 			tmp |= SBI_SSCCTL_PATHALT;
-			intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+			intel_sbi_write(display, SBI_SSCCTL, tmp, SBI_ICLK);
 			udelay(32);
 		}
 		tmp |= SBI_SSCCTL_DISABLE;
-		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
+		intel_sbi_write(display, SBI_SSCCTL, tmp, SBI_ICLK);
 	}
 
-	intel_sbi_unlock(dev_priv);
+	intel_sbi_unlock(display);
 }
 
 #define BEND_IDX(steps) ((50 + (steps)) / 5)
@@ -372,7 +369,6 @@ static const u16 sscdivintphase[] = {
  */
 static void lpt_bend_clkout_dp(struct intel_display *display, int steps)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 tmp;
 	int idx = BEND_IDX(steps);
 
@@ -382,20 +378,20 @@ static void lpt_bend_clkout_dp(struct intel_display *display, int steps)
 	if (drm_WARN_ON(display->drm, idx >= ARRAY_SIZE(sscdivintphase)))
 		return;
 
-	intel_sbi_lock(dev_priv);
+	intel_sbi_lock(display);
 
 	if (steps % 10 != 0)
 		tmp = 0xAAAAAAAB;
 	else
 		tmp = 0x00000000;
-	intel_sbi_write(dev_priv, SBI_SSCDITHPHASE, tmp, SBI_ICLK);
+	intel_sbi_write(display, SBI_SSCDITHPHASE, tmp, SBI_ICLK);
 
-	tmp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE, SBI_ICLK);
+	tmp = intel_sbi_read(display, SBI_SSCDIVINTPHASE, SBI_ICLK);
 	tmp &= 0xffff0000;
 	tmp |= sscdivintphase[idx];
-	intel_sbi_write(dev_priv, SBI_SSCDIVINTPHASE, tmp, SBI_ICLK);
+	intel_sbi_write(display, SBI_SSCDIVINTPHASE, tmp, SBI_ICLK);
 
-	intel_sbi_unlock(dev_priv);
+	intel_sbi_unlock(display);
 }
 
 #undef BEND_IDX
@@ -499,7 +495,7 @@ static void lpt_init_pch_refclk(struct intel_display *display)
 static void ilk_init_pch_refclk(struct intel_display *display)
 {
 	struct intel_encoder *encoder;
-	struct intel_shared_dpll *pll;
+	struct intel_dpll *pll;
 	int i;
 	u32 val, final;
 	bool has_lvds = false;
@@ -535,7 +531,7 @@ static void ilk_init_pch_refclk(struct intel_display *display)
 	}
 
 	/* Check if any DPLLs are using the SSC source */
-	for_each_shared_dpll(display, pll, i) {
+	for_each_dpll(display, pll, i) {
 		u32 temp;
 
 		temp = intel_de_read(display, PCH_DPLL(pll->info->id));

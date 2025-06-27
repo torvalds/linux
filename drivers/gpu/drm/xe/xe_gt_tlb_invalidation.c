@@ -449,30 +449,6 @@ void xe_gt_tlb_invalidation_vm(struct xe_gt *gt, struct xe_vm *vm)
 }
 
 /**
- * xe_gt_tlb_invalidation_vma - Issue a TLB invalidation on this GT for a VMA
- * @gt: GT structure
- * @fence: invalidation fence which will be signal on TLB invalidation
- * completion, can be NULL
- * @vma: VMA to invalidate
- *
- * Issue a range based TLB invalidation if supported, if not fallback to a full
- * TLB invalidation. Completion of TLB is asynchronous and caller can use
- * the invalidation fence to wait for completion.
- *
- * Return: Negative error code on error, 0 on success
- */
-int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
-			       struct xe_gt_tlb_invalidation_fence *fence,
-			       struct xe_vma *vma)
-{
-	xe_gt_assert(gt, vma);
-
-	return xe_gt_tlb_invalidation_range(gt, fence, xe_vma_start(vma),
-					    xe_vma_end(vma),
-					    xe_vma_vm(vma)->usm.asid);
-}
-
-/**
  * xe_guc_tlb_invalidation_done_handler - TLB invalidation done handler
  * @guc: guc
  * @msg: message indicating TLB invalidation done

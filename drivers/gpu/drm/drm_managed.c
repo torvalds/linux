@@ -7,6 +7,7 @@
 
 #include <drm/drm_managed.h>
 
+#include <linux/export.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
