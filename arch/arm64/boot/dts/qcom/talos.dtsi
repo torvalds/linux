@@ -480,12 +480,6 @@
 		qcom,bcm-voters = <&apps_bcm_voter>;
 	};
 
-	ipa_virt: interconnect-1 {
-		compatible = "qcom,qcs615-ipa-virt";
-		#interconnect-cells = <2>;
-		qcom,bcm-voters = <&apps_bcm_voter>;
-	};
-
 	mc_virt: interconnect-2 {
 		compatible = "qcom,qcs615-mc-virt";
 		#interconnect-cells = <2>;
