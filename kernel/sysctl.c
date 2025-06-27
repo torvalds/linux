@@ -1475,15 +1475,6 @@ static const struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-#ifdef CONFIG_UEVENT_HELPER
-	{
-		.procname	= "hotplug",
-		.data		= &uevent_helper,
-		.maxlen		= UEVENT_HELPER_PATH_LEN,
-		.mode		= 0644,
-		.proc_handler	= proc_dostring,
-	},
-#endif
 	{
 		.procname	= "overflowuid",
 		.data		= &overflowuid,
