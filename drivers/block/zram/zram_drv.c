@@ -1225,12 +1225,13 @@ static void comp_algorithm_set(struct zram *zram, u32 prio, const char *alg)
 	zram->comp_algs[prio] = alg;
 }
 
-static ssize_t __comp_algorithm_show(struct zram *zram, u32 prio, char *buf)
+static ssize_t __comp_algorithm_show(struct zram *zram, u32 prio,
+				     char *buf, ssize_t at)
 {
 	ssize_t sz;
 
 	down_read(&zram->init_lock);
-	sz = zcomp_available_show(zram->comp_algs[prio], buf);
+	sz = zcomp_available_show(zram->comp_algs[prio], buf, at);
 	up_read(&zram->init_lock);
 
 	return sz;
@@ -1387,7 +1388,7 @@ static ssize_t comp_algorithm_show(struct device *dev,
 {
 	struct zram *zram = dev_to_zram(dev);
 
-	return __comp_algorithm_show(zram, ZRAM_PRIMARY_COMP, buf);
+	return __comp_algorithm_show(zram, ZRAM_PRIMARY_COMP, buf, 0);
 }
 
 static ssize_t comp_algorithm_store(struct device *dev,
@@ -1416,7 +1417,7 @@ static ssize_t recomp_algorithm_show(struct device *dev,
 			continue;
 
 		sz += sysfs_emit_at(buf, sz, "#%d: ", prio);
-		sz += __comp_algorithm_show(zram, prio, buf + sz);
+		sz += __comp_algorithm_show(zram, prio, buf, sz);
 	}
 
 	return sz;
