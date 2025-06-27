@@ -40,13 +40,11 @@
 #include "dc/dc_stat.h"
 #include "dc/dc_state.h"
 #include "amdgpu_dm_trace.h"
-#include "dpcd_defs.h"
 #include "link/protocols/link_dpcd.h"
 #include "link_service_types.h"
 #include "link/protocols/link_dp_capability.h"
 #include "link/protocols/link_ddc.h"
 
-#include "vid.h"
 #include "amdgpu.h"
 #include "amdgpu_display.h"
 #include "amdgpu_ucode.h"
@@ -57,7 +55,6 @@
 #include "amdgpu_dm_hdcp.h"
 #include <drm/display/drm_hdcp_helper.h>
 #include "amdgpu_dm_wb.h"
-#include "amdgpu_pm.h"
 #include "amdgpu_atombios.h"
 
 #include "amd_shared.h"
@@ -102,15 +99,6 @@
 #include <acpi/video.h>
 
 #include "ivsrcid/dcn/irqsrcs_dcn_1_0.h"
-
-#include "dcn/dcn_1_0_offset.h"
-#include "dcn/dcn_1_0_sh_mask.h"
-#include "soc15_hw_ip.h"
-#include "soc15_common.h"
-#include "vega10_ip_offset.h"
-
-#include "gc/gc_11_0_0_offset.h"
-#include "gc/gc_11_0_0_sh_mask.h"
 
 #include "modules/inc/mod_freesync.h"
 #include "modules/power/power_helpers.h"
