@@ -86,7 +86,7 @@ struct xe_bo {
 	u16 cpu_caching;
 
 	/** @devmem_allocation: SVM device memory allocation */
-	struct drm_gpusvm_devmem devmem_allocation;
+	struct drm_pagemap_devmem devmem_allocation;
 
 	/** @vram_userfault_link: Link into @mem_access.vram_userfault.list */
 		struct list_head vram_userfault_link;

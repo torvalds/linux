@@ -3,13 +3,17 @@
  * Copyright © 2024 Intel Corporation
  */
 
+#include <drm/drm_drv.h>
+
 #include "xe_bo.h"
 #include "xe_gt_stats.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
 #include "xe_module.h"
+#include "xe_pm.h"
 #include "xe_pt.h"
 #include "xe_svm.h"
+#include "xe_tile.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_vm.h"
 #include "xe_vm_types.h"
@@ -295,7 +299,7 @@ static void xe_svm_garbage_collector_work_func(struct work_struct *w)
 	up_write(&vm->lock);
 }
 
-#if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
+#if IS_ENABLED(CONFIG_DRM_XE_PAGEMAP)
 
 static struct xe_vram_region *page_to_vr(struct page *page)
 {
@@ -483,16 +487,18 @@ static int xe_svm_copy_to_ram(struct page **pages, dma_addr_t *dma_addr,
 	return xe_svm_copy(pages, dma_addr, npages, XE_SVM_COPY_TO_SRAM);
 }
 
-static struct xe_bo *to_xe_bo(struct drm_gpusvm_devmem *devmem_allocation)
+static struct xe_bo *to_xe_bo(struct drm_pagemap_devmem *devmem_allocation)
 {
 	return container_of(devmem_allocation, struct xe_bo, devmem_allocation);
 }
 
-static void xe_svm_devmem_release(struct drm_gpusvm_devmem *devmem_allocation)
+static void xe_svm_devmem_release(struct drm_pagemap_devmem *devmem_allocation)
 {
 	struct xe_bo *bo = to_xe_bo(devmem_allocation);
+	struct xe_device *xe = xe_bo_device(bo);
 
 	xe_bo_put_async(bo);
+	xe_pm_runtime_put(xe);
 }
 
 static u64 block_offset_to_pfn(struct xe_vram_region *vr, u64 offset)
@@ -505,7 +511,7 @@ static struct drm_buddy *tile_to_buddy(struct xe_tile *tile)
 	return &tile->mem.vram.ttm.mm;
 }
 
-static int xe_svm_populate_devmem_pfn(struct drm_gpusvm_devmem *devmem_allocation,
+static int xe_svm_populate_devmem_pfn(struct drm_pagemap_devmem *devmem_allocation,
 				      unsigned long npages, unsigned long *pfn)
 {
 	struct xe_bo *bo = to_xe_bo(devmem_allocation);
@@ -528,7 +534,7 @@ static int xe_svm_populate_devmem_pfn(struct drm_gpusvm_devmem *devmem_allocatio
 	return 0;
 }
 
-static const struct drm_gpusvm_devmem_ops gpusvm_devmem_ops = {
+static const struct drm_pagemap_devmem_ops dpagemap_devmem_ops = {
 	.devmem_release = xe_svm_devmem_release,
 	.populate_devmem_pfn = xe_svm_populate_devmem_pfn,
 	.copy_to_devmem = xe_svm_copy_to_devmem,
@@ -676,75 +682,69 @@ u64 xe_svm_find_vma_start(struct xe_vm *vm, u64 start, u64 end, struct xe_vma *v
 					 min(end, xe_vma_end(vma)));
 }
 
-#if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
+#if IS_ENABLED(CONFIG_DRM_XE_PAGEMAP)
 static struct xe_vram_region *tile_to_vr(struct xe_tile *tile)
 {
 	return &tile->mem.vram;
 }
 
-/**
- * xe_svm_alloc_vram()- Allocate device memory pages for range,
- * migrating existing data.
- * @vm: The VM.
- * @tile: tile to allocate vram from
- * @range: SVM range
- * @ctx: DRM GPU SVM context
- *
- * Return: 0 on success, error code on failure.
- */
-int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
-		      struct xe_svm_range *range,
-		      const struct drm_gpusvm_ctx *ctx)
+static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
+				      unsigned long start, unsigned long end,
+				      struct mm_struct *mm,
+				      unsigned long timeslice_ms)
 {
-	struct mm_struct *mm = vm->svm.gpusvm.mm;
+	struct xe_tile *tile = container_of(dpagemap, typeof(*tile), mem.vram.dpagemap);
+	struct xe_device *xe = tile_to_xe(tile);
+	struct device *dev = xe->drm.dev;
 	struct xe_vram_region *vr = tile_to_vr(tile);
 	struct drm_buddy_block *block;
 	struct list_head *blocks;
 	struct xe_bo *bo;
-	ktime_t end = 0;
-	int err;
+	ktime_t time_end = 0;
+	int err, idx;
 
-	range_debug(range, "ALLOCATE VRAM");
+	if (!drm_dev_enter(&xe->drm, &idx))
+		return -ENODEV;
 
-	if (!mmget_not_zero(mm))
-		return -EFAULT;
-	mmap_read_lock(mm);
+	xe_pm_runtime_get(xe);
 
-retry:
-	bo = xe_bo_create_locked(tile_to_xe(tile), NULL, NULL,
-				 xe_svm_range_size(range),
+ retry:
+	bo = xe_bo_create_locked(tile_to_xe(tile), NULL, NULL, end - start,
 				 ttm_bo_type_device,
 				 XE_BO_FLAG_VRAM_IF_DGFX(tile) |
 				 XE_BO_FLAG_CPU_ADDR_MIRROR);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
-		if (xe_vm_validate_should_retry(NULL, err, &end))
+		if (xe_vm_validate_should_retry(NULL, err, &time_end))
 			goto retry;
-		goto unlock;
+		goto out_pm_put;
 	}
 
-	drm_gpusvm_devmem_init(&bo->devmem_allocation,
-			       vm->xe->drm.dev, mm,
-			       &gpusvm_devmem_ops,
-			       &tile->mem.vram.dpagemap,
-			       xe_svm_range_size(range));
+	drm_pagemap_devmem_init(&bo->devmem_allocation, dev, mm,
+				&dpagemap_devmem_ops,
+				&tile->mem.vram.dpagemap,
+				end - start);
 
 	blocks = &to_xe_ttm_vram_mgr_resource(bo->ttm.resource)->blocks;
 	list_for_each_entry(block, blocks, link)
 		block->private = vr;
 
 	xe_bo_get(bo);
-	err = drm_gpusvm_migrate_to_devmem(&vm->svm.gpusvm, &range->base,
-					   &bo->devmem_allocation, ctx);
+
+	/* Ensure the device has a pm ref while there are device pages active. */
+	xe_pm_runtime_get_noresume(xe);
+	err = drm_pagemap_migrate_to_devmem(&bo->devmem_allocation, mm,
+					    start, end, timeslice_ms,
+					    xe_svm_devm_owner(xe));
 	if (err)
 		xe_svm_devmem_release(&bo->devmem_allocation);
 
 	xe_bo_unlock(bo);
 	xe_bo_put(bo);
 
-unlock:
-	mmap_read_unlock(mm);
-	mmput(mm);
+out_pm_put:
+	xe_pm_runtime_put(xe);
+	drm_dev_exit(idx);
 
 	return err;
 }
@@ -810,13 +810,13 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 	struct drm_gpusvm_ctx ctx = {
 		.read_only = xe_vma_read_only(vma),
 		.devmem_possible = IS_DGFX(vm->xe) &&
-			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR),
+			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP),
 		.check_pages_threshold = IS_DGFX(vm->xe) &&
-			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR) ? SZ_64K : 0,
+			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP) ? SZ_64K : 0,
 		.devmem_only = atomic && IS_DGFX(vm->xe) &&
-			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR),
+			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP),
 		.timeslice_ms = atomic && IS_DGFX(vm->xe) &&
-			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR) ?
+			IS_ENABLED(CONFIG_DRM_XE_PAGEMAP) ?
 			vm->xe->atomic_svm_timeslice_ms : 0,
 	};
 	struct xe_svm_range *range;
@@ -852,7 +852,7 @@ retry:
 
 	if (--migrate_try_count >= 0 &&
 	    xe_svm_range_needs_migrate_to_vram(range, vma, IS_DGFX(vm->xe))) {
-		err = xe_svm_alloc_vram(vm, tile, range, &ctx);
+		err = xe_svm_alloc_vram(tile, range, &ctx);
 		ctx.timeslice_ms <<= 1;	/* Double timeslice if we have to retry */
 		if (err) {
 			if (migrate_try_count || !ctx.devmem_only) {
@@ -944,7 +944,7 @@ bool xe_svm_has_mapping(struct xe_vm *vm, u64 start, u64 end)
  */
 int xe_svm_bo_evict(struct xe_bo *bo)
 {
-	return drm_gpusvm_evict_to_ram(&bo->devmem_allocation);
+	return drm_pagemap_evict_to_ram(&bo->devmem_allocation);
 }
 
 /**
@@ -997,7 +997,31 @@ int xe_svm_range_get_pages(struct xe_vm *vm, struct xe_svm_range *range,
 	return err;
 }
 
-#if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
+#if IS_ENABLED(CONFIG_DRM_XE_PAGEMAP)
+
+/**
+ * xe_svm_alloc_vram()- Allocate device memory pages for range,
+ * migrating existing data.
+ * @tile: tile to allocate vram from
+ * @range: SVM range
+ * @ctx: DRM GPU SVM context
+ *
+ * Return: 0 on success, error code on failure.
+ */
+int xe_svm_alloc_vram(struct xe_tile *tile, struct xe_svm_range *range,
+		      const struct drm_gpusvm_ctx *ctx)
+{
+	struct drm_pagemap *dpagemap;
+
+	xe_assert(tile_to_xe(tile), range->base.flags.migrate_devmem);
+	range_debug(range, "ALLOCATE VRAM");
+
+	dpagemap = xe_tile_local_pagemap(tile);
+	return drm_pagemap_populate_mm(dpagemap, xe_svm_range_start(range),
+				       xe_svm_range_end(range),
+				       range->base.gpusvm->mm,
+				       ctx->timeslice_ms);
+}
 
 static struct drm_pagemap_device_addr
 xe_drm_pagemap_device_map(struct drm_pagemap *dpagemap,
@@ -1023,6 +1047,7 @@ xe_drm_pagemap_device_map(struct drm_pagemap *dpagemap,
 
 static const struct drm_pagemap_ops xe_drm_pagemap_ops = {
 	.device_map = xe_drm_pagemap_device_map,
+	.populate_mm = xe_drm_pagemap_populate_mm,
 };
 
 /**
@@ -1054,7 +1079,7 @@ int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 	vr->pagemap.range.start = res->start;
 	vr->pagemap.range.end = res->end;
 	vr->pagemap.nr_range = 1;
-	vr->pagemap.ops = drm_gpusvm_pagemap_ops_get();
+	vr->pagemap.ops = drm_pagemap_pagemap_ops_get();
 	vr->pagemap.owner = xe_svm_devm_owner(xe);
 	addr = devm_memremap_pages(dev, &vr->pagemap);
 
@@ -1075,7 +1100,7 @@ int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 	return 0;
 }
 #else
-int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
+int xe_svm_alloc_vram(struct xe_tile *tile,
 		      struct xe_svm_range *range,
 		      const struct drm_gpusvm_ctx *ctx)
 {

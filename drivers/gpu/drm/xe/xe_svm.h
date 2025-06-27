@@ -70,8 +70,7 @@ int xe_svm_bo_evict(struct xe_bo *bo);
 
 void xe_svm_range_debug(struct xe_svm_range *range, const char *operation);
 
-int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
-		      struct xe_svm_range *range,
+int xe_svm_alloc_vram(struct xe_tile *tile, struct xe_svm_range *range,
 		      const struct drm_gpusvm_ctx *ctx);
 
 struct xe_svm_range *xe_svm_range_find_or_insert(struct xe_vm *vm, u64 addr,
@@ -237,10 +236,9 @@ void xe_svm_range_debug(struct xe_svm_range *range, const char *operation)
 {
 }
 
-static inline
-int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
-		      struct xe_svm_range *range,
-		      const struct drm_gpusvm_ctx *ctx)
+static inline int
+xe_svm_alloc_vram(struct xe_tile *tile, struct xe_svm_range *range,
+		  const struct drm_gpusvm_ctx *ctx)
 {
 	return -EOPNOTSUPP;
 }
