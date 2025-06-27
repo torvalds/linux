@@ -207,13 +207,6 @@ class KernelEntry:
             self.sectcheck += name + " "
             self.new_start_line = 0
 
-        elif name == "@...":
-            name = "..."
-            self.parameterdescs[name] = contents
-            self.sectcheck += name + " "
-            self.parameterdesc_start_lines[name] = self.new_start_line
-            self.new_start_line = 0
-
         else:
             if name in self.sections and self.sections[name] != "":
                 # Only warn on user-specified duplicate section names
