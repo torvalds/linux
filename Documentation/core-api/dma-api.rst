@@ -13,10 +13,10 @@ machines.  Unless you know that your driver absolutely has to support
 non-consistent platforms (this is usually only legacy platforms) you
 should only use the API described in part I.
 
-Part I - dma_API
+Part I - DMA API
 ----------------
 
-To get the dma_API, you must #include <linux/dma-mapping.h>.  This
+To get the DMA API, you must #include <linux/dma-mapping.h>.  This
 provides dma_addr_t and the interfaces described below.
 
 A dma_addr_t can hold any valid DMA address for the platform.  It can be
@@ -76,7 +76,7 @@ may only be called with IRQs enabled.
 Part Ib - Using small DMA-coherent buffers
 ------------------------------------------
 
-To get this part of the dma_API, you must #include <linux/dmapool.h>
+To get this part of the DMA API, you must #include <linux/dmapool.h>
 
 Many drivers need lots of small DMA-coherent memory regions for DMA
 descriptors or I/O buffers.  Rather than allocating in units of a page
@@ -247,7 +247,7 @@ Maps a piece of processor virtual memory so it can be accessed by the
 device and returns the DMA address of the memory.
 
 The direction for both APIs may be converted freely by casting.
-However the dma_API uses a strongly typed enumerator for its
+However the DMA API uses a strongly typed enumerator for its
 direction:
 
 ======================= =============================================
@@ -775,19 +775,19 @@ memory or doing partial flushes.
 	of two for easy alignment.
 
 
-Part III - Debug drivers use of the DMA-API
+Part III - Debug drivers use of the DMA API
 -------------------------------------------
 
-The DMA-API as described above has some constraints. DMA addresses must be
+The DMA API as described above has some constraints. DMA addresses must be
 released with the corresponding function with the same size for example. With
 the advent of hardware IOMMUs it becomes more and more important that drivers
 do not violate those constraints. In the worst case such a violation can
 result in data corruption up to destroyed filesystems.
 
-To debug drivers and find bugs in the usage of the DMA-API checking code can
+To debug drivers and find bugs in the usage of the DMA API checking code can
 be compiled into the kernel which will tell the developer about those
 violations. If your architecture supports it you can select the "Enable
-debugging of DMA-API usage" option in your kernel configuration. Enabling this
+debugging of DMA API usage" option in your kernel configuration. Enabling this
 option has a performance impact. Do not enable it in production kernels.
 
 If you boot the resulting kernel will contain code which does some bookkeeping
@@ -826,7 +826,7 @@ example warning message may look like this::
 	<EOI> <4>---[ end trace f6435a98e2a38c0e ]---
 
 The driver developer can find the driver and the device including a stacktrace
-of the DMA-API call which caused this warning.
+of the DMA API call which caused this warning.
 
 Per default only the first error will result in a warning message. All other
 errors will only silently counted. This limitation exist to prevent the code
@@ -834,7 +834,7 @@ from flooding your kernel log. To support debugging a device driver this can
 be disabled via debugfs. See the debugfs interface documentation below for
 details.
 
-The debugfs directory for the DMA-API debugging code is called dma-api/. In
+The debugfs directory for the DMA API debugging code is called dma-api/. In
 this directory the following files can currently be found:
 
 =============================== ===============================================
@@ -882,7 +882,7 @@ dma-api/driver_filter		You can write a name of a driver into this file
 
 If you have this code compiled into your kernel it will be enabled by default.
 If you want to boot without the bookkeeping anyway you can provide
-'dma_debug=off' as a boot parameter. This will disable DMA-API debugging.
+'dma_debug=off' as a boot parameter. This will disable DMA API debugging.
 Notice that you can not enable it again at runtime. You have to reboot to do
 so.
 
