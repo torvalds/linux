@@ -106,6 +106,7 @@
 		interrupts-extended = <&gpa0 6 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
+		system-power-controller;
 		wakeup-source;
 
 		regulators {
