@@ -207,8 +207,9 @@
 			status = "disabled";
 		};
 
-		apb {
+		apb@1e6e0000 {
 			compatible = "simple-bus";
+			reg = <0x1e6e0000 0x00010000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
@@ -289,52 +290,62 @@
 				#io-channel-cells = <1>;
 				status = "disabled";
 			};
+		};
 
-			video: video@1e700000 {
-				compatible = "aspeed,ast2500-video-engine";
-				reg = <0x1e700000 0x1000>;
-				clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
-					 <&syscon ASPEED_CLK_GATE_ECLK>;
-				clock-names = "vclk", "eclk";
-				interrupts = <7>;
+		/* There's another APB mapping at 0x1e6f0000 for 0x00010000 */
+
+		video: video@1e700000 {
+			compatible = "aspeed,ast2500-video-engine";
+			reg = <0x1e700000 0x1000>;
+			clocks = <&syscon ASPEED_CLK_GATE_VCLK>,
+				 <&syscon ASPEED_CLK_GATE_ECLK>;
+			clock-names = "vclk", "eclk";
+			interrupts = <7>;
+			status = "disabled";
+		};
+
+		sram: sram@1e720000 {
+			compatible = "mmio-sram";
+			reg = <0x1e720000 0x9000>;	// 36K
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
+		sdmmc: sd-controller@1e740000 {
+			compatible = "aspeed,ast2500-sd-controller";
+			reg = <0x1e740000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x1e740000 0x10000>;
+			clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+			status = "disabled";
+
+			sdhci0: sdhci@100 {
+				compatible = "aspeed,ast2500-sdhci";
+				reg = <0x100 0x100>;
+				interrupts = <26>;
+				sdhci,auto-cmd12;
+				clocks = <&syscon ASPEED_CLK_SDIO>;
 				status = "disabled";
 			};
 
-			sram: sram@1e720000 {
-				compatible = "mmio-sram";
-				reg = <0x1e720000 0x9000>;	// 36K
-				ranges;
-				#address-cells = <1>;
-				#size-cells = <1>;
-			};
-
-			sdmmc: sd-controller@1e740000 {
-				compatible = "aspeed,ast2500-sd-controller";
-				reg = <0x1e740000 0x100>;
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x1e740000 0x10000>;
-				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+			sdhci1: sdhci@200 {
+				compatible = "aspeed,ast2500-sdhci";
+				reg = <0x200 0x100>;
+				interrupts = <26>;
+				sdhci,auto-cmd12;
+				clocks = <&syscon ASPEED_CLK_SDIO>;
 				status = "disabled";
-
-				sdhci0: sdhci@100 {
-					compatible = "aspeed,ast2500-sdhci";
-					reg = <0x100 0x100>;
-					interrupts = <26>;
-					sdhci,auto-cmd12;
-					clocks = <&syscon ASPEED_CLK_SDIO>;
-					status = "disabled";
-				};
-
-				sdhci1: sdhci@200 {
-					compatible = "aspeed,ast2500-sdhci";
-					reg = <0x200 0x100>;
-					interrupts = <26>;
-					sdhci,auto-cmd12;
-					clocks = <&syscon ASPEED_CLK_SDIO>;
-					status = "disabled";
-				};
 			};
+		};
+
+		apb@1e780000 {
+			compatible = "simple-bus";
+			reg = <0x1e780000 0x00010000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 
 			gpio: gpio@1e780000 {
 				#gpio-cells = <2>;
@@ -521,6 +532,13 @@
 				};
 			};
 
+			i2c: bus@1e78a000 {
+				compatible = "simple-bus";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e78a000 0x1000>;
+			};
+
 			peci0: peci-controller@1e78b000 {
 				compatible = "aspeed,ast2500-peci";
 				reg = <0x1e78b000 0x60>;
@@ -564,14 +582,9 @@
 				no-loopback-test;
 				status = "disabled";
 			};
-
-			i2c: bus@1e78a000 {
-				compatible = "simple-bus";
-				#address-cells = <1>;
-				#size-cells = <1>;
-				ranges = <0 0x1e78a000 0x1000>;
-			};
 		};
+
+		/* There's another APB mapping at 0x1e790000 for 0x00010000 */
 	};
 };
 

@@ -915,14 +915,14 @@
 };
 
 &gpio {
-	pin_gpio_i3 {
+	pin-gpio-i3-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(I, 3) GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "NCSI_BMC_R_SEL";
 	};
 
-	pin_gpio_b6 {
+	pin-gpio-b6-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(B, 6) GPIO_ACTIVE_HIGH>;
 		output-low;

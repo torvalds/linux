@@ -155,7 +155,7 @@
 		/*Y0-Y7*/	"","","","","","","","",
 		/*Z0-Z7*/	"","","","","","","","";
 
-	usb_power {
+	usb-power-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(O, 3) GPIO_ACTIVE_LOW>;
 		output-high;
