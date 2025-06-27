@@ -114,7 +114,6 @@ struct mxc_isi_buffer {
 };
 
 struct mxc_isi_reg {
-	u32 offset;
 	u32 mask;
 };
 
@@ -158,6 +157,8 @@ struct mxc_gasket_ops {
 enum model {
 	MXC_ISI_IMX8MN,
 	MXC_ISI_IMX8MP,
+	MXC_ISI_IMX8QM,
+	MXC_ISI_IMX8QXP,
 	MXC_ISI_IMX8ULP,
 	MXC_ISI_IMX93,
 };
@@ -170,8 +171,6 @@ struct mxc_isi_plat_data {
 	const struct mxc_isi_ier_reg  *ier_reg;
 	const struct mxc_isi_set_thd *set_thd;
 	const struct mxc_gasket_ops *gasket_ops;
-	const struct clk_bulk_data *clks;
-	unsigned int num_clks;
 	bool buf_active_reverse;
 	bool has_36bit_dma;
 };
@@ -283,6 +282,7 @@ struct mxc_isi_dev {
 
 	void __iomem			*regs;
 	struct clk_bulk_data		*clks;
+	int				num_clks;
 	struct regmap			*gasket;
 
 	struct mxc_isi_crossbar		crossbar;

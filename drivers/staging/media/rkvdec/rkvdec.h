@@ -110,6 +110,7 @@ struct rkvdec_dev {
 	void __iomem *regs;
 	struct mutex vdev_lock; /* serializes ioctls */
 	struct delayed_work watchdog_work;
+	struct iommu_domain *empty_domain;
 };
 
 struct rkvdec_ctx {
