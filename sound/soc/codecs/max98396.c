@@ -16,7 +16,7 @@ static const char * const max98396_core_supplies[MAX98396_NUM_CORE_SUPPLIES] = {
 	"dvddio",
 };
 
-static struct reg_default max98396_reg[] = {
+static const struct reg_default max98396_reg[] = {
 	{MAX98396_R2000_SW_RESET, 0x00},
 	{MAX98396_R2001_INT_RAW1, 0x00},
 	{MAX98396_R2002_INT_RAW2, 0x00},
@@ -174,7 +174,7 @@ static struct reg_default max98396_reg[] = {
 	{MAX98396_R21FF_REVISION_ID, 0x00},
 };
 
-static struct reg_default max98397_reg[] = {
+static const struct reg_default max98397_reg[] = {
 	{MAX98396_R2000_SW_RESET, 0x00},
 	{MAX98396_R2001_INT_RAW1, 0x00},
 	{MAX98396_R2002_INT_RAW2, 0x00},

@@ -139,8 +139,8 @@
 #define RT5640_SV_ZCD1				0xd9
 #define RT5640_SV_ZCD2				0xda
 /* Dummy Register */
-#define RT5640_DUMMY1				0xfa
-#define RT5640_DUMMY2				0xfb
+#define RT5640_GCTL1				0xfa
+#define RT5640_GCTL2				0xfb
 #define RT5640_DUMMY3				0xfc
 
 
@@ -1986,7 +1986,7 @@
 #define RT5640_M_MONO_ADC_R_SFT			12
 #define RT5640_MCLK_DET				(0x1 << 11)
 
-/* General Control 1 (0xfb) */
+/* General Control 2 (0xfb) */
 #define RT5640_IRQ_JD2_MASK			(0x1 << 12)
 #define RT5640_IRQ_JD2_SFT			12
 #define RT5640_IRQ_JD2_BP			(0x0 << 12)

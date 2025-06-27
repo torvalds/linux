@@ -1295,6 +1295,19 @@ static int sof_sdw_card_late_probe(struct snd_soc_card *card)
 	return ret;
 }
 
+static int sof_sdw_add_dai_link(struct snd_soc_card *card,
+				struct snd_soc_dai_link *link)
+{
+	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
+	struct intel_mc_ctx *intel_ctx = (struct intel_mc_ctx *)ctx->private;
+
+	/* Ignore the HDMI PCM link if iDisp is not present */
+	if (strstr(link->stream_name, "HDMI") && !intel_ctx->hdmi.idisp_codec)
+		link->ignore = true;
+
+	return 0;
+}
+
 static int mc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
@@ -1321,6 +1334,7 @@ static int mc_probe(struct platform_device *pdev)
 	card->name = "soundwire";
 	card->owner = THIS_MODULE;
 	card->late_probe = sof_sdw_card_late_probe;
+	card->add_dai_link = sof_sdw_add_dai_link;
 
 	snd_soc_card_set_drvdata(card, ctx);
 
