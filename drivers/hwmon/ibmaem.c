@@ -349,7 +349,7 @@ static void aem_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 static int aem_read_sensor(struct aem_data *data, u8 elt, u8 reg,
 			   void *buf, size_t size)
 {
-	int rs_size, res;
+	int rs_size;
 	struct aem_read_sensor_req rs_req;
 	/* Use preallocated rx buffer */
 	struct aem_read_sensor_resp *rs_resp = data->rs_resp;
@@ -383,17 +383,12 @@ static int aem_read_sensor(struct aem_data *data, u8 elt, u8 reg,
 
 	aem_send_message(ipmi);
 
-	res = wait_for_completion_timeout(&ipmi->read_complete, IPMI_TIMEOUT);
-	if (!res) {
-		res = -ETIMEDOUT;
-		goto out;
-	}
+	if (!wait_for_completion_timeout(&ipmi->read_complete, IPMI_TIMEOUT))
+		return -ETIMEDOUT;
 
 	if (ipmi->rx_result || ipmi->rx_msg_len != rs_size ||
-	    memcmp(&rs_resp->id, &system_x_id, sizeof(system_x_id))) {
-		res = -ENOENT;
-		goto out;
-	}
+	    memcmp(&rs_resp->id, &system_x_id, sizeof(system_x_id)))
+		return -ENOENT;
 
 	switch (size) {
 	case 1: {
@@ -417,10 +412,8 @@ static int aem_read_sensor(struct aem_data *data, u8 elt, u8 reg,
 		break;
 	}
 	}
-	res = 0;
 
-out:
-	return res;
+	return 0;
 }
 
 /* Update AEM energy registers */
@@ -491,7 +484,6 @@ static void aem_delete(struct aem_data *data)
 /* Retrieve version and module handle for an AEM1 instance */
 static int aem_find_aem1_count(struct aem_ipmi_data *data)
 {
-	int res;
 	struct aem_find_firmware_req	ff_req;
 	struct aem_find_firmware_resp	ff_resp;
 
@@ -508,8 +500,7 @@ static int aem_find_aem1_count(struct aem_ipmi_data *data)
 
 	aem_send_message(data);
 
-	res = wait_for_completion_timeout(&data->read_complete, IPMI_TIMEOUT);
-	if (!res)
+	if (!wait_for_completion_timeout(&data->read_complete, IPMI_TIMEOUT))
 		return -ETIMEDOUT;
 
 	if (data->rx_result || data->rx_msg_len != sizeof(ff_resp) ||
@@ -632,7 +623,6 @@ static int aem_find_aem2(struct aem_ipmi_data *data,
 			    struct aem_find_instance_resp *fi_resp,
 			    int instance_num)
 {
-	int res;
 	struct aem_find_instance_req fi_req;
 
 	fi_req.id = system_x_id;
@@ -648,8 +638,7 @@ static int aem_find_aem2(struct aem_ipmi_data *data,
 
 	aem_send_message(data);
 
-	res = wait_for_completion_timeout(&data->read_complete, IPMI_TIMEOUT);
-	if (!res)
+	if (!wait_for_completion_timeout(&data->read_complete, IPMI_TIMEOUT))
 		return -ETIMEDOUT;
 
 	if (data->rx_result || data->rx_msg_len != sizeof(*fi_resp) ||
