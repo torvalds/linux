@@ -286,9 +286,12 @@ int smk_tskacc(struct task_smack *, struct smack_known *,
 int smk_curacc(struct smack_known *, u32, struct smk_audit_info *);
 int smack_str_from_perm(char *string, int access);
 struct smack_known *smack_from_secid(const u32);
+int smk_parse_label_len(const char *string, int len);
 char *smk_parse_smack(const char *string, int len);
 int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
 struct smack_known *smk_import_entry(const char *, int);
+struct smack_known *smk_import_valid_label(const char *label, int label_len,
+					   gfp_t gfp);
 void smk_insert_entry(struct smack_known *skp);
 struct smack_known *smk_find_entry(const char *);
 bool smack_privileged(int cap);
