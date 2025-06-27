@@ -3779,6 +3779,9 @@ BTF_ID_FLAGS(func, bpf_strspn);
 BTF_ID_FLAGS(func, bpf_strcspn);
 BTF_ID_FLAGS(func, bpf_strstr);
 BTF_ID_FLAGS(func, bpf_strnstr);
+#ifdef CONFIG_CGROUPS
+BTF_ID_FLAGS(func, bpf_cgroup_read_xattr, KF_RCU)
+#endif
 BTF_KFUNCS_END(common_btf_ids)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {
