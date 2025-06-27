@@ -1349,7 +1349,7 @@ static int xpad_try_sending_next_out_packet(struct usb_xpad *xpad)
 					"%s - usb_submit_urb failed with result %d\n",
 					__func__, error);
 			usb_unanchor_urb(xpad->irq_out);
-			return -EIO;
+			return error;
 		}
 
 		xpad->irq_out_active = true;
