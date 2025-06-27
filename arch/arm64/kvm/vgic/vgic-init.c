@@ -724,6 +724,9 @@ int kvm_vgic_hyp_init(void)
 			kvm_info("GIC system register CPU interface enabled\n");
 		}
 		break;
+	case GIC_V5:
+		ret = vgic_v5_probe(gic_kvm_info);
+		break;
 	default:
 		ret = -ENODEV;
 	}
