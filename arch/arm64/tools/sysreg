@@ -4530,6 +4530,12 @@ Field	1	U
 Field	0	EOI
 EndSysreg
 
+Sysreg	ICH_VCTLR_EL2	3	4	12	11	4
+Res0	63:2
+Field	1	V3
+Field	0	En
+EndSysreg
+
 Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
 Fields	CONTEXTIDR_ELx
 EndSysreg
