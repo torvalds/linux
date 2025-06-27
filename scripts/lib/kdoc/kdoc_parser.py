@@ -128,7 +128,7 @@ class KernelEntry:
     def __init__(self, config, ln):
         self.config = config
 
-        self.contents = ""
+        self._contents = []
         self.function = ""
         self.sectcheck = ""
         self.struct_actual = ""
@@ -152,6 +152,15 @@ class KernelEntry:
         # State flags
         self.brcount = 0
         self.declaration_start_line = ln + 1
+
+    #
+    # Management of section contents
+    #
+    def add_text(self, text):
+        self._contents.append(text)
+
+    def contents(self):
+        return '\n'.join(self._contents) + '\n'
 
     # TODO: rename to emit_message after removal of kernel-doc.pl
     def emit_msg(self, log_msg, warning=True):
@@ -180,9 +189,14 @@ class KernelEntry:
         """
         Dumps section contents to arrays/hashes intended for that purpose.
         """
-
+        #
+        # If we have accumulated no contents in the default ("description")
+        # section, don't bother.
+        #
+        if self.section == SECTION_DEFAULT and not self._contents:
+            return
         name = self.section
-        contents = self.contents
+        contents = self.contents()
 
         if type_param.match(name):
             name = type_param.group(1)
@@ -206,7 +220,8 @@ class KernelEntry:
                 if name != SECTION_DEFAULT:
                     self.emit_msg(self.new_start_line,
                                   f"duplicate section name '{name}'\n")
-                self.sections[name] += contents
+                # Treat as a new paragraph - add a blank line
+                self.sections[name] += '\n' + contents
             else:
                 self.sections[name] = contents
                 self.sectionlist.append(name)
@@ -217,7 +232,7 @@ class KernelEntry:
 
         if start_new:
             self.section = SECTION_DEFAULT
-            self.contents = ""
+            self._contents = []
 
 
 class KernelDoc:
@@ -1334,16 +1349,11 @@ class KernelDoc:
             newcontents = doc_sect.group(2)
             if not newcontents:
                 newcontents = ""
-
-            if self.entry.contents.strip("\n"):
-                self.dump_section()
-
+            self.dump_section()
             self.entry.begin_section(ln, newsection)
             self.entry.leading_space = None
 
-            self.entry.contents = newcontents.lstrip()
-            if self.entry.contents:
-                self.entry.contents += "\n"
+            self.entry.add_text(newcontents.lstrip())
             return True
         return False
 
@@ -1385,7 +1395,6 @@ class KernelDoc:
             #
             if cont == "":
                 self.state = state.BODY
-                self.entry.contents += "\n"  # needed?
             #
             # Otherwise we have more of the declaration section to soak up.
             #
@@ -1407,7 +1416,6 @@ class KernelDoc:
         #
         if KernRe(r"\s*\*\s*$").match(line):
             self.entry.begin_section(ln, dump = True)
-            self.entry.contents += '\n'
             self.state = state.BODY
             return
         #
@@ -1444,7 +1452,7 @@ class KernelDoc:
             #
             # Add the trimmed result to the section and we're done.
             #
-            self.entry.contents += cont[self.entry.leading_space:] + '\n'
+            self.entry.add_text(cont[self.entry.leading_space:])
         else:
             # Unknown line, ignore
             self.emit_msg(ln, f"bad line: {line}")
@@ -1458,7 +1466,7 @@ class KernelDoc:
 
         if doc_content.search(line):
             cont = doc_content.group(1)
-            self.entry.contents += cont + "\n"
+            self.entry.add_text(cont)
         else:
             # Unknown line, ignore
             self.emit_msg(ln, f"bad line: {line}")
@@ -1470,27 +1478,20 @@ class KernelDoc:
            doc_inline_sect.search(line):
             self.entry.begin_section(ln, doc_inline_sect.group(1))
 
-            self.entry.contents = doc_inline_sect.group(2).lstrip()
-            if self.entry.contents != "":
-                self.entry.contents += "\n"
-
+            self.entry.add_text(doc_inline_sect.group(2).lstrip())
             self.inline_doc_state = state.INLINE_TEXT
             # Documentation block end */
             return
 
         if doc_inline_end.search(line):
-            if self.entry.contents not in ["", "\n"]:
-                self.dump_section()
-
+            self.dump_section()
             self.state = state.PROTO
             self.inline_doc_state = state.INLINE_NA
             return
 
         if doc_content.search(line):
             if self.inline_doc_state == state.INLINE_TEXT:
-                self.entry.contents += doc_content.group(1) + "\n"
-                if not self.entry.contents.strip(" ").rstrip("\n"):
-                    self.entry.contents = ""
+                self.entry.add_text(doc_content.group(1))
 
             elif self.inline_doc_state == state.INLINE_NAME:
                 self.emit_msg(ln,
@@ -1668,11 +1669,8 @@ class KernelDoc:
 
         if doc_inline_oneline.search(line):
             self.entry.begin_section(ln, doc_inline_oneline.group(1))
-            self.entry.contents = doc_inline_oneline.group(2)
-
-            if self.entry.contents != "":
-                self.entry.contents += "\n"
-                self.dump_section(start_new=False)
+            self.entry.add_text(doc_inline_oneline.group(2))
+            self.dump_section()
 
         elif doc_inline_start.search(line):
             self.state = state.INLINE
@@ -1696,7 +1694,7 @@ class KernelDoc:
             self.reset_state(ln)
 
         elif doc_content.search(line):
-            self.entry.contents += doc_content.group(1) + "\n"
+            self.entry.add_text(doc_content.group(1))
 
     def parse_export(self):
         """
