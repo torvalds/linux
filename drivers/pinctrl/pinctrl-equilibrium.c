@@ -182,6 +182,8 @@ static int gpiochip_setup(struct device *dev, struct eqbr_gpio_ctrl *gctrl)
 	gc = &gctrl->chip;
 	gc->label = gctrl->name;
 	gc->fwnode = gctrl->fwnode;
+	gc->request = gpiochip_generic_request;
+	gc->free = gpiochip_generic_free;
 
 	if (!fwnode_property_read_bool(gctrl->fwnode, "interrupt-controller")) {
 		dev_dbg(dev, "gc %s: doesn't act as interrupt controller!\n",
