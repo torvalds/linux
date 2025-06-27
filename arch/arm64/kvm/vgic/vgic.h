@@ -389,6 +389,17 @@ void vgic_v3_put_nested(struct kvm_vcpu *vcpu);
 void vgic_v3_handle_nested_maint_irq(struct kvm_vcpu *vcpu);
 void vgic_v3_nested_update_mi(struct kvm_vcpu *vcpu);
 
+static inline bool vgic_is_v3_compat(struct kvm *kvm)
+{
+	return cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF) &&
+		kvm_vgic_global_state.has_gcie_v3_compat;
+}
+
+static inline bool vgic_is_v3(struct kvm *kvm)
+{
+	return kvm_vgic_global_state.type == VGIC_V3 || vgic_is_v3_compat(kvm);
+}
+
 int vgic_its_debug_init(struct kvm_device *dev);
 void vgic_its_debug_destroy(struct kvm_device *dev);
 
