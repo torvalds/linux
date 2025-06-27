@@ -25,9 +25,6 @@
 
 #include "bmc150-accel.h"
 
-#define BMC150_ACCEL_DRV_NAME			"bmc150_accel"
-#define BMC150_ACCEL_IRQ_NAME			"bmc150_accel_event"
-
 #define BMC150_ACCEL_REG_CHIP_ID		0x00
 
 #define BMC150_ACCEL_REG_INT_STATUS_2		0x0B
@@ -1706,7 +1703,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 						bmc150_accel_irq_handler,
 						bmc150_accel_irq_thread_handler,
 						IRQF_TRIGGER_RISING,
-						BMC150_ACCEL_IRQ_NAME,
+						"bmc150_accel_event",
 						indio_dev);
 		if (ret)
 			goto err_buffer_cleanup;

@@ -35,7 +35,7 @@ static const struct regmap_config bd79703_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = BD79703_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* Dynamic driver private data */

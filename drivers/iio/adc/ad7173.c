@@ -228,7 +228,6 @@ struct ad7173_state {
 	struct ida cfg_slots_status;
 	unsigned long long config_usage_counter;
 	unsigned long long *config_cnts;
-	struct clk *ext_clk;
 	struct clk_hw int_clk_hw;
 	struct regmap *reg_gpiocon_regmap;
 	struct gpio_regmap *gpio_regmap;
@@ -1344,11 +1343,6 @@ static void ad7173_disable_regulators(void *data)
 	regulator_bulk_disable(ARRAY_SIZE(st->regulators), st->regulators);
 }
 
-static void ad7173_clk_disable_unprepare(void *clk)
-{
-	clk_disable_unprepare(clk);
-}
-
 static unsigned long ad7173_sel_clk(struct ad7173_state *st,
 				    unsigned int clk_sel)
 {
@@ -1718,22 +1712,14 @@ static int ad7173_fw_parse_device_config(struct iio_dev *indio_dev)
 					   AD7173_ADC_MODE_CLOCKSEL_INT);
 		ad7173_register_clk_provider(indio_dev);
 	} else {
+		struct clk *clk;
+
 		st->adc_mode |= FIELD_PREP(AD7173_ADC_MODE_CLOCKSEL_MASK,
 					   AD7173_ADC_MODE_CLOCKSEL_EXT + ret);
-		st->ext_clk = devm_clk_get(dev, ad7173_clk_sel[ret]);
-		if (IS_ERR(st->ext_clk))
-			return dev_err_probe(dev, PTR_ERR(st->ext_clk),
+		clk = devm_clk_get_enabled(dev, ad7173_clk_sel[ret]);
+		if (IS_ERR(clk))
+			return dev_err_probe(dev, PTR_ERR(clk),
 					     "Failed to get external clock\n");
-
-		ret = clk_prepare_enable(st->ext_clk);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Failed to enable external clock\n");
-
-		ret = devm_add_action_or_reset(dev, ad7173_clk_disable_unprepare,
-					       st->ext_clk);
-		if (ret)
-			return ret;
 	}
 
 	return ad7173_fw_parse_channel_config(indio_dev);
@@ -1765,7 +1751,9 @@ static int ad7173_probe(struct spi_device *spi)
 	indio_dev->info = &ad7173_info;
 
 	spi->mode = SPI_MODE_3;
-	spi_setup(spi);
+	ret = spi_setup(spi);
+	if (ret)
+		return ret;
 
 	ret = ad_sd_init(&st->sd, indio_dev, spi, st->info->sd_info);
 	if (ret)

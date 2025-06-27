@@ -13,8 +13,8 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
-
-#include <linux/unaligned.h>
+#include <linux/types.h>
+#include <linux/units.h>
 
 /* ADA4250 Register Map */
 #define ADA4250_REG_GAIN_MUX        0x00
@@ -56,13 +56,14 @@ enum ada4250_current_bias {
 struct ada4250_state {
 	struct spi_device	*spi;
 	struct regmap		*regmap;
-	struct regulator	*reg;
 	/* Protect against concurrent accesses to the device and data content */
 	struct mutex		lock;
+	int			avdd_uv;
+	int			offset_uv;
 	u8			bias;
 	u8			gain;
-	int			offset_uv;
 	bool			refbuf_en;
+	__le16			reg_val_16 __aligned(IIO_DMA_MINALIGN);
 };
 
 /* ADA4250 Current Bias Source Settings: Disabled, Bandgap Reference, AVDD */
@@ -91,8 +92,7 @@ static int ada4250_set_offset_uv(struct iio_dev *indio_dev,
 	if (st->bias == 0 || st->bias == 3)
 		return -EINVAL;
 
-	voltage_v = regulator_get_voltage(st->reg);
-	voltage_v = DIV_ROUND_CLOSEST(voltage_v, 1000000);
+	voltage_v = DIV_ROUND_CLOSEST(st->avdd_uv, MICRO);
 
 	if (st->bias == ADA4250_BIAS_AVDD)
 		x[0] = voltage_v;
@@ -292,50 +292,33 @@ static const struct iio_chan_spec ada4250_channels[] = {
 	}
 };
 
-static void ada4250_reg_disable(void *data)
-{
-	regulator_disable(data);
-}
-
 static int ada4250_init(struct ada4250_state *st)
 {
+	struct device *dev = &st->spi->dev;
 	int ret;
 	u16 chip_id;
-	u8 data[2] __aligned(8) = {};
-	struct spi_device *spi = st->spi;
 
-	st->refbuf_en = device_property_read_bool(&spi->dev, "adi,refbuf-enable");
+	st->refbuf_en = device_property_read_bool(dev, "adi,refbuf-enable");
 
-	st->reg = devm_regulator_get(&spi->dev, "avdd");
-	if (IS_ERR(st->reg))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->reg),
+	st->avdd_uv = devm_regulator_get_enable_read_voltage(dev, "avdd");
+	if (st->avdd_uv < 0)
+		return dev_err_probe(dev, st->avdd_uv,
 				     "failed to get the AVDD voltage\n");
-
-	ret = regulator_enable(st->reg);
-	if (ret) {
-		dev_err(&spi->dev, "Failed to enable specified AVDD supply\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(&spi->dev, ada4250_reg_disable, st->reg);
-	if (ret)
-		return ret;
 
 	ret = regmap_write(st->regmap, ADA4250_REG_RESET,
 			   FIELD_PREP(ADA4250_RESET_MSK, 1));
 	if (ret)
 		return ret;
 
-	ret = regmap_bulk_read(st->regmap, ADA4250_REG_CHIP_ID, data, 2);
+	ret = regmap_bulk_read(st->regmap, ADA4250_REG_CHIP_ID, &st->reg_val_16,
+			       sizeof(st->reg_val_16));
 	if (ret)
 		return ret;
 
-	chip_id = get_unaligned_le16(data);
+	chip_id = le16_to_cpu(st->reg_val_16);
 
-	if (chip_id != ADA4250_CHIP_ID) {
-		dev_err(&spi->dev, "Invalid chip ID.\n");
-		return -EINVAL;
-	}
+	if (chip_id != ADA4250_CHIP_ID)
+		dev_info(dev, "Invalid chip ID: 0x%02X.\n", chip_id);
 
 	return regmap_write(st->regmap, ADA4250_REG_REFBUF_EN,
 			    FIELD_PREP(ADA4250_REFBUF_MSK, st->refbuf_en));
@@ -368,10 +351,8 @@ static int ada4250_probe(struct spi_device *spi)
 	mutex_init(&st->lock);
 
 	ret = ada4250_init(st);
-	if (ret) {
-		dev_err(&spi->dev, "ADA4250 init failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "ADA4250 init failed\n");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }

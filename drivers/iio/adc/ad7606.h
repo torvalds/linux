@@ -40,6 +40,11 @@
 #define AD7606_RANGE_CH_ADDR(ch)	(0x03 + ((ch) >> 1))
 #define AD7606_OS_MODE			0x08
 
+#define AD7606_CALIB_GAIN(ch)		(0x09 + (ch))
+#define AD7606_CALIB_GAIN_MASK		GENMASK(5, 0)
+#define AD7606_CALIB_OFFSET(ch)		(0x11 + (ch))
+#define AD7606_CALIB_PHASE(ch)		(0x19 + (ch))
+
 struct ad7606_state;
 
 typedef int (*ad7606_scale_setup_cb_t)(struct iio_dev *indio_dev,
@@ -61,6 +66,9 @@ typedef int (*ad7606_sw_setup_cb_t)(struct iio_dev *indio_dev);
  * @init_delay_ms:	required delay in milliseconds for initialization
  *			after a restart
  * @offload_storagebits: storage bits used by the offload hw implementation
+ * @calib_gain_avail:   chip supports gain calibration
+ * @calib_offset_avail: pointer to offset calibration range/limits array
+ * @calib_phase_avail:  pointer to phase calibration range/limits array
  */
 struct ad7606_chip_info {
 	unsigned int			max_samplerate;
@@ -74,22 +82,28 @@ struct ad7606_chip_info {
 	bool				os_req_reset;
 	unsigned long			init_delay_ms;
 	u8				offload_storagebits;
+	bool				calib_gain_avail;
+	const int			*calib_offset_avail;
+	const int			(*calib_phase_avail)[2];
 };
 
 /**
- * struct ad7606_chan_scale - channel scale configuration
+ * struct ad7606_chan_info - channel configuration
  * @scale_avail:	pointer to the array which stores the available scales
  * @num_scales:		number of elements stored in the scale_avail array
  * @range:		voltage range selection, selects which scale to apply
  * @reg_offset:		offset for the register value, to be applied when
  *			writing the value of 'range' to the register value
+ * @r_gain:		gain resistor value in ohms, to be set to match the
+ *                      external r_filter value
  */
-struct ad7606_chan_scale {
+struct ad7606_chan_info {
 #define AD760X_MAX_SCALES		16
 	const unsigned int		(*scale_avail)[2];
 	unsigned int			num_scales;
 	unsigned int			range;
 	unsigned int			reg_offset;
+	unsigned int			r_gain;
 };
 
 /**
@@ -97,7 +111,7 @@ struct ad7606_chan_scale {
  * @dev:		pointer to kernel device
  * @chip_info:		entry in the table of chips that describes this device
  * @bops:		bus operations (SPI or parallel)
- * @chan_scales:	scale configuration for channels
+ * @chan_info:		scale configuration for channels
  * @oversampling:	oversampling selection
  * @cnvst_pwm:		pointer to the PWM device connected to the cnvst pin
  * @base_address:	address from where to read data in parallel operation
@@ -128,7 +142,7 @@ struct ad7606_state {
 	struct device			*dev;
 	const struct ad7606_chip_info	*chip_info;
 	const struct ad7606_bus_ops	*bops;
-	struct ad7606_chan_scale	chan_scales[AD760X_MAX_CHANNELS];
+	struct ad7606_chan_info		chan_info[AD760X_MAX_CHANNELS];
 	unsigned int			oversampling;
 	struct pwm_device		*cnvst_pwm;
 	void __iomem			*base_address;

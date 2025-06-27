@@ -17,7 +17,6 @@
 #include <linux/iio/sysfs.h>
 
 #define MXC6255_DRV_NAME		"mxc6255"
-#define MXC6255_REGMAP_NAME		"mxc6255_regmap"
 
 #define MXC6255_REG_XOUT		0x00
 #define MXC6255_REG_YOUT		0x01
@@ -105,7 +104,7 @@ static bool mxc6255_is_readable_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config mxc6255_regmap_config = {
-	.name = MXC6255_REGMAP_NAME,
+	.name = "mxc6255_regmap",
 
 	.reg_bits = 8,
 	.val_bits = 8,
