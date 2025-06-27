@@ -133,4 +133,45 @@ int mixed_mem_type(void *ctx)
 	return *p;
 }
 
+__attribute__((__aligned__(8)))
+u8 global[] = {
+	0x11, 0x22, 0x33, 0x44,
+	0x55, 0x66, 0x77, 0x88,
+	0x99
+};
+
+__always_inline
+static u64 combine(void *p)
+{
+	u64 acc;
+
+	acc = 0;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	acc |= (*(u64 *)p >> 56) << 24;
+	acc |= (*(u32 *)p >> 24) << 16;
+	acc |= (*(u16 *)p >> 8)  << 8;
+	acc |= *(u8 *)p;
+#else
+	acc |= (*(u64 *)p & 0xff) << 24;
+	acc |= (*(u32 *)p & 0xff) << 16;
+	acc |= (*(u16 *)p & 0xff) << 8;
+	acc |= *(u8 *)p;
+#endif
+	return acc;
+}
+
+SEC("socket")
+__retval(0x88442211)
+int diff_size_access(void *ctx)
+{
+	return combine(bpf_rdonly_cast(&global, 0));
+}
+
+SEC("socket")
+__retval(0x99553322)
+int misaligned_access(void *ctx)
+{
+	return combine(bpf_rdonly_cast(&global, 0) + 1);
+}
+
 char _license[] SEC("license") = "GPL";
