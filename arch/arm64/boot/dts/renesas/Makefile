@@ -163,8 +163,20 @@ r9a09g047e57-smarc-cru-csi-ov5645-dtbs := r9a09g047e57-smarc.dtb r9a09g047e57-sm
 dtb-$(CONFIG_ARCH_R9A09G047) += r9a09g047e57-smarc-cru-csi-ov5645.dtb
 
 dtb-$(CONFIG_ARCH_R9A09G056) += r9a09g056n48-rzv2n-evk.dtb
+dtb-$(CONFIG_ARCH_R9A09G056) += rzv2-evk-cn15-emmc.dtbo
+r9a09g056n48-rzv2n-evk-cn15-emmc-dtbs := r9a09g056n48-rzv2n-evk.dtb rzv2-evk-cn15-emmc.dtbo
+dtb-$(CONFIG_ARCH_R9A09G056) += r9a09g056n48-rzv2n-evk-cn15-emmc.dtb
+dtb-$(CONFIG_ARCH_R9A09G056) += rzv2-evk-cn15-sd.dtbo
+r9a09g056n48-rzv2n-evk-cn15-sd-dtbs := r9a09g056n48-rzv2n-evk.dtb rzv2-evk-cn15-sd.dtbo
+dtb-$(CONFIG_ARCH_R9A09G056) += r9a09g056n48-rzv2n-evk-cn15-sd.dtb
 
 dtb-$(CONFIG_ARCH_R9A09G057) += r9a09g057h44-rzv2h-evk.dtb
+dtb-$(CONFIG_ARCH_R9A09G057) += rzv2-evk-cn15-emmc.dtbo
+r9a09g057h44-rzv2h-evk-cn15-emmc-dtbs := r9a09g057h44-rzv2h-evk.dtb rzv2-evk-cn15-emmc.dtbo
+dtb-$(CONFIG_ARCH_R9A09G057) += r9a09g057h44-rzv2h-evk-cn15-emmc.dtb
+dtb-$(CONFIG_ARCH_R9A09G057) += rzv2-evk-cn15-sd.dtbo
+r9a09g057h44-rzv2h-evk-cn15-sd-dtbs := r9a09g057h44-rzv2h-evk.dtb rzv2-evk-cn15-sd.dtbo
+dtb-$(CONFIG_ARCH_R9A09G057) += r9a09g057h44-rzv2h-evk-cn15-sd.dtb
 dtb-$(CONFIG_ARCH_R9A09G057) += r9a09g057h48-kakip.dtb
 
 dtb-$(CONFIG_ARCH_RCAR_GEN3) += draak-ebisu-panel-aa104xd12.dtbo
