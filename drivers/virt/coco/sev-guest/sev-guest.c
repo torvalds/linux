@@ -101,7 +101,8 @@ static int get_report(struct snp_guest_dev *snp_dev, struct snp_guest_request_io
 	req.resp_sz = resp_len;
 	req.exit_code = SVM_VMGEXIT_GUEST_REQUEST;
 
-	rc = snp_send_guest_request(mdesc, &req, arg);
+	rc = snp_send_guest_request(mdesc, &req);
+	arg->exitinfo2 = req.exitinfo2;
 	if (rc)
 		goto e_free;
 
@@ -152,7 +153,8 @@ static int get_derived_key(struct snp_guest_dev *snp_dev, struct snp_guest_reque
 	req.resp_sz = resp_len;
 	req.exit_code = SVM_VMGEXIT_GUEST_REQUEST;
 
-	rc = snp_send_guest_request(mdesc, &req, arg);
+	rc = snp_send_guest_request(mdesc, &req);
+	arg->exitinfo2 = req.exitinfo2;
 	if (rc)
 		return rc;
 
@@ -249,7 +251,8 @@ cmd:
 	req.resp_sz = resp_len;
 	req.exit_code = SVM_VMGEXIT_EXT_GUEST_REQUEST;
 
-	ret = snp_send_guest_request(mdesc, &req, arg);
+	ret = snp_send_guest_request(mdesc, &req);
+	arg->exitinfo2 = req.exitinfo2;
 
 	/* If certs length is invalid then copy the returned length */
 	if (arg->vmm_error == SNP_GUEST_VMM_ERR_INVALID_LEN) {

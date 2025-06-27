@@ -50,7 +50,7 @@
 #endif
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#define __WARN_FLAGS(flags)						\
+#define __WARN_FLAGS(cond_str, flags)					\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
@@ -61,12 +61,12 @@
 			     "\t.short %1, %2\n"			\
 			     "\t.blockz %3-2*4-2*2\n"			\
 			     "\t.popsection"				\
-			     : : "i" (__FILE__), "i" (__LINE__),	\
+			     : : "i" (WARN_CONDITION_STR(cond_str) __FILE__), "i" (__LINE__), \
 			     "i" (BUGFLAG_WARNING|(flags)),		\
 			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #else
-#define __WARN_FLAGS(flags)						\
+#define __WARN_FLAGS(cond_str, flags)					\
 	do {								\
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\

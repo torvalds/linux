@@ -113,10 +113,9 @@ void (*x86_return_thunk)(void) __ro_after_init = __x86_return_thunk;
 
 static void __init set_return_thunk(void *thunk)
 {
-	if (x86_return_thunk != __x86_return_thunk)
-		pr_warn("x86/bugs: return thunk changed\n");
-
 	x86_return_thunk = thunk;
+
+	pr_info("active return thunk: %ps\n", thunk);
 }
 
 /* Update SPEC_CTRL MSR and its cached copy unconditionally */
@@ -1120,6 +1119,20 @@ early_param("nospectre_v1", nospectre_v1_cmdline);
 
 enum spectre_v2_mitigation spectre_v2_enabled __ro_after_init = SPECTRE_V2_NONE;
 
+/* Depends on spectre_v2 mitigation selected already */
+static inline bool cdt_possible(enum spectre_v2_mitigation mode)
+{
+	if (!IS_ENABLED(CONFIG_MITIGATION_CALL_DEPTH_TRACKING) ||
+	    !IS_ENABLED(CONFIG_MITIGATION_RETPOLINE))
+		return false;
+
+	if (mode == SPECTRE_V2_RETPOLINE ||
+	    mode == SPECTRE_V2_EIBRS_RETPOLINE)
+		return true;
+
+	return false;
+}
+
 #undef pr_fmt
 #define pr_fmt(fmt)     "RETBleed: " fmt
 
@@ -1157,6 +1170,21 @@ static enum retbleed_mitigation retbleed_mitigation __ro_after_init =
 	IS_ENABLED(CONFIG_MITIGATION_RETBLEED) ? RETBLEED_MITIGATION_AUTO : RETBLEED_MITIGATION_NONE;
 
 static int __ro_after_init retbleed_nosmt = false;
+
+enum srso_mitigation {
+	SRSO_MITIGATION_NONE,
+	SRSO_MITIGATION_AUTO,
+	SRSO_MITIGATION_UCODE_NEEDED,
+	SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED,
+	SRSO_MITIGATION_MICROCODE,
+	SRSO_MITIGATION_NOSMT,
+	SRSO_MITIGATION_SAFE_RET,
+	SRSO_MITIGATION_IBPB,
+	SRSO_MITIGATION_IBPB_ON_VMEXIT,
+	SRSO_MITIGATION_BP_SPEC_REDUCE,
+};
+
+static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_AUTO;
 
 static int __init retbleed_parse_cmdline(char *str)
 {
@@ -1247,6 +1275,14 @@ static void __init retbleed_select_mitigation(void)
 			retbleed_mitigation = RETBLEED_MITIGATION_IBPB;
 		else
 			retbleed_mitigation = RETBLEED_MITIGATION_NONE;
+	} else if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
+		/* Final mitigation depends on spectre-v2 selection */
+		if (boot_cpu_has(X86_FEATURE_IBRS_ENHANCED))
+			retbleed_mitigation = RETBLEED_MITIGATION_EIBRS;
+		else if (boot_cpu_has(X86_FEATURE_IBRS))
+			retbleed_mitigation = RETBLEED_MITIGATION_IBRS;
+		else
+			retbleed_mitigation = RETBLEED_MITIGATION_NONE;
 	}
 }
 
@@ -1255,27 +1291,20 @@ static void __init retbleed_update_mitigation(void)
 	if (!boot_cpu_has_bug(X86_BUG_RETBLEED) || cpu_mitigations_off())
 		return;
 
-	if (retbleed_mitigation == RETBLEED_MITIGATION_NONE)
-		goto out;
+	 /* ITS can also enable stuffing */
+	if (its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF)
+		retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
 
-	/*
-	 * retbleed=stuff is only allowed on Intel.  If stuffing can't be used
-	 * then a different mitigation will be selected below.
-	 *
-	 * its=stuff will also attempt to enable stuffing.
-	 */
-	if (retbleed_mitigation == RETBLEED_MITIGATION_STUFF ||
-	    its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF) {
-		if (spectre_v2_enabled != SPECTRE_V2_RETPOLINE) {
-			pr_err("WARNING: retbleed=stuff depends on spectre_v2=retpoline\n");
-			retbleed_mitigation = RETBLEED_MITIGATION_AUTO;
-		} else {
-			if (retbleed_mitigation != RETBLEED_MITIGATION_STUFF)
-				pr_info("Retbleed mitigation updated to stuffing\n");
+	/* If SRSO is using IBPB, that works for retbleed too */
+	if (srso_mitigation == SRSO_MITIGATION_IBPB)
+		retbleed_mitigation = RETBLEED_MITIGATION_IBPB;
 
-			retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
-		}
+	if (retbleed_mitigation == RETBLEED_MITIGATION_STUFF &&
+	    !cdt_possible(spectre_v2_enabled)) {
+		pr_err("WARNING: retbleed=stuff depends on retpoline\n");
+		retbleed_mitigation = RETBLEED_MITIGATION_NONE;
 	}
+
 	/*
 	 * Let IBRS trump all on Intel without affecting the effects of the
 	 * retbleed= cmdline option except for call depth based stuffing
@@ -1294,14 +1323,10 @@ static void __init retbleed_update_mitigation(void)
 			if (retbleed_mitigation != RETBLEED_MITIGATION_STUFF)
 				pr_err(RETBLEED_INTEL_MSG);
 		}
-		/* If nothing has set the mitigation yet, default to NONE. */
-		if (retbleed_mitigation == RETBLEED_MITIGATION_AUTO)
-			retbleed_mitigation = RETBLEED_MITIGATION_NONE;
 	}
-out:
+
 	pr_info("%s\n", retbleed_strings[retbleed_mitigation]);
 }
-
 
 static void __init retbleed_apply_mitigation(void)
 {
@@ -1449,6 +1474,7 @@ static void __init its_update_mitigation(void)
 		its_mitigation = ITS_MITIGATION_OFF;
 		break;
 	case SPECTRE_V2_RETPOLINE:
+	case SPECTRE_V2_EIBRS_RETPOLINE:
 		/* Retpoline+CDT mitigates ITS */
 		if (retbleed_mitigation == RETBLEED_MITIGATION_STUFF)
 			its_mitigation = ITS_MITIGATION_RETPOLINE_STUFF;
@@ -1462,13 +1488,8 @@ static void __init its_update_mitigation(void)
 		break;
 	}
 
-	/*
-	 * retbleed_update_mitigation() will try to do stuffing if its=stuff.
-	 * If it can't, such as if spectre_v2!=retpoline, then fall back to
-	 * aligned thunks.
-	 */
 	if (its_mitigation == ITS_MITIGATION_RETPOLINE_STUFF &&
-	    retbleed_mitigation != RETBLEED_MITIGATION_STUFF)
+	    !cdt_possible(spectre_v2_enabled))
 		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
 
 	pr_info("%s\n", its_strings[its_mitigation]);
@@ -1476,15 +1497,24 @@ static void __init its_update_mitigation(void)
 
 static void __init its_apply_mitigation(void)
 {
-	/* its=stuff forces retbleed stuffing and is enabled there. */
-	if (its_mitigation != ITS_MITIGATION_ALIGNED_THUNKS)
-		return;
+	switch (its_mitigation) {
+	case ITS_MITIGATION_OFF:
+	case ITS_MITIGATION_AUTO:
+	case ITS_MITIGATION_VMEXIT_ONLY:
+		break;
+	case ITS_MITIGATION_ALIGNED_THUNKS:
+		if (!boot_cpu_has(X86_FEATURE_RETPOLINE))
+			setup_force_cpu_cap(X86_FEATURE_INDIRECT_THUNK_ITS);
 
-	if (!boot_cpu_has(X86_FEATURE_RETPOLINE))
-		setup_force_cpu_cap(X86_FEATURE_INDIRECT_THUNK_ITS);
-
-	setup_force_cpu_cap(X86_FEATURE_RETHUNK);
-	set_return_thunk(its_return_thunk);
+		setup_force_cpu_cap(X86_FEATURE_RETHUNK);
+		set_return_thunk(its_return_thunk);
+		break;
+	case ITS_MITIGATION_RETPOLINE_STUFF:
+		setup_force_cpu_cap(X86_FEATURE_RETHUNK);
+		setup_force_cpu_cap(X86_FEATURE_CALL_DEPTH);
+		set_return_thunk(call_depth_return_thunk);
+		break;
+	}
 }
 
 #undef pr_fmt
@@ -2834,30 +2864,17 @@ early_param("l1tf", l1tf_cmdline);
 #undef pr_fmt
 #define pr_fmt(fmt)	"Speculative Return Stack Overflow: " fmt
 
-enum srso_mitigation {
-	SRSO_MITIGATION_NONE,
-	SRSO_MITIGATION_AUTO,
-	SRSO_MITIGATION_UCODE_NEEDED,
-	SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED,
-	SRSO_MITIGATION_MICROCODE,
-	SRSO_MITIGATION_SAFE_RET,
-	SRSO_MITIGATION_IBPB,
-	SRSO_MITIGATION_IBPB_ON_VMEXIT,
-	SRSO_MITIGATION_BP_SPEC_REDUCE,
-};
-
 static const char * const srso_strings[] = {
 	[SRSO_MITIGATION_NONE]			= "Vulnerable",
 	[SRSO_MITIGATION_UCODE_NEEDED]		= "Vulnerable: No microcode",
 	[SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED]	= "Vulnerable: Safe RET, no microcode",
 	[SRSO_MITIGATION_MICROCODE]		= "Vulnerable: Microcode, no safe RET",
+	[SRSO_MITIGATION_NOSMT]			= "Mitigation: SMT disabled",
 	[SRSO_MITIGATION_SAFE_RET]		= "Mitigation: Safe RET",
 	[SRSO_MITIGATION_IBPB]			= "Mitigation: IBPB",
 	[SRSO_MITIGATION_IBPB_ON_VMEXIT]	= "Mitigation: IBPB on VMEXIT only",
 	[SRSO_MITIGATION_BP_SPEC_REDUCE]	= "Mitigation: Reduced Speculation"
 };
-
-static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_AUTO;
 
 static int __init srso_parse_cmdline(char *str)
 {
@@ -2885,8 +2902,6 @@ early_param("spec_rstack_overflow", srso_parse_cmdline);
 
 static void __init srso_select_mitigation(void)
 {
-	bool has_microcode;
-
 	if (!boot_cpu_has_bug(X86_BUG_SRSO) || cpu_mitigations_off())
 		srso_mitigation = SRSO_MITIGATION_NONE;
 
@@ -2896,24 +2911,30 @@ static void __init srso_select_mitigation(void)
 	if (srso_mitigation == SRSO_MITIGATION_AUTO)
 		srso_mitigation = SRSO_MITIGATION_SAFE_RET;
 
-	has_microcode = boot_cpu_has(X86_FEATURE_IBPB_BRTYPE);
-	if (has_microcode) {
-		/*
-		 * Zen1/2 with SMT off aren't vulnerable after the right
-		 * IBPB microcode has been applied.
-		 */
-		if (boot_cpu_data.x86 < 0x19 && !cpu_smt_possible()) {
-			setup_force_cpu_cap(X86_FEATURE_SRSO_NO);
-			srso_mitigation = SRSO_MITIGATION_NONE;
-			return;
-		}
-	} else {
+	/* Zen1/2 with SMT off aren't vulnerable to SRSO. */
+	if (boot_cpu_data.x86 < 0x19 && !cpu_smt_possible()) {
+		srso_mitigation = SRSO_MITIGATION_NOSMT;
+		return;
+	}
+
+	if (!boot_cpu_has(X86_FEATURE_IBPB_BRTYPE)) {
 		pr_warn("IBPB-extending microcode not applied!\n");
 		pr_warn(SRSO_NOTICE);
+
+		/*
+		 * Safe-RET provides partial mitigation without microcode, but
+		 * other mitigations require microcode to provide any
+		 * mitigations.
+		 */
+		if (srso_mitigation == SRSO_MITIGATION_SAFE_RET)
+			srso_mitigation = SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED;
+		else
+			srso_mitigation = SRSO_MITIGATION_UCODE_NEEDED;
 	}
 
 	switch (srso_mitigation) {
 	case SRSO_MITIGATION_SAFE_RET:
+	case SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED:
 		if (boot_cpu_has(X86_FEATURE_SRSO_USER_KERNEL_NO)) {
 			srso_mitigation = SRSO_MITIGATION_IBPB_ON_VMEXIT;
 			goto ibpb_on_vmexit;
@@ -2923,9 +2944,6 @@ static void __init srso_select_mitigation(void)
 			pr_err("WARNING: kernel not compiled with MITIGATION_SRSO.\n");
 			srso_mitigation = SRSO_MITIGATION_NONE;
 		}
-
-		if (!has_microcode)
-			srso_mitigation = SRSO_MITIGATION_SAFE_RET_UCODE_NEEDED;
 		break;
 ibpb_on_vmexit:
 	case SRSO_MITIGATION_IBPB_ON_VMEXIT:
@@ -2940,9 +2958,6 @@ ibpb_on_vmexit:
 			pr_err("WARNING: kernel not compiled with MITIGATION_IBPB_ENTRY.\n");
 			srso_mitigation = SRSO_MITIGATION_NONE;
 		}
-
-		if (!has_microcode)
-			srso_mitigation = SRSO_MITIGATION_UCODE_NEEDED;
 		break;
 	default:
 		break;
@@ -2957,8 +2972,7 @@ static void __init srso_update_mitigation(void)
 		srso_mitigation = SRSO_MITIGATION_IBPB;
 
 	if (boot_cpu_has_bug(X86_BUG_SRSO) &&
-	    !cpu_mitigations_off() &&
-	    !boot_cpu_has(X86_FEATURE_SRSO_NO))
+	    !cpu_mitigations_off())
 		pr_info("%s\n", srso_strings[srso_mitigation]);
 }
 
@@ -3254,9 +3268,6 @@ static ssize_t retbleed_show_state(char *buf)
 
 static ssize_t srso_show_state(char *buf)
 {
-	if (boot_cpu_has(X86_FEATURE_SRSO_NO))
-		return sysfs_emit(buf, "Mitigation: SMT disabled\n");
-
 	return sysfs_emit(buf, "%s\n", srso_strings[srso_mitigation]);
 }
 
