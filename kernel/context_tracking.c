@@ -392,6 +392,20 @@ noinstr void ct_irq_exit(void)
 	ct_nmi_exit();
 }
 
+/**
+ * ct_in_irq - check if CPU is in a context-tracked IRQ context.
+ *
+ * Returns true if ct_irq_enter() has been called and ct_irq_exit()
+ * has not yet been called. This indicates the CPU is currently
+ * processing an interrupt.
+ */
+bool ct_in_irq(void)
+{
+	long nesting = ct_nmi_nesting();
+
+	return (nesting && nesting != CT_NESTING_IRQ_NONIDLE);
+}
+
 /*
  * Wrapper for ct_irq_enter() where interrupts are enabled.
  *
