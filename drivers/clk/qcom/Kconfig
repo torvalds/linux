@@ -549,6 +549,16 @@ config SC_CAMCC_7280
 	  Say Y if you want to support camera devices and functionality such as
 	  capturing pictures.
 
+config SC_CAMCC_8180X
+	tristate "SC8180X Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SC_GCC_8180X
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SC8180X devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 config SC_CAMCC_8280XP
 	tristate "SC8280XP Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -1328,6 +1338,15 @@ config SA_VIDEOCC_8775P
 	  SA8775P devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
+
+config SM_VIDEOCC_6350
+	tristate "SM6350 Video Clock Controller"
+	select SM_GCC_6350
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SM6350 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
 
 config SM_VIDEOCC_7150
 	tristate "SM7150 Video Clock Controller"

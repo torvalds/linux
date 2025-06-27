@@ -5732,6 +5732,7 @@
 		sram@c3f0000 {
 			compatible = "qcom,rpmh-stats";
 			reg = <0 0x0c3f0000 0 0x400>;
+			qcom,qmp = <&aoss_qmp>;
 		};
 
 		spmi_bus: spmi@c400000 {
@@ -6868,8 +6869,7 @@
 			compatible = "qcom,rpmh-rsc";
 			reg = <0 0x17a00000 0 0x10000>,
 			      <0 0x17a10000 0 0x10000>,
-			      <0 0x17a20000 0 0x10000>,
-			      <0 0x17a30000 0 0x10000>;
+			      <0 0x17a20000 0 0x10000>;
 			reg-names = "drv-0",
 				    "drv-1",
 				    "drv-2";
