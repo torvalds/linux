@@ -222,6 +222,12 @@ static void gicv5_hwirq_eoi(u32 hwirq_id, u8 hwirq_type)
 
 static void gicv5_ppi_irq_eoi(struct irq_data *d)
 {
+	/* Skip deactivate for forwarded PPI interrupts */
+	if (irqd_is_forwarded_to_vcpu(d)) {
+		gic_insn(0, CDEOI);
+		return;
+	}
+
 	gicv5_hwirq_eoi(d->hwirq, GICV5_HWIRQ_TYPE_PPI);
 }
 
@@ -503,6 +509,16 @@ static bool gicv5_ppi_irq_is_level(irq_hw_number_t hwirq)
 	return !!(read_ppi_sysreg_s(hwirq, PPI_HM) & bit);
 }
 
+static int gicv5_ppi_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
+{
+	if (vcpu)
+		irqd_set_forwarded_to_vcpu(d);
+	else
+		irqd_clr_forwarded_to_vcpu(d);
+
+	return 0;
+}
+
 static const struct irq_chip gicv5_ppi_irq_chip = {
 	.name			= "GICv5-PPI",
 	.irq_mask		= gicv5_ppi_irq_mask,
@@ -510,6 +526,7 @@ static const struct irq_chip gicv5_ppi_irq_chip = {
 	.irq_eoi		= gicv5_ppi_irq_eoi,
 	.irq_get_irqchip_state	= gicv5_ppi_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gicv5_ppi_irq_set_irqchip_state,
+	.irq_set_vcpu_affinity	= gicv5_ppi_irq_set_vcpu_affinity,
 	.flags			= IRQCHIP_SKIP_SET_WAKE	  |
 				  IRQCHIP_MASK_ON_SUSPEND,
 };
