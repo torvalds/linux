@@ -992,6 +992,7 @@ config MEMCG
 	select PAGE_COUNTER
 	select EVENTFD
 	select SLAB_OBJ_EXT
+	select VM_EVENT_COUNTERS
 	help
 	  Provides control over the memory footprint of tasks in a cgroup.
 

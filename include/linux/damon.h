@@ -450,7 +450,7 @@ struct damos_access_pattern {
 /**
  * struct damos - Represents a Data Access Monitoring-based Operation Scheme.
  * @pattern:		Access pattern of target regions.
- * @action:		&damo_action to be applied to the target regions.
+ * @action:		&damos_action to be applied to the target regions.
  * @apply_interval_us:	The time between applying the @action.
  * @quota:		Control the aggressiveness of this scheme.
  * @wmarks:		Watermarks for automated (in)activation of this scheme.
@@ -656,7 +656,7 @@ struct damon_call_control {
  * struct damon_intervals_goal - Monitoring intervals auto-tuning goal.
  *
  * @access_bp:		Access events observation ratio to achieve in bp.
- * @aggrs:		Number of aggregations to acheive @access_bp within.
+ * @aggrs:		Number of aggregations to achieve @access_bp within.
  * @min_sample_us:	Minimum resulting sampling interval in microseconds.
  * @max_sample_us:	Maximum resulting sampling interval in microseconds.
  *

@@ -14,7 +14,7 @@ struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx);
  * We also update VMA flags if appropriate by manipulating the VMA flags pointed
  * to by vm_flags_ptr.
  */
-int memfd_check_seals_mmap(struct file *file, unsigned long *vm_flags_ptr);
+int memfd_check_seals_mmap(struct file *file, vm_flags_t *vm_flags_ptr);
 #else
 static inline long memfd_fcntl(struct file *f, unsigned int c, unsigned int a)
 {
@@ -25,7 +25,7 @@ static inline struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx)
 	return ERR_PTR(-EINVAL);
 }
 static inline int memfd_check_seals_mmap(struct file *file,
-					 unsigned long *vm_flags_ptr)
+					 vm_flags_t *vm_flags_ptr)
 {
 	return 0;
 }

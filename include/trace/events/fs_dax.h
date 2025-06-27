@@ -15,7 +15,7 @@ DECLARE_EVENT_CLASS(dax_pmd_fault_class,
 		__field(unsigned long, ino)
 		__field(unsigned long, vm_start)
 		__field(unsigned long, vm_end)
-		__field(unsigned long, vm_flags)
+		__field(vm_flags_t, vm_flags)
 		__field(unsigned long, address)
 		__field(pgoff_t, pgoff)
 		__field(pgoff_t, max_pgoff)
@@ -67,7 +67,7 @@ DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 	TP_ARGS(inode, vmf, zero_folio, radix_entry),
 	TP_STRUCT__entry(
 		__field(unsigned long, ino)
-		__field(unsigned long, vm_flags)
+		__field(vm_flags_t, vm_flags)
 		__field(unsigned long, address)
 		__field(struct folio *, zero_folio)
 		__field(void *, radix_entry)
@@ -107,7 +107,7 @@ DECLARE_EVENT_CLASS(dax_pte_fault_class,
 	TP_ARGS(inode, vmf, result),
 	TP_STRUCT__entry(
 		__field(unsigned long, ino)
-		__field(unsigned long, vm_flags)
+		__field(vm_flags_t, vm_flags)
 		__field(unsigned long, address)
 		__field(pgoff_t, pgoff)
 		__field(dev_t, dev)

@@ -284,11 +284,6 @@ static long hugepage_subpool_put_pages(struct hugepage_subpool *spool,
 	return ret;
 }
 
-static inline struct hugepage_subpool *subpool_inode(struct inode *inode)
-{
-	return HUGETLBFS_SB(inode->i_sb)->spool;
-}
-
 static inline struct hugepage_subpool *subpool_vma(struct vm_area_struct *vma)
 {
 	return subpool_inode(file_inode(vma->vm_file));
@@ -3302,8 +3297,8 @@ static void __init hugetlb_bootmem_init_migratetype(struct folio *folio,
 		if (folio_test_hugetlb_cma(folio))
 			init_cma_pageblock(folio_page(folio, i));
 		else
-			set_pageblock_migratetype(folio_page(folio, i),
-					  MIGRATE_MOVABLE);
+			init_pageblock_migratetype(folio_page(folio, i),
+					  MIGRATE_MOVABLE, false);
 	}
 }
 
@@ -7169,11 +7164,11 @@ long hugetlb_change_protection(struct vm_area_struct *vma,
 			/* Nothing to do. */
 		} else if (unlikely(is_hugetlb_entry_migration(pte))) {
 			swp_entry_t entry = pte_to_swp_entry(pte);
-			struct page *page = pfn_swap_entry_to_page(entry);
+			struct folio *folio = pfn_swap_entry_folio(entry);
 			pte_t newpte = pte;
 
 			if (is_writable_migration_entry(entry)) {
-				if (PageAnon(page))
+				if (folio_test_anon(folio))
 					entry = make_readable_exclusive_migration_entry(
 								swp_offset(entry));
 				else
@@ -7247,8 +7242,15 @@ long hugetlb_change_protection(struct vm_area_struct *vma,
 	return pages > 0 ? (pages << h->order) : pages;
 }
 
-/* Return true if reservation was successful, false otherwise.  */
-bool hugetlb_reserve_pages(struct inode *inode,
+/*
+ * Update the reservation map for the range [from, to].
+ *
+ * Returns the number of entries that would be added to the reservation map
+ * associated with the range [from, to].  This number is greater or equal to
+ * zero. -EINVAL or -ENOMEM is returned in case of any errors.
+ */
+
+long hugetlb_reserve_pages(struct inode *inode,
 					long from, long to,
 					struct vm_area_struct *vma,
 					vm_flags_t vm_flags)
@@ -7263,7 +7265,7 @@ bool hugetlb_reserve_pages(struct inode *inode,
 	/* This should never happen */
 	if (from > to) {
 		VM_WARN(1, "%s called with a negative range\n", __func__);
-		return false;
+		return -EINVAL;
 	}
 
 	/*
@@ -7278,7 +7280,7 @@ bool hugetlb_reserve_pages(struct inode *inode,
 	 * without using reserves
 	 */
 	if (vm_flags & VM_NORESERVE)
-		return true;
+		return 0;
 
 	/*
 	 * Shared mappings base their reservation on the number of pages that
@@ -7385,7 +7387,7 @@ bool hugetlb_reserve_pages(struct inode *inode,
 			hugetlb_cgroup_put_rsvd_cgroup(h_cg);
 		}
 	}
-	return true;
+	return chg;
 
 out_put_pages:
 	spool_resv = chg - gbl_reserve;
@@ -7413,7 +7415,7 @@ out_err:
 		kref_put(&resv_map->refs, resv_map_release);
 		set_vma_resv_map(vma, NULL);
 	}
-	return false;
+	return chg < 0 ? chg : add < 0 ? add : -EINVAL;
 }
 
 long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
@@ -7468,8 +7470,8 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
 	unsigned long s_end = sbase + PUD_SIZE;
 
 	/* Allow segments to share if only one is marked locked */
-	unsigned long vm_flags = vma->vm_flags & ~VM_LOCKED_MASK;
-	unsigned long svm_flags = svma->vm_flags & ~VM_LOCKED_MASK;
+	vm_flags_t vm_flags = vma->vm_flags & ~VM_LOCKED_MASK;
+	vm_flags_t svm_flags = svma->vm_flags & ~VM_LOCKED_MASK;
 
 	/*
 	 * match the virtual addresses, permission and the alignment of the

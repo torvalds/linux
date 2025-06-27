@@ -11,10 +11,10 @@
 #include <linux/shmem_fs.h>
 #include <linux/types.h>
 
-static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
+static inline vm_flags_t arch_calc_vm_prot_bits(unsigned long prot,
 	unsigned long pkey)
 {
-	unsigned long ret = 0;
+	vm_flags_t ret = 0;
 
 	if (system_supports_bti() && (prot & PROT_BTI))
 		ret |= VM_ARM64_BTI;
@@ -34,8 +34,8 @@ static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
 }
 #define arch_calc_vm_prot_bits(prot, pkey) arch_calc_vm_prot_bits(prot, pkey)
 
-static inline unsigned long arch_calc_vm_flag_bits(struct file *file,
-						   unsigned long flags)
+static inline vm_flags_t arch_calc_vm_flag_bits(struct file *file,
+						unsigned long flags)
 {
 	/*
 	 * Only allow MTE on anonymous mappings as these are guaranteed to be
@@ -68,7 +68,7 @@ static inline bool arch_validate_prot(unsigned long prot,
 }
 #define arch_validate_prot(prot, addr) arch_validate_prot(prot, addr)
 
-static inline bool arch_validate_flags(unsigned long vm_flags)
+static inline bool arch_validate_flags(vm_flags_t vm_flags)
 {
 	if (system_supports_mte()) {
 		/*

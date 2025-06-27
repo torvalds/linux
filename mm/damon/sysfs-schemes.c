@@ -341,16 +341,45 @@ static struct damon_sysfs_scheme_filter *damon_sysfs_scheme_filter_alloc(
 	return filter;
 }
 
-/* Should match with enum damos_filter_type */
-static const char * const damon_sysfs_scheme_filter_type_strs[] = {
-	"anon",
-	"active",
-	"memcg",
-	"young",
-	"hugepage_size",
-	"unmapped",
-	"addr",
-	"target",
+struct damos_sysfs_filter_type_name {
+	enum damos_filter_type type;
+	char *name;
+};
+
+static const struct damos_sysfs_filter_type_name
+damos_sysfs_filter_type_names[] = {
+	{
+		.type = DAMOS_FILTER_TYPE_ANON,
+		.name = "anon",
+	},
+	{
+		.type = DAMOS_FILTER_TYPE_ACTIVE,
+		.name = "active",
+	},
+	{
+		.type = DAMOS_FILTER_TYPE_MEMCG,
+		.name = "memcg",
+	},
+	{
+		.type = DAMOS_FILTER_TYPE_YOUNG,
+		.name = "young",
+	},
+	{
+		.type = DAMOS_FILTER_TYPE_HUGEPAGE_SIZE,
+		.name = "hugepage_size",
+	},
+	{
+		.type = DAMOS_FILTER_TYPE_UNMAPPED,
+		.name = "unmapped",
+	},
+	{
+		.type = DAMOS_FILTER_TYPE_ADDR,
+		.name = "addr",
+	},
+	{
+		.type = DAMOS_FILTER_TYPE_TARGET,
+		.name = "target",
+	},
 };
 
 static ssize_t type_show(struct kobject *kobj,
@@ -358,9 +387,16 @@ static ssize_t type_show(struct kobject *kobj,
 {
 	struct damon_sysfs_scheme_filter *filter = container_of(kobj,
 			struct damon_sysfs_scheme_filter, kobj);
+	int i;
 
-	return sysfs_emit(buf, "%s\n",
-			damon_sysfs_scheme_filter_type_strs[filter->type]);
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_filter_type_names); i++) {
+		const struct damos_sysfs_filter_type_name *type_name;
+
+		type_name = &damos_sysfs_filter_type_names[i];
+		if (type_name->type == filter->type)
+			return sysfs_emit(buf, "%s\n", type_name->name);
+	}
+	return -EINVAL;
 }
 
 static bool damos_sysfs_scheme_filter_valid_type(
@@ -385,16 +421,19 @@ static ssize_t type_store(struct kobject *kobj,
 {
 	struct damon_sysfs_scheme_filter *filter = container_of(kobj,
 			struct damon_sysfs_scheme_filter, kobj);
-	enum damos_filter_type type;
 	ssize_t ret = -EINVAL;
+	int i;
 
-	for (type = 0; type < NR_DAMOS_FILTER_TYPES; type++) {
-		if (sysfs_streq(buf, damon_sysfs_scheme_filter_type_strs[
-					type])) {
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_filter_type_names); i++) {
+		const struct damos_sysfs_filter_type_name *type_name;
+
+		type_name = &damos_sysfs_filter_type_names[i];
+		if (sysfs_streq(buf, type_name->name)) {
 			if (!damos_sysfs_scheme_filter_valid_type(
-						filter->handle_layer, type))
+						filter->handle_layer,
+						type_name->type))
 				break;
-			filter->type = type;
+			filter->type = type_name->type;
 			ret = count;
 			break;
 		}
@@ -785,10 +824,21 @@ static struct damon_sysfs_watermarks *damon_sysfs_watermarks_alloc(
 	return watermarks;
 }
 
-/* Should match with enum damos_wmark_metric */
-static const char * const damon_sysfs_wmark_metric_strs[] = {
-	"none",
-	"free_mem_rate",
+struct damos_sysfs_wmark_metric_name {
+	enum damos_wmark_metric metric;
+	char *name;
+};
+
+static const struct damos_sysfs_wmark_metric_name
+damos_sysfs_wmark_metric_names[] = {
+	{
+		.metric = DAMOS_WMARK_NONE,
+		.name = "none",
+	},
+	{
+		.metric = DAMOS_WMARK_FREE_MEM_RATE,
+		.name = "free_mem_rate",
+	},
 };
 
 static ssize_t metric_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -796,9 +846,16 @@ static ssize_t metric_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	struct damon_sysfs_watermarks *watermarks = container_of(kobj,
 			struct damon_sysfs_watermarks, kobj);
+	int i;
 
-	return sysfs_emit(buf, "%s\n",
-			damon_sysfs_wmark_metric_strs[watermarks->metric]);
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_wmark_metric_names); i++) {
+		const struct damos_sysfs_wmark_metric_name *metric_name;
+
+		metric_name = &damos_sysfs_wmark_metric_names[i];
+		if (metric_name->metric == watermarks->metric)
+			return sysfs_emit(buf, "%s\n", metric_name->name);
+	}
+	return -EINVAL;
 }
 
 static ssize_t metric_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -806,11 +863,14 @@ static ssize_t metric_store(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	struct damon_sysfs_watermarks *watermarks = container_of(kobj,
 			struct damon_sysfs_watermarks, kobj);
-	enum damos_wmark_metric metric;
+	int i;
 
-	for (metric = 0; metric < NR_DAMOS_WMARK_METRICS; metric++) {
-		if (sysfs_streq(buf, damon_sysfs_wmark_metric_strs[metric])) {
-			watermarks->metric = metric;
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_wmark_metric_names); i++) {
+		const struct damos_sysfs_wmark_metric_name *metric_name;
+
+		metric_name = &damos_sysfs_wmark_metric_names[i];
+		if (sysfs_streq(buf, metric_name->name)) {
+			watermarks->metric = metric_name->metric;
 			return count;
 		}
 	}
@@ -941,27 +1001,51 @@ struct damos_sysfs_quota_goal {
 	int nid;
 };
 
-/* This should match with enum damos_quota_goal_metric */
-static const char * const damos_sysfs_quota_goal_metric_strs[] = {
-	"user_input",
-	"some_mem_psi_us",
-	"node_mem_used_bp",
-	"node_mem_free_bp",
-};
-
 static struct damos_sysfs_quota_goal *damos_sysfs_quota_goal_alloc(void)
 {
 	return kzalloc(sizeof(struct damos_sysfs_quota_goal), GFP_KERNEL);
 }
+
+struct damos_sysfs_qgoal_metric_name {
+	enum damos_quota_goal_metric metric;
+	char *name;
+};
+
+static
+struct damos_sysfs_qgoal_metric_name damos_sysfs_qgoal_metric_names[] = {
+	{
+		.metric = DAMOS_QUOTA_USER_INPUT,
+		.name = "user_input",
+	},
+	{
+		.metric = DAMOS_QUOTA_SOME_MEM_PSI_US,
+		.name = "some_mem_psi_us",
+	},
+	{
+		.metric = DAMOS_QUOTA_NODE_MEM_USED_BP,
+		.name = "node_mem_used_bp",
+	},
+	{
+		.metric = DAMOS_QUOTA_NODE_MEM_FREE_BP,
+		.name = "node_mem_free_bp",
+	},
+};
 
 static ssize_t target_metric_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
 	struct damos_sysfs_quota_goal *goal = container_of(kobj,
 			struct damos_sysfs_quota_goal, kobj);
+	int i;
 
-	return sysfs_emit(buf, "%s\n",
-			damos_sysfs_quota_goal_metric_strs[goal->metric]);
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_qgoal_metric_names); i++) {
+		struct damos_sysfs_qgoal_metric_name *metric_name;
+
+		metric_name = &damos_sysfs_qgoal_metric_names[i];
+		if (metric_name->metric == goal->metric)
+			return sysfs_emit(buf, "%s\n", metric_name->name);
+	}
+	return -EINVAL;
 }
 
 static ssize_t target_metric_store(struct kobject *kobj,
@@ -969,11 +1053,14 @@ static ssize_t target_metric_store(struct kobject *kobj,
 {
 	struct damos_sysfs_quota_goal *goal = container_of(kobj,
 			struct damos_sysfs_quota_goal, kobj);
-	enum damos_quota_goal_metric m;
+	int i;
 
-	for (m = 0; m < NR_DAMOS_QUOTA_GOAL_METRICS; m++) {
-		if (sysfs_streq(buf, damos_sysfs_quota_goal_metric_strs[m])) {
-			goal->metric = m;
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_qgoal_metric_names); i++) {
+		struct damos_sysfs_qgoal_metric_name *metric_name;
+
+		metric_name = &damos_sysfs_qgoal_metric_names[i];
+		if (sysfs_streq(buf, metric_name->name)) {
+			goal->metric = metric_name->metric;
 			return count;
 		}
 	}
@@ -1587,18 +1674,52 @@ struct damon_sysfs_scheme {
 	int target_nid;
 };
 
-/* This should match with enum damos_action */
-static const char * const damon_sysfs_damos_action_strs[] = {
-	"willneed",
-	"cold",
-	"pageout",
-	"hugepage",
-	"nohugepage",
-	"lru_prio",
-	"lru_deprio",
-	"migrate_hot",
-	"migrate_cold",
-	"stat",
+struct damos_sysfs_action_name {
+	enum damos_action action;
+	char *name;
+};
+
+struct damos_sysfs_action_name damos_sysfs_action_names[] = {
+	{
+		.action = DAMOS_WILLNEED,
+		.name = "willneed",
+	},
+	{
+		.action = DAMOS_COLD,
+		.name = "cold",
+	},
+	{
+		.action = DAMOS_PAGEOUT,
+		.name = "pageout",
+	},
+	{
+		.action = DAMOS_HUGEPAGE,
+		.name = "hugepage",
+	},
+	{
+		.action = DAMOS_NOHUGEPAGE,
+		.name = "nohugepage",
+	},
+	{
+		.action = DAMOS_LRU_PRIO,
+		.name = "lru_prio",
+	},
+	{
+		.action = DAMOS_LRU_DEPRIO,
+		.name = "lru_deprio",
+	},
+	{
+		.action = DAMOS_MIGRATE_HOT,
+		.name = "migrate_hot",
+	},
+	{
+		.action = DAMOS_MIGRATE_COLD,
+		.name = "migrate_cold",
+	},
+	{
+		.action = DAMOS_STAT,
+		.name = "stat",
+	},
 };
 
 static struct damon_sysfs_scheme *damon_sysfs_scheme_alloc(
@@ -1835,9 +1956,16 @@ static ssize_t action_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	struct damon_sysfs_scheme *scheme = container_of(kobj,
 			struct damon_sysfs_scheme, kobj);
+	int i;
 
-	return sysfs_emit(buf, "%s\n",
-			damon_sysfs_damos_action_strs[scheme->action]);
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_action_names); i++) {
+		struct damos_sysfs_action_name *action_name;
+
+		action_name = &damos_sysfs_action_names[i];
+		if (action_name->action == scheme->action)
+			return sysfs_emit(buf, "%s\n", action_name->name);
+	}
+	return -EINVAL;
 }
 
 static ssize_t action_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -1845,11 +1973,14 @@ static ssize_t action_store(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	struct damon_sysfs_scheme *scheme = container_of(kobj,
 			struct damon_sysfs_scheme, kobj);
-	enum damos_action action;
+	int i;
 
-	for (action = 0; action < NR_DAMOS_ACTIONS; action++) {
-		if (sysfs_streq(buf, damon_sysfs_damos_action_strs[action])) {
-			scheme->action = action;
+	for (i = 0; i < ARRAY_SIZE(damos_sysfs_action_names); i++) {
+		struct damos_sysfs_action_name *action_name;
+
+		action_name = &damos_sysfs_action_names[i];
+		if (sysfs_streq(buf, action_name->name)) {
+			scheme->action = action_name->action;
 			return count;
 		}
 	}

@@ -376,7 +376,7 @@ again:
 			goto next;
 
 		_pmd = pmdp_get_lockless(pmd);
-		if (is_swap_pmd(_pmd) || pmd_trans_huge(_pmd) || pmd_devmap(_pmd)) {
+		if (is_swap_pmd(_pmd) || pmd_trans_huge(_pmd)) {
 			if ((next - addr != HPAGE_PMD_SIZE) ||
 			    pgtable_split_needed(vma, cp_flags)) {
 				__split_huge_pmd(vma, pmd, addr, false);
@@ -596,10 +596,10 @@ static const struct mm_walk_ops prot_none_walk_ops = {
 int
 mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	       struct vm_area_struct *vma, struct vm_area_struct **pprev,
-	       unsigned long start, unsigned long end, unsigned long newflags)
+	       unsigned long start, unsigned long end, vm_flags_t newflags)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	unsigned long oldflags = READ_ONCE(vma->vm_flags);
+	vm_flags_t oldflags = READ_ONCE(vma->vm_flags);
 	long nrpages = (end - start) >> PAGE_SHIFT;
 	unsigned int mm_cp_flags = 0;
 	unsigned long charged = 0;
@@ -774,8 +774,8 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
 	nstart = start;
 	tmp = vma->vm_start;
 	for_each_vma_range(vmi, vma, end) {
-		unsigned long mask_off_old_flags;
-		unsigned long newflags;
+		vm_flags_t mask_off_old_flags;
+		vm_flags_t newflags;
 		int new_vma_pkey;
 
 		if (vma->vm_start != tmp) {
