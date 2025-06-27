@@ -88,8 +88,8 @@ LUA_SYSFS_R(thingy, THINGY) \
 static const struct bin_attribute lua_ ## thingy ## _attr = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = LUA_SIZE_ ## THINGY, \
-	.read_new = lua_sysfs_read_ ## thingy, \
-	.write_new = lua_sysfs_write_ ## thingy \
+	.read = lua_sysfs_read_ ## thingy, \
+	.write = lua_sysfs_write_ ## thingy \
 };
 
 LUA_BIN_ATTRIBUTE_RW(control, CONTROL)

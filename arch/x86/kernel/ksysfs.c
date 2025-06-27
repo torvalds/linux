@@ -40,7 +40,7 @@ static const struct bin_attribute boot_params_data_attr = {
 		.name = "data",
 		.mode = S_IRUGO,
 	},
-	.read_new = boot_params_data_read,
+	.read = boot_params_data_read,
 	.size = sizeof(boot_params),
 };
 
@@ -56,7 +56,7 @@ static const struct bin_attribute *const boot_params_data_attrs[] = {
 
 static const struct attribute_group boot_params_attr_group = {
 	.attrs = boot_params_version_attrs,
-	.bin_attrs_new = boot_params_data_attrs,
+	.bin_attrs = boot_params_data_attrs,
 };
 
 static int kobj_to_setup_data_nr(struct kobject *kobj, int *nr)
@@ -250,7 +250,7 @@ static struct bin_attribute data_attr __ro_after_init = {
 		.name = "data",
 		.mode = S_IRUGO,
 	},
-	.read_new = setup_data_data_read,
+	.read = setup_data_data_read,
 };
 
 static struct attribute *setup_data_type_attrs[] = {
@@ -265,7 +265,7 @@ static const struct bin_attribute *const setup_data_data_attrs[] = {
 
 static const struct attribute_group setup_data_attr_group = {
 	.attrs = setup_data_type_attrs,
-	.bin_attrs_new = setup_data_data_attrs,
+	.bin_attrs = setup_data_data_attrs,
 };
 
 static int __init create_setup_data_node(struct kobject *parent,

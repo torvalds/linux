@@ -203,7 +203,7 @@ static void create_elog_obj(uint64_t id, size_t size, uint64_t type)
 	elog->raw_attr.attr.name = "raw";
 	elog->raw_attr.attr.mode = 0400;
 	elog->raw_attr.size = size;
-	elog->raw_attr.read_new = raw_attr_read;
+	elog->raw_attr.read = raw_attr_read;
 
 	elog->id = id;
 	elog->size = size;

@@ -1357,7 +1357,7 @@ static const struct bin_attribute *const bno055_bin_attrs[] = {
 
 static const struct attribute_group bno055_attrs_group = {
 	.attrs = bno055_attrs,
-	.bin_attrs_new = bno055_bin_attrs,
+	.bin_attrs = bno055_bin_attrs,
 };
 
 static const struct iio_info bno055_info = {

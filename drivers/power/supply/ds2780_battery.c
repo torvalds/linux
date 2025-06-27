@@ -660,8 +660,8 @@ static const struct bin_attribute ds2780_param_eeprom_bin_attr = {
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	.size = DS2780_PARAM_EEPROM_SIZE,
-	.read_new = ds2780_read_param_eeprom_bin,
-	.write_new = ds2780_write_param_eeprom_bin,
+	.read = ds2780_read_param_eeprom_bin,
+	.write = ds2780_write_param_eeprom_bin,
 };
 
 static ssize_t ds2780_read_user_eeprom_bin(struct file *filp,
@@ -705,8 +705,8 @@ static const struct bin_attribute ds2780_user_eeprom_bin_attr = {
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	.size = DS2780_USER_EEPROM_SIZE,
-	.read_new = ds2780_read_user_eeprom_bin,
-	.write_new = ds2780_write_user_eeprom_bin,
+	.read = ds2780_read_user_eeprom_bin,
+	.write = ds2780_write_user_eeprom_bin,
 };
 
 static DEVICE_ATTR(pmod_enabled, S_IRUGO | S_IWUSR, ds2780_get_pmod_enabled,
@@ -734,7 +734,7 @@ static const struct bin_attribute *const ds2780_sysfs_bin_attrs[] = {
 
 static const struct attribute_group ds2780_sysfs_group = {
 	.attrs = ds2780_sysfs_attrs,
-	.bin_attrs_new = ds2780_sysfs_bin_attrs,
+	.bin_attrs = ds2780_sysfs_bin_attrs,
 };
 
 static const struct attribute_group *ds2780_sysfs_groups[] = {

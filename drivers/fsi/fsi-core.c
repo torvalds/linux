@@ -613,8 +613,8 @@ static const struct bin_attribute fsi_slave_raw_attr = {
 		.mode = 0600,
 	},
 	.size = 0,
-	.read_new = fsi_slave_sysfs_raw_read,
-	.write_new = fsi_slave_sysfs_raw_write,
+	.read = fsi_slave_sysfs_raw_read,
+	.write = fsi_slave_sysfs_raw_write,
 };
 
 static void fsi_slave_release(struct device *dev)

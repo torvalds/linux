@@ -91,7 +91,7 @@ static const struct bin_attribute *const led_trigger_bin_attrs[] = {
 	NULL,
 };
 static const struct attribute_group led_trigger_group = {
-	.bin_attrs_new = led_trigger_bin_attrs,
+	.bin_attrs = led_trigger_bin_attrs,
 };
 #endif
 

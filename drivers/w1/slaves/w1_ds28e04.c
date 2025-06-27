@@ -371,7 +371,7 @@ static const struct bin_attribute *const w1_f1C_bin_attrs[] = {
 
 static const struct attribute_group w1_f1C_group = {
 	.attrs		= w1_f1C_attrs,
-	.bin_attrs_new	= w1_f1C_bin_attrs,
+	.bin_attrs	= w1_f1C_bin_attrs,
 };
 
 static const struct attribute_group *w1_f1C_groups[] = {

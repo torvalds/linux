@@ -174,8 +174,8 @@ static const struct bin_attribute sysfs_fw_dump_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read_new = qla2x00_sysfs_read_fw_dump,
-	.write_new = qla2x00_sysfs_write_fw_dump,
+	.read = qla2x00_sysfs_read_fw_dump,
+	.write = qla2x00_sysfs_write_fw_dump,
 };
 
 static ssize_t
@@ -288,8 +288,8 @@ static const struct bin_attribute sysfs_nvram_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 512,
-	.read_new = qla2x00_sysfs_read_nvram,
-	.write_new = qla2x00_sysfs_write_nvram,
+	.read = qla2x00_sysfs_read_nvram,
+	.write = qla2x00_sysfs_write_nvram,
 };
 
 static ssize_t
@@ -350,8 +350,8 @@ static const struct bin_attribute sysfs_optrom_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read_new = qla2x00_sysfs_read_optrom,
-	.write_new = qla2x00_sysfs_write_optrom,
+	.read = qla2x00_sysfs_read_optrom,
+	.write = qla2x00_sysfs_write_optrom,
 };
 
 static ssize_t
@@ -535,7 +535,7 @@ static const struct bin_attribute sysfs_optrom_ctl_attr = {
 		.mode = S_IWUSR,
 	},
 	.size = 0,
-	.write_new = qla2x00_sysfs_write_optrom_ctl,
+	.write = qla2x00_sysfs_write_optrom_ctl,
 };
 
 static ssize_t
@@ -648,8 +648,8 @@ static const struct bin_attribute sysfs_vpd_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read_new = qla2x00_sysfs_read_vpd,
-	.write_new = qla2x00_sysfs_write_vpd,
+	.read = qla2x00_sysfs_read_vpd,
+	.write = qla2x00_sysfs_write_vpd,
 };
 
 static ssize_t
@@ -685,7 +685,7 @@ static const struct bin_attribute sysfs_sfp_attr = {
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = SFP_DEV_SIZE,
-	.read_new = qla2x00_sysfs_read_sfp,
+	.read = qla2x00_sysfs_read_sfp,
 };
 
 static ssize_t
@@ -829,7 +829,7 @@ static const struct bin_attribute sysfs_reset_attr = {
 		.mode = S_IWUSR,
 	},
 	.size = 0,
-	.write_new = qla2x00_sysfs_write_reset,
+	.write = qla2x00_sysfs_write_reset,
 };
 
 static ssize_t
@@ -872,7 +872,7 @@ static const struct bin_attribute sysfs_issue_logo_attr = {
 		.mode = S_IWUSR,
 	},
 	.size = 0,
-	.write_new = qla2x00_issue_logo,
+	.write = qla2x00_issue_logo,
 };
 
 static ssize_t
@@ -935,7 +935,7 @@ static const struct bin_attribute sysfs_xgmac_stats_attr = {
 		.mode = S_IRUSR,
 	},
 	.size = 0,
-	.read_new = qla2x00_sysfs_read_xgmac_stats,
+	.read = qla2x00_sysfs_read_xgmac_stats,
 };
 
 static ssize_t
@@ -993,7 +993,7 @@ static const struct bin_attribute sysfs_dcbx_tlv_attr = {
 		.mode = S_IRUSR,
 	},
 	.size = 0,
-	.read_new = qla2x00_sysfs_read_dcbx_tlv,
+	.read = qla2x00_sysfs_read_dcbx_tlv,
 };
 
 static struct sysfs_entry {

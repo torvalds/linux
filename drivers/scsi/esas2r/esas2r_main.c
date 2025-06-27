@@ -215,8 +215,8 @@ static ssize_t write_hw(struct file *file, struct kobject *kobj,
 		.attr	= \
 		{ .name = __stringify(_name), .mode  = S_IRUSR | S_IWUSR }, \
 		.size	= 0, \
-		.read_new	= read_ ## _name, \
-		.write_new	= write_ ## _name }
+		.read	= read_ ## _name, \
+		.write	= write_ ## _name }
 
 ESAS2R_RW_BIN_ATTR(fw);
 ESAS2R_RW_BIN_ATTR(fs);
@@ -227,7 +227,7 @@ ESAS2R_RW_BIN_ATTR(live_nvram);
 const struct bin_attribute bin_attr_default_nvram = {
 	.attr	= { .name = "default_nvram", .mode = S_IRUGO },
 	.size	= 0,
-	.read_new	= read_default_nvram,
+	.read	= read_default_nvram,
 	.write	= NULL
 };
 

@@ -209,12 +209,12 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 
 		if (tm->mrs[i].mr_flags & TSM_MR_F_READABLE) {
 			bap->attr.mode |= 0444;
-			bap->read_new = tm_digest_read;
+			bap->read = tm_digest_read;
 		}
 
 		if (tm->mrs[i].mr_flags & TSM_MR_F_WRITABLE) {
 			bap->attr.mode |= 0200;
-			bap->write_new = tm_digest_write;
+			bap->write = tm_digest_write;
 		}
 
 		bap->size = tm->mrs[i].mr_size;
@@ -228,7 +228,7 @@ tsm_mr_create_attribute_group(const struct tsm_measurements *tm)
 
 	init_rwsem(&ctx->rwsem);
 	ctx->agrp.name = "measurements";
-	ctx->agrp.bin_attrs_new = no_free_ptr(attrs);
+	ctx->agrp.bin_attrs = no_free_ptr(attrs);
 	ctx->tm = tm;
 	return &no_free_ptr(ctx)->agrp;
 }
@@ -244,7 +244,7 @@ EXPORT_SYMBOL_GPL(tsm_mr_create_attribute_group);
 void tsm_mr_free_attribute_group(const struct attribute_group *attr_grp)
 {
 	if (!IS_ERR_OR_NULL(attr_grp)) {
-		kfree(attr_grp->bin_attrs_new);
+		kfree(attr_grp->bin_attrs);
 		kfree(container_of(attr_grp, struct tm_context, agrp));
 	}
 }

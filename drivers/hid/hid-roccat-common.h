@@ -71,8 +71,8 @@ ROCCAT_COMMON2_SYSFS_RW(thingy, COMMAND, SIZE); \
 static const struct bin_attribute bin_attr_ ## thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = SIZE, \
-	.read_new = roccat_common2_sysfs_read_ ## thingy, \
-	.write_new = roccat_common2_sysfs_write_ ## thingy \
+	.read = roccat_common2_sysfs_read_ ## thingy, \
+	.write = roccat_common2_sysfs_write_ ## thingy \
 }
 
 #define ROCCAT_COMMON2_BIN_ATTRIBUTE_R(thingy, COMMAND, SIZE) \
@@ -80,7 +80,7 @@ ROCCAT_COMMON2_SYSFS_R(thingy, COMMAND, SIZE); \
 static const struct bin_attribute bin_attr_ ## thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size = SIZE, \
-	.read_new = roccat_common2_sysfs_read_ ## thingy, \
+	.read = roccat_common2_sysfs_read_ ## thingy, \
 }
 
 #define ROCCAT_COMMON2_BIN_ATTRIBUTE_W(thingy, COMMAND, SIZE) \
@@ -88,7 +88,7 @@ ROCCAT_COMMON2_SYSFS_W(thingy, COMMAND, SIZE); \
 static const struct bin_attribute bin_attr_ ## thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = SIZE, \
-	.write_new = roccat_common2_sysfs_write_ ## thingy \
+	.write = roccat_common2_sysfs_write_ ## thingy \
 }
 
 #endif

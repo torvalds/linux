@@ -2127,7 +2127,7 @@ static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 		con->badpages_attr = bin_attr_gpu_vram_bad_pages;
 		sysfs_bin_attr_init(&con->badpages_attr);
 		bin_attrs[0] = &con->badpages_attr;
-		group.bin_attrs_new = bin_attrs;
+		group.bin_attrs = bin_attrs;
 	}
 
 	r = sysfs_create_group(&adev->dev->kobj, &group);

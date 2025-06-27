@@ -47,7 +47,7 @@ static const struct bin_attribute *const bgrt_bin_attributes[] = {
 
 static const struct attribute_group bgrt_attribute_group = {
 	.attrs = bgrt_attributes,
-	.bin_attrs_new = bgrt_bin_attributes,
+	.bin_attrs = bgrt_bin_attributes,
 };
 
 int __init acpi_parse_bgrt(struct acpi_table_header *table)

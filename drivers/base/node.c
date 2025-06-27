@@ -619,7 +619,7 @@ static const struct bin_attribute *node_dev_bin_attrs[] = {
 
 static const struct attribute_group node_dev_group = {
 	.attrs = node_dev_attrs,
-	.bin_attrs_new = node_dev_bin_attrs,
+	.bin_attrs = node_dev_bin_attrs,
 };
 
 static const struct attribute_group *node_dev_groups[] = {

@@ -8195,7 +8195,7 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			attr->attr.mode = 0444;
 			attr->size = btf->data_size;
 			attr->private = btf->data;
-			attr->read_new = sysfs_bin_attr_simple_read;
+			attr->read = sysfs_bin_attr_simple_read;
 
 			err = sysfs_create_bin_file(btf_kobj, attr);
 			if (err) {
