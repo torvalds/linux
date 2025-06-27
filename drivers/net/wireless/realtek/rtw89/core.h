@@ -5146,7 +5146,7 @@ struct rtw89_dpk_bkup_para {
 	enum rtw89_band band;
 	enum rtw89_bandwidth bw;
 	u8 ch;
-	bool path_ok;
+	u8 path_ok;
 	u8 mdpd_en;
 	u8 txagc_dpk;
 	u8 ther_dpk;
