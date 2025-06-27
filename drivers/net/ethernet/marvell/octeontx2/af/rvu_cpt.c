@@ -410,7 +410,7 @@ static bool is_cpt_pf(struct rvu *rvu, u16 pcifunc)
 {
 	int cpt_pf_num = rvu->cpt_pf_num;
 
-	if (rvu_get_pf(pcifunc) != cpt_pf_num)
+	if (rvu_get_pf(rvu->pdev, pcifunc) != cpt_pf_num)
 		return false;
 	if (pcifunc & RVU_PFVF_FUNC_MASK)
 		return false;
@@ -422,7 +422,7 @@ static bool is_cpt_vf(struct rvu *rvu, u16 pcifunc)
 {
 	int cpt_pf_num = rvu->cpt_pf_num;
 
-	if (rvu_get_pf(pcifunc) != cpt_pf_num)
+	if (rvu_get_pf(rvu->pdev, pcifunc) != cpt_pf_num)
 		return false;
 	if (!(pcifunc & RVU_PFVF_FUNC_MASK))
 		return false;

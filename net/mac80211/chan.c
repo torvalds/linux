@@ -644,15 +644,39 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	return NULL;
 }
 
-bool ieee80211_is_radar_required(struct ieee80211_local *local)
+bool ieee80211_is_radar_required(struct ieee80211_local *local,
+				 struct cfg80211_scan_request *req)
 {
+	struct wiphy *wiphy = local->hw.wiphy;
 	struct ieee80211_link_data *link;
+	struct ieee80211_channel *chan;
+	int radio_idx;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
+	if (!req)
+		return false;
+
 	for_each_sdata_link(local, link) {
-		if (link->radar_required)
-			return true;
+		if (link->radar_required) {
+			if (wiphy->n_radio < 2)
+				return true;
+
+			chan = link->conf->chanreq.oper.chan;
+			radio_idx = cfg80211_get_radio_idx_by_chan(wiphy, chan);
+			/*
+			 * The radio index (radio_idx) is expected to be valid,
+			 * as it's derived from a channel tied to a link. If
+			 * it's invalid (i.e., negative), return true to avoid
+			 * potential issues with radar-sensitive operations.
+			 */
+			if (radio_idx < 0)
+				return true;
+
+			if (ieee80211_is_radio_idx_in_scan_req(wiphy, req,
+							       radio_idx))
+				return true;
+		}
 	}
 
 	return false;
@@ -720,7 +744,7 @@ static int ieee80211_add_chanctx(struct ieee80211_local *local,
 	/* turn idle off *before* setting channel -- some drivers need that */
 	changed = ieee80211_idle_off(local);
 	if (changed)
-		ieee80211_hw_config(local, changed);
+		ieee80211_hw_config(local, -1, changed);
 
 	err = drv_add_chanctx(local, ctx);
 	if (err) {
@@ -1381,6 +1405,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 		goto out;
 	}
 
+	link->radar_required = link->reserved_radar_required;
 	list_move(&link->assigned_chanctx_list, &new_ctx->assigned_links);
 	rcu_assign_pointer(link_conf->chanctx_conf, &new_ctx->conf);
 

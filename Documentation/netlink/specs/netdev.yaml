@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: netdev
 
 doc:
@@ -31,7 +31,7 @@ definitions:
       -
         name: hw-offload
         doc:
-         This feature informs if netdev supports XDP hw offloading.
+          This feature informs if netdev supports XDP hw offloading.
       -
         name: rx-sg
         doc:
@@ -48,16 +48,19 @@ definitions:
     entries:
       -
         name: timestamp
-        doc:
-          Device is capable of exposing receive HW timestamp via bpf_xdp_metadata_rx_timestamp().
+        doc: |
+          Device is capable of exposing receive HW timestamp via
+          bpf_xdp_metadata_rx_timestamp().
       -
         name: hash
-        doc:
-          Device is capable of exposing receive packet hash via bpf_xdp_metadata_rx_hash().
+        doc: |
+          Device is capable of exposing receive packet hash via
+          bpf_xdp_metadata_rx_hash().
       -
         name: vlan-tag
-        doc:
-          Device is capable of exposing receive packet VLAN tag via bpf_xdp_metadata_rx_vlan_tag().
+        doc: |
+          Device is capable of exposing receive packet VLAN tag via
+          bpf_xdp_metadata_rx_vlan_tag().
   -
     type: flags
     name: xsk-flags
@@ -77,11 +80,11 @@ definitions:
   -
     name: queue-type
     type: enum
-    entries: [ rx, tx ]
+    entries: [rx, tx]
   -
     name: qstats-scope
     type: flags
-    entries: [ queue ]
+    entries: [queue]
 
 attribute-sets:
   -
@@ -205,7 +208,7 @@ attribute-sets:
       -
         name: alloc-fast
         type: uint
-        value: 8 # reserve some attr ids in case we need more metadata later
+        value: 8  # reserve some attr ids in case we need more metadata later
       -
         name: alloc-slow
         type: uint
@@ -367,7 +370,7 @@ attribute-sets:
           For drivers supporting XDP, XDP is considered the first layer
           of the stack, so packets consumed by XDP are still counted here.
         type: uint
-        value: 8 # reserve some attr ids in case we need more metadata later
+        value: 8  # reserve some attr ids in case we need more metadata later
       -
         name: rx-bytes
         doc: Successfully received bytes, see `rx-packets`.
@@ -425,9 +428,9 @@ attribute-sets:
       -
         name: rx-hw-gro-packets
         doc: |
-          Number of packets that were coalesced from smaller packets by the device.
-          Counts only packets coalesced with the HW-GRO netdevice feature,
-          LRO-coalesced packets are not counted.
+          Number of packets that were coalesced from smaller packets by the
+          device. Counts only packets coalesced with the HW-GRO netdevice
+          feature, LRO-coalesced packets are not counted.
         type: uint
       -
         name: rx-hw-gro-bytes
@@ -436,8 +439,8 @@ attribute-sets:
       -
         name: rx-hw-gro-wire-packets
         doc: |
-          Number of packets that were coalesced to bigger packetss with the HW-GRO
-          netdevice feature. LRO-coalesced packets are not counted.
+          Number of packets that were coalesced to bigger packetss with the
+          HW-GRO netdevice feature. LRO-coalesced packets are not counted.
         type: uint
       -
         name: rx-hw-gro-wire-bytes
@@ -721,7 +724,7 @@ operations:
       name: bind-rx
       doc: Bind dmabuf to netdev
       attribute-set: dmabuf
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       do:
         request:
           attributes:
@@ -735,7 +738,7 @@ operations:
       name: napi-set
       doc: Set configurable NAPI instance settings.
       attribute-set: napi
-      flags: [ admin-perm ]
+      flags: [admin-perm]
       do:
         request:
           attributes:
@@ -757,7 +760,7 @@ operations:
             - id
 
 kernel-family:
-  headers: [ "net/netdev_netlink.h"]
+  headers: ["net/netdev_netlink.h"]
   sock-priv: struct netdev_nl_sock
 
 mcast-groups:

@@ -5654,6 +5654,20 @@ static int __maybe_unused macb_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static void macb_shutdown(struct platform_device *pdev)
+{
+	struct net_device *netdev = platform_get_drvdata(pdev);
+
+	rtnl_lock();
+
+	if (netif_running(netdev))
+		dev_close(netdev);
+
+	netif_device_detach(netdev);
+
+	rtnl_unlock();
+}
+
 static const struct dev_pm_ops macb_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(macb_suspend, macb_resume)
 	SET_RUNTIME_PM_OPS(macb_runtime_suspend, macb_runtime_resume, NULL)
@@ -5667,6 +5681,7 @@ static struct platform_driver macb_driver = {
 		.of_match_table	= of_match_ptr(macb_dt_ids),
 		.pm	= &macb_pm_ops,
 	},
+	.shutdown	= macb_shutdown,
 };
 
 module_platform_driver(macb_driver);

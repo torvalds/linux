@@ -32,6 +32,7 @@
 
 #include <linux/dim.h>
 #include <linux/ethtool_netlink.h>
+#include <net/netdev_queues.h>
 
 #include "en.h"
 #include "en/channels.h"
@@ -365,11 +366,6 @@ void mlx5e_ethtool_get_ringparam(struct mlx5e_priv *priv,
 	param->tx_max_pending = 1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE;
 	param->rx_pending     = 1 << priv->channels.params.log_rq_mtu_frames;
 	param->tx_pending     = 1 << priv->channels.params.log_sq_size;
-
-	kernel_param->tcp_data_split =
-		(priv->channels.params.packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) ?
-		ETHTOOL_TCP_DATA_SPLIT_ENABLED :
-		ETHTOOL_TCP_DATA_SPLIT_DISABLED;
 }
 
 static void mlx5e_get_ringparam(struct net_device *dev,
@@ -380,6 +376,27 @@ static void mlx5e_get_ringparam(struct net_device *dev,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
 	mlx5e_ethtool_get_ringparam(priv, param, kernel_param);
+}
+
+static bool mlx5e_ethtool_set_tcp_data_split(struct mlx5e_priv *priv,
+					     u8 tcp_data_split,
+					     struct netlink_ext_ack *extack)
+{
+	struct net_device *dev = priv->netdev;
+
+	if (tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_ENABLED &&
+	    !(dev->features & NETIF_F_GRO_HW)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "TCP-data-split is not supported when GRO HW is disabled");
+		return false;
+	}
+
+	/* Might need to disable HW-GRO if it was kept on due to hds. */
+	if (tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_DISABLED &&
+	    dev->cfg->hds_config == ETHTOOL_TCP_DATA_SPLIT_ENABLED)
+		netdev_update_features(priv->netdev);
+
+	return true;
 }
 
 int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
@@ -439,6 +456,11 @@ static int mlx5e_set_ringparam(struct net_device *dev,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	if (!mlx5e_ethtool_set_tcp_data_split(priv,
+					      kernel_param->tcp_data_split,
+					      extack))
+		return -EINVAL;
 
 	return mlx5e_ethtool_set_ringparam(priv, param, extack);
 }
@@ -2377,6 +2399,23 @@ static u32 mlx5e_get_priv_flags(struct net_device *netdev)
 	return priv->channels.params.pflags;
 }
 
+static int mlx5e_get_rxfh_fields(struct net_device *dev,
+				 struct ethtool_rxfh_fields *info)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_get_rxfh_fields(priv, info);
+}
+
+static int mlx5e_set_rxfh_fields(struct net_device *dev,
+				 const struct ethtool_rxfh_fields *cmd,
+				 struct netlink_ext_ack *extack)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_set_rxfh_fields(priv, cmd, extack);
+}
+
 static int mlx5e_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 			   u32 *rule_locs)
 {
@@ -2616,12 +2655,14 @@ static void mlx5e_get_ts_stats(struct net_device *netdev,
 const struct ethtool_ops mlx5e_ethtool_ops = {
 	.cap_link_lanes_supported = true,
 	.cap_rss_ctx_supported	= true,
+	.rxfh_per_ctx_fields	= true,
 	.rxfh_per_ctx_key	= true,
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE |
 				     ETHTOOL_COALESCE_USE_CQE,
 	.supported_input_xfrm = RXH_XFRM_SYM_OR_XOR,
+	.supported_ring_params = ETHTOOL_RING_USE_TCP_DATA_SPLIT,
 	.get_drvinfo       = mlx5e_get_drvinfo,
 	.get_link          = ethtool_op_get_link,
 	.get_link_ext_state  = mlx5e_get_link_ext_state,
@@ -2642,6 +2683,8 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.get_rxfh_indir_size = mlx5e_get_rxfh_indir_size,
 	.get_rxfh          = mlx5e_get_rxfh,
 	.set_rxfh          = mlx5e_set_rxfh,
+	.get_rxfh_fields   = mlx5e_get_rxfh_fields,
+	.set_rxfh_fields   = mlx5e_set_rxfh_fields,
 	.get_rxnfc         = mlx5e_get_rxnfc,
 	.set_rxnfc         = mlx5e_set_rxnfc,
 	.get_tunable       = mlx5e_get_tunable,

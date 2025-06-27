@@ -7,6 +7,7 @@
  * Author: Stefan Hajnoczi <stefanha@redhat.com>
  */
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -22,6 +23,9 @@
 #include "timeout.h"
 #include "control.h"
 #include "util.h"
+
+#define KALLSYMS_PATH		"/proc/kallsyms"
+#define KALLSYMS_LINE_LEN	512
 
 /* Install signal handlers */
 void init_signals(void)
@@ -121,15 +125,17 @@ bool vsock_wait_sent(int fd)
 	return !ret;
 }
 
-/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
-int vsock_bind(unsigned int cid, unsigned int port, int type)
+/* Create socket <type>, bind to <cid, port>.
+ * Return the file descriptor, or -1 on error.
+ */
+int vsock_bind_try(unsigned int cid, unsigned int port, int type)
 {
 	struct sockaddr_vm sa = {
 		.svm_family = AF_VSOCK,
 		.svm_cid = cid,
 		.svm_port = port,
 	};
-	int fd;
+	int fd, saved_errno;
 
 	fd = socket(AF_VSOCK, type, 0);
 	if (fd < 0) {
@@ -138,6 +144,22 @@ int vsock_bind(unsigned int cid, unsigned int port, int type)
 	}
 
 	if (bind(fd, (struct sockaddr *)&sa, sizeof(sa))) {
+		saved_errno = errno;
+		close(fd);
+		errno = saved_errno;
+		fd = -1;
+	}
+
+	return fd;
+}
+
+/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
+int vsock_bind(unsigned int cid, unsigned int port, int type)
+{
+	int fd;
+
+	fd = vsock_bind_try(cid, port, type);
+	if (fd < 0) {
 		perror("bind");
 		exit(EXIT_FAILURE);
 	}
@@ -835,4 +857,56 @@ void enable_so_linger(int fd, int timeout)
 		perror("setsockopt(SO_LINGER)");
 		exit(EXIT_FAILURE);
 	}
+}
+
+static int __get_transports(void)
+{
+	char buf[KALLSYMS_LINE_LEN];
+	const char *ksym;
+	int ret = 0;
+	FILE *f;
+
+	f = fopen(KALLSYMS_PATH, "r");
+	if (!f) {
+		perror("Can't open " KALLSYMS_PATH);
+		exit(EXIT_FAILURE);
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		char *match;
+		int i;
+
+		assert(buf[strlen(buf) - 1] == '\n');
+
+		for (i = 0; i < TRANSPORT_NUM; ++i) {
+			if (ret & BIT(i))
+				continue;
+
+			/* Match should be followed by '\t' or '\n'.
+			 * See kallsyms.c:s_show().
+			 */
+			ksym = transport_ksyms[i];
+			match = strstr(buf, ksym);
+			if (match && isspace(match[strlen(ksym)])) {
+				ret |= BIT(i);
+				break;
+			}
+		}
+	}
+
+	fclose(f);
+	return ret;
+}
+
+/* Return integer with TRANSPORT_* bit set for every (known) registered vsock
+ * transport.
+ */
+int get_transports(void)
+{
+	static int tr = -1;
+
+	if (tr == -1)
+		tr = __get_transports();
+
+	return tr;
 }

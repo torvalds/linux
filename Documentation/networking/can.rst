@@ -1104,15 +1104,12 @@ for writing CAN network device driver are described below:
 General Settings
 ----------------
 
+CAN network device drivers can use alloc_candev_mqs() and friends instead of
+alloc_netdev_mqs(), to automatically take care of CAN-specific setup:
+
 .. code-block:: C
 
-    dev->type  = ARPHRD_CAN; /* the netdevice hardware type */
-    dev->flags = IFF_NOARP;  /* CAN has no arp */
-
-    dev->mtu = CAN_MTU; /* sizeof(struct can_frame) -> Classical CAN interface */
-
-    or alternative, when the controller supports CAN with flexible data rate:
-    dev->mtu = CANFD_MTU; /* sizeof(struct canfd_frame) -> CAN FD interface */
+    dev = alloc_candev_mqs(...);
 
 The struct can_frame or struct canfd_frame is the payload of each socket
 buffer (skbuff) in the protocol family PF_CAN.

@@ -646,7 +646,7 @@ struct htt_rx_ring_rx_desc_offsets;
 
 /* Defines needed for Rx descriptor abstraction */
 struct ath10k_hw_ops {
-	void (*set_coverage_class)(struct ath10k *ar, s16 value);
+	void (*set_coverage_class)(struct ath10k *ar, int radio_idx, s16 value);
 	int (*enable_pll_clk)(struct ath10k *ar);
 	int (*tx_data_rssi_pad_bytes)(struct htt_resp *htt);
 	int (*is_rssi_enable)(struct htt_resp *resp);

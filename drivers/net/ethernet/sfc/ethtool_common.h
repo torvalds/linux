@@ -49,6 +49,8 @@ int efx_ethtool_get_rxfh(struct net_device *net_dev,
 int efx_ethtool_set_rxfh(struct net_device *net_dev,
 			 struct ethtool_rxfh_param *rxfh,
 			 struct netlink_ext_ack *extack);
+int efx_ethtool_get_rxfh_fields(struct net_device *net_dev,
+				struct ethtool_rxfh_fields *info);
 int efx_ethtool_create_rxfh_context(struct net_device *net_dev,
 				    struct ethtool_rxfh_context *ctx,
 				    const struct ethtool_rxfh_param *rxfh,

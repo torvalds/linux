@@ -409,6 +409,7 @@ static void ionic_remove(struct pci_dev *pdev)
 	timer_shutdown_sync(&ionic->watchdog_timer);
 
 	if (ionic->lif) {
+		cancel_work_sync(&ionic->lif->deferred.work);
 		/* prevent adminq cmds if already known as down */
 		if (test_and_clear_bit(IONIC_LIF_F_FW_RESET, ionic->lif->state))
 			set_bit(IONIC_LIF_F_FW_STOPPING, ionic->lif->state);

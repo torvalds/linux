@@ -6,13 +6,18 @@
 #define _LINUX_PSE_CONTROLLER_H
 
 #include <linux/list.h>
+#include <linux/netlink.h>
+#include <linux/kfifo.h>
 #include <uapi/linux/ethtool.h>
+#include <uapi/linux/ethtool_netlink_generated.h>
+#include <linux/regulator/driver.h>
 
 /* Maximum current in uA according to IEEE 802.3-2022 Table 145-1 */
 #define MAX_PI_CURRENT 1920000
 /* Maximum power in mW according to IEEE 802.3-2022 Table 145-16 */
 #define MAX_PI_PW 99900
 
+struct net_device;
 struct phy_device;
 struct pse_controller_dev;
 struct netlink_ext_ack;
@@ -35,6 +40,19 @@ struct ethtool_c33_pse_ext_state_info {
 struct ethtool_c33_pse_pw_limit_range {
 	u32 min;
 	u32 max;
+};
+
+/**
+ * struct pse_irq_desc - notification sender description for IRQ based events.
+ *
+ * @name: the visible name for the IRQ
+ * @map_event: driver callback to map IRQ status into PSE devices with events.
+ */
+struct pse_irq_desc {
+	const char *name;
+	int (*map_event)(int irq, struct pse_controller_dev *pcdev,
+			 unsigned long *notifs,
+			 unsigned long *notifs_mask);
 };
 
 /**
@@ -98,6 +116,7 @@ struct pse_pw_limit_ranges {
 /**
  * struct ethtool_pse_control_status - PSE control/channel status.
  *
+ * @pw_d_id: PSE power domain index.
  * @podl_admin_state: operational state of the PoDL PSE
  *	functions. IEEE 802.3-2018 30.15.1.1.2 aPoDLPSEAdminState
  * @podl_pw_status: power detection status of the PoDL PSE.
@@ -117,8 +136,12 @@ struct pse_pw_limit_ranges {
  *	is in charge of the memory allocation
  * @c33_pw_limit_nb_ranges: number of supported power limit configuration
  *	ranges
+ * @prio_max: max priority allowed for the c33_prio variable value.
+ * @prio: priority of the PSE. Managed by PSE core in case of static budget
+ *	evaluation strategy.
  */
 struct ethtool_pse_control_status {
+	u32 pw_d_id;
 	enum ethtool_podl_pse_admin_state podl_admin_state;
 	enum ethtool_podl_pse_pw_d_status podl_pw_status;
 	enum ethtool_c33_pse_admin_state c33_admin_state;
@@ -129,12 +152,20 @@ struct ethtool_pse_control_status {
 	u32 c33_avail_pw_limit;
 	struct ethtool_c33_pse_pw_limit_range *c33_pw_limit_ranges;
 	u32 c33_pw_limit_nb_ranges;
+	u32 prio_max;
+	u32 prio;
 };
 
 /**
  * struct pse_controller_ops - PSE controller driver callbacks
  *
- * @setup_pi_matrix: setup PI matrix of the PSE controller
+ * @setup_pi_matrix: Setup PI matrix of the PSE controller.
+ *		     The PSE PIs devicetree nodes have already been parsed by
+ *		     of_load_pse_pis() and the pcdev->pi[x]->pairset[y].np
+ *		     populated. This callback should establish the
+ *		     relationship between the PSE controller hardware ports
+ *		     and the PSE Power Interfaces, either through software
+ *		     mapping or hardware configuration.
  * @pi_get_admin_state: Get the operational state of the PSE PI. This ops
  *			is mandatory.
  * @pi_get_pw_status: Get the power detection status of the PSE PI. This
@@ -152,6 +183,11 @@ struct ethtool_pse_control_status {
  *			    range. The driver is in charge of the memory
  *			    allocation and should return the number of
  *			    ranges.
+ * @pi_get_prio: Get the PSE PI priority.
+ * @pi_set_prio: Configure the PSE PI priority.
+ * @pi_get_pw_req: Get the power requested by a PD before enabling the PSE PI.
+ *		   This is only relevant when an interrupt is registered using
+ *		   devm_pse_irq_helper helper.
  */
 struct pse_controller_ops {
 	int (*setup_pi_matrix)(struct pse_controller_dev *pcdev);
@@ -172,6 +208,10 @@ struct pse_controller_ops {
 			       int id, int max_mW);
 	int (*pi_get_pw_limit_ranges)(struct pse_controller_dev *pcdev, int id,
 				      struct pse_pw_limit_ranges *pw_limit_ranges);
+	int (*pi_get_prio)(struct pse_controller_dev *pcdev, int id);
+	int (*pi_set_prio)(struct pse_controller_dev *pcdev, int id,
+			   unsigned int prio);
+	int (*pi_get_pw_req)(struct pse_controller_dev *pcdev, int id);
 };
 
 struct module;
@@ -206,12 +246,35 @@ struct pse_pi_pairset {
  * @np: device node pointer of the PSE PI node
  * @rdev: regulator represented by the PSE PI
  * @admin_state_enabled: PI enabled state
+ * @pw_d: Power domain of the PSE PI
+ * @prio: Priority of the PSE PI. Used in static budget evaluation strategy
+ * @isr_pd_detected: PSE PI detection status managed by the interruption
+ *		     handler. This variable is relevant when the power enabled
+ *		     management is managed in software like the static
+ *		     budget evaluation strategy.
+ * @pw_allocated_mW: Power allocated to a PSE PI to manage power budget in
+ *		     static budget evaluation strategy.
  */
 struct pse_pi {
 	struct pse_pi_pairset pairset[2];
 	struct device_node *np;
 	struct regulator_dev *rdev;
 	bool admin_state_enabled;
+	struct pse_power_domain *pw_d;
+	int prio;
+	bool isr_pd_detected;
+	int pw_allocated_mW;
+};
+
+/**
+ * struct pse_ntf - PSE notification element
+ *
+ * @id: ID of the PSE control
+ * @notifs: PSE notifications to be reported
+ */
+struct pse_ntf {
+	int id;
+	unsigned long notifs;
 };
 
 /**
@@ -228,6 +291,13 @@ struct pse_pi {
  * @types: types of the PSE controller
  * @pi: table of PSE PIs described in this controller device
  * @no_of_pse_pi: flag set if the pse_pis devicetree node is not used
+ * @irq: PSE interrupt
+ * @pis_prio_max: Maximum value allowed for the PSE PIs priority
+ * @supp_budget_eval_strategies: budget evaluation strategies supported
+ *				 by the PSE
+ * @ntf_work: workqueue for PSE notification management
+ * @ntf_fifo: PSE notifications FIFO
+ * @ntf_fifo_lock: protect @ntf_fifo writer
  */
 struct pse_controller_dev {
 	const struct pse_controller_ops *ops;
@@ -241,6 +311,30 @@ struct pse_controller_dev {
 	enum ethtool_pse_types types;
 	struct pse_pi *pi;
 	bool no_of_pse_pi;
+	int irq;
+	unsigned int pis_prio_max;
+	u32 supp_budget_eval_strategies;
+	struct work_struct ntf_work;
+	DECLARE_KFIFO_PTR(ntf_fifo, struct pse_ntf);
+	spinlock_t ntf_fifo_lock; /* Protect @ntf_fifo writer */
+};
+
+/**
+ * enum pse_budget_eval_strategies - PSE budget evaluation strategies.
+ * @PSE_BUDGET_EVAL_STRAT_DISABLED: Budget evaluation strategy disabled.
+ * @PSE_BUDGET_EVAL_STRAT_STATIC: PSE static budget evaluation strategy.
+ *	Budget evaluation strategy based on the power requested during PD
+ *	classification. This strategy is managed by the PSE core.
+ * @PSE_BUDGET_EVAL_STRAT_DYNAMIC: PSE dynamic budget evaluation
+ *	strategy. Budget evaluation strategy based on the current consumption
+ *	per ports compared to the total	power budget. This mode is managed by
+ *	the PSE controller.
+ */
+
+enum pse_budget_eval_strategies {
+	PSE_BUDGET_EVAL_STRAT_DISABLED	= 1 << 0,
+	PSE_BUDGET_EVAL_STRAT_STATIC	= 1 << 1,
+	PSE_BUDGET_EVAL_STRAT_DYNAMIC	= 1 << 2,
 };
 
 #if IS_ENABLED(CONFIG_PSE_CONTROLLER)
@@ -249,8 +343,11 @@ void pse_controller_unregister(struct pse_controller_dev *pcdev);
 struct device;
 int devm_pse_controller_register(struct device *dev,
 				 struct pse_controller_dev *pcdev);
+int devm_pse_irq_helper(struct pse_controller_dev *pcdev, int irq,
+			int irq_flags, const struct pse_irq_desc *d);
 
-struct pse_control *of_pse_control_get(struct device_node *node);
+struct pse_control *of_pse_control_get(struct device_node *node,
+				       struct phy_device *phydev);
 void pse_control_put(struct pse_control *psec);
 
 int pse_ethtool_get_status(struct pse_control *psec,
@@ -262,13 +359,17 @@ int pse_ethtool_set_config(struct pse_control *psec,
 int pse_ethtool_set_pw_limit(struct pse_control *psec,
 			     struct netlink_ext_ack *extack,
 			     const unsigned int pw_limit);
+int pse_ethtool_set_prio(struct pse_control *psec,
+			 struct netlink_ext_ack *extack,
+			 unsigned int prio);
 
 bool pse_has_podl(struct pse_control *psec);
 bool pse_has_c33(struct pse_control *psec);
 
 #else
 
-static inline struct pse_control *of_pse_control_get(struct device_node *node)
+static inline struct pse_control *of_pse_control_get(struct device_node *node,
+						     struct phy_device *phydev)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -294,6 +395,13 @@ static inline int pse_ethtool_set_config(struct pse_control *psec,
 static inline int pse_ethtool_set_pw_limit(struct pse_control *psec,
 					   struct netlink_ext_ack *extack,
 					   const unsigned int pw_limit)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int pse_ethtool_set_prio(struct pse_control *psec,
+				       struct netlink_ext_ack *extack,
+				       unsigned int prio)
 {
 	return -EOPNOTSUPP;
 }

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/net/renesas,r9a09g057-gbeth.yaml#
+$id: http://devicetree.org/schemas/net/renesas,rzv2h-gbeth.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: GBETH glue layer for Renesas RZ/V2H(P) (and similar SoCs)
@@ -14,6 +14,7 @@ select:
     compatible:
       contains:
         enum:
+          - renesas,r9a09g047-gbeth
           - renesas,r9a09g056-gbeth
           - renesas,r9a09g057-gbeth
           - renesas,rzv2h-gbeth
@@ -24,6 +25,7 @@ properties:
   compatible:
     items:
       - enum:
+          - renesas,r9a09g047-gbeth # RZ/G3E
           - renesas,r9a09g056-gbeth # RZ/V2N
           - renesas,r9a09g057-gbeth # RZ/V2H(P)
       - const: renesas,rzv2h-gbeth

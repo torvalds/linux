@@ -119,10 +119,12 @@ static u64 get_eht_mcs_ra_mask(u8 *max_nss, u8 start_mcs, u8 n_nss)
 	return mask;
 }
 
-static u64 get_eht_ra_mask(struct ieee80211_link_sta *link_sta)
+static u64 get_eht_ra_mask(struct rtw89_vif_link *rtwvif_link,
+			   struct ieee80211_link_sta *link_sta)
 {
-	struct ieee80211_sta_eht_cap *eht_cap = &link_sta->eht_cap;
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	struct ieee80211_eht_mcs_nss_supp_20mhz_only *mcs_nss_20mhz;
+	struct ieee80211_sta_eht_cap *eht_cap = &link_sta->eht_cap;
 	struct ieee80211_eht_mcs_nss_supp_bw *mcs_nss;
 	u8 *he_phy_cap = link_sta->he_cap.he_cap_elem.phy_cap_info;
 
@@ -136,8 +138,8 @@ static u64 get_eht_ra_mask(struct ieee80211_link_sta *link_sta)
 		/* MCS 9, 11, 13 */
 		return get_eht_mcs_ra_mask(mcs_nss->rx_tx_max_nss, 9, 3);
 	case IEEE80211_STA_RX_BW_20:
-		if (!(he_phy_cap[0] &
-		      IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK_ALL)) {
+		if (vif->type == NL80211_IFTYPE_AP &&
+		    !(he_phy_cap[0] & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK_ALL)) {
 			mcs_nss_20mhz = &eht_cap->eht_mcs_nss_supp.only_20mhz;
 			/* MCS 7, 9, 11, 13 */
 			return get_eht_mcs_ra_mask(mcs_nss_20mhz->rx_tx_max_nss, 7, 4);
@@ -332,7 +334,7 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	/* Set the ra mask from sta's capability */
 	if (link_sta->eht_cap.has_eht) {
 		mode |= RTW89_RA_MODE_EHT;
-		ra_mask |= get_eht_ra_mask(link_sta);
+		ra_mask |= get_eht_ra_mask(rtwvif_link, link_sta);
 
 		if (rtwdev->hal.no_mcs_12_13)
 			high_rate_masks = rtw89_ra_mask_eht_mcs0_11;
@@ -5828,13 +5830,19 @@ void rtw89_phy_env_monitor_track(struct rtw89_dev *rtwdev)
 		__rtw89_phy_env_monitor_track(rtwdev, bb);
 }
 
-static bool rtw89_physts_ie_page_valid(enum rtw89_phy_status_bitmap *ie_page)
+static bool rtw89_physts_ie_page_valid(struct rtw89_dev *rtwdev,
+				       enum rtw89_phy_status_bitmap *ie_page)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
 	if (*ie_page >= RTW89_PHYSTS_BITMAP_NUM ||
 	    *ie_page == RTW89_RSVD_9)
 		return false;
-	else if (*ie_page > RTW89_RSVD_9)
+	else if (*ie_page > RTW89_RSVD_9 && *ie_page < RTW89_EHT_PKT)
 		*ie_page -= 1;
+
+	if (*ie_page == RTW89_EHT_PKT && chip->chip_gen == RTW89_CHIP_AX)
+		return false;
 
 	return true;
 }
@@ -5842,6 +5850,9 @@ static bool rtw89_physts_ie_page_valid(enum rtw89_phy_status_bitmap *ie_page)
 static u32 rtw89_phy_get_ie_bitmap_addr(enum rtw89_phy_status_bitmap ie_page)
 {
 	static const u8 ie_page_shift = 2;
+
+	if (ie_page == RTW89_EHT_PKT)
+		return R_PHY_STS_BITMAP_EHT;
 
 	return R_PHY_STS_BITMAP_ADDR_START + (ie_page << ie_page_shift);
 }
@@ -5852,7 +5863,7 @@ static u32 rtw89_physts_get_ie_bitmap(struct rtw89_dev *rtwdev,
 {
 	u32 addr;
 
-	if (!rtw89_physts_ie_page_valid(&ie_page))
+	if (!rtw89_physts_ie_page_valid(rtwdev, &ie_page))
 		return 0;
 
 	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
@@ -5867,7 +5878,7 @@ static void rtw89_physts_set_ie_bitmap(struct rtw89_dev *rtwdev,
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 addr;
 
-	if (!rtw89_physts_ie_page_valid(&ie_page))
+	if (!rtw89_physts_ie_page_valid(rtwdev, &ie_page))
 		return;
 
 	if (chip->chip_id == RTL8852A)
@@ -5875,21 +5886,6 @@ static void rtw89_physts_set_ie_bitmap(struct rtw89_dev *rtwdev,
 
 	addr = rtw89_phy_get_ie_bitmap_addr(ie_page);
 	rtw89_phy_write32_idx(rtwdev, addr, MASKDWORD, val, phy_idx);
-}
-
-static void rtw89_physts_enable_ie_bitmap(struct rtw89_dev *rtwdev,
-					  enum rtw89_phy_status_bitmap bitmap,
-					  enum rtw89_phy_status_ie_type ie,
-					  bool enable, enum rtw89_phy_idx phy_idx)
-{
-	u32 val = rtw89_physts_get_ie_bitmap(rtwdev, bitmap, phy_idx);
-
-	if (enable)
-		val |= BIT(ie);
-	else
-		val &= ~BIT(ie);
-
-	rtw89_physts_set_ie_bitmap(rtwdev, bitmap, val, phy_idx);
 }
 
 static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
@@ -5915,30 +5911,37 @@ static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
 static void __rtw89_physts_parsing_init(struct rtw89_dev *rtwdev,
 					enum rtw89_phy_idx phy_idx)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 val;
 	u8 i;
 
 	rtw89_physts_enable_fail_report(rtwdev, false, phy_idx);
 
 	for (i = 0; i < RTW89_PHYSTS_BITMAP_NUM; i++) {
-		if (i >= RTW89_CCK_PKT)
-			rtw89_physts_enable_ie_bitmap(rtwdev, i,
-						      RTW89_PHYSTS_IE09_FTR_0,
-						      true, phy_idx);
-		if ((i >= RTW89_CCK_BRK && i <= RTW89_VHT_MU) ||
-		    (i >= RTW89_RSVD_9 && i <= RTW89_CCK_PKT))
+		if (i == RTW89_RSVD_9 ||
+		    (i == RTW89_EHT_PKT && chip->chip_gen == RTW89_CHIP_AX))
 			continue;
-		rtw89_physts_enable_ie_bitmap(rtwdev, i,
-					      RTW89_PHYSTS_IE24_OFDM_TD_PATH_A,
-					      true, phy_idx);
-	}
-	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_VHT_PKT,
-				      RTW89_PHYSTS_IE13_DL_MU_DEF, true, phy_idx);
-	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_HE_PKT,
-				      RTW89_PHYSTS_IE13_DL_MU_DEF, true, phy_idx);
 
-	/* force IE01 for channel index, only channel field is valid */
-	rtw89_physts_enable_ie_bitmap(rtwdev, RTW89_CCK_PKT,
-				      RTW89_PHYSTS_IE01_CMN_OFDM, true, phy_idx);
+		val = rtw89_physts_get_ie_bitmap(rtwdev, i, phy_idx);
+		if (i == RTW89_HE_MU || i == RTW89_VHT_MU) {
+			val |= BIT(RTW89_PHYSTS_IE13_DL_MU_DEF);
+		} else if (i == RTW89_TRIG_BASE_PPDU) {
+			val |= BIT(RTW89_PHYSTS_IE13_DL_MU_DEF) |
+			       BIT(RTW89_PHYSTS_IE01_CMN_OFDM);
+		} else if (i >= RTW89_CCK_PKT) {
+			val |= BIT(RTW89_PHYSTS_IE09_FTR_0);
+
+			val &= ~(GENMASK(RTW89_PHYSTS_IE07_CMN_EXT_PATH_D,
+					 RTW89_PHYSTS_IE04_CMN_EXT_PATH_A));
+
+			if (i == RTW89_CCK_PKT)
+				val |= BIT(RTW89_PHYSTS_IE01_CMN_OFDM);
+			else if (i >= RTW89_HT_PKT)
+				val |= BIT(RTW89_PHYSTS_IE20_DBG_OFDM_FD_USER_SEG_0);
+		}
+
+		rtw89_physts_set_ie_bitmap(rtwdev, i, val, phy_idx);
+	}
 }
 
 static void rtw89_physts_parsing_init(struct rtw89_dev *rtwdev)
@@ -7125,7 +7128,7 @@ static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *b
 	const struct rtw89_edcca_p_regs *edcca_p_regs;
 	bool flag_fb, flag_p20, flag_s20, flag_s40, flag_s80;
 	s8 pwdb_fb, pwdb_p20, pwdb_s20, pwdb_s40, pwdb_s80;
-	u8 path, per20_bitmap;
+	u8 path, per20_bitmap = 0;
 	u8 pwdb[8];
 	u32 tmp;
 
@@ -7155,13 +7158,10 @@ static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *b
 	pwdb_fb = u32_get_bits(tmp, MASKBYTE3);
 
 	rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
-			       edcca_p_regs->rpt_sel_mask, 4);
+			       edcca_p_regs->rpt_sel_mask, 5);
 	tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_b);
 	pwdb_s80 = u32_get_bits(tmp, MASKBYTE1);
 	pwdb_s40 = u32_get_bits(tmp, MASKBYTE2);
-
-	per20_bitmap = rtw89_phy_read32_mask(rtwdev, edcca_p_regs->rpt_a,
-					     MASKBYTE0);
 
 	if (rtwdev->chip->chip_id == RTL8922A) {
 		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
@@ -7171,6 +7171,8 @@ static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *b
 		pwdb[1] = u32_get_bits(tmp, MASKBYTE2);
 		pwdb[2] = u32_get_bits(tmp, MASKBYTE1);
 		pwdb[3] = u32_get_bits(tmp, MASKBYTE0);
+		per20_bitmap = rtw89_phy_read32_mask(rtwdev, edcca_p_regs->rpt_a,
+						     MASKBYTE0);
 
 		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
 				       edcca_regs->rpt_sel_be_mask, 5);
@@ -7187,7 +7189,7 @@ static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *b
 		pwdb[1] = u32_get_bits(tmp, MASKBYTE2);
 
 		rtw89_phy_write32_mask(rtwdev, edcca_p_regs->rpt_sel,
-				       edcca_p_regs->rpt_sel_mask, 1);
+				       edcca_p_regs->rpt_sel_mask, 5);
 		tmp = rtw89_phy_read32(rtwdev, edcca_p_regs->rpt_a);
 		pwdb[2] = u32_get_bits(tmp, MASKBYTE3);
 		pwdb[3] = u32_get_bits(tmp, MASKBYTE2);

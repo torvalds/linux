@@ -202,9 +202,6 @@ enum ice_ptp_pin_nvm {
 
 /* Pin definitions for PTP */
 #define ICE_N_PINS_MAX			6
-#define ICE_SMA_PINS_NUM		4
-#define ICE_PIN_DESC_ARR_LEN(_arr)	(sizeof(_arr) / \
-					 sizeof(struct ice_ptp_pin_desc))
 
 /**
  * struct ice_ptp_pin_desc - hardware pin description data

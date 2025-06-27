@@ -45,7 +45,6 @@ struct dpll_device {
  * @dpll_refs:		hold referencees to dplls pin was registered with
  * @parent_refs:	hold references to parent pins pin was registered with
  * @prop:		pin properties copied from the registerer
- * @rclk_dev_name:	holds name of device when pin can recover clock from it
  * @refcount:		refcount
  * @rcu:		rcu_head for kfree_rcu()
  **/

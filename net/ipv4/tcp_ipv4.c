@@ -2896,7 +2896,7 @@ static void get_openreq4(const struct request_sock *req,
 		jiffies_delta_to_clock_t(delta),
 		req->num_timeout,
 		from_kuid_munged(seq_user_ns(f),
-				 sock_i_uid(req->rsk_listener)),
+				 sk_uid(req->rsk_listener)),
 		0,  /* non standard timer */
 		0, /* open_requests have no inode */
 		0,
@@ -2954,7 +2954,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 		timer_active,
 		jiffies_delta_to_clock_t(timer_expires - jiffies),
 		icsk->icsk_retransmits,
-		from_kuid_munged(seq_user_ns(f), sock_i_uid(sk)),
+		from_kuid_munged(seq_user_ns(f), sk_uid(sk)),
 		icsk->icsk_probes_out,
 		sock_i_ino(sk),
 		refcount_read(&sk->sk_refcnt), sk,
@@ -3246,9 +3246,9 @@ static int bpf_iter_tcp_seq_show(struct seq_file *seq, void *v)
 		const struct request_sock *req = v;
 
 		uid = from_kuid_munged(seq_user_ns(seq),
-				       sock_i_uid(req->rsk_listener));
+				       sk_uid(req->rsk_listener));
 	} else {
-		uid = from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk));
+		uid = from_kuid_munged(seq_user_ns(seq), sk_uid(sk));
 	}
 
 	meta.seq = seq;

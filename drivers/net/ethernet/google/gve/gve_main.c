@@ -414,8 +414,12 @@ int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 	bool reschedule = false;
 	int work_done = 0;
 
-	if (block->tx)
-		reschedule |= gve_tx_poll_dqo(block, /*do_clean=*/true);
+	if (block->tx) {
+		if (block->tx->q_num < priv->tx_cfg.num_queues)
+			reschedule |= gve_tx_poll_dqo(block, /*do_clean=*/true);
+		else
+			reschedule |= gve_xdp_poll_dqo(block);
+	}
 
 	if (!budget)
 		return 0;
@@ -619,9 +623,12 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	err = gve_alloc_counter_array(priv);
 	if (err)
 		goto abort_with_rss_config_cache;
-	err = gve_alloc_notify_blocks(priv);
+	err = gve_init_clock(priv);
 	if (err)
 		goto abort_with_counter;
+	err = gve_alloc_notify_blocks(priv);
+	if (err)
+		goto abort_with_clock;
 	err = gve_alloc_stats_report(priv);
 	if (err)
 		goto abort_with_ntfy_blocks;
@@ -674,6 +681,8 @@ abort_with_stats_report:
 	gve_free_stats_report(priv);
 abort_with_ntfy_blocks:
 	gve_free_notify_blocks(priv);
+abort_with_clock:
+	gve_teardown_clock(priv);
 abort_with_counter:
 	gve_free_counter_array(priv);
 abort_with_rss_config_cache:
@@ -722,6 +731,7 @@ static void gve_teardown_device_resources(struct gve_priv *priv)
 	gve_free_counter_array(priv);
 	gve_free_notify_blocks(priv);
 	gve_free_stats_report(priv);
+	gve_teardown_clock(priv);
 	gve_clear_device_resources_ok(priv);
 }
 
@@ -1510,6 +1520,19 @@ out:
 	return err;
 }
 
+static int gve_xdp_xmit(struct net_device *dev, int n,
+			struct xdp_frame **frames, u32 flags)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+
+	if (priv->queue_format == GVE_GQI_QPL_FORMAT)
+		return gve_xdp_xmit_gqi(dev, n, frames, flags);
+	else if (priv->queue_format == GVE_DQO_RDA_FORMAT)
+		return gve_xdp_xmit_dqo(dev, n, frames, flags);
+
+	return -EOPNOTSUPP;
+}
+
 static int gve_xsk_pool_enable(struct net_device *dev,
 			       struct xsk_buff_pool *pool,
 			       u16 qid)
@@ -1645,9 +1668,8 @@ static int verify_xdp_configuration(struct net_device *dev)
 		return -EOPNOTSUPP;
 	}
 
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT) {
-		netdev_warn(dev, "XDP is not supported in mode %d.\n",
-			    priv->queue_format);
+	if (priv->header_split_enabled) {
+		netdev_warn(dev, "XDP is not supported when header-data split is enabled.\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1727,7 +1749,7 @@ int gve_adjust_config(struct gve_priv *priv,
 {
 	int err;
 
-	/* Allocate resources for the new confiugration */
+	/* Allocate resources for the new configuration */
 	err = gve_queues_mem_alloc(priv, tx_alloc_cfg, rx_alloc_cfg);
 	if (err) {
 		netif_err(priv, drv, priv->dev,
@@ -1971,10 +1993,13 @@ u16 gve_get_pkt_buf_size(const struct gve_priv *priv, bool enable_hsplit)
 		return GVE_DEFAULT_RX_BUFFER_SIZE;
 }
 
-/* header-split is not supported on non-DQO_RDA yet even if device advertises it */
+/* Header split is only supported on DQ RDA queue format. If XDP is enabled,
+ * header split is not allowed.
+ */
 bool gve_header_split_supported(const struct gve_priv *priv)
 {
-	return priv->header_buf_size && priv->queue_format == GVE_DQO_RDA_FORMAT;
+	return priv->header_buf_size &&
+		priv->queue_format == GVE_DQO_RDA_FORMAT && !priv->xdp_prog;
 }
 
 int gve_set_hsplit_config(struct gve_priv *priv, u8 tcp_data_split)
@@ -2023,6 +2048,12 @@ static int gve_set_features(struct net_device *netdev,
 
 	if ((netdev->features & NETIF_F_LRO) != (features & NETIF_F_LRO)) {
 		netdev->features ^= NETIF_F_LRO;
+		if (priv->xdp_prog && (netdev->features & NETIF_F_LRO)) {
+			netdev_warn(netdev,
+				    "XDP is not supported when LRO is on.\n");
+			err =  -EOPNOTSUPP;
+			goto revert_features;
+		}
 		if (netif_running(netdev)) {
 			err = gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
 			if (err)
@@ -2042,6 +2073,46 @@ revert_features:
 	return err;
 }
 
+static int gve_get_ts_config(struct net_device *dev,
+			     struct kernel_hwtstamp_config *kernel_config)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+
+	*kernel_config = priv->ts_config;
+	return 0;
+}
+
+static int gve_set_ts_config(struct net_device *dev,
+			     struct kernel_hwtstamp_config *kernel_config,
+			     struct netlink_ext_ack *extack)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+
+	if (kernel_config->tx_type != HWTSTAMP_TX_OFF) {
+		NL_SET_ERR_MSG_MOD(extack, "TX timestamping is not supported");
+		return -ERANGE;
+	}
+
+	if (kernel_config->rx_filter != HWTSTAMP_FILTER_NONE) {
+		if (!priv->nic_ts_report) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "RX timestamping is not supported");
+			kernel_config->rx_filter = HWTSTAMP_FILTER_NONE;
+			return -EOPNOTSUPP;
+		}
+
+		kernel_config->rx_filter = HWTSTAMP_FILTER_ALL;
+		gve_clock_nic_ts_read(priv);
+		ptp_schedule_worker(priv->ptp->clock, 0);
+	} else {
+		ptp_cancel_worker_sync(priv->ptp->clock);
+	}
+
+	priv->ts_config.rx_filter = kernel_config->rx_filter;
+
+	return 0;
+}
+
 static const struct net_device_ops gve_netdev_ops = {
 	.ndo_start_xmit		=	gve_start_xmit,
 	.ndo_features_check	=	gve_features_check,
@@ -2053,6 +2124,8 @@ static const struct net_device_ops gve_netdev_ops = {
 	.ndo_bpf		=	gve_xdp,
 	.ndo_xdp_xmit		=	gve_xdp_xmit,
 	.ndo_xsk_wakeup		=	gve_xsk_wakeup,
+	.ndo_hwtstamp_get	=	gve_get_ts_config,
+	.ndo_hwtstamp_set	=	gve_set_ts_config,
 };
 
 static void gve_handle_status(struct gve_priv *priv, u32 status)
@@ -2182,6 +2255,9 @@ static void gve_set_netdev_xdp_features(struct gve_priv *priv)
 		xdp_features = NETDEV_XDP_ACT_BASIC;
 		xdp_features |= NETDEV_XDP_ACT_REDIRECT;
 		xdp_features |= NETDEV_XDP_ACT_XSK_ZEROCOPY;
+	} else if (priv->queue_format == GVE_DQO_RDA_FORMAT) {
+		xdp_features = NETDEV_XDP_ACT_BASIC;
+		xdp_features |= NETDEV_XDP_ACT_REDIRECT;
 	} else {
 		xdp_features = 0;
 	}
@@ -2236,7 +2312,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		goto err;
 	}
 
-	/* Big TCP is only supported on DQ*/
+	/* Big TCP is only supported on DQO */
 	if (!gve_is_gqi(priv))
 		netif_set_tso_max_size(priv->dev, GVE_DQO_TX_MAX);
 
@@ -2271,6 +2347,9 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		priv->tx_coalesce_usecs = GVE_TX_IRQ_RATELIMIT_US_DQO;
 		priv->rx_coalesce_usecs = GVE_RX_IRQ_RATELIMIT_US_DQO;
 	}
+
+	priv->ts_config.tx_type = HWTSTAMP_TX_OFF;
+	priv->ts_config.rx_filter = HWTSTAMP_FILTER_NONE;
 
 setup_device:
 	gve_set_netdev_xdp_features(priv);

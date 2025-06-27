@@ -93,19 +93,14 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hrtimer_start(&rq->napi_timer, us_to_ktime(5), HRTIMER_MODE_REL);
 
 	rcu_read_unlock();
-	u64_stats_update_begin(&ns->syncp);
-	ns->tx_packets++;
-	ns->tx_bytes += len;
-	u64_stats_update_end(&ns->syncp);
+	dev_dstats_tx_add(dev, len);
 	return NETDEV_TX_OK;
 
 out_drop_free:
 	dev_kfree_skb(skb);
 out_drop_cnt:
 	rcu_read_unlock();
-	u64_stats_update_begin(&ns->syncp);
-	ns->tx_dropped++;
-	u64_stats_update_end(&ns->syncp);
+	dev_dstats_tx_dropped(dev);
 	return NETDEV_TX_OK;
 }
 
@@ -124,20 +119,6 @@ static int nsim_change_mtu(struct net_device *dev, int new_mtu)
 	WRITE_ONCE(dev->mtu, new_mtu);
 
 	return 0;
-}
-
-static void
-nsim_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-	unsigned int start;
-
-	do {
-		start = u64_stats_fetch_begin(&ns->syncp);
-		stats->tx_bytes = ns->tx_bytes;
-		stats->tx_packets = ns->tx_packets;
-		stats->tx_dropped = ns->tx_dropped;
-	} while (u64_stats_fetch_retry(&ns->syncp, start));
 }
 
 static int
@@ -350,16 +331,24 @@ static int nsim_get_iflink(const struct net_device *dev)
 
 static int nsim_rcv(struct nsim_rq *rq, int budget)
 {
+	struct net_device *dev = rq->napi.dev;
 	struct sk_buff *skb;
-	int i;
+	unsigned int skblen;
+	int i, ret;
 
 	for (i = 0; i < budget; i++) {
 		if (skb_queue_empty(&rq->skb_queue))
 			break;
 
 		skb = skb_dequeue(&rq->skb_queue);
+		/* skb might be discard at netif_receive_skb, save the len */
+		skblen = skb->len;
 		skb_mark_napi_id(skb, &rq->napi);
-		netif_receive_skb(skb);
+		ret = netif_receive_skb(skb);
+		if (ret == NET_RX_SUCCESS)
+			dev_dstats_rx_add(dev, skblen);
+		else
+			dev_dstats_rx_dropped(dev);
 	}
 
 	return i;
@@ -556,7 +545,6 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= nsim_change_mtu,
-	.ndo_get_stats64	= nsim_get_stats64,
 	.ndo_set_vf_mac		= nsim_set_vf_mac,
 	.ndo_set_vf_vlan	= nsim_set_vf_vlan,
 	.ndo_set_vf_rate	= nsim_set_vf_rate,
@@ -580,7 +568,6 @@ static const struct net_device_ops nsim_vf_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= nsim_change_mtu,
-	.ndo_get_stats64	= nsim_get_stats64,
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
 };
@@ -594,7 +581,7 @@ static void nsim_get_queue_stats_rx(struct net_device *dev, int idx,
 	struct rtnl_link_stats64 rtstats = {};
 
 	if (!idx)
-		nsim_get_stats64(dev, &rtstats);
+		dev_get_stats(dev, &rtstats);
 
 	stats->packets = rtstats.rx_packets - !!rtstats.rx_packets;
 	stats->bytes = rtstats.rx_bytes;
@@ -606,7 +593,7 @@ static void nsim_get_queue_stats_tx(struct net_device *dev, int idx,
 	struct rtnl_link_stats64 rtstats = {};
 
 	if (!idx)
-		nsim_get_stats64(dev, &rtstats);
+		dev_get_stats(dev, &rtstats);
 
 	stats->packets = rtstats.tx_packets - !!rtstats.tx_packets;
 	stats->bytes = rtstats.tx_bytes;
@@ -618,7 +605,7 @@ static void nsim_get_base_stats(struct net_device *dev,
 {
 	struct rtnl_link_stats64 rtstats = {};
 
-	nsim_get_stats64(dev, &rtstats);
+	dev_get_stats(dev, &rtstats);
 
 	rx->packets = !!rtstats.rx_packets;
 	rx->bytes = 0;
@@ -645,9 +632,12 @@ static struct nsim_rq *nsim_queue_alloc(void)
 	return rq;
 }
 
-static void nsim_queue_free(struct nsim_rq *rq)
+static void nsim_queue_free(struct net_device *dev, struct nsim_rq *rq)
 {
 	hrtimer_cancel(&rq->napi_timer);
+	local_bh_disable();
+	dev_dstats_rx_dropped_add(dev, rq->skb_queue.qlen);
+	local_bh_enable();
 	skb_queue_purge_reason(&rq->skb_queue, SKB_DROP_REASON_QUEUE_PURGE);
 	kfree(rq);
 }
@@ -694,7 +684,7 @@ nsim_queue_mem_alloc(struct net_device *dev, void *per_queue_mem, int idx)
 	return 0;
 
 err_free:
-	nsim_queue_free(qmem->rq);
+	nsim_queue_free(dev, qmem->rq);
 	return err;
 }
 
@@ -708,7 +698,7 @@ static void nsim_queue_mem_free(struct net_device *dev, void *per_queue_mem)
 		if (!ns->rq_reset_mode)
 			netif_napi_del_locked(&qmem->rq->napi);
 		page_pool_destroy(qmem->rq->page_pool);
-		nsim_queue_free(qmem->rq);
+		nsim_queue_free(dev, qmem->rq);
 	}
 }
 
@@ -890,6 +880,7 @@ static void nsim_setup(struct net_device *dev)
 			    NETIF_F_HW_CSUM |
 			    NETIF_F_LRO |
 			    NETIF_F_TSO;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_DSTATS;
 	dev->max_mtu = ETH_MAX_MTU;
 	dev->xdp_features = NETDEV_XDP_ACT_HW_OFFLOAD;
 }
@@ -925,7 +916,7 @@ static void nsim_queue_uninit(struct netdevsim *ns)
 	int i;
 
 	for (i = 0; i < dev->num_rx_queues; i++)
-		nsim_queue_free(ns->rq[i]);
+		nsim_queue_free(dev, ns->rq[i]);
 
 	kfree(ns->rq);
 	ns->rq = NULL;
@@ -1022,7 +1013,6 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 	dev_net_set(dev, nsim_dev_net(nsim_dev));
 	ns = netdev_priv(dev);
 	ns->netdev = dev;
-	u64_stats_init(&ns->syncp);
 	ns->nsim_dev = nsim_dev;
 	ns->nsim_dev_port = nsim_dev_port;
 	ns->nsim_bus_dev = nsim_dev->nsim_bus_dev;

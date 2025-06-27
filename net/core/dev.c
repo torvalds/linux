@@ -3179,7 +3179,6 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 
 	if (dev->reg_state == NETREG_REGISTERED ||
 	    dev->reg_state == NETREG_UNREGISTERING) {
-		ASSERT_RTNL();
 		netdev_ops_assert_locked(dev);
 
 		rc = netdev_queue_update_kobjects(dev, dev->real_num_tx_queues,
@@ -3229,7 +3228,6 @@ int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 		return -EINVAL;
 
 	if (dev->reg_state == NETREG_REGISTERED) {
-		ASSERT_RTNL();
 		netdev_ops_assert_locked(dev);
 
 		rc = net_rx_queue_update_kobjects(dev, dev->real_num_rx_queues,
@@ -6926,6 +6924,43 @@ static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static void napi_stop_kthread(struct napi_struct *napi)
+{
+	unsigned long val, new;
+
+	/* Wait until the napi STATE_THREADED is unset. */
+	while (true) {
+		val = READ_ONCE(napi->state);
+
+		/* If napi kthread own this napi or the napi is idle,
+		 * STATE_THREADED can be unset here.
+		 */
+		if ((val & NAPIF_STATE_SCHED_THREADED) ||
+		    !(val & NAPIF_STATE_SCHED)) {
+			new = val & (~NAPIF_STATE_THREADED);
+		} else {
+			msleep(20);
+			continue;
+		}
+
+		if (try_cmpxchg(&napi->state, &val, new))
+			break;
+	}
+
+	/* Once STATE_THREADED is unset, wait for SCHED_THREADED to be unset by
+	 * the kthread.
+	 */
+	while (true) {
+		if (!test_bit(NAPIF_STATE_SCHED_THREADED, &napi->state))
+			break;
+
+		msleep(20);
+	}
+
+	kthread_stop(napi->thread);
+	napi->thread = NULL;
+}
+
 int dev_set_threaded(struct net_device *dev, bool threaded)
 {
 	struct napi_struct *napi;
@@ -6961,8 +6996,12 @@ int dev_set_threaded(struct net_device *dev, bool threaded)
 	 * softirq mode will happen in the next round of napi_schedule().
 	 * This should not cause hiccups/stalls to the live traffic.
 	 */
-	list_for_each_entry(napi, &dev->napi_list, dev_list)
-		assign_bit(NAPI_STATE_THREADED, &napi->state, threaded);
+	list_for_each_entry(napi, &dev->napi_list, dev_list) {
+		if (!threaded && napi->thread)
+			napi_stop_kthread(napi);
+		else
+			assign_bit(NAPI_STATE_THREADED, &napi->state, threaded);
+	}
 
 	return err;
 }
@@ -10730,12 +10769,14 @@ sync_lower:
 			 * *before* calling udp_tunnel_get_rx_info,
 			 * but *after* calling udp_tunnel_drop_rx_info.
 			 */
+			udp_tunnel_nic_lock(dev);
 			if (features & NETIF_F_RX_UDP_TUNNEL_PORT) {
 				dev->features = features;
 				udp_tunnel_get_rx_info(dev);
 			} else {
 				udp_tunnel_drop_rx_info(dev);
 			}
+			udp_tunnel_nic_unlock(dev);
 		}
 
 		if (diff & NETIF_F_HW_VLAN_CTAG_FILTER) {
@@ -11715,7 +11756,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	dev->priv_len = sizeof_priv;
 
-	ref_tracker_dir_init(&dev->refcnt_tracker, 128, name);
+	ref_tracker_dir_init(&dev->refcnt_tracker, 128, "netdev");
 #ifdef CONFIG_PCPU_DEV_REFCNT
 	dev->pcpu_refcnt = alloc_percpu(int);
 	if (!dev->pcpu_refcnt)

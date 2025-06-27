@@ -589,7 +589,7 @@ static bool wl1251_can_do_pm(struct ieee80211_conf *conf, struct wl1251 *wl)
 	return (conf->flags & IEEE80211_CONF_PS) && !wl->monitor_present;
 }
 
-static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
+static int wl1251_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct wl1251 *wl = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
@@ -1051,7 +1051,8 @@ out:
 	return ret;
 }
 
-static int wl1251_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int wl1251_op_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				       u32 value)
 {
 	struct wl1251 *wl = hw->priv;
 	int ret;

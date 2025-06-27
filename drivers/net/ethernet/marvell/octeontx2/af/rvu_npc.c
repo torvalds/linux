@@ -147,7 +147,9 @@ static int npc_get_ucast_mcam_index(struct npc_mcam *mcam, u16 pcifunc,
 int npc_get_nixlf_mcam_index(struct npc_mcam *mcam,
 			     u16 pcifunc, int nixlf, int type)
 {
-	int pf = rvu_get_pf(pcifunc);
+	struct rvu_hwinfo *hw = container_of(mcam, struct rvu_hwinfo, mcam);
+	struct rvu *rvu = hw->rvu;
+	int pf = rvu_get_pf(rvu->pdev, pcifunc);
 	int index;
 
 	/* Check if this is for a PF */
@@ -698,7 +700,7 @@ void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
 
 	/* RX_ACTION set to MCAST for CGX PF's */
 	if (hw->cap.nix_rx_multicast && pfvf->use_mce_list &&
-	    is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc))) {
+	    is_pf_cgxmapped(rvu, rvu_get_pf(rvu->pdev, pcifunc))) {
 		*(u64 *)&action = 0;
 		action.op = NIX_RX_ACTIONOP_MCAST;
 		pfvf = rvu_get_pfvf(rvu, pcifunc & ~RVU_PFVF_FUNC_MASK);
@@ -3434,7 +3436,7 @@ int rvu_npc_set_parse_mode(struct rvu *rvu, u16 pcifunc, u64 mode, u8 dir,
 {
 	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int blkaddr, nixlf, rc, intf_mode;
-	int pf = rvu_get_pf(pcifunc);
+	int pf = rvu_get_pf(rvu->pdev, pcifunc);
 	u64 rxpkind, txpkind;
 	u8 cgx_id, lmac_id;
 

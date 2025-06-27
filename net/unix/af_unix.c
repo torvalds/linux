@@ -3692,7 +3692,7 @@ static int bpf_iter_unix_seq_show(struct seq_file *seq, void *v)
 		goto unlock;
 	}
 
-	uid = from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk));
+	uid = from_kuid_munged(seq_user_ns(seq), sk_uid(sk));
 	meta.seq = seq;
 	prog = bpf_iter_get_info(&meta, false);
 	ret = unix_prog_seq_show(prog, &meta, v, uid);

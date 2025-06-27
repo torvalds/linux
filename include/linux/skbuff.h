@@ -3665,7 +3665,13 @@ static inline void *skb_frag_address(const skb_frag_t *frag)
  */
 static inline void *skb_frag_address_safe(const skb_frag_t *frag)
 {
-	void *ptr = page_address(skb_frag_page(frag));
+	struct page *page = skb_frag_page(frag);
+	void *ptr;
+
+	if (!page)
+		return NULL;
+
+	ptr = page_address(page);
 	if (unlikely(!ptr))
 		return NULL;
 
@@ -3873,18 +3879,24 @@ static inline int __must_check skb_put_padto(struct sk_buff *skb, unsigned int l
 bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i)
 	__must_check;
 
-static inline bool skb_can_coalesce(struct sk_buff *skb, int i,
-				    const struct page *page, int off)
+static inline bool skb_can_coalesce_netmem(struct sk_buff *skb, int i,
+					   netmem_ref netmem, int off)
 {
 	if (skb_zcopy(skb))
 		return false;
 	if (i) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i - 1];
 
-		return page == skb_frag_page(frag) &&
+		return netmem == skb_frag_netmem(frag) &&
 		       off == skb_frag_off(frag) + skb_frag_size(frag);
 	}
 	return false;
+}
+
+static inline bool skb_can_coalesce(struct sk_buff *skb, int i,
+				    const struct page *page, int off)
+{
+	return skb_can_coalesce_netmem(skb, i, page_to_netmem(page), off);
 }
 
 static inline int __skb_linearize(struct sk_buff *skb)

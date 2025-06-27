@@ -32,21 +32,35 @@ check_for_dependencies
 echo "6 5" > /proc/sys/kernel/printk
 # Remove the namespace, interfaces and netconsole target on exit
 trap cleanup EXIT
-# Create one namespace and two interfaces
-set_network
-# Create a dynamic target for netconsole
-create_dynamic_target
-# Set userdata "key" with the "value" value
-set_user_data
-# Listed for netconsole port inside the namespace and destination interface
-listen_port_and_save_to "${OUTPUT_FILE}" &
-# Wait for socat to start and listen to the port.
-wait_local_port_listen "${NAMESPACE}" "${PORT}" udp
-# Send the message
-echo "${MSG}: ${TARGET}" > /dev/kmsg
-# Wait until socat saves the file to disk
-busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
 
-# Make sure the message was received in the dst part
-# and exit
-validate_result "${OUTPUT_FILE}"
+# Run the test twice, with different format modes
+for FORMAT in "basic" "extended"
+do
+	echo "Running with target mode: ${FORMAT}"
+	# Create one namespace and two interfaces
+	set_network
+	# Create a dynamic target for netconsole
+	create_dynamic_target "${FORMAT}"
+	# Only set userdata for extended format
+	if [ "$FORMAT" == "extended" ]
+	then
+		# Set userdata "key" with the "value" value
+		set_user_data
+	fi
+	# Listed for netconsole port inside the namespace and destination interface
+	listen_port_and_save_to "${OUTPUT_FILE}" &
+	# Wait for socat to start and listen to the port.
+	wait_local_port_listen "${NAMESPACE}" "${PORT}" udp
+	# Send the message
+	echo "${MSG}: ${TARGET}" > /dev/kmsg
+	# Wait until socat saves the file to disk
+	busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
+
+	# Make sure the message was received in the dst part
+	# and exit
+	validate_result "${OUTPUT_FILE}" "${FORMAT}"
+	cleanup
+done
+
+trap - EXIT
+exit "${ksft_pass}"

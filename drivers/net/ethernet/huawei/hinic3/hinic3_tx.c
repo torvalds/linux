@@ -482,7 +482,6 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 {
 	struct hinic3_sq_wqe_combo wqe_combo = {};
 	struct hinic3_tx_info *tx_info;
-	struct hinic3_txq *tx_q = txq;
 	u32 offload, queue_info = 0;
 	struct hinic3_sq_task task;
 	u16 wqebb_cnt, num_sge;
@@ -506,9 +505,9 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 		if (likely(wqebb_cnt > txq->tx_stop_thrs))
 			txq->tx_stop_thrs = min(wqebb_cnt, txq->tx_start_thrs);
 
-		netif_subqueue_try_stop(netdev, tx_q->sq->q_id,
-					hinic3_wq_free_wqebbs(&tx_q->sq->wq),
-					tx_q->tx_start_thrs);
+		netif_subqueue_try_stop(netdev, txq->sq->q_id,
+					hinic3_wq_free_wqebbs(&txq->sq->wq),
+					txq->tx_start_thrs);
 
 		return NETDEV_TX_BUSY;
 	}
@@ -542,12 +541,11 @@ static netdev_tx_t hinic3_send_one_skb(struct sk_buff *skb,
 		goto err_drop_pkt;
 	}
 
-	netdev_tx_sent_queue(netdev_get_tx_queue(netdev, txq->sq->q_id),
-			     skb->len);
-	netif_subqueue_maybe_stop(netdev, tx_q->sq->q_id,
-				  hinic3_wq_free_wqebbs(&tx_q->sq->wq),
-				  tx_q->tx_stop_thrs,
-				  tx_q->tx_start_thrs);
+	netif_subqueue_sent(netdev, txq->sq->q_id, skb->len);
+	netif_subqueue_maybe_stop(netdev, txq->sq->q_id,
+				  hinic3_wq_free_wqebbs(&txq->sq->wq),
+				  txq->tx_stop_thrs,
+				  txq->tx_start_thrs);
 
 	hinic3_prepare_sq_ctrl(&wqe_combo, queue_info, num_sge, owner);
 	hinic3_write_db(txq->sq, 0, DB_CFLAG_DP_SQ,
@@ -631,7 +629,6 @@ bool hinic3_tx_poll(struct hinic3_txq *txq, int budget)
 	struct net_device *netdev = txq->netdev;
 	u16 hw_ci, sw_ci, q_id = txq->sq->q_id;
 	struct hinic3_tx_info *tx_info;
-	struct hinic3_txq *tx_q = txq;
 	unsigned int bytes_compl = 0;
 	unsigned int pkts = 0;
 	u16 wqebb_cnt = 0;
@@ -663,8 +660,8 @@ bool hinic3_tx_poll(struct hinic3_txq *txq, int budget)
 	hinic3_wq_put_wqebbs(&txq->sq->wq, wqebb_cnt);
 
 	netif_subqueue_completed_wake(netdev, q_id, pkts, bytes_compl,
-				      hinic3_wq_free_wqebbs(&tx_q->sq->wq),
-				      tx_q->tx_start_thrs);
+				      hinic3_wq_free_wqebbs(&txq->sq->wq),
+				      txq->tx_start_thrs);
 
 	return pkts == HINIC3_TX_POLL_WEIGHT;
 }

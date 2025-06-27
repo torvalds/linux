@@ -19,10 +19,10 @@ struct fbnic_fw_mbx {
 };
 
 // FW_VER_MAX_SIZE must match ETHTOOL_FWVERS_LEN
-#define FBNIC_FW_VER_MAX_SIZE	                32
+#define FBNIC_FW_VER_MAX_SIZE			32
 // Formatted version is in the format XX.YY.ZZ_RRR_COMMIT
 #define FBNIC_FW_CAP_RESP_COMMIT_MAX_SIZE	(FBNIC_FW_VER_MAX_SIZE - 13)
-#define FBNIC_FW_LOG_MAX_SIZE	                256
+#define FBNIC_FW_LOG_MAX_SIZE			256
 
 struct fbnic_fw_ver {
 	u32 version;
@@ -66,6 +66,8 @@ void fbnic_mbx_init(struct fbnic_dev *fbd);
 void fbnic_mbx_clean(struct fbnic_dev *fbd);
 int fbnic_mbx_set_cmpl(struct fbnic_dev *fbd,
 		       struct fbnic_fw_completion *cmpl_data);
+void fbnic_mbx_clear_cmpl(struct fbnic_dev *fbd,
+			  struct fbnic_fw_completion *cmpl_data);
 void fbnic_mbx_poll(struct fbnic_dev *fbd);
 int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd);
 void fbnic_mbx_flush_tx(struct fbnic_dev *fbd);
@@ -81,8 +83,6 @@ int fbnic_fw_xmit_fw_write_chunk(struct fbnic_dev *fbd,
 int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
 				 struct fbnic_fw_completion *cmpl_data);
 struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type);
-void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,
-			 struct fbnic_fw_completion *cmpl_data);
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *cmpl_data);
 
 #define fbnic_mk_full_fw_ver_str(_rev_id, _delim, _commit, _str, _str_sz) \
@@ -155,10 +155,10 @@ enum {
 };
 
 enum {
-	FBNIC_FW_LINK_SPEED_25R1		= 1,
-	FBNIC_FW_LINK_SPEED_50R2		= 2,
-	FBNIC_FW_LINK_SPEED_50R1		= 3,
-	FBNIC_FW_LINK_SPEED_100R2		= 4,
+	FBNIC_FW_LINK_MODE_25CR			= 1,
+	FBNIC_FW_LINK_MODE_50CR2		= 2,
+	FBNIC_FW_LINK_MODE_50CR			= 3,
+	FBNIC_FW_LINK_MODE_100CR2		= 4,
 };
 
 enum {

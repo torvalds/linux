@@ -1278,7 +1278,7 @@ route_lookup:
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
 	ipv6h->daddr = fl6->daddr;
-	ip6tunnel_xmit(NULL, skb, dev);
+	ip6tunnel_xmit(NULL, skb, dev, 0);
 	return 0;
 tx_err_link_failure:
 	DEV_STATS_INC(dev, tx_carrier_errors);

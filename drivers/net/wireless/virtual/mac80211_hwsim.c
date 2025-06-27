@@ -2381,7 +2381,8 @@ static const char * const hwsim_chanwidths[] = {
 	[NL80211_CHAN_WIDTH_320] = "eht320",
 };
 
-static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
+static int mac80211_hwsim_config(struct ieee80211_hw *hw, int radio_idx,
+				 u32 changed)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
@@ -3338,7 +3339,8 @@ static int mac80211_hwsim_tx_last_beacon(struct ieee80211_hw *hw)
 	return 1;
 }
 
-static int mac80211_hwsim_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int mac80211_hwsim_set_rts_threshold(struct ieee80211_hw *hw,
+					    int radio_idx, u32 value)
 {
 	return -EOPNOTSUPP;
 }

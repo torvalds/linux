@@ -83,7 +83,7 @@ void libipw_networks_age(struct libipw_device *ieee,
 {
 	struct libipw_network *network = NULL;
 	unsigned long flags;
-	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
+	unsigned long age_jiffies = secs_to_jiffies(age_secs);
 
 	spin_lock_irqsave(&ieee->lock, flags);
 	list_for_each_entry(network, &ieee->network_list, list) {

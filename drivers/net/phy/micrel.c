@@ -431,6 +431,10 @@ struct kszphy_ptp_priv {
 	spinlock_t seconds_lock;
 };
 
+struct kszphy_phy_stats {
+	u64 rx_err_pkt_cnt;
+};
+
 struct kszphy_priv {
 	struct kszphy_ptp_priv ptp_priv;
 	const struct kszphy_type *type;
@@ -441,6 +445,7 @@ struct kszphy_priv {
 	bool rmii_ref_clk_sel_val;
 	bool clk_enable;
 	u64 stats[ARRAY_SIZE(kszphy_hw_stats)];
+	struct kszphy_phy_stats phy_stats;
 };
 
 static const struct kszphy_type lan8814_type = {
@@ -1718,7 +1723,8 @@ static int ksz9x31_cable_test_fault_length(struct phy_device *phydev, u16 stat)
 	 *
 	 * distance to fault = (VCT_DATA - 22) * 4 / cable propagation velocity
 	 */
-	if (phydev_id_compare(phydev, PHY_ID_KSZ9131))
+	if (phydev_id_compare(phydev, PHY_ID_KSZ9131) ||
+	    phydev_id_compare(phydev, PHY_ID_KSZ9477))
 		dt = clamp(dt - 22, 0, 255);
 
 	return (dt * 400) / 10;
@@ -1792,11 +1798,19 @@ static int ksz9x31_cable_test_get_status(struct phy_device *phydev,
 					 bool *finished)
 {
 	struct kszphy_priv *priv = phydev->priv;
-	unsigned long pair_mask = 0xf;
+	unsigned long pair_mask;
 	int retries = 20;
 	int pair, ret, rv;
 
 	*finished = false;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			      phydev->supported) ||
+	    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			      phydev->supported))
+		pair_mask = 0xf; /* All pairs */
+	else
+		pair_mask = 0x3; /* Pairs A and B only */
 
 	/* Try harder if link partner is active */
 	while (pair_mask && retries--) {
@@ -1948,6 +1962,56 @@ static int ksz886x_read_status(struct phy_device *phydev)
 	return genphy_read_status(phydev);
 }
 
+static int ksz9477_mdix_update(struct phy_device *phydev)
+{
+	if (phydev->mdix_ctrl != ETH_TP_MDI_AUTO)
+		phydev->mdix = phydev->mdix_ctrl;
+	else
+		phydev->mdix = ETH_TP_MDI_INVALID;
+
+	return 0;
+}
+
+static int ksz9477_read_mdix_ctrl(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read(phydev, MII_KSZ9131_AUTO_MDIX);
+	if (val < 0)
+		return val;
+
+	if (!(val & MII_KSZ9131_AUTO_MDIX_SWAP_OFF))
+		phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	else if (val & MII_KSZ9131_AUTO_MDI_SET)
+		phydev->mdix_ctrl = ETH_TP_MDI;
+	else
+		phydev->mdix_ctrl = ETH_TP_MDI_X;
+
+	return 0;
+}
+
+static int ksz9477_read_status(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz9477_mdix_update(phydev);
+	if (ret)
+		return ret;
+
+	return genphy_read_status(phydev);
+}
+
+static int ksz9477_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = ksz9131_config_mdix(phydev, phydev->mdix_ctrl);
+	if (ret)
+		return ret;
+
+	return genphy_config_aneg(phydev);
+}
+
 struct ksz9477_errata_write {
 	u8 dev_addr;
 	u8 reg_addr;
@@ -2029,6 +2093,13 @@ static int ksz9477_config_init(struct phy_device *phydev)
 			return err;
 	}
 
+	/* Read initial MDI-X config state. So, we do not need to poll it
+	 * later on.
+	 */
+	err = ksz9477_read_mdix_ctrl(phydev);
+	if (err)
+		return err;
+
 	return kszphy_config_init(phydev);
 }
 
@@ -2071,6 +2142,35 @@ static void kszphy_get_stats(struct phy_device *phydev,
 
 	for (i = 0; i < ARRAY_SIZE(kszphy_hw_stats); i++)
 		data[i] = kszphy_get_stat(phydev, i);
+}
+
+/* KSZ9477 PHY RXER Counter. Probably supported by other PHYs like KSZ9313,
+ * etc. The counter is incremented when the PHY receives a frame with one or
+ * more symbol errors. The counter is cleared when the register is read.
+ */
+#define MII_KSZ9477_PHY_RXER_COUNTER	0x15
+
+static int kszphy_update_stats(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+	int ret;
+
+	ret = phy_read(phydev, MII_KSZ9477_PHY_RXER_COUNTER);
+	if (ret < 0)
+		return ret;
+
+	priv->phy_stats.rx_err_pkt_cnt += ret;
+
+	return 0;
+}
+
+static void kszphy_get_phy_stats(struct phy_device *phydev,
+				 struct ethtool_eth_phy_stats *eth_stats,
+				 struct ethtool_phy_stats *stats)
+{
+	struct kszphy_priv *priv = phydev->priv;
+
+	stats->rx_errors = priv->phy_stats.rx_err_pkt_cnt;
 }
 
 static void kszphy_enable_clk(struct phy_device *phydev)
@@ -5688,12 +5788,19 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_KSZ9477,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Microchip KSZ9477",
+	.probe		= kszphy_probe,
 	/* PHY_GBIT_FEATURES */
 	.config_init	= ksz9477_config_init,
 	.config_intr	= kszphy_config_intr,
+	.config_aneg	= ksz9477_config_aneg,
+	.read_status	= ksz9477_read_status,
 	.handle_interrupt = kszphy_handle_interrupt,
 	.suspend	= genphy_suspend,
 	.resume		= ksz9477_resume,
+	.get_phy_stats	= kszphy_get_phy_stats,
+	.update_stats	= kszphy_update_stats,
+	.cable_test_start	= ksz9x31_cable_test_start,
+	.cable_test_get_status	= ksz9x31_cable_test_get_status,
 } };
 
 module_phy_driver(ksphy_driver);

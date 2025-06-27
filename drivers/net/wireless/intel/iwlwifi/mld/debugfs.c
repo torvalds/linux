@@ -546,6 +546,11 @@ iwl_mld_add_debugfs_files(struct iwl_mld *mld, struct dentry *debugfs_dir)
 #endif
 	MLD_DEBUGFS_ADD_FILE(inject_packet, debugfs_dir, 0200);
 
+#ifdef CONFIG_PM_SLEEP
+	debugfs_create_u32("max_sleep", 0600, debugfs_dir,
+			   &mld->debug_max_sleep);
+#endif
+
 	debugfs_create_bool("rx_ts_ptp", 0600, debugfs_dir,
 			    &mld->monitor.ptp_time);
 

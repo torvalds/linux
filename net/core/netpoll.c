@@ -58,13 +58,6 @@ static void zap_completion_queue(void);
 static unsigned int carrier_timeout = 4;
 module_param(carrier_timeout, uint, 0644);
 
-#define np_info(np, fmt, ...)				\
-	pr_info("%s: " fmt, np->name, ##__VA_ARGS__)
-#define np_err(np, fmt, ...)				\
-	pr_err("%s: " fmt, np->name, ##__VA_ARGS__)
-#define np_notice(np, fmt, ...)				\
-	pr_notice("%s: " fmt, np->name, ##__VA_ARGS__)
-
 static netdev_tx_t netpoll_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev,
 				      struct netdev_queue *txq)
@@ -499,43 +492,6 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 }
 EXPORT_SYMBOL(netpoll_send_udp);
 
-void netpoll_print_options(struct netpoll *np)
-{
-	np_info(np, "local port %d\n", np->local_port);
-	if (np->ipv6)
-		np_info(np, "local IPv6 address %pI6c\n", &np->local_ip.in6);
-	else
-		np_info(np, "local IPv4 address %pI4\n", &np->local_ip.ip);
-	np_info(np, "interface name '%s'\n", np->dev_name);
-	np_info(np, "local ethernet address '%pM'\n", np->dev_mac);
-	np_info(np, "remote port %d\n", np->remote_port);
-	if (np->ipv6)
-		np_info(np, "remote IPv6 address %pI6c\n", &np->remote_ip.in6);
-	else
-		np_info(np, "remote IPv4 address %pI4\n", &np->remote_ip.ip);
-	np_info(np, "remote ethernet address %pM\n", np->remote_mac);
-}
-EXPORT_SYMBOL(netpoll_print_options);
-
-static int netpoll_parse_ip_addr(const char *str, union inet_addr *addr)
-{
-	const char *end;
-
-	if (!strchr(str, ':') &&
-	    in4_pton(str, -1, (void *)addr, -1, &end) > 0) {
-		if (!*end)
-			return 0;
-	}
-	if (in6_pton(str, -1, addr->in6.s6_addr, -1, &end) > 0) {
-#if IS_ENABLED(CONFIG_IPV6)
-		if (!*end)
-			return 1;
-#else
-		return -1;
-#endif
-	}
-	return -1;
-}
 
 static void skb_pool_flush(struct netpoll *np)
 {
@@ -545,95 +501,6 @@ static void skb_pool_flush(struct netpoll *np)
 	skb_pool = &np->skb_pool;
 	skb_queue_purge_reason(skb_pool, SKB_CONSUMED);
 }
-
-int netpoll_parse_options(struct netpoll *np, char *opt)
-{
-	char *cur=opt, *delim;
-	int ipv6;
-	bool ipversion_set = false;
-
-	if (*cur != '@') {
-		if ((delim = strchr(cur, '@')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-		if (kstrtou16(cur, 10, &np->local_port))
-			goto parse_failed;
-		cur = delim;
-	}
-	cur++;
-
-	if (*cur != '/') {
-		ipversion_set = true;
-		if ((delim = strchr(cur, '/')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-		ipv6 = netpoll_parse_ip_addr(cur, &np->local_ip);
-		if (ipv6 < 0)
-			goto parse_failed;
-		else
-			np->ipv6 = (bool)ipv6;
-		cur = delim;
-	}
-	cur++;
-
-	if (*cur != ',') {
-		/* parse out dev_name or dev_mac */
-		if ((delim = strchr(cur, ',')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-
-		np->dev_name[0] = '\0';
-		eth_broadcast_addr(np->dev_mac);
-		if (!strchr(cur, ':'))
-			strscpy(np->dev_name, cur, sizeof(np->dev_name));
-		else if (!mac_pton(cur, np->dev_mac))
-			goto parse_failed;
-
-		cur = delim;
-	}
-	cur++;
-
-	if (*cur != '@') {
-		/* dst port */
-		if ((delim = strchr(cur, '@')) == NULL)
-			goto parse_failed;
-		*delim = 0;
-		if (*cur == ' ' || *cur == '\t')
-			np_info(np, "warning: whitespace is not allowed\n");
-		if (kstrtou16(cur, 10, &np->remote_port))
-			goto parse_failed;
-		cur = delim;
-	}
-	cur++;
-
-	/* dst ip */
-	if ((delim = strchr(cur, '/')) == NULL)
-		goto parse_failed;
-	*delim = 0;
-	ipv6 = netpoll_parse_ip_addr(cur, &np->remote_ip);
-	if (ipv6 < 0)
-		goto parse_failed;
-	else if (ipversion_set && np->ipv6 != (bool)ipv6)
-		goto parse_failed;
-	else
-		np->ipv6 = (bool)ipv6;
-	cur = delim + 1;
-
-	if (*cur != 0) {
-		/* MAC address */
-		if (!mac_pton(cur, np->remote_mac))
-			goto parse_failed;
-	}
-
-	netpoll_print_options(np);
-
-	return 0;
-
- parse_failed:
-	np_info(np, "couldn't parse config at '%s'!\n", cur);
-	return -1;
-}
-EXPORT_SYMBOL(netpoll_parse_options);
 
 static void refill_skbs_work_handler(struct work_struct *work)
 {
@@ -716,13 +583,97 @@ static char *egress_dev(struct netpoll *np, char *buf)
 	return buf;
 }
 
+static void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev,
+				 unsigned int timeout)
+{
+	unsigned long atmost;
+
+	atmost = jiffies + timeout * HZ;
+	while (!netif_carrier_ok(ndev)) {
+		if (time_after(jiffies, atmost)) {
+			np_notice(np, "timeout waiting for carrier\n");
+			break;
+		}
+		msleep(1);
+	}
+}
+
+/*
+ * Take the IPv6 from ndev and populate local_ip structure in netpoll
+ */
+static int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev)
+{
+	char buf[MAC_ADDR_STR_LEN + 1];
+	int err = -EDESTADDRREQ;
+	struct inet6_dev *idev;
+
+	if (!IS_ENABLED(CONFIG_IPV6)) {
+		np_err(np, "IPv6 is not supported %s, aborting\n",
+		       egress_dev(np, buf));
+		return -EINVAL;
+	}
+
+	idev = __in6_dev_get(ndev);
+	if (idev) {
+		struct inet6_ifaddr *ifp;
+
+		read_lock_bh(&idev->lock);
+		list_for_each_entry(ifp, &idev->addr_list, if_list) {
+			if (!!(ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL) !=
+				!!(ipv6_addr_type(&np->remote_ip.in6) & IPV6_ADDR_LINKLOCAL))
+				continue;
+			/* Got the IP, let's return */
+			np->local_ip.in6 = ifp->addr;
+			err = 0;
+			break;
+		}
+		read_unlock_bh(&idev->lock);
+	}
+	if (err) {
+		np_err(np, "no IPv6 address for %s, aborting\n",
+		       egress_dev(np, buf));
+		return err;
+	}
+
+	np_info(np, "local IPv6 %pI6c\n", &np->local_ip.in6);
+	return 0;
+}
+
+/*
+ * Take the IPv4 from ndev and populate local_ip structure in netpoll
+ */
+static int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
+{
+	char buf[MAC_ADDR_STR_LEN + 1];
+	const struct in_ifaddr *ifa;
+	struct in_device *in_dev;
+
+	in_dev = __in_dev_get_rtnl(ndev);
+	if (!in_dev) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       egress_dev(np, buf));
+		return -EDESTADDRREQ;
+	}
+
+	ifa = rtnl_dereference(in_dev->ifa_list);
+	if (!ifa) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       egress_dev(np, buf));
+		return -EDESTADDRREQ;
+	}
+
+	np->local_ip.ip = ifa->ifa_local;
+	np_info(np, "local IP %pI4\n", &np->local_ip.ip);
+
+	return 0;
+}
+
 int netpoll_setup(struct netpoll *np)
 {
 	struct net *net = current->nsproxy->net_ns;
 	char buf[MAC_ADDR_STR_LEN + 1];
 	struct net_device *ndev = NULL;
 	bool ip_overwritten = false;
-	struct in_device *in_dev;
 	int err;
 
 	rtnl_lock();
@@ -746,85 +697,31 @@ int netpoll_setup(struct netpoll *np)
 	}
 
 	if (!netif_running(ndev)) {
-		unsigned long atmost;
-
 		np_info(np, "device %s not up yet, forcing it\n",
 			egress_dev(np, buf));
 
 		err = dev_open(ndev, NULL);
-
 		if (err) {
 			np_err(np, "failed to open %s\n", ndev->name);
 			goto put;
 		}
 
 		rtnl_unlock();
-		atmost = jiffies + carrier_timeout * HZ;
-		while (!netif_carrier_ok(ndev)) {
-			if (time_after(jiffies, atmost)) {
-				np_notice(np, "timeout waiting for carrier\n");
-				break;
-			}
-			msleep(1);
-		}
-
+		netpoll_wait_carrier(np, ndev, carrier_timeout);
 		rtnl_lock();
 	}
 
 	if (!np->local_ip.ip) {
 		if (!np->ipv6) {
-			const struct in_ifaddr *ifa;
-
-			in_dev = __in_dev_get_rtnl(ndev);
-			if (!in_dev)
-				goto put_noaddr;
-
-			ifa = rtnl_dereference(in_dev->ifa_list);
-			if (!ifa) {
-put_noaddr:
-				np_err(np, "no IP address for %s, aborting\n",
-				       egress_dev(np, buf));
-				err = -EDESTADDRREQ;
+			err = netpoll_take_ipv4(np, ndev);
+			if (err)
 				goto put;
-			}
-
-			np->local_ip.ip = ifa->ifa_local;
-			ip_overwritten = true;
-			np_info(np, "local IP %pI4\n", &np->local_ip.ip);
 		} else {
-#if IS_ENABLED(CONFIG_IPV6)
-			struct inet6_dev *idev;
-
-			err = -EDESTADDRREQ;
-			idev = __in6_dev_get(ndev);
-			if (idev) {
-				struct inet6_ifaddr *ifp;
-
-				read_lock_bh(&idev->lock);
-				list_for_each_entry(ifp, &idev->addr_list, if_list) {
-					if (!!(ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL) !=
-					    !!(ipv6_addr_type(&np->remote_ip.in6) & IPV6_ADDR_LINKLOCAL))
-						continue;
-					np->local_ip.in6 = ifp->addr;
-					ip_overwritten = true;
-					err = 0;
-					break;
-				}
-				read_unlock_bh(&idev->lock);
-			}
-			if (err) {
-				np_err(np, "no IPv6 address for %s, aborting\n",
-				       egress_dev(np, buf));
+			err = netpoll_take_ipv6(np, ndev);
+			if (err)
 				goto put;
-			} else
-				np_info(np, "local IPv6 %pI6c\n", &np->local_ip.in6);
-#else
-			np_err(np, "IPv6 is not supported %s, aborting\n",
-			       egress_dev(np, buf));
-			err = -EINVAL;
-			goto put;
-#endif
 		}
+		ip_overwritten = true;
 	}
 
 	err = __netpoll_setup(np, ndev);
@@ -863,7 +760,7 @@ static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 	kfree(npinfo);
 }
 
-void __netpoll_cleanup(struct netpoll *np)
+static void __netpoll_cleanup(struct netpoll *np)
 {
 	struct netpoll_info *npinfo;
 
@@ -885,7 +782,6 @@ void __netpoll_cleanup(struct netpoll *np)
 
 	skb_pool_flush(np);
 }
-EXPORT_SYMBOL_GPL(__netpoll_cleanup);
 
 void __netpoll_free(struct netpoll *np)
 {

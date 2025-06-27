@@ -413,7 +413,7 @@ static int iso_connect_bis(struct sock *sk)
 		sk->sk_state = BT_CONNECT;
 	} else {
 		sk->sk_state = BT_CONNECT;
-		iso_sock_set_timer(sk, sk->sk_sndtimeo);
+		iso_sock_set_timer(sk, READ_ONCE(sk->sk_sndtimeo));
 	}
 
 	release_sock(sk);
@@ -503,7 +503,7 @@ static int iso_connect_cis(struct sock *sk)
 		sk->sk_state = BT_CONNECT;
 	} else {
 		sk->sk_state = BT_CONNECT;
-		iso_sock_set_timer(sk, sk->sk_sndtimeo);
+		iso_sock_set_timer(sk, READ_ONCE(sk->sk_sndtimeo));
 	}
 
 	release_sock(sk);

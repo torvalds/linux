@@ -29,6 +29,7 @@ struct udp_tunnel_nic_table_entry {
  * struct udp_tunnel_nic - UDP tunnel port offload state
  * @work:	async work for talking to hardware from process context
  * @dev:	netdev pointer
+ * @lock:	protects all fields
  * @need_sync:	at least one port start changed
  * @need_replay: space was freed, we need a replay of all ports
  * @work_pending: @work is currently scheduled
@@ -40,6 +41,8 @@ struct udp_tunnel_nic {
 	struct work_struct work;
 
 	struct net_device *dev;
+
+	struct mutex lock;
 
 	u8 need_sync:1;
 	u8 need_replay:1;
@@ -298,22 +301,11 @@ __udp_tunnel_nic_device_sync(struct net_device *dev, struct udp_tunnel_nic *utn)
 static void
 udp_tunnel_nic_device_sync(struct net_device *dev, struct udp_tunnel_nic *utn)
 {
-	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
-	bool may_sleep;
-
 	if (!utn->need_sync)
 		return;
 
-	/* Drivers which sleep in the callback need to update from
-	 * the workqueue, if we come from the tunnel driver's notification.
-	 */
-	may_sleep = info->flags & UDP_TUNNEL_NIC_INFO_MAY_SLEEP;
-	if (!may_sleep)
-		__udp_tunnel_nic_device_sync(dev, utn);
-	if (may_sleep || utn->need_replay) {
-		queue_work(udp_tunnel_nic_workqueue, &utn->work);
-		utn->work_pending = 1;
-	}
+	queue_work(udp_tunnel_nic_workqueue, &utn->work);
+	utn->work_pending = 1;
 }
 
 static bool
@@ -554,11 +546,11 @@ static void __udp_tunnel_nic_reset_ntf(struct net_device *dev)
 	struct udp_tunnel_nic *utn;
 	unsigned int i, j;
 
-	ASSERT_RTNL();
-
 	utn = dev->udp_tunnel_nic;
 	if (!utn)
 		return;
+
+	mutex_lock(&utn->lock);
 
 	utn->need_sync = false;
 	for (i = 0; i < utn->n_tables; i++)
@@ -569,7 +561,7 @@ static void __udp_tunnel_nic_reset_ntf(struct net_device *dev)
 
 			entry->flags &= ~(UDP_TUNNEL_NIC_ENTRY_DEL |
 					  UDP_TUNNEL_NIC_ENTRY_OP_FAIL);
-			/* We don't release rtnl across ops */
+			/* We don't release utn lock across ops */
 			WARN_ON(entry->flags & UDP_TUNNEL_NIC_ENTRY_FROZEN);
 			if (!entry->use_cnt)
 				continue;
@@ -579,6 +571,8 @@ static void __udp_tunnel_nic_reset_ntf(struct net_device *dev)
 		}
 
 	__udp_tunnel_nic_device_sync(dev, utn);
+
+	mutex_unlock(&utn->lock);
 }
 
 static size_t
@@ -643,6 +637,33 @@ err_cancel:
 	return -EMSGSIZE;
 }
 
+static void __udp_tunnel_nic_assert_locked(struct net_device *dev)
+{
+	struct udp_tunnel_nic *utn;
+
+	utn = dev->udp_tunnel_nic;
+	if (utn)
+		lockdep_assert_held(&utn->lock);
+}
+
+static void __udp_tunnel_nic_lock(struct net_device *dev)
+{
+	struct udp_tunnel_nic *utn;
+
+	utn = dev->udp_tunnel_nic;
+	if (utn)
+		mutex_lock(&utn->lock);
+}
+
+static void __udp_tunnel_nic_unlock(struct net_device *dev)
+{
+	struct udp_tunnel_nic *utn;
+
+	utn = dev->udp_tunnel_nic;
+	if (utn)
+		mutex_unlock(&utn->lock);
+}
+
 static const struct udp_tunnel_nic_ops __udp_tunnel_nic_ops = {
 	.get_port	= __udp_tunnel_nic_get_port,
 	.set_port_priv	= __udp_tunnel_nic_set_port_priv,
@@ -651,6 +672,9 @@ static const struct udp_tunnel_nic_ops __udp_tunnel_nic_ops = {
 	.reset_ntf	= __udp_tunnel_nic_reset_ntf,
 	.dump_size	= __udp_tunnel_nic_dump_size,
 	.dump_write	= __udp_tunnel_nic_dump_write,
+	.assert_locked	= __udp_tunnel_nic_assert_locked,
+	.lock		= __udp_tunnel_nic_lock,
+	.unlock		= __udp_tunnel_nic_unlock,
 };
 
 static void
@@ -710,11 +734,15 @@ static void udp_tunnel_nic_device_sync_work(struct work_struct *work)
 		container_of(work, struct udp_tunnel_nic, work);
 
 	rtnl_lock();
+	mutex_lock(&utn->lock);
+
 	utn->work_pending = 0;
 	__udp_tunnel_nic_device_sync(utn->dev, utn);
 
 	if (utn->need_replay)
 		udp_tunnel_nic_replay(utn->dev, utn);
+
+	mutex_unlock(&utn->lock);
 	rtnl_unlock();
 }
 
@@ -730,6 +758,7 @@ udp_tunnel_nic_alloc(const struct udp_tunnel_nic_info *info,
 		return NULL;
 	utn->n_tables = n_tables;
 	INIT_WORK(&utn->work, udp_tunnel_nic_device_sync_work);
+	mutex_init(&utn->lock);
 
 	for (i = 0; i < n_tables; i++) {
 		utn->entries[i] = kcalloc(info->tables[i].n_entries,
@@ -821,8 +850,11 @@ static int udp_tunnel_nic_register(struct net_device *dev)
 	dev_hold(dev);
 	dev->udp_tunnel_nic = utn;
 
-	if (!(info->flags & UDP_TUNNEL_NIC_INFO_OPEN_ONLY))
+	if (!(info->flags & UDP_TUNNEL_NIC_INFO_OPEN_ONLY)) {
+		udp_tunnel_nic_lock(dev);
 		udp_tunnel_get_rx_info(dev);
+		udp_tunnel_nic_unlock(dev);
+	}
 
 	return 0;
 }
@@ -831,6 +863,8 @@ static void
 udp_tunnel_nic_unregister(struct net_device *dev, struct udp_tunnel_nic *utn)
 {
 	const struct udp_tunnel_nic_info *info = dev->udp_tunnel_nic_info;
+
+	udp_tunnel_nic_lock(dev);
 
 	/* For a shared table remove this dev from the list of sharing devices
 	 * and if there are other devices just detach.
@@ -841,8 +875,10 @@ udp_tunnel_nic_unregister(struct net_device *dev, struct udp_tunnel_nic *utn)
 		list_for_each_entry(node, &info->shared->devices, list)
 			if (node->dev == dev)
 				break;
-		if (list_entry_is_head(node, &info->shared->devices, list))
+		if (list_entry_is_head(node, &info->shared->devices, list)) {
+			udp_tunnel_nic_unlock(dev);
 			return;
+		}
 
 		list_del(&node->list);
 		kfree(node);
@@ -852,6 +888,7 @@ udp_tunnel_nic_unregister(struct net_device *dev, struct udp_tunnel_nic *utn)
 		if (first) {
 			udp_tunnel_drop_rx_info(dev);
 			utn->dev = first->dev;
+			udp_tunnel_nic_unlock(dev);
 			goto release_dev;
 		}
 
@@ -862,6 +899,7 @@ udp_tunnel_nic_unregister(struct net_device *dev, struct udp_tunnel_nic *utn)
 	 * from the work which we will boot immediately.
 	 */
 	udp_tunnel_nic_flush(dev, utn);
+	udp_tunnel_nic_unlock(dev);
 
 	/* Wait for the work to be done using the state, netdev core will
 	 * retry unregister until we give up our reference on this device.
@@ -910,12 +948,16 @@ udp_tunnel_nic_netdevice_event(struct notifier_block *unused,
 		return NOTIFY_DONE;
 
 	if (event == NETDEV_UP) {
+		udp_tunnel_nic_lock(dev);
 		WARN_ON(!udp_tunnel_nic_is_empty(dev, utn));
 		udp_tunnel_get_rx_info(dev);
+		udp_tunnel_nic_unlock(dev);
 		return NOTIFY_OK;
 	}
 	if (event == NETDEV_GOING_DOWN) {
+		udp_tunnel_nic_lock(dev);
 		udp_tunnel_nic_flush(dev, utn);
+		udp_tunnel_nic_unlock(dev);
 		return NOTIFY_OK;
 	}
 

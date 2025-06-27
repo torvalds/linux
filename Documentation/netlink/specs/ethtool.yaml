@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: ethtool
 
 protocol: genetlink-legacy
@@ -15,14 +15,14 @@ definitions:
     name: udp-tunnel-type
     enum-name:
     type: enum
-    entries: [ vxlan, geneve, vxlan-gpe ]
+    entries: [vxlan, geneve, vxlan-gpe]
     enum-cnt-name: __ethtool-udp-tunnel-type-cnt
     render-max: true
   -
     name: stringset
     type: enum
     entries: []
-    header: linux/ethtool.h # skip rendering, no actual definition
+    header: linux/ethtool.h  # skip rendering, no actual definition
   -
     name: header-flags
     type: flags
@@ -58,49 +58,51 @@ definitions:
         doc: The firmware flashing process was stopped due to an error.
   -
     name: c33-pse-ext-state
-    doc: "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4 Variables"
+    doc: |
+      "groups of PSE extended states functions. IEEE 802.3-2022 33.2.4.4
+      Variables"
     type: enum
     name-prefix: ethtool-c33-pse-ext-state-
     header: linux/ethtool.h
     entries:
-        -
-          name: none
-          doc: none
-        -
-          name: error-condition
-          doc: Group of error_condition states
-        -
-          name: mr-mps-valid
-          doc: Group of mr_mps_valid states
-        -
-          name: mr-pse-enable
-          doc: Group of mr_pse_enable states
-        -
-          name: option-detect-ted
-          doc: Group of option_detect_ted states
-        -
-          name: option-vport-lim
-          doc: Group of option_vport_lim states
-        -
-          name: ovld-detected
-          doc: Group of ovld_detected states
-        -
-          name: power-not-available
-          doc: Group of power_not_available states
-        -
-          name: short-detected
-          doc: Group of short_detected states
+      -
+        name: none
+        doc: none
+      -
+        name: error-condition
+        doc: Group of error_condition states
+      -
+        name: mr-mps-valid
+        doc: Group of mr_mps_valid states
+      -
+        name: mr-pse-enable
+        doc: Group of mr_pse_enable states
+      -
+        name: option-detect-ted
+        doc: Group of option_detect_ted states
+      -
+        name: option-vport-lim
+        doc: Group of option_vport_lim states
+      -
+        name: ovld-detected
+        doc: Group of ovld_detected states
+      -
+        name: power-not-available
+        doc: Group of power_not_available states
+      -
+        name: short-detected
+        doc: Group of short_detected states
   -
     name: phy-upstream-type
     enum-name: phy-upstream
     header: linux/ethtool.h
     type: enum
     name-prefix: phy-upstream
-    entries: [ mac, phy ]
+    entries: [mac, phy]
   -
     name: tcp-data-split
     type: enum
-    entries: [ unknown, disabled, enabled ]
+    entries: [unknown, disabled, enabled]
   -
     name: hwtstamp-source
     doc: Source of the hardware timestamp
@@ -119,6 +121,43 @@ definitions:
         doc: |
           Hardware timestamp comes from one PHY device
           of the network topology
+  -
+    name: pse-event
+    doc: PSE event list for the PSE controller
+    type: flags
+    name-prefix: ethtool-
+    entries:
+      -
+        name: pse-event-over-current
+        doc: PSE output current is too high
+      -
+        name: pse-event-over-temp
+        doc: PSE in over temperature state
+      -
+        name: c33-pse-event-detection
+        doc: |
+          detection process occur on the PSE. IEEE 802.3-2022 33.2.5 and
+          145.2.6 PSE detection of PDs. IEEE 802.3-202 30.9.1.1.5
+          aPSEPowerDetectionStatus
+      -
+        name: c33-pse-event-classification
+        doc: |
+          classification process occur on the PSE. IEEE 802.3-2022 33.2.6
+          and 145.2.8 classification of PDs mutual identification.
+          IEEE 802.3-2022 30.9.1.1.8 aPSEPowerClassification.
+      -
+        name: c33-pse-event-disconnection
+        doc: |
+          PD has been disconnected on the PSE. IEEE 802.3-2022 33.3.8
+          and 145.3.9 PD Maintain Power Signature. IEEE 802.3-2022
+          33.5.1.2.9 MPS Absent. IEEE 802.3-2022 30.9.1.1.20
+          aPSEMPSAbsentCounter.
+      -
+        name: pse-event-over-budget
+        doc: PSE turned off due to over budget situation
+      -
+        name: pse-event-sw-pw-control-error
+        doc: PSE faced an error managing the power control from software
 
 attribute-sets:
   -
@@ -1227,7 +1266,7 @@ attribute-sets:
       -
         name: stat
         type: u64
-        type-value: [ id ]
+        type-value: [id]
       -
         name: hist-rx
         type: nest
@@ -1396,6 +1435,18 @@ attribute-sets:
         type: nest
         multi-attr: true
         nested-attributes: c33-pse-pw-limit
+      -
+        name: pse-pw-d-id
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: pse-prio-max
+        type: u32
+        name-prefix: ethtool-a-
+      -
+        name: pse-prio
+        type: u32
+        name-prefix: ethtool-a-
   -
     name: rss
     attr-cnt-name: __ethtool-a-rss-cnt
@@ -1556,6 +1607,19 @@ attribute-sets:
         name: hwtstamp-flags
         type: nest
         nested-attributes: bitset
+  -
+    name: pse-ntf
+    attr-cnt-name: --ethtool-a-pse-ntf-cnt
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: events
+        type: uint
+        enum: pse-event
+        doc: List of events reported by the PSE controller
 
 operations:
   enum-model: directional
@@ -2206,6 +2270,9 @@ operations:
             - c33-pse-ext-substate
             - c33-pse-avail-pw-limit
             - c33-pse-pw-limit-ranges
+            - pse-pw-d-id
+            - pse-prio-max
+            - pse-prio
       dump: *pse-get-op
     -
       name: pse-set
@@ -2220,6 +2287,7 @@ operations:
             - podl-pse-admin-control
             - c33-pse-admin-control
             - c33-pse-avail-pw-limit
+            - pse-prio
     -
       name: rss-get
       doc: Get RSS params.
@@ -2414,3 +2482,26 @@ operations:
           attributes: *tsconfig
         reply:
           attributes: *tsconfig
+    -
+      name: pse-ntf
+      doc: Notification for PSE events.
+
+      attribute-set: pse-ntf
+
+      event:
+        attributes:
+          - header
+          - events
+    -
+      name: rss-ntf
+      doc: |
+        Notification for change in RSS configuration.
+        For additional contexts only modifications are modified, not creation
+        or removal of the contexts.
+      notify: rss-get
+
+mcast-groups:
+  list:
+    -
+      name: monitor
+      c-define-name: ethtool-mcgrp-monitor-name

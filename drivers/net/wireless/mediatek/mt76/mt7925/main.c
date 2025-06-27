@@ -757,7 +757,7 @@ void mt7925_set_runtime_pm(struct mt792x_dev *dev)
 	mt7925_mcu_set_deep_sleep(dev, pm->ds_enable);
 }
 
-static int mt7925_config(struct ieee80211_hw *hw, u32 changed)
+static int mt7925_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	int ret = 0;
@@ -1265,7 +1265,8 @@ void mt7925_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(mt7925_mac_sta_remove);
 
-static int mt7925_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
+static int mt7925_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				    u32 val)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 
@@ -1507,7 +1508,8 @@ mt7925_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static int
-mt7925_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+mt7925_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+		   u32 tx_ant, u32 rx_ant)
 {
 	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 	struct mt792x_phy *phy = mt792x_hw_phy(hw);

@@ -693,6 +693,9 @@ static void ath12k_get_arvif_iter(void *data, u8 *mac,
 		if (WARN_ON(!arvif))
 			continue;
 
+		if (!arvif->is_created)
+			continue;
+
 		if (arvif->vdev_id == arvif_iter->vdev_id &&
 		    arvif->ar == arvif_iter->ar) {
 			arvif_iter->arvif = arvif;
@@ -1392,7 +1395,7 @@ err:
 	return ret;
 }
 
-static int ath12k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
+static int ath12k_mac_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	return 0;
 }
@@ -1755,7 +1758,7 @@ static void ath12k_mac_handle_beacon_iter(void *data, u8 *mac,
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_link_vif *arvif = &ahvif->deflink;
 
-	if (vif->type != NL80211_IFTYPE_STATION)
+	if (vif->type != NL80211_IFTYPE_STATION || !arvif->is_created)
 		return;
 
 	if (!ether_addr_equal(mgmt->bssid, vif->bss_conf.bssid))
@@ -1778,16 +1781,16 @@ static void ath12k_mac_handle_beacon_miss_iter(void *data, u8 *mac,
 	u32 *vdev_id = data;
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_link_vif *arvif = &ahvif->deflink;
-	struct ath12k *ar = arvif->ar;
-	struct ieee80211_hw *hw = ath12k_ar_to_hw(ar);
+	struct ieee80211_hw *hw;
 
-	if (arvif->vdev_id != *vdev_id)
+	if (!arvif->is_created || arvif->vdev_id != *vdev_id)
 		return;
 
 	if (!arvif->is_up)
 		return;
 
 	ieee80211_beacon_loss(vif);
+	hw = ath12k_ar_to_hw(arvif->ar);
 
 	/* Firmware doesn't report beacon loss events repeatedly. If AP probe
 	 * (done by mac80211) succeeds but beacons do not resume then it
@@ -3496,7 +3499,7 @@ static struct ath12k_link_vif *ath12k_mac_assign_link_vif(struct ath12k_hw *ah,
 	/* If this is the first link arvif being created for an ML VIF
 	 * use the preallocated deflink memory except for scan arvifs
 	 */
-	if (!ahvif->links_map && link_id != ATH12K_DEFAULT_SCAN_LINK) {
+	if (!ahvif->links_map && link_id < ATH12K_FIRST_SCAN_LINK) {
 		arvif = &ahvif->deflink;
 
 		if (vif->type == NL80211_IFTYPE_STATION)
@@ -4149,8 +4152,9 @@ ath12k_mac_select_scan_device(struct ieee80211_hw *hw,
 		band = NL80211_BAND_6GHZ;
 
 	for_each_ar(ah, ar, i) {
-		/* TODO 5 GHz low high split changes */
-		if (ar->mac.sbands[band].channels)
+		if (ar->mac.sbands[band].channels &&
+		    center_freq >= KHZ_TO_MHZ(ar->freq_range.start_freq) &&
+		    center_freq <= KHZ_TO_MHZ(ar->freq_range.end_freq))
 			return ar;
 	}
 
@@ -4274,6 +4278,23 @@ static void ath12k_scan_timeout_work(struct work_struct *work)
 	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 }
 
+static void ath12k_mac_scan_send_complete(struct ath12k *ar,
+					  struct cfg80211_scan_info *info)
+{
+	struct ath12k_hw *ah = ar->ah;
+	struct ath12k *partner_ar;
+	int i;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	for_each_ar(ah, partner_ar, i)
+		if (partner_ar != ar &&
+		    partner_ar->scan.state == ATH12K_SCAN_RUNNING)
+			return;
+
+	ieee80211_scan_completed(ah->hw, info);
+}
+
 static void ath12k_scan_vdev_clean_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ath12k *ar = container_of(work, struct ath12k,
@@ -4312,7 +4333,7 @@ work_complete:
 				    ATH12K_SCAN_STARTING)),
 		};
 
-		ieee80211_scan_completed(ar->ah->hw, &info);
+		ath12k_mac_scan_send_complete(ar, &info);
 	}
 
 	ar->scan.state = ATH12K_SCAN_IDLE;
@@ -4488,11 +4509,12 @@ ath12k_mac_find_link_id_by_ar(struct ath12k_vif *ahvif, struct ath12k *ar)
 	struct ath12k_link_vif *arvif;
 	struct ath12k_hw *ah = ahvif->ah;
 	unsigned long links = ahvif->links_map;
+	unsigned long scan_links_map;
 	u8 link_id;
 
 	lockdep_assert_wiphy(ah->hw->wiphy);
 
-	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+	for_each_set_bit(link_id, &links, ATH12K_NUM_MAX_LINKS) {
 		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[link_id]);
 
 		if (!arvif || !arvif->is_created)
@@ -4502,18 +4524,30 @@ ath12k_mac_find_link_id_by_ar(struct ath12k_vif *ahvif, struct ath12k *ar)
 			return link_id;
 	}
 
-	/* input ar is not assigned to any of the links of ML VIF, use scan
-	 * link (15) for scan vdev creation.
+	/* input ar is not assigned to any of the links of ML VIF, use next
+	 * available scan link for scan vdev creation. There are cases where
+	 * single scan req needs to be split in driver and initiate separate
+	 * scan requests to firmware based on device.
 	 */
-	return ATH12K_DEFAULT_SCAN_LINK;
+
+	 /* Unset all non-scan links (0-14) of scan_links_map so that ffs() will
+	  * choose an available link among scan links (i.e link id >= 15)
+	  */
+	scan_links_map = ~ahvif->links_map & ATH12K_SCAN_LINKS_MASK;
+	if (scan_links_map)
+		return __ffs(scan_links_map);
+
+	return ATH12K_FIRST_SCAN_LINK;
 }
 
-static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_scan_request *hw_req)
+static int ath12k_mac_initiate_hw_scan(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       struct ieee80211_scan_request *hw_req,
+				       int n_channels,
+				       struct ieee80211_channel **chan_list,
+				       struct ath12k *ar)
 {
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
-	struct ath12k *ar;
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_link_vif *arvif;
 	struct cfg80211_scan_request *req = &hw_req->req;
@@ -4527,18 +4561,18 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 
 	arvif = &ahvif->deflink;
 
-	/* Since the targeted scan device could depend on the frequency
-	 * requested in the hw_req, select the corresponding radio
-	 */
-	ar = ath12k_mac_select_scan_device(hw, vif, hw_req->req.channels[0]->center_freq);
-	if (!ar)
-		return -EINVAL;
-
 	/* check if any of the links of ML VIF is already started on
 	 * radio(ar) corresponding to given scan frequency and use it,
-	 * if not use scan link (link 15) for scan purpose.
+	 * if not use scan link (link id >= 15) for scan purpose.
 	 */
 	link_id = ath12k_mac_find_link_id_by_ar(ahvif, ar);
+	/* All scan links are occupied. ideally this shouldn't happen as
+	 * mac80211 won't schedule scan for same band until ongoing scan is
+	 * completed, don't try to exceed max links just in case if it happens.
+	 */
+	if (link_id >= ATH12K_NUM_MAX_LINKS)
+		return -EBUSY;
+
 	arvif = ath12k_mac_assign_link_vif(ah, vif, link_id);
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac link ID %d selected for scan",
@@ -4629,8 +4663,8 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 		arg->scan_f_passive = 1;
 	}
 
-	if (req->n_channels) {
-		arg->num_chan = req->n_channels;
+	if (n_channels) {
+		arg->num_chan = n_channels;
 		arg->chan_list = kcalloc(arg->num_chan, sizeof(*arg->chan_list),
 					 GFP_KERNEL);
 		if (!arg->chan_list) {
@@ -4639,7 +4673,7 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 		}
 
 		for (i = 0; i < arg->num_chan; i++)
-			arg->chan_list[i] = req->channels[i]->center_freq;
+			arg->chan_list[i] = chan_list[i]->center_freq;
 	}
 
 	ret = ath12k_start_scan(ar, arg);
@@ -4657,13 +4691,6 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	}
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac scan started");
-
-	/* As per cfg80211/mac80211 scan design, it allows only one
-	 * scan at a time. Hence last_scan link id is used for
-	 * tracking the link id on which the scan is been done on
-	 * this vif.
-	 */
-	ahvif->last_scan_link = arvif->link_id;
 
 	/* Add a margin to account for event/command processing */
 	ieee80211_queue_delayed_work(ath12k_ar_to_hw(ar), &ar->scan.timeout,
@@ -4685,25 +4712,108 @@ exit:
 	return ret;
 }
 
+static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_scan_request *hw_req)
+{
+	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
+	struct ieee80211_channel **chan_list, *chan;
+	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
+	unsigned long links_map, link_id;
+	struct ath12k_link_vif *arvif;
+	struct ath12k *ar, *scan_ar;
+	int i, j, ret = 0;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	chan_list = kcalloc(hw_req->req.n_channels, sizeof(*chan_list), GFP_KERNEL);
+	if (!chan_list)
+		return -ENOMEM;
+
+	/* There could be channels that belong to multiple underlying radio
+	 * in same scan request as mac80211 sees it as single band. In that
+	 * case split the hw_req based on frequency range and schedule scans to
+	 * corresponding radio.
+	 */
+	for_each_ar(ah, ar, i) {
+		int n_chans = 0;
+
+		for (j = 0; j < hw_req->req.n_channels; j++) {
+			chan = hw_req->req.channels[j];
+			scan_ar = ath12k_mac_select_scan_device(hw, vif,
+								chan->center_freq);
+			if (!scan_ar) {
+				ath12k_hw_warn(ah, "unable to select scan device for freq %d\n",
+					       chan->center_freq);
+				ret = -EINVAL;
+				goto abort;
+			}
+			if (ar != scan_ar)
+				continue;
+
+			chan_list[n_chans++] = chan;
+		}
+		if (n_chans) {
+			ret = ath12k_mac_initiate_hw_scan(hw, vif, hw_req, n_chans,
+							  chan_list, ar);
+			if (ret)
+				goto abort;
+		}
+	}
+abort:
+	/* If any of the parallel scans initiated fails, abort all and
+	 * remove the scan interfaces created. Return complete scan
+	 * failure as mac80211 assumes this as single scan request.
+	 */
+	if (ret) {
+		ath12k_hw_warn(ah, "Scan failed %d , cleanup all scan vdevs\n", ret);
+		links_map = ahvif->links_map;
+		for_each_set_bit(link_id, &links_map, ATH12K_NUM_MAX_LINKS) {
+			arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+			if (!arvif)
+				continue;
+
+			ar = arvif->ar;
+			if (ar->scan.arvif == arvif) {
+				wiphy_work_cancel(hw->wiphy, &ar->scan.vdev_clean_wk);
+				spin_lock_bh(&ar->data_lock);
+				ar->scan.arvif = NULL;
+				ar->scan.state = ATH12K_SCAN_IDLE;
+				ar->scan_channel = NULL;
+				ar->scan.roc_freq = 0;
+				spin_unlock_bh(&ar->data_lock);
+			}
+			if (link_id >= ATH12K_FIRST_SCAN_LINK) {
+				ath12k_mac_remove_link_interface(hw, arvif);
+				ath12k_mac_unassign_link_vif(arvif);
+			}
+		}
+	}
+	kfree(chan_list);
+	return ret;
+}
+
 static void ath12k_mac_op_cancel_hw_scan(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif)
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
-	u16 link_id = ahvif->last_scan_link;
+	unsigned long link_id, links_map = ahvif->links_map;
 	struct ath12k_link_vif *arvif;
 	struct ath12k *ar;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
-	if (!arvif || arvif->is_started)
-		return;
+	for_each_set_bit(link_id, &links_map, ATH12K_NUM_MAX_LINKS) {
+		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+		if (!arvif || arvif->is_started)
+			continue;
 
-	ar = arvif->ar;
+		ar = arvif->ar;
 
-	ath12k_scan_abort(ar);
+		ath12k_scan_abort(ar);
 
-	cancel_delayed_work_sync(&ar->scan.timeout);
+		cancel_delayed_work_sync(&ar->scan.timeout);
+	}
 }
 
 static int ath12k_install_key(struct ath12k_link_vif *arvif,
@@ -4719,13 +4829,12 @@ static int ath12k_install_key(struct ath12k_link_vif *arvif,
 		.key_len = key->keylen,
 		.key_data = key->key,
 		.key_flags = flags,
+		.ieee80211_key_cipher = key->cipher,
 		.macaddr = macaddr,
 	};
 	struct ath12k_vif *ahvif = arvif->ahvif;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
-
-	reinit_completion(&ar->install_key_done);
 
 	if (test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags))
 		return 0;
@@ -4735,7 +4844,7 @@ static int ath12k_install_key(struct ath12k_link_vif *arvif,
 		/* arg.key_cipher = WMI_CIPHER_NONE; */
 		arg.key_len = 0;
 		arg.key_data = NULL;
-		goto install;
+		goto check_order;
 	}
 
 	switch (key->cipher) {
@@ -4763,19 +4872,82 @@ static int ath12k_install_key(struct ath12k_link_vif *arvif,
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV |
 			      IEEE80211_KEY_FLAG_RESERVE_TAILROOM;
 
-install:
-	ret = ath12k_wmi_vdev_install_key(arvif->ar, &arg);
+check_order:
+	if (ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
+	    arg.key_flags == WMI_KEY_GROUP) {
+		if (cmd == SET_KEY) {
+			if (arvif->pairwise_key_done) {
+				ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+					   "vdev %u pairwise key done, go install group key\n",
+					   arg.vdev_id);
+				goto install;
+			} else {
+				/* WCN7850 firmware requires pairwise key to be installed
+				 * before group key. In case group key comes first, cache
+				 * it and return. Will revisit it once pairwise key gets
+				 * installed.
+				 */
+				arvif->group_key = arg;
+				arvif->group_key_valid = true;
+				ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+					   "vdev %u group key before pairwise key, cache and skip\n",
+					   arg.vdev_id);
 
+				ret = 0;
+				goto out;
+			}
+		} else {
+			arvif->group_key_valid = false;
+		}
+	}
+
+install:
+	reinit_completion(&ar->install_key_done);
+
+	ret = ath12k_wmi_vdev_install_key(arvif->ar, &arg);
 	if (ret)
 		return ret;
 
 	if (!wait_for_completion_timeout(&ar->install_key_done, 1 * HZ))
 		return -ETIMEDOUT;
 
-	if (ether_addr_equal(macaddr, arvif->bssid))
-		ahvif->key_cipher = key->cipher;
+	if (ether_addr_equal(arg.macaddr, arvif->bssid))
+		ahvif->key_cipher = arg.ieee80211_key_cipher;
 
-	return ar->install_key_status ? -EINVAL : 0;
+	if (ar->install_key_status) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (ahvif->vdev_type == WMI_VDEV_TYPE_STA &&
+	    arg.key_flags == WMI_KEY_PAIRWISE) {
+		if (cmd == SET_KEY) {
+			arvif->pairwise_key_done = true;
+			if (arvif->group_key_valid) {
+				/* Install cached GTK */
+				arvif->group_key_valid = false;
+				arg = arvif->group_key;
+				ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+					   "vdev %u pairwise key done, group key ready, go install\n",
+					   arg.vdev_id);
+				goto install;
+			}
+		} else {
+			arvif->pairwise_key_done = false;
+		}
+	}
+
+out:
+	if (ret) {
+		/* In case of failure userspace may not do DISABLE_KEY
+		 * but triggers re-connection directly, so manually reset
+		 * status here.
+		 */
+		arvif->group_key_valid = false;
+		arvif->pairwise_key_done = false;
+	}
+
+	return ret;
 }
 
 static int ath12k_clear_peer_keys(struct ath12k_link_vif *arvif,
@@ -4869,9 +5041,9 @@ static int ath12k_mac_set_key(struct ath12k *ar, enum set_key_cmd cmd,
 	}
 
 	if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
-		flags |= WMI_KEY_PAIRWISE;
+		flags = WMI_KEY_PAIRWISE;
 	else
-		flags |= WMI_KEY_GROUP;
+		flags = WMI_KEY_GROUP;
 
 	ret = ath12k_install_key(arvif, key, cmd, peer_addr, flags);
 	if (ret) {
@@ -8114,7 +8286,17 @@ static int ath12k_mac_start(struct ath12k *ar)
 
 	/* TODO: Do we need to enable ANI? */
 
-	ath12k_reg_update_chan_list(ar, false);
+	ret = ath12k_reg_update_chan_list(ar, false);
+
+	/* The ar state alone can be turned off for non supported country
+	 * without returning the error value. As we need to update the channel
+	 * for the next ar.
+	 */
+	if (ret) {
+		if (ret == -EINVAL)
+			ret = 0;
+		goto err;
+	}
 
 	ar->num_started_vdevs = 0;
 	ar->num_created_vdevs = 0;
@@ -8286,6 +8468,7 @@ static void ath12k_mac_stop(struct ath12k *ar)
 {
 	struct ath12k_hw *ah = ar->ah;
 	struct htt_ppdu_stats_info *ppdu_stats, *tmp;
+	struct ath12k_wmi_scan_chan_list_arg *arg;
 	int ret;
 
 	lockdep_assert_held(&ah->hw_mutex);
@@ -8300,6 +8483,7 @@ static void ath12k_mac_stop(struct ath12k *ar)
 
 	cancel_delayed_work_sync(&ar->scan.timeout);
 	wiphy_work_cancel(ath12k_ar_to_hw(ar)->wiphy, &ar->scan.vdev_clean_wk);
+	cancel_work_sync(&ar->regd_channel_update_work);
 	cancel_work_sync(&ar->regd_update_work);
 	cancel_work_sync(&ar->ab->rfkill_work);
 	cancel_work_sync(&ar->ab->update_11d_work);
@@ -8307,9 +8491,17 @@ static void ath12k_mac_stop(struct ath12k *ar)
 	complete(&ar->completed_11d_scan);
 
 	spin_lock_bh(&ar->data_lock);
+
 	list_for_each_entry_safe(ppdu_stats, tmp, &ar->ppdu_stats_info, list) {
 		list_del(&ppdu_stats->list);
 		kfree(ppdu_stats);
+	}
+
+	while ((arg = list_first_entry_or_null(&ar->regd_channel_update_queue,
+					       struct ath12k_wmi_scan_chan_list_arg,
+					       list))) {
+		list_del(&arg->list);
+		kfree(arg);
 	}
 	spin_unlock_bh(&ar->data_lock);
 
@@ -9055,7 +9247,8 @@ static struct ath12k *ath12k_mac_assign_vif_to_vdev(struct ieee80211_hw *hw,
 	struct ath12k_hw *ah = hw->priv;
 	struct ath12k *ar;
 	struct ath12k_base *ab;
-	u8 link_id = arvif->link_id;
+	u8 link_id = arvif->link_id, scan_link_id;
+	unsigned long scan_link_map;
 	int ret;
 
 	lockdep_assert_wiphy(hw->wiphy);
@@ -9074,12 +9267,16 @@ static struct ath12k *ath12k_mac_assign_vif_to_vdev(struct ieee80211_hw *hw,
 	 * and now we want to create for actual usage.
 	 */
 	if (ieee80211_vif_is_mld(vif)) {
-		scan_arvif = wiphy_dereference(hw->wiphy,
-					       ahvif->link[ATH12K_DEFAULT_SCAN_LINK]);
-		if (scan_arvif && scan_arvif->ar == ar) {
-			ar->scan.arvif = NULL;
-			ath12k_mac_remove_link_interface(hw, scan_arvif);
-			ath12k_mac_unassign_link_vif(scan_arvif);
+		scan_link_map = ahvif->links_map & ATH12K_SCAN_LINKS_MASK;
+		for_each_set_bit(scan_link_id, &scan_link_map, ATH12K_NUM_MAX_LINKS) {
+			scan_arvif = wiphy_dereference(hw->wiphy,
+						       ahvif->link[scan_link_id]);
+			if (scan_arvif && scan_arvif->ar == ar) {
+				ar->scan.arvif = NULL;
+				ath12k_mac_remove_link_interface(hw, scan_arvif);
+				ath12k_mac_unassign_link_vif(scan_arvif);
+				break;
+			}
 		}
 	}
 
@@ -9314,7 +9511,7 @@ static void ath12k_mac_op_remove_interface(struct ieee80211_hw *hw,
 					.aborted = true,
 				};
 
-				ieee80211_scan_completed(ar->ah->hw, &info);
+				ath12k_mac_scan_send_complete(ar, &info);
 			}
 
 			ar->scan.state = ATH12K_SCAN_IDLE;
@@ -9354,7 +9551,8 @@ static void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
 	ar->filter_flags = *total_flags;
 }
 
-static int ath12k_mac_op_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+static int ath12k_mac_op_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+				     u32 *tx_ant, u32 *rx_ant)
 {
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	int antennas_rx = 0, antennas_tx = 0;
@@ -9374,7 +9572,8 @@ static int ath12k_mac_op_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *
 	return 0;
 }
 
-static int ath12k_mac_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+static int ath12k_mac_op_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+				     u32 tx_ant, u32 rx_ant)
 {
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar;
@@ -9818,7 +10017,7 @@ ath12k_mac_change_chanctx_cnt_iter(void *data, u8 *mac,
 		if (WARN_ON(!arvif))
 			continue;
 
-		if (arvif->ar != arg->ar)
+		if (!arvif->is_created || arvif->ar != arg->ar)
 			continue;
 
 		link_conf = wiphy_dereference(ahvif->ah->hw->wiphy,
@@ -9853,7 +10052,7 @@ ath12k_mac_change_chanctx_fill_iter(void *data, u8 *mac,
 		if (WARN_ON(!arvif))
 			continue;
 
-		if (arvif->ar != arg->ar)
+		if (!arvif->is_created || arvif->ar != arg->ar)
 			continue;
 
 		link_conf = wiphy_dereference(ahvif->ah->hw->wiphy,
@@ -10735,7 +10934,8 @@ ath12k_set_vdev_param_to_all_vifs(struct ath12k *ar, int param, u32 value)
 /* mac80211 stores device specific RTS/Fragmentation threshold value,
  * this is set interface specific to firmware from ath12k driver
  */
-static int ath12k_mac_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int ath12k_mac_op_set_rts_threshold(struct ieee80211_hw *hw,
+					   int radio_idx, u32 value)
 {
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar;
@@ -10760,7 +10960,8 @@ static int ath12k_mac_op_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return ret;
 }
 
-static int ath12k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
+static int ath12k_mac_op_set_frag_threshold(struct ieee80211_hw *hw,
+					    int radio_idx, u32 value)
 {
 	/* Even though there's a WMI vdev param for fragmentation threshold no
 	 * known firmware actually implements it. Moreover it is not possible to
@@ -11246,6 +11447,7 @@ ath12k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 			struct wmi_set_current_country_arg arg = {};
 
 			memcpy(&arg.alpha2, ar->alpha2, 2);
+			reinit_completion(&ar->regd_update_completed);
 			ath12k_wmi_send_set_current_country_cmd(ar, &arg);
 		}
 
@@ -11757,6 +11959,32 @@ static u32 ath12k_get_phy_id(struct ath12k *ar, u32 band)
 	return 0;
 }
 
+static int ath12k_mac_update_band(struct ath12k *ar,
+				  struct ieee80211_supported_band *orig_band,
+				  struct ieee80211_supported_band *new_band)
+{
+	int i;
+
+	if (!orig_band || !new_band)
+		return -EINVAL;
+
+	if (orig_band->band != new_band->band)
+		return -EINVAL;
+
+	for (i = 0; i < new_band->n_channels; i++) {
+		if (new_band->channels[i].flags & IEEE80211_CHAN_DISABLED)
+			continue;
+		/* An enabled channel in new_band should not be already enabled
+		 * in the orig_band
+		 */
+		if (WARN_ON(!(orig_band->channels[i].flags &
+			      IEEE80211_CHAN_DISABLED)))
+			return -EINVAL;
+		orig_band->channels[i].flags &= ~IEEE80211_CHAN_DISABLED;
+	}
+	return 0;
+}
+
 static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 					   u32 supported_bands,
 					   struct ieee80211_supported_band *bands[])
@@ -11767,6 +11995,7 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 	u32 phy_id, freq_low, freq_high;
 	struct ath12k_hw *ah = ar->ah;
 	void *channels;
+	int ret;
 
 	BUILD_BUG_ON((ARRAY_SIZE(ath12k_2ghz_channels) +
 		      ARRAY_SIZE(ath12k_5ghz_channels) +
@@ -11788,7 +12017,6 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 		band->channels = channels;
 		band->n_bitrates = ath12k_g_rates_size;
 		band->bitrates = ath12k_g_rates;
-		bands[NL80211_BAND_2GHZ] = band;
 
 		if (ab->hw_params->single_pdev_only) {
 			phy_id = ath12k_get_phy_id(ar, WMI_HOST_WLAN_2GHZ_CAP);
@@ -11805,6 +12033,22 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 					  reg_cap->high_2ghz_chan);
 
 		ath12k_mac_update_freq_range(ar, freq_low, freq_high);
+
+		if (!bands[NL80211_BAND_2GHZ]) {
+			bands[NL80211_BAND_2GHZ] = band;
+		} else {
+			/* Split mac in same band under same wiphy */
+			ret = ath12k_mac_update_band(ar, bands[NL80211_BAND_2GHZ], band);
+			if (ret) {
+				kfree(channels);
+				band->channels = NULL;
+				return ret;
+			}
+			ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac pdev %u identified as 2 GHz split mac with start freq %d end freq %d",
+				   ar->pdev->pdev_id,
+				   KHZ_TO_MHZ(ar->freq_range.start_freq),
+				   KHZ_TO_MHZ(ar->freq_range.end_freq));
+		}
 	}
 
 	if (supported_bands & WMI_HOST_WLAN_5GHZ_CAP) {
@@ -11823,7 +12067,6 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 			band->channels = channels;
 			band->n_bitrates = ath12k_a_rates_size;
 			band->bitrates = ath12k_a_rates;
-			bands[NL80211_BAND_6GHZ] = band;
 
 			freq_low = max(reg_cap->low_5ghz_chan,
 				       ab->reg_freq_6ghz.start_freq);
@@ -11836,6 +12079,26 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 
 			ath12k_mac_update_freq_range(ar, freq_low, freq_high);
 			ah->use_6ghz_regd = true;
+
+			if (!bands[NL80211_BAND_6GHZ]) {
+				bands[NL80211_BAND_6GHZ] = band;
+			} else {
+				/* Split mac in same band under same wiphy */
+				ret = ath12k_mac_update_band(ar,
+							     bands[NL80211_BAND_6GHZ],
+							     band);
+				if (ret) {
+					kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
+					ar->mac.sbands[NL80211_BAND_2GHZ].channels = NULL;
+					kfree(channels);
+					band->channels = NULL;
+					return ret;
+				}
+				ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac pdev %u identified as 6 GHz split mac with start freq %d end freq %d",
+					   ar->pdev->pdev_id,
+					   KHZ_TO_MHZ(ar->freq_range.start_freq),
+					   KHZ_TO_MHZ(ar->freq_range.end_freq));
+			}
 		}
 
 		if (reg_cap->low_5ghz_chan < ATH12K_MIN_6GHZ_FREQ) {
@@ -11854,7 +12117,6 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 			band->channels = channels;
 			band->n_bitrates = ath12k_a_rates_size;
 			band->bitrates = ath12k_a_rates;
-			bands[NL80211_BAND_5GHZ] = band;
 
 			if (ab->hw_params->single_pdev_only) {
 				phy_id = ath12k_get_phy_id(ar, WMI_HOST_WLAN_5GHZ_CAP);
@@ -11871,6 +12133,28 @@ static int ath12k_mac_setup_channels_rates(struct ath12k *ar,
 						  reg_cap->high_5ghz_chan);
 
 			ath12k_mac_update_freq_range(ar, freq_low, freq_high);
+
+			if (!bands[NL80211_BAND_5GHZ]) {
+				bands[NL80211_BAND_5GHZ] = band;
+			} else {
+				/* Split mac in same band under same wiphy */
+				ret = ath12k_mac_update_band(ar,
+							     bands[NL80211_BAND_5GHZ],
+							     band);
+				if (ret) {
+					kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
+					ar->mac.sbands[NL80211_BAND_2GHZ].channels = NULL;
+					kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
+					ar->mac.sbands[NL80211_BAND_2GHZ].channels = NULL;
+					kfree(channels);
+					band->channels = NULL;
+					return ret;
+				}
+				ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac pdev %u identified as 5 GHz split mac with start freq %d end freq %d",
+					   ar->pdev->pdev_id,
+					   KHZ_TO_MHZ(ar->freq_range.start_freq),
+					   KHZ_TO_MHZ(ar->freq_range.end_freq));
+			}
 		}
 	}
 
@@ -12204,6 +12488,7 @@ static void ath12k_mac_hw_unregister(struct ath12k_hw *ah)
 	int i;
 
 	for_each_ar(ah, ar, i) {
+		cancel_work_sync(&ar->regd_channel_update_work);
 		cancel_work_sync(&ar->regd_update_work);
 		ath12k_debugfs_unregister(ar);
 		ath12k_fw_stats_reset(ar);
@@ -12462,6 +12747,16 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 		goto err_cleanup_if_combs;
 	}
 
+	/* Boot-time regulatory updates have already been processed.
+	 * Mark them as complete now, because after registration,
+	 * cfg80211 will notify us again if there are any pending hints.
+	 * We need to wait for those hints to be processed, so it's
+	 * important to mark the boot-time updates as complete before
+	 * proceeding with registration.
+	 */
+	for_each_ar(ah, ar, i)
+		complete(&ar->regd_update_completed);
+
 	ret = ieee80211_register_hw(hw);
 	if (ret) {
 		ath12k_err(ab, "ieee80211 registration failed: %d\n", ret);
@@ -12489,6 +12784,9 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 
 			memcpy(&current_cc.alpha2, ab->new_alpha2, 2);
 			memcpy(&ar->alpha2, ab->new_alpha2, 2);
+
+			reinit_completion(&ar->regd_update_completed);
+
 			ret = ath12k_wmi_send_set_current_country_cmd(ar, &current_cc);
 			if (ret)
 				ath12k_warn(ar->ab,
@@ -12561,9 +12859,12 @@ static void ath12k_mac_setup(struct ath12k *ar)
 	init_completion(&ar->scan.on_channel);
 	init_completion(&ar->mlo_setup_done);
 	init_completion(&ar->completed_11d_scan);
+	init_completion(&ar->regd_update_completed);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath12k_scan_timeout_work);
 	wiphy_work_init(&ar->scan.vdev_clean_wk, ath12k_scan_vdev_clean_work);
+	INIT_WORK(&ar->regd_channel_update_work, ath12k_regd_update_chan_list_work);
+	INIT_LIST_HEAD(&ar->regd_channel_update_queue);
 	INIT_WORK(&ar->regd_update_work, ath12k_regd_update_work);
 
 	wiphy_work_init(&ar->wmi_mgmt_tx_work, ath12k_mgmt_over_wmi_tx_work);

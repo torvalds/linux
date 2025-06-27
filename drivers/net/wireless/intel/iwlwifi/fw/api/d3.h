@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -19,9 +19,11 @@ enum iwl_d0i3_flags {
 /**
  * enum iwl_d3_wakeup_flags - D3 manager wakeup flags
  * @IWL_WAKEUP_D3_CONFIG_FW_ERROR: wake up on firmware sysassert
+ * @IWL_WAKEUP_D3_HOST_TIMER: wake up on host timer expiry
  */
 enum iwl_d3_wakeup_flags {
-	IWL_WAKEUP_D3_CONFIG_FW_ERROR = BIT(0),
+	IWL_WAKEUP_D3_CONFIG_FW_ERROR	= BIT(0),
+	IWL_WAKEUP_D3_HOST_TIMER	= BIT(1),
 }; /* D3_MANAGER_WAKEUP_CONFIG_API_E_VER_3 */
 
 /**

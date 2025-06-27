@@ -1730,6 +1730,60 @@ static int cxgb4_ntuple_get_filter(struct net_device *dev,
 	return 0;
 }
 
+static int cxgb4_get_rxfh_fields(struct net_device *dev,
+				 struct ethtool_rxfh_fields *info)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	unsigned int v = pi->rss_mode;
+
+	info->data = 0;
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+		if (v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case UDP_V4_FLOW:
+		if ((v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F) &&
+		    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case IPV4_FLOW:
+		if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case TCP_V6_FLOW:
+		if (v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case UDP_V6_FLOW:
+		if ((v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F) &&
+		    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case IPV6_FLOW:
+		if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	}
+	return 0;
+}
+
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		     u32 *rules)
 {
@@ -1739,56 +1793,6 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	int ret = 0;
 
 	switch (info->cmd) {
-	case ETHTOOL_GRXFH: {
-		unsigned int v = pi->rss_mode;
-
-		info->data = 0;
-		switch (info->flow_type) {
-		case TCP_V4_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST |
-					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		case UDP_V4_FLOW:
-			if ((v & FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F) &&
-			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
-				info->data = RXH_IP_SRC | RXH_IP_DST |
-					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		case SCTP_V4_FLOW:
-		case AH_ESP_V4_FLOW:
-		case IPV4_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		case TCP_V6_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST |
-					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		case UDP_V6_FLOW:
-			if ((v & FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F) &&
-			    (v & FW_RSS_VI_CONFIG_CMD_UDPEN_F))
-				info->data = RXH_IP_SRC | RXH_IP_DST |
-					     RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			else if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		case SCTP_V6_FLOW:
-		case AH_ESP_V6_FLOW:
-		case IPV6_FLOW:
-			if (v & FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F)
-				info->data = RXH_IP_SRC | RXH_IP_DST;
-			break;
-		}
-		return 0;
-	}
 	case ETHTOOL_GRXRINGS:
 		info->data = pi->nqsets;
 		return 0;
@@ -2199,6 +2203,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
+	.get_rxfh_fields   = cxgb4_get_rxfh_fields,
 	.self_test	   = cxgb4_self_test,
 	.flash_device      = set_flash,
 	.get_ts_info       = get_ts_info,

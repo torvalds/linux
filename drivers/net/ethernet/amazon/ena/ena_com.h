@@ -210,6 +210,14 @@ struct ena_com_stats_admin {
 	u64 no_completion;
 };
 
+struct ena_com_stats_phc {
+	u64 phc_cnt;
+	u64 phc_exp;
+	u64 phc_skp;
+	u64 phc_err_dv;
+	u64 phc_err_ts;
+};
+
 struct ena_com_admin_queue {
 	void *q_dmadev;
 	struct ena_com_dev *ena_dev;
@@ -256,6 +264,47 @@ struct ena_com_mmio_read {
 	bool readless_supported;
 	/* spin lock to ensure a single outstanding read */
 	spinlock_t lock;
+};
+
+/* PTP hardware clock (PHC) MMIO read data info */
+struct ena_com_phc_info {
+	/* Internal PHC statistics */
+	struct ena_com_stats_phc stats;
+
+	/* PHC shared memory - virtual address */
+	struct ena_admin_phc_resp *virt_addr;
+
+	/* System time of last PHC request */
+	ktime_t system_time;
+
+	/* Spin lock to ensure a single outstanding PHC read */
+	spinlock_t lock;
+
+	/* PHC doorbell address as an offset to PCIe MMIO REG BAR */
+	u32 doorbell_offset;
+
+	/* Shared memory read expire timeout (usec)
+	 * Max time for valid PHC retrieval, passing this threshold will fail
+	 * the get time request and block new PHC requests for block_timeout_usec
+	 * in order to prevent floods on busy device
+	 */
+	u32 expire_timeout_usec;
+
+	/* Shared memory read abort timeout (usec)
+	 * PHC requests block period, blocking starts once PHC request expired
+	 * in order to prevent floods on busy device,
+	 * any PHC requests during block period will be skipped
+	 */
+	u32 block_timeout_usec;
+
+	/* PHC shared memory - physical address */
+	dma_addr_t phys_addr;
+
+	/* Request id sent to the device */
+	u16 req_id;
+
+	/* True if PHC is active in the device */
+	bool active;
 };
 
 struct ena_rss {
@@ -317,6 +366,7 @@ struct ena_com_dev {
 	u32 ena_min_poll_delay_us;
 
 	struct ena_com_mmio_read mmio_read;
+	struct ena_com_phc_info phc;
 
 	struct ena_rss rss;
 	u32 supported_features;
@@ -381,6 +431,40 @@ struct ena_aenq_handlers {
  * @return - 0 on success, negative value on failure.
  */
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev);
+
+/* ena_com_phc_init - Allocate and initialize PHC feature
+ * @ena_dev: ENA communication layer struct
+ * @note: This method assumes PHC is supported by the device
+ * @return - 0 on success, negative value on failure
+ */
+int ena_com_phc_init(struct ena_com_dev *ena_dev);
+
+/* ena_com_phc_supported - Return if PHC feature is supported by the device
+ * @ena_dev: ENA communication layer struct
+ * @note: This method must be called after getting supported features
+ * @return - supported or not
+ */
+bool ena_com_phc_supported(struct ena_com_dev *ena_dev);
+
+/* ena_com_phc_config - Configure PHC feature
+ * @ena_dev: ENA communication layer struct
+ * Configure PHC feature in driver and device
+ * @note: This method assumes PHC is supported by the device
+ * @return - 0 on success, negative value on failure
+ */
+int ena_com_phc_config(struct ena_com_dev *ena_dev);
+
+/* ena_com_phc_destroy - Destroy PHC feature
+ * @ena_dev: ENA communication layer struct
+ */
+void ena_com_phc_destroy(struct ena_com_dev *ena_dev);
+
+/* ena_com_phc_get_timestamp - Retrieve PHC timestamp
+ * @ena_dev: ENA communication layer struct
+ * @timestamp: Retrieved PHC timestamp
+ * @return - 0 on success, negative value on failure
+ */
+int ena_com_phc_get_timestamp(struct ena_com_dev *ena_dev, u64 *timestamp);
 
 /* ena_com_set_mmio_read_mode - Enable/disable the indirect mmio reg read mechanism
  * @ena_dev: ENA communication layer struct

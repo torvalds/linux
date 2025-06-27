@@ -4193,8 +4193,11 @@ static void virtnet_init_default_rss(struct virtnet_info *vi)
 	netdev_rss_key_fill(vi->rss_hash_key_data, vi->rss_key_size);
 }
 
-static void virtnet_get_hashflow(const struct virtnet_info *vi, struct ethtool_rxnfc *info)
+static int virtnet_get_hashflow(struct net_device *dev,
+				struct ethtool_rxfh_fields *info)
 {
+	struct virtnet_info *vi = netdev_priv(dev);
+
 	info->data = 0;
 	switch (info->flow_type) {
 	case TCP_V4_FLOW:
@@ -4243,17 +4246,22 @@ static void virtnet_get_hashflow(const struct virtnet_info *vi, struct ethtool_r
 		info->data = 0;
 		break;
 	}
+
+	return 0;
 }
 
-static bool virtnet_set_hashflow(struct virtnet_info *vi, struct ethtool_rxnfc *info)
+static int virtnet_set_hashflow(struct net_device *dev,
+				const struct ethtool_rxfh_fields *info,
+				struct netlink_ext_ack *extack)
 {
+	struct virtnet_info *vi = netdev_priv(dev);
 	u32 new_hashtypes = vi->rss_hash_types_saved;
 	bool is_disable = info->data & RXH_DISCARD;
 	bool is_l4 = info->data == (RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 | RXH_L4_B_2_3);
 
 	/* supports only 'sd', 'sdfn' and 'r' */
 	if (!((info->data == (RXH_IP_SRC | RXH_IP_DST)) | is_l4 | is_disable))
-		return false;
+		return -EINVAL;
 
 	switch (info->flow_type) {
 	case TCP_V4_FLOW:
@@ -4292,21 +4300,22 @@ static bool virtnet_set_hashflow(struct virtnet_info *vi, struct ethtool_rxnfc *
 		break;
 	default:
 		/* unsupported flow */
-		return false;
+		return -EINVAL;
 	}
 
 	/* if unsupported hashtype was set */
 	if (new_hashtypes != (new_hashtypes & vi->rss_hash_types_supported))
-		return false;
+		return -EINVAL;
 
 	if (new_hashtypes != vi->rss_hash_types_saved) {
 		vi->rss_hash_types_saved = new_hashtypes;
 		vi->rss_hdr->hash_types = cpu_to_le32(vi->rss_hash_types_saved);
 		if (vi->dev->features & NETIF_F_RXHASH)
-			return virtnet_commit_rss_command(vi);
+			if (!virtnet_commit_rss_command(vi))
+				return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static void virtnet_get_drvinfo(struct net_device *dev,
@@ -5540,27 +5549,6 @@ static int virtnet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = vi->curr_queue_pairs;
 		break;
-	case ETHTOOL_GRXFH:
-		virtnet_get_hashflow(vi, info);
-		break;
-	default:
-		rc = -EOPNOTSUPP;
-	}
-
-	return rc;
-}
-
-static int virtnet_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-	int rc = 0;
-
-	switch (info->cmd) {
-	case ETHTOOL_SRXFH:
-		if (!virtnet_set_hashflow(vi, info))
-			rc = -EINVAL;
-
-		break;
 	default:
 		rc = -EOPNOTSUPP;
 	}
@@ -5591,8 +5579,9 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.get_rxfh_indir_size = virtnet_get_rxfh_indir_size,
 	.get_rxfh = virtnet_get_rxfh,
 	.set_rxfh = virtnet_set_rxfh,
+	.get_rxfh_fields = virtnet_get_hashflow,
+	.set_rxfh_fields = virtnet_set_hashflow,
 	.get_rxnfc = virtnet_get_rxnfc,
-	.set_rxnfc = virtnet_set_rxnfc,
 };
 
 static void virtnet_get_queue_stats_rx(struct net_device *dev, int i,

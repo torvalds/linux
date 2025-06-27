@@ -3760,6 +3760,7 @@ struct wmi_vdev_install_key_arg {
 	u32 key_idx;
 	u32 key_flags;
 	u32 key_cipher;
+	u32 ieee80211_key_cipher;
 	u32 key_len;
 	u32 key_txmic_len;
 	u32 key_rxmic_len;
@@ -3948,6 +3949,7 @@ struct wmi_stop_scan_cmd {
 } __packed;
 
 struct ath12k_wmi_scan_chan_list_arg {
+	struct list_head list;
 	u32 pdev_id;
 	u16 nallchans;
 	struct ath12k_wmi_channel_arg channel[];

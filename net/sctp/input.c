@@ -756,7 +756,7 @@ static int __sctp_hash_endpoint(struct sctp_endpoint *ep)
 			struct sock *sk2 = ep2->base.sk;
 
 			if (!net_eq(sock_net(sk2), net) || sk2 == sk ||
-			    !uid_eq(sock_i_uid(sk2), sock_i_uid(sk)) ||
+			    !uid_eq(sk_uid(sk2), sk_uid(sk)) ||
 			    !sk2->sk_reuseport)
 				continue;
 

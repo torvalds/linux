@@ -42,6 +42,13 @@ struct netpoll {
 	struct work_struct refill_wq;
 };
 
+#define np_info(np, fmt, ...)				\
+	pr_info("%s: " fmt, np->name, ##__VA_ARGS__)
+#define np_err(np, fmt, ...)				\
+	pr_err("%s: " fmt, np->name, ##__VA_ARGS__)
+#define np_notice(np, fmt, ...)				\
+	pr_notice("%s: " fmt, np->name, ##__VA_ARGS__)
+
 struct netpoll_info {
 	refcount_t refcnt;
 
@@ -65,11 +72,8 @@ static inline void netpoll_poll_enable(struct net_device *dev) { return; }
 #endif
 
 int netpoll_send_udp(struct netpoll *np, const char *msg, int len);
-void netpoll_print_options(struct netpoll *np);
-int netpoll_parse_options(struct netpoll *np, char *opt);
 int __netpoll_setup(struct netpoll *np, struct net_device *ndev);
 int netpoll_setup(struct netpoll *np);
-void __netpoll_cleanup(struct netpoll *np);
 void __netpoll_free(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
 void do_netpoll_cleanup(struct netpoll *np);

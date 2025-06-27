@@ -95,6 +95,8 @@ function set_network() {
 }
 
 function create_dynamic_target() {
+	local FORMAT=${1:-"extended"}
+
 	DSTMAC=$(ip netns exec "${NAMESPACE}" \
 		 ip link show "${DSTIF}" | awk '/ether/ {print $2}')
 
@@ -106,7 +108,28 @@ function create_dynamic_target() {
 	echo "${DSTMAC}" > "${NETCONS_PATH}"/remote_mac
 	echo "${SRCIF}" > "${NETCONS_PATH}"/dev_name
 
+	if [ "${FORMAT}" == "basic" ]
+	then
+		# Basic target does not support release
+		echo 0 > "${NETCONS_PATH}"/release
+		echo 0 > "${NETCONS_PATH}"/extended
+	elif [ "${FORMAT}" == "extended" ]
+	then
+		echo 1 > "${NETCONS_PATH}"/extended
+	fi
+
 	echo 1 > "${NETCONS_PATH}"/enabled
+}
+
+# Generate the command line argument for netconsole following:
+#  netconsole=[+][src-port]@[src-ip]/[<dev>],[tgt-port]@<tgt-ip>/[tgt-macaddr]
+function create_cmdline_str() {
+	DSTMAC=$(ip netns exec "${NAMESPACE}" \
+		 ip link show "${DSTIF}" | awk '/ether/ {print $2}')
+	SRCPORT="1514"
+	TGTPORT="6666"
+
+	echo "netconsole=\"+${SRCPORT}@${SRCIP}/${SRCIF},${TGTPORT}@${DSTIP}/${DSTMAC}\""
 }
 
 # Do not append the release to the header of the message
@@ -116,15 +139,8 @@ function disable_release_append() {
 	echo 1 > "${NETCONS_PATH}"/enabled
 }
 
-function cleanup() {
+function do_cleanup() {
 	local NSIM_DEV_SYS_DEL="/sys/bus/netdevsim/del_device"
-
-	# delete netconsole dynamic reconfiguration
-	echo 0 > "${NETCONS_PATH}"/enabled
-	# Remove all the keys that got created during the selftest
-	find "${NETCONS_PATH}/userdata/" -mindepth 1 -type d -delete
-	# Remove the configfs entry
-	rmdir "${NETCONS_PATH}"
 
 	# Delete netdevsim devices
 	echo "$NSIM_DEV_2_ID" > "$NSIM_DEV_SYS_DEL"
@@ -135,6 +151,17 @@ function cleanup() {
 
 	# Restoring printk configurations
 	echo "${DEFAULT_PRINTK_VALUES}" > /proc/sys/kernel/printk
+}
+
+function cleanup() {
+	# delete netconsole dynamic reconfiguration
+	echo 0 > "${NETCONS_PATH}"/enabled
+	# Remove all the keys that got created during the selftest
+	find "${NETCONS_PATH}/userdata/" -mindepth 1 -type d -delete
+	# Remove the configfs entry
+	rmdir "${NETCONS_PATH}"
+
+	do_cleanup
 }
 
 function set_user_data() {
@@ -157,12 +184,9 @@ function listen_port_and_save_to() {
 		socat UDP-LISTEN:"${PORT}",fork "${OUTPUT}"
 }
 
-function validate_result() {
+# Only validate that the message arrived properly
+function validate_msg() {
 	local TMPFILENAME="$1"
-
-	# TMPFILENAME will contain something like:
-	# 6.11.1-0_fbk0_rc13_509_g30d75cea12f7,13,1822,115075213798,-;netconsole selftest: netcons_gtJHM
-	#  key=value
 
 	# Check if the file exists
 	if [ ! -f "$TMPFILENAME" ]; then
@@ -175,17 +199,32 @@ function validate_result() {
 		cat "${TMPFILENAME}" >&2
 		exit "${ksft_fail}"
 	fi
+}
 
-	if ! grep -q "${USERDATA_KEY}=${USERDATA_VALUE}" "${TMPFILENAME}"; then
-		echo "FAIL: ${USERDATA_KEY}=${USERDATA_VALUE} not found in ${TMPFILENAME}" >&2
-		cat "${TMPFILENAME}" >&2
-		exit "${ksft_fail}"
+# Validate the message and userdata
+function validate_result() {
+	local TMPFILENAME="$1"
+
+	# TMPFILENAME will contain something like:
+	# 6.11.1-0_fbk0_rc13_509_g30d75cea12f7,13,1822,115075213798,-;netconsole selftest: netcons_gtJHM
+	#  key=value
+
+	validate_msg "${TMPFILENAME}"
+
+	# userdata is not supported on basic format target,
+	# thus, do not validate it.
+	if [ "${FORMAT}" != "basic" ];
+	then
+		if ! grep -q "${USERDATA_KEY}=${USERDATA_VALUE}" "${TMPFILENAME}"; then
+			echo "FAIL: ${USERDATA_KEY}=${USERDATA_VALUE} not found in ${TMPFILENAME}" >&2
+			cat "${TMPFILENAME}" >&2
+			exit "${ksft_fail}"
+		fi
 	fi
 
 	# Delete the file once it is validated, otherwise keep it
 	# for debugging purposes
 	rm "${TMPFILENAME}"
-	exit "${ksft_pass}"
 }
 
 function check_for_dependencies() {
@@ -245,4 +284,13 @@ function pkill_socat() {
 	set +e
 	pkill -f "${PROCESS_NAME}"
 	set -e
+}
+
+# Check if netconsole was compiled as a module, otherwise exit
+function check_netconsole_module() {
+	if modinfo netconsole | grep filename: | grep -q builtin
+	then
+		echo "SKIP: netconsole should be compiled as a module" >&2
+		exit "${ksft_skip}"
+	fi
 }

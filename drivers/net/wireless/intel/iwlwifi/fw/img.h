@@ -53,8 +53,8 @@ struct iwl_ucode_capabilities {
 	u32 num_stations;
 	u32 num_links;
 	u32 num_beacons;
-	unsigned long _api[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_API)];
-	unsigned long _capa[BITS_TO_LONGS(NUM_IWL_UCODE_TLV_CAPA)];
+	DECLARE_BITMAP(_api, NUM_IWL_UCODE_TLV_API);
+	DECLARE_BITMAP(_capa, NUM_IWL_UCODE_TLV_CAPA);
 
 	const struct iwl_fw_cmd_version *cmd_versions;
 	u32 n_cmd_versions;

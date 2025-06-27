@@ -559,10 +559,13 @@ static int otx2_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-static int otx2_get_rss_hash_opts(struct otx2_nic *pfvf,
-				  struct ethtool_rxnfc *nfc)
+static int otx2_get_rss_hash_opts(struct net_device *dev,
+				  struct ethtool_rxfh_fields *nfc)
 {
-	struct otx2_rss_info *rss = &pfvf->hw.rss_info;
+	struct otx2_nic *pfvf = netdev_priv(dev);
+	struct otx2_rss_info *rss;
+
+	rss = &pfvf->hw.rss_info;
 
 	if (!(rss->flowkey_cfg &
 	    (NIX_FLOW_KEY_TYPE_IPV4 | NIX_FLOW_KEY_TYPE_IPV6)))
@@ -609,12 +612,17 @@ static int otx2_get_rss_hash_opts(struct otx2_nic *pfvf,
 	return 0;
 }
 
-static int otx2_set_rss_hash_opts(struct otx2_nic *pfvf,
-				  struct ethtool_rxnfc *nfc)
+static int otx2_set_rss_hash_opts(struct net_device *dev,
+				  const struct ethtool_rxfh_fields *nfc,
+				  struct netlink_ext_ack *extack)
 {
-	struct otx2_rss_info *rss = &pfvf->hw.rss_info;
+	struct otx2_nic *pfvf = netdev_priv(dev);
 	u32 rxh_l4 = RXH_L4_B_0_1 | RXH_L4_B_2_3;
-	u32 rss_cfg = rss->flowkey_cfg;
+	struct otx2_rss_info *rss;
+	u32 rss_cfg;
+
+	rss = &pfvf->hw.rss_info;
+	rss_cfg = rss->flowkey_cfg;
 
 	if (!rss->enable) {
 		netdev_err(pfvf->netdev,
@@ -743,8 +751,6 @@ static int otx2_get_rxnfc(struct net_device *dev,
 		if (netif_running(dev) && ntuple)
 			ret = otx2_get_all_flows(pfvf, nfc, rules);
 		break;
-	case ETHTOOL_GRXFH:
-		return otx2_get_rss_hash_opts(pfvf, nfc);
 	default:
 		break;
 	}
@@ -759,9 +765,6 @@ static int otx2_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *nfc)
 
 	pfvf->flow_cfg->ntuple = ntuple;
 	switch (nfc->cmd) {
-	case ETHTOOL_SRXFH:
-		ret = otx2_set_rss_hash_opts(pfvf, nfc);
-		break;
 	case ETHTOOL_SRXCLSRLINS:
 		if (netif_running(dev) && ntuple)
 			ret = otx2_add_flow(pfvf, nfc);
@@ -1329,6 +1332,8 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.get_rxfh_indir_size	= otx2_get_rxfh_indir_size,
 	.get_rxfh		= otx2_get_rxfh,
 	.set_rxfh		= otx2_set_rxfh,
+	.get_rxfh_fields	= otx2_get_rss_hash_opts,
+	.set_rxfh_fields	= otx2_set_rss_hash_opts,
 	.get_msglevel		= otx2_get_msglevel,
 	.set_msglevel		= otx2_set_msglevel,
 	.get_pauseparam		= otx2_get_pauseparam,
@@ -1442,6 +1447,8 @@ static const struct ethtool_ops otx2vf_ethtool_ops = {
 	.get_rxfh_indir_size	= otx2_get_rxfh_indir_size,
 	.get_rxfh		= otx2_get_rxfh,
 	.set_rxfh		= otx2_set_rxfh,
+	.get_rxfh_fields	= otx2_get_rss_hash_opts,
+	.set_rxfh_fields	= otx2_set_rss_hash_opts,
 	.get_ringparam		= otx2_get_ringparam,
 	.set_ringparam		= otx2_set_ringparam,
 	.get_coalesce		= otx2_get_coalesce,

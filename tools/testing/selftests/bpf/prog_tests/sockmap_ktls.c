@@ -314,6 +314,95 @@ out:
 	test_sockmap_ktls__destroy(skel);
 }
 
+static void test_sockmap_ktls_tx_pop(int family, int sotype)
+{
+	char msg[37] = "0123456789abcdefghijklmnopqrstuvwxyz\0";
+	int c = 0, p = 0, one = 1, sent, recvd;
+	struct test_sockmap_ktls *skel;
+	int prog_fd, map_fd;
+	char rcv[50] = {0};
+	int err;
+	int i, m, r;
+
+	skel = test_sockmap_ktls__open_and_load();
+	if (!ASSERT_TRUE(skel, "open ktls skel"))
+		return;
+
+	err = create_pair(family, sotype, &c, &p);
+	if (!ASSERT_OK(err, "create_pair()"))
+		goto out;
+
+	prog_fd = bpf_program__fd(skel->progs.prog_sk_policy);
+	map_fd = bpf_map__fd(skel->maps.sock_map);
+
+	err = bpf_prog_attach(prog_fd, map_fd, BPF_SK_MSG_VERDICT, 0);
+	if (!ASSERT_OK(err, "bpf_prog_attach sk msg"))
+		goto out;
+
+	err = bpf_map_update_elem(map_fd, &one, &c, BPF_NOEXIST);
+	if (!ASSERT_OK(err, "bpf_map_update_elem(c)"))
+		goto out;
+
+	err = init_ktls_pairs(c, p);
+	if (!ASSERT_OK(err, "init_ktls_pairs(c, p)"))
+		goto out;
+
+	struct {
+		int	pop_start;
+		int	pop_len;
+	} pop_policy[] = {
+		/* trim the start */
+		{0, 2},
+		{0, 10},
+		{1, 2},
+		{1, 10},
+		/* trim the end */
+		{35, 2},
+		/* New entries should be added before this line */
+		{-1, -1},
+	};
+
+	i = 0;
+	while (pop_policy[i].pop_start >= 0) {
+		skel->bss->pop_start = pop_policy[i].pop_start;
+		skel->bss->pop_end =  pop_policy[i].pop_len;
+
+		sent = send(c, msg, sizeof(msg), 0);
+		if (!ASSERT_EQ(sent, sizeof(msg), "send(msg)"))
+			goto out;
+
+		recvd = recv_timeout(p, rcv, sizeof(rcv), MSG_DONTWAIT, 1);
+		if (!ASSERT_EQ(recvd, sizeof(msg) - pop_policy[i].pop_len, "pop len mismatch"))
+			goto out;
+
+		/* verify the data
+		 * msg: 0123456789a bcdefghij klmnopqrstuvwxyz
+		 *                  |       |
+		 *                  popped data
+		 */
+		for (m = 0, r = 0; m < sizeof(msg);) {
+			/* skip checking the data that has been popped */
+			if (m >= pop_policy[i].pop_start &&
+			    m <= pop_policy[i].pop_start + pop_policy[i].pop_len - 1) {
+				m++;
+				continue;
+			}
+
+			if (!ASSERT_EQ(msg[m], rcv[r], "data mismatch"))
+				goto out;
+			m++;
+			r++;
+		}
+		i++;
+	}
+out:
+	if (c)
+		close(c);
+	if (p)
+		close(p);
+	test_sockmap_ktls__destroy(skel);
+}
+
 static void run_tests(int family, enum bpf_map_type map_type)
 {
 	int map;
@@ -338,6 +427,8 @@ static void run_ktls_test(int family, int sotype)
 		test_sockmap_ktls_tx_cork(family, sotype, true);
 	if (test__start_subtest("tls tx egress with no buf"))
 		test_sockmap_ktls_tx_no_buf(family, sotype, true);
+	if (test__start_subtest("tls tx with pop"))
+		test_sockmap_ktls_tx_pop(family, sotype);
 }
 
 void test_sockmap_ktls(void)

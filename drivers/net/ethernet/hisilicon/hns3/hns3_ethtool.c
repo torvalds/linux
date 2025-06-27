@@ -86,7 +86,7 @@ static int hns3_get_sset_count(struct net_device *netdev, int stringset);
 static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 	int ret;
 
 	if (!h->ae_algo->ops->set_loopback ||
@@ -171,7 +171,7 @@ static void hns3_lp_setup_skb(struct sk_buff *skb)
 	 * the purpose of mac or serdes selftest.
 	 */
 	handle = hns3_get_handle(ndev);
-	ae_dev = pci_get_drvdata(handle->pdev);
+	ae_dev = hns3_get_ae_dev(handle);
 	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2)
 		ethh->h_dest[5] += HNS3_NIC_LB_DST_MAC_ADDR;
 	eth_zero_addr(ethh->h_source);
@@ -436,7 +436,7 @@ static void hns3_self_test(struct net_device *ndev,
 		data[i] = HNS3_NIC_LB_TEST_UNEXECUTED;
 
 	if (hns3_nic_resetting(ndev)) {
-		netdev_err(ndev, "dev resetting!");
+		netdev_err(ndev, "dev resetting!\n");
 		goto failure;
 	}
 
@@ -489,7 +489,7 @@ static const struct hns3_pflag_desc hns3_priv_flags[HNAE3_PFLAG_MAX] = {
 static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
+	const struct hnae3_ae_ops *ops = hns3_get_ops(h);
 
 	if (!ops->get_sset_count)
 		return -EOPNOTSUPP;
@@ -540,8 +540,8 @@ static void hns3_get_strings_tqps(struct hnae3_handle *handle, u8 **data)
 static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
-	int i;
+	const struct hnae3_ae_ops *ops = hns3_get_ops(h);
+	u32 i;
 
 	if (!ops->get_strings)
 		return;
@@ -569,7 +569,7 @@ static u64 *hns3_get_stats_tqps(struct hnae3_handle *handle, u64 *data)
 	struct hns3_nic_priv *nic_priv = handle->priv;
 	struct hns3_enet_ring *ring;
 	u8 *stat;
-	int i, j;
+	u32 i, j;
 
 	/* get stats for Tx */
 	for (i = 0; i < kinfo->num_tqps; i++) {
@@ -692,7 +692,7 @@ static void hns3_get_pauseparam(struct net_device *netdev,
 				struct ethtool_pauseparam *param)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 
 	if (!test_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps))
 		return;
@@ -706,7 +706,7 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 			       struct ethtool_pauseparam *param)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 
 	if (!test_bit(HNAE3_DEV_SUPPORT_PAUSE_B, ae_dev->caps))
 		return -EOPNOTSUPP;
@@ -725,7 +725,7 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 static void hns3_get_ksettings(struct hnae3_handle *h,
 			       struct ethtool_link_ksettings *cmd)
 {
-	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
+	const struct hnae3_ae_ops *ops = hns3_get_ops(h);
 
 	/* 1.auto_neg & speed & duplex from cmd */
 	if (ops->get_ksettings_an_result)
@@ -751,7 +751,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 	const struct hnae3_ae_ops *ops;
 	u8 module_type;
 	u8 media_type;
@@ -794,7 +794,7 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		break;
 	default:
 
-		netdev_warn(netdev, "Unknown media type");
+		netdev_warn(netdev, "Unknown media type\n");
 		return 0;
 	}
 
@@ -814,7 +814,7 @@ static int hns3_check_ksettings_param(const struct net_device *netdev,
 				      const struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 	u8 module_type = HNAE3_MODULE_TYPE_UNKNOWN;
 	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
 	u32 lane_num;
@@ -842,7 +842,7 @@ static int hns3_check_ksettings_param(const struct net_device *netdev,
 	if (cmd->base.duplex == DUPLEX_HALF &&
 	    media_type != HNAE3_MEDIA_TYPE_COPPER) {
 		netdev_err(netdev,
-			   "only copper port supports half duplex!");
+			   "only copper port supports half duplex!\n");
 		return -EINVAL;
 	}
 
@@ -861,8 +861,8 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 				   const struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 	int ret;
 
 	/* Chip don't support this mode. */
@@ -932,7 +932,7 @@ static u32 hns3_get_rss_key_size(struct net_device *netdev)
 static u32 hns3_get_rss_indir_size(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 
 	return ae_dev->dev_specs.rss_ind_tbl_size;
 }
@@ -954,7 +954,7 @@ static int hns3_set_rss(struct net_device *netdev,
 			struct netlink_ext_ack *extack)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 
 	if (!h->ae_algo->ops->set_rss)
 		return -EOPNOTSUPP;
@@ -978,6 +978,16 @@ static int hns3_set_rss(struct net_device *netdev,
 					rxfh->hfunc);
 }
 
+static int hns3_get_rxfh_fields(struct net_device *netdev,
+				struct ethtool_rxfh_fields *cmd)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->get_rss_tuple)
+		return h->ae_algo->ops->get_rss_tuple(h, cmd);
+	return -EOPNOTSUPP;
+}
+
 static int hns3_get_rxnfc(struct net_device *netdev,
 			  struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
@@ -988,10 +998,6 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 	case ETHTOOL_GRXRINGS:
 		cmd->data = h->kinfo.num_tqps;
 		return 0;
-	case ETHTOOL_GRXFH:
-		if (h->ae_algo->ops->get_rss_tuple)
-			return h->ae_algo->ops->get_rss_tuple(h, cmd);
-		return -EOPNOTSUPP;
 	case ETHTOOL_GRXCLSRLCNT:
 		if (h->ae_algo->ops->get_fd_rule_cnt)
 			return h->ae_algo->ops->get_fd_rule_cnt(h, cmd);
@@ -1024,8 +1030,8 @@ static int hns3_set_reset(struct net_device *netdev, u32 *flags)
 {
 	enum hnae3_reset_type rst_type = HNAE3_NONE_RESET;
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
-	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(h);
 	const struct hns3_reset_type_map *rst_type_map;
 	enum ethtool_reset_flags rst_flags;
 	u32 i, size;
@@ -1189,7 +1195,7 @@ static int hns3_set_tx_push(struct net_device *netdev, u32 tx_push)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 	u32 old_state = test_bit(HNS3_NIC_STATE_TX_PUSH_ENABLE, &priv->state);
 
 	if (!test_bit(HNAE3_DEV_SUPPORT_TX_PUSH_B, ae_dev->caps) && tx_push)
@@ -1275,15 +1281,22 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	return ret;
 }
 
+static int hns3_set_rxfh_fields(struct net_device *netdev,
+				const struct ethtool_rxfh_fields *cmd,
+				struct netlink_ext_ack *extack)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	if (h->ae_algo->ops->set_rss_tuple)
+		return h->ae_algo->ops->set_rss_tuple(h, cmd);
+	return -EOPNOTSUPP;
+}
+
 static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
 	switch (cmd->cmd) {
-	case ETHTOOL_SRXFH:
-		if (h->ae_algo->ops->set_rss_tuple)
-			return h->ae_algo->ops->set_rss_tuple(h, cmd);
-		return -EOPNOTSUPP;
 	case ETHTOOL_SRXCLSRLINS:
 		if (h->ae_algo->ops->add_fd_entry)
 			return h->ae_algo->ops->add_fd_entry(h, cmd);
@@ -1300,7 +1313,7 @@ static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 static int hns3_nway_reset(struct net_device *netdev)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 	struct phy_device *phy = netdev->phydev;
 	int autoneg;
 
@@ -1308,7 +1321,7 @@ static int hns3_nway_reset(struct net_device *netdev)
 		return 0;
 
 	if (hns3_nic_resetting(netdev)) {
-		netdev_err(netdev, "dev resetting!");
+		netdev_err(netdev, "dev resetting!\n");
 		return -EBUSY;
 	}
 
@@ -1377,7 +1390,7 @@ static int hns3_check_gl_coalesce_para(struct net_device *netdev,
 				       struct ethtool_coalesce *cmd)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
 	u32 rx_gl, tx_gl;
 
 	if (cmd->rx_coalesce_usecs > ae_dev->dev_specs.max_int_gl) {
@@ -1449,7 +1462,7 @@ static int hns3_check_ql_coalesce_param(struct net_device *netdev,
 					struct ethtool_coalesce *cmd)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
 
 	if ((cmd->tx_max_coalesced_frames || cmd->rx_max_coalesced_frames) &&
 	    !ae_dev->dev_specs.int_ql_max) {
@@ -1473,7 +1486,7 @@ hns3_check_cqe_coalesce_param(struct net_device *netdev,
 			      struct kernel_ethtool_coalesce *kernel_coal)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
 
 	if ((kernel_coal->use_cqe_mode_tx || kernel_coal->use_cqe_mode_rx) &&
 	    !hnae3_ae_dev_cq_supported(ae_dev)) {
@@ -1649,8 +1662,8 @@ static void hns3_get_fec_stats(struct net_device *netdev,
 			       struct ethtool_fec_stats *fec_stats)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 
 	if (!hnae3_ae_dev_fec_stats_supported(ae_dev) || !ops->get_fec_stats)
 		return;
@@ -1700,8 +1713,8 @@ static int hns3_get_fecparam(struct net_device *netdev,
 			     struct ethtool_fecparam *fec)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 	u8 fec_ability;
 	u8 fec_mode;
 
@@ -1725,8 +1738,8 @@ static int hns3_set_fecparam(struct net_device *netdev,
 			     struct ethtool_fecparam *fec)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 	u32 fec_mode;
 
 	if (!test_bit(HNAE3_DEV_SUPPORT_FEC_B, ae_dev->caps))
@@ -1747,8 +1760,8 @@ static int hns3_get_module_info(struct net_device *netdev,
 #define HNS3_SFF_8636_V1_3 0x03
 
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 	struct hns3_sfp_type sfp_type;
 	int ret;
 
@@ -1797,8 +1810,8 @@ static int hns3_get_module_eeprom(struct net_device *netdev,
 				  struct ethtool_eeprom *ee, u8 *data)
 {
 	struct hnae3_handle *handle = hns3_get_handle(netdev);
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
-	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
+	const struct hnae3_ae_ops *ops = hns3_get_ops(handle);
 
 	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V2 ||
 	    !ops->get_module_eeprom)
@@ -1924,7 +1937,7 @@ static int hns3_set_tunable(struct net_device *netdev,
 	int i, ret = 0;
 
 	if (hns3_nic_resetting(netdev) || !priv->ring) {
-		netdev_err(netdev, "failed to set tunable value, dev resetting!");
+		netdev_err(netdev, "failed to set tunable value, dev resetting!\n");
 		return -EBUSY;
 	}
 
@@ -2105,6 +2118,8 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_rxfh_indir_size = hns3_get_rss_indir_size,
 	.get_rxfh = hns3_get_rss,
 	.set_rxfh = hns3_set_rss,
+	.get_rxfh_fields = hns3_get_rxfh_fields,
+	.set_rxfh_fields = hns3_set_rxfh_fields,
 	.get_link_ksettings = hns3_get_link_ksettings,
 	.get_channels = hns3_get_channels,
 	.set_channels = hns3_set_channels,
@@ -2142,6 +2157,8 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_rxfh_indir_size = hns3_get_rss_indir_size,
 	.get_rxfh = hns3_get_rss,
 	.set_rxfh = hns3_set_rss,
+	.get_rxfh_fields = hns3_get_rxfh_fields,
+	.set_rxfh_fields = hns3_set_rxfh_fields,
 	.get_link_ksettings = hns3_get_link_ksettings,
 	.set_link_ksettings = hns3_set_link_ksettings,
 	.nway_reset = hns3_nway_reset,

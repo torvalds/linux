@@ -1882,7 +1882,7 @@ const struct rtw_chip_info rtw8703b_hw_spec = {
 	.id = RTW_CHIP_TYPE_8703B,
 
 	.fw_name = "rtw88/rtw8703b_fw.bin",
-	.wlan_cpu = RTW_WCPU_11N,
+	.wlan_cpu = RTW_WCPU_8051,
 	.tx_pkt_desc_sz = 40,
 	.tx_buf_desc_sz = 16,
 	.rx_pkt_desc_sz = 24,

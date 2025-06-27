@@ -290,9 +290,6 @@ static int mlx4_en_dcbnl_ieee_getets(struct net_device *dev,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct ieee_ets *my_ets = &priv->ets;
 
-	if (!my_ets)
-		return -EINVAL;
-
 	ets->ets_cap = IEEE_8021QAZ_MAX_TCS;
 	ets->cbs = my_ets->cbs;
 	memcpy(ets->tc_tx_bw, my_ets->tc_tx_bw, sizeof(ets->tc_tx_bw));

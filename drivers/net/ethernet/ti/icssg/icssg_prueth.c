@@ -125,45 +125,6 @@ static irqreturn_t prueth_tx_ts_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct icssg_firmwares icssg_hsr_firmwares[] = {
-	{
-		.pru = "ti-pruss/am65x-sr2-pru0-pruhsr-fw.elf",
-		.rtu = "ti-pruss/am65x-sr2-rtu0-pruhsr-fw.elf",
-		.txpru = "ti-pruss/am65x-sr2-txpru0-pruhsr-fw.elf",
-	},
-	{
-		.pru = "ti-pruss/am65x-sr2-pru1-pruhsr-fw.elf",
-		.rtu = "ti-pruss/am65x-sr2-rtu1-pruhsr-fw.elf",
-		.txpru = "ti-pruss/am65x-sr2-txpru1-pruhsr-fw.elf",
-	}
-};
-
-static struct icssg_firmwares icssg_switch_firmwares[] = {
-	{
-		.pru = "ti-pruss/am65x-sr2-pru0-prusw-fw.elf",
-		.rtu = "ti-pruss/am65x-sr2-rtu0-prusw-fw.elf",
-		.txpru = "ti-pruss/am65x-sr2-txpru0-prusw-fw.elf",
-	},
-	{
-		.pru = "ti-pruss/am65x-sr2-pru1-prusw-fw.elf",
-		.rtu = "ti-pruss/am65x-sr2-rtu1-prusw-fw.elf",
-		.txpru = "ti-pruss/am65x-sr2-txpru1-prusw-fw.elf",
-	}
-};
-
-static struct icssg_firmwares icssg_emac_firmwares[] = {
-	{
-		.pru = "ti-pruss/am65x-sr2-pru0-prueth-fw.elf",
-		.rtu = "ti-pruss/am65x-sr2-rtu0-prueth-fw.elf",
-		.txpru = "ti-pruss/am65x-sr2-txpru0-prueth-fw.elf",
-	},
-	{
-		.pru = "ti-pruss/am65x-sr2-pru1-prueth-fw.elf",
-		.rtu = "ti-pruss/am65x-sr2-rtu1-prueth-fw.elf",
-		.txpru = "ti-pruss/am65x-sr2-txpru1-prueth-fw.elf",
-	}
-};
-
 static int prueth_start(struct rproc *rproc, const char *fw_name)
 {
 	int ret;
@@ -186,11 +147,13 @@ static int prueth_emac_start(struct prueth *prueth)
 	int ret, slice;
 
 	if (prueth->is_switch_mode)
-		firmwares = icssg_switch_firmwares;
-	else if (prueth->is_hsr_offload_mode)
-		firmwares = icssg_hsr_firmwares;
+		firmwares = prueth->icssg_switch_firmwares;
+	else if (prueth->is_hsr_offload_mode && HSR_V1 == prueth->hsr_prp_version)
+		firmwares = prueth->icssg_hsr_firmwares;
+	else if (prueth->is_hsr_offload_mode && PRP_V1 == prueth->hsr_prp_version)
+		firmwares = prueth->icssg_prp_firmwares;
 	else
-		firmwares = icssg_emac_firmwares;
+		firmwares = prueth->icssg_emac_firmwares;
 
 	for (slice = 0; slice < PRUETH_NUM_MACS; slice++) {
 		ret = prueth_start(prueth->pru[slice], firmwares[slice].pru);
@@ -1566,6 +1529,7 @@ static int prueth_netdevice_event(struct notifier_block *unused,
 	struct netdev_notifier_changeupper_info *info;
 	struct prueth_emac *emac = netdev_priv(ndev);
 	struct prueth *prueth = emac->prueth;
+	enum hsr_version hsr_ndev_version;
 	int ret = NOTIFY_DONE;
 
 	if (ndev->netdev_ops != &emac_netdev_ops)
@@ -1577,6 +1541,11 @@ static int prueth_netdevice_event(struct notifier_block *unused,
 
 		if ((ndev->features & NETIF_PRUETH_HSR_OFFLOAD_FEATURES) &&
 		    is_hsr_master(info->upper_dev)) {
+			hsr_get_version(info->upper_dev, &hsr_ndev_version);
+			if (hsr_ndev_version != HSR_V1 && hsr_ndev_version != PRP_V1)
+				return -EOPNOTSUPP;
+			prueth->hsr_prp_version = hsr_ndev_version;
+
 			if (info->linking) {
 				if (!prueth->hsr_dev) {
 					prueth->hsr_dev = info->upper_dev;
@@ -1630,6 +1599,87 @@ static void prueth_unregister_notifiers(struct prueth *prueth)
 {
 	prueth_switchdev_unregister_notifiers(prueth);
 	unregister_netdevice_notifier(&prueth->prueth_netdevice_nb);
+}
+
+static void icssg_read_firmware_names(struct device_node *np,
+				      struct icssg_firmwares *fw)
+{
+	int i;
+
+	for (i = 0; i < PRUETH_NUM_MACS; i++) {
+		of_property_read_string_index(np, "firmware-name", i * 3 + 0,
+					      &fw[i].pru);
+		of_property_read_string_index(np, "firmware-name", i * 3 + 1,
+					      &fw[i].rtu);
+		of_property_read_string_index(np, "firmware-name", i * 3 + 2,
+					      &fw[i].txpru);
+	}
+}
+
+/* icssg_firmware_name_replace - Replace a substring in firmware name
+ * @dev: device pointer for memory allocation
+ * @src: source firmware name string
+ * @from: substring to replace
+ * @to: replacement substring
+ *
+ * Return: a newly allocated string with the replacement, or the original
+ * string if replacement is not possible.
+ */
+static const char *icssg_firmware_name_replace(struct device *dev,
+					       const char *src,
+					       const char *from,
+					       const char *to)
+{
+	size_t prefix, from_len, to_len, total;
+	const char *p = strstr(src, from);
+	char *buf;
+
+	if (!p)
+		return src; /* fallback: no replacement, use original */
+
+	prefix = p - src;
+	from_len = strlen(from);
+	to_len = strlen(to);
+	total = strlen(src) - from_len + to_len + 1;
+
+	buf = devm_kzalloc(dev, total, GFP_KERNEL);
+	if (!buf)
+		return src; /* fallback: allocation failed, use original */
+
+	strscpy(buf, src, prefix + 1);
+	strscpy(buf + prefix, to, to_len + 1);
+	strscpy(buf + prefix + to_len, p + from_len, total - prefix - to_len);
+
+	return buf;
+}
+
+/**
+ * icssg_mode_firmware_names - Generate firmware names for a specific mode
+ * @dev: device pointer for logging and context
+ * @src: source array of firmware name structures
+ * @dst: destination array to store updated firmware name structures
+ * @from: substring in firmware names to be replaced
+ * @to: substring to replace @from in firmware names
+ *
+ * Iterates over all MACs and replaces occurrences of the @from substring
+ * with @to in the firmware names (pru, rtu, txpru) for each MAC. The
+ * updated firmware names are stored in the @dst array.
+ */
+static void icssg_mode_firmware_names(struct device *dev,
+				      struct icssg_firmwares *src,
+				      struct icssg_firmwares *dst,
+				      const char *from, const char *to)
+{
+	int i;
+
+	for (i = 0; i < PRUETH_NUM_MACS; i++) {
+		dst[i].pru = icssg_firmware_name_replace(dev, src[i].pru,
+							 from, to);
+		dst[i].rtu = icssg_firmware_name_replace(dev, src[i].rtu,
+							 from, to);
+		dst[i].txpru = icssg_firmware_name_replace(dev, src[i].txpru,
+							   from, to);
+	}
 }
 
 static int prueth_probe(struct platform_device *pdev)
@@ -1807,6 +1857,17 @@ static int prueth_probe(struct platform_device *pdev)
 		 */
 		icss_iep_init_fw(prueth->iep1);
 	}
+
+	/* Read EMAC firmware names from device tree */
+	icssg_read_firmware_names(np, prueth->icssg_emac_firmwares);
+
+	/* Generate other mode firmware names based on EMAC firmware names */
+	icssg_mode_firmware_names(dev, prueth->icssg_emac_firmwares,
+				  prueth->icssg_switch_firmwares, "eth", "sw");
+	icssg_mode_firmware_names(dev, prueth->icssg_emac_firmwares,
+				  prueth->icssg_hsr_firmwares, "eth", "hsr");
+	icssg_mode_firmware_names(dev, prueth->icssg_emac_firmwares,
+				  prueth->icssg_prp_firmwares, "eth", "prp");
 
 	spin_lock_init(&prueth->vtbl_lock);
 	spin_lock_init(&prueth->stats_lock);

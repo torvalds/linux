@@ -321,7 +321,7 @@ extern struct proto tcp_prot;
 #define TCP_DEC_STATS(net, field)	SNMP_DEC_STATS((net)->mib.tcp_statistics, field)
 #define TCP_ADD_STATS(net, field, val)	SNMP_ADD_STATS((net)->mib.tcp_statistics, field, val)
 
-void tcp_tasklet_init(void);
+void tcp_tsq_work_init(void);
 
 int tcp_v4_err(struct sk_buff *skb, u32);
 
@@ -1811,14 +1811,8 @@ static inline void tcp_mib_init(struct net *net)
 }
 
 /* from STCP */
-static inline void tcp_clear_retrans_hints_partial(struct tcp_sock *tp)
-{
-	tp->lost_skb_hint = NULL;
-}
-
 static inline void tcp_clear_all_retrans_hints(struct tcp_sock *tp)
 {
-	tcp_clear_retrans_hints_partial(tp);
 	tp->retransmit_skb_hint = NULL;
 }
 

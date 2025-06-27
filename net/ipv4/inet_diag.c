@@ -181,7 +181,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 		goto errout;
 #endif
 
-	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
+	r->idiag_uid = from_kuid_munged(user_ns, sk_uid(sk));
 	r->idiag_inode = sock_i_ino(sk);
 
 	memset(&inet_sockopt, 0, sizeof(inet_sockopt));

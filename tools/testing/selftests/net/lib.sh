@@ -547,13 +547,19 @@ ip_link_set_addr()
 	defer ip link set dev "$name" address "$old_addr"
 }
 
-ip_link_is_up()
+ip_link_has_flag()
 {
 	local name=$1; shift
+	local flag=$1; shift
 
 	local state=$(ip -j link show "$name" |
-		      jq -r '(.[].flags[] | select(. == "UP")) // "DOWN"')
-	[[ $state == "UP" ]]
+		      jq --arg flag "$flag" 'any(.[].flags.[]; . == $flag)')
+	[[ $state == true ]]
+}
+
+ip_link_is_up()
+{
+	ip_link_has_flag "$1" UP
 }
 
 ip_link_set_up()

@@ -9,6 +9,7 @@
 
 #include "mac.h"
 
+#include <linux/export.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
@@ -4820,7 +4821,8 @@ void ath10k_halt(struct ath10k *ar)
 	spin_unlock_bh(&ar->data_lock);
 }
 
-static int ath10k_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+static int ath10k_get_antenna(struct ieee80211_hw *hw, int radio_idx,
+			      u32 *tx_ant, u32 *rx_ant)
 {
 	struct ath10k *ar = hw->priv;
 
@@ -5067,7 +5069,8 @@ static int __ath10k_set_antenna(struct ath10k *ar, u32 tx_ant, u32 rx_ant)
 	return 0;
 }
 
-static int ath10k_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+static int ath10k_set_antenna(struct ieee80211_hw *hw, int radio_idx,
+			      u32 tx_ant, u32 rx_ant)
 {
 	struct ath10k *ar = hw->priv;
 	int ret;
@@ -5437,7 +5440,7 @@ static int ath10k_config_ps(struct ath10k *ar)
 	return ret;
 }
 
-static int ath10k_config(struct ieee80211_hw *hw, u32 changed)
+static int ath10k_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct ath10k *ar = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
@@ -6336,7 +6339,8 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_unlock(&ar->conf_mutex);
 }
 
-static void ath10k_mac_op_set_coverage_class(struct ieee80211_hw *hw, s16 value)
+static void ath10k_mac_op_set_coverage_class(struct ieee80211_hw *hw, int radio_idx,
+					     s16 value)
 {
 	struct ath10k *ar = hw->priv;
 
@@ -6347,7 +6351,7 @@ static void ath10k_mac_op_set_coverage_class(struct ieee80211_hw *hw, s16 value)
 		WARN_ON_ONCE(1);
 		return;
 	}
-	ar->hw_params.hw_ops->set_coverage_class(ar, value);
+	ar->hw_params.hw_ops->set_coverage_class(ar, -1, value);
 }
 
 struct ath10k_mac_tdls_iter_data {
@@ -8035,7 +8039,8 @@ static int ath10k_cancel_remain_on_channel(struct ieee80211_hw *hw,
  * in ath10k, but device-specific in mac80211.
  */
 
-static int ath10k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int ath10k_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				    u32 value)
 {
 	struct ath10k *ar = hw->priv;
 	struct ath10k_vif *arvif;
@@ -8058,7 +8063,8 @@ static int ath10k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return ret;
 }
 
-static int ath10k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
+static int ath10k_mac_op_set_frag_threshold(struct ieee80211_hw *hw,
+					    int radio_idx, u32 value)
 {
 	/* Even though there's a WMI enum for fragmentation threshold no known
 	 * firmware actually implements it. Moreover it is not possible to rely

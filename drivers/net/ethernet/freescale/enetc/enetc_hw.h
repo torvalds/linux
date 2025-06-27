@@ -43,6 +43,9 @@
 
 #define ENETC_SIPMAR0	0x80
 #define ENETC_SIPMAR1	0x84
+#define ENETC_SICVLANR1	0x90
+#define ENETC_SICVLANR2	0x94
+#define  SICVLANR_ETYPE	GENMASK(15, 0)
 
 /* VF-PF Message passing */
 #define ENETC_DEFAULT_MSG_SIZE	1024	/* and max size */

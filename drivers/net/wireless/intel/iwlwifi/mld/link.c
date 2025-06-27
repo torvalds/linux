@@ -404,6 +404,7 @@ int iwl_mld_activate_link(struct iwl_mld *mld,
 			  struct ieee80211_bss_conf *link)
 {
 	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(mld_link->vif);
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
@@ -418,6 +419,9 @@ int iwl_mld_activate_link(struct iwl_mld *mld,
 					LINK_CONTEXT_MODIFY_ACTIVE);
 	if (ret)
 		mld_link->active = false;
+	else
+		mld_vif->last_link_activation_time =
+			ktime_get_boottime_seconds();
 
 	return ret;
 }

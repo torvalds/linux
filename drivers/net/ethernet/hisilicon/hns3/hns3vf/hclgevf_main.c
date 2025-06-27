@@ -606,7 +606,7 @@ static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
 }
 
 static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
-				 struct ethtool_rxnfc *nfc)
+				 const struct ethtool_rxfh_fields *nfc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	int ret;
@@ -624,7 +624,7 @@ static int hclgevf_set_rss_tuple(struct hnae3_handle *handle,
 }
 
 static int hclgevf_get_rss_tuple(struct hnae3_handle *handle,
-				 struct ethtool_rxnfc *nfc)
+				 struct ethtool_rxfh_fields *nfc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 tuple_sets;
@@ -2465,7 +2465,7 @@ static int hclgevf_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
 					    struct hnae3_client *client)
 {
 	struct hclgevf_dev *hdev = ae_dev->priv;
-	int rst_cnt = hdev->rst_stats.rst_cnt;
+	u32 rst_cnt = hdev->rst_stats.rst_cnt;
 	int ret;
 
 	ret = client->ops->init_instance(&hdev->nic);
@@ -2625,7 +2625,7 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
-		dev_err(&pdev->dev, "can't set consistent PCI DMA, exiting");
+		dev_err(&pdev->dev, "can't set consistent PCI DMA, exiting\n");
 		goto err_disable_device;
 	}
 

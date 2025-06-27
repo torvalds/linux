@@ -508,8 +508,15 @@ int iwl_mld_mac80211_start(struct ieee80211_hw *hw)
 	if (in_d3) {
 		/* mac80211 already cleaned up the state, no need for cleanup */
 		ret = iwl_mld_no_wowlan_resume(mld);
-		if (ret)
+		if (ret) {
 			iwl_mld_stop_fw(mld);
+			/* We're not really restarting in the sense of
+			 * in_hw_restart even if we got an error during
+			 * this. We'll just start again below and have
+			 * nothing to recover, mac80211 will do anyway.
+			 */
+			mld->fw_status.in_hw_restart = false;
+		}
 	}
 #endif /* CONFIG_PM_SLEEP */
 
@@ -574,7 +581,8 @@ void iwl_mld_mac80211_stop(struct ieee80211_hw *hw, bool suspend)
 }
 
 static
-int iwl_mld_mac80211_config(struct ieee80211_hw *hw, u32 changed)
+int iwl_mld_mac80211_config(struct ieee80211_hw *hw, int radio_idx,
+			    u32 changed)
 {
 	return 0;
 }
@@ -1002,6 +1010,7 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 		/* Indicate to mac80211 that EML is enabled */
 		vif->driver_flags |= IEEE80211_VIF_EML_ACTIVE;
+		mld_vif->emlsr.last_entry_ts = jiffies;
 
 		if (vif->active_links & BIT(mld_vif->emlsr.selected_links))
 			mld_vif->emlsr.primary = mld_vif->emlsr.selected_primary;
@@ -1102,7 +1111,8 @@ void iwl_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 }
 
 static
-int iwl_mld_mac80211_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+int iwl_mld_mac80211_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				       u32 value)
 {
 	return 0;
 }
@@ -1468,7 +1478,7 @@ void iwl_mld_mac80211_mgd_prepare_tx(struct ieee80211_hw *hw,
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	u32 duration = IWL_MLD_SESSION_PROTECTION_ASSOC_TIME_MS;
 
-	/* After a successful association the connection is etalibeshed
+	/* After a successful association the connection is established
 	 * and we can rely on the quota to send the disassociation frame.
 	 */
 	if (info->was_assoc)
@@ -2573,28 +2583,6 @@ static int iwl_mld_mac80211_tx_last_beacon(struct ieee80211_hw *hw)
 	return mld->ibss_manager;
 }
 
-#define IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS_TIMEOUT (5 * HZ)
-
-static void iwl_mld_vif_iter_emlsr_block_tmp_non_bss(void *_data, u8 *mac,
-						     struct ieee80211_vif *vif)
-{
-	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	int ret;
-
-	if (!iwl_mld_vif_has_emlsr_cap(vif))
-		return;
-
-	ret = iwl_mld_block_emlsr_sync(mld_vif->mld, vif,
-				       IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS,
-				       iwl_mld_get_primary_link(vif));
-	if (ret)
-		return;
-
-	wiphy_delayed_work_queue(mld_vif->mld->wiphy,
-				 &mld_vif->emlsr.tmp_non_bss_done_wk,
-				 IWL_MLD_EMLSR_BLOCKED_TMP_NON_BSS_TIMEOUT);
-}
-
 static void iwl_mld_prep_add_interface(struct ieee80211_hw *hw,
 				       enum nl80211_iftype type)
 {
@@ -2607,10 +2595,7 @@ static void iwl_mld_prep_add_interface(struct ieee80211_hw *hw,
 	      type == NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
-	ieee80211_iterate_active_interfaces_mtx(mld->hw,
-						IEEE80211_IFACE_ITER_NORMAL,
-						iwl_mld_vif_iter_emlsr_block_tmp_non_bss,
-						NULL);
+	iwl_mld_emlsr_block_tmp_non_bss(mld);
 }
 
 static int iwl_mld_set_hw_timestamp(struct ieee80211_hw *hw,
@@ -2638,6 +2623,23 @@ static int iwl_mld_start_pmsr(struct ieee80211_hw *hw,
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 
 	return iwl_mld_ftm_start(mld, vif, request);
+}
+
+static enum ieee80211_neg_ttlm_res
+iwl_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		     struct ieee80211_neg_ttlm *neg_ttlm)
+{
+	u16 map;
+
+	/* Verify all TIDs are mapped to the same links set */
+	map = neg_ttlm->downlink[0];
+	for (int i = 0; i < IEEE80211_TTLM_NUM_TIDS; i++) {
+		if (neg_ttlm->downlink[i] != neg_ttlm->uplink[i] ||
+		    neg_ttlm->uplink[i] != map)
+			return NEG_TTLM_RES_REJECT;
+	}
+
+	return NEG_TTLM_RES_ACCEPT;
 }
 
 const struct ieee80211_ops iwl_mld_hw_ops = {
@@ -2709,4 +2711,5 @@ const struct ieee80211_ops iwl_mld_hw_ops = {
 	.prep_add_interface = iwl_mld_prep_add_interface,
 	.set_hw_timestamp = iwl_mld_set_hw_timestamp,
 	.start_pmsr = iwl_mld_start_pmsr,
+	.can_neg_ttlm = iwl_mld_can_neg_ttlm,
 };

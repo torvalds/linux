@@ -833,10 +833,18 @@ out:
 }
 
 static int
-vmxnet3_get_rss_hash_opts(struct vmxnet3_adapter *adapter,
-			  struct ethtool_rxnfc *info)
+vmxnet3_get_rss_hash_opts(struct net_device *netdev,
+			  struct ethtool_rxfh_fields *info)
 {
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	enum Vmxnet3_RSSField rss_fields;
+
+	if (!VMXNET3_VERSION_GE_4(adapter))
+		return -EOPNOTSUPP;
+#ifdef VMXNET3_RSS
+	if (!adapter->rss)
+		return -EOPNOTSUPP;
+#endif
 
 	if (netif_running(adapter->netdev)) {
 		unsigned long flags;
@@ -900,10 +908,20 @@ vmxnet3_get_rss_hash_opts(struct vmxnet3_adapter *adapter,
 
 static int
 vmxnet3_set_rss_hash_opt(struct net_device *netdev,
-			 struct vmxnet3_adapter *adapter,
-			 struct ethtool_rxnfc *nfc)
+			 const struct ethtool_rxfh_fields *nfc,
+			 struct netlink_ext_ack *extack)
 {
-	enum Vmxnet3_RSSField rss_fields = adapter->rss_fields;
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+	enum Vmxnet3_RSSField rss_fields;
+
+	if (!VMXNET3_VERSION_GE_4(adapter))
+		return -EOPNOTSUPP;
+#ifdef VMXNET3_RSS
+	if (!adapter->rss)
+		return -EOPNOTSUPP;
+#endif
+
+	rss_fields = adapter->rss_fields;
 
 	/* RSS does not support anything other than hashing
 	 * to queues on src and dst IPs and ports
@@ -1074,54 +1092,11 @@ vmxnet3_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = adapter->num_rx_queues;
 		break;
-	case ETHTOOL_GRXFH:
-		if (!VMXNET3_VERSION_GE_4(adapter)) {
-			err = -EOPNOTSUPP;
-			break;
-		}
-#ifdef VMXNET3_RSS
-		if (!adapter->rss) {
-			err = -EOPNOTSUPP;
-			break;
-		}
-#endif
-		err = vmxnet3_get_rss_hash_opts(adapter, info);
-		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
 	}
 
-	return err;
-}
-
-static int
-vmxnet3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
-{
-	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	int err = 0;
-
-	if (!VMXNET3_VERSION_GE_4(adapter)) {
-		err = -EOPNOTSUPP;
-		goto done;
-	}
-#ifdef VMXNET3_RSS
-	if (!adapter->rss) {
-		err = -EOPNOTSUPP;
-		goto done;
-	}
-#endif
-
-	switch (info->cmd) {
-	case ETHTOOL_SRXFH:
-		err = vmxnet3_set_rss_hash_opt(netdev, adapter, info);
-		break;
-	default:
-		err = -EOPNOTSUPP;
-		break;
-	}
-
-done:
 	return err;
 }
 
@@ -1361,12 +1336,13 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_ringparam     = vmxnet3_get_ringparam,
 	.set_ringparam     = vmxnet3_set_ringparam,
 	.get_rxnfc         = vmxnet3_get_rxnfc,
-	.set_rxnfc         = vmxnet3_set_rxnfc,
 #ifdef VMXNET3_RSS
 	.get_rxfh_indir_size = vmxnet3_get_rss_indir_size,
 	.get_rxfh          = vmxnet3_get_rss,
 	.set_rxfh          = vmxnet3_set_rss,
 #endif
+	.get_rxfh_fields   = vmxnet3_get_rss_hash_opts,
+	.set_rxfh_fields   = vmxnet3_set_rss_hash_opt,
 	.get_link_ksettings = vmxnet3_get_link_ksettings,
 	.get_channels      = vmxnet3_get_channels,
 };

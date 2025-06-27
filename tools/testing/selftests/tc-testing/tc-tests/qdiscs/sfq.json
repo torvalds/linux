@@ -264,5 +264,41 @@
         "matchPattern": "sfq",
         "matchCount": "0",
         "teardown": []
+    },
+    {
+        "id": "cdc1",
+        "name": "Check that a negative perturb timer is rejected",
+        "category": [
+            "qdisc",
+            "sfq"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root sfq perturb -10",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "sfq",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "a9f0",
+        "name": "Check that a too big perturb timer is rejected",
+        "category": [
+            "qdisc",
+            "sfq"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root sfq perturb 1000000000",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "sfq",
+        "matchCount": "0",
+        "teardown": []
     }
 ]

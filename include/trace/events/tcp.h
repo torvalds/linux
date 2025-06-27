@@ -692,6 +692,7 @@ DEFINE_EVENT(tcp_ao_event, tcp_ao_handshake_failure,
 	TP_ARGS(sk, skb, keyid, rnext, maclen)
 );
 
+#ifdef CONFIG_TCP_AO
 DEFINE_EVENT(tcp_ao_event, tcp_ao_wrong_maclen,
 	TP_PROTO(const struct sock *sk, const struct sk_buff *skb,
 		 const __u8 keyid, const __u8 rnext, const __u8 maclen),
@@ -830,6 +831,7 @@ DEFINE_EVENT(tcp_ao_event_sne, tcp_ao_rcv_sne_update,
 	TP_PROTO(const struct sock *sk, __u32 new_sne),
 	TP_ARGS(sk, new_sne)
 );
+#endif /* CONFIG_TCP_AO */
 
 #endif /* _TRACE_TCP_H */
 

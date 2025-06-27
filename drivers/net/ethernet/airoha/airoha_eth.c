@@ -551,9 +551,7 @@ static int airoha_fe_init(struct airoha_eth *eth)
 
 static int airoha_qdma_fill_rx_queue(struct airoha_queue *q)
 {
-	enum dma_data_direction dir = page_pool_get_dma_dir(q->page_pool);
 	struct airoha_qdma *qdma = q->qdma;
-	struct airoha_eth *eth = qdma->eth;
 	int qid = q - &qdma->q_rx[0];
 	int nframes = 0;
 
@@ -576,9 +574,6 @@ static int airoha_qdma_fill_rx_queue(struct airoha_queue *q)
 		e->buf = page_address(page) + offset;
 		e->dma_addr = page_pool_get_dma_addr(page) + offset;
 		e->dma_len = SKB_WITH_OVERHEAD(q->buf_size);
-
-		dma_sync_single_for_device(eth->dev, e->dma_addr, e->dma_len,
-					   dir);
 
 		val = FIELD_PREP(QDMA_DESC_LEN_MASK, e->dma_len);
 		WRITE_ONCE(desc->ctrl, cpu_to_le32(val));

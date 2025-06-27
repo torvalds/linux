@@ -4,8 +4,10 @@
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/of.h>
@@ -2606,7 +2608,7 @@ static void ath10k_core_set_coverage_class_work(struct work_struct *work)
 					 set_coverage_class_work);
 
 	if (ar->hw_params.hw_ops->set_coverage_class)
-		ar->hw_params.hw_ops->set_coverage_class(ar, -1);
+		ar->hw_params.hw_ops->set_coverage_class(ar, -1, -1);
 }
 
 static int ath10k_core_init_firmware_features(struct ath10k *ar)

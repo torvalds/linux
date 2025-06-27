@@ -189,7 +189,7 @@ int otx2_cptvf_send_eng_grp_num_msg(struct otx2_cptvf_dev *cptvf, int eng_type)
 	}
 	req->hdr.id = MBOX_MSG_GET_ENG_GRP_NUM;
 	req->hdr.sig = OTX2_MBOX_REQ_SIG;
-	req->hdr.pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->vf_id, 0);
+	req->hdr.pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->pdev, cptvf->vf_id, 0);
 	req->eng_type = eng_type;
 
 	return otx2_cpt_send_mbox_msg(mbox, pdev);
@@ -210,7 +210,7 @@ int otx2_cptvf_send_kvf_limits_msg(struct otx2_cptvf_dev *cptvf)
 	}
 	req->id = MBOX_MSG_GET_KVF_LIMITS;
 	req->sig = OTX2_MBOX_REQ_SIG;
-	req->pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->vf_id, 0);
+	req->pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->pdev, cptvf->vf_id, 0);
 
 	return otx2_cpt_send_mbox_msg(mbox, pdev);
 }
@@ -230,7 +230,7 @@ int otx2_cptvf_send_caps_msg(struct otx2_cptvf_dev *cptvf)
 	}
 	req->id = MBOX_MSG_GET_CAPS;
 	req->sig = OTX2_MBOX_REQ_SIG;
-	req->pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->vf_id, 0);
+	req->pcifunc = OTX2_CPT_RVU_PFFUNC(cptvf->pdev, cptvf->vf_id, 0);
 
 	return otx2_cpt_send_mbox_msg(mbox, pdev);
 }

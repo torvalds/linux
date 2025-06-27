@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+---
 name: tc
 protocol: netlink-raw
 uapi-header: linux/pkt_cls.h
@@ -76,7 +76,8 @@ definitions:
         name: overlimits
         type: u32
         doc: |
-          Number of throttle events when this flow goes out of allocated bandwidth
+          Number of throttle events when this flow goes out of allocated
+          bandwidth
       -
         name: bps
         type: u32
@@ -751,7 +752,9 @@ definitions:
       -
         name: count
         type: u32
-        doc: How many drops we've done since the last time we entered dropping state
+        doc: |
+          How many drops we've done since the last time we entered dropping
+          state
       -
         name: lastcount
         type: u32
@@ -1161,7 +1164,7 @@ definitions:
       -
         name: keys
         type: binary
-        struct: tc-u32-key # TODO: array
+        struct: tc-u32-key  # TODO: array
   -
     name: tc-u32-pcnt
     type: struct
@@ -1174,7 +1177,7 @@ definitions:
         type: u64
       -
         name: kcnts
-        type: u64 # TODO: array
+        type: u64  # TODO: array
   -
     name: tcf-t
     type: struct
@@ -1336,7 +1339,7 @@ definitions:
       -
         name: keys
         type: binary
-        struct: tc-pedit-key # TODO: array
+        struct: tc-pedit-key  # TODO: array
   -
     name: tc-pedit-key
     type: struct
@@ -2885,7 +2888,7 @@ attribute-sets:
     attributes:
       -
         name: parms
-        type: binary # array of struct: tc-gred-qopt
+        type: binary  # array of struct: tc-gred-qopt
       -
         name: stab
         type: binary
@@ -3335,10 +3338,10 @@ attribute-sets:
         struct: tc-police
       -
         name: rate
-        type: binary # TODO
+        type: binary  # TODO
       -
         name: peakrate
-        type: binary # TODO
+        type: binary  # TODO
       -
         name: avrate
         type: u32
@@ -3698,7 +3701,7 @@ sub-messages:
         value: choke
         attribute-set: choke-attrs
       -
-        value: clsact # no content
+        value: clsact  # no content
       -
         value: codel
         attribute-set: codel-attrs
@@ -3742,12 +3745,12 @@ sub-messages:
         value: htb
         attribute-set: htb-attrs
       -
-        value: ingress # no content
+        value: ingress  # no content
       -
         value: matchall
         attribute-set: matchall-attrs
       -
-        value: mq # no content
+        value: mq  # no content
       -
         value: mqprio
         fixed-header: tc-mqprio-qopt

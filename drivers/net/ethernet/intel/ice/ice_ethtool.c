@@ -836,6 +836,15 @@ static void ice_set_msglevel(struct net_device *netdev, u32 data)
 #endif /* !CONFIG_DYNAMIC_DEBUG */
 }
 
+static void ice_get_link_ext_stats(struct net_device *netdev,
+				   struct ethtool_link_ext_stats *stats)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_pf *pf = np->vsi->back;
+
+	stats->link_down_events = pf->link_down_events;
+}
+
 static int ice_get_eeprom_len(struct net_device *netdev)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
@@ -2788,14 +2797,7 @@ done:
 	return err;
 }
 
-/**
- * ice_parse_hdrs - parses headers from RSS hash input
- * @nfc: ethtool rxnfc command
- *
- * This function parses the rxnfc command and returns intended
- * header types for RSS configuration
- */
-static u32 ice_parse_hdrs(struct ethtool_rxnfc *nfc)
+static u32 ice_parse_hdrs(const struct ethtool_rxfh_fields *nfc)
 {
 	u32 hdrs = ICE_FLOW_SEG_HDR_NONE;
 
@@ -2860,15 +2862,7 @@ static u32 ice_parse_hdrs(struct ethtool_rxnfc *nfc)
 	return hdrs;
 }
 
-/**
- * ice_parse_hash_flds - parses hash fields from RSS hash input
- * @nfc: ethtool rxnfc command
- * @symm: true if Symmetric Topelitz is set
- *
- * This function parses the rxnfc command and returns intended
- * hash fields for RSS configuration
- */
-static u64 ice_parse_hash_flds(struct ethtool_rxnfc *nfc, bool symm)
+static u64 ice_parse_hash_flds(const struct ethtool_rxfh_fields *nfc, bool symm)
 {
 	u64 hfld = ICE_HASH_INVALID;
 
@@ -2965,16 +2959,13 @@ static u64 ice_parse_hash_flds(struct ethtool_rxnfc *nfc, bool symm)
 	return hfld;
 }
 
-/**
- * ice_set_rss_hash_opt - Enable/Disable flow types for RSS hash
- * @vsi: the VSI being configured
- * @nfc: ethtool rxnfc command
- *
- * Returns Success if the flow input set is supported.
- */
 static int
-ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
+ice_set_rxfh_fields(struct net_device *netdev,
+		    const struct ethtool_rxfh_fields *nfc,
+		    struct netlink_ext_ack *extack)
 {
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct ice_rss_hash_cfg cfg;
 	struct device *dev;
@@ -3020,14 +3011,11 @@ ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 	return 0;
 }
 
-/**
- * ice_get_rss_hash_opt - Retrieve hash fields for a given flow-type
- * @vsi: the VSI being configured
- * @nfc: ethtool rxnfc command
- */
-static void
-ice_get_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
+static int
+ice_get_rxfh_fields(struct net_device *netdev, struct ethtool_rxfh_fields *nfc)
 {
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
 	u64 hash_flds;
@@ -3040,21 +3028,21 @@ ice_get_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 	if (ice_is_safe_mode(pf)) {
 		dev_dbg(dev, "Advanced RSS disabled. Package download failed, vsi num = %d\n",
 			vsi->vsi_num);
-		return;
+		return 0;
 	}
 
 	hdrs = ice_parse_hdrs(nfc);
 	if (hdrs == ICE_FLOW_SEG_HDR_NONE) {
 		dev_dbg(dev, "Header type is not valid, vsi num = %d\n",
 			vsi->vsi_num);
-		return;
+		return 0;
 	}
 
 	hash_flds = ice_get_rss_cfg(&pf->hw, vsi->idx, hdrs, &symm);
 	if (hash_flds == ICE_HASH_INVALID) {
 		dev_dbg(dev, "No hash fields found for the given header type, vsi num = %d\n",
 			vsi->vsi_num);
-		return;
+		return 0;
 	}
 
 	if (hash_flds & ICE_FLOW_HASH_FLD_IPV4_SA ||
@@ -3081,6 +3069,8 @@ ice_get_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 	    hash_flds & ICE_FLOW_HASH_FLD_GTPU_UP_TEID ||
 	    hash_flds & ICE_FLOW_HASH_FLD_GTPU_DWN_TEID)
 		nfc->data |= (u64)RXH_GTP_TEID;
+
+	return 0;
 }
 
 /**
@@ -3100,8 +3090,6 @@ static int ice_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		return ice_add_fdir_ethtool(vsi, cmd);
 	case ETHTOOL_SRXCLSRLDEL:
 		return ice_del_fdir_ethtool(vsi, cmd);
-	case ETHTOOL_SRXFH:
-		return ice_set_rss_hash_opt(vsi, cmd);
 	default:
 		break;
 	}
@@ -3143,10 +3131,6 @@ ice_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXCLSRLALL:
 		ret = ice_get_fdir_fltr_ids(hw, cmd, (u32 *)rule_locs);
-		break;
-	case ETHTOOL_GRXFH:
-		ice_get_rss_hash_opt(vsi, cmd);
-		ret = 0;
 		break;
 	default:
 		break;
@@ -4784,6 +4768,7 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.set_msglevel		= ice_set_msglevel,
 	.self_test		= ice_self_test,
 	.get_link		= ethtool_op_get_link,
+	.get_link_ext_stats	= ice_get_link_ext_stats,
 	.get_eeprom_len		= ice_get_eeprom_len,
 	.get_eeprom		= ice_get_eeprom,
 	.get_coalesce		= ice_get_coalesce,
@@ -4806,6 +4791,8 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.get_rxfh_indir_size	= ice_get_rxfh_indir_size,
 	.get_rxfh		= ice_get_rxfh,
 	.set_rxfh		= ice_set_rxfh,
+	.get_rxfh_fields	= ice_get_rxfh_fields,
+	.set_rxfh_fields	= ice_set_rxfh_fields,
 	.get_channels		= ice_get_channels,
 	.set_channels		= ice_set_channels,
 	.get_ts_info		= ice_get_ts_info,

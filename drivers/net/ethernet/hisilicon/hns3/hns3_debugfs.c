@@ -684,7 +684,7 @@ static int hns3_dbg_rx_queue_info(struct hnae3_handle *h,
 				  char *buf, int len)
 {
 	char data_str[ARRAY_SIZE(rx_queue_info_items)][HNS3_DBG_DATA_STR_LEN];
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 	char *result[ARRAY_SIZE(rx_queue_info_items)];
 	struct hns3_nic_priv *priv = h->priv;
 	char content[HNS3_DBG_INFO_LEN];
@@ -789,7 +789,7 @@ static int hns3_dbg_tx_queue_info(struct hnae3_handle *h,
 				  char *buf, int len)
 {
 	char data_str[ARRAY_SIZE(tx_queue_info_items)][HNS3_DBG_DATA_STR_LEN];
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 	char *result[ARRAY_SIZE(tx_queue_info_items)];
 	struct hns3_nic_priv *priv = h->priv;
 	char content[HNS3_DBG_INFO_LEN];
@@ -1034,7 +1034,7 @@ static int hns3_dbg_tx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
 static void
 hns3_dbg_dev_caps(struct hnae3_handle *h, char *buf, int len, int *pos)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
 	unsigned long *caps = ae_dev->caps;
 	u32 i, state;
 
@@ -1239,7 +1239,7 @@ static const struct hns3_dbg_func hns3_dbg_cmd_func[] = {
 static int hns3_dbg_read_cmd(struct hns3_dbg_data *dbg_data,
 			     enum hnae3_dbg_cmd cmd, char *buf, int len)
 {
-	const struct hnae3_ae_ops *ops = dbg_data->handle->ae_algo->ops;
+	const struct hnae3_ae_ops *ops = hns3_get_ops(dbg_data->handle);
 	const struct hns3_dbg_func *cmd_func;
 	u32 i;
 
@@ -1364,7 +1364,7 @@ hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd)
 
 int hns3_dbg_init(struct hnae3_handle *handle)
 {
-	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(handle);
 	const char *name = pci_name(handle->pdev);
 	int ret;
 	u32 i;

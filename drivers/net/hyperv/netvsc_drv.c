@@ -1580,9 +1580,10 @@ static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 }
 
 static int
-netvsc_get_rss_hash_opts(struct net_device_context *ndc,
-			 struct ethtool_rxnfc *info)
+netvsc_get_rxfh_fields(struct net_device *ndev,
+		       struct ethtool_rxfh_fields *info)
 {
+	struct net_device_context *ndc = netdev_priv(ndev);
 	const u32 l4_flag = RXH_L4_B_0_1 | RXH_L4_B_2_3;
 
 	info->data = RXH_IP_SRC | RXH_IP_DST;
@@ -1637,16 +1638,17 @@ netvsc_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = nvdev->num_chn;
 		return 0;
-
-	case ETHTOOL_GRXFH:
-		return netvsc_get_rss_hash_opts(ndc, info);
 	}
 	return -EOPNOTSUPP;
 }
 
-static int netvsc_set_rss_hash_opts(struct net_device_context *ndc,
-				    struct ethtool_rxnfc *info)
+static int
+netvsc_set_rxfh_fields(struct net_device *dev,
+		       const struct ethtool_rxfh_fields *info,
+		       struct netlink_ext_ack *extack)
 {
+	struct net_device_context *ndc = netdev_priv(dev);
+
 	if (info->data == (RXH_IP_SRC | RXH_IP_DST |
 			   RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
 		switch (info->flow_type) {
@@ -1697,17 +1699,6 @@ static int netvsc_set_rss_hash_opts(struct net_device_context *ndc,
 
 		return 0;
 	}
-
-	return -EOPNOTSUPP;
-}
-
-static int
-netvsc_set_rxnfc(struct net_device *ndev, struct ethtool_rxnfc *info)
-{
-	struct net_device_context *ndc = netdev_priv(ndev);
-
-	if (info->cmd == ETHTOOL_SRXFH)
-		return netvsc_set_rss_hash_opts(ndc, info);
 
 	return -EOPNOTSUPP;
 }
@@ -1979,11 +1970,12 @@ static const struct ethtool_ops ethtool_ops = {
 	.set_channels   = netvsc_set_channels,
 	.get_ts_info	= ethtool_op_get_ts_info,
 	.get_rxnfc	= netvsc_get_rxnfc,
-	.set_rxnfc	= netvsc_set_rxnfc,
 	.get_rxfh_key_size = netvsc_get_rxfh_key_size,
 	.get_rxfh_indir_size = netvsc_rss_indir_size,
 	.get_rxfh	= netvsc_get_rxfh,
 	.set_rxfh	= netvsc_set_rxfh,
+	.get_rxfh_fields = netvsc_get_rxfh_fields,
+	.set_rxfh_fields = netvsc_set_rxfh_fields,
 	.get_link_ksettings = netvsc_get_link_ksettings,
 	.set_link_ksettings = netvsc_set_link_ksettings,
 	.get_ringparam	= netvsc_get_ringparam,

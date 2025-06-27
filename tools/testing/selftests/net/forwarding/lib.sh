@@ -37,6 +37,7 @@ declare -A NETIFS=(
 : "${TEAMD:=teamd}"
 : "${MCD:=smcrouted}"
 : "${MC_CLI:=smcroutectl}"
+: "${MCD_TABLE_NAME:=selftests}"
 
 # Constants for netdevice bring-up:
 # Default time in seconds to wait for an interface to come up before giving up
@@ -525,9 +526,9 @@ setup_wait_dev_with_timeout()
 	return 1
 }
 
-setup_wait()
+setup_wait_n()
 {
-	local num_netifs=${1:-$NUM_NETIFS}
+	local num_netifs=$1; shift
 	local i
 
 	for ((i = 1; i <= num_netifs; ++i)); do
@@ -536,6 +537,11 @@ setup_wait()
 
 	# Make sure links are ready.
 	sleep $WAIT_TIME
+}
+
+setup_wait()
+{
+	setup_wait_n "$NUM_NETIFS"
 }
 
 wait_for_dev()
@@ -1755,6 +1761,51 @@ mc_send()
 
 	ip vrf exec $vrf_name \
 		msend -g $groups -I $if_name -c 1 > /dev/null 2>&1
+}
+
+adf_mcd_start()
+{
+	local ifs=("$@")
+
+	local table_name="$MCD_TABLE_NAME"
+	local smcroutedir
+	local pid
+	local if
+	local i
+
+	check_command "$MCD" || return 1
+	check_command "$MC_CLI" || return 1
+
+	smcroutedir=$(mktemp -d)
+	defer rm -rf "$smcroutedir"
+
+	for ((i = 1; i <= NUM_NETIFS; ++i)); do
+		echo "phyint ${NETIFS[p$i]} enable" >> \
+			"$smcroutedir/$table_name.conf"
+	done
+
+	for if in "${ifs[@]}"; do
+		if ! ip_link_has_flag "$if" MULTICAST; then
+			ip link set dev "$if" multicast on
+			defer ip link set dev "$if" multicast off
+		fi
+
+		echo "phyint $if enable" >> \
+			"$smcroutedir/$table_name.conf"
+	done
+
+	"$MCD" -N -I "$table_name" -f "$smcroutedir/$table_name.conf" \
+		-P "$smcroutedir/$table_name.pid"
+	busywait "$BUSYWAIT_TIMEOUT" test -e "$smcroutedir/$table_name.pid"
+	pid=$(cat "$smcroutedir/$table_name.pid")
+	defer kill_process "$pid"
+}
+
+mc_cli()
+{
+	local table_name="$MCD_TABLE_NAME"
+
+        "$MC_CLI" -I "$table_name" "$@"
 }
 
 start_ip_monitor()

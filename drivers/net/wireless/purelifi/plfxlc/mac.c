@@ -531,7 +531,7 @@ static void plfxlc_op_remove_interface(struct ieee80211_hw *hw,
 	mac->vif = NULL;
 }
 
-static int plfxlc_op_config(struct ieee80211_hw *hw, u32 changed)
+static int plfxlc_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	return 0;
 }
@@ -677,7 +677,8 @@ static void plfxlc_get_et_stats(struct ieee80211_hw *hw,
 	data[1] = mac->crc_errors;
 }
 
-static int plfxlc_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int plfxlc_set_rts_threshold(struct ieee80211_hw *hw, int radio_idx,
+				    u32 value)
 {
 	return 0;
 }

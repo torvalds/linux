@@ -556,7 +556,8 @@ static void build_sk_flow_key(struct flowi4 *fl4, const struct sock *sk)
 			   inet_test_bit(HDRINCL, sk) ?
 				IPPROTO_RAW : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk),
-			   daddr, inet->inet_saddr, 0, 0, sk->sk_uid);
+			   daddr, inet->inet_saddr, 0, 0,
+			   sk_uid(sk));
 	rcu_read_unlock();
 }
 
@@ -2660,7 +2661,7 @@ add:
 			if (IN_DEV_MFORWARD(in_dev) &&
 			    !ipv4_is_local_multicast(fl4->daddr)) {
 				rth->dst.input = ip_mr_input;
-				rth->dst.output = ip_mc_output;
+				rth->dst.output = ip_mr_output;
 			}
 		}
 #endif
@@ -2977,8 +2978,7 @@ static int rt_fill_info(struct net *net, __be32 dst, __be32 src,
 	if (rt->dst.dev &&
 	    nla_put_u32(skb, RTA_OIF, rt->dst.dev->ifindex))
 		goto nla_put_failure;
-	if (rt->dst.lwtstate &&
-	    lwtunnel_fill_encap(skb, rt->dst.lwtstate, RTA_ENCAP, RTA_ENCAP_TYPE) < 0)
+	if (lwtunnel_fill_encap(skb, rt->dst.lwtstate, RTA_ENCAP, RTA_ENCAP_TYPE) < 0)
 		goto nla_put_failure;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (rt->dst.tclassid &&

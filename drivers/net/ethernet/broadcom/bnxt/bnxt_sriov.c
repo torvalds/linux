@@ -823,7 +823,7 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	int tx_ok = 0, rx_ok = 0, rss_ok = 0;
 	int avail_cp, avail_stat;
 
-	/* Check if we can enable requested num of vf's. At a mininum
+	/* Check if we can enable requested num of vf's. At a minimum
 	 * we require 1 RX 1 TX rings for each VF. In this minimum conf
 	 * features like TPA will not be available.
 	 */

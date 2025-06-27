@@ -983,6 +983,7 @@ static bool rtw8822b_check_rf_path(u8 antenna)
 }
 
 static int rtw8822b_set_antenna(struct rtw_dev *rtwdev,
+				int radio_idx,
 				u32 antenna_tx,
 				u32 antenna_rx)
 {
@@ -2513,7 +2514,7 @@ const struct rtw_chip_info rtw8822b_hw_spec = {
 	.ops = &rtw8822b_ops,
 	.id = RTW_CHIP_TYPE_8822B,
 	.fw_name = "rtw88/rtw8822b_fw.bin",
-	.wlan_cpu = RTW_WCPU_11AC,
+	.wlan_cpu = RTW_WCPU_3081,
 	.tx_pkt_desc_sz = 48,
 	.tx_buf_desc_sz = 16,
 	.rx_pkt_desc_sz = 24,

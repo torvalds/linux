@@ -67,6 +67,7 @@
 #include "ice_sriov.h"
 #include "ice_vf_mbx.h"
 #include "ice_ptp.h"
+#include "ice_tspll.h"
 #include "ice_fdir.h"
 #include "ice_xsk.h"
 #include "ice_arfs.h"
@@ -614,6 +615,7 @@ struct ice_pf {
 	u16 globr_count;	/* Global reset count */
 	u16 empr_count;		/* EMP reset count */
 	u16 pfr_count;		/* PF reset count */
+	u32 link_down_events;
 
 	u8 wol_ena : 1;		/* software state of WoL */
 	u32 wakeup_reason;	/* last wakeup reason */

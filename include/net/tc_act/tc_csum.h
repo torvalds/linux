@@ -18,15 +18,6 @@ struct tcf_csum {
 };
 #define to_tcf_csum(a) ((struct tcf_csum *)a)
 
-static inline bool is_tcf_csum(const struct tc_action *a)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->id == TCA_ID_CSUM)
-		return true;
-#endif
-	return false;
-}
-
 static inline u32 tcf_csum_update_flags(const struct tc_action *a)
 {
 	u32 update_flags;

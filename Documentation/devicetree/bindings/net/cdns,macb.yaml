@@ -62,6 +62,7 @@ properties:
       - items:
           - enum:
               - microchip,sam9x7-gem     # Microchip SAM9X7 gigabit ethernet interface
+              - microchip,sama7d65-gem   # Microchip SAMA7D65 gigabit ethernet interface
           - const: microchip,sama7g5-gem # Microchip SAMA7G5 gigabit ethernet interface
 
   reg:

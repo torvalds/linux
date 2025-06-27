@@ -2533,30 +2533,14 @@ static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *nap
 				      struct ath12k_dp_rx_info *rx_info)
 {
 	struct ath12k_base *ab = ar->ab;
-	static const struct ieee80211_radiotap_he known = {
-		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
-				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
-		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN),
-	};
-	struct ieee80211_radiotap_he *he;
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_sta *pubsta;
 	struct ath12k_peer *peer;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
 	struct ieee80211_rx_status *status = rx_info->rx_status;
-	u8 decap = DP_RX_DECAP_TYPE_RAW;
+	u8 decap = rx_info->decap_type;
 	bool is_mcbc = rxcb->is_mcbc;
 	bool is_eapol = rxcb->is_eapol;
-
-	if (status->encoding == RX_ENC_HE && !(status->flag & RX_FLAG_RADIOTAP_HE) &&
-	    !(status->flag & RX_FLAG_SKIP_MONITOR)) {
-		he = skb_push(msdu, sizeof(known));
-		memcpy(he, &known, sizeof(known));
-		status->flag |= RX_FLAG_RADIOTAP_HE;
-	}
-
-	if (!(status->flag & RX_FLAG_ONLY_MONITOR))
-		decap = rx_info->decap_type;
 
 	spin_lock_bh(&ab->base_lock);
 	peer = ath12k_dp_rx_h_find_peer(ab, msdu, rx_info);

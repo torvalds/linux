@@ -491,6 +491,7 @@ static inline unsigned int ice_rx_pg_order(struct ice_rx_ring *ring)
 
 union ice_32b_rx_flex_desc;
 
+void ice_init_ctrl_rx_descs(struct ice_rx_ring *rx_ring, u32 num_descs);
 bool ice_alloc_rx_bufs(struct ice_rx_ring *rxr, unsigned int cleaned_count);
 netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);
 u16
@@ -506,6 +507,6 @@ int ice_napi_poll(struct napi_struct *napi, int budget);
 int
 ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 		   u8 *raw_packet);
-int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget);
 void ice_clean_ctrl_tx_irq(struct ice_tx_ring *tx_ring);
+void ice_clean_ctrl_rx_irq(struct ice_rx_ring *rx_ring);
 #endif /* _ICE_TXRX_H_ */

@@ -27,15 +27,6 @@ struct tcf_mpls {
 };
 #define to_mpls(a) ((struct tcf_mpls *)a)
 
-static inline bool is_tcf_mpls(const struct tc_action *a)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->id == TCA_ID_MPLS)
-		return true;
-#endif
-	return false;
-}
-
 static inline u32 tcf_mpls_action(const struct tc_action *a)
 {
 	u32 tcfm_action;

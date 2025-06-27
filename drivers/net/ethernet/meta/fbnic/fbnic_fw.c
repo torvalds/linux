@@ -95,6 +95,9 @@ void fbnic_mbx_init(struct fbnic_dev *fbd)
 	/* Initialize lock to protect Tx ring */
 	spin_lock_init(&fbd->fw_tx_lock);
 
+	/* Reset FW Capabilities */
+	memset(&fbd->fw_cap, 0, sizeof(fbd->fw_cap));
+
 	/* Reinitialize mailbox memory */
 	for (i = 0; i < FBNIC_IPC_MBX_INDICES; i++)
 		memset(&fbd->mbx[i], 0, sizeof(struct fbnic_fw_mbx));
@@ -335,6 +338,16 @@ unlock_mbx:
 	return err;
 }
 
+void fbnic_mbx_clear_cmpl(struct fbnic_dev *fbd,
+			  struct fbnic_fw_completion *fw_cmpl)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
+	fbnic_mbx_clear_cmpl_slot(fbd, fw_cmpl);
+	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
+}
+
 static void fbnic_fw_release_cmpl_data(struct kref *kref)
 {
 	struct fbnic_fw_completion *cmpl_data;
@@ -373,11 +386,11 @@ fbnic_fw_get_cmpl_by_type(struct fbnic_dev *fbd, u32 msg_type)
  *
  * Return:
  *   One the following values:
- *     -EOPNOTSUPP: Is not ASIC so mailbox is not supported
- *     -ENODEV: Device I/O error
- *     -ENOMEM: Failed to allocate message
- *     -EBUSY: No space in mailbox
- *     -ENOSPC: DMA mapping failed
+ *	-EOPNOTSUPP: Is not ASIC so mailbox is not supported
+ *	-ENODEV: Device I/O error
+ *	-ENOMEM: Failed to allocate message
+ *	-EBUSY: No space in mailbox
+ *	-ENOSPC: DMA mapping failed
  *
  * This function sends a single TLV header indicating the host wants to take
  * some action. However there are no other side effects which means that any
@@ -1117,6 +1130,7 @@ void fbnic_mbx_poll(struct fbnic_dev *fbd)
 
 int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd)
 {
+	struct fbnic_fw_mbx *tx_mbx = &fbd->mbx[FBNIC_IPC_MBX_TX_IDX];
 	unsigned long timeout = jiffies + 10 * HZ + 1;
 	int err, i;
 
@@ -1149,8 +1163,23 @@ int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd)
 	if (err)
 		goto clean_mbx;
 
-	/* Use "1" to indicate we entered the state waiting for a response */
-	fbd->fw_cap.running.mgmt.version = 1;
+	/* Poll until we get a current management firmware version, use "1"
+	 * to indicate we entered the polling state waiting for a response
+	 */
+	for (fbd->fw_cap.running.mgmt.version = 1;
+	     fbd->fw_cap.running.mgmt.version < MIN_FW_VERSION_CODE;) {
+		if (!tx_mbx->ready)
+			err = -ENODEV;
+		if (err)
+			goto clean_mbx;
+
+		msleep(20);
+		fbnic_mbx_poll(fbd);
+
+		/* set err, but wait till mgmt.version check to report it */
+		if (!time_is_after_jiffies(timeout))
+			err = -ETIMEDOUT;
+	}
 
 	return 0;
 clean_mbx:
@@ -1242,16 +1271,6 @@ struct fbnic_fw_completion *fbnic_fw_alloc_cmpl(u32 msg_type)
 	kref_init(&cmpl->ref_count);
 
 	return cmpl;
-}
-
-void fbnic_fw_clear_cmpl(struct fbnic_dev *fbd,
-			 struct fbnic_fw_completion *fw_cmpl)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&fbd->fw_tx_lock, flags);
-	fbnic_mbx_clear_cmpl_slot(fbd, fw_cmpl);
-	spin_unlock_irqrestore(&fbd->fw_tx_lock, flags);
 }
 
 void fbnic_fw_put_cmpl(struct fbnic_fw_completion *fw_cmpl)

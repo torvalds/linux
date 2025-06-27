@@ -688,7 +688,7 @@ static int get_max_column_width(struct rvu *rvu)
 
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		for (vf = 0; vf <= rvu->hw->total_vfs; vf++) {
-			pcifunc = pf << 10 | vf;
+			pcifunc = rvu_make_pcifunc(rvu->pdev, pf, vf);
 			if (!pcifunc)
 				continue;
 
@@ -759,7 +759,7 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 		for (vf = 0; vf <= rvu->hw->total_vfs; vf++) {
 			off = 0;
 			flag = 0;
-			pcifunc = pf << 10 | vf;
+			pcifunc = rvu_make_pcifunc(rvu->pdev, pf, vf);
 			if (!pcifunc)
 				continue;
 
@@ -842,7 +842,7 @@ static int rvu_dbg_rvu_pf_cgx_map_display(struct seq_file *filp, void *unused)
 
 		cgx[0] = 0;
 		lmac[0] = 0;
-		pcifunc = pf << 10;
+		pcifunc = rvu_make_pcifunc(rvu->pdev, pf, 0);
 		pfvf = rvu_get_pfvf(rvu, pcifunc);
 
 		if (pfvf->nix_blkaddr == BLKADDR_NIX0)
@@ -2623,10 +2623,10 @@ static int rvu_dbg_nix_band_prof_ctx_display(struct seq_file *m, void *unused)
 			pcifunc = ipolicer->pfvf_map[idx];
 			if (!(pcifunc & RVU_PFVF_FUNC_MASK))
 				seq_printf(m, "Allocated to :: PF %d\n",
-					   rvu_get_pf(pcifunc));
+					   rvu_get_pf(rvu->pdev, pcifunc));
 			else
 				seq_printf(m, "Allocated to :: PF %d VF %d\n",
-					   rvu_get_pf(pcifunc),
+					   rvu_get_pf(rvu->pdev, pcifunc),
 					   (pcifunc & RVU_PFVF_FUNC_MASK) - 1);
 			print_band_prof_ctx(m, &aq_rsp.prof);
 		}
@@ -2983,10 +2983,10 @@ static void rvu_print_npc_mcam_info(struct seq_file *s,
 
 	if (!(pcifunc & RVU_PFVF_FUNC_MASK))
 		seq_printf(s, "\n\t\t Device \t\t: PF%d\n",
-			   rvu_get_pf(pcifunc));
+			   rvu_get_pf(rvu->pdev, pcifunc));
 	else
 		seq_printf(s, "\n\t\t Device \t\t: PF%d VF%d\n",
-			   rvu_get_pf(pcifunc),
+			   rvu_get_pf(rvu->pdev, pcifunc),
 			   (pcifunc & RVU_PFVF_FUNC_MASK) - 1);
 
 	if (entry_acnt) {
@@ -3049,13 +3049,13 @@ static int rvu_dbg_npc_mcam_info_display(struct seq_file *filp, void *unsued)
 	seq_puts(filp, "\n\t\t Current allocation\n");
 	seq_puts(filp, "\t\t====================\n");
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
-		pcifunc = (pf << RVU_PFVF_PF_SHIFT);
+		pcifunc = rvu_make_pcifunc(rvu->pdev, pf, 0);
 		rvu_print_npc_mcam_info(filp, pcifunc, blkaddr);
 
 		cfg = rvu_read64(rvu, BLKADDR_RVUM, RVU_PRIV_PFX_CFG(pf));
 		numvfs = (cfg >> 12) & 0xFF;
 		for (vf = 0; vf < numvfs; vf++) {
-			pcifunc = (pf << RVU_PFVF_PF_SHIFT) | (vf + 1);
+			pcifunc = rvu_make_pcifunc(rvu->pdev, pf, (vf + 1));
 			rvu_print_npc_mcam_info(filp, pcifunc, blkaddr);
 		}
 	}
@@ -3326,7 +3326,7 @@ static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
 
 	mutex_lock(&mcam->lock);
 	list_for_each_entry(iter, &mcam->mcam_rules, list) {
-		pf = (iter->owner >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+		pf = rvu_get_pf(rvu->pdev, iter->owner);
 		seq_printf(s, "\n\tInstalled by: PF%d ", pf);
 
 		if (iter->owner & RVU_PFVF_FUNC_MASK) {
@@ -3344,7 +3344,7 @@ static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
 		rvu_dbg_npc_mcam_show_flows(s, iter);
 		if (is_npc_intf_rx(iter->intf)) {
 			target = iter->rx_action.pf_func;
-			pf = (target >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+			pf = rvu_get_pf(rvu->pdev, target);
 			seq_printf(s, "\tForward to: PF%d ", pf);
 
 			if (target & RVU_PFVF_FUNC_MASK) {

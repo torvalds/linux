@@ -598,7 +598,7 @@ static int rds_connect(struct socket *sock, struct sockaddr *uaddr,
 		}
 
 		if (addr_type & IPV6_ADDR_LINKLOCAL) {
-			/* If socket is arleady bound to a link local address,
+			/* If socket is already bound to a link local address,
 			 * the peer address must be on the same link.
 			 */
 			if (sin6->sin6_scope_id == 0 ||

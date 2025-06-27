@@ -3,6 +3,7 @@
 
 #include <generated/utsrelease.h>
 #include <linux/crash_dump.h>
+#include <linux/net/intel/libie/pctype.h>
 #include <linux/if_bridge.h>
 #include <linux/if_macvlan.h>
 #include <linux/module.h>
@@ -9188,47 +9189,47 @@ static void i40e_fdir_filter_exit(struct i40e_pf *pf)
 	i40e_reset_fdir_filter_cnt(pf);
 
 	/* Reprogram the default input set for TCP/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_TCP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for TCP/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_TCP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_TCP,
 				I40E_L3_V6_SRC_MASK | I40E_L3_V6_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for UDP/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_UDP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_UDP,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for UDP/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_UDP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_UDP,
 				I40E_L3_V6_SRC_MASK | I40E_L3_V6_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for SCTP/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_SCTP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_SCTP,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for SCTP/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_SCTP,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_SCTP,
 				I40E_L3_V6_SRC_MASK | I40E_L3_V6_DST_MASK |
 				I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
 	/* Reprogram the default input set for Other/IPv4 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_OTHER,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_OTHER,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_FRAG_IPV4,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_FRAG_IPV4,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 
 	/* Reprogram the default input set for Other/IPv6 */
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV6_OTHER,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV6_OTHER,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 
-	i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_FRAG_IPV6,
+	i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_FRAG_IPV6,
 				I40E_L3_SRC_MASK | I40E_L3_DST_MASK);
 }
 
@@ -9656,7 +9657,7 @@ static void i40e_reenable_fdir_atr(struct i40e_pf *pf)
 		 * settings. It is safe to restore the default input set
 		 * because there are no active TCPv4 filter rules.
 		 */
-		i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_TCP,
+		i40e_write_fd_input_set(pf, LIBIE_FILTER_PCTYPE_NONF_IPV4_TCP,
 					I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 					I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
@@ -9958,6 +9959,9 @@ static void i40e_link_event(struct i40e_pf *pf)
 	    (test_bit(__I40E_VSI_DOWN, vsi->state) ||
 	     new_link == netif_carrier_ok(vsi->netdev)))
 		return;
+
+	if (!new_link && old_link)
+		pf->link_down_events++;
 
 	i40e_print_link_message(vsi, new_link);
 
@@ -12507,7 +12511,7 @@ static int i40e_pf_config_rss(struct i40e_pf *pf)
 	/* By default we enable TCP/UDP with IPv4/IPv6 ptypes */
 	hena = (u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(0)) |
 		((u64)i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1)) << 32);
-	hena |= i40e_pf_get_default_rss_hena(pf);
+	hena |= i40e_pf_get_default_rss_hashcfg(pf);
 
 	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(0), (u32)hena);
 	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), (u32)(hena >> 32));
@@ -15891,7 +15895,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pf->udp_tunnel_nic.set_port = i40e_udp_tunnel_set_port;
 	pf->udp_tunnel_nic.unset_port = i40e_udp_tunnel_unset_port;
-	pf->udp_tunnel_nic.flags = UDP_TUNNEL_NIC_INFO_MAY_SLEEP;
 	pf->udp_tunnel_nic.shared = &pf->udp_tunnel_shared;
 	pf->udp_tunnel_nic.tables[0].n_entries = I40E_MAX_PF_UDP_OFFLOAD_PORTS;
 	pf->udp_tunnel_nic.tables[0].tunnel_types = UDP_TUNNEL_TYPE_VXLAN |

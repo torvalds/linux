@@ -178,6 +178,7 @@ static int ieee80211_set_ap_mbssid_options(struct ieee80211_sub_if_data *sdata,
 
 		link_conf->nontransmitted = true;
 		link_conf->bssid_index = params->index;
+		link_conf->bssid_indicator = tx_bss_conf->bssid_indicator;
 	}
 	if (params->ema)
 		link_conf->ema_ap = true;
@@ -885,6 +886,13 @@ static int ieee80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
 		ret = 0;
 		memcpy(mac, sta->sta.addr, ETH_ALEN);
 		sta_set_sinfo(sta, sinfo, true);
+
+		/* Add accumulated removed link data to sinfo data for
+		 * consistency for MLO
+		 */
+		if (sinfo->valid_links)
+			sta_set_accumulated_removed_links_sinfo(sta, sinfo);
+
 	}
 
 	return ret;
@@ -912,6 +920,12 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (sta) {
 		ret = 0;
 		sta_set_sinfo(sta, sinfo, true);
+
+		/* Add accumulated removed link data to sinfo data for
+		 * consistency for MLO
+		 */
+		if (sinfo->valid_links)
+			sta_set_accumulated_removed_links_sinfo(sta, sinfo);
 	}
 
 	return ret;
@@ -1218,8 +1232,11 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 			ieee80211_copy_rnr_beacon(pos, new->rnr_ies, rnr);
 		}
 		/* update bssid_indicator */
-		link_conf->bssid_indicator =
-			ilog2(__roundup_pow_of_two(mbssid->cnt + 1));
+		if (new->mbssid_ies->cnt && new->mbssid_ies->elem[0].len > 2)
+			link_conf->bssid_indicator =
+					*(new->mbssid_ies->elem[0].data + 2);
+		else
+			link_conf->bssid_indicator = 0;
 	}
 
 	if (csa) {
@@ -1878,6 +1895,7 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 		       params->vht_capa ||
 		       params->he_capa ||
 		       params->eht_capa ||
+		       params->s1g_capa ||
 		       params->opmode_notif_used;
 
 	switch (mode) {
@@ -1955,6 +1973,10 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 						    params->eht_capa,
 						    params->eht_capa_len,
 						    link_sta);
+
+	if (params->s1g_capa)
+		ieee80211_s1g_cap_to_sta_s1g_cap(sdata, params->s1g_capa,
+						 link_sta);
 
 	ieee80211_sta_init_nss(link_sta);
 
@@ -3028,7 +3050,8 @@ static int ieee80211_set_mcast_rate(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+static int ieee80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx,
+				      u32 changed)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	int err;
@@ -3036,7 +3059,8 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
 		ieee80211_check_fast_xmit_all(local);
 
-		err = drv_set_frag_threshold(local, wiphy->frag_threshold);
+		err = drv_set_frag_threshold(local, radio_idx,
+					     wiphy->frag_threshold);
 
 		if (err) {
 			ieee80211_check_fast_xmit_all(local);
@@ -3050,14 +3074,23 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 
 		coverage_class = changed & WIPHY_PARAM_COVERAGE_CLASS ?
 					wiphy->coverage_class : -1;
-		err = drv_set_coverage_class(local, coverage_class);
+		err = drv_set_coverage_class(local, radio_idx,
+					     coverage_class);
 
 		if (err)
 			return err;
 	}
 
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
-		err = drv_set_rts_threshold(local, wiphy->rts_threshold);
+		u32 rts_threshold;
+
+		if ((radio_idx == -1) || (radio_idx >= wiphy->n_radio))
+			rts_threshold = wiphy->rts_threshold;
+		else
+			rts_threshold =
+				wiphy->radio_cfg[radio_idx].rts_threshold;
+
+		err = drv_set_rts_threshold(local, radio_idx, rts_threshold);
 
 		if (err)
 			return err;
@@ -3075,18 +3108,19 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	}
 	if (changed &
 	    (WIPHY_PARAM_RETRY_SHORT | WIPHY_PARAM_RETRY_LONG))
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_RETRY_LIMITS);
+		ieee80211_hw_config(local, radio_idx,
+				    IEEE80211_CONF_CHANGE_RETRY_LIMITS);
 
 	if (changed & (WIPHY_PARAM_TXQ_LIMIT |
 		       WIPHY_PARAM_TXQ_MEMORY_LIMIT |
 		       WIPHY_PARAM_TXQ_QUANTUM))
-		ieee80211_txq_set_params(local);
+		ieee80211_txq_set_params(local, radio_idx);
 
 	return 0;
 }
 
 static int ieee80211_set_tx_power(struct wiphy *wiphy,
-				  struct wireless_dev *wdev,
+				  struct wireless_dev *wdev, int radio_idx,
 				  enum nl80211_tx_power_setting type, int mbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
@@ -3214,6 +3248,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 
 static int ieee80211_get_tx_power(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
+				  int radio_idx,
 				  unsigned int link_id,
 				  int *dbm)
 {
@@ -3392,7 +3427,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+		ieee80211_hw_config(local, -1, IEEE80211_CONF_CHANGE_PS);
 
 	ieee80211_recalc_ps(local);
 	ieee80211_recalc_ps_vif(sdata);
@@ -3549,6 +3584,56 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	return 0;
 }
 
+static bool ieee80211_is_scan_ongoing(struct wiphy *wiphy,
+				      struct ieee80211_local *local,
+				      struct cfg80211_chan_def *chandef)
+{
+	struct cfg80211_scan_request *scan_req;
+	int chan_radio_idx, req_radio_idx;
+	struct ieee80211_roc_work *roc;
+
+	if (list_empty(&local->roc_list) && !local->scanning)
+		return false;
+
+	if (wiphy->n_radio < 2)
+		return true;
+
+	req_radio_idx = cfg80211_get_radio_idx_by_chan(wiphy, chandef->chan);
+	if (req_radio_idx < 0)
+		return true;
+
+	if (local->scanning) {
+		scan_req = wiphy_dereference(wiphy, local->scan_req);
+		/*
+		 * Scan is going on but info is not there. Should not happen
+		 * but if it does, let's not take risk and assume we can't use
+		 * the hw hence return true
+		 */
+		if (WARN_ON_ONCE(!scan_req))
+			return true;
+
+		return ieee80211_is_radio_idx_in_scan_req(wiphy, scan_req,
+							  req_radio_idx);
+	}
+
+	list_for_each_entry(roc, &local->roc_list, list) {
+		chan_radio_idx = cfg80211_get_radio_idx_by_chan(wiphy,
+								roc->chan);
+		/*
+		 * The roc work is added but chan_radio_idx is invalid.
+		 * Should not happen but if it does, let's not take
+		 * risk and return true.
+		 */
+		if (chan_radio_idx < 0)
+			return true;
+
+		if (chan_radio_idx == req_radio_idx)
+			return true;
+	}
+
+	return false;
+}
+
 static int ieee80211_start_radar_detection(struct wiphy *wiphy,
 					   struct net_device *dev,
 					   struct cfg80211_chan_def *chandef,
@@ -3562,7 +3647,7 @@ static int ieee80211_start_radar_detection(struct wiphy *wiphy,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (!list_empty(&local->roc_list) || local->scanning)
+	if (ieee80211_is_scan_ongoing(wiphy, local, chandef))
 		return -EBUSY;
 
 	link_data = sdata_dereference(sdata->link[link_id], sdata);
@@ -4054,7 +4139,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (!list_empty(&local->roc_list) || local->scanning)
+	if (ieee80211_is_scan_ongoing(wiphy, local, &params->chandef))
 		return -EBUSY;
 
 	if (sdata->wdev.links[link_id].cac_started)
@@ -4238,7 +4323,8 @@ ieee80211_update_mgmt_frame_registrations(struct wiphy *wiphy,
 		ieee80211_configure_filter(local);
 }
 
-static int ieee80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
+static int ieee80211_set_antenna(struct wiphy *wiphy, int radio_idx,
+				 u32 tx_ant, u32 rx_ant)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	int ret;
@@ -4254,11 +4340,12 @@ static int ieee80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
 	return 0;
 }
 
-static int ieee80211_get_antenna(struct wiphy *wiphy, u32 *tx_ant, u32 *rx_ant)
+static int ieee80211_get_antenna(struct wiphy *wiphy, int radio_idx,
+				 u32 *tx_ant, u32 *rx_ant)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 
-	return drv_get_antenna(local, tx_ant, rx_ant);
+	return drv_get_antenna(local, radio_idx, tx_ant, rx_ant);
 }
 
 static int ieee80211_set_rekey_data(struct wiphy *wiphy,

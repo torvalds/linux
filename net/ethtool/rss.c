@@ -358,6 +358,17 @@ int ethnl_rss_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 	return ret;
 }
 
+/* RSS_NTF */
+
+void ethtool_rss_notify(struct net_device *dev, u32 rss_context)
+{
+	struct rss_req_info req_info = {
+		.rss_context = rss_context,
+	};
+
+	ethnl_notify(dev, ETHTOOL_MSG_RSS_NTF, &req_info.base);
+}
+
 const struct ethnl_request_ops ethnl_rss_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_RSS_GET,
 	.reply_cmd		= ETHTOOL_MSG_RSS_GET_REPLY,
