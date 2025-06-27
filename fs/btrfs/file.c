@@ -856,7 +856,7 @@ static noinline int prepare_one_folio(struct inode *inode, struct folio **folio_
 				      loff_t pos, size_t write_bytes,
 				      bool nowait)
 {
-	unsigned long index = pos >> PAGE_SHIFT;
+	const pgoff_t index = pos >> PAGE_SHIFT;
 	gfp_t mask = get_prepare_gfp_flags(inode, nowait);
 	fgf_t fgp_flags = (nowait ? FGP_WRITEBEGIN | FGP_NOWAIT : FGP_WRITEBEGIN) |
 			  fgf_set_order(write_bytes);

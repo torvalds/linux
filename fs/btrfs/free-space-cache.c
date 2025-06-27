@@ -366,7 +366,7 @@ fail:
 static void readahead_cache(struct inode *inode)
 {
 	struct file_ra_state ra;
-	unsigned long last_index;
+	pgoff_t last_index;
 
 	file_ra_state_init(&ra, inode->i_mapping);
 	last_index = (i_size_read(inode) - 1) >> PAGE_SHIFT;

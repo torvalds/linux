@@ -1662,7 +1662,7 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 	int ret;
 	size_t pg_offset;
 	loff_t i_size = i_size_read(&inode->vfs_inode);
-	unsigned long end_index = i_size >> PAGE_SHIFT;
+	const pgoff_t end_index = i_size >> PAGE_SHIFT;
 	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
 
 	trace_extent_writepage(folio, &inode->vfs_inode, bio_ctrl->wbc);
@@ -3146,7 +3146,7 @@ static int attach_eb_folio_to_filemap(struct extent_buffer *eb, int i,
 
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct address_space *mapping = fs_info->btree_inode->i_mapping;
-	const unsigned long index = eb->start >> PAGE_SHIFT;
+	const pgoff_t index = eb->start >> PAGE_SHIFT;
 	struct folio *existing_folio;
 	int ret;
 

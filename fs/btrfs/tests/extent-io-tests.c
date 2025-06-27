@@ -23,8 +23,8 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 {
 	int ret;
 	struct folio_batch fbatch;
-	unsigned long index = start >> PAGE_SHIFT;
-	unsigned long end_index = end >> PAGE_SHIFT;
+	pgoff_t index = start >> PAGE_SHIFT;
+	pgoff_t end_index = end >> PAGE_SHIFT;
 	int i;
 	int count = 0;
 	int loops = 0;
@@ -114,7 +114,6 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 	struct extent_io_tree *tmp;
 	struct page *page;
 	struct page *locked_page = NULL;
-	unsigned long index = 0;
 	/* In this test we need at least 2 file extents at its maximum size */
 	u64 max_bytes = BTRFS_MAX_EXTENT_SIZE;
 	u64 total_dirty = 2 * max_bytes;
@@ -157,7 +156,7 @@ static int test_find_delalloc(u32 sectorsize, u32 nodesize)
 	 * everything to make sure our pages don't get evicted and screw up our
 	 * test.
 	 */
-	for (index = 0; index < (total_dirty >> PAGE_SHIFT); index++) {
+	for (pgoff_t index = 0; index < (total_dirty >> PAGE_SHIFT); index++) {
 		page = find_or_create_page(inode->i_mapping, index, GFP_KERNEL);
 		if (!page) {
 			test_err("failed to allocate test page");

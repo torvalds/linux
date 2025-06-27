@@ -395,8 +395,8 @@ void btrfs_inode_unlock(struct btrfs_inode *inode, unsigned int ilock_flags)
 static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 						 u64 offset, u64 bytes)
 {
-	unsigned long index = offset >> PAGE_SHIFT;
-	unsigned long end_index = (offset + bytes - 1) >> PAGE_SHIFT;
+	pgoff_t index = offset >> PAGE_SHIFT;
+	const pgoff_t end_index = (offset + bytes - 1) >> PAGE_SHIFT;
 	struct folio *folio;
 
 	while (index <= end_index) {
@@ -808,12 +808,11 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 
 static int extent_range_clear_dirty_for_io(struct btrfs_inode *inode, u64 start, u64 end)
 {
-	unsigned long end_index = end >> PAGE_SHIFT;
+	const pgoff_t end_index = end >> PAGE_SHIFT;
 	struct folio *folio;
 	int ret = 0;
 
-	for (unsigned long index = start >> PAGE_SHIFT;
-	     index <= end_index; index++) {
+	for (pgoff_t index = start >> PAGE_SHIFT; index <= end_index; index++) {
 		folio = filemap_get_folio(inode->vfs_inode.i_mapping, index);
 		if (IS_ERR(folio)) {
 			if (!ret)

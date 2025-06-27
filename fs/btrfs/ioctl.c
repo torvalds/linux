@@ -4658,7 +4658,7 @@ static void btrfs_uring_read_finished(struct io_uring_cmd *cmd, unsigned int iss
 	struct btrfs_uring_priv *priv = bc->priv;
 	struct btrfs_inode *inode = BTRFS_I(file_inode(priv->iocb.ki_filp));
 	struct extent_io_tree *io_tree = &inode->io_tree;
-	unsigned long index;
+	pgoff_t index;
 	u64 cur;
 	size_t page_offset;
 	ssize_t ret;
