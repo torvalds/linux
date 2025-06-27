@@ -19,10 +19,24 @@
 
 typedef int (*pm_callback_t)(struct device *);
 
+static inline pm_callback_t get_callback_ptr(const void *start, size_t offset)
+{
+	return *(pm_callback_t *)(start + offset);
+}
+
+static pm_callback_t __rpm_get_driver_callback(struct device *dev,
+					       size_t cb_offset)
+{
+	if (dev->driver && dev->driver->pm)
+		return get_callback_ptr(dev->driver->pm, cb_offset);
+
+	return NULL;
+}
+
 static pm_callback_t __rpm_get_callback(struct device *dev, size_t cb_offset)
 {
-	pm_callback_t cb;
 	const struct dev_pm_ops *ops;
+	pm_callback_t cb = NULL;
 
 	if (dev->pm_domain)
 		ops = &dev->pm_domain->ops;
@@ -36,12 +50,10 @@ static pm_callback_t __rpm_get_callback(struct device *dev, size_t cb_offset)
 		ops = NULL;
 
 	if (ops)
-		cb = *(pm_callback_t *)((void *)ops + cb_offset);
-	else
-		cb = NULL;
+		cb = get_callback_ptr(ops, cb_offset);
 
-	if (!cb && dev->driver && dev->driver->pm)
-		cb = *(pm_callback_t *)((void *)dev->driver->pm + cb_offset);
+	if (!cb)
+		cb = __rpm_get_driver_callback(dev, cb_offset);
 
 	return cb;
 }
