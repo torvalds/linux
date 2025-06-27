@@ -2,6 +2,8 @@
 
 menu "Crypto library routines"
 
+source "lib/crypto/tests/Kconfig"
+
 config CRYPTO_LIB_UTILS
 	tristate
 
@@ -167,33 +169,51 @@ config CRYPTO_LIB_SHA256_GENERIC
 	  for SIMD implementations. If no arch specific implementation is
 	  enabled, this implementation serves the users of CRYPTO_LIB_SHA256.
 
+config CRYPTO_LIB_SHA512
+	tristate
+	help
+	  The SHA-384, SHA-512, HMAC-SHA384, and HMAC-SHA512 library functions.
+	  Select this if your module uses any of these functions from
+	  <crypto/sha2.h>.
+
+config CRYPTO_LIB_SHA512_ARCH
+	bool
+	depends on CRYPTO_LIB_SHA512 && !UML
+	default y if ARM && !CPU_V7M
+	default y if ARM64
+	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
+	default y if S390
+	default y if SPARC64
+	default y if X86_64
+
 config CRYPTO_LIB_SM3
 	tristate
 
 if !KMSAN # avoid false positives from assembly
 if ARM
-source "arch/arm/lib/crypto/Kconfig"
+source "lib/crypto/arm/Kconfig"
 endif
 if ARM64
-source "arch/arm64/lib/crypto/Kconfig"
+source "lib/crypto/arm64/Kconfig"
 endif
 if MIPS
-source "arch/mips/lib/crypto/Kconfig"
+source "lib/crypto/mips/Kconfig"
 endif
 if PPC
-source "arch/powerpc/lib/crypto/Kconfig"
+source "lib/crypto/powerpc/Kconfig"
 endif
 if RISCV
-source "arch/riscv/lib/crypto/Kconfig"
+source "lib/crypto/riscv/Kconfig"
 endif
 if S390
-source "arch/s390/lib/crypto/Kconfig"
+source "lib/crypto/s390/Kconfig"
 endif
 if SPARC
-source "arch/sparc/lib/crypto/Kconfig"
+source "lib/crypto/sparc/Kconfig"
 endif
 if X86
-source "arch/x86/lib/crypto/Kconfig"
+source "lib/crypto/x86/Kconfig"
 endif
 endif
 

@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config CRYPTO_LIB_SHA256_KUNIT_TEST
+	tristate "KUnit tests for SHA-224 and SHA-256" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_SHA256
+	help
+	  KUnit tests for the SHA-224 and SHA-256 cryptographic hash functions.
+
+config CRYPTO_LIB_SHA512_KUNIT_TEST
+	tristate "KUnit tests for SHA-384 and SHA-512" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_SHA512
+	help
+	  KUnit tests for the SHA-384 and SHA-512 cryptographic hash functions
+	  and their corresponding HMACs.
+
+config CRYPTO_LIB_BENCHMARK
+	bool "Include benchmarks in KUnit tests for cryptographic functions"
+	depends on CRYPTO_LIB_SHA256_KUNIT_TEST || CRYPTO_LIB_SHA512_KUNIT_TEST
+	help
+	  Include benchmarks in the KUnit tests for cryptographic functions.

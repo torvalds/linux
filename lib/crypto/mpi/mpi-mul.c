@@ -11,6 +11,8 @@
  *	 to avoid revealing of sensitive data due to paging etc.
  */
 
+#include <linux/export.h>
+
 #include "mpi-internal.h"
 
 int mpi_mul(MPI w, MPI u, MPI v)
