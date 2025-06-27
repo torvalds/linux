@@ -1941,13 +1941,6 @@ void pm_runtime_drop_link(struct device_link *link)
 	pm_request_idle(link->supplier);
 }
 
-bool pm_runtime_need_not_resume(struct device *dev)
-{
-	return atomic_read(&dev->power.usage_count) <= 1 &&
-		(atomic_read(&dev->power.child_count) == 0 ||
-		 dev->power.ignore_children);
-}
-
 /**
  * pm_runtime_force_suspend - Force a device into suspend state if needed.
  * @dev: Device to suspend.
@@ -2009,6 +2002,8 @@ err:
 }
 EXPORT_SYMBOL_GPL(pm_runtime_force_suspend);
 
+#ifdef CONFIG_PM_SLEEP
+
 /**
  * pm_runtime_force_resume - Force a device into resume state if needed.
  * @dev: Device to resume.
@@ -2052,3 +2047,12 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pm_runtime_force_resume);
+
+bool pm_runtime_need_not_resume(struct device *dev)
+{
+	return atomic_read(&dev->power.usage_count) <= 1 &&
+		(atomic_read(&dev->power.child_count) == 0 ||
+		 dev->power.ignore_children);
+}
+
+#endif /* CONFIG_PM_SLEEP */
