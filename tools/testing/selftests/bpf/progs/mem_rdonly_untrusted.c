@@ -1,0 +1,136 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <vmlinux.h>
+#include <bpf/bpf_core_read.h>
+#include "bpf_misc.h"
+#include "../test_kmods/bpf_testmod_kfunc.h"
+
+SEC("socket")
+__success
+__retval(0)
+int ldx_is_ok_bad_addr(void *ctx)
+{
+	char *p;
+
+	if (!bpf_core_enum_value_exists(enum bpf_features, BPF_FEAT_RDONLY_CAST_TO_VOID))
+		return 42;
+
+	p = bpf_rdonly_cast(0, 0);
+	return p[0x7fff];
+}
+
+SEC("socket")
+__success
+__retval(1)
+int ldx_is_ok_good_addr(void *ctx)
+{
+	int v, *p;
+
+	v = 1;
+	p = bpf_rdonly_cast(&v, 0);
+	return *p;
+}
+
+SEC("socket")
+__success
+int offset_not_tracked(void *ctx)
+{
+	int *p, i, s;
+
+	p = bpf_rdonly_cast(0, 0);
+	s = 0;
+	bpf_for(i, 0, 1000 * 1000 * 1000) {
+		p++;
+		s += *p;
+	}
+	return s;
+}
+
+SEC("socket")
+__failure
+__msg("cannot write into rdonly_untrusted_mem")
+int stx_not_ok(void *ctx)
+{
+	int v, *p;
+
+	v = 1;
+	p = bpf_rdonly_cast(&v, 0);
+	*p = 1;
+	return 0;
+}
+
+SEC("socket")
+__failure
+__msg("cannot write into rdonly_untrusted_mem")
+int atomic_not_ok(void *ctx)
+{
+	int v, *p;
+
+	v = 1;
+	p = bpf_rdonly_cast(&v, 0);
+	__sync_fetch_and_add(p, 1);
+	return 0;
+}
+
+SEC("socket")
+__failure
+__msg("cannot write into rdonly_untrusted_mem")
+int atomic_rmw_not_ok(void *ctx)
+{
+	long v, *p;
+
+	v = 1;
+	p = bpf_rdonly_cast(&v, 0);
+	return __sync_val_compare_and_swap(p, 0, 42);
+}
+
+SEC("socket")
+__failure
+__msg("invalid access to memory, mem_size=0 off=0 size=4")
+__msg("R1 min value is outside of the allowed memory range")
+int kfunc_param_not_ok(void *ctx)
+{
+	int *p;
+
+	p = bpf_rdonly_cast(0, 0);
+	bpf_kfunc_trusted_num_test(p);
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+__failure
+__msg("R1 type=rdonly_untrusted_mem expected=")
+int helper_param_not_ok(void *ctx)
+{
+	char *p;
+
+	p = bpf_rdonly_cast(0, 0);
+	/*
+	 * Any helper with ARG_CONST_SIZE_OR_ZERO constraint will do,
+	 * the most permissive constraint
+	 */
+	bpf_copy_from_user(p, 0, (void *)42);
+	return 0;
+}
+
+static __noinline u64 *get_some_addr(void)
+{
+	if (bpf_get_prandom_u32())
+		return bpf_rdonly_cast(0, bpf_core_type_id_kernel(struct sock));
+	else
+		return bpf_rdonly_cast(0, 0);
+}
+
+SEC("socket")
+__success
+__retval(0)
+int mixed_mem_type(void *ctx)
+{
+	u64 *p;
+
+	/* Try to avoid compiler hoisting load to if branches by using __noinline func. */
+	p = get_some_addr();
+	return *p;
+}
+
+char _license[] SEC("license") = "GPL";

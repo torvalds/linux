@@ -16,10 +16,11 @@ struct {
 	__type(value, long);
 } map_a SEC(".maps");
 
-__u32 user_data, key_serial, target_pid;
+__u32 user_data, target_pid;
+__s32 key_serial;
 __u64 flags, task_storage_val, cgroup_id;
 
-struct bpf_key *bpf_lookup_user_key(__u32 serial, __u64 flags) __ksym;
+struct bpf_key *bpf_lookup_user_key(__s32 serial, __u64 flags) __ksym;
 void bpf_key_put(struct bpf_key *key) __ksym;
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
