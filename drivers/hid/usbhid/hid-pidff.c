@@ -210,9 +210,7 @@ struct pidff_device {
  */
 static s32 pidff_clamp(s32 i, struct hid_field *field)
 {
-	s32 clamped = clamp(i, field->logical_minimum, field->logical_maximum);
-	pr_debug("clamped from %d to %d", i, clamped);
-	return clamped;
+	return (s32)clamp(i, field->logical_minimum, field->logical_maximum);
 }
 
 /*
@@ -229,8 +227,10 @@ static int pidff_rescale(int i, int max, struct hid_field *field)
  */
 static int pidff_rescale_signed(int i, struct hid_field *field)
 {
-	if (i > 0) return i * field->logical_maximum / S16_MAX;
-	if (i < 0) return i * field->logical_minimum / S16_MIN;
+	if (i > 0)
+		return i * field->logical_maximum / S16_MAX;
+	if (i < 0)
+		return i * field->logical_minimum / S16_MIN;
 	return 0;
 }
 
@@ -241,11 +241,11 @@ static u32 pidff_rescale_time(u16 time, struct hid_field *field)
 {
 	u32 scaled_time = time;
 	int exponent = field->unit_exponent;
-	pr_debug("time field exponent: %d\n", exponent);
 
-	for (;exponent < FF_TIME_EXPONENT; exponent++)
+	pr_debug("time field exponent: %d\n", exponent);
+	for (; exponent < FF_TIME_EXPONENT; exponent++)
 		scaled_time *= 10;
-	for (;exponent > FF_TIME_EXPONENT; exponent--)
+	for (; exponent > FF_TIME_EXPONENT; exponent--)
 		scaled_time /= 10;
 
 	pr_debug("time calculated from %d to %d\n", time, scaled_time);
@@ -275,8 +275,8 @@ static void pidff_set_signed(struct pidff_usage *usage, s16 value)
 
 static void pidff_set_time(struct pidff_usage *usage, u16 time)
 {
-	u32 modified_time = pidff_rescale_time(time, usage->field);
-	usage->value[0] = pidff_clamp(modified_time, usage->field);
+	usage->value[0] = pidff_clamp(
+		pidff_rescale_time(time, usage->field), usage->field);
 }
 
 static void pidff_set_duration(struct pidff_usage *usage, u16 duration)
@@ -332,6 +332,7 @@ static int pidff_needs_set_envelope(struct ff_envelope *envelope,
 				    struct ff_envelope *old)
 {
 	bool needs_new_envelope;
+
 	needs_new_envelope = envelope->attack_level  != 0 ||
 			     envelope->fade_level    != 0 ||
 			     envelope->attack_length != 0 ||
@@ -568,7 +569,7 @@ static void pidff_set_device_control(struct pidff_device *pidff, int field)
 		hid_dbg(pidff->hid, "DEVICE_CONTROL is a bitmask\n");
 
 		/* Clear current bitmask */
-		for(i = 0; i < sizeof(pidff_device_control); i++) {
+		for (i = 0; i < sizeof(pidff_device_control); i++) {
 			index = pidff->control_id[i];
 			if (index < 1)
 				continue;
@@ -619,7 +620,7 @@ static void pidff_fetch_pool(struct pidff_device *pidff)
 	struct hid_device *hid = pidff->hid;
 
 	/* Repeat if PID_SIMULTANEOUS_MAX < 2 to make sure it's correct */
-	for(i = 0; i < 20; i++) {
+	for (i = 0; i < 20; i++) {
 		hid_hw_request(hid, pidff->reports[PID_POOL], HID_REQ_GET_REPORT);
 		hid_hw_wait(hid);
 
@@ -715,6 +716,7 @@ static void pidff_playback_pid(struct pidff_device *pidff, int pid_id, int n)
 static int pidff_playback(struct input_dev *dev, int effect_id, int value)
 {
 	struct pidff_device *pidff = dev->ff->private;
+
 	pidff_playback_pid(pidff, pidff->pid_id[effect_id], value);
 	return 0;
 }
@@ -849,7 +851,7 @@ static int pidff_upload_effect(struct input_dev *dev, struct ff_effect *effect,
 	case FF_INERTIA:
 	case FF_FRICTION:
 		if (!old) {
-			switch(effect->type) {
+			switch (effect->type) {
 			case FF_SPRING:
 				type_id = PID_SPRING;
 				break;
@@ -940,7 +942,7 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 			     struct hid_report *report, int count, int strict)
 {
 	if (!report) {
-		pr_debug("pidff_find_fields, null report\n");
+		pr_debug("%s, null report\n", __func__);
 		return -1;
 	}
 
@@ -974,13 +976,11 @@ static int pidff_find_fields(struct pidff_usage *usage, const u8 *table,
 			pr_debug("Delay field not found, but that's OK\n");
 			pr_debug("Setting MISSING_DELAY quirk\n");
 			return_value |= HID_PIDFF_QUIRK_MISSING_DELAY;
-		}
-		else if (!found && table[k] == pidff_set_condition[PID_PARAM_BLOCK_OFFSET]) {
+		} else if (!found && table[k] == pidff_set_condition[PID_PARAM_BLOCK_OFFSET]) {
 			pr_debug("PBO field not found, but that's OK\n");
 			pr_debug("Setting MISSING_PBO quirk\n");
 			return_value |= HID_PIDFF_QUIRK_MISSING_PBO;
-		}
-		else if (!found && strict) {
+		} else if (!found && strict) {
 			pr_debug("failed to locate %d\n", k);
 			return -1;
 		}
@@ -1069,7 +1069,7 @@ static struct hid_field *pidff_find_special_field(struct hid_report *report,
 						  int usage, int enforce_min)
 {
 	if (!report) {
-		pr_debug("pidff_find_special_field, null report\n");
+		pr_debug("%s, null report\n", __func__);
 		return NULL;
 	}
 
@@ -1081,10 +1081,9 @@ static struct hid_field *pidff_find_special_field(struct hid_report *report,
 			if (!enforce_min ||
 			    report->field[i]->logical_minimum == 1)
 				return report->field[i];
-			else {
-				pr_err("logical_minimum is not 1 as it should be\n");
-				return NULL;
-			}
+
+			pr_err("logical_minimum is not 1 as it should be\n");
+			return NULL;
 		}
 	}
 	return NULL;
@@ -1207,6 +1206,7 @@ static int pidff_find_effects(struct pidff_device *pidff,
 
 	for (i = 0; i < sizeof(pidff_effect_types); i++) {
 		int pidff_type = pidff->type_id[i];
+
 		if (pidff->set_effect_type->usage[pidff_type].hid !=
 		    pidff->create_new_effect_type->usage[pidff_type].hid) {
 			hid_err(pidff->hid,

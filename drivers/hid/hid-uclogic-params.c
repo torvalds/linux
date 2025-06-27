@@ -1341,7 +1341,7 @@ static int uclogic_params_ugee_v2_init_event_hooks(struct hid_device *hdev,
 						   struct uclogic_params *p)
 {
 	struct uclogic_raw_event_hook *event_hook;
-	__u8 reconnect_event[] = {
+	static const __u8 reconnect_event[] = {
 		/* Event received on wireless tablet reconnection */
 		0x02, 0xF8, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
