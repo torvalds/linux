@@ -21,7 +21,7 @@
 #include <linux/time.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
-#include "serdev_helpers.h"
+#include "../serdev_helpers.h"
 
 #define YT2_1380_FC_PDEV_NAME		"lenovo-yoga-tab2-pro-1380-fastcharger"
 #define YT2_1380_FC_SERDEV_CTRL		"serial0"
@@ -240,30 +240,25 @@ static int yt2_1380_fc_pdev_probe(struct platform_device *pdev)
 	int ret;
 
 	/* Register pinctrl mappings for setting the UART3 pins mode */
-	ret = pinctrl_register_mappings(yt2_1380_fc_pinctrl_map,
-					ARRAY_SIZE(yt2_1380_fc_pinctrl_map));
+	ret = devm_pinctrl_register_mappings(&pdev->dev, yt2_1380_fc_pinctrl_map,
+					     ARRAY_SIZE(yt2_1380_fc_pinctrl_map));
 	if (ret)
 		return ret;
 
 	/* And create the serdev to talk to the charger over the UART3 pins */
 	ctrl_dev = get_serdev_controller("PNP0501", "1", 0, YT2_1380_FC_SERDEV_CTRL);
-	if (IS_ERR(ctrl_dev)) {
-		ret = PTR_ERR(ctrl_dev);
-		goto out_pinctrl_unregister_mappings;
-	}
+	if (IS_ERR(ctrl_dev))
+		return PTR_ERR(ctrl_dev);
 
 	serdev = serdev_device_alloc(to_serdev_controller(ctrl_dev));
 	put_device(ctrl_dev);
-	if (!serdev) {
-		ret = -ENOMEM;
-		goto out_pinctrl_unregister_mappings;
-	}
+	if (!serdev)
+		return -ENOMEM;
 
 	ret = serdev_device_add(serdev);
 	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "adding serdev\n");
 		serdev_device_put(serdev);
-		goto out_pinctrl_unregister_mappings;
+		return dev_err_probe(&pdev->dev, ret, "adding serdev\n");
 	}
 
 	/*
@@ -273,20 +268,15 @@ static int yt2_1380_fc_pdev_probe(struct platform_device *pdev)
 	ret = device_driver_attach(&yt2_1380_fc_serdev_driver.driver, &serdev->dev);
 	if (ret) {
 		/* device_driver_attach() maps EPROBE_DEFER to EAGAIN, map it back */
-		ret = (ret == -EAGAIN) ? -EPROBE_DEFER : ret;
-		dev_err_probe(&pdev->dev, ret, "attaching serdev driver\n");
-		goto out_serdev_device_remove;
+		serdev_device_remove(serdev);
+		return dev_err_probe(&pdev->dev,
+				     (ret == -EAGAIN) ? -EPROBE_DEFER : ret,
+				     "attaching serdev driver\n");
 	}
 
 	/* So that yt2_1380_fc_pdev_remove() can remove the serdev */
 	platform_set_drvdata(pdev, serdev);
 	return 0;
-
-out_serdev_device_remove:
-	serdev_device_remove(serdev);
-out_pinctrl_unregister_mappings:
-	pinctrl_unregister_mappings(yt2_1380_fc_pinctrl_map);
-	return ret;
 }
 
 static void yt2_1380_fc_pdev_remove(struct platform_device *pdev)
@@ -294,7 +284,6 @@ static void yt2_1380_fc_pdev_remove(struct platform_device *pdev)
 	struct serdev_device *serdev = platform_get_drvdata(pdev);
 
 	serdev_device_remove(serdev);
-	pinctrl_unregister_mappings(yt2_1380_fc_pinctrl_map);
 }
 
 static struct platform_driver yt2_1380_fc_pdev_driver = {
