@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test various DSACK (RFC 2883) behaviors.
+
+--mss=1000
+
+`./defaults.sh`
+
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 1024
+   +0 accept(3, ..., ...) = 4
+
+// First SACK range.
+   +0 < P. 1001:2001(1000) ack 1 win 1024
+   +0 > . 1:1(0) ack 1 <nop, nop, sack 1001:2001>
+
+// Check SACK coalescing (contiguous sequence).
+   +0 < P. 2001:3001(1000) ack 1 win 1024
+   +0 > . 1:1(0) ack 1 <nop,nop,sack 1001:3001>
+
+// Check we have two SACK ranges for non contiguous sequences.
+   +0 < P. 4001:5001(1000) ack 1 win 1024
+   +0 > . 1:1(0) ack 1 <nop,nop,sack 4001:5001 1001:3001>
+
+// Three ranges.
+   +0 < P. 7001:8001(1000) ack 1 win 1024
+   +0 > . 1:1(0) ack 1 <nop,nop,sack 7001:8001 4001:5001 1001:3001>
+
+// DSACK (1001:3001) + SACK (6001:7001)
+   +0 < P. 1:6001(6000) ack 1 win 1024
+   +0 > . 1:1(0) ack 6001 <nop,nop,sack 1001:3001 7001:8001>
+
+// DSACK (7001:8001)
+   +0 < P. 6001:8001(2000) ack 1 win 1024
+   +0 > . 1:1(0) ack 8001 <nop,nop,sack 7001:8001>
+
+// DSACK for an older segment.
+   +0 < P. 1:1001(1000) ack 1 win 1024
+   +0 > . 1:1(0) ack 8001 <nop,nop,sack 1:1001>
