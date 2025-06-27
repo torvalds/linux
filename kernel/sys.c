@@ -210,7 +210,6 @@ static int __init init_overflow_sysctl(void)
 
 postcore_initcall(init_overflow_sysctl);
 
-
 /*
  * Returns true if current's euid is same as p's uid or euid,
  * or has CAP_SYS_NICE to p's user_ns.
