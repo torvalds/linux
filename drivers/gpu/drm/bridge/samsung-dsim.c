@@ -897,8 +897,6 @@ static int samsung_dsim_init_link(struct samsung_dsim *dsi)
 		 * The user manual describes that following bits are ignored in
 		 * command mode.
 		 */
-		if (!(dsi->mode_flags & MIPI_DSI_MODE_VSYNC_FLUSH))
-			reg |= DSIM_MFLUSH_VS;
 		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
 			reg |= DSIM_SYNC_INFORM;
 		if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO_BURST)
