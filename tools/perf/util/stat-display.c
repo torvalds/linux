@@ -50,15 +50,15 @@ static int aggr_header_lens[] = {
 };
 
 static const char *aggr_header_csv[] = {
-	[AGGR_CORE] 	= 	"core,cpus,",
-	[AGGR_CACHE]	= 	"cache,cpus,",
-	[AGGR_CLUSTER]	= 	"cluster,cpus,",
-	[AGGR_DIE] 	= 	"die,cpus,",
-	[AGGR_SOCKET] 	= 	"socket,cpus,",
-	[AGGR_NONE] 	= 	"cpu,",
-	[AGGR_THREAD] 	= 	"comm-pid,",
-	[AGGR_NODE] 	= 	"node,",
-	[AGGR_GLOBAL] 	=	""
+	[AGGR_CORE]	=	"core,ctrs,",
+	[AGGR_CACHE]	=	"cache,ctrs,",
+	[AGGR_CLUSTER]	=	"cluster,ctrs,",
+	[AGGR_DIE]	=	"die,ctrs,",
+	[AGGR_SOCKET]	=	"socket,ctrs,",
+	[AGGR_NONE]	=	"cpu,",
+	[AGGR_THREAD]	=	"comm-pid,",
+	[AGGR_NODE]	=	"node,",
+	[AGGR_GLOBAL]	=	""
 };
 
 static const char *aggr_header_std[] = {
@@ -304,7 +304,7 @@ static void print_aggr_id_std(struct perf_stat_config *config,
 		return;
 	}
 
-	fprintf(output, "%-*s %*d ", aggr_header_lens[idx], buf, 4, aggr_nr);
+	fprintf(output, "%-*s %*d ", aggr_header_lens[idx], buf, /*strlen("ctrs")*/ 4, aggr_nr);
 }
 
 static void print_aggr_id_csv(struct perf_stat_config *config,
@@ -366,27 +366,27 @@ static void print_aggr_id_json(struct perf_stat_config *config, struct outstate 
 {
 	switch (config->aggr_mode) {
 	case AGGR_CORE:
-		json_out(os, "\"core\" : \"S%d-D%d-C%d\", \"aggregate-number\" : %d",
+		json_out(os, "\"core\" : \"S%d-D%d-C%d\", \"counters\" : %d",
 			id.socket, id.die, id.core, aggr_nr);
 		break;
 	case AGGR_CACHE:
-		json_out(os, "\"cache\" : \"S%d-D%d-L%d-ID%d\", \"aggregate-number\" : %d",
+		json_out(os, "\"cache\" : \"S%d-D%d-L%d-ID%d\", \"counters\" : %d",
 			id.socket, id.die, id.cache_lvl, id.cache, aggr_nr);
 		break;
 	case AGGR_CLUSTER:
-		json_out(os, "\"cluster\" : \"S%d-D%d-CLS%d\", \"aggregate-number\" : %d",
+		json_out(os, "\"cluster\" : \"S%d-D%d-CLS%d\", \"counters\" : %d",
 			id.socket, id.die, id.cluster, aggr_nr);
 		break;
 	case AGGR_DIE:
-		json_out(os, "\"die\" : \"S%d-D%d\", \"aggregate-number\" : %d",
+		json_out(os, "\"die\" : \"S%d-D%d\", \"counters\" : %d",
 			id.socket, id.die, aggr_nr);
 		break;
 	case AGGR_SOCKET:
-		json_out(os, "\"socket\" : \"S%d\", \"aggregate-number\" : %d",
+		json_out(os, "\"socket\" : \"S%d\", \"counters\" : %d",
 			id.socket, aggr_nr);
 		break;
 	case AGGR_NODE:
-		json_out(os, "\"node\" : \"N%d\", \"aggregate-number\" : %d",
+		json_out(os, "\"node\" : \"N%d\", \"counters\" : %d",
 			id.node, aggr_nr);
 		break;
 	case AGGR_NONE:
@@ -1317,7 +1317,7 @@ static void print_header_interval_std(struct perf_stat_config *config,
 	case AGGR_CLUSTER:
 	case AGGR_CACHE:
 	case AGGR_CORE:
-		fprintf(output, "#%*s %-*s cpus",
+		fprintf(output, "#%*s %-*s ctrs",
 			INTERVAL_LEN - 1, "time",
 			aggr_header_lens[config->aggr_mode],
 			aggr_header_std[config->aggr_mode]);
