@@ -62,7 +62,6 @@ static int clps711x_gpio_probe(struct platform_device *pdev)
 
 	gc->base = -1;
 	gc->owner = THIS_MODULE;
-	platform_set_drvdata(pdev, gc);
 
 	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 }

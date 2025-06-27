@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/pisosr-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic Parallel-in/Serial-out Shift Register GPIO Driver
+
+description:
+  This binding describes generic parallel-in/serial-out shift register
+  devices that can be used for GPI (General Purpose Input). This includes
+  SN74165 serial-out shift registers and the SN65HVS88x series of
+  industrial serializers.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - pisosr-gpio
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  ngpios:
+    maximum: 32
+    default: 8
+
+  load-gpios:
+    description:
+      GPIO pin specifier attached to load enable, this
+      pin is pulsed before reading from the device to
+      load input pin values into the device.
+
+  spi-cpol: true
+
+required:
+  - compatible
+  - gpio-controller
+  - '#gpio-cells'
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        gpio@0 {
+            compatible = "pisosr-gpio";
+            reg = <0>;
+            gpio-controller;
+            #gpio-cells = <2>;
+            load-gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
+            spi-max-frequency = <1000000>;
+            spi-cpol;
+        };
+    };

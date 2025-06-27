@@ -100,7 +100,7 @@ static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
 	if (priv->flags & MMIO_74XX_DIR_OUT) {
-		gc->set(gc, gpio, val);
+		gc->set_rv(gc, gpio, val);
 		return 0;
 	}
 

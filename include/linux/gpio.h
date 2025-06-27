@@ -21,18 +21,6 @@ struct device;
 #define GPIOF_OUT_INIT_LOW	((0 << 0) | (0 << 1))
 #define GPIOF_OUT_INIT_HIGH	((0 << 0) | (1 << 1))
 
-/**
- * struct gpio - a structure describing a GPIO with configuration
- * @gpio:	the GPIO number
- * @flags:	GPIO configuration as specified by GPIOF_*
- * @label:	a literal description string of this GPIO
- */
-struct gpio {
-	unsigned	gpio;
-	unsigned long	flags;
-	const char	*label;
-};
-
 #ifdef CONFIG_GPIOLIB
 
 #include <linux/gpio/consumer.h>
@@ -56,19 +44,6 @@ static inline bool gpio_is_valid(int number)
  * at a small performance cost for non-inlined operations and some
  * extra memory (for code and for per-GPIO table entries).
  */
-
-/*
- * At the end we want all GPIOs to be dynamically allocated from 0.
- * However, some legacy drivers still perform fixed allocation.
- * Until they are all fixed, leave 0-512 space for them.
- */
-#define GPIO_DYNAMIC_BASE	512
-/*
- * Define the maximum of the possible GPIO in the global numberspace.
- * While the GPIO base and numbers are positive, we limit it with signed
- * maximum as a lot of code is using negative values for special cases.
- */
-#define GPIO_DYNAMIC_MAX	INT_MAX
 
 /* Always use the library code for GPIO management calls,
  * or when sleeping may be involved.
@@ -110,7 +85,6 @@ static inline int gpio_to_irq(unsigned gpio)
 
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
 
-int devm_gpio_request(struct device *dev, unsigned gpio, const char *label);
 int devm_gpio_request_one(struct device *dev, unsigned gpio,
 			  unsigned long flags, const char *label);
 
@@ -184,13 +158,6 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 static inline int gpio_to_irq(unsigned gpio)
 {
 	/* GPIO can never have been requested or set as input */
-	WARN_ON(1);
-	return -EINVAL;
-}
-
-static inline int devm_gpio_request(struct device *dev, unsigned gpio,
-				    const char *label)
-{
 	WARN_ON(1);
 	return -EINVAL;
 }

@@ -3,7 +3,6 @@
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
-#include <linux/idr.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
@@ -12,7 +11,6 @@
 #include <linux/mutex.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/srcu.h>
 #include <linux/sysfs.h>
@@ -45,6 +43,11 @@ struct gpiod_data {
 	bool direction_can_change;
 };
 
+struct gpiodev_data {
+	struct gpio_device *gdev;
+	struct device *cdev_base; /* Class device by GPIO base */
+};
+
 /*
  * Lock to serialise gpiod export and unexport, and prevent re-export of
  * gpiod whose chip is being unregistered.
@@ -73,7 +76,7 @@ static DEFINE_MUTEX(sysfs_lock);
  */
 
 static ssize_t direction_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+			      struct device_attribute *attr, char *buf)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
@@ -88,11 +91,12 @@ static ssize_t direction_show(struct device *dev,
 }
 
 static ssize_t direction_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
+			       struct device_attribute *attr, const char *buf,
+			       size_t size)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
-	ssize_t			status;
+	ssize_t status;
 
 	guard(mutex)(&data->mutex);
 
@@ -109,12 +113,12 @@ static ssize_t direction_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(direction);
 
-static ssize_t value_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t value_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
-	ssize_t			status;
+	ssize_t status;
 
 	scoped_guard(mutex, &data->mutex)
 		status = gpiod_get_value_cansleep(desc);
@@ -125,8 +129,8 @@ static ssize_t value_show(struct device *dev,
 	return sysfs_emit(buf, "%zd\n", status);
 }
 
-static ssize_t value_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t value_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t size)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
@@ -179,22 +183,22 @@ static int gpio_sysfs_request_irq(struct device *dev, unsigned char flags)
 	irq_flags = IRQF_SHARED;
 	if (flags & GPIO_IRQF_TRIGGER_FALLING) {
 		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
-			IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
+				IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
 		set_bit(FLAG_EDGE_FALLING, &desc->flags);
 	}
 	if (flags & GPIO_IRQF_TRIGGER_RISING) {
 		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
-			IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
+				IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 		set_bit(FLAG_EDGE_RISING, &desc->flags);
 	}
 
 	/*
 	 * FIXME: This should be done in the irq_request_resources callback
-	 *        when the irq is requested, but a few drivers currently fail
-	 *        to do so.
+	 * when the irq is requested, but a few drivers currently fail to do
+	 * so.
 	 *
-	 *        Remove this redundant call (along with the corresponding
-	 *        unlock) when those drivers have been fixed.
+	 * Remove this redundant call (along with the corresponding unlock)
+	 * when those drivers have been fixed.
 	 */
 	ret = gpiochip_lock_as_irq(guard.gc, gpio_chip_hwgpio(desc));
 	if (ret < 0)
@@ -240,15 +244,15 @@ static void gpio_sysfs_free_irq(struct device *dev)
 	sysfs_put(data->value_kn);
 }
 
-static const char * const trigger_names[] = {
+static const char *const trigger_names[] = {
 	[GPIO_IRQF_TRIGGER_NONE]	= "none",
 	[GPIO_IRQF_TRIGGER_FALLING]	= "falling",
 	[GPIO_IRQF_TRIGGER_RISING]	= "rising",
 	[GPIO_IRQF_TRIGGER_BOTH]	= "both",
 };
 
-static ssize_t edge_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t edge_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	int flags;
@@ -262,8 +266,8 @@ static ssize_t edge_show(struct device *dev,
 	return sysfs_emit(buf, "%s\n", trigger_names[flags]);
 }
 
-static ssize_t edge_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t edge_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t size)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	ssize_t status = size;
@@ -302,7 +306,6 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 	struct gpio_desc *desc = data->desc;
 	int status = 0;
 
-
 	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
 		return 0;
 
@@ -310,7 +313,7 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 
 	/* reconfigure poll(2) support if enabled on one edge only */
 	if (flags == GPIO_IRQF_TRIGGER_FALLING ||
-					flags == GPIO_IRQF_TRIGGER_RISING) {
+	    flags == GPIO_IRQF_TRIGGER_RISING) {
 		gpio_sysfs_free_irq(dev);
 		status = gpio_sysfs_request_irq(dev, flags);
 	}
@@ -321,7 +324,7 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 }
 
 static ssize_t active_low_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
@@ -334,7 +337,8 @@ static ssize_t active_low_show(struct device *dev,
 }
 
 static ssize_t active_low_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
+				struct device_attribute *attr,
+				const char *buf, size_t size)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	ssize_t status;
@@ -397,30 +401,30 @@ static const struct attribute_group *gpio_groups[] = {
  *   /ngpio ... matching gpio_chip.ngpio
  */
 
-static ssize_t base_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t base_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	const struct gpio_device *gdev = dev_get_drvdata(dev);
+	const struct gpiodev_data *data = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%u\n", gdev->base);
+	return sysfs_emit(buf, "%u\n", data->gdev->base);
 }
 static DEVICE_ATTR_RO(base);
 
-static ssize_t label_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t label_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-	const struct gpio_device *gdev = dev_get_drvdata(dev);
+	const struct gpiodev_data *data = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%s\n", gdev->label);
+	return sysfs_emit(buf, "%s\n", data->gdev->label);
 }
 static DEVICE_ATTR_RO(label);
 
-static ssize_t ngpio_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t ngpio_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-	const struct gpio_device *gdev = dev_get_drvdata(dev);
+	const struct gpiodev_data *data = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%u\n", gdev->ngpio);
+	return sysfs_emit(buf, "%u\n", data->gdev->ngpio);
 }
 static DEVICE_ATTR_RO(ngpio);
 
@@ -439,8 +443,8 @@ ATTRIBUTE_GROUPS(gpiochip);
  *	integer N ... number of GPIO to unexport
  */
 static ssize_t export_store(const struct class *class,
-				const struct class_attribute *attr,
-				const char *buf, size_t len)
+			    const struct class_attribute *attr,
+			    const char *buf, size_t len)
 {
 	struct gpio_desc *desc;
 	int status, offset;
@@ -498,8 +502,8 @@ done:
 static CLASS_ATTR_WO(export);
 
 static ssize_t unexport_store(const struct class *class,
-				const struct class_attribute *attr,
-				const char *buf, size_t len)
+			      const struct class_attribute *attr,
+			      const char *buf, size_t len)
 {
 	struct gpio_desc *desc;
 	int status;
@@ -546,6 +550,26 @@ static const struct class gpio_class = {
 	.class_groups =	gpio_class_groups,
 };
 
+static int match_gdev(struct device *dev, const void *desc)
+{
+	struct gpiodev_data *data = dev_get_drvdata(dev);
+	const struct gpio_device *gdev = desc;
+
+	return data && data->gdev == gdev;
+}
+
+static struct gpiodev_data *
+gdev_get_data(struct gpio_device *gdev) __must_hold(&sysfs_lock)
+{
+	struct device *cdev __free(put_device) = class_find_device(&gpio_class,
+								   NULL, gdev,
+								   match_gdev);
+	if (!cdev)
+		return NULL;
+
+	return dev_get_drvdata(cdev);
+};
+
 /**
  * gpiod_export - export a GPIO through sysfs
  * @desc: GPIO to make available, already requested
@@ -590,12 +614,6 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	gdev = desc->gdev;
 
 	guard(mutex)(&sysfs_lock);
-
-	/* check if chip is being removed */
-	if (!gdev->mockdev) {
-		status = -ENODEV;
-		goto err_clear_bit;
-	}
 
 	if (!test_bit(FLAG_REQUESTED, &desc->flags)) {
 		gpiod_dbg(desc, "%s: unavailable (not requested)\n", __func__);
@@ -713,15 +731,17 @@ void gpiod_unexport(struct gpio_desc *desc)
 	}
 
 	put_device(dev);
+	mutex_destroy(&data->mutex);
 	kfree(data);
 }
 EXPORT_SYMBOL_GPL(gpiod_unexport);
 
 int gpiochip_sysfs_register(struct gpio_device *gdev)
 {
+	struct gpiodev_data *data;
 	struct gpio_chip *chip;
 	struct device *parent;
-	struct device *dev;
+	int err;
 
 	/*
 	 * Many systems add gpio chips for SOC support very early,
@@ -747,32 +767,42 @@ int gpiochip_sysfs_register(struct gpio_device *gdev)
 	else
 		parent = &gdev->dev;
 
-	/* use chip->base for the ID; it's already known to be unique */
-	dev = device_create_with_groups(&gpio_class, parent, MKDEV(0, 0), gdev,
-					gpiochip_groups, GPIOCHIP_NAME "%d",
-					chip->base);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->gdev = gdev;
 
 	guard(mutex)(&sysfs_lock);
-	gdev->mockdev = dev;
+
+	/* use chip->base for the ID; it's already known to be unique */
+	data->cdev_base = device_create_with_groups(&gpio_class, parent,
+						    MKDEV(0, 0), data,
+						    gpiochip_groups,
+						    GPIOCHIP_NAME "%d",
+						    chip->base);
+	if (IS_ERR(data->cdev_base)) {
+		err = PTR_ERR(data->cdev_base);
+		kfree(data);
+		return err;
+	}
 
 	return 0;
 }
 
 void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 {
+	struct gpiodev_data *data;
 	struct gpio_desc *desc;
 	struct gpio_chip *chip;
 
 	scoped_guard(mutex, &sysfs_lock) {
-		if (!gdev->mockdev)
+		data = gdev_get_data(gdev);
+		if (!data)
 			return;
 
-		device_unregister(gdev->mockdev);
-
-		/* prevent further gpiod exports */
-		gdev->mockdev = NULL;
+		device_unregister(data->cdev_base);
+		kfree(data);
 	}
 
 	guard(srcu)(&gdev->srcu);
@@ -797,9 +827,6 @@ static int gpiofind_sysfs_register(struct gpio_chip *gc, const void *data)
 {
 	struct gpio_device *gdev = gc->gpiodev;
 	int ret;
-
-	if (gdev->mockdev)
-		return 0;
 
 	ret = gpiochip_sysfs_register(gdev);
 	if (ret)

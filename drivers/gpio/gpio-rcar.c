@@ -331,13 +331,10 @@ static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 static int gpio_rcar_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 				  unsigned long *bits)
 {
+	u32 bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
-	u32 bankmask, outputs, m, val = 0;
+	u32 outputs, m, val = 0;
 	unsigned long flags;
-
-	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
-	if (!bankmask)
-		return 0;
 
 	if (p->info.has_always_in) {
 		bits[0] = gpio_rcar_read(p, INDT) & bankmask;
@@ -359,7 +356,7 @@ static int gpio_rcar_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 	return 0;
 }
 
-static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
+static int gpio_rcar_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 	unsigned long flags;
@@ -367,18 +364,17 @@ static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
 	raw_spin_lock_irqsave(&p->lock, flags);
 	gpio_rcar_modify_bit(p, OUTDT, offset, value);
 	raw_spin_unlock_irqrestore(&p->lock, flags);
+
+	return 0;
 }
 
-static void gpio_rcar_set_multiple(struct gpio_chip *chip, unsigned long *mask,
-				   unsigned long *bits)
+static int gpio_rcar_set_multiple(struct gpio_chip *chip, unsigned long *mask,
+				  unsigned long *bits)
 {
+	u32 bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
 	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
 	unsigned long flags;
-	u32 val, bankmask;
-
-	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
-	if (!bankmask)
-		return;
+	u32 val;
 
 	raw_spin_lock_irqsave(&p->lock, flags);
 	val = gpio_rcar_read(p, OUTDT);
@@ -386,6 +382,8 @@ static void gpio_rcar_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 	val |= (bankmask & bits[0]);
 	gpio_rcar_write(p, OUTDT, val);
 	raw_spin_unlock_irqrestore(&p->lock, flags);
+
+	return 0;
 }
 
 static int gpio_rcar_direction_output(struct gpio_chip *chip, unsigned offset,
@@ -537,8 +535,8 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	gpio_chip->get = gpio_rcar_get;
 	gpio_chip->get_multiple = gpio_rcar_get_multiple;
 	gpio_chip->direction_output = gpio_rcar_direction_output;
-	gpio_chip->set = gpio_rcar_set;
-	gpio_chip->set_multiple = gpio_rcar_set_multiple;
+	gpio_chip->set_rv = gpio_rcar_set;
+	gpio_chip->set_multiple_rv = gpio_rcar_set_multiple;
 	gpio_chip->label = name;
 	gpio_chip->parent = dev;
 	gpio_chip->owner = THIS_MODULE;
