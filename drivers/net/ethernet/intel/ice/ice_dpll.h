@@ -32,6 +32,7 @@ enum ice_dpll_pin_sw {
  * @freq: current frequency of a pin
  * @phase_adjust: current phase adjust value
  * @phase_offset: monitored phase offset value
+ * @ref_sync: store id of reference sync pin
  */
 struct ice_dpll_pin {
 	struct dpll_pin *pin;
@@ -49,6 +50,7 @@ struct ice_dpll_pin {
 	enum dpll_pin_direction direction;
 	s64 phase_offset;
 	u8 status;
+	u8 ref_sync;
 	bool active;
 	bool hidden;
 };
