@@ -757,11 +757,6 @@ static void meson_mx_sdhc_init_hw(struct mmc_host *mmc)
 	regmap_write(host->regmap, MESON_SDHC_ISTA, MESON_SDHC_ISTA_ALL_IRQS);
 }
 
-static void meason_mx_mmc_free_host(void *data)
-{
-       mmc_free_host(data);
-}
-
 static int meson_mx_sdhc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -770,15 +765,9 @@ static int meson_mx_sdhc_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret, irq;
 
-	mmc = mmc_alloc_host(sizeof(*host), dev);
+	mmc = devm_mmc_alloc_host(dev, sizeof(*host));
 	if (!mmc)
 		return -ENOMEM;
-
-	ret = devm_add_action_or_reset(dev, meason_mx_mmc_free_host, mmc);
-	if (ret) {
-		dev_err(dev, "Failed to register mmc_free_host action\n");
-		return ret;
-	}
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;

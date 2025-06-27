@@ -1257,7 +1257,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	sdhci_get_of_property(pdev);
 	ret = mmc_of_parse(mmc);
 	if (ret)
-		goto err_pltfm_free;
+		return ret;
 
 	soc = soc_device_match(sdhci_omap_soc_devices);
 	if (soc) {
@@ -1274,22 +1274,19 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 		mmc->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
 
 	pltfm_host->clk = devm_clk_get(dev, "fck");
-	if (IS_ERR(pltfm_host->clk)) {
-		ret = PTR_ERR(pltfm_host->clk);
-		goto err_pltfm_free;
-	}
+	if (IS_ERR(pltfm_host->clk))
+		return PTR_ERR(pltfm_host->clk);
 
 	ret = clk_set_rate(pltfm_host->clk, mmc->f_max);
-	if (ret) {
-		dev_err(dev, "failed to set clock to %d\n", mmc->f_max);
-		goto err_pltfm_free;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to set clock to %d\n", mmc->f_max);
 
 	omap_host->pbias = devm_regulator_get_optional(dev, "pbias");
 	if (IS_ERR(omap_host->pbias)) {
 		ret = PTR_ERR(omap_host->pbias);
 		if (ret != -ENODEV)
-			goto err_pltfm_free;
+			return ret;
 		dev_dbg(dev, "unable to get pbias regulator %d\n", ret);
 	}
 	omap_host->pbias_enabled = false;
@@ -1387,9 +1384,6 @@ err_rpm_put:
 err_rpm_disable:
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
-
-err_pltfm_free:
-	sdhci_pltfm_free(pdev);
 	return ret;
 }
 
@@ -1406,7 +1400,6 @@ static void sdhci_omap_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(dev);
 	/* Ensure device gets disabled despite userspace sysfs config */
 	pm_runtime_force_suspend(dev);
-	sdhci_pltfm_free(pdev);
 }
 
 #ifdef CONFIG_PM

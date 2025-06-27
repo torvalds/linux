@@ -152,18 +152,15 @@ static int sdhci_pci_runtime_suspend_host(struct sdhci_pci_chip *chip)
 {
 	struct sdhci_pci_slot *slot;
 	struct sdhci_host *host;
-	int i, ret;
 
-	for (i = 0; i < chip->num_slots; i++) {
+	for (int i = 0; i < chip->num_slots; i++) {
 		slot = chip->slots[i];
 		if (!slot)
 			continue;
 
 		host = slot->host;
 
-		ret = sdhci_runtime_suspend_host(host);
-		if (ret)
-			goto err_pci_runtime_suspend;
+		sdhci_runtime_suspend_host(host);
 
 		if (chip->rpm_retune &&
 		    host->tuning_mode != SDHCI_TUNING_MODE_3)
@@ -171,26 +168,18 @@ static int sdhci_pci_runtime_suspend_host(struct sdhci_pci_chip *chip)
 	}
 
 	return 0;
-
-err_pci_runtime_suspend:
-	while (--i >= 0)
-		sdhci_runtime_resume_host(chip->slots[i]->host, 0);
-	return ret;
 }
 
 static int sdhci_pci_runtime_resume_host(struct sdhci_pci_chip *chip)
 {
 	struct sdhci_pci_slot *slot;
-	int i, ret;
 
-	for (i = 0; i < chip->num_slots; i++) {
+	for (int i = 0; i < chip->num_slots; i++) {
 		slot = chip->slots[i];
 		if (!slot)
 			continue;
 
-		ret = sdhci_runtime_resume_host(slot->host, 0);
-		if (ret)
-			return ret;
+		sdhci_runtime_resume_host(slot->host, 0);
 	}
 
 	return 0;
@@ -2173,7 +2162,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	ret = pcim_iomap_regions(pdev, BIT(bar), mmc_hostname(host->mmc));
 	if (ret) {
 		dev_err(&pdev->dev, "cannot request region\n");
-		goto cleanup;
+		return ERR_PTR(ret);
 	}
 
 	host->ioaddr = pcim_iomap_table(pdev)[bar];
@@ -2181,7 +2170,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	if (chip->fixes && chip->fixes->probe_slot) {
 		ret = chip->fixes->probe_slot(slot);
 		if (ret)
-			goto cleanup;
+			return ERR_PTR(ret);
 	}
 
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER;
@@ -2242,9 +2231,6 @@ remove:
 	if (chip->fixes && chip->fixes->remove_slot)
 		chip->fixes->remove_slot(slot, 0);
 
-cleanup:
-	sdhci_free_host(host);
-
 	return ERR_PTR(ret);
 }
 
@@ -2265,8 +2251,6 @@ static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 
 	if (slot->chip->fixes && slot->chip->fixes->remove_slot)
 		slot->chip->fixes->remove_slot(slot, dead);
-
-	sdhci_free_host(slot->host);
 }
 
 int sdhci_pci_uhs2_add_host(struct sdhci_pci_slot *slot)

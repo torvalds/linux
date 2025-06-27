@@ -2248,7 +2248,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 	struct atmel_mci_slot		*slot;
 	int ret;
 
-	mmc = mmc_alloc_host(sizeof(struct atmel_mci_slot), dev);
+	mmc = devm_mmc_alloc_host(dev, sizeof(*slot));
 	if (!mmc)
 		return -ENOMEM;
 
@@ -2321,10 +2321,8 @@ static int atmci_init_slot(struct atmel_mci *host,
 	host->slot[id] = slot;
 	mmc_regulator_get_supply(mmc);
 	ret = mmc_add_host(mmc);
-	if (ret) {
-		mmc_free_host(mmc);
+	if (ret)
 		return ret;
-	}
 
 	if (slot->detect_pin) {
 		timer_setup(&slot->detect_timer, atmci_detect_change, 0);
@@ -2362,7 +2360,6 @@ static void atmci_cleanup_slot(struct atmel_mci_slot *slot,
 	}
 
 	slot->host->slot[id] = NULL;
-	mmc_free_host(slot->mmc);
 }
 
 static int atmci_configure_dma(struct atmel_mci *host)

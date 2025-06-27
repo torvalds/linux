@@ -507,15 +507,13 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	sc = sdhci_priv(host);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		ret = -ENOMEM;
-		goto err_pdata_io_clk;
-	}
+	if (!pdata)
+		return -ENOMEM;
 
 	if (pdev->dev.of_node) {
 		ret = sdhci_s3c_parse_dt(&pdev->dev, host, pdata);
 		if (ret)
-			goto err_pdata_io_clk;
+			return ret;
 	} else {
 		memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
 	}
@@ -532,8 +530,7 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
 	sc->clk_io = devm_clk_get(dev, "hsmmc");
 	if (IS_ERR(sc->clk_io)) {
 		dev_err(dev, "failed to get io clock\n");
-		ret = PTR_ERR(sc->clk_io);
-		goto err_pdata_io_clk;
+		return PTR_ERR(sc->clk_io);
 	}
 
 	/* enable the local io clock and keep it running for the moment. */
@@ -661,9 +658,6 @@ static int sdhci_s3c_probe(struct platform_device *pdev)
  err_no_busclks:
 	clk_disable_unprepare(sc->clk_io);
 
- err_pdata_io_clk:
-	sdhci_free_host(host);
-
 	return ret;
 }
 
@@ -685,8 +679,6 @@ static void sdhci_s3c_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(sc->clk_io);
-
-	sdhci_free_host(host);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -714,9 +706,8 @@ static int sdhci_s3c_runtime_suspend(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_s3c *ourhost = to_s3c(host);
 	struct clk *busclk = ourhost->clk_io;
-	int ret;
 
-	ret = sdhci_runtime_suspend_host(host);
+	sdhci_runtime_suspend_host(host);
 
 	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
 		mmc_retune_needed(host->mmc);
@@ -724,7 +715,7 @@ static int sdhci_s3c_runtime_suspend(struct device *dev)
 	if (ourhost->cur_clk >= 0)
 		clk_disable_unprepare(ourhost->clk_bus[ourhost->cur_clk]);
 	clk_disable_unprepare(busclk);
-	return ret;
+	return 0;
 }
 
 static int sdhci_s3c_runtime_resume(struct device *dev)
@@ -732,13 +723,12 @@ static int sdhci_s3c_runtime_resume(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_s3c *ourhost = to_s3c(host);
 	struct clk *busclk = ourhost->clk_io;
-	int ret;
 
 	clk_prepare_enable(busclk);
 	if (ourhost->cur_clk >= 0)
 		clk_prepare_enable(ourhost->clk_bus[ourhost->cur_clk]);
-	ret = sdhci_runtime_resume_host(host, 0);
-	return ret;
+	sdhci_runtime_resume_host(host, 0);
+	return 0;
 }
 #endif
 
