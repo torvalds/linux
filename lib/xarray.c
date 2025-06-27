@@ -368,7 +368,7 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
 		return NULL;
 
 	if (node) {
-		xas->xa_alloc = NULL;
+		xas->xa_alloc = rcu_dereference_raw(node->parent);
 	} else {
 		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
 
@@ -2386,7 +2386,6 @@ void xa_destroy(struct xarray *xa)
 	unsigned long flags;
 	void *entry;
 
-	xas.xa_node = NULL;
 	xas_lock_irqsave(&xas, flags);
 	entry = xa_head_locked(xa);
 	RCU_INIT_POINTER(xa->xa_head, NULL);
