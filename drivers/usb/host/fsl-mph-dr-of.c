@@ -327,8 +327,7 @@ static void fsl_usb2_mpc5121_exit(struct platform_device *pdev)
 
 	pdata->regs = NULL;
 
-	if (pdata->clk)
-		clk_disable_unprepare(pdata->clk);
+	clk_disable_unprepare(pdata->clk);
 }
 
 static struct fsl_usb2_platform_data fsl_usb2_mpc5121_pd = {

@@ -118,7 +118,6 @@ struct fsl_usb2_platform_data {
 #define FSL_USB2_PORT0_ENABLED	0x00000001
 #define FSL_USB2_PORT1_ENABLED	0x00000002
 
-#define FLS_USB2_WORKAROUND_ENGCM09152	(1 << 0)
 
 struct spi_device;
 

@@ -924,11 +924,9 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep, unsigned int action)
 	if (ret)
 		return ret;
 
-	if (!(dep->flags & DWC3_EP_RESOURCE_ALLOCATED)) {
-		ret = dwc3_gadget_set_xfer_resource(dep);
-		if (ret)
-			return ret;
-	}
+	ret = dwc3_gadget_set_xfer_resource(dep);
+	if (ret)
+		return ret;
 
 	if (!(dep->flags & DWC3_EP_ENABLED)) {
 		struct dwc3_trb	*trb_st_hw;

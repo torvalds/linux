@@ -1011,7 +1011,7 @@ static int set_config(struct usb_composite_dev *cdev,
 
 			ep = (struct usb_endpoint_descriptor *)*descriptors;
 			addr = ((ep->bEndpointAddress & 0x80) >> 3)
-			     |  (ep->bEndpointAddress & 0x0f);
+			     |  usb_endpoint_num(ep);
 			set_bit(addr, f->endpoints);
 		}
 
@@ -1192,30 +1192,6 @@ static void remove_config(struct usb_composite_dev *cdev,
 		config->unbind(config);
 			/* may free memory for "c" */
 	}
-}
-
-/**
- * usb_remove_config() - remove a configuration from a device.
- * @cdev: wraps the USB gadget
- * @config: the configuration
- *
- * Drivers must call usb_gadget_disconnect before calling this function
- * to disconnect the device from the host and make sure the host will not
- * try to enumerate the device while we are changing the config list.
- */
-void usb_remove_config(struct usb_composite_dev *cdev,
-		      struct usb_configuration *config)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&cdev->lock, flags);
-
-	if (cdev->config == config)
-		reset_config(cdev);
-
-	spin_unlock_irqrestore(&cdev->lock, flags);
-
-	remove_config(cdev, config);
 }
 
 /*-------------------------------------------------------------------------*/

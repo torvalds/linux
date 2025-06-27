@@ -170,6 +170,9 @@ struct usbmisc_ops {
 	int (*charger_detection)(struct imx_usbmisc_data *data);
 	/* It's called when system resume from usb power lost */
 	int (*power_lost_check)(struct imx_usbmisc_data *data);
+	/* It's called when device controller changed pullup status */
+	void (*pullup)(struct imx_usbmisc_data *data, bool on);
+	/* It's called during suspend/resume to save power */
 	void (*vbus_comparator_on)(struct imx_usbmisc_data *data, bool on);
 };
 
@@ -995,6 +998,25 @@ static int usbmisc_imx7ulp_init(struct imx_usbmisc_data *data)
 	return 0;
 }
 
+static void usbmisc_imx7d_pullup(struct imx_usbmisc_data *data, bool on)
+{
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+	unsigned long flags;
+	u32 val;
+
+	spin_lock_irqsave(&usbmisc->lock, flags);
+	val = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	if (!on) {
+		val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_MASK;
+		val |= MX7D_USBNC_USB_CTRL2_OPMODE(1);
+		val |= MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_EN;
+	} else {
+		val &= ~MX7D_USBNC_USB_CTRL2_OPMODE_OVERRIDE_EN;
+	}
+	writel(val, usbmisc->base + MX7D_USBNC_USB_CTRL2);
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
+}
+
 static int usbmisc_imx7d_power_lost_check(struct imx_usbmisc_data *data)
 {
 	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
@@ -1112,6 +1134,7 @@ static const struct usbmisc_ops imx7d_usbmisc_ops = {
 	.set_wakeup = usbmisc_imx7d_set_wakeup,
 	.charger_detection = imx7d_charger_detection,
 	.power_lost_check = usbmisc_imx7d_power_lost_check,
+	.pullup = usbmisc_imx7d_pullup,
 	.vbus_comparator_on = usbmisc_imx7d_vbus_comparator_on,
 };
 
@@ -1128,6 +1151,7 @@ static const struct usbmisc_ops imx95_usbmisc_ops = {
 	.set_wakeup = usbmisc_imx95_set_wakeup,
 	.charger_detection = imx7d_charger_detection,
 	.power_lost_check = usbmisc_imx7d_power_lost_check,
+	.pullup = usbmisc_imx7d_pullup,
 	.vbus_comparator_on = usbmisc_imx7d_vbus_comparator_on,
 };
 
@@ -1224,6 +1248,21 @@ int imx_usbmisc_charger_detection(struct imx_usbmisc_data *data, bool connect)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(imx_usbmisc_charger_detection);
+
+int imx_usbmisc_pullup(struct imx_usbmisc_data *data, bool on)
+{
+	struct imx_usbmisc *usbmisc;
+
+	if (!data)
+		return 0;
+
+	usbmisc = dev_get_drvdata(data->dev);
+	if (usbmisc->ops->pullup)
+		usbmisc->ops->pullup(data, on);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(imx_usbmisc_pullup);
 
 int imx_usbmisc_suspend(struct imx_usbmisc_data *data, bool wakeup)
 {
