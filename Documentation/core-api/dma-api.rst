@@ -53,10 +53,9 @@ minimum allocation length may be as big as a page, so you should
 consolidate your requests for coherent memory as much as possible.
 The simplest way to do that is to use the dma_pool calls (see below).
 
-The flag parameter (dma_alloc_coherent() only) allows the caller to
-specify the ``GFP_`` flags (see kmalloc()) for the allocation (the
-implementation may choose to ignore flags that affect the location of
-the returned memory, like GFP_DMA).
+The flag parameter allows the caller to specify the ``GFP_`` flags (see
+kmalloc()) for the allocation (the implementation may ignore flags that affect
+the location of the returned memory, like GFP_DMA).
 
 ::
 
@@ -64,13 +63,12 @@ the returned memory, like GFP_DMA).
 	dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
 			  dma_addr_t dma_handle)
 
-Free a region of coherent memory you previously allocated.  dev,
-size and dma_handle must all be the same as those passed into
-dma_alloc_coherent().  cpu_addr must be the virtual address returned by
-the dma_alloc_coherent().
+Free a previously allocated region of coherent memory.  dev, size and dma_handle
+must all be the same as those passed into dma_alloc_coherent().  cpu_addr must
+be the virtual address returned by dma_alloc_coherent().
 
-Note that unlike their sibling allocation calls, these routines
-may only be called with IRQs enabled.
+Note that unlike the sibling allocation call, this routine may only be called
+with IRQs enabled.
 
 
 Part Ib - Using small DMA-coherent buffers
@@ -246,9 +244,7 @@ Part Id - Streaming DMA mappings
 Maps a piece of processor virtual memory so it can be accessed by the
 device and returns the DMA address of the memory.
 
-The direction for both APIs may be converted freely by casting.
-However the DMA API uses a strongly typed enumerator for its
-direction:
+The DMA API uses a strongly typed enumerator for its direction:
 
 ======================= =============================================
 DMA_NONE		no direction (used for debugging)
@@ -325,8 +321,7 @@ DMA_BIDIRECTIONAL	direction isn't known
 			 enum dma_data_direction direction)
 
 Unmaps the region previously mapped.  All the parameters passed in
-must be identical to those passed in (and returned) by the mapping
-API.
+must be identical to those passed to (and returned by) dma_map_single().
 
 ::
 
