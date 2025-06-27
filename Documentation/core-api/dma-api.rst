@@ -92,13 +92,20 @@ for alignment, like queue heads needing to be aligned on N-byte boundaries.
 Part Ic - DMA addressing limitations
 ------------------------------------
 
+DMA mask is a bit mask of the addressable region for the device. In other words,
+if applying the DMA mask (a bitwise AND operation) to the DMA address of a
+memory region does not clear any bits in the address, then the device can
+perform DMA to that memory region.
+
+All the below functions which set a DMA mask may fail if the requested mask
+cannot be used with the device, or if the device is not capable of doing DMA.
+
 ::
 
 	int
 	dma_set_mask_and_coherent(struct device *dev, u64 mask)
 
-Checks to see if the mask is possible and updates the device
-streaming and coherent DMA mask parameters if it is.
+Updates both streaming and coherent DMA masks.
 
 Returns: 0 if successful and a negative error if not.
 
@@ -107,8 +114,7 @@ Returns: 0 if successful and a negative error if not.
 	int
 	dma_set_mask(struct device *dev, u64 mask)
 
-Checks to see if the mask is possible and updates the device
-parameters if it is.
+Updates only the streaming DMA mask.
 
 Returns: 0 if successful and a negative error if not.
 
@@ -117,8 +123,7 @@ Returns: 0 if successful and a negative error if not.
 	int
 	dma_set_coherent_mask(struct device *dev, u64 mask)
 
-Checks to see if the mask is possible and updates the device
-parameters if it is.
+Updates only the coherent DMA mask.
 
 Returns: 0 if successful and a negative error if not.
 
@@ -173,7 +178,7 @@ transfer memory ownership.  Returns %false if those calls can be skipped.
 	unsigned long
 	dma_get_merge_boundary(struct device *dev);
 
-Returns the DMA merge boundary. If the device cannot merge any the DMA address
+Returns the DMA merge boundary. If the device cannot merge any DMA address
 segments, the function returns 0.
 
 Part Id - Streaming DMA mappings
@@ -207,16 +212,12 @@ DMA_BIDIRECTIONAL	direction isn't known
 	this API should be obtained from sources which guarantee it to be
 	physically contiguous (like kmalloc).
 
-	Further, the DMA address of the memory must be within the
-	dma_mask of the device (the dma_mask is a bit mask of the
-	addressable region for the device, i.e., if the DMA address of
-	the memory ANDed with the dma_mask is still equal to the DMA
-	address, then the device can perform DMA to the memory).  To
-	ensure that the memory allocated by kmalloc is within the dma_mask,
-	the driver may specify various platform-dependent flags to restrict
-	the DMA address range of the allocation (e.g., on x86, GFP_DMA
-	guarantees to be within the first 16MB of available DMA addresses,
-	as required by ISA devices).
+	Further, the DMA address of the memory must be within the dma_mask of
+	the device.  To ensure that the memory allocated by kmalloc is within
+	the dma_mask, the driver may specify various platform-dependent flags
+	to restrict the DMA address range of the allocation (e.g., on x86,
+	GFP_DMA guarantees to be within the first 16MB of available DMA
+	addresses, as required by ISA devices).
 
 	Note also that the above constraints on physical contiguity and
 	dma_mask may not apply if the platform has an IOMMU (a device which
