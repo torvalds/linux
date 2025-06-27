@@ -1015,6 +1015,12 @@ config HID_PXRC
        To compile this driver as a module, choose M here: the
        module will be called hid-pxrc.
 
+config HID_RAPOO
+	tristate "Rapoo non-fully HID-compliant devices"
+	help
+	Support for Rapoo devices that are not fully compliant with the
+	HID standard.
+
 config HID_RAZER
 	tristate "Razer non-fully HID-compliant devices"
 	help
