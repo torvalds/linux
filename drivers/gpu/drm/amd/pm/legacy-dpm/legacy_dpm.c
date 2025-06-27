@@ -673,64 +673,64 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 			adev->pm.fan_max_rpm = controller->ucFanMaxRPM;
 		}
 		if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_RV6XX;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_RV770;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EVERGREEN;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SUMO) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_SUMO;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_NISLANDS) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_NI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SISLANDS) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_SI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_CISLANDS) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_CI;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_KAVERI) {
-			DRM_INFO("Internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "Internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_KV;
 		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) {
-			DRM_INFO("External GPIO thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "External GPIO thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EXTERNAL_GPIO;
 		} else if (controller->ucType ==
 			   ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL) {
-			DRM_INFO("ADT7473 with internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "ADT7473 with internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_ADT7473_WITH_INTERNAL;
 		} else if (controller->ucType ==
 			   ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL) {
-			DRM_INFO("EMC2103 with internal thermal controller %s fan control\n",
+			drm_info(adev_to_drm(adev), "EMC2103 with internal thermal controller %s fan control\n",
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			adev->pm.int_thermal_type = THERMAL_TYPE_EMC2103_WITH_INTERNAL;
 		} else if (controller->ucType < ARRAY_SIZE(pp_lib_thermal_controller_names)) {
-			DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
+			drm_info(adev_to_drm(adev), "Possible %s thermal controller at 0x%02x %s fan control\n",
 				 pp_lib_thermal_controller_names[controller->ucType],
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &
@@ -746,7 +746,7 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 				i2c_new_client_device(&adev->pm.i2c_bus->adapter, &info);
 			}
 		} else {
-			DRM_INFO("Unknown thermal controller type %d at 0x%02x %s fan control\n",
+			drm_info(adev_to_drm(adev), "Unknown thermal controller type %d at 0x%02x %s fan control\n",
 				 controller->ucType,
 				 controller->ucI2cAddress >> 1,
 				 (controller->ucFanParameters &
