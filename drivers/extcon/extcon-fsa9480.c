@@ -68,6 +68,7 @@
 #define DEV_T1_CHARGER_MASK     (DEV_DEDICATED_CHG | DEV_USB_CHG)
 
 /* Device Type 2 */
+#define DEV_RESERVED            15
 #define DEV_AV                  14
 #define DEV_TTY                 13
 #define DEV_PPD                 12
@@ -133,6 +134,7 @@ static const u64 cable_types[] = {
 	[DEV_USB] = BIT_ULL(EXTCON_USB) | BIT_ULL(EXTCON_CHG_USB_SDP),
 	[DEV_AUDIO_2] = BIT_ULL(EXTCON_JACK_LINE_OUT),
 	[DEV_AUDIO_1] = BIT_ULL(EXTCON_JACK_LINE_OUT),
+	[DEV_RESERVED] = 0,
 	[DEV_AV] = BIT_ULL(EXTCON_JACK_LINE_OUT)
 		   | BIT_ULL(EXTCON_JACK_VIDEO_OUT),
 	[DEV_TTY] = BIT_ULL(EXTCON_JIG),
@@ -228,7 +230,7 @@ static void fsa9480_detect_dev(struct fsa9480_usbsw *usbsw)
 		dev_err(usbsw->dev, "%s: failed to read registers", __func__);
 		return;
 	}
-	val = val2 << 8 | val1;
+	val = val2 << 8 | (val1 & 0xFF);
 
 	dev_info(usbsw->dev, "dev1: 0x%x, dev2: 0x%x\n", val1, val2);
 
@@ -317,7 +319,7 @@ static int fsa9480_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	device_init_wakeup(info->dev, true);
+	devm_device_init_wakeup(info->dev);
 	fsa9480_detect_dev(info);
 
 	return 0;
