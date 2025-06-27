@@ -2053,7 +2053,7 @@ out:
  * detach_mounts allows lazily unmounting those mounts instead of
  * leaking them.
  *
- * The caller may hold dentry->d_inode->i_mutex.
+ * The caller may hold dentry->d_inode->i_rwsem.
  */
 void __detach_mounts(struct dentry *dentry)
 {
@@ -6216,9 +6216,11 @@ static void __init init_mount_tree(void)
 	if (IS_ERR(mnt))
 		panic("Can't create rootfs");
 
-	ns = alloc_mnt_ns(&init_user_ns, false);
+	ns = alloc_mnt_ns(&init_user_ns, true);
 	if (IS_ERR(ns))
 		panic("Can't allocate initial namespace");
+	ns->seq = atomic64_inc_return(&mnt_ns_seq);
+	ns->ns.inum = PROC_MNT_INIT_INO;
 	m = real_mount(mnt);
 	ns->root = m;
 	ns->nr_mounts = 1;

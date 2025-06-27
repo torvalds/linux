@@ -3,7 +3,7 @@
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
 
-/* does _NOT_ require i_mutex to be held.
+/* does _NOT_ require i_rwsem to be held.
  *
  * This function cannot be inlined since i_size_{read,write} is rather
  * heavy-weight on 32-bit systems
@@ -41,7 +41,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 	 * If CONFIG_SMP or CONFIG_PREEMPTION on 32-bit, it's vital for
 	 * fsstack_copy_inode_size() to hold some lock around
 	 * i_size_write(), otherwise i_size_read() may spin forever (see
-	 * include/linux/fs.h).  We don't necessarily hold i_mutex when this
+	 * include/linux/fs.h).  We don't necessarily hold i_rwsem when this
 	 * is called, so take i_lock for that case.
 	 *
 	 * And if on 32-bit, continue our effort to keep the two halves of

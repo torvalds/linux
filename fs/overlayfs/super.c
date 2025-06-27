@@ -580,7 +580,7 @@ static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 
 	/* Name is inline and stable - using snapshot as a copy helper */
 	take_dentry_name_snapshot(&name, temp);
-	err = ovl_do_rename(ofs, dir, temp, dir, dest, RENAME_WHITEOUT);
+	err = ovl_do_rename(ofs, workdir, temp, workdir, dest, RENAME_WHITEOUT);
 	if (err) {
 		if (err == -EINVAL)
 			err = 0;
@@ -1322,7 +1322,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (WARN_ON(fc->user_ns != current_user_ns()))
 		goto out_err;
 
-	sb->s_d_op = &ovl_dentry_operations;
+	set_default_d_op(sb, &ovl_dentry_operations);
 
 	err = -ENOMEM;
 	if (!ofs->creator_cred)

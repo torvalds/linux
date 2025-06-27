@@ -1433,6 +1433,7 @@ hugetlbfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_blocksize_bits = huge_page_shift(ctx->hstate);
 	sb->s_magic = HUGETLBFS_MAGIC;
 	sb->s_op = &hugetlbfs_ops;
+	sb->s_d_flags = DCACHE_DONTCACHE;
 	sb->s_time_gran = 1;
 
 	/*

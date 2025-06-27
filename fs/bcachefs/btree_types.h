@@ -422,14 +422,16 @@ struct btree_insert_entry {
 	u8			sort_order;
 	u8			bkey_type;
 	enum btree_id		btree_id:8;
-	u8			level:4;
+	u8			level:3;
 	bool			cached:1;
 	bool			insert_trigger_run:1;
 	bool			overwrite_trigger_run:1;
 	bool			key_cache_already_flushed:1;
+	bool			key_cache_flushing:1;
 	/*
-	 * @old_k may be a key from the journal; @old_btree_u64s always refers
-	 * to the size of the key being overwritten in the btree:
+	 * @old_k may be a key from the journal or the key cache;
+	 * @old_btree_u64s always refers to the size of the key being
+	 * overwritten in the btree:
 	 */
 	u8			old_btree_u64s;
 	btree_path_idx_t	path;
@@ -497,6 +499,7 @@ struct btree_trans {
 	void			*mem;
 	unsigned		mem_top;
 	unsigned		mem_bytes;
+	unsigned		realloc_bytes_required;
 #ifdef CONFIG_BCACHEFS_TRANS_KMALLOC_TRACE
 	darray_trans_kmalloc_trace trans_kmalloc_trace;
 #endif

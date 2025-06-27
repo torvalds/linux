@@ -554,7 +554,7 @@ static int hpfs_fill_super(struct super_block *s, struct fs_context *fc)
 	/* Fill superblock stuff */
 	s->s_magic = HPFS_SUPER_MAGIC;
 	s->s_op = &hpfs_sops;
-	s->s_d_op = &hpfs_dentry_operations;
+	set_default_d_op(s, &hpfs_dentry_operations);
 	s->s_time_min =  local_to_gmt(s, 0);
 	s->s_time_max =  local_to_gmt(s, U32_MAX);
 

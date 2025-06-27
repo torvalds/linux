@@ -311,7 +311,7 @@ static int autofs_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_blocksize_bits = 10;
 	s->s_magic = AUTOFS_SUPER_MAGIC;
 	s->s_op = &autofs_sops;
-	s->s_d_op = &autofs_dentry_operations;
+	set_default_d_op(s, &autofs_dentry_operations);
 	s->s_time_gran = 1;
 
 	/*

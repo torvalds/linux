@@ -109,7 +109,7 @@ static int is_elf(struct elfhdr *hdr, struct file *file)
 		return 0;
 	if (!elf_check_arch(hdr))
 		return 0;
-	if (!file->f_op->mmap)
+	if (!can_mmap_file(file))
 		return 0;
 	return 1;
 }

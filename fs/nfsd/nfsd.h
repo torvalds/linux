@@ -57,9 +57,6 @@ struct readdir_cd {
 	__be32			err;	/* 0, nfserr, or nfserr_eof */
 };
 
-/* Maximum number of operations per session compound */
-#define NFSD_MAX_OPS_PER_COMPOUND	50
-
 struct nfsd_genl_rqstp {
 	struct sockaddr		rq_daddr;
 	struct sockaddr		rq_saddr;
@@ -72,7 +69,7 @@ struct nfsd_genl_rqstp {
 
 	/* NFSv4 compound */
 	u32			rq_opcnt;
-	u32			rq_opnum[NFSD_MAX_OPS_PER_COMPOUND];
+	u32			rq_opnum[16];
 };
 
 extern struct svc_program	nfsd_programs[];

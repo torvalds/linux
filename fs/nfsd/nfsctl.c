@@ -1436,7 +1436,7 @@ unsigned int nfsd_net_id;
 
 static int nfsd_genl_rpc_status_compose_msg(struct sk_buff *skb,
 					    struct netlink_callback *cb,
-					    struct nfsd_genl_rqstp *rqstp)
+					    struct nfsd_genl_rqstp *genl_rqstp)
 {
 	void *hdr;
 	u32 i;
@@ -1446,22 +1446,22 @@ static int nfsd_genl_rpc_status_compose_msg(struct sk_buff *skb,
 	if (!hdr)
 		return -ENOBUFS;
 
-	if (nla_put_be32(skb, NFSD_A_RPC_STATUS_XID, rqstp->rq_xid) ||
-	    nla_put_u32(skb, NFSD_A_RPC_STATUS_FLAGS, rqstp->rq_flags) ||
-	    nla_put_u32(skb, NFSD_A_RPC_STATUS_PROG, rqstp->rq_prog) ||
-	    nla_put_u32(skb, NFSD_A_RPC_STATUS_PROC, rqstp->rq_proc) ||
-	    nla_put_u8(skb, NFSD_A_RPC_STATUS_VERSION, rqstp->rq_vers) ||
+	if (nla_put_be32(skb, NFSD_A_RPC_STATUS_XID, genl_rqstp->rq_xid) ||
+	    nla_put_u32(skb, NFSD_A_RPC_STATUS_FLAGS, genl_rqstp->rq_flags) ||
+	    nla_put_u32(skb, NFSD_A_RPC_STATUS_PROG, genl_rqstp->rq_prog) ||
+	    nla_put_u32(skb, NFSD_A_RPC_STATUS_PROC, genl_rqstp->rq_proc) ||
+	    nla_put_u8(skb, NFSD_A_RPC_STATUS_VERSION, genl_rqstp->rq_vers) ||
 	    nla_put_s64(skb, NFSD_A_RPC_STATUS_SERVICE_TIME,
-			ktime_to_us(rqstp->rq_stime),
+			ktime_to_us(genl_rqstp->rq_stime),
 			NFSD_A_RPC_STATUS_PAD))
 		return -ENOBUFS;
 
-	switch (rqstp->rq_saddr.sa_family) {
+	switch (genl_rqstp->rq_saddr.sa_family) {
 	case AF_INET: {
 		const struct sockaddr_in *s_in, *d_in;
 
-		s_in = (const struct sockaddr_in *)&rqstp->rq_saddr;
-		d_in = (const struct sockaddr_in *)&rqstp->rq_daddr;
+		s_in = (const struct sockaddr_in *)&genl_rqstp->rq_saddr;
+		d_in = (const struct sockaddr_in *)&genl_rqstp->rq_daddr;
 		if (nla_put_in_addr(skb, NFSD_A_RPC_STATUS_SADDR4,
 				    s_in->sin_addr.s_addr) ||
 		    nla_put_in_addr(skb, NFSD_A_RPC_STATUS_DADDR4,
@@ -1476,8 +1476,8 @@ static int nfsd_genl_rpc_status_compose_msg(struct sk_buff *skb,
 	case AF_INET6: {
 		const struct sockaddr_in6 *s_in, *d_in;
 
-		s_in = (const struct sockaddr_in6 *)&rqstp->rq_saddr;
-		d_in = (const struct sockaddr_in6 *)&rqstp->rq_daddr;
+		s_in = (const struct sockaddr_in6 *)&genl_rqstp->rq_saddr;
+		d_in = (const struct sockaddr_in6 *)&genl_rqstp->rq_daddr;
 		if (nla_put_in6_addr(skb, NFSD_A_RPC_STATUS_SADDR6,
 				     &s_in->sin6_addr) ||
 		    nla_put_in6_addr(skb, NFSD_A_RPC_STATUS_DADDR6,
@@ -1491,9 +1491,9 @@ static int nfsd_genl_rpc_status_compose_msg(struct sk_buff *skb,
 	}
 	}
 
-	for (i = 0; i < rqstp->rq_opcnt; i++)
+	for (i = 0; i < genl_rqstp->rq_opcnt; i++)
 		if (nla_put_u32(skb, NFSD_A_RPC_STATUS_COMPOUND_OPS,
-				rqstp->rq_opnum[i]))
+				genl_rqstp->rq_opnum[i]))
 			return -ENOBUFS;
 
 	genlmsg_end(skb, hdr);
@@ -1569,7 +1569,8 @@ int nfsd_nl_rpc_status_get_dumpit(struct sk_buff *skb,
 				int j;
 
 				args = rqstp->rq_argp;
-				genl_rqstp.rq_opcnt = args->opcnt;
+				genl_rqstp.rq_opcnt = min_t(u32, args->opcnt,
+							    ARRAY_SIZE(genl_rqstp.rq_opnum));
 				for (j = 0; j < genl_rqstp.rq_opcnt; j++)
 					genl_rqstp.rq_opnum[j] =
 						args->ops[j].opnum;

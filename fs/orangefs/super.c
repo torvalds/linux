@@ -416,7 +416,7 @@ static int orangefs_fill_sb(struct super_block *sb,
 	sb->s_xattr = orangefs_xattr_handlers;
 	sb->s_magic = ORANGEFS_SUPER_MAGIC;
 	sb->s_op = &orangefs_s_ops;
-	sb->s_d_op = &orangefs_dentry_operations;
+	set_default_d_op(sb, &orangefs_dentry_operations);
 
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;

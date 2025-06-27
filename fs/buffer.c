@@ -1122,9 +1122,8 @@ __getblk_slow(struct block_device *bdev, sector_t block,
 {
 	bool blocking = gfpflags_allow_blocking(gfp);
 
-	/* Size must be multiple of hard sectorsize */
-	if (unlikely(size & (bdev_logical_block_size(bdev)-1) ||
-			(size < 512 || size > PAGE_SIZE))) {
+	if (unlikely(size & (bdev_logical_block_size(bdev) - 1) ||
+		     (size < 512 || size > PAGE_SIZE))) {
 		printk(KERN_ERR "getblk(): invalid block size %d requested\n",
 					size);
 		printk(KERN_ERR "logical block size: %d\n",
@@ -2271,9 +2270,8 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 }
 EXPORT_SYMBOL(block_write_begin);
 
-int block_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct folio *folio, void *fsdata)
+int block_write_end(loff_t pos, unsigned len, unsigned copied,
+		struct folio *folio)
 {
 	size_t start = pos - folio_pos(folio);
 
@@ -2312,7 +2310,7 @@ int generic_write_end(struct file *file, struct address_space *mapping,
 	loff_t old_size = inode->i_size;
 	bool i_size_changed = false;
 
-	copied = block_write_end(file, mapping, pos, len, copied, folio, fsdata);
+	copied = block_write_end(pos, len, copied, folio);
 
 	/*
 	 * No need to use i_size_read() here, the i_size cannot change under us
@@ -2610,7 +2608,7 @@ EXPORT_SYMBOL(cont_write_begin);
  * holes and correct delalloc and unwritten extent mapping on filesystems that
  * support these features.
  *
- * We are not allowed to take the i_mutex here so we have to play games to
+ * We are not allowed to take the i_rwsem here so we have to play games to
  * protect against truncate races as the page could now be beyond EOF.  Because
  * truncate writes the inode size before removing pages, once we have the
  * page lock we can determine safely if the page is beyond EOF. If it is not

@@ -309,7 +309,14 @@ int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
 		       struct bkey_s_c, struct bkey_s,
 		       enum btree_iter_update_trigger_flags);
 
-int bch2_check_discard_freespace_key(struct btree_trans *, struct btree_iter *, u8 *, bool);
+int __bch2_check_discard_freespace_key(struct btree_trans *, struct btree_iter *, u8 *,
+				       enum bch_fsck_flags);
+
+static inline int bch2_check_discard_freespace_key_async(struct btree_trans *trans, struct btree_iter *iter, u8 *gen)
+{
+	return __bch2_check_discard_freespace_key(trans, iter, gen, FSCK_ERR_NO_LOG);
+}
+
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_dev_do_discards(struct bch_dev *);

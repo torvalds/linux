@@ -164,7 +164,7 @@ static inline void *folio_raw_mapping(const struct folio *folio)
  */
 static inline int mmap_file(struct file *file, struct vm_area_struct *vma)
 {
-	int err = call_mmap(file, vma);
+	int err = vfs_mmap(file, vma);
 
 	if (likely(!err))
 		return 0;

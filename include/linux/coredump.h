@@ -43,7 +43,7 @@ extern int dump_emit(struct coredump_params *cprm, const void *addr, int nr);
 extern int dump_align(struct coredump_params *cprm, int align);
 int dump_user_range(struct coredump_params *cprm, unsigned long start,
 		    unsigned long len);
-extern void do_coredump(const kernel_siginfo_t *siginfo);
+extern void vfs_coredump(const kernel_siginfo_t *siginfo);
 
 /*
  * Logging for the coredump code, ratelimited.
@@ -63,7 +63,7 @@ extern void do_coredump(const kernel_siginfo_t *siginfo);
 #define coredump_report_failure(fmt, ...) __COREDUMP_PRINTK(KERN_WARNING, fmt, ##__VA_ARGS__)
 
 #else
-static inline void do_coredump(const kernel_siginfo_t *siginfo) {}
+static inline void vfs_coredump(const kernel_siginfo_t *siginfo) {}
 
 #define coredump_report(...)
 #define coredump_report_failure(...)

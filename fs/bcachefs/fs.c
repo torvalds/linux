@@ -722,7 +722,7 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		inode = NULL;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	if (!inode && IS_CASEFOLDED(vdir)) {
 		/*
 		 * Do not cache a negative dentry in casefolded directories
@@ -1553,11 +1553,11 @@ static const struct vm_operations_struct bch_vm_ops = {
 	.page_mkwrite   = bch2_page_mkwrite,
 };
 
-static int bch2_mmap(struct file *file, struct vm_area_struct *vma)
+static int bch2_mmap_prepare(struct vm_area_desc *desc)
 {
-	file_accessed(file);
+	file_accessed(desc->file);
 
-	vma->vm_ops = &bch_vm_ops;
+	desc->vm_ops = &bch_vm_ops;
 	return 0;
 }
 
@@ -1695,10 +1695,10 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 		s.mask = map_defined(bch_flags_to_xflags);
 		s.flags |= map_flags_rev(bch_flags_to_xflags, fa->fsx_xflags);
 		if (fa->fsx_xflags)
-			return -EOPNOTSUPP;
+			return bch_err_throw(c, unsupported_fsx_flag);
 
 		if (fa->fsx_projid >= U32_MAX)
-			return -EINVAL;
+			return bch_err_throw(c, projid_too_big);
 
 		/*
 		 * inode fields accessible via the xattr interface are stored with a +1
@@ -1721,7 +1721,7 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 
 		s.flags |= map_flags_rev(bch_flags_to_uflags, fa->flags);
 		if (fa->flags)
-			return -EOPNOTSUPP;
+			return bch_err_throw(c, unsupported_fa_flag);
 	}
 
 	mutex_lock(&inode->ei_update_lock);
@@ -1732,7 +1732,8 @@ static int bch2_fileattr_set(struct mnt_idmap *idmap,
 		bch2_write_inode(c, inode, fssetxattr_inode_update_fn, &s,
 			       ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
-	return ret;
+
+	return bch2_err_class(ret);
 }
 
 static const struct file_operations bch_file_operations = {
@@ -1740,7 +1741,7 @@ static const struct file_operations bch_file_operations = {
 	.llseek		= bch2_llseek,
 	.read_iter	= bch2_read_iter,
 	.write_iter	= bch2_write_iter,
-	.mmap		= bch2_mmap,
+	.mmap_prepare	= bch2_mmap_prepare,
 	.get_unmapped_area = thp_get_unmapped_area,
 	.fsync		= bch2_fsync,
 	.splice_read	= filemap_splice_read,
@@ -2564,7 +2565,7 @@ got_sb:
 
 	sb->s_shrink->seeks = 0;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	sb->s_encoding = c->cf_encoding;
 #endif
 	generic_set_sb_d_ops(sb);

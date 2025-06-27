@@ -2,6 +2,6 @@
 #ifndef OCFS2_MMAP_H
 #define OCFS2_MMAP_H
 
-int ocfs2_mmap(struct file *file, struct vm_area_struct *vma);
+int ocfs2_mmap_prepare(struct vm_area_desc *desc);
 
 #endif  /* OCFS2_MMAP_H */

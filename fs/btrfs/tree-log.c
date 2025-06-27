@@ -112,7 +112,7 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root,
 				       struct btrfs_root *log,
 				       struct btrfs_path *path,
-				       u64 dirid, int del_all);
+				       u64 dirid, bool del_all);
 static void wait_log_commit(struct btrfs_root *root, int transid);
 
 /*
@@ -1126,9 +1126,7 @@ again:
 	btrfs_release_path(path);
 
 	/* Same search but for extended refs */
-	extref = btrfs_lookup_inode_extref(NULL, root, path, name,
-					   inode_objectid, parent_objectid, 0,
-					   0);
+	extref = btrfs_lookup_inode_extref(root, path, name, inode_objectid, parent_objectid);
 	if (IS_ERR(extref)) {
 		return PTR_ERR(extref);
 	} else if (extref) {
@@ -1633,8 +1631,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	if (inode->vfs_inode.i_nlink == 0) {
 		if (S_ISDIR(inode->vfs_inode.i_mode)) {
-			ret = replay_dir_deletes(trans, root, NULL, path,
-						 ino, 1);
+			ret = replay_dir_deletes(trans, root, NULL, path, ino, true);
 			if (ret)
 				goto out;
 		}
@@ -2285,7 +2282,7 @@ static noinline int replay_dir_deletes(struct btrfs_trans_handle *trans,
 				       struct btrfs_root *root,
 				       struct btrfs_root *log,
 				       struct btrfs_path *path,
-				       u64 dirid, int del_all)
+				       u64 dirid, bool del_all)
 {
 	u64 range_start;
 	u64 range_end;
@@ -2444,8 +2441,8 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				break;
 			mode = btrfs_inode_mode(eb, inode_item);
 			if (S_ISDIR(mode)) {
-				ret = replay_dir_deletes(wc->trans,
-					 root, log, path, key.objectid, 0);
+				ret = replay_dir_deletes(wc->trans, root, log, path,
+							 key.objectid, false);
 				if (ret)
 					break;
 			}
@@ -2721,7 +2718,7 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	level = btrfs_header_level(log->node);
 	orig_level = level;
 	path->nodes[level] = log->node;
-	atomic_inc(&log->node->refs);
+	refcount_inc(&log->node->refs);
 	path->slots[level] = 0;
 
 	while (1) {
@@ -2962,9 +2959,9 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	}
 
 	if (log_transid % 2 == 0)
-		mark = EXTENT_DIRTY;
+		mark = EXTENT_DIRTY_LOG1;
 	else
-		mark = EXTENT_NEW;
+		mark = EXTENT_DIRTY_LOG2;
 
 	/* we start IO on  all the marked extents here, but we don't actually
 	 * wait for them until later.
@@ -3095,7 +3092,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_write_marked_extents(fs_info,
 					 &log_root_tree->dirty_log_pages,
-					 EXTENT_DIRTY | EXTENT_NEW);
+					 EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 	blk_finish_plug(&plug);
 	/*
 	 * As described above, -EAGAIN indicates a hole in the extents. We
@@ -3115,7 +3112,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	ret = btrfs_wait_tree_log_extents(log, mark);
 	if (!ret)
 		ret = btrfs_wait_tree_log_extents(log_root_tree,
-						  EXTENT_NEW | EXTENT_DIRTY);
+						  EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 	if (ret) {
 		btrfs_set_log_full_commit(trans);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -3241,9 +3238,9 @@ static void free_log_tree(struct btrfs_trans_handle *trans,
 			 */
 			btrfs_write_marked_extents(log->fs_info,
 						   &log->dirty_log_pages,
-						   EXTENT_DIRTY | EXTENT_NEW);
+						   EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 			btrfs_wait_tree_log_extents(log,
-						    EXTENT_DIRTY | EXTENT_NEW);
+						    EXTENT_DIRTY_LOG1 | EXTENT_DIRTY_LOG2);
 
 			if (trans)
 				btrfs_abort_transaction(trans, ret);
@@ -3433,7 +3430,7 @@ static int del_logged_dentry(struct btrfs_trans_handle *trans,
 	 * inode item because on log replay we update the field to reflect
 	 * all existing entries in the directory (see overwrite_item()).
 	 */
-	return btrfs_delete_one_dir_name(trans, log, path, di);
+	return btrfs_del_item(trans, log, path);
 }
 
 /*
@@ -3473,26 +3470,27 @@ void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 		return;
 	}
 
-	ret = join_running_log_trans(root);
-	if (ret)
+	path = btrfs_alloc_path();
+	if (!path) {
+		btrfs_set_log_full_commit(trans);
 		return;
+	}
+
+	ret = join_running_log_trans(root);
+	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
+	if (WARN_ON(ret))
+		goto out;
 
 	mutex_lock(&dir->log_mutex);
 
-	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
-
 	ret = del_logged_dentry(trans, root->log_root, path, btrfs_ino(dir),
 				name, index);
-	btrfs_free_path(path);
-out_unlock:
 	mutex_unlock(&dir->log_mutex);
 	if (ret < 0)
 		btrfs_set_log_full_commit(trans);
 	btrfs_end_log_trans(root);
+out:
+	btrfs_free_path(path);
 }
 
 /* see comments for btrfs_del_dir_entries_in_log */
@@ -3502,7 +3500,6 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *inode, u64 dirid)
 {
 	struct btrfs_root *log;
-	u64 index;
 	int ret;
 
 	ret = inode_logged(trans, inode, NULL);
@@ -3514,13 +3511,13 @@ void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	}
 
 	ret = join_running_log_trans(root);
-	if (ret)
+	ASSERT(ret == 0, "join_running_log_trans() ret=%d", ret);
+	if (WARN_ON(ret))
 		return;
 	log = root->log_root;
 	mutex_lock(&inode->log_mutex);
 
-	ret = btrfs_del_inode_ref(trans, log, name, btrfs_ino(inode),
-				  dirid, &index);
+	ret = btrfs_del_inode_ref(trans, log, name, btrfs_ino(inode), dirid, NULL);
 	mutex_unlock(&inode->log_mutex);
 	if (ret < 0 && ret != -ENOENT)
 		btrfs_set_log_full_commit(trans);
@@ -3685,7 +3682,7 @@ static int clone_leaf(struct btrfs_path *path, struct btrfs_log_ctx *ctx)
 	 * Add extra ref to scratch eb so that it is not freed when callers
 	 * release the path, so we can reuse it later if needed.
 	 */
-	atomic_inc(&ctx->scratch_eb->refs);
+	refcount_inc(&ctx->scratch_eb->refs);
 
 	return 0;
 }
@@ -7193,8 +7190,6 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
-	struct btrfs_key found_key;
-	struct btrfs_root *log;
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
 	struct walk_control wc = {
 		.process_func = process_one_buffer,
@@ -7228,6 +7223,9 @@ again:
 	key.offset = (u64)-1;
 
 	while (1) {
+		struct btrfs_root *log;
+		struct btrfs_key found_key;
+
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);
 
 		if (ret < 0) {
@@ -7256,6 +7254,12 @@ again:
 						   true);
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
+			wc.replay_dest = NULL;
+			if (ret != -ENOENT) {
+				btrfs_put_root(log);
+				btrfs_abort_transaction(trans, ret);
+				goto error;
+			}
 
 			/*
 			 * We didn't find the subvol, likely because it was
@@ -7268,36 +7272,36 @@ again:
 			 * block from being modified, and we'll just bail for
 			 * each subsequent pass.
 			 */
-			if (ret == -ENOENT)
-				ret = btrfs_pin_extent_for_log_replay(trans, log->node);
-			btrfs_put_root(log);
-
-			if (!ret)
-				goto next;
-			btrfs_abort_transaction(trans, ret);
-			goto error;
+			ret = btrfs_pin_extent_for_log_replay(trans, log->node);
+			if (ret) {
+				btrfs_put_root(log);
+				btrfs_abort_transaction(trans, ret);
+				goto error;
+			}
+			goto next;
 		}
 
 		wc.replay_dest->log_root = log;
 		ret = btrfs_record_root_in_trans(trans, wc.replay_dest);
-		if (ret)
-			/* The loop needs to continue due to the root refs */
+		if (ret) {
 			btrfs_abort_transaction(trans, ret);
-		else
-			ret = walk_log_tree(trans, log, &wc);
-
-		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
-			ret = fixup_inode_link_counts(trans, wc.replay_dest,
-						      path);
-			if (ret)
-				btrfs_abort_transaction(trans, ret);
+			goto next;
 		}
 
-		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
+		ret = walk_log_tree(trans, log, &wc);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			goto next;
+		}
+
+		if (wc.stage == LOG_WALK_REPLAY_ALL) {
 			struct btrfs_root *root = wc.replay_dest;
 
-			btrfs_release_path(path);
-
+			ret = fixup_inode_link_counts(trans, wc.replay_dest, path);
+			if (ret) {
+				btrfs_abort_transaction(trans, ret);
+				goto next;
+			}
 			/*
 			 * We have just replayed everything, and the highest
 			 * objectid of fs roots probably has changed in case
@@ -7307,17 +7311,20 @@ again:
 			 * could only happen during mount.
 			 */
 			ret = btrfs_init_root_free_objectid(root);
-			if (ret)
+			if (ret) {
 				btrfs_abort_transaction(trans, ret);
+				goto next;
+			}
 		}
-
-		wc.replay_dest->log_root = NULL;
-		btrfs_put_root(wc.replay_dest);
+next:
+		if (wc.replay_dest) {
+			wc.replay_dest->log_root = NULL;
+			btrfs_put_root(wc.replay_dest);
+		}
 		btrfs_put_root(log);
 
 		if (ret)
 			goto error;
-next:
 		if (found_key.offset == 0)
 			break;
 		key.offset = found_key.offset - 1;
@@ -7484,6 +7491,9 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	bool log_pinned = false;
 	int ret;
 
+	btrfs_init_log_ctx(&ctx, inode);
+	ctx.logging_new_name = true;
+
 	/*
 	 * this will force the logging code to walk the dentry chain
 	 * up for the file
@@ -7515,6 +7525,13 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	ret = 0;
 
 	/*
+	 * Now that we know we need to update the log, allocate the scratch eb
+	 * for the context before joining a log transaction below, as this can
+	 * take time and therefore we could delay log commits from other tasks.
+	 */
+	btrfs_init_log_ctx_scratch_eb(&ctx);
+
+	/*
 	 * If we are doing a rename (old_dir is not NULL) from a directory that
 	 * was previously logged, make sure that on log replay we get the old
 	 * dir entry deleted. This is needed because we will also log the new
@@ -7532,6 +7549,14 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 					     &old_dentry->d_name, 0, &fname);
 		if (ret)
 			goto out;
+
+		path = btrfs_alloc_path();
+		if (!path) {
+			ret = -ENOMEM;
+			fscrypt_free_filename(&fname);
+			goto out;
+		}
+
 		/*
 		 * We have two inodes to update in the log, the old directory and
 		 * the inode that got renamed, so we must pin the log to prevent
@@ -7545,18 +7570,12 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		 * mark the log for a full commit.
 		 */
 		if (WARN_ON_ONCE(ret < 0)) {
+			btrfs_free_path(path);
 			fscrypt_free_filename(&fname);
 			goto out;
 		}
 
 		log_pinned = true;
-
-		path = btrfs_alloc_path();
-		if (!path) {
-			ret = -ENOMEM;
-			fscrypt_free_filename(&fname);
-			goto out;
-		}
 
 		/*
 		 * Other concurrent task might be logging the old directory,
@@ -7589,9 +7608,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 			goto out;
 	}
 
-	btrfs_init_log_ctx(&ctx, inode);
-	ctx.logging_new_name = true;
-	btrfs_init_log_ctx_scratch_eb(&ctx);
 	/*
 	 * We don't care about the return value. If we fail to log the new name
 	 * then we know the next attempt to sync the log will fallback to a full
@@ -7600,7 +7616,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 * inconsistent state after a rename operation.
 	 */
 	btrfs_log_inode_parent(trans, inode, parent, LOG_INODE_EXISTS, &ctx);
-	free_extent_buffer(ctx.scratch_eb);
 	ASSERT(list_empty(&ctx.conflict_inodes));
 out:
 	/*
@@ -7613,5 +7628,6 @@ out:
 		btrfs_set_log_full_commit(trans);
 	if (log_pinned)
 		btrfs_end_log_trans(root);
+	free_extent_buffer(ctx.scratch_eb);
 }
 

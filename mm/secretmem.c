@@ -199,7 +199,7 @@ static struct file *secretmem_file_create(unsigned long flags)
 		return ERR_CAST(inode);
 
 	file = alloc_file_pseudo(inode, secretmem_mnt, "secretmem",
-				 O_RDWR, &secretmem_fops);
+				 O_RDWR | O_LARGEFILE, &secretmem_fops);
 	if (IS_ERR(file))
 		goto err_free_inode;
 
@@ -212,6 +212,8 @@ static struct file *secretmem_file_create(unsigned long flags)
 	/* pretend we are a normal file with zero size */
 	inode->i_mode |= S_IFREG;
 	inode->i_size = 0;
+
+	atomic_inc(&secretmem_users);
 
 	return file;
 
@@ -246,9 +248,6 @@ SYSCALL_DEFINE1(memfd_secret, unsigned int, flags)
 		goto err_put_fd;
 	}
 
-	file->f_flags |= O_LARGEFILE;
-
-	atomic_inc(&secretmem_users);
 	fd_install(fd, file);
 	return fd;
 

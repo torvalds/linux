@@ -46,6 +46,9 @@ void bch2_trans_commit_flags_to_text(struct printbuf *out, enum bch_trans_commit
 static void verify_update_old_key(struct btree_trans *trans, struct btree_insert_entry *i)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
+	if (i->key_cache_flushing)
+		return;
+
 	struct bch_fs *c = trans->c;
 	struct bkey u;
 	struct bkey_s_c k = bch2_btree_path_peek_slot_exact(trans->paths + i->path, &u);
@@ -337,6 +340,9 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 
 	BUG_ON(!bpos_eq(i->k->k.p, path->pos));
 	BUG_ON(i->cached	!= path->cached);
+	BUG_ON(i->cached &&
+	       !i->key_cache_already_flushed  &&
+	       bkey_deleted(&i->k->k));;
 	BUG_ON(i->level		!= path->level);
 	BUG_ON(i->btree_id	!= path->btree_id);
 	BUG_ON(i->bkey_type	!= __btree_node_type(path->level, path->btree_id));
@@ -595,12 +601,13 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	int ret = 0;
 
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
-
+#if 0
+	/* todo: bring back dynamic fault injection */
 	if (race_fault()) {
 		trace_and_count(c, trans_restart_fault_inject, trans, trace_ip);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_fault_inject);
 	}
-
+#endif
 	/*
 	 * Check if the insert will fit in the leaf node with the write lock
 	 * held, otherwise another thread could write the node changing the
@@ -756,6 +763,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
 				  btree_trans_journal_entries_start(trans),
 				  trans->journal_entries.u64s);
+
+		EBUG_ON(trans->journal_res.u64s < trans->journal_entries.u64s);
 
 		trans->journal_res.offset	+= trans->journal_entries.u64s;
 		trans->journal_res.u64s		-= trans->journal_entries.u64s;
@@ -1003,6 +1012,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 {
 	struct btree_insert_entry *errored_at = NULL;
 	struct bch_fs *c = trans->c;
+	unsigned journal_u64s = 0;
 	int ret = 0;
 
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
@@ -1011,9 +1021,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	if (unlikely(ret))
 		goto out_reset;
 
-	if (!trans->nr_updates &&
-	    !trans->journal_entries.u64s &&
-	    !trans->accounting.u64s)
+	if (!bch2_trans_has_updates(trans))
 		goto out_reset;
 
 	ret = bch2_trans_commit_run_triggers(trans);
@@ -1031,10 +1039,10 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 
 	EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
 
-	trans->journal_u64s		= trans->journal_entries.u64s + jset_u64s(trans->accounting.u64s);
+	journal_u64s = jset_u64s(trans->accounting.u64s);
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);
 	if (trans->journal_transaction_names)
-		trans->journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
+		journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
 
 	trans_for_each_update(trans, i) {
 		struct btree_path *path = trans->paths + i->path;
@@ -1054,11 +1062,11 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 			continue;
 
 		/* we're going to journal the key being updated: */
-		trans->journal_u64s += jset_u64s(i->k->k.u64s);
+		journal_u64s += jset_u64s(i->k->k.u64s);
 
 		/* and we're also going to log the overwrite: */
 		if (trans->journal_transaction_names)
-			trans->journal_u64s += jset_u64s(i->old_k.u64s);
+			journal_u64s += jset_u64s(i->old_k.u64s);
 	}
 
 	if (trans->extra_disk_res) {
@@ -1075,6 +1083,8 @@ retry:
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res)))
 		memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 	memset(&trans->fs_usage_delta, 0, sizeof(trans->fs_usage_delta));
+
+	trans->journal_u64s = journal_u64s + trans->journal_entries.u64s;
 
 	ret = do_bch2_trans_commit(trans, flags, &errored_at, _RET_IP_);
 

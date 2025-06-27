@@ -98,7 +98,7 @@ struct extent_buffer {
 	void *addr;
 
 	spinlock_t refs_lock;
-	atomic_t refs;
+	refcount_t refs;
 	int read_mirror;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
 	s8 log_index;
@@ -345,8 +345,8 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 			   unsigned long len);
 void memzero_extent_buffer(const struct extent_buffer *eb, unsigned long start,
 			   unsigned long len);
-int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
-			   unsigned long pos);
+bool extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
+			    unsigned long pos);
 void extent_buffer_bitmap_set(const struct extent_buffer *eb, unsigned long start,
 			      unsigned long pos, unsigned long len);
 void extent_buffer_bitmap_clear(const struct extent_buffer *eb,

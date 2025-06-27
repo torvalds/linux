@@ -89,8 +89,7 @@ int btrfs_dirty_folio(struct btrfs_inode *inode, struct folio *folio, loff_t pos
 	num_bytes = round_up(write_bytes + pos - start_pos,
 			     fs_info->sectorsize);
 	ASSERT(num_bytes <= U32_MAX);
-	ASSERT(folio_pos(folio) <= pos &&
-	       folio_pos(folio) + folio_size(folio) >= pos + write_bytes);
+	ASSERT(folio_pos(folio) <= pos && folio_end(folio) >= pos + write_bytes);
 
 	end_of_last_block = start_pos + num_bytes - 1;
 
@@ -801,7 +800,7 @@ static int prepare_uptodate_folio(struct inode *inode, struct folio *folio, u64 
 				  u64 len)
 {
 	u64 clamp_start = max_t(u64, pos, folio_pos(folio));
-	u64 clamp_end = min_t(u64, pos + len, folio_pos(folio) + folio_size(folio));
+	u64 clamp_end = min_t(u64, pos + len, folio_end(folio));
 	const u32 blocksize = inode_to_fs_info(inode)->sectorsize;
 	int ret = 0;
 
@@ -1233,8 +1232,8 @@ again:
 	 * The reserved range goes beyond the current folio, shrink the reserved
 	 * space to the folio boundary.
 	 */
-	if (reserved_start + reserved_len > folio_pos(folio) + folio_size(folio)) {
-		const u64 last_block = folio_pos(folio) + folio_size(folio);
+	if (reserved_start + reserved_len > folio_end(folio)) {
+		const u64 last_block = folio_end(folio);
 
 		shrink_reserved_space(inode, *data_reserved, reserved_start,
 				      reserved_len, last_block - reserved_start,
@@ -1978,15 +1977,16 @@ static const struct vm_operations_struct btrfs_file_vm_ops = {
 	.page_mkwrite	= btrfs_page_mkwrite,
 };
 
-static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
+static int btrfs_file_mmap_prepare(struct vm_area_desc *desc)
 {
+	struct file *filp = desc->file;
 	struct address_space *mapping = filp->f_mapping;
 
 	if (!mapping->a_ops->read_folio)
 		return -ENOEXEC;
 
 	file_accessed(filp);
-	vma->vm_ops = &btrfs_file_vm_ops;
+	desc->vm_ops = &btrfs_file_vm_ops;
 
 	return 0;
 }
@@ -2195,7 +2195,7 @@ static bool check_range_has_page(struct inode *inode, u64 start, u64 end)
 		if (folio->index < start_index)
 			continue;
 		/* A large folio extends beyond the end. Not a target. */
-		if (folio->index + folio_nr_pages(folio) > end_index)
+		if (folio_next_index(folio) > end_index)
 			continue;
 		/* A folio doesn't cover the head/tail index. Found a target. */
 		ret = true;
@@ -2341,7 +2341,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	u64 min_size = btrfs_calc_insert_metadata_size(fs_info, 1);
 	u64 ino_size = round_up(inode->vfs_inode.i_size, fs_info->sectorsize);
 	struct btrfs_trans_handle *trans = NULL;
-	struct btrfs_block_rsv *rsv;
+	struct btrfs_block_rsv rsv;
 	unsigned int rsv_count;
 	u64 cur_offset;
 	u64 len = end - start;
@@ -2350,13 +2350,9 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	if (end <= start)
 		return -EINVAL;
 
-	rsv = btrfs_alloc_block_rsv(fs_info, BTRFS_BLOCK_RSV_TEMP);
-	if (!rsv) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	rsv->size = btrfs_calc_insert_metadata_size(fs_info, 1);
-	rsv->failfast = true;
+	btrfs_init_metadata_block_rsv(fs_info, &rsv, BTRFS_BLOCK_RSV_TEMP);
+	rsv.size = btrfs_calc_insert_metadata_size(fs_info, 1);
+	rsv.failfast = true;
 
 	/*
 	 * 1 - update the inode
@@ -2373,14 +2369,14 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		trans = NULL;
-		goto out_free;
+		goto out_release;
 	}
 
-	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, rsv,
+	ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv, &rsv,
 				      min_size, false);
 	if (WARN_ON(ret))
 		goto out_trans;
-	trans->block_rsv = rsv;
+	trans->block_rsv = &rsv;
 
 	cur_offset = start;
 	drop_args.path = path;
@@ -2496,10 +2492,10 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		}
 
 		ret = btrfs_block_rsv_migrate(&fs_info->trans_block_rsv,
-					      rsv, min_size, false);
+					      &rsv, min_size, false);
 		if (WARN_ON(ret))
 			break;
-		trans->block_rsv = rsv;
+		trans->block_rsv = &rsv;
 
 		cur_offset = drop_args.drop_end;
 		len = end - cur_offset;
@@ -2576,16 +2572,15 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 
 out_trans:
 	if (!trans)
-		goto out_free;
+		goto out_release;
 
 	trans->block_rsv = &fs_info->trans_block_rsv;
 	if (ret)
 		btrfs_end_transaction(trans);
 	else
 		*trans_out = trans;
-out_free:
-	btrfs_free_block_rsv(fs_info, rsv);
-out:
+out_release:
+	btrfs_block_rsv_release(fs_info, &rsv, (u64)-1, NULL);
 	return ret;
 }
 
@@ -3765,7 +3760,7 @@ const struct file_operations btrfs_file_operations = {
 	.splice_read	= filemap_splice_read,
 	.write_iter	= btrfs_file_write_iter,
 	.splice_write	= iter_file_splice_write,
-	.mmap		= btrfs_file_mmap,
+	.mmap_prepare	= btrfs_file_mmap_prepare,
 	.open		= btrfs_file_open,
 	.release	= btrfs_release_file,
 	.get_unmapped_area = thp_get_unmapped_area,

@@ -382,7 +382,7 @@ static const struct file_operations hostfs_file_fops = {
 	.splice_write	= iter_file_splice_write,
 	.read_iter	= generic_file_read_iter,
 	.write_iter	= generic_file_write_iter,
-	.mmap		= generic_file_mmap,
+	.mmap_prepare	= generic_file_mmap_prepare,
 	.open		= hostfs_open,
 	.release	= hostfs_file_release,
 	.fsync		= hostfs_fsync,
@@ -933,7 +933,7 @@ static int hostfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_blocksize_bits = 10;
 	sb->s_magic = HOSTFS_SUPER_MAGIC;
 	sb->s_op = &hostfs_sbops;
-	sb->s_d_op = &simple_dentry_operations;
+	sb->s_d_flags = DCACHE_DONTCACHE;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	err = super_setup_bdi(sb);
 	if (err)

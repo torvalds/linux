@@ -144,7 +144,7 @@ do_gc:
 				gc_control.one_time;
 
 		/* foreground GC was been triggered via f2fs_balance_fs() */
-		if (foreground)
+		if (foreground && !f2fs_sb_has_blkzoned(sbi))
 			sync_mode = false;
 
 		gc_control.init_gc_type = sync_mode ? FG_GC : BG_GC;
@@ -1891,6 +1891,7 @@ gc_more:
 	/* Let's run FG_GC, if we don't have enough space. */
 	if (has_not_enough_free_secs(sbi, 0, 0)) {
 		gc_type = FG_GC;
+		gc_control->one_time = false;
 
 		/*
 		 * For example, if there are many prefree_segments below given

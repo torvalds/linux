@@ -767,7 +767,8 @@ struct btree_trans_buf {
 	x(sysfs)							\
 	x(btree_write_buffer)						\
 	x(btree_node_scrub)						\
-	x(async_recovery_passes)
+	x(async_recovery_passes)					\
+	x(ioctl_data)
 
 enum bch_write_ref {
 #define x(n) BCH_WRITE_REF_##n,
@@ -862,7 +863,7 @@ struct bch_fs {
 	DARRAY(enum bcachefs_metadata_version)
 				incompat_versions_requested;
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	struct unicode_map	*cf_encoding;
 #endif
 

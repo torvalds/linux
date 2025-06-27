@@ -45,6 +45,22 @@
  */
 #undef FSCRYPT_MAX_KEY_SIZE
 
+/*
+ * This mask is passed as the third argument to the crypto_alloc_*() functions
+ * to prevent fscrypt from using the Crypto API drivers for non-inline crypto
+ * accelerators.  Those drivers have been problematic for fscrypt.  fscrypt
+ * users have reported hangs and even incorrect en/decryption with these
+ * drivers.  Since going to the driver, off CPU, and back again is really slow,
+ * such drivers can be over 50 times slower than the CPU-based code for
+ * fscrypt's synchronous workload.  Even on platforms that lack AES instructions
+ * on the CPU, any performance benefit is likely to be marginal at best.
+ *
+ * Note that fscrypt also supports inline encryption engines.  Those don't use
+ * the Crypto API and work much better than non-inline accelerators.
+ */
+#define FSCRYPT_CRYPTOAPI_MASK \
+	(CRYPTO_ALG_ALLOCATES_MEMORY | CRYPTO_ALG_KERN_DRIVER_ONLY)
+
 #define FSCRYPT_CONTEXT_V1	1
 #define FSCRYPT_CONTEXT_V2	2
 
