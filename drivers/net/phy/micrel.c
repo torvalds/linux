@@ -2173,6 +2173,136 @@ static void kszphy_get_phy_stats(struct phy_device *phydev,
 	stats->rx_errors = priv->phy_stats.rx_err_pkt_cnt;
 }
 
+/* Base register for Signal Quality Indicator (SQI) - Channel A
+ *
+ * MMD Address: MDIO_MMD_PMAPMD (0x01)
+ * Register:    0xAC (Channel A)
+ * Each channel (pair) has its own register:
+ *   Channel A: 0xAC
+ *   Channel B: 0xAD
+ *   Channel C: 0xAE
+ *   Channel D: 0xAF
+ */
+#define KSZ9477_MMD_SIGNAL_QUALITY_CHAN_A	0xac
+
+/* SQI field mask for bits [14:8]
+ *
+ * SQI indicates relative quality of the signal.
+ * A lower value indicates better signal quality.
+ */
+#define KSZ9477_MMD_SQI_MASK			GENMASK(14, 8)
+
+#define KSZ9477_MAX_CHANNELS			4
+#define KSZ9477_SQI_MAX				7
+
+/* Number of SQI samples to average for a stable result.
+ *
+ * Reference: KSZ9477S Datasheet DS00002392C, Section 4.1.11 (page 26)
+ * For noisy environments, a minimum of 30–50 readings is recommended.
+ */
+#define KSZ9477_SQI_SAMPLE_COUNT		40
+
+/* The hardware SQI register provides a raw value from 0-127, where a lower
+ * value indicates better signal quality. However, empirical testing has
+ * shown that only the 0-7 range is relevant for a functional link. A raw
+ * value of 8 or higher was measured directly before link drop. This aligns
+ * with the OPEN Alliance recommendation that SQI=0 should represent the
+ * pre-failure state.
+ *
+ * This table provides a non-linear mapping from the useful raw hardware
+ * values (0-7) to the standard 0-7 SQI scale, where higher is better.
+ */
+static const u8 ksz_sqi_mapping[] = {
+	7, /* raw 0 -> SQI 7 */
+	7, /* raw 1 -> SQI 7 */
+	6, /* raw 2 -> SQI 6 */
+	5, /* raw 3 -> SQI 5 */
+	4, /* raw 4 -> SQI 4 */
+	3, /* raw 5 -> SQI 3 */
+	2, /* raw 6 -> SQI 2 */
+	1, /* raw 7 -> SQI 1 */
+};
+
+/**
+ * kszphy_get_sqi - Read, average, and map Signal Quality Index (SQI)
+ * @phydev: the PHY device
+ *
+ * This function reads and processes the raw Signal Quality Index from the
+ * PHY. Based on empirical testing, a raw value of 8 or higher indicates a
+ * pre-failure state and is mapped to SQI 0. Raw values from 0-7 are
+ * mapped to the standard 0-7 SQI scale via a lookup table.
+ *
+ * Return: SQI value (0–7), or a negative errno on failure.
+ */
+static int kszphy_get_sqi(struct phy_device *phydev)
+{
+	int sum[KSZ9477_MAX_CHANNELS] = { 0 };
+	int worst_sqi = KSZ9477_SQI_MAX;
+	int i, val, raw_sqi, ch;
+	u8 channels;
+
+	/* Determine applicable channels based on link speed */
+	if (phydev->speed == SPEED_1000)
+		channels = 4;
+	else if (phydev->speed == SPEED_100)
+		channels = 1;
+	else
+		return -EOPNOTSUPP;
+
+	/* Sample and accumulate SQI readings for each pair (currently only one).
+	 *
+	 * Reference: KSZ9477S Datasheet DS00002392C, Section 4.1.11 (page 26)
+	 * - The SQI register is updated every 2 µs.
+	 * - Values may fluctuate significantly, even in low-noise environments.
+	 * - For reliable estimation, average a minimum of 30–50 samples
+	 *   (recommended for noisy environments)
+	 * - In noisy environments, individual readings are highly unreliable.
+	 *
+	 * We use 40 samples per pair with a delay of 3 µs between each
+	 * read to ensure new values are captured (2 µs update interval).
+	 */
+	for (i = 0; i < KSZ9477_SQI_SAMPLE_COUNT; i++) {
+		for (ch = 0; ch < channels; ch++) {
+			val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+					   KSZ9477_MMD_SIGNAL_QUALITY_CHAN_A + ch);
+			if (val < 0)
+				return val;
+
+			raw_sqi = FIELD_GET(KSZ9477_MMD_SQI_MASK, val);
+			sum[ch] += raw_sqi;
+
+			/* We communicate with the PHY via MDIO via SPI or
+			 * I2C, which is relatively slow. At least slower than
+			 * the update interval of the SQI register.
+			 * So, we can skip the delay between reads.
+			 */
+		}
+	}
+
+	/* Calculate average for each channel and find the worst SQI */
+	for (ch = 0; ch < channels; ch++) {
+		int avg_raw_sqi = sum[ch] / KSZ9477_SQI_SAMPLE_COUNT;
+		int mapped_sqi;
+
+		/* Handle the pre-fail/failed state first. */
+		if (avg_raw_sqi >= ARRAY_SIZE(ksz_sqi_mapping))
+			mapped_sqi = 0;
+		else
+			/* Use the lookup table for the good signal range. */
+			mapped_sqi = ksz_sqi_mapping[avg_raw_sqi];
+
+		if (mapped_sqi < worst_sqi)
+			worst_sqi = mapped_sqi;
+	}
+
+	return worst_sqi;
+}
+
+static int kszphy_get_sqi_max(struct phy_device *phydev)
+{
+	return KSZ9477_SQI_MAX;
+}
+
 static void kszphy_enable_clk(struct phy_device *phydev)
 {
 	struct kszphy_priv *priv = phydev->priv;
@@ -5801,6 +5931,8 @@ static struct phy_driver ksphy_driver[] = {
 	.update_stats	= kszphy_update_stats,
 	.cable_test_start	= ksz9x31_cable_test_start,
 	.cable_test_get_status	= ksz9x31_cable_test_get_status,
+	.get_sqi	= kszphy_get_sqi,
+	.get_sqi_max	= kszphy_get_sqi_max,
 } };
 
 module_phy_driver(ksphy_driver);
