@@ -72,11 +72,11 @@
     },
     {
         "ArchStdEvent": "L1D_CACHE_HWPRF",
-        "BriefDescription": "This event counts access counted by L1D_CACHE that is due to a hardware prefetch."
+        "BriefDescription": "This event counts L1D_CACHE caused by hardware prefetch."
     },
     {
         "ArchStdEvent": "L1D_CACHE_REFILL_HWPRF",
-        "BriefDescription": "This event counts hardware prefetch counted by L1D_CACHE_HWPRF that causes a refill of the Level 1 data cache from outside of the Level 1 data cache."
+        "BriefDescription": "This event counts L1D_CACHE_REFILL caused by hardware prefetch."
     },
     {
         "ArchStdEvent": "L1D_CACHE_HIT_RD",
@@ -100,14 +100,14 @@
     },
     {
         "ArchStdEvent": "L1D_CACHE_PRF",
-        "BriefDescription": "This event counts fetch counted by either Level 1 data hardware prefetch or Level 1 data software prefetch."
+        "BriefDescription": "This event counts L1D_CACHE caused by hardware prefetch or software prefetch."
     },
     {
         "ArchStdEvent": "L1D_CACHE_REFILL_PRF",
-        "BriefDescription": "This event counts hardware prefetch counted by L1D_CACHE_PRF that causes a refill of the Level 1 data cache from outside of the Level 1 data cache."
+        "BriefDescription": "This event counts L1D_CACHE_REFILL caused by hardware prefetch or software prefetch."
     },
     {
         "ArchStdEvent": "L1D_CACHE_REFILL_PERCYC",
-        "BriefDescription": "The counter counts by the number of cache refills counted by L1D_CACHE_REFILL in progress on each Processor cycle."
+        "BriefDescription": "This counter counts by the number of cache refills counted by L1D_CACHE_REFILL in progress on each Processor cycle."
     }
 ]

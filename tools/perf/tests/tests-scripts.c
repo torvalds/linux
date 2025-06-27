@@ -85,7 +85,7 @@ static char *shell_test__description(int dir_fd, const char *name)
 	if (io.fd < 0)
 		return NULL;
 
-	/* Skip first line - should be #!/bin/sh Shebang */
+	/* Skip first line - should be #!/bin/bash Shebang */
 	if (io__get_char(&io) != '#')
 		goto err_out;
 	if (io__get_char(&io) != '!')
