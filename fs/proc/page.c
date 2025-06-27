@@ -183,10 +183,7 @@ u64 stable_page_flags(const struct page *page)
 		u |= 1 << KPF_ZERO_PAGE;
 	}
 
-	/*
-	 * Caveats on high order pages: PG_buddy and PG_slab will only be set
-	 * on the head page.
-	 */
+	/* KPF_BUDDY is only set on the first buddy page */
 	if (PageBuddy(page))
 		u |= 1 << KPF_BUDDY;
 	else if (page_count(page) == 0 && is_free_buddy_page(page))

@@ -6595,7 +6595,7 @@
 			slab_debug can create guard zones around objects and
 			may poison objects when not in use. Also tracks the
 			last alloc / free. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_debug legacy name also accepted for now)
 
 			Using this option implies the "no_hash_pointers"
@@ -6606,7 +6606,7 @@
 			Determines the maximum allowed order for slabs.
 			A high setting may cause OOMs due to memory
 			fragmentation. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_max_order legacy name also accepted for now)
 
 	slab_merge	[MM]
@@ -6621,13 +6621,14 @@
 			the number of objects indicated. The higher the number
 			of objects the smaller the overhead of tracking slabs
 			and the less frequently locks need to be acquired.
-			For more information see Documentation/mm/slub.rst.
+			For more information see
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_min_objects legacy name also accepted for now)
 
 	slab_min_order=	[MM]
 			Determines the minimum page order for slabs. Must be
 			lower or equal to slab_max_order. For more information see
-			Documentation/mm/slub.rst.
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_min_order legacy name also accepted for now)
 
 	slab_nomerge	[MM]
@@ -6641,7 +6642,8 @@
 			cache (risks via metadata attacks are mostly
 			unchanged). Debug options disable merging on their
 			own.
-			For more information see Documentation/mm/slub.rst.
+			For more information see
+			Documentation/admin-guide/mm/slab.rst.
 			(slub_nomerge legacy name also accepted for now)
 
 	slab_strict_numa	[MM]
