@@ -367,7 +367,6 @@
 
 			v2m0: v2m@0 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x00000 0x1000>;
 				arm,msi-base-spi = <72>;
@@ -376,7 +375,6 @@
 
 			v2m1: v2m@10000 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x10000 0x1000>;
 				arm,msi-base-spi = <88>;
@@ -385,7 +383,6 @@
 
 			v2m2: v2m@20000 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x20000 0x1000>;
 				arm,msi-base-spi = <104>;
@@ -394,7 +391,6 @@
 
 			v2m3: v2m@30000 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x30000 0x1000>;
 				arm,msi-base-spi = <120>;
@@ -403,7 +399,6 @@
 
 			v2m4: v2m@40000 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x40000 0x1000>;
 				arm,msi-base-spi = <136>;
@@ -412,7 +407,6 @@
 
 			v2m5: v2m@50000 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x50000 0x1000>;
 				arm,msi-base-spi = <152>;
@@ -421,7 +415,6 @@
 
 			v2m6: v2m@60000 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x60000 0x1000>;
 				arm,msi-base-spi = <168>;
@@ -430,7 +423,6 @@
 
 			v2m7: v2m@70000 {
 				compatible = "arm,gic-v2m-frame";
-				interrupt-parent = <&gic>;
 				msi-controller;
 				reg = <0x70000 0x1000>;
 				arm,msi-base-spi = <184>;
