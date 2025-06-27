@@ -1119,6 +1119,8 @@ int acpi_subsys_prepare(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 
+	dev_pm_set_strict_midlayer(dev, true);
+
 	if (dev->driver && dev->driver->pm && dev->driver->pm->prepare) {
 		int ret = dev->driver->pm->prepare(dev);
 
@@ -1147,6 +1149,8 @@ void acpi_subsys_complete(struct device *dev)
 	 */
 	if (pm_runtime_suspended(dev) && pm_resume_via_firmware())
 		pm_request_resume(dev);
+
+	dev_pm_set_strict_midlayer(dev, false);
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_complete);
 
