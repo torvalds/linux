@@ -59,6 +59,9 @@ The following files belong to it:
   0x00000200        Platform Correctable
   0x00000400        Platform Uncorrectable non-fatal
   0x00000800        Platform Uncorrectable fatal
+  V2_0x00000001     EINJV2 Processor Error
+  V2_0x00000002     EINJV2 Memory Error
+  V2_0x00000004     EINJV2 PCI Express Error
   ================  ===================================
 
   The format of the file contents are as above, except present are only
@@ -88,6 +91,8 @@ The following files belong to it:
       Memory address and mask valid (param1 and param2).
     Bit 2
       PCIe (seg,bus,dev,fn) valid (see param4 below).
+    Bit 3
+      EINJv2 extension structure is valid
 
   If set to zero, legacy behavior is mimicked where the type of
   injection specifies just one bit set, and param1 is multiplexed.
@@ -121,6 +126,13 @@ The following files belong to it:
   location, or device that is the target of the error injection. Whether
   this actually works depends on what operations the BIOS actually
   includes in the trigger phase.
+
+- component_id0 .. component_idN, component_syndrome0 .. component_syndromeN
+
+  These files are used to set the "Component Array" field
+  of the EINJv2 Extension Structure. Each holds a 128-bit
+  hex value. Writing just a newline to any of these files
+  sets an invalid (all-ones) value.
 
 CXL error types are supported from ACPI 6.5 onwards (given a CXL port
 is present). The EINJ user interface for CXL error types is at
@@ -192,6 +204,27 @@ An error injection example::
   # echo 0x12345000 > param1		# Set memory address for injection
   # echo 0xfffffffffffff000 > param2		# Mask - anywhere in this page
   # echo 0x8 > error_type			# Choose correctable memory error
+  # echo 1 > error_inject			# Inject now
+
+An EINJv2 error injection example::
+
+  # cd /sys/kernel/debug/apei/einj
+  # cat available_error_type			# See which errors can be injected
+  0x00000002	Processor Uncorrectable non-fatal
+  0x00000008	Memory Correctable
+  0x00000010	Memory Uncorrectable non-fatal
+  V2_0x00000001	EINJV2 Processor Error
+  V2_0x00000002	EINJV2 Memory Error
+
+  # echo 0x12345000 > param1			# Set memory address for injection
+  # echo 0xfffffffffffff000 > param2		# Range - anywhere in this page
+  # echo 0x1 > component_id0			# First device ID
+  # echo 0x4 > component_syndrome0		# First error syndrome
+  # echo 0x2 > component_id1			# Second device ID
+  # echo 0x4 > component_syndrome1		# Second error syndrome
+  # echo '' > component_id2			# Mark id2 invalid to terminate list
+  # echo V2_0x2 > error_type			# Choose EINJv2 memory error
+  # echo 0xa > flags				# set flags to indicate EINJv2
   # echo 1 > error_inject			# Inject now
 
 You should see something like this in dmesg::

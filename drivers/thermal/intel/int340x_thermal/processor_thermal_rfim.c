@@ -442,6 +442,7 @@ int proc_thermal_rfim_add(struct pci_dev *pdev, struct proc_thermal_device *proc
 		switch (pdev->device) {
 		case PCI_DEVICE_ID_INTEL_LNLM_THERMAL:
 		case PCI_DEVICE_ID_INTEL_PTL_THERMAL:
+		case PCI_DEVICE_ID_INTEL_WCL_THERMAL:
 			dlvr_mmio_regs_table = lnl_dlvr_mmio_regs;
 			dlvr_mapping = lnl_dlvr_mapping;
 			break;
