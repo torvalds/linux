@@ -316,10 +316,9 @@ config SAMPLE_HUNG_TASK
 	depends on DETECT_HUNG_TASK && DEBUG_FS
 	help
 	  Build a module that provides debugfs files (e.g., mutex, semaphore,
-	  etc.) under <debugfs>/hung_task. If user reads one of these files,
-	  it will sleep long time (256 seconds) with holding a lock. Thus,
-	  if 2 or more processes read the same file concurrently, it will
-	  be detected by the hung_task watchdog.
+	  rw_semaphore_read, rw_semaphore_write) under <debugfs>/hung_task.
+	  Reading these files with multiple processes triggers hung task
+	  detection by holding locks for a long time (256 seconds).
 
 source "samples/rust/Kconfig"
 
