@@ -9,7 +9,7 @@
 #define _ASM_MICROBLAZE_MMU_H
 
 #  ifdef __KERNEL__
-#   ifndef __ASSEMBLY__
+#   ifndef __ASSEMBLER__
 
 /* Default "unsigned long" context */
 typedef unsigned long mm_context_t;
@@ -56,7 +56,7 @@ extern void _tlbia(void);		/* invalidate all TLB entries */
  * mapping has to increase tlb_skip size.
  */
 extern u32 tlb_skip;
-#   endif /* __ASSEMBLY__ */
+#   endif /* __ASSEMBLER__ */
 
 /*
  * The MicroBlaze processor has a TLB architecture identical to PPC-40x. The
