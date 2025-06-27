@@ -83,66 +83,10 @@ much like a struct kmem_cache, except that they use the DMA-coherent allocator,
 not __get_free_pages().  Also, they understand common hardware constraints
 for alignment, like queue heads needing to be aligned on N-byte boundaries.
 
+.. kernel-doc:: mm/dmapool.c
+   :export:
 
-::
-
-	struct dma_pool *
-	dma_pool_create(const char *name, struct device *dev,
-			size_t size, size_t align, size_t alloc);
-
-dma_pool_create() initializes a pool of DMA-coherent buffers
-for use with a given device.  It must be called in a context which
-can sleep.
-
-The "name" is for diagnostics (like a struct kmem_cache name); dev and size
-are like what you'd pass to dma_alloc_coherent().  The device's hardware
-alignment requirement for this type of data is "align" (which is expressed
-in bytes, and must be a power of two).  If your device has no boundary
-crossing restrictions, pass 0 for alloc; passing 4096 says memory allocated
-from this pool must not cross 4KByte boundaries.
-
-::
-
-	void *
-	dma_pool_zalloc(struct dma_pool *pool, gfp_t mem_flags,
-		        dma_addr_t *handle)
-
-Wraps dma_pool_alloc() and also zeroes the returned memory if the
-allocation attempt succeeded.
-
-
-::
-
-	void *
-	dma_pool_alloc(struct dma_pool *pool, gfp_t gfp_flags,
-		       dma_addr_t *dma_handle);
-
-This allocates memory from the pool; the returned memory will meet the
-size and alignment requirements specified at creation time.  Pass
-GFP_ATOMIC to prevent blocking, or if it's permitted (not
-in_interrupt, not holding SMP locks), pass GFP_KERNEL to allow
-blocking.  Like dma_alloc_coherent(), this returns two values:  an
-address usable by the CPU, and the DMA address usable by the pool's
-device.
-
-::
-
-	void
-	dma_pool_free(struct dma_pool *pool, void *vaddr,
-		      dma_addr_t addr);
-
-This puts memory back into the pool.  The pool is what was passed to
-dma_pool_alloc(); the CPU (vaddr) and DMA addresses are what
-were returned when that routine allocated the memory being freed.
-
-::
-
-	void
-	dma_pool_destroy(struct dma_pool *pool);
-
-dma_pool_destroy() frees the resources of the pool.  It must be
-called in a context which can sleep.  Make sure you've freed all allocated
-memory back to the pool before you destroy it.
+.. kernel-doc:: include/linux/dmapool.h
 
 
 Part Ic - DMA addressing limitations
