@@ -1351,7 +1351,7 @@ static int igen6_register_mcis(struct pci_dev *pdev, u64 mchbar)
 	}
 
 	if (lmc < res_cfg->num_imc) {
-		igen6_printk(KERN_WARNING, "Expected %d mcs, but only %d detected.",
+		igen6_printk(KERN_DEBUG, "Expected %d mcs, but only %d detected.",
 			     res_cfg->num_imc, lmc);
 		res_cfg->num_imc = lmc;
 	}
