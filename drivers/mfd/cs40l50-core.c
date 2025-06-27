@@ -52,7 +52,7 @@ static const struct regmap_irq cs40l50_reg_irqs[] = {
 		       CS40L50_GLOBAL_ERROR_MASK),
 };
 
-static struct regmap_irq_chip cs40l50_irq_chip = {
+static const struct regmap_irq_chip cs40l50_irq_chip = {
 	.name =		"cs40l50",
 	.status_base =	CS40L50_IRQ1_INT_1,
 	.mask_base =	CS40L50_IRQ1_MASK_1,

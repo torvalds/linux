@@ -1,0 +1,148 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/nxp,lpc1850-creg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: The NXP LPC18xx/43xx CREG (Configuration Registers) block
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - nxp,lpc1850-creg
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  clock-controller:
+    type: object
+    description:
+      The NXP LPC18xx/43xx CREG (Configuration Registers) block contains
+      control registers for two low speed clocks. One of the clocks is a
+      32 kHz oscillator driver with power up/down and clock gating. Next
+      is a fixed divider that creates a 1 kHz clock from the 32 kHz osc.
+
+      These clocks are used by the RTC and the Event Router peripherals.
+      The 32 kHz can also be routed to other peripherals to enable low
+      power modes.
+
+    properties:
+      compatible:
+        const: nxp,lpc1850-creg-clk
+
+      clocks:
+        maxItems: 1
+
+      '#clock-cells':
+        const: 1
+        description: |
+          0            1 kHz clock
+          1           32 kHz Oscillator
+
+    required:
+      - compatible
+      - clocks
+      - '#clock-cells'
+
+    additionalProperties: false
+
+  phy:
+    type: object
+    description: the internal USB OTG PHY in NXP LPC18xx and LPC43xx SoCs
+    properties:
+      compatible:
+        const: nxp,lpc1850-usb-otg-phy
+
+      clocks:
+        maxItems: 1
+
+      '#phy-cells':
+        const: 0
+
+    required:
+      - compatible
+      - clocks
+      - '#phy-cells'
+
+    additionalProperties: false
+
+  dma-mux:
+    type: object
+    description: NXP LPC18xx/43xx DMA MUX (DMA request router)
+    properties:
+      compatible:
+        const: nxp,lpc1850-dmamux
+
+      '#dma-cells':
+        const: 3
+        description: |
+          Should be set to <3>.
+          * 1st cell contain the master dma request signal
+          * 2nd cell contain the mux value (0-3) for the peripheral
+          * 3rd cell contain either 1 or 2 depending on the AHB  master used.
+
+      dma-requests:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        maximum: 64
+        description: Number of DMA requests the controller can handle
+
+      dma-masters:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: phandle pointing to the DMA controller
+
+    required:
+      - compatible
+      - '#dma-cells'
+      - dma-masters
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/lpc18xx-ccu.h>
+
+    syscon@40043000 {
+        compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
+        reg = <0x40043000 0x1000>;
+        clocks = <&ccu1 CLK_CPU_CREG>;
+        resets = <&rgu 5>;
+
+        clock-controller {
+            compatible = "nxp,lpc1850-creg-clk";
+            clocks = <&xtal32>;
+            #clock-cells = <1>;
+        };
+
+        phy {
+            compatible = "nxp,lpc1850-usb-otg-phy";
+            clocks = <&ccu1 CLK_USB0>;
+            #phy-cells = <0>;
+        };
+
+        dma-mux {
+            compatible = "nxp,lpc1850-dmamux";
+            #dma-cells = <3>;
+            dma-requests = <64>;
+            dma-masters = <&dmac>;
+        };
+    };
