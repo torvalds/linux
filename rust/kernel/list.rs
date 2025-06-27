@@ -82,9 +82,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 /// // [15, 10, 30]
 /// {
 ///     let mut iter = list.iter();
-///     assert_eq!(iter.next().unwrap().value, 15);
-///     assert_eq!(iter.next().unwrap().value, 10);
-///     assert_eq!(iter.next().unwrap().value, 30);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 15);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 10);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 30);
 ///     assert!(iter.next().is_none());
 ///
 ///     // Verify the length of the list.
@@ -93,9 +93,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///
 /// // Pop the items from the list using `pop_back()` and verify the content.
 /// {
-///     assert_eq!(list.pop_back().unwrap().value, 30);
-///     assert_eq!(list.pop_back().unwrap().value, 10);
-///     assert_eq!(list.pop_back().unwrap().value, 15);
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value, 30);
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value, 10);
+///     assert_eq!(list.pop_back().ok_or(EINVAL)?.value, 15);
 /// }
 ///
 /// // Insert 3 elements using `push_front()`.
@@ -107,9 +107,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 /// // [30, 10, 15]
 /// {
 ///     let mut iter = list.iter();
-///     assert_eq!(iter.next().unwrap().value, 30);
-///     assert_eq!(iter.next().unwrap().value, 10);
-///     assert_eq!(iter.next().unwrap().value, 15);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 30);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 10);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 15);
 ///     assert!(iter.next().is_none());
 ///
 ///     // Verify the length of the list.
@@ -118,8 +118,8 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///
 /// // Pop the items from the list using `pop_front()` and verify the content.
 /// {
-///     assert_eq!(list.pop_front().unwrap().value, 30);
-///     assert_eq!(list.pop_front().unwrap().value, 10);
+///     assert_eq!(list.pop_front().ok_or(EINVAL)?.value, 30);
+///     assert_eq!(list.pop_front().ok_or(EINVAL)?.value, 10);
 /// }
 ///
 /// // Push `list2` to `list` through `push_all_back()`.
@@ -135,9 +135,9 @@ pub use self::arc_field::{define_list_arc_field_getter, ListArcField};
 ///     // list: [15, 25, 35]
 ///     // list2: []
 ///     let mut iter = list.iter();
-///     assert_eq!(iter.next().unwrap().value, 15);
-///     assert_eq!(iter.next().unwrap().value, 25);
-///     assert_eq!(iter.next().unwrap().value, 35);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 15);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 25);
+///     assert_eq!(iter.next().ok_or(EINVAL)?.value, 35);
 ///     assert!(iter.next().is_none());
 ///     assert!(list2.is_empty());
 /// }
@@ -809,11 +809,11 @@ impl<'a, T: ?Sized + ListItem<ID>, const ID: u64> Iterator for Iter<'a, T, ID> {
 /// merge_sorted(&mut list, list2);
 ///
 /// let mut items = list.into_iter();
-/// assert_eq!(items.next().unwrap().value, 10);
-/// assert_eq!(items.next().unwrap().value, 11);
-/// assert_eq!(items.next().unwrap().value, 12);
-/// assert_eq!(items.next().unwrap().value, 13);
-/// assert_eq!(items.next().unwrap().value, 14);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 10);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 11);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 12);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 13);
+/// assert_eq!(items.next().ok_or(EINVAL)?.value, 14);
 /// assert!(items.next().is_none());
 /// # Result::<(), Error>::Ok(())
 /// ```

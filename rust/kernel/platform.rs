@@ -69,7 +69,9 @@ impl<T: Driver + 'static> Adapter<T> {
                 // Let the `struct platform_device` own a reference of the driver's private data.
                 // SAFETY: By the type invariant `pdev.as_raw` returns a valid pointer to a
                 // `struct platform_device`.
-                unsafe { bindings::platform_set_drvdata(pdev.as_raw(), data.into_foreign() as _) };
+                unsafe {
+                    bindings::platform_set_drvdata(pdev.as_raw(), data.into_foreign().cast())
+                };
             }
             Err(err) => return Error::to_errno(err),
         }
@@ -120,7 +122,7 @@ macro_rules! module_platform_driver {
 ///
 /// Drivers must implement this trait in order to get a platform driver registered.
 ///
-/// # Example
+/// # Examples
 ///
 ///```
 /// # use kernel::{bindings, c_str, device::Core, of, platform};

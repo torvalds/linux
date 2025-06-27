@@ -221,7 +221,7 @@ impl platform::Driver for CPUFreqDTDriver {
 module_platform_driver! {
     type: CPUFreqDTDriver,
     name: "cpufreq-dt",
-    author: "Viresh Kumar <viresh.kumar@linaro.org>",
+    authors: ["Viresh Kumar <viresh.kumar@linaro.org>"],
     description: "Generic CPUFreq DT driver",
     license: "GPL v2",
 }

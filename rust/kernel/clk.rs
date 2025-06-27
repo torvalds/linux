@@ -12,7 +12,7 @@ use crate::ffi::c_ulong;
 ///
 /// Represents a frequency in hertz, wrapping a [`c_ulong`] value.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// ```
 /// use kernel::clk::Hertz;
@@ -99,7 +99,7 @@ mod common_clk {
     /// Instances of this type are reference-counted. Calling [`Clk::get`] ensures that the
     /// allocation remains valid for the lifetime of the [`Clk`].
     ///
-    /// ## Examples
+    /// # Examples
     ///
     /// The following example demonstrates how to obtain and configure a clock for a device.
     ///
@@ -266,7 +266,7 @@ mod common_clk {
     /// Instances of this type are reference-counted. Calling [`OptionalClk::get`] ensures that the
     /// allocation remains valid for the lifetime of the [`OptionalClk`].
     ///
-    /// ## Examples
+    /// # Examples
     ///
     /// The following example demonstrates how to obtain and configure an optional clock for a
     /// device. The code functions correctly whether or not the clock is available.

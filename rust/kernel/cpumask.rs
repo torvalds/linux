@@ -30,7 +30,7 @@ use core::ops::{Deref, DerefMut};
 /// The callers must ensure that the `struct cpumask` is valid for access and
 /// remains valid for the lifetime of the returned reference.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to update a [`Cpumask`].
 ///
@@ -175,7 +175,7 @@ impl Cpumask {
 /// The callers must ensure that the `struct cpumask_var_t` is valid for access and remains valid
 /// for the lifetime of [`CpumaskVar`].
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to create and update a [`CpumaskVar`].
 ///

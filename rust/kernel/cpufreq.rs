@@ -202,7 +202,7 @@ impl From<TableIndex> for usize {
 /// The callers must ensure that the `struct cpufreq_frequency_table` is valid for access and
 /// remains valid for the lifetime of the returned reference.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to read a frequency value from [`Table`].
 ///
@@ -318,7 +318,7 @@ impl Deref for TableBox {
 ///
 /// This is used by the CPU frequency drivers to build a frequency table dynamically.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to create a CPU frequency table.
 ///
@@ -395,7 +395,7 @@ impl TableBuilder {
 /// The callers must ensure that the `struct cpufreq_policy` is valid for access and remains valid
 /// for the lifetime of the returned reference.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to create a CPU frequency table.
 ///
@@ -649,7 +649,7 @@ impl Policy {
     fn set_data<T: ForeignOwnable>(&mut self, data: T) -> Result {
         if self.as_ref().driver_data.is_null() {
             // Transfer the ownership of the data to the foreign interface.
-            self.as_mut_ref().driver_data = <T as ForeignOwnable>::into_foreign(data) as _;
+            self.as_mut_ref().driver_data = <T as ForeignOwnable>::into_foreign(data).cast();
             Ok(())
         } else {
             Err(EBUSY)
@@ -834,7 +834,7 @@ pub trait Driver {
 
 /// CPU frequency driver Registration.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// The following example demonstrates how to register a cpufreq driver.
 ///

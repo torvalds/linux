@@ -19,7 +19,7 @@ kernel::pci_device_table!(
     MODULE_PCI_TABLE,
     <NovaCore as pci::Driver>::IdInfo,
     [(
-        pci::DeviceId::from_id(bindings::PCI_VENDOR_ID_NVIDIA, bindings::PCI_ANY_ID as _),
+        pci::DeviceId::from_id(bindings::PCI_VENDOR_ID_NVIDIA, bindings::PCI_ANY_ID as u32),
         ()
     )]
 );
