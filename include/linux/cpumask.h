@@ -609,6 +609,18 @@ void __cpumask_set_cpu(unsigned int cpu, struct cpumask *dstp)
 	__set_bit(cpumask_check(cpu), cpumask_bits(dstp));
 }
 
+/**
+ * cpumask_clear_cpus - clear cpus in a cpumask
+ * @dstp:  the cpumask pointer
+ * @cpu:   cpu number (< nr_cpu_ids)
+ * @ncpus: number of cpus to clear (< nr_cpu_ids)
+ */
+static __always_inline void cpumask_clear_cpus(struct cpumask *dstp,
+						unsigned int cpu, unsigned int ncpus)
+{
+	cpumask_check(cpu + ncpus - 1);
+	bitmap_clear(cpumask_bits(dstp), cpumask_check(cpu), ncpus);
+}
 
 /**
  * cpumask_clear_cpu - clear a cpu in a cpumask

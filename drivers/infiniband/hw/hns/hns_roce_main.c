@@ -672,13 +672,6 @@ static const struct ib_device_ops hns_roce_dev_mr_ops = {
 	.rereg_user_mr = hns_roce_rereg_user_mr,
 };
 
-static const struct ib_device_ops hns_roce_dev_mw_ops = {
-	.alloc_mw = hns_roce_alloc_mw,
-	.dealloc_mw = hns_roce_dealloc_mw,
-
-	INIT_RDMA_OBJ_SIZE(ib_mw, hns_roce_mw, ibmw),
-};
-
 static const struct ib_device_ops hns_roce_dev_frmr_ops = {
 	.alloc_mr = hns_roce_alloc_mr,
 	.map_mr_sg = hns_roce_map_mr_sg,
@@ -731,9 +724,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_REREG_MR)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_mr_ops);
-
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_MW)
-		ib_set_device_ops(ib_dev, &hns_roce_dev_mw_ops);
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_FRMR)
 		ib_set_device_ops(ib_dev, &hns_roce_dev_frmr_ops);

@@ -3245,34 +3245,48 @@ static int
 init_rdma_transport_rx_root_ns_one(struct mlx5_flow_steering *steering,
 				   int vport_idx)
 {
+	struct mlx5_flow_root_namespace *root_ns;
 	struct fs_prio *prio;
+	int i;
 
 	steering->rdma_transport_rx_root_ns[vport_idx] =
 		create_root_ns(steering, FS_FT_RDMA_TRANSPORT_RX);
 	if (!steering->rdma_transport_rx_root_ns[vport_idx])
 		return -ENOMEM;
 
-	/* create 1 prio*/
-	prio = fs_create_prio(&steering->rdma_transport_rx_root_ns[vport_idx]->ns,
-			      MLX5_RDMA_TRANSPORT_BYPASS_PRIO, 1);
-	return PTR_ERR_OR_ZERO(prio);
+	root_ns = steering->rdma_transport_rx_root_ns[vport_idx];
+
+	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
+		prio = fs_create_prio(&root_ns->ns, i, 1);
+		if (IS_ERR(prio))
+			return PTR_ERR(prio);
+	}
+	set_prio_attrs(root_ns);
+	return 0;
 }
 
 static int
 init_rdma_transport_tx_root_ns_one(struct mlx5_flow_steering *steering,
 				   int vport_idx)
 {
+	struct mlx5_flow_root_namespace *root_ns;
 	struct fs_prio *prio;
+	int i;
 
 	steering->rdma_transport_tx_root_ns[vport_idx] =
 		create_root_ns(steering, FS_FT_RDMA_TRANSPORT_TX);
 	if (!steering->rdma_transport_tx_root_ns[vport_idx])
 		return -ENOMEM;
 
-	/* create 1 prio*/
-	prio = fs_create_prio(&steering->rdma_transport_tx_root_ns[vport_idx]->ns,
-			      MLX5_RDMA_TRANSPORT_BYPASS_PRIO, 1);
-	return PTR_ERR_OR_ZERO(prio);
+	root_ns = steering->rdma_transport_tx_root_ns[vport_idx];
+
+	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
+		prio = fs_create_prio(&root_ns->ns, i, 1);
+		if (IS_ERR(prio))
+			return PTR_ERR(prio);
+	}
+	set_prio_attrs(root_ns);
+	return 0;
 }
 
 static int init_rdma_transport_rx_root_ns(struct mlx5_flow_steering *steering)

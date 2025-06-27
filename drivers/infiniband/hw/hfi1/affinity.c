@@ -92,9 +92,7 @@ static void cpu_mask_set_put(struct cpu_mask_set *set, int cpu)
 /* Initialize non-HT cpu cores mask */
 void init_real_cpu_mask(void)
 {
-	int possible, curr_cpu, i, ht;
-
-	cpumask_clear(&node_affinity.real_cpu_mask);
+	int possible, curr_cpu, ht;
 
 	/* Start with cpu online mask as the real cpu mask */
 	cpumask_copy(&node_affinity.real_cpu_mask, cpu_online_mask);
@@ -110,17 +108,10 @@ void init_real_cpu_mask(void)
 	 * "real" cores.  Assumes that HT cores are not enumerated in
 	 * succession (except in the single core case).
 	 */
-	curr_cpu = cpumask_first(&node_affinity.real_cpu_mask);
-	for (i = 0; i < possible / ht; i++)
-		curr_cpu = cpumask_next(curr_cpu, &node_affinity.real_cpu_mask);
-	/*
-	 * Step 2.  Remove the remaining HT siblings.  Use cpumask_next() to
-	 * skip any gaps.
-	 */
-	for (; i < possible; i++) {
-		cpumask_clear_cpu(curr_cpu, &node_affinity.real_cpu_mask);
-		curr_cpu = cpumask_next(curr_cpu, &node_affinity.real_cpu_mask);
-	}
+	curr_cpu = cpumask_nth(possible / ht, &node_affinity.real_cpu_mask) + 1;
+
+	/* Step 2.  Remove the remaining HT siblings. */
+	cpumask_clear_cpus(&node_affinity.real_cpu_mask, curr_cpu, nr_cpu_ids - curr_cpu);
 }
 
 int node_affinity_init(void)
@@ -346,9 +337,10 @@ static int _dev_comp_vect_cpu_get(struct hfi1_devdata *dd,
 		       &entry->def_intr.used);
 
 	/* If there are non-interrupt CPUs available, use them first */
-	if (!cpumask_empty(non_intr_cpus))
-		cpu = cpumask_first(non_intr_cpus);
-	else /* Otherwise, use interrupt CPUs */
+	cpu = cpumask_first(non_intr_cpus);
+
+	/* Otherwise, use interrupt CPUs */
+	if (cpu >= nr_cpu_ids)
 		cpu = cpumask_first(available_cpus);
 
 	if (cpu >= nr_cpu_ids) { /* empty */
@@ -963,32 +955,23 @@ void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
 static void find_hw_thread_mask(uint hw_thread_no, cpumask_var_t hw_thread_mask,
 				struct hfi1_affinity_node_list *affinity)
 {
-	int possible, curr_cpu, i;
-	uint num_cores_per_socket = node_affinity.num_online_cpus /
-					affinity->num_core_siblings /
-						node_affinity.num_online_nodes;
+	int curr_cpu;
+	uint num_cores;
 
 	cpumask_copy(hw_thread_mask, &affinity->proc.mask);
-	if (affinity->num_core_siblings > 0) {
-		/* Removing other siblings not needed for now */
-		possible = cpumask_weight(hw_thread_mask);
-		curr_cpu = cpumask_first(hw_thread_mask);
-		for (i = 0;
-		     i < num_cores_per_socket * node_affinity.num_online_nodes;
-		     i++)
-			curr_cpu = cpumask_next(curr_cpu, hw_thread_mask);
 
-		for (; i < possible; i++) {
-			cpumask_clear_cpu(curr_cpu, hw_thread_mask);
-			curr_cpu = cpumask_next(curr_cpu, hw_thread_mask);
-		}
+	if (affinity->num_core_siblings == 0)
+		return;
 
-		/* Identifying correct HW threads within physical cores */
-		cpumask_shift_left(hw_thread_mask, hw_thread_mask,
-				   num_cores_per_socket *
-				   node_affinity.num_online_nodes *
-				   hw_thread_no);
-	}
+	num_cores = rounddown(node_affinity.num_online_cpus / affinity->num_core_siblings,
+				node_affinity.num_online_nodes);
+
+	/* Removing other siblings not needed for now */
+	curr_cpu = cpumask_nth(num_cores * node_affinity.num_online_nodes, hw_thread_mask) + 1;
+	cpumask_clear_cpus(hw_thread_mask, curr_cpu, nr_cpu_ids - curr_cpu);
+
+	/* Identifying correct HW threads within physical cores */
+	cpumask_shift_left(hw_thread_mask, hw_thread_mask, num_cores * hw_thread_no);
 }
 
 int hfi1_get_proc_affinity(int node)
@@ -1087,22 +1070,19 @@ int hfi1_get_proc_affinity(int node)
 	 * If HT cores are enabled, identify which HW threads within the
 	 * physical cores should be used.
 	 */
-	if (affinity->num_core_siblings > 0) {
-		for (i = 0; i < affinity->num_core_siblings; i++) {
-			find_hw_thread_mask(i, hw_thread_mask, affinity);
+	for (i = 0; i < affinity->num_core_siblings; i++) {
+		find_hw_thread_mask(i, hw_thread_mask, affinity);
 
-			/*
-			 * If there's at least one available core for this HW
-			 * thread number, stop looking for a core.
-			 *
-			 * diff will always be not empty at least once in this
-			 * loop as the used mask gets reset when
-			 * (set->mask == set->used) before this loop.
-			 */
-			cpumask_andnot(diff, hw_thread_mask, &set->used);
-			if (!cpumask_empty(diff))
-				break;
-		}
+		/*
+		 * If there's at least one available core for this HW
+		 * thread number, stop looking for a core.
+		 *
+		 * diff will always be not empty at least once in this
+		 * loop as the used mask gets reset when
+		 * (set->mask == set->used) before this loop.
+		 */
+		if (cpumask_andnot(diff, hw_thread_mask, &set->used))
+			break;
 	}
 	hfi1_cdbg(PROC, "Same available HW thread on all physical CPUs: %*pbl",
 		  cpumask_pr_args(hw_thread_mask));
@@ -1133,8 +1113,7 @@ int hfi1_get_proc_affinity(int node)
 	 *    used for process assignments using the same method as
 	 *    the preferred NUMA node.
 	 */
-	cpumask_andnot(diff, available_mask, intrs_mask);
-	if (!cpumask_empty(diff))
+	if (cpumask_andnot(diff, available_mask, intrs_mask))
 		cpumask_copy(available_mask, diff);
 
 	/* If we don't have CPUs on the preferred node, use other NUMA nodes */
@@ -1150,8 +1129,7 @@ int hfi1_get_proc_affinity(int node)
 		 * At first, we don't want to place processes on the same
 		 * CPUs as interrupt handlers.
 		 */
-		cpumask_andnot(diff, available_mask, intrs_mask);
-		if (!cpumask_empty(diff))
+		if (cpumask_andnot(diff, available_mask, intrs_mask))
 			cpumask_copy(available_mask, diff);
 	}
 	hfi1_cdbg(PROC, "Possible CPUs for process: %*pbl",

@@ -37,8 +37,18 @@ enum mana_ib_port_counters {
 	MANA_IB_CURRENT_RATE,
 };
 
+enum mana_ib_device_counters {
+	MANA_IB_SENT_CNPS,
+	MANA_IB_RECEIVED_ECNS,
+	MANA_IB_RECEIVED_CNP_COUNT,
+	MANA_IB_QP_CONGESTED_EVENTS,
+	MANA_IB_QP_RECOVERED_EVENTS,
+	MANA_IB_DEV_RATE_INC_EVENTS,
+};
+
 struct rdma_hw_stats *mana_ib_alloc_hw_port_stats(struct ib_device *ibdev,
 						  u32 port_num);
+struct rdma_hw_stats *mana_ib_alloc_hw_device_stats(struct ib_device *ibdev);
 int mana_ib_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 			 u32 port_num, int index);
 #endif /* _COUNTERS_H_ */

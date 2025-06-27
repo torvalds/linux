@@ -1966,7 +1966,8 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX:
 	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX:
-		if (ib_port == 0 || user_priority > MLX5_RDMA_TRANSPORT_BYPASS_PRIO)
+		if (ib_port == 0 ||
+		    user_priority >= MLX5_RDMA_TRANSPORT_BYPASS_PRIO)
 			return ERR_PTR(-EINVAL);
 		ret = mlx5_ib_fill_transport_ns_info(dev, ns_type, &flags,
 						     &vport_idx, &vport,
@@ -2016,10 +2017,10 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 		prio = &dev->flow_db->rdma_tx[priority];
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX:
-		prio = &dev->flow_db->rdma_transport_rx[ib_port - 1];
+		prio = &dev->flow_db->rdma_transport_rx[priority][ib_port - 1];
 		break;
 	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX:
-		prio = &dev->flow_db->rdma_transport_tx[ib_port - 1];
+		prio = &dev->flow_db->rdma_transport_tx[priority][ib_port - 1];
 		break;
 	default: return ERR_PTR(-EINVAL);
 	}
@@ -3466,31 +3467,40 @@ static const struct ib_device_ops flow_ops = {
 
 int mlx5_ib_fs_init(struct mlx5_ib_dev *dev)
 {
+	int i, j;
+
 	dev->flow_db = kzalloc(sizeof(*dev->flow_db), GFP_KERNEL);
 
 	if (!dev->flow_db)
 		return -ENOMEM;
 
-	dev->flow_db->rdma_transport_rx = kcalloc(dev->num_ports,
-					sizeof(struct mlx5_ib_flow_prio),
-					GFP_KERNEL);
-	if (!dev->flow_db->rdma_transport_rx)
-		goto free_flow_db;
+	for (i = 0; i < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; i++) {
+		dev->flow_db->rdma_transport_rx[i] =
+			kcalloc(dev->num_ports,
+				sizeof(struct mlx5_ib_flow_prio), GFP_KERNEL);
+		if (!dev->flow_db->rdma_transport_rx[i])
+			goto free_rdma_transport_rx;
+	}
 
-	dev->flow_db->rdma_transport_tx = kcalloc(dev->num_ports,
-					sizeof(struct mlx5_ib_flow_prio),
-					GFP_KERNEL);
-	if (!dev->flow_db->rdma_transport_tx)
-		goto free_rdma_transport_rx;
+	for (j = 0; j < MLX5_RDMA_TRANSPORT_BYPASS_PRIO; j++) {
+		dev->flow_db->rdma_transport_tx[j] =
+			kcalloc(dev->num_ports,
+				sizeof(struct mlx5_ib_flow_prio), GFP_KERNEL);
+		if (!dev->flow_db->rdma_transport_tx[j])
+			goto free_rdma_transport_tx;
+	}
 
 	mutex_init(&dev->flow_db->lock);
 
 	ib_set_device_ops(&dev->ib_dev, &flow_ops);
 	return 0;
 
+free_rdma_transport_tx:
+	while (j--)
+		kfree(dev->flow_db->rdma_transport_tx[j]);
 free_rdma_transport_rx:
-	kfree(dev->flow_db->rdma_transport_rx);
-free_flow_db:
+	while (i--)
+		kfree(dev->flow_db->rdma_transport_rx[i]);
 	kfree(dev->flow_db);
 	return -ENOMEM;
 }

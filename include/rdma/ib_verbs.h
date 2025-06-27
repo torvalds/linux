@@ -2489,6 +2489,15 @@ struct ib_device_ops {
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*destroy_cq)(struct ib_cq *cq, struct ib_udata *udata);
 	int (*resize_cq)(struct ib_cq *cq, int cqe, struct ib_udata *udata);
+	/**
+	 * pre_destroy_cq - Prevent a cq from generating any new work
+	 * completions, but not free any kernel resources
+	 */
+	int (*pre_destroy_cq)(struct ib_cq *cq);
+	/**
+	 * post_destroy_cq - Free all kernel resources
+	 */
+	void (*post_destroy_cq)(struct ib_cq *cq);
 	struct ib_mr *(*get_dma_mr)(struct ib_pd *pd, int mr_access_flags);
 	struct ib_mr *(*reg_user_mr)(struct ib_pd *pd, u64 start, u64 length,
 				     u64 virt_addr, int mr_access_flags,
