@@ -190,7 +190,7 @@ static void *slim_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *
 		}
 	}
 
-	dev_dbg(&rproc->dev, "da = 0x%llx len = 0x%zx va = 0x%pK\n",
+	dev_dbg(&rproc->dev, "da = 0x%llx len = 0x%zx va = 0x%p\n",
 		da, len, va);
 
 	return va;

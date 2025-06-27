@@ -144,8 +144,8 @@ examples:
 
         interrupts-extended = <&pdc 6 IRQ_TYPE_EDGE_RISING>,
                               <&smp2p_adsp_in 0 IRQ_TYPE_EDGE_RISING>,
-                              <&smp2p_adsp_in 2 IRQ_TYPE_EDGE_RISING>,
                               <&smp2p_adsp_in 1 IRQ_TYPE_EDGE_RISING>,
+                              <&smp2p_adsp_in 2 IRQ_TYPE_EDGE_RISING>,
                               <&smp2p_adsp_in 3 IRQ_TYPE_EDGE_RISING>;
         interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
 

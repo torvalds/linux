@@ -1329,18 +1329,22 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 
 	/*
 	 * Number of cores is decided by number of child nodes of
-	 * r5f subsystem node in dts. If Split mode is used in dts
-	 * 2 child nodes are expected.
+	 * r5f subsystem node in dts.
+	 * In split mode maximum two child nodes are expected.
+	 * However, only single core can be enabled too.
+	 * Driver can handle following configuration in split mode:
+	 * 1) core0 enabled, core1 disabled
+	 * 2) core0 disabled, core1 enabled
+	 * 3) core0 and core1 both are enabled.
+	 * For now, no more than two cores are expected per cluster
+	 * in split mode.
 	 * In lockstep mode if two child nodes are available,
 	 * only use first child node and consider it as core0
 	 * and ignore core1 dt node.
 	 */
 	core_count = of_get_available_child_count(dev_node);
-	if (core_count == 0) {
+	if (core_count == 0 || core_count > 2) {
 		dev_err(dev, "Invalid number of r5 cores %d", core_count);
-		return -EINVAL;
-	} else if (cluster_mode == SPLIT_MODE && core_count != 2) {
-		dev_err(dev, "Invalid number of r5 cores for split mode\n");
 		return -EINVAL;
 	} else if (cluster_mode == LOCKSTEP_MODE && core_count == 2) {
 		dev_warn(dev, "Only r5 core0 will be used\n");
