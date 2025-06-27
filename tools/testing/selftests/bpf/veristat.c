@@ -890,6 +890,18 @@ static bool is_desc_sym(char c)
 	return c == 'v' || c == 'V' || c == '.' || c == '!' || c == '_';
 }
 
+static char *rtrim(char *str)
+{
+	int i;
+
+	for (i = strlen(str) - 1; i > 0; --i) {
+		if (!isspace(str[i]))
+			break;
+		str[i] = '\0';
+	}
+	return str;
+}
+
 static int parse_stat(const char *stat_name, struct stat_specs *specs)
 {
 	int id;
@@ -1666,7 +1678,7 @@ static int append_preset_atom(struct var_preset *preset, char *value, bool is_in
 static int parse_var_atoms(const char *full_var, struct var_preset *preset)
 {
 	char expr[256], var[256], *name, *saveptr;
-	int n, len, off;
+	int n, len, off, err;
 
 	snprintf(expr, sizeof(expr), "%s", full_var);
 	preset->atom_count = 0;
@@ -1677,7 +1689,9 @@ static int parse_var_atoms(const char *full_var, struct var_preset *preset)
 			fprintf(stderr, "Can't parse %s\n", name);
 			return -EINVAL;
 		}
-		append_preset_atom(preset, var, false);
+		err = append_preset_atom(preset, var, false);
+		if (err)
+			return err;
 
 		/* parse optional array indexes */
 		while (off < len) {
@@ -1685,7 +1699,9 @@ static int parse_var_atoms(const char *full_var, struct var_preset *preset)
 				fprintf(stderr, "Can't parse %s as index\n", name + off);
 				return -EINVAL;
 			}
-			append_preset_atom(preset, var, true);
+			err = append_preset_atom(preset, var, true);
+			if (err)
+				return err;
 			off += n;
 		}
 	}
@@ -1697,7 +1713,7 @@ static int append_var_preset(struct var_preset **presets, int *cnt, const char *
 	void *tmp;
 	struct var_preset *cur;
 	char var[256], val[256];
-	int n, err, i;
+	int n, err;
 
 	tmp = realloc(*presets, (*cnt + 1) * sizeof(**presets));
 	if (!tmp)
@@ -1712,11 +1728,7 @@ static int append_var_preset(struct var_preset **presets, int *cnt, const char *
 		return -EINVAL;
 	}
 	/* Remove trailing spaces from var, as scanf may add those */
-	for (i = strlen(var) - 1; i > 0; --i) {
-		if (!isspace(var[i]))
-			break;
-		var[i] = '\0';
-	}
+	rtrim(var);
 
 	err = parse_rvalue(val, &cur->value);
 	if (err)
@@ -1869,7 +1881,7 @@ static int adjust_var_secinfo_array(struct btf *btf, int tid, struct field_acces
 	if (err)
 		return err;
 	if (idx < 0 || idx >= barr->nelems) {
-		fprintf(stderr, "Array index %lld is out of bounds [0, %u]: %s\n",
+		fprintf(stderr, "Array index %lld is out of bounds [0, %u): %s\n",
 			idx, barr->nelems, array_name);
 		return -EINVAL;
 	}
@@ -1928,7 +1940,7 @@ static int adjust_var_secinfo_member(const struct btf *btf,
 		}
 	}
 
-	return -EINVAL;
+	return -ESRCH;
 }
 
 static int adjust_var_secinfo(struct btf *btf, const struct btf_type *t,
@@ -1955,6 +1967,8 @@ static int adjust_var_secinfo(struct btf *btf, const struct btf_type *t,
 			break;
 		case FIELD_NAME:
 			err = adjust_var_secinfo_member(btf, base_type, 0, atom->name, sinfo);
+			if (err == -ESRCH)
+				fprintf(stderr, "Can't find '%s'\n", atom->name);
 			prev_name = atom->name;
 			break;
 		default:
