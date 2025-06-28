@@ -232,6 +232,31 @@ static bool need_secondary(struct mount *m, struct mountpoint *dest_mp)
 	return true;
 }
 
+static struct mount *find_master(struct mount *m,
+				struct mount *last_copy,
+				struct mount *original)
+{
+	struct mount *p;
+
+	// ascend until there's a copy for something with the same master
+	for (;;) {
+		p = m->mnt_master;
+		if (!p || IS_MNT_MARKED(p))
+			break;
+		m = p;
+	}
+	while (!peers(last_copy, original)) {
+		struct mount *parent = last_copy->mnt_parent;
+		if (parent->mnt_master == p) {
+			if (!peers(parent, m))
+				last_copy = last_copy->mnt_master;
+			break;
+		}
+		last_copy = last_copy->mnt_master;
+	}
+	return last_copy;
+}
+
 static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 {
 	struct mount *child;
@@ -240,23 +265,7 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 	if (peers(m, last_dest)) {
 		type = CL_MAKE_SHARED;
 	} else {
-		struct mount *n, *p;
-		bool done;
-		for (n = m; ; n = p) {
-			p = n->mnt_master;
-			if (!p || IS_MNT_MARKED(p))
-				break;
-		}
-		do {
-			struct mount *parent = last_source->mnt_parent;
-			if (peers(last_source, first_source))
-				break;
-			done = parent->mnt_master == p;
-			if (done && peers(n, parent))
-				break;
-			last_source = last_source->mnt_master;
-		} while (!done);
-
+		last_source = find_master(m, last_source, first_source);
 		type = CL_SLAVE;
 		/* beginning of peer group among the slaves? */
 		if (IS_MNT_SHARED(m))
