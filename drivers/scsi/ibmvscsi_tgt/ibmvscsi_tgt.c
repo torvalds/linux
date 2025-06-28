@@ -425,7 +425,7 @@ static void ibmvscsis_disconnect(struct work_struct *work)
 
 	/*
 	 * check which state we are in and see if we
-	 * should transitition to the new state
+	 * should transition to the new state
 	 */
 	switch (vscsi->state) {
 	/* Should never be called while in this state. */
