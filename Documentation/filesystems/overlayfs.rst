@@ -61,7 +61,7 @@ Inode properties
 |Configuration | Persistent | Uniform    | st_ino == d_ino | d_ino == i_ino |
 |              | st_ino     | st_dev     |                 | [*]            |
 +==============+=====+======+=====+======+========+========+========+=======+
-|              | dir | !dir | dir | !dir |  dir   +  !dir  |  dir   | !dir  |
+|              | dir | !dir | dir | !dir |  dir   |  !dir  |  dir   | !dir  |
 +--------------+-----+------+-----+------+--------+--------+--------+-------+
 | All layers   |  Y  |  Y   |  Y  |  Y   |  Y     |   Y    |  Y     |  Y    |
 | on same fs   |     |      |     |      |        |        |        |       |
