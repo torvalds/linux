@@ -269,35 +269,32 @@ static struct mount *find_master(struct mount *m,
 int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		    struct mount *source_mnt, struct hlist_head *tree_list)
 {
-	struct mount *m, *n, *copy, *this, *last_dest;
+	struct mount *m, *n, *copy, *this;
 	int err = 0, type;
 
-	last_dest = dest_mnt;
-	copy = source_mnt;
 	if (dest_mnt->mnt_master)
 		SET_MNT_MARK(dest_mnt->mnt_master);
 
 	/* iterate over peer groups, depth first */
 	for (m = dest_mnt; m && !err; m = next_group(m, dest_mnt)) {
 		if (m == dest_mnt) { // have one for dest_mnt itself
+			copy = source_mnt;
+			type = CL_MAKE_SHARED;
 			n = next_peer(m);
 			if (n == m)
 				continue;
 		} else {
+			type = CL_SLAVE;
+			/* beginning of peer group among the slaves? */
+			if (IS_MNT_SHARED(m))
+				type |= CL_MAKE_SHARED;
 			n = m;
 		}
 		do {
 			if (!need_secondary(n, dest_mp))
 				continue;
-			if (peers(n, last_dest)) {
-				type = CL_MAKE_SHARED;
-			} else {
+			if (type & CL_SLAVE) // first in this peer group
 				copy = find_master(n, copy, source_mnt);
-				type = CL_SLAVE;
-				/* beginning of peer group among the slaves? */
-				if (IS_MNT_SHARED(n))
-					type |= CL_MAKE_SHARED;
-			}
 			this = copy_tree(copy, copy->mnt.mnt_root, type);
 			if (IS_ERR(this)) {
 				err = PTR_ERR(this);
@@ -308,12 +305,12 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 			read_sequnlock_excl(&mount_lock);
 			if (n->mnt_master)
 				SET_MNT_MARK(n->mnt_master);
-			last_dest = n;
 			copy = this;
 			hlist_add_head(&this->mnt_hash, tree_list);
 			err = count_mounts(n->mnt_ns, this);
 			if (err)
 				break;
+			type = CL_MAKE_SHARED;
 		} while ((n = next_peer(n)) != m);
 	}
 
