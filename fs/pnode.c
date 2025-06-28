@@ -218,19 +218,24 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 static struct mount *last_dest, *first_source, *last_source;
 static struct hlist_head *list;
 
+static bool need_secondary(struct mount *m, struct mountpoint *dest_mp)
+{
+	/* skip ones added by this propagate_mnt() */
+	if (IS_MNT_NEW(m))
+		return false;
+	/* skip if mountpoint isn't visible in m */
+	if (!is_subdir(dest_mp->m_dentry, m->mnt.mnt_root))
+		return false;
+	/* skip if m is in the anon_ns */
+	if (is_anon_ns(m->mnt_ns))
+		return false;
+	return true;
+}
+
 static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 {
 	struct mount *child;
 	int type;
-	/* skip ones added by this propagate_mnt() */
-	if (IS_MNT_NEW(m))
-		return 0;
-	/* skip if mountpoint isn't visible in m */
-	if (!is_subdir(dest_mp->m_dentry, m->mnt.mnt_root))
-		return 0;
-	/* skip if m is in the anon_ns */
-	if (is_anon_ns(m->mnt_ns))
-		return 0;
 
 	if (peers(m, last_dest)) {
 		type = CL_MAKE_SHARED;
@@ -313,11 +318,12 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 			n = m;
 		}
 		do {
+			if (!need_secondary(n, dest_mp))
+				continue;
 			err = propagate_one(n, dest_mp);
 			if (err)
 				break;
-			n = next_peer(n);
-		} while (n != m);
+		} while ((n = next_peer(n)) != m);
 	}
 
 	hlist_for_each_entry(n, tree_list, mnt_hash) {
