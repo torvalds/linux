@@ -2327,7 +2327,7 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 		amdgpu_aspm = 0;
 
 	if (amdgpu_virtual_display ||
-	    amdgpu_device_asic_has_dc_support(flags & AMD_ASIC_MASK))
+	    amdgpu_device_asic_has_dc_support(pdev, flags & AMD_ASIC_MASK))
 		supports_atomic = true;
 
 	if ((flags & AMD_EXP_HW_SUPPORT) && !amdgpu_exp_hw_support) {

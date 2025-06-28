@@ -4099,12 +4099,14 @@ static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 /**
  * amdgpu_device_asic_has_dc_support - determine if DC supports the asic
  *
+ * @pdev : pci device context
  * @asic_type: AMD asic type
  *
  * Check if there is DC (new modesetting infrastructre) support for an asic.
  * returns true if DC has support, false if not.
  */
-bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
+bool amdgpu_device_asic_has_dc_support(struct pci_dev *pdev,
+				       enum amd_asic_type asic_type)
 {
 	switch (asic_type) {
 #ifdef CONFIG_DRM_AMDGPU_SI
@@ -4148,7 +4150,7 @@ bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type)
 	default:
 		if (amdgpu_dc > 0)
 			dev_info_once(
-				adev->dev,
+				&pdev->dev,
 				"Display Core has been requested via kernel parameter but isn't supported by ASIC, ignoring\n");
 		return false;
 #endif
@@ -4168,7 +4170,7 @@ bool amdgpu_device_has_dc_support(struct amdgpu_device *adev)
 	    (adev->harvest_ip_mask & AMD_HARVEST_IP_DMU_MASK))
 		return false;
 
-	return amdgpu_device_asic_has_dc_support(adev->asic_type);
+	return amdgpu_device_asic_has_dc_support(adev->pdev, adev->asic_type);
 }
 
 static void amdgpu_device_xgmi_reset_func(struct work_struct *__work)

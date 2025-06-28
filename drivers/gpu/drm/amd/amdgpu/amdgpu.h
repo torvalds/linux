@@ -1390,7 +1390,8 @@ void amdgpu_device_indirect_wreg64(struct amdgpu_device *adev,
 void amdgpu_device_indirect_wreg64_ext(struct amdgpu_device *adev,
 				   u64 reg_addr, u64 reg_data);
 u32 amdgpu_device_get_rev_id(struct amdgpu_device *adev);
-bool amdgpu_device_asic_has_dc_support(enum amd_asic_type asic_type);
+bool amdgpu_device_asic_has_dc_support(struct pci_dev *pdev,
+				       enum amd_asic_type asic_type);
 bool amdgpu_device_has_dc_support(struct amdgpu_device *adev);
 
 void amdgpu_device_set_sriov_virtual_display(struct amdgpu_device *adev);
