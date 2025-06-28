@@ -97,7 +97,7 @@ enum activity_level {
 	ACTIVITY_RUNNING,
 };
 
-static struct mma9553_event_info {
+static const struct mma9553_event_info {
 	enum iio_chan_type type;
 	enum iio_modifier mod;
 	enum iio_event_direction dir;
@@ -152,7 +152,7 @@ static struct mma9553_event_info {
 #define MMA9553_EVENTS_INFO_SIZE ARRAY_SIZE(mma9553_events_info)
 
 struct mma9553_event {
-	struct mma9553_event_info *info;
+	const struct mma9553_event_info *info;
 	bool enabled;
 };
 
