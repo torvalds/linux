@@ -214,10 +214,6 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 	}
 }
 
-/* all accesses are serialized by namespace_sem */
-static struct mount *last_dest, *first_source, *last_source;
-static struct hlist_head *list;
-
 static bool need_secondary(struct mount *m, struct mountpoint *dest_mp)
 {
 	/* skip ones added by this propagate_mnt() */
@@ -273,18 +269,11 @@ static struct mount *find_master(struct mount *m,
 int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		    struct mount *source_mnt, struct hlist_head *tree_list)
 {
-	struct mount *m, *n, *child;
+	struct mount *m, *n, *copy, *this, *last_dest;
 	int err = 0, type;
 
-	/*
-	 * we don't want to bother passing tons of arguments to
-	 * propagate_one(); everything is serialized by namespace_sem,
-	 * so globals will do just fine.
-	 */
 	last_dest = dest_mnt;
-	first_source = source_mnt;
-	last_source = source_mnt;
-	list = tree_list;
+	copy = source_mnt;
 	if (dest_mnt->mnt_master)
 		SET_MNT_MARK(dest_mnt->mnt_master);
 
@@ -303,26 +292,26 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 			if (peers(n, last_dest)) {
 				type = CL_MAKE_SHARED;
 			} else {
-				last_source = find_master(n, last_source, first_source);
+				copy = find_master(n, copy, source_mnt);
 				type = CL_SLAVE;
 				/* beginning of peer group among the slaves? */
 				if (IS_MNT_SHARED(n))
 					type |= CL_MAKE_SHARED;
 			}
-			child = copy_tree(last_source, last_source->mnt.mnt_root, type);
-			if (IS_ERR(child)) {
-				err = PTR_ERR(child);
+			this = copy_tree(copy, copy->mnt.mnt_root, type);
+			if (IS_ERR(this)) {
+				err = PTR_ERR(this);
 				break;
 			}
 			read_seqlock_excl(&mount_lock);
-			mnt_set_mountpoint(n, dest_mp, child);
+			mnt_set_mountpoint(n, dest_mp, this);
 			read_sequnlock_excl(&mount_lock);
 			if (n->mnt_master)
 				SET_MNT_MARK(n->mnt_master);
 			last_dest = n;
-			last_source = child;
-			hlist_add_head(&child->mnt_hash, list);
-			err = count_mounts(n->mnt_ns, child);
+			copy = this;
+			hlist_add_head(&this->mnt_hash, tree_list);
+			err = count_mounts(n->mnt_ns, this);
 			if (err)
 				break;
 		} while ((n = next_peer(n)) != m);
