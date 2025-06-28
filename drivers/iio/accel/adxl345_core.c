@@ -143,7 +143,7 @@ struct adxl345_state {
 	__le16 fifo_buf[ADXL345_DIRS * ADXL345_FIFO_SIZE + 1] __aligned(IIO_DMA_MINALIGN);
 };
 
-static struct iio_event_spec adxl345_events[] = {
+static const struct iio_event_spec adxl345_events[] = {
 	{
 		/* single tap */
 		.type = IIO_EV_TYPE_GESTURE,
