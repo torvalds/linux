@@ -161,7 +161,7 @@ struct bmi160_regs {
 	u8 pmu_cmd_suspend;
 };
 
-static struct bmi160_regs bmi160_regs[] = {
+static const struct bmi160_regs bmi160_regs[] = {
 	[BMI160_ACCEL] = {
 		.data	= BMI160_REG_DATA_ACCEL_XOUT_L,
 		.config	= BMI160_REG_ACCEL_CONFIG,
