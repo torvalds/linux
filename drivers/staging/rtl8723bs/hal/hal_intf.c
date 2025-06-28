@@ -38,10 +38,6 @@ void rtw_hal_dm_init(struct adapter *padapter)
 	rtl8723b_init_dm_priv(padapter);
 }
 
-void rtw_hal_dm_deinit(struct adapter *padapter)
-{
-}
-
 static void rtw_hal_init_opmode(struct adapter *padapter)
 {
 	enum ndis_802_11_network_infrastructure networkType = Ndis802_11InfrastructureMax;

@@ -709,9 +709,6 @@ void rtw_cancel_all_timer(struct adapter *padapter)
 	rtw_clear_scan_deny(padapter);
 
 	timer_delete_sync(&padapter->recvpriv.signal_stat_timer);
-
-	/* cancel dm timer */
-	rtw_hal_dm_deinit(padapter);
 }
 
 u8 rtw_free_drv_sw(struct adapter *padapter)
