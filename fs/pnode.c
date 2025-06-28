@@ -289,7 +289,7 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		    struct mount *source_mnt, struct hlist_head *tree_list)
 {
 	struct mount *m, *n;
-	int ret = 0;
+	int err = 0;
 
 	/*
 	 * we don't want to bother passing tons of arguments to
@@ -303,26 +303,23 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 	if (dest_mnt->mnt_master)
 		SET_MNT_MARK(dest_mnt->mnt_master);
 
-	/* all peers of dest_mnt, except dest_mnt itself */
-	for (n = next_peer(dest_mnt); n != dest_mnt; n = next_peer(n)) {
-		ret = propagate_one(n, dest_mp);
-		if (ret)
-			goto out;
-	}
-
-	/* all slave groups */
-	for (m = next_group(dest_mnt, dest_mnt); m;
-			m = next_group(m, dest_mnt)) {
-		/* everything in that slave group */
-		n = m;
+	/* iterate over peer groups, depth first */
+	for (m = dest_mnt; m && !err; m = next_group(m, dest_mnt)) {
+		if (m == dest_mnt) { // have one for dest_mnt itself
+			n = next_peer(m);
+			if (n == m)
+				continue;
+		} else {
+			n = m;
+		}
 		do {
-			ret = propagate_one(n, dest_mp);
-			if (ret)
-				goto out;
+			err = propagate_one(n, dest_mp);
+			if (err)
+				break;
 			n = next_peer(n);
 		} while (n != m);
 	}
-out:
+
 	hlist_for_each_entry(n, tree_list, mnt_hash) {
 		m = n->mnt_parent;
 		if (m->mnt_master)
@@ -330,7 +327,7 @@ out:
 	}
 	if (dest_mnt->mnt_master)
 		CLEAR_MNT_MARK(dest_mnt->mnt_master);
-	return ret;
+	return err;
 }
 
 /*
