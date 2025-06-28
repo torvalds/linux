@@ -253,21 +253,20 @@ static struct mount *find_master(struct mount *m,
 	return last_copy;
 }
 
-/*
- * mount 'source_mnt' under the destination 'dest_mnt' at
- * dentry 'dest_dentry'. And propagate that mount to
- * all the peer and slave mounts of 'dest_mnt'.
- * Link all the new mounts into a propagation tree headed at
- * source_mnt. Also link all the new mounts using ->mnt_list
- * headed at source_mnt's ->mnt_list
+/**
+ * propagate_mnt() - create secondary copies for tree attachment
+ * @dest_mnt:    destination mount.
+ * @dest_mp:     destination mountpoint.
+ * @source_mnt:  source mount.
+ * @tree_list:   list of secondaries to be attached.
  *
- * @dest_mnt: destination mount.
- * @dest_dentry: destination dentry.
- * @source_mnt: source mount.
- * @tree_list : list of heads of trees to be attached.
+ * Create secondary copies for attaching a tree with root @source_mnt
+ * at mount @dest_mnt with mountpoint @dest_mp.  Link all new mounts
+ * into a propagation graph.  Set mountpoints for all secondaries,
+ * link their roots into @tree_list via ->mnt_hash.
  */
 int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
-		    struct mount *source_mnt, struct hlist_head *tree_list)
+		  struct mount *source_mnt, struct hlist_head *tree_list)
 {
 	struct mount *m, *n, *copy, *this;
 	int err = 0, type;
