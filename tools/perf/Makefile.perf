@@ -259,6 +259,8 @@ ifneq ($(SHELLCHECK),)
   ifeq ($(shell expr $(shell $(SHELLCHECK) --version | grep version: | \
         sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \< 060), 1)
     SHELLCHECK :=
+  else
+    SHELLCHECK := $(SHELLCHECK) -s bash -a -S warning
   endif
 endif
 
