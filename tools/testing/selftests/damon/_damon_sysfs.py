@@ -408,6 +408,9 @@ class Kdamond:
             if err is not None:
                 return err
         err = write_file(os.path.join(self.sysfs_dir(), 'state'), 'on')
+        if err is not None:
+            return err
+        self.pid, err = read_file(os.path.join(self.sysfs_dir(), 'pid'))
         return err
 
     def stop(self):
