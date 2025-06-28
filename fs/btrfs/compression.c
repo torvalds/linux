@@ -975,7 +975,7 @@ static int btrfs_compress_set_level(unsigned int type, int level)
 	if (level == 0)
 		level = ops->default_level;
 	else
-		level = min(max(level, ops->min_level), ops->max_level);
+		level = clamp(level, ops->min_level, ops->max_level);
 
 	return level;
 }
