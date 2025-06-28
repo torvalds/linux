@@ -257,35 +257,6 @@ static struct mount *find_master(struct mount *m,
 	return last_copy;
 }
 
-static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
-{
-	struct mount *child;
-	int type;
-
-	if (peers(m, last_dest)) {
-		type = CL_MAKE_SHARED;
-	} else {
-		last_source = find_master(m, last_source, first_source);
-		type = CL_SLAVE;
-		/* beginning of peer group among the slaves? */
-		if (IS_MNT_SHARED(m))
-			type |= CL_MAKE_SHARED;
-	}
-		
-	child = copy_tree(last_source, last_source->mnt.mnt_root, type);
-	if (IS_ERR(child))
-		return PTR_ERR(child);
-	read_seqlock_excl(&mount_lock);
-	mnt_set_mountpoint(m, dest_mp, child);
-	read_sequnlock_excl(&mount_lock);
-	if (m->mnt_master)
-		SET_MNT_MARK(m->mnt_master);
-	last_dest = m;
-	last_source = child;
-	hlist_add_head(&child->mnt_hash, list);
-	return count_mounts(m->mnt_ns, child);
-}
-
 /*
  * mount 'source_mnt' under the destination 'dest_mnt' at
  * dentry 'dest_dentry'. And propagate that mount to
@@ -302,8 +273,8 @@ static int propagate_one(struct mount *m, struct mountpoint *dest_mp)
 int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		    struct mount *source_mnt, struct hlist_head *tree_list)
 {
-	struct mount *m, *n;
-	int err = 0;
+	struct mount *m, *n, *child;
+	int err = 0, type;
 
 	/*
 	 * we don't want to bother passing tons of arguments to
@@ -329,7 +300,29 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 		do {
 			if (!need_secondary(n, dest_mp))
 				continue;
-			err = propagate_one(n, dest_mp);
+			if (peers(n, last_dest)) {
+				type = CL_MAKE_SHARED;
+			} else {
+				last_source = find_master(n, last_source, first_source);
+				type = CL_SLAVE;
+				/* beginning of peer group among the slaves? */
+				if (IS_MNT_SHARED(n))
+					type |= CL_MAKE_SHARED;
+			}
+			child = copy_tree(last_source, last_source->mnt.mnt_root, type);
+			if (IS_ERR(child)) {
+				err = PTR_ERR(child);
+				break;
+			}
+			read_seqlock_excl(&mount_lock);
+			mnt_set_mountpoint(n, dest_mp, child);
+			read_sequnlock_excl(&mount_lock);
+			if (n->mnt_master)
+				SET_MNT_MARK(n->mnt_master);
+			last_dest = n;
+			last_source = child;
+			hlist_add_head(&child->mnt_hash, list);
+			err = count_mounts(n->mnt_ns, child);
 			if (err)
 				break;
 		} while ((n = next_peer(n)) != m);
