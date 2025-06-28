@@ -102,14 +102,14 @@ static u32 microamp_to_reg(u32 *val)
 	return *val /= 10000;
 };
 
-static struct vcnl3020_property vcnl3020_led_current_property = {
+static const struct vcnl3020_property vcnl3020_led_current_property = {
 	.name = "vishay,led-current-microamp",
 	.reg = VCNL_LED_CURRENT,
 	.conversion_func = microamp_to_reg,
 };
 
 static int vcnl3020_get_and_apply_property(struct vcnl3020_data *data,
-					   struct vcnl3020_property *prop)
+					   const struct vcnl3020_property *prop)
 {
 	int rc;
 	u32 val;
