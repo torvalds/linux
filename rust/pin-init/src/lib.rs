@@ -1390,20 +1390,44 @@ where
     unsafe { pin_init_from_closure(init) }
 }
 
-// SAFETY: Every type can be initialized by-value.
-unsafe impl<T, E> Init<T, E> for T {
-    unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
-        // SAFETY: TODO.
+// SAFETY: the `__init` function always returns `Ok(())` and initializes every field of `slot`.
+unsafe impl<T> Init<T> for T {
+    unsafe fn __init(self, slot: *mut T) -> Result<(), Infallible> {
+        // SAFETY: `slot` is valid for writes by the safety requirements of this function.
         unsafe { slot.write(self) };
         Ok(())
     }
 }
 
-// SAFETY: Every type can be initialized by-value. `__pinned_init` calls `__init`.
-unsafe impl<T, E> PinInit<T, E> for T {
+// SAFETY: the `__pinned_init` function always returns `Ok(())` and initializes every field of
+// `slot`. Additionally, all pinning invariants of `T` are upheld.
+unsafe impl<T> PinInit<T> for T {
+    unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), Infallible> {
+        // SAFETY: `slot` is valid for writes by the safety requirements of this function.
+        unsafe { slot.write(self) };
+        Ok(())
+    }
+}
+
+// SAFETY: when the `__init` function returns with
+// - `Ok(())`, `slot` was initialized and all pinned invariants of `T` are upheld.
+// - `Err(err)`, slot was not written to.
+unsafe impl<T, E> Init<T, E> for Result<T, E> {
+    unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
+        // SAFETY: `slot` is valid for writes by the safety requirements of this function.
+        unsafe { slot.write(self?) };
+        Ok(())
+    }
+}
+
+// SAFETY: when the `__pinned_init` function returns with
+// - `Ok(())`, `slot` was initialized and all pinned invariants of `T` are upheld.
+// - `Err(err)`, slot was not written to.
+unsafe impl<T, E> PinInit<T, E> for Result<T, E> {
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
-        // SAFETY: TODO.
-        unsafe { self.__init(slot) }
+        // SAFETY: `slot` is valid for writes by the safety requirements of this function.
+        unsafe { slot.write(self?) };
+        Ok(())
     }
 }
 
