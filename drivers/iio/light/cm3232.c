@@ -58,7 +58,7 @@ struct cm3232_als_info {
 	int mlux_per_bit_base_it;
 };
 
-static struct cm3232_als_info cm3232_als_info_default = {
+static const struct cm3232_als_info cm3232_als_info_default = {
 	.regs_cmd_default = CM3232_CMD_DEFAULT,
 	.hw_id = CM3232_HW_ID,
 	.mlux_per_bit = CM3232_MLUX_PER_BIT_DEFAULT,
@@ -67,7 +67,7 @@ static struct cm3232_als_info cm3232_als_info_default = {
 
 struct cm3232_chip {
 	struct i2c_client *client;
-	struct cm3232_als_info *als_info;
+	const struct cm3232_als_info *als_info;
 	int calibscale;
 	u8 regs_cmd;
 	u16 regs_als;
@@ -198,7 +198,7 @@ static int cm3232_write_als_it(struct cm3232_chip *chip, int val, int val2)
 static int cm3232_get_lux(struct cm3232_chip *chip)
 {
 	struct i2c_client *client = chip->client;
-	struct cm3232_als_info *als_info = chip->als_info;
+	const struct cm3232_als_info *als_info = chip->als_info;
 	int ret;
 	int val, val2;
 	int als_it;
