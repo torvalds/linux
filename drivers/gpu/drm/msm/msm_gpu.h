@@ -20,6 +20,7 @@
 #include "msm_gem.h"
 
 struct msm_gem_submit;
+struct msm_gem_vm_log_entry;
 struct msm_gpu_perfcntr;
 struct msm_gpu_state;
 struct msm_context;
@@ -602,6 +603,9 @@ struct msm_gpu_state {
 	char *cmd;
 
 	struct msm_gpu_fault_info fault_info;
+
+	int nr_vm_logs;
+	struct msm_gem_vm_log_entry *vm_logs;
 
 	int nr_bos;
 	struct msm_gpu_state_bo *bos;
