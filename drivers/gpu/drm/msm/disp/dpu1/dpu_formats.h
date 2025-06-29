@@ -31,7 +31,7 @@ static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
 	return false;
 }
 
-void dpu_format_populate_addrs(struct msm_gem_address_space *aspace,
+void dpu_format_populate_addrs(struct msm_gem_vm *vm,
 			       struct drm_framebuffer *fb,
 			       struct dpu_hw_fmt_layout *layout);
 

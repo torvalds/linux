@@ -1259,15 +1259,15 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 
 static void a6xx_gmu_memory_free(struct a6xx_gmu *gmu)
 {
-	msm_gem_kernel_put(gmu->hfi.obj, gmu->aspace);
-	msm_gem_kernel_put(gmu->debug.obj, gmu->aspace);
-	msm_gem_kernel_put(gmu->icache.obj, gmu->aspace);
-	msm_gem_kernel_put(gmu->dcache.obj, gmu->aspace);
-	msm_gem_kernel_put(gmu->dummy.obj, gmu->aspace);
-	msm_gem_kernel_put(gmu->log.obj, gmu->aspace);
+	msm_gem_kernel_put(gmu->hfi.obj, gmu->vm);
+	msm_gem_kernel_put(gmu->debug.obj, gmu->vm);
+	msm_gem_kernel_put(gmu->icache.obj, gmu->vm);
+	msm_gem_kernel_put(gmu->dcache.obj, gmu->vm);
+	msm_gem_kernel_put(gmu->dummy.obj, gmu->vm);
+	msm_gem_kernel_put(gmu->log.obj, gmu->vm);
 
-	gmu->aspace->mmu->funcs->detach(gmu->aspace->mmu);
-	msm_gem_address_space_put(gmu->aspace);
+	gmu->vm->mmu->funcs->detach(gmu->vm->mmu);
+	msm_gem_vm_put(gmu->vm);
 }
 
 static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
@@ -1296,7 +1296,7 @@ static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
 	if (IS_ERR(bo->obj))
 		return PTR_ERR(bo->obj);
 
-	ret = msm_gem_get_and_pin_iova_range(bo->obj, gmu->aspace, &bo->iova,
+	ret = msm_gem_get_and_pin_iova_range(bo->obj, gmu->vm, &bo->iova,
 					     range_start, range_end);
 	if (ret) {
 		drm_gem_object_put(bo->obj);
@@ -1321,9 +1321,9 @@ static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
 	if (IS_ERR(mmu))
 		return PTR_ERR(mmu);
 
-	gmu->aspace = msm_gem_address_space_create(mmu, "gmu", 0x0, 0x80000000);
-	if (IS_ERR(gmu->aspace))
-		return PTR_ERR(gmu->aspace);
+	gmu->vm = msm_gem_vm_create(mmu, "gmu", 0x0, 0x80000000);
+	if (IS_ERR(gmu->vm))
+		return PTR_ERR(gmu->vm);
 
 	return 0;
 }

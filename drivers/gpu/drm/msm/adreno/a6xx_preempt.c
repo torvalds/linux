@@ -344,7 +344,7 @@ static int preempt_init_ring(struct a6xx_gpu *a6xx_gpu,
 
 	ptr = msm_gem_kernel_new(gpu->dev,
 		PREEMPT_RECORD_SIZE(adreno_gpu),
-		MSM_BO_WC | MSM_BO_MAP_PRIV, gpu->aspace, &bo, &iova);
+		MSM_BO_WC | MSM_BO_MAP_PRIV, gpu->vm, &bo, &iova);
 
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
@@ -362,7 +362,7 @@ static int preempt_init_ring(struct a6xx_gpu *a6xx_gpu,
 	ptr = msm_gem_kernel_new(gpu->dev,
 		PREEMPT_SMMU_INFO_SIZE,
 		MSM_BO_WC | MSM_BO_MAP_PRIV | MSM_BO_GPU_READONLY,
-		gpu->aspace, &bo, &iova);
+		gpu->vm, &bo, &iova);
 
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
@@ -377,7 +377,7 @@ static int preempt_init_ring(struct a6xx_gpu *a6xx_gpu,
 
 	struct a7xx_cp_smmu_info *smmu_info_ptr = ptr;
 
-	msm_iommu_pagetable_params(gpu->aspace->mmu, &ttbr, &asid);
+	msm_iommu_pagetable_params(gpu->vm->mmu, &ttbr, &asid);
 
 	smmu_info_ptr->magic = GEN7_CP_SMMU_INFO_MAGIC;
 	smmu_info_ptr->ttbr0 = ttbr;
@@ -405,7 +405,7 @@ void a6xx_preempt_fini(struct msm_gpu *gpu)
 	int i;
 
 	for (i = 0; i < gpu->nr_rings; i++)
-		msm_gem_kernel_put(a6xx_gpu->preempt_bo[i], gpu->aspace);
+		msm_gem_kernel_put(a6xx_gpu->preempt_bo[i], gpu->vm);
 }
 
 void a6xx_preempt_init(struct msm_gpu *gpu)
@@ -431,7 +431,7 @@ void a6xx_preempt_init(struct msm_gpu *gpu)
 	a6xx_gpu->preempt_postamble_ptr  = msm_gem_kernel_new(gpu->dev,
 			PAGE_SIZE,
 			MSM_BO_WC | MSM_BO_MAP_PRIV | MSM_BO_GPU_READONLY,
-			gpu->aspace, &a6xx_gpu->preempt_postamble_bo,
+			gpu->vm, &a6xx_gpu->preempt_postamble_bo,
 			&a6xx_gpu->preempt_postamble_iova);
 
 	preempt_prepare_postamble(a6xx_gpu);

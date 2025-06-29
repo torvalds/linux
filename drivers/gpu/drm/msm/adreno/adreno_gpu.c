@@ -191,21 +191,21 @@ int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid)
 	return zap_shader_load_mdt(gpu, adreno_gpu->info->zapfw, pasid);
 }
 
-struct msm_gem_address_space *
-adreno_create_address_space(struct msm_gpu *gpu,
-			    struct platform_device *pdev)
+struct msm_gem_vm *
+adreno_create_vm(struct msm_gpu *gpu,
+		 struct platform_device *pdev)
 {
-	return adreno_iommu_create_address_space(gpu, pdev, 0);
+	return adreno_iommu_create_vm(gpu, pdev, 0);
 }
 
-struct msm_gem_address_space *
-adreno_iommu_create_address_space(struct msm_gpu *gpu,
-				  struct platform_device *pdev,
-				  unsigned long quirks)
+struct msm_gem_vm *
+adreno_iommu_create_vm(struct msm_gpu *gpu,
+		       struct platform_device *pdev,
+		       unsigned long quirks)
 {
 	struct iommu_domain_geometry *geometry;
 	struct msm_mmu *mmu;
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_vm *vm;
 	u64 start, size;
 
 	mmu = msm_iommu_gpu_new(&pdev->dev, gpu, quirks);
@@ -224,16 +224,15 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 	start = max_t(u64, SZ_16M, geometry->aperture_start);
 	size = geometry->aperture_end - start + 1;
 
-	aspace = msm_gem_address_space_create(mmu, "gpu",
-		start & GENMASK_ULL(48, 0), size);
+	vm = msm_gem_vm_create(mmu, "gpu", start & GENMASK_ULL(48, 0), size);
 
-	if (IS_ERR(aspace) && !IS_ERR(mmu))
+	if (IS_ERR(vm) && !IS_ERR(mmu))
 		mmu->funcs->destroy(mmu);
 
-	return aspace;
+	return vm;
 }
 
-u64 adreno_private_address_space_size(struct msm_gpu *gpu)
+u64 adreno_private_vm_size(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct adreno_smmu_priv *adreno_smmu = dev_get_drvdata(&gpu->pdev->dev);
@@ -275,7 +274,7 @@ void adreno_check_and_reenable_stall(struct adreno_gpu *adreno_gpu)
 			!READ_ONCE(gpu->crashstate)) {
 		priv->stall_enabled = true;
 
-		gpu->aspace->mmu->funcs->set_stall(gpu->aspace->mmu, true);
+		gpu->vm->mmu->funcs->set_stall(gpu->vm->mmu, true);
 	}
 	spin_unlock_irqrestore(&priv->fault_stall_lock, flags);
 }
@@ -303,8 +302,9 @@ int adreno_fault_handler(struct msm_gpu *gpu, unsigned long iova, int flags,
 	if (priv->stall_enabled) {
 		priv->stall_enabled = false;
 
-		gpu->aspace->mmu->funcs->set_stall(gpu->aspace->mmu, false);
+		gpu->vm->mmu->funcs->set_stall(gpu->vm->mmu, false);
 	}
+
 	priv->stall_reenable_time = ktime_add_ms(ktime_get(), 500);
 	spin_unlock_irqrestore(&priv->fault_stall_lock, irq_flags);
 
@@ -401,8 +401,8 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_context *ctx,
 		*value = 0;
 		return 0;
 	case MSM_PARAM_FAULTS:
-		if (ctx->aspace)
-			*value = gpu->global_faults + ctx->aspace->faults;
+		if (ctx->vm)
+			*value = gpu->global_faults + ctx->vm->faults;
 		else
 			*value = gpu->global_faults;
 		return 0;
@@ -410,14 +410,14 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_context *ctx,
 		*value = gpu->suspend_count;
 		return 0;
 	case MSM_PARAM_VA_START:
-		if (ctx->aspace == gpu->aspace)
+		if (ctx->vm == gpu->vm)
 			return UERR(EINVAL, drm, "requires per-process pgtables");
-		*value = ctx->aspace->va_start;
+		*value = ctx->vm->va_start;
 		return 0;
 	case MSM_PARAM_VA_SIZE:
-		if (ctx->aspace == gpu->aspace)
+		if (ctx->vm == gpu->vm)
 			return UERR(EINVAL, drm, "requires per-process pgtables");
-		*value = ctx->aspace->va_size;
+		*value = ctx->vm->va_size;
 		return 0;
 	case MSM_PARAM_HIGHEST_BANK_BIT:
 		*value = adreno_gpu->ubwc_config.highest_bank_bit;
@@ -607,7 +607,7 @@ struct drm_gem_object *adreno_fw_create_bo(struct msm_gpu *gpu,
 	void *ptr;
 
 	ptr = msm_gem_kernel_new(gpu->dev, fw->size - 4,
-		MSM_BO_WC | MSM_BO_GPU_READONLY, gpu->aspace, &bo, iova);
+		MSM_BO_WC | MSM_BO_GPU_READONLY, gpu->vm, &bo, iova);
 
 	if (IS_ERR(ptr))
 		return ERR_CAST(ptr);

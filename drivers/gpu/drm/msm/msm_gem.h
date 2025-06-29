@@ -22,7 +22,7 @@
 #define MSM_BO_STOLEN        0x10000000    /* try to use stolen/splash memory */
 #define MSM_BO_MAP_PRIV      0x20000000    /* use IOMMU_PRIV when mapping */
 
-struct msm_gem_address_space {
+struct msm_gem_vm {
 	const char *name;
 	/* NOTE: mm managed at the page level, size is in # of pages
 	 * and position mm_node->start is in # of pages:
@@ -47,13 +47,13 @@ struct msm_gem_address_space {
 	uint64_t va_size;
 };
 
-struct msm_gem_address_space *
-msm_gem_address_space_get(struct msm_gem_address_space *aspace);
+struct msm_gem_vm *
+msm_gem_vm_get(struct msm_gem_vm *vm);
 
-void msm_gem_address_space_put(struct msm_gem_address_space *aspace);
+void msm_gem_vm_put(struct msm_gem_vm *vm);
 
-struct msm_gem_address_space *
-msm_gem_address_space_create(struct msm_mmu *mmu, const char *name,
+struct msm_gem_vm *
+msm_gem_vm_create(struct msm_mmu *mmu, const char *name,
 		u64 va_start, u64 size);
 
 struct msm_fence_context;
@@ -61,12 +61,12 @@ struct msm_fence_context;
 struct msm_gem_vma {
 	struct drm_mm_node node;
 	uint64_t iova;
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_vm *vm;
 	struct list_head list;    /* node in msm_gem_object::vmas */
 	bool mapped;
 };
 
-struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace);
+struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_vm *vm);
 int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 		u64 range_start, u64 range_end);
 void msm_gem_vma_purge(struct msm_gem_vma *vma);
@@ -127,18 +127,18 @@ int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct msm_gem_vma *vma);
 void msm_gem_unpin_locked(struct drm_gem_object *obj);
 void msm_gem_unpin_active(struct drm_gem_object *obj);
 struct msm_gem_vma *msm_gem_get_vma_locked(struct drm_gem_object *obj,
-					   struct msm_gem_address_space *aspace);
+					   struct msm_gem_vm *vm);
 int msm_gem_get_iova(struct drm_gem_object *obj,
-		struct msm_gem_address_space *aspace, uint64_t *iova);
+		struct msm_gem_vm *vm, uint64_t *iova);
 int msm_gem_set_iova(struct drm_gem_object *obj,
-		struct msm_gem_address_space *aspace, uint64_t iova);
+		struct msm_gem_vm *vm, uint64_t iova);
 int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
-		struct msm_gem_address_space *aspace, uint64_t *iova,
+		struct msm_gem_vm *vm, uint64_t *iova,
 		u64 range_start, u64 range_end);
 int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
-		struct msm_gem_address_space *aspace, uint64_t *iova);
+		struct msm_gem_vm *vm, uint64_t *iova);
 void msm_gem_unpin_iova(struct drm_gem_object *obj,
-		struct msm_gem_address_space *aspace);
+		struct msm_gem_vm *vm);
 void msm_gem_pin_obj_locked(struct drm_gem_object *obj);
 struct page **msm_gem_pin_pages_locked(struct drm_gem_object *obj);
 void msm_gem_unpin_pages_locked(struct drm_gem_object *obj);
@@ -160,10 +160,10 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 		uint32_t size, uint32_t flags);
 void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
-		uint32_t flags, struct msm_gem_address_space *aspace,
+		uint32_t flags, struct msm_gem_vm *vm,
 		struct drm_gem_object **bo, uint64_t *iova);
 void msm_gem_kernel_put(struct drm_gem_object *bo,
-		struct msm_gem_address_space *aspace);
+		struct msm_gem_vm *vm);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
 __printf(2, 3)
@@ -257,7 +257,7 @@ struct msm_gem_submit {
 	struct kref ref;
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_vm *vm;
 	struct list_head node;   /* node in ring submit list */
 	struct drm_exec exec;
 	uint32_t seqno;		/* Sequence number of the submit on the ring */

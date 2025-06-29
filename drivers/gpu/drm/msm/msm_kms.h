@@ -139,7 +139,7 @@ struct msm_kms {
 	atomic_t fault_snapshot_capture;
 
 	/* mapper-id used to request GEM buffer mapped for scanout: */
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_vm *vm;
 
 	/* disp snapshot support */
 	struct kthread_worker *dump_worker;

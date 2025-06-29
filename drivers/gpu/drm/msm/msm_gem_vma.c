@@ -10,45 +10,44 @@
 #include "msm_mmu.h"
 
 static void
-msm_gem_address_space_destroy(struct kref *kref)
+msm_gem_vm_destroy(struct kref *kref)
 {
-	struct msm_gem_address_space *aspace = container_of(kref,
-			struct msm_gem_address_space, kref);
+	struct msm_gem_vm *vm = container_of(kref, struct msm_gem_vm, kref);
 
-	drm_mm_takedown(&aspace->mm);
-	if (aspace->mmu)
-		aspace->mmu->funcs->destroy(aspace->mmu);
-	put_pid(aspace->pid);
-	kfree(aspace);
+	drm_mm_takedown(&vm->mm);
+	if (vm->mmu)
+		vm->mmu->funcs->destroy(vm->mmu);
+	put_pid(vm->pid);
+	kfree(vm);
 }
 
 
-void msm_gem_address_space_put(struct msm_gem_address_space *aspace)
+void msm_gem_vm_put(struct msm_gem_vm *vm)
 {
-	if (aspace)
-		kref_put(&aspace->kref, msm_gem_address_space_destroy);
+	if (vm)
+		kref_put(&vm->kref, msm_gem_vm_destroy);
 }
 
-struct msm_gem_address_space *
-msm_gem_address_space_get(struct msm_gem_address_space *aspace)
+struct msm_gem_vm *
+msm_gem_vm_get(struct msm_gem_vm *vm)
 {
-	if (!IS_ERR_OR_NULL(aspace))
-		kref_get(&aspace->kref);
+	if (!IS_ERR_OR_NULL(vm))
+		kref_get(&vm->kref);
 
-	return aspace;
+	return vm;
 }
 
 /* Actually unmap memory for the vma */
 void msm_gem_vma_purge(struct msm_gem_vma *vma)
 {
-	struct msm_gem_address_space *aspace = vma->aspace;
+	struct msm_gem_vm *vm = vma->vm;
 	unsigned size = vma->node.size;
 
 	/* Don't do anything if the memory isn't mapped */
 	if (!vma->mapped)
 		return;
 
-	aspace->mmu->funcs->unmap(aspace->mmu, vma->iova, size);
+	vm->mmu->funcs->unmap(vm->mmu, vma->iova, size);
 
 	vma->mapped = false;
 }
@@ -58,7 +57,7 @@ int
 msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 		struct sg_table *sgt, int size)
 {
-	struct msm_gem_address_space *aspace = vma->aspace;
+	struct msm_gem_vm *vm = vma->vm;
 	int ret;
 
 	if (GEM_WARN_ON(!vma->iova))
@@ -69,7 +68,7 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 
 	vma->mapped = true;
 
-	if (!aspace)
+	if (!vm)
 		return 0;
 
 	/*
@@ -81,7 +80,7 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 	 * Revisit this if we can come up with a scheme to pre-alloc pages
 	 * for the pgtable in map/unmap ops.
 	 */
-	ret = aspace->mmu->funcs->map(aspace->mmu, vma->iova, sgt, size, prot);
+	ret = vm->mmu->funcs->map(vm->mmu, vma->iova, sgt, size, prot);
 
 	if (ret) {
 		vma->mapped = false;
@@ -93,21 +92,21 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 /* Close an iova.  Warn if it is still in use */
 void msm_gem_vma_close(struct msm_gem_vma *vma)
 {
-	struct msm_gem_address_space *aspace = vma->aspace;
+	struct msm_gem_vm *vm = vma->vm;
 
 	GEM_WARN_ON(vma->mapped);
 
-	spin_lock(&aspace->lock);
+	spin_lock(&vm->lock);
 	if (vma->iova)
 		drm_mm_remove_node(&vma->node);
-	spin_unlock(&aspace->lock);
+	spin_unlock(&vm->lock);
 
 	vma->iova = 0;
 
-	msm_gem_address_space_put(aspace);
+	msm_gem_vm_put(vm);
 }
 
-struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace)
+struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_vm *vm)
 {
 	struct msm_gem_vma *vma;
 
@@ -115,7 +114,7 @@ struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace)
 	if (!vma)
 		return NULL;
 
-	vma->aspace = aspace;
+	vma->vm = vm;
 
 	return vma;
 }
@@ -124,20 +123,20 @@ struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace)
 int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 		u64 range_start, u64 range_end)
 {
-	struct msm_gem_address_space *aspace = vma->aspace;
+	struct msm_gem_vm *vm = vma->vm;
 	int ret;
 
-	if (GEM_WARN_ON(!aspace))
+	if (GEM_WARN_ON(!vm))
 		return -EINVAL;
 
 	if (GEM_WARN_ON(vma->iova))
 		return -EBUSY;
 
-	spin_lock(&aspace->lock);
-	ret = drm_mm_insert_node_in_range(&aspace->mm, &vma->node,
+	spin_lock(&vm->lock);
+	ret = drm_mm_insert_node_in_range(&vm->mm, &vma->node,
 					  size, PAGE_SIZE, 0,
 					  range_start, range_end, 0);
-	spin_unlock(&aspace->lock);
+	spin_unlock(&vm->lock);
 
 	if (ret)
 		return ret;
@@ -145,33 +144,33 @@ int msm_gem_vma_init(struct msm_gem_vma *vma, int size,
 	vma->iova = vma->node.start;
 	vma->mapped = false;
 
-	kref_get(&aspace->kref);
+	kref_get(&vm->kref);
 
 	return 0;
 }
 
-struct msm_gem_address_space *
-msm_gem_address_space_create(struct msm_mmu *mmu, const char *name,
+struct msm_gem_vm *
+msm_gem_vm_create(struct msm_mmu *mmu, const char *name,
 		u64 va_start, u64 size)
 {
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_vm *vm;
 
 	if (IS_ERR(mmu))
 		return ERR_CAST(mmu);
 
-	aspace = kzalloc(sizeof(*aspace), GFP_KERNEL);
-	if (!aspace)
+	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
+	if (!vm)
 		return ERR_PTR(-ENOMEM);
 
-	spin_lock_init(&aspace->lock);
-	aspace->name = name;
-	aspace->mmu = mmu;
-	aspace->va_start = va_start;
-	aspace->va_size  = size;
+	spin_lock_init(&vm->lock);
+	vm->name = name;
+	vm->mmu = mmu;
+	vm->va_start = va_start;
+	vm->va_size  = size;
 
-	drm_mm_init(&aspace->mm, va_start, size);
+	drm_mm_init(&vm->mm, va_start, size);
 
-	kref_init(&aspace->kref);
+	kref_init(&vm->kref);
 
-	return aspace;
+	return vm;
 }

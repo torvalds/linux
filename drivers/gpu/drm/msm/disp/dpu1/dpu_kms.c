@@ -1095,26 +1095,26 @@ static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 {
 	struct msm_mmu *mmu;
 
-	if (!dpu_kms->base.aspace)
+	if (!dpu_kms->base.vm)
 		return;
 
-	mmu = dpu_kms->base.aspace->mmu;
+	mmu = dpu_kms->base.vm->mmu;
 
 	mmu->funcs->detach(mmu);
-	msm_gem_address_space_put(dpu_kms->base.aspace);
+	msm_gem_vm_put(dpu_kms->base.vm);
 
-	dpu_kms->base.aspace = NULL;
+	dpu_kms->base.vm = NULL;
 }
 
 static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 {
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_vm *vm;
 
-	aspace = msm_kms_init_aspace(dpu_kms->dev);
-	if (IS_ERR(aspace))
-		return PTR_ERR(aspace);
+	vm = msm_kms_init_vm(dpu_kms->dev);
+	if (IS_ERR(vm))
+		return PTR_ERR(vm);
 
-	dpu_kms->base.aspace = aspace;
+	dpu_kms->base.vm = vm;
 
 	return 0;
 }

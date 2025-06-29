@@ -198,11 +198,11 @@ static void mdp5_destroy(struct mdp5_kms *mdp5_kms);
 static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct msm_gem_address_space *aspace = kms->aspace;
+	struct msm_gem_vm *vm = kms->vm;
 
-	if (aspace) {
-		aspace->mmu->funcs->detach(aspace->mmu);
-		msm_gem_address_space_put(aspace);
+	if (vm) {
+		vm->mmu->funcs->detach(vm->mmu);
+		msm_gem_vm_put(vm);
 	}
 
 	mdp_kms_destroy(&mdp5_kms->base);
@@ -500,7 +500,7 @@ static int mdp5_kms_init(struct drm_device *dev)
 	struct mdp5_kms *mdp5_kms;
 	struct mdp5_cfg *config;
 	struct msm_kms *kms = priv->kms;
-	struct msm_gem_address_space *aspace;
+	struct msm_gem_vm *vm;
 	int i, ret;
 
 	ret = mdp5_init(to_platform_device(dev->dev), dev);
@@ -534,13 +534,13 @@ static int mdp5_kms_init(struct drm_device *dev)
 	}
 	mdelay(16);
 
-	aspace = msm_kms_init_aspace(mdp5_kms->dev);
-	if (IS_ERR(aspace)) {
-		ret = PTR_ERR(aspace);
+	vm = msm_kms_init_vm(mdp5_kms->dev);
+	if (IS_ERR(vm)) {
+		ret = PTR_ERR(vm);
 		goto fail;
 	}
 
-	kms->aspace = aspace;
+	kms->vm = vm;
 
 	pm_runtime_put_sync(&pdev->dev);
 

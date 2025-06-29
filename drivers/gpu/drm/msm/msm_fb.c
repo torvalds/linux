@@ -76,7 +76,7 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 /* prepare/pin all the fb's bo's for scanout.
  */
 int msm_framebuffer_prepare(struct drm_framebuffer *fb,
-		struct msm_gem_address_space *aspace,
+		struct msm_gem_vm *vm,
 		bool needs_dirtyfb)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
@@ -88,7 +88,7 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 	atomic_inc(&msm_fb->prepare_count);
 
 	for (i = 0; i < n; i++) {
-		ret = msm_gem_get_and_pin_iova(fb->obj[i], aspace, &msm_fb->iova[i]);
+		ret = msm_gem_get_and_pin_iova(fb->obj[i], vm, &msm_fb->iova[i]);
 		drm_dbg_state(fb->dev, "FB[%u]: iova[%d]: %08llx (%d)\n",
 			      fb->base.id, i, msm_fb->iova[i], ret);
 		if (ret)
@@ -99,7 +99,7 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 }
 
 void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
-		struct msm_gem_address_space *aspace,
+		struct msm_gem_vm *vm,
 		bool needed_dirtyfb)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
@@ -109,14 +109,14 @@ void msm_framebuffer_cleanup(struct drm_framebuffer *fb,
 		refcount_dec(&msm_fb->dirtyfb);
 
 	for (i = 0; i < n; i++)
-		msm_gem_unpin_iova(fb->obj[i], aspace);
+		msm_gem_unpin_iova(fb->obj[i], vm);
 
 	if (!atomic_dec_return(&msm_fb->prepare_count))
 		memset(msm_fb->iova, 0, sizeof(msm_fb->iova));
 }
 
 uint32_t msm_framebuffer_iova(struct drm_framebuffer *fb,
-		struct msm_gem_address_space *aspace, int plane)
+		struct msm_gem_vm *vm, int plane)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	return msm_fb->iova[plane] + fb->offsets[plane];

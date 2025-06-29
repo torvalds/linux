@@ -64,7 +64,7 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 
 	kref_init(&submit->ref);
 	submit->dev = dev;
-	submit->aspace = queue->ctx->aspace;
+	submit->vm = queue->ctx->vm;
 	submit->gpu = gpu;
 	submit->cmd = (void *)&submit->bos[nr_bos];
 	submit->queue = queue;
@@ -312,7 +312,7 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 		struct msm_gem_vma *vma;
 
 		/* if locking succeeded, pin bo: */
-		vma = msm_gem_get_vma_locked(obj, submit->aspace);
+		vma = msm_gem_get_vma_locked(obj, submit->vm);
 		if (IS_ERR(vma)) {
 			ret = PTR_ERR(vma);
 			break;
@@ -670,7 +670,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (args->pad)
 		return -EINVAL;
 
-	if (unlikely(!ctx->aspace) && !capable(CAP_SYS_RAWIO)) {
+	if (unlikely(!ctx->vm) && !capable(CAP_SYS_RAWIO)) {
 		DRM_ERROR_RATELIMITED("IOMMU support or CAP_SYS_RAWIO required!\n");
 		return -EPERM;
 	}

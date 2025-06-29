@@ -526,7 +526,7 @@ static const struct adreno_gpu_funcs funcs = {
 		.gpu_busy = a3xx_gpu_busy,
 		.gpu_state_get = a3xx_gpu_state_get,
 		.gpu_state_put = adreno_gpu_state_put,
-		.create_address_space = adreno_create_address_space,
+		.create_vm = adreno_create_vm,
 		.get_rptr = a3xx_get_rptr,
 	},
 };
@@ -581,7 +581,7 @@ struct msm_gpu *a3xx_gpu_init(struct drm_device *dev)
 			goto fail;
 	}
 
-	if (!gpu->aspace) {
+	if (!gpu->vm) {
 		/* TODO we think it is possible to configure the GPU to
 		 * restrict access to VRAM carveout.  But the required
 		 * registers are unknown.  For now just bail out and
