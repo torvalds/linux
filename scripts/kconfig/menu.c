@@ -788,3 +788,77 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 	if (sym)
 		get_symbol_str(help, sym, NULL);
 }
+
+/**
+ * menu_dump - dump all menu entries in a tree-like format
+ */
+void menu_dump(void)
+{
+	struct menu *menu = &rootmenu;
+	unsigned long long bits = 0;
+	int indent = 0;
+
+	while (menu) {
+
+		for (int i = indent - 1; i >= 0; i--) {
+			if (bits & (1ULL << i)) {
+				if (i > 0)
+					printf("|   ");
+				else
+					printf("|-- ");
+			} else {
+				if (i > 0)
+					printf("    ");
+				else
+					printf("`-- ");
+			}
+		}
+
+		switch (menu->type) {
+		case M_CHOICE:
+			printf("choice \"%s\"\n", menu->prompt->text);
+			break;
+		case M_COMMENT:
+			printf("comment \"%s\"\n", menu->prompt->text);
+			break;
+		case M_IF:
+			printf("if\n");
+			break;
+		case M_MENU:
+			printf("menu \"%s\"", menu->prompt->text);
+			if (!menu->sym) {
+				printf("\n");
+				break;
+			}
+			printf(" + ");
+			/* fallthrough */
+		case M_NORMAL:
+			printf("symbol %s\n", menu->sym->name);
+			break;
+		}
+		if (menu->list) {
+			bits <<= 1;
+			menu = menu->list;
+			if (menu->next)
+				bits |= 1;
+			else
+				bits &= ~1;
+			indent++;
+			continue;
+		}
+
+		while (menu && !menu->next) {
+			menu = menu->parent;
+			bits >>= 1;
+			indent--;
+		}
+
+		if (menu) {
+			menu = menu->next;
+			if (menu->next)
+				bits |= 1;
+			else
+				bits &= ~1;
+		}
+	}
+}
