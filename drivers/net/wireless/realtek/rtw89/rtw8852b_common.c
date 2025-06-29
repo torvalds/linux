@@ -8,6 +8,7 @@
 #include "phy.h"
 #include "reg.h"
 #include "rtw8852b_common.h"
+#include "sar.h"
 #include "util.h"
 
 static const struct rtw89_reg3_def rtw8852bx_pmac_ht20_mcs7_tbl[] = {
@@ -1234,6 +1235,7 @@ static u32 rtw8852bx_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,
 	       u32_encode_bits(ref, B_DPD_REF);
 }
 
+/* @pwr_ofst (unit: 1/8 dBm): power of path A minus power of path B */
 static void rtw8852bx_set_txpwr_ref(struct rtw89_dev *rtwdev,
 				    enum rtw89_phy_idx phy_idx, s16 pwr_ofst)
 {
@@ -1336,6 +1338,27 @@ static void rtw8852bx_set_tx_shape(struct rtw89_dev *rtwdev,
 			       tx_shape_ofdm);
 }
 
+static s16 rtw8852bx_get_txpwr_sar_diff(struct rtw89_dev *rtwdev,
+					const struct rtw89_chan *chan)
+{
+	struct rtw89_sar_parm sar_parm = {
+		.center_freq = chan->freq,
+		.force_path = true,
+	};
+	s16 sar_bb_a, sar_bb_b;
+	s8 sar_mac;
+
+	sar_parm.path = RF_PATH_A;
+	sar_mac = rtw89_query_sar(rtwdev, &sar_parm);
+	sar_bb_a = rtw89_phy_txpwr_mac_to_bb(rtwdev, sar_mac);
+
+	sar_parm.path = RF_PATH_B;
+	sar_mac = rtw89_query_sar(rtwdev, &sar_parm);
+	sar_bb_b = rtw89_phy_txpwr_mac_to_bb(rtwdev, sar_mac);
+
+	return sar_bb_a - sar_bb_b;
+}
+
 static void rtw8852bx_set_txpwr_diff(struct rtw89_dev *rtwdev,
 				     const struct rtw89_chan *chan,
 				     enum rtw89_phy_idx phy_idx)
@@ -1343,6 +1366,7 @@ static void rtw8852bx_set_txpwr_diff(struct rtw89_dev *rtwdev,
 	s16 pwr_ofst;
 
 	pwr_ofst = rtw89_phy_ant_gain_pwr_offset(rtwdev, chan);
+	pwr_ofst += rtw8852bx_get_txpwr_sar_diff(rtwdev, chan);
 	rtw8852bx_set_txpwr_ref(rtwdev, phy_idx, pwr_ofst);
 }
 

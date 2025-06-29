@@ -102,8 +102,7 @@ static void erofs_fscache_req_io_put(struct erofs_fscache_io *io)
 		erofs_fscache_req_put(req);
 }
 
-static void erofs_fscache_req_end_io(void *priv,
-		ssize_t transferred_or_error, bool was_async)
+static void erofs_fscache_req_end_io(void *priv, ssize_t transferred_or_error)
 {
 	struct erofs_fscache_io *io = priv;
 	struct erofs_fscache_rq *req = io->private;
@@ -180,8 +179,7 @@ struct erofs_fscache_bio {
 	struct bio_vec bvecs[BIO_MAX_VECS];
 };
 
-static void erofs_fscache_bio_endio(void *priv,
-		ssize_t transferred_or_error, bool was_async)
+static void erofs_fscache_bio_endio(void *priv, ssize_t transferred_or_error)
 {
 	struct erofs_fscache_bio *io = priv;
 

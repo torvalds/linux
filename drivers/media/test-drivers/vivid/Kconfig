@@ -32,7 +32,8 @@ config VIDEO_VIVID_CEC
 
 config VIDEO_VIVID_OSD
 	bool "Enable Framebuffer for testing Output Overlay"
-	depends on VIDEO_VIVID && FB
+	depends on VIDEO_VIVID && FB_CORE
+	depends on VIDEO_VIVID=m || FB_CORE=y
 	default y
 	select FB_IOMEM_HELPERS
 	help

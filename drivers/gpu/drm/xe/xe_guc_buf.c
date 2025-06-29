@@ -37,10 +37,6 @@ int xe_guc_buf_cache_init(struct xe_guc_buf_cache *cache)
 	struct xe_gt *gt = cache_to_gt(cache);
 	struct xe_sa_manager *sam;
 
-	/* XXX: currently it's useful only for the PF actions */
-	if (!IS_SRIOV_PF(gt_to_xe(gt)))
-		return 0;
-
 	sam = __xe_sa_bo_manager_init(gt_to_tile(gt), SZ_8K, 0, sizeof(u32));
 	if (IS_ERR(sam))
 		return PTR_ERR(sam);

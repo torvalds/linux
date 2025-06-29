@@ -149,7 +149,7 @@ static void scale_stats(struct cache_stats *stats, unsigned long rescale_at)
 
 static void scale_accounting(struct timer_list *t)
 {
-	struct cache_accounting *acc = from_timer(acc, t, timer);
+	struct cache_accounting *acc = timer_container_of(acc, t, timer);
 
 #define move_stat(name) do {						\
 	unsigned int t = atomic_xchg(&acc->collector.name, 0);		\

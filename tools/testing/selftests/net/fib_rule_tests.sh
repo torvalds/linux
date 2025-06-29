@@ -359,6 +359,23 @@ fib_rule6_test()
 			"$getnomatch" "iif flowlabel masked redirect to table" \
 			"iif flowlabel masked no redirect to table"
 	fi
+
+	$IP link show dev $DEV | grep -q vrf0
+	if [ $? -eq 0 ]; then
+		match="oif vrf0"
+		getmatch="oif $DEV"
+		getnomatch="oif lo"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "VRF oif redirect to table" \
+			"VRF oif no redirect to table"
+
+		match="from $SRC_IP6 iif vrf0"
+		getmatch="from $SRC_IP6 iif $DEV"
+		getnomatch="from $SRC_IP6 iif lo"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "VRF iif redirect to table" \
+			"VRF iif no redirect to table"
+	fi
 }
 
 fib_rule6_vrf_test()
@@ -499,10 +516,7 @@ fib_rule4_test()
 	fib_rule4_test_match_n_redirect "$match" "$match" "$getnomatch" \
 		"oif redirect to table" "oif no redirect to table"
 
-	# Enable forwarding and disable rp_filter as all the addresses are in
-	# the same subnet and egress device == ingress device.
 	ip netns exec $testns sysctl -qw net.ipv4.ip_forward=1
-	ip netns exec $testns sysctl -qw net.ipv4.conf.$DEV.rp_filter=0
 	match="from $SRC_IP iif $DEV"
 	getnomatch="from $SRC_IP iif lo"
 	fib_rule4_test_match_n_redirect "$match" "$match" "$getnomatch" \
@@ -634,6 +648,23 @@ fib_rule4_test()
 		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
 			"$getnomatch" "iif dscp masked redirect to table" \
 			"iif dscp masked no redirect to table"
+	fi
+
+	$IP link show dev $DEV | grep -q vrf0
+	if [ $? -eq 0 ]; then
+		match="oif vrf0"
+		getmatch="oif $DEV"
+		getnomatch="oif lo"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "VRF oif redirect to table" \
+			"VRF oif no redirect to table"
+
+		match="from $SRC_IP iif vrf0"
+		getmatch="from $SRC_IP iif $DEV"
+		getnomatch="from $SRC_IP iif lo"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "VRF iif redirect to table" \
+			"VRF iif no redirect to table"
 	fi
 }
 

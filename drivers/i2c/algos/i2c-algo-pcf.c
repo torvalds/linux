@@ -19,6 +19,7 @@
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-pcf.h>
+#include <linux/string_choices.h>
 #include "i2c-algo-pcf.h"
 
 
@@ -316,7 +317,7 @@ static int pcf_xfer(struct i2c_adapter *i2c_adap,
 		pmsg = &msgs[i];
 
 		DEB2(printk(KERN_DEBUG "i2c-algo-pcf.o: Doing %s %d bytes to 0x%02x - %d of %d messages\n",
-		     pmsg->flags & I2C_M_RD ? "read" : "write",
+		     str_read_write(pmsg->flags & I2C_M_RD),
 		     pmsg->len, pmsg->addr, i + 1, num);)
 
 		ret = pcf_doAddress(adap, pmsg);

@@ -845,7 +845,8 @@ static void ibmvscsi_reset_host(struct ibmvscsi_host_data *hostdata)
 */
 static void ibmvscsi_timeout(struct timer_list *t)
 {
-	struct srp_event_struct *evt_struct = from_timer(evt_struct, t, timer);
+	struct srp_event_struct *evt_struct = timer_container_of(evt_struct,
+								 t, timer);
 	struct ibmvscsi_host_data *hostdata = evt_struct->hostdata;
 
 	dev_err(hostdata->dev, "Command timed out (%x). Resetting connection\n",

@@ -12,6 +12,7 @@
 #include <skas.h>
 #include <sysdep/tls.h>
 #include <asm/desc.h>
+#include <stub-data.h>
 
 /*
  * If needed we can detect when it's uninitialized.
@@ -21,14 +22,25 @@
 static int host_supports_tls = -1;
 int host_gdt_entry_tls_min;
 
-static int do_set_thread_area(struct user_desc *info)
+static int do_set_thread_area(struct task_struct* task, struct user_desc *info)
 {
 	int ret;
-	u32 cpu;
 
-	cpu = get_cpu();
-	ret = os_set_thread_area(info, userspace_pid[cpu]);
-	put_cpu();
+	if (info->entry_number < host_gdt_entry_tls_min ||
+	    info->entry_number >= host_gdt_entry_tls_min + GDT_ENTRY_TLS_ENTRIES)
+		return -EINVAL;
+
+	if (using_seccomp) {
+		int idx = info->entry_number - host_gdt_entry_tls_min;
+		struct stub_data *data = (void *)task->mm->context.id.stack;
+
+		data->arch_data.tls[idx] = *info;
+		data->arch_data.sync |= BIT(idx);
+
+		return 0;
+	}
+
+	ret = os_set_thread_area(info, task->mm->context.id.pid);
 
 	if (ret)
 		printk(KERN_ERR "PTRACE_SET_THREAD_AREA failed, err = %d, "
@@ -97,7 +109,7 @@ static int load_TLS(int flags, struct task_struct *to)
 		if (!(flags & O_FORCE) && curr->flushed)
 			continue;
 
-		ret = do_set_thread_area(&curr->tls);
+		ret = do_set_thread_area(current, &curr->tls);
 		if (ret)
 			goto out;
 
@@ -275,7 +287,7 @@ SYSCALL_DEFINE1(set_thread_area, struct user_desc __user *, user_desc)
 			return -EFAULT;
 	}
 
-	ret = do_set_thread_area(&info);
+	ret = do_set_thread_area(current, &info);
 	if (ret)
 		return ret;
 	return set_tls_entry(current, &info, idx, 1);

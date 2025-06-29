@@ -14,7 +14,7 @@ static __le32 ext4_mmp_csum(struct super_block *sb, struct mmp_struct *mmp)
 	int offset = offsetof(struct mmp_struct, mmp_checksum);
 	__u32 csum;
 
-	csum = ext4_chksum(sbi, sbi->s_csum_seed, (char *)mmp, offset);
+	csum = ext4_chksum(sbi->s_csum_seed, (char *)mmp, offset);
 
 	return cpu_to_le32(csum);
 }

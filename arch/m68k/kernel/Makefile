@@ -3,7 +3,7 @@
 # Makefile for the linux kernel.
 #
 
-extra-y			+= vmlinux.lds
+always-$(KBUILD_BUILTIN)	+= vmlinux.lds
 
 obj-$(CONFIG_MMU_MOTOROLA)	:= head.o
 obj-$(CONFIG_SUN3)		:= sun3-head.o

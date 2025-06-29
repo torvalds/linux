@@ -104,6 +104,14 @@
 	};
 };
 
+#if PMOD0_GPT
+&gpt {
+	pinctrl-0 = <&gpt_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+#endif /* PMOD0_GPT */
+
 &i2c3 {
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "default";

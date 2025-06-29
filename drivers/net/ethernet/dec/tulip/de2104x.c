@@ -963,7 +963,7 @@ static void de_next_media (struct de_private *de, const u32 *media,
 
 static void de21040_media_timer (struct timer_list *t)
 {
-	struct de_private *de = from_timer(de, t, media_timer);
+	struct de_private *de = timer_container_of(de, t, media_timer);
 	struct net_device *dev = de->dev;
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
@@ -1044,7 +1044,7 @@ static unsigned int de_ok_to_advertise (struct de_private *de, u32 new_media)
 
 static void de21041_media_timer (struct timer_list *t)
 {
-	struct de_private *de = from_timer(de, t, media_timer);
+	struct de_private *de = timer_container_of(de, t, media_timer);
 	struct net_device *dev = de->dev;
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;

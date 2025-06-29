@@ -644,7 +644,7 @@ static DEVICE_ATTR(gsm_log, S_IRUGO, pm8001_ctl_gsm_log_show, NULL);
 #define FLASH_CMD_SET_NVMD    0x02
 
 struct flash_command {
-     u8      command[8];
+     u8      command[8] __nonstring;
      int     code;
 };
 

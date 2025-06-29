@@ -2607,9 +2607,9 @@ static int db8500_irq_init(struct device_node *np)
 {
 	int i;
 
-	db8500_irq_domain = irq_domain_add_simple(
-		np, NUM_PRCMU_WAKEUPS, 0,
-		&db8500_irq_ops, NULL);
+	db8500_irq_domain = irq_domain_create_simple(of_fwnode_handle(np),
+						     NUM_PRCMU_WAKEUPS, 0,
+						     &db8500_irq_ops, NULL);
 
 	if (!db8500_irq_domain) {
 		pr_err("Failed to create irqdomain\n");

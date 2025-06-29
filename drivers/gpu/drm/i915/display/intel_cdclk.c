@@ -38,6 +38,7 @@
 #include "intel_cdclk.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pci_config.h"
@@ -567,20 +568,18 @@ static u8 vlv_calc_voltage_level(struct intel_display *display, int cdclk)
 static void vlv_get_cdclk(struct intel_display *display,
 			  struct intel_cdclk_config *cdclk_config)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 val;
 
-	vlv_iosf_sb_get(dev_priv,
-			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
+	vlv_iosf_sb_get(display->drm, BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
 
-	cdclk_config->vco = vlv_get_hpll_vco(dev_priv);
-	cdclk_config->cdclk = vlv_get_cck_clock(dev_priv, "cdclk",
+	cdclk_config->vco = vlv_get_hpll_vco(display->drm);
+	cdclk_config->cdclk = vlv_get_cck_clock(display->drm, "cdclk",
 						CCK_DISPLAY_CLOCK_CONTROL,
 						cdclk_config->vco);
 
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
+	val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
 
-	vlv_iosf_sb_put(dev_priv,
+	vlv_iosf_sb_put(display->drm,
 			BIT(VLV_IOSF_SB_CCK) | BIT(VLV_IOSF_SB_PUNIT));
 
 	if (display->platform.valleyview)
@@ -658,16 +657,16 @@ static void vlv_set_cdclk(struct intel_display *display,
 	 */
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_DISPLAY_CORE);
 
-	vlv_iosf_sb_get(dev_priv,
+	vlv_iosf_sb_get(display->drm,
 			BIT(VLV_IOSF_SB_CCK) |
 			BIT(VLV_IOSF_SB_BUNIT) |
 			BIT(VLV_IOSF_SB_PUNIT));
 
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
+	val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK;
 	val |= (cmd << DSPFREQGUAR_SHIFT);
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
-	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) &
+	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, val);
+	if (wait_for((vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) &
 		      DSPFREQSTAT_MASK) == (cmd << DSPFREQSTAT_SHIFT),
 		     50)) {
 		drm_err(display->drm,
@@ -681,12 +680,12 @@ static void vlv_set_cdclk(struct intel_display *display,
 					    cdclk) - 1;
 
 		/* adjust cdclk divider */
-		val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
+		val = vlv_cck_read(display->drm, CCK_DISPLAY_CLOCK_CONTROL);
 		val &= ~CCK_FREQUENCY_VALUES;
 		val |= divider;
-		vlv_cck_write(dev_priv, CCK_DISPLAY_CLOCK_CONTROL, val);
+		vlv_cck_write(display->drm, CCK_DISPLAY_CLOCK_CONTROL, val);
 
-		if (wait_for((vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL) &
+		if (wait_for((vlv_cck_read(display->drm, CCK_DISPLAY_CLOCK_CONTROL) &
 			      CCK_FREQUENCY_STATUS) == (divider << CCK_FREQUENCY_STATUS_SHIFT),
 			     50))
 			drm_err(display->drm,
@@ -694,7 +693,7 @@ static void vlv_set_cdclk(struct intel_display *display,
 	}
 
 	/* adjust self-refresh exit latency value */
-	val = vlv_bunit_read(dev_priv, BUNIT_REG_BISOC);
+	val = vlv_bunit_read(display->drm, BUNIT_REG_BISOC);
 	val &= ~0x7f;
 
 	/*
@@ -705,9 +704,9 @@ static void vlv_set_cdclk(struct intel_display *display,
 		val |= 4500 / 250; /* 4.5 usec */
 	else
 		val |= 3000 / 250; /* 3.0 usec */
-	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
+	vlv_bunit_write(display->drm, BUNIT_REG_BISOC, val);
 
-	vlv_iosf_sb_put(dev_priv,
+	vlv_iosf_sb_put(display->drm,
 			BIT(VLV_IOSF_SB_CCK) |
 			BIT(VLV_IOSF_SB_BUNIT) |
 			BIT(VLV_IOSF_SB_PUNIT));
@@ -723,7 +722,6 @@ static void chv_set_cdclk(struct intel_display *display,
 			  const struct intel_cdclk_config *cdclk_config,
 			  enum pipe pipe)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
 	intel_wakeref_t wakeref;
@@ -747,19 +745,19 @@ static void chv_set_cdclk(struct intel_display *display,
 	 */
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_DISPLAY_CORE);
 
-	vlv_punit_get(dev_priv);
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
+	vlv_punit_get(display->drm);
+	val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK_CHV;
 	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
-	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) &
+	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, val);
+	if (wait_for((vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM) &
 		      DSPFREQSTAT_MASK_CHV) == (cmd << DSPFREQSTAT_SHIFT_CHV),
 		     50)) {
 		drm_err(display->drm,
 			"timed out waiting for CDclk change\n");
 	}
 
-	vlv_punit_put(dev_priv);
+	vlv_punit_put(display->drm);
 
 	intel_update_cdclk(display);
 
@@ -3494,7 +3492,6 @@ static int dg1_rawclk(struct intel_display *display)
 
 static int cnp_rawclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int divider, fraction;
 	u32 rawclk;
 
@@ -3514,7 +3511,7 @@ static int cnp_rawclk(struct intel_display *display)
 
 		rawclk |= CNP_RAWCLK_DEN(DIV_ROUND_CLOSEST(numerator * 1000,
 							   fraction) - 1);
-		if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+		if (INTEL_PCH_TYPE(display) >= PCH_ICP)
 			rawclk |= ICP_RAWCLK_NUM(numerator);
 	}
 
@@ -3529,10 +3526,8 @@ static int pch_rawclk(struct intel_display *display)
 
 static int vlv_hrawclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	/* RAWCLK_FREQ_VLV register updated from power well code */
-	return vlv_get_cck_clock_hpll(dev_priv, "hrawclk",
+	return vlv_get_cck_clock_hpll(display->drm, "hrawclk",
 				      CCK_DISPLAY_REF_CLOCK_CONTROL);
 }
 
@@ -3553,21 +3548,20 @@ static int i9xx_hrawclk(struct intel_display *display)
  */
 u32 intel_read_rawclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 freq;
 
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_MTL)
+	if (INTEL_PCH_TYPE(display) >= PCH_MTL)
 		/*
 		 * MTL always uses a 38.4 MHz rawclk.  The bspec tells us
 		 * "RAWCLK_FREQ defaults to the values for 38.4 and does
 		 * not need to be programmed."
 		 */
 		freq = 38400;
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_DG1)
+	else if (INTEL_PCH_TYPE(display) >= PCH_DG1)
 		freq = dg1_rawclk(display);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_CNP)
+	else if (INTEL_PCH_TYPE(display) >= PCH_CNP)
 		freq = cnp_rawclk(display);
-	else if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(display))
 		freq = pch_rawclk(display);
 	else if (display->platform.valleyview || display->platform.cherryview)
 		freq = vlv_hrawclk(display);

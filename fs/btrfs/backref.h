@@ -423,8 +423,8 @@ struct btrfs_backref_node *btrfs_backref_alloc_node(
 struct btrfs_backref_edge *btrfs_backref_alloc_edge(
 		struct btrfs_backref_cache *cache);
 
-#define		LINK_LOWER	(1 << 0)
-#define		LINK_UPPER	(1 << 1)
+#define		LINK_LOWER	(1U << 0)
+#define		LINK_UPPER	(1U << 1)
 
 void btrfs_backref_link_edge(struct btrfs_backref_edge *edge,
 			     struct btrfs_backref_node *lower,

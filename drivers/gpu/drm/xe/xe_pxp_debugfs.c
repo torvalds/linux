@@ -66,9 +66,18 @@ static int pxp_terminate(struct seq_file *m, void *data)
 {
 	struct xe_pxp *pxp = node_to_pxp(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
+	int ready = xe_pxp_get_readiness_status(pxp);
 
-	if (!xe_pxp_is_enabled(pxp))
-		return -ENODEV;
+	if (ready < 0)
+		return ready; /* disabled or error occurred */
+	else if (!ready)
+		return -EBUSY; /* init still in progress */
+
+	/* no need for a termination if PXP is not active */
+	if (pxp->status != XE_PXP_ACTIVE) {
+		drm_printf(&p, "PXP not active\n");
+		return 0;
+	}
 
 	/* simulate a termination interrupt */
 	spin_lock_irq(&pxp->xe->irq.lock);

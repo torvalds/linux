@@ -284,7 +284,7 @@ static void raw3215_start_io(struct raw3215_info *raw)
  */
 static void raw3215_timeout(struct timer_list *t)
 {
-	struct raw3215_info *raw = from_timer(raw, t, timer);
+	struct raw3215_info *raw = timer_container_of(raw, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);

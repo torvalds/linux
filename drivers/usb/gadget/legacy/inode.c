@@ -1615,7 +1615,7 @@ static int activate_ep_files (struct dev_data *dev)
 		mutex_init(&data->lock);
 		init_waitqueue_head (&data->wait);
 
-		strncpy (data->name, ep->name, sizeof (data->name) - 1);
+		strscpy(data->name, ep->name);
 		refcount_set (&data->count, 1);
 		data->dev = dev;
 		get_dev (dev);

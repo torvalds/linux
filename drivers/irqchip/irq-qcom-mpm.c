@@ -227,6 +227,9 @@ static int qcom_mpm_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret)
 		return ret;
 
+	if (pin == GPIO_NO_WAKE_IRQ)
+		return irq_domain_disconnect_hierarchy(domain, virq);
+
 	ret = irq_domain_set_hwirq_and_chip(domain, virq, pin,
 					    &qcom_mpm_chip, priv);
 	if (ret)
@@ -447,7 +450,7 @@ static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
 
 	priv->domain = irq_domain_create_hierarchy(parent_domain,
 				IRQ_DOMAIN_FLAG_QCOM_MPM_WAKEUP, pin_cnt,
-				of_node_to_fwnode(np), &qcom_mpm_ops, priv);
+				of_fwnode_handle(np), &qcom_mpm_ops, priv);
 	if (!priv->domain) {
 		dev_err(dev, "failed to create MPM domain\n");
 		ret = -ENOMEM;

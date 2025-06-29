@@ -1,0 +1,50 @@
+.dt-check-base:
+  stage: static-checks
+  timeout: "30m"
+  variables:
+    GIT_DEPTH: 1
+    FF_USE_NEW_BASH_EVAL_STRATEGY: 'true'
+    SCHEMA: "display:gpu"
+    VENV_PATH: "/tmp/dtcheck-venv"
+  before_script:
+    - apt-get update -qq
+    # Minimum supported version of LLVM for building x86 kernels is 15.0.0.
+    # In mesa-ci containers, LLVM_VERSION is defined as a container-level property and is currently set to 19.
+    - apt-get install -y --no-install-recommends clang-${LLVM_VERSION} lld-${LLVM_VERSION} llvm-${LLVM_VERSION} python3-dev python3-venv python3-pip yamllint
+    - python3 -m venv "${VENV_PATH}"
+    - source "${VENV_PATH}/bin/activate"
+    - pip3 install dtschema
+  script:
+    - drivers/gpu/drm/ci/${SCRIPT_NAME}
+  artifacts:
+    when: on_failure
+    paths:
+      - ${ARTIFACT_FILE}
+  allow_failure:
+    exit_codes:
+      - 102
+
+dtbs-check:arm32:
+  extends:
+    - .build:arm32
+    - .dt-check-base
+  variables:
+    SCRIPT_NAME: "dtbs-check.sh"
+    ARTIFACT_FILE: "dtbs-check.log"
+
+dtbs-check:arm64:
+  extends:
+    - .build:arm64
+    - .dt-check-base
+  variables:
+    SCRIPT_NAME: "dtbs-check.sh"
+    ARTIFACT_FILE: "dtbs-check.log"
+
+dt-binding-check:
+  extends:
+    - .build
+    - .use-debian/x86_64_build
+    - .dt-check-base
+  variables:
+    SCRIPT_NAME: "dt-binding-check.sh"
+    ARTIFACT_FILE: "dt-binding-check.log"

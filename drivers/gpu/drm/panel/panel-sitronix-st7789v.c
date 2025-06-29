@@ -612,9 +612,10 @@ static int st7789v_probe(struct spi_device *spi)
 	struct st7789v *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct st7789v, panel,
+				   &st7789v_drm_funcs, DRM_MODE_CONNECTOR_DPI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	spi_set_drvdata(spi, ctx);
 	ctx->spi = spi;
@@ -625,9 +626,6 @@ static int st7789v_probe(struct spi_device *spi)
 		return dev_err_probe(&spi->dev, ret, "Failed to setup spi\n");
 
 	ctx->info = device_get_match_data(&spi->dev);
-
-	drm_panel_init(&ctx->panel, dev, &st7789v_drm_funcs,
-		       DRM_MODE_CONNECTOR_DPI);
 
 	ctx->power = devm_regulator_get(dev, "power");
 	ret = PTR_ERR_OR_ZERO(ctx->power);

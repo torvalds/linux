@@ -347,7 +347,7 @@ again.
 
    [:ref:`details<uninstall>`]
 
-.. _submit_improvements:
+.. _submit_improvements_qbtl:
 
 Did you run into trouble following any of the above steps that is not cleared up
 by the reference section below? Or do you have ideas how to improve the text?
@@ -1070,7 +1070,7 @@ complicated, and harder to follow.
 
 That being said: this of course is a balancing act. Hence, if you think an
 additional use-case is worth describing, suggest it to the maintainers of this
-document, as :ref:`described above <submit_improvements>`.
+document, as :ref:`described above <submit_improvements_qbtl>`.
 
 
 ..

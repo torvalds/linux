@@ -26,6 +26,7 @@
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
 #include "ti_sci_proc.h"
+#include "ti_k3_common.h"
 
 /* This address can either be for ATCM or BTCM with the other at address 0x0 */
 #define K3_R5_TCM_DEV_ADDR	0x41010000
@@ -55,20 +56,6 @@
 /* Applicable to only AM64x SoCs */
 #define PROC_BOOT_STATUS_FLAG_R5_SINGLECORE_ONLY	0x00000200
 
-/**
- * struct k3_r5_mem - internal memory structure
- * @cpu_addr: MPU virtual address of the memory region
- * @bus_addr: Bus address used to access the memory region
- * @dev_addr: Device address from remoteproc view
- * @size: Size of the memory region
- */
-struct k3_r5_mem {
-	void __iomem *cpu_addr;
-	phys_addr_t bus_addr;
-	u32 dev_addr;
-	size_t size;
-};
-
 /*
  * All cluster mode values are not applicable on all SoCs. The following
  * are the modes supported on various SoCs:
@@ -90,12 +77,14 @@ enum cluster_mode {
  * @tcm_ecc_autoinit: flag to denote the auto-initialization of TCMs for ECC
  * @single_cpu_mode: flag to denote if SoC/IP supports Single-CPU mode
  * @is_single_core: flag to denote if SoC/IP has only single core R5
+ * @core_data: pointer to R5-core-specific device data
  */
 struct k3_r5_soc_data {
 	bool tcm_is_double;
 	bool tcm_ecc_autoinit;
 	bool single_cpu_mode;
 	bool is_single_core;
+	const struct k3_rproc_dev_data *core_data;
 };
 
 /**
@@ -118,15 +107,10 @@ struct k3_r5_cluster {
  * struct k3_r5_core - K3 R5 core structure
  * @elem: linked list item
  * @dev: cached device pointer
- * @rproc: rproc handle representing this core
- * @mem: internal memory regions data
+ * @kproc: K3 rproc handle representing this core
+ * @cluster: cached pointer to parent cluster structure
  * @sram: on-chip SRAM memory regions data
- * @num_mems: number of internal memory regions
  * @num_sram: number of on-chip SRAM memory regions
- * @reset: reset control handle
- * @tsp: TI-SCI processor control handle
- * @ti_sci: TI-SCI handle
- * @ti_sci_id: TI-SCI device identifier
  * @atcm_enable: flag to control ATCM enablement
  * @btcm_enable: flag to control BTCM enablement
  * @loczrama: flag to dictate which TCM is at device address 0x0
@@ -135,157 +119,58 @@ struct k3_r5_cluster {
 struct k3_r5_core {
 	struct list_head elem;
 	struct device *dev;
-	struct rproc *rproc;
-	struct k3_r5_mem *mem;
-	struct k3_r5_mem *sram;
-	int num_mems;
+	struct k3_rproc *kproc;
+	struct k3_r5_cluster *cluster;
+	struct k3_rproc_mem *sram;
 	int num_sram;
-	struct reset_control *reset;
-	struct ti_sci_proc *tsp;
-	const struct ti_sci_handle *ti_sci;
-	u32 ti_sci_id;
 	u32 atcm_enable;
 	u32 btcm_enable;
 	u32 loczrama;
 	bool released_from_reset;
 };
 
-/**
- * struct k3_r5_rproc - K3 remote processor state
- * @dev: cached device pointer
- * @cluster: cached pointer to parent cluster structure
- * @mbox: mailbox channel handle
- * @client: mailbox client to request the mailbox channel
- * @rproc: rproc handle
- * @core: cached pointer to r5 core structure being used
- * @rmem: reserved memory regions data
- * @num_rmems: number of reserved memory regions
- */
-struct k3_r5_rproc {
-	struct device *dev;
-	struct k3_r5_cluster *cluster;
-	struct mbox_chan *mbox;
-	struct mbox_client client;
-	struct rproc *rproc;
-	struct k3_r5_core *core;
-	struct k3_r5_mem *rmem;
-	int num_rmems;
-};
-
-/**
- * k3_r5_rproc_mbox_callback() - inbound mailbox message handler
- * @client: mailbox client pointer used for requesting the mailbox channel
- * @data: mailbox payload
- *
- * This handler is invoked by the OMAP mailbox driver whenever a mailbox
- * message is received. Usually, the mailbox payload simply contains
- * the index of the virtqueue that is kicked by the remote processor,
- * and we let remoteproc core handle it.
- *
- * In addition to virtqueue indices, we also have some out-of-band values
- * that indicate different events. Those values are deliberately very
- * large so they don't coincide with virtqueue indices.
- */
-static void k3_r5_rproc_mbox_callback(struct mbox_client *client, void *data)
-{
-	struct k3_r5_rproc *kproc = container_of(client, struct k3_r5_rproc,
-						client);
-	struct device *dev = kproc->rproc->dev.parent;
-	const char *name = kproc->rproc->name;
-	u32 msg = omap_mbox_message(data);
-
-	/* Do not forward message from a detached core */
-	if (kproc->rproc->state == RPROC_DETACHED)
-		return;
-
-	dev_dbg(dev, "mbox msg: 0x%x\n", msg);
-
-	switch (msg) {
-	case RP_MBOX_CRASH:
-		/*
-		 * remoteproc detected an exception, but error recovery is not
-		 * supported. So, just log this for now
-		 */
-		dev_err(dev, "K3 R5F rproc %s crashed\n", name);
-		break;
-	case RP_MBOX_ECHO_REPLY:
-		dev_info(dev, "received echo reply from %s\n", name);
-		break;
-	default:
-		/* silently handle all other valid messages */
-		if (msg >= RP_MBOX_READY && msg < RP_MBOX_END_MSG)
-			return;
-		if (msg > kproc->rproc->max_notifyid) {
-			dev_dbg(dev, "dropping unknown message 0x%x", msg);
-			return;
-		}
-		/* msg contains the index of the triggered vring */
-		if (rproc_vq_interrupt(kproc->rproc, msg) == IRQ_NONE)
-			dev_dbg(dev, "no message was found in vqid %d\n", msg);
-	}
-}
-
-/* kick a virtqueue */
-static void k3_r5_rproc_kick(struct rproc *rproc, int vqid)
-{
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct device *dev = rproc->dev.parent;
-	mbox_msg_t msg = (mbox_msg_t)vqid;
-	int ret;
-
-	/* Do not forward message to a detached core */
-	if (kproc->rproc->state == RPROC_DETACHED)
-		return;
-
-	/* send the index of the triggered virtqueue in the mailbox payload */
-	ret = mbox_send_message(kproc->mbox, (void *)msg);
-	if (ret < 0)
-		dev_err(dev, "failed to send mailbox message, status = %d\n",
-			ret);
-}
-
-static int k3_r5_split_reset(struct k3_r5_core *core)
+static int k3_r5_split_reset(struct k3_rproc *kproc)
 {
 	int ret;
 
-	ret = reset_control_assert(core->reset);
+	ret = reset_control_assert(kproc->reset);
 	if (ret) {
-		dev_err(core->dev, "local-reset assert failed, ret = %d\n",
+		dev_err(kproc->dev, "local-reset assert failed, ret = %d\n",
 			ret);
 		return ret;
 	}
 
-	ret = core->ti_sci->ops.dev_ops.put_device(core->ti_sci,
-						   core->ti_sci_id);
+	ret = kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
+						    kproc->ti_sci_id);
 	if (ret) {
-		dev_err(core->dev, "module-reset assert failed, ret = %d\n",
+		dev_err(kproc->dev, "module-reset assert failed, ret = %d\n",
 			ret);
-		if (reset_control_deassert(core->reset))
-			dev_warn(core->dev, "local-reset deassert back failed\n");
+		if (reset_control_deassert(kproc->reset))
+			dev_warn(kproc->dev, "local-reset deassert back failed\n");
 	}
 
 	return ret;
 }
 
-static int k3_r5_split_release(struct k3_r5_core *core)
+static int k3_r5_split_release(struct k3_rproc *kproc)
 {
 	int ret;
 
-	ret = core->ti_sci->ops.dev_ops.get_device(core->ti_sci,
-						   core->ti_sci_id);
+	ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
+						    kproc->ti_sci_id);
 	if (ret) {
-		dev_err(core->dev, "module-reset deassert failed, ret = %d\n",
+		dev_err(kproc->dev, "module-reset deassert failed, ret = %d\n",
 			ret);
 		return ret;
 	}
 
-	ret = reset_control_deassert(core->reset);
+	ret = reset_control_deassert(kproc->reset);
 	if (ret) {
-		dev_err(core->dev, "local-reset deassert failed, ret = %d\n",
+		dev_err(kproc->dev, "local-reset deassert failed, ret = %d\n",
 			ret);
-		if (core->ti_sci->ops.dev_ops.put_device(core->ti_sci,
-							 core->ti_sci_id))
-			dev_warn(core->dev, "module-reset assert back failed\n");
+		if (kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
+							  kproc->ti_sci_id))
+			dev_warn(kproc->dev, "module-reset assert back failed\n");
 	}
 
 	return ret;
@@ -294,11 +179,12 @@ static int k3_r5_split_release(struct k3_r5_core *core)
 static int k3_r5_lockstep_reset(struct k3_r5_cluster *cluster)
 {
 	struct k3_r5_core *core;
+	struct k3_rproc *kproc;
 	int ret;
 
 	/* assert local reset on all applicable cores */
 	list_for_each_entry(core, &cluster->cores, elem) {
-		ret = reset_control_assert(core->reset);
+		ret = reset_control_assert(core->kproc->reset);
 		if (ret) {
 			dev_err(core->dev, "local-reset assert failed, ret = %d\n",
 				ret);
@@ -309,8 +195,9 @@ static int k3_r5_lockstep_reset(struct k3_r5_cluster *cluster)
 
 	/* disable PSC modules on all applicable cores */
 	list_for_each_entry(core, &cluster->cores, elem) {
-		ret = core->ti_sci->ops.dev_ops.put_device(core->ti_sci,
-							   core->ti_sci_id);
+		kproc = core->kproc;
+		ret = kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
+							    kproc->ti_sci_id);
 		if (ret) {
 			dev_err(core->dev, "module-reset assert failed, ret = %d\n",
 				ret);
@@ -322,14 +209,15 @@ static int k3_r5_lockstep_reset(struct k3_r5_cluster *cluster)
 
 unroll_module_reset:
 	list_for_each_entry_continue_reverse(core, &cluster->cores, elem) {
-		if (core->ti_sci->ops.dev_ops.put_device(core->ti_sci,
-							 core->ti_sci_id))
+		kproc = core->kproc;
+		if (kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
+							  kproc->ti_sci_id))
 			dev_warn(core->dev, "module-reset assert back failed\n");
 	}
 	core = list_last_entry(&cluster->cores, struct k3_r5_core, elem);
 unroll_local_reset:
 	list_for_each_entry_from_reverse(core, &cluster->cores, elem) {
-		if (reset_control_deassert(core->reset))
+		if (reset_control_deassert(core->kproc->reset))
 			dev_warn(core->dev, "local-reset deassert back failed\n");
 	}
 
@@ -339,12 +227,14 @@ unroll_local_reset:
 static int k3_r5_lockstep_release(struct k3_r5_cluster *cluster)
 {
 	struct k3_r5_core *core;
+	struct k3_rproc *kproc;
 	int ret;
 
 	/* enable PSC modules on all applicable cores */
 	list_for_each_entry_reverse(core, &cluster->cores, elem) {
-		ret = core->ti_sci->ops.dev_ops.get_device(core->ti_sci,
-							   core->ti_sci_id);
+		kproc = core->kproc;
+		ret = kproc->ti_sci->ops.dev_ops.get_device(kproc->ti_sci,
+							    kproc->ti_sci_id);
 		if (ret) {
 			dev_err(core->dev, "module-reset deassert failed, ret = %d\n",
 				ret);
@@ -355,7 +245,7 @@ static int k3_r5_lockstep_release(struct k3_r5_cluster *cluster)
 
 	/* deassert local reset on all applicable cores */
 	list_for_each_entry_reverse(core, &cluster->cores, elem) {
-		ret = reset_control_deassert(core->reset);
+		ret = reset_control_deassert(core->kproc->reset);
 		if (ret) {
 			dev_err(core->dev, "module-reset deassert failed, ret = %d\n",
 				ret);
@@ -367,65 +257,31 @@ static int k3_r5_lockstep_release(struct k3_r5_cluster *cluster)
 
 unroll_local_reset:
 	list_for_each_entry_continue(core, &cluster->cores, elem) {
-		if (reset_control_assert(core->reset))
+		if (reset_control_assert(core->kproc->reset))
 			dev_warn(core->dev, "local-reset assert back failed\n");
 	}
 	core = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
 unroll_module_reset:
 	list_for_each_entry_from(core, &cluster->cores, elem) {
-		if (core->ti_sci->ops.dev_ops.put_device(core->ti_sci,
-							 core->ti_sci_id))
+		kproc = core->kproc;
+		if (kproc->ti_sci->ops.dev_ops.put_device(kproc->ti_sci,
+							  kproc->ti_sci_id))
 			dev_warn(core->dev, "module-reset assert back failed\n");
 	}
 
 	return ret;
 }
 
-static inline int k3_r5_core_halt(struct k3_r5_core *core)
+static inline int k3_r5_core_halt(struct k3_rproc *kproc)
 {
-	return ti_sci_proc_set_control(core->tsp,
+	return ti_sci_proc_set_control(kproc->tsp,
 				       PROC_BOOT_CTRL_FLAG_R5_CORE_HALT, 0);
 }
 
-static inline int k3_r5_core_run(struct k3_r5_core *core)
+static inline int k3_r5_core_run(struct k3_rproc *kproc)
 {
-	return ti_sci_proc_set_control(core->tsp,
+	return ti_sci_proc_set_control(kproc->tsp,
 				       0, PROC_BOOT_CTRL_FLAG_R5_CORE_HALT);
-}
-
-static int k3_r5_rproc_request_mbox(struct rproc *rproc)
-{
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct mbox_client *client = &kproc->client;
-	struct device *dev = kproc->dev;
-	int ret;
-
-	client->dev = dev;
-	client->tx_done = NULL;
-	client->rx_callback = k3_r5_rproc_mbox_callback;
-	client->tx_block = false;
-	client->knows_txdone = false;
-
-	kproc->mbox = mbox_request_channel(client, 0);
-	if (IS_ERR(kproc->mbox))
-		return dev_err_probe(dev, PTR_ERR(kproc->mbox),
-				     "mbox_request_channel failed\n");
-
-	/*
-	 * Ping the remote processor, this is only for sanity-sake for now;
-	 * there is no functional effect whatsoever.
-	 *
-	 * Note that the reply will _not_ arrive immediately: this message
-	 * will wait in the mailbox fifo until the remote processor is booted.
-	 */
-	ret = mbox_send_message(kproc->mbox, (void *)RP_MBOX_ECHO_REQUEST);
-	if (ret < 0) {
-		dev_err(dev, "mbox_send_message failed: %d\n", ret);
-		mbox_free_channel(kproc->mbox);
-		return ret;
-	}
-
-	return 0;
 }
 
 /*
@@ -446,16 +302,39 @@ static int k3_r5_rproc_request_mbox(struct rproc *rproc)
  */
 static int k3_r5_rproc_prepare(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct k3_r5_cluster *cluster = kproc->cluster;
-	struct k3_r5_core *core = kproc->core;
+	struct k3_rproc *kproc = rproc->priv;
+	struct k3_r5_core *core = kproc->priv, *core0, *core1;
+	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *dev = kproc->dev;
 	u32 ctrl = 0, cfg = 0, stat = 0;
 	u64 boot_vec = 0;
 	bool mem_init_dis;
 	int ret;
 
-	ret = ti_sci_proc_get_status(core->tsp, &boot_vec, &cfg, &ctrl, &stat);
+	/*
+	 * R5 cores require to be powered on sequentially, core0 should be in
+	 * higher power state than core1 in a cluster. So, wait for core0 to
+	 * power up before proceeding to core1 and put timeout of 2sec. This
+	 * waiting mechanism is necessary because rproc_auto_boot_callback() for
+	 * core1 can be called before core0 due to thread execution order.
+	 *
+	 * By placing the wait mechanism here in .prepare() ops, this condition
+	 * is enforced for rproc boot requests from sysfs as well.
+	 */
+	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
+	core1 = list_last_entry(&cluster->cores, struct k3_r5_core, elem);
+	if (cluster->mode == CLUSTER_MODE_SPLIT && core == core1 &&
+	    !core0->released_from_reset) {
+		ret = wait_event_interruptible_timeout(cluster->core_transition,
+						       core0->released_from_reset,
+						       msecs_to_jiffies(2000));
+		if (ret <= 0) {
+			dev_err(dev, "can not power up core1 before core0");
+			return -EPERM;
+		}
+	}
+
+	ret = ti_sci_proc_get_status(kproc->tsp, &boot_vec, &cfg, &ctrl, &stat);
 	if (ret < 0)
 		return ret;
 	mem_init_dis = !!(cfg & PROC_BOOT_CFG_FLAG_R5_MEM_INIT_DIS);
@@ -463,12 +342,20 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 	/* Re-use LockStep-mode reset logic for Single-CPU mode */
 	ret = (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
 	       cluster->mode == CLUSTER_MODE_SINGLECPU) ?
-		k3_r5_lockstep_release(cluster) : k3_r5_split_release(core);
+		k3_r5_lockstep_release(cluster) : k3_r5_split_release(kproc);
 	if (ret) {
 		dev_err(dev, "unable to enable cores for TCM loading, ret = %d\n",
 			ret);
 		return ret;
 	}
+
+	/*
+	 * Notify all threads in the wait queue when core0 state has changed so
+	 * that threads waiting for this condition can be executed.
+	 */
+	core->released_from_reset = true;
+	if (core == core0)
+		wake_up_interruptible(&cluster->core_transition);
 
 	/*
 	 * Newer IP revisions like on J7200 SoCs support h/w auto-initialization
@@ -487,10 +374,10 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 	 * can be effective on all TCM addresses.
 	 */
 	dev_dbg(dev, "zeroing out ATCM memory\n");
-	memset_io(core->mem[0].cpu_addr, 0x00, core->mem[0].size);
+	memset_io(kproc->mem[0].cpu_addr, 0x00, kproc->mem[0].size);
 
 	dev_dbg(dev, "zeroing out BTCM memory\n");
-	memset_io(core->mem[1].cpu_addr, 0x00, core->mem[1].size);
+	memset_io(kproc->mem[1].cpu_addr, 0x00, kproc->mem[1].size);
 
 	return 0;
 }
@@ -513,18 +400,46 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
  */
 static int k3_r5_rproc_unprepare(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct k3_r5_cluster *cluster = kproc->cluster;
-	struct k3_r5_core *core = kproc->core;
+	struct k3_rproc *kproc = rproc->priv;
+	struct k3_r5_core *core = kproc->priv, *core0, *core1;
+	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *dev = kproc->dev;
 	int ret;
+
+	/*
+	 * Ensure power-down of cores is sequential in split mode. Core1 must
+	 * power down before Core0 to maintain the expected state. By placing
+	 * the wait mechanism here in .unprepare() ops, this condition is
+	 * enforced for rproc stop or shutdown requests from sysfs and device
+	 * removal as well.
+	 */
+	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
+	core1 = list_last_entry(&cluster->cores, struct k3_r5_core, elem);
+	if (cluster->mode == CLUSTER_MODE_SPLIT && core == core0 &&
+	    core1->released_from_reset) {
+		ret = wait_event_interruptible_timeout(cluster->core_transition,
+						       !core1->released_from_reset,
+						       msecs_to_jiffies(2000));
+		if (ret <= 0) {
+			dev_err(dev, "can not power down core0 before core1");
+			return -EPERM;
+		}
+	}
 
 	/* Re-use LockStep-mode reset logic for Single-CPU mode */
 	ret = (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
 	       cluster->mode == CLUSTER_MODE_SINGLECPU) ?
-		k3_r5_lockstep_reset(cluster) : k3_r5_split_reset(core);
+		k3_r5_lockstep_reset(cluster) : k3_r5_split_reset(kproc);
 	if (ret)
 		dev_err(dev, "unable to disable cores, ret = %d\n", ret);
+
+	/*
+	 * Notify all threads in the wait queue when core1 state has changed so
+	 * that threads waiting for this condition can be executed.
+	 */
+	core->released_from_reset = false;
+	if (core == core1)
+		wake_up_interruptible(&cluster->core_transition);
 
 	return ret;
 }
@@ -548,10 +463,10 @@ static int k3_r5_rproc_unprepare(struct rproc *rproc)
  */
 static int k3_r5_rproc_start(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct k3_r5_cluster *cluster = kproc->cluster;
+	struct k3_rproc *kproc = rproc->priv;
+	struct k3_r5_core *core = kproc->priv;
+	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *dev = kproc->dev;
-	struct k3_r5_core *core0, *core;
 	u32 boot_addr;
 	int ret;
 
@@ -560,41 +475,28 @@ static int k3_r5_rproc_start(struct rproc *rproc)
 	dev_dbg(dev, "booting R5F core using boot addr = 0x%x\n", boot_addr);
 
 	/* boot vector need not be programmed for Core1 in LockStep mode */
-	core = kproc->core;
-	ret = ti_sci_proc_set_config(core->tsp, boot_addr, 0, 0);
+	ret = ti_sci_proc_set_config(kproc->tsp, boot_addr, 0, 0);
 	if (ret)
 		return ret;
 
 	/* unhalt/run all applicable cores */
 	if (cluster->mode == CLUSTER_MODE_LOCKSTEP) {
 		list_for_each_entry_reverse(core, &cluster->cores, elem) {
-			ret = k3_r5_core_run(core);
+			ret = k3_r5_core_run(core->kproc);
 			if (ret)
 				goto unroll_core_run;
 		}
 	} else {
-		/* do not allow core 1 to start before core 0 */
-		core0 = list_first_entry(&cluster->cores, struct k3_r5_core,
-					 elem);
-		if (core != core0 && core0->rproc->state == RPROC_OFFLINE) {
-			dev_err(dev, "%s: can not start core 1 before core 0\n",
-				__func__);
-			return -EPERM;
-		}
-
-		ret = k3_r5_core_run(core);
+		ret = k3_r5_core_run(core->kproc);
 		if (ret)
 			return ret;
-
-		core->released_from_reset = true;
-		wake_up_interruptible(&cluster->core_transition);
 	}
 
 	return 0;
 
 unroll_core_run:
 	list_for_each_entry_continue(core, &cluster->cores, elem) {
-		if (k3_r5_core_halt(core))
+		if (k3_r5_core_halt(core->kproc))
 			dev_warn(core->dev, "core halt back failed\n");
 	}
 	return ret;
@@ -626,33 +528,22 @@ unroll_core_run:
  */
 static int k3_r5_rproc_stop(struct rproc *rproc)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct k3_r5_cluster *cluster = kproc->cluster;
-	struct device *dev = kproc->dev;
-	struct k3_r5_core *core1, *core = kproc->core;
+	struct k3_rproc *kproc = rproc->priv;
+	struct k3_r5_core *core = kproc->priv;
+	struct k3_r5_cluster *cluster = core->cluster;
 	int ret;
 
 	/* halt all applicable cores */
 	if (cluster->mode == CLUSTER_MODE_LOCKSTEP) {
 		list_for_each_entry(core, &cluster->cores, elem) {
-			ret = k3_r5_core_halt(core);
+			ret = k3_r5_core_halt(core->kproc);
 			if (ret) {
 				core = list_prev_entry(core, elem);
 				goto unroll_core_halt;
 			}
 		}
 	} else {
-		/* do not allow core 0 to stop before core 1 */
-		core1 = list_last_entry(&cluster->cores, struct k3_r5_core,
-					elem);
-		if (core != core1 && core1->rproc->state != RPROC_OFFLINE) {
-			dev_err(dev, "%s: can not stop core 0 before core 1\n",
-				__func__);
-			ret = -EPERM;
-			goto out;
-		}
-
-		ret = k3_r5_core_halt(core);
+		ret = k3_r5_core_halt(core->kproc);
 		if (ret)
 			goto out;
 	}
@@ -661,63 +552,11 @@ static int k3_r5_rproc_stop(struct rproc *rproc)
 
 unroll_core_halt:
 	list_for_each_entry_from_reverse(core, &cluster->cores, elem) {
-		if (k3_r5_core_run(core))
+		if (k3_r5_core_run(core->kproc))
 			dev_warn(core->dev, "core run back failed\n");
 	}
 out:
 	return ret;
-}
-
-/*
- * Attach to a running R5F remote processor (IPC-only mode)
- *
- * The R5F attach callback is a NOP. The remote processor is already booted, and
- * all required resources have been acquired during probe routine, so there is
- * no need to issue any TI-SCI commands to boot the R5F cores in IPC-only mode.
- * This callback is invoked only in IPC-only mode and exists because
- * rproc_validate() checks for its existence.
- */
-static int k3_r5_rproc_attach(struct rproc *rproc) { return 0; }
-
-/*
- * Detach from a running R5F remote processor (IPC-only mode)
- *
- * The R5F detach callback is a NOP. The R5F cores are not stopped and will be
- * left in booted state in IPC-only mode. This callback is invoked only in
- * IPC-only mode and exists for sanity sake.
- */
-static int k3_r5_rproc_detach(struct rproc *rproc) { return 0; }
-
-/*
- * This function implements the .get_loaded_rsc_table() callback and is used
- * to provide the resource table for the booted R5F in IPC-only mode. The K3 R5F
- * firmwares follow a design-by-contract approach and are expected to have the
- * resource table at the base of the DDR region reserved for firmware usage.
- * This provides flexibility for the remote processor to be booted by different
- * bootloaders that may or may not have the ability to publish the resource table
- * address and size through a DT property. This callback is invoked only in
- * IPC-only mode.
- */
-static struct resource_table *k3_r5_get_loaded_rsc_table(struct rproc *rproc,
-							 size_t *rsc_table_sz)
-{
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct device *dev = kproc->dev;
-
-	if (!kproc->rmem[0].cpu_addr) {
-		dev_err(dev, "memory-region #1 does not exist, loaded rsc table can't be found");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	/*
-	 * NOTE: The resource table size is currently hard-coded to a maximum
-	 * of 256 bytes. The most common resource table usage for K3 firmwares
-	 * is to only have the vdev resource entry and an optional trace entry.
-	 * The exact size could be computed based on resource table address, but
-	 * the hard-coded value suffices to support the IPC-only mode.
-	 */
-	*rsc_table_sz = 256;
-	return (__force struct resource_table *)kproc->rmem[0].cpu_addr;
 }
 
 /*
@@ -730,37 +569,15 @@ static struct resource_table *k3_r5_get_loaded_rsc_table(struct rproc *rproc,
  */
 static void *k3_r5_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
-	struct k3_r5_rproc *kproc = rproc->priv;
-	struct k3_r5_core *core = kproc->core;
+	struct k3_rproc *kproc = rproc->priv;
+	struct k3_r5_core *core = kproc->priv;
 	void __iomem *va = NULL;
-	phys_addr_t bus_addr;
 	u32 dev_addr, offset;
 	size_t size;
 	int i;
 
 	if (len == 0)
 		return NULL;
-
-	/* handle both R5 and SoC views of ATCM and BTCM */
-	for (i = 0; i < core->num_mems; i++) {
-		bus_addr = core->mem[i].bus_addr;
-		dev_addr = core->mem[i].dev_addr;
-		size = core->mem[i].size;
-
-		/* handle R5-view addresses of TCMs */
-		if (da >= dev_addr && ((da + len) <= (dev_addr + size))) {
-			offset = da - dev_addr;
-			va = core->mem[i].cpu_addr + offset;
-			return (__force void *)va;
-		}
-
-		/* handle SoC-view addresses of TCMs */
-		if (da >= bus_addr && ((da + len) <= (bus_addr + size))) {
-			offset = da - bus_addr;
-			va = core->mem[i].cpu_addr + offset;
-			return (__force void *)va;
-		}
-	}
 
 	/* handle any SRAM regions using SoC-view addresses */
 	for (i = 0; i < core->num_sram; i++) {
@@ -774,19 +591,8 @@ static void *k3_r5_rproc_da_to_va(struct rproc *rproc, u64 da, size_t len, bool 
 		}
 	}
 
-	/* handle static DDR reserved memory regions */
-	for (i = 0; i < kproc->num_rmems; i++) {
-		dev_addr = kproc->rmem[i].dev_addr;
-		size = kproc->rmem[i].size;
-
-		if (da >= dev_addr && ((da + len) <= (dev_addr + size))) {
-			offset = da - dev_addr;
-			va = kproc->rmem[i].cpu_addr + offset;
-			return (__force void *)va;
-		}
-	}
-
-	return NULL;
+	/* handle both TCM and DDR memory regions */
+	return k3_rproc_da_to_va(rproc, da, len, is_iomem);
 }
 
 static const struct rproc_ops k3_r5_rproc_ops = {
@@ -794,7 +600,7 @@ static const struct rproc_ops k3_r5_rproc_ops = {
 	.unprepare	= k3_r5_rproc_unprepare,
 	.start		= k3_r5_rproc_start,
 	.stop		= k3_r5_rproc_stop,
-	.kick		= k3_r5_rproc_kick,
+	.kick		= k3_rproc_kick,
 	.da_to_va	= k3_r5_rproc_da_to_va,
 };
 
@@ -833,11 +639,11 @@ static const struct rproc_ops k3_r5_rproc_ops = {
  * both the cores with the same settings, before reconfiguing again for
  * LockStep mode.
  */
-static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
+static int k3_r5_rproc_configure(struct k3_rproc *kproc)
 {
-	struct k3_r5_cluster *cluster = kproc->cluster;
+	struct k3_r5_core *temp, *core0, *core = kproc->priv;
+	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *dev = kproc->dev;
-	struct k3_r5_core *core0, *core, *temp;
 	u32 ctrl = 0, cfg = 0, stat = 0;
 	u32 set_cfg = 0, clr_cfg = 0;
 	u64 boot_vec = 0;
@@ -851,10 +657,10 @@ static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
 	    cluster->mode == CLUSTER_MODE_SINGLECORE) {
 		core = core0;
 	} else {
-		core = kproc->core;
+		core = kproc->priv;
 	}
 
-	ret = ti_sci_proc_get_status(core->tsp, &boot_vec, &cfg, &ctrl,
+	ret = ti_sci_proc_get_status(core->kproc->tsp, &boot_vec, &cfg, &ctrl,
 				     &stat);
 	if (ret < 0)
 		return ret;
@@ -924,7 +730,7 @@ static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
 		 * and TEINIT config is only allowed with Core0.
 		 */
 		list_for_each_entry(temp, &cluster->cores, elem) {
-			ret = k3_r5_core_halt(temp);
+			ret = k3_r5_core_halt(temp->kproc);
 			if (ret)
 				goto out;
 
@@ -932,7 +738,7 @@ static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
 				clr_cfg &= ~PROC_BOOT_CFG_FLAG_R5_LOCKSTEP;
 				clr_cfg &= ~PROC_BOOT_CFG_FLAG_R5_TEINIT;
 			}
-			ret = ti_sci_proc_set_config(temp->tsp, boot_vec,
+			ret = ti_sci_proc_set_config(temp->kproc->tsp, boot_vec,
 						     set_cfg, clr_cfg);
 			if (ret)
 				goto out;
@@ -940,106 +746,19 @@ static int k3_r5_rproc_configure(struct k3_r5_rproc *kproc)
 
 		set_cfg = PROC_BOOT_CFG_FLAG_R5_LOCKSTEP;
 		clr_cfg = 0;
-		ret = ti_sci_proc_set_config(core->tsp, boot_vec,
+		ret = ti_sci_proc_set_config(core->kproc->tsp, boot_vec,
 					     set_cfg, clr_cfg);
 	} else {
-		ret = k3_r5_core_halt(core);
+		ret = k3_r5_core_halt(core->kproc);
 		if (ret)
 			goto out;
 
-		ret = ti_sci_proc_set_config(core->tsp, boot_vec,
+		ret = ti_sci_proc_set_config(core->kproc->tsp, boot_vec,
 					     set_cfg, clr_cfg);
 	}
 
 out:
 	return ret;
-}
-
-static void k3_r5_mem_release(void *data)
-{
-	struct device *dev = data;
-
-	of_reserved_mem_device_release(dev);
-}
-
-static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
-{
-	struct device *dev = kproc->dev;
-	struct device_node *np = dev_of_node(dev);
-	struct device_node *rmem_np;
-	struct reserved_mem *rmem;
-	int num_rmems;
-	int ret, i;
-
-	num_rmems = of_property_count_elems_of_size(np, "memory-region",
-						    sizeof(phandle));
-	if (num_rmems <= 0) {
-		dev_err(dev, "device does not have reserved memory regions, ret = %d\n",
-			num_rmems);
-		return -EINVAL;
-	}
-	if (num_rmems < 2) {
-		dev_err(dev, "device needs at least two memory regions to be defined, num = %d\n",
-			num_rmems);
-		return -EINVAL;
-	}
-
-	/* use reserved memory region 0 for vring DMA allocations */
-	ret = of_reserved_mem_device_init_by_idx(dev, np, 0);
-	if (ret) {
-		dev_err(dev, "device cannot initialize DMA pool, ret = %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(dev, k3_r5_mem_release, dev);
-	if (ret)
-		return ret;
-
-	num_rmems--;
-	kproc->rmem = devm_kcalloc(dev, num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
-	if (!kproc->rmem)
-		return -ENOMEM;
-
-	/* use remaining reserved memory regions for static carveouts */
-	for (i = 0; i < num_rmems; i++) {
-		rmem_np = of_parse_phandle(np, "memory-region", i + 1);
-		if (!rmem_np)
-			return -EINVAL;
-
-		rmem = of_reserved_mem_lookup(rmem_np);
-		of_node_put(rmem_np);
-		if (!rmem)
-			return -EINVAL;
-
-		kproc->rmem[i].bus_addr = rmem->base;
-		/*
-		 * R5Fs do not have an MMU, but have a Region Address Translator
-		 * (RAT) module that provides a fixed entry translation between
-		 * the 32-bit processor addresses to 64-bit bus addresses. The
-		 * RAT is programmable only by the R5F cores. Support for RAT
-		 * is currently not supported, so 64-bit address regions are not
-		 * supported. The absence of MMUs implies that the R5F device
-		 * addresses/supported memory regions are restricted to 32-bit
-		 * bus addresses, and are identical
-		 */
-		kproc->rmem[i].dev_addr = (u32)rmem->base;
-		kproc->rmem[i].size = rmem->size;
-		kproc->rmem[i].cpu_addr = devm_ioremap_wc(dev, rmem->base, rmem->size);
-		if (!kproc->rmem[i].cpu_addr) {
-			dev_err(dev, "failed to map reserved memory#%d at %pa of size %pa\n",
-				i + 1, &rmem->base, &rmem->size);
-			return -ENOMEM;
-		}
-
-		dev_dbg(dev, "reserved memory%d: bus addr %pa size 0x%zx va %pK da 0x%x\n",
-			i + 1, &kproc->rmem[i].bus_addr,
-			kproc->rmem[i].size, kproc->rmem[i].cpu_addr,
-			kproc->rmem[i].dev_addr);
-	}
-	kproc->num_rmems = num_rmems;
-
-	return 0;
 }
 
 /*
@@ -1055,12 +774,11 @@ static int k3_r5_reserved_mem_init(struct k3_r5_rproc *kproc)
  * supported SoCs. The Core0 TCM sizes therefore have to be adjusted to only
  * half the original size in Split mode.
  */
-static void k3_r5_adjust_tcm_sizes(struct k3_r5_rproc *kproc)
+static void k3_r5_adjust_tcm_sizes(struct k3_rproc *kproc)
 {
-	struct k3_r5_cluster *cluster = kproc->cluster;
-	struct k3_r5_core *core = kproc->core;
+	struct k3_r5_core *core0, *core = kproc->priv;
+	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *cdev = core->dev;
-	struct k3_r5_core *core0;
 
 	if (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
 	    cluster->mode == CLUSTER_MODE_SINGLECPU ||
@@ -1070,14 +788,14 @@ static void k3_r5_adjust_tcm_sizes(struct k3_r5_rproc *kproc)
 
 	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
 	if (core == core0) {
-		WARN_ON(core->mem[0].size != SZ_64K);
-		WARN_ON(core->mem[1].size != SZ_64K);
+		WARN_ON(kproc->mem[0].size != SZ_64K);
+		WARN_ON(kproc->mem[1].size != SZ_64K);
 
-		core->mem[0].size /= 2;
-		core->mem[1].size /= 2;
+		kproc->mem[0].size /= 2;
+		kproc->mem[1].size /= 2;
 
 		dev_dbg(cdev, "adjusted TCM sizes, ATCM = 0x%zx BTCM = 0x%zx\n",
-			core->mem[0].size, core->mem[1].size);
+			kproc->mem[0].size, kproc->mem[1].size);
 	}
 }
 
@@ -1094,24 +812,23 @@ static void k3_r5_adjust_tcm_sizes(struct k3_r5_rproc *kproc)
  * actual values configured by bootloader. The driver internal device memory
  * addresses for TCMs are also updated.
  */
-static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
+static int k3_r5_rproc_configure_mode(struct k3_rproc *kproc)
 {
-	struct k3_r5_cluster *cluster = kproc->cluster;
-	struct k3_r5_core *core = kproc->core;
+	struct k3_r5_core *core0, *core = kproc->priv;
+	struct k3_r5_cluster *cluster = core->cluster;
 	struct device *cdev = core->dev;
 	bool r_state = false, c_state = false, lockstep_en = false, single_cpu = false;
 	u32 ctrl = 0, cfg = 0, stat = 0, halted = 0;
 	u64 boot_vec = 0;
 	u32 atcm_enable, btcm_enable, loczrama;
-	struct k3_r5_core *core0;
 	enum cluster_mode mode = cluster->mode;
 	int reset_ctrl_status;
 	int ret;
 
 	core0 = list_first_entry(&cluster->cores, struct k3_r5_core, elem);
 
-	ret = core->ti_sci->ops.dev_ops.is_on(core->ti_sci, core->ti_sci_id,
-					      &r_state, &c_state);
+	ret = kproc->ti_sci->ops.dev_ops.is_on(kproc->ti_sci, kproc->ti_sci_id,
+					       &r_state, &c_state);
 	if (ret) {
 		dev_err(cdev, "failed to get initial state, mode cannot be determined, ret = %d\n",
 			ret);
@@ -1122,7 +839,7 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 			 r_state, c_state);
 	}
 
-	reset_ctrl_status = reset_control_status(core->reset);
+	reset_ctrl_status = reset_control_status(kproc->reset);
 	if (reset_ctrl_status < 0) {
 		dev_err(cdev, "failed to get initial local reset status, ret = %d\n",
 			reset_ctrl_status);
@@ -1135,7 +852,7 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 	 */
 	core->released_from_reset = c_state;
 
-	ret = ti_sci_proc_get_status(core->tsp, &boot_vec, &cfg, &ctrl,
+	ret = ti_sci_proc_get_status(kproc->tsp, &boot_vec, &cfg, &ctrl,
 				     &stat);
 	if (ret < 0) {
 		dev_err(cdev, "failed to get initial processor status, ret = %d\n",
@@ -1170,10 +887,10 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 		kproc->rproc->ops->unprepare = NULL;
 		kproc->rproc->ops->start = NULL;
 		kproc->rproc->ops->stop = NULL;
-		kproc->rproc->ops->attach = k3_r5_rproc_attach;
-		kproc->rproc->ops->detach = k3_r5_rproc_detach;
+		kproc->rproc->ops->attach = k3_rproc_attach;
+		kproc->rproc->ops->detach = k3_rproc_detach;
 		kproc->rproc->ops->get_loaded_rsc_table =
-						k3_r5_get_loaded_rsc_table;
+						k3_get_loaded_rsc_table;
 	} else if (!c_state) {
 		dev_info(cdev, "configured R5F for remoteproc mode\n");
 		ret = 0;
@@ -1192,240 +909,53 @@ static int k3_r5_rproc_configure_mode(struct k3_r5_rproc *kproc)
 		core->atcm_enable = atcm_enable;
 		core->btcm_enable = btcm_enable;
 		core->loczrama = loczrama;
-		core->mem[0].dev_addr = loczrama ? 0 : K3_R5_TCM_DEV_ADDR;
-		core->mem[1].dev_addr = loczrama ? K3_R5_TCM_DEV_ADDR : 0;
+		kproc->mem[0].dev_addr = loczrama ? 0 : K3_R5_TCM_DEV_ADDR;
+		kproc->mem[1].dev_addr = loczrama ? K3_R5_TCM_DEV_ADDR : 0;
 	}
 
 	return ret;
-}
-
-static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
-{
-	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
-	struct k3_r5_rproc *kproc;
-	struct k3_r5_core *core, *core1;
-	struct device *cdev;
-	const char *fw_name;
-	struct rproc *rproc;
-	int ret, ret1;
-
-	core1 = list_last_entry(&cluster->cores, struct k3_r5_core, elem);
-	list_for_each_entry(core, &cluster->cores, elem) {
-		cdev = core->dev;
-		ret = rproc_of_parse_firmware(cdev, 0, &fw_name);
-		if (ret) {
-			dev_err(dev, "failed to parse firmware-name property, ret = %d\n",
-				ret);
-			goto out;
-		}
-
-		rproc = devm_rproc_alloc(cdev, dev_name(cdev), &k3_r5_rproc_ops,
-					 fw_name, sizeof(*kproc));
-		if (!rproc) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		/* K3 R5s have a Region Address Translator (RAT) but no MMU */
-		rproc->has_iommu = false;
-		/* error recovery is not supported at present */
-		rproc->recovery_disabled = true;
-
-		kproc = rproc->priv;
-		kproc->cluster = cluster;
-		kproc->core = core;
-		kproc->dev = cdev;
-		kproc->rproc = rproc;
-		core->rproc = rproc;
-
-		ret = k3_r5_rproc_request_mbox(rproc);
-		if (ret)
-			return ret;
-
-		ret = k3_r5_rproc_configure_mode(kproc);
-		if (ret < 0)
-			goto out;
-		if (ret)
-			goto init_rmem;
-
-		ret = k3_r5_rproc_configure(kproc);
-		if (ret) {
-			dev_err(dev, "initial configure failed, ret = %d\n",
-				ret);
-			goto out;
-		}
-
-init_rmem:
-		k3_r5_adjust_tcm_sizes(kproc);
-
-		ret = k3_r5_reserved_mem_init(kproc);
-		if (ret) {
-			dev_err(dev, "reserved memory init failed, ret = %d\n",
-				ret);
-			goto out;
-		}
-
-		ret = devm_rproc_add(dev, rproc);
-		if (ret) {
-			dev_err_probe(dev, ret, "rproc_add failed\n");
-			goto out;
-		}
-
-		/* create only one rproc in lockstep, single-cpu or
-		 * single core mode
-		 */
-		if (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
-		    cluster->mode == CLUSTER_MODE_SINGLECPU ||
-		    cluster->mode == CLUSTER_MODE_SINGLECORE)
-			break;
-
-		/*
-		 * R5 cores require to be powered on sequentially, core0
-		 * should be in higher power state than core1 in a cluster
-		 * So, wait for current core to power up before proceeding
-		 * to next core and put timeout of 2sec for each core.
-		 *
-		 * This waiting mechanism is necessary because
-		 * rproc_auto_boot_callback() for core1 can be called before
-		 * core0 due to thread execution order.
-		 */
-		ret = wait_event_interruptible_timeout(cluster->core_transition,
-						       core->released_from_reset,
-						       msecs_to_jiffies(2000));
-		if (ret <= 0) {
-			dev_err(dev,
-				"Timed out waiting for %s core to power up!\n",
-				rproc->name);
-			goto out;
-		}
-	}
-
-	return 0;
-
-err_split:
-	if (rproc->state == RPROC_ATTACHED) {
-		ret1 = rproc_detach(rproc);
-		if (ret1) {
-			dev_err(kproc->dev, "failed to detach rproc, ret = %d\n",
-				ret1);
-			return ret1;
-		}
-	}
-
-out:
-	/* undo core0 upon any failures on core1 in split-mode */
-	if (cluster->mode == CLUSTER_MODE_SPLIT && core == core1) {
-		core = list_prev_entry(core, elem);
-		rproc = core->rproc;
-		kproc = rproc->priv;
-		goto err_split;
-	}
-	return ret;
-}
-
-static void k3_r5_cluster_rproc_exit(void *data)
-{
-	struct k3_r5_cluster *cluster = platform_get_drvdata(data);
-	struct k3_r5_rproc *kproc;
-	struct k3_r5_core *core;
-	struct rproc *rproc;
-	int ret;
-
-	/*
-	 * lockstep mode and single-cpu modes have only one rproc associated
-	 * with first core, whereas split-mode has two rprocs associated with
-	 * each core, and requires that core1 be powered down first
-	 */
-	core = (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
-		cluster->mode == CLUSTER_MODE_SINGLECPU) ?
-		list_first_entry(&cluster->cores, struct k3_r5_core, elem) :
-		list_last_entry(&cluster->cores, struct k3_r5_core, elem);
-
-	list_for_each_entry_from_reverse(core, &cluster->cores, elem) {
-		rproc = core->rproc;
-		kproc = rproc->priv;
-
-		if (rproc->state == RPROC_ATTACHED) {
-			ret = rproc_detach(rproc);
-			if (ret) {
-				dev_err(kproc->dev, "failed to detach rproc, ret = %d\n", ret);
-				return;
-			}
-		}
-
-		mbox_free_channel(kproc->mbox);
-	}
 }
 
 static int k3_r5_core_of_get_internal_memories(struct platform_device *pdev,
-					       struct k3_r5_core *core)
+					       struct k3_rproc *kproc)
 {
-	static const char * const mem_names[] = {"atcm", "btcm"};
+	const struct k3_rproc_dev_data *data = kproc->data;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
+	struct k3_r5_core *core = kproc->priv;
 	int num_mems;
-	int i;
+	int i, ret;
 
-	num_mems = ARRAY_SIZE(mem_names);
-	core->mem = devm_kcalloc(dev, num_mems, sizeof(*core->mem), GFP_KERNEL);
-	if (!core->mem)
+	num_mems = data->num_mems;
+	kproc->mem = devm_kcalloc(kproc->dev, num_mems, sizeof(*kproc->mem),
+				  GFP_KERNEL);
+	if (!kproc->mem)
 		return -ENOMEM;
 
+	ret = k3_rproc_of_get_memories(pdev, kproc);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < num_mems; i++) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   mem_names[i]);
-		if (!res) {
-			dev_err(dev, "found no memory resource for %s\n",
-				mem_names[i]);
-			return -EINVAL;
-		}
-		if (!devm_request_mem_region(dev, res->start,
-					     resource_size(res),
-					     dev_name(dev))) {
-			dev_err(dev, "could not request %s region for resource\n",
-				mem_names[i]);
-			return -EBUSY;
-		}
-
-		/*
-		 * TCMs are designed in general to support RAM-like backing
-		 * memories. So, map these as Normal Non-Cached memories. This
-		 * also avoids/fixes any potential alignment faults due to
-		 * unaligned data accesses when using memcpy() or memset()
-		 * functions (normally seen with device type memory).
-		 */
-		core->mem[i].cpu_addr = devm_ioremap_wc(dev, res->start,
-							resource_size(res));
-		if (!core->mem[i].cpu_addr) {
-			dev_err(dev, "failed to map %s memory\n", mem_names[i]);
-			return -ENOMEM;
-		}
-		core->mem[i].bus_addr = res->start;
-
 		/*
 		 * TODO:
 		 * The R5F cores can place ATCM & BTCM anywhere in its address
 		 * based on the corresponding Region Registers in the System
 		 * Control coprocessor. For now, place ATCM and BTCM at
 		 * addresses 0 and 0x41010000 (same as the bus address on AM65x
-		 * SoCs) based on loczrama setting
+		 * SoCs) based on loczrama setting overriding default assignment
+		 * done by k3_rproc_of_get_memories().
 		 */
-		if (!strcmp(mem_names[i], "atcm")) {
-			core->mem[i].dev_addr = core->loczrama ?
+		if (!strcmp(data->mems[i].name, "atcm")) {
+			kproc->mem[i].dev_addr = core->loczrama ?
 							0 : K3_R5_TCM_DEV_ADDR;
 		} else {
-			core->mem[i].dev_addr = core->loczrama ?
+			kproc->mem[i].dev_addr = core->loczrama ?
 							K3_R5_TCM_DEV_ADDR : 0;
 		}
-		core->mem[i].size = resource_size(res);
 
-		dev_dbg(dev, "memory %5s: bus addr %pa size 0x%zx va %pK da 0x%x\n",
-			mem_names[i], &core->mem[i].bus_addr,
-			core->mem[i].size, core->mem[i].cpu_addr,
-			core->mem[i].dev_addr);
+		dev_dbg(dev, "Updating bus addr %pa of memory %5s\n",
+			&kproc->mem[i].bus_addr, data->mems[i].name);
 	}
-	core->num_mems = num_mems;
 
 	return 0;
 }
@@ -1487,11 +1017,198 @@ static int k3_r5_core_of_get_sram_memories(struct platform_device *pdev,
 	return 0;
 }
 
-static void k3_r5_release_tsp(void *data)
+static int k3_r5_cluster_rproc_init(struct platform_device *pdev)
 {
-	struct ti_sci_proc *tsp = data;
+	struct k3_r5_cluster *cluster = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
+	struct k3_rproc *kproc;
+	struct k3_r5_core *core, *core1;
+	struct device_node *np;
+	struct device *cdev;
+	const char *fw_name;
+	struct rproc *rproc;
+	int ret, ret1;
 
-	ti_sci_proc_release(tsp);
+	core1 = list_last_entry(&cluster->cores, struct k3_r5_core, elem);
+	list_for_each_entry(core, &cluster->cores, elem) {
+		cdev = core->dev;
+		np = dev_of_node(cdev);
+		ret = rproc_of_parse_firmware(cdev, 0, &fw_name);
+		if (ret) {
+			dev_err(dev, "failed to parse firmware-name property, ret = %d\n",
+				ret);
+			goto out;
+		}
+
+		rproc = devm_rproc_alloc(cdev, dev_name(cdev), &k3_r5_rproc_ops,
+					 fw_name, sizeof(*kproc));
+		if (!rproc) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		/* K3 R5s have a Region Address Translator (RAT) but no MMU */
+		rproc->has_iommu = false;
+		/* error recovery is not supported at present */
+		rproc->recovery_disabled = true;
+
+		kproc = rproc->priv;
+		kproc->priv = core;
+		kproc->dev = cdev;
+		kproc->rproc = rproc;
+		kproc->data = cluster->soc_data->core_data;
+		core->kproc = kproc;
+
+		kproc->ti_sci = devm_ti_sci_get_by_phandle(cdev, "ti,sci");
+		if (IS_ERR(kproc->ti_sci)) {
+			ret = dev_err_probe(cdev, PTR_ERR(kproc->ti_sci),
+					    "failed to get ti-sci handle\n");
+			kproc->ti_sci = NULL;
+			goto out;
+		}
+
+		ret = of_property_read_u32(np, "ti,sci-dev-id", &kproc->ti_sci_id);
+		if (ret) {
+			dev_err(cdev, "missing 'ti,sci-dev-id' property\n");
+			goto out;
+		}
+
+		kproc->reset = devm_reset_control_get_exclusive(cdev, NULL);
+		if (IS_ERR_OR_NULL(kproc->reset)) {
+			ret = PTR_ERR_OR_ZERO(kproc->reset);
+			if (!ret)
+				ret = -ENODEV;
+			dev_err_probe(cdev, ret, "failed to get reset handle\n");
+			goto out;
+		}
+
+		kproc->tsp = ti_sci_proc_of_get_tsp(cdev, kproc->ti_sci);
+		if (IS_ERR(kproc->tsp)) {
+			ret = dev_err_probe(cdev, PTR_ERR(kproc->tsp),
+					    "failed to construct ti-sci proc control\n");
+			goto out;
+		}
+
+		ret = k3_r5_core_of_get_internal_memories(to_platform_device(cdev), kproc);
+		if (ret) {
+			dev_err(cdev, "failed to get internal memories, ret = %d\n",
+				ret);
+			goto out;
+		}
+
+		ret = ti_sci_proc_request(kproc->tsp);
+		if (ret < 0) {
+			dev_err(cdev, "ti_sci_proc_request failed, ret = %d\n", ret);
+			goto out;
+		}
+
+		ret = devm_add_action_or_reset(cdev, k3_release_tsp, kproc->tsp);
+		if (ret)
+			goto out;
+	}
+
+	list_for_each_entry(core, &cluster->cores, elem) {
+		cdev = core->dev;
+		kproc = core->kproc;
+		rproc = kproc->rproc;
+
+		ret = k3_rproc_request_mbox(rproc);
+		if (ret)
+			return ret;
+
+		ret = k3_r5_rproc_configure_mode(kproc);
+		if (ret < 0)
+			goto out;
+		if (ret)
+			goto init_rmem;
+
+		ret = k3_r5_rproc_configure(kproc);
+		if (ret) {
+			dev_err(cdev, "initial configure failed, ret = %d\n",
+				ret);
+			goto out;
+		}
+
+init_rmem:
+		k3_r5_adjust_tcm_sizes(kproc);
+
+		ret = k3_reserved_mem_init(kproc);
+		if (ret) {
+			dev_err(cdev, "reserved memory init failed, ret = %d\n",
+				ret);
+			goto out;
+		}
+
+		ret = devm_rproc_add(cdev, rproc);
+		if (ret) {
+			dev_err_probe(cdev, ret, "rproc_add failed\n");
+			goto out;
+		}
+
+		/* create only one rproc in lockstep, single-cpu or
+		 * single core mode
+		 */
+		if (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
+		    cluster->mode == CLUSTER_MODE_SINGLECPU ||
+		    cluster->mode == CLUSTER_MODE_SINGLECORE)
+			break;
+	}
+
+	return 0;
+
+err_split:
+	if (rproc->state == RPROC_ATTACHED) {
+		ret1 = rproc_detach(rproc);
+		if (ret1) {
+			dev_err(kproc->dev, "failed to detach rproc, ret = %d\n",
+				ret1);
+			return ret1;
+		}
+	}
+
+out:
+	/* undo core0 upon any failures on core1 in split-mode */
+	if (cluster->mode == CLUSTER_MODE_SPLIT && core == core1) {
+		core = list_prev_entry(core, elem);
+		kproc = core->kproc;
+		rproc = kproc->rproc;
+		goto err_split;
+	}
+	return ret;
+}
+
+static void k3_r5_cluster_rproc_exit(void *data)
+{
+	struct k3_r5_cluster *cluster = platform_get_drvdata(data);
+	struct k3_rproc *kproc;
+	struct k3_r5_core *core;
+	struct rproc *rproc;
+	int ret;
+
+	/*
+	 * lockstep mode and single-cpu modes have only one rproc associated
+	 * with first core, whereas split-mode has two rprocs associated with
+	 * each core, and requires that core1 be powered down first
+	 */
+	core = (cluster->mode == CLUSTER_MODE_LOCKSTEP ||
+		cluster->mode == CLUSTER_MODE_SINGLECPU) ?
+		list_first_entry(&cluster->cores, struct k3_r5_core, elem) :
+		list_last_entry(&cluster->cores, struct k3_r5_core, elem);
+
+	list_for_each_entry_from_reverse(core, &cluster->cores, elem) {
+		kproc = core->kproc;
+		rproc = kproc->rproc;
+
+		if (rproc->state == RPROC_ATTACHED) {
+			ret = rproc_detach(rproc);
+			if (ret) {
+				dev_err(kproc->dev, "failed to detach rproc, ret = %d\n", ret);
+				return;
+			}
+		}
+
+		mbox_free_channel(kproc->mbox);
+	}
 }
 
 static int k3_r5_core_of_init(struct platform_device *pdev)
@@ -1539,57 +1256,11 @@ static int k3_r5_core_of_init(struct platform_device *pdev)
 		goto err;
 	}
 
-	core->ti_sci = devm_ti_sci_get_by_phandle(dev, "ti,sci");
-	if (IS_ERR(core->ti_sci)) {
-		ret = dev_err_probe(dev, PTR_ERR(core->ti_sci), "failed to get ti-sci handle\n");
-		core->ti_sci = NULL;
-		goto err;
-	}
-
-	ret = of_property_read_u32(np, "ti,sci-dev-id", &core->ti_sci_id);
-	if (ret) {
-		dev_err(dev, "missing 'ti,sci-dev-id' property\n");
-		goto err;
-	}
-
-	core->reset = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR_OR_NULL(core->reset)) {
-		ret = PTR_ERR_OR_ZERO(core->reset);
-		if (!ret)
-			ret = -ENODEV;
-		dev_err_probe(dev, ret, "failed to get reset handle\n");
-		goto err;
-	}
-
-	core->tsp = ti_sci_proc_of_get_tsp(dev, core->ti_sci);
-	if (IS_ERR(core->tsp)) {
-		ret = dev_err_probe(dev, PTR_ERR(core->tsp),
-				    "failed to construct ti-sci proc control\n");
-		goto err;
-	}
-
-	ret = k3_r5_core_of_get_internal_memories(pdev, core);
-	if (ret) {
-		dev_err(dev, "failed to get internal memories, ret = %d\n",
-			ret);
-		goto err;
-	}
-
 	ret = k3_r5_core_of_get_sram_memories(pdev, core);
 	if (ret) {
 		dev_err(dev, "failed to get sram memories, ret = %d\n", ret);
 		goto err;
 	}
-
-	ret = ti_sci_proc_request(core->tsp);
-	if (ret < 0) {
-		dev_err(dev, "ti_sci_proc_request failed, ret = %d\n", ret);
-		goto err;
-	}
-
-	ret = devm_add_action_or_reset(dev, k3_r5_release_tsp, core->tsp);
-	if (ret)
-		goto err;
 
 	platform_set_drvdata(pdev, core);
 	devres_close_group(dev, k3_r5_core_of_init);
@@ -1652,6 +1323,7 @@ static int k3_r5_cluster_of_init(struct platform_device *pdev)
 		}
 
 		core = platform_get_drvdata(cpdev);
+		core->cluster = cluster;
 		put_device(&cpdev->dev);
 		list_add_tail(&core->elem, &cluster->cores);
 	}
@@ -1749,11 +1421,24 @@ static int k3_r5_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct k3_rproc_mem_data r5_mems[] = {
+	{ .name = "atcm", .dev_addr = 0x0 },
+	{ .name = "btcm", .dev_addr = K3_R5_TCM_DEV_ADDR },
+};
+
+static const struct k3_rproc_dev_data r5_data = {
+	.mems = r5_mems,
+	.num_mems = ARRAY_SIZE(r5_mems),
+	.boot_align_addr = 0,
+	.uses_lreset = true,
+};
+
 static const struct k3_r5_soc_data am65_j721e_soc_data = {
 	.tcm_is_double = false,
 	.tcm_ecc_autoinit = false,
 	.single_cpu_mode = false,
 	.is_single_core = false,
+	.core_data = &r5_data,
 };
 
 static const struct k3_r5_soc_data j7200_j721s2_soc_data = {
@@ -1761,6 +1446,7 @@ static const struct k3_r5_soc_data j7200_j721s2_soc_data = {
 	.tcm_ecc_autoinit = true,
 	.single_cpu_mode = false,
 	.is_single_core = false,
+	.core_data = &r5_data,
 };
 
 static const struct k3_r5_soc_data am64_soc_data = {
@@ -1768,6 +1454,7 @@ static const struct k3_r5_soc_data am64_soc_data = {
 	.tcm_ecc_autoinit = true,
 	.single_cpu_mode = true,
 	.is_single_core = false,
+	.core_data = &r5_data,
 };
 
 static const struct k3_r5_soc_data am62_soc_data = {
@@ -1775,6 +1462,7 @@ static const struct k3_r5_soc_data am62_soc_data = {
 	.tcm_ecc_autoinit = true,
 	.single_cpu_mode = false,
 	.is_single_core = true,
+	.core_data = &r5_data,
 };
 
 static const struct of_device_id k3_r5_of_match[] = {

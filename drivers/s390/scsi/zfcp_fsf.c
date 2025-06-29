@@ -36,7 +36,7 @@ MODULE_PARM_DESC(ber_stop,
 
 static void zfcp_fsf_request_timeout_handler(struct timer_list *t)
 {
-	struct zfcp_fsf_req *fsf_req = from_timer(fsf_req, t, timer);
+	struct zfcp_fsf_req *fsf_req = timer_container_of(fsf_req, t, timer);
 	struct zfcp_adapter *adapter = fsf_req->adapter;
 
 	zfcp_qdio_siosl(adapter);

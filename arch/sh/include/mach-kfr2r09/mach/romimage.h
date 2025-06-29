@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 /* kfr2r09 board specific boot code:
  * converts the "partner-jet-script.txt" script into assembly
@@ -22,10 +22,10 @@
 1:	.long 0xa8000000
 2:
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 static inline void mmcif_update_progress(int nr)
 {
 }
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */

@@ -189,5 +189,29 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"
         ]
+    },
+    {
+        "id": "deb1",
+        "name": "CODEL test qdisc limit trimming",
+        "category": ["qdisc", "codel"],
+        "plugins": {
+            "requires": ["nsPlugin", "scapyPlugin"]
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 handle 1: root codel limit 10"
+        ],
+        "scapy": [
+            {
+                "iface": "$DEV0",
+                "count": 10,
+                "packet": "Ether(type=0x800)/IP(src='10.0.0.10',dst='10.0.0.20')/TCP(sport=5000,dport=10)"
+            }
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DEV1 handle 1: root codel limit 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1p target 5ms interval 100ms",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DEV1 handle 1: root"]
     }
 ]

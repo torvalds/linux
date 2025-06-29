@@ -6,6 +6,7 @@
 
 obj-$(CONFIG_AMD_HSMP)			+= hsmp_common.o
 hsmp_common-y				:= hsmp.o
+hsmp_common-$(CONFIG_HWMON)		+= hwmon.o
 obj-$(CONFIG_AMD_HSMP_PLAT)		+= amd_hsmp.o
 amd_hsmp-y				:= plat.o
 obj-$(CONFIG_AMD_HSMP_ACPI)		+= hsmp_acpi.o

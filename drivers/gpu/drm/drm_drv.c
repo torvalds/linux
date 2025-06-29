@@ -29,11 +29,13 @@
 #include <linux/bitops.h>
 #include <linux/cgroup_dmem.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/sprintf.h>
 #include <linux/srcu.h>
@@ -538,10 +540,15 @@ static const char *drm_get_wedge_recovery(unsigned int opt)
 	}
 }
 
+#define WEDGE_STR_LEN	32
+#define PID_STR_LEN	15
+#define COMM_STR_LEN	(TASK_COMM_LEN + 5)
+
 /**
  * drm_dev_wedged_event - generate a device wedged uevent
  * @dev: DRM device
  * @method: method(s) to be used for recovery
+ * @info: optional information about the guilty task
  *
  * This generates a device wedged uevent for the DRM device specified by @dev.
  * Recovery @method\(s) of choice will be sent in the uevent environment as
@@ -554,13 +561,13 @@ static const char *drm_get_wedge_recovery(unsigned int opt)
  *
  * Returns: 0 on success, negative error code otherwise.
  */
-int drm_dev_wedged_event(struct drm_device *dev, unsigned long method)
+int drm_dev_wedged_event(struct drm_device *dev, unsigned long method,
+			 struct drm_wedge_task_info *info)
 {
+	char event_string[WEDGE_STR_LEN], pid_string[PID_STR_LEN], comm_string[COMM_STR_LEN];
+	char *envp[] = { event_string, NULL, NULL, NULL };
 	const char *recovery = NULL;
 	unsigned int len, opt;
-	/* Event string length up to 28+ characters with available methods */
-	char event_string[32];
-	char *envp[] = { event_string, NULL };
 
 	len = scnprintf(event_string, sizeof(event_string), "%s", "WEDGED=");
 
@@ -569,7 +576,7 @@ int drm_dev_wedged_event(struct drm_device *dev, unsigned long method)
 		if (drm_WARN_ONCE(dev, !recovery, "invalid recovery method %u\n", opt))
 			break;
 
-		len += scnprintf(event_string + len, sizeof(event_string), "%s,", recovery);
+		len += scnprintf(event_string + len, sizeof(event_string) - len, "%s,", recovery);
 	}
 
 	if (recovery)
@@ -581,6 +588,13 @@ int drm_dev_wedged_event(struct drm_device *dev, unsigned long method)
 
 	drm_info(dev, "device wedged, %s\n", method == DRM_WEDGE_RECOVERY_NONE ?
 		 "but recovered through reset" : "needs recovery");
+
+	if (info && (info->comm[0] != '\0') && (info->pid >= 0)) {
+		snprintf(pid_string, sizeof(pid_string), "PID=%u", info->pid);
+		snprintf(comm_string, sizeof(comm_string), "TASK=%s", info->comm);
+		envp[1] = pid_string;
+		envp[2] = comm_string;
+	}
 
 	return kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
@@ -830,6 +844,47 @@ void *__devm_drm_dev_alloc(struct device *parent,
 EXPORT_SYMBOL(__devm_drm_dev_alloc);
 
 /**
+ * __drm_dev_alloc - Allocation of a &drm_device instance
+ * @parent: Parent device object
+ * @driver: DRM driver
+ * @size: the size of the struct which contains struct drm_device
+ * @offset: the offset of the &drm_device within the container.
+ *
+ * This should *NOT* be by any drivers, but is a dedicated interface for the
+ * corresponding Rust abstraction.
+ *
+ * This is the same as devm_drm_dev_alloc(), but without the corresponding
+ * resource management through the parent device, but not the same as
+ * drm_dev_alloc(), since the latter is the deprecated version, which does not
+ * support subclassing.
+ *
+ * Returns: A pointer to new DRM device, or an ERR_PTR on failure.
+ */
+void *__drm_dev_alloc(struct device *parent,
+		      const struct drm_driver *driver,
+		      size_t size, size_t offset)
+{
+	void *container;
+	struct drm_device *drm;
+	int ret;
+
+	container = kzalloc(size, GFP_KERNEL);
+	if (!container)
+		return ERR_PTR(-ENOMEM);
+
+	drm = container + offset;
+	ret = drm_dev_init(drm, driver, parent);
+	if (ret) {
+		kfree(container);
+		return ERR_PTR(ret);
+	}
+	drmm_add_final_kfree(drm, container);
+
+	return container;
+}
+EXPORT_SYMBOL(__drm_dev_alloc);
+
+/**
  * drm_dev_alloc - Allocate new DRM device
  * @driver: DRM driver to allocate device for
  * @parent: Parent device object
@@ -844,22 +899,7 @@ EXPORT_SYMBOL(__devm_drm_dev_alloc);
 struct drm_device *drm_dev_alloc(const struct drm_driver *driver,
 				 struct device *parent)
 {
-	struct drm_device *dev;
-	int ret;
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	ret = drm_dev_init(dev, driver, parent);
-	if (ret) {
-		kfree(dev);
-		return ERR_PTR(ret);
-	}
-
-	drmm_add_final_kfree(dev, dev);
-
-	return dev;
+	return __drm_dev_alloc(parent, driver, sizeof(struct drm_device), 0);
 }
 EXPORT_SYMBOL(drm_dev_alloc);
 

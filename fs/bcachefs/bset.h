@@ -517,27 +517,19 @@ void bch2_dump_bset(struct bch_fs *, struct btree *, struct bset *, unsigned);
 void bch2_dump_btree_node(struct bch_fs *, struct btree *);
 void bch2_dump_btree_node_iter(struct btree *, struct btree_node_iter *);
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-
 void __bch2_verify_btree_nr_keys(struct btree *);
-void bch2_btree_node_iter_verify(struct btree_node_iter *, struct btree *);
-void bch2_verify_insert_pos(struct btree *, struct bkey_packed *,
-			    struct bkey_packed *, unsigned);
+void __bch2_btree_node_iter_verify(struct btree_node_iter *, struct btree *);
 
-#else
-
-static inline void __bch2_verify_btree_nr_keys(struct btree *b) {}
 static inline void bch2_btree_node_iter_verify(struct btree_node_iter *iter,
-					      struct btree *b) {}
-static inline void bch2_verify_insert_pos(struct btree *b,
-					  struct bkey_packed *where,
-					  struct bkey_packed *insert,
-					  unsigned clobber_u64s) {}
-#endif
+					       struct btree *b)
+{
+	if (static_branch_unlikely(&bch2_debug_check_bset_lookups))
+		__bch2_btree_node_iter_verify(iter, b);
+}
 
 static inline void bch2_verify_btree_nr_keys(struct btree *b)
 {
-	if (bch2_debug_check_btree_accounting)
+	if (static_branch_unlikely(&bch2_debug_check_btree_accounting))
 		__bch2_verify_btree_nr_keys(b);
 }
 

@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/fsl,vf610-ccm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Clock for Freescale Vybrid VF610 SOC
+
+description:
+  The clock consumer should specify the desired clock by having the clock
+  ID in its "clocks" phandle cell. See include/dt-bindings/clock/vf610-clock.h
+  for the full list of VF610 clock IDs
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: fsl,vf610-ccm
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    items:
+      - description: external crystal oscillator 32KHz, recommended
+      - description: external crystal oscillator 24MHz, recommended
+      - description: audio
+      - description: enet
+    minItems: 2
+
+  clock-names:
+    items:
+      - const: sxosc
+      - const: fxosc
+      - const: enet_ext
+      - const: audio_ext
+    minItems: 2
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@4006b000 {
+        compatible = "fsl,vf610-ccm";
+        reg = <0x4006b000 0x1000>;
+        #clock-cells = <1>;
+        clocks = <&sxosc>, <&fxosc>;
+        clock-names = "sxosc", "fxosc";
+    };
+

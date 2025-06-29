@@ -28,10 +28,10 @@ or number from the table below.  Because of the large number of drivers,
 many drivers share a partial letter with other drivers.
 
 If you are writing a driver for a new device and need a letter, pick an
-unused block with enough room for expansion: 32 to 256 ioctl commands.
-You can register the block by patching this file and submitting the
-patch to Linus Torvalds.  Or you can e-mail me at <mec@shout.net> and
-I'll register one for you.
+unused block with enough room for expansion: 32 to 256 ioctl commands
+should suffice. You can register the block by patching this file and
+submitting the patch through :doc:`usual patch submission process
+</process/submitting-patches>`.
 
 The second argument to _IO, _IOW, _IOR, or _IOWR is a sequence number
 to distinguish ioctls from each other.  The third argument to _IOW,
@@ -62,9 +62,8 @@ Following this convention is good because:
 (5) When following the convention, the driver code can use generic
     code to copy the parameters between user and kernel space.
 
-This table lists ioctls visible from user land for Linux/x86.  It contains
-most drivers up to 2.6.31, but I know I am missing some.  There has been
-no attempt to list non-X86 architectures or ioctls from drivers/staging/.
+This table lists ioctls visible from userland, excluding ones from
+drivers/staging/.
 
 ====  =====  ======================================================= ================================================================
 Code  Seq#    Include File                                           Comments
@@ -366,6 +365,12 @@ Code  Seq#    Include File                                           Comments
                                                                      <mailto:linuxppc-dev>
 0xB2  01-02  arch/powerpc/include/uapi/asm/papr-sysparm.h            powerpc/pseries system parameter API
                                                                      <mailto:linuxppc-dev>
+0xB2  03-05  arch/powerpc/include/uapi/asm/papr-indices.h            powerpc/pseries indices API
+                                                                     <mailto:linuxppc-dev>
+0xB2  06-07  arch/powerpc/include/uapi/asm/papr-platform-dump.h      powerpc/pseries Platform Dump API
+                                                                     <mailto:linuxppc-dev>
+0xB2  08     powerpc/include/uapi/asm/papr-physical-attestation.h    powerpc/pseries Physical Attestation API
+                                                                     <mailto:linuxppc-dev>
 0xB3  00     linux/mmc/ioctl.h
 0xB4  00-0F  linux/gpio.h                                            <mailto:linux-gpio@vger.kernel.org>
 0xB5  00-0F  uapi/linux/rpmsg.h                                      <mailto:linux-remoteproc@vger.kernel.org>
@@ -397,6 +402,8 @@ Code  Seq#    Include File                                           Comments
                                                                      <mailto:mathieu.desnoyers@efficios.com>
 0xF8  all    arch/x86/include/uapi/asm/amd_hsmp.h                    AMD HSMP EPYC system management interface driver
                                                                      <mailto:nchatrad@amd.com>
+0xF9  00-0F  uapi/misc/amd-apml.h		                     AMD side band system management interface driver
+                                                                     <mailto:naveenkrishna.chatradhi@amd.com>
 0xFD  all    linux/dm-ioctl.h
 0xFE  all    linux/isst_if.h
 ====  =====  ======================================================= ================================================================

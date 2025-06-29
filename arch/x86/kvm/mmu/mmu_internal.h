@@ -187,7 +187,8 @@ static inline gfn_t kvm_gfn_root_bits(const struct kvm *kvm, const struct kvm_mm
 	return kvm_gfn_direct_bits(kvm);
 }
 
-static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm_mmu_page *sp)
+static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm *kvm,
+						      struct kvm_mmu_page *sp)
 {
 	/*
 	 * When using the EPT page-modification log, the GPAs in the CPU dirty
@@ -197,7 +198,7 @@ static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm_mmu_page *sp)
 	 * being enabled is mandatory as the bits used to denote WP-only SPTEs
 	 * are reserved for PAE paging (32-bit KVM).
 	 */
-	return kvm_x86_ops.cpu_dirty_log_size && sp->role.guest_mode;
+	return kvm->arch.cpu_dirty_log_size && sp->role.guest_mode;
 }
 
 static inline gfn_t gfn_round_for_level(gfn_t gfn, int level)

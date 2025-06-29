@@ -4,12 +4,12 @@
 
 #include <uapi/asm/signal.h>
 
-# ifndef __ASSEMBLY__
+# ifndef __ASSEMBLER__
 
 /* Most things should be clean enough to redefine this at will, if care
    is taken to make libc match.  */
 
 #include <asm/sigcontext.h>
 
-#endif /* !__ASSEMBLY */
+#endif /* !__ASSEMBLER__ */
 #endif /* _ASM_PARISC_SIGNAL_H */

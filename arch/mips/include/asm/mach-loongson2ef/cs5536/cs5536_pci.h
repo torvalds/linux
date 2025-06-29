@@ -12,11 +12,31 @@
 #ifndef _CS5536_PCI_H
 #define _CS5536_PCI_H
 
+#include <linux/init.h>
 #include <linux/types.h>
 #include <linux/pci_regs.h>
 
 extern void cs5536_pci_conf_write4(int function, int reg, u32 value);
 extern u32 cs5536_pci_conf_read4(int function, int reg);
+
+extern void pci_ehci_write_reg(int reg, u32 value);
+extern u32 pci_ehci_read_reg(int reg);
+
+extern void pci_ide_write_reg(int reg, u32 value);
+extern u32 pci_ide_read_reg(int reg);
+
+extern void pci_acc_write_reg(int reg, u32 value);
+extern u32 pci_acc_read_reg(int reg);
+
+extern void pci_ohci_write_reg(int reg, u32 value);
+extern u32 pci_ohci_read_reg(int reg);
+
+extern void pci_isa_write_bar(int n, u32 value);
+extern u32 pci_isa_read_bar(int n);
+extern void pci_isa_write_reg(int reg, u32 value);
+extern u32 pci_isa_read_reg(int reg);
+
+extern int __init init_mfgpt_clocksource(void);
 
 #define CS5536_ACC_INTR		9
 #define CS5536_IDE_INTR		14

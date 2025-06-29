@@ -1245,8 +1245,7 @@ svm_range_get_pte_flags(struct kfd_node *node,
 	case IP_VERSION(9, 4, 4):
 	case IP_VERSION(9, 5, 0):
 		if (ext_coherent)
-			mtype_local = (gc_ip_version < IP_VERSION(9, 5, 0) && !node->adev->rev_id) ?
-					AMDGPU_VM_MTYPE_UC : AMDGPU_VM_MTYPE_CC;
+			mtype_local = AMDGPU_VM_MTYPE_CC;
 		else
 			mtype_local = amdgpu_mtype_local == 1 ? AMDGPU_VM_MTYPE_NC :
 				amdgpu_mtype_local == 2 ? AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_RW;
@@ -4076,8 +4075,8 @@ exit:
 	return ret;
 }
 
-int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
-		       uint64_t *svm_priv_data_size)
+void svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
+			uint64_t *svm_priv_data_size)
 {
 	uint64_t total_size, accessibility_size, common_attr_size;
 	int nattr_common = 4, nattr_accessibility = 1;
@@ -4089,8 +4088,6 @@ int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
 	*svm_priv_data_size = 0;
 
 	svms = &p->svms;
-	if (!svms)
-		return -EINVAL;
 
 	mutex_lock(&svms->lock);
 	list_for_each_entry(prange, &svms->list, list) {
@@ -4132,7 +4129,6 @@ int svm_range_get_info(struct kfd_process *p, uint32_t *num_svm_ranges,
 
 	pr_debug("num_svm_ranges %u total_priv_size %llu\n", *num_svm_ranges,
 		 *svm_priv_data_size);
-	return 0;
 }
 
 int kfd_criu_checkpoint_svm(struct kfd_process *p,
@@ -4149,8 +4145,6 @@ int kfd_criu_checkpoint_svm(struct kfd_process *p,
 	struct mm_struct *mm;
 
 	svms = &p->svms;
-	if (!svms)
-		return -EINVAL;
 
 	mm = get_task_mm(p->lead_thread);
 	if (!mm) {

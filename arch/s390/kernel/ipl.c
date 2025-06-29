@@ -270,7 +270,7 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 {									\
 	if (len >= sizeof(_value))					\
 		return -E2BIG;						\
-	len = strscpy(_value, buf, sizeof(_value));			\
+	len = strscpy(_value, buf);					\
 	if ((ssize_t)len < 0)						\
 		return len;						\
 	strim(_value);							\
@@ -2249,26 +2249,28 @@ static int __init s390_ipl_init(void)
 
 __initcall(s390_ipl_init);
 
-static void __init strncpy_skip_quote(char *dst, char *src, int n)
+static void __init strscpy_skip_quote(char *dst, char *src, int n)
 {
 	int sx, dx;
 
-	dx = 0;
-	for (sx = 0; src[sx] != 0; sx++) {
+	if (!n)
+		return;
+	for (sx = 0, dx = 0; src[sx]; sx++) {
 		if (src[sx] == '"')
 			continue;
-		dst[dx++] = src[sx];
-		if (dx >= n)
+		dst[dx] = src[sx];
+		if (dx + 1 == n)
 			break;
+		dx++;
 	}
+	dst[dx] = '\0';
 }
 
 static int __init vmcmd_on_reboot_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_reboot, str, VMCMD_MAX_SIZE);
-	vmcmd_on_reboot[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_reboot, str, sizeof(vmcmd_on_reboot));
 	on_reboot_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2278,8 +2280,7 @@ static int __init vmcmd_on_panic_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_panic, str, VMCMD_MAX_SIZE);
-	vmcmd_on_panic[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_panic, str, sizeof(vmcmd_on_panic));
 	on_panic_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2289,8 +2290,7 @@ static int __init vmcmd_on_halt_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_halt, str, VMCMD_MAX_SIZE);
-	vmcmd_on_halt[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_halt, str, sizeof(vmcmd_on_halt));
 	on_halt_trigger.action = &vmcmd_action;
 	return 1;
 }
@@ -2300,8 +2300,7 @@ static int __init vmcmd_on_poff_setup(char *str)
 {
 	if (!machine_is_vm())
 		return 1;
-	strncpy_skip_quote(vmcmd_on_poff, str, VMCMD_MAX_SIZE);
-	vmcmd_on_poff[VMCMD_MAX_SIZE] = 0;
+	strscpy_skip_quote(vmcmd_on_poff, str, sizeof(vmcmd_on_poff));
 	on_poff_trigger.action = &vmcmd_action;
 	return 1;
 }

@@ -212,8 +212,8 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 		xintc_write(irqc, MER, MER_HIE | MER_ME);
 	}
 
-	irqc->root_domain = irq_domain_add_linear(intc, irqc->nr_irq,
-						  &xintc_irq_domain_ops, irqc);
+	irqc->root_domain = irq_domain_create_linear(of_fwnode_handle(intc), irqc->nr_irq,
+						     &xintc_irq_domain_ops, irqc);
 	if (!irqc->root_domain) {
 		pr_err("irq-xilinx: Unable to create IRQ domain\n");
 		ret = -EINVAL;

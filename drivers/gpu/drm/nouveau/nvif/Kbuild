@@ -14,6 +14,12 @@ nvif-y += nvif/outp.o
 nvif-y += nvif/timer.o
 nvif-y += nvif/vmm.o
 
+# Channel classes
+nvif-y += nvif/chan.o
+nvif-y += nvif/chan506f.o
+nvif-y += nvif/chan906f.o
+nvif-y += nvif/chanc36f.o
+
 # Usermode classes
 nvif-y += nvif/user.o
 nvif-y += nvif/userc361.o

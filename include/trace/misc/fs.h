@@ -120,3 +120,24 @@
 		{ LOOKUP_BENEATH,	"BENEATH" }, \
 		{ LOOKUP_IN_ROOT,	"IN_ROOT" }, \
 		{ LOOKUP_CACHED,	"CACHED" })
+
+#define show_ia_valid_flags(flags)			\
+	__print_flags(flags, "|",			\
+		{ ATTR_MODE,		"MODE" },	\
+		{ ATTR_UID,		"UID" },	\
+		{ ATTR_GID,		"GID" },	\
+		{ ATTR_SIZE,		"SIZE" },	\
+		{ ATTR_ATIME,		"ATIME" },	\
+		{ ATTR_MTIME,		"MTIME" },	\
+		{ ATTR_CTIME,		"CTIME" },	\
+		{ ATTR_ATIME_SET,	"ATIME_SET" },	\
+		{ ATTR_MTIME_SET,	"MTIME_SET" },	\
+		{ ATTR_FORCE,		"FORCE" },	\
+		{ ATTR_KILL_SUID,	"KILL_SUID" },	\
+		{ ATTR_KILL_SGID,	"KILL_SGID" },	\
+		{ ATTR_FILE,		"FILE" },	\
+		{ ATTR_KILL_PRIV,	"KILL_PRIV" },	\
+		{ ATTR_OPEN,		"OPEN" },	\
+		{ ATTR_TIMES_SET,	"TIMES_SET" },	\
+		{ ATTR_TOUCH,		"TOUCH"},	\
+		{ ATTR_DELEG,		"DELEG"})

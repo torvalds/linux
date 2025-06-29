@@ -43,12 +43,14 @@
 #include <rdma/ib_umem.h>
 #include <rdma/uverbs_ioctl.h>
 
-#include "hnae3.h"
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
 #include "hns_roce_hw_v2.h"
+
+#define CREATE_TRACE_POINTS
+#include "hns_roce_trace.h"
 
 enum {
 	CMD_RST_PRC_OTHERS,
@@ -738,6 +740,8 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 		else
 			ret = set_ud_wqe(qp, wr, wqe, &sge_idx, owner_bit);
 
+		trace_hns_sq_wqe(qp->qpn, wqe_idx, wqe, 1 << qp->sq.wqe_shift,
+				 wr->wr_id, TRACE_SQ);
 		if (unlikely(ret)) {
 			*bad_wr = wr;
 			goto out;
@@ -807,6 +811,9 @@ static void fill_rq_wqe(struct hns_roce_qp *hr_qp, const struct ib_recv_wr *wr,
 
 	wqe = hns_roce_get_recv_wqe(hr_qp, wqe_idx);
 	fill_recv_sge_to_wqe(wr, wqe, max_sge, hr_qp->rq.rsv_sge);
+
+	trace_hns_rq_wqe(hr_qp->qpn, wqe_idx, wqe, 1 << hr_qp->rq.wqe_shift,
+			 wr->wr_id, TRACE_RQ);
 }
 
 static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
@@ -943,7 +950,7 @@ static void fill_wqe_idx(struct hns_roce_srq *srq, unsigned int wqe_idx)
 static void update_srq_db(struct hns_roce_srq *srq)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(srq->ibsrq.device);
-	struct hns_roce_v2_db db;
+	struct hns_roce_v2_db db = {};
 
 	hr_reg_write(&db, DB_TAG, srq->srqn);
 	hr_reg_write(&db, DB_CMD, HNS_ROCE_V2_SRQ_DB);
@@ -984,6 +991,9 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 		fill_recv_sge_to_wqe(wr, wqe, max_sge, srq->rsv_sge);
 		fill_wqe_idx(srq, wqe_idx);
 		srq->wrid[wqe_idx] = wr->wr_id;
+
+		trace_hns_srq_wqe(srq->srqn, wqe_idx, wqe, 1 << srq->wqe_shift,
+				  wr->wr_id, TRACE_SRQ);
 	}
 
 	if (likely(nreq)) {
@@ -1311,6 +1321,8 @@ static int __hns_roce_cmq_send_one(struct hns_roce_dev *hr_dev,
 	tail = csq->head;
 
 	for (i = 0; i < num; i++) {
+		trace_hns_cmdq_req(hr_dev, &desc[i]);
+
 		csq->desc[csq->head++] = desc[i];
 		if (csq->head == csq->desc_num)
 			csq->head = 0;
@@ -1325,6 +1337,8 @@ static int __hns_roce_cmq_send_one(struct hns_roce_dev *hr_dev,
 	if (hns_roce_cmq_csq_done(hr_dev)) {
 		ret = 0;
 		for (i = 0; i < num; i++) {
+			trace_hns_cmdq_resp(hr_dev, &csq->desc[tail]);
+
 			/* check the result of hardware write back */
 			desc_ret = le16_to_cpu(csq->desc[tail++].retval);
 			if (tail == csq->desc_num)
@@ -4302,8 +4316,7 @@ static inline int get_pdn(struct ib_pd *ib_pd)
 }
 
 static void modify_qp_reset_to_init(struct ib_qp *ibqp,
-				    struct hns_roce_v2_qp_context *context,
-				    struct hns_roce_v2_qp_context *qpc_mask)
+				    struct hns_roce_v2_qp_context *context)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
@@ -5122,7 +5135,7 @@ static int hns_roce_v2_set_abs_fields(struct ib_qp *ibqp,
 
 	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT) {
 		memset(qpc_mask, 0, hr_dev->caps.qpc_sz);
-		modify_qp_reset_to_init(ibqp, context, qpc_mask);
+		modify_qp_reset_to_init(ibqp, context);
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_INIT) {
 		modify_qp_init_to_init(ibqp, context, qpc_mask);
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
@@ -5313,6 +5326,7 @@ static void v2_set_flushed_fields(struct ib_qp *ibqp,
 		return;
 
 	spin_lock_irqsave(&hr_qp->sq.lock, sq_flag);
+	trace_hns_sq_flush_cqe(hr_qp->qpn, hr_qp->sq.head, TRACE_SQ);
 	hr_reg_write(context, QPC_SQ_PRODUCER_IDX, hr_qp->sq.head);
 	hr_reg_clear(qpc_mask, QPC_SQ_PRODUCER_IDX);
 	hr_qp->state = IB_QPS_ERR;
@@ -5322,6 +5336,7 @@ static void v2_set_flushed_fields(struct ib_qp *ibqp,
 		return;
 
 	spin_lock_irqsave(&hr_qp->rq.lock, rq_flag);
+	trace_hns_rq_flush_cqe(hr_qp->qpn, hr_qp->rq.head, TRACE_RQ);
 	hr_reg_write(context, QPC_RQ_PRODUCER_IDX, hr_qp->rq.head);
 	hr_reg_clear(qpc_mask, QPC_RQ_PRODUCER_IDX);
 	spin_unlock_irqrestore(&hr_qp->rq.lock, rq_flag);
@@ -6248,6 +6263,7 @@ static irqreturn_t hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		eq->sub_type = sub_type;
 		++eq->cons_index;
 		aeqe_found = IRQ_HANDLED;
+		trace_hns_ae_info(event_type, aeqe, eq->eqe_size);
 
 		atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_AEQE_CNT]);
 

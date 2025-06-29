@@ -6,6 +6,7 @@
 #include <linux/stringify.h>
 #include <linux/objtool.h>
 #include <asm/asm.h>
+#include <asm/bug.h>
 
 #define ALT_FLAGS_SHIFT		16
 
@@ -82,6 +83,12 @@ struct alt_instr {
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 
+extern s32 __retpoline_sites[], __retpoline_sites_end[];
+extern s32 __return_sites[],	__return_sites_end[];
+extern s32 __cfi_sites[],	__cfi_sites_end[];
+extern s32 __ibt_endbr_seal[],	__ibt_endbr_seal_end[];
+extern s32 __smp_locks[],	__smp_locks_end[];
+
 /*
  * Debug flag that can be tested to see whether alternative
  * instructions were patched in already:
@@ -121,6 +128,37 @@ static __always_inline int x86_call_depth_emit_accounting(u8 **pprog,
 							  void *func, void *ip)
 {
 	return 0;
+}
+#endif
+
+#ifdef CONFIG_MITIGATION_ITS
+extern void its_init_mod(struct module *mod);
+extern void its_fini_mod(struct module *mod);
+extern void its_free_mod(struct module *mod);
+extern u8 *its_static_thunk(int reg);
+#else /* CONFIG_MITIGATION_ITS */
+static inline void its_init_mod(struct module *mod) { }
+static inline void its_fini_mod(struct module *mod) { }
+static inline void its_free_mod(struct module *mod) { }
+static inline u8 *its_static_thunk(int reg)
+{
+	WARN_ONCE(1, "ITS not compiled in");
+
+	return NULL;
+}
+#endif
+
+#if defined(CONFIG_MITIGATION_RETHUNK) && defined(CONFIG_OBJTOOL)
+extern bool cpu_wants_rethunk(void);
+extern bool cpu_wants_rethunk_at(void *addr);
+#else
+static __always_inline bool cpu_wants_rethunk(void)
+{
+	return false;
+}
+static __always_inline bool cpu_wants_rethunk_at(void *addr)
+{
+	return false;
 }
 #endif
 
@@ -334,11 +372,6 @@ void nop_func(void);
 .macro ALTERNATIVE oldinstr, newinstr, ft_flags
 	__ALTERNATIVE(\oldinstr, \newinstr, \ft_flags)
 .endm
-
-#define old_len			141b-140b
-#define new_len1		144f-143f
-#define new_len2		145f-144f
-#define new_len3		146f-145f
 
 /*
  * Same as ALTERNATIVE macro above but for two alternatives. If CPU

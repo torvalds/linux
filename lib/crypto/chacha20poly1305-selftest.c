@@ -8832,7 +8832,7 @@ chacha20poly1305_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len,
 {
 	const u8 *pad0 = page_address(ZERO_PAGE(0));
 	struct poly1305_desc_ctx poly1305_state;
-	u32 chacha20_state[CHACHA_STATE_WORDS];
+	struct chacha_state chacha20_state;
 	union {
 		u8 block0[POLY1305_KEY_SIZE];
 		__le64 lens[2];
@@ -8844,12 +8844,12 @@ chacha20poly1305_encrypt_bignonce(u8 *dst, const u8 *src, const size_t src_len,
 	memcpy(&bottom_row[4], nonce, 12);
 	for (i = 0; i < 8; ++i)
 		le_key[i] = get_unaligned_le32(key + sizeof(le_key[i]) * i);
-	chacha_init(chacha20_state, le_key, bottom_row);
-	chacha20_crypt(chacha20_state, b.block0, b.block0, sizeof(b.block0));
+	chacha_init(&chacha20_state, le_key, bottom_row);
+	chacha20_crypt(&chacha20_state, b.block0, b.block0, sizeof(b.block0));
 	poly1305_init(&poly1305_state, b.block0);
 	poly1305_update(&poly1305_state, ad, ad_len);
 	poly1305_update(&poly1305_state, pad0, (0x10 - ad_len) & 0xf);
-	chacha20_crypt(chacha20_state, dst, src, src_len);
+	chacha20_crypt(&chacha20_state, dst, src, src_len);
 	poly1305_update(&poly1305_state, dst, src_len);
 	poly1305_update(&poly1305_state, pad0, (0x10 - src_len) & 0xf);
 	b.lens[0] = cpu_to_le64(ad_len);

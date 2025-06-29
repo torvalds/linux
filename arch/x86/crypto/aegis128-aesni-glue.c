@@ -8,7 +8,6 @@
  */
 
 #include <crypto/internal/aead.h>
-#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/module.h>
@@ -233,20 +232,17 @@ static struct aead_alg crypto_aegis128_aesni_alg = {
 	.chunksize = AEGIS128_BLOCK_SIZE,
 
 	.base = {
-		.cra_flags = CRYPTO_ALG_INTERNAL,
 		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct aegis_ctx) +
 			       __alignof__(struct aegis_ctx),
 		.cra_priority = 400,
 
-		.cra_name = "__aegis128",
-		.cra_driver_name = "__aegis128-aesni",
+		.cra_name = "aegis128",
+		.cra_driver_name = "aegis128-aesni",
 
 		.cra_module = THIS_MODULE,
 	}
 };
-
-static struct simd_aead_alg *simd_alg;
 
 static int __init crypto_aegis128_aesni_module_init(void)
 {
@@ -255,13 +251,12 @@ static int __init crypto_aegis128_aesni_module_init(void)
 	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
 		return -ENODEV;
 
-	return simd_register_aeads_compat(&crypto_aegis128_aesni_alg, 1,
-					  &simd_alg);
+	return crypto_register_aead(&crypto_aegis128_aesni_alg);
 }
 
 static void __exit crypto_aegis128_aesni_module_exit(void)
 {
-	simd_unregister_aeads(&crypto_aegis128_aesni_alg, 1, &simd_alg);
+	crypto_unregister_aead(&crypto_aegis128_aesni_alg);
 }
 
 module_init(crypto_aegis128_aesni_module_init);

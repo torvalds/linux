@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  */
 
 #ifndef __UAPI_IVPU_DRM_H__
@@ -147,7 +147,7 @@ struct drm_ivpu_param {
 	 * platform type when executing on a simulator or emulator (read-only)
 	 *
 	 * %DRM_IVPU_PARAM_CORE_CLOCK_RATE:
-	 * Current PLL frequency (read-only)
+	 * Maximum frequency of the NPU data processing unit clock (read-only)
 	 *
 	 * %DRM_IVPU_PARAM_NUM_CONTEXTS:
 	 * Maximum number of simultaneously existing contexts (read-only)
@@ -445,6 +445,9 @@ struct drm_ivpu_metric_streamer_get_data {
 	__u64 data_size;
 };
 
+/* Command queue flags */
+#define DRM_IVPU_CMDQ_FLAG_TURBO 0x00000001
+
 /**
  * struct drm_ivpu_cmdq_create - Create command queue for job submission
  */
@@ -462,6 +465,17 @@ struct drm_ivpu_cmdq_create {
 	 * %DRM_IVPU_JOB_PRIORITY_REALTIME
 	 */
 	__u32 priority;
+	/**
+	 * @flags:
+	 *
+	 * Supported flags:
+	 *
+	 * %DRM_IVPU_CMDQ_FLAG_TURBO
+	 *
+	 * Enable low-latency mode for the command queue. The NPU will maximize performance
+	 * when executing jobs from such queue at the cost of increased power usage.
+	 */
+	__u32 flags;
 };
 
 /**

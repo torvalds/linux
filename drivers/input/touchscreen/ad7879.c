@@ -237,7 +237,7 @@ static void ad7879_ts_event_release(struct ad7879 *ts)
 
 static void ad7879_timer(struct timer_list *t)
 {
-	struct ad7879 *ts = from_timer(ts, t, timer);
+	struct ad7879 *ts = timer_container_of(ts, t, timer);
 
 	ad7879_ts_event_release(ts);
 }

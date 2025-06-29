@@ -62,6 +62,8 @@ static const char *output_name = NULL;
 static FILE *lock_output;
 
 static struct lock_filter filters;
+static struct lock_delay *delays;
+static int nr_delays;
 
 static enum lock_aggr_mode aggr_mode = LOCK_AGGR_ADDR;
 
@@ -2001,6 +2003,8 @@ static int __cmd_contention(int argc, const char **argv)
 		.max_stack = max_stack_depth,
 		.stack_skip = stack_skip,
 		.filters = &filters,
+		.delays = delays,
+		.nr_delays = nr_delays,
 		.save_callstack = needs_callstack(),
 		.owner = show_lock_owner,
 		.cgroups = RB_ROOT,
@@ -2504,6 +2508,79 @@ static int parse_cgroup_filter(const struct option *opt __maybe_unused, const ch
 	return ret;
 }
 
+static bool add_lock_delay(char *spec)
+{
+	char *at, *pos;
+	struct lock_delay *tmp;
+	unsigned long duration;
+
+	at = strchr(spec, '@');
+	if (at == NULL) {
+		pr_err("lock delay should have '@' sign: %s\n", spec);
+		return false;
+	}
+	if (at == spec) {
+		pr_err("lock delay should have time before '@': %s\n", spec);
+		return false;
+	}
+
+	*at = '\0';
+	duration = strtoul(spec, &pos, 0);
+	if (!strcmp(pos, "ns"))
+		duration *= 1;
+	else if (!strcmp(pos, "us"))
+		duration *= 1000;
+	else if (!strcmp(pos, "ms"))
+		duration *= 1000 * 1000;
+	else if (*pos) {
+		pr_err("invalid delay time: %s@%s\n", spec, at + 1);
+		return false;
+	}
+
+	if (duration > 10 * 1000 * 1000) {
+		pr_err("lock delay is too long: %s (> 10ms)\n", spec);
+		return false;
+	}
+
+	tmp = realloc(delays, (nr_delays + 1) * sizeof(*delays));
+	if (tmp == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+	delays = tmp;
+
+	delays[nr_delays].sym = strdup(at + 1);
+	if (delays[nr_delays].sym == NULL) {
+		pr_err("Memory allocation failure\n");
+		return false;
+	}
+	delays[nr_delays].time = duration;
+
+	nr_delays++;
+	return true;
+}
+
+static int parse_lock_delay(const struct option *opt __maybe_unused, const char *str,
+			    int unset __maybe_unused)
+{
+	char *s, *tmp, *tok;
+	int ret = 0;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -1;
+
+	for (tok = strtok_r(s, ", ", &tmp); tok; tok = strtok_r(NULL, ", ", &tmp)) {
+		if (!add_lock_delay(tok)) {
+			ret = -1;
+			break;
+		}
+	}
+
+	free(s);
+	return ret;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -2580,6 +2657,8 @@ int cmd_lock(int argc, const char **argv)
 	OPT_BOOLEAN(0, "lock-cgroup", &show_lock_cgroups, "show lock stats by cgroup"),
 	OPT_CALLBACK('G', "cgroup-filter", NULL, "CGROUPS",
 		     "Filter specific cgroups", parse_cgroup_filter),
+	OPT_CALLBACK('J', "inject-delay", NULL, "TIME@FUNC",
+		     "Inject delays to specific locks", parse_lock_delay),
 	OPT_PARENT(lock_options)
 	};
 

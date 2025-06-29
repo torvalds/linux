@@ -428,13 +428,14 @@ los desarrolladores, que corren el riesgo de quedar enterrados bajo una
 carga de correo electrónico, incumplir las convenciones utilizadas en las
 listas de Linux, o ambas cosas.
 
-La mayoría de las listas de correo del kernel se ejecutan en
-vger.kernel.org; la lista principal se puede encontrar en:
+La mayoría de las listas de correo del kernel se alojan en kernel.org; la
+lista principal se puede encontrar en:
 
-	http://vger.kernel.org/vger-lists.html
+	https://subspace.kernel.org
 
-Sim embargo, hay listas alojadas en otros lugares; varios de ellos se
-encuentran en redhat.com/mailman/listinfo.
+Sin embargo, hay listas alojadas en otros lugares; consulte el archivo
+MAINTAINERS para obtener la lista relevante para cualquier subsistema en
+particular.
 
 La lista de correo principal para el desarrollo del kernel es, por
 supuesto, linux-kernel. Esta lista es un lugar intimidante; el volumen

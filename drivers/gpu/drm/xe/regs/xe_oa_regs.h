@@ -97,4 +97,7 @@
 #define OAM_STATUS(base)			XE_REG((base) + OAM_STATUS_OFFSET)
 #define OAM_MMIO_TRG(base)			XE_REG((base) + OAM_MMIO_TRG_OFFSET)
 
+#define OAM_COMPRESSION_T3_CONTROL		XE_REG(0x1c2e00)
+#define  OAM_LAT_MEASURE_ENABLE			REG_BIT(4)
+
 #endif

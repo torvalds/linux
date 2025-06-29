@@ -344,18 +344,133 @@ hws_send_engine_update_rule_resize(struct mlx5hws_send_engine *queue,
 	}
 }
 
+static void hws_send_engine_dump_error_cqe(struct mlx5hws_send_engine *queue,
+					   struct mlx5hws_send_ring_priv *priv,
+					   struct mlx5_cqe64 *cqe)
+{
+	u8 wqe_opcode = cqe ? be32_to_cpu(cqe->sop_drop_qpn) >> 24 : 0;
+	struct mlx5hws_context *ctx = priv->rule->matcher->tbl->ctx;
+	u32 opcode = cqe ? get_cqe_opcode(cqe) : 0;
+	struct mlx5hws_rule *rule = priv->rule;
+
+	/* If something bad happens and lots of rules are failing, we don't
+	 * want to pollute dmesg. Print only the first bad cqe per engine,
+	 * the one that started the avalanche.
+	 */
+	if (queue->error_cqe_printed)
+		return;
+
+	queue->error_cqe_printed = true;
+
+	if (mlx5hws_rule_move_in_progress(rule))
+		mlx5hws_err(ctx,
+			    "--- rule 0x%08llx: error completion moving rule: phase %s, wqes left %d\n",
+			    HWS_PTR_TO_ID(rule),
+			    rule->resize_info->state ==
+			    MLX5HWS_RULE_RESIZE_STATE_WRITING ? "WRITING" :
+			    rule->resize_info->state ==
+			    MLX5HWS_RULE_RESIZE_STATE_DELETING ? "DELETING" :
+			    "UNKNOWN",
+			    rule->pending_wqes);
+	else
+		mlx5hws_err(ctx,
+			    "--- rule 0x%08llx: error completion %s (%d), wqes left %d\n",
+			    HWS_PTR_TO_ID(rule),
+			    rule->status ==
+			    MLX5HWS_RULE_STATUS_CREATING ? "CREATING" :
+			    rule->status ==
+			    MLX5HWS_RULE_STATUS_DELETING ? "DELETING" :
+			    rule->status ==
+			    MLX5HWS_RULE_STATUS_FAILING ? "FAILING" :
+			    rule->status ==
+			    MLX5HWS_RULE_STATUS_UPDATING ? "UPDATING" : "NA",
+			    rule->status,
+			    rule->pending_wqes);
+
+	mlx5hws_err(ctx, "    rule 0x%08llx: matcher 0x%llx %s\n",
+		    HWS_PTR_TO_ID(rule),
+		    HWS_PTR_TO_ID(rule->matcher),
+		    (rule->matcher->flags & MLX5HWS_MATCHER_FLAGS_ISOLATED) ?
+		    "(isolated)" : "");
+
+	if (!cqe) {
+		mlx5hws_err(ctx, "    rule 0x%08llx: no CQE\n",
+			    HWS_PTR_TO_ID(rule));
+		return;
+	}
+
+	mlx5hws_err(ctx, "    rule 0x%08llx: cqe->opcode      = %d %s\n",
+		    HWS_PTR_TO_ID(rule), opcode,
+		    opcode == MLX5_CQE_REQ ? "(MLX5_CQE_REQ)" :
+		    opcode == MLX5_CQE_REQ_ERR ? "(MLX5_CQE_REQ_ERR)" : " ");
+
+	if (opcode == MLX5_CQE_REQ_ERR) {
+		struct mlx5_err_cqe *err_cqe = (struct mlx5_err_cqe *)cqe;
+
+		mlx5hws_err(ctx,
+			    "    rule 0x%08llx:  |--- hw_error_syndrome = 0x%x\n",
+			    HWS_PTR_TO_ID(rule),
+			    err_cqe->rsvd1[16]);
+		mlx5hws_err(ctx,
+			    "    rule 0x%08llx:  |--- hw_syndrome_type = 0x%x\n",
+			    HWS_PTR_TO_ID(rule),
+			    err_cqe->rsvd1[17] >> 4);
+		mlx5hws_err(ctx,
+			    "    rule 0x%08llx:  |--- vendor_err_synd = 0x%x\n",
+			    HWS_PTR_TO_ID(rule),
+			    err_cqe->vendor_err_synd);
+		mlx5hws_err(ctx,
+			    "    rule 0x%08llx:  |--- syndrome = 0x%x\n",
+			    HWS_PTR_TO_ID(rule),
+			    err_cqe->syndrome);
+	}
+
+	mlx5hws_err(ctx,
+		    "    rule 0x%08llx: cqe->byte_cnt      = 0x%08x\n",
+		    HWS_PTR_TO_ID(rule), be32_to_cpu(cqe->byte_cnt));
+	mlx5hws_err(ctx,
+		    "    rule 0x%08llx:  |-- UPDATE STATUS = %s\n",
+		    HWS_PTR_TO_ID(rule),
+		    (be32_to_cpu(cqe->byte_cnt) & 0x80000000) ?
+		    "FAILURE" : "SUCCESS");
+	mlx5hws_err(ctx,
+		    "    rule 0x%08llx:  |------- SYNDROME = %s\n",
+		    HWS_PTR_TO_ID(rule),
+		    ((be32_to_cpu(cqe->byte_cnt) & 0x00000003) == 1) ?
+		    "SET_FLOW_FAIL" :
+		    ((be32_to_cpu(cqe->byte_cnt) & 0x00000003) == 2) ?
+		    "DISABLE_FLOW_FAIL" : "UNKNOWN");
+	mlx5hws_err(ctx,
+		    "    rule 0x%08llx: cqe->sop_drop_qpn  = 0x%08x\n",
+		    HWS_PTR_TO_ID(rule), be32_to_cpu(cqe->sop_drop_qpn));
+	mlx5hws_err(ctx,
+		    "    rule 0x%08llx:  |-send wqe opcode = 0x%02x %s\n",
+		    HWS_PTR_TO_ID(rule), wqe_opcode,
+		    wqe_opcode == MLX5HWS_WQE_OPCODE_TBL_ACCESS ?
+		    "(MLX5HWS_WQE_OPCODE_TBL_ACCESS)" : "(UNKNOWN)");
+	mlx5hws_err(ctx,
+		    "    rule 0x%08llx:  |------------ qpn = 0x%06x\n",
+		    HWS_PTR_TO_ID(rule),
+		    be32_to_cpu(cqe->sop_drop_qpn) & 0xffffff);
+}
+
 static void hws_send_engine_update_rule(struct mlx5hws_send_engine *queue,
 					struct mlx5hws_send_ring_priv *priv,
 					u16 wqe_cnt,
-					enum mlx5hws_flow_op_status *status)
+					enum mlx5hws_flow_op_status *status,
+					struct mlx5_cqe64 *cqe)
 {
 	priv->rule->pending_wqes--;
 
-	if (*status == MLX5HWS_FLOW_OP_ERROR) {
+	if (unlikely(*status == MLX5HWS_FLOW_OP_ERROR)) {
 		if (priv->retry_id) {
+			/* If there is a retry_id, then it's not an error yet,
+			 * retry to insert this rule in the collision RTC.
+			 */
 			hws_send_engine_retry_post_send(queue, priv, wqe_cnt);
 			return;
 		}
+		hws_send_engine_dump_error_cqe(queue, priv, cqe);
 		/* Some part of the rule failed */
 		priv->rule->status = MLX5HWS_RULE_STATUS_FAILING;
 		*priv->used_id = 0;
@@ -420,7 +535,8 @@ static void hws_send_engine_update(struct mlx5hws_send_engine *queue,
 
 	if (priv->user_data) {
 		if (priv->rule) {
-			hws_send_engine_update_rule(queue, priv, wqe_cnt, &status);
+			hws_send_engine_update_rule(queue, priv, wqe_cnt,
+						    &status, cqe);
 			/* Completion is provided on the last rule WQE */
 			if (priv->rule->pending_wqes)
 				return;

@@ -680,7 +680,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(isl29028_pm_ops, isl29028_suspend,
 static const struct i2c_device_id isl29028_id[] = {
 	{ "isl29028" },
 	{ "isl29030" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl29028_id);
 
@@ -688,7 +688,7 @@ static const struct of_device_id isl29028_of_match[] = {
 	{ .compatible = "isl,isl29028", }, /* for backward compat., don't use */
 	{ .compatible = "isil,isl29028", },
 	{ .compatible = "isil,isl29030", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, isl29028_of_match);
 

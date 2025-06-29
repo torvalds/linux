@@ -34,7 +34,8 @@ static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 	if (rc)
 		return rc;
 
-	dev_dbg(&cxld->dev, "Added to port %s\n", dev_name(&port->dev));
+	dev_dbg(port->uport_dev, "%s added to %s\n",
+		dev_name(&cxld->dev), dev_name(&port->dev));
 
 	return 0;
 }
@@ -603,7 +604,7 @@ int cxl_dpa_set_part(struct cxl_endpoint_decoder *cxled,
 	return 0;
 }
 
-static int __cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
+static int __cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, u64 size)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
@@ -666,15 +667,15 @@ static int __cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long lon
 		skip = res->start - skip_start;
 
 	if (size > avail) {
-		dev_dbg(dev, "%pa exceeds available %s capacity: %pa\n", &size,
-			res->name, &avail);
+		dev_dbg(dev, "%llu exceeds available %s capacity: %llu\n", size,
+			res->name, (u64)avail);
 		return -ENOSPC;
 	}
 
 	return __cxl_dpa_reserve(cxled, start, size, skip);
 }
 
-int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
+int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, u64 size)
 {
 	struct cxl_port *port = cxled_to_port(cxled);
 	int rc;

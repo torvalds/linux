@@ -124,6 +124,7 @@ struct fsldma_device {
 	struct fsldma_chan *chan[FSL_DMA_MAX_CHANS_PER_DEVICE];
 	u32 feature;		/* The same as DMA channels */
 	int irq;		/* Channel IRQ */
+	int addr_bits;		/* DMA addressing bits supported */
 };
 
 /* Define macros for fsldma_chan->feature property */

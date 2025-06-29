@@ -228,13 +228,13 @@ int mmc_gpiod_set_cd_config(struct mmc_host *host, unsigned long config)
 }
 EXPORT_SYMBOL(mmc_gpiod_set_cd_config);
 
-bool mmc_can_gpio_cd(struct mmc_host *host)
+bool mmc_host_can_gpio_cd(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 
 	return ctx->cd_gpio ? true : false;
 }
-EXPORT_SYMBOL(mmc_can_gpio_cd);
+EXPORT_SYMBOL(mmc_host_can_gpio_cd);
 
 /**
  * mmc_gpiod_request_ro - request a gpio descriptor for write protection
@@ -275,10 +275,10 @@ int mmc_gpiod_request_ro(struct mmc_host *host, const char *con_id,
 }
 EXPORT_SYMBOL(mmc_gpiod_request_ro);
 
-bool mmc_can_gpio_ro(struct mmc_host *host)
+bool mmc_host_can_gpio_ro(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 
 	return ctx->ro_gpio ? true : false;
 }
-EXPORT_SYMBOL(mmc_can_gpio_ro);
+EXPORT_SYMBOL(mmc_host_can_gpio_ro);

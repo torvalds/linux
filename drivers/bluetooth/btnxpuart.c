@@ -17,6 +17,7 @@
 #include <linux/crc32.h>
 #include <linux/string_helpers.h>
 #include <linux/gpio/consumer.h>
+#include <linux/of_irq.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -143,7 +144,9 @@ struct ps_data {
 	bool  driver_sent_cmd;
 	u16   h2c_ps_interval;
 	u16   c2h_ps_interval;
+	bool  wakeup_source;
 	struct gpio_desc *h2c_ps_gpio;
+	s32 irq_handler;
 	struct hci_dev *hdev;
 	struct work_struct work;
 	struct timer_list ps_timer;
@@ -464,7 +467,7 @@ static void ps_work_func(struct work_struct *work)
 
 static void ps_timeout_func(struct timer_list *t)
 {
-	struct ps_data *data = from_timer(data, t, ps_timer);
+	struct ps_data *data = timer_container_of(data, t, ps_timer);
 	struct hci_dev *hdev = data->hdev;
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 
@@ -476,12 +479,21 @@ static void ps_timeout_func(struct timer_list *t)
 	}
 }
 
+static irqreturn_t ps_host_wakeup_irq_handler(int irq, void *priv)
+{
+	struct btnxpuart_dev *nxpdev = (struct btnxpuart_dev *)priv;
+
+	bt_dev_dbg(nxpdev->hdev, "Host wakeup interrupt");
+	return IRQ_HANDLED;
+}
 static int ps_setup(struct hci_dev *hdev)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	struct serdev_device *serdev = nxpdev->serdev;
 	struct ps_data *psdata = &nxpdev->psdata;
+	int ret;
 
+	/* Out-Of-Band Device Wakeup */
 	psdata->h2c_ps_gpio = devm_gpiod_get_optional(&serdev->dev, "device-wakeup",
 						      GPIOD_OUT_LOW);
 	if (IS_ERR(psdata->h2c_ps_gpio)) {
@@ -493,11 +505,39 @@ static int ps_setup(struct hci_dev *hdev)
 	if (device_property_read_u8(&serdev->dev, "nxp,wakein-pin", &psdata->h2c_wakeup_gpio)) {
 		psdata->h2c_wakeup_gpio = 0xff; /* 0xff: use default pin/gpio */
 	} else if (!psdata->h2c_ps_gpio) {
-		bt_dev_warn(hdev, "nxp,wakein-pin property without device-wakeup GPIO");
+		bt_dev_warn(hdev, "nxp,wakein-pin property without device-wakeup-gpios");
 		psdata->h2c_wakeup_gpio = 0xff;
 	}
 
-	device_property_read_u8(&serdev->dev, "nxp,wakeout-pin", &psdata->c2h_wakeup_gpio);
+	/* Out-Of-Band Host Wakeup */
+	if (of_property_read_bool(serdev->dev.of_node, "wakeup-source")) {
+		psdata->irq_handler = of_irq_get_byname(serdev->dev.of_node, "wakeup");
+		bt_dev_info(nxpdev->hdev, "irq_handler: %d", psdata->irq_handler);
+		if (psdata->irq_handler > 0)
+			psdata->wakeup_source = true;
+	}
+
+	if (device_property_read_u8(&serdev->dev, "nxp,wakeout-pin", &psdata->c2h_wakeup_gpio)) {
+		psdata->c2h_wakeup_gpio = 0xff;
+		if (psdata->wakeup_source) {
+			bt_dev_warn(hdev, "host wakeup interrupt without nxp,wakeout-pin");
+			psdata->wakeup_source = false;
+		}
+	} else if (!psdata->wakeup_source) {
+		bt_dev_warn(hdev, "nxp,wakeout-pin property without host wakeup interrupt");
+		psdata->c2h_wakeup_gpio = 0xff;
+	}
+
+	if (psdata->wakeup_source) {
+		ret = devm_request_irq(&serdev->dev, psdata->irq_handler,
+					ps_host_wakeup_irq_handler,
+					IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+					dev_name(&serdev->dev), nxpdev);
+		if (ret)
+			bt_dev_info(hdev, "error setting wakeup IRQ handler, ignoring\n");
+		disable_irq(psdata->irq_handler);
+		device_init_wakeup(&serdev->dev, true);
+	}
 
 	psdata->hdev = hdev;
 	INIT_WORK(&psdata->work, ps_work_func);
@@ -637,12 +677,10 @@ static void ps_init(struct hci_dev *hdev)
 
 	psdata->ps_state = PS_STATE_AWAKE;
 
-	if (psdata->c2h_wakeup_gpio) {
+	if (psdata->c2h_wakeup_gpio != 0xff)
 		psdata->c2h_wakeupmode = BT_HOST_WAKEUP_METHOD_GPIO;
-	} else {
+	else
 		psdata->c2h_wakeupmode = BT_HOST_WAKEUP_METHOD_NONE;
-		psdata->c2h_wakeup_gpio = 0xff;
-	}
 
 	psdata->cur_h2c_wakeupmode = WAKEUP_METHOD_INVALID;
 	if (psdata->h2c_ps_gpio)
@@ -1286,7 +1324,9 @@ static void nxp_coredump(struct hci_dev *hdev)
 	u8 pcmd = 2;
 
 	skb = nxp_drv_send_cmd(hdev, HCI_NXP_TRIGGER_DUMP, 1, &pcmd);
-	if (!IS_ERR(skb))
+	if (IS_ERR(skb))
+		bt_dev_err(hdev, "Failed to trigger FW Dump. (%ld)", PTR_ERR(skb));
+	else
 		kfree_skb(skb);
 }
 
@@ -1445,9 +1485,6 @@ static int nxp_shutdown(struct hci_dev *hdev)
 		/* HCI_NXP_IND_RESET command may not returns any response */
 		if (!IS_ERR(skb))
 			kfree_skb(skb);
-	} else if (nxpdev->current_baudrate != nxpdev->fw_init_baudrate) {
-		nxpdev->new_baudrate = nxpdev->fw_init_baudrate;
-		nxp_set_baudrate_cmd(hdev, NULL);
 	}
 
 	return 0;
@@ -1799,13 +1836,15 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 		clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 		wake_up_interruptible(&nxpdev->check_boot_sign_wait_q);
 		wake_up_interruptible(&nxpdev->fw_dnld_done_wait_q);
-	}
-
-	if (test_bit(HCI_RUNNING, &hdev->flags)) {
-		/* Ensure shutdown callback is executed before unregistering, so
-		 * that baudrate is reset to initial value.
+	} else {
+		/* Restore FW baudrate to fw_init_baudrate if changed.
+		 * This will ensure FW baudrate is in sync with
+		 * driver baudrate in case this driver is re-inserted.
 		 */
-		nxp_shutdown(hdev);
+		if (nxpdev->current_baudrate != nxpdev->fw_init_baudrate) {
+			nxpdev->new_baudrate = nxpdev->fw_init_baudrate;
+			nxp_set_baudrate_cmd(hdev, NULL);
+		}
 	}
 
 	ps_cleanup(nxpdev);
@@ -1820,6 +1859,11 @@ static int nxp_serdev_suspend(struct device *dev)
 	struct ps_data *psdata = &nxpdev->psdata;
 
 	ps_control(psdata->hdev, PS_STATE_SLEEP);
+
+	if (psdata->wakeup_source) {
+		enable_irq_wake(psdata->irq_handler);
+		enable_irq(psdata->irq_handler);
+	}
 	return 0;
 }
 
@@ -1827,6 +1871,11 @@ static int nxp_serdev_resume(struct device *dev)
 {
 	struct btnxpuart_dev *nxpdev = dev_get_drvdata(dev);
 	struct ps_data *psdata = &nxpdev->psdata;
+
+	if (psdata->wakeup_source) {
+		disable_irq(psdata->irq_handler);
+		disable_irq_wake(psdata->irq_handler);
+	}
 
 	ps_control(psdata->hdev, PS_STATE_AWAKE);
 	return 0;

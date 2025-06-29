@@ -155,9 +155,9 @@ static int ncp5623_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct fwnode_handle *mc_node, *led_node;
 	struct led_init_data init_data = { };
-	int num_subleds = 0;
 	struct ncp5623 *ncp;
 	struct mc_subled *subled_info;
+	unsigned int num_subleds;
 	u32 color_index;
 	u32 reg;
 	int ret;
@@ -172,8 +172,7 @@ static int ncp5623_probe(struct i2c_client *client)
 	if (!mc_node)
 		return -EINVAL;
 
-	fwnode_for_each_child_node(mc_node, led_node)
-		num_subleds++;
+	num_subleds = fwnode_get_child_node_count(mc_node);
 
 	subled_info = devm_kcalloc(dev, num_subleds, sizeof(*subled_info), GFP_KERNEL);
 	if (!subled_info) {

@@ -60,9 +60,6 @@
 #define AUD5_REGISTER_OFFSET                 (0x179d - 0x1780)
 #define AUD6_REGISTER_OFFSET                 (0x17a4 - 0x1780)
 
-#define BONAIRE_GB_ADDR_CONFIG_GOLDEN        0x12010001
-#define HAWAII_GB_ADDR_CONFIG_GOLDEN         0x12011003
-
 #define		PIPEID(x)					((x) << 0)
 #define		MEID(x)						((x) << 2)
 #define		VMID(x)						((x) << 4)

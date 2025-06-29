@@ -14,6 +14,7 @@
 #include "intel_atomic_plane.h"
 #include "intel_bo.h"
 #include "intel_display.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
@@ -560,11 +561,11 @@ static bool plane_has_modifier(struct intel_display *display,
 		return false;
 
 	if (md->modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS &&
-	    (GRAPHICS_VER(i915) < 20 || !IS_DGFX(i915)))
+	    (GRAPHICS_VER(i915) < 20 || !display->platform.dgfx))
 		return false;
 
 	if (md->modifier == I915_FORMAT_MOD_4_TILED_LNL_CCS &&
-	    (GRAPHICS_VER(i915) < 20 || IS_DGFX(i915)))
+	    (GRAPHICS_VER(i915) < 20 || display->platform.dgfx))
 		return false;
 
 	return true;

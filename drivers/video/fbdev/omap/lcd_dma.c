@@ -18,6 +18,7 @@
  * Support functions for the OMAP internal DMA channels.
  */
 
+#include <linux/export.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>

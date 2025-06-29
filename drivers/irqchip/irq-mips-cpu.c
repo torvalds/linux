@@ -238,11 +238,9 @@ static void mips_cpu_register_ipi_domain(struct device_node *of_node)
 	struct cpu_ipi_domain_state *ipi_domain_state;
 
 	ipi_domain_state = kzalloc(sizeof(*ipi_domain_state), GFP_KERNEL);
-	ipi_domain = irq_domain_add_hierarchy(irq_domain,
-					      IRQ_DOMAIN_FLAG_IPI_SINGLE,
-					      2, of_node,
-					      &mips_cpu_ipi_chip_ops,
-					      ipi_domain_state);
+	ipi_domain = irq_domain_create_hierarchy(irq_domain, IRQ_DOMAIN_FLAG_IPI_SINGLE, 2,
+						 of_fwnode_handle(of_node),
+						 &mips_cpu_ipi_chip_ops, ipi_domain_state);
 	if (!ipi_domain)
 		panic("Failed to add MIPS CPU IPI domain");
 	irq_domain_update_bus_token(ipi_domain, DOMAIN_BUS_IPI);
@@ -260,9 +258,8 @@ static void __init __mips_cpu_irq_init(struct device_node *of_node)
 	clear_c0_status(ST0_IM);
 	clear_c0_cause(CAUSEF_IP);
 
-	irq_domain = irq_domain_add_legacy(of_node, 8, MIPS_CPU_IRQ_BASE, 0,
-					   &mips_cpu_intc_irq_domain_ops,
-					   NULL);
+	irq_domain = irq_domain_create_legacy(of_fwnode_handle(of_node), 8, MIPS_CPU_IRQ_BASE, 0,
+					      &mips_cpu_intc_irq_domain_ops, NULL);
 	if (!irq_domain)
 		panic("Failed to add irqdomain for MIPS CPU");
 

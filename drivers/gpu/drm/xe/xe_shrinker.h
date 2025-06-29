@@ -11,8 +11,6 @@ struct xe_device;
 
 void xe_shrinker_mod_pages(struct xe_shrinker *shrinker, long shrinkable, long purgeable);
 
-struct xe_shrinker *xe_shrinker_create(struct xe_device *xe);
-
-void xe_shrinker_destroy(struct xe_shrinker *shrinker);
+int xe_shrinker_create(struct xe_device *xe);
 
 #endif

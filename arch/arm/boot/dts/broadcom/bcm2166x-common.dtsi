@@ -46,6 +46,11 @@
 			interrupt-controller;
 		};
 
+		pinctrl: pinctrl@1004800 {
+			compatible = "brcm,bcm21664-pinctrl";
+			reg = <0x01004800 0x7f4>;
+		};
+
 		timer@1006000 {
 			compatible = "brcm,kona-timer";
 			reg = <0x01006000 0x1c>;
@@ -332,3 +337,5 @@
 		};
 	};
 };
+
+#include "bcm2166x-pinctrl.dtsi"

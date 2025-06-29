@@ -406,7 +406,6 @@ int mlx5hws_cmd_rtc_create(struct mlx5_core_dev *mdev,
 	MLX5_SET(rtc, attr, match_definer_1, rtc_attr->match_definer_1);
 	MLX5_SET(rtc, attr, stc_id, rtc_attr->stc_base);
 	MLX5_SET(rtc, attr, ste_table_base_id, rtc_attr->ste_base);
-	MLX5_SET(rtc, attr, ste_table_offset, rtc_attr->ste_offset);
 	MLX5_SET(rtc, attr, miss_flow_table_id, rtc_attr->miss_ft_id);
 	MLX5_SET(rtc, attr, reparse_mode, rtc_attr->reparse_mode);
 

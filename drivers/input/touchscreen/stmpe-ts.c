@@ -366,12 +366,7 @@ static struct platform_driver stmpe_ts_driver = {
 };
 module_platform_driver(stmpe_ts_driver);
 
-static const struct of_device_id stmpe_ts_ids[] = {
-	{ .compatible = "st,stmpe-ts", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, stmpe_ts_ids);
-
+MODULE_ALIAS("platform:stmpe-ts");
 MODULE_AUTHOR("Luotao Fu <l.fu@pengutronix.de>");
 MODULE_DESCRIPTION("STMPEXXX touchscreen driver");
 MODULE_LICENSE("GPL");

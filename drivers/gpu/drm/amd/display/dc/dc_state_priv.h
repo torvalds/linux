@@ -105,4 +105,24 @@ bool dc_state_is_fams2_in_use(
 		const struct dc *dc,
 		const struct dc_state *state);
 
+
+void dc_state_set_stream_subvp_cursor_limit(const struct dc_stream_state *stream,
+		struct dc_state *state,
+		bool limit);
+
+bool dc_state_get_stream_subvp_cursor_limit(const struct dc_stream_state *stream,
+		struct dc_state *state);
+
+void dc_state_set_stream_cursor_subvp_limit(const struct dc_stream_state *stream,
+		struct dc_state *state,
+		bool limit);
+
+bool dc_state_get_stream_cursor_subvp_limit(const struct dc_stream_state *stream,
+		struct dc_state *state);
+
+bool dc_state_can_clear_stream_cursor_subvp_limit(const struct dc_stream_state *stream,
+		struct dc_state *state);
+
+bool dc_state_is_subvp_in_use(struct dc_state *state);
+
 #endif /* _DC_STATE_PRIV_H_ */

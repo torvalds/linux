@@ -40,6 +40,7 @@
 #include <asm/mtrr.h>
 #include <asm/tlb.h>
 #include <asm/cpuidle_haltpoll.h>
+#include <asm/msr.h>
 #include <asm/ptrace.h>
 #include <asm/reboot.h>
 #include <asm/svm.h>
@@ -301,7 +302,7 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_kvm_asyncpf_interrupt)
 		token = __this_cpu_read(apf_reason.token);
 		kvm_async_pf_task_wake(token);
 		__this_cpu_write(apf_reason.token, 0);
-		wrmsrl(MSR_KVM_ASYNC_PF_ACK, 1);
+		wrmsrq(MSR_KVM_ASYNC_PF_ACK, 1);
 	}
 
 	set_irq_regs(old_regs);
@@ -327,7 +328,7 @@ static void kvm_register_steal_time(void)
 	if (!has_steal_clock)
 		return;
 
-	wrmsrl(MSR_KVM_STEAL_TIME, (slow_virt_to_phys(st) | KVM_MSR_ENABLED));
+	wrmsrq(MSR_KVM_STEAL_TIME, (slow_virt_to_phys(st) | KVM_MSR_ENABLED));
 	pr_debug("stealtime: cpu %d, msr %llx\n", cpu,
 		(unsigned long long) slow_virt_to_phys(st));
 }
@@ -361,9 +362,9 @@ static void kvm_guest_cpu_init(void)
 		if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF_VMEXIT))
 			pa |= KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT;
 
-		wrmsrl(MSR_KVM_ASYNC_PF_INT, HYPERVISOR_CALLBACK_VECTOR);
+		wrmsrq(MSR_KVM_ASYNC_PF_INT, HYPERVISOR_CALLBACK_VECTOR);
 
-		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
+		wrmsrq(MSR_KVM_ASYNC_PF_EN, pa);
 		__this_cpu_write(async_pf_enabled, true);
 		pr_debug("setup async PF for cpu %d\n", smp_processor_id());
 	}
@@ -376,7 +377,7 @@ static void kvm_guest_cpu_init(void)
 		__this_cpu_write(kvm_apic_eoi, 0);
 		pa = slow_virt_to_phys(this_cpu_ptr(&kvm_apic_eoi))
 			| KVM_MSR_ENABLED;
-		wrmsrl(MSR_KVM_PV_EOI_EN, pa);
+		wrmsrq(MSR_KVM_PV_EOI_EN, pa);
 	}
 
 	if (has_steal_clock)
@@ -388,7 +389,7 @@ static void kvm_pv_disable_apf(void)
 	if (!__this_cpu_read(async_pf_enabled))
 		return;
 
-	wrmsrl(MSR_KVM_ASYNC_PF_EN, 0);
+	wrmsrq(MSR_KVM_ASYNC_PF_EN, 0);
 	__this_cpu_write(async_pf_enabled, false);
 
 	pr_debug("disable async PF for cpu %d\n", smp_processor_id());
@@ -399,7 +400,7 @@ static void kvm_disable_steal_time(void)
 	if (!has_steal_clock)
 		return;
 
-	wrmsr(MSR_KVM_STEAL_TIME, 0, 0);
+	wrmsrq(MSR_KVM_STEAL_TIME, 0);
 }
 
 static u64 kvm_steal_clock(int cpu)
@@ -451,9 +452,9 @@ static void kvm_guest_cpu_offline(bool shutdown)
 {
 	kvm_disable_steal_time();
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
-		wrmsrl(MSR_KVM_PV_EOI_EN, 0);
+		wrmsrq(MSR_KVM_PV_EOI_EN, 0);
 	if (kvm_para_has_feature(KVM_FEATURE_MIGRATION_CONTROL))
-		wrmsrl(MSR_KVM_MIGRATION_CONTROL, 0);
+		wrmsrq(MSR_KVM_MIGRATION_CONTROL, 0);
 	kvm_pv_disable_apf();
 	if (!shutdown)
 		apf_task_wake_all();
@@ -615,7 +616,7 @@ static int __init setup_efi_kvm_sev_migration(void)
 	}
 
 	pr_info("%s : live migration enabled in EFI\n", __func__);
-	wrmsrl(MSR_KVM_MIGRATION_CONTROL, KVM_MIGRATION_READY);
+	wrmsrq(MSR_KVM_MIGRATION_CONTROL, KVM_MIGRATION_READY);
 
 	return 1;
 }
@@ -728,7 +729,7 @@ static int kvm_suspend(void)
 
 #ifdef CONFIG_ARCH_CPUIDLE_HALTPOLL
 	if (kvm_para_has_feature(KVM_FEATURE_POLL_CONTROL))
-		rdmsrl(MSR_KVM_POLL_CONTROL, val);
+		rdmsrq(MSR_KVM_POLL_CONTROL, val);
 	has_guest_poll = !(val & 1);
 #endif
 	return 0;
@@ -740,7 +741,7 @@ static void kvm_resume(void)
 
 #ifdef CONFIG_ARCH_CPUIDLE_HALTPOLL
 	if (kvm_para_has_feature(KVM_FEATURE_POLL_CONTROL) && has_guest_poll)
-		wrmsrl(MSR_KVM_POLL_CONTROL, 0);
+		wrmsrq(MSR_KVM_POLL_CONTROL, 0);
 #endif
 }
 
@@ -874,7 +875,7 @@ static noinline uint32_t __kvm_cpuid_base(void)
 		return 0;	/* So we don't blow up on old processors */
 
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
-		return hypervisor_cpuid_base(KVM_SIGNATURE, 0);
+		return cpuid_base_hypervisor(KVM_SIGNATURE, 0);
 
 	return 0;
 }
@@ -975,7 +976,7 @@ static void __init kvm_init_platform(void)
 		 * If not booted using EFI, enable Live migration support.
 		 */
 		if (!efi_enabled(EFI_BOOT))
-			wrmsrl(MSR_KVM_MIGRATION_CONTROL,
+			wrmsrq(MSR_KVM_MIGRATION_CONTROL,
 			       KVM_MIGRATION_READY);
 	}
 	kvmclock_init();
@@ -1124,12 +1125,12 @@ out:
 
 static void kvm_disable_host_haltpoll(void *i)
 {
-	wrmsrl(MSR_KVM_POLL_CONTROL, 0);
+	wrmsrq(MSR_KVM_POLL_CONTROL, 0);
 }
 
 static void kvm_enable_host_haltpoll(void *i)
 {
-	wrmsrl(MSR_KVM_POLL_CONTROL, 1);
+	wrmsrq(MSR_KVM_POLL_CONTROL, 1);
 }
 
 void arch_haltpoll_enable(unsigned int cpu)

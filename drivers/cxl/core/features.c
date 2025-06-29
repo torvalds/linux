@@ -9,6 +9,16 @@
 #include "core.h"
 #include "cxlmem.h"
 
+/**
+ * DOC: cxl features
+ *
+ * CXL Features:
+ * A CXL device that includes a mailbox supports commands that allows
+ * listing, getting, and setting of optionally defined features such
+ * as memory sparing or post package sparing. Vendors may define custom
+ * features for the device.
+ */
+
 /* All the features below are exclusive to the kernel */
 static const uuid_t cxl_exclusive_feats[] = {
 	CXL_FEAT_PATROL_SCRUB_UUID,
@@ -36,7 +46,7 @@ static bool is_cxl_feature_exclusive(struct cxl_feat_entry *entry)
 	return is_cxl_feature_exclusive_by_uuid(&entry->uuid);
 }
 
-inline struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds)
+struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds)
 {
 	return cxlds->cxlfs;
 }
@@ -355,17 +365,11 @@ static void cxlctl_close_uctx(struct fwctl_uctx *uctx)
 {
 }
 
-static struct cxl_feat_entry *
-get_support_feature_info(struct cxl_features_state *cxlfs,
-			 const struct fwctl_rpc_cxl *rpc_in)
+struct cxl_feat_entry *
+cxl_feature_info(struct cxl_features_state *cxlfs,
+		 const uuid_t *uuid)
 {
 	struct cxl_feat_entry *feat;
-	const uuid_t *uuid;
-
-	if (rpc_in->op_size < sizeof(uuid))
-		return ERR_PTR(-EINVAL);
-
-	uuid = &rpc_in->set_feat_in.uuid;
 
 	for (int i = 0; i < cxlfs->entries->num_features; i++) {
 		feat = &cxlfs->entries->ent[i];
@@ -416,14 +420,6 @@ static void *cxlctl_get_supported_features(struct cxl_features_state *cxlfs,
 
 	rpc_out->size = struct_size(feat_out, ents, requested);
 	feat_out = &rpc_out->get_sup_feats_out;
-	if (requested == 0) {
-		feat_out->num_entries = cpu_to_le16(requested);
-		feat_out->supported_feats =
-			cpu_to_le16(cxlfs->entries->num_features);
-		rpc_out->retval = CXL_MBOX_CMD_RC_SUCCESS;
-		*out_len = out_size;
-		return no_free_ptr(rpc_out);
-	}
 
 	for (i = start, pos = &feat_out->ents[0];
 	     i < cxlfs->entries->num_features; i++, pos++) {
@@ -528,13 +524,13 @@ static void *cxlctl_set_feature(struct cxl_features_state *cxlfs,
 	rc = cxl_set_feature(cxl_mbox, &feat_in->uuid,
 			     feat_in->version, feat_in->feat_data,
 			     data_size, flags, offset, &return_code);
+	*out_len = sizeof(*rpc_out);
 	if (rc) {
 		rpc_out->retval = return_code;
 		return no_free_ptr(rpc_out);
 	}
 
 	rpc_out->retval = CXL_MBOX_CMD_RC_SUCCESS;
-	*out_len = sizeof(*rpc_out);
 
 	return no_free_ptr(rpc_out);
 }
@@ -547,7 +543,10 @@ static bool cxlctl_validate_set_features(struct cxl_features_state *cxlfs,
 	struct cxl_feat_entry *feat;
 	u32 flags;
 
-	feat = get_support_feature_info(cxlfs, rpc_in);
+	if (rpc_in->op_size < sizeof(uuid_t))
+		return ERR_PTR(-EINVAL);
+
+	feat = cxl_feature_info(cxlfs, &rpc_in->set_feat_in.uuid);
 	if (IS_ERR(feat))
 		return false;
 
@@ -614,11 +613,7 @@ static bool cxlctl_validate_hw_command(struct cxl_features_state *cxlfs,
 	switch (opcode) {
 	case CXL_MBOX_OP_GET_SUPPORTED_FEATURES:
 	case CXL_MBOX_OP_GET_FEATURE:
-		if (cxl_mbox->feat_cap < CXL_FEATURES_RO)
-			return false;
-		if (scope >= FWCTL_RPC_CONFIGURATION)
-			return true;
-		return false;
+		return cxl_mbox->feat_cap >= CXL_FEATURES_RO;
 	case CXL_MBOX_OP_SET_FEATURE:
 		if (cxl_mbox->feat_cap < CXL_FEATURES_RW)
 			return false;
@@ -677,7 +672,7 @@ static void free_memdev_fwctl(void *_fwctl_dev)
 	fwctl_put(fwctl_dev);
 }
 
-int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
+int devm_cxl_setup_fwctl(struct device *host, struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_features_state *cxlfs;
@@ -700,7 +695,7 @@ int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
 	if (rc)
 		return rc;
 
-	return devm_add_action_or_reset(&cxlmd->dev, free_memdev_fwctl,
+	return devm_add_action_or_reset(host, free_memdev_fwctl,
 					no_free_ptr(fwctl_dev));
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_fwctl, "CXL");

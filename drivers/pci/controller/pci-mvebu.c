@@ -1078,9 +1078,9 @@ static int mvebu_pcie_init_irq_domain(struct mvebu_pcie_port *port)
 		return -ENODEV;
 	}
 
-	port->intx_irq_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
-						      &mvebu_pcie_intx_irq_domain_ops,
-						      port);
+	port->intx_irq_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node),
+							 PCI_NUM_INTX,
+							 &mvebu_pcie_intx_irq_domain_ops, port);
 	of_node_put(pcie_intc_node);
 	if (!port->intx_irq_domain) {
 		dev_err(dev, "Failed to get INTx IRQ domain for %s\n", port->name);
@@ -1179,37 +1179,29 @@ static int mvebu_get_tgt_attr(struct device_node *np, int devfn,
 			      unsigned int *tgt,
 			      unsigned int *attr)
 {
-	const int na = 3, ns = 2;
-	const __be32 *range;
-	int rlen, nranges, rangesz, pna, i;
+	struct of_range range;
+	struct of_range_parser parser;
 
 	*tgt = -1;
 	*attr = -1;
 
-	range = of_get_property(np, "ranges", &rlen);
-	if (!range)
+	if (of_pci_range_parser_init(&parser, np))
 		return -EINVAL;
 
-	pna = of_n_addr_cells(np);
-	rangesz = pna + na + ns;
-	nranges = rlen / sizeof(__be32) / rangesz;
-
-	for (i = 0; i < nranges; i++, range += rangesz) {
-		u32 flags = of_read_number(range, 1);
-		u32 slot = of_read_number(range + 1, 1);
-		u64 cpuaddr = of_read_number(range + na, pna);
+	for_each_of_range(&parser, &range) {
 		unsigned long rtype;
+		u32 slot = upper_32_bits(range.bus_addr);
 
-		if (DT_FLAGS_TO_TYPE(flags) == DT_TYPE_IO)
+		if (DT_FLAGS_TO_TYPE(range.flags) == DT_TYPE_IO)
 			rtype = IORESOURCE_IO;
-		else if (DT_FLAGS_TO_TYPE(flags) == DT_TYPE_MEM32)
+		else if (DT_FLAGS_TO_TYPE(range.flags) == DT_TYPE_MEM32)
 			rtype = IORESOURCE_MEM;
 		else
 			continue;
 
 		if (slot == PCI_SLOT(devfn) && type == rtype) {
-			*tgt = DT_CPUADDR_TO_TARGET(cpuaddr);
-			*attr = DT_CPUADDR_TO_ATTR(cpuaddr);
+			*tgt = DT_CPUADDR_TO_TARGET(range.cpu_addr);
+			*attr = DT_CPUADDR_TO_ATTR(range.cpu_addr);
 			return 0;
 		}
 	}

@@ -10,7 +10,7 @@ char _license[] SEC("license") = "GPL";
 int tid;
 int i;
 
-SEC("tp_btf/bpf_testmod_test_raw_tp_null")
+SEC("tp_btf/bpf_testmod_test_raw_tp_null_tp")
 int BPF_PROG(test_raw_tp_null, struct sk_buff *skb)
 {
 	struct task_struct *task = bpf_get_current_task_btf();

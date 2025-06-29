@@ -127,26 +127,26 @@ extern const struct xattr_handler f2fs_xattr_security_handler;
 
 extern const struct xattr_handler * const f2fs_xattr_handlers[];
 
-extern int f2fs_setxattr(struct inode *, int, const char *,
-				const void *, size_t, struct page *, int);
-extern int f2fs_getxattr(struct inode *, int, const char *, void *,
-						size_t, struct page *);
-extern ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
-extern int f2fs_init_xattr_caches(struct f2fs_sb_info *);
-extern void f2fs_destroy_xattr_caches(struct f2fs_sb_info *);
+int f2fs_setxattr(struct inode *, int, const char *, const void *,
+		size_t, struct folio *, int);
+int f2fs_getxattr(struct inode *, int, const char *, void *,
+		size_t, struct folio *);
+ssize_t f2fs_listxattr(struct dentry *, char *, size_t);
+int f2fs_init_xattr_caches(struct f2fs_sb_info *);
+void f2fs_destroy_xattr_caches(struct f2fs_sb_info *);
 #else
 
 #define f2fs_xattr_handlers	NULL
 #define f2fs_listxattr		NULL
 static inline int f2fs_setxattr(struct inode *inode, int index,
 		const char *name, const void *value, size_t size,
-		struct page *page, int flags)
+		struct folio *folio, int flags)
 {
 	return -EOPNOTSUPP;
 }
 static inline int f2fs_getxattr(struct inode *inode, int index,
 			const char *name, void *buffer,
-			size_t buffer_size, struct page *dpage)
+			size_t buffer_size, struct folio *dfolio)
 {
 	return -EOPNOTSUPP;
 }
@@ -155,11 +155,11 @@ static inline void f2fs_destroy_xattr_caches(struct f2fs_sb_info *sbi) { }
 #endif
 
 #ifdef CONFIG_F2FS_FS_SECURITY
-extern int f2fs_init_security(struct inode *, struct inode *,
-				const struct qstr *, struct page *);
+int f2fs_init_security(struct inode *, struct inode *,
+				const struct qstr *, struct folio *);
 #else
 static inline int f2fs_init_security(struct inode *inode, struct inode *dir,
-				const struct qstr *qstr, struct page *ipage)
+				const struct qstr *qstr, struct folio *ifolio)
 {
 	return 0;
 }

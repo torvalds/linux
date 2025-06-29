@@ -25,6 +25,7 @@ properties:
       - const: nvidia,tegra210-ope
       - items:
           - enum:
+              - nvidia,tegra264-ope
               - nvidia,tegra234-ope
               - nvidia,tegra194-ope
               - nvidia,tegra186-ope

@@ -132,7 +132,7 @@ static void handle_catas(struct mthca_dev *dev)
 
 static void poll_catas(struct timer_list *t)
 {
-	struct mthca_dev *dev = from_timer(dev, t, catas_err.timer);
+	struct mthca_dev *dev = timer_container_of(dev, t, catas_err.timer);
 	int i;
 
 	for (i = 0; i < dev->catas_err.size; ++i)

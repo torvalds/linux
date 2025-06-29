@@ -6,7 +6,6 @@
 #ifndef __INTEL_DE_H__
 #define __INTEL_DE_H__
 
-#include "intel_display_conversion.h"
 #include "intel_display_core.h"
 #include "intel_dmc_wl.h"
 #include "intel_dsb.h"
@@ -19,7 +18,7 @@ static inline struct intel_uncore *__to_uncore(struct intel_display *display)
 }
 
 static inline u32
-__intel_de_read(struct intel_display *display, i915_reg_t reg)
+intel_de_read(struct intel_display *display, i915_reg_t reg)
 {
 	u32 val;
 
@@ -31,7 +30,6 @@ __intel_de_read(struct intel_display *display, i915_reg_t reg)
 
 	return val;
 }
-#define intel_de_read(p,...) __intel_de_read(__to_intel_display(p), __VA_ARGS__)
 
 static inline u8
 intel_de_read8(struct intel_display *display, i915_reg_t reg)
@@ -66,7 +64,7 @@ intel_de_read64_2x32(struct intel_display *display,
 }
 
 static inline void
-__intel_de_posting_read(struct intel_display *display, i915_reg_t reg)
+intel_de_posting_read(struct intel_display *display, i915_reg_t reg)
 {
 	intel_dmc_wl_get(display, reg);
 
@@ -74,10 +72,9 @@ __intel_de_posting_read(struct intel_display *display, i915_reg_t reg)
 
 	intel_dmc_wl_put(display, reg);
 }
-#define intel_de_posting_read(p,...) __intel_de_posting_read(__to_intel_display(p), __VA_ARGS__)
 
 static inline void
-__intel_de_write(struct intel_display *display, i915_reg_t reg, u32 val)
+intel_de_write(struct intel_display *display, i915_reg_t reg, u32 val)
 {
 	intel_dmc_wl_get(display, reg);
 
@@ -85,7 +82,6 @@ __intel_de_write(struct intel_display *display, i915_reg_t reg, u32 val)
 
 	intel_dmc_wl_put(display, reg);
 }
-#define intel_de_write(p,...) __intel_de_write(__to_intel_display(p), __VA_ARGS__)
 
 static inline u32
 __intel_de_rmw_nowl(struct intel_display *display, i915_reg_t reg,
@@ -95,8 +91,7 @@ __intel_de_rmw_nowl(struct intel_display *display, i915_reg_t reg,
 }
 
 static inline u32
-__intel_de_rmw(struct intel_display *display, i915_reg_t reg, u32 clear,
-	       u32 set)
+intel_de_rmw(struct intel_display *display, i915_reg_t reg, u32 clear, u32 set)
 {
 	u32 val;
 
@@ -108,15 +103,14 @@ __intel_de_rmw(struct intel_display *display, i915_reg_t reg, u32 clear,
 
 	return val;
 }
-#define intel_de_rmw(p,...) __intel_de_rmw(__to_intel_display(p), __VA_ARGS__)
 
 static inline int
 __intel_de_wait_for_register_nowl(struct intel_display *display,
 				  i915_reg_t reg,
-				  u32 mask, u32 value, unsigned int timeout)
+				  u32 mask, u32 value, unsigned int timeout_ms)
 {
 	return intel_wait_for_register(__to_uncore(display), reg, mask,
-				       value, timeout);
+				       value, timeout_ms);
 }
 
 static inline int
@@ -131,14 +125,14 @@ __intel_de_wait_for_register_atomic_nowl(struct intel_display *display,
 
 static inline int
 intel_de_wait(struct intel_display *display, i915_reg_t reg,
-	      u32 mask, u32 value, unsigned int timeout)
+	      u32 mask, u32 value, unsigned int timeout_ms)
 {
 	int ret;
 
 	intel_dmc_wl_get(display, reg);
 
 	ret = __intel_de_wait_for_register_nowl(display, reg, mask, value,
-						timeout);
+						timeout_ms);
 
 	intel_dmc_wl_put(display, reg);
 
@@ -147,14 +141,14 @@ intel_de_wait(struct intel_display *display, i915_reg_t reg,
 
 static inline int
 intel_de_wait_fw(struct intel_display *display, i915_reg_t reg,
-		 u32 mask, u32 value, unsigned int timeout)
+		 u32 mask, u32 value, unsigned int timeout_ms, u32 *out_value)
 {
 	int ret;
 
 	intel_dmc_wl_get(display, reg);
 
 	ret = intel_wait_for_register_fw(__to_uncore(display), reg, mask,
-					 value, timeout);
+					 value, timeout_ms, out_value);
 
 	intel_dmc_wl_put(display, reg);
 
@@ -182,16 +176,16 @@ intel_de_wait_custom(struct intel_display *display, i915_reg_t reg,
 
 static inline int
 intel_de_wait_for_set(struct intel_display *display, i915_reg_t reg,
-		      u32 mask, unsigned int timeout)
+		      u32 mask, unsigned int timeout_ms)
 {
-	return intel_de_wait(display, reg, mask, mask, timeout);
+	return intel_de_wait(display, reg, mask, mask, timeout_ms);
 }
 
 static inline int
 intel_de_wait_for_clear(struct intel_display *display, i915_reg_t reg,
-			u32 mask, unsigned int timeout)
+			u32 mask, unsigned int timeout_ms)
 {
-	return intel_de_wait(display, reg, mask, 0, timeout);
+	return intel_de_wait(display, reg, mask, 0, timeout_ms);
 }
 
 /*

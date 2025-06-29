@@ -45,12 +45,6 @@ static const struct dsc_funcs dcn401_dsc_funcs = {
 #define DC_LOGGER \
 	dsc->ctx->logger
 
-enum dsc_bits_per_comp {
-	DSC_BPC_8 = 8,
-	DSC_BPC_10 = 10,
-	DSC_BPC_12 = 12,
-	DSC_BPC_UNKNOWN
-};
 
 /* API functions (external or via structure->function_pointer) */
 

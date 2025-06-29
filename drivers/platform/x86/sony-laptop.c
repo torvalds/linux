@@ -48,7 +48,6 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/sonypi.h>
-#include <linux/sony-laptop.h>
 #include <linux/rfkill.h>
 #ifdef CONFIG_SONYPI_COMPAT
 #include <linux/poll.h>
@@ -3157,7 +3156,7 @@ static int sony_nc_add(struct acpi_device *device)
 	struct sony_nc_value *item;
 
 	sony_nc_acpi_device = device;
-	strcpy(acpi_device_class(device), "sony/hotkey");
+	strscpy(acpi_device_class(device), "sony/hotkey");
 
 	sony_nc_acpi_handle = device->handle;
 
@@ -3327,8 +3326,10 @@ struct sony_pic_ioport {
 };
 
 struct sony_pic_irq {
-	struct acpi_resource_irq	irq;
 	struct list_head		list;
+
+	/* Must be last --ends in a flexible-array member. */
+	struct acpi_resource_irq	irq;
 };
 
 struct sonypi_eventtypes {
@@ -3619,22 +3620,6 @@ static u8 sony_pic_call2(u8 dev, u8 fn)
 	return v1;
 }
 
-static u8 sony_pic_call3(u8 dev, u8 fn, u8 v)
-{
-	u8 v1;
-
-	wait_on_command(inb_p(spic_dev.cur_ioport->io1.minimum + 4) & 2, ITERATIONS_LONG);
-	outb(dev, spic_dev.cur_ioport->io1.minimum + 4);
-	wait_on_command(inb_p(spic_dev.cur_ioport->io1.minimum + 4) & 2, ITERATIONS_LONG);
-	outb(fn, spic_dev.cur_ioport->io1.minimum);
-	wait_on_command(inb_p(spic_dev.cur_ioport->io1.minimum + 4) & 2, ITERATIONS_LONG);
-	outb(v, spic_dev.cur_ioport->io1.minimum);
-	v1 = inb_p(spic_dev.cur_ioport->io1.minimum);
-	dprintk("sony_pic_call3(0x%.2x - 0x%.2x - 0x%.2x): 0x%.4x\n",
-			dev, fn, v, v1);
-	return v1;
-}
-
 /*
  * minidrivers for SPIC models
  */
@@ -3721,156 +3706,6 @@ out:
 		dev->model == SONYPI_DEVICE_TYPE1 ? 1 :
 		dev->model == SONYPI_DEVICE_TYPE2 ? 2 : 3);
 }
-
-/* camera tests and poweron/poweroff */
-#define SONYPI_CAMERA_PICTURE		5
-#define SONYPI_CAMERA_CONTROL		0x10
-
-#define SONYPI_CAMERA_BRIGHTNESS		0
-#define SONYPI_CAMERA_CONTRAST			1
-#define SONYPI_CAMERA_HUE			2
-#define SONYPI_CAMERA_COLOR			3
-#define SONYPI_CAMERA_SHARPNESS			4
-
-#define SONYPI_CAMERA_EXPOSURE_MASK		0xC
-#define SONYPI_CAMERA_WHITE_BALANCE_MASK	0x3
-#define SONYPI_CAMERA_PICTURE_MODE_MASK		0x30
-#define SONYPI_CAMERA_MUTE_MASK			0x40
-
-/* the rest don't need a loop until not 0xff */
-#define SONYPI_CAMERA_AGC			6
-#define SONYPI_CAMERA_AGC_MASK			0x30
-#define SONYPI_CAMERA_SHUTTER_MASK 		0x7
-
-#define SONYPI_CAMERA_SHUTDOWN_REQUEST		7
-#define SONYPI_CAMERA_CONTROL			0x10
-
-#define SONYPI_CAMERA_STATUS 			7
-#define SONYPI_CAMERA_STATUS_READY 		0x2
-#define SONYPI_CAMERA_STATUS_POSITION		0x4
-
-#define SONYPI_DIRECTION_BACKWARDS 		0x4
-
-#define SONYPI_CAMERA_REVISION 			8
-#define SONYPI_CAMERA_ROMVERSION 		9
-
-static int __sony_pic_camera_ready(void)
-{
-	u8 v;
-
-	v = sony_pic_call2(0x8f, SONYPI_CAMERA_STATUS);
-	return (v != 0xff && (v & SONYPI_CAMERA_STATUS_READY));
-}
-
-static int __sony_pic_camera_off(void)
-{
-	if (!camera) {
-		pr_warn("camera control not enabled\n");
-		return -ENODEV;
-	}
-
-	wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_PICTURE,
-				SONYPI_CAMERA_MUTE_MASK),
-			ITERATIONS_SHORT);
-
-	if (spic_dev.camera_power) {
-		sony_pic_call2(0x91, 0);
-		spic_dev.camera_power = 0;
-	}
-	return 0;
-}
-
-static int __sony_pic_camera_on(void)
-{
-	int i, j, x;
-
-	if (!camera) {
-		pr_warn("camera control not enabled\n");
-		return -ENODEV;
-	}
-
-	if (spic_dev.camera_power)
-		return 0;
-
-	for (j = 5; j > 0; j--) {
-
-		for (x = 0; x < 100 && sony_pic_call2(0x91, 0x1); x++)
-			msleep(10);
-		sony_pic_call1(0x93);
-
-		for (i = 400; i > 0; i--) {
-			if (__sony_pic_camera_ready())
-				break;
-			msleep(10);
-		}
-		if (i)
-			break;
-	}
-
-	if (j == 0) {
-		pr_warn("failed to power on camera\n");
-		return -ENODEV;
-	}
-
-	wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_CONTROL,
-				0x5a),
-			ITERATIONS_SHORT);
-
-	spic_dev.camera_power = 1;
-	return 0;
-}
-
-/* External camera command (exported to the motion eye v4l driver) */
-int sony_pic_camera_command(int command, u8 value)
-{
-	if (!camera)
-		return -EIO;
-
-	mutex_lock(&spic_dev.lock);
-
-	switch (command) {
-	case SONY_PIC_COMMAND_SETCAMERA:
-		if (value)
-			__sony_pic_camera_on();
-		else
-			__sony_pic_camera_off();
-		break;
-	case SONY_PIC_COMMAND_SETCAMERABRIGHTNESS:
-		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_BRIGHTNESS, value),
-				ITERATIONS_SHORT);
-		break;
-	case SONY_PIC_COMMAND_SETCAMERACONTRAST:
-		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_CONTRAST, value),
-				ITERATIONS_SHORT);
-		break;
-	case SONY_PIC_COMMAND_SETCAMERAHUE:
-		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_HUE, value),
-				ITERATIONS_SHORT);
-		break;
-	case SONY_PIC_COMMAND_SETCAMERACOLOR:
-		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_COLOR, value),
-				ITERATIONS_SHORT);
-		break;
-	case SONY_PIC_COMMAND_SETCAMERASHARPNESS:
-		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_SHARPNESS, value),
-				ITERATIONS_SHORT);
-		break;
-	case SONY_PIC_COMMAND_SETCAMERAPICTURE:
-		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_PICTURE, value),
-				ITERATIONS_SHORT);
-		break;
-	case SONY_PIC_COMMAND_SETCAMERAAGC:
-		wait_on_command(sony_pic_call3(0x90, SONYPI_CAMERA_AGC, value),
-				ITERATIONS_SHORT);
-		break;
-	default:
-		pr_err("sony_pic_camera_command invalid: %d\n", command);
-		break;
-	}
-	mutex_unlock(&spic_dev.lock);
-	return 0;
-}
-EXPORT_SYMBOL(sony_pic_camera_command);
 
 /* gprs/edge modem (SZ460N and SZ210P), thanks to Joshua Wise */
 static void __sony_pic_set_wwanpower(u8 state)
@@ -4677,7 +4512,7 @@ static int sony_pic_add(struct acpi_device *device)
 	struct sony_pic_irq *irq, *tmp_irq;
 
 	spic_dev.acpi_dev = device;
-	strcpy(acpi_device_class(device), "sony/hotkey");
+	strscpy(acpi_device_class(device), "sony/hotkey");
 	sony_pic_detect_device_type(&spic_dev);
 	mutex_init(&spic_dev.lock);
 

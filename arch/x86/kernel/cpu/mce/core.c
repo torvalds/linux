@@ -121,7 +121,7 @@ void mce_prep_record_common(struct mce *m)
 {
 	m->cpuid	= cpuid_eax(1);
 	m->cpuvendor	= boot_cpu_data.x86_vendor;
-	m->mcgcap	= __rdmsr(MSR_IA32_MCG_CAP);
+	m->mcgcap	= native_rdmsrq(MSR_IA32_MCG_CAP);
 	/* need the internal __ version to avoid deadlocks */
 	m->time		= __ktime_get_real_seconds();
 }
@@ -388,9 +388,9 @@ void ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr)
 }
 
 /* MSR access wrappers used for error injection */
-noinstr u64 mce_rdmsrl(u32 msr)
+noinstr u64 mce_rdmsrq(u32 msr)
 {
-	DECLARE_ARGS(val, low, high);
+	EAX_EDX_DECLARE_ARGS(val, low, high);
 
 	if (__this_cpu_read(injectm.finished)) {
 		int offset;
@@ -423,7 +423,7 @@ noinstr u64 mce_rdmsrl(u32 msr)
 	return EAX_EDX_VAL(val, low, high);
 }
 
-static noinstr void mce_wrmsrl(u32 msr, u64 v)
+static noinstr void mce_wrmsrq(u32 msr, u64 v)
 {
 	u32 low, high;
 
@@ -444,7 +444,7 @@ static noinstr void mce_wrmsrl(u32 msr, u64 v)
 	low  = (u32)v;
 	high = (u32)(v >> 32);
 
-	/* See comment in mce_rdmsrl() */
+	/* See comment in mce_rdmsrq() */
 	asm volatile("1: wrmsr\n"
 		     "2:\n"
 		     _ASM_EXTABLE_TYPE(1b, 2b, EX_TYPE_WRMSR_IN_MCE)
@@ -468,7 +468,7 @@ static noinstr void mce_gather_info(struct mce_hw_err *err, struct pt_regs *regs
 	instrumentation_end();
 
 	m = &err->m;
-	m->mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
+	m->mcgstatus = mce_rdmsrq(MSR_IA32_MCG_STATUS);
 	if (regs) {
 		/*
 		 * Get the address of the instruction at the time of
@@ -488,7 +488,7 @@ static noinstr void mce_gather_info(struct mce_hw_err *err, struct pt_regs *regs
 		}
 		/* Use accurate RIP reporting if available. */
 		if (mca_cfg.rip_msr)
-			m->ip = mce_rdmsrl(mca_cfg.rip_msr);
+			m->ip = mce_rdmsrq(mca_cfg.rip_msr);
 	}
 }
 
@@ -684,10 +684,10 @@ static noinstr void mce_read_aux(struct mce_hw_err *err, int i)
 	struct mce *m = &err->m;
 
 	if (m->status & MCI_STATUS_MISCV)
-		m->misc = mce_rdmsrl(mca_msr_reg(i, MCA_MISC));
+		m->misc = mce_rdmsrq(mca_msr_reg(i, MCA_MISC));
 
 	if (m->status & MCI_STATUS_ADDRV) {
-		m->addr = mce_rdmsrl(mca_msr_reg(i, MCA_ADDR));
+		m->addr = mce_rdmsrq(mca_msr_reg(i, MCA_ADDR));
 
 		/*
 		 * Mask the reported address by the reported granularity.
@@ -702,12 +702,12 @@ static noinstr void mce_read_aux(struct mce_hw_err *err, int i)
 	}
 
 	if (mce_flags.smca) {
-		m->ipid = mce_rdmsrl(MSR_AMD64_SMCA_MCx_IPID(i));
+		m->ipid = mce_rdmsrq(MSR_AMD64_SMCA_MCx_IPID(i));
 
 		if (m->status & MCI_STATUS_SYNDV) {
-			m->synd = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND(i));
-			err->vendor.amd.synd1 = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND1(i));
-			err->vendor.amd.synd2 = mce_rdmsrl(MSR_AMD64_SMCA_MCx_SYND2(i));
+			m->synd = mce_rdmsrq(MSR_AMD64_SMCA_MCx_SYND(i));
+			err->vendor.amd.synd1 = mce_rdmsrq(MSR_AMD64_SMCA_MCx_SYND1(i));
+			err->vendor.amd.synd2 = mce_rdmsrq(MSR_AMD64_SMCA_MCx_SYND2(i));
 		}
 	}
 }
@@ -753,7 +753,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		m->bank = i;
 
 		barrier();
-		m->status = mce_rdmsrl(mca_msr_reg(i, MCA_STATUS));
+		m->status = mce_rdmsrq(mca_msr_reg(i, MCA_STATUS));
 
 		/*
 		 * Update storm tracking here, before checking for the
@@ -829,7 +829,7 @@ clear_it:
 		/*
 		 * Clear state for this bank.
 		 */
-		mce_wrmsrl(mca_msr_reg(i, MCA_STATUS), 0);
+		mce_wrmsrq(mca_msr_reg(i, MCA_STATUS), 0);
 	}
 
 	/*
@@ -887,8 +887,8 @@ quirk_sandybridge_ifu(int bank, struct mce *m, struct pt_regs *regs)
  */
 static noinstr bool quirk_skylake_repmov(void)
 {
-	u64 mcgstatus   = mce_rdmsrl(MSR_IA32_MCG_STATUS);
-	u64 misc_enable = mce_rdmsrl(MSR_IA32_MISC_ENABLE);
+	u64 mcgstatus   = mce_rdmsrq(MSR_IA32_MCG_STATUS);
+	u64 misc_enable = mce_rdmsrq(MSR_IA32_MISC_ENABLE);
 	u64 mc1_status;
 
 	/*
@@ -899,7 +899,7 @@ static noinstr bool quirk_skylake_repmov(void)
 	    !(misc_enable & MSR_IA32_MISC_ENABLE_FAST_STRING))
 		return false;
 
-	mc1_status = mce_rdmsrl(MSR_IA32_MCx_STATUS(1));
+	mc1_status = mce_rdmsrq(MSR_IA32_MCx_STATUS(1));
 
 	/* Check for a software-recoverable data fetch error. */
 	if ((mc1_status &
@@ -910,8 +910,8 @@ static noinstr bool quirk_skylake_repmov(void)
 	      MCI_STATUS_ADDRV | MCI_STATUS_MISCV |
 	      MCI_STATUS_AR | MCI_STATUS_S)) {
 		misc_enable &= ~MSR_IA32_MISC_ENABLE_FAST_STRING;
-		mce_wrmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
-		mce_wrmsrl(MSR_IA32_MCx_STATUS(1), 0);
+		mce_wrmsrq(MSR_IA32_MISC_ENABLE, misc_enable);
+		mce_wrmsrq(MSR_IA32_MCx_STATUS(1), 0);
 
 		instrumentation_begin();
 		pr_err_once("Erratum detected, disable fast string copy instructions.\n");
@@ -955,7 +955,7 @@ static __always_inline int mce_no_way_out(struct mce_hw_err *err, char **msg, un
 	int i;
 
 	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
-		m->status = mce_rdmsrl(mca_msr_reg(i, MCA_STATUS));
+		m->status = mce_rdmsrq(mca_msr_reg(i, MCA_STATUS));
 		if (!(m->status & MCI_STATUS_VAL))
 			continue;
 
@@ -1274,7 +1274,7 @@ static __always_inline void mce_clear_state(unsigned long *toclear)
 
 	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
 		if (arch_test_bit(i, toclear))
-			mce_wrmsrl(mca_msr_reg(i, MCA_STATUS), 0);
+			mce_wrmsrq(mca_msr_reg(i, MCA_STATUS), 0);
 	}
 }
 
@@ -1298,7 +1298,7 @@ static noinstr bool mce_check_crashing_cpu(void)
 	    (crashing_cpu != -1 && crashing_cpu != cpu)) {
 		u64 mcgstatus;
 
-		mcgstatus = __rdmsr(MSR_IA32_MCG_STATUS);
+		mcgstatus = native_rdmsrq(MSR_IA32_MCG_STATUS);
 
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_ZHAOXIN) {
 			if (mcgstatus & MCG_STATUS_LMCES)
@@ -1306,7 +1306,7 @@ static noinstr bool mce_check_crashing_cpu(void)
 		}
 
 		if (mcgstatus & MCG_STATUS_RIPV) {
-			__wrmsr(MSR_IA32_MCG_STATUS, 0, 0);
+			native_wrmsrq(MSR_IA32_MCG_STATUS, 0);
 			return true;
 		}
 	}
@@ -1335,7 +1335,7 @@ __mc_scan_banks(struct mce_hw_err *err, struct pt_regs *regs,
 		m->addr = 0;
 		m->bank = i;
 
-		m->status = mce_rdmsrl(mca_msr_reg(i, MCA_STATUS));
+		m->status = mce_rdmsrq(mca_msr_reg(i, MCA_STATUS));
 		if (!(m->status & MCI_STATUS_VAL))
 			continue;
 
@@ -1693,7 +1693,7 @@ out:
 	instrumentation_end();
 
 clear:
-	mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
+	mce_wrmsrq(MSR_IA32_MCG_STATUS, 0);
 }
 EXPORT_SYMBOL_GPL(do_machine_check);
 
@@ -1822,7 +1822,7 @@ static void __mcheck_cpu_cap_init(void)
 	u64 cap;
 	u8 b;
 
-	rdmsrl(MSR_IA32_MCG_CAP, cap);
+	rdmsrq(MSR_IA32_MCG_CAP, cap);
 
 	b = cap & MCG_BANKCNT_MASK;
 
@@ -1863,7 +1863,7 @@ static void __mcheck_cpu_init_generic(void)
 
 	cr4_set_bits(X86_CR4_MCE);
 
-	rdmsrl(MSR_IA32_MCG_CAP, cap);
+	rdmsrq(MSR_IA32_MCG_CAP, cap);
 	if (cap & MCG_CTL_P)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 }
@@ -1878,8 +1878,8 @@ static void __mcheck_cpu_init_clear_banks(void)
 
 		if (!b->init)
 			continue;
-		wrmsrl(mca_msr_reg(i, MCA_CTL), b->ctl);
-		wrmsrl(mca_msr_reg(i, MCA_STATUS), 0);
+		wrmsrq(mca_msr_reg(i, MCA_CTL), b->ctl);
+		wrmsrq(mca_msr_reg(i, MCA_STATUS), 0);
 	}
 }
 
@@ -1905,7 +1905,7 @@ static void __mcheck_cpu_check_banks(void)
 		if (!b->init)
 			continue;
 
-		rdmsrl(mca_msr_reg(i, MCA_CTL), msrval);
+		rdmsrq(mca_msr_reg(i, MCA_CTL), msrval);
 		b->init = !!msrval;
 	}
 }
@@ -2436,7 +2436,7 @@ static void mce_disable_error_reporting(void)
 		struct mce_bank *b = &mce_banks[i];
 
 		if (b->init)
-			wrmsrl(mca_msr_reg(i, MCA_CTL), 0);
+			wrmsrq(mca_msr_reg(i, MCA_CTL), 0);
 	}
 	return;
 }
@@ -2786,7 +2786,7 @@ static void mce_reenable_cpu(void)
 		struct mce_bank *b = &mce_banks[i];
 
 		if (b->init)
-			wrmsrl(mca_msr_reg(i, MCA_CTL), b->ctl);
+			wrmsrq(mca_msr_reg(i, MCA_CTL), b->ctl);
 	}
 }
 

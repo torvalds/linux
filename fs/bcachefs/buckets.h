@@ -44,6 +44,7 @@ static inline void bucket_unlock(struct bucket *b)
 	BUILD_BUG_ON(!((union ulong_byte_assert) { .ulong = 1UL << BUCKET_LOCK_BITNR }).byte);
 
 	clear_bit_unlock(BUCKET_LOCK_BITNR, (void *) &b->lock);
+	smp_mb__after_atomic();
 	wake_up_bit((void *) &b->lock, BUCKET_LOCK_BITNR);
 }
 
@@ -83,10 +84,8 @@ static inline int bucket_gen_get_rcu(struct bch_dev *ca, size_t b)
 
 static inline int bucket_gen_get(struct bch_dev *ca, size_t b)
 {
-	rcu_read_lock();
-	int ret = bucket_gen_get_rcu(ca, b);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return bucket_gen_get_rcu(ca, b);
 }
 
 static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
@@ -155,10 +154,8 @@ static inline int dev_ptr_stale_rcu(struct bch_dev *ca, const struct bch_extent_
  */
 static inline int dev_ptr_stale(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
 {
-	rcu_read_lock();
-	int ret = dev_ptr_stale_rcu(ca, ptr);
-	rcu_read_unlock();
-	return ret;
+	guard(rcu)();
+	return dev_ptr_stale_rcu(ca, ptr);
 }
 
 /* Device usage: */
@@ -241,11 +238,6 @@ static inline u64 dev_buckets_available(struct bch_dev *ca,
 }
 
 /* Filesystem usage: */
-
-static inline unsigned dev_usage_u64s(void)
-{
-	return sizeof(struct bch_dev_usage) / sizeof(u64);
-}
 
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);

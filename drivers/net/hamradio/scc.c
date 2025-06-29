@@ -1127,7 +1127,7 @@ static inline int is_grouped(struct scc_channel *scc)
 
 static void t_dwait(struct timer_list *t)
 {
-	struct scc_channel *scc = from_timer(scc, t, tx_t);
+	struct scc_channel *scc = timer_container_of(scc, t, tx_t);
 	
 	if (scc->stat.tx_state == TXS_WAIT)	/* maxkeyup or idle timeout */
 	{
@@ -1169,7 +1169,7 @@ static void t_dwait(struct timer_list *t)
 
 static void t_txdelay(struct timer_list *t)
 {
-	struct scc_channel *scc = from_timer(scc, t, tx_t);
+	struct scc_channel *scc = timer_container_of(scc, t, tx_t);
 
 	scc_start_maxkeyup(scc);
 
@@ -1190,7 +1190,7 @@ static void t_txdelay(struct timer_list *t)
 
 static void t_tail(struct timer_list *t)
 {
-	struct scc_channel *scc = from_timer(scc, t, tx_t);
+	struct scc_channel *scc = timer_container_of(scc, t, tx_t);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&scc->lock, flags); 
@@ -1217,7 +1217,7 @@ static void t_tail(struct timer_list *t)
 
 static void t_busy(struct timer_list *t)
 {
-	struct scc_channel *scc = from_timer(scc, t, tx_wdog);
+	struct scc_channel *scc = timer_container_of(scc, t, tx_wdog);
 
 	timer_delete(&scc->tx_t);
 	netif_stop_queue(scc->dev);	/* don't pile on the wabbit! */
@@ -1236,7 +1236,7 @@ static void t_busy(struct timer_list *t)
 
 static void t_maxkeyup(struct timer_list *t)
 {
-	struct scc_channel *scc = from_timer(scc, t, tx_wdog);
+	struct scc_channel *scc = timer_container_of(scc, t, tx_wdog);
 	unsigned long flags;
 
 	spin_lock_irqsave(&scc->lock, flags);
@@ -1270,7 +1270,7 @@ static void t_maxkeyup(struct timer_list *t)
 
 static void t_idle(struct timer_list *t)
 {
-	struct scc_channel *scc = from_timer(scc, t, tx_t);
+	struct scc_channel *scc = timer_container_of(scc, t, tx_t);
 	
 	timer_delete(&scc->tx_wdog);
 
@@ -1403,7 +1403,7 @@ static unsigned long scc_get_param(struct scc_channel *scc, unsigned int cmd)
 
 static void scc_stop_calibrate(struct timer_list *t)
 {
-	struct scc_channel *scc = from_timer(scc, t, tx_wdog);
+	struct scc_channel *scc = timer_container_of(scc, t, tx_wdog);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&scc->lock, flags);

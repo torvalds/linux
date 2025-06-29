@@ -233,6 +233,7 @@
 						groups = "uart_a_tx",
 							 "uart_a_rx";
 						function = "uart_a";
+						bias-pull-up;
 					};
 				};
 

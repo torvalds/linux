@@ -56,6 +56,8 @@
 
 #define MAC_DST_FWD "00:11:22:33:44:55"
 #define MAC_DST "00:22:33:44:55:66"
+#define MAC_SRC_FWD "00:33:44:55:66:77"
+#define MAC_SRC "00:44:55:66:77:88"
 
 #define IFADDR_STR_LEN 18
 #define PING_ARGS "-i 0.2 -c 3 -w 10 -q"
@@ -207,11 +209,10 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	int err;
 
 	if (result->dev_mode == MODE_VETH) {
-		SYS(fail, "ip link add src type veth peer name src_fwd");
-		SYS(fail, "ip link add dst type veth peer name dst_fwd");
-
-		SYS(fail, "ip link set dst_fwd address " MAC_DST_FWD);
-		SYS(fail, "ip link set dst address " MAC_DST);
+		SYS(fail, "ip link add src address " MAC_SRC " type veth "
+			  "peer name src_fwd address " MAC_SRC_FWD);
+		SYS(fail, "ip link add dst address " MAC_DST " type veth "
+			  "peer name dst_fwd address " MAC_DST_FWD);
 	} else if (result->dev_mode == MODE_NETKIT) {
 		err = create_netkit(NETKIT_L3, "src", "src_fwd");
 		if (!ASSERT_OK(err, "create_ifindex_src"))

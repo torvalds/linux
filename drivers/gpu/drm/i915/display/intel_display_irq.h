@@ -12,7 +12,9 @@
 
 enum pipe;
 struct drm_crtc;
+struct drm_printer;
 struct intel_display;
+struct intel_display_irq_snapshot;
 
 void valleyview_enable_display_irqs(struct intel_display *display);
 void valleyview_disable_display_irqs(struct intel_display *display);
@@ -54,10 +56,13 @@ u32 gen11_gu_misc_irq_ack(struct intel_display *display, const u32 master_ctl);
 void gen11_gu_misc_irq_handler(struct intel_display *display, const u32 iir);
 
 void i9xx_display_irq_reset(struct intel_display *display);
+void ibx_display_irq_reset(struct intel_display *display);
 void vlv_display_irq_reset(struct intel_display *display);
 void gen8_display_irq_reset(struct intel_display *display);
 void gen11_display_irq_reset(struct intel_display *display);
 
+void i915_display_irq_postinstall(struct intel_display *display);
+void i965_display_irq_postinstall(struct intel_display *display);
 void vlv_display_irq_postinstall(struct intel_display *display);
 void ilk_de_irq_postinstall(struct intel_display *display);
 void gen8_de_irq_postinstall(struct intel_display *display);
@@ -67,7 +72,6 @@ void dg1_de_irq_postinstall(struct intel_display *display);
 u32 i915_pipestat_enable_mask(struct intel_display *display, enum pipe pipe);
 void i915_enable_pipestat(struct intel_display *display, enum pipe pipe, u32 status_mask);
 void i915_disable_pipestat(struct intel_display *display, enum pipe pipe, u32 status_mask);
-void i915_enable_asle_pipestat(struct intel_display *display);
 
 void i9xx_pipestat_irq_ack(struct intel_display *display, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
 
@@ -81,5 +85,8 @@ void vlv_display_error_irq_handler(struct intel_display *display, u32 eir, u32 d
 void intel_display_irq_init(struct intel_display *display);
 
 void i915gm_irq_cstate_wa(struct intel_display *display, bool enable);
+
+struct intel_display_irq_snapshot *intel_display_irq_snapshot_capture(struct intel_display *display);
+void intel_display_irq_snapshot_print(const struct intel_display_irq_snapshot *snapshot, struct drm_printer *p);
 
 #endif /* __INTEL_DISPLAY_IRQ_H__ */

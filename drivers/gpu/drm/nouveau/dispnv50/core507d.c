@@ -165,6 +165,7 @@ core507d_new_(const struct nv50_core_func *func, struct nouveau_drm *drm,
 	if (!(core = *pcore = kzalloc(sizeof(*core), GFP_KERNEL)))
 		return -ENOMEM;
 	core->func = func;
+	core->disp = disp;
 
 	ret = nv50_dmac_create(drm,
 			       &oclass, 0, &args, sizeof(args),

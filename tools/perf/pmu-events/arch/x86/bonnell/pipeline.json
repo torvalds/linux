@@ -212,6 +212,14 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Memory cluster signals to block micro-op dispatch for any reason",
+        "Counter": "0,1",
+        "EventCode": "0x9",
+        "EventName": "DISPATCH_BLOCKED.ANY",
+        "SampleAfterValue": "200000",
+        "UMask": "0x20"
+    },
+    {
         "BriefDescription": "Divide operations retired",
         "Counter": "0,1",
         "EventCode": "0x13",

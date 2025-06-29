@@ -6,8 +6,8 @@
 #ifndef __INTEL_CX0_PHY_REGS_H__
 #define __INTEL_CX0_PHY_REGS_H__
 
-#include "i915_reg_defs.h"
 #include "intel_display_limits.h"
+#include "intel_display_reg_defs.h"
 
 /* DDI Buffer Control */
 #define _DDI_CLK_VALFREQ_A		0x64030
@@ -192,10 +192,17 @@
 
 #define   XELPDP_TBT_CLOCK_REQUEST			REG_BIT(19)
 #define   XELPDP_TBT_CLOCK_ACK				REG_BIT(18)
-#define   XELPDP_DDI_CLOCK_SELECT_MASK			REG_GENMASK(15, 12)
-#define   XE3_DDI_CLOCK_SELECT_MASK			REG_GENMASK(16, 12)
-#define   XELPDP_DDI_CLOCK_SELECT(val)			REG_FIELD_PREP(XELPDP_DDI_CLOCK_SELECT_MASK, val)
-#define   XE3_DDI_CLOCK_SELECT(val)			REG_FIELD_PREP(XE3_DDI_CLOCK_SELECT_MASK, val)
+#define   _XELPDP_DDI_CLOCK_SELECT_MASK			REG_GENMASK(15, 12)
+#define   _XE3_DDI_CLOCK_SELECT_MASK			REG_GENMASK(16, 12)
+#define   XELPDP_DDI_CLOCK_SELECT_MASK(display)		(DISPLAY_VER(display) >= 30 ? \
+							 _XE3_DDI_CLOCK_SELECT_MASK : _XELPDP_DDI_CLOCK_SELECT_MASK)
+#define   XELPDP_DDI_CLOCK_SELECT_PREP(display, val)	(DISPLAY_VER(display) >= 30 ? \
+							 REG_FIELD_PREP(_XE3_DDI_CLOCK_SELECT_MASK, (val)) : \
+							 REG_FIELD_PREP(_XELPDP_DDI_CLOCK_SELECT_MASK, (val)))
+#define   XELPDP_DDI_CLOCK_SELECT_GET(display, val)	(DISPLAY_VER(display) >= 30 ? \
+							 REG_FIELD_GET(_XE3_DDI_CLOCK_SELECT_MASK, (val)) : \
+							 REG_FIELD_GET(_XELPDP_DDI_CLOCK_SELECT_MASK, (val)))
+
 #define   XELPDP_DDI_CLOCK_SELECT_NONE			0x0
 #define   XELPDP_DDI_CLOCK_SELECT_MAXPCLK		0x8
 #define   XELPDP_DDI_CLOCK_SELECT_DIV18CLK		0x9
@@ -277,6 +284,9 @@
 /* PIPE SPEC Defined Registers */
 #define PHY_CX0_TX_CONTROL(tx, control)	(0x400 + ((tx) - 1) * 0x200 + (control))
 #define   CONTROL2_DISABLE_SINGLE_TX	REG_BIT(6)
+
+#define PHY_CMN1_CONTROL(tx, control)	(0x800 + ((tx) - 1) * 0x200 + (control))
+#define   CONTROL0_MAC_TRANSMIT_LFPS	REG_BIT(1)
 
 /* C20 Registers */
 #define PHY_C20_WR_ADDRESS_L		0xC02

@@ -1220,7 +1220,7 @@ static void mmc_blk_issue_erase_rq(struct mmc_queue *mq, struct request *req,
 	int err = 0;
 	blk_status_t status = BLK_STS_OK;
 
-	if (!mmc_can_erase(card)) {
+	if (!mmc_card_can_erase(card)) {
 		status = BLK_STS_NOTSUPP;
 		goto fail;
 	}
@@ -1276,7 +1276,7 @@ static void mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
 	int err = 0, type = MMC_BLK_SECDISCARD;
 	blk_status_t status = BLK_STS_OK;
 
-	if (!(mmc_can_secure_erase_trim(card))) {
+	if (!(mmc_card_can_secure_erase_trim(card))) {
 		status = BLK_STS_NOTSUPP;
 		goto out;
 	}
@@ -1284,7 +1284,7 @@ static void mmc_blk_issue_secdiscard_rq(struct mmc_queue *mq,
 	from = blk_rq_pos(req);
 	nr = blk_rq_sectors(req);
 
-	if (mmc_can_trim(card) && !mmc_erase_group_aligned(card, from, nr))
+	if (mmc_card_can_trim(card) && !mmc_erase_group_aligned(card, from, nr))
 		arg = MMC_SECURE_TRIM1_ARG;
 	else
 		arg = MMC_SECURE_ERASE_ARG;
@@ -2278,7 +2278,7 @@ void mmc_blk_mq_recovery(struct mmc_queue *mq)
 static void mmc_blk_mq_complete_prev_req(struct mmc_queue *mq,
 					 struct request **prev_req)
 {
-	if (mmc_host_done_complete(mq->card->host))
+	if (mmc_host_can_done_complete(mq->card->host))
 		return;
 
 	mutex_lock(&mq->complete_lock);
@@ -2317,7 +2317,7 @@ static void mmc_blk_mq_req_done(struct mmc_request *mrq)
 	struct mmc_host *host = mq->card->host;
 	unsigned long flags;
 
-	if (!mmc_host_done_complete(host)) {
+	if (!mmc_host_can_done_complete(host)) {
 		bool waiting;
 
 		/*
@@ -2430,7 +2430,7 @@ static int mmc_blk_mq_issue_rw_rq(struct mmc_queue *mq,
 		mq->rw_wait = false;
 
 	/* Release re-tuning here where there is no synchronization required */
-	if (err || mmc_host_done_complete(host))
+	if (err || mmc_host_can_done_complete(host))
 		mmc_retune_release(host);
 
 out_post_req:
@@ -2618,7 +2618,7 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	 */
 	md->read_only = mmc_blk_readonly(card);
 
-	if (mmc_host_cmd23(card->host)) {
+	if (mmc_host_can_cmd23(card->host)) {
 		if ((mmc_card_mmc(card) &&
 		     card->csd.mmca_vsn >= CSD_SPEC_VER_3) ||
 		    (mmc_card_sd(card) && !mmc_card_ult_capacity(card) &&
@@ -2655,7 +2655,7 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	md->disk->private_data = md;
 	md->parent = parent;
 	set_disk_ro(md->disk, md->read_only || default_ro);
-	if (area_type & (MMC_BLK_DATA_AREA_RPMB | MMC_BLK_DATA_AREA_BOOT))
+	if (area_type & MMC_BLK_DATA_AREA_RPMB)
 		md->disk->flags |= GENHD_FL_NO_PART;
 
 	/*

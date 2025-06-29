@@ -28,6 +28,10 @@ struct xe_vm;
 struct xe_bo {
 	/** @ttm: TTM base buffer object */
 	struct ttm_buffer_object ttm;
+	/** @backup_obj: The backup object when pinned and suspended (vram only) */
+	struct xe_bo *backup_obj;
+	/** @parent_obj: Ref to parent bo if this a backup_obj */
+	struct xe_bo *parent_obj;
 	/** @size: Size of this buffer object */
 	size_t size;
 	/** @flags: flags for this buffer object */

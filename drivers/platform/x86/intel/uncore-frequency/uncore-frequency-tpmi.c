@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/intel_tpmi.h>
 
+#include "../tpmi_power_domains.h"
 #include "uncore-frequency-common.h"
 
 #define	UNCORE_MAJOR_VERSION		0
@@ -49,6 +50,7 @@ struct tpmi_uncore_cluster_info {
 	bool root_domain;
 	bool elc_supported;
 	u8 __iomem *cluster_base;
+	u16 cdie_id;
 	struct uncore_data uncore_data;
 	struct tpmi_uncore_struct *uncore_root;
 };
@@ -347,9 +349,31 @@ static int uncore_read_freq(struct uncore_data *data, unsigned int *freq)
 	return 0;
 }
 
+/*
+ * Agent types as per the TPMI UFS Specification for UFS_STATUS
+ * Agent Type - Core	Bit: 23
+ * Agent Type - Cache	Bit: 24
+ * Agent Type - Memory	Bit: 25
+ * Agent Type - IO	Bit: 26
+ */
+
+#define UNCORE_AGENT_TYPES	GENMASK_ULL(26, 23)
+
+/* Helper function to read agent type over MMIO and set the agent type mask */
+static void uncore_set_agent_type(struct tpmi_uncore_cluster_info *cluster_info)
+{
+	u64 status;
+
+	status = readq((u8 __iomem *)cluster_info->cluster_base + UNCORE_STATUS_INDEX);
+	cluster_info->uncore_data.agent_type_mask = FIELD_GET(UNCORE_AGENT_TYPES, status);
+}
+
 /* Callback for sysfs read for TPMI uncore values. Called under mutex locks. */
 static int uncore_read(struct uncore_data *data, unsigned int *value, enum uncore_index index)
 {
+	struct tpmi_uncore_cluster_info *cluster_info;
+	int ret;
+
 	switch (index) {
 	case UNCORE_INDEX_MIN_FREQ:
 	case UNCORE_INDEX_MAX_FREQ:
@@ -363,6 +387,16 @@ static int uncore_read(struct uncore_data *data, unsigned int *value, enum uncor
 	case UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE:
 	case UNCORE_INDEX_EFF_LAT_CTRL_FREQ:
 		return read_eff_lat_ctrl(data, value, index);
+
+	case UNCORE_INDEX_DIE_ID:
+		cluster_info = container_of(data, struct tpmi_uncore_cluster_info, uncore_data);
+		ret = tpmi_get_linux_die_id(cluster_info->uncore_data.package_id,
+					    cluster_info->cdie_id);
+		if (ret < 0)
+			return ret;
+
+		*value = ret;
+		return 0;
 
 	default:
 		break;
@@ -411,6 +445,16 @@ static void remove_cluster_entries(struct tpmi_uncore_struct *tpmi_uncore)
 			uncore_freq_remove_die_entry(&cluster_info->uncore_data);
 		}
 	}
+}
+
+static void set_cdie_id(int domain_id, struct tpmi_uncore_cluster_info *cluster_info,
+		       struct intel_tpmi_plat_info *plat_info)
+{
+
+	cluster_info->cdie_id = domain_id;
+
+	if (plat_info->cdie_mask && cluster_info->uncore_data.agent_type_mask & AGENT_TYPE_CORE)
+		cluster_info->cdie_id = domain_id + ffs(plat_info->cdie_mask) - 1;
 }
 
 #define UNCORE_VERSION_MASK			GENMASK_ULL(7, 0)
@@ -552,11 +596,15 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 
 			cluster_info->cluster_base = pd_info->uncore_base + mask;
 
+			uncore_set_agent_type(cluster_info);
+
 			cluster_info->uncore_data.package_id = pkg;
 			/* There are no dies like Cascade Lake */
 			cluster_info->uncore_data.die_id = 0;
 			cluster_info->uncore_data.domain_id = i;
 			cluster_info->uncore_data.cluster_id = j;
+
+			set_cdie_id(i, cluster_info, plat_info);
 
 			cluster_info->uncore_root = tpmi_uncore;
 
@@ -631,5 +679,6 @@ module_auxiliary_driver(intel_uncore_aux_driver);
 
 MODULE_IMPORT_NS("INTEL_TPMI");
 MODULE_IMPORT_NS("INTEL_UNCORE_FREQUENCY");
+MODULE_IMPORT_NS("INTEL_TPMI_POWER_DOMAIN");
 MODULE_DESCRIPTION("Intel TPMI UFS Driver");
 MODULE_LICENSE("GPL");

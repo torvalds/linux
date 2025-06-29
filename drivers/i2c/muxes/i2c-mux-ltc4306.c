@@ -85,13 +85,13 @@ static int ltc4306_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(val & BIT(1 - offset));
 }
 
-static void ltc4306_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			     int value)
+static int ltc4306_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
 	struct ltc4306 *data = gpiochip_get_data(chip);
 
-	regmap_update_bits(data->regmap, LTC_REG_CONFIG, BIT(5 - offset),
-			   value ? BIT(5 - offset) : 0);
+	return regmap_update_bits(data->regmap, LTC_REG_CONFIG,
+				  BIT(5 - offset), value ? BIT(5 - offset) : 0);
 }
 
 static int ltc4306_gpio_get_direction(struct gpio_chip *chip,
@@ -164,7 +164,7 @@ static int ltc4306_gpio_init(struct ltc4306 *data)
 	data->gpiochip.direction_input = ltc4306_gpio_direction_input;
 	data->gpiochip.direction_output = ltc4306_gpio_direction_output;
 	data->gpiochip.get = ltc4306_gpio_get;
-	data->gpiochip.set = ltc4306_gpio_set;
+	data->gpiochip.set_rv = ltc4306_gpio_set;
 	data->gpiochip.set_config = ltc4306_gpio_set_config;
 	data->gpiochip.owner = THIS_MODULE;
 

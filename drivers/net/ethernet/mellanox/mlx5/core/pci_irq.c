@@ -148,7 +148,7 @@ out:
  * Free the IRQ and other resources such as rmap from the system.
  * BUT doesn't free or remove reference from mlx5.
  * This function is very important for the shutdown flow, where we need to
- * cleanup system resoruces but keep mlx5 objects alive,
+ * cleanup system resources but keep mlx5 objects alive,
  * see mlx5_irq_table_free_irqs().
  */
 static void mlx5_system_free_irq(struct mlx5_irq *irq)
@@ -588,7 +588,7 @@ static void irq_pool_free(struct mlx5_irq_pool *pool)
 	struct mlx5_irq *irq;
 	unsigned long index;
 
-	/* There are cases in which we are destrying the irq_table before
+	/* There are cases in which we are destroying the irq_table before
 	 * freeing all the IRQs, fast teardown for example. Hence, free the irqs
 	 * which might not have been freed.
 	 */
@@ -617,7 +617,7 @@ static int irq_pools_init(struct mlx5_core_dev *dev, int sf_vec, int pcif_vec,
 	if (!mlx5_sf_max_functions(dev))
 		return 0;
 	if (sf_vec < MLX5_IRQ_VEC_COMP_BASE_SF) {
-		mlx5_core_dbg(dev, "Not enught IRQs for SFs. SF may run at lower performance\n");
+		mlx5_core_dbg(dev, "Not enough IRQs for SFs. SF may run at lower performance\n");
 		return 0;
 	}
 

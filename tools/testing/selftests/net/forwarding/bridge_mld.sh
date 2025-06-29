@@ -1,10 +1,23 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="mldv2include_test mldv2inc_allow_test mldv2inc_is_include_test mldv2inc_is_exclude_test \
-	   mldv2inc_to_exclude_test mldv2exc_allow_test mldv2exc_is_include_test \
-	   mldv2exc_is_exclude_test mldv2exc_to_exclude_test mldv2inc_block_test \
-	   mldv2exc_block_test mldv2exc_timeout_test mldv2star_ex_auto_add_test"
+ALL_TESTS="
+	mldv2include_test
+	mldv2inc_allow_test
+	mldv2inc_is_include_test
+	mldv2inc_is_exclude_test
+	mldv2inc_to_exclude_test
+	mldv2exc_allow_test
+	mldv2exc_is_include_test
+	mldv2exc_is_exclude_test
+	mldv2exc_to_exclude_test
+	mldv2inc_block_test
+	mldv2exc_block_test
+	mldv2exc_timeout_test
+	mldv2star_ex_auto_add_test
+	mldv2per_vlan_snooping_port_stp_test
+	mldv2per_vlan_snooping_vlan_stp_test
+"
 NUM_NETIFS=4
 CHECK_TC="yes"
 TEST_GROUP="ff02::cc"
@@ -552,6 +565,66 @@ mldv2star_ex_auto_add_test()
 
 	mldv2cleanup $swp1
 	mldv2cleanup $swp2
+}
+
+mldv2per_vlan_snooping_stp_test()
+{
+	local is_port=$1
+
+	local msg="port"
+	[[ $is_port -ne 1 ]] && msg="vlan"
+
+	ip link set br0 up type bridge vlan_filtering 1 \
+					mcast_mld_version 2 \
+					mcast_snooping 1 \
+					mcast_vlan_snooping 1 \
+					mcast_querier 1 \
+					mcast_stats_enabled 1
+	bridge vlan global set vid 1 dev br0 \
+					mcast_mld_version 2 \
+					mcast_snooping 1 \
+					mcast_querier 1 \
+					mcast_query_interval 100 \
+					mcast_startup_query_count 0
+
+	[[ $is_port -eq 1 ]] && bridge link set dev $swp1 state 0
+	[[ $is_port -ne 1 ]] && bridge vlan set vid 1 dev $swp1 state 4
+	sleep 5
+	local tx_s=$(ip -j -p stats show dev $swp1 \
+			group xstats_slave subgroup bridge suite mcast \
+			| jq '.[]["multicast"]["mld_queries"]["tx_v2"]')
+	[[ $is_port -eq 1 ]] && bridge link set dev $swp1 state 3
+	[[ $is_port -ne 1 ]] && bridge vlan set vid 1 dev $swp1 state 3
+	sleep 5
+	local tx_e=$(ip -j -p stats show dev $swp1 \
+			group xstats_slave subgroup bridge suite mcast \
+			| jq '.[]["multicast"]["mld_queries"]["tx_v2"]')
+
+	RET=0
+	local tx=$(expr $tx_e - $tx_s)
+	test $tx -gt 0
+	check_err $? "No MLD queries after STP state becomes forwarding"
+	log_test "per vlan snooping with $msg stp state change"
+
+	# restore settings
+	bridge vlan global set vid 1 dev br0 \
+					mcast_querier 0 \
+					mcast_query_interval 12500 \
+					mcast_startup_query_count 2 \
+					mcast_mld_version 1
+	ip link set br0 up type bridge vlan_filtering 0 \
+					mcast_vlan_snooping 0 \
+					mcast_stats_enabled 0
+}
+
+mldv2per_vlan_snooping_port_stp_test()
+{
+	mldv2per_vlan_snooping_stp_test 1
+}
+
+mldv2per_vlan_snooping_vlan_stp_test()
+{
+	mldv2per_vlan_snooping_stp_test 0
 }
 
 trap cleanup EXIT

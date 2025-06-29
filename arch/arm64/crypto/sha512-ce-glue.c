@@ -10,14 +10,11 @@
  */
 
 #include <asm/neon.h>
-#include <asm/simd.h>
-#include <linux/unaligned.h>
 #include <crypto/internal/hash.h>
-#include <crypto/internal/simd.h>
 #include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
 #include <linux/cpufeature.h>
-#include <linux/crypto.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 
 MODULE_DESCRIPTION("SHA-384/SHA-512 secure hash using ARMv8 Crypto Extensions");
@@ -29,12 +26,10 @@ MODULE_ALIAS_CRYPTO("sha512");
 asmlinkage int __sha512_ce_transform(struct sha512_state *sst, u8 const *src,
 				     int blocks);
 
-asmlinkage void sha512_block_data_order(u64 *digest, u8 const *src, int blocks);
-
 static void sha512_ce_transform(struct sha512_state *sst, u8 const *src,
 				int blocks)
 {
-	while (blocks) {
+	do {
 		int rem;
 
 		kernel_neon_begin();
@@ -42,67 +37,47 @@ static void sha512_ce_transform(struct sha512_state *sst, u8 const *src,
 		kernel_neon_end();
 		src += (blocks - rem) * SHA512_BLOCK_SIZE;
 		blocks = rem;
-	}
-}
-
-static void sha512_arm64_transform(struct sha512_state *sst, u8 const *src,
-				   int blocks)
-{
-	sha512_block_data_order(sst->state, src, blocks);
+	} while (blocks);
 }
 
 static int sha512_ce_update(struct shash_desc *desc, const u8 *data,
 			    unsigned int len)
 {
-	sha512_block_fn *fn = crypto_simd_usable() ? sha512_ce_transform
-						   : sha512_arm64_transform;
-
-	sha512_base_do_update(desc, data, len, fn);
-	return 0;
+	return sha512_base_do_update_blocks(desc, data, len,
+					    sha512_ce_transform);
 }
 
 static int sha512_ce_finup(struct shash_desc *desc, const u8 *data,
 			   unsigned int len, u8 *out)
 {
-	sha512_block_fn *fn = crypto_simd_usable() ? sha512_ce_transform
-						   : sha512_arm64_transform;
-
-	sha512_base_do_update(desc, data, len, fn);
-	sha512_base_do_finalize(desc, fn);
-	return sha512_base_finish(desc, out);
-}
-
-static int sha512_ce_final(struct shash_desc *desc, u8 *out)
-{
-	sha512_block_fn *fn = crypto_simd_usable() ? sha512_ce_transform
-						   : sha512_arm64_transform;
-
-	sha512_base_do_finalize(desc, fn);
+	sha512_base_do_finup(desc, data, len, sha512_ce_transform);
 	return sha512_base_finish(desc, out);
 }
 
 static struct shash_alg algs[] = { {
 	.init			= sha384_base_init,
 	.update			= sha512_ce_update,
-	.final			= sha512_ce_final,
 	.finup			= sha512_ce_finup,
-	.descsize		= sizeof(struct sha512_state),
+	.descsize		= SHA512_STATE_SIZE,
 	.digestsize		= SHA384_DIGEST_SIZE,
 	.base.cra_name		= "sha384",
 	.base.cra_driver_name	= "sha384-ce",
 	.base.cra_priority	= 200,
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+				  CRYPTO_AHASH_ALG_FINUP_MAX,
 	.base.cra_blocksize	= SHA512_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
 	.init			= sha512_base_init,
 	.update			= sha512_ce_update,
-	.final			= sha512_ce_final,
 	.finup			= sha512_ce_finup,
-	.descsize		= sizeof(struct sha512_state),
+	.descsize		= SHA512_STATE_SIZE,
 	.digestsize		= SHA512_DIGEST_SIZE,
 	.base.cra_name		= "sha512",
 	.base.cra_driver_name	= "sha512-ce",
 	.base.cra_priority	= 200,
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+				  CRYPTO_AHASH_ALG_FINUP_MAX,
 	.base.cra_blocksize	= SHA512_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 } };

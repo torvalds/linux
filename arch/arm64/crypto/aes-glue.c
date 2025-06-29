@@ -5,19 +5,20 @@
  * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  */
 
-#include <asm/neon.h>
 #include <asm/hwcap.h>
-#include <asm/simd.h>
+#include <asm/neon.h>
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
-#include <crypto/sha2.h>
 #include <crypto/internal/hash.h>
-#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
-#include <linux/module.h>
-#include <linux/cpufeature.h>
+#include <crypto/sha2.h>
+#include <crypto/utils.h>
 #include <crypto/xts.h>
+#include <linux/cpufeature.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/string.h>
 
 #include "aes-ce-setkey.h"
 
@@ -130,7 +131,6 @@ struct mac_tfm_ctx {
 };
 
 struct mac_desc_ctx {
-	unsigned int len;
 	u8 dg[AES_BLOCK_SIZE];
 };
 
@@ -869,109 +869,64 @@ static int mac_init(struct shash_desc *desc)
 	struct mac_desc_ctx *ctx = shash_desc_ctx(desc);
 
 	memset(ctx->dg, 0, AES_BLOCK_SIZE);
-	ctx->len = 0;
-
 	return 0;
 }
 
 static void mac_do_update(struct crypto_aes_ctx *ctx, u8 const in[], int blocks,
-			  u8 dg[], int enc_before, int enc_after)
+			  u8 dg[], int enc_before)
 {
 	int rounds = 6 + ctx->key_length / 4;
+	int rem;
 
-	if (crypto_simd_usable()) {
-		int rem;
-
-		do {
-			kernel_neon_begin();
-			rem = aes_mac_update(in, ctx->key_enc, rounds, blocks,
-					     dg, enc_before, enc_after);
-			kernel_neon_end();
-			in += (blocks - rem) * AES_BLOCK_SIZE;
-			blocks = rem;
-			enc_before = 0;
-		} while (blocks);
-	} else {
-		if (enc_before)
-			aes_encrypt(ctx, dg, dg);
-
-		while (blocks--) {
-			crypto_xor(dg, in, AES_BLOCK_SIZE);
-			in += AES_BLOCK_SIZE;
-
-			if (blocks || enc_after)
-				aes_encrypt(ctx, dg, dg);
-		}
-	}
+	do {
+		kernel_neon_begin();
+		rem = aes_mac_update(in, ctx->key_enc, rounds, blocks,
+				     dg, enc_before, !enc_before);
+		kernel_neon_end();
+		in += (blocks - rem) * AES_BLOCK_SIZE;
+		blocks = rem;
+	} while (blocks);
 }
 
 static int mac_update(struct shash_desc *desc, const u8 *p, unsigned int len)
 {
 	struct mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct mac_desc_ctx *ctx = shash_desc_ctx(desc);
+	int blocks = len / AES_BLOCK_SIZE;
 
-	while (len > 0) {
-		unsigned int l;
-
-		if ((ctx->len % AES_BLOCK_SIZE) == 0 &&
-		    (ctx->len + len) > AES_BLOCK_SIZE) {
-
-			int blocks = len / AES_BLOCK_SIZE;
-
-			len %= AES_BLOCK_SIZE;
-
-			mac_do_update(&tctx->key, p, blocks, ctx->dg,
-				      (ctx->len != 0), (len != 0));
-
-			p += blocks * AES_BLOCK_SIZE;
-
-			if (!len) {
-				ctx->len = AES_BLOCK_SIZE;
-				break;
-			}
-			ctx->len = 0;
-		}
-
-		l = min(len, AES_BLOCK_SIZE - ctx->len);
-
-		if (l <= AES_BLOCK_SIZE) {
-			crypto_xor(ctx->dg + ctx->len, p, l);
-			ctx->len += l;
-			len -= l;
-			p += l;
-		}
-	}
-
-	return 0;
+	len %= AES_BLOCK_SIZE;
+	mac_do_update(&tctx->key, p, blocks, ctx->dg, 0);
+	return len;
 }
 
-static int cbcmac_final(struct shash_desc *desc, u8 *out)
+static int cbcmac_finup(struct shash_desc *desc, const u8 *src,
+			unsigned int len, u8 *out)
 {
 	struct mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct mac_desc_ctx *ctx = shash_desc_ctx(desc);
 
-	mac_do_update(&tctx->key, NULL, 0, ctx->dg, (ctx->len != 0), 0);
-
+	if (len) {
+		crypto_xor(ctx->dg, src, len);
+		mac_do_update(&tctx->key, NULL, 0, ctx->dg, 1);
+	}
 	memcpy(out, ctx->dg, AES_BLOCK_SIZE);
-
 	return 0;
 }
 
-static int cmac_final(struct shash_desc *desc, u8 *out)
+static int cmac_finup(struct shash_desc *desc, const u8 *src, unsigned int len,
+		      u8 *out)
 {
 	struct mac_tfm_ctx *tctx = crypto_shash_ctx(desc->tfm);
 	struct mac_desc_ctx *ctx = shash_desc_ctx(desc);
 	u8 *consts = tctx->consts;
 
-	if (ctx->len != AES_BLOCK_SIZE) {
-		ctx->dg[ctx->len] ^= 0x80;
+	crypto_xor(ctx->dg, src, len);
+	if (len != AES_BLOCK_SIZE) {
+		ctx->dg[len] ^= 0x80;
 		consts += AES_BLOCK_SIZE;
 	}
-
-	mac_do_update(&tctx->key, consts, 1, ctx->dg, 0, 1);
-
+	mac_do_update(&tctx->key, consts, 1, ctx->dg, 0);
 	memcpy(out, ctx->dg, AES_BLOCK_SIZE);
-
 	return 0;
 }
 
@@ -979,6 +934,8 @@ static struct shash_alg mac_algs[] = { {
 	.base.cra_name		= "cmac(aes)",
 	.base.cra_driver_name	= "cmac-aes-" MODE,
 	.base.cra_priority	= PRIO,
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+				  CRYPTO_AHASH_ALG_FINAL_NONZERO,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct mac_tfm_ctx) +
 				  2 * AES_BLOCK_SIZE,
@@ -987,13 +944,15 @@ static struct shash_alg mac_algs[] = { {
 	.digestsize		= AES_BLOCK_SIZE,
 	.init			= mac_init,
 	.update			= mac_update,
-	.final			= cmac_final,
+	.finup			= cmac_finup,
 	.setkey			= cmac_setkey,
 	.descsize		= sizeof(struct mac_desc_ctx),
 }, {
 	.base.cra_name		= "xcbc(aes)",
 	.base.cra_driver_name	= "xcbc-aes-" MODE,
 	.base.cra_priority	= PRIO,
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
+				  CRYPTO_AHASH_ALG_FINAL_NONZERO,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct mac_tfm_ctx) +
 				  2 * AES_BLOCK_SIZE,
@@ -1002,21 +961,22 @@ static struct shash_alg mac_algs[] = { {
 	.digestsize		= AES_BLOCK_SIZE,
 	.init			= mac_init,
 	.update			= mac_update,
-	.final			= cmac_final,
+	.finup			= cmac_finup,
 	.setkey			= xcbc_setkey,
 	.descsize		= sizeof(struct mac_desc_ctx),
 }, {
 	.base.cra_name		= "cbcmac(aes)",
 	.base.cra_driver_name	= "cbcmac-aes-" MODE,
 	.base.cra_priority	= PRIO,
-	.base.cra_blocksize	= 1,
+	.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY,
+	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct mac_tfm_ctx),
 	.base.cra_module	= THIS_MODULE,
 
 	.digestsize		= AES_BLOCK_SIZE,
 	.init			= mac_init,
 	.update			= mac_update,
-	.final			= cbcmac_final,
+	.finup			= cbcmac_finup,
 	.setkey			= cbcmac_setkey,
 	.descsize		= sizeof(struct mac_desc_ctx),
 } };

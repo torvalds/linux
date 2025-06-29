@@ -386,10 +386,8 @@ hip04_of_init(struct device_node *node, struct device_node *parent)
 		return -EINVAL;
 	}
 
-	hip04_data.domain = irq_domain_add_legacy(node, nr_irqs, irq_base,
-						  0,
-						  &hip04_irq_domain_ops,
-						  &hip04_data);
+	hip04_data.domain = irq_domain_create_legacy(of_fwnode_handle(node), nr_irqs, irq_base, 0,
+						     &hip04_irq_domain_ops, &hip04_data);
 	if (WARN_ON(!hip04_data.domain))
 		return -EINVAL;
 

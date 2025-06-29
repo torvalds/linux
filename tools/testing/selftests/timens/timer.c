@@ -15,7 +15,7 @@
 #include "log.h"
 #include "timens.h"
 
-int run_test(int clockid, struct timespec now)
+static int run_test(int clockid, struct timespec now)
 {
 	struct itimerspec new_value;
 	long long elapsed;
@@ -74,6 +74,8 @@ int main(int argc, char *argv[])
 	char buf[4096];
 	pid_t pid;
 	struct timespec btime_now, mtime_now;
+
+	ksft_print_header();
 
 	nscheck();
 

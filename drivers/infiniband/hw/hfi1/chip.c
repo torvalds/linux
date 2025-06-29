@@ -5548,7 +5548,7 @@ static void handle_cce_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 #define RCVERR_CHECK_TIME 10
 static void update_rcverr_timer(struct timer_list *t)
 {
-	struct hfi1_devdata *dd = from_timer(dd, t, rcverr_timer);
+	struct hfi1_devdata *dd = timer_container_of(dd, t, rcverr_timer);
 	struct hfi1_pportdata *ppd = dd->pport;
 	u32 cur_ovfl_cnt = read_dev_cntr(dd, C_RCV_OVF, CNTR_INVALID_VL);
 
@@ -12587,7 +12587,7 @@ static void do_update_synth_timer(struct work_struct *work)
 
 static void update_synth_timer(struct timer_list *t)
 {
-	struct hfi1_devdata *dd = from_timer(dd, t, synth_stats_timer);
+	struct hfi1_devdata *dd = timer_container_of(dd, t, synth_stats_timer);
 
 	queue_work(dd->update_cntr_wq, &dd->update_cntr_work);
 	mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);

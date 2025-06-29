@@ -4,7 +4,7 @@ KernelVersion:	6.7
 Contact:	qat-linux@intel.com
 Description:	(RO) Reports the number of correctable errors detected by the device.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_ras/errors_nonfatal
 Date:		January 2024
@@ -12,7 +12,7 @@ KernelVersion:	6.7
 Contact:	qat-linux@intel.com
 Description:	(RO) Reports the number of non fatal errors detected by the device.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_ras/errors_fatal
 Date:		January 2024
@@ -20,7 +20,7 @@ KernelVersion:	6.7
 Contact:	qat-linux@intel.com
 Description:	(RO) Reports the number of fatal errors detected by the device.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/bus/pci/devices/<BDF>/qat_ras/reset_error_counters
 Date:		January 2024
@@ -38,4 +38,4 @@ Description:	(WO) Write to resets all error counters of a device.
 			# cat /sys/bus/pci/devices/<BDF>/qat_ras/errors_fatal
 			0
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.

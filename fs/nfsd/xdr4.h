@@ -676,6 +676,10 @@ struct nfsd4_cb_offload {
 	__be32			co_nfserr;
 	unsigned int		co_retries;
 	struct knfsd_fh		co_fh;
+
+	struct nfs4_sessionid	co_referring_sessionid;
+	u32			co_referring_slotid;
+	u32			co_referring_seqno;
 };
 
 struct nfsd4_copy {

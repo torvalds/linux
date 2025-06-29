@@ -19,6 +19,7 @@
 #include <asm/extable.h>
 #include <asm/facility.h>
 #include <asm-generic/access_ok.h>
+#include <asm/asce.h>
 #include <linux/instrumented.h>
 
 void debug_user_asce(int exit);
@@ -478,6 +479,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 					      __uint128_t old, __uint128_t new,
 					      unsigned long key, int size)
 {
+	bool sacf_flag;
 	int rc = 0;
 
 	switch (size) {
@@ -490,6 +492,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		_old = ((unsigned int)old & 0xff) << shift;
 		_new = ((unsigned int)new & 0xff) << shift;
 		mask = ~(0xff << shift);
+		sacf_flag = enable_sacf_uaccess();
 		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
@@ -524,6 +527,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			  [default_key] "J" (PAGE_DEFAULT_KEY),
 			  [max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
 			: "memory", "cc");
+		disable_sacf_uaccess(sacf_flag);
 		*(unsigned char *)uval = prev >> shift;
 		if (!count)
 			rc = -EAGAIN;
@@ -538,6 +542,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		_old = ((unsigned int)old & 0xffff) << shift;
 		_new = ((unsigned int)new & 0xffff) << shift;
 		mask = ~(0xffff << shift);
+		sacf_flag = enable_sacf_uaccess();
 		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
@@ -572,6 +577,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			  [default_key] "J" (PAGE_DEFAULT_KEY),
 			  [max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
 			: "memory", "cc");
+		disable_sacf_uaccess(sacf_flag);
 		*(unsigned short *)uval = prev >> shift;
 		if (!count)
 			rc = -EAGAIN;
@@ -580,6 +586,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	case 4:	{
 		unsigned int prev = old;
 
+		sacf_flag = enable_sacf_uaccess();
 		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
@@ -595,12 +602,14 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			  [key] "a" (key << 4),
 			  [default_key] "J" (PAGE_DEFAULT_KEY)
 			: "memory", "cc");
+		disable_sacf_uaccess(sacf_flag);
 		*(unsigned int *)uval = prev;
 		return rc;
 	}
 	case 8: {
 		unsigned long prev = old;
 
+		sacf_flag = enable_sacf_uaccess();
 		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
@@ -616,12 +625,14 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			  [key] "a" (key << 4),
 			  [default_key] "J" (PAGE_DEFAULT_KEY)
 			: "memory", "cc");
+		disable_sacf_uaccess(sacf_flag);
 		*(unsigned long *)uval = prev;
 		return rc;
 	}
 	case 16: {
 		__uint128_t prev = old;
 
+		sacf_flag = enable_sacf_uaccess();
 		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
@@ -637,6 +648,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			  [key] "a" (key << 4),
 			  [default_key] "J" (PAGE_DEFAULT_KEY)
 			: "memory", "cc");
+		disable_sacf_uaccess(sacf_flag);
 		*(__uint128_t *)uval = prev;
 		return rc;
 	}

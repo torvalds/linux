@@ -240,9 +240,6 @@ static void vgic_v3_create_shadow_lr(struct kvm_vcpu *vcpu,
 			goto next;
 		}
 
-		/* It is illegal to have the EOI bit set with HW */
-		lr &= ~ICH_LR_EOI;
-
 		/* Translate the virtual mapping to the real one */
 		lr &= ~ICH_LR_PHYS_ID_MASK;
 		lr |= FIELD_PREP(ICH_LR_PHYS_ID_MASK, (u64)irq->hwintid);
@@ -359,12 +356,12 @@ void vgic_v3_put_nested(struct kvm_vcpu *vcpu)
 	val = __vcpu_sys_reg(vcpu, ICH_HCR_EL2);
 	val &= ~ICH_HCR_EL2_EOIcount_MASK;
 	val |= (s_cpu_if->vgic_hcr & ICH_HCR_EL2_EOIcount_MASK);
-	__vcpu_sys_reg(vcpu, ICH_HCR_EL2) = val;
-	__vcpu_sys_reg(vcpu, ICH_VMCR_EL2) = s_cpu_if->vgic_vmcr;
+	__vcpu_assign_sys_reg(vcpu, ICH_HCR_EL2, val);
+	__vcpu_assign_sys_reg(vcpu, ICH_VMCR_EL2, s_cpu_if->vgic_vmcr);
 
 	for (i = 0; i < 4; i++) {
-		__vcpu_sys_reg(vcpu, ICH_AP0RN(i)) = s_cpu_if->vgic_ap0r[i];
-		__vcpu_sys_reg(vcpu, ICH_AP1RN(i)) = s_cpu_if->vgic_ap1r[i];
+		__vcpu_assign_sys_reg(vcpu, ICH_AP0RN(i), s_cpu_if->vgic_ap0r[i]);
+		__vcpu_assign_sys_reg(vcpu, ICH_AP1RN(i), s_cpu_if->vgic_ap1r[i]);
 	}
 
 	for_each_set_bit(i, &shadow_if->lr_map, kvm_vgic_global_state.nr_lr) {
@@ -373,7 +370,7 @@ void vgic_v3_put_nested(struct kvm_vcpu *vcpu)
 		val &= ~ICH_LR_STATE;
 		val |= s_cpu_if->vgic_lr[i] & ICH_LR_STATE;
 
-		__vcpu_sys_reg(vcpu, ICH_LRN(i)) = val;
+		__vcpu_assign_sys_reg(vcpu, ICH_LRN(i), val);
 		s_cpu_if->vgic_lr[i] = 0;
 	}
 

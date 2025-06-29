@@ -340,7 +340,7 @@ static int query_config(struct xe_device *xe, struct drm_xe_device_query *query)
 	if (xe_device_get_root_tile(xe)->mem.vram.usable_size)
 		config->info[DRM_XE_QUERY_CONFIG_FLAGS] |=
 			DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM;
-	if (xe->info.has_usm && IS_ENABLED(CONFIG_DRM_GPUSVM))
+	if (xe->info.has_usm && IS_ENABLED(CONFIG_DRM_XE_GPUSVM))
 		config->info[DRM_XE_QUERY_CONFIG_FLAGS] |=
 			DRM_XE_QUERY_CONFIG_FLAG_HAS_CPU_ADDR_MIRROR;
 	config->info[DRM_XE_QUERY_CONFIG_FLAGS] |=
@@ -683,8 +683,8 @@ static int query_oa_units(struct xe_device *xe,
 			du->oa_timestamp_freq = xe_oa_timestamp_frequency(gt);
 			du->capabilities = DRM_XE_OA_CAPS_BASE | DRM_XE_OA_CAPS_SYNCS |
 					   DRM_XE_OA_CAPS_OA_BUFFER_SIZE |
-					   DRM_XE_OA_CAPS_WAIT_NUM_REPORTS;
-
+					   DRM_XE_OA_CAPS_WAIT_NUM_REPORTS |
+					   DRM_XE_OA_CAPS_OAM;
 			j = 0;
 			for_each_hw_engine(hwe, gt, hwe_id) {
 				if (!xe_hw_engine_is_reserved(hwe) &&

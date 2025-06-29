@@ -937,7 +937,7 @@ static void via_sdc_timeout(struct timer_list *t)
 	struct via_crdr_mmc_host *sdhost;
 	unsigned long flags;
 
-	sdhost = from_timer(sdhost, t, timer);
+	sdhost = timer_container_of(sdhost, t, timer);
 
 	spin_lock_irqsave(&sdhost->lock, flags);
 

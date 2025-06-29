@@ -745,8 +745,15 @@ static inline int edac_ecs_get_desc(struct device *ecs_dev,
 #endif /* CONFIG_EDAC_ECS */
 
 enum edac_mem_repair_type {
+	EDAC_REPAIR_PPR,
+	EDAC_REPAIR_CACHELINE_SPARING,
+	EDAC_REPAIR_ROW_SPARING,
+	EDAC_REPAIR_BANK_SPARING,
+	EDAC_REPAIR_RANK_SPARING,
 	EDAC_REPAIR_MAX
 };
+
+extern const char * const edac_repair_type[];
 
 enum edac_mem_repair_cmd {
 	EDAC_DO_MEM_REPAIR = 1,

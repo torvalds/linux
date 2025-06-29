@@ -240,7 +240,7 @@ void nvmet_auth_sq_free(struct nvmet_sq *sq)
 {
 	cancel_delayed_work(&sq->auth_expired_work);
 #ifdef CONFIG_NVME_TARGET_TCP_TLS
-	sq->tls_key = 0;
+	sq->tls_key = NULL;
 #endif
 	kfree(sq->dhchap_c1);
 	sq->dhchap_c1 = NULL;
@@ -280,9 +280,12 @@ void nvmet_destroy_auth(struct nvmet_ctrl *ctrl)
 
 bool nvmet_check_auth_status(struct nvmet_req *req)
 {
-	if (req->sq->ctrl->host_key &&
-	    !req->sq->authenticated)
-		return false;
+	if (req->sq->ctrl->host_key) {
+		if (req->sq->qid > 0)
+			return true;
+		if (!req->sq->authenticated)
+			return false;
+	}
 	return true;
 }
 
@@ -290,7 +293,7 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 			 unsigned int shash_len)
 {
 	struct crypto_shash *shash_tfm;
-	struct shash_desc *shash;
+	SHASH_DESC_ON_STACK(shash, shash_tfm);
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	const char *hash_name;
 	u8 *challenge = req->sq->dhchap_c1;
@@ -342,19 +345,13 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 						    req->sq->dhchap_c1,
 						    challenge, shash_len);
 		if (ret)
-			goto out_free_challenge;
+			goto out;
 	}
 
 	pr_debug("ctrl %d qid %d host response seq %u transaction %d\n",
 		 ctrl->cntlid, req->sq->qid, req->sq->dhchap_s1,
 		 req->sq->dhchap_tid);
 
-	shash = kzalloc(sizeof(*shash) + crypto_shash_descsize(shash_tfm),
-			GFP_KERNEL);
-	if (!shash) {
-		ret = -ENOMEM;
-		goto out_free_challenge;
-	}
 	shash->tfm = shash_tfm;
 	ret = crypto_shash_init(shash);
 	if (ret)
@@ -389,8 +386,6 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 		goto out;
 	ret = crypto_shash_final(shash, response);
 out:
-	kfree(shash);
-out_free_challenge:
 	if (challenge != req->sq->dhchap_c1)
 		kfree(challenge);
 out_free_response:
@@ -600,13 +595,12 @@ void nvmet_auth_insert_psk(struct nvmet_sq *sq)
 		pr_warn("%s: ctrl %d qid %d failed to refresh key, error %ld\n",
 			__func__, sq->ctrl->cntlid, sq->qid, PTR_ERR(tls_key));
 		tls_key = NULL;
-		kfree_sensitive(tls_psk);
 	}
 	if (sq->ctrl->tls_key)
 		key_put(sq->ctrl->tls_key);
 	sq->ctrl->tls_key = tls_key;
 #endif
-
+	kfree_sensitive(tls_psk);
 out_free_digest:
 	kfree_sensitive(digest);
 out_free_psk:

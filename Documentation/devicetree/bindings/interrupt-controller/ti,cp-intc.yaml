@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/ti,cp-intc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI Common Platform Interrupt Controller
+
+maintainers:
+  - Bartosz Golaszewski <brgl@bgdev.pl>
+  
+description:
+  Common Platform Interrupt Controller (cp_intc) is used on OMAP-L1x SoCs and
+  can support several configurable number of interrupts.
+
+properties:
+  compatible:
+    const: ti,cp-intc
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+    description: Encodes an interrupt number in the range 0–128.
+
+  ti,intc-size:
+    description: Number of interrupts handled by the interrupt controller.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+  - ti,intc-size
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@fffee000 {
+        compatible = "ti,cp-intc";
+        reg = <0xfffee000 0x2000>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        ti,intc-size = <101>;
+    };

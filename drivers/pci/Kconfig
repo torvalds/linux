@@ -21,6 +21,7 @@ config GENERIC_PCI_IOMAP
 menuconfig PCI
 	bool "PCI support"
 	depends on HAVE_PCI
+	depends on MMU
 	help
 	  This option enables support for the PCI local bus, including
 	  support for PCI-X and the foundations for PCI Express support.

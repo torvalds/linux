@@ -21,11 +21,8 @@ int zpci_bus_scan_device(struct zpci_dev *zdev);
 void zpci_bus_remove_device(struct zpci_dev *zdev, bool set_error);
 
 void zpci_release_device(struct kref *kref);
-static inline void zpci_zdev_put(struct zpci_dev *zdev)
-{
-	if (zdev)
-		kref_put(&zdev->kref, zpci_release_device);
-}
+
+void zpci_zdev_put(struct zpci_dev *zdev);
 
 static inline void zpci_zdev_get(struct zpci_dev *zdev)
 {

@@ -13,6 +13,7 @@
 #include <linux/mm_types.h>
 #include <asm/tlbflush.h>
 #include <asm/ctlreg.h>
+#include <asm/asce.h>
 #include <asm-generic/mm_hooks.h>
 
 #define init_new_context init_new_context
@@ -77,7 +78,8 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *
 	else
 		get_lowcore()->user_asce.val = next->context.asce;
 	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
-	/* Clear previous user-ASCE from CR7 */
+	/* Clear previous user-ASCE from CR1 and CR7 */
+	local_ctl_load(1, &s390_invalid_asce);
 	local_ctl_load(7, &s390_invalid_asce);
 	if (prev != next)
 		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
@@ -99,6 +101,7 @@ static inline void finish_arch_post_lock_switch(void)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
+	unsigned long flags;
 
 	if (mm) {
 		preempt_disable();
@@ -108,15 +111,25 @@ static inline void finish_arch_post_lock_switch(void)
 		__tlb_flush_mm_lazy(mm);
 		preempt_enable();
 	}
+	local_irq_save(flags);
+	if (test_thread_flag(TIF_ASCE_PRIMARY))
+		local_ctl_load(1, &get_lowcore()->kernel_asce);
+	else
+		local_ctl_load(1, &get_lowcore()->user_asce);
 	local_ctl_load(7, &get_lowcore()->user_asce);
+	local_irq_restore(flags);
 }
 
 #define activate_mm activate_mm
 static inline void activate_mm(struct mm_struct *prev,
                                struct mm_struct *next)
 {
-	switch_mm(prev, next, current);
+	switch_mm_irqs_off(prev, next, current);
 	cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
+	if (test_thread_flag(TIF_ASCE_PRIMARY))
+		local_ctl_load(1, &get_lowcore()->kernel_asce);
+	else
+		local_ctl_load(1, &get_lowcore()->user_asce);
 	local_ctl_load(7, &get_lowcore()->user_asce);
 }
 

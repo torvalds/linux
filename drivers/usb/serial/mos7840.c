@@ -383,7 +383,7 @@ static void mos7840_set_led_sync(struct usb_serial_port *port, __u16 reg,
 
 static void mos7840_led_off(struct timer_list *t)
 {
-	struct moschip_port *mcs = from_timer(mcs, t, led_timer1);
+	struct moschip_port *mcs = timer_container_of(mcs, t, led_timer1);
 
 	/* Turn off LED */
 	mos7840_set_led_async(mcs, 0x0300, MODEM_CONTROL_REGISTER);
@@ -393,7 +393,7 @@ static void mos7840_led_off(struct timer_list *t)
 
 static void mos7840_led_flag_off(struct timer_list *t)
 {
-	struct moschip_port *mcs = from_timer(mcs, t, led_timer2);
+	struct moschip_port *mcs = timer_container_of(mcs, t, led_timer2);
 
 	clear_bit_unlock(MOS7840_FLAG_LED_BUSY, &mcs->flags);
 }

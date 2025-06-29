@@ -9,14 +9,12 @@
 #include <linux/mm_types.h>
 #include <linux/shmem_fs.h>
 
-struct ttm_backup;
-
 /**
  * ttm_backup_handle_to_page_ptr() - Convert handle to struct page pointer
  * @handle: The handle to convert.
  *
  * Converts an opaque handle received from the
- * struct ttm_backoup_ops::backup_page() function to an (invalid)
+ * ttm_backup_backup_page() function to an (invalid)
  * struct page pointer suitable for a struct page array.
  *
  * Return: An (invalid) struct page pointer.
@@ -45,8 +43,8 @@ static inline bool ttm_backup_page_ptr_is_handle(const struct page *page)
  *
  * Return: The handle that was previously used in
  * ttm_backup_handle_to_page_ptr() to obtain a struct page pointer, suitable
- * for use as argument in the struct ttm_backup_ops drop() or
- * copy_backed_up_page() functions.
+ * for use as argument in the struct ttm_backup_drop() or
+ * ttm_backup_copy_page() functions.
  */
 static inline unsigned long
 ttm_backup_page_ptr_to_handle(const struct page *page)
@@ -55,20 +53,20 @@ ttm_backup_page_ptr_to_handle(const struct page *page)
 	return (unsigned long)page >> 1;
 }
 
-void ttm_backup_drop(struct ttm_backup *backup, pgoff_t handle);
+void ttm_backup_drop(struct file *backup, pgoff_t handle);
 
-int ttm_backup_copy_page(struct ttm_backup *backup, struct page *dst,
+int ttm_backup_copy_page(struct file *backup, struct page *dst,
 			 pgoff_t handle, bool intr);
 
 s64
-ttm_backup_backup_page(struct ttm_backup *backup, struct page *page,
+ttm_backup_backup_page(struct file *backup, struct page *page,
 		       bool writeback, pgoff_t idx, gfp_t page_gfp,
 		       gfp_t alloc_gfp);
 
-void ttm_backup_fini(struct ttm_backup *backup);
+void ttm_backup_fini(struct file *backup);
 
 u64 ttm_backup_bytes_avail(void);
 
-struct ttm_backup *ttm_backup_shmem_create(loff_t size);
+struct file *ttm_backup_shmem_create(loff_t size);
 
 #endif

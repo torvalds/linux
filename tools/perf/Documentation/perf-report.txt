@@ -94,6 +94,7 @@ OPTIONS
 
 	- comm: command (name) of the task which can be read via /proc/<pid>/comm
 	- pid: command and tid of the task
+	- tgid: command and tgid of the task
 	- dso: name of library or module executed at the time of sample
 	- dso_size: size of library or module executed at the time of sample
 	- symbol: name of function executed at the time of sample

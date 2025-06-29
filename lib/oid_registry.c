@@ -117,7 +117,7 @@ int parse_OID(const void *data, size_t datasize, enum OID *oid)
 EXPORT_SYMBOL_GPL(parse_OID);
 
 /*
- * sprint_OID - Print an Object Identifier into a buffer
+ * sprint_oid - Print an Object Identifier into a buffer
  * @data: The encoded OID to print
  * @datasize: The size of the encoded OID
  * @buffer: The buffer to render into
@@ -173,26 +173,3 @@ bad:
 	return -EBADMSG;
 }
 EXPORT_SYMBOL_GPL(sprint_oid);
-
-/**
- * sprint_OID - Print an Object Identifier into a buffer
- * @oid: The OID to print
- * @buffer: The buffer to render into
- * @bufsize: The size of the buffer
- *
- * The OID is rendered into the buffer in "a.b.c.d" format and the number of
- * bytes is returned.
- */
-int sprint_OID(enum OID oid, char *buffer, size_t bufsize)
-{
-	int ret;
-
-	BUG_ON(oid >= OID__NR);
-
-	ret = sprint_oid(oid_data + oid_index[oid],
-			 oid_index[oid + 1] - oid_index[oid],
-			 buffer, bufsize);
-	BUG_ON(ret == -EBADMSG);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(sprint_OID);

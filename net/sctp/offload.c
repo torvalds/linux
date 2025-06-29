@@ -111,7 +111,6 @@ int __init sctp_offload_init(void)
 	if (ret)
 		goto ipv4;
 
-	crc32c_csum_stub = &sctp_csum_ops;
 	return ret;
 
 ipv4:

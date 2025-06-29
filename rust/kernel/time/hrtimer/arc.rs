@@ -5,10 +5,10 @@ use super::HrTimer;
 use super::HrTimerCallback;
 use super::HrTimerHandle;
 use super::HrTimerPointer;
+use super::Ktime;
 use super::RawHrTimerCallback;
 use crate::sync::Arc;
 use crate::sync::ArcBorrow;
-use crate::time::Ktime;
 
 /// A handle for an `Arc<HasHrTimer<T>>` returned by a call to
 /// [`HrTimerPointer::start`].

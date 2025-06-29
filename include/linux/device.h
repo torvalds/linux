@@ -281,44 +281,6 @@ int __must_check device_create_bin_file(struct device *dev,
 void device_remove_bin_file(struct device *dev,
 			    const struct bin_attribute *attr);
 
-/* allows to add/remove a custom action to devres stack */
-int devm_remove_action_nowarn(struct device *dev, void (*action)(void *), void *data);
-
-/**
- * devm_remove_action() - removes previously added custom action
- * @dev: Device that owns the action
- * @action: Function implementing the action
- * @data: Pointer to data passed to @action implementation
- *
- * Removes instance of @action previously added by devm_add_action().
- * Both action and data should match one of the existing entries.
- */
-static inline
-void devm_remove_action(struct device *dev, void (*action)(void *), void *data)
-{
-	WARN_ON(devm_remove_action_nowarn(dev, action, data));
-}
-
-void devm_release_action(struct device *dev, void (*action)(void *), void *data);
-
-int __devm_add_action(struct device *dev, void (*action)(void *), void *data, const char *name);
-#define devm_add_action(dev, action, data) \
-	__devm_add_action(dev, action, data, #action)
-
-static inline int __devm_add_action_or_reset(struct device *dev, void (*action)(void *),
-					     void *data, const char *name)
-{
-	int ret;
-
-	ret = __devm_add_action(dev, action, data, name);
-	if (ret)
-		action(data);
-
-	return ret;
-}
-#define devm_add_action_or_reset(dev, action, data) \
-	__devm_add_action_or_reset(dev, action, data, #action)
-
 /**
  * devm_alloc_percpu - Resource-managed alloc_percpu
  * @dev: Device to allocate per-cpu memory for

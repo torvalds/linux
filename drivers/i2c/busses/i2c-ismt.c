@@ -933,7 +933,7 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	}
 
-	err = pci_request_region(pdev, SMBBAR, ismt_driver.name);
+	err = pcim_request_region(pdev, SMBBAR, ismt_driver.name);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Failed to request SMBus region 0x%lx-0x%lx\n",

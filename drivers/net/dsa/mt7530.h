@@ -20,6 +20,7 @@ enum mt753x_id {
 	ID_MT7531 = 2,
 	ID_MT7988 = 3,
 	ID_EN7581 = 4,
+	ID_AN7583 = 5,
 };
 
 #define	NUM_TRGMII_CTRL			5
@@ -66,7 +67,8 @@ enum mt753x_id {
 
 #define MT753X_MIRROR_REG(id)		((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_CFC : MT753X_MFC)
 
 #define MT753X_MIRROR_EN(id)		((id == ID_MT7531 || \
@@ -76,19 +78,22 @@ enum mt753x_id {
 
 #define MT753X_MIRROR_PORT_MASK(id)	((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_MIRROR_PORT_MASK : \
 					 MT7530_MIRROR_PORT_MASK)
 
 #define MT753X_MIRROR_PORT_GET(id, val)	((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_MIRROR_PORT_GET(val) : \
 					 MT7530_MIRROR_PORT_GET(val))
 
 #define MT753X_MIRROR_PORT_SET(id, val)	((id == ID_MT7531 || \
 					  id == ID_MT7988 || \
-					  id == ID_EN7581) ? \
+					  id == ID_EN7581 || \
+					  id == ID_AN7583) ? \
 					 MT7531_MIRROR_PORT_SET(val) : \
 					 MT7530_MIRROR_PORT_SET(val))
 
@@ -423,6 +428,48 @@ enum mt7530_vlan_port_acc_frm {
 
 /* Register for MIB */
 #define MT7530_PORT_MIB_COUNTER(x)	(0x4000 + (x) * 0x100)
+/* Each define is an offset of MT7530_PORT_MIB_COUNTER */
+#define   MT7530_PORT_MIB_TX_DROP	0x00
+#define   MT7530_PORT_MIB_TX_CRC_ERR	0x04
+#define   MT7530_PORT_MIB_TX_UNICAST	0x08
+#define   MT7530_PORT_MIB_TX_MULTICAST	0x0c
+#define   MT7530_PORT_MIB_TX_BROADCAST	0x10
+#define   MT7530_PORT_MIB_TX_COLLISION	0x14
+#define   MT7530_PORT_MIB_TX_SINGLE_COLLISION 0x18
+#define   MT7530_PORT_MIB_TX_MULTIPLE_COLLISION 0x1c
+#define   MT7530_PORT_MIB_TX_DEFERRED	0x20
+#define   MT7530_PORT_MIB_TX_LATE_COLLISION 0x24
+#define   MT7530_PORT_MIB_TX_EXCESSIVE_COLLISION 0x28
+#define   MT7530_PORT_MIB_TX_PAUSE	0x2c
+#define   MT7530_PORT_MIB_TX_PKT_SZ_64	0x30
+#define   MT7530_PORT_MIB_TX_PKT_SZ_65_TO_127 0x34
+#define   MT7530_PORT_MIB_TX_PKT_SZ_128_TO_255 0x38
+#define   MT7530_PORT_MIB_TX_PKT_SZ_256_TO_511 0x3c
+#define   MT7530_PORT_MIB_TX_PKT_SZ_512_TO_1023 0x40
+#define   MT7530_PORT_MIB_TX_PKT_SZ_1024_TO_MAX 0x44
+#define   MT7530_PORT_MIB_TX_BYTES	0x48 /* 64 bytes */
+#define   MT7530_PORT_MIB_RX_DROP	0x60
+#define   MT7530_PORT_MIB_RX_FILTERING	0x64
+#define   MT7530_PORT_MIB_RX_UNICAST	0x68
+#define   MT7530_PORT_MIB_RX_MULTICAST	0x6c
+#define   MT7530_PORT_MIB_RX_BROADCAST	0x70
+#define   MT7530_PORT_MIB_RX_ALIGN_ERR	0x74
+#define   MT7530_PORT_MIB_RX_CRC_ERR	0x78
+#define   MT7530_PORT_MIB_RX_UNDER_SIZE_ERR 0x7c
+#define   MT7530_PORT_MIB_RX_FRAG_ERR	0x80
+#define   MT7530_PORT_MIB_RX_OVER_SZ_ERR 0x84
+#define   MT7530_PORT_MIB_RX_JABBER_ERR	0x88
+#define   MT7530_PORT_MIB_RX_PAUSE	0x8c
+#define   MT7530_PORT_MIB_RX_PKT_SZ_64	0x90
+#define   MT7530_PORT_MIB_RX_PKT_SZ_65_TO_127 0x94
+#define   MT7530_PORT_MIB_RX_PKT_SZ_128_TO_255 0x98
+#define   MT7530_PORT_MIB_RX_PKT_SZ_256_TO_511 0x9c
+#define   MT7530_PORT_MIB_RX_PKT_SZ_512_TO_1023 0xa0
+#define   MT7530_PORT_MIB_RX_PKT_SZ_1024_TO_MAX 0xa4
+#define   MT7530_PORT_MIB_RX_BYTES	0xa8 /* 64 bytes */
+#define   MT7530_PORT_MIB_RX_CTRL_DROP	0xb0
+#define   MT7530_PORT_MIB_RX_INGRESS_DROP 0xb4
+#define   MT7530_PORT_MIB_RX_ARL_DROP	0xb8
 #define MT7530_MIB_CCR			0x4fe0
 #define  CCR_MIB_ENABLE			BIT(31)
 #define  CCR_RX_OCT_CNT_GOOD		BIT(7)
@@ -630,6 +677,11 @@ enum mt7531_xtal_fsel {
 #define MT753X_CPORT_SPTAG_CFG		0x7c10
 #define  CPORT_SW2FE_STAG_EN		BIT(1)
 #define  CPORT_FE2SW_STAG_EN		BIT(0)
+
+#define AN7583_GEPHY_CONN_CFG		0x7c14
+#define  AN7583_CSR_DPHY_CKIN_SEL	BIT(31)
+#define  AN7583_CSR_PHY_CORE_REG_CLK_SEL BIT(30)
+#define  AN7583_CSR_ETHER_AFE_PWD	GENMASK(28, 24)
 
 /* Registers for LED GPIO control (MT7530 only)
  * All registers follow this pattern:

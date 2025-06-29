@@ -1050,19 +1050,19 @@
 		"","","","SIO_POWER_GOOD","","","","";
 	};
 	gpio2: gpio@f0012000 {
-		bmc_usb_mux_oe_n {
+		bmc-usb-mux-oe-n-hog {
 			gpio-hog;
 			gpios = <25 GPIO_ACTIVE_HIGH>;
 			output-low;
 			line-name = "bmc-usb-mux-oe-n";
 		};
-		bmc_usb_mux_sel {
+		bmc-usb-mux-sel-hog {
 			gpio-hog;
 			gpios = <26 GPIO_ACTIVE_HIGH>;
 			output-low;
 			line-name = "bmc-usb-mux-sel";
 		};
-		bmc_usb2517_reset_n {
+		bmc-usb2517-reset-n-hog {
 			gpio-hog;
 			gpios = <27 GPIO_ACTIVE_LOW>;
 			output-low;
@@ -1070,19 +1070,19 @@
 		};
 	};
 	gpio3: gpio@f0013000 {
-		assert_cpu0_reset {
+		assert-cpu0-reset-hog {
 			gpio-hog;
 			gpios = <14 GPIO_ACTIVE_HIGH>;
 			output-low;
 			line-name = "assert-cpu0-reset";
 		};
-		assert_pwrok_cpu0_n {
+		assert-pwrok-cpu0-n-hog {
 			gpio-hog;
 			gpios = <15 GPIO_ACTIVE_HIGH>;
 			output-low;
 			line-name = "assert-pwrok-cpu0-n";
 		};
-		assert_cpu0_prochot {
+		assert-cpu0-prochot-hog {
 			gpio-hog;
 			gpios = <16 GPIO_ACTIVE_HIGH>;
 			output-low;

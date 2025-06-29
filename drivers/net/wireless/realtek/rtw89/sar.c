@@ -57,10 +57,12 @@ static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
 }
 
 static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
-					 u32 center_freq, s32 *cfg)
+					 const struct rtw89_sar_parm *sar_parm,
+					 s32 *cfg)
 {
 	struct rtw89_sar_cfg_common *rtwsar = &rtwdev->sar.cfg_common;
 	enum rtw89_sar_subband subband_l, subband_h;
+	u32 center_freq = sar_parm->center_freq;
 	const struct rtw89_6ghz_span *span;
 
 	span = rtw89_get_6ghz_span(rtwdev, center_freq);
@@ -90,12 +92,104 @@ static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static const struct rtw89_sar_entry_from_acpi *
+rtw89_sar_cfg_acpi_get_ent(const struct rtw89_sar_cfg_acpi *rtwsar,
+			   enum rtw89_rf_path path,
+			   enum rtw89_regulation_type regd)
+{
+	const struct rtw89_sar_indicator_from_acpi *ind = &rtwsar->indicator;
+	const struct rtw89_sar_table_from_acpi *tbl;
+	u8 sel;
+
+	sel = ind->tblsel[path];
+	tbl = &rtwsar->tables[sel];
+
+	return &tbl->entries[regd];
+}
+
+static
+s32 rtw89_sar_cfg_acpi_get_min(const struct rtw89_sar_entry_from_acpi *ent,
+			       enum rtw89_rf_path path,
+			       enum rtw89_acpi_sar_subband subband_low,
+			       enum rtw89_acpi_sar_subband subband_high)
+{
+	return min(ent->v[subband_low][path], ent->v[subband_high][path]);
+}
+
+static int rtw89_query_sar_config_acpi(struct rtw89_dev *rtwdev,
+				       const struct rtw89_sar_parm *sar_parm,
+				       s32 *cfg)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_sar_cfg_acpi *rtwsar = &rtwdev->sar.cfg_acpi;
+	const struct rtw89_sar_entry_from_acpi *ent_a, *ent_b;
+	enum rtw89_acpi_sar_subband subband_l, subband_h;
+	u32 center_freq = sar_parm->center_freq;
+	const struct rtw89_6ghz_span *span;
+	enum rtw89_regulation_type regd;
+	enum rtw89_band band;
+	s32 cfg_a, cfg_b;
+
+	span = rtw89_get_6ghz_span(rtwdev, center_freq);
+
+	if (span && RTW89_ACPI_SAR_SPAN_VALID(span)) {
+		subband_l = span->acpi_sar_subband_low;
+		subband_h = span->acpi_sar_subband_high;
+	} else {
+		subband_l = rtw89_acpi_sar_get_subband(rtwdev, center_freq);
+		subband_h = subband_l;
+	}
+
+	band = rtw89_acpi_sar_subband_to_band(rtwdev, subband_l);
+	regd = rtw89_regd_get(rtwdev, band);
+
+	ent_a = rtw89_sar_cfg_acpi_get_ent(rtwsar, RF_PATH_A, regd);
+	ent_b = rtw89_sar_cfg_acpi_get_ent(rtwsar, RF_PATH_B, regd);
+
+	cfg_a = rtw89_sar_cfg_acpi_get_min(ent_a, RF_PATH_A, subband_l, subband_h);
+	cfg_b = rtw89_sar_cfg_acpi_get_min(ent_b, RF_PATH_B, subband_l, subband_h);
+
+	if (chip->support_sar_by_ant) {
+		/* With declaration of support_sar_by_ant, relax the general
+		 * SAR querying to return the maximum between paths. However,
+		 * expect chip has dealt with the corresponding SAR settings
+		 * by path. (To get SAR for a given path, chip can then query
+		 * with force_path.)
+		 */
+		if (sar_parm->force_path) {
+			switch (sar_parm->path) {
+			default:
+			case RF_PATH_A:
+				*cfg = cfg_a;
+				break;
+			case RF_PATH_B:
+				*cfg = cfg_b;
+				break;
+			}
+		} else {
+			*cfg = max(cfg_a, cfg_b);
+		}
+	} else {
+		*cfg = min(cfg_a, cfg_b);
+	}
+
+	if (sar_parm->ntx == RTW89_2TX)
+		*cfg -= rtwsar->downgrade_2tx;
+
+	return 0;
+}
+
 static const
 struct rtw89_sar_handler rtw89_sar_handlers[RTW89_SAR_SOURCE_NR] = {
 	[RTW89_SAR_SOURCE_COMMON] = {
 		.descr_sar_source = "RTW89_SAR_SOURCE_COMMON",
 		.txpwr_factor_sar = 2,
 		.query_sar_config = rtw89_query_sar_config_common,
+	},
+	[RTW89_SAR_SOURCE_ACPI] = {
+		.descr_sar_source = "RTW89_SAR_SOURCE_ACPI",
+		.txpwr_factor_sar = TXPWR_FACTOR_OF_RTW89_ACPI_SAR,
+		.query_sar_config = rtw89_query_sar_config_acpi,
 	},
 };
 
@@ -175,7 +269,7 @@ static const char *rtw89_tas_state_str(enum rtw89_tas_state state)
 	}
 }
 
-s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
+s8 rtw89_query_sar(struct rtw89_dev *rtwdev, const struct rtw89_sar_parm *sar_parm)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
@@ -191,7 +285,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
-	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, sar_parm, &cfg);
 	if (ret)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
@@ -215,9 +309,10 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 
 	return rtw89_txpwr_sar_to_mac(rtwdev, fct, cfg);
 }
+EXPORT_SYMBOL(rtw89_query_sar);
 
 int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
-		    u32 center_freq)
+		    const struct rtw89_sar_parm *sar_parm)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
@@ -238,7 +333,7 @@ int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	p += scnprintf(p, end - p, "source: %d (%s)\n", src,
 		       sar_hdl->descr_sar_source);
 
-	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, sar_parm, &cfg);
 	if (ret) {
 		p += scnprintf(p, end - p, "config: return code: %d\n", ret);
 		p += scnprintf(p, end - p,
@@ -252,6 +347,8 @@ int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	p += scnprintf(p, end - p, "config: %d (unit: 1/%lu dBm)\n", cfg,
 		       BIT(fct));
 
+	p += scnprintf(p, end - p, "support different configs by antenna: %s\n",
+		       str_yes_no(rtwdev->chip->support_sar_by_ant));
 out:
 	return p - buf;
 }
@@ -286,16 +383,7 @@ out:
 static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 				  const struct rtw89_sar_cfg_common *sar)
 {
-	enum rtw89_sar_sources src;
-
-	lockdep_assert_wiphy(rtwdev->hw->wiphy);
-
-	src = rtwdev->sar.src;
-	if (src != RTW89_SAR_SOURCE_NONE && src != RTW89_SAR_SOURCE_COMMON) {
-		rtw89_warn(rtwdev, "SAR source: %d is in use", src);
-		return -EBUSY;
-	}
-
+	/* let common SAR have the highest priority; always apply it */
 	rtw89_sar_set_src(rtwdev, RTW89_SAR_SOURCE_COMMON, cfg_common, sar);
 	rtw89_core_set_chip_txpwr(rtwdev);
 	rtw89_tas_reset(rtwdev, false);
@@ -363,18 +451,92 @@ int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 	return rtw89_apply_sar_common(rtwdev, &sar_common);
 }
 
+static void rtw89_apply_sar_acpi(struct rtw89_dev *rtwdev,
+				 const struct rtw89_sar_cfg_acpi *sar)
+{
+	const struct rtw89_sar_table_from_acpi *tbl;
+	const struct rtw89_sar_entry_from_acpi *ent;
+	enum rtw89_sar_sources src;
+	unsigned int i, j, k;
+
+	src = rtwdev->sar.src;
+	if (src != RTW89_SAR_SOURCE_NONE) {
+		rtw89_warn(rtwdev, "SAR source: %d is in use", src);
+		return;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "SAR-ACPI downgrade 2TX: %u (unit: 1/%lu dBm)\n",
+		    sar->downgrade_2tx, BIT(TXPWR_FACTOR_OF_RTW89_ACPI_SAR));
+
+	for (i = 0; i < sar->valid_num; i++) {
+		tbl = &sar->tables[i];
+
+		for (j = 0; j < RTW89_REGD_NUM; j++) {
+			ent = &tbl->entries[j];
+
+			rtw89_debug(rtwdev, RTW89_DBG_SAR,
+				    "SAR-ACPI-[%u] REGD-%s (unit: 1/%lu dBm)\n",
+				    i, rtw89_regd_get_string(j),
+				    BIT(TXPWR_FACTOR_OF_RTW89_ACPI_SAR));
+
+			for (k = 0; k < NUM_OF_RTW89_ACPI_SAR_SUBBAND; k++)
+				rtw89_debug(rtwdev, RTW89_DBG_SAR,
+					    "On subband %u, { %d, %d }\n", k,
+					    ent->v[k][RF_PATH_A], ent->v[k][RF_PATH_B]);
+		}
+	}
+
+	rtw89_sar_set_src(rtwdev, RTW89_SAR_SOURCE_ACPI, cfg_acpi, sar);
+
+	/* SAR via ACPI is only configured in the early initial phase, so
+	 * it does not seem necessary to reset txpwr related things here.
+	 */
+}
+
+static void rtw89_set_sar_from_acpi(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_sar_cfg_acpi *cfg;
+	int ret;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return;
+
+	ret = rtw89_acpi_evaluate_sar(rtwdev, cfg);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_SAR,
+			    "evaluating ACPI SAR returns %d\n", ret);
+		goto out;
+	}
+
+	if (unlikely(!cfg->valid_num)) {
+		rtw89_debug(rtwdev, RTW89_DBG_SAR, "no valid SAR table from ACPI\n");
+		goto out;
+	}
+
+	rtw89_apply_sar_acpi(rtwdev, cfg);
+
+out:
+	kfree(cfg);
+}
+
 static bool rtw89_tas_query_sar_config(struct rtw89_dev *rtwdev, s32 *cfg)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
 	const struct rtw89_sar_handler *sar_hdl = &rtw89_sar_handlers[src];
+	struct rtw89_sar_parm sar_parm = {};
 	int ret;
 
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return false;
 
-	ret = sar_hdl->query_sar_config(rtwdev, chan->freq, cfg);
+	sar_parm.center_freq = chan->freq;
+	ret = sar_hdl->query_sar_config(rtwdev, &sar_parm, cfg);
 	if (ret)
 		return false;
 
@@ -383,18 +545,27 @@ static bool rtw89_tas_query_sar_config(struct rtw89_dev *rtwdev, s32 *cfg)
 	return true;
 }
 
-static void rtw89_tas_state_update(struct rtw89_dev *rtwdev,
-				   enum rtw89_tas_state state)
+static bool __rtw89_tas_state_update(struct rtw89_dev *rtwdev,
+				     enum rtw89_tas_state state)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
 
 	if (tas->state == state)
-		return;
+		return false;
 
 	rtw89_debug(rtwdev, RTW89_DBG_SAR, "tas: switch state: %s -> %s\n",
 		    rtw89_tas_state_str(tas->state), rtw89_tas_state_str(state));
 
 	tas->state = state;
+	return true;
+}
+
+static void rtw89_tas_state_update(struct rtw89_dev *rtwdev,
+				   enum rtw89_tas_state state)
+{
+	if (!__rtw89_tas_state_update(rtwdev, state))
+		return;
+
 	rtw89_core_set_chip_txpwr(rtwdev);
 }
 
@@ -489,7 +660,7 @@ static void rtw89_tas_history_update(struct rtw89_dev *rtwdev)
 		    rtw89_linear_to_db_quarter(div_u64(txpwr, PERCENT)));
 }
 
-static void rtw89_tas_rolling_average(struct rtw89_dev *rtwdev)
+static bool rtw89_tas_rolling_average(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
 	s32 dpr_on_threshold, dpr_off_threshold;
@@ -515,18 +686,18 @@ static void rtw89_tas_rolling_average(struct rtw89_dev *rtwdev)
 	else if (txpwr_avg < dpr_off_threshold)
 		state = RTW89_TAS_STATE_DPR_OFF;
 	else
-		return;
+		return false;
 
-	rtw89_tas_state_update(rtwdev, state);
+	return __rtw89_tas_state_update(rtwdev, state);
 }
 
-void rtw89_tas_init(struct rtw89_dev *rtwdev)
+static void rtw89_tas_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_tas_info *tas = &rtwdev->tas;
+	const struct rtw89_acpi_policy_tas *ptr;
 	struct rtw89_acpi_dsm_result res = {};
 	int ret;
-	u8 val;
 
 	if (!chip->support_tas)
 		return;
@@ -538,8 +709,9 @@ void rtw89_tas_init(struct rtw89_dev *rtwdev)
 		return;
 	}
 
-	val = res.u.value;
-	switch (val) {
+	ptr = res.u.policy_tas;
+
+	switch (ptr->enable) {
 	case 0:
 		tas->enable = false;
 		break;
@@ -552,8 +724,13 @@ void rtw89_tas_init(struct rtw89_dev *rtwdev)
 
 	if (!tas->enable) {
 		rtw89_debug(rtwdev, RTW89_DBG_SAR, "TAS not enable\n");
-		return;
+		goto out;
 	}
+
+	tas->enabled_countries = ptr->enabled_countries;
+
+out:
+	kfree(ptr);
 }
 
 void rtw89_tas_reset(struct rtw89_dev *rtwdev, bool force)
@@ -598,29 +775,28 @@ void rtw89_tas_reset(struct rtw89_dev *rtwdev, bool force)
 		    "tas: band: %u, freq: %u\n", chan->band_type, chan->freq);
 }
 
-void rtw89_tas_track(struct rtw89_dev *rtwdev)
+static bool rtw89_tas_track(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	s32 cfg;
 
 	if (hal->disabled_dm_bitmap & BIT(RTW89_DM_TAS))
-		return;
+		return false;
 
 	if (!rtw89_tas_is_active(rtwdev))
-		return;
+		return false;
 
-	if (!rtw89_tas_query_sar_config(rtwdev, &cfg) || tas->block_regd) {
-		rtw89_tas_state_update(rtwdev, RTW89_TAS_STATE_STATIC_SAR);
-		return;
-	}
+	if (!rtw89_tas_query_sar_config(rtwdev, &cfg) || tas->block_regd)
+		return __rtw89_tas_state_update(rtwdev, RTW89_TAS_STATE_STATIC_SAR);
 
 	if (tas->pause)
-		return;
+		return false;
 
 	rtw89_tas_window_update(rtwdev);
 	rtw89_tas_history_update(rtwdev);
-	rtw89_tas_rolling_average(rtwdev);
+
+	return rtw89_tas_rolling_average(rtwdev);
 }
 
 void rtw89_tas_scan(struct rtw89_dev *rtwdev, bool start)
@@ -667,3 +843,51 @@ void rtw89_tas_chanctx_cb(struct rtw89_dev *rtwdev,
 	}
 }
 EXPORT_SYMBOL(rtw89_tas_chanctx_cb);
+
+void rtw89_sar_init(struct rtw89_dev *rtwdev)
+{
+	rtw89_set_sar_from_acpi(rtwdev);
+	rtw89_tas_init(rtwdev);
+}
+
+static bool rtw89_sar_track_acpi(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_sar_cfg_acpi *cfg = &rtwdev->sar.cfg_acpi;
+	struct rtw89_sar_indicator_from_acpi *ind = &cfg->indicator;
+	const enum rtw89_sar_sources src = rtwdev->sar.src;
+	bool changed;
+	int ret;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	if (src != RTW89_SAR_SOURCE_ACPI)
+		return false;
+
+	if (!ind->enable_sync)
+		return false;
+
+	ret = rtw89_acpi_evaluate_dynamic_sar_indicator(rtwdev, cfg, &changed);
+	if (likely(!ret))
+		return changed;
+
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "%s: failed to track indicator: %d; reset and disable\n",
+		    __func__, ret);
+
+	memset(ind->tblsel, 0, sizeof(ind->tblsel));
+	ind->enable_sync = false;
+	return true;
+}
+
+void rtw89_sar_track(struct rtw89_dev *rtwdev)
+{
+	unsigned int changes = 0;
+
+	changes += rtw89_sar_track_acpi(rtwdev);
+	changes += rtw89_tas_track(rtwdev);
+
+	if (!changes)
+		return;
+
+	rtw89_core_set_chip_txpwr(rtwdev);
+}

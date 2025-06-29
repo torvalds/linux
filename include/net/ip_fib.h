@@ -574,7 +574,8 @@ static inline u32 fib_multipath_hash_from_keys(const struct net *net,
 
 int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
 		 struct netlink_ext_ack *extack);
-void fib_select_multipath(struct fib_result *res, int hash);
+void fib_select_multipath(struct fib_result *res, int hash,
+			  const struct flowi4 *fl4);
 void fib_select_path(struct net *net, struct fib_result *res,
 		     struct flowi4 *fl4, const struct sk_buff *skb);
 

@@ -29,22 +29,13 @@ static unsigned int klp_signals_cnt;
 
 /*
  * When a livepatch is in progress, enable klp stack checking in
- * cond_resched().  This helps CPU-bound kthreads get patched.
+ * schedule().  This helps CPU-bound kthreads get patched.
  */
-#if defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
-
-#define klp_cond_resched_enable() sched_dynamic_klp_enable()
-#define klp_cond_resched_disable() sched_dynamic_klp_disable()
-
-#else /* !CONFIG_PREEMPT_DYNAMIC || !CONFIG_HAVE_PREEMPT_DYNAMIC_CALL */
 
 DEFINE_STATIC_KEY_FALSE(klp_sched_try_switch_key);
-EXPORT_SYMBOL(klp_sched_try_switch_key);
 
-#define klp_cond_resched_enable() static_branch_enable(&klp_sched_try_switch_key)
-#define klp_cond_resched_disable() static_branch_disable(&klp_sched_try_switch_key)
-
-#endif /* CONFIG_PREEMPT_DYNAMIC && CONFIG_HAVE_PREEMPT_DYNAMIC_CALL */
+#define klp_resched_enable() static_branch_enable(&klp_sched_try_switch_key)
+#define klp_resched_disable() static_branch_disable(&klp_sched_try_switch_key)
 
 /*
  * This work can be performed periodically to finish patching or unpatching any
@@ -365,26 +356,18 @@ static bool klp_try_switch_task(struct task_struct *task)
 
 void __klp_sched_try_switch(void)
 {
+	/*
+	 * This function is called from __schedule() while a context switch is
+	 * about to happen. Preemption is already disabled and klp_mutex
+	 * can't be acquired.
+	 * Disabled preemption is used to prevent racing with other callers of
+	 * klp_try_switch_task(). Thanks to task_call_func() they won't be
+	 * able to switch to this task while it's running.
+	 */
+	lockdep_assert_preemption_disabled();
+
 	if (likely(!klp_patch_pending(current)))
 		return;
-
-	/*
-	 * This function is called from cond_resched() which is called in many
-	 * places throughout the kernel.  Using the klp_mutex here might
-	 * deadlock.
-	 *
-	 * Instead, disable preemption to prevent racing with other callers of
-	 * klp_try_switch_task().  Thanks to task_call_func() they won't be
-	 * able to switch this task while it's running.
-	 */
-	preempt_disable();
-
-	/*
-	 * Make sure current didn't get patched between the above check and
-	 * preempt_disable().
-	 */
-	if (unlikely(!klp_patch_pending(current)))
-		goto out;
 
 	/*
 	 * Enforce the order of the TIF_PATCH_PENDING read above and the
@@ -395,11 +378,7 @@ void __klp_sched_try_switch(void)
 	smp_rmb();
 
 	klp_try_switch_task(current);
-
-out:
-	preempt_enable();
 }
-EXPORT_SYMBOL(__klp_sched_try_switch);
 
 /*
  * Sends a fake signal to all non-kthread tasks with TIF_PATCH_PENDING set.
@@ -508,7 +487,7 @@ void klp_try_complete_transition(void)
 	}
 
 	/* Done!  Now cleanup the data structures. */
-	klp_cond_resched_disable();
+	klp_resched_disable();
 	patch = klp_transition_patch;
 	klp_complete_transition();
 
@@ -560,7 +539,7 @@ void klp_start_transition(void)
 			set_tsk_thread_flag(task, TIF_PATCH_PENDING);
 	}
 
-	klp_cond_resched_enable();
+	klp_resched_enable();
 
 	klp_signals_cnt = 0;
 }

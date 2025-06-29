@@ -9,7 +9,6 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-#include <linux/parser.h>
 #include <linux/hashtable.h>
 #include <linux/seq_file.h>
 
@@ -22,18 +21,16 @@ LIST_HEAD(orangefs_superblocks);
 DEFINE_SPINLOCK(orangefs_superblocks_lock);
 
 enum {
-	Opt_intr,
 	Opt_acl,
+	Opt_intr,
 	Opt_local_lock,
-
-	Opt_err
 };
 
-static const match_table_t tokens = {
-	{ Opt_acl,		"acl" },
-	{ Opt_intr,		"intr" },
-	{ Opt_local_lock,	"local_lock" },
-	{ Opt_err,	NULL }
+const struct fs_parameter_spec orangefs_fs_param_spec[] = {
+	fsparam_flag	("acl",			Opt_acl),
+	fsparam_flag	("intr",		Opt_intr),
+	fsparam_flag	("local_lock",		Opt_local_lock),
+	{}
 };
 
 uint64_t orangefs_features;
@@ -51,48 +48,30 @@ static int orangefs_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
-static int parse_mount_options(struct super_block *sb, char *options,
-		int silent)
+static int orangefs_parse_param(struct fs_context *fc,
+		struct fs_parameter *param)
 {
-	struct orangefs_sb_info_s *orangefs_sb = ORANGEFS_SB(sb);
-	substring_t args[MAX_OPT_ARGS];
-	char *p;
+	struct orangefs_sb_info_s *orangefs_sb = fc->s_fs_info;
+	struct fs_parse_result result;
+	int opt;
 
-	/*
-	 * Force any potential flags that might be set from the mount
-	 * to zero, ie, initialize to unset.
-	 */
-	sb->s_flags &= ~SB_POSIXACL;
-	orangefs_sb->flags &= ~ORANGEFS_OPT_INTR;
-	orangefs_sb->flags &= ~ORANGEFS_OPT_LOCAL_LOCK;
+	opt = fs_parse(fc, orangefs_fs_param_spec, param, &result);
+	if (opt < 0)
+		return opt;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_acl:
-			sb->s_flags |= SB_POSIXACL;
-			break;
-		case Opt_intr:
-			orangefs_sb->flags |= ORANGEFS_OPT_INTR;
-			break;
-		case Opt_local_lock:
-			orangefs_sb->flags |= ORANGEFS_OPT_LOCAL_LOCK;
-			break;
-		default:
-			goto fail;
-		}
+	switch (opt) {
+	case Opt_acl:
+		fc->sb_flags |= SB_POSIXACL;
+		break;
+	case Opt_intr:
+		orangefs_sb->flags |= ORANGEFS_OPT_INTR;
+		break;
+	case Opt_local_lock:
+		orangefs_sb->flags |= ORANGEFS_OPT_LOCAL_LOCK;
+		break;
 	}
 
 	return 0;
-fail:
-	if (!silent)
-		gossip_err("Error: mount option [%s] is not supported.\n", p);
-	return -EINVAL;
 }
 
 static void orangefs_inode_cache_ctor(void *req)
@@ -223,10 +202,20 @@ out_op_release:
  * Remount as initiated by VFS layer.  We just need to reparse the mount
  * options, no need to signal pvfs2-client-core about it.
  */
-static int orangefs_remount_fs(struct super_block *sb, int *flags, char *data)
+static int orangefs_reconfigure(struct fs_context *fc)
 {
-	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_remount_fs: called\n");
-	return parse_mount_options(sb, data, 1);
+	struct super_block *sb = fc->root->d_sb;
+	struct orangefs_sb_info_s *orangefs_sb = ORANGEFS_SB(sb);
+	struct orangefs_sb_info_s *revised = fc->s_fs_info;
+	unsigned int flags;
+
+	flags = orangefs_sb->flags;
+	flags &= ~(ORANGEFS_OPT_INTR | ORANGEFS_OPT_LOCAL_LOCK);
+	flags |= revised->flags;
+	WRITE_ONCE(orangefs_sb->flags, flags);
+
+	gossip_debug(GOSSIP_SUPER_DEBUG, "orangefs_reconfigure: called\n");
+	return 0;
 }
 
 /*
@@ -319,7 +308,6 @@ static const struct super_operations orangefs_s_ops = {
 	.write_inode = orangefs_write_inode,
 	.drop_inode = generic_delete_inode,
 	.statfs = orangefs_statfs,
-	.remount_fs = orangefs_remount_fs,
 	.show_options = orangefs_show_options,
 };
 
@@ -410,8 +398,8 @@ static int orangefs_unmount(int id, __s32 fs_id, const char *devname)
 }
 
 static int orangefs_fill_sb(struct super_block *sb,
-		struct orangefs_fs_mount_response *fs_mount,
-		void *data, int silent)
+			    struct fs_context *fc,
+			    struct orangefs_fs_mount_response *fs_mount)
 {
 	int ret;
 	struct inode *root;
@@ -423,12 +411,6 @@ static int orangefs_fill_sb(struct super_block *sb,
 	ORANGEFS_SB(sb)->root_khandle = fs_mount->root_khandle;
 	ORANGEFS_SB(sb)->fs_id = fs_mount->fs_id;
 	ORANGEFS_SB(sb)->id = fs_mount->id;
-
-	if (data) {
-		ret = parse_mount_options(sb, data, silent);
-		if (ret)
-			return ret;
-	}
 
 	/* Hang the xattr handlers off the superblock */
 	sb->s_xattr = orangefs_xattr_handlers;
@@ -470,30 +452,24 @@ static int orangefs_fill_sb(struct super_block *sb,
 	return 0;
 }
 
-struct dentry *orangefs_mount(struct file_system_type *fst,
-			   int flags,
-			   const char *devname,
-			   void *data)
+static int orangefs_get_tree(struct fs_context *fc)
 {
 	int ret;
 	struct super_block *sb = ERR_PTR(-EINVAL);
 	struct orangefs_kernel_op_s *new_op;
-	struct dentry *d = ERR_PTR(-EINVAL);
+
+	if (!fc->source)
+		return invalf(fc, "Device name not specified.\n");
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "orangefs_mount: called with devname %s\n",
-		     devname);
-
-	if (!devname) {
-		gossip_err("ERROR: device name not specified.\n");
-		return ERR_PTR(-EINVAL);
-	}
+		     fc->source);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FS_MOUNT);
 	if (!new_op)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	strscpy(new_op->upcall.req.fs_mount.orangefs_config_server, devname);
+	strscpy(new_op->upcall.req.fs_mount.orangefs_config_server, fc->source);
 
 	gossip_debug(GOSSIP_SUPER_DEBUG,
 		     "Attempting ORANGEFS Mount via host %s\n",
@@ -511,37 +487,27 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 		goto free_op;
 	}
 
-	sb = sget(fst, NULL, set_anon_super, flags, NULL);
+	sb = sget_fc(fc, NULL, set_anon_super_fc);
 
 	if (IS_ERR(sb)) {
-		d = ERR_CAST(sb);
+		ret = PTR_ERR(sb);
 		orangefs_unmount(new_op->downcall.resp.fs_mount.id,
-		    new_op->downcall.resp.fs_mount.fs_id, devname);
+				 new_op->downcall.resp.fs_mount.fs_id,
+				 fc->source);
 		goto free_op;
 	}
 
-	/* alloc and init our private orangefs sb info */
-	sb->s_fs_info = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
-	if (!ORANGEFS_SB(sb)) {
-		d = ERR_PTR(-ENOMEM);
-		goto free_op;
-	}
+	/* init our private orangefs sb info */
+	ret = orangefs_fill_sb(sb, fc, &new_op->downcall.resp.fs_mount);
 
-	ret = orangefs_fill_sb(sb,
-	      &new_op->downcall.resp.fs_mount, data,
-	      flags & SB_SILENT ? 1 : 0);
-
-	if (ret) {
-		d = ERR_PTR(ret);
+	if (ret)
 		goto free_sb_and_op;
-	}
 
 	/*
 	 * on successful mount, store the devname and data
 	 * used
 	 */
-	strscpy(ORANGEFS_SB(sb)->devname, devname);
-
+	strscpy(ORANGEFS_SB(sb)->devname, fc->source);
 
 	/* mount_pending must be cleared */
 	ORANGEFS_SB(sb)->mount_pending = 0;
@@ -564,7 +530,7 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 	if (orangefs_userspace_version >= 20906) {
 		new_op = op_alloc(ORANGEFS_VFS_OP_FEATURES);
 		if (!new_op)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 		new_op->upcall.req.features.features = 0;
 		ret = service_operation(new_op, "orangefs_features", 0);
 		orangefs_features = new_op->downcall.resp.features.features;
@@ -573,7 +539,8 @@ struct dentry *orangefs_mount(struct file_system_type *fst,
 		orangefs_features = 0;
 	}
 
-	return dget(sb->s_root);
+	fc->root = dget(sb->s_root);
+	return 0;
 
 free_sb_and_op:
 	/* Will call orangefs_kill_sb with sb not in list. */
@@ -589,7 +556,43 @@ free_op:
 
 	op_release(new_op);
 
-	return d;
+	return ret;
+}
+
+static void orangefs_free_fc(struct fs_context *fc)
+{
+	kfree(fc->s_fs_info);
+}
+
+static const struct fs_context_operations orangefs_context_ops = {
+	.free		= orangefs_free_fc,
+	.parse_param	= orangefs_parse_param,
+	.get_tree	= orangefs_get_tree,
+	.reconfigure	= orangefs_reconfigure,
+};
+
+/*
+ * Set up the filesystem mount context.
+ */
+int orangefs_init_fs_context(struct fs_context *fc)
+{
+	struct orangefs_sb_info_s *osi;
+
+	osi = kzalloc(sizeof(struct orangefs_sb_info_s), GFP_KERNEL);
+	if (!osi)
+		return -ENOMEM;
+
+	/*
+	 * Force any potential flags that might be set from the mount
+	 * to zero, ie, initialize to unset.
+	 */
+	fc->sb_flags_mask &= ~SB_POSIXACL;
+	osi->flags &= ~ORANGEFS_OPT_INTR;
+	osi->flags &= ~ORANGEFS_OPT_LOCAL_LOCK;
+
+	fc->s_fs_info = osi;
+	fc->ops = &orangefs_context_ops;
+	return 0;
 }
 
 void orangefs_kill_sb(struct super_block *sb)

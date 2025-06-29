@@ -65,4 +65,9 @@ int mlx5hws_table_ft_set_next_rtc(struct mlx5hws_context *ctx,
 				  u32 rtc_0_id,
 				  u32 rtc_1_id);
 
+int mlx5hws_table_ft_set_next_ft(struct mlx5hws_context *ctx,
+				 u32 ft_id,
+				 u32 fw_ft_type,
+				 u32 next_ft_id);
+
 #endif /* MLX5HWS_TABLE_H_ */

@@ -317,6 +317,9 @@ static void hbg_update_stats_by_info(struct hbg_priv *priv,
 	const struct hbg_ethtool_stats *stats;
 	u32 i;
 
+	if (test_bit(HBG_NIC_STATE_RESETTING, &priv->state))
+		return;
+
 	for (i = 0; i < info_len; i++) {
 		stats = &info[i];
 		if (!stats->reg)

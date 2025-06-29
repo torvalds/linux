@@ -31,7 +31,7 @@
 
 #include <nvif/class.h>
 
-static u32
+u32
 tu102_chan_doorbell_handle(struct nvkm_chan *chan)
 {
 	return (chan->cgrp->runl->id << 16) | chan->id;

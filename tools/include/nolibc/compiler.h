@@ -12,6 +12,15 @@
 #  define __nolibc_has_attribute(attr) 0
 #endif
 
+#if defined(__has_feature)
+#  define __nolibc_has_feature(feature) __has_feature(feature)
+#else
+#  define __nolibc_has_feature(feature) 0
+#endif
+
+#define __nolibc_aligned(alignment) __attribute__((aligned(alignment)))
+#define __nolibc_aligned_as(type) __nolibc_aligned(__alignof__(type))
+
 #if __nolibc_has_attribute(naked)
 #  define __nolibc_entrypoint __attribute__((naked))
 #  define __nolibc_entrypoint_epilogue()

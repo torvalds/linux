@@ -15,16 +15,20 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,sar2130p-adsp-pas
-      - qcom,sm8350-adsp-pas
-      - qcom,sm8350-cdsp-pas
-      - qcom,sm8350-slpi-pas
-      - qcom,sm8350-mpss-pas
-      - qcom,sm8450-adsp-pas
-      - qcom,sm8450-cdsp-pas
-      - qcom,sm8450-mpss-pas
-      - qcom,sm8450-slpi-pas
+    oneOf:
+      - enum:
+          - qcom,sar2130p-adsp-pas
+          - qcom,sm8350-adsp-pas
+          - qcom,sm8350-cdsp-pas
+          - qcom,sm8350-slpi-pas
+          - qcom,sm8350-mpss-pas
+          - qcom,sm8450-adsp-pas
+          - qcom,sm8450-cdsp-pas
+          - qcom,sm8450-mpss-pas
+          - qcom,sm8450-slpi-pas
+      - items:
+          - const: qcom,sc8280xp-slpi-pas
+          - const: qcom,sm8350-slpi-pas
 
   reg:
     maxItems: 1
@@ -61,14 +65,15 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sar2130p-adsp-pas
-            - qcom,sm8350-adsp-pas
-            - qcom,sm8350-cdsp-pas
-            - qcom,sm8350-slpi-pas
-            - qcom,sm8450-adsp-pas
-            - qcom,sm8450-cdsp-pas
-            - qcom,sm8450-slpi-pas
+          contains:
+            enum:
+              - qcom,sar2130p-adsp-pas
+              - qcom,sm8350-adsp-pas
+              - qcom,sm8350-cdsp-pas
+              - qcom,sm8350-slpi-pas
+              - qcom,sm8450-adsp-pas
+              - qcom,sm8450-cdsp-pas
+              - qcom,sm8450-slpi-pas
     then:
       properties:
         interrupts:
@@ -102,12 +107,13 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sar2130p-adsp-pas
-            - qcom,sm8350-adsp-pas
-            - qcom,sm8350-slpi-pas
-            - qcom,sm8450-adsp-pas
-            - qcom,sm8450-slpi-pas
+          contains:
+            enum:
+              - qcom,sar2130p-adsp-pas
+              - qcom,sm8350-adsp-pas
+              - qcom,sm8350-slpi-pas
+              - qcom,sm8450-adsp-pas
+              - qcom,sm8450-slpi-pas
     then:
       properties:
         power-domains:

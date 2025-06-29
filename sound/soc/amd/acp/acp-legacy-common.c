@@ -450,7 +450,7 @@ int acp_machine_select(struct acp_chip_info *chip)
 	struct snd_soc_acpi_mach *mach;
 	int size, platform;
 
-	if (chip->flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
+	if (chip->flag == FLAG_AMD_LEGACY_ONLY_DMIC && chip->is_pdm_dev) {
 		platform = chip->acp_rev;
 		chip->mach_dev = platform_device_register_data(chip->dev, "acp-pdm-mach",
 							       PLATFORM_DEVID_NONE, &platform,

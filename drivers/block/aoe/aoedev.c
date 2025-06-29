@@ -149,7 +149,7 @@ dummy_timer(struct timer_list *t)
 {
 	struct aoedev *d;
 
-	d = from_timer(d, t, timer);
+	d = timer_container_of(d, t, timer);
 	if (d->flags & DEVFL_TKILL)
 		return;
 	d->timer.expires = jiffies + HZ;

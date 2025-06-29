@@ -1883,7 +1883,7 @@ void cpqhp_pushbutton_thread(struct timer_list *t)
 {
 	u8 hp_slot;
 	struct pci_func *func;
-	struct slot *p_slot = from_timer(p_slot, t, task_event);
+	struct slot *p_slot = timer_container_of(p_slot, t, task_event);
 	struct controller *ctrl = (struct controller *) p_slot->ctrl;
 
 	pushbutton_pending = NULL;

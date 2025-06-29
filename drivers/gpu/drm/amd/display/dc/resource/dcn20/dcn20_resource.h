@@ -119,7 +119,7 @@ void dcn20_set_mcif_arb_params(
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
 		int pipe_cnt);
-bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
+enum dc_status dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context, bool fast_validate);
 void dcn20_merge_pipes_for_validate(
 		struct dc *dc,
 		struct dc_state *context);

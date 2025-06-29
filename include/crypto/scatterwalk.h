@@ -11,11 +11,64 @@
 #ifndef _CRYPTO_SCATTERWALK_H
 #define _CRYPTO_SCATTERWALK_H
 
-#include <crypto/algapi.h>
-
+#include <linux/errno.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/types.h>
+
+struct scatter_walk {
+	/* Must be the first member, see struct skcipher_walk. */
+	union {
+		void *const addr;
+
+		/* Private API field, do not touch. */
+		union crypto_no_such_thing *__addr;
+	};
+	struct scatterlist *sg;
+	unsigned int offset;
+};
+
+struct skcipher_walk {
+	union {
+		/* Virtual address of the source. */
+		struct {
+			struct {
+				const void *const addr;
+			} virt;
+		} src;
+
+		/* Private field for the API, do not use. */
+		struct scatter_walk in;
+	};
+
+	union {
+		/* Virtual address of the destination. */
+		struct {
+			struct {
+				void *const addr;
+			} virt;
+		} dst;
+
+		/* Private field for the API, do not use. */
+		struct scatter_walk out;
+	};
+
+	unsigned int nbytes;
+	unsigned int total;
+
+	u8 *page;
+	u8 *buffer;
+	u8 *oiv;
+	void *iv;
+
+	unsigned int ivsize;
+
+	int flags;
+	unsigned int blocksize;
+	unsigned int stride;
+	unsigned int alignmask;
+};
 
 static inline void scatterwalk_crypto_chain(struct scatterlist *head,
 					    struct scatterlist *sg, int num)
@@ -242,5 +295,13 @@ static inline void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 				     struct scatterlist *src,
 				     unsigned int len);
+
+int skcipher_walk_first(struct skcipher_walk *walk, bool atomic);
+int skcipher_walk_done(struct skcipher_walk *walk, int res);
+
+static inline void skcipher_walk_abort(struct skcipher_walk *walk)
+{
+	skcipher_walk_done(walk, -ECANCELED);
+}
 
 #endif  /* _CRYPTO_SCATTERWALK_H */

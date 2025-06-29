@@ -68,15 +68,16 @@ struct crypto_instance {
 		struct crypto_spawn *spawns;
 	};
 
-	struct work_struct free_work;
-
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
 struct crypto_template {
 	struct list_head list;
 	struct hlist_head instances;
+	struct hlist_head dead;
 	struct module *module;
+
+	struct work_struct free_work;
 
 	int (*create)(struct crypto_template *tmpl, struct rtattr **tb);
 
@@ -104,18 +105,6 @@ struct crypto_queue {
 
 	unsigned int qlen;
 	unsigned int max_qlen;
-};
-
-struct scatter_walk {
-	/* Must be the first member, see struct skcipher_walk. */
-	union {
-		void *const addr;
-
-		/* Private API field, do not touch. */
-		union crypto_no_such_thing *__addr;
-	};
-	struct scatterlist *sg;
-	unsigned int offset;
 };
 
 struct crypto_attr_alg {
@@ -157,8 +146,16 @@ void *crypto_spawn_tfm2(struct crypto_spawn *spawn);
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type, u32 *mask_ret);
 const char *crypto_attr_alg_name(struct rtattr *rta);
-int crypto_inst_setname(struct crypto_instance *inst, const char *name,
-			struct crypto_alg *alg);
+int __crypto_inst_setname(struct crypto_instance *inst, const char *name,
+			  const char *driver, struct crypto_alg *alg);
+
+#define crypto_inst_setname(inst, name, ...) \
+	CONCATENATE(crypto_inst_setname_, COUNT_ARGS(__VA_ARGS__))( \
+		inst, name, ##__VA_ARGS__)
+#define crypto_inst_setname_1(inst, name, alg) \
+	__crypto_inst_setname(inst, name, name, alg)
+#define crypto_inst_setname_2(inst, name, driver, alg) \
+	__crypto_inst_setname(inst, name, driver, alg)
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
@@ -266,14 +263,14 @@ static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
 }
 
-static inline bool crypto_request_chained(struct crypto_async_request *req)
+static inline bool crypto_tfm_req_virt(struct crypto_tfm *tfm)
 {
-	return !list_empty(&req->list);
+	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_REQ_VIRT;
 }
 
-static inline bool crypto_tfm_req_chain(struct crypto_tfm *tfm)
+static inline u32 crypto_request_flags(struct crypto_async_request *req)
 {
-	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_REQ_CHAIN;
+	return req->flags & ~CRYPTO_TFM_REQ_ON_STACK;
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */

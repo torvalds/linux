@@ -386,11 +386,11 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	if (index >= isp->input_cnt)
 		return -EINVAL;
 
-	if (!isp->inputs[index].camera)
+	if (!isp->inputs[index].sensor)
 		return -EINVAL;
 
 	memset(input, 0, sizeof(struct v4l2_input));
-	strscpy(input->name, isp->inputs[index].camera->name,
+	strscpy(input->name, isp->inputs[index].sensor->name,
 		sizeof(input->name));
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
@@ -433,7 +433,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	if (input >= isp->input_cnt)
 		return -EINVAL;
 
-	if (!isp->inputs[input].camera)
+	if (!isp->inputs[input].sensor)
 		return -EINVAL;
 
 	ret = atomisp_pipe_check(pipe, true);
@@ -539,14 +539,14 @@ static int atomisp_enum_framesizes(struct file *file, void *priv,
 	struct v4l2_subdev_state *act_sd_state;
 	int ret;
 
-	if (!input->camera)
+	if (!input->sensor)
 		return -EINVAL;
 
 	if (input->crop_support)
 		return atomisp_enum_framesizes_crop(isp, fsize);
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
-	ret = v4l2_subdev_call(input->camera, pad, enum_frame_size,
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor);
+	ret = v4l2_subdev_call(input->sensor, pad, enum_frame_size,
 			       act_sd_state, &fse);
 	if (act_sd_state)
 		v4l2_subdev_unlock_state(act_sd_state);
@@ -577,11 +577,11 @@ static int atomisp_enum_frameintervals(struct file *file, void *priv,
 	struct v4l2_subdev_state *act_sd_state;
 	int ret;
 
-	if (!input->camera)
+	if (!input->sensor)
 		return -EINVAL;
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
-	ret = v4l2_subdev_call(input->camera, pad, enum_frame_interval,
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor);
+	ret = v4l2_subdev_call(input->sensor, pad, enum_frame_interval,
 			       act_sd_state, &fie);
 	if (act_sd_state)
 		v4l2_subdev_unlock_state(act_sd_state);
@@ -609,11 +609,11 @@ static int atomisp_enum_fmt_cap(struct file *file, void *fh,
 	unsigned int i, fi = 0;
 	int ret;
 
-	if (!input->camera)
+	if (!input->sensor)
 		return -EINVAL;
 
-	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
-	ret = v4l2_subdev_call(input->camera, pad, enum_mbus_code,
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor);
+	ret = v4l2_subdev_call(input->sensor, pad, enum_mbus_code,
 			       act_sd_state, &code);
 	if (act_sd_state)
 		v4l2_subdev_unlock_state(act_sd_state);
@@ -945,7 +945,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* stream on the sensor */
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
 			       video, s_stream, 1);
 	if (ret) {
 		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
@@ -1002,7 +1002,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 
 	atomisp_subdev_cleanup_pending_events(asd);
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
+	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
 			       video, s_stream, 0);
 	if (ret)
 		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
@@ -1332,7 +1332,7 @@ static int atomisp_s_parm(struct file *file, void *fh,
 
 		fi.interval = parm->parm.capture.timeperframe;
 
-		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].camera,
+		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].csi_remote_source,
 						     pad, set_frame_interval, &fi);
 		if (!rval)
 			parm->parm.capture.timeperframe = fi.interval;

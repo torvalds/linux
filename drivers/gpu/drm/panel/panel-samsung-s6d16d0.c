@@ -166,9 +166,11 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 	struct s6d16d0 *s6;
 	int ret;
 
-	s6 = devm_kzalloc(dev, sizeof(struct s6d16d0), GFP_KERNEL);
-	if (!s6)
-		return -ENOMEM;
+	s6 = devm_drm_panel_alloc(dev, struct s6d16d0, panel,
+				  &s6d16d0_drm_funcs,
+				  DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(s6))
+		return PTR_ERR(s6);
 
 	mipi_dsi_set_drvdata(dsi, s6);
 	s6->dev = dev;
@@ -199,9 +201,6 @@ static int s6d16d0_probe(struct mipi_dsi_device *dsi)
 			dev_err(dev, "failed to request GPIO (%d)\n", ret);
 		return ret;
 	}
-
-	drm_panel_init(&s6->panel, dev, &s6d16d0_drm_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	drm_panel_add(&s6->panel);
 

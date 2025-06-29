@@ -301,7 +301,7 @@ static unsigned int rsassa_pkcs1_key_size(struct crypto_sig *tfm)
 {
 	struct rsassa_pkcs1_ctx *ctx = crypto_sig_ctx(tfm);
 
-	return ctx->key_size;
+	return ctx->key_size * BITS_PER_BYTE;
 }
 
 static int rsassa_pkcs1_set_pub_key(struct crypto_sig *tfm,

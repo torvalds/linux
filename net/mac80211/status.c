@@ -1085,7 +1085,13 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 
 	ieee80211_report_used_skb(local, skb, false, status->ack_hwtstamp);
 
-	if (status->free_list)
+	/*
+	 * This is a bit racy but we can avoid a lot of work
+	 * with this test...
+	 */
+	if (local->tx_mntrs)
+		ieee80211_tx_monitor(local, skb, retry_count, status);
+	else if (status->free_list)
 		list_add_tail(&skb->list, status->free_list);
 	else
 		dev_kfree_skb(skb);

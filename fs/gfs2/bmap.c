@@ -988,7 +988,8 @@ static void gfs2_iomap_put_folio(struct inode *inode, loff_t pos,
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 
 	if (!gfs2_is_stuffed(ip))
-		gfs2_trans_add_databufs(ip, folio, offset_in_folio(folio, pos),
+		gfs2_trans_add_databufs(ip->i_gl, folio,
+					offset_in_folio(folio, pos),
 					copied);
 
 	folio_unlock(folio);
@@ -1296,10 +1297,12 @@ int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
  * uses iomap write to perform its actions, which begin their own transactions
  * (iomap_begin, get_folio, etc.)
  */
-static int gfs2_block_zero_range(struct inode *inode, loff_t from,
-				 unsigned int length)
+static int gfs2_block_zero_range(struct inode *inode, loff_t from, loff_t length)
 {
 	BUG_ON(current->journal_info);
+	if (from >= inode->i_size)
+		return 0;
+	length = min(length, inode->i_size - from);
 	return iomap_zero_range(inode, from, length, NULL, &gfs2_iomap_ops,
 			NULL);
 }

@@ -18,6 +18,7 @@
 #define MFEATURE_VM		7
 #define MFEATURE_KVM		8
 #define MFEATURE_LPAR		9
+#define MFEATURE_DIAG288	10
 
 #ifndef __ASSEMBLY__
 

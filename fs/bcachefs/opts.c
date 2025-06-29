@@ -7,7 +7,9 @@
 #include "compress.h"
 #include "disk_groups.h"
 #include "error.h"
+#include "movinggc.h"
 #include "opts.h"
+#include "rebalance.h"
 #include "recovery_passes.h"
 #include "super-io.h"
 #include "util.h"
@@ -16,6 +18,11 @@
 
 const char * const bch2_error_actions[] = {
 	BCH_ERROR_ACTIONS()
+	NULL
+};
+
+const char * const bch2_degraded_actions[] = {
+	BCH_DEGRADED_ACTIONS()
 	NULL
 };
 
@@ -273,25 +280,49 @@ int bch2_opt_lookup(const char *name)
 	return -1;
 }
 
-struct synonym {
+struct opt_synonym {
 	const char	*s1, *s2;
 };
 
-static const struct synonym bch_opt_synonyms[] = {
+static const struct opt_synonym bch2_opt_synonyms[] = {
 	{ "quota",	"usrquota" },
 };
 
 static int bch2_mount_opt_lookup(const char *name)
 {
-	const struct synonym *i;
+	const struct opt_synonym *i;
 
-	for (i = bch_opt_synonyms;
-	     i < bch_opt_synonyms + ARRAY_SIZE(bch_opt_synonyms);
+	for (i = bch2_opt_synonyms;
+	     i < bch2_opt_synonyms + ARRAY_SIZE(bch2_opt_synonyms);
 	     i++)
 		if (!strcmp(name, i->s1))
 			name = i->s2;
 
 	return bch2_opt_lookup(name);
+}
+
+struct opt_val_synonym {
+	const char	*opt, *v1, *v2;
+};
+
+static const struct opt_val_synonym bch2_opt_val_synonyms[] = {
+	{ "degraded",	"true",		"yes" },
+	{ "degraded",	"false",	"no"  },
+	{ "degraded",	"1",		"yes" },
+	{ "degraded",	"0",		"no"  },
+};
+
+static const char *bch2_opt_val_synonym_lookup(const char *opt, const char *val)
+{
+	const struct opt_val_synonym *i;
+
+	for (i = bch2_opt_val_synonyms;
+	     i < bch2_opt_val_synonyms + ARRAY_SIZE(bch2_opt_val_synonyms);
+	     i++)
+		if (!strcmp(opt, i->opt) && !strcmp(val, i->v1))
+			return i->v2;
+
+	return val;
 }
 
 int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
@@ -337,21 +368,22 @@ int bch2_opt_parse(struct bch_fs *c,
 {
 	ssize_t ret;
 
+	if (err)
+		printbuf_indent_add_nextline(err, 2);
+
 	switch (opt->type) {
 	case BCH_OPT_BOOL:
-		if (val) {
-			ret = lookup_constant(bool_names, val, -BCH_ERR_option_not_bool);
-			if (ret != -BCH_ERR_option_not_bool) {
-				*res = ret;
-			} else {
-				if (err)
-					prt_printf(err, "%s: must be bool", opt->attr.name);
-				return ret;
-			}
-		} else {
-			*res = 1;
-		}
+		if (!val)
+			val = "1";
 
+		ret = lookup_constant(bool_names, val, -BCH_ERR_option_not_bool);
+		if (ret != -BCH_ERR_option_not_bool) {
+			*res = ret;
+		} else {
+			if (err)
+				prt_printf(err, "%s: must be bool", opt->attr.name);
+			return ret;
+		}
 		break;
 	case BCH_OPT_UINT:
 		if (!val) {
@@ -360,9 +392,15 @@ int bch2_opt_parse(struct bch_fs *c,
 			return -EINVAL;
 		}
 
-		ret = opt->flags & OPT_HUMAN_READABLE
-			? bch2_strtou64_h(val, res)
-			: kstrtou64(val, 10, res);
+		if (*val != '-') {
+			ret = opt->flags & OPT_HUMAN_READABLE
+			    ? bch2_strtou64_h(val, res)
+			    : kstrtou64(val, 10, res);
+		} else {
+			prt_printf(err, "%s: must be a non-negative number", opt->attr.name);
+			return -BCH_ERR_option_negative;
+		}
+
 		if (ret < 0) {
 			if (err)
 				prt_printf(err, "%s: must be a number",
@@ -480,7 +518,7 @@ void bch2_opts_to_text(struct printbuf *out,
 	}
 }
 
-int bch2_opt_check_may_set(struct bch_fs *c, struct bch_dev *ca, int id, u64 v)
+int bch2_opt_hook_pre_set(struct bch_fs *c, struct bch_dev *ca, enum bch_opt_id id, u64 v)
 {
 	int ret = 0;
 
@@ -498,20 +536,77 @@ int bch2_opt_check_may_set(struct bch_fs *c, struct bch_dev *ca, int id, u64 v)
 		if (v)
 			bch2_check_set_feature(c, BCH_FEATURE_ec);
 		break;
+	default:
+		break;
 	}
 
 	return ret;
 }
 
-int bch2_opts_check_may_set(struct bch_fs *c)
+int bch2_opts_hooks_pre_set(struct bch_fs *c)
 {
 	for (unsigned i = 0; i < bch2_opts_nr; i++) {
-		int ret = bch2_opt_check_may_set(c, NULL, i, bch2_opt_get_by_id(&c->opts, i));
+		int ret = bch2_opt_hook_pre_set(c, NULL, i, bch2_opt_get_by_id(&c->opts, i));
 		if (ret)
 			return ret;
 	}
 
 	return 0;
+}
+
+void bch2_opt_hook_post_set(struct bch_fs *c, struct bch_dev *ca, u64 inum,
+			    struct bch_opts *new_opts, enum bch_opt_id id)
+{
+	switch (id) {
+	case Opt_foreground_target:
+		if (new_opts->foreground_target &&
+		    !new_opts->background_target)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_compression:
+		if (new_opts->compression &&
+		    !new_opts->background_compression)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_background_target:
+		if (new_opts->background_target)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_background_compression:
+		if (new_opts->background_compression)
+			bch2_set_rebalance_needs_scan(c, inum);
+		break;
+	case Opt_rebalance_enabled:
+		bch2_rebalance_wakeup(c);
+		break;
+	case Opt_copygc_enabled:
+		bch2_copygc_wakeup(c);
+		break;
+	case Opt_discard:
+		if (!ca) {
+			mutex_lock(&c->sb_lock);
+			for_each_member_device(c, ca) {
+				struct bch_member *m =
+					bch2_members_v2_get_mut(ca->disk_sb.sb, ca->dev_idx);
+				SET_BCH_MEMBER_DISCARD(m, c->opts.discard);
+			}
+
+			bch2_write_super(c);
+			mutex_unlock(&c->sb_lock);
+		}
+		break;
+	case Opt_version_upgrade:
+		/*
+		 * XXX: in the future we'll likely want to do compatible
+		 * upgrades at runtime as well, but right now there's nothing
+		 * that does that:
+		 */
+		if (new_opts->version_upgrade == BCH_VERSION_UPGRADE_incompatible)
+			bch2_sb_upgrade_incompat(c);
+		break;
+	default:
+		break;
+	}
 }
 
 int bch2_parse_one_mount_opt(struct bch_fs *c, struct bch_opts *opts,
@@ -535,6 +630,12 @@ int bch2_parse_one_mount_opt(struct bch_fs *c, struct bch_opts *opts,
 	/* Unknown options are ignored: */
 	if (id < 0)
 		return 0;
+
+	/* must have a value for synonym lookup - but OPT_FN is weird */
+	if (!val && bch2_opt_table[id].type != BCH_OPT_FN)
+		val = "1";
+
+	val = bch2_opt_val_synonym_lookup(name, val);
 
 	if (!(bch2_opt_table[id].flags & OPT_MOUNT))
 		goto bad_opt;
@@ -667,9 +768,11 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 	return 0;
 }
 
-void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
+bool __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 		       const struct bch_option *opt, u64 v)
 {
+	bool changed = false;
+
 	if (opt->flags & OPT_SB_FIELD_SECTORS)
 		v >>= 9;
 
@@ -679,26 +782,35 @@ void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 	if (opt->flags & OPT_SB_FIELD_ONE_BIAS)
 		v++;
 
-	if ((opt->flags & OPT_FS) && opt->set_sb && dev_idx < 0)
+	if ((opt->flags & OPT_FS) && opt->set_sb && dev_idx < 0) {
+		changed = v != opt->get_sb(sb);
+
 		opt->set_sb(sb, v);
+	}
 
 	if ((opt->flags & OPT_DEVICE) && opt->set_member && dev_idx >= 0) {
 		if (WARN(!bch2_member_exists(sb, dev_idx),
 			 "tried to set device option %s on nonexistent device %i",
 			 opt->attr.name, dev_idx))
-			return;
+			return false;
 
-		opt->set_member(bch2_members_v2_get_mut(sb, dev_idx), v);
+		struct bch_member *m = bch2_members_v2_get_mut(sb, dev_idx);
+		changed = v != opt->get_member(m);
+		opt->set_member(m, v);
 	}
+
+	return changed;
 }
 
-void bch2_opt_set_sb(struct bch_fs *c, struct bch_dev *ca,
+bool bch2_opt_set_sb(struct bch_fs *c, struct bch_dev *ca,
 		     const struct bch_option *opt, u64 v)
 {
 	mutex_lock(&c->sb_lock);
-	__bch2_opt_set_sb(c->disk_sb.sb, ca ? ca->dev_idx : -1, opt, v);
-	bch2_write_super(c);
+	bool changed = __bch2_opt_set_sb(c->disk_sb.sb, ca ? ca->dev_idx : -1, opt, v);
+	if (changed)
+		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
+	return changed;
 }
 
 /* io opts: */

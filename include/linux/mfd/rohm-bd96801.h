@@ -40,7 +40,9 @@
  * INTB status registers are at range 0x5c ... 0x63
  */
 #define BD96801_REG_INT_SYS_ERRB1	0x52
+#define BD96801_REG_INT_BUCK2_ERRB	0x56
 #define BD96801_REG_INT_SYS_INTB	0x5c
+#define BD96801_REG_INT_BUCK2_INTB	0x5e
 #define BD96801_REG_INT_LDO7_INTB	0x63
 
 /* MASK registers */

@@ -1527,5 +1527,6 @@ MODULE_PARM_DESC(interleave_arithmetic, "Modulo:0, XOR:1");
 module_init(cxl_test_init);
 module_exit(cxl_test_exit);
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("cxl_test: setup module");
 MODULE_IMPORT_NS("ACPI");
 MODULE_IMPORT_NS("CXL");

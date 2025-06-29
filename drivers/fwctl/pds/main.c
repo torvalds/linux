@@ -105,12 +105,14 @@ static int pdsfc_identify(struct pdsfc_dev *pdsfc)
 static void pdsfc_free_endpoints(struct pdsfc_dev *pdsfc)
 {
 	struct device *dev = &pdsfc->fwctl.dev;
+	u32 num_endpoints;
 	int i;
 
 	if (!pdsfc->endpoints)
 		return;
 
-	for (i = 0; pdsfc->endpoint_info && i < pdsfc->endpoints->num_entries; i++)
+	num_endpoints = le32_to_cpu(pdsfc->endpoints->num_entries);
+	for (i = 0; pdsfc->endpoint_info && i < num_endpoints; i++)
 		mutex_destroy(&pdsfc->endpoint_info[i].lock);
 	vfree(pdsfc->endpoint_info);
 	pdsfc->endpoint_info = NULL;
@@ -199,7 +201,7 @@ static int pdsfc_init_endpoints(struct pdsfc_dev *pdsfc)
 	ep_entry = (struct pds_fwctl_query_data_endpoint *)pdsfc->endpoints->entries;
 	for (i = 0; i < num_endpoints; i++) {
 		mutex_init(&pdsfc->endpoint_info[i].lock);
-		pdsfc->endpoint_info[i].endpoint = ep_entry[i].id;
+		pdsfc->endpoint_info[i].endpoint = le32_to_cpu(ep_entry[i].id);
 	}
 
 	return 0;
@@ -214,6 +216,7 @@ static struct pds_fwctl_query_data *pdsfc_get_operations(struct pdsfc_dev *pdsfc
 	struct pds_fwctl_query_data *data;
 	union pds_core_adminq_cmd cmd;
 	dma_addr_t data_pa;
+	u32 num_entries;
 	int err;
 	int i;
 
@@ -246,8 +249,9 @@ static struct pds_fwctl_query_data *pdsfc_get_operations(struct pdsfc_dev *pdsfc
 	*pa = data_pa;
 
 	entries = (struct pds_fwctl_query_data_operation *)data->entries;
-	dev_dbg(dev, "num_entries %d\n", data->num_entries);
-	for (i = 0; i < data->num_entries; i++) {
+	num_entries = le32_to_cpu(data->num_entries);
+	dev_dbg(dev, "num_entries %d\n", num_entries);
+	for (i = 0; i < num_entries; i++) {
 
 		/* Translate FW command attribute to fwctl scope */
 		switch (entries[i].scope) {
@@ -267,7 +271,7 @@ static struct pds_fwctl_query_data *pdsfc_get_operations(struct pdsfc_dev *pdsfc
 			break;
 		}
 		dev_dbg(dev, "endpoint %d operation: id %x scope %d\n",
-			ep, entries[i].id, entries[i].scope);
+			ep, le32_to_cpu(entries[i].id), entries[i].scope);
 	}
 
 	return data;
@@ -280,24 +284,26 @@ static int pdsfc_validate_rpc(struct pdsfc_dev *pdsfc,
 	struct pds_fwctl_query_data_operation *op_entry;
 	struct pdsfc_rpc_endpoint_info *ep_info = NULL;
 	struct device *dev = &pdsfc->fwctl.dev;
+	u32 num_entries;
 	int i;
 
 	/* validate rpc in_len & out_len based
 	 * on ident.max_req_sz & max_resp_sz
 	 */
-	if (rpc->in.len > pdsfc->ident.max_req_sz) {
+	if (rpc->in.len > le32_to_cpu(pdsfc->ident.max_req_sz)) {
 		dev_dbg(dev, "Invalid request size %u, max %u\n",
-			rpc->in.len, pdsfc->ident.max_req_sz);
+			rpc->in.len, le32_to_cpu(pdsfc->ident.max_req_sz));
 		return -EINVAL;
 	}
 
-	if (rpc->out.len > pdsfc->ident.max_resp_sz) {
+	if (rpc->out.len > le32_to_cpu(pdsfc->ident.max_resp_sz)) {
 		dev_dbg(dev, "Invalid response size %u, max %u\n",
-			rpc->out.len, pdsfc->ident.max_resp_sz);
+			rpc->out.len, le32_to_cpu(pdsfc->ident.max_resp_sz));
 		return -EINVAL;
 	}
 
-	for (i = 0; i < pdsfc->endpoints->num_entries; i++) {
+	num_entries = le32_to_cpu(pdsfc->endpoints->num_entries);
+	for (i = 0; i < num_entries; i++) {
 		if (pdsfc->endpoint_info[i].endpoint == rpc->in.ep) {
 			ep_info = &pdsfc->endpoint_info[i];
 			break;
@@ -326,8 +332,9 @@ static int pdsfc_validate_rpc(struct pdsfc_dev *pdsfc,
 
 	/* reject unsupported and/or out of scope commands */
 	op_entry = (struct pds_fwctl_query_data_operation *)ep_info->operations->entries;
-	for (i = 0; i < ep_info->operations->num_entries; i++) {
-		if (PDS_FWCTL_RPC_OPCODE_CMP(rpc->in.op, op_entry[i].id)) {
+	num_entries = le32_to_cpu(ep_info->operations->num_entries);
+	for (i = 0; i < num_entries; i++) {
+		if (PDS_FWCTL_RPC_OPCODE_CMP(rpc->in.op, le32_to_cpu(op_entry[i].id))) {
 			if (scope < op_entry[i].scope)
 				return -EPERM;
 			return 0;
@@ -402,7 +409,7 @@ static void *pdsfc_fw_rpc(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
 	cmd = (union pds_core_adminq_cmd) {
 		.fwctl_rpc = {
 			.opcode = PDS_FWCTL_CMD_RPC,
-			.flags = PDS_FWCTL_RPC_IND_REQ | PDS_FWCTL_RPC_IND_RESP,
+			.flags = cpu_to_le16(PDS_FWCTL_RPC_IND_REQ | PDS_FWCTL_RPC_IND_RESP),
 			.ep = cpu_to_le32(rpc->in.ep),
 			.op = cpu_to_le32(rpc->in.op),
 			.req_pa = cpu_to_le64(in_payload_dma_addr),

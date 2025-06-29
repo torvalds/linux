@@ -169,6 +169,8 @@ static inline bool xe_vma_is_userptr(struct xe_vma *vma)
 		!xe_vma_is_cpu_addr_mirror(vma);
 }
 
+struct xe_vma *xe_vm_find_vma_by_addr(struct xe_vm *vm, u64 page_addr);
+
 /**
  * to_userptr_vma() - Return a pointer to an embedding userptr vma
  * @vma: Pointer to the embedded struct xe_vma
@@ -225,6 +227,9 @@ struct dma_fence *xe_vm_range_rebind(struct xe_vm *vm,
 				     u8 tile_mask);
 struct dma_fence *xe_vm_range_unbind(struct xe_vm *vm,
 				     struct xe_svm_range *range);
+
+int xe_vm_range_tilemask_tlb_invalidation(struct xe_vm *vm, u64 start,
+					  u64 end, u8 tile_mask);
 
 int xe_vm_invalidate_vma(struct xe_vma *vma);
 
@@ -300,6 +305,94 @@ struct xe_vm_snapshot *xe_vm_snapshot_capture(struct xe_vm *vm);
 void xe_vm_snapshot_capture_delayed(struct xe_vm_snapshot *snap);
 void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p);
 void xe_vm_snapshot_free(struct xe_vm_snapshot *snap);
+
+/**
+ * xe_vm_set_validating() - Register this task as currently making bos resident
+ * @allow_res_evict: Allow eviction of buffer objects bound to @vm when
+ * validating.
+ * @vm: Pointer to the vm or NULL.
+ *
+ * Register this task as currently making bos resident for the vm. Intended
+ * to avoid eviction by the same task of shared bos bound to the vm.
+ * Call with the vm's resv lock held.
+ *
+ * Return: A pin cookie that should be used for xe_vm_clear_validating().
+ */
+static inline struct pin_cookie xe_vm_set_validating(struct xe_vm *vm,
+						     bool allow_res_evict)
+{
+	struct pin_cookie cookie = {};
+
+	if (vm && !allow_res_evict) {
+		xe_vm_assert_held(vm);
+		cookie = lockdep_pin_lock(&xe_vm_resv(vm)->lock.base);
+		/* Pairs with READ_ONCE in xe_vm_is_validating() */
+		WRITE_ONCE(vm->validating, current);
+	}
+
+	return cookie;
+}
+
+/**
+ * xe_vm_clear_validating() - Unregister this task as currently making bos resident
+ * @vm: Pointer to the vm or NULL
+ * @allow_res_evict: Eviction from @vm was allowed. Must be set to the same
+ * value as for xe_vm_set_validation().
+ * @cookie: Cookie obtained from xe_vm_set_validating().
+ *
+ * Register this task as currently making bos resident for the vm. Intended
+ * to avoid eviction by the same task of shared bos bound to the vm.
+ * Call with the vm's resv lock held.
+ */
+static inline void xe_vm_clear_validating(struct xe_vm *vm, bool allow_res_evict,
+					  struct pin_cookie cookie)
+{
+	if (vm && !allow_res_evict) {
+		lockdep_unpin_lock(&xe_vm_resv(vm)->lock.base, cookie);
+		/* Pairs with READ_ONCE in xe_vm_is_validating() */
+		WRITE_ONCE(vm->validating, NULL);
+	}
+}
+
+/**
+ * xe_vm_is_validating() - Whether bos bound to the vm are currently being made resident
+ * by the current task.
+ * @vm: Pointer to the vm.
+ *
+ * If this function returns %true, we should be in a vm resv locked region, since
+ * the current process is the same task that called xe_vm_set_validating().
+ * The function asserts that that's indeed the case.
+ *
+ * Return: %true if the task is currently making bos resident, %false otherwise.
+ */
+static inline bool xe_vm_is_validating(struct xe_vm *vm)
+{
+	/* Pairs with WRITE_ONCE in xe_vm_is_validating() */
+	if (READ_ONCE(vm->validating) == current) {
+		xe_vm_assert_held(vm);
+		return true;
+	}
+	return false;
+}
+
+/**
+ * xe_vm_has_valid_gpu_mapping() - Advisory helper to check if VMA or SVM range has
+ * a valid GPU mapping
+ * @tile: The tile which the GPU mapping belongs to
+ * @tile_present: Tile present mask
+ * @tile_invalidated: Tile invalidated mask
+ *
+ * The READ_ONCEs pair with WRITE_ONCEs in either the TLB invalidation paths
+ * (xe_vm.c, xe_svm.c) or the binding paths (xe_pt.c). These are not reliable
+ * without the notifier lock in userptr or SVM cases, and not reliable without
+ * the BO dma-resv lock in the BO case. As such, they should only be used in
+ * opportunistic cases (e.g., skipping a page fault fix or not skipping a TLB
+ * invalidation) where it is harmless.
+ *
+ * Return: True is there are valid GPU pages, False otherwise
+ */
+#define xe_vm_has_valid_gpu_mapping(tile, tile_present, tile_invalidated)	\
+	((READ_ONCE(tile_present) & ~READ_ONCE(tile_invalidated)) & BIT((tile)->id))
 
 #if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
 void xe_vma_userptr_force_invalidate(struct xe_userptr_vma *uvma);

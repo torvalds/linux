@@ -189,7 +189,6 @@ struct vfsmount *afs_d_automount(struct path *path)
 	if (IS_ERR(newmnt))
 		return newmnt;
 
-	mntget(newmnt); /* prevent immediate expiration */
 	mnt_set_expiry(newmnt, &afs_vfsmounts);
 	queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
 			   afs_mntpt_expiry_timeout * HZ);

@@ -982,7 +982,7 @@ struct platform_device * __init_or_module __platform_create_bundle(
 	struct platform_device *pdev;
 	int error;
 
-	pdev = platform_device_alloc(driver->driver.name, -1);
+	pdev = platform_device_alloc(driver->driver.name, PLATFORM_DEVID_NONE);
 	if (!pdev) {
 		error = -ENOMEM;
 		goto err_out;
@@ -1440,7 +1440,7 @@ static void platform_shutdown(struct device *_dev)
 
 static int platform_dma_configure(struct device *dev)
 {
-	struct platform_driver *drv = to_platform_driver(dev->driver);
+	struct device_driver *drv = READ_ONCE(dev->driver);
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	enum dev_dma_attr attr;
 	int ret = 0;
@@ -1451,8 +1451,8 @@ static int platform_dma_configure(struct device *dev)
 		attr = acpi_get_dma_attr(to_acpi_device_node(fwnode));
 		ret = acpi_dma_configure(dev, attr);
 	}
-	/* @drv may not be valid when we're called from the IOMMU layer */
-	if (ret || !dev->driver || drv->driver_managed_dma)
+	/* @dev->driver may not be valid when we're called from the IOMMU layer */
+	if (ret || !drv || to_platform_driver(drv)->driver_managed_dma)
 		return ret;
 
 	ret = iommu_device_use_default_domain(dev);

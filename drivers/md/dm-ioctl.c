@@ -1885,6 +1885,7 @@ static ioctl_fn lookup_ioctl(unsigned int cmd, int *ioctl_flags)
 		{DM_DEV_SET_GEOMETRY_CMD, 0, dev_set_geometry},
 		{DM_DEV_ARM_POLL_CMD, IOCTL_FLAGS_NO_PARAMS, dev_arm_poll},
 		{DM_GET_TARGET_VERSION_CMD, 0, get_target_version},
+		{DM_MPATH_PROBE_PATHS_CMD, 0, NULL}, /* block device ioctl */
 	};
 
 	if (unlikely(cmd >= ARRAY_SIZE(_ioctls)))

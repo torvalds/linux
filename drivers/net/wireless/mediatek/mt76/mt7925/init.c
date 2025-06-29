@@ -89,7 +89,7 @@ void mt7925_regd_be_ctrl(struct mt792x_dev *dev, u8 *alpha2)
 		}
 
 		/* Check the last one */
-		if (rule->flag && BIT(0))
+		if (rule->flag & BIT(0))
 			break;
 
 		pos += sizeof(*rule);
@@ -319,6 +319,12 @@ static void mt7925_init_work(struct work_struct *work)
 	ret = mt7925_thermal_init(&dev->phy);
 	if (ret) {
 		dev_err(dev->mt76.dev, "thermal init failed\n");
+		return;
+	}
+
+	ret = mt7925_mcu_set_thermal_protect(dev);
+	if (ret) {
+		dev_err(dev->mt76.dev, "thermal protection enable failed\n");
 		return;
 	}
 

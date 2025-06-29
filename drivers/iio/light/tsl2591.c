@@ -1204,7 +1204,7 @@ static int tsl2591_probe(struct i2c_client *client)
 
 static const struct of_device_id tsl2591_of_match[] = {
 	{ .compatible = "amstaos,tsl2591"},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, tsl2591_of_match);
 

@@ -31,6 +31,7 @@ struct key_preparsed_payload;
 struct rxrpc_connection;
 struct rxrpc_txbuf;
 struct rxrpc_txqueue;
+struct rxgk_context;
 
 /*
  * Mark applied to socket buffers in skb->mark.  skb->priority is used
@@ -39,6 +40,7 @@ struct rxrpc_txqueue;
 enum rxrpc_skb_mark {
 	RXRPC_SKB_MARK_PACKET,		/* Received packet */
 	RXRPC_SKB_MARK_ERROR,		/* Error notification */
+	RXRPC_SKB_MARK_CHALLENGE,	/* Challenge notification */
 	RXRPC_SKB_MARK_SERVICE_CONN_SECURED, /* Service connection response has been verified */
 	RXRPC_SKB_MARK_REJECT_BUSY,	/* Reject with BUSY */
 	RXRPC_SKB_MARK_REJECT_ABORT,	/* Reject with ABORT (code in skb->priority) */
@@ -146,10 +148,12 @@ struct rxrpc_backlog {
 struct rxrpc_sock {
 	/* WARNING: sk has to be the first member */
 	struct sock		sk;
-	rxrpc_notify_new_call_t	notify_new_call; /* Func to notify of new call */
-	rxrpc_discard_new_call_t discard_new_call; /* Func to discard a new call */
+	const struct rxrpc_kernel_ops *app_ops;	/* Table of kernel app notification funcs */
 	struct rxrpc_local	*local;		/* local endpoint */
 	struct rxrpc_backlog	*backlog;	/* Preallocation for services */
+	struct sk_buff_head	recvmsg_oobq;	/* OOB messages for recvmsg to pick up */
+	struct rb_root		pending_oobq;	/* OOB messages awaiting userspace to respond to */
+	u64			oob_id_counter;	/* OOB message ID counter */
 	spinlock_t		incoming_lock;	/* Incoming call vs service shutdown lock */
 	struct list_head	sock_calls;	/* List of calls owned by this socket */
 	struct list_head	to_be_accepted;	/* calls awaiting acceptance */
@@ -160,6 +164,7 @@ struct rxrpc_sock {
 	struct rb_root		calls;		/* User ID -> call mapping */
 	unsigned long		flags;
 #define RXRPC_SOCK_CONNECTED		0	/* connect_srx is set */
+#define RXRPC_SOCK_MANAGE_RESPONSE	1	/* User wants to manage RESPONSE packets */
 	rwlock_t		call_lock;	/* lock for calls */
 	u32			min_sec_level;	/* minimum security level */
 #define RXRPC_SECURITY_MAX	RXRPC_SECURITY_ENCRYPT
@@ -203,7 +208,7 @@ struct rxrpc_host_header {
  */
 struct rxrpc_skb_priv {
 	union {
-		struct rxrpc_connection *conn;	/* Connection referred to (poke packet) */
+		struct rxrpc_connection *poke_conn;	/* Conn referred to (poke packet) */
 		struct {
 			u16		offset;		/* Offset of data */
 			u16		len;		/* Length of data */
@@ -217,6 +222,19 @@ struct rxrpc_skb_priv {
 			u16		nr_acks;	/* Number of acks+nacks */
 			u8		reason;		/* Reason for ack */
 		} ack;
+		struct {
+			struct rxrpc_connection *conn;	/* Connection referred to */
+			union {
+				u32 rxkad_nonce;
+			};
+		} chall;
+		struct {
+			rxrpc_serial_t	challenge_serial;
+			u32		kvno;
+			u32		version;
+			u16		len;
+			u16		ticket_len;
+		} resp;
 	};
 	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
 };
@@ -270,9 +288,24 @@ struct rxrpc_security {
 	/* issue a challenge */
 	int (*issue_challenge)(struct rxrpc_connection *);
 
+	/* Validate a challenge packet */
+	bool (*validate_challenge)(struct rxrpc_connection *conn,
+				   struct sk_buff *skb);
+
+	/* Fill out the cmsg for recvmsg() to pass on a challenge to userspace.
+	 * The security class gets to add additional information.
+	 */
+	int (*challenge_to_recvmsg)(struct rxrpc_connection *conn,
+				    struct sk_buff *challenge,
+				    struct msghdr *msg);
+
+	/* Parse sendmsg() control message and respond to challenge. */
+	int (*sendmsg_respond_to_challenge)(struct sk_buff *challenge,
+					    struct msghdr *msg);
+
 	/* respond to a challenge */
-	int (*respond_to_challenge)(struct rxrpc_connection *,
-				    struct sk_buff *);
+	int (*respond_to_challenge)(struct rxrpc_connection *conn,
+				    struct sk_buff *challenge);
 
 	/* verify a response */
 	int (*verify_response)(struct rxrpc_connection *,
@@ -280,6 +313,11 @@ struct rxrpc_security {
 
 	/* clear connection security */
 	void (*clear)(struct rxrpc_connection *);
+
+	/* Default ticket -> key decoder */
+	int (*default_decode_ticket)(struct rxrpc_connection *conn, struct sk_buff *skb,
+				     unsigned int ticket_offset, unsigned int ticket_len,
+				     struct key **_key);
 };
 
 /*
@@ -526,7 +564,17 @@ struct rxrpc_connection {
 			struct rxrpc_crypt csum_iv;	/* packet checksum base */
 			u32	nonce;		/* response re-use preventer */
 		} rxkad;
+		struct {
+			struct rxgk_context *keys[4]; /* (Re-)keying buffer */
+			u64	start_time;	/* The start time for TK derivation */
+			u8	nonce[20];	/* Response re-use preventer */
+			u32	enctype;	/* Kerberos 5 encoding type */
+			u32	key_number;	/* Current key number */
+		} rxgk;
 	};
+	rwlock_t		security_use_lock; /* Security use/modification lock */
+	struct sk_buff		*tx_response;	/* Response packet to be transmitted */
+
 	unsigned long		flags;
 	unsigned long		events;
 	unsigned long		idle_timestamp;	/* Time at which last became idle */
@@ -692,6 +740,7 @@ struct rxrpc_call {
 	u32			call_id;	/* call ID on connection  */
 	u32			cid;		/* connection ID plus channel index */
 	u32			security_level;	/* Security level selected */
+	u32			security_enctype; /* Security-specific encoding type (or 0) */
 	int			debug_id;	/* debug ID for printks */
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
@@ -867,6 +916,8 @@ struct rxrpc_txbuf {
 	unsigned short		len;		/* Amount of data in buffer */
 	unsigned short		space;		/* Remaining data space */
 	unsigned short		offset;		/* Offset of fill point */
+	unsigned short		crypto_header;	/* Size of crypto header */
+	unsigned short		sec_header;	/* Size of security header */
 	unsigned short		pkt_len;	/* Size of packet content */
 	unsigned short		alloc_size;	/* Amount of bufferage allocated */
 	unsigned int		flags;
@@ -1001,7 +1052,9 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *, gfp_t, unsigned int);
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
 					 struct rxrpc_call_params *, gfp_t,
-					 unsigned int);
+					 unsigned int)
+	__releases(&rx->sk.sk_lock)
+	__acquires(&call->user_mutex);
 void rxrpc_start_call_timer(struct rxrpc_call *call);
 void rxrpc_incoming_call(struct rxrpc_sock *, struct rxrpc_call *,
 			 struct sk_buff *);
@@ -1198,8 +1251,11 @@ void rxrpc_error_report(struct sock *);
 bool rxrpc_direct_abort(struct sk_buff *skb, enum rxrpc_abort_reason why,
 			s32 abort_code, int err);
 int rxrpc_io_thread(void *data);
+void rxrpc_post_response(struct rxrpc_connection *conn, struct sk_buff *skb);
 static inline void rxrpc_wake_up_io_thread(struct rxrpc_local *local)
 {
+	if (!local->io_thread)
+		return;
 	wake_up_process(READ_ONCE(local->io_thread));
 }
 
@@ -1289,8 +1345,16 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 }
 
 /*
+ * out_of_band.c
+ */
+void rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
+void rxrpc_add_pending_oob(struct rxrpc_sock *rx, struct sk_buff *skb);
+int rxrpc_sendmsg_oob(struct rxrpc_sock *rx, struct msghdr *msg, size_t len);
+
+/*
  * output.c
  */
+ssize_t do_udp_sendmsg(struct socket *socket, struct msghdr *msg, size_t len);
 void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    rxrpc_serial_t serial, enum rxrpc_propose_ack_trace why);
 void rxrpc_send_probe_for_pmtud(struct rxrpc_call *call);
@@ -1299,6 +1363,7 @@ void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req 
 void rxrpc_send_conn_abort(struct rxrpc_connection *conn);
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb);
 void rxrpc_send_keepalive(struct rxrpc_peer *);
+void rxrpc_send_response(struct rxrpc_connection *conn, struct sk_buff *skb);
 
 /*
  * peer_event.c
@@ -1361,6 +1426,11 @@ void rxrpc_call_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 			ktime_t send_time, ktime_t resp_time);
 ktime_t rxrpc_get_rto_backoff(struct rxrpc_call *call, bool retrans);
 void rxrpc_call_init_rtt(struct rxrpc_call *call);
+
+/*
+ * rxgk.c
+ */
+extern const struct rxrpc_security rxgk_yfs;
 
 /*
  * rxkad.c
@@ -1433,7 +1503,6 @@ static inline void rxrpc_sysctl_exit(void) {}
 extern atomic_t rxrpc_nr_txbuf;
 struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_size,
 					   size_t data_align, gfp_t gfp);
-void rxrpc_get_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 void rxrpc_see_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 void rxrpc_put_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 

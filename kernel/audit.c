@@ -1956,8 +1956,8 @@ static inline int audit_expand(struct audit_buffer *ab, int extra)
  * will be called a second time.  Currently, we assume that a printk
  * can't format message larger than 1024 bytes, so we don't either.
  */
-static void audit_log_vformat(struct audit_buffer *ab, const char *fmt,
-			      va_list args)
+static __printf(2, 0)
+void audit_log_vformat(struct audit_buffer *ab, const char *fmt, va_list args)
 {
 	int len, avail;
 	struct sk_buff *skb;
@@ -2285,7 +2285,7 @@ void audit_log_path_denied(int type, const char *operation)
 {
 	struct audit_buffer *ab;
 
-	if (!audit_enabled || audit_dummy_context())
+	if (!audit_enabled)
 		return;
 
 	/* Generate log with subject, operation, outcome. */

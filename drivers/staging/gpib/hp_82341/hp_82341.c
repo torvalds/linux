@@ -25,11 +25,11 @@ MODULE_DESCRIPTION("GPIB driver for hp 82341a/b/c/d boards");
 static unsigned short read_and_clear_event_status(struct gpib_board *board);
 static void set_transfer_counter(struct hp_82341_priv *hp_priv, int count);
 static int read_transfer_counter(struct hp_82341_priv *hp_priv);
-static int hp_82341_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
+static int hp_82341_write(struct gpib_board *board, u8 *buffer, size_t length, int send_eoi,
 			  size_t *bytes_written);
 static irqreturn_t hp_82341_interrupt(int irq, void *arg);
 
-static int hp_82341_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int hp_82341_accel_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 			       size_t *bytes_read)
 {
 	struct hp_82341_priv *hp_priv = board->private_data;
@@ -51,11 +51,12 @@ static int hp_82341_accel_read(struct gpib_board *board, uint8_t *buffer, size_t
 		return 0;
 	//disable fifo for the moment
 	outb(DIRECTION_GPIB_TO_HOST_BIT, hp_priv->iobase[3] + BUFFER_CONTROL_REG);
-	// Handle corner case of board not in holdoff and one byte has slipped in already.
-	// Also, board sometimes has problems (spurious 1 byte reads) when read fifo is
-	// started up with board in
-	// TACS under certain data holdoff conditions.  Doing a 1 byte tms9914-style
-	// read avoids these problems.
+	/*
+	 * Handle corner case of board not in holdoff and one byte has slipped in already.
+	 * Also, board sometimes has problems (spurious 1 byte reads) when read fifo is
+	 * started up with board in TACS under certain data holdoff conditions.
+	 * Doing a 1 byte tms9914-style read avoids these problems.
+	 */
 	if (/*tms_priv->holdoff_active == 0 && */length > 1) {
 		size_t num_bytes;
 
@@ -172,7 +173,7 @@ static int restart_write_fifo(struct gpib_board *board, struct hp_82341_priv *hp
 	return 0;
 }
 
-static int hp_82341_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int hp_82341_accel_write(struct gpib_board *board, u8 *buffer, size_t length,
 				int send_eoi, size_t *bytes_written)
 {
 	struct hp_82341_priv *hp_priv = board->private_data;
@@ -250,12 +251,12 @@ static int hp_82341_accel_write(struct gpib_board *board, uint8_t *buffer, size_
 	return 0;
 }
 
-static int hp_82341_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int hp_82341_attach(struct gpib_board *board, const struct gpib_board_config *config);
 
 static void hp_82341_detach(struct gpib_board *board);
 
 // wrappers for interface functions
-static int hp_82341_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
+static int hp_82341_read(struct gpib_board *board, u8 *buffer, size_t length, int *end,
 			 size_t *bytes_read)
 {
 	struct hp_82341_priv *priv = board->private_data;
@@ -263,7 +264,7 @@ static int hp_82341_read(struct gpib_board *board, uint8_t *buffer, size_t lengt
 	return tms9914_read(board, &priv->tms9914_priv, buffer, length, end, bytes_read);
 }
 
-static int hp_82341_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
+static int hp_82341_write(struct gpib_board *board, u8 *buffer, size_t length, int send_eoi,
 			  size_t *bytes_written)
 {
 	struct hp_82341_priv *priv = board->private_data;
@@ -271,7 +272,7 @@ static int hp_82341_write(struct gpib_board *board, uint8_t *buffer, size_t leng
 	return tms9914_write(board, &priv->tms9914_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int hp_82341_command(struct gpib_board *board, uint8_t *buffer, size_t length,
+static int hp_82341_command(struct gpib_board *board, u8 *buffer, size_t length,
 			    size_t *bytes_written)
 {
 	struct hp_82341_priv *priv = board->private_data;
@@ -293,7 +294,7 @@ static int hp_82341_go_to_standby(struct gpib_board *board)
 	return tms9914_go_to_standby(board, &priv->tms9914_priv);
 }
 
-static void hp_82341_request_system_control(struct gpib_board *board, int request_control)
+static int hp_82341_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
@@ -302,7 +303,7 @@ static void hp_82341_request_system_control(struct gpib_board *board, int reques
 	else
 		priv->mode_control_bits &= ~SYSTEM_CONTROLLER_BIT;
 	outb(priv->mode_control_bits, priv->iobase[0] + MODE_CONTROL_STATUS_REG);
-	tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
+	return tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
 }
 
 static void hp_82341_interface_clear(struct gpib_board *board, int assert)
@@ -319,7 +320,7 @@ static void hp_82341_remote_enable(struct gpib_board *board, int enable)
 	tms9914_remote_enable(board, &priv->tms9914_priv, enable);
 }
 
-static int hp_82341_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
+static int hp_82341_enable_eos(struct gpib_board *board, u8 eos_byte, int compare_8_bits)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
@@ -354,14 +355,14 @@ static int hp_82341_secondary_address(struct gpib_board *board, unsigned int add
 	return tms9914_secondary_address(board, &priv->tms9914_priv, address, enable);
 }
 
-static int hp_82341_parallel_poll(struct gpib_board *board, uint8_t *result)
+static int hp_82341_parallel_poll(struct gpib_board *board, u8 *result)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_parallel_poll(board, &priv->tms9914_priv, result);
 }
 
-static void hp_82341_parallel_poll_configure(struct gpib_board *board, uint8_t config)
+static void hp_82341_parallel_poll_configure(struct gpib_board *board, u8 config)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
@@ -375,14 +376,14 @@ static void hp_82341_parallel_poll_response(struct gpib_board *board, int ist)
 	tms9914_parallel_poll_response(board, &priv->tms9914_priv, ist);
 }
 
-static void hp_82341_serial_poll_response(struct gpib_board *board, uint8_t status)
+static void hp_82341_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	tms9914_serial_poll_response(board, &priv->tms9914_priv, status);
 }
 
-static uint8_t hp_82341_serial_poll_status(struct gpib_board *board)
+static u8 hp_82341_serial_poll_status(struct gpib_board *board)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
@@ -410,7 +411,7 @@ static void hp_82341_return_to_local(struct gpib_board *board)
 	tms9914_return_to_local(board, &priv->tms9914_priv);
 }
 
-static gpib_interface_t hp_82341_unaccel_interface = {
+static struct gpib_interface hp_82341_unaccel_interface = {
 	.name = "hp_82341_unaccel",
 	.attach = hp_82341_attach,
 	.detach = hp_82341_detach,
@@ -438,7 +439,7 @@ static gpib_interface_t hp_82341_unaccel_interface = {
 	.return_to_local = hp_82341_return_to_local,
 };
 
-static gpib_interface_t hp_82341_interface = {
+static struct gpib_interface hp_82341_interface = {
 	.name = "hp_82341",
 	.attach = hp_82341_attach,
 	.detach = hp_82341_detach,
@@ -479,12 +480,12 @@ static void hp_82341_free_private(struct gpib_board *board)
 	board->private_data = NULL;
 }
 
-static uint8_t hp_82341_read_byte(struct tms9914_priv *priv, unsigned int register_num)
+static u8 hp_82341_read_byte(struct tms9914_priv *priv, unsigned int register_num)
 {
 	return inb(priv->iobase + register_num);
 }
 
-static void hp_82341_write_byte(struct tms9914_priv *priv, uint8_t data, unsigned int register_num)
+static void hp_82341_write_byte(struct tms9914_priv *priv, u8 data, unsigned int register_num)
 {
 	outb(data, priv->iobase + register_num);
 }
@@ -619,7 +620,8 @@ static int hp_82341_load_firmware_array(struct hp_82341_priv *hp_priv,
 	return 0;
 }
 
-static int hp_82341_load_firmware(struct hp_82341_priv *hp_priv, const gpib_board_config_t *config)
+static int hp_82341_load_firmware(struct hp_82341_priv *hp_priv,
+				  const struct gpib_board_config *config)
 {
 	if (config->init_data_length == 0) {
 		if (xilinx_done(hp_priv))
@@ -686,7 +688,7 @@ static int clear_xilinx(struct hp_82341_priv *hp_priv)
 	return 0;
 }
 
-static int hp_82341_attach(struct gpib_board *board, const gpib_board_config_t *config)
+static int hp_82341_attach(struct gpib_board *board, const struct gpib_board_config *config)
 {
 	struct hp_82341_priv *hp_priv;
 	struct tms9914_priv *tms_priv;

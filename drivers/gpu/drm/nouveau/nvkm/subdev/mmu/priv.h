@@ -53,6 +53,8 @@ const u8 *gf100_mmu_kind(struct nvkm_mmu *, int *count, u8 *invalid);
 
 const u8 *gm200_mmu_kind(struct nvkm_mmu *, int *, u8 *);
 
+const u8 *tu102_mmu_kind(struct nvkm_mmu *, int *, u8 *);
+
 struct nvkm_mmu_pt {
 	union {
 		struct nvkm_mmu_ptc *ptc;

@@ -76,6 +76,12 @@ static int intel_reg_show(struct seq_file *s_file, void *data)
 	ret += intel_sprintf(vs_s, false, buf, ret, SDW_SHIM2_INTEL_VS_IOCTL);
 	ret += intel_sprintf(vs_s, false, buf, ret, SDW_SHIM2_INTEL_VS_ACTMCTL);
 
+	if (sdw->link_res->mic_privacy) {
+		ret += scnprintf(buf + ret, RD_BUF - ret, "\nVS PVCCS\n");
+		ret += intel_sprintf(vs_s, false, buf, ret,
+				     SDW_SHIM2_INTEL_VS_PVCCS);
+	}
+
 	seq_printf(s_file, "%s", buf);
 	kfree(buf);
 

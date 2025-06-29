@@ -1,55 +1,39 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use crate::driver::Bar0;
+// Required to retain the original register names used by OpenRM, which are all capital snake case
+// but are mapped to types.
+#![allow(non_camel_case_types)]
 
-// TODO
-//
-// Create register definitions via generic macros. See task "Generic register
-// abstraction" in Documentation/gpu/nova/core/todo.rst.
+#[macro_use]
+mod macros;
 
-const BOOT0_OFFSET: usize = 0x00000000;
+use crate::gpu::{Architecture, Chipset};
+use kernel::prelude::*;
 
-// 3:0 - chipset minor revision
-const BOOT0_MINOR_REV_SHIFT: u8 = 0;
-const BOOT0_MINOR_REV_MASK: u32 = 0x0000000f;
+/* PMC */
 
-// 7:4 - chipset major revision
-const BOOT0_MAJOR_REV_SHIFT: u8 = 4;
-const BOOT0_MAJOR_REV_MASK: u32 = 0x000000f0;
+register!(NV_PMC_BOOT_0 @ 0x00000000, "Basic revision information about the GPU" {
+    3:0     minor_revision as u8, "Minor revision of the chip";
+    7:4     major_revision as u8, "Major revision of the chip";
+    8:8     architecture_1 as u8, "MSB of the architecture";
+    23:20   implementation as u8, "Implementation version of the architecture";
+    28:24   architecture_0 as u8, "Lower bits of the architecture";
+});
 
-// 23:20 - chipset implementation Identifier (depends on architecture)
-const BOOT0_IMPL_SHIFT: u8 = 20;
-const BOOT0_IMPL_MASK: u32 = 0x00f00000;
-
-// 28:24 - chipset architecture identifier
-const BOOT0_ARCH_MASK: u32 = 0x1f000000;
-
-// 28:20 - chipset identifier (virtual register field combining BOOT0_IMPL and
-//         BOOT0_ARCH)
-const BOOT0_CHIPSET_SHIFT: u8 = BOOT0_IMPL_SHIFT;
-const BOOT0_CHIPSET_MASK: u32 = BOOT0_IMPL_MASK | BOOT0_ARCH_MASK;
-
-#[derive(Copy, Clone)]
-pub(crate) struct Boot0(u32);
-
-impl Boot0 {
-    #[inline]
-    pub(crate) fn read(bar: &Bar0) -> Self {
-        Self(bar.read32(BOOT0_OFFSET))
+impl NV_PMC_BOOT_0 {
+    /// Combines `architecture_0` and `architecture_1` to obtain the architecture of the chip.
+    pub(crate) fn architecture(self) -> Result<Architecture> {
+        Architecture::try_from(
+            self.architecture_0() | (self.architecture_1() << Self::ARCHITECTURE_0.len()),
+        )
     }
 
-    #[inline]
-    pub(crate) fn chipset(&self) -> u32 {
-        (self.0 & BOOT0_CHIPSET_MASK) >> BOOT0_CHIPSET_SHIFT
-    }
-
-    #[inline]
-    pub(crate) fn minor_rev(&self) -> u8 {
-        ((self.0 & BOOT0_MINOR_REV_MASK) >> BOOT0_MINOR_REV_SHIFT) as u8
-    }
-
-    #[inline]
-    pub(crate) fn major_rev(&self) -> u8 {
-        ((self.0 & BOOT0_MAJOR_REV_MASK) >> BOOT0_MAJOR_REV_SHIFT) as u8
+    /// Combines `architecture` and `implementation` to obtain a code unique to the chipset.
+    pub(crate) fn chipset(self) -> Result<Chipset> {
+        self.architecture()
+            .map(|arch| {
+                ((arch as u32) << Self::IMPLEMENTATION.len()) | self.implementation() as u32
+            })
+            .and_then(Chipset::try_from)
     }
 }

@@ -79,7 +79,7 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &wifi {
-	qcom,ath10k-calibration-variant = "GO_KINGOFTOWN";
+	qcom,calibration-variant = "GO_KINGOFTOWN";
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */

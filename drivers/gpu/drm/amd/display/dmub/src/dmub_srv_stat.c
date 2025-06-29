@@ -95,29 +95,16 @@ enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
 	case DMUB_OUT_CMD__DPIA_NOTIFICATION:
 		notify->type = DMUB_NOTIFICATION_DPIA_NOTIFICATION;
 		notify->link_index = cmd.dpia_notification.payload.header.instance;
-
-		if (cmd.dpia_notification.payload.header.type == DPIA_NOTIFY__BW_ALLOCATION) {
-
-			notify->dpia_notification.payload.data.dpia_bw_alloc.estimated_bw =
-					cmd.dpia_notification.payload.data.dpia_bw_alloc.estimated_bw;
-			notify->dpia_notification.payload.data.dpia_bw_alloc.allocated_bw =
-					cmd.dpia_notification.payload.data.dpia_bw_alloc.allocated_bw;
-
-			if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_request_failed)
-				notify->result = DPIA_BW_REQ_FAILED;
-			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_request_succeeded)
-				notify->result = DPIA_BW_REQ_SUCCESS;
-			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.est_bw_changed)
-				notify->result = DPIA_EST_BW_CHANGED;
-			else if (cmd.dpia_notification.payload.data.dpia_bw_alloc.bits.bw_alloc_cap_changed)
-				notify->result = DPIA_BW_ALLOC_CAPS_CHANGED;
-		}
 		break;
 	case DMUB_OUT_CMD__HPD_SENSE_NOTIFY:
 		notify->type = DMUB_NOTIFICATION_HPD_SENSE_NOTIFY;
 		dmub_memcpy(&notify->hpd_sense_notify,
 			    &cmd.hpd_sense_notify.data,
 			    sizeof(cmd.hpd_sense_notify.data));
+		break;
+	case DMUB_OUT_CMD__FUSED_IO:
+		notify->type = DMUB_NOTIFICATION_FUSED_IO;
+		dmub_memcpy(&notify->fused_request, &cmd.fused_io.request, sizeof(cmd.fused_io.request));
 		break;
 	default:
 		notify->type = DMUB_NOTIFICATION_NO_DATA;

@@ -165,9 +165,11 @@ static int s6e88a0_ams452ef01_probe(struct mipi_dsi_device *dsi)
 	struct s6e88a0_ams452ef01 *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_panel_alloc(dev, struct s6e88a0_ams452ef01, panel,
+				   &s6e88a0_ams452ef01_panel_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	ctx->supplies[0].supply = "vdd3";
 	ctx->supplies[1].supply = "vci";
@@ -191,9 +193,6 @@ static int s6e88a0_ams452ef01_probe(struct mipi_dsi_device *dsi)
 	dsi->lanes = 2;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST;
-
-	drm_panel_init(&ctx->panel, dev, &s6e88a0_ams452ef01_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	drm_panel_add(&ctx->panel);
 

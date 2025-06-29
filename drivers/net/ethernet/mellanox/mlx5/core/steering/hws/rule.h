@@ -43,12 +43,6 @@ struct mlx5hws_rule_match_tag {
 	};
 };
 
-struct mlx5hws_rule_action_ste_info {
-	struct mlx5hws_pool *pool;
-	int index; /* STE array index */
-	u8 num_stes;
-};
-
 struct mlx5hws_rule_resize_info {
 	u32 rtc_0;
 	u32 rtc_1;
@@ -64,8 +58,8 @@ struct mlx5hws_rule {
 		struct mlx5hws_rule_match_tag tag;
 		struct mlx5hws_rule_resize_info *resize_info;
 	};
-	struct mlx5hws_rule_action_ste_info action_ste;
-	struct mlx5hws_rule_action_ste_info old_action_ste;
+	struct mlx5hws_action_ste_chunk action_ste;
+	struct mlx5hws_action_ste_chunk old_action_ste;
 	u32 rtc_0; /* The RTC into which the STE was inserted */
 	u32 rtc_1; /* The RTC into which the STE was inserted */
 	u8 status; /* enum mlx5hws_rule_status */
@@ -75,7 +69,7 @@ struct mlx5hws_rule {
 			   */
 };
 
-void mlx5hws_rule_free_action_ste(struct mlx5hws_rule_action_ste_info *action_ste);
+void mlx5hws_rule_free_action_ste(struct mlx5hws_action_ste_chunk *action_ste);
 
 int mlx5hws_rule_move_hws_remove(struct mlx5hws_rule *rule,
 				 void *queue, void *user_data);

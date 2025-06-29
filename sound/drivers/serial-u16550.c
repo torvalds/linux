@@ -299,7 +299,7 @@ static void snd_uart16550_buffer_timer(struct timer_list *t)
 	unsigned long flags;
 	struct snd_uart16550 *uart;
 
-	uart = from_timer(uart, t, buffer_timer);
+	uart = timer_container_of(uart, t, buffer_timer);
 	spin_lock_irqsave(&uart->open_lock, flags);
 	snd_uart16550_del_timer(uart);
 	snd_uart16550_io_loop(uart);

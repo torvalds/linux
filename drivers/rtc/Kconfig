@@ -1388,6 +1388,18 @@ config RTC_DRV_ASM9260
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-asm9260.
 
+config RTC_DRV_CV1800
+	tristate "Sophgo CV1800 RTC"
+	depends on SOPHGO_CV1800_RTCSYS || COMPILE_TEST
+	select MFD_SYSCON
+	select REGMAP
+	help
+	  If you say yes here you get support the RTC driver for Sophgo CV1800
+	  series SoC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called rtc-cv1800.
+
 config RTC_DRV_DIGICOLOR
 	tristate "Conexant Digicolor RTC"
 	depends on ARCH_DIGICOLOR || COMPILE_TEST
@@ -2088,12 +2100,23 @@ config RTC_DRV_AMLOGIC_A4
 	tristate "Amlogic RTC"
 	depends on ARCH_MESON || COMPILE_TEST
 	select REGMAP_MMIO
-	default y
+	default ARCH_MESON
 	help
 	  If you say yes here you get support for the RTC block on the
 	  Amlogic A113L2(A4) and A113X2(A5) SoCs.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-amlogic-a4".
+
+config RTC_DRV_S32G
+	tristate "RTC driver for S32G2/S32G3 SoCs"
+	depends on ARCH_S32 || COMPILE_TEST
+	depends on COMMON_CLK
+	help
+	  Say yes to enable RTC driver for platforms based on the
+	  S32G2/S32G3 SoC family.
+
+	  This RTC module can be used as a wakeup source.
+	  Please note that it is not battery-powered.
 
 endif # RTC_CLASS

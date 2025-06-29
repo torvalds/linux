@@ -51,6 +51,7 @@ struct scmi_pinctrl_imx {
 #define IMX_SCMI_PIN_SIZE	24
 
 #define IMX95_DAISY_OFF		0x408
+#define IMX94_DAISY_OFF		0x608
 
 static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 					   struct device_node *np,
@@ -70,6 +71,8 @@ static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!daisy_off) {
 		if (of_machine_is_compatible("fsl,imx95")) {
 			daisy_off = IMX95_DAISY_OFF;
+		} else if (of_machine_is_compatible("fsl,imx94")) {
+			daisy_off = IMX94_DAISY_OFF;
 		} else {
 			dev_err(pctldev->dev, "platform not support scmi pinctrl\n");
 			return -EINVAL;
@@ -289,6 +292,7 @@ scmi_pinctrl_imx_get_pins(struct scmi_pinctrl_imx *pmx, struct pinctrl_desc *des
 
 static const char * const scmi_pinctrl_imx_allowlist[] = {
 	"fsl,imx95",
+	"fsl,imx94",
 	NULL
 };
 

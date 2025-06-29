@@ -831,7 +831,7 @@ next_atomic_cmd:
  */
 static void img_i2c_check_timer(struct timer_list *t)
 {
-	struct img_i2c *i2c = from_timer(i2c, t, check_timer);
+	struct img_i2c *i2c = timer_container_of(i2c, t, check_timer);
 	unsigned long flags;
 	unsigned int line_status;
 

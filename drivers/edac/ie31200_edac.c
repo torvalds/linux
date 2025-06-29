@@ -52,6 +52,7 @@
 
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <asm/mce.h>
+#include <asm/msr.h>
 #include "edac_module.h"
 
 #define EDAC_MOD_STR "ie31200_edac"
@@ -89,6 +90,10 @@
 #define PCI_DEVICE_ID_INTEL_IE31200_RPL_S_1	0xa703
 #define PCI_DEVICE_ID_INTEL_IE31200_RPL_S_2	0x4640
 #define PCI_DEVICE_ID_INTEL_IE31200_RPL_S_3	0x4630
+#define PCI_DEVICE_ID_INTEL_IE31200_RPL_S_4	0xa700
+
+/* Alder Lake-S */
+#define PCI_DEVICE_ID_INTEL_IE31200_ADL_S_1	0x4660
 
 #define IE31200_RANKS_PER_CHANNEL	8
 #define IE31200_DIMMS_PER_CHANNEL	2
@@ -734,6 +739,8 @@ static const struct pci_device_id ie31200_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IE31200_RPL_S_1), (kernel_ulong_t)&rpl_s_cfg},
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IE31200_RPL_S_2), (kernel_ulong_t)&rpl_s_cfg},
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IE31200_RPL_S_3), (kernel_ulong_t)&rpl_s_cfg},
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IE31200_RPL_S_4), (kernel_ulong_t)&rpl_s_cfg},
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IE31200_ADL_S_1), (kernel_ulong_t)&rpl_s_cfg},
 	{ 0, } /* 0 terminated list. */
 };
 MODULE_DEVICE_TABLE(pci, ie31200_pci_tbl);

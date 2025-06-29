@@ -530,11 +530,11 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	if (!ir_table)
 		return -ENOMEM;
 
-	ir_table_base = iommu_alloc_pages_node(iommu->node, GFP_KERNEL,
-					       INTR_REMAP_PAGE_ORDER);
+	/* 1MB - maximum possible interrupt remapping table size */
+	ir_table_base =
+		iommu_alloc_pages_node_sz(iommu->node, GFP_KERNEL, SZ_1M);
 	if (!ir_table_base) {
-		pr_err("IR%d: failed to allocate pages of order %d\n",
-		       iommu->seq_id, INTR_REMAP_PAGE_ORDER);
+		pr_err("IR%d: failed to allocate 1M of pages\n", iommu->seq_id);
 		goto out_free_table;
 	}
 
@@ -612,7 +612,7 @@ out_free_fwnode:
 out_free_bitmap:
 	bitmap_free(bitmap);
 out_free_pages:
-	iommu_free_pages(ir_table_base, INTR_REMAP_PAGE_ORDER);
+	iommu_free_pages(ir_table_base);
 out_free_table:
 	kfree(ir_table);
 
@@ -633,7 +633,7 @@ static void intel_teardown_irq_remapping(struct intel_iommu *iommu)
 			irq_domain_free_fwnode(fn);
 			iommu->ir_domain = NULL;
 		}
-		iommu_free_pages(iommu->ir_table->base, INTR_REMAP_PAGE_ORDER);
+		iommu_free_pages(iommu->ir_table->base);
 		bitmap_free(iommu->ir_table->bitmap);
 		kfree(iommu->ir_table);
 		iommu->ir_table = NULL;

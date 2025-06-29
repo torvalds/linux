@@ -654,9 +654,6 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
 #define ptep_clear_young_notify ptep_test_and_clear_young
 #define pmdp_clear_young_notify pmdp_test_and_clear_young
-#define	ptep_clear_flush_notify ptep_clear_flush
-#define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
-#define pudp_huge_clear_flush_notify pudp_huge_clear_flush
 
 static inline void mmu_notifier_synchronize(void)
 {

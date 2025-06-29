@@ -372,7 +372,7 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 
 static const struct of_device_id mx25_gcq_ids[] = {
 	{ .compatible = "fsl,imx25-gcq", },
-	{ /* Sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mx25_gcq_ids);
 

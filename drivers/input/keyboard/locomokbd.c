@@ -194,7 +194,7 @@ static irqreturn_t locomokbd_interrupt(int irq, void *dev_id)
  */
 static void locomokbd_timer_callback(struct timer_list *t)
 {
-	struct locomokbd *locomokbd = from_timer(locomokbd, t, timer);
+	struct locomokbd *locomokbd = timer_container_of(locomokbd, t, timer);
 
 	locomokbd_scankeyboard(locomokbd);
 }

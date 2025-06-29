@@ -180,8 +180,9 @@ static int __init ft010_of_init_irq(struct device_node *node,
 	writel(0, FT010_IRQ_MASK(f->base));
 	writel(0, FT010_FIQ_MASK(f->base));
 
-	f->domain = irq_domain_add_simple(node, FT010_NUM_IRQS, 0,
-					  &ft010_irqdomain_ops, f);
+	f->domain = irq_domain_create_simple(of_fwnode_handle(node),
+					     FT010_NUM_IRQS, 0,
+					     &ft010_irqdomain_ops, f);
 	set_handle_irq(ft010_irqchip_handle_irq);
 
 	return 0;

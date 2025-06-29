@@ -7,6 +7,11 @@
 
 #include <linux/args.h>
 #include <linux/init.h>
+
+#ifndef __ASSEMBLY__
+#include <linux/uuid.h>
+#endif
+
 #include <uapi/linux/const.h>
 
 /*
@@ -107,10 +112,10 @@
 			   ARM_SMCCC_FUNC_QUERY_CALL_UID)
 
 /* KVM UID value: 28b46fb6-2ec5-11e9-a9ca-4b564d003a74 */
-#define ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_0	0xb66fb428U
-#define ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_1	0xe911c52eU
-#define ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_2	0x564bcaa9U
-#define ARM_SMCCC_VENDOR_HYP_UID_KVM_REG_3	0x743a004dU
+#define ARM_SMCCC_VENDOR_HYP_UID_KVM UUID_INIT(\
+	0xb66fb428, 0xc52e, 0xe911, \
+	0xa9, 0xca, 0x4b, 0x56, \
+	0x4d, 0x00, 0x3a, 0x74)
 
 /* KVM "vendor specific" services */
 #define ARM_SMCCC_KVM_FUNC_FEATURES		0
@@ -347,6 +352,57 @@ s32 arm_smccc_get_soc_id_version(void);
  * When ARM_SMCCC_ARCH_SOC_ID is not present, returns SMCCC_RET_NOT_SUPPORTED.
  */
 s32 arm_smccc_get_soc_id_revision(void);
+
+#ifndef __ASSEMBLY__
+
+/*
+ * Returns whether a specific hypervisor UUID is advertised for the
+ * Vendor Specific Hypervisor Service range.
+ */
+bool arm_smccc_hypervisor_has_uuid(const uuid_t *uuid);
+
+static inline uuid_t smccc_res_to_uuid(u32 r0, u32 r1, u32 r2, u32 r3)
+{
+	uuid_t uuid = {
+		.b = {
+			[0]  = (r0 >> 0)  & 0xff,
+			[1]  = (r0 >> 8)  & 0xff,
+			[2]  = (r0 >> 16) & 0xff,
+			[3]  = (r0 >> 24) & 0xff,
+
+			[4]  = (r1 >> 0)  & 0xff,
+			[5]  = (r1 >> 8)  & 0xff,
+			[6]  = (r1 >> 16) & 0xff,
+			[7]  = (r1 >> 24) & 0xff,
+
+			[8]  = (r2 >> 0)  & 0xff,
+			[9]  = (r2 >> 8)  & 0xff,
+			[10] = (r2 >> 16) & 0xff,
+			[11] = (r2 >> 24) & 0xff,
+
+			[12] = (r3 >> 0)  & 0xff,
+			[13] = (r3 >> 8)  & 0xff,
+			[14] = (r3 >> 16) & 0xff,
+			[15] = (r3 >> 24) & 0xff,
+		},
+	};
+
+	return uuid;
+}
+
+static inline u32 smccc_uuid_to_reg(const uuid_t *uuid, int reg)
+{
+	u32 val = 0;
+
+	val |= (u32)(uuid->b[4 * reg + 0] << 0);
+	val |= (u32)(uuid->b[4 * reg + 1] << 8);
+	val |= (u32)(uuid->b[4 * reg + 2] << 16);
+	val |= (u32)(uuid->b[4 * reg + 3] << 24);
+
+	return val;
+}
+
+#endif /* !__ASSEMBLY__ */
 
 /**
  * struct arm_smccc_res - Result from SMC/HVC call

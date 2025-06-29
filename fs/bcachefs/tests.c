@@ -342,6 +342,8 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
  */
 static int test_peek_end(struct bch_fs *c, u64 nr)
 {
+	delete_test_keys(c);
+
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -362,6 +364,8 @@ static int test_peek_end(struct bch_fs *c, u64 nr)
 
 static int test_peek_end_extents(struct bch_fs *c, u64 nr)
 {
+	delete_test_keys(c);
+
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;

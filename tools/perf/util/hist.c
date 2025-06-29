@@ -336,6 +336,69 @@ static void he_stat__decay(struct he_stat *he_stat)
 	he_stat->latency = (he_stat->latency * 7) / 8;
 }
 
+static int hists__update_mem_stat(struct hists *hists, struct hist_entry *he,
+				  struct mem_info *mi, u64 period)
+{
+	if (hists->nr_mem_stats == 0)
+		return 0;
+
+	if (he->mem_stat == NULL) {
+		he->mem_stat = calloc(hists->nr_mem_stats, sizeof(*he->mem_stat));
+		if (he->mem_stat == NULL)
+			return -1;
+	}
+
+	for (int i = 0; i < hists->nr_mem_stats; i++) {
+		int idx = mem_stat_index(hists->mem_stat_types[i],
+					 mem_info__const_data_src(mi)->val);
+
+		assert(0 <= idx && idx < MEM_STAT_LEN);
+		he->mem_stat[i].entries[idx] += period;
+		hists->mem_stat_total[i].entries[idx] += period;
+	}
+	return 0;
+}
+
+static void hists__add_mem_stat(struct hists *hists, struct hist_entry *dst,
+				struct hist_entry *src)
+{
+	if (hists->nr_mem_stats == 0)
+		return;
+
+	for (int i = 0; i < hists->nr_mem_stats; i++) {
+		for (int k = 0; k < MEM_STAT_LEN; k++)
+			dst->mem_stat[i].entries[k] += src->mem_stat[i].entries[k];
+	}
+}
+
+static int hists__clone_mem_stat(struct hists *hists, struct hist_entry *dst,
+				  struct hist_entry *src)
+{
+	if (hists->nr_mem_stats == 0)
+		return 0;
+
+	dst->mem_stat = calloc(hists->nr_mem_stats, sizeof(*dst->mem_stat));
+	if (dst->mem_stat == NULL)
+		return -1;
+
+	for (int i = 0; i < hists->nr_mem_stats; i++) {
+		for (int k = 0; k < MEM_STAT_LEN; k++)
+			dst->mem_stat[i].entries[k] = src->mem_stat[i].entries[k];
+	}
+	return 0;
+}
+
+static void hists__decay_mem_stat(struct hists *hists, struct hist_entry *he)
+{
+	if (hists->nr_mem_stats == 0)
+		return;
+
+	for (int i = 0; i < hists->nr_mem_stats; i++) {
+		for (int k = 0; k < MEM_STAT_LEN; k++)
+			he->mem_stat[i].entries[k] = (he->mem_stat[i].entries[k] * 7) / 8;
+	}
+}
+
 static void hists__delete_entry(struct hists *hists, struct hist_entry *he);
 
 static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
@@ -350,6 +413,7 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	if (symbol_conf.cumulate_callchain)
 		he_stat__decay(he->stat_acc);
 	decay_callchain(he->callchain);
+	hists__decay_mem_stat(hists, he);
 
 	if (!he->depth) {
 		u64 period_diff = prev_period - he->stat.period;
@@ -693,6 +757,10 @@ out:
 		he_stat__add_cpumode_period(&he->stat, al->cpumode, period);
 	if (symbol_conf.cumulate_callchain)
 		he_stat__add_cpumode_period(he->stat_acc, al->cpumode, period);
+	if (hists__update_mem_stat(hists, he, entry->mem_info, period) < 0) {
+		hist_entry__delete(he);
+		return NULL;
+	}
 	return he;
 }
 
@@ -1423,6 +1491,7 @@ void hist_entry__delete(struct hist_entry *he)
 	free_callchain(he->callchain);
 	zfree(&he->trace_output);
 	zfree(&he->raw_data);
+	zfree(&he->mem_stat);
 	ops->free(he);
 }
 
@@ -1572,6 +1641,7 @@ static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 		cmp = hist_entry__collapse_hierarchy(hpp_list, iter, he);
 		if (!cmp) {
 			he_stat__add_stat(&iter->stat, &he->stat);
+			hists__add_mem_stat(hists, iter, he);
 			return iter;
 		}
 
@@ -1611,6 +1681,11 @@ static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 			he->srcfile = NULL;
 		else
 			new->srcfile = NULL;
+	}
+
+	if (hists__clone_mem_stat(hists, new, he) < 0) {
+		hist_entry__delete(new);
+		return NULL;
 	}
 
 	rb_link_node(&new->rb_node_in, parent, p);
@@ -1695,6 +1770,7 @@ static int hists__collapse_insert_entry(struct hists *hists,
 			he_stat__add_stat(&iter->stat, &he->stat);
 			if (symbol_conf.cumulate_callchain)
 				he_stat__add_stat(iter->stat_acc, he->stat_acc);
+			hists__add_mem_stat(hists, iter, he);
 
 			if (hist_entry__has_callchains(he) && symbol_conf.use_callchain) {
 				struct callchain_cursor *cursor = get_tls_callchain_cursor();
@@ -2978,6 +3054,8 @@ static void hists_evsel__exit(struct evsel *evsel)
 	struct perf_hpp_list_node *node, *tmp;
 
 	hists__delete_all_entries(hists);
+	zfree(&hists->mem_stat_types);
+	zfree(&hists->mem_stat_total);
 
 	list_for_each_entry_safe(node, tmp, &hists->hpp_formats, list) {
 		perf_hpp_list__for_each_format_safe(&node->hpp, fmt, pos) {

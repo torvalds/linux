@@ -686,7 +686,7 @@ EXPORT_SYMBOL_GPL(destroy_work_on_stack);
 
 void destroy_delayed_work_on_stack(struct delayed_work *work)
 {
-	destroy_timer_on_stack(&work->timer);
+	timer_destroy_on_stack(&work->timer);
 	debug_object_free(&work->work, &work_debug_descr);
 }
 EXPORT_SYMBOL_GPL(destroy_delayed_work_on_stack);
@@ -2481,7 +2481,7 @@ EXPORT_SYMBOL_GPL(queue_work_node);
 
 void delayed_work_timer_fn(struct timer_list *t)
 {
-	struct delayed_work *dwork = from_timer(dwork, t, timer);
+	struct delayed_work *dwork = timer_container_of(dwork, t, timer);
 
 	/* should have been called from irqsafe timer with irq already off */
 	__queue_work(dwork->cpu, dwork->wq, &dwork->work);
@@ -2909,7 +2909,7 @@ static void set_worker_dying(struct worker *worker, struct list_head *list)
  */
 static void idle_worker_timeout(struct timer_list *t)
 {
-	struct worker_pool *pool = from_timer(pool, t, idle_timer);
+	struct worker_pool *pool = timer_container_of(pool, t, idle_timer);
 	bool do_cull = false;
 
 	if (work_pending(&pool->idle_cull_work))
@@ -3008,7 +3008,7 @@ static void send_mayday(struct work_struct *work)
 
 static void pool_mayday_timeout(struct timer_list *t)
 {
-	struct worker_pool *pool = from_timer(pool, t, mayday_timer);
+	struct worker_pool *pool = timer_container_of(pool, t, mayday_timer);
 	struct work_struct *work;
 
 	raw_spin_lock_irq(&pool->lock);
@@ -3241,7 +3241,7 @@ __acquires(&pool->lock)
 	 * point will only record its address.
 	 */
 	trace_workqueue_execute_end(work, worker->current_func);
-	pwq->stats[PWQ_STAT_COMPLETED]++;
+
 	lock_map_release(&lockdep_map);
 	if (!bh_draining)
 		lock_map_release(pwq->wq->lockdep_map);
@@ -3271,6 +3271,8 @@ __acquires(&pool->lock)
 		cond_resched();
 
 	raw_spin_lock_irq(&pool->lock);
+
+	pwq->stats[PWQ_STAT_COMPLETED]++;
 
 	/*
 	 * In addition to %WQ_CPU_INTENSIVE, @worker may also have been marked
@@ -5837,6 +5839,17 @@ static bool pwq_busy(struct pool_workqueue *pwq)
  * @wq: target workqueue
  *
  * Safely destroy a workqueue. All work currently pending will be done first.
+ *
+ * This function does NOT guarantee that non-pending work that has been
+ * submitted with queue_delayed_work() and similar functions will be done
+ * before destroying the workqueue. The fundamental problem is that, currently,
+ * the workqueue has no way of accessing non-pending delayed_work. delayed_work
+ * is only linked on the timer-side. All delayed_work must, therefore, be
+ * canceled before calling this function.
+ *
+ * TODO: It would be better if the problem described above wouldn't exist and
+ * destroy_workqueue() would cleanly cancel all pending and non-pending
+ * delayed_work.
  */
 void destroy_workqueue(struct workqueue_struct *wq)
 {

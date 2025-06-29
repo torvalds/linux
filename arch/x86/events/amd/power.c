@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/perf_event.h>
 #include <asm/cpu_device_id.h>
+#include <asm/msr.h>
 #include "../perf_event.h"
 
 /* Event code: LSB 8 bits, passed in attr->config any other bit is reserved. */
@@ -48,8 +49,8 @@ static void event_update(struct perf_event *event)
 
 	prev_pwr_acc = hwc->pwr_acc;
 	prev_ptsc = hwc->ptsc;
-	rdmsrl(MSR_F15H_CU_PWR_ACCUMULATOR, new_pwr_acc);
-	rdmsrl(MSR_F15H_PTSC, new_ptsc);
+	rdmsrq(MSR_F15H_CU_PWR_ACCUMULATOR, new_pwr_acc);
+	rdmsrq(MSR_F15H_PTSC, new_ptsc);
 
 	/*
 	 * Calculate the CU power consumption over a time period, the unit of
@@ -75,8 +76,8 @@ static void __pmu_event_start(struct perf_event *event)
 
 	event->hw.state = 0;
 
-	rdmsrl(MSR_F15H_PTSC, event->hw.ptsc);
-	rdmsrl(MSR_F15H_CU_PWR_ACCUMULATOR, event->hw.pwr_acc);
+	rdmsrq(MSR_F15H_PTSC, event->hw.ptsc);
+	rdmsrq(MSR_F15H_CU_PWR_ACCUMULATOR, event->hw.pwr_acc);
 }
 
 static void pmu_event_start(struct perf_event *event, int mode)
@@ -272,7 +273,7 @@ static int __init amd_power_pmu_init(void)
 
 	cpu_pwr_sample_ratio = cpuid_ecx(0x80000007);
 
-	if (rdmsrl_safe(MSR_F15H_CU_MAX_PWR_ACCUMULATOR, &max_cu_acc_power)) {
+	if (rdmsrq_safe(MSR_F15H_CU_MAX_PWR_ACCUMULATOR, &max_cu_acc_power)) {
 		pr_err("Failed to read max compute unit power accumulator MSR\n");
 		return -ENODEV;
 	}

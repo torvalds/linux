@@ -26,6 +26,7 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/iosys-map.h>
@@ -1182,38 +1183,6 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 
 	if (obj->funcs->print_info)
 		obj->funcs->print_info(p, indent, obj);
-}
-
-int drm_gem_pin_locked(struct drm_gem_object *obj)
-{
-	if (obj->funcs->pin)
-		return obj->funcs->pin(obj);
-
-	return 0;
-}
-
-void drm_gem_unpin_locked(struct drm_gem_object *obj)
-{
-	if (obj->funcs->unpin)
-		obj->funcs->unpin(obj);
-}
-
-int drm_gem_pin(struct drm_gem_object *obj)
-{
-	int ret;
-
-	dma_resv_lock(obj->resv, NULL);
-	ret = drm_gem_pin_locked(obj);
-	dma_resv_unlock(obj->resv);
-
-	return ret;
-}
-
-void drm_gem_unpin(struct drm_gem_object *obj)
-{
-	dma_resv_lock(obj->resv, NULL);
-	drm_gem_unpin_locked(obj);
-	dma_resv_unlock(obj->resv);
 }
 
 int drm_gem_vmap_locked(struct drm_gem_object *obj, struct iosys_map *map)

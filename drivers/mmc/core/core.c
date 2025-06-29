@@ -1837,52 +1837,44 @@ int mmc_erase(struct mmc_card *card, sector_t from, unsigned int nr,
 }
 EXPORT_SYMBOL(mmc_erase);
 
-int mmc_can_erase(struct mmc_card *card)
+bool mmc_card_can_erase(struct mmc_card *card)
 {
-	if (card->csd.cmdclass & CCC_ERASE && card->erase_size)
-		return 1;
-	return 0;
+	return (card->csd.cmdclass & CCC_ERASE && card->erase_size);
 }
-EXPORT_SYMBOL(mmc_can_erase);
+EXPORT_SYMBOL(mmc_card_can_erase);
 
-int mmc_can_trim(struct mmc_card *card)
+bool mmc_card_can_trim(struct mmc_card *card)
 {
-	if ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN) &&
-	    (!(card->quirks & MMC_QUIRK_TRIM_BROKEN)))
-		return 1;
-	return 0;
+	return ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN) &&
+		(!(card->quirks & MMC_QUIRK_TRIM_BROKEN)));
 }
-EXPORT_SYMBOL(mmc_can_trim);
+EXPORT_SYMBOL(mmc_card_can_trim);
 
-int mmc_can_discard(struct mmc_card *card)
+bool mmc_card_can_discard(struct mmc_card *card)
 {
 	/*
 	 * As there's no way to detect the discard support bit at v4.5
 	 * use the s/w feature support filed.
 	 */
-	if (card->ext_csd.feature_support & MMC_DISCARD_FEATURE)
-		return 1;
-	return 0;
+	return (card->ext_csd.feature_support & MMC_DISCARD_FEATURE);
 }
-EXPORT_SYMBOL(mmc_can_discard);
+EXPORT_SYMBOL(mmc_card_can_discard);
 
-int mmc_can_sanitize(struct mmc_card *card)
+bool mmc_card_can_sanitize(struct mmc_card *card)
 {
-	if (!mmc_can_trim(card) && !mmc_can_erase(card))
-		return 0;
+	if (!mmc_card_can_trim(card) && !mmc_card_can_erase(card))
+		return false;
 	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
-int mmc_can_secure_erase_trim(struct mmc_card *card)
+bool mmc_card_can_secure_erase_trim(struct mmc_card *card)
 {
-	if ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN) &&
-	    !(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN))
-		return 1;
-	return 0;
+	return ((card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN) &&
+		!(card->quirks & MMC_QUIRK_SEC_ERASE_TRIM_BROKEN));
 }
-EXPORT_SYMBOL(mmc_can_secure_erase_trim);
+EXPORT_SYMBOL(mmc_card_can_secure_erase_trim);
 
 int mmc_erase_group_aligned(struct mmc_card *card, sector_t from,
 			    unsigned int nr)
@@ -1987,7 +1979,7 @@ unsigned int mmc_calc_max_discard(struct mmc_card *card)
 		return card->pref_erase;
 
 	max_discard = mmc_do_calc_max_discard(card, MMC_ERASE_ARG);
-	if (mmc_can_trim(card)) {
+	if (mmc_card_can_trim(card)) {
 		max_trim = mmc_do_calc_max_discard(card, MMC_TRIM_ARG);
 		if (max_trim < max_discard || max_discard == 0)
 			max_discard = max_trim;

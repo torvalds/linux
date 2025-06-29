@@ -1498,8 +1498,8 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (b_sent < 0)
 		goto done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &st->data, sizeof(st->data),
+				    iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1551,7 +1551,7 @@ static const struct of_device_id max1363_of_match[] = {
 	MAX1363_COMPATIBLE("maxim,max11645", max11645),
 	MAX1363_COMPATIBLE("maxim,max11646", max11646),
 	MAX1363_COMPATIBLE("maxim,max11647", max11647),
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max1363_of_match);
 
@@ -1672,7 +1672,7 @@ static const struct i2c_device_id max1363_id[] = {
 	MAX1363_ID_TABLE("max11645", max11645),
 	MAX1363_ID_TABLE("max11646", max11646),
 	MAX1363_ID_TABLE("max11647", max11647),
-	{ /* sentinel */ }
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, max1363_id);

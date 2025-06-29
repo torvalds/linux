@@ -108,6 +108,8 @@ struct amdgpu_xcp {
 	struct drm_driver *driver;
 	struct drm_vma_offset_manager *vma_offset_manager;
 	struct amdgpu_sched	gpu_sched[AMDGPU_HW_IP_NUM][AMDGPU_RING_PRIO_MAX];
+	struct amdgpu_xcp_mgr *xcp_mgr;
+	struct kobject kobj;
 };
 
 struct amdgpu_xcp_mgr {
@@ -175,8 +177,8 @@ int amdgpu_xcp_open_device(struct amdgpu_device *adev,
 void amdgpu_xcp_release_sched(struct amdgpu_device *adev,
 			      struct amdgpu_ctx_entity *entity);
 
-void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev);
-void amdgpu_xcp_cfg_sysfs_fini(struct amdgpu_device *adev);
+void amdgpu_xcp_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_xcp_sysfs_fini(struct amdgpu_device *adev);
 
 #define amdgpu_xcp_select_scheds(adev, e, c, d, x, y) \
 	((adev)->xcp_mgr && (adev)->xcp_mgr->funcs && \

@@ -45,12 +45,6 @@
 	(MLX5E_XDP_INLINE_WQE_MAX_DS_CNT * MLX5_SEND_WQE_DS - \
 	 sizeof(struct mlx5_wqe_inline_seg))
 
-struct mlx5e_xdp_buff {
-	struct xdp_buff xdp;
-	struct mlx5_cqe64 *cqe;
-	struct mlx5e_rq *rq;
-};
-
 /* XDP packets can be transmitted in different ways. On completion, we need to
  * distinguish between them to clean up things in a proper way.
  */

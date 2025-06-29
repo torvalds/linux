@@ -16,6 +16,25 @@
 
 #define CODEC_NAME_SIZE	8
 #define CS_AMP_CHANNELS_PER_AMP	4
+#define CS35L56_SPK_VOLUME_0DB 400 /* 0dB Max */
+
+int asoc_sdw_cs35l56_volume_limit(struct snd_soc_card *card, const char *name_prefix)
+{
+	char *volume_ctl_name;
+	int ret;
+
+	volume_ctl_name = kasprintf(GFP_KERNEL, "%s Speaker Volume", name_prefix);
+	if (!volume_ctl_name)
+		return -ENOMEM;
+
+	ret = snd_soc_limit_volume(card, volume_ctl_name, CS35L56_SPK_VOLUME_0DB);
+	if (ret)
+		dev_err(card->dev, "%s limit set failed: %d\n", volume_ctl_name, ret);
+
+	kfree(volume_ctl_name);
+	return ret;
+}
+EXPORT_SYMBOL_NS(asoc_sdw_cs35l56_volume_limit, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
@@ -40,6 +59,11 @@ int asoc_sdw_cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai
 
 		snprintf(widget_name, sizeof(widget_name), "%s SPK",
 			 codec_dai->component->name_prefix);
+
+		ret = asoc_sdw_cs35l56_volume_limit(card, codec_dai->component->name_prefix);
+		if (ret)
+			return ret;
+
 		ret = snd_soc_dapm_add_routes(&card->dapm, &route, 1);
 		if (ret)
 			return ret;

@@ -1,0 +1,143 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/fsl,imx6-mipi-csi2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MIPI CSI-2 Receiver core in the i.MX SoC
+
+description:
+  This is the device node for the MIPI CSI-2 Receiver core in the i.MX
+  SoC. This is a Synopsys Designware MIPI CSI-2 host controller core
+  combined with a D-PHY core mixed into the same register block. In
+  addition this device consists of an i.MX-specific "CSI2IPU gasket"
+  glue logic, also controlled from the same register block. The CSI2IPU
+  gasket demultiplexes the four virtual channel streams from the host
+  controller's 32-bit output image bus onto four 16-bit parallel busses
+  to the i.MX IPU CSIs.
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    const: fsl,imx6-mipi-csi2
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: hsi_tx (the D-PHY clock)
+      - description: video_27m (D-PHY PLL reference clock)
+      - description: eim_podf;
+
+  clock-names:
+    items:
+      - const: dphy
+      - const: ref
+      - const: pix
+
+  interrupts:
+    items:
+      - description: CSI-2 ERR1 irq
+      - description: CSI-2 ERR2 irq
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  port@0:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      Input port node, single endpoint describing the CSI-2 transmitter.
+
+    properties:
+      endpoint:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          clock-lanes:
+            const: 0
+
+          data-lanes:
+            minItems: 1
+            items:
+              - const: 1
+              - const: 2
+              - const: 3
+              - const: 4
+
+        required:
+          - data-lanes
+
+patternProperties:
+  '^port@[1-4]$':
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+    description:
+      ports 1 through 4 are output ports connecting with parallel bus sink
+      endpoint nodes and correspond to the four MIPI CSI-2 virtual channel
+      outputs.
+
+    properties:
+      endpoint@0:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+
+      endpoint@1:
+        $ref: video-interfaces.yaml#
+        unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx6qdl-clock.h>
+
+    mipi@21dc000 {
+        compatible = "fsl,imx6-mipi-csi2";
+        reg = <0x021dc000 0x4000>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        clocks = <&clks IMX6QDL_CLK_HSI_TX>,
+                 <&clks IMX6QDL_CLK_VIDEO_27M>,
+                 <&clks IMX6QDL_CLK_EIM_PODF>;
+        clock-names = "dphy", "ref", "pix";
+
+        port@0 {
+            reg = <0>;
+
+            endpoint {
+                remote-endpoint = <&ov5640_to_mipi_csi2>;
+                clock-lanes = <0>;
+                data-lanes = <1 2>;
+            };
+        };
+
+        port@1 {
+            reg = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            endpoint@0 {
+                reg = <0>;
+                remote-endpoint = <&ipu1_csi0_mux_from_mipi_vc0>;
+            };
+
+            endpoint@1 {
+                reg = <1>;
+                remote-endpoint = <&ipu1_csi1_mux_from_mipi_vc0>;
+            };
+        };
+    };

@@ -9,10 +9,10 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
-#include <linux/fwnode.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c-mux.h>
 #include <linux/i2c.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #include <media/v4l2-cci.h>

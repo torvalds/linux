@@ -983,8 +983,7 @@ static int sta32x_probe(struct snd_soc_component *component)
 err_regulator_bulk_disable:
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 err_clk_disable_unprepare:
-	if (sta32x->xti_clk)
-		clk_disable_unprepare(sta32x->xti_clk);
+	clk_disable_unprepare(sta32x->xti_clk);
 	return ret;
 }
 
@@ -995,8 +994,7 @@ static void sta32x_remove(struct snd_soc_component *component)
 	sta32x_watchdog_stop(sta32x);
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
-	if (sta32x->xti_clk)
-		clk_disable_unprepare(sta32x->xti_clk);
+	clk_disable_unprepare(sta32x->xti_clk);
 }
 
 static const struct snd_soc_component_driver sta32x_component = {

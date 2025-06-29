@@ -411,7 +411,8 @@ static int dm_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 }
 
 static int dm_prepare_ioctl(struct mapped_device *md, int *srcu_idx,
-			    struct block_device **bdev)
+			    struct block_device **bdev, unsigned int cmd,
+			    unsigned long arg, bool *forward)
 {
 	struct dm_target *ti;
 	struct dm_table *map;
@@ -434,8 +435,8 @@ retry:
 	if (dm_suspended_md(md))
 		return -EAGAIN;
 
-	r = ti->type->prepare_ioctl(ti, bdev);
-	if (r == -ENOTCONN && !fatal_signal_pending(current)) {
+	r = ti->type->prepare_ioctl(ti, bdev, cmd, arg, forward);
+	if (r == -ENOTCONN && *forward && !fatal_signal_pending(current)) {
 		dm_put_live_table(md, *srcu_idx);
 		fsleep(10000);
 		goto retry;
@@ -454,9 +455,10 @@ static int dm_blk_ioctl(struct block_device *bdev, blk_mode_t mode,
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	int r, srcu_idx;
+	bool forward = true;
 
-	r = dm_prepare_ioctl(md, &srcu_idx, &bdev);
-	if (r < 0)
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, cmd, arg, &forward);
+	if (!forward || r < 0)
 		goto out;
 
 	if (r > 0) {
@@ -1082,22 +1084,6 @@ static inline struct queue_limits *dm_get_queue_limits(struct mapped_device *md)
 	return &md->queue->limits;
 }
 
-void disable_discard(struct mapped_device *md)
-{
-	struct queue_limits *limits = dm_get_queue_limits(md);
-
-	/* device doesn't really support DISCARD, disable it */
-	limits->max_hw_discard_sectors = 0;
-}
-
-void disable_write_zeroes(struct mapped_device *md)
-{
-	struct queue_limits *limits = dm_get_queue_limits(md);
-
-	/* device doesn't really support WRITE ZEROES, disable it */
-	limits->max_write_zeroes_sectors = 0;
-}
-
 static bool swap_bios_limit(struct dm_target *ti, struct bio *bio)
 {
 	return unlikely((bio->bi_opf & REQ_SWAP) != 0) && unlikely(ti->limit_swap_bios);
@@ -1115,10 +1101,10 @@ static void clone_endio(struct bio *bio)
 	if (unlikely(error == BLK_STS_TARGET)) {
 		if (bio_op(bio) == REQ_OP_DISCARD &&
 		    !bdev_max_discard_sectors(bio->bi_bdev))
-			disable_discard(md);
+			blk_queue_disable_discard(md->queue);
 		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 			 !bdev_write_zeroes_sectors(bio->bi_bdev))
-			disable_write_zeroes(md);
+			blk_queue_disable_write_zeroes(md->queue);
 	}
 
 	if (static_branch_unlikely(&zoned_enabled) &&
@@ -2421,20 +2407,34 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 			       struct queue_limits *limits)
 {
 	struct dm_table *old_map;
-	sector_t size;
+	sector_t size, old_size;
 	int ret;
 
 	lockdep_assert_held(&md->suspend_lock);
 
 	size = dm_table_get_size(t);
 
+	old_size = dm_get_size(md);
+
+	if (!dm_table_supports_size_change(t, old_size, size)) {
+		old_map = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
+	set_capacity(md->disk, size);
+
+	ret = dm_table_set_restrictions(t, md->queue, limits);
+	if (ret) {
+		set_capacity(md->disk, old_size);
+		old_map = ERR_PTR(ret);
+		goto out;
+	}
+
 	/*
 	 * Wipe any geometry if the size of the table changed.
 	 */
-	if (size != dm_get_size(md))
+	if (size != old_size)
 		memset(&md->geometry, 0, sizeof(md->geometry));
-
-	set_capacity(md->disk, size);
 
 	dm_table_event_callback(t, event_callback, md);
 
@@ -2453,10 +2453,10 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		 * requests in the queue may refer to bio from the old bioset,
 		 * so you must walk through the queue to unprep.
 		 */
-		if (!md->mempools) {
+		if (!md->mempools)
 			md->mempools = t->mempools;
-			t->mempools = NULL;
-		}
+		else
+			dm_free_md_mempools(t->mempools);
 	} else {
 		/*
 		 * The md may already have mempools that need changing.
@@ -2465,14 +2465,8 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		 */
 		dm_free_md_mempools(md->mempools);
 		md->mempools = t->mempools;
-		t->mempools = NULL;
 	}
-
-	ret = dm_table_set_restrictions(t, md->queue, limits);
-	if (ret) {
-		old_map = ERR_PTR(ret);
-		goto out;
-	}
+	t->mempools = NULL;
 
 	old_map = rcu_dereference_protected(md->map, lockdep_is_held(&md->suspend_lock));
 	rcu_assign_pointer(md->map, (void *)t);
@@ -3638,10 +3632,13 @@ static int dm_pr_clear(struct block_device *bdev, u64 key)
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	const struct pr_ops *ops;
 	int r, srcu_idx;
+	bool forward = true;
 
-	r = dm_prepare_ioctl(md, &srcu_idx, &bdev);
+	/* Not a real ioctl, but targets must not interpret non-DM ioctls */
+	r = dm_prepare_ioctl(md, &srcu_idx, &bdev, 0, 0, &forward);
 	if (r < 0)
 		goto out;
+	WARN_ON_ONCE(!forward);
 
 	ops = bdev->bd_disk->fops->pr_ops;
 	if (ops && ops->pr_clear)

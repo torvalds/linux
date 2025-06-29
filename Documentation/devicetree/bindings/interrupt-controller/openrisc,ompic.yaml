@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/openrisc,ompic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Open Multi-Processor Interrupt Controller
+
+maintainers:
+  - Stafford Horne <shorne@gmail.com>
+
+properties:
+  compatible:
+    items:
+      - const: openrisc,ompic
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 0
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    interrupt-controller@98000000 {
+        compatible = "openrisc,ompic";
+        reg = <0x98000000 16>;
+        interrupt-controller;
+        #interrupt-cells = <0>;
+        interrupts = <1>;
+    };

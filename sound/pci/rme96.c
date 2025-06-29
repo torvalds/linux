@@ -1575,7 +1575,7 @@ snd_rme96_create(struct rme96 *rme96)
 	if (err < 0)
 		return err;
 
-	err = pci_request_regions(pci, "RME96");
+	err = pcim_request_all_regions(pci, "RME96");
 	if (err < 0)
 		return err;
 	rme96->port = pci_resource_start(rme96->pci, 0);

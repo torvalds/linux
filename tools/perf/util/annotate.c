@@ -2280,6 +2280,7 @@ void annotation_options__init(void)
 	opt->annotate_src = true;
 	opt->offset_level = ANNOTATION__OFFSET_JUMP_TARGETS;
 	opt->percent_type = PERCENT_PERIOD_LOCAL;
+	opt->hide_src_code_on_title = true;
 }
 
 void annotation_options__exit(void)

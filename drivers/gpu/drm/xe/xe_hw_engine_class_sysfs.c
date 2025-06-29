@@ -605,6 +605,7 @@ err_object:
 	kobject_put(kobj);
 	return err;
 }
+ALLOW_ERROR_INJECTION(xe_add_hw_engine_class_defaults, ERRNO); /* See xe_pci_probe() */
 
 
 static void hw_engine_class_sysfs_fini(void *arg)

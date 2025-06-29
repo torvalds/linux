@@ -3981,7 +3981,7 @@ void hfi1_del_tid_reap_timer(struct rvt_qp *qp)
 
 static void hfi1_tid_timeout(struct timer_list *t)
 {
-	struct hfi1_qp_priv *qpriv = from_timer(qpriv, t, s_tid_timer);
+	struct hfi1_qp_priv *qpriv = timer_container_of(qpriv, t, s_tid_timer);
 	struct rvt_qp *qp = qpriv->owner;
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	unsigned long flags;
@@ -4797,7 +4797,8 @@ void hfi1_del_tid_retry_timer(struct rvt_qp *qp)
 
 static void hfi1_tid_retry_timeout(struct timer_list *t)
 {
-	struct hfi1_qp_priv *priv = from_timer(priv, t, s_tid_retry_timer);
+	struct hfi1_qp_priv *priv = timer_container_of(priv, t,
+						       s_tid_retry_timer);
 	struct rvt_qp *qp = priv->owner;
 	struct rvt_swqe *wqe;
 	unsigned long flags;

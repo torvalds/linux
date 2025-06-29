@@ -193,13 +193,12 @@ int set_selection_user(const struct tiocl_selection __user *sel,
 		return -EFAULT;
 
 	/*
-	 * TIOCL_SELCLEAR, TIOCL_SELPOINTER and TIOCL_SELMOUSEREPORT are OK to
-	 * use without CAP_SYS_ADMIN as they do not modify the selection.
+	 * TIOCL_SELCLEAR and TIOCL_SELPOINTER are OK to use without
+	 * CAP_SYS_ADMIN as they do not modify the selection.
 	 */
 	switch (v.sel_mode) {
 	case TIOCL_SELCLEAR:
 	case TIOCL_SELPOINTER:
-	case TIOCL_SELMOUSEREPORT:
 		break;
 	default:
 		if (!capable(CAP_SYS_ADMIN))
@@ -404,6 +403,12 @@ int paste_selection(struct tty_struct *tty)
 	DECLARE_WAITQUEUE(wait, current);
 	int ret = 0;
 
+	bool bp = vc->vc_bracketed_paste;
+	static const char bracketed_paste_start[] = "\033[200~";
+	static const char bracketed_paste_end[]   = "\033[201~";
+	const char *bps = bp ? bracketed_paste_start : NULL;
+	const char *bpe = bp ? bracketed_paste_end : NULL;
+
 	console_lock();
 	poke_blanked_console();
 	console_unlock();
@@ -415,7 +420,7 @@ int paste_selection(struct tty_struct *tty)
 
 	add_wait_queue(&vc->paste_wait, &wait);
 	mutex_lock(&vc_sel.lock);
-	while (vc_sel.buffer && vc_sel.buf_len > pasted) {
+	while (vc_sel.buffer && (vc_sel.buf_len > pasted || bpe)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (signal_pending(current)) {
 			ret = -EINTR;
@@ -428,10 +433,27 @@ int paste_selection(struct tty_struct *tty)
 			continue;
 		}
 		__set_current_state(TASK_RUNNING);
+
+		if (bps) {
+			bps += tty_ldisc_receive_buf(ld, bps, NULL, strlen(bps));
+			if (*bps != '\0')
+				continue;
+			bps = NULL;
+		}
+
 		count = vc_sel.buf_len - pasted;
-		count = tty_ldisc_receive_buf(ld, vc_sel.buffer + pasted, NULL,
-					      count);
-		pasted += count;
+		if (count) {
+			pasted += tty_ldisc_receive_buf(ld, vc_sel.buffer + pasted,
+							NULL, count);
+			if (vc_sel.buf_len > pasted)
+				continue;
+		}
+
+		if (bpe) {
+			bpe += tty_ldisc_receive_buf(ld, bpe, NULL, strlen(bpe));
+			if (*bpe == '\0')
+				bpe = NULL;
+		}
 	}
 	mutex_unlock(&vc_sel.lock);
 	remove_wait_queue(&vc->paste_wait, &wait);

@@ -6,7 +6,7 @@
 #ifndef __INTEL_GMBUS_REGS_H__
 #define __INTEL_GMBUS_REGS_H__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 #define __GMBUS_MMIO_BASE(__display) ((__display)->gmbus.mmio_base)
 

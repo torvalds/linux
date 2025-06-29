@@ -36,6 +36,7 @@
 #include <linux/memcontrol.h>
 #include <linux/trace_events.h>
 #include <linux/tracepoint.h>
+#include <linux/overflow.h>
 
 #include <net/netfilter/nf_bpf_link.h>
 #include <net/netkit.h>
@@ -578,7 +579,7 @@ static bool can_alloc_pages(void)
 static struct page *__bpf_alloc_page(int nid)
 {
 	if (!can_alloc_pages())
-		return try_alloc_pages(nid, 0);
+		return alloc_pages_nolock(nid, 0);
 
 	return alloc_pages_node(nid,
 				GFP_KERNEL | __GFP_ZERO | __GFP_ACCOUNT
@@ -693,7 +694,7 @@ struct btf_record *btf_record_dup(const struct btf_record *rec)
 
 	if (IS_ERR_OR_NULL(rec))
 		return NULL;
-	size = offsetof(struct btf_record, fields[rec->cnt]);
+	size = struct_size(rec, fields, rec->cnt);
 	new_rec = kmemdup(rec, size, GFP_KERNEL | __GFP_NOWARN);
 	if (!new_rec)
 		return ERR_PTR(-ENOMEM);
@@ -748,7 +749,7 @@ bool btf_record_equal(const struct btf_record *rec_a, const struct btf_record *r
 		return false;
 	if (rec_a->cnt != rec_b->cnt)
 		return false;
-	size = offsetof(struct btf_record, fields[rec_a->cnt]);
+	size = struct_size(rec_a, fields, rec_a->cnt);
 	/* btf_parse_fields uses kzalloc to allocate a btf_record, so unused
 	 * members are zeroed out. So memcmp is safe to do without worrying
 	 * about padding/unused fields.
@@ -1583,7 +1584,7 @@ struct bpf_map *bpf_map_get(u32 ufd)
 
 	return map;
 }
-EXPORT_SYMBOL(bpf_map_get);
+EXPORT_SYMBOL_NS(bpf_map_get, "BPF_INTERNAL");
 
 struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 {
@@ -3364,7 +3365,7 @@ struct bpf_link *bpf_link_get_from_fd(u32 ufd)
 	bpf_link_inc(link);
 	return link;
 }
-EXPORT_SYMBOL(bpf_link_get_from_fd);
+EXPORT_SYMBOL_NS(bpf_link_get_from_fd, "BPF_INTERNAL");
 
 static void bpf_tracing_link_release(struct bpf_link *link)
 {
@@ -3799,14 +3800,14 @@ static int bpf_perf_link_fill_kprobe(const struct perf_event *event,
 static int bpf_perf_link_fill_uprobe(const struct perf_event *event,
 				     struct bpf_link_info *info)
 {
+	u64 ref_ctr_offset, offset;
 	char __user *uname;
-	u64 addr, offset;
 	u32 ulen, type;
 	int err;
 
 	uname = u64_to_user_ptr(info->perf_event.uprobe.file_name);
 	ulen = info->perf_event.uprobe.name_len;
-	err = bpf_perf_link_fill_common(event, uname, &ulen, &offset, &addr,
+	err = bpf_perf_link_fill_common(event, uname, &ulen, &offset, &ref_ctr_offset,
 					&type, NULL);
 	if (err)
 		return err;
@@ -3818,6 +3819,7 @@ static int bpf_perf_link_fill_uprobe(const struct perf_event *event,
 	info->perf_event.uprobe.name_len = ulen;
 	info->perf_event.uprobe.offset = offset;
 	info->perf_event.uprobe.cookie = event->bpf_cookie;
+	info->perf_event.uprobe.ref_ctr_offset = ref_ctr_offset;
 	return 0;
 }
 #endif
@@ -6020,7 +6022,7 @@ int kern_sys_bpf(int cmd, union bpf_attr *attr, unsigned int size)
 		return ____bpf_sys_bpf(cmd, attr, size);
 	}
 }
-EXPORT_SYMBOL(kern_sys_bpf);
+EXPORT_SYMBOL_NS(kern_sys_bpf, "BPF_INTERNAL");
 
 static const struct bpf_func_proto bpf_sys_bpf_proto = {
 	.func		= bpf_sys_bpf,

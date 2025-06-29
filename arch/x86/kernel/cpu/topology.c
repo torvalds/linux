@@ -30,6 +30,7 @@
 #include <asm/hypervisor.h>
 #include <asm/io_apic.h>
 #include <asm/mpspec.h>
+#include <asm/msr.h>
 #include <asm/smp.h>
 
 #include "cpu.h"
@@ -154,7 +155,7 @@ static __init bool check_for_real_bsp(u32 apic_id)
 	 * kernel must rely on the firmware enumeration order.
 	 */
 	if (has_apic_base) {
-		rdmsrl(MSR_IA32_APICBASE, msr);
+		rdmsrq(MSR_IA32_APICBASE, msr);
 		is_bsp = !!(msr & MSR_IA32_APICBASE_BSP);
 	}
 

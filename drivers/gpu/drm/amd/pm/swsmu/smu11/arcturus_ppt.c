@@ -1347,7 +1347,7 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 		*default_power_limit = power_limit;
 	if (max_power_limit)
 		*max_power_limit = power_limit;
-	/**
+	/*
 	 * No lower bound is imposed on the limit. Any unreasonable limit set
 	 * will result in frequent throttling.
 	 */

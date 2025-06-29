@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2014-2016 Intel Corporation
  */
 
-#include "display/intel_display.h"
 #include "gt/intel_gt.h"
 
 #include "i915_drv.h"

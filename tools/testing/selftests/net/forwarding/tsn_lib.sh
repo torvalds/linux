@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright 2021-2022 NXP
 
+tc_testing_scripts_dir=$(dirname $0)/../../tc-testing/scripts
+
 REQUIRE_ISOCHRON=${REQUIRE_ISOCHRON:=yes}
 REQUIRE_LINUXPTP=${REQUIRE_LINUXPTP:=yes}
 
@@ -18,6 +20,7 @@ fi
 if [[ "$REQUIRE_LINUXPTP" = "yes" ]]; then
 	require_command phc2sys
 	require_command ptp4l
+	require_command phc_ctl
 fi
 
 phc2sys_start()
@@ -182,6 +185,7 @@ isochron_do()
 	local base_time=$1; shift
 	local cycle_time=$1; shift
 	local shift_time=$1; shift
+	local window_size=$1; shift
 	local num_pkts=$1; shift
 	local vid=$1; shift
 	local priority=$1; shift
@@ -210,6 +214,10 @@ isochron_do()
 
 	if ! [ -z "${shift_time}" ]; then
 		extra_args="${extra_args} --shift-time=${shift_time}"
+	fi
+
+	if ! [ -z "${window_size}" ]; then
+		extra_args="${extra_args} --window-size=${window_size}"
 	fi
 
 	if [ "${use_l2}" = "true" ]; then
@@ -246,4 +254,22 @@ isochron_do()
 	isochron_recv_stop 5000
 
 	cpufreq_restore ${ISOCHRON_CPU}
+}
+
+isochron_report_num_received()
+{
+	local isochron_dat=$1; shift
+
+	# Count all received packets by looking at the non-zero RX timestamps
+	isochron report \
+		--input-file "${isochron_dat}" \
+		--printf-format "%u\n" --printf-args "R" | \
+		grep -w -v '0' | wc -l
+}
+
+taprio_wait_for_admin()
+{
+	local if_name="$1"; shift
+
+	"$tc_testing_scripts_dir/taprio_wait_for_admin.sh" "$(which tc)" "$if_name"
 }

@@ -28,6 +28,8 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
+
+#include <linux/export.h>
 #include <linux/swap.h>
 #include <linux/vmalloc.h>
 
@@ -36,6 +38,8 @@
 #include <drm/ttm/ttm_tt.h>
 
 #include <drm/drm_cache.h>
+
+#include "ttm_bo_internal.h"
 
 struct ttm_transfer_obj {
 	struct ttm_buffer_object base;

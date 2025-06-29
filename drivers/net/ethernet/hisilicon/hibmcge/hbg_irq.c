@@ -6,7 +6,7 @@
 #include "hbg_hw.h"
 
 static void hbg_irq_handle_err(struct hbg_priv *priv,
-			       struct hbg_irq_info *irq_info)
+			       const struct hbg_irq_info *irq_info)
 {
 	if (irq_info->need_print)
 		dev_err(&priv->pdev->dev,
@@ -17,30 +17,30 @@ static void hbg_irq_handle_err(struct hbg_priv *priv,
 }
 
 static void hbg_irq_handle_tx(struct hbg_priv *priv,
-			      struct hbg_irq_info *irq_info)
+			      const struct hbg_irq_info *irq_info)
 {
 	napi_schedule(&priv->tx_ring.napi);
 }
 
 static void hbg_irq_handle_rx(struct hbg_priv *priv,
-			      struct hbg_irq_info *irq_info)
+			      const struct hbg_irq_info *irq_info)
 {
 	napi_schedule(&priv->rx_ring.napi);
 }
 
 static void hbg_irq_handle_rx_buf_val(struct hbg_priv *priv,
-				      struct hbg_irq_info *irq_info)
+				      const struct hbg_irq_info *irq_info)
 {
 	priv->stats.rx_fifo_less_empty_thrsld_cnt++;
 }
 
 #define HBG_IRQ_I(name, handle) \
-	{#name, HBG_INT_MSK_##name##_B, false, false, false, 0, handle}
+	{#name, HBG_INT_MSK_##name##_B, false, false, false, handle}
 #define HBG_ERR_IRQ_I(name, need_print, ndde_reset) \
 	{#name, HBG_INT_MSK_##name##_B, true, need_print, \
-	ndde_reset, 0, hbg_irq_handle_err}
+	ndde_reset, hbg_irq_handle_err}
 
-static struct hbg_irq_info hbg_irqs[] = {
+static const struct hbg_irq_info hbg_irqs[] = {
 	HBG_IRQ_I(RX, hbg_irq_handle_rx),
 	HBG_IRQ_I(TX, hbg_irq_handle_tx),
 	HBG_ERR_IRQ_I(TX_PKT_CPL, true, true),
@@ -64,7 +64,7 @@ static struct hbg_irq_info hbg_irqs[] = {
 
 static irqreturn_t hbg_irq_handle(int irq_num, void *p)
 {
-	struct hbg_irq_info *info;
+	const struct hbg_irq_info *info;
 	struct hbg_priv *priv = p;
 	u32 status;
 	u32 i;
@@ -79,7 +79,7 @@ static irqreturn_t hbg_irq_handle(int irq_num, void *p)
 			hbg_hw_irq_enable(priv, info->mask, false);
 			hbg_hw_irq_clear(priv, info->mask);
 
-			info->count++;
+			priv->vectors.stats_array[i]++;
 			if (info->irq_handle)
 				info->irq_handle(priv, info);
 
@@ -131,6 +131,12 @@ int hbg_irq_init(struct hbg_priv *priv)
 					     "failed to request irq: %s\n",
 					     irq_names_map[i]);
 	}
+
+	vectors->stats_array = devm_kcalloc(&priv->pdev->dev,
+					    ARRAY_SIZE(hbg_irqs),
+					    sizeof(u64), GFP_KERNEL);
+	if (!vectors->stats_array)
+		return -ENOMEM;
 
 	vectors->info_array = hbg_irqs;
 	vectors->info_array_len = ARRAY_SIZE(hbg_irqs);

@@ -858,7 +858,7 @@ next:
 	}
 }
 
-static void acpi_pci_root_remap_iospace(struct fwnode_handle *fwnode,
+static void acpi_pci_root_remap_iospace(const struct fwnode_handle *fwnode,
 			struct resource_entry *entry)
 {
 #ifdef PCI_IOBASE

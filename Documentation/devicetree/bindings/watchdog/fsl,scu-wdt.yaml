@@ -20,6 +20,7 @@ properties:
     items:
       - enum:
           - fsl,imx8dxl-sc-wdt
+          - fsl,imx8qm-sc-wdt
           - fsl,imx8qxp-sc-wdt
       - const: fsl,imx-sc-wdt
 

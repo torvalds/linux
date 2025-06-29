@@ -900,6 +900,8 @@ struct kfd_process *kfd_create_process(struct task_struct *thread)
 		kfd_procfs_add_sysfs_files(process);
 		kfd_procfs_add_sysfs_counters(process);
 
+		kfd_debugfs_add_process(process);
+
 		init_waitqueue_head(&process->wait_irq_drain);
 	}
 out:
@@ -1054,6 +1056,8 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 	for (i = 0; i < p->n_pdds; i++) {
 		struct kfd_process_device *pdd = p->pdds[i];
 
+		kfd_smi_event_process(pdd, false);
+
 		pr_debug("Releasing pdd (topology id %d, for pid %d)\n",
 			pdd->dev->id, p->lead_thread->pid);
 		kfd_process_device_destroy_cwsr_dgpu(pdd);
@@ -1174,6 +1178,7 @@ static void kfd_process_wq_release(struct work_struct *work)
 		dma_fence_signal(ef);
 
 	kfd_process_remove_sysfs(p);
+	kfd_debugfs_remove_process(p);
 
 	kfd_process_kunmap_signal_bo(p);
 	kfd_process_free_outstanding_kfd_bos(p);
@@ -1714,6 +1719,8 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 
 	pdd->pasid = avm->pasid;
 	pdd->drm_file = drm_file;
+
+	kfd_smi_event_process(pdd, true);
 
 	return 0;
 

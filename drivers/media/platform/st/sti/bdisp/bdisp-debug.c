@@ -455,11 +455,11 @@ static int last_request_show(struct seq_file *s, void *data)
 
 	seq_printf(s, "Format:    %s\t\t\t%s\n",
 		   bdisp_fmt_to_str(src), bdisp_fmt_to_str(dst));
-	seq_printf(s, "Crop area: %dx%d @ %d,%d  ==>\t%dx%d @ %d,%d\n",
-		   src.crop.width, src.crop.height,
+	seq_printf(s, "Crop area: (%d,%d)/%ux%u  ==>\t(%d,%d)/%ux%u\n",
 		   src.crop.left, src.crop.top,
-		   dst.crop.width, dst.crop.height,
-		   dst.crop.left, dst.crop.top);
+		   src.crop.width, src.crop.height,
+		   dst.crop.left, dst.crop.top,
+		   dst.crop.width, dst.crop.height);
 	seq_printf(s, "Buff size: %dx%d\t\t%dx%d\n\n",
 		   src.width, src.height, dst.width, dst.height);
 

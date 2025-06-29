@@ -18,7 +18,7 @@ description:
   Documentation/devicetree/bindings/phy/rockchip,inno-usb2phy.yaml
 
   Type-C PHY
-  Documentation/devicetree/bindings/phy/phy-rockchip-typec.txt
+  Documentation/devicetree/bindings/phy/rockchip,rk3399-typec-phy.yaml
 
 select:
   properties:

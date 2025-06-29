@@ -888,13 +888,13 @@ static int dps310_probe(struct i2c_client *client)
 
 static const struct i2c_device_id dps310_id[] = {
 	{ DPS310_DEV_NAME },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dps310_id);
 
 static const struct acpi_device_id dps310_acpi_match[] = {
 	{ "IFX3100" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dps310_acpi_match);
 

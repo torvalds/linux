@@ -8,7 +8,7 @@ Network Devices, the Kernel, and You!
 Introduction
 ============
 The following is a random collection of documentation regarding
-network devices.
+network devices. It is intended for driver developers.
 
 struct net_device lifetime rules
 ================================
@@ -314,13 +314,8 @@ napi->poll:
 		 softirq
 		 will be called with interrupts disabled by netconsole.
 
-struct netdev_queue_mgmt_ops synchronization rules
-==================================================
-
-All queue management ndo callbacks are holding netdev instance lock.
-
-RTNL and netdev instance lock
-=============================
+netdev instance lock
+====================
 
 Historically, all networking control operations were protected by a single
 global lock known as ``rtnl_lock``. There is an ongoing effort to replace this
@@ -328,10 +323,13 @@ global lock with separate locks for each network namespace. Additionally,
 properties of individual netdev are increasingly protected by per-netdev locks.
 
 For device drivers that implement shaping or queue management APIs, all control
-operations will be performed under the netdev instance lock. Currently, this
-instance lock is acquired within the context of ``rtnl_lock``. The drivers
-can also explicitly request instance lock to be acquired via
-``request_ops_lock``. In the future, there will be an option for individual
+operations will be performed under the netdev instance lock.
+Drivers can also explicitly request instance lock to be held during ops
+by setting ``request_ops_lock`` to true. Code comments and docs refer
+to drivers which have ops called under the instance lock as "ops locked".
+See also the documentation of the ``lock`` member of struct net_device.
+
+In the future, there will be an option for individual
 drivers to opt out of using ``rtnl_lock`` and instead perform their control
 operations directly under the netdev instance lock.
 
@@ -344,18 +342,59 @@ functions handle acquiring the instance lock themselves, while the
 ``netif_xxx`` functions assume that the driver has already acquired
 the instance lock.
 
+struct net_device_ops
+---------------------
+
+``ndos`` are called without holding the instance lock for most drivers.
+
+"Ops locked" drivers will have most of the ``ndos`` invoked under
+the instance lock.
+
+struct ethtool_ops
+------------------
+
+Similarly to ``ndos`` the instance lock is only held for select drivers.
+For "ops locked" drivers all ethtool ops without exceptions should
+be called under the instance lock.
+
+struct netdev_stat_ops
+----------------------
+
+"qstat" ops are invoked under the instance lock for "ops locked" drivers,
+and under rtnl_lock for all other drivers.
+
+struct net_shaper_ops
+---------------------
+
+All net shaper callbacks are invoked while holding the netdev instance
+lock. ``rtnl_lock`` may or may not be held.
+
+Note that supporting net shapers automatically enables "ops locking".
+
+struct netdev_queue_mgmt_ops
+----------------------------
+
+All queue management callbacks are invoked while holding the netdev instance
+lock. ``rtnl_lock`` may or may not be held.
+
+Note that supporting struct netdev_queue_mgmt_ops automatically enables
+"ops locking".
+
 Notifiers and netdev instance lock
-==================================
+----------------------------------
 
 For device drivers that implement shaping or queue management APIs,
 some of the notifiers (``enum netdev_cmd``) are running under the netdev
 instance lock.
 
+The following netdev notifiers are always run under the instance lock:
+* ``NETDEV_XDP_FEAT_CHANGE``
+
 For devices with locked ops, currently only the following notifiers are
 running under the lock:
+* ``NETDEV_CHANGE``
 * ``NETDEV_REGISTER``
 * ``NETDEV_UP``
-* ``NETDEV_CHANGE``
 
 The following notifiers are running without the lock:
 * ``NETDEV_UNREGISTER``

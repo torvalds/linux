@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/al,alpine-msix.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Alpine MSIX controller
+
+maintainers:
+  - Antoine Tenart <atenart@kernel.org>
+
+properties:
+  compatible:
+    const: al,alpine-msix
+
+  reg:
+    maxItems: 1
+
+  interrupt-parent: true
+
+  msi-controller: true
+
+  al,msi-base-spi:
+    description: SPI base of the MSI frame
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  al,msi-num-spis:
+    description: number of SPIs assigned to the MSI frame, relative to SPI0
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - msi-controller
+  - al,msi-base-spi
+  - al,msi-num-spis
+
+additionalProperties: false
+
+examples:
+  - |
+    msi-controller@fbe00000 {
+        compatible = "al,alpine-msix";
+        reg = <0xfbe00000 0x100000>;
+        interrupt-parent = <&gic>;
+        msi-controller;
+        al,msi-base-spi = <160>;
+        al,msi-num-spis = <160>;
+    };

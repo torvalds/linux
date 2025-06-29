@@ -313,3 +313,222 @@ bool netfs_release_folio(struct folio *folio, gfp_t gfp)
 	return true;
 }
 EXPORT_SYMBOL(netfs_release_folio);
+
+/*
+ * Wake the collection work item.
+ */
+void netfs_wake_collector(struct netfs_io_request *rreq)
+{
+	if (test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags) &&
+	    !test_bit(NETFS_RREQ_RETRYING, &rreq->flags)) {
+		queue_work(system_unbound_wq, &rreq->work);
+	} else {
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wake_queue);
+		wake_up(&rreq->waitq);
+	}
+}
+
+/*
+ * Mark a subrequest as no longer being in progress and, if need be, wake the
+ * collector.
+ */
+void netfs_subreq_clear_in_progress(struct netfs_io_subrequest *subreq)
+{
+	struct netfs_io_request *rreq = subreq->rreq;
+	struct netfs_io_stream *stream = &rreq->io_streams[subreq->stream_nr];
+
+	clear_bit_unlock(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
+	smp_mb__after_atomic(); /* Clear IN_PROGRESS before task state */
+
+	/* If we are at the head of the queue, wake up the collector. */
+	if (list_is_first(&subreq->rreq_link, &stream->subrequests) ||
+	    test_bit(NETFS_RREQ_RETRYING, &rreq->flags))
+		netfs_wake_collector(rreq);
+}
+
+/*
+ * Wait for all outstanding I/O in a stream to quiesce.
+ */
+void netfs_wait_for_in_progress_stream(struct netfs_io_request *rreq,
+				       struct netfs_io_stream *stream)
+{
+	struct netfs_io_subrequest *subreq;
+	DEFINE_WAIT(myself);
+
+	list_for_each_entry(subreq, &stream->subrequests, rreq_link) {
+		if (!test_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags))
+			continue;
+
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
+		for (;;) {
+			prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
+
+			if (!test_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags))
+				break;
+
+			trace_netfs_sreq(subreq, netfs_sreq_trace_wait_for);
+			schedule();
+			trace_netfs_rreq(rreq, netfs_rreq_trace_woke_queue);
+		}
+	}
+
+	finish_wait(&rreq->waitq, &myself);
+}
+
+/*
+ * Perform collection in app thread if not offloaded to workqueue.
+ */
+static int netfs_collect_in_app(struct netfs_io_request *rreq,
+				bool (*collector)(struct netfs_io_request *rreq))
+{
+	bool need_collect = false, inactive = true;
+
+	for (int i = 0; i < NR_IO_STREAMS; i++) {
+		struct netfs_io_subrequest *subreq;
+		struct netfs_io_stream *stream = &rreq->io_streams[i];
+
+		if (!stream->active)
+			continue;
+		inactive = false;
+		trace_netfs_collect_stream(rreq, stream);
+		subreq = list_first_entry_or_null(&stream->subrequests,
+						  struct netfs_io_subrequest,
+						  rreq_link);
+		if (subreq &&
+		    (!test_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags) ||
+		     test_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags))) {
+			need_collect = true;
+			break;
+		}
+	}
+
+	if (!need_collect && !inactive)
+		return 0; /* Sleep */
+
+	__set_current_state(TASK_RUNNING);
+	if (collector(rreq)) {
+		/* Drop the ref from the NETFS_RREQ_IN_PROGRESS flag. */
+		netfs_put_request(rreq, netfs_rreq_trace_put_work_ip);
+		return 1; /* Done */
+	}
+
+	if (inactive) {
+		WARN(true, "Failed to collect inactive req R=%08x\n",
+		     rreq->debug_id);
+		cond_resched();
+	}
+	return 2; /* Again */
+}
+
+/*
+ * Wait for a request to complete, successfully or otherwise.
+ */
+static ssize_t netfs_wait_for_request(struct netfs_io_request *rreq,
+				      bool (*collector)(struct netfs_io_request *rreq))
+{
+	DEFINE_WAIT(myself);
+	ssize_t ret;
+
+	for (;;) {
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
+		prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
+
+		if (!test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags)) {
+			switch (netfs_collect_in_app(rreq, collector)) {
+			case 0:
+				break;
+			case 1:
+				goto all_collected;
+			case 2:
+				continue;
+			}
+		}
+
+		if (!test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags))
+			break;
+
+		schedule();
+		trace_netfs_rreq(rreq, netfs_rreq_trace_woke_queue);
+	}
+
+all_collected:
+	finish_wait(&rreq->waitq, &myself);
+
+	ret = rreq->error;
+	if (ret == 0) {
+		ret = rreq->transferred;
+		switch (rreq->origin) {
+		case NETFS_DIO_READ:
+		case NETFS_DIO_WRITE:
+		case NETFS_READ_SINGLE:
+		case NETFS_UNBUFFERED_READ:
+		case NETFS_UNBUFFERED_WRITE:
+			break;
+		default:
+			if (rreq->submitted < rreq->len) {
+				trace_netfs_failure(rreq, NULL, ret, netfs_fail_short_read);
+				ret = -EIO;
+			}
+			break;
+		}
+	}
+
+	return ret;
+}
+
+ssize_t netfs_wait_for_read(struct netfs_io_request *rreq)
+{
+	return netfs_wait_for_request(rreq, netfs_read_collection);
+}
+
+ssize_t netfs_wait_for_write(struct netfs_io_request *rreq)
+{
+	return netfs_wait_for_request(rreq, netfs_write_collection);
+}
+
+/*
+ * Wait for a paused operation to unpause or complete in some manner.
+ */
+static void netfs_wait_for_pause(struct netfs_io_request *rreq,
+				 bool (*collector)(struct netfs_io_request *rreq))
+{
+	DEFINE_WAIT(myself);
+
+	trace_netfs_rreq(rreq, netfs_rreq_trace_wait_pause);
+
+	for (;;) {
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
+		prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
+
+		if (!test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags)) {
+			switch (netfs_collect_in_app(rreq, collector)) {
+			case 0:
+				break;
+			case 1:
+				goto all_collected;
+			case 2:
+				continue;
+			}
+		}
+
+		if (!test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags) ||
+		    !test_bit(NETFS_RREQ_PAUSE, &rreq->flags))
+			break;
+
+		schedule();
+		trace_netfs_rreq(rreq, netfs_rreq_trace_woke_queue);
+	}
+
+all_collected:
+	finish_wait(&rreq->waitq, &myself);
+}
+
+void netfs_wait_for_paused_read(struct netfs_io_request *rreq)
+{
+	return netfs_wait_for_pause(rreq, netfs_read_collection);
+}
+
+void netfs_wait_for_paused_write(struct netfs_io_request *rreq)
+{
+	return netfs_wait_for_pause(rreq, netfs_write_collection);
+}

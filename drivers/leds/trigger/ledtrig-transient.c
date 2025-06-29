@@ -32,7 +32,7 @@ struct transient_trig_data {
 static void transient_timer_function(struct timer_list *t)
 {
 	struct transient_trig_data *transient_data =
-		from_timer(transient_data, t, timer);
+		timer_container_of(transient_data, t, timer);
 	struct led_classdev *led_cdev = transient_data->led_cdev;
 
 	transient_data->activate = 0;

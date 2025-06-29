@@ -21,17 +21,15 @@
 #include "intel_display_limits.h"
 #include "intel_display_params.h"
 #include "intel_display_power.h"
+#include "intel_dmc_wl.h"
 #include "intel_dpll_mgr.h"
 #include "intel_fbc.h"
 #include "intel_global_state.h"
 #include "intel_gmbus.h"
 #include "intel_opregion.h"
-#include "intel_dmc_wl.h"
+#include "intel_pch.h"
 #include "intel_wm_types.h"
 
-struct task_struct;
-
-struct drm_i915_private;
 struct drm_property;
 struct drm_property_blob;
 struct i915_audio_component;
@@ -44,7 +42,7 @@ struct intel_color_funcs;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_dmc;
-struct intel_dpll_funcs;
+struct intel_dpll_global_funcs;
 struct intel_dpll_mgr;
 struct intel_fbdev;
 struct intel_fdi_funcs;
@@ -52,6 +50,7 @@ struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
 struct intel_opregion;
 struct intel_overlay;
+struct task_struct;
 
 /* Amount of SAGV/QGV points, BSpec precisely defines this */
 #define I915_NUM_QGV_POINTS 8
@@ -123,11 +122,11 @@ struct intel_audio {
  * intel_{prepare,enable,disable}_shared_dpll.  Must be global rather than per
  * dpll, because on some platforms plls share registers.
  */
-struct intel_dpll {
+struct intel_dpll_global {
 	struct mutex lock;
 
-	int num_shared_dpll;
-	struct intel_shared_dpll shared_dplls[I915_NUM_PLLS];
+	int num_dpll;
+	struct intel_dpll dplls[I915_NUM_PLLS];
 	const struct intel_dpll_mgr *mgr;
 
 	struct {
@@ -180,7 +179,7 @@ struct intel_hotplug {
 
 	/*
 	 * Queuing of hotplug_work, reenable_work and poll_init_work is
-	 * enabled. Protected by drm_i915_private::irq_lock.
+	 * enabled. Protected by intel_display::irq::lock.
 	 */
 	bool detection_work_enabled;
 
@@ -289,6 +288,9 @@ struct intel_display {
 	/* Platform (and subplatform, if any) identification */
 	struct intel_display_platforms platform;
 
+	/* Intel PCH: where the south display engine lives */
+	enum intel_pch pch_type;
+
 	/* Display functions */
 	struct {
 		/* Top level crtc-ish functions */
@@ -298,7 +300,7 @@ struct intel_display {
 		const struct intel_cdclk_funcs *cdclk;
 
 		/* Display pll funcs */
-		const struct intel_dpll_funcs *dpll;
+		const struct intel_dpll_global_funcs *dpll;
 
 		/* irq display functions */
 		const struct intel_hotplug_funcs *hotplug;
@@ -426,7 +428,7 @@ struct intel_display {
 		 * reused when sending message to gsc cs.
 		 * this is only populated post Meteorlake
 		 */
-		struct intel_hdcp_gsc_message *hdcp_message;
+		struct intel_hdcp_gsc_context *gsc_context;
 		/* Mutex to protect the above hdcp related values. */
 		struct mutex hdcp_mutex;
 	} hdcp;
@@ -454,6 +456,9 @@ struct intel_display {
 	} ips;
 
 	struct {
+		/* protects the irq masks */
+		spinlock_t lock;
+
 		/*
 		 * Most platforms treat the display irq block as an always-on
 		 * power domain. vlv/chv can disable it at runtime and need
@@ -466,9 +471,9 @@ struct intel_display {
 		/* For i915gm/i945gm vblank irq workaround */
 		u8 vblank_enabled;
 
-		int vblank_wa_num_pipes;
+		int vblank_enable_count;
 
-		struct work_struct vblank_dc_work;
+		struct work_struct vblank_notify_work;
 
 		u32 de_irq_mask[I915_MAX_PIPES];
 		u32 pipestat_irq_mask[I915_MAX_PIPES];
@@ -534,6 +539,11 @@ struct intel_display {
 	} sagv;
 
 	struct {
+		/* LPT/WPT IOSF sideband protection */
+		struct mutex lock;
+	} sbi;
+
+	struct {
 		/*
 		 * DG2: Mask of PHYs that were not calibrated by the firmware
 		 * and should not be used.
@@ -565,7 +575,7 @@ struct intel_display {
 	/* Grouping using named structs. Keep sorted. */
 	struct drm_dp_tunnel_mgr *dp_tunnel_mgr;
 	struct intel_audio audio;
-	struct intel_dpll dpll;
+	struct intel_dpll_global dpll;
 	struct intel_fbc *fbc[I915_MAX_FBCS];
 	struct intel_frontbuffer_tracking fb_tracking;
 	struct intel_hotplug hotplug;
@@ -575,6 +585,8 @@ struct intel_display {
 	struct intel_vbt_data vbt;
 	struct intel_dmc_wl wl;
 	struct intel_wm wm;
+
+	struct work_struct psr_dc5_dc6_wa_work;
 };
 
 #endif /* __INTEL_DISPLAY_CORE_H__ */

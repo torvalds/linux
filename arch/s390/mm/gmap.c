@@ -22,9 +22,9 @@
 #include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/machine.h>
+#include <asm/gmap_helpers.h>
 #include <asm/gmap.h>
 #include <asm/page.h>
-#include <asm/tlb.h>
 
 /*
  * The address is saved in a radix tree directly; NULL would be ambiguous,
@@ -620,62 +620,19 @@ EXPORT_SYMBOL(__gmap_link);
  */
 void __gmap_zap(struct gmap *gmap, unsigned long gaddr)
 {
-	struct vm_area_struct *vma;
 	unsigned long vmaddr;
-	spinlock_t *ptl;
-	pte_t *ptep;
+
+	mmap_assert_locked(gmap->mm);
 
 	/* Find the vm address for the guest address */
 	vmaddr = (unsigned long) radix_tree_lookup(&gmap->guest_to_host,
 						   gaddr >> PMD_SHIFT);
 	if (vmaddr) {
 		vmaddr |= gaddr & ~PMD_MASK;
-
-		vma = vma_lookup(gmap->mm, vmaddr);
-		if (!vma || is_vm_hugetlb_page(vma))
-			return;
-
-		/* Get pointer to the page table entry */
-		ptep = get_locked_pte(gmap->mm, vmaddr, &ptl);
-		if (likely(ptep)) {
-			ptep_zap_unused(gmap->mm, vmaddr, ptep, 0);
-			pte_unmap_unlock(ptep, ptl);
-		}
+		gmap_helper_zap_one_page(gmap->mm, vmaddr);
 	}
 }
 EXPORT_SYMBOL_GPL(__gmap_zap);
-
-void gmap_discard(struct gmap *gmap, unsigned long from, unsigned long to)
-{
-	unsigned long gaddr, vmaddr, size;
-	struct vm_area_struct *vma;
-
-	mmap_read_lock(gmap->mm);
-	for (gaddr = from; gaddr < to;
-	     gaddr = (gaddr + PMD_SIZE) & PMD_MASK) {
-		/* Find the vm address for the guest address */
-		vmaddr = (unsigned long)
-			radix_tree_lookup(&gmap->guest_to_host,
-					  gaddr >> PMD_SHIFT);
-		if (!vmaddr)
-			continue;
-		vmaddr |= gaddr & ~PMD_MASK;
-		/* Find vma in the parent mm */
-		vma = find_vma(gmap->mm, vmaddr);
-		if (!vma)
-			continue;
-		/*
-		 * We do not discard pages that are backed by
-		 * hugetlbfs, so we don't have to refault them.
-		 */
-		if (is_vm_hugetlb_page(vma))
-			continue;
-		size = min(to - gaddr, PMD_SIZE - (gaddr & ~PMD_MASK));
-		zap_page_range_single(vma, vmaddr, size, NULL);
-	}
-	mmap_read_unlock(gmap->mm);
-}
-EXPORT_SYMBOL_GPL(gmap_discard);
 
 static LIST_HEAD(gmap_notifier_list);
 static DEFINE_SPINLOCK(gmap_notifier_lock);
@@ -2269,138 +2226,6 @@ int s390_enable_sie(void)
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
 
-static int find_zeropage_pte_entry(pte_t *pte, unsigned long addr,
-				   unsigned long end, struct mm_walk *walk)
-{
-	unsigned long *found_addr = walk->private;
-
-	/* Return 1 of the page is a zeropage. */
-	if (is_zero_pfn(pte_pfn(*pte))) {
-		/*
-		 * Shared zeropage in e.g., a FS DAX mapping? We cannot do the
-		 * right thing and likely don't care: FAULT_FLAG_UNSHARE
-		 * currently only works in COW mappings, which is also where
-		 * mm_forbids_zeropage() is checked.
-		 */
-		if (!is_cow_mapping(walk->vma->vm_flags))
-			return -EFAULT;
-
-		*found_addr = addr;
-		return 1;
-	}
-	return 0;
-}
-
-static const struct mm_walk_ops find_zeropage_ops = {
-	.pte_entry	= find_zeropage_pte_entry,
-	.walk_lock	= PGWALK_WRLOCK,
-};
-
-/*
- * Unshare all shared zeropages, replacing them by anonymous pages. Note that
- * we cannot simply zap all shared zeropages, because this could later
- * trigger unexpected userfaultfd missing events.
- *
- * This must be called after mm->context.allow_cow_sharing was
- * set to 0, to avoid future mappings of shared zeropages.
- *
- * mm contracts with s390, that even if mm were to remove a page table,
- * and racing with walk_page_range_vma() calling pte_offset_map_lock()
- * would fail, it will never insert a page table containing empty zero
- * pages once mm_forbids_zeropage(mm) i.e.
- * mm->context.allow_cow_sharing is set to 0.
- */
-static int __s390_unshare_zeropages(struct mm_struct *mm)
-{
-	struct vm_area_struct *vma;
-	VMA_ITERATOR(vmi, mm, 0);
-	unsigned long addr;
-	vm_fault_t fault;
-	int rc;
-
-	for_each_vma(vmi, vma) {
-		/*
-		 * We could only look at COW mappings, but it's more future
-		 * proof to catch unexpected zeropages in other mappings and
-		 * fail.
-		 */
-		if ((vma->vm_flags & VM_PFNMAP) || is_vm_hugetlb_page(vma))
-			continue;
-		addr = vma->vm_start;
-
-retry:
-		rc = walk_page_range_vma(vma, addr, vma->vm_end,
-					 &find_zeropage_ops, &addr);
-		if (rc < 0)
-			return rc;
-		else if (!rc)
-			continue;
-
-		/* addr was updated by find_zeropage_pte_entry() */
-		fault = handle_mm_fault(vma, addr,
-					FAULT_FLAG_UNSHARE | FAULT_FLAG_REMOTE,
-					NULL);
-		if (fault & VM_FAULT_OOM)
-			return -ENOMEM;
-		/*
-		 * See break_ksm(): even after handle_mm_fault() returned 0, we
-		 * must start the lookup from the current address, because
-		 * handle_mm_fault() may back out if there's any difficulty.
-		 *
-		 * VM_FAULT_SIGBUS and VM_FAULT_SIGSEGV are unexpected but
-		 * maybe they could trigger in the future on concurrent
-		 * truncation. In that case, the shared zeropage would be gone
-		 * and we can simply retry and make progress.
-		 */
-		cond_resched();
-		goto retry;
-	}
-
-	return 0;
-}
-
-static int __s390_disable_cow_sharing(struct mm_struct *mm)
-{
-	int rc;
-
-	if (!mm->context.allow_cow_sharing)
-		return 0;
-
-	mm->context.allow_cow_sharing = 0;
-
-	/* Replace all shared zeropages by anonymous pages. */
-	rc = __s390_unshare_zeropages(mm);
-	/*
-	 * Make sure to disable KSM (if enabled for the whole process or
-	 * individual VMAs). Note that nothing currently hinders user space
-	 * from re-enabling it.
-	 */
-	if (!rc)
-		rc = ksm_disable(mm);
-	if (rc)
-		mm->context.allow_cow_sharing = 1;
-	return rc;
-}
-
-/*
- * Disable most COW-sharing of memory pages for the whole process:
- * (1) Disable KSM and unmerge/unshare any KSM pages.
- * (2) Disallow shared zeropages and unshare any zerpages that are mapped.
- *
- * Not that we currently don't bother with COW-shared pages that are shared
- * with parent/child processes due to fork().
- */
-int s390_disable_cow_sharing(void)
-{
-	int rc;
-
-	mmap_write_lock(current->mm);
-	rc = __s390_disable_cow_sharing(current->mm);
-	mmap_write_unlock(current->mm);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(s390_disable_cow_sharing);
-
 /*
  * Enable storage key handling from now on and initialize the storage
  * keys with the default key.
@@ -2468,7 +2293,7 @@ int s390_enable_skey(void)
 		goto out_up;
 
 	mm->context.uses_skeys = 1;
-	rc = __s390_disable_cow_sharing(mm);
+	rc = gmap_helper_disable_cow_sharing();
 	if (rc) {
 		mm->context.uses_skeys = 0;
 		goto out_up;

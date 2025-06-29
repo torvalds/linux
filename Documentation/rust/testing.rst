@@ -133,13 +133,85 @@ please see:
 The ``#[test]`` tests
 ---------------------
 
-Additionally, there are the ``#[test]`` tests. These can be run using the
-``rusttest`` Make target::
+Additionally, there are the ``#[test]`` tests. Like for documentation tests,
+these are also fairly similar to what you would expect from userspace, and they
+are also mapped to KUnit.
+
+These tests are introduced by the ``kunit_tests`` procedural macro, which takes
+the name of the test suite as an argument.
+
+For instance, assume we want to test the function ``f`` from the documentation
+tests section. We could write, in the same file where we have our function:
+
+.. code-block:: rust
+
+	#[kunit_tests(rust_kernel_mymod)]
+	mod tests {
+	    use super::*;
+
+	    #[test]
+	    fn test_f() {
+	        assert_eq!(f(10, 20), 30);
+	    }
+	}
+
+And if we run it, the kernel log would look like::
+
+	    KTAP version 1
+	    # Subtest: rust_kernel_mymod
+	    # speed: normal
+	    1..1
+	    # test_f.speed: normal
+	    ok 1 test_f
+	ok 1 rust_kernel_mymod
+
+Like documentation tests, the ``assert!`` and ``assert_eq!`` macros are mapped
+back to KUnit and do not panic. Similarly, the
+`? <https://doc.rust-lang.org/reference/expressions/operator-expr.html#the-question-mark-operator>`_
+operator is supported, i.e. the test functions may return either nothing (i.e.
+the unit type ``()``) or ``Result`` (i.e. any ``Result<T, E>``). For instance:
+
+.. code-block:: rust
+
+	#[kunit_tests(rust_kernel_mymod)]
+	mod tests {
+	    use super::*;
+
+	    #[test]
+	    fn test_g() -> Result {
+	        let x = g()?;
+	        assert_eq!(x, 30);
+	        Ok(())
+	    }
+	}
+
+If we run the test and the call to ``g`` fails, then the kernel log would show::
+
+	    KTAP version 1
+	    # Subtest: rust_kernel_mymod
+	    # speed: normal
+	    1..1
+	    # test_g: ASSERTION FAILED at rust/kernel/lib.rs:335
+	    Expected is_test_result_ok(test_g()) to be true, but is false
+	    # test_g.speed: normal
+	    not ok 1 test_g
+	not ok 1 rust_kernel_mymod
+
+If a ``#[test]`` test could be useful as an example for the user, then please
+use a documentation test instead. Even edge cases of an API, e.g. error or
+boundary cases, can be interesting to show in examples.
+
+The ``rusttest`` host tests
+---------------------------
+
+These are userspace tests that can be built and run in the host (i.e. the one
+that performs the kernel build) using the ``rusttest`` Make target::
 
 	make LLVM=1 rusttest
 
-This requires the kernel ``.config``. It runs the ``#[test]`` tests on the host
-(currently) and thus is fairly limited in what these tests can test.
+This requires the kernel ``.config``.
+
+Currently, they are mostly used for testing the ``macros`` crate's examples.
 
 The Kselftests
 --------------

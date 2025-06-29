@@ -1,6 +1,6 @@
 What:		/sys/bus/hid/drivers/hid-appletb-kbd/<dev>/mode
-Date:		September, 2023
-KernelVersion:	6.5
+Date:		March, 2025
+KernelVersion:	6.15
 Contact:	linux-input@vger.kernel.org
 Description:
 		The set of keys displayed on the Touch Bar.

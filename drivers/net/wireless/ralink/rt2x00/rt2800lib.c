@@ -9393,7 +9393,7 @@ static void rt2800_loft_search(struct rt2x00_dev *rt2x00dev, u8 ch_idx,
 				   p0, p1, pf, idx0, idx1, ibit);
 
 			if (bidx != 5 && pf <= p0 && pf < p1) {
-				idxf[iorq] = idxf[iorq];
+				/* no need to adjust idxf[] */;
 			} else if (p0 < p1) {
 				pf = p0;
 				idxf[iorq] = idx0 & 0x3F;

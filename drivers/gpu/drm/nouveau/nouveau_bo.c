@@ -401,6 +401,83 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	return 0;
 }
 
+void
+nouveau_bo_unpin_del(struct nouveau_bo **pnvbo)
+{
+	struct nouveau_bo *nvbo = *pnvbo;
+
+	if (!nvbo)
+		return;
+
+	nouveau_bo_unmap(nvbo);
+	nouveau_bo_unpin(nvbo);
+	nouveau_bo_fini(nvbo);
+
+	*pnvbo = NULL;
+}
+
+int
+nouveau_bo_new_pin(struct nouveau_cli *cli, u32 domain, u32 size, struct nouveau_bo **pnvbo)
+{
+	struct nouveau_bo *nvbo;
+	int ret;
+
+	ret = nouveau_bo_new(cli, size, 0, domain, 0, 0, NULL, NULL, &nvbo);
+	if (ret)
+		return ret;
+
+	ret = nouveau_bo_pin(nvbo, domain, false);
+	if (ret) {
+		nouveau_bo_fini(nvbo);
+		return ret;
+	}
+
+	*pnvbo = nvbo;
+	return 0;
+}
+
+int
+nouveau_bo_new_map(struct nouveau_cli *cli, u32 domain, u32 size, struct nouveau_bo **pnvbo)
+{
+	struct nouveau_bo *nvbo;
+	int ret;
+
+	ret = nouveau_bo_new_pin(cli, domain, size, &nvbo);
+	if (ret)
+		return ret;
+
+	ret = nouveau_bo_map(nvbo);
+	if (ret) {
+		nouveau_bo_unpin_del(&nvbo);
+		return ret;
+	}
+
+	*pnvbo = nvbo;
+	return 0;
+}
+
+int
+nouveau_bo_new_map_gpu(struct nouveau_cli *cli, u32 domain, u32 size,
+		       struct nouveau_bo **pnvbo, struct nouveau_vma **pvma)
+{
+	struct nouveau_vmm *vmm = nouveau_cli_vmm(cli);
+	struct nouveau_bo *nvbo;
+	int ret;
+
+	ret = nouveau_bo_new_map(cli, domain, size, &nvbo);
+	if (ret)
+		return ret;
+
+	ret = nouveau_vma_new(nvbo, vmm, pvma);
+	if (ret) {
+		nouveau_bo_unpin_del(&nvbo);
+		return ret;
+	}
+
+	*pnvbo = nvbo;
+	return 0;
+}
+
 static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t domain)
 {
@@ -923,6 +1000,9 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_resource *, struct ttm_resource *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
+		{  "COPY", 4, 0xcab5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "COPY", 4, 0xc9b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "COPY", 4, 0xc8b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "COPY", 4, 0xc7b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xc7b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xc6b5, nve0_bo_move_copy, nve0_bo_move_init },
@@ -1204,7 +1284,7 @@ retry:
 		fallthrough;	/* tiled memory */
 	case TTM_PL_VRAM:
 		reg->bus.offset = (reg->start << PAGE_SHIFT) +
-			device->func->resource_addr(device, 1);
+			device->func->resource_addr(device, NVKM_BAR1_FB);
 		reg->bus.is_iomem = true;
 
 		/* Some BARs do not support being ioremapped WC */
@@ -1295,7 +1375,7 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvkm_device *device = nvxx_device(drm);
-	u32 mappable = device->func->resource_size(device, 1) >> PAGE_SHIFT;
+	u32 mappable = device->func->resource_size(device, NVKM_BAR1_FB) >> PAGE_SHIFT;
 	int i, ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got

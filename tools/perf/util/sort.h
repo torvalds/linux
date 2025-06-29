@@ -73,6 +73,7 @@ enum sort_type {
 	SORT_SYM_OFFSET,
 	SORT_ANNOTATE_DATA_TYPE_CACHELINE,
 	SORT_PARALLELISM,
+	SORT_TGID,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,
@@ -146,7 +147,7 @@ void reset_dimensions(void);
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			struct evlist *evlist,
 			int level);
-int output_field_add(struct perf_hpp_list *list, const char *tok);
+int output_field_add(struct perf_hpp_list *list, const char *tok, int *level);
 int64_t
 sort__iaddr_cmp(struct hist_entry *left, struct hist_entry *right);
 int64_t

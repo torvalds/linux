@@ -36,14 +36,10 @@ struct move_bucket_key {
 };
 
 struct move_bucket {
+	struct move_bucket	*next;
+	struct rhash_head	hash;
 	struct move_bucket_key	k;
 	unsigned		sectors;
-};
-
-struct move_bucket_in_flight {
-	struct move_bucket_in_flight *next;
-	struct rhash_head	hash;
-	struct move_bucket	bucket;
 	atomic_t		count;
 };
 

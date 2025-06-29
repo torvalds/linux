@@ -62,7 +62,7 @@ void ath6kl_recovery_hb_event(struct ath6kl *ar, u32 cookie)
 
 static void ath6kl_recovery_hb_timer(struct timer_list *t)
 {
-	struct ath6kl *ar = from_timer(ar, t, fw_recovery.hb_timer);
+	struct ath6kl *ar = timer_container_of(ar, t, fw_recovery.hb_timer);
 	int err;
 
 	if (test_bit(RECOVERY_CLEANUP, &ar->flag) ||

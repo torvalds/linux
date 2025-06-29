@@ -121,7 +121,7 @@ static const struct platform_device_id cros_ec_lid_angle_ids[] = {
 	{
 		.name = DRV_NAME,
 	},
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_lid_angle_ids);
 

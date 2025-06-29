@@ -2074,7 +2074,8 @@ static void fdls_fdmi_register_pa(struct fnic_iport_s *iport)
 
 void fdls_fabric_timer_callback(struct timer_list *t)
 {
-	struct fnic_fdls_fabric_s *fabric = from_timer(fabric, t, retry_timer);
+	struct fnic_fdls_fabric_s *fabric = timer_container_of(fabric, t,
+							       retry_timer);
 	struct fnic_iport_s *iport =
 		container_of(fabric, struct fnic_iport_s, fabric);
 	struct fnic *fnic = iport->fnic;
@@ -2246,7 +2247,8 @@ void fdls_fabric_timer_callback(struct timer_list *t)
 
 void fdls_fdmi_timer_callback(struct timer_list *t)
 {
-	struct fnic_fdls_fabric_s *fabric = from_timer(fabric, t, fdmi_timer);
+	struct fnic_fdls_fabric_s *fabric = timer_container_of(fabric, t,
+							       fdmi_timer);
 	struct fnic_iport_s *iport =
 		container_of(fabric, struct fnic_iport_s, fabric);
 	struct fnic *fnic = iport->fnic;
@@ -2323,7 +2325,7 @@ static void fdls_send_delete_tport_msg(struct fnic_tport_s *tport)
 
 static void fdls_tport_timer_callback(struct timer_list *t)
 {
-	struct fnic_tport_s *tport = from_timer(tport, t, retry_timer);
+	struct fnic_tport_s *tport = timer_container_of(tport, t, retry_timer);
 	struct fnic_iport_s *iport = (struct fnic_iport_s *) tport->iport;
 	struct fnic *fnic = iport->fnic;
 	uint16_t oxid;

@@ -37,6 +37,6 @@
     {
         "Unit": "CHACMS",
         "CountersNumFixed": "0",
-        "CountersNumGeneric": 4
+        "CountersNumGeneric": "4"
     }
 ]

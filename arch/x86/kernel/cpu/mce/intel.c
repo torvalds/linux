@@ -94,7 +94,7 @@ static bool cmci_supported(int *banks)
 	if (!boot_cpu_has(X86_FEATURE_APIC) || lapic_get_maxlvt() < 6)
 		return false;
 
-	rdmsrl(MSR_IA32_MCG_CAP, cap);
+	rdmsrq(MSR_IA32_MCG_CAP, cap);
 	*banks = min_t(unsigned, MAX_NR_BANKS, cap & MCG_BANKCNT_MASK);
 	return !!(cap & MCG_CMCI_P);
 }
@@ -106,7 +106,7 @@ static bool lmce_supported(void)
 	if (mca_cfg.lmce_disabled)
 		return false;
 
-	rdmsrl(MSR_IA32_MCG_CAP, tmp);
+	rdmsrq(MSR_IA32_MCG_CAP, tmp);
 
 	/*
 	 * LMCE depends on recovery support in the processor. Hence both
@@ -123,7 +123,7 @@ static bool lmce_supported(void)
 	 * WARN if the MSR isn't locked as init_ia32_feat_ctl() unconditionally
 	 * locks the MSR in the event that it wasn't already locked by BIOS.
 	 */
-	rdmsrl(MSR_IA32_FEAT_CTL, tmp);
+	rdmsrq(MSR_IA32_FEAT_CTL, tmp);
 	if (WARN_ON_ONCE(!(tmp & FEAT_CTL_LOCKED)))
 		return false;
 
@@ -141,9 +141,9 @@ static void cmci_set_threshold(int bank, int thresh)
 	u64 val;
 
 	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
-	rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
+	rdmsrq(MSR_IA32_MCx_CTL2(bank), val);
 	val &= ~MCI_CTL2_CMCI_THRESHOLD_MASK;
-	wrmsrl(MSR_IA32_MCx_CTL2(bank), val | thresh);
+	wrmsrq(MSR_IA32_MCx_CTL2(bank), val | thresh);
 	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
 }
 
@@ -184,7 +184,7 @@ static bool cmci_skip_bank(int bank, u64 *val)
 	if (test_bit(bank, mce_banks_ce_disabled))
 		return true;
 
-	rdmsrl(MSR_IA32_MCx_CTL2(bank), *val);
+	rdmsrq(MSR_IA32_MCx_CTL2(bank), *val);
 
 	/* Already owned by someone else? */
 	if (*val & MCI_CTL2_CMCI_EN) {
@@ -232,8 +232,8 @@ static void cmci_claim_bank(int bank, u64 val, int bios_zero_thresh, int *bios_w
 	struct mca_storm_desc *storm = this_cpu_ptr(&storm_desc);
 
 	val |= MCI_CTL2_CMCI_EN;
-	wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
-	rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
+	wrmsrq(MSR_IA32_MCx_CTL2(bank), val);
+	rdmsrq(MSR_IA32_MCx_CTL2(bank), val);
 
 	/* If the enable bit did not stick, this bank should be polled. */
 	if (!(val & MCI_CTL2_CMCI_EN)) {
@@ -324,9 +324,9 @@ static void __cmci_disable_bank(int bank)
 
 	if (!test_bit(bank, this_cpu_ptr(mce_banks_owned)))
 		return;
-	rdmsrl(MSR_IA32_MCx_CTL2(bank), val);
+	rdmsrq(MSR_IA32_MCx_CTL2(bank), val);
 	val &= ~MCI_CTL2_CMCI_EN;
-	wrmsrl(MSR_IA32_MCx_CTL2(bank), val);
+	wrmsrq(MSR_IA32_MCx_CTL2(bank), val);
 	__clear_bit(bank, this_cpu_ptr(mce_banks_owned));
 
 	if ((val & MCI_CTL2_CMCI_THRESHOLD_MASK) == CMCI_STORM_THRESHOLD)
@@ -430,10 +430,10 @@ void intel_init_lmce(void)
 	if (!lmce_supported())
 		return;
 
-	rdmsrl(MSR_IA32_MCG_EXT_CTL, val);
+	rdmsrq(MSR_IA32_MCG_EXT_CTL, val);
 
 	if (!(val & MCG_EXT_CTL_LMCE_EN))
-		wrmsrl(MSR_IA32_MCG_EXT_CTL, val | MCG_EXT_CTL_LMCE_EN);
+		wrmsrq(MSR_IA32_MCG_EXT_CTL, val | MCG_EXT_CTL_LMCE_EN);
 }
 
 void intel_clear_lmce(void)
@@ -443,9 +443,9 @@ void intel_clear_lmce(void)
 	if (!lmce_supported())
 		return;
 
-	rdmsrl(MSR_IA32_MCG_EXT_CTL, val);
+	rdmsrq(MSR_IA32_MCG_EXT_CTL, val);
 	val &= ~MCG_EXT_CTL_LMCE_EN;
-	wrmsrl(MSR_IA32_MCG_EXT_CTL, val);
+	wrmsrq(MSR_IA32_MCG_EXT_CTL, val);
 }
 
 /*
@@ -460,10 +460,10 @@ static void intel_imc_init(struct cpuinfo_x86 *c)
 	case INTEL_SANDYBRIDGE_X:
 	case INTEL_IVYBRIDGE_X:
 	case INTEL_HASWELL_X:
-		if (rdmsrl_safe(MSR_ERROR_CONTROL, &error_control))
+		if (rdmsrq_safe(MSR_ERROR_CONTROL, &error_control))
 			return;
 		error_control |= 2;
-		wrmsrl_safe(MSR_ERROR_CONTROL, error_control);
+		wrmsrq_safe(MSR_ERROR_CONTROL, error_control);
 		break;
 	}
 }

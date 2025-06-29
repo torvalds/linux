@@ -63,6 +63,9 @@ static void test_set_global_vars_succeeds(void)
 	    " -G \"var_eb = EB2\" "\
 	    " -G \"var_ec = EC2\" "\
 	    " -G \"var_b = 1\" "\
+	    " -G \"struct1.struct2.u.var_u8 = 170\" "\
+	    " -G \"union1.struct3.var_u8_l = 0xaa\" "\
+	    " -G \"union1.struct3.var_u8_h = 0xaa\" "\
 	    "-vl2 > %s", fix->veristat, fix->tmpfile);
 
 	read(fix->fd, fix->output, fix->sz);
@@ -78,6 +81,8 @@ static void test_set_global_vars_succeeds(void)
 	__CHECK_STR("_w=12 ", "var_eb = EB2");
 	__CHECK_STR("_w=13 ", "var_ec = EC2");
 	__CHECK_STR("_w=1 ", "var_b = 1");
+	__CHECK_STR("_w=170 ", "struct1.struct2.u.var_u8 = 170");
+	__CHECK_STR("_w=0xaaaa ", "union1.var_u16 = 0xaaaa");
 
 out:
 	teardown_fixture(fix);

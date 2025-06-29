@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cache/marvell,tauros2-cache.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Tauros2 Cache
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  compatible:
+    const: marvell,tauros2-cache
+
+  marvell,tauros2-cache-features:
+    description: >
+      Specify the features supported for the tauros2 cache. The features include:
+
+        - CACHE_TAUROS2_PREFETCH_ON (1 << 0)
+        - CACHE_TAUROS2_LINEFILL_BURST8 (1 << 1)
+
+      The definition can be found at arch/arm/include/asm/hardware/cache-tauros2.h
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 0x3
+
+required:
+  - compatible
+  - marvell,tauros2-cache-features
+
+additionalProperties: false
+
+examples:
+  - |
+    l2-cache {
+        compatible = "marvell,tauros2-cache";
+        marvell,tauros2-cache-features = <0x3>;
+    };

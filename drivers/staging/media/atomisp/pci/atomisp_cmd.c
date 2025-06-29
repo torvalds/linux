@@ -87,7 +87,7 @@ static unsigned short atomisp_get_sensor_fps(struct atomisp_sub_device *asd)
 	unsigned short fps = 0;
 	int ret;
 
-	ret = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].camera,
+	ret = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].sensor,
 					    pad, get_frame_interval, &fi);
 
 	if (!ret && fi.interval.numerator)
@@ -881,7 +881,8 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 	spin_unlock_irqrestore(&isp->lock, flags);
 
 	/* stream off sensor */
-	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].camera, video, s_stream, 0);
+	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].csi_remote_source,
+			       video, s_stream, 0);
 	if (ret)
 		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
 
@@ -936,7 +937,8 @@ void atomisp_assert_recovery_work(struct work_struct *work)
 	/* Requeue unprocessed per-frame parameters. */
 	atomisp_recover_params_queue(&isp->asd.video_out);
 
-	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].camera, video, s_stream, 1);
+	ret = v4l2_subdev_call(isp->inputs[isp->asd.input_curr].csi_remote_source,
+			       video, s_stream, 1);
 	if (ret)
 		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
 
@@ -3124,7 +3126,7 @@ int atomisp_color_effect(struct atomisp_sub_device *asd, int flag,
 	control.id = V4L2_CID_COLORFX;
 	control.value = *effect;
 	ret =
-	    v4l2_s_ctrl(NULL, isp->inputs[asd->input_curr].camera->ctrl_handler,
+	    v4l2_s_ctrl(NULL, isp->inputs[asd->input_curr].sensor->ctrl_handler,
 			&control);
 	/*
 	 * if set color effect to sensor successfully, return
@@ -3620,16 +3622,16 @@ int atomisp_s_sensor_power(struct atomisp_device *isp, unsigned int input, bool 
 {
 	int ret;
 
-	if (isp->inputs[input].camera_on == on)
+	if (isp->inputs[input].sensor_on == on)
 		return 0;
 
-	ret = v4l2_subdev_call(isp->inputs[input].camera, core, s_power, on);
+	ret = v4l2_subdev_call(isp->inputs[input].sensor, core, s_power, on);
 	if (ret && ret != -ENOIOCTLCMD) {
 		dev_err(isp->dev, "Error setting sensor power %d: %d\n", on, ret);
 		return ret;
 	}
 
-	isp->inputs[input].camera_on = on;
+	isp->inputs[input].sensor_on = on;
 	return 0;
 }
 
@@ -3677,7 +3679,7 @@ void atomisp_setup_input_links(struct atomisp_device *isp)
 		 * will end up calling atomisp_link_setup() which calls this
 		 * function again leading to endless recursion.
 		 */
-		if (isp->sensor_subdevs[i] == isp->inputs[isp->asd.input_curr].camera)
+		if (isp->sensor_subdevs[i] == isp->inputs[isp->asd.input_curr].csi_remote_source)
 			link->flags |= MEDIA_LNK_FL_ENABLED;
 		else
 			link->flags &= ~MEDIA_LNK_FL_ENABLED;
@@ -3704,7 +3706,7 @@ static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 	struct v4l2_subdev_state *sd_state;
 	int ret = 0;
 
-	if (!input->camera)
+	if (!input->sensor)
 		return -EINVAL;
 
 	/*
@@ -3719,7 +3721,7 @@ static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 	}
 
 	sd_state = (which == V4L2_SUBDEV_FORMAT_TRY) ? input->try_sd_state :
-						       input->camera->active_state;
+						       input->sensor->active_state;
 	if (sd_state)
 		v4l2_subdev_lock_state(sd_state);
 
@@ -3740,20 +3742,44 @@ static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 	sel.r.left = ((input->native_rect.width - sel.r.width) / 2) & ~1;
 	sel.r.top = ((input->native_rect.height - sel.r.height) / 2) & ~1;
 
-	ret = v4l2_subdev_call(input->camera, pad, set_selection, sd_state, &sel);
+	ret = v4l2_subdev_call(input->sensor, pad, set_selection, sd_state, &sel);
 	if (ret)
-		dev_err(isp->dev, "Error setting crop to %ux%u @%ux%u: %d\n",
-			sel.r.width, sel.r.height, sel.r.left, sel.r.top, ret);
+		dev_err(isp->dev, "Error setting crop to (%d,%d)/%ux%u: %d\n",
+			sel.r.left, sel.r.top, sel.r.width, sel.r.height, ret);
 
 set_fmt:
-	if (ret == 0)
-		ret = v4l2_subdev_call(input->camera, pad, set_fmt, sd_state, &format);
+	if (ret == 0) {
+		ret = v4l2_subdev_call(input->sensor, pad, set_fmt, sd_state, &format);
+		dev_dbg(isp->dev, "Set sensor format ret: %d size %dx%d\n",
+			ret, format.format.width, format.format.height);
+	}
 
 	if (sd_state)
 		v4l2_subdev_unlock_state(sd_state);
 
+	/* Propagate new fmt to sensor ISP */
+	if (ret == 0 && which == V4L2_SUBDEV_FORMAT_ACTIVE && input->sensor_isp) {
+		sd_state = v4l2_subdev_lock_and_get_active_state(input->sensor_isp);
+
+		format.pad = SENSOR_ISP_PAD_SINK;
+		ret = v4l2_subdev_call(input->sensor_isp, pad, set_fmt, sd_state, &format);
+		dev_dbg(isp->dev, "Set sensor ISP sink format ret: %d size %dx%d\n",
+			ret, format.format.width, format.format.height);
+
+		if (ret == 0) {
+			format.pad = SENSOR_ISP_PAD_SOURCE;
+			ret = v4l2_subdev_call(input->sensor_isp, pad, set_fmt, sd_state, &format);
+			dev_dbg(isp->dev, "Set sensor ISP source format ret: %d size %dx%d\n",
+				ret, format.format.width, format.format.height);
+		}
+
+		if (sd_state)
+			v4l2_subdev_unlock_state(sd_state);
+	}
+
 	/* Propagate new fmt to CSI port */
-	if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+	if (ret == 0 && which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+		format.pad = CSI2_PAD_SINK;
 		ret = v4l2_subdev_call(input->csi_port, pad, set_fmt, NULL, &format);
 		if (ret)
 			return ret;
@@ -3784,9 +3810,14 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 			return -EINVAL;
 	}
 
-	/* The preview pipeline does not support width > 1920 */
-	if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW)
-		f->width = min_t(u32, f->width, 1920);
+	/*
+	 * The preview pipeline does not support width > 1920. Also limit height
+	 * to avoid sensor drivers still picking a too wide resolution.
+	 */
+	if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
+		f->width = min(f->width, 1920U);
+		f->height = min(f->height, 1440U);
+	}
 
 	/*
 	 * atomisp_set_fmt() will set the sensor resolution to the requested
@@ -3875,7 +3906,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 	u32 mipi_port, metadata_width = 0, metadata_height = 0;
 
 	ctrl.id = V4L2_CID_LINK_FREQ;
-	if (v4l2_g_ctrl(input->camera->ctrl_handler, &ctrl) == 0)
+	if (v4l2_g_ctrl(input->sensor->ctrl_handler, &ctrl) == 0)
 		mipi_freq = ctrl.value;
 
 	if (asd->stream_env[stream_id].isys_configs == 1) {
@@ -4038,7 +4069,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	if (!format)
 		return -EINVAL;
 
-	mipi_info = atomisp_to_sensor_mipi_info(input->camera);
+	mipi_info = atomisp_to_sensor_mipi_info(input->sensor);
 
 	if (atomisp_set_sensor_mipi_to_isp(asd, ATOMISP_INPUT_STREAM_GENERAL,
 					   mipi_info))

@@ -8,10 +8,12 @@
  */
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
+#include <crypto/internal/skcipher.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/types.h>
-#include <linux/crypto.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
 #include <asm/vio.h>
 
 #include "nx_csbcpb.h"

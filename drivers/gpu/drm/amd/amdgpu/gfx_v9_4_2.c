@@ -1547,7 +1547,7 @@ static void gfx_v9_4_2_log_utc_edc_count(struct amdgpu_device *adev,
 {
 	uint32_t bank, way, mem;
 	static const char * const vml2_way_str[] = { "BIGK", "4K" };
-	static const char * const utcl2_rounter_str[] = { "VMC", "APT" };
+	static const char * const utcl2_router_str[] = { "VMC", "APT" };
 
 	mem = instance % blk->num_mem_blocks;
 	way = (instance / blk->num_mem_blocks) % blk->num_ways;
@@ -1568,7 +1568,7 @@ static void gfx_v9_4_2_log_utc_edc_count(struct amdgpu_device *adev,
 		dev_info(
 			adev->dev,
 			"GFX SubBlock UTCL2_ROUTER_IFIF%d_GROUP0_%s, SED %d, DED %d\n",
-			bank, utcl2_rounter_str[mem], sec_cnt, ded_cnt);
+			bank, utcl2_router_str[mem], sec_cnt, ded_cnt);
 		break;
 	case ATC_L2_CACHE_2M:
 		dev_info(

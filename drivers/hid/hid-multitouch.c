@@ -1745,7 +1745,7 @@ static void mt_release_contacts(struct hid_device *hid)
 
 static void mt_expired_timeout(struct timer_list *t)
 {
-	struct mt_device *td = from_timer(td, t, release_timer);
+	struct mt_device *td = timer_container_of(td, t, release_timer);
 	struct hid_device *hdev = td->hdev;
 
 	/*
@@ -1885,6 +1885,16 @@ static void mt_remove(struct hid_device *hdev)
 
 	sysfs_remove_group(&hdev->dev.kobj, &mt_attribute_group);
 	hid_hw_stop(hdev);
+}
+
+static void mt_on_hid_hw_open(struct hid_device *hdev)
+{
+	mt_set_modes(hdev, HID_LATENCY_NORMAL, TOUCHPAD_REPORT_ALL);
+}
+
+static void mt_on_hid_hw_close(struct hid_device *hdev)
+{
+	mt_set_modes(hdev, HID_LATENCY_HIGH, TOUCHPAD_REPORT_NONE);
 }
 
 /*
@@ -2354,5 +2364,7 @@ static struct hid_driver mt_driver = {
 	.suspend = pm_ptr(mt_suspend),
 	.reset_resume = pm_ptr(mt_reset_resume),
 	.resume = pm_ptr(mt_resume),
+	.on_hid_hw_open = mt_on_hid_hw_open,
+	.on_hid_hw_close = mt_on_hid_hw_close,
 };
 module_hid_driver(mt_driver);

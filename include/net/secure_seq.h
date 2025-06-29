@@ -16,9 +16,5 @@ u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
 		     __be16 sport, __be16 dport);
 u32 secure_tcpv6_ts_off(const struct net *net,
 			const __be32 *saddr, const __be32 *daddr);
-u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
-				__be16 sport, __be16 dport);
-u64 secure_dccpv6_sequence_number(__be32 *saddr, __be32 *daddr,
-				  __be16 sport, __be16 dport);
 
 #endif /* _NET_SECURE_SEQ */

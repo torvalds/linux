@@ -74,6 +74,11 @@
 # define BOOT_STACK_SIZE	0x1000
 #endif
 
+#define TRAMPOLINE_32BIT_SIZE		(2 * PAGE_SIZE)
+
+#define TRAMPOLINE_32BIT_CODE_OFFSET	PAGE_SIZE
+#define TRAMPOLINE_32BIT_CODE_SIZE	0xA0
+
 #ifndef __ASSEMBLER__
 extern unsigned int output_len;
 extern const unsigned long kernel_text_size;
@@ -83,6 +88,11 @@ unsigned long decompress_kernel(unsigned char *outbuf, unsigned long virt_addr,
 				void (*error)(char *x));
 
 extern struct boot_params *boot_params_ptr;
+extern unsigned long *trampoline_32bit;
+extern const u16 trampoline_ljmp_imm_offset;
+
+void trampoline_32bit_src(void *trampoline, bool enable_5lvl);
+
 #endif
 
 #endif /* _ASM_X86_BOOT_H */

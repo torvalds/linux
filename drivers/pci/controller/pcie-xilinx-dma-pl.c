@@ -470,10 +470,10 @@ static int xilinx_pl_dma_pcie_init_msi_irq_domain(struct pl_dma_pcie *port)
 	struct device *dev = port->dev;
 	struct xilinx_msi *msi = &port->msi;
 	int size = BITS_TO_LONGS(XILINX_NUM_MSI_IRQS) * sizeof(long);
-	struct fwnode_handle *fwnode = of_node_to_fwnode(port->dev->of_node);
+	struct fwnode_handle *fwnode = of_fwnode_handle(port->dev->of_node);
 
-	msi->dev_domain = irq_domain_add_linear(NULL, XILINX_NUM_MSI_IRQS,
-						&dev_msi_domain_ops, port);
+	msi->dev_domain = irq_domain_create_linear(NULL, XILINX_NUM_MSI_IRQS,
+						   &dev_msi_domain_ops, port);
 	if (!msi->dev_domain)
 		goto out;
 
@@ -585,15 +585,15 @@ static int xilinx_pl_dma_pcie_init_irq_domain(struct pl_dma_pcie *port)
 		return -EINVAL;
 	}
 
-	port->pldma_domain = irq_domain_add_linear(pcie_intc_node, 32,
-						   &event_domain_ops, port);
+	port->pldma_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node), 32,
+						      &event_domain_ops, port);
 	if (!port->pldma_domain)
 		return -ENOMEM;
 
 	irq_domain_update_bus_token(port->pldma_domain, DOMAIN_BUS_NEXUS);
 
-	port->intx_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
-						  &intx_domain_ops, port);
+	port->intx_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node), PCI_NUM_INTX,
+						     &intx_domain_ops, port);
 	if (!port->intx_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
 		return -ENOMEM;

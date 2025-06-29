@@ -29,6 +29,8 @@ struct nv_device_info_v0 {
 #define NV_DEVICE_INFO_V0_TURING                                           0x0c
 #define NV_DEVICE_INFO_V0_AMPERE                                           0x0d
 #define NV_DEVICE_INFO_V0_ADA                                              0x0e
+#define NV_DEVICE_INFO_V0_HOPPER                                           0x0f
+#define NV_DEVICE_INFO_V0_BLACKWELL                                        0x10
 	__u8  family;
 	__u8  pad06[2];
 	__u64 ram_size;

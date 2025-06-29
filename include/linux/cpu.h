@@ -78,6 +78,10 @@ extern ssize_t cpu_show_gds(struct device *dev,
 extern ssize_t cpu_show_reg_file_data_sampling(struct device *dev,
 					       struct device_attribute *attr, char *buf);
 extern ssize_t cpu_show_ghostwrite(struct device *dev, struct device_attribute *attr, char *buf);
+extern ssize_t cpu_show_old_microcode(struct device *dev,
+				      struct device_attribute *attr, char *buf);
+extern ssize_t cpu_show_indirect_target_selection(struct device *dev,
+						  struct device_attribute *attr, char *buf);
 
 extern __printf(4, 5)
 struct device *cpu_device_create(struct device *parent, void *drvdata,
@@ -116,6 +120,7 @@ extern void cpu_maps_update_begin(void);
 extern void cpu_maps_update_done(void);
 int bringup_hibernate_cpu(unsigned int sleep_cpu);
 void bringup_nonboot_cpus(unsigned int max_cpus);
+int arch_cpu_rescan_dead_smt_siblings(void);
 
 #else	/* CONFIG_SMP */
 #define cpuhp_tasks_frozen	0
@@ -129,6 +134,8 @@ static inline void cpu_maps_update_done(void)
 }
 
 static inline int add_cpu(unsigned int cpu) { return 0;}
+
+static inline int arch_cpu_rescan_dead_smt_siblings(void) { return 0; }
 
 #endif /* CONFIG_SMP */
 extern const struct bus_type cpu_subsys;

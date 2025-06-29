@@ -16,14 +16,11 @@ ifeq ($(CONFIG_RELOCATABLE), y)
 # Pass --no-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
 # for relative relocs, since this leads to better Image compression
 # with the relocation offsets always being zero.
-LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext \
-			$(call ld-option, --no-apply-dynamic-relocs)
+LDFLAGS_vmlinux	+= -shared -Bsymbolic -z notext --no-apply-dynamic-relocs
 endif
 
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
-  ifeq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
 LDFLAGS_vmlinux	+= --fix-cortex-a53-843419
-  endif
 endif
 
 cc_has_k_constraint := $(call try-run,echo				\
@@ -105,12 +102,8 @@ endif
 # hardware.
 ifeq ($(CONFIG_AS_HAS_ARMV8_5), y)
   asm-arch := armv8.5-a
-else ifeq ($(CONFIG_AS_HAS_ARMV8_4), y)
+else
   asm-arch := armv8.4-a
-else ifeq ($(CONFIG_AS_HAS_ARMV8_3), y)
-  asm-arch := armv8.3-a
-else ifeq ($(CONFIG_AS_HAS_ARMV8_2), y)
-  asm-arch := armv8.2-a
 endif
 
 ifdef asm-arch
@@ -201,16 +194,6 @@ install zinstall:
 
 archprepare:
 	$(Q)$(MAKE) $(build)=arch/arm64/tools kapi
-ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
-  ifneq ($(CONFIG_ARM64_LD_HAS_FIX_ERRATUM_843419),y)
-	@echo "warning: ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum" >&2
-  endif
-endif
-ifeq ($(CONFIG_ARM64_USE_LSE_ATOMICS),y)
-  ifneq ($(CONFIG_ARM64_LSE_ATOMICS),y)
-	@echo "warning: LSE atomics not supported by binutils" >&2
-  endif
-endif
 
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.

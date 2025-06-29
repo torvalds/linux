@@ -1922,7 +1922,7 @@ send:
 static void sge_tx_reclaim_cb(struct timer_list *t)
 {
 	int i;
-	struct sge *sge = from_timer(sge, t, tx_reclaim_timer);
+	struct sge *sge = timer_container_of(sge, t, tx_reclaim_timer);
 
 	for (i = 0; i < SGE_CMDQ_N; ++i) {
 		struct cmdQ *q = &sge->cmdQ[i];
@@ -2017,7 +2017,7 @@ void t1_sge_start(struct sge *sge)
  */
 static void espibug_workaround_t204(struct timer_list *t)
 {
-	struct sge *sge = from_timer(sge, t, espibug_timer);
+	struct sge *sge = timer_container_of(sge, t, espibug_timer);
 	struct adapter *adapter = sge->adapter;
 	unsigned int nports = adapter->params.nports;
 	u32 seop[MAX_NPORTS];
@@ -2060,7 +2060,7 @@ static void espibug_workaround_t204(struct timer_list *t)
 
 static void espibug_workaround(struct timer_list *t)
 {
-	struct sge *sge = from_timer(sge, t, espibug_timer);
+	struct sge *sge = timer_container_of(sge, t, espibug_timer);
 	struct adapter *adapter = sge->adapter;
 
 	if (netif_running(adapter->port[0].dev)) {

@@ -157,6 +157,7 @@ static struct dso *__dsos__find_by_longname_id(struct dsos *dsos,
 					       const char *name,
 					       const struct dso_id *id,
 					       bool write_locked)
+	SHARED_LOCKS_REQUIRED(dsos->lock)
 {
 	struct dsos__key key = {
 		.long_name = name,
@@ -262,6 +263,7 @@ static int dsos__find_id_cb(struct dso *dso, void *data)
 
 static struct dso *__dsos__find_id(struct dsos *dsos, const char *name, const struct dso_id *id,
 				   bool cmp_short, bool write_locked)
+	SHARED_LOCKS_REQUIRED(dsos->lock)
 {
 	struct dso *res;
 
@@ -338,6 +340,7 @@ static struct dso *__dsos__addnew_id(struct dsos *dsos, const char *name, const 
 }
 
 static struct dso *__dsos__findnew_id(struct dsos *dsos, const char *name, const struct dso_id *id)
+	SHARED_LOCKS_REQUIRED(dsos->lock)
 {
 	struct dso *dso = __dsos__find_id(dsos, name, id, false, /*write_locked=*/true);
 

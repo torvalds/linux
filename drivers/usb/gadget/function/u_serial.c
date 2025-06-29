@@ -592,6 +592,17 @@ static int gs_start_io(struct gs_port *port)
 	return status;
 }
 
+static int gserial_wakeup_host(struct gserial *gser)
+{
+	struct usb_function	*func = &gser->func;
+	struct usb_gadget	*gadget = func->config->cdev->gadget;
+
+	if (func->func_suspended)
+		return usb_func_wakeup(func);
+	else
+		return usb_gadget_wakeup(gadget);
+}
+
 /*-------------------------------------------------------------------------*/
 
 /* TTY Driver */
@@ -746,6 +757,8 @@ static ssize_t gs_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
+	int ret = 0;
+	struct gserial  *gser = port->port_usb;
 
 	pr_vdebug("gs_write: ttyGS%d (%p) writing %zu bytes\n",
 			port->port_num, tty, count);
@@ -753,6 +766,17 @@ static ssize_t gs_write(struct tty_struct *tty, const u8 *buf, size_t count)
 	spin_lock_irqsave(&port->port_lock, flags);
 	if (count)
 		count = kfifo_in(&port->port_write_buf, buf, count);
+
+	if (port->suspended) {
+		spin_unlock_irqrestore(&port->port_lock, flags);
+		ret = gserial_wakeup_host(gser);
+		if (ret) {
+			pr_debug("ttyGS%d: Remote wakeup failed:%d\n", port->port_num, ret);
+			return count;
+		}
+		spin_lock_irqsave(&port->port_lock, flags);
+	}
+
 	/* treat count == 0 as flush_chars() */
 	if (port->port_usb)
 		gs_start_tx(port);
@@ -781,10 +805,22 @@ static void gs_flush_chars(struct tty_struct *tty)
 {
 	struct gs_port	*port = tty->driver_data;
 	unsigned long	flags;
+	int ret = 0;
+	struct gserial  *gser = port->port_usb;
 
 	pr_vdebug("gs_flush_chars: (%d,%p)\n", port->port_num, tty);
 
 	spin_lock_irqsave(&port->port_lock, flags);
+	if (port->suspended) {
+		spin_unlock_irqrestore(&port->port_lock, flags);
+		ret = gserial_wakeup_host(gser);
+		if (ret) {
+			pr_debug("ttyGS%d: Remote wakeup failed:%d\n", port->port_num, ret);
+			return;
+		}
+		spin_lock_irqsave(&port->port_lock, flags);
+	}
+
 	if (port->port_usb)
 		gs_start_tx(port);
 	spin_unlock_irqrestore(&port->port_lock, flags);
@@ -1462,6 +1498,20 @@ void gserial_suspend(struct gserial *gser)
 	if (!port) {
 		spin_unlock_irqrestore(&serial_port_lock, flags);
 		return;
+	}
+
+	if (port->write_busy || port->write_started) {
+		/* Wakeup to host if there are ongoing transfers */
+		spin_unlock_irqrestore(&serial_port_lock, flags);
+		if (!gserial_wakeup_host(gser))
+			return;
+
+		/* Check if port is valid after acquiring lock back */
+		spin_lock_irqsave(&serial_port_lock, flags);
+		if (!port) {
+			spin_unlock_irqrestore(&serial_port_lock, flags);
+			return;
+		}
 	}
 
 	spin_lock(&port->port_lock);

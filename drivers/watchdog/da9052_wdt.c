@@ -30,6 +30,18 @@ struct da9052_wdt_data {
 	unsigned long jpast;
 };
 
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
+MODULE_PARM_DESC(nowayout,
+		 "Watchdog cannot be stopped once started (default="
+		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+
+static int timeout;
+module_param(timeout, int, 0);
+MODULE_PARM_DESC(timeout,
+	"Watchdog timeout in seconds. (default = "
+	__MODULE_STRING(WDT_DEFAULT_TIMEOUT) ")");
+
 static const struct {
 	u8 reg_val;
 	int time;  /* Seconds */
@@ -168,10 +180,13 @@ static int da9052_wdt_probe(struct platform_device *pdev)
 	da9052_wdt = &driver_data->wdt;
 
 	da9052_wdt->timeout = DA9052_DEF_TIMEOUT;
+	da9052_wdt->min_hw_heartbeat_ms = DA9052_TWDMIN;
 	da9052_wdt->info = &da9052_wdt_info;
 	da9052_wdt->ops = &da9052_wdt_ops;
 	da9052_wdt->parent = dev;
 	watchdog_set_drvdata(da9052_wdt, driver_data);
+	watchdog_init_timeout(da9052_wdt, timeout, dev);
+	watchdog_set_nowayout(da9052_wdt, nowayout);
 
 	if (da9052->fault_log & DA9052_FAULTLOG_TWDERROR)
 		da9052_wdt->bootstatus |= WDIOF_CARDRESET;
@@ -180,11 +195,15 @@ static int da9052_wdt_probe(struct platform_device *pdev)
 	if (da9052->fault_log & DA9052_FAULTLOG_VDDFAULT)
 		da9052_wdt->bootstatus |= WDIOF_POWERUNDER;
 
-	ret = da9052_reg_update(da9052, DA9052_CONTROL_D_REG,
-				DA9052_CONTROLD_TWDSCALE, 0);
-	if (ret < 0) {
-		dev_err(dev, "Failed to disable watchdog bits, %d\n", ret);
+	ret = da9052_reg_read(da9052, DA9052_CONTROL_D_REG);
+	if (ret < 0)
 		return ret;
+
+	/* Check if FW enabled the watchdog */
+	if (ret & DA9052_CONTROLD_TWDSCALE) {
+		/* Ensure proper initialization */
+		da9052_wdt_start(da9052_wdt);
+		set_bit(WDOG_HW_RUNNING, &da9052_wdt->status);
 	}
 
 	return devm_watchdog_register_device(dev, &driver_data->wdt);

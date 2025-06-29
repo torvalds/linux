@@ -36,7 +36,7 @@
 /**
  * enum sk_rst_reason - the reasons of socket reset
  *
- * The reasons of sk reset, which are used in DCCP/TCP/MPTCP protocols.
+ * The reasons of sk reset, which are used in TCP/MPTCP protocols.
  *
  * There are three parts in order:
  * 1) skb drop reasons: relying on drop reasons for such as passive reset

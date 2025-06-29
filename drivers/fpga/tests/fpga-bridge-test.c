@@ -170,4 +170,5 @@ static struct kunit_suite fpga_bridge_suite = {
 
 kunit_test_suite(fpga_bridge_suite);
 
+MODULE_DESCRIPTION("KUnit test for the FPGA Bridge");
 MODULE_LICENSE("GPL");

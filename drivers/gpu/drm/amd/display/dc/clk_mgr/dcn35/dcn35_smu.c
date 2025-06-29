@@ -84,8 +84,8 @@
 #define VBIOSSMC_MSG_AllowZstatesEntry            0x15
 #define VBIOSSMC_MSG_DisallowZstatesEntry     	  0x16
 #define VBIOSSMC_MSG_SetDtbClk                    0x17
-#define VBIOSSMC_MSG_DispPsrEntry                 0x18 ///< Display PSR entry, DMU
-#define VBIOSSMC_MSG_DispPsrExit                  0x19 ///< Display PSR exit, DMU
+#define VBIOSSMC_MSG_DispIPS2Entry                0x18 ///< Display IPS2 entry, DMU
+#define VBIOSSMC_MSG_DispIPS2Exit                 0x19 ///< Display IPS2 exit, DMU
 #define VBIOSSMC_MSG_DisableLSdma                 0x1A ///< Disable LSDMA; only sent by VBIOS
 #define VBIOSSMC_MSG_DpControllerPhyStatus        0x1B ///< Inform PMFW about the pre conditions for turning SLDO2 on/off . bit[0]==1 precondition is met, bit[1-2] are for DPPHY number
 #define VBIOSSMC_MSG_QueryIPS2Support             0x1C ///< Return 1: support; else not supported
@@ -475,7 +475,7 @@ int dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr)
 
 	retv = dcn35_smu_send_msg_with_param(
 		clk_mgr,
-		VBIOSSMC_MSG_DispPsrExit,
+		VBIOSSMC_MSG_DispIPS2Exit,
 		0);
 	smu_print("%s: smu_exit_low_power_state return = %d\n", __func__, retv);
 	return retv;

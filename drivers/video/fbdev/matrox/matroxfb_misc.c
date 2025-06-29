@@ -85,6 +85,7 @@
  *
  */
 
+#include <linux/export.h>
 
 #include "matroxfb_misc.h"
 #include <linux/interrupt.h>
@@ -390,7 +391,7 @@ void matroxfb_vgaHWrestore(struct matrox_fb_info *minfo)
 
 static void get_pins(unsigned char __iomem* pins, struct matrox_bios* bd) {
 	unsigned int b0 = readb(pins);
-	
+
 	if (b0 == 0x2E && readb(pins+1) == 0x41) {
 		unsigned int pins_len = readb(pins+2);
 		unsigned int i;
@@ -426,7 +427,7 @@ static void get_pins(unsigned char __iomem* pins, struct matrox_bios* bd) {
 
 static void get_bios_version(unsigned char __iomem * vbios, struct matrox_bios* bd) {
 	unsigned int pcir_offset;
-	
+
 	pcir_offset = readb(vbios + 24) | (readb(vbios + 25) << 8);
 	if (pcir_offset >= 26 && pcir_offset < 0xFFE0 &&
 	    readb(vbios + pcir_offset    ) == 'P' &&
@@ -451,7 +452,7 @@ static void get_bios_version(unsigned char __iomem * vbios, struct matrox_bios* 
 
 static void get_bios_output(unsigned char __iomem* vbios, struct matrox_bios* bd) {
 	unsigned char b;
-	
+
 	b = readb(vbios + 0x7FF1);
 	if (b == 0xFF) {
 		b = 0;
@@ -461,7 +462,7 @@ static void get_bios_output(unsigned char __iomem* vbios, struct matrox_bios* bd
 
 static void get_bios_tvout(unsigned char __iomem* vbios, struct matrox_bios* bd) {
 	unsigned int i;
-	
+
 	/* Check for 'IBM .*(V....TVO' string - it means TVO BIOS */
 	bd->output.tvout = 0;
 	if (readb(vbios + 0x1D) != 'I' ||
@@ -472,7 +473,7 @@ static void get_bios_tvout(unsigned char __iomem* vbios, struct matrox_bios* bd)
 	}
 	for (i = 0x2D; i < 0x2D + 128; i++) {
 		unsigned char b = readb(vbios + i);
-		
+
 		if (b == '(' && readb(vbios + i + 1) == 'V') {
 			if (readb(vbios + i + 6) == 'T' &&
 			    readb(vbios + i + 7) == 'V' &&
@@ -488,7 +489,7 @@ static void get_bios_tvout(unsigned char __iomem* vbios, struct matrox_bios* bd)
 
 static void parse_bios(unsigned char __iomem* vbios, struct matrox_bios* bd) {
 	unsigned int pins_offset;
-	
+
 	if (readb(vbios) != 0x55 || readb(vbios + 1) != 0xAA) {
 		return;
 	}
@@ -648,9 +649,9 @@ static int parse_pins5(struct matrox_fb_info *minfo,
 		       const struct matrox_bios *bd)
 {
 	unsigned int mult;
-	
+
 	mult = bd->pins[4]?8000:6000;
-	
+
 	minfo->limits.pixel.vcomax	= (bd->pins[ 38] == 0xFF) ? 600000			: bd->pins[ 38] * mult;
 	minfo->limits.system.vcomax	= (bd->pins[ 36] == 0xFF) ? minfo->limits.pixel.vcomax	: bd->pins[ 36] * mult;
 	minfo->limits.video.vcomax	= (bd->pins[ 37] == 0xFF) ? minfo->limits.system.vcomax	: bd->pins[ 37] * mult;
@@ -770,7 +771,7 @@ void matroxfb_read_pins(struct matrox_fb_info *minfo)
 	u32 biosbase;
 	u32 fbbase;
 	struct pci_dev *pdev = minfo->pcidev;
-	
+
 	memset(&minfo->bios, 0, sizeof(minfo->bios));
 	pci_read_config_dword(pdev, PCI_OPTION_REG, &opt);
 	pci_write_config_dword(pdev, PCI_OPTION_REG, opt | PCI_OPTION_ENABLE_ROM);
@@ -790,7 +791,7 @@ void matroxfb_read_pins(struct matrox_fb_info *minfo)
 		} else {
 			unsigned int ven = readb(b+0x64+0) | (readb(b+0x64+1) << 8);
 			unsigned int dev = readb(b+0x64+2) | (readb(b+0x64+3) << 8);
-			
+
 			if (ven != pdev->vendor || dev != pdev->device) {
 				printk(KERN_INFO "matroxfb: Legacy BIOS is for %04X:%04X, while this device is %04X:%04X\n",
 					ven, dev, pdev->vendor, pdev->device);

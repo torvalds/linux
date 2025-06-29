@@ -172,7 +172,8 @@ skip_ibchange:
 
 void qib_clear_symerror_on_linkup(struct timer_list *t)
 {
-	struct qib_pportdata *ppd = from_timer(ppd, t, symerr_clear_timer);
+	struct qib_pportdata *ppd = timer_container_of(ppd, t,
+						       symerr_clear_timer);
 
 	if (ppd->lflags & QIBL_LINKACTIVE)
 		return;

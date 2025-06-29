@@ -249,7 +249,7 @@ static unsigned int ecrdsa_key_size(struct crypto_sig *tfm)
 	 * Verify doesn't need any output, so it's just informational
 	 * for keyctl to determine the key bit size.
 	 */
-	return ctx->pub_key.ndigits * sizeof(u64);
+	return ctx->pub_key.ndigits * sizeof(u64) * BITS_PER_BYTE;
 }
 
 static unsigned int ecrdsa_max_size(struct crypto_sig *tfm)

@@ -31,9 +31,7 @@ gp100_pci_msi_rearm(struct nvkm_pci *pci)
 
 static const struct nvkm_pci_func
 gp100_pci_func = {
-	.rd32 = nv40_pci_rd32,
-	.wr08 = nv40_pci_wr08,
-	.wr32 = nv40_pci_wr32,
+	.cfg = { .addr = 0x088000, .size = 0x1000 },
 	.msi_rearm = gp100_pci_msi_rearm,
 };
 

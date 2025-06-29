@@ -140,6 +140,21 @@ void fuse_uring_abort_end_requests(struct fuse_ring *ring)
 	}
 }
 
+static bool ent_list_request_expired(struct fuse_conn *fc, struct list_head *list)
+{
+	struct fuse_ring_ent *ent;
+	struct fuse_req *req;
+
+	ent = list_first_entry_or_null(list, struct fuse_ring_ent, list);
+	if (!ent)
+		return false;
+
+	req = ent->fuse_req;
+
+	return time_is_before_jiffies(req->create_time +
+				      fc->timeout.req_timeout);
+}
+
 bool fuse_uring_request_expired(struct fuse_conn *fc)
 {
 	struct fuse_ring *ring = fc->ring;
@@ -157,7 +172,8 @@ bool fuse_uring_request_expired(struct fuse_conn *fc)
 		spin_lock(&queue->lock);
 		if (fuse_request_expired(fc, &queue->fuse_req_queue) ||
 		    fuse_request_expired(fc, &queue->fuse_req_bg_queue) ||
-		    fuse_fpq_processing_expired(fc, queue->fpq.processing)) {
+		    ent_list_request_expired(fc, &queue->ent_w_req_queue) ||
+		    ent_list_request_expired(fc, &queue->ent_in_userspace)) {
 			spin_unlock(&queue->lock);
 			return true;
 		}
@@ -494,7 +510,7 @@ static void fuse_uring_cancel(struct io_uring_cmd *cmd,
 	spin_lock(&queue->lock);
 	if (ent->state == FRRS_AVAILABLE) {
 		ent->state = FRRS_USERSPACE;
-		list_move(&ent->list, &queue->ent_in_userspace);
+		list_move_tail(&ent->list, &queue->ent_in_userspace);
 		need_cmd_done = true;
 		ent->cmd = NULL;
 	}
@@ -577,8 +593,8 @@ static int fuse_uring_copy_from_ring(struct fuse_ring *ring,
 	if (err)
 		return err;
 
-	fuse_copy_init(&cs, 0, &iter);
-	cs.is_uring = 1;
+	fuse_copy_init(&cs, false, &iter);
+	cs.is_uring = true;
 	cs.req = req;
 
 	return fuse_copy_out_args(&cs, args, ring_in_out.payload_sz);
@@ -607,8 +623,8 @@ static int fuse_uring_args_to_ring(struct fuse_ring *ring, struct fuse_req *req,
 		return err;
 	}
 
-	fuse_copy_init(&cs, 1, &iter);
-	cs.is_uring = 1;
+	fuse_copy_init(&cs, true, &iter);
+	cs.is_uring = true;
 	cs.req = req;
 
 	if (num_args > 0) {
@@ -714,7 +730,7 @@ static int fuse_uring_send_next_to_ring(struct fuse_ring_ent *ent,
 	cmd = ent->cmd;
 	ent->cmd = NULL;
 	ent->state = FRRS_USERSPACE;
-	list_move(&ent->list, &queue->ent_in_userspace);
+	list_move_tail(&ent->list, &queue->ent_in_userspace);
 	spin_unlock(&queue->lock);
 
 	io_uring_cmd_done(cmd, 0, 0, issue_flags);
@@ -764,7 +780,7 @@ static void fuse_uring_add_req_to_ring_ent(struct fuse_ring_ent *ent,
 	clear_bit(FR_PENDING, &req->flags);
 	ent->fuse_req = req;
 	ent->state = FRRS_FUSE_REQ;
-	list_move(&ent->list, &queue->ent_w_req_queue);
+	list_move_tail(&ent->list, &queue->ent_w_req_queue);
 	fuse_uring_add_to_pq(ent, req);
 }
 
@@ -1180,7 +1196,7 @@ static void fuse_uring_send(struct fuse_ring_ent *ent, struct io_uring_cmd *cmd,
 
 	spin_lock(&queue->lock);
 	ent->state = FRRS_USERSPACE;
-	list_move(&ent->list, &queue->ent_in_userspace);
+	list_move_tail(&ent->list, &queue->ent_in_userspace);
 	ent->cmd = NULL;
 	spin_unlock(&queue->lock);
 

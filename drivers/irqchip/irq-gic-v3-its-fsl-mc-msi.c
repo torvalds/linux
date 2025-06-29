@@ -152,7 +152,7 @@ static void __init its_fsl_mc_of_msi_init(void)
 		if (!of_property_read_bool(np, "msi-controller"))
 			continue;
 
-		its_fsl_mc_msi_init_one(of_node_to_fwnode(np),
+		its_fsl_mc_msi_init_one(of_fwnode_handle(np),
 					np->full_name);
 	}
 }

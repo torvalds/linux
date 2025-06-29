@@ -37,8 +37,8 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
         charger@69 {
             compatible = "maxim,max77705-charger";

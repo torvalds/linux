@@ -335,7 +335,7 @@ static struct pci_ops meson_pci_ops = {
 	.write = pci_generic_config_write,
 };
 
-static int meson_pcie_link_up(struct dw_pcie *pci)
+static bool meson_pcie_link_up(struct dw_pcie *pci)
 {
 	struct meson_pcie *mp = to_meson_pcie(pci);
 	struct device *dev = pci->dev;
@@ -363,7 +363,7 @@ static int meson_pcie_link_up(struct dw_pcie *pci)
 			dev_dbg(dev, "speed_okay\n");
 
 		if (smlh_up && rdlh_up && ltssm_up && speed_okay)
-			return 1;
+			return true;
 
 		cnt++;
 
@@ -371,7 +371,7 @@ static int meson_pcie_link_up(struct dw_pcie *pci)
 	} while (cnt < WAIT_LINKUP_TIMEOUT);
 
 	dev_err(dev, "error: wait linkup timeout\n");
-	return 0;
+	return false;
 }
 
 static int meson_pcie_host_init(struct dw_pcie_rp *pp)

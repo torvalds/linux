@@ -237,9 +237,8 @@ static void swap_zeromap_folio_clear(struct folio *folio)
  * We may have stale swap cache pages in memory: notice
  * them here and get rid of the unnecessary final write.
  */
-int swap_writepage(struct page *page, struct writeback_control *wbc)
+int swap_writeout(struct folio *folio, struct writeback_control *wbc)
 {
-	struct folio *folio = page_folio(page);
 	int ret;
 
 	if (folio_free_swap(folio)) {

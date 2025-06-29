@@ -1896,7 +1896,7 @@ following respects:
 
 3.	The srcu_down_read() and srcu_up_read() primitives work
 	exactly like srcu_read_lock() and srcu_read_unlock(), except
-	that matching calls don't have to execute on the same CPU.
+	that matching calls don't have to execute within the same context.
 	(The names are meant to be suggestive of operations on
 	semaphores.)  Since the matching is determined by the domain
 	pointer and index value, these primitives make it possible for

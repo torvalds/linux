@@ -88,3 +88,21 @@ This would fail if negative dentry's were cached.
 
 This is slightly suboptimal, but could be fixed in future with some vfs work.
 
+
+References
+----------
+
+(from Peter Anvin, on the list)
+
+It is worth noting that Microsoft has basically declared their
+"recommended" case folding (upcase) table to be permanently frozen (for
+new filesystem instances in the case where they use an on-disk
+translation table created at format time.)  As far as I know they have
+never supported anything other than 1:1 conversion of BMP code points,
+nor normalization.
+
+The exFAT specification enumerates the full recommended upcase table,
+although in a somewhat annoying format (basically a hex dump of
+compressed data):
+
+https://learn.microsoft.com/en-us/windows/win32/fileio/exfat-specification

@@ -51,8 +51,8 @@
  * for the cache windows.
  *
  * The call to dmub_srv_hw_init() programs the DMCUB registers to prepare
- * for command submission. Commands can be queued via dmub_srv_cmd_queue()
- * and executed via dmub_srv_cmd_execute().
+ * for command submission. Commands can be queued via dmub_srv_fb_cmd_queue()
+ * and executed via dmub_srv_fb_cmd_execute().
  *
  * If the queue is full the dmub_srv_wait_for_idle() call can be used to
  * wait until the queue has been cleared.
@@ -142,6 +142,7 @@ enum dmub_notification_type {
 	DMUB_NOTIFICATION_SET_CONFIG_REPLY,
 	DMUB_NOTIFICATION_DPIA_NOTIFICATION,
 	DMUB_NOTIFICATION_HPD_SENSE_NOTIFY,
+	DMUB_NOTIFICATION_FUSED_IO,
 	DMUB_NOTIFICATION_MAX
 };
 
@@ -168,6 +169,13 @@ enum dmub_srv_power_state_type {
 	DMUB_POWER_STATE_UNDEFINED = 0,
 	DMUB_POWER_STATE_D0 = 1,
 	DMUB_POWER_STATE_D3 = 8
+};
+
+/* enum dmub_inbox_cmd_interface type - defines default interface for host->dmub commands */
+enum dmub_inbox_cmd_interface_type {
+	DMUB_CMD_INTERFACE_DEFAULT = 0,
+	DMUB_CMD_INTERFACE_FB = 1,
+	DMUB_CMD_INTERFACE_REG = 2,
 };
 
 /**
@@ -349,6 +357,21 @@ struct dmub_diagnostic_data {
 	uint8_t is_cw6_enabled : 1;
 };
 
+struct dmub_srv_inbox {
+	/* generic status */
+	uint64_t num_submitted;
+	uint64_t num_reported;
+	union {
+		/* frame buffer mailbox status */
+		struct dmub_rb rb;
+		/* register mailbox status */
+		struct {
+			bool is_pending;
+			bool is_multi_pending;
+		};
+	};
+};
+
 /**
  * struct dmub_srv_base_funcs - Driver specific base callbacks
  */
@@ -422,6 +445,8 @@ struct dmub_srv_hw_funcs {
 
 	uint32_t (*emul_get_inbox1_rptr)(struct dmub_srv *dmub);
 
+	uint32_t (*emul_get_inbox1_wptr)(struct dmub_srv *dmub);
+
 	void (*emul_set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
 
 	bool (*is_supported)(struct dmub_srv *dmub);
@@ -462,18 +487,21 @@ struct dmub_srv_hw_funcs {
 	void (*init_reg_offsets)(struct dmub_srv *dmub, struct dc_context *ctx);
 
 	void (*subvp_save_surf_addr)(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index);
+
 	void (*send_reg_inbox0_cmd_msg)(struct dmub_srv *dmub,
 			union dmub_rb_cmd *cmd);
 	uint32_t (*read_reg_inbox0_rsp_int_status)(struct dmub_srv *dmub);
 	void (*read_reg_inbox0_cmd_rsp)(struct dmub_srv *dmub,
 			union dmub_rb_cmd *cmd);
 	void (*write_reg_inbox0_rsp_int_ack)(struct dmub_srv *dmub);
+	void (*clear_reg_inbox0_rsp_int_ack)(struct dmub_srv *dmub);
+	void (*enable_reg_inbox0_rsp_int)(struct dmub_srv *dmub, bool enable);
+
 	uint32_t (*read_reg_outbox0_rdy_int_status)(struct dmub_srv *dmub);
 	void (*write_reg_outbox0_rdy_int_ack)(struct dmub_srv *dmub);
 	void (*read_reg_outbox0_msg)(struct dmub_srv *dmub, uint32_t *msg);
 	void (*write_reg_outbox0_rsp)(struct dmub_srv *dmub, uint32_t *rsp);
 	uint32_t (*read_reg_outbox0_rsp_int_status)(struct dmub_srv *dmub);
-	void (*enable_reg_inbox0_rsp_int)(struct dmub_srv *dmub, bool enable);
 	void (*enable_reg_outbox0_rdy_int)(struct dmub_srv *dmub, bool enable);
 };
 
@@ -493,6 +521,7 @@ struct dmub_srv_create_params {
 	enum dmub_asic asic;
 	uint32_t fw_version;
 	bool is_virtual;
+	enum dmub_inbox_cmd_interface_type inbox_type;
 };
 
 /**
@@ -521,8 +550,9 @@ struct dmub_srv {
 	const struct dmub_srv_dcn401_regs *regs_dcn401;
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs hw_funcs;
-	struct dmub_rb inbox1_rb;
+	struct dmub_srv_inbox inbox1;
 	uint32_t inbox1_last_wptr;
+	struct dmub_srv_inbox reg_inbox0;
 	/**
 	 * outbox1_rb is accessed without locks (dal & dc)
 	 * and to be used only in dmub_srv_stat_get_notification()
@@ -542,6 +572,7 @@ struct dmub_srv {
 	struct dmub_fw_meta_info meta_info;
 	struct dmub_feature_caps feature_caps;
 	struct dmub_visual_confirm_color visual_confirm_color;
+	enum dmub_inbox_cmd_interface_type inbox_type;
 
 	enum dmub_srv_power_state_type power_state;
 	struct dmub_diagnostic_data debug;
@@ -566,11 +597,8 @@ struct dmub_notification {
 		struct aux_reply_data aux_reply;
 		enum dp_hpd_status hpd_status;
 		enum set_config_status sc_status;
-		/**
-		 * DPIA notification command.
-		 */
-		struct dmub_rb_cmd_dpia_notification dpia_notification;
 		struct dmub_rb_cmd_hpd_sense_notify_data hpd_sense_notify;
+		struct dmub_cmd_fused_request fused_request;
 	};
 };
 
@@ -699,19 +727,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub);
 
 /**
- * dmub_srv_sync_inbox1() - sync sw state with hw state
- * @dmub: the dmub service
- *
- * Sync sw state with hw state when resume from S0i3
- *
- * Return:
- *   DMUB_STATUS_OK - success
- *   DMUB_STATUS_INVALID - unspecified error
- */
-enum dmub_status dmub_srv_sync_inbox1(struct dmub_srv *dmub);
-
-/**
- * dmub_srv_cmd_queue() - queues a command to the DMUB
+ * dmub_srv_fb_cmd_queue() - queues a command to the DMUB
  * @dmub: the dmub service
  * @cmd: the command to queue
  *
@@ -723,11 +739,11 @@ enum dmub_status dmub_srv_sync_inbox1(struct dmub_srv *dmub);
  *   DMUB_STATUS_QUEUE_FULL - no remaining room in queue
  *   DMUB_STATUS_INVALID - unspecified error
  */
-enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
+enum dmub_status dmub_srv_fb_cmd_queue(struct dmub_srv *dmub,
 				    const union dmub_rb_cmd *cmd);
 
 /**
- * dmub_srv_cmd_execute() - Executes a queued sequence to the dmub
+ * dmub_srv_fb_cmd_execute() - Executes a queued sequence to the dmub
  * @dmub: the dmub service
  *
  * Begins execution of queued commands on the dmub.
@@ -736,7 +752,7 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
  *   DMUB_STATUS_OK - success
  *   DMUB_STATUS_INVALID - unspecified error
  */
-enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub);
+enum dmub_status dmub_srv_fb_cmd_execute(struct dmub_srv *dmub);
 
 /**
  * dmub_srv_wait_for_hw_pwr_up() - Waits for firmware hardware power up is completed
@@ -793,6 +809,23 @@ enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
  */
 enum dmub_status dmub_srv_wait_for_phy_init(struct dmub_srv *dmub,
 					    uint32_t timeout_us);
+
+/**
+ * dmub_srv_wait_for_pending() - Re-entrant wait for messages currently pending
+ * @dmub: the dmub service
+ * @timeout_us: the maximum number of microseconds to wait
+ *
+ * Waits until the commands queued prior to this call are complete.
+ * If interfaces remain busy due to additional work being submitted
+ * concurrently, this function will not continue to wait.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_TIMEOUT - wait for buffer to flush timed out
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_wait_for_pending(struct dmub_srv *dmub,
+					uint32_t timeout_us);
 
 /**
  * dmub_srv_wait_for_idle() - Waits for the DMUB to be idle
@@ -892,9 +925,6 @@ enum dmub_status dmub_srv_get_fw_boot_status(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_get_fw_boot_option(struct dmub_srv *dmub,
 					     union dmub_fw_boot_options *option);
 
-enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
-					      union dmub_rb_cmd *cmd);
-
 enum dmub_status dmub_srv_set_skip_panel_power_sequence(struct dmub_srv *dmub,
 					     bool skip);
 
@@ -959,26 +989,6 @@ enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub);
 void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index);
 
 /**
- * dmub_srv_send_reg_inbox0_cmd() - send a dmub command and wait for the command
- * being processed by DMUB.
- * @dmub: The dmub service
- * @cmd: The dmub command being sent. If with_replay is true, the function will
- * update cmd with replied data.
- * @with_reply: true if DMUB reply needs to be copied back to cmd. false if the
- * cmd doesn't need to be replied.
- * @timeout_us: timeout in microseconds.
- *
- * Return:
- * DMUB_STATUS_OK - success
- * DMUB_STATUS_TIMEOUT - DMUB fails to process the command within the timeout
- * interval.
- */
-enum dmub_status dmub_srv_send_reg_inbox0_cmd(
-		struct dmub_srv *dmub,
-		union dmub_rb_cmd *cmd,
-		bool with_reply, uint32_t timeout_us);
-
-/**
  * dmub_srv_set_power_state() - Track DC power state in dmub_srv
  * @dmub: The dmub service
  * @power_state: DC power state setting
@@ -989,5 +999,72 @@ enum dmub_status dmub_srv_send_reg_inbox0_cmd(
  *   void
  */
 void dmub_srv_set_power_state(struct dmub_srv *dmub, enum dmub_srv_power_state_type dmub_srv_power_state);
+
+/**
+ * dmub_srv_reg_cmd_execute() - Executes provided command to the dmub
+ * @dmub: the dmub service
+ * @cmd: the command packet to be executed
+ *
+ * Executes a single command for the dmub.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_reg_cmd_execute(struct dmub_srv *dmub, union dmub_rb_cmd *cmd);
+
+
+/**
+ * dmub_srv_cmd_get_response() - Copies return data for command into buffer
+ * @dmub: the dmub service
+ * @cmd_rsp: response buffer
+ *
+ * Copies return data for command into buffer
+ */
+void dmub_srv_cmd_get_response(struct dmub_srv *dmub,
+		union dmub_rb_cmd *cmd_rsp);
+
+/**
+ * dmub_srv_sync_inboxes() - Sync inbox state
+ * @dmub: the dmub service
+ *
+ * Sync inbox state
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_sync_inboxes(struct dmub_srv *dmub);
+
+/**
+ * dmub_srv_wait_for_inbox_free() - Waits for space in the DMUB inbox to free up
+ * @dmub: the dmub service
+ * @timeout_us: the maximum number of microseconds to wait
+ * @num_free_required: number of free entries required
+ *
+ * Waits until the DMUB buffer is freed to the specified number.
+ *  The maximum wait time is given in microseconds to prevent spinning
+ * forever.
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_TIMEOUT - wait for buffer to flush timed out
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_wait_for_inbox_free(struct dmub_srv *dmub,
+		uint32_t timeout_us,
+		uint32_t num_free_required);
+
+/**
+ * dmub_srv_update_inbox_status() - Updates pending status for inbox & reg inbox0
+ * @dmub: the dmub service
+ *
+ * Return:
+ *   DMUB_STATUS_OK - success
+ *   DMUB_STATUS_TIMEOUT - wait for buffer to flush timed out
+ *   DMUB_STATUS_HW_FAILURE - issue with HW programming
+ *   DMUB_STATUS_INVALID - unspecified error
+ */
+enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub);
 
 #endif /* _DMUB_SRV_H_ */

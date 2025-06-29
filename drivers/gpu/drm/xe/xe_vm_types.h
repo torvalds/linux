@@ -100,14 +100,21 @@ struct xe_vma {
 		struct work_struct destroy_work;
 	};
 
-	/** @tile_invalidated: VMA has been invalidated */
+	/**
+	 * @tile_invalidated: Tile mask of binding are invalidated for this VMA.
+	 * protected by BO's resv and for userptrs, vm->userptr.notifier_lock in
+	 * write mode for writing or vm->userptr.notifier_lock in read mode and
+	 * the vm->resv. For stable reading, BO's resv or userptr
+	 * vm->userptr.notifier_lock in read mode is required. Can be
+	 * opportunistically read with READ_ONCE outside of locks.
+	 */
 	u8 tile_invalidated;
 
 	/** @tile_mask: Tile mask of where to create binding for this VMA */
 	u8 tile_mask;
 
 	/**
-	 * @tile_present: GT mask of binding are present for this VMA.
+	 * @tile_present: Tile mask of binding are present for this VMA.
 	 * protected by vm->lock, vm->resv and for userptrs,
 	 * vm->userptr.notifier_lock for writing. Needs either for reading,
 	 * but if reading is done under the vm->lock only, it needs to be held
@@ -310,6 +317,14 @@ struct xe_vm {
 	 * protected by the vm resv.
 	 */
 	u64 tlb_flush_seqno;
+	/**
+	 * @validating: The task that is currently making bos resident for this vm.
+	 * Protected by the VM's resv for writing. Opportunistic reading can be done
+	 * using READ_ONCE. Note: This is a workaround for the
+	 * TTM eviction_valuable() callback not being passed a struct
+	 * ttm_operation_context(). Future work might want to address this.
+	 */
+	struct task_struct *validating;
 	/** @batch_invalidate_tlb: Always invalidate TLB before batch start */
 	bool batch_invalidate_tlb;
 	/** @xef: XE file handle for tracking this VM's drm client */
@@ -330,6 +345,8 @@ struct xe_vma_op_map {
 	bool is_cpu_addr_mirror;
 	/** @dumpable: whether BO is dumped on GPU hang */
 	bool dumpable;
+	/** @invalidate: invalidate the VMA before bind */
+	bool invalidate_on_bind;
 	/** @pat_index: The pat index to use for this operation. */
 	u16 pat_index;
 };
@@ -370,6 +387,16 @@ struct xe_vma_op_map_range {
 struct xe_vma_op_unmap_range {
 	/** @range: SVM range to unmap */
 	struct xe_svm_range *range;
+};
+
+/** struct xe_vma_op_prefetch_range - VMA prefetch range operation */
+struct xe_vma_op_prefetch_range {
+	/** @range: xarray for SVM ranges data */
+	struct xarray range;
+	/** @ranges_count: number of svm ranges to map */
+	u32 ranges_count;
+	/** @region: memory region to prefetch to */
+	u32 region;
 };
 
 /** enum xe_vma_op_flags - flags for VMA operation */
@@ -414,6 +441,8 @@ struct xe_vma_op {
 		struct xe_vma_op_map_range map_range;
 		/** @unmap_range: VMA unmap range operation specific data */
 		struct xe_vma_op_unmap_range unmap_range;
+		/** @prefetch_range: VMA prefetch range operation specific data */
+		struct xe_vma_op_prefetch_range prefetch_range;
 	};
 };
 
@@ -431,6 +460,9 @@ struct xe_vma_ops {
 	u32 num_syncs;
 	/** @pt_update_ops: page table update operations */
 	struct xe_vm_pgtable_update_ops pt_update_ops[XE_MAX_TILES_PER_DEVICE];
+	/** @flag: signify the properties within xe_vma_ops*/
+#define XE_VMA_OPS_FLAG_HAS_SVM_PREFETCH BIT(0)
+	u32 flags;
 #ifdef TEST_VM_OPS_ERROR
 	/** @inject_error: inject error to test error handling */
 	bool inject_error;

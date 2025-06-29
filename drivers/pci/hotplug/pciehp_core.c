@@ -284,35 +284,6 @@ static int pciehp_suspend(struct pcie_device *dev)
 	return 0;
 }
 
-static bool pciehp_device_replaced(struct controller *ctrl)
-{
-	struct pci_dev *pdev __free(pci_dev_put) = NULL;
-	u32 reg;
-
-	if (pci_dev_is_disconnected(ctrl->pcie->port))
-		return false;
-
-	pdev = pci_get_slot(ctrl->pcie->port->subordinate, PCI_DEVFN(0, 0));
-	if (!pdev)
-		return true;
-
-	if (pci_read_config_dword(pdev, PCI_VENDOR_ID, &reg) ||
-	    reg != (pdev->vendor | (pdev->device << 16)) ||
-	    pci_read_config_dword(pdev, PCI_CLASS_REVISION, &reg) ||
-	    reg != (pdev->revision | (pdev->class << 8)))
-		return true;
-
-	if (pdev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
-	    (pci_read_config_dword(pdev, PCI_SUBSYSTEM_VENDOR_ID, &reg) ||
-	     reg != (pdev->subsystem_vendor | (pdev->subsystem_device << 16))))
-		return true;
-
-	if (pci_get_dsn(pdev) != ctrl->dsn)
-		return true;
-
-	return false;
-}
-
 static int pciehp_resume_noirq(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);

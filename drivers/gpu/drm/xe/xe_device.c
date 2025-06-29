@@ -23,8 +23,10 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
+#include "xe_bo_evict.h"
 #include "xe_debugfs.h"
 #include "xe_devcoredump.h"
+#include "xe_device_sysfs.h"
 #include "xe_dma_buf.h"
 #include "xe_drm_client.h"
 #include "xe_drv.h"
@@ -400,9 +402,6 @@ static void xe_device_destroy(struct drm_device *dev, void *dummy)
 	if (xe->unordered_wq)
 		destroy_workqueue(xe->unordered_wq);
 
-	if (!IS_ERR_OR_NULL(xe->mem.shrinker))
-		xe_shrinker_destroy(xe->mem.shrinker);
-
 	if (xe->destroy_wq)
 		destroy_workqueue(xe->destroy_wq);
 
@@ -436,13 +435,14 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (err)
 		goto err;
 
-	xe->mem.shrinker = xe_shrinker_create(xe);
-	if (IS_ERR(xe->mem.shrinker))
-		return ERR_CAST(xe->mem.shrinker);
+	err = xe_shrinker_create(xe);
+	if (err)
+		goto err;
 
 	xe->info.devid = pdev->device;
 	xe->info.revid = pdev->revision;
 	xe->info.force_execlist = xe_modparam.force_execlist;
+	xe->atomic_svm_timeslice_ms = 5;
 
 	err = xe_irq_init(xe);
 	if (err)
@@ -467,10 +467,9 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 			xa_erase(&xe->usm.asid_to_vm, asid);
 	}
 
-	spin_lock_init(&xe->pinned.lock);
-	INIT_LIST_HEAD(&xe->pinned.kernel_bo_present);
-	INIT_LIST_HEAD(&xe->pinned.external_vram);
-	INIT_LIST_HEAD(&xe->pinned.evicted);
+	err = xe_bo_pinned_init(xe);
+	if (err)
+		goto err;
 
 	xe->preempt_fence_wq = alloc_ordered_workqueue("xe-preempt-fence-wq",
 						       WQ_MEM_RECLAIM);
@@ -492,10 +491,6 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (err)
 		goto err;
 
-	err = xe_display_create(xe);
-	if (WARN_ON(err))
-		goto err;
-
 	return xe;
 
 err:
@@ -505,7 +500,15 @@ ALLOW_ERROR_INJECTION(xe_device_create, ERRNO); /* See xe_pci_probe() */
 
 static bool xe_driver_flr_disabled(struct xe_device *xe)
 {
-	return xe_mmio_read32(xe_root_tile_mmio(xe), GU_CNTL_PROTECTED) & DRIVERINT_FLR_DIS;
+	if (IS_SRIOV_VF(xe))
+		return true;
+
+	if (xe_mmio_read32(xe_root_tile_mmio(xe), GU_CNTL_PROTECTED) & DRIVERINT_FLR_DIS) {
+		drm_info(&xe->drm, "Driver-FLR disabled by BIOS\n");
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -523,7 +526,7 @@ static bool xe_driver_flr_disabled(struct xe_device *xe)
  */
 static void __xe_driver_flr(struct xe_device *xe)
 {
-	const unsigned int flr_timeout = 3 * MICRO; /* specs recommend a 3s wait */
+	const unsigned int flr_timeout = 3 * USEC_PER_SEC; /* specs recommend a 3s wait */
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	int ret;
 
@@ -569,10 +572,8 @@ static void __xe_driver_flr(struct xe_device *xe)
 
 static void xe_driver_flr(struct xe_device *xe)
 {
-	if (xe_driver_flr_disabled(xe)) {
-		drm_info_once(&xe->drm, "BIOS Disabled Driver-FLR\n");
+	if (xe_driver_flr_disabled(xe))
 		return;
-	}
 
 	__xe_driver_flr(xe);
 }
@@ -706,7 +707,7 @@ int xe_device_probe_early(struct xe_device *xe)
 	sriov_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
-	if (err) {
+	if (err || xe_survivability_mode_is_requested(xe)) {
 		int save_err = err;
 
 		/*
@@ -729,6 +730,7 @@ int xe_device_probe_early(struct xe_device *xe)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_device_probe_early, ERRNO); /* See xe_pci_probe() */
 
 static int probe_has_flat_ccs(struct xe_device *xe)
 {
@@ -796,18 +798,19 @@ int xe_device_probe(struct xe_device *xe)
 		 * be performed.
 		 */
 		xe_gt_mmio_init(gt);
-	}
 
-	for_each_tile(tile, xe, id) {
 		if (IS_SRIOV_VF(xe)) {
-			xe_guc_comm_init_early(&tile->primary_gt->uc.guc);
-			err = xe_gt_sriov_vf_bootstrap(tile->primary_gt);
+			xe_guc_comm_init_early(&gt->uc.guc);
+			err = xe_gt_sriov_vf_bootstrap(gt);
 			if (err)
 				return err;
-			err = xe_gt_sriov_vf_query_config(tile->primary_gt);
+			err = xe_gt_sriov_vf_query_config(gt);
 			if (err)
 				return err;
 		}
+	}
+
+	for_each_tile(tile, xe, id) {
 		err = xe_ggtt_init_early(tile->mem.ggtt);
 		if (err)
 			return err;
@@ -908,6 +911,10 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		goto err_unregister_display;
 
+	err = xe_device_sysfs_init(xe);
+	if (err)
+		goto err_unregister_display;
+
 	xe_debugfs_register(xe);
 
 	err = xe_hwmon_register(xe);
@@ -932,6 +939,8 @@ void xe_device_remove(struct xe_device *xe)
 	xe_display_unregister(xe);
 
 	drm_dev_unplug(&xe->drm);
+
+	xe_bo_pci_dev_remove_all(xe);
 }
 
 void xe_device_shutdown(struct xe_device *xe)
@@ -1154,7 +1163,8 @@ void xe_device_declare_wedged(struct xe_device *xe)
 
 		/* Notify userspace of wedged device */
 		drm_dev_wedged_event(&xe->drm,
-				     DRM_WEDGE_RECOVERY_REBIND | DRM_WEDGE_RECOVERY_BUS_RESET);
+				     DRM_WEDGE_RECOVERY_REBIND | DRM_WEDGE_RECOVERY_BUS_RESET,
+				     NULL);
 	}
 
 	for_each_gt(gt, xe, id)

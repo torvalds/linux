@@ -50,7 +50,7 @@ TEST(eventfd_check_flag_rdwr)
 	ASSERT_GE(fd, 0);
 
 	flags = fcntl(fd, F_GETFL);
-	// since the kernel automatically added O_RDWR.
+	// The kernel automatically adds the O_RDWR flag.
 	EXPECT_EQ(flags, O_RDWR);
 
 	close(fd);
@@ -85,7 +85,7 @@ TEST(eventfd_check_flag_nonblock)
 	close(fd);
 }
 
-TEST(eventfd_chek_flag_cloexec_and_nonblock)
+TEST(eventfd_check_flag_cloexec_and_nonblock)
 {
 	int fd, flags;
 
@@ -178,8 +178,7 @@ TEST(eventfd_check_flag_semaphore)
 	// The semaphore could only be obtained from fdinfo.
 	ret = verify_fdinfo(fd, &err, "eventfd-semaphore: ", 19, "1\n");
 	if (ret != 0)
-		ksft_print_msg("eventfd-semaphore check failed, msg: %s\n",
-				err.msg);
+		ksft_print_msg("eventfd semaphore flag check failed: %s\n", err.msg);
 	EXPECT_EQ(ret, 0);
 
 	close(fd);

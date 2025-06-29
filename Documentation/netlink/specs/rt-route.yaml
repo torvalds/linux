@@ -1,0 +1,324 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: rt-route
+protocol: netlink-raw
+uapi-header: linux/rtnetlink.h
+protonum: 0
+
+doc:
+  Route configuration over rtnetlink.
+
+definitions:
+  -
+    name: rtm-type
+    name-prefix: rtn-
+    enum-name:
+    type: enum
+    entries:
+      - unspec
+      - unicast
+      - local
+      - broadcast
+      - anycast
+      - multicast
+      - blackhole
+      - unreachable
+      - prohibit
+      - throw
+      - nat
+      - xresolve
+  -
+    name: rtmsg
+    type: struct
+    members:
+      -
+        name: rtm-family
+        type: u8
+      -
+        name: rtm-dst-len
+        type: u8
+      -
+        name: rtm-src-len
+        type: u8
+      -
+        name: rtm-tos
+        type: u8
+      -
+        name: rtm-table
+        type: u8
+      -
+        name: rtm-protocol
+        type: u8
+      -
+        name: rtm-scope
+        type: u8
+      -
+        name: rtm-type
+        type: u8
+        enum: rtm-type
+      -
+        name: rtm-flags
+        type: u32
+  -
+    name: rta-cacheinfo
+    type: struct
+    members:
+      -
+        name: rta-clntref
+        type: u32
+      -
+        name: rta-lastuse
+        type: u32
+      -
+        name: rta-expires
+        type: u32
+      -
+        name: rta-error
+        type: u32
+      -
+        name: rta-used
+        type: u32
+
+attribute-sets:
+  -
+    name: route-attrs
+    name-prefix: rta-
+    attributes:
+      -
+        name: dst
+        type: binary
+        display-hint: ipv4
+      -
+        name: src
+        type: binary
+        display-hint: ipv4
+      -
+        name: iif
+        type: u32
+      -
+        name: oif
+        type: u32
+      -
+        name: gateway
+        type: binary
+        display-hint: ipv4
+      -
+        name: priority
+        type: u32
+      -
+        name: prefsrc
+        type: binary
+        display-hint: ipv4
+      -
+        name: metrics
+        type: nest
+        nested-attributes: metrics
+      -
+        name: multipath
+        type: binary
+      -
+        name: protoinfo # not used
+        type: binary
+      -
+        name: flow
+        type: u32
+      -
+        name: cacheinfo
+        type: binary
+        struct: rta-cacheinfo
+      -
+        name: session # not used
+        type: binary
+      -
+        name: mp-algo # not used
+        type: binary
+      -
+        name: table
+        type: u32
+      -
+        name: mark
+        type: u32
+      -
+        name: mfc-stats
+        type: binary
+      -
+        name: via
+        type: binary
+      -
+        name: newdst
+        type: binary
+      -
+        name: pref
+        type: u8
+      -
+        name: encap-type
+        type: u16
+      -
+        name: encap
+        type: binary # tunnel specific nest
+      -
+        name: expires
+        type: u32
+      -
+        name: pad
+        type: binary
+      -
+        name: uid
+        type: u32
+      -
+        name: ttl-propagate
+        type: u8
+      -
+        name: ip-proto
+        type: u8
+      -
+        name: sport
+        type: u16
+      -
+        name: dport
+        type: u16
+      -
+        name: nh-id
+        type: u32
+      -
+        name: flowlabel
+        type: u32
+        byte-order: big-endian
+        display-hint: hex
+  -
+    name: metrics
+    name-prefix: rtax-
+    attributes:
+      -
+        name: unspec
+        type: unused
+        value: 0
+      -
+        name: lock
+        type: u32
+      -
+        name: mtu
+        type: u32
+      -
+        name: window
+        type: u32
+      -
+        name: rtt
+        type: u32
+      -
+        name: rttvar
+        type: u32
+      -
+        name: ssthresh
+        type: u32
+      -
+        name: cwnd
+        type: u32
+      -
+        name: advmss
+        type: u32
+      -
+        name: reordering
+        type: u32
+      -
+        name: hoplimit
+        type: u32
+      -
+        name: initcwnd
+        type: u32
+      -
+        name: features
+        type: u32
+      -
+        name: rto-min
+        type: u32
+      -
+        name: initrwnd
+        type: u32
+      -
+        name: quickack
+        type: u32
+      -
+        name: cc-algo
+        type: string
+      -
+        name: fastopen-no-cookie
+        type: u32
+
+operations:
+  enum-model: directional
+  fixed-header: rtmsg
+  name-prefix: rtm-
+  list:
+    -
+      name: getroute
+      doc: Dump route information.
+      attribute-set: route-attrs
+      do:
+        request:
+          value: 26
+          attributes:
+            - src
+            - dst
+            - iif
+            - oif
+            - ip-proto
+            - sport
+            - dport
+            - mark
+            - uid
+            - flowlabel
+        reply:
+          value: 24
+          attributes: &all-route-attrs
+            - dst
+            - src
+            - iif
+            - oif
+            - gateway
+            - priority
+            - prefsrc
+            - metrics
+            - multipath
+            - flow
+            - cacheinfo
+            - table
+            - mark
+            - mfc-stats
+            - via
+            - newdst
+            - pref
+            - encap-type
+            - encap
+            - expires
+            - pad
+            - uid
+            - ttl-propagate
+            - ip-proto
+            - sport
+            - dport
+            - nh-id
+            - flowlabel
+      dump:
+        request:
+          value: 26
+          attributes: []
+        reply:
+          value: 24
+          attributes: *all-route-attrs
+    -
+      name: newroute
+      doc: Create a new route
+      attribute-set: route-attrs
+      do:
+        request:
+          value: 24
+          attributes: *all-route-attrs
+    -
+      name: delroute
+      doc: Delete an existing route
+      attribute-set: route-attrs
+      do:
+        request:
+          value: 25
+          attributes: *all-route-attrs

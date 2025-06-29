@@ -1910,7 +1910,7 @@ static int snd_echo_create(struct snd_card *card,
 	chip->can_set_rate = 1;
 
 	/* PCI resource allocation */
-	err = pci_request_regions(pci, ECHOCARD_NAME);
+	err = pcim_request_all_regions(pci, ECHOCARD_NAME);
 	if (err < 0)
 		return err;
 

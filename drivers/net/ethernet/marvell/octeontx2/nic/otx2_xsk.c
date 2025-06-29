@@ -11,6 +11,7 @@
 #include <net/xdp.h>
 
 #include "otx2_common.h"
+#include "otx2_struct.h"
 #include "otx2_xsk.h"
 
 int otx2_xsk_pool_alloc_buf(struct otx2_nic *pfvf, struct otx2_pool *pool,
@@ -196,11 +197,39 @@ void otx2_attach_xsk_buff(struct otx2_nic *pfvf, struct otx2_snd_queue *sq, int 
 		sq->xsk_pool = xsk_get_pool_from_qid(pfvf->netdev, qidx);
 }
 
+static void otx2_xsk_sq_append_pkt(struct otx2_nic *pfvf, u64 iova, int len,
+				   u16 qidx)
+{
+	struct nix_sqe_hdr_s *sqe_hdr;
+	struct otx2_snd_queue *sq;
+	int offset;
+
+	sq = &pfvf->qset.sq[qidx];
+	memset(sq->sqe_base + 8, 0, sq->sqe_size - 8);
+
+	sqe_hdr = (struct nix_sqe_hdr_s *)(sq->sqe_base);
+
+	if (!sqe_hdr->total) {
+		sqe_hdr->aura = sq->aura_id;
+		sqe_hdr->df = 1;
+		sqe_hdr->sq = qidx;
+		sqe_hdr->pnc = 1;
+	}
+	sqe_hdr->total = len;
+	sqe_hdr->sqe_id = sq->head;
+
+	offset = sizeof(*sqe_hdr);
+
+	otx2_xdp_sqe_add_sg(sq, NULL, iova, len, &offset, OTX2_AF_XDP_FRAME);
+	sqe_hdr->sizem1 = (offset / 16) - 1;
+	pfvf->hw_ops->sqe_flush(pfvf, sq, offset, qidx);
+}
+
 void otx2_zc_napi_handler(struct otx2_nic *pfvf, struct xsk_buff_pool *pool,
 			  int queue, int budget)
 {
 	struct xdp_desc *xdp_desc = pool->tx_descs;
-	int err, i, work_done = 0, batch;
+	int  i, batch;
 
 	budget = min(budget, otx2_read_free_sqe(pfvf, queue));
 	batch = xsk_tx_peek_release_desc_batch(pool, budget);
@@ -211,15 +240,6 @@ void otx2_zc_napi_handler(struct otx2_nic *pfvf, struct xsk_buff_pool *pool,
 		dma_addr_t dma_addr;
 
 		dma_addr = xsk_buff_raw_get_dma(pool, xdp_desc[i].addr);
-		err = otx2_xdp_sq_append_pkt(pfvf, NULL, dma_addr, xdp_desc[i].len,
-					     queue, OTX2_AF_XDP_FRAME);
-		if (!err) {
-			netdev_err(pfvf->netdev, "AF_XDP: Unable to transfer packet err%d\n", err);
-			break;
-		}
-		work_done++;
+		otx2_xsk_sq_append_pkt(pfvf, dma_addr, xdp_desc[i].len, queue);
 	}
-
-	if (work_done)
-		xsk_tx_release(pool);
 }

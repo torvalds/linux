@@ -936,7 +936,7 @@ int siw_post_send(struct ib_qp *base_qp, const struct ib_send_wr *wr,
 			rv = -EINVAL;
 			break;
 		}
-		siw_dbg_qp(qp, "opcode %d, flags 0x%x, wr_id 0x%pK\n",
+		siw_dbg_qp(qp, "opcode %d, flags 0x%x, wr_id 0x%p\n",
 			   sqe->opcode, sqe->flags,
 			   (void *)(uintptr_t)sqe->id);
 
@@ -1102,7 +1102,7 @@ int siw_post_receive(struct ib_qp *base_qp, const struct ib_recv_wr *wr,
 		siw_dbg_qp(qp, "error %d\n", rv);
 		*bad_wr = wr;
 	}
-	return rv > 0 ? 0 : rv;
+	return rv;
 }
 
 int siw_destroy_cq(struct ib_cq *base_cq, struct ib_udata *udata)
@@ -1332,7 +1332,7 @@ struct ib_mr *siw_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
 	struct siw_device *sdev = to_siw_dev(pd->device);
 	int rv;
 
-	siw_dbg_pd(pd, "start: 0x%pK, va: 0x%pK, len: %llu\n",
+	siw_dbg_pd(pd, "start: 0x%p, va: 0x%p, len: %llu\n",
 		   (void *)(uintptr_t)start, (void *)(uintptr_t)rnic_va,
 		   (unsigned long long)len);
 
@@ -1525,7 +1525,7 @@ int siw_map_mr_sg(struct ib_mr *base_mr, struct scatterlist *sl, int num_sle,
 		mem->len = base_mr->length;
 		mem->va = base_mr->iova;
 		siw_dbg_mem(mem,
-			"%llu bytes, start 0x%pK, %u SLE to %u entries\n",
+			"%llu bytes, start 0x%p, %u SLE to %u entries\n",
 			mem->len, (void *)(uintptr_t)mem->va, num_sle,
 			pbl->num_buf);
 	}

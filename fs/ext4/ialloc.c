@@ -691,7 +691,8 @@ static int recently_deleted(struct super_block *sb, ext4_group_t group, int ino)
 	if (!bh || !buffer_uptodate(bh))
 		/*
 		 * If the block is not in the buffer cache, then it
-		 * must have been written out.
+		 * must have been written out, or, most unlikely, is
+		 * being migrated - false failure should be OK here.
 		 */
 		goto out;
 
@@ -1287,10 +1288,9 @@ got:
 		__u32 csum;
 		__le32 inum = cpu_to_le32(inode->i_ino);
 		__le32 gen = cpu_to_le32(inode->i_generation);
-		csum = ext4_chksum(sbi, sbi->s_csum_seed, (__u8 *)&inum,
+		csum = ext4_chksum(sbi->s_csum_seed, (__u8 *)&inum,
 				   sizeof(inum));
-		ei->i_csum_seed = ext4_chksum(sbi, csum, (__u8 *)&gen,
-					      sizeof(gen));
+		ei->i_csum_seed = ext4_chksum(csum, (__u8 *)&gen, sizeof(gen));
 	}
 
 	ext4_clear_state_flags(ei); /* Only relevant on 32-bit archs */
@@ -1334,6 +1334,9 @@ got:
 			ext4_ext_tree_init(handle, inode);
 		}
 	}
+
+	if (ext4_should_enable_large_folio(inode))
+		mapping_set_large_folios(inode->i_mapping);
 
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 

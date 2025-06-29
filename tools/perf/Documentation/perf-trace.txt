@@ -152,7 +152,8 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --summary-mode=mode::
 	To be used with -s or -S, to select how to show summary.  By default it'll
-	show the syscall summary by thread.  Possible values are: thread, total.
+	show the syscall summary by thread.  Possible values are: thread, total,
+	cgroup.
 
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru
@@ -250,6 +251,12 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	printers. This option is intended for testing BTF integration in perf trace. btf_dump-based
 	pretty-printing serves as a fallback to hand-crafted pretty printers, as the latter can
 	better pretty-print integer flags and struct pointers.
+
+--bpf-summary::
+	Collect system call statistics in BPF.  This is only for live mode and
+	works well with -s/--summary option where no argument information is
+	required.
+
 
 PAGEFAULTS
 ----------

@@ -149,7 +149,7 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 	t->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.hw_objs.mkey);
 	t->stats    = &priv->trap_stats.ch;
 
-	netif_napi_add(netdev, &t->napi, mlx5e_trap_napi_poll);
+	netif_napi_add_locked(netdev, &t->napi, mlx5e_trap_napi_poll);
 
 	err = mlx5e_open_trap_rq(priv, t);
 	if (unlikely(err))
@@ -164,7 +164,7 @@ static struct mlx5e_trap *mlx5e_open_trap(struct mlx5e_priv *priv)
 err_close_trap_rq:
 	mlx5e_close_trap_rq(&t->rq);
 err_napi_del:
-	netif_napi_del(&t->napi);
+	netif_napi_del_locked(&t->napi);
 	kvfree(t);
 	return ERR_PTR(err);
 }
@@ -173,13 +173,13 @@ void mlx5e_close_trap(struct mlx5e_trap *trap)
 {
 	mlx5e_tir_destroy(&trap->tir);
 	mlx5e_close_trap_rq(&trap->rq);
-	netif_napi_del(&trap->napi);
+	netif_napi_del_locked(&trap->napi);
 	kvfree(trap);
 }
 
 static void mlx5e_activate_trap(struct mlx5e_trap *trap)
 {
-	napi_enable(&trap->napi);
+	napi_enable_locked(&trap->napi);
 	mlx5e_activate_rq(&trap->rq);
 	mlx5e_trigger_napi_sched(&trap->napi);
 }
@@ -189,7 +189,7 @@ void mlx5e_deactivate_trap(struct mlx5e_priv *priv)
 	struct mlx5e_trap *trap = priv->en_trap;
 
 	mlx5e_deactivate_rq(&trap->rq);
-	napi_disable(&trap->napi);
+	napi_disable_locked(&trap->napi);
 }
 
 static struct mlx5e_trap *mlx5e_add_trap_queue(struct mlx5e_priv *priv)
@@ -285,6 +285,7 @@ int mlx5e_handle_trap_event(struct mlx5e_priv *priv, struct mlx5_trap_ctx *trap_
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return 0;
 
+	netdev_lock(priv->netdev);
 	switch (trap_ctx->action) {
 	case DEVLINK_TRAP_ACTION_TRAP:
 		err = mlx5e_handle_action_trap(priv, trap_ctx->id);
@@ -297,6 +298,7 @@ int mlx5e_handle_trap_event(struct mlx5e_priv *priv, struct mlx5_trap_ctx *trap_
 			    trap_ctx->action);
 		err = -EINVAL;
 	}
+	netdev_unlock(priv->netdev);
 	return err;
 }
 

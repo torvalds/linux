@@ -201,8 +201,8 @@ static void __init mxc_init_irq(void __iomem *irqbase)
 	WARN_ON(irq_base < 0);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,avic");
-	domain = irq_domain_add_legacy(np, AVIC_NUM_IRQS, irq_base, 0,
-				       &irq_domain_simple_ops, NULL);
+	domain = irq_domain_create_legacy(of_fwnode_handle(np), AVIC_NUM_IRQS, irq_base, 0,
+					  &irq_domain_simple_ops, NULL);
 	WARN_ON(!domain);
 
 	for (i = 0; i < AVIC_NUM_IRQS / 32; i++, irq_base += 32)

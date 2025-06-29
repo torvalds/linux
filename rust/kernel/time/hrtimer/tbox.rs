@@ -5,9 +5,9 @@ use super::HrTimer;
 use super::HrTimerCallback;
 use super::HrTimerHandle;
 use super::HrTimerPointer;
+use super::Ktime;
 use super::RawHrTimerCallback;
 use crate::prelude::*;
-use crate::time::Ktime;
 use core::ptr::NonNull;
 
 /// A handle for a [`Box<HasHrTimer<T>>`] returned by a call to

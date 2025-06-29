@@ -175,7 +175,7 @@ struct signal_timer {
 
 static void signal_for_ttm_bo_reserve(struct timer_list *t)
 {
-	struct signal_timer *s_timer = from_timer(s_timer, t, timer);
+	struct signal_timer *s_timer = timer_container_of(s_timer, t, timer);
 	struct task_struct *task = s_timer->ctx->task;
 
 	do_send_sig_info(SIGTERM, SEND_SIG_PRIV, task, PIDTYPE_PID);
@@ -201,7 +201,7 @@ static int threaded_ttm_bo_reserve(void *arg)
 	err = ttm_bo_reserve(bo, interruptible, no_wait, &ctx);
 
 	timer_delete_sync(&s_timer.timer);
-	destroy_timer_on_stack(&s_timer.timer);
+	timer_destroy_on_stack(&s_timer.timer);
 
 	ww_acquire_fini(&ctx);
 

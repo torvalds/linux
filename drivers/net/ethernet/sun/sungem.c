@@ -1481,7 +1481,7 @@ static int gem_mdio_link_not_up(struct gem *gp)
 
 static void gem_link_timer(struct timer_list *t)
 {
-	struct gem *gp = from_timer(gp, t, link_timer);
+	struct gem *gp = timer_container_of(gp, t, link_timer);
 	struct net_device *dev = gp->dev;
 	int restart_aneg = 0;
 

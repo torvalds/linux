@@ -42,6 +42,7 @@ config ARM64
 	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
 	select ARCH_HAS_NONLEAF_PMD_YOUNG if ARM64_HAFT
+	select ARCH_HAS_PREEMPT_LAZY
 	select ARCH_HAS_PTDUMP
 	select ARCH_HAS_PTE_DEVMAP
 	select ARCH_HAS_PTE_SPECIAL
@@ -134,7 +135,6 @@ config ARM64
 	select COMMON_CLK
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select CPUMASK_OFFSTACK if NR_CPUS > 256
-	select CRC32
 	select DCACHE_WORD_ACCESS
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select DMA_BOUNCE_UNALIGNED_KMALLOC
@@ -333,9 +333,9 @@ config ARCH_MMAP_RND_BITS_MAX
 	default 24 if ARM64_VA_BITS=39
 	default 27 if ARM64_VA_BITS=42
 	default 30 if ARM64_VA_BITS=47
-	default 29 if ARM64_VA_BITS=48 && ARM64_64K_PAGES
-	default 31 if ARM64_VA_BITS=48 && ARM64_16K_PAGES
-	default 33 if ARM64_VA_BITS=48
+	default 29 if (ARM64_VA_BITS=48 || ARM64_VA_BITS=52) && ARM64_64K_PAGES
+	default 31 if (ARM64_VA_BITS=48 || ARM64_VA_BITS=52) && ARM64_16K_PAGES
+	default 33 if (ARM64_VA_BITS=48 || ARM64_VA_BITS=52)
 	default 14 if ARM64_64K_PAGES
 	default 16 if ARM64_16K_PAGES
 	default 18
@@ -461,6 +461,23 @@ config AMPERE_ERRATUM_AC03_CPU_38
 	  The workaround forces KVM to explicitly set VTCR_EL2.HA to 0,
 	  which avoids enabling unadvertised hardware Access Flag management
 	  at stage-2.
+
+	  If unsure, say Y.
+
+config AMPERE_ERRATUM_AC04_CPU_23
+        bool "AmpereOne: AC04_CPU_23:  Failure to synchronize writes to HCR_EL2 may corrupt address translations."
+	default y
+	help
+	  This option adds an alternative code sequence to work around Ampere
+	  errata AC04_CPU_23 on AmpereOne.
+
+	  Updates to HCR_EL2 can rarely corrupt simultaneous translations for
+	  data addresses initiated by load/store instructions. Only
+	  instruction initiated translations are vulnerable, not translations
+	  from prefetches for example. A DSB before the store to HCR_EL2 is
+	  sufficient to prevent older instructions from hitting the window
+	  for corruption, and an ISB after is sufficient to prevent younger
+	  instructions from hitting the window for corruption.
 
 	  If unsure, say Y.
 
@@ -641,9 +658,6 @@ config ARM64_ERRATUM_843419
 	  Cortex-A53 parts up to r0p4.
 
 	  If unsure, say Y.
-
-config ARM64_LD_HAS_FIX_ERRATUM_843419
-	def_bool $(ld-option,--fix-cortex-a53-843419)
 
 config ARM64_ERRATUM_1024718
 	bool "Cortex-A55: 1024718: Update of DBM/AP bits without break before make might result in incorrect update"
@@ -1602,6 +1616,9 @@ config ARCH_SUPPORTS_KEXEC_IMAGE_VERIFY_SIG
 config ARCH_DEFAULT_KEXEC_IMAGE_VERIFY_SIG
 	def_bool y
 
+config ARCH_SUPPORTS_KEXEC_HANDOVER
+	def_bool y
+
 config ARCH_SUPPORTS_CRASH_DUMP
 	def_bool y
 
@@ -1890,13 +1907,9 @@ config ARM64_PAN
 	  The feature is detected at runtime, and will remain as a 'nop'
 	  instruction if the cpu does not implement the feature.
 
-config AS_HAS_LSE_ATOMICS
-	def_bool $(as-instr,.arch_extension lse)
-
 config ARM64_LSE_ATOMICS
 	bool
 	default ARM64_USE_LSE_ATOMICS
-	depends on AS_HAS_LSE_ATOMICS
 
 config ARM64_USE_LSE_ATOMICS
 	bool "Atomic instructions"
@@ -1908,19 +1921,11 @@ config ARM64_USE_LSE_ATOMICS
 
 	  Say Y here to make use of these instructions for the in-kernel
 	  atomic routines. This incurs a small overhead on CPUs that do
-	  not support these instructions and requires the kernel to be
-	  built with binutils >= 2.25 in order for the new instructions
-	  to be used.
+	  not support these instructions.
 
 endmenu # "ARMv8.1 architectural features"
 
 menu "ARMv8.2 architectural features"
-
-config AS_HAS_ARMV8_2
-	def_bool $(cc-option,-Wa$(comma)-march=armv8.2-a)
-
-config AS_HAS_SHA3
-	def_bool $(as-instr,.arch armv8.2-a+sha3)
 
 config ARM64_PMEM
 	bool "Enable support for persistent memory"
@@ -1995,7 +2000,6 @@ config ARM64_PTR_AUTH_KERNEL
 	bool "Use pointer authentication for kernel"
 	default y
 	depends on ARM64_PTR_AUTH
-	depends on (CC_HAS_SIGN_RETURN_ADDRESS || CC_HAS_BRANCH_PROT_PAC_RET) && AS_HAS_ARMV8_3
 	# Modern compilers insert a .note.gnu.property section note for PAC
 	# which is only understood by binutils starting with version 2.33.1.
 	depends on LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100)
@@ -2016,18 +2020,9 @@ config CC_HAS_BRANCH_PROT_PAC_RET
 	# GCC 9 or later, clang 8 or later
 	def_bool $(cc-option,-mbranch-protection=pac-ret+leaf)
 
-config CC_HAS_SIGN_RETURN_ADDRESS
-	# GCC 7, 8
-	def_bool $(cc-option,-msign-return-address=all)
-
-config AS_HAS_ARMV8_3
-	def_bool $(cc-option,-Wa$(comma)-march=armv8.3-a)
-
 config AS_HAS_CFI_NEGATE_RA_STATE
+	# binutils 2.34+
 	def_bool $(as-instr,.cfi_startproc\n.cfi_negate_ra_state\n.cfi_endproc\n)
-
-config AS_HAS_LDAPR
-	def_bool $(as-instr,.arch_extension rcpc)
 
 endmenu # "ARMv8.3 architectural features"
 
@@ -2056,19 +2051,12 @@ config ARM64_AMU_EXTN
 	  correctly reflect reality. Most commonly, the value read will be 0,
 	  indicating that the counter is not enabled.
 
-config AS_HAS_ARMV8_4
-	def_bool $(cc-option,-Wa$(comma)-march=armv8.4-a)
-
 config ARM64_TLB_RANGE
 	bool "Enable support for tlbi range feature"
 	default y
-	depends on AS_HAS_ARMV8_4
 	help
 	  ARMv8.4-TLBI provides TLBI invalidation instruction that apply to a
 	  range of input addresses.
-
-	  The feature introduces new assembly instructions, and they were
-	  support when binutils >= 2.30.
 
 endmenu # "ARMv8.4 architectural features"
 
@@ -2145,7 +2133,6 @@ config ARM64_MTE
 	default y
 	depends on ARM64_AS_HAS_MTE && ARM64_TAGGED_ADDR_ABI
 	depends on AS_HAS_ARMV8_5
-	depends on AS_HAS_LSE_ATOMICS
 	# Required for tag checking in the uaccess routines
 	select ARM64_PAN
 	select ARCH_HAS_SUBPAGE_FAULTS
@@ -2285,7 +2272,6 @@ config ARM64_SME
 	bool "ARM Scalable Matrix Extension support"
 	default y
 	depends on ARM64_SVE
-	depends on BROKEN
 	help
 	  The Scalable Matrix Extension (SME) is an extension to the AArch64
 	  execution state which utilises a substantial subset of the SVE

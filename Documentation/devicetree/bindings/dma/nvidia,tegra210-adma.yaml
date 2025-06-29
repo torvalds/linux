@@ -19,6 +19,7 @@ properties:
       - enum:
           - nvidia,tegra210-adma
           - nvidia,tegra186-adma
+          - nvidia,tegra264-adma
       - items:
           - enum:
               - nvidia,tegra234-adma
@@ -92,6 +93,7 @@ allOf:
           contains:
             enum:
               - nvidia,tegra186-adma
+              - nvidia,tegra264-adma
     then:
       anyOf:
         - properties:

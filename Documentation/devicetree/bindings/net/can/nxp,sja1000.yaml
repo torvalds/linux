@@ -16,9 +16,7 @@ properties:
           - nxp,sja1000
           - technologic,sja1000
       - items:
-          - enum:
-              - renesas,r9a06g032-sja1000 # RZ/N1D
-              - renesas,r9a06g033-sja1000 # RZ/N1S
+          - const: renesas,r9a06g032-sja1000 # RZ/N1D
           - const: renesas,rzn1-sja1000 # RZ/N1
 
   reg:

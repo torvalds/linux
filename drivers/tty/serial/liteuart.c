@@ -152,7 +152,7 @@ static irqreturn_t liteuart_interrupt(int irq, void *data)
 
 static void liteuart_timer(struct timer_list *t)
 {
-	struct liteuart_port *uart = from_timer(uart, t, timer);
+	struct liteuart_port *uart = timer_container_of(uart, t, timer);
 	struct uart_port *port = &uart->port;
 
 	liteuart_interrupt(0, port);

@@ -227,9 +227,12 @@ int meson_encoder_cvbs_probe(struct meson_drm *priv)
 	struct device_node *remote;
 	int ret;
 
-	meson_encoder_cvbs = devm_kzalloc(priv->dev, sizeof(*meson_encoder_cvbs), GFP_KERNEL);
-	if (!meson_encoder_cvbs)
-		return -ENOMEM;
+	meson_encoder_cvbs = devm_drm_bridge_alloc(priv->dev,
+						   struct meson_encoder_cvbs,
+						   bridge,
+						   &meson_encoder_cvbs_bridge_funcs);
+	if (IS_ERR(meson_encoder_cvbs))
+		return PTR_ERR(meson_encoder_cvbs);
 
 	/* CVBS Connector Bridge */
 	remote = of_graph_get_remote_node(priv->dev->of_node, 0, 0);
@@ -245,7 +248,6 @@ int meson_encoder_cvbs_probe(struct meson_drm *priv)
 				     "Failed to find CVBS Connector bridge\n");
 
 	/* CVBS Encoder Bridge */
-	meson_encoder_cvbs->bridge.funcs = &meson_encoder_cvbs_bridge_funcs;
 	meson_encoder_cvbs->bridge.of_node = priv->dev->of_node;
 	meson_encoder_cvbs->bridge.type = DRM_MODE_CONNECTOR_Composite;
 	meson_encoder_cvbs->bridge.ops = DRM_BRIDGE_OP_MODES;

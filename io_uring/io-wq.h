@@ -21,9 +21,6 @@ enum io_wq_cancel {
 	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
 };
 
-typedef struct io_wq_work *(free_work_fn)(struct io_wq_work *);
-typedef void (io_wq_work_fn)(struct io_wq_work *);
-
 struct io_wq_hash {
 	refcount_t refs;
 	unsigned long map;
@@ -39,8 +36,6 @@ static inline void io_wq_put_hash(struct io_wq_hash *hash)
 struct io_wq_data {
 	struct io_wq_hash *hash;
 	struct task_struct *task;
-	io_wq_work_fn *do_work;
-	free_work_fn *free_work;
 };
 
 struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data);

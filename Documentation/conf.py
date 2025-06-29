@@ -28,16 +28,6 @@ def have_command(cmd):
     """
     return shutil.which(cmd) is not None
 
-# Get Sphinx version
-major, minor, patch = sphinx.version_info[:3]
-
-#
-# Warn about older versions that we don't want to support for much
-# longer.
-#
-if (major < 2) or (major == 2 and minor < 4):
-    print('WARNING: support for Sphinx < 2.4 will be removed soon.')
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -57,76 +47,71 @@ extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
               'maintainers_include', 'sphinx.ext.autosectionlabel',
               'kernel_abi', 'kernel_feat', 'translations']
 
-if major >= 3:
-    if (major > 3) or (minor > 0 or patch >= 2):
-        # Sphinx c function parser is more pedantic with regards to type
-        # checking. Due to that, having macros at c:function cause problems.
-        # Those needed to be scaped by using c_id_attributes[] array
-        c_id_attributes = [
-            # GCC Compiler types not parsed by Sphinx:
-            "__restrict__",
+# Since Sphinx version 3, the C function parser is more pedantic with regards
+# to type checking. Due to that, having macros at c:function cause problems.
+# Those needed to be escaped by using c_id_attributes[] array
+c_id_attributes = [
+    # GCC Compiler types not parsed by Sphinx:
+    "__restrict__",
 
-            # include/linux/compiler_types.h:
-            "__iomem",
-            "__kernel",
-            "noinstr",
-            "notrace",
-            "__percpu",
-            "__rcu",
-            "__user",
-            "__force",
-            "__counted_by_le",
-            "__counted_by_be",
+    # include/linux/compiler_types.h:
+    "__iomem",
+    "__kernel",
+    "noinstr",
+    "notrace",
+    "__percpu",
+    "__rcu",
+    "__user",
+    "__force",
+    "__counted_by_le",
+    "__counted_by_be",
 
-            # include/linux/compiler_attributes.h:
-            "__alias",
-            "__aligned",
-            "__aligned_largest",
-            "__always_inline",
-            "__assume_aligned",
-            "__cold",
-            "__attribute_const__",
-            "__copy",
-            "__pure",
-            "__designated_init",
-            "__visible",
-            "__printf",
-            "__scanf",
-            "__gnu_inline",
-            "__malloc",
-            "__mode",
-            "__no_caller_saved_registers",
-            "__noclone",
-            "__nonstring",
-            "__noreturn",
-            "__packed",
-            "__pure",
-            "__section",
-            "__always_unused",
-            "__maybe_unused",
-            "__used",
-            "__weak",
-            "noinline",
-            "__fix_address",
-            "__counted_by",
+    # include/linux/compiler_attributes.h:
+    "__alias",
+    "__aligned",
+    "__aligned_largest",
+    "__always_inline",
+    "__assume_aligned",
+    "__cold",
+    "__attribute_const__",
+    "__copy",
+    "__pure",
+    "__designated_init",
+    "__visible",
+    "__printf",
+    "__scanf",
+    "__gnu_inline",
+    "__malloc",
+    "__mode",
+    "__no_caller_saved_registers",
+    "__noclone",
+    "__nonstring",
+    "__noreturn",
+    "__packed",
+    "__pure",
+    "__section",
+    "__always_unused",
+    "__maybe_unused",
+    "__used",
+    "__weak",
+    "noinline",
+    "__fix_address",
+    "__counted_by",
 
-            # include/linux/memblock.h:
-            "__init_memblock",
-            "__meminit",
+    # include/linux/memblock.h:
+    "__init_memblock",
+    "__meminit",
 
-            # include/linux/init.h:
-            "__init",
-            "__ref",
+    # include/linux/init.h:
+    "__init",
+    "__ref",
 
-            # include/linux/linkage.h:
-            "asmlinkage",
+    # include/linux/linkage.h:
+    "asmlinkage",
 
-            # include/linux/btf.h
-            "__bpf_kfunc",
-        ]
-
-else:
-    extensions.append('cdomain')
+    # include/linux/btf.h
+    "__bpf_kfunc",
+]
 
 # Ensure that autosectionlabel will produce unique names
 autosectionlabel_prefix_document = True
@@ -148,10 +133,6 @@ if 'SPHINX_IMGMATH' in os.environ:
         load_imgmath = False
     else:
         sys.stderr.write("Unknown env SPHINX_IMGMATH=%s ignored.\n" % env_sphinx_imgmath)
-
-# Always load imgmath for Sphinx <1.8 or for epub docs
-load_imgmath = (load_imgmath or (major == 1 and minor < 8)
-                or 'epub' in sys.argv)
 
 if load_imgmath:
     extensions.append("sphinx.ext.imgmath")
@@ -322,14 +303,6 @@ if "DOCS_CSS" in os.environ:
     for l in css:
         html_css_files.append(l)
 
-if major <= 1 and minor < 8:
-    html_context = {
-        'css_files': [],
-    }
-
-    for l in html_css_files:
-        html_context['css_files'].append('_static/' + l)
-
 if  html_theme == 'alabaster':
     html_theme_options = {
         'description': get_cline_version(),
@@ -408,11 +381,6 @@ latex_elements = {
         \\setmonofont{DejaVu Sans Mono}
     ''',
 }
-
-# Fix reference escape troubles with Sphinx 1.4.x
-if major == 1:
-    latex_elements['preamble']  += '\\renewcommand*{\\DUrole}[2]{ #2 }\n'
-
 
 # Load kerneldoc specific LaTeX settings
 latex_elements['preamble'] += '''
@@ -540,7 +508,7 @@ pdf_documents = [
 # kernel-doc extension configuration for running Sphinx directly (e.g. by Read
 # the Docs). In a normal build, these are supplied from the Makefile via command
 # line arguments.
-kerneldoc_bin = '../scripts/kernel-doc'
+kerneldoc_bin = '../scripts/kernel-doc.py'
 kerneldoc_srctree = '..'
 
 # ------------------------------------------------------------------------------

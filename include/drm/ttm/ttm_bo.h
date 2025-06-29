@@ -172,7 +172,6 @@ struct ttm_bo_kmap_obj {
  * @gfp_retry_mayfail: Set the __GFP_RETRY_MAYFAIL when allocation pages.
  * @allow_res_evict: Allow eviction of reserved BOs. Can be used when multiple
  * BOs share the same reservation object.
- * @force_alloc: Don't check the memory account during suspend or CPU page
  * faults. Should only be used by TTM internally.
  * @resv: Reservation object to allow reserved evictions with.
  * @bytes_moved: Statistics on how many bytes have been moved.
@@ -185,7 +184,6 @@ struct ttm_operation_ctx {
 	bool no_wait_gpu;
 	bool gfp_retry_mayfail;
 	bool allow_res_evict;
-	bool force_alloc;
 	struct dma_resv *resv;
 	uint64_t bytes_moved;
 };
@@ -245,34 +243,6 @@ long ttm_bo_shrink(struct ttm_operation_ctx *ctx, struct ttm_buffer_object *bo,
 bool ttm_bo_shrink_suitable(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx);
 
 bool ttm_bo_shrink_avoid_wait(void);
-
-/**
- * ttm_bo_get - reference a struct ttm_buffer_object
- *
- * @bo: The buffer object.
- */
-static inline void ttm_bo_get(struct ttm_buffer_object *bo)
-{
-	kref_get(&bo->kref);
-}
-
-/**
- * ttm_bo_get_unless_zero - reference a struct ttm_buffer_object unless
- * its refcount has already reached zero.
- * @bo: The buffer object.
- *
- * Used to reference a TTM buffer object in lookups where the object is removed
- * from the lookup structure during the destructor and for RCU lookups.
- *
- * Returns: @bo if the referencing was successful, NULL otherwise.
- */
-static inline __must_check struct ttm_buffer_object *
-ttm_bo_get_unless_zero(struct ttm_buffer_object *bo)
-{
-	if (!kref_get_unless_zero(&bo->kref))
-		return NULL;
-	return bo;
-}
 
 /**
  * ttm_bo_reserve:

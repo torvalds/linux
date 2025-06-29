@@ -133,8 +133,13 @@ struct release_task_post {
 static void __unhash_process(struct release_task_post *post, struct task_struct *p,
 			     bool group_dead)
 {
+	struct pid *pid = task_pid(p);
+
 	nr_threads--;
+
 	detach_pid(post->pids, p, PIDTYPE_PID);
+	wake_up_all(&pid->wait_pidfd);
+
 	if (group_dead) {
 		detach_pid(post->pids, p, PIDTYPE_TGID);
 		detach_pid(post->pids, p, PIDTYPE_PGID);
@@ -253,7 +258,8 @@ repeat:
 	pidfs_exit(p);
 	cgroup_release(p);
 
-	thread_pid = get_pid(p->thread_pid);
+	/* Retrieve @thread_pid before __unhash_process() may set it to NULL. */
+	thread_pid = task_pid(p);
 
 	write_lock_irq(&tasklist_lock);
 	ptrace_release_task(p);
@@ -282,8 +288,8 @@ repeat:
 	}
 
 	write_unlock_irq(&tasklist_lock);
+	/* @thread_pid can't go away until free_pids() below */
 	proc_flush_pid(thread_pid);
-	put_pid(thread_pid);
 	add_device_randomness(&p->se.sum_exec_runtime,
 			      sizeof(p->se.sum_exec_runtime));
 	free_pids(post.pids);
@@ -415,44 +421,30 @@ kill_orphaned_pgrp(struct task_struct *tsk, struct task_struct *parent)
 	}
 }
 
-static void coredump_task_exit(struct task_struct *tsk)
+static void coredump_task_exit(struct task_struct *tsk,
+			       struct core_state *core_state)
 {
-	struct core_state *core_state;
+	struct core_thread self;
 
+	self.task = tsk;
+	if (self.task->flags & PF_SIGNALED)
+		self.next = xchg(&core_state->dumper.next, &self);
+	else
+		self.task = NULL;
 	/*
-	 * Serialize with any possible pending coredump.
-	 * We must hold siglock around checking core_state
-	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
-	 * will increment ->nr_threads for each thread in the
-	 * group without PF_POSTCOREDUMP set.
+	 * Implies mb(), the result of xchg() must be visible
+	 * to core_state->dumper.
 	 */
-	spin_lock_irq(&tsk->sighand->siglock);
-	tsk->flags |= PF_POSTCOREDUMP;
-	core_state = tsk->signal->core_state;
-	spin_unlock_irq(&tsk->sighand->siglock);
-	if (core_state) {
-		struct core_thread self;
+	if (atomic_dec_and_test(&core_state->nr_threads))
+		complete(&core_state->startup);
 
-		self.task = current;
-		if (self.task->flags & PF_SIGNALED)
-			self.next = xchg(&core_state->dumper.next, &self);
-		else
-			self.task = NULL;
-		/*
-		 * Implies mb(), the result of xchg() must be visible
-		 * to core_state->dumper.
-		 */
-		if (atomic_dec_and_test(&core_state->nr_threads))
-			complete(&core_state->startup);
-
-		for (;;) {
-			set_current_state(TASK_IDLE|TASK_FREEZABLE);
-			if (!self.task) /* see coredump_finish() */
-				break;
-			schedule();
-		}
-		__set_current_state(TASK_RUNNING);
+	for (;;) {
+		set_current_state(TASK_IDLE|TASK_FREEZABLE);
+		if (!self.task) /* see coredump_finish() */
+			break;
+		schedule();
 	}
+	__set_current_state(TASK_RUNNING);
 }
 
 #ifdef CONFIG_MEMCG
@@ -876,6 +868,7 @@ static void synchronize_group_exit(struct task_struct *tsk, long code)
 {
 	struct sighand_struct *sighand = tsk->sighand;
 	struct signal_struct *signal = tsk->signal;
+	struct core_state *core_state;
 
 	spin_lock_irq(&sighand->siglock);
 	signal->quick_threads--;
@@ -885,7 +878,19 @@ static void synchronize_group_exit(struct task_struct *tsk, long code)
 		signal->group_exit_code = code;
 		signal->group_stop_count = 0;
 	}
+	/*
+	 * Serialize with any possible pending coredump.
+	 * We must hold siglock around checking core_state
+	 * and setting PF_POSTCOREDUMP.  The core-inducing thread
+	 * will increment ->nr_threads for each thread in the
+	 * group without PF_POSTCOREDUMP set.
+	 */
+	tsk->flags |= PF_POSTCOREDUMP;
+	core_state = signal->core_state;
 	spin_unlock_irq(&sighand->siglock);
+
+	if (unlikely(core_state))
+		coredump_task_exit(tsk, core_state);
 }
 
 void __noreturn do_exit(long code)
@@ -894,15 +899,12 @@ void __noreturn do_exit(long code)
 	int group_dead;
 
 	WARN_ON(irqs_disabled());
-
-	synchronize_group_exit(tsk, code);
-
 	WARN_ON(tsk->plug);
 
 	kcov_task_exit(tsk);
 	kmsan_task_exit(tsk);
 
-	coredump_task_exit(tsk);
+	synchronize_group_exit(tsk, code);
 	ptrace_event(PTRACE_EVENT_EXIT, code);
 	user_events_exit(tsk);
 
@@ -936,12 +938,12 @@ void __noreturn do_exit(long code)
 
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);
+	trace_sched_process_exit(tsk, group_dead);
 
 	exit_mm();
 
 	if (group_dead)
 		acct_process();
-	trace_sched_process_exit(tsk);
 
 	exit_sem(tsk);
 	exit_shm(tsk);

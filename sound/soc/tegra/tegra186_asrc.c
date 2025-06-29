@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
+// SPDX-FileCopyrightText: Copyright (c) 2022-2025 NVIDIA CORPORATION. All rights reserved.
 //
 // tegra186_asrc.c - Tegra186 ASRC driver
-//
-// Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -99,7 +98,7 @@ static int tegra186_asrc_runtime_resume(struct device *dev)
 	 * sync is done after this to restore other settings.
 	 */
 	regmap_write(asrc->regmap, TEGRA186_ASRC_GLOBAL_SCRATCH_ADDR,
-		     TEGRA186_ASRC_ARAM_START_ADDR);
+		     asrc->soc_data->aram_start_addr);
 	regmap_write(asrc->regmap, TEGRA186_ASRC_GLOBAL_ENB,
 		     TEGRA186_ASRC_GLOBAL_EN);
 
@@ -954,8 +953,17 @@ static const struct regmap_config tegra186_asrc_regmap_config = {
 	.cache_type		= REGCACHE_FLAT,
 };
 
+static const struct tegra_asrc_soc_data soc_data_tegra186 = {
+	.aram_start_addr	= TEGRA186_ASRC_ARAM_START_ADDR,
+};
+
+static const struct tegra_asrc_soc_data soc_data_tegra264 = {
+	.aram_start_addr	= TEGRA264_ASRC_ARAM_START_ADDR,
+};
+
 static const struct of_device_id tegra186_asrc_of_match[] = {
-	{ .compatible = "nvidia,tegra186-asrc" },
+	{ .compatible = "nvidia,tegra186-asrc", .data = &soc_data_tegra186 },
+	{ .compatible = "nvidia,tegra264-asrc", .data = &soc_data_tegra264 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tegra186_asrc_of_match);
@@ -984,6 +992,8 @@ static int tegra186_asrc_platform_probe(struct platform_device *pdev)
 		dev_err(dev, "regmap init failed\n");
 		return PTR_ERR(asrc->regmap);
 	}
+
+	asrc->soc_data = of_device_get_match_data(&pdev->dev);
 
 	regcache_cache_only(asrc->regmap, true);
 

@@ -29,13 +29,13 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
         Program        Minimal version       Command to check the version
 ====================== ===============  ========================================
-GNU C                  5.1              gcc --version
+GNU C                  8.1              gcc --version
 Clang/LLVM (optional)  13.0.1           clang --version
 Rust (optional)        1.78.0           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
 GNU make               4.0              make --version
 bash                   4.2              bash --version
-binutils               2.25             ld -v
+binutils               2.30             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 pahole                 1.16             pahole --version
@@ -116,7 +116,7 @@ Bash 4.2 or newer is needed.
 Binutils
 --------
 
-Binutils 2.25 or newer is needed to build the kernel.
+Binutils 2.30 or newer is needed to build the kernel.
 
 pkg-config
 ----------
