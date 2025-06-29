@@ -1327,11 +1327,11 @@ int main(int ac, char *av[])
 	/* Determine GUI path */
 	env = getenv(SRCTREE);
 	if (env)
-		glade_file = g_strconcat(env, "/scripts/kconfig/gconf.glade", NULL);
+		glade_file = g_strconcat(env, "/scripts/kconfig/gconf.ui", NULL);
 	else if (av[0][0] == '/')
-		glade_file = g_strconcat(av[0], ".glade", NULL);
+		glade_file = g_strconcat(av[0], ".ui", NULL);
 	else
-		glade_file = g_strconcat(g_get_current_dir(), "/", av[0], ".glade", NULL);
+		glade_file = g_strconcat(g_get_current_dir(), "/", av[0], ".ui", NULL);
 
 	/* Conf stuffs */
 	if (ac > 1 && av[1][0] == '-') {
