@@ -315,6 +315,7 @@ void dev_pm_genpd_synced_poweroff(struct device *dev);
 int dev_pm_genpd_set_hwmode(struct device *dev, bool enable);
 bool dev_pm_genpd_get_hwmode(struct device *dev);
 int dev_pm_genpd_rpm_always_on(struct device *dev, bool on);
+bool dev_pm_genpd_is_on(struct device *dev);
 
 extern struct dev_power_governor simple_qos_governor;
 extern struct dev_power_governor pm_domain_always_on_gov;
@@ -405,6 +406,11 @@ static inline bool dev_pm_genpd_get_hwmode(struct device *dev)
 static inline int dev_pm_genpd_rpm_always_on(struct device *dev, bool on)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline bool dev_pm_genpd_is_on(struct device *dev)
+{
+	return false;
 }
 
 #define simple_qos_governor		(*(struct dev_power_governor *)(NULL))
