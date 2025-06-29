@@ -251,8 +251,7 @@ static void put_pages(struct drm_gem_object *obj)
 	}
 }
 
-static struct page **msm_gem_get_pages_locked(struct drm_gem_object *obj,
-					      unsigned madv)
+struct page **msm_gem_get_pages_locked(struct drm_gem_object *obj, unsigned madv)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 
@@ -1052,18 +1051,37 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
 	/*
 	 * We need to lock any VMs the object is still attached to, but not
 	 * the object itself (see explaination in msm_gem_assert_locked()),
-	 * so just open-code this special case:
+	 * so just open-code this special case.
+	 *
+	 * Note that we skip the dance if we aren't attached to any VM.  This
+	 * is load bearing.  The driver needs to support two usage models:
+	 *
+	 * 1. Legacy kernel managed VM: Userspace expects the VMA's to be
+	 *    implicitly torn down when the object is freed, the VMA's do
+	 *    not hold a hard reference to the BO.
+	 *
+	 * 2. VM_BIND, userspace managed VM: The VMA holds a reference to the
+	 *    BO.  This can be dropped when the VM is closed and it's associated
+	 *    VMAs are torn down.  (See msm_gem_vm_close()).
+	 *
+	 * In the latter case the last reference to a BO can be dropped while
+	 * we already have the VM locked.  It would have already been removed
+	 * from the gpuva list, but lockdep doesn't know that.  Or understand
+	 * the differences between the two usage models.
 	 */
-	drm_exec_init(&exec, 0, 0);
-	drm_exec_until_all_locked (&exec) {
-		struct drm_gpuvm_bo *vm_bo;
-		drm_gem_for_each_gpuvm_bo (vm_bo, obj) {
-			drm_exec_lock_obj(&exec, drm_gpuvm_resv_obj(vm_bo->vm));
-			drm_exec_retry_on_contention(&exec);
+	if (!list_empty(&obj->gpuva.list)) {
+		drm_exec_init(&exec, 0, 0);
+		drm_exec_until_all_locked (&exec) {
+			struct drm_gpuvm_bo *vm_bo;
+			drm_gem_for_each_gpuvm_bo (vm_bo, obj) {
+				drm_exec_lock_obj(&exec,
+						  drm_gpuvm_resv_obj(vm_bo->vm));
+				drm_exec_retry_on_contention(&exec);
+			}
 		}
+		put_iova_spaces(obj, NULL, true);
+		drm_exec_fini(&exec);     /* drop locks */
 	}
-	put_iova_spaces(obj, NULL, true);
-	drm_exec_fini(&exec);     /* drop locks */
 
 	if (drm_gem_is_imported(obj)) {
 		GEM_WARN_ON(msm_obj->vaddr);
