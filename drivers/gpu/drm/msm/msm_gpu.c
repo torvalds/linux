@@ -942,12 +942,8 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	msm_devfreq_init(gpu);
 
-
 	gpu->vm = gpu->funcs->create_vm(gpu, pdev);
-
-	if (gpu->vm == NULL)
-		DRM_DEV_INFO(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
-	else if (IS_ERR(gpu->vm)) {
+	if (IS_ERR(gpu->vm)) {
 		ret = PTR_ERR(gpu->vm);
 		goto fail;
 	}
