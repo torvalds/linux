@@ -37,6 +37,12 @@ QAction *ConfigMainWindow::saveAction;
 ConfigSettings::ConfigSettings()
 	: QSettings("kernel.org", "qconf")
 {
+	beginGroup("/kconfig/qconf");
+}
+
+ConfigSettings::~ConfigSettings()
+{
+	endGroup();
 }
 
 /**
@@ -1829,7 +1835,6 @@ int main(int ac, char** av)
 	configApp = new QApplication(ac, av);
 
 	configSettings = new ConfigSettings();
-	configSettings->beginGroup("/kconfig/qconf");
 	v = new ConfigMainWindow();
 
 	//zconfdump(stdout);
@@ -1837,7 +1842,6 @@ int main(int ac, char** av)
 	v->show();
 	configApp->exec();
 
-	configSettings->endGroup();
 	delete configSettings;
 	delete v;
 	delete configApp;
