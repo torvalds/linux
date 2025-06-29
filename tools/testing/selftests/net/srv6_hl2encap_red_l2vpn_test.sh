@@ -343,7 +343,7 @@ setup_rt_local_sids()
 		encap seg6local action End dev "${DUMMY_DEVNAME}"
 
 	# all SIDs for VPNs start with a common locator. Routes and SRv6
-	# Endpoint behaviors instaces are grouped together in the 'localsid'
+	# Endpoint behaviors instances are grouped together in the 'localsid'
 	# table.
 	ip -netns "${nsname}" -6 rule add \
 		to "${VPN_LOCATOR_SERVICE}::/16" \
