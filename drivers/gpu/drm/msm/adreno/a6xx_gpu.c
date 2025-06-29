@@ -120,7 +120,7 @@ static void a6xx_set_pagetable(struct a6xx_gpu *a6xx_gpu,
 	if (ctx->seqno == ring->cur_ctx_seqno)
 		return;
 
-	if (msm_iommu_pagetable_params(ctx->vm->mmu, &ttbr, &asid))
+	if (msm_iommu_pagetable_params(to_msm_vm(ctx->vm)->mmu, &ttbr, &asid))
 		return;
 
 	if (adreno_gpu->info->family >= ADRENO_7XX_GEN1) {
@@ -2256,7 +2256,7 @@ static void a6xx_gpu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp,
 	mutex_unlock(&a6xx_gpu->gmu.lock);
 }
 
-static struct msm_gem_vm *
+static struct drm_gpuvm *
 a6xx_create_vm(struct msm_gpu *gpu, struct platform_device *pdev)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -2274,12 +2274,12 @@ a6xx_create_vm(struct msm_gpu *gpu, struct platform_device *pdev)
 	return adreno_iommu_create_vm(gpu, pdev, quirks);
 }
 
-static struct msm_gem_vm *
+static struct drm_gpuvm *
 a6xx_create_private_vm(struct msm_gpu *gpu)
 {
 	struct msm_mmu *mmu;
 
-	mmu = msm_iommu_pagetable_create(gpu->vm->mmu);
+	mmu = msm_iommu_pagetable_create(to_msm_vm(gpu->vm)->mmu);
 
 	if (IS_ERR(mmu))
 		return ERR_CAST(mmu);
@@ -2559,7 +2559,8 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 
 	adreno_gpu->uche_trap_base = 0x1fffffffff000ull;
 
-	msm_mmu_set_fault_handler(gpu->vm->mmu, gpu, a6xx_fault_handler);
+	msm_mmu_set_fault_handler(to_msm_vm(gpu->vm)->mmu, gpu,
+				  a6xx_fault_handler);
 
 	a6xx_calc_ubwc_config(adreno_gpu);
 	/* Set up the preemption specific bits and pieces for each ringbuffer */

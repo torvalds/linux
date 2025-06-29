@@ -45,20 +45,20 @@ static int msm_gem_open(struct drm_gem_object *obj, struct drm_file *file)
 
 static void put_iova_spaces(struct drm_gem_object *obj, struct drm_gpuvm *vm, bool close);
 
-static void detach_vm(struct drm_gem_object *obj, struct msm_gem_vm *vm)
+static void detach_vm(struct drm_gem_object *obj, struct drm_gpuvm *vm)
 {
 	msm_gem_assert_locked(obj);
-	drm_gpuvm_resv_assert_held(&vm->base);
+	drm_gpuvm_resv_assert_held(vm);
 
-	struct drm_gpuvm_bo *vm_bo = drm_gpuvm_bo_find(&vm->base, obj);
+	struct drm_gpuvm_bo *vm_bo = drm_gpuvm_bo_find(vm, obj);
 	if (vm_bo) {
 		struct drm_gpuva *vma;
 
 		drm_gpuvm_bo_for_each_va (vma, vm_bo) {
-			if (vma->vm != &vm->base)
+			if (vma->vm != vm)
 				continue;
-			msm_gem_vma_purge(to_msm_vma(vma));
-			msm_gem_vma_close(to_msm_vma(vma));
+			msm_gem_vma_purge(vma);
+			msm_gem_vma_close(vma);
 			break;
 		}
 
@@ -89,7 +89,7 @@ static void msm_gem_close(struct drm_gem_object *obj, struct drm_file *file)
 			      msecs_to_jiffies(1000));
 
 	msm_gem_lock_vm_and_obj(&exec, obj, ctx->vm);
-	put_iova_spaces(obj, &ctx->vm->base, true);
+	put_iova_spaces(obj, ctx->vm, true);
 	detach_vm(obj, ctx->vm);
 	drm_exec_fini(&exec);     /* drop locks */
 }
@@ -386,8 +386,8 @@ uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj)
 	return offset;
 }
 
-static struct msm_gem_vma *lookup_vma(struct drm_gem_object *obj,
-				      struct msm_gem_vm *vm)
+static struct drm_gpuva *lookup_vma(struct drm_gem_object *obj,
+				    struct drm_gpuvm *vm)
 {
 	struct drm_gpuvm_bo *vm_bo;
 
@@ -397,13 +397,13 @@ static struct msm_gem_vma *lookup_vma(struct drm_gem_object *obj,
 		struct drm_gpuva *vma;
 
 		drm_gpuvm_bo_for_each_va (vma, vm_bo) {
-			if (vma->vm == &vm->base) {
+			if (vma->vm == vm) {
 				/* lookup_vma() should only be used in paths
 				 * with at most one vma per vm
 				 */
 				GEM_WARN_ON(!list_is_singular(&vm_bo->list.gpuva));
 
-				return to_msm_vma(vma);
+				return vma;
 			}
 		}
 	}
@@ -433,22 +433,20 @@ put_iova_spaces(struct drm_gem_object *obj, struct drm_gpuvm *vm, bool close)
 		drm_gpuvm_bo_get(vm_bo);
 
 		drm_gpuvm_bo_for_each_va_safe (vma, vmatmp, vm_bo) {
-			struct msm_gem_vma *msm_vma = to_msm_vma(vma);
-
-			msm_gem_vma_purge(msm_vma);
+			msm_gem_vma_purge(vma);
 			if (close)
-				msm_gem_vma_close(msm_vma);
+				msm_gem_vma_close(vma);
 		}
 
 		drm_gpuvm_bo_put(vm_bo);
 	}
 }
 
-static struct msm_gem_vma *get_vma_locked(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm,
-		u64 range_start, u64 range_end)
+static struct drm_gpuva *get_vma_locked(struct drm_gem_object *obj,
+					struct drm_gpuvm *vm, u64 range_start,
+					u64 range_end)
 {
-	struct msm_gem_vma *vma;
+	struct drm_gpuva *vma;
 
 	msm_gem_assert_locked(obj);
 
@@ -457,14 +455,14 @@ static struct msm_gem_vma *get_vma_locked(struct drm_gem_object *obj,
 	if (!vma) {
 		vma = msm_gem_vma_new(vm, obj, range_start, range_end);
 	} else {
-		GEM_WARN_ON(vma->base.va.addr < range_start);
-		GEM_WARN_ON((vma->base.va.addr + obj->size) > range_end);
+		GEM_WARN_ON(vma->va.addr < range_start);
+		GEM_WARN_ON((vma->va.addr + obj->size) > range_end);
 	}
 
 	return vma;
 }
 
-int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct msm_gem_vma *vma)
+int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct drm_gpuva *vma)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	struct page **pages;
@@ -517,17 +515,17 @@ void msm_gem_unpin_active(struct drm_gem_object *obj)
 	update_lru_active(obj);
 }
 
-struct msm_gem_vma *msm_gem_get_vma_locked(struct drm_gem_object *obj,
-					   struct msm_gem_vm *vm)
+struct drm_gpuva *msm_gem_get_vma_locked(struct drm_gem_object *obj,
+					 struct drm_gpuvm *vm)
 {
 	return get_vma_locked(obj, vm, 0, U64_MAX);
 }
 
 static int get_and_pin_iova_range_locked(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t *iova,
-		u64 range_start, u64 range_end)
+					 struct drm_gpuvm *vm, uint64_t *iova,
+					 u64 range_start, u64 range_end)
 {
-	struct msm_gem_vma *vma;
+	struct drm_gpuva *vma;
 	int ret;
 
 	msm_gem_assert_locked(obj);
@@ -538,7 +536,7 @@ static int get_and_pin_iova_range_locked(struct drm_gem_object *obj,
 
 	ret = msm_gem_pin_vma_locked(obj, vma);
 	if (!ret) {
-		*iova = vma->base.va.addr;
+		*iova = vma->va.addr;
 		pin_obj_locked(obj);
 	}
 
@@ -550,8 +548,8 @@ static int get_and_pin_iova_range_locked(struct drm_gem_object *obj,
  * limits iova to specified range (in pages)
  */
 int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t *iova,
-		u64 range_start, u64 range_end)
+				   struct drm_gpuvm *vm, uint64_t *iova,
+				   u64 range_start, u64 range_end)
 {
 	struct drm_exec exec;
 	int ret;
@@ -564,8 +562,8 @@ int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
 }
 
 /* get iova and pin it. Should have a matching put */
-int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t *iova)
+int msm_gem_get_and_pin_iova(struct drm_gem_object *obj, struct drm_gpuvm *vm,
+			     uint64_t *iova)
 {
 	return msm_gem_get_and_pin_iova_range(obj, vm, iova, 0, U64_MAX);
 }
@@ -574,10 +572,10 @@ int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
  * Get an iova but don't pin it. Doesn't need a put because iovas are currently
  * valid for the life of the object
  */
-int msm_gem_get_iova(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t *iova)
+int msm_gem_get_iova(struct drm_gem_object *obj, struct drm_gpuvm *vm,
+		     uint64_t *iova)
 {
-	struct msm_gem_vma *vma;
+	struct drm_gpuva *vma;
 	struct drm_exec exec;
 	int ret = 0;
 
@@ -586,7 +584,7 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 	} else {
-		*iova = vma->base.va.addr;
+		*iova = vma->va.addr;
 	}
 	drm_exec_fini(&exec);     /* drop locks */
 
@@ -594,9 +592,9 @@ int msm_gem_get_iova(struct drm_gem_object *obj,
 }
 
 static int clear_iova(struct drm_gem_object *obj,
-		      struct msm_gem_vm *vm)
+		      struct drm_gpuvm *vm)
 {
-	struct msm_gem_vma *vma = lookup_vma(obj, vm);
+	struct drm_gpuva *vma = lookup_vma(obj, vm);
 
 	if (!vma)
 		return 0;
@@ -615,7 +613,7 @@ static int clear_iova(struct drm_gem_object *obj,
  * Setting an iova of zero will clear the vma.
  */
 int msm_gem_set_iova(struct drm_gem_object *obj,
-		     struct msm_gem_vm *vm, uint64_t iova)
+		     struct drm_gpuvm *vm, uint64_t iova)
 {
 	struct drm_exec exec;
 	int ret = 0;
@@ -624,11 +622,11 @@ int msm_gem_set_iova(struct drm_gem_object *obj,
 	if (!iova) {
 		ret = clear_iova(obj, vm);
 	} else {
-		struct msm_gem_vma *vma;
+		struct drm_gpuva *vma;
 		vma = get_vma_locked(obj, vm, iova, iova + obj->size);
 		if (IS_ERR(vma)) {
 			ret = PTR_ERR(vma);
-		} else if (GEM_WARN_ON(vma->base.va.addr != iova)) {
+		} else if (GEM_WARN_ON(vma->va.addr != iova)) {
 			clear_iova(obj, vm);
 			ret = -EBUSY;
 		}
@@ -643,10 +641,9 @@ int msm_gem_set_iova(struct drm_gem_object *obj,
  * purged until something else (shrinker, mm_notifier, destroy, etc) decides
  * to get rid of it
  */
-void msm_gem_unpin_iova(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm)
+void msm_gem_unpin_iova(struct drm_gem_object *obj, struct drm_gpuvm *vm)
 {
-	struct msm_gem_vma *vma;
+	struct drm_gpuva *vma;
 	struct drm_exec exec;
 
 	msm_gem_lock_vm_and_obj(&exec, obj, vm);
@@ -1276,9 +1273,9 @@ fail:
 	return ERR_PTR(ret);
 }
 
-void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
-		uint32_t flags, struct msm_gem_vm *vm,
-		struct drm_gem_object **bo, uint64_t *iova)
+void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size, uint32_t flags,
+			 struct drm_gpuvm *vm, struct drm_gem_object **bo,
+			 uint64_t *iova)
 {
 	void *vaddr;
 	struct drm_gem_object *obj = msm_gem_new(dev, size, flags);
@@ -1311,8 +1308,7 @@ err:
 
 }
 
-void msm_gem_kernel_put(struct drm_gem_object *bo,
-		struct msm_gem_vm *vm)
+void msm_gem_kernel_put(struct drm_gem_object *bo, struct drm_gpuvm *vm)
 {
 	if (IS_ERR_OR_NULL(bo))
 		return;

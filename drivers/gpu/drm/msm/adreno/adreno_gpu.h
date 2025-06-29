@@ -622,11 +622,11 @@ void adreno_show_object(struct drm_printer *p, void **ptr, int len,
  * Common helper function to initialize the default address space for arm-smmu
  * attached targets
  */
-struct msm_gem_vm *
+struct drm_gpuvm *
 adreno_create_vm(struct msm_gpu *gpu,
 		 struct platform_device *pdev);
 
-struct msm_gem_vm *
+struct drm_gpuvm *
 adreno_iommu_create_vm(struct msm_gpu *gpu,
 		       struct platform_device *pdev,
 		       unsigned long quirks);

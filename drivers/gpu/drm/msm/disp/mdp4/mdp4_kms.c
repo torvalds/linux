@@ -122,15 +122,16 @@ static void mdp4_destroy(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct device *dev = mdp4_kms->dev->dev;
-	struct msm_gem_vm *vm = kms->vm;
 
 	if (mdp4_kms->blank_cursor_iova)
 		msm_gem_unpin_iova(mdp4_kms->blank_cursor_bo, kms->vm);
 	drm_gem_object_put(mdp4_kms->blank_cursor_bo);
 
-	if (vm) {
-		vm->mmu->funcs->detach(vm->mmu);
-		msm_gem_vm_put(vm);
+	if (kms->vm) {
+		struct msm_mmu *mmu = to_msm_vm(kms->vm)->mmu;
+
+		mmu->funcs->detach(mmu);
+		drm_gpuvm_put(kms->vm);
 	}
 
 	if (mdp4_kms->rpm_enabled)
@@ -398,7 +399,7 @@ static int mdp4_kms_init(struct drm_device *dev)
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(priv->kms));
 	struct msm_kms *kms = NULL;
 	struct msm_mmu *mmu;
-	struct msm_gem_vm *vm;
+	struct drm_gpuvm *vm;
 	int ret;
 	u32 major, minor;
 	unsigned long max_clk;

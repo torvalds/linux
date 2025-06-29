@@ -79,12 +79,7 @@ struct msm_gem_vm {
 };
 #define to_msm_vm(x) container_of(x, struct msm_gem_vm, base)
 
-struct msm_gem_vm *
-msm_gem_vm_get(struct msm_gem_vm *vm);
-
-void msm_gem_vm_put(struct msm_gem_vm *vm);
-
-struct msm_gem_vm *
+struct drm_gpuvm *
 msm_gem_vm_create(struct drm_device *drm, struct msm_mmu *mmu, const char *name,
 		  u64 va_start, u64 va_size, bool managed);
 
@@ -113,12 +108,12 @@ struct msm_gem_vma {
 };
 #define to_msm_vma(x) container_of(x, struct msm_gem_vma, base)
 
-struct msm_gem_vma *
-msm_gem_vma_new(struct msm_gem_vm *vm, struct drm_gem_object *obj,
+struct drm_gpuva *
+msm_gem_vma_new(struct drm_gpuvm *vm, struct drm_gem_object *obj,
 		u64 range_start, u64 range_end);
-void msm_gem_vma_purge(struct msm_gem_vma *vma);
-int msm_gem_vma_map(struct msm_gem_vma *vma, int prot, struct sg_table *sgt, int size);
-void msm_gem_vma_close(struct msm_gem_vma *vma);
+void msm_gem_vma_purge(struct drm_gpuva *vma);
+int msm_gem_vma_map(struct drm_gpuva *vma, int prot, struct sg_table *sgt, int size);
+void msm_gem_vma_close(struct drm_gpuva *vma);
 
 struct msm_gem_object {
 	struct drm_gem_object base;
@@ -163,22 +158,21 @@ struct msm_gem_object {
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 
 uint64_t msm_gem_mmap_offset(struct drm_gem_object *obj);
-int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct msm_gem_vma *vma);
+int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct drm_gpuva *vma);
 void msm_gem_unpin_locked(struct drm_gem_object *obj);
 void msm_gem_unpin_active(struct drm_gem_object *obj);
-struct msm_gem_vma *msm_gem_get_vma_locked(struct drm_gem_object *obj,
-					   struct msm_gem_vm *vm);
-int msm_gem_get_iova(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t *iova);
-int msm_gem_set_iova(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t iova);
+struct drm_gpuva *msm_gem_get_vma_locked(struct drm_gem_object *obj,
+					 struct drm_gpuvm *vm);
+int msm_gem_get_iova(struct drm_gem_object *obj, struct drm_gpuvm *vm,
+		     uint64_t *iova);
+int msm_gem_set_iova(struct drm_gem_object *obj, struct drm_gpuvm *vm,
+		     uint64_t iova);
 int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t *iova,
-		u64 range_start, u64 range_end);
-int msm_gem_get_and_pin_iova(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm, uint64_t *iova);
-void msm_gem_unpin_iova(struct drm_gem_object *obj,
-		struct msm_gem_vm *vm);
+				   struct drm_gpuvm *vm, uint64_t *iova,
+				   u64 range_start, u64 range_end);
+int msm_gem_get_and_pin_iova(struct drm_gem_object *obj, struct drm_gpuvm *vm,
+			     uint64_t *iova);
+void msm_gem_unpin_iova(struct drm_gem_object *obj, struct drm_gpuvm *vm);
 void msm_gem_pin_obj_locked(struct drm_gem_object *obj);
 struct page **msm_gem_pin_pages_locked(struct drm_gem_object *obj);
 void msm_gem_unpin_pages_locked(struct drm_gem_object *obj);
@@ -199,11 +193,10 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		uint32_t size, uint32_t flags, uint32_t *handle, char *name);
 struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 		uint32_t size, uint32_t flags);
-void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size,
-		uint32_t flags, struct msm_gem_vm *vm,
-		struct drm_gem_object **bo, uint64_t *iova);
-void msm_gem_kernel_put(struct drm_gem_object *bo,
-		struct msm_gem_vm *vm);
+void *msm_gem_kernel_new(struct drm_device *dev, uint32_t size, uint32_t flags,
+			 struct drm_gpuvm *vm, struct drm_gem_object **bo,
+			 uint64_t *iova);
+void msm_gem_kernel_put(struct drm_gem_object *bo, struct drm_gpuvm *vm);
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		struct dma_buf *dmabuf, struct sg_table *sgt);
 __printf(2, 3)
@@ -254,14 +247,14 @@ msm_gem_unlock(struct drm_gem_object *obj)
 static inline int
 msm_gem_lock_vm_and_obj(struct drm_exec *exec,
 			struct drm_gem_object *obj,
-			struct msm_gem_vm *vm)
+			struct drm_gpuvm *vm)
 {
 	int ret = 0;
 
 	drm_exec_init(exec, 0, 2);
 	drm_exec_until_all_locked (exec) {
-		ret = drm_exec_lock_obj(exec, drm_gpuvm_resv_obj(&vm->base));
-		if (!ret && (obj->resv != drm_gpuvm_resv(&vm->base)))
+		ret = drm_exec_lock_obj(exec, drm_gpuvm_resv_obj(vm));
+		if (!ret && (obj->resv != drm_gpuvm_resv(vm)))
 			ret = drm_exec_lock_obj(exec, obj);
 		drm_exec_retry_on_contention(exec);
 		if (GEM_WARN_ON(ret))
@@ -328,7 +321,7 @@ struct msm_gem_submit {
 	struct kref ref;
 	struct drm_device *dev;
 	struct msm_gpu *gpu;
-	struct msm_gem_vm *vm;
+	struct drm_gpuvm *vm;
 	struct list_head node;   /* node in ring submit list */
 	struct drm_exec exec;
 	uint32_t seqno;		/* Sequence number of the submit on the ring */

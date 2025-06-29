@@ -264,7 +264,7 @@ static int submit_lock_objects(struct msm_gem_submit *submit)
 
 	drm_exec_until_all_locked (&submit->exec) {
 		ret = drm_exec_lock_obj(&submit->exec,
-					drm_gpuvm_resv_obj(&submit->vm->base));
+					drm_gpuvm_resv_obj(submit->vm));
 		drm_exec_retry_on_contention(&submit->exec);
 		if (ret)
 			goto error;
@@ -315,7 +315,7 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct drm_gem_object *obj = submit->bos[i].obj;
-		struct msm_gem_vma *vma;
+		struct drm_gpuva *vma;
 
 		/* if locking succeeded, pin bo: */
 		vma = msm_gem_get_vma_locked(obj, submit->vm);
@@ -328,8 +328,8 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 		if (ret)
 			break;
 
-		submit->bos[i].vm_bo = drm_gpuvm_bo_get(vma->base.vm_bo);
-		submit->bos[i].iova = vma->base.va.addr;
+		submit->bos[i].vm_bo = drm_gpuvm_bo_get(vma->vm_bo);
+		submit->bos[i].iova = vma->va.addr;
 	}
 
 	/*

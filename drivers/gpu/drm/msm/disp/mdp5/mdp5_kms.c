@@ -198,11 +198,12 @@ static void mdp5_destroy(struct mdp5_kms *mdp5_kms);
 static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	struct msm_gem_vm *vm = kms->vm;
 
-	if (vm) {
-		vm->mmu->funcs->detach(vm->mmu);
-		msm_gem_vm_put(vm);
+	if (kms->vm) {
+		struct msm_mmu *mmu = to_msm_vm(kms->vm)->mmu;
+
+		mmu->funcs->detach(mmu);
+		drm_gpuvm_put(kms->vm);
 	}
 
 	mdp_kms_destroy(&mdp5_kms->base);
@@ -500,7 +501,7 @@ static int mdp5_kms_init(struct drm_device *dev)
 	struct mdp5_kms *mdp5_kms;
 	struct mdp5_cfg *config;
 	struct msm_kms *kms = priv->kms;
-	struct msm_gem_vm *vm;
+	struct drm_gpuvm *vm;
 	int i, ret;
 
 	ret = mdp5_init(to_platform_device(dev->dev), dev);

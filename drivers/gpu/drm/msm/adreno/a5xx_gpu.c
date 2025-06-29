@@ -1786,7 +1786,8 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 		return ERR_PTR(ret);
 	}
 
-	msm_mmu_set_fault_handler(gpu->vm->mmu, gpu, a5xx_fault_handler);
+	msm_mmu_set_fault_handler(to_msm_vm(gpu->vm)->mmu, gpu,
+				  a5xx_fault_handler);
 
 	/* Set up the preemption specific bits and pieces for each ringbuffer */
 	a5xx_preempt_init(gpu);

@@ -1259,6 +1259,8 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 
 static void a6xx_gmu_memory_free(struct a6xx_gmu *gmu)
 {
+	struct msm_mmu *mmu = to_msm_vm(gmu->vm)->mmu;
+
 	msm_gem_kernel_put(gmu->hfi.obj, gmu->vm);
 	msm_gem_kernel_put(gmu->debug.obj, gmu->vm);
 	msm_gem_kernel_put(gmu->icache.obj, gmu->vm);
@@ -1266,8 +1268,8 @@ static void a6xx_gmu_memory_free(struct a6xx_gmu *gmu)
 	msm_gem_kernel_put(gmu->dummy.obj, gmu->vm);
 	msm_gem_kernel_put(gmu->log.obj, gmu->vm);
 
-	gmu->vm->mmu->funcs->detach(gmu->vm->mmu);
-	msm_gem_vm_put(gmu->vm);
+	mmu->funcs->detach(mmu);
+	drm_gpuvm_put(gmu->vm);
 }
 
 static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,

@@ -176,9 +176,9 @@ static int msm_kms_fault_handler(void *arg, unsigned long iova, int flags, void 
 	return -ENOSYS;
 }
 
-struct msm_gem_vm *msm_kms_init_vm(struct drm_device *dev)
+struct drm_gpuvm *msm_kms_init_vm(struct drm_device *dev)
 {
-	struct msm_gem_vm *vm;
+	struct drm_gpuvm *vm;
 	struct msm_mmu *mmu;
 	struct device *mdp_dev = dev->dev;
 	struct device *mdss_dev = mdp_dev->parent;
@@ -212,7 +212,7 @@ struct msm_gem_vm *msm_kms_init_vm(struct drm_device *dev)
 		return vm;
 	}
 
-	msm_mmu_set_fault_handler(vm->mmu, kms, msm_kms_fault_handler);
+	msm_mmu_set_fault_handler(to_msm_vm(vm)->mmu, kms, msm_kms_fault_handler);
 
 	return vm;
 }

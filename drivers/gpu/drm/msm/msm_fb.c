@@ -78,7 +78,7 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 int msm_framebuffer_prepare(struct drm_framebuffer *fb, bool needs_dirtyfb)
 {
 	struct msm_drm_private *priv = fb->dev->dev_private;
-	struct msm_gem_vm *vm = priv->kms->vm;
+	struct drm_gpuvm *vm = priv->kms->vm;
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int ret, i, n = fb->format->num_planes;
 
@@ -102,7 +102,7 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb, bool needs_dirtyfb)
 void msm_framebuffer_cleanup(struct drm_framebuffer *fb, bool needed_dirtyfb)
 {
 	struct msm_drm_private *priv = fb->dev->dev_private;
-	struct msm_gem_vm *vm = priv->kms->vm;
+	struct drm_gpuvm *vm = priv->kms->vm;
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int i, n = fb->format->num_planes;
 

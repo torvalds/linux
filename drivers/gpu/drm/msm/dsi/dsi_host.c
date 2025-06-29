@@ -152,7 +152,7 @@ struct msm_dsi_host {
 
 	/* DSI 6G TX buffer*/
 	struct drm_gem_object *tx_gem_obj;
-	struct msm_gem_vm *vm;
+	struct drm_gpuvm *vm;
 
 	/* DSI v2 TX buffer */
 	void *tx_buf;
@@ -1207,7 +1207,7 @@ int dsi_tx_buf_alloc_6g(struct msm_dsi_host *msm_host, int size)
 	uint64_t iova;
 	u8 *data;
 
-	msm_host->vm = msm_gem_vm_get(priv->kms->vm);
+	msm_host->vm = drm_gpuvm_get(priv->kms->vm);
 
 	data = msm_gem_kernel_new(dev, size, MSM_BO_WC,
 					msm_host->vm,
@@ -1255,7 +1255,7 @@ void msm_dsi_tx_buf_free(struct mipi_dsi_host *host)
 
 	if (msm_host->tx_gem_obj) {
 		msm_gem_kernel_put(msm_host->tx_gem_obj, msm_host->vm);
-		msm_gem_vm_put(msm_host->vm);
+		drm_gpuvm_put(msm_host->vm);
 		msm_host->tx_gem_obj = NULL;
 		msm_host->vm = NULL;
 	}
