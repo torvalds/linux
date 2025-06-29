@@ -364,7 +364,12 @@ struct msm_context {
 	 */
 	bool closed;
 
-	/** @vm: the per-process GPU address-space */
+	/**
+	 * @vm:
+	 *
+	 * The per-process GPU address-space.  Do not access directly, use
+	 * msm_context_vm().
+	 */
 	struct drm_gpuvm *vm;
 
 	/** @kref: the reference count */
@@ -448,6 +453,8 @@ struct msm_context {
 	 */
 	atomic64_t ctx_mem;
 };
+
+struct drm_gpuvm *msm_context_vm(struct drm_device *dev, struct msm_context *ctx);
 
 /**
  * msm_gpu_convert_priority - Map userspace priority to ring # and sched priority
