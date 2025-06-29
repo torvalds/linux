@@ -5,26 +5,36 @@
  * ROHM/KIONIX accelerometer driver
  */
 
+#include <linux/array_size.h>
+#include <linux/bitmap.h>
 #include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
+#include <linux/math64.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/string_choices.h>
+#include <linux/sysfs.h>
+#include <linux/time64.h>
 #include <linux/types.h>
 #include <linux/units.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+
+#include <asm/byteorder.h>
 
 #include "kionix-kx022a.h"
 
