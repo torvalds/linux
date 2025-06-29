@@ -525,7 +525,11 @@ static void on_about1_activate(GtkMenuItem *menuitem, gpointer user_data)
 	dialog = gtk_message_dialog_new(GTK_WINDOW(main_wnd),
 					GTK_DIALOG_DESTROY_WITH_PARENT,
 					GTK_MESSAGE_INFO,
-					GTK_BUTTONS_CLOSE, "%s", about_text);
+					GTK_BUTTONS_CLOSE, "%s\nGTK version: %d.%d.%d",
+					about_text,
+					gtk_get_major_version(),
+					gtk_get_minor_version(),
+					gtk_get_micro_version());
 	gtk_dialog_run(GTK_DIALOG(dialog));
 	gtk_widget_destroy(dialog);
 }
