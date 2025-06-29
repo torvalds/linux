@@ -422,7 +422,7 @@
       </child>
 
       <child>
-	<object class="GtkHPaned" id="hpaned1">
+	<object class="GtkPaned" id="hpaned1">
 	  <property name="width_request">1</property>
 	  <property name="visible">True</property>
 	  <property name="can_focus">True</property>
@@ -453,7 +453,8 @@
 	  </child>
 
 	  <child>
-	    <object class="GtkVPaned" id="vpaned1">
+	    <object class="GtkPaned" id="vpaned1">
+	      <property name="orientation">vertical</property>
 	      <property name="visible">True</property>
 	      <property name="can_focus">True</property>
 
