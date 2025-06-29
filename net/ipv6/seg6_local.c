@@ -2087,7 +2087,7 @@ struct nla_policy seg6_local_flavors_policy[SEG6_LOCAL_FLV_MAX + 1] = {
 static int seg6_chk_next_csid_cfg(__u8 block_len, __u8 func_len)
 {
 	/* Locator-Block and Locator-Node Function cannot exceed 128 bits
-	 * (i.e. C-SID container lenghts).
+	 * (i.e. C-SID container length).
 	 */
 	if (next_csid_chk_cntr_bits(block_len, func_len))
 		return -EINVAL;
