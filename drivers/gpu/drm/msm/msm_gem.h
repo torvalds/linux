@@ -76,6 +76,26 @@ struct msm_gem_vm {
 	struct drm_gpu_scheduler sched;
 
 	/**
+	 * @prealloc_throttle: Used to throttle VM_BIND ops if too much pre-
+	 * allocated memory is in flight.
+	 *
+	 * Because we have to pre-allocate pgtable pages for the worst case
+	 * (ie. new mappings do not share any PTEs with existing mappings)
+	 * we could end up consuming a lot of resources transiently.  The
+	 * prealloc_throttle puts an upper bound on that.
+	 */
+	struct {
+		/** @wait: Notified when preallocated resources are released */
+		wait_queue_head_t wait;
+
+		/**
+		 * @in_flight: The # of preallocated pgtable pages in-flight
+		 * for queued VM_BIND jobs.
+		 */
+		atomic_t in_flight;
+	} prealloc_throttle;
+
+	/**
 	 * @mm: Memory management for kernel managed VA allocations
 	 *
 	 * Only used for kernel managed VMs, unused for user managed VMs.
