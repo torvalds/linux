@@ -179,20 +179,6 @@ msm:apq8096:
   script:
     - ./install/bare-metal/fastboot.sh || exit $?
 
-msm:sdm845:
-  extends:
-    - .baremetal-igt-arm64
-  stage: msm
-  parallel: 6
-  variables:
-    DEVICE_TYPE: sdm845-cheza-r3
-    DRIVER_NAME: msm
-    BM_KERNEL: https://${PIPELINE_ARTIFACTS_BASE}/arm64/cheza-kernel
-    GPU_VERSION: sdm845
-    RUNNER_TAG: google-freedreno-cheza
-  script:
-    - ./install/bare-metal/cros-servo.sh || exit $?
-
 msm:sm8350-hdk:
   extends:
     - .lava-igt:arm64

@@ -113,17 +113,6 @@ mkdir -p install/modules/
 INSTALL_MOD_PATH=install/modules/ make modules_install
 
 if [[ ${DEBIAN_ARCH} = "arm64" ]]; then
-    make Image.lzma
-    mkimage \
-        -f auto \
-        -A arm \
-        -O linux \
-        -d arch/arm64/boot/Image.lzma \
-        -C lzma\
-        -b arch/arm64/boot/dts/qcom/sdm845-cheza-r3.dtb \
-        /kernel/cheza-kernel
-    KERNEL_IMAGE_NAME+=" cheza-kernel"
-
     # Make a gzipped copy of the Image for db410c.
     gzip -k /kernel/Image
     KERNEL_IMAGE_NAME+=" Image.gz"
