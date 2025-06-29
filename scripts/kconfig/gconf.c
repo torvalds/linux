@@ -7,10 +7,7 @@
 #include "lkc.h"
 #include "images.h"
 
-#include <glade/glade.h>
 #include <gtk/gtk.h>
-#include <glib.h>
-#include <gdk/gdkkeysyms.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -601,7 +598,7 @@ static void on_expand_clicked(GtkButton *button, gpointer user_data)
 
 /* Main Windows Callbacks */
 
-static void on_window1_destroy(GtkObject *object, gpointer user_data)
+static void on_window1_destroy(GtkWidget *widget, gpointer user_data)
 {
 	gtk_main_quit();
 }
@@ -1001,15 +998,15 @@ static void replace_button_icon(GtkWidget *widget, const char * const xpm[])
 
 static void init_main_window(const gchar *glade_file)
 {
-	GladeXML *xml;
+	GtkBuilder *builder;
 	GtkWidget *widget;
 	GtkTextBuffer *txtbuf;
 
-	xml = glade_xml_new(glade_file, "window1", NULL);
-	if (!xml)
+	builder = gtk_builder_new_from_file(glade_file);
+	if (!builder)
 		g_error("GUI loading failed !\n");
 
-	main_wnd = glade_xml_get_widget(xml, "window1");
+	main_wnd = GTK_WIDGET(gtk_builder_get_object(builder, "window1"));
 	g_signal_connect(main_wnd, "destroy",
 			 G_CALLBACK(on_window1_destroy), NULL);
 	g_signal_connect(main_wnd, "configure-event",
@@ -1017,9 +1014,9 @@ static void init_main_window(const gchar *glade_file)
 	g_signal_connect(main_wnd, "delete_event",
 			 G_CALLBACK(on_window1_delete_event), NULL);
 
-	hpaned = glade_xml_get_widget(xml, "hpaned1");
-	vpaned = glade_xml_get_widget(xml, "vpaned1");
-	tree1_w = glade_xml_get_widget(xml, "treeview1");
+	hpaned = GTK_WIDGET(gtk_builder_get_object(builder, "hpaned1"));
+	vpaned = GTK_WIDGET(gtk_builder_get_object(builder, "vpaned1"));
+	tree1_w = GTK_WIDGET(gtk_builder_get_object(builder, "treeview1"));
 	g_signal_connect(tree1_w, "cursor_changed",
 			 G_CALLBACK(on_treeview2_cursor_changed), NULL);
 	g_signal_connect(tree1_w, "button_press_event",
@@ -1027,7 +1024,7 @@ static void init_main_window(const gchar *glade_file)
 	g_signal_connect(tree1_w, "key_press_event",
 			 G_CALLBACK(on_treeview2_key_press_event), NULL);
 
-	tree2_w = glade_xml_get_widget(xml, "treeview2");
+	tree2_w = GTK_WIDGET(gtk_builder_get_object(builder, "treeview2"));
 	g_signal_connect(tree2_w, "cursor_changed",
 			 G_CALLBACK(on_treeview2_cursor_changed), NULL);
 	g_signal_connect(tree2_w, "button_press_event",
@@ -1035,101 +1032,101 @@ static void init_main_window(const gchar *glade_file)
 	g_signal_connect(tree2_w, "key_press_event",
 			 G_CALLBACK(on_treeview2_key_press_event), NULL);
 
-	text_w = glade_xml_get_widget(xml, "textview3");
+	text_w = GTK_WIDGET(gtk_builder_get_object(builder, "textview3"));
 
 	/* menubar */
-	widget = glade_xml_get_widget(xml, "load1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "load1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_load1_activate), NULL);
 
-	save_menu_item = glade_xml_get_widget(xml, "save1");
+	save_menu_item = GTK_WIDGET(gtk_builder_get_object(builder, "save1"));
 	g_signal_connect(save_menu_item, "activate",
 			 G_CALLBACK(on_save_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "save_as1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "save_as1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_save_as1_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "quit1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "quit1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_quit1_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "show_name1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "show_name1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_show_name1_activate), NULL);
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
 				       show_name);
 
-	widget = glade_xml_get_widget(xml, "show_range1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "show_range1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_show_range1_activate), NULL);
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
 				       show_range);
 
-	widget = glade_xml_get_widget(xml, "show_data1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "show_data1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_show_data1_activate), NULL);
 	gtk_check_menu_item_set_active((GtkCheckMenuItem *) widget,
 				       show_value);
 
-	widget = glade_xml_get_widget(xml, "set_option_mode1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "set_option_mode1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_set_option_mode1_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "set_option_mode2");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "set_option_mode2"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_set_option_mode2_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "set_option_mode3");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "set_option_mode3"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_set_option_mode3_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "introduction1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "introduction1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_introduction1_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "about1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "about1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_about1_activate), NULL);
 
-	widget = glade_xml_get_widget(xml, "license1");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "license1"));
 	g_signal_connect(widget, "activate",
 			 G_CALLBACK(on_license1_activate), NULL);
 
 	/* toolbar */
-	back_btn = glade_xml_get_widget(xml, "button1");
+	back_btn = GTK_WIDGET(gtk_builder_get_object(builder, "button1"));
 	g_signal_connect(back_btn, "clicked",
 			 G_CALLBACK(on_back_clicked), NULL);
 	gtk_widget_set_sensitive(back_btn, FALSE);
 
-	widget = glade_xml_get_widget(xml, "button2");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "button2"));
 	g_signal_connect(widget, "clicked",
 			 G_CALLBACK(on_load_clicked), NULL);
 
-	save_btn = glade_xml_get_widget(xml, "button3");
+	save_btn = GTK_WIDGET(gtk_builder_get_object(builder, "button3"));
 	g_signal_connect(save_btn, "clicked",
 			 G_CALLBACK(on_save_clicked), NULL);
 
-	single_btn = glade_xml_get_widget(xml, "button4");
+	single_btn = GTK_WIDGET(gtk_builder_get_object(builder, "button4"));
 	g_signal_connect(single_btn, "clicked",
 			 G_CALLBACK(on_single_clicked), NULL);
 	replace_button_icon(single_btn, xpm_single_view);
 
-	split_btn = glade_xml_get_widget(xml, "button5");
+	split_btn = GTK_WIDGET(gtk_builder_get_object(builder, "button5"));
 	g_signal_connect(split_btn, "clicked",
 			 G_CALLBACK(on_split_clicked), NULL);
 	replace_button_icon(split_btn, xpm_split_view);
 
-	full_btn = glade_xml_get_widget(xml, "button6");
+	full_btn = GTK_WIDGET(gtk_builder_get_object(builder, "button6"));
 	g_signal_connect(full_btn, "clicked",
 			 G_CALLBACK(on_full_clicked), NULL);
 	replace_button_icon(full_btn, xpm_tree_view);
 
-	widget = glade_xml_get_widget(xml, "button7");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "button7"));
 	g_signal_connect(widget, "clicked",
 			 G_CALLBACK(on_collapse_clicked), NULL);
 
-	widget = glade_xml_get_widget(xml, "button8");
+	widget = GTK_WIDGET(gtk_builder_get_object(builder, "button8"));
 	g_signal_connect(widget, "clicked",
 			 G_CALLBACK(on_expand_clicked), NULL);
 
@@ -1144,7 +1141,9 @@ static void init_main_window(const gchar *glade_file)
 
 	gtk_window_set_title(GTK_WINDOW(main_wnd), rootmenu.prompt->text);
 
-	gtk_widget_show(main_wnd);
+	gtk_widget_show_all(main_wnd);
+
+	g_object_unref(builder);
 
 	conf_set_changed_callback(conf_changed);
 }
@@ -1322,7 +1321,6 @@ int main(int ac, char *av[])
 
 	/* GTK stuffs */
 	gtk_init(&ac, &av);
-	glade_init();
 
 	/* Determine GUI path */
 	env = getenv(SRCTREE);
