@@ -19,7 +19,8 @@
   <property name="gravity">GDK_GRAVITY_NORTH_WEST</property>
 
   <child>
-    <object class="GtkVBox" id="vbox1">
+    <object class="GtkBox" id="vbox1">
+      <property name="orientation">vertical</property>
       <property name="visible">True</property>
       <property name="homogeneous">False</property>
       <property name="spacing">0</property>
