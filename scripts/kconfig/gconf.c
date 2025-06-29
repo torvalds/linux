@@ -803,7 +803,7 @@ static gboolean on_treeview2_button_press_event(GtkWidget *widget,
 		enum prop_type ptype;
 		ptype = menu->prompt ? menu->prompt->type : P_UNKNOWN;
 
-		if (ptype == P_MENU && view_mode != FULL_VIEW && col == COL_OPTION) {
+		if (ptype == P_MENU && view_mode == SINGLE_VIEW && col == COL_OPTION) {
 			// goes down into menu
 			browsed = menu;
 			display_tree_part();
@@ -953,8 +953,7 @@ static void _display_tree(GtkTreeStore *tree, struct menu *menu,
 		gtk_tree_store_append(tree, &iter, parent);
 		set_node(tree, &iter, child);
 
-		if ((view_mode != FULL_VIEW) && (ptype == P_MENU)
-		    && (tree == tree2))
+		if ((view_mode == SINGLE_VIEW) && (ptype == P_MENU))
 			continue;
 /*
 		if (((menu != &rootmenu) && !(menu->flags & MENU_ROOT))
