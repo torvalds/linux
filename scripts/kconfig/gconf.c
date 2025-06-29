@@ -606,23 +606,12 @@ static void on_window1_destroy(GtkObject *object, gpointer user_data)
 	gtk_main_quit();
 }
 
-static void on_window1_size_request(GtkWidget *widget,
-				    GtkRequisition *requisition,
-				    gpointer user_data)
+static gboolean on_window1_configure(GtkWidget *self,
+				     GdkEventConfigure *event,
+				     gpointer user_data)
 {
-	static gint old_h;
-	gint w, h;
-
-	if (widget->window == NULL)
-		gtk_window_get_default_size(GTK_WINDOW(main_wnd), &w, &h);
-	else
-		gdk_window_get_size(widget->window, &w, &h);
-
-	if (h == old_h)
-		return;
-	old_h = h;
-
-	gtk_paned_set_position(GTK_PANED(vpaned), 2 * h / 3);
+	gtk_paned_set_position(GTK_PANED(vpaned), 2 * event->height / 3);
+	return FALSE;
 }
 
 static gboolean on_window1_delete_event(GtkWidget *widget, GdkEvent *event,
@@ -1023,8 +1012,8 @@ static void init_main_window(const gchar *glade_file)
 	main_wnd = glade_xml_get_widget(xml, "window1");
 	g_signal_connect(main_wnd, "destroy",
 			 G_CALLBACK(on_window1_destroy), NULL);
-	g_signal_connect(main_wnd, "size_request",
-			 G_CALLBACK(on_window1_size_request), NULL);
+	g_signal_connect(main_wnd, "configure-event",
+			 G_CALLBACK(on_window1_configure), NULL);
 	g_signal_connect(main_wnd, "delete_event",
 			 G_CALLBACK(on_window1_delete_event), NULL);
 
