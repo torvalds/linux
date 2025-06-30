@@ -349,6 +349,7 @@ struct ath12k_link_vif {
 	bool group_key_valid;
 	struct wmi_vdev_install_key_arg group_key;
 	bool pairwise_key_done;
+	u16 num_stations;
 };
 
 struct ath12k_vif {
