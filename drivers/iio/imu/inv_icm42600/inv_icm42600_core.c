@@ -404,6 +404,37 @@ int inv_icm42600_set_temp_conf(struct inv_icm42600_state *st, bool enable,
 					  sleep_ms);
 }
 
+int inv_icm42600_enable_wom(struct inv_icm42600_state *st)
+{
+	int ret;
+
+	/* enable WoM hardware */
+	ret = regmap_write(st->map, INV_ICM42600_REG_SMD_CONFIG,
+			   INV_ICM42600_SMD_CONFIG_SMD_MODE_WOM |
+			   INV_ICM42600_SMD_CONFIG_WOM_MODE);
+	if (ret)
+		return ret;
+
+	/* enable WoM interrupt */
+	return regmap_set_bits(st->map, INV_ICM42600_REG_INT_SOURCE1,
+			      INV_ICM42600_INT_SOURCE1_WOM_INT1_EN);
+}
+
+int inv_icm42600_disable_wom(struct inv_icm42600_state *st)
+{
+	int ret;
+
+	/* disable WoM interrupt */
+	ret = regmap_clear_bits(st->map, INV_ICM42600_REG_INT_SOURCE1,
+				INV_ICM42600_INT_SOURCE1_WOM_INT1_EN);
+	if (ret)
+		return ret;
+
+	/* disable WoM hardware */
+	return regmap_write(st->map, INV_ICM42600_REG_SMD_CONFIG,
+			    INV_ICM42600_SMD_CONFIG_SMD_MODE_OFF);
+}
+
 int inv_icm42600_debugfs_reg(struct iio_dev *indio_dev, unsigned int reg,
 			     unsigned int writeval, unsigned int *readval)
 {
@@ -547,6 +578,19 @@ static irqreturn_t inv_icm42600_irq_handler(int irq, void *_data)
 	int ret;
 
 	mutex_lock(&st->lock);
+
+	if (st->apex.on) {
+		unsigned int status2, status3;
+
+		/* read INT_STATUS2 and INT_STATUS3 in 1 operation */
+		ret = regmap_bulk_read(st->map, INV_ICM42600_REG_INT_STATUS2, st->buffer, 2);
+		if (ret)
+			goto out_unlock;
+		status2 = st->buffer[0];
+		status3 = st->buffer[1];
+		inv_icm42600_accel_handle_events(st->indio_accel, status2, status3,
+						 st->timestamp.accel);
+	}
 
 	ret = regmap_read(st->map, INV_ICM42600_REG_INT_STATUS, &status);
 	if (ret)
@@ -819,6 +863,13 @@ static int inv_icm42600_suspend(struct device *dev)
 			goto out_unlock;
 	}
 
+	/* disable APEX features */
+	if (st->apex.wom.enable) {
+		ret = inv_icm42600_disable_wom(st);
+		if (ret)
+			goto out_unlock;
+	}
+
 	ret = inv_icm42600_set_pwr_mgmt0(st, INV_ICM42600_SENSOR_MODE_OFF,
 					 INV_ICM42600_SENSOR_MODE_OFF, false,
 					 NULL);
@@ -859,6 +910,13 @@ static int inv_icm42600_resume(struct device *dev)
 					 st->suspended.temp, NULL);
 	if (ret)
 		goto out_unlock;
+
+	/* restore APEX features */
+	if (st->apex.wom.enable) {
+		ret = inv_icm42600_enable_wom(st);
+		if (ret)
+			goto out_unlock;
+	}
 
 	/* restore FIFO data streaming */
 	if (st->fifo.on) {
