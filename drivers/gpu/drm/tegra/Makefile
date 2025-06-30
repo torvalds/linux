@@ -25,6 +25,7 @@ tegra-drm-y := \
 	falcon.o \
 	vic.o \
 	nvdec.o \
+	nvjpg.o \
 	riscv.o
 
 tegra-drm-y += trace.o
