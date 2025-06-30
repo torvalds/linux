@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+# Copyright (C) 2025 Altera Corporation
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/altr,gmii-to-sgmii-2.0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera GMII to SGMII Converter
+
+maintainers:
+  - Matthew Gerlach <matthew.gerlach@altera.com>
+
+description:
+  This binding describes the Altera GMII to SGMII converter.
+
+properties:
+  compatible:
+    const: altr,gmii-to-sgmii-2.0
+
+  reg:
+    items:
+      - description: Registers for the emac splitter IP
+      - description: Registers for the GMII to SGMII converter.
+      - description: Registers for TSE control.
+
+  reg-names:
+    items:
+      - const: hps_emac_interface_splitter_avalon_slave
+      - const: gmii_to_sgmii_adapter_avalon_slave
+      - const: eth_tse_control_port
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    phy@ff000240 {
+        compatible = "altr,gmii-to-sgmii-2.0";
+        reg = <0xff000240 0x00000008>,
+              <0xff000200 0x00000040>,
+              <0xff000250 0x00000008>;
+        reg-names = "hps_emac_interface_splitter_avalon_slave",
+                    "gmii_to_sgmii_adapter_avalon_slave",
+                    "eth_tse_control_port";
+    };
