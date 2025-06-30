@@ -1609,9 +1609,7 @@ class KernelDoc:
                 self.entry.brcount += r.group(2).count('{')
                 self.entry.brcount -= r.group(2).count('}')
 
-                self.entry.brcount = max(self.entry.brcount, 0)
-
-                if r.group(2) == ';' and self.entry.brcount == 0:
+                if r.group(2) == ';' and self.entry.brcount <= 0:
                     self.dump_declaration(ln, self.entry.prototype)
                     self.reset_state(ln)
                     break
