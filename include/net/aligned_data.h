@@ -11,6 +11,9 @@
  */
 struct net_aligned_data {
 	atomic64_t	net_cookie ____cacheline_aligned_in_smp;
+#if defined(CONFIG_INET)
+	atomic_long_t tcp_memory_allocated ____cacheline_aligned_in_smp;
+#endif
 };
 
 extern struct net_aligned_data net_aligned_data;
