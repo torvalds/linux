@@ -397,12 +397,6 @@ int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info)
 	if (!fs_info->quota_root)
 		return 0;
 
-	fs_info->qgroup_ulist = ulist_alloc(GFP_KERNEL);
-	if (!fs_info->qgroup_ulist) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
@@ -587,8 +581,6 @@ out:
 		if (fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN)
 			ret = qgroup_rescan_init(fs_info, rescan_progress, 0);
 	} else {
-		ulist_free(fs_info->qgroup_ulist);
-		fs_info->qgroup_ulist = NULL;
 		fs_info->qgroup_flags &= ~BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 		btrfs_sysfs_del_qgroups(fs_info);
 	}
@@ -660,13 +652,6 @@ void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info)
 	}
 	spin_unlock(&fs_info->qgroup_lock);
 
-	/*
-	 * We call btrfs_free_qgroup_config() when unmounting
-	 * filesystem and disabling quota, so we set qgroup_ulist
-	 * to be null here to avoid double free.
-	 */
-	ulist_free(fs_info->qgroup_ulist);
-	fs_info->qgroup_ulist = NULL;
 	btrfs_sysfs_del_qgroups(fs_info);
 }
 
@@ -1012,7 +997,6 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 	struct btrfs_qgroup *qgroup = NULL;
 	struct btrfs_qgroup *prealloc = NULL;
 	struct btrfs_trans_handle *trans = NULL;
-	struct ulist *ulist = NULL;
 	const bool simple = (quota_ctl_args->cmd == BTRFS_QUOTA_CTL_ENABLE_SIMPLE_QUOTA);
 	int ret = 0;
 	int slot;
@@ -1034,12 +1018,6 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (fs_info->quota_root)
 		goto out;
-
-	ulist = ulist_alloc(GFP_KERNEL);
-	if (!ulist) {
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	ret = btrfs_sysfs_add_qgroups(fs_info);
 	if (ret < 0)
@@ -1079,9 +1057,6 @@ int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
 
 	if (fs_info->quota_root)
 		goto out;
-
-	fs_info->qgroup_ulist = ulist;
-	ulist = NULL;
 
 	/*
 	 * initially create the quota tree
@@ -1281,17 +1256,13 @@ out_free_root:
 	if (ret)
 		btrfs_put_root(quota_root);
 out:
-	if (ret) {
-		ulist_free(fs_info->qgroup_ulist);
-		fs_info->qgroup_ulist = NULL;
+	if (ret)
 		btrfs_sysfs_del_qgroups(fs_info);
-	}
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	if (ret && trans)
 		btrfs_end_transaction(trans);
 	else if (trans)
 		ret = btrfs_end_transaction(trans);
-	ulist_free(ulist);
 	kfree(prealloc);
 	return ret;
 }

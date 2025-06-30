@@ -741,12 +741,6 @@ struct btrfs_fs_info {
 	spinlock_t qgroup_lock;
 
 	/*
-	 * Used to avoid frequently calling ulist_alloc()/ulist_free()
-	 * when doing qgroup accounting, it must be protected by qgroup_lock.
-	 */
-	struct ulist *qgroup_ulist;
-
-	/*
 	 * Protect user change for quota operations. If a transaction is needed,
 	 * it must be started before locking this lock.
 	 */
