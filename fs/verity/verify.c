@@ -7,7 +7,6 @@
 
 #include "fsverity_private.h"
 
-#include <crypto/hash.h>
 #include <linux/bio.h>
 #include <linux/export.h>
 
@@ -203,8 +202,7 @@ descend:
 		unsigned long hblock_idx = hblocks[level - 1].index;
 		unsigned int hoffset = hblocks[level - 1].hoffset;
 
-		if (fsverity_hash_block(params, inode, haddr, real_hash) != 0)
-			goto error;
+		fsverity_hash_block(params, inode, haddr, real_hash);
 		if (memcmp(want_hash, real_hash, hsize) != 0)
 			goto corrupted;
 		/*
@@ -223,8 +221,7 @@ descend:
 	}
 
 	/* Finally, verify the data block. */
-	if (fsverity_hash_block(params, inode, data, real_hash) != 0)
-		goto error;
+	fsverity_hash_block(params, inode, data, real_hash);
 	if (memcmp(want_hash, real_hash, hsize) != 0)
 		goto corrupted;
 	return true;

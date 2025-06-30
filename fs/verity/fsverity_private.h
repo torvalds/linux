@@ -20,7 +20,6 @@
 
 /* A hash algorithm supported by fs-verity */
 struct fsverity_hash_alg {
-	struct crypto_shash *tfm; /* hash tfm, allocated on demand */
 	const char *name;	  /* crypto API name, e.g. sha256 */
 	unsigned int digest_size; /* digest size in bytes, e.g. 32 for SHA-256 */
 	unsigned int block_size;  /* block size in bytes, e.g. 64 for SHA-256 */
@@ -31,10 +30,16 @@ struct fsverity_hash_alg {
 	enum hash_algo algo_id;
 };
 
+union fsverity_hash_ctx {
+	struct sha256_ctx sha256;
+	struct sha512_ctx sha512;
+};
+
 /* Merkle tree parameters: hash algorithm, initial hash state, and topology */
 struct merkle_tree_params {
 	const struct fsverity_hash_alg *hash_alg; /* the hash algorithm */
-	const u8 *hashstate;		/* initial hash state or NULL */
+	/* initial hash state if salted, NULL if unsalted */
+	const union fsverity_hash_ctx *hashstate;
 	unsigned int digest_size;	/* same as hash_alg->digest_size */
 	unsigned int block_size;	/* size of data and tree blocks */
 	unsigned int hashes_per_block;	/* number of hashes per tree block */
@@ -76,16 +81,17 @@ struct fsverity_info {
 
 /* hash_algs.c */
 
-extern struct fsverity_hash_alg fsverity_hash_algs[];
+extern const struct fsverity_hash_alg fsverity_hash_algs[];
 
 const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 						      unsigned int num);
-const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
-				      const u8 *salt, size_t salt_size);
-int fsverity_hash_block(const struct merkle_tree_params *params,
-			const struct inode *inode, const void *data, u8 *out);
-int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
-			 const void *data, size_t size, u8 *out);
+union fsverity_hash_ctx *
+fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
+			    const u8 *salt, size_t salt_size);
+void fsverity_hash_block(const struct merkle_tree_params *params,
+			 const struct inode *inode, const void *data, u8 *out);
+void fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
+			  const void *data, size_t size, u8 *out);
 void __init fsverity_check_hash_algs(void);
 
 /* init.c */
