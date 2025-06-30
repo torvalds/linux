@@ -1717,12 +1717,13 @@ static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 						   enum rtw89_qta_mode mode)
 {
 	struct rtw89_mac_info *mac = &rtwdev->mac;
-	const struct rtw89_dle_mem *cfg;
+	const struct rtw89_dle_mem *cfg, *cfgs;
 
-	cfg = &rtwdev->chip->dle_mem[mode];
-	if (!cfg)
+	cfgs = rtwdev->chip->dle_mem[rtwdev->hci.dle_type];
+	if (!cfgs)
 		return NULL;
 
+	cfg = &cfgs[mode];
 	if (cfg->mode != mode) {
 		rtw89_warn(rtwdev, "qta mode unmatch!\n");
 		return NULL;
