@@ -32,6 +32,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(ff_layout_read_error);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ff_layout_write_error);
 EXPORT_TRACEPOINT_SYMBOL_GPL(ff_layout_commit_error);
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(bl_ext_tree_prepare_commit);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bl_pr_key_reg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bl_pr_key_reg_err);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bl_pr_key_unreg);

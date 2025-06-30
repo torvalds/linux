@@ -2295,6 +2295,40 @@ TRACE_EVENT(ff_layout_commit_error,
 		)
 );
 
+TRACE_EVENT(bl_ext_tree_prepare_commit,
+		TP_PROTO(
+			int ret,
+			size_t count,
+			u64 lwb,
+			bool not_all_ranges
+		),
+
+		TP_ARGS(ret, count, lwb, not_all_ranges),
+
+		TP_STRUCT__entry(
+			__field(int, ret)
+			__field(size_t, count)
+			__field(u64, lwb)
+			__field(bool, not_all_ranges)
+		),
+
+		TP_fast_assign(
+			__entry->ret = ret;
+			__entry->count = count;
+			__entry->lwb = lwb;
+			__entry->not_all_ranges = not_all_ranges;
+		),
+
+		TP_printk(
+			"ret=%d, found %zu ranges, lwb=%llu%s",
+			__entry->ret,
+			__entry->count,
+			__entry->lwb,
+			__entry->not_all_ranges ? ", not all ranges encoded" :
+						  ""
+		)
+);
+
 DECLARE_EVENT_CLASS(pnfs_bl_pr_key_class,
 	TP_PROTO(
 		const struct block_device *bdev,

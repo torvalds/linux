@@ -6,6 +6,7 @@
 #include <linux/vmalloc.h>
 
 #include "blocklayout.h"
+#include "../nfs4trace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
 
@@ -637,8 +638,6 @@ ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 	__be32 *start_p;
 	int ret;
 
-	dprintk("%s enter\n", __func__);
-
 	arg->layoutupdate_page = alloc_page(GFP_NOFS);
 	if (!arg->layoutupdate_page)
 		return -ENOMEM;
@@ -685,7 +684,8 @@ ext_tree_prepare_commit(struct nfs4_layoutcommit_args *arg)
 		}
 	}
 
-	dprintk("%s found %zu ranges\n", __func__, count);
+	trace_bl_ext_tree_prepare_commit(ret, count,
+			arg->lastbytewritten, !!ret);
 	return ret;
 }
 
