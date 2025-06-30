@@ -980,7 +980,7 @@ enum io_uring_socket_op {
 /* The cqe->flags bit from which the timestamp type is stored */
 #define IORING_TIMESTAMP_TYPE_SHIFT	(IORING_TIMESTAMP_HW_SHIFT + 1)
 /* The cqe->flags flag signifying whether it's a hardware timestamp */
-#define IORING_CQE_F_TSTAMP_HW		((__u32)1 << IORING_TIMESTAMP_HW_SHIFT);
+#define IORING_CQE_F_TSTAMP_HW		((__u32)1 << IORING_TIMESTAMP_HW_SHIFT)
 
 struct io_timespec {
 	__u64		tv_sec;
