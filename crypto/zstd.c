@@ -268,10 +268,9 @@ static int zstd_decompress(struct acomp_req *req)
 			total_out += outbuf.pos;
 
 			acomp_walk_done_dst(&walk, outbuf.pos);
-		} while (scur != inbuf.pos);
+		} while (inbuf.pos != scur);
 
-		if (scur)
-			acomp_walk_done_src(&walk, scur);
+		acomp_walk_done_src(&walk, scur);
 	} while (ret == 0);
 
 out:
