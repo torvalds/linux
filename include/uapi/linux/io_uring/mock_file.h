@@ -7,6 +7,7 @@ enum {
 	IORING_MOCK_FEAT_CMD_COPY,
 	IORING_MOCK_FEAT_RW_ZERO,
 	IORING_MOCK_FEAT_RW_NOWAIT,
+	IORING_MOCK_FEAT_RW_ASYNC,
 
 	IORING_MOCK_FEAT_END,
 };
@@ -24,7 +25,8 @@ struct io_uring_mock_create {
 	__u32		out_fd;
 	__u32		flags;
 	__u64		file_size;
-	__u64		__resv[14];
+	__u64		rw_delay_ns;
+	__u64		__resv[13];
 };
 
 enum {

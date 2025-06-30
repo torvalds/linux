@@ -4,13 +4,22 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/anon_inodes.h>
+#include <linux/ktime.h>
+#include <linux/hrtimer.h>
 
 #include <linux/io_uring/cmd.h>
 #include <linux/io_uring_types.h>
 #include <uapi/linux/io_uring/mock_file.h>
 
+struct io_mock_iocb {
+	struct kiocb		*iocb;
+	struct hrtimer		timer;
+	int			res;
+};
+
 struct io_mock_file {
-	size_t size;
+	size_t			size;
+	u64			rw_delay_ns;
 };
 
 #define IO_VALID_COPY_CMD_FLAGS		IORING_MOCK_COPY_FROM
@@ -86,14 +95,48 @@ static int io_mock_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	return -ENOTSUPP;
 }
 
+static enum hrtimer_restart io_mock_rw_timer_expired(struct hrtimer *timer)
+{
+	struct io_mock_iocb *mio = container_of(timer, struct io_mock_iocb, timer);
+	struct kiocb *iocb = mio->iocb;
+
+	WRITE_ONCE(iocb->private, NULL);
+	iocb->ki_complete(iocb, mio->res);
+	kfree(mio);
+	return HRTIMER_NORESTART;
+}
+
+static ssize_t io_mock_delay_rw(struct kiocb *iocb, size_t len)
+{
+	struct io_mock_file *mf = iocb->ki_filp->private_data;
+	struct io_mock_iocb *mio;
+
+	mio = kzalloc(sizeof(*mio), GFP_KERNEL);
+	if (!mio)
+		return -ENOMEM;
+
+	mio->iocb = iocb;
+	mio->res = len;
+	hrtimer_setup(&mio->timer, io_mock_rw_timer_expired,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_start(&mio->timer, ns_to_ktime(mf->rw_delay_ns),
+		      HRTIMER_MODE_REL);
+	return -EIOCBQUEUED;
+}
+
 static ssize_t io_mock_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct io_mock_file *mf = iocb->ki_filp->private_data;
 	size_t len = iov_iter_count(to);
+	size_t nr_zeroed;
 
 	if (iocb->ki_pos + len > mf->size)
 		return -EINVAL;
-	return iov_iter_zero(len, to);
+	nr_zeroed = iov_iter_zero(len, to);
+	if (!mf->rw_delay_ns || nr_zeroed != len)
+		return nr_zeroed;
+
+	return io_mock_delay_rw(iocb, len);
 }
 
 static ssize_t io_mock_write_iter(struct kiocb *iocb, struct iov_iter *from)
@@ -103,8 +146,12 @@ static ssize_t io_mock_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	if (iocb->ki_pos + len > mf->size)
 		return -EINVAL;
-	iov_iter_advance(from, len);
-	return len;
+	if (!mf->rw_delay_ns) {
+		iov_iter_advance(from, len);
+		return len;
+	}
+
+	return io_mock_delay_rw(iocb, len);
 }
 
 static loff_t io_mock_llseek(struct file *file, loff_t offset, int whence)
@@ -165,6 +212,9 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 		return -EINVAL;
 	if (mc.file_size > SZ_1G)
 		return -EINVAL;
+	if (mc.rw_delay_ns > NSEC_PER_SEC)
+		return -EINVAL;
+
 	mf = kzalloc(sizeof(*mf), GFP_KERNEL_ACCOUNT);
 	if (!mf)
 		return -ENOMEM;
@@ -174,6 +224,7 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 		goto fail;
 
 	mf->size = mc.file_size;
+	mf->rw_delay_ns = mc.rw_delay_ns;
 	file = anon_inode_create_getfile("[io_uring_mock]", &io_mock_fops,
 					 mf, O_RDWR | O_CLOEXEC, NULL);
 	if (IS_ERR(file)) {
