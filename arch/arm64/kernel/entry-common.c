@@ -8,6 +8,7 @@
 #include <linux/context_tracking.h>
 #include <linux/kasan.h>
 #include <linux/linkage.h>
+#include <linux/livepatch.h>
 #include <linux/lockdep.h>
 #include <linux/ptrace.h>
 #include <linux/resume_user_mode.h>
@@ -143,6 +144,9 @@ static void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 			send_sig_fault(SIGSEGV, SEGV_MTEAERR,
 				       (void __user *)NULL, current);
 		}
+
+		if (thread_flags & _TIF_PATCH_PENDING)
+			klp_update_patch_state(current);
 
 		if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
 			do_signal(regs);
