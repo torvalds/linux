@@ -210,7 +210,7 @@ static void __sendpair(struct __test_metadata *_metadata,
 static void __recvpair(struct __test_metadata *_metadata,
 		       FIXTURE_DATA(msg_oob) *self,
 		       const char *expected_buf, int expected_len,
-		       int buf_len, int flags)
+		       int buf_len, int flags, bool is_sender)
 {
 	int i, ret[2], recv_errno[2], expected_errno = 0;
 	char recv_buf[2][BUF_SZ] = {};
@@ -221,7 +221,9 @@ static void __recvpair(struct __test_metadata *_metadata,
 	errno = 0;
 
 	for (i = 0; i < 2; i++) {
-		ret[i] = recv(self->fd[i * 2 + 1], recv_buf[i], buf_len, flags);
+		int index = is_sender ? i * 2 : i * 2 + 1;
+
+		ret[i] = recv(self->fd[index], recv_buf[i], buf_len, flags);
 		recv_errno[i] = errno;
 	}
 
@@ -308,6 +310,20 @@ static void __siocatmarkpair(struct __test_metadata *_metadata,
 		ASSERT_EQ(answ[0], answ[1]);
 }
 
+static void __resetpair(struct __test_metadata *_metadata,
+			FIXTURE_DATA(msg_oob) *self,
+			const FIXTURE_VARIANT(msg_oob) *variant,
+			bool reset)
+{
+	int i;
+
+	for (i = 0; i < 2; i++)
+		close(self->fd[i * 2 + 1]);
+
+	__recvpair(_metadata, self, "", reset ? -ECONNRESET : 0, 1,
+		   variant->peek ? MSG_PEEK : 0, true);
+}
+
 #define sendpair(buf, len, flags)					\
 	__sendpair(_metadata, self, buf, len, flags)
 
@@ -316,9 +332,10 @@ static void __siocatmarkpair(struct __test_metadata *_metadata,
 		if (variant->peek)					\
 			__recvpair(_metadata, self,			\
 				   expected_buf, expected_len,		\
-				   buf_len, (flags) | MSG_PEEK);	\
+				   buf_len, (flags) | MSG_PEEK, false);	\
 		__recvpair(_metadata, self,				\
-			   expected_buf, expected_len, buf_len, flags);	\
+			   expected_buf, expected_len,			\
+			   buf_len, flags, false);			\
 	} while (0)
 
 #define epollpair(oob_remaining)					\
@@ -329,6 +346,9 @@ static void __siocatmarkpair(struct __test_metadata *_metadata,
 
 #define setinlinepair()							\
 	__setinlinepair(_metadata, self)
+
+#define resetpair(reset)						\
+	__resetpair(_metadata, self, variant, reset)
 
 #define tcp_incompliant							\
 	for (self->tcp_compliant = false;				\
@@ -344,6 +364,21 @@ TEST_F(msg_oob, non_oob)
 	recvpair("", -EINVAL, 1, MSG_OOB);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(true);
+}
+
+TEST_F(msg_oob, non_oob_no_reset)
+{
+	sendpair("x", 1, 0);
+	epollpair(false);
+	siocatmarkpair(false);
+
+	recvpair("x", 1, 1, 0);
+	epollpair(false);
+	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, oob)
@@ -355,6 +390,19 @@ TEST_F(msg_oob, oob)
 	recvpair("x", 1, 1, MSG_OOB);
 	epollpair(false);
 	siocatmarkpair(true);
+
+	tcp_incompliant {
+		resetpair(false);		/* TCP sets -ECONNRESET for ex-OOB. */
+	}
+}
+
+TEST_F(msg_oob, oob_reset)
+{
+	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	resetpair(true);
 }
 
 TEST_F(msg_oob, oob_drop)
@@ -370,6 +418,8 @@ TEST_F(msg_oob, oob_drop)
 	recvpair("", -EINVAL, 1, MSG_OOB);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, oob_ahead)
@@ -385,6 +435,10 @@ TEST_F(msg_oob, oob_ahead)
 	recvpair("hell", 4, 4, 0);
 	epollpair(false);
 	siocatmarkpair(true);
+
+	tcp_incompliant {
+		resetpair(false);		/* TCP sets -ECONNRESET for ex-OOB. */
+	}
 }
 
 TEST_F(msg_oob, oob_break)
@@ -403,6 +457,8 @@ TEST_F(msg_oob, oob_break)
 
 	recvpair("", -EAGAIN, 1, 0);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, oob_ahead_break)
@@ -426,6 +482,8 @@ TEST_F(msg_oob, oob_ahead_break)
 	recvpair("world", 5, 5, 0);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, oob_break_drop)
@@ -449,6 +507,8 @@ TEST_F(msg_oob, oob_break_drop)
 	recvpair("", -EINVAL, 1, MSG_OOB);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, ex_oob_break)
@@ -476,6 +536,8 @@ TEST_F(msg_oob, ex_oob_break)
 	recvpair("ld", 2, 2, 0);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, ex_oob_drop)
@@ -498,6 +560,8 @@ TEST_F(msg_oob, ex_oob_drop)
 		epollpair(false);
 		siocatmarkpair(true);
 	}
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, ex_oob_drop_2)
@@ -523,6 +587,8 @@ TEST_F(msg_oob, ex_oob_drop_2)
 		epollpair(false);
 		siocatmarkpair(true);
 	}
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, ex_oob_oob)
@@ -546,6 +612,54 @@ TEST_F(msg_oob, ex_oob_oob)
 	recvpair("", -EINVAL, 1, MSG_OOB);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
+}
+
+TEST_F(msg_oob, ex_oob_ex_oob)
+{
+	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("x", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(true);
+
+	sendpair("y", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("y", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(true);
+
+	tcp_incompliant {
+		resetpair(false);		/* TCP sets -ECONNRESET for ex-OOB. */
+	}
+}
+
+TEST_F(msg_oob, ex_oob_ex_oob_oob)
+{
+	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("x", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(true);
+
+	sendpair("y", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("y", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(true);
+
+	sendpair("z", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
 }
 
 TEST_F(msg_oob, ex_oob_ahead_break)
@@ -576,6 +690,10 @@ TEST_F(msg_oob, ex_oob_ahead_break)
 	recvpair("d", 1, 1, MSG_OOB);
 	epollpair(false);
 	siocatmarkpair(true);
+
+	tcp_incompliant {
+		resetpair(false);		/* TCP sets -ECONNRESET for ex-OOB. */
+	}
 }
 
 TEST_F(msg_oob, ex_oob_siocatmark)
@@ -595,6 +713,8 @@ TEST_F(msg_oob, ex_oob_siocatmark)
 	recvpair("hell", 4, 4, 0);		/* Intentionally stop at ex-OOB. */
 	epollpair(true);
 	siocatmarkpair(false);
+
+	resetpair(true);
 }
 
 TEST_F(msg_oob, inline_oob)
@@ -612,6 +732,8 @@ TEST_F(msg_oob, inline_oob)
 	recvpair("x", 1, 1, 0);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, inline_oob_break)
@@ -633,6 +755,8 @@ TEST_F(msg_oob, inline_oob_break)
 	recvpair("o", 1, 1, 0);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, inline_oob_ahead_break)
@@ -661,6 +785,8 @@ TEST_F(msg_oob, inline_oob_ahead_break)
 
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, inline_ex_oob_break)
@@ -686,6 +812,8 @@ TEST_F(msg_oob, inline_ex_oob_break)
 	recvpair("rld", 3, 3, 0);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, inline_ex_oob_no_drop)
@@ -707,6 +835,8 @@ TEST_F(msg_oob, inline_ex_oob_no_drop)
 	recvpair("y", 1, 1, 0);
 	epollpair(false);
 	siocatmarkpair(false);
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, inline_ex_oob_drop)
@@ -731,6 +861,8 @@ TEST_F(msg_oob, inline_ex_oob_drop)
 		epollpair(false);
 		siocatmarkpair(false);
 	}
+
+	resetpair(false);
 }
 
 TEST_F(msg_oob, inline_ex_oob_siocatmark)
@@ -752,6 +884,8 @@ TEST_F(msg_oob, inline_ex_oob_siocatmark)
 	recvpair("hell", 4, 4, 0);		/* Intentionally stop at ex-OOB. */
 	epollpair(true);
 	siocatmarkpair(false);
+
+	resetpair(true);
 }
 
 TEST_HARNESS_MAIN

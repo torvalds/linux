@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/altr,uart-1.0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera UART
+
+maintainers:
+  - Dinh Nguyen <dinguyen@kernel.org>
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+
+properties:
+  compatible:
+    const: altr,uart-1.0
+
+  clock-frequency:
+    description: Frequency of the clock input to the UART.
+
+required:
+  - compatible
+
+unevaluatedProperties: false
