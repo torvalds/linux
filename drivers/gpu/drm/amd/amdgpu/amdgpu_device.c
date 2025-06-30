@@ -6201,14 +6201,15 @@ static void amdgpu_device_recovery_put_reset_lock(struct amdgpu_device *adev,
 	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
 }
 
-static int amdgpu_device_halt_activities(
-	struct amdgpu_device *adev, struct amdgpu_job *job,
-	struct amdgpu_reset_context *reset_context,
-	struct list_head *device_list, struct amdgpu_hive_info *hive,
-	bool need_emergency_restart)
+static void amdgpu_device_halt_activities(struct amdgpu_device *adev,
+					  struct amdgpu_job *job,
+					  struct amdgpu_reset_context *reset_context,
+					  struct list_head *device_list,
+					  struct amdgpu_hive_info *hive,
+					  bool need_emergency_restart)
 {
 	struct amdgpu_device *tmp_adev = NULL;
-	int i, r = 0;
+	int i;
 
 	/* block all schedulers and reset given job's ring */
 	list_for_each_entry(tmp_adev, device_list, reset_list) {
@@ -6260,8 +6261,6 @@ static int amdgpu_device_halt_activities(
 		}
 		atomic_inc(&tmp_adev->gpu_reset_counter);
 	}
-
-	return r;
 }
 
 static int amdgpu_device_asic_reset(struct amdgpu_device *adev,
@@ -6473,11 +6472,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	/* We need to lock reset domain only once both for XGMI and single device */
 	amdgpu_device_recovery_get_reset_lock(adev, &device_list);
 
-	r = amdgpu_device_halt_activities(adev, job, reset_context, &device_list,
-					 hive, need_emergency_restart);
-	if (r)
-		goto reset_unlock;
-
+	amdgpu_device_halt_activities(adev, job, reset_context, &device_list,
+				      hive, need_emergency_restart);
 	if (need_emergency_restart)
 		goto skip_sched_resume;
 	/*
@@ -6889,7 +6885,6 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
 	struct amdgpu_reset_context reset_context;
 	struct list_head device_list;
-	int r = 0;
 
 	dev_info(adev->dev, "PCI error: detected callback!!\n");
 
@@ -6916,14 +6911,12 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 
 		amdgpu_device_recovery_prepare(adev, &device_list, hive);
 		amdgpu_device_recovery_get_reset_lock(adev, &device_list);
-		r = amdgpu_device_halt_activities(adev, NULL, &reset_context, &device_list,
-					 hive, false);
+		amdgpu_device_halt_activities(adev, NULL, &reset_context, &device_list,
+					      hive, false);
 		if (hive) {
 			mutex_unlock(&hive->hive_lock);
 			amdgpu_put_xgmi_hive(hive);
 		}
-		if (r)
-			return PCI_ERS_RESULT_DISCONNECT;
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
 		/* Permanent error, prepare for device removal */
