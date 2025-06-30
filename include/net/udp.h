@@ -205,7 +205,6 @@ static inline void udp_hash4_dec(struct udp_hslot *hslot2)
 
 extern struct proto udp_prot;
 
-extern atomic_long_t udp_memory_allocated;
 DECLARE_PER_CPU(int, udp_memory_per_cpu_fw_alloc);
 
 /* sysctl variables for udp */

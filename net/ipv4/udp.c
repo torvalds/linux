@@ -127,8 +127,6 @@ struct udp_table udp_table __read_mostly;
 long sysctl_udp_mem[3] __read_mostly;
 EXPORT_IPV6_MOD(sysctl_udp_mem);
 
-atomic_long_t udp_memory_allocated ____cacheline_aligned_in_smp;
-EXPORT_IPV6_MOD(udp_memory_allocated);
 DEFINE_PER_CPU(int, udp_memory_per_cpu_fw_alloc);
 EXPORT_PER_CPU_SYMBOL_GPL(udp_memory_per_cpu_fw_alloc);
 
@@ -3235,7 +3233,7 @@ struct proto udp_prot = {
 #ifdef CONFIG_BPF_SYSCALL
 	.psock_update_sk_prot	= udp_bpf_update_proto,
 #endif
-	.memory_allocated	= &udp_memory_allocated,
+	.memory_allocated	= &net_aligned_data.udp_memory_allocated,
 	.per_cpu_fw_alloc	= &udp_memory_per_cpu_fw_alloc,
 
 	.sysctl_mem		= sysctl_udp_mem,

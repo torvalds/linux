@@ -1925,7 +1925,7 @@ struct proto udpv6_prot = {
 	.psock_update_sk_prot	= udp_bpf_update_proto,
 #endif
 
-	.memory_allocated	= &udp_memory_allocated,
+	.memory_allocated	= &net_aligned_data.udp_memory_allocated,
 	.per_cpu_fw_alloc	= &udp_memory_per_cpu_fw_alloc,
 
 	.sysctl_mem		= sysctl_udp_mem,
