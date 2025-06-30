@@ -1474,7 +1474,7 @@ __naked void sub64_full_overflow(void)
 }
 
 SEC("socket")
-__description("64-bit subtration, partial overflow, result in unbounded reg")
+__description("64-bit subtraction, partial overflow, result in unbounded reg")
 __success __log_level(2)
 __msg("3: (1f) r3 -= r2 {{.*}} R3_w=scalar()")
 __retval(0)
@@ -1514,7 +1514,7 @@ __naked void sub32_full_overflow(void)
 }
 
 SEC("socket")
-__description("32-bit subtration, partial overflow, result in unbounded u32 bounds")
+__description("32-bit subtraction, partial overflow, result in unbounded u32 bounds")
 __success __log_level(2)
 __msg("3: (1c) w3 -= w2 {{.*}} R3_w=scalar(smin=0,smax=umax=0xffffffff,var_off=(0x0; 0xffffffff))")
 __retval(0)
