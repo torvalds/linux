@@ -61,15 +61,15 @@ static void cec_gpio_low(struct cec_adapter *adap)
 	gpiod_set_value(cec->cec_gpio, 0);
 }
 
-static irqreturn_t cec_hpd_gpio_irq_handler_thread(int irq, void *priv)
+static irqreturn_t cec_gpio_5v_irq_handler_thread(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
 
-	cec_queue_pin_hpd_event(cec->adap, cec->hpd_is_high, cec->hpd_ts);
+	cec_queue_pin_5v_event(cec->adap, cec->v5_is_high, cec->v5_ts);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cec_5v_gpio_irq_handler(int irq, void *priv)
+static irqreturn_t cec_gpio_5v_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
 	int val = gpiod_get_value(cec->v5_gpio);
@@ -82,15 +82,15 @@ static irqreturn_t cec_5v_gpio_irq_handler(int irq, void *priv)
 	return IRQ_WAKE_THREAD;
 }
 
-static irqreturn_t cec_5v_gpio_irq_handler_thread(int irq, void *priv)
+static irqreturn_t cec_gpio_hpd_irq_handler_thread(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
 
-	cec_queue_pin_5v_event(cec->adap, cec->v5_is_high, cec->v5_ts);
+	cec_queue_pin_hpd_event(cec->adap, cec->hpd_is_high, cec->hpd_ts);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cec_hpd_gpio_irq_handler(int irq, void *priv)
+static irqreturn_t cec_gpio_hpd_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
 	int val = gpiod_get_value(cec->hpd_gpio);
@@ -103,7 +103,7 @@ static irqreturn_t cec_hpd_gpio_irq_handler(int irq, void *priv)
 	return IRQ_WAKE_THREAD;
 }
 
-static irqreturn_t cec_gpio_irq_handler(int irq, void *priv)
+static irqreturn_t cec_gpio_cec_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
 	int val = gpiod_get_value(cec->cec_gpio);
@@ -113,7 +113,7 @@ static irqreturn_t cec_gpio_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static bool cec_gpio_enable_irq(struct cec_adapter *adap)
+static bool cec_gpio_cec_enable_irq(struct cec_adapter *adap)
 {
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
@@ -121,7 +121,7 @@ static bool cec_gpio_enable_irq(struct cec_adapter *adap)
 	return true;
 }
 
-static void cec_gpio_disable_irq(struct cec_adapter *adap)
+static void cec_gpio_cec_disable_irq(struct cec_adapter *adap)
 {
 	struct cec_gpio *cec = cec_get_drvdata(adap);
 
@@ -164,8 +164,8 @@ static const struct cec_pin_ops cec_gpio_pin_ops = {
 	.read = cec_gpio_read,
 	.low = cec_gpio_low,
 	.high = cec_gpio_high,
-	.enable_irq = cec_gpio_enable_irq,
-	.disable_irq = cec_gpio_disable_irq,
+	.enable_irq = cec_gpio_cec_enable_irq,
+	.disable_irq = cec_gpio_cec_disable_irq,
 	.status = cec_gpio_status,
 	.read_hpd = cec_gpio_read_hpd,
 	.read_5v = cec_gpio_read_5v,
@@ -209,7 +209,7 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(cec->adap))
 		return PTR_ERR(cec->adap);
 
-	ret = devm_request_irq(dev, cec->cec_irq, cec_gpio_irq_handler,
+	ret = devm_request_irq(dev, cec->cec_irq, cec_gpio_cec_irq_handler,
 			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN,
 			       cec->adap->name, cec);
 	if (ret)
@@ -218,8 +218,8 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	if (cec->hpd_gpio) {
 		cec->hpd_irq = gpiod_to_irq(cec->hpd_gpio);
 		ret = devm_request_threaded_irq(dev, cec->hpd_irq,
-			cec_hpd_gpio_irq_handler,
-			cec_hpd_gpio_irq_handler_thread,
+			cec_gpio_hpd_irq_handler,
+			cec_gpio_hpd_irq_handler_thread,
 			IRQF_ONESHOT |
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"hpd-gpio", cec);
@@ -230,8 +230,8 @@ static int cec_gpio_probe(struct platform_device *pdev)
 	if (cec->v5_gpio) {
 		cec->v5_irq = gpiod_to_irq(cec->v5_gpio);
 		ret = devm_request_threaded_irq(dev, cec->v5_irq,
-			cec_5v_gpio_irq_handler,
-			cec_5v_gpio_irq_handler_thread,
+			cec_gpio_5v_irq_handler,
+			cec_gpio_5v_irq_handler_thread,
 			IRQF_ONESHOT |
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			"v5-gpio", cec);
