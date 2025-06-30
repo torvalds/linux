@@ -26,6 +26,7 @@
    netif-msg
    xfrm_proc
    netmem
+   alias
 
 Todolist:
 
@@ -50,7 +51,6 @@ Todolist:
 *   page_pool
 *   phy
 *   sfp-phylink
-*   alias
 *   bridge
 *   snmp_counter
 *   checksum-offloads
