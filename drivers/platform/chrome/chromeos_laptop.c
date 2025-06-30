@@ -726,9 +726,9 @@ static int __init chromeos_laptop_setup_irq(struct i2c_peripheral *i2c_dev)
 		if (irq < 0)
 			return irq;
 
-		i2c_dev->irq_resource  = (struct resource)
-			DEFINE_RES_NAMED(irq, 1, NULL,
-					 IORESOURCE_IRQ | i2c_dev->irqflags);
+		i2c_dev->irq_resource = DEFINE_RES_IRQ(irq);
+		i2c_dev->irq_resource.flags |= i2c_dev->irqflags;
+
 		i2c_dev->board_info.resources = &i2c_dev->irq_resource;
 		i2c_dev->board_info.num_resources = 1;
 	}
