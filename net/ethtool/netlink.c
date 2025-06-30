@@ -455,10 +455,15 @@ static int ethnl_default_parse(struct ethnl_req_info *req_info,
 	if (request_ops->parse_request) {
 		ret = request_ops->parse_request(req_info, tb, info->extack);
 		if (ret < 0)
-			return ret;
+			goto err_dev;
 	}
 
 	return 0;
+
+err_dev:
+	netdev_put(req_info->dev, &req_info->dev_tracker);
+	req_info->dev = NULL;
+	return ret;
 }
 
 /**
@@ -508,7 +513,7 @@ static int ethnl_default_doit(struct sk_buff *skb, struct genl_info *info)
 
 	ret = ethnl_default_parse(req_info, info, ops, !ops->allow_nodev_do);
 	if (ret < 0)
-		goto err_dev;
+		goto err_free;
 	ethnl_init_reply_data(reply_data, ops, req_info->dev);
 
 	rtnl_lock();
@@ -554,6 +559,7 @@ err_cleanup:
 		ops->cleanup_data(reply_data);
 err_dev:
 	netdev_put(req_info->dev, &req_info->dev_tracker);
+err_free:
 	kfree(reply_data);
 	kfree(req_info);
 	return ret;
@@ -656,6 +662,8 @@ static int ethnl_default_start(struct netlink_callback *cb)
 	}
 
 	ret = ethnl_default_parse(req_info, &info->info, ops, false);
+	if (ret < 0)
+		goto free_reply_data;
 	if (req_info->dev) {
 		/* We ignore device specification in dump requests but as the
 		 * same parser as for non-dump (doit) requests is used, it
@@ -664,8 +672,6 @@ static int ethnl_default_start(struct netlink_callback *cb)
 		netdev_put(req_info->dev, &req_info->dev_tracker);
 		req_info->dev = NULL;
 	}
-	if (ret < 0)
-		goto free_reply_data;
 
 	ctx->ops = ops;
 	ctx->req_info = req_info;
@@ -714,13 +720,13 @@ static int ethnl_perphy_start(struct netlink_callback *cb)
 	 * the dev's ifindex, .dumpit() will grab and release the netdev itself.
 	 */
 	ret = ethnl_default_parse(req_info, &info->info, ops, false);
+	if (ret < 0)
+		goto free_reply_data;
 	if (req_info->dev) {
 		phy_ctx->ifindex = req_info->dev->ifindex;
 		netdev_put(req_info->dev, &req_info->dev_tracker);
 		req_info->dev = NULL;
 	}
-	if (ret < 0)
-		goto free_reply_data;
 
 	ctx->ops = ops;
 	ctx->req_info = req_info;
