@@ -160,6 +160,9 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	struct printbuf buf = PRINTBUF;
 	int ret = JOURNAL_ENTRY_ADD_OK;
 
+	if (last_seq && c->opts.journal_rewind)
+		last_seq = min(last_seq, c->opts.journal_rewind);
+
 	if (!c->journal.oldest_seq_found_ondisk ||
 	    le64_to_cpu(j->seq) < c->journal.oldest_seq_found_ondisk)
 		c->journal.oldest_seq_found_ondisk = le64_to_cpu(j->seq);
@@ -1430,11 +1433,21 @@ int bch2_journal_read(struct bch_fs *c,
 	printbuf_reset(&buf);
 	prt_printf(&buf, "journal read done, replaying entries %llu-%llu",
 		   *last_seq, *blacklist_seq - 1);
+
+	/*
+	 * Drop blacklisted entries and entries older than last_seq (or start of
+	 * journal rewind:
+	 */
+	u64 drop_before = *last_seq;
+	if (c->opts.journal_rewind) {
+		drop_before = min(drop_before, c->opts.journal_rewind);
+		prt_printf(&buf, " (rewinding from %llu)", c->opts.journal_rewind);
+	}
+
+	*last_seq = drop_before;
 	if (*start_seq != *blacklist_seq)
 		prt_printf(&buf, " (unflushed %llu-%llu)", *blacklist_seq, *start_seq - 1);
 	bch_info(c, "%s", buf.buf);
-
-	/* Drop blacklisted entries and entries older than last_seq: */
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
 		i = *_i;
 
@@ -1442,7 +1455,7 @@ int bch2_journal_read(struct bch_fs *c,
 			continue;
 
 		seq = le64_to_cpu(i->j.seq);
-		if (seq < *last_seq) {
+		if (seq < drop_before) {
 			journal_replay_free(c, i, false);
 			continue;
 		}
@@ -1455,7 +1468,7 @@ int bch2_journal_read(struct bch_fs *c,
 		}
 	}
 
-	ret = bch2_journal_check_for_missing(c, *last_seq, *blacklist_seq - 1);
+	ret = bch2_journal_check_for_missing(c, drop_before, *blacklist_seq - 1);
 	if (ret)
 		goto err;
 
@@ -1703,9 +1716,10 @@ static CLOSURE_CALLBACK(journal_write_done)
 		bch2_log_msg_start(c, &buf);
 
 		if (err == -BCH_ERR_journal_write_err)
-			prt_printf(&buf, "unable to write journal to sufficient devices");
+			prt_printf(&buf, "unable to write journal to sufficient devices\n");
 		else
-			prt_printf(&buf, "journal write error marking replicas: %s", bch2_err_str(err));
+			prt_printf(&buf, "journal write error marking replicas: %s\n",
+				   bch2_err_str(err));
 
 		bch2_fs_emergency_read_only2(c, &buf);
 
