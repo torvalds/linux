@@ -619,6 +619,7 @@ static void ti_csi2rx_dma_callback(void *param)
 
 		if (ti_csi2rx_start_dma(csi, buf)) {
 			dev_err(csi->dev, "Failed to queue the next buffer for DMA\n");
+			list_del(&buf->list);
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		} else {
 			list_move_tail(&buf->list, &dma->submitted);
