@@ -210,17 +210,17 @@ static int read_drm_pmus_cb(void *args, int fdinfo_dir_fd, const char *fd_name)
 		}
 		if (starts_with(line, "drm-purgeable-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
-				  "Size of resident and purgeable memory bufers");
+				  "Size of resident and purgeable memory buffers");
 			continue;
 		}
 		if (starts_with(line, "drm-resident-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
-				  "Size of resident memory bufers");
+				  "Size of resident memory buffers");
 			continue;
 		}
 		if (starts_with(line, "drm-shared-")) {
 			add_event(&events, &num_events, line, DRM_PMU_UNIT_BYTES,
-				  "Size of shared memory bufers");
+				  "Size of shared memory buffers");
 			continue;
 		}
 		if (starts_with(line, "drm-total-cycles-")) {
