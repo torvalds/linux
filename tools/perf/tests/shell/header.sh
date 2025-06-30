@@ -51,7 +51,7 @@ check_header_output() {
 test_file() {
   echo "Test perf header file"
 
-  perf record -o "${perfdata}" -g -- perf test -w noploop
+  perf record -o "${perfdata}" -- perf test -w noploop
   perf report --header-only -I -i "${perfdata}" > "${script_output}"
   check_header_output
 
@@ -61,7 +61,7 @@ test_file() {
 test_pipe() {
   echo "Test perf header pipe"
 
-  perf record -o - -g -- perf test -w noploop | perf report --header-only -I -i - > "${script_output}"
+  perf record -o - -- perf test -w noploop | perf report --header-only -I -i - > "${script_output}"
   check_header_output
 
   echo "Test perf header pipe [Done]"
