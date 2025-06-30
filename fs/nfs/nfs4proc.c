@@ -6160,7 +6160,7 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf,
 	}
 
 	/* for decoding across pages */
-	res.acl_scratch = alloc_page(GFP_KERNEL);
+	res.acl_scratch = folio_alloc(GFP_KERNEL, 0);
 	if (!res.acl_scratch)
 		goto out_free;
 
@@ -6196,7 +6196,7 @@ out_free:
 	while (--i >= 0)
 		__free_page(pages[i]);
 	if (res.acl_scratch)
-		__free_page(res.acl_scratch);
+		folio_put(res.acl_scratch);
 	kfree(pages);
 	return ret;
 }

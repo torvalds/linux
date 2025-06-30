@@ -862,7 +862,7 @@ struct nfs_getaclres {
 	size_t				acl_len;
 	size_t				acl_data_offset;
 	int				acl_flags;
-	struct page *			acl_scratch;
+	struct folio *			acl_scratch;
 };
 
 struct nfs_setattrres {
