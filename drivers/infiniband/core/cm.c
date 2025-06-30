@@ -161,6 +161,7 @@ struct cm_counter_attribute {
 struct cm_port {
 	struct cm_device *cm_dev;
 	struct ib_mad_agent *mad_agent;
+	struct ib_mad_agent *rep_agent;
 	u32 port_num;
 	atomic_long_t counters[CM_COUNTER_GROUPS][CM_ATTR_COUNT];
 };
@@ -274,7 +275,8 @@ static inline void cm_deref_id(struct cm_id_private *cm_id_priv)
 		complete(&cm_id_priv->comp);
 }
 
-static struct ib_mad_send_buf *cm_alloc_msg(struct cm_id_private *cm_id_priv)
+static struct ib_mad_send_buf *
+cm_alloc_msg_agent(struct cm_id_private *cm_id_priv, bool rep_agent)
 {
 	struct ib_mad_agent *mad_agent;
 	struct ib_mad_send_buf *m;
@@ -286,7 +288,8 @@ static struct ib_mad_send_buf *cm_alloc_msg(struct cm_id_private *cm_id_priv)
 		return ERR_PTR(-EINVAL);
 
 	read_lock(&cm_id_priv->av.port->cm_dev->mad_agent_lock);
-	mad_agent = cm_id_priv->av.port->mad_agent;
+	mad_agent = rep_agent ? cm_id_priv->av.port->rep_agent :
+				cm_id_priv->av.port->mad_agent;
 	if (!mad_agent) {
 		m = ERR_PTR(-EINVAL);
 		goto out;
@@ -315,6 +318,11 @@ out:
 	return m;
 }
 
+static struct ib_mad_send_buf *cm_alloc_msg(struct cm_id_private *cm_id_priv)
+{
+	return cm_alloc_msg_agent(cm_id_priv, false);
+}
+
 static void cm_free_msg(struct ib_mad_send_buf *msg)
 {
 	if (msg->ah)
@@ -323,13 +331,14 @@ static void cm_free_msg(struct ib_mad_send_buf *msg)
 }
 
 static struct ib_mad_send_buf *
-cm_alloc_priv_msg(struct cm_id_private *cm_id_priv, enum ib_cm_state state)
+cm_alloc_priv_msg_rep(struct cm_id_private *cm_id_priv, enum ib_cm_state state,
+		      bool rep_agent)
 {
 	struct ib_mad_send_buf *msg;
 
 	lockdep_assert_held(&cm_id_priv->lock);
 
-	msg = cm_alloc_msg(cm_id_priv);
+	msg = cm_alloc_msg_agent(cm_id_priv, rep_agent);
 	if (IS_ERR(msg))
 		return msg;
 
@@ -342,6 +351,12 @@ cm_alloc_priv_msg(struct cm_id_private *cm_id_priv, enum ib_cm_state state)
 	msg->timeout_ms = cm_id_priv->timeout_ms;
 
 	return msg;
+}
+
+static struct ib_mad_send_buf *
+cm_alloc_priv_msg(struct cm_id_private *cm_id_priv, enum ib_cm_state state)
+{
+	return cm_alloc_priv_msg_rep(cm_id_priv, state, false);
 }
 
 static void cm_free_priv_msg(struct ib_mad_send_buf *msg)
@@ -2295,7 +2310,7 @@ int ib_send_cm_rep(struct ib_cm_id *cm_id,
 		goto out;
 	}
 
-	msg = cm_alloc_priv_msg(cm_id_priv, IB_CM_REP_SENT);
+	msg = cm_alloc_priv_msg_rep(cm_id_priv, IB_CM_REP_SENT, true);
 	if (IS_ERR(msg)) {
 		ret = PTR_ERR(msg);
 		goto out;
@@ -4380,9 +4395,22 @@ static int cm_add_one(struct ib_device *ib_device)
 			goto error2;
 		}
 
+		port->rep_agent = ib_register_mad_agent(ib_device, i,
+							IB_QPT_GSI,
+							NULL,
+							0,
+							cm_send_handler,
+							NULL,
+							port,
+							0);
+		if (IS_ERR(port->rep_agent)) {
+			ret = PTR_ERR(port->rep_agent);
+			goto error3;
+		}
+
 		ret = ib_modify_port(ib_device, i, 0, &port_modify);
 		if (ret)
-			goto error3;
+			goto error4;
 
 		count++;
 	}
@@ -4397,6 +4425,8 @@ static int cm_add_one(struct ib_device *ib_device)
 	write_unlock_irqrestore(&cm.device_lock, flags);
 	return 0;
 
+error4:
+	ib_unregister_mad_agent(port->rep_agent);
 error3:
 	ib_unregister_mad_agent(port->mad_agent);
 error2:
@@ -4410,6 +4440,7 @@ error1:
 
 		port = cm_dev->port[i-1];
 		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
+		ib_unregister_mad_agent(port->rep_agent);
 		ib_unregister_mad_agent(port->mad_agent);
 		ib_port_unregister_client_groups(ib_device, i,
 						 cm_counter_groups);
@@ -4439,12 +4470,14 @@ static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 
 	rdma_for_each_port (ib_device, i) {
 		struct ib_mad_agent *mad_agent;
+		struct ib_mad_agent *rep_agent;
 
 		if (!rdma_cap_ib_cm(ib_device, i))
 			continue;
 
 		port = cm_dev->port[i-1];
 		mad_agent = port->mad_agent;
+		rep_agent = port->rep_agent;
 		ib_modify_port(ib_device, port->port_num, 0, &port_modify);
 		/*
 		 * We flush the queue here after the going_down set, this
@@ -4458,8 +4491,10 @@ static void cm_remove_one(struct ib_device *ib_device, void *client_data)
 		 */
 		write_lock(&cm_dev->mad_agent_lock);
 		port->mad_agent = NULL;
+		port->rep_agent = NULL;
 		write_unlock(&cm_dev->mad_agent_lock);
 		ib_unregister_mad_agent(mad_agent);
+		ib_unregister_mad_agent(rep_agent);
 		ib_port_unregister_client_groups(ib_device, i,
 						 cm_counter_groups);
 	}

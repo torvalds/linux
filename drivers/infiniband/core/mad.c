@@ -424,7 +424,8 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	mad_agent_priv->sol_fc_send_count = 0;
 	mad_agent_priv->sol_fc_wait_count = 0;
 	mad_agent_priv->sol_fc_max =
-		get_sol_fc_max_outstanding(mad_reg_req);
+		recv_handler ? get_sol_fc_max_outstanding(mad_reg_req) : 0;
+
 	ret2 = ib_mad_agent_security_setup(&mad_agent_priv->agent, qp_type);
 	if (ret2) {
 		ret = ERR_PTR(ret2);
@@ -1280,9 +1281,7 @@ int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 		if (ret)
 			goto error;
 
-		if (!send_buf->mad_agent->send_handler ||
-		    (send_buf->timeout_ms &&
-		     !send_buf->mad_agent->recv_handler)) {
+		if (!send_buf->mad_agent->send_handler) {
 			ret = -EINVAL;
 			goto error;
 		}
