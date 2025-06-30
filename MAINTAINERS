@@ -2884,7 +2884,7 @@ M:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Odd Fixes
 F:	Documentation/devicetree/bindings/arm/moxart.yaml
-F:	Documentation/devicetree/bindings/clock/moxa,moxart-clock.txt
+F:	Documentation/devicetree/bindings/clock/moxa,moxart-clock.yaml
 F:	arch/arm/boot/dts/moxa/
 F:	drivers/clk/clk-moxart.c
 
