@@ -28,6 +28,10 @@
 #include <linux/acpi.h>
 #include "pci.h"
 
+#define PCI_RES_TYPE_MASK \
+	(IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH |\
+	 IORESOURCE_MEM_64)
+
 unsigned int pci_flags;
 EXPORT_SYMBOL_GPL(pci_flags);
 
@@ -384,12 +388,18 @@ static bool pci_need_to_release(unsigned long mask, struct resource *res)
 }
 
 /* Return: @true if assignment of a required resource failed. */
-static bool pci_required_resource_failed(struct list_head *fail_head)
+static bool pci_required_resource_failed(struct list_head *fail_head,
+					 unsigned long type)
 {
 	struct pci_dev_resource *fail_res;
 
+	type &= PCI_RES_TYPE_MASK;
+
 	list_for_each_entry(fail_res, fail_head, list) {
 		int idx = pci_resource_num(fail_res->dev, fail_res->res);
+
+		if (type && (fail_res->flags & PCI_RES_TYPE_MASK) != type)
+			continue;
 
 		if (!pci_resource_is_optional(fail_res->dev, idx))
 			return true;
@@ -504,7 +514,7 @@ assign:
 	}
 
 	/* Without realloc_head and only optional fails, nothing more to do. */
-	if (!pci_required_resource_failed(&local_fail_head) &&
+	if (!pci_required_resource_failed(&local_fail_head, 0) &&
 	    list_empty(realloc_head)) {
 		list_for_each_entry(save_res, &save_head, list) {
 			struct resource *res = save_res->res;
@@ -1708,10 +1718,6 @@ static void __pci_bridge_assign_resources(const struct pci_dev *bridge,
 	}
 }
 
-#define PCI_RES_TYPE_MASK \
-	(IORESOURCE_IO | IORESOURCE_MEM | IORESOURCE_PREFETCH |\
-	 IORESOURCE_MEM_64)
-
 static void pci_bridge_release_resources(struct pci_bus *bus,
 					 unsigned long type)
 {
@@ -2450,8 +2456,12 @@ int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type)
 		free_list(&added);
 
 	if (!list_empty(&failed)) {
-		ret = -ENOSPC;
-		goto cleanup;
+		if (pci_required_resource_failed(&failed, type)) {
+			ret = -ENOSPC;
+			goto cleanup;
+		}
+		/* Only resources with unrelated types failed (again) */
+		free_list(&failed);
 	}
 
 	list_for_each_entry(dev_res, &saved, list) {
