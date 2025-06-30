@@ -107,6 +107,8 @@ struct ib_sa_device {
 struct ib_sa_query {
 	void (*callback)(struct ib_sa_query *sa_query, int status,
 			 struct ib_sa_mad *mad);
+	void (*rmpp_callback)(struct ib_sa_query *sa_query, int status,
+			      struct ib_mad_recv_wc *mad);
 	void (*release)(struct ib_sa_query *);
 	struct ib_sa_client    *client;
 	struct ib_sa_port      *port;
@@ -1987,22 +1989,28 @@ static void send_handler(struct ib_mad_agent *agent,
 {
 	struct ib_sa_query *query = mad_send_wc->send_buf->context[0];
 	unsigned long flags;
+	int status = 0;
 
-	if (query->callback)
+	if (query->callback || query->rmpp_callback) {
 		switch (mad_send_wc->status) {
 		case IB_WC_SUCCESS:
 			/* No callback -- already got recv */
 			break;
 		case IB_WC_RESP_TIMEOUT_ERR:
-			query->callback(query, -ETIMEDOUT, NULL);
+			status = -ETIMEDOUT;
 			break;
 		case IB_WC_WR_FLUSH_ERR:
-			query->callback(query, -EINTR, NULL);
+			status = -EINTR;
 			break;
 		default:
-			query->callback(query, -EIO, NULL);
+			status = -EIO;
 			break;
 		}
+
+		if (status)
+			query->callback ? query->callback(query, status, NULL) :
+				query->rmpp_callback(query, status, NULL);
+	}
 
 	xa_lock_irqsave(&queries, flags);
 	__xa_erase(&queries, query->id);
@@ -2019,17 +2027,25 @@ static void recv_handler(struct ib_mad_agent *mad_agent,
 			 struct ib_mad_recv_wc *mad_recv_wc)
 {
 	struct ib_sa_query *query;
+	struct ib_mad *mad;
+
 
 	if (!send_buf)
 		return;
 
 	query = send_buf->context[0];
-	if (query->callback) {
+	mad = mad_recv_wc->recv_buf.mad;
+
+	if (query->rmpp_callback) {
 		if (mad_recv_wc->wc->status == IB_WC_SUCCESS)
-			query->callback(query,
-					mad_recv_wc->recv_buf.mad->mad_hdr.status ?
-					-EINVAL : 0,
-					(struct ib_sa_mad *) mad_recv_wc->recv_buf.mad);
+			query->rmpp_callback(query, mad->mad_hdr.status ?
+					     -EINVAL : 0, mad_recv_wc);
+		else
+			query->rmpp_callback(query, -EIO, NULL);
+	} else if (query->callback) {
+		if (mad_recv_wc->wc->status == IB_WC_SUCCESS)
+			query->callback(query, mad->mad_hdr.status ?
+					-EINVAL : 0, (struct ib_sa_mad *)mad);
 		else
 			query->callback(query, -EIO, NULL);
 	}
@@ -2181,8 +2197,9 @@ static int ib_sa_add_one(struct ib_device *device)
 
 		sa_dev->port[i].agent =
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,
-					      NULL, 0, send_handler,
-					      recv_handler, sa_dev, 0);
+					      NULL, IB_MGMT_RMPP_VERSION,
+					      send_handler, recv_handler,
+					      sa_dev, 0);
 		if (IS_ERR(sa_dev->port[i].agent)) {
 			ret = PTR_ERR(sa_dev->port[i].agent);
 			goto err;
