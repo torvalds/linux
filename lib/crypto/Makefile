@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
+aflags-thumb2-$(CONFIG_THUMB2_KERNEL)  := -U__thumb2__ -D__thumb2__=1
+
+quiet_cmd_perlasm = PERLASM $@
+      cmd_perlasm = $(PERL) $(<) > $(@)
+
 obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o
 libcryptoutils-y				:= memneq.o utils.o
 
@@ -68,6 +73,15 @@ obj-$(CONFIG_CRYPTO_LIB_SHA512) += libsha512.o
 libsha512-y := sha512.o
 ifeq ($(CONFIG_CRYPTO_LIB_SHA512_ARCH),y)
 CFLAGS_sha512.o += -I$(src)/$(SRCARCH)
+
+ifeq ($(CONFIG_ARM),y)
+libsha512-y += arm/sha512-core.o
+$(obj)/arm/sha512-core.S: $(src)/arm/sha512-armv4.pl
+	$(call cmd,perlasm)
+clean-files += arm/sha512-core.S
+AFLAGS_arm/sha512-core.o += $(aflags-thumb2-y)
+endif
+
 endif # CONFIG_CRYPTO_LIB_SHA512_ARCH
 
 obj-$(CONFIG_MPILIB) += mpi/
