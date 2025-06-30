@@ -6,6 +6,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/ktime.h>
 #include <linux/hrtimer.h>
+#include <linux/poll.h>
 
 #include <linux/io_uring/cmd.h>
 #include <linux/io_uring_types.h>
@@ -20,6 +21,8 @@ struct io_mock_iocb {
 struct io_mock_file {
 	size_t			size;
 	u64			rw_delay_ns;
+	bool			pollable;
+	struct wait_queue_head	poll_wq;
 };
 
 #define IO_VALID_COPY_CMD_FLAGS		IORING_MOCK_COPY_FROM
@@ -161,6 +164,18 @@ static loff_t io_mock_llseek(struct file *file, loff_t offset, int whence)
 	return fixed_size_llseek(file, offset, whence, mf->size);
 }
 
+static __poll_t io_mock_poll(struct file *file, struct poll_table_struct *pt)
+{
+	struct io_mock_file *mf = file->private_data;
+	__poll_t mask = 0;
+
+	poll_wait(file, &mf->poll_wq, pt);
+
+	mask |= EPOLLOUT | EPOLLWRNORM;
+	mask |= EPOLLIN | EPOLLRDNORM;
+	return mask;
+}
+
 static int io_mock_release(struct inode *inode, struct file *file)
 {
 	struct io_mock_file *mf = file->private_data;
@@ -178,10 +193,22 @@ static const struct file_operations io_mock_fops = {
 	.llseek		= io_mock_llseek,
 };
 
-#define IO_VALID_CREATE_FLAGS (IORING_MOCK_CREATE_F_SUPPORT_NOWAIT)
+static const struct file_operations io_mock_poll_fops = {
+	.owner		= THIS_MODULE,
+	.release	= io_mock_release,
+	.uring_cmd	= io_mock_cmd,
+	.read_iter	= io_mock_read_iter,
+	.write_iter	= io_mock_write_iter,
+	.llseek		= io_mock_llseek,
+	.poll		= io_mock_poll,
+};
+
+#define IO_VALID_CREATE_FLAGS (IORING_MOCK_CREATE_F_SUPPORT_NOWAIT | \
+				IORING_MOCK_CREATE_F_POLL)
 
 static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
+	const struct file_operations *fops = &io_mock_fops;
 	const struct io_uring_sqe *sqe = cmd->sqe;
 	struct io_uring_mock_create mc, __user *uarg;
 	struct io_mock_file *mf = NULL;
@@ -223,9 +250,15 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 	if (fd < 0)
 		goto fail;
 
+	init_waitqueue_head(&mf->poll_wq);
 	mf->size = mc.file_size;
 	mf->rw_delay_ns = mc.rw_delay_ns;
-	file = anon_inode_create_getfile("[io_uring_mock]", &io_mock_fops,
+	if (mc.flags & IORING_MOCK_CREATE_F_POLL) {
+		fops = &io_mock_poll_fops;
+		mf->pollable = true;
+	}
+
+	file = anon_inode_create_getfile("[io_uring_mock]", fops,
 					 mf, O_RDWR | O_CLOEXEC, NULL);
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
