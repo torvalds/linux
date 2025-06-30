@@ -1362,18 +1362,16 @@ static int imx214_parse_fwnode(struct imx214 *imx214)
 		u64 freq = bus_cfg->link_frequencies[i];
 		struct ccs_pll pll;
 
-		if (!imx214_pll_calculate(imx214, &pll, freq))
-			break;
 		if (freq == IMX214_DEFAULT_LINK_FREQ_LEGACY) {
 			dev_warn(dev,
 				 "link-frequencies %d not supported, please review your DT. Continuing anyway\n",
 				 IMX214_DEFAULT_LINK_FREQ);
 			freq = IMX214_DEFAULT_LINK_FREQ;
-			if (imx214_pll_calculate(imx214, &pll, freq))
-				continue;
 			bus_cfg->link_frequencies[i] = freq;
-			break;
 		}
+
+		if (!imx214_pll_calculate(imx214, &pll, freq))
+			break;
 	}
 
 	if (i == bus_cfg->nr_of_link_frequencies)
