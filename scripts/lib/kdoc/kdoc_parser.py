@@ -1553,39 +1553,44 @@ class KernelDoc:
         """Ancillary routine to process a function prototype"""
 
         # strip C99-style comments to end of line
-        r = KernRe(r"\/\/.*$", re.S)
-        line = r.sub('', line)
-
+        line = KernRe(r"\/\/.*$", re.S).sub('', line)
+        #
+        # Soak up the line's worth of prototype text, stopping at { or ; if present.
+        #
         if KernRe(r'\s*#\s*define').match(line):
             self.entry.prototype = line
-        elif line.startswith('#'):
-            # Strip other macros like #ifdef/#ifndef/#endif/...
-            pass
-        else:
+        elif not line.startswith('#'):   # skip other preprocessor stuff
             r = KernRe(r'([^\{]*)')
             if r.match(line):
                 self.entry.prototype += r.group(1) + " "
-
+        #
+        # If we now have the whole prototype, clean it up and declare victory.
+        #
         if '{' in line or ';' in line or KernRe(r'\s*#\s*define').match(line):
             # strip comments and surrounding spaces
-            r = KernRe(r'/\*.*\*/')
-            self.entry.prototype = r.sub('', self.entry.prototype).strip()
-
+            self.entry.prototype = KernRe(r'/\*.*\*/').sub('', self.entry.prototype).strip()
+            #
             # Handle self.entry.prototypes for function pointers like:
             #       int (*pcs_config)(struct foo)
-
+            # by turning it into
+            #	    int pcs_config(struct foo)
+            #
             r = KernRe(r'^(\S+\s+)\(\s*\*(\S+)\)')
             self.entry.prototype = r.sub(r'\1\2', self.entry.prototype)
-
+            #
+            # Handle special declaration syntaxes
+            #
             if 'SYSCALL_DEFINE' in self.entry.prototype:
                 self.entry.prototype = self.syscall_munge(ln,
                                                           self.entry.prototype)
-
-            r = KernRe(r'TRACE_EVENT|DEFINE_EVENT|DEFINE_SINGLE_EVENT')
-            if r.search(self.entry.prototype):
-                self.entry.prototype = self.tracepoint_munge(ln,
-                                                             self.entry.prototype)
-
+            else:
+                r = KernRe(r'TRACE_EVENT|DEFINE_EVENT|DEFINE_SINGLE_EVENT')
+                if r.search(self.entry.prototype):
+                    self.entry.prototype = self.tracepoint_munge(ln,
+                                                                 self.entry.prototype)
+            #
+            # ... and we're done
+            #
             self.dump_function(ln, self.entry.prototype)
             self.reset_state(ln)
 
