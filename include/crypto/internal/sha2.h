@@ -17,9 +17,9 @@ static inline bool sha256_is_arch_optimized(void)
 	return false;
 }
 #endif
-void sha256_blocks_generic(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_generic(struct sha256_block_state *state,
 			   const u8 *data, size_t nblocks);
-void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_arch(struct sha256_block_state *state,
 			const u8 *data, size_t nblocks);
 
 static __always_inline void sha256_choose_blocks(
@@ -27,9 +27,9 @@ static __always_inline void sha256_choose_blocks(
 	bool force_generic, bool force_simd)
 {
 	if (!IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_SHA256) || force_generic)
-		sha256_blocks_generic(state, data, nblocks);
+		sha256_blocks_generic((struct sha256_block_state *)state, data, nblocks);
 	else
-		sha256_blocks_arch(state, data, nblocks);
+		sha256_blocks_arch((struct sha256_block_state *)state, data, nblocks);
 }
 
 static __always_inline void sha256_finup(

@@ -518,7 +518,7 @@ STACK_SIZE	= _CTX      + _CTX_SIZE
 .endm
 
 ########################################################################
-## void sha256_transform_rorx(u32 state[SHA256_STATE_WORDS],
+## void sha256_transform_rorx(struct sha256_block_state *state,
 ##			      const u8 *data, size_t nblocks);
 ########################################################################
 .text

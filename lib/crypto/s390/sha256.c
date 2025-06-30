@@ -12,7 +12,7 @@
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_cpacf_sha256);
 
-void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_arch(struct sha256_block_state *state,
 			const u8 *data, size_t nblocks)
 {
 	if (static_branch_likely(&have_cpacf_sha256))

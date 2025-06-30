@@ -22,7 +22,7 @@
  * We pass everything as 64-bit. OCTEON can handle misaligned data.
  */
 
-void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_arch(struct sha256_block_state *state,
 			const u8 *data, size_t nblocks)
 {
 	struct octeon_cop2_state cop2_state;

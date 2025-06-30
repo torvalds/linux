@@ -26,7 +26,8 @@
  */
 #define MAX_BYTES 1024
 
-extern void ppc_spe_sha256_transform(u32 *state, const u8 *src, u32 blocks);
+extern void ppc_spe_sha256_transform(struct sha256_block_state *state,
+				     const u8 *src, u32 blocks);
 
 static void spe_begin(void)
 {
@@ -42,7 +43,7 @@ static void spe_end(void)
 	preempt_enable();
 }
 
-void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_arch(struct sha256_block_state *state,
 			const u8 *data, size_t nblocks)
 {
 	do {

@@ -106,7 +106,7 @@
  * only processes complete blocks.  State initialization, buffering of partial
  * blocks, and digest finalization is expected to be handled elsewhere.
  *
- * void sha256_ni_transform(u32 state[SHA256_STATE_WORDS],
+ * void sha256_ni_transform(struct sha256_block_state *state,
  *			    const u8 *data, size_t nblocks);
  */
 .text

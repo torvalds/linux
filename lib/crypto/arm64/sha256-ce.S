@@ -71,7 +71,7 @@
 	.word		0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 
 	/*
-	 * size_t __sha256_ce_transform(u32 state[SHA256_STATE_WORDS],
+	 * size_t __sha256_ce_transform(struct sha256_block_state *state,
 	 *				const u8 *data, size_t nblocks);
 	 */
 	.text

@@ -11,20 +11,20 @@
 #include <linux/module.h>
 #include <linux/static_call.h>
 
-asmlinkage void sha256_transform_ssse3(u32 state[SHA256_STATE_WORDS],
+asmlinkage void sha256_transform_ssse3(struct sha256_block_state *state,
 				       const u8 *data, size_t nblocks);
-asmlinkage void sha256_transform_avx(u32 state[SHA256_STATE_WORDS],
+asmlinkage void sha256_transform_avx(struct sha256_block_state *state,
 				     const u8 *data, size_t nblocks);
-asmlinkage void sha256_transform_rorx(u32 state[SHA256_STATE_WORDS],
+asmlinkage void sha256_transform_rorx(struct sha256_block_state *state,
 				      const u8 *data, size_t nblocks);
-asmlinkage void sha256_ni_transform(u32 state[SHA256_STATE_WORDS],
+asmlinkage void sha256_ni_transform(struct sha256_block_state *state,
 				    const u8 *data, size_t nblocks);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_sha256_x86);
 
 DEFINE_STATIC_CALL(sha256_blocks_x86, sha256_transform_ssse3);
 
-void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_arch(struct sha256_block_state *state,
 			const u8 *data, size_t nblocks)
 {
 	if (static_branch_likely(&have_sha256_x86) && crypto_simd_usable()) {

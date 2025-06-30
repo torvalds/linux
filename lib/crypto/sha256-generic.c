@@ -70,7 +70,7 @@ static inline void BLEND_OP(int I, u32 *W)
 	h = t1 + t2;						\
 } while (0)
 
-static void sha256_block_generic(u32 state[SHA256_STATE_WORDS],
+static void sha256_block_generic(struct sha256_block_state *state,
 				 const u8 *input, u32 W[64])
 {
 	u32 a, b, c, d, e, f, g, h;
@@ -101,8 +101,14 @@ static void sha256_block_generic(u32 state[SHA256_STATE_WORDS],
 	}
 
 	/* load the state into our registers */
-	a = state[0];  b = state[1];  c = state[2];  d = state[3];
-	e = state[4];  f = state[5];  g = state[6];  h = state[7];
+	a = state->h[0];
+	b = state->h[1];
+	c = state->h[2];
+	d = state->h[3];
+	e = state->h[4];
+	f = state->h[5];
+	g = state->h[6];
+	h = state->h[7];
 
 	/* now iterate */
 	for (i = 0; i < 64; i += 8) {
@@ -116,11 +122,17 @@ static void sha256_block_generic(u32 state[SHA256_STATE_WORDS],
 		SHA256_ROUND(i + 7, b, c, d, e, f, g, h, a);
 	}
 
-	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
-	state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+	state->h[0] += a;
+	state->h[1] += b;
+	state->h[2] += c;
+	state->h[3] += d;
+	state->h[4] += e;
+	state->h[5] += f;
+	state->h[6] += g;
+	state->h[7] += h;
 }
 
-void sha256_blocks_generic(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_generic(struct sha256_block_state *state,
 			   const u8 *data, size_t nblocks)
 {
 	u32 W[64];

@@ -15,12 +15,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-asmlinkage void sha256_transform_zvknha_or_zvknhb_zvkb(
-	u32 state[SHA256_STATE_WORDS], const u8 *data, size_t nblocks);
+asmlinkage void
+sha256_transform_zvknha_or_zvknhb_zvkb(struct sha256_block_state *state,
+				       const u8 *data, size_t nblocks);
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_extensions);
 
-void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
+void sha256_blocks_arch(struct sha256_block_state *state,
 			const u8 *data, size_t nblocks)
 {
 	if (static_branch_likely(&have_extensions) && crypto_simd_usable()) {

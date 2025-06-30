@@ -348,7 +348,7 @@ a = TMP_
 .endm
 
 ########################################################################
-## void sha256_transform_ssse3(u32 state[SHA256_STATE_WORDS],
+## void sha256_transform_ssse3(struct sha256_block_state *state,
 ##			       const u8 *data, size_t nblocks);
 ########################################################################
 .text
