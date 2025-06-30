@@ -8360,6 +8360,174 @@ static void ath12k_mgmt_over_wmi_tx_purge(struct ath12k *ar)
 		ath12k_mgmt_over_wmi_tx_drop(ar, skb);
 }
 
+static int ath12k_mac_mgmt_action_frame_fill_elem_data(struct ath12k_link_vif *arvif,
+						       struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	u8 category, *buf, iv_len, action_code, dialog_token;
+	struct ieee80211_bss_conf *link_conf;
+	struct ieee80211_chanctx_conf *conf;
+	int cur_tx_power, max_tx_power;
+	struct ath12k *ar = arvif->ar;
+	struct ieee80211_hw *hw = ath12k_ar_to_hw(ar);
+	struct wiphy *wiphy = hw->wiphy;
+	struct ath12k_skb_cb *skb_cb;
+	struct ieee80211_mgmt *mgmt;
+	unsigned int remaining_len;
+	bool has_protected;
+
+	lockdep_assert_wiphy(wiphy);
+
+	/* make sure category field is present */
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
+		return -EINVAL;
+
+	remaining_len = skb->len - IEEE80211_MIN_ACTION_SIZE;
+	has_protected = ieee80211_has_protected(hdr->frame_control);
+
+	/* In case of SW crypto and hdr protected (PMF), packet will already be encrypted,
+	 * we can't put in data in this case
+	 */
+	if (test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags) &&
+	    has_protected)
+		return 0;
+
+	mgmt = (struct ieee80211_mgmt *)hdr;
+	buf = (u8 *)&mgmt->u.action;
+
+	/* FCTL_PROTECTED frame might have extra space added for HDR_LEN. Offset that
+	 * many bytes if it is there
+	 */
+	if (has_protected) {
+		skb_cb = ATH12K_SKB_CB(skb);
+
+		switch (skb_cb->cipher) {
+		/* Cipher suite having flag %IEEE80211_KEY_FLAG_GENERATE_IV_MGMT set in
+		 * key needs to be processed. See ath12k_install_key()
+		 */
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_CCMP_256:
+		case WLAN_CIPHER_SUITE_GCMP:
+		case WLAN_CIPHER_SUITE_GCMP_256:
+			iv_len = IEEE80211_CCMP_HDR_LEN;
+			break;
+		case WLAN_CIPHER_SUITE_TKIP:
+			iv_len = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (remaining_len < iv_len)
+			return -EINVAL;
+
+		buf += iv_len;
+		remaining_len -= iv_len;
+	}
+
+	category = *buf++;
+	/* category code is already taken care in %IEEE80211_MIN_ACTION_SIZE hence
+	 * no need to adjust remaining_len
+	 */
+
+	switch (category) {
+	case WLAN_CATEGORY_RADIO_MEASUREMENT:
+		/* need action code and dialog token */
+		if (remaining_len < 2)
+			return -EINVAL;
+
+		/* Packet Format:
+		 *	Action Code | Dialog Token | Variable Len (based on Action Code)
+		 */
+		action_code = *buf++;
+		dialog_token = *buf++;
+		remaining_len -= 2;
+
+		link_conf = ath12k_mac_get_link_bss_conf(arvif);
+		if (!link_conf) {
+			ath12k_warn(ar->ab,
+				    "failed to get bss link conf for vdev %d in RM handling\n",
+				    arvif->vdev_id);
+			return -EINVAL;
+		}
+
+		conf = wiphy_dereference(wiphy, link_conf->chanctx_conf);
+		if (!conf)
+			return -ENOENT;
+
+		cur_tx_power = link_conf->txpower;
+		max_tx_power = min(conf->def.chan->max_reg_power,
+				   (int)ar->max_tx_power / 2);
+
+		ath12k_mac_op_get_txpower(hw, arvif->ahvif->vif, arvif->link_id,
+					  &cur_tx_power);
+
+		switch (action_code) {
+		case WLAN_RM_ACTION_LINK_MEASUREMENT_REQUEST:
+			/* need variable fields to be present in len */
+			if (remaining_len < 2)
+				return -EINVAL;
+
+			/* Variable length format as defined in IEEE 802.11-2024,
+			 * Figure 9-1187-Link Measurement Request frame Action field
+			 * format.
+			 *	Transmit Power | Max Tx Power
+			 * We fill both of these.
+			 */
+			*buf++ = cur_tx_power;
+			*buf = max_tx_power;
+
+			ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+				   "RRM: Link Measurement Req dialog_token %u cur_tx_power %d max_tx_power %d\n",
+				   dialog_token, cur_tx_power, max_tx_power);
+			break;
+		case WLAN_RM_ACTION_LINK_MEASUREMENT_REPORT:
+			/* need variable fields to be present in len */
+			if (remaining_len < 3)
+				return -EINVAL;
+
+			/* Variable length format as defined in IEEE 802.11-2024,
+			 * Figure 9-1188-Link Measurement Report frame Action field format
+			 *	TPC Report | Variable Fields
+			 *
+			 * TPC Report Format:
+			 *	Element ID | Len | Tx Power | Link Margin
+			 *
+			 * We fill Tx power in the TPC Report (2nd index)
+			 */
+			buf[2] = cur_tx_power;
+
+			/* TODO: At present, Link margin data is not present so can't
+			 * really fill it now. Once it is available, it can be added
+			 * here
+			 */
+			ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+				   "RRM: Link Measurement Report dialog_token %u cur_tx_power %d\n",
+				   dialog_token, cur_tx_power);
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	default:
+		/* nothing to fill */
+		return 0;
+	}
+
+	return 0;
+}
+
+static int ath12k_mac_mgmt_frame_fill_elem_data(struct ath12k_link_vif *arvif,
+						struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
+	if (!ieee80211_is_action(hdr->frame_control))
+		return 0;
+
+	return ath12k_mac_mgmt_action_frame_fill_elem_data(arvif, skb);
+}
+
 static void ath12k_mgmt_over_wmi_tx_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ath12k *ar = container_of(work, struct ath12k, wmi_mgmt_tx_work);
@@ -8391,6 +8559,20 @@ static void ath12k_mgmt_over_wmi_tx_work(struct wiphy *wiphy, struct wiphy_work 
 
 		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[skb_cb->link_id]);
 		if (ar->allocated_vdev_map & (1LL << arvif->vdev_id)) {
+			/* Fill in the data which is required to be filled by the driver
+			 * For example: Max Tx power in Link Measurement Request/Report
+			 */
+			ret = ath12k_mac_mgmt_frame_fill_elem_data(arvif, skb);
+			if (ret) {
+				/* If we couldn't fill the data due to any reason,
+				 * let's not discard transmitting the packet.
+				 * For example: Software crypto and PMF case
+				 */
+				ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+					   "Failed to fill the required data for the mgmt packet err %d\n",
+					   ret);
+			}
+
 			ret = ath12k_mac_mgmt_tx_wmi(ar, arvif, skb);
 			if (ret) {
 				ath12k_warn(ar->ab, "failed to tx mgmt frame, vdev_id %d :%d\n",
