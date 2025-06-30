@@ -95,6 +95,10 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 		pin->tx_custom_pulse = false;
 		pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;
 		pin->tx_custom_high_usecs = CEC_TIM_CUSTOM_DEFAULT;
+		pin->tx_glitch_low_usecs = CEC_TIM_GLITCH_DEFAULT;
+		pin->tx_glitch_high_usecs = CEC_TIM_GLITCH_DEFAULT;
+		pin->tx_glitch_falling_edge = false;
+		pin->tx_glitch_rising_edge = false;
 		return true;
 	}
 	if (!strcmp(token, "rx-clear")) {
@@ -111,6 +115,10 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 		pin->tx_custom_pulse = false;
 		pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;
 		pin->tx_custom_high_usecs = CEC_TIM_CUSTOM_DEFAULT;
+		pin->tx_glitch_low_usecs = CEC_TIM_GLITCH_DEFAULT;
+		pin->tx_glitch_high_usecs = CEC_TIM_GLITCH_DEFAULT;
+		pin->tx_glitch_falling_edge = false;
+		pin->tx_glitch_rising_edge = false;
 		return true;
 	}
 	if (!strcmp(token, "tx-ignore-nack-until-eom")) {
@@ -120,6 +128,14 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 	if (!strcmp(token, "tx-custom-pulse")) {
 		pin->tx_custom_pulse = true;
 		cec_pin_start_timer(pin);
+		return true;
+	}
+	if (!strcmp(token, "tx-glitch-falling-edge")) {
+		pin->tx_glitch_falling_edge = true;
+		return true;
+	}
+	if (!strcmp(token, "tx-glitch-rising-edge")) {
+		pin->tx_glitch_rising_edge = true;
 		return true;
 	}
 	if (!p)
@@ -139,7 +155,23 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 
 		if (kstrtou32(p, 0, &usecs) || usecs > 10000000)
 			return false;
-		pin->tx_custom_high_usecs = usecs;
+		pin->tx_glitch_high_usecs = usecs;
+		return true;
+	}
+	if (!strcmp(token, "tx-glitch-low-usecs")) {
+		u32 usecs;
+
+		if (kstrtou32(p, 0, &usecs) || usecs > 100)
+			return false;
+		pin->tx_glitch_low_usecs = usecs;
+		return true;
+	}
+	if (!strcmp(token, "tx-glitch-high-usecs")) {
+		u32 usecs;
+
+		if (kstrtou32(p, 0, &usecs) || usecs > 100)
+			return false;
+		pin->tx_glitch_high_usecs = usecs;
 		return true;
 	}
 
@@ -285,6 +317,10 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 	seq_puts(sf, "#   tx-custom-low-usecs <usecs>        define the 'low' time for the custom pulse\n");
 	seq_puts(sf, "#   tx-custom-high-usecs <usecs>       define the 'high' time for the custom pulse\n");
 	seq_puts(sf, "#   tx-custom-pulse                    transmit the custom pulse once the bus is idle\n");
+	seq_puts(sf, "#   tx-glitch-low-usecs <usecs>        define the 'low' time for the glitch pulse\n");
+	seq_puts(sf, "#   tx-glitch-high-usecs <usecs>       define the 'high' time for the glitch pulse\n");
+	seq_puts(sf, "#   tx-glitch-falling-edge             send the glitch pulse after every falling edge\n");
+	seq_puts(sf, "#   tx-glitch-rising-edge              send the glitch pulse after every rising edge\n");
 	seq_puts(sf, "#\n");
 	seq_puts(sf, "# TX error injection:\n");
 	seq_puts(sf, "#   <op>[,<mode>] tx-no-eom            don't set the EOM bit\n");
@@ -334,6 +370,10 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 
 	if (pin->tx_ignore_nack_until_eom)
 		seq_puts(sf, "tx-ignore-nack-until-eom\n");
+	if (pin->tx_glitch_falling_edge)
+		seq_puts(sf, "tx-glitch-falling-edge\n");
+	if (pin->tx_glitch_rising_edge)
+		seq_puts(sf, "tx-glitch-rising-edge\n");
 	if (pin->tx_custom_pulse)
 		seq_puts(sf, "tx-custom-pulse\n");
 	if (pin->tx_custom_low_usecs != CEC_TIM_CUSTOM_DEFAULT)
@@ -342,5 +382,11 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 	if (pin->tx_custom_high_usecs != CEC_TIM_CUSTOM_DEFAULT)
 		seq_printf(sf, "tx-custom-high-usecs %u\n",
 			   pin->tx_custom_high_usecs);
+	if (pin->tx_glitch_low_usecs != CEC_TIM_GLITCH_DEFAULT)
+		seq_printf(sf, "tx-glitch-low-usecs %u\n",
+			   pin->tx_glitch_low_usecs);
+	if (pin->tx_glitch_high_usecs != CEC_TIM_GLITCH_DEFAULT)
+		seq_printf(sf, "tx-glitch-high-usecs %u\n",
+			   pin->tx_glitch_high_usecs);
 	return 0;
 }
