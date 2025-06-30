@@ -72,6 +72,8 @@ struct pgtable_debug_args {
 	unsigned long		fixed_pud_pfn;
 	unsigned long		fixed_pmd_pfn;
 	unsigned long		fixed_pte_pfn;
+
+	swp_entry_t		swp_entry;
 };
 
 static void __init pte_basic_tests(struct pgtable_debug_args *args, int idx)
@@ -698,12 +700,15 @@ static void __init pte_soft_dirty_tests(struct pgtable_debug_args *args)
 
 static void __init pte_swap_soft_dirty_tests(struct pgtable_debug_args *args)
 {
-	pte_t pte = pfn_pte(args->fixed_pte_pfn, args->page_prot);
+	pte_t pte;
 
 	if (!IS_ENABLED(CONFIG_MEM_SOFT_DIRTY))
 		return;
 
 	pr_debug("Validating PTE swap soft dirty\n");
+	pte = swp_entry_to_pte(args->swp_entry);
+	WARN_ON(!is_swap_pte(pte));
+
 	WARN_ON(!pte_swp_soft_dirty(pte_swp_mksoft_dirty(pte)));
 	WARN_ON(pte_swp_soft_dirty(pte_swp_clear_soft_dirty(pte)));
 }
@@ -737,7 +742,9 @@ static void __init pmd_swap_soft_dirty_tests(struct pgtable_debug_args *args)
 		return;
 
 	pr_debug("Validating PMD swap soft dirty\n");
-	pmd = pfn_pmd(args->fixed_pmd_pfn, args->page_prot);
+	pmd = swp_entry_to_pmd(args->swp_entry);
+	WARN_ON(!is_swap_pmd(pmd));
+
 	WARN_ON(!pmd_swp_soft_dirty(pmd_swp_mksoft_dirty(pmd)));
 	WARN_ON(pmd_swp_soft_dirty(pmd_swp_clear_soft_dirty(pmd)));
 }
@@ -748,17 +755,11 @@ static void __init pmd_swap_soft_dirty_tests(struct pgtable_debug_args *args) { 
 
 static void __init pte_swap_exclusive_tests(struct pgtable_debug_args *args)
 {
-	unsigned long max_swap_offset;
 	swp_entry_t entry, entry2;
 	pte_t pte;
 
 	pr_debug("Validating PTE swap exclusive\n");
-
-	/* See generic_max_swapfile_size(): probe the maximum offset */
-	max_swap_offset = swp_offset(pte_to_swp_entry(swp_entry_to_pte(swp_entry(0, ~0UL))));
-
-	/* Create a swp entry with all possible bits set */
-	entry = swp_entry((1 << MAX_SWAPFILES_SHIFT) - 1, max_swap_offset);
+	entry = args->swp_entry;
 
 	pte = swp_entry_to_pte(entry);
 	WARN_ON(pte_swp_exclusive(pte));
@@ -782,30 +783,34 @@ static void __init pte_swap_exclusive_tests(struct pgtable_debug_args *args)
 
 static void __init pte_swap_tests(struct pgtable_debug_args *args)
 {
-	swp_entry_t swp;
-	pte_t pte;
+	swp_entry_t arch_entry;
+	pte_t pte1, pte2;
 
 	pr_debug("Validating PTE swap\n");
-	pte = pfn_pte(args->fixed_pte_pfn, args->page_prot);
-	swp = __pte_to_swp_entry(pte);
-	pte = __swp_entry_to_pte(swp);
-	WARN_ON(args->fixed_pte_pfn != pte_pfn(pte));
+	pte1 = swp_entry_to_pte(args->swp_entry);
+	WARN_ON(!is_swap_pte(pte1));
+
+	arch_entry = __pte_to_swp_entry(pte1);
+	pte2 = __swp_entry_to_pte(arch_entry);
+	WARN_ON(memcmp(&pte1, &pte2, sizeof(pte1)));
 }
 
 #ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
 static void __init pmd_swap_tests(struct pgtable_debug_args *args)
 {
-	swp_entry_t swp;
-	pmd_t pmd;
+	swp_entry_t arch_entry;
+	pmd_t pmd1, pmd2;
 
 	if (!has_transparent_hugepage())
 		return;
 
 	pr_debug("Validating PMD swap\n");
-	pmd = pfn_pmd(args->fixed_pmd_pfn, args->page_prot);
-	swp = __pmd_to_swp_entry(pmd);
-	pmd = __swp_entry_to_pmd(swp);
-	WARN_ON(args->fixed_pmd_pfn != pmd_pfn(pmd));
+	pmd1 = swp_entry_to_pmd(args->swp_entry);
+	WARN_ON(!is_swap_pmd(pmd1));
+
+	arch_entry = __pmd_to_swp_entry(pmd1);
+	pmd2 = __swp_entry_to_pmd(arch_entry);
+	WARN_ON(memcmp(&pmd1, &pmd2, sizeof(pmd1)));
 }
 #else  /* !CONFIG_ARCH_ENABLE_THP_MIGRATION */
 static void __init pmd_swap_tests(struct pgtable_debug_args *args) { }
@@ -1110,6 +1115,7 @@ static void __init init_fixed_pfns(struct pgtable_debug_args *args)
 
 static int __init init_args(struct pgtable_debug_args *args)
 {
+	unsigned long max_swap_offset;
 	struct page *page = NULL;
 	int ret = 0;
 
@@ -1191,6 +1197,11 @@ static int __init init_args(struct pgtable_debug_args *args)
 	WARN_ON(!args->start_ptep);
 
 	init_fixed_pfns(args);
+
+	/* See generic_max_swapfile_size(): probe the maximum offset */
+	max_swap_offset = swp_offset(pte_to_swp_entry(swp_entry_to_pte(swp_entry(0, ~0UL))));
+	/* Create a swp entry with all possible bits set */
+	args->swp_entry = swp_entry((1 << MAX_SWAPFILES_SHIFT) - 1, max_swap_offset);
 
 	/*
 	 * Allocate (huge) pages because some of the tests need to access
