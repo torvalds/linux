@@ -10367,7 +10367,7 @@ bool module_exists(const char *module)
 {
 	/* All modules have the symbol __this_module */
 	static const char this_mod[] = "__this_module";
-	char modname[MAX_PARAM_PREFIX_LEN + sizeof(this_mod) + 2];
+	char modname[MODULE_NAME_LEN + sizeof(this_mod) + 2];
 	unsigned long val;
 	int n;
 
