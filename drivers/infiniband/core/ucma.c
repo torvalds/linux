@@ -282,6 +282,10 @@ static struct ucma_event *ucma_create_uevent(struct ucma_context *ctx,
 	}
 	uevent->resp.event = event->event;
 	uevent->resp.status = event->status;
+
+	if (event->event == RDMA_CM_EVENT_ADDRINFO_RESOLVED)
+		goto out;
+
 	if (ctx->cm_id->qp_type == IB_QPT_UD)
 		ucma_copy_ud_event(ctx->cm_id->device, &uevent->resp.param.ud,
 				   &event->param.ud);
@@ -289,6 +293,7 @@ static struct ucma_event *ucma_create_uevent(struct ucma_context *ctx,
 		ucma_copy_conn_event(&uevent->resp.param.conn,
 				     &event->param.conn);
 
+out:
 	uevent->resp.ece.vendor_id = event->ece.vendor_id;
 	uevent->resp.ece.attr_mod = event->ece.attr_mod;
 	return uevent;
@@ -723,6 +728,28 @@ static ssize_t ucma_resolve_addr(struct ucma_file *file,
 	mutex_lock(&ctx->mutex);
 	ret = rdma_resolve_addr(ctx->cm_id, (struct sockaddr *) &cmd.src_addr,
 				(struct sockaddr *) &cmd.dst_addr, cmd.timeout_ms);
+	mutex_unlock(&ctx->mutex);
+	ucma_put_ctx(ctx);
+	return ret;
+}
+
+static ssize_t ucma_resolve_ib_service(struct ucma_file *file,
+				       const char __user *inbuf, int in_len,
+				       int out_len)
+{
+	struct rdma_ucm_resolve_ib_service cmd;
+	struct ucma_context *ctx;
+	int ret;
+
+	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
+		return -EFAULT;
+
+	ctx = ucma_get_ctx(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	mutex_lock(&ctx->mutex);
+	ret = rdma_resolve_ib_service(ctx->cm_id, &cmd.ibs);
 	mutex_unlock(&ctx->mutex);
 	ucma_put_ctx(ctx);
 	return ret;
@@ -1703,7 +1730,8 @@ static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 	[RDMA_USER_CM_CMD_QUERY]	 = ucma_query,
 	[RDMA_USER_CM_CMD_BIND]		 = ucma_bind,
 	[RDMA_USER_CM_CMD_RESOLVE_ADDR]	 = ucma_resolve_addr,
-	[RDMA_USER_CM_CMD_JOIN_MCAST]	 = ucma_join_multicast
+	[RDMA_USER_CM_CMD_JOIN_MCAST]	 = ucma_join_multicast,
+	[RDMA_USER_CM_CMD_RESOLVE_IB_SERVICE] = ucma_resolve_ib_service
 };
 
 static ssize_t ucma_write(struct file *filp, const char __user *buf,

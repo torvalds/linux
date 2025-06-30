@@ -67,7 +67,8 @@ enum {
 	RDMA_USER_CM_CMD_QUERY,
 	RDMA_USER_CM_CMD_BIND,
 	RDMA_USER_CM_CMD_RESOLVE_ADDR,
-	RDMA_USER_CM_CMD_JOIN_MCAST
+	RDMA_USER_CM_CMD_JOIN_MCAST,
+	RDMA_USER_CM_CMD_RESOLVE_IB_SERVICE
 };
 
 /* See IBTA Annex A11, servies ID bytes 4 & 5 */
@@ -338,4 +339,21 @@ struct rdma_ucm_migrate_resp {
 	__u32 events_reported;
 };
 
+enum {
+	RDMA_USER_CM_IB_SERVICE_FLAG_ID = 1 << 0,
+	RDMA_USER_CM_IB_SERVICE_FLAG_NAME = 1 << 1,
+};
+
+#define RDMA_USER_CM_IB_SERVICE_NAME_SIZE 64
+struct rdma_ucm_ib_service {
+	__u64 service_id;
+	__u8  service_name[RDMA_USER_CM_IB_SERVICE_NAME_SIZE];
+	__u32 flags;
+	__u32 reserved;
+};
+
+struct rdma_ucm_resolve_ib_service {
+	__u32 id;
+	struct rdma_ucm_ib_service ibs;
+};
 #endif /* RDMA_USER_CM_H */
