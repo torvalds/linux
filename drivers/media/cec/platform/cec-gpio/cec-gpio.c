@@ -64,7 +64,13 @@ static void cec_gpio_low(struct cec_adapter *adap)
 static irqreturn_t cec_gpio_5v_irq_handler_thread(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
+	int val = gpiod_get_value_cansleep(cec->v5_gpio);
+	bool is_high = val > 0;
 
+	if (val < 0 || is_high == cec->v5_is_high)
+		return IRQ_HANDLED;
+
+	cec->v5_is_high = is_high;
 	cec_queue_pin_5v_event(cec->adap, cec->v5_is_high, cec->v5_ts);
 	return IRQ_HANDLED;
 }
@@ -72,20 +78,21 @@ static irqreturn_t cec_gpio_5v_irq_handler_thread(int irq, void *priv)
 static irqreturn_t cec_gpio_5v_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
-	int val = gpiod_get_value(cec->v5_gpio);
-	bool is_high = val > 0;
 
-	if (val < 0 || is_high == cec->v5_is_high)
-		return IRQ_HANDLED;
 	cec->v5_ts = ktime_get();
-	cec->v5_is_high = is_high;
 	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t cec_gpio_hpd_irq_handler_thread(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
+	int val = gpiod_get_value_cansleep(cec->hpd_gpio);
+	bool is_high = val > 0;
 
+	if (val < 0 || is_high == cec->hpd_is_high)
+		return IRQ_HANDLED;
+
+	cec->hpd_is_high = is_high;
 	cec_queue_pin_hpd_event(cec->adap, cec->hpd_is_high, cec->hpd_ts);
 	return IRQ_HANDLED;
 }
@@ -93,13 +100,8 @@ static irqreturn_t cec_gpio_hpd_irq_handler_thread(int irq, void *priv)
 static irqreturn_t cec_gpio_hpd_irq_handler(int irq, void *priv)
 {
 	struct cec_gpio *cec = priv;
-	int val = gpiod_get_value(cec->hpd_gpio);
-	bool is_high = val > 0;
 
-	if (val < 0 || is_high == cec->hpd_is_high)
-		return IRQ_HANDLED;
 	cec->hpd_ts = ktime_get();
-	cec->hpd_is_high = is_high;
 	return IRQ_WAKE_THREAD;
 }
 
@@ -148,7 +150,7 @@ static int cec_gpio_read_hpd(struct cec_adapter *adap)
 
 	if (!cec->hpd_gpio)
 		return -ENOTTY;
-	return gpiod_get_value(cec->hpd_gpio);
+	return gpiod_get_value_cansleep(cec->hpd_gpio);
 }
 
 static int cec_gpio_read_5v(struct cec_adapter *adap)
@@ -157,7 +159,7 @@ static int cec_gpio_read_5v(struct cec_adapter *adap)
 
 	if (!cec->v5_gpio)
 		return -ENOTTY;
-	return gpiod_get_value(cec->v5_gpio);
+	return gpiod_get_value_cansleep(cec->v5_gpio);
 }
 
 static const struct cec_pin_ops cec_gpio_pin_ops = {
