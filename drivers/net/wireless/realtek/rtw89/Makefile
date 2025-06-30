@@ -31,6 +31,9 @@ rtw89_8851b-objs := rtw8851b.o \
 obj-$(CONFIG_RTW89_8851BE) += rtw89_8851be.o
 rtw89_8851be-objs := rtw8851be.o
 
+obj-$(CONFIG_RTW89_8851BU) += rtw89_8851bu.o
+rtw89_8851bu-objs := rtw8851bu.o
+
 obj-$(CONFIG_RTW89_8852A) += rtw89_8852a.o
 rtw89_8852a-objs := rtw8852a.o \
 		    rtw8852a_table.o \
@@ -80,4 +83,7 @@ rtw89_core-$(CONFIG_RTW89_DEBUG) += debug.o
 
 obj-$(CONFIG_RTW89_PCI) += rtw89_pci.o
 rtw89_pci-y := pci.o pci_be.o
+
+obj-$(CONFIG_RTW89_USB) += rtw89_usb.o
+rtw89_usb-y := usb.o
 
