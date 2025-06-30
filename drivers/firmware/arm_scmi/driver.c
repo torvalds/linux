@@ -1443,7 +1443,8 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 
 	trace_scmi_xfer_begin(xfer->transfer_id, xfer->hdr.id,
 			      xfer->hdr.protocol_id, xfer->hdr.seq,
-			      xfer->hdr.poll_completion);
+			      xfer->hdr.poll_completion,
+			      scmi_inflight_count(&info->handle));
 
 	/* Clear any stale status */
 	xfer->hdr.status = SCMI_SUCCESS;
@@ -1479,7 +1480,8 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 		info->desc->ops->mark_txdone(cinfo, ret, xfer);
 
 	trace_scmi_xfer_end(xfer->transfer_id, xfer->hdr.id,
-			    xfer->hdr.protocol_id, xfer->hdr.seq, ret);
+			    xfer->hdr.protocol_id, xfer->hdr.seq, ret,
+			    scmi_inflight_count(&info->handle));
 
 	return ret;
 }
@@ -3414,6 +3416,17 @@ static struct dentry *scmi_debugfs_init(void)
 	}
 
 	return d;
+}
+
+int scmi_inflight_count(const struct scmi_handle *handle)
+{
+	if (IS_ENABLED(CONFIG_ARM_SCMI_DEBUG_COUNTERS)) {
+		struct scmi_info *info = handle_to_scmi_info(handle);
+
+		return atomic_read(&info->dbg->counters[XFERS_INFLIGHT]);
+	} else {
+		return 0;
+	}
 }
 
 static int __init scmi_driver_init(void)
