@@ -17,7 +17,7 @@ Supported devices:
 
   Corsair HX1000i (Legacy and Series 2023)
 
-  Corsair HX1200i (Legacy and Series 2023)
+  Corsair HX1200i (Legacy, Series 2023 and Series 2025)
 
   Corsair HX1500i (Legacy and Series 2023)
 
