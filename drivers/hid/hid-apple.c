@@ -46,7 +46,7 @@
 #define APPLE_FLAG_FKEY		0x01
 
 #define HID_COUNTRY_INTERNATIONAL_ISO	13
-#define APPLE_BATTERY_TIMEOUT_MS	60000
+#define APPLE_BATTERY_TIMEOUT_SEC	60
 
 #define HID_USAGE_MAGIC_BL			0xff00000f
 #define APPLE_MAGIC_REPORT_ID_POWER		3
@@ -619,7 +619,7 @@ static void apple_battery_timer_tick(struct timer_list *t)
 
 	if (apple_fetch_battery(hdev) == 0) {
 		mod_timer(&asc->battery_timer,
-			  jiffies + msecs_to_jiffies(APPLE_BATTERY_TIMEOUT_MS));
+			  jiffies + secs_to_jiffies(APPLE_BATTERY_TIMEOUT_SEC));
 	}
 }
 
@@ -936,7 +936,7 @@ static int apple_probe(struct hid_device *hdev,
 	if (quirks & APPLE_RDESC_BATTERY) {
 		timer_setup(&asc->battery_timer, apple_battery_timer_tick, 0);
 		mod_timer(&asc->battery_timer,
-			  jiffies + msecs_to_jiffies(APPLE_BATTERY_TIMEOUT_MS));
+			  jiffies + secs_to_jiffies(APPLE_BATTERY_TIMEOUT_SEC));
 		apple_fetch_battery(hdev);
 	}
 
