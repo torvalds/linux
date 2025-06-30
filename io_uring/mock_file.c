@@ -131,6 +131,8 @@ static const struct file_operations io_mock_fops = {
 	.llseek		= io_mock_llseek,
 };
 
+#define IO_VALID_CREATE_FLAGS (IORING_MOCK_CREATE_F_SUPPORT_NOWAIT)
+
 static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
 	const struct io_uring_sqe *sqe = cmd->sqe;
@@ -157,7 +159,9 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 	memset(&mc, 0, sizeof(mc));
 	if (copy_from_user(&mc, uarg, uarg_size))
 		return -EFAULT;
-	if (!mem_is_zero(mc.__resv, sizeof(mc.__resv)) || mc.flags)
+	if (!mem_is_zero(mc.__resv, sizeof(mc.__resv)))
+		return -EINVAL;
+	if (mc.flags & ~IO_VALID_CREATE_FLAGS)
 		return -EINVAL;
 	if (mc.file_size > SZ_1G)
 		return -EINVAL;
@@ -180,6 +184,8 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 	file->f_mode |= FMODE_READ | FMODE_CAN_READ |
 			FMODE_WRITE | FMODE_CAN_WRITE |
 			FMODE_LSEEK;
+	if (mc.flags & IORING_MOCK_CREATE_F_SUPPORT_NOWAIT)
+		file->f_mode |= FMODE_NOWAIT;
 
 	mc.out_fd = fd;
 	if (copy_to_user(uarg, &mc, uarg_size)) {

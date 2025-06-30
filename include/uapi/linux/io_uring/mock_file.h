@@ -6,6 +6,7 @@
 enum {
 	IORING_MOCK_FEAT_CMD_COPY,
 	IORING_MOCK_FEAT_RW_ZERO,
+	IORING_MOCK_FEAT_RW_NOWAIT,
 
 	IORING_MOCK_FEAT_END,
 };
@@ -13,6 +14,10 @@ enum {
 struct io_uring_mock_probe {
 	__u64		features;
 	__u64		__resv[9];
+};
+
+enum {
+	IORING_MOCK_CREATE_F_SUPPORT_NOWAIT			= 1,
 };
 
 struct io_uring_mock_create {
