@@ -390,7 +390,7 @@ static int tpm2_create_primary(struct tpm_chip *chip, u32 hierarchy,
  * on every operation, so we weld the hmac init and final functions in
  * here to give it the same usage characteristics as a regular hash
  */
-static void tpm2_hmac_init(struct sha256_state *sctx, u8 *key, u32 key_len)
+static void tpm2_hmac_init(struct sha256_ctx *sctx, u8 *key, u32 key_len)
 {
 	u8 pad[SHA256_BLOCK_SIZE];
 	int i;
@@ -406,7 +406,7 @@ static void tpm2_hmac_init(struct sha256_state *sctx, u8 *key, u32 key_len)
 	sha256_update(sctx, pad, sizeof(pad));
 }
 
-static void tpm2_hmac_final(struct sha256_state *sctx, u8 *key, u32 key_len,
+static void tpm2_hmac_final(struct sha256_ctx *sctx, u8 *key, u32 key_len,
 			    u8 *out)
 {
 	u8 pad[SHA256_BLOCK_SIZE];
@@ -440,7 +440,7 @@ static void tpm2_KDFa(u8 *key, u32 key_len, const char *label, u8 *u,
 	const __be32 bits = cpu_to_be32(bytes * 8);
 
 	while (bytes > 0) {
-		struct sha256_state sctx;
+		struct sha256_ctx sctx;
 		__be32 c = cpu_to_be32(counter);
 
 		tpm2_hmac_init(&sctx, key, key_len);
@@ -467,7 +467,7 @@ static void tpm2_KDFa(u8 *key, u32 key_len, const char *label, u8 *u,
 static void tpm2_KDFe(u8 z[EC_PT_SZ], const char *str, u8 *pt_u, u8 *pt_v,
 		      u8 *out)
 {
-	struct sha256_state sctx;
+	struct sha256_ctx sctx;
 	/*
 	 * this should be an iterative counter, but because we know
 	 *  we're only taking 32 bytes for the point using a sha256
@@ -592,7 +592,7 @@ void tpm_buf_fill_hmac_session(struct tpm_chip *chip, struct tpm_buf *buf)
 	u8 *hmac = NULL;
 	u32 attrs;
 	u8 cphash[SHA256_DIGEST_SIZE];
-	struct sha256_state sctx;
+	struct sha256_ctx sctx;
 
 	if (!auth)
 		return;
@@ -750,7 +750,7 @@ int tpm_buf_check_hmac_response(struct tpm_chip *chip, struct tpm_buf *buf,
 	off_t offset_s, offset_p;
 	u8 rphash[SHA256_DIGEST_SIZE];
 	u32 attrs, cc;
-	struct sha256_state sctx;
+	struct sha256_ctx sctx;
 	u16 tag = be16_to_cpu(head->tag);
 	int parm_len, len, i, handles;
 

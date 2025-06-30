@@ -114,25 +114,55 @@ struct sha512_state {
 	u8 buf[SHA512_BLOCK_SIZE];
 };
 
-void sha256_update(struct sha256_state *sctx, const u8 *data, size_t len);
+/* State for the SHA-256 (and SHA-224) compression function */
+struct sha256_block_state {
+	u32 h[SHA256_STATE_WORDS];
+};
 
-static inline void sha224_init(struct sha256_state *sctx)
-{
-	sha224_block_init(&sctx->ctx);
-}
-static inline void sha224_update(struct sha256_state *sctx,
+/*
+ * Context structure, shared by SHA-224 and SHA-256.  The sha224_ctx and
+ * sha256_ctx structs wrap this one so that the API has proper typing and
+ * doesn't allow mixing the SHA-224 and SHA-256 functions arbitrarily.
+ */
+struct __sha256_ctx {
+	struct sha256_block_state state;
+	u64 bytecount;
+	u8 buf[SHA256_BLOCK_SIZE] __aligned(__alignof__(__be64));
+};
+void __sha256_update(struct __sha256_ctx *ctx, const u8 *data, size_t len);
+
+/**
+ * struct sha224_ctx - Context for hashing a message with SHA-224
+ * @ctx: private
+ */
+struct sha224_ctx {
+	struct __sha256_ctx ctx;
+};
+
+void sha224_init(struct sha224_ctx *ctx);
+static inline void sha224_update(struct sha224_ctx *ctx,
 				 const u8 *data, size_t len)
 {
-	sha256_update(sctx, data, len);
+	__sha256_update(&ctx->ctx, data, len);
 }
-void sha224_final(struct sha256_state *sctx, u8 out[SHA224_DIGEST_SIZE]);
+void sha224_final(struct sha224_ctx *ctx, u8 out[SHA224_DIGEST_SIZE]);
 void sha224(const u8 *data, size_t len, u8 out[SHA224_DIGEST_SIZE]);
 
-static inline void sha256_init(struct sha256_state *sctx)
+/**
+ * struct sha256_ctx - Context for hashing a message with SHA-256
+ * @ctx: private
+ */
+struct sha256_ctx {
+	struct __sha256_ctx ctx;
+};
+
+void sha256_init(struct sha256_ctx *ctx);
+static inline void sha256_update(struct sha256_ctx *ctx,
+				 const u8 *data, size_t len)
 {
-	sha256_block_init(&sctx->ctx);
+	__sha256_update(&ctx->ctx, data, len);
 }
-void sha256_final(struct sha256_state *sctx, u8 out[SHA256_DIGEST_SIZE]);
+void sha256_final(struct sha256_ctx *ctx, u8 out[SHA256_DIGEST_SIZE]);
 void sha256(const u8 *data, size_t len, u8 out[SHA256_DIGEST_SIZE]);
 
 /* State for the SHA-512 (and SHA-384) compression function */

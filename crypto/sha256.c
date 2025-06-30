@@ -137,24 +137,24 @@ static int crypto_sha224_final_lib(struct shash_desc *desc, u8 *out)
 
 static int crypto_sha256_import_lib(struct shash_desc *desc, const void *in)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
+	struct __sha256_ctx *sctx = shash_desc_ctx(desc);
 	const u8 *p = in;
 
 	memcpy(sctx, p, sizeof(*sctx));
 	p += sizeof(*sctx);
-	sctx->count += *p;
+	sctx->bytecount += *p;
 	return 0;
 }
 
 static int crypto_sha256_export_lib(struct shash_desc *desc, void *out)
 {
-	struct sha256_state *sctx0 = shash_desc_ctx(desc);
-	struct sha256_state sctx = *sctx0;
+	struct __sha256_ctx *sctx0 = shash_desc_ctx(desc);
+	struct __sha256_ctx sctx = *sctx0;
 	unsigned int partial;
 	u8 *p = out;
 
-	partial = sctx.count % SHA256_BLOCK_SIZE;
-	sctx.count -= partial;
+	partial = sctx.bytecount % SHA256_BLOCK_SIZE;
+	sctx.bytecount -= partial;
 	memcpy(p, &sctx, sizeof(sctx));
 	p += sizeof(sctx);
 	*p = partial;
@@ -201,7 +201,7 @@ static struct shash_alg algs[] = {
 		.update			= crypto_sha256_update_lib,
 		.final			= crypto_sha256_final_lib,
 		.digest			= crypto_sha256_digest_lib,
-		.descsize		= sizeof(struct sha256_state),
+		.descsize		= sizeof(struct sha256_ctx),
 		.statesize		= sizeof(struct crypto_sha256_state) +
 					  SHA256_BLOCK_SIZE + 1,
 		.import			= crypto_sha256_import_lib,
@@ -216,7 +216,7 @@ static struct shash_alg algs[] = {
 		.init			= crypto_sha224_init,
 		.update			= crypto_sha256_update_lib,
 		.final			= crypto_sha224_final_lib,
-		.descsize		= sizeof(struct sha256_state),
+		.descsize		= sizeof(struct sha224_ctx),
 		.statesize		= sizeof(struct crypto_sha256_state) +
 					  SHA256_BLOCK_SIZE + 1,
 		.import			= crypto_sha256_import_lib,
