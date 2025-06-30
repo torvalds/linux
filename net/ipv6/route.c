@@ -391,9 +391,8 @@ static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev)
 static bool __rt6_check_expired(const struct rt6_info *rt)
 {
 	if (rt->rt6i_flags & RTF_EXPIRES)
-		return time_after(jiffies, rt->dst.expires);
-	else
-		return false;
+		return time_after(jiffies, READ_ONCE(rt->dst.expires));
+	return false;
 }
 
 static bool rt6_check_expired(const struct rt6_info *rt)
@@ -403,7 +402,7 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 	from = rcu_dereference(rt->from);
 
 	if (rt->rt6i_flags & RTF_EXPIRES) {
-		if (time_after(jiffies, rt->dst.expires))
+		if (time_after(jiffies, READ_ONCE(rt->dst.expires)))
 			return true;
 	} else if (from) {
 		return READ_ONCE(rt->dst.obsolete) != DST_OBSOLETE_FORCE_CHK ||
@@ -2139,7 +2138,7 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 			rt6_remove_exception(bucket, rt6_ex);
 			return;
 		}
-	} else if (time_after(jiffies, rt->dst.expires)) {
+	} else if (time_after(jiffies, READ_ONCE(rt->dst.expires))) {
 		pr_debug("purging expired route %p\n", rt);
 		rt6_remove_exception(bucket, rt6_ex);
 		return;
@@ -2870,7 +2869,7 @@ static void rt6_update_expires(struct rt6_info *rt0, int timeout)
 		rcu_read_lock();
 		from = rcu_dereference(rt0->from);
 		if (from)
-			rt0->dst.expires = from->expires;
+			WRITE_ONCE(rt0->dst.expires, from->expires);
 		rcu_read_unlock();
 	}
 
@@ -5903,7 +5902,7 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 	}
 
 	if (rt6_flags & RTF_EXPIRES) {
-		expires = dst ? dst->expires : rt->expires;
+		expires = dst ? READ_ONCE(dst->expires) : rt->expires;
 		expires -= jiffies;
 	}
 

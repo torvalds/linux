@@ -477,7 +477,7 @@ static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 	    ip_mtu_locked(dst) ||
 	    !forwarding) {
 		mtu = rt->rt_pmtu;
-		if (mtu && time_before(jiffies, rt->dst.expires))
+		if (mtu && time_before(jiffies, READ_ONCE(rt->dst.expires)))
 			goto out;
 	}
 
