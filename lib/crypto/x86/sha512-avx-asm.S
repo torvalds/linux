@@ -272,12 +272,9 @@ frame_size = frame_WK + WK_SIZE
 # stored in "data".
 # The size of the message pointed to by "data" must be an integer multiple
 # of SHA512 message blocks.
-# "nblocks" is the message length in SHA512 blocks
+# "nblocks" is the message length in SHA512 blocks.  Must be >= 1.
 ########################################################################
 SYM_FUNC_START(sha512_transform_avx)
-
-	test msglen, msglen
-	je .Lnowork
 
 	# Save GPRs
 	push	%rbx
@@ -362,7 +359,6 @@ SYM_FUNC_START(sha512_transform_avx)
 	pop	%r12
 	pop	%rbx
 
-.Lnowork:
 	RET
 SYM_FUNC_END(sha512_transform_avx)
 
