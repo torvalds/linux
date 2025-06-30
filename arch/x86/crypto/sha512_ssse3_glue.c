@@ -38,8 +38,8 @@
 asmlinkage void sha512_transform_ssse3(struct sha512_state *state,
 				       const u8 *data, int blocks);
 
-static int sha512_update(struct shash_desc *desc, const u8 *data,
-		       unsigned int len, sha512_block_fn *sha512_xform)
+static int sha512_update_x86(struct shash_desc *desc, const u8 *data,
+			     unsigned int len, sha512_block_fn *sha512_xform)
 {
 	int remain;
 
@@ -69,7 +69,7 @@ static int sha512_finup(struct shash_desc *desc, const u8 *data,
 static int sha512_ssse3_update(struct shash_desc *desc, const u8 *data,
 		       unsigned int len)
 {
-	return sha512_update(desc, data, len, sha512_transform_ssse3);
+	return sha512_update_x86(desc, data, len, sha512_transform_ssse3);
 }
 
 static int sha512_ssse3_finup(struct shash_desc *desc, const u8 *data,
@@ -141,7 +141,7 @@ static bool avx_usable(void)
 static int sha512_avx_update(struct shash_desc *desc, const u8 *data,
 		       unsigned int len)
 {
-	return sha512_update(desc, data, len, sha512_transform_avx);
+	return sha512_update_x86(desc, data, len, sha512_transform_avx);
 }
 
 static int sha512_avx_finup(struct shash_desc *desc, const u8 *data,
@@ -203,7 +203,7 @@ asmlinkage void sha512_transform_rorx(struct sha512_state *state,
 static int sha512_avx2_update(struct shash_desc *desc, const u8 *data,
 		       unsigned int len)
 {
-	return sha512_update(desc, data, len, sha512_transform_rorx);
+	return sha512_update_x86(desc, data, len, sha512_transform_rorx);
 }
 
 static int sha512_avx2_finup(struct shash_desc *desc, const u8 *data,

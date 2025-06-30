@@ -27,8 +27,8 @@ static void sha512_arm64_transform(struct sha512_state *sst, u8 const *src,
 	sha512_blocks_arch(sst->state, src, blocks);
 }
 
-static int sha512_update(struct shash_desc *desc, const u8 *data,
-			 unsigned int len)
+static int sha512_update_arm64(struct shash_desc *desc, const u8 *data,
+			       unsigned int len)
 {
 	return sha512_base_do_update_blocks(desc, data, len,
 					    sha512_arm64_transform);
@@ -44,7 +44,7 @@ static int sha512_finup(struct shash_desc *desc, const u8 *data,
 static struct shash_alg algs[] = { {
 	.digestsize		= SHA512_DIGEST_SIZE,
 	.init			= sha512_base_init,
-	.update			= sha512_update,
+	.update			= sha512_update_arm64,
 	.finup			= sha512_finup,
 	.descsize		= SHA512_STATE_SIZE,
 	.base.cra_name		= "sha512",
@@ -57,7 +57,7 @@ static struct shash_alg algs[] = { {
 }, {
 	.digestsize		= SHA384_DIGEST_SIZE,
 	.init			= sha384_base_init,
-	.update			= sha512_update,
+	.update			= sha512_update_arm64,
 	.finup			= sha512_finup,
 	.descsize		= SHA512_STATE_SIZE,
 	.base.cra_name		= "sha384",

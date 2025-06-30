@@ -40,7 +40,7 @@ static int sha512_sparc64_finup(struct shash_desc *desc, const u8 *src,
 	return sha512_base_finish(desc, out);
 }
 
-static struct shash_alg sha512 = {
+static struct shash_alg sha512_alg = {
 	.digestsize	=	SHA512_DIGEST_SIZE,
 	.init		=	sha512_base_init,
 	.update		=	sha512_sparc64_update,
@@ -55,7 +55,7 @@ static struct shash_alg sha512 = {
 	}
 };
 
-static struct shash_alg sha384 = {
+static struct shash_alg sha384_alg = {
 	.digestsize	=	SHA384_DIGEST_SIZE,
 	.init		=	sha384_base_init,
 	.update		=	sha512_sparc64_update,
@@ -87,13 +87,13 @@ static bool __init sparc64_has_sha512_opcode(void)
 static int __init sha512_sparc64_mod_init(void)
 {
 	if (sparc64_has_sha512_opcode()) {
-		int ret = crypto_register_shash(&sha384);
+		int ret = crypto_register_shash(&sha384_alg);
 		if (ret < 0)
 			return ret;
 
-		ret = crypto_register_shash(&sha512);
+		ret = crypto_register_shash(&sha512_alg);
 		if (ret < 0) {
-			crypto_unregister_shash(&sha384);
+			crypto_unregister_shash(&sha384_alg);
 			return ret;
 		}
 
@@ -106,8 +106,8 @@ static int __init sha512_sparc64_mod_init(void)
 
 static void __exit sha512_sparc64_mod_fini(void)
 {
-	crypto_unregister_shash(&sha384);
-	crypto_unregister_shash(&sha512);
+	crypto_unregister_shash(&sha384_alg);
+	crypto_unregister_shash(&sha512_alg);
 }
 
 module_init(sha512_sparc64_mod_init);
