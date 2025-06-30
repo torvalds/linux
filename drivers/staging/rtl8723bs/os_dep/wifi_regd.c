@@ -41,17 +41,6 @@ static const struct ieee80211_regdomain rtw_regdom_rd = {
 	}
 };
 
-static int rtw_ieee80211_channel_to_frequency(int chan)
-{
-	/* NL80211_BAND_2GHZ */
-	if (chan == 14)
-		return 2484;
-	else if (chan < 14)
-		return 2407 + chan * 5;
-	else
-		return 0;	/* not supported */
-}
-
 static void _rtw_reg_apply_flags(struct wiphy *wiphy)
 {
 	struct adapter *padapter = wiphy_to_adapter(wiphy);

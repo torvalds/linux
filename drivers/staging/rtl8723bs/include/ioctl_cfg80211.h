@@ -94,6 +94,7 @@ void rtw_cfg80211_init_wiphy(struct adapter *padapter);
 
 void rtw_cfg80211_unlink_bss(struct adapter *padapter, struct wlan_network *pnetwork);
 void rtw_cfg80211_surveydone_event_callback(struct adapter *padapter);
+int rtw_ieee80211_channel_to_frequency(int chan);
 struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wlan_network *pnetwork);
 int rtw_cfg80211_check_bss(struct adapter *padapter);
 void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter);

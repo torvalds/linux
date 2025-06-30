@@ -192,7 +192,7 @@ rtw_cfg80211_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	},
 };
 
-static int rtw_ieee80211_channel_to_frequency(int chan)
+int rtw_ieee80211_channel_to_frequency(int chan)
 {
 	/* NL80211_BAND_2GHZ */
 	if (chan == 14)
