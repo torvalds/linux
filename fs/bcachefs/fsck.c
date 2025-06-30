@@ -2819,7 +2819,7 @@ static int check_path_loop(struct btree_trans *trans, struct bkey_s_c inode_k)
 				ret = remove_backpointer(trans, &inode);
 				bch_err_msg(c, ret, "removing dirent");
 				if (ret)
-					break;
+					goto out;
 
 				ret = reattach_inode(trans, &inode);
 				bch_err_msg(c, ret, "reattaching inode %llu", inode.bi_inum);
