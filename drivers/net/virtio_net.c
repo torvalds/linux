@@ -2157,9 +2157,9 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 {
 	struct virtio_net_hdr_mrg_rxbuf *hdr = buf;
 	unsigned int headroom, tailroom, room;
-	unsigned int truesize, cur_frag_size;
 	struct skb_shared_info *shinfo;
 	unsigned int xdp_frags_truesz = 0;
+	unsigned int truesize;
 	struct page *page;
 	skb_frag_t *frag;
 	int offset;
@@ -2207,9 +2207,8 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 		tailroom = headroom ? sizeof(struct skb_shared_info) : 0;
 		room = SKB_DATA_ALIGN(headroom + tailroom);
 
-		cur_frag_size = truesize;
-		xdp_frags_truesz += cur_frag_size;
-		if (unlikely(len > truesize - room || cur_frag_size > PAGE_SIZE)) {
+		xdp_frags_truesz += truesize;
+		if (unlikely(len > truesize - room)) {
 			put_page(page);
 			pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
 				 dev->name, len, (unsigned long)(truesize - room));
