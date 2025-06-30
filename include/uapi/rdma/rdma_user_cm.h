@@ -148,7 +148,8 @@ struct rdma_ucm_resolve_route {
 enum {
 	RDMA_USER_CM_QUERY_ADDR,
 	RDMA_USER_CM_QUERY_PATH,
-	RDMA_USER_CM_QUERY_GID
+	RDMA_USER_CM_QUERY_GID,
+	RDMA_USER_CM_QUERY_IB_SERVICE
 };
 
 struct rdma_ucm_query {
@@ -186,6 +187,11 @@ struct rdma_ucm_query_path_resp {
 	__u32 num_paths;
 	__u32 reserved;
 	struct ib_path_rec_data path_data[];
+};
+
+struct rdma_ucm_query_ib_service_resp {
+	__u32 num_service_recs;
+	struct ib_user_service_rec recs[];
 };
 
 struct rdma_ucm_conn_param {

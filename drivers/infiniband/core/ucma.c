@@ -1021,6 +1021,43 @@ static ssize_t ucma_query_gid(struct ucma_context *ctx,
 	return ret;
 }
 
+static ssize_t ucma_query_ib_service(struct ucma_context *ctx,
+				     void __user *response, int out_len)
+{
+	struct rdma_ucm_query_ib_service_resp *resp;
+	int n, ret = 0;
+
+	if (out_len < sizeof(struct rdma_ucm_query_ib_service_resp))
+		return -ENOSPC;
+
+	if (!ctx->cm_id->route.service_recs)
+		return -ENODATA;
+
+	resp = kzalloc(out_len, GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
+
+	resp->num_service_recs = ctx->cm_id->route.num_service_recs;
+
+	n = (out_len - sizeof(struct rdma_ucm_query_ib_service_resp)) /
+		sizeof(struct ib_user_service_rec);
+
+	if (!n)
+		goto out;
+
+	if (n > ctx->cm_id->route.num_service_recs)
+		n = ctx->cm_id->route.num_service_recs;
+
+	memcpy(resp->recs, ctx->cm_id->route.service_recs,
+	       sizeof(*resp->recs) * n);
+	if (copy_to_user(response, resp, struct_size(resp, recs, n)))
+		ret = -EFAULT;
+
+out:
+	kfree(resp);
+	return ret;
+}
+
 static ssize_t ucma_query(struct ucma_file *file,
 			  const char __user *inbuf,
 			  int in_len, int out_len)
@@ -1048,6 +1085,9 @@ static ssize_t ucma_query(struct ucma_file *file,
 		break;
 	case RDMA_USER_CM_QUERY_GID:
 		ret = ucma_query_gid(ctx, response, out_len);
+		break;
+	case RDMA_USER_CM_QUERY_IB_SERVICE:
+		ret = ucma_query_ib_service(ctx, response, out_len);
 		break;
 	default:
 		ret = -ENOSYS;
