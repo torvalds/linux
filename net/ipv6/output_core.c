@@ -105,7 +105,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 {
 	int hoplimit = dst_metric_raw(dst, RTAX_HOPLIMIT);
 	if (hoplimit == 0) {
-		struct net_device *dev = dst->dev;
+		struct net_device *dev = dst_dev(dst);
 		struct inet6_dev *idev;
 
 		rcu_read_lock();

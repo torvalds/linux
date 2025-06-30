@@ -168,7 +168,7 @@ struct dst_entry *udp_tunnel6_dst_lookup(struct sk_buff *skb,
 		netdev_dbg(dev, "no route to %pI6\n", &fl6.daddr);
 		return ERR_PTR(-ENETUNREACH);
 	}
-	if (dst->dev == dev) { /* is this necessary? */
+	if (dst_dev(dst) == dev) { /* is this necessary? */
 		netdev_dbg(dev, "circular route to %pI6\n", &fl6.daddr);
 		dst_release(dst);
 		return ERR_PTR(-ELOOP);

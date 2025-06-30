@@ -313,7 +313,7 @@ seg6_lookup_any_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 	if (!local_delivery)
 		dev_flags |= IFF_LOOPBACK;
 
-	if (dst && (dst->dev->flags & dev_flags) && !dst->error) {
+	if (dst && (dst_dev(dst)->flags & dev_flags) && !dst->error) {
 		dst_release(dst);
 		dst = NULL;
 	}
