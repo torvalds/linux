@@ -19,9 +19,9 @@
 #include <linux/net_namespace.h>
 #include <linux/sched/task.h>
 #include <linux/uidgid.h>
-#include <linux/cookie.h>
 #include <linux/proc_fs.h>
 
+#include <net/aligned_data.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 #include <net/net_namespace.h>
@@ -63,8 +63,6 @@ DECLARE_RWSEM(pernet_ops_rwsem);
 #define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
 
 static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
-
-DEFINE_COOKIE(net_cookie);
 
 static struct net_generic *net_alloc_generic(void)
 {
@@ -434,9 +432,7 @@ static __net_init int setup_net(struct net *net)
 	LIST_HEAD(net_exit_list);
 	int error = 0;
 
-	preempt_disable();
-	net->net_cookie = gen_cookie_next(&net_cookie);
-	preempt_enable();
+	net->net_cookie = atomic64_inc_return(&net_aligned_data.net_cookie);
 
 	list_for_each_entry(ops, &pernet_list, list) {
 		error = ops_init(ops, net);

@@ -2,6 +2,7 @@
 #ifndef _NET_ALIGNED_DATA_H
 #define _NET_ALIGNED_DATA_H
 
+#include <linux/atomic.h>
 #include <linux/types.h>
 
 /* Structure holding cacheline aligned fields on SMP builds.
@@ -9,6 +10,7 @@
  * attribute to ensure no accidental false sharing can happen.
  */
 struct net_aligned_data {
+	atomic64_t	net_cookie ____cacheline_aligned_in_smp;
 };
 
 extern struct net_aligned_data net_aligned_data;
