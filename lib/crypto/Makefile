@@ -66,11 +66,39 @@ libpoly1305-generic-y				+= poly1305-generic.o
 obj-$(CONFIG_CRYPTO_LIB_SHA1)			+= libsha1.o
 libsha1-y					:= sha1.o
 
-obj-$(CONFIG_CRYPTO_LIB_SHA256)			+= libsha256.o
-libsha256-y					:= sha256.o
+################################################################################
 
-obj-$(CONFIG_CRYPTO_LIB_SHA256_GENERIC)		+= libsha256-generic.o
-libsha256-generic-y				:= sha256-generic.o
+obj-$(CONFIG_CRYPTO_LIB_SHA256) += libsha256.o
+libsha256-y := sha256.o
+ifeq ($(CONFIG_CRYPTO_LIB_SHA256_ARCH),y)
+CFLAGS_sha256.o += -I$(src)/$(SRCARCH)
+
+ifeq ($(CONFIG_ARM),y)
+libsha256-y += arm/sha256-ce.o arm/sha256-core.o
+$(obj)/arm/sha256-core.S: $(src)/arm/sha256-armv4.pl
+	$(call cmd,perlasm)
+clean-files += arm/sha256-core.S
+AFLAGS_arm/sha256-core.o += $(aflags-thumb2-y)
+endif
+
+ifeq ($(CONFIG_ARM64),y)
+libsha256-y += arm64/sha256-core.o
+$(obj)/arm64/sha256-core.S: $(src)/arm64/sha2-armv8.pl
+	$(call cmd,perlasm_with_args)
+clean-files += arm64/sha256-core.S
+libsha256-$(CONFIG_KERNEL_MODE_NEON) += arm64/sha256-ce.o
+endif
+
+libsha256-$(CONFIG_PPC) += powerpc/sha256-spe-asm.o
+libsha256-$(CONFIG_RISCV) += riscv/sha256-riscv64-zvknha_or_zvknhb-zvkb.o
+libsha256-$(CONFIG_SPARC) += sparc/sha256_asm.o
+libsha256-$(CONFIG_X86) += x86/sha256-ssse3-asm.o \
+			   x86/sha256-avx-asm.o \
+			   x86/sha256-avx2-asm.o \
+			   x86/sha256-ni-asm.o
+endif # CONFIG_CRYPTO_LIB_SHA256_ARCH
+
+################################################################################
 
 obj-$(CONFIG_CRYPTO_LIB_SHA512) += libsha512.o
 libsha512-y := sha512.o
@@ -100,6 +128,8 @@ libsha512-$(CONFIG_X86) += x86/sha512-ssse3-asm.o \
 			   x86/sha512-avx2-asm.o
 endif # CONFIG_CRYPTO_LIB_SHA512_ARCH
 
+################################################################################
+
 obj-$(CONFIG_MPILIB) += mpi/
 
 obj-$(CONFIG_CRYPTO_SELFTESTS_FULL)		+= simd.o
@@ -113,5 +143,4 @@ obj-$(CONFIG_MIPS) += mips/
 obj-$(CONFIG_PPC) += powerpc/
 obj-$(CONFIG_RISCV) += riscv/
 obj-$(CONFIG_S390) += s390/
-obj-$(CONFIG_SPARC) += sparc/
 obj-$(CONFIG_X86) += x86/

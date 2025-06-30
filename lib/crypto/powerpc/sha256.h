@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SHA-256 Secure Hash Algorithm, SPE optimized
  *
@@ -9,9 +9,6 @@
  */
 
 #include <asm/switch_to.h>
-#include <crypto/internal/sha2.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/preempt.h>
 
 /*
@@ -43,8 +40,8 @@ static void spe_end(void)
 	preempt_enable();
 }
 
-void sha256_blocks_arch(struct sha256_block_state *state,
-			const u8 *data, size_t nblocks)
+static void sha256_blocks(struct sha256_block_state *state,
+			  const u8 *data, size_t nblocks)
 {
 	do {
 		/* cut input data into smaller blocks */
@@ -59,7 +56,3 @@ void sha256_blocks_arch(struct sha256_block_state *state,
 		nblocks -= unit;
 	} while (nblocks);
 }
-EXPORT_SYMBOL_GPL(sha256_blocks_arch);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("SHA-256 Secure Hash Algorithm, SPE optimized");

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SHA-256 Secure Hash Algorithm.
  *
@@ -14,16 +14,13 @@
 
 #include <asm/octeon/crypto.h>
 #include <asm/octeon/octeon.h>
-#include <crypto/internal/sha2.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
 
 /*
  * We pass everything as 64-bit. OCTEON can handle misaligned data.
  */
 
-void sha256_blocks_arch(struct sha256_block_state *state,
-			const u8 *data, size_t nblocks)
+static void sha256_blocks(struct sha256_block_state *state,
+			  const u8 *data, size_t nblocks)
 {
 	struct octeon_cop2_state cop2_state;
 	u64 *state64 = (u64 *)state;
@@ -59,8 +56,3 @@ void sha256_blocks_arch(struct sha256_block_state *state,
 	state64[3] = read_octeon_64bit_hash_dword(3);
 	octeon_crypto_disable(&cop2_state, flags);
 }
-EXPORT_SYMBOL_GPL(sha256_blocks_arch);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("SHA-256 Secure Hash Algorithm (OCTEON)");
-MODULE_AUTHOR("Aaro Koskinen <aaro.koskinen@iki.fi>");

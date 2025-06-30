@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SHA-256 (RISC-V accelerated)
  *
@@ -10,10 +10,7 @@
  */
 
 #include <asm/vector.h>
-#include <crypto/internal/sha2.h>
 #include <crypto/internal/simd.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
 
 asmlinkage void
 sha256_transform_zvknha_or_zvknhb_zvkb(struct sha256_block_state *state,
@@ -21,8 +18,8 @@ sha256_transform_zvknha_or_zvknhb_zvkb(struct sha256_block_state *state,
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_extensions);
 
-void sha256_blocks_arch(struct sha256_block_state *state,
-			const u8 *data, size_t nblocks)
+static void sha256_blocks(struct sha256_block_state *state,
+			  const u8 *data, size_t nblocks)
 {
 	if (static_branch_likely(&have_extensions) && crypto_simd_usable()) {
 		kernel_vector_begin();
@@ -32,9 +29,9 @@ void sha256_blocks_arch(struct sha256_block_state *state,
 		sha256_blocks_generic(state, data, nblocks);
 	}
 }
-EXPORT_SYMBOL_GPL(sha256_blocks_arch);
 
-static int __init riscv64_sha256_mod_init(void)
+#define sha256_mod_init_arch sha256_mod_init_arch
+static inline void sha256_mod_init_arch(void)
 {
 	/* Both zvknha and zvknhb provide the SHA-256 instructions. */
 	if ((riscv_isa_extension_available(NULL, ZVKNHA) ||
@@ -42,15 +39,4 @@ static int __init riscv64_sha256_mod_init(void)
 	    riscv_isa_extension_available(NULL, ZVKB) &&
 	    riscv_vector_vlen() >= 128)
 		static_branch_enable(&have_extensions);
-	return 0;
 }
-subsys_initcall(riscv64_sha256_mod_init);
-
-static void __exit riscv64_sha256_mod_exit(void)
-{
-}
-module_exit(riscv64_sha256_mod_exit);
-
-MODULE_DESCRIPTION("SHA-256 (RISC-V accelerated)");
-MODULE_AUTHOR("Heiko Stuebner <heiko.stuebner@vrull.eu>");
-MODULE_LICENSE("GPL");
