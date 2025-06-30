@@ -239,7 +239,7 @@ static ssize_t format_show(struct device *dev, struct device_attribute *attr,
 {
 	struct blk_integrity *bi = dev_to_bi(dev);
 
-	if (!bi->tuple_size)
+	if (!bi->metadata_size)
 		return sysfs_emit(page, "none\n");
 	return sysfs_emit(page, "%s\n", blk_integrity_profile_name(bi));
 }

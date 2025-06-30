@@ -1506,7 +1506,7 @@ static int btt_blk_init(struct btt *btt)
 	int rc;
 
 	if (btt_meta_size(btt) && IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
-		lim.integrity.tuple_size = btt_meta_size(btt);
+		lim.integrity.metadata_size = btt_meta_size(btt);
 		lim.integrity.tag_size = btt_meta_size(btt);
 	}
 

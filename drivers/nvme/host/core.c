@@ -1866,7 +1866,7 @@ static bool nvme_init_integrity(struct nvme_ns_head *head,
 		break;
 	}
 
-	bi->tuple_size = head->ms;
+	bi->metadata_size = head->ms;
 	bi->pi_offset = info->pi_offset;
 	return true;
 }

@@ -33,7 +33,7 @@ int blk_rq_integrity_map_user(struct request *rq, void __user *ubuf,
 static inline bool
 blk_integrity_queue_supports_integrity(struct request_queue *q)
 {
-	return q->limits.integrity.tuple_size;
+	return q->limits.integrity.metadata_size;
 }
 
 static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
@@ -74,7 +74,7 @@ static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
 static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
 					       unsigned int sectors)
 {
-	return bio_integrity_intervals(bi, sectors) * bi->tuple_size;
+	return bio_integrity_intervals(bi, sectors) * bi->metadata_size;
 }
 
 static inline bool blk_integrity_rq(struct request *rq)

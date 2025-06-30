@@ -114,7 +114,7 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 {
 	struct blk_integrity *bi = &lim->integrity;
 
-	if (!bi->tuple_size) {
+	if (!bi->metadata_size) {
 		if (bi->csum_type != BLK_INTEGRITY_CSUM_NONE ||
 		    bi->tag_size || ((bi->flags & BLK_INTEGRITY_REF_TAG))) {
 			pr_warn("invalid PI settings.\n");
@@ -875,7 +875,7 @@ bool queue_limits_stack_integrity(struct queue_limits *t,
 		return true;
 
 	if (ti->flags & BLK_INTEGRITY_STACKED) {
-		if (ti->tuple_size != bi->tuple_size)
+		if (ti->metadata_size != bi->metadata_size)
 			goto incompatible;
 		if (ti->interval_exp != bi->interval_exp)
 			goto incompatible;
@@ -891,7 +891,7 @@ bool queue_limits_stack_integrity(struct queue_limits *t,
 		ti->flags |= (bi->flags & BLK_INTEGRITY_DEVICE_CAPABLE) |
 			     (bi->flags & BLK_INTEGRITY_REF_TAG);
 		ti->csum_type = bi->csum_type;
-		ti->tuple_size = bi->tuple_size;
+		ti->metadata_size = bi->metadata_size;
 		ti->pi_offset = bi->pi_offset;
 		ti->interval_exp = bi->interval_exp;
 		ti->tag_size = bi->tag_size;
