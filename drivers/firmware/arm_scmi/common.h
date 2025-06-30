@@ -314,6 +314,12 @@ static inline void scmi_inc_count(atomic_t *arr, int stat)
 		atomic_inc(&arr[stat]);
 }
 
+static inline void scmi_dec_count(atomic_t *arr, int stat)
+{
+	if (IS_ENABLED(CONFIG_ARM_SCMI_DEBUG_COUNTERS))
+		atomic_dec(&arr[stat]);
+}
+
 enum scmi_bad_msg {
 	MSG_UNEXPECTED = -1,
 	MSG_INVALID = -2,
