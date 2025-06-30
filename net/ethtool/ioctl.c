@@ -1079,16 +1079,17 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	    !ops->rxfh_per_ctx_fields)
 		return -EINVAL;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	if (ops->get_rxfh) {
 		struct ethtool_rxfh_param rxfh = {};
 
 		rc = ops->get_rxfh(dev, &rxfh);
 		if (rc)
-			return rc;
+			goto exit_unlock;
 
 		rc = ethtool_check_xfrm_rxfh(rxfh.input_xfrm, info.data);
 		if (rc)
-			return rc;
+			goto exit_unlock;
 	}
 
 	fields.data = info.data;
@@ -1096,7 +1097,10 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	if (info.flow_type & FLOW_RSS)
 		fields.rss_context = info.rss_context;
 
-	return ops->set_rxfh_fields(dev, &fields, NULL);
+	rc = ops->set_rxfh_fields(dev, &fields, NULL);
+exit_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	return rc;
 }
 
 static noinline_for_stack int
@@ -1123,7 +1127,9 @@ ethtool_get_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	if (info.flow_type & FLOW_RSS)
 		fields.rss_context = info.rss_context;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	ret = ops->get_rxfh_fields(dev, &fields);
+	mutex_unlock(&dev->ethtool->rss_lock);
 	if (ret < 0)
 		return ret;
 
@@ -1269,7 +1275,9 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 	if (!rxfh.indir)
 		return -ENOMEM;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
+	mutex_unlock(&dev->ethtool->rss_lock);
 	if (ret)
 		goto out;
 	if (copy_to_user(useraddr +
@@ -1334,9 +1342,11 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 	}
 
 	rxfh_dev.hfunc = ETH_RSS_HASH_NO_CHANGE;
+
+	mutex_lock(&dev->ethtool->rss_lock);
 	ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	if (ret)
-		goto out;
+		goto out_unlock;
 
 	/* indicate whether rxfh was set to default */
 	if (user_size == 0)
@@ -1344,6 +1354,8 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 	else
 		dev->priv_flags |= IFF_RXFH_CONFIGURED;
 
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
 out:
 	kfree(rxfh_dev.indir);
 	return ret;
@@ -1404,6 +1416,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (user_key_size)
 		rxfh_dev.key = rss_config + indir_bytes;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	if (rxfh.rss_context) {
 		ctx = xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context);
 		if (!ctx) {
@@ -1449,6 +1462,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 		ret = -EFAULT;
 	}
 out:
+	mutex_unlock(&dev->ethtool->rss_lock);
 	kfree(rss_config);
 
 	return ret;
@@ -1500,7 +1514,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	struct netlink_ext_ack *extack = NULL;
 	struct ethtool_rxnfc rx_rings;
 	struct ethtool_rxfh rxfh;
-	bool locked = false; /* dev->ethtool->rss_lock taken */
 	bool create = false;
 	bool mod = false;
 	u8 *rss_config;
@@ -1550,10 +1563,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
 
-	ret = ethtool_check_flow_types(dev, rxfh.input_xfrm);
-	if (ret)
-		return ret;
-
 	indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 
 	/* Check settings which may be global rather than per RSS-context */
@@ -1570,7 +1579,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	rx_rings.cmd = ETHTOOL_GRXRINGS;
 	ret = ops->get_rxnfc(dev, &rx_rings, NULL);
 	if (ret)
-		goto out;
+		goto out_free;
 
 	/* rxfh.indir_size == 0 means reset the indir table to default (master
 	 * context) or delete the context (other RSS contexts).
@@ -1586,7 +1595,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 						  &rx_rings,
 						  rxfh.indir_size);
 		if (ret)
-			goto out;
+			goto out_free;
 	} else if (rxfh.indir_size == 0) {
 		if (rxfh.rss_context == 0) {
 			u32 *indir;
@@ -1608,30 +1617,31 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 				   useraddr + rss_cfg_offset + user_indir_len,
 				   rxfh.key_size)) {
 			ret = -EFAULT;
-			goto out;
+			goto out_free;
 		}
 	}
 
-	if (rxfh.rss_context) {
-		mutex_lock(&dev->ethtool->rss_lock);
-		locked = true;
-	}
+	mutex_lock(&dev->ethtool->rss_lock);
+
+	ret = ethtool_check_flow_types(dev, rxfh.input_xfrm);
+	if (ret)
+		goto out_unlock;
 
 	if (rxfh.rss_context && rxfh_dev.rss_delete) {
 		ret = ethtool_check_rss_ctx_busy(dev, rxfh.rss_context);
 		if (ret)
-			goto out;
+			goto out_unlock;
 	}
 
 	if (create) {
 		if (rxfh_dev.rss_delete) {
 			ret = -EINVAL;
-			goto out;
+			goto out_unlock;
 		}
 		ctx = ethtool_rxfh_ctx_alloc(ops, dev_indir_size, dev_key_size);
 		if (!ctx) {
 			ret = -ENOMEM;
-			goto out;
+			goto out_unlock;
 		}
 
 		if (ops->create_rxfh_context) {
@@ -1644,7 +1654,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 				       GFP_KERNEL_ACCOUNT);
 			if (ret < 0) {
 				kfree(ctx);
-				goto out;
+				goto out_unlock;
 			}
 			WARN_ON(!ctx_id); /* can't happen */
 			rxfh.rss_context = ctx_id;
@@ -1653,7 +1663,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		ctx = xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context);
 		if (!ctx) {
 			ret = -ENOENT;
-			goto out;
+			goto out_unlock;
 		}
 	}
 	rxfh_dev.hfunc = rxfh.hfunc;
@@ -1687,7 +1697,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 				xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
 			kfree(ctx);
 		}
-		goto out;
+		goto out_unlock;
 	}
 	mod = !create && !rxfh_dev.rss_delete;
 
@@ -1708,13 +1718,13 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		if (WARN_ON(xa_load(&dev->ethtool->rss_ctx, rxfh_dev.rss_context))) {
 			/* context ID reused, our tracking is screwed */
 			kfree(ctx);
-			goto out;
+			goto out_unlock;
 		}
 		/* Allocate the exact ID the driver gave us */
 		if (xa_is_err(xa_store(&dev->ethtool->rss_ctx, rxfh_dev.rss_context,
 				       ctx, GFP_KERNEL))) {
 			kfree(ctx);
-			goto out;
+			goto out_unlock;
 		}
 
 		/* Fetch the defaults for the old API, in the new API drivers
@@ -1730,7 +1740,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		if (WARN_ON(ret)) {
 			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
 			kfree(ctx);
-			goto out;
+			goto out_unlock;
 		}
 	}
 	if (rxfh_dev.rss_delete) {
@@ -1755,9 +1765,9 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			ctx->input_xfrm = rxfh_dev.input_xfrm;
 	}
 
-out:
-	if (locked)
-		mutex_unlock(&dev->ethtool->rss_lock);
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+out_free:
 	kfree(rss_config);
 	if (mod)
 		ethtool_rss_notify(dev, rxfh.rss_context);

@@ -810,13 +810,10 @@ int efx_ethtool_get_rxfh_fields(struct net_device *net_dev,
 
 	ctx = &efx->rss_context.priv;
 
-	mutex_lock(&net_dev->ethtool->rss_lock);
 	if (info->rss_context) {
 		ctx = efx_find_rss_context_entry(efx, info->rss_context);
-		if (!ctx) {
-			rc = -ENOENT;
-			goto out_unlock;
-		}
+		if (!ctx)
+			return -ENOENT;
 	}
 
 	data = 0;
@@ -850,8 +847,6 @@ int efx_ethtool_get_rxfh_fields(struct net_device *net_dev,
 	}
 out_setdata_unlock:
 	info->data = data;
-out_unlock:
-	mutex_unlock(&net_dev->ethtool->rss_lock);
 	return rc;
 }
 
