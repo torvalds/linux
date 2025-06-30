@@ -37,6 +37,14 @@
 		};
 	};
 
+	rfkill {
+		compatible = "rfkill-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_en_h>;
+		radio-type = "wlan";
+		shutdown-gpios = <&gpio2 RK_PD1 GPIO_ACTIVE_HIGH>;
+	};
+
 	leds: leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -157,6 +165,19 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-name = "vcc_3v3_ufs_s0";
 		vin-supply = <&vcc_5v0_sys>;
+	};
+
+	vcc_3v3_wifi: regulator-vcc-3v3-wifi {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpios = <&gpio2 RK_PC7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_wifi_pwr>;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "vcc_3v3_wifi";
+		vin-supply = <&vcc_3v3_s3>;
 	};
 
 	vcc_5v0_device: regulator-vcc-5v0-device {
@@ -718,6 +739,15 @@
 		usb_otg_pwren: usb-otg-pwren {
 			rockchip,pins = <2 RK_PD2 RK_FUNC_GPIO &pcfg_pull_down>;
 
+		};
+	};
+
+	wifi {
+		usb_wifi_pwr: usb-wifi-pwr {
+			rockchip,pins = <2 RK_PC7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+		wifi_en_h: wifi-en-h {
+			rockchip,pins = <2 RK_PD1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };
