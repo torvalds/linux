@@ -1257,7 +1257,7 @@ int ath12k_dp_tx_htt_h2t_ppdu_stats_req(struct ath12k *ar, u32 mask)
 		cmd->msg = le32_encode_bits(HTT_H2T_MSG_TYPE_PPDU_STATS_CFG,
 					    HTT_PPDU_STATS_CFG_MSG_TYPE);
 
-		pdev_mask = 1 << (i + 1);
+		pdev_mask = 1 << (i + ar->pdev_idx);
 		cmd->msg |= le32_encode_bits(pdev_mask, HTT_PPDU_STATS_CFG_PDEV_ID);
 		cmd->msg |= le32_encode_bits(mask, HTT_PPDU_STATS_CFG_TLV_TYPE_BITMASK);
 
