@@ -93,8 +93,8 @@
 	sha512_4rounds	\last, W3, W0, W1, W2
 .endm
 
-// void sha512_transform_zvknhb_zvkb(u64 state[8], const u8 *data,
-//				     int num_blocks);
+// void sha512_transform_zvknhb_zvkb(struct sha512_block_state *state,
+//				     const u8 *data, size_t nblocks);
 SYM_FUNC_START(sha512_transform_zvknhb_zvkb)
 
 	// Setup mask for the vmerge to replace the first word (idx==0) in
