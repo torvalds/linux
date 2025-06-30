@@ -226,6 +226,12 @@ resubmit:
 
 static int ip_local_deliver_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
+	if (unlikely(skb_orphan_frags_rx(skb, GFP_ATOMIC))) {
+		__IP_INC_STATS(net, IPSTATS_MIB_INDISCARDS);
+		kfree_skb_reason(skb, SKB_DROP_REASON_NOMEM);
+		return 0;
+	}
+
 	skb_clear_delivery_time(skb);
 	__skb_pull(skb, skb_network_header_len(skb));
 

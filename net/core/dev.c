@@ -5937,8 +5937,6 @@ check_vlan_id:
 	}
 
 	if (pt_prev) {
-		if (unlikely(skb_orphan_frags_rx(skb, GFP_ATOMIC)))
-			goto drop;
 		*ppt_prev = pt_prev;
 	} else {
 drop:
