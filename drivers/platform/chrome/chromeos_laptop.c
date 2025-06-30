@@ -782,8 +782,7 @@ err_out:
 	while (--i >= 0) {
 		i2c_dev = &i2c_peripherals[i];
 		info = &i2c_dev->board_info;
-		if (!IS_ERR_OR_NULL(info->fwnode))
-			fwnode_remove_software_node(info->fwnode);
+		fwnode_remove_software_node(info->fwnode);
 	}
 	kfree(i2c_peripherals);
 	return error;
