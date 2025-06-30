@@ -382,7 +382,6 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 }
 
 /**
- *
  * ttm_bo_kmap_try_from_panic
  *
  * @bo: The buffer object
