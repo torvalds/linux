@@ -60,7 +60,7 @@ MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state fie
 #define MOUSE_REPORT_ID    0x29
 #define MOUSE2_REPORT_ID   0x12
 #define DOUBLE_REPORT_ID   0xf7
-#define USB_BATTERY_TIMEOUT_MS 60000
+#define USB_BATTERY_TIMEOUT_SEC 60
 
 /* These definitions are not precise, but they're close enough.  (Bits
  * 0x03 seem to indicate the aspect ratio of the touch, bits 0x70 seem
@@ -841,7 +841,7 @@ static void magicmouse_battery_timer_tick(struct timer_list *t)
 
 	if (magicmouse_fetch_battery(hdev) == 0) {
 		mod_timer(&msc->battery_timer,
-			  jiffies + msecs_to_jiffies(USB_BATTERY_TIMEOUT_MS));
+			  jiffies + secs_to_jiffies(USB_BATTERY_TIMEOUT_SEC));
 	}
 }
 
@@ -881,7 +881,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	    is_usb_magictrackpad2(id->vendor, id->product)) {
 		timer_setup(&msc->battery_timer, magicmouse_battery_timer_tick, 0);
 		mod_timer(&msc->battery_timer,
-			  jiffies + msecs_to_jiffies(USB_BATTERY_TIMEOUT_MS));
+			  jiffies + secs_to_jiffies(USB_BATTERY_TIMEOUT_SEC));
 		magicmouse_fetch_battery(hdev);
 	}
 
