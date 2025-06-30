@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/log2.h>
 #include <linux/cma.h>
 #include <linux/highmem.h>
@@ -548,8 +549,7 @@ out:
 			(unsigned long)total_size / SZ_1M);
 	else
 		pr_info("Reserved %lu MiB in %d range%s\n",
-			(unsigned long)total_size / SZ_1M, nr,
-			nr > 1 ? "s" : "");
+			(unsigned long)total_size / SZ_1M, nr, str_plural(nr));
 	return ret;
 }
 
