@@ -2457,10 +2457,10 @@ retry_init:
 
 	if (adev->pm.rpm_mode != AMDGPU_RUNPM_NONE) {
 		/* only need to skip on ATPX */
-		if (amdgpu_device_supports_px(ddev))
+		if (amdgpu_device_supports_px(adev))
 			dev_pm_set_driver_flags(ddev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
 		/* we want direct complete for BOCO */
-		if (amdgpu_device_supports_boco(ddev))
+		if (amdgpu_device_supports_boco(adev))
 			dev_pm_set_driver_flags(ddev->dev, DPM_FLAG_SMART_PREPARE |
 						DPM_FLAG_SMART_SUSPEND |
 						DPM_FLAG_MAY_SKIP_RESUME);
@@ -2493,9 +2493,9 @@ retry_init:
 		 * into D0 state. Then there will be a PMFW-aware D-state
 		 * transition(D0->D3) on runpm suspend.
 		 */
-		if (amdgpu_device_supports_baco(ddev) &&
+		if (amdgpu_device_supports_baco(adev) &&
 		    !(adev->flags & AMD_IS_APU) &&
-		    (adev->asic_type >= CHIP_NAVI10))
+		    adev->asic_type >= CHIP_NAVI10)
 			amdgpu_get_secondary_funcs(adev);
 	}
 
@@ -2560,8 +2560,7 @@ static int amdgpu_pmops_prepare(struct device *dev)
 	/* Return a positive number here so
 	 * DPM_FLAG_SMART_SUSPEND works properly
 	 */
-	if (amdgpu_device_supports_boco(drm_dev) &&
-	    pm_runtime_suspended(dev))
+	if (amdgpu_device_supports_boco(adev) && pm_runtime_suspended(dev))
 		return 1;
 
 	/* if we will not support s3 or s2i for the device
@@ -2834,7 +2833,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 		/* nothing to do */
 	} else if ((adev->pm.rpm_mode == AMDGPU_RUNPM_BACO) ||
 			(adev->pm.rpm_mode == AMDGPU_RUNPM_BAMACO)) {
-		amdgpu_device_baco_enter(drm_dev);
+		amdgpu_device_baco_enter(adev);
 	}
 
 	dev_dbg(&pdev->dev, "asic/device is runtime suspended\n");
@@ -2875,7 +2874,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 		pci_set_master(pdev);
 	} else if ((adev->pm.rpm_mode == AMDGPU_RUNPM_BACO) ||
 			(adev->pm.rpm_mode == AMDGPU_RUNPM_BAMACO)) {
-		amdgpu_device_baco_exit(drm_dev);
+		amdgpu_device_baco_exit(adev);
 	}
 	ret = amdgpu_device_resume(drm_dev, false);
 	if (ret) {

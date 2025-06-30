@@ -811,18 +811,18 @@ int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 /**
  * amdgpu_acpi_smart_shift_update - update dGPU device state to SBIOS
  *
- * @dev: drm_device pointer
+ * @adev: amdgpu device pointer
  * @ss_state: current smart shift event
  *
  * returns 0 on success,
  * otherwise return error number.
  */
-int amdgpu_acpi_smart_shift_update(struct drm_device *dev, enum amdgpu_ss ss_state)
+int amdgpu_acpi_smart_shift_update(struct amdgpu_device *adev,
+				   enum amdgpu_ss ss_state)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
 	int r;
 
-	if (!amdgpu_device_supports_smart_shift(dev))
+	if (!amdgpu_device_supports_smart_shift(adev))
 		return 0;
 
 	switch (ss_state) {

@@ -1890,7 +1890,7 @@ out:
 static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 				uint32_t mask, enum amdgpu_device_attr_states *states)
 {
-	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+	if (!amdgpu_device_supports_smart_shift(adev))
 		*states = ATTR_STATE_UNSUPPORTED;
 
 	return 0;
@@ -1901,7 +1901,7 @@ static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 {
 	uint32_t ss_power;
 
-	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
+	if (!amdgpu_device_supports_smart_shift(adev))
 		*states = ATTR_STATE_UNSUPPORTED;
 	else if (amdgpu_hwmon_get_sensor_generic(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
 		 (void *)&ss_power))
