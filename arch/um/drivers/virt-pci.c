@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/logic_iomem.h>
 #include <linux/of_platform.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
 #include <linux/unaligned.h>
@@ -29,7 +30,6 @@ static struct um_pci_device *um_pci_platform_device;
 static struct um_pci_device_reg um_pci_devices[MAX_DEVICES];
 static struct fwnode_handle *um_pci_fwnode;
 static struct irq_domain *um_pci_inner_domain;
-static struct irq_domain *um_pci_msi_domain;
 static unsigned long um_pci_msi_used[BITS_TO_LONGS(MAX_MSI_VECTORS)];
 
 static unsigned long um_pci_cfgspace_read(void *priv, unsigned int offset,
@@ -400,21 +400,24 @@ static void um_pci_inner_domain_free(struct irq_domain *domain,
 }
 
 static const struct irq_domain_ops um_pci_inner_domain_ops = {
+	.select = msi_lib_irq_domain_select,
 	.alloc = um_pci_inner_domain_alloc,
 	.free = um_pci_inner_domain_free,
 };
 
-static struct irq_chip um_pci_msi_irq_chip = {
-	.name = "UM virtual PCIe MSI",
-	.irq_mask = pci_msi_mask_irq,
-	.irq_unmask = pci_msi_unmask_irq,
-};
+#define UM_PCI_MSI_FLAGS_REQUIRED (MSI_FLAG_USE_DEF_DOM_OPS		| \
+				   MSI_FLAG_USE_DEF_CHIP_OPS		| \
+				   MSI_FLAG_NO_AFFINITY)
+#define UM_PCI_MSI_FLAGS_SUPPORTED (MSI_GENERIC_FLAGS_MASK		| \
+				    MSI_FLAG_PCI_MSIX)
 
-static struct msi_domain_info um_pci_msi_domain_info = {
-	.flags	= MSI_FLAG_USE_DEF_DOM_OPS |
-		  MSI_FLAG_USE_DEF_CHIP_OPS |
-		  MSI_FLAG_PCI_MSIX,
-	.chip	= &um_pci_msi_irq_chip,
+static const struct msi_parent_ops um_pci_msi_parent_ops = {
+	.required_flags		= UM_PCI_MSI_FLAGS_REQUIRED,
+	.supported_flags	= UM_PCI_MSI_FLAGS_SUPPORTED,
+	.bus_select_token	= DOMAIN_BUS_NEXUS,
+	.bus_select_mask	= MATCH_PCI_MSI,
+	.prefix			= "UM-virtual-",
+	.init_dev_msi_info	= msi_lib_init_dev_msi_info,
 };
 
 static struct resource busn_resource = {
@@ -559,17 +562,14 @@ static int __init um_pci_init(void)
 		goto free;
 	}
 
-	um_pci_inner_domain = irq_domain_create_linear(um_pci_fwnode, MAX_MSI_VECTORS,
-						       &um_pci_inner_domain_ops, NULL);
-	if (!um_pci_inner_domain) {
-		err = -ENOMEM;
-		goto free;
-	}
+	struct irq_domain_info info = {
+		.fwnode		= um_pci_fwnode,
+		.ops		= &um_pci_inner_domain_ops,
+		.size		= MAX_MSI_VECTORS,
+	};
 
-	um_pci_msi_domain = pci_msi_create_irq_domain(um_pci_fwnode,
-						      &um_pci_msi_domain_info,
-						      um_pci_inner_domain);
-	if (!um_pci_msi_domain) {
+	um_pci_inner_domain = msi_create_parent_irq_domain(&info, &um_pci_msi_parent_ops);
+	if (!um_pci_inner_domain) {
 		err = -ENOMEM;
 		goto free;
 	}
@@ -611,7 +611,6 @@ device_initcall(um_pci_init);
 
 static void __exit um_pci_exit(void)
 {
-	irq_domain_remove(um_pci_msi_domain);
 	irq_domain_remove(um_pci_inner_domain);
 	pci_free_resource_list(&bridge->windows);
 	pci_free_host_bridge(bridge);
