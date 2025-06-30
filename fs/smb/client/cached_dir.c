@@ -617,7 +617,7 @@ static void cached_dir_put_work(struct work_struct *work)
 	queue_work(serverclose_wq, &cfid->close_work);
 }
 
-int cached_dir_lease_break(struct cifs_tcon *tcon, __u8 lease_key[16])
+bool cached_dir_lease_break(struct cifs_tcon *tcon, __u8 lease_key[16])
 {
 	struct cached_fids *cfids = tcon->cfids;
 	struct cached_fid *cfid;
