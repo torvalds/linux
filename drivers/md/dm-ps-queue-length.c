@@ -270,10 +270,7 @@ static int __init dm_ql_init(void)
 
 static void __exit dm_ql_exit(void)
 {
-	int r = dm_unregister_path_selector(&ql_ps);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
+	dm_unregister_path_selector(&ql_ps);
 }
 
 module_init(dm_ql_init);

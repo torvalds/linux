@@ -551,10 +551,7 @@ static int __init dm_hst_init(void)
 
 static void __exit dm_hst_exit(void)
 {
-	int r = dm_unregister_path_selector(&hst_ps);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
+	dm_unregister_path_selector(&hst_ps);
 }
 
 module_init(dm_hst_init);
