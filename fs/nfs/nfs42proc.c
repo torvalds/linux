@@ -1514,7 +1514,7 @@ static ssize_t _nfs42_proc_listxattrs(struct inode *inode, void *buf,
 
 
 	ret = -ENOMEM;
-	res.scratch = alloc_page(GFP_KERNEL);
+	res.scratch = folio_alloc(GFP_KERNEL, 0);
 	if (!res.scratch)
 		goto out;
 
@@ -1552,7 +1552,7 @@ out_free_pages:
 	}
 	kfree(pages);
 out_free_scratch:
-	__free_page(res.scratch);
+	folio_put(res.scratch);
 out:
 	return ret;
 

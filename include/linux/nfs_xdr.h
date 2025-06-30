@@ -1596,7 +1596,7 @@ struct nfs42_listxattrsargs {
 
 struct nfs42_listxattrsres {
 	struct nfs4_sequence_res	seq_res;
-	struct page			*scratch;
+	struct folio			*scratch;
 	void				*xattr_buf;
 	size_t				xattr_len;
 	u64				cookie;

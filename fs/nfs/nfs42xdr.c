@@ -1781,7 +1781,7 @@ static int nfs4_xdr_dec_listxattrs(struct rpc_rqst *rqstp,
 	struct compound_hdr hdr;
 	int status;
 
-	xdr_set_scratch_page(xdr, res->scratch);
+	xdr_set_scratch_folio(xdr, res->scratch);
 
 	status = decode_compound_hdr(xdr, &hdr);
 	if (status)
