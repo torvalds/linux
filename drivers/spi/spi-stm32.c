@@ -1474,6 +1474,8 @@ static int stm32_spi_prepare_rx_dma_mdma_chaining(struct stm32_spi *spi,
 						  struct dma_async_tx_descriptor **rx_dma_desc,
 						  struct dma_async_tx_descriptor **rx_mdma_desc)
 {
+	struct dma_async_tx_descriptor *_mdma_desc = *rx_mdma_desc;
+	struct dma_async_tx_descriptor *_dma_desc = *rx_dma_desc;
 	struct dma_slave_config rx_mdma_conf = {0};
 	u32 sram_period, nents = 0, spi_s_len;
 	struct sg_table dma_sgt, mdma_sgt;
@@ -1524,18 +1526,18 @@ static int stm32_spi_prepare_rx_dma_mdma_chaining(struct stm32_spi *spi,
 		}
 	}
 
-	*rx_dma_desc = dmaengine_prep_slave_sg(spi->dma_rx, dma_sgt.sgl,
-					       dma_sgt.nents, rx_dma_conf->direction,
-					       DMA_PREP_INTERRUPT);
+	_dma_desc = dmaengine_prep_slave_sg(spi->dma_rx, dma_sgt.sgl,
+					    dma_sgt.nents, rx_dma_conf->direction,
+					    DMA_PREP_INTERRUPT);
 	sg_free_table(&dma_sgt);
 
-	if (!rx_dma_desc)
+	if (!_dma_desc)
 		return -EINVAL;
 
 	/* Prepare MDMA slave_sg transfer MEM_TO_MEM (SRAM>DDR) */
 	ret = sg_alloc_table(&mdma_sgt, nents, GFP_ATOMIC);
 	if (ret) {
-		rx_dma_desc = NULL;
+		_dma_desc = NULL;
 		return ret;
 	}
 
@@ -1558,13 +1560,13 @@ static int stm32_spi_prepare_rx_dma_mdma_chaining(struct stm32_spi *spi,
 		}
 	}
 
-	*rx_mdma_desc = dmaengine_prep_slave_sg(spi->mdma_rx, mdma_sgt.sgl,
-						mdma_sgt.nents, rx_mdma_conf.direction,
-						DMA_PREP_INTERRUPT);
+	_mdma_desc = dmaengine_prep_slave_sg(spi->mdma_rx, mdma_sgt.sgl,
+					     mdma_sgt.nents, rx_mdma_conf.direction,
+					     DMA_PREP_INTERRUPT);
 	sg_free_table(&mdma_sgt);
 
-	if (!rx_mdma_desc) {
-		rx_dma_desc = NULL;
+	if (!_mdma_desc) {
+		_dma_desc = NULL;
 		return -EINVAL;
 	}
 
