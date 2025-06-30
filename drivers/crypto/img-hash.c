@@ -710,12 +710,12 @@ static int img_hash_cra_sha1_init(struct crypto_tfm *tfm)
 
 static int img_hash_cra_sha224_init(struct crypto_tfm *tfm)
 {
-	return img_hash_cra_init(tfm, "sha224-generic");
+	return img_hash_cra_init(tfm, "sha224-lib");
 }
 
 static int img_hash_cra_sha256_init(struct crypto_tfm *tfm)
 {
-	return img_hash_cra_init(tfm, "sha256-generic");
+	return img_hash_cra_init(tfm, "sha256-lib");
 }
 
 static void img_hash_cra_exit(struct crypto_tfm *tfm)

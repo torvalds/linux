@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Crypto API wrapper for the SHA-256 and SHA-224 library functions
+ * Crypto API support for SHA-224, SHA-256, HMAC-SHA224, and HMAC-SHA256
  *
  * Copyright (c) Jean-Luc Cooke <jlcooke@certainkey.com>
  * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * SHA224 Support Copyright 2007 Intel Corporation <jonathan.lynch@intel.com>
+ * Copyright 2025 Google LLC
  */
 #include <crypto/internal/hash.h>
-#include <crypto/internal/sha2.h>
+#include <crypto/sha2.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+
+/* SHA-224 */
 
 const u8 sha224_zero_message_hash[SHA224_DIGEST_SIZE] = {
 	0xd1, 0x4a, 0x02, 0x8c, 0x2a, 0x3a, 0x2b, 0xc9, 0x47,
@@ -20,6 +23,36 @@ const u8 sha224_zero_message_hash[SHA224_DIGEST_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(sha224_zero_message_hash);
 
+#define SHA224_CTX(desc) ((struct sha224_ctx *)shash_desc_ctx(desc))
+
+static int crypto_sha224_init(struct shash_desc *desc)
+{
+	sha224_init(SHA224_CTX(desc));
+	return 0;
+}
+
+static int crypto_sha224_update(struct shash_desc *desc,
+				const u8 *data, unsigned int len)
+{
+	sha224_update(SHA224_CTX(desc), data, len);
+	return 0;
+}
+
+static int crypto_sha224_final(struct shash_desc *desc, u8 *out)
+{
+	sha224_final(SHA224_CTX(desc), out);
+	return 0;
+}
+
+static int crypto_sha224_digest(struct shash_desc *desc,
+				const u8 *data, unsigned int len, u8 *out)
+{
+	sha224(data, len, out);
+	return 0;
+}
+
+/* SHA-256 */
+
 const u8 sha256_zero_message_hash[SHA256_DIGEST_SIZE] = {
 	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
 	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
@@ -28,256 +61,193 @@ const u8 sha256_zero_message_hash[SHA256_DIGEST_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(sha256_zero_message_hash);
 
+#define SHA256_CTX(desc) ((struct sha256_ctx *)shash_desc_ctx(desc))
+
 static int crypto_sha256_init(struct shash_desc *desc)
 {
-	sha256_block_init(shash_desc_ctx(desc));
+	sha256_init(SHA256_CTX(desc));
 	return 0;
 }
 
-static inline int crypto_sha256_update(struct shash_desc *desc, const u8 *data,
-				       unsigned int len, bool force_generic)
+static int crypto_sha256_update(struct shash_desc *desc,
+				const u8 *data, unsigned int len)
 {
-	struct crypto_sha256_state *sctx = shash_desc_ctx(desc);
-	int remain = len % SHA256_BLOCK_SIZE;
-
-	sctx->count += len - remain;
-	sha256_choose_blocks(sctx->state, data, len / SHA256_BLOCK_SIZE,
-			     force_generic, !force_generic);
-	return remain;
-}
-
-static int crypto_sha256_update_generic(struct shash_desc *desc, const u8 *data,
-					unsigned int len)
-{
-	return crypto_sha256_update(desc, data, len, true);
-}
-
-static int crypto_sha256_update_lib(struct shash_desc *desc, const u8 *data,
-				    unsigned int len)
-{
-	sha256_update(shash_desc_ctx(desc), data, len);
+	sha256_update(SHA256_CTX(desc), data, len);
 	return 0;
 }
 
-static int crypto_sha256_update_arch(struct shash_desc *desc, const u8 *data,
-				     unsigned int len)
+static int crypto_sha256_final(struct shash_desc *desc, u8 *out)
 {
-	return crypto_sha256_update(desc, data, len, false);
-}
-
-static int crypto_sha256_final_lib(struct shash_desc *desc, u8 *out)
-{
-	sha256_final(shash_desc_ctx(desc), out);
+	sha256_final(SHA256_CTX(desc), out);
 	return 0;
 }
 
-static __always_inline int crypto_sha256_finup(struct shash_desc *desc,
-					       const u8 *data,
-					       unsigned int len, u8 *out,
-					       bool force_generic)
-{
-	struct crypto_sha256_state *sctx = shash_desc_ctx(desc);
-	unsigned int remain = len;
-	u8 *buf;
-
-	if (len >= SHA256_BLOCK_SIZE)
-		remain = crypto_sha256_update(desc, data, len, force_generic);
-	sctx->count += remain;
-	buf = memcpy(sctx + 1, data + len - remain, remain);
-	sha256_finup(sctx, buf, remain, out,
-		     crypto_shash_digestsize(desc->tfm), force_generic,
-		     !force_generic);
-	return 0;
-}
-
-static int crypto_sha256_finup_generic(struct shash_desc *desc, const u8 *data,
-				       unsigned int len, u8 *out)
-{
-	return crypto_sha256_finup(desc, data, len, out, true);
-}
-
-static int crypto_sha256_finup_arch(struct shash_desc *desc, const u8 *data,
-				    unsigned int len, u8 *out)
-{
-	return crypto_sha256_finup(desc, data, len, out, false);
-}
-
-static int crypto_sha256_digest_generic(struct shash_desc *desc, const u8 *data,
-					unsigned int len, u8 *out)
-{
-	crypto_sha256_init(desc);
-	return crypto_sha256_finup_generic(desc, data, len, out);
-}
-
-static int crypto_sha256_digest_lib(struct shash_desc *desc, const u8 *data,
-				    unsigned int len, u8 *out)
+static int crypto_sha256_digest(struct shash_desc *desc,
+				const u8 *data, unsigned int len, u8 *out)
 {
 	sha256(data, len, out);
 	return 0;
 }
 
-static int crypto_sha256_digest_arch(struct shash_desc *desc, const u8 *data,
-				     unsigned int len, u8 *out)
-{
-	crypto_sha256_init(desc);
-	return crypto_sha256_finup_arch(desc, data, len, out);
-}
+/* HMAC-SHA224 */
 
-static int crypto_sha224_init(struct shash_desc *desc)
+#define HMAC_SHA224_KEY(tfm) ((struct hmac_sha224_key *)crypto_shash_ctx(tfm))
+#define HMAC_SHA224_CTX(desc) ((struct hmac_sha224_ctx *)shash_desc_ctx(desc))
+
+static int crypto_hmac_sha224_setkey(struct crypto_shash *tfm,
+				     const u8 *raw_key, unsigned int keylen)
 {
-	sha224_block_init(shash_desc_ctx(desc));
+	hmac_sha224_preparekey(HMAC_SHA224_KEY(tfm), raw_key, keylen);
 	return 0;
 }
 
-static int crypto_sha224_final_lib(struct shash_desc *desc, u8 *out)
+static int crypto_hmac_sha224_init(struct shash_desc *desc)
 {
-	sha224_final(shash_desc_ctx(desc), out);
+	hmac_sha224_init(HMAC_SHA224_CTX(desc), HMAC_SHA224_KEY(desc->tfm));
 	return 0;
 }
 
-static int crypto_sha256_import_lib(struct shash_desc *desc, const void *in)
+static int crypto_hmac_sha224_update(struct shash_desc *desc,
+				     const u8 *data, unsigned int len)
 {
-	struct __sha256_ctx *sctx = shash_desc_ctx(desc);
-	const u8 *p = in;
-
-	memcpy(sctx, p, sizeof(*sctx));
-	p += sizeof(*sctx);
-	sctx->bytecount += *p;
+	hmac_sha224_update(HMAC_SHA224_CTX(desc), data, len);
 	return 0;
 }
 
-static int crypto_sha256_export_lib(struct shash_desc *desc, void *out)
+static int crypto_hmac_sha224_final(struct shash_desc *desc, u8 *out)
 {
-	struct __sha256_ctx *sctx0 = shash_desc_ctx(desc);
-	struct __sha256_ctx sctx = *sctx0;
-	unsigned int partial;
-	u8 *p = out;
-
-	partial = sctx.bytecount % SHA256_BLOCK_SIZE;
-	sctx.bytecount -= partial;
-	memcpy(p, &sctx, sizeof(sctx));
-	p += sizeof(sctx);
-	*p = partial;
+	hmac_sha224_final(HMAC_SHA224_CTX(desc), out);
 	return 0;
 }
+
+static int crypto_hmac_sha224_digest(struct shash_desc *desc,
+				     const u8 *data, unsigned int len,
+				     u8 *out)
+{
+	hmac_sha224(HMAC_SHA224_KEY(desc->tfm), data, len, out);
+	return 0;
+}
+
+/* HMAC-SHA256 */
+
+#define HMAC_SHA256_KEY(tfm) ((struct hmac_sha256_key *)crypto_shash_ctx(tfm))
+#define HMAC_SHA256_CTX(desc) ((struct hmac_sha256_ctx *)shash_desc_ctx(desc))
+
+static int crypto_hmac_sha256_setkey(struct crypto_shash *tfm,
+				     const u8 *raw_key, unsigned int keylen)
+{
+	hmac_sha256_preparekey(HMAC_SHA256_KEY(tfm), raw_key, keylen);
+	return 0;
+}
+
+static int crypto_hmac_sha256_init(struct shash_desc *desc)
+{
+	hmac_sha256_init(HMAC_SHA256_CTX(desc), HMAC_SHA256_KEY(desc->tfm));
+	return 0;
+}
+
+static int crypto_hmac_sha256_update(struct shash_desc *desc,
+				     const u8 *data, unsigned int len)
+{
+	hmac_sha256_update(HMAC_SHA256_CTX(desc), data, len);
+	return 0;
+}
+
+static int crypto_hmac_sha256_final(struct shash_desc *desc, u8 *out)
+{
+	hmac_sha256_final(HMAC_SHA256_CTX(desc), out);
+	return 0;
+}
+
+static int crypto_hmac_sha256_digest(struct shash_desc *desc,
+				     const u8 *data, unsigned int len,
+				     u8 *out)
+{
+	hmac_sha256(HMAC_SHA256_KEY(desc->tfm), data, len, out);
+	return 0;
+}
+
+/* Algorithm definitions */
 
 static struct shash_alg algs[] = {
 	{
-		.base.cra_name		= "sha256",
-		.base.cra_driver_name	= "sha256-generic",
-		.base.cra_priority	= 100,
-		.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
-					  CRYPTO_AHASH_ALG_FINUP_MAX,
-		.base.cra_blocksize	= SHA256_BLOCK_SIZE,
-		.base.cra_module	= THIS_MODULE,
-		.digestsize		= SHA256_DIGEST_SIZE,
-		.init			= crypto_sha256_init,
-		.update			= crypto_sha256_update_generic,
-		.finup			= crypto_sha256_finup_generic,
-		.digest			= crypto_sha256_digest_generic,
-		.descsize		= sizeof(struct crypto_sha256_state),
-	},
-	{
 		.base.cra_name		= "sha224",
-		.base.cra_driver_name	= "sha224-generic",
-		.base.cra_priority	= 100,
-		.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
-					  CRYPTO_AHASH_ALG_FINUP_MAX,
+		.base.cra_driver_name	= "sha224-lib",
+		.base.cra_priority	= 300,
 		.base.cra_blocksize	= SHA224_BLOCK_SIZE,
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= SHA224_DIGEST_SIZE,
 		.init			= crypto_sha224_init,
-		.update			= crypto_sha256_update_generic,
-		.finup			= crypto_sha256_finup_generic,
-		.descsize		= sizeof(struct crypto_sha256_state),
+		.update			= crypto_sha224_update,
+		.final			= crypto_sha224_final,
+		.digest			= crypto_sha224_digest,
+		.descsize		= sizeof(struct sha224_ctx),
 	},
 	{
 		.base.cra_name		= "sha256",
 		.base.cra_driver_name	= "sha256-lib",
+		.base.cra_priority	= 300,
 		.base.cra_blocksize	= SHA256_BLOCK_SIZE,
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= SHA256_DIGEST_SIZE,
 		.init			= crypto_sha256_init,
-		.update			= crypto_sha256_update_lib,
-		.final			= crypto_sha256_final_lib,
-		.digest			= crypto_sha256_digest_lib,
+		.update			= crypto_sha256_update,
+		.final			= crypto_sha256_final,
+		.digest			= crypto_sha256_digest,
 		.descsize		= sizeof(struct sha256_ctx),
-		.statesize		= sizeof(struct crypto_sha256_state) +
-					  SHA256_BLOCK_SIZE + 1,
-		.import			= crypto_sha256_import_lib,
-		.export			= crypto_sha256_export_lib,
 	},
 	{
-		.base.cra_name		= "sha224",
-		.base.cra_driver_name	= "sha224-lib",
+		.base.cra_name		= "hmac(sha224)",
+		.base.cra_driver_name	= "hmac-sha224-lib",
+		.base.cra_priority	= 300,
 		.base.cra_blocksize	= SHA224_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct hmac_sha224_key),
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= SHA224_DIGEST_SIZE,
-		.init			= crypto_sha224_init,
-		.update			= crypto_sha256_update_lib,
-		.final			= crypto_sha224_final_lib,
-		.descsize		= sizeof(struct sha224_ctx),
-		.statesize		= sizeof(struct crypto_sha256_state) +
-					  SHA256_BLOCK_SIZE + 1,
-		.import			= crypto_sha256_import_lib,
-		.export			= crypto_sha256_export_lib,
+		.setkey			= crypto_hmac_sha224_setkey,
+		.init			= crypto_hmac_sha224_init,
+		.update			= crypto_hmac_sha224_update,
+		.final			= crypto_hmac_sha224_final,
+		.digest			= crypto_hmac_sha224_digest,
+		.descsize		= sizeof(struct hmac_sha224_ctx),
 	},
 	{
-		.base.cra_name		= "sha256",
-		.base.cra_driver_name	= "sha256-" __stringify(ARCH),
+		.base.cra_name		= "hmac(sha256)",
+		.base.cra_driver_name	= "hmac-sha256-lib",
 		.base.cra_priority	= 300,
-		.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
-					  CRYPTO_AHASH_ALG_FINUP_MAX,
 		.base.cra_blocksize	= SHA256_BLOCK_SIZE,
+		.base.cra_ctxsize	= sizeof(struct hmac_sha256_key),
 		.base.cra_module	= THIS_MODULE,
 		.digestsize		= SHA256_DIGEST_SIZE,
-		.init			= crypto_sha256_init,
-		.update			= crypto_sha256_update_arch,
-		.finup			= crypto_sha256_finup_arch,
-		.digest			= crypto_sha256_digest_arch,
-		.descsize		= sizeof(struct crypto_sha256_state),
-	},
-	{
-		.base.cra_name		= "sha224",
-		.base.cra_driver_name	= "sha224-" __stringify(ARCH),
-		.base.cra_priority	= 300,
-		.base.cra_flags		= CRYPTO_AHASH_ALG_BLOCK_ONLY |
-					  CRYPTO_AHASH_ALG_FINUP_MAX,
-		.base.cra_blocksize	= SHA224_BLOCK_SIZE,
-		.base.cra_module	= THIS_MODULE,
-		.digestsize		= SHA224_DIGEST_SIZE,
-		.init			= crypto_sha224_init,
-		.update			= crypto_sha256_update_arch,
-		.finup			= crypto_sha256_finup_arch,
-		.descsize		= sizeof(struct crypto_sha256_state),
+		.setkey			= crypto_hmac_sha256_setkey,
+		.init			= crypto_hmac_sha256_init,
+		.update			= crypto_hmac_sha256_update,
+		.final			= crypto_hmac_sha256_final,
+		.digest			= crypto_hmac_sha256_digest,
+		.descsize		= sizeof(struct hmac_sha256_ctx),
 	},
 };
 
-static unsigned int num_algs;
-
 static int __init crypto_sha256_mod_init(void)
 {
-	/* register the arch flavours only if they differ from generic */
-	num_algs = ARRAY_SIZE(algs);
-	BUILD_BUG_ON(ARRAY_SIZE(algs) <= 2);
-	if (!sha256_is_arch_optimized())
-		num_algs -= 2;
 	return crypto_register_shashes(algs, ARRAY_SIZE(algs));
 }
 module_init(crypto_sha256_mod_init);
 
 static void __exit crypto_sha256_mod_exit(void)
 {
-	crypto_unregister_shashes(algs, num_algs);
+	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 }
 module_exit(crypto_sha256_mod_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Crypto API wrapper for the SHA-256 and SHA-224 library functions");
+MODULE_DESCRIPTION("Crypto API support for SHA-224, SHA-256, HMAC-SHA224, and HMAC-SHA256");
 
-MODULE_ALIAS_CRYPTO("sha256");
-MODULE_ALIAS_CRYPTO("sha256-generic");
-MODULE_ALIAS_CRYPTO("sha256-" __stringify(ARCH));
 MODULE_ALIAS_CRYPTO("sha224");
-MODULE_ALIAS_CRYPTO("sha224-generic");
-MODULE_ALIAS_CRYPTO("sha224-" __stringify(ARCH));
+MODULE_ALIAS_CRYPTO("sha224-lib");
+MODULE_ALIAS_CRYPTO("sha256");
+MODULE_ALIAS_CRYPTO("sha256-lib");
+MODULE_ALIAS_CRYPTO("hmac(sha224)");
+MODULE_ALIAS_CRYPTO("hmac-sha224-lib");
+MODULE_ALIAS_CRYPTO("hmac(sha256)");
+MODULE_ALIAS_CRYPTO("hmac-sha256-lib");
