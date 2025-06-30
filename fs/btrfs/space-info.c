@@ -615,7 +615,7 @@ static void __btrfs_dump_space_info(const struct btrfs_fs_info *fs_info,
 
 void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 			   struct btrfs_space_info *info, u64 bytes,
-			   int dump_block_groups)
+			   bool dump_block_groups)
 {
 	struct btrfs_block_group *cache;
 	u64 total_avail = 0;
@@ -1887,7 +1887,7 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 					      space_info->flags, orig_bytes, 1);
 
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, space_info, orig_bytes, 0);
+			btrfs_dump_space_info(fs_info, space_info, orig_bytes, false);
 	}
 	return ret;
 }
@@ -1918,7 +1918,7 @@ int btrfs_reserve_data_bytes(struct btrfs_space_info *space_info, u64 bytes,
 		trace_btrfs_space_reservation(fs_info, "space_info:enospc",
 					      space_info->flags, bytes, 1);
 		if (btrfs_test_opt(fs_info, ENOSPC_DEBUG))
-			btrfs_dump_space_info(fs_info, space_info, bytes, 0);
+			btrfs_dump_space_info(fs_info, space_info, bytes, false);
 	}
 	return ret;
 }
