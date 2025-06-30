@@ -228,6 +228,7 @@ struct cec_pin {
 	u32				timer_max_overrun;
 	u32				timer_sum_overrun;
 
+	bool				rx_no_low_drive;
 	u32				tx_custom_low_usecs;
 	u32				tx_custom_high_usecs;
 	u32				tx_glitch_low_usecs;

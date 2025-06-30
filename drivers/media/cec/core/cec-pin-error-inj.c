@@ -91,6 +91,7 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 	if (!strcmp(token, "clear")) {
 		memset(pin->error_inj, 0, sizeof(pin->error_inj));
 		pin->rx_toggle = pin->tx_toggle = false;
+		pin->rx_no_low_drive = false;
 		pin->tx_ignore_nack_until_eom = false;
 		pin->tx_custom_pulse = false;
 		pin->tx_custom_low_usecs = CEC_TIM_CUSTOM_DEFAULT;
@@ -105,6 +106,7 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 		for (i = 0; i <= CEC_ERROR_INJ_OP_ANY; i++)
 			pin->error_inj[i] &= ~CEC_ERROR_INJ_RX_MASK;
 		pin->rx_toggle = false;
+		pin->rx_no_low_drive = false;
 		return true;
 	}
 	if (!strcmp(token, "tx-clear")) {
@@ -119,6 +121,10 @@ bool cec_pin_error_inj_parse_line(struct cec_adapter *adap, char *line)
 		pin->tx_glitch_high_usecs = CEC_TIM_GLITCH_DEFAULT;
 		pin->tx_glitch_falling_edge = false;
 		pin->tx_glitch_rising_edge = false;
+		return true;
+	}
+	if (!strcmp(token, "rx-no-low-drive")) {
+		pin->rx_no_low_drive = true;
 		return true;
 	}
 	if (!strcmp(token, "tx-ignore-nack-until-eom")) {
@@ -305,6 +311,9 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 	seq_puts(sf, "#   <op> rx-clear  clear all rx error injections for <op>\n");
 	seq_puts(sf, "#   <op> tx-clear  clear all tx error injections for <op>\n");
 	seq_puts(sf, "#\n");
+	seq_puts(sf, "# RX error injection settings:\n");
+	seq_puts(sf, "#   rx-no-low-drive                    do not generate low-drive pulses\n");
+	seq_puts(sf, "#\n");
 	seq_puts(sf, "# RX error injection:\n");
 	seq_puts(sf, "#   <op>[,<mode>] rx-nack              NACK the message instead of sending an ACK\n");
 	seq_puts(sf, "#   <op>[,<mode>] rx-low-drive <bit>   force a low-drive condition at this bit position\n");
@@ -368,6 +377,8 @@ int cec_pin_error_inj_show(struct cec_adapter *adap, struct seq_file *sf)
 		}
 	}
 
+	if (pin->rx_no_low_drive)
+		seq_puts(sf, "rx-no-low-drive\n");
 	if (pin->tx_ignore_nack_until_eom)
 		seq_puts(sf, "tx-ignore-nack-until-eom\n");
 	if (pin->tx_glitch_falling_edge)

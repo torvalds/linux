@@ -797,7 +797,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		 * Go to low drive state when the total bit time is
 		 * too short.
 		 */
-		if (delta < CEC_TIM_DATA_BIT_TOTAL_MIN) {
+		if (delta < CEC_TIM_DATA_BIT_TOTAL_MIN && !pin->rx_no_low_drive) {
 			if (!pin->rx_data_bit_too_short_cnt++) {
 				pin->rx_data_bit_too_short_ts = ktime_to_ns(pin->ts);
 				pin->rx_data_bit_too_short_delta = delta;
