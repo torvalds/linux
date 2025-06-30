@@ -100,9 +100,10 @@ EXPORT_SYMBOL(vfs_fileattr_get);
 int copy_fsxattr_to_user(const struct fileattr *fa, struct fsxattr __user *ufa)
 {
 	struct fsxattr xfa;
+	__u32 mask = FS_XFLAGS_MASK;
 
 	memset(&xfa, 0, sizeof(xfa));
-	xfa.fsx_xflags = fa->fsx_xflags;
+	xfa.fsx_xflags = fa->fsx_xflags & mask;
 	xfa.fsx_extsize = fa->fsx_extsize;
 	xfa.fsx_nextents = fa->fsx_nextents;
 	xfa.fsx_projid = fa->fsx_projid;
@@ -119,11 +120,16 @@ static int copy_fsxattr_from_user(struct fileattr *fa,
 				  struct fsxattr __user *ufa)
 {
 	struct fsxattr xfa;
+	__u32 mask = FS_XFLAGS_MASK;
 
 	if (copy_from_user(&xfa, ufa, sizeof(xfa)))
 		return -EFAULT;
 
+	if (xfa.fsx_xflags & ~mask)
+		return -EOPNOTSUPP;
+
 	fileattr_fill_xflags(fa, xfa.fsx_xflags);
+	fa->fsx_xflags &= ~FS_XFLAG_RDONLY_MASK;
 	fa->fsx_extsize = xfa.fsx_extsize;
 	fa->fsx_nextents = xfa.fsx_nextents;
 	fa->fsx_projid = xfa.fsx_projid;
