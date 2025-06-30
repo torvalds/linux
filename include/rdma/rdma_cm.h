@@ -35,7 +35,9 @@ enum rdma_cm_event_type {
 	RDMA_CM_EVENT_ADDR_CHANGE,
 	RDMA_CM_EVENT_TIMEWAIT_EXIT,
 	RDMA_CM_EVENT_ADDRINFO_RESOLVED,
-	RDMA_CM_EVENT_ADDRINFO_ERROR
+	RDMA_CM_EVENT_ADDRINFO_ERROR,
+	RDMA_CM_EVENT_USER,
+	RDMA_CM_EVENT_INTERNAL,
 };
 
 const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
@@ -98,6 +100,7 @@ struct rdma_cm_event {
 	union {
 		struct rdma_conn_param	conn;
 		struct rdma_ud_param	ud;
+		u64			arg;
 	} param;
 	struct rdma_ucm_ece ece;
 };

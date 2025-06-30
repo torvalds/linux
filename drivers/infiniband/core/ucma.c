@@ -1745,6 +1745,55 @@ err_unlock:
 	return ret;
 }
 
+static ssize_t ucma_write_cm_event(struct ucma_file *file,
+				   const char __user *inbuf, int in_len,
+				   int out_len)
+{
+	struct rdma_ucm_write_cm_event cmd;
+	struct rdma_cm_event event = {};
+	struct ucma_event *uevent;
+	struct ucma_context *ctx;
+	int ret = 0;
+
+	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
+		return -EFAULT;
+
+	if ((cmd.event != RDMA_CM_EVENT_USER) &&
+	    (cmd.event != RDMA_CM_EVENT_INTERNAL))
+		return -EINVAL;
+
+	ctx = ucma_get_ctx(file, cmd.id);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	event.event = cmd.event;
+	event.status = cmd.status;
+	event.param.arg = cmd.param.arg;
+
+	uevent = kzalloc(sizeof(*uevent), GFP_KERNEL);
+	if (!uevent) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	uevent->ctx = ctx;
+	uevent->resp.uid = ctx->uid;
+	uevent->resp.id = ctx->id;
+	uevent->resp.event = event.event;
+	uevent->resp.status = event.status;
+	memcpy(uevent->resp.param.arg32, &event.param.arg,
+	       sizeof(event.param.arg));
+
+	mutex_lock(&ctx->file->mut);
+	list_add_tail(&uevent->list, &ctx->file->event_list);
+	mutex_unlock(&ctx->file->mut);
+	wake_up_interruptible(&ctx->file->poll_wait);
+
+out:
+	ucma_put_ctx(ctx);
+	return ret;
+}
+
 static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 				   const char __user *inbuf,
 				   int in_len, int out_len) = {
@@ -1771,7 +1820,8 @@ static ssize_t (*ucma_cmd_table[])(struct ucma_file *file,
 	[RDMA_USER_CM_CMD_BIND]		 = ucma_bind,
 	[RDMA_USER_CM_CMD_RESOLVE_ADDR]	 = ucma_resolve_addr,
 	[RDMA_USER_CM_CMD_JOIN_MCAST]	 = ucma_join_multicast,
-	[RDMA_USER_CM_CMD_RESOLVE_IB_SERVICE] = ucma_resolve_ib_service
+	[RDMA_USER_CM_CMD_RESOLVE_IB_SERVICE] = ucma_resolve_ib_service,
+	[RDMA_USER_CM_CMD_WRITE_CM_EVENT] = ucma_write_cm_event,
 };
 
 static ssize_t ucma_write(struct file *filp, const char __user *buf,
