@@ -9,6 +9,10 @@
 #include <linux/io_uring_types.h>
 #include <uapi/linux/io_uring/mock_file.h>
 
+struct io_mock_file {
+	size_t size;
+};
+
 #define IO_VALID_COPY_CMD_FLAGS		IORING_MOCK_COPY_FROM
 
 static int io_copy_regbuf(struct iov_iter *reg_iter, void __user *ubuf)
@@ -82,18 +86,59 @@ static int io_mock_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	return -ENOTSUPP;
 }
 
+static ssize_t io_mock_read_iter(struct kiocb *iocb, struct iov_iter *to)
+{
+	struct io_mock_file *mf = iocb->ki_filp->private_data;
+	size_t len = iov_iter_count(to);
+
+	if (iocb->ki_pos + len > mf->size)
+		return -EINVAL;
+	return iov_iter_zero(len, to);
+}
+
+static ssize_t io_mock_write_iter(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct io_mock_file *mf = iocb->ki_filp->private_data;
+	size_t len = iov_iter_count(from);
+
+	if (iocb->ki_pos + len > mf->size)
+		return -EINVAL;
+	iov_iter_advance(from, len);
+	return len;
+}
+
+static loff_t io_mock_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct io_mock_file *mf = file->private_data;
+
+	return fixed_size_llseek(file, offset, whence, mf->size);
+}
+
+static int io_mock_release(struct inode *inode, struct file *file)
+{
+	struct io_mock_file *mf = file->private_data;
+
+	kfree(mf);
+	return 0;
+}
+
 static const struct file_operations io_mock_fops = {
 	.owner		= THIS_MODULE,
+	.release	= io_mock_release,
 	.uring_cmd	= io_mock_cmd,
+	.read_iter	= io_mock_read_iter,
+	.write_iter	= io_mock_write_iter,
+	.llseek		= io_mock_llseek,
 };
 
 static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
 	const struct io_uring_sqe *sqe = cmd->sqe;
 	struct io_uring_mock_create mc, __user *uarg;
+	struct io_mock_file *mf = NULL;
 	struct file *file = NULL;
 	size_t uarg_size;
-	int fd, ret;
+	int fd = -1, ret;
 
 	/*
 	 * It's a testing only driver that allows exercising edge cases
@@ -114,17 +159,27 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 		return -EFAULT;
 	if (!mem_is_zero(mc.__resv, sizeof(mc.__resv)) || mc.flags)
 		return -EINVAL;
+	if (mc.file_size > SZ_1G)
+		return -EINVAL;
+	mf = kzalloc(sizeof(*mf), GFP_KERNEL_ACCOUNT);
+	if (!mf)
+		return -ENOMEM;
 
-	fd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
+	ret = fd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
 	if (fd < 0)
-		return fd;
+		goto fail;
 
+	mf->size = mc.file_size;
 	file = anon_inode_create_getfile("[io_uring_mock]", &io_mock_fops,
-					 NULL, O_RDWR | O_CLOEXEC, NULL);
+					 mf, O_RDWR | O_CLOEXEC, NULL);
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 		goto fail;
 	}
+
+	file->f_mode |= FMODE_READ | FMODE_CAN_READ |
+			FMODE_WRITE | FMODE_CAN_WRITE |
+			FMODE_LSEEK;
 
 	mc.out_fd = fd;
 	if (copy_to_user(uarg, &mc, uarg_size)) {
@@ -136,7 +191,9 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 	fd_install(fd, file);
 	return 0;
 fail:
-	put_unused_fd(fd);
+	if (fd >= 0)
+		put_unused_fd(fd);
+	kfree(mf);
 	return ret;
 }
 
