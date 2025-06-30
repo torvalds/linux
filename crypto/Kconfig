@@ -1422,9 +1422,6 @@ config CRYPTO_USER_API_ENABLE_OBSOLETE
 
 endmenu
 
-config CRYPTO_HASH_INFO
-	bool
-
 if !KMSAN # avoid false positives from assembly
 if ARM
 source "arch/arm/crypto/Kconfig"

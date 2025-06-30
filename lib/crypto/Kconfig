@@ -2,6 +2,9 @@
 
 menu "Crypto library routines"
 
+config CRYPTO_HASH_INFO
+	bool
+
 config CRYPTO_LIB_UTILS
 	tristate
 
