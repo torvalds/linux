@@ -9101,13 +9101,8 @@ err:
 
 static void ath12k_drain_tx(struct ath12k_hw *ah)
 {
-	struct ath12k *ar = ah->radio;
+	struct ath12k *ar;
 	int i;
-
-	if (ath12k_ftm_mode) {
-		ath12k_err(ar->ab, "fail to start mac operations in ftm mode\n");
-		return;
-	}
 
 	lockdep_assert_wiphy(ah->hw->wiphy);
 
@@ -9120,6 +9115,9 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k *ar;
 	int ret, i;
+
+	if (ath12k_ftm_mode)
+		return -EPERM;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
