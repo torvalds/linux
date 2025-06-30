@@ -3,7 +3,6 @@
 #ifndef _CRYPTO_INTERNAL_SHA2_H
 #define _CRYPTO_INTERNAL_SHA2_H
 
-#include <crypto/internal/simd.h>
 #include <crypto/sha2.h>
 #include <linux/compiler_attributes.h>
 #include <linux/string.h>
@@ -22,8 +21,6 @@ void sha256_blocks_generic(u32 state[SHA256_STATE_WORDS],
 			   const u8 *data, size_t nblocks);
 void sha256_blocks_arch(u32 state[SHA256_STATE_WORDS],
 			const u8 *data, size_t nblocks);
-void sha256_blocks_simd(u32 state[SHA256_STATE_WORDS],
-			const u8 *data, size_t nblocks);
 
 static __always_inline void sha256_choose_blocks(
 	u32 state[SHA256_STATE_WORDS], const u8 *data, size_t nblocks,
@@ -31,9 +28,6 @@ static __always_inline void sha256_choose_blocks(
 {
 	if (!IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_SHA256) || force_generic)
 		sha256_blocks_generic(state, data, nblocks);
-	else if (IS_ENABLED(CONFIG_CRYPTO_ARCH_HAVE_LIB_SHA256_SIMD) &&
-		 (force_simd || crypto_simd_usable()))
-		sha256_blocks_simd(state, data, nblocks);
 	else
 		sha256_blocks_arch(state, data, nblocks);
 }

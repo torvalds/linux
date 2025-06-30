@@ -150,14 +150,6 @@ config CRYPTO_ARCH_HAVE_LIB_SHA256
 	  Declares whether the architecture provides an arch-specific
 	  accelerated implementation of the SHA-256 library interface.
 
-config CRYPTO_ARCH_HAVE_LIB_SHA256_SIMD
-	bool
-	help
-	  Declares whether the architecture provides an arch-specific
-	  accelerated implementation of the SHA-256 library interface
-	  that is SIMD-based and therefore not usable in hardirq
-	  context.
-
 config CRYPTO_LIB_SHA256_GENERIC
 	tristate
 	default CRYPTO_LIB_SHA256 if !CRYPTO_ARCH_HAVE_LIB_SHA256

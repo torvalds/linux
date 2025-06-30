@@ -11,8 +11,8 @@
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(have_sha512_insns);
 
-asmlinkage void sha512_blocks_arch(struct sha512_block_state *state,
-				   const u8 *data, size_t nblocks);
+asmlinkage void sha512_block_data_order(struct sha512_block_state *state,
+					const u8 *data, size_t nblocks);
 asmlinkage size_t __sha512_ce_transform(struct sha512_block_state *state,
 					const u8 *data, size_t nblocks);
 
@@ -32,7 +32,7 @@ static void sha512_blocks(struct sha512_block_state *state,
 			nblocks = rem;
 		} while (nblocks);
 	} else {
-		sha512_blocks_arch(state, data, nblocks);
+		sha512_block_data_order(state, data, nblocks);
 	}
 }
 
