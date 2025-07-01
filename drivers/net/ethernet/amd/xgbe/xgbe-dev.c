@@ -2850,9 +2850,19 @@ static void xgbe_config_jumbo_enable(struct xgbe_prv_data *pdata)
 {
 	unsigned int val;
 
-	val = (pdata->netdev->mtu > XGMAC_STD_PACKET_MTU) ? 1 : 0;
-
-	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, JE, val);
+	if (pdata->netdev->mtu > XGMAC_JUMBO_PACKET_MTU) {
+		XGMAC_IOWRITE_BITS(pdata, MAC_RCR, GPSL,
+				   XGMAC_GIANT_PACKET_MTU);
+		XGMAC_IOWRITE_BITS(pdata, MAC_RCR, WD, 1);
+		XGMAC_IOWRITE_BITS(pdata, MAC_TCR, JD, 1);
+		XGMAC_IOWRITE_BITS(pdata, MAC_RCR, GPSLCE, 1);
+	} else {
+		val = pdata->netdev->mtu > XGMAC_STD_PACKET_MTU ? 1 : 0;
+		XGMAC_IOWRITE_BITS(pdata, MAC_RCR, GPSLCE, 0);
+		XGMAC_IOWRITE_BITS(pdata, MAC_RCR, WD, 0);
+		XGMAC_IOWRITE_BITS(pdata, MAC_TCR, JD, 0);
+		XGMAC_IOWRITE_BITS(pdata, MAC_RCR, JE, val);
+	}
 }
 
 static void xgbe_config_mac_speed(struct xgbe_prv_data *pdata)
