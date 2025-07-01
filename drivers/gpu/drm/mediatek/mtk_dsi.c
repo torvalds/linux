@@ -1002,6 +1002,12 @@ static int mtk_dsi_host_attach(struct mipi_dsi_host *host,
 			return PTR_ERR(dsi->next_bridge);
 	}
 
+	/*
+	 * set flag to request the DSI host bridge be pre-enabled before device bridge
+	 * in the chain, so the DSI host is ready when the device bridge is pre-enabled
+	 */
+	dsi->next_bridge->pre_enable_prev_first = true;
+
 	drm_bridge_add(&dsi->bridge);
 
 	ret = component_add(host->dev, &mtk_dsi_component_ops);
