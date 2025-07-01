@@ -1196,13 +1196,14 @@ static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb
 static int amdgpu_display_gem_fb_verify_and_init(struct drm_device *dev,
 						 struct amdgpu_framebuffer *rfb,
 						 struct drm_file *file_priv,
+						 const struct drm_format_info *info,
 						 const struct drm_mode_fb_cmd2 *mode_cmd,
 						 struct drm_gem_object *obj)
 {
 	int ret;
 
 	rfb->base.obj[0] = obj;
-	drm_helper_mode_fill_fb_struct(dev, &rfb->base, NULL, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, info, mode_cmd);
 	/* Verify that the modifier is supported. */
 	if (!drm_any_plane_has_format(dev, mode_cmd->pixel_format,
 				      mode_cmd->modifier[0])) {
@@ -1331,7 +1332,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	}
 
 	ret = amdgpu_display_gem_fb_verify_and_init(dev, amdgpu_fb, file_priv,
-						    mode_cmd, obj);
+						    info, mode_cmd, obj);
 	if (ret) {
 		kfree(amdgpu_fb);
 		drm_gem_object_put(obj);
