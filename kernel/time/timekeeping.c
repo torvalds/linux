@@ -26,6 +26,8 @@
 #include <linux/audit.h>
 #include <linux/random.h>
 
+#include <vdso/auxclock.h>
+
 #include "tick-internal.h"
 #include "ntp_internal.h"
 #include "timekeeping_internal.h"
@@ -2876,8 +2878,8 @@ static int aux_get_res(clockid_t id, struct timespec64 *tp)
 	if (!clockid_aux_valid(id))
 		return -ENODEV;
 
-	tp->tv_sec = 0;
-	tp->tv_nsec = 1;
+	tp->tv_sec = aux_clock_resolution_ns() / NSEC_PER_SEC;
+	tp->tv_nsec = aux_clock_resolution_ns() % NSEC_PER_SEC;
 	return 0;
 }
 
