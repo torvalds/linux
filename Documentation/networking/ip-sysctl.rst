@@ -3326,31 +3326,27 @@ pf_enable - INTEGER
 	https://datatracker.ietf.org/doc/draft-ietf-tsvwg-sctp-failover for
 	details.
 
-	1: Enable pf.
+	Possible values:
 
-	0: Disable pf.
+	- 1: Enable pf.
+	- 0: Disable pf.
 
 	Default: 1
 
 pf_expose - INTEGER
 	Unset or enable/disable pf (pf is short for potentially failed) state
 	exposure.  Applications can control the exposure of the PF path state
-	in the SCTP_PEER_ADDR_CHANGE event and the SCTP_GET_PEER_ADDR_INFO
-	sockopt.   When it's unset, no SCTP_PEER_ADDR_CHANGE event with
-	SCTP_ADDR_PF state will be sent and a SCTP_PF-state transport info
-	can be got via SCTP_GET_PEER_ADDR_INFO sockopt;  When it's enabled,
-	a SCTP_PEER_ADDR_CHANGE event will be sent for a transport becoming
-	SCTP_PF state and a SCTP_PF-state transport info can be got via
-	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's disabled, no
-	SCTP_PEER_ADDR_CHANGE event will be sent and it returns -EACCES when
-	trying to get a SCTP_PF-state transport info via SCTP_GET_PEER_ADDR_INFO
-	sockopt.
+	in the SCTP_PEER_ADDR_CHANGE event and access of SCTP_PF-state
+	transport info via SCTP_GET_PEER_ADDR_INFO sockopt.
 
-	0: Unset pf state exposure, Compatible with old applications.
+	Possible values:
 
-	1: Disable pf state exposure.
-
-	2: Enable pf state exposure.
+	- 0: Unset pf state exposure (compatible with old applications). No
+	  event will be sent but the transport info can be queried.
+	- 1: Disable pf state exposure. No event will be sent and trying to
+	  obtain transport info will return -EACCESS.
+	- 2: Enable pf state exposure. The event will be sent for a transport
+	  becoming SCTP_PF state and transport info can be obtained.
 
 	Default: 0
 
