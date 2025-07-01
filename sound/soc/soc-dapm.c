@@ -2715,7 +2715,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 
 static DEVICE_ATTR_RO(dapm_widget);
 
-struct attribute *soc_dapm_dev_attrs[] = {
+struct attribute *snd_soc_dapm_dev_attrs[] = {
 	&dev_attr_dapm_widget.attr,
 	NULL
 };

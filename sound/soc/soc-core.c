@@ -112,7 +112,7 @@ static umode_t soc_dev_attr_is_visible(struct kobject *kobj,
 }
 
 static const struct attribute_group soc_dapm_dev_group = {
-	.attrs = soc_dapm_dev_attrs,
+	.attrs = snd_soc_dapm_dev_attrs,
 	.is_visible = soc_dev_attr_is_visible,
 };
 
