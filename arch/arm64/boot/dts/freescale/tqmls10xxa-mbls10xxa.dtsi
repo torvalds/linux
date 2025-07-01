@@ -89,6 +89,7 @@
 		reg = <0x70>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		vdd-supply = <&reg_3v3>;
 
 		i2c@0 {
 			reg = <0x0>;
