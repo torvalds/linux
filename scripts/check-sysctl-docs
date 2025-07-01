@@ -130,6 +130,14 @@ curtable && /\.procname[\t ]*=[\t ]*".+"/ {
     file[curentry] = FILENAME
 }
 
+curtable && /UCOUNT_ENTRY.*/ {
+    match($0, /UCOUNT_ENTRY\("([^"]+)"\)/, names)
+    curentry = names[1]
+    if (debug) print "Adding entry " curentry " to table " curtable
+    entries[curtable][curentry]++
+    file[curentry] = FILENAME
+}
+
 /register_sysctl.*/ {
     match($0, /register_sysctl(|_init|_sz)\("([^"]+)" *, *([^,)]+)/, tables)
     if (debug) print "Registering table " tables[3] " at " tables[2]
