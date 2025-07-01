@@ -2140,6 +2140,8 @@ static int ata_eh_link_set_lpm(struct ata_link *link,
 	if (WARN_ON_ONCE(policy == ATA_LPM_UNKNOWN))
 		return 0;
 
+	ata_link_dbg(link, "Set LPM policy: %d -> %d\n", old_policy, policy);
+
 	/*
 	 * DIPM is enabled only for ATA_LPM_MIN_POWER,
 	 * ATA_LPM_MIN_POWER_WITH_PARTIAL, and ATA_LPM_MED_POWER_WITH_DIPM, as
