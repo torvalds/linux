@@ -864,7 +864,7 @@ enum loongarch_regset {
 
 static const struct user_regset loongarch64_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type	= NT_PRSTATUS,
+		USER_REGSET_NOTE_TYPE(PRSTATUS),
 		.n		= ELF_NGREG,
 		.size		= sizeof(elf_greg_t),
 		.align		= sizeof(elf_greg_t),
@@ -872,7 +872,7 @@ static const struct user_regset loongarch64_regsets[] = {
 		.set		= gpr_set,
 	},
 	[REGSET_FPR] = {
-		.core_note_type	= NT_PRFPREG,
+		USER_REGSET_NOTE_TYPE(PRFPREG),
 		.n		= ELF_NFPREG,
 		.size		= sizeof(elf_fpreg_t),
 		.align		= sizeof(elf_fpreg_t),
@@ -880,7 +880,7 @@ static const struct user_regset loongarch64_regsets[] = {
 		.set		= fpr_set,
 	},
 	[REGSET_CPUCFG] = {
-		.core_note_type	= NT_LOONGARCH_CPUCFG,
+		USER_REGSET_NOTE_TYPE(LOONGARCH_CPUCFG),
 		.n		= 64,
 		.size		= sizeof(u32),
 		.align		= sizeof(u32),
@@ -889,7 +889,7 @@ static const struct user_regset loongarch64_regsets[] = {
 	},
 #ifdef CONFIG_CPU_HAS_LSX
 	[REGSET_LSX] = {
-		.core_note_type	= NT_LOONGARCH_LSX,
+		USER_REGSET_NOTE_TYPE(LOONGARCH_LSX),
 		.n		= NUM_FPU_REGS,
 		.size		= 16,
 		.align		= 16,
@@ -899,7 +899,7 @@ static const struct user_regset loongarch64_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_LASX
 	[REGSET_LASX] = {
-		.core_note_type	= NT_LOONGARCH_LASX,
+		USER_REGSET_NOTE_TYPE(LOONGARCH_LASX),
 		.n		= NUM_FPU_REGS,
 		.size		= 32,
 		.align		= 32,
@@ -909,7 +909,7 @@ static const struct user_regset loongarch64_regsets[] = {
 #endif
 #ifdef CONFIG_CPU_HAS_LBT
 	[REGSET_LBT] = {
-		.core_note_type	= NT_LOONGARCH_LBT,
+		USER_REGSET_NOTE_TYPE(LOONGARCH_LBT),
 		.n		= 5,
 		.size		= sizeof(u64),
 		.align		= sizeof(u64),
@@ -919,7 +919,7 @@ static const struct user_regset loongarch64_regsets[] = {
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
-		.core_note_type = NT_LOONGARCH_HW_BREAK,
+		USER_REGSET_NOTE_TYPE(LOONGARCH_HW_BREAK),
 		.n = sizeof(struct user_watch_state_v2) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -927,7 +927,7 @@ static const struct user_regset loongarch64_regsets[] = {
 		.set = hw_break_set,
 	},
 	[REGSET_HW_WATCH] = {
-		.core_note_type = NT_LOONGARCH_HW_WATCH,
+		USER_REGSET_NOTE_TYPE(LOONGARCH_HW_WATCH),
 		.n = sizeof(struct user_watch_state_v2) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
