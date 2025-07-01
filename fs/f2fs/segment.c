@@ -3953,7 +3953,7 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 		goto out;
 	}
 
-	f2fs_bug_on(fio->sbi, !f2fs_is_valid_blkaddr(fio->sbi,
+	f2fs_bug_on(fio->sbi, !f2fs_is_valid_blkaddr_raw(fio->sbi,
 				fio->new_blkaddr, DATA_GENERIC_ENHANCE));
 
 	if (GET_SEGNO(fio->sbi, fio->old_blkaddr) != NULL_SEGNO)
