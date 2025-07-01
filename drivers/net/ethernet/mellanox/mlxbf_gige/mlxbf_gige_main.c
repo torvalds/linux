@@ -142,8 +142,10 @@ static int mlxbf_gige_open(struct net_device *netdev)
 
 	mlxbf_gige_cache_stats(priv);
 	err = mlxbf_gige_clean_port(priv);
-	if (err)
+	if (err) {
+		dev_err(priv->dev, "open: clean_port failed: %pe\n", ERR_PTR(err));
 		return err;
+	}
 
 	/* Clear driver's valid_polarity to match hardware,
 	 * since the above call to clean_port() resets the
@@ -154,19 +156,25 @@ static int mlxbf_gige_open(struct net_device *netdev)
 	phy_start(phydev);
 
 	err = mlxbf_gige_tx_init(priv);
-	if (err)
+	if (err) {
+		dev_err(priv->dev, "open: tx_init failed: %pe\n", ERR_PTR(err));
 		goto phy_deinit;
+	}
 	err = mlxbf_gige_rx_init(priv);
-	if (err)
+	if (err) {
+		dev_err(priv->dev, "open: rx_init failed: %pe\n", ERR_PTR(err));
 		goto tx_deinit;
+	}
 
 	netif_napi_add(netdev, &priv->napi, mlxbf_gige_poll);
 	napi_enable(&priv->napi);
 	netif_start_queue(netdev);
 
 	err = mlxbf_gige_request_irqs(priv);
-	if (err)
+	if (err) {
+		dev_err(priv->dev, "open: request_irqs failed: %pe\n", ERR_PTR(err));
 		goto napi_deinit;
+	}
 
 	mlxbf_gige_enable_mac_rx_filter(priv, MLXBF_GIGE_BCAST_MAC_FILTER_IDX);
 	mlxbf_gige_enable_mac_rx_filter(priv, MLXBF_GIGE_LOCAL_MAC_FILTER_IDX);
@@ -418,8 +426,10 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 
 	/* Attach MDIO device */
 	err = mlxbf_gige_mdio_probe(pdev, priv);
-	if (err)
+	if (err) {
+		dev_err(priv->dev, "probe: mdio_probe failed: %pe\n", ERR_PTR(err));
 		return err;
+	}
 
 	priv->base = base;
 	priv->llu_base = llu_base;
@@ -438,7 +448,7 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		dev_err(&pdev->dev, "DMA configuration failed: 0x%x\n", err);
+		dev_err(&pdev->dev, "DMA configuration failed: %pe\n", ERR_PTR(err));
 		goto out;
 	}
 
@@ -468,7 +478,7 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 				 mlxbf_gige_link_cfgs[priv->hw_version].adjust_link,
 				 mlxbf_gige_link_cfgs[priv->hw_version].phy_mode);
 	if (err) {
-		dev_err(&pdev->dev, "Could not attach to PHY\n");
+		dev_err(&pdev->dev, "Could not attach to PHY: %pe\n", ERR_PTR(err));
 		goto out;
 	}
 
@@ -479,7 +489,7 @@ static int mlxbf_gige_probe(struct platform_device *pdev)
 
 	err = register_netdev(netdev);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to register netdev\n");
+		dev_err(&pdev->dev, "Failed to register netdev: %pe\n", ERR_PTR(err));
 		phy_disconnect(phydev);
 		goto out;
 	}
