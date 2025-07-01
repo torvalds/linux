@@ -15,26 +15,25 @@
 
 #include "timekeeping_internal.h"
 
+static inline void fill_clock_configuration(struct vdso_clock *vc, const struct tk_read_base *base)
+{
+	vc->cycle_last	= base->cycle_last;
+#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
+	vc->max_cycles	= base->clock->max_cycles;
+#endif
+	vc->mask	= base->mask;
+	vc->mult	= base->mult;
+	vc->shift	= base->shift;
+}
+
 static inline void update_vdso_time_data(struct vdso_time_data *vdata, struct timekeeper *tk)
 {
 	struct vdso_clock *vc = vdata->clock_data;
 	struct vdso_timestamp *vdso_ts;
 	u64 nsec, sec;
 
-	vc[CS_HRES_COARSE].cycle_last	= tk->tkr_mono.cycle_last;
-#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
-	vc[CS_HRES_COARSE].max_cycles	= tk->tkr_mono.clock->max_cycles;
-#endif
-	vc[CS_HRES_COARSE].mask		= tk->tkr_mono.mask;
-	vc[CS_HRES_COARSE].mult		= tk->tkr_mono.mult;
-	vc[CS_HRES_COARSE].shift	= tk->tkr_mono.shift;
-	vc[CS_RAW].cycle_last		= tk->tkr_raw.cycle_last;
-#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
-	vc[CS_RAW].max_cycles		= tk->tkr_raw.clock->max_cycles;
-#endif
-	vc[CS_RAW].mask			= tk->tkr_raw.mask;
-	vc[CS_RAW].mult			= tk->tkr_raw.mult;
-	vc[CS_RAW].shift		= tk->tkr_raw.shift;
+	fill_clock_configuration(&vc[CS_HRES_COARSE],	&tk->tkr_mono);
+	fill_clock_configuration(&vc[CS_RAW],		&tk->tkr_raw);
 
 	/* CLOCK_MONOTONIC */
 	vdso_ts		= &vc[CS_HRES_COARSE].basetime[CLOCK_MONOTONIC];
