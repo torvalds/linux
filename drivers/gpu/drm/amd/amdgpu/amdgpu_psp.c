@@ -575,9 +575,11 @@ static int psp_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
-		 uint32_t reg_val, uint32_t mask, bool check_changed)
+int psp_wait_for(struct psp_context *psp, uint32_t reg_index, uint32_t reg_val,
+		 uint32_t mask, uint32_t flags)
 {
+	bool check_changed = flags & PSP_WAITREG_CHANGED;
+	bool verbose = !(flags & PSP_WAITREG_NOVERBOSE);
 	uint32_t val;
 	int i;
 	struct amdgpu_device *adev = psp->adev;
@@ -597,9 +599,10 @@ int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 		udelay(1);
 	}
 
-	dev_err(adev->dev,
-		"psp reg (0x%x) wait timed out, mask: %x, read: %x exp: %x",
-		reg_index, mask, val, reg_val);
+	if (verbose)
+		dev_err(adev->dev,
+			"psp reg (0x%x) wait timed out, mask: %x, read: %x exp: %x",
+			reg_index, mask, val, reg_val);
 
 	return -ETIME;
 }
