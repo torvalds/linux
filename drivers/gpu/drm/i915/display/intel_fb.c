@@ -422,21 +422,22 @@ unsigned int intel_fb_modifier_to_tiling(u64 fb_modifier)
 
 /**
  * intel_fb_get_format_info: Get a modifier specific format information
- * @cmd: FB add command structure
+ * @pixel_format: pixel format
+ * @modifier: modifier
  *
  * Returns:
- * Returns the format information for @cmd->pixel_format specific to @cmd->modifier[0],
+ * Returns the format information for @pixel_format specific to @modifier,
  * or %NULL if the modifier doesn't override the format.
  */
 const struct drm_format_info *
-intel_fb_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
+intel_fb_get_format_info(u32 pixel_format, u64 modifier)
 {
-	const struct intel_modifier_desc *md = lookup_modifier_or_null(cmd->modifier[0]);
+	const struct intel_modifier_desc *md = lookup_modifier_or_null(modifier);
 
 	if (!md || !md->formats)
 		return NULL;
 
-	return lookup_format_info(md->formats, md->format_count, cmd->pixel_format);
+	return lookup_format_info(md->formats, md->format_count, pixel_format);
 }
 
 static bool plane_caps_contain_any(u8 caps, u8 mask)

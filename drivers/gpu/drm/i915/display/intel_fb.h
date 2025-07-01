@@ -47,7 +47,7 @@ u64 *intel_fb_plane_get_modifiers(struct intel_display *display,
 bool intel_fb_plane_supports_modifier(struct intel_plane *plane, u64 modifier);
 
 const struct drm_format_info *
-intel_fb_get_format_info(const struct drm_mode_fb_cmd2 *cmd);
+intel_fb_get_format_info(u32 pixel_format, u64 modifier);
 
 bool
 intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
