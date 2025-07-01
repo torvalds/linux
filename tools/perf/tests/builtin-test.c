@@ -539,6 +539,7 @@ static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
 
 		for (struct test_suite **t = suites; *t; t++, curr_suite++) {
 			int curr_test_case;
+			bool suite_matched = false;
 
 			if (!perf_test__matches(test_description(*t, -1), curr_suite, argc, argv)) {
 				/*
@@ -556,6 +557,8 @@ static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
 				}
 				if (skip)
 					continue;
+			} else {
+				suite_matched = true;
 			}
 
 			if (intlist__find(skiplist, curr_suite + 1)) {
@@ -567,10 +570,10 @@ static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
 
 			for (unsigned int run = 0; run < runs_per_test; run++) {
 				test_suite__for_each_test_case(*t, curr_test_case) {
-					if (!perf_test__matches(test_description(*t, curr_test_case),
+					if (!suite_matched &&
+					    !perf_test__matches(test_description(*t, curr_test_case),
 								curr_suite, argc, argv))
 						continue;
-
 					err = start_test(*t, curr_suite, curr_test_case,
 							 &child_tests[child_test_num++],
 							 width, pass);
