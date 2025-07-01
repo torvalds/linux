@@ -68,6 +68,7 @@
 #define ADP5585_GPIO_DIRECTION_A	0x27
 #define ADP5585_GPIO_DIRECTION_B	0x28
 #define ADP5585_RESET1_EVENT_A		0x29
+#define		ADP5585_RESET_EV_PRESS		BIT(7)
 #define ADP5585_RESET1_EVENT_B		0x2a
 #define ADP5585_RESET1_EVENT_C		0x2b
 #define ADP5585_RESET2_EVENT_A		0x2c
@@ -118,6 +119,13 @@
 #define ADP5585_MAX_REG			ADP5585_INT_EN
 
 #define ADP5585_PIN_MAX			11
+#define ADP5585_MAX_UNLOCK_TIME_SEC	7
+#define ADP5585_KEY_EVENT_START		1
+#define ADP5585_KEY_EVENT_END		25
+#define ADP5585_GPI_EVENT_START		37
+#define ADP5585_GPI_EVENT_END		47
+#define ADP5585_ROW5_KEY_EVENT_START	1
+#define ADP5585_ROW5_KEY_EVENT_END	30
 
 /* ADP5589 */
 #define		ADP5589_MAN_ID_VALUE		0x10
@@ -128,6 +136,20 @@
 #define ADP5589_GPO_DATA_OUT_A		0x2a
 #define ADP5589_GPO_OUT_MODE_A		0x2d
 #define		ADP5589_GPIO_DIRECTION_A	0x30
+#define ADP5589_UNLOCK1			0x33
+#define		ADP5589_UNLOCK_EV_PRESS		BIT(7)
+#define ADP5589_UNLOCK_TIMERS		0x36
+#define		ADP5589_UNLOCK_TIMER		GENMASK(2, 0)
+#define ADP5589_LOCK_CFG		0x37
+#define		ADP5589_LOCK_EN			BIT(0)
+#define ADP5589_RESET1_EVENT_A		0x38
+#define ADP5589_RESET2_EVENT_A		0x3B
+#define ADP5589_RESET_CFG		0x3D
+#define		ADP5585_RESET2_POL		BIT(7)
+#define		ADP5585_RESET1_POL		BIT(6)
+#define		ADP5585_RST_PASSTHRU_EN		BIT(5)
+#define		ADP5585_RESET_TRIG_TIME		GENMASK(4, 2)
+#define		ADP5585_PULSE_WIDTH		GENMASK(1, 0)
 #define ADP5589_PWM_OFFT_LOW		0x3e
 #define ADP5589_PWM_ONT_LOW		0x40
 #define ADP5589_PWM_CFG			0x42
@@ -138,6 +160,11 @@
 #define ADP5589_MAX_REG			ADP5589_INT_EN
 
 #define ADP5589_PIN_MAX			19
+#define ADP5589_KEY_EVENT_START		1
+#define ADP5589_KEY_EVENT_END		88
+#define ADP5589_GPI_EVENT_START		97
+#define ADP5589_GPI_EVENT_END		115
+#define ADP5589_UNLOCK_WILDCARD		127
 
 struct regmap;
 
@@ -158,6 +185,9 @@ struct adp5585_regs {
 	unsigned int ext_cfg;
 	unsigned int int_en;
 	unsigned int poll_ptime_cfg;
+	unsigned int reset_cfg;
+	unsigned int reset1_event_a;
+	unsigned int reset2_event_a;
 };
 
 struct adp5585_dev {
@@ -167,8 +197,18 @@ struct adp5585_dev {
 	struct blocking_notifier_head event_notifier;
 	enum adp5585_variant variant;
 	unsigned int id;
+	bool has_unlock;
+	bool has_pin6;
 	int irq;
 	unsigned int ev_poll_time;
+	unsigned int unlock_time;
+	unsigned int unlock_keys[2];
+	unsigned int nkeys_unlock;
+	unsigned int reset1_keys[3];
+	unsigned int nkeys_reset1;
+	unsigned int reset2_keys[2];
+	unsigned int nkeys_reset2;
+	u8 reset_cfg;
 };
 
 #endif

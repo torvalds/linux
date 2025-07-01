@@ -169,6 +169,9 @@ static const struct adp5585_regs adp5585_regs = {
 	.int_en = ADP5585_INT_EN,
 	.gen_cfg = ADP5585_GENERAL_CFG,
 	.poll_ptime_cfg = ADP5585_POLL_PTIME_CFG,
+	.reset_cfg = ADP5585_RESET_CFG,
+	.reset1_event_a = ADP5585_RESET1_EVENT_A,
+	.reset2_event_a = ADP5585_RESET2_EVENT_A,
 };
 
 static const struct adp5585_regs adp5589_regs = {
@@ -176,7 +179,53 @@ static const struct adp5585_regs adp5589_regs = {
 	.int_en = ADP5589_INT_EN,
 	.gen_cfg = ADP5589_GENERAL_CFG,
 	.poll_ptime_cfg = ADP5589_POLL_PTIME_CFG,
+	.reset_cfg = ADP5589_RESET_CFG,
+	.reset1_event_a = ADP5589_RESET1_EVENT_A,
+	.reset2_event_a = ADP5589_RESET2_EVENT_A,
 };
+
+static int adp5585_validate_event(const struct adp5585_dev *adp5585, unsigned int ev)
+{
+	if (adp5585->has_pin6) {
+		if (ev >= ADP5585_ROW5_KEY_EVENT_START && ev <= ADP5585_ROW5_KEY_EVENT_END)
+			return 0;
+		if (ev >= ADP5585_GPI_EVENT_START && ev <= ADP5585_GPI_EVENT_END)
+			return 0;
+
+		return dev_err_probe(adp5585->dev, -EINVAL,
+				     "Invalid unlock/reset event(%u) for this device\n", ev);
+	}
+
+	if (ev >= ADP5585_KEY_EVENT_START && ev <= ADP5585_KEY_EVENT_END)
+		return 0;
+	if (ev >= ADP5585_GPI_EVENT_START && ev <= ADP5585_GPI_EVENT_END) {
+		/*
+		 * Some variants of the adp5585 do not have the Row 5
+		 * (meaning pin 6 or GPIO 6) available. Instead that pin serves
+		 * as a reset pin. So, we need to make sure no event is
+		 * configured for it.
+		 */
+		if (ev == (ADP5585_GPI_EVENT_START + 5))
+			return dev_err_probe(adp5585->dev, -EINVAL,
+					     "Invalid unlock/reset event(%u). R5 not available\n",
+					     ev);
+		return 0;
+	}
+
+	return dev_err_probe(adp5585->dev, -EINVAL,
+			     "Invalid unlock/reset event(%u) for this device\n", ev);
+}
+
+static int adp5589_validate_event(const struct adp5585_dev *adp5585, unsigned int ev)
+{
+	if (ev >= ADP5589_KEY_EVENT_START && ev <= ADP5589_KEY_EVENT_END)
+		return 0;
+	if (ev >= ADP5589_GPI_EVENT_START && ev <= ADP5589_GPI_EVENT_END)
+		return 0;
+
+	return dev_err_probe(adp5585->dev, -EINVAL,
+			     "Invalid unlock/reset event(%u) for this device\n", ev);
+}
 
 static struct regmap_config *adp5585_fill_variant_config(struct adp5585_dev *adp5585)
 {
@@ -190,6 +239,8 @@ static struct regmap_config *adp5585_fill_variant_config(struct adp5585_dev *adp
 	case ADP5585_04:
 		adp5585->id = ADP5585_MAN_ID_VALUE;
 		adp5585->regs = &adp5585_regs;
+		if (adp5585->variant == ADP5585_01)
+			adp5585->has_pin6 = true;
 		regmap_config = devm_kmemdup(adp5585->dev, &adp5585_regmap_config_template,
 					     sizeof(*regmap_config), GFP_KERNEL);
 		break;
@@ -198,6 +249,8 @@ static struct regmap_config *adp5585_fill_variant_config(struct adp5585_dev *adp
 	case ADP5589_02:
 		adp5585->id = ADP5589_MAN_ID_VALUE;
 		adp5585->regs = &adp5589_regs;
+		adp5585->has_unlock = true;
+		adp5585->has_pin6 = true;
 		regmap_config = devm_kmemdup(adp5585->dev, &adp5589_regmap_config_template,
 					     sizeof(*regmap_config), GFP_KERNEL);
 		break;
@@ -211,6 +264,167 @@ static struct regmap_config *adp5585_fill_variant_config(struct adp5585_dev *adp
 	regmap_config->reg_defaults_raw = adp5585_regmap_defaults[adp5585->variant];
 
 	return regmap_config;
+}
+
+static int adp5585_parse_ev_array(const struct adp5585_dev *adp5585, const char *prop, u32 *events,
+				  u32 *n_events, u32 max_evs, bool reset_ev)
+{
+	struct device *dev = adp5585->dev;
+	unsigned int ev;
+	int ret;
+
+	/*
+	 * The device has the capability of handling special events through GPIs or a Keypad:
+	 *  unlock events: Unlock the keymap until one of the configured events is detected.
+	 *  reset events: Generate a reset pulse when one of the configured events is detected.
+	 */
+	ret = device_property_count_u32(dev, prop);
+	if (ret < 0)
+		return 0;
+
+	*n_events = ret;
+
+	if (!adp5585->has_unlock && !reset_ev)
+		return dev_err_probe(dev, -EOPNOTSUPP, "Unlock keys not supported\n");
+
+	if (*n_events > max_evs)
+		return dev_err_probe(dev, -EINVAL,
+				     "Invalid number of keys(%u > %u) for %s\n",
+				     *n_events, max_evs, prop);
+
+	ret = device_property_read_u32_array(dev, prop, events, *n_events);
+	if (ret)
+		return ret;
+
+	for (ev = 0; ev < *n_events; ev++) {
+		if (!reset_ev && events[ev] == ADP5589_UNLOCK_WILDCARD)
+			continue;
+
+		if (adp5585->id == ADP5585_MAN_ID_VALUE)
+			ret = adp5585_validate_event(adp5585, events[ev]);
+		else
+			ret = adp5589_validate_event(adp5585, events[ev]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int adp5585_unlock_ev_parse(struct adp5585_dev *adp5585)
+{
+	struct device *dev = adp5585->dev;
+	int ret;
+
+	ret = adp5585_parse_ev_array(adp5585, "adi,unlock-events", adp5585->unlock_keys,
+				     &adp5585->nkeys_unlock, ARRAY_SIZE(adp5585->unlock_keys),
+				     false);
+	if (ret)
+		return ret;
+	if (!adp5585->nkeys_unlock)
+		return 0;
+
+	ret = device_property_read_u32(dev, "adi,unlock-trigger-sec", &adp5585->unlock_time);
+	if (!ret) {
+		if (adp5585->unlock_time > ADP5585_MAX_UNLOCK_TIME_SEC)
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid unlock time(%u > %d)\n",
+					     adp5585->unlock_time,
+					     ADP5585_MAX_UNLOCK_TIME_SEC);
+	}
+
+	return 0;
+}
+
+static int adp5585_reset_ev_parse(struct adp5585_dev *adp5585)
+{
+	struct device *dev = adp5585->dev;
+	u32 prop_val;
+	int ret;
+
+	ret = adp5585_parse_ev_array(adp5585, "adi,reset1-events", adp5585->reset1_keys,
+				     &adp5585->nkeys_reset1,
+				     ARRAY_SIZE(adp5585->reset1_keys), true);
+	if (ret)
+		return ret;
+
+	ret = adp5585_parse_ev_array(adp5585, "adi,reset2-events",
+				     adp5585->reset2_keys,
+				     &adp5585->nkeys_reset2,
+				     ARRAY_SIZE(adp5585->reset2_keys), true);
+	if (ret)
+		return ret;
+
+	if (!adp5585->nkeys_reset1 && !adp5585->nkeys_reset2)
+		return 0;
+
+	if (adp5585->nkeys_reset1 && device_property_read_bool(dev, "adi,reset1-active-high"))
+		adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET1_POL, 1);
+
+	if (adp5585->nkeys_reset2 && device_property_read_bool(dev, "adi,reset2-active-high"))
+		adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET2_POL, 1);
+
+	if (device_property_read_bool(dev, "adi,rst-passthrough-enable"))
+		adp5585->reset_cfg |= FIELD_PREP(ADP5585_RST_PASSTHRU_EN, 1);
+
+	ret = device_property_read_u32(dev, "adi,reset-trigger-ms", &prop_val);
+	if (!ret) {
+		switch (prop_val) {
+		case 0:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 0);
+			break;
+		case 1000:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 1);
+			break;
+		case 1500:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 2);
+			break;
+		case 2000:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 3);
+			break;
+		case 2500:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 4);
+			break;
+		case 3000:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 5);
+			break;
+		case 3500:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 6);
+			break;
+		case 4000:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_RESET_TRIG_TIME, 7);
+			break;
+		default:
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid value(%u) for adi,reset-trigger-ms\n",
+					     prop_val);
+		}
+	}
+
+	ret = device_property_read_u32(dev, "adi,reset-pulse-width-us", &prop_val);
+	if (!ret) {
+		switch (prop_val) {
+		case 500:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_PULSE_WIDTH, 0);
+			break;
+		case 1000:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_PULSE_WIDTH, 1);
+			break;
+		case 2000:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_PULSE_WIDTH, 2);
+			break;
+		case 10000:
+			adp5585->reset_cfg |= FIELD_PREP(ADP5585_PULSE_WIDTH, 3);
+			break;
+		default:
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid value(%u) for adi,reset-pulse-width-us\n",
+					     prop_val);
+		}
+		return ret;
+	}
+
+	return 0;
 }
 
 static int adp5585_add_devices(const struct adp5585_dev *adp5585)
@@ -301,8 +515,60 @@ out_irq:
 static int adp5585_setup(struct adp5585_dev *adp5585)
 {
 	const struct adp5585_regs *regs = adp5585->regs;
-	unsigned int reg_val, i;
+	unsigned int reg_val = 0, i;
 	int ret;
+
+	/* Configure the device with reset and unlock events */
+	for (i = 0; i < adp5585->nkeys_unlock; i++) {
+		ret = regmap_write(adp5585->regmap, ADP5589_UNLOCK1 + i,
+				   adp5585->unlock_keys[i] | ADP5589_UNLOCK_EV_PRESS);
+		if (ret)
+			return ret;
+	}
+
+	if (adp5585->nkeys_unlock) {
+		ret = regmap_update_bits(adp5585->regmap, ADP5589_UNLOCK_TIMERS,
+					 ADP5589_UNLOCK_TIMER, adp5585->unlock_time);
+		if (ret)
+			return ret;
+
+		ret = regmap_set_bits(adp5585->regmap, ADP5589_LOCK_CFG, ADP5589_LOCK_EN);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < adp5585->nkeys_reset1; i++) {
+		ret = regmap_write(adp5585->regmap, regs->reset1_event_a + i,
+				   adp5585->reset1_keys[i] | ADP5585_RESET_EV_PRESS);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < adp5585->nkeys_reset2; i++) {
+		ret = regmap_write(adp5585->regmap, regs->reset2_event_a + i,
+				   adp5585->reset2_keys[i] | ADP5585_RESET_EV_PRESS);
+		if (ret)
+			return ret;
+	}
+
+	if (adp5585->nkeys_reset1 || adp5585->nkeys_reset2) {
+		ret = regmap_write(adp5585->regmap, regs->reset_cfg, adp5585->reset_cfg);
+		if (ret)
+			return ret;
+
+		/* If there's a reset1 event, then R4 is used as an output for the reset signal */
+		if (adp5585->nkeys_reset1)
+			reg_val = ADP5585_R4_EXTEND_CFG_RESET1;
+		/* If there's a reset2 event, then C4 is used as an output for the reset signal */
+		if (adp5585->nkeys_reset2)
+			reg_val |= ADP5585_C4_EXTEND_CFG_RESET2;
+
+		ret = regmap_update_bits(adp5585->regmap, regs->ext_cfg,
+					 ADP5585_C4_EXTEND_CFG_MASK | ADP5585_R4_EXTEND_CFG_MASK,
+					 reg_val);
+		if (ret)
+			return ret;
+	}
 
 	/* Clear any possible event by reading all the FIFO entries */
 	for (i = 0; i < ADP5585_EV_MAX; i++) {
@@ -344,7 +610,11 @@ static int adp5585_parse_fw(struct adp5585_dev *adp5585)
 					     "Invalid value(%u) for poll-interval\n", prop_val);
 	}
 
-	return 0;
+	ret = adp5585_unlock_ev_parse(adp5585);
+	if (ret)
+		return ret;
+
+	return adp5585_reset_ev_parse(adp5585);
 }
 
 static void adp5585_irq_disable(void *data)
