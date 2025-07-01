@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include "../bnxt/bnxt_hsi.h"
 #include "bnge_rmem.h"
+#include "bnge_resc.h"
 
 #define DRV_VER_MAJ	1
 #define DRV_VER_MIN	15
@@ -19,6 +20,12 @@ extern char bnge_driver_name[];
 
 enum board_idx {
 	BCM57708,
+};
+
+struct bnge_pf_info {
+	u16	fw_fid;
+	u16	port_id;
+	u8	mac_addr[ETH_ALEN];
 };
 
 #define INVALID_HW_RING_ID      ((u16)-1)
@@ -56,9 +63,22 @@ enum {
 enum {
 	BNGE_EN_ROCE_V1					= BIT_ULL(0),
 	BNGE_EN_ROCE_V2					= BIT_ULL(1),
+	BNGE_EN_STRIP_VLAN				= BIT_ULL(2),
+	BNGE_EN_SHARED_CHNL				= BIT_ULL(3),
 };
 
 #define BNGE_EN_ROCE		(BNGE_EN_ROCE_V1 | BNGE_EN_ROCE_V2)
+
+enum {
+	BNGE_RSS_CAP_RSS_HASH_TYPE_DELTA		= BIT(0),
+	BNGE_RSS_CAP_UDP_RSS_CAP			= BIT(1),
+	BNGE_RSS_CAP_NEW_RSS_CAP			= BIT(2),
+	BNGE_RSS_CAP_RSS_TCAM				= BIT(3),
+	BNGE_RSS_CAP_AH_V4_RSS_CAP			= BIT(4),
+	BNGE_RSS_CAP_AH_V6_RSS_CAP			= BIT(5),
+	BNGE_RSS_CAP_ESP_V4_RSS_CAP			= BIT(6),
+	BNGE_RSS_CAP_ESP_V6_RSS_CAP			= BIT(7),
+};
 
 struct bnge_dev {
 	struct device	*dev;
@@ -72,6 +92,9 @@ struct bnge_dev {
 
 	u16		chip_num;
 	u8		chip_rev;
+
+	int		db_offset; /* db_offset within db_size */
+	int		db_size;
 
 	/* HWRM members */
 	u16			hwrm_cmd_seq;
@@ -93,6 +116,8 @@ struct bnge_dev {
 #define BNGE_FW_VER_CODE(maj, min, bld, rsv)			\
 	((u64)(maj) << 48 | (u64)(min) << 32 | (u64)(bld) << 16 | (rsv))
 
+	struct bnge_pf_info	pf;
+
 	unsigned long           state;
 #define BNGE_STATE_DRV_REGISTERED      0
 
@@ -102,11 +127,63 @@ struct bnge_dev {
 	struct bnge_ctx_mem_info	*ctx;
 
 	u64			flags;
+
+	struct bnge_hw_resc	hw_resc;
+
+	u16			tso_max_segs;
+
+	int			max_fltr;
+#define BNGE_L2_FLTR_MAX_FLTR	1024
+
+	u32			*rss_indir_tbl;
+#define BNGE_RSS_TABLE_ENTRIES	64
+#define BNGE_RSS_TABLE_SIZE		(BNGE_RSS_TABLE_ENTRIES * 4)
+#define BNGE_RSS_TABLE_MAX_TBL	8
+#define BNGE_MAX_RSS_TABLE_SIZE				\
+	(BNGE_RSS_TABLE_SIZE * BNGE_RSS_TABLE_MAX_TBL)
+#define BNGE_MAX_RSS_TABLE_ENTRIES				\
+	(BNGE_RSS_TABLE_ENTRIES * BNGE_RSS_TABLE_MAX_TBL)
+	u16			rss_indir_tbl_entries;
+
+	u32			rss_cap;
+
+	u16			rx_nr_rings;
+	u16			tx_nr_rings;
+	u16			tx_nr_rings_per_tc;
+	/* Number of NQs */
+	u16			nq_nr_rings;
+
+	/* Aux device resources */
+	u16			aux_num_msix;
+	u16			aux_num_stat_ctxs;
+
+	u16			max_mtu;
+#define BNGE_MAX_MTU		9500
+
+	u16			hw_ring_stats_size;
+#define BNGE_NUM_RX_RING_STATS			8
+#define BNGE_NUM_TX_RING_STATS			8
+#define BNGE_NUM_TPA_RING_STATS			6
+#define BNGE_RING_STATS_SIZE					\
+	((BNGE_NUM_RX_RING_STATS + BNGE_NUM_TX_RING_STATS +	\
+	  BNGE_NUM_TPA_RING_STATS) * 8)
+
+	u16			max_tpa_v2;
+#define BNGE_SUPPORTS_TPA(bd)	((bd)->max_tpa_v2)
+
+	u8                      num_tc;
 };
 
 static inline bool bnge_is_roce_en(struct bnge_dev *bd)
 {
 	return bd->flags & BNGE_EN_ROCE;
 }
+
+static inline bool bnge_is_agg_reqd(struct bnge_dev *bd)
+{
+	return true;
+}
+
+bool bnge_aux_registered(struct bnge_dev *bd);
 
 #endif /* _BNGE_H_ */

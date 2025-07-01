@@ -1,0 +1,328 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2025 Broadcom.
+
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/ethtool.h>
+
+#include "bnge.h"
+#include "bnge_hwrm.h"
+#include "bnge_hwrm_lib.h"
+#include "bnge_resc.h"
+
+static u16 bnge_num_tx_to_cp(struct bnge_dev *bd, u16 tx)
+{
+	u16 tcs = bd->num_tc;
+
+	if (!tcs)
+		tcs = 1;
+
+	return tx / tcs;
+}
+
+static u16 bnge_get_max_func_irqs(struct bnge_dev *bd)
+{
+	struct bnge_hw_resc *hw_resc = &bd->hw_resc;
+
+	return min_t(u16, hw_resc->max_irqs, hw_resc->max_nqs);
+}
+
+static int bnge_aux_get_dflt_msix(struct bnge_dev *bd)
+{
+	int roce_msix = BNGE_MAX_ROCE_MSIX;
+
+	return min_t(int, roce_msix, num_online_cpus() + 1);
+}
+
+static u16 bnge_aux_get_msix(struct bnge_dev *bd)
+{
+	if (bnge_is_roce_en(bd))
+		return bd->aux_num_msix;
+
+	return 0;
+}
+
+static void bnge_aux_set_msix_num(struct bnge_dev *bd, u16 num)
+{
+	if (bnge_is_roce_en(bd))
+		bd->aux_num_msix = num;
+}
+
+static u16 bnge_aux_get_stat_ctxs(struct bnge_dev *bd)
+{
+	if (bnge_is_roce_en(bd))
+		return bd->aux_num_stat_ctxs;
+
+	return 0;
+}
+
+static void bnge_aux_set_stat_ctxs(struct bnge_dev *bd, u16 num_aux_ctx)
+{
+	if (bnge_is_roce_en(bd))
+		bd->aux_num_stat_ctxs = num_aux_ctx;
+}
+
+static u16 bnge_func_stat_ctxs_demand(struct bnge_dev *bd)
+{
+	return bd->nq_nr_rings + bnge_aux_get_stat_ctxs(bd);
+}
+
+static u16 bnge_nqs_demand(struct bnge_dev *bd)
+{
+	return bd->nq_nr_rings + bnge_aux_get_msix(bd);
+}
+
+static u16 bnge_cprs_demand(struct bnge_dev *bd)
+{
+	return bd->tx_nr_rings + bd->rx_nr_rings;
+}
+
+static u16 bnge_get_avail_msix(struct bnge_dev *bd, int num)
+{
+	u16 max_irq = bnge_get_max_func_irqs(bd);
+	u16 total_demand = bd->nq_nr_rings + num;
+
+	if (max_irq < total_demand) {
+		num = max_irq - bd->nq_nr_rings;
+		if (num <= 0)
+			return 0;
+	}
+
+	return num;
+}
+
+static u16 bnge_num_cp_to_tx(struct bnge_dev *bd, u16 tx_chunks)
+{
+	return tx_chunks * bd->num_tc;
+}
+
+int bnge_fix_rings_count(u16 *rx, u16 *tx, u16 max, bool shared)
+{
+	u16 _rx = *rx, _tx = *tx;
+
+	if (shared) {
+		*rx = min_t(u16, _rx, max);
+		*tx = min_t(u16, _tx, max);
+	} else {
+		if (max < 2)
+			return -ENOMEM;
+		while (_rx + _tx > max) {
+			if (_rx > _tx && _rx > 1)
+				_rx--;
+			else if (_tx > 1)
+				_tx--;
+		}
+		*rx = _rx;
+		*tx = _tx;
+	}
+
+	return 0;
+}
+
+static int bnge_adjust_rings(struct bnge_dev *bd, u16 *rx,
+			     u16 *tx, u16 max_nq, bool sh)
+{
+	u16 tx_chunks = bnge_num_tx_to_cp(bd, *tx);
+
+	if (tx_chunks != *tx) {
+		u16 tx_saved = tx_chunks, rc;
+
+		rc = bnge_fix_rings_count(rx, &tx_chunks, max_nq, sh);
+		if (rc)
+			return rc;
+		if (tx_chunks != tx_saved)
+			*tx = bnge_num_cp_to_tx(bd, tx_chunks);
+		return 0;
+	}
+
+	return bnge_fix_rings_count(rx, tx, max_nq, sh);
+}
+
+static int bnge_cal_nr_rss_ctxs(u16 rx_rings)
+{
+	if (!rx_rings)
+		return 0;
+
+	return bnge_adjust_pow_two(rx_rings - 1,
+				   BNGE_RSS_TABLE_ENTRIES);
+}
+
+static u16 bnge_rss_ctxs_in_use(struct bnge_dev *bd,
+				struct bnge_hw_rings *hwr)
+{
+	return bnge_cal_nr_rss_ctxs(hwr->grp);
+}
+
+static u16 bnge_get_total_vnics(struct bnge_dev *bd, u16 rx_rings)
+{
+	return 1;
+}
+
+static u32 bnge_get_rxfh_indir_size(struct bnge_dev *bd)
+{
+	return bnge_cal_nr_rss_ctxs(bd->rx_nr_rings) *
+	       BNGE_RSS_TABLE_ENTRIES;
+}
+
+static void bnge_set_dflt_rss_indir_tbl(struct bnge_dev *bd)
+{
+	u16 max_entries, pad;
+	u32 *rss_indir_tbl;
+	int i;
+
+	max_entries = bnge_get_rxfh_indir_size(bd);
+	rss_indir_tbl = &bd->rss_indir_tbl[0];
+
+	for (i = 0; i < max_entries; i++)
+		rss_indir_tbl[i] = ethtool_rxfh_indir_default(i,
+							      bd->rx_nr_rings);
+
+	pad = bd->rss_indir_tbl_entries - max_entries;
+	if (pad)
+		memset(&rss_indir_tbl[i], 0, pad * sizeof(*rss_indir_tbl));
+}
+
+static void bnge_copy_reserved_rings(struct bnge_dev *bd,
+				     struct bnge_hw_rings *hwr)
+{
+	struct bnge_hw_resc *hw_resc = &bd->hw_resc;
+
+	hwr->tx = hw_resc->resv_tx_rings;
+	hwr->rx = hw_resc->resv_rx_rings;
+	hwr->nq = hw_resc->resv_irqs;
+	hwr->cmpl = hw_resc->resv_cp_rings;
+	hwr->grp = hw_resc->resv_hw_ring_grps;
+	hwr->vnic = hw_resc->resv_vnics;
+	hwr->stat = hw_resc->resv_stat_ctxs;
+	hwr->rss_ctx = hw_resc->resv_rsscos_ctxs;
+}
+
+static bool bnge_rings_ok(struct bnge_hw_rings *hwr)
+{
+	return hwr->tx && hwr->rx && hwr->nq && hwr->grp && hwr->vnic &&
+	       hwr->stat && hwr->cmpl;
+}
+
+static bool bnge_need_reserve_rings(struct bnge_dev *bd)
+{
+	struct bnge_hw_resc *hw_resc = &bd->hw_resc;
+	u16 cprs = bnge_cprs_demand(bd);
+	u16 rx = bd->rx_nr_rings, stat;
+	u16 nqs = bnge_nqs_demand(bd);
+	u16 vnic;
+
+	if (hw_resc->resv_tx_rings != bd->tx_nr_rings)
+		return true;
+
+	vnic = bnge_get_total_vnics(bd, rx);
+
+	if (bnge_is_agg_reqd(bd))
+		rx <<= 1;
+	stat = bnge_func_stat_ctxs_demand(bd);
+	if (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cprs ||
+	    hw_resc->resv_vnics != vnic || hw_resc->resv_stat_ctxs != stat)
+		return true;
+	if (hw_resc->resv_irqs != nqs)
+		return true;
+
+	return false;
+}
+
+int bnge_reserve_rings(struct bnge_dev *bd)
+{
+	u16 aux_dflt_msix = bnge_aux_get_dflt_msix(bd);
+	struct bnge_hw_rings hwr = {0};
+	u16 rx_rings, old_rx_rings;
+	u16 nq = bd->nq_nr_rings;
+	u16 aux_msix = 0;
+	bool sh = false;
+	u16 tx_cp;
+	int rc;
+
+	if (!bnge_need_reserve_rings(bd))
+		return 0;
+
+	if (!bnge_aux_registered(bd)) {
+		aux_msix = bnge_get_avail_msix(bd, aux_dflt_msix);
+		if (!aux_msix)
+			bnge_aux_set_stat_ctxs(bd, 0);
+
+		if (aux_msix > aux_dflt_msix)
+			aux_msix = aux_dflt_msix;
+		hwr.nq = nq + aux_msix;
+	} else {
+		hwr.nq = bnge_nqs_demand(bd);
+	}
+
+	hwr.tx = bd->tx_nr_rings;
+	hwr.rx = bd->rx_nr_rings;
+	if (bd->flags & BNGE_EN_SHARED_CHNL)
+		sh = true;
+	hwr.cmpl = hwr.rx + hwr.tx;
+
+	hwr.vnic = bnge_get_total_vnics(bd, hwr.rx);
+
+	if (bnge_is_agg_reqd(bd))
+		hwr.rx <<= 1;
+	hwr.grp = bd->rx_nr_rings;
+	hwr.rss_ctx = bnge_rss_ctxs_in_use(bd, &hwr);
+	hwr.stat = bnge_func_stat_ctxs_demand(bd);
+	old_rx_rings = bd->hw_resc.resv_rx_rings;
+
+	rc = bnge_hwrm_reserve_rings(bd, &hwr);
+	if (rc)
+		return rc;
+
+	bnge_copy_reserved_rings(bd, &hwr);
+
+	rx_rings = hwr.rx;
+	if (bnge_is_agg_reqd(bd)) {
+		if (hwr.rx >= 2)
+			rx_rings = hwr.rx >> 1;
+		else
+			return -ENOMEM;
+	}
+
+	rx_rings = min_t(u16, rx_rings, hwr.grp);
+	hwr.nq = min_t(u16, hwr.nq, bd->nq_nr_rings);
+	if (hwr.stat > bnge_aux_get_stat_ctxs(bd))
+		hwr.stat -= bnge_aux_get_stat_ctxs(bd);
+	hwr.nq = min_t(u16, hwr.nq, hwr.stat);
+
+	/* Adjust the rings */
+	rc = bnge_adjust_rings(bd, &rx_rings, &hwr.tx, hwr.nq, sh);
+	if (bnge_is_agg_reqd(bd))
+		hwr.rx = rx_rings << 1;
+	tx_cp = hwr.tx;
+	hwr.nq = sh ? max_t(u16, tx_cp, rx_rings) : tx_cp + rx_rings;
+	bd->tx_nr_rings = hwr.tx;
+
+	if (rx_rings != bd->rx_nr_rings)
+		dev_warn(bd->dev, "RX rings resv reduced to %d than earlier %d requested\n",
+			 rx_rings, bd->rx_nr_rings);
+
+	bd->rx_nr_rings = rx_rings;
+	bd->nq_nr_rings = hwr.nq;
+
+	if (!bnge_rings_ok(&hwr))
+		return -ENOMEM;
+
+	if (old_rx_rings != bd->hw_resc.resv_rx_rings)
+		bnge_set_dflt_rss_indir_tbl(bd);
+
+	if (!bnge_aux_registered(bd)) {
+		u16 resv_msix, resv_ctx, aux_ctxs;
+		struct bnge_hw_resc *hw_resc;
+
+		hw_resc = &bd->hw_resc;
+		resv_msix = hw_resc->resv_irqs - bd->nq_nr_rings;
+		aux_msix = min_t(u16, resv_msix, aux_msix);
+		bnge_aux_set_msix_num(bd, aux_msix);
+		resv_ctx = hw_resc->resv_stat_ctxs  - bd->nq_nr_rings;
+		aux_ctxs = min(resv_ctx, bnge_aux_get_stat_ctxs(bd));
+		bnge_aux_set_stat_ctxs(bd, aux_ctxs);
+	}
+
+	return rc;
+}

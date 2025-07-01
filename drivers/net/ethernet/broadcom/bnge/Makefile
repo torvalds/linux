@@ -6,4 +6,5 @@ bng_en-y := bnge_core.o \
 	    bnge_devlink.o \
 	    bnge_hwrm.o \
 	    bnge_hwrm_lib.o \
-	    bnge_rmem.o
+	    bnge_rmem.o \
+	    bnge_resc.o

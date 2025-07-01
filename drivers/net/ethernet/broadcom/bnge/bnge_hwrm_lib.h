@@ -16,5 +16,11 @@ int bnge_hwrm_func_backing_store(struct bnge_dev *bd,
 				 struct bnge_ctx_mem_type *ctxm,
 				 bool last);
 int bnge_hwrm_func_backing_store_qcaps(struct bnge_dev *bd);
+int bnge_hwrm_reserve_rings(struct bnge_dev *bd,
+			    struct bnge_hw_rings *hwr);
+int bnge_hwrm_func_qcaps(struct bnge_dev *bd);
+int bnge_hwrm_vnic_qcaps(struct bnge_dev *bd);
+int bnge_hwrm_func_qcfg(struct bnge_dev *bd);
+int bnge_hwrm_func_resc_qcaps(struct bnge_dev *bd);
 
 #endif /* _BNGE_HWRM_LIB_H_ */

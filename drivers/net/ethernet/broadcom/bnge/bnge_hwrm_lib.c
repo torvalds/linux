@@ -11,6 +11,7 @@
 #include "bnge_hwrm.h"
 #include "bnge_hwrm_lib.h"
 #include "bnge_rmem.h"
+#include "bnge_resc.h"
 
 int bnge_hwrm_ver_get(struct bnge_dev *bd)
 {
@@ -374,6 +375,273 @@ int bnge_hwrm_func_backing_store(struct bnge_dev *bd,
 			req->flags =
 				cpu_to_le32(BNGE_BS_CFG_ALL_DONE);
 		rc = bnge_hwrm_req_send(bd, req);
+	}
+	bnge_hwrm_req_drop(bd, req);
+
+	return rc;
+}
+
+static int bnge_hwrm_get_rings(struct bnge_dev *bd)
+{
+	struct bnge_hw_resc *hw_resc = &bd->hw_resc;
+	struct hwrm_func_qcfg_output *resp;
+	struct hwrm_func_qcfg_input *req;
+	u16 cp, stats;
+	u16 rx, tx;
+	int rc;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_FUNC_QCFG);
+	if (rc)
+		return rc;
+
+	req->fid = cpu_to_le16(0xffff);
+	resp = bnge_hwrm_req_hold(bd, req);
+	rc = bnge_hwrm_req_send(bd, req);
+	if (rc) {
+		bnge_hwrm_req_drop(bd, req);
+		return rc;
+	}
+
+	hw_resc->resv_tx_rings = le16_to_cpu(resp->alloc_tx_rings);
+	hw_resc->resv_rx_rings = le16_to_cpu(resp->alloc_rx_rings);
+	hw_resc->resv_hw_ring_grps =
+		le32_to_cpu(resp->alloc_hw_ring_grps);
+	hw_resc->resv_vnics = le16_to_cpu(resp->alloc_vnics);
+	hw_resc->resv_rsscos_ctxs = le16_to_cpu(resp->alloc_rsscos_ctx);
+	cp = le16_to_cpu(resp->alloc_cmpl_rings);
+	stats = le16_to_cpu(resp->alloc_stat_ctx);
+	hw_resc->resv_irqs = cp;
+	rx = hw_resc->resv_rx_rings;
+	tx = hw_resc->resv_tx_rings;
+	if (bnge_is_agg_reqd(bd))
+		rx >>= 1;
+	if (cp < (rx + tx)) {
+		rc = bnge_fix_rings_count(&rx, &tx, cp, false);
+		if (rc)
+			goto get_rings_exit;
+		if (bnge_is_agg_reqd(bd))
+			rx <<= 1;
+		hw_resc->resv_rx_rings = rx;
+		hw_resc->resv_tx_rings = tx;
+	}
+	hw_resc->resv_irqs = le16_to_cpu(resp->alloc_msix);
+	hw_resc->resv_hw_ring_grps = rx;
+	hw_resc->resv_cp_rings = cp;
+	hw_resc->resv_stat_ctxs = stats;
+
+get_rings_exit:
+	bnge_hwrm_req_drop(bd, req);
+	return rc;
+}
+
+static struct hwrm_func_cfg_input *
+__bnge_hwrm_reserve_pf_rings(struct bnge_dev *bd, struct bnge_hw_rings *hwr)
+{
+	struct hwrm_func_cfg_input *req;
+	u32 enables = 0;
+
+	if (bnge_hwrm_req_init(bd, req, HWRM_FUNC_QCFG))
+		return NULL;
+
+	req->fid = cpu_to_le16(0xffff);
+	enables |= hwr->tx ? FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS : 0;
+	req->num_tx_rings = cpu_to_le16(hwr->tx);
+
+	enables |= hwr->rx ? FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS : 0;
+	enables |= hwr->stat ? FUNC_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
+	enables |= hwr->nq ? FUNC_CFG_REQ_ENABLES_NUM_MSIX : 0;
+	enables |= hwr->cmpl ? FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS : 0;
+	enables |= hwr->vnic ? FUNC_CFG_REQ_ENABLES_NUM_VNICS : 0;
+	enables |= hwr->rss_ctx ? FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
+
+	req->num_rx_rings = cpu_to_le16(hwr->rx);
+	req->num_rsscos_ctxs = cpu_to_le16(hwr->rss_ctx);
+	req->num_cmpl_rings = cpu_to_le16(hwr->cmpl);
+	req->num_msix = cpu_to_le16(hwr->nq);
+	req->num_stat_ctxs = cpu_to_le16(hwr->stat);
+	req->num_vnics = cpu_to_le16(hwr->vnic);
+	req->enables = cpu_to_le32(enables);
+
+	return req;
+}
+
+static int
+bnge_hwrm_reserve_pf_rings(struct bnge_dev *bd, struct bnge_hw_rings *hwr)
+{
+	struct hwrm_func_cfg_input *req;
+	int rc;
+
+	req = __bnge_hwrm_reserve_pf_rings(bd, hwr);
+	if (!req)
+		return -ENOMEM;
+
+	if (!req->enables) {
+		bnge_hwrm_req_drop(bd, req);
+		return 0;
+	}
+
+	rc = bnge_hwrm_req_send(bd, req);
+	if (rc)
+		return rc;
+
+	return bnge_hwrm_get_rings(bd);
+}
+
+int bnge_hwrm_reserve_rings(struct bnge_dev *bd, struct bnge_hw_rings *hwr)
+{
+	return bnge_hwrm_reserve_pf_rings(bd, hwr);
+}
+
+int bnge_hwrm_func_qcfg(struct bnge_dev *bd)
+{
+	struct hwrm_func_qcfg_output *resp;
+	struct hwrm_func_qcfg_input *req;
+	int rc;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_FUNC_QCFG);
+	if (rc)
+		return rc;
+
+	req->fid = cpu_to_le16(0xffff);
+	resp = bnge_hwrm_req_hold(bd, req);
+	rc = bnge_hwrm_req_send(bd, req);
+	if (rc)
+		goto func_qcfg_exit;
+
+	bd->max_mtu = le16_to_cpu(resp->max_mtu_configured);
+	if (!bd->max_mtu)
+		bd->max_mtu = BNGE_MAX_MTU;
+
+	if (bd->db_size)
+		goto func_qcfg_exit;
+
+	bd->db_offset = le16_to_cpu(resp->legacy_l2_db_size_kb) * 1024;
+	bd->db_size = PAGE_ALIGN(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
+			1024);
+	if (!bd->db_size || bd->db_size > pci_resource_len(bd->pdev, 2) ||
+	    bd->db_size <= bd->db_offset)
+		bd->db_size = pci_resource_len(bd->pdev, 2);
+
+func_qcfg_exit:
+	bnge_hwrm_req_drop(bd, req);
+	return rc;
+}
+
+int bnge_hwrm_func_resc_qcaps(struct bnge_dev *bd)
+{
+	struct hwrm_func_resource_qcaps_output *resp;
+	struct bnge_hw_resc *hw_resc = &bd->hw_resc;
+	struct hwrm_func_resource_qcaps_input *req;
+	int rc;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_FUNC_RESOURCE_QCAPS);
+	if (rc)
+		return rc;
+
+	req->fid = cpu_to_le16(0xffff);
+	resp = bnge_hwrm_req_hold(bd, req);
+	rc = bnge_hwrm_req_send_silent(bd, req);
+	if (rc)
+		goto hwrm_func_resc_qcaps_exit;
+
+	hw_resc->max_tx_sch_inputs = le16_to_cpu(resp->max_tx_scheduler_inputs);
+	hw_resc->min_rsscos_ctxs = le16_to_cpu(resp->min_rsscos_ctx);
+	hw_resc->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
+	hw_resc->min_cp_rings = le16_to_cpu(resp->min_cmpl_rings);
+	hw_resc->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
+	hw_resc->min_tx_rings = le16_to_cpu(resp->min_tx_rings);
+	hw_resc->max_tx_rings = le16_to_cpu(resp->max_tx_rings);
+	hw_resc->min_rx_rings = le16_to_cpu(resp->min_rx_rings);
+	hw_resc->max_rx_rings = le16_to_cpu(resp->max_rx_rings);
+	hw_resc->min_hw_ring_grps = le16_to_cpu(resp->min_hw_ring_grps);
+	hw_resc->max_hw_ring_grps = le16_to_cpu(resp->max_hw_ring_grps);
+	hw_resc->min_l2_ctxs = le16_to_cpu(resp->min_l2_ctxs);
+	hw_resc->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
+	hw_resc->min_vnics = le16_to_cpu(resp->min_vnics);
+	hw_resc->max_vnics = le16_to_cpu(resp->max_vnics);
+	hw_resc->min_stat_ctxs = le16_to_cpu(resp->min_stat_ctx);
+	hw_resc->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
+
+	hw_resc->max_nqs = le16_to_cpu(resp->max_msix);
+	hw_resc->max_hw_ring_grps = hw_resc->max_rx_rings;
+
+hwrm_func_resc_qcaps_exit:
+	bnge_hwrm_req_drop(bd, req);
+	return rc;
+}
+
+int bnge_hwrm_func_qcaps(struct bnge_dev *bd)
+{
+	struct hwrm_func_qcaps_output *resp;
+	struct hwrm_func_qcaps_input *req;
+	struct bnge_pf_info *pf = &bd->pf;
+	u32 flags;
+	int rc;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_FUNC_QCAPS);
+	if (rc)
+		return rc;
+
+	req->fid = cpu_to_le16(0xffff);
+	resp = bnge_hwrm_req_hold(bd, req);
+	rc = bnge_hwrm_req_send(bd, req);
+	if (rc)
+		goto hwrm_func_qcaps_exit;
+
+	flags = le32_to_cpu(resp->flags);
+	if (flags & FUNC_QCAPS_RESP_FLAGS_ROCE_V1_SUPPORTED)
+		bd->flags |= BNGE_EN_ROCE_V1;
+	if (flags & FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED)
+		bd->flags |= BNGE_EN_ROCE_V2;
+
+	pf->fw_fid = le16_to_cpu(resp->fid);
+	pf->port_id = le16_to_cpu(resp->port_id);
+	memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
+
+	bd->tso_max_segs = le16_to_cpu(resp->max_tso_segs);
+
+hwrm_func_qcaps_exit:
+	bnge_hwrm_req_drop(bd, req);
+	return rc;
+}
+
+int bnge_hwrm_vnic_qcaps(struct bnge_dev *bd)
+{
+	struct hwrm_vnic_qcaps_output *resp;
+	struct hwrm_vnic_qcaps_input *req;
+	int rc;
+
+	bd->hw_ring_stats_size = sizeof(struct ctx_hw_stats);
+	bd->rss_cap &= ~BNGE_RSS_CAP_NEW_RSS_CAP;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_VNIC_QCAPS);
+	if (rc)
+		return rc;
+
+	resp = bnge_hwrm_req_hold(bd, req);
+	rc = bnge_hwrm_req_send(bd, req);
+	if (!rc) {
+		u32 flags = le32_to_cpu(resp->flags);
+
+		if (flags & VNIC_QCAPS_RESP_FLAGS_VLAN_STRIP_CAP)
+			bd->fw_cap |= BNGE_FW_CAP_VLAN_RX_STRIP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_HASH_TYPE_DELTA_CAP)
+			bd->rss_cap |= BNGE_RSS_CAP_RSS_HASH_TYPE_DELTA;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_PROF_TCAM_MODE_ENABLED)
+			bd->rss_cap |= BNGE_RSS_CAP_RSS_TCAM;
+		bd->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
+		if (bd->max_tpa_v2)
+			bd->hw_ring_stats_size = BNGE_RING_STATS_SIZE;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_HW_TUNNEL_TPA_CAP)
+			bd->fw_cap |= BNGE_FW_CAP_VNIC_TUNNEL_TPA;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_AH_SPI_IPV4_CAP)
+			bd->rss_cap |= BNGE_RSS_CAP_AH_V4_RSS_CAP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_AH_SPI_IPV6_CAP)
+			bd->rss_cap |= BNGE_RSS_CAP_AH_V6_RSS_CAP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_ESP_SPI_IPV4_CAP)
+			bd->rss_cap |= BNGE_RSS_CAP_ESP_V4_RSS_CAP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_ESP_SPI_IPV6_CAP)
+			bd->rss_cap |= BNGE_RSS_CAP_ESP_V6_RSS_CAP;
 	}
 	bnge_hwrm_req_drop(bd, req);
 

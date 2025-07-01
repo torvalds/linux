@@ -39,6 +39,11 @@ static void bnge_print_device_info(struct pci_dev *pdev, enum board_idx idx)
 	pcie_print_link_status(pdev);
 }
 
+bool bnge_aux_registered(struct bnge_dev *bd)
+{
+	return false;
+}
+
 static void bnge_nvm_cfg_ver_get(struct bnge_dev *bd)
 {
 	struct hwrm_nvm_get_dev_info_output nvm_info;
