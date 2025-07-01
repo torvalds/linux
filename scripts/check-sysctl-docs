@@ -17,6 +17,18 @@ BEGIN {
 	print "Please specify the table to look for using the table variable" > "/dev/stderr"
 	exit 1
     }
+
+	# Documentation title skiplist
+	skiplist[0] = "^Documentation for"
+	skiplist[1] = "Network core options$"
+	skiplist[2] = "POSIX message queues filesystem$"
+	skiplist[3] = "Configuration options"
+	skiplist[4] = ". /proc/sys/fs"
+	skiplist[5] = "^Introduction$"
+	skiplist[6] = "^seccomp$"
+	skiplist[7] = "^pty$"
+	skiplist[8] = "^firmware_config$"
+	skiplist[9] = "^random$"
 }
 
 # The following globals are used:
@@ -53,10 +65,11 @@ function printentry(entry) {
 
 # Stage 1: build the list of documented entries
 FNR == NR && /^=+$/ {
-    if (prevline ~ /Documentation for/) {
-	# This is the main title
-	next
-    }
+	for (i in skiplist) {
+		if (prevline ~ skiplist[i]) {
+			next
+		}
+	}
 
     # The previous line is a section title, parse it
     $0 = prevline
