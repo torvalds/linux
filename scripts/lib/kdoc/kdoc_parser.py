@@ -284,7 +284,7 @@ class KernelDoc:
                 del sections[section]
                 sectionlist.remove(section)
 
-        self.entries.append((name, item))
+        self.entries.append(item)
 
         self.config.log.debug("Output: %s:%s = %s", dtype, name, pformat(args))
 
