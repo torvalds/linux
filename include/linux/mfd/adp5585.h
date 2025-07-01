@@ -107,22 +107,22 @@
 
 #define ADP5585_MAX_REG			ADP5585_INT_EN
 
-/*
- * Bank 0 covers pins "GPIO 1/R0" to "GPIO 6/R5", numbered 0 to 5 by the
- * driver, and bank 1 covers pins "GPIO 7/C0" to "GPIO 11/C4", numbered 6 to
- * 10. Some variants of the ADP5585 don't support "GPIO 6/R5". As the driver
- * uses identical GPIO numbering for all variants to avoid confusion, GPIO 5 is
- * marked as reserved in the device tree for variants that don't support it.
- */
-#define ADP5585_BANK(n)			((n) >= 6 ? 1 : 0)
-#define ADP5585_BIT(n)			((n) >= 6 ? BIT((n) - 6) : BIT(n))
+#define ADP5585_PIN_MAX			11
 
 /* ADP5589 */
 #define		ADP5589_MAN_ID_VALUE		0x10
+#define ADP5589_GPI_STATUS_A		0x16
 #define ADP5589_GPI_STATUS_C		0x18
+#define ADP5589_RPULL_CONFIG_A		0x19
+#define ADP5589_DEBOUNCE_DIS_A		0x27
+#define ADP5589_GPO_DATA_OUT_A		0x2a
+#define ADP5589_GPO_OUT_MODE_A		0x2d
+#define		ADP5589_GPIO_DIRECTION_A	0x30
 #define ADP5589_PIN_CONFIG_D		0x4C
 #define ADP5589_INT_EN			0x4e
 #define ADP5589_MAX_REG			ADP5589_INT_EN
+
+#define ADP5589_PIN_MAX			19
 
 struct regmap;
 
