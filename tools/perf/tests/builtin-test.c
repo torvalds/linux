@@ -139,6 +139,7 @@ static struct test_suite *generic_tests[] = {
 	&suite__event_groups,
 	&suite__symbols,
 	&suite__util,
+	&suite__subcmd_help,
 	NULL,
 };
 

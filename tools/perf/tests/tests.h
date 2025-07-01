@@ -3,6 +3,7 @@
 #define TESTS_H
 
 #include <stdbool.h>
+#include "util/debug.h"
 
 enum {
 	TEST_OK   =  0,
@@ -177,6 +178,7 @@ DECLARE_SUITE(sigtrap);
 DECLARE_SUITE(event_groups);
 DECLARE_SUITE(symbols);
 DECLARE_SUITE(util);
+DECLARE_SUITE(subcmd_help);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the
