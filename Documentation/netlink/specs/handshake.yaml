@@ -71,6 +71,9 @@ attribute-sets:
       -
         name: peername
         type: string
+      -
+        name: keyring
+        type: u32
   -
     name: done
     attributes:
@@ -109,6 +112,7 @@ operations:
             - peer-identity
             - certificate
             - peername
+            - keyring
     -
       name: done
       doc: Handler reports handshake completion
