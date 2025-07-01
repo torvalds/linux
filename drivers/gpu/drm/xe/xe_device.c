@@ -43,6 +43,7 @@
 #include "xe_guc_pc.h"
 #include "xe_hw_engine_group.h"
 #include "xe_hwmon.h"
+#include "xe_i2c.h"
 #include "xe_irq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
@@ -899,6 +900,10 @@ int xe_device_probe(struct xe_device *xe)
 	xe_debugfs_register(xe);
 
 	err = xe_hwmon_register(xe);
+	if (err)
+		goto err_unregister_display;
+
+	err = xe_i2c_probe(xe);
 	if (err)
 		goto err_unregister_display;
 

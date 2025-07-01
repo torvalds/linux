@@ -7,6 +7,8 @@
 
 #include "regs/xe_reg_defs.h"
 
+#define SOC_BASE				0x280000
+
 #define GU_CNTL_PROTECTED			XE_REG(0x10100C)
 #define   DRIVERINT_FLR_DIS			REG_BIT(31)
 

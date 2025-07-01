@@ -34,6 +34,7 @@ struct dram_info;
 struct intel_display;
 struct intel_dg_nvm_dev;
 struct xe_ggtt;
+struct xe_i2c;
 struct xe_pat_ops;
 struct xe_pxp;
 
@@ -584,6 +585,9 @@ struct xe_device {
 
 	/** @pmu: performance monitoring unit */
 	struct xe_pmu pmu;
+
+	/** @i2c: I2C host controller */
+	struct xe_i2c *i2c;
 
 	/** @atomic_svm_timeslice_ms: Atomic SVM fault timeslice MS */
 	u32 atomic_svm_timeslice_ms;
