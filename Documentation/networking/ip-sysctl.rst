@@ -1891,10 +1891,10 @@ proxy_arp_pvlan - BOOLEAN
 
 	This technology is known by different names:
 
-	  In RFC 3069 it is called VLAN Aggregation.
-	  Cisco and Allied Telesyn call it Private VLAN.
-	  Hewlett-Packard call it Source-Port filtering or port-isolation.
-	  Ericsson call it MAC-Forced Forwarding (RFC Draft).
+	- In RFC 3069 it is called VLAN Aggregation.
+	- Cisco and Allied Telesyn call it Private VLAN.
+	- Hewlett-Packard call it Source-Port filtering or port-isolation.
+	- Ericsson call it MAC-Forced Forwarding (RFC Draft).
 
 proxy_delay - INTEGER
 	Delay proxy response.
