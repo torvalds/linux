@@ -2072,11 +2072,14 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 		goto done;
 	}
 
-	list_add_tail(&sev->node, &mapping->ev_subs);
 	if (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL) {
 		struct v4l2_event ev;
 		u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
 		s32 val = 0;
+
+		ret = uvc_pm_get(handle->chain->dev);
+		if (ret)
+			goto done;
 
 		if (uvc_ctrl_mapping_is_compound(mapping) ||
 		    __uvc_ctrl_get(handle->chain, ctrl, mapping, &val) == 0)
@@ -2084,6 +2087,9 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 
 		uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, val,
 				    changes);
+
+		uvc_pm_put(handle->chain->dev);
+
 		/*
 		 * Mark the queue as active, allowing this initial event to be
 		 * accepted.
@@ -2091,6 +2097,8 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 		sev->elems = elems;
 		v4l2_event_queue_fh(sev->fh, &ev);
 	}
+
+	list_add_tail(&sev->node, &mapping->ev_subs);
 
 done:
 	mutex_unlock(&handle->chain->ctrl_mutex);
