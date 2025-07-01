@@ -1066,8 +1066,6 @@ static void ath12k_wmi_put_wmi_channel(struct ath12k_wmi_channel_params *chan,
 			chan->band_center_freq1 = cpu_to_le32(center_freq1 - 40);
 
 		chan->band_center_freq2 = cpu_to_le32(center_freq1);
-	} else if (arg->mode == MODE_11BE_EHT80_80) {
-		chan->band_center_freq2 = cpu_to_le32(arg->band_center_freq2);
 	} else {
 		chan->band_center_freq2 = 0;
 	}
