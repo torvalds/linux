@@ -2760,6 +2760,7 @@ static unsigned long long convert_num_spec(unsigned int val, int size, struct pr
 	return (int)val >> shift;
 }
 
+ 
 /**
  * vsnprintf - Format a string and place it in a buffer
  * @buf: The buffer to place the result into
@@ -2770,8 +2771,8 @@ static unsigned long long convert_num_spec(unsigned int val, int size, struct pr
  * This function generally follows C99 vsnprintf, but has some
  * extensions and a few limitations:
  *
- *  - ``%n`` is unsupported
- *  - ``%p*`` is handled by pointer()
+ *  - "%n" is unsupported
+ *  - "%p*" is handled by pointer()
  *
  * See pointer() or Documentation/core-api/printk-formats.rst for more
  * extensive description.
@@ -2791,9 +2792,10 @@ static unsigned long long convert_num_spec(unsigned int val, int size, struct pr
 int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 {
 	char *str, *end;
-	struct printf_spec spec = {0};
+	size_t total_len = 0;
+	struct printf_spec spec = { 0 };
 	struct fmt fmt = {
-		.str = fmt_str,
+		.str   = fmt_str,
 		.state = FORMAT_STATE_NONE,
 	};
 
@@ -2807,7 +2809,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 
 	/* Make sure end is always >= buf */
 	if (end < buf) {
-		end = ((void *)-1);
+		end = (void *)-1;
 		size = end - buf;
 	}
 
@@ -2825,7 +2827,8 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 					copy = end - str;
 				memcpy(str, old_fmt, copy);
 			}
-			str += read;
+			str        += read;
+			total_len  += read;
 			continue;
 		}
 
@@ -2835,7 +2838,12 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 				num = convert_num_spec(va_arg(args, int), fmt.size, spec);
 			else
 				num = va_arg(args, long long);
-			str = number(str, end, num, spec);
+
+			{
+				char *old_str = str;
+				str = number(str, end, num, spec);
+				total_len += str - old_str;
+			}
 			continue;
 		}
 
@@ -2849,53 +2857,56 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 
 		case FORMAT_STATE_CHAR: {
 			char c;
+			int pad = spec.field_width > 1 ? spec.field_width - 1 : 0;
 
 			if (!(spec.flags & LEFT)) {
 				while (--spec.field_width > 0) {
 					if (str < end)
 						*str = ' ';
 					++str;
-
 				}
 			}
-			c = (unsigned char) va_arg(args, int);
+
+			c = (unsigned char)va_arg(args, int);
 			if (str < end)
 				*str = c;
 			++str;
+
 			while (--spec.field_width > 0) {
 				if (str < end)
 					*str = ' ';
 				++str;
 			}
+
+			total_len += 1 + pad;
 			continue;
 		}
 
-		case FORMAT_STATE_STR:
+		case FORMAT_STATE_STR: {
+			char *old_str = str;
 			str = string(str, end, va_arg(args, char *), spec);
+			total_len += str - old_str;
 			continue;
+		}
 
-		case FORMAT_STATE_PTR:
-			str = pointer(fmt.str, str, end, va_arg(args, void *),
-				      spec);
+		case FORMAT_STATE_PTR: {
+			char *old_str = str;
+			str = pointer(fmt.str, str, end, va_arg(args, void *), spec);
+			total_len += str - old_str;
 			while (isalnum(*fmt.str))
 				fmt.str++;
 			continue;
+		}
 
 		case FORMAT_STATE_PERCENT_CHAR:
 			if (str < end)
 				*str = '%';
 			++str;
+			total_len += 1;
 			continue;
 
 		default:
-			/*
-			 * Presumably the arguments passed gcc's type
-			 * checking, but there is no safe or sane way
-			 * for us to continue parsing the format and
-			 * fetching from the va_list; the remaining
-			 * specifiers and arguments would be out of
-			 * sync.
-			 */
+			/* Can't continue safely */
 			goto out;
 		}
 	}
@@ -2908,9 +2919,9 @@ out:
 			end[-1] = '\0';
 	}
 
-	/* the trailing null byte doesn't count towards the total */
-	return str-buf;
-
+	/* POSIX: return the number of characters we *wanted* to write,
+	 * excluding the null terminator, even if truncated */
+	return total_len;
 }
 EXPORT_SYMBOL(vsnprintf);
 
