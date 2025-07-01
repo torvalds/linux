@@ -49,14 +49,6 @@
 	for ((dir) = SND_SOC_DAPM_DIR_IN; (dir) <= SND_SOC_DAPM_DIR_OUT; \
 		(dir)++)
 
-static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
-	struct snd_soc_dapm_widget *wsource, struct snd_soc_dapm_widget *wsink,
-	const char *control,
-	int (*connected)(struct snd_soc_dapm_widget *source,
-			 struct snd_soc_dapm_widget *sink));
-
-static unsigned int soc_dapm_read(struct snd_soc_dapm_context *dapm, int reg);
-
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
 	[snd_soc_dapm_pre] = 1,
@@ -346,6 +338,320 @@ struct dapm_kcontrol_data {
 	struct snd_soc_dapm_widget_list *wlist;
 };
 
+static unsigned int soc_dapm_read(struct snd_soc_dapm_context *dapm, int reg)
+{
+	if (!dapm->component)
+		return -EIO;
+	return  snd_soc_component_read(dapm->component, reg);
+}
+
+/* set up initial codec paths */
+static void dapm_set_mixer_path_status(struct snd_soc_dapm_path *p, int i,
+				       int nth_path)
+{
+	struct soc_mixer_control *mc = (struct soc_mixer_control *)
+		p->sink->kcontrol_news[i].private_value;
+	unsigned int reg = mc->reg;
+	unsigned int invert = mc->invert;
+
+	if (reg != SND_SOC_NOPM) {
+		unsigned int shift = mc->shift;
+		unsigned int max = mc->max;
+		unsigned int mask = (1 << fls(max)) - 1;
+		unsigned int val = soc_dapm_read(p->sink->dapm, reg);
+
+		/*
+		 * The nth_path argument allows this function to know
+		 * which path of a kcontrol it is setting the initial
+		 * status for. Ideally this would support any number
+		 * of paths and channels. But since kcontrols only come
+		 * in mono and stereo variants, we are limited to 2
+		 * channels.
+		 *
+		 * The following code assumes for stereo controls the
+		 * first path is the left channel, and all remaining
+		 * paths are the right channel.
+		 */
+		if (snd_soc_volsw_is_stereo(mc) && nth_path > 0) {
+			if (reg != mc->rreg)
+				val = soc_dapm_read(p->sink->dapm, mc->rreg);
+			val = (val >> mc->rshift) & mask;
+		} else {
+			val = (val >> shift) & mask;
+		}
+		if (invert)
+			val = max - val;
+		p->connect = !!val;
+	} else {
+		/* since a virtual mixer has no backing registers to
+		 * decide which path to connect, it will try to match
+		 * with initial state.  This is to ensure
+		 * that the default mixer choice will be
+		 * correctly powered up during initialization.
+		 */
+		p->connect = invert;
+	}
+}
+
+/* connect mux widget to its interconnecting audio paths */
+static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
+			    struct snd_soc_dapm_path *path, const char *control_name,
+			    struct snd_soc_dapm_widget *w)
+{
+	const struct snd_kcontrol_new *kcontrol = &w->kcontrol_news[0];
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int item;
+	int i;
+
+	if (e->reg != SND_SOC_NOPM) {
+		unsigned int val;
+
+		val = soc_dapm_read(dapm, e->reg);
+		val = (val >> e->shift_l) & e->mask;
+		item = snd_soc_enum_val_to_item(e, val);
+	} else {
+		/* since a virtual mux has no backing registers to
+		 * decide which path to connect, it will try to match
+		 * with the first enumeration.  This is to ensure
+		 * that the default mux choice (the first) will be
+		 * correctly powered up during initialization.
+		 */
+		item = 0;
+	}
+
+	i = match_string(e->texts, e->items, control_name);
+	if (i < 0)
+		return -ENODEV;
+
+	path->name = e->texts[i];
+	path->connect = (i == item);
+	return 0;
+
+}
+
+/* connect mixer widget to its interconnecting audio paths */
+static int dapm_connect_mixer(struct snd_soc_dapm_context *dapm,
+			      struct snd_soc_dapm_path *path, const char *control_name)
+{
+	int i, nth_path = 0;
+
+	/* search for mixer kcontrol */
+	for (i = 0; i < path->sink->num_kcontrols; i++) {
+		if (!strcmp(control_name, path->sink->kcontrol_news[i].name)) {
+			path->name = path->sink->kcontrol_news[i].name;
+			dapm_set_mixer_path_status(path, i, nth_path++);
+			return 0;
+		}
+	}
+	return -ENODEV;
+}
+
+/*
+ * dapm_update_widget_flags() - Re-compute widget sink and source flags
+ * @w: The widget for which to update the flags
+ *
+ * Some widgets have a dynamic category which depends on which neighbors they
+ * are connected to. This function update the category for these widgets.
+ *
+ * This function must be called whenever a path is added or removed to a widget.
+ */
+static void dapm_update_widget_flags(struct snd_soc_dapm_widget *w)
+{
+	enum snd_soc_dapm_direction dir;
+	struct snd_soc_dapm_path *p;
+	unsigned int ep;
+
+	switch (w->id) {
+	case snd_soc_dapm_input:
+		/* On a fully routed card an input is never a source */
+		if (w->dapm->card->fully_routed)
+			return;
+		ep = SND_SOC_DAPM_EP_SOURCE;
+		snd_soc_dapm_widget_for_each_source_path(w, p) {
+			if (p->source->id == snd_soc_dapm_micbias ||
+			    p->source->id == snd_soc_dapm_mic ||
+			    p->source->id == snd_soc_dapm_line ||
+			    p->source->id == snd_soc_dapm_output) {
+				ep = 0;
+				break;
+			}
+		}
+		break;
+	case snd_soc_dapm_output:
+		/* On a fully routed card a output is never a sink */
+		if (w->dapm->card->fully_routed)
+			return;
+		ep = SND_SOC_DAPM_EP_SINK;
+		snd_soc_dapm_widget_for_each_sink_path(w, p) {
+			if (p->sink->id == snd_soc_dapm_spk ||
+			    p->sink->id == snd_soc_dapm_hp ||
+			    p->sink->id == snd_soc_dapm_line ||
+			    p->sink->id == snd_soc_dapm_input) {
+				ep = 0;
+				break;
+			}
+		}
+		break;
+	case snd_soc_dapm_line:
+		ep = 0;
+		snd_soc_dapm_for_each_direction(dir) {
+			if (!list_empty(&w->edges[dir]))
+				ep |= SND_SOC_DAPM_DIR_TO_EP(dir);
+		}
+		break;
+	default:
+		return;
+	}
+
+	w->is_ep = ep;
+}
+
+static int snd_soc_dapm_check_dynamic_path(
+	struct snd_soc_dapm_context *dapm,
+	struct snd_soc_dapm_widget *source, struct snd_soc_dapm_widget *sink,
+	const char *control)
+{
+	bool dynamic_source = false;
+	bool dynamic_sink = false;
+
+	if (!control)
+		return 0;
+
+	switch (source->id) {
+	case snd_soc_dapm_demux:
+		dynamic_source = true;
+		break;
+	default:
+		break;
+	}
+
+	switch (sink->id) {
+	case snd_soc_dapm_mux:
+	case snd_soc_dapm_switch:
+	case snd_soc_dapm_mixer:
+	case snd_soc_dapm_mixer_named_ctl:
+		dynamic_sink = true;
+		break;
+	default:
+		break;
+	}
+
+	if (dynamic_source && dynamic_sink) {
+		dev_err(dapm->dev,
+			"Direct connection between demux and mixer/mux not supported for path %s -> [%s] -> %s\n",
+			source->name, control, sink->name);
+		return -EINVAL;
+	} else if (!dynamic_source && !dynamic_sink) {
+		dev_err(dapm->dev,
+			"Control not supported for path %s -> [%s] -> %s\n",
+			source->name, control, sink->name);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int snd_soc_dapm_add_path(
+	struct snd_soc_dapm_context *dapm,
+	struct snd_soc_dapm_widget *wsource, struct snd_soc_dapm_widget *wsink,
+	const char *control,
+	int (*connected)(struct snd_soc_dapm_widget *source,
+			 struct snd_soc_dapm_widget *sink))
+{
+	enum snd_soc_dapm_direction dir;
+	struct snd_soc_dapm_path *path;
+	int ret;
+
+	if (wsink->is_supply && !wsource->is_supply) {
+		dev_err(dapm->dev,
+			"Connecting non-supply widget to supply widget is not supported (%s -> %s)\n",
+			wsource->name, wsink->name);
+		return -EINVAL;
+	}
+
+	if (connected && !wsource->is_supply) {
+		dev_err(dapm->dev,
+			"connected() callback only supported for supply widgets (%s -> %s)\n",
+			wsource->name, wsink->name);
+		return -EINVAL;
+	}
+
+	if (wsource->is_supply && control) {
+		dev_err(dapm->dev,
+			"Conditional paths are not supported for supply widgets (%s -> [%s] -> %s)\n",
+			wsource->name, control, wsink->name);
+		return -EINVAL;
+	}
+
+	ret = snd_soc_dapm_check_dynamic_path(dapm, wsource, wsink, control);
+	if (ret)
+		return ret;
+
+	path = kzalloc(sizeof(struct snd_soc_dapm_path), GFP_KERNEL);
+	if (!path)
+		return -ENOMEM;
+
+	path->node[SND_SOC_DAPM_DIR_IN] = wsource;
+	path->node[SND_SOC_DAPM_DIR_OUT] = wsink;
+
+	path->connected = connected;
+	INIT_LIST_HEAD(&path->list);
+	INIT_LIST_HEAD(&path->list_kcontrol);
+
+	if (wsource->is_supply || wsink->is_supply)
+		path->is_supply = 1;
+
+	/* connect static paths */
+	if (control == NULL) {
+		path->connect = 1;
+	} else {
+		switch (wsource->id) {
+		case snd_soc_dapm_demux:
+			ret = dapm_connect_mux(dapm, path, control, wsource);
+			if (ret)
+				goto err;
+			break;
+		default:
+			break;
+		}
+
+		switch (wsink->id) {
+		case snd_soc_dapm_mux:
+			ret = dapm_connect_mux(dapm, path, control, wsink);
+			if (ret != 0)
+				goto err;
+			break;
+		case snd_soc_dapm_switch:
+		case snd_soc_dapm_mixer:
+		case snd_soc_dapm_mixer_named_ctl:
+			ret = dapm_connect_mixer(dapm, path, control);
+			if (ret != 0)
+				goto err;
+			break;
+		default:
+			break;
+		}
+	}
+
+	list_add(&path->list, &dapm->card->paths);
+
+	snd_soc_dapm_for_each_direction(dir)
+		list_add(&path->list_node[dir], &path->node[dir]->edges[dir]);
+
+	snd_soc_dapm_for_each_direction(dir) {
+		dapm_update_widget_flags(path->node[dir]);
+		dapm_mark_dirty(path->node[dir], "Route added");
+	}
+
+	if (snd_soc_card_is_instantiated(dapm->card) && path->connect)
+		dapm_path_invalidate(path);
+
+	return 0;
+err:
+	kfree(path);
+	return ret;
+}
+
 static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 	struct snd_kcontrol *kcontrol, const char *ctrl_name)
 {
@@ -618,13 +924,6 @@ static const char *soc_dapm_prefix(struct snd_soc_dapm_context *dapm)
 	return dapm->component->name_prefix;
 }
 
-static unsigned int soc_dapm_read(struct snd_soc_dapm_context *dapm, int reg)
-{
-	if (!dapm->component)
-		return -EIO;
-	return  snd_soc_component_read(dapm->component, reg);
-}
-
 static int soc_dapm_update_bits(struct snd_soc_dapm_context *dapm,
 	int reg, unsigned int mask, unsigned int value)
 {
@@ -732,106 +1031,6 @@ out:
 	trace_snd_soc_bias_level_done(dapm, level);
 
 	return ret;
-}
-
-/* connect mux widget to its interconnecting audio paths */
-static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
-	struct snd_soc_dapm_path *path, const char *control_name,
-	struct snd_soc_dapm_widget *w)
-{
-	const struct snd_kcontrol_new *kcontrol = &w->kcontrol_news[0];
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	unsigned int item;
-	int i;
-
-	if (e->reg != SND_SOC_NOPM) {
-		unsigned int val;
-		val = soc_dapm_read(dapm, e->reg);
-		val = (val >> e->shift_l) & e->mask;
-		item = snd_soc_enum_val_to_item(e, val);
-	} else {
-		/* since a virtual mux has no backing registers to
-		 * decide which path to connect, it will try to match
-		 * with the first enumeration.  This is to ensure
-		 * that the default mux choice (the first) will be
-		 * correctly powered up during initialization.
-		 */
-		item = 0;
-	}
-
-	i = match_string(e->texts, e->items, control_name);
-	if (i < 0)
-		return -ENODEV;
-
-	path->name = e->texts[i];
-	path->connect = (i == item);
-	return 0;
-
-}
-
-/* set up initial codec paths */
-static void dapm_set_mixer_path_status(struct snd_soc_dapm_path *p, int i,
-				       int nth_path)
-{
-	struct soc_mixer_control *mc = (struct soc_mixer_control *)
-		p->sink->kcontrol_news[i].private_value;
-	unsigned int reg = mc->reg;
-	unsigned int invert = mc->invert;
-
-	if (reg != SND_SOC_NOPM) {
-		unsigned int shift = mc->shift;
-		unsigned int max = mc->max;
-		unsigned int mask = (1 << fls(max)) - 1;
-		unsigned int val = soc_dapm_read(p->sink->dapm, reg);
-
-		/*
-		 * The nth_path argument allows this function to know
-		 * which path of a kcontrol it is setting the initial
-		 * status for. Ideally this would support any number
-		 * of paths and channels. But since kcontrols only come
-		 * in mono and stereo variants, we are limited to 2
-		 * channels.
-		 *
-		 * The following code assumes for stereo controls the
-		 * first path is the left channel, and all remaining
-		 * paths are the right channel.
-		 */
-		if (snd_soc_volsw_is_stereo(mc) && nth_path > 0) {
-			if (reg != mc->rreg)
-				val = soc_dapm_read(p->sink->dapm, mc->rreg);
-			val = (val >> mc->rshift) & mask;
-		} else {
-			val = (val >> shift) & mask;
-		}
-		if (invert)
-			val = max - val;
-		p->connect = !!val;
-	} else {
-		/* since a virtual mixer has no backing registers to
-		 * decide which path to connect, it will try to match
-		 * with initial state.  This is to ensure
-		 * that the default mixer choice will be
-		 * correctly powered up during initialization.
-		 */
-		p->connect = invert;
-	}
-}
-
-/* connect mixer widget to its interconnecting audio paths */
-static int dapm_connect_mixer(struct snd_soc_dapm_context *dapm,
-	struct snd_soc_dapm_path *path, const char *control_name)
-{
-	int i, nth_path = 0;
-
-	/* search for mixer kcontrol */
-	for (i = 0; i < path->sink->num_kcontrols; i++) {
-		if (!strcmp(control_name, path->sink->kcontrol_news[i].name)) {
-			path->name = path->sink->kcontrol_news[i].name;
-			dapm_set_mixer_path_status(path, i, nth_path++);
-			return 0;
-		}
-	}
-	return -ENODEV;
 }
 
 static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
@@ -2782,210 +2981,6 @@ int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char 
 	return strcmp(wname, s);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_widget_name_cmp);
-
-/*
- * dapm_update_widget_flags() - Re-compute widget sink and source flags
- * @w: The widget for which to update the flags
- *
- * Some widgets have a dynamic category which depends on which neighbors they
- * are connected to. This function update the category for these widgets.
- *
- * This function must be called whenever a path is added or removed to a widget.
- */
-static void dapm_update_widget_flags(struct snd_soc_dapm_widget *w)
-{
-	enum snd_soc_dapm_direction dir;
-	struct snd_soc_dapm_path *p;
-	unsigned int ep;
-
-	switch (w->id) {
-	case snd_soc_dapm_input:
-		/* On a fully routed card an input is never a source */
-		if (w->dapm->card->fully_routed)
-			return;
-		ep = SND_SOC_DAPM_EP_SOURCE;
-		snd_soc_dapm_widget_for_each_source_path(w, p) {
-			if (p->source->id == snd_soc_dapm_micbias ||
-				p->source->id == snd_soc_dapm_mic ||
-				p->source->id == snd_soc_dapm_line ||
-				p->source->id == snd_soc_dapm_output) {
-					ep = 0;
-					break;
-			}
-		}
-		break;
-	case snd_soc_dapm_output:
-		/* On a fully routed card a output is never a sink */
-		if (w->dapm->card->fully_routed)
-			return;
-		ep = SND_SOC_DAPM_EP_SINK;
-		snd_soc_dapm_widget_for_each_sink_path(w, p) {
-			if (p->sink->id == snd_soc_dapm_spk ||
-				p->sink->id == snd_soc_dapm_hp ||
-				p->sink->id == snd_soc_dapm_line ||
-				p->sink->id == snd_soc_dapm_input) {
-					ep = 0;
-					break;
-			}
-		}
-		break;
-	case snd_soc_dapm_line:
-		ep = 0;
-		snd_soc_dapm_for_each_direction(dir) {
-			if (!list_empty(&w->edges[dir]))
-				ep |= SND_SOC_DAPM_DIR_TO_EP(dir);
-		}
-		break;
-	default:
-		return;
-	}
-
-	w->is_ep = ep;
-}
-
-static int snd_soc_dapm_check_dynamic_path(struct snd_soc_dapm_context *dapm,
-	struct snd_soc_dapm_widget *source, struct snd_soc_dapm_widget *sink,
-	const char *control)
-{
-	bool dynamic_source = false;
-	bool dynamic_sink = false;
-
-	if (!control)
-		return 0;
-
-	switch (source->id) {
-	case snd_soc_dapm_demux:
-		dynamic_source = true;
-		break;
-	default:
-		break;
-	}
-
-	switch (sink->id) {
-	case snd_soc_dapm_mux:
-	case snd_soc_dapm_switch:
-	case snd_soc_dapm_mixer:
-	case snd_soc_dapm_mixer_named_ctl:
-		dynamic_sink = true;
-		break;
-	default:
-		break;
-	}
-
-	if (dynamic_source && dynamic_sink) {
-		dev_err(dapm->dev,
-			"Direct connection between demux and mixer/mux not supported for path %s -> [%s] -> %s\n",
-			source->name, control, sink->name);
-		return -EINVAL;
-	} else if (!dynamic_source && !dynamic_sink) {
-		dev_err(dapm->dev,
-			"Control not supported for path %s -> [%s] -> %s\n",
-			source->name, control, sink->name);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
-	struct snd_soc_dapm_widget *wsource, struct snd_soc_dapm_widget *wsink,
-	const char *control,
-	int (*connected)(struct snd_soc_dapm_widget *source,
-			 struct snd_soc_dapm_widget *sink))
-{
-	enum snd_soc_dapm_direction dir;
-	struct snd_soc_dapm_path *path;
-	int ret;
-
-	if (wsink->is_supply && !wsource->is_supply) {
-		dev_err(dapm->dev,
-			"Connecting non-supply widget to supply widget is not supported (%s -> %s)\n",
-			wsource->name, wsink->name);
-		return -EINVAL;
-	}
-
-	if (connected && !wsource->is_supply) {
-		dev_err(dapm->dev,
-			"connected() callback only supported for supply widgets (%s -> %s)\n",
-			wsource->name, wsink->name);
-		return -EINVAL;
-	}
-
-	if (wsource->is_supply && control) {
-		dev_err(dapm->dev,
-			"Conditional paths are not supported for supply widgets (%s -> [%s] -> %s)\n",
-			wsource->name, control, wsink->name);
-		return -EINVAL;
-	}
-
-	ret = snd_soc_dapm_check_dynamic_path(dapm, wsource, wsink, control);
-	if (ret)
-		return ret;
-
-	path = kzalloc(sizeof(struct snd_soc_dapm_path), GFP_KERNEL);
-	if (!path)
-		return -ENOMEM;
-
-	path->node[SND_SOC_DAPM_DIR_IN] = wsource;
-	path->node[SND_SOC_DAPM_DIR_OUT] = wsink;
-
-	path->connected = connected;
-	INIT_LIST_HEAD(&path->list);
-	INIT_LIST_HEAD(&path->list_kcontrol);
-
-	if (wsource->is_supply || wsink->is_supply)
-		path->is_supply = 1;
-
-	/* connect static paths */
-	if (control == NULL) {
-		path->connect = 1;
-	} else {
-		switch (wsource->id) {
-		case snd_soc_dapm_demux:
-			ret = dapm_connect_mux(dapm, path, control, wsource);
-			if (ret)
-				goto err;
-			break;
-		default:
-			break;
-		}
-
-		switch (wsink->id) {
-		case snd_soc_dapm_mux:
-			ret = dapm_connect_mux(dapm, path, control, wsink);
-			if (ret != 0)
-				goto err;
-			break;
-		case snd_soc_dapm_switch:
-		case snd_soc_dapm_mixer:
-		case snd_soc_dapm_mixer_named_ctl:
-			ret = dapm_connect_mixer(dapm, path, control);
-			if (ret != 0)
-				goto err;
-			break;
-		default:
-			break;
-		}
-	}
-
-	list_add(&path->list, &dapm->card->paths);
-
-	snd_soc_dapm_for_each_direction(dir)
-		list_add(&path->list_node[dir], &path->node[dir]->edges[dir]);
-
-	snd_soc_dapm_for_each_direction(dir) {
-		dapm_update_widget_flags(path->node[dir]);
-		dapm_mark_dirty(path->node[dir], "Route added");
-	}
-
-	if (snd_soc_card_is_instantiated(dapm->card) && path->connect)
-		dapm_path_invalidate(path);
-
-	return 0;
-err:
-	kfree(path);
-	return ret;
-}
 
 static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 				  const struct snd_soc_dapm_route *route)
