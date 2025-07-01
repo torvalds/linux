@@ -294,6 +294,8 @@ struct xe_device {
 		u8 vram_flags;
 		/** @info.tile_count: Number of tiles */
 		u8 tile_count;
+		/** @info.max_gt_per_tile: Number of GT IDs allocated to each tile */
+		u8 max_gt_per_tile;
 		/** @info.gt_count: Total number of GTs for entire device */
 		u8 gt_count;
 		/** @info.vm_max_level: Max VM level */
