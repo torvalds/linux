@@ -160,7 +160,8 @@ int drm_gem_fb_init_with_funcs(struct drm_device *dev,
 	unsigned int i;
 	int ret;
 
-	info = drm_get_format_info(dev, mode_cmd);
+	info = drm_get_format_info(dev, mode_cmd->pixel_format,
+				   mode_cmd->modifier[0]);
 	if (!info) {
 		drm_dbg_kms(dev, "Failed to get FB format info\n");
 		return -EINVAL;
@@ -502,7 +503,8 @@ static __u32 drm_gem_afbc_get_bpp(struct drm_device *dev,
 {
 	const struct drm_format_info *info;
 
-	info = drm_get_format_info(dev, mode_cmd);
+	info = drm_get_format_info(dev, mode_cmd->pixel_format,
+				   mode_cmd->modifier[0]);
 
 	switch (info->format) {
 	case DRM_FORMAT_YUV420_8BIT:
@@ -600,7 +602,8 @@ int drm_gem_fb_afbc_init(struct drm_device *dev,
 	int ret;
 
 	objs = afbc_fb->base.obj;
-	info = drm_get_format_info(dev, mode_cmd);
+	info = drm_get_format_info(dev, mode_cmd->pixel_format,
+				   mode_cmd->modifier[0]);
 	if (!info)
 		return -EINVAL;
 

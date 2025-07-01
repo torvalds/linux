@@ -86,7 +86,9 @@ struct armada_framebuffer *armada_framebuffer_create(struct drm_device *dev,
 struct drm_framebuffer *armada_fb_create(struct drm_device *dev,
 	struct drm_file *dfile, const struct drm_mode_fb_cmd2 *mode)
 {
-	const struct drm_format_info *info = drm_get_format_info(dev, mode);
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 mode->pixel_format,
+								 mode->modifier[0]);
 	struct armada_gem_object *obj;
 	struct armada_framebuffer *dfb;
 	int ret;

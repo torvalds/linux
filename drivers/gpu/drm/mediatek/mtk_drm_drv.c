@@ -45,7 +45,9 @@ mtk_drm_mode_fb_create(struct drm_device *dev,
 		       struct drm_file *file,
 		       const struct drm_mode_fb_cmd2 *cmd)
 {
-	const struct drm_format_info *info = drm_get_format_info(dev, cmd);
+	const struct drm_format_info *info = drm_get_format_info(dev,
+								 cmd->pixel_format,
+								 cmd->modifier[0]);
 
 	if (info->num_planes != 1)
 		return ERR_PTR(-EINVAL);

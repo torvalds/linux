@@ -417,7 +417,8 @@ EXPORT_SYMBOL(drm_format_info);
 /**
  * drm_get_format_info - query information for a given framebuffer configuration
  * @dev: DRM device
- * @mode_cmd: metadata from the userspace fb creation request
+ * @pixel_format: pixel format (DRM_FORMAT_*)
+ * @modifier: modifier
  *
  * Returns:
  * The instance of struct drm_format_info that describes the pixel format, or
@@ -425,16 +426,16 @@ EXPORT_SYMBOL(drm_format_info);
  */
 const struct drm_format_info *
 drm_get_format_info(struct drm_device *dev,
-		    const struct drm_mode_fb_cmd2 *mode_cmd)
+		    u32 pixel_format, u64 modifier)
 {
 	const struct drm_format_info *info = NULL;
 
 	if (dev->mode_config.funcs->get_format_info)
-		info = dev->mode_config.funcs->get_format_info(mode_cmd->pixel_format,
-							       mode_cmd->modifier[0]);
+		info = dev->mode_config.funcs->get_format_info(pixel_format,
+							       modifier);
 
 	if (!info)
-		info = drm_format_info(mode_cmd->pixel_format);
+		info = drm_format_info(pixel_format);
 
 	return info;
 }

@@ -176,7 +176,7 @@ static int framebuffer_check(struct drm_device *dev,
 	}
 
 	/* now let the driver pick its own format info */
-	info = drm_get_format_info(dev, r);
+	info = drm_get_format_info(dev, r->pixel_format, r->modifier[0]);
 
 	for (i = 0; i < info->num_planes; i++) {
 		unsigned int width = drm_format_info_plane_width(info, r->width, i);
