@@ -585,7 +585,6 @@ int zynqmp_pm_reset_assert(const u32 reset,
 int zynqmp_pm_reset_get_status(const u32 reset, u32 *status);
 unsigned int zynqmp_pm_bootmode_read(u32 *ps_mode);
 int zynqmp_pm_bootmode_write(u32 ps_mode);
-int zynqmp_pm_init_finalize(void);
 int zynqmp_pm_set_suspend_mode(u32 mode);
 int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
 			   const u32 qos, const enum zynqmp_pm_request_ack ack);
@@ -742,11 +741,6 @@ static inline unsigned int zynqmp_pm_bootmode_read(u32 *ps_mode)
 }
 
 static inline int zynqmp_pm_bootmode_write(u32 ps_mode)
-{
-	return -ENODEV;
-}
-
-static inline int zynqmp_pm_init_finalize(void)
 {
 	return -ENODEV;
 }
