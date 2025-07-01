@@ -214,7 +214,7 @@ static __always_inline void dapm_widget_invalidate_paths(
 
 	list_for_each_entry(w, &list, work_list) {
 		snd_soc_dapm_widget_for_each_path(w, dir, p) {
-			if (p->is_supply || p->weak || !p->connect)
+			if (p->is_supply || !p->connect)
 				continue;
 			node = p->node[rdir];
 			if (node->endpoints[dir] != -1) {
@@ -276,7 +276,7 @@ static void dapm_path_invalidate(struct snd_soc_dapm_path *p)
 	 * Weak paths or supply paths do not influence the number of input or
 	 * output paths of their neighbors.
 	 */
-	if (p->weak || p->is_supply)
+	if (p->is_supply)
 		return;
 
 	/*
@@ -1162,7 +1162,7 @@ static void invalidate_paths_ep(struct snd_soc_dapm_widget *widget,
 	widget->endpoints[dir] = -1;
 
 	snd_soc_dapm_widget_for_each_path(widget, rdir, path) {
-		if (path->weak || path->is_supply)
+		if (path->is_supply)
 			continue;
 
 		if (path->walking)
@@ -1217,7 +1217,7 @@ static __always_inline int is_connected_ep(struct snd_soc_dapm_widget *widget,
 	snd_soc_dapm_widget_for_each_path(widget, rdir, path) {
 		DAPM_UPDATE_STAT(widget, neighbour_checks);
 
-		if (path->weak || path->is_supply)
+		if (path->is_supply)
 			continue;
 
 		if (path->walking)
@@ -1453,9 +1453,6 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 	/* Check if one of our outputs is connected */
 	snd_soc_dapm_widget_for_each_sink_path(w, path) {
 		DAPM_UPDATE_STAT(w, neighbour_checks);
-
-		if (path->weak)
-			continue;
 
 		if (path->connected &&
 		    !path->connected(path->source, path->sink))
@@ -3201,86 +3198,6 @@ int snd_soc_dapm_del_routes(struct snd_soc_dapm_context *dapm,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_del_routes);
-
-static int snd_soc_dapm_weak_route(struct snd_soc_dapm_context *dapm,
-				   const struct snd_soc_dapm_route *route)
-{
-	struct snd_soc_dapm_widget *source = dapm_find_widget(dapm,
-							      route->source,
-							      true);
-	struct snd_soc_dapm_widget *sink = dapm_find_widget(dapm,
-							    route->sink,
-							    true);
-	struct snd_soc_dapm_path *path;
-	int count = 0;
-
-	if (!source) {
-		dev_err(dapm->dev, "ASoC: Unable to find source %s for weak route\n",
-			route->source);
-		return -ENODEV;
-	}
-
-	if (!sink) {
-		dev_err(dapm->dev, "ASoC: Unable to find sink %s for weak route\n",
-			route->sink);
-		return -ENODEV;
-	}
-
-	if (route->control || route->connected)
-		dev_warn(dapm->dev, "ASoC: Ignoring control for weak route %s->%s\n",
-			 route->source, route->sink);
-
-	snd_soc_dapm_widget_for_each_sink_path(source, path) {
-		if (path->sink == sink) {
-			path->weak = 1;
-			count++;
-		}
-	}
-
-	if (count == 0)
-		dev_err(dapm->dev, "ASoC: No path found for weak route %s->%s\n",
-			route->source, route->sink);
-	if (count > 1)
-		dev_warn(dapm->dev, "ASoC: %d paths found for weak route %s->%s\n",
-			 count, route->source, route->sink);
-
-	return 0;
-}
-
-/**
- * snd_soc_dapm_weak_routes - Mark routes between DAPM widgets as weak
- * @dapm: DAPM context
- * @route: audio routes
- * @num: number of routes
- *
- * Mark existing routes matching those specified in the passed array
- * as being weak, meaning that they are ignored for the purpose of
- * power decisions.  The main intended use case is for sidetone paths
- * which couple audio between other independent paths if they are both
- * active in order to make the combination work better at the user
- * level but which aren't intended to be "used".
- *
- * Note that CODEC drivers should not use this as sidetone type paths
- * can frequently also be used as bypass paths.
- */
-int snd_soc_dapm_weak_routes(struct snd_soc_dapm_context *dapm,
-			     const struct snd_soc_dapm_route *route, int num)
-{
-	int i;
-	int ret = 0;
-
-	snd_soc_dapm_mutex_lock_root(dapm);
-	for (i = 0; i < num; i++) {
-		int err = snd_soc_dapm_weak_route(dapm, route);
-		if (err)
-			ret = err;
-		route++;
-	}
-	snd_soc_dapm_mutex_unlock(dapm);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_dapm_weak_routes);
 
 /**
  * snd_soc_dapm_new_widgets - add new dapm widgets
