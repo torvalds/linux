@@ -865,7 +865,7 @@ static bool dw_pcie_ptm_t4_visible(void *drvdata)
 	return pci->mode == DW_PCIE_EP_TYPE;
 }
 
-const struct pcie_ptm_ops dw_pcie_ptm_ops = {
+static const struct pcie_ptm_ops dw_pcie_ptm_ops = {
 	.check_capability = dw_pcie_ptm_check_capability,
 	.context_update_write = dw_pcie_ptm_context_update_write,
 	.context_update_read = dw_pcie_ptm_context_update_read,
