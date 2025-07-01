@@ -52,19 +52,17 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
 	const unsigned long oil = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	const int unit_size = eb->folio_size;				\
 	char *kaddr = folio_address(eb->folios[idx]);			\
-	const int size = sizeof(u##bits);				\
-	const int part = unit_size - oil;				\
+	const int part = eb->folio_size - oil;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
-	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
+	ASSERT(check_setget_bounds(eb, ptr, off, sizeof(u##bits)));	\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 || likely(sizeof(u##bits) <= part))	\
 		return get_unaligned_le##bits(kaddr + oil);		\
 									\
 	memcpy(lebytes, kaddr + oil, part);				\
 	kaddr = folio_address(eb->folios[idx + 1]);			\
-	memcpy(lebytes + part, kaddr, size - part);			\
+	memcpy(lebytes + part, kaddr, sizeof(u##bits) - part);		\
 	return get_unaligned_le##bits(lebytes);				\
 }									\
 void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
@@ -74,13 +72,11 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
 	const unsigned long oil = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	const int unit_size = eb->folio_size;				\
 	char *kaddr = folio_address(eb->folios[idx]);			\
-	const int size = sizeof(u##bits);				\
-	const int part = unit_size - oil;				\
+	const int part = eb->folio_size - oil;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
-	ASSERT(check_setget_bounds(eb, ptr, off, size));		\
+	ASSERT(check_setget_bounds(eb, ptr, off, sizeof(u##bits)));	\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 ||				\
 	    likely(sizeof(u##bits) <= part)) {				\
 		put_unaligned_le##bits(val, kaddr + oil);		\
@@ -90,7 +86,7 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 	put_unaligned_le##bits(val, lebytes);				\
 	memcpy(kaddr + oil, lebytes, part);				\
 	kaddr = folio_address(eb->folios[idx + 1]);			\
-	memcpy(kaddr, lebytes + part, size - part);			\
+	memcpy(kaddr, lebytes + part, sizeof(u##bits) - part);		\
 }
 
 DEFINE_BTRFS_SETGET_BITS(8)
