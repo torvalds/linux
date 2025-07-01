@@ -30,7 +30,7 @@ static inline int check_stat(u32 (*op)(void __iomem *, u32), u32 expect_val,
 }
 
 static void bank_state_save(struct adf_hw_csr_ops *ops, void __iomem *base,
-			    u32 bank, struct bank_state *state, u32 num_rings)
+			    u32 bank, struct adf_bank_state *state, u32 num_rings)
 {
 	u32 i;
 
@@ -60,7 +60,7 @@ static void bank_state_save(struct adf_hw_csr_ops *ops, void __iomem *base,
 }
 
 static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
-			      u32 bank, struct bank_state *state, u32 num_rings,
+			      u32 bank, struct adf_bank_state *state, u32 num_rings,
 			      int tx_rx_gap)
 {
 	u32 val, tmp_val, i;
@@ -185,7 +185,7 @@ static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
  * Returns 0 on success, error code otherwise
  */
 int adf_bank_state_save(struct adf_accel_dev *accel_dev, u32 bank_number,
-			struct bank_state *state)
+			struct adf_bank_state *state)
 {
 	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
 	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
@@ -215,7 +215,7 @@ EXPORT_SYMBOL_GPL(adf_bank_state_save);
  * Returns 0 on success, error code otherwise
  */
 int adf_bank_state_restore(struct adf_accel_dev *accel_dev, u32 bank_number,
-			   struct bank_state *state)
+			   struct adf_bank_state *state)
 {
 	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
 	struct adf_hw_csr_ops *csr_ops = GET_CSR_OPS(accel_dev);
