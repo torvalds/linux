@@ -9,6 +9,7 @@
 
 #include <linux/etherdevice.h>
 #include "../bnxt/bnxt_hsi.h"
+#include "bnge_rmem.h"
 
 #define DRV_VER_MAJ	1
 #define DRV_VER_MIN	15
@@ -52,6 +53,13 @@ enum {
 	BNGE_FW_CAP_VNIC_RE_FLUSH			= BIT_ULL(26),
 };
 
+enum {
+	BNGE_EN_ROCE_V1					= BIT_ULL(0),
+	BNGE_EN_ROCE_V2					= BIT_ULL(1),
+};
+
+#define BNGE_EN_ROCE		(BNGE_EN_ROCE_V1 | BNGE_EN_ROCE_V2)
+
 struct bnge_dev {
 	struct device	*dev;
 	struct pci_dev	*pdev;
@@ -89,6 +97,16 @@ struct bnge_dev {
 #define BNGE_STATE_DRV_REGISTERED      0
 
 	u64			fw_cap;
+
+	/* Backing stores */
+	struct bnge_ctx_mem_info	*ctx;
+
+	u64			flags;
 };
+
+static inline bool bnge_is_roce_en(struct bnge_dev *bd)
+{
+	return bd->flags & BNGE_EN_ROCE;
+}
 
 #endif /* _BNGE_H_ */

@@ -10,6 +10,7 @@
 #include "../bnxt/bnxt_hsi.h"
 #include "bnge_hwrm.h"
 #include "bnge_hwrm_lib.h"
+#include "bnge_rmem.h"
 
 int bnge_hwrm_ver_get(struct bnge_dev *bd)
 {
@@ -210,4 +211,171 @@ int bnge_hwrm_func_drv_unrgtr(struct bnge_dev *bd)
 	if (rc)
 		return rc;
 	return bnge_hwrm_req_send(bd, req);
+}
+
+static void bnge_init_ctx_initializer(struct bnge_ctx_mem_type *ctxm,
+				      u8 init_val, u8 init_offset,
+				      bool init_mask_set)
+{
+	ctxm->init_value = init_val;
+	ctxm->init_offset = BNGE_CTX_INIT_INVALID_OFFSET;
+	if (init_mask_set)
+		ctxm->init_offset = init_offset * 4;
+	else
+		ctxm->init_value = 0;
+}
+
+static int bnge_alloc_all_ctx_pg_info(struct bnge_dev *bd, int ctx_max)
+{
+	struct bnge_ctx_mem_info *ctx = bd->ctx;
+	u16 type;
+
+	for (type = 0; type < ctx_max; type++) {
+		struct bnge_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		int n = 1;
+
+		if (!ctxm->max_entries)
+			continue;
+
+		if (ctxm->instance_bmap)
+			n = hweight32(ctxm->instance_bmap);
+		ctxm->pg_info = kcalloc(n, sizeof(*ctxm->pg_info), GFP_KERNEL);
+		if (!ctxm->pg_info)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+#define BNGE_CTX_INIT_VALID(flags)	\
+	(!!((flags) &			\
+	    FUNC_BACKING_STORE_QCAPS_V2_RESP_FLAGS_ENABLE_CTX_KIND_INIT))
+
+int bnge_hwrm_func_backing_store_qcaps(struct bnge_dev *bd)
+{
+	struct hwrm_func_backing_store_qcaps_v2_output *resp;
+	struct hwrm_func_backing_store_qcaps_v2_input *req;
+	struct bnge_ctx_mem_info *ctx;
+	u16 type;
+	int rc;
+
+	if (bd->ctx)
+		return 0;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_FUNC_BACKING_STORE_QCAPS_V2);
+	if (rc)
+		return rc;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	bd->ctx = ctx;
+
+	resp = bnge_hwrm_req_hold(bd, req);
+
+	for (type = 0; type < BNGE_CTX_V2_MAX; ) {
+		struct bnge_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		u8 init_val, init_off, i;
+		__le32 *p;
+		u32 flags;
+
+		req->type = cpu_to_le16(type);
+		rc = bnge_hwrm_req_send(bd, req);
+		if (rc)
+			goto ctx_done;
+		flags = le32_to_cpu(resp->flags);
+		type = le16_to_cpu(resp->next_valid_type);
+		if (!(flags &
+		      FUNC_BACKING_STORE_QCAPS_V2_RESP_FLAGS_TYPE_VALID))
+			continue;
+
+		ctxm->type = le16_to_cpu(resp->type);
+		ctxm->entry_size = le16_to_cpu(resp->entry_size);
+		ctxm->flags = flags;
+		ctxm->instance_bmap = le32_to_cpu(resp->instance_bit_map);
+		ctxm->entry_multiple = resp->entry_multiple;
+		ctxm->max_entries = le32_to_cpu(resp->max_num_entries);
+		ctxm->min_entries = le32_to_cpu(resp->min_num_entries);
+		init_val = resp->ctx_init_value;
+		init_off = resp->ctx_init_offset;
+		bnge_init_ctx_initializer(ctxm, init_val, init_off,
+					  BNGE_CTX_INIT_VALID(flags));
+		ctxm->split_entry_cnt = min_t(u8, resp->subtype_valid_cnt,
+					      BNGE_MAX_SPLIT_ENTRY);
+		for (i = 0, p = &resp->split_entry_0; i < ctxm->split_entry_cnt;
+		     i++, p++)
+			ctxm->split[i] = le32_to_cpu(*p);
+	}
+	rc = bnge_alloc_all_ctx_pg_info(bd, BNGE_CTX_V2_MAX);
+
+ctx_done:
+	bnge_hwrm_req_drop(bd, req);
+	return rc;
+}
+
+static void bnge_hwrm_set_pg_attr(struct bnge_ring_mem_info *rmem, u8 *pg_attr,
+				  __le64 *pg_dir)
+{
+	if (!rmem->nr_pages)
+		return;
+
+	BNGE_SET_CTX_PAGE_ATTR(*pg_attr);
+	if (rmem->depth >= 1) {
+		if (rmem->depth == 2)
+			*pg_attr |= 2;
+		else
+			*pg_attr |= 1;
+		*pg_dir = cpu_to_le64(rmem->dma_pg_tbl);
+	} else {
+		*pg_dir = cpu_to_le64(rmem->dma_arr[0]);
+	}
+}
+
+int bnge_hwrm_func_backing_store(struct bnge_dev *bd,
+				 struct bnge_ctx_mem_type *ctxm,
+				 bool last)
+{
+	struct hwrm_func_backing_store_cfg_v2_input *req;
+	u32 instance_bmap = ctxm->instance_bmap;
+	int i, j, rc = 0, n = 1;
+	__le32 *p;
+
+	if (!(ctxm->flags & BNGE_CTX_MEM_TYPE_VALID) || !ctxm->pg_info)
+		return 0;
+
+	if (instance_bmap)
+		n = hweight32(ctxm->instance_bmap);
+	else
+		instance_bmap = 1;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_FUNC_BACKING_STORE_CFG_V2);
+	if (rc)
+		return rc;
+	bnge_hwrm_req_hold(bd, req);
+	req->type = cpu_to_le16(ctxm->type);
+	req->entry_size = cpu_to_le16(ctxm->entry_size);
+	req->subtype_valid_cnt = ctxm->split_entry_cnt;
+	for (i = 0, p = &req->split_entry_0; i < ctxm->split_entry_cnt; i++)
+		p[i] = cpu_to_le32(ctxm->split[i]);
+	for (i = 0, j = 0; j < n && !rc; i++) {
+		struct bnge_ctx_pg_info *ctx_pg;
+
+		if (!(instance_bmap & (1 << i)))
+			continue;
+		req->instance = cpu_to_le16(i);
+		ctx_pg = &ctxm->pg_info[j++];
+		if (!ctx_pg->entries)
+			continue;
+		req->num_entries = cpu_to_le32(ctx_pg->entries);
+		bnge_hwrm_set_pg_attr(&ctx_pg->ring_mem,
+				      &req->page_size_pbl_level,
+				      &req->page_dir);
+		if (last && j == n)
+			req->flags =
+				cpu_to_le32(BNGE_BS_CFG_ALL_DONE);
+		rc = bnge_hwrm_req_send(bd, req);
+	}
+	bnge_hwrm_req_drop(bd, req);
+
+	return rc;
 }
