@@ -1047,34 +1047,43 @@ static void compute_s1_overlay_permissions(struct kvm_vcpu *vcpu,
 
 	idx = FIELD_GET(PTE_PO_IDX_MASK, wr->desc);
 
-	switch (wi->regime) {
-	case TR_EL10:
-		pov_perms = perm_idx(vcpu, POR_EL1, idx);
-		uov_perms = perm_idx(vcpu, POR_EL0, idx);
-		break;
-	case TR_EL20:
-		pov_perms = perm_idx(vcpu, POR_EL2, idx);
-		uov_perms = perm_idx(vcpu, POR_EL0, idx);
-		break;
-	case TR_EL2:
-		pov_perms = perm_idx(vcpu, POR_EL2, idx);
-		uov_perms = 0;
-		break;
-	}
+	if (wr->pov) {
+		switch (wi->regime) {
+		case TR_EL10:
+			pov_perms = perm_idx(vcpu, POR_EL1, idx);
+			break;
+		case TR_EL20:
+			pov_perms = perm_idx(vcpu, POR_EL2, idx);
+			break;
+		case TR_EL2:
+			pov_perms = perm_idx(vcpu, POR_EL2, idx);
+			break;
+		}
 
-	if (pov_perms & ~POE_RWX)
-		pov_perms = POE_NONE;
+		if (pov_perms & ~POE_RWX)
+			pov_perms = POE_NONE;
 
-	if (wi->poe && wr->pov) {
 		wr->pr &= pov_perms & POE_R;
 		wr->pw &= pov_perms & POE_W;
 		wr->px &= pov_perms & POE_X;
 	}
 
-	if (uov_perms & ~POE_RWX)
-		uov_perms = POE_NONE;
+	if (wr->uov) {
+		switch (wi->regime) {
+		case TR_EL10:
+			uov_perms = perm_idx(vcpu, POR_EL0, idx);
+			break;
+		case TR_EL20:
+			uov_perms = perm_idx(vcpu, POR_EL0, idx);
+			break;
+		case TR_EL2:
+			uov_perms = 0;
+			break;
+		}
 
-	if (wi->e0poe && wr->uov) {
+		if (uov_perms & ~POE_RWX)
+			uov_perms = POE_NONE;
+
 		wr->ur &= uov_perms & POE_R;
 		wr->uw &= uov_perms & POE_W;
 		wr->ux &= uov_perms & POE_X;
@@ -1095,8 +1104,7 @@ static void compute_s1_permissions(struct kvm_vcpu *vcpu,
 	if (!wi->hpd)
 		compute_s1_hierarchical_permissions(vcpu, wi, wr);
 
-	if (wi->poe || wi->e0poe)
-		compute_s1_overlay_permissions(vcpu, wi, wr);
+	compute_s1_overlay_permissions(vcpu, wi, wr);
 
 	/* R_QXXPC */
 	if (wr->pwxn) {
