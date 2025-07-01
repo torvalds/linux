@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ethtool.h>
+#include <linux/netdevice.h>
 
 #include "bnge.h"
 #include "bnge_hwrm.h"
@@ -26,6 +27,16 @@ static u16 bnge_get_max_func_irqs(struct bnge_dev *bd)
 	struct bnge_hw_resc *hw_resc = &bd->hw_resc;
 
 	return min_t(u16, hw_resc->max_irqs, hw_resc->max_nqs);
+}
+
+static unsigned int bnge_get_max_func_stat_ctxs(struct bnge_dev *bd)
+{
+	return bd->hw_resc.max_stat_ctxs;
+}
+
+static unsigned int bnge_get_max_func_cp_rings(struct bnge_dev *bd)
+{
+	return bd->hw_resc.max_cp_rings;
 }
 
 static int bnge_aux_get_dflt_msix(struct bnge_dev *bd)
@@ -66,6 +77,20 @@ static void bnge_aux_set_stat_ctxs(struct bnge_dev *bd, u16 num_aux_ctx)
 static u16 bnge_func_stat_ctxs_demand(struct bnge_dev *bd)
 {
 	return bd->nq_nr_rings + bnge_aux_get_stat_ctxs(bd);
+}
+
+static int bnge_get_dflt_aux_stat_ctxs(struct bnge_dev *bd)
+{
+	int stat_ctx = 0;
+
+	if (bnge_is_roce_en(bd)) {
+		stat_ctx = BNGE_MIN_ROCE_STAT_CTXS;
+
+		if (!bd->pf.port_id && bd->port_count > 1)
+			stat_ctx++;
+	}
+
+	return stat_ctx;
 }
 
 static u16 bnge_nqs_demand(struct bnge_dev *bd)
@@ -394,4 +419,187 @@ void bnge_free_irqs(struct bnge_dev *bd)
 	pci_free_irq_vectors(bd->pdev);
 	kfree(bd->irq_tbl);
 	bd->irq_tbl = NULL;
+}
+
+static void _bnge_get_max_rings(struct bnge_dev *bd, u16 *max_rx,
+				u16 *max_tx, u16 *max_nq)
+{
+	struct bnge_hw_resc *hw_resc = &bd->hw_resc;
+	u16 max_ring_grps = 0, max_cp;
+	int rc;
+
+	*max_tx = hw_resc->max_tx_rings;
+	*max_rx = hw_resc->max_rx_rings;
+	*max_nq = min_t(int, bnge_get_max_func_irqs(bd),
+			hw_resc->max_stat_ctxs);
+	max_ring_grps = hw_resc->max_hw_ring_grps;
+	if (bnge_is_agg_reqd(bd))
+		*max_rx >>= 1;
+
+	max_cp = bnge_get_max_func_cp_rings(bd);
+
+	/* Fix RX and TX rings according to number of CPs available */
+	rc = bnge_fix_rings_count(max_rx, max_tx, max_cp, false);
+	if (rc) {
+		*max_rx = 0;
+		*max_tx = 0;
+	}
+
+	*max_rx = min_t(int, *max_rx, max_ring_grps);
+}
+
+static int bnge_get_max_rings(struct bnge_dev *bd, u16 *max_rx,
+			      u16 *max_tx, bool shared)
+{
+	u16 rx, tx, nq;
+
+	_bnge_get_max_rings(bd, &rx, &tx, &nq);
+	*max_rx = rx;
+	*max_tx = tx;
+	if (!rx || !tx || !nq)
+		return -ENOMEM;
+
+	return bnge_fix_rings_count(max_rx, max_tx, nq, shared);
+}
+
+static int bnge_get_dflt_rings(struct bnge_dev *bd, u16 *max_rx, u16 *max_tx,
+			       bool shared)
+{
+	int rc;
+
+	rc = bnge_get_max_rings(bd, max_rx, max_tx, shared);
+	if (rc) {
+		dev_info(bd->dev, "Not enough rings available\n");
+		return rc;
+	}
+
+	if (bnge_is_roce_en(bd)) {
+		int max_cp, max_stat, max_irq;
+
+		/* Reserve minimum resources for RoCE */
+		max_cp = bnge_get_max_func_cp_rings(bd);
+		max_stat = bnge_get_max_func_stat_ctxs(bd);
+		max_irq = bnge_get_max_func_irqs(bd);
+		if (max_cp <= BNGE_MIN_ROCE_CP_RINGS ||
+		    max_irq <= BNGE_MIN_ROCE_CP_RINGS ||
+		    max_stat <= BNGE_MIN_ROCE_STAT_CTXS)
+			return 0;
+
+		max_cp -= BNGE_MIN_ROCE_CP_RINGS;
+		max_irq -= BNGE_MIN_ROCE_CP_RINGS;
+		max_stat -= BNGE_MIN_ROCE_STAT_CTXS;
+		max_cp = min_t(u16, max_cp, max_irq);
+		max_cp = min_t(u16, max_cp, max_stat);
+		rc = bnge_adjust_rings(bd, max_rx, max_tx, max_cp, shared);
+		if (rc)
+			rc = 0;
+	}
+
+	return rc;
+}
+
+/* In initial default shared ring setting, each shared ring must have a
+ * RX/TX ring pair.
+ */
+static void bnge_trim_dflt_sh_rings(struct bnge_dev *bd)
+{
+	bd->nq_nr_rings = min_t(u16, bd->tx_nr_rings_per_tc, bd->rx_nr_rings);
+	bd->rx_nr_rings = bd->nq_nr_rings;
+	bd->tx_nr_rings_per_tc = bd->nq_nr_rings;
+	bd->tx_nr_rings = bd->tx_nr_rings_per_tc;
+}
+
+static int bnge_net_init_dflt_rings(struct bnge_dev *bd, bool sh)
+{
+	u16 dflt_rings, max_rx_rings, max_tx_rings;
+	int rc;
+
+	if (sh)
+		bd->flags |= BNGE_EN_SHARED_CHNL;
+
+	dflt_rings = netif_get_num_default_rss_queues();
+
+	rc = bnge_get_dflt_rings(bd, &max_rx_rings, &max_tx_rings, sh);
+	if (rc)
+		return rc;
+	bd->rx_nr_rings = min_t(u16, dflt_rings, max_rx_rings);
+	bd->tx_nr_rings_per_tc = min_t(u16, dflt_rings, max_tx_rings);
+	if (sh)
+		bnge_trim_dflt_sh_rings(bd);
+	else
+		bd->nq_nr_rings = bd->tx_nr_rings_per_tc + bd->rx_nr_rings;
+	bd->tx_nr_rings = bd->tx_nr_rings_per_tc;
+
+	rc = bnge_reserve_rings(bd);
+	if (rc && rc != -ENODEV)
+		dev_warn(bd->dev, "Unable to reserve tx rings\n");
+	bd->tx_nr_rings_per_tc = bd->tx_nr_rings;
+	if (sh)
+		bnge_trim_dflt_sh_rings(bd);
+
+	/* Rings may have been reduced, re-reserve them again */
+	if (bnge_need_reserve_rings(bd)) {
+		rc = bnge_reserve_rings(bd);
+		if (rc && rc != -ENODEV)
+			dev_warn(bd->dev, "Fewer rings reservation failed\n");
+		bd->tx_nr_rings_per_tc = bd->tx_nr_rings;
+	}
+	if (rc) {
+		bd->tx_nr_rings = 0;
+		bd->rx_nr_rings = 0;
+	}
+
+	return rc;
+}
+
+static int bnge_alloc_rss_indir_tbl(struct bnge_dev *bd)
+{
+	u16 entries;
+
+	entries = BNGE_MAX_RSS_TABLE_ENTRIES;
+
+	bd->rss_indir_tbl_entries = entries;
+	bd->rss_indir_tbl =
+		kmalloc_array(entries, sizeof(*bd->rss_indir_tbl), GFP_KERNEL);
+	if (!bd->rss_indir_tbl)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int bnge_net_init_dflt_config(struct bnge_dev *bd)
+{
+	struct bnge_hw_resc *hw_resc;
+	int rc;
+
+	rc = bnge_alloc_rss_indir_tbl(bd);
+	if (rc)
+		return rc;
+
+	rc = bnge_net_init_dflt_rings(bd, true);
+	if (rc)
+		goto err_free_tbl;
+
+	hw_resc = &bd->hw_resc;
+	bd->max_fltr = hw_resc->max_rx_em_flows + hw_resc->max_rx_wm_flows +
+		       BNGE_L2_FLTR_MAX_FLTR;
+
+	return 0;
+
+err_free_tbl:
+	kfree(bd->rss_indir_tbl);
+	bd->rss_indir_tbl = NULL;
+	return rc;
+}
+
+void bnge_net_uninit_dflt_config(struct bnge_dev *bd)
+{
+	kfree(bd->rss_indir_tbl);
+	bd->rss_indir_tbl = NULL;
+}
+
+void bnge_aux_init_dflt_config(struct bnge_dev *bd)
+{
+	bd->aux_num_msix = bnge_aux_get_dflt_msix(bd);
+	bd->aux_num_stat_ctxs = bnge_get_dflt_aux_stat_ctxs(bd);
 }

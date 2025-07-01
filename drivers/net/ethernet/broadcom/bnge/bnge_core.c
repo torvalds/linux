@@ -54,9 +54,46 @@ static void bnge_nvm_cfg_ver_get(struct bnge_dev *bd)
 			 nvm_info.nvm_cfg_ver_upd);
 }
 
+static int bnge_func_qcaps(struct bnge_dev *bd)
+{
+	int rc;
+
+	rc = bnge_hwrm_func_qcaps(bd);
+	if (rc)
+		return rc;
+
+	rc = bnge_hwrm_queue_qportcfg(bd);
+	if (rc) {
+		dev_err(bd->dev, "query qportcfg failure rc: %d\n", rc);
+		return rc;
+	}
+
+	rc = bnge_hwrm_func_resc_qcaps(bd);
+	if (rc) {
+		dev_err(bd->dev, "query resc caps failure rc: %d\n", rc);
+		return rc;
+	}
+
+	rc = bnge_hwrm_func_qcfg(bd);
+	if (rc) {
+		dev_err(bd->dev, "query config failure rc: %d\n", rc);
+		return rc;
+	}
+
+	rc = bnge_hwrm_vnic_qcaps(bd);
+	if (rc) {
+		dev_err(bd->dev, "vnic caps failure rc: %d\n", rc);
+		return rc;
+	}
+
+	return 0;
+}
+
 static void bnge_fw_unregister_dev(struct bnge_dev *bd)
 {
+	/* ctx mem free after unrgtr only */
 	bnge_hwrm_func_drv_unrgtr(bd);
+	bnge_free_ctx_mem(bd);
 }
 
 static int bnge_fw_register_dev(struct bnge_dev *bd)
@@ -86,7 +123,25 @@ static int bnge_fw_register_dev(struct bnge_dev *bd)
 		return rc;
 	}
 
+	rc = bnge_alloc_ctx_mem(bd);
+	if (rc) {
+		dev_err(bd->dev, "Failed to allocate ctx mem rc: %d\n", rc);
+		goto err_func_unrgtr;
+	}
+
+	/* Get the resources and configuration from firmware */
+	rc = bnge_func_qcaps(bd);
+	if (rc) {
+		dev_err(bd->dev, "Failed initial configuration rc: %d\n", rc);
+		rc = -ENODEV;
+		goto err_func_unrgtr;
+	}
+
 	return 0;
+
+err_func_unrgtr:
+	bnge_fw_unregister_dev(bd);
+	return rc;
 }
 
 static void bnge_pci_disable(struct pci_dev *pdev)
@@ -134,14 +189,46 @@ static void bnge_unmap_bars(struct pci_dev *pdev)
 {
 	struct bnge_dev *bd = pci_get_drvdata(pdev);
 
+	if (bd->bar1) {
+		pci_iounmap(pdev, bd->bar1);
+		bd->bar1 = NULL;
+	}
+
 	if (bd->bar0) {
 		pci_iounmap(pdev, bd->bar0);
 		bd->bar0 = NULL;
 	}
 }
 
+static void bnge_set_max_func_irqs(struct bnge_dev *bd,
+				   unsigned int max_irqs)
+{
+	bd->hw_resc.max_irqs = max_irqs;
+}
+
+static int bnge_get_max_irq(struct pci_dev *pdev)
+{
+	u16 ctrl;
+
+	pci_read_config_word(pdev, pdev->msix_cap + PCI_MSIX_FLAGS, &ctrl);
+	return (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
+}
+
+static int bnge_map_db_bar(struct bnge_dev *bd)
+{
+	if (!bd->db_size)
+		return -ENODEV;
+
+	bd->bar1 = pci_iomap(bd->pdev, 2, bd->db_size);
+	if (!bd->bar1)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int bnge_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	unsigned int max_irqs;
 	struct bnge_dev *bd;
 	int rc;
 
@@ -190,9 +277,41 @@ static int bnge_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bnge_devlink_register(bd);
 
+	max_irqs = bnge_get_max_irq(pdev);
+	bnge_set_max_func_irqs(bd, max_irqs);
+
+	bnge_aux_init_dflt_config(bd);
+
+	rc = bnge_net_init_dflt_config(bd);
+	if (rc) {
+		dev_err(&pdev->dev, "Error setting up default cfg to netdev rc = %d\n",
+			rc);
+		goto err_fw_reg;
+	}
+
+	rc = bnge_map_db_bar(bd);
+	if (rc) {
+		dev_err(&pdev->dev, "Failed mapping doorbell BAR rc = %d, aborting\n",
+			rc);
+		goto err_config_uninit;
+	}
+
+	rc = bnge_alloc_irqs(bd);
+	if (rc) {
+		dev_err(&pdev->dev, "Error IRQ allocation rc = %d\n", rc);
+		goto err_config_uninit;
+	}
+
 	pci_save_state(pdev);
 
 	return 0;
+
+err_config_uninit:
+	bnge_net_uninit_dflt_config(bd);
+
+err_fw_reg:
+	bnge_devlink_unregister(bd);
+	bnge_fw_unregister_dev(bd);
 
 err_hwrm_cleanup:
 	bnge_cleanup_hwrm_resources(bd);
@@ -211,6 +330,10 @@ err_pci_disable:
 static void bnge_remove_one(struct pci_dev *pdev)
 {
 	struct bnge_dev *bd = pci_get_drvdata(pdev);
+
+	bnge_free_irqs(bd);
+
+	bnge_net_uninit_dflt_config(bd);
 
 	bnge_devlink_unregister(bd);
 

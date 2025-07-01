@@ -66,6 +66,9 @@ int bnge_reserve_rings(struct bnge_dev *bd);
 int bnge_fix_rings_count(u16 *rx, u16 *tx, u16 max, bool shared);
 int bnge_alloc_irqs(struct bnge_dev *bd);
 void bnge_free_irqs(struct bnge_dev *bd);
+int bnge_net_init_dflt_config(struct bnge_dev *bd);
+void bnge_net_uninit_dflt_config(struct bnge_dev *bd);
+void bnge_aux_init_dflt_config(struct bnge_dev *bd);
 
 static inline u32
 bnge_adjust_pow_two(u32 total_ent, u16 ent_per_blk)

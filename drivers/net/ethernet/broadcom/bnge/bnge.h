@@ -80,6 +80,12 @@ enum {
 	BNGE_RSS_CAP_ESP_V6_RSS_CAP			= BIT(7),
 };
 
+#define BNGE_MAX_QUEUE		8
+struct bnge_queue_info {
+	u8      queue_id;
+	u8      queue_profile;
+};
+
 struct bnge_dev {
 	struct device	*dev;
 	struct pci_dev	*pdev;
@@ -89,6 +95,7 @@ struct bnge_dev {
 	char		board_serialno[BNGE_VPD_FLD_LEN];
 
 	void __iomem	*bar0;
+	void __iomem	*bar1;
 
 	u16		chip_num;
 	u8		chip_rev;
@@ -172,6 +179,13 @@ struct bnge_dev {
 #define BNGE_SUPPORTS_TPA(bd)	((bd)->max_tpa_v2)
 
 	u8                      num_tc;
+	u8			max_tc;
+	u8			max_lltc;	/* lossless TCs */
+	struct bnge_queue_info	q_info[BNGE_MAX_QUEUE];
+	u8			tc_to_qidx[BNGE_MAX_QUEUE];
+	u8			q_ids[BNGE_MAX_QUEUE];
+	u8			max_q;
+	u8			port_count;
 
 	struct bnge_irq		*irq_tbl;
 	u16			irqs_acquired;

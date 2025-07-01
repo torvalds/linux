@@ -647,3 +647,57 @@ int bnge_hwrm_vnic_qcaps(struct bnge_dev *bd)
 
 	return rc;
 }
+
+#define BNGE_CNPQ(q_profile)	\
+		((q_profile) ==	\
+		 QUEUE_QPORTCFG_RESP_QUEUE_ID0_SERVICE_PROFILE_LOSSY_ROCE_CNP)
+
+int bnge_hwrm_queue_qportcfg(struct bnge_dev *bd)
+{
+	struct hwrm_queue_qportcfg_output *resp;
+	struct hwrm_queue_qportcfg_input *req;
+	u8 i, j, *qptr;
+	bool no_rdma;
+	int rc;
+
+	rc = bnge_hwrm_req_init(bd, req, HWRM_QUEUE_QPORTCFG);
+	if (rc)
+		return rc;
+
+	resp = bnge_hwrm_req_hold(bd, req);
+	rc = bnge_hwrm_req_send(bd, req);
+	if (rc)
+		goto qportcfg_exit;
+
+	if (!resp->max_configurable_queues) {
+		rc = -EINVAL;
+		goto qportcfg_exit;
+	}
+	bd->max_tc = resp->max_configurable_queues;
+	bd->max_lltc = resp->max_configurable_lossless_queues;
+	if (bd->max_tc > BNGE_MAX_QUEUE)
+		bd->max_tc = BNGE_MAX_QUEUE;
+
+	no_rdma = !bnge_is_roce_en(bd);
+	qptr = &resp->queue_id0;
+	for (i = 0, j = 0; i < bd->max_tc; i++) {
+		bd->q_info[j].queue_id = *qptr;
+		bd->q_ids[i] = *qptr++;
+		bd->q_info[j].queue_profile = *qptr++;
+		bd->tc_to_qidx[j] = j;
+		if (!BNGE_CNPQ(bd->q_info[j].queue_profile) || no_rdma)
+			j++;
+	}
+	bd->max_q = bd->max_tc;
+	bd->max_tc = max_t(u8, j, 1);
+
+	if (resp->queue_cfg_info & QUEUE_QPORTCFG_RESP_QUEUE_CFG_INFO_ASYM_CFG)
+		bd->max_tc = 1;
+
+	if (bd->max_lltc > bd->max_tc)
+		bd->max_lltc = bd->max_tc;
+
+qportcfg_exit:
+	bnge_hwrm_req_drop(bd, req);
+	return rc;
+}
