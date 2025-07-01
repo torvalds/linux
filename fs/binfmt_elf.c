@@ -1750,8 +1750,13 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 		if (is_fpreg)
 			SET_PR_FPVALID(&t->prstatus);
 
-		if (!note_name)
-			note_name = is_fpreg ? NN_PRFPREG : "LINUX";
+		/* There should be a note name, but if not, guess: */
+		if (WARN_ON_ONCE(!note_name))
+			note_name = "LINUX";
+		else
+			/* Warn on non-legacy-compatible names, for now. */
+			WARN_ON_ONCE(strcmp(note_name,
+					    is_fpreg ? "CORE" : "LINUX"));
 
 		__fill_note(&t->notes[note_iter], note_name, note_type,
 			    ret, data);
