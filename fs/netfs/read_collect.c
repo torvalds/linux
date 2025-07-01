@@ -218,7 +218,7 @@ reassess:
 			stream->collected_to = front->start;
 		}
 
-		if (test_bit(NETFS_SREQ_IN_PROGRESS, &front->flags))
+		if (netfs_check_subreq_in_progress(front))
 			notes |= HIT_PENDING;
 		smp_rmb(); /* Read counters after IN_PROGRESS flag. */
 		transferred = READ_ONCE(front->transferred);
@@ -445,7 +445,7 @@ void netfs_read_collection_worker(struct work_struct *work)
 	struct netfs_io_request *rreq = container_of(work, struct netfs_io_request, work);
 
 	netfs_see_request(rreq, netfs_rreq_trace_see_work);
-	if (test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags)) {
+	if (netfs_check_rreq_in_progress(rreq)) {
 		if (netfs_read_collection(rreq))
 			/* Drop the ref from the IN_PROGRESS flag. */
 			netfs_put_request(rreq, netfs_rreq_trace_put_work_ip);

@@ -275,6 +275,24 @@ static inline void netfs_wake_rreq_flag(struct netfs_io_request *rreq,
 }
 
 /*
+ * Test the NETFS_RREQ_IN_PROGRESS flag, inserting an appropriate barrier.
+ */
+static inline bool netfs_check_rreq_in_progress(const struct netfs_io_request *rreq)
+{
+	/* Order read of flags before read of anything else, such as error. */
+	return test_bit_acquire(NETFS_RREQ_IN_PROGRESS, &rreq->flags);
+}
+
+/*
+ * Test the NETFS_SREQ_IN_PROGRESS flag, inserting an appropriate barrier.
+ */
+static inline bool netfs_check_subreq_in_progress(const struct netfs_io_subrequest *subreq)
+{
+	/* Order read of flags before read of anything else, such as error. */
+	return test_bit_acquire(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
+}
+
+/*
  * fscache-cache.c
  */
 #ifdef CONFIG_PROC_FS

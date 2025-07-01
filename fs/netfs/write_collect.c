@@ -240,7 +240,7 @@ reassess_streams:
 			}
 
 			/* Stall if the front is still undergoing I/O. */
-			if (test_bit(NETFS_SREQ_IN_PROGRESS, &front->flags)) {
+			if (netfs_check_subreq_in_progress(front)) {
 				notes |= HIT_PENDING;
 				break;
 			}
@@ -434,7 +434,7 @@ void netfs_write_collection_worker(struct work_struct *work)
 	struct netfs_io_request *rreq = container_of(work, struct netfs_io_request, work);
 
 	netfs_see_request(rreq, netfs_rreq_trace_see_work);
-	if (test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags)) {
+	if (netfs_check_rreq_in_progress(rreq)) {
 		if (netfs_write_collection(rreq))
 			/* Drop the ref from the IN_PROGRESS flag. */
 			netfs_put_request(rreq, netfs_rreq_trace_put_work_ip);
