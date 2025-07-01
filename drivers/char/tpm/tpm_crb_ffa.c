@@ -247,7 +247,7 @@ static int __tpm_crb_ffa_send_recieve(unsigned long func_id,
  *
  * Return: 0 on success, negative error code on failure.
  */
-int tpm_crb_ffa_get_interface_version(u16 *major, u16 *minor)
+static int tpm_crb_ffa_get_interface_version(u16 *major, u16 *minor)
 {
 	int rc;
 
@@ -275,7 +275,6 @@ int tpm_crb_ffa_get_interface_version(u16 *major, u16 *minor)
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_crb_ffa_get_interface_version);
 
 /**
  * tpm_crb_ffa_start() - signals the TPM that a field has changed in the CRB
