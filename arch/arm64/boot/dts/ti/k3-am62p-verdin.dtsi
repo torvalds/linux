@@ -433,7 +433,7 @@
 	/* Verdin SD_1_CD# */
 	pinctrl_sd1_cd: main-gpio1-48-default-pins {
 		pinctrl-single,pins = <
-			AM62PX_IOPAD(0x0240, PIN_INPUT, 7) /* (D23) MMC1_SDCD.GPIO1_48 */ /* SODIMM 84 */
+			AM62PX_IOPAD(0x0240, PIN_INPUT_PULLUP, 7) /* (D23) MMC1_SDCD.GPIO1_48 */ /* SODIMM 84 */
 		>;
 	};
 
