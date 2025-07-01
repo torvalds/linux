@@ -18,6 +18,7 @@
 /delete-node/ &cpu_pd10;
 /delete-node/ &cpu_pd11;
 /delete-node/ &gpu_opp_table;
+/delete-node/ &gpu_speed_bin;
 /delete-node/ &pcie3_phy;
 /delete-node/ &thermal_zones;
 
