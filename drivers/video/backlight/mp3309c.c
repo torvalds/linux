@@ -222,7 +222,6 @@ static int mp3309c_parse_fwnode(struct mp3309c_chip *chip,
 		if (IS_ERR(chip->pwmd))
 			return dev_err_probe(dev, PTR_ERR(chip->pwmd), "error getting pwm data\n");
 		pdata->dimming_mode = DIMMING_PWM;
-		pwm_apply_args(chip->pwmd);
 	}
 
 	/*
