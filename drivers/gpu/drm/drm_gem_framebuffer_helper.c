@@ -500,13 +500,9 @@ EXPORT_SYMBOL(drm_gem_fb_end_cpu_access);
 // TODO Drop this function and replace by drm_format_info_bpp() once all
 // DRM_FORMAT_* provide proper block info in drivers/gpu/drm/drm_fourcc.c
 static __u32 drm_gem_afbc_get_bpp(struct drm_device *dev,
+				  const struct drm_format_info *info,
 				  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	const struct drm_format_info *info;
-
-	info = drm_get_format_info(dev, mode_cmd->pixel_format,
-				   mode_cmd->modifier[0]);
-
 	switch (info->format) {
 	case DRM_FORMAT_YUV420_8BIT:
 		return 12;
@@ -520,6 +516,7 @@ static __u32 drm_gem_afbc_get_bpp(struct drm_device *dev,
 }
 
 static int drm_gem_afbc_min_size(struct drm_device *dev,
+				 const struct drm_format_info *info,
 				 const struct drm_mode_fb_cmd2 *mode_cmd,
 				 struct drm_afbc_framebuffer *afbc_fb)
 {
@@ -560,7 +557,7 @@ static int drm_gem_afbc_min_size(struct drm_device *dev,
 	afbc_fb->aligned_height = ALIGN(mode_cmd->height, h_alignment);
 	afbc_fb->offset = mode_cmd->offsets[0];
 
-	bpp = drm_gem_afbc_get_bpp(dev, mode_cmd);
+	bpp = drm_gem_afbc_get_bpp(dev, info, mode_cmd);
 	if (!bpp) {
 		drm_dbg_kms(dev, "Invalid AFBC bpp value: %d\n", bpp);
 		return -EINVAL;
@@ -582,6 +579,7 @@ static int drm_gem_afbc_min_size(struct drm_device *dev,
  *
  * @dev: DRM device
  * @afbc_fb: afbc-specific framebuffer
+ * @info: pixel format information
  * @mode_cmd: Metadata from the userspace framebuffer creation request
  * @afbc_fb: afbc framebuffer
  *
@@ -595,20 +593,16 @@ static int drm_gem_afbc_min_size(struct drm_device *dev,
  * Zero on success or a negative error value on failure.
  */
 int drm_gem_fb_afbc_init(struct drm_device *dev,
+			 const struct drm_format_info *info,
 			 const struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct drm_afbc_framebuffer *afbc_fb)
 {
-	const struct drm_format_info *info;
 	struct drm_gem_object **objs;
 	int ret;
 
 	objs = afbc_fb->base.obj;
-	info = drm_get_format_info(dev, mode_cmd->pixel_format,
-				   mode_cmd->modifier[0]);
-	if (!info)
-		return -EINVAL;
 
-	ret = drm_gem_afbc_min_size(dev, mode_cmd, afbc_fb);
+	ret = drm_gem_afbc_min_size(dev, info, mode_cmd, afbc_fb);
 	if (ret < 0)
 		return ret;
 

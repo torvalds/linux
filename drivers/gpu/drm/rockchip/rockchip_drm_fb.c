@@ -49,7 +49,7 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 	}
 
 	if (drm_is_afbc(mode_cmd->modifier[0])) {
-		ret = drm_gem_fb_afbc_init(dev, mode_cmd, afbc_fb);
+		ret = drm_gem_fb_afbc_init(dev, info, mode_cmd, afbc_fb);
 		if (ret) {
 			drm_framebuffer_put(&afbc_fb->base);
 			return ERR_PTR(ret);
