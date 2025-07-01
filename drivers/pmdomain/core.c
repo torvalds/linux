@@ -2491,6 +2491,8 @@ struct of_genpd_provider {
 static LIST_HEAD(of_genpd_providers);
 /* Mutex to protect the list above. */
 static DEFINE_MUTEX(of_genpd_mutex);
+/* Used to prevent registering devices before the bus. */
+static bool genpd_bus_registered;
 
 /**
  * genpd_xlate_simple() - Xlate function for direct node-domain mapping
@@ -3179,6 +3181,9 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	if (num_domains < 0 || index >= num_domains)
 		return NULL;
 
+	if (!genpd_bus_registered)
+		return ERR_PTR(-ENODEV);
+
 	/* Allocate and register device on the genpd bus. */
 	virt_dev = kzalloc(sizeof(*virt_dev), GFP_KERNEL);
 	if (!virt_dev)
@@ -3357,7 +3362,14 @@ EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
 
 static int __init genpd_bus_init(void)
 {
-	return bus_register(&genpd_bus_type);
+	int ret;
+
+	ret = bus_register(&genpd_bus_type);
+	if (ret)
+		return ret;
+
+	genpd_bus_registered = true;
+	return 0;
 }
 core_initcall(genpd_bus_init);
 
