@@ -71,6 +71,12 @@ static inline bool vdso_cycles_ok(u64 cycles)
 }
 #endif
 
+static __always_inline bool vdso_clockid_valid(clockid_t clock)
+{
+	/* Check for negative values or invalid clocks */
+	return likely((u32) clock < MAX_CLOCKS);
+}
+
 #ifdef CONFIG_TIME_NS
 
 #ifdef CONFIG_GENERIC_VDSO_DATA_STORE
@@ -268,8 +274,7 @@ __cvdso_clock_gettime_common(const struct vdso_time_data *vd, clockid_t clock,
 	const struct vdso_clock *vc = vd->clock_data;
 	u32 msk;
 
-	/* Check for negative values or invalid clocks */
-	if (unlikely((u32) clock >= MAX_CLOCKS))
+	if (!vdso_clockid_valid(clock))
 		return false;
 
 	/*
@@ -405,8 +410,7 @@ bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t cloc
 	u32 msk;
 	u64 ns;
 
-	/* Check for negative values or invalid clocks */
-	if (unlikely((u32) clock >= MAX_CLOCKS))
+	if (!vdso_clockid_valid(clock))
 		return false;
 
 	if (IS_ENABLED(CONFIG_TIME_NS) &&
