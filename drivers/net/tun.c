@@ -2356,13 +2356,12 @@ static int tun_xdp_one(struct tun_struct *tun,
 		       struct tun_page *tpage)
 {
 	unsigned int datasize = xdp->data_end - xdp->data;
-	struct tun_xdp_hdr *hdr = xdp->data_hard_start;
-	struct virtio_net_hdr *gso = &hdr->gso;
+	struct virtio_net_hdr *gso = xdp->data_hard_start;
 	struct bpf_prog *xdp_prog;
 	struct sk_buff *skb = NULL;
 	struct sk_buff_head *queue;
 	u32 rxhash = 0, act;
-	int buflen = hdr->buflen;
+	int buflen = xdp->frame_sz;
 	int metasize = 0;
 	int ret = 0;
 	bool skb_xdp = false;

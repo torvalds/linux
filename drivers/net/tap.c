@@ -1044,9 +1044,8 @@ static const struct file_operations tap_fops = {
 
 static int tap_get_user_xdp(struct tap_queue *q, struct xdp_buff *xdp)
 {
-	struct tun_xdp_hdr *hdr = xdp->data_hard_start;
-	struct virtio_net_hdr *gso = &hdr->gso;
-	int buflen = hdr->buflen;
+	struct virtio_net_hdr *gso = xdp->data_hard_start;
+	int buflen = xdp->frame_sz;
 	int vnet_hdr_len = 0;
 	struct tap_dev *tap;
 	struct sk_buff *skb;
