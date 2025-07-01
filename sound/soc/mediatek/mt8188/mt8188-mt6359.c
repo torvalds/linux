@@ -408,7 +408,7 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	if (pin_w)
-		dapm_pinctrl_event(pin_w, NULL, SND_SOC_DAPM_PRE_PMU);
+		snd_soc_dapm_pinctrl_event(pin_w, NULL, SND_SOC_DAPM_PRE_PMU);
 	else
 		dev_dbg(afe->dev, "%s(), no pinmux widget, please check if default on\n", __func__);
 
@@ -510,7 +510,7 @@ static int mt8188_mt6359_mtkaif_calibration(struct snd_soc_pcm_runtime *rtd)
 		param->mtkaif_phase_cycle[i] = mtkaif_phase_cycle[i];
 
 	if (pin_w)
-		dapm_pinctrl_event(pin_w, NULL, SND_SOC_DAPM_POST_PMD);
+		snd_soc_dapm_pinctrl_event(pin_w, NULL, SND_SOC_DAPM_POST_PMD);
 
 	dev_dbg(afe->dev, "%s(), end, calibration ok %d\n",
 		__func__, param->mtkaif_calibration_ok);
