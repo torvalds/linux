@@ -87,6 +87,26 @@ static __always_inline void vdso_set_timespec(struct __kernel_timespec *ts, u64 
 	ts->tv_nsec = ns;
 }
 
+static __always_inline
+bool vdso_get_timestamp(const struct vdso_time_data *vd, const struct vdso_clock *vc,
+			unsigned int clkidx, u64 *sec, u64 *ns)
+{
+	const struct vdso_timestamp *vdso_ts = &vc->basetime[clkidx];
+	u64 cycles;
+
+	if (unlikely(!vdso_clocksource_ok(vc)))
+		return false;
+
+	cycles = __arch_get_hw_counter(vc->clock_mode, vd);
+	if (unlikely(!vdso_cycles_ok(cycles)))
+		return false;
+
+	*ns = vdso_calc_ns(vc, cycles, vdso_ts->nsec);
+	*sec = vdso_ts->sec;
+
+	return true;
+}
+
 #ifdef CONFIG_TIME_NS
 
 #ifdef CONFIG_GENERIC_VDSO_DATA_STORE
@@ -104,28 +124,20 @@ bool do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *
 	const struct vdso_time_data *vd = __arch_get_vdso_u_timens_data(vdns);
 	const struct timens_offset *offs = &vcns->offset[clk];
 	const struct vdso_clock *vc = vd->clock_data;
-	const struct vdso_timestamp *vdso_ts;
-	u64 cycles, ns;
 	u32 seq;
 	s64 sec;
+	u64 ns;
 
 	if (clk != CLOCK_MONOTONIC_RAW)
 		vc = &vc[CS_HRES_COARSE];
 	else
 		vc = &vc[CS_RAW];
-	vdso_ts = &vc->basetime[clk];
 
 	do {
 		seq = vdso_read_begin(vc);
 
-		if (unlikely(!vdso_clocksource_ok(vc)))
+		if (!vdso_get_timestamp(vd, vc, clk, &sec, &ns))
 			return false;
-
-		cycles = __arch_get_hw_counter(vc->clock_mode, vd);
-		if (unlikely(!vdso_cycles_ok(cycles)))
-			return false;
-		ns = vdso_calc_ns(vc, cycles, vdso_ts->nsec);
-		sec = vdso_ts->sec;
 	} while (unlikely(vdso_read_retry(vc, seq)));
 
 	/* Add the namespace offset */
@@ -155,8 +167,7 @@ static __always_inline
 bool do_hres(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 	     clockid_t clk, struct __kernel_timespec *ts)
 {
-	const struct vdso_timestamp *vdso_ts = &vc->basetime[clk];
-	u64 cycles, sec, ns;
+	u64 sec, ns;
 	u32 seq;
 
 	/* Allows to compile the high resolution parts out */
@@ -183,14 +194,8 @@ bool do_hres(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 		}
 		smp_rmb();
 
-		if (unlikely(!vdso_clocksource_ok(vc)))
+		if (!vdso_get_timestamp(vd, vc, clk, &sec, &ns))
 			return false;
-
-		cycles = __arch_get_hw_counter(vc->clock_mode, vd);
-		if (unlikely(!vdso_cycles_ok(cycles)))
-			return false;
-		ns = vdso_calc_ns(vc, cycles, vdso_ts->nsec);
-		sec = vdso_ts->sec;
 	} while (unlikely(vdso_read_retry(vc, seq)));
 
 	vdso_set_timespec(ts, sec, ns);
