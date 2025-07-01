@@ -2207,6 +2207,7 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 
 int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			   struct drm_gem_object *obj,
+			   const struct drm_format_info *info,
 			   struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct intel_display *display = to_intel_display(obj->dev);
@@ -2254,7 +2255,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 		goto err_frontbuffer_put;
 	}
 
-	drm_helper_mode_fill_fb_struct(display->drm, fb, NULL, mode_cmd);
+	drm_helper_mode_fill_fb_struct(display->drm, fb, info, mode_cmd);
 
 	for (i = 0; i < fb->format->num_planes; i++) {
 		unsigned int stride_alignment;
@@ -2335,7 +2336,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	fb = intel_framebuffer_create(obj, &mode_cmd);
+	fb = intel_framebuffer_create(obj, info, &mode_cmd);
 	drm_gem_object_put(obj);
 
 	return fb;
@@ -2343,6 +2344,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 struct drm_framebuffer *
 intel_framebuffer_create(struct drm_gem_object *obj,
+			 const struct drm_format_info *info,
 			 struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct intel_framebuffer *intel_fb;
@@ -2352,7 +2354,7 @@ intel_framebuffer_create(struct drm_gem_object *obj,
 	if (!intel_fb)
 		return ERR_PTR(-ENOMEM);
 
-	ret = intel_framebuffer_init(intel_fb, obj, mode_cmd);
+	ret = intel_framebuffer_init(intel_fb, obj, info, mode_cmd);
 	if (ret)
 		goto err;
 
