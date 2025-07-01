@@ -193,7 +193,7 @@ static int ptp_pps_on(struct otx2_ptp *ptp, int on, u64 period)
 	return otx2_sync_mbox_msg(&ptp->nic->mbox);
 }
 
-static u64 ptp_cc_read(const struct cyclecounter *cc)
+static u64 ptp_cc_read(struct cyclecounter *cc)
 {
 	struct otx2_ptp *ptp = container_of(cc, struct otx2_ptp, cycle_counter);
 

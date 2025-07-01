@@ -131,7 +131,7 @@ static u64 __mlxsw_sp1_ptp_read_frc(struct mlxsw_sp1_ptp_clock *clock,
 	return (u64) frc_l | (u64) frc_h2 << 32;
 }
 
-static u64 mlxsw_sp1_ptp_read_frc(const struct cyclecounter *cc)
+static u64 mlxsw_sp1_ptp_read_frc(struct cyclecounter *cc)
 {
 	struct mlxsw_sp1_ptp_clock *clock =
 		container_of(cc, struct mlxsw_sp1_ptp_clock, cycles);

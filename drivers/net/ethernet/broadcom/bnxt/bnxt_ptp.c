@@ -702,7 +702,7 @@ static void bnxt_unmap_ptp_regs(struct bnxt *bp)
 		  (BNXT_PTP_GRC_WIN - 1) * 4);
 }
 
-static u64 bnxt_cc_read(const struct cyclecounter *cc)
+static u64 bnxt_cc_read(struct cyclecounter *cc)
 {
 	struct bnxt_ptp_cfg *ptp = container_of(cc, struct bnxt_ptp_cfg, cc);
 	u64 ns = 0;
