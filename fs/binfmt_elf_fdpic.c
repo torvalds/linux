@@ -1275,8 +1275,8 @@ static inline void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, loff_t offs
 	return;
 }
 
-static inline void fill_note(struct memelfnote *note, const char *name, int type,
-		unsigned int sz, void *data)
+static inline void __fill_note(struct memelfnote *note, const char *name, int type,
+			       unsigned int sz, void *data)
 {
 	note->name = name;
 	note->type = type;
@@ -1284,6 +1284,9 @@ static inline void fill_note(struct memelfnote *note, const char *name, int type
 	note->data = data;
 	return;
 }
+
+#define fill_note(note, type, sz, data) \
+	__fill_note(note, NN_ ## type, NT_ ## type, sz, data)
 
 /*
  * fill up all the fields in prstatus from the given task struct, except
@@ -1398,8 +1401,7 @@ static struct elf_thread_status *elf_dump_thread_status(long signr, struct task_
 	regset_get(p, &view->regsets[0],
 		   sizeof(t->prstatus.pr_reg), &t->prstatus.pr_reg);
 
-	fill_note(&t->notes[0], NN_PRSTATUS, NT_PRSTATUS, sizeof(t->prstatus),
-		  &t->prstatus);
+	fill_note(&t->notes[0], PRSTATUS, sizeof(t->prstatus), &t->prstatus);
 	t->num_notes++;
 	*sz += notesize(&t->notes[0]);
 
@@ -1416,8 +1418,7 @@ static struct elf_thread_status *elf_dump_thread_status(long signr, struct task_
 	}
 
 	if (t->prstatus.pr_fpvalid) {
-		fill_note(&t->notes[1], NN_PRFPREG, NT_PRFPREG, sizeof(t->fpu),
-			  &t->fpu);
+		fill_note(&t->notes[1], PRFPREG, sizeof(t->fpu), &t->fpu);
 		t->num_notes++;
 		*sz += notesize(&t->notes[1]);
 	}
@@ -1531,7 +1532,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	 */
 
 	fill_psinfo(psinfo, current->group_leader, current->mm);
-	fill_note(&psinfo_note, NN_PRPSINFO, NT_PRPSINFO, sizeof(*psinfo), psinfo);
+	fill_note(&psinfo_note, PRPSINFO, sizeof(*psinfo), psinfo);
 	thread_status_size += notesize(&psinfo_note);
 
 	auxv = (elf_addr_t *) current->mm->saved_auxv;
@@ -1539,7 +1540,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	do
 		i += 2;
 	while (auxv[i - 2] != AT_NULL);
-	fill_note(&auxv_note, NN_AUXV, NT_AUXV, i * sizeof(elf_addr_t), auxv);
+	fill_note(&auxv_note, AUXV, i * sizeof(elf_addr_t), auxv);
 	thread_status_size += notesize(&auxv_note);
 
 	offset = sizeof(*elf);				/* ELF header */
