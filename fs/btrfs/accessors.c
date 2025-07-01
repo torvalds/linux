@@ -59,9 +59,15 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	    likely(sizeof(u##bits) <= part))				\
 		return get_unaligned_le##bits(kaddr + oil);		\
 									\
-	memcpy(lebytes, kaddr + oil, part);				\
-	kaddr = folio_address(eb->folios[idx + 1]);			\
-	memcpy(lebytes + part, kaddr, sizeof(u##bits) - part);		\
+	if (sizeof(u##bits) == 2) {					\
+		lebytes[0] = *(kaddr + oil);				\
+		kaddr = folio_address(eb->folios[idx + 1]);		\
+		lebytes[1] = *kaddr;					\
+	} else {							\
+		memcpy(lebytes, kaddr + oil, part);			\
+		kaddr = folio_address(eb->folios[idx + 1]);		\
+		memcpy(lebytes + part, kaddr, sizeof(u##bits) - part);	\
+	}								\
 	return get_unaligned_le##bits(lebytes);				\
 }									\
 void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
@@ -84,11 +90,16 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 		put_unaligned_le##bits(val, kaddr + oil);		\
 		return;							\
 	}								\
-									\
 	put_unaligned_le##bits(val, lebytes);				\
-	memcpy(kaddr + oil, lebytes, part);				\
-	kaddr = folio_address(eb->folios[idx + 1]);			\
-	memcpy(kaddr, lebytes + part, sizeof(u##bits) - part);		\
+	if (sizeof(u##bits) == 2) {					\
+		*(kaddr + oil) = lebytes[0];				\
+		kaddr = folio_address(eb->folios[idx + 1]);		\
+		*kaddr = lebytes[1];					\
+	} else {							\
+		memcpy(kaddr + oil, lebytes, part);			\
+		kaddr = folio_address(eb->folios[idx + 1]);		\
+		memcpy(kaddr, lebytes + part, sizeof(u##bits) - part);	\
+	}								\
 }
 
 DEFINE_BTRFS_SETGET_BITS(8)
