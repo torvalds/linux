@@ -2628,10 +2628,10 @@ int snd_soc_dapm_mixer_update_power(struct snd_soc_dapm_context *dapm,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_mixer_update_power);
 
-static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
+static ssize_t dapm_widget_show_component(struct snd_soc_component *component,
 					  char *buf, int count)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct snd_soc_dapm_widget *w;
 	char *state = "not set";
 
@@ -2639,10 +2639,10 @@ static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
 	 * we're checking for that case specifically here but in future
 	 * we will ensure that the dummy component looks like others.
 	 */
-	if (!cmpnt->card)
+	if (!component->card)
 		return 0;
 
-	for_each_card_widgets(cmpnt->card, w) {
+	for_each_card_widgets(component->card, w) {
 		if (w->dapm != dapm)
 			continue;
 
@@ -2703,9 +2703,9 @@ static ssize_t dapm_widget_show(struct device *dev,
 	snd_soc_dapm_mutex_lock_root(rtd->card);
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		struct snd_soc_component *cmpnt = codec_dai->component;
+		struct snd_soc_component *component = codec_dai->component;
 
-		count = dapm_widget_show_component(cmpnt, buf, count);
+		count = dapm_widget_show_component(component, buf, count);
 	}
 
 	snd_soc_dapm_mutex_unlock(rtd->card);
