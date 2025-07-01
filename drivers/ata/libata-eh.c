@@ -2071,6 +2071,33 @@ out:
 	ata_eh_done(link, dev, ATA_EH_GET_SUCCESS_SENSE);
 }
 
+/*
+ * Check if a link is established. This is a relaxed version of
+ * ata_phys_link_online() which accounts for the fact that this is potentially
+ * called after changing the link power management policy, which may not be
+ * reflected immediately in the SSTAUS register (e.g., we may still be seeing
+ * the PHY in partial, slumber or devsleep Partial power management state.
+ * So check that:
+ * - A device is still present, that is, DET is 1h (Device presence detected
+ *   but Phy communication not established) or 3h (Device presence detected and
+ *   Phy communication established)
+ * - Communication is established, that is, IPM is not 0h, indicating that PHY
+ *   is online or in a low power state.
+ */
+static bool ata_eh_link_established(struct ata_link *link)
+{
+	u32 sstatus;
+	u8 det, ipm;
+
+	if (sata_scr_read(link, SCR_STATUS, &sstatus))
+		return false;
+
+	det = sstatus & 0x0f;
+	ipm = (sstatus >> 8) & 0x0f;
+
+	return (det & 0x01) && ipm;
+}
+
 /**
  *	ata_eh_link_set_lpm - configure SATA interface power management
  *	@link: link to configure
@@ -3275,7 +3302,7 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 					goto err;
 			}
 
-			if (ata_phys_link_offline(ata_dev_phys_link(dev))) {
+			if (!ata_eh_link_established(ata_dev_phys_link(dev))) {
 				rc = -EIO;
 				goto err;
 			}
