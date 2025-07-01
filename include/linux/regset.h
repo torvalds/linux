@@ -151,7 +151,7 @@ typedef int user_regset_writeback_fn(struct task_struct *target,
  * @align:		Required alignment, in bytes.
  * @bias:		Bias from natural indexing.
  * @core_note_type:	ELF note @n_type value used in core dumps.
- * @get:		Function to fetch values.
+ * @regset_get:		Function to fetch values.
  * @set:		Function to store values.
  * @active:		Function to report if regset is active, or %NULL.
  * @writeback:		Function to write data back to user memory, or %NULL.
