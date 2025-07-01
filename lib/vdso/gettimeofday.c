@@ -2,6 +2,7 @@
 /*
  * Generic userspace implementations of gettimeofday() and similar.
  */
+#include <vdso/auxclock.h>
 #include <vdso/datapage.h>
 #include <vdso/helpers.h>
 
@@ -74,7 +75,7 @@ static inline bool vdso_cycles_ok(u64 cycles)
 static __always_inline bool vdso_clockid_valid(clockid_t clock)
 {
 	/* Check for negative values or invalid clocks */
-	return likely((u32) clock < MAX_CLOCKS);
+	return likely((u32) clock <= CLOCK_AUX_LAST);
 }
 
 /*
@@ -268,6 +269,48 @@ bool do_coarse(const struct vdso_time_data *vd, const struct vdso_clock *vc,
 	return true;
 }
 
+static __always_inline
+bool do_aux(const struct vdso_time_data *vd, clockid_t clock, struct __kernel_timespec *ts)
+{
+	const struct vdso_clock *vc;
+	u32 seq, idx;
+	u64 sec, ns;
+
+	if (!IS_ENABLED(CONFIG_POSIX_AUX_CLOCKS))
+		return false;
+
+	idx = clock - CLOCK_AUX;
+	vc = &vd->aux_clock_data[idx];
+
+	do {
+		/*
+		 * Open coded function vdso_read_begin() to handle
+		 * VDSO_CLOCK_TIMENS. See comment in do_hres().
+		 */
+		while ((seq = READ_ONCE(vc->seq)) & 1) {
+			if (IS_ENABLED(CONFIG_TIME_NS) && vc->clock_mode == VDSO_CLOCKMODE_TIMENS) {
+				vd = __arch_get_vdso_u_timens_data(vd);
+				vc = &vd->aux_clock_data[idx];
+				/* Re-read from the real time data page */
+				continue;
+			}
+			cpu_relax();
+		}
+		smp_rmb();
+
+		/* Auxclock disabled? */
+		if (vc->clock_mode == VDSO_CLOCKMODE_NONE)
+			return false;
+
+		if (!vdso_get_timestamp(vd, vc, VDSO_BASE_AUX, &sec, &ns))
+			return false;
+	} while (unlikely(vdso_read_retry(vc, seq)));
+
+	vdso_set_timespec(ts, sec, ns);
+
+	return true;
+}
+
 static __always_inline bool
 __cvdso_clock_gettime_common(const struct vdso_time_data *vd, clockid_t clock,
 			     struct __kernel_timespec *ts)
@@ -289,6 +332,8 @@ __cvdso_clock_gettime_common(const struct vdso_time_data *vd, clockid_t clock,
 		return do_coarse(vd, &vc[CS_HRES_COARSE], clock, ts);
 	else if (msk & VDSO_RAW)
 		vc = &vc[CS_RAW];
+	else if (msk & VDSO_AUX)
+		return do_aux(vd, clock, ts);
 	else
 		return false;
 
@@ -433,6 +478,8 @@ bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t cloc
 		 * Preserves the behaviour of posix_get_coarse_res().
 		 */
 		ns = LOW_RES_NSEC;
+	} else if (msk & VDSO_AUX) {
+		ns = aux_clock_resolution_ns();
 	} else {
 		return false;
 	}
