@@ -190,4 +190,10 @@ static inline void update_vsyscall_tz(void)
 }
 #endif
 
+#if defined(CONFIG_GENERIC_GETTIMEOFDAY) && defined(CONFIG_POSIX_AUX_CLOCKS)
+extern void vdso_time_update_aux(struct timekeeper *tk);
+#else
+static inline void vdso_time_update_aux(struct timekeeper *tk) { }
+#endif
+
 #endif /* _LINUX_TIMEKEEPER_INTERNAL_H */
