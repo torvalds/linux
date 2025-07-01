@@ -25,6 +25,7 @@ description: |
 properties:
   compatible:
     enum:
+      - maxim,max20710
       - maxim,max20730
       - maxim,max20734
       - maxim,max20743
