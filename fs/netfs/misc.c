@@ -383,6 +383,11 @@ static int netfs_collect_in_app(struct netfs_io_request *rreq,
 {
 	bool need_collect = false, inactive = true, done = true;
 
+	if (!netfs_check_rreq_in_progress(rreq)) {
+		trace_netfs_rreq(rreq, netfs_rreq_trace_recollect);
+		return 1; /* Done */
+	}
+
 	for (int i = 0; i < NR_IO_STREAMS; i++) {
 		struct netfs_io_subrequest *subreq;
 		struct netfs_io_stream *stream = &rreq->io_streams[i];
