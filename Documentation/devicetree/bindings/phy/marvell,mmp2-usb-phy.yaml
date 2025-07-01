@@ -34,5 +34,4 @@ examples:
         compatible = "marvell,mmp2-usb-phy";
         reg = <0xd4207000 0x40>;
         #phy-cells = <0>;
-        status = "okay";
     };
