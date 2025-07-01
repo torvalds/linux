@@ -7,10 +7,15 @@
  * Copyright 2025 Analog Devices, Inc.
  */
 
+#include <linux/bitmap.h>
+#include <linux/bitops.h>
+#include <linux/container_of.h>
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
 #include <linux/mfd/adp5585.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
@@ -36,20 +41,29 @@
 struct adp5585_gpio_chip {
 	int (*bank)(unsigned int off);
 	int (*bit)(unsigned int off);
-	unsigned int max_gpio;
 	unsigned int debounce_dis_a;
 	unsigned int rpull_cfg_a;
 	unsigned int gpo_data_a;
 	unsigned int gpo_out_a;
 	unsigned int gpio_dir_a;
 	unsigned int gpi_stat_a;
+	unsigned int gpi_int_lvl_a;
+	unsigned int gpi_ev_a;
+	unsigned int gpi_ev_min;
+	unsigned int gpi_ev_max;
 	bool has_bias_hole;
 };
 
 struct adp5585_gpio_dev {
 	struct gpio_chip gpio_chip;
+	struct notifier_block nb;
 	const struct adp5585_gpio_chip *info;
 	struct regmap *regmap;
+	unsigned long irq_mask;
+	unsigned long irq_en;
+	unsigned long irq_active_high;
+	/* used for irqchip bus locking */
+	struct mutex bus_lock;
 };
 
 static int adp5585_gpio_bank(unsigned int off)
@@ -224,12 +238,175 @@ static int adp5585_gpio_set_config(struct gpio_chip *chip, unsigned int off,
 	};
 }
 
+static int adp5585_gpio_request(struct gpio_chip *chip, unsigned int off)
+{
+	struct adp5585_gpio_dev *adp5585_gpio = gpiochip_get_data(chip);
+	const struct adp5585_gpio_chip *info = adp5585_gpio->info;
+	struct device *dev = chip->parent;
+	struct adp5585_dev *adp5585 = dev_get_drvdata(dev->parent);
+	const struct adp5585_regs *regs = adp5585->regs;
+	int ret;
+
+	ret = test_and_set_bit(off, adp5585->pin_usage);
+	if (ret)
+		return -EBUSY;
+
+	/* make sure it's configured for GPIO */
+	return regmap_clear_bits(adp5585_gpio->regmap,
+				 regs->pin_cfg_a + info->bank(off),
+				 info->bit(off));
+}
+
+static void adp5585_gpio_free(struct gpio_chip *chip, unsigned int off)
+{
+	struct device *dev = chip->parent;
+	struct adp5585_dev *adp5585 = dev_get_drvdata(dev->parent);
+
+	clear_bit(off, adp5585->pin_usage);
+}
+
+static int adp5585_gpio_key_event(struct notifier_block *nb, unsigned long key,
+				  void *data)
+{
+	struct adp5585_gpio_dev *adp5585_gpio = container_of(nb, struct adp5585_gpio_dev, nb);
+	struct device *dev = adp5585_gpio->gpio_chip.parent;
+	unsigned long key_press = (unsigned long)data;
+	unsigned int irq, irq_type;
+	struct irq_data *irqd;
+	bool active_high;
+	unsigned int off;
+
+	/* make sure the event is for me */
+	if (key < adp5585_gpio->info->gpi_ev_min || key > adp5585_gpio->info->gpi_ev_max)
+		return NOTIFY_DONE;
+
+	off = key - adp5585_gpio->info->gpi_ev_min;
+	active_high = test_bit(off, &adp5585_gpio->irq_active_high);
+
+	irq = irq_find_mapping(adp5585_gpio->gpio_chip.irq.domain, off);
+	if (!irq)
+		return NOTIFY_BAD;
+
+	irqd = irq_get_irq_data(irq);
+	if (!irqd) {
+		dev_err(dev, "Could not get irq(%u) data\n", irq);
+		return NOTIFY_BAD;
+	}
+
+	dev_dbg_ratelimited(dev, "gpio-keys event(%u) press=%lu, a_high=%u\n",
+			    off, key_press, active_high);
+
+	if (!active_high)
+		key_press = !key_press;
+
+	irq_type = irqd_get_trigger_type(irqd);
+
+	if ((irq_type & IRQ_TYPE_EDGE_RISING && key_press) ||
+	    (irq_type & IRQ_TYPE_EDGE_FALLING && !key_press))
+		handle_nested_irq(irq);
+
+	return NOTIFY_STOP;
+}
+
+static void adp5585_irq_bus_lock(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5585_gpio_dev *adp5585_gpio = gpiochip_get_data(gc);
+
+	mutex_lock(&adp5585_gpio->bus_lock);
+}
+
+static void adp5585_irq_bus_sync_unlock(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
+	struct adp5585_gpio_dev *adp5585_gpio = gpiochip_get_data(chip);
+	const struct adp5585_gpio_chip *info = adp5585_gpio->info;
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	bool active_high = test_bit(hwirq, &adp5585_gpio->irq_active_high);
+	bool enabled = test_bit(hwirq, &adp5585_gpio->irq_en);
+	bool masked = test_bit(hwirq, &adp5585_gpio->irq_mask);
+	unsigned int bank = adp5585_gpio->info->bank(hwirq);
+	unsigned int bit = adp5585_gpio->info->bit(hwirq);
+
+	if (masked && !enabled)
+		goto out_unlock;
+	if (!masked && enabled)
+		goto out_unlock;
+
+	regmap_update_bits(adp5585_gpio->regmap, info->gpi_int_lvl_a + bank, bit,
+			   active_high ? bit : 0);
+	regmap_update_bits(adp5585_gpio->regmap, info->gpi_ev_a + bank, bit,
+			   masked ? 0 : bit);
+	assign_bit(hwirq, &adp5585_gpio->irq_en, !masked);
+
+out_unlock:
+	mutex_unlock(&adp5585_gpio->bus_lock);
+}
+
+static void adp5585_irq_mask(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5585_gpio_dev *adp5585_gpio = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+	__set_bit(hwirq, &adp5585_gpio->irq_mask);
+	gpiochip_disable_irq(gc, hwirq);
+}
+
+static void adp5585_irq_unmask(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5585_gpio_dev *adp5585_gpio = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+	gpiochip_enable_irq(gc, hwirq);
+	__clear_bit(hwirq, &adp5585_gpio->irq_mask);
+}
+
+static int adp5585_irq_set_type(struct irq_data *d, unsigned int type)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct adp5585_gpio_dev *adp5585_gpio = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+	if (!(type & IRQ_TYPE_EDGE_BOTH))
+		return -EINVAL;
+
+	assign_bit(hwirq, &adp5585_gpio->irq_active_high,
+		   type == IRQ_TYPE_EDGE_RISING);
+
+	irq_set_handler_locked(d, handle_edge_irq);
+	return 0;
+}
+
+static const struct irq_chip adp5585_irq_chip = {
+	.name = "adp5585",
+	.irq_mask = adp5585_irq_mask,
+	.irq_unmask = adp5585_irq_unmask,
+	.irq_bus_lock = adp5585_irq_bus_lock,
+	.irq_bus_sync_unlock = adp5585_irq_bus_sync_unlock,
+	.irq_set_type = adp5585_irq_set_type,
+	.flags = IRQCHIP_SKIP_SET_WAKE | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
+static void adp5585_gpio_unreg_notifier(void *data)
+{
+	struct adp5585_gpio_dev *adp5585_gpio = data;
+	struct device *dev = adp5585_gpio->gpio_chip.parent;
+	struct adp5585_dev *adp5585 = dev_get_drvdata(dev->parent);
+
+	blocking_notifier_chain_unregister(&adp5585->event_notifier,
+					   &adp5585_gpio->nb);
+}
+
 static int adp5585_gpio_probe(struct platform_device *pdev)
 {
 	struct adp5585_dev *adp5585 = dev_get_drvdata(pdev->dev.parent);
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct adp5585_gpio_dev *adp5585_gpio;
 	struct device *dev = &pdev->dev;
+	struct gpio_irq_chip *girq;
 	struct gpio_chip *gc;
 	int ret;
 
@@ -253,13 +430,43 @@ static int adp5585_gpio_probe(struct platform_device *pdev)
 	gc->get = adp5585_gpio_get_value;
 	gc->set_rv = adp5585_gpio_set_value;
 	gc->set_config = adp5585_gpio_set_config;
+	gc->request = adp5585_gpio_request;
+	gc->free = adp5585_gpio_free;
 	gc->can_sleep = true;
 
 	gc->base = -1;
-	gc->ngpio = adp5585_gpio->info->max_gpio;
+	gc->ngpio = adp5585->n_pins;
 	gc->label = pdev->name;
 	gc->owner = THIS_MODULE;
 
+	if (device_property_present(dev->parent, "interrupt-controller")) {
+		if (!adp5585->irq)
+			return dev_err_probe(dev, -EINVAL,
+					     "Unable to serve as interrupt controller without IRQ\n");
+
+		girq = &adp5585_gpio->gpio_chip.irq;
+		gpio_irq_chip_set_chip(girq, &adp5585_irq_chip);
+		girq->handler = handle_bad_irq;
+		girq->threaded = true;
+
+		adp5585_gpio->nb.notifier_call = adp5585_gpio_key_event;
+		ret = blocking_notifier_chain_register(&adp5585->event_notifier,
+						       &adp5585_gpio->nb);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(dev, adp5585_gpio_unreg_notifier,
+					       adp5585_gpio);
+		if (ret)
+			return ret;
+	}
+
+	/* everything masked by default */
+	adp5585_gpio->irq_mask = ~0UL;
+
+	ret = devm_mutex_init(dev, &adp5585_gpio->bus_lock);
+	if (ret)
+		return ret;
 	ret = devm_gpiochip_add_data(dev, &adp5585_gpio->gpio_chip,
 				     adp5585_gpio);
 	if (ret)
@@ -277,8 +484,11 @@ static const struct adp5585_gpio_chip adp5585_gpio_chip_info = {
 	.gpo_out_a = ADP5585_GPO_OUT_MODE_A,
 	.gpio_dir_a = ADP5585_GPIO_DIRECTION_A,
 	.gpi_stat_a = ADP5585_GPI_STATUS_A,
-	.max_gpio = ADP5585_PIN_MAX,
 	.has_bias_hole = true,
+	.gpi_ev_min = ADP5585_GPI_EVENT_START,
+	.gpi_ev_max = ADP5585_GPI_EVENT_END,
+	.gpi_int_lvl_a = ADP5585_GPI_INT_LEVEL_A,
+	.gpi_ev_a = ADP5585_GPI_EVENT_EN_A,
 };
 
 static const struct adp5585_gpio_chip adp5589_gpio_chip_info = {
@@ -290,7 +500,10 @@ static const struct adp5585_gpio_chip adp5589_gpio_chip_info = {
 	.gpo_out_a = ADP5589_GPO_OUT_MODE_A,
 	.gpio_dir_a = ADP5589_GPIO_DIRECTION_A,
 	.gpi_stat_a = ADP5589_GPI_STATUS_A,
-	.max_gpio = ADP5589_PIN_MAX,
+	.gpi_ev_min = ADP5589_GPI_EVENT_START,
+	.gpi_ev_max = ADP5589_GPI_EVENT_END,
+	.gpi_int_lvl_a = ADP5589_GPI_INT_LEVEL_A,
+	.gpi_ev_a = ADP5589_GPI_EVENT_EN_A,
 };
 
 static const struct platform_device_id adp5585_gpio_id_table[] = {
