@@ -126,6 +126,10 @@
 #define ADP5585_GPI_EVENT_END		47
 #define ADP5585_ROW5_KEY_EVENT_START	1
 #define ADP5585_ROW5_KEY_EVENT_END	30
+#define ADP5585_PWM_OUT			3
+#define ADP5585_RESET1_OUT		4
+#define ADP5585_RESET2_OUT		9
+#define ADP5585_ROW5			5
 
 /* ADP5589 */
 #define		ADP5589_MAN_ID_VALUE		0x10
@@ -154,6 +158,7 @@
 #define ADP5589_PWM_ONT_LOW		0x40
 #define ADP5589_PWM_CFG			0x42
 #define ADP5589_POLL_PTIME_CFG		0x48
+#define ADP5589_PIN_CONFIG_A		0x49
 #define ADP5589_PIN_CONFIG_D		0x4C
 #define ADP5589_GENERAL_CFG		0x4d
 #define ADP5589_INT_EN			0x4e
@@ -165,6 +170,7 @@
 #define ADP5589_GPI_EVENT_START		97
 #define ADP5589_GPI_EVENT_END		115
 #define ADP5589_UNLOCK_WILDCARD		127
+#define ADP5589_RESET2_OUT		12
 
 struct regmap;
 
@@ -188,6 +194,7 @@ struct adp5585_regs {
 	unsigned int reset_cfg;
 	unsigned int reset1_event_a;
 	unsigned int reset2_event_a;
+	unsigned int pin_cfg_a;
 };
 
 struct adp5585_dev {
@@ -195,6 +202,9 @@ struct adp5585_dev {
 	struct regmap *regmap;
 	const struct adp5585_regs *regs;
 	struct blocking_notifier_head event_notifier;
+	unsigned long *pin_usage;
+	unsigned int n_pins;
+	unsigned int reset2_out;
 	enum adp5585_variant variant;
 	unsigned int id;
 	bool has_unlock;
