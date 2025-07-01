@@ -34,6 +34,7 @@ MODULE_PARM_DESC(cryptd_max_cpu_qlen, "Set cryptd Max queue depth");
 static struct workqueue_struct *cryptd_wq;
 
 struct cryptd_cpu_queue {
+	local_lock_t bh_lock;
 	struct crypto_queue queue;
 	struct work_struct work;
 };
@@ -110,6 +111,7 @@ static int cryptd_init_queue(struct cryptd_queue *queue,
 		cpu_queue = per_cpu_ptr(queue->cpu_queue, cpu);
 		crypto_init_queue(&cpu_queue->queue, max_cpu_qlen);
 		INIT_WORK(&cpu_queue->work, cryptd_queue_worker);
+		local_lock_init(&cpu_queue->bh_lock);
 	}
 	pr_info("cryptd: max_cpu_qlen set to %d\n", max_cpu_qlen);
 	return 0;
@@ -135,6 +137,7 @@ static int cryptd_enqueue_request(struct cryptd_queue *queue,
 	refcount_t *refcnt;
 
 	local_bh_disable();
+	local_lock_nested_bh(&queue->cpu_queue->bh_lock);
 	cpu_queue = this_cpu_ptr(queue->cpu_queue);
 	err = crypto_enqueue_request(&cpu_queue->queue, request);
 
@@ -151,6 +154,7 @@ static int cryptd_enqueue_request(struct cryptd_queue *queue,
 	refcount_inc(refcnt);
 
 out:
+	local_unlock_nested_bh(&queue->cpu_queue->bh_lock);
 	local_bh_enable();
 
 	return err;
@@ -169,8 +173,10 @@ static void cryptd_queue_worker(struct work_struct *work)
 	 * Only handle one request at a time to avoid hogging crypto workqueue.
 	 */
 	local_bh_disable();
+	__local_lock_nested_bh(&cpu_queue->bh_lock);
 	backlog = crypto_get_backlog(&cpu_queue->queue);
 	req = crypto_dequeue_request(&cpu_queue->queue);
+	__local_unlock_nested_bh(&cpu_queue->bh_lock);
 	local_bh_enable();
 
 	if (!req)
