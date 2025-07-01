@@ -1881,8 +1881,6 @@ static void fw_devlink_unblock_consumers(struct device *dev)
 	device_links_write_unlock();
 }
 
-#define get_dev_from_fwnode(fwnode)	get_device((fwnode)->dev)
-
 static bool fwnode_init_without_drv(struct fwnode_handle *fwnode)
 {
 	struct device *dev;
@@ -5280,6 +5278,12 @@ void device_set_node(struct device *dev, struct fwnode_handle *fwnode)
 	dev->of_node = to_of_node(fwnode);
 }
 EXPORT_SYMBOL_GPL(device_set_node);
+
+struct device *get_dev_from_fwnode(struct fwnode_handle *fwnode)
+{
+	return get_device((fwnode)->dev);
+}
+EXPORT_SYMBOL_GPL(get_dev_from_fwnode);
 
 int device_match_name(struct device *dev, const void *name)
 {
