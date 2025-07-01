@@ -12,5 +12,7 @@ enum bnge_dl_version_type {
 
 void bnge_devlink_free(struct bnge_dev *bd);
 struct bnge_dev *bnge_devlink_alloc(struct pci_dev *pdev);
+void bnge_devlink_register(struct bnge_dev *bd);
+void bnge_devlink_unregister(struct bnge_dev *bd);
 
 #endif /* _BNGE_DEVLINK_H_ */

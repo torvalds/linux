@@ -8,6 +8,8 @@
 
 #include "bnge.h"
 #include "bnge_devlink.h"
+#include "bnge_hwrm.h"
+#include "bnge_hwrm_lib.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRV_SUMMARY);
@@ -35,6 +37,51 @@ static void bnge_print_device_info(struct pci_dev *pdev, enum board_idx idx)
 		 (long)pci_resource_start(pdev, 0));
 
 	pcie_print_link_status(pdev);
+}
+
+static void bnge_nvm_cfg_ver_get(struct bnge_dev *bd)
+{
+	struct hwrm_nvm_get_dev_info_output nvm_info;
+
+	if (!bnge_hwrm_nvm_dev_info(bd, &nvm_info))
+		snprintf(bd->nvm_cfg_ver, FW_VER_STR_LEN, "%d.%d.%d",
+			 nvm_info.nvm_cfg_ver_maj, nvm_info.nvm_cfg_ver_min,
+			 nvm_info.nvm_cfg_ver_upd);
+}
+
+static void bnge_fw_unregister_dev(struct bnge_dev *bd)
+{
+	bnge_hwrm_func_drv_unrgtr(bd);
+}
+
+static int bnge_fw_register_dev(struct bnge_dev *bd)
+{
+	int rc;
+
+	bd->fw_cap = 0;
+	rc = bnge_hwrm_ver_get(bd);
+	if (rc) {
+		dev_err(bd->dev, "Get Version command failed rc: %d\n", rc);
+		return rc;
+	}
+
+	bnge_nvm_cfg_ver_get(bd);
+
+	rc = bnge_hwrm_func_reset(bd);
+	if (rc) {
+		dev_err(bd->dev, "Failed to reset function rc: %d\n", rc);
+		return rc;
+	}
+
+	bnge_hwrm_fw_set_time(bd);
+
+	rc =  bnge_hwrm_func_drv_rgtr(bd);
+	if (rc) {
+		dev_err(bd->dev, "Failed to rgtr with firmware rc: %d\n", rc);
+		return rc;
+	}
+
+	return 0;
 }
 
 static void bnge_pci_disable(struct pci_dev *pdev)
@@ -126,9 +173,27 @@ static int bnge_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_devl_free;
 	}
 
+	rc = bnge_init_hwrm_resources(bd);
+	if (rc)
+		goto err_bar_unmap;
+
+	rc = bnge_fw_register_dev(bd);
+	if (rc) {
+		dev_err(&pdev->dev, "Failed to register with firmware rc = %d\n", rc);
+		goto err_hwrm_cleanup;
+	}
+
+	bnge_devlink_register(bd);
+
 	pci_save_state(pdev);
 
 	return 0;
+
+err_hwrm_cleanup:
+	bnge_cleanup_hwrm_resources(bd);
+
+err_bar_unmap:
+	bnge_unmap_bars(pdev);
 
 err_devl_free:
 	bnge_devlink_free(bd);
@@ -141,6 +206,12 @@ err_pci_disable:
 static void bnge_remove_one(struct pci_dev *pdev)
 {
 	struct bnge_dev *bd = pci_get_drvdata(pdev);
+
+	bnge_devlink_unregister(bd);
+
+	bnge_fw_unregister_dev(bd);
+
+	bnge_cleanup_hwrm_resources(bd);
 
 	bnge_unmap_bars(pdev);
 
