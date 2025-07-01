@@ -47,7 +47,7 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
 	const unsigned long oil = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	char *kaddr = folio_address(eb->folios[idx]);			\
+	char *kaddr = folio_address(eb->folios[idx]) + oil;		\
 	const int part = eb->folio_size - oil;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
@@ -57,14 +57,14 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	}								\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 || sizeof(u##bits) == 1 ||	\
 	    likely(sizeof(u##bits) <= part))				\
-		return get_unaligned_le##bits(kaddr + oil);		\
+		return get_unaligned_le##bits(kaddr);			\
 									\
 	if (sizeof(u##bits) == 2) {					\
-		lebytes[0] = *(kaddr + oil);				\
+		lebytes[0] = *kaddr;					\
 		kaddr = folio_address(eb->folios[idx + 1]);		\
 		lebytes[1] = *kaddr;					\
 	} else {							\
-		memcpy(lebytes, kaddr + oil, part);			\
+		memcpy(lebytes, kaddr, part);				\
 		kaddr = folio_address(eb->folios[idx + 1]);		\
 		memcpy(lebytes + part, kaddr, sizeof(u##bits) - part);	\
 	}								\
@@ -77,7 +77,7 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
 	const unsigned long oil = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	char *kaddr = folio_address(eb->folios[idx]);			\
+	char *kaddr = folio_address(eb->folios[idx]) + oil;		\
 	const int part = eb->folio_size - oil;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
@@ -87,16 +87,16 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 	}								\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 || sizeof(u##bits) == 1 ||	\
 	    likely(sizeof(u##bits) <= part)) {				\
-		put_unaligned_le##bits(val, kaddr + oil);		\
+		put_unaligned_le##bits(val, kaddr);			\
 		return;							\
 	}								\
 	put_unaligned_le##bits(val, lebytes);				\
 	if (sizeof(u##bits) == 2) {					\
-		*(kaddr + oil) = lebytes[0];				\
+		*kaddr = lebytes[0];					\
 		kaddr = folio_address(eb->folios[idx + 1]);		\
 		*kaddr = lebytes[1];					\
 	} else {							\
-		memcpy(kaddr + oil, lebytes, part);			\
+		memcpy(kaddr, lebytes, part);				\
 		kaddr = folio_address(eb->folios[idx + 1]);		\
 		memcpy(kaddr, lebytes + part, sizeof(u##bits) - part);	\
 	}								\
