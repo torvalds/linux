@@ -10,6 +10,7 @@
 
 #include <adf_accel_devices.h>
 #include <adf_admin.h>
+#include <adf_bank_state.h>
 #include <adf_cfg.h>
 #include <adf_cfg_services.h>
 #include <adf_clock.h>
@@ -842,6 +843,8 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->ring_pair_reset = ring_pair_reset;
 	hw_data->dev_config = dev_config;
+	hw_data->bank_state_save = adf_bank_state_save;
+	hw_data->bank_state_restore = adf_bank_state_restore;
 	hw_data->get_hb_clock = get_heartbeat_clock;
 	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 	hw_data->start_timer = adf_timer_start;
@@ -853,6 +856,7 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	adf_gen6_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen6_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen6_init_dc_ops(&hw_data->dc_ops);
+	adf_gen6_init_vf_mig_ops(&hw_data->vfmig_ops);
 	adf_gen6_init_ras_ops(&hw_data->ras_ops);
 }
 

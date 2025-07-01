@@ -5,6 +5,7 @@
 #include "adf_gen4_config.h"
 #include "adf_gen4_hw_csr_data.h"
 #include "adf_gen4_pfvf.h"
+#include "adf_gen4_vf_mig.h"
 #include "adf_gen6_shared.h"
 
 struct adf_accel_dev;
@@ -47,3 +48,9 @@ int adf_gen6_no_dev_config(struct adf_accel_dev *accel_dev)
 	return adf_no_dev_config(accel_dev);
 }
 EXPORT_SYMBOL_GPL(adf_gen6_no_dev_config);
+
+void adf_gen6_init_vf_mig_ops(struct qat_migdev_ops *vfmig_ops)
+{
+	adf_gen4_init_vf_mig_ops(vfmig_ops);
+}
+EXPORT_SYMBOL_GPL(adf_gen6_init_vf_mig_ops);
