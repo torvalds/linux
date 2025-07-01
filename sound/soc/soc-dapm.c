@@ -1985,29 +1985,29 @@ static void dapm_widget_update(struct snd_soc_card *card, struct snd_soc_dapm_up
  */
 static void dapm_pre_sequence_async(void *data, async_cookie_t cookie)
 {
-	struct snd_soc_dapm_context *d = data;
+	struct snd_soc_dapm_context *dapm = data;
 	int ret;
 
 	/* If we're off and we're not supposed to go into STANDBY */
-	if (d->bias_level == SND_SOC_BIAS_OFF &&
-	    d->target_bias_level != SND_SOC_BIAS_OFF) {
-		if (d->dev && cookie)
-			pm_runtime_get_sync(d->dev);
+	if (dapm->bias_level == SND_SOC_BIAS_OFF &&
+	    dapm->target_bias_level != SND_SOC_BIAS_OFF) {
+		if (dapm->dev && cookie)
+			pm_runtime_get_sync(dapm->dev);
 
-		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_STANDBY);
+		ret = snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 		if (ret != 0)
-			dev_err(d->dev,
+			dev_err(dapm->dev,
 				"ASoC: Failed to turn on bias: %d\n", ret);
 	}
 
 	/* Prepare for a transition to ON or away from ON */
-	if ((d->target_bias_level == SND_SOC_BIAS_ON &&
-	     d->bias_level != SND_SOC_BIAS_ON) ||
-	    (d->target_bias_level != SND_SOC_BIAS_ON &&
-	     d->bias_level == SND_SOC_BIAS_ON)) {
-		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_PREPARE);
+	if ((dapm->target_bias_level == SND_SOC_BIAS_ON &&
+	     dapm->bias_level != SND_SOC_BIAS_ON) ||
+	    (dapm->target_bias_level != SND_SOC_BIAS_ON &&
+	     dapm->bias_level == SND_SOC_BIAS_ON)) {
+		ret = snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_PREPARE);
 		if (ret != 0)
-			dev_err(d->dev,
+			dev_err(dapm->dev,
 				"ASoC: Failed to prepare bias: %d\n", ret);
 	}
 }
@@ -2017,37 +2017,37 @@ static void dapm_pre_sequence_async(void *data, async_cookie_t cookie)
  */
 static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
 {
-	struct snd_soc_dapm_context *d = data;
+	struct snd_soc_dapm_context *dapm = data;
 	int ret;
 
 	/* If we just powered the last thing off drop to standby bias */
-	if (d->bias_level == SND_SOC_BIAS_PREPARE &&
-	    (d->target_bias_level == SND_SOC_BIAS_STANDBY ||
-	     d->target_bias_level == SND_SOC_BIAS_OFF)) {
-		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_STANDBY);
+	if (dapm->bias_level == SND_SOC_BIAS_PREPARE &&
+	    (dapm->target_bias_level == SND_SOC_BIAS_STANDBY ||
+	     dapm->target_bias_level == SND_SOC_BIAS_OFF)) {
+		ret = snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 		if (ret != 0)
-			dev_err(d->dev, "ASoC: Failed to apply standby bias: %d\n",
+			dev_err(dapm->dev, "ASoC: Failed to apply standby bias: %d\n",
 				ret);
 	}
 
 	/* If we're in standby and can support bias off then do that */
-	if (d->bias_level == SND_SOC_BIAS_STANDBY &&
-	    d->target_bias_level == SND_SOC_BIAS_OFF) {
-		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_OFF);
+	if (dapm->bias_level == SND_SOC_BIAS_STANDBY &&
+	    dapm->target_bias_level == SND_SOC_BIAS_OFF) {
+		ret = snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_OFF);
 		if (ret != 0)
-			dev_err(d->dev, "ASoC: Failed to turn off bias: %d\n",
+			dev_err(dapm->dev, "ASoC: Failed to turn off bias: %d\n",
 				ret);
 
-		if (d->dev && cookie)
-			pm_runtime_put(d->dev);
+		if (dapm->dev && cookie)
+			pm_runtime_put(dapm->dev);
 	}
 
 	/* If we just powered up then move to active bias */
-	if (d->bias_level == SND_SOC_BIAS_PREPARE &&
-	    d->target_bias_level == SND_SOC_BIAS_ON) {
-		ret = snd_soc_dapm_set_bias_level(d, SND_SOC_BIAS_ON);
+	if (dapm->bias_level == SND_SOC_BIAS_PREPARE &&
+	    dapm->target_bias_level == SND_SOC_BIAS_ON) {
+		ret = snd_soc_dapm_set_bias_level(dapm, SND_SOC_BIAS_ON);
 		if (ret != 0)
-			dev_err(d->dev, "ASoC: Failed to apply active bias: %d\n",
+			dev_err(dapm->dev, "ASoC: Failed to apply active bias: %d\n",
 				ret);
 	}
 }
