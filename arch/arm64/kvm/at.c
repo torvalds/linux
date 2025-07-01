@@ -1063,6 +1063,10 @@ static void compute_s1_overlay_permissions(struct kvm_vcpu *vcpu,
 		if (pov_perms & ~POE_RWX)
 			pov_perms = POE_NONE;
 
+		/* R_QXXPC, S1PrivOverflow enabled */
+		if (wr->pwxn && (pov_perms & POE_X))
+			pov_perms &= ~POE_W;
+
 		wr->pr &= pov_perms & POE_R;
 		wr->pw &= pov_perms & POE_W;
 		wr->px &= pov_perms & POE_X;
@@ -1083,6 +1087,10 @@ static void compute_s1_overlay_permissions(struct kvm_vcpu *vcpu,
 
 		if (uov_perms & ~POE_RWX)
 			uov_perms = POE_NONE;
+
+		/* R_NPBXC, S1UnprivOverlay enabled */
+		if (wr->uwxn && (uov_perms & POE_X))
+			uov_perms &= ~POE_W;
 
 		wr->ur &= uov_perms & POE_R;
 		wr->uw &= uov_perms & POE_W;
@@ -1106,21 +1114,13 @@ static void compute_s1_permissions(struct kvm_vcpu *vcpu,
 
 	compute_s1_overlay_permissions(vcpu, wi, wr);
 
-	/* R_QXXPC */
-	if (wr->pwxn) {
-		if (!wr->pov && wr->pw)
-			wr->px = false;
-		if (wr->pov && wr->px)
-			wr->pw = false;
-	}
+	/* R_QXXPC, S1PrivOverlay disabled */
+	if (!wr->pov)
+		wr->px &= !(wr->pwxn && wr->pw);
 
-	/* R_NPBXC */
-	if (wr->uwxn) {
-		if (!wr->uov && wr->uw)
-			wr->ux = false;
-		if (wr->uov && wr->ux)
-			wr->uw = false;
-	}
+	/* R_NPBXC, S1UnprivOverlay disabled */
+	if (!wr->uov)
+		wr->ux &= !(wr->uwxn && wr->uw);
 
 	pan = wi->pan && (wr->ur || wr->uw ||
 			  (pan3_enabled(vcpu, wi->regime) && wr->ux));
