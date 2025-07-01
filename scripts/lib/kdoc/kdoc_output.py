@@ -338,11 +338,7 @@ class RestFormat(OutputFormat):
         starts by putting out the name of the doc section itself, but that
         tends to duplicate a header already in the template file.
         """
-
-        sections = args.get('sections', {})
-        section_start_lines = args.get('section_start_lines', {})
-
-        for section in sections:
+        for section, text in args.sections.items():
             # Skip sections that are in the nosymbol_table
             if section in self.nosymbol:
                 continue
@@ -354,8 +350,8 @@ class RestFormat(OutputFormat):
             else:
                 self.data += f'{self.lineprefix}**{section}**\n\n'
 
-            self.print_lineno(section_start_lines.get(section, 0))
-            self.output_highlight(sections[section])
+            self.print_lineno(args.section_start_lines.get(section, 0))
+            self.output_highlight(text)
             self.data += "\n"
         self.data += "\n"
 
@@ -635,23 +631,20 @@ class ManFormat(OutputFormat):
                 self.data += line + "\n"
 
     def out_doc(self, fname, name, args):
-        sections = args.get('sections', {})
-
         if not self.check_doc(name, args):
             return
 
         self.data += f'.TH "{self.modulename}" 9 "{self.modulename}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
-        for section in sections:
+        for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
-            self.output_highlight(sections.get(section))
+            self.output_highlight(text)
 
     def out_function(self, fname, name, args):
         """output function in man"""
 
         parameterlist = args.get('parameterlist', [])
         parameterdescs = args.get('parameterdescs', {})
-        sections = args.get('sections', {})
 
         self.data += f'.TH "{args["function"]}" 9 "{args["function"]}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX' + "\n"
 
@@ -692,15 +685,14 @@ class ManFormat(OutputFormat):
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(parameterdescs.get(parameter_name, ""))
 
-        for section in sections:
+        for section, text in args.sections.items():
             self.data += f'.SH "{section.upper()}"' + "\n"
-            self.output_highlight(sections[section])
+            self.output_highlight(text)
 
     def out_enum(self, fname, name, args):
 
         name = args.get('enum', '')
         parameterlist = args.get('parameterlist', [])
-        sections = args.get('sections', {})
 
         self.data += f'.TH "{self.modulename}" 9 "enum {args["enum"]}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
@@ -727,24 +719,23 @@ class ManFormat(OutputFormat):
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(args['parameterdescs'].get(parameter_name, ""))
 
-        for section in sections:
+        for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
-            self.output_highlight(sections[section])
+            self.output_highlight(text)
 
     def out_typedef(self, fname, name, args):
         module = self.modulename
         typedef = args.get('typedef')
         purpose = args.get('purpose')
-        sections = args.get('sections', {})
 
         self.data += f'.TH "{module}" 9 "{typedef}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
         self.data += f"typedef {typedef} \\- {purpose}\n"
 
-        for section in sections:
+        for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
-            self.output_highlight(sections.get(section))
+            self.output_highlight(text)
 
     def out_struct(self, fname, name, args):
         module = self.modulename
@@ -753,7 +744,6 @@ class ManFormat(OutputFormat):
         purpose = args.get('purpose')
         definition = args.get('definition')
         parameterlist = args.get('parameterlist', [])
-        sections = args.get('sections', {})
         parameterdescs = args.get('parameterdescs', {})
 
         self.data += f'.TH "{module}" 9 "{struct_type} {struct_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
@@ -782,6 +772,6 @@ class ManFormat(OutputFormat):
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(parameterdescs.get(parameter_name))
 
-        for section in sections:
+        for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
-            self.output_highlight(sections.get(section))
+            self.output_highlight(text)

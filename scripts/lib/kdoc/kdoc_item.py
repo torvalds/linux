@@ -9,6 +9,8 @@ class KdocItem:
         self.name = name
         self.type = type
         self.declaration_start_line = start_line
+        self.sections = {}
+        self.sections_start_lines = {}
         #
         # Just save everything else into our own dict so that the output
         # side can grab it directly as before.  As we move things into more
@@ -24,3 +26,10 @@ class KdocItem:
 
     def __getitem__(self, key):
         return self.get(key)
+
+    #
+    # Tracking of section information.
+    #
+    def set_sections(self, sections, start_lines):
+        self.sections = sections
+        self.section_start_lines = start_lines

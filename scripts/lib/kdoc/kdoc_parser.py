@@ -272,13 +272,13 @@ class KernelDoc:
         item = KdocItem(name, dtype, self.entry.declaration_start_line, **args)
         item.warnings = self.entry.warnings
 
-        sections = item.get('sections', {})
-
         # Drop empty sections
         # TODO: improve empty sections logic to emit warnings
+        sections = self.entry.sections
         for section in ["Description", "Return"]:
             if section in sections and not sections[section].rstrip():
                 del sections[section]
+        item.set_sections(sections, self.entry.section_start_lines)
 
         self.entries.append(item)
 
@@ -824,8 +824,6 @@ class KernelDoc:
                                 parameterdescs=self.entry.parameterdescs,
                                 parametertypes=self.entry.parametertypes,
                                 parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                sections=self.entry.sections,
-                                section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_enum(self, ln, proto):
@@ -908,8 +906,6 @@ class KernelDoc:
                                 parameterlist=self.entry.parameterlist,
                                 parameterdescs=self.entry.parameterdescs,
                                 parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                sections=self.entry.sections,
-                                section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_declaration(self, ln, prototype):
@@ -1079,8 +1075,6 @@ class KernelDoc:
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
                                     parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
         else:
@@ -1092,8 +1086,6 @@ class KernelDoc:
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
                                     parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
 
@@ -1137,8 +1129,6 @@ class KernelDoc:
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
                                     parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
             return
 
@@ -1159,8 +1149,6 @@ class KernelDoc:
 
             self.output_declaration('typedef', declaration_name,
                                     typedef=declaration_name,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
             return
 
@@ -1642,9 +1630,7 @@ class KernelDoc:
 
         if doc_end.search(line):
             self.dump_section()
-            self.output_declaration("doc", self.entry.identifier,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines)
+            self.output_declaration("doc", self.entry.identifier)
             self.reset_state(ln)
 
         elif doc_content.search(line):
