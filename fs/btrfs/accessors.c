@@ -20,6 +20,15 @@ static void __cold report_setget_bounds(const struct extent_buffer *eb,
 		   (unsigned long)ptr, eb->start, member_offset, size);
 }
 
+/* Copy bytes from @src1 and @src2 to @dest. */
+static __always_inline void memcpy_split_src(char *dest, const char *src1,
+					     const char *src2, const size_t len1,
+					     const size_t total)
+{
+	memcpy(dest, src1, len1);
+	memcpy(dest + len1, src2, total - len1);
+}
+
 /*
  * Macro templates that define helpers to read/write extent buffer data of a
  * given size, that are also used via ctree.h for access to item members by
@@ -64,9 +73,9 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 		kaddr = folio_address(eb->folios[idx + 1]);		\
 		lebytes[1] = *kaddr;					\
 	} else {							\
-		memcpy(lebytes, kaddr, part);				\
-		kaddr = folio_address(eb->folios[idx + 1]);		\
-		memcpy(lebytes + part, kaddr, sizeof(u##bits) - part);	\
+		memcpy_split_src(lebytes, kaddr,			\
+				 folio_address(eb->folios[idx + 1]),	\
+				 part, sizeof(u##bits));		\
 	}								\
 	return get_unaligned_le##bits(lebytes);				\
 }									\
