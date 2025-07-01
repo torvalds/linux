@@ -9,20 +9,15 @@
 #include "fs.h"
 #include "accessors.h"
 
-static bool check_setget_bounds(const struct extent_buffer *eb,
-				const void *ptr, unsigned off, int size)
+static void __cold report_setget_bounds(const struct extent_buffer *eb,
+					const void *ptr, unsigned off, int size)
 {
-	const unsigned long member_offset = (unsigned long)ptr + off;
+	unsigned long member_offset = (unsigned long)ptr + off;
 
-	if (unlikely(member_offset + size > eb->len)) {
-		btrfs_warn(eb->fs_info,
-		"bad eb member %s: ptr 0x%lx start %llu member offset %lu size %d",
-			(member_offset > eb->len ? "start" : "end"),
-			(unsigned long)ptr, eb->start, member_offset, size);
-		return false;
-	}
-
-	return true;
+	btrfs_warn(eb->fs_info,
+		   "bad eb member %s: ptr 0x%lx start %llu member offset %lu size %d",
+		   (member_offset > eb->len ? "start" : "end"),
+		   (unsigned long)ptr, eb->start, member_offset, size);
 }
 
 /*
@@ -56,7 +51,10 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	const int part = eb->folio_size - oil;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
-	ASSERT(check_setget_bounds(eb, ptr, off, sizeof(u##bits)));	\
+	if (unlikely(member_offset + sizeof(u##bits) > eb->len)) {	\
+		report_setget_bounds(eb, ptr, off, sizeof(u##bits));	\
+		return 0;						\
+	}								\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 || likely(sizeof(u##bits) <= part))	\
 		return get_unaligned_le##bits(kaddr + oil);		\
 									\
@@ -76,7 +74,10 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 	const int part = eb->folio_size - oil;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
-	ASSERT(check_setget_bounds(eb, ptr, off, sizeof(u##bits)));	\
+	if (unlikely(member_offset + sizeof(u##bits) > eb->len)) {	\
+		report_setget_bounds(eb, ptr, off, sizeof(u##bits));	\
+		return;							\
+	}								\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 ||				\
 	    likely(sizeof(u##bits) <= part)) {				\
 		put_unaligned_le##bits(val, kaddr + oil);		\
