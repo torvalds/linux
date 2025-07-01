@@ -3542,13 +3542,11 @@ sndbuf_policy - INTEGER
 sctp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all SCTP sockets.
 
-	min: Below this number of pages SCTP is not bothered about its
-	memory appetite. When amount of memory allocated by SCTP exceeds
-	this number, SCTP starts to moderate memory usage.
-
-	pressure: This value was introduced to follow format of tcp_mem.
-
-	max: Number of pages allowed for queueing by all SCTP sockets.
+	* min: Below this number of pages SCTP is not bothered about its
+	  memory usage. When amount of memory allocated by SCTP exceeds
+	  this number, SCTP starts to moderate memory usage.
+	* pressure: This value was introduced to follow format of tcp_mem.
+	* max: Maximum number of allowed pages.
 
 	Default is calculated at boot time from amount of available memory.
 
@@ -3556,9 +3554,9 @@ sctp_rmem - vector of 3 INTEGERs: min, default, max
 	Only the first value ("min") is used, "default" and "max" are
 	ignored.
 
-	min: Minimal size of receive buffer used by SCTP socket.
-	It is guaranteed to each SCTP socket (but not association) even
-	under moderate memory pressure.
+	* min: Minimal size of receive buffer used by SCTP socket.
+	  It is guaranteed to each SCTP socket (but not association) even
+	  under moderate memory pressure.
 
 	Default: 4K
 
@@ -3566,9 +3564,9 @@ sctp_wmem  - vector of 3 INTEGERs: min, default, max
 	Only the first value ("min") is used, "default" and "max" are
 	ignored.
 
-	min: Minimum size of send buffer that can be used by SCTP sockets.
-	It is guaranteed to each SCTP socket (but not association) even
-	under moderate memory pressure.
+	* min: Minimum size of send buffer that can be used by SCTP sockets.
+	  It is guaranteed to each SCTP socket (but not association) even
+	  under moderate memory pressure.
 
 	Default: 4K
 
