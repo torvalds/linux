@@ -54,6 +54,11 @@
 #define ZYNQMP_FAMILY_CODE 0x23
 #define VERSAL_FAMILY_CODE 0x26
 
+/* Family codes */
+#define PM_ZYNQMP_FAMILY_CODE 0x1 /* ZynqMP family code */
+#define PM_VERSAL_FAMILY_CODE 0x2 /* Versal family code */
+#define PM_VERSAL_NET_FAMILY_CODE 0x3 /* Versal NET family code */
+
 /* When all subfamily of platform need to support */
 #define ALL_SUB_FAMILY_CODE		0x00
 #define VERSAL_SUB_FAMILY_CODE		0x01

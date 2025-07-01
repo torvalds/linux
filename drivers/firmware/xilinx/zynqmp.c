@@ -72,6 +72,15 @@ struct pm_api_feature_data {
 	struct hlist_node hentry;
 };
 
+struct platform_fw_data {
+	/*
+	 * Family code for platform.
+	 */
+	const u32 family_code;
+};
+
+static struct platform_fw_data *active_platform_fw_data;
+
 static const struct mfd_cell firmware_devs[] = {
 	{
 		.name = "zynqmp_power_controller",
@@ -2052,6 +2061,11 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	/* Get platform-specific firmware data from device tree match */
+	active_platform_fw_data = (struct platform_fw_data *)device_get_match_data(dev);
+	if (!active_platform_fw_data)
+		return -EINVAL;
+
 	/* Get SiP SVC version number */
 	ret = zynqmp_pm_get_sip_svc_version(&sip_svc_version);
 	if (ret)
@@ -2152,10 +2166,22 @@ static void zynqmp_firmware_sync_state(struct device *dev)
 		dev_warn(dev, "failed to release power management to firmware\n");
 }
 
+static const struct platform_fw_data platform_fw_data_versal = {
+	.family_code = PM_VERSAL_FAMILY_CODE,
+};
+
+static const struct platform_fw_data platform_fw_data_versal_net = {
+	.family_code = PM_VERSAL_NET_FAMILY_CODE,
+};
+
+static const struct platform_fw_data platform_fw_data_zynqmp = {
+	.family_code = PM_ZYNQMP_FAMILY_CODE,
+};
+
 static const struct of_device_id zynqmp_firmware_of_match[] = {
-	{.compatible = "xlnx,zynqmp-firmware"},
-	{.compatible = "xlnx,versal-firmware"},
-	{.compatible = "xlnx,versal-net-firmware"},
+	{.compatible = "xlnx,zynqmp-firmware", .data = &platform_fw_data_zynqmp},
+	{.compatible = "xlnx,versal-firmware", .data = &platform_fw_data_versal},
+	{.compatible = "xlnx,versal-net-firmware", .data = &platform_fw_data_versal_net},
 	{},
 };
 MODULE_DEVICE_TABLE(of, zynqmp_firmware_of_match);
