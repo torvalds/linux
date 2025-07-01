@@ -4883,7 +4883,6 @@ void snd_soc_dapm_free(struct snd_soc_dapm_context *dapm)
 	dapm_free_widgets(dapm);
 	list_del(&dapm->list);
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_free);
 
 void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
 		       struct snd_soc_card *card,
