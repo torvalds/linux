@@ -1,4 +1,4 @@
-#!/usr/bin/gawk -f
+#!/usr/bin/env -S gawk -f
 # SPDX-License-Identifier: GPL-2.0
 
 # Script to check sysctl documentation against source files
