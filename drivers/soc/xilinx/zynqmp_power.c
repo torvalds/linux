@@ -285,7 +285,7 @@ static int register_event(struct device *dev, const enum pm_api_cb_id cb_type, c
 static int zynqmp_pm_probe(struct platform_device *pdev)
 {
 	int ret, irq;
-	u32 pm_api_version, pm_family_code, pm_sub_family_code, node_id;
+	u32 pm_api_version, pm_family_code, node_id;
 	struct mbox_client *client;
 
 	ret = zynqmp_pm_get_api_version(&pm_api_version);
@@ -315,14 +315,16 @@ static int zynqmp_pm_probe(struct platform_device *pdev)
 		INIT_WORK(&zynqmp_pm_init_suspend_work->callback_work,
 			  zynqmp_pm_init_suspend_work_fn);
 
-		ret = zynqmp_pm_get_family_info(&pm_family_code, &pm_sub_family_code);
+		ret = zynqmp_pm_get_family_info(&pm_family_code);
 		if (ret < 0)
 			return ret;
 
-		if (pm_sub_family_code == VERSALNET_SUB_FAMILY_CODE)
+		if (pm_family_code == PM_VERSAL_NET_FAMILY_CODE)
 			node_id = PM_DEV_ACPU_0_0;
-		else
+		else if (pm_family_code == PM_VERSAL_FAMILY_CODE)
 			node_id = PM_DEV_ACPU_0;
+		else
+			return -ENODEV;
 
 		ret = register_event(&pdev->dev, PM_NOTIFY_CB, node_id, EVENT_SUBSYSTEM_RESTART,
 				     false, subsystem_restart_event_callback);

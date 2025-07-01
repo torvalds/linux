@@ -473,8 +473,6 @@ int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 *ret_payload, u32 num_args, ...)
 
 static u32 pm_api_version;
 static u32 pm_tz_version;
-static u32 pm_family_code;
-static u32 pm_sub_family_code;
 
 int zynqmp_pm_register_sgi(u32 sgi_num, u32 reset)
 {
@@ -541,32 +539,18 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_get_chipid);
 /**
  * zynqmp_pm_get_family_info() - Get family info of platform
  * @family:	Returned family code value
- * @subfamily:	Returned sub-family code value
  *
  * Return: Returns status, either success or error+reason
  */
-int zynqmp_pm_get_family_info(u32 *family, u32 *subfamily)
+int zynqmp_pm_get_family_info(u32 *family)
 {
-	u32 ret_payload[PAYLOAD_ARG_CNT];
-	u32 idcode;
-	int ret;
+	if (!active_platform_fw_data)
+		return -ENODEV;
 
-	/* Check is family or sub-family code already received */
-	if (pm_family_code && pm_sub_family_code) {
-		*family = pm_family_code;
-		*subfamily = pm_sub_family_code;
-		return 0;
-	}
+	if (!family)
+		return -EINVAL;
 
-	ret = zynqmp_pm_invoke_fn(PM_GET_CHIPID, ret_payload, 0);
-	if (ret < 0)
-		return ret;
-
-	idcode = ret_payload[1];
-	pm_family_code = FIELD_GET(FAMILY_CODE_MASK, idcode);
-	pm_sub_family_code = FIELD_GET(SUB_FAMILY_CODE_MASK, idcode);
-	*family = pm_family_code;
-	*subfamily = pm_sub_family_code;
+	*family = active_platform_fw_data->family_code;
 
 	return 0;
 }
@@ -1247,8 +1231,13 @@ int zynqmp_pm_pinctrl_set_config(const u32 pin, const u32 param,
 				 u32 value)
 {
 	int ret;
+	u32 pm_family_code;
 
-	if (pm_family_code == ZYNQMP_FAMILY_CODE &&
+	ret = zynqmp_pm_get_family_info(&pm_family_code);
+	if (ret)
+		return ret;
+
+	if (pm_family_code == PM_ZYNQMP_FAMILY_CODE &&
 	    param == PM_PINCTRL_CONFIG_TRI_STATE) {
 		ret = zynqmp_pm_feature(PM_PINCTRL_CONFIG_PARAM_SET);
 		if (ret < PM_PINCTRL_PARAM_SET_VERSION) {
@@ -2055,6 +2044,7 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct zynqmp_devinfo *devinfo;
+	u32 pm_family_code;
 	int ret;
 
 	ret = get_set_conduit_method(dev->of_node);
@@ -2098,8 +2088,8 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	pr_info("%s Platform Management API v%d.%d\n", __func__,
 		pm_api_version >> 16, pm_api_version & 0xFFFF);
 
-	/* Get the Family code and sub family code of platform */
-	ret = zynqmp_pm_get_family_info(&pm_family_code, &pm_sub_family_code);
+	/* Get the Family code of platform */
+	ret = zynqmp_pm_get_family_info(&pm_family_code);
 	if (ret < 0)
 		return ret;
 
@@ -2126,7 +2116,7 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 	zynqmp_pm_api_debugfs_init();
 
-	if (pm_family_code == VERSAL_FAMILY_CODE) {
+	if (pm_family_code != PM_ZYNQMP_FAMILY_CODE) {
 		em_dev = platform_device_register_data(&pdev->dev, "xlnx_event_manager",
 						       -1, NULL, 0);
 		if (IS_ERR(em_dev))

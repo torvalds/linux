@@ -51,21 +51,10 @@
 
 #define PM_PINCTRL_PARAM_SET_VERSION	2
 
-#define ZYNQMP_FAMILY_CODE 0x23
-#define VERSAL_FAMILY_CODE 0x26
-
 /* Family codes */
 #define PM_ZYNQMP_FAMILY_CODE 0x1 /* ZynqMP family code */
 #define PM_VERSAL_FAMILY_CODE 0x2 /* Versal family code */
 #define PM_VERSAL_NET_FAMILY_CODE 0x3 /* Versal NET family code */
-
-/* When all subfamily of platform need to support */
-#define ALL_SUB_FAMILY_CODE		0x00
-#define VERSAL_SUB_FAMILY_CODE		0x01
-#define VERSALNET_SUB_FAMILY_CODE	0x03
-
-#define FAMILY_CODE_MASK	GENMASK(27, 21)
-#define SUB_FAMILY_CODE_MASK	GENMASK(20, 19)
 
 #define API_ID_MASK		GENMASK(7, 0)
 #define MODULE_ID_MASK		GENMASK(11, 8)
@@ -570,7 +559,7 @@ int zynqmp_pm_invoke_fw_fn(u32 pm_api_id, u32 *ret_payload, u32 num_args, ...);
 #if IS_REACHABLE(CONFIG_ZYNQMP_FIRMWARE)
 int zynqmp_pm_get_api_version(u32 *version);
 int zynqmp_pm_get_chipid(u32 *idcode, u32 *version);
-int zynqmp_pm_get_family_info(u32 *family, u32 *subfamily);
+int zynqmp_pm_get_family_info(u32 *family);
 int zynqmp_pm_query_data(struct zynqmp_pm_query_data qdata, u32 *out);
 int zynqmp_pm_clock_enable(u32 clock_id);
 int zynqmp_pm_clock_disable(u32 clock_id);
@@ -651,7 +640,7 @@ static inline int zynqmp_pm_get_chipid(u32 *idcode, u32 *version)
 	return -ENODEV;
 }
 
-static inline int zynqmp_pm_get_family_info(u32 *family, u32 *subfamily)
+static inline int zynqmp_pm_get_family_info(u32 *family)
 {
 	return -ENODEV;
 }
