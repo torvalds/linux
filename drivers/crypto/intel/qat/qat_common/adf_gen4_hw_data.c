@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+
+#define pr_fmt(fmt)	"QAT: " fmt
+
 #include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <asm/div64.h>
@@ -523,7 +526,7 @@ static void bank_state_save(struct adf_hw_csr_ops *ops, void __iomem *base,
 	u32 __expect_val = (expect_val); \
 	u32 actual_val = op(args); \
 	(__expect_val == actual_val) ? 0 : \
-		(pr_err("QAT: Fail to restore %s register. Expected 0x%x, actual 0x%x\n", \
+		(pr_err("Fail to restore %s register. Expected 0x%x, actual 0x%x\n", \
 			name, __expect_val, actual_val), -EINVAL); \
 })
 
@@ -593,7 +596,7 @@ static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
 	 */
 	val = state->ringexpstat;
 	if (val) {
-		pr_info("QAT: Bank %u state not fully restored due to exception in saved state (%#x)\n",
+		pr_info("Bank %u state not fully restored due to exception in saved state (%#x)\n",
 			bank, val);
 		return 0;
 	}
@@ -601,8 +604,7 @@ static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
 	/* Ensure that the restoration process completed without exceptions */
 	tmp_val = ops->read_csr_exp_stat(base, bank);
 	if (tmp_val) {
-		pr_err("QAT: Bank %u restored with exception: %#x\n",
-		       bank, tmp_val);
+		pr_err("Bank %u restored with exception: %#x\n", bank, tmp_val);
 		return -EFAULT;
 	}
 
