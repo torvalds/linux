@@ -12,7 +12,7 @@
 #include "util.h"
 #include "wow.h"
 
-void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
+void __rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;

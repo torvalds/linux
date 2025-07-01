@@ -1772,6 +1772,7 @@ static int rtw89_ops_suspend(struct ieee80211_hw *hw,
 
 	set_bit(RTW89_FLAG_FORBIDDEN_TRACK_WORK, rtwdev->flags);
 	wiphy_delayed_work_cancel(hw->wiphy, &rtwdev->track_work);
+	wiphy_delayed_work_cancel(hw->wiphy, &rtwdev->track_ps_work);
 
 	ret = rtw89_wow_suspend(rtwdev, wowlan);
 	if (ret) {
@@ -1797,6 +1798,8 @@ static int rtw89_ops_resume(struct ieee80211_hw *hw)
 	clear_bit(RTW89_FLAG_FORBIDDEN_TRACK_WORK, rtwdev->flags);
 	wiphy_delayed_work_queue(hw->wiphy, &rtwdev->track_work,
 				 RTW89_TRACK_WORK_PERIOD);
+	wiphy_delayed_work_queue(hw->wiphy, &rtwdev->track_ps_work,
+				 RTW89_TRACK_PS_WORK_PERIOD);
 
 	return ret ? 1 : 0;
 }
