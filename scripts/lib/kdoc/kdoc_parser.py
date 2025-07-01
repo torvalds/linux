@@ -127,7 +127,6 @@ class KernelEntry:
         self.parameterdesc_start_lines = {}
 
         self.section_start_lines = {}
-        self.sectionlist = []
         self.sections = {}
 
         self.anon_struct_union = False
@@ -202,7 +201,6 @@ class KernelEntry:
                 self.sections[name] += '\n' + contents
             else:
                 self.sections[name] = contents
-                self.sectionlist.append(name)
                 self.section_start_lines[name] = self.new_start_line
                 self.new_start_line = 0
 
@@ -275,14 +273,12 @@ class KernelDoc:
         item.warnings = self.entry.warnings
 
         sections = item.get('sections', {})
-        sectionlist = item.get('sectionlist', [])
 
         # Drop empty sections
         # TODO: improve empty sections logic to emit warnings
         for section in ["Description", "Return"]:
-            if section in sectionlist and not sections[section].rstrip():
+            if section in sections and not sections[section].rstrip():
                 del sections[section]
-                sectionlist.remove(section)
 
         self.entries.append(item)
 
@@ -828,7 +824,6 @@ class KernelDoc:
                                 parameterdescs=self.entry.parameterdescs,
                                 parametertypes=self.entry.parametertypes,
                                 parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                sectionlist=self.entry.sectionlist,
                                 sections=self.entry.sections,
                                 section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
@@ -913,7 +908,6 @@ class KernelDoc:
                                 parameterlist=self.entry.parameterlist,
                                 parameterdescs=self.entry.parameterdescs,
                                 parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                sectionlist=self.entry.sectionlist,
                                 sections=self.entry.sections,
                                 section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
@@ -1085,7 +1079,6 @@ class KernelDoc:
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
                                     parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
                                     section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
@@ -1099,7 +1092,6 @@ class KernelDoc:
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
                                     parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
                                     section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
@@ -1145,7 +1137,6 @@ class KernelDoc:
                                     parameterdescs=self.entry.parameterdescs,
                                     parametertypes=self.entry.parametertypes,
                                     parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
                                     section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
@@ -1168,7 +1159,6 @@ class KernelDoc:
 
             self.output_declaration('typedef', declaration_name,
                                     typedef=declaration_name,
-                                    sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
                                     section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
@@ -1653,7 +1643,6 @@ class KernelDoc:
         if doc_end.search(line):
             self.dump_section()
             self.output_declaration("doc", self.entry.identifier,
-                                    sectionlist=self.entry.sectionlist,
                                     sections=self.entry.sections,
                                     section_start_lines=self.entry.section_start_lines)
             self.reset_state(ln)

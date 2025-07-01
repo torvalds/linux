@@ -339,11 +339,10 @@ class RestFormat(OutputFormat):
         tends to duplicate a header already in the template file.
         """
 
-        sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
         section_start_lines = args.get('section_start_lines', {})
 
-        for section in sectionlist:
+        for section in sections:
             # Skip sections that are in the nosymbol_table
             if section in self.nosymbol:
                 continue
@@ -636,7 +635,6 @@ class ManFormat(OutputFormat):
                 self.data += line + "\n"
 
     def out_doc(self, fname, name, args):
-        sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
         if not self.check_doc(name, args):
@@ -644,7 +642,7 @@ class ManFormat(OutputFormat):
 
         self.data += f'.TH "{self.modulename}" 9 "{self.modulename}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
-        for section in sectionlist:
+        for section in sections:
             self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections.get(section))
 
@@ -653,7 +651,6 @@ class ManFormat(OutputFormat):
 
         parameterlist = args.get('parameterlist', [])
         parameterdescs = args.get('parameterdescs', {})
-        sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
         self.data += f'.TH "{args["function"]}" 9 "{args["function"]}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX' + "\n"
@@ -695,7 +692,7 @@ class ManFormat(OutputFormat):
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(parameterdescs.get(parameter_name, ""))
 
-        for section in sectionlist:
+        for section in sections:
             self.data += f'.SH "{section.upper()}"' + "\n"
             self.output_highlight(sections[section])
 
@@ -703,7 +700,6 @@ class ManFormat(OutputFormat):
 
         name = args.get('enum', '')
         parameterlist = args.get('parameterlist', [])
-        sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
         self.data += f'.TH "{self.modulename}" 9 "enum {args["enum"]}" "{self.man_date}" "API Manual" LINUX' + "\n"
@@ -731,7 +727,7 @@ class ManFormat(OutputFormat):
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(args['parameterdescs'].get(parameter_name, ""))
 
-        for section in sectionlist:
+        for section in sections:
             self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections[section])
 
@@ -739,7 +735,6 @@ class ManFormat(OutputFormat):
         module = self.modulename
         typedef = args.get('typedef')
         purpose = args.get('purpose')
-        sectionlist = args.get('sectionlist', [])
         sections = args.get('sections', {})
 
         self.data += f'.TH "{module}" 9 "{typedef}" "{self.man_date}" "API Manual" LINUX' + "\n"
@@ -747,7 +742,7 @@ class ManFormat(OutputFormat):
         self.data += ".SH NAME\n"
         self.data += f"typedef {typedef} \\- {purpose}\n"
 
-        for section in sectionlist:
+        for section in sections:
             self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections.get(section))
 
@@ -757,7 +752,6 @@ class ManFormat(OutputFormat):
         struct_name = args.get('struct')
         purpose = args.get('purpose')
         definition = args.get('definition')
-        sectionlist = args.get('sectionlist', [])
         parameterlist = args.get('parameterlist', [])
         sections = args.get('sections', {})
         parameterdescs = args.get('parameterdescs', {})
@@ -788,6 +782,6 @@ class ManFormat(OutputFormat):
             self.data += f'.IP "{parameter}" 12' + "\n"
             self.output_highlight(parameterdescs.get(parameter_name))
 
-        for section in sectionlist:
+        for section in sections:
             self.data += f'.SH "{section}"' + "\n"
             self.output_highlight(sections.get(section))
