@@ -164,6 +164,30 @@ static noinline int tree_mod_log_insert(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+static inline bool skip_eb_logging(const struct extent_buffer *eb)
+{
+	const u64 owner = btrfs_header_owner(eb);
+
+	if (btrfs_header_level(eb) == 0)
+		return true;
+
+	/*
+	 * Tree mod logging exists so that there's a consistent view of the
+	 * extents and backrefs of inodes even if while a task is iterating over
+	 * them other tasks are modifying subvolume trees and the extent tree
+	 * (including running delayed refs). So we only need to log extent
+	 * buffers from the extent tree and subvolume trees.
+	 */
+
+	if (owner == BTRFS_EXTENT_TREE_OBJECTID)
+		return false;
+
+	if (btrfs_is_fstree(owner))
+		return false;
+
+	return true;
+}
+
 /*
  * Determines if logging can be omitted. Returns true if it can. Otherwise, it
  * returns false with the tree_mod_log_lock acquired. The caller must hold
@@ -174,7 +198,7 @@ static bool tree_mod_dont_log(struct btrfs_fs_info *fs_info, const struct extent
 {
 	if (!test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
 		return true;
-	if (eb && btrfs_header_level(eb) == 0)
+	if (eb && skip_eb_logging(eb))
 		return true;
 
 	write_lock(&fs_info->tree_mod_log_lock);
@@ -192,7 +216,7 @@ static bool tree_mod_need_log(const struct btrfs_fs_info *fs_info,
 {
 	if (!test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
 		return false;
-	if (eb && btrfs_header_level(eb) == 0)
+	if (eb && skip_eb_logging(eb))
 		return false;
 
 	return true;
