@@ -17,6 +17,8 @@ struct device;
 struct sdca_entity;
 struct sdca_function_desc;
 
+#define SDCA_NO_INTERRUPT -1
+
 /*
  * The addressing space for SDCA relies on 7 bits for Entities, so a
  * maximum of 128 Entities per function can be represented.
@@ -317,6 +319,15 @@ enum sdca_selected_mode_range {
 	SDCA_SELECTED_MODE_INDEX			= 0,
 	SDCA_SELECTED_MODE_TERM_TYPE			= 1,
 	SDCA_SELECTED_MODE_NCOLS			= 2,
+};
+
+/**
+ * enum sdca_detected_mode_values - Predefined GE Detected Mode values
+ */
+enum sdca_detected_mode_values {
+	SDCA_DETECTED_MODE_JACK_UNPLUGGED		= 0,
+	SDCA_DETECTED_MODE_JACK_UNKNOWN			= 1,
+	SDCA_DETECTED_MODE_DETECTION_IN_PROGRESS	= 2,
 };
 
 /**

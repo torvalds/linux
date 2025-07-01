@@ -15,4 +15,11 @@ config SND_SOC_SDCA_HID
 	tristate "SDCA HID support"
 	depends on SND_SOC_SDCA && HID
 
+config SND_SOC_SDCA_IRQ
+	tristate
+	select REGMAP
+	select REGMAP_IRQ
+	help
+	  This option enables support for SDCA IRQs.
+
 endmenu
