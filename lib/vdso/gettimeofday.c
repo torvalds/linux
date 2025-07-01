@@ -396,8 +396,8 @@ static __maybe_unused __kernel_old_time_t __cvdso_time(__kernel_old_time_t *time
 
 #ifdef VDSO_HAS_CLOCK_GETRES
 static __maybe_unused
-int __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t clock,
-				struct __kernel_timespec *res)
+bool __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t clock,
+				 struct __kernel_timespec *res)
 {
 	const struct vdso_clock *vc = vd->clock_data;
 	u32 msk;
@@ -405,7 +405,7 @@ int __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t clock
 
 	/* Check for negative values or invalid clocks */
 	if (unlikely((u32) clock >= MAX_CLOCKS))
-		return -1;
+		return false;
 
 	if (IS_ENABLED(CONFIG_TIME_NS) &&
 	    vc->clock_mode == VDSO_CLOCKMODE_TIMENS)
@@ -427,23 +427,25 @@ int __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t clock
 		 */
 		ns = LOW_RES_NSEC;
 	} else {
-		return -1;
+		return false;
 	}
 
 	if (likely(res)) {
 		res->tv_sec = 0;
 		res->tv_nsec = ns;
 	}
-	return 0;
+	return true;
 }
 
 static __maybe_unused
 int __cvdso_clock_getres_data(const struct vdso_time_data *vd, clockid_t clock,
 			      struct __kernel_timespec *res)
 {
-	int ret = __cvdso_clock_getres_common(vd, clock, res);
+	bool ok;
 
-	if (unlikely(ret))
+	ok =  __cvdso_clock_getres_common(vd, clock, res);
+
+	if (unlikely(!ok))
 		return clock_getres_fallback(clock, res);
 	return 0;
 }
@@ -460,18 +462,18 @@ __cvdso_clock_getres_time32_data(const struct vdso_time_data *vd, clockid_t cloc
 				 struct old_timespec32 *res)
 {
 	struct __kernel_timespec ts;
-	int ret;
+	bool ok;
 
-	ret = __cvdso_clock_getres_common(vd, clock, &ts);
+	ok = __cvdso_clock_getres_common(vd, clock, &ts);
 
-	if (unlikely(ret))
+	if (unlikely(!ok))
 		return clock_getres32_fallback(clock, res);
 
 	if (likely(res)) {
 		res->tv_sec = ts.tv_sec;
 		res->tv_nsec = ts.tv_nsec;
 	}
-	return ret;
+	return 0;
 }
 
 static __maybe_unused int
