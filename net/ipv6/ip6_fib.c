@@ -963,8 +963,7 @@ insert_above:
 }
 
 static void __fib6_drop_pcpu_from(struct fib6_nh *fib6_nh,
-				  const struct fib6_info *match,
-				  const struct fib6_table *table)
+				  const struct fib6_info *match)
 {
 	int cpu;
 
@@ -999,21 +998,15 @@ static void __fib6_drop_pcpu_from(struct fib6_nh *fib6_nh,
 	rcu_read_unlock();
 }
 
-struct fib6_nh_pcpu_arg {
-	struct fib6_info	*from;
-	const struct fib6_table *table;
-};
-
 static int fib6_nh_drop_pcpu_from(struct fib6_nh *nh, void *_arg)
 {
-	struct fib6_nh_pcpu_arg *arg = _arg;
+	struct fib6_info *arg = _arg;
 
-	__fib6_drop_pcpu_from(nh, arg->from, arg->table);
+	__fib6_drop_pcpu_from(nh, arg);
 	return 0;
 }
 
-static void fib6_drop_pcpu_from(struct fib6_info *f6i,
-				const struct fib6_table *table)
+static void fib6_drop_pcpu_from(struct fib6_info *f6i)
 {
 	/* Make sure rt6_make_pcpu_route() wont add other percpu routes
 	 * while we are cleaning them here.
@@ -1022,19 +1015,14 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 	mb(); /* paired with the cmpxchg() in rt6_make_pcpu_route() */
 
 	if (f6i->nh) {
-		struct fib6_nh_pcpu_arg arg = {
-			.from = f6i,
-			.table = table
-		};
-
 		rcu_read_lock();
-		nexthop_for_each_fib6_nh(f6i->nh, fib6_nh_drop_pcpu_from, &arg);
+		nexthop_for_each_fib6_nh(f6i->nh, fib6_nh_drop_pcpu_from, f6i);
 		rcu_read_unlock();
 	} else {
 		struct fib6_nh *fib6_nh;
 
 		fib6_nh = f6i->fib6_nh;
-		__fib6_drop_pcpu_from(fib6_nh, f6i, table);
+		__fib6_drop_pcpu_from(fib6_nh, f6i);
 	}
 }
 
@@ -1045,7 +1033,7 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 
 	/* Flush all cached dst in exception table */
 	rt6_flush_exceptions(rt);
-	fib6_drop_pcpu_from(rt, table);
+	fib6_drop_pcpu_from(rt);
 
 	if (rt->nh) {
 		spin_lock(&rt->nh->lock);
