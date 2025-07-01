@@ -1727,6 +1727,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 	for (view_iter = 1; view_iter < view->n; ++view_iter) {
 		const struct user_regset *regset = &view->regsets[view_iter];
 		int note_type = regset->core_note_type;
+		const char *note_name = regset->core_note_name;
 		bool is_fpreg = note_type == NT_PRFPREG;
 		void *data;
 		int ret;
@@ -1747,8 +1748,11 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 		if (is_fpreg)
 			SET_PR_FPVALID(&t->prstatus);
 
-		fill_note(&t->notes[note_iter], is_fpreg ? NN_PRFPREG : "LINUX",
-			  note_type, ret, data);
+		if (!note_name)
+			note_name = is_fpreg ? NN_PRFPREG : "LINUX";
+
+		fill_note(&t->notes[note_iter], note_name, note_type,
+			  ret, data);
 
 		info->size += notesize(&t->notes[note_iter]);
 		note_iter++;
