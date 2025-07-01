@@ -273,9 +273,9 @@ static inline void netfs_wake_rreq_flag(struct netfs_io_request *rreq,
 					enum netfs_rreq_trace trace)
 {
 	if (test_bit(rreq_flag, &rreq->flags)) {
-		trace_netfs_rreq(rreq, trace);
 		clear_bit_unlock(rreq_flag, &rreq->flags);
 		smp_mb__after_atomic(); /* Set flag before task state */
+		trace_netfs_rreq(rreq, trace);
 		wake_up(&rreq->waitq);
 	}
 }

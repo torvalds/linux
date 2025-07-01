@@ -359,7 +359,7 @@ void netfs_wait_for_in_progress_stream(struct netfs_io_request *rreq,
 		if (!netfs_check_subreq_in_progress(subreq))
 			continue;
 
-		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_quiesce);
 		for (;;) {
 			prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
 
@@ -368,10 +368,10 @@ void netfs_wait_for_in_progress_stream(struct netfs_io_request *rreq,
 
 			trace_netfs_sreq(subreq, netfs_sreq_trace_wait_for);
 			schedule();
-			trace_netfs_rreq(rreq, netfs_rreq_trace_woke_queue);
 		}
 	}
 
+	trace_netfs_rreq(rreq, netfs_rreq_trace_waited_quiesce);
 	finish_wait(&rreq->waitq, &myself);
 }
 
@@ -437,7 +437,6 @@ static ssize_t netfs_wait_for_in_progress(struct netfs_io_request *rreq,
 	ssize_t ret;
 
 	for (;;) {
-		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
 		prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
 
 		if (!test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags)) {
@@ -457,11 +456,12 @@ static ssize_t netfs_wait_for_in_progress(struct netfs_io_request *rreq,
 		if (!netfs_check_rreq_in_progress(rreq))
 			break;
 
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_ip);
 		schedule();
-		trace_netfs_rreq(rreq, netfs_rreq_trace_woke_queue);
 	}
 
 all_collected:
+	trace_netfs_rreq(rreq, netfs_rreq_trace_waited_ip);
 	finish_wait(&rreq->waitq, &myself);
 
 	ret = rreq->error;
@@ -504,10 +504,8 @@ static void netfs_wait_for_pause(struct netfs_io_request *rreq,
 {
 	DEFINE_WAIT(myself);
 
-	trace_netfs_rreq(rreq, netfs_rreq_trace_wait_pause);
-
 	for (;;) {
-		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_queue);
+		trace_netfs_rreq(rreq, netfs_rreq_trace_wait_pause);
 		prepare_to_wait(&rreq->waitq, &myself, TASK_UNINTERRUPTIBLE);
 
 		if (!test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags)) {
@@ -530,10 +528,10 @@ static void netfs_wait_for_pause(struct netfs_io_request *rreq,
 			break;
 
 		schedule();
-		trace_netfs_rreq(rreq, netfs_rreq_trace_woke_queue);
 	}
 
 all_collected:
+	trace_netfs_rreq(rreq, netfs_rreq_trace_waited_pause);
 	finish_wait(&rreq->waitq, &myself);
 }
 

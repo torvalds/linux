@@ -293,7 +293,9 @@ reassess:
 		spin_lock(&rreq->lock);
 
 		remove = front;
-		trace_netfs_sreq(front, netfs_sreq_trace_discard);
+		trace_netfs_sreq(front,
+				 notes & ABANDON_SREQ ?
+				 netfs_sreq_trace_abandoned : netfs_sreq_trace_consumed);
 		list_del_init(&front->rreq_link);
 		front = list_first_entry_or_null(&stream->subrequests,
 						 struct netfs_io_subrequest, rreq_link);
@@ -353,9 +355,11 @@ static void netfs_rreq_assess_dio(struct netfs_io_request *rreq)
 
 	if (rreq->iocb) {
 		rreq->iocb->ki_pos += rreq->transferred;
-		if (rreq->iocb->ki_complete)
+		if (rreq->iocb->ki_complete) {
+			trace_netfs_rreq(rreq, netfs_rreq_trace_ki_complete);
 			rreq->iocb->ki_complete(
 				rreq->iocb, rreq->error ? rreq->error : rreq->transferred);
+		}
 	}
 	if (rreq->netfs_ops->done)
 		rreq->netfs_ops->done(rreq);
@@ -379,9 +383,11 @@ static void netfs_rreq_assess_single(struct netfs_io_request *rreq)
 
 	if (rreq->iocb) {
 		rreq->iocb->ki_pos += rreq->transferred;
-		if (rreq->iocb->ki_complete)
+		if (rreq->iocb->ki_complete) {
+			trace_netfs_rreq(rreq, netfs_rreq_trace_ki_complete);
 			rreq->iocb->ki_complete(
 				rreq->iocb, rreq->error ? rreq->error : rreq->transferred);
+		}
 	}
 	if (rreq->netfs_ops->done)
 		rreq->netfs_ops->done(rreq);

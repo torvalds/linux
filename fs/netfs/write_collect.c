@@ -421,9 +421,11 @@ bool netfs_write_collection(struct netfs_io_request *wreq)
 	if (wreq->iocb) {
 		size_t written = min(wreq->transferred, wreq->len);
 		wreq->iocb->ki_pos += written;
-		if (wreq->iocb->ki_complete)
+		if (wreq->iocb->ki_complete) {
+			trace_netfs_rreq(wreq, netfs_rreq_trace_ki_complete);
 			wreq->iocb->ki_complete(
 				wreq->iocb, wreq->error ? wreq->error : written);
+		}
 		wreq->iocb = VFS_PTR_POISON;
 	}
 

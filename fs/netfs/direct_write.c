@@ -91,7 +91,6 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 	}
 
 	if (!async) {
-		trace_netfs_rreq(wreq, netfs_rreq_trace_wait_ip);
 		ret = netfs_wait_for_write(wreq);
 		if (ret > 0)
 			iocb->ki_pos += ret;
