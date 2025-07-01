@@ -521,14 +521,19 @@ static void bank_state_save(struct adf_hw_csr_ops *ops, void __iomem *base,
 	}
 }
 
-#define CHECK_STAT(op, expect_val, name, args...) \
-({ \
-	u32 __expect_val = (expect_val); \
-	u32 actual_val = op(args); \
-	(__expect_val == actual_val) ? 0 : \
-		(pr_err("Fail to restore %s register. Expected 0x%x, actual 0x%x\n", \
-			name, __expect_val, actual_val), -EINVAL); \
-})
+static inline int check_stat(u32 (*op)(void __iomem *, u32), u32 expect_val,
+			     const char *name, void __iomem *base, u32 bank)
+{
+	u32 actual_val = op(base, bank);
+
+	if (expect_val == actual_val)
+		return 0;
+
+	pr_err("Fail to restore %s register. Expected %#x, actual %#x\n",
+	       name, expect_val, actual_val);
+
+	return -EINVAL;
+}
 
 static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
 			      u32 bank, struct bank_state *state, u32 num_rings,
@@ -611,32 +616,32 @@ static int bank_state_restore(struct adf_hw_csr_ops *ops, void __iomem *base,
 	ops->write_csr_ring_srv_arb_en(base, bank, state->ringsrvarben);
 
 	/* Check that all ring statuses match the saved state. */
-	ret = CHECK_STAT(ops->read_csr_stat, state->ringstat0, "ringstat",
+	ret = check_stat(ops->read_csr_stat, state->ringstat0, "ringstat",
 			 base, bank);
 	if (ret)
 		return ret;
 
-	ret = CHECK_STAT(ops->read_csr_e_stat, state->ringestat, "ringestat",
+	ret = check_stat(ops->read_csr_e_stat, state->ringestat, "ringestat",
 			 base, bank);
 	if (ret)
 		return ret;
 
-	ret = CHECK_STAT(ops->read_csr_ne_stat, state->ringnestat, "ringnestat",
+	ret = check_stat(ops->read_csr_ne_stat, state->ringnestat, "ringnestat",
 			 base, bank);
 	if (ret)
 		return ret;
 
-	ret = CHECK_STAT(ops->read_csr_nf_stat, state->ringnfstat, "ringnfstat",
+	ret = check_stat(ops->read_csr_nf_stat, state->ringnfstat, "ringnfstat",
 			 base, bank);
 	if (ret)
 		return ret;
 
-	ret = CHECK_STAT(ops->read_csr_f_stat, state->ringfstat, "ringfstat",
+	ret = check_stat(ops->read_csr_f_stat, state->ringfstat, "ringfstat",
 			 base, bank);
 	if (ret)
 		return ret;
 
-	ret = CHECK_STAT(ops->read_csr_c_stat, state->ringcstat0, "ringcstat",
+	ret = check_stat(ops->read_csr_c_stat, state->ringcstat0, "ringcstat",
 			 base, bank);
 	if (ret)
 		return ret;
