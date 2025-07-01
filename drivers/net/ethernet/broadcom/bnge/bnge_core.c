@@ -302,9 +302,16 @@ static int bnge_probe_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_config_uninit;
 	}
 
+	rc = bnge_netdev_alloc(bd, max_irqs);
+	if (rc)
+		goto err_free_irq;
+
 	pci_save_state(pdev);
 
 	return 0;
+
+err_free_irq:
+	bnge_free_irqs(bd);
 
 err_config_uninit:
 	bnge_net_uninit_dflt_config(bd);
@@ -330,6 +337,8 @@ err_pci_disable:
 static void bnge_remove_one(struct pci_dev *pdev)
 {
 	struct bnge_dev *bd = pci_get_drvdata(pdev);
+
+	bnge_netdev_free(bd);
 
 	bnge_free_irqs(bd);
 

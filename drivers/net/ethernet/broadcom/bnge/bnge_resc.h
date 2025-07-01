@@ -4,6 +4,9 @@
 #ifndef _BNGE_RESC_H_
 #define _BNGE_RESC_H_
 
+#include "bnge_netdev.h"
+#include "bnge_rmem.h"
+
 struct bnge_hw_resc {
 	u16	min_rsscos_ctxs;
 	u16	max_rsscos_ctxs;

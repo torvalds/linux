@@ -65,6 +65,7 @@ enum {
 	BNGE_EN_ROCE_V2					= BIT_ULL(1),
 	BNGE_EN_STRIP_VLAN				= BIT_ULL(2),
 	BNGE_EN_SHARED_CHNL				= BIT_ULL(3),
+	BNGE_EN_UDP_GSO_SUPP				= BIT_ULL(4),
 };
 
 #define BNGE_EN_ROCE		(BNGE_EN_ROCE_V1 | BNGE_EN_ROCE_V2)
@@ -89,6 +90,7 @@ struct bnge_queue_info {
 struct bnge_dev {
 	struct device	*dev;
 	struct pci_dev	*pdev;
+	struct net_device	*netdev;
 	u64	dsn;
 #define BNGE_VPD_FLD_LEN	32
 	char		board_partno[BNGE_VPD_FLD_LEN];
@@ -198,6 +200,16 @@ static inline bool bnge_is_roce_en(struct bnge_dev *bd)
 
 static inline bool bnge_is_agg_reqd(struct bnge_dev *bd)
 {
+	if (bd->netdev) {
+		struct bnge_net *bn = netdev_priv(bd->netdev);
+
+		if (bn->priv_flags & BNGE_NET_EN_TPA ||
+		    bn->priv_flags & BNGE_NET_EN_JUMBO)
+			return true;
+		else
+			return false;
+	}
+
 	return true;
 }
 
