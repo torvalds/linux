@@ -6350,8 +6350,8 @@ static int hci_le_pa_term_sync(struct hci_dev *hdev, __le16 handle)
 	return hci_send_cmd(hdev, HCI_OP_LE_PA_TERM_SYNC, sizeof(cp), &cp);
 }
 
-static void hci_le_pa_sync_estabilished_evt(struct hci_dev *hdev, void *data,
-					    struct sk_buff *skb)
+static void hci_le_pa_sync_established_evt(struct hci_dev *hdev, void *data,
+					   struct sk_buff *skb)
 {
 	struct hci_ev_le_pa_sync_established *ev = data;
 	int mask = hdev->link_mode;
@@ -6681,8 +6681,8 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
-static void hci_le_cis_estabilished_evt(struct hci_dev *hdev, void *data,
-					struct sk_buff *skb)
+static void hci_le_cis_established_evt(struct hci_dev *hdev, void *data,
+				       struct sk_buff *skb)
 {
 	struct hci_evt_le_cis_established *ev = data;
 	struct hci_conn *conn;
@@ -6910,7 +6910,7 @@ static void hci_le_create_big_complete_evt(struct hci_dev *hdev, void *data,
 static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 					    struct sk_buff *skb)
 {
-	struct hci_evt_le_big_sync_estabilished *ev = data;
+	struct hci_evt_le_big_sync_established *ev = data;
 	struct hci_conn *bis, *conn;
 	int i;
 
@@ -7121,7 +7121,7 @@ static const struct hci_le_ev {
 		     HCI_MAX_EVENT_SIZE),
 	/* [0x0e = HCI_EV_LE_PA_SYNC_ESTABLISHED] */
 	HCI_LE_EV(HCI_EV_LE_PA_SYNC_ESTABLISHED,
-		  hci_le_pa_sync_estabilished_evt,
+		  hci_le_pa_sync_established_evt,
 		  sizeof(struct hci_ev_le_pa_sync_established)),
 	/* [0x0f = HCI_EV_LE_PER_ADV_REPORT] */
 	HCI_LE_EV_VL(HCI_EV_LE_PER_ADV_REPORT,
@@ -7132,7 +7132,7 @@ static const struct hci_le_ev {
 	HCI_LE_EV(HCI_EV_LE_EXT_ADV_SET_TERM, hci_le_ext_adv_term_evt,
 		  sizeof(struct hci_evt_le_ext_adv_set_term)),
 	/* [0x19 = HCI_EVT_LE_CIS_ESTABLISHED] */
-	HCI_LE_EV(HCI_EVT_LE_CIS_ESTABLISHED, hci_le_cis_estabilished_evt,
+	HCI_LE_EV(HCI_EVT_LE_CIS_ESTABLISHED, hci_le_cis_established_evt,
 		  sizeof(struct hci_evt_le_cis_established)),
 	/* [0x1a = HCI_EVT_LE_CIS_REQ] */
 	HCI_LE_EV(HCI_EVT_LE_CIS_REQ, hci_le_cis_req_evt,
@@ -7145,7 +7145,7 @@ static const struct hci_le_ev {
 	/* [0x1d = HCI_EV_LE_BIG_SYNC_ESTABLISHED] */
 	HCI_LE_EV_VL(HCI_EVT_LE_BIG_SYNC_ESTABLISHED,
 		     hci_le_big_sync_established_evt,
-		     sizeof(struct hci_evt_le_big_sync_estabilished),
+		     sizeof(struct hci_evt_le_big_sync_established),
 		     HCI_MAX_EVENT_SIZE),
 	/* [0x1e = HCI_EVT_LE_BIG_SYNC_LOST] */
 	HCI_LE_EV_VL(HCI_EVT_LE_BIG_SYNC_LOST,

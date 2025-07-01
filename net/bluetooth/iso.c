@@ -1891,7 +1891,7 @@ static void iso_sock_ready(struct sock *sk)
 
 static bool iso_match_big(struct sock *sk, void *data)
 {
-	struct hci_evt_le_big_sync_estabilished *ev = data;
+	struct hci_evt_le_big_sync_established *ev = data;
 
 	return ev->handle == iso_pi(sk)->qos.bcast.big;
 }
@@ -1912,7 +1912,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 {
 	struct sock *parent = NULL;
 	struct sock *sk = conn->sk;
-	struct hci_ev_le_big_sync_estabilished *ev = NULL;
+	struct hci_ev_le_big_sync_established *ev = NULL;
 	struct hci_ev_le_pa_sync_established *ev2 = NULL;
 	struct hci_ev_le_per_adv_report *ev3 = NULL;
 	struct hci_conn *hcon;
@@ -2023,7 +2023,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 		hci_conn_hold(hcon);
 		iso_chan_add(conn, sk, parent);
 
-		if ((ev && ((struct hci_evt_le_big_sync_estabilished *)ev)->status) ||
+		if ((ev && ((struct hci_evt_le_big_sync_established *)ev)->status) ||
 		    (ev2 && ev2->status)) {
 			/* Trigger error signal on child socket */
 			sk->sk_err = ECONNREFUSED;
@@ -2082,7 +2082,7 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	 * proceed to establishing a BIG sync:
 	 *
 	 * 1. HCI_EV_LE_PA_SYNC_ESTABLISHED: The socket may specify a specific
-	 * SID to listen to and once sync is estabilished its handle needs to
+	 * SID to listen to and once sync is established its handle needs to
 	 * be stored in iso_pi(sk)->sync_handle so it can be matched once
 	 * receiving the BIG Info.
 	 * 2. HCI_EVT_LE_BIG_INFO_ADV_REPORT: When connect_ind is triggered by a

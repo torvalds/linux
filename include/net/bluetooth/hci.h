@@ -2837,7 +2837,7 @@ struct hci_evt_le_create_big_complete {
 } __packed;
 
 #define HCI_EVT_LE_BIG_SYNC_ESTABLISHED 0x1d
-struct hci_evt_le_big_sync_estabilished {
+struct hci_evt_le_big_sync_established {
 	__u8    status;
 	__u8    handle;
 	__u8    latency[3];
