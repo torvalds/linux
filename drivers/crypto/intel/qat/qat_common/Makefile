@@ -4,6 +4,7 @@ ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE='"CRYPTO_QAT"'
 intel_qat-y := adf_accel_engine.o \
 	adf_admin.o \
 	adf_aer.o \
+	adf_bank_state.o \
 	adf_cfg.o \
 	adf_cfg_services.o \
 	adf_clock.o \
