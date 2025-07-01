@@ -7901,7 +7901,8 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 	int clock, bpp = 0;
 	bool is_y420 = false;
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+	if ((connector->connector_type == DRM_MODE_CONNECTOR_eDP) ||
+	    (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)) {
 		struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 		struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
 		enum drm_mode_status result;
