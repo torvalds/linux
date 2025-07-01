@@ -35,13 +35,8 @@ static u32 ce4100_mem_serial_in(struct uart_port *p, unsigned int offset)
 {
 	u32 ret, ier, lsr;
 
-	if (offset != UART_IIR)
-		return mem_serial_in(p, offset);
-
-	offset <<= p->regshift;
-
-	ret = readl(p->membase + offset);
-	if (!(ret & UART_IIR_NO_INT))
+	ret = mem_serial_in(p, offset);
+	if (offset != UART_IIR || !(ret & UART_IIR_NO_INT))
 		return ret;
 
 	/* see if the TX interrupt should have really set */
