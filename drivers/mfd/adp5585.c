@@ -8,6 +8,7 @@
  */
 
 #include <linux/array_size.h>
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -165,10 +166,16 @@ static const struct regmap_config adp5589_regmap_config_template = {
 
 static const struct adp5585_regs adp5585_regs = {
 	.ext_cfg = ADP5585_PIN_CONFIG_C,
+	.int_en = ADP5585_INT_EN,
+	.gen_cfg = ADP5585_GENERAL_CFG,
+	.poll_ptime_cfg = ADP5585_POLL_PTIME_CFG,
 };
 
 static const struct adp5585_regs adp5589_regs = {
 	.ext_cfg = ADP5589_PIN_CONFIG_D,
+	.int_en = ADP5589_INT_EN,
+	.gen_cfg = ADP5589_GENERAL_CFG,
+	.poll_ptime_cfg = ADP5589_POLL_PTIME_CFG,
 };
 
 static struct regmap_config *adp5585_fill_variant_config(struct adp5585_dev *adp5585)
@@ -241,6 +248,146 @@ static void adp5585_osc_disable(void *data)
 	regmap_write(adp5585->regmap, ADP5585_GENERAL_CFG, 0);
 }
 
+static void adp5585_report_events(struct adp5585_dev *adp5585, int ev_cnt)
+{
+	unsigned int i;
+
+	for (i = 0; i < ev_cnt; i++) {
+		unsigned long key_val, key_press;
+		unsigned int key;
+		int ret;
+
+		ret = regmap_read(adp5585->regmap, ADP5585_FIFO_1 + i, &key);
+		if (ret)
+			return;
+
+		key_val = FIELD_GET(ADP5585_KEY_EVENT_MASK, key);
+		key_press = FIELD_GET(ADP5585_KEV_EV_PRESS_MASK, key);
+
+		blocking_notifier_call_chain(&adp5585->event_notifier, key_val, (void *)key_press);
+	}
+}
+
+static irqreturn_t adp5585_irq(int irq, void *data)
+{
+	struct adp5585_dev *adp5585 = data;
+	unsigned int status, ev_cnt;
+	int ret;
+
+	ret = regmap_read(adp5585->regmap, ADP5585_INT_STATUS, &status);
+	if (ret)
+		return IRQ_HANDLED;
+
+	if (status & ADP5585_OVRFLOW_INT)
+		dev_err_ratelimited(adp5585->dev, "Event overflow error\n");
+
+	if (!(status & ADP5585_EVENT_INT))
+		goto out_irq;
+
+	ret = regmap_read(adp5585->regmap, ADP5585_STATUS, &ev_cnt);
+	if (ret)
+		goto out_irq;
+
+	ev_cnt = FIELD_GET(ADP5585_EC_MASK, ev_cnt);
+	if (!ev_cnt)
+		goto out_irq;
+
+	adp5585_report_events(adp5585, ev_cnt);
+out_irq:
+	regmap_write(adp5585->regmap, ADP5585_INT_STATUS, status);
+	return IRQ_HANDLED;
+}
+
+static int adp5585_setup(struct adp5585_dev *adp5585)
+{
+	const struct adp5585_regs *regs = adp5585->regs;
+	unsigned int reg_val, i;
+	int ret;
+
+	/* Clear any possible event by reading all the FIFO entries */
+	for (i = 0; i < ADP5585_EV_MAX; i++) {
+		ret = regmap_read(adp5585->regmap, ADP5585_FIFO_1 + i, &reg_val);
+		if (ret)
+			return ret;
+	}
+
+	ret = regmap_write(adp5585->regmap, regs->poll_ptime_cfg, adp5585->ev_poll_time);
+	if (ret)
+		return ret;
+
+	/*
+	 * Enable the internal oscillator, as it's shared between multiple
+	 * functions.
+	 */
+	ret = regmap_write(adp5585->regmap, regs->gen_cfg,
+			   ADP5585_OSC_FREQ_500KHZ | ADP5585_INT_CFG | ADP5585_OSC_EN);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(adp5585->dev, adp5585_osc_disable, adp5585);
+}
+
+static int adp5585_parse_fw(struct adp5585_dev *adp5585)
+{
+	unsigned int prop_val;
+	int ret;
+
+	ret = device_property_read_u32(adp5585->dev, "poll-interval", &prop_val);
+	if (!ret) {
+		adp5585->ev_poll_time = prop_val / 10 - 1;
+		/*
+		 * ev_poll_time is the raw value to be written on the register and 0 to 3 are the
+		 * valid values.
+		 */
+		if (adp5585->ev_poll_time > 3)
+			return dev_err_probe(adp5585->dev, -EINVAL,
+					     "Invalid value(%u) for poll-interval\n", prop_val);
+	}
+
+	return 0;
+}
+
+static void adp5585_irq_disable(void *data)
+{
+	struct adp5585_dev *adp5585 = data;
+
+	regmap_write(adp5585->regmap, adp5585->regs->int_en, 0);
+}
+
+static int adp5585_irq_enable(struct i2c_client *i2c,
+			      struct adp5585_dev *adp5585)
+{
+	const struct adp5585_regs *regs = adp5585->regs;
+	unsigned int stat;
+	int ret;
+
+	if (i2c->irq <= 0)
+		return 0;
+
+	ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL, adp5585_irq,
+					IRQF_ONESHOT, i2c->name, adp5585);
+	if (ret)
+		return ret;
+
+	/*
+	 * Clear any possible outstanding interrupt before enabling them. We do that by reading
+	 * the status register and writing back the same value.
+	 */
+	ret = regmap_read(adp5585->regmap, ADP5585_INT_STATUS, &stat);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(adp5585->regmap, ADP5585_INT_STATUS, stat);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(adp5585->regmap, regs->int_en, ADP5585_OVRFLOW_IEN | ADP5585_EVENT_IEN);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(&i2c->dev, adp5585_irq_disable, adp5585);
+}
+
 static int adp5585_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap_config *regmap_config;
@@ -254,6 +401,8 @@ static int adp5585_i2c_probe(struct i2c_client *i2c)
 
 	i2c_set_clientdata(i2c, adp5585);
 	adp5585->dev = &i2c->dev;
+	adp5585->irq = i2c->irq;
+	BLOCKING_INIT_NOTIFIER_HEAD(&adp5585->event_notifier);
 
 	adp5585->variant = (enum adp5585_variant)(uintptr_t)i2c_get_match_data(i2c);
 	if (!adp5585->variant)
@@ -278,24 +427,27 @@ static int adp5585_i2c_probe(struct i2c_client *i2c)
 		return dev_err_probe(&i2c->dev, -ENODEV,
 				     "Invalid device ID 0x%02x\n", id);
 
-	/*
-	 * Enable the internal oscillator, as it's shared between multiple
-	 * functions.
-	 */
-	ret = regmap_set_bits(adp5585->regmap, ADP5585_GENERAL_CFG, ADP5585_OSC_EN);
+	ret = adp5585_parse_fw(adp5585);
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(&i2c->dev, adp5585_osc_disable, adp5585);
+	ret = adp5585_setup(adp5585);
 	if (ret)
 		return ret;
 
-	return adp5585_add_devices(adp5585);
+	ret = adp5585_add_devices(adp5585);
+	if (ret)
+		return ret;
+
+	return adp5585_irq_enable(i2c, adp5585);
 }
 
 static int adp5585_suspend(struct device *dev)
 {
 	struct adp5585_dev *adp5585 = dev_get_drvdata(dev);
+
+	if (adp5585->irq)
+		disable_irq(adp5585->irq);
 
 	regcache_cache_only(adp5585->regmap, true);
 
@@ -305,11 +457,19 @@ static int adp5585_suspend(struct device *dev)
 static int adp5585_resume(struct device *dev)
 {
 	struct adp5585_dev *adp5585 = dev_get_drvdata(dev);
+	int ret;
 
 	regcache_cache_only(adp5585->regmap, false);
 	regcache_mark_dirty(adp5585->regmap);
 
-	return regcache_sync(adp5585->regmap);
+	ret = regcache_sync(adp5585->regmap);
+	if (ret)
+		return ret;
+
+	if (adp5585->irq)
+		enable_irq(adp5585->irq);
+
+	return 0;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(adp5585_pm, adp5585_suspend, adp5585_resume);
