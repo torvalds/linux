@@ -154,11 +154,12 @@ static void neigh_update_gc_list(struct neighbour *n)
 	if (n->dead)
 		goto out;
 
-	/* remove from the gc list if new state is permanent or if neighbor
-	 * is externally learned; otherwise entry should be on the gc list
+	/* remove from the gc list if new state is permanent or if neighbor is
+	 * externally learned / validated; otherwise entry should be on the gc
+	 * list
 	 */
 	exempt_from_gc = n->nud_state & NUD_PERMANENT ||
-			 n->flags & NTF_EXT_LEARNED;
+			 n->flags & (NTF_EXT_LEARNED | NTF_EXT_VALIDATED);
 	on_gc_list = !list_empty(&n->gc_list);
 
 	if (exempt_from_gc && on_gc_list) {
@@ -205,6 +206,7 @@ static void neigh_update_flags(struct neighbour *neigh, u32 flags, int *notify,
 
 	ndm_flags  = (flags & NEIGH_UPDATE_F_EXT_LEARNED) ? NTF_EXT_LEARNED : 0;
 	ndm_flags |= (flags & NEIGH_UPDATE_F_MANAGED) ? NTF_MANAGED : 0;
+	ndm_flags |= (flags & NEIGH_UPDATE_F_EXT_VALIDATED) ? NTF_EXT_VALIDATED : 0;
 
 	if ((old_flags ^ ndm_flags) & NTF_EXT_LEARNED) {
 		if (ndm_flags & NTF_EXT_LEARNED)
@@ -221,6 +223,14 @@ static void neigh_update_flags(struct neighbour *neigh, u32 flags, int *notify,
 			neigh->flags &= ~NTF_MANAGED;
 		*notify = 1;
 		*managed_update = true;
+	}
+	if ((old_flags ^ ndm_flags) & NTF_EXT_VALIDATED) {
+		if (ndm_flags & NTF_EXT_VALIDATED)
+			neigh->flags |= NTF_EXT_VALIDATED;
+		else
+			neigh->flags &= ~NTF_EXT_VALIDATED;
+		*notify = 1;
+		*gc_update = true;
 	}
 }
 
@@ -379,7 +389,9 @@ static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev,
 	dev_head = neigh_get_dev_table(dev, tbl->family);
 
 	hlist_for_each_entry_safe(n, tmp, dev_head, dev_list) {
-		if (skip_perm && n->nud_state & NUD_PERMANENT)
+		if (skip_perm &&
+		    (n->nud_state & NUD_PERMANENT ||
+		     n->flags & NTF_EXT_VALIDATED))
 			continue;
 
 		hlist_del_rcu(&n->hash);
@@ -942,7 +954,8 @@ static void neigh_periodic_work(struct work_struct *work)
 
 			state = n->nud_state;
 			if ((state & (NUD_PERMANENT | NUD_IN_TIMER)) ||
-			    (n->flags & NTF_EXT_LEARNED)) {
+			    (n->flags &
+			     (NTF_EXT_LEARNED | NTF_EXT_VALIDATED))) {
 				write_unlock(&n->lock);
 				continue;
 			}
@@ -1095,9 +1108,15 @@ static void neigh_timer_handler(struct timer_list *t)
 
 	if ((neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) &&
 	    atomic_read(&neigh->probes) >= neigh_max_probes(neigh)) {
-		WRITE_ONCE(neigh->nud_state, NUD_FAILED);
+		if (neigh->nud_state == NUD_PROBE &&
+		    neigh->flags & NTF_EXT_VALIDATED) {
+			WRITE_ONCE(neigh->nud_state, NUD_STALE);
+			neigh->updated = jiffies;
+		} else {
+			WRITE_ONCE(neigh->nud_state, NUD_FAILED);
+			neigh_invalidate(neigh);
+		}
 		notify = 1;
-		neigh_invalidate(neigh);
 		goto out;
 	}
 
@@ -1245,6 +1264,8 @@ static void neigh_update_hhs(struct neighbour *neigh)
 				NTF_ROUTER flag.
 	NEIGH_UPDATE_F_ISROUTER	indicates if the neighbour is known as
 				a router.
+	NEIGH_UPDATE_F_EXT_VALIDATED means that the entry will not be removed
+				or invalidated.
 
    Caller MUST hold reference count on the entry.
  */
@@ -1979,7 +2000,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (ndm_flags & NTF_PROXY) {
 		struct pneigh_entry *pn;
 
-		if (ndm_flags & NTF_MANAGED) {
+		if (ndm_flags & (NTF_MANAGED | NTF_EXT_VALIDATED)) {
 			NL_SET_ERR_MSG(extack, "Invalid NTF_* flag combination");
 			goto out;
 		}
@@ -2010,7 +2031,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (neigh == NULL) {
 		bool ndm_permanent  = ndm->ndm_state & NUD_PERMANENT;
 		bool exempt_from_gc = ndm_permanent ||
-				      ndm_flags & NTF_EXT_LEARNED;
+				      ndm_flags & (NTF_EXT_LEARNED |
+						   NTF_EXT_VALIDATED);
 
 		if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
 			err = -ENOENT;
@@ -2021,10 +2043,27 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 			err = -EINVAL;
 			goto out;
 		}
+		if (ndm_flags & NTF_EXT_VALIDATED) {
+			u8 state = ndm->ndm_state;
+
+			/* NTF_USE and NTF_MANAGED will result in the neighbor
+			 * being created with an invalid state (NUD_NONE).
+			 */
+			if (ndm_flags & (NTF_USE | NTF_MANAGED))
+				state = NUD_NONE;
+
+			if (!(state & NUD_VALID)) {
+				NL_SET_ERR_MSG(extack,
+					       "Cannot create externally validated neighbor with an invalid state");
+				err = -EINVAL;
+				goto out;
+			}
+		}
 
 		neigh = ___neigh_create(tbl, dst, dev,
 					ndm_flags &
-					(NTF_EXT_LEARNED | NTF_MANAGED),
+					(NTF_EXT_LEARNED | NTF_MANAGED |
+					 NTF_EXT_VALIDATED),
 					exempt_from_gc, true);
 		if (IS_ERR(neigh)) {
 			err = PTR_ERR(neigh);
@@ -2035,6 +2074,24 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 			err = -EEXIST;
 			neigh_release(neigh);
 			goto out;
+		}
+		if (ndm_flags & NTF_EXT_VALIDATED) {
+			u8 state = ndm->ndm_state;
+
+			/* NTF_USE and NTF_MANAGED do not update the existing
+			 * state other than clearing it if it was
+			 * NUD_PERMANENT.
+			 */
+			if (ndm_flags & (NTF_USE | NTF_MANAGED))
+				state = READ_ONCE(neigh->nud_state) & ~NUD_PERMANENT;
+
+			if (!(state & NUD_VALID)) {
+				NL_SET_ERR_MSG(extack,
+					       "Cannot mark neighbor as externally validated with an invalid state");
+				err = -EINVAL;
+				neigh_release(neigh);
+				goto out;
+			}
 		}
 
 		if (!(nlh->nlmsg_flags & NLM_F_REPLACE))
@@ -2052,6 +2109,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		flags |= NEIGH_UPDATE_F_MANAGED;
 	if (ndm_flags & NTF_USE)
 		flags |= NEIGH_UPDATE_F_USE;
+	if (ndm_flags & NTF_EXT_VALIDATED)
+		flags |= NEIGH_UPDATE_F_EXT_VALIDATED;
 
 	err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
 			     NETLINK_CB(skb).portid, extack);
