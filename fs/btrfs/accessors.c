@@ -55,7 +55,8 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 		report_setget_bounds(eb, ptr, off, sizeof(u##bits));	\
 		return 0;						\
 	}								\
-	if (INLINE_EXTENT_BUFFER_PAGES == 1 || likely(sizeof(u##bits) <= part))	\
+	if (INLINE_EXTENT_BUFFER_PAGES == 1 || sizeof(u##bits) == 1 ||	\
+	    likely(sizeof(u##bits) <= part))				\
 		return get_unaligned_le##bits(kaddr + oil);		\
 									\
 	memcpy(lebytes, kaddr + oil, part);				\
@@ -78,7 +79,7 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 		report_setget_bounds(eb, ptr, off, sizeof(u##bits));	\
 		return;							\
 	}								\
-	if (INLINE_EXTENT_BUFFER_PAGES == 1 ||				\
+	if (INLINE_EXTENT_BUFFER_PAGES == 1 || sizeof(u##bits) == 1 ||	\
 	    likely(sizeof(u##bits) <= part)) {				\
 		put_unaligned_le##bits(val, kaddr + oil);		\
 		return;							\
