@@ -681,7 +681,7 @@ int snd_soc_suspend(struct device *dev)
 	soc_dapm_suspend_resume(card, SND_SOC_DAPM_STREAM_SUSPEND);
 
 	/* Recheck all endpoints too, their state is affected by suspend */
-	dapm_mark_endpoints_dirty(card);
+	snd_soc_dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* suspend all COMPONENTs */
@@ -778,7 +778,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	dev_dbg(card->dev, "ASoC: resume work completed\n");
 
 	/* Recheck all endpoints too, their state is affected by suspend */
-	dapm_mark_endpoints_dirty(card);
+	snd_soc_dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* userspace can access us now we are back as we were before */
@@ -2286,7 +2286,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	}
 
 	card->instantiated = 1;
-	dapm_mark_endpoints_dirty(card);
+	snd_soc_dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
 	/* deactivate pins to sleep state */

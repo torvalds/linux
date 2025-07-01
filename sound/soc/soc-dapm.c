@@ -283,7 +283,7 @@ static void dapm_path_invalidate(struct snd_soc_dapm_path *p)
 		dapm_widget_invalidate_output_paths(p->source);
 }
 
-void dapm_mark_endpoints_dirty(struct snd_soc_card *card)
+void snd_soc_dapm_mark_endpoints_dirty(struct snd_soc_card *card)
 {
 	struct snd_soc_dapm_widget *w;
 
