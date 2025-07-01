@@ -119,8 +119,19 @@
 
 struct regmap;
 
+enum adp5585_variant {
+	ADP5585_00 = 1,
+	ADP5585_01,
+	ADP5585_02,
+	ADP5585_03,
+	ADP5585_04,
+	ADP5585_MAX
+};
+
 struct adp5585_dev {
+	struct device *dev;
 	struct regmap *regmap;
+	enum adp5585_variant variant;
 };
 
 #endif
