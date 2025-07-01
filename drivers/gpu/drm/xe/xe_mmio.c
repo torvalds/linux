@@ -55,6 +55,7 @@ static void tiles_fini(void *arg)
 static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 {
 	struct xe_tile *tile;
+	struct xe_gt *gt;
 	u8 id;
 
 	/*
@@ -67,7 +68,7 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 	/* Possibly override number of tile based on configuration register */
 	if (!xe->info.skip_mtcfg) {
 		struct xe_mmio *mmio = xe_root_tile_mmio(xe);
-		u8 tile_count;
+		u8 tile_count, gt_count;
 		u32 mtcfg;
 
 		/*
@@ -84,12 +85,15 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 			xe->info.tile_count = tile_count;
 
 			/*
-			 * FIXME: Needs some work for standalone media, but
-			 * should be impossible with multi-tile for now:
-			 * multi-tile platform with standalone media doesn't
-			 * exist
+			 * We've already setup gt_count according to the full
+			 * tile count.  Re-calculate it to only include the GTs
+			 * that belong to the remaining tile(s).
 			 */
-			xe->info.gt_count = xe->info.tile_count;
+			gt_count = 0;
+			for_each_gt(gt, xe, id)
+				if (gt->info.id < tile_count * xe->info.max_gt_per_tile)
+					gt_count++;
+			xe->info.gt_count = gt_count;
 		}
 	}
 
