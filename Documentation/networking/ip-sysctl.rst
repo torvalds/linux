@@ -3571,7 +3571,9 @@ sctp_wmem  - vector of 3 INTEGERs: min, default, max
 	Default: 4K
 
 addr_scope_policy - INTEGER
-	Control IPv4 address scoping - draft-stewart-tsvwg-sctp-ipv4-00
+	Control IPv4 address scoping (see
+	https://datatracker.ietf.org/doc/draft-stewart-tsvwg-sctp-ipv4/00/
+	for details).
 
 	- 0   - Disable IPv4 address scoping
 	- 1   - Enable IPv4 address scoping
