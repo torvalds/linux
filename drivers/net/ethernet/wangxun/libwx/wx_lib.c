@@ -1795,6 +1795,13 @@ static int wx_acquire_msix_vectors(struct wx *wx)
 	wx->msix_entry->entry = nvecs;
 	wx->msix_entry->vector = pci_irq_vector(wx->pdev, nvecs);
 
+	if (test_bit(WX_FLAG_IRQ_VECTOR_SHARED, wx->flags)) {
+		wx->msix_entry->entry = 0;
+		wx->msix_entry->vector = pci_irq_vector(wx->pdev, 0);
+		wx->msix_q_entries[0].entry = 0;
+		wx->msix_q_entries[0].vector = pci_irq_vector(wx->pdev, 1);
+	}
+
 	return 0;
 }
 
@@ -2293,6 +2300,8 @@ static void wx_set_ivar(struct wx *wx, s8 direction,
 
 	if (direction == -1) {
 		/* other causes */
+		if (test_bit(WX_FLAG_IRQ_VECTOR_SHARED, wx->flags))
+			msix_vector = 0;
 		msix_vector |= WX_PX_IVAR_ALLOC_VAL;
 		index = 0;
 		ivar = rd32(wx, WX_PX_MISC_IVAR);
