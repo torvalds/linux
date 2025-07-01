@@ -1059,12 +1059,13 @@ struct xe_hw_engine *
 xe_hw_engine_lookup(struct xe_device *xe,
 		    struct drm_xe_engine_class_instance eci)
 {
+	struct xe_gt *gt = xe_device_get_gt(xe, eci.gt_id);
 	unsigned int idx;
 
 	if (eci.engine_class >= ARRAY_SIZE(user_to_xe_engine_class))
 		return NULL;
 
-	if (eci.gt_id >= xe->info.gt_count)
+	if (!gt)
 		return NULL;
 
 	idx = array_index_nospec(eci.engine_class,

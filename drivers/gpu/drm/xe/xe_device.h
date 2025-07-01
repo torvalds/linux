@@ -127,12 +127,8 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 	for ((id__) = 1; (id__) < (xe__)->info.tile_count; (id__)++) \
 		for_each_if((tile__) = &(xe__)->tiles[(id__)])
 
-/*
- * FIXME: This only works for now since multi-tile and standalone media
- * happen to be mutually exclusive.  Future platforms may change this...
- */
 #define for_each_gt(gt__, xe__, id__) \
-	for ((id__) = 0; (id__) < (xe__)->info.gt_count; (id__)++) \
+	for ((id__) = 0; (id__) < (xe__)->info.tile_count * (xe__)->info.max_gt_per_tile; (id__)++) \
 		for_each_if((gt__) = xe_device_get_gt((xe__), (id__)))
 
 static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
