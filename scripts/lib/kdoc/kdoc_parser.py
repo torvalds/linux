@@ -16,7 +16,7 @@ import re
 from pprint import pformat
 
 from kdoc_re import NestedMatch, KernRe
-
+from kdoc_item import KdocItem
 
 #
 # Regular expressions used to parse kernel-doc markups at KernelDoc class.
@@ -271,32 +271,20 @@ class KernelDoc:
         The actual output and output filters will be handled elsewhere
         """
 
-        # The implementation here is different than the original kernel-doc:
-        # instead of checking for output filters or actually output anything,
-        # it just stores the declaration content at self.entries, as the
-        # output will happen on a separate class.
-        #
-        # For now, we're keeping the same name of the function just to make
-        # easier to compare the source code of both scripts
+        item = KdocItem(name, dtype, self.entry.declaration_start_line, **args)
+        item.warnings = self.entry.warnings
 
-        args["declaration_start_line"] = self.entry.declaration_start_line
-        args["type"] = dtype
-        args["warnings"] = self.entry.warnings
-
-        # TODO: use colletions.OrderedDict to remove sectionlist
-
-        sections = args.get('sections', {})
-        sectionlist = args.get('sectionlist', [])
+        sections = item.get('sections', {})
+        sectionlist = item.get('sectionlist', [])
 
         # Drop empty sections
         # TODO: improve empty sections logic to emit warnings
         for section in ["Description", "Return"]:
-            if section in sectionlist:
-                if not sections[section].rstrip():
-                    del sections[section]
-                    sectionlist.remove(section)
+            if section in sectionlist and not sections[section].rstrip():
+                del sections[section]
+                sectionlist.remove(section)
 
-        self.entries.append((name, args))
+        self.entries.append((name, item))
 
         self.config.log.debug("Output: %s:%s = %s", dtype, name, pformat(args))
 
