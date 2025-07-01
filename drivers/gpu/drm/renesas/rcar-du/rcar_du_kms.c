@@ -426,6 +426,7 @@ int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 
 static struct drm_framebuffer *
 rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
+		  const struct drm_format_info *info,
 		  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct rcar_du_device *rcdu = to_rcar_du_device(dev);
@@ -490,7 +491,7 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		}
 	}
 
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, info, mode_cmd);
 }
 
 /* -----------------------------------------------------------------------------

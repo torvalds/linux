@@ -377,6 +377,7 @@ malidp_verify_afbc_framebuffer(struct drm_device *dev, struct drm_file *file,
 
 static struct drm_framebuffer *
 malidp_fb_create(struct drm_device *dev, struct drm_file *file,
+		 const struct drm_format_info *info,
 		 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	if (mode_cmd->modifier[0]) {
@@ -384,7 +385,7 @@ malidp_fb_create(struct drm_device *dev, struct drm_file *file,
 			return ERR_PTR(-EINVAL);
 	}
 
-	return drm_gem_fb_create(dev, file, mode_cmd);
+	return drm_gem_fb_create(dev, file, info, mode_cmd);
 }
 
 static const struct drm_mode_config_funcs malidp_mode_config_funcs = {

@@ -54,6 +54,7 @@ static const struct drm_framebuffer_funcs fb_funcs = {
 
 static struct drm_framebuffer *
 fb_create(struct drm_device *dev, struct drm_file *filp,
+	  const struct drm_format_info *info,
 	  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct xen_drm_front_drm_info *drm_info = dev->dev_private;

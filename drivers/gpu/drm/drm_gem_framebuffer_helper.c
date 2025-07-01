@@ -264,6 +264,7 @@ static const struct drm_framebuffer_funcs drm_gem_fb_funcs = {
  *                       &drm_mode_config_funcs.fb_create callback
  * @dev: DRM device
  * @file: DRM file that holds the GEM handle(s) backing the framebuffer
+ * @info: pixel format information
  * @mode_cmd: Metadata from the userspace framebuffer creation request
  *
  * This function creates a new framebuffer object described by
@@ -283,6 +284,7 @@ static const struct drm_framebuffer_funcs drm_gem_fb_funcs = {
  */
 struct drm_framebuffer *
 drm_gem_fb_create(struct drm_device *dev, struct drm_file *file,
+		  const struct drm_format_info *info,
 		  const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	return drm_gem_fb_create_with_funcs(dev, file, mode_cmd,
@@ -301,6 +303,7 @@ static const struct drm_framebuffer_funcs drm_gem_fb_funcs_dirtyfb = {
  *                       &drm_mode_config_funcs.fb_create callback
  * @dev: DRM device
  * @file: DRM file that holds the GEM handle(s) backing the framebuffer
+ * @info: pixel format information
  * @mode_cmd: Metadata from the userspace framebuffer creation request
  *
  * This function creates a new framebuffer object described by
@@ -321,6 +324,7 @@ static const struct drm_framebuffer_funcs drm_gem_fb_funcs_dirtyfb = {
  */
 struct drm_framebuffer *
 drm_gem_fb_create_with_dirty(struct drm_device *dev, struct drm_file *file,
+			     const struct drm_format_info *info,
 			     const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	return drm_gem_fb_create_with_funcs(dev, file, mode_cmd,

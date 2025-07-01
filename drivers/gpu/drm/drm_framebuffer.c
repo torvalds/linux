@@ -302,7 +302,7 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
+	fb = dev->mode_config.funcs->fb_create(dev, file_priv, info, r);
 	if (IS_ERR(fb)) {
 		drm_dbg_kms(dev, "could not create framebuffer\n");
 		return fb;

@@ -157,6 +157,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 
 struct drm_framebuffer *
 komeda_fb_create(struct drm_device *dev, struct drm_file *file,
+		 const struct drm_format_info *info,
 		 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct komeda_dev *mdev = dev->dev_private;

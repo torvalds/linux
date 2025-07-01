@@ -30,16 +30,11 @@ static const struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = 
 
 static struct drm_framebuffer *
 rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
+		   const struct drm_format_info *info,
 		   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_afbc_framebuffer *afbc_fb;
-	const struct drm_format_info *info;
 	int ret;
-
-	info = drm_get_format_info(dev, mode_cmd->pixel_format,
-				   mode_cmd->modifier[0]);
-	if (!info)
-		return ERR_PTR(-ENOMEM);
 
 	afbc_fb = kzalloc(sizeof(*afbc_fb), GFP_KERNEL);
 	if (!afbc_fb)

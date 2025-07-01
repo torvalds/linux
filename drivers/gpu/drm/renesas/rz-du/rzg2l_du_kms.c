@@ -191,6 +191,7 @@ int rzg2l_du_dumb_create(struct drm_file *file, struct drm_device *dev,
 
 static struct drm_framebuffer *
 rzg2l_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
+		   const struct drm_format_info *info,
 		   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	const struct rzg2l_du_format_info *format;
@@ -214,7 +215,7 @@ rzg2l_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		return ERR_PTR(-EINVAL);
 	}
 
-	return drm_gem_fb_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, info, mode_cmd);
 }
 
 /* -----------------------------------------------------------------------------
