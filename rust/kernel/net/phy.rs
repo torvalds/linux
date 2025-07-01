@@ -163,20 +163,20 @@ impl Device {
         let phydev = self.0.get();
         // SAFETY: The struct invariant ensures that we may access
         // this field without additional synchronization.
-        unsafe { (*phydev).speed = speed as i32 };
+        unsafe { (*phydev).speed = speed as c_int };
     }
 
     /// Sets duplex mode.
     pub fn set_duplex(&mut self, mode: DuplexMode) {
         let phydev = self.0.get();
         let v = match mode {
-            DuplexMode::Full => bindings::DUPLEX_FULL as i32,
-            DuplexMode::Half => bindings::DUPLEX_HALF as i32,
-            DuplexMode::Unknown => bindings::DUPLEX_UNKNOWN as i32,
+            DuplexMode::Full => bindings::DUPLEX_FULL,
+            DuplexMode::Half => bindings::DUPLEX_HALF,
+            DuplexMode::Unknown => bindings::DUPLEX_UNKNOWN,
         };
         // SAFETY: The struct invariant ensures that we may access
         // this field without additional synchronization.
-        unsafe { (*phydev).duplex = v };
+        unsafe { (*phydev).duplex = v as c_int };
     }
 
     /// Reads a PHY register.
@@ -312,9 +312,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn soft_reset_callback(
-        phydev: *mut bindings::phy_device,
-    ) -> crate::ffi::c_int {
+    unsafe extern "C" fn soft_reset_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
             // where we hold `phy_device->lock`, so the accessors on
@@ -328,7 +326,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn probe_callback(phydev: *mut bindings::phy_device) -> crate::ffi::c_int {
+    unsafe extern "C" fn probe_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
             // where we can exclusively access `phy_device` because
@@ -343,9 +341,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn get_features_callback(
-        phydev: *mut bindings::phy_device,
-    ) -> crate::ffi::c_int {
+    unsafe extern "C" fn get_features_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
             // where we hold `phy_device->lock`, so the accessors on
@@ -359,7 +355,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn suspend_callback(phydev: *mut bindings::phy_device) -> crate::ffi::c_int {
+    unsafe extern "C" fn suspend_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: The C core code ensures that the accessors on
             // `Device` are okay to call even though `phy_device->lock`
@@ -373,7 +369,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn resume_callback(phydev: *mut bindings::phy_device) -> crate::ffi::c_int {
+    unsafe extern "C" fn resume_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: The C core code ensures that the accessors on
             // `Device` are okay to call even though `phy_device->lock`
@@ -387,9 +383,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn config_aneg_callback(
-        phydev: *mut bindings::phy_device,
-    ) -> crate::ffi::c_int {
+    unsafe extern "C" fn config_aneg_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
             // where we hold `phy_device->lock`, so the accessors on
@@ -403,9 +397,7 @@ impl<T: Driver> Adapter<T> {
     /// # Safety
     ///
     /// `phydev` must be passed by the corresponding callback in `phy_driver`.
-    unsafe extern "C" fn read_status_callback(
-        phydev: *mut bindings::phy_device,
-    ) -> crate::ffi::c_int {
+    unsafe extern "C" fn read_status_callback(phydev: *mut bindings::phy_device) -> c_int {
         from_result(|| {
             // SAFETY: This callback is called only in contexts
             // where we hold `phy_device->lock`, so the accessors on
@@ -422,7 +414,7 @@ impl<T: Driver> Adapter<T> {
     unsafe extern "C" fn match_phy_device_callback(
         phydev: *mut bindings::phy_device,
         _phydrv: *const bindings::phy_driver,
-    ) -> crate::ffi::c_int {
+    ) -> c_int {
         // SAFETY: This callback is called only in contexts
         // where we hold `phy_device->lock`, so the accessors on
         // `Device` are okay to call.
