@@ -1311,6 +1311,9 @@ maybe_send_match() {
 # - remove some elements, check that packets don't match anymore
 test_correctness_main() {
 	range_size=1
+
+	send_nomatch $((end + 1)) $((end + 1 + src_delta)) || return 1
+
 	for i in $(seq "${start}" $((start + count))); do
 		local elem=""
 
