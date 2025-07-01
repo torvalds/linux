@@ -27,6 +27,16 @@
 /* Provides a unique ID for each genpd device */
 static DEFINE_IDA(genpd_ida);
 
+/* The bus for genpd_providers. */
+static const struct bus_type genpd_provider_bus_type = {
+	.name		= "genpd_provider",
+};
+
+/* The parent for genpd_provider devices. */
+static struct device genpd_provider_bus = {
+	.init_name = "genpd_provider",
+};
+
 #define GENPD_RETRY_MAX_MS	250		/* Approximate */
 
 #define GENPD_DEV_CALLBACK(genpd, type, callback, dev)		\
@@ -2262,6 +2272,8 @@ static int genpd_alloc_data(struct generic_pm_domain *genpd)
 	genpd->gd = gd;
 	device_initialize(&genpd->dev);
 	genpd->dev.release = genpd_provider_release;
+	genpd->dev.bus = &genpd_provider_bus_type;
+	genpd->dev.parent = &genpd_provider_bus;
 
 	if (!genpd_is_dev_name_fw(genpd)) {
 		dev_set_name(&genpd->dev, "%s", genpd->name);
@@ -3360,16 +3372,55 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 }
 EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
 
+static int genpd_provider_probe(struct device *dev)
+{
+	return 0;
+}
+
+static void genpd_provider_sync_state(struct device *dev)
+{
+}
+
+static struct device_driver genpd_provider_drv = {
+	.name = "genpd_provider",
+	.bus = &genpd_provider_bus_type,
+	.probe = genpd_provider_probe,
+	.sync_state = genpd_provider_sync_state,
+	.suppress_bind_attrs = true,
+};
+
 static int __init genpd_bus_init(void)
 {
 	int ret;
 
+	ret = device_register(&genpd_provider_bus);
+	if (ret) {
+		put_device(&genpd_provider_bus);
+		return ret;
+	}
+
+	ret = bus_register(&genpd_provider_bus_type);
+	if (ret)
+		goto err_dev;
+
 	ret = bus_register(&genpd_bus_type);
 	if (ret)
-		return ret;
+		goto err_prov_bus;
+
+	ret = driver_register(&genpd_provider_drv);
+	if (ret)
+		goto err_bus;
 
 	genpd_bus_registered = true;
 	return 0;
+
+err_bus:
+	bus_unregister(&genpd_bus_type);
+err_prov_bus:
+	bus_unregister(&genpd_provider_bus_type);
+err_dev:
+	device_unregister(&genpd_provider_bus);
+	return ret;
 }
 core_initcall(genpd_bus_init);
 
