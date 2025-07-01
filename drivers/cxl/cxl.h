@@ -11,6 +11,7 @@
 #include <linux/log2.h>
 #include <linux/node.h>
 #include <linux/io.h>
+#include <linux/range.h>
 
 extern const struct nvdimm_security_ops *cxl_security_ops;
 
