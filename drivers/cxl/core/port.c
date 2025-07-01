@@ -2293,7 +2293,7 @@ static const struct attribute_group *cxl_bus_attribute_groups[] = {
 	NULL,
 };
 
-struct bus_type cxl_bus_type = {
+const struct bus_type cxl_bus_type = {
 	.name = "cxl",
 	.uevent = cxl_bus_uevent,
 	.match = cxl_bus_match,
