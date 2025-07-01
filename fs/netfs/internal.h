@@ -28,6 +28,12 @@ int netfs_prefetch_for_write(struct file *file, struct folio *folio,
 			     size_t offset, size_t len);
 
 /*
+ * buffered_write.c
+ */
+void netfs_update_i_size(struct netfs_inode *ctx, struct inode *inode,
+			 loff_t pos, size_t copied);
+
+/*
  * main.c
  */
 extern unsigned int netfs_debug;

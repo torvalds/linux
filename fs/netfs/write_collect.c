@@ -393,8 +393,10 @@ bool netfs_write_collection(struct netfs_io_request *wreq)
 		ictx->ops->invalidate_cache(wreq);
 	}
 
-	if (wreq->cleanup)
-		wreq->cleanup(wreq);
+	if ((wreq->origin == NETFS_UNBUFFERED_WRITE ||
+	     wreq->origin == NETFS_DIO_WRITE) &&
+	    !wreq->error)
+		netfs_update_i_size(ictx, &ictx->inode, wreq->start, wreq->transferred);
 
 	if (wreq->origin == NETFS_DIO_WRITE &&
 	    wreq->mapping->nrpages) {

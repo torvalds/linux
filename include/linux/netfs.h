@@ -279,7 +279,6 @@ struct netfs_io_request {
 #define NETFS_RREQ_USE_PGPRIV2		31	/* [DEPRECATED] Use PG_private_2 to mark
 						 * write to cache on read */
 	const struct netfs_request_ops *netfs_ops;
-	void (*cleanup)(struct netfs_io_request *req);
 };
 
 /*
