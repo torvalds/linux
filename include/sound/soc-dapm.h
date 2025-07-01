@@ -498,8 +498,6 @@ int snd_soc_dapm_enable_pin(struct snd_soc_dapm_context *dapm, const char *pin);
 int snd_soc_dapm_enable_pin_unlocked(struct snd_soc_dapm_context *dapm, const char *pin);
 int snd_soc_dapm_disable_pin(struct snd_soc_dapm_context *dapm, const char *pin);
 int snd_soc_dapm_disable_pin_unlocked(struct snd_soc_dapm_context *dapm, const char *pin);
-int snd_soc_dapm_nc_pin(struct snd_soc_dapm_context *dapm, const char *pin);
-int snd_soc_dapm_nc_pin_unlocked(struct snd_soc_dapm_context *dapm, const char *pin);
 int snd_soc_dapm_get_pin_status(struct snd_soc_dapm_context *dapm, const char *pin);
 int snd_soc_dapm_sync(struct snd_soc_dapm_context *dapm);
 int snd_soc_dapm_sync_unlocked(struct snd_soc_dapm_context *dapm);
@@ -508,6 +506,16 @@ int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm, co
 int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm, const char *pin);
 unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
 void dapm_mark_endpoints_dirty(struct snd_soc_card *card);
+
+/*
+ * Marks the specified pin as being not connected, disabling it along
+ * any parent or child widgets.  At present this is identical to
+ * snd_soc_dapm_disable_pin[_unlocked]() but in future it will be extended to do
+ * additional things such as disabling controls which only affect
+ * paths through the pin.
+ */
+#define snd_soc_dapm_nc_pin		snd_soc_dapm_disable_pin
+#define snd_soc_dapm_nc_pin_unlocked	snd_soc_dapm_disable_pin_unlocked
 
 /* dapm path query */
 int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,

@@ -4773,57 +4773,6 @@ int snd_soc_dapm_disable_pin(struct snd_soc_dapm_context *dapm,
 EXPORT_SYMBOL_GPL(snd_soc_dapm_disable_pin);
 
 /**
- * snd_soc_dapm_nc_pin_unlocked - permanently disable pin.
- * @dapm: DAPM context
- * @pin: pin name
- *
- * Marks the specified pin as being not connected, disabling it along
- * any parent or child widgets.  At present this is identical to
- * snd_soc_dapm_disable_pin() but in future it will be extended to do
- * additional things such as disabling controls which only affect
- * paths through the pin.
- *
- * Requires external locking.
- *
- * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
- * do any widget power switching.
- */
-int snd_soc_dapm_nc_pin_unlocked(struct snd_soc_dapm_context *dapm,
-			       const char *pin)
-{
-	return snd_soc_dapm_set_pin(dapm, pin, 0);
-}
-EXPORT_SYMBOL_GPL(snd_soc_dapm_nc_pin_unlocked);
-
-/**
- * snd_soc_dapm_nc_pin - permanently disable pin.
- * @dapm: DAPM context
- * @pin: pin name
- *
- * Marks the specified pin as being not connected, disabling it along
- * any parent or child widgets.  At present this is identical to
- * snd_soc_dapm_disable_pin() but in future it will be extended to do
- * additional things such as disabling controls which only affect
- * paths through the pin.
- *
- * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
- * do any widget power switching.
- */
-int snd_soc_dapm_nc_pin(struct snd_soc_dapm_context *dapm, const char *pin)
-{
-	int ret;
-
-	snd_soc_dapm_mutex_lock(dapm);
-
-	ret = snd_soc_dapm_set_pin(dapm, pin, 0);
-
-	snd_soc_dapm_mutex_unlock(dapm);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_dapm_nc_pin);
-
-/**
  * snd_soc_dapm_get_pin_status - get audio pin status
  * @dapm: DAPM context
  * @pin: audio signal pin endpoint (or start point)
