@@ -2819,7 +2819,8 @@ static void ata_dev_config_lpm(struct ata_device *dev)
 			dev->quirks |= ATA_QUIRK_NOLPM;
 	}
 
-	if (dev->quirks & ATA_QUIRK_NOLPM) {
+	if (dev->quirks & ATA_QUIRK_NOLPM &&
+	    ap->target_lpm_policy != ATA_LPM_MAX_POWER) {
 		ata_dev_warn(dev, "LPM support broken, forcing max_power\n");
 		ap->target_lpm_policy = ATA_LPM_MAX_POWER;
 	}
