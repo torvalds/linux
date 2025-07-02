@@ -1958,6 +1958,7 @@ subscribe_event_xa_alloc(struct mlx5_devx_event_table *devx_event_table,
 			/* Level1 is valid for future use, no need to free */
 			return -ENOMEM;
 
+		INIT_LIST_HEAD(&obj_event->obj_sub_list);
 		err = xa_insert(&event->object_ids,
 				key_level2,
 				obj_event,
@@ -1966,7 +1967,6 @@ subscribe_event_xa_alloc(struct mlx5_devx_event_table *devx_event_table,
 			kfree(obj_event);
 			return err;
 		}
-		INIT_LIST_HEAD(&obj_event->obj_sub_list);
 	}
 
 	return 0;
@@ -2669,7 +2669,7 @@ static void devx_wait_async_destroy(struct mlx5_async_cmd *cmd)
 
 void mlx5_ib_ufile_hw_cleanup(struct ib_uverbs_file *ufile)
 {
-	struct mlx5_async_cmd async_cmd[MAX_ASYNC_CMDS];
+	struct mlx5_async_cmd *async_cmd;
 	struct ib_ucontext *ucontext = ufile->ucontext;
 	struct ib_device *device = ucontext->device;
 	struct mlx5_ib_dev *dev = to_mdev(device);
@@ -2677,6 +2677,10 @@ void mlx5_ib_ufile_hw_cleanup(struct ib_uverbs_file *ufile)
 	struct devx_obj *obj;
 	int head = 0;
 	int tail = 0;
+
+	async_cmd = kcalloc(MAX_ASYNC_CMDS, sizeof(*async_cmd), GFP_KERNEL);
+	if (!async_cmd)
+		return;
 
 	list_for_each_entry(uobject, &ufile->uobjects, list) {
 		WARN_ON(uverbs_try_lock_object(uobject, UVERBS_LOOKUP_WRITE));
@@ -2713,6 +2717,8 @@ void mlx5_ib_ufile_hw_cleanup(struct ib_uverbs_file *ufile)
 		devx_wait_async_destroy(&async_cmd[head % MAX_ASYNC_CMDS]);
 		head++;
 	}
+
+	kfree(async_cmd);
 }
 
 static ssize_t devx_async_cmd_event_read(struct file *filp, char __user *buf,
