@@ -33,6 +33,10 @@ static const char * const transport_ksyms[] = {
 static_assert(ARRAY_SIZE(transport_ksyms) == TRANSPORT_NUM);
 static_assert(BITS_PER_TYPE(int) >= TRANSPORT_NUM);
 
+#define TRANSPORTS_G2H   (TRANSPORT_VIRTIO | TRANSPORT_VMCI | TRANSPORT_HYPERV)
+#define TRANSPORTS_H2G   (TRANSPORT_VHOST | TRANSPORT_VMCI)
+#define TRANSPORTS_LOCAL (TRANSPORT_LOOPBACK)
+
 /* Tests can either run as the client or the server */
 enum test_mode {
 	TEST_MODE_UNSET,
