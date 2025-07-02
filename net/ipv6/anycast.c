@@ -158,12 +158,10 @@ error:
  */
 int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct net_device *dev;
 	struct ipv6_ac_socklist *pac, *prev_pac;
+	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct net *net = sock_net(sk);
-
-	ASSERT_RTNL();
+	struct net_device *dev;
 
 	prev_pac = NULL;
 	for (pac = np->ipv6_ac_list; pac; pac = pac->acl_next) {
@@ -179,9 +177,11 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	else
 		np->ipv6_ac_list = pac->acl_next;
 
-	dev = __dev_get_by_index(net, pac->acl_ifindex);
-	if (dev)
+	dev = dev_get_by_index(net, pac->acl_ifindex);
+	if (dev) {
 		ipv6_dev_ac_dec(dev, &pac->acl_addr);
+		dev_put(dev);
+	}
 
 	sock_kfree_s(sk, pac, sizeof(*pac));
 	return 0;
@@ -190,21 +190,20 @@ int ipv6_sock_ac_drop(struct sock *sk, int ifindex, const struct in6_addr *addr)
 void __ipv6_sock_ac_close(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct net *net = sock_net(sk);
 	struct net_device *dev = NULL;
 	struct ipv6_ac_socklist *pac;
-	struct net *net = sock_net(sk);
-	int	prev_index;
+	int prev_index = 0;
 
-	ASSERT_RTNL();
 	pac = np->ipv6_ac_list;
 	np->ipv6_ac_list = NULL;
 
-	prev_index = 0;
 	while (pac) {
 		struct ipv6_ac_socklist *next = pac->acl_next;
 
 		if (pac->acl_ifindex != prev_index) {
-			dev = __dev_get_by_index(net, pac->acl_ifindex);
+			dev_put(dev);
+			dev = dev_get_by_index(net, pac->acl_ifindex);
 			prev_index = pac->acl_ifindex;
 		}
 		if (dev)
@@ -212,6 +211,8 @@ void __ipv6_sock_ac_close(struct sock *sk)
 		sock_kfree_s(sk, pac, sizeof(*pac));
 		pac = next;
 	}
+
+	dev_put(dev);
 }
 
 void ipv6_sock_ac_close(struct sock *sk)
@@ -220,9 +221,8 @@ void ipv6_sock_ac_close(struct sock *sk)
 
 	if (!np->ipv6_ac_list)
 		return;
-	rtnl_lock();
+
 	__ipv6_sock_ac_close(sk);
-	rtnl_unlock();
 }
 
 static void ipv6_add_acaddr_hash(struct net *net, struct ifacaddr6 *aca)
@@ -413,14 +413,18 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 	return 0;
 }
 
-/* called with rtnl_lock() */
 static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr)
 {
-	struct inet6_dev *idev = __in6_dev_get(dev);
+	struct inet6_dev *idev = in6_dev_get(dev);
+	int err;
 
 	if (!idev)
 		return -ENODEV;
-	return __ipv6_dev_ac_dec(idev, addr);
+
+	err = __ipv6_dev_ac_dec(idev, addr);
+	in6_dev_put(idev);
+
+	return err;
 }
 
 void ipv6_ac_destroy_dev(struct inet6_dev *idev)

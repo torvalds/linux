@@ -120,9 +120,7 @@ struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 static bool setsockopt_needs_rtnl(int optname)
 {
 	switch (optname) {
-	case IPV6_ADDRFORM:
 	case IPV6_JOIN_ANYCAST:
-	case IPV6_LEAVE_ANYCAST:
 		return true;
 	}
 	return false;
