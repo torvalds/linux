@@ -123,6 +123,19 @@ static int prbtest_writer(void *data)
 		/* specify the text sizes for reservation */
 		prb_rec_init_wr(&r, record_size);
 
+		/*
+		 * Reservation can fail if:
+		 *
+		 *      - No free descriptor is available.
+		 *      - The buffer is full, and the oldest record is reserved
+		 *        but not yet committed.
+		 *
+		 * It actually happens in this test because all CPUs are trying
+		 * to write an unbounded number of messages in a tight loop.
+		 * These failures are intentionally ignored because this test
+		 * focuses on races, ringbuffer consistency, and pushing system
+		 * usability limits.
+		 */
 		if (prb_reserve(&e, tr->test_data->ringbuffer, &r)) {
 			r.info->text_len = record_size;
 
