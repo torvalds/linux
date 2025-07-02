@@ -898,6 +898,13 @@ struct dev_table_entry {
 };
 
 /*
+ * Structure defining one entry in the command buffer
+ */
+struct iommu_cmd {
+	u32 data[4];
+};
+
+/*
  * Structure to sture persistent DTE flags from IVHD
  */
 struct ivhd_dte_flags {

@@ -63,13 +63,6 @@ static const struct iommu_dirty_ops amd_dirty_ops;
 int amd_iommu_max_glx_val = -1;
 
 /*
- * general struct to manage commands send to an IOMMU
- */
-struct iommu_cmd {
-	u32 data[4];
-};
-
-/*
  * AMD IOMMU allows up to 2^16 different protection domains. This is a bitmap
  * to know which ones are already in use.
  */
