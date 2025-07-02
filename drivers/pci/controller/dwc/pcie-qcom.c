@@ -267,6 +267,12 @@ struct qcom_pcie_cfg {
 	bool no_l0s;
 };
 
+struct qcom_pcie_port {
+	struct list_head list;
+	struct gpio_desc *reset;
+	struct phy *phy;
+};
+
 struct qcom_pcie {
 	struct dw_pcie *pci;
 	void __iomem *parf;			/* DT parf */
@@ -279,24 +285,37 @@ struct qcom_pcie {
 	struct icc_path *icc_cpu;
 	const struct qcom_pcie_cfg *cfg;
 	struct dentry *debugfs;
+	struct list_head ports;
 	bool suspended;
 	bool use_pm_opp;
 };
 
 #define to_qcom_pcie(x)		dev_get_drvdata((x)->dev)
 
+static void qcom_perst_assert(struct qcom_pcie *pcie, bool assert)
+{
+	struct qcom_pcie_port *port;
+	int val = assert ? 1 : 0;
+
+	if (list_empty(&pcie->ports))
+		gpiod_set_value_cansleep(pcie->reset, val);
+	else
+		list_for_each_entry(port, &pcie->ports, list)
+			gpiod_set_value_cansleep(port->reset, val);
+
+	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
+}
+
 static void qcom_ep_reset_assert(struct qcom_pcie *pcie)
 {
-	gpiod_set_value_cansleep(pcie->reset, 1);
-	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
+	qcom_perst_assert(pcie, true);
 }
 
 static void qcom_ep_reset_deassert(struct qcom_pcie *pcie)
 {
 	/* Ensure that PERST has been asserted for at least 100 ms */
 	msleep(PCIE_T_PVPERL_MS);
-	gpiod_set_value_cansleep(pcie->reset, 0);
-	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
+	qcom_perst_assert(pcie, false);
 }
 
 static int qcom_pcie_start_link(struct dw_pcie *pci)
@@ -1234,6 +1253,59 @@ static bool qcom_pcie_link_up(struct dw_pcie *pci)
 	return val & PCI_EXP_LNKSTA_DLLLA;
 }
 
+static void qcom_pcie_phy_exit(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_port *port;
+
+	if (list_empty(&pcie->ports))
+		phy_exit(pcie->phy);
+	else
+		list_for_each_entry(port, &pcie->ports, list)
+			phy_exit(port->phy);
+}
+
+static void qcom_pcie_phy_power_off(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_port *port;
+
+	if (list_empty(&pcie->ports)) {
+		phy_power_off(pcie->phy);
+	} else {
+		list_for_each_entry(port, &pcie->ports, list)
+			phy_power_off(port->phy);
+	}
+}
+
+static int qcom_pcie_phy_power_on(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_port *port;
+	int ret = 0;
+
+	if (list_empty(&pcie->ports)) {
+		ret = phy_set_mode_ext(pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
+		if (ret)
+			return ret;
+
+		ret = phy_power_on(pcie->phy);
+		if (ret)
+			return ret;
+	} else {
+		list_for_each_entry(port, &pcie->ports, list) {
+			ret = phy_set_mode_ext(port->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
+			if (ret)
+				return ret;
+
+			ret = phy_power_on(port->phy);
+			if (ret) {
+				qcom_pcie_phy_power_off(pcie);
+				return ret;
+			}
+		}
+	}
+
+	return ret;
+}
+
 static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -1246,11 +1318,7 @@ static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 	if (ret)
 		return ret;
 
-	ret = phy_set_mode_ext(pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
-	if (ret)
-		goto err_deinit;
-
-	ret = phy_power_on(pcie->phy);
+	ret = qcom_pcie_phy_power_on(pcie);
 	if (ret)
 		goto err_deinit;
 
@@ -1273,7 +1341,7 @@ static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 err_assert_reset:
 	qcom_ep_reset_assert(pcie);
 err_disable_phy:
-	phy_power_off(pcie->phy);
+	qcom_pcie_phy_power_off(pcie);
 err_deinit:
 	pcie->cfg->ops->deinit(pcie);
 
@@ -1286,7 +1354,7 @@ static void qcom_pcie_host_deinit(struct dw_pcie_rp *pp)
 	struct qcom_pcie *pcie = to_qcom_pcie(pci);
 
 	qcom_ep_reset_assert(pcie);
-	phy_power_off(pcie->phy);
+	qcom_pcie_phy_power_off(pcie);
 	pcie->cfg->ops->deinit(pcie);
 }
 
@@ -1631,10 +1699,85 @@ static const struct pci_ecam_ops pci_qcom_ecam_ops = {
 	}
 };
 
+static int qcom_pcie_parse_port(struct qcom_pcie *pcie, struct device_node *node)
+{
+	struct device *dev = pcie->pci->dev;
+	struct qcom_pcie_port *port;
+	struct gpio_desc *reset;
+	struct phy *phy;
+	int ret;
+
+	reset = devm_fwnode_gpiod_get(dev, of_fwnode_handle(node),
+				      "reset", GPIOD_OUT_HIGH, "PERST#");
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	phy = devm_of_phy_get(dev, node, NULL);
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
+
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	if (!port)
+		return -ENOMEM;
+
+	ret = phy_init(phy);
+	if (ret)
+		return ret;
+
+	port->reset = reset;
+	port->phy = phy;
+	INIT_LIST_HEAD(&port->list);
+	list_add_tail(&port->list, &pcie->ports);
+
+	return 0;
+}
+
+static int qcom_pcie_parse_ports(struct qcom_pcie *pcie)
+{
+	struct device *dev = pcie->pci->dev;
+	struct qcom_pcie_port *port, *tmp;
+	int ret = -ENOENT;
+
+	for_each_available_child_of_node_scoped(dev->of_node, of_port) {
+		ret = qcom_pcie_parse_port(pcie, of_port);
+		if (ret)
+			goto err_port_del;
+	}
+
+	return ret;
+
+err_port_del:
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list)
+		list_del(&port->list);
+
+	return ret;
+}
+
+static int qcom_pcie_parse_legacy_binding(struct qcom_pcie *pcie)
+{
+	struct device *dev = pcie->pci->dev;
+	int ret;
+
+	pcie->phy = devm_phy_optional_get(dev, "pciephy");
+	if (IS_ERR(pcie->phy))
+		return PTR_ERR(pcie->phy);
+
+	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
+	if (IS_ERR(pcie->reset))
+		return PTR_ERR(pcie->reset);
+
+	ret = phy_init(pcie->phy);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	const struct qcom_pcie_cfg *pcie_cfg;
 	unsigned long max_freq = ULONG_MAX;
+	struct qcom_pcie_port *port, *tmp;
 	struct device *dev = &pdev->dev;
 	struct dev_pm_opp *opp;
 	struct qcom_pcie *pcie;
@@ -1701,6 +1844,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		goto err_pm_runtime_put;
 	}
 
+	INIT_LIST_HEAD(&pcie->ports);
+
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
 	pp = &pci->pp;
@@ -1708,12 +1853,6 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pcie->pci = pci;
 
 	pcie->cfg = pcie_cfg;
-
-	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
-	if (IS_ERR(pcie->reset)) {
-		ret = PTR_ERR(pcie->reset);
-		goto err_pm_runtime_put;
-	}
 
 	pcie->parf = devm_platform_ioremap_resource_byname(pdev, "parf");
 	if (IS_ERR(pcie->parf)) {
@@ -1735,12 +1874,6 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 			ret = PTR_ERR(pcie->mhi);
 			goto err_pm_runtime_put;
 		}
-	}
-
-	pcie->phy = devm_phy_optional_get(dev, "pciephy");
-	if (IS_ERR(pcie->phy)) {
-		ret = PTR_ERR(pcie->phy);
-		goto err_pm_runtime_put;
 	}
 
 	/* OPP table is optional */
@@ -1789,9 +1922,23 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	pp->ops = &qcom_pcie_dw_ops;
 
-	ret = phy_init(pcie->phy);
-	if (ret)
-		goto err_pm_runtime_put;
+	ret = qcom_pcie_parse_ports(pcie);
+	if (ret) {
+		if (ret != -ENOENT) {
+			dev_err_probe(pci->dev, ret,
+				      "Failed to parse Root Port: %d\n", ret);
+			goto err_pm_runtime_put;
+		}
+
+		/*
+		 * In the case of properties not populated in Root Port node,
+		 * fallback to the legacy method of parsing the Host Bridge
+		 * node. This is to maintain DT backwards compatibility.
+		 */
+		ret = qcom_pcie_parse_legacy_binding(pcie);
+		if (ret)
+			goto err_pm_runtime_put;
+	}
 
 	platform_set_drvdata(pdev, pcie);
 
@@ -1836,7 +1983,9 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 err_host_deinit:
 	dw_pcie_host_deinit(pp);
 err_phy_exit:
-	phy_exit(pcie->phy);
+	qcom_pcie_phy_exit(pcie);
+	list_for_each_entry_safe(port, tmp, &pcie->ports, list)
+		list_del(&port->list);
 err_pm_runtime_put:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
