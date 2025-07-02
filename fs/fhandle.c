@@ -180,11 +180,7 @@ static int get_path_anchor(int fd, struct path *root)
 	}
 
 	if (fd == AT_FDCWD) {
-		struct fs_struct *fs = current->fs;
-		spin_lock(&fs->lock);
-		*root = fs->pwd;
-		path_get(root);
-		spin_unlock(&fs->lock);
+		get_fs_pwd(current->fs, root);
 		return 0;
 	}
 
