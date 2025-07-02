@@ -242,9 +242,11 @@ EXPORT_SYMBOL(scsi_change_queue_depth);
  * 		specific SCSI device to determine if and when there is a
  * 		need to adjust the queue depth on the device.
  *
- * Returns:	0 - No change needed, >0 - Adjust queue depth to this new depth,
- * 		-1 - Drop back to untagged operation using host->cmd_per_lun
- * 			as the untagged command depth
+ * Returns:
+ * * 0 - No change needed
+ * * >0 - Adjust queue depth to this new depth,
+ * * -1 - Drop back to untagged operation using host->cmd_per_lun as the
+ *   untagged command depth
  *
  * Lock Status:	None held on entry
  *
