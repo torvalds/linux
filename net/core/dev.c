@@ -4026,7 +4026,10 @@ static void qdisc_pkt_len_init(struct sk_buff *skb)
 		unsigned int hdr_len;
 
 		/* mac layer + network layer */
-		hdr_len = skb_transport_offset(skb);
+		if (!skb->encapsulation)
+			hdr_len = skb_transport_offset(skb);
+		else
+			hdr_len = skb_inner_transport_offset(skb);
 
 		/* + transport layer */
 		if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))) {
