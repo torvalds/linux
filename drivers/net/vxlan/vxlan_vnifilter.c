@@ -971,15 +971,10 @@ static int vxlan_vnifilter_process(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!(vxlan->cfg.flags & VXLAN_F_VNIFILTER))
 		return -EOPNOTSUPP;
 
-	nlmsg_for_each_attr(attr, nlh, sizeof(*tmsg), rem) {
-		switch (nla_type(attr)) {
-		case VXLAN_VNIFILTER_ENTRY:
-			err = vxlan_process_vni_filter(vxlan, attr,
-						       nlh->nlmsg_type, extack);
-			break;
-		default:
-			continue;
-		}
+	nlmsg_for_each_attr_type(attr, VXLAN_VNIFILTER_ENTRY, nlh,
+				 sizeof(*tmsg), rem) {
+		err = vxlan_process_vni_filter(vxlan, attr, nlh->nlmsg_type,
+					       extack);
 		vnis++;
 		if (err)
 			break;
