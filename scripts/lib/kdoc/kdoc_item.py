@@ -23,10 +23,7 @@ class KdocItem:
         self.other_stuff = other_stuff
 
     def get(self, key, default = None):
-        ret = self.other_stuff.get(key, default)
-        if ret == default:
-            return self.__dict__.get(key, default)
-        return ret
+        return self.other_stuff.get(key, default)
 
     def __getitem__(self, key):
         return self.get(key)

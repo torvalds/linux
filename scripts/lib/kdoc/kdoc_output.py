@@ -124,9 +124,7 @@ class OutputFormat:
         Output warnings for identifiers that will be displayed.
         """
 
-        warnings = args.get('warnings', [])
-
-        for log_msg in warnings:
+        for log_msg in args.warnings:
             self.config.warning(log_msg)
 
     def check_doc(self, name, args):
@@ -184,7 +182,7 @@ class OutputFormat:
 
         self.data = ""
 
-        dtype = args.get('type', "")
+        dtype = args.type
 
         if dtype == "doc":
             self.out_doc(fname, name, args)
@@ -373,7 +371,7 @@ class RestFormat(OutputFormat):
                 signature = args['functiontype'] + " "
             signature += name + " ("
 
-        ln = args.get('declaration_start_line', 0)
+        ln = args.declaration_start_line
         count = 0
         for parameter in args.parameterlist:
             if count != 0:
@@ -445,7 +443,7 @@ class RestFormat(OutputFormat):
     def out_enum(self, fname, name, args):
 
         oldprefix = self.lineprefix
-        ln = args.get('declaration_start_line', 0)
+        ln = args.declaration_start_line
 
         self.data += f"\n\n.. c:enum:: {name}\n\n"
 
@@ -474,7 +472,7 @@ class RestFormat(OutputFormat):
     def out_typedef(self, fname, name, args):
 
         oldprefix = self.lineprefix
-        ln = args.get('declaration_start_line', 0)
+        ln = args.declaration_start_line
 
         self.data += f"\n\n.. c:type:: {name}\n\n"
 
@@ -492,8 +490,8 @@ class RestFormat(OutputFormat):
 
         purpose = args.get('purpose', "")
         declaration = args.get('definition', "")
-        dtype = args.get('type', "struct")
-        ln = args.get('declaration_start_line', 0)
+        dtype = args.type
+        ln = args.declaration_start_line
 
         self.data += f"\n\n.. c:{dtype}:: {name}\n\n"
 
