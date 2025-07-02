@@ -159,7 +159,7 @@ static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 	memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
 	IP6CB(skb)->flags = ip6cb_flags;
 	pkt_len = skb->len - skb_inner_network_offset(skb);
-	err = ip6_local_out(dev_net(skb_dst(skb)->dev), sk, skb);
+	err = ip6_local_out(skb_dst_dev_net(skb), sk, skb);
 
 	if (dev) {
 		if (unlikely(net_xmit_eval(err)))

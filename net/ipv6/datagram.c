@@ -127,7 +127,7 @@ void ip6_datagram_release_cb(struct sock *sk)
 
 	rcu_read_lock();
 	dst = __sk_dst_get(sk);
-	if (!dst || !dst->obsolete ||
+	if (!dst || !READ_ONCE(dst->obsolete) ||
 	    dst->ops->check(dst, inet6_sk(sk)->dst_cookie)) {
 		rcu_read_unlock();
 		return;

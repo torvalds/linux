@@ -38,7 +38,7 @@ static bool nf_dup_ipv6_route(struct net *net, struct sk_buff *skb,
 	}
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
-	skb->dev      = dst->dev;
+	skb->dev      = dst_dev(dst);
 	skb->protocol = htons(ETH_P_IPV6);
 
 	return true;

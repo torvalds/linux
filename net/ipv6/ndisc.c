@@ -473,6 +473,7 @@ void ndisc_send_skb(struct sk_buff *skb, const struct in6_addr *daddr,
 {
 	struct icmp6hdr *icmp6h = icmp6_hdr(skb);
 	struct dst_entry *dst = skb_dst(skb);
+	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct net *net;
 	struct sock *sk;
@@ -507,11 +508,12 @@ void ndisc_send_skb(struct sk_buff *skb, const struct in6_addr *daddr,
 
 	ip6_nd_hdr(skb, saddr, daddr, READ_ONCE(inet6_sk(sk)->hop_limit), skb->len);
 
-	idev = __in6_dev_get(dst->dev);
+	dev = dst_dev(dst);
+	idev = __in6_dev_get(dev);
 	IP6_INC_STATS(net, idev, IPSTATS_MIB_OUTREQUESTS);
 
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
-		      net, sk, skb, NULL, dst->dev,
+		      net, sk, skb, NULL, dev,
 		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, type);

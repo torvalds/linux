@@ -1026,9 +1026,11 @@ int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
 		.rta_error = error,
 		.rta_id =  id,
 	};
+	unsigned long delta;
 
 	if (dst) {
-		ci.rta_lastuse = jiffies_delta_to_clock_t(jiffies - dst->lastuse);
+		delta = jiffies - READ_ONCE(dst->lastuse);
+		ci.rta_lastuse = jiffies_delta_to_clock_t(delta);
 		ci.rta_used = dst->__use;
 		ci.rta_clntref = rcuref_read(&dst->__rcuref);
 	}
