@@ -6,6 +6,7 @@ Requires=modprobe@fuse.service
 
 [Service]
 RuntimeDirectory=lklfuse-%i
+StateDirectory=lklfuse/fsid-mutex
 # The "allow_other" mount option permits fuse mount access by users other than
 # the lklfuse user, and requires a "user_allow_other" setting in fuse3.conf
 Environment=LKLFUSE_ARGS="-s -oallow_other"
@@ -18,8 +19,11 @@ EnvironmentFile=-/etc/lklfuse.conf
 # run as unprivileged user
 User=lklfuse
 Group=lklfuse
-ExecCondition=/bin/bash -c "udevadm info -q env -x --property=ID_FS_TYPE -n \"%I\" > ${RUNTIME_DIRECTORY}/udev.env"
-ExecStart=/bin/bash -c ". ${RUNTIME_DIRECTORY}/udev.env; rm ${RUNTIME_DIRECTORY}/udev.env; /usr/bin/lklfuse -f -ofsname=\"/dev/%I\",subtype=\"lkl.$ID_FS_TYPE\",type=\"$ID_FS_TYPE\" $LKLFUSE_ARGS \"/dev/%I\" $RUNTIME_DIRECTORY"
+ExecCondition=/bin/bash -xc "udevadm info -q env -x --property=ID_FS_TYPE,ID_FS_UUID -n \"%I\" > ${RUNTIME_DIRECTORY}/udev.env"
+# Use an ID_FS_UUID based lock file to avoid duplicate mounts.
+# If udev doesn't provide an id then use a static noid path, ensuring lock
+# conflict with any other id-less mount.
+ExecStart=/bin/bash -xc ". ${RUNTIME_DIRECTORY}/udev.env; rm ${RUNTIME_DIRECTORY}/udev.env; /usr/bin/lklfuse -f -ofsname=\"/dev/%I\",subtype=\"lkl.$ID_FS_TYPE\",type=\"$ID_FS_TYPE\",lock=\"${STATE_DIRECTORY}/${ID_FS_UUID:-noid}\" $LKLFUSE_ARGS \"/dev/%I\" ${RUNTIME_DIRECTORY}"
 
 [Install]
 WantedBy=default.target
