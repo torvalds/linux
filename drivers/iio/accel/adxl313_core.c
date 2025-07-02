@@ -396,6 +396,23 @@ static int adxl313_is_act_inact_en(struct adxl313_data *data,
 	return adxl313_act_int_reg[type] & regval;
 }
 
+static int adxl313_set_act_inact_linkbit(struct adxl313_data *data, bool en)
+{
+	int act_en, inact_en;
+
+	act_en = adxl313_is_act_inact_en(data, ADXL313_ACTIVITY);
+	if (act_en < 0)
+		return act_en;
+
+	inact_en = adxl313_is_act_inact_en(data, ADXL313_INACTIVITY);
+	if (inact_en < 0)
+		return inact_en;
+
+	return regmap_assign_bits(data->regmap, ADXL313_REG_POWER_CTL,
+				  ADXL313_POWER_CTL_AUTO_SLEEP | ADXL313_POWER_CTL_LINK,
+				  en && act_en && inact_en);
+}
+
 static int adxl313_set_act_inact_en(struct adxl313_data *data,
 				    enum adxl313_activity_type type,
 				    bool cmd_en)
@@ -452,6 +469,11 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 	/* Enable the interrupt line, according to the command */
 	ret = regmap_assign_bits(data->regmap, ADXL313_REG_INT_ENABLE,
 				 adxl313_act_int_reg[type], cmd_en);
+	if (ret)
+		return ret;
+
+	/* Set link-bit and auto-sleep only when ACT and INACT are enabled */
+	ret = adxl313_set_act_inact_linkbit(data, cmd_en);
 	if (ret)
 		return ret;
 
