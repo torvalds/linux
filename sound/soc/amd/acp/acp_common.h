@@ -15,5 +15,6 @@
 #define ACP63_PCI_ID		0x63
 #define ACP70_PCI_ID		0x70
 #define ACP71_PCI_ID		0x71
+#define ACP72_PCI_ID		0x72
 
 #endif
