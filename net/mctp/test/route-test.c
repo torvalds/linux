@@ -933,20 +933,18 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 		RX_FRAG(FL_S, 0),
 		RX_FRAG(FL_E, 1),
 	};
+	const size_t data_len = 3; /* arbitrary */
+	u8 compare[3 * ARRAY_SIZE(hdrs)];
+	u8 flat[3 * ARRAY_SIZE(hdrs)];
 	struct mctp_test_route *rt;
 	struct mctp_test_dev *dev;
 	struct sk_buff *skb[5];
 	struct sk_buff *rx_skb;
 	struct socket *sock;
-	size_t data_len;
-	u8 compare[100];
-	u8 flat[100];
 	size_t total;
 	void *p;
 	int rc;
 
-	/* Arbitrary length */
-	data_len = 3;
 	total = data_len + sizeof(struct mctp_hdr);
 
 	__mctp_route_test_init(test, &dev, &rt, &sock, MCTP_NET_ANY);
