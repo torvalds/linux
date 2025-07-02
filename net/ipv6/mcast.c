@@ -334,28 +334,10 @@ void __ipv6_sock_mc_close(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct ipv6_mc_socklist *mc_lst;
-	struct net *net = sock_net(sk);
-
-	ASSERT_RTNL();
 
 	while ((mc_lst = sock_dereference(np->ipv6_mc_list, sk)) != NULL) {
-		struct net_device *dev;
-
 		np->ipv6_mc_list = mc_lst->next;
-
-		dev = __dev_get_by_index(net, mc_lst->ifindex);
-		if (dev) {
-			struct inet6_dev *idev = __in6_dev_get(dev);
-
-			ip6_mc_leave_src(sk, mc_lst, idev);
-			if (idev)
-				__ipv6_dev_mc_dec(idev, &mc_lst->addr);
-		} else {
-			ip6_mc_leave_src(sk, mc_lst, NULL);
-		}
-
-		atomic_sub(sizeof(*mc_lst), &sk->sk_omem_alloc);
-		kfree_rcu(mc_lst, rcu);
+		__ipv6_sock_mc_drop(sk, mc_lst);
 	}
 }
 
@@ -366,11 +348,9 @@ void ipv6_sock_mc_close(struct sock *sk)
 	if (!rcu_access_pointer(np->ipv6_mc_list))
 		return;
 
-	rtnl_lock();
 	lock_sock(sk);
 	__ipv6_sock_mc_close(sk);
 	release_sock(sk);
-	rtnl_unlock();
 }
 
 int ip6_mc_source(int add, int omode, struct sock *sk,
