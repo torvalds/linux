@@ -605,10 +605,6 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	if (!ipv6_addr_is_multicast(group))
 		return -EINVAL;
 
-	/* changes to the ipv6_mc_list require the socket lock and
-	 * rtnl lock. We have the socket lock, so reading the list is safe.
-	 */
-
 	for_each_pmc_socklock(inet6, sk, pmc) {
 		if (pmc->ifindex != gsf->gf_interface)
 			continue;
@@ -2879,8 +2875,6 @@ void ipv6_mc_destroy_dev(struct inet6_dev *idev)
 static void ipv6_mc_rejoin_groups(struct inet6_dev *idev)
 {
 	struct ifmcaddr6 *pmc;
-
-	ASSERT_RTNL();
 
 	mutex_lock(&idev->mc_lock);
 	if (mld_in_v1_mode(idev)) {
