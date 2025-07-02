@@ -388,17 +388,33 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 
 	/* Get ID of chip */
 	fm25_aux_read(at25, id, FM25_RDID, FM25_ID_LEN);
+	/* There are inside-out FRAM variations, detect them and reverse the ID bytes */
+	if (id[6] == 0x7f && id[2] == 0xc2)
+		for (i = 0; i < ARRAY_SIZE(id) / 2; i++) {
+			u8 tmp = id[i];
+			int j = ARRAY_SIZE(id) - i - 1;
+
+			id[i] = id[j];
+			id[j] = tmp;
+		}
 	if (id[6] != 0xc2) {
 		dev_err(dev, "Error: no Cypress FRAM (id %02x)\n", id[6]);
 		return -ENODEV;
 	}
-	/* Set size found in ID */
-	if (id[7] < 0x21 || id[7] > 0x26) {
+
+	switch (id[7]) {
+	case 0x21 ... 0x26:
+		chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
+		break;
+	case 0x2a ... 0x30:
+		/* CY15B116QN ... CY15B116QN */
+		chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
+		break;
+	default:
 		dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
 		return -ENODEV;
 	}
 
-	chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
 	if (chip->byte_len > 64 * 1024)
 		chip->flags |= EE_ADDR3;
 	else
