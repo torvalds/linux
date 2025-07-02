@@ -5,6 +5,8 @@
 int bch2_extent_fallocate(struct btree_trans *, subvol_inum, struct btree_iter *,
 			  u64, struct bch_io_opts, s64 *,
 			  struct write_point_specifier);
+
+int bch2_fpunch_snapshot(struct btree_trans *, struct bpos, struct bpos);
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
 		   subvol_inum, u64, s64 *);
 int bch2_fpunch(struct bch_fs *c, subvol_inum, u64, u64, s64 *);

@@ -135,6 +135,33 @@ err_noprint:
 	return ret;
 }
 
+/* For fsck */
+int bch2_fpunch_snapshot(struct btree_trans *trans, struct bpos start, struct bpos end)
+{
+	u32 restart_count = trans->restart_count;
+	struct bch_fs *c = trans->c;
+	struct disk_reservation disk_res = bch2_disk_reservation_init(c, 0);
+	unsigned max_sectors	= KEY_SIZE_MAX & (~0 << c->block_bits);
+	struct bkey_i delete;
+
+	int ret = for_each_btree_key_max_commit(trans, iter, BTREE_ID_extents,
+			start, end, 0, k,
+			&disk_res, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+		bkey_init(&delete.k);
+		delete.k.p = iter.pos;
+
+		/* create the biggest key we can */
+		bch2_key_resize(&delete.k, max_sectors);
+		bch2_cut_back(end, &delete);
+
+		bch2_extent_trim_atomic(trans, &iter, &delete) ?:
+		bch2_trans_update(trans, &iter, &delete, 0);
+	}));
+
+	bch2_disk_reservation_put(c, &disk_res);
+	return ret ?: trans_was_restarted(trans, restart_count);
+}
+
 /*
  * Returns -BCH_ERR_transacton_restart if we had to drop locks:
  */
