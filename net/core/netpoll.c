@@ -414,6 +414,33 @@ netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(netpoll_send_skb);
 
+static void push_ipv6(struct netpoll *np, struct sk_buff *skb, int len)
+{
+	struct ipv6hdr *ip6h;
+	struct ethhdr *eth;
+
+	skb_push(skb, sizeof(struct ipv6hdr));
+	skb_reset_network_header(skb);
+	ip6h = ipv6_hdr(skb);
+
+	/* ip6h->version = 6; ip6h->priority = 0; */
+	*(unsigned char *)ip6h = 0x60;
+	ip6h->flow_lbl[0] = 0;
+	ip6h->flow_lbl[1] = 0;
+	ip6h->flow_lbl[2] = 0;
+
+	ip6h->payload_len = htons(sizeof(struct udphdr) + len);
+	ip6h->nexthdr = IPPROTO_UDP;
+	ip6h->hop_limit = 32;
+	ip6h->saddr = np->local_ip.in6;
+	ip6h->daddr = np->remote_ip.in6;
+
+	eth = skb_push(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb->protocol = htons(ETH_P_IPV6);
+	eth->h_proto = htons(ETH_P_IPV6);
+}
+
 int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 {
 	int total_len, ip_len, udp_len;
@@ -422,7 +449,6 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	struct iphdr *iph;
 	struct ethhdr *eth;
 	static atomic_t ip_ident;
-	struct ipv6hdr *ip6h;
 
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 		WARN_ON_ONCE(!irqs_disabled());
@@ -452,25 +478,8 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 
 	netpoll_udp_checksum(np, skb, len);
 	if (np->ipv6) {
-		skb_push(skb, sizeof(struct ipv6hdr));
-		skb_reset_network_header(skb);
-		ip6h = ipv6_hdr(skb);
-
-		/* ip6h->version = 6; ip6h->priority = 0; */
-		*(unsigned char *)ip6h = 0x60;
-		ip6h->flow_lbl[0] = 0;
-		ip6h->flow_lbl[1] = 0;
-		ip6h->flow_lbl[2] = 0;
-
-		ip6h->payload_len = htons(sizeof(struct udphdr) + len);
-		ip6h->nexthdr = IPPROTO_UDP;
-		ip6h->hop_limit = 32;
-		ip6h->saddr = np->local_ip.in6;
-		ip6h->daddr = np->remote_ip.in6;
-
-		eth = skb_push(skb, ETH_HLEN);
-		skb_reset_mac_header(skb);
-		skb->protocol = eth->h_proto = htons(ETH_P_IPV6);
+		push_ipv6(np, skb, len);
+		eth = eth_hdr(skb);
 	} else {
 		skb_push(skb, sizeof(struct iphdr));
 		skb_reset_network_header(skb);
