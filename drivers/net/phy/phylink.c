@@ -3536,6 +3536,8 @@ static int phylink_sfp_config_phy(struct phylink *pl, struct phy_device *phy)
 	struct phylink_link_state config;
 	int ret;
 
+	/* We're not using pl->sfp_interfaces, so clear it. */
+	phy_interface_zero(pl->sfp_interfaces);
 	linkmode_copy(support, phy->supported);
 
 	memset(&config, 0, sizeof(config));
@@ -3673,6 +3675,13 @@ static int phylink_sfp_module_insert(void *upstream,
 	return phylink_sfp_config_optical(pl);
 }
 
+static void phylink_sfp_module_remove(void *upstream)
+{
+	struct phylink *pl = upstream;
+
+	phy_interface_zero(pl->sfp_interfaces);
+}
+
 static int phylink_sfp_module_start(void *upstream)
 {
 	struct phylink *pl = upstream;
@@ -3757,6 +3766,7 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 	.attach = phylink_sfp_attach,
 	.detach = phylink_sfp_detach,
 	.module_insert = phylink_sfp_module_insert,
+	.module_remove = phylink_sfp_module_remove,
 	.module_start = phylink_sfp_module_start,
 	.module_stop = phylink_sfp_module_stop,
 	.link_up = phylink_sfp_link_up,
