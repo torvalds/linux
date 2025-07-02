@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <errno.h>
@@ -24,6 +25,7 @@ struct lklfuse {
 	const char *log;
 	const char *type;
 	const char *opts;
+	const char *lock;
 	struct lkl_disk disk;
 	int disk_id;
 	int part;
@@ -46,6 +48,7 @@ static struct fuse_opt lklfuse_opts[] = {
 	LKLFUSE_OPT("mb=%d", mb, 0),
 	LKLFUSE_OPT("opts=%s", opts, 0),
 	LKLFUSE_OPT("part=%d", part, 0),
+	LKLFUSE_OPT("lock=%s", lock, 0),
 	FUSE_OPT_KEY("-h", KEY_HELP),
 	FUSE_OPT_KEY("--help", KEY_HELP),
 	FUSE_OPT_KEY("-V",             KEY_VERSION),
@@ -71,6 +74,7 @@ static void usage(void)
 "    -o mb=memory           amount of memory to allocate in MB (default: 64)\n"
 "    -o part=parition       partition to mount\n"
 "    -o ro                  open file read-only\n"
+"    -o lock=FILE           only mount after taking an exclusive lock on FILE\n"
 "    -o opts=options        mount options (use \\ to escape , and =)\n"
 );
 }
@@ -791,7 +795,7 @@ int main(int argc, char **argv)
 	struct fuse_cmdline_opts cli_opts;
 	struct fuse *fuse;
 	struct stat st;
-	int ret;
+	int ret, lockfd = -1;
 
 	if (fuse_opt_parse(&args, &lklfuse, lklfuse_opts, lklfuse_opt_proc))
 		return 1;
@@ -799,6 +803,23 @@ int main(int argc, char **argv)
 	if (!lklfuse.file || !lklfuse.type) {
 		fprintf(stderr, "no file or filesystem type specified\n");
 		return 1;
+	}
+
+	if (lklfuse.lock) {
+		lockfd = open(lklfuse.lock, O_RDWR | O_CREAT, 0644);
+		if (lockfd < 0) {
+			fprintf(stderr, "failed to open %s: %s\n",
+				lklfuse.lock, strerror(errno));
+			return 1;
+		}
+
+		ret = flock(lockfd, LOCK_EX | LOCK_NB);
+		if (ret < 0) {
+			fprintf(stderr, "unable to exclusively lock %s: %s\n",
+				lklfuse.lock, strerror(errno));
+			return 2;
+		}
+		/* lock dropped when when lockfd is closed on program exit */
 	}
 
 	if (fuse_parse_cmdline(&args, &cli_opts))

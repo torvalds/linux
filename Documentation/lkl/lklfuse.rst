@@ -39,7 +39,9 @@ OPTIONS
 
 -o part=parition        mount <partition>.
 
--o ro                   open file read-only.
+-o ro                   open block-device read-only.
+
+-o lock=<file>          only mount after taking an exclusive lock on <file>.
 
 -o opts=options         Linux kernel mount <options> (use \\ to escape , and =).
 
