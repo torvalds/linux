@@ -208,6 +208,18 @@ typedef int __bitwise fpb_t;
 /* Compare PTEs respecting the soft-dirty bit. */
 #define FPB_RESPECT_SOFT_DIRTY		((__force fpb_t)BIT(1))
 
+/*
+ * Merge PTE write bits: if any PTE in the batch is writable, modify the
+ * PTE at @ptentp to be writable.
+ */
+#define FPB_MERGE_WRITE			((__force fpb_t)BIT(2))
+
+/*
+ * Merge PTE young and dirty bits: if any PTE in the batch is young or dirty,
+ * modify the PTE at @ptentp to be young or dirty, respectively.
+ */
+#define FPB_MERGE_YOUNG_DIRTY		((__force fpb_t)BIT(3))
+
 static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
 {
 	if (!(flags & FPB_RESPECT_DIRTY))
@@ -220,16 +232,12 @@ static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
 /**
  * folio_pte_batch_flags - detect a PTE batch for a large folio
  * @folio: The large folio to detect a PTE batch for.
+ * @vma: The VMA. Only relevant with FPB_MERGE_WRITE, otherwise can be NULL.
  * @ptep: Page table pointer for the first entry.
- * @pte: Page table entry for the first page.
+ * @ptentp: Pointer to a COPY of the first page table entry whose flags this
+ *	    function updates based on @flags if appropriate.
  * @max_nr: The maximum number of table entries to consider.
  * @flags: Flags to modify the PTE batch semantics.
- * @any_writable: Optional pointer to indicate whether any entry except the
- *		  first one is writable.
- * @any_young: Optional pointer to indicate whether any entry except the
- *		  first one is young.
- * @any_dirty: Optional pointer to indicate whether any entry except the
- *		  first one is dirty.
  *
  * Detect a PTE batch: consecutive (present) PTEs that map consecutive
  * pages of the same large folio in a single VMA and a single page table.
@@ -242,28 +250,32 @@ static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
  * must be limited by the caller so scanning cannot exceed a single VMA and
  * a single page table.
  *
+ * Depending on the FPB_MERGE_* flags, the pte stored at @ptentp will
+ * be updated: it's crucial that a pointer to a COPY of the first
+ * page table entry, obtained through ptep_get(), is provided as @ptentp.
+ *
  * This function will be inlined to optimize based on the input parameters;
  * consider using folio_pte_batch() instead if applicable.
  *
  * Return: the number of table entries in the batch.
  */
 static inline unsigned int folio_pte_batch_flags(struct folio *folio,
-		pte_t *ptep, pte_t pte, unsigned int max_nr, fpb_t flags,
-		bool *any_writable, bool *any_young, bool *any_dirty)
+		struct vm_area_struct *vma, pte_t *ptep, pte_t *ptentp,
+		unsigned int max_nr, fpb_t flags)
 {
+	bool any_writable = false, any_young = false, any_dirty = false;
+	pte_t expected_pte, pte = *ptentp;
 	unsigned int nr, cur_nr;
-	pte_t expected_pte;
-
-	if (any_writable)
-		*any_writable = false;
-	if (any_young)
-		*any_young = false;
-	if (any_dirty)
-		*any_dirty = false;
 
 	VM_WARN_ON_FOLIO(!pte_present(pte), folio);
 	VM_WARN_ON_FOLIO(!folio_test_large(folio) || max_nr < 1, folio);
 	VM_WARN_ON_FOLIO(page_folio(pfn_to_page(pte_pfn(pte))) != folio, folio);
+	/*
+	 * Ensure this is a pointer to a copy not a pointer into a page table.
+	 * If this is a stack value, it won't be a valid virtual address, but
+	 * that's fine because it also cannot be pointing into the page table.
+	 */
+	VM_WARN_ON(virt_addr_valid(ptentp) && PageTable(virt_to_page(ptentp)));
 
 	/* Limit max_nr to the actual remaining PFNs in the folio we could batch. */
 	max_nr = min_t(unsigned long, max_nr,
@@ -279,18 +291,25 @@ static inline unsigned int folio_pte_batch_flags(struct folio *folio,
 		if (!pte_same(__pte_batch_clear_ignored(pte, flags), expected_pte))
 			break;
 
-		if (any_writable)
-			*any_writable |= pte_write(pte);
-		if (any_young)
-			*any_young |= pte_young(pte);
-		if (any_dirty)
-			*any_dirty |= pte_dirty(pte);
+		if (flags & FPB_MERGE_WRITE)
+			any_writable |= pte_write(pte);
+		if (flags & FPB_MERGE_YOUNG_DIRTY) {
+			any_young |= pte_young(pte);
+			any_dirty |= pte_dirty(pte);
+		}
 
 		cur_nr = pte_batch_hint(ptep, pte);
 		expected_pte = pte_advance_pfn(expected_pte, cur_nr);
 		ptep += cur_nr;
 		nr += cur_nr;
 	}
+
+	if (any_writable)
+		*ptentp = pte_mkwrite(*ptentp, vma);
+	if (any_young)
+		*ptentp = pte_mkyoung(*ptentp);
+	if (any_dirty)
+		*ptentp = pte_mkdirty(*ptentp);
 
 	return min(nr, max_nr);
 }
