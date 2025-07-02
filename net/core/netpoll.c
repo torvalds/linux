@@ -441,14 +441,44 @@ static void push_ipv6(struct netpoll *np, struct sk_buff *skb, int len)
 	eth->h_proto = htons(ETH_P_IPV6);
 }
 
+static void push_ipv4(struct netpoll *np, struct sk_buff *skb, int len)
+{
+	static atomic_t ip_ident;
+	struct ethhdr *eth;
+	struct iphdr *iph;
+	int ip_len;
+
+	ip_len = len + sizeof(struct udphdr) + sizeof(struct iphdr);
+
+	skb_push(skb, sizeof(struct iphdr));
+	skb_reset_network_header(skb);
+	iph = ip_hdr(skb);
+
+	/* iph->version = 4; iph->ihl = 5; */
+	*(unsigned char *)iph = 0x45;
+	iph->tos = 0;
+	put_unaligned(htons(ip_len), &iph->tot_len);
+	iph->id = htons(atomic_inc_return(&ip_ident));
+	iph->frag_off = 0;
+	iph->ttl = 64;
+	iph->protocol = IPPROTO_UDP;
+	iph->check = 0;
+	put_unaligned(np->local_ip.ip, &iph->saddr);
+	put_unaligned(np->remote_ip.ip, &iph->daddr);
+	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+
+	eth = skb_push(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb->protocol = htons(ETH_P_IP);
+	eth->h_proto = htons(ETH_P_IP);
+}
+
 int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 {
 	int total_len, ip_len, udp_len;
 	struct sk_buff *skb;
 	struct udphdr *udph;
-	struct iphdr *iph;
 	struct ethhdr *eth;
-	static atomic_t ip_ident;
 
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 		WARN_ON_ONCE(!irqs_disabled());
@@ -477,32 +507,12 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	udph->len = htons(udp_len);
 
 	netpoll_udp_checksum(np, skb, len);
-	if (np->ipv6) {
+	if (np->ipv6)
 		push_ipv6(np, skb, len);
-		eth = eth_hdr(skb);
-	} else {
-		skb_push(skb, sizeof(struct iphdr));
-		skb_reset_network_header(skb);
-		iph = ip_hdr(skb);
+	else
+		push_ipv4(np, skb, len);
 
-		/* iph->version = 4; iph->ihl = 5; */
-		*(unsigned char *)iph = 0x45;
-		iph->tos      = 0;
-		put_unaligned(htons(ip_len), &(iph->tot_len));
-		iph->id       = htons(atomic_inc_return(&ip_ident));
-		iph->frag_off = 0;
-		iph->ttl      = 64;
-		iph->protocol = IPPROTO_UDP;
-		iph->check    = 0;
-		put_unaligned(np->local_ip.ip, &(iph->saddr));
-		put_unaligned(np->remote_ip.ip, &(iph->daddr));
-		iph->check    = ip_fast_csum((unsigned char *)iph, iph->ihl);
-
-		eth = skb_push(skb, ETH_HLEN);
-		skb_reset_mac_header(skb);
-		skb->protocol = eth->h_proto = htons(ETH_P_IP);
-	}
-
+	eth = eth_hdr(skb);
 	ether_addr_copy(eth->h_source, np->dev->dev_addr);
 	ether_addr_copy(eth->h_dest, np->remote_mac);
 
