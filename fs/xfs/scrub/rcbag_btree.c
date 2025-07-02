@@ -69,7 +69,7 @@ rcbagbt_key_diff(
 }
 
 STATIC int64_t
-rcbagbt_diff_two_keys(
+rcbagbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2,
@@ -203,7 +203,7 @@ static const struct xfs_btree_ops rcbagbt_mem_ops = {
 	.init_ptr_from_cur	= xfbtree_init_ptr_from_cur,
 	.key_diff		= rcbagbt_key_diff,
 	.buf_ops		= &rcbagbt_mem_buf_ops,
-	.diff_two_keys		= rcbagbt_diff_two_keys,
+	.cmp_two_keys		= rcbagbt_cmp_two_keys,
 	.keys_inorder		= rcbagbt_keys_inorder,
 	.recs_inorder		= rcbagbt_recs_inorder,
 };

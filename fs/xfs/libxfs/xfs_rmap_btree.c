@@ -274,7 +274,7 @@ xfs_rmapbt_key_diff(
 }
 
 STATIC int64_t
-xfs_rmapbt_diff_two_keys(
+xfs_rmapbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2,
@@ -517,7 +517,7 @@ const struct xfs_btree_ops xfs_rmapbt_ops = {
 	.init_ptr_from_cur	= xfs_rmapbt_init_ptr_from_cur,
 	.key_diff		= xfs_rmapbt_key_diff,
 	.buf_ops		= &xfs_rmapbt_buf_ops,
-	.diff_two_keys		= xfs_rmapbt_diff_two_keys,
+	.cmp_two_keys		= xfs_rmapbt_cmp_two_keys,
 	.keys_inorder		= xfs_rmapbt_keys_inorder,
 	.recs_inorder		= xfs_rmapbt_recs_inorder,
 	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
@@ -634,7 +634,7 @@ const struct xfs_btree_ops xfs_rmapbt_mem_ops = {
 	.init_ptr_from_cur	= xfbtree_init_ptr_from_cur,
 	.key_diff		= xfs_rmapbt_key_diff,
 	.buf_ops		= &xfs_rmapbt_mem_buf_ops,
-	.diff_two_keys		= xfs_rmapbt_diff_two_keys,
+	.cmp_two_keys		= xfs_rmapbt_cmp_two_keys,
 	.keys_inorder		= xfs_rmapbt_keys_inorder,
 	.recs_inorder		= xfs_rmapbt_recs_inorder,
 	.keys_contiguous	= xfs_rmapbt_keys_contiguous,
