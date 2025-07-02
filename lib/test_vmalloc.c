@@ -396,25 +396,27 @@ cleanup:
 struct test_case_desc {
 	const char *test_name;
 	int (*test_func)(void);
+	bool xfail;
 };
 
 static struct test_case_desc test_case_array[] = {
-	{ "fix_size_alloc_test", fix_size_alloc_test },
-	{ "full_fit_alloc_test", full_fit_alloc_test },
-	{ "long_busy_list_alloc_test", long_busy_list_alloc_test },
-	{ "random_size_alloc_test", random_size_alloc_test },
-	{ "fix_align_alloc_test", fix_align_alloc_test },
-	{ "random_size_align_alloc_test", random_size_align_alloc_test },
-	{ "align_shift_alloc_test", align_shift_alloc_test },
-	{ "pcpu_alloc_test", pcpu_alloc_test },
-	{ "kvfree_rcu_1_arg_vmalloc_test", kvfree_rcu_1_arg_vmalloc_test },
-	{ "kvfree_rcu_2_arg_vmalloc_test", kvfree_rcu_2_arg_vmalloc_test },
-	{ "vm_map_ram_test", vm_map_ram_test },
+	{ "fix_size_alloc_test", fix_size_alloc_test, },
+	{ "full_fit_alloc_test", full_fit_alloc_test, },
+	{ "long_busy_list_alloc_test", long_busy_list_alloc_test, },
+	{ "random_size_alloc_test", random_size_alloc_test, },
+	{ "fix_align_alloc_test", fix_align_alloc_test, },
+	{ "random_size_align_alloc_test", random_size_align_alloc_test, },
+	{ "align_shift_alloc_test", align_shift_alloc_test, true },
+	{ "pcpu_alloc_test", pcpu_alloc_test, },
+	{ "kvfree_rcu_1_arg_vmalloc_test", kvfree_rcu_1_arg_vmalloc_test, },
+	{ "kvfree_rcu_2_arg_vmalloc_test", kvfree_rcu_2_arg_vmalloc_test, },
+	{ "vm_map_ram_test", vm_map_ram_test, },
 	/* Add a new test case here. */
 };
 
 struct test_case_data {
 	int test_failed;
+	int test_xfailed;
 	int test_passed;
 	u64 time;
 };
@@ -444,7 +446,7 @@ static int test_func(void *private)
 {
 	struct test_driver *t = private;
 	int random_array[ARRAY_SIZE(test_case_array)];
-	int index, i, j;
+	int index, i, j, ret;
 	ktime_t kt;
 	u64 delta;
 
@@ -468,11 +470,14 @@ static int test_func(void *private)
 		 */
 		if (!((run_test_mask & (1 << index)) >> index))
 			continue;
-
 		kt = ktime_get();
 		for (j = 0; j < test_repeat_count; j++) {
-			if (!test_case_array[index].test_func())
+			ret = test_case_array[index].test_func();
+
+			if (!ret && !test_case_array[index].xfail)
 				t->data[index].test_passed++;
+			else if (ret && test_case_array[index].xfail)
+				t->data[index].test_xfailed++;
 			else
 				t->data[index].test_failed++;
 		}
@@ -576,10 +581,11 @@ static void do_concurrent_test(void)
 				continue;
 
 			pr_info(
-				"Summary: %s passed: %d failed: %d repeat: %d loops: %d avg: %llu usec\n",
+				"Summary: %s passed: %d failed: %d xfailed: %d repeat: %d loops: %d avg: %llu usec\n",
 				test_case_array[j].test_name,
 				t->data[j].test_passed,
 				t->data[j].test_failed,
+				t->data[j].test_xfailed,
 				test_repeat_count, test_loop_count,
 				t->data[j].time);
 		}
