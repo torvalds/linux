@@ -493,6 +493,15 @@ config QCM_DISPCC_2290
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config QCS_DISPCC_615
+	tristate "QCS615 Display Clock Controller"
+	select QCM_GCC_615
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  QCS615 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config QCS_CAMCC_615
 	tristate "QCS615 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
