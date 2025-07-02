@@ -1210,12 +1210,21 @@ static int rx_queue_default_mask(struct net_device *dev,
 				 struct netdev_rx_queue *queue)
 {
 #if IS_ENABLED(CONFIG_RPS) && IS_ENABLED(CONFIG_SYSCTL)
-	struct cpumask *rps_default_mask = READ_ONCE(dev_net(dev)->core.rps_default_mask);
+	struct cpumask *rps_default_mask;
+	int res = 0;
 
+	mutex_lock(&rps_default_mask_mutex);
+
+	rps_default_mask = dev_net(dev)->core.rps_default_mask;
 	if (rps_default_mask && !cpumask_empty(rps_default_mask))
-		return netdev_rx_queue_set_rps_mask(queue, rps_default_mask);
-#endif
+		res = netdev_rx_queue_set_rps_mask(queue, rps_default_mask);
+
+	mutex_unlock(&rps_default_mask_mutex);
+
+	return res;
+#else
 	return 0;
+#endif
 }
 
 static int rx_queue_add_kobject(struct net_device *dev, int index)
