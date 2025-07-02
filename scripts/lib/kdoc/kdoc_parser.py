@@ -476,19 +476,18 @@ class KernelDoc:
                         self.push_parameter(ln, decl_type, param, dtype,
                                             arg, declaration_name)
 
-    def check_sections(self, ln, decl_name, decl_type, sectcheck, prmscheck):
+    def check_sections(self, ln, decl_name, decl_type, sectcheck):
         """
         Check for errors inside sections, emitting warnings if not found
         parameters are described.
         """
 
         sects = sectcheck.split()
-        prms = prmscheck.split()
 
         for sx in range(len(sects)):                  # pylint: disable=C0200
             err = True
-            for px in range(len(prms)):               # pylint: disable=C0200
-                if prms[px] == sects[sx]:
+            for param in self.entry.parameterlist:
+                if param == sects[sx]:
                     err = False
                     break
 
@@ -753,8 +752,7 @@ class KernelDoc:
 
         self.create_parameter_list(ln, decl_type, members, ';',
                                    declaration_name)
-        self.check_sections(ln, declaration_name, decl_type,
-                            self.entry.sectcheck, ' '.join(self.entry.parameterlist))
+        self.check_sections(ln, declaration_name, decl_type, self.entry.sectcheck)
 
         # Adjust declaration for better display
         declaration = KernRe(r'([\{;])').sub(r'\1\n', declaration)
@@ -1032,9 +1030,7 @@ class KernelDoc:
                           f"expecting prototype for {self.entry.identifier}(). Prototype was for {declaration_name}() instead")
             return
 
-        prms = " ".join(self.entry.parameterlist)
-        self.check_sections(ln, declaration_name, "function",
-                            self.entry.sectcheck, prms)
+        self.check_sections(ln, declaration_name, "function", self.entry.sectcheck)
 
         self.check_return_section(ln, declaration_name, return_type)
 
