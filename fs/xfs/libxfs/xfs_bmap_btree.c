@@ -369,13 +369,13 @@ xfs_bmbt_init_rec_from_cur(
 	xfs_bmbt_disk_set_all(&rec->bmbt, &cur->bc_rec.b);
 }
 
-STATIC int64_t
+STATIC int
 xfs_bmbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
-	return (int64_t)be64_to_cpu(key->bmbt.br_startoff) -
-				      cur->bc_rec.b.br_startoff;
+	return cmp_int(be64_to_cpu(key->bmbt.br_startoff),
+		       cur->bc_rec.b.br_startoff);
 }
 
 STATIC int

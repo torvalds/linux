@@ -265,13 +265,13 @@ xfs_finobt_init_ptr_from_cur(
 	ptr->s = agi->agi_free_root;
 }
 
-STATIC int64_t
+STATIC int
 xfs_inobt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
-	return (int64_t)be32_to_cpu(key->inobt.ir_startino) -
-			  cur->bc_rec.i.ir_startino;
+	return cmp_int(be32_to_cpu(key->inobt.ir_startino),
+		       cur->bc_rec.i.ir_startino);
 }
 
 STATIC int

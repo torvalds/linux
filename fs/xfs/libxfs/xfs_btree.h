@@ -175,7 +175,7 @@ struct xfs_btree_ops {
 	 * Compare key value and cursor value -- positive if key > cur,
 	 * negative if key < cur, and zero if equal.
 	 */
-	int64_t (*cmp_key_with_cur)(struct xfs_btree_cur *cur,
+	int	(*cmp_key_with_cur)(struct xfs_btree_cur *cur,
 				    const union xfs_btree_key *key);
 
 	/*

@@ -185,34 +185,18 @@ static inline uint64_t offset_keymask(uint64_t offset)
 	return offset & ~XFS_RMAP_OFF_UNWRITTEN;
 }
 
-STATIC int64_t
+STATIC int
 xfs_rtrmapbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
 	struct xfs_rmap_irec		*rec = &cur->bc_rec.r;
 	const struct xfs_rmap_key	*kp = &key->rmap;
-	__u64				x, y;
-	int64_t				d;
 
-	d = (int64_t)be32_to_cpu(kp->rm_startblock) - rec->rm_startblock;
-	if (d)
-		return d;
-
-	x = be64_to_cpu(kp->rm_owner);
-	y = rec->rm_owner;
-	if (x > y)
-		return 1;
-	else if (y > x)
-		return -1;
-
-	x = offset_keymask(be64_to_cpu(kp->rm_offset));
-	y = offset_keymask(xfs_rmap_irec_offset_pack(rec));
-	if (x > y)
-		return 1;
-	else if (y > x)
-		return -1;
-	return 0;
+	return cmp_int(be32_to_cpu(kp->rm_startblock), rec->rm_startblock) ?:
+	       cmp_int(be64_to_cpu(kp->rm_owner), rec->rm_owner) ?:
+	       cmp_int(offset_keymask(be64_to_cpu(kp->rm_offset)),
+		       offset_keymask(xfs_rmap_irec_offset_pack(rec)));
 }
 
 STATIC int

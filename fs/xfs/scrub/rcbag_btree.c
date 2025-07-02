@@ -47,7 +47,7 @@ rcbagbt_init_rec_from_cur(
 	bag_rec->rbg_refcount = bag_irec->rbg_refcount;
 }
 
-STATIC int64_t
+STATIC int
 rcbagbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
@@ -55,17 +55,8 @@ rcbagbt_cmp_key_with_cur(
 	struct rcbag_rec		*rec = (struct rcbag_rec *)&cur->bc_rec;
 	const struct rcbag_key		*kp = (const struct rcbag_key *)key;
 
-	if (kp->rbg_startblock > rec->rbg_startblock)
-		return 1;
-	if (kp->rbg_startblock < rec->rbg_startblock)
-		return -1;
-
-	if (kp->rbg_blockcount > rec->rbg_blockcount)
-		return 1;
-	if (kp->rbg_blockcount < rec->rbg_blockcount)
-		return -1;
-
-	return 0;
+	return cmp_int(kp->rbg_startblock, rec->rbg_startblock) ?:
+	       cmp_int(kp->rbg_blockcount, rec->rbg_blockcount);
 }
 
 STATIC int

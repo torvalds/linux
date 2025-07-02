@@ -186,7 +186,7 @@ xfs_allocbt_init_ptr_from_cur(
 		ptr->s = agf->agf_cnt_root;
 }
 
-STATIC int64_t
+STATIC int
 xfs_bnobt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
@@ -194,23 +194,20 @@ xfs_bnobt_cmp_key_with_cur(
 	struct xfs_alloc_rec_incore	*rec = &cur->bc_rec.a;
 	const struct xfs_alloc_rec	*kp = &key->alloc;
 
-	return (int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
+	return cmp_int(be32_to_cpu(kp->ar_startblock),
+		       rec->ar_startblock);
 }
 
-STATIC int64_t
+STATIC int
 xfs_cntbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
 	struct xfs_alloc_rec_incore	*rec = &cur->bc_rec.a;
 	const struct xfs_alloc_rec	*kp = &key->alloc;
-	int64_t				diff;
 
-	diff = (int64_t)be32_to_cpu(kp->ar_blockcount) - rec->ar_blockcount;
-	if (diff)
-		return diff;
-
-	return (int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
+	return cmp_int(be32_to_cpu(kp->ar_blockcount), rec->ar_blockcount) ?:
+	       cmp_int(be32_to_cpu(kp->ar_startblock), rec->ar_startblock);
 }
 
 STATIC int

@@ -174,7 +174,7 @@ xfs_refcountbt_init_ptr_from_cur(
 	ptr->s = agf->agf_refcount_root;
 }
 
-STATIC int64_t
+STATIC int
 xfs_refcountbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
@@ -185,7 +185,7 @@ xfs_refcountbt_cmp_key_with_cur(
 
 	start = xfs_refcount_encode_startblock(irec->rc_startblock,
 			irec->rc_domain);
-	return (int64_t)be32_to_cpu(kp->rc_startblock) - start;
+	return cmp_int(be32_to_cpu(kp->rc_startblock), start);
 }
 
 STATIC int
