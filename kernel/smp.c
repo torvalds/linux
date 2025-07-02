@@ -802,7 +802,6 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 
 	/* Check if we need remote execution, i.e., any CPU excluding this one. */
 	if (cpumask_any_and_but(mask, cpu_online_mask, this_cpu) < nr_cpu_ids) {
-		run_remote = true;
 		cfd = this_cpu_ptr(&cfd_data);
 		cpumask_and(cfd->cpumask, mask, cpu_online_mask);
 		__cpumask_clear_cpu(this_cpu, cfd->cpumask);
@@ -816,6 +815,9 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 				continue;
 			}
 
+			/* Work is enqueued on a remote CPU. */
+			run_remote = true;
+
 			csd_lock(csd);
 			if (wait)
 				csd->node.u_flags |= CSD_TYPE_SYNC;
@@ -827,6 +829,10 @@ static void smp_call_function_many_cond(const struct cpumask *mask,
 #endif
 			trace_csd_queue_cpu(cpu, _RET_IP_, func, csd);
 
+			/*
+			 * Kick the remote CPU if this is the first work
+			 * item enqueued.
+			 */
 			if (llist_add(&csd->node.llist, &per_cpu(call_single_queue, cpu))) {
 				__cpumask_set_cpu(cpu, cfd->cpumask_ipi);
 				nr_cpus++;
