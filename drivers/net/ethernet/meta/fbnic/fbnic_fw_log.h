@@ -36,6 +36,8 @@ struct fbnic_fw_log {
 
 #define fbnic_fw_log_ready(_fbd)	(!!(_fbd)->fw_log.data_start)
 
+void fbnic_fw_log_enable(struct fbnic_dev *fbd, bool send_hist);
+void fbnic_fw_log_disable(struct fbnic_dev *fbd);
 int fbnic_fw_log_init(struct fbnic_dev *fbd);
 void fbnic_fw_log_free(struct fbnic_dev *fbd);
 int fbnic_fw_log_write(struct fbnic_dev *fbd, u64 index, u32 timestamp,

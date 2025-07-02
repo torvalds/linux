@@ -8,6 +8,31 @@
 #include "fbnic_fw.h"
 #include "fbnic_fw_log.h"
 
+void fbnic_fw_log_enable(struct fbnic_dev *fbd, bool send_hist)
+{
+	int err;
+
+	if (!fbnic_fw_log_ready(fbd))
+		return;
+
+	if (fbd->fw_cap.running.mgmt.version < MIN_FW_VER_CODE_HIST)
+		send_hist = false;
+
+	err = fbnic_fw_xmit_send_logs(fbd, true, send_hist);
+	if (err && err != -EOPNOTSUPP)
+		dev_warn(fbd->dev, "Unable to enable firmware logs: %d\n", err);
+}
+
+void fbnic_fw_log_disable(struct fbnic_dev *fbd)
+{
+	int err;
+
+	err = fbnic_fw_xmit_send_logs(fbd, false, false);
+	if (err && err != -EOPNOTSUPP)
+		dev_warn(fbd->dev, "Unable to disable firmware logs: %d\n",
+			 err);
+}
+
 int fbnic_fw_log_init(struct fbnic_dev *fbd)
 {
 	struct fbnic_fw_log *log = &fbd->fw_log;
@@ -26,6 +51,8 @@ int fbnic_fw_log_init(struct fbnic_dev *fbd)
 	log->data_start = data;
 	log->data_end = data + FBNIC_FW_LOG_SIZE;
 
+	fbnic_fw_log_enable(fbd, true);
+
 	return 0;
 }
 
@@ -36,6 +63,7 @@ void fbnic_fw_log_free(struct fbnic_dev *fbd)
 	if (!fbnic_fw_log_ready(fbd))
 		return;
 
+	fbnic_fw_log_disable(fbd);
 	INIT_LIST_HEAD(&log->entries);
 	log->size = 0;
 	vfree(log->data_start);
