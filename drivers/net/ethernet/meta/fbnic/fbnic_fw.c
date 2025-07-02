@@ -582,7 +582,7 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 			running_ver,
 			MIN_FW_MAJOR_VERSION,
 			MIN_FW_MINOR_VERSION,
-			MIN_FW_BUILD_VERSION);
+			MIN_FW_PATCH_VERSION);
 		/* Disable TX mailbox to prevent card use until firmware is
 		 * updated.
 		 */
