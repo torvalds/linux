@@ -2297,6 +2297,7 @@ static int queue_oob(struct sock *sk, struct msghdr *msg, struct sock *other,
 
 	spin_lock(&other->sk_receive_queue.lock);
 	WRITE_ONCE(ousk->oob_skb, skb);
+	WRITE_ONCE(ousk->inq_len, ousk->inq_len + 1);
 	__skb_queue_tail(&other->sk_receive_queue, skb);
 	spin_unlock(&other->sk_receive_queue.lock);
 
@@ -2319,6 +2320,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb = NULL;
 	struct sock *other = NULL;
+	struct unix_sock *otheru;
 	struct scm_cookie scm;
 	bool fds_sent = false;
 	int err, sent = 0;
@@ -2342,13 +2344,15 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 	if (msg->msg_namelen) {
 		err = READ_ONCE(sk->sk_state) == TCP_ESTABLISHED ? -EISCONN : -EOPNOTSUPP;
 		goto out_err;
-	} else {
-		other = unix_peer(sk);
-		if (!other) {
-			err = -ENOTCONN;
-			goto out_err;
-		}
 	}
+
+	other = unix_peer(sk);
+	if (!other) {
+		err = -ENOTCONN;
+		goto out_err;
+	}
+
+	otheru = unix_sk(other);
 
 	if (READ_ONCE(sk->sk_shutdown) & SEND_SHUTDOWN)
 		goto out_pipe;
@@ -2417,7 +2421,12 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 		unix_maybe_add_creds(skb, sk, other);
 		scm_stat_add(other, skb);
-		skb_queue_tail(&other->sk_receive_queue, skb);
+
+		spin_lock(&other->sk_receive_queue.lock);
+		WRITE_ONCE(otheru->inq_len, otheru->inq_len + skb->len);
+		__skb_queue_tail(&other->sk_receive_queue, skb);
+		spin_unlock(&other->sk_receive_queue.lock);
+
 		unix_state_unlock(other);
 		other->sk_data_ready(other);
 		sent += size;
@@ -2704,6 +2713,7 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 
 	if (!(state->flags & MSG_PEEK)) {
 		WRITE_ONCE(u->oob_skb, NULL);
+		WRITE_ONCE(u->inq_len, u->inq_len - 1);
 
 		if (oob_skb->prev != (struct sk_buff *)&sk->sk_receive_queue &&
 		    !unix_skb_len(oob_skb->prev)) {
@@ -2807,6 +2817,8 @@ static int unix_stream_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 		mutex_unlock(&u->iolock);
 		return -EAGAIN;
 	}
+
+	WRITE_ONCE(u->inq_len, u->inq_len - skb->len);
 
 #if IS_ENABLED(CONFIG_AF_UNIX_OOB)
 	if (skb == u->oob_skb) {
@@ -2988,7 +3000,11 @@ unlock:
 			if (unix_skb_len(skb))
 				break;
 
-			skb_unlink(skb, &sk->sk_receive_queue);
+			spin_lock(&sk->sk_receive_queue.lock);
+			WRITE_ONCE(u->inq_len, u->inq_len - skb->len);
+			__skb_unlink(skb, &sk->sk_receive_queue);
+			spin_unlock(&sk->sk_receive_queue.lock);
+
 			consume_skb(skb);
 
 			if (scm.fp)
@@ -3159,9 +3175,11 @@ long unix_inq_len(struct sock *sk)
 	if (READ_ONCE(sk->sk_state) == TCP_LISTEN)
 		return -EINVAL;
 
+	if (sk->sk_type == SOCK_STREAM)
+		return READ_ONCE(unix_sk(sk)->inq_len);
+
 	spin_lock(&sk->sk_receive_queue.lock);
-	if (sk->sk_type == SOCK_STREAM ||
-	    sk->sk_type == SOCK_SEQPACKET) {
+	if (sk->sk_type == SOCK_SEQPACKET) {
 		skb_queue_walk(&sk->sk_receive_queue, skb)
 			amount += unix_skb_len(skb);
 	} else {
