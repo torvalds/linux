@@ -2466,7 +2466,6 @@ struct bpf_kprobe_multi_link {
 	u32 cnt;
 	u32 mods_cnt;
 	struct module **mods;
-	u32 flags;
 };
 
 struct bpf_kprobe_multi_run_ctx {
@@ -2586,7 +2585,7 @@ static int bpf_kprobe_multi_link_fill_link_info(const struct bpf_link *link,
 
 	kmulti_link = container_of(link, struct bpf_kprobe_multi_link, link);
 	info->kprobe_multi.count = kmulti_link->cnt;
-	info->kprobe_multi.flags = kmulti_link->flags;
+	info->kprobe_multi.flags = kmulti_link->link.flags;
 	info->kprobe_multi.missed = kmulti_link->fp.nmissed;
 
 	if (!uaddrs)
@@ -2976,7 +2975,7 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	link->addrs = addrs;
 	link->cookies = cookies;
 	link->cnt = cnt;
-	link->flags = flags;
+	link->link.flags = flags;
 
 	if (cookies) {
 		/*
@@ -3045,7 +3044,6 @@ struct bpf_uprobe_multi_link {
 	struct path path;
 	struct bpf_link link;
 	u32 cnt;
-	u32 flags;
 	struct bpf_uprobe *uprobes;
 	struct task_struct *task;
 };
@@ -3109,7 +3107,7 @@ static int bpf_uprobe_multi_link_fill_link_info(const struct bpf_link *link,
 
 	umulti_link = container_of(link, struct bpf_uprobe_multi_link, link);
 	info->uprobe_multi.count = umulti_link->cnt;
-	info->uprobe_multi.flags = umulti_link->flags;
+	info->uprobe_multi.flags = umulti_link->link.flags;
 	info->uprobe_multi.pid = umulti_link->task ?
 				 task_pid_nr_ns(umulti_link->task, task_active_pid_ns(current)) : 0;
 
@@ -3369,7 +3367,7 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	link->uprobes = uprobes;
 	link->path = path;
 	link->task = task;
-	link->flags = flags;
+	link->link.flags = flags;
 
 	bpf_link_init(&link->link, BPF_LINK_TYPE_UPROBE_MULTI,
 		      &bpf_uprobe_multi_link_lops, prog);

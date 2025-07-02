@@ -3228,7 +3228,14 @@ static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 	char prog_tag[sizeof(prog->tag) * 2 + 1] = { };
 
 	if (type < ARRAY_SIZE(bpf_link_type_strs) && bpf_link_type_strs[type]) {
-		seq_printf(m, "link_type:\t%s\n", bpf_link_type_strs[type]);
+		if (link->type == BPF_LINK_TYPE_KPROBE_MULTI)
+			seq_printf(m, "link_type:\t%s\n", link->flags == BPF_F_KPROBE_MULTI_RETURN ?
+				   "kretprobe_multi" : "kprobe_multi");
+		else if (link->type == BPF_LINK_TYPE_UPROBE_MULTI)
+			seq_printf(m, "link_type:\t%s\n", link->flags == BPF_F_UPROBE_MULTI_RETURN ?
+				   "uretprobe_multi" : "uprobe_multi");
+		else
+			seq_printf(m, "link_type:\t%s\n", bpf_link_type_strs[type]);
 	} else {
 		WARN_ONCE(1, "missing BPF_LINK_TYPE(...) for link type %u\n", type);
 		seq_printf(m, "link_type:\t<%u>\n", type);

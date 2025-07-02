@@ -1702,6 +1702,7 @@ struct bpf_link {
 	 * link's semantics is determined by target attach hook
 	 */
 	bool sleepable;
+	u32 flags;
 	/* rcu is used before freeing, work can be used to schedule that
 	 * RCU-based freeing before that, so they never overlap
 	 */
