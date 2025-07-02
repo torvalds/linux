@@ -929,6 +929,51 @@ static struct net_iov *io_zcrx_alloc_fallback(struct io_zcrx_area *area)
 	return niov;
 }
 
+struct io_copy_cache {
+	struct page		*page;
+	unsigned long		offset;
+	size_t			size;
+};
+
+static ssize_t io_copy_page(struct io_copy_cache *cc, struct page *src_page,
+			    unsigned int src_offset, size_t len)
+{
+	size_t copied = 0;
+
+	len = min(len, cc->size);
+
+	while (len) {
+		void *src_addr, *dst_addr;
+		struct page *dst_page = cc->page;
+		unsigned dst_offset = cc->offset;
+		size_t n = len;
+
+		if (folio_test_partial_kmap(page_folio(dst_page)) ||
+		    folio_test_partial_kmap(page_folio(src_page))) {
+			dst_page = nth_page(dst_page, dst_offset / PAGE_SIZE);
+			dst_offset = offset_in_page(dst_offset);
+			src_page = nth_page(src_page, src_offset / PAGE_SIZE);
+			src_offset = offset_in_page(src_offset);
+			n = min(PAGE_SIZE - src_offset, PAGE_SIZE - dst_offset);
+			n = min(n, len);
+		}
+
+		dst_addr = kmap_local_page(dst_page) + dst_offset;
+		src_addr = kmap_local_page(src_page) + src_offset;
+
+		memcpy(dst_addr, src_addr, n);
+
+		kunmap_local(src_addr);
+		kunmap_local(dst_addr);
+
+		cc->size -= n;
+		cc->offset += n;
+		len -= n;
+		copied += n;
+	}
+	return copied;
+}
+
 static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 				  struct page *src_page, unsigned int src_offset,
 				  size_t len)
@@ -941,11 +986,9 @@ static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		return -EFAULT;
 
 	while (len) {
-		size_t copy_size = min_t(size_t, PAGE_SIZE, len);
-		const int dst_off = 0;
+		struct io_copy_cache cc;
 		struct net_iov *niov;
-		struct page *dst_page;
-		void *dst_addr, *src_addr;
+		size_t n;
 
 		niov = io_zcrx_alloc_fallback(area);
 		if (!niov) {
@@ -953,25 +996,22 @@ static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 			break;
 		}
 
-		dst_page = io_zcrx_iov_page(niov);
-		dst_addr = kmap_local_page(dst_page);
-		src_addr = kmap_local_page(src_page);
+		cc.page = io_zcrx_iov_page(niov);
+		cc.offset = 0;
+		cc.size = PAGE_SIZE;
 
-		memcpy(dst_addr, src_addr + src_offset, copy_size);
+		n = io_copy_page(&cc, src_page, src_offset, len);
 
-		kunmap_local(src_addr);
-		kunmap_local(dst_addr);
-
-		if (!io_zcrx_queue_cqe(req, niov, ifq, dst_off, copy_size)) {
+		if (!io_zcrx_queue_cqe(req, niov, ifq, 0, n)) {
 			io_zcrx_return_niov(niov);
 			ret = -ENOSPC;
 			break;
 		}
 
 		io_zcrx_get_niov_uref(niov);
-		src_offset += copy_size;
-		len -= copy_size;
-		copied += copy_size;
+		src_offset += n;
+		len -= n;
+		copied += n;
 	}
 
 	return copied ? copied : ret;
@@ -981,19 +1021,8 @@ static int io_zcrx_copy_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 			     const skb_frag_t *frag, int off, int len)
 {
 	struct page *page = skb_frag_page(frag);
-	u32 p_off, p_len, t, copied = 0;
-	int ret = 0;
 
-	off += skb_frag_off(frag);
-
-	skb_frag_foreach_page(frag, off, len,
-			      page, p_off, p_len, t) {
-		ret = io_zcrx_copy_chunk(req, ifq, page, p_off, p_len);
-		if (ret < 0)
-			return copied ? copied : ret;
-		copied += ret;
-	}
-	return copied;
+	return io_zcrx_copy_chunk(req, ifq, page, off + skb_frag_off(frag), len);
 }
 
 static int io_zcrx_recv_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
