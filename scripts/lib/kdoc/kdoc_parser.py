@@ -878,18 +878,13 @@ class KernelDoc:
 
         if self.entry.decl_type == "enum":
             self.dump_enum(ln, prototype)
-            return
-
-        if self.entry.decl_type == "typedef":
+        elif self.entry.decl_type == "typedef":
             self.dump_typedef(ln, prototype)
-            return
-
-        if self.entry.decl_type in ["union", "struct"]:
+        elif self.entry.decl_type in ["union", "struct"]:
             self.dump_struct(ln, prototype)
-            return
-
-        self.output_declaration(self.entry.decl_type, prototype,
-                                entry=self.entry)
+        else:
+            # This would be a bug
+            self.emit_message(ln, f'Unknown declaration type: {self.entry.decl_type}')
 
     def dump_function(self, ln, prototype):
         """
