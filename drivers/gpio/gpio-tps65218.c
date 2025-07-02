@@ -59,11 +59,6 @@ static int tps65218_gpio_output(struct gpio_chip *gc, unsigned offset,
 	return 0;
 }
 
-static int tps65218_gpio_input(struct gpio_chip *gc, unsigned offset)
-{
-	return -EPERM;
-}
-
 static int tps65218_gpio_request(struct gpio_chip *gc, unsigned offset)
 {
 	struct tps65218_gpio *tps65218_gpio = gpiochip_get_data(gc);
@@ -174,7 +169,6 @@ static const struct gpio_chip template_chip = {
 	.owner			= THIS_MODULE,
 	.request		= tps65218_gpio_request,
 	.direction_output	= tps65218_gpio_output,
-	.direction_input	= tps65218_gpio_input,
 	.get			= tps65218_gpio_get,
 	.set			= tps65218_gpio_set,
 	.set_config		= tps65218_gpio_set_config,
