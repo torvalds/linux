@@ -1277,7 +1277,7 @@ static int sdma_v7_1_sw_init(struct amdgpu_ip_block *ip_block)
 	u32 xcc_id;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GFX,
+	r = amdgpu_irq_add_id(adev, SOC_V1_0_IH_CLIENTID_GFX,
 			      GFX_11_0_0__SRCID__SDMA_TRAP,
 			      &adev->sdma.trap_irq);
 	if (r)
@@ -1526,7 +1526,7 @@ static int sdma_v7_1_process_trap_irq(struct amdgpu_device *adev,
 	}
 
 	switch (entry->client_id) {
-	case SOC21_IH_CLIENTID_GFX:
+	case SOC_V1_0_IH_CLIENTID_GFX:
 		switch (queue) {
 		case 0:
 			amdgpu_fence_process(&adev->sdma.instance[instances].ring);

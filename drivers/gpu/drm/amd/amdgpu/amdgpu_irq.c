@@ -99,6 +99,41 @@ const char *soc15_ih_clientid_name[] = {
 	"MP1"
 };
 
+const char *soc_v1_0_ih_clientid_name[] = {
+	"IH",
+	"Reserved",
+	"ATHUB",
+	"BIF",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"RLC",
+	"Reserved",
+	"Reserved",
+	"GFX",
+	"IMU",
+	"Reserved",
+	"Reserved",
+	"VCN1 or UVD1",
+	"THM",
+	"VCN or UVD",
+	"Reserved",
+	"VMC",
+	"Reserved",
+	"GRBM_CP",
+	"GC_AID",
+	"ROM_SMUIO",
+	"DF",
+	"Reserved",
+	"PWR",
+	"LSDMA",
+	"GC_UTCL2",
+	"nHT",
+	"Reserved",
+	"MP0",
+	"MP1",
+};
+
 const int node_id_to_phys_map[NODEID_MAX] = {
 	[AID0_NODEID] = 0,
 	[XCD0_NODEID] = 0,

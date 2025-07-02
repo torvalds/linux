@@ -26,6 +26,7 @@
 
 #include <linux/irqdomain.h>
 #include "soc15_ih_clientid.h"
+#include "soc_v1_0_ih_clientid.h"
 #include "amdgpu_ih.h"
 
 #define AMDGPU_MAX_IRQ_SRC_ID		0x100

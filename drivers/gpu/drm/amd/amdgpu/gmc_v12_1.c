@@ -124,7 +124,7 @@ static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
 		write_fault = !!(entry->src_data[1] & 0x200000);
 	}
 
-	if (entry->client_id == SOC21_IH_CLIENTID_VMC) {
+	if (entry->client_id == SOC_V1_0_IH_CLIENTID_VMC) {
 		hub_name = "mmhub0";
 		vmhub = AMDGPU_MMHUB0(node_id / 4);
 	} else {
@@ -198,8 +198,8 @@ static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
 		amdgpu_vm_put_task_info(task_info);
 	}
 
-	dev_err(adev->dev, "  in page starting at address 0x%016llx from IH client %d\n",
-		addr, entry->client_id);
+	dev_err(adev->dev, "  in page starting at address 0x%016llx from IH client %d (%s)\n",
+		addr, entry->client_id, soc_v1_0_ih_clientid_name[entry->client_id]);
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
