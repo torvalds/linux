@@ -2803,22 +2803,12 @@ static int unix_stream_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 	if (unlikely(skb == READ_ONCE(u->oob_skb))) {
 		bool drop = false;
 
-		unix_state_lock(sk);
-
-		if (sock_flag(sk, SOCK_DEAD)) {
-			unix_state_unlock(sk);
-			kfree_skb_reason(skb, SKB_DROP_REASON_SOCKET_CLOSE);
-			return -ECONNRESET;
-		}
-
 		spin_lock(&sk->sk_receive_queue.lock);
 		if (likely(skb == u->oob_skb)) {
 			WRITE_ONCE(u->oob_skb, NULL);
 			drop = true;
 		}
 		spin_unlock(&sk->sk_receive_queue.lock);
-
-		unix_state_unlock(sk);
 
 		if (drop) {
 			kfree_skb_reason(skb, SKB_DROP_REASON_UNIX_SKIP_OOB);
