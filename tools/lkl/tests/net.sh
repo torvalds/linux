@@ -127,7 +127,7 @@ setup_backend()
         ;;
     *)
         echo "don't know how to setup backend $1"
-        return $TEST_FAILED
+        return $TEST_FAILURE
         ;;
     esac
 }
