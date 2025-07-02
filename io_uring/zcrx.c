@@ -945,8 +945,8 @@ static struct net_iov *io_zcrx_alloc_fallback(struct io_zcrx_area *area)
 }
 
 static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
-				  void *src_base, struct page *src_page,
-				  unsigned int src_offset, size_t len)
+				  struct page *src_page, unsigned int src_offset,
+				  size_t len)
 {
 	struct io_zcrx_area *area = ifq->area;
 	size_t copied = 0;
@@ -960,7 +960,7 @@ static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		const int dst_off = 0;
 		struct net_iov *niov;
 		struct page *dst_page;
-		void *dst_addr;
+		void *dst_addr, *src_addr;
 
 		niov = io_zcrx_alloc_fallback(area);
 		if (!niov) {
@@ -970,13 +970,11 @@ static ssize_t io_zcrx_copy_chunk(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 
 		dst_page = io_zcrx_iov_page(niov);
 		dst_addr = kmap_local_page(dst_page);
-		if (src_page)
-			src_base = kmap_local_page(src_page);
+		src_addr = kmap_local_page(src_page);
 
-		memcpy(dst_addr, src_base + src_offset, copy_size);
+		memcpy(dst_addr, src_addr + src_offset, copy_size);
 
-		if (src_page)
-			kunmap_local(src_base);
+		kunmap_local(src_addr);
 		kunmap_local(dst_addr);
 
 		if (!io_zcrx_queue_cqe(req, niov, ifq, dst_off, copy_size)) {
@@ -1005,7 +1003,7 @@ static int io_zcrx_copy_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 
 	skb_frag_foreach_page(frag, off, len,
 			      page, p_off, p_len, t) {
-		ret = io_zcrx_copy_chunk(req, ifq, NULL, page, p_off, p_len);
+		ret = io_zcrx_copy_chunk(req, ifq, page, p_off, p_len);
 		if (ret < 0)
 			return copied ? copied : ret;
 		copied += ret;
@@ -1067,8 +1065,9 @@ io_zcrx_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 		size_t to_copy;
 
 		to_copy = min_t(size_t, skb_headlen(skb) - offset, len);
-		copied = io_zcrx_copy_chunk(req, ifq, skb->data, NULL,
-					    offset, to_copy);
+		copied = io_zcrx_copy_chunk(req, ifq, virt_to_page(skb->data),
+					    offset_in_page(skb->data) + offset,
+					    to_copy);
 		if (copied < 0) {
 			ret = copied;
 			goto out;
