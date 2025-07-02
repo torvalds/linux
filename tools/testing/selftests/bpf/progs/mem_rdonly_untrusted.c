@@ -174,4 +174,25 @@ int misaligned_access(void *ctx)
 	return combine(bpf_rdonly_cast(&global, 0) + 1);
 }
 
+__weak int return_one(void)
+{
+	return 1;
+}
+
+SEC("socket")
+__success
+__retval(1)
+int null_check(void *ctx)
+{
+	int *p;
+
+	p = bpf_rdonly_cast(0, 0);
+	if (p == 0)
+		/* make this a function call to avoid compiler
+		 * moving r0 assignment before check.
+		 */
+		return return_one();
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
