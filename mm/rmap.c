@@ -1849,7 +1849,6 @@ static inline unsigned int folio_unmap_pte_batch(struct folio *folio,
 			struct page_vma_mapped_walk *pvmw,
 			enum ttu_flags flags, pte_t pte)
 {
-	const fpb_t fpb_flags = FPB_IGNORE_DIRTY | FPB_IGNORE_SOFT_DIRTY;
 	unsigned long end_addr, addr = pvmw->address;
 	struct vm_area_struct *vma = pvmw->vma;
 	unsigned int max_nr;
@@ -1869,7 +1868,7 @@ static inline unsigned int folio_unmap_pte_batch(struct folio *folio,
 	if (pte_unused(pte))
 		return 1;
 
-	return folio_pte_batch(folio, addr, pvmw->pte, pte, max_nr, fpb_flags,
+	return folio_pte_batch(folio, addr, pvmw->pte, pte, max_nr, 0,
 			       NULL, NULL, NULL);
 }
 

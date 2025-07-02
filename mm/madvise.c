@@ -346,10 +346,9 @@ static inline int madvise_folio_pte_batch(unsigned long addr, unsigned long end,
 					  pte_t pte, bool *any_young,
 					  bool *any_dirty)
 {
-	const fpb_t fpb_flags = FPB_IGNORE_DIRTY | FPB_IGNORE_SOFT_DIRTY;
 	int max_nr = (end - addr) / PAGE_SIZE;
 
-	return folio_pte_batch(folio, addr, ptep, pte, max_nr, fpb_flags, NULL,
+	return folio_pte_batch(folio, addr, ptep, pte, max_nr, 0, NULL,
 			       any_young, any_dirty);
 }
 
