@@ -17,6 +17,8 @@
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
 
+#include <kunit/static_stub.h>
+
 #include <uapi/linux/if_arp.h>
 
 #include <net/mctp.h>
@@ -1010,6 +1012,9 @@ int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 	mctp_eid_t saddr;
 	int rc;
 	u8 tag;
+
+	KUNIT_STATIC_STUB_REDIRECT(mctp_local_output, sk, dst, skb, daddr,
+				   req_tag);
 
 	rc = -ENODEV;
 
