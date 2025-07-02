@@ -1103,27 +1103,14 @@ static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size)
  *	populating the filesystem.
  */
 
-/* Basically copying rpc_get_inode. */
 static struct inode *nfsd_get_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *inode = new_inode(sb);
-	if (!inode)
-		return NULL;
-	/* Following advice from simple_fill_super documentation: */
-	inode->i_ino = iunique(sb, NFSD_MaxReserved);
-	inode->i_mode = mode;
-	simple_inode_init_ts(inode);
-	switch (mode & S_IFMT) {
-	case S_IFDIR:
-		inode->i_fop = &simple_dir_operations;
-		inode->i_op = &simple_dir_inode_operations;
-		inc_nlink(inode);
-		break;
-	case S_IFLNK:
-		inode->i_op = &simple_symlink_inode_operations;
-		break;
-	default:
-		break;
+	if (inode) {
+		/* Following advice from simple_fill_super documentation: */
+		inode->i_ino = iunique(sb, NFSD_MaxReserved);
+		inode->i_mode = mode;
+		simple_inode_init_ts(inode);
 	}
 	return inode;
 }
@@ -1143,6 +1130,9 @@ static struct dentry *nfsd_mkdir(struct dentry *parent, struct nfsdfs_client *nc
 		iput(inode);
 		return dentry;
 	}
+	inode->i_fop = &simple_dir_operations;
+	inode->i_op = &simple_dir_inode_operations;
+	inc_nlink(inode);
 	if (ncl) {
 		inode->i_private = ncl;
 		kref_get(&ncl->cl_ref);
@@ -1176,6 +1166,7 @@ static void _nfsd_symlink(struct dentry *parent, const char *name,
 		return;
 	}
 
+	inode->i_op = &simple_symlink_inode_operations;
 	inode->i_link = (char *)content;
 	inode->i_size = strlen(content);
 
