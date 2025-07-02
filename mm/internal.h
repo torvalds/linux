@@ -221,7 +221,7 @@ static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
  * folio_pte_batch - detect a PTE batch for a large folio
  * @folio: The large folio to detect a PTE batch for.
  * @addr: The user virtual address the first page is mapped at.
- * @start_ptep: Page table pointer for the first entry.
+ * @ptep: Page table pointer for the first entry.
  * @pte: Page table entry for the first page.
  * @max_nr: The maximum number of table entries to consider.
  * @flags: Flags to modify the PTE batch semantics.
@@ -233,24 +233,24 @@ static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
  *		  first one is dirty.
  *
  * Detect a PTE batch: consecutive (present) PTEs that map consecutive
- * pages of the same large folio.
+ * pages of the same large folio in a single VMA and a single page table.
  *
  * All PTEs inside a PTE batch have the same PTE bits set, excluding the PFN,
  * the accessed bit, writable bit, dirty bit (unless FPB_RESPECT_DIRTY is set)
  * and soft-dirty bit (unless FPB_RESPECT_SOFT_DIRTY is set).
  *
- * start_ptep must map any page of the folio. max_nr must be at least one and
- * must be limited by the caller so scanning cannot exceed a single page table.
+ * @ptep must map any page of the folio. max_nr must be at least one and
+ * must be limited by the caller so scanning cannot exceed a single VMA and
+ * a single page table.
  *
  * Return: the number of table entries in the batch.
  */
-static inline int folio_pte_batch(struct folio *folio, unsigned long addr,
-		pte_t *start_ptep, pte_t pte, int max_nr, fpb_t flags,
+static inline unsigned int folio_pte_batch(struct folio *folio, unsigned long addr,
+		pte_t *ptep, pte_t pte, unsigned int max_nr, fpb_t flags,
 		bool *any_writable, bool *any_young, bool *any_dirty)
 {
-	pte_t expected_pte, *ptep;
-	bool writable, young, dirty;
-	int nr, cur_nr;
+	unsigned int nr, cur_nr;
+	pte_t expected_pte;
 
 	if (any_writable)
 		*any_writable = false;
@@ -267,29 +267,22 @@ static inline int folio_pte_batch(struct folio *folio, unsigned long addr,
 	max_nr = min_t(unsigned long, max_nr,
 		       folio_pfn(folio) + folio_nr_pages(folio) - pte_pfn(pte));
 
-	nr = pte_batch_hint(start_ptep, pte);
+	nr = pte_batch_hint(ptep, pte);
 	expected_pte = __pte_batch_clear_ignored(pte_advance_pfn(pte, nr), flags);
-	ptep = start_ptep + nr;
+	ptep = ptep + nr;
 
 	while (nr < max_nr) {
 		pte = ptep_get(ptep);
-		if (any_writable)
-			writable = !!pte_write(pte);
-		if (any_young)
-			young = !!pte_young(pte);
-		if (any_dirty)
-			dirty = !!pte_dirty(pte);
-		pte = __pte_batch_clear_ignored(pte, flags);
 
-		if (!pte_same(pte, expected_pte))
+		if (!pte_same(__pte_batch_clear_ignored(pte, flags), expected_pte))
 			break;
 
 		if (any_writable)
-			*any_writable |= writable;
+			*any_writable |= pte_write(pte);
 		if (any_young)
-			*any_young |= young;
+			*any_young |= pte_young(pte);
 		if (any_dirty)
-			*any_dirty |= dirty;
+			*any_dirty |= pte_dirty(pte);
 
 		cur_nr = pte_batch_hint(ptep, pte);
 		expected_pte = pte_advance_pfn(expected_pte, cur_nr);
