@@ -18,6 +18,8 @@
 #include <linux/string_helpers.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_irq.h>
+#include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -209,6 +211,7 @@ struct btnxpuart_dev {
 
 	struct ps_data psdata;
 	struct btnxpuart_data *nxp_data;
+	struct reset_control *pdn;
 };
 
 #define NXP_V1_FW_REQ_PKT	0xa5
@@ -1757,6 +1760,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	struct hci_dev *hdev;
 	struct btnxpuart_dev *nxpdev;
 	bdaddr_t ba = {0};
+	int err;
 
 	nxpdev = devm_kzalloc(&serdev->dev, sizeof(*nxpdev), GFP_KERNEL);
 	if (!nxpdev)
@@ -1795,12 +1799,24 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 
 	crc8_populate_msb(crc8_table, POLYNOMIAL8);
 
+	nxpdev->pdn = devm_reset_control_get_optional_shared(&serdev->dev, NULL);
+	if (IS_ERR(nxpdev->pdn))
+		return PTR_ERR(nxpdev->pdn);
+
+	err = devm_regulator_get_enable(&serdev->dev, "vcc");
+	if (err) {
+		dev_err(&serdev->dev, "Failed to enable vcc regulator\n");
+		return err;
+	}
+
 	/* Initialize and register HCI device */
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		dev_err(&serdev->dev, "Can't allocate HCI device\n");
 		return -ENOMEM;
 	}
+
+	reset_control_deassert(nxpdev->pdn);
 
 	nxpdev->hdev = hdev;
 
@@ -1840,6 +1856,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	return 0;
 
 probe_fail:
+	reset_control_assert(nxpdev->pdn);
 	hci_free_dev(hdev);
 	return -ENODEV;
 }
@@ -1867,6 +1884,7 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 
 	ps_cleanup(nxpdev);
 	hci_unregister_dev(hdev);
+	reset_control_assert(nxpdev->pdn);
 	hci_free_dev(hdev);
 }
 
