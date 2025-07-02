@@ -2709,6 +2709,39 @@ static phy_interface_t phylink_sfp_select_interface(struct phylink *pl,
 	return interface;
 }
 
+static phy_interface_t phylink_sfp_select_interface_speed(struct phylink *pl,
+							  u32 speed)
+{
+	phy_interface_t best_interface = PHY_INTERFACE_MODE_NA;
+	phy_interface_t interface;
+	u32 max_speed;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(phylink_sfp_interface_preference); i++) {
+		interface = phylink_sfp_interface_preference[i];
+		if (!test_bit(interface, pl->sfp_interfaces))
+			continue;
+
+		max_speed = phylink_interface_max_speed(interface);
+
+		/* The logic here is: if speed == max_speed, then we've found
+		 * the best interface. Otherwise we find the interface that
+		 * can just support the requested speed.
+		 */
+		if (max_speed >= speed)
+			best_interface = interface;
+
+		if (max_speed <= speed)
+			break;
+	}
+
+	if (best_interface == PHY_INTERFACE_MODE_NA)
+		phylink_err(pl, "selection of interface failed, speed %u\n",
+			    speed);
+
+	return best_interface;
+}
+
 static void phylink_merge_link_mode(unsigned long *dst, const unsigned long *b)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask);
@@ -2911,8 +2944,14 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	 * link can be configured correctly.
 	 */
 	if (pl->sfp_bus) {
-		config.interface = phylink_sfp_select_interface(pl,
+		if (kset->base.autoneg == AUTONEG_ENABLE)
+			config.interface =
+				phylink_sfp_select_interface(pl,
 							config.advertising);
+		else
+			config.interface =
+				phylink_sfp_select_interface_speed(pl,
+							config.speed);
 		if (config.interface == PHY_INTERFACE_MODE_NA)
 			return -EINVAL;
 
