@@ -1128,43 +1128,30 @@ static struct inode *nfsd_get_inode(struct super_block *sb, umode_t mode)
 	return inode;
 }
 
-static int __nfsd_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode, struct nfsdfs_client *ncl)
-{
-	struct inode *inode;
-
-	inode = nfsd_get_inode(dir->i_sb, mode);
-	if (!inode)
-		return -ENOMEM;
-	if (ncl) {
-		inode->i_private = ncl;
-		kref_get(&ncl->cl_ref);
-	}
-	d_add(dentry, inode);
-	inc_nlink(dir);
-	fsnotify_mkdir(dir, dentry);
-	return 0;
-}
-
 static struct dentry *nfsd_mkdir(struct dentry *parent, struct nfsdfs_client *ncl, char *name)
 {
 	struct inode *dir = parent->d_inode;
 	struct dentry *dentry;
-	int ret = -ENOMEM;
+	struct inode *inode;
 
-	inode_lock(dir);
-	dentry = d_alloc_name(parent, name);
-	if (!dentry)
-		goto out_err;
-	ret = __nfsd_mkdir(d_inode(parent), dentry, S_IFDIR | 0600, ncl);
-	if (ret)
-		goto out_err;
-out:
+	inode = nfsd_get_inode(parent->d_sb, S_IFDIR | 0600);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	dentry = simple_start_creating(parent, name);
+	if (IS_ERR(dentry)) {
+		iput(inode);
+		return dentry;
+	}
+	if (ncl) {
+		inode->i_private = ncl;
+		kref_get(&ncl->cl_ref);
+	}
+	d_instantiate(dentry, inode);
+	inc_nlink(dir);
+	fsnotify_mkdir(dir, dentry);
 	inode_unlock(dir);
 	return dentry;
-out_err:
-	dput(dentry);
-	dentry = ERR_PTR(ret);
-	goto out;
 }
 
 #if IS_ENABLED(CONFIG_SUNRPC_GSS)
