@@ -29,6 +29,11 @@ properties:
           - const: mediatek,mt2712
       - items:
           - enum:
+              - jty,d101
+              - lenovo,a369i
+          - const: mediatek,mt6572
+      - items:
+          - enum:
               - mediatek,mt6580-evbp1
           - const: mediatek,mt6580
       - items:
