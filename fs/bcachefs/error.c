@@ -621,7 +621,9 @@ print:
 	if (s)
 		s->ret = ret;
 
-	if (trans)
+	if (trans &&
+	    !(flags & FSCK_ERR_NO_LOG) &&
+	    ret == -BCH_ERR_fsck_fix)
 		ret = bch2_trans_log_str(trans, bch2_sb_error_strs[err]) ?: ret;
 err_unlock:
 	mutex_unlock(&c->fsck_error_msgs_lock);

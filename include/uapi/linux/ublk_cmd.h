@@ -135,8 +135,28 @@
 #define UBLKSRV_IO_BUF_TOTAL_SIZE	(1ULL << UBLKSRV_IO_BUF_TOTAL_BITS)
 
 /*
- * zero copy requires 4k block size, and can remap ublk driver's io
- * request into ublksrv's vm space
+ * ublk server can register data buffers for incoming I/O requests with a sparse
+ * io_uring buffer table. The request buffer can then be used as the data buffer
+ * for io_uring operations via the fixed buffer index.
+ * Note that the ublk server can never directly access the request data memory.
+ *
+ * To use this feature, the ublk server must first register a sparse buffer
+ * table on an io_uring instance.
+ * When an incoming ublk request is received, the ublk server submits a
+ * UBLK_U_IO_REGISTER_IO_BUF command to that io_uring instance. The
+ * ublksrv_io_cmd's q_id and tag specify the request whose buffer to register
+ * and addr is the index in the io_uring's buffer table to install the buffer.
+ * SQEs can now be submitted to the io_uring to read/write the request's buffer
+ * by enabling fixed buffers (e.g. using IORING_OP_{READ,WRITE}_FIXED or
+ * IORING_URING_CMD_FIXED) and passing the registered buffer index in buf_index.
+ * Once the last io_uring operation using the request's buffer has completed,
+ * the ublk server submits a UBLK_U_IO_UNREGISTER_IO_BUF command with q_id, tag,
+ * and addr again specifying the request buffer to unregister.
+ * The ublk request is completed when its buffer is unregistered from all
+ * io_uring instances and the ublk server issues UBLK_U_IO_COMMIT_AND_FETCH_REQ.
+ *
+ * Not available for UBLK_F_UNPRIVILEGED_DEV, as a ublk server can leak
+ * uninitialized kernel memory by not reading into the full request buffer.
  */
 #define UBLK_F_SUPPORT_ZERO_COPY	(1ULL << 0)
 
@@ -450,10 +470,10 @@ static inline struct ublk_auto_buf_reg ublk_sqe_addr_to_auto_buf_reg(
 		__u64 sqe_addr)
 {
 	struct ublk_auto_buf_reg reg = {
-		.index = sqe_addr & 0xffff,
-		.flags = (sqe_addr >> 16) & 0xff,
-		.reserved0 = (sqe_addr >> 24) & 0xff,
-		.reserved1 = sqe_addr >> 32,
+		.index = (__u16)sqe_addr,
+		.flags = (__u8)(sqe_addr >> 16),
+		.reserved0 = (__u8)(sqe_addr >> 24),
+		.reserved1 = (__u32)(sqe_addr >> 32),
 	};
 
 	return reg;
