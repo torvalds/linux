@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/marvell,armada-370-neta.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 370/XP/3700/AC5 Ethernet Controller (NETA)
+
+maintainers:
+  - Marcin Wojtas <marcin.s.wojtas@gmail.com>
+
+allOf:
+  - $ref: /schemas/net/ethernet-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-370-neta
+      - marvell,armada-xp-neta
+      - marvell,armada-3700-neta
+      - marvell,armada-ac5-neta
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: core
+      - const: bus
+
+  phys:
+    maxItems: 1
+
+  tx-csum-limit:
+    description: Maximum MTU in bytes for Tx checksum offload; default is 1600 for
+      armada-370-neta and 9800 for others.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  buffer-manager:
+    description: Phandle to hardware buffer manager.
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  bm,pool-long:
+    description: Pool ID for packets larger than the short threshold.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  bm,pool-short:
+    description: Pool ID for packets smaller than the long threshold.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet@70000 {
+        compatible = "marvell,armada-370-neta";
+        reg = <0x70000 0x2500>;
+        interrupts = <8>;
+        clocks = <&gate_clk 4>;
+        tx-csum-limit = <9800>;
+        phy = <&phy0>;
+        phy-mode = "rgmii-id";
+        buffer-manager = <&bm>;
+        bm,pool-long = <0>;
+        bm,pool-short = <1>;
+    };

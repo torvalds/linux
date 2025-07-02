@@ -21,6 +21,7 @@ patternProperties:
   "^(pciclass|pinctrl-single|#pinctrl-single|PowerPC),.*": true
   "^(pl022|pxa-mmc|rcar_sound|rotary-encoder|s5m8767|sdhci),.*": true
   "^(simple-audio-card|st-plgpio|st-spics|ts),.*": true
+  "^pool[0-3],.*": true
 
   # Keep list in alphabetical order.
   "^100ask,.*":
