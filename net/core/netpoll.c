@@ -402,11 +402,11 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 		WARN_ON_ONCE(!irqs_disabled());
 
-	udp_len = len + sizeof(*udph);
+	udp_len = len + sizeof(struct udphdr);
 	if (np->ipv6)
-		ip_len = udp_len + sizeof(*ip6h);
+		ip_len = udp_len + sizeof(struct ipv6hdr);
 	else
-		ip_len = udp_len + sizeof(*iph);
+		ip_len = udp_len + sizeof(struct iphdr);
 
 	total_len = ip_len + LL_RESERVED_SPACE(np->dev);
 
@@ -418,7 +418,7 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	skb_copy_to_linear_data(skb, msg, len);
 	skb_put(skb, len);
 
-	skb_push(skb, sizeof(*udph));
+	skb_push(skb, sizeof(struct udphdr));
 	skb_reset_transport_header(skb);
 	udph = udp_hdr(skb);
 	udph->source = htons(np->local_port);
@@ -434,7 +434,7 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		if (udph->check == 0)
 			udph->check = CSUM_MANGLED_0;
 
-		skb_push(skb, sizeof(*ip6h));
+		skb_push(skb, sizeof(struct ipv6hdr));
 		skb_reset_network_header(skb);
 		ip6h = ipv6_hdr(skb);
 
@@ -461,7 +461,7 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 		if (udph->check == 0)
 			udph->check = CSUM_MANGLED_0;
 
-		skb_push(skb, sizeof(*iph));
+		skb_push(skb, sizeof(struct iphdr));
 		skb_reset_network_header(skb);
 		iph = ip_hdr(skb);
 
