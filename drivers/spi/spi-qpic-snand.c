@@ -277,9 +277,22 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 		goto err_free_ecc_cfg;
 	}
 
-	if (ecc_cfg->strength != 4) {
+	switch (ecc_cfg->strength) {
+	case 4:
+		ecc_cfg->ecc_mode = ECC_MODE_4BIT;
+		ecc_cfg->ecc_bytes_hw = 7;
+		ecc_cfg->spare_bytes = 4;
+		break;
+
+	case 8:
+		ecc_cfg->ecc_mode = ECC_MODE_8BIT;
+		ecc_cfg->ecc_bytes_hw = 13;
+		ecc_cfg->spare_bytes = 2;
+		break;
+
+	default:
 		dev_err(snandc->dev,
-			"only 4 bits ECC strength is supported\n");
+			"only 4 or 8 bits ECC strength is supported\n");
 		ret = -EOPNOTSUPP;
 		goto err_free_ecc_cfg;
 	}
@@ -296,8 +309,6 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 	nand->ecc.ctx.priv = ecc_cfg;
 	snandc->qspi->mtd = mtd;
 
-	ecc_cfg->ecc_bytes_hw = 7;
-	ecc_cfg->spare_bytes = 4;
 	ecc_cfg->bbm_size = 1;
 	ecc_cfg->bch_enabled = true;
 	ecc_cfg->bytes = ecc_cfg->ecc_bytes_hw + ecc_cfg->spare_bytes + ecc_cfg->bbm_size;
@@ -343,7 +354,7 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 			       FIELD_PREP(ECC_SW_RESET, 0) |
 			       FIELD_PREP(ECC_NUM_DATA_BYTES_MASK, ecc_cfg->cw_data) |
 			       FIELD_PREP(ECC_FORCE_CLK_OPEN, 1) |
-			       FIELD_PREP(ECC_MODE_MASK, ECC_MODE_4BIT) |
+			       FIELD_PREP(ECC_MODE_MASK, ecc_cfg->ecc_mode) |
 			       FIELD_PREP(ECC_PARITY_SIZE_BYTES_BCH_MASK, ecc_cfg->ecc_bytes_hw);
 
 	ecc_cfg->ecc_buf_cfg = FIELD_PREP(NUM_STEPS_MASK, 0x203);
