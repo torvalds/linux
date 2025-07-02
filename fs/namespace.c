@@ -6194,24 +6194,22 @@ bool our_mnt(struct vfsmount *mnt)
 bool current_chrooted(void)
 {
 	/* Does the current process have a non-standard root */
-	struct path ns_root;
+	struct mount *root = current->nsproxy->mnt_ns->root;
 	struct path fs_root;
 	bool chrooted;
 
-	/* Find the namespace root */
-	ns_root.mnt = &current->nsproxy->mnt_ns->root->mnt;
-	ns_root.dentry = ns_root.mnt->mnt_root;
-	path_get(&ns_root);
-	while (d_mountpoint(ns_root.dentry) && follow_down_one(&ns_root))
-		;
-
 	get_fs_root(current->fs, &fs_root);
 
-	chrooted = !path_equal(&fs_root, &ns_root);
+	/* Find the namespace root */
+	read_seqlock_excl(&mount_lock);
 
+	while (unlikely(root->overmount))
+		root = root->overmount;
+
+	chrooted = fs_root.mnt != &root->mnt || !path_mounted(&fs_root);
+
+	read_sequnlock_excl(&mount_lock);
 	path_put(&fs_root);
-	path_put(&ns_root);
-
 	return chrooted;
 }
 
