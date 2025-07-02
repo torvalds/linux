@@ -664,7 +664,7 @@ static void amdgpu_userq_restore_worker(struct work_struct *work)
 	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
 	int ret;
 
-	flush_work(&fpriv->evf_mgr.suspend_work.work);
+	flush_delayed_work(&fpriv->evf_mgr.suspend_work);
 
 	mutex_lock(&uq_mgr->userq_mutex);
 
