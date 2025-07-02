@@ -1744,6 +1744,13 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 			nvkm_gsp_sg_free(gsp->subdev.device, &gsp->sr.sgt);
 			return ret;
 		}
+
+		/*
+		 * TODO: Debug the GSP firmware / RPC handling to find out why
+		 * without this Turing (but none of the other architectures)
+		 * ends up resetting all channels after resume.
+		 */
+		msleep(50);
 	}
 
 	ret = r535_gsp_rpc_unloading_guest_driver(gsp, suspend);
