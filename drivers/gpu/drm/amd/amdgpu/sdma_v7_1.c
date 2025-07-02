@@ -369,7 +369,7 @@ static void sdma_v7_1_inst_gfx_stop(struct amdgpu_device *adev,
 	u32 rb_cntl, ib_cntl;
 	int i;
 
-	for_each_inst(i, inst_mask) {
+	for (i = 0; i < NUM_XCC(inst_mask); i++) {
 		rb_cntl = RREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_QUEUE0_RB_CNTL));
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_SDMA_QUEUE0_RB_CNTL, RB_ENABLE, 0);
 		WREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_QUEUE0_RB_CNTL), rb_cntl);
@@ -436,7 +436,7 @@ static void sdma_v7_1_inst_enable(struct amdgpu_device *adev,
 	if (amdgpu_sriov_vf(adev))
 		return;
 
-	for_each_inst(i, inst_mask) {
+	for (i = 0; i < NUM_XCC(inst_mask); i++) {
 		mcu_cntl = RREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_MCU_CNTL));
 		mcu_cntl = REG_SET_FIELD(mcu_cntl, SDMA0_SDMA_MCU_CNTL, HALT, enable ? 0 : 1);
 		WREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_MCU_CNTL), mcu_cntl);
@@ -617,7 +617,7 @@ static int sdma_v7_1_inst_gfx_resume(struct amdgpu_device *adev,
 {
 	int i, r;
 
-	for_each_inst(i, inst_mask) {
+	for (i = 0; i < NUM_XCC(inst_mask); i++) {
 		r = sdma_v7_1_gfx_resume_instance(adev, i, false);
 		if (r)
 			return r;
@@ -647,7 +647,7 @@ static void sdma_v7_1_inst_free_ucode_buffer(struct amdgpu_device *adev,
 {
 	int i;
 
-	for_each_inst(i, inst_mask) {
+	for (i = 0; i < NUM_XCC(inst_mask); i++) {
 		amdgpu_bo_free_kernel(&adev->sdma.instance[i].sdma_fw_obj,
 				      &adev->sdma.instance[i].sdma_fw_gpu_addr,
 				      (void **)&adev->sdma.instance[i].sdma_fw_ptr);
@@ -686,7 +686,7 @@ static int sdma_v7_1_inst_load_microcode(struct amdgpu_device *adev,
 			le32_to_cpu(hdr->ucode_offset_bytes));
 	fw_size = le32_to_cpu(hdr->ucode_size_bytes);
 
-	for_each_inst(i, inst_mask) {
+	for (i = 0; i < NUM_XCC(inst_mask); i++) {
 		r = amdgpu_bo_create_reserved(adev, fw_size,
 					      PAGE_SIZE,
 					      AMDGPU_GEM_DOMAIN_VRAM,
@@ -744,10 +744,10 @@ static int sdma_v7_1_soft_reset(struct amdgpu_ip_block *ip_block)
 	u32 tmp;
 	int i;
 
-	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
+	inst_mask = adev->sdma.sdma_mask;
 	sdma_v7_1_inst_gfx_stop(adev, inst_mask);
 
-	for_each_inst(i, inst_mask) {
+	for (i = 0; i < NUM_XCC(inst_mask); i++) {
 		//tmp = RREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_FREEZE));
 		//tmp |= SDMA0_SDMA_FREEZE__FREEZE_MASK;
 		//WREG32_SOC15_IP(GC, sdma_v7_1_get_reg_offset(adev, i, regSDMA0_SDMA_FREEZE), tmp);
@@ -1288,10 +1288,14 @@ static int sdma_v7_1_sw_init(struct amdgpu_ip_block *ip_block)
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
 		ring->me = i;
-		xcc_id = adev->sdma.instance[i].xcc_id;
+
+		for (xcc_id = 0; xcc_id < fls(adev->gfx.xcc_mask); xcc_id++) {
+			if (adev->sdma.instance[i].xcc_id == GET_INST(GC, xcc_id))
+				break;
+		}
 
 		DRM_DEBUG("SDMA%d.%d use_doorbell being set to: [%s]\n",
-				xcc_id, i % adev->sdma.num_inst_per_xcc,
+				xcc_id, GET_INST(SDMA0, i) % adev->sdma.num_inst_per_xcc,
 				ring->use_doorbell?"true":"false");
 
 		ring->doorbell_index =
@@ -1299,7 +1303,7 @@ static int sdma_v7_1_sw_init(struct amdgpu_ip_block *ip_block)
 
 		ring->vm_hub = AMDGPU_GFXHUB(xcc_id);
 		sprintf(ring->name, "sdma%d.%d", xcc_id,
-				i % adev->sdma.num_inst_per_xcc);
+				GET_INST(SDMA0, i) % adev->sdma.num_inst_per_xcc);
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->sdma.trap_irq,
 				     AMDGPU_SDMA_IRQ_INSTANCE0 + i,
@@ -1334,10 +1338,7 @@ static int sdma_v7_1_sw_init(struct amdgpu_ip_block *ip_block)
 static int sdma_v7_1_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	uint32_t inst_mask;
 	int i;
-
-	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
@@ -1346,7 +1347,7 @@ static int sdma_v7_1_sw_fini(struct amdgpu_ip_block *ip_block)
 	amdgpu_sdma_destroy_inst_ctx(adev, true);
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)
-		sdma_v7_1_inst_free_ucode_buffer(adev, inst_mask);
+		sdma_v7_1_inst_free_ucode_buffer(adev, adev->sdma.sdma_mask);
 
 	kfree(adev->sdma.ip_dump);
 
@@ -1356,24 +1357,19 @@ static int sdma_v7_1_sw_fini(struct amdgpu_ip_block *ip_block)
 static int sdma_v7_1_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	uint32_t inst_mask;
 
-	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
-
-	return sdma_v7_1_inst_start(adev, inst_mask);
+	return sdma_v7_1_inst_start(adev, adev->sdma.sdma_mask);
 }
 
 static int sdma_v7_1_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	uint32_t inst_mask;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	inst_mask = GENMASK(adev->sdma.num_instances - 1, 0);
-	sdma_v7_1_inst_ctx_switch_enable(adev, false, inst_mask);
-	sdma_v7_1_inst_enable(adev, false, inst_mask);
+	sdma_v7_1_inst_ctx_switch_enable(adev, false, adev->sdma.sdma_mask);
+	sdma_v7_1_inst_enable(adev, false, adev->sdma.sdma_mask);
 
 	return 0;
 }
@@ -1493,7 +1489,7 @@ static int sdma_v7_1_process_trap_irq(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	int instances, queue, xcc_id = 0;
+	int inst, instances, queue, xcc_id = 0;
 	uint32_t mes_queue_id = entry->src_data[0];
 
 	DRM_DEBUG("IH: SDMA trap\n");
@@ -1518,8 +1514,12 @@ static int sdma_v7_1_process_trap_irq(struct amdgpu_device *adev,
 		xcc_id = adev->gfx.funcs->ih_node_to_logical_xcc(adev, entry->node_id);
 	else
 		dev_warn(adev->dev, "IH: SDMA may get wrong xcc id as gfx function not available\n");
-	instances = ((entry->ring_id & 0xf0) >> 4) +
-		xcc_id * adev->sdma.num_inst_per_xcc;
+	inst = ((entry->ring_id & 0xf0) >> 4) +
+		GET_INST(GC, xcc_id) * adev->sdma.num_inst_per_xcc;
+	for (instances = 0; instances < adev->sdma.num_instances; instances++) {
+		if (inst == GET_INST(SDMA0, instances))
+			break;
+	}
 	if (instances > adev->sdma.num_instances - 1) {
 		DRM_ERROR("IH: wrong ring_ID detected, as wrong sdma instance\n");
 		return -EINVAL;
