@@ -1267,33 +1267,31 @@ struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type)
 EXPORT_SYMBOL(dev_getfirstbyhwtype);
 
 /**
- *	__dev_get_by_flags - find any device with given flags
- *	@net: the applicable net namespace
- *	@if_flags: IFF_* values
- *	@mask: bitmask of bits in if_flags to check
+ * dev_get_by_flags_rcu - find any device with given flags
+ * @net: the applicable net namespace
+ * @if_flags: IFF_* values
+ * @mask: bitmask of bits in if_flags to check
  *
- *	Search for any interface with the given flags. Returns NULL if a device
- *	is not found or a pointer to the device. Must be called inside
- *	rtnl_lock(), and result refcount is unchanged.
+ * Search for any interface with the given flags.
+ *
+ * Context: rcu_read_lock() must be held.
+ * Returns: NULL if a device is not found or a pointer to the device.
  */
-
-struct net_device *__dev_get_by_flags(struct net *net, unsigned short if_flags,
-				      unsigned short mask)
+struct net_device *dev_get_by_flags_rcu(struct net *net, unsigned short if_flags,
+					unsigned short mask)
 {
-	struct net_device *dev, *ret;
+	struct net_device *dev;
 
-	ASSERT_RTNL();
-
-	ret = NULL;
-	for_each_netdev(net, dev) {
-		if (((dev->flags ^ if_flags) & mask) == 0) {
-			ret = dev;
-			break;
+	for_each_netdev_rcu(net, dev) {
+		if (((READ_ONCE(dev->flags) ^ if_flags) & mask) == 0) {
+			dev_hold(dev);
+			return dev;
 		}
 	}
-	return ret;
+
+	return NULL;
 }
-EXPORT_SYMBOL(__dev_get_by_flags);
+EXPORT_IPV6_MOD(dev_get_by_flags_rcu);
 
 /**
  *	dev_valid_name - check if name is okay for network device
