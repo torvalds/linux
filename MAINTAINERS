@@ -13673,8 +13673,11 @@ F:	drivers/usb/misc/legousbtower.c
 
 LENOVO drivers
 M:	Mark Pearson <mpearson-lenovo@squebb.ca>
+M:	Derek J. Clark <derekjohn.clark@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
+F:	Documentation/wmi/devices/lenovo-wmi-gamezone.rst
+F:	Documentation/wmi/devices/lenovo-wmi-other.rst
 F:	drivers/platform/x86/lenovo/*
 
 LENOVO WMI HOTKEY UTILITIES DRIVER
