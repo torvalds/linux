@@ -12,6 +12,7 @@
 
 #include "clk-regmap.h"
 #include "clk-pll.h"
+#include "meson-clkc-utils.h"
 
 #define AM_DDR_PLL_CNTL			0x00
 #define AM_DDR_PLL_CNTL1		0x04
@@ -77,15 +78,17 @@ static struct clk_regmap meson8_ddr_pll = {
 	},
 };
 
-static struct clk_hw_onecell_data meson8_ddr_clk_hw_onecell_data = {
-	.hws = {
-		[DDR_CLKID_DDR_PLL_DCO]		= &meson8_ddr_pll_dco.hw,
-		[DDR_CLKID_DDR_PLL]		= &meson8_ddr_pll.hw,
-	},
-	.num = 2,
+static struct clk_hw *meson8_ddr_hw_clks[] = {
+	[DDR_CLKID_DDR_PLL_DCO]		= &meson8_ddr_pll_dco.hw,
+	[DDR_CLKID_DDR_PLL]		= &meson8_ddr_pll.hw,
 };
 
-static const struct regmap_config meson8_ddr_clkc_regmap_config = {
+static struct meson_clk_hw_data meson8_ddr_clks = {
+	.hws = meson8_ddr_hw_clks,
+	.num = ARRAY_SIZE(meson8_ddr_hw_clks),
+};
+
+static const struct regmap_config meson8_ddr_regmap_cfg = {
 	.reg_bits = 8,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -104,13 +107,13 @@ static int meson8_ddr_clkc_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	regmap = devm_regmap_init_mmio(&pdev->dev, base,
-				       &meson8_ddr_clkc_regmap_config);
+				       &meson8_ddr_regmap_cfg);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	/* Register all clks */
-	for (i = 0; i < meson8_ddr_clk_hw_onecell_data.num; i++) {
-		hw = meson8_ddr_clk_hw_onecell_data.hws[i];
+	for (i = 0; i < meson8_ddr_clks.num; i++) {
+		hw = meson8_ddr_clks.hws[i];
 
 		ret = devm_clk_hw_register(&pdev->dev, hw);
 		if (ret) {
@@ -119,8 +122,8 @@ static int meson8_ddr_clkc_probe(struct platform_device *pdev)
 		}
 	}
 
-	return devm_of_clk_add_hw_provider(&pdev->dev, of_clk_hw_onecell_get,
-					   &meson8_ddr_clk_hw_onecell_data);
+	return devm_of_clk_add_hw_provider(&pdev->dev, meson_clk_hw_get,
+					   &meson8_ddr_clks);
 }
 
 static const struct of_device_id meson8_ddr_clkc_match_table[] = {
