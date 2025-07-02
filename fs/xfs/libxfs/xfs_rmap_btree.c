@@ -273,7 +273,7 @@ xfs_rmapbt_cmp_key_with_cur(
 	return 0;
 }
 
-STATIC int64_t
+STATIC int
 xfs_rmapbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -282,36 +282,31 @@ xfs_rmapbt_cmp_two_keys(
 {
 	const struct xfs_rmap_key	*kp1 = &k1->rmap;
 	const struct xfs_rmap_key	*kp2 = &k2->rmap;
-	int64_t				d;
-	__u64				x, y;
+	int				d;
 
 	/* Doesn't make sense to mask off the physical space part */
 	ASSERT(!mask || mask->rmap.rm_startblock);
 
-	d = (int64_t)be32_to_cpu(kp1->rm_startblock) -
-		     be32_to_cpu(kp2->rm_startblock);
+	d = cmp_int(be32_to_cpu(kp1->rm_startblock),
+		    be32_to_cpu(kp2->rm_startblock));
 	if (d)
 		return d;
 
 	if (!mask || mask->rmap.rm_owner) {
-		x = be64_to_cpu(kp1->rm_owner);
-		y = be64_to_cpu(kp2->rm_owner);
-		if (x > y)
-			return 1;
-		else if (y > x)
-			return -1;
+		d = cmp_int(be64_to_cpu(kp1->rm_owner),
+			    be64_to_cpu(kp2->rm_owner));
+		if (d)
+			return d;
 	}
 
 	if (!mask || mask->rmap.rm_offset) {
 		/* Doesn't make sense to allow offset but not owner */
 		ASSERT(!mask || mask->rmap.rm_owner);
 
-		x = offset_keymask(be64_to_cpu(kp1->rm_offset));
-		y = offset_keymask(be64_to_cpu(kp2->rm_offset));
-		if (x > y)
-			return 1;
-		else if (y > x)
-			return -1;
+		d = cmp_int(offset_keymask(be64_to_cpu(kp1->rm_offset)),
+			    offset_keymask(be64_to_cpu(kp2->rm_offset)));
+		if (d)
+			return d;
 	}
 
 	return 0;

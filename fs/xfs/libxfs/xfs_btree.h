@@ -184,7 +184,7 @@ struct xfs_btree_ops {
 	 * each key field to be used in the comparison must contain a nonzero
 	 * value.
 	 */
-	int64_t (*cmp_two_keys)(struct xfs_btree_cur *cur,
+	int	(*cmp_two_keys)(struct xfs_btree_cur *cur,
 				const union xfs_btree_key *key1,
 				const union xfs_btree_key *key2,
 				const union xfs_btree_key *mask);

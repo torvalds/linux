@@ -274,7 +274,7 @@ xfs_inobt_cmp_key_with_cur(
 			  cur->bc_rec.i.ir_startino;
 }
 
-STATIC int64_t
+STATIC int
 xfs_inobt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -283,8 +283,8 @@ xfs_inobt_cmp_two_keys(
 {
 	ASSERT(!mask || mask->inobt.ir_startino);
 
-	return (int64_t)be32_to_cpu(k1->inobt.ir_startino) -
-			be32_to_cpu(k2->inobt.ir_startino);
+	return cmp_int(be32_to_cpu(k1->inobt.ir_startino),
+		       be32_to_cpu(k2->inobt.ir_startino));
 }
 
 static xfs_failaddr_t

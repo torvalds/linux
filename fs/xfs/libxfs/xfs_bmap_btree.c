@@ -378,29 +378,17 @@ xfs_bmbt_cmp_key_with_cur(
 				      cur->bc_rec.b.br_startoff;
 }
 
-STATIC int64_t
+STATIC int
 xfs_bmbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2,
 	const union xfs_btree_key	*mask)
 {
-	uint64_t			a = be64_to_cpu(k1->bmbt.br_startoff);
-	uint64_t			b = be64_to_cpu(k2->bmbt.br_startoff);
-
 	ASSERT(!mask || mask->bmbt.br_startoff);
 
-	/*
-	 * Note: This routine previously casted a and b to int64 and subtracted
-	 * them to generate a result.  This lead to problems if b was the
-	 * "maximum" key value (all ones) being signed incorrectly, hence this
-	 * somewhat less efficient version.
-	 */
-	if (a > b)
-		return 1;
-	if (b > a)
-		return -1;
-	return 0;
+	return cmp_int(be64_to_cpu(k1->bmbt.br_startoff),
+		       be64_to_cpu(k2->bmbt.br_startoff));
 }
 
 static xfs_failaddr_t

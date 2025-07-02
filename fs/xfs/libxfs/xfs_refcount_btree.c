@@ -188,7 +188,7 @@ xfs_refcountbt_cmp_key_with_cur(
 	return (int64_t)be32_to_cpu(kp->rc_startblock) - start;
 }
 
-STATIC int64_t
+STATIC int
 xfs_refcountbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -197,8 +197,8 @@ xfs_refcountbt_cmp_two_keys(
 {
 	ASSERT(!mask || mask->refc.rc_startblock);
 
-	return (int64_t)be32_to_cpu(k1->refc.rc_startblock) -
-			be32_to_cpu(k2->refc.rc_startblock);
+	return cmp_int(be32_to_cpu(k1->refc.rc_startblock),
+		       be32_to_cpu(k2->refc.rc_startblock));
 }
 
 STATIC xfs_failaddr_t

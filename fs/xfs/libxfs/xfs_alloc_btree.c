@@ -213,7 +213,7 @@ xfs_cntbt_cmp_key_with_cur(
 	return (int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
 }
 
-STATIC int64_t
+STATIC int
 xfs_bnobt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
@@ -222,29 +222,24 @@ xfs_bnobt_cmp_two_keys(
 {
 	ASSERT(!mask || mask->alloc.ar_startblock);
 
-	return (int64_t)be32_to_cpu(k1->alloc.ar_startblock) -
-			be32_to_cpu(k2->alloc.ar_startblock);
+	return cmp_int(be32_to_cpu(k1->alloc.ar_startblock),
+		       be32_to_cpu(k2->alloc.ar_startblock));
 }
 
-STATIC int64_t
+STATIC int
 xfs_cntbt_cmp_two_keys(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*k1,
 	const union xfs_btree_key	*k2,
 	const union xfs_btree_key	*mask)
 {
-	int64_t				diff;
-
 	ASSERT(!mask || (mask->alloc.ar_blockcount &&
 			 mask->alloc.ar_startblock));
 
-	diff =  be32_to_cpu(k1->alloc.ar_blockcount) -
-		be32_to_cpu(k2->alloc.ar_blockcount);
-	if (diff)
-		return diff;
-
-	return  be32_to_cpu(k1->alloc.ar_startblock) -
-		be32_to_cpu(k2->alloc.ar_startblock);
+	return cmp_int(be32_to_cpu(k1->alloc.ar_blockcount),
+		       be32_to_cpu(k2->alloc.ar_blockcount)) ?:
+	       cmp_int(be32_to_cpu(k1->alloc.ar_startblock),
+		       be32_to_cpu(k2->alloc.ar_startblock));
 }
 
 static xfs_failaddr_t
