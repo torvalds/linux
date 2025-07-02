@@ -12,13 +12,14 @@
 #define DESC_BIT(nr)		BIT_ULL(nr)
 #define DESC_GENMASK(h, l)	GENMASK_ULL(h, l)
 
+#define FW_VER_CODE(_major, _minor, _patch, _build) (		      \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_MAJOR, _major) | \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_MINOR, _minor) | \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_PATCH, _patch) | \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_BUILD, _build))
+
 /* Defines the minimum firmware version required by the driver */
-#define MIN_FW_MAJOR_VERSION    0
-#define MIN_FW_MINOR_VERSION    10
-#define MIN_FW_PATCH_VERSION    6
-#define MIN_FW_VERSION_CODE     (MIN_FW_MAJOR_VERSION * (1u << 24) + \
-				 MIN_FW_MINOR_VERSION * (1u << 16) + \
-				 MIN_FW_PATCH_VERSION * (1u << 8))
+#define MIN_FW_VER_CODE				FW_VER_CODE(0, 10, 6, 0)
 
 #define PCI_DEVICE_ID_META_FBNIC_ASIC		0x0013
 

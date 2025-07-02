@@ -573,16 +573,15 @@ static int fbnic_fw_parse_cap_resp(void *opaque, struct fbnic_tlv_msg **results)
 	if (!fbd->fw_cap.running.mgmt.version)
 		return -EINVAL;
 
-	if (fbd->fw_cap.running.mgmt.version < MIN_FW_VERSION_CODE) {
+	if (fbd->fw_cap.running.mgmt.version < MIN_FW_VER_CODE) {
+		char required_ver[FBNIC_FW_VER_MAX_SIZE];
 		char running_ver[FBNIC_FW_VER_MAX_SIZE];
 
 		fbnic_mk_fw_ver_str(fbd->fw_cap.running.mgmt.version,
 				    running_ver);
-		dev_err(fbd->dev, "Device firmware version(%s) is older than minimum required version(%02d.%02d.%02d)\n",
-			running_ver,
-			MIN_FW_MAJOR_VERSION,
-			MIN_FW_MINOR_VERSION,
-			MIN_FW_PATCH_VERSION);
+		fbnic_mk_fw_ver_str(MIN_FW_VER_CODE, required_ver);
+		dev_err(fbd->dev, "Device firmware version(%s) is older than minimum required version(%s)\n",
+			running_ver, required_ver);
 		/* Disable TX mailbox to prevent card use until firmware is
 		 * updated.
 		 */
@@ -1167,7 +1166,7 @@ int fbnic_mbx_poll_tx_ready(struct fbnic_dev *fbd)
 	 * to indicate we entered the polling state waiting for a response
 	 */
 	for (fbd->fw_cap.running.mgmt.version = 1;
-	     fbd->fw_cap.running.mgmt.version < MIN_FW_VERSION_CODE;) {
+	     fbd->fw_cap.running.mgmt.version < MIN_FW_VER_CODE;) {
 		if (!tx_mbx->ready)
 			err = -ENODEV;
 		if (err)
