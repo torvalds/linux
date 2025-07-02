@@ -796,6 +796,7 @@ struct amd_iommu {
 	/* DebugFS Info */
 	struct dentry *debugfs;
 	int dbg_mmio_offset;
+	int dbg_cap_offset;
 #endif
 
 	/* IOPF support */
