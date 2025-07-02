@@ -218,9 +218,8 @@ static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
 }
 
 /**
- * folio_pte_batch - detect a PTE batch for a large folio
+ * folio_pte_batch_flags - detect a PTE batch for a large folio
  * @folio: The large folio to detect a PTE batch for.
- * @addr: The user virtual address the first page is mapped at.
  * @ptep: Page table pointer for the first entry.
  * @pte: Page table entry for the first page.
  * @max_nr: The maximum number of table entries to consider.
@@ -243,9 +242,12 @@ static inline pte_t __pte_batch_clear_ignored(pte_t pte, fpb_t flags)
  * must be limited by the caller so scanning cannot exceed a single VMA and
  * a single page table.
  *
+ * This function will be inlined to optimize based on the input parameters;
+ * consider using folio_pte_batch() instead if applicable.
+ *
  * Return: the number of table entries in the batch.
  */
-static inline unsigned int folio_pte_batch(struct folio *folio, unsigned long addr,
+static inline unsigned int folio_pte_batch_flags(struct folio *folio,
 		pte_t *ptep, pte_t pte, unsigned int max_nr, fpb_t flags,
 		bool *any_writable, bool *any_young, bool *any_dirty)
 {
@@ -292,6 +294,9 @@ static inline unsigned int folio_pte_batch(struct folio *folio, unsigned long ad
 
 	return min(nr, max_nr);
 }
+
+unsigned int folio_pte_batch(struct folio *folio, pte_t *ptep, pte_t pte,
+		unsigned int max_nr);
 
 /**
  * pte_move_swp_offset - Move the swap entry offset field of a swap pte

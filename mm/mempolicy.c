@@ -711,8 +711,7 @@ static int queue_folios_pte_range(pmd_t *pmd, unsigned long addr,
 		if (!folio || folio_is_zone_device(folio))
 			continue;
 		if (folio_test_large(folio) && max_nr != 1)
-			nr = folio_pte_batch(folio, addr, pte, ptent,
-					     max_nr, 0, NULL, NULL, NULL);
+			nr = folio_pte_batch(folio, pte, ptent, max_nr);
 		/*
 		 * vm_normal_folio() filters out zero pages, but there might
 		 * still be reserved folios to skip, perhaps in a VDSO.

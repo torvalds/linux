@@ -1868,8 +1868,7 @@ static inline unsigned int folio_unmap_pte_batch(struct folio *folio,
 	if (pte_unused(pte))
 		return 1;
 
-	return folio_pte_batch(folio, addr, pvmw->pte, pte, max_nr, 0,
-			       NULL, NULL, NULL);
+	return folio_pte_batch(folio, pvmw->pte, pte, max_nr);
 }
 
 /*

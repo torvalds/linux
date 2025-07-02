@@ -182,8 +182,7 @@ static int mremap_folio_pte_batch(struct vm_area_struct *vma, unsigned long addr
 	if (!folio || !folio_test_large(folio))
 		return 1;
 
-	return folio_pte_batch(folio, addr, ptep, pte, max_nr, 0, NULL,
-			       NULL, NULL);
+	return folio_pte_batch(folio, ptep, pte, max_nr);
 }
 
 static int move_ptes(struct pagetable_move_control *pmc,

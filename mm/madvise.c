@@ -348,8 +348,8 @@ static inline int madvise_folio_pte_batch(unsigned long addr, unsigned long end,
 {
 	int max_nr = (end - addr) / PAGE_SIZE;
 
-	return folio_pte_batch(folio, addr, ptep, pte, max_nr, 0, NULL,
-			       any_young, any_dirty);
+	return folio_pte_batch_flags(folio, ptep, pte, max_nr, 0, NULL,
+				     any_young, any_dirty);
 }
 
 static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,

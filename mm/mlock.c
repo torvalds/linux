@@ -313,8 +313,7 @@ static inline unsigned int folio_mlock_step(struct folio *folio,
 	if (!folio_test_large(folio))
 		return 1;
 
-	return folio_pte_batch(folio, addr, pte, ptent, count, 0, NULL,
-			       NULL, NULL);
+	return folio_pte_batch(folio, pte, ptent, count);
 }
 
 static inline bool allow_mlock_munlock(struct folio *folio,
