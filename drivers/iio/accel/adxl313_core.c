@@ -13,8 +13,10 @@
 #include <linux/overflow.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/units.h>
 
 #include <linux/iio/buffer.h>
+#include <linux/iio/events.h>
 #include <linux/iio/kfifo_buf.h>
 
 #include "adxl313.h"
@@ -24,6 +26,21 @@
 #define ADXL313_INT2				2
 
 #define ADXL313_REG_XYZ_BASE			ADXL313_REG_DATA_AXIS(0)
+
+#define ADXL313_ACT_XYZ_EN			GENMASK(6, 4)
+
+/* activity/inactivity */
+enum adxl313_activity_type {
+	ADXL313_ACTIVITY,
+};
+
+static const unsigned int adxl313_act_int_reg[] = {
+	[ADXL313_ACTIVITY] = ADXL313_INT_ACTIVITY,
+};
+
+static const unsigned int adxl313_act_thresh_reg[] = {
+	[ADXL313_ACTIVITY] = ADXL313_REG_THRESH_ACT,
+};
 
 static const struct regmap_range adxl312_readable_reg_range[] = {
 	regmap_reg_range(ADXL313_REG_DEVID0, ADXL313_REG_DEVID0),
@@ -227,6 +244,15 @@ static const int adxl313_odr_freqs[][2] = {
 	},								\
 }
 
+static const struct iio_event_spec adxl313_activity_events[] = {
+	{
+		.type = IIO_EV_TYPE_MAG,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE),
+	},
+};
+
 enum adxl313_chans {
 	chan_x, chan_y, chan_z,
 };
@@ -235,6 +261,14 @@ static const struct iio_chan_spec adxl313_channels[] = {
 	ADXL313_ACCEL_CHANNEL(0, chan_x, X),
 	ADXL313_ACCEL_CHANNEL(1, chan_y, Y),
 	ADXL313_ACCEL_CHANNEL(2, chan_z, Z),
+	{
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_X_OR_Y_OR_Z,
+		.scan_index = -1, /* Fake channel for axis OR'ing */
+		.event_spec = adxl313_activity_events,
+		.num_event_specs = ARRAY_SIZE(adxl313_activity_events),
+	},
 };
 
 static const unsigned long adxl313_scan_masks[] = {
@@ -295,6 +329,81 @@ static int adxl313_read_freq_avail(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
+}
+
+static int adxl313_is_act_inact_en(struct adxl313_data *data,
+				   enum adxl313_activity_type type)
+{
+	unsigned int axis_ctrl;
+	unsigned int regval;
+	int ret;
+
+	ret = regmap_read(data->regmap, ADXL313_REG_ACT_INACT_CTL, &axis_ctrl);
+	if (ret)
+		return ret;
+
+	/* Check if axis for activity are enabled */
+	switch (type) {
+	case ADXL313_ACTIVITY:
+		if (!FIELD_GET(ADXL313_ACT_XYZ_EN, axis_ctrl))
+			return false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Check if specific interrupt is enabled */
+	ret = regmap_read(data->regmap, ADXL313_REG_INT_ENABLE, &regval);
+	if (ret)
+		return ret;
+
+	return adxl313_act_int_reg[type] & regval;
+}
+
+static int adxl313_set_act_inact_en(struct adxl313_data *data,
+				    enum adxl313_activity_type type,
+				    bool cmd_en)
+{
+	unsigned int axis_ctrl;
+	unsigned int threshold;
+	int ret;
+
+	if (cmd_en) {
+		/* When turning on, check if threshold is valid */
+		ret = regmap_read(data->regmap, adxl313_act_thresh_reg[type],
+				  &threshold);
+		if (ret)
+			return ret;
+
+		if (!threshold) /* Just ignore the command if threshold is 0 */
+			return 0;
+	}
+
+	/* Start modifying configuration registers */
+	ret = adxl313_set_measure_en(data, false);
+	if (ret)
+		return ret;
+
+	/* Enable axis according to the command */
+	switch (type) {
+	case ADXL313_ACTIVITY:
+		axis_ctrl = ADXL313_ACT_XYZ_EN;
+		break;
+	default:
+		return -EINVAL;
+	}
+	ret = regmap_assign_bits(data->regmap, ADXL313_REG_ACT_INACT_CTL,
+				 axis_ctrl, cmd_en);
+	if (ret)
+		return ret;
+
+	/* Enable the interrupt line, according to the command */
+	ret = regmap_assign_bits(data->regmap, ADXL313_REG_INT_ENABLE,
+				 adxl313_act_int_reg[type], cmd_en);
+	if (ret)
+		return ret;
+
+	return adxl313_set_measure_en(data, true);
 }
 
 static int adxl313_read_raw(struct iio_dev *indio_dev,
@@ -365,6 +474,157 @@ static int adxl313_write_raw(struct iio_dev *indio_dev,
 				    val / 4);
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return adxl313_set_odr(data, val, val2);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_read_mag_config(struct adxl313_data *data,
+				   enum iio_event_direction dir,
+				   enum adxl313_activity_type type_act)
+{
+	switch (dir) {
+	case IIO_EV_DIR_RISING:
+		return !!adxl313_is_act_inact_en(data, type_act);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_write_mag_config(struct adxl313_data *data,
+				    enum iio_event_direction dir,
+				    enum adxl313_activity_type type_act,
+				    bool state)
+{
+	switch (dir) {
+	case IIO_EV_DIR_RISING:
+		return adxl313_set_act_inact_en(data, type_act, state);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_read_event_config(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir)
+{
+	struct adxl313_data *data = iio_priv(indio_dev);
+
+	switch (type) {
+	case IIO_EV_TYPE_MAG:
+		return adxl313_read_mag_config(data, dir,
+					       ADXL313_ACTIVITY);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_write_event_config(struct iio_dev *indio_dev,
+				      const struct iio_chan_spec *chan,
+				      enum iio_event_type type,
+				      enum iio_event_direction dir,
+				      bool state)
+{
+	struct adxl313_data *data = iio_priv(indio_dev);
+
+	switch (type) {
+	case IIO_EV_TYPE_MAG:
+		return adxl313_write_mag_config(data, dir,
+						ADXL313_ACTIVITY,
+						state);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_read_mag_value(struct adxl313_data *data,
+				  enum iio_event_direction dir,
+				  enum iio_event_info info,
+				  enum adxl313_activity_type type_act,
+				  int *val, int *val2)
+{
+	unsigned int threshold;
+	int ret;
+
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		switch (dir) {
+		case IIO_EV_DIR_RISING:
+			ret = regmap_read(data->regmap,
+					  adxl313_act_thresh_reg[type_act],
+					  &threshold);
+			if (ret)
+				return ret;
+			*val = threshold * 15625;
+			*val2 = MICRO;
+			return IIO_VAL_FRACTIONAL;
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_write_mag_value(struct adxl313_data *data,
+				   enum iio_event_direction dir,
+				   enum iio_event_info info,
+				   enum adxl313_activity_type type_act,
+				   int val, int val2)
+{
+	unsigned int regval;
+
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		/* Scale factor 15.625 mg/LSB */
+		regval = DIV_ROUND_CLOSEST(MICRO * val + val2, 15625);
+		switch (dir) {
+		case IIO_EV_DIR_RISING:
+			return regmap_write(data->regmap,
+					    adxl313_act_thresh_reg[type_act],
+					    regval);
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_read_event_value(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan,
+				    enum iio_event_type type,
+				    enum iio_event_direction dir,
+				    enum iio_event_info info,
+				    int *val, int *val2)
+{
+	struct adxl313_data *data = iio_priv(indio_dev);
+
+	switch (type) {
+	case IIO_EV_TYPE_MAG:
+		return adxl313_read_mag_value(data, dir, info,
+					      ADXL313_ACTIVITY,
+					      val, val2);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_write_event_value(struct iio_dev *indio_dev,
+				     const struct iio_chan_spec *chan,
+				     enum iio_event_type type,
+				     enum iio_event_direction dir,
+				     enum iio_event_info info,
+				     int val, int val2)
+{
+	struct adxl313_data *data = iio_priv(indio_dev);
+
+	switch (type) {
+	case IIO_EV_TYPE_MAG:
+		return adxl313_write_mag_value(data, dir, info,
+					       ADXL313_ACTIVITY,
+					       val, val2);
 	default:
 		return -EINVAL;
 	}
@@ -508,6 +768,25 @@ static int adxl313_fifo_push(struct iio_dev *indio_dev, int samples)
 	return 0;
 }
 
+static int adxl313_push_events(struct iio_dev *indio_dev, int int_stat)
+{
+	s64 ts = iio_get_time_ns(indio_dev);
+	int ret = -ENOENT;
+
+	if (FIELD_GET(ADXL313_INT_ACTIVITY, int_stat)) {
+		ret = iio_push_event(indio_dev,
+				     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+							IIO_MOD_X_OR_Y_OR_Z,
+							IIO_EV_TYPE_MAG,
+							IIO_EV_DIR_RISING),
+				     ts);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static irqreturn_t adxl313_irq_handler(int irq, void *p)
 {
 	struct iio_dev *indio_dev = p;
@@ -516,6 +795,16 @@ static irqreturn_t adxl313_irq_handler(int irq, void *p)
 
 	if (regmap_read(data->regmap, ADXL313_REG_INT_SOURCE, &int_stat))
 		return IRQ_NONE;
+
+	/*
+	 * In cases of sensor events not handled (still not implemented) by
+	 * this driver, the FIFO needs to be drained to become operational
+	 * again. In general the sensor configuration only should issue events
+	 * which were configured by this driver. Anyway a miss-configuration
+	 * easily might end up in a hanging sensor FIFO.
+	 */
+	if (adxl313_push_events(indio_dev, int_stat))
+		goto err_reset_fifo;
 
 	if (FIELD_GET(ADXL313_INT_WATERMARK, int_stat)) {
 		samples = adxl313_get_samples(data);
@@ -550,6 +839,10 @@ static int adxl313_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 static const struct iio_info adxl313_info = {
 	.read_raw	= adxl313_read_raw,
 	.write_raw	= adxl313_write_raw,
+	.read_event_config = adxl313_read_event_config,
+	.write_event_config = adxl313_write_event_config,
+	.read_event_value = adxl313_read_event_value,
+	.write_event_value = adxl313_write_event_value,
 	.read_avail	= adxl313_read_freq_avail,
 	.hwfifo_set_watermark = adxl313_set_watermark,
 	.debugfs_reg_access = &adxl313_reg_access,
@@ -684,6 +977,19 @@ int adxl313_core_probe(struct device *dev,
 			ADXL313_INT_OVERRUN;
 		ret = regmap_assign_bits(data->regmap, ADXL313_REG_INT_MAP,
 					 int_map_msk, int_line == ADXL313_INT2);
+		if (ret)
+			return ret;
+
+		/*
+		 * Reset or configure the registers with reasonable default
+		 * values. As having 0 in most cases may result in undesirable
+		 * behavior if the interrupts are enabled.
+		 */
+		ret = regmap_write(data->regmap, ADXL313_REG_ACT_INACT_CTL, 0x00);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(data->regmap, ADXL313_REG_THRESH_ACT, 0x52);
 		if (ret)
 			return ret;
 
