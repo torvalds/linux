@@ -134,6 +134,7 @@ struct mctp_test_route *mctp_test_create_route(struct net *net,
 	rt->rt.max = eid;
 	rt->rt.mtu = mtu;
 	rt->rt.type = RTN_UNSPEC;
+	rt->rt.dst_type = MCTP_ROUTE_DIRECT;
 	if (dev)
 		mctp_dev_hold(dev);
 	rt->rt.dev = dev;
@@ -176,7 +177,7 @@ void mctp_test_route_destroy(struct kunit *test, struct mctp_test_route *rt)
 	list_del_rcu(&rt->rt.list);
 	rtnl_unlock();
 
-	if (rt->rt.dev)
+	if (rt->rt.dst_type == MCTP_ROUTE_DIRECT && rt->rt.dev)
 		mctp_dev_put(rt->rt.dev);
 
 	refs = refcount_read(&rt->rt.refs);

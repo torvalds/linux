@@ -237,8 +237,18 @@ struct mctp_route {
 	mctp_eid_t		min, max;
 
 	unsigned char		type;
+
 	unsigned int		mtu;
-	struct mctp_dev		*dev;
+
+	enum {
+		MCTP_ROUTE_DIRECT,
+		MCTP_ROUTE_GATEWAY,
+	} dst_type;
+	union {
+		struct mctp_dev	*dev;
+		struct mctp_fq_addr gateway;
+	};
+
 	int			(*output)(struct mctp_dst *dst,
 					  struct sk_buff *skb);
 
@@ -256,6 +266,7 @@ struct mctp_route {
 struct mctp_dst {
 	struct mctp_dev *dev;
 	unsigned int mtu;
+	mctp_eid_t nexthop;
 
 	/* set for direct addressing */
 	unsigned char halen;
