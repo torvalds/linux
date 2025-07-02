@@ -116,7 +116,6 @@ class KernelEntry:
 
         self._contents = []
         self.sectcheck = ""
-        self.struct_actual = ""
         self.prototype = ""
 
         self.warnings = []
@@ -366,15 +365,6 @@ class KernelDoc:
         org_arg = KernRe(r'\s\s+').sub(' ', org_arg)
         self.entry.parametertypes[param] = org_arg
 
-    def save_struct_actual(self, actual):
-        """
-        Strip all spaces from the actual param so that it looks like
-        one string item.
-        """
-
-        actual = KernRe(r'\s*').sub("", actual, count=1)
-
-        self.entry.struct_actual += actual + " "
 
     def create_parameter_list(self, ln, decl_type, args,
                               splitter, declaration_name):
@@ -420,7 +410,6 @@ class KernelDoc:
                     param = arg
 
                 dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
-                self.save_struct_actual(param)
                 self.push_parameter(ln, decl_type, param, dtype,
                                     arg, declaration_name)
 
@@ -437,7 +426,6 @@ class KernelDoc:
 
                 dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
 
-                self.save_struct_actual(param)
                 self.push_parameter(ln, decl_type, param, dtype,
                                     arg, declaration_name)
 
@@ -470,7 +458,6 @@ class KernelDoc:
 
                         param = r.group(1)
 
-                        self.save_struct_actual(r.group(2))
                         self.push_parameter(ln, decl_type, r.group(2),
                                             f"{dtype} {r.group(1)}",
                                             arg, declaration_name)
@@ -482,12 +469,10 @@ class KernelDoc:
                             continue
 
                         if dtype != "":  # Skip unnamed bit-fields
-                            self.save_struct_actual(r.group(1))
                             self.push_parameter(ln, decl_type, r.group(1),
                                                 f"{dtype}:{r.group(2)}",
                                                 arg, declaration_name)
                     else:
-                        self.save_struct_actual(param)
                         self.push_parameter(ln, decl_type, param, dtype,
                                             arg, declaration_name)
 
@@ -499,24 +484,11 @@ class KernelDoc:
 
         sects = sectcheck.split()
         prms = prmscheck.split()
-        err = False
 
         for sx in range(len(sects)):                  # pylint: disable=C0200
             err = True
             for px in range(len(prms)):               # pylint: disable=C0200
-                prm_clean = prms[px]
-                prm_clean = KernRe(r'\[.*\]').sub('', prm_clean)
-                prm_clean = attribute.sub('', prm_clean)
-
-                # ignore array size in a parameter string;
-                # however, the original param string may contain
-                # spaces, e.g.:  addr[6 + 2]
-                # and this appears in @prms as "addr[6" since the
-                # parameter list is split at spaces;
-                # hence just ignore "[..." for the sections check;
-                prm_clean = KernRe(r'\[.*').sub('', prm_clean)
-
-                if prm_clean == sects[sx]:
+                if prms[px] == sects[sx]:
                     err = False
                     break
 
@@ -782,7 +754,7 @@ class KernelDoc:
         self.create_parameter_list(ln, decl_type, members, ';',
                                    declaration_name)
         self.check_sections(ln, declaration_name, decl_type,
-                            self.entry.sectcheck, self.entry.struct_actual)
+                            self.entry.sectcheck, ' '.join(self.entry.parameterlist))
 
         # Adjust declaration for better display
         declaration = KernRe(r'([\{;])').sub(r'\1\n', declaration)
