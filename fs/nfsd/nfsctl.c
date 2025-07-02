@@ -1155,23 +1155,6 @@ static struct dentry *nfsd_mkdir(struct dentry *parent, struct nfsdfs_client *nc
 }
 
 #if IS_ENABLED(CONFIG_SUNRPC_GSS)
-static int __nfsd_symlink(struct inode *dir, struct dentry *dentry,
-			  umode_t mode, const char *content)
-{
-	struct inode *inode;
-
-	inode = nfsd_get_inode(dir->i_sb, mode);
-	if (!inode)
-		return -ENOMEM;
-
-	inode->i_link = (char *)content;
-	inode->i_size = strlen(content);
-
-	d_add(dentry, inode);
-	fsnotify_create(dir, dentry);
-	return 0;
-}
-
 /*
  * @content is assumed to be a NUL-terminated string that lives
  * longer than the symlink itself.
@@ -1180,17 +1163,24 @@ static void _nfsd_symlink(struct dentry *parent, const char *name,
 			  const char *content)
 {
 	struct inode *dir = parent->d_inode;
+	struct inode *inode;
 	struct dentry *dentry;
-	int ret;
 
-	inode_lock(dir);
-	dentry = d_alloc_name(parent, name);
-	if (!dentry)
-		goto out;
-	ret = __nfsd_symlink(d_inode(parent), dentry, S_IFLNK | 0777, content);
-	if (ret)
-		dput(dentry);
-out:
+	inode = nfsd_get_inode(dir->i_sb, S_IFLNK | 0777);
+	if (!inode)
+		return;
+
+	dentry = simple_start_creating(parent, name);
+	if (IS_ERR(dentry)) {
+		iput(inode);
+		return;
+	}
+
+	inode->i_link = (char *)content;
+	inode->i_size = strlen(content);
+
+	d_instantiate(dentry, inode);
+	fsnotify_create(dir, dentry);
 	inode_unlock(dir);
 }
 #else
