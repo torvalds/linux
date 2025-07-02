@@ -934,6 +934,52 @@ static void unix_show_fdinfo(struct seq_file *m, struct socket *sock)
 #define unix_show_fdinfo NULL
 #endif
 
+static bool unix_custom_sockopt(int optname)
+{
+	switch (optname) {
+	case SO_INQ:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int unix_setsockopt(struct socket *sock, int level, int optname,
+			   sockptr_t optval, unsigned int optlen)
+{
+	struct unix_sock *u = unix_sk(sock->sk);
+	struct sock *sk = sock->sk;
+	int val;
+
+	if (level != SOL_SOCKET)
+		return -EOPNOTSUPP;
+
+	if (!unix_custom_sockopt(optname))
+		return sock_setsockopt(sock, level, optname, optval, optlen);
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+
+	if (copy_from_sockptr(&val, optval, sizeof(val)))
+		return -EFAULT;
+
+	switch (optname) {
+	case SO_INQ:
+		if (sk->sk_type != SOCK_STREAM)
+			return -EINVAL;
+
+		if (val > 1 || val < 0)
+			return -EINVAL;
+
+		WRITE_ONCE(u->recvmsg_inq, val);
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	return 0;
+}
+
 static const struct proto_ops unix_stream_ops = {
 	.family =	PF_UNIX,
 	.owner =	THIS_MODULE,
@@ -950,6 +996,7 @@ static const struct proto_ops unix_stream_ops = {
 #endif
 	.listen =	unix_listen,
 	.shutdown =	unix_shutdown,
+	.setsockopt =	unix_setsockopt,
 	.sendmsg =	unix_stream_sendmsg,
 	.recvmsg =	unix_stream_recvmsg,
 	.read_skb =	unix_stream_read_skb,
@@ -1116,6 +1163,7 @@ static int unix_create(struct net *net, struct socket *sock, int protocol,
 
 	switch (sock->type) {
 	case SOCK_STREAM:
+		set_bit(SOCK_CUSTOM_SOCKOPT, &sock->flags);
 		sock->ops = &unix_stream_ops;
 		break;
 		/*
@@ -1846,6 +1894,9 @@ static int unix_accept(struct socket *sock, struct socket *newsock,
 	tsk = skb->sk;
 	skb_free_datagram(sk, skb);
 	wake_up_interruptible(&unix_sk(sk)->peer_wait);
+
+	if (tsk->sk_type == SOCK_STREAM)
+		set_bit(SOCK_CUSTOM_SOCKOPT, &newsock->flags);
 
 	/* attach accepted sock to socket */
 	unix_state_lock(tsk);
@@ -3034,10 +3085,17 @@ unlock:
 	} while (size);
 
 	mutex_unlock(&u->iolock);
-	if (msg)
+	if (msg) {
 		scm_recv_unix(sock, msg, &scm, flags);
-	else
+
+		if (READ_ONCE(u->recvmsg_inq) || msg->msg_get_inq) {
+			msg->msg_inq = READ_ONCE(u->inq_len);
+			put_cmsg(msg, SOL_SOCKET, SCM_INQ,
+				 sizeof(msg->msg_inq), &msg->msg_inq);
+		}
+	} else {
 		scm_destroy(&scm);
+	}
 out:
 	return copied ? : err;
 }
