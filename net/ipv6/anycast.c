@@ -67,12 +67,11 @@ static u32 inet6_acaddr_hash(const struct net *net,
 int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct ipv6_ac_socklist *pac = NULL;
+	struct net *net = sock_net(sk);
 	struct net_device *dev = NULL;
 	struct inet6_dev *idev;
-	struct ipv6_ac_socklist *pac;
-	struct net *net = sock_net(sk);
-	int	ishost = !net->ipv6.devconf_all->forwarding;
-	int	err = 0;
+	int err = 0, ishost;
 
 	ASSERT_RTNL();
 
@@ -84,14 +83,21 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	if (ifindex)
 		dev = __dev_get_by_index(net, ifindex);
 
-	if (ipv6_chk_addr_and_flags(net, addr, dev, true, 0, IFA_F_TENTATIVE))
-		return -EINVAL;
+	if (ipv6_chk_addr_and_flags(net, addr, dev, true, 0, IFA_F_TENTATIVE)) {
+		err = -EINVAL;
+		goto error;
+	}
 
 	pac = sock_kmalloc(sk, sizeof(struct ipv6_ac_socklist), GFP_KERNEL);
-	if (!pac)
-		return -ENOMEM;
+	if (!pac) {
+		err = -ENOMEM;
+		goto error;
+	}
+
 	pac->acl_next = NULL;
 	pac->acl_addr = *addr;
+
+	ishost = !READ_ONCE(net->ipv6.devconf_all->forwarding);
 
 	if (ifindex == 0) {
 		struct rt6_info *rt;
@@ -123,8 +129,9 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			err = -EADDRNOTAVAIL;
 		goto error;
 	}
+
 	/* reset ishost, now that we have a specific device */
-	ishost = !idev->cnf.forwarding;
+	ishost = !READ_ONCE(idev->cnf.forwarding);
 
 	pac->acl_ifindex = dev->ifindex;
 
