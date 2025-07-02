@@ -30,20 +30,38 @@
 #define ADXL313_ACT_XYZ_EN			GENMASK(6, 4)
 #define ADXL313_INACT_XYZ_EN			GENMASK(2, 0)
 
+#define ADXL313_REG_ACT_ACDC_MSK		BIT(7)
+#define ADXL313_REG_INACT_ACDC_MSK		BIT(3)
+#define ADXL313_COUPLING_DC			0
+#define ADXL313_COUPLING_AC			1
+
 /* activity/inactivity */
 enum adxl313_activity_type {
 	ADXL313_ACTIVITY,
 	ADXL313_INACTIVITY,
+	ADXL313_ACTIVITY_AC,
+	ADXL313_INACTIVITY_AC,
 };
 
 static const unsigned int adxl313_act_int_reg[] = {
 	[ADXL313_ACTIVITY] = ADXL313_INT_ACTIVITY,
 	[ADXL313_INACTIVITY] = ADXL313_INT_INACTIVITY,
+	[ADXL313_ACTIVITY_AC] = ADXL313_INT_ACTIVITY,
+	[ADXL313_INACTIVITY_AC] = ADXL313_INT_INACTIVITY,
 };
 
 static const unsigned int adxl313_act_thresh_reg[] = {
 	[ADXL313_ACTIVITY] = ADXL313_REG_THRESH_ACT,
 	[ADXL313_INACTIVITY] = ADXL313_REG_THRESH_INACT,
+	[ADXL313_ACTIVITY_AC] = ADXL313_REG_THRESH_ACT,
+	[ADXL313_INACTIVITY_AC] = ADXL313_REG_THRESH_INACT,
+};
+
+static const unsigned int adxl313_act_acdc_msk[] = {
+	[ADXL313_ACTIVITY] = ADXL313_REG_ACT_ACDC_MSK,
+	[ADXL313_INACTIVITY] = ADXL313_REG_INACT_ACDC_MSK,
+	[ADXL313_ACTIVITY_AC] = ADXL313_REG_ACT_ACDC_MSK,
+	[ADXL313_INACTIVITY_AC] = ADXL313_REG_INACT_ACDC_MSK,
 };
 
 static const struct regmap_range adxl312_readable_reg_range[] = {
@@ -255,12 +273,27 @@ static const struct iio_event_spec adxl313_activity_events[] = {
 		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
 		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE),
 	},
+	{
+		/* activity, AC bit set */
+		.type = IIO_EV_TYPE_MAG_ADAPTIVE,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE),
+	},
 };
 
 static const struct iio_event_spec adxl313_inactivity_events[] = {
 	{
 		/* inactivity */
 		.type = IIO_EV_TYPE_MAG,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) |
+			BIT(IIO_EV_INFO_PERIOD),
+	},
+	{
+		/* inactivity, AC bit set */
+		.type = IIO_EV_TYPE_MAG_ADAPTIVE,
 		.dir = IIO_EV_DIR_FALLING,
 		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
 		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) |
@@ -363,11 +396,72 @@ static int adxl313_set_inact_time_s(struct adxl313_data *data,
 	return regmap_write(data->regmap, ADXL313_REG_TIME_INACT, val);
 }
 
+/**
+ * adxl313_is_act_inact_ac() - Check if AC coupling is enabled.
+ * @data: The device data.
+ * @type: The activity or inactivity type.
+ *
+ * Provide a type of activity or inactivity, combined with either AC coupling
+ * set, or default to DC coupling. This function verifies if the combination is
+ * currently enabled or not.
+ *
+ * Return: if the provided activity type has AC coupling enabled or a negative
+ * error value.
+ */
+static int adxl313_is_act_inact_ac(struct adxl313_data *data,
+				   enum adxl313_activity_type type)
+{
+	unsigned int regval;
+	bool coupling;
+	int ret;
+
+	ret = regmap_read(data->regmap, ADXL313_REG_ACT_INACT_CTL, &regval);
+	if (ret)
+		return ret;
+
+	coupling = adxl313_act_acdc_msk[type] & regval;
+
+	switch (type) {
+	case ADXL313_ACTIVITY:
+	case ADXL313_INACTIVITY:
+		return coupling == ADXL313_COUPLING_DC;
+	case ADXL313_ACTIVITY_AC:
+	case ADXL313_INACTIVITY_AC:
+		return coupling == ADXL313_COUPLING_AC;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int adxl313_set_act_inact_ac(struct adxl313_data *data,
+				    enum adxl313_activity_type type,
+				    bool cmd_en)
+{
+	unsigned int act_inact_ac;
+
+	switch (type) {
+	case ADXL313_ACTIVITY_AC:
+	case ADXL313_INACTIVITY_AC:
+		act_inact_ac = ADXL313_COUPLING_AC && cmd_en;
+		break;
+	case ADXL313_ACTIVITY:
+	case ADXL313_INACTIVITY:
+		act_inact_ac = ADXL313_COUPLING_DC && cmd_en;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_assign_bits(data->regmap, ADXL313_REG_ACT_INACT_CTL,
+				  adxl313_act_acdc_msk[type], act_inact_ac);
+}
+
 static int adxl313_is_act_inact_en(struct adxl313_data *data,
 				   enum adxl313_activity_type type)
 {
 	unsigned int axis_ctrl;
 	unsigned int regval;
+	bool int_en;
 	int ret;
 
 	ret = regmap_read(data->regmap, ADXL313_REG_ACT_INACT_CTL, &axis_ctrl);
@@ -377,10 +471,12 @@ static int adxl313_is_act_inact_en(struct adxl313_data *data,
 	/* Check if axis for activity are enabled */
 	switch (type) {
 	case ADXL313_ACTIVITY:
+	case ADXL313_ACTIVITY_AC:
 		if (!FIELD_GET(ADXL313_ACT_XYZ_EN, axis_ctrl))
 			return false;
 		break;
 	case ADXL313_INACTIVITY:
+	case ADXL313_INACTIVITY_AC:
 		if (!FIELD_GET(ADXL313_INACT_XYZ_EN, axis_ctrl))
 			return false;
 		break;
@@ -393,20 +489,38 @@ static int adxl313_is_act_inact_en(struct adxl313_data *data,
 	if (ret)
 		return ret;
 
-	return adxl313_act_int_reg[type] & regval;
+	int_en = adxl313_act_int_reg[type] & regval;
+	if (!int_en)
+		return false;
+
+	/* Check if configured coupling matches provided type */
+	return adxl313_is_act_inact_ac(data, type);
 }
 
 static int adxl313_set_act_inact_linkbit(struct adxl313_data *data, bool en)
 {
+	int act_ac_en, inact_ac_en;
 	int act_en, inact_en;
 
 	act_en = adxl313_is_act_inact_en(data, ADXL313_ACTIVITY);
 	if (act_en < 0)
 		return act_en;
 
+	act_ac_en = adxl313_is_act_inact_en(data, ADXL313_ACTIVITY_AC);
+	if (act_ac_en < 0)
+		return act_ac_en;
+
 	inact_en = adxl313_is_act_inact_en(data, ADXL313_INACTIVITY);
 	if (inact_en < 0)
 		return inact_en;
+
+	inact_ac_en = adxl313_is_act_inact_en(data, ADXL313_INACTIVITY_AC);
+	if (inact_ac_en < 0)
+		return inact_ac_en;
+
+	act_en = act_en || act_ac_en;
+
+	inact_en = inact_en || inact_ac_en;
 
 	return regmap_assign_bits(data->regmap, ADXL313_REG_POWER_CTL,
 				  ADXL313_POWER_CTL_AUTO_SLEEP | ADXL313_POWER_CTL_LINK,
@@ -433,7 +547,7 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 			return 0;
 
 		/* When turning on inactivity, check if inact time is valid */
-		if (type == ADXL313_INACTIVITY) {
+		if (type == ADXL313_INACTIVITY || type == ADXL313_INACTIVITY_AC) {
 			ret = regmap_read(data->regmap,
 					  ADXL313_REG_TIME_INACT,
 					  &inact_time_s);
@@ -443,6 +557,16 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 			if (!inact_time_s)
 				return 0;
 		}
+	} else {
+		/*
+		 * When turning off an activity, ensure that the correct
+		 * coupling event is specified. This step helps prevent misuse -
+		 * for example, if an AC-coupled activity is active and the
+		 * current call attempts to turn off a DC-coupled activity, this
+		 * inconsistency should be detected here.
+		 */
+		if (adxl313_is_act_inact_ac(data, type) <= 0)
+			return 0;
 	}
 
 	/* Start modifying configuration registers */
@@ -453,9 +577,11 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 	/* Enable axis according to the command */
 	switch (type) {
 	case ADXL313_ACTIVITY:
+	case ADXL313_ACTIVITY_AC:
 		axis_ctrl = ADXL313_ACT_XYZ_EN;
 		break;
 	case ADXL313_INACTIVITY:
+	case ADXL313_INACTIVITY_AC:
 		axis_ctrl = ADXL313_INACT_XYZ_EN;
 		break;
 	default:
@@ -463,6 +589,11 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 	}
 	ret = regmap_assign_bits(data->regmap, ADXL313_REG_ACT_INACT_CTL,
 				 axis_ctrl, cmd_en);
+	if (ret)
+		return ret;
+
+	/* Update AC/DC-coupling according to the command */
+	ret = adxl313_set_act_inact_ac(data, type, cmd_en);
 	if (ret)
 		return ret;
 
@@ -596,6 +727,10 @@ static int adxl313_read_event_config(struct iio_dev *indio_dev,
 		return adxl313_read_mag_config(data, dir,
 					       ADXL313_ACTIVITY,
 					       ADXL313_INACTIVITY);
+	case IIO_EV_TYPE_MAG_ADAPTIVE:
+		return adxl313_read_mag_config(data, dir,
+					       ADXL313_ACTIVITY_AC,
+					       ADXL313_INACTIVITY_AC);
 	default:
 		return -EINVAL;
 	}
@@ -614,6 +749,11 @@ static int adxl313_write_event_config(struct iio_dev *indio_dev,
 		return adxl313_write_mag_config(data, dir,
 						ADXL313_ACTIVITY,
 						ADXL313_INACTIVITY,
+						state);
+	case IIO_EV_TYPE_MAG_ADAPTIVE:
+		return adxl313_write_mag_config(data, dir,
+						ADXL313_ACTIVITY_AC,
+						ADXL313_INACTIVITY_AC,
 						state);
 	default:
 		return -EINVAL;
@@ -714,6 +854,11 @@ static int adxl313_read_event_value(struct iio_dev *indio_dev,
 					      ADXL313_ACTIVITY,
 					      ADXL313_INACTIVITY,
 					      val, val2);
+	case IIO_EV_TYPE_MAG_ADAPTIVE:
+		return adxl313_read_mag_value(data, dir, info,
+					      ADXL313_ACTIVITY_AC,
+					      ADXL313_INACTIVITY_AC,
+					      val, val2);
 	default:
 		return -EINVAL;
 	}
@@ -733,6 +878,11 @@ static int adxl313_write_event_value(struct iio_dev *indio_dev,
 		return adxl313_write_mag_value(data, dir, info,
 					       ADXL313_ACTIVITY,
 					       ADXL313_INACTIVITY,
+					       val, val2);
+	case IIO_EV_TYPE_MAG_ADAPTIVE:
+		return adxl313_write_mag_value(data, dir, info,
+					       ADXL313_ACTIVITY_AC,
+					       ADXL313_INACTIVITY_AC,
 					       val, val2);
 	default:
 		return -EINVAL;
@@ -880,28 +1030,64 @@ static int adxl313_fifo_push(struct iio_dev *indio_dev, int samples)
 static int adxl313_push_events(struct iio_dev *indio_dev, int int_stat)
 {
 	s64 ts = iio_get_time_ns(indio_dev);
+	struct adxl313_data *data = iio_priv(indio_dev);
+	unsigned int regval;
 	int ret = -ENOENT;
 
 	if (FIELD_GET(ADXL313_INT_ACTIVITY, int_stat)) {
-		ret = iio_push_event(indio_dev,
-				     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
-							IIO_MOD_X_OR_Y_OR_Z,
-							IIO_EV_TYPE_MAG,
-							IIO_EV_DIR_RISING),
-				     ts);
+		ret = regmap_read(data->regmap, ADXL313_REG_ACT_INACT_CTL, &regval);
 		if (ret)
 			return ret;
+
+		if (FIELD_GET(ADXL313_REG_ACT_ACDC_MSK, regval)) {
+			/* AC coupled */
+			ret = iio_push_event(indio_dev,
+					     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+								IIO_MOD_X_OR_Y_OR_Z,
+								IIO_EV_TYPE_MAG_ADAPTIVE,
+								IIO_EV_DIR_RISING),
+					     ts);
+			if (ret)
+				return ret;
+		} else {
+			/* DC coupled, relying on THRESH */
+			ret = iio_push_event(indio_dev,
+					     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+								IIO_MOD_X_OR_Y_OR_Z,
+								IIO_EV_TYPE_MAG,
+								IIO_EV_DIR_RISING),
+					     ts);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (FIELD_GET(ADXL313_INT_INACTIVITY, int_stat)) {
-		ret = iio_push_event(indio_dev,
-				     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
-							IIO_MOD_X_AND_Y_AND_Z,
-							IIO_EV_TYPE_MAG,
-							IIO_EV_DIR_FALLING),
-				     ts);
+		ret = regmap_read(data->regmap, ADXL313_REG_ACT_INACT_CTL, &regval);
 		if (ret)
 			return ret;
+
+		if (FIELD_GET(ADXL313_REG_INACT_ACDC_MSK, regval)) {
+			/* AC coupled */
+			ret = iio_push_event(indio_dev,
+					     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+								IIO_MOD_X_AND_Y_AND_Z,
+								IIO_EV_TYPE_MAG_ADAPTIVE,
+								IIO_EV_DIR_FALLING),
+					     ts);
+			if (ret)
+				return ret;
+		} else {
+			/* DC coupled, relying on THRESH */
+			ret = iio_push_event(indio_dev,
+					     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+								IIO_MOD_X_AND_Y_AND_Z,
+								IIO_EV_TYPE_MAG,
+								IIO_EV_DIR_FALLING),
+					     ts);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return ret;
