@@ -1216,40 +1216,34 @@ struct nfsdfs_client *get_nfsdfs_client(struct inode *inode)
 
 /* XXX: cut'n'paste from simple_fill_super; figure out if we could share
  * code instead. */
-static  int nfsdfs_create_files(struct dentry *root,
+static int nfsdfs_create_files(struct dentry *root,
 				const struct tree_descr *files,
 				struct nfsdfs_client *ncl,
 				struct dentry **fdentries)
 {
 	struct inode *dir = d_inode(root);
-	struct inode *inode;
 	struct dentry *dentry;
-	int i;
 
-	inode_lock(dir);
-	for (i = 0; files->name && files->name[0]; i++, files++) {
-		dentry = d_alloc_name(root, files->name);
-		if (!dentry)
-			goto out;
-		inode = nfsd_get_inode(d_inode(root)->i_sb,
-					S_IFREG | files->mode);
-		if (!inode) {
-			dput(dentry);
-			goto out;
+	for (int i = 0; files->name && files->name[0]; i++, files++) {
+		struct inode *inode = nfsd_get_inode(root->d_sb,
+						     S_IFREG | files->mode);
+		if (!inode)
+			return -ENOMEM;
+		dentry = simple_start_creating(root, files->name);
+		if (IS_ERR(dentry)) {
+			iput(inode);
+			return PTR_ERR(dentry);
 		}
 		kref_get(&ncl->cl_ref);
 		inode->i_fop = files->ops;
 		inode->i_private = ncl;
-		d_add(dentry, inode);
+		d_instantiate(dentry, inode);
 		fsnotify_create(dir, dentry);
 		if (fdentries)
 			fdentries[i] = dentry;
+		inode_unlock(dir);
 	}
-	inode_unlock(dir);
 	return 0;
-out:
-	inode_unlock(dir);
-	return -ENOMEM;
 }
 
 /* on success, returns positive number unique to that client. */
