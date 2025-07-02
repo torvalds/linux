@@ -42,9 +42,11 @@ doc_decl = doc_com + KernRe(r'(\w+)', cache=False)
 #         @{section-name}:
 # while trying to not match literal block starts like "example::"
 #
+known_section_names = 'description|context|returns?|notes?|examples?'
+known_sections = KernRe(known_section_names, flags = re.I)
 doc_sect = doc_com + \
-            KernRe(r'\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:([^:].*)?$',
-                flags=re.I, cache=False)
+    KernRe(r'\s*(\@[.\w]+|\@\.\.\.|' + known_section_names + r')\s*:([^:].*)?$',
+           flags=re.I, cache=False)
 
 doc_content = doc_com_body + KernRe(r'(.*)', cache=False)
 doc_inline_start = KernRe(r'^\s*/\*\*\s*$', cache=False)
@@ -115,7 +117,6 @@ class KernelEntry:
         self.config = config
 
         self._contents = []
-        self.sectcheck = ""
         self.prototype = ""
 
         self.warnings = []
@@ -187,7 +188,6 @@ class KernelEntry:
             self.parameterdescs[name] = contents
             self.parameterdesc_start_lines[name] = self.new_start_line
 
-            self.sectcheck += name + " "
             self.new_start_line = 0
 
         else:
@@ -478,29 +478,20 @@ class KernelDoc:
                         self.push_parameter(ln, decl_type, param, dtype,
                                             arg, declaration_name)
 
-    def check_sections(self, ln, decl_name, decl_type, sectcheck):
+    def check_sections(self, ln, decl_name, decl_type):
         """
         Check for errors inside sections, emitting warnings if not found
         parameters are described.
         """
-
-        sects = sectcheck.split()
-
-        for sx in range(len(sects)):                  # pylint: disable=C0200
-            err = True
-            for param in self.entry.parameterlist:
-                if param == sects[sx]:
-                    err = False
-                    break
-
-            if err:
+        for section in self.entry.sections:
+            if section not in self.entry.parameterlist and \
+               not known_sections.search(section):
                 if decl_type == 'function':
                     dname = f"{decl_type} parameter"
                 else:
                     dname = f"{decl_type} member"
-
                 self.emit_msg(ln,
-                              f"Excess {dname} '{sects[sx]}' description in '{decl_name}'")
+                              f"Excess {dname} '{section}' description in '{decl_name}'")
 
     def check_return_section(self, ln, declaration_name, return_type):
         """
@@ -754,7 +745,7 @@ class KernelDoc:
 
         self.create_parameter_list(ln, decl_type, members, ';',
                                    declaration_name)
-        self.check_sections(ln, declaration_name, decl_type, self.entry.sectcheck)
+        self.check_sections(ln, declaration_name, decl_type)
 
         # Adjust declaration for better display
         declaration = KernRe(r'([\{;])').sub(r'\1\n', declaration)
@@ -1018,7 +1009,7 @@ class KernelDoc:
                           f"expecting prototype for {self.entry.identifier}(). Prototype was for {declaration_name}() instead")
             return
 
-        self.check_sections(ln, declaration_name, "function", self.entry.sectcheck)
+        self.check_sections(ln, declaration_name, "function")
 
         self.check_return_section(ln, declaration_name, return_type)
 
