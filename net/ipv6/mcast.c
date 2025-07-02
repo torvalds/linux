@@ -867,11 +867,6 @@ static void mld_clear_report(struct inet6_dev *idev)
 	spin_unlock_bh(&idev->mc_report_lock);
 }
 
-static void mca_get(struct ifmcaddr6 *mc)
-{
-	refcount_inc(&mc->mca_refcnt);
-}
-
 static void ma_put(struct ifmcaddr6 *mc)
 {
 	if (refcount_dec_and_test(&mc->mca_refcnt)) {
@@ -988,13 +983,11 @@ static int __ipv6_dev_mc_inc(struct net_device *dev,
 	rcu_assign_pointer(mc->next, idev->mc_list);
 	rcu_assign_pointer(idev->mc_list, mc);
 
-	mca_get(mc);
-
 	mld_del_delrec(idev, mc);
 	igmp6_group_added(mc);
 	inet6_ifmcaddr_notify(dev, mc, RTM_NEWMULTICAST);
 	mutex_unlock(&idev->mc_lock);
-	ma_put(mc);
+
 	return 0;
 }
 
