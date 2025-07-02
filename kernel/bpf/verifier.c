@@ -9673,10 +9673,10 @@ skip_type_check:
 
 	if (reg->ref_obj_id && base_type(arg_type) != ARG_KPTR_XCHG_DEST) {
 		if (meta->ref_obj_id) {
-			verifier_bug(env, "more than one arg with ref_obj_id R%d %u %u",
-				     regno, reg->ref_obj_id,
-				     meta->ref_obj_id);
-			return -EFAULT;
+			verbose(env, "more than one arg with ref_obj_id R%d %u %u",
+				regno, reg->ref_obj_id,
+				meta->ref_obj_id);
+			return -EACCES;
 		}
 		meta->ref_obj_id = reg->ref_obj_id;
 	}
