@@ -2388,8 +2388,7 @@ static int unix_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 
 		if (unlikely(msg->msg_flags & MSG_SPLICE_PAGES)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			err = skb_splice_from_iter(skb, &msg->msg_iter, size,
-						   sk->sk_allocation);
+			err = skb_splice_from_iter(skb, &msg->msg_iter, size);
 			if (err < 0)
 				goto out_free;
 

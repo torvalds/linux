@@ -7230,7 +7230,6 @@ static void skb_splice_csum_page(struct sk_buff *skb, struct page *page,
  * @skb: The buffer to add pages to
  * @iter: Iterator representing the pages to be added
  * @maxsize: Maximum amount of pages to be added
- * @gfp: Allocation flags
  *
  * This is a common helper function for supporting MSG_SPLICE_PAGES.  It
  * extracts pages from an iterator and adds them to the socket buffer if
@@ -7241,7 +7240,7 @@ static void skb_splice_csum_page(struct sk_buff *skb, struct page *page,
  * insufficient space in the buffer to transfer anything.
  */
 ssize_t skb_splice_from_iter(struct sk_buff *skb, struct iov_iter *iter,
-			     ssize_t maxsize, gfp_t gfp)
+			     ssize_t maxsize)
 {
 	size_t frag_limit = READ_ONCE(net_hotdata.sysctl_max_skb_frags);
 	struct page *pages[8], **ppages = pages;

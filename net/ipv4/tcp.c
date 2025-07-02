@@ -1295,8 +1295,7 @@ new_segment:
 			if (!copy)
 				goto wait_for_space;
 
-			err = skb_splice_from_iter(skb, &msg->msg_iter, copy,
-						   sk->sk_allocation);
+			err = skb_splice_from_iter(skb, &msg->msg_iter, copy);
 			if (err < 0) {
 				if (err == -EMSGSIZE) {
 					tcp_mark_push(tp, skb);
