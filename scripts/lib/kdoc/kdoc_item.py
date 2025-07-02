@@ -11,6 +11,10 @@ class KdocItem:
         self.declaration_start_line = start_line
         self.sections = {}
         self.sections_start_lines = {}
+        self.parameterlist = []
+        self.parameterdesc_start_lines = []
+        self.parameterdescs = {}
+        self.parametertypes = {}
         #
         # Just save everything else into our own dict so that the output
         # side can grab it directly as before.  As we move things into more
@@ -28,8 +32,14 @@ class KdocItem:
         return self.get(key)
 
     #
-    # Tracking of section information.
+    # Tracking of section and parameter information.
     #
     def set_sections(self, sections, start_lines):
         self.sections = sections
         self.section_start_lines = start_lines
+
+    def set_params(self, names, descs, types, starts):
+        self.parameterlist = names
+        self.parameterdescs = descs
+        self.parametertypes = types
+        self.parameterdesc_start_lines = starts

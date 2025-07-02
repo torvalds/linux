@@ -278,7 +278,9 @@ class KernelDoc:
             if section in sections and not sections[section].rstrip():
                 del sections[section]
         item.set_sections(sections, self.entry.section_start_lines)
-
+        item.set_params(self.entry.parameterlist, self.entry.parameterdescs,
+                        self.entry.parametertypes,
+                        self.entry.parameterdesc_start_lines)
         self.entries.append(item)
 
         self.config.log.debug("Output: %s:%s = %s", dtype, name, pformat(args))
@@ -790,10 +792,6 @@ class KernelDoc:
         self.output_declaration(decl_type, declaration_name,
                                 struct=declaration_name,
                                 definition=declaration,
-                                parameterlist=self.entry.parameterlist,
-                                parameterdescs=self.entry.parameterdescs,
-                                parametertypes=self.entry.parametertypes,
-                                parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_enum(self, ln, proto):
@@ -873,9 +871,6 @@ class KernelDoc:
 
         self.output_declaration('enum', declaration_name,
                                 enum=declaration_name,
-                                parameterlist=self.entry.parameterlist,
-                                parameterdescs=self.entry.parameterdescs,
-                                parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_declaration(self, ln, prototype):
@@ -1039,10 +1034,6 @@ class KernelDoc:
                                     function=declaration_name,
                                     typedef=True,
                                     functiontype=return_type,
-                                    parameterlist=self.entry.parameterlist,
-                                    parameterdescs=self.entry.parameterdescs,
-                                    parametertypes=self.entry.parametertypes,
-                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
         else:
@@ -1050,10 +1041,6 @@ class KernelDoc:
                                     function=declaration_name,
                                     typedef=False,
                                     functiontype=return_type,
-                                    parameterlist=self.entry.parameterlist,
-                                    parameterdescs=self.entry.parameterdescs,
-                                    parametertypes=self.entry.parametertypes,
-                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
 
@@ -1093,10 +1080,6 @@ class KernelDoc:
                                     function=declaration_name,
                                     typedef=True,
                                     functiontype=return_type,
-                                    parameterlist=self.entry.parameterlist,
-                                    parameterdescs=self.entry.parameterdescs,
-                                    parametertypes=self.entry.parametertypes,
-                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
                                     purpose=self.entry.declaration_purpose)
             return
 

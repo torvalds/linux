@@ -373,18 +373,13 @@ class RestFormat(OutputFormat):
                 signature = args['functiontype'] + " "
             signature += args['function'] + " ("
 
-        parameterlist = args.get('parameterlist', [])
-        parameterdescs = args.get('parameterdescs', {})
-        parameterdesc_start_lines = args.get('parameterdesc_start_lines', {})
-
         ln = args.get('declaration_start_line', 0)
-
         count = 0
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             if count != 0:
                 signature += ", "
             count += 1
-            dtype = args['parametertypes'].get(parameter, "")
+            dtype = args.parametertypes.get(parameter, "")
 
             if function_pointer.search(dtype):
                 signature += function_pointer.group(1) + parameter + function_pointer.group(3)
@@ -419,26 +414,26 @@ class RestFormat(OutputFormat):
         # function prototypes apart
         self.lineprefix = "  "
 
-        if parameterlist:
+        if args.parameterlist:
             self.data += ".. container:: kernelindent\n\n"
             self.data += f"{self.lineprefix}**Parameters**\n\n"
 
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             parameter_name = KernRe(r'\[.*').sub('', parameter)
-            dtype = args['parametertypes'].get(parameter, "")
+            dtype = args.parametertypes.get(parameter, "")
 
             if dtype:
                 self.data += f"{self.lineprefix}``{dtype}``\n"
             else:
                 self.data += f"{self.lineprefix}``{parameter}``\n"
 
-            self.print_lineno(parameterdesc_start_lines.get(parameter_name, 0))
+            self.print_lineno(args.parameterdesc_start_lines.get(parameter_name, 0))
 
             self.lineprefix = "    "
-            if parameter_name in parameterdescs and \
-               parameterdescs[parameter_name] != KernelDoc.undescribed:
+            if parameter_name in args.parameterdescs and \
+               args.parameterdescs[parameter_name] != KernelDoc.undescribed:
 
-                self.output_highlight(parameterdescs[parameter_name])
+                self.output_highlight(args.parameterdescs[parameter_name])
                 self.data += "\n"
             else:
                 self.data += f"{self.lineprefix}*undescribed*\n\n"
@@ -451,8 +446,6 @@ class RestFormat(OutputFormat):
 
         oldprefix = self.lineprefix
         name = args.get('enum', '')
-        parameterlist = args.get('parameterlist', [])
-        parameterdescs = args.get('parameterdescs', {})
         ln = args.get('declaration_start_line', 0)
 
         self.data += f"\n\n.. c:enum:: {name}\n\n"
@@ -467,11 +460,11 @@ class RestFormat(OutputFormat):
         self.lineprefix = outer + "  "
         self.data += f"{outer}**Constants**\n\n"
 
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             self.data += f"{outer}``{parameter}``\n"
 
-            if parameterdescs.get(parameter, '') != KernelDoc.undescribed:
-                self.output_highlight(parameterdescs[parameter])
+            if args.parameterdescs.get(parameter, '') != KernelDoc.undescribed:
+                self.output_highlight(args.parameterdescs[parameter])
             else:
                 self.data += f"{self.lineprefix}*undescribed*\n\n"
             self.data += "\n"
@@ -505,10 +498,6 @@ class RestFormat(OutputFormat):
         dtype = args.get('type', "struct")
         ln = args.get('declaration_start_line', 0)
 
-        parameterlist = args.get('parameterlist', [])
-        parameterdescs = args.get('parameterdescs', {})
-        parameterdesc_start_lines = args.get('parameterdesc_start_lines', {})
-
         self.data += f"\n\n.. c:{dtype}:: {name}\n\n"
 
         self.print_lineno(ln)
@@ -531,21 +520,21 @@ class RestFormat(OutputFormat):
 
         self.lineprefix = "  "
         self.data += f"{self.lineprefix}**Members**\n\n"
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             if not parameter or parameter.startswith("#"):
                 continue
 
             parameter_name = parameter.split("[", maxsplit=1)[0]
 
-            if parameterdescs.get(parameter_name) == KernelDoc.undescribed:
+            if args.parameterdescs.get(parameter_name) == KernelDoc.undescribed:
                 continue
 
-            self.print_lineno(parameterdesc_start_lines.get(parameter_name, 0))
+            self.print_lineno(args.parameterdesc_start_lines.get(parameter_name, 0))
 
             self.data += f"{self.lineprefix}``{parameter}``\n"
 
             self.lineprefix = "    "
-            self.output_highlight(parameterdescs[parameter_name])
+            self.output_highlight(args.parameterdescs[parameter_name])
             self.lineprefix = "  "
 
             self.data += "\n"
@@ -643,9 +632,6 @@ class ManFormat(OutputFormat):
     def out_function(self, fname, name, args):
         """output function in man"""
 
-        parameterlist = args.get('parameterlist', [])
-        parameterdescs = args.get('parameterdescs', {})
-
         self.data += f'.TH "{args["function"]}" 9 "{args["function"]}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
@@ -661,11 +647,11 @@ class ManFormat(OutputFormat):
         parenth = "("
         post = ","
 
-        for parameter in parameterlist:
-            if count == len(parameterlist) - 1:
+        for parameter in args.parameterlist:
+            if count == len(args.parameterlist) - 1:
                 post = ");"
 
-            dtype = args['parametertypes'].get(parameter, "")
+            dtype = args.parametertypes.get(parameter, "")
             if function_pointer.match(dtype):
                 # Pointer-to-function
                 self.data += f'".BI "{parenth}{function_pointer.group(1)}" " ") ({function_pointer.group(2)}){post}"' + "\n"
@@ -676,14 +662,14 @@ class ManFormat(OutputFormat):
             count += 1
             parenth = ""
 
-        if parameterlist:
+        if args.parameterlist:
             self.data += ".SH ARGUMENTS\n"
 
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             parameter_name = re.sub(r'\[.*', '', parameter)
 
             self.data += f'.IP "{parameter}" 12' + "\n"
-            self.output_highlight(parameterdescs.get(parameter_name, ""))
+            self.output_highlight(args.parameterdescs.get(parameter_name, ""))
 
         for section, text in args.sections.items():
             self.data += f'.SH "{section.upper()}"' + "\n"
@@ -692,7 +678,6 @@ class ManFormat(OutputFormat):
     def out_enum(self, fname, name, args):
 
         name = args.get('enum', '')
-        parameterlist = args.get('parameterlist', [])
 
         self.data += f'.TH "{self.modulename}" 9 "enum {args["enum"]}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
@@ -703,9 +688,9 @@ class ManFormat(OutputFormat):
         self.data += f"enum {args['enum']}" + " {\n"
 
         count = 0
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             self.data += f'.br\n.BI "    {parameter}"' + "\n"
-            if count == len(parameterlist) - 1:
+            if count == len(args.parameterlist) - 1:
                 self.data += "\n};\n"
             else:
                 self.data += ", \n.br\n"
@@ -714,10 +699,10 @@ class ManFormat(OutputFormat):
 
         self.data += ".SH Constants\n"
 
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             parameter_name = KernRe(r'\[.*').sub('', parameter)
             self.data += f'.IP "{parameter}" 12' + "\n"
-            self.output_highlight(args['parameterdescs'].get(parameter_name, ""))
+            self.output_highlight(args.parameterdescs.get(parameter_name, ""))
 
         for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
@@ -743,8 +728,6 @@ class ManFormat(OutputFormat):
         struct_name = args.get('struct')
         purpose = args.get('purpose')
         definition = args.get('definition')
-        parameterlist = args.get('parameterlist', [])
-        parameterdescs = args.get('parameterdescs', {})
 
         self.data += f'.TH "{module}" 9 "{struct_type} {struct_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
@@ -760,17 +743,17 @@ class ManFormat(OutputFormat):
         self.data += f'.BI "{declaration}\n' + "};\n.br\n\n"
 
         self.data += ".SH Members\n"
-        for parameter in parameterlist:
+        for parameter in args.parameterlist:
             if parameter.startswith("#"):
                 continue
 
             parameter_name = re.sub(r"\[.*", "", parameter)
 
-            if parameterdescs.get(parameter_name) == KernelDoc.undescribed:
+            if args.parameterdescs.get(parameter_name) == KernelDoc.undescribed:
                 continue
 
             self.data += f'.IP "{parameter}" 12' + "\n"
-            self.output_highlight(parameterdescs.get(parameter_name))
+            self.output_highlight(args.parameterdescs.get(parameter_name))
 
         for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
