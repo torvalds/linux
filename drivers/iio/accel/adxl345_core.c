@@ -1088,6 +1088,19 @@ static const struct iio_info adxl345_info = {
 	.hwfifo_set_watermark = adxl345_set_watermark,
 };
 
+static int adxl345_get_int_line(struct device *dev, int *irq)
+{
+	*irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
+	if (*irq > 0)
+		return ADXL345_INT1;
+
+	*irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT2");
+	if (*irq > 0)
+		return ADXL345_INT2;
+
+	return ADXL345_INT_NONE;
+}
+
 /**
  * adxl345_core_probe() - Probe and setup for the accelerometer.
  * @dev:	Driver model representation of the device
@@ -1203,23 +1216,16 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret)
 		return ret;
 
-	irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
-	if (irq < 0) {
-		intio = ADXL345_INT2;
-		irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT2");
-		if (irq < 0)
-			intio = ADXL345_INT_NONE;
-	}
-
+	intio = adxl345_get_int_line(dev, &irq);
 	if (intio != ADXL345_INT_NONE) {
 		/*
-		 * Any bits set to 0 in the INT map register send their respective
-		 * interrupts to the INT1 pin, whereas bits set to 1 send their respective
-		 * interrupts to the INT2 pin. The intio shall convert this accordingly.
+		 * In the INT map register, bits set to 0 route their
+		 * corresponding interrupts to the INT1 pin, while bits set to 1
+		 * route them to the INT2 pin. The intio should handle this
+		 * mapping accordingly.
 		 */
-		regval = intio ? 0xff : 0;
-
-		ret = regmap_write(st->regmap, ADXL345_REG_INT_MAP, regval);
+		ret = regmap_assign_bits(st->regmap, ADXL345_REG_INT_MAP,
+					 U8_MAX, intio);
 		if (ret)
 			return ret;
 
