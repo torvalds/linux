@@ -1,0 +1,10 @@
+What:		/sys/devices/platform/samsung/battery_life_extender
+Date:		December 1, 2011
+KernelVersion:	3.3
+Contact:	Corentin Chary <corentin.chary@gmail.com>
+Description:	Max battery charge level can be modified, battery cycle
+		life can be extended by reducing the max battery charge
+		level.
+
+		- 0 means normal battery mode (100% charge)
+		- 1 means battery life extender mode (80% charge)
