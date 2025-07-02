@@ -1045,6 +1045,13 @@
 				compatible = "fsl,imx94-flexcan", "fsl,imx95-flexcan";
 				reg = <0x443a0000 0x10000>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&scmi_clk IMX94_CLK_BUSAON>,
+					 <&scmi_clk IMX94_CLK_CAN1>;
+				clock-names = "ipg", "per";
+				assigned-clocks = <&scmi_clk IMX94_CLK_CAN1>;
+				assigned-clock-parents = <&scmi_clk IMX94_CLK_SYSPLL1_PFD1_DIV2>;
+				assigned-clock-rates = <80000000>;
+				fsl,clk-source = /bits/ 8 <0>;
 				status = "disabled";
 			};
 
