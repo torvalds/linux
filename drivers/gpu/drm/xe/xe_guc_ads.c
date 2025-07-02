@@ -995,16 +995,6 @@ static int guc_ads_action_update_policies(struct xe_guc_ads *ads, u32 policy_off
 	return xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
 }
 
-static int guc_ads_update_policies(struct xe_guc_ads *ads, const struct guc_policies *policies)
-{
-	CLASS(xe_guc_buf_from_data, buf)(&ads_to_guc(ads)->buf, policies, sizeof(*policies));
-
-	if (!xe_guc_buf_is_valid(buf))
-		return -ENOBUFS;
-
-	return guc_ads_action_update_policies(ads, xe_guc_buf_flush(buf));
-}
-
 /**
  * xe_guc_ads_scheduler_policy_toggle_reset - Toggle reset policy
  * @ads: Additional data structures object
@@ -1015,13 +1005,16 @@ static int guc_ads_update_policies(struct xe_guc_ads *ads, const struct guc_poli
  */
 int xe_guc_ads_scheduler_policy_toggle_reset(struct xe_guc_ads *ads)
 {
-	struct xe_device *xe = ads_to_xe(ads);
 	struct guc_policies *policies;
-	int ret;
+	struct xe_guc *guc = ads_to_guc(ads);
+	struct xe_device *xe = ads_to_xe(ads);
+	CLASS(xe_guc_buf, buf)(&guc->buf, sizeof(*policies));
 
-	policies = kmalloc(sizeof(*policies), GFP_KERNEL);
-	if (!policies)
-		return -ENOMEM;
+	if (!xe_guc_buf_is_valid(buf))
+		return -ENOBUFS;
+
+	policies = xe_guc_buf_cpu_ptr(buf);
+	memset(policies, 0, sizeof(*policies));
 
 	policies->dpc_promote_time = ads_blob_read(ads, policies.dpc_promote_time);
 	policies->max_num_work_items = ads_blob_read(ads, policies.max_num_work_items);
@@ -1031,7 +1024,5 @@ int xe_guc_ads_scheduler_policy_toggle_reset(struct xe_guc_ads *ads)
 	else
 		policies->global_flags &= ~GLOBAL_POLICY_DISABLE_ENGINE_RESET;
 
-	ret = guc_ads_update_policies(ads, policies);
-	kfree(policies);
-	return ret;
+	return guc_ads_action_update_policies(ads, xe_guc_buf_flush(buf));
 }
