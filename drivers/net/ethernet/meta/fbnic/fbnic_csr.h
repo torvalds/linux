@@ -21,6 +21,20 @@
 /* Defines the minimum firmware version required by the driver */
 #define MIN_FW_VER_CODE				FW_VER_CODE(0, 10, 6, 0)
 
+/* Defines the minimum firmware version required for firmware logs */
+#define MIN_FW_VER_CODE_LOG			FW_VER_CODE(0, 12, 9, 0)
+
+/* Driver can request that firmware sends all cached logs in bulk. This
+ * feature was enabled on older firmware however firmware has a bug
+ * which attempted to send 30 messages per mbx message which caused an
+ * overflow flooding the mailbox. This results in a kernel warning
+ * related to corrupt mailbox messages.
+ *
+ * If firmware is new enough only request sending historical logs when
+ * the log buffer is empty to prevent duplicate logs.
+ */
+#define MIN_FW_VER_CODE_HIST			FW_VER_CODE(25, 5, 7, 0)
+
 #define PCI_DEVICE_ID_META_FBNIC_ASIC		0x0013
 
 #define FBNIC_CLOCK_FREQ	(600 * (1000 * 1000))
