@@ -370,7 +370,7 @@ xfs_bmbt_init_rec_from_cur(
 }
 
 STATIC int64_t
-xfs_bmbt_key_diff(
+xfs_bmbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
@@ -647,7 +647,7 @@ const struct xfs_btree_ops xfs_bmbt_ops = {
 	.init_key_from_rec	= xfs_bmbt_init_key_from_rec,
 	.init_high_key_from_rec	= xfs_bmbt_init_high_key_from_rec,
 	.init_rec_from_cur	= xfs_bmbt_init_rec_from_cur,
-	.key_diff		= xfs_bmbt_key_diff,
+	.cmp_key_with_cur	= xfs_bmbt_cmp_key_with_cur,
 	.cmp_two_keys		= xfs_bmbt_cmp_two_keys,
 	.buf_ops		= &xfs_bmbt_buf_ops,
 	.keys_inorder		= xfs_bmbt_keys_inorder,

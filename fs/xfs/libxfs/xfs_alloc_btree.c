@@ -187,7 +187,7 @@ xfs_allocbt_init_ptr_from_cur(
 }
 
 STATIC int64_t
-xfs_bnobt_key_diff(
+xfs_bnobt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
@@ -198,7 +198,7 @@ xfs_bnobt_key_diff(
 }
 
 STATIC int64_t
-xfs_cntbt_key_diff(
+xfs_cntbt_cmp_key_with_cur(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_key	*key)
 {
@@ -438,7 +438,7 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 	.init_high_key_from_rec	= xfs_bnobt_init_high_key_from_rec,
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
-	.key_diff		= xfs_bnobt_key_diff,
+	.cmp_key_with_cur	= xfs_bnobt_cmp_key_with_cur,
 	.buf_ops		= &xfs_bnobt_buf_ops,
 	.cmp_two_keys		= xfs_bnobt_cmp_two_keys,
 	.keys_inorder		= xfs_bnobt_keys_inorder,
@@ -468,7 +468,7 @@ const struct xfs_btree_ops xfs_cntbt_ops = {
 	.init_high_key_from_rec	= xfs_cntbt_init_high_key_from_rec,
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
-	.key_diff		= xfs_cntbt_key_diff,
+	.cmp_key_with_cur	= xfs_cntbt_cmp_key_with_cur,
 	.buf_ops		= &xfs_cntbt_buf_ops,
 	.cmp_two_keys		= xfs_cntbt_cmp_two_keys,
 	.keys_inorder		= xfs_cntbt_keys_inorder,

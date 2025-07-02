@@ -2070,7 +2070,7 @@ xfs_btree_lookup(
 				 *  - greater than, move left
 				 *  - equal, we're done
 				 */
-				diff = cur->bc_ops->key_diff(cur, kp);
+				diff = cur->bc_ops->cmp_key_with_cur(cur, kp);
 				if (diff < 0)
 					low = keyno + 1;
 				else if (diff > 0)
