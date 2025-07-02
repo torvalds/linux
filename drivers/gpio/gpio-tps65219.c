@@ -65,10 +65,9 @@ static int tps65219_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	return ret;
 }
 
-static void tps65219_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
+static int tps65219_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
 {
 	struct tps65219_gpio *gpio = gpiochip_get_data(gc);
-	struct device *dev = gpio->tps->dev;
 	int v, mask, bit;
 
 	bit = (offset == TPS65219_GPIO0_IDX) ? TPS65219_GPIO0_OFFSET : offset - 1;
@@ -76,8 +75,8 @@ static void tps65219_gpio_set(struct gpio_chip *gc, unsigned int offset, int val
 	mask = BIT(bit);
 	v = value ? mask : 0;
 
-	if (regmap_update_bits(gpio->tps->regmap, TPS65219_REG_GENERAL_CONFIG, mask, v))
-		dev_err(dev, "GPIO%d, set to value %d failed.\n", offset, value);
+	return regmap_update_bits(gpio->tps->regmap,
+				  TPS65219_REG_GENERAL_CONFIG, mask, v);
 }
 
 static int tps65219_gpio_change_direction(struct gpio_chip *gc, unsigned int offset,
@@ -147,7 +146,7 @@ static const struct gpio_chip tps65219_template_chip = {
 	.direction_input	= tps65219_gpio_direction_input,
 	.direction_output	= tps65219_gpio_direction_output,
 	.get			= tps65219_gpio_get,
-	.set			= tps65219_gpio_set,
+	.set_rv			= tps65219_gpio_set,
 	.base			= -1,
 	.ngpio			= 3,
 	.can_sleep		= true,
