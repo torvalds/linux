@@ -28,18 +28,22 @@
 #define ADXL313_REG_XYZ_BASE			ADXL313_REG_DATA_AXIS(0)
 
 #define ADXL313_ACT_XYZ_EN			GENMASK(6, 4)
+#define ADXL313_INACT_XYZ_EN			GENMASK(2, 0)
 
 /* activity/inactivity */
 enum adxl313_activity_type {
 	ADXL313_ACTIVITY,
+	ADXL313_INACTIVITY,
 };
 
 static const unsigned int adxl313_act_int_reg[] = {
 	[ADXL313_ACTIVITY] = ADXL313_INT_ACTIVITY,
+	[ADXL313_INACTIVITY] = ADXL313_INT_INACTIVITY,
 };
 
 static const unsigned int adxl313_act_thresh_reg[] = {
 	[ADXL313_ACTIVITY] = ADXL313_REG_THRESH_ACT,
+	[ADXL313_INACTIVITY] = ADXL313_REG_THRESH_INACT,
 };
 
 static const struct regmap_range adxl312_readable_reg_range[] = {
@@ -253,6 +257,17 @@ static const struct iio_event_spec adxl313_activity_events[] = {
 	},
 };
 
+static const struct iio_event_spec adxl313_inactivity_events[] = {
+	{
+		/* inactivity */
+		.type = IIO_EV_TYPE_MAG,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+		.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) |
+			BIT(IIO_EV_INFO_PERIOD),
+	},
+};
+
 enum adxl313_chans {
 	chan_x, chan_y, chan_z,
 };
@@ -268,6 +283,14 @@ static const struct iio_chan_spec adxl313_channels[] = {
 		.scan_index = -1, /* Fake channel for axis OR'ing */
 		.event_spec = adxl313_activity_events,
 		.num_event_specs = ARRAY_SIZE(adxl313_activity_events),
+	},
+	{
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_X_AND_Y_AND_Z,
+		.scan_index = -1, /* Fake channel for axis AND'ing */
+		.event_spec = adxl313_inactivity_events,
+		.num_event_specs = ARRAY_SIZE(adxl313_inactivity_events),
 	},
 };
 
@@ -331,6 +354,15 @@ static int adxl313_read_freq_avail(struct iio_dev *indio_dev,
 	}
 }
 
+static int adxl313_set_inact_time_s(struct adxl313_data *data,
+				    unsigned int val_s)
+{
+	unsigned int max_boundary = U8_MAX; /* by register size */
+	unsigned int val = min(val_s, max_boundary);
+
+	return regmap_write(data->regmap, ADXL313_REG_TIME_INACT, val);
+}
+
 static int adxl313_is_act_inact_en(struct adxl313_data *data,
 				   enum adxl313_activity_type type)
 {
@@ -346,6 +378,10 @@ static int adxl313_is_act_inact_en(struct adxl313_data *data,
 	switch (type) {
 	case ADXL313_ACTIVITY:
 		if (!FIELD_GET(ADXL313_ACT_XYZ_EN, axis_ctrl))
+			return false;
+		break;
+	case ADXL313_INACTIVITY:
+		if (!FIELD_GET(ADXL313_INACT_XYZ_EN, axis_ctrl))
 			return false;
 		break;
 	default:
@@ -366,6 +402,7 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 {
 	unsigned int axis_ctrl;
 	unsigned int threshold;
+	unsigned int inact_time_s;
 	int ret;
 
 	if (cmd_en) {
@@ -377,6 +414,18 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 
 		if (!threshold) /* Just ignore the command if threshold is 0 */
 			return 0;
+
+		/* When turning on inactivity, check if inact time is valid */
+		if (type == ADXL313_INACTIVITY) {
+			ret = regmap_read(data->regmap,
+					  ADXL313_REG_TIME_INACT,
+					  &inact_time_s);
+			if (ret)
+				return ret;
+
+			if (!inact_time_s)
+				return 0;
+		}
 	}
 
 	/* Start modifying configuration registers */
@@ -388,6 +437,9 @@ static int adxl313_set_act_inact_en(struct adxl313_data *data,
 	switch (type) {
 	case ADXL313_ACTIVITY:
 		axis_ctrl = ADXL313_ACT_XYZ_EN;
+		break;
+	case ADXL313_INACTIVITY:
+		axis_ctrl = ADXL313_INACT_XYZ_EN;
 		break;
 	default:
 		return -EINVAL;
@@ -481,11 +533,14 @@ static int adxl313_write_raw(struct iio_dev *indio_dev,
 
 static int adxl313_read_mag_config(struct adxl313_data *data,
 				   enum iio_event_direction dir,
-				   enum adxl313_activity_type type_act)
+				   enum adxl313_activity_type type_act,
+				   enum adxl313_activity_type type_inact)
 {
 	switch (dir) {
 	case IIO_EV_DIR_RISING:
 		return !!adxl313_is_act_inact_en(data, type_act);
+	case IIO_EV_DIR_FALLING:
+		return !!adxl313_is_act_inact_en(data, type_inact);
 	default:
 		return -EINVAL;
 	}
@@ -494,11 +549,14 @@ static int adxl313_read_mag_config(struct adxl313_data *data,
 static int adxl313_write_mag_config(struct adxl313_data *data,
 				    enum iio_event_direction dir,
 				    enum adxl313_activity_type type_act,
+				    enum adxl313_activity_type type_inact,
 				    bool state)
 {
 	switch (dir) {
 	case IIO_EV_DIR_RISING:
 		return adxl313_set_act_inact_en(data, type_act, state);
+	case IIO_EV_DIR_FALLING:
+		return adxl313_set_act_inact_en(data, type_inact, state);
 	default:
 		return -EINVAL;
 	}
@@ -514,7 +572,8 @@ static int adxl313_read_event_config(struct iio_dev *indio_dev,
 	switch (type) {
 	case IIO_EV_TYPE_MAG:
 		return adxl313_read_mag_config(data, dir,
-					       ADXL313_ACTIVITY);
+					       ADXL313_ACTIVITY,
+					       ADXL313_INACTIVITY);
 	default:
 		return -EINVAL;
 	}
@@ -532,6 +591,7 @@ static int adxl313_write_event_config(struct iio_dev *indio_dev,
 	case IIO_EV_TYPE_MAG:
 		return adxl313_write_mag_config(data, dir,
 						ADXL313_ACTIVITY,
+						ADXL313_INACTIVITY,
 						state);
 	default:
 		return -EINVAL;
@@ -542,9 +602,11 @@ static int adxl313_read_mag_value(struct adxl313_data *data,
 				  enum iio_event_direction dir,
 				  enum iio_event_info info,
 				  enum adxl313_activity_type type_act,
+				  enum adxl313_activity_type type_inact,
 				  int *val, int *val2)
 {
 	unsigned int threshold;
+	unsigned int period;
 	int ret;
 
 	switch (info) {
@@ -559,9 +621,25 @@ static int adxl313_read_mag_value(struct adxl313_data *data,
 			*val = threshold * 15625;
 			*val2 = MICRO;
 			return IIO_VAL_FRACTIONAL;
+		case IIO_EV_DIR_FALLING:
+			ret = regmap_read(data->regmap,
+					  adxl313_act_thresh_reg[type_inact],
+					  &threshold);
+			if (ret)
+				return ret;
+			*val = threshold * 15625;
+			*val2 = MICRO;
+			return IIO_VAL_FRACTIONAL;
 		default:
 			return -EINVAL;
 		}
+	case IIO_EV_INFO_PERIOD:
+		ret = regmap_read(data->regmap, ADXL313_REG_TIME_INACT,
+				  &period);
+		if (ret)
+			return ret;
+		*val = period;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -571,6 +649,7 @@ static int adxl313_write_mag_value(struct adxl313_data *data,
 				   enum iio_event_direction dir,
 				   enum iio_event_info info,
 				   enum adxl313_activity_type type_act,
+				   enum adxl313_activity_type type_inact,
 				   int val, int val2)
 {
 	unsigned int regval;
@@ -584,9 +663,15 @@ static int adxl313_write_mag_value(struct adxl313_data *data,
 			return regmap_write(data->regmap,
 					    adxl313_act_thresh_reg[type_act],
 					    regval);
+		case IIO_EV_DIR_FALLING:
+			return regmap_write(data->regmap,
+					    adxl313_act_thresh_reg[type_inact],
+					    regval);
 		default:
 			return -EINVAL;
 		}
+	case IIO_EV_INFO_PERIOD:
+		return adxl313_set_inact_time_s(data, val);
 	default:
 		return -EINVAL;
 	}
@@ -605,6 +690,7 @@ static int adxl313_read_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_TYPE_MAG:
 		return adxl313_read_mag_value(data, dir, info,
 					      ADXL313_ACTIVITY,
+					      ADXL313_INACTIVITY,
 					      val, val2);
 	default:
 		return -EINVAL;
@@ -624,6 +710,7 @@ static int adxl313_write_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_TYPE_MAG:
 		return adxl313_write_mag_value(data, dir, info,
 					       ADXL313_ACTIVITY,
+					       ADXL313_INACTIVITY,
 					       val, val2);
 	default:
 		return -EINVAL;
@@ -779,6 +866,17 @@ static int adxl313_push_events(struct iio_dev *indio_dev, int int_stat)
 							IIO_MOD_X_OR_Y_OR_Z,
 							IIO_EV_TYPE_MAG,
 							IIO_EV_DIR_RISING),
+				     ts);
+		if (ret)
+			return ret;
+	}
+
+	if (FIELD_GET(ADXL313_INT_INACTIVITY, int_stat)) {
+		ret = iio_push_event(indio_dev,
+				     IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+							IIO_MOD_X_AND_Y_AND_Z,
+							IIO_EV_TYPE_MAG,
+							IIO_EV_DIR_FALLING),
 				     ts);
 		if (ret)
 			return ret;
@@ -986,6 +1084,14 @@ int adxl313_core_probe(struct device *dev,
 		 * behavior if the interrupts are enabled.
 		 */
 		ret = regmap_write(data->regmap, ADXL313_REG_ACT_INACT_CTL, 0x00);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(data->regmap, ADXL313_REG_TIME_INACT, 5);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(data->regmap, ADXL313_REG_THRESH_INACT, 0x4f);
 		if (ret)
 			return ret;
 
