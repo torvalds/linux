@@ -5353,15 +5353,15 @@ xfs_btree_count_blocks(
 }
 
 /* Compare two btree pointers. */
-int64_t
-xfs_btree_diff_two_ptrs(
+int
+xfs_btree_cmp_two_ptrs(
 	struct xfs_btree_cur		*cur,
 	const union xfs_btree_ptr	*a,
 	const union xfs_btree_ptr	*b)
 {
 	if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
-		return (int64_t)be64_to_cpu(a->l) - be64_to_cpu(b->l);
-	return (int64_t)be32_to_cpu(a->s) - be32_to_cpu(b->s);
+		return cmp_int(be64_to_cpu(a->l), be64_to_cpu(b->l));
+	return cmp_int(be32_to_cpu(a->s), be32_to_cpu(b->s));
 }
 
 struct xfs_btree_has_records {
