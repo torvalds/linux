@@ -620,12 +620,12 @@
 
 		cpu4_opp_2400mhz: opp-2400000000 {
 			opp-hz = /bits/ 64 <2400000000>;
-			opp-peak-kBps = <8532000 48537600>;
+			opp-peak-kBps = <12787200 48537600>;
 		};
 
 		cpu4_opp_2611mhz: opp-2611200000 {
 			opp-hz = /bits/ 64 <2611200000>;
-			opp-peak-kBps = <8532000 48537600>;
+			opp-peak-kBps = <12787200 48537600>;
 		};
 	};
 
@@ -685,22 +685,22 @@
 
 		cpu7_opp_2400mhz: opp-2400000000 {
 			opp-hz = /bits/ 64 <2400000000>;
-			opp-peak-kBps = <8532000 48537600>;
+			opp-peak-kBps = <12787200 48537600>;
 		};
 
 		cpu7_opp_2515mhz: opp-2515200000 {
 			opp-hz = /bits/ 64 <2515200000>;
-			opp-peak-kBps = <8532000 48537600>;
+			opp-peak-kBps = <12787200 48537600>;
 		};
 
 		cpu7_opp_2707mhz: opp-2707200000 {
 			opp-hz = /bits/ 64 <2707200000>;
-			opp-peak-kBps = <8532000 48537600>;
+			opp-peak-kBps = <12787200 48537600>;
 		};
 
 		cpu7_opp_3014mhz: opp-3014400000 {
 			opp-hz = /bits/ 64 <3014400000>;
-			opp-peak-kBps = <8532000 48537600>;
+			opp-peak-kBps = <12787200 48537600>;
 		};
 	};
 
@@ -4141,6 +4141,12 @@
 				};
 				opp-7 {
 					opp-peak-kBps = <8532000>;
+				};
+				opp-8 {
+					opp-peak-kBps = <10944000>;
+				};
+				opp-9 {
+					opp-peak-kBps = <12787200>;
 				};
 			};
 		};
