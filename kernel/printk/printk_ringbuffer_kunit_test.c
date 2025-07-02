@@ -52,13 +52,12 @@ module_param(runtime_ms, ulong, 0400);
 
 /* test data structure */
 struct prbtest_rbdata {
-	unsigned int len;
-	char text[] __counted_by(len);
+	unsigned int size;
+	char text[] __counted_by(size);
 };
 
-#define MAX_RBDATA_TEXT_SIZE 0x7f
-/* +1 for terminator. */
-#define MAX_PRB_RECORD_SIZE (sizeof(struct prbtest_rbdata) + MAX_RBDATA_TEXT_SIZE + 1)
+#define MAX_RBDATA_TEXT_SIZE 0x80
+#define MAX_PRB_RECORD_SIZE (sizeof(struct prbtest_rbdata) + MAX_RBDATA_TEXT_SIZE)
 
 struct prbtest_data {
 	struct kunit *test;
@@ -74,25 +73,29 @@ struct prbtest_thread_data {
 
 static void prbtest_fail_record(struct kunit *test, const struct prbtest_rbdata *dat, u64 seq)
 {
-	KUNIT_FAIL(test, "BAD RECORD: seq=%llu len=%u text=%.*s\n",
-		   seq, dat->len,
-		   dat->len <= MAX_RBDATA_TEXT_SIZE ? dat->len : -1,
-		   dat->len <= MAX_RBDATA_TEXT_SIZE ? dat->text : "<invalid>");
+	unsigned int len;
+
+	len = dat->size - 1;
+
+	KUNIT_FAIL(test, "BAD RECORD: seq=%llu size=%u text=%.*s\n",
+		   seq, dat->size,
+		   len < MAX_RBDATA_TEXT_SIZE ? len : -1,
+		   len < MAX_RBDATA_TEXT_SIZE ? dat->text : "<invalid>");
 }
 
 static bool prbtest_check_data(const struct prbtest_rbdata *dat)
 {
 	unsigned int len;
 
-	/* Sane length? */
-	if (dat->len < 1 || dat->len > MAX_RBDATA_TEXT_SIZE)
+	/* Sane size? At least one character + trailing '\0' */
+	if (dat->size < 2 || dat->size > MAX_RBDATA_TEXT_SIZE)
 		return false;
 
-	if (dat->text[dat->len] != '\0')
+	len = dat->size - 1;
+	if (dat->text[len] != '\0')
 		return false;
 
 	/* String repeats with the same character? */
-	len = dat->len;
 	while (len--) {
 		if (dat->text[len] != dat->text[0])
 			return false;
@@ -114,10 +117,14 @@ static int prbtest_writer(void *data)
 	kunit_info(tr->test_data->test, "start thread %03lu (writer)\n", tr->num);
 
 	for (;;) {
-		/* ensure at least 1 character */
-		text_size = get_random_u32_inclusive(1, MAX_RBDATA_TEXT_SIZE);
-		/* +1 for terminator. */
-		record_size = sizeof(struct prbtest_rbdata) + text_size + 1;
+		/* ensure at least 1 character + trailing '\0' */
+		text_size = get_random_u32_inclusive(2, MAX_RBDATA_TEXT_SIZE);
+		if (WARN_ON_ONCE(text_size < 2))
+			text_size = 2;
+		if (WARN_ON_ONCE(text_size > MAX_RBDATA_TEXT_SIZE))
+			text_size = MAX_RBDATA_TEXT_SIZE;
+
+		record_size = sizeof(struct prbtest_rbdata) + text_size;
 		WARN_ON_ONCE(record_size > MAX_PRB_RECORD_SIZE);
 
 		/* specify the text sizes for reservation */
@@ -140,9 +147,9 @@ static int prbtest_writer(void *data)
 			r.info->text_len = record_size;
 
 			dat = (struct prbtest_rbdata *)r.text_buf;
-			dat->len = text_size;
-			memset(dat->text, text_id, text_size);
-			dat->text[text_size] = 0;
+			dat->size = text_size;
+			memset(dat->text, text_id, text_size - 1);
+			dat->text[text_size - 1] = '\0';
 
 			prb_commit(&e);
 
