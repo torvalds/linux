@@ -367,11 +367,11 @@ class RestFormat(OutputFormat):
 
         func_macro = args.get('func_macro', False)
         if func_macro:
-            signature = args['function']
+            signature = name
         else:
             if args.get('functiontype'):
                 signature = args['functiontype'] + " "
-            signature += args['function'] + " ("
+            signature += name + " ("
 
         ln = args.get('declaration_start_line', 0)
         count = 0
@@ -391,7 +391,7 @@ class RestFormat(OutputFormat):
 
         self.print_lineno(ln)
         if args.get('typedef') or not args.get('functiontype'):
-            self.data += f".. c:macro:: {args['function']}\n\n"
+            self.data += f".. c:macro:: {name}\n\n"
 
             if args.get('typedef'):
                 self.data += "   **Typedef**: "
@@ -445,7 +445,6 @@ class RestFormat(OutputFormat):
     def out_enum(self, fname, name, args):
 
         oldprefix = self.lineprefix
-        name = args.get('enum', '')
         ln = args.get('declaration_start_line', 0)
 
         self.data += f"\n\n.. c:enum:: {name}\n\n"
@@ -475,7 +474,6 @@ class RestFormat(OutputFormat):
     def out_typedef(self, fname, name, args):
 
         oldprefix = self.lineprefix
-        name = args.get('typedef', '')
         ln = args.get('declaration_start_line', 0)
 
         self.data += f"\n\n.. c:type:: {name}\n\n"
@@ -492,7 +490,6 @@ class RestFormat(OutputFormat):
 
     def out_struct(self, fname, name, args):
 
-        name = args.get('struct', "")
         purpose = args.get('purpose', "")
         declaration = args.get('definition', "")
         dtype = args.get('type', "struct")
@@ -632,16 +629,16 @@ class ManFormat(OutputFormat):
     def out_function(self, fname, name, args):
         """output function in man"""
 
-        self.data += f'.TH "{args["function"]}" 9 "{args["function"]}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX' + "\n"
+        self.data += f'.TH "{name}" 9 "{name}" "{self.man_date}" "Kernel Hacker\'s Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
-        self.data += f"{args['function']} \\- {args['purpose']}\n"
+        self.data += f"{name} \\- {args['purpose']}\n"
 
         self.data += ".SH SYNOPSIS\n"
         if args.get('functiontype', ''):
-            self.data += f'.B "{args["functiontype"]}" {args["function"]}' + "\n"
+            self.data += f'.B "{args["functiontype"]}" {name}' + "\n"
         else:
-            self.data += f'.B "{args["function"]}' + "\n"
+            self.data += f'.B "{name}' + "\n"
 
         count = 0
         parenth = "("
@@ -676,16 +673,13 @@ class ManFormat(OutputFormat):
             self.output_highlight(text)
 
     def out_enum(self, fname, name, args):
-
-        name = args.get('enum', '')
-
-        self.data += f'.TH "{self.modulename}" 9 "enum {args["enum"]}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.data += f'.TH "{self.modulename}" 9 "enum {name}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
-        self.data += f"enum {args['enum']} \\- {args['purpose']}\n"
+        self.data += f"enum {name} \\- {args['purpose']}\n"
 
         self.data += ".SH SYNOPSIS\n"
-        self.data += f"enum {args['enum']}" + " {\n"
+        self.data += f"enum {name}" + " {\n"
 
         count = 0
         for parameter in args.parameterlist:
@@ -710,13 +704,12 @@ class ManFormat(OutputFormat):
 
     def out_typedef(self, fname, name, args):
         module = self.modulename
-        typedef = args.get('typedef')
         purpose = args.get('purpose')
 
-        self.data += f'.TH "{module}" 9 "{typedef}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.data += f'.TH "{module}" 9 "{name}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
-        self.data += f"typedef {typedef} \\- {purpose}\n"
+        self.data += f"typedef {name} \\- {purpose}\n"
 
         for section, text in args.sections.items():
             self.data += f'.SH "{section}"' + "\n"
@@ -724,22 +717,20 @@ class ManFormat(OutputFormat):
 
     def out_struct(self, fname, name, args):
         module = self.modulename
-        struct_type = args.get('type')
-        struct_name = args.get('struct')
         purpose = args.get('purpose')
         definition = args.get('definition')
 
-        self.data += f'.TH "{module}" 9 "{struct_type} {struct_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
+        self.data += f'.TH "{module}" 9 "{args.type} {name}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
-        self.data += f"{struct_type} {struct_name} \\- {purpose}\n"
+        self.data += f"{args.type} {name} \\- {purpose}\n"
 
         # Replace tabs with two spaces and handle newlines
         declaration = definition.replace("\t", "  ")
         declaration = KernRe(r"\n").sub('"\n.br\n.BI "', declaration)
 
         self.data += ".SH SYNOPSIS\n"
-        self.data += f"{struct_type} {struct_name} " + "{" + "\n.br\n"
+        self.data += f"{args.type} {name} " + "{" + "\n.br\n"
         self.data += f'.BI "{declaration}\n' + "};\n.br\n\n"
 
         self.data += ".SH Members\n"
