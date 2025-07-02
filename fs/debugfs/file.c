@@ -47,7 +47,7 @@ const struct file_operations debugfs_noop_file_operations = {
 
 #define F_DENTRY(filp) ((filp)->f_path.dentry)
 
-const void *debugfs_get_aux(const struct file *file)
+void *debugfs_get_aux(const struct file *file)
 {
 	return DEBUGFS_I(file_inode(file))->aux;
 }

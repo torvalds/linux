@@ -1128,7 +1128,7 @@ done:
 
 static int gb_camera_debugfs_open(struct inode *inode, struct file *file)
 {
-	file->private_data = (void *)debugfs_get_aux(file);
+	file->private_data = debugfs_get_aux(file);
 	return 0;
 }
 

@@ -162,7 +162,7 @@ void debugfs_remove(struct dentry *dentry);
 
 void debugfs_lookup_and_remove(const char *name, struct dentry *parent);
 
-const void *debugfs_get_aux(const struct file *file);
+void *debugfs_get_aux(const struct file *file);
 
 int debugfs_file_get(struct dentry *dentry);
 void debugfs_file_put(struct dentry *dentry);
