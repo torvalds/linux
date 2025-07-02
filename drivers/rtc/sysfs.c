@@ -314,16 +314,20 @@ int rtc_add_groups(struct rtc_device *rtc, const struct attribute_group **grps)
 	size_t old_cnt = 0, add_cnt = 0, new_cnt;
 	const struct attribute_group **groups, **old;
 
-	if (!grps)
+	if (grps) {
+		for (groups = grps; *groups; groups++)
+			add_cnt++;
+		/* No need to modify current groups if nothing new is provided */
+		if (add_cnt == 0)
+			return 0;
+	} else {
 		return -EINVAL;
+	}
 
 	groups = rtc->dev.groups;
 	if (groups)
 		for (; *groups; groups++)
 			old_cnt++;
-
-	for (groups = grps; *groups; groups++)
-		add_cnt++;
 
 	new_cnt = old_cnt + add_cnt + 1;
 	groups = devm_kcalloc(&rtc->dev, new_cnt, sizeof(*groups), GFP_KERNEL);
