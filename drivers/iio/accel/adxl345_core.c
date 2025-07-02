@@ -885,15 +885,12 @@ static int adxl345_get_samples(struct adxl345_state *st)
  */
 static int adxl345_fifo_transfer(struct adxl345_state *st, int samples)
 {
-	size_t count;
 	int i, ret = 0;
 
-	/* count is the 3x the fifo_buf element size, hence 6B */
-	count = sizeof(st->fifo_buf[0]) * ADXL345_DIRS;
 	for (i = 0; i < samples; i++) {
-		/* read 3x 2 byte elements from base address into next fifo_buf position */
 		ret = regmap_bulk_read(st->regmap, ADXL345_REG_XYZ_BASE,
-				       st->fifo_buf + (i * count / 2), count);
+				       st->fifo_buf + (i * ADXL345_DIRS),
+				       sizeof(st->fifo_buf[0]) * ADXL345_DIRS);
 		if (ret)
 			return ret;
 
