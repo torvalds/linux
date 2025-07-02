@@ -2252,7 +2252,6 @@ void addrconf_leave_solict(struct inet6_dev *idev, const struct in6_addr *addr)
 	__ipv6_dev_mc_dec(idev, &maddr);
 }
 
-/* caller must hold RTNL */
 static void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;
@@ -2265,7 +2264,6 @@ static void addrconf_join_anycast(struct inet6_ifaddr *ifp)
 	__ipv6_dev_ac_inc(ifp->idev, &addr);
 }
 
-/* caller must hold RTNL */
 static void addrconf_leave_anycast(struct inet6_ifaddr *ifp)
 {
 	struct in6_addr addr;

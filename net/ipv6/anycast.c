@@ -47,6 +47,9 @@
 static struct hlist_head inet6_acaddr_lst[IN6_ADDR_HSIZE];
 static DEFINE_SPINLOCK(acaddr_hash_lock);
 
+#define ac_dereference(a, idev)						\
+	rcu_dereference_protected(a, lockdep_is_held(&(idev)->lock))
+
 static int ipv6_dev_ac_dec(struct net_device *dev, const struct in6_addr *addr);
 
 static u32 inet6_acaddr_hash(const struct net *net,
@@ -319,16 +322,14 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	struct net *net;
 	int err;
 
-	ASSERT_RTNL();
-
 	write_lock_bh(&idev->lock);
 	if (idev->dead) {
 		err = -ENODEV;
 		goto out;
 	}
 
-	for (aca = rtnl_dereference(idev->ac_list); aca;
-	     aca = rtnl_dereference(aca->aca_next)) {
+	for (aca = ac_dereference(idev->ac_list, idev); aca;
+	     aca = ac_dereference(aca->aca_next, idev)) {
 		if (ipv6_addr_equal(&aca->aca_addr, addr)) {
 			aca->aca_users++;
 			err = 0;
@@ -380,12 +381,10 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 {
 	struct ifacaddr6 *aca, *prev_aca;
 
-	ASSERT_RTNL();
-
 	write_lock_bh(&idev->lock);
 	prev_aca = NULL;
-	for (aca = rtnl_dereference(idev->ac_list); aca;
-	     aca = rtnl_dereference(aca->aca_next)) {
+	for (aca = ac_dereference(idev->ac_list, idev); aca;
+	     aca = ac_dereference(aca->aca_next, idev)) {
 		if (ipv6_addr_equal(&aca->aca_addr, addr))
 			break;
 		prev_aca = aca;
@@ -429,7 +428,7 @@ void ipv6_ac_destroy_dev(struct inet6_dev *idev)
 	struct ifacaddr6 *aca;
 
 	write_lock_bh(&idev->lock);
-	while ((aca = rtnl_dereference(idev->ac_list)) != NULL) {
+	while ((aca = ac_dereference(idev->ac_list, idev)) != NULL) {
 		rcu_assign_pointer(idev->ac_list, aca->aca_next);
 		write_unlock_bh(&idev->lock);
 
