@@ -32,7 +32,7 @@ static const unsigned long mctp_key_lifetime = 6 * CONFIG_HZ;
 static void mctp_flow_prepare_output(struct sk_buff *skb, struct mctp_dev *dev);
 
 /* route output callbacks */
-static int mctp_route_discard(struct mctp_route *route, struct sk_buff *skb)
+static int mctp_dst_discard(struct mctp_dst *dst, struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return 0;
@@ -368,7 +368,7 @@ static int mctp_frag_queue(struct mctp_sk_key *key, struct sk_buff *skb)
 	return 0;
 }
 
-static int mctp_route_input(struct mctp_route *route, struct sk_buff *skb)
+static int mctp_dst_input(struct mctp_dst *dst, struct sk_buff *skb)
 {
 	struct mctp_sk_key *key, *any_key = NULL;
 	struct net *net = dev_net(skb->dev);
@@ -559,24 +559,17 @@ out:
 	return rc;
 }
 
-static unsigned int mctp_route_mtu(struct mctp_route *rt)
-{
-	return rt->mtu ?: READ_ONCE(rt->dev->dev->mtu);
-}
-
-static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
+static int mctp_dst_output(struct mctp_dst *dst, struct sk_buff *skb)
 {
 	struct mctp_skb_cb *cb = mctp_cb(skb);
 	struct mctp_hdr *hdr = mctp_hdr(skb);
 	char daddr_buf[MAX_ADDR_LEN];
 	char *daddr = NULL;
-	unsigned int mtu;
 	int rc;
 
 	skb->protocol = htons(ETH_P_MCTP);
 
-	mtu = READ_ONCE(skb->dev->mtu);
-	if (skb->len > mtu) {
+	if (skb->len > dst->mtu) {
 		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
@@ -598,7 +591,7 @@ static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 	} else {
 		skb->pkt_type = PACKET_OUTGOING;
 		/* If lookup fails let the device handle daddr==NULL */
-		if (mctp_neigh_lookup(route->dev, hdr->dest, daddr_buf) == 0)
+		if (mctp_neigh_lookup(dst->dev, hdr->dest, daddr_buf) == 0)
 			daddr = daddr_buf;
 	}
 
@@ -609,7 +602,7 @@ static int mctp_route_output(struct mctp_route *route, struct sk_buff *skb)
 		return -EHOSTUNREACH;
 	}
 
-	mctp_flow_prepare_output(skb, route->dev);
+	mctp_flow_prepare_output(skb, dst->dev);
 
 	rc = dev_queue_xmit(skb);
 	if (rc)
@@ -638,7 +631,7 @@ static struct mctp_route *mctp_route_alloc(void)
 
 	INIT_LIST_HEAD(&rt->list);
 	refcount_set(&rt->refs, 1);
-	rt->output = mctp_route_discard;
+	rt->output = mctp_dst_discard;
 
 	return rt;
 }
@@ -828,49 +821,106 @@ static bool mctp_rt_compare_exact(struct mctp_route *rt1,
 		rt1->max == rt2->max;
 }
 
-struct mctp_route *mctp_route_lookup(struct net *net, unsigned int dnet,
-				     mctp_eid_t daddr)
+static void mctp_dst_from_route(struct mctp_dst *dst, struct mctp_route *route)
 {
-	struct mctp_route *tmp, *rt = NULL;
+	mctp_dev_hold(route->dev);
+	dst->dev = route->dev;
+	dst->mtu = route->mtu ?: READ_ONCE(dst->dev->dev->mtu);
+	dst->halen = 0;
+	dst->output = route->output;
+}
+
+int mctp_dst_from_extaddr(struct mctp_dst *dst, struct net *net, int ifindex,
+			  unsigned char halen, const unsigned char *haddr)
+{
+	struct net_device *netdev;
+	struct mctp_dev *dev;
+	int rc = -ENOENT;
+
+	if (halen > sizeof(dst->haddr))
+		return -EINVAL;
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(tmp, &net->mctp.routes, list) {
+	netdev = dev_get_by_index_rcu(net, ifindex);
+	if (!netdev)
+		goto out_unlock;
+
+	if (netdev->addr_len != halen) {
+		rc = -EINVAL;
+		goto out_unlock;
+	}
+
+	dev = __mctp_dev_get(netdev);
+	if (!dev)
+		goto out_unlock;
+
+	dst->dev = dev;
+	dst->mtu = READ_ONCE(netdev->mtu);
+	dst->halen = halen;
+	dst->output = mctp_dst_output;
+	memcpy(dst->haddr, haddr, halen);
+
+	rc = 0;
+
+out_unlock:
+	rcu_read_unlock();
+	return rc;
+}
+
+void mctp_dst_release(struct mctp_dst *dst)
+{
+	mctp_dev_put(dst->dev);
+}
+
+/* populates *dst on successful lookup, if set */
+int mctp_route_lookup(struct net *net, unsigned int dnet,
+		      mctp_eid_t daddr, struct mctp_dst *dst)
+{
+	int rc = -EHOSTUNREACH;
+	struct mctp_route *rt;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(rt, &net->mctp.routes, list) {
 		/* TODO: add metrics */
-		if (mctp_rt_match_eid(tmp, dnet, daddr)) {
-			if (refcount_inc_not_zero(&tmp->refs)) {
-				rt = tmp;
-				break;
-			}
-		}
+		if (!mctp_rt_match_eid(rt, dnet, daddr))
+			continue;
+
+		if (dst)
+			mctp_dst_from_route(dst, rt);
+		rc = 0;
+		break;
 	}
 
 	rcu_read_unlock();
 
-	return rt;
+	return rc;
 }
 
-static struct mctp_route *mctp_route_lookup_null(struct net *net,
-						 struct net_device *dev)
+static int mctp_route_lookup_null(struct net *net, struct net_device *dev,
+				  struct mctp_dst *dst)
 {
-	struct mctp_route *tmp, *rt = NULL;
+	int rc = -EHOSTUNREACH;
+	struct mctp_route *rt;
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(tmp, &net->mctp.routes, list) {
-		if (tmp->dev->dev == dev && tmp->type == RTN_LOCAL &&
-		    refcount_inc_not_zero(&tmp->refs)) {
-			rt = tmp;
-			break;
-		}
+	list_for_each_entry_rcu(rt, &net->mctp.routes, list) {
+		if (rt->dev->dev != dev || rt->type != RTN_LOCAL)
+			continue;
+
+		mctp_dst_from_route(dst, rt);
+		rc = 0;
+		break;
 	}
 
 	rcu_read_unlock();
 
-	return rt;
+	return rc;
 }
 
-static int mctp_do_fragment_route(struct mctp_route *rt, struct sk_buff *skb,
+static int mctp_do_fragment_route(struct mctp_dst *dst, struct sk_buff *skb,
 				  unsigned int mtu, u8 tag)
 {
 	const unsigned int hlen = sizeof(struct mctp_hdr);
@@ -943,7 +993,7 @@ static int mctp_do_fragment_route(struct mctp_route *rt, struct sk_buff *skb,
 		skb_ext_copy(skb2, skb);
 
 		/* do route */
-		rc = rt->output(rt, skb2);
+		rc = dst->output(dst, skb2);
 		if (rc)
 			break;
 
@@ -955,68 +1005,32 @@ static int mctp_do_fragment_route(struct mctp_route *rt, struct sk_buff *skb,
 	return rc;
 }
 
-int mctp_local_output(struct sock *sk, struct mctp_route *rt,
+int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 		      struct sk_buff *skb, mctp_eid_t daddr, u8 req_tag)
 {
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct mctp_skb_cb *cb = mctp_cb(skb);
-	struct mctp_route tmp_rt = {0};
 	struct mctp_sk_key *key;
 	struct mctp_hdr *hdr;
 	unsigned long flags;
 	unsigned int netid;
 	unsigned int mtu;
 	mctp_eid_t saddr;
-	bool ext_rt;
 	int rc;
 	u8 tag;
 
 	rc = -ENODEV;
 
-	if (rt) {
-		ext_rt = false;
-		if (WARN_ON(!rt->dev))
-			goto out_release;
-
-	} else if (cb->ifindex) {
-		struct net_device *dev;
-
-		ext_rt = true;
-		rt = &tmp_rt;
-
-		rcu_read_lock();
-		dev = dev_get_by_index_rcu(sock_net(sk), cb->ifindex);
-		if (!dev) {
-			rcu_read_unlock();
-			goto out_free;
-		}
-		rt->dev = __mctp_dev_get(dev);
-		rcu_read_unlock();
-
-		if (!rt->dev)
-			goto out_release;
-
-		/* establish temporary route - we set up enough to keep
-		 * mctp_route_output happy
-		 */
-		rt->output = mctp_route_output;
-		rt->mtu = 0;
-
-	} else {
-		rc = -EINVAL;
-		goto out_free;
-	}
-
-	spin_lock_irqsave(&rt->dev->addrs_lock, flags);
-	if (rt->dev->num_addrs == 0) {
+	spin_lock_irqsave(&dst->dev->addrs_lock, flags);
+	if (dst->dev->num_addrs == 0) {
 		rc = -EHOSTUNREACH;
 	} else {
 		/* use the outbound interface's first address as our source */
-		saddr = rt->dev->addrs[0];
+		saddr = dst->dev->addrs[0];
 		rc = 0;
 	}
-	spin_unlock_irqrestore(&rt->dev->addrs_lock, flags);
-	netid = READ_ONCE(rt->dev->net);
+	spin_unlock_irqrestore(&dst->dev->addrs_lock, flags);
+	netid = READ_ONCE(dst->dev->net);
 
 	if (rc)
 		goto out_release;
@@ -1048,7 +1062,7 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 	skb_reset_transport_header(skb);
 	skb_push(skb, sizeof(struct mctp_hdr));
 	skb_reset_network_header(skb);
-	skb->dev = rt->dev->dev;
+	skb->dev = dst->dev->dev;
 
 	/* cb->net will have been set on initial ingress */
 	cb->src = saddr;
@@ -1059,26 +1073,20 @@ int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 	hdr->dest = daddr;
 	hdr->src = saddr;
 
-	mtu = mctp_route_mtu(rt);
+	mtu = dst->mtu;
 
 	if (skb->len + sizeof(struct mctp_hdr) <= mtu) {
 		hdr->flags_seq_tag = MCTP_HDR_FLAG_SOM |
 			MCTP_HDR_FLAG_EOM | tag;
-		rc = rt->output(rt, skb);
+		rc = dst->output(dst, skb);
 	} else {
-		rc = mctp_do_fragment_route(rt, skb, mtu, tag);
+		rc = mctp_do_fragment_route(dst, skb, mtu, tag);
 	}
 
 	/* route output functions consume the skb, even on error */
 	skb = NULL;
 
 out_release:
-	if (!ext_rt)
-		mctp_route_release(rt);
-
-	mctp_dev_put(tmp_rt.dev);
-
-out_free:
 	kfree_skb(skb);
 	return rc;
 }
@@ -1088,7 +1096,7 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 			  unsigned int daddr_extent, unsigned int mtu,
 			  unsigned char type)
 {
-	int (*rtfn)(struct mctp_route *rt, struct sk_buff *skb);
+	int (*rtfn)(struct mctp_dst *dst, struct sk_buff *skb);
 	struct net *net = dev_net(mdev->dev);
 	struct mctp_route *rt, *ert;
 
@@ -1100,14 +1108,16 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 
 	switch (type) {
 	case RTN_LOCAL:
-		rtfn = mctp_route_input;
+		rtfn = mctp_dst_input;
 		break;
 	case RTN_UNICAST:
-		rtfn = mctp_route_output;
+		rtfn = mctp_dst_output;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	ASSERT_RTNL();
 
 	rt = mctp_route_alloc();
 	if (!rt)
@@ -1121,7 +1131,6 @@ static int mctp_route_add(struct mctp_dev *mdev, mctp_eid_t daddr_start,
 	rt->type = type;
 	rt->output = rtfn;
 
-	ASSERT_RTNL();
 	/* Prevent duplicate identical routes. */
 	list_for_each_entry(ert, &net->mctp.routes, list) {
 		if (mctp_rt_compare_exact(rt, ert)) {
@@ -1200,8 +1209,9 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 	struct net *net = dev_net(dev);
 	struct mctp_dev *mdev;
 	struct mctp_skb_cb *cb;
-	struct mctp_route *rt;
+	struct mctp_dst dst;
 	struct mctp_hdr *mh;
+	int rc;
 
 	rcu_read_lock();
 	mdev = __mctp_dev_get(dev);
@@ -1243,17 +1253,17 @@ static int mctp_pkttype_receive(struct sk_buff *skb, struct net_device *dev,
 	cb->net = READ_ONCE(mdev->net);
 	cb->ifindex = dev->ifindex;
 
-	rt = mctp_route_lookup(net, cb->net, mh->dest);
+	rc = mctp_route_lookup(net, cb->net, mh->dest, &dst);
 
 	/* NULL EID, but addressed to our physical address */
-	if (!rt && mh->dest == MCTP_ADDR_NULL && skb->pkt_type == PACKET_HOST)
-		rt = mctp_route_lookup_null(net, dev);
+	if (rc && mh->dest == MCTP_ADDR_NULL && skb->pkt_type == PACKET_HOST)
+		rc = mctp_route_lookup_null(net, dev, &dst);
 
-	if (!rt)
+	if (rc)
 		goto err_drop;
 
-	rt->output(rt, skb);
-	mctp_route_release(rt);
+	dst.output(&dst, skb);
+	mctp_dst_release(&dst);
 	mctp_dev_put(mdev);
 
 	return NET_RX_SUCCESS;

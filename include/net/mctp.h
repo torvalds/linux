@@ -222,6 +222,8 @@ struct mctp_flow {
 	struct mctp_sk_key *key;
 };
 
+struct mctp_dst;
+
 /* Route definition.
  *
  * These are held in the pernet->mctp.routes list, with RCU protection for
@@ -229,8 +231,7 @@ struct mctp_flow {
  * dropped on NETDEV_UNREGISTER events.
  *
  * Updates to the route table are performed under rtnl; all reads under RCU,
- * so routes cannot be referenced over a RCU grace period. Specifically: A
- * caller cannot block between mctp_route_lookup and mctp_route_release()
+ * so routes cannot be referenced over a RCU grace period.
  */
 struct mctp_route {
 	mctp_eid_t		min, max;
@@ -238,7 +239,7 @@ struct mctp_route {
 	unsigned char		type;
 	unsigned int		mtu;
 	struct mctp_dev		*dev;
-	int			(*output)(struct mctp_route *route,
+	int			(*output)(struct mctp_dst *dst,
 					  struct sk_buff *skb);
 
 	struct list_head	list;
@@ -246,12 +247,34 @@ struct mctp_route {
 	struct rcu_head		rcu;
 };
 
+/* Route lookup result: dst. Represents the results of a routing decision,
+ * but is only held over the individual routing operation.
+ *
+ * Will typically be stored on the caller stack, and must be released after
+ * usage.
+ */
+struct mctp_dst {
+	struct mctp_dev *dev;
+	unsigned int mtu;
+
+	/* set for direct addressing */
+	unsigned char halen;
+	unsigned char haddr[MAX_ADDR_LEN];
+
+	int (*output)(struct mctp_dst *dst, struct sk_buff *skb);
+};
+
+int mctp_dst_from_extaddr(struct mctp_dst *dst, struct net *net, int ifindex,
+			  unsigned char halen, const unsigned char *haddr);
+
 /* route interfaces */
-struct mctp_route *mctp_route_lookup(struct net *net, unsigned int dnet,
-				     mctp_eid_t daddr);
+int mctp_route_lookup(struct net *net, unsigned int dnet,
+		      mctp_eid_t daddr, struct mctp_dst *dst);
+
+void mctp_dst_release(struct mctp_dst *dst);
 
 /* always takes ownership of skb */
-int mctp_local_output(struct sock *sk, struct mctp_route *rt,
+int mctp_local_output(struct sock *sk, struct mctp_dst *dst,
 		      struct sk_buff *skb, mctp_eid_t daddr, u8 req_tag);
 
 void mctp_key_unref(struct mctp_sk_key *key);
