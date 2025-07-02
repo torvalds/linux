@@ -1935,7 +1935,7 @@ static int gfx_v12_1_xcc_cp_compute_load_microcode_rs64(struct amdgpu_device *ad
 	}
 
 	memcpy(fw_ucode_ptr, fw_ucode, fw_ucode_size);
-	for_each_inst(xcc_id, xcc_mask) {
+	for (xcc_id = 0; xcc_id < NUM_XCC(xcc_mask); xcc_id++) {
 		for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
 			u32 offset = (xcc_id * adev->gfx.mec.num_pipe_per_mec + i) *
 				     ALIGN(fw_data_size, 64 * 1024) / 4;
@@ -1948,7 +1948,7 @@ static int gfx_v12_1_xcc_cp_compute_load_microcode_rs64(struct amdgpu_device *ad
 	amdgpu_bo_unreserve(adev->gfx.mec.mec_fw_obj);
 	amdgpu_bo_unreserve(adev->gfx.mec.mec_fw_data_obj);
 
-	for_each_inst(xcc_id, xcc_mask) {
+	for (xcc_id = 0; xcc_id < NUM_XCC(xcc_mask); xcc_id++) {
 		gfx_v12_1_xcc_cp_compute_enable(adev, false, xcc_id);
 
 		tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_CNTL);
@@ -2431,7 +2431,7 @@ static int gfx_v12_1_xcc_cp_resume(struct amdgpu_device *adev, uint16_t xcc_mask
 			return r;
 	}
 
-	for_each_inst(xcc_id, xcc_mask) {
+	for (xcc_id = 0; xcc_id < NUM_XCC(xcc_mask); xcc_id++) {
 		if (!(adev->flags & AMD_IS_APU))
 			gfx_v12_1_xcc_enable_gui_idle_interrupt(adev, false, xcc_id);
 
