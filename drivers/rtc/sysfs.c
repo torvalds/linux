@@ -298,11 +298,7 @@ static struct attribute_group rtc_attr_group = {
 	.is_visible	= rtc_attr_is_visible,
 	.attrs		= rtc_attrs,
 };
-
-static const struct attribute_group *rtc_attr_groups[] = {
-	&rtc_attr_group,
-	NULL
-};
+__ATTRIBUTE_GROUPS(rtc_attr);
 
 const struct attribute_group **rtc_get_dev_attribute_groups(void)
 {
