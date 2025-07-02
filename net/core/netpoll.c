@@ -473,11 +473,28 @@ static void push_ipv4(struct netpoll *np, struct sk_buff *skb, int len)
 	eth->h_proto = htons(ETH_P_IP);
 }
 
+static void push_udp(struct netpoll *np, struct sk_buff *skb, int len)
+{
+	struct udphdr *udph;
+	int udp_len;
+
+	udp_len = len + sizeof(struct udphdr);
+
+	skb_push(skb, sizeof(struct udphdr));
+	skb_reset_transport_header(skb);
+
+	udph = udp_hdr(skb);
+	udph->source = htons(np->local_port);
+	udph->dest = htons(np->remote_port);
+	udph->len = htons(udp_len);
+
+	netpoll_udp_checksum(np, skb, len);
+}
+
 int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 {
 	int total_len, ip_len, udp_len;
 	struct sk_buff *skb;
-	struct udphdr *udph;
 	struct ethhdr *eth;
 
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
@@ -499,14 +516,7 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	skb_copy_to_linear_data(skb, msg, len);
 	skb_put(skb, len);
 
-	skb_push(skb, sizeof(struct udphdr));
-	skb_reset_transport_header(skb);
-	udph = udp_hdr(skb);
-	udph->source = htons(np->local_port);
-	udph->dest = htons(np->remote_port);
-	udph->len = htons(udp_len);
-
-	netpoll_udp_checksum(np, skb, len);
+	push_udp(np, skb, len);
 	if (np->ipv6)
 		push_ipv6(np, skb, len);
 	else
