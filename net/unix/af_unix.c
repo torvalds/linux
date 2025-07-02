@@ -2527,12 +2527,10 @@ int __unix_dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t size,
 					      &err, &timeo, last));
 
 	if (!skb) { /* implies iolock unlocked */
-		unix_state_lock(sk);
 		/* Signal EOF on disconnected non-blocking SEQPACKET socket. */
 		if (sk->sk_type == SOCK_SEQPACKET && err == -EAGAIN &&
-		    (sk->sk_shutdown & RCV_SHUTDOWN))
+		    (READ_ONCE(sk->sk_shutdown) & RCV_SHUTDOWN))
 			err = 0;
-		unix_state_unlock(sk);
 		goto out;
 	}
 
