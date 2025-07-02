@@ -8,6 +8,7 @@ cleanup()
 {
     set -e
 
+    # TODO remove this sleep?
     sleep 1
     if type -P fusermount3 > /dev/null; then
         fusermount3 -u $dir
@@ -17,7 +18,6 @@ cleanup()
     rm $file
     rmdir $dir
 }
-
 
 # $1 - disk image
 # $2 - fstype
@@ -33,9 +33,10 @@ function prepfs()
 # $1 - disk image
 # $2 - mount point
 # $3 - filesystem type
+# $4 - lock file
 lklfuse_mount()
 {
-    ${script_dir}/../lklfuse $1 $2 -o type=$3
+    ${script_dir}/../lklfuse $1 $2 -o type=$3,lock=$4
 }
 
 # $1 - mount point
@@ -74,6 +75,21 @@ lklfuse_stressng()
 	      --sync-file-bytes 10m
 }
 
+# $1 - disk image
+# $2 - filesystem type
+# $3 - lock file
+lklfuse_lock_conflict()
+{
+    local ret=$TEST_FAILURE unused_mnt=`mktemp -d`
+
+    set +e
+    # assume lklfuse already running with same lock file, causing lock conflict
+    ${script_dir}/../lklfuse -f $1 $unused_mnt -o type=$2,lock=$3
+    [ $? -eq 2 ] && ret=$TEST_SUCCESS
+    rmdir "$unused_mnt"
+    return $ret
+}
+
 if [ "$1" = "-t" ]; then
     shift
     fstype=$1
@@ -102,18 +118,19 @@ if [ -z $(which mkfs.$fstype) ]; then
     exit 0
 fi
 
-
 file=`mktemp`
 dir=`mktemp -d`
+lock_file="$file"
 
 trap cleanup EXIT
 
-lkl_test_plan 4 "lklfuse $fstype"
+lkl_test_plan 5 "lklfuse $fstype"
 
 lkl_test_run 1 prepfs $file $fstype
-lkl_test_run 2 lklfuse_mount $file $dir $fstype
+lkl_test_run 2 lklfuse_mount $file $dir $fstype $lock_file
 lkl_test_run 3 lklfuse_basic $dir
 # stress-ng returns 2 with no apparent failures so skip it for now
 #lkl_test_run 4 lklfuse_stressng $dir $fstype
+lkl_test_run 4 lklfuse_lock_conflict $file $fstype $lock_file
 trap : EXIT
-lkl_test_run 4 cleanup
+lkl_test_run 5 cleanup
