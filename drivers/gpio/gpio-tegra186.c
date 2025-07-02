@@ -202,8 +202,8 @@ static int tegra186_init_valid_mask(struct gpio_chip *chip,
 	return 0;
 }
 
-static void tegra186_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			      int level)
+static int tegra186_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			     int level)
 {
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
@@ -211,7 +211,7 @@ static void tegra186_gpio_set(struct gpio_chip *chip, unsigned int offset,
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
-		return;
+		return -ENODEV;
 
 	value = readl(base + TEGRA186_GPIO_OUTPUT_VALUE);
 	if (level == 0)
@@ -220,6 +220,8 @@ static void tegra186_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		value |= TEGRA186_GPIO_OUTPUT_VALUE_HIGH;
 
 	writel(value, base + TEGRA186_GPIO_OUTPUT_VALUE);
+
+	return 0;
 }
 
 static int tegra186_gpio_get_direction(struct gpio_chip *chip,
@@ -269,9 +271,12 @@ static int tegra186_gpio_direction_output(struct gpio_chip *chip,
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
 	void __iomem *base;
 	u32 value;
+	int ret;
 
 	/* configure output level first */
-	tegra186_gpio_set(chip, offset, level);
+	ret = tegra186_gpio_set(chip, offset, level);
+	if (ret)
+		return ret;
 
 	base = tegra186_gpio_get_base(gpio, offset);
 	if (WARN_ON(base == NULL))
@@ -886,7 +891,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	gpio->gpio.direction_input = tegra186_gpio_direction_input;
 	gpio->gpio.direction_output = tegra186_gpio_direction_output;
 	gpio->gpio.get = tegra186_gpio_get;
-	gpio->gpio.set = tegra186_gpio_set;
+	gpio->gpio.set_rv = tegra186_gpio_set;
 	gpio->gpio.set_config = tegra186_gpio_set_config;
 	gpio->gpio.add_pin_ranges = tegra186_gpio_add_pin_ranges;
 	gpio->gpio.init_valid_mask = tegra186_init_valid_mask;
