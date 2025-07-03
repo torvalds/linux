@@ -21011,7 +21011,10 @@ static int opt_remove_nops(struct bpf_verifier_env *env)
 static int opt_subreg_zext_lo32_rnd_hi32(struct bpf_verifier_env *env,
 					 const union bpf_attr *attr)
 {
-	struct bpf_insn *patch, zext_patch[2], rnd_hi32_patch[4];
+	struct bpf_insn *patch;
+	/* use env->insn_buf as two independent buffers */
+	struct bpf_insn *zext_patch = env->insn_buf;
+	struct bpf_insn *rnd_hi32_patch = &env->insn_buf[2];
 	struct bpf_insn_aux_data *aux = env->insn_aux_data;
 	int i, patch_len, delta = 0, len = env->prog->len;
 	struct bpf_insn *insns = env->prog->insnsi;
@@ -21189,13 +21192,12 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 
 		if (env->insn_aux_data[i + delta].nospec) {
 			WARN_ON_ONCE(env->insn_aux_data[i + delta].alu_state);
-			struct bpf_insn patch[] = {
-				BPF_ST_NOSPEC(),
-				*insn,
-			};
+			struct bpf_insn *patch = insn_buf;
 
-			cnt = ARRAY_SIZE(patch);
-			new_prog = bpf_patch_insn_data(env, i + delta, patch, cnt);
+			*patch++ = BPF_ST_NOSPEC();
+			*patch++ = *insn;
+			cnt = patch - insn_buf;
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
 			if (!new_prog)
 				return -ENOMEM;
 
@@ -21263,13 +21265,12 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 			/* nospec_result is only used to mitigate Spectre v4 and
 			 * to limit verification-time for Spectre v1.
 			 */
-			struct bpf_insn patch[] = {
-				*insn,
-				BPF_ST_NOSPEC(),
-			};
+			struct bpf_insn *patch = insn_buf;
 
-			cnt = ARRAY_SIZE(patch);
-			new_prog = bpf_patch_insn_data(env, i + delta, patch, cnt);
+			*patch++ = *insn;
+			*patch++ = BPF_ST_NOSPEC();
+			cnt = patch - insn_buf;
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
 			if (!new_prog)
 				return -ENOMEM;
 
@@ -21939,13 +21940,12 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 	u16 stack_depth_extra = 0;
 
 	if (env->seen_exception && !env->exception_callback_subprog) {
-		struct bpf_insn patch[] = {
-			env->prog->insnsi[insn_cnt - 1],
-			BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
-			BPF_EXIT_INSN(),
-		};
+		struct bpf_insn *patch = insn_buf;
 
-		ret = add_hidden_subprog(env, patch, ARRAY_SIZE(patch));
+		*patch++ = env->prog->insnsi[insn_cnt - 1];
+		*patch++ = BPF_MOV64_REG(BPF_REG_0, BPF_REG_1);
+		*patch++ = BPF_EXIT_INSN();
+		ret = add_hidden_subprog(env, insn_buf, patch - insn_buf);
 		if (ret < 0)
 			return ret;
 		prog = env->prog;
@@ -21981,20 +21981,18 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 		    insn->off == 1 && insn->imm == -1) {
 			bool is64 = BPF_CLASS(insn->code) == BPF_ALU64;
 			bool isdiv = BPF_OP(insn->code) == BPF_DIV;
-			struct bpf_insn *patchlet;
-			struct bpf_insn chk_and_sdiv[] = {
-				BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
-					     BPF_NEG | BPF_K, insn->dst_reg,
-					     0, 0, 0),
-			};
-			struct bpf_insn chk_and_smod[] = {
-				BPF_MOV32_IMM(insn->dst_reg, 0),
-			};
+			struct bpf_insn *patch = insn_buf;
 
-			patchlet = isdiv ? chk_and_sdiv : chk_and_smod;
-			cnt = isdiv ? ARRAY_SIZE(chk_and_sdiv) : ARRAY_SIZE(chk_and_smod);
+			if (isdiv)
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
+							BPF_NEG | BPF_K, insn->dst_reg,
+							0, 0, 0);
+			else
+				*patch++ = BPF_MOV32_IMM(insn->dst_reg, 0);
 
-			new_prog = bpf_patch_insn_data(env, i + delta, patchlet, cnt);
+			cnt = patch - insn_buf;
+
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
 			if (!new_prog)
 				return -ENOMEM;
 
@@ -22013,83 +22011,79 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			bool isdiv = BPF_OP(insn->code) == BPF_DIV;
 			bool is_sdiv = isdiv && insn->off == 1;
 			bool is_smod = !isdiv && insn->off == 1;
-			struct bpf_insn *patchlet;
-			struct bpf_insn chk_and_div[] = {
-				/* [R,W]x div 0 -> 0 */
-				BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
-					     BPF_JNE | BPF_K, insn->src_reg,
-					     0, 2, 0),
-				BPF_ALU32_REG(BPF_XOR, insn->dst_reg, insn->dst_reg),
-				BPF_JMP_IMM(BPF_JA, 0, 0, 1),
-				*insn,
-			};
-			struct bpf_insn chk_and_mod[] = {
-				/* [R,W]x mod 0 -> [R,W]x */
-				BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
-					     BPF_JEQ | BPF_K, insn->src_reg,
-					     0, 1 + (is64 ? 0 : 1), 0),
-				*insn,
-				BPF_JMP_IMM(BPF_JA, 0, 0, 1),
-				BPF_MOV32_REG(insn->dst_reg, insn->dst_reg),
-			};
-			struct bpf_insn chk_and_sdiv[] = {
+			struct bpf_insn *patch = insn_buf;
+
+			if (is_sdiv) {
 				/* [R,W]x sdiv 0 -> 0
 				 * LLONG_MIN sdiv -1 -> LLONG_MIN
 				 * INT_MIN sdiv -1 -> INT_MIN
 				 */
-				BPF_MOV64_REG(BPF_REG_AX, insn->src_reg),
-				BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
-					     BPF_ADD | BPF_K, BPF_REG_AX,
-					     0, 0, 1),
-				BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
-					     BPF_JGT | BPF_K, BPF_REG_AX,
-					     0, 4, 1),
-				BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
-					     BPF_JEQ | BPF_K, BPF_REG_AX,
-					     0, 1, 0),
-				BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
-					     BPF_MOV | BPF_K, insn->dst_reg,
-					     0, 0, 0),
+				*patch++ = BPF_MOV64_REG(BPF_REG_AX, insn->src_reg);
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
+							BPF_ADD | BPF_K, BPF_REG_AX,
+							0, 0, 1);
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
+							BPF_JGT | BPF_K, BPF_REG_AX,
+							0, 4, 1);
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
+							BPF_JEQ | BPF_K, BPF_REG_AX,
+							0, 1, 0);
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
+							BPF_MOV | BPF_K, insn->dst_reg,
+							0, 0, 0);
 				/* BPF_NEG(LLONG_MIN) == -LLONG_MIN == LLONG_MIN */
-				BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
-					     BPF_NEG | BPF_K, insn->dst_reg,
-					     0, 0, 0),
-				BPF_JMP_IMM(BPF_JA, 0, 0, 1),
-				*insn,
-			};
-			struct bpf_insn chk_and_smod[] = {
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
+							BPF_NEG | BPF_K, insn->dst_reg,
+							0, 0, 0);
+				*patch++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
+				*patch++ = *insn;
+				cnt = patch - insn_buf;
+			} else if (is_smod) {
 				/* [R,W]x mod 0 -> [R,W]x */
 				/* [R,W]x mod -1 -> 0 */
-				BPF_MOV64_REG(BPF_REG_AX, insn->src_reg),
-				BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
-					     BPF_ADD | BPF_K, BPF_REG_AX,
-					     0, 0, 1),
-				BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
-					     BPF_JGT | BPF_K, BPF_REG_AX,
-					     0, 3, 1),
-				BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
-					     BPF_JEQ | BPF_K, BPF_REG_AX,
-					     0, 3 + (is64 ? 0 : 1), 1),
-				BPF_MOV32_IMM(insn->dst_reg, 0),
-				BPF_JMP_IMM(BPF_JA, 0, 0, 1),
-				*insn,
-				BPF_JMP_IMM(BPF_JA, 0, 0, 1),
-				BPF_MOV32_REG(insn->dst_reg, insn->dst_reg),
-			};
+				*patch++ = BPF_MOV64_REG(BPF_REG_AX, insn->src_reg);
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_ALU64 : BPF_ALU) |
+							BPF_ADD | BPF_K, BPF_REG_AX,
+							0, 0, 1);
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
+							BPF_JGT | BPF_K, BPF_REG_AX,
+							0, 3, 1);
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
+							BPF_JEQ | BPF_K, BPF_REG_AX,
+							0, 3 + (is64 ? 0 : 1), 1);
+				*patch++ = BPF_MOV32_IMM(insn->dst_reg, 0);
+				*patch++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
+				*patch++ = *insn;
 
-			if (is_sdiv) {
-				patchlet = chk_and_sdiv;
-				cnt = ARRAY_SIZE(chk_and_sdiv);
-			} else if (is_smod) {
-				patchlet = chk_and_smod;
-				cnt = ARRAY_SIZE(chk_and_smod) - (is64 ? 2 : 0);
+				if (!is64) {
+					*patch++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
+					*patch++ = BPF_MOV32_REG(insn->dst_reg, insn->dst_reg);
+				}
+				cnt = patch - insn_buf;
+			} else if (isdiv) {
+				/* [R,W]x div 0 -> 0 */
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
+							BPF_JNE | BPF_K, insn->src_reg,
+							0, 2, 0);
+				*patch++ = BPF_ALU32_REG(BPF_XOR, insn->dst_reg, insn->dst_reg);
+				*patch++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
+				*patch++ = *insn;
+				cnt = patch - insn_buf;
 			} else {
-				patchlet = isdiv ? chk_and_div : chk_and_mod;
-				cnt = isdiv ? ARRAY_SIZE(chk_and_div) :
-					      ARRAY_SIZE(chk_and_mod) - (is64 ? 2 : 0);
+				/* [R,W]x mod 0 -> [R,W]x */
+				*patch++ = BPF_RAW_INSN((is64 ? BPF_JMP : BPF_JMP32) |
+							BPF_JEQ | BPF_K, insn->src_reg,
+							0, 1 + (is64 ? 0 : 1), 0);
+				*patch++ = *insn;
+
+				if (!is64) {
+					*patch++ = BPF_JMP_IMM(BPF_JA, 0, 0, 1);
+					*patch++ = BPF_MOV32_REG(insn->dst_reg, insn->dst_reg);
+				}
+				cnt = patch - insn_buf;
 			}
 
-			new_prog = bpf_patch_insn_data(env, i + delta, patchlet, cnt);
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
 			if (!new_prog)
 				return -ENOMEM;
 
