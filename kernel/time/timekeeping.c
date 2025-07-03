@@ -1573,6 +1573,39 @@ void ktime_get_raw_ts64(struct timespec64 *ts)
 }
 EXPORT_SYMBOL(ktime_get_raw_ts64);
 
+/**
+ * ktime_get_clock_ts64 - Returns time of a clock in a timespec
+ * @id:		POSIX clock ID of the clock to read
+ * @ts:		Pointer to the timespec64 to be set
+ *
+ * The timestamp is invalidated (@ts->sec is set to -1) if the
+ * clock @id is not available.
+ */
+void ktime_get_clock_ts64(clockid_t id, struct timespec64 *ts)
+{
+	/* Invalidate time stamp */
+	ts->tv_sec = -1;
+	ts->tv_nsec = 0;
+
+	switch (id) {
+	case CLOCK_REALTIME:
+		ktime_get_real_ts64(ts);
+		return;
+	case CLOCK_MONOTONIC:
+		ktime_get_ts64(ts);
+		return;
+	case CLOCK_MONOTONIC_RAW:
+		ktime_get_raw_ts64(ts);
+		return;
+	case CLOCK_AUX ... CLOCK_AUX_LAST:
+		if (IS_ENABLED(CONFIG_POSIX_AUX_CLOCKS))
+			ktime_get_aux_ts64(id, ts);
+		return;
+	default:
+		WARN_ON_ONCE(1);
+	}
+}
+EXPORT_SYMBOL_GPL(ktime_get_clock_ts64);
 
 /**
  * timekeeping_valid_for_hres - Check if timekeeping is suitable for hres
