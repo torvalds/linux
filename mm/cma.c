@@ -377,6 +377,55 @@ static int __init cma_fixed_reserve(phys_addr_t base, phys_addr_t size)
 	return 0;
 }
 
+static phys_addr_t __init cma_alloc_mem(phys_addr_t base, phys_addr_t size,
+			phys_addr_t align, phys_addr_t limit, int nid)
+{
+	phys_addr_t addr = 0;
+
+	/*
+	 * If there is enough memory, try a bottom-up allocation first.
+	 * It will place the new cma area close to the start of the node
+	 * and guarantee that the compaction is moving pages out of the
+	 * cma area and not into it.
+	 * Avoid using first 4GB to not interfere with constrained zones
+	 * like DMA/DMA32.
+	 */
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+	if (!memblock_bottom_up() && limit >= SZ_4G + size) {
+		memblock_set_bottom_up(true);
+		addr = memblock_alloc_range_nid(size, align, SZ_4G, limit,
+						nid, true);
+		memblock_set_bottom_up(false);
+	}
+#endif
+
+	/*
+	 * On systems with HIGHMEM try allocating from there before consuming
+	 * memory in lower zones.
+	 */
+	if (!addr && IS_ENABLED(CONFIG_HIGHMEM)) {
+		phys_addr_t highmem = __pa(high_memory - 1) + 1;
+
+		/*
+		 * All pages in the reserved area must come from the same zone.
+		 * If the requested region crosses the low/high memory boundary,
+		 * try allocating from high memory first and fall back to low
+		 * memory in case of failure.
+		 */
+		if (base < highmem && limit > highmem) {
+			addr = memblock_alloc_range_nid(size, align, highmem,
+							limit, nid, true);
+			limit = highmem;
+		}
+	}
+
+	if (!addr)
+		addr = memblock_alloc_range_nid(size, align, base, limit, nid,
+						true);
+
+	return addr;
+}
+
 static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 			phys_addr_t size, phys_addr_t limit,
 			phys_addr_t alignment, unsigned int order_per_bit,
@@ -384,19 +433,9 @@ static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 			int nid)
 {
 	phys_addr_t memblock_end = memblock_end_of_DRAM();
-	phys_addr_t highmem_start, base = *basep;
+	phys_addr_t base = *basep;
 	int ret;
 
-	/*
-	 * We can't use __pa(high_memory) directly, since high_memory
-	 * isn't a valid direct map VA, and DEBUG_VIRTUAL will (validly)
-	 * complain. Find the boundary by adding one to the last valid
-	 * address.
-	 */
-	if (IS_ENABLED(CONFIG_HIGHMEM))
-		highmem_start = __pa(high_memory - 1) + 1;
-	else
-		highmem_start = memblock_end_of_DRAM();
 	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
 		__func__, &size, &base, &limit, &alignment);
 
@@ -453,50 +492,15 @@ static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 		if (ret)
 			return ret;
 	} else {
-		phys_addr_t addr = 0;
-
-		/*
-		 * If there is enough memory, try a bottom-up allocation first.
-		 * It will place the new cma area close to the start of the node
-		 * and guarantee that the compaction is moving pages out of the
-		 * cma area and not into it.
-		 * Avoid using first 4GB to not interfere with constrained zones
-		 * like DMA/DMA32.
-		 */
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-		if (!memblock_bottom_up() && memblock_end >= SZ_4G + size) {
-			memblock_set_bottom_up(true);
-			addr = memblock_alloc_range_nid(size, alignment, SZ_4G,
-							limit, nid, true);
-			memblock_set_bottom_up(false);
-		}
-#endif
-
-		/*
-		 * All pages in the reserved area must come from the same zone.
-		 * If the requested region crosses the low/high memory boundary,
-		 * try allocating from high memory first and fall back to low
-		 * memory in case of failure.
-		 */
-		if (!addr && base < highmem_start && limit > highmem_start) {
-			addr = memblock_alloc_range_nid(size, alignment,
-					highmem_start, limit, nid, true);
-			limit = highmem_start;
-		}
-
-		if (!addr) {
-			addr = memblock_alloc_range_nid(size, alignment, base,
-					limit, nid, true);
-			if (!addr)
-				return -ENOMEM;
-		}
+		base = cma_alloc_mem(base, size, alignment, limit, nid);
+		if (!base)
+			return -ENOMEM;
 
 		/*
 		 * kmemleak scans/reads tracked objects for pointers to other
 		 * objects but this address isn't mapped and accessible
 		 */
-		kmemleak_ignore_phys(addr);
-		base = addr;
+		kmemleak_ignore_phys(base);
 	}
 
 	ret = cma_init_reserved_mem(base, size, order_per_bit, name, res_cma);
