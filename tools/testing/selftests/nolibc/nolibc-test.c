@@ -877,7 +877,12 @@ int test_file_stream(void)
 	return 0;
 }
 
-int test_fork(void)
+enum fork_type {
+	FORK_STANDARD,
+	FORK_VFORK,
+};
+
+int test_fork(enum fork_type type)
 {
 	int status;
 	pid_t pid;
@@ -886,14 +891,23 @@ int test_fork(void)
 	fflush(stdout);
 	fflush(stderr);
 
-	pid = fork();
+	switch (type) {
+	case FORK_STANDARD:
+		pid = fork();
+		break;
+	case FORK_VFORK:
+		pid = vfork();
+		break;
+	default:
+		return 1;
+	}
 
 	switch (pid) {
 	case -1:
 		return 1;
 
 	case 0:
-		exit(123);
+		_exit(123);
 
 	default:
 		pid = waitpid(pid, &status, 0);
@@ -1330,7 +1344,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(dup3_m1);           tmp = dup3(-1, 100, 0); EXPECT_SYSER(1, tmp, -1, EBADF); if (tmp != -1) close(tmp); break;
 		CASE_TEST(execve_root);       EXPECT_SYSER(1, execve("/", (char*[]){ [0] = "/", [1] = NULL }, NULL), -1, EACCES); break;
 		CASE_TEST(file_stream);       EXPECT_SYSZR(1, test_file_stream()); break;
-		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork()); break;
+		CASE_TEST(fork);              EXPECT_SYSZR(1, test_fork(FORK_STANDARD)); break;
 		CASE_TEST(getdents64_root);   EXPECT_SYSNE(1, test_getdents64("/"), -1); break;
 		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, ENOTDIR); break;
 		CASE_TEST(directories);       EXPECT_SYSZR(proc, test_dirent()); break;
@@ -1374,6 +1388,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(uname_fault);       EXPECT_SYSER(1, uname(NULL), -1, EFAULT); break;
 		CASE_TEST(unlink_root);       EXPECT_SYSER(1, unlink("/"), -1, EISDIR); break;
 		CASE_TEST(unlink_blah);       EXPECT_SYSER(1, unlink("/proc/self/blah"), -1, ENOENT); break;
+		CASE_TEST(vfork);             EXPECT_SYSZR(1, test_fork(FORK_VFORK)); break;
 		CASE_TEST(wait_child);        EXPECT_SYSER(1, wait(&tmp), -1, ECHILD); break;
 		CASE_TEST(waitpid_min);       EXPECT_SYSER(1, waitpid(INT_MIN, &tmp, WNOHANG), -1, ESRCH); break;
 		CASE_TEST(waitpid_child);     EXPECT_SYSER(1, waitpid(getpid(), &tmp, WNOHANG), -1, ECHILD); break;
