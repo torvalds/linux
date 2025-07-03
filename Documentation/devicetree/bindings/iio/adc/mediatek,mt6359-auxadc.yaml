@@ -23,6 +23,7 @@ properties:
       - mediatek,mt6358-auxadc
       - mediatek,mt6359-auxadc
       - mediatek,mt6363-auxadc
+      - mediatek,mt6373-auxadc
 
   "#io-channel-cells":
     const: 1
