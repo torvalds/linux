@@ -2196,31 +2196,36 @@ static void apply_func_caps(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_query_caps(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_cmq_desc desc[HNS_ROCE_QUERY_PF_CAPS_CMD_NUM];
+	struct hns_roce_cmq_desc desc[HNS_ROCE_QUERY_PF_CAPS_CMD_NUM] = {};
 	struct hns_roce_caps *caps = &hr_dev->caps;
 	struct hns_roce_query_pf_caps_a *resp_a;
 	struct hns_roce_query_pf_caps_b *resp_b;
 	struct hns_roce_query_pf_caps_c *resp_c;
 	struct hns_roce_query_pf_caps_d *resp_d;
 	struct hns_roce_query_pf_caps_e *resp_e;
+	struct hns_roce_query_pf_caps_f *resp_f;
 	enum hns_roce_opcode_type cmd;
 	int ctx_hop_num;
 	int pbl_hop_num;
+	int cmd_num;
 	int ret;
 	int i;
 
 	cmd = hr_dev->is_vf ? HNS_ROCE_OPC_QUERY_VF_CAPS_NUM :
 	      HNS_ROCE_OPC_QUERY_PF_CAPS_NUM;
+	cmd_num = hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08 ?
+		  HNS_ROCE_QUERY_PF_CAPS_CMD_NUM_HIP08 :
+		  HNS_ROCE_QUERY_PF_CAPS_CMD_NUM;
 
-	for (i = 0; i < HNS_ROCE_QUERY_PF_CAPS_CMD_NUM; i++) {
+	for (i = 0; i < cmd_num - 1; i++) {
 		hns_roce_cmq_setup_basic_desc(&desc[i], cmd, true);
-		if (i < (HNS_ROCE_QUERY_PF_CAPS_CMD_NUM - 1))
-			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
-		else
-			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+		desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
 	}
 
-	ret = hns_roce_cmq_send(hr_dev, desc, HNS_ROCE_QUERY_PF_CAPS_CMD_NUM);
+	hns_roce_cmq_setup_basic_desc(&desc[cmd_num - 1], cmd, true);
+	desc[cmd_num - 1].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+
+	ret = hns_roce_cmq_send(hr_dev, desc, cmd_num);
 	if (ret)
 		return ret;
 
@@ -2229,6 +2234,7 @@ static int hns_roce_query_caps(struct hns_roce_dev *hr_dev)
 	resp_c = (struct hns_roce_query_pf_caps_c *)desc[2].data;
 	resp_d = (struct hns_roce_query_pf_caps_d *)desc[3].data;
 	resp_e = (struct hns_roce_query_pf_caps_e *)desc[4].data;
+	resp_f = (struct hns_roce_query_pf_caps_f *)desc[5].data;
 
 	caps->local_ca_ack_delay = resp_a->local_ca_ack_delay;
 	caps->max_sq_sg = le16_to_cpu(resp_a->max_sq_sg);
@@ -2292,6 +2298,8 @@ static int hns_roce_query_caps(struct hns_roce_dev *hr_dev)
 	caps->reserved_xrcds = hr_reg_read(resp_e, PF_CAPS_E_RSV_XRCDS);
 	caps->reserved_srqs = hr_reg_read(resp_e, PF_CAPS_E_RSV_SRQS);
 	caps->reserved_lkey = hr_reg_read(resp_e, PF_CAPS_E_RSV_LKEYS);
+
+	caps->max_ack_req_msg_len = le32_to_cpu(resp_f->max_ack_req_msg_len);
 
 	caps->qpc_hop_num = ctx_hop_num;
 	caps->sccc_hop_num = ctx_hop_num;
@@ -4535,7 +4543,9 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	dma_addr_t trrl_ba;
 	dma_addr_t irrl_ba;
 	enum ib_mtu ib_mtu;
+	u8 ack_req_freq;
 	const u8 *smac;
+	int lp_msg_len;
 	u8 lp_pktn_ini;
 	u64 *mtts;
 	u8 *dmac;
@@ -4618,7 +4628,8 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		return -EINVAL;
 #define MIN_LP_MSG_LEN 1024
 	/* mtu * (2 ^ lp_pktn_ini) should be in the range of 1024 to mtu */
-	lp_pktn_ini = ilog2(max(mtu, MIN_LP_MSG_LEN) / mtu);
+	lp_msg_len = max(mtu, MIN_LP_MSG_LEN);
+	lp_pktn_ini = ilog2(lp_msg_len / mtu);
 
 	if (attr_mask & IB_QP_PATH_MTU) {
 		hr_reg_write(context, QPC_MTU, ib_mtu);
@@ -4628,8 +4639,22 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	hr_reg_write(context, QPC_LP_PKTN_INI, lp_pktn_ini);
 	hr_reg_clear(qpc_mask, QPC_LP_PKTN_INI);
 
-	/* ACK_REQ_FREQ should be larger than or equal to LP_PKTN_INI */
-	hr_reg_write(context, QPC_ACK_REQ_FREQ, lp_pktn_ini);
+	/*
+	 * There are several constraints for ACK_REQ_FREQ:
+	 * 1. mtu * (2 ^ ACK_REQ_FREQ) should not be too large, otherwise
+	 *    it may cause some unexpected retries when sending large
+	 *    payload.
+	 * 2. ACK_REQ_FREQ should be larger than or equal to LP_PKTN_INI.
+	 * 3. ACK_REQ_FREQ must be equal to LP_PKTN_INI when using LDCP
+	 *    or HC3 congestion control algorithm.
+	 */
+	if (hr_qp->cong_type == CONG_TYPE_LDCP ||
+	    hr_qp->cong_type == CONG_TYPE_HC3 ||
+	    hr_dev->caps.max_ack_req_msg_len < lp_msg_len)
+		ack_req_freq = lp_pktn_ini;
+	else
+		ack_req_freq = ilog2(hr_dev->caps.max_ack_req_msg_len / mtu);
+	hr_reg_write(context, QPC_ACK_REQ_FREQ, ack_req_freq);
 	hr_reg_clear(qpc_mask, QPC_ACK_REQ_FREQ);
 
 	hr_reg_clear(qpc_mask, QPC_RX_REQ_PSN_ERR);
