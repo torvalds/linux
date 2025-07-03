@@ -22103,7 +22103,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 		if (BPF_CLASS(insn->code) == BPF_LDX &&
 		    (BPF_MODE(insn->code) == BPF_PROBE_MEM ||
 		     BPF_MODE(insn->code) == BPF_PROBE_MEMSX)) {
-			struct bpf_insn *patch = &insn_buf[0];
+			struct bpf_insn *patch = insn_buf;
 			u64 uaddress_limit = bpf_arch_uaddress_limit();
 
 			if (!uaddress_limit)
@@ -22154,7 +22154,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 		    insn->code == (BPF_ALU64 | BPF_SUB | BPF_X)) {
 			const u8 code_add = BPF_ALU64 | BPF_ADD | BPF_X;
 			const u8 code_sub = BPF_ALU64 | BPF_SUB | BPF_X;
-			struct bpf_insn *patch = &insn_buf[0];
+			struct bpf_insn *patch = insn_buf;
 			bool issrc, isneg, isimm;
 			u32 off_reg;
 
