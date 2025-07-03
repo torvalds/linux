@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 if SOC_RENESAS
+menu "Renesas PM Domains"
 
 config SYSC_RCAR
 	bool "System Controller support for R-Car" if COMPILE_TEST
@@ -110,4 +111,5 @@ config SYSC_R8A774B1
 	bool "System Controller support for RZ/G2N" if COMPILE_TEST
 	select SYSC_RCAR
 
+endmenu
 endif
