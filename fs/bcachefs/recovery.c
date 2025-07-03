@@ -273,24 +273,35 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 		goto out;
 
 	struct btree_path *path = btree_iter_path(trans, &iter);
-	if (unlikely(!btree_path_node(path, k->level) &&
-		     !k->allocated)) {
+	if (unlikely(!btree_path_node(path, k->level))) {
 		struct bch_fs *c = trans->c;
+
+		CLASS(printbuf, buf)();
+		prt_str(&buf, "btree=");
+		bch2_btree_id_to_text(&buf, k->btree_id);
+		prt_printf(&buf, " level=%u ", k->level);
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k->k));
 
 		if (!(c->recovery.passes_complete & (BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes)|
 						     BIT_ULL(BCH_RECOVERY_PASS_check_topology)))) {
-			bch_err(c, "have key in journal replay for btree depth that does not exist, confused");
+			bch_err(c, "have key in journal replay for btree depth that does not exist, confused\n%s",
+				buf.buf);
 			ret = -EINVAL;
 		}
-#if 0
+
+		if (!k->allocated) {
+			bch_notice(c, "dropping key in journal replay for depth that does not exist because we're recovering from scan\n%s",
+				   buf.buf);
+			k->overwritten = true;
+			goto out;
+		}
+
 		bch2_trans_iter_exit(trans, &iter);
 		bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 					  BTREE_MAX_DEPTH, 0, iter_flags);
 		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
 			bch2_btree_increase_depth(trans, iter.path, 0) ?:
 			-BCH_ERR_transaction_restart_nested;
-#endif
-		k->overwritten = true;
 		goto out;
 	}
 
