@@ -1594,30 +1594,37 @@ class KernelDoc:
 
         # Strip C99-style comments and surrounding whitespace
         line = KernRe(r"//.*$", re.S).sub('', line).strip()
+        if not line:
+            return # nothing to see here
 
         # To distinguish preprocessor directive from regular declaration later.
         if line.startswith('#'):
             line += ";"
-
-        r = KernRe(r'([^\{\};]*)([\{\};])(.*)')
-        while True:
-            if r.search(line):
-                if self.entry.prototype:
-                    self.entry.prototype += " "
-                self.entry.prototype += r.group(1) + r.group(2)
-
-                self.entry.brcount += r.group(2).count('{')
-                self.entry.brcount -= r.group(2).count('}')
-
-                if r.group(2) == ';' and self.entry.brcount <= 0:
+        #
+        # Split the declaration on any of { } or ;, and accumulate pieces
+        # until we hit a semicolon while not inside {brackets}
+        #
+        r = KernRe(r'(.*?)([{};])')
+        for chunk in r.split(line):
+            if chunk:  # Ignore empty matches
+                self.entry.prototype += chunk
+                #
+                # This cries out for a match statement ... someday after we can
+                # drop Python 3.9 ...
+                #
+                if chunk == '{':
+                    self.entry.brcount += 1
+                elif chunk == '}':
+                    self.entry.brcount -= 1
+                elif chunk == ';' and self.entry.brcount <= 0:
                     self.dump_declaration(ln, self.entry.prototype)
                     self.reset_state(ln)
-                    break
-
-                line = r.group(3)
-            else:
-                self.entry.prototype += line
-                break
+                    return
+        #
+        # We hit the end of the line while still in the declaration; put
+        # in a space to represent the newline.
+        #
+        self.entry.prototype += ' '
 
     def process_proto(self, ln, line):
         """STATE_PROTO: reading a function/whatever prototype."""
