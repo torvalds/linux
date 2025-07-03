@@ -93,6 +93,23 @@ enum mlx5hws_matcher_distribute_mode {
 	MLX5HWS_MATCHER_DISTRIBUTE_BY_LINEAR = 0x1,
 };
 
+enum mlx5hws_matcher_size_type {
+	MLX5HWS_MATCHER_SIZE_TYPE_RX,
+	MLX5HWS_MATCHER_SIZE_TYPE_TX,
+	MLX5HWS_MATCHER_SIZE_TYPE_MAX,
+};
+
+union mlx5hws_matcher_size {
+	struct {
+		u8 sz_row_log;
+		u8 sz_col_log;
+	} table;
+
+	struct {
+		u8 num_log;
+	} rule;
+};
+
 struct mlx5hws_matcher_attr {
 	/* Processing priority inside table */
 	u32 priority;
@@ -107,16 +124,7 @@ struct mlx5hws_matcher_attr {
 	enum mlx5hws_matcher_distribute_mode distribute_mode;
 	/* Define whether the created matcher supports resizing into a bigger matcher */
 	bool resizable;
-	union {
-		struct {
-			u8 sz_row_log;
-			u8 sz_col_log;
-		} table;
-
-		struct {
-			u8 num_log;
-		} rule;
-	};
+	union mlx5hws_matcher_size size[MLX5HWS_MATCHER_SIZE_TYPE_MAX];
 	/* Optional AT attach configuration - Max number of additional AT */
 	u8 max_num_of_at_attach;
 	/* Optional end FT (miss FT ID) for match RTC (for isolated matcher) */

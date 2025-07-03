@@ -99,17 +99,19 @@ hws_debug_dump_matcher_attr(struct seq_file *f, struct mlx5hws_matcher *matcher)
 {
 	struct mlx5hws_matcher_attr *attr = &matcher->attr;
 
-	seq_printf(f, "%d,0x%llx,%d,%d,%d,%d,%d,%d,%d,%d\n",
+	seq_printf(f, "%d,0x%llx,%d,%d,%d,%d,%d,%d,%d,%d,-1,-1,%d,%d\n",
 		   MLX5HWS_DEBUG_RES_TYPE_MATCHER_ATTR,
 		   HWS_PTR_TO_ID(matcher),
 		   attr->priority,
 		   attr->mode,
-		   attr->table.sz_row_log,
-		   attr->table.sz_col_log,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_RX].table.sz_row_log,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_RX].table.sz_col_log,
 		   attr->optimize_using_rule_idx,
 		   attr->optimize_flow_src,
 		   attr->insert_mode,
-		   attr->distribute_mode);
+		   attr->distribute_mode,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX].table.sz_row_log,
+		   attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX].table.sz_col_log);
 
 	return 0;
 }

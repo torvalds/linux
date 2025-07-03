@@ -48,7 +48,7 @@ static void hws_bwc_unlock_all_queues(struct mlx5hws_context *ctx)
 
 static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 				      u32 priority,
-				      u8 size_log,
+				      u8 size_log_rx, u8 size_log_tx,
 				      struct mlx5hws_matcher_attr *attr)
 {
 	struct mlx5hws_bwc_matcher *first_matcher =
@@ -62,7 +62,8 @@ static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 	attr->optimize_flow_src = MLX5HWS_MATCHER_FLOW_SRC_ANY;
 	attr->insert_mode = MLX5HWS_MATCHER_INSERT_BY_HASH;
 	attr->distribute_mode = MLX5HWS_MATCHER_DISTRIBUTE_BY_HASH;
-	attr->rule.num_log = size_log;
+	attr->size[MLX5HWS_MATCHER_SIZE_TYPE_RX].rule.num_log = size_log_rx;
+	attr->size[MLX5HWS_MATCHER_SIZE_TYPE_TX].rule.num_log = size_log_tx;
 	attr->resizable = true;
 	attr->max_num_of_at_attach = MLX5HWS_BWC_MATCHER_ATTACH_AT_NUM;
 
@@ -92,6 +93,7 @@ int mlx5hws_bwc_matcher_create_simple(struct mlx5hws_bwc_matcher *bwc_matcher,
 
 	hws_bwc_matcher_init_attr(bwc_matcher,
 				  priority,
+				  MLX5HWS_BWC_MATCHER_INIT_SIZE_LOG,
 				  MLX5HWS_BWC_MATCHER_INIT_SIZE_LOG,
 				  &attr);
 
@@ -695,6 +697,7 @@ static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
 
 	hws_bwc_matcher_init_attr(bwc_matcher,
 				  bwc_matcher->priority,
+				  bwc_matcher->size_log,
 				  bwc_matcher->size_log,
 				  &matcher_attr);
 
