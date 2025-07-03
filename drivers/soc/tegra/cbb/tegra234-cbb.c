@@ -30,13 +30,17 @@
 #define FABRIC_EN_CFG_ADDR_LOW_0		0x80
 #define FABRIC_EN_CFG_ADDR_HI_0			0x84
 
+#define FABRIC_EN_CFG_TARGET_NODE_ADDR_INDEX_0_0 0x100
+#define FABRIC_EN_CFG_TARGET_NODE_ADDR_LOW_0    0x140
+#define FABRIC_EN_CFG_TARGET_NODE_ADDR_HI_0     0x144
+
 #define FABRIC_MN_INITIATOR_ERR_EN_0		0x200
 #define FABRIC_MN_INITIATOR_ERR_FORCE_0		0x204
-#define FABRIC_MN_INITIATOR_ERR_STATUS_0		0x208
-#define FABRIC_MN_INITIATOR_ERR_OVERFLOW_STATUS_0	0x20c
+#define FABRIC_MN_INITIATOR_ERR_STATUS_0	0x208
+#define FABRIC_MN_INITIATOR_ERR_OVERFLOW_STATUS_0 0x20c
 
 #define FABRIC_MN_INITIATOR_LOG_ERR_STATUS_0	0x300
-#define FABRIC_MN_INITIATOR_LOG_ADDR_LOW_0		0x304
+#define FABRIC_MN_INITIATOR_LOG_ADDR_LOW_0	0x304
 #define FABRIC_MN_INITIATOR_LOG_ADDR_HIGH_0	0x308
 #define FABRIC_MN_INITIATOR_LOG_ATTRIBUTES0_0	0x30c
 #define FABRIC_MN_INITIATOR_LOG_ATTRIBUTES1_0	0x310
@@ -320,6 +324,23 @@ static void tegra234_sw_lookup_target_timeout(struct seq_file *file, struct tegr
 	}
 }
 
+static void tegra234_hw_lookup_target_timeout(struct seq_file *file, struct tegra234_cbb *cbb,
+					      u8 target_id, u8 fab_id)
+{
+	unsigned int notifier = cbb->fabric->notifier_offset;
+	u32 hi, lo;
+	u64 addr;
+
+	writel(target_id, cbb->regs + notifier + FABRIC_EN_CFG_TARGET_NODE_ADDR_INDEX_0_0);
+
+	hi = readl(cbb->regs + notifier + FABRIC_EN_CFG_TARGET_NODE_ADDR_HI_0);
+	lo = readl(cbb->regs + notifier + FABRIC_EN_CFG_TARGET_NODE_ADDR_LOW_0);
+
+	addr = (u64)hi << 32 | lo;
+
+	tegra_cbb_print_err(file, "\t  Target Node Addr : %#llx\n", addr);
+}
+
 static void tegra234_cbb_print_error(struct seq_file *file, struct tegra234_cbb *cbb, u32 status,
 				     u32 overflow)
 {
@@ -445,8 +466,18 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	if (!cbb->fabric->fab_list[fab_id].is_lookup)
 		return;
 
-	if (!strcmp(cbb->fabric->errors[cbb->type].code, "TIMEOUT_ERR"))
-		tegra234_sw_lookup_target_timeout(file, cbb, target_id, fab_id);
+	/*
+	 * If is_lookup field is set in fabric_lookup table of soc data, it
+	 * means that address lookup of target is supported for Timeout errors.
+	 * If is_lookup is set and the target_map is not populated making
+	 * max_targets as zero, then it means HW lookup is to be performed.
+	 */
+	if (!strcmp(cbb->fabric->errors[cbb->type].code, "TIMEOUT_ERR")) {
+		if (cbb->fabric->fab_list[fab_id].max_targets)
+			tegra234_sw_lookup_target_timeout(file, cbb, target_id, fab_id);
+		else
+			tegra234_hw_lookup_target_timeout(file, cbb, target_id, fab_id);
+	}
 
 	return;
 }
