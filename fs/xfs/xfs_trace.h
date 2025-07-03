@@ -778,7 +778,6 @@ DEFINE_BUF_EVENT(xfs_buf_iowait_done);
 DEFINE_BUF_EVENT(xfs_buf_delwri_queue);
 DEFINE_BUF_EVENT(xfs_buf_delwri_queued);
 DEFINE_BUF_EVENT(xfs_buf_delwri_split);
-DEFINE_BUF_EVENT(xfs_buf_delwri_pushbuf);
 DEFINE_BUF_EVENT(xfs_buf_get_uncached);
 DEFINE_BUF_EVENT(xfs_buf_item_relse);
 DEFINE_BUF_EVENT(xfs_buf_iodone_async);
@@ -1147,6 +1146,7 @@ DECLARE_EVENT_CLASS(xfs_iref_class,
 		__field(xfs_ino_t, ino)
 		__field(int, count)
 		__field(int, pincount)
+		__field(unsigned long, iflags)
 		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
@@ -1154,13 +1154,15 @@ DECLARE_EVENT_CLASS(xfs_iref_class,
 		__entry->ino = ip->i_ino;
 		__entry->count = atomic_read(&VFS_I(ip)->i_count);
 		__entry->pincount = atomic_read(&ip->i_pincount);
+		__entry->iflags = ip->i_flags;
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ino 0x%llx count %d pincount %d caller %pS",
+	TP_printk("dev %d:%d ino 0x%llx count %d pincount %d iflags 0x%lx caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->count,
 		  __entry->pincount,
+		  __entry->iflags,
 		  (char *)__entry->caller_ip)
 )
 
@@ -1250,6 +1252,8 @@ DEFINE_IREF_EVENT(xfs_irele);
 DEFINE_IREF_EVENT(xfs_inode_pin);
 DEFINE_IREF_EVENT(xfs_inode_unpin);
 DEFINE_IREF_EVENT(xfs_inode_unpin_nowait);
+DEFINE_IREF_EVENT(xfs_inode_push_pinned);
+DEFINE_IREF_EVENT(xfs_inode_push_stale);
 
 DECLARE_EVENT_CLASS(xfs_namespace_class,
 	TP_PROTO(struct xfs_inode *dp, const struct xfs_name *name),
@@ -1654,6 +1658,8 @@ DEFINE_LOG_ITEM_EVENT(xfs_ail_flushing);
 DEFINE_LOG_ITEM_EVENT(xfs_cil_whiteout_mark);
 DEFINE_LOG_ITEM_EVENT(xfs_cil_whiteout_skip);
 DEFINE_LOG_ITEM_EVENT(xfs_cil_whiteout_unpin);
+DEFINE_LOG_ITEM_EVENT(xlog_ail_insert_abort);
+DEFINE_LOG_ITEM_EVENT(xfs_trans_free_abort);
 
 DECLARE_EVENT_CLASS(xfs_ail_class,
 	TP_PROTO(struct xfs_log_item *lip, xfs_lsn_t old_lsn, xfs_lsn_t new_lsn),

@@ -758,11 +758,14 @@ xfs_inode_item_push(
 		 * completed and items removed from the AIL before the next push
 		 * attempt.
 		 */
+		trace_xfs_inode_push_stale(ip, _RET_IP_);
 		return XFS_ITEM_PINNED;
 	}
 
-	if (xfs_ipincount(ip) > 0 || xfs_buf_ispinned(bp))
+	if (xfs_ipincount(ip) > 0 || xfs_buf_ispinned(bp)) {
+		trace_xfs_inode_push_pinned(ip, _RET_IP_);
 		return XFS_ITEM_PINNED;
+	}
 
 	if (xfs_iflags_test(ip, XFS_IFLUSHING))
 		return XFS_ITEM_FLUSHING;
