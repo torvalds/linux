@@ -109,6 +109,11 @@
 	status = "okay";
 };
 
+&uart0 {
+	/* for firmware */
+	status = "reserved";
+};
+
 &uart1 {
 	status = "okay";
 };
