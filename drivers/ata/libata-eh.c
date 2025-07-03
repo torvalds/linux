@@ -3408,12 +3408,12 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 }
 
 /**
- *	ata_set_mode - Program timings and issue SET FEATURES - XFER
+ *	ata_eh_set_mode - Program timings and issue SET FEATURES - XFER
  *	@link: link on which timings will be programmed
  *	@r_failed_dev: out parameter for failed device
  *
  *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
- *	ata_set_mode() fails, pointer to the failing device is
+ *	ata_eh_set_mode() fails, pointer to the failing device is
  *	returned in @r_failed_dev.
  *
  *	LOCKING:
@@ -3422,7 +3422,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
+static int ata_eh_set_mode(struct ata_link *link,
+			   struct ata_device **r_failed_dev)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
@@ -3926,7 +3927,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 		/* configure transfer mode if necessary */
 		if (ehc->i.flags & ATA_EHI_SETMODE) {
-			rc = ata_set_mode(link, &dev);
+			rc = ata_eh_set_mode(link, &dev);
 			if (rc)
 				goto rest_fail;
 			ehc->i.flags &= ~ATA_EHI_SETMODE;
