@@ -2752,7 +2752,6 @@ static const struct dev_pm_ops ipu7_pm_ops = {
 static const struct pci_device_id ipu7_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, IPU7_PCI_ID)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, IPU7P5_PCI_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, IPU8_PCI_ID)},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, ipu7_pci_tbl);
