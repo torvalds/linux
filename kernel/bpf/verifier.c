@@ -1914,19 +1914,19 @@ static char *format_callchain(struct bpf_verifier_env *env, struct bpf_scc_callc
  */
 static int maybe_enter_scc(struct bpf_verifier_env *env, struct bpf_verifier_state *st)
 {
-	struct bpf_scc_callchain callchain;
+	struct bpf_scc_callchain *callchain = &env->callchain_buf;
 	struct bpf_scc_visit *visit;
 
-	if (!compute_scc_callchain(env, st, &callchain))
+	if (!compute_scc_callchain(env, st, callchain))
 		return 0;
-	visit = scc_visit_lookup(env, &callchain);
-	visit = visit ?: scc_visit_alloc(env, &callchain);
+	visit = scc_visit_lookup(env, callchain);
+	visit = visit ?: scc_visit_alloc(env, callchain);
 	if (!visit)
 		return -ENOMEM;
 	if (!visit->entry_state) {
 		visit->entry_state = st;
 		if (env->log.level & BPF_LOG_LEVEL2)
-			verbose(env, "SCC enter %s\n", format_callchain(env, &callchain));
+			verbose(env, "SCC enter %s\n", format_callchain(env, callchain));
 	}
 	return 0;
 }
@@ -1939,21 +1939,21 @@ static int propagate_backedges(struct bpf_verifier_env *env, struct bpf_scc_visi
  */
 static int maybe_exit_scc(struct bpf_verifier_env *env, struct bpf_verifier_state *st)
 {
-	struct bpf_scc_callchain callchain;
+	struct bpf_scc_callchain *callchain = &env->callchain_buf;
 	struct bpf_scc_visit *visit;
 
-	if (!compute_scc_callchain(env, st, &callchain))
+	if (!compute_scc_callchain(env, st, callchain))
 		return 0;
-	visit = scc_visit_lookup(env, &callchain);
+	visit = scc_visit_lookup(env, callchain);
 	if (!visit) {
 		verifier_bug(env, "scc exit: no visit info for call chain %s",
-			     format_callchain(env, &callchain));
+			     format_callchain(env, callchain));
 		return -EFAULT;
 	}
 	if (visit->entry_state != st)
 		return 0;
 	if (env->log.level & BPF_LOG_LEVEL2)
-		verbose(env, "SCC exit %s\n", format_callchain(env, &callchain));
+		verbose(env, "SCC exit %s\n", format_callchain(env, callchain));
 	visit->entry_state = NULL;
 	env->num_backedges -= visit->num_backedges;
 	visit->num_backedges = 0;
@@ -1968,22 +1968,22 @@ static int add_scc_backedge(struct bpf_verifier_env *env,
 			    struct bpf_verifier_state *st,
 			    struct bpf_scc_backedge *backedge)
 {
-	struct bpf_scc_callchain callchain;
+	struct bpf_scc_callchain *callchain = &env->callchain_buf;
 	struct bpf_scc_visit *visit;
 
-	if (!compute_scc_callchain(env, st, &callchain)) {
+	if (!compute_scc_callchain(env, st, callchain)) {
 		verifier_bug(env, "add backedge: no SCC in verification path, insn_idx %d",
 			     st->insn_idx);
 		return -EFAULT;
 	}
-	visit = scc_visit_lookup(env, &callchain);
+	visit = scc_visit_lookup(env, callchain);
 	if (!visit) {
 		verifier_bug(env, "add backedge: no visit info for call chain %s",
-			     format_callchain(env, &callchain));
+			     format_callchain(env, callchain));
 		return -EFAULT;
 	}
 	if (env->log.level & BPF_LOG_LEVEL2)
-		verbose(env, "SCC backedge %s\n", format_callchain(env, &callchain));
+		verbose(env, "SCC backedge %s\n", format_callchain(env, callchain));
 	backedge->next = visit->backedges;
 	visit->backedges = backedge;
 	visit->num_backedges++;
@@ -1999,12 +1999,12 @@ static int add_scc_backedge(struct bpf_verifier_env *env,
 static bool incomplete_read_marks(struct bpf_verifier_env *env,
 				  struct bpf_verifier_state *st)
 {
-	struct bpf_scc_callchain callchain;
+	struct bpf_scc_callchain *callchain = &env->callchain_buf;
 	struct bpf_scc_visit *visit;
 
-	if (!compute_scc_callchain(env, st, &callchain))
+	if (!compute_scc_callchain(env, st, callchain))
 		return false;
-	visit = scc_visit_lookup(env, &callchain);
+	visit = scc_visit_lookup(env, callchain);
 	if (!visit)
 		return false;
 	return !!visit->backedges;
