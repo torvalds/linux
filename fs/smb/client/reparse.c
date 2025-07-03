@@ -57,6 +57,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 	struct reparse_symlink_data_buffer *buf = NULL;
 	struct cifs_open_info_data data = {};
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	const char *symroot = cifs_sb->ctx->symlinkroot;
 	struct inode *new;
 	struct kvec iov;
 	__le16 *path = NULL;
@@ -82,7 +83,8 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		.symlink_target = symlink_target,
 	};
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
+	    symroot && symname[0] == '/') {
 		/*
 		 * This is a request to create an absolute symlink on the server
 		 * which does not support POSIX paths, and expects symlink in
@@ -92,7 +94,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		 * ensure compatibility of this symlink stored in absolute form
 		 * on the SMB server.
 		 */
-		if (!strstarts(symname, cifs_sb->ctx->symlinkroot)) {
+		if (!strstarts(symname, symroot)) {
 			/*
 			 * If the absolute Linux symlink target path is not
 			 * inside "symlinkroot" location then there is no way
@@ -101,12 +103,12 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 			cifs_dbg(VFS,
 				 "absolute symlink '%s' cannot be converted to NT format "
 				 "because it is outside of symlinkroot='%s'\n",
-				 symname, cifs_sb->ctx->symlinkroot);
+				 symname, symroot);
 			rc = -EINVAL;
 			goto out;
 		}
-		len = strlen(cifs_sb->ctx->symlinkroot);
-		if (cifs_sb->ctx->symlinkroot[len-1] != '/')
+		len = strlen(symroot);
+		if (symroot[len - 1] != '/')
 			len++;
 		if (symname[len] >= 'a' && symname[len] <= 'z' &&
 		    (symname[len+1] == '/' || symname[len+1] == '\0')) {
@@ -782,6 +784,7 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 			      const char *full_path,
 			      struct cifs_sb_info *cifs_sb)
 {
+	const char *symroot = cifs_sb->ctx->symlinkroot;
 	char sep = CIFS_DIR_SEP(cifs_sb);
 	char *linux_target = NULL;
 	char *smb_target = NULL;
@@ -815,7 +818,8 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 		goto out;
 	}
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && !relative) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
+	    symroot && !relative) {
 		/*
 		 * This is an absolute symlink from the server which does not
 		 * support POSIX paths, so the symlink is in NT-style path.
@@ -907,15 +911,15 @@ globalroot:
 		}
 
 		abs_path_len = strlen(abs_path)+1;
-		symlinkroot_len = strlen(cifs_sb->ctx->symlinkroot);
-		if (cifs_sb->ctx->symlinkroot[symlinkroot_len-1] == '/')
+		symlinkroot_len = strlen(symroot);
+		if (symroot[symlinkroot_len - 1] == '/')
 			symlinkroot_len--;
 		linux_target = kmalloc(symlinkroot_len + 1 + abs_path_len, GFP_KERNEL);
 		if (!linux_target) {
 			rc = -ENOMEM;
 			goto out;
 		}
-		memcpy(linux_target, cifs_sb->ctx->symlinkroot, symlinkroot_len);
+		memcpy(linux_target, symroot, symlinkroot_len);
 		linux_target[symlinkroot_len] = '/';
 		memcpy(linux_target + symlinkroot_len + 1, abs_path, abs_path_len);
 	} else if (smb_target[0] == sep && relative) {
