@@ -188,4 +188,20 @@ pid_t sys_fork(void)
 }
 #define sys_fork sys_fork
 
+static __attribute__((unused))
+pid_t sys_vfork(void)
+{
+	pid_t parent, ret;
+
+	parent = getpid();
+	ret = my_syscall0(__NR_vfork);
+
+	/* The syscall returns the parent pid in the child instead of 0 */
+	if (ret == parent)
+		return 0;
+	else
+		return ret;
+}
+#define sys_vfork sys_vfork
+
 #endif /* _NOLIBC_ARCH_SPARC_H */
