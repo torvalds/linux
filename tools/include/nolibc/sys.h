@@ -139,7 +139,7 @@ int chdir(const char *path)
 static __attribute__((unused))
 int sys_chmod(const char *path, mode_t mode)
 {
-#ifdef __NR_fchmodat
+#if defined(__NR_fchmodat)
 	return my_syscall4(__NR_fchmodat, AT_FDCWD, path, mode, 0);
 #elif defined(__NR_chmod)
 	return my_syscall2(__NR_chmod, path, mode);
@@ -162,7 +162,7 @@ int chmod(const char *path, mode_t mode)
 static __attribute__((unused))
 int sys_chown(const char *path, uid_t owner, gid_t group)
 {
-#ifdef __NR_fchownat
+#if defined(__NR_fchownat)
 	return my_syscall5(__NR_fchownat, AT_FDCWD, path, owner, group, 0);
 #elif defined(__NR_chown)
 	return my_syscall3(__NR_chown, path, owner, group);
@@ -236,7 +236,7 @@ int dup(int fd)
 static __attribute__((unused))
 int sys_dup2(int old, int new)
 {
-#ifdef __NR_dup3
+#if defined(__NR_dup3)
 	return my_syscall3(__NR_dup3, old, new, 0);
 #elif defined(__NR_dup2)
 	return my_syscall2(__NR_dup2, old, new);
@@ -256,7 +256,7 @@ int dup2(int old, int new)
  * int dup3(int old, int new, int flags);
  */
 
-#ifdef __NR_dup3
+#if defined(__NR_dup3)
 static __attribute__((unused))
 int sys_dup3(int old, int new, int flags)
 {
@@ -320,7 +320,7 @@ void exit(int status)
 static __attribute__((unused))
 pid_t sys_fork(void)
 {
-#ifdef __NR_clone
+#if defined(__NR_clone)
 	/* note: some archs only have clone() and not fork(). Different archs
 	 * have a different API, but most archs have the flags on first arg and
 	 * will not use the rest with no other flag.
@@ -382,7 +382,7 @@ int getdents64(int fd, struct linux_dirent64 *dirp, int count)
 static __attribute__((unused))
 uid_t sys_geteuid(void)
 {
-#ifdef __NR_geteuid32
+#if defined(__NR_geteuid32)
 	return my_syscall0(__NR_geteuid32);
 #else
 	return my_syscall0(__NR_geteuid);
@@ -500,7 +500,7 @@ int getpagesize(void)
 static __attribute__((unused))
 uid_t sys_getuid(void)
 {
-#ifdef __NR_getuid32
+#if defined(__NR_getuid32)
 	return my_syscall0(__NR_getuid32);
 #else
 	return my_syscall0(__NR_getuid);
@@ -538,7 +538,7 @@ int kill(pid_t pid, int signal)
 static __attribute__((unused))
 int sys_link(const char *old, const char *new)
 {
-#ifdef __NR_linkat
+#if defined(__NR_linkat)
 	return my_syscall5(__NR_linkat, AT_FDCWD, old, AT_FDCWD, new, 0);
 #elif defined(__NR_link)
 	return my_syscall2(__NR_link, old, new);
@@ -561,7 +561,7 @@ int link(const char *old, const char *new)
 static __attribute__((unused))
 off_t sys_lseek(int fd, off_t offset, int whence)
 {
-#ifdef __NR_lseek
+#if defined(__NR_lseek)
 	return my_syscall3(__NR_lseek, fd, offset, whence);
 #else
 	return __nolibc_enosys(__func__, fd, offset, whence);
@@ -572,7 +572,7 @@ static __attribute__((unused))
 int sys_llseek(int fd, unsigned long offset_high, unsigned long offset_low,
 	       __kernel_loff_t *result, int whence)
 {
-#ifdef __NR_llseek
+#if defined(__NR_llseek)
 	return my_syscall5(__NR_llseek, fd, offset_high, offset_low, result, whence);
 #else
 	return __nolibc_enosys(__func__, fd, offset_high, offset_low, result, whence);
@@ -609,7 +609,7 @@ off_t lseek(int fd, off_t offset, int whence)
 static __attribute__((unused))
 int sys_mkdir(const char *path, mode_t mode)
 {
-#ifdef __NR_mkdirat
+#if defined(__NR_mkdirat)
 	return my_syscall3(__NR_mkdirat, AT_FDCWD, path, mode);
 #elif defined(__NR_mkdir)
 	return my_syscall2(__NR_mkdir, path, mode);
@@ -631,7 +631,7 @@ int mkdir(const char *path, mode_t mode)
 static __attribute__((unused))
 int sys_rmdir(const char *path)
 {
-#ifdef __NR_rmdir
+#if defined(__NR_rmdir)
 	return my_syscall1(__NR_rmdir, path);
 #elif defined(__NR_unlinkat)
 	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
@@ -654,7 +654,7 @@ int rmdir(const char *path)
 static __attribute__((unused))
 long sys_mknod(const char *path, mode_t mode, dev_t dev)
 {
-#ifdef __NR_mknodat
+#if defined(__NR_mknodat)
 	return my_syscall4(__NR_mknodat, AT_FDCWD, path, mode, dev);
 #elif defined(__NR_mknod)
 	return my_syscall3(__NR_mknod, path, mode, dev);
@@ -843,7 +843,7 @@ pid_t setsid(void)
 static __attribute__((unused))
 int sys_symlink(const char *old, const char *new)
 {
-#ifdef __NR_symlinkat
+#if defined(__NR_symlinkat)
 	return my_syscall3(__NR_symlinkat, old, AT_FDCWD, new);
 #elif defined(__NR_symlink)
 	return my_syscall2(__NR_symlink, old, new);
@@ -900,7 +900,7 @@ int umount2(const char *path, int flags)
 static __attribute__((unused))
 int sys_unlink(const char *path)
 {
-#ifdef __NR_unlinkat
+#if defined(__NR_unlinkat)
 	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, 0);
 #elif defined(__NR_unlink)
 	return my_syscall1(__NR_unlink, path);
