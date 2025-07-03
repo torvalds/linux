@@ -349,11 +349,35 @@ int intel_vsec_register(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL_NS_GPL(intel_vsec_register, "INTEL_VSEC");
 
+static bool intel_vsec_get_features(struct pci_dev *pdev,
+				    struct intel_vsec_platform_info *info)
+{
+	bool found = false;
+
+	/*
+	 * Both DVSEC and VSEC capabilities can exist on the same device,
+	 * so both intel_vsec_walk_dvsec() and intel_vsec_walk_vsec() must be
+	 * called independently. Additionally, intel_vsec_walk_header() is
+	 * needed for devices that do not have VSEC/DVSEC but provide the
+	 * information via device_data.
+	 */
+	if (intel_vsec_walk_dvsec(pdev, info))
+		found = true;
+
+	if (intel_vsec_walk_vsec(pdev, info))
+		found = true;
+
+	if (info && (info->quirks & VSEC_QUIRK_NO_DVSEC) &&
+	    intel_vsec_walk_header(pdev, info))
+		found = true;
+
+	return found;
+}
+
 static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct intel_vsec_platform_info *info;
 	struct vsec_priv *priv;
-	bool have_devices = false;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -372,17 +396,7 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 	priv->info = info;
 	pci_set_drvdata(pdev, priv);
 
-	if (intel_vsec_walk_dvsec(pdev, info))
-		have_devices = true;
-
-	if (intel_vsec_walk_vsec(pdev, info))
-		have_devices = true;
-
-	if (info && (info->quirks & VSEC_QUIRK_NO_DVSEC) &&
-	    intel_vsec_walk_header(pdev, info))
-		have_devices = true;
-
-	if (!have_devices)
+	if (!intel_vsec_get_features(pdev, info))
 		return -ENODEV;
 
 	return 0;
