@@ -577,6 +577,13 @@ static const struct tps6594_regulator_desc tps65224_reg_desc = {
 	.num_ext_irqs = ARRAY_SIZE(tps65224_ext_regulator_irq_types),
 };
 
+static const struct tps6594_regulator_desc tps652g1_reg_desc = {
+	.ldo_regs = tps65224_ldo_regs,
+	.num_ldo_regs = ARRAY_SIZE(tps65224_ldo_regs),
+	.buck_regs = tps65224_buck_regs,
+	.num_buck_regs = ARRAY_SIZE(tps65224_buck_regs),
+};
+
 static const struct tps6594_regulator_desc tps6594_reg_desc = {
 	.multi_phase_regs = tps6594_multi_regs,
 	.num_multi_phase_regs = ARRAY_SIZE(tps6594_multi_regs),
@@ -626,6 +633,9 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 	switch (tps->chip_id) {
 	case TPS65224:
 		desc = &tps65224_reg_desc;
+		break;
+	case TPS652G1:
+		desc = &tps652g1_reg_desc;
 		break;
 	case TPS6594:
 	case TPS6593:
@@ -716,6 +726,9 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 					     "failed to register %s regulator\n",
 					     pdev->name);
 
+		if (!desc->num_irq_types)
+			continue;
+
 		/* config multiphase buck12+buck34 */
 		if (i == MULTI_BUCK12_34)
 			buck_idx = 2;
@@ -759,6 +772,9 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 			return dev_err_probe(tps->dev, PTR_ERR(rdev),
 					     "failed to register %s regulator\n", pdev->name);
 
+		if (!desc->num_irq_types)
+			continue;
+
 		error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
 						 desc->bucks_irq_types[i],
 						 desc->num_irq_types, &irq_idx);
@@ -772,6 +788,9 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 			return dev_err_probe(tps->dev, PTR_ERR(rdev),
 					     "failed to register %s regulator\n",
 					     pdev->name);
+
+		if (!desc->num_irq_types)
+			continue;
 
 		error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
 						 desc->ldos_irq_types[i],
