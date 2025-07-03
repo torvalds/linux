@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/marvell,orion-xor.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell XOR engine
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: marvell,armada-380-xor
+          - const: marvell,orion-xor
+      - enum:
+          - marvell,armada-3700-xor
+          - marvell,orion-xor
+
+  reg:
+    items:
+      - description: Low registers for the XOR engine
+      - description: High registers for the XOR engine
+
+  clocks:
+    maxItems: 1
+
+patternProperties:
+  "^(channel|xor)[0-9]+$":
+    description: XOR channel sub-node
+    type: object
+    additionalProperties: false
+
+    properties:
+      interrupts:
+        description: Interrupt specifier for the XOR channel
+        items:
+          - description: Interrupt for this channel
+
+      dmacap,memcpy:
+        type: boolean
+        deprecated: true
+        description:
+          Indicates that the XOR channel is capable of memcpy operations
+
+      dmacap,memset:
+        type: boolean
+        deprecated: true
+        description:
+          Indicates that the XOR channel is capable of memset operations
+
+      dmacap,xor:
+        type: boolean
+        deprecated: true
+        description:
+          Indicates that the XOR channel is capable of xor operations
+
+    required:
+      - interrupts
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    xor@d0060900 {
+        compatible = "marvell,orion-xor";
+        reg = <0xd0060900 0x100>,
+              <0xd0060b00 0x100>;
+        clocks = <&coreclk 0>;
+
+        xor00 {
+            interrupts = <51>;
+        };
+        xor01 {
+            interrupts = <52>;
+        };
+    };
