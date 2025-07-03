@@ -426,7 +426,7 @@
 	/* Verdin PWM_3_DSI as GPIO */
 	pinctrl_pwm3_dsi_gpio: main-gpio1-16-default-pins {
 		pinctrl-single,pins = <
-			AM62PX_IOPAD(0x01b8, PIN_OUTPUT, 7) /* (E20) SPI0_CS1.GPIO1_16 */ /* SODIMM 19 */
+			AM62PX_IOPAD(0x01b8, PIN_INPUT, 7) /* (E20) SPI0_CS1.GPIO1_16 */ /* SODIMM 19 */
 		>;
 	};
 
