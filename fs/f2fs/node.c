@@ -3408,10 +3408,10 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 	}
 	kvfree(nm_i->free_nid_count);
 
-	kvfree(nm_i->nat_bitmap);
+	kfree(nm_i->nat_bitmap);
 	kvfree(nm_i->nat_bits);
 #ifdef CONFIG_F2FS_CHECK_FS
-	kvfree(nm_i->nat_bitmap_mir);
+	kfree(nm_i->nat_bitmap_mir);
 #endif
 	sbi->nm_info = NULL;
 	kfree(nm_i);
