@@ -2154,14 +2154,46 @@ retry:
 	return err_mask;
 }
 
+static inline void ata_clear_log_directory(struct ata_device *dev)
+{
+	memset(dev->gp_log_dir, 0, ATA_SECT_SIZE);
+}
+
+static int ata_read_log_directory(struct ata_device *dev)
+{
+	u16 version;
+
+	/* If the log page is already cached, do nothing. */
+	version = get_unaligned_le16(&dev->gp_log_dir[0]);
+	if (version == 0x0001)
+		return 0;
+
+	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, dev->gp_log_dir, 1)) {
+		ata_clear_log_directory(dev);
+		return -EIO;
+	}
+
+	version = get_unaligned_le16(&dev->gp_log_dir[0]);
+	if (version != 0x0001) {
+		ata_dev_err(dev, "Invalid log directory version 0x%04x\n",
+			    version);
+		ata_clear_log_directory(dev);
+		dev->quirks |= ATA_QUIRK_NO_LOG_DIR;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int ata_log_supported(struct ata_device *dev, u8 log)
 {
 	if (dev->quirks & ATA_QUIRK_NO_LOG_DIR)
 		return 0;
 
-	if (ata_read_log_page(dev, ATA_LOG_DIRECTORY, 0, dev->sector_buf, 1))
+	if (ata_read_log_directory(dev))
 		return 0;
-	return get_unaligned_le16(&dev->sector_buf[log * 2]);
+
+	return get_unaligned_le16(&dev->gp_log_dir[log * 2]);
 }
 
 static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
@@ -2889,6 +2921,9 @@ int ata_dev_configure(struct ata_device *dev)
 		ata_dev_dbg(dev, "no device\n");
 		return 0;
 	}
+
+	/* Clear the general purpose log directory cache. */
+	ata_clear_log_directory(dev);
 
 	/* Set quirks */
 	dev->quirks |= ata_dev_quirks(dev);

@@ -761,6 +761,9 @@ struct ata_device {
 		u32		gscr[SATA_PMP_GSCR_DWORDS]; /* PMP GSCR block */
 	} ____cacheline_aligned;
 
+	/* General Purpose Log Directory log page */
+	u8			gp_log_dir[ATA_SECT_SIZE] ____cacheline_aligned;
+
 	/* DEVSLP Timing Variables from Identify Device Data Log */
 	u8			devslp_timing[ATA_LOG_DEVSLP_SIZE];
 
