@@ -654,7 +654,7 @@ out:
 	return res;
 }
 
-int hfsplus_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int hfsplus_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
@@ -673,7 +673,7 @@ int hfsplus_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 int hfsplus_fileattr_set(struct mnt_idmap *idmap,
-			 struct dentry *dentry, struct fileattr *fa)
+			 struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);

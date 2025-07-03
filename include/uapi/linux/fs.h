@@ -151,7 +151,7 @@ struct fsxattr {
 /*
  * Variable size structure for file_[sg]et_attr().
  *
- * Note. This is alternative to the structure 'struct fileattr'/'struct fsxattr'.
+ * Note. This is alternative to the structure 'struct file_kattr'/'struct fsxattr'.
  * As this structure is passed to/from userspace with its size, this can
  * be versioned based on the size.
  */

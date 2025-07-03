@@ -3356,7 +3356,7 @@ static int f2fs_ioc_setproject(struct inode *inode, __u32 projid)
 }
 #endif
 
-int f2fs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int f2fs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
@@ -3380,7 +3380,7 @@ int f2fs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 int f2fs_fileattr_set(struct mnt_idmap *idmap,
-		      struct dentry *dentry, struct fileattr *fa)
+		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	u32 fsflags = fa->flags, mask = F2FS_SETTABLE_FS_FL;

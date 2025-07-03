@@ -245,7 +245,7 @@ static int btrfs_check_ioctl_vol_args2_subvol_name(const struct btrfs_ioctl_vol_
  * Set flags/xflags from the internal inode flags. The remaining items of
  * fsxattr are zeroed.
  */
-int btrfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int btrfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	const struct btrfs_inode *inode = BTRFS_I(d_inode(dentry));
 
@@ -254,7 +254,7 @@ int btrfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 int btrfs_fileattr_set(struct mnt_idmap *idmap,
-		       struct dentry *dentry, struct fileattr *fa)
+		       struct dentry *dentry, struct file_kattr *fa)
 {
 	struct btrfs_inode *inode = BTRFS_I(d_inode(dentry));
 	struct btrfs_root *root = inode->root;

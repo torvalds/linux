@@ -1486,9 +1486,9 @@ void fuse_dax_cancel_work(struct fuse_conn *fc);
 long fuse_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg);
-int fuse_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int fuse_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
 int fuse_fileattr_set(struct mnt_idmap *idmap,
-		      struct dentry *dentry, struct fileattr *fa);
+		      struct dentry *dentry, struct file_kattr *fa);
 
 /* iomode.c */
 int fuse_file_cached_io_open(struct inode *inode, struct fuse_file *ff);

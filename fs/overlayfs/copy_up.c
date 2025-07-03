@@ -171,8 +171,8 @@ out:
 static int ovl_copy_fileattr(struct inode *inode, const struct path *old,
 			     const struct path *new)
 {
-	struct fileattr oldfa = { .flags_valid = true };
-	struct fileattr newfa = { .flags_valid = true };
+	struct file_kattr oldfa = { .flags_valid = true };
+	struct file_kattr newfa = { .flags_valid = true };
 	int err;
 
 	err = ovl_real_fileattr_get(old, &oldfa);

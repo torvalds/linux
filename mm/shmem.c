@@ -4183,7 +4183,7 @@ static const char *shmem_get_link(struct dentry *dentry, struct inode *inode,
 
 #ifdef CONFIG_TMPFS_XATTR
 
-static int shmem_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+static int shmem_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
 
@@ -4193,7 +4193,7 @@ static int shmem_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 
 static int shmem_fileattr_set(struct mnt_idmap *idmap,
-			      struct dentry *dentry, struct fileattr *fa)
+			      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct shmem_inode_info *info = SHMEM_I(inode);

@@ -2632,7 +2632,7 @@ void security_inode_post_removexattr(struct dentry *dentry, const char *name)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_file_setattr(struct dentry *dentry, struct fileattr *fa)
+int security_inode_file_setattr(struct dentry *dentry, struct file_kattr *fa)
 {
 	return call_int_hook(inode_file_setattr, dentry, fa);
 }
@@ -2647,7 +2647,7 @@ int security_inode_file_setattr(struct dentry *dentry, struct fileattr *fa)
  *
  * Return: Returns 0 if permission is granted.
  */
-int security_inode_file_getattr(struct dentry *dentry, struct fileattr *fa)
+int security_inode_file_getattr(struct dentry *dentry, struct file_kattr *fa)
 {
 	return call_int_hook(inode_file_getattr, dentry, fa);
 }

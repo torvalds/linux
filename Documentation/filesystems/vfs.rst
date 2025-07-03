@@ -515,8 +515,8 @@ As of kernel 2.6.22, the following members are defined:
 		struct posix_acl * (*get_acl)(struct mnt_idmap *, struct dentry *, int);
 	        int (*set_acl)(struct mnt_idmap *, struct dentry *, struct posix_acl *, int);
 		int (*fileattr_set)(struct mnt_idmap *idmap,
-				    struct dentry *dentry, struct fileattr *fa);
-		int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
+				    struct dentry *dentry, struct file_kattr *fa);
+		int (*fileattr_get)(struct dentry *dentry, struct file_kattr *fa);
 	        struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 	};
 

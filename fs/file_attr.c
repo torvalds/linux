@@ -17,7 +17,7 @@
  * Set ->fsx_xflags, ->fsx_valid and ->flags (translated xflags).  All
  * other fields are zeroed.
  */
-void fileattr_fill_xflags(struct fileattr *fa, u32 xflags)
+void fileattr_fill_xflags(struct file_kattr *fa, u32 xflags)
 {
 	memset(fa, 0, sizeof(*fa));
 	fa->fsx_valid = true;
@@ -47,7 +47,7 @@ EXPORT_SYMBOL(fileattr_fill_xflags);
  * Set ->flags, ->flags_valid and ->fsx_xflags (translated flags).
  * All other fields are zeroed.
  */
-void fileattr_fill_flags(struct fileattr *fa, u32 flags)
+void fileattr_fill_flags(struct file_kattr *fa, u32 flags)
 {
 	memset(fa, 0, sizeof(*fa));
 	fa->flags_valid = true;
@@ -78,7 +78,7 @@ EXPORT_SYMBOL(fileattr_fill_flags);
  *
  * Return: 0 on success, or a negative error on failure.
  */
-int vfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int vfs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	int error;
@@ -94,7 +94,7 @@ int vfs_fileattr_get(struct dentry *dentry, struct fileattr *fa)
 }
 EXPORT_SYMBOL(vfs_fileattr_get);
 
-static void fileattr_to_file_attr(const struct fileattr *fa,
+static void fileattr_to_file_attr(const struct file_kattr *fa,
 				  struct file_attr *fattr)
 {
 	__u32 mask = FS_XFLAGS_MASK;
@@ -114,7 +114,7 @@ static void fileattr_to_file_attr(const struct fileattr *fa,
  *
  * Return: 0 on success, or -EFAULT on failure.
  */
-int copy_fsxattr_to_user(const struct fileattr *fa, struct fsxattr __user *ufa)
+int copy_fsxattr_to_user(const struct file_kattr *fa, struct fsxattr __user *ufa)
 {
 	struct fsxattr xfa;
 	__u32 mask = FS_XFLAGS_MASK;
@@ -134,7 +134,7 @@ int copy_fsxattr_to_user(const struct fileattr *fa, struct fsxattr __user *ufa)
 EXPORT_SYMBOL(copy_fsxattr_to_user);
 
 static int file_attr_to_fileattr(const struct file_attr *fattr,
-				 struct fileattr *fa)
+				 struct file_kattr *fa)
 {
 	__u32 mask = FS_XFLAGS_MASK;
 
@@ -150,7 +150,7 @@ static int file_attr_to_fileattr(const struct file_attr *fattr,
 	return 0;
 }
 
-static int copy_fsxattr_from_user(struct fileattr *fa,
+static int copy_fsxattr_from_user(struct file_kattr *fa,
 				  struct fsxattr __user *ufa)
 {
 	struct fsxattr xfa;
@@ -179,8 +179,8 @@ static int copy_fsxattr_from_user(struct fileattr *fa,
  * Note: must be called with inode lock held.
  */
 static int fileattr_set_prepare(struct inode *inode,
-			      const struct fileattr *old_ma,
-			      struct fileattr *fa)
+			      const struct file_kattr *old_ma,
+			      struct file_kattr *fa)
 {
 	int err;
 
@@ -263,10 +263,10 @@ static int fileattr_set_prepare(struct inode *inode,
  * Return: 0 on success, or a negative error on failure.
  */
 int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
-		     struct fileattr *fa)
+		     struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
-	struct fileattr old_ma = {};
+	struct file_kattr old_ma = {};
 	int err;
 
 	if (!inode->i_op->fileattr_set)
@@ -308,7 +308,7 @@ EXPORT_SYMBOL(vfs_fileattr_set);
 
 int ioctl_getflags(struct file *file, unsigned int __user *argp)
 {
-	struct fileattr fa = { .flags_valid = true }; /* hint only */
+	struct file_kattr fa = { .flags_valid = true }; /* hint only */
 	int err;
 
 	err = vfs_fileattr_get(file->f_path.dentry, &fa);
@@ -324,7 +324,7 @@ int ioctl_setflags(struct file *file, unsigned int __user *argp)
 {
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct dentry *dentry = file->f_path.dentry;
-	struct fileattr fa;
+	struct file_kattr fa;
 	unsigned int flags;
 	int err;
 
@@ -345,7 +345,7 @@ EXPORT_SYMBOL(ioctl_setflags);
 
 int ioctl_fsgetxattr(struct file *file, void __user *argp)
 {
-	struct fileattr fa = { .fsx_valid = true }; /* hint only */
+	struct file_kattr fa = { .fsx_valid = true }; /* hint only */
 	int err;
 
 	err = vfs_fileattr_get(file->f_path.dentry, &fa);
@@ -362,7 +362,7 @@ int ioctl_fssetxattr(struct file *file, void __user *argp)
 {
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct dentry *dentry = file->f_path.dentry;
-	struct fileattr fa;
+	struct file_kattr fa;
 	int err;
 
 	err = copy_fsxattr_from_user(&fa, argp);
@@ -387,7 +387,7 @@ SYSCALL_DEFINE5(file_getattr, int, dfd, const char __user *, filename,
 	struct filename *name __free(putname) = NULL;
 	unsigned int lookup_flags = 0;
 	struct file_attr fattr;
-	struct fileattr fa;
+	struct file_kattr fa;
 	int error;
 
 	BUILD_BUG_ON(sizeof(struct file_attr) < FILE_ATTR_SIZE_VER0);
@@ -442,7 +442,7 @@ SYSCALL_DEFINE5(file_setattr, int, dfd, const char __user *, filename,
 	struct filename *name __free(putname) = NULL;
 	unsigned int lookup_flags = 0;
 	struct file_attr fattr;
-	struct fileattr fa;
+	struct file_kattr fa;
 	int error;
 
 	BUILD_BUG_ON(sizeof(struct file_attr) < FILE_ATTR_SIZE_VER0);

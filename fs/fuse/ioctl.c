@@ -502,7 +502,7 @@ static void fuse_priv_ioctl_cleanup(struct inode *inode, struct fuse_file *ff)
 	fuse_file_release(inode, ff, O_RDONLY, NULL, S_ISDIR(inode->i_mode));
 }
 
-int fuse_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+int fuse_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct fuse_file *ff;
@@ -542,7 +542,7 @@ cleanup:
 }
 
 int fuse_fileattr_set(struct mnt_idmap *idmap,
-		      struct dentry *dentry, struct fileattr *fa)
+		      struct dentry *dentry, struct file_kattr *fa)
 {
 	struct inode *inode = d_inode(dentry);
 	struct fuse_file *ff;

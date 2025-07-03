@@ -3481,13 +3481,13 @@ static int selinux_inode_removexattr(struct mnt_idmap *idmap,
 }
 
 static int selinux_inode_file_setattr(struct dentry *dentry,
-				      struct fileattr *fa)
+				      struct file_kattr *fa)
 {
 	return dentry_has_perm(current_cred(), dentry, FILE__SETATTR);
 }
 
 static int selinux_inode_file_getattr(struct dentry *dentry,
-				      struct fileattr *fa)
+				      struct file_kattr *fa)
 {
 	return dentry_has_perm(current_cred(), dentry, FILE__GETATTR);
 }

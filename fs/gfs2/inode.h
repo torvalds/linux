@@ -107,9 +107,9 @@ loff_t gfs2_seek_hole(struct file *file, loff_t offset);
 extern const struct file_operations gfs2_file_fops_nolock;
 extern const struct file_operations gfs2_dir_fops_nolock;
 
-int gfs2_fileattr_get(struct dentry *dentry, struct fileattr *fa);
+int gfs2_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
 int gfs2_fileattr_set(struct mnt_idmap *idmap,
-		      struct dentry *dentry, struct fileattr *fa);
+		      struct dentry *dentry, struct file_kattr *fa);
 void gfs2_set_inode_flags(struct inode *inode);
 
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
