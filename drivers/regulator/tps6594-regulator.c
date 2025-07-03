@@ -695,14 +695,14 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 
 		if (i == MULTI_BUCK123 || i == MULTI_BUCK1234) {
 			error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
-							 tps6594_bucks_irq_types[buck_idx + 2],
+							 bucks_irq_types[buck_idx + 2],
 							 nr_types, &irq_idx);
 			if (error)
 				return error;
 		}
 		if (i == MULTI_BUCK1234) {
 			error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
-							 tps6594_bucks_irq_types[buck_idx + 3],
+							 bucks_irq_types[buck_idx + 3],
 							 nr_types, &irq_idx);
 			if (error)
 				return error;
