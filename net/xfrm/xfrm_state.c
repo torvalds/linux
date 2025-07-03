@@ -2282,7 +2282,12 @@ EXPORT_SYMBOL(xfrm_state_update);
 
 int xfrm_state_check_expire(struct xfrm_state *x)
 {
-	xfrm_dev_state_update_stats(x);
+	/* All counters which are needed to decide if state is expired
+	 * are handled by SW for non-packet offload modes. Simply skip
+	 * the following update and save extra boilerplate in drivers.
+	 */
+	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET)
+		xfrm_dev_state_update_stats(x);
 
 	if (!READ_ONCE(x->curlft.use_time))
 		WRITE_ONCE(x->curlft.use_time, ktime_get_real_seconds());
