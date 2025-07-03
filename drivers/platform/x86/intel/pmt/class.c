@@ -9,11 +9,13 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/intel_vsec.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
+#include <linux/sysfs.h>
 
 #include "class.h"
 
@@ -166,12 +168,41 @@ static struct attribute *intel_pmt_attrs[] = {
 	&dev_attr_offset.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(intel_pmt);
 
-static struct class intel_pmt_class = {
+static umode_t intel_pmt_attr_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct auxiliary_device *auxdev = to_auxiliary_dev(dev->parent);
+	struct intel_vsec_device *ivdev = auxdev_to_ivdev(auxdev);
+
+	/*
+	 * Place the discovery features folder in /sys/class/intel_pmt, but
+	 * exclude the common attributes as they are not applicable.
+	 */
+	if (ivdev->cap_id == ilog2(VSEC_CAP_DISCOVERY))
+		return 0;
+
+	return attr->mode;
+}
+
+static bool intel_pmt_group_visible(struct kobject *kobj)
+{
+	return true;
+}
+DEFINE_SYSFS_GROUP_VISIBLE(intel_pmt);
+
+static const struct attribute_group intel_pmt_group = {
+	.attrs = intel_pmt_attrs,
+	.is_visible = SYSFS_GROUP_VISIBLE(intel_pmt),
+};
+__ATTRIBUTE_GROUPS(intel_pmt);
+
+struct class intel_pmt_class = {
 	.name = "intel_pmt",
 	.dev_groups = intel_pmt_groups,
 };
+EXPORT_SYMBOL_GPL(intel_pmt_class);
 
 static int intel_pmt_populate_entry(struct intel_pmt_entry *entry,
 				    struct intel_vsec_device *ivdev,

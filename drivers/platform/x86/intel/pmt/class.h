@@ -20,6 +20,7 @@
 #define GET_ADDRESS(v)		((v) & GENMASK(31, 3))
 
 struct pci_dev;
+extern struct class intel_pmt_class;
 
 struct telem_endpoint {
 	struct pci_dev		*pcidev;
@@ -48,6 +49,7 @@ struct intel_pmt_entry {
 	unsigned long		base_addr;
 	size_t			size;
 	u32			guid;
+	u32			num_rmids; /* Number of Resource Monitoring IDs */
 	int			devid;
 };
 

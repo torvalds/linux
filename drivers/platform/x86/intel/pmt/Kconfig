@@ -38,3 +38,15 @@ config INTEL_PMT_CRASHLOG
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel_pmt_crashlog.
+
+config INTEL_PMT_DISCOVERY
+	tristate "Intel Platform Monitoring Technology (PMT) Discovery driver"
+	depends on INTEL_VSEC
+	select INTEL_PMT_CLASS
+	help
+	  The Intel Platform Monitoring Technology (PMT) discovery driver provides
+	  access to details about the various PMT features and feature specific
+	  attributes.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pmt_discovery.
