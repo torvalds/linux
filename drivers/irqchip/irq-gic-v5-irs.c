@@ -5,11 +5,19 @@
 
 #define pr_fmt(fmt)	"GICv5 IRS: " fmt
 
+#include <linux/log2.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-v5.h>
+
+/*
+ * Hardcoded ID_BITS limit for systems supporting only a 1-level IST
+ * table. Systems supporting only a 1-level IST table aren't expected
+ * to require more than 2^12 LPIs. Tweak as required.
+ */
+#define LPI_ID_BITS_LINEAR		12
 
 #define IRS_FLAGS_NON_COHERENT		BIT(0)
 
@@ -26,6 +34,331 @@ static void irs_writel_relaxed(struct gicv5_irs_chip_data *irs_data,
 			       const u32 val, const u32 reg_offset)
 {
 	writel_relaxed(val, irs_data->irs_base + reg_offset);
+}
+
+static u64 irs_readq_relaxed(struct gicv5_irs_chip_data *irs_data,
+			     const u32 reg_offset)
+{
+	return readq_relaxed(irs_data->irs_base + reg_offset);
+}
+
+static void irs_writeq_relaxed(struct gicv5_irs_chip_data *irs_data,
+			       const u64 val, const u32 reg_offset)
+{
+	writeq_relaxed(val, irs_data->irs_base + reg_offset);
+}
+
+/*
+ * The polling wait (in gicv5_wait_for_op_s_atomic()) on a GIC register
+ * provides the memory barriers (through MMIO accessors)
+ * required to synchronize CPU and GIC access to IST memory.
+ */
+static int gicv5_irs_ist_synchronise(struct gicv5_irs_chip_data *irs_data)
+{
+	return gicv5_wait_for_op_atomic(irs_data->irs_base, GICV5_IRS_IST_STATUSR,
+					GICV5_IRS_IST_STATUSR_IDLE, NULL);
+}
+
+static int __init gicv5_irs_init_ist_linear(struct gicv5_irs_chip_data *irs_data,
+					    unsigned int lpi_id_bits,
+					    unsigned int istsz)
+{
+	size_t l2istsz;
+	u32 n, cfgr;
+	void *ist;
+	u64 baser;
+	int ret;
+
+	/* Taken from GICv5 specifications 10.2.1.13 IRS_IST_BASER */
+	n = max(5, lpi_id_bits + 1 + istsz);
+
+	l2istsz = BIT(n + 1);
+	/*
+	 * Check memory requirements. For a linear IST we cap the
+	 * number of ID bits to a value that should never exceed
+	 * kmalloc interface memory allocation limits, so this
+	 * check is really belt and braces.
+	 */
+	if (l2istsz > KMALLOC_MAX_SIZE) {
+		u8 lpi_id_cap = ilog2(KMALLOC_MAX_SIZE) - 2 + istsz;
+
+		pr_warn("Limiting LPI ID bits from %u to %u\n",
+			lpi_id_bits, lpi_id_cap);
+		lpi_id_bits = lpi_id_cap;
+		l2istsz = KMALLOC_MAX_SIZE;
+	}
+
+	ist = kzalloc(l2istsz, GFP_KERNEL);
+	if (!ist)
+		return -ENOMEM;
+
+	if (irs_data->flags & IRS_FLAGS_NON_COHERENT)
+		dcache_clean_inval_poc((unsigned long)ist,
+				       (unsigned long)ist + l2istsz);
+	else
+		dsb(ishst);
+
+	cfgr = FIELD_PREP(GICV5_IRS_IST_CFGR_STRUCTURE,
+			  GICV5_IRS_IST_CFGR_STRUCTURE_LINEAR)	|
+	       FIELD_PREP(GICV5_IRS_IST_CFGR_ISTSZ, istsz)	|
+	       FIELD_PREP(GICV5_IRS_IST_CFGR_L2SZ,
+			  GICV5_IRS_IST_CFGR_L2SZ_4K)		|
+	       FIELD_PREP(GICV5_IRS_IST_CFGR_LPI_ID_BITS, lpi_id_bits);
+	irs_writel_relaxed(irs_data, cfgr, GICV5_IRS_IST_CFGR);
+
+	gicv5_global_data.ist.l2 = false;
+
+	baser = (virt_to_phys(ist) & GICV5_IRS_IST_BASER_ADDR_MASK) |
+		FIELD_PREP(GICV5_IRS_IST_BASER_VALID, 0x1);
+	irs_writeq_relaxed(irs_data, baser, GICV5_IRS_IST_BASER);
+
+	ret = gicv5_irs_ist_synchronise(irs_data);
+	if (ret) {
+		kfree(ist);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int __init gicv5_irs_init_ist_two_level(struct gicv5_irs_chip_data *irs_data,
+					       unsigned int lpi_id_bits,
+					       unsigned int istsz,
+					       unsigned int l2sz)
+{
+	__le64 *l1ist;
+	u32 cfgr, n;
+	size_t l1sz;
+	u64 baser;
+	int ret;
+
+	/* Taken from GICv5 specifications 10.2.1.13 IRS_IST_BASER */
+	n = max(5, lpi_id_bits - ((10 - istsz) + (2 * l2sz)) + 2);
+
+	l1sz = BIT(n + 1);
+
+	l1ist = kzalloc(l1sz, GFP_KERNEL);
+	if (!l1ist)
+		return -ENOMEM;
+
+	if (irs_data->flags & IRS_FLAGS_NON_COHERENT)
+		dcache_clean_inval_poc((unsigned long)l1ist,
+				       (unsigned long)l1ist + l1sz);
+	else
+		dsb(ishst);
+
+	cfgr = FIELD_PREP(GICV5_IRS_IST_CFGR_STRUCTURE,
+			  GICV5_IRS_IST_CFGR_STRUCTURE_TWO_LEVEL)	|
+	       FIELD_PREP(GICV5_IRS_IST_CFGR_ISTSZ, istsz)		|
+	       FIELD_PREP(GICV5_IRS_IST_CFGR_L2SZ, l2sz)		|
+	       FIELD_PREP(GICV5_IRS_IST_CFGR_LPI_ID_BITS, lpi_id_bits);
+	irs_writel_relaxed(irs_data, cfgr, GICV5_IRS_IST_CFGR);
+
+	/*
+	 * The L2SZ determine bits required at L2 level. Number of bytes
+	 * required by metadata is reported through istsz - the number of bits
+	 * covered by L2 entries scales accordingly.
+	 */
+	gicv5_global_data.ist.l2_size = BIT(11 + (2 * l2sz) + 1);
+	gicv5_global_data.ist.l2_bits = (10 - istsz) + (2 * l2sz);
+	gicv5_global_data.ist.l1ist_addr = l1ist;
+	gicv5_global_data.ist.l2 = true;
+
+	baser = (virt_to_phys(l1ist) & GICV5_IRS_IST_BASER_ADDR_MASK) |
+		FIELD_PREP(GICV5_IRS_IST_BASER_VALID, 0x1);
+	irs_writeq_relaxed(irs_data, baser, GICV5_IRS_IST_BASER);
+
+	ret = gicv5_irs_ist_synchronise(irs_data);
+	if (ret) {
+		kfree(l1ist);
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * Alloc L2 IST entries on demand.
+ *
+ * Locking/serialization is guaranteed by irqdomain core code by
+ * taking the hierarchical domain struct irq_domain.root->mutex.
+ */
+int gicv5_irs_iste_alloc(const u32 lpi)
+{
+	struct gicv5_irs_chip_data *irs_data;
+	unsigned int index;
+	u32 l2istr, l2bits;
+	__le64 *l1ist;
+	size_t l2size;
+	void *l2ist;
+	int ret;
+
+	if (!gicv5_global_data.ist.l2)
+		return 0;
+
+	irs_data = per_cpu(per_cpu_irs_data, smp_processor_id());
+	if (!irs_data)
+		return -ENOENT;
+
+	l2size = gicv5_global_data.ist.l2_size;
+	l2bits = gicv5_global_data.ist.l2_bits;
+	l1ist = gicv5_global_data.ist.l1ist_addr;
+	index = lpi >> l2bits;
+
+	if (FIELD_GET(GICV5_ISTL1E_VALID, le64_to_cpu(l1ist[index])))
+		return 0;
+
+	l2ist = kzalloc(l2size, GFP_KERNEL);
+	if (!l2ist)
+		return -ENOMEM;
+
+	l1ist[index] = cpu_to_le64(virt_to_phys(l2ist) & GICV5_ISTL1E_L2_ADDR_MASK);
+
+	if (irs_data->flags & IRS_FLAGS_NON_COHERENT) {
+		dcache_clean_inval_poc((unsigned long)l2ist,
+				       (unsigned long)l2ist + l2size);
+		dcache_clean_poc((unsigned long)(l1ist + index),
+				 (unsigned long)(l1ist + index) + sizeof(*l1ist));
+	} else {
+		dsb(ishst);
+	}
+
+	l2istr = FIELD_PREP(GICV5_IRS_MAP_L2_ISTR_ID, lpi);
+	irs_writel_relaxed(irs_data, l2istr, GICV5_IRS_MAP_L2_ISTR);
+
+	ret = gicv5_irs_ist_synchronise(irs_data);
+	if (ret) {
+		l1ist[index] = 0;
+		kfree(l2ist);
+		return ret;
+	}
+
+	/*
+	 * Make sure we invalidate the cache line pulled before the IRS
+	 * had a chance to update the L1 entry and mark it valid.
+	 */
+	if (irs_data->flags & IRS_FLAGS_NON_COHERENT) {
+		/*
+		 * gicv5_irs_ist_synchronise() includes memory
+		 * barriers (MMIO accessors) required to guarantee that the
+		 * following dcache invalidation is not executed before the
+		 * IST mapping operation has completed.
+		 */
+		dcache_inval_poc((unsigned long)(l1ist + index),
+				 (unsigned long)(l1ist + index) + sizeof(*l1ist));
+	}
+
+	return 0;
+}
+
+/*
+ * Try to match the L2 IST size to the pagesize, and if this is not possible
+ * pick the smallest supported L2 size in order to minimise the requirement for
+ * physically contiguous blocks of memory as page-sized allocations are
+ * guaranteed to be physically contiguous, and are by definition the easiest to
+ * find.
+ *
+ * Fall back to the smallest supported size (in the event that the pagesize
+ * itself is not supported) again serves to make it easier to find physically
+ * contiguous blocks of memory.
+ */
+static unsigned int gicv5_irs_l2_sz(u32 idr2)
+{
+	switch (PAGE_SIZE) {
+	case SZ_64K:
+		if (GICV5_IRS_IST_L2SZ_SUPPORT_64KB(idr2))
+			return GICV5_IRS_IST_CFGR_L2SZ_64K;
+		fallthrough;
+	case SZ_4K:
+		if (GICV5_IRS_IST_L2SZ_SUPPORT_4KB(idr2))
+			return GICV5_IRS_IST_CFGR_L2SZ_4K;
+		fallthrough;
+	case SZ_16K:
+		if (GICV5_IRS_IST_L2SZ_SUPPORT_16KB(idr2))
+			return GICV5_IRS_IST_CFGR_L2SZ_16K;
+		break;
+	}
+
+	if (GICV5_IRS_IST_L2SZ_SUPPORT_4KB(idr2))
+		return GICV5_IRS_IST_CFGR_L2SZ_4K;
+
+	return GICV5_IRS_IST_CFGR_L2SZ_64K;
+}
+
+static int __init gicv5_irs_init_ist(struct gicv5_irs_chip_data *irs_data)
+{
+	u32 lpi_id_bits, idr2_id_bits, idr2_min_lpi_id_bits, l2_iste_sz, l2sz;
+	u32 l2_iste_sz_split, idr2;
+	bool two_levels, istmd;
+	u64 baser;
+	int ret;
+
+	baser = irs_readq_relaxed(irs_data, GICV5_IRS_IST_BASER);
+	if (FIELD_GET(GICV5_IRS_IST_BASER_VALID, baser)) {
+		pr_err("IST is marked as valid already; cannot allocate\n");
+		return -EPERM;
+	}
+
+	idr2 = irs_readl_relaxed(irs_data, GICV5_IRS_IDR2);
+	two_levels = !!FIELD_GET(GICV5_IRS_IDR2_IST_LEVELS, idr2);
+
+	idr2_id_bits = FIELD_GET(GICV5_IRS_IDR2_ID_BITS, idr2);
+	idr2_min_lpi_id_bits = FIELD_GET(GICV5_IRS_IDR2_MIN_LPI_ID_BITS, idr2);
+
+	/*
+	 * For two level tables we are always supporting the maximum allowed
+	 * number of IDs.
+	 *
+	 * For 1-level tables, we should support a number of bits that
+	 * is >= min_lpi_id_bits but cap it to LPI_ID_BITS_LINEAR lest
+	 * the level 1-table gets too large and its memory allocation
+	 * may fail.
+	 */
+	if (two_levels) {
+		lpi_id_bits = idr2_id_bits;
+	} else {
+		lpi_id_bits = max(LPI_ID_BITS_LINEAR, idr2_min_lpi_id_bits);
+		lpi_id_bits = min(lpi_id_bits, idr2_id_bits);
+	}
+
+	/*
+	 * Cap the ID bits according to the CPUIF supported ID bits
+	 */
+	lpi_id_bits = min(lpi_id_bits, gicv5_global_data.cpuif_id_bits);
+
+	if (two_levels)
+		l2sz = gicv5_irs_l2_sz(idr2);
+
+	istmd = !!FIELD_GET(GICV5_IRS_IDR2_ISTMD, idr2);
+
+	l2_iste_sz = GICV5_IRS_IST_CFGR_ISTSZ_4;
+
+	if (istmd) {
+		l2_iste_sz_split = FIELD_GET(GICV5_IRS_IDR2_ISTMD_SZ, idr2);
+
+		if (lpi_id_bits < l2_iste_sz_split)
+			l2_iste_sz = GICV5_IRS_IST_CFGR_ISTSZ_8;
+		else
+			l2_iste_sz = GICV5_IRS_IST_CFGR_ISTSZ_16;
+	}
+
+	/*
+	 * Follow GICv5 specification recommendation to opt in for two
+	 * level tables (ref: 10.2.1.14 IRS_IST_CFGR).
+	 */
+	if (two_levels && (lpi_id_bits > ((10 - l2_iste_sz) + (2 * l2sz)))) {
+		ret = gicv5_irs_init_ist_two_level(irs_data, lpi_id_bits,
+						   l2_iste_sz, l2sz);
+	} else {
+		ret = gicv5_irs_init_ist_linear(irs_data, lpi_id_bits,
+						l2_iste_sz);
+	}
+	if (ret)
+		return ret;
+
+	gicv5_init_lpis(BIT(lpi_id_bits));
+
+	return 0;
 }
 
 struct iaffid_entry {
@@ -362,6 +695,13 @@ static int __init gicv5_irs_init(struct device_node *node)
 		goto out_iomem;
 	}
 
+	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR2);
+	if (WARN(!FIELD_GET(GICV5_IRS_IDR2_LPI, idr),
+		 "LPI support not available - no IPIs, can't proceed\n")) {
+		ret = -ENODEV;
+		goto out_iomem;
+	}
+
 	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR7);
 	irs_data->spi_min = FIELD_GET(GICV5_IRS_IDR7_SPI_BASE, idr);
 
@@ -391,6 +731,8 @@ static int __init gicv5_irs_init(struct device_node *node)
 		spi_count = FIELD_GET(GICV5_IRS_IDR5_SPI_RANGE, idr);
 		gicv5_global_data.global_spi_count = spi_count;
 
+		gicv5_init_lpi_domain();
+
 		pr_debug("Detected %u SPIs globally\n", spi_count);
 	}
 
@@ -409,11 +751,33 @@ void __init gicv5_irs_remove(void)
 {
 	struct gicv5_irs_chip_data *irs_data, *tmp_data;
 
+	gicv5_free_lpi_domain();
+	gicv5_deinit_lpis();
+
 	list_for_each_entry_safe(irs_data, tmp_data, &irs_nodes, entry) {
 		iounmap(irs_data->irs_base);
 		list_del(&irs_data->entry);
 		kfree(irs_data);
 	}
+}
+
+int __init gicv5_irs_enable(void)
+{
+	struct gicv5_irs_chip_data *irs_data;
+	int ret;
+
+	irs_data = list_first_entry_or_null(&irs_nodes,
+					    struct gicv5_irs_chip_data, entry);
+	if (!irs_data)
+		return -ENODEV;
+
+	ret = gicv5_irs_init_ist(irs_data);
+	if (ret) {
+		pr_err("Failed to init IST\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 int __init gicv5_irs_of_probe(struct device_node *parent)

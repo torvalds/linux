@@ -5,7 +5,9 @@
 
 #define pr_fmt(fmt)	"GICv5: " fmt
 
+#include <linux/idr.h>
 #include <linux/irqdomain.h>
+#include <linux/slab.h>
 #include <linux/wordpart.h>
 
 #include <linux/irqchip.h>
@@ -27,6 +29,42 @@ static bool gicv5_cpuif_has_gcie(void)
 }
 
 struct gicv5_chip_data gicv5_global_data __read_mostly;
+
+static DEFINE_IDA(lpi_ida);
+static u32 num_lpis __ro_after_init;
+
+void __init gicv5_init_lpis(u32 lpis)
+{
+	num_lpis = lpis;
+}
+
+void __init gicv5_deinit_lpis(void)
+{
+	num_lpis = 0;
+}
+
+static int alloc_lpi(void)
+{
+	if (!num_lpis)
+		return -ENOSPC;
+
+	return ida_alloc_max(&lpi_ida, num_lpis - 1, GFP_KERNEL);
+}
+
+static void release_lpi(u32 lpi)
+{
+	ida_free(&lpi_ida, lpi);
+}
+
+int gicv5_alloc_lpi(void)
+{
+	return alloc_lpi();
+}
+
+void gicv5_free_lpi(u32 lpi)
+{
+	release_lpi(lpi);
+}
 
 static void gicv5_ppi_priority_init(void)
 {
@@ -60,7 +98,7 @@ static void gicv5_hwirq_init(irq_hw_number_t hwirq, u8 priority, u8 hwirq_type)
 	u16 iaffid;
 	int ret;
 
-	if (hwirq_type == GICV5_HWIRQ_TYPE_SPI) {
+	if (hwirq_type == GICV5_HWIRQ_TYPE_LPI || hwirq_type == GICV5_HWIRQ_TYPE_SPI) {
 		cdpri = FIELD_PREP(GICV5_GIC_CDPRI_PRIORITY_MASK, priority)	|
 			FIELD_PREP(GICV5_GIC_CDPRI_TYPE_MASK, hwirq_type)	|
 			FIELD_PREP(GICV5_GIC_CDPRI_ID_MASK, hwirq);
@@ -122,6 +160,11 @@ static void gicv5_spi_irq_mask(struct irq_data *d)
 	gicv5_iri_irq_mask(d, GICV5_HWIRQ_TYPE_SPI);
 }
 
+static void gicv5_lpi_irq_mask(struct irq_data *d)
+{
+	gicv5_iri_irq_mask(d, GICV5_HWIRQ_TYPE_LPI);
+}
+
 static void gicv5_ppi_irq_unmask(struct irq_data *d)
 {
 	u64 hwirq_id_bit = BIT_ULL(d->hwirq % 64);
@@ -149,7 +192,7 @@ static void gicv5_iri_irq_unmask(struct irq_data *d, u8 hwirq_type)
 	/*
 	 * Rule R_XCLJC states that the effects of a GIC system instruction
 	 * complete in finite time and that's the only requirement when
-	 * unmasking an SPI IRQ.
+	 * unmasking an SPI/LPI IRQ.
 	 */
 	gic_insn(cden, CDEN);
 }
@@ -157,6 +200,11 @@ static void gicv5_iri_irq_unmask(struct irq_data *d, u8 hwirq_type)
 static void gicv5_spi_irq_unmask(struct irq_data *d)
 {
 	gicv5_iri_irq_unmask(d, GICV5_HWIRQ_TYPE_SPI);
+}
+
+static void gicv5_lpi_irq_unmask(struct irq_data *d)
+{
+	gicv5_iri_irq_unmask(d, GICV5_HWIRQ_TYPE_LPI);
 }
 
 static void gicv5_hwirq_eoi(u32 hwirq_id, u8 hwirq_type)
@@ -179,6 +227,11 @@ static void gicv5_ppi_irq_eoi(struct irq_data *d)
 static void gicv5_spi_irq_eoi(struct irq_data *d)
 {
 	gicv5_hwirq_eoi(d->hwirq, GICV5_HWIRQ_TYPE_SPI);
+}
+
+static void gicv5_lpi_irq_eoi(struct irq_data *d)
+{
+	gicv5_hwirq_eoi(d->hwirq, GICV5_HWIRQ_TYPE_LPI);
 }
 
 static int gicv5_iri_irq_set_affinity(struct irq_data *d,
@@ -214,6 +267,14 @@ static int gicv5_spi_irq_set_affinity(struct irq_data *d,
 {
 	return gicv5_iri_irq_set_affinity(d, mask_val, force,
 					  GICV5_HWIRQ_TYPE_SPI);
+}
+
+static int gicv5_lpi_irq_set_affinity(struct irq_data *d,
+				      const struct cpumask *mask_val,
+				      bool force)
+{
+	return gicv5_iri_irq_set_affinity(d, mask_val, force,
+					  GICV5_HWIRQ_TYPE_LPI);
 }
 
 enum ppi_reg {
@@ -336,6 +397,14 @@ static int gicv5_spi_irq_get_irqchip_state(struct irq_data *d,
 					       GICV5_HWIRQ_TYPE_SPI);
 }
 
+static int gicv5_lpi_irq_get_irqchip_state(struct irq_data *d,
+					   enum irqchip_irq_state which,
+					   bool *state)
+{
+	return gicv5_iri_irq_get_irqchip_state(d, which, state,
+					       GICV5_HWIRQ_TYPE_LPI);
+}
+
 static int gicv5_ppi_irq_set_irqchip_state(struct irq_data *d,
 					   enum irqchip_irq_state which,
 					   bool state)
@@ -370,6 +439,11 @@ static void gicv5_spi_irq_write_pending_state(struct irq_data *d, bool state)
 	gicv5_iri_irq_write_pending_state(d, state, GICV5_HWIRQ_TYPE_SPI);
 }
 
+static void gicv5_lpi_irq_write_pending_state(struct irq_data *d, bool state)
+{
+	gicv5_iri_irq_write_pending_state(d, state, GICV5_HWIRQ_TYPE_LPI);
+}
+
 static int gicv5_spi_irq_set_irqchip_state(struct irq_data *d,
 					   enum irqchip_irq_state which,
 					   bool state)
@@ -386,10 +460,39 @@ static int gicv5_spi_irq_set_irqchip_state(struct irq_data *d,
 	return 0;
 }
 
+static int gicv5_lpi_irq_set_irqchip_state(struct irq_data *d,
+					   enum irqchip_irq_state which,
+					   bool state)
+{
+	switch (which) {
+	case IRQCHIP_STATE_PENDING:
+		gicv5_lpi_irq_write_pending_state(d, state);
+		break;
+
+	default:
+		pr_debug("Unexpected irqchip_irq_state\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int gicv5_spi_irq_retrigger(struct irq_data *data)
 {
 	return !gicv5_spi_irq_set_irqchip_state(data, IRQCHIP_STATE_PENDING,
 						true);
+}
+
+static int gicv5_lpi_irq_retrigger(struct irq_data *data)
+{
+	return !gicv5_lpi_irq_set_irqchip_state(data, IRQCHIP_STATE_PENDING,
+						true);
+}
+
+static void gicv5_ipi_send_single(struct irq_data *d, unsigned int cpu)
+{
+	/* Mark the LPI pending */
+	irq_chip_retrigger_hierarchy(d);
 }
 
 static bool gicv5_ppi_irq_is_level(irq_hw_number_t hwirq)
@@ -422,6 +525,32 @@ static const struct irq_chip gicv5_spi_irq_chip = {
 	.irq_set_irqchip_state	= gicv5_spi_irq_set_irqchip_state,
 	.flags			= IRQCHIP_SET_TYPE_MASKED |
 				  IRQCHIP_SKIP_SET_WAKE	  |
+				  IRQCHIP_MASK_ON_SUSPEND,
+};
+
+static const struct irq_chip gicv5_lpi_irq_chip = {
+	.name			= "GICv5-LPI",
+	.irq_mask		= gicv5_lpi_irq_mask,
+	.irq_unmask		= gicv5_lpi_irq_unmask,
+	.irq_eoi		= gicv5_lpi_irq_eoi,
+	.irq_set_affinity	= gicv5_lpi_irq_set_affinity,
+	.irq_retrigger		= gicv5_lpi_irq_retrigger,
+	.irq_get_irqchip_state	= gicv5_lpi_irq_get_irqchip_state,
+	.irq_set_irqchip_state	= gicv5_lpi_irq_set_irqchip_state,
+	.flags			= IRQCHIP_SKIP_SET_WAKE	  |
+				  IRQCHIP_MASK_ON_SUSPEND,
+};
+
+static const struct irq_chip gicv5_ipi_irq_chip = {
+	.name			= "GICv5-IPI",
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.ipi_send_single	= gicv5_ipi_send_single,
+	.flags			= IRQCHIP_SKIP_SET_WAKE	  |
 				  IRQCHIP_MASK_ON_SUSPEND,
 };
 
@@ -585,6 +714,130 @@ static const struct irq_domain_ops gicv5_irq_spi_domain_ops = {
 	.free		= gicv5_irq_domain_free,
 	.select		= gicv5_irq_spi_domain_select
 };
+
+static void gicv5_lpi_config_reset(struct irq_data *d)
+{
+	u64 cdhm;
+
+	/*
+	 * Reset LPIs handling mode to edge by default and clear pending
+	 * state to make sure we start the LPI with a clean state from
+	 * previous incarnations.
+	 */
+	cdhm = FIELD_PREP(GICV5_GIC_CDHM_HM_MASK, 0)				|
+	       FIELD_PREP(GICV5_GIC_CDHM_TYPE_MASK, GICV5_HWIRQ_TYPE_LPI)	|
+	       FIELD_PREP(GICV5_GIC_CDHM_ID_MASK, d->hwirq);
+	gic_insn(cdhm, CDHM);
+
+	gicv5_lpi_irq_write_pending_state(d, false);
+}
+
+static int gicv5_irq_lpi_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				      unsigned int nr_irqs, void *arg)
+{
+	irq_hw_number_t hwirq;
+	struct irq_data *irqd;
+	u32 *lpi = arg;
+	int ret;
+
+	if (WARN_ON_ONCE(nr_irqs != 1))
+		return -EINVAL;
+
+	hwirq = *lpi;
+
+	irqd = irq_domain_get_irq_data(domain, virq);
+
+	irq_domain_set_info(domain, virq, hwirq, &gicv5_lpi_irq_chip, NULL,
+			    handle_fasteoi_irq, NULL, NULL);
+	irqd_set_single_target(irqd);
+
+	ret = gicv5_irs_iste_alloc(hwirq);
+	if (ret < 0)
+		return ret;
+
+	gicv5_hwirq_init(hwirq, GICV5_IRQ_PRI_MI, GICV5_HWIRQ_TYPE_LPI);
+	gicv5_lpi_config_reset(irqd);
+
+	return 0;
+}
+
+static const struct irq_domain_ops gicv5_irq_lpi_domain_ops = {
+	.alloc	= gicv5_irq_lpi_domain_alloc,
+	.free	= gicv5_irq_domain_free,
+};
+
+void __init gicv5_init_lpi_domain(void)
+{
+	struct irq_domain *d;
+
+	d = irq_domain_create_tree(NULL, &gicv5_irq_lpi_domain_ops, NULL);
+	gicv5_global_data.lpi_domain = d;
+}
+
+void __init gicv5_free_lpi_domain(void)
+{
+	irq_domain_remove(gicv5_global_data.lpi_domain);
+	gicv5_global_data.lpi_domain = NULL;
+}
+
+static int gicv5_irq_ipi_domain_alloc(struct irq_domain *domain, unsigned int virq,
+				      unsigned int nr_irqs, void *arg)
+{
+	struct irq_data *irqd;
+	int ret, i;
+	u32 lpi;
+
+	for (i = 0; i < nr_irqs; i++) {
+		ret = gicv5_alloc_lpi();
+		if (ret < 0)
+			return ret;
+
+		lpi = ret;
+
+		ret = irq_domain_alloc_irqs_parent(domain, virq + i, 1, &lpi);
+		if (ret) {
+			gicv5_free_lpi(lpi);
+			return ret;
+		}
+
+		irqd = irq_domain_get_irq_data(domain, virq + i);
+
+		irq_domain_set_hwirq_and_chip(domain, virq + i, i,
+				&gicv5_ipi_irq_chip, NULL);
+
+		irqd_set_single_target(irqd);
+
+		irq_set_handler(virq + i, handle_percpu_irq);
+	}
+
+	return 0;
+}
+
+static void gicv5_irq_ipi_domain_free(struct irq_domain *domain, unsigned int virq,
+				      unsigned int nr_irqs)
+{
+	struct irq_data *d;
+	unsigned int i;
+
+	for (i = 0; i < nr_irqs; i++) {
+		d = irq_domain_get_irq_data(domain, virq + i);
+
+		if (!d)
+			return;
+
+		gicv5_free_lpi(d->parent_data->hwirq);
+
+		irq_set_handler(virq + i, NULL);
+		irq_domain_reset_irq_data(d);
+		irq_domain_free_irqs_parent(domain, virq + i, 1);
+	}
+}
+
+static const struct irq_domain_ops gicv5_irq_ipi_domain_ops = {
+	.alloc	= gicv5_irq_ipi_domain_alloc,
+	.free	= gicv5_irq_ipi_domain_free,
+};
+
 static void handle_irq_per_domain(u32 hwirq)
 {
 	u8 hwirq_type = FIELD_GET(GICV5_HWIRQ_TYPE, hwirq);
@@ -597,6 +850,9 @@ static void handle_irq_per_domain(u32 hwirq)
 		break;
 	case GICV5_HWIRQ_TYPE_SPI:
 		domain = gicv5_global_data.spi_domain;
+		break;
+	case GICV5_HWIRQ_TYPE_LPI:
+		domain = gicv5_global_data.lpi_domain;
 		break;
 	default:
 		pr_err_once("Unknown IRQ type, bail out\n");
@@ -679,9 +935,12 @@ static void __init gicv5_free_domains(void)
 		irq_domain_remove(gicv5_global_data.ppi_domain);
 	if (gicv5_global_data.spi_domain)
 		irq_domain_remove(gicv5_global_data.spi_domain);
+	if (gicv5_global_data.ipi_domain)
+		irq_domain_remove(gicv5_global_data.ipi_domain);
 
 	gicv5_global_data.ppi_domain = NULL;
 	gicv5_global_data.spi_domain = NULL;
+	gicv5_global_data.ipi_domain = NULL;
 }
 
 static int __init gicv5_init_domains(struct fwnode_handle *handle)
@@ -709,6 +968,19 @@ static int __init gicv5_init_domains(struct fwnode_handle *handle)
 		irq_domain_update_bus_token(d, DOMAIN_BUS_WIRED);
 	}
 
+	if (!WARN(!gicv5_global_data.lpi_domain,
+		  "LPI domain uninitialized, can't set up IPIs")) {
+		d = irq_domain_create_hierarchy(gicv5_global_data.lpi_domain,
+						0, GICV5_IPIS_PER_CPU * nr_cpu_ids,
+						NULL, &gicv5_irq_ipi_domain_ops,
+						NULL);
+
+		if (!d) {
+			gicv5_free_domains();
+			return -ENOMEM;
+		}
+		gicv5_global_data.ipi_domain = d;
+	}
 	gicv5_global_data.fwnode = handle;
 
 	return 0;
@@ -732,6 +1004,24 @@ static void gicv5_set_cpuif_pribits(void)
 	}
 }
 
+static void gicv5_set_cpuif_idbits(void)
+{
+	u32 icc_idr0 = read_sysreg_s(SYS_ICC_IDR0_EL1);
+
+	switch (FIELD_GET(ICC_IDR0_EL1_ID_BITS, icc_idr0)) {
+	case ICC_IDR0_EL1_ID_BITS_16BITS:
+		gicv5_global_data.cpuif_id_bits = 16;
+		break;
+	case ICC_IDR0_EL1_ID_BITS_24BITS:
+		gicv5_global_data.cpuif_id_bits = 24;
+		break;
+	default:
+		pr_err("Unexpected ICC_IDR0_EL1_ID_BITS value, default to 16");
+		gicv5_global_data.cpuif_id_bits = 16;
+		break;
+	}
+}
+
 static int __init gicv5_of_init(struct device_node *node, struct device_node *parent)
 {
 	int ret = gicv5_irs_of_probe(node);
@@ -743,6 +1033,7 @@ static int __init gicv5_of_init(struct device_node *node, struct device_node *pa
 		goto out_irs;
 
 	gicv5_set_cpuif_pribits();
+	gicv5_set_cpuif_idbits();
 
 	pri_bits = min_not_zero(gicv5_global_data.cpuif_pri_bits,
 				gicv5_global_data.irs_pri_bits);
@@ -752,6 +1043,10 @@ static int __init gicv5_of_init(struct device_node *node, struct device_node *pa
 		goto out_dom;
 
 	ret = set_handle_irq(gicv5_handle_irq);
+	if (ret)
+		goto out_int;
+
+	ret = gicv5_irs_enable();
 	if (ret)
 		goto out_int;
 
