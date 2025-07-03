@@ -24,6 +24,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
@@ -634,25 +635,14 @@ static int of_tmc_get_reserved_resource_by_name(struct device *dev,
 						const char *name,
 						struct resource *res)
 {
-	int index, rc = -ENODEV;
-	struct device_node *node;
+	int rc = -ENODEV;
 
-	if (!is_of_node(dev->fwnode))
-		return -ENODEV;
-
-	index = of_property_match_string(dev->of_node, "memory-region-names",
-					 name);
-	if (index < 0)
+	rc = of_reserved_mem_region_to_resource_byname(dev->of_node, name, res);
+	if (rc < 0)
 		return rc;
 
-	node = of_parse_phandle(dev->of_node, "memory-region", index);
-	if (!node)
-		return rc;
-
-	if (!of_address_to_resource(node, 0, res) &&
-	    res->start != 0 && resource_size(res) != 0)
-		rc = 0;
-	of_node_put(node);
+	if (res->start == 0 || resource_size(res) == 0)
+		rc = -ENODEV;
 
 	return rc;
 }
