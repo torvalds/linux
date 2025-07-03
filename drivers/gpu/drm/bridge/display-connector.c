@@ -40,8 +40,7 @@ static int display_connector_attach(struct drm_bridge *bridge,
 	return flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR ? 0 : -EINVAL;
 }
 
-static enum drm_connector_status
-display_connector_detect(struct drm_bridge *bridge)
+static enum drm_connector_status display_connector_detect(struct drm_bridge *bridge)
 {
 	struct display_connector *conn = to_display_connector(bridge);
 
@@ -80,6 +79,12 @@ display_connector_detect(struct drm_bridge *bridge)
 		 */
 		return connector_status_unknown;
 	}
+}
+
+static enum drm_connector_status
+display_connector_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
+{
+	return display_connector_detect(bridge);
 }
 
 static const struct drm_edid *display_connector_edid_read(struct drm_bridge *bridge,
@@ -172,7 +177,7 @@ static u32 *display_connector_get_input_bus_fmts(struct drm_bridge *bridge,
 
 static const struct drm_bridge_funcs display_connector_bridge_funcs = {
 	.attach = display_connector_attach,
-	.detect = display_connector_detect,
+	.detect = display_connector_bridge_detect,
 	.edid_read = display_connector_edid_read,
 	.atomic_get_output_bus_fmts = display_connector_get_output_bus_fmts,
 	.atomic_get_input_bus_fmts = display_connector_get_input_bus_fmts,

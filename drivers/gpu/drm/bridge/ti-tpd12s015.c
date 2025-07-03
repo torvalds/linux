@@ -77,6 +77,12 @@ static enum drm_connector_status tpd12s015_detect(struct drm_bridge *bridge)
 		return connector_status_disconnected;
 }
 
+static enum drm_connector_status
+tpd12s015_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
+{
+	return tpd12s015_detect(bridge);
+}
+
 static void tpd12s015_hpd_enable(struct drm_bridge *bridge)
 {
 	struct tpd12s015_device *tpd = to_tpd12s015(bridge);
@@ -94,7 +100,7 @@ static void tpd12s015_hpd_disable(struct drm_bridge *bridge)
 static const struct drm_bridge_funcs tpd12s015_bridge_funcs = {
 	.attach			= tpd12s015_attach,
 	.detach			= tpd12s015_detach,
-	.detect			= tpd12s015_detect,
+	.detect			= tpd12s015_bridge_detect,
 	.hpd_enable		= tpd12s015_hpd_enable,
 	.hpd_disable		= tpd12s015_hpd_disable,
 };

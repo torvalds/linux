@@ -89,7 +89,7 @@ tfp410_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct tfp410 *dvi = drm_connector_to_tfp410(connector);
 
-	return drm_bridge_detect(dvi->next_bridge);
+	return drm_bridge_detect(dvi->next_bridge, connector);
 }
 
 static const struct drm_connector_funcs tfp410_con_funcs = {

@@ -458,7 +458,8 @@ static int sii902x_bridge_attach(struct drm_bridge *bridge,
 	return 0;
 }
 
-static enum drm_connector_status sii902x_bridge_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+sii902x_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 

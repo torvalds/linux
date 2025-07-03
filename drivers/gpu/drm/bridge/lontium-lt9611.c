@@ -543,7 +543,8 @@ static int lt9611_regulator_enable(struct lt9611 *lt9611)
 	return 0;
 }
 
-static enum drm_connector_status lt9611_bridge_detect(struct drm_bridge *bridge)
+static enum drm_connector_status
+lt9611_bridge_detect(struct drm_bridge *bridge, struct drm_connector *connector)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 	unsigned int reg_val = 0;
