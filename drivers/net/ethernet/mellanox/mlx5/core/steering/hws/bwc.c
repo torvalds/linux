@@ -71,6 +71,130 @@ static void hws_bwc_matcher_init_attr(struct mlx5hws_bwc_matcher *bwc_matcher,
 		first_matcher ? first_matcher->matcher->end_ft_id : 0;
 }
 
+static int
+hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
+{
+	bool move_error = false, poll_error = false, drain_error = false;
+	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
+	struct mlx5hws_matcher *matcher = bwc_matcher->matcher;
+	u16 bwc_queues = mlx5hws_bwc_queues(ctx);
+	struct mlx5hws_rule_attr rule_attr;
+	struct mlx5hws_bwc_rule *bwc_rule;
+	struct mlx5hws_send_engine *queue;
+	struct list_head *rules_list;
+	u32 pending_rules;
+	int i, ret = 0;
+
+	mlx5hws_bwc_rule_fill_attr(bwc_matcher, 0, 0, &rule_attr);
+
+	for (i = 0; i < bwc_queues; i++) {
+		if (list_empty(&bwc_matcher->rules[i]))
+			continue;
+
+		pending_rules = 0;
+		rule_attr.queue_id = mlx5hws_bwc_get_queue_id(ctx, i);
+		rules_list = &bwc_matcher->rules[i];
+
+		list_for_each_entry(bwc_rule, rules_list, list_node) {
+			ret = mlx5hws_matcher_resize_rule_move(matcher,
+							       bwc_rule->rule,
+							       &rule_attr);
+			if (unlikely(ret && !move_error)) {
+				mlx5hws_err(ctx,
+					    "Moving BWC rule: move failed (%d), attempting to move rest of the rules\n",
+					    ret);
+				move_error = true;
+			}
+
+			pending_rules++;
+			ret = mlx5hws_bwc_queue_poll(ctx,
+						     rule_attr.queue_id,
+						     &pending_rules,
+						     false);
+			if (unlikely(ret && !poll_error)) {
+				mlx5hws_err(ctx,
+					    "Moving BWC rule: poll failed (%d), attempting to move rest of the rules\n",
+					    ret);
+				poll_error = true;
+			}
+		}
+
+		if (pending_rules) {
+			queue = &ctx->send_queue[rule_attr.queue_id];
+			mlx5hws_send_engine_flush_queue(queue);
+			ret = mlx5hws_bwc_queue_poll(ctx,
+						     rule_attr.queue_id,
+						     &pending_rules,
+						     true);
+			if (unlikely(ret && !drain_error)) {
+				mlx5hws_err(ctx,
+					    "Moving BWC rule: drain failed (%d), attempting to move rest of the rules\n",
+					    ret);
+				drain_error = true;
+			}
+		}
+	}
+
+	if (move_error || poll_error || drain_error)
+		ret = -EINVAL;
+
+	return ret;
+}
+
+static int hws_bwc_matcher_move_all(struct mlx5hws_bwc_matcher *bwc_matcher)
+{
+	if (!bwc_matcher->complex)
+		return hws_bwc_matcher_move_all_simple(bwc_matcher);
+
+	return mlx5hws_bwc_matcher_move_all_complex(bwc_matcher);
+}
+
+static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
+{
+	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
+	struct mlx5hws_matcher_attr matcher_attr = {0};
+	struct mlx5hws_matcher *old_matcher;
+	struct mlx5hws_matcher *new_matcher;
+	int ret;
+
+	hws_bwc_matcher_init_attr(bwc_matcher,
+				  bwc_matcher->priority,
+				  bwc_matcher->rx_size.size_log,
+				  bwc_matcher->tx_size.size_log,
+				  &matcher_attr);
+
+	old_matcher = bwc_matcher->matcher;
+	new_matcher = mlx5hws_matcher_create(old_matcher->tbl,
+					     &bwc_matcher->mt, 1,
+					     bwc_matcher->at,
+					     bwc_matcher->num_of_at,
+					     &matcher_attr);
+	if (!new_matcher) {
+		mlx5hws_err(ctx, "Rehash error: matcher creation failed\n");
+		return -ENOMEM;
+	}
+
+	ret = mlx5hws_matcher_resize_set_target(old_matcher, new_matcher);
+	if (ret) {
+		mlx5hws_err(ctx, "Rehash error: failed setting resize target\n");
+		return ret;
+	}
+
+	ret = hws_bwc_matcher_move_all(bwc_matcher);
+	if (ret)
+		mlx5hws_err(ctx, "Rehash error: moving rules failed, attempting to remove the old matcher\n");
+
+	/* Error during rehash can't be rolled back.
+	 * The best option here is to allow the rehash to complete and remove
+	 * the old matcher - can't leave the matcher in the 'in_resize' state.
+	 */
+
+	bwc_matcher->matcher = new_matcher;
+	mlx5hws_matcher_destroy(old_matcher);
+
+	return ret;
+}
+
 int mlx5hws_bwc_matcher_create_simple(struct mlx5hws_bwc_matcher *bwc_matcher,
 				      struct mlx5hws_table *table,
 				      u32 priority,
@@ -634,129 +758,6 @@ hws_bwc_matcher_find_at(struct mlx5hws_bwc_matcher *bwc_matcher,
 	}
 
 	return -1;
-}
-
-static int hws_bwc_matcher_move_all_simple(struct mlx5hws_bwc_matcher *bwc_matcher)
-{
-	bool move_error = false, poll_error = false, drain_error = false;
-	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
-	struct mlx5hws_matcher *matcher = bwc_matcher->matcher;
-	u16 bwc_queues = mlx5hws_bwc_queues(ctx);
-	struct mlx5hws_rule_attr rule_attr;
-	struct mlx5hws_bwc_rule *bwc_rule;
-	struct mlx5hws_send_engine *queue;
-	struct list_head *rules_list;
-	u32 pending_rules;
-	int i, ret = 0;
-
-	mlx5hws_bwc_rule_fill_attr(bwc_matcher, 0, 0, &rule_attr);
-
-	for (i = 0; i < bwc_queues; i++) {
-		if (list_empty(&bwc_matcher->rules[i]))
-			continue;
-
-		pending_rules = 0;
-		rule_attr.queue_id = mlx5hws_bwc_get_queue_id(ctx, i);
-		rules_list = &bwc_matcher->rules[i];
-
-		list_for_each_entry(bwc_rule, rules_list, list_node) {
-			ret = mlx5hws_matcher_resize_rule_move(matcher,
-							       bwc_rule->rule,
-							       &rule_attr);
-			if (unlikely(ret && !move_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: move failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				move_error = true;
-			}
-
-			pending_rules++;
-			ret = mlx5hws_bwc_queue_poll(ctx,
-						     rule_attr.queue_id,
-						     &pending_rules,
-						     false);
-			if (unlikely(ret && !poll_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: poll failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				poll_error = true;
-			}
-		}
-
-		if (pending_rules) {
-			queue = &ctx->send_queue[rule_attr.queue_id];
-			mlx5hws_send_engine_flush_queue(queue);
-			ret = mlx5hws_bwc_queue_poll(ctx,
-						     rule_attr.queue_id,
-						     &pending_rules,
-						     true);
-			if (unlikely(ret && !drain_error)) {
-				mlx5hws_err(ctx,
-					    "Moving BWC rule: drain failed (%d), attempting to move rest of the rules\n",
-					    ret);
-				drain_error = true;
-			}
-		}
-	}
-
-	if (move_error || poll_error || drain_error)
-		ret = -EINVAL;
-
-	return ret;
-}
-
-static int hws_bwc_matcher_move_all(struct mlx5hws_bwc_matcher *bwc_matcher)
-{
-	if (!bwc_matcher->complex)
-		return hws_bwc_matcher_move_all_simple(bwc_matcher);
-
-	return mlx5hws_bwc_matcher_move_all_complex(bwc_matcher);
-}
-
-static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
-{
-	struct mlx5hws_context *ctx = bwc_matcher->matcher->tbl->ctx;
-	struct mlx5hws_matcher_attr matcher_attr = {0};
-	struct mlx5hws_matcher *old_matcher;
-	struct mlx5hws_matcher *new_matcher;
-	int ret;
-
-	hws_bwc_matcher_init_attr(bwc_matcher,
-				  bwc_matcher->priority,
-				  bwc_matcher->rx_size.size_log,
-				  bwc_matcher->tx_size.size_log,
-				  &matcher_attr);
-
-	old_matcher = bwc_matcher->matcher;
-	new_matcher = mlx5hws_matcher_create(old_matcher->tbl,
-					     &bwc_matcher->mt, 1,
-					     bwc_matcher->at,
-					     bwc_matcher->num_of_at,
-					     &matcher_attr);
-	if (!new_matcher) {
-		mlx5hws_err(ctx, "Rehash error: matcher creation failed\n");
-		return -ENOMEM;
-	}
-
-	ret = mlx5hws_matcher_resize_set_target(old_matcher, new_matcher);
-	if (ret) {
-		mlx5hws_err(ctx, "Rehash error: failed setting resize target\n");
-		return ret;
-	}
-
-	ret = hws_bwc_matcher_move_all(bwc_matcher);
-	if (ret)
-		mlx5hws_err(ctx, "Rehash error: moving rules failed, attempting to remove the old matcher\n");
-
-	/* Error during rehash can't be rolled back.
-	 * The best option here is to allow the rehash to complete and remove
-	 * the old matcher - can't leave the matcher in the 'in_resize' state.
-	 */
-
-	bwc_matcher->matcher = new_matcher;
-	mlx5hws_matcher_destroy(old_matcher);
-
-	return ret;
 }
 
 static int
