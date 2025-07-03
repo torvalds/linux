@@ -876,8 +876,6 @@ int mlx5hws_bwc_rule_create_simple(struct mlx5hws_bwc_rule *bwc_rule,
 
 	/* At this point the rule wasn't added.
 	 * It could be because there was collision, or some other problem.
-	 * If we don't dive deeper than API, the only thing we know is that
-	 * the status of completion is RTE_FLOW_OP_ERROR.
 	 * Try rehash by size and insert rule again - last chance.
 	 */
 
