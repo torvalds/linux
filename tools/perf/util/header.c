@@ -4343,6 +4343,7 @@ int perf_event__process_feature(struct perf_session *session,
 	int type = fe->header.type;
 	u64 feat = fe->feat_id;
 	int ret = 0;
+	bool print = dump_trace;
 
 	if (type < 0 || type >= PERF_RECORD_HEADER_MAX) {
 		pr_warning("invalid record type %d in pipe-mode\n", type);
@@ -4362,8 +4363,20 @@ int perf_event__process_feature(struct perf_session *session,
 		goto out;
 	}
 
-	if (dump_trace) {
+	if (session->tool->show_feat_hdr) {
+		if (!feat_ops[feat].full_only ||
+		    session->tool->show_feat_hdr >= SHOW_FEAT_HEADER_FULL_INFO) {
+			print = true;
+		} else {
+			fprintf(stdout, "# %s info available, use -I to display\n",
+				feat_ops[feat].name);
+		}
+	}
+
+	if (dump_trace)
 		printf(", ");
+
+	if (print) {
 		if (feat_ops[feat].print)
 			feat_ops[feat].print(&ff, stdout);
 		else

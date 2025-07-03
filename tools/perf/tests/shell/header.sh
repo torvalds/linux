@@ -42,7 +42,7 @@ check_header_output() {
   do
     if ! grep -q -E "$i" "${script_output}"
     then
-      echo "Failed to find expect $i in output"
+      echo "Failed to find expected $i in output"
       err=1
     fi
   done
