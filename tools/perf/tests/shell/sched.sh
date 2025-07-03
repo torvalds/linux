@@ -56,38 +56,61 @@ cleanup_noploops() {
   kill "$PID1" "$PID2"
 }
 
-test_sched_latency() {
-  echo "Sched latency"
+test_sched_record() {
+  echo "Sched record"
 
   start_noploops
 
   perf sched record --no-inherit -o "${perfdata}" sleep 1
+
+  cleanup_noploops
+}
+
+test_sched_latency() {
+  echo "Sched latency"
+
   if ! perf sched latency -i "${perfdata}" | grep -q perf-noploop
   then
     echo "Sched latency [Failed missing output]"
     err=1
   fi
-
-  cleanup_noploops
 }
 
 test_sched_script() {
   echo "Sched script"
 
-  start_noploops
-
-  perf sched record --no-inherit -o "${perfdata}" sleep 1
   if ! perf sched script -i "${perfdata}" | grep -q perf-noploop
   then
     echo "Sched script [Failed missing output]"
     err=1
   fi
-
-  cleanup_noploops
 }
 
+test_sched_map() {
+  echo "Sched map"
+
+  if ! perf sched map -i "${perfdata}" | grep -q perf-noploop
+  then
+    echo "Sched map [Failed missing output]"
+    err=1
+  fi
+}
+
+test_sched_timehist() {
+  echo "Sched timehist"
+
+  if ! perf sched timehist -i "${perfdata}" | grep -q perf-noploop
+  then
+    echo "Sched timehist [Failed missing output]"
+    err=1
+  fi
+}
+
+test_sched_record
 test_sched_latency
 test_sched_script
+test_sched_map
+test_sched_timehist
 
 cleanup
 exit $err
