@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2021-2022, NVIDIA CORPORATION. All rights reserved
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION. All rights reserved
  *
  * The driver handles Error's from Control Backbone(CBB) version 2.0.
  * generated due to illegal accesses. The driver prints debug information
  * about failed transaction on receiving interrupt from Error Notifier.
  * Error types supported by CBB2.0 are:
  *   UNSUPPORTED_ERR, PWRDOWN_ERR, TIMEOUT_ERR, FIREWALL_ERR, DECODE_ERR,
- *   SLAVE_ERR
+ *   TARGET_ERR
  */
 
 #include <linux/acpi.h>
@@ -30,18 +30,18 @@
 #define FABRIC_EN_CFG_ADDR_LOW_0		0x80
 #define FABRIC_EN_CFG_ADDR_HI_0			0x84
 
-#define FABRIC_MN_MASTER_ERR_EN_0		0x200
-#define FABRIC_MN_MASTER_ERR_FORCE_0		0x204
-#define FABRIC_MN_MASTER_ERR_STATUS_0		0x208
-#define FABRIC_MN_MASTER_ERR_OVERFLOW_STATUS_0	0x20c
+#define FABRIC_MN_INITIATOR_ERR_EN_0		0x200
+#define FABRIC_MN_INITIATOR_ERR_FORCE_0		0x204
+#define FABRIC_MN_INITIATOR_ERR_STATUS_0		0x208
+#define FABRIC_MN_INITIATOR_ERR_OVERFLOW_STATUS_0	0x20c
 
-#define FABRIC_MN_MASTER_LOG_ERR_STATUS_0	0x300
-#define FABRIC_MN_MASTER_LOG_ADDR_LOW_0		0x304
-#define FABRIC_MN_MASTER_LOG_ADDR_HIGH_0	0x308
-#define FABRIC_MN_MASTER_LOG_ATTRIBUTES0_0	0x30c
-#define FABRIC_MN_MASTER_LOG_ATTRIBUTES1_0	0x310
-#define FABRIC_MN_MASTER_LOG_ATTRIBUTES2_0	0x314
-#define FABRIC_MN_MASTER_LOG_USER_BITS0_0	0x318
+#define FABRIC_MN_INITIATOR_LOG_ERR_STATUS_0	0x300
+#define FABRIC_MN_INITIATOR_LOG_ADDR_LOW_0		0x304
+#define FABRIC_MN_INITIATOR_LOG_ADDR_HIGH_0	0x308
+#define FABRIC_MN_INITIATOR_LOG_ATTRIBUTES0_0	0x30c
+#define FABRIC_MN_INITIATOR_LOG_ATTRIBUTES1_0	0x310
+#define FABRIC_MN_INITIATOR_LOG_ATTRIBUTES2_0	0x314
+#define FABRIC_MN_INITIATOR_LOG_USER_BITS0_0	0x318
 
 #define AXI_SLV_TIMEOUT_STATUS_0_0		0x8
 #define APB_BLOCK_TMO_STATUS_0			0xc00
@@ -53,7 +53,7 @@
 #define FAB_EM_EL_FALCONSEC		GENMASK(1, 0)
 
 #define FAB_EM_EL_FABID			GENMASK(20, 16)
-#define FAB_EM_EL_SLAVEID		GENMASK(7, 0)
+#define FAB_EM_EL_TARGETID		GENMASK(7, 0)
 
 #define FAB_EM_EL_ACCESSID		GENMASK(7, 0)
 
@@ -85,7 +85,7 @@ enum tegra234_cbb_fabric_ids {
 	MAX_FAB_ID,
 };
 
-struct tegra234_slave_lookup {
+struct tegra234_target_lookup {
 	const char *name;
 	unsigned int offset;
 };
@@ -96,12 +96,12 @@ struct tegra234_cbb_fabric {
 	phys_addr_t firewall_base;
 	unsigned int firewall_ctl;
 	unsigned int firewall_wr_ctl;
-	const char * const *master_id;
+	const char * const *initiator_id;
 	unsigned int notifier_offset;
 	const struct tegra_cbb_error *errors;
 	const int max_errors;
-	const struct tegra234_slave_lookup *slave_map;
-	const int max_slaves;
+	const struct tegra234_target_lookup *target_map;
+	const int max_targets;
 };
 
 struct tegra234_cbb {
@@ -185,9 +185,9 @@ static void tegra234_cbb_error_clear(struct tegra_cbb *cbb)
 {
 	struct tegra234_cbb *priv = to_tegra234_cbb(cbb);
 
-	writel(0, priv->mon + FABRIC_MN_MASTER_ERR_FORCE_0);
+	writel(0, priv->mon + FABRIC_MN_INITIATOR_ERR_FORCE_0);
 
-	writel(0x3f, priv->mon + FABRIC_MN_MASTER_ERR_STATUS_0);
+	writel(0x3f, priv->mon + FABRIC_MN_INITIATOR_ERR_STATUS_0);
 	dsb(sy);
 }
 
@@ -218,13 +218,13 @@ static u32 tegra234_cbb_get_tmo_slv(void __iomem *addr)
 	return timeout;
 }
 
-static void tegra234_cbb_tmo_slv(struct seq_file *file, const char *slave, void __iomem *addr,
+static void tegra234_cbb_tmo_slv(struct seq_file *file, const char *target, void __iomem *addr,
 				 u32 status)
 {
-	tegra_cbb_print_err(file, "\t  %s : %#x\n", slave, status);
+	tegra_cbb_print_err(file, "\t  %s : %#x\n", target, status);
 }
 
-static void tegra234_cbb_lookup_apbslv(struct seq_file *file, const char *slave,
+static void tegra234_cbb_lookup_apbslv(struct seq_file *file, const char *target,
 				       void __iomem *base)
 {
 	unsigned int block = 0;
@@ -234,7 +234,7 @@ static void tegra234_cbb_lookup_apbslv(struct seq_file *file, const char *slave,
 
 	status = tegra234_cbb_get_tmo_slv(base);
 	if (status)
-		tegra_cbb_print_err(file, "\t  %s_BLOCK_TMO_STATUS : %#x\n", slave, status);
+		tegra_cbb_print_err(file, "\t  %s_BLOCK_TMO_STATUS : %#x\n", target, status);
 
 	while (status) {
 		if (status & BIT(0)) {
@@ -249,7 +249,7 @@ static void tegra234_cbb_lookup_apbslv(struct seq_file *file, const char *slave,
 					if (clients != 0xffffffff)
 						clients &= BIT(client);
 
-					sprintf(name, "%s_BLOCK%d_TMO", slave, block);
+					sprintf(name, "%s_BLOCK%d_TMO", target, block);
 
 					tegra234_cbb_tmo_slv(file, name, addr, clients);
 				}
@@ -264,16 +264,16 @@ static void tegra234_cbb_lookup_apbslv(struct seq_file *file, const char *slave,
 	}
 }
 
-static void tegra234_lookup_slave_timeout(struct seq_file *file, struct tegra234_cbb *cbb,
-					  u8 slave_id, u8 fab_id)
+static void tegra234_lookup_target_timeout(struct seq_file *file, struct tegra234_cbb *cbb,
+					   u8 target_id, u8 fab_id)
 {
-	const struct tegra234_slave_lookup *map = cbb->fabric->slave_map;
+	const struct tegra234_target_lookup *map = cbb->fabric->target_map;
 	void __iomem *addr;
 
 	/*
-	 * 1) Get slave node name and address mapping using slave_id.
-	 * 2) Check if the timed out slave node is APB or AXI.
-	 * 3) If AXI, then print timeout register and reset axi slave
+	 * 1) Get target node name and address mapping using target_id.
+	 * 2) Check if the timed out target node is APB or AXI.
+	 * 3) If AXI, then print timeout register and reset axi target
 	 *    using <FABRIC>_SN_<>_SLV_TIMEOUT_STATUS_0_0 register.
 	 * 4) If APB, then perform an additional lookup to find the client
 	 *    which timed out.
@@ -287,12 +287,12 @@ static void tegra234_lookup_slave_timeout(struct seq_file *file, struct tegra234
 	 *	e) Goto step-a till all bits are set.
 	 */
 
-	addr = cbb->regs + map[slave_id].offset;
+	addr = cbb->regs + map[target_id].offset;
 
-	if (strstr(map[slave_id].name, "AXI2APB")) {
+	if (strstr(map[target_id].name, "AXI2APB")) {
 		addr += APB_BLOCK_TMO_STATUS_0;
 
-		tegra234_cbb_lookup_apbslv(file, map[slave_id].name, addr);
+		tegra234_cbb_lookup_apbslv(file, map[target_id].name, addr);
 	} else {
 		char name[64];
 		u32 status;
@@ -301,7 +301,7 @@ static void tegra234_lookup_slave_timeout(struct seq_file *file, struct tegra234
 
 		status = tegra234_cbb_get_tmo_slv(addr);
 		if (status) {
-			sprintf(name, "%s_SLV_TIMEOUT_STATUS", map[slave_id].name);
+			sprintf(name, "%s_SLV_TIMEOUT_STATUS", map[target_id].name);
 			tegra234_cbb_tmo_slv(file, name, addr, status);
 		}
 	}
@@ -351,7 +351,7 @@ static void tegra234_cbb_print_error(struct seq_file *file, struct tegra234_cbb 
 static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 {
 	u8 cache_type, prot_type, burst_length, mstr_id, grpsec, vqc, falconsec, beat_size;
-	u8 access_type, access_id, requester_socket_id, local_socket_id, slave_id, fab_id;
+	u8 access_type, access_id, requester_socket_id, local_socket_id, target_id, fab_id;
 	char fabric_name[20];
 	bool is_numa = false;
 	u8 burst_type;
@@ -366,7 +366,7 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 
 	/*
 	 * For SOC with multiple NUMA nodes, print cross socket access
-	 * errors only if initiator/master_id is CCPLEX, CPMU or GPU.
+	 * errors only if initiator_id is CCPLEX, CPMU or GPU.
 	 */
 	if (is_numa) {
 		local_socket_id = numa_node_id();
@@ -379,7 +379,7 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	}
 
 	fab_id = FIELD_GET(FAB_EM_EL_FABID, cbb->mn_attr2);
-	slave_id = FIELD_GET(FAB_EM_EL_SLAVEID, cbb->mn_attr2);
+	target_id = FIELD_GET(FAB_EM_EL_TARGETID, cbb->mn_attr2);
 
 	access_id = FIELD_GET(FAB_EM_EL_ACCESSID, cbb->mn_attr1);
 
@@ -397,7 +397,7 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	else
 		tegra_cbb_print_err(file, "\t  Wrong type index:%u\n", cbb->type);
 
-	tegra_cbb_print_err(file, "\t  MASTER_ID\t\t: %s\n", cbb->fabric->master_id[mstr_id]);
+	tegra_cbb_print_err(file, "\t  Initiator_Id\t\t: %s\n", cbb->fabric->initiator_id[mstr_id]);
 	tegra_cbb_print_err(file, "\t  Address\t\t: %#llx\n", cbb->access);
 
 	tegra_cbb_print_cache(file, cache_type);
@@ -423,7 +423,7 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	}
 
 	tegra_cbb_print_err(file, "\t  Fabric\t\t: %s\n", fabric_name);
-	tegra_cbb_print_err(file, "\t  Slave_Id\t\t: %#x\n", slave_id);
+	tegra_cbb_print_err(file, "\t  Target_Id\t\t: %#x\n", target_id);
 	tegra_cbb_print_err(file, "\t  Burst_length\t\t: %#x\n", burst_length);
 	tegra_cbb_print_err(file, "\t  Burst_type\t\t: %#x\n", burst_type);
 	tegra_cbb_print_err(file, "\t  Beat_size\t\t: %#x\n", beat_size);
@@ -434,24 +434,25 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	if ((fab_id == PSC_FAB_ID) || (fab_id == FSI_FAB_ID))
 		return;
 
-	if (slave_id >= cbb->fabric->max_slaves) {
-		tegra_cbb_print_err(file, "\t  Invalid slave_id:%d\n", slave_id);
+	if (target_id >= cbb->fabric->max_targets) {
+		tegra_cbb_print_err(file, "\t  Invalid target_id:%d\n", target_id);
 		return;
 	}
 
 	if (!strcmp(cbb->fabric->errors[cbb->type].code, "TIMEOUT_ERR")) {
-		tegra234_lookup_slave_timeout(file, cbb, slave_id, fab_id);
+		tegra234_lookup_target_timeout(file, cbb, target_id, fab_id);
 		return;
 	}
 
-	tegra_cbb_print_err(file, "\t  Slave\t\t\t: %s\n", cbb->fabric->slave_map[slave_id].name);
+	tegra_cbb_print_err(file, "\t  Target\t\t\t: %s\n",
+			    cbb->fabric->target_map[target_id].name);
 }
 
 static int print_errmonX_info(struct seq_file *file, struct tegra234_cbb *cbb)
 {
 	u32 overflow, status, error;
 
-	status = readl(cbb->mon + FABRIC_MN_MASTER_ERR_STATUS_0);
+	status = readl(cbb->mon + FABRIC_MN_INITIATOR_ERR_STATUS_0);
 	if (!status) {
 		pr_err("Error Notifier received a spurious notification\n");
 		return -ENODATA;
@@ -462,11 +463,11 @@ static int print_errmonX_info(struct seq_file *file, struct tegra234_cbb *cbb)
 		return -EINVAL;
 	}
 
-	overflow = readl(cbb->mon + FABRIC_MN_MASTER_ERR_OVERFLOW_STATUS_0);
+	overflow = readl(cbb->mon + FABRIC_MN_INITIATOR_ERR_OVERFLOW_STATUS_0);
 
 	tegra234_cbb_print_error(file, cbb, status, overflow);
 
-	error = readl(cbb->mon + FABRIC_MN_MASTER_LOG_ERR_STATUS_0);
+	error = readl(cbb->mon + FABRIC_MN_INITIATOR_LOG_ERR_STATUS_0);
 	if (!error) {
 		pr_info("Error Monitor doesn't have Error Logger\n");
 		return -EINVAL;
@@ -478,15 +479,15 @@ static int print_errmonX_info(struct seq_file *file, struct tegra234_cbb *cbb)
 		if (error & BIT(0)) {
 			u32 hi, lo;
 
-			hi = readl(cbb->mon + FABRIC_MN_MASTER_LOG_ADDR_HIGH_0);
-			lo = readl(cbb->mon + FABRIC_MN_MASTER_LOG_ADDR_LOW_0);
+			hi = readl(cbb->mon + FABRIC_MN_INITIATOR_LOG_ADDR_HIGH_0);
+			lo = readl(cbb->mon + FABRIC_MN_INITIATOR_LOG_ADDR_LOW_0);
 
 			cbb->access = (u64)hi << 32 | lo;
 
-			cbb->mn_attr0 = readl(cbb->mon + FABRIC_MN_MASTER_LOG_ATTRIBUTES0_0);
-			cbb->mn_attr1 = readl(cbb->mon + FABRIC_MN_MASTER_LOG_ATTRIBUTES1_0);
-			cbb->mn_attr2 = readl(cbb->mon + FABRIC_MN_MASTER_LOG_ATTRIBUTES2_0);
-			cbb->mn_user_bits = readl(cbb->mon + FABRIC_MN_MASTER_LOG_USER_BITS0_0);
+			cbb->mn_attr0 = readl(cbb->mon + FABRIC_MN_INITIATOR_LOG_ATTRIBUTES0_0);
+			cbb->mn_attr1 = readl(cbb->mon + FABRIC_MN_INITIATOR_LOG_ATTRIBUTES1_0);
+			cbb->mn_attr2 = readl(cbb->mon + FABRIC_MN_INITIATOR_LOG_ATTRIBUTES2_0);
+			cbb->mn_user_bits = readl(cbb->mon + FABRIC_MN_INITIATOR_LOG_USER_BITS0_0);
 
 			print_errlog_err(file, cbb);
 		}
@@ -591,7 +592,7 @@ static irqreturn_t tegra234_cbb_isr(int irq, void *data)
 				goto unlock;
 
 			/*
-			 * If illegal request is from CCPLEX(id:0x1) master then call WARN()
+			 * If illegal request is from CCPLEX(id:0x1) initiator then call WARN()
 			 */
 			if (priv->fabric->off_mask_erd) {
 				mstr_id =  FIELD_GET(USRBITS_MSTR_ID, priv->mn_user_bits);
@@ -643,7 +644,7 @@ static const struct tegra_cbb_ops tegra234_cbb_ops = {
 #endif
 };
 
-static const char * const tegra234_master_id[] = {
+static const char * const tegra234_initiator_id[] = {
 	[0x00] = "TZ",
 	[0x01] = "CCPLEX",
 	[0x02] = "CCPMU",
@@ -674,8 +675,8 @@ static const char * const tegra234_master_id[] = {
 
 static const struct tegra_cbb_error tegra234_cbb_errors[] = {
 	{
-		.code = "SLAVE_ERR",
-		.desc = "Slave being accessed responded with an error"
+		.code = "TARGET_ERR",
+		.desc = "Target being accessed responded with an error"
 	}, {
 		.code = "DECODE_ERR",
 		.desc = "Attempt to access an address hole"
@@ -684,17 +685,17 @@ static const struct tegra_cbb_error tegra234_cbb_errors[] = {
 		.desc = "Attempt to access a region which is firewall protected"
 	}, {
 		.code = "TIMEOUT_ERR",
-		.desc = "No response returned by slave"
+		.desc = "No response returned by target"
 	}, {
 		.code = "PWRDOWN_ERR",
 		.desc = "Attempt to access a portion of fabric that is powered down"
 	}, {
 		.code = "UNSUPPORTED_ERR",
-		.desc = "Attempt to access a slave through an unsupported access"
+		.desc = "Attempt to access a target through an unsupported access"
 	}
 };
 
-static const struct tegra234_slave_lookup tegra234_aon_slave_map[] = {
+static const struct tegra234_target_lookup tegra234_aon_target_map[] = {
 	{ "AXI2APB", 0x00000 },
 	{ "AST",     0x14000 },
 	{ "CBB",     0x15000 },
@@ -703,9 +704,9 @@ static const struct tegra234_slave_lookup tegra234_aon_slave_map[] = {
 
 static const struct tegra234_cbb_fabric tegra234_aon_fabric = {
 	.name = "aon-fabric",
-	.master_id = tegra234_master_id,
-	.slave_map = tegra234_aon_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra234_aon_slave_map),
+	.initiator_id = tegra234_initiator_id,
+	.target_map = tegra234_aon_target_map,
+	.max_targets = ARRAY_SIZE(tegra234_aon_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x17000,
@@ -714,7 +715,7 @@ static const struct tegra234_cbb_fabric tegra234_aon_fabric = {
 	.firewall_wr_ctl = 0x8c8,
 };
 
-static const struct tegra234_slave_lookup tegra234_bpmp_slave_map[] = {
+static const struct tegra234_target_lookup tegra234_bpmp_target_map[] = {
 	{ "AXI2APB", 0x00000 },
 	{ "AST0",    0x15000 },
 	{ "AST1",    0x16000 },
@@ -724,9 +725,9 @@ static const struct tegra234_slave_lookup tegra234_bpmp_slave_map[] = {
 
 static const struct tegra234_cbb_fabric tegra234_bpmp_fabric = {
 	.name = "bpmp-fabric",
-	.master_id = tegra234_master_id,
-	.slave_map = tegra234_bpmp_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra234_bpmp_slave_map),
+	.initiator_id = tegra234_initiator_id,
+	.target_map = tegra234_bpmp_target_map,
+	.max_targets = ARRAY_SIZE(tegra234_bpmp_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
@@ -735,7 +736,7 @@ static const struct tegra234_cbb_fabric tegra234_bpmp_fabric = {
 	.firewall_wr_ctl = 0x8e8,
 };
 
-static const struct tegra234_slave_lookup tegra234_cbb_slave_map[] = {
+static const struct tegra234_target_lookup tegra234_cbb_target_map[] = {
 	{ "AON",        0x40000 },
 	{ "BPMP",       0x41000 },
 	{ "CBB",        0x42000 },
@@ -801,9 +802,9 @@ static const struct tegra234_slave_lookup tegra234_cbb_slave_map[] = {
 
 static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
 	.name = "cbb-fabric",
-	.master_id = tegra234_master_id,
-	.slave_map = tegra234_cbb_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra234_cbb_slave_map),
+	.initiator_id = tegra234_initiator_id,
+	.target_map = tegra234_cbb_target_map,
+	.max_targets = ARRAY_SIZE(tegra234_cbb_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x60000,
@@ -813,7 +814,7 @@ static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
 	.firewall_wr_ctl = 0x23e8,
 };
 
-static const struct tegra234_slave_lookup tegra234_common_slave_map[] = {
+static const struct tegra234_target_lookup tegra234_common_target_map[] = {
 	{ "AXI2APB", 0x00000 },
 	{ "AST0",    0x15000 },
 	{ "AST1",    0x16000 },
@@ -824,9 +825,9 @@ static const struct tegra234_slave_lookup tegra234_common_slave_map[] = {
 
 static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
 	.name = "dce-fabric",
-	.master_id = tegra234_master_id,
-	.slave_map = tegra234_common_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
+	.initiator_id = tegra234_initiator_id,
+	.target_map = tegra234_common_target_map,
+	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
@@ -837,9 +838,9 @@ static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
 
 static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
 	.name = "rce-fabric",
-	.master_id = tegra234_master_id,
-	.slave_map = tegra234_common_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
+	.initiator_id = tegra234_initiator_id,
+	.target_map = tegra234_common_target_map,
+	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
@@ -850,9 +851,9 @@ static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
 
 static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.name = "sce-fabric",
-	.master_id = tegra234_master_id,
-	.slave_map = tegra234_common_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
+	.initiator_id = tegra234_initiator_id,
+	.target_map = tegra234_common_target_map,
+	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
@@ -861,7 +862,7 @@ static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.firewall_wr_ctl = 0x288,
 };
 
-static const char * const tegra241_master_id[] = {
+static const char * const tegra241_initiator_id[] = {
 	[0x0] = "TZ",
 	[0x1] = "CCPLEX",
 	[0x2] = "CCPMU",
@@ -879,22 +880,22 @@ static const char * const tegra241_master_id[] = {
 };
 
 /*
- * Possible causes for Slave and Timeout errors.
- * SLAVE_ERR:
- * Slave being accessed responded with an error. Slave could return
+ * Possible causes for Target and Timeout errors.
+ * TARGET_ERR:
+ * Target being accessed responded with an error. Target could return
  * an error for various cases :
  *   Unsupported access, clamp setting when power gated, register
- *   level firewall(SCR), address hole within the slave, etc
+ *   level firewall(SCR), address hole within the target, etc
  *
  * TIMEOUT_ERR:
- * No response returned by slave. Can be due to slave being clock
- * gated, under reset, powered down or slave inability to respond
- * for an internal slave issue
+ * No response returned by target. Can be due to target being clock
+ * gated, under reset, powered down or target inability to respond
+ * for an internal target issue
  */
 static const struct tegra_cbb_error tegra241_cbb_errors[] = {
 	{
-		.code = "SLAVE_ERR",
-		.desc = "Slave being accessed responded with an error."
+		.code = "TARGET_ERR",
+		.desc = "Target being accessed responded with an error."
 	}, {
 		.code = "DECODE_ERR",
 		.desc = "Attempt to access an address hole or Reserved region of memory."
@@ -903,16 +904,16 @@ static const struct tegra_cbb_error tegra241_cbb_errors[] = {
 		.desc = "Attempt to access a region which is firewalled."
 	}, {
 		.code = "TIMEOUT_ERR",
-		.desc = "No response returned by slave."
+		.desc = "No response returned by target."
 	}, {
 		.code = "PWRDOWN_ERR",
 		.desc = "Attempt to access a portion of the fabric that is powered down."
 	}, {
 		.code = "UNSUPPORTED_ERR",
-		.desc = "Attempt to access a slave through an unsupported access."
+		.desc = "Attempt to access a target through an unsupported access."
 	}, {
 		.code = "POISON_ERR",
-		.desc = "Slave responds with poison error to indicate error in data."
+		.desc = "Target responds with poison error to indicate error in data."
 	}, {
 		.code = "RSVD"
 	}, {
@@ -970,7 +971,7 @@ static const struct tegra_cbb_error tegra241_cbb_errors[] = {
 	},
 };
 
-static const struct tegra234_slave_lookup tegra241_cbb_slave_map[] = {
+static const struct tegra234_target_lookup tegra241_cbb_target_map[] = {
 	{ "RSVD",       0x00000 },
 	{ "PCIE_C8",    0x51000 },
 	{ "PCIE_C9",    0x52000 },
@@ -1034,9 +1035,9 @@ static const struct tegra234_slave_lookup tegra241_cbb_slave_map[] = {
 
 static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
 	.name = "cbb-fabric",
-	.master_id = tegra241_master_id,
-	.slave_map = tegra241_cbb_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra241_cbb_slave_map),
+	.initiator_id = tegra241_initiator_id,
+	.target_map = tegra241_cbb_target_map,
+	.max_targets = ARRAY_SIZE(tegra241_cbb_target_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
 	.notifier_offset = 0x60000,
@@ -1046,7 +1047,7 @@ static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
 	.firewall_wr_ctl = 0x2368,
 };
 
-static const struct tegra234_slave_lookup tegra241_bpmp_slave_map[] = {
+static const struct tegra234_target_lookup tegra241_bpmp_target_map[] = {
 	{ "RSVD",    0x00000 },
 	{ "RSVD",    0x00000 },
 	{ "RSVD",    0x00000 },
@@ -1059,9 +1060,9 @@ static const struct tegra234_slave_lookup tegra241_bpmp_slave_map[] = {
 
 static const struct tegra234_cbb_fabric tegra241_bpmp_fabric = {
 	.name = "bpmp-fabric",
-	.master_id = tegra241_master_id,
-	.slave_map = tegra241_bpmp_slave_map,
-	.max_slaves = ARRAY_SIZE(tegra241_bpmp_slave_map),
+	.initiator_id = tegra241_initiator_id,
+	.target_map = tegra241_bpmp_target_map,
+	.max_targets = ARRAY_SIZE(tegra241_bpmp_target_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
 	.notifier_offset = 0x19000,
