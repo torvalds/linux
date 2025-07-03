@@ -104,13 +104,13 @@ static int pf_push_vf_buf_klvs(struct xe_gt *gt, unsigned int vfid, u32 num_klvs
 	}
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
-		struct drm_printer p = xe_gt_info_printer(gt);
+		struct drm_printer p = xe_gt_dbg_printer(gt);
 		void *klvs = xe_guc_buf_cpu_ptr(buf);
 		char name[8];
 
-		xe_gt_sriov_info(gt, "pushed %s config with %u KLV%s:\n",
-				 xe_sriov_function_name(vfid, name, sizeof(name)),
-				 num_klvs, str_plural(num_klvs));
+		xe_gt_sriov_dbg(gt, "pushed %s config with %u KLV%s:\n",
+				xe_sriov_function_name(vfid, name, sizeof(name)),
+				num_klvs, str_plural(num_klvs));
 		xe_guc_klv_print(klvs, num_dwords, &p);
 	}
 
@@ -2349,7 +2349,7 @@ int xe_gt_sriov_pf_config_restore(struct xe_gt *gt, unsigned int vfid,
 		return -EINVAL;
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
-		struct drm_printer p = xe_gt_info_printer(gt);
+		struct drm_printer p = xe_gt_dbg_printer(gt);
 
 		drm_printf(&p, "restoring VF%u config:\n", vfid);
 		xe_guc_klv_print(buf, size / sizeof(u32), &p);
