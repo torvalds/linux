@@ -577,18 +577,15 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 	const struct regulator_desc *multi_regs;
 	const struct tps6594_regulator_irq_type **ldos_irq_types;
 	const struct regulator_desc *ldo_regs;
-	size_t interrupt_count;
 
 	if (tps->chip_id == TPS65224) {
 		bucks_irq_types = tps65224_bucks_irq_types;
-		interrupt_count = ARRAY_SIZE(tps65224_buck1_irq_types);
 		multi_regs = tps65224_multi_regs;
 		ldos_irq_types = tps65224_ldos_irq_types;
 		ldo_regs = tps65224_ldo_regs;
 		multi_phase_cnt = ARRAY_SIZE(tps65224_multi_regs);
 	} else {
 		bucks_irq_types = tps6594_bucks_irq_types;
-		interrupt_count = ARRAY_SIZE(tps6594_buck1_irq_types);
 		multi_regs = tps6594_multi_regs;
 		ldos_irq_types = tps6594_ldos_irq_types;
 		ldo_regs = tps6594_ldo_regs;
@@ -686,29 +683,27 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 
 		error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
 						 bucks_irq_types[buck_idx],
-						 interrupt_count, &irq_idx);
+						 nr_types, &irq_idx);
 		if (error)
 			return error;
 
 		error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
 						 bucks_irq_types[buck_idx + 1],
-						 interrupt_count, &irq_idx);
+						 nr_types, &irq_idx);
 		if (error)
 			return error;
 
 		if (i == MULTI_BUCK123 || i == MULTI_BUCK1234) {
 			error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
 							 tps6594_bucks_irq_types[buck_idx + 2],
-							 interrupt_count,
-							 &irq_idx);
+							 nr_types, &irq_idx);
 			if (error)
 				return error;
 		}
 		if (i == MULTI_BUCK1234) {
 			error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
 							 tps6594_bucks_irq_types[buck_idx + 3],
-							 interrupt_count,
-							 &irq_idx);
+							 nr_types, &irq_idx);
 			if (error)
 				return error;
 		}
@@ -727,7 +722,7 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 					     "failed to register %s regulator\n", pdev->name);
 
 		error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
-						 bucks_irq_types[i], interrupt_count, &irq_idx);
+						 bucks_irq_types[i], nr_types, &irq_idx);
 		if (error)
 			return error;
 	}
@@ -742,7 +737,7 @@ static int tps6594_regulator_probe(struct platform_device *pdev)
 						     pdev->name);
 
 			error = tps6594_request_reg_irqs(pdev, rdev, irq_data,
-							 ldos_irq_types[i], interrupt_count,
+							 ldos_irq_types[i], nr_types,
 							 &irq_idx);
 			if (error)
 				return error;
