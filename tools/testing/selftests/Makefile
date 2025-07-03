@@ -300,6 +300,7 @@ ifdef INSTALL_PATH
 	else \
 		printf "Unable to get version from git describe\n"; \
 	fi
+	@echo "**Kselftest Installation is complete: $(INSTALL_PATH)**"
 else
 	$(error Error: set INSTALL_PATH to use install)
 endif
