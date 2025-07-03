@@ -47,7 +47,7 @@ static int hv_map_interrupt(union hv_device_id device_id, bool level,
 	if (nr_bank < 0) {
 		local_irq_restore(flags);
 		pr_err("%s: unable to generate VP set\n", __func__);
-		return EINVAL;
+		return -EINVAL;
 	}
 	intr_desc->target.flags = HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
 
@@ -67,7 +67,7 @@ static int hv_map_interrupt(union hv_device_id device_id, bool level,
 	if (!hv_result_success(status))
 		hv_status_err(status, "\n");
 
-	return hv_result(status);
+	return hv_result_to_errno(status);
 }
 
 static int hv_unmap_interrupt(u64 id, struct hv_interrupt_entry *old_entry)
@@ -89,7 +89,10 @@ static int hv_unmap_interrupt(u64 id, struct hv_interrupt_entry *old_entry)
 	status = hv_do_hypercall(HVCALL_UNMAP_DEVICE_INTERRUPT, input, NULL);
 	local_irq_restore(flags);
 
-	return hv_result(status);
+	if (!hv_result_success(status))
+		hv_status_err(status, "\n");
+
+	return hv_result_to_errno(status);
 }
 
 #ifdef CONFIG_PCI_MSI
@@ -189,12 +192,11 @@ static inline void entry_to_msi_msg(struct hv_interrupt_entry *entry, struct msi
 static int hv_unmap_msi_interrupt(struct pci_dev *dev, struct hv_interrupt_entry *old_entry);
 static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
-	struct msi_desc *msidesc;
-	struct pci_dev *dev;
 	struct hv_interrupt_entry out_entry, *stored_entry;
 	struct irq_cfg *cfg = irqd_cfg(data);
-	int cpu;
-	u64 status;
+	struct msi_desc *msidesc;
+	struct pci_dev *dev;
+	int cpu, ret;
 
 	msidesc = irq_data_get_msi_desc(data);
 	dev = msi_desc_to_pci_dev(msidesc);
@@ -218,14 +220,12 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		stored_entry = data->chip_data;
 		data->chip_data = NULL;
 
-		status = hv_unmap_msi_interrupt(dev, stored_entry);
+		ret = hv_unmap_msi_interrupt(dev, stored_entry);
 
 		kfree(stored_entry);
 
-		if (status != HV_STATUS_SUCCESS) {
-			hv_status_debug(status, "failed to unmap\n");
+		if (ret)
 			return;
-		}
 	}
 
 	stored_entry = kzalloc(sizeof(*stored_entry), GFP_ATOMIC);
@@ -234,8 +234,8 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		return;
 	}
 
-	status = hv_map_msi_interrupt(dev, cpu, cfg->vector, &out_entry);
-	if (status != HV_STATUS_SUCCESS) {
+	ret = hv_map_msi_interrupt(dev, cpu, cfg->vector, &out_entry);
+	if (ret) {
 		kfree(stored_entry);
 		return;
 	}
@@ -256,7 +256,6 @@ static void hv_teardown_msi_irq(struct pci_dev *dev, struct irq_data *irqd)
 {
 	struct hv_interrupt_entry old_entry;
 	struct msi_msg msg;
-	u64 status;
 
 	if (!irqd->chip_data) {
 		pr_debug("%s: no chip data\n!", __func__);
@@ -269,10 +268,7 @@ static void hv_teardown_msi_irq(struct pci_dev *dev, struct irq_data *irqd)
 	kfree(irqd->chip_data);
 	irqd->chip_data = NULL;
 
-	status = hv_unmap_msi_interrupt(dev, &old_entry);
-
-	if (status != HV_STATUS_SUCCESS)
-		hv_status_err(status, "\n");
+	(void)hv_unmap_msi_interrupt(dev, &old_entry);
 }
 
 static void hv_msi_free_irq(struct irq_domain *domain,
