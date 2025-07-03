@@ -671,7 +671,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	buf_len = compl_desc->packet_len;
 	hdr_len = compl_desc->header_len;
 
-	/* Page might have not been used for awhile and was likely last written
+	/* Page might have not been used for a while and was likely last written
 	 * by a different thread.
 	 */
 	if (rx->dqo.page_pool) {
