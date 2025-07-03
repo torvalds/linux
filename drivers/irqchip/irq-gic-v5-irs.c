@@ -484,6 +484,22 @@ static int gicv5_irs_wait_for_idle(struct gicv5_irs_chip_data *irs_data)
 					GICV5_IRS_CR0_IDLE, NULL);
 }
 
+void gicv5_irs_syncr(void)
+{
+	struct gicv5_irs_chip_data *irs_data;
+	u32 syncr;
+
+	irs_data = list_first_entry_or_null(&irs_nodes, struct gicv5_irs_chip_data, entry);
+	if (WARN_ON_ONCE(!irs_data))
+		return;
+
+	syncr = FIELD_PREP(GICV5_IRS_SYNCR_SYNC, 1);
+	irs_writel_relaxed(irs_data, syncr, GICV5_IRS_SYNCR);
+
+	gicv5_wait_for_op(irs_data->irs_base, GICV5_IRS_SYNC_STATUSR,
+			  GICV5_IRS_SYNC_STATUSR_IDLE);
+}
+
 int gicv5_irs_register_cpu(int cpuid)
 {
 	struct gicv5_irs_chip_data *irs_data;
@@ -778,6 +794,14 @@ int __init gicv5_irs_enable(void)
 	}
 
 	return 0;
+}
+
+void __init gicv5_irs_its_probe(void)
+{
+	struct gicv5_irs_chip_data *irs_data;
+
+	list_for_each_entry(irs_data, &irs_nodes, entry)
+		gicv5_its_of_probe(to_of_node(irs_data->fwnode));
 }
 
 int __init gicv5_irs_of_probe(struct device_node *parent)

@@ -7,5 +7,6 @@
 #define _IRQ_GIC_ITS_MSI_PARENT_H
 
 extern const struct msi_parent_ops gic_v3_its_msi_parent_ops;
+extern const struct msi_parent_ops gic_v5_its_msi_parent_ops;
 
 #endif /* _IRQ_GIC_ITS_MSI_PARENT_H */

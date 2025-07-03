@@ -1071,6 +1071,8 @@ static int __init gicv5_of_init(struct device_node *node, struct device_node *pa
 
 	gicv5_smp_init();
 
+	gicv5_irs_its_probe();
+
 	return 0;
 
 out_int:
