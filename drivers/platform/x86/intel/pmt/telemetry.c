@@ -9,11 +9,14 @@
  */
 
 #include <linux/auxiliary_bus.h>
+#include <linux/intel_pmt_features.h>
 #include <linux/intel_vsec.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/overflow.h>
 
@@ -311,6 +314,8 @@ static int pmt_telem_probe(struct auxiliary_device *auxdev, const struct auxilia
 			continue;
 
 		priv->num_entries++;
+
+		intel_pmt_get_features(entry);
 	}
 
 	return 0;

@@ -18,6 +18,7 @@ config INTEL_PMT_CLASS
 config INTEL_PMT_TELEMETRY
 	tristate "Intel Platform Monitoring Technology (PMT) Telemetry driver"
 	depends on INTEL_VSEC
+	select INTEL_PMT_DISCOVERY
 	select INTEL_PMT_CLASS
 	help
 	  The Intel Platform Monitory Technology (PMT) Telemetry driver provides

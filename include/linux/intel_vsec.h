@@ -4,6 +4,7 @@
 
 #include <linux/auxiliary_bus.h>
 #include <linux/bits.h>
+#include <linux/intel_pmt_features.h>
 
 /*
  * VSEC_CAP_UNUSED is reserved. It exists to prevent zero initialized
@@ -164,6 +165,21 @@ struct oobmsm_plat_info {
 	u8 bus_number;
 	u8 device_number;
 	u8 function_number;
+};
+
+struct telemetry_region {
+	struct oobmsm_plat_info	plat_info;
+	void __iomem		*addr;
+	size_t			size;
+	u32			guid;
+	u32			num_rmids;
+};
+
+struct pmt_feature_group {
+	enum pmt_feature_id	id;
+	int			count;
+	struct kref		kref;
+	struct telemetry_region	regions[];
 };
 
 int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,

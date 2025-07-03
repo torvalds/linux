@@ -48,6 +48,7 @@ struct intel_pmt_entry {
 	struct pmt_callbacks	*cb;
 	unsigned long		base_addr;
 	size_t			size;
+	u64			feature_flags;
 	u32			guid;
 	u32			num_rmids; /* Number of Resource Monitoring IDs */
 	int			devid;
@@ -71,4 +72,10 @@ int intel_pmt_dev_create(struct intel_pmt_entry *entry,
 			 struct intel_vsec_device *dev, int idx);
 void intel_pmt_dev_destroy(struct intel_pmt_entry *entry,
 			   struct intel_pmt_namespace *ns);
+#if IS_ENABLED(CONFIG_INTEL_PMT_DISCOVERY)
+void intel_pmt_get_features(struct intel_pmt_entry *entry);
+#else
+static inline void intel_pmt_get_features(struct intel_pmt_entry *entry) {}
+#endif
+
 #endif

@@ -583,6 +583,39 @@ abort_probe:
 	return ret;
 }
 
+static void pmt_get_features(struct intel_pmt_entry *entry, struct feature *f)
+{
+	int num_guids = f->table.header.num_guids;
+	int i;
+
+	for (i = 0; i < num_guids; i++) {
+		if (f->table.guids[i] != entry->guid)
+			continue;
+
+		entry->feature_flags |= BIT(f->id);
+
+		if (feature_layout[f->id] == LAYOUT_RMID)
+			entry->num_rmids = f->table.rmid.num_rmids;
+		else
+			entry->num_rmids = 0; /* entry is kzalloc but set anyway */
+	}
+}
+
+void intel_pmt_get_features(struct intel_pmt_entry *entry)
+{
+	struct feature *feature;
+
+	mutex_lock(&feature_list_lock);
+	list_for_each_entry(feature, &pmt_feature_list, list) {
+		if (feature->priv->parent != &entry->ep->pcidev->dev)
+			continue;
+
+		pmt_get_features(entry, feature);
+	}
+	mutex_unlock(&feature_list_lock);
+}
+EXPORT_SYMBOL_NS_GPL(intel_pmt_get_features, "INTEL_PMT");
+
 static const struct auxiliary_device_id pmt_features_id_table[] = {
 	{ .name = "intel_vsec.discovery" },
 	{}
