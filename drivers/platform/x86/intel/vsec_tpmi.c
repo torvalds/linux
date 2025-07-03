@@ -799,6 +799,10 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 			ret = tpmi_process_info(tpmi_info, pfs);
 			if (ret)
 				return ret;
+
+			ret = intel_vsec_set_mapping(&tpmi_info->plat_info, vsec_dev);
+			if (ret)
+				return ret;
 		}
 
 		if (pfs->pfs_header.tpmi_id == TPMI_CONTROL_ID)

@@ -725,7 +725,7 @@ static const struct intel_vsec_platform_info mtl_info = {
 static const struct vsec_feature_dependency oobmsm_deps[] = {
 	{
 		.feature = VSEC_CAP_TELEMETRY,
-		.supplier_bitmap = VSEC_CAP_DISCOVERY,
+		.supplier_bitmap = VSEC_CAP_DISCOVERY | VSEC_CAP_TPMI,
 	},
 };
 
