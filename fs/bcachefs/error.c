@@ -103,7 +103,7 @@ int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
 		return bch_err_throw(c, btree_need_topology_repair);
 	} else {
 		return bch2_run_explicit_recovery_pass(c, out, BCH_RECOVERY_PASS_check_topology, 0) ?:
-			bch_err_throw(c, btree_node_read_validate_error);
+			bch_err_throw(c, btree_need_topology_repair);
 	}
 }
 
