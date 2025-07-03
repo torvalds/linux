@@ -3437,6 +3437,9 @@ static const struct of_device_id of_sci_match[] __maybe_unused = {
 	}, {
 		.compatible = "renesas,rcar-gen4-scif",
 		.data = &of_sci_rcar_scif
+	}, {
+		.compatible = "renesas,rcar-gen5-scif",
+		.data = &of_sci_rcar_scif
 	},
 	/* Generic types */
 	{
