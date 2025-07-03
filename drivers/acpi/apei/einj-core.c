@@ -394,6 +394,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 				u64 param1, u64 param2)
 {
 	struct acpi_einj_trigger trigger_tab;
+	struct acpi_einj_trigger *full_trigger_tab;
 	struct apei_exec_context trigger_ctx;
 	struct apei_resources trigger_resources;
 	struct acpi_whea_header *trigger_entry;
@@ -430,6 +431,9 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 
 	rc = -EIO;
 	table_size = trigger_tab.table_size;
+	full_trigger_tab = kmalloc(table_size, GFP_KERNEL);
+	if (!full_trigger_tab)
+		goto out_rel_header;
 	r = request_mem_region(trigger_paddr + sizeof(trigger_tab),
 			       table_size - sizeof(trigger_tab),
 			       "APEI EINJ Trigger Table");
@@ -437,7 +441,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 		pr_err("Can not request [mem %#010llx-%#010llx] for Trigger Table Entry\n",
 		       (unsigned long long)trigger_paddr + sizeof(trigger_tab),
 		       (unsigned long long)trigger_paddr + table_size - 1);
-		goto out_rel_header;
+		goto out_free_trigger_tab;
 	}
 	iounmap(p);
 	p = ioremap_cache(trigger_paddr, table_size);
@@ -445,9 +449,9 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 		pr_err("Failed to map trigger table!\n");
 		goto out_rel_entry;
 	}
-	memcpy_fromio(&trigger_tab, p, sizeof(trigger_tab));
+	memcpy_fromio(full_trigger_tab, p, table_size);
 	trigger_entry = (struct acpi_whea_header *)
-		((char *)&trigger_tab + sizeof(struct acpi_einj_trigger));
+		((char *)full_trigger_tab + sizeof(struct acpi_einj_trigger));
 	apei_resources_init(&trigger_resources);
 	apei_exec_ctx_init(&trigger_ctx, einj_ins_type,
 			   ARRAY_SIZE(einj_ins_type),
@@ -469,7 +473,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 
 		apei_resources_init(&addr_resources);
 		trigger_param_region = einj_get_trigger_parameter_region(
-			&trigger_tab, param1, param2);
+			full_trigger_tab, param1, param2);
 		if (trigger_param_region) {
 			rc = apei_resources_add(&addr_resources,
 				trigger_param_region->address,
@@ -500,6 +504,8 @@ out_fini:
 out_rel_entry:
 	release_mem_region(trigger_paddr + sizeof(trigger_tab),
 			   table_size - sizeof(trigger_tab));
+out_free_trigger_tab:
+	kfree(full_trigger_tab);
 out_rel_header:
 	release_mem_region(trigger_paddr, sizeof(trigger_tab));
 out:
