@@ -5344,21 +5344,10 @@ static int bpf_task_fd_query_copy(const union bpf_attr *attr,
 
 			if (put_user(zero, ubuf))
 				return -EFAULT;
-		} else if (input_len >= len + 1) {
-			/* ubuf can hold the string with NULL terminator */
-			if (copy_to_user(ubuf, buf, len + 1))
-				return -EFAULT;
 		} else {
-			/* ubuf cannot hold the string with NULL terminator,
-			 * do a partial copy with NULL terminator.
-			 */
-			char zero = '\0';
-
-			err = -ENOSPC;
-			if (copy_to_user(ubuf, buf, input_len - 1))
-				return -EFAULT;
-			if (put_user(zero, ubuf + input_len - 1))
-				return -EFAULT;
+			err = bpf_copy_to_user(ubuf, buf, input_len, len);
+			if (err == -EFAULT)
+				return err;
 		}
 	}
 
