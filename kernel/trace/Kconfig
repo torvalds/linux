@@ -275,7 +275,7 @@ config FUNCTION_TRACE_ARGS
 	  funcgraph-args (for the function graph tracer)
 
 config DYNAMIC_FTRACE
-	bool "enable/disable function tracing dynamically"
+	bool
 	depends on FUNCTION_TRACER
 	depends on HAVE_DYNAMIC_FTRACE
 	default y
