@@ -123,6 +123,26 @@ get_consumer_dependencies(struct vsec_priv *priv, int cap_id)
 	return NULL;
 }
 
+static bool vsec_driver_present(int cap_id)
+{
+	unsigned long bit = BIT(cap_id);
+
+	switch (bit) {
+	case VSEC_CAP_TELEMETRY:
+		return IS_ENABLED(CONFIG_INTEL_PMT_TELEMETRY);
+	case VSEC_CAP_WATCHER:
+		return IS_ENABLED(CONFIG_INTEL_PMT_WATCHER);
+	case VSEC_CAP_CRASHLOG:
+		return IS_ENABLED(CONFIG_INTEL_PMT_CRASHLOG);
+	case VSEC_CAP_SDSI:
+		return IS_ENABLED(CONFIG_INTEL_SDSI);
+	case VSEC_CAP_TPMI:
+		return IS_ENABLED(CONFIG_INTEL_TPMI);
+	default:
+		return false;
+	}
+}
+
 /*
  * Although pci_device_id table is available in the pdev, this prototype is
  * necessary because the code using it can be called by an exported API that
@@ -158,7 +178,8 @@ static int intel_vsec_link_devices(struct pci_dev *pdev, struct device *dev,
 	for_each_set_bit(supplier_id, &deps->supplier_bitmap, VSEC_FEATURE_COUNT) {
 		struct device_link *link;
 
-		if (state[supplier_id] != STATE_REGISTERED)
+		if (state[supplier_id] != STATE_REGISTERED ||
+		    !vsec_driver_present(supplier_id))
 			continue;
 
 		if (!suppliers[supplier_id]) {
@@ -404,6 +425,11 @@ static int intel_vsec_register_device(struct pci_dev *pdev,
 		return -EEXIST;
 
 	priv->found_caps |= BIT(cap_id);
+
+	if (!vsec_driver_present(cap_id)) {
+		priv->state[cap_id] = STATE_SKIP;
+		return -ENODEV;
+	}
 
 	consumer_deps = get_consumer_dependencies(priv, cap_id);
 	if (!consumer_deps || suppliers_ready(priv, consumer_deps, cap_id)) {
