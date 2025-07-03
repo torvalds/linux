@@ -2516,7 +2516,7 @@ static void ata_dev_config_trusted(struct ata_device *dev)
 		dev->flags |= ATA_DFLAG_TRUSTED;
 }
 
-void ata_dev_cleanup_cdl_resources(struct ata_device *dev)
+static void ata_dev_cleanup_cdl_resources(struct ata_device *dev)
 {
 	kfree(dev->cdl);
 	dev->cdl = NULL;
