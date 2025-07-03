@@ -1971,6 +1971,7 @@ static void unix_skb_to_scm(struct sk_buff *skb, struct scm_cookie *scm)
  * We include credentials if source or destination socket
  * asserted SOCK_PASSCRED.
  *
+ * Context: May sleep.
  * Return: On success zero, on error a negative error code is returned.
  */
 static int unix_maybe_add_creds(struct sk_buff *skb, const struct sock *sk,
@@ -1980,7 +1981,15 @@ static int unix_maybe_add_creds(struct sk_buff *skb, const struct sock *sk,
 		return 0;
 
 	if (unix_may_passcred(sk) || unix_may_passcred(other)) {
-		UNIXCB(skb).pid = get_pid(task_tgid(current));
+		struct pid *pid;
+		int err;
+
+		pid = task_tgid(current);
+		err = pidfs_register_pid(pid);
+		if (unlikely(err))
+			return err;
+
+		UNIXCB(skb).pid = get_pid(pid);
 		current_uid_gid(&UNIXCB(skb).uid, &UNIXCB(skb).gid);
 	}
 
