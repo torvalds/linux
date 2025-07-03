@@ -880,19 +880,41 @@ static void gicv5_its_unmap_event(struct gicv5_its_dev *its_dev, u16 event_id)
 	gicv5_its_itt_cache_inv(its, its_dev->device_id, event_id);
 }
 
-static int gicv5_its_alloc_eventid(struct gicv5_its_dev *its_dev,
+static int gicv5_its_alloc_eventid(struct gicv5_its_dev *its_dev, msi_alloc_info_t *info,
 				   unsigned int nr_irqs, u32 *eventid)
 {
-	int ret;
+	int event_id_base;
 
-	ret = bitmap_find_free_region(its_dev->event_map,
-				      its_dev->num_events,
-				      get_count_order(nr_irqs));
+	if (!(info->flags & MSI_ALLOC_FLAGS_FIXED_MSG_DATA)) {
+		event_id_base = bitmap_find_free_region(its_dev->event_map,
+							its_dev->num_events,
+							get_count_order(nr_irqs));
+		if (event_id_base < 0)
+			return event_id_base;
+	} else {
+		/*
+		 * We want to have a fixed EventID mapped for hardcoded
+		 * message data allocations.
+		 */
+		if (WARN_ON_ONCE(nr_irqs != 1))
+			return -EINVAL;
 
-	if (ret < 0)
-		return ret;
+		event_id_base = info->hwirq;
 
-	*eventid = ret;
+		if (event_id_base >= its_dev->num_events) {
+			pr_err("EventID ouside of ITT range; cannot allocate an ITT entry!\n");
+
+			return -EINVAL;
+		}
+
+		if (test_and_set_bit(event_id_base, its_dev->event_map)) {
+			pr_warn("Can't reserve event_id bitmap\n");
+			return -EINVAL;
+
+		}
+	}
+
+	*eventid = event_id_base;
 
 	return 0;
 }
@@ -916,7 +938,7 @@ static int gicv5_its_irq_domain_alloc(struct irq_domain *domain, unsigned int vi
 
 	its_dev = info->scratchpad[0].ptr;
 
-	ret = gicv5_its_alloc_eventid(its_dev, nr_irqs, &event_id_base);
+	ret = gicv5_its_alloc_eventid(its_dev, info, nr_irqs, &event_id_base);
 	if (ret)
 		return ret;
 

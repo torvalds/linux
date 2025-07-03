@@ -33,6 +33,7 @@ typedef struct msi_alloc_info {
 
 /* Device generating MSIs is proxying for another device */
 #define MSI_ALLOC_FLAGS_PROXY_DEVICE	(1UL << 0)
+#define MSI_ALLOC_FLAGS_FIXED_MSG_DATA	(1UL << 1)
 
 #define GENERIC_MSI_DOMAIN_OPS		1
 
