@@ -325,12 +325,21 @@ static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg)
 	if (IS_ERR(extoff))
 		return PTR_ERR(extoff);
 
-	if (extoff->n_samples > PTP_MAX_SAMPLES ||
-	    extoff->rsv[0] || extoff->rsv[1] ||
-	    (extoff->clockid != CLOCK_REALTIME &&
-	     extoff->clockid != CLOCK_MONOTONIC &&
-	     extoff->clockid != CLOCK_MONOTONIC_RAW))
+	if (extoff->n_samples > PTP_MAX_SAMPLES || extoff->rsv[0] || extoff->rsv[1])
 		return -EINVAL;
+
+	switch (extoff->clockid) {
+	case CLOCK_REALTIME:
+	case CLOCK_MONOTONIC:
+	case CLOCK_MONOTONIC_RAW:
+		break;
+	case CLOCK_AUX ... CLOCK_AUX_LAST:
+		if (IS_ENABLED(CONFIG_POSIX_AUX_CLOCKS))
+			break;
+		fallthrough;
+	default:
+		return -EINVAL;
+	}
 
 	sts.clockid = extoff->clockid;
 	for (unsigned int i = 0; i < extoff->n_samples; i++) {
@@ -340,6 +349,11 @@ static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg)
 		err = ptp->info->gettimex64(ptp->info, &ts, &sts);
 		if (err)
 			return err;
+
+		/* Filter out disabled or unavailable clocks */
+		if (sts.pre_ts.tv_sec < 0 || sts.post_ts.tv_sec < 0)
+			return -EINVAL;
+
 		extoff->ts[i][0].sec = sts.pre_ts.tv_sec;
 		extoff->ts[i][0].nsec = sts.pre_ts.tv_nsec;
 		extoff->ts[i][1].sec = ts.tv_sec;
