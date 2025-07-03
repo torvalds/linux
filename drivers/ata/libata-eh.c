@@ -3444,7 +3444,7 @@ static int ata_eh_set_mode(struct ata_link *link,
 	if (ap->ops->set_mode)
 		rc = ap->ops->set_mode(link, r_failed_dev);
 	else
-		rc = ata_do_set_mode(link, r_failed_dev);
+		rc = ata_set_mode(link, r_failed_dev);
 
 	/* if transfer mode has changed, set DUBIOUS_XFER on device */
 	ata_for_each_dev(dev, link, ENABLED) {

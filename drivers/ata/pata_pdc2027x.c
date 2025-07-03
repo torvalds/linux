@@ -387,7 +387,7 @@ static int pdc2027x_set_mode(struct ata_link *link, struct ata_device **r_failed
 	struct ata_device *dev;
 	int rc;
 
-	rc = ata_do_set_mode(link, r_failed);
+	rc = ata_set_mode(link, r_failed);
 	if (rc < 0)
 		return rc;
 

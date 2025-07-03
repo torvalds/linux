@@ -1218,7 +1218,7 @@ extern int ata_ncq_prio_enabled(struct ata_port *ap, struct scsi_device *sdev,
 extern int ata_ncq_prio_enable(struct ata_port *ap, struct scsi_device *sdev,
 			       bool enable);
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
-extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
+int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 extern void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap);
 extern void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap, struct list_head *eh_q);
 

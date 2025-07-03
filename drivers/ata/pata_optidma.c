@@ -322,7 +322,9 @@ static int optidma_set_mode(struct ata_link *link, struct ata_device **r_failed)
 	u8 r;
 	int nybble = 4 * ap->port_no;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int rc  = ata_do_set_mode(link, r_failed);
+	int rc;
+
+	rc = ata_set_mode(link, r_failed);
 	if (rc == 0) {
 		pci_read_config_byte(pdev, 0x43, &r);
 

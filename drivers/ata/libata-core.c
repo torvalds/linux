@@ -3510,7 +3510,7 @@ static int ata_dev_set_mode(struct ata_device *dev)
 }
 
 /**
- *	ata_do_set_mode - Program timings and issue SET FEATURES - XFER
+ *	ata_set_mode - Program timings and issue SET FEATURES - XFER
  *	@link: link on which timings will be programmed
  *	@r_failed_dev: out parameter for failed device
  *
@@ -3526,7 +3526,7 @@ static int ata_dev_set_mode(struct ata_device *dev)
  *	0 on success, negative errno otherwise
  */
 
-int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
+int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
@@ -3607,7 +3607,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 		*r_failed_dev = dev;
 	return rc;
 }
-EXPORT_SYMBOL_GPL(ata_do_set_mode);
+EXPORT_SYMBOL_GPL(ata_set_mode);
 
 /**
  *	ata_wait_ready - wait for link to become ready
