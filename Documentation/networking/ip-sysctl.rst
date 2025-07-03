@@ -1891,10 +1891,10 @@ proxy_arp_pvlan - BOOLEAN
 
 	This technology is known by different names:
 
-	  In RFC 3069 it is called VLAN Aggregation.
-	  Cisco and Allied Telesyn call it Private VLAN.
-	  Hewlett-Packard call it Source-Port filtering or port-isolation.
-	  Ericsson call it MAC-Forced Forwarding (RFC Draft).
+	- In RFC 3069 it is called VLAN Aggregation.
+	- Cisco and Allied Telesyn call it Private VLAN.
+	- Hewlett-Packard call it Source-Port filtering or port-isolation.
+	- Ericsson call it MAC-Forced Forwarding (RFC Draft).
 
 proxy_delay - INTEGER
 	Delay proxy response.
@@ -2487,8 +2487,10 @@ fib_notify_on_flag_change - INTEGER
 ioam6_id - INTEGER
         Define the IOAM id of this node. Uses only 24 bits out of 32 in total.
 
-        Min: 0
-        Max: 0xFFFFFF
+        Possible value range:
+
+        - Min: 0
+        - Max: 0xFFFFFF
 
         Default: 0xFFFFFF
 
@@ -2496,8 +2498,10 @@ ioam6_id_wide - LONG INTEGER
         Define the wide IOAM id of this node. Uses only 56 bits out of 64 in
         total. Can be different from ioam6_id.
 
-        Min: 0
-        Max: 0xFFFFFFFFFFFFFF
+        Possible value range:
+
+        - Min: 0
+        - Max: 0xFFFFFFFFFFFFFF
 
         Default: 0xFFFFFFFFFFFFFF
 
@@ -3322,31 +3326,27 @@ pf_enable - INTEGER
 	https://datatracker.ietf.org/doc/draft-ietf-tsvwg-sctp-failover for
 	details.
 
-	1: Enable pf.
+	Possible values:
 
-	0: Disable pf.
+	- 1: Enable pf.
+	- 0: Disable pf.
 
 	Default: 1
 
 pf_expose - INTEGER
 	Unset or enable/disable pf (pf is short for potentially failed) state
 	exposure.  Applications can control the exposure of the PF path state
-	in the SCTP_PEER_ADDR_CHANGE event and the SCTP_GET_PEER_ADDR_INFO
-	sockopt.   When it's unset, no SCTP_PEER_ADDR_CHANGE event with
-	SCTP_ADDR_PF state will be sent and a SCTP_PF-state transport info
-	can be got via SCTP_GET_PEER_ADDR_INFO sockopt;  When it's enabled,
-	a SCTP_PEER_ADDR_CHANGE event will be sent for a transport becoming
-	SCTP_PF state and a SCTP_PF-state transport info can be got via
-	SCTP_GET_PEER_ADDR_INFO sockopt;  When it's disabled, no
-	SCTP_PEER_ADDR_CHANGE event will be sent and it returns -EACCES when
-	trying to get a SCTP_PF-state transport info via SCTP_GET_PEER_ADDR_INFO
-	sockopt.
+	in the SCTP_PEER_ADDR_CHANGE event and access of SCTP_PF-state
+	transport info via SCTP_GET_PEER_ADDR_INFO sockopt.
 
-	0: Unset pf state exposure, Compatible with old applications.
+	Possible values:
 
-	1: Disable pf state exposure.
-
-	2: Enable pf state exposure.
+	- 0: Unset pf state exposure (compatible with old applications). No
+	  event will be sent but the transport info can be queried.
+	- 1: Disable pf state exposure. No event will be sent and trying to
+	  obtain transport info will return -EACCESS.
+	- 2: Enable pf state exposure. The event will be sent for a transport
+	  becoming SCTP_PF state and transport info can be obtained.
 
 	Default: 0
 
@@ -3542,13 +3542,11 @@ sndbuf_policy - INTEGER
 sctp_mem - vector of 3 INTEGERs: min, pressure, max
 	Number of pages allowed for queueing by all SCTP sockets.
 
-	min: Below this number of pages SCTP is not bothered about its
-	memory appetite. When amount of memory allocated by SCTP exceeds
-	this number, SCTP starts to moderate memory usage.
-
-	pressure: This value was introduced to follow format of tcp_mem.
-
-	max: Number of pages allowed for queueing by all SCTP sockets.
+	* min: Below this number of pages SCTP is not bothered about its
+	  memory usage. When amount of memory allocated by SCTP exceeds
+	  this number, SCTP starts to moderate memory usage.
+	* pressure: This value was introduced to follow format of tcp_mem.
+	* max: Maximum number of allowed pages.
 
 	Default is calculated at boot time from amount of available memory.
 
@@ -3556,9 +3554,9 @@ sctp_rmem - vector of 3 INTEGERs: min, default, max
 	Only the first value ("min") is used, "default" and "max" are
 	ignored.
 
-	min: Minimal size of receive buffer used by SCTP socket.
-	It is guaranteed to each SCTP socket (but not association) even
-	under moderate memory pressure.
+	* min: Minimal size of receive buffer used by SCTP socket.
+	  It is guaranteed to each SCTP socket (but not association) even
+	  under moderate memory pressure.
 
 	Default: 4K
 
@@ -3566,14 +3564,16 @@ sctp_wmem  - vector of 3 INTEGERs: min, default, max
 	Only the first value ("min") is used, "default" and "max" are
 	ignored.
 
-	min: Minimum size of send buffer that can be used by SCTP sockets.
-	It is guaranteed to each SCTP socket (but not association) even
-	under moderate memory pressure.
+	* min: Minimum size of send buffer that can be used by SCTP sockets.
+	  It is guaranteed to each SCTP socket (but not association) even
+	  under moderate memory pressure.
 
 	Default: 4K
 
 addr_scope_policy - INTEGER
-	Control IPv4 address scoping - draft-stewart-tsvwg-sctp-ipv4-00
+	Control IPv4 address scoping (see
+	https://datatracker.ietf.org/doc/draft-stewart-tsvwg-sctp-ipv4/00/
+	for details).
 
 	- 0   - Disable IPv4 address scoping
 	- 1   - Enable IPv4 address scoping
