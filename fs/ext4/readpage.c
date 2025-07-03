@@ -66,12 +66,20 @@ struct bio_post_read_ctx {
 	unsigned int enabled_steps;
 };
 
+
+
 static void __read_end_io(struct bio *bio)
 {
 	struct folio_iter fi;
 
+	// int i = 0;
 	bio_for_each_folio_all(fi, bio)
-		folio_end_read(fi.folio, bio->bi_status == 0);
+	{
+		folio_end_read(fi.folio, bio->bi_status == 0); 
+
+        // printk("debug ext4: fi: inode: %lu, index: %lu, offset: %zu, length: %zu \n", fi.folio->mapping->host->i_ino, fi.folio->index, fi.offset, fi.length);
+		
+	}
 	if (bio->bi_private)
 		mempool_free(bio->bi_private, bio_post_read_ctx_pool);
 	bio_put(bio);
@@ -161,6 +169,8 @@ static bool bio_post_read_required(struct bio *bio)
  */
 static void mpage_end_io(struct bio *bio)
 {
+	// printk("debug: bio, bi_sector: %llu, bi_vcnt: %u, bi_size: %u, bi_vec_done: %u\n", bio->bi_iter.bi_sector, bio->bi_vcnt, bio->bi_iter.bi_size, bio->bi_iter.bi_bvec_done);
+
 	if (bio_post_read_required(bio)) {
 		struct bio_post_read_ctx *ctx = bio->bi_private;
 
