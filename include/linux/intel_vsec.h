@@ -5,11 +5,18 @@
 #include <linux/auxiliary_bus.h>
 #include <linux/bits.h>
 
-#define VSEC_CAP_TELEMETRY	BIT(0)
-#define VSEC_CAP_WATCHER	BIT(1)
-#define VSEC_CAP_CRASHLOG	BIT(2)
-#define VSEC_CAP_SDSI		BIT(3)
-#define VSEC_CAP_TPMI		BIT(4)
+/*
+ * VSEC_CAP_UNUSED is reserved. It exists to prevent zero initialized
+ * intel_vsec devices from being automatically set to a known
+ * capability with ID 0
+ */
+#define VSEC_CAP_UNUSED		BIT(0)
+#define VSEC_CAP_TELEMETRY	BIT(1)
+#define VSEC_CAP_WATCHER	BIT(2)
+#define VSEC_CAP_CRASHLOG	BIT(3)
+#define VSEC_CAP_SDSI		BIT(4)
+#define VSEC_CAP_TPMI		BIT(5)
+#define VSEC_FEATURE_COUNT	6
 
 /* Intel DVSEC offsets */
 #define INTEL_DVSEC_ENTRIES		0xA
@@ -81,22 +88,31 @@ struct pmt_callbacks {
 	int (*read_telem)(struct pci_dev *pdev, u32 guid, u64 *data, loff_t off, u32 count);
 };
 
+struct vsec_feature_dependency {
+	unsigned long feature;
+	unsigned long supplier_bitmap;
+};
+
 /**
  * struct intel_vsec_platform_info - Platform specific data
  * @parent:    parent device in the auxbus chain
  * @headers:   list of headers to define the PMT client devices to create
+ * @deps:      array of feature dependencies
  * @priv_data: private data, usable by parent devices, currently a callback
  * @caps:      bitmask of PMT capabilities for the given headers
  * @quirks:    bitmask of VSEC device quirks
  * @base_addr: allow a base address to be specified (rather than derived)
+ * @num_deps:  Count feature dependencies
  */
 struct intel_vsec_platform_info {
 	struct device *parent;
 	struct intel_vsec_header **headers;
+	const struct vsec_feature_dependency *deps;
 	void *priv_data;
 	unsigned long caps;
 	unsigned long quirks;
 	u64 base_addr;
+	int num_deps;
 };
 
 /**
@@ -110,6 +126,7 @@ struct intel_vsec_platform_info {
  * @priv_data:     any private data needed
  * @quirks:        specified quirks
  * @base_addr:     base address of entries (if specified)
+ * @cap_id:        the enumerated id of the vsec feature
  */
 struct intel_vsec_device {
 	struct auxiliary_device auxdev;
@@ -122,6 +139,7 @@ struct intel_vsec_device {
 	size_t priv_data_size;
 	unsigned long quirks;
 	u64 base_addr;
+	unsigned long cap_id;
 };
 
 int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
