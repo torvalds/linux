@@ -314,6 +314,22 @@ enum libbpf_tristate {
 			  ___param, sizeof(___param));		\
 })
 
+extern int bpf_stream_vprintk(int stream_id, const char *fmt__str, const void *args,
+			      __u32 len__sz, void *aux__prog) __weak __ksym;
+
+#define bpf_stream_printk(stream_id, fmt, args...)				\
+({										\
+	static const char ___fmt[] = fmt;					\
+	unsigned long long ___param[___bpf_narg(args)];				\
+										\
+	_Pragma("GCC diagnostic push")						\
+	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")			\
+	___bpf_fill(___param, args);						\
+	_Pragma("GCC diagnostic pop")						\
+										\
+	bpf_stream_vprintk(stream_id, ___fmt, ___param, sizeof(___param), NULL);\
+})
+
 /* Use __bpf_printk when bpf_printk call has 3 or fewer fmt args
  * Otherwise use __bpf_vprintk
  */
