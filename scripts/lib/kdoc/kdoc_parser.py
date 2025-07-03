@@ -860,39 +860,48 @@ class KernelDoc:
         # Strip #define macros inside enums
         proto = KernRe(r'#\s*((define|ifdef|if)\s+|endif)[^;]*;', flags=re.S).sub('', proto)
 
-        members = None
-        declaration_name = None
-
+        #
+        # Parse out the name and members of the enum.  Typedef form first.
+        #
         r = KernRe(r'typedef\s+enum\s*\{(.*)\}\s*(\w*)\s*;')
         if r.search(proto):
             declaration_name = r.group(2)
             members = r.group(1).rstrip()
+        #
+        # Failing that, look for a straight enum
+        #
         else:
             r = KernRe(r'enum\s+(\w*)\s*\{(.*)\}')
             if r.match(proto):
                 declaration_name = r.group(1)
                 members = r.group(2).rstrip()
-
-        if not members:
-            self.emit_msg(ln, f"{proto}: error: Cannot parse enum!")
-            return
-
+        #
+        # OK, this isn't going to work.
+        #
+            else:
+                self.emit_msg(ln, f"{proto}: error: Cannot parse enum!")
+                return
+        #
+        # Make sure we found what we were expecting.
+        #
         if self.entry.identifier != declaration_name:
             if self.entry.identifier == "":
                 self.emit_msg(ln,
                               f"{proto}: wrong kernel-doc identifier on prototype")
             else:
                 self.emit_msg(ln,
-                              f"expecting prototype for enum {self.entry.identifier}. Prototype was for enum {declaration_name} instead")
+                              f"expecting prototype for enum {self.entry.identifier}. "
+                              f"Prototype was for enum {declaration_name} instead")
             return
 
         if not declaration_name:
             declaration_name = "(anonymous)"
-
+        #
+        # Parse out the name of each enum member, and verify that we
+        # have a description for it.
+        #
         member_set = set()
-
-        members = KernRe(r'\([^;]*?[\)]').sub('', members)
-
+        members = KernRe(r'\([^;)]*\)').sub('', members)
         for arg in members.split(','):
             if not arg:
                 continue
@@ -903,7 +912,9 @@ class KernelDoc:
                 self.emit_msg(ln,
                               f"Enum value '{arg}' not described in enum '{declaration_name}'")
             member_set.add(arg)
-
+        #
+        # Ensure that every described member actually exists in the enum.
+        #
         for k in self.entry.parameterdescs:
             if k not in member_set:
                 self.emit_msg(ln,
