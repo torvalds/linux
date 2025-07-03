@@ -409,8 +409,10 @@ struct mii_bus {
 	/** @shared_lock: protect access to the shared element */
 	struct mutex shared_lock;
 
+#if IS_ENABLED(CONFIG_PHY_PACKAGE)
 	/** @shared: shared state across different PHYs */
 	struct phy_package_shared *shared[PHY_MAX_ADDR];
+#endif
 };
 #define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 
@@ -718,9 +720,11 @@ struct phy_device {
 	/* For use by PHYs to maintain extra state */
 	void *priv;
 
+#if IS_ENABLED(CONFIG_PHY_PACKAGE)
 	/* shared data pointer */
 	/* For use by PHYs inside the same package that need a shared state. */
 	struct phy_package_shared *shared;
+#endif
 
 	/* Reporting cable test results */
 	struct sk_buff *skb;
