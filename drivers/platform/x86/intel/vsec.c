@@ -44,6 +44,7 @@ enum vsec_device_state {
 struct vsec_priv {
 	struct intel_vsec_platform_info *info;
 	struct device *suppliers[VSEC_FEATURE_COUNT];
+	struct oobmsm_plat_info plat_info;
 	enum vsec_device_state state[VSEC_FEATURE_COUNT];
 	unsigned long found_caps;
 };
@@ -664,6 +665,36 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 
 	return 0;
 }
+
+int intel_vsec_set_mapping(struct oobmsm_plat_info *plat_info,
+			   struct intel_vsec_device *vsec_dev)
+{
+	struct vsec_priv *priv;
+
+	priv = pci_get_drvdata(vsec_dev->pcidev);
+	if (!priv)
+		return -EINVAL;
+
+	priv->plat_info = *plat_info;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(intel_vsec_set_mapping, "INTEL_VSEC");
+
+struct oobmsm_plat_info *intel_vsec_get_mapping(struct pci_dev *pdev)
+{
+	struct vsec_priv *priv;
+
+	if (!pci_match_id(intel_vsec_pci_ids, pdev))
+		return ERR_PTR(-EINVAL);
+
+	priv = pci_get_drvdata(pdev);
+	if (!priv)
+		return ERR_PTR(-EINVAL);
+
+	return &priv->plat_info;
+}
+EXPORT_SYMBOL_NS_GPL(intel_vsec_get_mapping, "INTEL_VSEC");
 
 /* DG1 info */
 static struct intel_vsec_header dg1_header = {
