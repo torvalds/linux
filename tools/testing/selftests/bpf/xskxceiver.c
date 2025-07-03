@@ -109,6 +109,8 @@
 
 #include <network_helpers.h>
 
+#define MAX_TX_BUDGET_DEFAULT 32
+
 static bool opt_verbose;
 static bool opt_print_tests;
 static enum test_mode opt_mode = TEST_MODE_ALL;
@@ -1091,11 +1093,45 @@ static bool is_pkt_valid(struct pkt *pkt, void *buffer, u64 addr, u32 len)
 	return true;
 }
 
+static u32 load_value(u32 *counter)
+{
+	return __atomic_load_n(counter, __ATOMIC_ACQUIRE);
+}
+
+static bool kick_tx_with_check(struct xsk_socket_info *xsk, int *ret)
+{
+	u32 max_budget = MAX_TX_BUDGET_DEFAULT;
+	u32 cons, ready_to_send;
+	int delta;
+
+	cons = load_value(xsk->tx.consumer);
+	ready_to_send = load_value(xsk->tx.producer) - cons;
+	*ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+
+	delta = load_value(xsk->tx.consumer) - cons;
+	/* By default, xsk should consume exact @max_budget descs at one
+	 * send in this case where hitting the max budget limit in while
+	 * loop is triggered in __xsk_generic_xmit(). Please make sure that
+	 * the number of descs to be sent is larger than @max_budget, or
+	 * else the tx.consumer will be updated in xskq_cons_peek_desc()
+	 * in time which hides the issue we try to verify.
+	 */
+	if (ready_to_send > max_budget && delta != max_budget)
+		return false;
+
+	return true;
+}
+
 static int kick_tx(struct xsk_socket_info *xsk)
 {
 	int ret;
 
-	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+	if (xsk->check_consumer) {
+		if (!kick_tx_with_check(xsk, &ret))
+			return TEST_FAILURE;
+	} else {
+		ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+	}
 	if (ret >= 0)
 		return TEST_PASS;
 	if (errno == ENOBUFS || errno == EAGAIN || errno == EBUSY || errno == ENETDOWN) {
@@ -2613,6 +2649,23 @@ static int testapp_adjust_tail_grow_mb(struct test_spec *test)
 				   XSK_UMEM__LARGE_FRAME_SIZE * 2);
 }
 
+static int testapp_tx_queue_consumer(struct test_spec *test)
+{
+	int nr_packets;
+
+	if (test->mode == TEST_MODE_ZC) {
+		ksft_test_result_skip("Can not run TX_QUEUE_CONSUMER test for ZC mode\n");
+		return TEST_SKIP;
+	}
+
+	nr_packets = MAX_TX_BUDGET_DEFAULT + 1;
+	pkt_stream_replace(test, nr_packets, MIN_PKT_SIZE);
+	test->ifobj_tx->xsk->batch_size = nr_packets;
+	test->ifobj_tx->xsk->check_consumer = true;
+
+	return testapp_validate_traffic(test);
+}
+
 static void run_pkt_test(struct test_spec *test)
 {
 	int ret;
@@ -2723,6 +2776,7 @@ static const struct test_spec tests[] = {
 	{.name = "XDP_ADJUST_TAIL_SHRINK_MULTI_BUFF", .test_func = testapp_adjust_tail_shrink_mb},
 	{.name = "XDP_ADJUST_TAIL_GROW", .test_func = testapp_adjust_tail_grow},
 	{.name = "XDP_ADJUST_TAIL_GROW_MULTI_BUFF", .test_func = testapp_adjust_tail_grow_mb},
+	{.name = "TX_QUEUE_CONSUMER", .test_func = testapp_tx_queue_consumer},
 	};
 
 static void print_tests(void)
