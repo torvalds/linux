@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -334,7 +334,6 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 	struct aspeed_p2a_ctrl *misc_ctrl;
 	struct device *dev;
 	struct resource resm;
-	struct device_node *node;
 	int rc = 0;
 
 	dev = &pdev->dev;
@@ -346,15 +345,8 @@ static int aspeed_p2a_ctrl_probe(struct platform_device *pdev)
 	mutex_init(&misc_ctrl->tracking);
 
 	/* optional. */
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node) {
-		rc = of_address_to_resource(node, 0, &resm);
-		of_node_put(node);
-		if (rc) {
-			dev_err(dev, "Couldn't address to resource for reserved memory\n");
-			return -ENODEV;
-		}
-
+	rc = of_reserved_mem_region_to_resource(dev->of_node, 0, &resm);
+	if (!rc) {
 		misc_ctrl->mem_size = resource_size(&resm);
 		misc_ctrl->mem_base = resm.start;
 	}
