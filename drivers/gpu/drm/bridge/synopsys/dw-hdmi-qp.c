@@ -440,8 +440,8 @@ static void dw_hdmi_qp_set_sample_rate(struct dw_hdmi_qp *hdmi, unsigned long lo
 	dw_hdmi_qp_set_cts_n(hdmi, cts, n);
 }
 
-static int dw_hdmi_qp_audio_enable(struct drm_connector *connector,
-				   struct drm_bridge *bridge)
+static int dw_hdmi_qp_audio_enable(struct drm_bridge *bridge,
+				   struct drm_connector *connector)
 {
 	struct dw_hdmi_qp *hdmi = dw_hdmi_qp_from_bridge(bridge);
 
@@ -451,8 +451,8 @@ static int dw_hdmi_qp_audio_enable(struct drm_connector *connector,
 	return 0;
 }
 
-static int dw_hdmi_qp_audio_prepare(struct drm_connector *connector,
-				    struct drm_bridge *bridge,
+static int dw_hdmi_qp_audio_prepare(struct drm_bridge *bridge,
+				    struct drm_connector *connector,
 				    struct hdmi_codec_daifmt *fmt,
 				    struct hdmi_codec_params *hparms)
 {
@@ -497,8 +497,8 @@ static void dw_hdmi_qp_audio_disable_regs(struct dw_hdmi_qp *hdmi)
 		       AVP_DATAPATH_PACKET_AUDIO_SWDISABLE, GLOBAL_SWDISABLE);
 }
 
-static void dw_hdmi_qp_audio_disable(struct drm_connector *connector,
-				     struct drm_bridge *bridge)
+static void dw_hdmi_qp_audio_disable(struct drm_bridge *bridge,
+				     struct drm_connector *connector)
 {
 	struct dw_hdmi_qp *hdmi = dw_hdmi_qp_from_bridge(bridge);
 

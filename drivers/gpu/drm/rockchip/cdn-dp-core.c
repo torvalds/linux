@@ -743,8 +743,8 @@ static int cdn_dp_parse_dt(struct cdn_dp_device *dp)
 	return 0;
 }
 
-static int cdn_dp_audio_prepare(struct drm_connector *connector,
-				struct drm_bridge *bridge,
+static int cdn_dp_audio_prepare(struct drm_bridge *bridge,
+				struct drm_connector *connector,
 				struct hdmi_codec_daifmt *daifmt,
 				struct hdmi_codec_params *params)
 {
@@ -784,8 +784,8 @@ out:
 	return ret;
 }
 
-static void cdn_dp_audio_shutdown(struct drm_connector *connector,
-				  struct drm_bridge *bridge)
+static void cdn_dp_audio_shutdown(struct drm_bridge *bridge,
+				  struct drm_connector *connector)
 {
 	struct cdn_dp_device *dp = bridge_to_dp(bridge);
 	int ret;
@@ -801,8 +801,8 @@ out:
 	mutex_unlock(&dp->lock);
 }
 
-static int cdn_dp_audio_mute_stream(struct drm_connector *connector,
-				    struct drm_bridge *bridge,
+static int cdn_dp_audio_mute_stream(struct drm_bridge *bridge,
+				    struct drm_connector *connector,
 				    bool enable, int direction)
 {
 	struct cdn_dp_device *dp = bridge_to_dp(bridge);
