@@ -4578,6 +4578,10 @@
 
                         This is a human readable alternative to the 'panic_print' option.
 
+	panic_console_replay
+			When panic happens, replay all kernel messages on
+			consoles at the end of panic.
+
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.
 			Format: <parport#>
