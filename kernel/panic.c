@@ -143,6 +143,15 @@ static __init int kernel_panic_sysctls_init(void)
 late_initcall(kernel_panic_sysctls_init);
 #endif
 
+/* The format is "panic_sys_info=tasks,mem,locks,ftrace,..." */
+static int __init setup_panic_sys_info(char *buf)
+{
+	/* There is no risk of race in kernel boot phase */
+	panic_print = sys_info_parse_param(buf);
+	return 1;
+}
+__setup("panic_sys_info=", setup_panic_sys_info);
+
 static atomic_t warn_count = ATOMIC_INIT(0);
 
 #ifdef CONFIG_SYSFS

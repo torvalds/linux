@@ -4563,6 +4563,21 @@
 			Use this option carefully, maybe worth to setup a
 			bigger log buffer with "log_buf_len" along with this.
 
+	panic_sys_info= A comma separated list of extra information to be dumped
+                        on panic.
+                        Format: val[,val...]
+                        Where @val can be any of the following:
+
+                        tasks:          print all tasks info
+                        mem:            print system memory info
+			timers:         print timers info
+                        locks:          print locks info if CONFIG_LOCKDEP is on
+                        ftrace:         print ftrace buffer
+                        all_bt:         print all CPUs backtrace (if available in the arch)
+                        blocked_tasks:  print only tasks in uninterruptible (blocked) state
+
+                        This is a human readable alternative to the 'panic_print' option.
+
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
 			connected to, default is 0.
 			Format: <parport#>
