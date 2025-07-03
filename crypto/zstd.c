@@ -25,7 +25,7 @@ struct zstd_ctx {
 	zstd_dctx *dctx;
 	size_t wksp_size;
 	zstd_parameters params;
-	u8 wksp[0] __aligned(8);
+	u8 wksp[] __aligned(8);
 };
 
 static DEFINE_MUTEX(zstd_stream_lock);
