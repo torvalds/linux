@@ -353,6 +353,30 @@ static void __init list_insert_sorted(
 	}
 }
 
+static int __init cma_fixed_reserve(phys_addr_t base, phys_addr_t size)
+{
+	if (IS_ENABLED(CONFIG_HIGHMEM)) {
+		phys_addr_t highmem_start = __pa(high_memory - 1) + 1;
+
+		/*
+		 * If allocating at a fixed base the request region must not
+		 * cross the low/high memory boundary.
+		 */
+		if (base < highmem_start && base + size > highmem_start) {
+			pr_err("Region at %pa defined on low/high memory boundary (%pa)\n",
+			       &base, &highmem_start);
+			return -EINVAL;
+		}
+	}
+
+	if (memblock_is_region_reserved(base, size) ||
+	    memblock_reserve(base, size) < 0) {
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 			phys_addr_t size, phys_addr_t limit,
 			phys_addr_t alignment, unsigned int order_per_bit,
@@ -408,15 +432,6 @@ static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 	if (!IS_ALIGNED(size >> PAGE_SHIFT, 1 << order_per_bit))
 		return -EINVAL;
 
-	/*
-	 * If allocating at a fixed base the request region must not cross the
-	 * low/high memory boundary.
-	 */
-	if (fixed && base < highmem_start && base + size > highmem_start) {
-		pr_err("Region at %pa defined on low/high memory boundary (%pa)\n",
-			&base, &highmem_start);
-		return -EINVAL;
-	}
 
 	/*
 	 * If the limit is unspecified or above the memblock end, its effective
@@ -434,10 +449,9 @@ static int __init __cma_declare_contiguous_nid(phys_addr_t *basep,
 
 	/* Reserve memory */
 	if (fixed) {
-		if (memblock_is_region_reserved(base, size) ||
-		    memblock_reserve(base, size) < 0) {
-			return -EBUSY;
-		}
+		ret = cma_fixed_reserve(base, size);
+		if (ret)
+			return ret;
 	} else {
 		phys_addr_t addr = 0;
 
