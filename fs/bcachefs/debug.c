@@ -153,8 +153,6 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 		c->verify_data = __bch2_btree_node_mem_alloc(c);
 		if (!c->verify_data)
 			goto out;
-
-		list_del_init(&c->verify_data->list);
 	}
 
 	BUG_ON(b->nsets != 1);
