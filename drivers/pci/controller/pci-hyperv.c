@@ -4144,6 +4144,9 @@ static int __init init_hv_pci_drv(void)
 	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
 
+	if (hv_root_partition() && !hv_nested)
+		return -ENODEV;
+
 	ret = hv_pci_irqchip_init();
 	if (ret)
 		return ret;
