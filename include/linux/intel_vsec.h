@@ -4,6 +4,7 @@
 
 #include <linux/auxiliary_bus.h>
 #include <linux/bits.h>
+#include <linux/err.h>
 #include <linux/intel_pmt_features.h>
 
 /*
@@ -218,4 +219,21 @@ static inline struct oobmsm_plat_info *intel_vsec_get_mapping(struct pci_dev *pd
 	return ERR_PTR(-ENODEV);
 }
 #endif
+
+#if IS_ENABLED(CONFIG_INTEL_PMT_TELEMETRY)
+struct pmt_feature_group *
+intel_pmt_get_regions_by_feature(enum pmt_feature_id id);
+
+void intel_pmt_put_feature_group(struct pmt_feature_group *feature_group);
+#else
+static inline struct pmt_feature_group *
+intel_pmt_get_regions_by_feature(enum pmt_feature_id id)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void
+intel_pmt_put_feature_group(struct pmt_feature_group *feature_group) {}
+#endif
+
 #endif
