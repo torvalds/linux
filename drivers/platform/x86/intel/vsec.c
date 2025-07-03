@@ -66,6 +66,9 @@ static const char *intel_vsec_name(enum intel_vsec_id id)
 	case VSEC_ID_TPMI:
 		return "tpmi";
 
+	case VSEC_ID_DISCOVERY:
+		return "discovery";
+
 	default:
 		return NULL;
 	}
@@ -84,6 +87,8 @@ static bool intel_vsec_supported(u16 id, unsigned long caps)
 		return !!(caps & VSEC_CAP_SDSI);
 	case VSEC_ID_TPMI:
 		return !!(caps & VSEC_CAP_TPMI);
+	case VSEC_ID_DISCOVERY:
+		return !!(caps & VSEC_CAP_DISCOVERY);
 	default:
 		return false;
 	}
@@ -138,6 +143,8 @@ static bool vsec_driver_present(int cap_id)
 		return IS_ENABLED(CONFIG_INTEL_SDSI);
 	case VSEC_CAP_TPMI:
 		return IS_ENABLED(CONFIG_INTEL_TPMI);
+	case VSEC_CAP_DISCOVERY:
+		return IS_ENABLED(CONFIG_INTEL_PMT_DISCOVERY);
 	default:
 		return false;
 	}
@@ -391,6 +398,9 @@ static int get_cap_id(u32 header_id, unsigned long *cap_id)
 		break;
 	case VSEC_ID_TPMI:
 		*cap_id = ilog2(VSEC_CAP_TPMI);
+		break;
+	case VSEC_ID_DISCOVERY:
+		*cap_id = ilog2(VSEC_CAP_DISCOVERY);
 		break;
 	default:
 		return -EINVAL;
@@ -681,14 +691,26 @@ static const struct intel_vsec_platform_info mtl_info = {
 	.caps = VSEC_CAP_TELEMETRY,
 };
 
+static const struct vsec_feature_dependency oobmsm_deps[] = {
+	{
+		.feature = VSEC_CAP_TELEMETRY,
+		.supplier_bitmap = VSEC_CAP_DISCOVERY,
+	},
+};
+
 /* OOBMSM info */
 static const struct intel_vsec_platform_info oobmsm_info = {
-	.caps = VSEC_CAP_TELEMETRY | VSEC_CAP_SDSI | VSEC_CAP_TPMI,
+	.caps = VSEC_CAP_TELEMETRY | VSEC_CAP_SDSI | VSEC_CAP_TPMI |
+		VSEC_CAP_DISCOVERY,
+	.deps = oobmsm_deps,
+	.num_deps = ARRAY_SIZE(oobmsm_deps),
 };
 
 /* DMR OOBMSM info */
 static const struct intel_vsec_platform_info dmr_oobmsm_info = {
-	.caps = VSEC_CAP_TELEMETRY | VSEC_CAP_TPMI,
+	.caps = VSEC_CAP_TELEMETRY | VSEC_CAP_TPMI | VSEC_CAP_DISCOVERY,
+	.deps = oobmsm_deps,
+	.num_deps = ARRAY_SIZE(oobmsm_deps),
 };
 
 /* TGL info */
