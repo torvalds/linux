@@ -3919,6 +3919,8 @@ int mlx5_fs_core_alloc(struct mlx5_core_dev *dev)
 
 	if (mlx5_fs_dr_is_supported(dev))
 		steering->mode = MLX5_FLOW_STEERING_MODE_SMFS;
+	else if (mlx5_fs_hws_is_supported(dev))
+		steering->mode = MLX5_FLOW_STEERING_MODE_HMFS;
 	else
 		steering->mode = MLX5_FLOW_STEERING_MODE_DMFS;
 
