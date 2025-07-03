@@ -74,15 +74,15 @@
 #define WEN				0x20000
 
 enum tegra234_cbb_fabric_ids {
-	CBB_FAB_ID,
-	SCE_FAB_ID,
-	RCE_FAB_ID,
-	DCE_FAB_ID,
-	AON_FAB_ID,
-	PSC_FAB_ID,
-	BPMP_FAB_ID,
-	FSI_FAB_ID,
-	MAX_FAB_ID,
+	T234_CBB_FABRIC_ID,
+	T234_SCE_FABRIC_ID,
+	T234_RCE_FABRIC_ID,
+	T234_DCE_FABRIC_ID,
+	T234_AON_FABRIC_ID,
+	T234_PSC_FABRIC_ID,
+	T234_BPMP_FABRIC_ID,
+	T234_FSI_FABRIC_ID,
+	T234_MAX_FABRIC_ID,
 };
 
 struct tegra234_target_lookup {
@@ -90,8 +90,15 @@ struct tegra234_target_lookup {
 	unsigned int offset;
 };
 
-struct tegra234_cbb_fabric {
+struct tegra234_fabric_lookup {
 	const char *name;
+	bool is_lookup;
+	const struct tegra234_target_lookup *target_map;
+	const int max_targets;
+};
+
+struct tegra234_cbb_fabric {
+	int fab_id;
 	phys_addr_t off_mask_erd;
 	phys_addr_t firewall_base;
 	unsigned int firewall_ctl;
@@ -100,8 +107,7 @@ struct tegra234_cbb_fabric {
 	unsigned int notifier_offset;
 	const struct tegra_cbb_error *errors;
 	const int max_errors;
-	const struct tegra234_target_lookup *target_map;
-	const int max_targets;
+	const struct tegra234_fabric_lookup *fab_list;
 	const u32 err_intr_enbl;
 	const u32 err_status_clr;
 };
@@ -266,11 +272,16 @@ static void tegra234_cbb_lookup_apbslv(struct seq_file *file, const char *target
 	}
 }
 
-static void tegra234_lookup_target_timeout(struct seq_file *file, struct tegra234_cbb *cbb,
-					   u8 target_id, u8 fab_id)
+static void tegra234_sw_lookup_target_timeout(struct seq_file *file, struct tegra234_cbb *cbb,
+					      u8 target_id, u8 fab_id)
 {
-	const struct tegra234_target_lookup *map = cbb->fabric->target_map;
+	const struct tegra234_target_lookup *map = cbb->fabric->fab_list[fab_id].target_map;
 	void __iomem *addr;
+
+	if (target_id >= cbb->fabric->fab_list[fab_id].max_targets) {
+		tegra_cbb_print_err(file, "\t  Invalid target_id:%d\n", target_id);
+		return;
+	}
 
 	/*
 	 * 1) Get target node name and address mapping using target_id.
@@ -354,7 +365,6 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 {
 	u8 cache_type, prot_type, burst_length, mstr_id, grpsec, vqc, falconsec, beat_size;
 	u8 access_type, access_id, requester_socket_id, local_socket_id, target_id, fab_id;
-	char fabric_name[20];
 	bool is_numa = false;
 	u8 burst_type;
 
@@ -399,21 +409,18 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	else
 		tegra_cbb_print_err(file, "\t  Wrong type index:%u\n", cbb->type);
 
-	tegra_cbb_print_err(file, "\t  Initiator_Id\t\t: %s\n", cbb->fabric->initiator_id[mstr_id]);
+	tegra_cbb_print_err(file, "\t  Initiator_Id\t\t: %#x\n", mstr_id);
+	if (cbb->fabric->initiator_id)
+		tegra_cbb_print_err(file, "\t  Initiator\t\t: %s\n",
+				    cbb->fabric->initiator_id[mstr_id]);
+
 	tegra_cbb_print_err(file, "\t  Address\t\t: %#llx\n", cbb->access);
 
 	tegra_cbb_print_cache(file, cache_type);
 	tegra_cbb_print_prot(file, prot_type);
 
 	tegra_cbb_print_err(file, "\t  Access_Type\t\t: %s", (access_type) ? "Write\n" : "Read\n");
-	tegra_cbb_print_err(file, "\t  Access_ID\t\t: %#x", access_id);
-
-	if (fab_id == PSC_FAB_ID)
-		strcpy(fabric_name, "psc-fabric");
-	else if (fab_id == FSI_FAB_ID)
-		strcpy(fabric_name, "fsi-fabric");
-	else
-		strcpy(fabric_name, cbb->fabric->name);
+	tegra_cbb_print_err(file, "\t  Access_ID\t\t: %#x\n", access_id);
 
 	if (is_numa) {
 		tegra_cbb_print_err(file, "\t  Requester_Socket_Id\t: %#x\n",
@@ -424,7 +431,9 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 				    num_possible_nodes());
 	}
 
-	tegra_cbb_print_err(file, "\t  Fabric\t\t: %s\n", fabric_name);
+	tegra_cbb_print_err(file, "\t  Fabric\t\t: %s (id:%#x)\n",
+			    cbb->fabric->fab_list[fab_id].name, fab_id);
+
 	tegra_cbb_print_err(file, "\t  Target_Id\t\t: %#x\n", target_id);
 	tegra_cbb_print_err(file, "\t  Burst_length\t\t: %#x\n", burst_length);
 	tegra_cbb_print_err(file, "\t  Burst_type\t\t: %#x\n", burst_type);
@@ -433,21 +442,13 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	tegra_cbb_print_err(file, "\t  GRPSEC\t\t: %#x\n", grpsec);
 	tegra_cbb_print_err(file, "\t  FALCONSEC\t\t: %#x\n", falconsec);
 
-	if ((fab_id == PSC_FAB_ID) || (fab_id == FSI_FAB_ID))
+	if (!cbb->fabric->fab_list[fab_id].is_lookup)
 		return;
 
-	if (target_id >= cbb->fabric->max_targets) {
-		tegra_cbb_print_err(file, "\t  Invalid target_id:%d\n", target_id);
-		return;
-	}
+	if (!strcmp(cbb->fabric->errors[cbb->type].code, "TIMEOUT_ERR"))
+		tegra234_sw_lookup_target_timeout(file, cbb, target_id, fab_id);
 
-	if (!strcmp(cbb->fabric->errors[cbb->type].code, "TIMEOUT_ERR")) {
-		tegra234_lookup_target_timeout(file, cbb, target_id, fab_id);
-		return;
-	}
-
-	tegra_cbb_print_err(file, "\t  Target\t\t\t: %s\n",
-			    cbb->fabric->target_map[target_id].name);
+	return;
 }
 
 static int print_errmonX_info(struct seq_file *file, struct tegra234_cbb *cbb)
@@ -508,7 +509,7 @@ static int print_err_notifier(struct seq_file *file, struct tegra234_cbb *cbb, u
 
 	pr_crit("**************************************\n");
 	pr_crit("CPU:%d, Error:%s, Errmon:%d\n", smp_processor_id(),
-		cbb->fabric->name, status);
+		cbb->fabric->fab_list[cbb->fabric->fab_id].name, status);
 
 	while (status) {
 		if (status & BIT(0)) {
@@ -531,13 +532,13 @@ static int print_err_notifier(struct seq_file *file, struct tegra234_cbb *cbb, u
 			tegra234_cbb_error_clear(&cbb->base);
 			if (err)
 				return err;
+			tegra_cbb_print_err(file, "\t**************************************\n");
 		}
 
 		status >>= 1;
 		index++;
 	}
 
-	tegra_cbb_print_err(file, "\t**************************************\n");
 	return 0;
 }
 
@@ -586,7 +587,8 @@ static irqreturn_t tegra234_cbb_isr(int irq, void *data)
 
 		if (status && (irq == priv->sec_irq)) {
 			tegra_cbb_print_err(NULL, "CPU:%d, Error: %s@0x%llx, irq=%d\n",
-					    smp_processor_id(), priv->fabric->name,
+					    smp_processor_id(),
+					    priv->fabric->fab_list[priv->fabric->fab_id].name,
 					    priv->res->start, irq);
 
 			err = print_err_notifier(NULL, priv, status);
@@ -704,21 +706,6 @@ static const struct tegra234_target_lookup tegra234_aon_target_map[] = {
 	{ "CPU",     0x16000 },
 };
 
-static const struct tegra234_cbb_fabric tegra234_aon_fabric = {
-	.name = "aon-fabric",
-	.initiator_id = tegra234_initiator_id,
-	.target_map = tegra234_aon_target_map,
-	.max_targets = ARRAY_SIZE(tegra234_aon_target_map),
-	.errors = tegra234_cbb_errors,
-	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.err_intr_enbl = 0x7,
-	.err_status_clr = 0x3f,
-	.notifier_offset = 0x17000,
-	.firewall_base = 0x30000,
-	.firewall_ctl = 0x8d0,
-	.firewall_wr_ctl = 0x8c8,
-};
-
 static const struct tegra234_target_lookup tegra234_bpmp_target_map[] = {
 	{ "AXI2APB", 0x00000 },
 	{ "AST0",    0x15000 },
@@ -727,19 +714,13 @@ static const struct tegra234_target_lookup tegra234_bpmp_target_map[] = {
 	{ "CPU",     0x18000 },
 };
 
-static const struct tegra234_cbb_fabric tegra234_bpmp_fabric = {
-	.name = "bpmp-fabric",
-	.initiator_id = tegra234_initiator_id,
-	.target_map = tegra234_bpmp_target_map,
-	.max_targets = ARRAY_SIZE(tegra234_bpmp_target_map),
-	.errors = tegra234_cbb_errors,
-	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
-	.err_intr_enbl = 0xf,
-	.err_status_clr = 0x3f,
-	.notifier_offset = 0x19000,
-	.firewall_base = 0x30000,
-	.firewall_ctl = 0x8f0,
-	.firewall_wr_ctl = 0x8e8,
+static const struct tegra234_target_lookup tegra234_common_target_map[] = {
+	{ "AXI2APB", 0x00000 },
+	{ "AST0",    0x15000 },
+	{ "AST1",    0x16000 },
+	{ "CBB",     0x17000 },
+	{ "RSVD",    0x00000 },
+	{ "CPU",     0x18000 },
 };
 
 static const struct tegra234_target_lookup tegra234_cbb_target_map[] = {
@@ -806,11 +787,61 @@ static const struct tegra234_target_lookup tegra234_cbb_target_map[] = {
 	{ "AXI2APB_3",  0x91000 },
 };
 
-static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
-	.name = "cbb-fabric",
+static const struct tegra234_fabric_lookup tegra234_cbb_fab_list[] = {
+	[T234_CBB_FABRIC_ID] = { "cbb-fabric", true,
+				 tegra234_cbb_target_map,
+				 ARRAY_SIZE(tegra234_cbb_target_map) },
+	[T234_SCE_FABRIC_ID] = { "sce-fabric", true,
+				 tegra234_common_target_map,
+				 ARRAY_SIZE(tegra234_common_target_map) },
+	[T234_RCE_FABRIC_ID] = { "rce-fabric", true,
+				 tegra234_common_target_map,
+				 ARRAY_SIZE(tegra234_common_target_map) },
+	[T234_DCE_FABRIC_ID] = { "dce-fabric", true,
+				 tegra234_common_target_map,
+				 ARRAY_SIZE(tegra234_common_target_map) },
+	[T234_AON_FABRIC_ID] = { "aon-fabric", true,
+				 tegra234_aon_target_map,
+				 ARRAY_SIZE(tegra234_bpmp_target_map) },
+	[T234_PSC_FABRIC_ID] = { "psc-fabric" },
+	[T234_BPMP_FABRIC_ID] = { "bpmp-fabric", true,
+				 tegra234_bpmp_target_map,
+				 ARRAY_SIZE(tegra234_bpmp_target_map) },
+	[T234_FSI_FABRIC_ID] = { "fsi-fabric" },
+};
+
+static const struct tegra234_cbb_fabric tegra234_aon_fabric = {
+	.fab_id = T234_AON_FABRIC_ID,
+	.fab_list = tegra234_cbb_fab_list,
 	.initiator_id = tegra234_initiator_id,
-	.target_map = tegra234_cbb_target_map,
-	.max_targets = ARRAY_SIZE(tegra234_cbb_target_map),
+	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0x7,
+	.err_status_clr = 0x3f,
+	.notifier_offset = 0x17000,
+	.firewall_base = 0x30000,
+	.firewall_ctl = 0x8d0,
+	.firewall_wr_ctl = 0x8c8,
+};
+
+static const struct tegra234_cbb_fabric tegra234_bpmp_fabric = {
+	.fab_id = T234_BPMP_FABRIC_ID,
+	.fab_list = tegra234_cbb_fab_list,
+	.initiator_id = tegra234_initiator_id,
+	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x3f,
+	.notifier_offset = 0x19000,
+	.firewall_base = 0x30000,
+	.firewall_ctl = 0x8f0,
+	.firewall_wr_ctl = 0x8e8,
+};
+
+static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
+	.fab_id = T234_CBB_FABRIC_ID,
+	.fab_list = tegra234_cbb_fab_list,
+	.initiator_id = tegra234_initiator_id,
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.err_intr_enbl = 0x7f,
@@ -822,20 +853,10 @@ static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
 	.firewall_wr_ctl = 0x23e8,
 };
 
-static const struct tegra234_target_lookup tegra234_common_target_map[] = {
-	{ "AXI2APB", 0x00000 },
-	{ "AST0",    0x15000 },
-	{ "AST1",    0x16000 },
-	{ "CBB",     0x17000 },
-	{ "RSVD",    0x00000 },
-	{ "CPU",     0x18000 },
-};
-
 static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
-	.name = "dce-fabric",
+	.fab_id = T234_DCE_FABRIC_ID,
+	.fab_list = tegra234_cbb_fab_list,
 	.initiator_id = tegra234_initiator_id,
-	.target_map = tegra234_common_target_map,
-	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.err_intr_enbl = 0xf,
@@ -847,10 +868,9 @@ static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
 };
 
 static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
-	.name = "rce-fabric",
+	.fab_id = T234_RCE_FABRIC_ID,
+	.fab_list = tegra234_cbb_fab_list,
 	.initiator_id = tegra234_initiator_id,
-	.target_map = tegra234_common_target_map,
-	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.err_intr_enbl = 0xf,
@@ -862,10 +882,9 @@ static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
 };
 
 static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
-	.name = "sce-fabric",
+	.fab_id = T234_SCE_FABRIC_ID,
+	.fab_list = tegra234_cbb_fab_list,
 	.initiator_id = tegra234_initiator_id,
-	.target_map = tegra234_common_target_map,
-	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.err_intr_enbl = 0xf,
@@ -985,6 +1004,17 @@ static const struct tegra_cbb_error tegra241_cbb_errors[] = {
 	},
 };
 
+static const struct tegra234_target_lookup tegra241_bpmp_target_map[] = {
+	{ "RSVD",    0x00000 },
+	{ "RSVD",    0x00000 },
+	{ "RSVD",    0x00000 },
+	{ "CBB",     0x15000 },
+	{ "CPU",     0x16000 },
+	{ "AXI2APB", 0x00000 },
+	{ "DBB0",    0x17000 },
+	{ "DBB1",    0x18000 },
+};
+
 static const struct tegra234_target_lookup tegra241_cbb_target_map[] = {
 	{ "RSVD",       0x00000 },
 	{ "PCIE_C8",    0x51000 },
@@ -1047,11 +1077,16 @@ static const struct tegra234_target_lookup tegra241_cbb_target_map[] = {
 	{ "AXI2APB_32", 0x8F000 },
 };
 
+static const struct tegra234_fabric_lookup tegra241_cbb_fab_list[] = {
+	[T234_CBB_FABRIC_ID]  = { "cbb-fabric", true,
+				  tegra241_cbb_target_map, ARRAY_SIZE(tegra241_cbb_target_map) },
+	[T234_BPMP_FABRIC_ID] = { "bpmp-fabric", true,
+				  tegra241_bpmp_target_map, ARRAY_SIZE(tegra241_cbb_target_map) },
+};
 static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
-	.name = "cbb-fabric",
+	.fab_id = T234_CBB_FABRIC_ID,
+	.fab_list = tegra241_cbb_fab_list,
 	.initiator_id = tegra241_initiator_id,
-	.target_map = tegra241_cbb_target_map,
-	.max_targets = ARRAY_SIZE(tegra241_cbb_target_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
 	.err_intr_enbl = 0x7,
@@ -1063,22 +1098,10 @@ static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
 	.firewall_wr_ctl = 0x2368,
 };
 
-static const struct tegra234_target_lookup tegra241_bpmp_target_map[] = {
-	{ "RSVD",    0x00000 },
-	{ "RSVD",    0x00000 },
-	{ "RSVD",    0x00000 },
-	{ "CBB",     0x15000 },
-	{ "CPU",     0x16000 },
-	{ "AXI2APB", 0x00000 },
-	{ "DBB0",    0x17000 },
-	{ "DBB1",    0x18000 },
-};
-
 static const struct tegra234_cbb_fabric tegra241_bpmp_fabric = {
-	.name = "bpmp-fabric",
+	.fab_id = T234_BPMP_FABRIC_ID,
+	.fab_list = tegra241_cbb_fab_list,
 	.initiator_id = tegra241_initiator_id,
-	.target_map = tegra241_bpmp_target_map,
-	.max_targets = ARRAY_SIZE(tegra241_bpmp_target_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
 	.err_intr_enbl = 0xf,
@@ -1197,7 +1220,7 @@ static int __maybe_unused tegra234_cbb_resume_noirq(struct device *dev)
 
 	tegra234_cbb_error_enable(&cbb->base);
 
-	dev_dbg(dev, "%s resumed\n", cbb->fabric->name);
+	dev_dbg(dev, "%s resumed\n", cbb->fabric->fab_list[cbb->fabric->fab_id].name);
 
 	return 0;
 }
