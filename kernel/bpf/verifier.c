@@ -11082,8 +11082,8 @@ record_func_key(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 	if (func_id != BPF_FUNC_tail_call)
 		return 0;
 	if (!map || map->map_type != BPF_MAP_TYPE_PROG_ARRAY) {
-		verifier_bug(env, "expected array map for tail call");
-		return -EFAULT;
+		verbose(env, "expected prog array map for tail call");
+		return -EINVAL;
 	}
 
 	reg = &regs[BPF_REG_3];
