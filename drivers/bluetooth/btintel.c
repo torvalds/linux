@@ -555,7 +555,7 @@ int btintel_parse_version_tlv(struct hci_dev *hdev,
 	/* Consume Command Complete Status field */
 	skb_pull(skb, 1);
 
-	/* Event parameters contatin multiple TLVs. Read each of them
+	/* Event parameters contain multiple TLVs. Read each of them
 	 * and only keep the required data. Also, it use existing legacy
 	 * version field like hw_platform, hw_variant, and fw_variant
 	 * to keep the existing setup flow
