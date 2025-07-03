@@ -319,7 +319,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	if (!c)
 		return -ESRCH;
 
-	if (!(kinfo.mask & PIDFD_INFO_COREDUMP)) {
+	if ((kinfo.mask & PIDFD_INFO_COREDUMP) && !(kinfo.coredump_mask)) {
 		task_lock(task);
 		if (task->mm)
 			kinfo.coredump_mask = pidfs_coredump_mask(task->mm->flags);
