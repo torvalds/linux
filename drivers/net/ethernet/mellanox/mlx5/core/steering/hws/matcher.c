@@ -507,10 +507,8 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher)
 		}
 	}
 
-	obj_id = mlx5hws_pool_get_base_id(matcher->match_ste.pool);
-
 	rtc_attr.pd = ctx->pd_num;
-	rtc_attr.ste_base = obj_id;
+	rtc_attr.ste_base = matcher->match_ste.ste_0_base;
 	rtc_attr.reparse_mode = mlx5hws_context_get_reparse_mode(ctx);
 	rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(tbl->type, false);
 	hws_matcher_set_rtc_attr_sz(matcher, &rtc_attr, false);
@@ -527,9 +525,7 @@ static int hws_matcher_create_rtc(struct mlx5hws_matcher *matcher)
 	}
 
 	if (tbl->type == MLX5HWS_TABLE_TYPE_FDB) {
-		obj_id = mlx5hws_pool_get_base_mirror_id(
-			matcher->match_ste.pool);
-		rtc_attr.ste_base = obj_id;
+		rtc_attr.ste_base = matcher->match_ste.ste_1_base;
 		rtc_attr.table_type = mlx5hws_table_get_res_fw_ft_type(tbl->type, true);
 
 		obj_id = mlx5hws_pool_get_base_mirror_id(ctx->stc_pool);
@@ -586,21 +582,6 @@ hws_matcher_check_attr_sz(struct mlx5hws_cmd_query_caps *caps,
 	}
 
 	return 0;
-}
-
-static void hws_matcher_set_pool_attr(struct mlx5hws_pool_attr *attr,
-				      struct mlx5hws_matcher *matcher)
-{
-	switch (matcher->attr.optimize_flow_src) {
-	case MLX5HWS_MATCHER_FLOW_SRC_VPORT:
-		attr->opt_type = MLX5HWS_POOL_OPTIMIZE_ORIG;
-		break;
-	case MLX5HWS_MATCHER_FLOW_SRC_WIRE:
-		attr->opt_type = MLX5HWS_POOL_OPTIMIZE_MIRROR;
-		break;
-	default:
-		break;
-	}
 }
 
 static int hws_matcher_check_and_process_at(struct mlx5hws_matcher *matcher,
@@ -683,8 +664,8 @@ static void hws_matcher_set_ip_version_match(struct mlx5hws_matcher *matcher)
 
 static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 {
+	struct mlx5hws_cmd_ste_create_attr ste_attr = {};
 	struct mlx5hws_context *ctx = matcher->tbl->ctx;
-	struct mlx5hws_pool_attr pool_attr = {0};
 	int ret;
 
 	/* Calculate match, range and hash definers */
@@ -699,22 +680,39 @@ static int hws_matcher_bind_mt(struct mlx5hws_matcher *matcher)
 
 	hws_matcher_set_ip_version_match(matcher);
 
-	/* Create an STE pool per matcher*/
-	pool_attr.table_type = matcher->tbl->type;
-	pool_attr.pool_type = MLX5HWS_POOL_TYPE_STE;
-	pool_attr.alloc_log_sz = matcher->attr.table.sz_col_log +
-				 matcher->attr.table.sz_row_log;
-	hws_matcher_set_pool_attr(&pool_attr, matcher);
+	/* Create an STE range each for RX and TX. */
+	ste_attr.table_type = FS_FT_FDB_RX;
+	ste_attr.log_obj_range =
+		matcher->attr.optimize_flow_src ==
+				MLX5HWS_MATCHER_FLOW_SRC_VPORT ?
+				0 : matcher->attr.table.sz_col_log +
+				    matcher->attr.table.sz_row_log;
 
-	matcher->match_ste.pool = mlx5hws_pool_create(ctx, &pool_attr);
-	if (!matcher->match_ste.pool) {
-		mlx5hws_err(ctx, "Failed to allocate matcher STE pool\n");
-		ret = -EOPNOTSUPP;
+	ret = mlx5hws_cmd_ste_create(ctx->mdev, &ste_attr,
+				     &matcher->match_ste.ste_0_base);
+	if (ret) {
+		mlx5hws_err(ctx, "Failed to allocate RX STE range (%d)\n", ret);
 		goto uninit_match_definer;
+	}
+
+	ste_attr.table_type = FS_FT_FDB_TX;
+	ste_attr.log_obj_range =
+		matcher->attr.optimize_flow_src ==
+				MLX5HWS_MATCHER_FLOW_SRC_WIRE ?
+				0 : matcher->attr.table.sz_col_log +
+				    matcher->attr.table.sz_row_log;
+
+	ret = mlx5hws_cmd_ste_create(ctx->mdev, &ste_attr,
+				     &matcher->match_ste.ste_1_base);
+	if (ret) {
+		mlx5hws_err(ctx, "Failed to allocate TX STE range (%d)\n", ret);
+		goto destroy_rx_ste_range;
 	}
 
 	return 0;
 
+destroy_rx_ste_range:
+	mlx5hws_cmd_ste_destroy(ctx->mdev, matcher->match_ste.ste_0_base);
 uninit_match_definer:
 	if (!(matcher->flags & MLX5HWS_MATCHER_FLAGS_COLLISION))
 		mlx5hws_definer_mt_uninit(ctx, matcher->mt);
@@ -723,9 +721,12 @@ uninit_match_definer:
 
 static void hws_matcher_unbind_mt(struct mlx5hws_matcher *matcher)
 {
-	mlx5hws_pool_destroy(matcher->match_ste.pool);
+	struct mlx5hws_context *ctx = matcher->tbl->ctx;
+
+	mlx5hws_cmd_ste_destroy(ctx->mdev, matcher->match_ste.ste_1_base);
+	mlx5hws_cmd_ste_destroy(ctx->mdev, matcher->match_ste.ste_0_base);
 	if (!(matcher->flags & MLX5HWS_MATCHER_FLAGS_COLLISION))
-		mlx5hws_definer_mt_uninit(matcher->tbl->ctx, matcher->mt);
+		mlx5hws_definer_mt_uninit(ctx, matcher->mt);
 }
 
 static int

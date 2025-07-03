@@ -48,7 +48,8 @@ struct mlx5hws_match_template {
 struct mlx5hws_matcher_match_ste {
 	u32 rtc_0_id;
 	u32 rtc_1_id;
-	struct mlx5hws_pool *pool;
+	u32 ste_0_base;
+	u32 ste_1_base;
 };
 
 enum {
