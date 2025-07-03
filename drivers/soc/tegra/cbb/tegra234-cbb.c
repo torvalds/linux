@@ -102,6 +102,8 @@ struct tegra234_cbb_fabric {
 	const int max_errors;
 	const struct tegra234_target_lookup *target_map;
 	const int max_targets;
+	const u32 err_intr_enbl;
+	const u32 err_status_clr;
 };
 
 struct tegra234_cbb {
@@ -177,7 +179,7 @@ static void tegra234_cbb_fault_enable(struct tegra_cbb *cbb)
 	void __iomem *addr;
 
 	addr = priv->regs + priv->fabric->notifier_offset;
-	writel(0x1ff, addr + FABRIC_EN_CFG_INTERRUPT_ENABLE_0_0);
+	writel(priv->fabric->err_intr_enbl, addr + FABRIC_EN_CFG_INTERRUPT_ENABLE_0_0);
 	dsb(sy);
 }
 
@@ -187,7 +189,7 @@ static void tegra234_cbb_error_clear(struct tegra_cbb *cbb)
 
 	writel(0, priv->mon + FABRIC_MN_INITIATOR_ERR_FORCE_0);
 
-	writel(0x3f, priv->mon + FABRIC_MN_INITIATOR_ERR_STATUS_0);
+	writel(priv->fabric->err_status_clr, priv->mon + FABRIC_MN_INITIATOR_ERR_STATUS_0);
 	dsb(sy);
 }
 
@@ -709,6 +711,8 @@ static const struct tegra234_cbb_fabric tegra234_aon_fabric = {
 	.max_targets = ARRAY_SIZE(tegra234_aon_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0x7,
+	.err_status_clr = 0x3f,
 	.notifier_offset = 0x17000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x8d0,
@@ -730,6 +734,8 @@ static const struct tegra234_cbb_fabric tegra234_bpmp_fabric = {
 	.max_targets = ARRAY_SIZE(tegra234_bpmp_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x3f,
 	.notifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x8f0,
@@ -807,6 +813,8 @@ static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
 	.max_targets = ARRAY_SIZE(tegra234_cbb_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0x7f,
+	.err_status_clr = 0x3f,
 	.notifier_offset = 0x60000,
 	.off_mask_erd = 0x3a004,
 	.firewall_base = 0x10000,
@@ -830,6 +838,8 @@ static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
 	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x3f,
 	.notifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x290,
@@ -843,6 +853,8 @@ static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
 	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x3f,
 	.notifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x290,
@@ -856,6 +868,8 @@ static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.max_targets = ARRAY_SIZE(tegra234_common_target_map),
 	.errors = tegra234_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x3f,
 	.notifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x290,
@@ -1040,6 +1054,8 @@ static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
 	.max_targets = ARRAY_SIZE(tegra241_cbb_target_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
+	.err_intr_enbl = 0x7,
+	.err_status_clr = 0x1ff007f,
 	.notifier_offset = 0x60000,
 	.off_mask_erd = 0x40004,
 	.firewall_base = 0x20000,
@@ -1065,6 +1081,8 @@ static const struct tegra234_cbb_fabric tegra241_bpmp_fabric = {
 	.max_targets = ARRAY_SIZE(tegra241_bpmp_target_map),
 	.errors = tegra241_cbb_errors,
 	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
+	.err_intr_enbl = 0xf,
+	.err_status_clr = 0x1ff007f,
 	.notifier_offset = 0x19000,
 	.firewall_base = 0x30000,
 	.firewall_ctl = 0x8f0,
