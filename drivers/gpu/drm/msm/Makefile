@@ -195,6 +195,11 @@ ADRENO_HEADERS = \
 	generated/a4xx.xml.h \
 	generated/a5xx.xml.h \
 	generated/a6xx.xml.h \
+	generated/a6xx_descriptors.xml.h \
+	generated/a6xx_enums.xml.h \
+	generated/a6xx_perfcntrs.xml.h \
+	generated/a7xx_enums.xml.h \
+	generated/a7xx_perfcntrs.xml.h \
 	generated/a6xx_gmu.xml.h \
 	generated/adreno_common.xml.h \
 	generated/adreno_pm4.xml.h \

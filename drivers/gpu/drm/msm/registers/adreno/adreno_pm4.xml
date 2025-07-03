@@ -21,9 +21,9 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="HLSQ_FLUSH" value="7" variants="A3XX-A4XX"/>
 	<value name="VIZQUERY_END" value="8" variants="A2XX"/>
 	<value name="SC_WAIT_WC" value="9" variants="A2XX"/>
-	<value name="WRITE_PRIMITIVE_COUNTS" value="9" variants="A6XX"/>
-	<value name="START_PRIMITIVE_CTRS" value="11" variants="A6XX"/>
-	<value name="STOP_PRIMITIVE_CTRS" value="12" variants="A6XX"/>
+	<value name="WRITE_PRIMITIVE_COUNTS" value="9" variants="A6XX-"/>
+	<value name="START_PRIMITIVE_CTRS" value="11" variants="A6XX-"/>
+	<value name="STOP_PRIMITIVE_CTRS" value="12" variants="A6XX-"/>
 	<!-- Not sure that these 4 events don't have the same meaning as on A5XX+ -->
 	<value name="RST_PIX_CNT" value="13" variants="A2XX-A4XX"/>
 	<value name="RST_VTX_CNT" value="14" variants="A2XX-A4XX"/>
@@ -31,8 +31,8 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="STAT_EVENT" value="16" variants="A2XX-A4XX"/>
 	<value name="CACHE_FLUSH_AND_INV_TS_EVENT" value="20" variants="A2XX-A4XX"/>
 	<doc>
-		If A6XX_RB_SAMPLE_COUNT_CONTROL.copy is true, writes OQ Z passed
-		sample counts to RB_SAMPLE_COUNT_ADDR.  This writes to main
+		If A6XX_RB_SAMPLE_COUNTER_CNTL.copy is true, writes OQ Z passed
+		sample counts to RB_SAMPLE_COUNTER_BASE.  This writes to main
 		memory, skipping UCHE.
 	</doc>
 	<value name="ZPASS_DONE" value="21"/>
@@ -98,6 +98,13 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="BLIT" value="30" variants="A5XX-"/>
 
 	<doc>
+	Flip between the primary and secondary LRZ buffers. This is used
+	for concurrent binning, so that BV can write to one buffer while
+	BR reads from the other.
+	</doc>
+	<value name="LRZ_FLIP_BUFFER" value="36" variants="A7XX"/>
+
+	<doc>
 		Clears based on GRAS_LRZ_CNTL configuration, could clear
 		fast-clear buffer or LRZ direction.
 		LRZ direction is stored at lrz_fc_offset + 0x200, has 1 byte which
@@ -114,6 +121,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="BLIT_OP_FILL_2D" value="39" variants="A5XX-"/>
 	<value name="BLIT_OP_COPY_2D" value="40" variants="A5XX-A6XX"/>
 	<value name="UNK_40" value="40" variants="A7XX"/>
+	<value name="LRZ_Q_CACHE_INVALIDATE" value="41" variants="A7XX"/>
 	<value name="BLIT_OP_SCALE_2D" value="42" variants="A5XX-"/>
 	<value name="CONTEXT_DONE_2D" value="43" variants="A5XX-"/>
 	<value name="UNK_2C" value="44" variants="A5XX-"/>
@@ -372,7 +380,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="CP_LOAD_STATE" value="0x30" variants="A3XX"/>
 	<value name="CP_LOAD_STATE4" value="0x30" variants="A4XX-A5XX"/>
 	<doc>Conditionally load a IB based on a flag, prefetch enabled</doc>
-	<value name="CP_COND_INDIRECT_BUFFER_PFE" value="0x3a"/>
+	<value name="CP_COND_INDIRECT_BUFFER_PFE" value="0x3a" variants="A3XX-A5XX"/>
 	<doc>Conditionally load a IB based on a flag, prefetch disabled</doc>
 	<value name="CP_COND_INDIRECT_BUFFER_PFD" value="0x32" variants="A3XX"/>
 	<doc>Load a buffer with pre-fetch enabled</doc>
@@ -538,7 +546,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="CP_LOAD_STATE6_GEOM" value="0x32" variants="A6XX-"/>
 	<value name="CP_LOAD_STATE6_FRAG" value="0x34" variants="A6XX-"/>
 	<!--
-	Note: For IBO state (Image/SSBOs) which have shared state across
+	Note: For UAV state (Image/SSBOs) which have shared state across
 	shader stages, for 3d pipeline CP_LOAD_STATE6 is used.  But for
 	compute shaders, CP_LOAD_STATE6_FRAG is used.  Possibly they are
 	interchangable.
@@ -567,7 +575,7 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="IN_PREEMPT" value="0x0f" variants="A6XX-"/>
 
 	<!-- TODO do these exist on A5xx? -->
-	<value name="CP_SCRATCH_WRITE" value="0x4c" variants="A6XX"/>
+	<value name="CP_SCRATCH_WRITE" value="0x4c" variants="A6XX-"/>
 	<value name="CP_REG_TO_MEM_OFFSET_MEM" value="0x74" variants="A6XX-"/>
 	<value name="CP_REG_TO_MEM_OFFSET_REG" value="0x72" variants="A6XX-"/>
 	<value name="CP_WAIT_MEM_GTE" value="0x14" variants="A6XX"/>
@@ -650,6 +658,11 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 
 	<doc>Reset various on-chip state used for synchronization</doc>
 	<value name="CP_RESET_CONTEXT_STATE" value="0x1f" variants="A7XX-"/>
+
+	<doc>Invalidates the "CCHE" introduced on a740</doc>
+	<value name="CP_CCHE_INVALIDATE" value="0x3a" variants="A7XX-"/>
+
+	<value name="CP_SCOPE_CNTL" value="0x6c" variants="A7XX-"/>
 </enum>
 
 
@@ -792,14 +805,14 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<value name="SB6_GS_SHADER" value="0xb"/>
 		<value name="SB6_FS_SHADER" value="0xc"/>
 		<value name="SB6_CS_SHADER" value="0xd"/>
-		<value name="SB6_IBO"       value="0xe"/>
-		<value name="SB6_CS_IBO"    value="0xf"/>
+		<value name="SB6_UAV"       value="0xe"/>
+		<value name="SB6_CS_UAV"    value="0xf"/>
 	</enum>
 	<enum name="a6xx_state_type">
 		<value name="ST6_SHADER" value="0"/>
 		<value name="ST6_CONSTANTS" value="1"/>
 		<value name="ST6_UBO" value="2"/>
-		<value name="ST6_IBO" value="3"/>
+		<value name="ST6_UAV" value="3"/>
 	</enum>
 	<enum name="a6xx_state_src">
 		<value name="SS6_DIRECT" value="0"/>
@@ -1121,39 +1134,93 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	</reg32>
 </domain>
 
+<enum name="a7xx_abs_mask_mode">
+	<value name="ABS_MASK" value="0x1"/>
+	<value name="NO_ABS_MASK" value="0x0"/>
+</enum>
+
 <domain name="CP_SET_BIN_DATA5" width="32">
 	<reg32 offset="0" name="0">
+		<bitfield name="VSC_MASK" low="0" high="15" type="hex">
+			<doc>
+				A mask of bins, starting at VSC_N, whose
+				visibility is OR'd together. A value of 0 is
+				interpreted as 1 (i.e. just use VSC_N for
+				visbility) for backwards compatibility. Only
+				exists on a7xx.
+			</doc>
+		</bitfield>
 		<!-- equiv to PC_VSTREAM_CONTROL.SIZE on a3xx/a4xx: -->
 		<bitfield name="VSC_SIZE" low="16" high="21" type="uint"/>
 		<!-- equiv to PC_VSTREAM_CONTROL.N on a3xx/a4xx: -->
 		<bitfield name="VSC_N" low="22" high="26" type="uint"/>
+		<bitfield name="ABS_MASK" pos="28" type="a7xx_abs_mask_mode" addvariant="yes">
+			<doc>
+				If this field is 1, VSC_MASK and VSC_N are
+				ignored and instead a new ordinal immediately
+				after specifies the full 32-bit mask of bins
+				to use. The mask is "absolute" instead of
+				relative to VSC_N.
+			</doc>
+		</bitfield>
 	</reg32>
-	<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
-	<reg32 offset="1" name="1">
-		<bitfield name="BIN_DATA_ADDR_LO" low="0" high="31" type="hex"/>
-	</reg32>
-	<reg32 offset="2" name="2">
-		<bitfield name="BIN_DATA_ADDR_HI" low="0" high="31" type="hex"/>
-	</reg32>
-	<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
-	<reg32 offset="3" name="3">
-		<bitfield name="BIN_SIZE_ADDRESS_LO" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="4" name="4">
-		<bitfield name="BIN_SIZE_ADDRESS_HI" low="0" high="31"/>
-	</reg32>
-	<!-- new on a6xx, where BIN_DATA_ADDR is the DRAW_STRM: -->
-	<reg32 offset="5" name="5">
-		<bitfield name="BIN_PRIM_STRM_LO" low="0" high="31"/>
-	</reg32>
-	<reg32 offset="6" name="6">
-		<bitfield name="BIN_PRIM_STRM_HI" low="0" high="31"/>
-	</reg32>
-	<!--
-		a7xx adds a few more addresses to the end of the pkt
-	 -->
-	<reg64 offset="7" name="7"/>
-	<reg64 offset="9" name="9"/>
+	<stripe varset="a7xx_abs_mask_mode" variants="NO_ABS_MASK">
+		<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
+		<reg32 offset="1" name="1">
+			<bitfield name="BIN_DATA_ADDR_LO" low="0" high="31" type="hex"/>
+		</reg32>
+		<reg32 offset="2" name="2">
+			<bitfield name="BIN_DATA_ADDR_HI" low="0" high="31" type="hex"/>
+		</reg32>
+		<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
+		<reg32 offset="3" name="3">
+			<bitfield name="BIN_SIZE_ADDRESS_LO" low="0" high="31"/>
+		</reg32>
+		<reg32 offset="4" name="4">
+			<bitfield name="BIN_SIZE_ADDRESS_HI" low="0" high="31"/>
+		</reg32>
+		<!-- new on a6xx, where BIN_DATA_ADDR is the DRAW_STRM: -->
+		<reg32 offset="5" name="5">
+			<bitfield name="BIN_PRIM_STRM_LO" low="0" high="31"/>
+		</reg32>
+		<reg32 offset="6" name="6">
+			<bitfield name="BIN_PRIM_STRM_HI" low="0" high="31"/>
+		</reg32>
+		<!--
+			a7xx adds a few more addresses to the end of the pkt
+		 -->
+		<reg64 offset="7" name="7"/>
+		<reg64 offset="9" name="9"/>
+	</stripe>
+	<stripe varset="a7xx_abs_mask_mode" variants="ABS_MASK">
+		<reg32 offset="1" name="ABS_MASK"/>
+		<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
+		<reg32 offset="2" name="2">
+			<bitfield name="BIN_DATA_ADDR_LO" low="0" high="31" type="hex"/>
+		</reg32>
+		<reg32 offset="3" name="3">
+			<bitfield name="BIN_DATA_ADDR_HI" low="0" high="31" type="hex"/>
+		</reg32>
+		<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
+		<reg32 offset="4" name="4">
+			<bitfield name="BIN_SIZE_ADDRESS_LO" low="0" high="31"/>
+		</reg32>
+		<reg32 offset="5" name="5">
+			<bitfield name="BIN_SIZE_ADDRESS_HI" low="0" high="31"/>
+		</reg32>
+		<!-- new on a6xx, where BIN_DATA_ADDR is the DRAW_STRM: -->
+		<reg32 offset="6" name="6">
+			<bitfield name="BIN_PRIM_STRM_LO" low="0" high="31"/>
+		</reg32>
+		<reg32 offset="7" name="7">
+			<bitfield name="BIN_PRIM_STRM_HI" low="0" high="31"/>
+		</reg32>
+		<!--
+			a7xx adds a few more addresses to the end of the pkt
+		 -->
+		<reg64 offset="8" name="8"/>
+		<reg64 offset="10" name="10"/>
+	</stripe>
 </domain>
 
 <domain name="CP_SET_BIN_DATA5_OFFSET" width="32">
@@ -1164,23 +1231,42 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
                 stream is recorded.
 	</doc>
 	<reg32 offset="0" name="0">
+		<bitfield name="VSC_MASK" low="0" high="15" type="hex"/>
 		<!-- equiv to PC_VSTREAM_CONTROL.SIZE on a3xx/a4xx: -->
 		<bitfield name="VSC_SIZE" low="16" high="21" type="uint"/>
 		<!-- equiv to PC_VSTREAM_CONTROL.N on a3xx/a4xx: -->
 		<bitfield name="VSC_N" low="22" high="26" type="uint"/>
+		<bitfield name="ABS_MASK" pos="28" type="a7xx_abs_mask_mode" addvariant="yes"/>
 	</reg32>
-	<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
-	<reg32 offset="1" name="1">
-		<bitfield name="BIN_DATA_OFFSET" low="0" high="31" type="uint"/>
-	</reg32>
-	<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
-	<reg32 offset="2" name="2">
-		<bitfield name="BIN_SIZE_OFFSET" low="0" high="31" type="uint"/>
-	</reg32>
-	<!-- BIN_DATA2_ADDR -> VSC_PIPE[p].DATA2_ADDRESS -->
-	<reg32 offset="3" name="3">
-		<bitfield name="BIN_DATA2_OFFSET" low="0" high="31" type="uint"/>
-	</reg32>
+	<stripe varset="a7xx_abs_mask_mode" variants="NO_ABS_MASK">
+		<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
+		<reg32 offset="1" name="1">
+			<bitfield name="BIN_DATA_OFFSET" low="0" high="31" type="uint"/>
+		</reg32>
+		<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
+		<reg32 offset="2" name="2">
+			<bitfield name="BIN_SIZE_OFFSET" low="0" high="31" type="uint"/>
+		</reg32>
+		<!-- BIN_DATA2_ADDR -> VSC_PIPE[p].DATA2_ADDRESS -->
+		<reg32 offset="3" name="3">
+			<bitfield name="BIN_DATA2_OFFSET" low="0" high="31" type="uint"/>
+		</reg32>
+	</stripe>
+	<stripe varset="a7xx_abs_mask_mode" variants="ABS_MASK">
+		<reg32 offset="1" name="ABS_MASK"/>
+		<!-- BIN_DATA_ADDR -> VSC_PIPE[p].DATA_ADDRESS -->
+		<reg32 offset="2" name="2">
+			<bitfield name="BIN_DATA_OFFSET" low="0" high="31" type="uint"/>
+		</reg32>
+		<!-- BIN_SIZE_ADDRESS -> VSC_SIZE_ADDRESS + (p * 4)-->
+		<reg32 offset="3" name="3">
+			<bitfield name="BIN_SIZE_OFFSET" low="0" high="31" type="uint"/>
+		</reg32>
+		<!-- BIN_DATA2_ADDR -> VSC_PIPE[p].DATA2_ADDRESS -->
+		<reg32 offset="4" name="4">
+			<bitfield name="BIN_DATA2_OFFSET" low="0" high="31" type="uint"/>
+		</reg32>
+	</stripe>
 </domain>
 
 <domain name="CP_REG_RMW" width="32">
@@ -1198,6 +1284,9 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	</doc>
 	<reg32 offset="0" name="0">
 		<bitfield name="DST_REG" low="0" high="17" type="hex"/>
+		<bitfield name="DST_SCRATCH" pos="19" type="boolean" varset="chip" variants="A7XX-"/>
+		<!-- skip implied CP_WAIT_FOR_IDLE + CP_WAIT_FOR_ME -->
+		<bitfield name="SKIP_WAIT_FOR_ME" pos="23" type="boolean" varset="chip" variants="A7XX-"/>
 		<bitfield name="ROTATE" low="24" high="28" type="uint"/>
 		<bitfield name="SRC1_ADD" pos="29" type="boolean"/>
 		<bitfield name="SRC1_IS_REG" pos="30" type="boolean"/>
@@ -1348,6 +1437,8 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="SCRATCH" low="20" high="22" type="uint"/>
 		<!-- number of registers/dwords copied is CNT + 1. -->
 		<bitfield name="CNT" low="24" high="26" type="uint"/>
+		<!-- skip implied CP_WAIT_FOR_IDLE + CP_WAIT_FOR_ME -->
+		<bitfield name="SKIP_WAIT_FOR_ME" pos="27" type="boolean" varset="chip" variants="A7XX-"/>
 	</reg32>
 </domain>
 
@@ -1655,8 +1746,8 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="WRITE_SAMPLE_COUNT" pos="12" type="boolean"/>
 		<!-- Write sample count at (iova + 16) -->
 		<bitfield name="SAMPLE_COUNT_END_OFFSET" pos="13" type="boolean"/>
-		<!-- *(iova + 8) = *(iova + 16) - *iova -->
-		<bitfield name="WRITE_SAMPLE_COUNT_DIFF" pos="14" type="boolean"/>
+		<!-- *(iova + 8) += *(iova + 16) - *iova -->
+		<bitfield name="WRITE_ACCUM_SAMPLE_COUNT_DIFF" pos="14" type="boolean"/>
 
 		<!-- Next 4 flags are valid to set only when concurrent binning is enabled -->
 		<!-- Increment 16b BV counter. Valid only in BV pipe -->
@@ -1670,15 +1761,11 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="WRITE_DST" pos="24" type="event_write_dst" addvariant="yes"/>
 		<!-- Writes into WRITE_DST from WRITE_SRC. RB_DONE_TS requires WRITE_ENABLED. -->
 		<bitfield name="WRITE_ENABLED" pos="27" type="boolean"/>
+		<bitfield name="IRQ" pos="31" type="boolean"/>
 	</reg32>
 
 	<stripe varset="event_write_dst" variants="EV_DST_RAM">
-		<reg32 offset="1" name="1">
-			<bitfield name="ADDR_0_LO" low="0" high="31"/>
-		</reg32>
-		<reg32 offset="2" name="2">
-			<bitfield name="ADDR_0_HI" low="0" high="31"/>
-		</reg32>
+		<reg64 offset="1" name="1" type="waddress"/>
 		<reg32 offset="3" name="3">
 			<bitfield name="PAYLOAD_0" low="0" high="31"/>
 		</reg32>
@@ -1773,13 +1860,23 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 
 <domain name="CP_SET_MARKER" width="32" varset="chip" prefix="chip" variants="A6XX-">
 	<doc>Tell CP the current operation mode, indicates save and restore procedure</doc>
+	<enum name="set_marker_mode">
+		<value value="0" name="SET_RENDER_MODE"/>
+		<!-- IFPC - inter-frame power collapse -->
+		<value value="1" name="SET_IFPC_MODE"/>
+	</enum>
+	<enum name="a6xx_ifpc_mode">
+		<value value="0" name="IFPC_ENABLE"/>
+		<value value="1" name="IFPC_DISABLE"/>
+	</enum>
 	<enum name="a6xx_marker">
-		<value value="1" name="RM6_BYPASS"/>
-		<value value="2" name="RM6_BINNING"/>
-		<value value="4" name="RM6_GMEM"/>
-		<value value="5" name="RM6_ENDVIS"/>
-		<value value="6" name="RM6_RESOLVE"/>
-		<value value="7" name="RM6_YIELD"/>
+		<value value="1" name="RM6_DIRECT_RENDER"/>
+		<value value="2" name="RM6_BIN_VISIBILITY"/>
+		<value value="3" name="RM6_BIN_DIRECT"/>
+		<value value="4" name="RM6_BIN_RENDER_START"/>
+		<value value="5" name="RM6_BIN_END_OF_DRAWS"/>
+		<value value="6" name="RM6_BIN_RESOLVE"/>
+		<value value="7" name="RM6_BIN_RENDER_END"/>
 		<value value="8" name="RM6_COMPUTE"/>
 		<value value="0xc" name="RM6_BLIT2DSCALE"/>  <!-- no-op (at least on current sqe fw) -->
 
@@ -1789,23 +1886,40 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		-->
 		<value value="0xd" name="RM6_IB1LIST_START"/>
 		<value value="0xe" name="RM6_IB1LIST_END"/>
-		<!-- IFPC - inter-frame power collapse -->
-		<value value="0x100" name="RM6_IFPC_ENABLE"/>
-		<value value="0x101" name="RM6_IFPC_DISABLE"/>
 	</enum>
 	<reg32 offset="0" name="0">
+		<!-- if b8 is set, the low bits are interpreted differently (and b4 ignored) -->
+		<bitfield name="MARKER_MODE" pos="8" type="set_marker_mode" addvariant="yes"/>
+
+		<bitfield name="MODE" low="0" high="3" type="a6xx_marker" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
+		<!-- used by preemption to determine if GMEM needs to be saved or not -->
+		<bitfield name="USES_GMEM" pos="4" type="boolean" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
+
+		<bitfield name="IFPC_MODE" pos="0" type="a6xx_ifpc_mode" varset="set_marker_mode" variants="SET_IFPC_MODE"/>
+
 		<!--
-			NOTE: blob driver and some versions of freedreno/turnip set
-			b4, which is unused (at least by current sqe fw), but interferes
-			with parsing if we extend the size of the bitfield to include
-			b8 (only sent by kernel mode driver).  Really, the way the
-			parsing works in the firmware, only b0-b3 are considered, but
-			if b8 is set, the low bits are interpreted differently.  To
-			model this, without getting confused by spurious b4, this is
-			described as two overlapping bitfields:
-		 -->
-		<bitfield name="MODE" low="0" high="8" type="a6xx_marker"/>
-		<bitfield name="MARKER" low="0" high="3" type="a6xx_marker"/>
+			CP_SET_MARKER is used with these bits to create a
+			critical section around a workaround for ray tracing.
+			The workaround happens after BVH building, and appears
+			to invalidate the RTU's BVH node cache. It makes sure
+			that only one of BR/BV/LPAC is executing the
+			workaround at a time, and no draws using RT on BV/LPAC
+			are executing while the workaround is executed on BR (or
+			vice versa, that no draws on BV/BR using RT are executed
+			while the workaround executes on LPAC), by
+			hooking subsequent CP_EVENT_WRITE/CP_DRAW_*/CP_EXEC_CS.
+			The blob usage is:
+
+			CP_SET_MARKER(RT_WA_START)
+			... workaround here ...
+			CP_SET_MARKER(RT_WA_END)
+			...
+			CP_SET_MARKER(SHADER_USES_RT)
+			CP_DRAW_INDX(...) or CP_EXEC_CS(...)
+		-->
+		<bitfield name="SHADER_USES_RT" pos="9" type="boolean" variants="A7XX-"/>
+		<bitfield name="RT_WA_START" pos="10" type="boolean" variants="A7XX-"/>
+		<bitfield name="RT_WA_END" pos="11" type="boolean" variants="A7XX-"/>
 	</reg32>
 </domain>
 
@@ -1832,9 +1946,9 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 			If concurrent binning is disabled then BR also does binning so it will also
 			write the "real" registers in BR.
 		-->
-		<value value="8" name="DRAW_STRM_ADDRESS"/>
-		<value value="9" name="DRAW_STRM_SIZE_ADDRESS"/>
-		<value value="10" name="PRIM_STRM_ADDRESS"/>
+		<value value="8" name="VSC_PIPE_DATA_DRAW_BASE"/>
+		<value value="9" name="VSC_SIZE_BASE"/>
+		<value value="10" name="VSC_PIPE_DATA_PRIM_BASE"/>
 		<value value="11" name="UNK_STRM_ADDRESS"/>
 		<value value="12" name="UNK_STRM_SIZE_ADDRESS"/>
 
@@ -1935,11 +2049,11 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 			a bitmask of which modes pass the test.
 		-->
 
-		<!-- RM6_BINNING -->
+		<!-- RM6_BIN_VISIBILITY -->
 		<bitfield name="BINNING" pos="25" variants="RENDER_MODE" type="boolean"/>
 		<!-- all others -->
 		<bitfield name="GMEM" pos="26" variants="RENDER_MODE" type="boolean"/>
-		<!-- RM6_BYPASS -->
+		<!-- RM6_DIRECT_RENDER -->
 		<bitfield name="SYSMEM" pos="27" variants="RENDER_MODE" type="boolean"/>
 
 		<bitfield name="BV" pos="25" variants="THREAD_MODE" type="boolean"/>
@@ -2014,10 +2128,10 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 
 <domain name="CP_SET_AMBLE" width="32">
 	<doc>
-                Used by the userspace and kernel drivers to set various IB's
-                which are executed during context save/restore for handling
-                state that isn't restored by the context switch routine itself.
-  </doc>
+		Used by the userspace and kernel drivers to set various IB's
+		which are executed during context save/restore for handling
+		state that isn't restored by the context switch routine itself.
+	</doc>
 	<enum name="amble_type">
 		<value name="PREAMBLE_AMBLE_TYPE" value="0">
 			<doc>Executed unconditionally when switching back to the context.</doc>
@@ -2087,12 +2201,12 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<value name="UNK_EVENT_WRITE" value="0x4"/>
 		<doc>
 			Tracks GRAS_LRZ_CNTL::GREATER, GRAS_LRZ_CNTL::DIR, and
-			GRAS_LRZ_DEPTH_VIEW with previous values, and if one of
+			GRAS_LRZ_VIEW_INFO with previous values, and if one of
 			the following is true:
 			- GRAS_LRZ_CNTL::GREATER has changed
 			- GRAS_LRZ_CNTL::DIR has changed, the old value is not
 			  CUR_DIR_GE, and the new value is not CUR_DIR_DISABLED
-			- GRAS_LRZ_DEPTH_VIEW has changed
+			- GRAS_LRZ_VIEW_INFO has changed
 			then it does a LRZ_FLUSH with GRAS_LRZ_CNTL::ENABLE
 			forced to 1.
 			Only exists in a650_sqe.fw.
@@ -2207,7 +2321,7 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 
 <domain name="CP_MEM_TO_SCRATCH_MEM" width="32">
 	<doc>
-		Best guess is that it is a faster way to fetch all the VSC_STATE registers
+		Best guess is that it is a faster way to fetch all the VSC_CHANNEL_VISIBILITY registers
 		and keep them in a local scratch memory instead of fetching every time
 		when skipping IBs.
 	</doc>
@@ -2257,6 +2371,16 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<bitfield name="CLEAR_RESOURCE_TABLE" pos="1" type="boolean"/>
 		<bitfield name="CLEAR_BV_BR_COUNTER" pos="2" type="boolean"/>
 		<bitfield name="RESET_GLOBAL_LOCAL_TS" pos="3" type="boolean"/>
+	</reg32>
+</domain>
+
+<domain name="CP_SCOPE_CNTL" width="32">
+	<enum name="cp_scope">
+		<value value="0" name="INTERRUPTS"/>
+	</enum>
+	<reg32 offset="0" name="0">
+		<bitfield name="DISABLE_PREEMPTION" pos="0" type="boolean"/>
+		<bitfield low="28" high="31" name="SCOPE" type="cp_scope"/>
 	</reg32>
 </domain>
 
