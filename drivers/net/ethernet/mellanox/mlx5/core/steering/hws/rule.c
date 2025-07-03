@@ -12,20 +12,21 @@ void mlx5hws_rule_skip(struct mlx5hws_matcher *matcher, u32 flow_source,
 
 	if (flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_LOCAL_VPORT) {
 		*skip_rx = true;
-	} else if (flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK) {
-		*skip_tx = true;
-	} else {
-		/* If no flow source was set for current rule,
-		 * check for flow source in matcher attributes.
-		 */
-		if (matcher->attr.optimize_flow_src) {
-			*skip_tx =
-				matcher->attr.optimize_flow_src == MLX5HWS_MATCHER_FLOW_SRC_WIRE;
-			*skip_rx =
-				matcher->attr.optimize_flow_src == MLX5HWS_MATCHER_FLOW_SRC_VPORT;
-			return;
-		}
+		return;
 	}
+
+	if (flow_source == MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK) {
+		*skip_tx = true;
+		return;
+	}
+
+	/* If no flow source was set for current rule,
+	 * check for flow source in matcher attributes.
+	 */
+	*skip_tx = matcher->attr.optimize_flow_src ==
+			MLX5HWS_MATCHER_FLOW_SRC_WIRE;
+	*skip_rx = matcher->attr.optimize_flow_src ==
+			MLX5HWS_MATCHER_FLOW_SRC_VPORT;
 }
 
 static void
