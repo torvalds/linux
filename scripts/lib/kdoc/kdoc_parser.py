@@ -1567,17 +1567,9 @@ class KernelDoc:
                 self.entry.prototype += r.group(1) + " "
 
         if '{' in line or ';' in line or KernRe(r'\s*#\s*define').match(line):
-            # strip comments
-            r = KernRe(r'/\*.*?\*/')
-            self.entry.prototype = r.sub('', self.entry.prototype)
-
-            # strip newlines/cr's
-            r = KernRe(r'[\r\n]+')
-            self.entry.prototype = r.sub(' ', self.entry.prototype)
-
-            # strip leading spaces
-            r = KernRe(r'^\s+')
-            self.entry.prototype = r.sub('', self.entry.prototype)
+            # strip comments and surrounding spaces
+            r = KernRe(r'/\*.*\*/')
+            self.entry.prototype = r.sub('', self.entry.prototype).strip()
 
             # Handle self.entry.prototypes for function pointers like:
             #       int (*pcs_config)(struct foo)
@@ -1600,17 +1592,8 @@ class KernelDoc:
     def process_proto_type(self, ln, line):
         """Ancillary routine to process a type"""
 
-        # Strip newlines/cr's.
-        line = KernRe(r'[\r\n]+', re.S).sub(' ', line)
-
-        # Strip leading spaces
-        line = KernRe(r'^\s+', re.S).sub('', line)
-
-        # Strip trailing spaces
-        line = KernRe(r'\s+$', re.S).sub('', line)
-
-        # Strip C99-style comments to the end of the line
-        line = KernRe(r"\/\/.*$", re.S).sub('', line)
+        # Strip C99-style comments and surrounding whitespace
+        line = KernRe(r"//.*$", re.S).sub('', line).strip()
 
         # To distinguish preprocessor directive from regular declaration later.
         if line.startswith('#'):
