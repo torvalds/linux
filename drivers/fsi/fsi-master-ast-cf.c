@@ -13,13 +13,13 @@
 #include <linux/irqflags.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/firmware.h>
 #include <linux/gpio/aspeed.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_address.h>
 #include <linux/genalloc.h>
 
 #include "fsi-master.h"
@@ -1285,14 +1285,7 @@ static int fsi_master_acf_probe(struct platform_device *pdev)
 	master->gpio_mux = gpio;
 
 	/* Grab the reserved memory region (use DMA API instead ?) */
-	np = of_parse_phandle(mnode, "memory-region", 0);
-	if (!np) {
-		dev_err(&pdev->dev, "Didn't find reserved memory\n");
-		rc = -EINVAL;
-		goto err_free;
-	}
-	rc = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
+	rc = of_reserved_mem_region_to_resource(mnode, 0, &res);
 	if (rc) {
 		dev_err(&pdev->dev, "Couldn't address to resource for reserved memory\n");
 		rc = -ENOMEM;
