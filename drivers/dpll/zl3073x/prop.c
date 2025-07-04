@@ -201,11 +201,14 @@ struct zl3073x_pin_props *zl3073x_pin_props_get(struct zl3073x_dev *zldev,
 	if (!props)
 		return ERR_PTR(-ENOMEM);
 
-	/* Set default pin type */
-	if (dir == DPLL_PIN_DIRECTION_INPUT)
+	/* Set default pin type and capabilities */
+	if (dir == DPLL_PIN_DIRECTION_INPUT) {
 		props->dpll_props.type = DPLL_PIN_TYPE_EXT;
-	else
+		props->dpll_props.capabilities =
+			DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
+	} else {
 		props->dpll_props.type = DPLL_PIN_TYPE_GNSS;
+	}
 
 	props->dpll_props.phase_range.min = S32_MIN;
 	props->dpll_props.phase_range.max = S32_MAX;
