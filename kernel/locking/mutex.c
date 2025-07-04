@@ -191,9 +191,7 @@ static void
 __mutex_add_waiter(struct mutex *lock, struct mutex_waiter *waiter,
 		   struct list_head *list)
 {
-#ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
 	hung_task_set_blocker(lock, BLOCKER_TYPE_MUTEX);
-#endif
 	debug_mutex_add_waiter(lock, waiter, current);
 
 	list_add_tail(&waiter->list, list);
@@ -209,9 +207,7 @@ __mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter)
 		__mutex_clear_flag(lock, MUTEX_FLAGS);
 
 	debug_mutex_remove_waiter(lock, waiter, current);
-#ifdef CONFIG_DETECT_HUNG_TASK_BLOCKER
 	hung_task_clear_blocker();
-#endif
 }
 
 /*
