@@ -289,7 +289,7 @@ static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = cci_write(sensor->regmap, GC0310_AEC_PK_EXPO_REG,
 				ctrl->val, NULL);
 		break;
-	case V4L2_CID_GAIN:
+	case V4L2_CID_ANALOGUE_GAIN:
 		ret = gc0310_gain_set(sensor, ctrl->val);
 		break;
 	default:
@@ -533,7 +533,7 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 
 	/* 32 steps at base gain 1 + 64 half steps at base gain 2 */
 	sensor->ctrls.gain =
-		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_GAIN, 0, 95, 1, 31);
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_ANALOGUE_GAIN, 0, 95, 1, 31);
 
 	return hdl->error;
 }
