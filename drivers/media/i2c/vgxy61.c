@@ -1181,6 +1181,21 @@ static int vgxy61_s_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 }
 
+static int vgxy61_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_mbus_frame_desc *fd)
+{
+	struct vgxy61_dev *sensor = to_vgxy61_dev(sd);
+
+	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
+	fd->num_entries = 1;
+	fd->entry[0].pixelcode = sensor->fmt.code;
+	fd->entry[0].stream = 0;
+	fd->entry[0].bus.csi2.vc = 0;
+	fd->entry[0].bus.csi2.dt = get_data_type_by_code(sensor->fmt.code);
+
+	return 0;
+}
+
 static int vgxy61_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
@@ -1402,6 +1417,7 @@ static const struct v4l2_subdev_pad_ops vgxy61_pad_ops = {
 	.set_fmt = vgxy61_set_fmt,
 	.get_selection = vgxy61_get_selection,
 	.enum_frame_size = vgxy61_enum_frame_size,
+	.get_frame_desc = vgxy61_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops vgxy61_subdev_ops = {
