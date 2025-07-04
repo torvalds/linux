@@ -140,3 +140,6 @@ own name.
    * - ``enable_phc``
      - Boolean
      - Enable PHC (PTP Hardware Clock) functionality in the device.
+   * - ``clock_id``
+     - u64
+     - Clock ID used by the device for registering DPLL devices and pins.
