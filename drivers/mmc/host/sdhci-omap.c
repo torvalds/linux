@@ -1370,7 +1370,6 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 		host->mmc->pm_caps |= MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
 	}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
@@ -1379,7 +1378,6 @@ err_cleanup_host:
 	sdhci_cleanup_host(host);
 
 err_rpm_put:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 err_rpm_disable:
 	pm_runtime_dont_use_autosuspend(dev);

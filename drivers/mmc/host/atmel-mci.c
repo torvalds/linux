@@ -542,7 +542,6 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	memcpy_fromio(buf, host->regs, ATMCI_REGS_SIZE);
 	spin_unlock_bh(&host->lock);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	seq_printf(s, "MR:\t0x%08x%s%s ",
@@ -2568,7 +2567,6 @@ static int atmci_probe(struct platform_device *pdev)
 	dev_info(dev, "Atmel MCI controller at 0x%08lx irq %d, %u slots\n",
 		 host->mapbase, irq, nr_slots);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
