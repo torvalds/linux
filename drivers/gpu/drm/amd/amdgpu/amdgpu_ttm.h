@@ -86,6 +86,7 @@ struct amdgpu_mman {
 	uint32_t			discovery_tmr_size;
 	/* fw reserved memory */
 	struct amdgpu_bo		*fw_reserved_memory;
+	struct amdgpu_bo		*fw_reserved_memory_extend;
 
 	/* firmware VRAM reservation */
 	u64		fw_vram_usage_start_offset;

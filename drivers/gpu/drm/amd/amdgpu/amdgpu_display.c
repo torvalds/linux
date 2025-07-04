@@ -1317,7 +1317,7 @@ amdgpu_display_user_framebuffer_create(struct drm_device *dev,
 	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
 	bo = gem_to_amdgpu_bo(obj);
 	domains = amdgpu_display_supported_domains(drm_to_adev(dev), bo->flags);
-	if (obj->import_attach && !(domains & AMDGPU_GEM_DOMAIN_GTT)) {
+	if (drm_gem_is_imported(obj) && !(domains & AMDGPU_GEM_DOMAIN_GTT)) {
 		drm_dbg_kms(dev, "Cannot create framebuffer from imported dma_buf\n");
 		drm_gem_object_put(obj);
 		return ERR_PTR(-EINVAL);

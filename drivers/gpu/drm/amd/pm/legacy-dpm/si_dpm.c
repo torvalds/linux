@@ -7951,15 +7951,15 @@ static void si_dpm_print_power_state(void *handle,
 	struct rv7xx_pl *pl;
 	int i;
 
-	amdgpu_dpm_print_class_info(rps->class, rps->class2);
-	amdgpu_dpm_print_cap_info(rps->caps);
-	DRM_INFO("\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+	amdgpu_dpm_dbg_print_class_info(adev, rps->class, rps->class2);
+	amdgpu_dpm_dbg_print_cap_info(adev, rps->caps);
+	drm_dbg(adev_to_drm(adev), "\tuvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
 	for (i = 0; i < ps->performance_level_count; i++) {
 		pl = &ps->performance_levels[i];
-		DRM_INFO("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
+		drm_dbg(adev_to_drm(adev), "\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
 			 i, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
 	}
-	amdgpu_dpm_print_ps_status(adev, rps);
+	amdgpu_dpm_dbg_print_ps_status(adev, rps);
 }
 
 static int si_dpm_early_init(struct amdgpu_ip_block *ip_block)

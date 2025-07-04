@@ -196,7 +196,12 @@ static struct spl_rect calculate_mpc_slice_in_timing_active(
 	int epimo = mpc_slice_count - plane_clip_rec->width % mpc_slice_count - 1;
 	struct spl_rect mpc_rec;
 
-	if (use_recout_width_aligned) {
+	if (spl_in->basic_in.custom_width != 0) {
+		mpc_rec.width = spl_in->basic_in.custom_width;
+		mpc_rec.x = spl_in->basic_in.custom_x;
+		mpc_rec.height = plane_clip_rec->height;
+		mpc_rec.y = plane_clip_rec->y;
+	} else if (use_recout_width_aligned) {
 		mpc_rec.width = recout_width_align;
 		if ((mpc_rec.width * (mpc_slice_idx + 1)) > plane_clip_rec->width) {
 			mpc_rec.width = plane_clip_rec->width % recout_width_align;
@@ -219,7 +224,7 @@ static struct spl_rect calculate_mpc_slice_in_timing_active(
 	/* extra pixels in the division remainder need to go to pipes after
 	 * the extra pixel index minus one(epimo) defined here as:
 	 */
-	if (mpc_slice_idx > epimo) {
+	if (mpc_slice_idx > epimo && spl_in->basic_in.custom_width == 0) {
 		mpc_rec.x += mpc_slice_idx - epimo - 1;
 		mpc_rec.width += 1;
 	}
@@ -252,10 +257,10 @@ static struct spl_rect calculate_odm_slice_in_timing_active(struct spl_in *spl_i
 
 		odm_rec.x = odm_slice_width * odm_slice_idx;
 		odm_rec.width = is_last_odm_slice ?
-				/* last slice width is the reminder of h_active */
-				h_active - odm_slice_width * (odm_slice_count - 1) :
-				/* odm slice width is the floor of h_active / count */
-				odm_slice_width;
+			/* last slice width is the reminder of h_active */
+			h_active - odm_slice_width * (odm_slice_count - 1) :
+			/* odm slice width is the floor of h_active / count */
+			odm_slice_width;
 		odm_rec.y = 0;
 		odm_rec.height = v_active;
 
@@ -884,7 +889,9 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 
 /* Calculate number of tap with adaptive scaling off */
 static void spl_get_taps_non_adaptive_scaler(
-	  struct spl_scratch *spl_scratch, const struct spl_taps *in_taps, bool always_scale)
+		struct spl_scratch *spl_scratch,
+		const struct spl_taps *in_taps,
+		bool is_subsampled)
 {
 	bool check_max_downscale = false;
 
@@ -945,14 +952,15 @@ static void spl_get_taps_non_adaptive_scaler(
 	SPL_ASSERT(check_max_downscale);
 
 
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz) && !always_scale)
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz))
 		spl_scratch->scl_data.taps.h_taps = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert) && !always_scale)
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))
 		spl_scratch->scl_data.taps.v_taps = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !always_scale)
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_subsampled)
 		spl_scratch->scl_data.taps.h_taps_c = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !always_scale)
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_subsampled)
 		spl_scratch->scl_data.taps.v_taps_c = 1;
+
 }
 
 /* Calculate optimal number of taps */
@@ -965,15 +973,13 @@ static bool spl_get_optimal_number_of_taps(
 	unsigned int max_taps_y, max_taps_c;
 	unsigned int min_taps_y, min_taps_c;
 	enum lb_memory_config lb_config;
-	bool skip_easf     = false;
-	bool always_scale  = spl_in->basic_out.always_scale;
+	bool skip_easf          = false;
 	bool is_subsampled = spl_is_subsampled_format(spl_in->basic_in.format);
-
 
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
 		spl_scratch->scl_data.viewport.width > max_downscale_src_width) {
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, always_scale);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_subsampled);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
@@ -982,7 +988,7 @@ static bool spl_get_optimal_number_of_taps(
 
 	/* Disable adaptive scaler and sharpener when integer scaling is enabled */
 	if (spl_in->scaling_quality.integer_scaling) {
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, always_scale);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_subsampled);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
@@ -997,8 +1003,9 @@ static bool spl_get_optimal_number_of_taps(
 	 * From programming guide: taps = min{ ceil(2*H_RATIO,1), 8} for downscaling
 	 * taps = 4 for upscaling
 	 */
-	if (skip_easf)
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, always_scale);
+	if (skip_easf) {
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_subsampled);
+	}
 	else {
 		if (spl_is_video_format(spl_in->basic_in.format)) {
 			spl_scratch->scl_data.taps.h_taps = 6;
@@ -1124,7 +1131,6 @@ static bool spl_get_optimal_number_of_taps(
 			(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))) {
 			spl_scratch->scl_data.taps.h_taps = 1;
 			spl_scratch->scl_data.taps.v_taps = 1;
-
 			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_subsampled)
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
@@ -1149,6 +1155,7 @@ static bool spl_get_optimal_number_of_taps(
 			if ((!*enable_easf_v) && !is_subsampled &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c)))
 				spl_scratch->scl_data.taps.v_taps_c = 1;
+
 		}
 	}
 	return true;

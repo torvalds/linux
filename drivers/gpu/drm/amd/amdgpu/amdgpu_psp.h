@@ -51,6 +51,17 @@
 #define C2PMSG_CMD_SPI_GET_ROM_IMAGE_ADDR_HI 0x10
 #define C2PMSG_CMD_SPI_GET_FLASH_IMAGE 0x11
 
+/* Command register bit 31 set to indicate readiness */
+#define MBOX_TOS_READY_FLAG (GFX_FLAG_RESPONSE)
+#define MBOX_TOS_READY_MASK (GFX_CMD_RESPONSE_MASK | GFX_CMD_STATUS_MASK)
+
+/* Values to check for a successful GFX_CMD response wait. Check against
+ * both status bits and response state - helps to detect a command failure
+ * or other unexpected cases like a device drop reading all 0xFFs
+ */
+#define MBOX_TOS_RESP_FLAG (GFX_FLAG_RESPONSE)
+#define MBOX_TOS_RESP_MASK (GFX_CMD_RESPONSE_MASK | GFX_CMD_STATUS_MASK)
+
 extern const struct attribute_group amdgpu_flash_attr_group;
 
 enum psp_shared_mem_size {
@@ -588,7 +599,7 @@ int psp_init_cap_microcode(struct psp_context *psp,
 			  const char *chip_name);
 int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 					uint64_t *output_ptr);
-
+int psp_update_fw_reservation(struct psp_context *psp);
 int psp_load_fw_list(struct psp_context *psp,
 		     struct amdgpu_firmware_info **ucode_list, int ucode_count);
 void psp_copy_fw(struct psp_context *psp, uint8_t *start_addr, uint32_t bin_size);

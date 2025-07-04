@@ -1107,6 +1107,9 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 					      err_info->de_count, blk_name);
 			}
 		} else {
+			if (adev->debug_disable_ce_logs)
+				return;
+
 			for_each_ras_error(err_node, err_data) {
 				err_info = &err_node->err_info;
 				mcm_info = &err_info->mcm_info;
@@ -3003,6 +3006,15 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 		return 0;
 	}
 
+	if (!con->eeprom_control.is_eeprom_valid) {
+		dev_warn(adev->dev,
+			"Failed to save EEPROM table data because of EEPROM data corruption!");
+		if (new_cnt)
+			*new_cnt = 0;
+
+		return 0;
+	}
+
 	mutex_lock(&con->recovery_lock);
 	control = &con->eeprom_control;
 	data = con->eh_data;
@@ -3294,7 +3306,6 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 	uint64_t de_queried_count;
 	uint32_t new_detect_count, total_detect_count;
 	uint32_t need_query_count = poison_creation_count;
-	bool query_data_timeout = false;
 	enum ras_event_type type = RAS_EVENT_TYPE_POISON_CREATION;
 
 	memset(&info, 0, sizeof(info));
@@ -3323,20 +3334,12 @@ static int amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 				timeout = MAX_UMC_POISON_POLLING_TIME_ASYNC;
 
 			if (timeout) {
-				if (!--timeout) {
-					query_data_timeout = true;
+				if (!--timeout)
 					break;
-				}
 				msleep(1);
 			}
 		}
 	} while (total_detect_count < need_query_count);
-
-	if (query_data_timeout) {
-		dev_warn(adev->dev, "Can't find deferred error! count: %u\n",
-			(need_query_count - total_detect_count));
-		return -ENOENT;
-	}
 
 	if (total_detect_count)
 		schedule_delayed_work(&ras->page_retirement_dwork, 0);
@@ -3488,8 +3491,7 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 
 	control = &con->eeprom_control;
 	ret = amdgpu_ras_eeprom_init(control);
-	if (ret)
-		return ret;
+	control->is_eeprom_valid = !ret;
 
 	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
 		control->ras_num_pa_recs = control->ras_num_recs;
@@ -3498,10 +3500,12 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 	    adev->umc.ras->get_retire_flip_bits)
 		adev->umc.ras->get_retire_flip_bits(adev);
 
-	if (control->ras_num_recs) {
+	if (control->ras_num_recs && control->is_eeprom_valid) {
 		ret = amdgpu_ras_load_bad_pages(adev);
-		if (ret)
-			return ret;
+		if (ret) {
+			control->is_eeprom_valid = false;
+			return 0;
+		}
 
 		amdgpu_dpm_send_hbm_bad_pages_num(
 			adev, control->ras_num_bad_pages);
@@ -3520,7 +3524,7 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 					dev_warn(adev->dev, "Failed to format RAS EEPROM data in V3 version!\n");
 	}
 
-	return ret;
+	return 0;
 }
 
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info)
@@ -4414,8 +4418,10 @@ void amdgpu_ras_clear_err_state(struct amdgpu_device *adev)
 	struct amdgpu_ras *ras;
 
 	ras = amdgpu_ras_get_context(adev);
-	if (ras)
+	if (ras) {
 		ras->ras_err_state = 0;
+		ras->gpu_reset_flags = 0;
+	}
 }
 
 void amdgpu_ras_set_err_poison(struct amdgpu_device *adev,

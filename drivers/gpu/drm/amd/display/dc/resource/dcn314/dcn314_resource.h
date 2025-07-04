@@ -41,7 +41,7 @@ struct dcn314_resource_pool {
 
 enum dc_status dcn314_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate);
+		enum dc_validate_mode validate_mode);
 
 struct resource_pool *dcn314_create_resource_pool(
 		const struct dc_init_data *init_data,

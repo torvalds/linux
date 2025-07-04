@@ -1186,8 +1186,10 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		if (dccg) {
 			dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
 			dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
-			if (dccg && dccg->funcs->set_dtbclk_dto)
-				dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+			if (!(dc->ctx->dce_version >= DCN_VERSION_3_5)) {
+				if (dccg && dccg->funcs->set_dtbclk_dto)
+					dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
+			}
 		}
 	} else if (dccg && dccg->funcs->disable_symclk_se) {
 		dccg->funcs->disable_symclk_se(dccg, stream_enc->stream_enc_inst,
@@ -1225,7 +1227,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		return;
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
-		if (!link->skip_implict_edp_power_control)
+		if (!link->skip_implict_edp_power_control && hws)
 			hws->funcs.edp_backlight_control(link, false);
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
@@ -1379,7 +1381,7 @@ static void populate_audio_dp_link_info(
 	}
 }
 
-static void build_audio_output(
+void build_audio_output(
 	struct dc_state *state,
 	const struct pipe_ctx *pipe_ctx,
 	struct audio_output *audio_output)

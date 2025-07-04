@@ -114,6 +114,8 @@ struct amdgpu_ras_eeprom_control {
 	/* Record channel info which occurred bad pages
 	 */
 	u32 bad_channel_bitmap;
+
+	bool is_eeprom_valid;
 };
 
 /*

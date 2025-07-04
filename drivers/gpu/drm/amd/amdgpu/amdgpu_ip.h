@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,21 +19,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
 
-#ifndef __DCN314_FPU_H__
-#define __DCN314_FPU_H__
+#ifndef __AMDGPU_IP_H__
+#define __AMDGPU_IP_H__
 
-#define DCN3_14_DEFAULT_DET_SIZE 384
-#define DCN3_14_MAX_DET_SIZE 384
-#define DCN3_14_MIN_COMPBUF_SIZE_KB 128
-#define DCN3_14_CRB_SEGMENT_SIZE_KB 64
+void amdgpu_ip_map_init(struct amdgpu_device *adev);
 
-void dcn314_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params);
-int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *context,
-					       display_e2e_pipe_params_st *pipes,
-					       enum dc_validate_mode validate_mode);
-
-#endif
+#endif /* __AMDGPU_IP_H__ */

@@ -389,9 +389,6 @@ static bool map_min_clocks_to_dpm(const struct dml2_core_mode_support_result *mo
 	if (result)
 		result = round_up_to_next_dpm(&display_cfg->min_clocks.dcn4x.dispclk_khz, &state_table->dispclk);
 
-	if (result)
-		result = round_up_to_next_dpm(&display_cfg->min_clocks.dcn4x.deepsleep_dcfclk_khz, &state_table->dcfclk);
-
 	for (i = 0; i < DML2_MAX_DCN_PIPES; i++) {
 		if (result)
 			result = round_up_to_next_dpm(&display_cfg->plane_programming[i].min_clocks.dcn4x.dppclk_khz, &state_table->dppclk);
