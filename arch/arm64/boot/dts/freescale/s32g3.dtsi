@@ -435,6 +435,29 @@
 			status = "disabled";
 		};
 
+		usbmisc: usbmisc@44064200 {
+			#index-cells = <1>;
+			compatible = "nxp,s32g3-usbmisc";
+			reg = <0x44064200 0x200>;
+		};
+
+                usbotg: usb@44064000 {
+                        compatible = "nxp,s32g3-usb", "nxp,s32g2-usb";
+                        reg = <0x44064000 0x200>;
+                        interrupt-parent = <&gic>;
+                        interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>, /* OTG Core */
+                                     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>; /* OTG Wakeup */
+                        clocks = <&clks 94>, <&clks 95>;
+                        fsl,usbmisc = <&usbmisc 0>;
+                        ahb-burst-config = <0x3>;
+                        tx-burst-size-dword = <0x10>;
+                        rx-burst-size-dword = <0x10>;
+                        phy_type = "ulpi";
+                        dr_mode = "host";
+                        maximum-speed = "high-speed";
+                        status = "disabled";
+                };
+
 		i2c0: i2c@401e4000 {
 			compatible = "nxp,s32g3-i2c",
 				     "nxp,s32g2-i2c";
