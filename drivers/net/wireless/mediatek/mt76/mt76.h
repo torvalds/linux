@@ -1865,6 +1865,9 @@ mt76_vif_link(struct mt76_dev *dev, struct ieee80211_vif *vif, int link_id)
 	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
 	struct mt76_vif_data *mvif = mlink->mvif;
 
+	if (!link_id)
+		return mlink;
+
 	return mt76_dereference(mvif->link[link_id], dev);
 }
 
@@ -1875,7 +1878,7 @@ mt76_vif_conf_link(struct mt76_dev *dev, struct ieee80211_vif *vif,
 	struct mt76_vif_link *mlink = (struct mt76_vif_link *)vif->drv_priv;
 	struct mt76_vif_data *mvif = mlink->mvif;
 
-	if (link_conf == &vif->bss_conf)
+	if (link_conf == &vif->bss_conf || !link_conf->link_id)
 		return mlink;
 
 	return mt76_dereference(mvif->link[link_conf->link_id], dev);
