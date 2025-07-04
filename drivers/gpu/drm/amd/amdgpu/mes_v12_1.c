@@ -523,6 +523,7 @@ static void mes_v12_1_get_rrmt(uint32_t reg, uint32_t xcc_id,
 static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 			     struct mes_misc_op_input *input)
 {
+	struct amdgpu_device *adev = mes->adev;
 	union MESAPI__MISC misc_pkt;
 	int pipe;
 
@@ -542,15 +543,17 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.opcode = MESAPI_MISC__READ_REG;
 		misc_pkt.read_reg.reg_offset = input->read_reg.reg_offset;
 		misc_pkt.read_reg.buffer_addr = input->read_reg.buffer_addr;
-		mes_v12_1_get_rrmt(input->read_reg.reg_offset, input->xcc_id,
-				     &misc_pkt.read_reg.rrmt_opt);
+		mes_v12_1_get_rrmt(input->read_reg.reg_offset,
+				   GET_INST(GC, input->xcc_id),
+				   &misc_pkt.read_reg.rrmt_opt);
 		break;
 	case MES_MISC_OP_WRITE_REG:
 		misc_pkt.opcode = MESAPI_MISC__WRITE_REG;
 		misc_pkt.write_reg.reg_offset = input->write_reg.reg_offset;
 		misc_pkt.write_reg.reg_value = input->write_reg.reg_value;
-		mes_v12_1_get_rrmt(input->write_reg.reg_offset, input->xcc_id,
-				     &misc_pkt.write_reg.rrmt_opt);
+		mes_v12_1_get_rrmt(input->write_reg.reg_offset,
+				   GET_INST(GC, input->xcc_id),
+				   &misc_pkt.write_reg.rrmt_opt);
 		break;
 	case MES_MISC_OP_WRM_REG_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
@@ -559,8 +562,9 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
 		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
 		misc_pkt.wait_reg_mem.reg_offset2 = 0;
-		mes_v12_1_get_rrmt(input->wrm_reg.reg0, input->xcc_id,
-				     &misc_pkt.wait_reg_mem.rrmt_opt1);
+		mes_v12_1_get_rrmt(input->wrm_reg.reg0,
+				   GET_INST(GC, input->xcc_id),
+				   &misc_pkt.wait_reg_mem.rrmt_opt1);
 		break;
 	case MES_MISC_OP_WRM_REG_WR_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
@@ -569,10 +573,12 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
 		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
 		misc_pkt.wait_reg_mem.reg_offset2 = input->wrm_reg.reg1;
-		mes_v12_1_get_rrmt(input->wrm_reg.reg0, input->xcc_id,
-				     &misc_pkt.wait_reg_mem.rrmt_opt1);
-		mes_v12_1_get_rrmt(input->wrm_reg.reg1, input->xcc_id,
-				     &misc_pkt.wait_reg_mem.rrmt_opt2);
+		mes_v12_1_get_rrmt(input->wrm_reg.reg0,
+				   GET_INST(GC, input->xcc_id),
+				   &misc_pkt.wait_reg_mem.rrmt_opt1);
+		mes_v12_1_get_rrmt(input->wrm_reg.reg1,
+				   GET_INST(GC, input->xcc_id),
+				   &misc_pkt.wait_reg_mem.rrmt_opt2);
 		break;
 	case MES_MISC_OP_SET_SHADER_DEBUGGER:
 		pipe = AMDGPU_MES_SCHED_PIPE;
