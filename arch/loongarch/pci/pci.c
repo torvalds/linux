@@ -3,7 +3,6 @@
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
 #include <linux/kernel.h>
-#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <linux/types.h>
