@@ -25,8 +25,6 @@
 #define GC0310_FPS				30
 #define GC0310_SKIP_FRAMES			3
 
-#define GC0310_FOCAL_LENGTH_NUM			278 /* 2.78mm */
-
 #define GC0310_ID				0xa310
 
 #define GC0310_RESET_RELATED			0xFE
