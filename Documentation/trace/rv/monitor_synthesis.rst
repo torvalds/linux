@@ -1,5 +1,5 @@
-Deterministic Automata Monitor Synthesis
-========================================
+Runtime Verification Monitor Synthesis
+======================================
 
 The starting point for the application of runtime verification (RV) techniques
 is the *specification* or *modeling* of the desired (or undesired) behavior
@@ -36,24 +36,24 @@ below::
                                   |  +----> panic ?
                                   +-------> <user-specified>
 
-DA monitor synthesis
+RV monitor synthesis
 --------------------
 
 The synthesis of automata-based models into the Linux *RV monitor* abstraction
-is automated by the dot2k tool and the rv/da_monitor.h header file that
+is automated by the rvgen tool and the rv/da_monitor.h header file that
 contains a set of macros that automatically generate the monitor's code.
 
-dot2k
+rvgen
 -----
 
-The dot2k utility leverages dot2c by converting an automaton model in
+The rvgen utility leverages dot2c by converting an automaton model in
 the DOT format into the C representation [1] and creating the skeleton of
 a kernel monitor in C.
 
 For example, it is possible to transform the wip.dot model present in
 [1] into a per-cpu monitor with the following command::
 
-  $ dot2k -d wip.dot -t per_cpu
+  $ rvgen monitor -c da -s wip.dot -t per_cpu
 
 This will create a directory named wip/ with the following files:
 
@@ -87,7 +87,7 @@ the second for monitors with per-cpu instances, and the third with per-task
 instances.
 
 In all cases, the 'name' argument is a string that identifies the monitor, and
-the 'type' argument is the data type used by dot2k on the representation of
+the 'type' argument is the data type used by rvgen on the representation of
 the model in C.
 
 For example, the wip model with two states and three events can be
@@ -134,7 +134,7 @@ Final remarks
 -------------
 
 With the monitor synthesis in place using the rv/da_monitor.h and
-dot2k, the developer's work should be limited to the instrumentation
+rvgen, the developer's work should be limited to the instrumentation
 of the system, increasing the confidence in the overall approach.
 
 [1] For details about deterministic automata format and the translation
@@ -142,6 +142,6 @@ from one representation to another, see::
 
   Documentation/trace/rv/deterministic_automata.rst
 
-[2] dot2k appends the monitor's name suffix to the events enums to
+[2] rvgen appends the monitor's name suffix to the events enums to
 avoid conflicting variables when exporting the global vmlinux.h
 use by BPF programs.
