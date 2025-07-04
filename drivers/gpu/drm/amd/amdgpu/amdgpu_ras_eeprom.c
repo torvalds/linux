@@ -743,8 +743,7 @@ amdgpu_ras_eeprom_append_table(struct amdgpu_ras_eeprom_control *control,
 	else
 		control->ras_num_mca_recs += num;
 
-	control->ras_num_bad_pages = control->ras_num_pa_recs +
-				control->ras_num_mca_recs * adev->umc.retire_unit;
+	control->ras_num_bad_pages = con->bad_page_num;
 Out:
 	kfree(buf);
 	return res;
@@ -1457,8 +1456,7 @@ int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
 	if (!__get_eeprom_i2c_addr(adev, control))
 		return -EINVAL;
 
-	control->ras_num_bad_pages = control->ras_num_pa_recs +
-			control->ras_num_mca_recs * adev->umc.retire_unit;
+	control->ras_num_bad_pages = ras->bad_page_num;
 
 	if (hdr->header == RAS_TABLE_HDR_VAL) {
 		dev_dbg(adev->dev,

@@ -573,6 +573,8 @@ struct amdgpu_ras {
 
 	pid_t init_task_pid;
 	char init_task_comm[TASK_COMM_LEN];
+
+	int bad_page_num;
 };
 
 struct ras_fs_data {
@@ -611,6 +613,7 @@ struct ras_err_handler_data {
 	struct eeprom_table_record *bps;
 	/* the count of entries */
 	int count;
+	int count_saved;
 	/* the space can place new entries */
 	int space_left;
 };

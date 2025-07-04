@@ -2625,6 +2625,9 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 	}
 
 	for (; i < data->count; i++) {
+		if (!data->bps[i].ts)
+			continue;
+
 		(*bps)[i] = (struct ras_badpage){
 			.bp = data->bps[i].retired_page,
 			.size = AMDGPU_GPU_PAGE_SIZE,
@@ -2638,7 +2641,7 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
 	}
 
-	*count = data->count;
+	*count = con->bad_page_num;
 out:
 	mutex_unlock(&con->recovery_lock);
 	return ret;
@@ -2866,8 +2869,11 @@ static int __amdgpu_ras_restore_bad_pages(struct amdgpu_device *adev,
 
 	for (j = 0; j < count; j++) {
 		if (amdgpu_ras_check_bad_page_unlock(con,
-			bps[j].retired_page << AMDGPU_GPU_PAGE_SHIFT))
+			bps[j].retired_page << AMDGPU_GPU_PAGE_SHIFT)) {
+			data->count++;
+			data->space_left--;
 			continue;
+		}
 
 		if (!data->space_left &&
 		    amdgpu_ras_realloc_eh_data_space(adev, data, 256)) {
@@ -2880,6 +2886,7 @@ static int __amdgpu_ras_restore_bad_pages(struct amdgpu_device *adev,
 				sizeof(struct eeprom_table_record));
 		data->count++;
 		data->space_left--;
+		con->bad_page_num++;
 	}
 
 	return 0;
@@ -3026,7 +3033,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 						ret = __amdgpu_ras_convert_rec_array_from_rom(adev,
 										&bps[i], &err_data, nps);
 						if (ret)
-							control->ras_num_bad_pages -= adev->umc.retire_unit;
+							con->bad_page_num -= adev->umc.retire_unit;
 						i += (adev->umc.retire_unit - 1);
 					} else {
 						break;
@@ -3040,8 +3047,10 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			ret = __amdgpu_ras_convert_rec_from_rom(adev,
 				&bps[i], &err_data, nps);
 			if (ret)
-				control->ras_num_bad_pages -= adev->umc.retire_unit;
+				con->bad_page_num -= adev->umc.retire_unit;
 		}
+
+		con->eh_data->count_saved = con->eh_data->count;
 	} else {
 		ret = __amdgpu_ras_restore_bad_pages(adev, bps, pages);
 	}
@@ -3064,7 +3073,7 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
 	struct amdgpu_ras_eeprom_control *control;
-	int save_count, unit_num, bad_page_num, i;
+	int save_count, unit_num, i;
 
 	if (!con || !con->eh_data) {
 		if (new_cnt)
@@ -3085,27 +3094,26 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 	mutex_lock(&con->recovery_lock);
 	control = &con->eeprom_control;
 	data = con->eh_data;
-	bad_page_num = control->ras_num_bad_pages;
-	save_count = data->count - bad_page_num;
+	unit_num = data->count / adev->umc.retire_unit - control->ras_num_recs;
+	save_count = con->bad_page_num - control->ras_num_bad_pages;
 	mutex_unlock(&con->recovery_lock);
 
-	unit_num = save_count / adev->umc.retire_unit;
 	if (new_cnt)
 		*new_cnt = unit_num;
 
 	/* only new entries are saved */
-	if (save_count > 0) {
+	if (unit_num > 0) {
 		/*old asics only save pa to eeprom like before*/
 		if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
 			if (amdgpu_ras_eeprom_append(control,
-					&data->bps[bad_page_num], save_count)) {
+					&data->bps[data->count_saved], unit_num)) {
 				dev_err(adev->dev, "Failed to save EEPROM table data!");
 				return -EIO;
 			}
 		} else {
 			for (i = 0; i < unit_num; i++) {
 				if (amdgpu_ras_eeprom_append(control,
-						&data->bps[bad_page_num +
+						&data->bps[data->count_saved +
 						i * adev->umc.retire_unit], 1)) {
 					dev_err(adev->dev, "Failed to save EEPROM table data!");
 					return -EIO;
@@ -3114,6 +3122,7 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 		}
 
 		dev_info(adev->dev, "Saved %d pages to EEPROM table.\n", save_count);
+		data->count_saved = data->count;
 	}
 
 	return 0;
@@ -3168,17 +3177,17 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 			}
 		}
 
+		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs, true);
+		if (ret)
+			goto out;
+
 		ret = amdgpu_ras_eeprom_check(control);
 		if (ret)
 			goto out;
 
 		/* HW not usable */
-		if (amdgpu_ras_is_rma(adev)) {
+		if (amdgpu_ras_is_rma(adev))
 			ret = -EHWPOISON;
-			goto out;
-		}
-
-		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs, true);
 	}
 
 out:
