@@ -10,6 +10,8 @@
 
 if __name__ == '__main__':
     from rvgen.dot2k import dot2k
+    from rvgen.generator import Monitor
+    from rvgen.container import Container
     import argparse
     import sys
 
@@ -29,7 +31,7 @@ if __name__ == '__main__':
                                 help="Monitor class, either \"da\" or \"ltl\"")
     monitor_parser.add_argument('-s', "--spec", dest="spec", help="Monitor specification file")
     monitor_parser.add_argument('-t', "--monitor_type", dest="monitor_type",
-                                help=f"Available options: {', '.join(dot2k.monitor_types.keys())}")
+                                help=f"Available options: {', '.join(Monitor.monitor_types.keys())}")
 
     container_parser = subparsers.add_parser("container")
     container_parser.add_argument('-n', "--model_name", dest="model_name", required=True)
@@ -47,7 +49,7 @@ if __name__ == '__main__':
                 print("Unknown monitor class:", params.monitor_class)
                 sys.exit(1)
         else:
-            monitor = dot2k(None, None, vars(params))
+            monitor = Container(vars(params))
     except Exception as e:
         print('Error: '+ str(e))
         print("Sorry : :-(")
