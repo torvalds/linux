@@ -1941,7 +1941,6 @@ static int wsa884x_get_temp(struct wsa884x_priv *wsa884x, long *temp)
 	}
 
 out:
-	pm_runtime_mark_last_busy(wsa884x->dev);
 	pm_runtime_put_autosuspend(wsa884x->dev);
 
 	return ret;
