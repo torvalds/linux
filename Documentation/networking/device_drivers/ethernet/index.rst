@@ -60,6 +60,7 @@ Contents:
    wangxun/txgbe
    wangxun/txgbevf
    wangxun/ngbe
+   wangxun/ngbevf
 
 .. only::  subproject and html
 

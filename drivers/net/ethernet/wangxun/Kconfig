@@ -82,4 +82,19 @@ config TXGBEVF
 	  To compile this driver as a module, choose M here. MSI-X interrupt
 	  support is required for this driver to work correctly.
 
+config NGBEVF
+	tristate "Wangxun(R) GbE Virtual Function Ethernet support"
+	depends on PCI_MSI
+	select LIBWX
+	help
+	  This driver supports virtual functions for WX1860, WX1860AL.
+
+	  This driver was formerly named ngbevf.
+
+	  More specific information on configuring the driver is in
+	  <file:Documentation/networking/device_drivers/ethernet/wangxun/ngbevf.rst>.
+
+	  To compile this driver as a module, choose M here. MSI-X interrupt
+	  support is required for this driver to work correctly.
+
 endif # NET_VENDOR_WANGXUN
