@@ -20,5 +20,9 @@
 
 #define NGBEVF_MAX_RX_QUEUES                  1
 #define NGBEVF_MAX_TX_QUEUES                  1
+#define NGBEVF_DEFAULT_TXD                    128
+#define NGBEVF_DEFAULT_RXD                    128
+#define NGBEVF_DEFAULT_TX_WORK                256
+#define NGBEVF_DEFAULT_RX_WORK                256
 
 #endif /* _NGBEVF_TYPE_H_ */
