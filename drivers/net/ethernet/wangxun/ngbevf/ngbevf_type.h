@@ -18,6 +18,7 @@
 #define NGBEVF_DEV_ID_EM_WX1860A1               0x011a
 #define NGBEVF_DEV_ID_EM_WX1860AL1              0x011b
 
+#define NGBEVF_MAX_MSIX_VECTORS               1
 #define NGBEVF_MAX_RX_QUEUES                  1
 #define NGBEVF_MAX_TX_QUEUES                  1
 #define NGBEVF_DEFAULT_TXD                    128

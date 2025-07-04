@@ -10,6 +10,7 @@
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_hw.h"
+#include "../libwx/wx_lib.h"
 #include "../libwx/wx_mbx.h"
 #include "../libwx/wx_vf.h"
 #include "../libwx/wx_vf_common.h"
@@ -43,9 +44,17 @@ static const struct pci_device_id ngbevf_pci_tbl[] = {
 static const struct net_device_ops ngbevf_netdev_ops = {
 	.ndo_open               = wxvf_open,
 	.ndo_stop               = wxvf_close,
+	.ndo_start_xmit         = wx_xmit_frame,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = wx_set_mac_vf,
 };
+
+static void ngbevf_set_num_queues(struct wx *wx)
+{
+	/* Start with base case */
+	wx->num_rx_queues = 1;
+	wx->num_tx_queues = 1;
+}
 
 static int ngbevf_sw_init(struct wx *wx)
 {
@@ -65,6 +74,7 @@ static int ngbevf_sw_init(struct wx *wx)
 
 	/* Initialize the device type */
 	wx->mac.type = wx_mac_em;
+	wx->mac.max_msix_vectors = NGBEVF_MAX_MSIX_VECTORS;
 	/* lock to protect mailbox accesses */
 	spin_lock_init(&wx->mbx.mbx_lock);
 
@@ -98,6 +108,7 @@ static int ngbevf_sw_init(struct wx *wx)
 	/* set default work limits */
 	wx->tx_work_limit = NGBEVF_DEFAULT_TX_WORK;
 	wx->rx_work_limit = NGBEVF_DEFAULT_RX_WORK;
+	wx->set_num_queues = ngbevf_set_num_queues;
 
 	return 0;
 err_reset_hw:
@@ -186,15 +197,22 @@ static int ngbevf_probe(struct pci_dev *pdev,
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	ether_addr_copy(netdev->perm_addr, wx->mac.addr);
 
+	err = wx_init_interrupt_scheme(wx);
+	if (err)
+		goto err_free_sw_init;
+
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
 
 	pci_set_drvdata(pdev, wx);
+	netif_tx_stop_all_queues(netdev);
 
 	return 0;
 
 err_register:
+	wx_clear_interrupt_scheme(wx);
+err_free_sw_init:
 	kfree(wx->vfinfo);
 	kfree(wx->rss_key);
 	kfree(wx->mac_table);
