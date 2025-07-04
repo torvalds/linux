@@ -663,8 +663,8 @@ gdev_get_data(struct gpio_device *gdev) __must_hold(&sysfs_lock)
  */
 int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 {
+	struct gpiod_data *desc_data;
 	struct gpio_device *gdev;
-	struct gpiod_data *data;
 	struct device *dev;
 	int status;
 
@@ -696,29 +696,29 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		goto err_clear_bit;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
+	desc_data = kzalloc(sizeof(*desc_data), GFP_KERNEL);
+	if (!desc_data) {
 		status = -ENOMEM;
 		goto err_clear_bit;
 	}
 
-	data->desc = desc;
-	mutex_init(&data->mutex);
+	desc_data->desc = desc;
+	mutex_init(&desc_data->mutex);
 	if (guard.gc->direction_input && guard.gc->direction_output)
-		data->direction_can_change = direction_may_change;
+		desc_data->direction_can_change = direction_may_change;
 	else
-		data->direction_can_change = false;
+		desc_data->direction_can_change = false;
 
 	dev = device_create_with_groups(&gpio_class, &gdev->dev,
-					MKDEV(0, 0), data, gpio_groups,
+					MKDEV(0, 0), desc_data, gpio_groups,
 					"gpio%u", desc_to_gpio(desc));
 	if (IS_ERR(dev)) {
 		status = PTR_ERR(dev);
 		goto err_free_data;
 	}
 
-	data->value_kn = sysfs_get_dirent(dev->kobj.sd, "value");
-	if (!data->value_kn) {
+	desc_data->value_kn = sysfs_get_dirent(dev->kobj.sd, "value");
+	if (!desc_data->value_kn) {
 		status = -ENODEV;
 		goto err_unregister_device;
 	}
@@ -728,7 +728,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 err_unregister_device:
 	device_unregister(dev);
 err_free_data:
-	kfree(data);
+	kfree(desc_data);
 err_clear_bit:
 	clear_bit(FLAG_EXPORT, &desc->flags);
 	gpiod_dbg(desc, "%s: status %d\n", __func__, status);
@@ -785,7 +785,7 @@ EXPORT_SYMBOL_GPL(gpiod_export_link);
  */
 void gpiod_unexport(struct gpio_desc *desc)
 {
-	struct gpiod_data *data;
+	struct gpiod_data *desc_data;
 	struct device *dev;
 
 	if (!desc) {
@@ -801,22 +801,22 @@ void gpiod_unexport(struct gpio_desc *desc)
 		if (!dev)
 			return;
 
-		data = dev_get_drvdata(dev);
+		desc_data = dev_get_drvdata(dev);
 		clear_bit(FLAG_EXPORT, &desc->flags);
-		sysfs_put(data->value_kn);
+		sysfs_put(desc_data->value_kn);
 		device_unregister(dev);
 
 		/*
 		 * Release irq after deregistration to prevent race with
 		 * edge_store.
 		 */
-		if (data->irq_flags)
-			gpio_sysfs_free_irq(data);
+		if (desc_data->irq_flags)
+			gpio_sysfs_free_irq(desc_data);
 	}
 
 	put_device(dev);
-	mutex_destroy(&data->mutex);
-	kfree(data);
+	mutex_destroy(&desc_data->mutex);
+	kfree(desc_data);
 }
 EXPORT_SYMBOL_GPL(gpiod_unexport);
 
