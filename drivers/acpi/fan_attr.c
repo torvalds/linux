@@ -67,7 +67,7 @@ static ssize_t show_fine_grain_control(struct device *dev, struct device_attribu
 	struct acpi_device *acpi_dev = container_of(dev, struct acpi_device, dev);
 	struct acpi_fan *fan = acpi_driver_data(acpi_dev);
 
-	return sprintf(buf, "%d\n", fan->fif.fine_grain_ctrl);
+	return sysfs_emit(buf, "%d\n", fan->fif.fine_grain_ctrl);
 }
 
 int acpi_fan_create_attributes(struct acpi_device *device)
