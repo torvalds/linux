@@ -175,6 +175,15 @@ macro_rules! b_str {
     }};
 }
 
+/// Returns a C pointer to the string.
+// It is a free function rather than a method on an extension trait because:
+//
+// - error[E0379]: functions in trait impls cannot be declared const
+#[inline]
+pub const fn as_char_ptr_in_const_context(c_str: &CStr) -> *const c_char {
+    c_str.0.as_ptr()
+}
+
 /// Possible errors when using conversion functions in [`CStr`].
 #[derive(Debug, Clone, Copy)]
 pub enum CStrConvertError {
@@ -294,21 +303,43 @@ impl CStr {
     }
 
     /// Returns a C pointer to the string.
+    ///
+    /// Using this function in a const context is deprecated in favor of
+    /// [`as_char_ptr_in_const_context`] in preparation for replacing `CStr` with `core::ffi::CStr`
+    /// which does not have this method.
     #[inline]
     pub const fn as_char_ptr(&self) -> *const c_char {
-        self.0.as_ptr()
+        as_char_ptr_in_const_context(self)
     }
 
     /// Convert the string to a byte slice without the trailing `NUL` byte.
     #[inline]
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn to_bytes(&self) -> &[u8] {
         &self.0[..self.len()]
+    }
+
+    /// Convert the string to a byte slice without the trailing `NUL` byte.
+    ///
+    /// This function is deprecated in favor of [`Self::to_bytes`] in preparation for replacing
+    /// `CStr` with `core::ffi::CStr` which does not have this method.
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
+        self.to_bytes()
     }
 
     /// Convert the string to a byte slice containing the trailing `NUL` byte.
     #[inline]
-    pub const fn as_bytes_with_nul(&self) -> &[u8] {
+    pub const fn to_bytes_with_nul(&self) -> &[u8] {
         &self.0
+    }
+
+    /// Convert the string to a byte slice containing the trailing `NUL` byte.
+    ///
+    /// This function is deprecated in favor of [`Self::to_bytes_with_nul`] in preparation for
+    /// replacing `CStr` with `core::ffi::CStr` which does not have this method.
+    #[inline]
+    pub const fn as_bytes_with_nul(&self) -> &[u8] {
+        self.to_bytes_with_nul()
     }
 
     /// Yields a [`&str`] slice if the [`CStr`] contains valid UTF-8.
