@@ -21,6 +21,9 @@
 #define AMDISP_OV05C10_REMOTE_EP_NAME	"ov05c10_isp_4_1_1"
 #define AMD_ISP_PLAT_DRV_NAME		"amd-isp4"
 
+static const struct software_node isp4_mipi1_endpoint_node;
+static const struct software_node ov05c10_endpoint_node;
+
 /*
  * AMD ISP platform info definition to initialize sensor
  * specific platform configuration to prepare the amdisp
@@ -43,55 +46,116 @@ struct amdisp_platform {
 	struct mutex lock;	/* protects i2c client creation */
 };
 
-/* Top-level OV05C10 camera node property table */
+/* Root AMD CAMERA SWNODE */
+
+/* Root amd camera node definition */
+static const struct software_node amd_camera_node = {
+	.name = "amd_camera",
+};
+
+/* ISP4 SWNODE */
+
+/* ISP4 OV05C10 camera node definition */
+static const struct software_node isp4_node = {
+	.name = "isp4",
+	.parent = &amd_camera_node,
+};
+
+/*
+ * ISP4 Ports node definition. No properties defined for
+ * ports node.
+ */
+static const struct software_node isp4_ports = {
+	.name = "ports",
+	.parent = &isp4_node,
+};
+
+/*
+ * ISP4 Port node definition. No properties defined for
+ * port node.
+ */
+static const struct software_node isp4_port_node = {
+	.name = "port@0",
+	.parent = &isp4_ports,
+};
+
+/*
+ * ISP4 MIPI1 remote endpoint points to OV05C10 endpoint
+ * node.
+ */
+static const struct software_node_ref_args isp4_refs[] = {
+	SOFTWARE_NODE_REFERENCE(&ov05c10_endpoint_node),
+};
+
+/* ISP4 MIPI1 endpoint node properties table */
+static const struct property_entry isp4_mipi1_endpoint_props[] = {
+	PROPERTY_ENTRY_REF_ARRAY("remote-endpoint", isp4_refs),
+	{ }
+};
+
+/* ISP4 MIPI1 endpoint node definition */
+static const struct software_node isp4_mipi1_endpoint_node = {
+	.name = "endpoint",
+	.parent = &isp4_port_node,
+	.properties = isp4_mipi1_endpoint_props,
+};
+
+/* I2C1 SWNODE */
+
+/* I2C1 camera node property table */
+static const struct property_entry i2c1_camera_props[] = {
+	PROPERTY_ENTRY_U32("clock-frequency", 1 * HZ_PER_MHZ),
+	{ }
+};
+
+/* I2C1 camera node definition */
+static const struct software_node i2c1_node = {
+	.name = "i2c1",
+	.parent = &amd_camera_node,
+	.properties = i2c1_camera_props,
+};
+
+/* I2C1 camera node property table */
 static const struct property_entry ov05c10_camera_props[] = {
 	PROPERTY_ENTRY_U32("clock-frequency", 24 * HZ_PER_MHZ),
 	{ }
 };
 
-/* Root AMD ISP OV05C10 camera node definition */
-static const struct software_node camera_node = {
+/* OV05C10 camera node definition */
+static const struct software_node ov05c10_camera_node = {
 	.name = AMDISP_OV05C10_HID,
+	.parent = &i2c1_node,
 	.properties = ov05c10_camera_props,
 };
 
 /*
- * AMD ISP OV05C10 Ports node definition. No properties defined for
+ * OV05C10 Ports node definition. No properties defined for
  * ports node for OV05C10.
  */
-static const struct software_node ports = {
+static const struct software_node ov05c10_ports = {
 	.name = "ports",
-	.parent = &camera_node,
+	.parent = &ov05c10_camera_node,
 };
 
 /*
- * AMD ISP OV05C10 Port node definition. No properties defined for
- * port node for OV05C10.
+ * OV05C10 Port node definition.
  */
-static const struct software_node port_node = {
-	.name = "port@",
-	.parent = &ports,
+static const struct software_node ov05c10_port_node = {
+	.name = "port@0",
+	.parent = &ov05c10_ports,
 };
 
 /*
- * Remote endpoint AMD ISP node definition. No properties defined for
- * remote endpoint node for OV05C10.
- */
-static const struct software_node remote_ep_isp_node = {
-	.name = AMDISP_OV05C10_REMOTE_EP_NAME,
-};
-
-/*
- * Remote endpoint reference for isp node included in the
- * OV05C10 endpoint.
+ * OV05C10 remote endpoint points to ISP4 MIPI1 endpoint
+ * node.
  */
 static const struct software_node_ref_args ov05c10_refs[] = {
-	SOFTWARE_NODE_REFERENCE(&remote_ep_isp_node),
+	SOFTWARE_NODE_REFERENCE(&isp4_mipi1_endpoint_node),
 };
 
 /* OV05C10 supports one single link frequency */
 static const u64 ov05c10_link_freqs[] = {
-	925 * HZ_PER_MHZ,
+	900 * HZ_PER_MHZ,
 };
 
 /* OV05C10 supports only 2-lane configuration */
@@ -111,27 +175,64 @@ static const struct property_entry ov05c10_endpoint_props[] = {
 	{ }
 };
 
-/* AMD ISP endpoint node definition */
-static const struct software_node endpoint_node = {
+/* OV05C10 endpoint node definition */
+static const struct software_node ov05c10_endpoint_node = {
 	.name = "endpoint",
-	.parent = &port_node,
+	.parent = &ov05c10_port_node,
 	.properties = ov05c10_endpoint_props,
 };
 
 /*
- * AMD ISP swnode graph uses 5 nodes and also its relationship is
- * fixed to align with the structure that v4l2 expects for successful
- * endpoint fwnode parsing.
+ * AMD Camera swnode graph uses 10 nodes and also its relationship is
+ * fixed to align with the structure that v4l2 and i2c frameworks expects
+ * for successful parsing of fwnodes and its properties with standard names.
  *
  * It is only the node property_entries that will vary for each platform
  * supporting different sensor modules.
+ *
+ * AMD ISP4 SWNODE GRAPH Structure
+ *
+ * amd_camera {
+ *  isp4 {
+ *	  ports {
+ *		  port@0 {
+ *			  isp4_mipi1_ep: endpoint {
+ *					  remote-endpoint = &OMNI5C10_ep;
+ *			  };
+ *		  };
+ *	  };
+ *  };
+ *
+ *  i2c1 {
+ *	  clock-frequency = 1 MHz;
+ *	  OMNI5C10 {
+ *		  clock-frequency = 24MHz;
+ *		  ports {
+ *			  port@0 {
+ *				  OMNI5C10_ep: endpoint {
+ *					  bus-type = 4;
+ *					  data-lanes = <1 2>;
+ *					  link-frequencies = 900MHz;
+ *					  remote-endpoint = &isp4_mipi1;
+ *				  };
+ *			  };
+ *		  };
+ *	  };
+ *	};
+ * };
+ *
  */
-static const struct software_node *ov05c10_nodes[] = {
-	&camera_node,
-	&ports,
-	&port_node,
-	&endpoint_node,
-	&remote_ep_isp_node,
+static const struct software_node *amd_isp4_nodes[] = {
+	&amd_camera_node,
+	&isp4_node,
+	&isp4_ports,
+	&isp4_port_node,
+	&isp4_mipi1_endpoint_node,
+	&i2c1_node,
+	&ov05c10_camera_node,
+	&ov05c10_ports,
+	&ov05c10_port_node,
+	&ov05c10_endpoint_node,
 	NULL
 };
 
@@ -141,7 +242,7 @@ static const struct amdisp_platform_info ov05c10_platform_config = {
 		.dev_name = "ov05c10",
 		I2C_BOARD_INFO("ov05c10", AMDISP_OV05C10_I2C_ADDR),
 	},
-	.swnodes = ov05c10_nodes,
+	.swnodes = amd_isp4_nodes,
 };
 
 static const struct acpi_device_id amdisp_sensor_ids[] = {
@@ -233,7 +334,8 @@ static struct amdisp_platform *prepare_amdisp_platform(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	isp4_platform->board_info.swnode = src->swnodes[0];
+	/* initialize ov05c10_camera_node */
+	isp4_platform->board_info.swnode = src->swnodes[6];
 
 	return isp4_platform;
 }
@@ -258,6 +360,7 @@ static int amd_isp_probe(struct platform_device *pdev)
 {
 	const struct amdisp_platform_info *pinfo;
 	struct amdisp_platform *isp4_platform;
+	struct acpi_device *adev;
 	int ret;
 
 	pinfo = device_get_match_data(&pdev->dev);
@@ -274,6 +377,10 @@ static int amd_isp_probe(struct platform_device *pdev)
 	ret = bus_register_notifier(&i2c_bus_type, &isp4_platform->i2c_nb);
 	if (ret)
 		goto error_unregister_sw_node;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	/* initialize root amd_camera_node */
+	adev->driver_data = (void *)pinfo->swnodes[0];
 
 	/* check if adapter is already registered and create i2c client instance */
 	i2c_for_each_dev(isp4_platform, try_to_instantiate_i2c_client);
