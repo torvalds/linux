@@ -12,6 +12,7 @@ menuconfig INTEL_ATOMISP
 config VIDEO_ATOMISP
 	tristate "Intel Atom Image Signal Processor Driver"
 	depends on VIDEO_DEV && INTEL_ATOMISP
+	depends on INTEL_SKL_INT3472
 	depends on IPU_BRIDGE
 	depends on MEDIA_PCI_SUPPORT
 	depends on PMIC_OPREGION
