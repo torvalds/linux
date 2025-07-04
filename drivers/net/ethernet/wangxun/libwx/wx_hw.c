@@ -2369,7 +2369,8 @@ int wx_sw_init(struct wx *wx)
 	wx->bus.device = PCI_SLOT(pdev->devfn);
 	wx->bus.func = PCI_FUNC(pdev->devfn);
 
-	if (wx->oem_svid == PCI_VENDOR_ID_WANGXUN) {
+	if (wx->oem_svid == PCI_VENDOR_ID_WANGXUN ||
+	    pdev->is_virtfn) {
 		wx->subsystem_vendor_id = pdev->subsystem_vendor;
 		wx->subsystem_device_id = pdev->subsystem_device;
 	} else {

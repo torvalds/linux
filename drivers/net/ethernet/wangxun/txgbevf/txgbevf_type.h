@@ -16,5 +16,9 @@
 
 #define TXGBEVF_MAX_RX_QUEUES                  4
 #define TXGBEVF_MAX_TX_QUEUES                  4
+#define TXGBEVF_DEFAULT_TXD                    128
+#define TXGBEVF_DEFAULT_RXD                    128
+#define TXGBEVF_DEFAULT_TX_WORK                256
+#define TXGBEVF_DEFAULT_RX_WORK                256
 
 #endif /* _TXGBEVF_TYPE_H_ */

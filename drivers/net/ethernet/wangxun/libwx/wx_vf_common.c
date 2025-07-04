@@ -43,6 +43,14 @@ EXPORT_SYMBOL(wxvf_resume);
 
 void wxvf_remove(struct pci_dev *pdev)
 {
+	struct wx *wx = pci_get_drvdata(pdev);
+	struct net_device *netdev;
+
+	netdev = wx->netdev;
+	unregister_netdev(netdev);
+	kfree(wx->vfinfo);
+	kfree(wx->rss_key);
+	kfree(wx->mac_table);
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 	pci_disable_device(pdev);
@@ -232,3 +240,27 @@ int wx_set_mac_vf(struct net_device *netdev, void *p)
 	return 0;
 }
 EXPORT_SYMBOL(wx_set_mac_vf);
+
+int wxvf_open(struct net_device *netdev)
+{
+	return 0;
+}
+EXPORT_SYMBOL(wxvf_open);
+
+static void wxvf_down(struct wx *wx)
+{
+	struct net_device *netdev = wx->netdev;
+
+	netif_tx_disable(netdev);
+	wx_reset_vf(wx);
+}
+
+int wxvf_close(struct net_device *netdev)
+{
+	struct wx *wx = netdev_priv(netdev);
+
+	wxvf_down(wx);
+
+	return 0;
+}
+EXPORT_SYMBOL(wxvf_close);
