@@ -12,6 +12,7 @@ if __name__ == '__main__':
     from rvgen.dot2k import dot2k
     from rvgen.generator import Monitor
     from rvgen.container import Container
+    from rvgen.ltl2k import ltl2k
     import argparse
     import sys
 
@@ -44,7 +45,7 @@ if __name__ == '__main__':
             if params.monitor_class == "da":
                 monitor = dot2k(params.spec, params.monitor_type, vars(params))
             elif params.monitor_class == "ltl":
-                raise NotImplementedError
+                monitor = ltl2k(params.spec, params.monitor_type, vars(params))
             else:
                 print("Unknown monitor class:", params.monitor_class)
                 sys.exit(1)
