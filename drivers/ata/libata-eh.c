@@ -907,7 +907,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
+static void ata_eh_set_pending(struct ata_port *ap, bool fastdrain)
 {
 	unsigned int cnt;
 
@@ -947,7 +947,7 @@ void ata_qc_schedule_eh(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 
 	qc->flags |= ATA_QCFLAG_EH;
-	ata_eh_set_pending(ap, 1);
+	ata_eh_set_pending(ap, true);
 
 	/* The following will fail if timeout has already expired.
 	 * ata_scsi_error() takes care of such scmds on EH entry.
@@ -969,7 +969,7 @@ void ata_std_sched_eh(struct ata_port *ap)
 	if (ap->pflags & ATA_PFLAG_INITIALIZING)
 		return;
 
-	ata_eh_set_pending(ap, 1);
+	ata_eh_set_pending(ap, true);
 	scsi_schedule_eh(ap->scsi_host);
 
 	trace_ata_std_sched_eh(ap);
@@ -1020,7 +1020,7 @@ static int ata_do_link_abort(struct ata_port *ap, struct ata_link *link)
 	int tag, nr_aborted = 0;
 
 	/* we're gonna abort all commands, no need for fast drain */
-	ata_eh_set_pending(ap, 0);
+	ata_eh_set_pending(ap, false);
 
 	/* include internal tag in iteration */
 	ata_qc_for_each_with_internal(ap, qc, tag) {
