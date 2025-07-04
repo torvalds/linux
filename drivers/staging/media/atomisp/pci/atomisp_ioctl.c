@@ -856,18 +856,15 @@ static void atomisp_dma_burst_len_cfg(struct atomisp_sub_device *asd)
 		atomisp_css2_hw_store_32(DMA_BURST_SIZE_REG, 0x00);
 }
 
-void atomisp_stop_streaming(struct vb2_queue *vq)
+static void atomisp_stop_stream(struct atomisp_video_pipe *pipe,
+				bool stop_sensor, enum vb2_buffer_state state)
 {
-	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
 	unsigned long flags;
 	int ret;
 
-	dev_dbg(isp->dev, "Stop stream\n");
-
-	mutex_lock(&isp->mutex);
 	/*
 	 * There is no guarantee that the buffers queued to / owned by the ISP
 	 * will properly be returned to the queue when stopping. Set a flag to
@@ -893,14 +890,16 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 
 	atomisp_css_stop(asd, false);
 
-	atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_ERROR, true);
+	atomisp_flush_video_pipe(pipe, state, true);
 
 	atomisp_subdev_cleanup_pending_events(asd);
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
-			       video, s_stream, 0);
-	if (ret)
-		dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
+	if (stop_sensor) {
+		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].csi_remote_source,
+				       video, s_stream, 0);
+		if (ret)
+			dev_warn(isp->dev, "Stopping sensor stream failed: %d\n", ret);
+	}
 
 	/* Disable the CSI interface on ANN B0/K0 */
 	if (isp->media_dev.hw_revision >= ((ATOMISP_HW_REVISION_ISP2401 <<
@@ -927,7 +926,6 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 		dev_warn(isp->dev, "Recreating streams failed: %d\n", ret);
 
 	media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
-	mutex_unlock(&isp->mutex);
 }
 
 int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -1023,16 +1021,24 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 			       video, s_stream, 1);
 	if (ret) {
 		dev_err(isp->dev, "Starting sensor stream failed: %d\n", ret);
-		spin_lock_irqsave(&isp->lock, irqflags);
-		asd->streaming = false;
-		spin_unlock_irqrestore(&isp->lock, irqflags);
-		ret = -EINVAL;
-		goto out_unlock;
+		atomisp_stop_stream(pipe, false, VB2_BUF_STATE_QUEUED);
 	}
 
 out_unlock:
 	mutex_unlock(&isp->mutex);
 	return ret;
+}
+
+void atomisp_stop_streaming(struct vb2_queue *vq)
+{
+	struct atomisp_video_pipe *pipe = vq_to_pipe(vq);
+	struct atomisp_device *isp = pipe->asd->isp;
+
+	dev_dbg(isp->dev, "Stop stream\n");
+
+	mutex_lock(&isp->mutex);
+	atomisp_stop_stream(pipe, true, VB2_BUF_STATE_ERROR);
+	mutex_unlock(&isp->mutex);
 }
 
 /*
