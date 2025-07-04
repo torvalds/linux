@@ -79,6 +79,29 @@ struct lock_class_key;
 #define ENGINE_WRITE(...)	__ENGINE_WRITE_OP(write, __VA_ARGS__)
 #define ENGINE_WRITE_FW(...)	__ENGINE_WRITE_OP(write_fw, __VA_ARGS__)
 
+#define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
+#define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
+
+#define __ENGINE_INSTANCES_MASK(mask, first, count) ({			\
+	unsigned int first__ = (first);					\
+	unsigned int count__ = (count);					\
+	((mask) & GENMASK(first__ + count__ - 1, first__)) >> first__;	\
+})
+
+#define ENGINE_INSTANCES_MASK(gt, first, count) \
+	__ENGINE_INSTANCES_MASK((gt)->info.engine_mask, first, count)
+
+#define RCS_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, RCS0, I915_MAX_RCS)
+#define BCS_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, BCS0, I915_MAX_BCS)
+#define VDBOX_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, VCS0, I915_MAX_VCS)
+#define VEBOX_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, VECS0, I915_MAX_VECS)
+#define CCS_MASK(gt) \
+	ENGINE_INSTANCES_MASK(gt, CCS0, I915_MAX_CCS)
+
 #define GEN6_RING_FAULT_REG_READ(engine__) \
 	intel_uncore_read((engine__)->uncore, RING_FAULT_REG(engine__))
 
@@ -354,5 +377,13 @@ u64 intel_clamp_max_busywait_duration_ns(struct intel_engine_cs *engine, u64 val
 u64 intel_clamp_preempt_timeout_ms(struct intel_engine_cs *engine, u64 value);
 u64 intel_clamp_stop_timeout_ms(struct intel_engine_cs *engine, u64 value);
 u64 intel_clamp_timeslice_duration_ms(struct intel_engine_cs *engine, u64 value);
+
+#define rb_to_uabi_engine(rb) \
+	rb_entry_safe(rb, struct intel_engine_cs, uabi_node)
+
+#define for_each_uabi_engine(engine__, i915__) \
+	for ((engine__) = rb_to_uabi_engine(rb_first(&(i915__)->uabi_engines));\
+	     (engine__); \
+	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
 
 #endif /* _INTEL_RINGBUFFER_H_ */
