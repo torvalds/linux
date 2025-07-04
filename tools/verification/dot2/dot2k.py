@@ -109,15 +109,6 @@ class dot2k(Dot2c):
         fd.close()
         return content
 
-    def __buff_to_string(self, buff):
-        string = ""
-
-        for line in buff:
-            string = string + line + "\n"
-
-        # cut off the last \n
-        return string[:-1]
-
     def fill_monitor_type(self):
         return self.monitor_type.upper()
 
@@ -148,19 +139,19 @@ class dot2k(Dot2c):
                 buff.append("\tda_%s_%s(%s%s);" % (handle, self.name, event, self.enum_suffix));
             buff.append("}")
             buff.append("")
-        return self.__buff_to_string(buff)
+        return '\n'.join(buff)
 
     def fill_tracepoint_attach_probe(self):
         buff = []
         for event in self.events:
             buff.append("\trv_attach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_%s);" % (self.name, event))
-        return self.__buff_to_string(buff)
+        return '\n'.join(buff)
 
     def fill_tracepoint_detach_helper(self):
         buff = []
         for event in self.events:
             buff.append("\trv_detach_trace_probe(\"%s\", /* XXX: tracepoint */, handle_%s);" % (self.name, event))
-        return self.__buff_to_string(buff)
+        return '\n'.join(buff)
 
     def fill_main_c(self):
         main_c = self.main_c
@@ -210,7 +201,7 @@ class dot2k(Dot2c):
         buff = self.fill_model_h_header()
         buff += self.format_model()
 
-        return self.__buff_to_string(buff)
+        return '\n'.join(buff)
 
     def fill_monitor_class_type(self):
         if self.monitor_type == "per_task":
@@ -242,7 +233,7 @@ class dot2k(Dot2c):
         tp_args_c = ", ".join([b for a,b in tp_args])
         buff.append("	     TP_PROTO(%s)," % tp_proto_c)
         buff.append("	     TP_ARGS(%s)" % tp_args_c)
-        return self.__buff_to_string(buff)
+        return '\n'.join(buff)
 
     def fill_monitor_deps(self):
         buff = []
@@ -250,7 +241,7 @@ class dot2k(Dot2c):
         if self.parent:
             buff.append("	depends on RV_MON_%s" % self.parent.upper())
             buff.append("	default y")
-        return self.__buff_to_string(buff)
+        return '\n'.join(buff)
 
     def fill_trace_h(self):
         trace_h = self.trace_h
