@@ -275,6 +275,36 @@
 			cdns,phy-dll-delay-sdclk-hsmmc = <32>;
 			cdns,phy-dll-delay-strobe = <32>;
 		};
+
+		gpio0: gpio@1400000 {
+			compatible = "mobileye,eyeq5-gpio";
+			reg = <0x0 0x1400000 0x0 0x1000>;
+			gpio-bank = <0>;
+			ngpios = <29>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 14 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&olb 0 0 29>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			resets = <&olb 0 26>;
+		};
+
+		gpio1: gpio@1500000 {
+			compatible = "mobileye,eyeq5-gpio";
+			reg = <0x0 0x1500000 0x0 0x1000>;
+			gpio-bank = <1>;
+			ngpios = <23>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 14 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&olb 0 29 23>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			resets = <&olb 0 26>;
+		};
 	};
 };
 
