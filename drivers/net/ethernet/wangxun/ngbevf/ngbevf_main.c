@@ -197,6 +197,7 @@ static int ngbevf_probe(struct pci_dev *pdev,
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	ether_addr_copy(netdev->perm_addr, wx->mac.addr);
 
+	wxvf_init_service(wx);
 	err = wx_init_interrupt_scheme(wx);
 	if (err)
 		goto err_free_sw_init;
@@ -213,6 +214,8 @@ static int ngbevf_probe(struct pci_dev *pdev,
 err_register:
 	wx_clear_interrupt_scheme(wx);
 err_free_sw_init:
+	timer_delete_sync(&wx->service_timer);
+	cancel_work_sync(&wx->service_task);
 	kfree(wx->vfinfo);
 	kfree(wx->rss_key);
 	kfree(wx->mac_table);
