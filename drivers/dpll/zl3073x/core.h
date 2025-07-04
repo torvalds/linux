@@ -14,6 +14,7 @@ struct regmap;
 /*
  * Hardware limits for ZL3073x chip family
  */
+#define ZL3073X_MAX_CHANNELS	5
 #define ZL3073X_NUM_REFS	10
 #define ZL3073X_NUM_OUTS	10
 #define ZL3073X_NUM_SYNTHS	5
@@ -106,6 +107,12 @@ int zl3073x_write_u8(struct zl3073x_dev *zldev, unsigned int reg, u8 val);
 int zl3073x_write_u16(struct zl3073x_dev *zldev, unsigned int reg, u16 val);
 int zl3073x_write_u32(struct zl3073x_dev *zldev, unsigned int reg, u32 val);
 int zl3073x_write_u48(struct zl3073x_dev *zldev, unsigned int reg, u64 val);
+
+/*****************
+ * Misc operations
+ *****************/
+
+int zl3073x_ref_freq_factorize(u32 freq, u16 *base, u16 *mult);
 
 static inline bool
 zl3073x_is_n_pin(u8 id)

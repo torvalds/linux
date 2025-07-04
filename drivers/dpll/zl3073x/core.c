@@ -128,6 +128,47 @@ const struct regmap_config zl3073x_regmap_config = {
 };
 EXPORT_SYMBOL_NS_GPL(zl3073x_regmap_config, "ZL3073X");
 
+/**
+ * zl3073x_ref_freq_factorize - factorize given frequency
+ * @freq: input frequency
+ * @base: base frequency
+ * @mult: multiplier
+ *
+ * Checks if the given frequency can be factorized using one of the
+ * supported base frequencies. If so the base frequency and multiplier
+ * are stored into appropriate parameters if they are not NULL.
+ *
+ * Return: 0 on success, -EINVAL if the frequency cannot be factorized
+ */
+int
+zl3073x_ref_freq_factorize(u32 freq, u16 *base, u16 *mult)
+{
+	static const u16 base_freqs[] = {
+		1, 2, 4, 5, 8, 10, 16, 20, 25, 32, 40, 50, 64, 80, 100, 125,
+		128, 160, 200, 250, 256, 320, 400, 500, 625, 640, 800, 1000,
+		1250, 1280, 1600, 2000, 2500, 3125, 3200, 4000, 5000, 6250,
+		6400, 8000, 10000, 12500, 15625, 16000, 20000, 25000, 31250,
+		32000, 40000, 50000, 62500,
+	};
+	u32 div;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(base_freqs); i++) {
+		div = freq / base_freqs[i];
+
+		if (div <= U16_MAX && (freq % base_freqs[i]) == 0) {
+			if (base)
+				*base = base_freqs[i];
+			if (mult)
+				*mult = div;
+
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static bool
 zl3073x_check_reg(struct zl3073x_dev *zldev, unsigned int reg, size_t size)
 {
