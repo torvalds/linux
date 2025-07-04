@@ -982,6 +982,7 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	ret = atomisp_css_start(asd);
 	if (ret) {
 		atomisp_flush_video_pipe(pipe, VB2_BUF_STATE_QUEUED, true);
+		media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
 		goto out_unlock;
 	}
 
