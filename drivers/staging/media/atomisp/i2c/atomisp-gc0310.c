@@ -13,9 +13,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/string.h>
 #include <linux/types.h>
 
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 
@@ -27,40 +29,31 @@
 
 #define GC0310_ID				0xa310
 
-#define GC0310_RESET_RELATED			0xFE
+#define GC0310_RESET_RELATED_REG		CCI_REG8(0xfe)
 #define GC0310_REGISTER_PAGE_0			0x0
 #define GC0310_REGISTER_PAGE_3			0x3
 
 /*
  * GC0310 System control registers
  */
-#define GC0310_SW_STREAM			0x10
-
-#define GC0310_SC_CMMN_CHIP_ID_H		0xf0
-#define GC0310_SC_CMMN_CHIP_ID_L		0xf1
-
-#define GC0310_AEC_PK_EXPO_H			0x03
-#define GC0310_AEC_PK_EXPO_L			0x04
-#define GC0310_AGC_ADJ				0x48
-#define GC0310_DGC_ADJ				0x71
-#define GC0310_GROUP_ACCESS			0x3208
-
-#define GC0310_H_CROP_START_H			0x09
-#define GC0310_H_CROP_START_L			0x0A
-#define GC0310_V_CROP_START_H			0x0B
-#define GC0310_V_CROP_START_L			0x0C
-#define GC0310_H_OUTSIZE_H			0x0F
-#define GC0310_H_OUTSIZE_L			0x10
-#define GC0310_V_OUTSIZE_H			0x0D
-#define GC0310_V_OUTSIZE_L			0x0E
-#define GC0310_H_BLANKING_H			0x05
-#define GC0310_H_BLANKING_L			0x06
-#define GC0310_V_BLANKING_H			0x07
-#define GC0310_V_BLANKING_L			0x08
-#define GC0310_SH_DELAY				0x11
+#define GC0310_SW_STREAM_REG			CCI_REG8(0x10)
 
 #define GC0310_START_STREAMING			0x94 /* 8-bit enable */
 #define GC0310_STOP_STREAMING			0x0 /* 8-bit disable */
+
+#define GC0310_SC_CMMN_CHIP_ID_REG		CCI_REG16(0xf0)
+
+#define GC0310_AEC_PK_EXPO_REG			CCI_REG16(0x03)
+#define GC0310_AGC_ADJ_REG			CCI_REG8(0x48)
+#define GC0310_DGC_ADJ_REG			CCI_REG8(0x71)
+
+#define GC0310_H_CROP_START_REG			CCI_REG16(0x09)
+#define GC0310_V_CROP_START_REG			CCI_REG16(0x0b)
+#define GC0310_H_OUTSIZE_REG			CCI_REG16(0x0f)
+#define GC0310_V_OUTSIZE_REG			CCI_REG16(0x0d)
+#define GC0310_H_BLANKING_REG			CCI_REG16(0x05)
+#define GC0310_V_BLANKING_REG			CCI_REG16(0x07)
+#define GC0310_SH_DELAY_REG			CCI_REG8(0x11)
 
 #define to_gc0310_sensor(x) container_of(x, struct gc0310_device, sd)
 
@@ -71,6 +64,7 @@ struct gc0310_device {
 	struct mutex input_lock;
 	bool is_streaming;
 
+	struct regmap *regmap;
 	struct gpio_desc *reset;
 	struct gpio_desc *powerdown;
 
@@ -90,7 +84,7 @@ struct gc0310_reg {
 	u8 val;
 };
 
-static const struct gc0310_reg gc0310_reset_register[] = {
+static const struct reg_sequence gc0310_reset_register[] = {
 	/* System registers */
 	{ 0xfe, 0xf0 },
 	{ 0xfe, 0xf0 },
@@ -233,7 +227,7 @@ static const struct gc0310_reg gc0310_reset_register[] = {
 	{ 0xfe, 0x00 },
 };
 
-static const struct gc0310_reg gc0310_VGA_30fps[] = {
+static const struct reg_sequence gc0310_VGA_30fps[] = {
 	{ 0xfe, 0x00 },
 	{ 0x0d, 0x01 }, /* height */
 	{ 0x0e, 0xf2 }, /* 0xf7 //height */
@@ -257,41 +251,10 @@ static const struct gc0310_reg gc0310_VGA_30fps[] = {
 	{ 0xfe, 0x00 },
 };
 
-/*
- * gc0310_write_reg_array - Initializes a list of GC0310 registers
- * @client: i2c driver client structure
- * @reglist: list of registers to be written
- * @count: number of register, value pairs in the list
- */
-static int gc0310_write_reg_array(struct i2c_client *client,
-				  const struct gc0310_reg *reglist, int count)
-{
-	int i, err;
-
-	for (i = 0; i < count; i++) {
-		err = i2c_smbus_write_byte_data(client, reglist[i].reg, reglist[i].val);
-		if (err) {
-			dev_err(&client->dev, "write error: wrote 0x%x to offset 0x%x error %d",
-				reglist[i].val, reglist[i].reg, err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-static int gc0310_exposure_set(struct gc0310_device *sensor, u32 exp)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
-
-	return i2c_smbus_write_word_swapped(client, GC0310_AEC_PK_EXPO_H, exp);
-}
-
 static int gc0310_gain_set(struct gc0310_device *sensor, u32 gain)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
 	u8 again, dgain;
-	int ret;
+	int ret = 0;
 
 	/* Taken from original driver, this never sets dgain lower then 32? */
 
@@ -306,11 +269,9 @@ static int gc0310_gain_set(struct gc0310_device *sensor, u32 gain)
 		dgain = gain / 2;
 	}
 
-	ret = i2c_smbus_write_byte_data(client, GC0310_AGC_ADJ, again);
-	if (ret)
-		return ret;
-
-	return i2c_smbus_write_byte_data(client, GC0310_DGC_ADJ, dgain);
+	cci_write(sensor->regmap, GC0310_AGC_ADJ_REG, again, &ret);
+	cci_write(sensor->regmap, GC0310_DGC_ADJ_REG, dgain, &ret);
+	return ret;
 }
 
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -325,7 +286,8 @@ static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		ret = gc0310_exposure_set(sensor, ctrl->val);
+		ret = cci_write(sensor->regmap, GC0310_AEC_PK_EXPO_REG,
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_GAIN:
 		ret = gc0310_gain_set(sensor, ctrl->val);
@@ -390,28 +352,30 @@ static int gc0310_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int gc0310_detect(struct i2c_client *client)
+static int gc0310_detect(struct gc0310_device *sensor)
 {
-	struct i2c_adapter *adapter = client->adapter;
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
+	u64 val;
 	int ret;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
 
 	ret = pm_runtime_get_sync(&client->dev);
 	if (ret >= 0)
-		ret = i2c_smbus_read_word_swapped(client, GC0310_SC_CMMN_CHIP_ID_H);
+		ret = cci_read(sensor->regmap, GC0310_SC_CMMN_CHIP_ID_REG,
+			       &val, NULL);
 	pm_runtime_put(&client->dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "read sensor_id failed: %d\n", ret);
 		return -ENODEV;
 	}
 
-	dev_dbg(&client->dev, "sensor ID = 0x%x\n", ret);
+	dev_dbg(&client->dev, "sensor ID = 0x%llx\n", val);
 
-	if (ret != GC0310_ID) {
-		dev_err(&client->dev, "sensor ID error, read id = 0x%x, target id = 0x%x\n",
-			ret, GC0310_ID);
+	if (val != GC0310_ID) {
+		dev_err(&client->dev, "sensor ID error, read id = 0x%llx, target id = 0x%x\n",
+			val, GC0310_ID);
 		return -ENODEV;
 	}
 
@@ -436,12 +400,14 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 
 		msleep(100);
 
-		ret = gc0310_write_reg_array(client, gc0310_reset_register,
+		ret = regmap_multi_reg_write(sensor->regmap,
+					     gc0310_reset_register,
 					     ARRAY_SIZE(gc0310_reset_register));
 		if (ret)
 			goto error_power_down;
 
-		ret = gc0310_write_reg_array(client, gc0310_VGA_30fps,
+		ret = regmap_multi_reg_write(sensor->regmap,
+					     gc0310_VGA_30fps,
 					     ARRAY_SIZE(gc0310_VGA_30fps));
 		if (ret)
 			goto error_power_down;
@@ -452,21 +418,16 @@ static int gc0310_s_stream(struct v4l2_subdev *sd, int enable)
 			goto error_power_down;
 
 		/* enable per frame MIPI and sensor ctrl reset  */
-		ret = i2c_smbus_write_byte_data(client, 0xFE, 0x30);
-		if (ret)
-			goto error_power_down;
+		cci_write(sensor->regmap, GC0310_RESET_RELATED_REG, 0x30, &ret);
 	}
 
-	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_3);
-	if (ret)
-		goto error_power_down;
-
-	ret = i2c_smbus_write_byte_data(client, GC0310_SW_STREAM,
-					enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING);
-	if (ret)
-		goto error_power_down;
-
-	ret = i2c_smbus_write_byte_data(client, GC0310_RESET_RELATED, GC0310_REGISTER_PAGE_0);
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_3, &ret);
+	cci_write(sensor->regmap, GC0310_SW_STREAM_REG,
+		  enable ? GC0310_START_STREAMING : GC0310_STOP_STREAMING,
+		  &ret);
+	cci_write(sensor->regmap, GC0310_RESET_RELATED_REG,
+		  GC0310_REGISTER_PAGE_0, &ret);
 	if (ret)
 		goto error_power_down;
 
@@ -627,12 +588,16 @@ static int gc0310_probe(struct i2c_client *client)
 	v4l2_i2c_subdev_init(&sensor->sd, client, &gc0310_ops);
 	gc0310_fill_format(&sensor->mode.fmt);
 
+	sensor->regmap = devm_cci_regmap_init_i2c(client, 8);
+	if (IS_ERR(sensor->regmap))
+		return PTR_ERR(sensor->regmap);
+
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
 
-	ret = gc0310_detect(client);
+	ret = gc0310_detect(sensor);
 	if (ret) {
 		gc0310_remove(client);
 		return ret;
