@@ -871,7 +871,6 @@ static void cs35l56_dsp_work(struct work_struct *work)
 
 	cs35l56_log_tuning(&cs35l56->base, &cs35l56->dsp.cs_dsp);
 err:
-	pm_runtime_mark_last_busy(cs35l56->base.dev);
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
 

@@ -188,7 +188,6 @@ static int max98363_io_init(struct sdw_slave *slave)
 	max98363->hw_init = true;
 
 out:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;

@@ -242,7 +242,6 @@ done:
 error:
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 
 	return ret;
@@ -423,7 +422,6 @@ void cs42l43_button_press_work(struct work_struct *work)
 error:
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 }
 
@@ -462,7 +460,6 @@ void cs42l43_button_release_work(struct work_struct *work)
 
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 }
 
@@ -504,7 +501,6 @@ void cs42l43_bias_sense_timeout(struct work_struct *work)
 
 	mutex_unlock(&priv->jack_lock);
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 }
 
@@ -776,7 +772,6 @@ error:
 
 	priv->suspend_jack_debounce = false;
 
-	pm_runtime_mark_last_busy(priv->dev);
 	pm_runtime_put_autosuspend(priv->dev);
 }
 

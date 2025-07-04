@@ -236,7 +236,6 @@ static int sof_ipc4_load_library(struct snd_sof_dev *sdev, unsigned long lib_id,
 
 	ret = ipc4_data->load_library(sdev, fw_lib, false);
 
-	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
 		dev_err_ratelimited(sdev->dev, "%s: pm_runtime idle failed: %d\n",

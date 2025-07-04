@@ -1491,7 +1491,6 @@ static int wsa883x_get_temp(struct wsa883x_priv *wsa883x, long *temp)
 		ret = -EAGAIN;
 	}
 out:
-	pm_runtime_mark_last_busy(wsa883x->dev);
 	pm_runtime_put_autosuspend(wsa883x->dev);
 
 	return ret;
