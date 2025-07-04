@@ -51,6 +51,11 @@ static inline bool ata_dev_is_zac(struct ata_device *dev)
 		ata_id_zoned_cap(dev->id) == 0x01;
 }
 
+static inline bool ata_port_eh_scheduled(struct ata_port *ap)
+{
+	return ap->pflags & (ATA_PFLAG_EH_PENDING | ATA_PFLAG_EH_IN_PROGRESS);
+}
+
 #ifdef CONFIG_ATA_FORCE
 extern void ata_force_cbl(struct ata_port *ap);
 #else
