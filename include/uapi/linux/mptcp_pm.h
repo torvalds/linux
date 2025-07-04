@@ -27,14 +27,14 @@
  *   token, rem_id.
  * @MPTCP_EVENT_SUB_ESTABLISHED: A new subflow has been established. 'error'
  *   should not be set. Attributes: token, family, loc_id, rem_id, saddr4 |
- *   saddr6, daddr4 | daddr6, sport, dport, backup, if_idx [, error].
+ *   saddr6, daddr4 | daddr6, sport, dport, backup, if-idx [, error].
  * @MPTCP_EVENT_SUB_CLOSED: A subflow has been closed. An error (copy of
  *   sk_err) could be set if an error has been detected for this subflow.
  *   Attributes: token, family, loc_id, rem_id, saddr4 | saddr6, daddr4 |
- *   daddr6, sport, dport, backup, if_idx [, error].
+ *   daddr6, sport, dport, backup, if-idx [, error].
  * @MPTCP_EVENT_SUB_PRIORITY: The priority of a subflow has changed. 'error'
  *   should not be set. Attributes: token, family, loc_id, rem_id, saddr4 |
- *   saddr6, daddr4 | daddr6, sport, dport, backup, if_idx [, error].
+ *   saddr6, daddr4 | daddr6, sport, dport, backup, if-idx [, error].
  * @MPTCP_EVENT_LISTENER_CREATED: A new PM listener is created. Attributes:
  *   family, sport, saddr4 | saddr6.
  * @MPTCP_EVENT_LISTENER_CLOSED: A PM listener is closed. Attributes: family,

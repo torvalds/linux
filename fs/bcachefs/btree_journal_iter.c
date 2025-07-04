@@ -137,12 +137,15 @@ struct bkey_i *bch2_journal_keys_peek_prev_min(struct bch_fs *c, enum btree_id b
 	struct journal_key *k;
 
 	BUG_ON(*idx > keys->nr);
+
+	if (!keys->nr)
+		return NULL;
 search:
 	if (!*idx)
 		*idx = __bch2_journal_key_search(keys, btree_id, level, pos);
 
-	while (*idx &&
-	       __journal_key_cmp(btree_id, level, end_pos, idx_to_key(keys, *idx - 1)) <= 0) {
+	while (*idx < keys->nr &&
+	       __journal_key_cmp(btree_id, level, end_pos, idx_to_key(keys, *idx)) >= 0) {
 		(*idx)++;
 		iters++;
 		if (iters == 10) {
@@ -151,18 +154,23 @@ search:
 		}
 	}
 
+	if (*idx == keys->nr)
+		--(*idx);
+
 	struct bkey_i *ret = NULL;
 	rcu_read_lock(); /* for overwritten_ranges */
 
-	while ((k = *idx < keys->nr ? idx_to_key(keys, *idx) : NULL)) {
+	while (true) {
+		k = idx_to_key(keys, *idx);
 		if (__journal_key_cmp(btree_id, level, end_pos, k) > 0)
 			break;
 
 		if (k->overwritten) {
 			if (k->overwritten_range)
-				*idx = rcu_dereference(k->overwritten_range)->start - 1;
-			else
-				*idx -= 1;
+				*idx = rcu_dereference(k->overwritten_range)->start;
+			if (!*idx)
+				break;
+			--(*idx);
 			continue;
 		}
 
@@ -171,6 +179,8 @@ search:
 			break;
 		}
 
+		if (!*idx)
+			break;
 		--(*idx);
 		iters++;
 		if (iters == 10) {
@@ -641,10 +651,11 @@ static int journal_sort_key_cmp(const void *_l, const void *_r)
 {
 	const struct journal_key *l = _l;
 	const struct journal_key *r = _r;
+	int rewind = l->rewind && r->rewind ? -1 : 1;
 
 	return  journal_key_cmp(l, r) ?:
-		cmp_int(l->journal_seq, r->journal_seq) ?:
-		cmp_int(l->journal_offset, r->journal_offset);
+		((cmp_int(l->journal_seq, r->journal_seq) ?:
+		  cmp_int(l->journal_offset, r->journal_offset)) * rewind);
 }
 
 void bch2_journal_keys_put(struct bch_fs *c)
@@ -713,6 +724,8 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 	struct journal_keys *keys = &c->journal_keys;
 	size_t nr_read = 0;
 
+	u64 rewind_seq = c->opts.journal_rewind ?: U64_MAX;
+
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
 
@@ -721,28 +734,43 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 
 		cond_resched();
 
-		for_each_jset_key(k, entry, &i->j) {
-			struct journal_key n = (struct journal_key) {
-				.btree_id	= entry->btree_id,
-				.level		= entry->level,
-				.k		= k,
-				.journal_seq	= le64_to_cpu(i->j.seq),
-				.journal_offset	= k->_data - i->j._data,
-			};
+		vstruct_for_each(&i->j, entry) {
+			bool rewind = !entry->level &&
+				!btree_id_is_alloc(entry->btree_id) &&
+				le64_to_cpu(i->j.seq) >= rewind_seq;
 
-			if (darray_push(keys, n)) {
-				__journal_keys_sort(keys);
+			if (entry->type != (rewind
+					    ? BCH_JSET_ENTRY_overwrite
+					    : BCH_JSET_ENTRY_btree_keys))
+				continue;
 
-				if (keys->nr * 8 > keys->size * 7) {
-					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu keys at seq %llu",
-						keys->nr, keys->size, nr_read, le64_to_cpu(i->j.seq));
-					return bch_err_throw(c, ENOMEM_journal_keys_sort);
+			if (!rewind && le64_to_cpu(i->j.seq) < c->journal_replay_seq_start)
+				continue;
+
+			jset_entry_for_each_key(entry, k) {
+				struct journal_key n = (struct journal_key) {
+					.btree_id	= entry->btree_id,
+					.level		= entry->level,
+					.rewind		= rewind,
+					.k		= k,
+					.journal_seq	= le64_to_cpu(i->j.seq),
+					.journal_offset	= k->_data - i->j._data,
+				};
+
+				if (darray_push(keys, n)) {
+					__journal_keys_sort(keys);
+
+					if (keys->nr * 8 > keys->size * 7) {
+						bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu keys at seq %llu",
+							keys->nr, keys->size, nr_read, le64_to_cpu(i->j.seq));
+						return bch_err_throw(c, ENOMEM_journal_keys_sort);
+					}
+
+					BUG_ON(darray_push(keys, n));
 				}
 
-				BUG_ON(darray_push(keys, n));
+				nr_read++;
 			}
-
-			nr_read++;
 		}
 	}
 
