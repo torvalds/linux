@@ -323,6 +323,31 @@ static struct attribute *scmi_device_attributes_attrs[] = {
 };
 ATTRIBUTE_GROUPS(scmi_device_attributes);
 
+static int scmi_pm_suspend(struct device *dev)
+{
+	const struct device_driver *drv = dev->driver;
+
+	if (drv && drv->pm && drv->pm->suspend)
+		return drv->pm->suspend(dev);
+
+	return 0;
+}
+
+static int scmi_pm_resume(struct device *dev)
+{
+	const struct device_driver *drv = dev->driver;
+
+	if (drv && drv->pm && drv->pm->resume)
+		return drv->pm->resume(dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops scmi_dev_pm_ops = {
+	.suspend = pm_sleep_ptr(scmi_pm_suspend),
+	.resume = pm_sleep_ptr(scmi_pm_resume),
+};
+
 const struct bus_type scmi_bus_type = {
 	.name =	"scmi_protocol",
 	.match = scmi_dev_match,
@@ -330,6 +355,7 @@ const struct bus_type scmi_bus_type = {
 	.remove = scmi_dev_remove,
 	.uevent	= scmi_device_uevent,
 	.dev_groups = scmi_device_attributes_groups,
+	.pm = &scmi_dev_pm_ops,
 };
 EXPORT_SYMBOL_GPL(scmi_bus_type);
 
