@@ -29,6 +29,7 @@ void wx_mac_set_default_filter(struct wx *wx, u8 *addr);
 int wx_add_mac_filter(struct wx *wx, u8 *addr, u16 pool);
 int wx_del_mac_filter(struct wx *wx, u8 *addr, u16 pool);
 void wx_flush_sw_mac_table(struct wx *wx);
+u32 wx_mta_vector(struct wx *wx, u8 *mc_addr);
 int wx_set_mac(struct net_device *netdev, void *p);
 void wx_disable_rx(struct wx *wx);
 int wx_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting);

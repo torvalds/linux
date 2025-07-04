@@ -1214,6 +1214,7 @@ struct wx {
 
 	void *priv;
 	u8 __iomem *hw_addr;
+	u8 __iomem *b4_addr; /* vf only */
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 	struct wx_bus_info bus;

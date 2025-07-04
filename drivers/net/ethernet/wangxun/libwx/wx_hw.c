@@ -1107,7 +1107,7 @@ static int wx_write_uc_addr_list(struct net_device *netdev, int pool)
  *  by the MO field of the MCSTCTRL. The MO field is set during initialization
  *  to mc_filter_type.
  **/
-static u32 wx_mta_vector(struct wx *wx, u8 *mc_addr)
+u32 wx_mta_vector(struct wx *wx, u8 *mc_addr)
 {
 	u32 vector = 0;
 
