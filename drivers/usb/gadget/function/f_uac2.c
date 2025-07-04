@@ -2052,7 +2052,7 @@ static ssize_t f_uac2_opts_##name##_show(struct config_item *item,	\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
-	result = scnprintf(page, sizeof(opts->name), "%s", opts->name);	\
+	result = sysfs_emit(page, "%s", opts->name);	                \
 	mutex_unlock(&opts->lock);					\
 									\
 	return result;							\
