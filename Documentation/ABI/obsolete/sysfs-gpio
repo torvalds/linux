@@ -27,6 +27,9 @@ Description:
 	    /base ... (r/o) same as N
 	    /label ... (r/o) descriptive chip name
 	    /ngpio ... (r/o) number of GPIOs; numbered N to N + (ngpio - 1)
+	    /gpio<OFFSET>
+	        /value ... always readable, writes fail for input GPIOs
+	        /direction ... r/w as: in, out (default low); write: high, low
 	/chipX ... for each gpiochip; #X is the gpio device ID
 	    /export ... asks the kernel to export a GPIO at HW offset X to userspace
 	    /unexport ... to return a GPIO at HW offset X to the kernel

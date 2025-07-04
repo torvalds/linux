@@ -41,6 +41,13 @@ enum {
 	GPIO_SYSFS_LINE_CLASS_ATTR_SIZE,
 };
 
+enum {
+	GPIO_SYSFS_LINE_CHIP_ATTR_DIRECTION = 0,
+	GPIO_SYSFS_LINE_CHIP_ATTR_VALUE,
+	GPIO_SYSFS_LINE_CHIP_ATTR_SENTINEL,
+	GPIO_SYSFS_LINE_CHIP_ATTR_SIZE,
+};
+
 struct gpiod_data {
 	struct list_head list;
 
@@ -54,6 +61,7 @@ struct gpiod_data {
 
 	bool direction_can_change;
 
+	struct kobject *parent;
 	struct device_attribute dir_attr;
 	struct device_attribute val_attr;
 	struct device_attribute edge_attr;
@@ -62,6 +70,10 @@ struct gpiod_data {
 	struct attribute *class_attrs[GPIO_SYSFS_LINE_CLASS_ATTR_SIZE];
 	struct attribute_group class_attr_group;
 	const struct attribute_group *class_attr_groups[2];
+
+	struct attribute *chip_attrs[GPIO_SYSFS_LINE_CHIP_ATTR_SIZE];
+	struct attribute_group chip_attr_group;
+	const struct attribute_group *chip_attr_groups[2];
 };
 
 struct gpiodev_data {
@@ -691,6 +703,7 @@ static void gpiod_attr_init(struct device_attribute *dev_attr, const char *name,
  */
 int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 {
+	char *path __free(kfree) = NULL;
 	struct gpiodev_data *gdev_data;
 	struct gpiod_data *desc_data;
 	struct gpio_device *gdev;
@@ -780,13 +793,46 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	gdev_data = gdev_get_data(gdev);
 	if (!gdev_data) {
 		status = -ENODEV;
-		goto err_unregister_device;
+		goto err_put_dirent;
+	}
+
+	desc_data->chip_attr_group.name = kasprintf(GFP_KERNEL, "gpio%u",
+						    gpio_chip_hwgpio(desc));
+	if (!desc_data->chip_attr_group.name) {
+		status = -ENOMEM;
+		goto err_put_dirent;
+	}
+
+	attrs = desc_data->chip_attrs;
+	desc_data->chip_attr_group.is_visible = gpio_is_visible;
+	attrs[GPIO_SYSFS_LINE_CHIP_ATTR_DIRECTION] = &desc_data->dir_attr.attr;
+	attrs[GPIO_SYSFS_LINE_CHIP_ATTR_VALUE] = &desc_data->val_attr.attr;
+
+	desc_data->chip_attr_group.attrs = attrs;
+	desc_data->chip_attr_groups[0] = &desc_data->chip_attr_group;
+
+	desc_data->parent = &gdev_data->cdev_id->kobj;
+	status = sysfs_create_groups(desc_data->parent,
+				     desc_data->chip_attr_groups);
+	if (status)
+		goto err_free_name;
+
+	path = kasprintf(GFP_KERNEL, "gpio%u/value", gpio_chip_hwgpio(desc));
+	if (!path) {
+		status = -ENOMEM;
+		goto err_remove_groups;
 	}
 
 	list_add(&desc_data->list, &gdev_data->exported_lines);
 
 	return 0;
 
+err_remove_groups:
+	sysfs_remove_groups(desc_data->parent, desc_data->chip_attr_groups);
+err_free_name:
+	kfree(desc_data->chip_attr_group.name);
+err_put_dirent:
+	sysfs_put(desc_data->value_kn);
 err_unregister_device:
 	device_unregister(desc_data->dev);
 err_free_data:
@@ -883,6 +929,9 @@ void gpiod_unexport(struct gpio_desc *desc)
 		 */
 		if (desc_data->irq_flags)
 			gpio_sysfs_free_irq(desc_data);
+
+		sysfs_remove_groups(desc_data->parent,
+				    desc_data->chip_attr_groups);
 	}
 
 	mutex_destroy(&desc_data->mutex);
