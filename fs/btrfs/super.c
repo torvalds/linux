@@ -261,12 +261,6 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 	{}
 };
 
-/* No support for restricting writes to btrfs devices yet... */
-static inline blk_mode_t btrfs_open_mode(struct fs_context *fc)
-{
-	return sb_open_mode(fc->sb_flags) & ~BLK_OPEN_RESTRICT_WRITES;
-}
-
 static bool btrfs_match_compress_type(const char *string, const char *type, bool may_have_level)
 {
 	const int len = strlen(type);
@@ -1843,7 +1837,7 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 	struct btrfs_fs_devices *fs_devices = NULL;
 	struct btrfs_device *device;
 	struct super_block *sb;
-	blk_mode_t mode = btrfs_open_mode(fc);
+	blk_mode_t mode = sb_open_mode(fc->sb_flags);
 	int ret;
 
 	btrfs_ctx_to_info(fs_info, ctx);
