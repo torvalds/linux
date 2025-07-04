@@ -5,7 +5,7 @@
 #include <linux/ceph/types.h>
 #include <linux/ceph/buffer.h>
 
-#define CEPH_KEY_LEN			16
+#define CEPH_MAX_KEY_LEN		16
 #define CEPH_MAX_CON_SECRET_LEN		64
 
 /*

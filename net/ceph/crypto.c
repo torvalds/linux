@@ -37,9 +37,6 @@ static int set_secret(struct ceph_crypto_key *key, void *buf)
 		return -ENOTSUPP;
 	}
 
-	if (!key->len)
-		return -EINVAL;
-
 	key->key = kmemdup(buf, key->len, GFP_NOIO);
 	if (!key->key) {
 		ret = -ENOMEM;
@@ -83,6 +80,11 @@ int ceph_crypto_key_decode(struct ceph_crypto_key *key, void **p, void *end)
 	ceph_decode_copy(p, &key->created, sizeof(key->created));
 	key->len = ceph_decode_16(p);
 	ceph_decode_need(p, end, key->len, bad);
+	if (key->len > CEPH_MAX_KEY_LEN) {
+		pr_err("secret too big %d\n", key->len);
+		return -EINVAL;
+	}
+
 	ret = set_secret(key, *p);
 	memzero_explicit(*p, key->len);
 	*p += key->len;
