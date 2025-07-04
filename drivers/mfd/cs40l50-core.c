@@ -531,7 +531,6 @@ int cs40l50_probe(struct cs40l50 *cs40l50)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to request %s\n", CS40L50_FW);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
