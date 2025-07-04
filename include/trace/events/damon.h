@@ -48,6 +48,23 @@ TRACE_EVENT_CONDITION(damos_before_apply,
 			__entry->nr_accesses, __entry->age)
 );
 
+TRACE_EVENT(damon_monitor_intervals_tune,
+
+	TP_PROTO(unsigned long sample_us),
+
+	TP_ARGS(sample_us),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, sample_us)
+	),
+
+	TP_fast_assign(
+		__entry->sample_us = sample_us;
+	),
+
+	TP_printk("sample_us=%lu", __entry->sample_us)
+);
+
 TRACE_EVENT(damon_aggregated,
 
 	TP_PROTO(unsigned int target_id, struct damon_region *r,
