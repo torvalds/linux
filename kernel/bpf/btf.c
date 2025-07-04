@@ -891,6 +891,12 @@ bool btf_type_is_i64(const struct btf_type *t)
 	return btf_type_is_int(t) && __btf_type_int_is_regular(t, 8);
 }
 
+bool btf_type_is_primitive(const struct btf_type *t)
+{
+	return (btf_type_is_int(t) && btf_type_int_is_regular(t)) ||
+	       btf_is_any_enum(t);
+}
+
 /*
  * Check that given struct member is a regular int with expected
  * offset and size.
@@ -7830,6 +7836,13 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 				return -EINVAL;
 			}
 
+			ref_t = btf_type_skip_modifiers(btf, t->type, NULL);
+			if (btf_type_is_void(ref_t) || btf_type_is_primitive(ref_t)) {
+				sub->args[i].arg_type = ARG_PTR_TO_MEM | MEM_RDONLY | PTR_UNTRUSTED;
+				sub->args[i].mem_size = 0;
+				continue;
+			}
+
 			kern_type_id = btf_get_ptr_to_btf_id(log, i, btf, t);
 			if (kern_type_id < 0)
 				return kern_type_id;
@@ -7838,7 +7851,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 			ref_t = btf_type_by_id(vmlinux_btf, kern_type_id);
 			if (!btf_type_is_struct(ref_t)) {
 				tname = __btf_name_by_offset(vmlinux_btf, t->name_off);
-				bpf_log(log, "arg#%d has type %s '%s', but only struct types are allowed\n",
+				bpf_log(log, "arg#%d has type %s '%s', but only struct or primitive types are allowed\n",
 					i, btf_type_str(ref_t), tname);
 				return -EINVAL;
 			}

@@ -23152,11 +23152,12 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 				__mark_dynptr_reg(reg, BPF_DYNPTR_TYPE_LOCAL, true, ++env->id_gen);
 			} else if (base_type(arg->arg_type) == ARG_PTR_TO_MEM) {
 				reg->type = PTR_TO_MEM;
-				if (arg->arg_type & PTR_MAYBE_NULL)
-					reg->type |= PTR_MAYBE_NULL;
+				reg->type |= arg->arg_type &
+					     (PTR_MAYBE_NULL | PTR_UNTRUSTED | MEM_RDONLY);
 				mark_reg_known_zero(env, regs, i);
 				reg->mem_size = arg->mem_size;
-				reg->id = ++env->id_gen;
+				if (arg->arg_type & PTR_MAYBE_NULL)
+					reg->id = ++env->id_gen;
 			} else if (base_type(arg->arg_type) == ARG_PTR_TO_BTF_ID) {
 				reg->type = PTR_TO_BTF_ID;
 				if (arg->arg_type & PTR_MAYBE_NULL)
