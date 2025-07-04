@@ -223,12 +223,6 @@ allOf:
       - required:
           - pwms
 
-  - oneOf:
-      - required:
-          - interrupts
-      - required:
-          - io-backends
-
   - if:
       properties:
         compatible:
