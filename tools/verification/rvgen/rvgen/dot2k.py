@@ -14,14 +14,16 @@ import os
 
 class dot2k(Dot2c):
     monitor_types = { "global" : 1, "per_cpu" : 2, "per_task" : 3 }
-    monitor_templates_dir = "rvgen/dot2k_templates/"
     rv_dir = "kernel/trace/rv"
     monitor_type = "per_cpu"
 
     def __init__(self, file_path, MonitorType, extra_params={}):
         self.container = extra_params.get("subcmd") == "container"
         self.parent = extra_params.get("parent")
-        self.__fill_rv_templates_dir()
+        if self.container:
+            self.abs_template_dir = os.path.join(os.path.dirname(__file__), "templates/container")
+        else:
+            self.abs_template_dir = os.path.join(os.path.dirname(__file__), "templates/dot2k")
 
         if self.container:
             if file_path:
@@ -33,9 +35,7 @@ class dot2k(Dot2c):
             self.name = extra_params.get("model_name")
             self.events = []
             self.states = []
-            self.main_c = self.__read_file(self.monitor_templates_dir + "main_container.c")
-            self.main_h = self.__read_file(self.monitor_templates_dir + "main_container.h")
-            self.kconfig = self.__read_file(self.monitor_templates_dir + "Kconfig_container")
+            self.main_h = self._read_template_file("main.h")
         else:
             super().__init__(file_path, extra_params.get("model_name"))
 
@@ -43,34 +43,15 @@ class dot2k(Dot2c):
             if self.monitor_type is None:
                 raise ValueError("Unknown monitor type: %s" % MonitorType)
             self.monitor_type = MonitorType
-            self.main_c = self.__read_file(self.monitor_templates_dir + "main.c")
-            self.trace_h = self.__read_file(self.monitor_templates_dir + "trace.h")
-            self.kconfig = self.__read_file(self.monitor_templates_dir + "Kconfig")
+            self.trace_h = self._read_template_file("trace.h")
+
+        self.main_c = self._read_template_file("main.c")
+        self.kconfig = self._read_template_file("Kconfig")
         self.enum_suffix = "_%s" % self.name
         self.description = extra_params.get("description", self.name) or "auto-generated"
         self.auto_patch = extra_params.get("auto_patch")
         if self.auto_patch:
             self.__fill_rv_kernel_dir()
-
-    def __fill_rv_templates_dir(self):
-
-        if os.path.exists(self.monitor_templates_dir):
-            return
-
-        if platform.system() != "Linux":
-            raise OSError("I can only run on Linux.")
-
-        kernel_path = "/lib/modules/%s/build/tools/verification/rvgen/dot2k_templates/" % (platform.release())
-
-        if os.path.exists(kernel_path):
-            self.monitor_templates_dir = kernel_path
-            return
-
-        if os.path.exists("/usr/share/rvgen/dot2k_templates/"):
-            self.monitor_templates_dir = "/usr/share/rvgen/dot2k_templates/"
-            return
-
-        raise FileNotFoundError("Could not find the template directory, do you have the kernel source installed?")
 
     def __fill_rv_kernel_dir(self):
 
@@ -108,6 +89,16 @@ class dot2k(Dot2c):
 
         fd.close()
         return content
+
+    def _read_template_file(self, file):
+        try:
+            path = os.path.join(self.abs_template_dir, file)
+            return self.__read_file(path)
+        except Exception:
+            # Specific template file not found. Try the generic template file in the template/
+            # directory, which is one level up
+            path = os.path.join(self.abs_template_dir, "..", file)
+            return self.__read_file(path)
 
     def fill_monitor_type(self):
         return self.monitor_type.upper()
