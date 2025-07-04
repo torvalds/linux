@@ -39,7 +39,6 @@ static int arizona_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 		return ret;
 
 	if (change && persistent) {
-		pm_runtime_mark_last_busy(chip->parent);
 		pm_runtime_put_autosuspend(chip->parent);
 	}
 
@@ -82,7 +81,6 @@ static int arizona_gpio_get(struct gpio_chip *chip, unsigned offset)
 			return ret;
 		}
 
-		pm_runtime_mark_last_busy(chip->parent);
 		pm_runtime_put_autosuspend(chip->parent);
 	}
 
