@@ -345,7 +345,7 @@ impl Drop for ConfigToken {
 /// impl ConfigOps for Driver {}
 ///
 /// fn configure(dev: &ARef<Device>) -> Result<ConfigToken> {
-///     let name = CString::try_from_fmt(fmt!("{}", "slow"))?;
+///     let name = CString::try_from_fmt(fmt!("slow"))?;
 ///
 ///     // The OPP configuration is cleared once the [`ConfigToken`] goes out of scope.
 ///     Config::<Driver>::new()

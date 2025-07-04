@@ -9,7 +9,6 @@ use kernel::{
     cpumask::CpumaskVar,
     device::{Core, Device},
     error::code::*,
-    fmt,
     macros::vtable,
     module_platform_driver, of, opp, platform,
     prelude::*,
@@ -19,7 +18,7 @@ use kernel::{
 
 /// Finds exact supply name from the OF node.
 fn find_supply_name_exact(dev: &Device, name: &str) -> Option<CString> {
-    let prop_name = CString::try_from_fmt(fmt!("{}-supply", name)).ok()?;
+    let prop_name = CString::try_from_fmt(fmt!("{name}-supply")).ok()?;
     dev.property_present(&prop_name)
         .then(|| CString::try_from_fmt(fmt!("{name}")).ok())
         .flatten()
