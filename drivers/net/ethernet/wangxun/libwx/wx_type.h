@@ -828,6 +828,8 @@ struct wx_mbx_info {
 	u32 mailbox;
 	u32 udelay;
 	u32 timeout;
+	/* lock mbx access */
+	spinlock_t mbx_lock;
 };
 
 struct wx_thermal_sensor_data {
@@ -1289,6 +1291,8 @@ struct wx {
 	u32 *isb_mem;
 	u32 isb_tag[WX_ISB_MAX];
 	bool misc_irq_domain;
+	u32 eims_other;
+	u32 eims_enable_mask;
 
 #define WX_MAX_RETA_ENTRIES 128
 #define WX_RSS_INDIR_TBL_MAX 64

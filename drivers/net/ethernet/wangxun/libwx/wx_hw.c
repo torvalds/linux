@@ -1827,7 +1827,7 @@ void wx_disable_rx_queue(struct wx *wx, struct wx_ring *ring)
 }
 EXPORT_SYMBOL(wx_disable_rx_queue);
 
-static void wx_enable_rx_queue(struct wx *wx, struct wx_ring *ring)
+void wx_enable_rx_queue(struct wx *wx, struct wx_ring *ring)
 {
 	u8 reg_idx = ring->reg_idx;
 	u32 rxdctl;
@@ -1843,6 +1843,7 @@ static void wx_enable_rx_queue(struct wx *wx, struct wx_ring *ring)
 		       reg_idx);
 	}
 }
+EXPORT_SYMBOL(wx_enable_rx_queue);
 
 static void wx_configure_srrctl(struct wx *wx,
 				struct wx_ring *rx_ring)
