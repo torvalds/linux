@@ -1119,7 +1119,6 @@ mt7996_mac_sta_event(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 				return err;
 
 			msta_link->wcid.tx_info |= MT_WCID_TX_INFO_SET;
-			msta_link->wcid.sta = 1;
 			break;
 		case MT76_STA_EVENT_AUTHORIZE:
 			err = mt7996_mcu_add_sta(dev, link_conf, link_sta,
