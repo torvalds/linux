@@ -62,6 +62,7 @@
 	((GET_BITFIELD(reg, 0, 10) << 12) + 0x140000)
 
 #define I10NM_GNR_IMC_MMIO_OFFSET	0x24c000
+#define I10NM_GNR_D_IMC_MMIO_OFFSET	0x206000
 #define I10NM_GNR_IMC_MMIO_SIZE		0x4000
 #define I10NM_HBM_IMC_MMIO_SIZE		0x9000
 #define I10NM_DDR_IMC_CH_CNT(reg)	GET_BITFIELD(reg, 21, 24)
@@ -687,6 +688,14 @@ static struct pci_dev *get_gnr_mdev(struct skx_dev *d, int logical_idx, int *phy
 	return NULL;
 }
 
+static u32 get_gnr_imc_mmio_offset(void)
+{
+	if (boot_cpu_data.x86_vfm == INTEL_GRANITERAPIDS_D)
+		return I10NM_GNR_D_IMC_MMIO_OFFSET;
+
+	return I10NM_GNR_IMC_MMIO_OFFSET;
+}
+
 /**
  * get_ddr_munit() - Get the resource of the i-th DDR memory controller.
  *
@@ -715,7 +724,7 @@ static struct pci_dev *get_ddr_munit(struct skx_dev *d, int i, u32 *offset, unsi
 			return NULL;
 
 		*offset = I10NM_GET_IMC_MMIO_OFFSET(reg) +
-			  I10NM_GNR_IMC_MMIO_OFFSET +
+			  get_gnr_imc_mmio_offset() +
 			  physical_idx * I10NM_GNR_IMC_MMIO_SIZE;
 		*size   = I10NM_GNR_IMC_MMIO_SIZE;
 
@@ -1030,6 +1039,7 @@ static const struct x86_cpu_id i10nm_cpuids[] = {
 	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X, &spr_cfg),
 	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,  &spr_cfg),
 	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,  &gnr_cfg),
+	X86_MATCH_VFM(INTEL_GRANITERAPIDS_D,  &gnr_cfg),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X, &gnr_cfg),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,   &gnr_cfg),
 	X86_MATCH_VFM(INTEL_ATOM_DARKMONT_X,  &gnr_cfg),
