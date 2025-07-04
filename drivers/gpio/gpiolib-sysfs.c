@@ -657,7 +657,7 @@ static int match_export(struct device *dev, const void *desc)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 
-	return data->desc == desc;
+	return gpiod_is_equal(data->desc, desc);
 }
 
 /**
