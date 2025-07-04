@@ -965,7 +965,6 @@ static int atmel_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	err = aq->ops->transfer(mem, op, offset);
 
 pm_runtime_put:
-	pm_runtime_mark_last_busy(&aq->pdev->dev);
 	pm_runtime_put_autosuspend(&aq->pdev->dev);
 	return err;
 }
@@ -1168,7 +1167,6 @@ static int atmel_qspi_setup(struct spi_device *spi)
 	aq->scr |= QSPI_SCR_SCBR(scbr);
 	atmel_qspi_write(aq->scr, aq, QSPI_SCR);
 
-	pm_runtime_mark_last_busy(ctrl->dev.parent);
 	pm_runtime_put_autosuspend(ctrl->dev.parent);
 
 	return 0;
@@ -1230,7 +1228,6 @@ static int atmel_qspi_set_cs_timing(struct spi_device *spi)
 	aq->mr |= QSPI_MR_DLYBCT(cs_hold) | QSPI_MR_DLYCS(cs_inactive);
 	atmel_qspi_write(aq->mr, aq, QSPI_MR);
 
-	pm_runtime_mark_last_busy(ctrl->dev.parent);
 	pm_runtime_put_autosuspend(ctrl->dev.parent);
 
 	return 0;
@@ -1448,7 +1445,6 @@ static int atmel_qspi_probe(struct platform_device *pdev)
 	if (err)
 		goto dma_release;
 
-	pm_runtime_mark_last_busy(&pdev->dev);
 	pm_runtime_put_autosuspend(&pdev->dev);
 
 	return 0;
@@ -1582,7 +1578,6 @@ static int __maybe_unused atmel_qspi_resume(struct device *dev)
 
 	atmel_qspi_write(aq->scr, aq, QSPI_SCR);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
