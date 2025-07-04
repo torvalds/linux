@@ -700,14 +700,16 @@ static int gfx_v12_1_get_xccs_per_xcp(struct amdgpu_device *adev)
 
 static int gfx_v12_1_ih_to_xcc_inst(struct amdgpu_device *adev, int ih_node)
 {
+	int logic_xcc;
 	int xcc = (ih_node & 0x7) - 2 + (ih_node >> 3) * 4;
 
-	if (xcc < 0 || xcc >= hweight8(adev->gfx.xcc_mask)) {
-		dev_err(adev->dev, "Couldn't find xcc mapping from IH node");
-		return -EINVAL;
+	for (logic_xcc = 0; logic_xcc < NUM_XCC(adev->gfx.xcc_mask); logic_xcc++) {
+		if (xcc == GET_INST(GC, logic_xcc))
+			return logic_xcc;
 	}
 
-	return xcc;
+	dev_err(adev->dev, "Couldn't find xcc mapping from IH node");
+	return -EINVAL;
 }
 
 static const struct amdgpu_gfx_funcs gfx_v12_1_gfx_funcs = {
