@@ -357,7 +357,6 @@ SYM_FUNC_START(sha256_transform_avx)
 	and	$~15, %rsp		# align stack pointer
 
 	shl     $6, NUM_BLKS		# convert to bytes
-	jz      .Ldone_hash
 	add     INP, NUM_BLKS		# pointer to end of data
 	mov     NUM_BLKS, _INP_END(%rsp)
 
@@ -445,8 +444,6 @@ SYM_FUNC_START(sha256_transform_avx)
 	add     $64, INP
 	cmp     _INP_END(%rsp), INP
 	jne     .Lloop0
-
-.Ldone_hash:
 
 	mov	%rbp, %rsp
 	popq	%rbp

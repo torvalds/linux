@@ -535,7 +535,6 @@ SYM_FUNC_START(sha256_transform_rorx)
 	and	$-32, %rsp	# align rsp to 32 byte boundary
 
 	shl	$6, NUM_BLKS	# convert to bytes
-	jz	.Ldone_hash
 	lea	-64(INP, NUM_BLKS), NUM_BLKS # pointer to last block
 	mov	NUM_BLKS, _INP_END(%rsp)
 

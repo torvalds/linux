@@ -364,7 +364,6 @@ SYM_FUNC_START(sha256_transform_ssse3)
 	and	$~15, %rsp
 
 	shl     $6, NUM_BLKS		 # convert to bytes
-	jz      .Ldone_hash
 	add     INP, NUM_BLKS
 	mov     NUM_BLKS, _INP_END(%rsp) # pointer to end of data
 
@@ -456,8 +455,6 @@ SYM_FUNC_START(sha256_transform_ssse3)
 	add     $64, INP
 	cmp     _INP_END(%rsp), INP
 	jne     .Lloop0
-
-.Ldone_hash:
 
 	mov	%rbp, %rsp
 	popq	%rbp
