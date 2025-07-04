@@ -446,6 +446,8 @@ extern int unregister_pm_notifier(struct notifier_block *nb);
 extern void ksys_sync_helper(void);
 extern void pm_report_hw_sleep_time(u64 t);
 extern void pm_report_max_hw_sleep(u64 t);
+void pm_restrict_gfp_mask(void);
+void pm_restore_gfp_mask(void);
 
 #define pm_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
@@ -491,6 +493,9 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 
 static inline void pm_report_hw_sleep_time(u64 t) {};
 static inline void pm_report_max_hw_sleep(u64 t) {};
+
+static inline void pm_restrict_gfp_mask(void) {}
+static inline void pm_restore_gfp_mask(void) {}
 
 static inline void ksys_sync_helper(void) {}
 
