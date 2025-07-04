@@ -231,7 +231,6 @@ static void avs_hda_probe_work(struct work_struct *work)
 	/* configure PM */
 	pm_runtime_set_autosuspend_delay(bus->dev, 2000);
 	pm_runtime_use_autosuspend(bus->dev);
-	pm_runtime_mark_last_busy(bus->dev);
 	pm_runtime_put_autosuspend(bus->dev);
 	pm_runtime_allow(bus->dev);
 }

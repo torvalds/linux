@@ -259,7 +259,6 @@ int sst_pm_runtime_put(struct intel_sst_drv *sst_drv)
 {
 	int ret;
 
-	pm_runtime_mark_last_busy(sst_drv->dev);
 	ret = pm_runtime_put_autosuspend(sst_drv->dev);
 	if (ret < 0)
 		return ret;
