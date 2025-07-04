@@ -54,7 +54,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/objtool.h>
 
 #define STATE_PTR	%rdi	/* 1st arg */
 #define DATA_PTR	%rsi	/* 2nd arg */
@@ -111,7 +110,6 @@
  */
 .text
 SYM_FUNC_START(sha256_ni_transform)
-	ANNOTATE_NOENDBR	# since this is called only via static_call
 
 	shl		$6, NUM_BLKS		/*  convert to bytes */
 	jz		.Ldone_hash

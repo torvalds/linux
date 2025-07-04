@@ -47,7 +47,6 @@
 ########################################################################
 
 #include <linux/linkage.h>
-#include <linux/objtool.h>
 
 ## assume buffers not aligned
 #define    MOVDQ movdqu
@@ -353,8 +352,6 @@ a = TMP_
 ########################################################################
 .text
 SYM_FUNC_START(sha256_transform_ssse3)
-	ANNOTATE_NOENDBR	# since this is called only via static_call
-
 	pushq   %rbx
 	pushq   %r12
 	pushq   %r13
