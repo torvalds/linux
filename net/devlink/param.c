@@ -200,6 +200,11 @@ devlink_nl_param_value_fill_one(struct sk_buff *msg,
 		if (nla_put_u32(msg, DEVLINK_ATTR_PARAM_VALUE_DATA, val.vu32))
 			goto value_nest_cancel;
 		break;
+	case DEVLINK_PARAM_TYPE_U64:
+		if (devlink_nl_put_u64(msg, DEVLINK_ATTR_PARAM_VALUE_DATA,
+				       val.vu64))
+			goto value_nest_cancel;
+		break;
 	case DEVLINK_PARAM_TYPE_STRING:
 		if (nla_put_string(msg, DEVLINK_ATTR_PARAM_VALUE_DATA,
 				   val.vstr))
@@ -433,6 +438,11 @@ devlink_param_value_get_from_info(const struct devlink_param *param,
 		if (nla_len(param_data) != sizeof(u32))
 			return -EINVAL;
 		value->vu32 = nla_get_u32(param_data);
+		break;
+	case DEVLINK_PARAM_TYPE_U64:
+		if (nla_len(param_data) != sizeof(u64))
+			return -EINVAL;
+		value->vu64 = nla_get_u64(param_data);
 		break;
 	case DEVLINK_PARAM_TYPE_STRING:
 		len = strnlen(nla_data(param_data), nla_len(param_data));
