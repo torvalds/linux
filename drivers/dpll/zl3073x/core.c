@@ -17,6 +17,7 @@
 
 #include "core.h"
 #include "devlink.h"
+#include "dpll.h"
 #include "regs.h"
 
 /* Chip IDs for zl30731 */
@@ -668,6 +669,104 @@ zl3073x_dev_state_fetch(struct zl3073x_dev *zldev)
 	return rc;
 }
 
+static void
+zl3073x_dev_periodic_work(struct kthread_work *work)
+{
+	struct zl3073x_dev *zldev = container_of(work, struct zl3073x_dev,
+						 work.work);
+	struct zl3073x_dpll *zldpll;
+
+	list_for_each_entry(zldpll, &zldev->dplls, list)
+		zl3073x_dpll_changes_check(zldpll);
+
+	/* Run twice a second */
+	kthread_queue_delayed_work(zldev->kworker, &zldev->work,
+				   msecs_to_jiffies(500));
+}
+
+static void zl3073x_dev_dpll_fini(void *ptr)
+{
+	struct zl3073x_dpll *zldpll, *next;
+	struct zl3073x_dev *zldev = ptr;
+
+	/* Stop monitoring thread */
+	if (zldev->kworker) {
+		kthread_cancel_delayed_work_sync(&zldev->work);
+		kthread_destroy_worker(zldev->kworker);
+		zldev->kworker = NULL;
+	}
+
+	/* Release DPLLs */
+	list_for_each_entry_safe(zldpll, next, &zldev->dplls, list) {
+		zl3073x_dpll_unregister(zldpll);
+		list_del(&zldpll->list);
+		zl3073x_dpll_free(zldpll);
+	}
+}
+
+static int
+zl3073x_devm_dpll_init(struct zl3073x_dev *zldev, u8 num_dplls)
+{
+	struct kthread_worker *kworker;
+	struct zl3073x_dpll *zldpll;
+	unsigned int i;
+	int rc;
+
+	INIT_LIST_HEAD(&zldev->dplls);
+
+	/* Initialize all DPLLs */
+	for (i = 0; i < num_dplls; i++) {
+		zldpll = zl3073x_dpll_alloc(zldev, i);
+		if (IS_ERR(zldpll)) {
+			dev_err_probe(zldev->dev, PTR_ERR(zldpll),
+				      "Failed to alloc DPLL%u\n", i);
+			rc = PTR_ERR(zldpll);
+			goto error;
+		}
+
+		rc = zl3073x_dpll_register(zldpll);
+		if (rc) {
+			dev_err_probe(zldev->dev, rc,
+				      "Failed to register DPLL%u\n", i);
+			zl3073x_dpll_free(zldpll);
+			goto error;
+		}
+
+		list_add_tail(&zldpll->list, &zldev->dplls);
+	}
+
+	/* Perform initial firmware fine phase correction */
+	rc = zl3073x_dpll_init_fine_phase_adjust(zldev);
+	if (rc) {
+		dev_err_probe(zldev->dev, rc,
+			      "Failed to init fine phase correction\n");
+		goto error;
+	}
+
+	/* Initialize monitoring thread */
+	kthread_init_delayed_work(&zldev->work, zl3073x_dev_periodic_work);
+	kworker = kthread_run_worker(0, "zl3073x-%s", dev_name(zldev->dev));
+	if (IS_ERR(kworker)) {
+		rc = PTR_ERR(kworker);
+		goto error;
+	}
+
+	zldev->kworker = kworker;
+	kthread_queue_delayed_work(zldev->kworker, &zldev->work, 0);
+
+	/* Add devres action to release DPLL related resources */
+	rc = devm_add_action_or_reset(zldev->dev, zl3073x_dev_dpll_fini, zldev);
+	if (rc)
+		goto error;
+
+	return 0;
+
+error:
+	zl3073x_dev_dpll_fini(zldev);
+
+	return rc;
+}
+
 /**
  * zl3073x_dev_probe - initialize zl3073x device
  * @zldev: pointer to zl3073x device
@@ -737,6 +836,11 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 
 	/* Fetch device state */
 	rc = zl3073x_dev_state_fetch(zldev);
+	if (rc)
+		return rc;
+
+	/* Register DPLL channels */
+	rc = zl3073x_devm_dpll_init(zldev, chip_info->num_channels);
 	if (rc)
 		return rc;
 

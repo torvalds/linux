@@ -3,6 +3,8 @@
 #ifndef _ZL3073X_CORE_H
 #define _ZL3073X_CORE_H
 
+#include <linux/kthread.h>
+#include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 
@@ -10,6 +12,7 @@
 
 struct device;
 struct regmap;
+struct zl3073x_dpll;
 
 /*
  * Hardware limits for ZL3073x chip family
@@ -18,6 +21,10 @@ struct regmap;
 #define ZL3073X_NUM_REFS	10
 #define ZL3073X_NUM_OUTS	10
 #define ZL3073X_NUM_SYNTHS	5
+#define ZL3073X_NUM_INPUT_PINS	ZL3073X_NUM_REFS
+#define ZL3073X_NUM_OUTPUT_PINS	(ZL3073X_NUM_OUTS * 2)
+#define ZL3073X_NUM_PINS	(ZL3073X_NUM_INPUT_PINS + \
+				 ZL3073X_NUM_OUTPUT_PINS)
 
 /**
  * struct zl3073x_ref - input reference invariant info
@@ -62,6 +69,9 @@ struct zl3073x_synth {
  * @ref: array of input references' invariants
  * @out: array of outs' invariants
  * @synth: array of synths' invariants
+ * @dplls: list of DPLLs
+ * @kworker: thread for periodic work
+ * @work: periodic work
  */
 struct zl3073x_dev {
 	struct device		*dev;
@@ -73,6 +83,13 @@ struct zl3073x_dev {
 	struct zl3073x_ref	ref[ZL3073X_NUM_REFS];
 	struct zl3073x_out	out[ZL3073X_NUM_OUTS];
 	struct zl3073x_synth	synth[ZL3073X_NUM_SYNTHS];
+
+	/* DPLL channels */
+	struct list_head	dplls;
+
+	/* Monitor */
+	struct kthread_worker		*kworker;
+	struct kthread_delayed_work	work;
 };
 
 struct zl3073x_chip_info {

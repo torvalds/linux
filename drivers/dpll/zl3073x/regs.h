@@ -72,6 +72,42 @@
 #define ZL_REG_FW_VER				ZL_REG(0, 0x05, 2)
 #define ZL_REG_CUSTOM_CONFIG_VER		ZL_REG(0, 0x07, 4)
 
+/*************************
+ * Register Page 2, Status
+ *************************/
+
+#define ZL_REG_REF_MON_STATUS(_idx)					\
+	ZL_REG_IDX(_idx, 2, 0x02, 1, ZL3073X_NUM_REFS, 1)
+#define ZL_REF_MON_STATUS_OK			0 /* all bits zeroed */
+
+#define ZL_REG_DPLL_MON_STATUS(_idx)					\
+	ZL_REG_IDX(_idx, 2, 0x10, 1, ZL3073X_MAX_CHANNELS, 1)
+#define ZL_DPLL_MON_STATUS_STATE		GENMASK(1, 0)
+#define ZL_DPLL_MON_STATUS_STATE_ACQUIRING	0
+#define ZL_DPLL_MON_STATUS_STATE_LOCK		1
+#define ZL_DPLL_MON_STATUS_STATE_HOLDOVER	2
+#define ZL_DPLL_MON_STATUS_HO_READY		BIT(2)
+
+#define ZL_REG_DPLL_REFSEL_STATUS(_idx)					\
+	ZL_REG_IDX(_idx, 2, 0x30, 1, ZL3073X_MAX_CHANNELS, 1)
+#define ZL_DPLL_REFSEL_STATUS_REFSEL		GENMASK(3, 0)
+#define ZL_DPLL_REFSEL_STATUS_STATE		GENMASK(6, 4)
+#define ZL_DPLL_REFSEL_STATUS_STATE_LOCK	4
+
+/***********************
+ * Register Page 5, DPLL
+ ***********************/
+
+#define ZL_REG_DPLL_MODE_REFSEL(_idx)					\
+	ZL_REG_IDX(_idx, 5, 0x04, 1, ZL3073X_MAX_CHANNELS, 4)
+#define ZL_DPLL_MODE_REFSEL_MODE		GENMASK(2, 0)
+#define ZL_DPLL_MODE_REFSEL_MODE_FREERUN	0
+#define ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER	1
+#define ZL_DPLL_MODE_REFSEL_MODE_REFLOCK	2
+#define ZL_DPLL_MODE_REFSEL_MODE_AUTO		3
+#define ZL_DPLL_MODE_REFSEL_MODE_NCO		4
+#define ZL_DPLL_MODE_REFSEL_REF			GENMASK(7, 4)
+
 /***********************************
  * Register Page 9, Synth and Output
  ***********************************/
@@ -80,6 +116,11 @@
 	ZL_REG_IDX(_idx, 9, 0x00, 1, ZL3073X_NUM_SYNTHS, 1)
 #define ZL_SYNTH_CTRL_EN			BIT(0)
 #define ZL_SYNTH_CTRL_DPLL_SEL			GENMASK(6, 4)
+
+#define ZL_REG_SYNTH_PHASE_SHIFT_CTRL		ZL_REG(9, 0x1e, 1)
+#define ZL_REG_SYNTH_PHASE_SHIFT_MASK		ZL_REG(9, 0x1f, 1)
+#define ZL_REG_SYNTH_PHASE_SHIFT_INTVL		ZL_REG(9, 0x20, 1)
+#define ZL_REG_SYNTH_PHASE_SHIFT_DATA		ZL_REG(9, 0x21, 2)
 
 #define ZL_REG_OUTPUT_CTRL(_idx)					\
 	ZL_REG_IDX(_idx, 9, 0x28, 1, ZL3073X_NUM_OUTS, 1)
@@ -99,6 +140,23 @@
 #define ZL_REG_REF_CONFIG			ZL_REG(10, 0x0d, 1)
 #define ZL_REF_CONFIG_ENABLE			BIT(0)
 #define ZL_REF_CONFIG_DIFF_EN			BIT(2)
+
+/********************************
+ * Register Page 12, DPLL Mailbox
+ ********************************/
+
+#define ZL_REG_DPLL_MB_MASK			ZL_REG(12, 0x02, 2)
+
+#define ZL_REG_DPLL_MB_SEM			ZL_REG(12, 0x04, 1)
+#define ZL_DPLL_MB_SEM_WR			BIT(0)
+#define ZL_DPLL_MB_SEM_RD			BIT(1)
+
+#define ZL_REG_DPLL_REF_PRIO(_idx)					\
+	ZL_REG_IDX(_idx, 12, 0x52, 1, ZL3073X_NUM_REFS / 2, 1)
+#define ZL_DPLL_REF_PRIO_REF_P			GENMASK(3, 0)
+#define ZL_DPLL_REF_PRIO_REF_N			GENMASK(7, 4)
+#define ZL_DPLL_REF_PRIO_MAX			14
+#define ZL_DPLL_REF_PRIO_NONE			15
 
 /*********************************
  * Register Page 13, Synth Mailbox
