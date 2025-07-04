@@ -6915,6 +6915,7 @@ enum bpf_struct_walk_result {
 	/* < 0 error */
 	WALK_SCALAR = 0,
 	WALK_PTR,
+	WALK_PTR_UNTRUSTED,
 	WALK_STRUCT,
 };
 
@@ -7156,6 +7157,8 @@ error:
 					*field_name = mname;
 				return WALK_PTR;
 			}
+
+			return WALK_PTR_UNTRUSTED;
 		}
 
 		/* Allow more flexible access within an int as long as
@@ -7228,6 +7231,9 @@ int btf_struct_access(struct bpf_verifier_log *log,
 			*next_btf_id = id;
 			*flag = tmp_flag;
 			return PTR_TO_BTF_ID;
+		case WALK_PTR_UNTRUSTED:
+			*flag = MEM_RDONLY | PTR_UNTRUSTED;
+			return PTR_TO_MEM;
 		case WALK_SCALAR:
 			return SCALAR_VALUE;
 		case WALK_STRUCT:

@@ -2814,6 +2814,11 @@ static int mark_btf_ld_reg(struct bpf_verifier_env *env,
 		if (type_may_be_null(flag))
 			regs[regno].id = ++env->id_gen;
 		return 0;
+	case PTR_TO_MEM:
+		mark_reg_known_zero(env, regs, regno);
+		regs[regno].type = PTR_TO_MEM | flag;
+		regs[regno].mem_size = 0;
+		return 0;
 	default:
 		verifier_bug(env, "unexpected reg_type %d in %s\n", reg_type, __func__);
 		return -EFAULT;
