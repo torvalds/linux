@@ -1563,6 +1563,27 @@ static void ublk_put_disk(struct gendisk *disk)
 		put_device(disk_to_dev(disk));
 }
 
+/*
+ * Use this function to ensure that ->canceling is consistently set for
+ * the device and all queues. Do not set these flags directly.
+ *
+ * Caller must ensure that:
+ * - cancel_mutex is held. This ensures that there is no concurrent
+ *   access to ub->canceling and no concurrent writes to ubq->canceling.
+ * - there are no concurrent reads of ubq->canceling from the queue_rq
+ *   path. This can be done by quiescing the queue, or through other
+ *   means.
+ */
+static void ublk_set_canceling(struct ublk_device *ub, bool canceling)
+	__must_hold(&ub->cancel_mutex)
+{
+	int i;
+
+	ub->canceling = canceling;
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
+		ublk_get_queue(ub, i)->canceling = canceling;
+}
+
 static int ublk_ch_release(struct inode *inode, struct file *filp)
 {
 	struct ublk_device *ub = filp->private_data;
@@ -1591,13 +1612,11 @@ static int ublk_ch_release(struct inode *inode, struct file *filp)
 	 * All requests may be inflight, so ->canceling may not be set, set
 	 * it now.
 	 */
-	ub->canceling = true;
-	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
-		struct ublk_queue *ubq = ublk_get_queue(ub, i);
-
-		ubq->canceling = true;
-		ublk_abort_queue(ub, ubq);
-	}
+	mutex_lock(&ub->cancel_mutex);
+	ublk_set_canceling(ub, true);
+	for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
+		ublk_abort_queue(ub, ublk_get_queue(ub, i));
+	mutex_unlock(&ub->cancel_mutex);
 	blk_mq_kick_requeue_list(disk->queue);
 
 	/*
@@ -1723,7 +1742,6 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 static void ublk_start_cancel(struct ublk_device *ub)
 {
 	struct gendisk *disk = ublk_get_disk(ub);
-	int i;
 
 	/* Our disk has been dead */
 	if (!disk)
@@ -1740,9 +1758,7 @@ static void ublk_start_cancel(struct ublk_device *ub)
 	 * touch completed uring_cmd
 	 */
 	blk_mq_quiesce_queue(disk->queue);
-	ub->canceling = true;
-	for (i = 0; i < ub->dev_info.nr_hw_queues; i++)
-		ublk_get_queue(ub, i)->canceling = true;
+	ublk_set_canceling(ub, true);
 	blk_mq_unquiesce_queue(disk->queue);
 out:
 	mutex_unlock(&ub->cancel_mutex);
@@ -1942,10 +1958,11 @@ static void ublk_reset_io_flags(struct ublk_device *ub)
 		for (j = 0; j < ubq->q_depth; j++)
 			ubq->ios[j].flags &= ~UBLK_IO_FLAG_CANCELED;
 		spin_unlock(&ubq->cancel_lock);
-		ubq->canceling = false;
 		ubq->fail_io = false;
 	}
-	ub->canceling = false;
+	mutex_lock(&ub->cancel_mutex);
+	ublk_set_canceling(ub, false);
+	mutex_unlock(&ub->cancel_mutex);
 }
 
 /* device can only be started after all IOs are ready */
@@ -3417,7 +3434,7 @@ static int ublk_ctrl_quiesce_dev(struct ublk_device *ub,
 	/* zero means wait forever */
 	u64 timeout_ms = header->data[0];
 	struct gendisk *disk;
-	int i, ret = -ENODEV;
+	int ret = -ENODEV;
 
 	if (!(ub->dev_info.flags & UBLK_F_QUIESCE))
 		return -EOPNOTSUPP;
@@ -3435,14 +3452,11 @@ static int ublk_ctrl_quiesce_dev(struct ublk_device *ub,
 		goto put_disk;
 
 	/* Mark the device as canceling */
+	mutex_lock(&ub->cancel_mutex);
 	blk_mq_quiesce_queue(disk->queue);
-	ub->canceling = true;
-	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
-		struct ublk_queue *ubq = ublk_get_queue(ub, i);
-
-		ubq->canceling = true;
-	}
+	ublk_set_canceling(ub, true);
 	blk_mq_unquiesce_queue(disk->queue);
+	mutex_unlock(&ub->cancel_mutex);
 
 	if (!timeout_ms)
 		timeout_ms = UINT_MAX;
