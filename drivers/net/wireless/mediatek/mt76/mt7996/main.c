@@ -1216,10 +1216,17 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 
 	if (vif) {
 		struct mt7996_vif *mvif = (void *)vif->drv_priv;
-		struct mt76_vif_link *mlink;
+		struct mt76_vif_link *mlink = &mvif->deflink.mt76;
 
-		mlink = rcu_dereference(mvif->mt76.link[link_id]);
-		if (mlink && mlink->wcid)
+		if (link_id < IEEE80211_LINK_UNSPECIFIED)
+			mlink = rcu_dereference(mvif->mt76.link[link_id]);
+
+		if (!mlink) {
+			ieee80211_free_txskb(hw, skb);
+			goto unlock;
+		}
+
+		if (mlink->wcid)
 			wcid = mlink->wcid;
 
 		if (mvif->mt76.roc_phy &&
@@ -1228,7 +1235,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 			if (mphy->roc_link)
 				wcid = mphy->roc_link->wcid;
 		} else {
-			mphy = mt76_vif_link_phy(&mvif->deflink.mt76);
+			mphy = mt76_vif_link_phy(mlink);
 		}
 	}
 
@@ -1237,7 +1244,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 		goto unlock;
 	}
 
-	if (control->sta) {
+	if (control->sta && link_id < IEEE80211_LINK_UNSPECIFIED) {
 		struct mt7996_sta *msta = (void *)control->sta->drv_priv;
 		struct mt7996_sta_link *msta_link;
 
