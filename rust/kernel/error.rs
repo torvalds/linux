@@ -6,10 +6,10 @@
 
 use crate::{
     alloc::{layout::LayoutError, AllocError},
+    fmt,
     str::CStr,
 };
 
-use core::fmt;
 use core::num::NonZeroI32;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;
@@ -219,8 +219,8 @@ impl From<LayoutError> for Error {
     }
 }
 
-impl From<core::fmt::Error> for Error {
-    fn from(_: core::fmt::Error) -> Error {
+impl From<fmt::Error> for Error {
+    fn from(_: fmt::Error) -> Error {
         code::EINVAL
     }
 }

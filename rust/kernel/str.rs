@@ -3,7 +3,7 @@
 //! String representations.
 
 use crate::alloc::{flags::*, AllocError, KVec};
-use core::fmt::{self, Write};
+use crate::fmt::{self, Write};
 use core::ops::{self, Deref, DerefMut, Index};
 
 use crate::prelude::*;
