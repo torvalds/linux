@@ -35,6 +35,7 @@ class dot2k(Dot2c):
             self.states = []
             self.main_c = self.__read_file(self.monitor_templates_dir + "main_container.c")
             self.main_h = self.__read_file(self.monitor_templates_dir + "main_container.h")
+            self.kconfig = self.__read_file(self.monitor_templates_dir + "Kconfig_container")
         else:
             super().__init__(file_path, extra_params.get("model_name"))
 
@@ -44,7 +45,7 @@ class dot2k(Dot2c):
             self.monitor_type = MonitorType
             self.main_c = self.__read_file(self.monitor_templates_dir + "main.c")
             self.trace_h = self.__read_file(self.monitor_templates_dir + "trace.h")
-        self.kconfig = self.__read_file(self.monitor_templates_dir + "Kconfig")
+            self.kconfig = self.__read_file(self.monitor_templates_dir + "Kconfig")
         self.enum_suffix = "_%s" % self.name
         self.description = extra_params.get("description", self.name) or "auto-generated"
         self.auto_patch = extra_params.get("auto_patch")
