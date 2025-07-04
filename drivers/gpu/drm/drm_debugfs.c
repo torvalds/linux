@@ -311,6 +311,87 @@ void drm_debugfs_remove_root(void)
 	debugfs_remove(drm_debugfs_root);
 }
 
+static int drm_debugfs_proc_info_show(struct seq_file *m, void *unused)
+{
+	struct pid *pid;
+	struct task_struct *task;
+	struct drm_file *file = m->private;
+
+	if (!file)
+		return -EINVAL;
+
+	rcu_read_lock();
+	pid = rcu_dereference(file->pid);
+	task = pid_task(pid, PIDTYPE_TGID);
+
+	seq_printf(m, "pid: %d\n", task ? task->pid : 0);
+	seq_printf(m, "comm: %s\n", task ? task->comm : "Unset");
+	rcu_read_unlock();
+	return 0;
+}
+
+static int drm_debufs_proc_info_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, drm_debugfs_proc_info_show, inode->i_private);
+}
+
+static const struct file_operations drm_debugfs_proc_info_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_debufs_proc_info_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+/**
+ * drm_debugfs_clients_add - Add a per client debugfs directory
+ * @file: drm_file for a client
+ *
+ * Create the debugfs directory for each client. This will be used to populate
+ * driver specific data for each client.
+ *
+ * Also add the process information debugfs file for each client to tag
+ * which client belongs to which process.
+ */
+void drm_debugfs_clients_add(struct drm_file *file)
+{
+	char *client;
+
+	client = kasprintf(GFP_KERNEL, "client-%llu", file->client_id);
+	if (!client)
+		return;
+
+	/* Create a debugfs directory for the client in root on drm debugfs */
+	file->debugfs_client = debugfs_create_dir(client, drm_debugfs_root);
+	kfree(client);
+
+	debugfs_create_file("proc_info", 0444, file->debugfs_client, file,
+			    &drm_debugfs_proc_info_fops);
+
+	client = kasprintf(GFP_KERNEL, "../%s", file->minor->dev->unique);
+	if (!client)
+		return;
+
+	/* Create a link from client_id to the drm device this client id belongs to */
+	debugfs_create_symlink("device", file->debugfs_client, client);
+	kfree(client);
+}
+
+/**
+ * drm_debugfs_clients_remove - removes all debugfs directories and files
+ * @file: drm_file for a client
+ *
+ * Removes the debugfs directories recursively from the client directory.
+ *
+ * There is also a possibility that debugfs files are open while the drm_file
+ * is released.
+ */
+void drm_debugfs_clients_remove(struct drm_file *file)
+{
+	debugfs_remove_recursive(file->debugfs_client);
+	file->debugfs_client = NULL;
+}
+
 /**
  * drm_debugfs_dev_init - create debugfs directory for the device
  * @dev: the device which we want to create the directory for
