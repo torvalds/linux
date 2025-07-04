@@ -251,10 +251,14 @@ static void wxvf_irq_enable(struct wx *wx)
 static void wxvf_up_complete(struct wx *wx)
 {
 	wx_configure_msix_vf(wx);
+	smp_mb__before_atomic();
+	wx_napi_enable_all(wx);
 
 	/* clear any pending interrupts, may auto mask */
 	wr32(wx, WX_VXICR, U32_MAX);
 	wxvf_irq_enable(wx);
+	/* enable transmits */
+	netif_tx_start_all_queues(wx->netdev);
 }
 
 int wxvf_open(struct net_device *netdev)
@@ -262,13 +266,31 @@ int wxvf_open(struct net_device *netdev)
 	struct wx *wx = netdev_priv(netdev);
 	int err;
 
-	err = wx_request_msix_irqs_vf(wx);
+	err = wx_setup_resources(wx);
 	if (err)
 		goto err_reset;
+	wx_configure_vf(wx);
+
+	err = wx_request_msix_irqs_vf(wx);
+	if (err)
+		goto err_free_resources;
+
+	/* Notify the stack of the actual queue counts. */
+	err = netif_set_real_num_tx_queues(netdev, wx->num_tx_queues);
+	if (err)
+		goto err_free_irq;
+
+	err = netif_set_real_num_rx_queues(netdev, wx->num_rx_queues);
+	if (err)
+		goto err_free_irq;
 
 	wxvf_up_complete(wx);
 
 	return 0;
+err_free_irq:
+	wx_free_irq(wx);
+err_free_resources:
+	wx_free_resources(wx);
 err_reset:
 	wx_reset_vf(wx);
 	return err;
@@ -294,6 +316,7 @@ int wxvf_close(struct net_device *netdev)
 
 	wxvf_down(wx);
 	wx_free_irq(wx);
+	wx_free_resources(wx);
 
 	return 0;
 }
