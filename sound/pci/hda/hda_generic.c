@@ -6144,6 +6144,7 @@ error:
 }
 
 static const struct hda_device_id snd_hda_id_generic[] = {
+	HDA_CODEC_ENTRY(0x1af40021, "Generic", snd_hda_parse_generic_codec), /* QEMU */
 	HDA_CODEC_ENTRY(HDA_CODEC_ID_GENERIC, "Generic", snd_hda_parse_generic_codec),
 	{} /* terminator */
 };
