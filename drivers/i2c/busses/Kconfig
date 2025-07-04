@@ -1530,7 +1530,7 @@ config I2C_XGENE_SLIMPRO
 
 config SCx200_ACB
 	tristate "Geode ACCESS.bus support"
-	depends on X86_32 && PCI
+	depends on X86_32 && PCI && HAS_IOPORT
 	help
 	  Enable the use of the ACCESS.bus controllers on the Geode SCx200 and
 	  SC1100 processors and the CS5535 and CS5536 Geode companion devices.

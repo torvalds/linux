@@ -1249,3 +1249,12 @@ Using try_lookup_noperm() will require linux/namei.h to be included.
 
 Calling conventions for ->d_automount() have changed; we should *not* grab
 an extra reference to new mount - it should be returned with refcount 1.
+
+---
+
+collect_mounts()/drop_collected_mounts()/iterate_mounts() are gone now.
+Replacement is collect_paths()/drop_collected_path(), with no special
+iterator needed.  Instead of a cloned mount tree, the new interface returns
+an array of struct path, one for each mount collect_mounts() would've
+created.  These struct path point to locations in the caller's namespace
+that would be roots of the cloned mounts.
