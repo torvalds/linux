@@ -11,6 +11,44 @@
 #include "wx_vf_lib.h"
 #include "wx_vf_common.h"
 
+int wxvf_suspend(struct device *dev_d)
+{
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct wx *wx = pci_get_drvdata(pdev);
+
+	netif_device_detach(wx->netdev);
+	pci_disable_device(pdev);
+
+	return 0;
+}
+EXPORT_SYMBOL(wxvf_suspend);
+
+void wxvf_shutdown(struct pci_dev *pdev)
+{
+	wxvf_suspend(&pdev->dev);
+}
+EXPORT_SYMBOL(wxvf_shutdown);
+
+int wxvf_resume(struct device *dev_d)
+{
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct wx *wx = pci_get_drvdata(pdev);
+
+	pci_set_master(pdev);
+	netif_device_attach(wx->netdev);
+
+	return 0;
+}
+EXPORT_SYMBOL(wxvf_resume);
+
+void wxvf_remove(struct pci_dev *pdev)
+{
+	pci_release_selected_regions(pdev,
+				     pci_select_bars(pdev, IORESOURCE_MEM));
+	pci_disable_device(pdev);
+}
+EXPORT_SYMBOL(wxvf_remove);
+
 static irqreturn_t wx_msix_misc_vf(int __always_unused irq, void *data)
 {
 	struct wx *wx = data;
