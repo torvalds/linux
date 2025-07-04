@@ -94,6 +94,19 @@
 #define WX_VXMRQC_RSS_EN             BIT(8)
 #define WX_VXMRQC_RSS_HASH(f)    FIELD_PREP(GENMASK(15, 13), f)
 
+#define WX_PFLINK_STATUS(g)      FIELD_GET(BIT(0), g)
+#define WX_PFLINK_SPEED(g)       FIELD_GET(GENMASK(31, 1), g)
+#define WX_VXSTATUS_SPEED(g)      FIELD_GET(GENMASK(4, 1), g)
+
+struct wx_link_reg_fields {
+	u32 mac_type;
+	u32 bit0_f;
+	u32 bit1_f;
+	u32 bit2_f;
+	u32 bit3_f;
+	u32 bit4_f;
+};
+
 void wx_init_hw_vf(struct wx *wx);
 int wx_reset_hw_vf(struct wx *wx);
 void wx_get_mac_addr_vf(struct wx *wx, u8 *mac_addr);
@@ -109,5 +122,6 @@ int wx_update_xcast_mode_vf(struct wx *wx, int xcast_mode);
 int wx_get_link_state_vf(struct wx *wx, u16 *link_state);
 int wx_set_vfta_vf(struct wx *wx, u32 vlan, u32 vind, bool vlan_on,
 		   bool vlvf_bypass);
+int wx_check_mac_link_vf(struct wx *wx);
 
 #endif /* _WX_VF_H_ */

@@ -48,6 +48,7 @@ void wxvf_remove(struct pci_dev *pdev)
 	struct wx *wx = pci_get_drvdata(pdev);
 	struct net_device *netdev;
 
+	cancel_work_sync(&wx->service_task);
 	netdev = wx->netdev;
 	unregister_netdev(netdev);
 	kfree(wx->vfinfo);
@@ -64,6 +65,7 @@ static irqreturn_t wx_msix_misc_vf(int __always_unused irq, void *data)
 {
 	struct wx *wx = data;
 
+	set_bit(WX_FLAG_NEED_UPDATE_LINK, wx->flags);
 	/* Clear the interrupt */
 	if (netif_running(wx->netdev))
 		wr32(wx, WX_VXIMC, wx->eims_other);
@@ -243,6 +245,24 @@ int wx_set_mac_vf(struct net_device *netdev, void *p)
 }
 EXPORT_SYMBOL(wx_set_mac_vf);
 
+void wxvf_watchdog_update_link(struct wx *wx)
+{
+	int err;
+
+	if (!test_bit(WX_FLAG_NEED_UPDATE_LINK, wx->flags))
+		return;
+
+	spin_lock_bh(&wx->mbx.mbx_lock);
+	err = wx_check_mac_link_vf(wx);
+	spin_unlock_bh(&wx->mbx.mbx_lock);
+	if (err) {
+		wx->link = false;
+		set_bit(WX_FLAG_NEED_DO_RESET, wx->flags);
+	}
+	clear_bit(WX_FLAG_NEED_UPDATE_LINK, wx->flags);
+}
+EXPORT_SYMBOL(wxvf_watchdog_update_link);
+
 static void wxvf_irq_enable(struct wx *wx)
 {
 	wr32(wx, WX_VXIMC, wx->eims_enable_mask);
@@ -250,6 +270,11 @@ static void wxvf_irq_enable(struct wx *wx)
 
 static void wxvf_up_complete(struct wx *wx)
 {
+	/* Always set the carrier off */
+	netif_carrier_off(wx->netdev);
+	mod_timer(&wx->service_timer, jiffies + HZ);
+	set_bit(WX_FLAG_NEED_UPDATE_LINK, wx->flags);
+
 	wx_configure_msix_vf(wx);
 	smp_mb__before_atomic();
 	wx_napi_enable_all(wx);
@@ -301,13 +326,43 @@ static void wxvf_down(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
 
+	timer_delete_sync(&wx->service_timer);
 	netif_tx_stop_all_queues(netdev);
 	netif_tx_disable(netdev);
+	netif_carrier_off(netdev);
 	wx_napi_disable_all(wx);
 	wx_reset_vf(wx);
 
 	wx_clean_all_tx_rings(wx);
 	wx_clean_all_rx_rings(wx);
+}
+
+static void wxvf_reinit_locked(struct wx *wx)
+{
+	while (test_and_set_bit(WX_STATE_RESETTING, wx->state))
+		usleep_range(1000, 2000);
+	wxvf_down(wx);
+	wx_free_irq(wx);
+	wx_configure_vf(wx);
+	wx_request_msix_irqs_vf(wx);
+	wxvf_up_complete(wx);
+	clear_bit(WX_STATE_RESETTING, wx->state);
+}
+
+static void wxvf_reset_subtask(struct wx *wx)
+{
+	if (!test_bit(WX_FLAG_NEED_DO_RESET, wx->flags))
+		return;
+	clear_bit(WX_FLAG_NEED_DO_RESET, wx->flags);
+
+	rtnl_lock();
+	if (test_bit(WX_STATE_RESETTING, wx->state) ||
+	    !(netif_running(wx->netdev))) {
+		rtnl_unlock();
+		return;
+	}
+	wxvf_reinit_locked(wx);
+	rtnl_unlock();
 }
 
 int wxvf_close(struct net_device *netdev)
@@ -321,3 +376,39 @@ int wxvf_close(struct net_device *netdev)
 	return 0;
 }
 EXPORT_SYMBOL(wxvf_close);
+
+static void wxvf_link_config_subtask(struct wx *wx)
+{
+	struct net_device *netdev = wx->netdev;
+
+	wxvf_watchdog_update_link(wx);
+	if (wx->link) {
+		if (netif_carrier_ok(netdev))
+			return;
+		netif_carrier_on(netdev);
+		netdev_info(netdev, "Link is Up - %s\n",
+			    phy_speed_to_str(wx->speed));
+	} else {
+		if (!netif_carrier_ok(netdev))
+			return;
+		netif_carrier_off(netdev);
+		netdev_info(netdev, "Link is Down\n");
+	}
+}
+
+static void wxvf_service_task(struct work_struct *work)
+{
+	struct wx *wx = container_of(work, struct wx, service_task);
+
+	wxvf_link_config_subtask(wx);
+	wxvf_reset_subtask(wx);
+	wx_service_event_complete(wx);
+}
+
+void wxvf_init_service(struct wx *wx)
+{
+	timer_setup(&wx->service_timer, wx_service_timer, 0);
+	INIT_WORK(&wx->service_task, wxvf_service_task);
+	clear_bit(WX_STATE_SERVICE_SCHED, wx->state);
+}
+EXPORT_SYMBOL(wxvf_init_service);

@@ -14,7 +14,9 @@ void wx_reset_vf(struct wx *wx);
 void wx_set_rx_mode_vf(struct net_device *netdev);
 void wx_configure_vf(struct wx *wx);
 int wx_set_mac_vf(struct net_device *netdev, void *p);
+void wxvf_watchdog_update_link(struct wx *wx);
 int wxvf_open(struct net_device *netdev);
 int wxvf_close(struct net_device *netdev);
+void wxvf_init_service(struct wx *wx);
 
 #endif /* _WX_VF_COMMON_H_ */
