@@ -825,6 +825,9 @@ struct wx_bus_info {
 
 struct wx_mbx_info {
 	u16 size;
+	u32 mailbox;
+	u32 udelay;
+	u32 timeout;
 };
 
 struct wx_thermal_sensor_data {
