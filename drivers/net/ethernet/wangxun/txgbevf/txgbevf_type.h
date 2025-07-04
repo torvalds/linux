@@ -14,6 +14,8 @@
 #define TXGBEVF_DEV_ID_AML503F                 0x503f
 #define TXGBEVF_DEV_ID_AML513F                 0x513f
 
+#define TXGBEVF_MAX_MSIX_VECTORS               2
+#define TXGBEVF_MAX_RSS_NUM                    4
 #define TXGBEVF_MAX_RX_QUEUES                  4
 #define TXGBEVF_MAX_TX_QUEUES                  4
 #define TXGBEVF_DEFAULT_TXD                    128

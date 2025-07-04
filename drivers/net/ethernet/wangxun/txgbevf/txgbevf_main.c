@@ -10,6 +10,7 @@
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_hw.h"
+#include "../libwx/wx_lib.h"
 #include "../libwx/wx_mbx.h"
 #include "../libwx/wx_vf.h"
 #include "../libwx/wx_vf_common.h"
@@ -42,6 +43,39 @@ static const struct net_device_ops txgbevf_netdev_ops = {
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = wx_set_mac_vf,
 };
+
+static void txgbevf_set_num_queues(struct wx *wx)
+{
+	u32 def_q = 0, num_tcs = 0;
+	u16 rss, queue;
+	int ret = 0;
+
+	/* Start with base case */
+	wx->num_rx_queues = 1;
+	wx->num_tx_queues = 1;
+
+	spin_lock_bh(&wx->mbx.mbx_lock);
+	/* fetch queue configuration from the PF */
+	ret = wx_get_queues_vf(wx, &num_tcs, &def_q);
+	spin_unlock_bh(&wx->mbx.mbx_lock);
+
+	if (ret)
+		return;
+
+	/* we need as many queues as traffic classes */
+	if (num_tcs > 1) {
+		wx->num_rx_queues = num_tcs;
+	} else {
+		rss = min_t(u16, num_online_cpus(), TXGBEVF_MAX_RSS_NUM);
+		queue = min_t(u16, wx->mac.max_rx_queues, wx->mac.max_tx_queues);
+		rss = min_t(u16, queue, rss);
+
+		if (wx->vfinfo->vf_api >= wx_mbox_api_13) {
+			wx->num_rx_queues = rss;
+			wx->num_tx_queues = rss;
+		}
+	}
+}
 
 static void txgbevf_init_type_code(struct wx *wx)
 {
@@ -80,6 +114,8 @@ static int txgbevf_sw_init(struct wx *wx)
 	if (err)
 		goto err_init_mbx_params;
 
+	/* max q_vectors */
+	wx->mac.max_msix_vectors = TXGBEVF_MAX_MSIX_VECTORS;
 	/* Initialize the device type */
 	txgbevf_init_type_code(wx);
 	/* lock to protect mailbox accesses */
@@ -115,6 +151,8 @@ static int txgbevf_sw_init(struct wx *wx)
 	/* set default work limits */
 	wx->tx_work_limit = TXGBEVF_DEFAULT_TX_WORK;
 	wx->rx_work_limit = TXGBEVF_DEFAULT_RX_WORK;
+
+	wx->set_num_queues = txgbevf_set_num_queues;
 
 	return 0;
 err_reset_hw:
@@ -211,6 +249,10 @@ static int txgbevf_probe(struct pci_dev *pdev,
 	eth_hw_addr_set(netdev, wx->mac.perm_addr);
 	ether_addr_copy(netdev->perm_addr, wx->mac.addr);
 
+	err = wx_init_interrupt_scheme(wx);
+	if (err)
+		goto err_free_sw_init;
+
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
@@ -220,6 +262,8 @@ static int txgbevf_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
+	wx_clear_interrupt_scheme(wx);
+err_free_sw_init:
 	kfree(wx->vfinfo);
 	kfree(wx->rss_key);
 	kfree(wx->mac_table);

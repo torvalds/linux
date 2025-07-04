@@ -1324,6 +1324,7 @@ struct wx {
 	int (*setup_tc)(struct net_device *netdev, u8 tc);
 	void (*do_reset)(struct net_device *netdev);
 	int (*ptp_setup_sdp)(struct wx *wx);
+	void (*set_num_queues)(struct wx *wx);
 
 	bool pps_enabled;
 	u64 pps_width;

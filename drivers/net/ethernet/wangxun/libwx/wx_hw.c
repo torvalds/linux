@@ -11,6 +11,7 @@
 #include "wx_type.h"
 #include "wx_lib.h"
 #include "wx_sriov.h"
+#include "wx_vf.h"
 #include "wx_hw.h"
 
 static int wx_phy_read_reg_mdi(struct mii_bus *bus, int phy_addr, int devnum, int regnum)
@@ -123,6 +124,11 @@ static void wx_intr_disable(struct wx *wx, u64 qmask)
 void wx_intr_enable(struct wx *wx, u64 qmask)
 {
 	u32 mask;
+
+	if (wx->pdev->is_virtfn) {
+		wr32(wx, WX_VXIMC, qmask);
+		return;
+	}
 
 	mask = (qmask & U32_MAX);
 	if (mask)
