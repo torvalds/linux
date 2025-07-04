@@ -19,7 +19,7 @@ class dot2k(Dot2c):
     monitor_type = "per_cpu"
 
     def __init__(self, file_path, MonitorType, extra_params={}):
-        self.container = extra_params.get("container")
+        self.container = extra_params.get("subcmd") == "container"
         self.parent = extra_params.get("parent")
         self.__fill_rv_templates_dir()
 
