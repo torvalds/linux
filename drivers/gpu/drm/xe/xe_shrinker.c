@@ -66,11 +66,15 @@ static s64 xe_shrinker_walk(struct xe_device *xe,
 		struct ttm_resource_manager *man = ttm_manager_type(&xe->ttm, mem_type);
 		struct ttm_bo_lru_cursor curs;
 		struct ttm_buffer_object *ttm_bo;
+		struct ttm_lru_walk_arg arg = {
+			.ctx = ctx,
+			.trylock_only = true,
+		};
 
 		if (!man || !man->use_tt)
 			continue;
 
-		ttm_bo_lru_for_each_reserved_guarded(&curs, man, ctx, ttm_bo) {
+		ttm_bo_lru_for_each_reserved_guarded(&curs, man, &arg, ttm_bo) {
 			if (!ttm_bo_shrink_suitable(ttm_bo, ctx))
 				continue;
 
@@ -82,6 +86,8 @@ static s64 xe_shrinker_walk(struct xe_device *xe,
 			if (*scanned >= to_scan)
 				break;
 		}
+		/* Trylocks should never error, just fail. */
+		xe_assert(xe, !IS_ERR(ttm_bo));
 	}
 
 	return freed;

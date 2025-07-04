@@ -245,7 +245,7 @@ nv50_backlight_init(struct nouveau_backlight *bl,
 
 	if (nv_conn->type == DCB_CONNECTOR_eDP) {
 		int ret;
-		u16 current_level;
+		u32 current_level;
 		u8 edp_dpcd[EDP_DISPLAY_CTL_CAP_SIZE];
 		u8 current_mode;
 
@@ -261,8 +261,9 @@ nv50_backlight_init(struct nouveau_backlight *bl,
 			NV_DEBUG(drm, "DPCD backlight controls supported on %s\n",
 				 nv_conn->base.name);
 
-			ret = drm_edp_backlight_init(&nv_conn->aux, &bl->edp_info, 0, edp_dpcd,
-						     &current_level, &current_mode);
+			ret = drm_edp_backlight_init(&nv_conn->aux, &bl->edp_info,
+						     0, 0, edp_dpcd,
+						     &current_level, &current_mode, false);
 			if (ret < 0)
 				return ret;
 

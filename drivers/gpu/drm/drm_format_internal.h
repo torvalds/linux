@@ -5,6 +5,7 @@
 
 #include <linux/bits.h>
 #include <linux/types.h>
+#include <linux/swab.h>
 
 /*
  * Each pixel-format conversion helper takes a raw pixel in a
@@ -57,6 +58,11 @@ static inline u32 drm_pixel_xrgb8888_to_rgb565(u32 pix)
 	return ((pix & 0x00f80000) >> 8) |
 	       ((pix & 0x0000fc00) >> 5) |
 	       ((pix & 0x000000f8) >> 3);
+}
+
+static inline u32 drm_pixel_xrgb8888_to_rgb565be(u32 pix)
+{
+	return swab16(drm_pixel_xrgb8888_to_rgb565(pix));
 }
 
 static inline u32 drm_pixel_xrgb8888_to_rgbx5551(u32 pix)

@@ -200,12 +200,36 @@ static struct dma_fence *mock_sched_run_job(struct drm_sched_job *sched_job)
 	return &job->hw_fence;
 }
 
+/*
+ * Normally, drivers would take appropriate measures in this callback, such as
+ * killing the entity the faulty job is associated with, resetting the hardware
+ * and / or resubmitting non-faulty jobs.
+ *
+ * For the mock scheduler, there are no hardware rings to be resetted nor jobs
+ * to be resubmitted. Thus, this function merely ensures that
+ *   a) timedout fences get signaled properly and removed from the pending list
+ *   b) the mock scheduler framework gets informed about the timeout via a flag
+ *   c) The drm_sched_job, not longer needed, gets freed
+ */
 static enum drm_gpu_sched_stat
 mock_sched_timedout_job(struct drm_sched_job *sched_job)
 {
+	struct drm_mock_scheduler *sched = drm_sched_to_mock_sched(sched_job->sched);
 	struct drm_mock_sched_job *job = drm_sched_job_to_mock_job(sched_job);
+	unsigned long flags;
 
-	job->flags |= DRM_MOCK_SCHED_JOB_TIMEDOUT;
+	spin_lock_irqsave(&sched->lock, flags);
+	if (!dma_fence_is_signaled_locked(&job->hw_fence)) {
+		list_del(&job->link);
+		job->flags |= DRM_MOCK_SCHED_JOB_TIMEDOUT;
+		dma_fence_set_error(&job->hw_fence, -ETIMEDOUT);
+		dma_fence_signal_locked(&job->hw_fence);
+	}
+	spin_unlock_irqrestore(&sched->lock, flags);
+
+	dma_fence_put(&job->hw_fence);
+	drm_sched_job_cleanup(sched_job);
+	/* Mock job itself is freed by the kunit framework. */
 
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
