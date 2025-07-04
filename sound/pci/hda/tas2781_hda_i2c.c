@@ -157,7 +157,6 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 		tas_hda->priv->playback_started = false;
 		mutex_unlock(&tas_hda->priv->codec_lock);
 
-		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
 		break;
 	default:
@@ -483,7 +482,6 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 out:
 	mutex_unlock(&tas_hda->priv->codec_lock);
 	release_firmware(fmw);
-	pm_runtime_mark_last_busy(tas_hda->dev);
 	pm_runtime_put_autosuspend(tas_hda->dev);
 }
 
@@ -526,7 +524,6 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	if (!ret)
 		comp->playback_hook = tas2781_hda_playback_hook;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;

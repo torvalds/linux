@@ -836,7 +836,6 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 		 * Playback must be finished for all amps before we start runtime suspend.
 		 * This ensures no amps are playing back when we start putting them to sleep.
 		 */
-		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
 		break;
 	default:
@@ -1284,7 +1283,6 @@ static void cs35l41_fw_load_work(struct work_struct *work)
 	cs35l41->fw_request_ongoing = false;
 	mutex_unlock(&cs35l41->fw_mutex);
 
-	pm_runtime_mark_last_busy(cs35l41->dev);
 	pm_runtime_put_autosuspend(cs35l41->dev);
 }
 
@@ -1515,7 +1513,6 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 		dev_warn(dev, "Unable to create device link\n");
 	unlock_system_sleep(sleep_flags);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	dev_info(cs35l41->dev,
@@ -2036,7 +2033,6 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 
 	pm_runtime_set_autosuspend_delay(cs35l41->dev, 3000);
 	pm_runtime_use_autosuspend(cs35l41->dev);
-	pm_runtime_mark_last_busy(cs35l41->dev);
 	pm_runtime_set_active(cs35l41->dev);
 	pm_runtime_get_noresume(cs35l41->dev);
 	pm_runtime_enable(cs35l41->dev);
