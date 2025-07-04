@@ -10437,6 +10437,12 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 				bpf_log(log, "R%d is not a scalar\n", regno);
 				return -EINVAL;
 			}
+		} else if (arg->arg_type & PTR_UNTRUSTED) {
+			/*
+			 * Anything is allowed for untrusted arguments, as these are
+			 * read-only and probe read instructions would protect against
+			 * invalid memory access.
+			 */
 		} else if (arg->arg_type == ARG_PTR_TO_CTX) {
 			ret = check_func_arg_reg_off(env, reg, regno, ARG_DONTCARE);
 			if (ret < 0)
