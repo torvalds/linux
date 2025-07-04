@@ -14,7 +14,7 @@
 #   Documentation/trace/rv/deterministic_automata.rst
 
 if __name__ == '__main__':
-    from dot2 import dot2c
+    from rvgen import dot2c
     import argparse
     import sys
 

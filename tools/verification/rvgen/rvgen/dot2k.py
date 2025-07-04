@@ -8,13 +8,13 @@
 # For further information, see:
 #   Documentation/trace/rv/da_monitor_synthesis.rst
 
-from dot2.dot2c import Dot2c
+from .dot2c import Dot2c
 import platform
 import os
 
 class dot2k(Dot2c):
     monitor_types = { "global" : 1, "per_cpu" : 2, "per_task" : 3 }
-    monitor_templates_dir = "dot2/dot2k_templates/"
+    monitor_templates_dir = "rvgen/dot2k_templates/"
     rv_dir = "kernel/trace/rv"
     monitor_type = "per_cpu"
 
@@ -60,14 +60,14 @@ class dot2k(Dot2c):
         if platform.system() != "Linux":
             raise OSError("I can only run on Linux.")
 
-        kernel_path = "/lib/modules/%s/build/tools/verification/dot2/dot2k_templates/" % (platform.release())
+        kernel_path = "/lib/modules/%s/build/tools/verification/rvgen/dot2k_templates/" % (platform.release())
 
         if os.path.exists(kernel_path):
             self.monitor_templates_dir = kernel_path
             return
 
-        if os.path.exists("/usr/share/dot2/dot2k_templates/"):
-            self.monitor_templates_dir = "/usr/share/dot2/dot2k_templates/"
+        if os.path.exists("/usr/share/rvgen/dot2k_templates/"):
+            self.monitor_templates_dir = "/usr/share/rvgen/dot2k_templates/"
             return
 
         raise FileNotFoundError("Could not find the template directory, do you have the kernel source installed?")

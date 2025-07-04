@@ -13,7 +13,7 @@
 # For further information, see:
 #   Documentation/trace/rv/deterministic_automata.rst
 
-from dot2.automata import Automata
+from .automata import Automata
 
 class Dot2c(Automata):
     enum_suffix = ""
