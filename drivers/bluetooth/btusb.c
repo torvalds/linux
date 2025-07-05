@@ -3809,6 +3809,8 @@ static int btusb_hci_drv_supported_altsettings(struct hci_dev *hdev, void *data,
 
 	/* There are at most 7 alt (0 - 6) */
 	rp = kmalloc(sizeof(*rp) + 7, GFP_KERNEL);
+	if (!rp)
+		return -ENOMEM;
 
 	rp->num = 0;
 	if (!drvdata->isoc)
