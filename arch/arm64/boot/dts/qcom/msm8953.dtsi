@@ -1443,42 +1443,42 @@
 				};
 			};
 
-			cdc_pdm_lines_2_act: pdm-lines-2-on-pins {
-					pins = "gpio70", "gpio71", "gpio72";
-					function = "cdc_pdm0";
-					drive-strength = <8>;
+			cdc_pdm_lines_2_act: pdm-lines-2-on-default-state {
+				pins = "gpio70", "gpio71", "gpio72";
+				function = "cdc_pdm0";
+				drive-strength = <8>;
 			};
 
-			cdc_pdm_lines_2_sus: pdm-lines-2-off-pins {
-					pins = "gpio70", "gpio71", "gpio72";
-					function = "cdc_pdm0";
-					drive-strength = <2>;
-					bias-disable;
+			cdc_pdm_lines_2_sus: pdm-lines-2-off-default-state {
+				pins = "gpio70", "gpio71", "gpio72";
+				function = "cdc_pdm0";
+				drive-strength = <2>;
+				bias-disable;
 			};
 
-			cdc_pdm_lines_act: pdm-lines-on-pins {
-					pins = "gpio69", "gpio73", "gpio74";
-					function = "cdc_pdm0";
-					drive-strength = <8>;
+			cdc_pdm_lines_act: pdm-lines-on-default-state {
+				pins = "gpio69", "gpio73", "gpio74";
+				function = "cdc_pdm0";
+				drive-strength = <8>;
 			};
-			cdc_pdm_lines_sus: pdm-lines-off-pins {
-					pins = "gpio69", "gpio73", "gpio74";
-					function = "cdc_pdm0";
-					drive-strength = <2>;
-					bias-disable;
-			};
-
-			cdc_pdm_comp_lines_act: pdm-comp-lines-on-pins {
-					pins = "gpio67", "gpio68";
-					function = "cdc_pdm0";
-					drive-strength = <8>;
+			cdc_pdm_lines_sus: pdm-lines-off-default-state {
+				pins = "gpio69", "gpio73", "gpio74";
+				function = "cdc_pdm0";
+				drive-strength = <2>;
+				bias-disable;
 			};
 
-			cdc_pdm_comp_lines_sus: pdm-comp-lines-off-pins {
-					pins = "gpio67", "gpio68";
-					function = "cdc_pdm0";
-					drive-strength = <2>;
-					bias-disable;
+			cdc_pdm_comp_lines_act: pdm-comp-lines-on-default-state {
+				pins = "gpio67", "gpio68";
+				function = "cdc_pdm0";
+				drive-strength = <8>;
+			};
+
+			cdc_pdm_comp_lines_sus: pdm-comp-lines-off-default-state {
+				pins = "gpio67", "gpio68";
+				function = "cdc_pdm0";
+				drive-strength = <2>;
+				bias-disable;
 			};
 		};
 
