@@ -278,7 +278,7 @@
 		};
 	};
 
-	cpu_opp: cpu-opp-table {
+	cpu_opp: opp-table-cpu {
 		compatible = "operating-points-v2-kryo-cpu";
 		nvmem-cells = <&cpu_speed_bin>;
 		opp-shared;
@@ -419,7 +419,8 @@
 			clock-latency-ns = <1000000>;
 		};
 	};
-	cpu_perf_opp: cpu-perf-opp-table {
+
+	cpu_perf_opp: opp-table-cpuperf {
 		compatible = "operating-points-v2-kryo-cpu";
 		nvmem-cells = <&cpu_speed_bin>;
 		opp-shared;
@@ -539,7 +540,7 @@
 		};
 	};
 
-	cpr_opp: cpr-opp-table {
+	cpr_opp: opp-table-cpr {
 		compatible = "operating-points-v2";
 
 		cpr_opp_6144: opp-6144 { opp-level = <6144>; };
@@ -564,7 +565,7 @@
 		cpr_opp_22080: opp-22080 { opp-level = <22080>; };
 	};
 
-	cci_opp: cci-opp-table {
+	cci_opp: opp-table-cci {
 		compatible = "operating-points-v2";
 
 		cci_opp_307200: opp-307200 {
