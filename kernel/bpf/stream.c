@@ -498,11 +498,11 @@ static bool dump_stack_cb(void *cookie, u64 ip, u64 sp, u64 bp)
 		if (ret < 0)
 			goto end;
 		ctxp->err = bpf_stream_stage_printk(ctxp->ss, "%pS\n  %s @ %s:%d\n",
-						    (void *)ip, line, file, num);
+						    (void *)(long)ip, line, file, num);
 		return !ctxp->err;
 	}
 end:
-	ctxp->err = bpf_stream_stage_printk(ctxp->ss, "%pS\n", (void *)ip);
+	ctxp->err = bpf_stream_stage_printk(ctxp->ss, "%pS\n", (void *)(long)ip);
 	return !ctxp->err;
 }
 
