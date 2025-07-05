@@ -19953,6 +19953,7 @@ static int do_check(struct bpf_verifier_env *env)
 
 	for (;;) {
 		struct bpf_insn *insn;
+		struct bpf_insn_aux_data *insn_aux;
 		int err;
 
 		/* reset current history entry on each new instruction */
@@ -19966,6 +19967,7 @@ static int do_check(struct bpf_verifier_env *env)
 		}
 
 		insn = &insns[env->insn_idx];
+		insn_aux = &env->insn_aux_data[env->insn_idx];
 
 		if (++env->insn_processed > BPF_COMPLEXITY_LIMIT_INSNS) {
 			verbose(env,
@@ -20042,7 +20044,7 @@ static int do_check(struct bpf_verifier_env *env)
 		/* Reduce verification complexity by stopping speculative path
 		 * verification when a nospec is encountered.
 		 */
-		if (state->speculative && cur_aux(env)->nospec)
+		if (state->speculative && insn_aux->nospec)
 			goto process_bpf_exit;
 
 		err = do_check_insn(env, &do_print_state);
@@ -20050,11 +20052,11 @@ static int do_check(struct bpf_verifier_env *env)
 			/* Prevent this speculative path from ever reaching the
 			 * insn that would have been unsafe to execute.
 			 */
-			cur_aux(env)->nospec = true;
+			insn_aux->nospec = true;
 			/* If it was an ADD/SUB insn, potentially remove any
 			 * markings for alu sanitization.
 			 */
-			cur_aux(env)->alu_state = 0;
+			insn_aux->alu_state = 0;
 			goto process_bpf_exit;
 		} else if (err < 0) {
 			return err;
@@ -20063,7 +20065,7 @@ static int do_check(struct bpf_verifier_env *env)
 		}
 		WARN_ON_ONCE(err);
 
-		if (state->speculative && cur_aux(env)->nospec_result) {
+		if (state->speculative && insn_aux->nospec_result) {
 			/* If we are on a path that performed a jump-op, this
 			 * may skip a nospec patched-in after the jump. This can
 			 * currently never happen because nospec_result is only
@@ -20072,8 +20074,15 @@ static int do_check(struct bpf_verifier_env *env)
 			 * never skip the following insn. Still, add a warning
 			 * to document this in case nospec_result is used
 			 * elsewhere in the future.
+			 *
+			 * All non-branch instructions have a single
+			 * fall-through edge. For these, nospec_result should
+			 * already work.
 			 */
-			WARN_ON_ONCE(env->insn_idx != prev_insn_idx + 1);
+			if (verifier_bug_if(BPF_CLASS(insn->code) == BPF_JMP ||
+					    BPF_CLASS(insn->code) == BPF_JMP32, env,
+					    "speculation barrier after jump instruction may not have the desired effect"))
+				return -EFAULT;
 process_bpf_exit:
 			mark_verifier_state_scratched(env);
 			err = update_branch_counts(env, env->cur_state);
