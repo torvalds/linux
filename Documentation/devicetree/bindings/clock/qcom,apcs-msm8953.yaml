@@ -6,11 +6,11 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Qualcomm APCS Clock Controller for MSM8953 and SDM632
 
-description:
+description: |
   Qualcomm APCS clock controller provides the clocks for CPU and Cache
   Interconnect (CCI). It supports up to 9 clocks.
 
-  See also:: include/dt-bindings/clock/qcom,apcs-msm8953.h
+  See also: include/dt-bindings/clock/qcom,apcs-msm8953.h
 
 properties:
   compatible:
@@ -71,7 +71,7 @@ additionalProperties: true
 examples:
   - |
       #include <dt-bindings/clock/qcom,apcs-msm8953.h>
- 
+
       apcscc: clock-controller@b011050 {
          compatible = "qcom,apcs-cc-msm8953";
          reg = <0x0b011050 0x10>,
