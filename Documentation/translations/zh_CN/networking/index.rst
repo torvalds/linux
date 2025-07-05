@@ -25,6 +25,7 @@
    vxlan
    netif-msg
    xfrm_proc
+   netmem
 
 Todolist:
 
@@ -103,7 +104,6 @@ Todolist:
 *   netdev-features
 *   netdevices
 *   netfilter-sysctl
-*   netmem
 *   nexthop-group-resilient
 *   nf_conntrack-sysctl
 *   nf_flowtable
