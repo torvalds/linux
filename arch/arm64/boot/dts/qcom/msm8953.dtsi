@@ -2156,7 +2156,7 @@
 				power-domains = <&gcc VENUS_CORE0_GDSC>;
 			};
 
-			venus_opp_table: venus-opp-table {
+			venus_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-114290000 {
