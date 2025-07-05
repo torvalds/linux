@@ -431,7 +431,7 @@ tcp_dsack - BOOLEAN
 
 tcp_early_retrans - INTEGER
 	Tail loss probe (TLP) converts RTOs occurring due to tail
-	losses into fast recovery (draft-ietf-tcpm-rack). Note that
+	losses into fast recovery (RFC8985). Note that
 	TLP requires RACK to function properly (see tcp_recovery below)
 
 	Possible values:

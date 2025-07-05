@@ -3714,7 +3714,7 @@ static int tcp_replace_ts_recent(struct tcp_sock *tp, u32 seq)
 }
 
 /* This routine deals with acks during a TLP episode and ends an episode by
- * resetting tlp_high_seq. Ref: TLP algorithm in draft-ietf-tcpm-rack
+ * resetting tlp_high_seq. Ref: TLP algorithm in RFC8985
  */
 static void tcp_process_tlp_ack(struct sock *sk, u32 ack, int flag)
 {
