@@ -24,6 +24,7 @@
    napi
    vxlan
    netif-msg
+   xfrm_proc
 
 Todolist:
 
@@ -146,7 +147,6 @@ Todolist:
 *   x25
 *   x25-iface
 *   xfrm_device
-*   xfrm_proc
 *   xfrm_sync
 *   xfrm_sysctl
 *   xdp-rx-metadata
