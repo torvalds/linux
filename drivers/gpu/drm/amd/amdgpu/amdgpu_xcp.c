@@ -218,15 +218,27 @@ int amdgpu_xcp_restore_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr)
 	return __amdgpu_xcp_switch_partition_mode(xcp_mgr, xcp_mgr->mode);
 }
 
+static bool __amdgpu_xcp_is_cached_mode_valid(struct amdgpu_xcp_mgr *xcp_mgr)
+{
+	if (!xcp_mgr->funcs || !xcp_mgr->funcs->query_partition_mode)
+		return true;
+
+	if (!amdgpu_sriov_vf(xcp_mgr->adev) &&
+	    xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+		return true;
+
+	if (xcp_mgr->mode != AMDGPU_XCP_MODE_NONE &&
+	    xcp_mgr->mode != AMDGPU_XCP_MODE_TRANS)
+		return true;
+
+	return false;
+}
+
 int amdgpu_xcp_query_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr, u32 flags)
 {
 	int mode;
 
-	if (!amdgpu_sriov_vf(xcp_mgr->adev) &&
-	    xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
-		return xcp_mgr->mode;
-
-	if (!xcp_mgr->funcs || !xcp_mgr->funcs->query_partition_mode)
+	if (__amdgpu_xcp_is_cached_mode_valid(xcp_mgr))
 		return xcp_mgr->mode;
 
 	if (!(flags & AMDGPU_XCP_FL_LOCKED))
