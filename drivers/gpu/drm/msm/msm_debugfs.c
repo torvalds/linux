@@ -325,9 +325,14 @@ static struct drm_info_list msm_debugfs_list[] = {
 
 static int late_init_minor(struct drm_minor *minor)
 {
+	struct drm_device *dev = minor->dev;
+	struct msm_drm_private *priv = dev->dev_private;
 	int ret;
 
 	if (!minor)
+		return 0;
+
+	if (!priv->gpu_pdev)
 		return 0;
 
 	ret = msm_rd_debugfs_init(minor);
