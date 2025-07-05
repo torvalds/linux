@@ -816,14 +816,22 @@ static const struct file_operations fops = {
 	.show_fdinfo = drm_show_fdinfo,
 };
 
+#define DRIVER_FEATURES_GPU ( \
+		DRIVER_GEM | \
+		DRIVER_GEM_GPUVA | \
+		DRIVER_RENDER | \
+		DRIVER_SYNCOBJ | \
+		DRIVER_SYNCOBJ_TIMELINE | \
+		0 )
+
+#define DRIVER_FEATURES_KMS ( \
+		DRIVER_GEM | \
+		DRIVER_ATOMIC | \
+		DRIVER_MODESET | \
+		0 )
+
 static const struct drm_driver msm_driver = {
-	.driver_features    = DRIVER_GEM |
-				DRIVER_GEM_GPUVA |
-				DRIVER_RENDER |
-				DRIVER_ATOMIC |
-				DRIVER_MODESET |
-				DRIVER_SYNCOBJ_TIMELINE |
-				DRIVER_SYNCOBJ,
+	.driver_features    = DRIVER_FEATURES_GPU | DRIVER_FEATURES_KMS,
 	.open               = msm_open,
 	.postclose          = msm_postclose,
 	.dumb_create        = msm_gem_dumb_create,
@@ -846,9 +854,7 @@ static const struct drm_driver msm_driver = {
 };
 
 static const struct drm_driver msm_kms_driver = {
-	.driver_features    = DRIVER_GEM |
-				DRIVER_ATOMIC |
-				DRIVER_MODESET,
+	.driver_features    = DRIVER_FEATURES_KMS,
 	.open               = msm_open,
 	.postclose          = msm_postclose,
 	.dumb_create        = msm_gem_dumb_create,
@@ -870,11 +876,7 @@ static const struct drm_driver msm_kms_driver = {
 };
 
 static const struct drm_driver msm_gpu_driver = {
-	.driver_features    = DRIVER_GEM |
-				DRIVER_GEM_GPUVA |
-				DRIVER_RENDER |
-				DRIVER_SYNCOBJ_TIMELINE |
-				DRIVER_SYNCOBJ,
+	.driver_features    = DRIVER_FEATURES_GPU,
 	.open               = msm_open,
 	.postclose          = msm_postclose,
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
