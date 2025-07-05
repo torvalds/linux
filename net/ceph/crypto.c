@@ -285,6 +285,31 @@ int ceph_crypt(const struct ceph_crypto_key *key, bool encrypt,
 	}
 }
 
+int ceph_crypt_data_offset(const struct ceph_crypto_key *key)
+{
+	switch (key->type) {
+	case CEPH_CRYPTO_NONE:
+	case CEPH_CRYPTO_AES:
+		return 0;
+	default:
+		BUG();
+	}
+}
+
+int ceph_crypt_buflen(const struct ceph_crypto_key *key, int data_len)
+{
+	switch (key->type) {
+	case CEPH_CRYPTO_NONE:
+		return data_len;
+	case CEPH_CRYPTO_AES:
+		/* PKCS#7 padding at the end */
+		return data_len + AES_BLOCK_SIZE -
+		       (data_len & (AES_BLOCK_SIZE - 1));
+	default:
+		BUG();
+	}
+}
+
 static int ceph_key_preparse(struct key_preparsed_payload *prep)
 {
 	struct ceph_crypto_key *ckey;

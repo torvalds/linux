@@ -28,6 +28,8 @@ void ceph_crypto_key_destroy(struct ceph_crypto_key *key);
 /* crypto.c */
 int ceph_crypt(const struct ceph_crypto_key *key, bool encrypt,
 	       void *buf, int buf_len, int in_len, int *pout_len);
+int ceph_crypt_data_offset(const struct ceph_crypto_key *key);
+int ceph_crypt_buflen(const struct ceph_crypto_key *key, int data_len);
 int ceph_crypto_init(void);
 void ceph_crypto_shutdown(void);
 

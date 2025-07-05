@@ -44,23 +44,35 @@ static int ceph_x_should_authenticate(struct ceph_auth_client *ac)
 	return !!need;
 }
 
-static int ceph_x_encrypt_offset(void)
+static int __ceph_x_encrypt_offset(const struct ceph_crypto_key *key)
 {
-	return sizeof(u32) + sizeof(struct ceph_x_encrypt_header);
+	return ceph_crypt_data_offset(key) +
+	       sizeof(struct ceph_x_encrypt_header);
 }
 
-static int ceph_x_encrypt_buflen(int ilen)
+static int ceph_x_encrypt_offset(const struct ceph_crypto_key *key)
 {
-	return ceph_x_encrypt_offset() + ilen + 16;
+	return sizeof(u32) + __ceph_x_encrypt_offset(key);
+}
+
+/*
+ * AES: ciphertext_len | hdr | data... | padding
+ */
+static int ceph_x_encrypt_buflen(const struct ceph_crypto_key *key,
+				 int data_len)
+{
+	int encrypt_len = sizeof(struct ceph_x_encrypt_header) + data_len;
+	return sizeof(u32) + ceph_crypt_buflen(key, encrypt_len);
 }
 
 static int ceph_x_encrypt(struct ceph_crypto_key *secret, void *buf,
 			  int buf_len, int plaintext_len)
 {
-	struct ceph_x_encrypt_header *hdr = buf + sizeof(u32);
+	struct ceph_x_encrypt_header *hdr;
 	int ciphertext_len;
 	int ret;
 
+	hdr = buf + sizeof(u32) + ceph_crypt_data_offset(secret);
 	hdr->struct_v = 1;
 	hdr->magic = cpu_to_le64(CEPHX_ENC_MAGIC);
 
@@ -77,7 +89,7 @@ static int ceph_x_encrypt(struct ceph_crypto_key *secret, void *buf,
 static int __ceph_x_decrypt(struct ceph_crypto_key *secret, void *p,
 			    int ciphertext_len)
 {
-	struct ceph_x_encrypt_header *hdr = p;
+	struct ceph_x_encrypt_header *hdr;
 	int plaintext_len;
 	int ret;
 
@@ -86,6 +98,7 @@ static int __ceph_x_decrypt(struct ceph_crypto_key *secret, void *p,
 	if (ret)
 		return ret;
 
+	hdr = p + ceph_crypt_data_offset(secret);
 	if (le64_to_cpu(hdr->magic) != CEPHX_ENC_MAGIC) {
 		pr_err("%s bad magic\n", __func__);
 		return -EINVAL;
@@ -193,7 +206,7 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	}
 
 	/* blob for me */
-	dp = *p + ceph_x_encrypt_offset();
+	dp = *p + ceph_x_encrypt_offset(secret);
 	ret = ceph_x_decrypt(secret, p, end);
 	if (ret < 0)
 		goto out;
@@ -220,7 +233,7 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	ceph_decode_8_safe(p, end, is_enc, bad);
 	if (is_enc) {
 		/* encrypted */
-		tp = *p + ceph_x_encrypt_offset();
+		tp = *p + ceph_x_encrypt_offset(&th->session_key);
 		ret = ceph_x_decrypt(&th->session_key, p, end);
 		if (ret < 0)
 			goto out;
@@ -312,7 +325,7 @@ static int encrypt_authorizer(struct ceph_x_authorizer *au,
 	p = (void *)(msg_a + 1) + le32_to_cpu(msg_a->ticket_blob.blob_len);
 	end = au->buf->vec.iov_base + au->buf->vec.iov_len;
 
-	msg_b = p + ceph_x_encrypt_offset();
+	msg_b = p + ceph_x_encrypt_offset(&au->session_key);
 	msg_b->struct_v = 2;
 	msg_b->nonce = cpu_to_le64(au->nonce);
 	if (server_challenge) {
@@ -368,7 +381,7 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 		goto out_au;
 
 	maxlen = sizeof(*msg_a) + ticket_blob_len +
-		ceph_x_encrypt_buflen(sizeof(*msg_b));
+		ceph_x_encrypt_buflen(&au->session_key, sizeof(*msg_b));
 	dout("  need len %d\n", maxlen);
 	if (au->buf && au->buf->alloc_len < maxlen) {
 		ceph_buffer_put(au->buf);
@@ -507,7 +520,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		struct ceph_x_authenticate *auth = (void *)(head + 1);
 		void *enc_buf = xi->auth_authorizer.enc_buf;
 		struct ceph_x_challenge_blob *blob = enc_buf +
-							ceph_x_encrypt_offset();
+					     ceph_x_encrypt_offset(&xi->secret);
 		u64 *u;
 
 		p = auth + 1;
@@ -634,7 +647,7 @@ static int handle_auth_session_key(struct ceph_auth_client *ac, u64 global_id,
 	ceph_decode_need(p, end, len, e_inval);
 	dout("%s connection secret blob len %d\n", __func__, len);
 	if (len > 0) {
-		dp = *p + ceph_x_encrypt_offset();
+		dp = *p + ceph_x_encrypt_offset(&th->session_key);
 		ret = ceph_x_decrypt(&th->session_key, p, *p + len);
 		if (ret < 0)
 			return ret;
@@ -804,7 +817,7 @@ static int decrypt_authorizer_challenge(struct ceph_crypto_key *secret,
 		return ret;
 
 	dout("%s decrypted %d bytes\n", __func__, ret);
-	dp = challenge + sizeof(struct ceph_x_encrypt_header);
+	dp = challenge + __ceph_x_encrypt_offset(secret);
 	dend = dp + ret;
 
 	ceph_decode_skip_8(&dp, dend, e_inval);  /* struct_v */
@@ -851,7 +864,7 @@ static int decrypt_authorizer_reply(struct ceph_crypto_key *secret,
 	u8 struct_v;
 	int ret;
 
-	dp = *p + ceph_x_encrypt_offset();
+	dp = *p + ceph_x_encrypt_offset(secret);
 	ret = ceph_x_decrypt(secret, p, end);
 	if (ret < 0)
 		return ret;
@@ -974,7 +987,8 @@ static int calc_signature(struct ceph_x_authorizer *au, struct ceph_msg *msg,
 			__le32 front_crc;
 			__le32 middle_crc;
 			__le32 data_crc;
-		} __packed *sigblock = enc_buf + ceph_x_encrypt_offset();
+		} __packed *sigblock = enc_buf +
+				       ceph_x_encrypt_offset(&au->session_key);
 
 		sigblock->len = cpu_to_le32(4*sizeof(u32));
 		sigblock->header_crc = msg->hdr.crc;
