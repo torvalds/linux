@@ -1085,7 +1085,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			mdss_te_default: mdss-te-pins {
+			mdss_te_default: mdss-te-default-state {
 				pins = "gpio24";
 				function = "mdp_vsync";
 				drive-strength = <2>;
