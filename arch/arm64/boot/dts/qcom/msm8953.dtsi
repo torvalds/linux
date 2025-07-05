@@ -2971,14 +2971,9 @@
 				    "pri-iomux",
 				    "quin-iomux";
 
-			audio-routing =
-				"AMIC1", "MIC BIAS External1",
-				"AMIC2", "MIC BIAS External2",
-				"AMIC3", "MIC BIAS External1",
-				"MM_DL1", "MultiMedia1 Playback",
-				"MM_DL3", "MultiMedia3 Playback",
-				"MM_DL4", "MultiMedia4 Playback",
-				"MultiMedia2 Capture", "MM_UL2";
+			audio-routing = "AMIC1", "MIC BIAS External1",
+					"AMIC2", "MIC BIAS External2",
+					"AMIC3", "MIC BIAS External1";
 
 			status = "disabled";
 
