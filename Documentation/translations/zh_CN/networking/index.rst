@@ -21,8 +21,9 @@
    :maxdepth: 1
 
    msg_zerocopy
-   napi.rst
+   napi
    vxlan
+   netif-msg
 
 Todolist:
 
@@ -101,7 +102,6 @@ Todolist:
 *   netdev-features
 *   netdevices
 *   netfilter-sysctl
-*   netif-msg
 *   netmem
 *   nexthop-group-resilient
 *   nf_conntrack-sysctl
