@@ -1134,21 +1134,21 @@
 				bias-disable;
 			};
 
-			camss_mclk0_default: camss-mclk0-pins {
+			camss_mclk0_default: camss-mclk0-default-state {
 				pins = "gpio26";
 				function = "cam_mclk";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			camss_mclk1_default: camss-mclk1-pins {
+			camss_mclk1_default: camss-mclk1-default-state {
 				pins = "gpio27";
 				function = "cam_mclk";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			camss_mclk2_default: camss-mclk2-pins {
+			camss_mclk2_default: camss-mclk2-default-state {
 				pins = "gpio28";
 				function = "cam_mclk";
 				drive-strength = <2>;
