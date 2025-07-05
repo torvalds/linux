@@ -320,7 +320,7 @@ xfs_mru_cache_create(
 	xfs_mru_cache_free_func_t free_func)
 {
 	struct xfs_mru_cache	*mru = NULL;
-	int			err = 0, grp;
+	int			grp;
 	unsigned int		grp_time;
 
 	if (mrup)
@@ -341,8 +341,8 @@ xfs_mru_cache_create(
 	mru->lists = kzalloc(mru->grp_count * sizeof(*mru->lists),
 				GFP_KERNEL | __GFP_NOFAIL);
 	if (!mru->lists) {
-		err = -ENOMEM;
-		goto exit;
+		kfree(mru);
+		return -ENOMEM;
 	}
 
 	for (grp = 0; grp < mru->grp_count; grp++)
@@ -361,14 +361,7 @@ xfs_mru_cache_create(
 	mru->free_func = free_func;
 	mru->data = data;
 	*mrup = mru;
-
-exit:
-	if (err && mru && mru->lists)
-		kfree(mru->lists);
-	if (err && mru)
-		kfree(mru);
-
-	return err;
+	return 0;
 }
 
 /*
@@ -424,10 +417,6 @@ xfs_mru_cache_insert(
 	struct xfs_mru_cache_elem *elem)
 {
 	int			error = -EINVAL;
-
-	ASSERT(mru && mru->lists);
-	if (!mru || !mru->lists)
-		goto out_free;
 
 	error = -ENOMEM;
 	if (radix_tree_preload(GFP_KERNEL))

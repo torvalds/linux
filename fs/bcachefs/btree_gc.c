@@ -503,8 +503,14 @@ again:
 	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
+	/*
+	 * XXX: we're not passing the trans object here because we're not set up
+	 * to handle a transaction restart - this code needs to be rewritten
+	 * when we start doing online topology repair
+	 */
+	bch2_trans_unlock_long(trans);
 	if (mustfix_fsck_err_on(!have_child,
-			trans, btree_node_topology_interior_node_empty,
+			c, btree_node_topology_interior_node_empty,
 			"empty interior btree node at %s", buf.buf))
 		ret = DROP_THIS_NODE;
 err:
@@ -528,32 +534,39 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_check_root(struct btree_trans *trans, enum btree_id i,
+static int bch2_check_root(struct btree_trans *trans, enum btree_id btree,
 			   bool *reconstructed_root)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_root *r = bch2_btree_id_root(c, i);
+	struct btree_root *r = bch2_btree_id_root(c, btree);
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	bch2_btree_id_to_text(&buf, i);
+	bch2_btree_id_to_text(&buf, btree);
 
 	if (r->error) {
 		bch_info(c, "btree root %s unreadable, must recover from scan", buf.buf);
 
-		r->alive = false;
-		r->error = 0;
+		ret = bch2_btree_has_scanned_nodes(c, btree);
+		if (ret < 0)
+			goto err;
 
-		if (!bch2_btree_has_scanned_nodes(c, i)) {
+		if (!ret) {
 			__fsck_err(trans,
-				   FSCK_CAN_FIX|(!btree_id_important(i) ? FSCK_AUTOFIX : 0),
+				   FSCK_CAN_FIX|(!btree_id_important(btree) ? FSCK_AUTOFIX : 0),
 				   btree_root_unreadable_and_scan_found_nothing,
 				   "no nodes found for btree %s, continue?", buf.buf);
-			bch2_btree_root_alloc_fake_trans(trans, i, 0);
+
+			r->alive = false;
+			r->error = 0;
+			bch2_btree_root_alloc_fake_trans(trans, btree, 0);
 		} else {
-			bch2_btree_root_alloc_fake_trans(trans, i, 1);
-			bch2_shoot_down_journal_keys(c, i, 1, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
-			ret = bch2_get_scanned_nodes(c, i, 0, POS_MIN, SPOS_MAX);
+			r->alive = false;
+			r->error = 0;
+			bch2_btree_root_alloc_fake_trans(trans, btree, 1);
+
+			bch2_shoot_down_journal_keys(c, btree, 1, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+			ret = bch2_get_scanned_nodes(c, btree, 0, POS_MIN, SPOS_MAX);
 			if (ret)
 				goto err;
 		}

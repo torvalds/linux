@@ -430,6 +430,7 @@ static int rt721_sdca_set_gain_get(struct snd_kcontrol *kcontrol,
 	unsigned int read_l, read_r, ctl_l = 0, ctl_r = 0;
 	unsigned int adc_vol_flag = 0;
 	const unsigned int interval_offset = 0xc0;
+	const unsigned int tendA = 0x200;
 	const unsigned int tendB = 0xa00;
 
 	if (strstr(ucontrol->id.name, "FU1E Capture Volume") ||
@@ -439,9 +440,16 @@ static int rt721_sdca_set_gain_get(struct snd_kcontrol *kcontrol,
 	regmap_read(rt721->mbq_regmap, mc->reg, &read_l);
 	regmap_read(rt721->mbq_regmap, mc->rreg, &read_r);
 
-	if (mc->shift == 8) /* boost gain */
+	if (mc->shift == 8) {
+		/* boost gain */
 		ctl_l = read_l / tendB;
-	else {
+	} else if (mc->shift == 1) {
+		/* FU33 boost gain */
+		if (read_l == 0x8000 || read_l == 0xfe00)
+			ctl_l = 0;
+		else
+			ctl_l = read_l / tendA + 1;
+	} else {
 		if (adc_vol_flag)
 			ctl_l = mc->max - (((0x1e00 - read_l) & 0xffff) / interval_offset);
 		else
@@ -449,9 +457,16 @@ static int rt721_sdca_set_gain_get(struct snd_kcontrol *kcontrol,
 	}
 
 	if (read_l != read_r) {
-		if (mc->shift == 8) /* boost gain */
+		if (mc->shift == 8) {
+			/* boost gain */
 			ctl_r = read_r / tendB;
-		else { /* ADC/DAC gain */
+		} else if (mc->shift == 1) {
+			/* FU33 boost gain */
+			if (read_r == 0x8000 || read_r == 0xfe00)
+				ctl_r = 0;
+			else
+				ctl_r = read_r / tendA + 1;
+		} else { /* ADC/DAC gain */
 			if (adc_vol_flag)
 				ctl_r = mc->max - (((0x1e00 - read_r) & 0xffff) / interval_offset);
 			else

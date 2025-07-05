@@ -103,10 +103,10 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 				u8 *cap, u16 *cycle, u8 *flags, u8 *min_cycle)
 {
 	struct cxl_mailbox *cxl_mbox;
-	u8 min_scrub_cycle = U8_MAX;
 	struct cxl_region_params *p;
 	struct cxl_memdev *cxlmd;
 	struct cxl_region *cxlr;
+	u8 min_scrub_cycle = 0;
 	int i, ret;
 
 	if (!cxl_ps_ctx->cxlr) {
@@ -133,8 +133,12 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 		if (ret)
 			return ret;
 
+		/*
+		 * The min_scrub_cycle of a region is the max of minimum scrub
+		 * cycles supported by memdevs that back the region.
+		 */
 		if (min_cycle)
-			min_scrub_cycle = min(*min_cycle, min_scrub_cycle);
+			min_scrub_cycle = max(*min_cycle, min_scrub_cycle);
 	}
 
 	if (min_cycle)
@@ -1099,8 +1103,10 @@ int cxl_store_rec_gen_media(struct cxl_memdev *cxlmd, union cxl_event *evt)
 	old_rec = xa_store(&array_rec->rec_gen_media,
 			   le64_to_cpu(rec->media_hdr.phys_addr), rec,
 			   GFP_KERNEL);
-	if (xa_is_err(old_rec))
+	if (xa_is_err(old_rec)) {
+		kfree(rec);
 		return xa_err(old_rec);
+	}
 
 	kfree(old_rec);
 
@@ -1127,8 +1133,10 @@ int cxl_store_rec_dram(struct cxl_memdev *cxlmd, union cxl_event *evt)
 	old_rec = xa_store(&array_rec->rec_dram,
 			   le64_to_cpu(rec->media_hdr.phys_addr), rec,
 			   GFP_KERNEL);
-	if (xa_is_err(old_rec))
+	if (xa_is_err(old_rec)) {
+		kfree(rec);
 		return xa_err(old_rec);
+	}
 
 	kfree(old_rec);
 
@@ -1315,7 +1323,7 @@ cxl_mem_get_rec_dram(struct cxl_memdev *cxlmd,
 		attrbs.bank = ctx->bank;
 	break;
 	case EDAC_REPAIR_RANK_SPARING:
-		attrbs.repair_type = CXL_BANK_SPARING;
+		attrbs.repair_type = CXL_RANK_SPARING;
 		break;
 	default:
 		return NULL;

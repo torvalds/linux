@@ -570,6 +570,17 @@ static void uml_vfio_release_device(struct uml_vfio_device *dev)
 	kfree(dev);
 }
 
+static struct uml_vfio_device *uml_vfio_find_device(const char *device)
+{
+	struct uml_vfio_device *dev;
+
+	list_for_each_entry(dev, &uml_vfio_devices, list) {
+		if (!strcmp(dev->name, device))
+			return dev;
+	}
+	return NULL;
+}
+
 static int uml_vfio_cmdline_set(const char *device, const struct kernel_param *kp)
 {
 	struct uml_vfio_device *dev;
@@ -581,6 +592,9 @@ static int uml_vfio_cmdline_set(const char *device, const struct kernel_param *k
 			return fd;
 		uml_vfio_container.fd = fd;
 	}
+
+	if (uml_vfio_find_device(device))
+		return -EEXIST;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
