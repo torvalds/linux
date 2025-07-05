@@ -171,7 +171,7 @@ msm_gem_vm_free(struct drm_gpuvm *gpuvm)
 
 /**
  * msm_gem_vm_unusable() - Mark a VM as unusable
- * @vm: the VM to mark unusable
+ * @gpuvm: the VM to mark unusable
  */
 void
 msm_gem_vm_unusable(struct drm_gpuvm *gpuvm)
