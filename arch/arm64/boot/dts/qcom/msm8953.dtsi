@@ -1650,7 +1650,7 @@
 					};
 				};
 
-				dsi0_opp_table: dsi-opp-table {
+				dsi0_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
 						opp-131250000 {
@@ -1739,7 +1739,7 @@
 					};
 				};
 
-				dsi1_opp_table: dsi-opp-table {
+				dsi1_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
 						opp-131250000 {
