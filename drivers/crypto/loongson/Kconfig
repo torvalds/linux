@@ -1,0 +1,5 @@
+config CRYPTO_DEV_LOONGSON_RNG
+	tristate "Support for Loongson RNG Driver"
+	depends on MFD_LOONGSON_SE
+	help
+	  Support for Loongson RNG Driver.
