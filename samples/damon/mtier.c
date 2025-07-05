@@ -12,6 +12,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#ifdef MODULE_PARAM_PREFIX
+#undef MODULE_PARAM_PREFIX
+#endif
+#define MODULE_PARAM_PREFIX "damon_sample_mtier."
+
 static unsigned long node0_start_addr __read_mostly;
 module_param(node0_start_addr, ulong, 0600);
 
