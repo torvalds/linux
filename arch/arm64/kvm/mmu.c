@@ -1465,6 +1465,18 @@ static bool kvm_vma_mte_allowed(struct vm_area_struct *vma)
 	return vma->vm_flags & VM_MTE_ALLOWED;
 }
 
+static bool kvm_vma_is_cacheable(struct vm_area_struct *vma)
+{
+	switch (FIELD_GET(PTE_ATTRINDX_MASK, pgprot_val(vma->vm_page_prot))) {
+	case MT_NORMAL_NC:
+	case MT_DEVICE_nGnRnE:
+	case MT_DEVICE_nGnRE:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  struct kvm_s2_trans *nested,
 			  struct kvm_memory_slot *memslot, unsigned long hva,
@@ -1472,7 +1484,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 {
 	int ret = 0;
 	bool write_fault, writable, force_pte = false;
-	bool exec_fault, mte_allowed;
+	bool exec_fault, mte_allowed, is_vma_cacheable;
 	bool s2_force_noncacheable = false, vfio_allow_any_uc = false;
 	unsigned long mmu_seq;
 	phys_addr_t ipa = fault_ipa;
@@ -1617,6 +1629,8 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 
 	vm_flags = vma->vm_flags;
 
+	is_vma_cacheable = kvm_vma_is_cacheable(vma);
+
 	/* Don't use the VMA after the unlock -- it may have vanished */
 	vma = NULL;
 
@@ -1659,6 +1673,15 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		 */
 		writable = false;
 	}
+
+	/*
+	 * Prevent non-cacheable mappings in the stage-2 if a region of memory
+	 * is cacheable in the primary MMU and the kernel lacks a cacheable
+	 * alias. KVM cannot guarantee coherency between the guest/host aliases
+	 * without the ability to perform CMOs.
+	 */
+	if (is_vma_cacheable && s2_force_noncacheable)
+		return -EINVAL;
 
 	if (exec_fault && s2_force_noncacheable)
 		return -ENOEXEC;
@@ -2216,6 +2239,12 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		if (vma->vm_flags & VM_PFNMAP) {
 			/* IO region dirty page logging not allowed */
 			if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
+				ret = -EINVAL;
+				break;
+			}
+
+			/* Cacheable PFNMAP is not allowed */
+			if (kvm_vma_is_cacheable(vma)) {
 				ret = -EINVAL;
 				break;
 			}
