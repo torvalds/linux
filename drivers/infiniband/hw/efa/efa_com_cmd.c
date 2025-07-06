@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_com.h"
@@ -769,6 +769,11 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_admin_aq_get_stats_cmd cmd = {};
 	struct efa_admin_acq_get_stats_resp resp;
+	struct efa_admin_rdma_write_stats *rws;
+	struct efa_admin_rdma_read_stats *rrs;
+	struct efa_admin_messages_stats *ms;
+	struct efa_admin_network_stats *ns;
+	struct efa_admin_basic_stats *bs;
 	int err;
 
 	cmd.aq_common_descriptor.opcode = EFA_ADMIN_GET_STATS;
@@ -791,29 +796,41 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 
 	switch (cmd.type) {
 	case EFA_ADMIN_GET_STATS_TYPE_BASIC:
-		result->basic_stats.tx_bytes = resp.u.basic_stats.tx_bytes;
-		result->basic_stats.tx_pkts = resp.u.basic_stats.tx_pkts;
-		result->basic_stats.rx_bytes = resp.u.basic_stats.rx_bytes;
-		result->basic_stats.rx_pkts = resp.u.basic_stats.rx_pkts;
-		result->basic_stats.rx_drops = resp.u.basic_stats.rx_drops;
+		bs = &resp.u.basic_stats;
+		result->basic_stats.tx_bytes = bs->tx_bytes;
+		result->basic_stats.tx_pkts = bs->tx_pkts;
+		result->basic_stats.rx_bytes = bs->rx_bytes;
+		result->basic_stats.rx_pkts = bs->rx_pkts;
+		result->basic_stats.rx_drops = bs->rx_drops;
 		break;
 	case EFA_ADMIN_GET_STATS_TYPE_MESSAGES:
-		result->messages_stats.send_bytes = resp.u.messages_stats.send_bytes;
-		result->messages_stats.send_wrs = resp.u.messages_stats.send_wrs;
-		result->messages_stats.recv_bytes = resp.u.messages_stats.recv_bytes;
-		result->messages_stats.recv_wrs = resp.u.messages_stats.recv_wrs;
+		ms = &resp.u.messages_stats;
+		result->messages_stats.send_bytes = ms->send_bytes;
+		result->messages_stats.send_wrs = ms->send_wrs;
+		result->messages_stats.recv_bytes = ms->recv_bytes;
+		result->messages_stats.recv_wrs = ms->recv_wrs;
 		break;
 	case EFA_ADMIN_GET_STATS_TYPE_RDMA_READ:
-		result->rdma_read_stats.read_wrs = resp.u.rdma_read_stats.read_wrs;
-		result->rdma_read_stats.read_bytes = resp.u.rdma_read_stats.read_bytes;
-		result->rdma_read_stats.read_wr_err = resp.u.rdma_read_stats.read_wr_err;
-		result->rdma_read_stats.read_resp_bytes = resp.u.rdma_read_stats.read_resp_bytes;
+		rrs = &resp.u.rdma_read_stats;
+		result->rdma_read_stats.read_wrs = rrs->read_wrs;
+		result->rdma_read_stats.read_bytes = rrs->read_bytes;
+		result->rdma_read_stats.read_wr_err = rrs->read_wr_err;
+		result->rdma_read_stats.read_resp_bytes = rrs->read_resp_bytes;
 		break;
 	case EFA_ADMIN_GET_STATS_TYPE_RDMA_WRITE:
-		result->rdma_write_stats.write_wrs = resp.u.rdma_write_stats.write_wrs;
-		result->rdma_write_stats.write_bytes = resp.u.rdma_write_stats.write_bytes;
-		result->rdma_write_stats.write_wr_err = resp.u.rdma_write_stats.write_wr_err;
-		result->rdma_write_stats.write_recv_bytes = resp.u.rdma_write_stats.write_recv_bytes;
+		rws = &resp.u.rdma_write_stats;
+		result->rdma_write_stats.write_wrs = rws->write_wrs;
+		result->rdma_write_stats.write_bytes = rws->write_bytes;
+		result->rdma_write_stats.write_wr_err = rws->write_wr_err;
+		result->rdma_write_stats.write_recv_bytes = rws->write_recv_bytes;
+		break;
+	case EFA_ADMIN_GET_STATS_TYPE_NETWORK:
+		ns = &resp.u.network_stats;
+		result->network_stats.retrans_bytes = ns->retrans_bytes;
+		result->network_stats.retrans_pkts = ns->retrans_pkts;
+		result->network_stats.retrans_timeout_events = ns->retrans_timeout_events;
+		result->network_stats.unresponsive_remote_events = ns->unresponsive_remote_events;
+		result->network_stats.impaired_remote_conn_events = ns->impaired_remote_conn_events;
 		break;
 	}
 

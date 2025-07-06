@@ -64,6 +64,11 @@ struct efa_user_mmap_entry {
 	op(EFA_RDMA_WRITE_BYTES, "rdma_write_bytes") \
 	op(EFA_RDMA_WRITE_WR_ERR, "rdma_write_wr_err") \
 	op(EFA_RDMA_WRITE_RECV_BYTES, "rdma_write_recv_bytes") \
+	op(EFA_RETRANS_BYTES, "retrans_bytes") \
+	op(EFA_RETRANS_PKTS, "retrans_pkts") \
+	op(EFA_RETRANS_TIMEOUT_EVENS, "retrans_timeout_events") \
+	op(EFA_UNRESPONSIVE_REMOTE_EVENTS, "unresponsive_remote_events") \
+	op(EFA_IMPAIRED_REMOTE_CONN_EVENTS, "impaired_remote_conn_events") \
 
 #define EFA_STATS_ENUM(ename, name) ename,
 #define EFA_STATS_STR(ename, nam) \
@@ -2186,6 +2191,7 @@ static int efa_fill_port_stats(struct efa_dev *dev, struct rdma_hw_stats *stats,
 	struct efa_com_rdma_write_stats *rws;
 	struct efa_com_rdma_read_stats *rrs;
 	struct efa_com_messages_stats *ms;
+	struct efa_com_network_stats *ns;
 	struct efa_com_basic_stats *bs;
 	int err;
 
@@ -2237,6 +2243,18 @@ static int efa_fill_port_stats(struct efa_dev *dev, struct rdma_hw_stats *stats,
 		stats->value[EFA_RDMA_WRITE_WR_ERR] = rws->write_wr_err;
 		stats->value[EFA_RDMA_WRITE_RECV_BYTES] = rws->write_recv_bytes;
 	}
+
+	params.type = EFA_ADMIN_GET_STATS_TYPE_NETWORK;
+	err = efa_com_get_stats(&dev->edev, &params, &result);
+	if (err)
+		return err;
+
+	ns = &result.network_stats;
+	stats->value[EFA_RETRANS_BYTES] = ns->retrans_bytes;
+	stats->value[EFA_RETRANS_PKTS] = ns->retrans_pkts;
+	stats->value[EFA_RETRANS_TIMEOUT_EVENS] = ns->retrans_timeout_events;
+	stats->value[EFA_UNRESPONSIVE_REMOTE_EVENTS] = ns->unresponsive_remote_events;
+	stats->value[EFA_IMPAIRED_REMOTE_CONN_EVENTS] = ns->impaired_remote_conn_events;
 
 	return ARRAY_SIZE(efa_port_stats_descs);
 }
