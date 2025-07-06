@@ -33,6 +33,7 @@
 
 #include "ast_dram_tables.h"
 #include "ast_drv.h"
+#include "ast_post.h"
 
 static void ast_post_chip_2300(struct ast_device *ast);
 static void ast_post_chip_2500(struct ast_device *ast);
@@ -75,7 +76,7 @@ static void ast_set_def_ext_reg(struct ast_device *ast)
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xff, reg);
 }
 
-static u32 __ast_mindwm(void __iomem *regs, u32 r)
+u32 __ast_mindwm(void __iomem *regs, u32 r)
 {
 	u32 data;
 
@@ -89,7 +90,7 @@ static u32 __ast_mindwm(void __iomem *regs, u32 r)
 	return __ast_read32(regs, 0x10000 + (r & 0x0000ffff));
 }
 
-static void __ast_moutdwm(void __iomem *regs, u32 r, u32 v)
+void __ast_moutdwm(void __iomem *regs, u32 r, u32 v)
 {
 	u32 data;
 
@@ -438,7 +439,7 @@ static const u32 pattern[8] = {
 	0x7C61D253
 };
 
-static bool mmc_test(struct ast_device *ast, u32 datagen, u8 test_ctl)
+bool mmc_test(struct ast_device *ast, u32 datagen, u8 test_ctl)
 {
 	u32 data, timeout;
 
@@ -478,8 +479,7 @@ static u32 mmc_test2(struct ast_device *ast, u32 datagen, u8 test_ctl)
 	return data;
 }
 
-
-static bool mmc_test_burst(struct ast_device *ast, u32 datagen)
+bool mmc_test_burst(struct ast_device *ast, u32 datagen)
 {
 	return mmc_test(ast, datagen, 0xc1);
 }
