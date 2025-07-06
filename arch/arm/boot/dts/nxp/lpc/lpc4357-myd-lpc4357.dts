@@ -63,6 +63,7 @@
 
 	panel: panel {
 		compatible = "innolux,at070tn92";
+		power-supply = <&vcc>;
 
 		port {
 			panel_input: endpoint {
