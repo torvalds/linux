@@ -329,7 +329,7 @@ static int __init damon_reclaim_init(void)
 	int err = damon_modules_new_paddr_ctx_target(&ctx, &target);
 
 	if (err)
-		return err;
+		goto out;
 
 	ctx->callback.after_wmarks_check = damon_reclaim_after_wmarks_check;
 	ctx->callback.after_aggregation = damon_reclaim_after_aggregation;
@@ -338,6 +338,9 @@ static int __init damon_reclaim_init(void)
 	if (enabled)
 		err = damon_reclaim_turn(true);
 
+out:
+	if (err && enabled)
+		enabled = false;
 	return err;
 }
 
