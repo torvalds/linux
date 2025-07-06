@@ -38,11 +38,11 @@
 static const struct ast_dramstruct ast1100_dram_table_data[] = {
 	{ 0x2000, 0x1688a8a8 },
 	{ 0x2020, 0x000041f0 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x0000, 0xfc600309 },
 	{ 0x006C, 0x00909090 },
 	{ 0x0064, 0x00050000 },
-	{ 0x0004, 0x00000585 },
+	AST_DRAMSTRUCT_INIT(DRAM_TYPE, 0x00000585),
 	{ 0x0008, 0x0011030f },
 	{ 0x0010, 0x22201724 },
 	{ 0x0018, 0x1e29011a },
@@ -68,7 +68,7 @@ static const struct ast_dramstruct ast1100_dram_table_data[] = {
 	{ 0x0078, 0x00000000 },
 	{ 0x007C, 0x00000000 },
 	{ 0x0034, 0x00000001 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x002C, 0x00000732 },
 	{ 0x0030, 0x00000040 },
 	{ 0x0028, 0x00000005 },
@@ -85,17 +85,17 @@ static const struct ast_dramstruct ast1100_dram_table_data[] = {
 	{ 0x000C, 0x00005a21 },
 	{ 0x0034, 0x00007c03 },
 	{ 0x0120, 0x00004c41 },
-	{ 0xffff, 0xffffffff },
+	AST_DRAMSTRUCT_INVALID,
 };
 
 static const struct ast_dramstruct ast2100_dram_table_data[] = {
 	{ 0x2000, 0x1688a8a8 },
 	{ 0x2020, 0x00004120 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x0000, 0xfc600309 },
 	{ 0x006C, 0x00909090 },
 	{ 0x0064, 0x00070000 },
-	{ 0x0004, 0x00000489 },
+	AST_DRAMSTRUCT_INIT(DRAM_TYPE, 0x00000489),
 	{ 0x0008, 0x0011030f },
 	{ 0x0010, 0x32302926 },
 	{ 0x0018, 0x274c0122 },
@@ -121,7 +121,7 @@ static const struct ast_dramstruct ast2100_dram_table_data[] = {
 	{ 0x0078, 0x00000000 },
 	{ 0x007C, 0x00000000 },
 	{ 0x0034, 0x00000001 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x002C, 0x00000942 },
 	{ 0x0030, 0x00000040 },
 	{ 0x0028, 0x00000005 },
@@ -138,7 +138,7 @@ static const struct ast_dramstruct ast2100_dram_table_data[] = {
 	{ 0x000C, 0x00005a21 },
 	{ 0x0034, 0x00007c03 },
 	{ 0x0120, 0x00005061 },
-	{ 0xffff, 0xffffffff },
+	AST_DRAMSTRUCT_INVALID,
 };
 
 /*
@@ -287,11 +287,11 @@ static void ast_post_chip_2100(struct ast_device *ast)
 			;
 		} while (ast_read32(ast, 0x10000) != 0x01);
 
-		while (dram_reg_info->index != 0xffff) {
-			if (dram_reg_info->index == 0xff00) {/* delay fn */
+		while (!AST_DRAMSTRUCT_IS(dram_reg_info, INVALID)) {
+			if (AST_DRAMSTRUCT_IS(dram_reg_info, UDELAY)) {
 				for (i = 0; i < 15; i++)
 					udelay(dram_reg_info->data);
-			} else if (dram_reg_info->index == 0x4) {
+			} else if (AST_DRAMSTRUCT_IS(dram_reg_info, DRAM_TYPE)) {
 				data = dram_reg_info->data;
 				if (ast->dram_type == AST_DRAM_1Gx16)
 					data = 0x00000d89;

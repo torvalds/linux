@@ -38,9 +38,9 @@
 static const struct ast_dramstruct ast2000_dram_table_data[] = {
 	{ 0x0108, 0x00000000 },
 	{ 0x0120, 0x00004a21 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x0000, 0xFFFFFFFF },
-	{ 0x0004, 0x00000089 },
+	AST_DRAMSTRUCT_INIT(DRAM_TYPE, 0x00000089),
 	{ 0x0008, 0x22331353 },
 	{ 0x000C, 0x0d07000b },
 	{ 0x0010, 0x11113333 },
@@ -49,18 +49,18 @@ static const struct ast_dramstruct ast2000_dram_table_data[] = {
 	{ 0x0024, 0x00000001 },
 	{ 0x001C, 0x00000000 },
 	{ 0x0014, 0x00000003 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x0018, 0x00000131 },
 	{ 0x0014, 0x00000001 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x0018, 0x00000031 },
 	{ 0x0014, 0x00000001 },
-	{ 0xFF00, 0x00000043 },
+	AST_DRAMSTRUCT_UDELAY(67u),
 	{ 0x0028, 0x1e0828f1 },
 	{ 0x0024, 0x00000003 },
 	{ 0x002C, 0x1f0f28fb },
 	{ 0x0030, 0xFFFFFE01 },
-	{ 0xFFFF, 0xFFFFFFFF }
+	AST_DRAMSTRUCT_INVALID,
 };
 
 static void ast_post_chip_2000(struct ast_device *ast)
@@ -81,8 +81,8 @@ static void ast_post_chip_2000(struct ast_device *ast)
 			;
 		} while (ast_read32(ast, 0x10100) != 0xa8);
 
-		while (dram_reg_info->index != 0xffff) {
-			if (dram_reg_info->index == 0xff00) {/* delay fn */
+		while (!AST_DRAMSTRUCT_IS(dram_reg_info, INVALID)) {
+			if (AST_DRAMSTRUCT_IS(dram_reg_info, UDELAY)) {
 				for (i = 0; i < 15; i++)
 					udelay(dram_reg_info->data);
 			} else {
