@@ -98,7 +98,15 @@ void poly1305_blocks_arch(struct poly1305_block_state *state, const u8 *inp,
 	BUILD_BUG_ON(SZ_4K < POLY1305_BLOCK_SIZE ||
 		     SZ_4K % POLY1305_BLOCK_SIZE);
 
+	/*
+	 * The AVX implementations have significant setup overhead (e.g. key
+	 * power computation, kernel FPU enabling) which makes them slower for
+	 * short messages.  Fall back to the scalar implementation for messages
+	 * shorter than 288 bytes, unless the AVX-specific key setup has already
+	 * been performed (indicated by ctx->is_base2_26).
+	 */
 	if (!static_branch_likely(&poly1305_use_avx) ||
+	    (len < POLY1305_BLOCK_SIZE * 18 && !ctx->is_base2_26) ||
 	    unlikely(!irq_fpu_usable())) {
 		convert_to_base2_64(ctx);
 		poly1305_blocks_x86_64(ctx, inp, len, padbit);
