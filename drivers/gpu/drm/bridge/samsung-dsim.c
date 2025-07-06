@@ -31,7 +31,7 @@
 /* returns true iff both arguments logically differs */
 #define NEQV(a, b) (!(a) ^ !(b))
 
-/* DSIM_STATUS */
+/* DSIM_STATUS or DSIM_DPHY_STATUS */
 #define DSIM_STOP_STATE_DAT(x)		(((x) & 0xf) << 0)
 #define DSIM_STOP_STATE_CLK		BIT(8)
 #define DSIM_TX_READY_HS_CLK		BIT(10)
@@ -240,7 +240,9 @@ enum samsung_dsim_transfer_type {
 };
 
 enum reg_idx {
-	DSIM_STATUS_REG,	/* Status register */
+	DSIM_STATUS_REG,	/* Status register (legacy) */
+	DSIM_LINK_STATUS_REG,	/* Link status register */
+	DSIM_DPHY_STATUS_REG,	/* D-PHY status register */
 	DSIM_SWRST_REG,		/* Software reset register */
 	DSIM_CLKCTRL_REG,	/* Clock control register */
 	DSIM_TIMEOUT_REG,	/* Time out register */
@@ -405,6 +407,7 @@ static const unsigned int imx8mm_dsim_reg_values[] = {
 static const struct samsung_dsim_driver_data exynos3_dsi_driver_data = {
 	.reg_ofs = exynos_reg_ofs,
 	.plltmr_reg = 0x50,
+	.has_legacy_status_reg = 1,
 	.has_freqband = 1,
 	.has_clklane_stop = 1,
 	.num_clks = 2,
@@ -424,6 +427,7 @@ static const struct samsung_dsim_driver_data exynos3_dsi_driver_data = {
 static const struct samsung_dsim_driver_data exynos4_dsi_driver_data = {
 	.reg_ofs = exynos_reg_ofs,
 	.plltmr_reg = 0x50,
+	.has_legacy_status_reg = 1,
 	.has_freqband = 1,
 	.has_clklane_stop = 1,
 	.num_clks = 2,
@@ -443,6 +447,7 @@ static const struct samsung_dsim_driver_data exynos4_dsi_driver_data = {
 static const struct samsung_dsim_driver_data exynos5_dsi_driver_data = {
 	.reg_ofs = exynos_reg_ofs,
 	.plltmr_reg = 0x58,
+	.has_legacy_status_reg = 1,
 	.num_clks = 2,
 	.max_freq = 1000,
 	.wait_for_reset = 1,
@@ -459,6 +464,7 @@ static const struct samsung_dsim_driver_data exynos5_dsi_driver_data = {
 static const struct samsung_dsim_driver_data exynos5433_dsi_driver_data = {
 	.reg_ofs = exynos5433_reg_ofs,
 	.plltmr_reg = 0xa0,
+	.has_legacy_status_reg = 1,
 	.has_clklane_stop = 1,
 	.num_clks = 5,
 	.max_freq = 1500,
@@ -476,6 +482,7 @@ static const struct samsung_dsim_driver_data exynos5433_dsi_driver_data = {
 static const struct samsung_dsim_driver_data exynos5422_dsi_driver_data = {
 	.reg_ofs = exynos5433_reg_ofs,
 	.plltmr_reg = 0xa0,
+	.has_legacy_status_reg = 1,
 	.has_clklane_stop = 1,
 	.num_clks = 2,
 	.max_freq = 1500,
@@ -493,6 +500,7 @@ static const struct samsung_dsim_driver_data exynos5422_dsi_driver_data = {
 static const struct samsung_dsim_driver_data imx8mm_dsi_driver_data = {
 	.reg_ofs = exynos5433_reg_ofs,
 	.plltmr_reg = 0xa0,
+	.has_legacy_status_reg = 1,
 	.has_clklane_stop = 1,
 	.num_clks = 2,
 	.max_freq = 2100,
@@ -688,7 +696,10 @@ static unsigned long samsung_dsim_set_pll(struct samsung_dsim *dsi,
 			dev_err(dsi->dev, "PLL failed to stabilize\n");
 			return 0;
 		}
-		reg = samsung_dsim_read(dsi, DSIM_STATUS_REG);
+		if (driver_data->has_legacy_status_reg)
+			reg = samsung_dsim_read(dsi, DSIM_STATUS_REG);
+		else
+			reg = samsung_dsim_read(dsi, DSIM_LINK_STATUS_REG);
 	} while ((reg & DSIM_PLL_STABLE) == 0);
 
 	dsi->hs_clock = fout;
@@ -962,7 +973,10 @@ static int samsung_dsim_init_link(struct samsung_dsim *dsi)
 			return -EFAULT;
 		}
 
-		reg = samsung_dsim_read(dsi, DSIM_STATUS_REG);
+		if (driver_data->has_legacy_status_reg)
+			reg = samsung_dsim_read(dsi, DSIM_STATUS_REG);
+		else
+			reg = samsung_dsim_read(dsi, DSIM_DPHY_STATUS_REG);
 		if ((reg & DSIM_STOP_STATE_DAT(lanes_mask))
 		    != DSIM_STOP_STATE_DAT(lanes_mask))
 			continue;

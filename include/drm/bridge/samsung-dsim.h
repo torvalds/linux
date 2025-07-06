@@ -53,6 +53,7 @@ struct samsung_dsim_transfer {
 struct samsung_dsim_driver_data {
 	const unsigned int *reg_ofs;
 	unsigned int plltmr_reg;
+	unsigned int has_legacy_status_reg:1;
 	unsigned int has_freqband:1;
 	unsigned int has_clklane_stop:1;
 	unsigned int has_broken_fifoctrl_emptyhdr:1;
