@@ -250,7 +250,8 @@ pub trait Driver: Send {
 ///
 /// # Invariants
 ///
-/// A [`Device`] instance represents a valid `struct device` created by the C portion of the kernel.
+/// A [`Device`] instance represents a valid `struct pci_dev` created by the C portion of the
+/// kernel.
 #[repr(transparent)]
 pub struct Device<Ctx: device::DeviceContext = device::Normal>(
     Opaque<bindings::pci_dev>,
