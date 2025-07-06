@@ -725,6 +725,15 @@ config VIDEO_S5K5E9
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5k5e9.
 
+config VIDEO_S5K5E9
+	tristate "Samsung S5K5E9 sensor support"
+	help
+	  This is a V4L2 sensor driver for Samsung S5K5E9 raw
+	  camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called s5k5e9.
+
 config VIDEO_S5K6A3
 	tristate "Samsung S5K6A3 sensor support"
 	help
