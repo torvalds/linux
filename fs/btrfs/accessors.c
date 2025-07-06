@@ -54,10 +54,10 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 {									\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
-	const unsigned long oil = get_eb_offset_in_folio(eb,		\
+	const unsigned long oif = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	char *kaddr = folio_address(eb->folios[idx]) + oil;		\
-	const int part = eb->folio_size - oil;				\
+	char *kaddr = folio_address(eb->folios[idx]) + oif;		\
+	const int part = eb->folio_size - oif;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
 	if (unlikely(member_offset + sizeof(u##bits) > eb->len)) {	\
@@ -84,10 +84,10 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 {									\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
-	const unsigned long oil = get_eb_offset_in_folio(eb,		\
+	const unsigned long oif = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	char *kaddr = folio_address(eb->folios[idx]) + oil;		\
-	const int part = eb->folio_size - oil;				\
+	char *kaddr = folio_address(eb->folios[idx]) + oif;		\
+	const int part = eb->folio_size - oif;				\
 	u8 lebytes[sizeof(u##bits)];					\
 									\
 	if (unlikely(member_offset + sizeof(u##bits) > eb->len)) {	\
