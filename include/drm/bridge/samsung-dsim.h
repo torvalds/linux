@@ -58,6 +58,7 @@ struct samsung_dsim_driver_data {
 	unsigned int has_clklane_stop:1;
 	unsigned int has_broken_fifoctrl_emptyhdr:1;
 	unsigned int has_sfrctrl:1;
+	struct clk_bulk_data *clk_data;
 	unsigned int num_clks;
 	unsigned int min_freq;
 	unsigned int max_freq;
@@ -104,7 +105,6 @@ struct samsung_dsim {
 
 	void __iomem *reg_base;
 	struct phy *phy;
-	struct clk **clks;
 	struct clk *pll_clk;
 	struct regulator_bulk_data supplies[2];
 	int irq;
