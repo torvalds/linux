@@ -20,6 +20,7 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 
 #define GC0310_NATIVE_WIDTH			656
 #define GC0310_NATIVE_HEIGHT			496
@@ -580,9 +581,12 @@ static const struct v4l2_subdev_ops gc0310_ops = {
 
 static int gc0310_init_controls(struct gc0310_device *sensor)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
 	struct v4l2_ctrl_handler *hdl = &sensor->ctrls.handler;
+	struct v4l2_fwnode_device_properties props;
+	int ret;
 
-	v4l2_ctrl_handler_init(hdl, 6);
+	v4l2_ctrl_handler_init(hdl, 8);
 
 	/* Use the same lock for controls as for everything else */
 	hdl->lock = &sensor->input_lock;
@@ -613,6 +617,12 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 				  GC0310_H_BLANK_DEFAULT,
 				  GC0310_H_BLANK_DEFAULT, 1,
 				  GC0310_H_BLANK_DEFAULT);
+
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		return ret;
+
+	v4l2_ctrl_new_fwnode_properties(hdl, &ctrl_ops, &props);
 
 	if (hdl->error)
 		return hdl->error;
