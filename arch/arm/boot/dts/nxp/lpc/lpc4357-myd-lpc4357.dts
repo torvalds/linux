@@ -569,8 +569,9 @@
 	pinctrl-0 = <&spifi_pins>;
 
 	/* Atmel AT25DF321A */
-	flash {
+	flash@0 {
 		compatible = "jedec,spi-nor";
+		reg = <0>;
 		spi-max-frequency = <51000000>;
 		spi-cpol;
 		spi-cpha;

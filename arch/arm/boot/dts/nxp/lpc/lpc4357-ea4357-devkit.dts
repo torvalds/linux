@@ -582,8 +582,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifi_pins>;
 
-	flash {
+	flash@0 {
 		compatible = "jedec,spi-nor";
+		reg = <0>;
 		spi-cpol;
 		spi-cpha;
 		spi-rx-bus-width = <4>;
