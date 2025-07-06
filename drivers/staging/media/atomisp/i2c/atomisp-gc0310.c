@@ -3,7 +3,7 @@
  * Support for GalaxyCore GC0310 VGA camera sensor.
  *
  * Copyright (c) 2013 Intel Corporation. All Rights Reserved.
- * Copyright (c) 2023 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (c) 2023-2025 Hans de Goede <hansg@kernel.org>
  */
 
 #include <linux/delay.h>
@@ -352,6 +352,28 @@ static int gc0310_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int gc0310_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *state,
+				struct v4l2_subdev_selection *sel)
+{
+	/* Only the single fixed 656x496 mode is supported, without croping */
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = GC0310_NATIVE_WIDTH;
+		sel->r.height = GC0310_NATIVE_HEIGHT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int gc0310_detect(struct gc0310_device *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
@@ -509,6 +531,8 @@ static const struct v4l2_subdev_pad_ops gc0310_pad_ops = {
 	.enum_frame_size = gc0310_enum_frame_size,
 	.get_fmt = gc0310_get_fmt,
 	.set_fmt = gc0310_set_fmt,
+	.get_selection = gc0310_get_selection,
+	.set_selection = gc0310_get_selection,
 	.get_frame_interval = gc0310_get_frame_interval,
 };
 
@@ -671,5 +695,6 @@ static struct i2c_driver gc0310_driver = {
 module_i2c_driver(gc0310_driver);
 
 MODULE_AUTHOR("Lai, Angie <angie.lai@intel.com>");
+MODULE_AUTHOR("Hans de Goede <hansg@kernel.org>");
 MODULE_DESCRIPTION("A low-level driver for GalaxyCore GC0310 sensors");
 MODULE_LICENSE("GPL");
