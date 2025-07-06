@@ -3,8 +3,7 @@
  * Test the longest symbol length. Execute with:
  *  ./tools/testing/kunit/kunit.py run longest-symbol
  *  --arch=x86_64 --kconfig_add CONFIG_KPROBES=y --kconfig_add CONFIG_MODULES=y
- *  --kconfig_add CONFIG_RETPOLINE=n --kconfig_add CONFIG_CFI_CLANG=n
- *  --kconfig_add CONFIG_MITIGATION_RETPOLINE=n
+ *  --kconfig_add CONFIG_CPU_MITIGATIONS=n --kconfig_add CONFIG_GCOV_KERNEL=n
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
