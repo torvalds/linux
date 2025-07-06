@@ -306,11 +306,26 @@ static int gc0310_gain_set(struct gc0310_device *sensor, u32 gain)
 	return ret;
 }
 
+static int gc0310_exposure_update_range(struct gc0310_device *sensor)
+{
+	int exp_max = GC0310_NATIVE_HEIGHT + sensor->ctrls.vblank->val;
+
+	return __v4l2_ctrl_modify_range(sensor->ctrls.exposure, 0, exp_max,
+					1, exp_max);
+}
+
 static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc0310_device *sensor =
 		container_of(ctrl->handler, struct gc0310_device, ctrls.handler);
 	int ret;
+
+	/* Update exposure range on vblank changes */
+	if (ctrl->id == V4L2_CID_VBLANK) {
+		ret = gc0310_exposure_update_range(sensor);
+		if (ret)
+			return ret;
+	}
 
 	/* Only apply changes to the controls if the device is powered up */
 	if (!pm_runtime_get_if_in_use(sensor->sd.dev))
@@ -584,7 +599,7 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
 	struct v4l2_ctrl_handler *hdl = &sensor->ctrls.handler;
 	struct v4l2_fwnode_device_properties props;
-	int ret;
+	int exp_max, ret;
 
 	v4l2_ctrl_handler_init(hdl, 8);
 
@@ -592,8 +607,10 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 	hdl->lock = &sensor->input_lock;
 	sensor->sd.ctrl_handler = hdl;
 
+	exp_max = GC0310_NATIVE_HEIGHT + GC0310_V_BLANK_DEFAULT;
 	sensor->ctrls.exposure =
-		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_EXPOSURE, 0, 4095, 1, 1023);
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_EXPOSURE, 0,
+				  exp_max, 1, exp_max);
 
 	/* 32 steps at base gain 1 + 64 half steps at base gain 2 */
 	sensor->ctrls.gain =
