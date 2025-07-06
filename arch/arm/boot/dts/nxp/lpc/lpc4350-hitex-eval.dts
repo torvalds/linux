@@ -406,6 +406,9 @@
 		ext_sram: sram@2,0 {
 			compatible = "mmio-sram";
 			reg = <2 0 0x80000>; /* 512 KiB SRAM on IS62WV25616 */
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 2 0 0x80000>;
 		};
 	};
 };
