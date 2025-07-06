@@ -108,14 +108,14 @@
 	};
 
 	ssp_pins: ssp-pins {
-		ssp1_cs {
+		ssp1_cs_cfg {
 			pins = "p6_7";
 			function = "gpio";
 			bias-pull-up;
 			bias-disable;
 		};
 
-		ssp1_miso_mosi {
+		ssp1_miso_mosi_cfg {
 			pins = "p1_3", "p1_4";
 			function = "ssp1";
 			slew-rate = <1>;
@@ -124,7 +124,7 @@
 			input-schmitt-disable;
 		};
 
-		ssp1_sck {
+		ssp1_sck_cfg {
 			pins = "pf_4";
 			function = "ssp1";
 			slew-rate = <1>;

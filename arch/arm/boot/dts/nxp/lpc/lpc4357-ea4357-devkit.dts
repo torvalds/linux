@@ -403,7 +403,7 @@
 	};
 
 	ssp0_pins: ssp0-pins {
-		ssp0_sck_miso_mosi {
+		ssp0_sck_miso_mosi_cfg {
 			pins = "pf_0", "pf_2", "pf_3";
 			function = "ssp0";
 			slew-rate = <1>;
@@ -412,7 +412,7 @@
 			input-schmitt-disable;
 		};
 
-		ssp0_ssel {
+		ssp0_ssel_cfg {
 			pins = "pf_1";
 			function = "ssp0";
 			bias-pull-up;
@@ -452,12 +452,12 @@
 	};
 
 	usb0_pins: usb0-pins {
-		usb0_pwr_enable {
+		usb0_pwr_enable_cfg {
 			pins = "p2_3";
 			function = "usb0";
 		};
 
-		usb0_pwr_fault {
+		usb0_pwr_fault_cfg {
 			pins = "p8_0";
 			function = "usb0";
 			bias-disable;
