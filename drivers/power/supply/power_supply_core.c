@@ -212,7 +212,7 @@ static int __power_supply_populate_supplied_from(struct power_supply *epsy,
 			break;
 		}
 		fwnode_handle_put(np);
-	} while (!IS_ERR(np));
+	} while (true);
 
 	return 0;
 }
