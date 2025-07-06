@@ -417,6 +417,9 @@ struct ast_crtc_state {
 
 int ast_mm_init(struct ast_device *ast);
 
+/* ast_2300.c */
+int ast_2300_post(struct ast_device *ast);
+
 /* ast_2500.c */
 void ast_2500_patch_ahb(void __iomem *regs);
 int ast_2500_post(struct ast_device *ast);
