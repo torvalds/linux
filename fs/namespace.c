@@ -3353,7 +3353,7 @@ static inline int tree_contains_unbindable(struct mount *mnt)
 	return 0;
 }
 
-static int do_set_group(struct path *from_path, struct path *to_path)
+static int do_set_group(const struct path *from_path, const struct path *to_path)
 {
 	struct mount *from = real_mount(from_path->mnt);
 	struct mount *to = real_mount(to_path->mnt);
