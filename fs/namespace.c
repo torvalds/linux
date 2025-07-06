@@ -3566,8 +3566,9 @@ static inline bool may_use_mount(struct mount *mnt)
 	return check_anonymous_mnt(mnt);
 }
 
-static int do_move_mount(struct path *old_path,
-			 struct path *new_path, enum mnt_tree_flags_t flags)
+static int do_move_mount(const struct path *old_path,
+			 const struct path *new_path,
+			 enum mnt_tree_flags_t flags)
 {
 	struct mount *old = real_mount(old_path->mnt);
 	int err;
@@ -3639,7 +3640,7 @@ static int do_move_mount(struct path *old_path,
 	return attach_recursive_mnt(old, &mp);
 }
 
-static int do_move_mount_old(struct path *path, const char *old_name)
+static int do_move_mount_old(const struct path *path, const char *old_name)
 {
 	struct path old_path;
 	int err;
@@ -4469,7 +4470,8 @@ err_unlock:
 	return ret;
 }
 
-static inline int vfs_move_mount(struct path *from_path, struct path *to_path,
+static inline int vfs_move_mount(const struct path *from_path,
+				 const struct path *to_path,
 				 enum mnt_tree_flags_t mflags)
 {
 	int ret;
