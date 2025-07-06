@@ -100,7 +100,7 @@
 			memcpy-bus-width = <32>;
 		};
 
-		spifi: flash-controller@40003000 {
+		spifi: spi@40003000 {
 			compatible = "nxp,lpc1773-spifi";
 			reg = <0x40003000 0x1000>, <0x14000000 0x4000000>;
 			reg-names = "spifi", "flash";
