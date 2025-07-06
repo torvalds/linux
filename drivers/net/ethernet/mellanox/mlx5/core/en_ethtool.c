@@ -43,7 +43,6 @@
 #include "en/fs_ethtool.h"
 
 #define LANES_UNKNOWN		 0
-#define MAX_LANES		 8
 
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo)
@@ -1098,10 +1097,8 @@ static void get_link_properties(struct net_device *netdev,
 		speed = info->speed;
 		lanes = info->lanes;
 		duplex = DUPLEX_FULL;
-	} else if (data_rate_oper) {
+	} else if (data_rate_oper)
 		speed = 100 * data_rate_oper;
-		lanes = MAX_LANES;
-	}
 
 out:
 	link_ksettings->base.duplex = duplex;

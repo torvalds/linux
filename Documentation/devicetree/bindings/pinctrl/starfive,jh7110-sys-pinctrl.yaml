@@ -18,7 +18,7 @@ description: |
   any GPIO can be set up to be controlled by any of the peripherals.
 
 maintainers:
-  - Jianlong Huang <jianlong.huang@starfivetech.com>
+  - Hal Feng <hal.feng@starfivetech.com>
 
 properties:
   compatible:

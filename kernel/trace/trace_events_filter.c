@@ -1437,10 +1437,8 @@ static void filter_free_subsystem_filters(struct trace_subsystem_dir *dir,
 	INIT_LIST_HEAD(&head->list);
 
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
-	if (!item) {
-		kfree(head);
+	if (!item)
 		goto free_now;
-	}
 
 	item->filter = filter;
 	list_add_tail(&item->list, &head->list);

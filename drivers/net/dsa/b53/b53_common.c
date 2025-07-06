@@ -2034,9 +2034,6 @@ int b53_br_join(struct dsa_switch *ds, int port, struct dsa_bridge bridge,
 
 		b53_get_vlan_entry(dev, pvid, vl);
 		vl->members &= ~BIT(port);
-		if (vl->members == BIT(cpu_port))
-			vl->members &= ~BIT(cpu_port);
-		vl->untag = vl->members;
 		b53_set_vlan_entry(dev, pvid, vl);
 	}
 
@@ -2115,8 +2112,7 @@ void b53_br_leave(struct dsa_switch *ds, int port, struct dsa_bridge bridge)
 		}
 
 		b53_get_vlan_entry(dev, pvid, vl);
-		vl->members |= BIT(port) | BIT(cpu_port);
-		vl->untag |= BIT(port) | BIT(cpu_port);
+		vl->members |= BIT(port);
 		b53_set_vlan_entry(dev, pvid, vl);
 	}
 }
