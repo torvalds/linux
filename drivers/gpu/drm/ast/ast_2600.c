@@ -60,6 +60,7 @@ void ast_2600_set_def_ext_reg(struct ast_device *ast)
 
 	/* Enable RAMDAC for A1 */
 	reg = 0x04;
+	reg |= 0x20;
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xff, reg);
 }
 
