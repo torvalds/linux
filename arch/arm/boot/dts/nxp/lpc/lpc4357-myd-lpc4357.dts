@@ -544,7 +544,7 @@
 	pinctrl-0 = <&enet_rmii_pins>;
 	phy-handle = <&phy1>;
 
-	mdio0 {
+	mdio {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "snps,dwmac-mdio";
