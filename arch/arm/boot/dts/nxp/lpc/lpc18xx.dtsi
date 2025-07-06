@@ -111,7 +111,7 @@
 			status = "disabled";
 		};
 
-		mmcsd: mmcsd@40004000 {
+		mmcsd: mmc@40004000 {
 			compatible = "snps,dw-mshc";
 			reg = <0x40004000 0x1000>;
 			interrupts = <6>;
