@@ -23,13 +23,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: ccache
-      uses: hendrikmuhs/ccache-action@v1.2
-      with:
-        create-symlink: true
-        max-size: 1536M
     - run: sudo apt update && sudo apt install -y bc bison flex gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf make libelf-dev libssl-dev debhelper-compat debhelper build-essential device-tree-compiler
     - run: mv scripts/package/mkdeb scripts/package/mkdebian -v
-    - run: |
-        export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
-        make -j16 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnuabeihf- lmi_defconfig ${{ matrix.type }}
+    - run: make -j16 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnuabeihf- lmi_defconfig ${{ matrix.type }}
