@@ -417,6 +417,10 @@ struct ast_crtc_state {
 
 int ast_mm_init(struct ast_device *ast);
 
+/* ast_2500.c */
+void ast_2500_patch_ahb(void __iomem *regs);
+int ast_2500_post(struct ast_device *ast);
+
 /* ast_2600.c */
 int ast_2600_post(struct ast_device *ast);
 
@@ -424,7 +428,6 @@ int ast_2600_post(struct ast_device *ast);
 int ast_post_gpu(struct ast_device *ast);
 u32 ast_mindwm(struct ast_device *ast, u32 r);
 void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);
-void ast_patch_ahb_2500(void __iomem *regs);
 
 int ast_vga_output_init(struct ast_device *ast);
 int ast_sil164_output_init(struct ast_device *ast);
