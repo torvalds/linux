@@ -417,6 +417,9 @@ struct ast_crtc_state {
 
 int ast_mm_init(struct ast_device *ast);
 
+/* ast_2600.c */
+int ast_2600_post(struct ast_device *ast);
+
 /* ast post */
 int ast_post_gpu(struct ast_device *ast);
 u32 ast_mindwm(struct ast_device *ast, u32 r);
