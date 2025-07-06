@@ -563,7 +563,7 @@ static inline pte_t pte_swp_mkexclusive(pte_t pte)
 	return set_pte_bit(pte, __pgprot(PTE_SWP_EXCLUSIVE));
 }
 
-static inline int pte_swp_exclusive(pte_t pte)
+static inline bool pte_swp_exclusive(pte_t pte)
 {
 	return pte_val(pte) & PTE_SWP_EXCLUSIVE;
 }

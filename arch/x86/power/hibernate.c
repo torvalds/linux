@@ -192,7 +192,8 @@ out:
 
 int arch_resume_nosmt(void)
 {
-	int ret = 0;
+	int ret;
+
 	/*
 	 * We reached this while coming out of hibernation. This means
 	 * that SMT siblings are sleeping in hlt, as mwait is not safe
@@ -206,18 +207,10 @@ int arch_resume_nosmt(void)
 	 * Called with hotplug disabled.
 	 */
 	cpu_hotplug_enable();
-	if (cpu_smt_control == CPU_SMT_DISABLED ||
-			cpu_smt_control == CPU_SMT_FORCE_DISABLED) {
-		enum cpuhp_smt_control old = cpu_smt_control;
 
-		ret = cpuhp_smt_enable();
-		if (ret)
-			goto out;
-		ret = cpuhp_smt_disable(old);
-		if (ret)
-			goto out;
-	}
-out:
+	ret = arch_cpu_rescan_dead_smt_siblings();
+
 	cpu_hotplug_disable();
+
 	return ret;
 }
