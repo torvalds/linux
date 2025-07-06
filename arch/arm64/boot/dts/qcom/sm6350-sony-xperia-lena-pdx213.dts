@@ -381,9 +381,16 @@
 };
 
 &usb_1_hsphy {
+	vdd-supply = <&pm6350_l18>;
+	vdda-phy-dpdm-supply = <&pm6350_l3>;
+	vdda-pll-supply = <&pm6350_l2>;
+
 	status = "okay";
 };
 
 &usb_1_qmpphy {
+	vdda-phy-supply = <&pm6350_l16>;
+	vdda-pll-supply = <&pm6350_l22>;
+
 	status = "okay";
 };

@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_power_well.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy.h"
 #include "intel_dkl_phy_regs.h"
@@ -24,6 +25,7 @@
 #include "intel_hotplug.h"
 #include "intel_pcode.h"
 #include "intel_pps.h"
+#include "intel_psr.h"
 #include "intel_tc.h"
 #include "intel_vga.h"
 #include "skl_watermark.h"
@@ -186,22 +188,18 @@ int intel_power_well_refcount(struct i915_power_well *power_well)
 static void hsw_power_well_post_enable(struct intel_display *display,
 				       u8 irq_pipe_mask, bool has_vga)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (has_vga)
 		intel_vga_reset_io_mem(display);
 
 	if (irq_pipe_mask)
-		gen8_irq_power_well_post_enable(dev_priv, irq_pipe_mask);
+		gen8_irq_power_well_post_enable(display, irq_pipe_mask);
 }
 
 static void hsw_power_well_pre_disable(struct intel_display *display,
 				       u8 irq_pipe_mask)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (irq_pipe_mask)
-		gen8_irq_power_well_pre_disable(dev_priv, irq_pipe_mask);
+		gen8_irq_power_well_pre_disable(display, irq_pipe_mask);
 }
 
 #define ICL_AUX_PW_TO_PHY(pw_idx)	\
@@ -507,7 +505,6 @@ static void
 icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 				 struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
 	struct intel_digital_port *dig_port = aux_ch_to_digital_port(display, aux_ch);
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
@@ -539,7 +536,7 @@ icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(i915_power_well_instance(power_well)->hsw.idx);
 
-		if (wait_for(intel_dkl_phy_read(dev_priv, DKL_CMN_UC_DW_27(tc_port)) &
+		if (wait_for(intel_dkl_phy_read(display, DKL_CMN_UC_DW_27(tc_port)) &
 			     DKL_CMN_UC_DW27_UC_HEALTH, 1))
 			drm_warn(display->drm,
 				 "Timeout waiting TC uC health\n");
@@ -550,10 +547,9 @@ static void
 icl_aux_power_well_enable(struct intel_display *display,
 			  struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum phy phy = icl_aux_pw_to_phy(display, power_well);
 
-	if (intel_phy_is_tc(dev_priv, phy))
+	if (intel_phy_is_tc(display, phy))
 		return icl_tc_phy_aux_power_well_enable(display, power_well);
 	else if (display->platform.icelake)
 		return icl_combo_phy_aux_power_well_enable(display,
@@ -566,10 +562,9 @@ static void
 icl_aux_power_well_disable(struct intel_display *display,
 			   struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum phy phy = icl_aux_pw_to_phy(display, power_well);
 
-	if (intel_phy_is_tc(dev_priv, phy))
+	if (intel_phy_is_tc(display, phy))
 		return hsw_power_well_disable(display, power_well);
 	else if (display->platform.icelake)
 		return icl_combo_phy_aux_power_well_disable(display,
@@ -755,8 +750,9 @@ void gen9_sanitize_dc_state(struct intel_display *display)
 void gen9_set_dc_state(struct intel_display *display, u32 state)
 {
 	struct i915_power_domains *power_domains = &display->power.domains;
-	u32 val;
+	bool dc6_was_enabled, enable_dc6;
 	u32 mask;
+	u32 val;
 
 	if (!HAS_DISPLAY(display))
 		return;
@@ -764,6 +760,9 @@ void gen9_set_dc_state(struct intel_display *display, u32 state)
 	if (drm_WARN_ON_ONCE(display->drm,
 			     state & ~power_domains->allowed_dc_mask))
 		state &= power_domains->allowed_dc_mask;
+
+	if (!power_domains->initializing)
+		intel_psr_notify_dc5_dc6(display);
 
 	val = intel_de_read(display, DC_STATE_EN);
 	mask = gen9_dc_mask(display);
@@ -775,10 +774,18 @@ void gen9_set_dc_state(struct intel_display *display, u32 state)
 		drm_err(display->drm, "DC state mismatch (0x%x -> 0x%x)\n",
 			power_domains->dc_state, val & mask);
 
+	enable_dc6 = state & DC_STATE_EN_UPTO_DC6;
+	dc6_was_enabled = val & DC_STATE_EN_UPTO_DC6;
+	if (!dc6_was_enabled && enable_dc6)
+		intel_dmc_update_dc6_allowed_count(display, true);
+
 	val &= ~mask;
 	val |= state;
 
 	gen9_write_dc_state(display, val);
+
+	if (!enable_dc6 && dc6_was_enabled)
+		intel_dmc_update_dc6_allowed_count(display, false);
 
 	power_domains->dc_state = val & mask;
 }
@@ -819,7 +826,8 @@ static void assert_can_enable_dc5(struct intel_display *display)
 		      (intel_de_read(display, DC_STATE_EN) &
 		       DC_STATE_EN_UPTO_DC5),
 		      "DC5 already programmed to be enabled.\n");
-	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
+
+	assert_display_rpm_held(display);
 
 	assert_dmc_loaded(display);
 }
@@ -962,8 +970,7 @@ static bool gen9_dc_off_power_well_enabled(struct intel_display *display,
 
 static void gen9_assert_dbuf_enabled(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(dev_priv);
+	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(display);
 	u8 enabled_dbuf_slices = display->dbuf.enabled_slices;
 
 	drm_WARN(display->drm,
@@ -975,7 +982,6 @@ static void gen9_assert_dbuf_enabled(struct intel_display *display)
 
 void gen9_disable_dc_states(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct intel_cdclk_config cdclk_config = {};
 	u32 old_state = power_domains->dc_state;
@@ -1015,7 +1021,7 @@ void gen9_disable_dc_states(struct intel_display *display)
 		 * PHY's HW context for port B is lost after DC transitions,
 		 * so we need to restore it manually.
 		 */
-		intel_combo_phy_init(dev_priv);
+		intel_combo_phy_init(display);
 }
 
 static void gen9_dc_off_power_well_enable(struct intel_display *display,
@@ -1206,7 +1212,6 @@ static void vlv_init_display_clock_gating(struct intel_display *display)
 
 static void vlv_display_power_well_init(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *encoder;
 	enum pipe pipe;
 
@@ -1230,9 +1235,7 @@ static void vlv_display_power_well_init(struct intel_display *display)
 
 	vlv_init_display_clock_gating(display);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	valleyview_enable_display_irqs(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	valleyview_enable_display_irqs(display);
 
 	/*
 	 * During driver initialization/resume we can avoid restoring the
@@ -1241,8 +1244,8 @@ static void vlv_display_power_well_init(struct intel_display *display)
 	if (display->power.domains.initializing)
 		return;
 
-	intel_hpd_init(dev_priv);
-	intel_hpd_poll_disable(dev_priv);
+	intel_hpd_init(display);
+	intel_hpd_poll_disable(display);
 
 	/* Re-enable the ADPA, if we have one */
 	for_each_intel_encoder(display->drm, encoder) {
@@ -1250,7 +1253,7 @@ static void vlv_display_power_well_init(struct intel_display *display)
 			intel_crt_reset(&encoder->base);
 	}
 
-	intel_vga_redisable_power_on(display);
+	intel_vga_disable(display);
 
 	intel_pps_unlock_regs_wa(display);
 }
@@ -1259,9 +1262,7 @@ static void vlv_display_power_well_deinit(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
-	spin_lock_irq(&dev_priv->irq_lock);
-	valleyview_disable_display_irqs(dev_priv);
-	spin_unlock_irq(&dev_priv->irq_lock);
+	valleyview_disable_display_irqs(display);
 
 	/* make sure we're done processing display irqs */
 	intel_synchronize_irq(dev_priv);
@@ -1270,7 +1271,7 @@ static void vlv_display_power_well_deinit(struct intel_display *display)
 
 	/* Prevent us from re-enabling polling on accident in late suspend */
 	if (!display->drm->dev->power.is_suspended)
-		intel_hpd_poll_enable(dev_priv);
+		intel_hpd_poll_enable(display);
 }
 
 static void vlv_display_power_well_enable(struct intel_display *display,
@@ -1314,11 +1315,10 @@ static void vlv_dpio_cmn_power_well_enable(struct intel_display *display,
 static void vlv_dpio_cmn_power_well_disable(struct intel_display *display,
 					    struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 
 	for_each_pipe(display, pipe)
-		assert_pll_disabled(dev_priv, pipe);
+		assert_pll_disabled(display, pipe);
 
 	/* Assert common reset */
 	intel_de_rmw(display, DPIO_CTL, DPIO_CMNRST, 0);
@@ -1500,7 +1500,6 @@ static void chv_dpio_cmn_power_well_enable(struct intel_display *display,
 static void chv_dpio_cmn_power_well_disable(struct intel_display *display,
 					    struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum i915_power_well_id id = i915_power_well_instance(power_well)->id;
 	enum dpio_phy phy;
 
@@ -1510,11 +1509,11 @@ static void chv_dpio_cmn_power_well_disable(struct intel_display *display,
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
 		phy = DPIO_PHY0;
-		assert_pll_disabled(dev_priv, PIPE_A);
-		assert_pll_disabled(dev_priv, PIPE_B);
+		assert_pll_disabled(display, PIPE_A);
+		assert_pll_disabled(display, PIPE_B);
 	} else {
 		phy = DPIO_PHY1;
-		assert_pll_disabled(dev_priv, PIPE_C);
+		assert_pll_disabled(display, PIPE_C);
 	}
 
 	display->power.chv_phy_control &= ~PHY_COM_LANE_RESET_DEASSERT(phy);
@@ -1834,11 +1833,10 @@ tgl_tc_cold_off_power_well_is_enabled(struct intel_display *display,
 static void xelpdp_aux_power_well_enable(struct intel_display *display,
 					 struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum aux_ch aux_ch = i915_power_well_instance(power_well)->xelpdp.aux_ch;
 	enum phy phy = icl_aux_pw_to_phy(display, power_well);
 
-	if (intel_phy_is_tc(dev_priv, phy))
+	if (intel_phy_is_tc(display, phy))
 		icl_tc_port_assert_ref_held(display, power_well,
 					    aux_ch_to_digital_port(display, aux_ch));
 

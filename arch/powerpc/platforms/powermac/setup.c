@@ -45,6 +45,7 @@
 #include <linux/root_dev.h>
 #include <linux/bitops.h>
 #include <linux/suspend.h>
+#include <linux/string_choices.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 
@@ -238,8 +239,7 @@ static void __init l2cr_init(void)
 				_set_L2CR(0);
 				_set_L2CR(*l2cr);
 				pr_info("L2CR overridden (0x%x), backside cache is %s\n",
-					*l2cr, ((*l2cr) & 0x80000000) ?
-					"enabled" : "disabled");
+					*l2cr, str_enabled_disabled((*l2cr) & 0x80000000));
 			}
 			of_node_put(np);
 			break;

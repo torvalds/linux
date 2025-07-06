@@ -59,7 +59,7 @@ void libipw_crypt_info_free(struct libipw_crypt_info *info)
 	int i;
 
         libipw_crypt_quiescing(info);
-        del_timer_sync(&info->crypt_deinit_timer);
+        timer_delete_sync(&info->crypt_deinit_timer);
         libipw_crypt_deinit_entries(info, 1);
 
         for (i = 0; i < NUM_WEP_KEYS; i++) {
@@ -110,8 +110,8 @@ static void libipw_crypt_quiescing(struct libipw_crypt_info *info)
 
 static void libipw_crypt_deinit_handler(struct timer_list *t)
 {
-	struct libipw_crypt_info *info = from_timer(info, t,
-						    crypt_deinit_timer);
+	struct libipw_crypt_info *info = timer_container_of(info, t,
+							    crypt_deinit_timer);
 	unsigned long flags;
 
 	libipw_crypt_deinit_entries(info, 0);

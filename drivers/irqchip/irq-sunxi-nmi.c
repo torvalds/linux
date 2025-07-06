@@ -111,7 +111,7 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 	unsigned int src_type;
 	unsigned int i;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 
 	switch (flow_type & IRQF_TRIGGER_MASK) {
 	case IRQ_TYPE_EDGE_FALLING:
@@ -128,9 +128,7 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 		src_type = SUNXI_SRC_TYPE_LEVEL_LOW;
 		break;
 	default:
-		irq_gc_unlock(gc);
-		pr_err("Cannot assign multiple trigger modes to IRQ %d.\n",
-			data->irq);
+		pr_err("Cannot assign multiple trigger modes to IRQ %d.\n", data->irq);
 		return -EBADR;
 	}
 
@@ -145,9 +143,6 @@ static int sunxi_sc_nmi_set_type(struct irq_data *data, unsigned int flow_type)
 	src_type_reg &= ~SUNXI_NMI_SRC_TYPE_MASK;
 	src_type_reg |= src_type;
 	sunxi_sc_nmi_write(gc, ctrl_off, src_type_reg);
-
-	irq_gc_unlock(gc);
-
 	return IRQ_SET_MASK_OK;
 }
 
@@ -159,7 +154,7 @@ static int __init sunxi_sc_nmi_irq_init(struct device_node *node,
 	struct irq_domain *domain;
 	int ret;
 
-	domain = irq_domain_add_linear(node, 1, &irq_generic_chip_ops, NULL);
+	domain = irq_domain_create_linear(of_fwnode_handle(node), 1, &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("Could not register interrupt domain.\n");
 		return -ENOMEM;

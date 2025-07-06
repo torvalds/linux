@@ -50,6 +50,7 @@ properties:
   device_type: true
 
 allOf:
+  - $ref: /schemas/opp/opp-v1.yaml#
   - if:
       properties:
         compatible:
@@ -68,7 +69,7 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

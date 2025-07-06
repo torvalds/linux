@@ -967,23 +967,6 @@ struct mpc_funcs {
 	*/
 
 	void (*update_3dlut_fast_load_select)(struct mpc *mpc, int mpcc_id, int hubp_idx);
-	/**
-	* @get_3dlut_fast_load_status:
-	*
-	* Get 3D LUT fast load status and reference them with done, soft_underflow and hard_underflow pointers.
-	*
-	* Parameters:
-	* - [in/out] mpc - MPC context.
-	* - [in] mpcc_id
-	* - [in/out] done
-	* - [in/out] soft_underflow
-	* - [in/out] hard_underflow
-	*
-	* Return:
-	*
-	* void
-	*/
-	void (*get_3dlut_fast_load_status)(struct mpc *mpc, int mpcc_id, uint32_t *done, uint32_t *soft_underflow, uint32_t *hard_underflow);
 
 	/**
 	* @populate_lut:
@@ -1054,6 +1037,35 @@ struct mpc_funcs {
 	* void
 	*/
 	void (*program_3dlut_size)(struct mpc *mpc, bool is_17x17x17, int mpcc_id);
+
+	struct {
+		void (*program_3dlut_size)(struct mpc *mpc, uint32_t width, int mpcc_id);
+		void (*program_bias_scale)(struct mpc *mpc, uint16_t bias, uint16_t scale, int mpcc_id);
+		void (*program_bit_depth)(struct mpc *mpc, uint16_t bit_depth, int mpcc_id);
+		bool (*is_config_supported)(uint32_t width);
+		void (*program_lut_read_write_control)(struct mpc *mpc, const enum MCM_LUT_ID id,
+			bool lut_bank_a, bool enabled, int mpcc_id);
+
+		void (*populate_lut)(struct mpc *mpc, const union mcm_lut_params params,
+			bool lut_bank_a, int mpcc_id);
+	} mcm;
+
+	struct {
+		void (*enable_3dlut_fl)(struct mpc *mpc, bool enable, int mpcc_id);
+		void (*update_3dlut_fast_load_select)(struct mpc *mpc, int mpcc_id, int hubp_idx);
+		void (*program_lut_read_write_control)(struct mpc *mpc, const enum MCM_LUT_ID id,
+			bool lut_bank_a, bool enabled, int mpcc_id);
+		void (*program_lut_mode)(struct mpc *mpc, const enum MCM_LUT_XABLE xable,
+			bool lut_bank_a, int mpcc_id);
+		void (*program_3dlut_size)(struct mpc *mpc, uint32_t width, int mpcc_id);
+		void (*program_bias_scale)(struct mpc *mpc, uint16_t bias, uint16_t scale, int mpcc_id);
+		void (*program_bit_depth)(struct mpc *mpc, uint16_t bit_depth, int mpcc_id);
+		bool (*is_config_supported)(uint32_t width);
+
+		void (*power_on_shaper_3dlut)(struct mpc *mpc, uint32_t mpcc_id, bool power_on);
+		void (*populate_lut)(struct mpc *mpc, const union mcm_lut_params params,
+			bool lut_bank_a, int mpcc_id);
+	} rmcm;
 };
 
 #endif

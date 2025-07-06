@@ -67,7 +67,7 @@ struct aux_sample {
 };
 
 struct simd_flags {
-	u64	arch:1,	/* architecture (isa) */
+	u8	arch:1,	/* architecture (isa) */
 		pred:2;	/* predication */
 };
 
@@ -114,13 +114,18 @@ struct perf_sample {
 	struct ip_callchain *callchain;
 	struct branch_stack *branch_stack;
 	u64 *branch_stack_cntr;
-	struct regs_dump  user_regs;
-	struct regs_dump  intr_regs;
+	struct regs_dump  *user_regs;
+	struct regs_dump  *intr_regs;
 	struct stack_dump user_stack;
 	struct sample_read read;
 	struct aux_sample aux_sample;
 	struct simd_flags simd_flags;
 };
+
+void perf_sample__init(struct perf_sample *sample, bool all);
+void perf_sample__exit(struct perf_sample *sample);
+struct regs_dump *perf_sample__user_regs(struct perf_sample *sample);
+struct regs_dump *perf_sample__intr_regs(struct perf_sample *sample);
 
 /*
  * raw_data is always 4 bytes from an 8-byte boundary, so subtract 4 to get

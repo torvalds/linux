@@ -13,6 +13,30 @@ const volatile u64 __SCX_SLICE_DFL __weak;
 const volatile u64 __SCX_SLICE_INF __weak;
 #define SCX_SLICE_INF __SCX_SLICE_INF
 
+const volatile u64 __SCX_RQ_ONLINE __weak;
+#define SCX_RQ_ONLINE __SCX_RQ_ONLINE
+
+const volatile u64 __SCX_RQ_CAN_STOP_TICK __weak;
+#define SCX_RQ_CAN_STOP_TICK __SCX_RQ_CAN_STOP_TICK
+
+const volatile u64 __SCX_RQ_BAL_PENDING __weak;
+#define SCX_RQ_BAL_PENDING __SCX_RQ_BAL_PENDING
+
+const volatile u64 __SCX_RQ_BAL_KEEP __weak;
+#define SCX_RQ_BAL_KEEP __SCX_RQ_BAL_KEEP
+
+const volatile u64 __SCX_RQ_BYPASSING __weak;
+#define SCX_RQ_BYPASSING __SCX_RQ_BYPASSING
+
+const volatile u64 __SCX_RQ_CLK_VALID __weak;
+#define SCX_RQ_CLK_VALID __SCX_RQ_CLK_VALID
+
+const volatile u64 __SCX_RQ_IN_WAKEUP __weak;
+#define SCX_RQ_IN_WAKEUP __SCX_RQ_IN_WAKEUP
+
+const volatile u64 __SCX_RQ_IN_BALANCE __weak;
+#define SCX_RQ_IN_BALANCE __SCX_RQ_IN_BALANCE
+
 const volatile u64 __SCX_DSQ_FLAG_BUILTIN __weak;
 #define SCX_DSQ_FLAG_BUILTIN __SCX_DSQ_FLAG_BUILTIN
 

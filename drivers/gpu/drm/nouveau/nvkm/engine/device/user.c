@@ -148,6 +148,9 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 	case TU100: args->v0.family = NV_DEVICE_INFO_V0_TURING; break;
 	case GA100: args->v0.family = NV_DEVICE_INFO_V0_AMPERE; break;
 	case AD100: args->v0.family = NV_DEVICE_INFO_V0_ADA; break;
+	case GH100: args->v0.family = NV_DEVICE_INFO_V0_HOPPER; break;
+	case GB10x: args->v0.family = NV_DEVICE_INFO_V0_BLACKWELL; break;
+	case GB20x: args->v0.family = NV_DEVICE_INFO_V0_BLACKWELL; break;
 	default:
 		args->v0.family = 0;
 		break;
@@ -209,8 +212,8 @@ nvkm_udevice_map(struct nvkm_object *object, void *argv, u32 argc,
 	struct nvkm_udevice *udev = nvkm_udevice(object);
 	struct nvkm_device *device = udev->device;
 	*type = NVKM_OBJECT_MAP_IO;
-	*addr = device->func->resource_addr(device, 0);
-	*size = device->func->resource_size(device, 0);
+	*addr = device->func->resource_addr(device, NVKM_BAR0_PRI);
+	*size = device->func->resource_size(device, NVKM_BAR0_PRI);
 	return 0;
 }
 

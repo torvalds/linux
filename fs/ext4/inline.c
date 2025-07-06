@@ -397,7 +397,7 @@ out:
 }
 
 static int ext4_prepare_inline_data(handle_t *handle, struct inode *inode,
-				    unsigned int len)
+				    loff_t len)
 {
 	int ret, size, no_expand;
 	struct ext4_inode_info *ei = EXT4_I(inode);
@@ -601,6 +601,7 @@ retry:
 			goto out;
 	}
 
+	ext4_fc_track_inode(handle, inode);
 	ret = ext4_destroy_inline_data_nolock(handle, inode);
 	if (ret)
 		goto out;
@@ -642,7 +643,7 @@ retry:
 		goto retry;
 
 	if (folio)
-		block_commit_write(&folio->page, from, to);
+		block_commit_write(folio, from, to);
 out:
 	if (folio) {
 		folio_unlock(folio);

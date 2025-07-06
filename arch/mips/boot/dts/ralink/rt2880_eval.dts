@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
-/include/ "rt2880.dtsi"
+#include "rt2880.dtsi"
 
 / {
 	compatible = "ralink,rt2880-eval-board", "ralink,rt2880-soc";

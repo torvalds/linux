@@ -345,7 +345,7 @@ TC_INDIRECT_SCOPE int flow_classify(struct sk_buff *skb,
 
 static void flow_perturbation(struct timer_list *t)
 {
-	struct flow_filter *f = from_timer(f, t, perturb_timer);
+	struct flow_filter *f = timer_container_of(f, t, perturb_timer);
 
 	get_random_bytes(&f->hashrnd, 4);
 	if (f->perturb_period)

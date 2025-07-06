@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+/* X1P42100 is heavily based on X1E80100, with some meaningful differences */
+#include "x1e80100.dtsi"
+
+/delete-node/ &bwmon_cluster0;
+/delete-node/ &cluster_pd2;
+/delete-node/ &cpu_map_cluster2;
+/delete-node/ &cpu8;
+/delete-node/ &cpu9;
+/delete-node/ &cpu10;
+/delete-node/ &cpu11;
+/delete-node/ &cpu_pd8;
+/delete-node/ &cpu_pd9;
+/delete-node/ &cpu_pd10;
+/delete-node/ &cpu_pd11;
+/delete-node/ &pcie3_phy;
+
+&gcc {
+	compatible = "qcom,x1p42100-gcc", "qcom,x1e80100-gcc";
+};
+
+/* The GPU is physically different and will be brought up later */
+&gpu {
+	/delete-property/ compatible;
+};
+
+&gpucc {
+	compatible = "qcom,x1p42100-gpucc";
+};
+
+/* PCIe3 has half the lanes compared to X1E80100 */
+&pcie3 {
+	num-lanes = <4>;
+};
+
+&pcie6a_phy {
+	compatible = "qcom,x1p42100-qmp-gen4x4-pcie-phy";
+};
+
+&soc {
+	/* The PCIe3 PHY on X1P42100 uses a different IP block */
+	pcie3_phy: phy@1bd4000 {
+		compatible = "qcom,x1p42100-qmp-gen4x4-pcie-phy";
+		reg = <0x0 0x01bd4000 0x0 0x2000>,
+		      <0x0 0x01bd6000 0x0 0x2000>;
+
+		clocks = <&gcc GCC_PCIE_3_PHY_AUX_CLK>,
+			 <&gcc GCC_PCIE_3_CFG_AHB_CLK>,
+			 <&tcsr TCSR_PCIE_8L_CLKREF_EN>,
+			 <&gcc GCC_PCIE_3_PHY_RCHNG_CLK>,
+			 <&gcc GCC_PCIE_3_PIPE_CLK>,
+			 <&gcc GCC_PCIE_3_PIPEDIV2_CLK>;
+		clock-names = "aux",
+			      "cfg_ahb",
+			      "ref",
+			      "rchng",
+			      "pipe",
+			      "pipediv2";
+
+		resets = <&gcc GCC_PCIE_3_PHY_BCR>,
+			 <&gcc GCC_PCIE_3_NOCSR_COM_PHY_BCR>;
+		reset-names = "phy",
+			      "phy_nocsr";
+
+		assigned-clocks = <&gcc GCC_PCIE_3_PHY_RCHNG_CLK>;
+		assigned-clock-rates = <100000000>;
+
+		power-domains = <&gcc GCC_PCIE_3_PHY_GDSC>;
+
+		#clock-cells = <0>;
+		clock-output-names = "pcie3_pipe_clk";
+
+		#phy-cells = <0>;
+
+		status = "disabled";
+	};
+};

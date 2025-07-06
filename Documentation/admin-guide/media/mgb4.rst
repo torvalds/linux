@@ -1,7 +1,16 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. include:: <isonum.txt>
+
 The mgb4 driver
 ===============
+
+Copyright |copy| 2023 - 2025 Digiteq Automotive
+    author: Martin Tůma <martin.tuma@digiteqautomotive.com>
+
+This is a v4l2 device driver for the Digiteq Automotive FrameGrabber 4, a PCIe
+card capable of capturing and generating FPD-Link III and GMSL2/3 video streams
+as used in the automotive industry.
 
 sysfs interface
 ---------------

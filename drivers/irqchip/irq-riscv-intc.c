@@ -242,7 +242,7 @@ static int __init riscv_intc_init(struct device_node *node,
 		chip = &andes_intc_chip;
 	}
 
-	return riscv_intc_init_common(of_node_to_fwnode(node), chip);
+	return riscv_intc_init_common(of_fwnode_handle(node), chip);
 }
 
 IRQCHIP_DECLARE(riscv, "riscv,cpu-intc", riscv_intc_init);

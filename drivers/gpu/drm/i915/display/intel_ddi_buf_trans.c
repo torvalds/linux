@@ -3,13 +3,13 @@
  * Copyright © 2020 Intel Corporation
  */
 
-#include "i915_drv.h"
+#include "i915_utils.h"
+#include "intel_cx0_phy.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
-#include "intel_cx0_phy.h"
 
 /* HDMI/DVI modes ignore everything but the last 2 items. So we share
  * them for both DP and FDI transports, allowing those ports to
@@ -1407,10 +1407,10 @@ tgl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   int *n_entries)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
 	if (crtc_state->port_clock > 270000) {
-		if (IS_TIGERLAKE_UY(dev_priv)) {
+		if (display->platform.tigerlake_uy) {
 			return intel_get_buf_trans(&tgl_uy_combo_phy_trans_dp_hbr2,
 						   n_entries);
 		} else {
@@ -1709,59 +1709,67 @@ mtl_get_c20_buf_trans(struct intel_encoder *encoder,
 
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
-	if (DISPLAY_VER(i915) >= 14) {
+	if (DISPLAY_VER(display) >= 14) {
 		if (intel_encoder_is_c10phy(encoder))
 			encoder->get_buf_trans = mtl_get_c10_buf_trans;
 		else
 			encoder->get_buf_trans = mtl_get_c20_buf_trans;
-	} else if (IS_DG2(i915)) {
+	} else if (display->platform.dg2) {
 		encoder->get_buf_trans = dg2_get_snps_buf_trans;
-	} else if (IS_ALDERLAKE_P(i915)) {
+	} else if (display->platform.alderlake_p) {
 		if (intel_encoder_is_combo(encoder))
 			encoder->get_buf_trans = adlp_get_combo_buf_trans;
 		else
 			encoder->get_buf_trans = adlp_get_dkl_buf_trans;
-	} else if (IS_ALDERLAKE_S(i915)) {
+	} else if (display->platform.alderlake_s) {
 		encoder->get_buf_trans = adls_get_combo_buf_trans;
-	} else if (IS_ROCKETLAKE(i915)) {
+	} else if (display->platform.rocketlake) {
 		encoder->get_buf_trans = rkl_get_combo_buf_trans;
-	} else if (IS_DG1(i915)) {
+	} else if (display->platform.dg1) {
 		encoder->get_buf_trans = dg1_get_combo_buf_trans;
-	} else if (DISPLAY_VER(i915) >= 12) {
+	} else if (DISPLAY_VER(display) >= 12) {
 		if (intel_encoder_is_combo(encoder))
 			encoder->get_buf_trans = tgl_get_combo_buf_trans;
 		else
 			encoder->get_buf_trans = tgl_get_dkl_buf_trans;
-	} else if (DISPLAY_VER(i915) == 11) {
-		if (IS_JASPERLAKE(i915))
+	} else if (DISPLAY_VER(display) == 11) {
+		if (display->platform.jasperlake)
 			encoder->get_buf_trans = jsl_get_combo_buf_trans;
-		else if (IS_ELKHARTLAKE(i915))
+		else if (display->platform.elkhartlake)
 			encoder->get_buf_trans = ehl_get_combo_buf_trans;
 		else if (intel_encoder_is_combo(encoder))
 			encoder->get_buf_trans = icl_get_combo_buf_trans;
 		else
 			encoder->get_buf_trans = icl_get_mg_buf_trans;
-	} else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915)) {
+	} else if (display->platform.geminilake || display->platform.broxton) {
 		encoder->get_buf_trans = bxt_get_buf_trans;
-	} else if (IS_COMETLAKE_ULX(i915) || IS_COFFEELAKE_ULX(i915) || IS_KABYLAKE_ULX(i915)) {
+	} else if (display->platform.cometlake_ulx ||
+		   display->platform.coffeelake_ulx ||
+		   display->platform.kabylake_ulx) {
 		encoder->get_buf_trans = kbl_y_get_buf_trans;
-	} else if (IS_COMETLAKE_ULT(i915) || IS_COFFEELAKE_ULT(i915) || IS_KABYLAKE_ULT(i915)) {
+	} else if (display->platform.cometlake_ult ||
+		   display->platform.coffeelake_ult ||
+		   display->platform.kabylake_ult) {
 		encoder->get_buf_trans = kbl_u_get_buf_trans;
-	} else if (IS_COMETLAKE(i915) || IS_COFFEELAKE(i915) || IS_KABYLAKE(i915)) {
+	} else if (display->platform.cometlake ||
+		   display->platform.coffeelake ||
+		   display->platform.kabylake) {
 		encoder->get_buf_trans = kbl_get_buf_trans;
-	} else if (IS_SKYLAKE_ULX(i915)) {
+	} else if (display->platform.skylake_ulx) {
 		encoder->get_buf_trans = skl_y_get_buf_trans;
-	} else if (IS_SKYLAKE_ULT(i915)) {
+	} else if (display->platform.skylake_ult) {
 		encoder->get_buf_trans = skl_u_get_buf_trans;
-	} else if (IS_SKYLAKE(i915)) {
+	} else if (display->platform.skylake) {
 		encoder->get_buf_trans = skl_get_buf_trans;
-	} else if (IS_BROADWELL(i915)) {
+	} else if (display->platform.broadwell) {
 		encoder->get_buf_trans = bdw_get_buf_trans;
-	} else if (IS_HASWELL(i915)) {
+	} else if (display->platform.haswell) {
 		encoder->get_buf_trans = hsw_get_buf_trans;
 	} else {
-		MISSING_CASE(INTEL_INFO(i915)->platform);
+		struct pci_dev *pdev = to_pci_dev(display->drm->dev);
+
+		MISSING_CASE(pdev->device);
 	}
 }

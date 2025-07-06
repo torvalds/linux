@@ -34,7 +34,7 @@ Objtool has the following features:
 - Return thunk annotation -- annotates all return thunk sites so kernel
   can patch them inline, depending on enabled mitigations
 
-- Return thunk training valiation -- validate that all entry paths
+- Return thunk untraining validation -- validate that all entry paths
   untrain a "safe return" before the first return (or call)
 
 - Non-instrumentation validation -- validates non-instrumentable
@@ -281,8 +281,8 @@ the objtool maintainers.
    If the error is for an asm file, and func() is indeed a callable
    function, add proper frame pointer logic using the FRAME_BEGIN and
    FRAME_END macros.  Otherwise, if it's not a callable function, remove
-   its ELF function annotation by changing ENDPROC to END, and instead
-   use the manual unwind hint macros in asm/unwind_hints.h.
+   its ELF function annotation by using SYM_CODE_{START,END} and use the
+   manual unwind hint macros in asm/unwind_hints.h.
 
    If it's a GCC-compiled .c file, the error may be because the function
    uses an inline asm() statement which has a "call" instruction.  An
@@ -352,7 +352,7 @@ the objtool maintainers.
    This is a kernel entry/exit instruction like sysenter or iret.  Such
    instructions aren't allowed in a callable function, and are most
    likely part of the kernel entry code.  Such code should probably be
-   placed in a SYM_FUNC_CODE block with unwind hints.
+   placed in a SYM_CODE_{START,END} block with unwind hints.
 
 
 6. file.o: warning: objtool: func()+0x26: sibling call from callable instruction with modified stack frame
@@ -381,7 +381,7 @@ the objtool maintainers.
 
    Another possibility is that the code has some asm or inline asm which
    does some unusual things to the stack or the frame pointer.  In such
-   cases it's probably appropriate to use SYM_FUNC_CODE with unwind
+   cases it's probably appropriate to use SYM_CODE_{START,END} with unwind
    hints.
 
 

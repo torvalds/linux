@@ -18,6 +18,12 @@ struct lock_filter {
 	char			**slabs;
 };
 
+struct lock_delay {
+	char			*sym;
+	unsigned long		addr;
+	unsigned long		time;
+};
+
 struct lock_stat {
 	struct hlist_node	hash_entry;
 	struct rb_node		rb;		/* used for sorting */
@@ -140,14 +146,17 @@ struct lock_contention {
 	struct machine *machine;
 	struct hlist_head *result;
 	struct lock_filter *filters;
+	struct lock_delay *delays;
 	struct lock_contention_fails fails;
 	struct rb_root cgroups;
+	void *btf;
 	unsigned long map_nr_entries;
 	int max_stack;
 	int stack_skip;
 	int aggr_mode;
 	int owner;
 	int nr_filtered;
+	int nr_delays;
 	bool save_callstack;
 };
 
@@ -168,6 +177,8 @@ int lock_contention_stop(void);
 int lock_contention_read(struct lock_contention *con);
 int lock_contention_finish(struct lock_contention *con);
 
+struct lock_stat *pop_owner_stack_trace(struct lock_contention *con);
+
 #else  /* !HAVE_BPF_SKEL */
 
 static inline int lock_contention_prepare(struct lock_contention *con __maybe_unused)
@@ -185,6 +196,11 @@ static inline int lock_contention_finish(struct lock_contention *con __maybe_unu
 static inline int lock_contention_read(struct lock_contention *con __maybe_unused)
 {
 	return 0;
+}
+
+static inline struct lock_stat *pop_owner_stack_trace(struct lock_contention *con __maybe_unused)
+{
+	return NULL;
 }
 
 #endif  /* HAVE_BPF_SKEL */

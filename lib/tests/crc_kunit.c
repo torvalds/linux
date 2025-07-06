@@ -391,17 +391,11 @@ static u64 crc32c_wrapper(u64 crc, const u8 *p, size_t len)
 	return crc32c(crc, p, len);
 }
 
-static u64 crc32c_combine_wrapper(u64 crc1, u64 crc2, size_t len2)
-{
-	return crc32c_combine(crc1, crc2, len2);
-}
-
 static const struct crc_variant crc_variant_crc32c = {
 	.bits = 32,
 	.le = true,
 	.poly = 0x82f63b78,
 	.func = crc32c_wrapper,
-	.combine_func = crc32c_combine_wrapper,
 };
 
 static void crc32c_test(struct kunit *test)

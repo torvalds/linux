@@ -15,7 +15,6 @@ if MEDIA_CAMERA_SUPPORT
 
 source "drivers/media/pci/mgb4/Kconfig"
 source "drivers/media/pci/solo6x10/Kconfig"
-source "drivers/media/pci/sta2x11/Kconfig"
 source "drivers/media/pci/tw5864/Kconfig"
 source "drivers/media/pci/tw68/Kconfig"
 source "drivers/media/pci/tw686x/Kconfig"

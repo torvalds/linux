@@ -469,7 +469,7 @@ static void jmb38x_ms_complete_cmd(struct memstick_host *msh, int last)
 	unsigned int t_val = 0;
 	int rc;
 
-	del_timer(&host->timer);
+	timer_delete(&host->timer);
 
 	dev_dbg(&msh->dev, "c control %08x\n",
 		readl(host->addr + HOST_CONTROL));
@@ -590,7 +590,7 @@ static irqreturn_t jmb38x_ms_isr(int irq, void *dev_id)
 
 static void jmb38x_ms_abort(struct timer_list *t)
 {
-	struct jmb38x_ms_host *host = from_timer(host, t, timer);
+	struct jmb38x_ms_host *host = timer_container_of(host, t, timer);
 	struct memstick_host *msh = host->msh;
 	unsigned long flags;
 

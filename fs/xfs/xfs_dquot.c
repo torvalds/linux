@@ -1186,9 +1186,8 @@ xfs_qm_dqflush_done(
 	if (test_bit(XFS_LI_IN_AIL, &lip->li_flags) &&
 	    (lip->li_lsn == qlip->qli_flush_lsn ||
 	     test_bit(XFS_LI_FAILED, &lip->li_flags))) {
-
 		spin_lock(&ailp->ail_lock);
-		xfs_clear_li_failed(lip);
+		clear_bit(XFS_LI_FAILED, &lip->li_flags);
 		if (lip->li_lsn == qlip->qli_flush_lsn) {
 			/* xfs_ail_update_finish() drops the AIL lock */
 			tail_lsn = xfs_ail_delete_one(ailp, lip);
@@ -1399,11 +1398,9 @@ xfs_qm_dqflush(
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	ASSERT(!completion_done(&dqp->q_flush));
+	ASSERT(atomic_read(&dqp->q_pincount) == 0);
 
 	trace_xfs_dqflush(dqp);
-
-	xfs_qm_dqunpin_wait(dqp);
-
 	fa = xfs_qm_dqflush_check(dqp);
 	if (fa) {
 		xfs_alert(mp, "corrupt dquot ID 0x%x in memory at %pS",

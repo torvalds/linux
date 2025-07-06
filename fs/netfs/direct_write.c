@@ -9,20 +9,6 @@
 #include <linux/uio.h>
 #include "internal.h"
 
-static void netfs_cleanup_dio_write(struct netfs_io_request *wreq)
-{
-	struct inode *inode = wreq->inode;
-	unsigned long long end = wreq->start + wreq->transferred;
-
-	if (!wreq->error &&
-	    i_size_read(inode) < end) {
-		if (wreq->netfs_ops->update_i_size)
-			wreq->netfs_ops->update_i_size(inode, end);
-		else
-			i_size_write(inode, end);
-	}
-}
-
 /*
  * Perform an unbuffered write where we may have to do an RMW operation on an
  * encrypted file.  This can also be used for direct I/O writes.
@@ -87,6 +73,8 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 	}
 
 	__set_bit(NETFS_RREQ_USE_IO_ITER, &wreq->flags);
+	if (async)
+		__set_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &wreq->flags);
 
 	/* Copy the data into the bounce buffer and encrypt it. */
 	// TODO
@@ -96,7 +84,6 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 	if (async)
 		wreq->iocb = iocb;
 	wreq->len = iov_iter_count(&wreq->buffer.iter);
-	wreq->cleanup = netfs_cleanup_dio_write;
 	ret = netfs_unbuffered_write(wreq, is_sync_kiocb(iocb), wreq->len);
 	if (ret < 0) {
 		_debug("begin = %zd", ret);
@@ -104,20 +91,15 @@ ssize_t netfs_unbuffered_write_iter_locked(struct kiocb *iocb, struct iov_iter *
 	}
 
 	if (!async) {
-		trace_netfs_rreq(wreq, netfs_rreq_trace_wait_ip);
-		wait_on_bit(&wreq->flags, NETFS_RREQ_IN_PROGRESS,
-			    TASK_UNINTERRUPTIBLE);
-		ret = wreq->error;
-		if (ret == 0) {
-			ret = wreq->transferred;
+		ret = netfs_wait_for_write(wreq);
+		if (ret > 0)
 			iocb->ki_pos += ret;
-		}
 	} else {
 		ret = -EIOCBQUEUED;
 	}
 
 out:
-	netfs_put_request(wreq, false, netfs_rreq_trace_put_return);
+	netfs_put_request(wreq, netfs_rreq_trace_put_return);
 	return ret;
 }
 EXPORT_SYMBOL(netfs_unbuffered_write_iter_locked);

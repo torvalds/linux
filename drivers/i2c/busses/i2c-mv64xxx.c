@@ -27,7 +27,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 
-#define MV64XXX_I2C_ADDR_ADDR(val)			((val & 0x7f) << 1)
 #define MV64XXX_I2C_BAUD_DIV_N(val)			(val & 0x7)
 #define MV64XXX_I2C_BAUD_DIV_M(val)			((val & 0xf) << 3)
 
@@ -176,22 +175,17 @@ static void
 mv64xxx_i2c_prepare_for_io(struct mv64xxx_i2c_data *drv_data,
 	struct i2c_msg *msg)
 {
-	u32	dir = 0;
-
 	drv_data->cntl_bits = MV64XXX_I2C_REG_CONTROL_ACK |
 			      MV64XXX_I2C_REG_CONTROL_TWSIEN;
 
 	if (!drv_data->atomic)
 		drv_data->cntl_bits |= MV64XXX_I2C_REG_CONTROL_INTEN;
 
-	if (msg->flags & I2C_M_RD)
-		dir = 1;
-
 	if (msg->flags & I2C_M_TEN) {
-		drv_data->addr1 = 0xf0 | (((u32)msg->addr & 0x300) >> 7) | dir;
-		drv_data->addr2 = (u32)msg->addr & 0xff;
+		drv_data->addr1 = i2c_10bit_addr_hi_from_msg(msg);
+		drv_data->addr2 = i2c_10bit_addr_lo_from_msg(msg);
 	} else {
-		drv_data->addr1 = MV64XXX_I2C_ADDR_ADDR((u32)msg->addr) | dir;
+		drv_data->addr1 = i2c_8bit_addr_from_msg(msg);
 		drv_data->addr2 = 0;
 	}
 }

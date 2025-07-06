@@ -20,6 +20,8 @@
 #include "limits.h"
 #include "object.h"
 
+struct landlock_hierarchy;
+
 /**
  * struct landlock_layer - Access rights for a given layer
  */
@@ -106,22 +108,6 @@ struct landlock_rule {
 	 * as a flexible array member (FAM).
 	 */
 	struct landlock_layer layers[] __counted_by(num_layers);
-};
-
-/**
- * struct landlock_hierarchy - Node in a ruleset hierarchy
- */
-struct landlock_hierarchy {
-	/**
-	 * @parent: Pointer to the parent node, or NULL if it is a root
-	 * Landlock domain.
-	 */
-	struct landlock_hierarchy *parent;
-	/**
-	 * @usage: Number of potential children domains plus their parent
-	 * domain.
-	 */
-	refcount_t usage;
 };
 
 /**
@@ -255,36 +241,6 @@ landlock_union_access_masks(const struct landlock_ruleset *const domain)
 	}
 
 	return matches.masks;
-}
-
-/**
- * landlock_get_applicable_domain - Return @domain if it applies to (handles)
- *				    at least one of the access rights specified
- *				    in @masks
- *
- * @domain: Landlock ruleset (used as a domain)
- * @masks: access masks
- *
- * Returns: @domain if any access rights specified in @masks is handled, or
- * NULL otherwise.
- */
-static inline const struct landlock_ruleset *
-landlock_get_applicable_domain(const struct landlock_ruleset *const domain,
-			       const struct access_masks masks)
-{
-	const union access_masks_all masks_all = {
-		.masks = masks,
-	};
-	union access_masks_all merge = {};
-
-	if (!domain)
-		return NULL;
-
-	merge.masks = landlock_union_access_masks(domain);
-	if (merge.all & masks_all.all)
-		return domain;
-
-	return NULL;
 }
 
 static inline void

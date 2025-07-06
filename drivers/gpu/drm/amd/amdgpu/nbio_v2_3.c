@@ -21,7 +21,6 @@
  *
  */
 #include "amdgpu.h"
-#include "amdgpu_atombios.h"
 #include "nbio_v2_3.h"
 
 #include "nbio/nbio_2_3_default.h"

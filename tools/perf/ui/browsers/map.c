@@ -88,8 +88,10 @@ static int map_browser__run(struct map_browser *browser)
 		case '/':
 			if (verbose > 0)
 				map_browser__search(browser);
+			/* fall thru */
 		default:
-			break;
+			ui_browser__warn_unhandled_hotkey(&browser->b, key, 0, NULL);
+			continue;
                 case K_LEFT:
                 case K_ESC:
                 case 'q':

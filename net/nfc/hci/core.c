@@ -148,7 +148,7 @@ static void nfc_hci_msg_rx_work(struct work_struct *work)
 static void __nfc_hci_cmd_completion(struct nfc_hci_dev *hdev, int err,
 				     struct sk_buff *skb)
 {
-	del_timer_sync(&hdev->cmd_timer);
+	timer_delete_sync(&hdev->cmd_timer);
 
 	if (hdev->cmd_pending_msg->cb)
 		hdev->cmd_pending_msg->cb(hdev->cmd_pending_msg->cb_context,
@@ -441,7 +441,7 @@ exit_noskb:
 
 static void nfc_hci_cmd_timeout(struct timer_list *t)
 {
-	struct nfc_hci_dev *hdev = from_timer(hdev, t, cmd_timer);
+	struct nfc_hci_dev *hdev = timer_container_of(hdev, t, cmd_timer);
 
 	schedule_work(&hdev->msg_tx_work);
 }
@@ -1046,7 +1046,7 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 
 	mutex_unlock(&hdev->msg_tx_mutex);
 
-	del_timer_sync(&hdev->cmd_timer);
+	timer_delete_sync(&hdev->cmd_timer);
 	cancel_work_sync(&hdev->msg_tx_work);
 
 	cancel_work_sync(&hdev->msg_rx_work);

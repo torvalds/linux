@@ -1227,7 +1227,7 @@ static int snd_sonicvibes_create(struct snd_card *card,
 	sonic->pci = pci;
 	sonic->irq = -1;
 
-	err = pci_request_regions(pci, "S3 SonicVibes");
+	err = pcim_request_all_regions(pci, "S3 SonicVibes");
 	if (err < 0)
 		return err;
 

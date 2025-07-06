@@ -193,6 +193,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	struct amd_sdw_manager *amd_manager;
 	u32 ext_intr_stat, ext_intr_stat1;
 	u16 irq_flag = 0;
+	u16 wake_irq_flag = 0;
 	u16 sdw_dma_irq_flag = 0;
 
 	adata = dev_id;
@@ -231,7 +232,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	}
 
 	if (adata->acp_rev >= ACP70_PCI_REV)
-		irq_flag = check_and_handle_acp70_sdw_wake_irq(adata);
+		wake_irq_flag = check_and_handle_acp70_sdw_wake_irq(adata);
 
 	if (ext_intr_stat & BIT(PDM_DMA_STAT)) {
 		ps_pdm_data = dev_get_drvdata(&adata->pdm_dev->dev);
@@ -245,7 +246,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	if (sdw_dma_irq_flag)
 		return IRQ_WAKE_THREAD;
 
-	if (irq_flag)
+	if (irq_flag | wake_irq_flag)
 		return IRQ_HANDLED;
 	else
 		return IRQ_NONE;

@@ -740,8 +740,8 @@ static void vub300_deadwork_thread(struct work_struct *work)
 
 static void vub300_inactivity_timer_expired(struct timer_list *t)
 {				/* softirq */
-	struct vub300_mmc_host *vub300 = from_timer(vub300, t,
-						    inactivity_timer);
+	struct vub300_mmc_host *vub300 = timer_container_of(vub300, t,
+							    inactivity_timer);
 	if (!vub300->interface) {
 		kref_put(&vub300->kref, vub300_delete);
 	} else if (vub300->cmd) {
@@ -1180,8 +1180,8 @@ static void send_command(struct vub300_mmc_host *vub300)
  */
 static void vub300_sg_timed_out(struct timer_list *t)
 {
-	struct vub300_mmc_host *vub300 = from_timer(vub300, t,
-						    sg_transfer_timer);
+	struct vub300_mmc_host *vub300 = timer_container_of(vub300, t,
+							    sg_transfer_timer);
 	vub300->usb_timed_out = 1;
 	usb_sg_cancel(&vub300->sg_request);
 	usb_unlink_urb(vub300->command_out_urb);
@@ -1452,7 +1452,7 @@ static int __command_read_data(struct vub300_mmc_host *vub300,
 						  (linear_length / 16384));
 			add_timer(&vub300->sg_transfer_timer);
 			usb_sg_wait(&vub300->sg_request);
-			del_timer(&vub300->sg_transfer_timer);
+			timer_delete(&vub300->sg_transfer_timer);
 			if (vub300->sg_request.status < 0) {
 				cmd->error = vub300->sg_request.status;
 				data->bytes_xfered = 0;
@@ -1572,7 +1572,7 @@ static int __command_write_data(struct vub300_mmc_host *vub300,
 			if (cmd->error) {
 				data->bytes_xfered = 0;
 			} else {
-				del_timer(&vub300->sg_transfer_timer);
+				timer_delete(&vub300->sg_transfer_timer);
 				if (vub300->sg_request.status < 0) {
 					cmd->error = vub300->sg_request.status;
 					data->bytes_xfered = 0;
@@ -2339,7 +2339,7 @@ static int vub300_probe(struct usb_interface *interface,
 
 	return 0;
 error6:
-	del_timer_sync(&vub300->inactivity_timer);
+	timer_delete_sync(&vub300->inactivity_timer);
 error5:
 	mmc_free_host(mmc);
 	/*

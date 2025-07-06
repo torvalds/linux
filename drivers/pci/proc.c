@@ -251,6 +251,10 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 	    security_locked_down(LOCKDOWN_PCI_ACCESS))
 		return -EPERM;
 
+	/* Skip devices with non-mappable BARs */
+	if (dev->non_mappable_bars)
+		return -EINVAL;
+
 	if (fpriv->mmap_state == pci_mmap_io) {
 		if (!arch_can_pci_mmap_io())
 			return -EINVAL;

@@ -139,6 +139,7 @@ hp_i2c: &i2c2 {
 	vdd-micb-supply = <&pp1800_l2c>;
 	pinctrl-0 = <&lpass_dmic01_clk>, <&lpass_dmic01_data>, <&lpass_dmic23_clk>,
 			<&lpass_dmic23_data>;
+	pinctrl-names = "default";
 
 	status = "okay";
 };

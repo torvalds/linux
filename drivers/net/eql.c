@@ -143,7 +143,7 @@ static void eql_kill_one_slave(slave_queue_t *queue, slave_t *slave);
 
 static void eql_timer(struct timer_list *t)
 {
-	equalizer_t *eql = from_timer(eql, t, timer);
+	equalizer_t *eql = timer_container_of(eql, t, timer);
 	struct list_head *this, *tmp, *head;
 
 	spin_lock(&eql->queue.lock);
@@ -254,7 +254,7 @@ static int eql_close(struct net_device *dev)
 	 *	at the data structure it scans every so often...
 	 */
 
-	del_timer_sync(&eql->timer);
+	timer_delete_sync(&eql->timer);
 
 	eql_kill_slave_queue(&eql->queue);
 

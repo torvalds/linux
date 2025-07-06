@@ -112,6 +112,7 @@ void bch2_printbuf_tabstop_pop(struct printbuf *);
 int bch2_printbuf_tabstop_push(struct printbuf *, unsigned);
 
 void bch2_printbuf_indent_add(struct printbuf *, unsigned);
+void bch2_printbuf_indent_add_nextline(struct printbuf *, unsigned);
 void bch2_printbuf_indent_sub(struct printbuf *, unsigned);
 
 void bch2_prt_newline(struct printbuf *);
@@ -138,6 +139,14 @@ void bch2_prt_bitflags_vector(struct printbuf *, const char * const[],
 	.buf	= _buf,					\
 	.size	= _size,				\
 })
+
+static inline struct printbuf bch2_printbuf_init(void)
+{
+	return PRINTBUF;
+}
+
+DEFINE_CLASS(printbuf, struct printbuf,
+	     bch2_printbuf_exit(&_T), bch2_printbuf_init(), void)
 
 /*
  * Returns size remaining of output buffer:

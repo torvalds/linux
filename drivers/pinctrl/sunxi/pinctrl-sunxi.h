@@ -25,9 +25,14 @@
 #define PG_BASE	192
 #define PH_BASE	224
 #define PI_BASE	256
+#define PJ_BASE	288
+#define PK_BASE	320
 #define PL_BASE	352
 #define PM_BASE	384
 #define PN_BASE	416
+
+/* maximum number of banks per controller (PA -> PK) */
+#define SUNXI_PINCTRL_MAX_BANKS	11
 
 #define SUNXI_PINCTRL_PIN(bank, pin)		\
 	PINCTRL_PIN(P ## bank ## _BASE + (pin), "P" #bank #pin)
@@ -82,21 +87,16 @@
 #define SUN4I_FUNC_INPUT	0
 #define SUN4I_FUNC_IRQ		6
 
-#define PINCTRL_SUN5I_A10S	BIT(1)
-#define PINCTRL_SUN5I_A13	BIT(2)
-#define PINCTRL_SUN5I_GR8	BIT(3)
-#define PINCTRL_SUN6I_A31	BIT(4)
-#define PINCTRL_SUN6I_A31S	BIT(5)
-#define PINCTRL_SUN4I_A10	BIT(6)
-#define PINCTRL_SUN7I_A20	BIT(7)
-#define PINCTRL_SUN8I_R40	BIT(8)
-#define PINCTRL_SUN8I_V3	BIT(9)
-#define PINCTRL_SUN8I_V3S	BIT(10)
-/* Variants below here have an updated register layout. */
-#define PINCTRL_SUN20I_D1	BIT(11)
+#define SUNXI_PINCTRL_VARIANT_MASK	GENMASK(7, 0)
+#define SUNXI_PINCTRL_NEW_REG_LAYOUT	BIT(8)
+#define SUNXI_PINCTRL_PORTF_SWITCH	BIT(9)
+#define SUNXI_PINCTRL_ELEVEN_BANKS	BIT(10)
 
-#define PIO_POW_MOD_SEL_REG	0x340
-#define PIO_POW_MOD_CTL_REG	0x344
+#define PIO_POW_MOD_SEL_REG		0x340
+#define PIO_11B_POW_MOD_SEL_REG		0x380
+#define PIO_POW_MOD_CTL_OFS		0x004
+
+#define PIO_BANK_K_OFFSET		0x500
 
 enum sunxi_desc_bias_voltage {
 	BIAS_VOLTAGE_NONE,
@@ -164,7 +164,7 @@ struct sunxi_pinctrl {
 	struct gpio_chip		*chip;
 	const struct sunxi_pinctrl_desc	*desc;
 	struct device			*dev;
-	struct sunxi_pinctrl_regulator	regulators[9];
+	struct sunxi_pinctrl_regulator	regulators[11];
 	struct irq_domain		*domain;
 	struct sunxi_pinctrl_function	*functions;
 	unsigned			nfunctions;
@@ -178,6 +178,7 @@ struct sunxi_pinctrl {
 	u32				bank_mem_size;
 	u32				pull_regs_offset;
 	u32				dlevel_field_width;
+	u32				pow_mod_sel_offset;
 };
 
 #define SUNXI_PIN(_pin, ...)					\
@@ -299,11 +300,17 @@ static inline u32 sunxi_grp_config_reg(u16 pin)
 	return GRP_CFG_REG + bank * 0x4;
 }
 
-int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
-				    const struct sunxi_pinctrl_desc *desc,
-				    unsigned long variant);
+int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
+				  const struct sunxi_pinctrl_desc *desc,
+				  unsigned long flags);
 
 #define sunxi_pinctrl_init(_dev, _desc) \
-	sunxi_pinctrl_init_with_variant(_dev, _desc, 0)
+	sunxi_pinctrl_init_with_flags(_dev, _desc, 0)
+
+int sunxi_pinctrl_dt_table_init(struct platform_device *pdev,
+				const u8 *pins_per_bank,
+				const u8 *irq_bank_muxes,
+				struct sunxi_pinctrl_desc *desc,
+				unsigned long flags);
 
 #endif /* __PINCTRL_SUNXI_H */

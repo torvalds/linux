@@ -38,50 +38,16 @@ properties:
 patternProperties:
   "^.*@[0-3],[a-f0-9]+$":
     type: object
+    $ref: mc-peripheral-props.yaml#
     additionalProperties: true
-    description:
-      The actual device nodes should be added as subnodes to the SROMc node.
-      These subnodes, in addition to regular device specification, should
-      contain the following properties, describing configuration
-      of the relevant SROM bank.
 
     properties:
-      reg:
-        description:
-          Bank number, base address (relative to start of the bank) and size
-          of the memory mapped for the device. Note that base address will be
-          typically 0 as this is the start of the bank.
-        maxItems: 1
-
       reg-io-width:
         enum: [1, 2]
         description:
           Data width in bytes (1 or 2). If omitted, default of 1 is used.
 
-      samsung,srom-page-mode:
-        description:
-          If page mode is set, 4 data page mode will be configured,
-          else normal (1 data) page mode will be set.
-        type: boolean
-
-      samsung,srom-timing:
-        $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 6
-        maxItems: 6
-        description: |
-          Array of 6 integers, specifying bank timings in the following order:
-          Tacp, Tcah, Tcoh, Tacc, Tcos, Tacs.
-          Each value is specified in cycles and has the following meaning
-          and valid range:
-          Tacp: Page mode access cycle at Page mode (0 - 15)
-          Tcah: Address holding time after CSn (0 - 15)
-          Tcoh: Chip selection hold on OEn (0 - 15)
-          Tacc: Access cycle (0 - 31, the actual time is N + 1)
-          Tcos: Chip selection set-up before OEn (0 - 15)
-          Tacs: Address set-up before CSn (0 - 15)
-
     required:
-      - reg
       - samsung,srom-timing
 
 required:

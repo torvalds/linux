@@ -88,6 +88,10 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 	struct bio_vec *bv;
 	int idx = 0;
 	int err = 0;
+#ifdef CONFIG_SQUASHFS_COMP_CACHE_FULL
+	struct page **cache_pages = kmalloc_array(page_count,
+			sizeof(void *), GFP_KERNEL | __GFP_ZERO);
+#endif
 
 	bio_for_each_segment_all(bv, fullbio, iter_all) {
 		struct page *page = bv->bv_page;
@@ -110,6 +114,11 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 			head_to_cache = page;
 		else if (idx == page_count - 1 && index + length != read_end)
 			tail_to_cache = page;
+#ifdef CONFIG_SQUASHFS_COMP_CACHE_FULL
+		/* Cache all pages in the BIO for repeated reads */
+		else if (cache_pages)
+			cache_pages[idx] = page;
+#endif
 
 		if (!bio || idx != end_idx) {
 			struct bio *new = bio_alloc_clone(bdev, fullbio,
@@ -163,6 +172,25 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 		}
 	}
 
+#ifdef CONFIG_SQUASHFS_COMP_CACHE_FULL
+	if (!cache_pages)
+		goto out;
+
+	for (idx = 0; idx < page_count; idx++) {
+		if (!cache_pages[idx])
+			continue;
+		int ret = add_to_page_cache_lru(cache_pages[idx], cache_mapping,
+						(read_start >> PAGE_SHIFT) + idx,
+						GFP_NOIO);
+
+		if (!ret) {
+			SetPageUptodate(cache_pages[idx]);
+			unlock_page(cache_pages[idx]);
+		}
+	}
+	kfree(cache_pages);
+out:
+#endif
 	return 0;
 }
 

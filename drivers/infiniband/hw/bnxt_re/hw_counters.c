@@ -39,6 +39,8 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <rdma/ib_mad.h>
+#include <rdma/ib_pma.h>
 
 #include "roce_hsi.h"
 #include "qplib_res.h"
@@ -283,6 +285,96 @@ static void bnxt_re_copy_db_pacing_stats(struct bnxt_re_dev *rdev,
 	stats->value[BNXT_RE_PACING_ALERT] = pacing_s->alerts;
 	stats->value[BNXT_RE_DB_FIFO_REG] =
 		readl(rdev->en_dev->bar0 + rdev->pacing.dbr_db_fifo_reg_off);
+}
+
+int bnxt_re_assign_pma_port_ext_counters(struct bnxt_re_dev *rdev, struct ib_mad *out_mad)
+{
+	struct ib_pma_portcounters_ext *pma_cnt_ext;
+	struct bnxt_qplib_ext_stat *estat = &rdev->stats.rstat.ext_stat;
+	struct ctx_hw_stats *hw_stats = NULL;
+	int rc;
+
+	hw_stats = rdev->qplib_ctx.stats.dma;
+
+	pma_cnt_ext = (struct ib_pma_portcounters_ext *)(out_mad->data + 40);
+	if (_is_ext_stats_supported(rdev->dev_attr->dev_cap_flags)) {
+		u32 fid = PCI_FUNC(rdev->en_dev->pdev->devfn);
+
+		rc = bnxt_qplib_qext_stat(&rdev->rcfw, fid, estat);
+		if (rc)
+			return rc;
+	}
+
+	pma_cnt_ext = (struct ib_pma_portcounters_ext *)(out_mad->data + 40);
+	if ((bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) && rdev->is_virtfn) ||
+	    !bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
+		pma_cnt_ext->port_xmit_data =
+			cpu_to_be64(le64_to_cpu(hw_stats->tx_ucast_bytes) / 4);
+		pma_cnt_ext->port_rcv_data =
+			cpu_to_be64(le64_to_cpu(hw_stats->rx_ucast_bytes) / 4);
+		pma_cnt_ext->port_xmit_packets =
+			cpu_to_be64(le64_to_cpu(hw_stats->tx_ucast_pkts));
+		pma_cnt_ext->port_rcv_packets =
+			cpu_to_be64(le64_to_cpu(hw_stats->rx_ucast_pkts));
+		pma_cnt_ext->port_unicast_rcv_packets =
+			cpu_to_be64(le64_to_cpu(hw_stats->rx_ucast_pkts));
+		pma_cnt_ext->port_unicast_xmit_packets =
+			cpu_to_be64(le64_to_cpu(hw_stats->tx_ucast_pkts));
+
+	} else {
+		pma_cnt_ext->port_rcv_packets = cpu_to_be64(estat->rx_roce_good_pkts);
+		pma_cnt_ext->port_rcv_data = cpu_to_be64(estat->rx_roce_good_bytes / 4);
+		pma_cnt_ext->port_xmit_packets = cpu_to_be64(estat->tx_roce_pkts);
+		pma_cnt_ext->port_xmit_data = cpu_to_be64(estat->tx_roce_bytes / 4);
+		pma_cnt_ext->port_unicast_rcv_packets = cpu_to_be64(estat->rx_roce_good_pkts);
+		pma_cnt_ext->port_unicast_xmit_packets = cpu_to_be64(estat->tx_roce_pkts);
+	}
+	return 0;
+}
+
+int bnxt_re_assign_pma_port_counters(struct bnxt_re_dev *rdev, struct ib_mad *out_mad)
+{
+	struct bnxt_qplib_ext_stat *estat = &rdev->stats.rstat.ext_stat;
+	struct ib_pma_portcounters *pma_cnt;
+	struct ctx_hw_stats *hw_stats = NULL;
+	int rc;
+
+	hw_stats = rdev->qplib_ctx.stats.dma;
+
+	pma_cnt = (struct ib_pma_portcounters *)(out_mad->data + 40);
+	if (_is_ext_stats_supported(rdev->dev_attr->dev_cap_flags)) {
+		u32 fid = PCI_FUNC(rdev->en_dev->pdev->devfn);
+
+		rc = bnxt_qplib_qext_stat(&rdev->rcfw, fid, estat);
+		if (rc)
+			return rc;
+	}
+	if ((bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) && rdev->is_virtfn) ||
+	    !bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
+		pma_cnt->port_rcv_packets =
+			cpu_to_be32((u32)(le64_to_cpu(hw_stats->rx_ucast_pkts)) & 0xFFFFFFFF);
+		pma_cnt->port_rcv_data =
+			cpu_to_be32((u32)((le64_to_cpu(hw_stats->rx_ucast_bytes) &
+					   0xFFFFFFFF) / 4));
+		pma_cnt->port_xmit_packets =
+			cpu_to_be32((u32)(le64_to_cpu(hw_stats->tx_ucast_pkts)) & 0xFFFFFFFF);
+		pma_cnt->port_xmit_data =
+			cpu_to_be32((u32)((le64_to_cpu(hw_stats->tx_ucast_bytes)
+					   & 0xFFFFFFFF) / 4));
+	} else {
+		pma_cnt->port_rcv_packets = cpu_to_be32(estat->rx_roce_good_pkts);
+		pma_cnt->port_rcv_data = cpu_to_be32((estat->rx_roce_good_bytes / 4));
+		pma_cnt->port_xmit_packets = cpu_to_be32(estat->tx_roce_pkts);
+		pma_cnt->port_xmit_data = cpu_to_be32((estat->tx_roce_bytes / 4));
+	}
+	pma_cnt->port_rcv_constraint_errors = (u8)(le64_to_cpu(hw_stats->rx_discard_pkts) & 0xFF);
+	pma_cnt->port_rcv_errors = cpu_to_be16((u16)(le64_to_cpu(hw_stats->rx_error_pkts)
+						     & 0xFFFF));
+	pma_cnt->port_xmit_constraint_errors = (u8)(le64_to_cpu(hw_stats->tx_error_pkts) & 0xFF);
+	pma_cnt->port_xmit_discards = cpu_to_be16((u16)(le64_to_cpu(hw_stats->tx_discard_pkts)
+							& 0xFFFF));
+
+	return 0;
 }
 
 int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,

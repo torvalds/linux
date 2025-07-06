@@ -131,12 +131,9 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 		       _PAGE_ACCESSED | _PAGE_NO_CACHE)
 
 #define ioremap_wc(addr, size)  \
-	ioremap_prot((addr), (size), _PAGE_IOREMAP)
+	ioremap_prot((addr), (size), __pgprot(_PAGE_IOREMAP))
 
 #define pci_iounmap			pci_iounmap
-
-void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
-#define memcpy_fromio memcpy_fromio
 
 /* Port-space IO */
 

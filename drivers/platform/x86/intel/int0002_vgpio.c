@@ -23,7 +23,7 @@
  * ACPI mechanisms, this is not a real GPIO at all.
  *
  * This driver will bind to the INT0002 device, and register as a GPIO
- * controller, letting gpiolib-acpi.c call the _L02 handler as it would
+ * controller, letting gpiolib-acpi call the _L02 handler as it would
  * for a real GPIO controller.
  */
 
@@ -65,9 +65,10 @@ static int int0002_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void int0002_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			     int value)
+static int int0002_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
+	return 0;
 }
 
 static int int0002_gpio_direction_output(struct gpio_chip *chip,
@@ -192,7 +193,7 @@ static int int0002_probe(struct platform_device *pdev)
 	chip->parent = dev;
 	chip->owner = THIS_MODULE;
 	chip->get = int0002_gpio_get;
-	chip->set = int0002_gpio_set;
+	chip->set_rv = int0002_gpio_set;
 	chip->direction_input = int0002_gpio_get;
 	chip->direction_output = int0002_gpio_direction_output;
 	chip->base = -1;

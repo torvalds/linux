@@ -51,7 +51,6 @@ static inline unsigned long mmap_base(unsigned long rnd,
 {
 	unsigned long gap = rlim_stack->rlim_cur;
 	unsigned long pad = stack_maxrandom_size() + stack_guard_gap;
-	unsigned long gap_min, gap_max;
 
 	/* Values close to RLIM_INFINITY can overflow. */
 	if (gap + pad > gap)
@@ -61,13 +60,7 @@ static inline unsigned long mmap_base(unsigned long rnd,
 	 * Top of mmap area (just below the process stack).
 	 * Leave at least a ~128 MB hole.
 	 */
-	gap_min = SZ_128M;
-	gap_max = (STACK_TOP / 6) * 5;
-
-	if (gap < gap_min)
-		gap = gap_min;
-	else if (gap > gap_max)
-		gap = gap_max;
+	gap = clamp(gap, SZ_128M, (STACK_TOP / 6) * 5);
 
 	return PAGE_ALIGN(STACK_TOP - gap - rnd);
 }

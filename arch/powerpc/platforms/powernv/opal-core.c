@@ -159,7 +159,7 @@ static Elf64_Word *__init auxv_to_elf64_notes(Elf64_Word *buf,
  * Returns number of bytes read on success, -errno on failure.
  */
 static ssize_t read_opalcore(struct file *file, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *to,
+			     const struct bin_attribute *bin_attr, char *to,
 			     loff_t pos, size_t count)
 {
 	struct opalcore *m;
@@ -206,9 +206,9 @@ static ssize_t read_opalcore(struct file *file, struct kobject *kobj,
 	return (tpos - pos);
 }
 
-static struct bin_attribute opal_core_attr = {
+static struct bin_attribute opal_core_attr __ro_after_init = {
 	.attr = {.name = "core", .mode = 0400},
-	.read = read_opalcore
+	.read_new = read_opalcore
 };
 
 /*
@@ -599,7 +599,7 @@ static struct attribute *mpipl_attr[] = {
 	NULL,
 };
 
-static struct bin_attribute *mpipl_bin_attr[] = {
+static const struct bin_attribute *const mpipl_bin_attr[] = {
 	&opal_core_attr,
 	NULL,
 
@@ -607,7 +607,7 @@ static struct bin_attribute *mpipl_bin_attr[] = {
 
 static const struct attribute_group mpipl_group = {
 	.attrs = mpipl_attr,
-	.bin_attrs =  mpipl_bin_attr,
+	.bin_attrs_new =  mpipl_bin_attr,
 };
 
 static int __init opalcore_init(void)

@@ -47,7 +47,7 @@
 	enc1->base.ctx
 
 
-static void enc3_update_hdmi_info_packet(
+void enc3_update_hdmi_info_packet(
 	struct dcn10_stream_encoder *enc1,
 	uint32_t packet_index,
 	const struct dc_info_packet *info_packet)

@@ -506,18 +506,10 @@ bcm2835_init_power_domain(struct bcm2835_power *power,
 	struct device *dev = power->dev;
 	struct bcm2835_power_domain *dom = &power->domains[pd_xlate_index];
 
-	dom->clk = devm_clk_get(dev->parent, name);
-	if (IS_ERR(dom->clk)) {
-		int ret = PTR_ERR(dom->clk);
-
-		if (ret == -EPROBE_DEFER)
-			return ret;
-
-		/* Some domains don't have a clk, so make sure that we
-		 * don't deref an error pointer later.
-		 */
-		dom->clk = NULL;
-	}
+	dom->clk = devm_clk_get_optional(dev->parent, name);
+	if (IS_ERR(dom->clk))
+		return dev_err_probe(dev, PTR_ERR(dom->clk), "Failed to get clock %s\n",
+							     name);
 
 	dom->base.name = name;
 	dom->base.flags = GENPD_FLAG_ACTIVE_WAKEUP;

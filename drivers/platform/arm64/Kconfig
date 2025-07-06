@@ -6,7 +6,7 @@
 menuconfig ARM64_PLATFORM_DEVICES
 	bool "ARM64 Platform-Specific Device Drivers"
 	depends on ARM64 || COMPILE_TEST
-	default y
+	default ARM64
 	help
 	  Say Y here to get to see options for platform-specific device drivers
 	  for arm64 based devices, primarily EC-like device drivers.

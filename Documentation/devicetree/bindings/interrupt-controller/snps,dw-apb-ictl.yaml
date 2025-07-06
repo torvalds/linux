@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/snps,dw-apb-ictl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare APB interrupt controller
+
+maintainers:
+  - Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+  - Zhen Lei <thunder.leizhen@huawei.com>
+
+description:
+  Synopsys DesignWare provides interrupt controller IP for APB known as
+  dw_apb_ictl. The IP is used as secondary interrupt controller in some SoCs
+  with APB bus, e.g. Marvell Armada 1500. It can also be used as primary
+  interrupt controller in some SoCs, e.g. Hisilicon SD5203.
+
+properties:
+  compatible:
+    const: snps,dw-apb-ictl
+
+  reg:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+  interrupts:
+    maxItems: 1
+    description: >
+      Interrupt input connected to the primary interrupt controller when used
+      as a secondary controller. The interrupt specifier maps to bits in the
+      low and high interrupt registers (0⇒bit 0 low, 1⇒bit 1 low, 32⇒bit 0 high,
+      33⇒bit 1 high, fast interrupts start at 64).
+
+required:
+  - compatible
+  - reg
+  - interrupt-controller
+  - '#interrupt-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    interrupt-controller@3000 {
+        compatible = "snps,dw-apb-ictl";
+        reg = <0x3000 0xc00>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+    };
+  - |
+    interrupt-controller@10130000 {
+        compatible = "snps,dw-apb-ictl";
+        reg = <0x10130000 0x1000>;
+        interrupt-controller;
+        #interrupt-cells = <1>;
+    };

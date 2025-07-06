@@ -32,10 +32,50 @@
 			};
 		};
 
+		pmc8280c_thermal: pmc8280c-thermal {
+			polling-delay-passive = <100>;
+
+			thermal-sensors = <&pmc8280c_temp_alarm>;
+
+			trips {
+				trip0 {
+					temperature = <95000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				trip1 {
+					temperature = <115000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
 		pm8280_2_thermal: pm8280-2-thermal {
 			polling-delay-passive = <100>;
 
 			thermal-sensors = <&pm8280_2_temp_alarm>;
+
+			trips {
+				trip0 {
+					temperature = <95000>;
+					hysteresis = <0>;
+					type = "passive";
+				};
+
+				trip1 {
+					temperature = <115000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+		};
+
+		pmr735a_thermal: pmr735a-thermal {
+			polling-delay-passive = <100>;
+
+			thermal-sensors = <&pmr735a_temp_alarm>;
 
 			trips {
 				trip0 {
@@ -181,6 +221,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		pmc8280c_temp_alarm: temp-alarm@a00 {
+			compatible = "qcom,spmi-temp-alarm";
+			reg = <0xa00>;
+			interrupts-extended = <&spmi_bus 0x2 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
+			#thermal-sensor-cells = <0>;
+		};
+
 		pmc8280c_gpios: gpio@8800 {
 			compatible = "qcom,pm8350c-gpio", "qcom,spmi-gpio";
 			reg = <0x8800>;
@@ -212,7 +259,7 @@
 		pm8280_2_temp_alarm: temp-alarm@a00 {
 			compatible = "qcom,spmi-temp-alarm";
 			reg = <0xa00>;
-			interrupts-extended = <&spmi_bus 0x2 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
+			interrupts-extended = <&spmi_bus 0x3 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			io-channels = <&pmk8280_vadc PM8350_ADC7_DIE_TEMP(3)>;
 			io-channel-names = "thermal";
 			#thermal-sensor-cells = <0>;
@@ -234,6 +281,15 @@
 		reg = <0x4 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pmr735a_temp_alarm: temp-alarm@a00 {
+			compatible = "qcom,spmi-temp-alarm";
+			reg = <0xa00>;
+			interrupts-extended = <&spmi_bus 0x4 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
+			io-channels = <&pmk8280_vadc PMR735A_ADC7_DIE_TEMP>;
+			io-channel-names = "thermal";
+			#thermal-sensor-cells = <0>;
+		};
 
 		pmr735a_gpios: gpio@8800 {
 			compatible = "qcom,pmr735a-gpio", "qcom,spmi-gpio";

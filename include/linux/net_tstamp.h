@@ -4,6 +4,7 @@
 #define _LINUX_NET_TIMESTAMPING_H_
 
 #include <uapi/linux/net_tstamp.h>
+#include <uapi/linux/ethtool_netlink_generated.h>
 
 #define SOF_TIMESTAMPING_SOFTWARE_MASK	(SOF_TIMESTAMPING_RX_SOFTWARE | \
 					 SOF_TIMESTAMPING_TX_SOFTWARE | \
@@ -12,12 +13,6 @@
 #define SOF_TIMESTAMPING_HARDWARE_MASK	(SOF_TIMESTAMPING_RX_HARDWARE | \
 					 SOF_TIMESTAMPING_TX_HARDWARE | \
 					 SOF_TIMESTAMPING_RAW_HARDWARE)
-
-enum hwtstamp_source {
-	HWTSTAMP_SOURCE_UNSPEC,
-	HWTSTAMP_SOURCE_NETDEV,
-	HWTSTAMP_SOURCE_PHYLIB,
-};
 
 /**
  * struct hwtstamp_provider_desc - hwtstamp provider description

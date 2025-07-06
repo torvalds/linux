@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/socionext,milbeaut-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Milbeaut SoCs Timer Controller
+
+maintainers:
+  - Sugaya Taichi <sugaya.taichi@socionext.com>
+
+properties:
+  compatible:
+    const: socionext,milbeaut-timer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    timer@1e000050 {
+        compatible = "socionext,milbeaut-timer";
+        reg = <0x1e000050 0x20>;
+        interrupts = <0 91 4>;
+        clocks = <&clk 4>;
+    };

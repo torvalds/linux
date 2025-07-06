@@ -33,7 +33,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.CLFLUSH",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x80",
         "Unit": "IRP"
     },
@@ -43,7 +43,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.CRD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -53,7 +53,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.DRD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -63,7 +63,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.PCIDCAHINT",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -73,7 +73,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.PCIRDCUR",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -83,7 +83,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.PCITOM",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -93,7 +93,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.RFO",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x8",
         "Unit": "IRP"
     },
@@ -103,7 +103,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.WBMTOI",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x40",
         "Unit": "IRP"
     },

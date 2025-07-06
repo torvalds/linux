@@ -930,7 +930,7 @@ void irdma_terminate_done(struct irdma_sc_qp *qp, int timeout_occurred)
 
 static void irdma_terminate_timeout(struct timer_list *t)
 {
-	struct irdma_qp *iwqp = from_timer(iwqp, t, terminate_timer);
+	struct irdma_qp *iwqp = timer_container_of(iwqp, t, terminate_timer);
 	struct irdma_sc_qp *qp = &iwqp->sc_qp;
 
 	irdma_terminate_done(qp, 1);
@@ -963,7 +963,7 @@ void irdma_terminate_del_timer(struct irdma_sc_qp *qp)
 	int ret;
 
 	iwqp = qp->qp_uk.back_qp;
-	ret = del_timer(&iwqp->terminate_timer);
+	ret = timer_delete(&iwqp->terminate_timer);
 	if (ret)
 		irdma_qp_rem_ref(&iwqp->ibqp);
 }
@@ -1274,57 +1274,14 @@ void irdma_ieq_mpa_crc_ae(struct irdma_sc_dev *dev, struct irdma_sc_qp *qp)
 }
 
 /**
- * irdma_init_hash_desc - initialize hash for crc calculation
- * @desc: cryption type
- */
-int irdma_init_hash_desc(struct shash_desc **desc)
-{
-	struct crypto_shash *tfm;
-	struct shash_desc *tdesc;
-
-	tfm = crypto_alloc_shash("crc32c", 0, 0);
-	if (IS_ERR(tfm))
-		return -EINVAL;
-
-	tdesc = kzalloc(sizeof(*tdesc) + crypto_shash_descsize(tfm),
-			GFP_KERNEL);
-	if (!tdesc) {
-		crypto_free_shash(tfm);
-		return -EINVAL;
-	}
-
-	tdesc->tfm = tfm;
-	*desc = tdesc;
-
-	return 0;
-}
-
-/**
- * irdma_free_hash_desc - free hash desc
- * @desc: to be freed
- */
-void irdma_free_hash_desc(struct shash_desc *desc)
-{
-	if (desc) {
-		crypto_free_shash(desc->tfm);
-		kfree(desc);
-	}
-}
-
-/**
  * irdma_ieq_check_mpacrc - check if mpa crc is OK
- * @desc: desc for hash
  * @addr: address of buffer for crc
  * @len: length of buffer
  * @val: value to be compared
  */
-int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len,
-			   u32 val)
+int irdma_ieq_check_mpacrc(const void *addr, u32 len, u32 val)
 {
-	u32 crc = 0;
-
-	crypto_shash_digest(desc, addr, len, (u8 *)&crc);
-	if (crc != val)
+	if ((__force u32)cpu_to_le32(~crc32c(~0, addr, len)) != val)
 		return -EINVAL;
 
 	return 0;
@@ -1580,7 +1537,7 @@ int irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
 static void irdma_hw_stats_timeout(struct timer_list *t)
 {
 	struct irdma_vsi_pestat *pf_devstat =
-		from_timer(pf_devstat, t, stats_timer);
+		timer_container_of(pf_devstat, t, stats_timer);
 	struct irdma_sc_vsi *sc_vsi = pf_devstat->vsi;
 
 	if (sc_vsi->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
@@ -1613,7 +1570,7 @@ void irdma_hw_stats_stop_timer(struct irdma_sc_vsi *vsi)
 {
 	struct irdma_vsi_pestat *devstat = vsi->pestat;
 
-	del_timer_sync(&devstat->stats_timer);
+	timer_delete_sync(&devstat->stats_timer);
 }
 
 /**

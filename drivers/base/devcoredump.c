@@ -41,7 +41,7 @@ struct devcd_entry {
 	 *                                             devcd_data_write()
 	 *                                               mod_delayed_work()
 	 *                                                 try_to_grab_pending()
-	 *                                                   del_timer()
+	 *                                                   timer_delete()
 	 *                                                     debug_assert_init()
 	 *       INIT_DELAYED_WORK()
 	 *       schedule_delayed_work()

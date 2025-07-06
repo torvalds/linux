@@ -10,6 +10,7 @@
 . "$(dirname $0)"/lib/probe.sh
 
 skip_if_no_perf_trace || exit 2
+[ "$(id -u)" = 0 ] || exit 2
 
 if [ "$1" = "-v" ]; then
 	verbose="1"

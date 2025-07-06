@@ -178,7 +178,7 @@ int drm_fb_dma_get_scanout_buffer(struct drm_plane *plane,
 	dma_obj = drm_fb_dma_get_gem_obj(fb, 0);
 
 	/* Buffer should be accessible from the CPU */
-	if (dma_obj->base.import_attach)
+	if (drm_gem_is_imported(&dma_obj->base))
 		return -ENODEV;
 
 	/* Buffer should be already mapped to CPU */

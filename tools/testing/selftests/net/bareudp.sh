@@ -106,26 +106,16 @@
 # |                                                                       |
 # +-----------------------------------------------------------------------+
 
+. ./lib.sh
+
 ERR=4 # Return 4 by default, which is the SKIP code for kselftest
 PING6="ping"
 PAUSE_ON_FAIL="no"
 
-readonly NS0=$(mktemp -u ns0-XXXXXXXX)
-readonly NS1=$(mktemp -u ns1-XXXXXXXX)
-readonly NS2=$(mktemp -u ns2-XXXXXXXX)
-readonly NS3=$(mktemp -u ns3-XXXXXXXX)
-
 # Exit the script after having removed the network namespaces it created
-#
-# Parameters:
-#
-#   * The list of network namespaces to delete before exiting.
-#
 exit_cleanup()
 {
-	for ns in "$@"; do
-		ip netns delete "${ns}" 2>/dev/null || true
-	done
+	cleanup_all_ns
 
 	if [ "${ERR}" -eq 4 ]; then
 		echo "Error: Setting up the testing environment failed." >&2
@@ -140,17 +130,7 @@ exit_cleanup()
 # namespaces created by this script are deleted.
 create_namespaces()
 {
-	ip netns add "${NS0}" || exit_cleanup
-	ip netns add "${NS1}" || exit_cleanup "${NS0}"
-	ip netns add "${NS2}" || exit_cleanup "${NS0}" "${NS1}"
-	ip netns add "${NS3}" || exit_cleanup "${NS0}" "${NS1}" "${NS2}"
-}
-
-# The trap function handler
-#
-exit_cleanup_all()
-{
-	exit_cleanup "${NS0}" "${NS1}" "${NS2}" "${NS3}"
+	setup_ns NS0 NS1 NS2 NS3 || exit_cleanup
 }
 
 # Configure a network interface using a host route
@@ -188,10 +168,6 @@ iface_config()
 #
 setup_underlay()
 {
-	for ns in "${NS0}" "${NS1}" "${NS2}" "${NS3}"; do
-		ip -netns "${ns}" link set dev lo up
-	done;
-
 	ip link add name veth01 netns "${NS0}" type veth peer name veth10 netns "${NS1}"
 	ip link add name veth12 netns "${NS1}" type veth peer name veth21 netns "${NS2}"
 	ip link add name veth23 netns "${NS2}" type veth peer name veth32 netns "${NS3}"
@@ -234,14 +210,6 @@ setup_overlay_ipv4()
 	ip netns exec "${NS2}" sysctl -qw net.ipv4.ip_forward=1
 	ip -netns "${NS1}" route add 192.0.2.100/32 via 192.0.2.10
 	ip -netns "${NS2}" route add 192.0.2.103/32 via 192.0.2.33
-
-	# The intermediate namespaces don't have routes for the reverse path,
-	# as it will be handled by tc. So we need to ensure that rp_filter is
-	# not going to block the traffic.
-	ip netns exec "${NS1}" sysctl -qw net.ipv4.conf.all.rp_filter=0
-	ip netns exec "${NS2}" sysctl -qw net.ipv4.conf.all.rp_filter=0
-	ip netns exec "${NS1}" sysctl -qw net.ipv4.conf.default.rp_filter=0
-	ip netns exec "${NS2}" sysctl -qw net.ipv4.conf.default.rp_filter=0
 }
 
 setup_overlay_ipv6()
@@ -521,13 +489,10 @@ done
 
 check_features
 
-# Create namespaces before setting up the exit trap.
-# Otherwise, exit_cleanup_all() could delete namespaces that were not created
-# by this script.
-create_namespaces
-
 set -e
-trap exit_cleanup_all EXIT
+trap exit_cleanup EXIT
+
+create_namespaces
 
 setup_underlay
 setup_overlay_ipv4

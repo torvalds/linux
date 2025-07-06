@@ -419,7 +419,7 @@ static void vbg_balloon_work(struct work_struct *work)
  */
 static void vbg_heartbeat_timer(struct timer_list *t)
 {
-	struct vbg_dev *gdev = from_timer(gdev, t, heartbeat_timer);
+	struct vbg_dev *gdev = timer_container_of(gdev, t, heartbeat_timer);
 
 	vbg_req_perform(gdev, gdev->guest_heartbeat_req);
 	mod_timer(&gdev->heartbeat_timer,
@@ -495,7 +495,7 @@ static int vbg_heartbeat_init(struct vbg_dev *gdev)
  */
 static void vbg_heartbeat_exit(struct vbg_dev *gdev)
 {
-	del_timer_sync(&gdev->heartbeat_timer);
+	timer_delete_sync(&gdev->heartbeat_timer);
 	vbg_heartbeat_host_config(gdev, false);
 	vbg_req_free(gdev->guest_heartbeat_req,
 		     sizeof(*gdev->guest_heartbeat_req));

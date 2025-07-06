@@ -228,7 +228,7 @@ struct irq_domain *__init aic_common_of_init(struct device_node *node,
 		goto err_iounmap;
 	}
 
-	domain = irq_domain_add_linear(node, nchips * 32, ops, aic);
+	domain = irq_domain_create_linear(of_fwnode_handle(node), nchips * 32, ops, aic);
 	if (!domain) {
 		ret = -ENOMEM;
 		goto err_free_aic;

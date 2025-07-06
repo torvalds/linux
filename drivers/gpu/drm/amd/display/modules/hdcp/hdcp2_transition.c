@@ -184,17 +184,28 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 		callback_in_ms(0, output);
 		set_state_id(hdcp, output, H2_A2_LOCALITY_CHECK);
 		break;
-	case H2_A2_LOCALITY_CHECK:
+	case H2_A2_LOCALITY_CHECK: {
+		const bool use_fw = hdcp->config.ddc.funcs.atomic_write_poll_read_i2c
+				&& !adjust->hdcp2.force_sw_locality_check;
+
+		/*
+		 * 1A-05: consider disconnection after LC init a failure
+		 * 1A-13-1: consider invalid l' a failure
+		 * 1A-13-2: consider l' timeout a failure
+		 */
 		if (hdcp->state.stay_count > 10 ||
 				input->lc_init_prepare != PASS ||
-				input->lc_init_write != PASS ||
-				input->l_prime_available_poll != PASS ||
-				input->l_prime_read != PASS) {
-			/*
-			 * 1A-05: consider disconnection after LC init a failure
-			 * 1A-13-1: consider invalid l' a failure
-			 * 1A-13-2: consider l' timeout a failure
-			 */
+				(!use_fw && input->lc_init_write != PASS) ||
+				(!use_fw && input->l_prime_available_poll != PASS)) {
+			fail_and_restart_in_ms(0, &status, output);
+			break;
+		} else if (input->l_prime_read != PASS) {
+			if (use_fw && hdcp->config.debug.lc_enable_sw_fallback) {
+				adjust->hdcp2.force_sw_locality_check = true;
+				callback_in_ms(0, output);
+				break;
+			}
+
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (input->l_prime_validation != PASS) {
@@ -205,6 +216,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_transition(struct mod_hdcp *hdcp,
 		callback_in_ms(0, output);
 		set_state_id(hdcp, output, H2_A3_EXCHANGE_KS_AND_TEST_FOR_REPEATER);
 		break;
+	}
 	case H2_A3_EXCHANGE_KS_AND_TEST_FOR_REPEATER:
 		if (input->eks_prepare != PASS ||
 				input->eks_write != PASS) {
@@ -498,12 +510,23 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 		callback_in_ms(0, output);
 		set_state_id(hdcp, output, D2_A2_LOCALITY_CHECK);
 		break;
-	case D2_A2_LOCALITY_CHECK:
+	case D2_A2_LOCALITY_CHECK: {
+		const bool use_fw = hdcp->config.ddc.funcs.atomic_write_poll_read_aux
+				&& !adjust->hdcp2.force_sw_locality_check;
+
 		if (hdcp->state.stay_count > 10 ||
 				input->lc_init_prepare != PASS ||
-				input->lc_init_write != PASS ||
-				input->l_prime_read != PASS) {
+				(!use_fw && input->lc_init_write != PASS)) {
 			/* 1A-12: consider invalid l' a failure */
+			fail_and_restart_in_ms(0, &status, output);
+			break;
+		} else if (input->l_prime_read != PASS) {
+			if (use_fw && hdcp->config.debug.lc_enable_sw_fallback) {
+				adjust->hdcp2.force_sw_locality_check = true;
+				callback_in_ms(0, output);
+				break;
+			}
+
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (input->l_prime_validation != PASS) {
@@ -514,6 +537,7 @@ enum mod_hdcp_status mod_hdcp_hdcp2_dp_transition(struct mod_hdcp *hdcp,
 		callback_in_ms(0, output);
 		set_state_id(hdcp, output, D2_A34_EXCHANGE_KS_AND_TEST_FOR_REPEATER);
 		break;
+	}
 	case D2_A34_EXCHANGE_KS_AND_TEST_FOR_REPEATER:
 		if (input->eks_prepare != PASS ||
 				input->eks_write != PASS) {

@@ -161,9 +161,9 @@ static void test_mlock_within_limit(char *p, int alloc_size)
 				       MLOCK_ONFAULT);
 
 		if (ret)
-			ksft_exit_fail_msg("%s() failure at |%p(%d)| mlock:|%p(%d)|\n",
+			ksft_exit_fail_msg("%s() failure (%s) at |%p(%d)| mlock:|%p(%d)|\n",
 					   is_mlock ? "mlock" : "mlock2",
-					   p, alloc_size,
+					   strerror(errno), p, alloc_size,
 					   p + start_offset, lock_size);
 	}
 

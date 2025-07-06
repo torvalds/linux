@@ -21,4 +21,6 @@ typedef NvU64 NvLength;
 typedef NvU64 RmPhysAddr;
 
 typedef NvU32 NV_STATUS;
+
+typedef union {} rpc_generic_union;
 #endif

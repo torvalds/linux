@@ -7,7 +7,6 @@
 
 #include <crypto/internal/blake2b.h>
 #include <crypto/internal/hash.h>
-#include <crypto/internal/simd.h>
 
 #include <linux/module.h>
 #include <linux/sizes.h>
@@ -21,11 +20,6 @@ asmlinkage void blake2b_compress_neon(struct blake2b_state *state,
 static void blake2b_compress_arch(struct blake2b_state *state,
 				  const u8 *block, size_t nblocks, u32 inc)
 {
-	if (!crypto_simd_usable()) {
-		blake2b_compress_generic(state, block, nblocks, inc);
-		return;
-	}
-
 	do {
 		const size_t blocks = min_t(size_t, nblocks,
 					    SZ_4K / BLAKE2B_BLOCK_SIZE);
@@ -42,12 +36,14 @@ static void blake2b_compress_arch(struct blake2b_state *state,
 static int crypto_blake2b_update_neon(struct shash_desc *desc,
 				      const u8 *in, unsigned int inlen)
 {
-	return crypto_blake2b_update(desc, in, inlen, blake2b_compress_arch);
+	return crypto_blake2b_update_bo(desc, in, inlen, blake2b_compress_arch);
 }
 
-static int crypto_blake2b_final_neon(struct shash_desc *desc, u8 *out)
+static int crypto_blake2b_finup_neon(struct shash_desc *desc, const u8 *in,
+				     unsigned int inlen, u8 *out)
 {
-	return crypto_blake2b_final(desc, out, blake2b_compress_arch);
+	return crypto_blake2b_finup(desc, in, inlen, out,
+				    blake2b_compress_arch);
 }
 
 #define BLAKE2B_ALG(name, driver_name, digest_size)			\
@@ -55,7 +51,9 @@ static int crypto_blake2b_final_neon(struct shash_desc *desc, u8 *out)
 		.base.cra_name		= name,				\
 		.base.cra_driver_name	= driver_name,			\
 		.base.cra_priority	= 200,				\
-		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,	\
+		.base.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY |	\
+					  CRYPTO_AHASH_ALG_BLOCK_ONLY |	\
+					  CRYPTO_AHASH_ALG_FINAL_NONZERO, \
 		.base.cra_blocksize	= BLAKE2B_BLOCK_SIZE,		\
 		.base.cra_ctxsize	= sizeof(struct blake2b_tfm_ctx), \
 		.base.cra_module	= THIS_MODULE,			\
@@ -63,8 +61,9 @@ static int crypto_blake2b_final_neon(struct shash_desc *desc, u8 *out)
 		.setkey			= crypto_blake2b_setkey,	\
 		.init			= crypto_blake2b_init,		\
 		.update			= crypto_blake2b_update_neon,	\
-		.final			= crypto_blake2b_final_neon,	\
+		.finup			= crypto_blake2b_finup_neon,	\
 		.descsize		= sizeof(struct blake2b_state),	\
+		.statesize		= BLAKE2B_STATE_SIZE,		\
 	}
 
 static struct shash_alg blake2b_neon_algs[] = {

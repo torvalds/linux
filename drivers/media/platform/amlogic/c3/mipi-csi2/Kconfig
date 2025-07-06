@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config VIDEO_C3_MIPI_CSI2
+	tristate "Amlogic C3 MIPI CSI-2 receiver"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on VIDEO_DEV
+	depends on OF
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Video4Linux2 driver for Amlogic C3 MIPI CSI-2 receiver.
+	  C3 MIPI CSI-2 receiver is used to receive MIPI data from
+	  image sensor.
+
+	  To compile this driver as a module choose m here.

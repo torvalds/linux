@@ -60,10 +60,8 @@ struct hccs_chip_info {
 
 struct hccs_mbox_client_info {
 	struct mbox_client client;
-	struct mbox_chan *mbox_chan;
 	struct pcc_mbox_chan *pcc_chan;
 	u64 deadline_us;
-	void __iomem *pcc_comm_addr;
 	struct completion done;
 };
 

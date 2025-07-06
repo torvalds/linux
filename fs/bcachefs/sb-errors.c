@@ -78,6 +78,28 @@ const struct bch_sb_field_ops bch_sb_field_ops_errors = {
 	.to_text	= bch2_sb_errors_to_text,
 };
 
+void bch2_fs_errors_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	if (out->nr_tabstops < 1)
+		printbuf_tabstop_push(out, 48);
+	if (out->nr_tabstops < 2)
+		printbuf_tabstop_push(out, 8);
+	if (out->nr_tabstops < 3)
+		printbuf_tabstop_push(out, 16);
+
+	guard(mutex)(&c->fsck_error_counts_lock);
+
+	bch_sb_errors_cpu *e = &c->fsck_error_counts;
+	darray_for_each(*e, i) {
+		bch2_sb_error_id_to_text(out, i->id);
+		prt_tab(out);
+		prt_u64(out, i->nr);
+		prt_tab(out);
+		bch2_prt_datetime(out, i->last_error_time);
+		prt_newline(out);
+	}
+}
+
 void bch2_sb_error_count(struct bch_fs *c, enum bch_sb_error_id err)
 {
 	bch_sb_errors_cpu *e = &c->fsck_error_counts;

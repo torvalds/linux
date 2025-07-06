@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef __LINUX_PKT_CLS_H
-#define __LINUX_PKT_CLS_H
+#ifndef _UAPI__LINUX_PKT_CLS_H
+#define _UAPI__LINUX_PKT_CLS_H
 
 #include <linux/types.h>
 #include <linux/pkt_sched.h>
@@ -697,6 +697,7 @@ enum {
 };
 
 #define TCA_FLOWER_KEY_CFM_OPT_MAX (__TCA_FLOWER_KEY_CFM_OPT_MAX - 1)
+#define TCA_FLOWER_KEY_CFM_MAX	   (__TCA_FLOWER_KEY_CFM_OPT_MAX - 1)
 
 #define TCA_FLOWER_MASK_FLAGS_RANGE	(1 << 0) /* Range-based match */
 

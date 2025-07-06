@@ -38,7 +38,7 @@ void *call_nanosleep(void *_args)
 	return NULL;
 }
 
-int run_test(int clockid, int abs)
+static int run_test(int clockid, int abs)
 {
 	struct timespec now = {}, rem;
 	struct thread_args args = { .now = &now, .rem = &rem, .clockid = clockid};
@@ -114,6 +114,8 @@ int run_test(int clockid, int abs)
 int main(int argc, char *argv[])
 {
 	int ret, nsfd;
+
+	ksft_print_header();
 
 	nscheck();
 

@@ -2,7 +2,7 @@
 /*
  * max77686-private.h - Voltage regulator driver for the Maxim 77686/802
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electronics
  *  Chiwoong Byun <woong.byun@samsung.com>
  */
 

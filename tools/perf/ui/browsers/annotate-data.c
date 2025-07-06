@@ -558,6 +558,7 @@ static int annotated_data_browser__run(struct annotated_data_browser *browser,
 		case CTRL('c'):
 			goto out;
 		default:
+			ui_browser__warn_unhandled_hotkey(&browser->b, key, delay_secs, ", use 'h'/F1 to see actions");
 			continue;
 		}
 	}

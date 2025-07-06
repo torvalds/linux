@@ -266,7 +266,8 @@ union MESAPI_SET_HW_RESOURCES_1 {
 		};
 		uint64_t							mes_info_ctx_mc_addr;
 		uint32_t							mes_info_ctx_size;
-		uint32_t							mes_kiq_unmap_timeout; // unit is 100ms
+		uint64_t							reserved1;
+		uint64_t							cleaner_shader_fence_mc_addr;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];

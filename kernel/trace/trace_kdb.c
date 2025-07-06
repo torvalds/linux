@@ -98,7 +98,6 @@ static int kdb_ftdump(int argc, const char **argv)
 	long cpu_file;
 	int err;
 	int cnt;
-	int cpu;
 
 	if (argc > 2)
 		return KDB_ARGCOUNT;
@@ -120,9 +119,7 @@ static int kdb_ftdump(int argc, const char **argv)
 	trace_init_global_iter(&iter);
 	iter.buffer_iter = buffer_iter;
 
-	for_each_tracing_cpu(cpu) {
-		atomic_inc(&per_cpu_ptr(iter.array_buffer->data, cpu)->disabled);
-	}
+	tracer_tracing_disable(iter.tr);
 
 	/* A negative skip_entries means skip all but the last entries */
 	if (skip_entries < 0) {
@@ -135,9 +132,7 @@ static int kdb_ftdump(int argc, const char **argv)
 
 	ftrace_dump_buf(skip_entries, cpu_file);
 
-	for_each_tracing_cpu(cpu) {
-		atomic_dec(&per_cpu_ptr(iter.array_buffer->data, cpu)->disabled);
-	}
+	tracer_tracing_enable(iter.tr);
 
 	kdb_trap_printk--;
 

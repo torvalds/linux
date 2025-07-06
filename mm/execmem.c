@@ -377,6 +377,8 @@ void *execmem_alloc(enum execmem_type type, size_t size)
 	pgprot_t pgprot = range->pgprot;
 	void *p;
 
+	size = PAGE_ALIGN(size);
+
 	if (use_cache)
 		p = execmem_cache_alloc(range, size);
 	else

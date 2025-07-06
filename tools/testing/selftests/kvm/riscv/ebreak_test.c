@@ -27,7 +27,7 @@ static void guest_code(void)
 	GUEST_DONE();
 }
 
-static void guest_breakpoint_handler(struct ex_regs *regs)
+static void guest_breakpoint_handler(struct pt_regs *regs)
 {
 	WRITE_ONCE(sw_bp_addr, regs->epc);
 	regs->epc += 4;

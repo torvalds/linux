@@ -305,7 +305,7 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 		}
 	}
 
-	return ioremap_prot(phys, size, pgprot_val(prot));
+	return ioremap_prot(phys, size, prot);
 }
 
 #ifdef CONFIG_PCI

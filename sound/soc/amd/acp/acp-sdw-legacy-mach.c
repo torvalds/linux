@@ -272,7 +272,7 @@ static int create_sdw_dailinks(struct snd_soc_card *card,
 
 	/* generate DAI links by each sdw link */
 	while (soc_dais->initialised) {
-		int current_be_id;
+		int current_be_id = 0;
 
 		ret = create_sdw_dailink(card, soc_dais, dai_links,
 					 &current_be_id, codec_conf, sdw_platform_component);
@@ -321,7 +321,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 	*be_id = ACP_DMIC_BE_ID;
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, "acp-dmic-codec",
 					    0, 1, // DMIC only supports capture
-					    pdm_cpu->name, pdm_platform->name, 1,
+					    pdm_cpu->name, pdm_platform->name,
 					    "dmic-codec.0", "dmic-hifi", no_pcm,
 					    asoc_sdw_dmic_init, NULL);
 	if (ret)

@@ -53,3 +53,17 @@ kms_pm_rpm@modeset-lpsp-stress
 # IGT Version: 1.28-ga73311079
 # Linux Version: 6.11.0-rc2
 kms_pm_rpm@drm-resources-equal
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/13346
+# Failure Rate: 60
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+i915_hangman@gt-engine-error
+
+# Board Name: asus-C433TA-AJ0005-rammus
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/13345
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+gen9_exec_parse@unaligned-access

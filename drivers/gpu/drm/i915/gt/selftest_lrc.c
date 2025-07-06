@@ -7,6 +7,7 @@
 
 #include "gem/i915_gem_internal.h"
 
+#include "i915_drv.h"
 #include "i915_selftest.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
@@ -63,7 +64,7 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 		if (i915_request_completed(rq)) /* that was quick! */
 			return 0;
 
-		/* Wait until the HW has acknowleged the submission (or err) */
+		/* Wait until the HW has acknowledged the submission (or err) */
 		intel_engine_flush_submission(engine);
 		if (!READ_ONCE(engine->execlists.pending[0]) && is_active(rq))
 			return 0;
@@ -857,6 +858,14 @@ static int live_lrc_timestamp(void *arg)
 		(u32)S32_MAX + 1,
 		U32_MAX,
 	};
+
+	/*
+	 * This test was designed to isolate a hardware bug.
+	 * The bug was found and fixed in future generations but
+	 * now the test pollutes our CI on previous generation.
+	 */
+	if (GRAPHICS_VER(gt->i915) == 12)
+		return 0;
 
 	/*
 	 * We want to verify that the timestamp is saved and restore across

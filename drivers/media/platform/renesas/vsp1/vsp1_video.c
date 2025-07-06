@@ -127,12 +127,24 @@ static int __vsp1_video_try_format(struct vsp1_video *video,
 		info = vsp1_get_format_info(video->vsp1, VSP1_VIDEO_DEF_FORMAT);
 
 	pix->pixelformat = info->fourcc;
-	pix->colorspace = V4L2_COLORSPACE_SRGB;
 	pix->field = V4L2_FIELD_NONE;
 
-	if (info->fourcc == V4L2_PIX_FMT_HSV24 ||
-	    info->fourcc == V4L2_PIX_FMT_HSV32)
-		pix->hsv_enc = V4L2_HSV_ENC_256;
+	/*
+	 * Adjust the colour space fields. On capture devices, userspace needs
+	 * to set the V4L2_PIX_FMT_FLAG_SET_CSC to override the defaults. Reset
+	 * all fields to *_DEFAULT if the flag isn't set, to then handle
+	 * capture and output devices in the same way.
+	 */
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    !(pix->flags & V4L2_PIX_FMT_FLAG_SET_CSC)) {
+		pix->colorspace = V4L2_COLORSPACE_DEFAULT;
+		pix->xfer_func = V4L2_XFER_FUNC_DEFAULT;
+		pix->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+		pix->quantization = V4L2_QUANTIZATION_DEFAULT;
+	}
+
+	vsp1_adjust_color_space(info->mbus, &pix->colorspace, &pix->xfer_func,
+				&pix->ycbcr_enc, &pix->quantization);
 
 	memset(pix->reserved, 0, sizeof(pix->reserved));
 
@@ -888,12 +900,32 @@ vsp1_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	struct vsp1_video *video = to_vsp1_video(vfh->vdev);
 
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
-			  | V4L2_CAP_VIDEO_CAPTURE_MPLANE
+			  | V4L2_CAP_IO_MC | V4L2_CAP_VIDEO_CAPTURE_MPLANE
 			  | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
-
 
 	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
 	strscpy(cap->card, video->video.name, sizeof(cap->card));
+
+	return 0;
+}
+
+static int vsp1_video_enum_format(struct file *file, void *fh,
+				  struct v4l2_fmtdesc *f)
+{
+	struct v4l2_fh *vfh = file->private_data;
+	struct vsp1_video *video = to_vsp1_video(vfh->vdev);
+	const struct vsp1_format_info *info;
+
+	info = vsp1_get_format_info_by_index(video->vsp1, f->index, f->mbus_code);
+	if (!info)
+		return -EINVAL;
+
+	f->pixelformat = info->fourcc;
+
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE &&
+	    info->mbus == MEDIA_BUS_FMT_AYUV8_1X32)
+		f->flags = V4L2_FMT_FLAG_CSC_YCBCR_ENC
+			 | V4L2_FMT_FLAG_CSC_QUANTIZATION;
 
 	return 0;
 }
@@ -1013,6 +1045,8 @@ err_pipe:
 
 static const struct v4l2_ioctl_ops vsp1_video_ioctl_ops = {
 	.vidioc_querycap		= vsp1_video_querycap,
+	.vidioc_enum_fmt_vid_cap	= vsp1_video_enum_format,
+	.vidioc_enum_fmt_vid_out	= vsp1_video_enum_format,
 	.vidioc_g_fmt_vid_cap_mplane	= vsp1_video_get_format,
 	.vidioc_s_fmt_vid_cap_mplane	= vsp1_video_set_format,
 	.vidioc_try_fmt_vid_cap_mplane	= vsp1_video_try_format,
@@ -1207,14 +1241,14 @@ struct vsp1_video *vsp1_video_create(struct vsp1_device *vsp1,
 		video->pad.flags = MEDIA_PAD_FL_SOURCE;
 		video->video.vfl_dir = VFL_DIR_TX;
 		video->video.device_caps = V4L2_CAP_VIDEO_OUTPUT_MPLANE |
-					   V4L2_CAP_STREAMING;
+					   V4L2_CAP_STREAMING | V4L2_CAP_IO_MC;
 	} else {
 		direction = "output";
 		video->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 		video->pad.flags = MEDIA_PAD_FL_SINK;
 		video->video.vfl_dir = VFL_DIR_RX;
 		video->video.device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
-					   V4L2_CAP_STREAMING;
+					   V4L2_CAP_STREAMING | V4L2_CAP_IO_MC;
 	}
 
 	mutex_init(&video->lock);

@@ -219,12 +219,13 @@ unsafe impl AlwaysRefCounted for File {
 ///   must be on the same thread as this file.
 ///
 /// [`assume_no_fdget_pos`]: LocalFile::assume_no_fdget_pos
+#[repr(transparent)]
 pub struct LocalFile {
     inner: Opaque<bindings::file>,
 }
 
 // SAFETY: The type invariants guarantee that `LocalFile` is always ref-counted. This implementation
-// makes `ARef<File>` own a normal refcount.
+// makes `ARef<LocalFile>` own a normal refcount.
 unsafe impl AlwaysRefCounted for LocalFile {
     #[inline]
     fn inc_ref(&self) {
@@ -235,7 +236,8 @@ unsafe impl AlwaysRefCounted for LocalFile {
     #[inline]
     unsafe fn dec_ref(obj: ptr::NonNull<LocalFile>) {
         // SAFETY: To call this method, the caller passes us ownership of a normal refcount, so we
-        // may drop it. The cast is okay since `File` has the same representation as `struct file`.
+        // may drop it. The cast is okay since `LocalFile` has the same representation as
+        // `struct file`.
         unsafe { bindings::fput(obj.cast().as_ptr()) }
     }
 }
@@ -267,13 +269,13 @@ impl LocalFile {
     /// # Safety
     ///
     /// * The caller must ensure that `ptr` points at a valid file and that the file's refcount is
-    ///   positive for the duration of 'a.
+    ///   positive for the duration of `'a`.
     /// * The caller must ensure that if there is an active call to `fdget_pos` that did not take
     ///   the `f_pos_lock` mutex, then that call is on the current thread.
     #[inline]
     pub unsafe fn from_raw_file<'a>(ptr: *const bindings::file) -> &'a LocalFile {
         // SAFETY: The caller guarantees that the pointer is not dangling and stays valid for the
-        // duration of 'a. The cast is okay because `File` is `repr(transparent)`.
+        // duration of `'a`. The cast is okay because `LocalFile` is `repr(transparent)`.
         //
         // INVARIANT: The caller guarantees that there are no problematic `fdget_pos` calls.
         unsafe { &*ptr.cast() }
@@ -341,13 +343,13 @@ impl File {
     /// # Safety
     ///
     /// * The caller must ensure that `ptr` points at a valid file and that the file's refcount is
-    ///   positive for the duration of 'a.
+    ///   positive for the duration of `'a`.
     /// * The caller must ensure that if there are active `fdget_pos` calls on this file, then they
     ///   took the `f_pos_lock` mutex.
     #[inline]
     pub unsafe fn from_raw_file<'a>(ptr: *const bindings::file) -> &'a File {
         // SAFETY: The caller guarantees that the pointer is not dangling and stays valid for the
-        // duration of 'a. The cast is okay because `File` is `repr(transparent)`.
+        // duration of `'a`. The cast is okay because `File` is `repr(transparent)`.
         //
         // INVARIANT: The caller guarantees that there are no problematic `fdget_pos` calls.
         unsafe { &*ptr.cast() }

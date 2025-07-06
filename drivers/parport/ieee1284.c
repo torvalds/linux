@@ -40,7 +40,7 @@ static void parport_ieee1284_wakeup (struct parport *port)
 
 static void timeout_waiting_on_port (struct timer_list *t)
 {
-	struct parport *port = from_timer(port, t, timer);
+	struct parport *port = timer_container_of(port, t, timer);
 
 	parport_ieee1284_wakeup (port);
 }
@@ -73,7 +73,7 @@ int parport_wait_event (struct parport *port, signed long timeout)
 	timer_setup(&port->timer, timeout_waiting_on_port, 0);
 	mod_timer(&port->timer, jiffies + timeout);
 	ret = down_interruptible (&port->physport->ieee1284.irq);
-	if (!del_timer_sync(&port->timer) && !ret)
+	if (!timer_delete_sync(&port->timer) && !ret)
 		/* Timed out. */
 		ret = 1;
 

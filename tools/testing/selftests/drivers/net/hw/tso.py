@@ -39,7 +39,7 @@ def run_one_stream(cfg, ipver, remote_v4, remote_v6, should_lso):
     port = rand_port()
     listen_cmd = f"socat -{ipver} -t 2 -u TCP-LISTEN:{port},reuseport /dev/null,ignoreeof"
 
-    with bkg(listen_cmd, host=cfg.remote) as nc:
+    with bkg(listen_cmd, host=cfg.remote, exit_wait=True) as nc:
         wait_port_listen(port, host=cfg.remote)
 
         if ipver == "4":
@@ -216,7 +216,7 @@ def main() -> None:
             ("",            "6", "tx-tcp6-segmentation",          None),
             ("vxlan",        "", "tx-udp_tnl-segmentation",       ("vxlan",  True,  "id 100 dstport 4789 noudpcsum")),
             ("vxlan_csum",   "", "tx-udp_tnl-csum-segmentation",  ("vxlan",  False, "id 100 dstport 4789 udpcsum")),
-            ("gre",         "4", "tx-gre-segmentation",           ("ipgre",  False,  "")),
+            ("gre",         "4", "tx-gre-segmentation",           ("gre",    False,  "")),
             ("gre",         "6", "tx-gre-segmentation",           ("ip6gre", False,  "")),
         )
 

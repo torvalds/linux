@@ -324,34 +324,42 @@ register.
 
 .. table:: Arithmetic instructions
 
-  =====  =====  =======  ==========================================================
+  =====  =====  =======  ===================================================================================
   name   code   offset   description
-  =====  =====  =======  ==========================================================
+  =====  =====  =======  ===================================================================================
   ADD    0x0    0        dst += src
   SUB    0x1    0        dst -= src
   MUL    0x2    0        dst \*= src
   DIV    0x3    0        dst = (src != 0) ? (dst / src) : 0
-  SDIV   0x3    1        dst = (src != 0) ? (dst s/ src) : 0
+  SDIV   0x3    1        dst = (src == 0) ? 0 : ((src == -1 && dst == LLONG_MIN) ? LLONG_MIN : (dst s/ src))
   OR     0x4    0        dst \|= src
   AND    0x5    0        dst &= src
   LSH    0x6    0        dst <<= (src & mask)
   RSH    0x7    0        dst >>= (src & mask)
   NEG    0x8    0        dst = -dst
   MOD    0x9    0        dst = (src != 0) ? (dst % src) : dst
-  SMOD   0x9    1        dst = (src != 0) ? (dst s% src) : dst
+  SMOD   0x9    1        dst = (src == 0) ? dst : ((src == -1 && dst == LLONG_MIN) ? 0: (dst s% src))
   XOR    0xa    0        dst ^= src
   MOV    0xb    0        dst = src
   MOVSX  0xb    8/16/32  dst = (s8,s16,s32)src
   ARSH   0xc    0        :term:`sign extending<Sign Extend>` dst >>= (src & mask)
   END    0xd    0        byte swap operations (see `Byte swap instructions`_ below)
-  =====  =====  =======  ==========================================================
+  =====  =====  =======  ===================================================================================
 
 Underflow and overflow are allowed during arithmetic operations, meaning
 the 64-bit or 32-bit value will wrap. If BPF program execution would
 result in division by zero, the destination register is instead set to zero.
+Otherwise, for ``ALU64``, if execution would result in ``LLONG_MIN``
+dividing -1, the desination register is instead set to ``LLONG_MIN``. For
+``ALU``, if execution would result in ``INT_MIN`` dividing -1, the
+desination register is instead set to ``INT_MIN``.
+
 If execution would result in modulo by zero, for ``ALU64`` the value of
 the destination register is unchanged whereas for ``ALU`` the upper
-32 bits of the destination register are zeroed.
+32 bits of the destination register are zeroed. Otherwise, for ``ALU64``,
+if execution would resuslt in ``LLONG_MIN`` modulo -1, the destination
+register is instead set to 0. For ``ALU``, if execution would result in
+``INT_MIN`` modulo -1, the destination register is instead set to 0.
 
 ``{ADD, X, ALU}``, where 'code' = ``ADD``, 'source' = ``X``, and 'class' = ``ALU``, means::
 

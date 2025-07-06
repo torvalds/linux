@@ -45,6 +45,13 @@
 enum {
 	/* The number of vios in the vio pool is proportional to the throughput of the VDO. */
 	BLOCK_ALLOCATOR_VIO_POOL_SIZE = 128,
+
+	/*
+	 * The number of vios in the vio pool used for loading reference count data. A slab's
+	 * refcounts is capped at ~8MB, and we process one at a time in a zone, so 9 should be
+	 * plenty.
+	 */
+	BLOCK_ALLOCATOR_REFCOUNT_VIO_POOL_SIZE = 9,
 };
 
 /*
@@ -248,7 +255,7 @@ struct vdo_slab {
 
 	/* A list of the dirty blocks waiting to be written out */
 	struct vdo_wait_queue dirty_blocks;
-	/* The number of blocks which are currently writing */
+	/* The number of blocks which are currently reading or writing */
 	size_t active_count;
 
 	/* A waiter object for updating the slab summary */
@@ -425,6 +432,10 @@ struct block_allocator {
 
 	/* The vio pool for reading and writing block allocator metadata */
 	struct vio_pool *vio_pool;
+	/* The vio pool for large initial reads of ref count areas */
+	struct vio_pool *refcount_big_vio_pool;
+	/* How many ref count blocks are read per vio at initial load */
+	u32 refcount_blocks_per_big_vio;
 	/* The dm_kcopyd client for erasing slab journals */
 	struct dm_kcopyd_client *eraser;
 	/* Iterator over the slabs to be erased */

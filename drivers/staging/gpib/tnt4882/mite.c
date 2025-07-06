@@ -88,7 +88,6 @@ int mite_setup(struct mite_struct *mite)
 		pr_err("mite: failed to remap mite io memory address.\n");
 		return -ENOMEM;
 	}
-	pr_info("mite: 0x%08lx mapped to %p\n", mite->mite_phys_addr, mite->mite_io_addr);
 	addr = pci_resource_start(mite->pcidev, 1);
 	mite->daq_phys_addr = addr;
 	mite->daq_io_addr = ioremap(mite->daq_phys_addr, pci_resource_len(mite->pcidev, 1));
@@ -96,7 +95,6 @@ int mite_setup(struct mite_struct *mite)
 		pr_err("mite: failed to remap daq io memory address.\n");
 		return -ENOMEM;
 	}
-	pr_info("mite: daq: 0x%08lx mapped to %p\n", mite->daq_phys_addr, mite->daq_io_addr);
 	writel(mite->daq_phys_addr | WENAB, mite->mite_io_addr + MITE_IODWBSR);
 	mite->used = 1;
 	return 0;
@@ -132,19 +130,4 @@ void mite_unsetup(struct mite_struct *mite)
 		mite->mite_phys_addr = 0;
 	}
 	mite->used = 0;
-}
-
-void mite_list_devices(void)
-{
-	struct mite_struct *mite, *next;
-
-	pr_info("Available NI PCI device IDs:");
-	if (mite_devices)
-		for (mite = mite_devices; mite; mite = next) {
-			next = mite->next;
-			pr_info(" 0x%04x", mite_device_id(mite));
-			if (mite->used)
-				pr_info("(used)");
-	}
-	pr_info("\n");
 }

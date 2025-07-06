@@ -74,7 +74,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	void __iomem *mem;
 	struct ath_softc *sc;
 	struct ieee80211_hw *hw;
-	struct resource *res;
 	const struct platform_device_id *id = platform_get_device_id(pdev);
 	int irq;
 	int ret = 0;
@@ -86,16 +85,10 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no memory resource found\n");
-		return -ENXIO;
-	}
-
-	mem = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (mem == NULL) {
+	mem = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(mem)) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
+		return PTR_ERR(mem);
 	}
 
 	irq = platform_get_irq(pdev, 0);

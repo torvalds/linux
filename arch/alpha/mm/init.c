@@ -273,14 +273,6 @@ srm_paging_stop (void)
 }
 #endif
 
-void __init
-mem_init(void)
-{
-	set_max_mapnr(max_low_pfn);
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
-	memblock_free_all();
-}
-
 static const pgprot_t protection_map[16] = {
 	[VM_NONE]					= _PAGE_P(_PAGE_FOE | _PAGE_FOW |
 								  _PAGE_FOR),

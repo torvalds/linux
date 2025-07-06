@@ -69,9 +69,6 @@ extern unsigned long highstart_pfn, highend_pfn;
 		arch_flush_lazy_mmu_mode();		\
 	} while (0)
 
-extern void add_highpages_with_active_regions(int nid, unsigned long start_pfn,
-					unsigned long end_pfn);
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_HIGHMEM_H */

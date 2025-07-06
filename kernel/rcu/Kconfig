@@ -68,6 +68,8 @@ config TREE_SRCU
 config FORCE_NEED_SRCU_NMI_SAFE
 	bool "Force selection of NEED_SRCU_NMI_SAFE"
 	depends on !TINY_SRCU
+	depends on RCU_EXPERT
+	depends on ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	select NEED_SRCU_NMI_SAFE
 	default n
 	help

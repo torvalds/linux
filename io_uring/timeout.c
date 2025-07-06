@@ -35,6 +35,9 @@ struct io_timeout_rem {
 	bool				ltimeout;
 };
 
+static struct io_kiocb *__io_disarm_linked_timeout(struct io_kiocb *req,
+						   struct io_kiocb *link);
+
 static inline bool io_is_timeout_noseq(struct io_kiocb *req)
 {
 	struct io_timeout *timeout = io_kiocb_to_cmd(req, struct io_timeout);
@@ -218,7 +221,9 @@ void io_disarm_next(struct io_kiocb *req)
 		struct io_ring_ctx *ctx = req->ctx;
 
 		raw_spin_lock_irq(&ctx->timeout_lock);
-		link = io_disarm_linked_timeout(req);
+		if (req->link && req->link->opcode == IORING_OP_LINK_TIMEOUT)
+			link = __io_disarm_linked_timeout(req, req->link);
+
 		raw_spin_unlock_irq(&ctx->timeout_lock);
 		if (link)
 			io_req_queue_tw_complete(link, -ECANCELED);
@@ -228,8 +233,8 @@ void io_disarm_next(struct io_kiocb *req)
 		io_fail_links(req);
 }
 
-struct io_kiocb *__io_disarm_linked_timeout(struct io_kiocb *req,
-					    struct io_kiocb *link)
+static struct io_kiocb *__io_disarm_linked_timeout(struct io_kiocb *req,
+						   struct io_kiocb *link)
 	__must_hold(&req->ctx->completion_lock)
 	__must_hold(&req->ctx->timeout_lock)
 {
@@ -500,7 +505,7 @@ int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 static int __io_timeout_prep(struct io_kiocb *req,

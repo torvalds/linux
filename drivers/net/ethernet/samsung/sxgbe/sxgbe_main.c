@@ -91,7 +91,7 @@ void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv)
 {
 	/* Exit and disable EEE in case of we are in LPI state. */
 	priv->hw->mac->reset_eee_mode(priv->ioaddr);
-	del_timer_sync(&priv->eee_ctrl_timer);
+	timer_delete_sync(&priv->eee_ctrl_timer);
 	priv->tx_path_in_lpi_mode = false;
 }
 
@@ -104,7 +104,8 @@ void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv)
  */
 static void sxgbe_eee_ctrl_timer(struct timer_list *t)
 {
-	struct sxgbe_priv_data *priv = from_timer(priv, t, eee_ctrl_timer);
+	struct sxgbe_priv_data *priv = timer_container_of(priv, t,
+							  eee_ctrl_timer);
 
 	sxgbe_enable_eee_mode(priv);
 	mod_timer(&priv->eee_ctrl_timer, SXGBE_LPI_TIMER(eee_timer));
@@ -1012,7 +1013,7 @@ static void sxgbe_disable_mtl_engine(struct sxgbe_priv_data *priv)
  */
 static void sxgbe_tx_timer(struct timer_list *t)
 {
-	struct sxgbe_tx_queue *p = from_timer(p, t, txtimer);
+	struct sxgbe_tx_queue *p = timer_container_of(p, t, txtimer);
 	sxgbe_tx_queue_clean(p);
 }
 
@@ -1044,7 +1045,7 @@ static void sxgbe_tx_del_timer(struct sxgbe_priv_data *priv)
 
 	SXGBE_FOR_EACH_QUEUE(SXGBE_TX_QUEUES, queue_num) {
 		struct sxgbe_tx_queue *p = priv->txq[queue_num];
-		del_timer_sync(&p->txtimer);
+		timer_delete_sync(&p->txtimer);
 	}
 }
 
@@ -1208,7 +1209,7 @@ static int sxgbe_release(struct net_device *dev)
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 
 	if (priv->eee_enabled)
-		del_timer_sync(&priv->eee_ctrl_timer);
+		timer_delete_sync(&priv->eee_ctrl_timer);
 
 	/* Stop and disconnect the PHY */
 	if (dev->phydev) {

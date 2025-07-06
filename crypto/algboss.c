@@ -189,7 +189,7 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	struct task_struct *thread;
 	struct crypto_test_param *param;
 
-	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+	if (!IS_ENABLED(CONFIG_CRYPTO_SELFTESTS))
 		return NOTIFY_DONE;
 
 	if (!try_module_get(THIS_MODULE))
@@ -247,13 +247,7 @@ static void __exit cryptomgr_exit(void)
 	BUG_ON(err);
 }
 
-/*
- * This is arch_initcall() so that the crypto self-tests are run on algorithms
- * registered early by subsys_initcall().  subsys_initcall() is needed for
- * generic implementations so that they're available for comparison tests when
- * other implementations are registered later by module_init().
- */
-arch_initcall(cryptomgr_init);
+module_init(cryptomgr_init);
 module_exit(cryptomgr_exit);
 
 MODULE_LICENSE("GPL");

@@ -3,6 +3,13 @@
 #ifndef UTIL_BPF_SKEL_LOCK_DATA_H
 #define UTIL_BPF_SKEL_LOCK_DATA_H
 
+struct owner_tracing_data {
+	u32 pid; // Who has the lock.
+	u32 count; // How many waiters for this lock.
+	u64 timestamp; // The time while the owner acquires lock and contention is going on.
+	s32 stack_id; // Identifier for `owner_stat`, which stores as value in `owner_stacks`
+};
+
 struct tstamp_data {
 	u64 timestamp;
 	u64 lock;
@@ -60,6 +67,7 @@ enum lock_aggr_mode {
 enum lock_class_sym {
 	LOCK_CLASS_NONE,
 	LOCK_CLASS_RQLOCK,
+	LOCK_CLASS_ZONE_LOCK,
 };
 
 struct slab_cache_data {

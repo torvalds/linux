@@ -53,4 +53,5 @@ void kfd_smi_event_queue_restore_rescheduled(struct mm_struct *mm);
 void kfd_smi_event_unmap_from_gpu(struct kfd_node *node, pid_t pid,
 				  unsigned long address, unsigned long last,
 				  uint32_t trigger);
+void kfd_smi_event_process(struct kfd_process_device *pdd, bool start);
 #endif

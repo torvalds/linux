@@ -24,7 +24,7 @@ pub use new_spinlock;
 /// unlocked, at which point another CPU will be allowed to make progress.
 ///
 /// Instances of [`SpinLock`] need a lock class and to be pinned. The recommended way to create such
-/// instances is with the [`pin_init`](crate::pin_init) and [`new_spinlock`] macros.
+/// instances is with the [`pin_init`](pin_init::pin_init) and [`new_spinlock`] macros.
 ///
 /// # Examples
 ///

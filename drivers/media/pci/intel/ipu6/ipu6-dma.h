@@ -4,9 +4,6 @@
 #ifndef IPU6_DMA_H
 #define IPU6_DMA_H
 
-#include <linux/dma-map-ops.h>
-#include <linux/dma-mapping.h>
-#include <linux/iova.h>
 #include <linux/iova.h>
 #include <linux/scatterlist.h>
 #include <linux/types.h>

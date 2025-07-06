@@ -304,7 +304,8 @@ static void aspeed_vuart_unthrottle(struct uart_port *port)
 
 static void aspeed_vuart_unthrottle_exp(struct timer_list *timer)
 {
-	struct aspeed_vuart *vuart = from_timer(vuart, timer, unthrottle_timer);
+	struct aspeed_vuart *vuart = timer_container_of(vuart, timer,
+							unthrottle_timer);
 	struct uart_8250_port *up = vuart->port;
 
 	if (!tty_buffer_space_avail(&up->port.state->port)) {
@@ -550,7 +551,7 @@ static void aspeed_vuart_remove(struct platform_device *pdev)
 {
 	struct aspeed_vuart *vuart = platform_get_drvdata(pdev);
 
-	del_timer_sync(&vuart->unthrottle_timer);
+	timer_delete_sync(&vuart->unthrottle_timer);
 	aspeed_vuart_set_enabled(vuart, false);
 	serial8250_unregister_port(vuart->line);
 	sysfs_remove_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);

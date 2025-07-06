@@ -375,7 +375,7 @@ void intel_runtime_pm_enable(struct intel_runtime_pm *rpm)
 	 * leave the device suspended skipping the driver's suspend handlers
 	 * if the device was already runtime suspended. This is needed due to
 	 * the difference in our runtime and system suspend sequence and
-	 * becaue the HDA driver may require us to enable the audio power
+	 * because the HDA driver may require us to enable the audio power
 	 * domain during system suspend.
 	 */
 	dev_pm_set_driver_flags(kdev, DPM_FLAG_NO_DIRECT_COMPLETE);

@@ -184,10 +184,17 @@ static unsigned int do_reclaim_caches(struct f2fs_sb_info *sbi,
 		if (!inode)
 			continue;
 
-		len = fi->donate_end - fi->donate_start + 1;
-		npages = npages < len ? 0 : npages - len;
-		invalidate_inode_pages2_range(inode->i_mapping,
+		inode_lock(inode);
+		if (!is_inode_flag_set(inode, FI_DONATE_FINISHED)) {
+			len = fi->donate_end - fi->donate_start + 1;
+			npages = npages < len ? 0 : npages - len;
+
+			invalidate_inode_pages2_range(inode->i_mapping,
 					fi->donate_start, fi->donate_end);
+			set_inode_flag(inode, FI_DONATE_FINISHED);
+		}
+		inode_unlock(inode);
+
 		iput(inode);
 		cond_resched();
 	}

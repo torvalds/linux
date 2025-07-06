@@ -69,7 +69,7 @@ config FB_CFB_REV_PIXELS_IN_BYTE
 	bool
 	depends on FB_CORE
 	help
-	  Allow generic frame-buffer functions to work on displays with 1, 2
+	  Allow I/O memory frame-buffer functions to work on displays with 1, 2
 	  and 4 bits per pixel depths which has opposite order of pixels in
 	  byte order to bytes in long order.
 
@@ -96,6 +96,14 @@ config FB_SYS_IMAGEBLIT
 	  Include the sys_imageblit function for generic software image
 	  blitting. This is used by drivers that don't provide their own
 	  (accelerated) version and the framebuffer is in system RAM.
+
+config FB_SYS_REV_PIXELS_IN_BYTE
+	bool
+	depends on FB_CORE
+	help
+	  Allow virtual memory frame-buffer functions to work on displays with 1, 2
+	  and 4 bits per pixel depths which has opposite order of pixels in
+	  byte order to bytes in long order.
 
 config FB_PROVIDE_GET_FB_UNMAPPED_AREA
 	bool

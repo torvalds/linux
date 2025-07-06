@@ -68,5 +68,5 @@ MPC_DCN401 = dcn401_mpc.o
 AMD_DAL_MPC_DCN401 = $(addprefix $(AMDDALPATH)/dc/mpc/dcn401/,$(MPC_DCN401))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_MPC_DCN401)
-
 endif
+

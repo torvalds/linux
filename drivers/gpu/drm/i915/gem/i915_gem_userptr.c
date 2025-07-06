@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: MIT
 /*
- * SPDX-License-Identifier: MIT
- *
  * Copyright © 2012-2014 Intel Corporation
  *
-  * Based on amdgpu_mn, which bears the following notice:
+ * Based on amdgpu_mn, which bears the following notice:
  *
  * Copyright 2014 Advanced Micro Devices, Inc.
  * All Rights Reserved.

@@ -839,4 +839,4 @@
 
 #define CRC_FUNCTION_NAME __crc32c_vpmsum
 #define REFLECT
-#include "crc32-vpmsum_core.S"
+#include "crc-vpmsum-template.S"

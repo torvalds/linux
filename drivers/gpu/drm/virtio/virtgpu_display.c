@@ -189,7 +189,7 @@ static int virtio_gpu_conn_get_modes(struct drm_connector *connector)
 }
 
 static enum drm_mode_status virtio_gpu_conn_mode_valid(struct drm_connector *connector,
-				      struct drm_display_mode *mode)
+				      const struct drm_display_mode *mode)
 {
 	struct virtio_gpu_output *output =
 		drm_connector_to_virtio_gpu_output(connector);

@@ -809,6 +809,10 @@ def parse_test(lines: LineStream, expected_num: int, log: List[str], is_subtest:
 		test.log.extend(parse_diagnostic(lines))
 		if test.name != "" and not peek_test_name_match(lines, test):
 			test.add_error(printer, 'missing subtest result line!')
+		elif not lines:
+			print_log(test.log, printer)
+			test.status = TestStatus.NO_TESTS
+			test.add_error(printer, 'No more test results!')
 		else:
 			parse_test_result(lines, test, expected_num, printer)
 

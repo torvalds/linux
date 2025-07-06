@@ -33,17 +33,17 @@ struct iwl_mld_rx_phy_data {
 	u32 gp2_on_air_rise;
 	u16 phy_info;
 	u8 energy_a, energy_b;
-	u8 channel;
 };
 
 static void
-iwl_mld_fill_phy_data(struct iwl_rx_mpdu_desc *desc,
+iwl_mld_fill_phy_data(struct iwl_mld *mld,
+		      struct iwl_rx_mpdu_desc *desc,
 		      struct iwl_mld_rx_phy_data *phy_data)
 {
 	phy_data->phy_info = le16_to_cpu(desc->phy_info);
-	phy_data->rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
+	phy_data->rate_n_flags = iwl_v3_rate_from_v2_v3(desc->v3.rate_n_flags,
+							mld->fw_rates_ver_3);
 	phy_data->gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
-	phy_data->channel = desc->v3.channel;
 	phy_data->energy_a = desc->v3.energy_a;
 	phy_data->energy_b = desc->v3.energy_b;
 	phy_data->data0 = desc->v3.phy_data0;
@@ -1162,8 +1162,6 @@ static void iwl_mld_add_rtap_sniffer_config(struct iwl_mld *mld,
 
 static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 				   struct iwl_mld_rx_phy_data *phy_data,
-				   struct iwl_rx_mpdu_desc *mpdu_desc,
-				   struct ieee80211_hdr *hdr,
 				   int queue)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
@@ -1172,47 +1170,15 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 	u8 stbc = u32_get_bits(rate_n_flags, RATE_MCS_STBC_MSK);
 	bool is_sgi = rate_n_flags & RATE_MCS_SGI_MSK;
 
-	if (WARN_ON_ONCE(phy_data->with_data && (!mpdu_desc || !hdr)))
-		return;
-
-	/* Keep packets with CRC errors (and with overrun) for monitor mode
-	 * (otherwise the firmware discards them) but mark them as bad.
-	 */
-	if (phy_data->with_data &&
-	    (!(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_CRC_OK)) ||
-	     !(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_OVERRUN_OK)))) {
-		IWL_DEBUG_RX(mld, "Bad CRC or FIFO: 0x%08X.\n",
-			     le32_to_cpu(mpdu_desc->status));
-		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-	}
-
 	phy_data->info_type = IWL_RX_PHY_INFO_TYPE_NONE;
 
-	if (phy_data->with_data &&
-	    likely(!(phy_data->phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
-		rx_status->mactime =
-			le64_to_cpu(mpdu_desc->v3.tsf_on_air_rise);
-
-		/* TSF as indicated by the firmware is at INA time */
-		rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
-	} else {
+	if (phy_data->phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD)
 		phy_data->info_type =
 			le32_get_bits(phy_data->data1,
 				      IWL_RX_PHY_DATA1_INFO_TYPE_MASK);
-	}
-
-	/* management stuff on default queue */
-	if (!queue && phy_data->with_data &&
-	    unlikely(ieee80211_is_beacon(hdr->frame_control) ||
-		     ieee80211_is_probe_resp(hdr->frame_control))) {
-		rx_status->boottime_ns = ktime_get_boottime_ns();
-
-		if (mld->scan.pass_all_sched_res == SCHED_SCAN_PASS_ALL_STATE_ENABLED)
-			mld->scan.pass_all_sched_res = SCHED_SCAN_PASS_ALL_STATE_FOUND;
-	}
 
 	/* set the preamble flag if appropriate */
-	if (format == RATE_MCS_CCK_MSK &&
+	if (format == RATE_MCS_MOD_TYPE_CCK &&
 	    phy_data->phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
@@ -1237,7 +1203,7 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 	}
 
 	/* must be before L-SIG data */
-	if (format == RATE_MCS_HE_MSK)
+	if (format == RATE_MCS_MOD_TYPE_HE)
 		iwl_mld_rx_he(mld, skb, phy_data, queue);
 
 	iwl_mld_decode_lsig(skb, phy_data);
@@ -1245,40 +1211,53 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 	rx_status->device_timestamp = phy_data->gp2_on_air_rise;
 
 	/* using TLV format and must be after all fixed len fields */
-	if (format == RATE_MCS_EHT_MSK)
+	if (format == RATE_MCS_MOD_TYPE_EHT)
 		iwl_mld_rx_eht(mld, skb, phy_data, queue);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (unlikely(mld->monitor.on))
+	if (unlikely(mld->monitor.on)) {
 		iwl_mld_add_rtap_sniffer_config(mld, skb);
+
+		if (mld->monitor.ptp_time) {
+			u64 adj_time =
+			    iwl_mld_ptp_get_adj_time(mld,
+						     phy_data->gp2_on_air_rise *
+						     NSEC_PER_USEC);
+
+			rx_status->mactime = div64_u64(adj_time, NSEC_PER_USEC);
+			rx_status->flag |= RX_FLAG_MACTIME_IS_RTAP_TS64;
+			rx_status->flag &= ~RX_FLAG_MACTIME;
+		}
+	}
 #endif
 
-	if (format != RATE_MCS_CCK_MSK && is_sgi)
+	if (format != RATE_MCS_MOD_TYPE_CCK && is_sgi)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (rate_n_flags & RATE_MCS_LDPC_MSK)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
 
 	switch (format) {
-	case RATE_MCS_HT_MSK:
+	case RATE_MCS_MOD_TYPE_HT:
 		rx_status->encoding = RX_ENC_HT;
 		rx_status->rate_idx = RATE_HT_MCS_INDEX(rate_n_flags);
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		break;
-	case RATE_MCS_VHT_MSK:
-	case RATE_MCS_HE_MSK:
-	case RATE_MCS_EHT_MSK:
-		if (format == RATE_MCS_VHT_MSK) {
+	case RATE_MCS_MOD_TYPE_VHT:
+	case RATE_MCS_MOD_TYPE_HE:
+	case RATE_MCS_MOD_TYPE_EHT:
+		if (format == RATE_MCS_MOD_TYPE_VHT) {
 			rx_status->encoding = RX_ENC_VHT;
-		} else if (format == RATE_MCS_HE_MSK) {
+		} else if (format == RATE_MCS_MOD_TYPE_HE) {
 			rx_status->encoding = RX_ENC_HE;
 			rx_status->he_dcm =
 				!!(rate_n_flags & RATE_HE_DUAL_CARRIER_MODE_MSK);
-		} else if (format == RATE_MCS_EHT_MSK) {
+		} else if (format == RATE_MCS_MOD_TYPE_EHT) {
 			rx_status->encoding = RX_ENC_EHT;
 		}
 
-		rx_status->nss = u32_get_bits(rate_n_flags, RATE_MCS_NSS_MSK) + 1;
+		rx_status->nss = u32_get_bits(rate_n_flags,
+					      RATE_MCS_NSS_MSK) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_MCS_CODE_MSK;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
 		break;
@@ -1735,15 +1714,11 @@ static void iwl_mld_rx_update_ampdu_ref(struct iwl_mld *mld,
 }
 
 static void
-iwl_mld_fill_rx_status_band_freq(struct iwl_mld_rx_phy_data *phy_data,
-				 struct iwl_rx_mpdu_desc *mpdu_desc,
-				 struct ieee80211_rx_status *rx_status)
+iwl_mld_fill_rx_status_band_freq(struct ieee80211_rx_status *rx_status,
+				 u8 band, u8 channel)
 {
-	enum nl80211_band band;
-
-	band = BAND_IN_RX_STATUS(mpdu_desc->mac_phy_idx);
 	rx_status->band = iwl_mld_phy_band_to_nl80211(band);
-	rx_status->freq = ieee80211_channel_to_frequency(phy_data->channel,
+	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
 }
 
@@ -1758,7 +1733,7 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 	struct sk_buff *skb;
 	size_t mpdu_desc_size = sizeof(*mpdu_desc);
 	bool drop = false;
-	u8 crypto_len = 0;
+	u8 crypto_len = 0, band;
 	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	u32 mpdu_len;
 	enum iwl_mld_reorder_result reorder_res;
@@ -1788,7 +1763,7 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 
 	hdr = (void *)(pkt->data + mpdu_desc_size);
 
-	iwl_mld_fill_phy_data(mpdu_desc, &phy_data);
+	iwl_mld_fill_phy_data(mld, mpdu_desc, &phy_data);
 
 	if (mpdu_desc->mac_flags2 & IWL_RX_MPDU_MFLG2_PAD) {
 		/* If the device inserted padding it means that (it thought)
@@ -1802,7 +1777,11 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	/* this is needed early */
-	iwl_mld_fill_rx_status_band_freq(&phy_data, mpdu_desc, rx_status);
+	band = u8_get_bits(mpdu_desc->mac_phy_band,
+			   IWL_RX_MPDU_MAC_PHY_BAND_BAND_MASK);
+	iwl_mld_fill_rx_status_band_freq(rx_status, band,
+					 mpdu_desc->v3.channel);
+
 
 	rcu_read_lock();
 
@@ -1814,7 +1793,36 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 	if (!queue && (phy_data.phy_info & IWL_RX_MPDU_PHY_AMPDU))
 		iwl_mld_rx_update_ampdu_ref(mld, &phy_data, rx_status);
 
-	iwl_mld_rx_fill_status(mld, skb, &phy_data, mpdu_desc, hdr, queue);
+	/* Keep packets with CRC errors (and with overrun) for monitor mode
+	 * (otherwise the firmware discards them) but mark them as bad.
+	 */
+	if (!(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_CRC_OK)) ||
+	    !(mpdu_desc->status & cpu_to_le32(IWL_RX_MPDU_STATUS_OVERRUN_OK))) {
+		IWL_DEBUG_RX(mld, "Bad CRC or FIFO: 0x%08X.\n",
+			     le32_to_cpu(mpdu_desc->status));
+		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
+	}
+
+	if (likely(!(phy_data.phy_info & IWL_RX_MPDU_PHY_TSF_OVERLOAD))) {
+		rx_status->mactime =
+			le64_to_cpu(mpdu_desc->v3.tsf_on_air_rise);
+
+		/* TSF as indicated by the firmware is at INA time */
+		rx_status->flag |= RX_FLAG_MACTIME_PLCP_START;
+	}
+
+	/* management stuff on default queue */
+	if (!queue && unlikely(ieee80211_is_beacon(hdr->frame_control) ||
+			       ieee80211_is_probe_resp(hdr->frame_control))) {
+		rx_status->boottime_ns = ktime_get_boottime_ns();
+
+		if (mld->scan.pass_all_sched_res ==
+				SCHED_SCAN_PASS_ALL_STATE_ENABLED)
+			mld->scan.pass_all_sched_res =
+				SCHED_SCAN_PASS_ALL_STATE_FOUND;
+	}
+
+	iwl_mld_rx_fill_status(mld, skb, &phy_data, queue);
 
 	if (iwl_mld_rx_crypto(mld, sta, hdr, rx_status, mpdu_desc, queue,
 			      le32_to_cpu(pkt->len_n_flags), &crypto_len))
@@ -1857,7 +1865,7 @@ void iwl_mld_sync_rx_queues(struct iwl_mld *mld,
 			    enum iwl_mld_internal_rxq_notif_type type,
 			    const void *notif_payload, u32 notif_payload_size)
 {
-	u8 num_rx_queues = mld->trans->num_rx_queues;
+	u8 num_rx_queues = mld->trans->info.num_rxqs;
 	struct {
 		struct iwl_rxq_sync_cmd sync_cmd;
 		struct iwl_mld_internal_rxq_notif notif;
@@ -1956,6 +1964,7 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	struct ieee80211_rx_status *rx_status;
 	struct sk_buff *skb;
 	u32 format, rssi;
+	u8 channel;
 
 	if (unlikely(mld->fw_status.in_hw_restart))
 		return;
@@ -1968,14 +1977,16 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	desc = (void *)pkt->data;
 
 	rssi = le32_to_cpu(desc->rssi);
+	channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK);
+
 	phy_data.energy_a = u32_get_bits(rssi, RX_NO_DATA_CHAIN_A_MSK);
 	phy_data.energy_b = u32_get_bits(rssi, RX_NO_DATA_CHAIN_B_MSK);
-	phy_data.channel = u32_get_bits(rssi, RX_NO_DATA_CHANNEL_MSK);
 	phy_data.data0 = desc->phy_info[0];
 	phy_data.data1 = desc->phy_info[1];
 	phy_data.phy_info = IWL_RX_MPDU_PHY_TSF_OVERLOAD;
 	phy_data.gp2_on_air_rise = le32_to_cpu(desc->on_air_rise_time);
-	phy_data.rate_n_flags = le32_to_cpu(desc->rate);
+	phy_data.rate_n_flags = iwl_v3_rate_from_v2_v3(desc->rate,
+						       mld->fw_rates_ver_3);
 	phy_data.with_data = false;
 
 	BUILD_BUG_ON(sizeof(phy_data.rx_vec) != sizeof(desc->rx_vec));
@@ -2018,13 +2029,13 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 		break;
 	}
 
-	rx_status->band = phy_data.channel > 14 ? NL80211_BAND_5GHZ :
+	rx_status->band = channel > 14 ? NL80211_BAND_5GHZ :
 		NL80211_BAND_2GHZ;
 
-	rx_status->freq = ieee80211_channel_to_frequency(phy_data.channel,
+	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
 
-	iwl_mld_rx_fill_status(mld, skb, &phy_data, NULL, NULL, queue);
+	iwl_mld_rx_fill_status(mld, skb, &phy_data, queue);
 
 	/* No more radiotap info should be added after this point.
 	 * Mark it as mac header for upper layers to know where
@@ -2037,17 +2048,17 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	 * may be up to 8 spatial streams.
 	 */
 	switch (format) {
-	case RATE_MCS_VHT_MSK:
+	case RATE_MCS_MOD_TYPE_VHT:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_VHT_NSTS_MSK) + 1;
 		break;
-	case RATE_MCS_HE_MSK:
+	case RATE_MCS_MOD_TYPE_HE:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[0],
 				      RX_NO_DATA_RX_VEC0_HE_NSTS_MSK) + 1;
 		break;
-	case RATE_MCS_EHT_MSK:
+	case RATE_MCS_MOD_TYPE_EHT:
 		rx_status->nss =
 			le32_get_bits(desc->rx_vec[2],
 				      RX_NO_DATA_RX_VEC2_EHT_NSTS_MSK) + 1;

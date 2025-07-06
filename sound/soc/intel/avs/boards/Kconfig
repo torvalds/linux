@@ -4,6 +4,14 @@ menu "Intel AVS Machine drivers"
 
 comment "Available DSP configurations"
 
+config SND_SOC_INTEL_AVS_CARDNAME_OBSOLETE
+	bool "Use obsolete card names"
+	default n
+	help
+	  Use obsolete names for some of avs cards. This option should be
+	  used if your system depends on old card names, for example having
+	  not up to date UCM files.
+
 config SND_SOC_INTEL_AVS_MACH_DA7219
 	tristate "da7219 I2S board"
 	depends on I2C

@@ -16,6 +16,18 @@ allOf:
   - if:
       properties:
         compatible:
+          items:
+            - {}
+            - const: renesas,rzn1-uart
+            - const: snps,dw-apb-uart
+    then:
+      properties:
+        dmas: false
+        dma-names: false
+
+  - if:
+      properties:
+        compatible:
           contains:
             const: starfive,jh7110-uart
     then:
@@ -31,9 +43,11 @@ properties:
   compatible:
     oneOf:
       - items:
-          - enum:
-              - renesas,r9a06g032-uart
-              - renesas,r9a06g033-uart
+          - const: renesas,r9a06g032-uart
+          - const: renesas,rzn1-uart
+          - const: snps,dw-apb-uart
+      - items:
+          - const: renesas,r9a06g032-uart
           - const: renesas,rzn1-uart
       - items:
           - enum:
@@ -51,6 +65,7 @@ properties:
               - rockchip,rk3368-uart
               - rockchip,rk3399-uart
               - rockchip,rk3528-uart
+              - rockchip,rk3562-uart
               - rockchip,rk3568-uart
               - rockchip,rk3576-uart
               - rockchip,rk3588-uart

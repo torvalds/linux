@@ -2619,7 +2619,8 @@ err_qdio_bufs:
 
 static void qeth_tx_completion_timer(struct timer_list *timer)
 {
-	struct qeth_qdio_out_q *queue = from_timer(queue, timer, timer);
+	struct qeth_qdio_out_q *queue = timer_container_of(queue, timer,
+							   timer);
 
 	napi_schedule(&queue->napi);
 	QETH_TXQ_STAT_INC(queue, completion_timer);
@@ -7088,7 +7089,7 @@ int qeth_stop(struct net_device *dev)
 	netif_tx_disable(dev);
 
 	qeth_for_each_output_queue(card, queue, i) {
-		del_timer_sync(&queue->timer);
+		timer_delete_sync(&queue->timer);
 		/* Queues may get re-allocated, so remove the NAPIs. */
 		netif_napi_del(&queue->napi);
 	}

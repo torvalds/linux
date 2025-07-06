@@ -9478,6 +9478,8 @@
 #define regRLC_GFX_IMU_CMD_BASE_IDX                                                                     1
 #define regGFX_IMU_RLC_STATUS                                                                           0x4054
 #define regGFX_IMU_RLC_STATUS_BASE_IDX                                                                  1
+#define regGFX_IMU_STATUS										0x4055
+#define regGFX_IMU_STATUS_BASE_IDX									1
 #define regGFX_IMU_SOC_DATA                                                                             0x4059
 #define regGFX_IMU_SOC_DATA_BASE_IDX                                                                    1
 #define regGFX_IMU_SOC_ADDR                                                                             0x405a

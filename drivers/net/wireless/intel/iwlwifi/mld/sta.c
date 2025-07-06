@@ -401,9 +401,11 @@ static u32 iwl_mld_get_htc_flags(struct ieee80211_link_sta *link_sta)
 static int iwl_mld_send_sta_cmd(struct iwl_mld *mld,
 				const struct iwl_sta_cfg_cmd *cmd)
 {
-	int ret = iwl_mld_send_cmd_pdu(mld,
-				       WIDE_ID(MAC_CONF_GROUP, STA_CONFIG_CMD),
-				       cmd);
+	u32 cmd_id = WIDE_ID(MAC_CONF_GROUP, STA_CONFIG_CMD);
+	int cmd_len = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 0) > 1 ?
+		      sizeof(*cmd) :
+		      sizeof(struct iwl_sta_cfg_cmd_v1);
+	int ret = iwl_mld_send_cmd_pdu(mld, cmd_id, cmd, cmd_len);
 	if (ret)
 		IWL_ERR(mld, "STA_CONFIG_CMD send failed, ret=0x%x\n", ret);
 	return ret;
@@ -660,7 +662,7 @@ iwl_mld_alloc_dup_data(struct iwl_mld *mld, struct iwl_mld_sta *mld_sta)
 	if (mld->fw_status.in_hw_restart)
 		return 0;
 
-	dup_data = kcalloc(mld->trans->num_rx_queues, sizeof(*dup_data),
+	dup_data = kcalloc(mld->trans->info.num_rxqs, sizeof(*dup_data),
 			   GFP_KERNEL);
 	if (!dup_data)
 		return -ENOMEM;
@@ -673,7 +675,7 @@ iwl_mld_alloc_dup_data(struct iwl_mld *mld, struct iwl_mld_sta *mld_sta)
 	 * This thus allows receiving a packet with seqno 0 and the
 	 * retry bit set as the very first packet on a new TID.
 	 */
-	for (int q = 0; q < mld->trans->num_rx_queues; q++)
+	for (int q = 0; q < mld->trans->info.num_rxqs; q++)
 		memset(dup_data[q].last_seq, 0xff,
 		       sizeof(dup_data[q].last_seq));
 	mld_sta->dup_data = dup_data;
@@ -695,13 +697,13 @@ static void iwl_mld_alloc_mpdu_counters(struct iwl_mld *mld,
 	    sta->tdls || !ieee80211_vif_is_mld(vif))
 		return;
 
-	mld_sta->mpdu_counters = kcalloc(mld->trans->num_rx_queues,
+	mld_sta->mpdu_counters = kcalloc(mld->trans->info.num_rxqs,
 					 sizeof(*mld_sta->mpdu_counters),
 					 GFP_KERNEL);
 	if (!mld_sta->mpdu_counters)
 		return;
 
-	for (int q = 0; q < mld->trans->num_rx_queues; q++)
+	for (int q = 0; q < mld->trans->info.num_rxqs; q++)
 		spin_lock_init(&mld_sta->mpdu_counters[q].lock);
 }
 
@@ -947,7 +949,7 @@ static int iwl_mld_allocate_internal_txq(struct iwl_mld *mld,
 	int queue, size;
 
 	size = max_t(u32, IWL_MGMT_QUEUE_SIZE,
-		     mld->trans->cfg->min_txq_size);
+		     mld->trans->mac_cfg->base->min_txq_size);
 
 	queue = iwl_trans_txq_alloc(mld->trans, 0, sta_mask, tid, size,
 				    IWL_WATCHDOG_DISABLED);
@@ -1087,6 +1089,24 @@ int iwl_mld_add_aux_sta(struct iwl_mld *mld,
 					0, NULL, IWL_MAX_TID_COUNT);
 }
 
+int iwl_mld_add_mon_sta(struct iwl_mld *mld,
+			struct ieee80211_vif *vif,
+			struct ieee80211_bss_conf *link)
+{
+	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
+
+	if (WARN_ON(!mld_link))
+		return -EINVAL;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_MONITOR))
+		return -EINVAL;
+
+	return iwl_mld_add_internal_sta(mld, &mld_link->mon_sta,
+					STATION_TYPE_BCAST_MGMT,
+					mld_link->fw_id, NULL,
+					IWL_MAX_TID_COUNT);
+}
+
 static void iwl_mld_remove_internal_sta(struct iwl_mld *mld,
 					struct iwl_mld_int_sta *internal_sta,
 					bool flush, u8 tid)
@@ -1140,6 +1160,19 @@ void iwl_mld_remove_mcast_sta(struct iwl_mld *mld,
 }
 
 void iwl_mld_remove_aux_sta(struct iwl_mld *mld,
+			    struct ieee80211_vif *vif)
+{
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+		    vif->type != NL80211_IFTYPE_STATION))
+		return;
+
+	iwl_mld_remove_internal_sta(mld, &mld_vif->aux_sta, false,
+				    IWL_MAX_TID_COUNT);
+}
+
+void iwl_mld_remove_mon_sta(struct iwl_mld *mld,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_bss_conf *link)
 {
@@ -1148,11 +1181,10 @@ void iwl_mld_remove_aux_sta(struct iwl_mld *mld,
 	if (WARN_ON(!mld_link))
 		return;
 
-	/* TODO: Hotspot 2.0 */
-	if (WARN_ON(vif->type != NL80211_IFTYPE_P2P_DEVICE))
+	if (WARN_ON(vif->type != NL80211_IFTYPE_MONITOR))
 		return;
 
-	iwl_mld_remove_internal_sta(mld, &mld_link->aux_sta, false,
+	iwl_mld_remove_internal_sta(mld, &mld_link->mon_sta, false,
 				    IWL_MAX_TID_COUNT);
 }
 

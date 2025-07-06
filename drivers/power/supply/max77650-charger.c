@@ -298,7 +298,7 @@ static int max77650_charger_probe(struct platform_device *pdev)
 
 	chg->dev = dev;
 
-	pscfg.of_node = dev->of_node;
+	pscfg.fwnode = dev_fwnode(dev);
 	pscfg.drv_data = chg;
 
 	chg_irq = platform_get_irq_byname(pdev, "CHG");

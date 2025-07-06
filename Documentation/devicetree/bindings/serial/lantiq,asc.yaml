@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/lantiq,asc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Lantiq SoC ASC serial controller
+
+maintainers:
+  - John Crispin <john@phrozen.org>
+  - Songjun Wu <songjun.wu@linux.intel.com>
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+
+properties:
+  compatible:
+    const: lantiq,asc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: TX interrupt
+      - description: RX interrupt
+      - description: Error interrupt
+
+  clocks:
+    items:
+      - description: Frequency clock
+      - description: Gate clock
+
+  clock-names:
+    items:
+      - const: freq
+      - const: asc
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+
+    serial@16600000 {
+        compatible = "lantiq,asc";
+        reg = <0x16600000 0x100000>;
+        interrupts = <GIC_SHARED 103 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SHARED 105 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SHARED 106 IRQ_TYPE_LEVEL_HIGH>;
+    };

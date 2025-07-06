@@ -111,7 +111,7 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 		if (err)
 			goto out;
 	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
+		mangle(m, r->mnt_devname);
 	}
 	seq_putc(m, ' ');
 	/* mountpoints outside of chroot jail will give SEQ_SKIP on this */
@@ -177,7 +177,7 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 		if (err)
 			goto out;
 	} else {
-		mangle(m, r->mnt_devname ? r->mnt_devname : "none");
+		mangle(m, r->mnt_devname);
 	}
 	seq_puts(m, sb_rdonly(sb) ? " ro" : " rw");
 	err = show_sb_opts(m, sb);
@@ -199,17 +199,13 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	int err;
 
 	/* device */
+	seq_puts(m, "device ");
 	if (sb->s_op->show_devname) {
-		seq_puts(m, "device ");
 		err = sb->s_op->show_devname(m, mnt_path.dentry);
 		if (err)
 			goto out;
 	} else {
-		if (r->mnt_devname) {
-			seq_puts(m, "device ");
-			mangle(m, r->mnt_devname);
-		} else
-			seq_puts(m, "no device");
+		mangle(m, r->mnt_devname);
 	}
 
 	/* mount point */

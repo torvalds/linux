@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
+#include <asm/machine.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
@@ -618,7 +619,7 @@ static void raw3270_reset_device_cb(struct raw3270_request *rq, void *data)
 	if (rq->rc) {
 		/* Reset command failed. */
 		rp->state = RAW3270_STATE_INIT;
-	} else if (MACHINE_IS_VM) {
+	} else if (machine_is_vm()) {
 		raw3270_size_device_vm(rp);
 		raw3270_size_device_done(rp);
 	} else {

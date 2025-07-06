@@ -370,7 +370,8 @@ static irqreturn_t af8133j_trigger_handler(int irq, void *p)
 	if (ret)
 		goto out_done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &sample, timestamp);
+	iio_push_to_buffers_with_ts(indio_dev, &sample, sizeof(sample),
+				    timestamp);
 
 out_done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -383,7 +384,6 @@ static const struct regmap_config af8133j_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = AF8133J_REG_SWR,
-	.cache_type = REGCACHE_NONE,
 };
 
 static void af8133j_power_down_action(void *ptr)

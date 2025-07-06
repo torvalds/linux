@@ -549,6 +549,8 @@
 	};
 
 	serial@3100000 {
+		/delete-property/ dmas;
+		/delete-property/ dma-names;
 		status = "okay";
 	};
 
@@ -710,6 +712,12 @@
 
 		phys = <&micro_b>;
 		phy-names = "usb2-0";
+	};
+
+	cec@3960000 {
+		status = "okay";
+
+		hdmi-phandle = <&sor1>;
 	};
 
 	hsp@3c00000 {

@@ -9,7 +9,7 @@
 
 config BATMAN_ADV
 	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
-	select LIBCRC32C
+	select CRC32
 	help
 	  B.A.T.M.A.N. (better approach to mobile ad-hoc networking) is
 	  a routing protocol for multi-hop ad-hoc mesh networks. The

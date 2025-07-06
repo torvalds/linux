@@ -23,9 +23,6 @@
 
 #define CRYPTO_ENGINE_MAX_QLEN 10
 
-/* Temporary algorithm flag used to indicate an updated driver. */
-#define CRYPTO_ALG_ENGINE 0x200
-
 struct crypto_engine_alg {
 	struct crypto_alg base;
 	struct crypto_engine_op op;
@@ -148,16 +145,9 @@ start_request:
 		}
 	}
 
-	if (async_req->tfm->__crt_alg->cra_flags & CRYPTO_ALG_ENGINE) {
-		alg = container_of(async_req->tfm->__crt_alg,
-				   struct crypto_engine_alg, base);
-		op = &alg->op;
-	} else {
-		dev_err(engine->dev, "failed to do request\n");
-		ret = -EINVAL;
-		goto req_err_1;
-	}
-
+	alg = container_of(async_req->tfm->__crt_alg,
+			   struct crypto_engine_alg, base);
+	op = &alg->op;
 	ret = op->do_one_request(engine, async_req);
 
 	/* Request unsuccessfully executed by hardware */
@@ -569,9 +559,6 @@ int crypto_engine_register_aead(struct aead_engine_alg *alg)
 {
 	if (!alg->op.do_one_request)
 		return -EINVAL;
-
-	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
-
 	return crypto_register_aead(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_aead);
@@ -614,9 +601,6 @@ int crypto_engine_register_ahash(struct ahash_engine_alg *alg)
 {
 	if (!alg->op.do_one_request)
 		return -EINVAL;
-
-	alg->base.halg.base.cra_flags |= CRYPTO_ALG_ENGINE;
-
 	return crypto_register_ahash(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_ahash);
@@ -660,9 +644,6 @@ int crypto_engine_register_akcipher(struct akcipher_engine_alg *alg)
 {
 	if (!alg->op.do_one_request)
 		return -EINVAL;
-
-	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
-
 	return crypto_register_akcipher(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_akcipher);
@@ -677,9 +658,6 @@ int crypto_engine_register_kpp(struct kpp_engine_alg *alg)
 {
 	if (!alg->op.do_one_request)
 		return -EINVAL;
-
-	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
-
 	return crypto_register_kpp(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_kpp);
@@ -694,9 +672,6 @@ int crypto_engine_register_skcipher(struct skcipher_engine_alg *alg)
 {
 	if (!alg->op.do_one_request)
 		return -EINVAL;
-
-	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
-
 	return crypto_register_skcipher(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_engine_register_skcipher);

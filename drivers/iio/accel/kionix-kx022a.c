@@ -149,7 +149,7 @@ static const struct regmap_config kx022a_regmap_config = {
 	.rd_noinc_table = &kx022a_nir_regs,
 	.precious_table = &kx022a_precious_regs,
 	.max_register = KX022A_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* Regmap configs kx132 */
@@ -260,7 +260,7 @@ static const struct regmap_config kx132_regmap_config = {
 	.rd_noinc_table = &kx132_nir_regs,
 	.precious_table = &kx132_precious_regs,
 	.max_register = KX132_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 struct kx022a_data {
@@ -510,12 +510,63 @@ static int kx022a_write_raw_get_fmt(struct iio_dev *idev,
 	}
 }
 
+static int __kx022a_write_raw(struct iio_dev *idev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
+{
+	struct kx022a_data *data = iio_priv(idev);
+	int ret, n;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		n = ARRAY_SIZE(kx022a_accel_samp_freq_table);
+
+		while (n--)
+			if (val == kx022a_accel_samp_freq_table[n][0] &&
+			    val2 == kx022a_accel_samp_freq_table[n][1])
+				break;
+		if (n < 0)
+			return -EINVAL;
+
+		ret = kx022a_turn_off_lock(data);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(data->regmap,
+					 data->chip_info->odcntl,
+					 KX022A_MASK_ODR, n);
+		data->odr_ns = kx022a_odrs[n];
+		kx022a_turn_on_unlock(data);
+		return ret;
+	case IIO_CHAN_INFO_SCALE:
+		n = data->chip_info->scale_table_size / 2;
+
+		while (n-- > 0)
+			if (val == data->chip_info->scale_table[n][0] &&
+			    val2 == data->chip_info->scale_table[n][1])
+				break;
+		if (n < 0)
+			return -EINVAL;
+
+		ret = kx022a_turn_off_lock(data);
+		if (ret)
+			return ret;
+
+		ret = regmap_update_bits(data->regmap, data->chip_info->cntl,
+					 KX022A_MASK_GSEL,
+					 n << KX022A_GSEL_SHIFT);
+		kx022a_turn_on_unlock(data);
+		return ret;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int kx022a_write_raw(struct iio_dev *idev,
 			    struct iio_chan_spec const *chan,
 			    int val, int val2, long mask)
 {
-	struct kx022a_data *data = iio_priv(idev);
-	int ret, n;
+	int ret;
 
 	/*
 	 * We should not allow changing scale or frequency when FIFO is running
@@ -526,60 +577,12 @@ static int kx022a_write_raw(struct iio_dev *idev,
 	 * issues if users trust the watermark to be reached within known
 	 * time-limit).
 	 */
-	ret = iio_device_claim_direct_mode(idev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(idev))
+		return -EBUSY;
 
-	switch (mask) {
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		n = ARRAY_SIZE(kx022a_accel_samp_freq_table);
+	ret = __kx022a_write_raw(idev, chan, val, val2, mask);
 
-		while (n--)
-			if (val == kx022a_accel_samp_freq_table[n][0] &&
-			    val2 == kx022a_accel_samp_freq_table[n][1])
-				break;
-		if (n < 0) {
-			ret = -EINVAL;
-			goto unlock_out;
-		}
-		ret = kx022a_turn_off_lock(data);
-		if (ret)
-			break;
-
-		ret = regmap_update_bits(data->regmap,
-					 data->chip_info->odcntl,
-					 KX022A_MASK_ODR, n);
-		data->odr_ns = kx022a_odrs[n];
-		kx022a_turn_on_unlock(data);
-		break;
-	case IIO_CHAN_INFO_SCALE:
-		n = data->chip_info->scale_table_size / 2;
-
-		while (n-- > 0)
-			if (val == data->chip_info->scale_table[n][0] &&
-			    val2 == data->chip_info->scale_table[n][1])
-				break;
-		if (n < 0) {
-			ret = -EINVAL;
-			goto unlock_out;
-		}
-
-		ret = kx022a_turn_off_lock(data);
-		if (ret)
-			break;
-
-		ret = regmap_update_bits(data->regmap, data->chip_info->cntl,
-					 KX022A_MASK_GSEL,
-					 n << KX022A_GSEL_SHIFT);
-		kx022a_turn_on_unlock(data);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-unlock_out:
-	iio_device_release_direct_mode(idev);
+	iio_device_release_direct(idev);
 
 	return ret;
 }
@@ -620,15 +623,14 @@ static int kx022a_read_raw(struct iio_dev *idev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(idev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(idev))
+			return -EBUSY;
 
 		mutex_lock(&data->mutex);
 		ret = kx022a_get_axis(data, chan, val);
 		mutex_unlock(&data->mutex);
 
-		iio_device_release_direct_mode(idev);
+		iio_device_release_direct(idev);
 
 		return ret;
 

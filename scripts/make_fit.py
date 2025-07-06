@@ -279,7 +279,11 @@ def build_fit(args):
         if os.path.splitext(fname)[1] != '.dtb':
             continue
 
-        (model, compat, files) = process_dtb(fname, args)
+        try:
+            (model, compat, files) = process_dtb(fname, args)
+        except Exception as e:
+            sys.stderr.write(f"Error processing {fname}:\n")
+            raise e
 
         for fn in files:
             if fn not in fdts:

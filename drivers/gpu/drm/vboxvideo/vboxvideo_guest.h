@@ -34,8 +34,6 @@ int hgsmi_query_conf(struct gen_pool *ctx, u32 index, u32 *value_ret);
 int hgsmi_update_pointer_shape(struct gen_pool *ctx, u32 flags,
 			       u32 hot_x, u32 hot_y, u32 width, u32 height,
 			       u8 *pixels, u32 len);
-int hgsmi_cursor_position(struct gen_pool *ctx, bool report_position,
-			  u32 x, u32 y, u32 *x_host, u32 *y_host);
 
 bool vbva_enable(struct vbva_buf_ctx *vbva_ctx, struct gen_pool *ctx,
 		 struct vbva_buffer *vbva, s32 screen);

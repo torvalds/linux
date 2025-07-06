@@ -43,15 +43,15 @@ properties:
   fsl,phy-tx-vref-tune-percent:
     description:
       Tunes the HS DC level relative to the nominal level
-    minimum: 94
+    minimum: 90
     maximum: 124
 
   fsl,phy-tx-rise-tune-percent:
     description:
       Adjusts the rise/fall time duration of the HS waveform relative to
       its nominal value
-    minimum: 97
-    maximum: 103
+    minimum: 90
+    maximum: 120
 
   fsl,phy-tx-preemp-amp-tune-microamp:
     description:
@@ -63,8 +63,7 @@ properties:
   fsl,phy-tx-vboost-level-microvolt:
     description:
       Adjust the boosted transmit launch pk-pk differential amplitude
-    minimum: 880
-    maximum: 1120
+    enum: [844, 1008, 1156]
 
   fsl,phy-comp-dis-tune-percent:
     description:
@@ -111,6 +110,34 @@ allOf:
       properties:
         reg:
           maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - fsl,imx8mq-usb-phy
+            - fsl,imx8mp-usb-phy
+    then:
+      properties:
+        fsl,phy-tx-vref-tune-percent:
+          minimum: 94
+        fsl,phy-tx-rise-tune-percent:
+          minimum: 97
+          maximum: 103
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx95-usb-phy
+    then:
+      properties:
+        fsl,phy-tx-vref-tune-percent:
+          maximum: 108
+        fsl,phy-comp-dis-tune-percent:
+          minimum: 94
+          maximum: 104
 
   - if:
       required:

@@ -404,7 +404,7 @@ config TELCLOCK
 	  configuration of the telecom clock configuration settings.  This
 	  device is used for hardware synchronization across the ATCA backplane
 	  fabric.  Upon loading, the driver exports a sysfs directory,
-	  /sys/devices/platform/telco_clock, with a number of files for
+	  /sys/devices/faux/telco_clock, with a number of files for
 	  controlling the behavior of this hardware.
 
 source "drivers/s390/char/Kconfig"

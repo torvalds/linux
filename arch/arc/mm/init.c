@@ -150,41 +150,18 @@ void __init setup_arch_memory(void)
 	 */
 	max_zone_pfn[ZONE_HIGHMEM] = max_high_pfn;
 
-	high_memory = (void *)(min_high_pfn << PAGE_SHIFT);
-
 	arch_pfn_offset = min(min_low_pfn, min_high_pfn);
 	kmap_init();
-
-#else /* CONFIG_HIGHMEM */
-	/* pfn_valid() uses this when FLATMEM=y and HIGHMEM=n */
-	max_mapnr = max_low_pfn - min_low_pfn;
-
 #endif /* CONFIG_HIGHMEM */
 
 	free_area_init(max_zone_pfn);
 }
 
-static void __init highmem_init(void)
+void __init arch_mm_preinit(void)
 {
 #ifdef CONFIG_HIGHMEM
-	unsigned long tmp;
-
 	memblock_phys_free(high_mem_start, high_mem_sz);
-	for (tmp = min_high_pfn; tmp < max_high_pfn; tmp++)
-		free_highmem_page(pfn_to_page(tmp));
 #endif
-}
-
-/*
- * mem_init - initializes memory
- *
- * Frees up bootmem
- * Calculates and displays memory available/used
- */
-void __init mem_init(void)
-{
-	memblock_free_all();
-	highmem_init();
 
 	BUILD_BUG_ON((PTRS_PER_PGD * sizeof(pgd_t)) > PAGE_SIZE);
 	BUILD_BUG_ON((PTRS_PER_PUD * sizeof(pud_t)) > PAGE_SIZE);

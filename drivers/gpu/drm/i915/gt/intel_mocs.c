@@ -314,7 +314,6 @@ static const struct drm_i915_mocs_entry icl_mocs_table[] = {
 };
 
 static const struct drm_i915_mocs_entry dg1_mocs_table[] = {
-
 	/* UC */
 	MOCS_ENTRY(1, 0, L3_1_UC),
 	/* WB - L3 */
@@ -675,7 +674,7 @@ void intel_mocs_init(struct intel_gt *gt)
 		__init_mocs_table(gt->uncore, &table, global_mocs_offset());
 
 	/*
-	 * Initialize the L3CC table as part of mocs initalization to make
+	 * Initialize the L3CC table as part of mocs initialization to make
 	 * sure the LNCFCMOCSx registers are programmed for the subsequent
 	 * memory transactions including guc transactions
 	 */

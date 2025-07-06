@@ -18,9 +18,9 @@
  */
 #define LAN743X_PTP_N_EVENT_CHAN	2
 #define LAN743X_PTP_N_PEROUT		LAN743X_PTP_N_EVENT_CHAN
-#define LAN743X_PTP_N_EXTTS		4
-#define LAN743X_PTP_N_PPS		0
 #define PCI11X1X_PTP_IO_MAX_CHANNELS	8
+#define LAN743X_PTP_N_EXTTS		PCI11X1X_PTP_IO_MAX_CHANNELS
+#define LAN743X_PTP_N_PPS		0
 #define PTP_CMD_CTL_TIMEOUT_CNT		50
 
 struct lan743x_adapter;
@@ -51,8 +51,11 @@ int lan743x_ptp_open(struct lan743x_adapter *adapter);
 void lan743x_ptp_close(struct lan743x_adapter *adapter);
 void lan743x_ptp_update_latency(struct lan743x_adapter *adapter,
 				u32 link_speed);
-
-int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
+int lan743x_ptp_hwtstamp_get(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config);
+int lan743x_ptp_hwtstamp_set(struct net_device *netdev,
+			     struct kernel_hwtstamp_config *config,
+			     struct netlink_ext_ack *extack);
 
 #define LAN743X_PTP_NUMBER_OF_TX_TIMESTAMPS (4)
 

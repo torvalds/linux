@@ -36,10 +36,21 @@ enum panfrost_drv_comp_bits {
  * enum panfrost_gpu_pm - Supported kernel power management features
  * @GPU_PM_CLK_DIS:  Allow disabling clocks during system suspend
  * @GPU_PM_VREG_OFF: Allow turning off regulators during system suspend
+ * @GPU_PM_RT: Allow disabling clocks and asserting the reset control during
+ *  system runtime suspend
  */
 enum panfrost_gpu_pm {
 	GPU_PM_CLK_DIS,
 	GPU_PM_VREG_OFF,
+	GPU_PM_RT
+};
+
+/**
+ * enum panfrost_gpu_quirks - GPU optional quirks
+ * @GPU_QUIRK_FORCE_AARCH64_PGTABLE: Use AARCH64_4K page table format
+ */
+enum panfrost_gpu_quirks {
+	GPU_QUIRK_FORCE_AARCH64_PGTABLE,
 };
 
 struct panfrost_features {
@@ -95,6 +106,9 @@ struct panfrost_compatible {
 
 	/* Allowed PM features */
 	u8 pm_features;
+
+	/* GPU configuration quirks */
+	u8 gpu_quirks;
 };
 
 struct panfrost_device {
@@ -162,6 +176,11 @@ struct panfrost_mmu {
 	int as;
 	atomic_t as_count;
 	struct list_head list;
+	struct {
+		u64 transtab;
+		u64 memattr;
+		u64 transcfg;
+	} cfg;
 };
 
 struct panfrost_engine_usage {

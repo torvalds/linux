@@ -45,7 +45,6 @@ struct zynqmp_dpsub_audio {
 
 	struct {
 		struct snd_soc_dai_link_component cpu;
-		struct snd_soc_dai_link_component codec;
 		struct snd_soc_dai_link_component platform;
 	} components[ZYNQMP_NUM_PCMS];
 
@@ -323,12 +322,16 @@ int zynqmp_audio_init(struct zynqmp_dpsub *dpsub)
 
 	audio->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 					 "%s-dai", dev_name(dev));
+	if (!audio->dai_name)
+		return -ENOMEM;
 
 	for (unsigned int i = 0; i < ZYNQMP_NUM_PCMS; ++i) {
 		audio->link_names[i] = devm_kasprintf(dev, GFP_KERNEL,
 						      "%s-dp-%u", dev_name(dev), i);
 		audio->pcm_names[i] = devm_kasprintf(dev, GFP_KERNEL,
 						     "%s-pcm-%u", dev_name(dev), i);
+		if (!audio->link_names[i] || !audio->pcm_names[i])
+			return -ENOMEM;
 	}
 
 	audio->base = devm_platform_ioremap_resource_byname(pdev, "aud");
@@ -399,10 +402,8 @@ int zynqmp_audio_init(struct zynqmp_dpsub *dpsub)
 		link->num_cpus = 1;
 		link->cpus[0].dai_name = audio->dai_name;
 
-		link->codecs = &audio->components[i].codec;
+		link->codecs = &snd_soc_dummy_dlc;
 		link->num_codecs = 1;
-		link->codecs[0].name = "snd-soc-dummy";
-		link->codecs[0].dai_name = "snd-soc-dummy-dai";
 
 		link->platforms = &audio->components[i].platform;
 		link->num_platforms = 1;

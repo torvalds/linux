@@ -59,36 +59,22 @@ void add_physmem_online_range(u64 start, u64 end)
 
 static int __diag260(unsigned long rx1, unsigned long rx2)
 {
-	unsigned long reg1, reg2, ry;
 	union register_pair rx;
 	int cc, exception;
-	psw_t old;
+	unsigned long ry;
 
 	rx.even = rx1;
 	rx.odd	= rx2;
 	ry = 0x10; /* storage configuration */
 	exception = 1;
-	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
+	asm_inline volatile(
 		"	diag	%[rx],%[ry],0x260\n"
-		"	lhi	%[exc],0\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		"0:	lhi	%[exc],0\n"
+		"1:\n"
 		CC_IPM(cc)
-		: CC_OUT(cc, cc),
-		  [exc] "+d" (exception),
-		  [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  [ry] "+&d" (ry),
-		  "+Q" (get_lowcore()->program_new_psw),
-		  "=Q" (old)
-		: [rx] "d" (rx.pair),
-		  [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw)
+		EX_TABLE(0b, 1b)
+		: CC_OUT(cc, cc), [exc] "+d" (exception), [ry] "+d" (ry)
+		: [rx] "d" (rx.pair)
 		: CC_CLOBBER_LIST("memory"));
 	cc = exception ? -1 : CC_TRANSFORM(cc);
 	return cc == 0 ? ry : -1;
@@ -118,29 +104,15 @@ static int diag260(void)
 static int diag500_storage_limit(unsigned long *max_physmem_end)
 {
 	unsigned long storage_limit;
-	unsigned long reg1, reg2;
-	psw_t old;
 
-	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
-		"	lghi	1,%[subcode]\n"
-		"	lghi	2,0\n"
-		"	diag	2,4,0x500\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		"	lgr	%[slimit],2\n"
-		: [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  [slimit] "=d" (storage_limit),
-		  "=Q" (get_lowcore()->program_new_psw),
-		  "=Q" (old)
-		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
-		  [subcode] "i" (DIAG500_SC_STOR_LIMIT)
+	asm_inline volatile(
+		"	lghi	%%r1,%[subcode]\n"
+		"	lghi	%%r2,0\n"
+		"	diag	%%r2,%%r4,0x500\n"
+		"0:	lgr	%[slimit],%%r2\n"
+		EX_TABLE(0b, 0b)
+		: [slimit] "=d" (storage_limit)
+		: [subcode] "i" (DIAG500_SC_STOR_LIMIT)
 		: "memory", "1", "2");
 	if (!storage_limit)
 		return -EINVAL;
@@ -151,31 +123,17 @@ static int diag500_storage_limit(unsigned long *max_physmem_end)
 
 static int tprot(unsigned long addr)
 {
-	unsigned long reg1, reg2;
 	int cc, exception;
-	psw_t old;
 
 	exception = 1;
-	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
+	asm_inline volatile(
 		"	tprot	0(%[addr]),0\n"
-		"	lhi	%[exc],0\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		"0:	lhi	%[exc],0\n"
+		"1:\n"
 		CC_IPM(cc)
-		: CC_OUT(cc, cc),
-		  [exc] "+d" (exception),
-		  [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  "=Q" (get_lowcore()->program_new_psw.addr),
-		  "=Q" (old)
-		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
-		  [addr] "a" (addr)
+		EX_TABLE(0b, 1b)
+		: CC_OUT(cc, cc), [exc] "+d" (exception)
+		: [addr] "a" (addr)
 		: CC_CLOBBER_LIST("memory"));
 	cc = exception ? -EFAULT : CC_TRANSFORM(cc);
 	return cc;

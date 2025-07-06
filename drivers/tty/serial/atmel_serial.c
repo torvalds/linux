@@ -700,7 +700,7 @@ static void atmel_disable_ms(struct uart_port *port)
 
 	atmel_port->ms_irq_enabled = false;
 
-	mctrl_gpio_disable_ms(atmel_port->gpios);
+	mctrl_gpio_disable_ms_no_sync(atmel_port->gpios);
 
 	if (!mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_CTS))
 		idr |= ATMEL_US_CTSIC;
@@ -1266,8 +1266,8 @@ chan_err:
 
 static void atmel_uart_timer_callback(struct timer_list *t)
 {
-	struct atmel_uart_port *atmel_port = from_timer(atmel_port, t,
-							uart_timer);
+	struct atmel_uart_port *atmel_port = timer_container_of(atmel_port, t,
+								uart_timer);
 	struct uart_port *port = &atmel_port->uart;
 
 	if (!atomic_read(&atmel_port->tasklet_shutdown)) {
@@ -2017,7 +2017,7 @@ static void atmel_shutdown(struct uart_port *port)
 	 * Prevent any tasklets being scheduled during
 	 * cleanup
 	 */
-	del_timer_sync(&atmel_port->uart_timer);
+	timer_delete_sync(&atmel_port->uart_timer);
 
 	/* Make sure that no interrupt is on the fly */
 	synchronize_irq(port->irq);

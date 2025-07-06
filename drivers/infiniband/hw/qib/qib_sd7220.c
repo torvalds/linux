@@ -1375,7 +1375,7 @@ void toggle_7220_rclkrls(struct qib_devdata *dd)
 void shutdown_7220_relock_poll(struct qib_devdata *dd)
 {
 	if (dd->cspec->relock_timer_active)
-		del_timer_sync(&dd->cspec->relock_timer);
+		timer_delete_sync(&dd->cspec->relock_timer);
 }
 
 static unsigned qib_relock_by_timer = 1;
@@ -1385,7 +1385,7 @@ MODULE_PARM_DESC(relock_by_timer, "Allow relock attempt if link not up");
 
 static void qib_run_relock(struct timer_list *t)
 {
-	struct qib_chip_specific *cs = from_timer(cs, t, relock_timer);
+	struct qib_chip_specific *cs = timer_container_of(cs, t, relock_timer);
 	struct qib_devdata *dd = cs->dd;
 	struct qib_pportdata *ppd = dd->pport;
 	int timeoff;

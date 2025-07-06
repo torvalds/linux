@@ -104,7 +104,7 @@ void ldb_bridge_disable_helper(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL_GPL(ldb_bridge_disable_helper);
 
-int ldb_bridge_attach_helper(struct drm_bridge *bridge,
+int ldb_bridge_attach_helper(struct drm_bridge *bridge, struct drm_encoder *encoder,
 			     enum drm_bridge_attach_flags flags)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
@@ -116,9 +116,8 @@ int ldb_bridge_attach_helper(struct drm_bridge *bridge,
 		return -EINVAL;
 	}
 
-	return drm_bridge_attach(bridge->encoder,
-				ldb_ch->next_bridge, bridge,
-				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+	return drm_bridge_attach(encoder, ldb_ch->next_bridge, bridge,
+				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 }
 EXPORT_SYMBOL_GPL(ldb_bridge_attach_helper);
 
@@ -191,8 +190,7 @@ int ldb_find_next_bridge_helper(struct ldb *ldb)
 }
 EXPORT_SYMBOL_GPL(ldb_find_next_bridge_helper);
 
-void ldb_add_bridge_helper(struct ldb *ldb,
-			   const struct drm_bridge_funcs *bridge_funcs)
+void ldb_add_bridge_helper(struct ldb *ldb)
 {
 	struct ldb_channel *ldb_ch;
 	int i;
@@ -204,7 +202,6 @@ void ldb_add_bridge_helper(struct ldb *ldb,
 			continue;
 
 		ldb_ch->bridge.driver_private = ldb_ch;
-		ldb_ch->bridge.funcs = bridge_funcs;
 		ldb_ch->bridge.of_node = ldb_ch->np;
 
 		drm_bridge_add(&ldb_ch->bridge);

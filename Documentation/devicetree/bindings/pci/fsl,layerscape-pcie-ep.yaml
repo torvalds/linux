@@ -94,9 +94,6 @@ examples:
         reg-names = "regs", "addr_space";
         interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>; /* PME interrupt */
         interrupt-names = "pme";
-        num-ib-windows = <6>;
-        num-ob-windows = <8>;
-        status = "disabled";
       };
     };
 ...

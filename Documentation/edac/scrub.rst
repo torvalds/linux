@@ -264,3 +264,79 @@ Sysfs files are documented in
 `Documentation/ABI/testing/sysfs-edac-scrub`
 
 `Documentation/ABI/testing/sysfs-edac-ecs`
+
+Examples
+--------
+
+The usage takes the form shown in these examples:
+
+1. CXL memory Patrol Scrub
+
+The following are the use cases identified why we might increase the scrub rate.
+
+- Scrubbing is needed at device granularity because a device is showing
+  unexpectedly high errors.
+
+- Scrubbing may apply to memory that isn't online at all yet. Likely this
+  is a system wide default setting on boot.
+
+- Scrubbing at a higher rate because the monitor software has determined that
+  more reliability is necessary for a particular data set. This is called
+  Differentiated Reliability.
+
+1.1. Device based scrubbing
+
+CXL memory is exposed to memory management subsystem and ultimately userspace
+via CXL devices. Device-based scrubbing is used for the first use case
+described in "Section 1 CXL Memory Patrol Scrub".
+
+When combining control via the device interfaces and region interfaces,
+"see Section 1.2 Region based scrubbing".
+
+Sysfs files for scrubbing are documented in
+`Documentation/ABI/testing/sysfs-edac-scrub`
+
+1.2. Region based scrubbing
+
+CXL memory is exposed to memory management subsystem and ultimately userspace
+via CXL regions. CXL Regions represent mapped memory capacity in system
+physical address space. These can incorporate one or more parts of multiple CXL
+memory devices with traffic interleaved across them. The user may want to control
+the scrub rate via this more abstract region instead of having to figure out the
+constituent devices and program them separately. The scrub rate for each device
+covers the whole device. Thus if multiple regions use parts of that device then
+requests for scrubbing of other regions may result in a higher scrub rate than
+requested for this specific region.
+
+Region-based scrubbing is used for the third use case described in
+"Section 1 CXL Memory Patrol Scrub".
+
+Userspace must follow below set of rules on how to set the scrub rates for any
+mixture of requirements.
+
+1. Taking each region in turn from lowest desired scrub rate to highest and set
+   their scrub rates. Later regions may override the scrub rate on individual
+   devices (and hence potentially whole regions).
+
+2. Take each device for which enhanced scrubbing is required (higher rate) and
+   set those scrub rates. This will override the scrub rates of individual devices,
+   setting them to the maximum rate required for any of the regions they help back,
+   unless a specific rate is already defined.
+
+Sysfs files for scrubbing are documented in
+`Documentation/ABI/testing/sysfs-edac-scrub`
+
+2. CXL memory Error Check Scrub (ECS)
+
+The Error Check Scrub (ECS) feature enables a memory device to perform error
+checking and correction (ECC) and count single-bit errors. The associated
+memory controller sets the ECS mode with a trigger sent to the memory
+device. CXL ECS control allows the host, thus the userspace, to change the
+attributes for error count mode, threshold number of errors per segment
+(indicating how many segments have at least that number of errors) for
+reporting errors, and reset the ECS counter. Thus the responsibility for
+initiating Error Check Scrub on a memory device may lie with the memory
+controller or platform when unexpectedly high error rates are detected.
+
+Sysfs files for scrubbing are documented in
+`Documentation/ABI/testing/sysfs-edac-ecs`

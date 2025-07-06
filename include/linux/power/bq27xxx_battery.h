@@ -62,6 +62,7 @@ struct bq27xxx_device_info {
 	struct bq27xxx_reg_cache cache;
 	int charge_design_full;
 	int voltage_min_design;
+	int voltage_max_design;
 	bool removed;
 	unsigned long last_update;
 	union power_supply_propval last_status;

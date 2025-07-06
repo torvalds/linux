@@ -743,7 +743,8 @@ int iscsit_check_post_dataout(
 
 void iscsit_handle_time2retain_timeout(struct timer_list *t)
 {
-	struct iscsit_session *sess = from_timer(sess, t, time2retain_timer);
+	struct iscsit_session *sess = timer_container_of(sess, t,
+							 time2retain_timer);
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
 
@@ -810,7 +811,7 @@ int iscsit_stop_time2retain_timer(struct iscsit_session *sess)
 	sess->time2retain_timer_flags |= ISCSI_TF_STOP;
 	spin_unlock(&se_tpg->session_lock);
 
-	del_timer_sync(&sess->time2retain_timer);
+	timer_delete_sync(&sess->time2retain_timer);
 
 	spin_lock(&se_tpg->session_lock);
 	sess->time2retain_timer_flags &= ~ISCSI_TF_RUNNING;

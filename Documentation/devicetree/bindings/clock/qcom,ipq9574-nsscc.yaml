@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,ipq9574-nsscc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Networking Sub System Clock & Reset Controller on IPQ9574
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+  - Anusha Rao <quic_anusha@quicinc.com>
+
+description: |
+  Qualcomm networking sub system clock control module provides the clocks,
+  resets on IPQ9574
+
+  See also::
+    include/dt-bindings/clock/qcom,ipq9574-nsscc.h
+    include/dt-bindings/reset/qcom,ipq9574-nsscc.h
+
+properties:
+  compatible:
+    const: qcom,ipq9574-nsscc
+
+  clocks:
+    items:
+      - description: Board XO source
+      - description: CMN_PLL NSS 1200MHz (Bias PLL cc) clock source
+      - description: CMN_PLL PPE 353MHz (Bias PLL ubi nc) clock source
+      - description: GCC GPLL0 OUT AUX clock source
+      - description: Uniphy0 NSS Rx clock source
+      - description: Uniphy0 NSS Tx clock source
+      - description: Uniphy1 NSS Rx clock source
+      - description: Uniphy1 NSS Tx clock source
+      - description: Uniphy2 NSS Rx clock source
+      - description: Uniphy2 NSS Tx clock source
+      - description: GCC NSSCC clock source
+
+  '#interconnect-cells':
+    const: 1
+
+  clock-names:
+    items:
+      - const: xo
+      - const: nss_1200
+      - const: ppe_353
+      - const: gpll0_out
+      - const: uniphy0_rx
+      - const: uniphy0_tx
+      - const: uniphy1_rx
+      - const: uniphy1_tx
+      - const: uniphy2_rx
+      - const: uniphy2_tx
+      - const: bus
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,ipq9574-gcc.h>
+    #include <dt-bindings/clock/qcom,ipq-cmn-pll.h>
+    clock-controller@39b00000 {
+      compatible = "qcom,ipq9574-nsscc";
+      reg = <0x39b00000 0x80000>;
+      clocks = <&xo_board_clk>,
+               <&cmn_pll NSS_1200MHZ_CLK>,
+               <&cmn_pll PPE_353MHZ_CLK>,
+               <&gcc GPLL0_OUT_AUX>,
+               <&uniphy 0>,
+               <&uniphy 1>,
+               <&uniphy 2>,
+               <&uniphy 3>,
+               <&uniphy 4>,
+               <&uniphy 5>,
+               <&gcc GCC_NSSCC_CLK>;
+      clock-names = "xo",
+                    "nss_1200",
+                    "ppe_353",
+                    "gpll0_out",
+                    "uniphy0_rx",
+                    "uniphy0_tx",
+                    "uniphy1_rx",
+                    "uniphy1_tx",
+                    "uniphy2_rx",
+                    "uniphy2_tx",
+                    "bus";
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+    };
+...

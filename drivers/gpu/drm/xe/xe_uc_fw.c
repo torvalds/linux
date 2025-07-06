@@ -92,6 +92,8 @@
 
 struct uc_fw_entry {
 	enum xe_platform platform;
+	enum xe_gt_type gt_type;
+
 	struct {
 		const char *path;
 		u16 major;
@@ -106,32 +108,37 @@ struct fw_blobs_by_type {
 	u32 count;
 };
 
-#define XE_GUC_FIRMWARE_DEFS(fw_def, mmp_ver, major_ver)			\
-	fw_def(BATTLEMAGE,	major_ver(xe,	guc,	bmg,	70, 29, 2))	\
-	fw_def(LUNARLAKE,	major_ver(xe,	guc,	lnl,	70, 29, 2))	\
-	fw_def(METEORLAKE,	major_ver(i915,	guc,	mtl,	70, 29, 2))	\
-	fw_def(DG2,		major_ver(i915,	guc,	dg2,	70, 29, 2))	\
-	fw_def(DG1,		major_ver(i915,	guc,	dg1,	70, 29, 2))	\
-	fw_def(ALDERLAKE_N,	major_ver(i915,	guc,	tgl,	70, 29, 2))	\
-	fw_def(ALDERLAKE_P,	major_ver(i915,	guc,	adlp,	70, 29, 2))	\
-	fw_def(ALDERLAKE_S,	major_ver(i915,	guc,	tgl,	70, 29, 2))	\
-	fw_def(ROCKETLAKE,	major_ver(i915,	guc,	tgl,	70, 29, 2))	\
-	fw_def(TIGERLAKE,	major_ver(i915,	guc,	tgl,	70, 29, 2))
+/*
+ * Add an "ANY" define just to convey the meaning it's given here.
+ */
+#define XE_GT_TYPE_ANY XE_GT_TYPE_UNINITIALIZED
+
+#define XE_GUC_FIRMWARE_DEFS(fw_def, mmp_ver, major_ver)					\
+	fw_def(BATTLEMAGE,	GT_TYPE_ANY,	major_ver(xe,	guc,	bmg,	70, 44, 1))	\
+	fw_def(LUNARLAKE,	GT_TYPE_ANY,	major_ver(xe,	guc,	lnl,	70, 44, 1))	\
+	fw_def(METEORLAKE,	GT_TYPE_ANY,	major_ver(i915,	guc,	mtl,	70, 44, 1))	\
+	fw_def(DG2,		GT_TYPE_ANY,	major_ver(i915,	guc,	dg2,	70, 44, 1))	\
+	fw_def(DG1,		GT_TYPE_ANY,	major_ver(i915,	guc,	dg1,	70, 44, 1))	\
+	fw_def(ALDERLAKE_N,	GT_TYPE_ANY,	major_ver(i915,	guc,	tgl,	70, 44, 1))	\
+	fw_def(ALDERLAKE_P,	GT_TYPE_ANY,	major_ver(i915,	guc,	adlp,	70, 44, 1))	\
+	fw_def(ALDERLAKE_S,	GT_TYPE_ANY,	major_ver(i915,	guc,	tgl,	70, 44, 1))	\
+	fw_def(ROCKETLAKE,	GT_TYPE_ANY,	major_ver(i915,	guc,	tgl,	70, 44, 1))	\
+	fw_def(TIGERLAKE,	GT_TYPE_ANY,	major_ver(i915,	guc,	tgl,	70, 44, 1))
 
 #define XE_HUC_FIRMWARE_DEFS(fw_def, mmp_ver, no_ver)		\
-	fw_def(BATTLEMAGE,	no_ver(xe,	huc,		bmg))		\
-	fw_def(LUNARLAKE,	no_ver(xe,	huc,		lnl))		\
-	fw_def(METEORLAKE,	no_ver(i915,	huc_gsc,	mtl))		\
-	fw_def(DG1,		no_ver(i915,	huc,		dg1))		\
-	fw_def(ALDERLAKE_P,	no_ver(i915,	huc,		tgl))		\
-	fw_def(ALDERLAKE_S,	no_ver(i915,	huc,		tgl))		\
-	fw_def(ROCKETLAKE,	no_ver(i915,	huc,		tgl))		\
-	fw_def(TIGERLAKE,	no_ver(i915,	huc,		tgl))
+	fw_def(BATTLEMAGE,	GT_TYPE_ANY,	no_ver(xe,	huc,		bmg))		\
+	fw_def(LUNARLAKE,	GT_TYPE_ANY,	no_ver(xe,	huc,		lnl))		\
+	fw_def(METEORLAKE,	GT_TYPE_ANY,	no_ver(i915,	huc_gsc,	mtl))		\
+	fw_def(DG1,		GT_TYPE_ANY,	no_ver(i915,	huc,		dg1))		\
+	fw_def(ALDERLAKE_P,	GT_TYPE_ANY,	no_ver(i915,	huc,		tgl))		\
+	fw_def(ALDERLAKE_S,	GT_TYPE_ANY,	no_ver(i915,	huc,		tgl))		\
+	fw_def(ROCKETLAKE,	GT_TYPE_ANY,	no_ver(i915,	huc,		tgl))		\
+	fw_def(TIGERLAKE,	GT_TYPE_ANY,	no_ver(i915,	huc,		tgl))
 
 /* for the GSC FW we match the compatibility version and not the release one */
 #define XE_GSC_FIRMWARE_DEFS(fw_def, major_ver)		\
-	fw_def(LUNARLAKE,	major_ver(xe,	gsc,	lnl,	104, 1, 0)) \
-	fw_def(METEORLAKE,	major_ver(i915,	gsc,	mtl,	102, 1, 0))
+	fw_def(LUNARLAKE,	GT_TYPE_ANY,	major_ver(xe,	gsc,	lnl,	104, 1, 0))	\
+	fw_def(METEORLAKE,	GT_TYPE_ANY,	major_ver(i915,	gsc,	mtl,	102, 1, 0))
 
 #define MAKE_FW_PATH(dir__, uc__, shortname__, version__)			\
 	__stringify(dir__) "/" __stringify(shortname__) "_" __stringify(uc__) version__ ".bin"
@@ -159,12 +166,13 @@ struct fw_blobs_by_type {
 	  a, b, c }
 
 /* All blobs need to be declared via MODULE_FIRMWARE() */
-#define XE_UC_MODULE_FIRMWARE(platform__, fw_filename)				\
+#define XE_UC_MODULE_FIRMWARE(platform__, gt_type__, fw_filename)		\
 	MODULE_FIRMWARE(fw_filename);
 
-#define XE_UC_FW_ENTRY(platform__, entry__)					\
+#define XE_UC_FW_ENTRY(platform__, gt_type__, entry__)				\
 	{									\
 		.platform = XE_ ## platform__,					\
+		.gt_type = XE_ ## gt_type__,					\
 		entry__,							\
 	},
 
@@ -222,30 +230,38 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 		[XE_UC_FW_TYPE_HUC] = { entries_huc, ARRAY_SIZE(entries_huc) },
 		[XE_UC_FW_TYPE_GSC] = { entries_gsc, ARRAY_SIZE(entries_gsc) },
 	};
-	static const struct uc_fw_entry *entries;
+	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
 	enum xe_platform p = xe->info.platform;
+	const struct uc_fw_entry *entries;
 	u32 count;
 	int i;
 
-	xe_assert(xe, uc_fw->type < ARRAY_SIZE(blobs_all));
+	xe_gt_assert(gt, uc_fw->type < ARRAY_SIZE(blobs_all));
+	xe_gt_assert(gt, gt->info.type != XE_GT_TYPE_UNINITIALIZED);
+
 	entries = blobs_all[uc_fw->type].entries;
 	count = blobs_all[uc_fw->type].count;
 
 	for (i = 0; i < count && p <= entries[i].platform; i++) {
-		if (p == entries[i].platform) {
-			uc_fw->path = entries[i].path;
-			uc_fw->versions.wanted.major = entries[i].major;
-			uc_fw->versions.wanted.minor = entries[i].minor;
-			uc_fw->versions.wanted.patch = entries[i].patch;
-			uc_fw->full_ver_required = entries[i].full_ver_required;
+		if (p != entries[i].platform)
+			continue;
 
-			if (uc_fw->type == XE_UC_FW_TYPE_GSC)
-				uc_fw->versions.wanted_type = XE_UC_FW_VER_COMPATIBILITY;
-			else
-				uc_fw->versions.wanted_type = XE_UC_FW_VER_RELEASE;
+		if (entries[i].gt_type != XE_GT_TYPE_ANY &&
+		    entries[i].gt_type != gt->info.type)
+			continue;
 
-			break;
-		}
+		uc_fw->path = entries[i].path;
+		uc_fw->versions.wanted.major = entries[i].major;
+		uc_fw->versions.wanted.minor = entries[i].minor;
+		uc_fw->versions.wanted.patch = entries[i].patch;
+		uc_fw->full_ver_required = entries[i].full_ver_required;
+
+		if (uc_fw->type == XE_UC_FW_TYPE_GSC)
+			uc_fw->versions.wanted_type = XE_UC_FW_VER_COMPATIBILITY;
+		else
+			uc_fw->versions.wanted_type = XE_UC_FW_VER_RELEASE;
+
+		break;
 	}
 }
 

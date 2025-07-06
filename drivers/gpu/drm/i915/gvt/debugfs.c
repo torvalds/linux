@@ -91,16 +91,17 @@ static int vgpu_mmio_diff_show(struct seq_file *s, void *unused)
 		.diff = 0,
 	};
 	struct diff_mmio *node, *next;
+	intel_wakeref_t wakeref;
 
 	INIT_LIST_HEAD(&param.diff_mmio_list);
 
 	mutex_lock(&gvt->lock);
 	spin_lock_bh(&gvt->scheduler.mmio_context_lock);
 
-	mmio_hw_access_pre(gvt->gt);
+	wakeref = mmio_hw_access_pre(gvt->gt);
 	/* Recognize all the diff mmios to list. */
 	intel_gvt_for_each_tracked_mmio(gvt, mmio_diff_handler, &param);
-	mmio_hw_access_post(gvt->gt);
+	mmio_hw_access_post(gvt->gt, wakeref);
 
 	spin_unlock_bh(&gvt->scheduler.mmio_context_lock);
 	mutex_unlock(&gvt->lock);

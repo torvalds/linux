@@ -427,6 +427,36 @@ DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_get_ioctl,
 	     TP_ARGS(xe, caller)
 );
 
+TRACE_EVENT(xe_eu_stall_data_read,
+	    TP_PROTO(u8 slice, u8 subslice,
+		     u32 read_ptr, u32 write_ptr,
+		     size_t read_size, size_t total_size),
+	    TP_ARGS(slice, subslice,
+		    read_ptr, write_ptr,
+		    read_size, total_size),
+
+	    TP_STRUCT__entry(__field(u8, slice)
+			     __field(u8, subslice)
+			     __field(u32, read_ptr)
+			     __field(u32, write_ptr)
+			     __field(size_t, read_size)
+			     __field(size_t, total_size)
+			     ),
+
+	    TP_fast_assign(__entry->slice = slice;
+			   __entry->subslice = subslice;
+			   __entry->read_ptr = read_ptr;
+			   __entry->write_ptr = write_ptr;
+			   __entry->read_size = read_size;
+			   __entry->total_size = total_size;
+			   ),
+
+	    TP_printk("slice: %u subslice: %u read ptr: 0x%x write ptr: 0x%x read size: %zu total read size: %zu",
+		      __entry->slice, __entry->subslice,
+		      __entry->read_ptr, __entry->write_ptr,
+		      __entry->read_size, __entry->total_size)
+);
+
 #endif
 
 /* This part must be outside protection */

@@ -102,7 +102,7 @@ struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	extent_io_tree_init(fs_info, &dev->alloc_state, 0);
+	btrfs_extent_io_tree_init(fs_info, &dev->alloc_state, 0);
 	INIT_LIST_HEAD(&dev->dev_list);
 	list_add(&dev->dev_list, &fs_info->fs_devices->devices);
 
@@ -111,7 +111,7 @@ struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info)
 
 static void btrfs_free_dummy_device(struct btrfs_device *dev)
 {
-	extent_io_tree_release(&dev->alloc_state);
+	btrfs_extent_io_tree_release(&dev->alloc_state);
 	kfree(dev);
 }
 
@@ -157,9 +157,9 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 
 void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 {
-	struct radix_tree_iter iter;
-	void **slot;
 	struct btrfs_device *dev, *tmp;
+	struct extent_buffer *eb;
+	unsigned long index;
 
 	if (!fs_info)
 		return;
@@ -169,25 +169,13 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 
 	test_mnt->mnt_sb->s_fs_info = NULL;
 
-	spin_lock(&fs_info->buffer_lock);
-	radix_tree_for_each_slot(slot, &fs_info->buffer_radix, &iter, 0) {
-		struct extent_buffer *eb;
-
-		eb = radix_tree_deref_slot_protected(slot, &fs_info->buffer_lock);
-		if (!eb)
-			continue;
-		/* Shouldn't happen but that kind of thinking creates CVE's */
-		if (radix_tree_exception(eb)) {
-			if (radix_tree_deref_retry(eb))
-				slot = radix_tree_iter_retry(&iter);
-			continue;
-		}
-		slot = radix_tree_iter_resume(slot, &iter);
-		spin_unlock(&fs_info->buffer_lock);
-		free_extent_buffer_stale(eb);
-		spin_lock(&fs_info->buffer_lock);
+	xa_lock_irq(&fs_info->buffer_tree);
+	xa_for_each(&fs_info->buffer_tree, index, eb) {
+		xa_unlock_irq(&fs_info->buffer_tree);
+		free_extent_buffer(eb);
+		xa_lock_irq(&fs_info->buffer_tree);
 	}
-	spin_unlock(&fs_info->buffer_lock);
+	xa_unlock_irq(&fs_info->buffer_tree);
 
 	btrfs_mapping_tree_free(fs_info);
 	list_for_each_entry_safe(dev, tmp, &fs_info->fs_devices->devices,

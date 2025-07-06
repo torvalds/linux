@@ -1285,6 +1285,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.post_recv = bnxt_re_post_recv,
 	.post_send = bnxt_re_post_send,
 	.post_srq_recv = bnxt_re_post_srq_recv,
+	.process_mad = bnxt_re_process_mad,
 	.query_ah = bnxt_re_query_ah,
 	.query_device = bnxt_re_query_device,
 	.modify_device = bnxt_re_modify_device,

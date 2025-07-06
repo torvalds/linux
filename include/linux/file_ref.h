@@ -61,7 +61,6 @@ static inline void file_ref_init(file_ref_t *ref, unsigned long cnt)
 	atomic_long_set(&ref->refcnt, cnt - 1);
 }
 
-bool __file_ref_put_badval(file_ref_t *ref, unsigned long cnt);
 bool __file_ref_put(file_ref_t *ref, unsigned long cnt);
 
 /**
@@ -178,20 +177,14 @@ static __always_inline __must_check bool file_ref_put(file_ref_t *ref)
  */
 static __always_inline __must_check bool file_ref_put_close(file_ref_t *ref)
 {
-	long old, new;
+	long old;
 
 	old = atomic_long_read(&ref->refcnt);
-	do {
-		if (unlikely(old < 0))
-			return __file_ref_put_badval(ref, old);
-
-		if (old == FILE_REF_ONEREF)
-			new = FILE_REF_DEAD;
-		else
-			new = old - 1;
-	} while (!atomic_long_try_cmpxchg(&ref->refcnt, &old, new));
-
-	return new == FILE_REF_DEAD;
+	if (likely(old == FILE_REF_ONEREF)) {
+		if (likely(atomic_long_try_cmpxchg(&ref->refcnt, &old, FILE_REF_DEAD)))
+			return true;
+	}
+	return file_ref_put(ref);
 }
 
 /**

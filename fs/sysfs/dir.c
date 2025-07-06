@@ -123,7 +123,7 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 	new_parent = new_parent_kobj && new_parent_kobj->sd ?
 		new_parent_kobj->sd : sysfs_root_kn;
 
-	return kernfs_rename_ns(kn, new_parent, kn->name, new_ns);
+	return kernfs_rename_ns(kn, new_parent, NULL, new_ns);
 }
 
 /**

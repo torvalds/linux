@@ -27,17 +27,9 @@ struct vdso_image {
 	long sym_vdso32_rt_sigreturn_landing_pad;
 };
 
-#ifdef CONFIG_X86_64
 extern const struct vdso_image vdso_image_64;
-#endif
-
-#ifdef CONFIG_X86_X32_ABI
 extern const struct vdso_image vdso_image_x32;
-#endif
-
-#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
 extern const struct vdso_image vdso_image_32;
-#endif
 
 extern int __init init_vdso_image(const struct vdso_image *image);
 

@@ -429,7 +429,7 @@ static void *map_external(struct vmw_bo *bo, struct iosys_map *map)
 	void *ptr = NULL;
 	int ret;
 
-	if (bo->tbo.base.import_attach) {
+	if (drm_gem_is_imported(&bo->tbo.base)) {
 		ret = dma_buf_vmap(bo->tbo.base.dma_buf, map);
 		if (ret) {
 			drm_dbg_driver(&vmw->drm,
@@ -447,7 +447,7 @@ out:
 
 static void unmap_external(struct vmw_bo *bo, struct iosys_map *map)
 {
-	if (bo->tbo.base.import_attach)
+	if (drm_gem_is_imported(&bo->tbo.base))
 		dma_buf_vunmap(bo->tbo.base.dma_buf, map);
 	else
 		vmw_bo_unmap(bo);

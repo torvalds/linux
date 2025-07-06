@@ -196,7 +196,7 @@
 };
 
 &wifi {
-	qcom,ath10k-calibration-variant = "GO_WORMDINGLER";
+	qcom,calibration-variant = "GO_WORMDINGLER";
 };
 
 /*

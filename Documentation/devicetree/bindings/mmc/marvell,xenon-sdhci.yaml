@@ -52,7 +52,12 @@ properties:
       - const: core
       - const: axi
 
+  dma-coherent: true
+
   interrupts:
+    maxItems: 1
+
+  iommus:
     maxItems: 1
 
   marvell,pad-type:
@@ -142,7 +147,7 @@ properties:
       This property provides the re-tuning counter.
 
 allOf:
-  - $ref: mmc-controller.yaml#
+  - $ref: sdhci-common.yaml#
   - if:
       properties:
         compatible:
@@ -163,26 +168,6 @@ allOf:
           maxItems: 1
 
         marvell,pad-type: false
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - marvell,armada-cp110-sdhci
-              - marvell,armada-ap807-sdhci
-              - marvell,armada-ap806-sdhci
-
-    then:
-      properties:
-        clocks:
-          minItems: 2
-
-        clock-names:
-          items:
-            - const: core
-            - const: axi
-
 
 required:
   - compatible

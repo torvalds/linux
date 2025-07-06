@@ -124,17 +124,6 @@ char *module_next_tag_pair(char *string, unsigned long *secsize);
 #define for_each_modinfo_entry(entry, info, name) \
 	for (entry = get_modinfo(info, name); entry; entry = get_next_modinfo(info, name, entry))
 
-static inline void module_assert_mutex_or_preempt(void)
-{
-#ifdef CONFIG_LOCKDEP
-	if (unlikely(!debug_locks))
-		return;
-
-	WARN_ON_ONCE(!rcu_read_lock_sched_held() &&
-		     !lockdep_is_held(&module_mutex));
-#endif
-}
-
 static inline unsigned long kernel_symbol_value(const struct kernel_symbol *sym)
 {
 #ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
@@ -333,8 +322,11 @@ int module_enable_rodata_ro(const struct module *mod);
 int module_enable_rodata_ro_after_init(const struct module *mod);
 int module_enable_data_nx(const struct module *mod);
 int module_enable_text_rox(const struct module *mod);
-int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
-				char *secstrings, struct module *mod);
+int module_enforce_rwx_sections(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
+				const char *secstrings,
+				const struct module *mod);
+void module_mark_ro_after_init(const Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
+			       const char *secstrings);
 
 #ifdef CONFIG_MODULE_SIG
 int module_sig_check(struct load_info *info, int flags);

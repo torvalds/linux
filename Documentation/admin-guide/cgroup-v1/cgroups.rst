@@ -13,7 +13,7 @@ Portions Copyright (c) 2004-2006 Silicon Graphics, Inc.
 
 Modified by Paul Jackson <pj@sgi.com>
 
-Modified by Christoph Lameter <cl@linux.com>
+Modified by Christoph Lameter <cl@gentwo.org>
 
 .. CONTENTS:
 

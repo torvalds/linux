@@ -204,17 +204,10 @@ static void *worker_thread(void *__tdata)
 	}
 
 	for (i = 0; i < loops; i++) {
-		if (!td->nr) {
-			ret = read_pipe(td);
-			BUG_ON(ret != sizeof(int));
-			ret = write(td->pipe_write, &m, sizeof(int));
-			BUG_ON(ret != sizeof(int));
-		} else {
-			ret = write(td->pipe_write, &m, sizeof(int));
-			BUG_ON(ret != sizeof(int));
-			ret = read_pipe(td);
-			BUG_ON(ret != sizeof(int));
-		}
+		ret = write(td->pipe_write, &m, sizeof(int));
+		BUG_ON(ret != sizeof(int));
+		ret = read_pipe(td);
+		BUG_ON(ret != sizeof(int));
 	}
 
 	return NULL;

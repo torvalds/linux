@@ -1415,7 +1415,8 @@ void mwifiex_auto_tdls_update_peer_signal(struct mwifiex_private *priv,
 
 void mwifiex_check_auto_tdls(struct timer_list *t)
 {
-	struct mwifiex_private *priv = from_timer(priv, t, auto_tdls_timer);
+	struct mwifiex_private *priv = timer_container_of(priv, t,
+							  auto_tdls_timer);
 	struct mwifiex_auto_tdls_peer *tdls_peer;
 	u16 reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
 
@@ -1490,7 +1491,7 @@ void mwifiex_clean_auto_tdls(struct mwifiex_private *priv)
 	    priv->adapter->auto_tdls &&
 	    priv->bss_type == MWIFIEX_BSS_TYPE_STA) {
 		priv->auto_tdls_timer_active = false;
-		del_timer(&priv->auto_tdls_timer);
+		timer_delete(&priv->auto_tdls_timer);
 		mwifiex_flush_auto_tdls_list(priv);
 	}
 }

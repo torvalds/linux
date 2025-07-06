@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/cnxt,cx92755-usart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Conexant Digicolor USART
+
+maintainers:
+  - Baruch Siach <baruch@tkos.co.il>
+
+description: >
+  Note: this binding is only applicable for using the USART peripheral as UART.
+  USART also support synchronous serial protocols like SPI and I2S.
+  Use the binding that matches the wiring of your system.
+
+allOf:
+  - $ref: /schemas/serial/serial.yaml#
+
+properties:
+  compatible:
+    const: cnxt,cx92755-usart
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    serial@f0000740 {
+        compatible = "cnxt,cx92755-usart";
+        reg = <0xf0000740 0x20>;
+        clocks = <&main_clk>;
+        interrupts = <44>;
+    };

@@ -296,7 +296,7 @@ struct vxlan_dev {
 	struct vxlan_rdst default_dst;	/* default destination */
 
 	struct timer_list age_timer;
-	spinlock_t	  hash_lock[FDB_HASH_SIZE];
+	spinlock_t	  hash_lock;
 	unsigned int	  addrcnt;
 	struct gro_cells  gro_cells;
 
@@ -304,9 +304,10 @@ struct vxlan_dev {
 
 	struct vxlan_vni_group  __rcu *vnigrp;
 
-	struct hlist_head fdb_head[FDB_HASH_SIZE];
+	struct rhashtable fdb_hash_tbl;
 
 	struct rhashtable mdb_tbl;
+	struct hlist_head fdb_list;
 	struct hlist_head mdb_list;
 	unsigned int mdb_seq;
 };

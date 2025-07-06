@@ -157,7 +157,7 @@
 &weim {
 	status = "okay";
 
-	nor@0,0 {
+	flash@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0x0 0x200000>;
 		bank-width = <2>;

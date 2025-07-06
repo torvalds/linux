@@ -219,7 +219,8 @@ done:
 
 int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 				const u8 *data, size_t len,
-				struct iwl_pnvm_image *pnvm_data)
+				struct iwl_pnvm_image *pnvm_data,
+				__le32 sku_id[3])
 {
 	const struct iwl_ucode_tlv *tlv;
 
@@ -241,23 +242,23 @@ int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 		}
 
 		if (tlv_type == IWL_UCODE_TLV_PNVM_SKU) {
-			const struct iwl_sku_id *sku_id =
+			const struct iwl_sku_id *tlv_sku_id =
 				(const void *)(data + sizeof(*tlv));
 
 			IWL_DEBUG_FW(trans,
 				     "Got IWL_UCODE_TLV_PNVM_SKU len %d\n",
 				     tlv_len);
 			IWL_DEBUG_FW(trans, "sku_id 0x%0x 0x%0x 0x%0x\n",
-				     le32_to_cpu(sku_id->data[0]),
-				     le32_to_cpu(sku_id->data[1]),
-				     le32_to_cpu(sku_id->data[2]));
+				     le32_to_cpu(tlv_sku_id->data[0]),
+				     le32_to_cpu(tlv_sku_id->data[1]),
+				     le32_to_cpu(tlv_sku_id->data[2]));
 
 			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 			len -= ALIGN(tlv_len, 4);
 
-			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
-			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
-			    trans->sku_id[2] == le32_to_cpu(sku_id->data[2])) {
+			if (sku_id[0] == tlv_sku_id->data[0] &&
+			    sku_id[1] == tlv_sku_id->data[1] &&
+			    sku_id[2] == tlv_sku_id->data[2]) {
 				int ret = iwl_uefi_reduce_power_section(trans,
 								    data, len,
 								    pnvm_data);
@@ -310,11 +311,12 @@ static int iwl_uefi_step_parse(struct uefi_cnv_common_step_data *common_step_dat
 	if (common_step_data->revision != 1)
 		return -EINVAL;
 
-	trans->mbx_addr_0_step = (u32)common_step_data->revision |
+	trans->conf.mbx_addr_0_step =
+		(u32)common_step_data->revision |
 		(u32)common_step_data->cnvi_eq_channel << 8 |
 		(u32)common_step_data->cnvr_eq_channel << 16 |
 		(u32)common_step_data->radio1 << 24;
-	trans->mbx_addr_1_step = (u32)common_step_data->radio2;
+	trans->conf.mbx_addr_1_step = (u32)common_step_data->radio2;
 	return 0;
 }
 
@@ -323,7 +325,7 @@ void iwl_uefi_get_step_table(struct iwl_trans *trans)
 	struct uefi_cnv_common_step_data *data;
 	int ret;
 
-	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
+	if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
 
 	data = iwl_uefi_get_verified_variable_guid(trans, &IWL_EFI_WIFI_BT_GUID,
@@ -408,8 +410,8 @@ static int iwl_uefi_uats_parse(struct uefi_cnv_wlan_uats_data *uats_data,
 	return 0;
 }
 
-int iwl_uefi_get_uats_table(struct iwl_trans *trans,
-			    struct iwl_fw_runtime *fwrt)
+void iwl_uefi_get_uats_table(struct iwl_trans *trans,
+			     struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_wlan_uats_data *data;
 	int ret;
@@ -417,17 +419,12 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_UATS_NAME,
 					      "UATS", sizeof(*data), NULL);
 	if (IS_ERR(data))
-		return -EINVAL;
+		return;
 
 	ret = iwl_uefi_uats_parse(data, fwrt);
-	if (ret < 0) {
+	if (ret < 0)
 		IWL_DEBUG_FW(trans, "Cannot read UATS table. rev is invalid\n");
-		kfree(data);
-		return ret;
-	}
-
 	kfree(data);
-	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
 
@@ -557,13 +554,14 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 		goto out;
 	}
 
-	fwrt->ppag_ver = data->revision;
+	fwrt->ppag_bios_rev = data->revision;
 	fwrt->ppag_flags = iwl_bios_get_ppag_flags(data->ppag_modes,
-						   fwrt->ppag_ver);
+						   fwrt->ppag_bios_rev);
 
 	BUILD_BUG_ON(sizeof(fwrt->ppag_chains) != sizeof(data->ppag_chains));
 	memcpy(&fwrt->ppag_chains, &data->ppag_chains,
 	       sizeof(data->ppag_chains));
+	fwrt->ppag_bios_source = BIOS_SOURCE_UEFI;
 out:
 	kfree(data);
 	return ret;
@@ -750,6 +748,10 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 	}
 
 	*value = data->functions[func];
+
+	IWL_DEBUG_RADIO(fwrt,
+			"UEFI: DSM func=%d: value=%d\n", func, *value);
+
 	ret = 0;
 out:
 	kfree(data);
@@ -809,4 +811,32 @@ int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
 out:
 	kfree(data);
 	return ret;
+}
+
+int iwl_uefi_get_phy_filters(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_wpfc_data *data __free(kfree);
+	struct iwl_phy_specific_cfg *filters = &fwrt->phy_filters;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WPFC_NAME,
+					      "WPFC", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != 0) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WPFC revision:%d\n",
+			data->revision);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(ARRAY_SIZE(filters->filter_cfg_chains) !=
+		     ARRAY_SIZE(data->chains));
+
+	for (int i = 0; i < ARRAY_SIZE(filters->filter_cfg_chains); i++) {
+		filters->filter_cfg_chains[i] = cpu_to_le32(data->chains[i]);
+		IWL_DEBUG_RADIO(fwrt, "WPFC: chain %d: %u\n", i, data->chains[i]);
+	}
+
+	IWL_DEBUG_RADIO(fwrt, "Loaded WPFC config from UEFI\n");
+	return 0;
 }

@@ -67,7 +67,7 @@
 #define UART_DLL	0x0	/* Divisor Latch (LS) */
 #define UART_DLM	0x2	/* Divisor Latch (MS) */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 typedef struct uart_reg {
 	volatile __u16 rbr;
 	volatile __u16 ier;
@@ -78,7 +78,7 @@ typedef struct uart_reg {
 	volatile __u16 msr;
 	volatile __u16 scr;
 } uart_reg;
-#endif /* ! __ASSEMBLY__ */
+#endif /* ! __ASSEMBLER__ */
 
 /* Alias for Write Only Register */
 

@@ -851,7 +851,7 @@ static int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent
 
 	if (kernfs_type(kn) != KERNFS_DIR)
 		return -ENOTDIR;
-	if (kn->parent != new_parent)
+	if (rcu_access_pointer(kn->__parent) != new_parent)
 		return -EIO;
 
 	/*

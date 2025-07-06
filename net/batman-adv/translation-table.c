@@ -14,7 +14,7 @@
 #include <linux/cache.h>
 #include <linux/compiler.h>
 #include <linux/container_of.h>
-#include <linux/crc32c.h>
+#include <linux/crc32.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>

@@ -1,0 +1,6 @@
+What:		/sys/class/pps-gen/pps-genx/enable
+Date:		April 2025
+KernelVersion:	6.15
+Contact:	Subramanian Mohan<subramanian.mohan@intel.com>
+Description:
+		Enable or disable PPS TIO generator output.

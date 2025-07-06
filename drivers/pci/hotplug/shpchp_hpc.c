@@ -211,7 +211,7 @@ static inline int shpc_indirect_read(struct controller *ctrl, int index,
  */
 static void int_poll_timeout(struct timer_list *t)
 {
-	struct controller *ctrl = from_timer(ctrl, t, poll_timer);
+	struct controller *ctrl = timer_container_of(ctrl, t, poll_timer);
 
 	/* Poll for interrupt events.  regs == NULL => polling */
 	shpc_isr(0, ctrl);
@@ -564,7 +564,7 @@ void shpchp_release_ctlr(struct controller *ctrl)
 	shpc_writel(ctrl, SERR_INTR_ENABLE, serr_int);
 
 	if (shpchp_poll_mode)
-		del_timer(&ctrl->poll_timer);
+		timer_delete(&ctrl->poll_timer);
 	else {
 		free_irq(ctrl->pci_dev->irq, ctrl);
 		pci_disable_msi(ctrl->pci_dev);
@@ -675,7 +675,7 @@ static int shpc_get_cur_bus_speed(struct controller *ctrl)
 
  out:
 	bus->cur_bus_speed = bus_speed;
-	dbg("Current bus speed = %d\n", bus_speed);
+	ctrl_dbg(ctrl, "Current bus speed = %d\n", bus_speed);
 	return retval;
 }
 

@@ -41,6 +41,9 @@ struct btree_read_bio {
 	u64			start_time;
 	unsigned		have_ioref:1;
 	unsigned		idx:7;
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	unsigned		list_idx;
+#endif
 	struct extent_ptr_decoded	pick;
 	struct work_struct	work;
 	struct bio		bio;
@@ -53,6 +56,9 @@ struct btree_write_bio {
 	unsigned		data_bytes;
 	unsigned		sector_offset;
 	u64			start_time;
+#ifdef CONFIG_BCACHEFS_ASYNC_OBJECT_LISTS
+	unsigned		list_idx;
+#endif
 	struct bch_write_bio	wbio;
 };
 
@@ -128,10 +134,14 @@ void bch2_btree_build_aux_trees(struct btree *);
 void bch2_btree_init_next(struct btree_trans *, struct btree *);
 
 int bch2_btree_node_read_done(struct bch_fs *, struct bch_dev *,
-			      struct btree *, bool, bool *);
+			      struct btree *,
+			      struct bch_io_failures *,
+			      struct printbuf *);
 void bch2_btree_node_read(struct btree_trans *, struct btree *, bool);
 int bch2_btree_root_read(struct bch_fs *, enum btree_id,
 			 const struct bkey_i *, unsigned);
+
+void bch2_btree_read_bio_to_text(struct printbuf *, struct btree_read_bio *);
 
 int bch2_btree_node_scrub(struct btree_trans *, enum btree_id, unsigned,
 			  struct bkey_s_c, unsigned);

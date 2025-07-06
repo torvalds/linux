@@ -107,12 +107,12 @@ release_fwnode:
 
 static int led_pwm_mc_probe(struct platform_device *pdev)
 {
-	struct fwnode_handle *mcnode, *fwnode;
+	struct fwnode_handle *mcnode;
 	struct led_init_data init_data = {};
 	struct led_classdev *cdev;
 	struct mc_subled *subled;
 	struct pwm_mc_led *priv;
-	int count = 0;
+	unsigned int count;
 	int ret = 0;
 
 	mcnode = device_get_named_child_node(&pdev->dev, "multi-led");
@@ -121,8 +121,7 @@ static int led_pwm_mc_probe(struct platform_device *pdev)
 				     "expected multi-led node\n");
 
 	/* count the nodes inside the multi-led node */
-	fwnode_for_each_child_node(mcnode, fwnode)
-		count++;
+	count = fwnode_get_child_node_count(mcnode);
 
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv, leds, count),
 			    GFP_KERNEL);
@@ -141,8 +140,11 @@ static int led_pwm_mc_probe(struct platform_device *pdev)
 
 	/* init the multicolor's LED class device */
 	cdev = &priv->mc_cdev.led_cdev;
-	fwnode_property_read_u32(mcnode, "max-brightness",
+	ret = fwnode_property_read_u32(mcnode, "max-brightness",
 				 &cdev->max_brightness);
+	if (ret)
+		goto release_mcnode;
+
 	cdev->flags = LED_CORE_SUSPENDRESUME;
 	cdev->brightness_set_blocking = led_pwm_mc_set;
 

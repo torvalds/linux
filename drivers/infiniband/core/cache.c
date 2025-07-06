@@ -582,8 +582,8 @@ static int __ib_cache_gid_add(struct ib_device *ib_dev, u32 port,
 out_unlock:
 	mutex_unlock(&table->lock);
 	if (ret)
-		pr_warn("%s: unable to add gid %pI6 error=%d\n",
-			__func__, gid->raw, ret);
+		pr_warn_ratelimited("%s: unable to add gid %pI6 error=%d\n",
+				    __func__, gid->raw, ret);
 	return ret;
 }
 
@@ -1501,6 +1501,12 @@ ib_cache_update(struct ib_device *device, u32 port, bool update_gids,
 		device->port_data[port].cache.pkey = pkey_cache;
 	}
 	device->port_data[port].cache.lmc = tprops->lmc;
+
+	if (device->port_data[port].cache.port_state != IB_PORT_NOP &&
+	    device->port_data[port].cache.port_state != tprops->state)
+		ibdev_info(device, "Port: %d Link %s\n", port,
+			   ib_port_state_to_str(tprops->state));
+
 	device->port_data[port].cache.port_state = tprops->state;
 
 	device->port_data[port].cache.subnet_prefix = tprops->subnet_prefix;

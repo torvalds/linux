@@ -527,7 +527,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	struct mlx5_flow_rule *dst;
 	void *in_flow_context, *vlan;
 	void *in_match_value;
-	int reformat_id = 0;
+	u32 reformat_id = 0;
 	unsigned int inlen;
 	int dst_cnt_size;
 	u32 *in, action;
@@ -580,23 +580,21 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(flow_context, in_flow_context, action, action);
 
 	if (!extended_dest && fte->act_dests.action.pkt_reformat) {
-		struct mlx5_pkt_reformat *pkt_reformat = fte->act_dests.action.pkt_reformat;
+		struct mlx5_pkt_reformat *pkt_reformat =
+			fte->act_dests.action.pkt_reformat;
 
-		if (pkt_reformat->owner == MLX5_FLOW_RESOURCE_OWNER_SW) {
-			reformat_id = mlx5_fs_dr_action_get_pkt_reformat_id(pkt_reformat);
-			if (reformat_id < 0) {
-				mlx5_core_err(dev,
-					      "Unsupported SW-owned pkt_reformat type (%d) in FW-owned table\n",
-					      pkt_reformat->reformat_type);
-				err = reformat_id;
-				goto err_out;
-			}
-		} else {
-			reformat_id = fte->act_dests.action.pkt_reformat->id;
+		err = mlx5_fs_get_packet_reformat_id(pkt_reformat,
+						     &reformat_id);
+		if (err) {
+			mlx5_core_err(dev,
+				      "Unsupported pkt_reformat type (%d)\n",
+				      pkt_reformat->reformat_type);
+			goto err_out;
 		}
 	}
 
-	MLX5_SET(flow_context, in_flow_context, packet_reformat_id, (u32)reformat_id);
+	MLX5_SET(flow_context, in_flow_context, packet_reformat_id,
+		 reformat_id);
 
 	if (fte->act_dests.action.modify_hdr) {
 		if (fte->act_dests.action.modify_hdr->owner == MLX5_FLOW_RESOURCE_OWNER_SW) {

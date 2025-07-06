@@ -35,7 +35,6 @@
 #include <asm/bootparam.h>
 #include <asm/desc_defs.h>
 #include <asm/trapnr.h>
-#include "pgtable.h"
 
 /*
  * Fix alignment at 16 bytes. Following CONFIG_FUNCTION_ALIGNMENT will result
@@ -263,13 +262,6 @@ SYM_FUNC_START(startup_32)
 	 * used to perform that far jump.
 	 */
 	leal	rva(startup_64)(%ebp), %eax
-#ifdef CONFIG_EFI_MIXED
-	cmpb	$1, rva(efi_is64)(%ebp)
-	je	1f
-	leal	rva(startup_64_mixed_mode)(%ebp), %eax
-1:
-#endif
-
 	pushl	$__KERNEL_CS
 	pushl	%eax
 

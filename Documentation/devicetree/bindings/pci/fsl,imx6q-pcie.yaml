@@ -47,12 +47,16 @@ properties:
     maxItems: 5
 
   interrupts:
+    minItems: 1
     items:
       - description: builtin MSI controller.
+      - description: builtin DMA controller.
 
   interrupt-names:
+    minItems: 1
     items:
       - const: msi
+      - const: dma
 
   reset-gpio:
     description: Should specify the GPIO for controlling the PCI bus device

@@ -319,6 +319,7 @@ static int bch2_data_thread(void *arg)
 		ctx->stats.ret = BCH_IOCTL_DATA_EVENT_RET_done;
 		ctx->stats.data_type = (int) DATA_PROGRESS_DATA_TYPE_done;
 	}
+	enumerated_ref_put(&ctx->c->writes, BCH_WRITE_REF_ioctl_data);
 	return 0;
 }
 
@@ -350,8 +351,8 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 	if (ctx->arg.op == BCH_DATA_OP_scrub) {
 		struct bch_dev *ca = bch2_dev_tryget(c, ctx->arg.scrub.dev);
 		if (ca) {
-			struct bch_dev_usage u;
-			bch2_dev_usage_read_fast(ca, &u);
+			struct bch_dev_usage_full u;
+			bch2_dev_usage_full_read_fast(ca, &u);
 			for (unsigned i = BCH_DATA_btree; i < ARRAY_SIZE(u.d); i++)
 				if (ctx->arg.scrub.data_types & BIT(i))
 					e.p.sectors_total += u.d[i].sectors;
@@ -378,15 +379,24 @@ static long bch2_ioctl_data(struct bch_fs *c,
 	struct bch_data_ctx *ctx;
 	int ret;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
+	if (!enumerated_ref_tryget(&c->writes, BCH_WRITE_REF_ioctl_data))
+		return -EROFS;
 
-	if (arg.op >= BCH_DATA_OP_NR || arg.flags)
-		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto put_ref;
+	}
+
+	if (arg.op >= BCH_DATA_OP_NR || arg.flags) {
+		ret = -EINVAL;
+		goto put_ref;
+	}
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	if (!ctx) {
+		ret = -ENOMEM;
+		goto put_ref;
+	}
 
 	ctx->c = c;
 	ctx->arg = arg;
@@ -395,11 +405,16 @@ static long bch2_ioctl_data(struct bch_fs *c,
 			&bcachefs_data_ops,
 			bch2_data_thread);
 	if (ret < 0)
-		kfree(ctx);
+		goto cleanup;
+	return ret;
+cleanup:
+	kfree(ctx);
+put_ref:
+	enumerated_ref_put(&c->writes, BCH_WRITE_REF_ioctl_data);
 	return ret;
 }
 
-static long bch2_ioctl_fs_usage(struct bch_fs *c,
+static noinline_for_stack long bch2_ioctl_fs_usage(struct bch_fs *c,
 				struct bch_ioctl_fs_usage __user *user_arg)
 {
 	struct bch_ioctl_fs_usage arg = {};
@@ -426,10 +441,8 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	arg.replica_entries_bytes = replicas.nr;
 
 	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
-		struct disk_accounting_pos k = {
-			.type = BCH_DISK_ACCOUNTING_persistent_reserved,
-			.persistent_reserved.nr_replicas = i,
-		};
+		struct disk_accounting_pos k;
+		disk_accounting_key_init(k, persistent_reserved, .nr_replicas = i);
 
 		bch2_accounting_mem_read(c,
 					 disk_accounting_pos_to_bpos(&k),
@@ -471,11 +484,11 @@ err:
 }
 
 /* obsolete, didn't allow for new data types: */
-static long bch2_ioctl_dev_usage(struct bch_fs *c,
+static noinline_for_stack long bch2_ioctl_dev_usage(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage __user *user_arg)
 {
 	struct bch_ioctl_dev_usage arg;
-	struct bch_dev_usage src;
+	struct bch_dev_usage_full src;
 	struct bch_dev *ca;
 	unsigned i;
 
@@ -495,7 +508,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	if (IS_ERR(ca))
 		return PTR_ERR(ca);
 
-	src = bch2_dev_usage_read(ca);
+	src = bch2_dev_usage_full_read(ca);
 
 	arg.state		= ca->mi.state;
 	arg.bucket_size		= ca->mi.bucket_size;
@@ -516,7 +529,7 @@ static long bch2_ioctl_dev_usage_v2(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage_v2 __user *user_arg)
 {
 	struct bch_ioctl_dev_usage_v2 arg;
-	struct bch_dev_usage src;
+	struct bch_dev_usage_full src;
 	struct bch_dev *ca;
 	int ret = 0;
 
@@ -536,7 +549,7 @@ static long bch2_ioctl_dev_usage_v2(struct bch_fs *c,
 	if (IS_ERR(ca))
 		return PTR_ERR(ca);
 
-	src = bch2_dev_usage_read(ca);
+	src = bch2_dev_usage_full_read(ca);
 
 	arg.state		= ca->mi.state;
 	arg.bucket_size		= ca->mi.bucket_size;
@@ -615,13 +628,12 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 	if (!dev)
 		return -EINVAL;
 
-	for_each_online_member(c, ca)
-		if (ca->dev == dev) {
-			percpu_ref_put(&ca->io_ref);
+	guard(rcu)();
+	for_each_online_member_rcu(c, ca)
+		if (ca->dev == dev)
 			return ca->dev_idx;
-		}
 
-	return -BCH_ERR_ENOENT_dev_idx_not_found;
+	return bch_err_throw(c, ENOENT_dev_idx_not_found);
 }
 
 static long bch2_ioctl_disk_resize(struct bch_fs *c,

@@ -1,3 +1,8 @@
+[!] Note:
+	This file expands on the "Locking" section of recipes.txt,
+	focusing on locklessly accessing shared variables that are
+	otherwise protected by a lock.
+
 Locking
 =======
 

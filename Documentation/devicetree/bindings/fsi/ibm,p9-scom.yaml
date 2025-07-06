@@ -16,6 +16,7 @@ description:
 properties:
   compatible:
     enum:
+      - ibm,fsi2pib
       - ibm,p9-scom
       - ibm,i2cr-scom
 

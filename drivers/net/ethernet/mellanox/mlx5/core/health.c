@@ -779,7 +779,8 @@ static void mlx5_health_log_ts_update(struct work_struct *work)
 
 static void poll_health(struct timer_list *t)
 {
-	struct mlx5_core_dev *dev = from_timer(dev, t, priv.health.timer);
+	struct mlx5_core_dev *dev = timer_container_of(dev, t,
+						       priv.health.timer);
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
 	u32 fatal_error;
@@ -847,7 +848,7 @@ void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
 	if (disable_health)
 		set_bit(MLX5_DROP_HEALTH_WORK, &health->flags);
 
-	del_timer_sync(&health->timer);
+	timer_delete_sync(&health->timer);
 }
 
 void mlx5_start_health_fw_log_up(struct mlx5_core_dev *dev)

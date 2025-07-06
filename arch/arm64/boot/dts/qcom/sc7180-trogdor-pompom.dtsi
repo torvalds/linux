@@ -181,7 +181,7 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &wifi {
-	qcom,ath10k-calibration-variant = "GO_POMPOM";
+	qcom,calibration-variant = "GO_POMPOM";
 };
 
 /* PINCTRL - board-specific pinctrl */

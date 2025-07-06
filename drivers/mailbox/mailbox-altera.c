@@ -130,7 +130,7 @@ static void altera_mbox_rx_data(struct mbox_chan *chan)
 
 static void altera_mbox_poll_rx(struct timer_list *t)
 {
-	struct altera_mbox *mbox = from_timer(mbox, t, rxpoll_timer);
+	struct altera_mbox *mbox = timer_container_of(mbox, t, rxpoll_timer);
 
 	altera_mbox_rx_data(mbox->chan);
 
@@ -270,7 +270,7 @@ static void altera_mbox_shutdown(struct mbox_chan *chan)
 		writel_relaxed(~0, mbox->mbox_base + MAILBOX_INTMASK_REG);
 		free_irq(mbox->irq, chan);
 	} else if (!mbox->is_sender) {
-		del_timer_sync(&mbox->rxpoll_timer);
+		timer_delete_sync(&mbox->rxpoll_timer);
 	}
 }
 

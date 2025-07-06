@@ -103,12 +103,13 @@ static const struct drm_connector_funcs simple_bridge_con_funcs = {
 };
 
 static int simple_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct simple_bridge *sbridge = drm_bridge_to_simple_bridge(bridge);
 	int ret;
 
-	ret = drm_bridge_attach(bridge->encoder, sbridge->next_bridge, bridge,
+	ret = drm_bridge_attach(encoder, sbridge->next_bridge, bridge,
 				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret < 0)
 		return ret;
@@ -127,7 +128,7 @@ static int simple_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-	drm_connector_attach_encoder(&sbridge->connector, bridge->encoder);
+	drm_connector_attach_encoder(&sbridge->connector, encoder);
 
 	return 0;
 }

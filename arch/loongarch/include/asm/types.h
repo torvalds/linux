@@ -8,7 +8,7 @@
 #include <asm-generic/int-ll64.h>
 #include <uapi/asm/types.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define _ULCAST_
 #define _U64CAST_
 #else

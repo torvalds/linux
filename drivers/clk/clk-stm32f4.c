@@ -888,7 +888,6 @@ static int __init stm32f4_pll_ssc_parse_dt(struct device_node *np,
 					   struct stm32f4_pll_ssc *conf)
 {
 	int ret;
-	const char *s;
 
 	if (!conf)
 		return -EINVAL;
@@ -916,7 +915,8 @@ static int __init stm32f4_pll_ssc_parse_dt(struct device_node *np,
 	conf->mod_type = ret;
 
 	pr_debug("%pOF: SSCG settings: mod_freq: %d, mod_depth: %d mod_method: %s [%d]\n",
-		 np, conf->mod_freq, conf->mod_depth, s, conf->mod_type);
+		 np, conf->mod_freq, conf->mod_depth,
+		 stm32f4_ssc_mod_methods[ret], conf->mod_type);
 
 	return 0;
 }

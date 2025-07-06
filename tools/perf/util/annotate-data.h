@@ -227,7 +227,12 @@ void annotated_data_type__tree_delete(struct rb_root *root);
 /* Release all global variable information in the tree */
 void global_var_type__tree_delete(struct rb_root *root);
 
+/* Print data type annotation (including members) on stdout */
 int hist_entry__annotate_data_tty(struct hist_entry *he, struct evsel *evsel);
+
+/* Get name of member field at the given offset in the data type */
+int annotated_data_type__get_member_name(struct annotated_data_type *adt,
+					 char *buf, size_t sz, int member_offset);
 
 bool has_reg_type(struct type_state *state, int reg);
 struct type_state_stack *findnew_stack_state(struct type_state *state,
@@ -272,6 +277,14 @@ static inline void global_var_type__tree_delete(struct rb_root *root __maybe_unu
 
 static inline int hist_entry__annotate_data_tty(struct hist_entry *he __maybe_unused,
 						struct evsel *evsel __maybe_unused)
+{
+	return -1;
+}
+
+static inline int annotated_data_type__get_member_name(struct annotated_data_type *adt __maybe_unused,
+						       char *buf __maybe_unused,
+						       size_t sz __maybe_unused,
+						       int member_offset __maybe_unused)
 {
 	return -1;
 }

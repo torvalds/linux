@@ -47,6 +47,9 @@ _json_event_attributes = [
     'event',
     # Short things in alphabetical order.
     'compat', 'deprecated', 'perpkg', 'unit',
+    # Retirement latency specific to Intel granite rapids currently.
+    'retirement_latency_mean', 'retirement_latency_min',
+    'retirement_latency_max',
     # Longer things (the last won't be iterated over during decompress).
     'long_desc'
 ]
@@ -341,6 +344,9 @@ class JsonEvent:
     self.perpkg = jd.get('PerPkg')
     self.aggr_mode = convert_aggr_mode(jd.get('AggregationMode'))
     self.deprecated = jd.get('Deprecated')
+    self.retirement_latency_mean = jd.get('RetirementLatencyMean')
+    self.retirement_latency_min = jd.get('RetirementLatencyMin')
+    self.retirement_latency_max = jd.get('RetirementLatencyMax')
     self.metric_name = jd.get('MetricName')
     self.metric_group = jd.get('MetricGroup')
     self.metricgroup_no_group = jd.get('MetricgroupNoGroup')
@@ -945,7 +951,7 @@ int pmu_events_table__for_each_event(const struct pmu_events_table *table,
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
                 int ret;
 
-                if (pmu && !pmu__name_match(pmu, pmu_name))
+                if (pmu && !perf_pmu__name_wildcard_match(pmu, pmu_name))
                         continue;
 
                 ret = pmu_events_table__for_each_event_pmu(table, table_pmu, fn, data);
@@ -966,7 +972,7 @@ int pmu_events_table__find_event(const struct pmu_events_table *table,
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
                 int ret;
 
-                if (!pmu__name_match(pmu, pmu_name))
+                if (pmu && !perf_pmu__name_wildcard_match(pmu, pmu_name))
                         continue;
 
                 ret = pmu_events_table__find_event_pmu(table, table_pmu, name, fn, data);
@@ -985,7 +991,7 @@ size_t pmu_events_table__num_events(const struct pmu_events_table *table,
                 const struct pmu_table_entry *table_pmu = &table->pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
 
-                if (pmu__name_match(pmu, pmu_name))
+                if (perf_pmu__name_wildcard_match(pmu, pmu_name))
                         count += table_pmu->num_entries;
         }
         return count;
@@ -1012,6 +1018,49 @@ static int pmu_metrics_table__for_each_metric_pmu(const struct pmu_metrics_table
         return 0;
 }
 
+static int pmu_metrics_table__find_metric_pmu(const struct pmu_metrics_table *table,
+                                            const struct pmu_table_entry *pmu,
+                                            const char *metric,
+                                            pmu_metric_iter_fn fn,
+                                            void *data)
+{
+        struct pmu_metric pm = {
+                .pmu = &big_c_string[pmu->pmu_name.offset],
+        };
+        int low = 0, high = pmu->num_entries - 1;
+
+        while (low <= high) {
+                int cmp, mid = (low + high) / 2;
+
+                decompress_metric(pmu->entries[mid].offset, &pm);
+
+                if (!pm.metric_name && !metric)
+                        goto do_call;
+
+                if (!pm.metric_name && metric) {
+                        low = mid + 1;
+                        continue;
+                }
+                if (pm.metric_name && !metric) {
+                        high = mid - 1;
+                        continue;
+                }
+
+                cmp = strcmp(pm.metric_name, metric);
+                if (cmp < 0) {
+                        low = mid + 1;
+                        continue;
+                }
+                if (cmp > 0) {
+                        high = mid - 1;
+                        continue;
+                }
+  do_call:
+                return fn ? fn(&pm, table, data) : 0;
+        }
+        return PMU_METRICS__NOT_FOUND;
+}
+
 int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table,
                                      pmu_metric_iter_fn fn,
                                      void *data)
@@ -1024,6 +1073,27 @@ int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table,
                         return ret;
         }
         return 0;
+}
+
+int pmu_metrics_table__find_metric(const struct pmu_metrics_table *table,
+                                 struct perf_pmu *pmu,
+                                 const char *metric,
+                                 pmu_metric_iter_fn fn,
+                                 void *data)
+{
+        for (size_t i = 0; i < table->num_pmus; i++) {
+                const struct pmu_table_entry *table_pmu = &table->pmus[i];
+                const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
+                int ret;
+
+                if (pmu && !perf_pmu__name_wildcard_match(pmu, pmu_name))
+                        continue;
+
+                ret = pmu_metrics_table__find_metric_pmu(table, table_pmu, metric, fn, data);
+                if (ret != PMU_METRICS__NOT_FOUND)
+                        return ret;
+        }
+        return PMU_METRICS__NOT_FOUND;
 }
 
 static const struct pmu_events_map *map_for_cpu(struct perf_cpu cpu)
@@ -1104,7 +1174,7 @@ const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
                 const struct pmu_table_entry *table_pmu = &map->event_table.pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
 
-                if (pmu__name_match(pmu, pmu_name))
+                if (perf_pmu__name_wildcard_match(pmu, pmu_name))
                          return &map->event_table;
         }
         return NULL;

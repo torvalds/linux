@@ -511,9 +511,10 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 
 	dev_dbg(dev, "probe\n");
 
-	ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
-	if (!ddata)
-		return -ENOMEM;
+	ddata = devm_drm_panel_alloc(dev, struct panel_drv_data, panel,
+				     &dsicm_panel_funcs, DRM_MODE_CONNECTOR_DSI);
+	if (IS_ERR(ddata))
+		return PTR_ERR(ddata);
 
 	mipi_dsi_set_drvdata(dsi, ddata);
 	ddata->dsi = dsi;
@@ -529,9 +530,6 @@ static int dsicm_probe(struct mipi_dsi_device *dsi)
 	mutex_init(&ddata->lock);
 
 	dsicm_hw_reset(ddata);
-
-	drm_panel_init(&ddata->panel, dev, &dsicm_panel_funcs,
-		       DRM_MODE_CONNECTOR_DSI);
 
 	if (ddata->use_dsi_backlight) {
 		struct backlight_properties props = { 0 };

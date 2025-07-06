@@ -35,9 +35,9 @@ MODULE_ALIAS_CRYPTO("aes");
 asmlinkage int aes_p10_set_encrypt_key(const u8 *userKey, const int bits,
 				       void *key);
 asmlinkage void aes_p10_encrypt(const u8 *in, u8 *out, const void *key);
-asmlinkage void aes_p10_gcm_encrypt(u8 *in, u8 *out, size_t len,
+asmlinkage void aes_p10_gcm_encrypt(const u8 *in, u8 *out, size_t len,
 				    void *rkey, u8 *iv, void *Xi);
-asmlinkage void aes_p10_gcm_decrypt(u8 *in, u8 *out, size_t len,
+asmlinkage void aes_p10_gcm_decrypt(const u8 *in, u8 *out, size_t len,
 				    void *rkey, u8 *iv, void *Xi);
 asmlinkage void gcm_init_htable(unsigned char htable[], unsigned char Xi[]);
 asmlinkage void gcm_ghash_p10(unsigned char *Xi, unsigned char *Htable,
@@ -261,7 +261,7 @@ static int p10_aes_gcm_crypt(struct aead_request *req, u8 *riv,
 		return ret;
 
 	while ((nbytes = walk.nbytes) > 0 && ret == 0) {
-		u8 *src = walk.src.virt.addr;
+		const u8 *src = walk.src.virt.addr;
 		u8 *dst = walk.dst.virt.addr;
 		u8 buf[AES_BLOCK_SIZE];
 

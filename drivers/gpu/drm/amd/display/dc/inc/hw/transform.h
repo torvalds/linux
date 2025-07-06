@@ -29,7 +29,7 @@
 #include "hw_shared.h"
 #include "dc_hw_types.h"
 #include "fixed31_32.h"
-#include "spl/dc_spl_types.h"
+#include "sspl/dc_spl_types.h"
 
 #define CSC_TEMPERATURE_MATRIX_SIZE 12
 

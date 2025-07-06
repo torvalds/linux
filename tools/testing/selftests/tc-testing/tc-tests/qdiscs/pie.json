@@ -1,0 +1,24 @@
+[
+    {
+        "id": "6158",
+        "name": "PIE test qdisc limit trimming",
+        "category": ["qdisc", "pie"],
+        "plugins": {"requires": ["nsPlugin", "scapyPlugin"]},
+        "setup": [
+            "$TC qdisc add dev $DEV1 handle 1: root pie limit 10"
+        ],
+        "scapy": [
+            {
+                "iface": "$DEV0",
+                "count": 10,
+                "packet": "Ether(type=0x800)/IP(src='10.0.0.10',dst='10.0.0.20')/TCP(sport=5000,dport=10)"
+            }
+        ],
+        "cmdUnderTest": "$TC qdisc change dev $DEV1 handle 1: root pie limit 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DEV1",
+        "matchPattern": "qdisc pie 1: root refcnt [0-9]+ limit 1p",
+        "matchCount": "1",
+        "teardown": ["$TC qdisc del dev $DEV1 handle 1: root"]
+    }
+]

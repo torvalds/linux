@@ -60,6 +60,8 @@ static int rvu_rep_up_notify(struct rvu *rvu, struct rep_event *event)
 
 	otx2_mbox_msg_send_up(&rvu->afpf_wq_info.mbox_up, pf);
 
+	otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pf);
+
 	mutex_unlock(&rvu->mbox_lock);
 	return 0;
 }

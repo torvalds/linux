@@ -16,6 +16,7 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 
@@ -250,7 +251,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	v2 = i2c_smbus_read_byte_data(tps->client, TPS_LED1_PER);
 	seq_printf(s, "led1 %s, on=%02x, per=%02x, %d/%d msec\n",
 		(value & 0x80)
-			? ((v2 & 0x80) ? "on" : "off")
+			? str_on_off(v2 & 0x80)
 			: ((v2 & 0x80) ? "blink" : "(nPG)"),
 		value, v2,
 		(value & 0x7f) * 10, (v2 & 0x7f) * 100);
@@ -259,7 +260,7 @@ static int dbg_show(struct seq_file *s, void *_)
 	v2 = i2c_smbus_read_byte_data(tps->client, TPS_LED2_PER);
 	seq_printf(s, "led2 %s, on=%02x, per=%02x, %d/%d msec\n",
 		(value & 0x80)
-			? ((v2 & 0x80) ? "on" : "off")
+			? str_on_off(v2 & 0x80)
 			: ((v2 & 0x80) ? "blink" : "off"),
 		value, v2,
 		(value & 0x7f) * 10, (v2 & 0x7f) * 100);
@@ -445,7 +446,7 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
  * offsets 4..5 == LED1/nPG, LED2 (we set one of the non-BLINK modes)
  * offset 6 == vibrator motor driver
  */
-static void
+static int
 tps65010_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	if (offset < 4)
@@ -454,6 +455,8 @@ tps65010_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		tps65010_set_led(offset - 3, value ? ON : OFF);
 	else
 		tps65010_set_vib(value);
+
+	return 0;
 }
 
 static int
@@ -511,7 +514,6 @@ static void tps65010_remove(struct i2c_client *client)
 	if (client->irq > 0)
 		free_irq(client->irq, tps);
 	cancel_delayed_work_sync(&tps->work);
-	debugfs_remove(tps->file);
 	the_tps = NULL;
 }
 
@@ -607,7 +609,7 @@ static int tps65010_probe(struct i2c_client *client)
 
 	tps65010_work(&tps->work.work);
 
-	tps->file = debugfs_create_file(DRIVER_NAME, S_IRUGO, NULL,
+	tps->file = debugfs_create_file(DRIVER_NAME, S_IRUGO, client->debugfs,
 				tps, DEBUG_FOPS);
 
 	/* optionally register GPIOs */
@@ -618,7 +620,7 @@ static int tps65010_probe(struct i2c_client *client)
 		tps->chip.parent = &client->dev;
 		tps->chip.owner = THIS_MODULE;
 
-		tps->chip.set = tps65010_gpio_set;
+		tps->chip.set_rv = tps65010_gpio_set;
 		tps->chip.direction_output = tps65010_output;
 
 		/* NOTE:  only partial support for inputs; nyet IRQs */
@@ -738,7 +740,7 @@ int tps65010_set_gpio_out_value(unsigned gpio, unsigned value)
 		TPS_DEFGPIO, defgpio);
 
 	pr_debug("%s: gpio%dout = %s, defgpio 0x%02x\n", DRIVER_NAME,
-		gpio, value ? "high" : "low",
+		gpio, str_high_low(value),
 		i2c_smbus_read_byte_data(the_tps->client, TPS_DEFGPIO));
 
 	mutex_unlock(&the_tps->lock);
@@ -850,7 +852,7 @@ int tps65010_set_vib(unsigned value)
 	status = i2c_smbus_write_byte_data(the_tps->client,
 		TPS_VDCDC2, vdcdc2);
 
-	pr_debug("%s: vibrator %s\n", DRIVER_NAME, value ? "on" : "off");
+	pr_debug("%s: vibrator %s\n", DRIVER_NAME, str_on_off(value));
 
 	mutex_unlock(&the_tps->lock);
 	return status;
@@ -872,7 +874,7 @@ int tps65010_set_low_pwr(unsigned mode)
 	mutex_lock(&the_tps->lock);
 
 	pr_debug("%s: %s low_pwr, vdcdc1 0x%02x\n", DRIVER_NAME,
-		mode ? "enable" : "disable",
+		str_enable_disable(mode),
 		i2c_smbus_read_byte_data(the_tps->client, TPS_VDCDC1));
 
 	vdcdc1 = i2c_smbus_read_byte_data(the_tps->client, TPS_VDCDC1);
@@ -984,7 +986,7 @@ int tps65013_set_low_pwr(unsigned mode)
 
 	pr_debug("%s: %s low_pwr, chgconfig 0x%02x vdcdc1 0x%02x\n",
 		DRIVER_NAME,
-		mode ? "enable" : "disable",
+		str_enable_disable(mode),
 		i2c_smbus_read_byte_data(the_tps->client, TPS_CHGCONFIG),
 		i2c_smbus_read_byte_data(the_tps->client, TPS_VDCDC1));
 

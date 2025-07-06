@@ -405,26 +405,6 @@ int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
 }
 
 /*
- * Perform a stand-alone single QSFP write.  Acquire the resource, do the
- * write, then release the resource.
- */
-int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
-		   int len)
-{
-	struct hfi1_devdata *dd = ppd->dd;
-	u32 resource = qsfp_resource(dd);
-	int ret;
-
-	ret = acquire_chip_resource(dd, resource, QSFP_WAIT);
-	if (ret)
-		return ret;
-	ret = qsfp_write(ppd, target, addr, bp, len);
-	release_chip_resource(dd, resource);
-
-	return ret;
-}
-
-/*
  * Access page n, offset m of QSFP memory as defined by SFF 8636
  * by reading @addr = ((256 * n) + m)
  *

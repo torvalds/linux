@@ -9,19 +9,119 @@ title: Altera SOCFPGA Clock Manager
 maintainers:
   - Dinh Nguyen <dinguyen@kernel.org>
 
-description: test
+description:
+  This binding describes the Altera SOCFGPA Clock Manager and its associated
+  tree of clocks, pll's, and clock gates for the Cyclone5, Arria5 and Arria10
+  chip families.
 
 properties:
   compatible:
     items:
       - const: altr,clk-mgr
+
   reg:
     maxItems: 1
 
+  clocks:
+    type: object
+    additionalProperties: false
+
+    properties:
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 0
+
+    patternProperties:
+      "^osc[0-9]$":
+        type: object
+
+      "^[a-z0-9,_]+(clk|pll|clk_gate|clk_divided)(@[a-f0-9]+)?$":
+        type: object
+        $ref: '#/$defs/clock-props'
+        unevaluatedProperties: false
+
+        properties:
+          compatible:
+            enum:
+              - altr,socfpga-pll-clock
+              - altr,socfpga-perip-clk
+              - altr,socfpga-gate-clk
+              - altr,socfpga-a10-pll-clock
+              - altr,socfpga-a10-perip-clk
+              - altr,socfpga-a10-gate-clk
+              - fixed-clock
+
+          clocks:
+            description: one or more phandles to input clock
+            minItems: 1
+            maxItems: 5
+
+          "#address-cells":
+            const: 1
+
+          "#size-cells":
+            const: 0
+
+        patternProperties:
+          "^[a-z0-9,_]+(clk|pll)(@[a-f0-9]+)?$":
+            type: object
+            $ref: '#/$defs/clock-props'
+            unevaluatedProperties: false
+
+            properties:
+              compatible:
+                enum:
+                  - altr,socfpga-perip-clk
+                  - altr,socfpga-gate-clk
+                  - altr,socfpga-a10-perip-clk
+                  - altr,socfpga-a10-gate-clk
+
+              clocks:
+                description: one or more phandles to input clock
+                minItems: 1
+                maxItems: 4
+
+            required:
+              - compatible
+              - clocks
+              - "#clock-cells"
+
+        required:
+          - compatible
+          - "#clock-cells"
+
 required:
   - compatible
+  - reg
 
 additionalProperties: false
+
+$defs:
+  clock-props:
+    properties:
+      reg:
+        maxItems: 1
+
+      "#clock-cells":
+        const: 0
+
+      clk-gate:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          - description: gating register offset
+          - description: bit index
+
+      div-reg:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          - description: divider register offset
+          - description: bit shift
+          - description: bit width
+
+      fixed-divider:
+        $ref: /schemas/types.yaml#/definitions/uint32
 
 examples:
   - |

@@ -69,7 +69,9 @@ properties:
               - renesas,sdhi-r9a09g011 # RZ/V2M
           - const: renesas,rzg2l-sdhi
       - items:
-          - const: renesas,sdhi-r9a09g047 # RZ/G3E
+          - enum:
+              - renesas,sdhi-r9a09g047 # RZ/G3E
+              - renesas,sdhi-r9a09g056 # RZ/V2N
           - const: renesas,sdhi-r9a09g057 # RZ/V2H(P)
 
   reg:

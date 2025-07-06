@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <asm/asm-extable.h>
+#include <asm/machine.h>
 #include <asm/sclp.h>
 #include <asm/ebcdic.h>
 #include <asm/asm.h>
@@ -317,7 +318,7 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile(
+	asm_inline volatile(
 		"0:	.insn	rre,0xb2200000,%[cmd],%[sccb]\n" /* servc */
 		"1:	lhi	%[exc],0\n"
 		"2:\n"
@@ -342,21 +343,21 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 static inline unsigned char
 sclp_ascebc(unsigned char ch)
 {
-	return (MACHINE_IS_VM) ? _ascebc[ch] : _ascebc_500[ch];
+	return (machine_is_vm()) ? _ascebc[ch] : _ascebc_500[ch];
 }
 
 /* translate string from EBCDIC to ASCII */
 static inline void
 sclp_ebcasc_str(char *str, int nr)
 {
-	(MACHINE_IS_VM) ? EBCASC(str, nr) : EBCASC_500(str, nr);
+	(machine_is_vm()) ? EBCASC(str, nr) : EBCASC_500(str, nr);
 }
 
 /* translate string from ASCII to EBCDIC */
 static inline void
 sclp_ascebc_str(char *str, int nr)
 {
-	(MACHINE_IS_VM) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
+	(machine_is_vm()) ? ASCEBC(str, nr) : ASCEBC_500(str, nr);
 }
 
 static inline struct gds_vector *

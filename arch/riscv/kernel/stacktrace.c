@@ -74,7 +74,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 						   &frame->ra);
 			if (pc >= (unsigned long)handle_exception &&
 			    pc < (unsigned long)&ret_from_exception_end) {
-				if (unlikely(!__kernel_text_address(pc) || !fn(arg, pc)))
+				if (unlikely(!fn(arg, pc)))
 					break;
 
 				pc = ((struct pt_regs *)sp)->epc;

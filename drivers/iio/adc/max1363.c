@@ -364,55 +364,52 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 				    int *val,
 				    long m)
 {
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		s32 data;
-		u8 rxbuf[2];
-		struct max1363_state *st = iio_priv(indio_dev);
-		struct i2c_client *client = st->client;
+	s32 data;
+	u8 rxbuf[2];
+	struct max1363_state *st = iio_priv(indio_dev);
+	struct i2c_client *client = st->client;
 
-		guard(mutex)(&st->lock);
+	guard(mutex)(&st->lock);
 
-		/*
-		 * If monitor mode is enabled, the method for reading a single
-		 * channel will have to be rather different and has not yet
-		 * been implemented.
-		 *
-		 * Also, cannot read directly if buffered capture enabled.
-		 */
-		if (st->monitor_on)
-			return -EBUSY;
+	/*
+	 * If monitor mode is enabled, the method for reading a single
+	 * channel will have to be rather different and has not yet
+	 * been implemented.
+	 *
+	 * Also, cannot read directly if buffered capture enabled.
+	 */
+	if (st->monitor_on)
+		return -EBUSY;
 
-		/* Check to see if current scan mode is correct */
-		if (st->current_mode != &max1363_mode_table[chan->address]) {
-			int ret;
+	/* Check to see if current scan mode is correct */
+	if (st->current_mode != &max1363_mode_table[chan->address]) {
+		int ret;
 
-			/* Update scan mode if needed */
-			st->current_mode = &max1363_mode_table[chan->address];
-			ret = max1363_set_scan_mode(st);
-			if (ret < 0)
-				return ret;
-		}
-		if (st->chip_info->bits != 8) {
-			/* Get reading */
-			data = st->recv(client, rxbuf, 2);
-			if (data < 0)
-				return data;
-
-			data = get_unaligned_be16(rxbuf) &
-				((1 << st->chip_info->bits) - 1);
-		} else {
-			/* Get reading */
-			data = st->recv(client, rxbuf, 1);
-			if (data < 0)
-				return data;
-
-			data = rxbuf[0];
-		}
-		*val = data;
-
-		return 0;
+		/* Update scan mode if needed */
+		st->current_mode = &max1363_mode_table[chan->address];
+		ret = max1363_set_scan_mode(st);
+		if (ret < 0)
+			return ret;
 	}
-	unreachable();
+	if (st->chip_info->bits != 8) {
+		/* Get reading */
+		data = st->recv(client, rxbuf, 2);
+		if (data < 0)
+			return data;
+
+		data = get_unaligned_be16(rxbuf) &
+			((1 << st->chip_info->bits) - 1);
+	} else {
+		/* Get reading */
+		data = st->recv(client, rxbuf, 1);
+		if (data < 0)
+			return data;
+
+		data = rxbuf[0];
+	}
+	*val = data;
+
+	return 0;
 }
 
 static int max1363_read_raw(struct iio_dev *indio_dev,
@@ -426,7 +423,11 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+
 		ret = max1363_read_single_chan(indio_dev, chan, val, m);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
@@ -947,46 +948,58 @@ error_ret:
 	return ret;
 }
 
+static int __max1363_write_event_config(struct max1363_state *st,
+	const struct iio_chan_spec *chan,
+	enum iio_event_direction dir, bool state)
+{
+	int number = chan->channel;
+	u16 unifiedmask;
+	int ret;
+
+	guard(mutex)(&st->lock);
+
+	unifiedmask = st->mask_low | st->mask_high;
+	if (dir == IIO_EV_DIR_FALLING) {
+
+		if (state == 0)
+			st->mask_low &= ~(1 << number);
+		else {
+			ret = __max1363_check_event_mask((1 << number),
+							 unifiedmask);
+			if (ret)
+				return ret;
+			st->mask_low |= (1 << number);
+		}
+	} else {
+		if (state == 0)
+			st->mask_high &= ~(1 << number);
+		else {
+			ret = __max1363_check_event_mask((1 << number),
+							 unifiedmask);
+			if (ret)
+				return ret;
+			st->mask_high |= (1 << number);
+		}
+	}
+
+	return 0;
+
+}
 static int max1363_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
 	enum iio_event_direction dir, bool state)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
+	int ret;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		int number = chan->channel;
-		u16 unifiedmask;
-		int ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
-		guard(mutex)(&st->lock);
-
-		unifiedmask = st->mask_low | st->mask_high;
-		if (dir == IIO_EV_DIR_FALLING) {
-
-			if (state == 0)
-				st->mask_low &= ~(1 << number);
-			else {
-				ret = __max1363_check_event_mask((1 << number),
-								 unifiedmask);
-				if (ret)
-					return ret;
-				st->mask_low |= (1 << number);
-			}
-		} else {
-			if (state == 0)
-				st->mask_high &= ~(1 << number);
-			else {
-				ret = __max1363_check_event_mask((1 << number),
-								 unifiedmask);
-				if (ret)
-					return ret;
-				st->mask_high |= (1 << number);
-			}
-		}
-	}
+	ret = __max1363_write_event_config(st, chan,  dir, state);
+	iio_device_release_direct(indio_dev);
 	max1363_monitor_mode_update(st, !!(st->mask_high | st->mask_low));
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -1485,8 +1498,8 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (b_sent < 0)
 		goto done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &st->data,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &st->data, sizeof(st->data),
+				    iio_get_time_ns(indio_dev));
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -1538,7 +1551,7 @@ static const struct of_device_id max1363_of_match[] = {
 	MAX1363_COMPATIBLE("maxim,max11645", max11645),
 	MAX1363_COMPATIBLE("maxim,max11646", max11646),
 	MAX1363_COMPATIBLE("maxim,max11647", max11647),
-	{ /* sentinel */ }
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max1363_of_match);
 
@@ -1659,7 +1672,7 @@ static const struct i2c_device_id max1363_id[] = {
 	MAX1363_ID_TABLE("max11645", max11645),
 	MAX1363_ID_TABLE("max11646", max11646),
 	MAX1363_ID_TABLE("max11647", max11647),
-	{ /* sentinel */ }
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, max1363_id);

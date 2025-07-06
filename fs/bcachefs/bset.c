@@ -144,8 +144,6 @@ struct btree_nr_keys bch2_btree_node_count_keys(struct btree *b)
 	return nr;
 }
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-
 void __bch2_verify_btree_nr_keys(struct btree *b)
 {
 	struct btree_nr_keys nr = bch2_btree_node_count_keys(b);
@@ -153,7 +151,7 @@ void __bch2_verify_btree_nr_keys(struct btree *b)
 	BUG_ON(memcmp(&nr, &b->nr, sizeof(nr)));
 }
 
-static void bch2_btree_node_iter_next_check(struct btree_node_iter *_iter,
+static void __bch2_btree_node_iter_next_check(struct btree_node_iter *_iter,
 					    struct btree *b)
 {
 	struct btree_node_iter iter = *_iter;
@@ -190,8 +188,8 @@ static void bch2_btree_node_iter_next_check(struct btree_node_iter *_iter,
 	}
 }
 
-void bch2_btree_node_iter_verify(struct btree_node_iter *iter,
-				 struct btree *b)
+void __bch2_btree_node_iter_verify(struct btree_node_iter *iter,
+				   struct btree *b)
 {
 	struct btree_node_iter_set *set, *s2;
 	struct bkey_packed *k, *p;
@@ -237,8 +235,8 @@ found:
 	}
 }
 
-void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
-			    struct bkey_packed *insert, unsigned clobber_u64s)
+static void __bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
+				     struct bkey_packed *insert, unsigned clobber_u64s)
 {
 	struct bset_tree *t = bch2_bkey_to_bset(b, where);
 	struct bkey_packed *prev = bch2_bkey_prev_all(b, t, where);
@@ -285,12 +283,15 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 #endif
 }
 
-#else
+static inline void bch2_verify_insert_pos(struct btree *b,
+					  struct bkey_packed *where,
+					  struct bkey_packed *insert,
+					  unsigned clobber_u64s)
+{
+	if (static_branch_unlikely(&bch2_debug_check_bset_lookups))
+		__bch2_verify_insert_pos(b, where, insert, clobber_u64s);
+}
 
-static inline void bch2_btree_node_iter_next_check(struct btree_node_iter *iter,
-						   struct btree *b) {}
-
-#endif
 
 /* Auxiliary search trees */
 
@@ -361,9 +362,8 @@ static struct bkey_float *bkey_float(const struct btree *b,
 	return ro_aux_tree_base(b, t)->f + idx;
 }
 
-static void bset_aux_tree_verify(struct btree *b)
+static void __bset_aux_tree_verify(struct btree *b)
 {
-#ifdef CONFIG_BCACHEFS_DEBUG
 	for_each_bset(b, t) {
 		if (t->aux_data_offset == U16_MAX)
 			continue;
@@ -375,7 +375,12 @@ static void bset_aux_tree_verify(struct btree *b)
 		BUG_ON(t->aux_data_offset > btree_aux_data_u64s(b));
 		BUG_ON(bset_aux_tree_buf_end(t) > btree_aux_data_u64s(b));
 	}
-#endif
+}
+
+static inline void bset_aux_tree_verify(struct btree *b)
+{
+	if (static_branch_unlikely(&bch2_debug_check_bset_lookups))
+		__bset_aux_tree_verify(b);
 }
 
 void bch2_btree_keys_init(struct btree *b)
@@ -495,14 +500,10 @@ static void rw_aux_tree_set(const struct btree *b, struct bset_tree *t,
 	};
 }
 
-static void bch2_bset_verify_rw_aux_tree(struct btree *b,
-					struct bset_tree *t)
+static void __bch2_bset_verify_rw_aux_tree(struct btree *b, struct bset_tree *t)
 {
 	struct bkey_packed *k = btree_bkey_first(b, t);
 	unsigned j = 0;
-
-	if (!bch2_expensive_debug_checks)
-		return;
 
 	BUG_ON(bset_has_ro_aux_tree(t));
 
@@ -528,6 +529,13 @@ start:
 		k = bkey_p_next(k);
 		BUG_ON(k >= btree_bkey_last(b, t));
 	}
+}
+
+static inline void bch2_bset_verify_rw_aux_tree(struct btree *b,
+						struct bset_tree *t)
+{
+	if (static_branch_unlikely(&bch2_debug_check_bset_lookups))
+		__bch2_bset_verify_rw_aux_tree(b, t);
 }
 
 /* returns idx of first entry >= offset: */
@@ -869,7 +877,7 @@ struct bkey_packed *bch2_bkey_prev_filter(struct btree *b,
 		k = p;
 	}
 
-	if (bch2_expensive_debug_checks) {
+	if (static_branch_unlikely(&bch2_debug_check_bset_lookups)) {
 		BUG_ON(ret >= orig_k);
 
 		for (i = ret
@@ -1195,7 +1203,7 @@ struct bkey_packed *bch2_bset_search_linear(struct btree *b,
 		       bkey_iter_pos_cmp(b, m, search) < 0)
 			m = bkey_p_next(m);
 
-	if (bch2_expensive_debug_checks) {
+	if (static_branch_unlikely(&bch2_debug_check_bset_lookups)) {
 		struct bkey_packed *prev = bch2_bkey_prev_all(b, t, m);
 
 		BUG_ON(prev &&
@@ -1435,9 +1443,9 @@ static inline void __bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 void bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 				  struct btree *b)
 {
-	if (bch2_expensive_debug_checks) {
-		bch2_btree_node_iter_verify(iter, b);
-		bch2_btree_node_iter_next_check(iter, b);
+	if (static_branch_unlikely(&bch2_debug_check_bset_lookups)) {
+		__bch2_btree_node_iter_verify(iter, b);
+		__bch2_btree_node_iter_next_check(iter, b);
 	}
 
 	__bch2_btree_node_iter_advance(iter, b);
@@ -1453,8 +1461,7 @@ struct bkey_packed *bch2_btree_node_iter_prev_all(struct btree_node_iter *iter,
 	struct btree_node_iter_set *set;
 	unsigned end = 0;
 
-	if (bch2_expensive_debug_checks)
-		bch2_btree_node_iter_verify(iter, b);
+	bch2_btree_node_iter_verify(iter, b);
 
 	for_each_bset(b, t) {
 		k = bch2_bkey_prev_all(b, t,
@@ -1489,8 +1496,7 @@ found:
 	iter->data[0].k = __btree_node_key_to_offset(b, prev);
 	iter->data[0].end = end;
 
-	if (bch2_expensive_debug_checks)
-		bch2_btree_node_iter_verify(iter, b);
+	bch2_btree_node_iter_verify(iter, b);
 	return prev;
 }
 

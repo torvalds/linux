@@ -39,6 +39,7 @@ bool dp_perform_link_training_skip_aux(
 
 	dp_decide_training_settings(
 			link,
+			link_res,
 			link_setting,
 			&lt_settings);
 	override_training_settings(

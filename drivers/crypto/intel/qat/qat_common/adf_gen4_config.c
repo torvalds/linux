@@ -11,7 +11,7 @@
 #include "qat_compression.h"
 #include "qat_crypto.h"
 
-static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
+int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	int banks = GET_MAX_BANKS(accel_dev);
@@ -117,7 +117,7 @@ err:
 	return ret;
 }
 
-static int adf_comp_dev_config(struct adf_accel_dev *accel_dev)
+int adf_comp_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
 	int banks = GET_MAX_BANKS(accel_dev);
@@ -187,7 +187,7 @@ err:
 	return ret;
 }
 
-static int adf_no_dev_config(struct adf_accel_dev *accel_dev)
+int adf_no_dev_config(struct adf_accel_dev *accel_dev)
 {
 	unsigned long val;
 	int ret;
@@ -213,7 +213,6 @@ static int adf_no_dev_config(struct adf_accel_dev *accel_dev)
  */
 int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
 {
-	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
 	int ret;
 
 	ret = adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC);
@@ -224,18 +223,8 @@ int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
 	if (ret)
 		goto err;
 
-	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
-				      ADF_SERVICES_ENABLED, services);
-	if (ret)
-		goto err;
-
-	ret = sysfs_match_string(adf_cfg_services, services);
-	if (ret < 0)
-		goto err;
-
-	switch (ret) {
-	case SVC_CY:
-	case SVC_CY2:
+	switch (adf_get_service_enabled(accel_dev)) {
+	case SVC_SYM_ASYM:
 		ret = adf_crypto_dev_config(accel_dev);
 		break;
 	case SVC_DC:

@@ -70,6 +70,7 @@ static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest
 	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
 	char sbuf[STRERR_BUFSIZE];
 
+	perf_sample__init(&sample, /*all=*/false);
 	if (evlist == NULL) /* Fallback for kernels lacking PERF_COUNT_SW_DUMMY */
 		evlist = evlist__new_default();
 
@@ -330,6 +331,7 @@ found_exit:
 out_delete_evlist:
 	evlist__delete(evlist);
 out:
+	perf_sample__exit(&sample);
 	if (err == -EACCES)
 		return TEST_SKIP;
 	if (err < 0 || errs != 0)

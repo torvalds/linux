@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/lsi,zevio-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI-NSPIRE timer
+
+maintainers:
+  - Daniel Tang <dt.tangr@gmail.com>
+
+properties:
+  compatible:
+    const: lsi,zevio-timer
+
+  reg:
+    minItems: 1
+    items:
+      - description: Timer registers
+      - description: Interrupt acknowledgement registers (optional)
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - clocks
+
+allOf:
+  - if:
+      required: [ interrupts ]
+    then:
+      properties:
+        reg:
+          minItems: 2
+
+additionalProperties: false
+
+examples:
+  - |
+    timer@900d0000 {
+        compatible = "lsi,zevio-timer";
+        reg = <0x900D0000 0x1000>, <0x900A0020 0x8>;
+        interrupts = <19>;
+        clocks = <&timer_clk>;
+    };
+  - |
+    timer@900d0000 {
+        compatible = "lsi,zevio-timer";
+        reg = <0x900D0000 0x1000>;
+        clocks = <&timer_clk>;
+    };

@@ -34,13 +34,10 @@ DEFINE_DEBUGFS_ATTRIBUTE(cma_debugfs_fops, cma_debugfs_get, NULL, "%llu\n");
 static int cma_used_get(void *data, u64 *val)
 {
 	struct cma *cma = data;
-	unsigned long used;
 
 	spin_lock_irq(&cma->lock);
-	/* pages counter is smaller than sizeof(int) */
-	used = bitmap_weight(cma->bitmap, (int)cma_bitmap_maxno(cma));
+	*val = cma->count - cma->available_count;
 	spin_unlock_irq(&cma->lock);
-	*val = (u64)used << cma->order_per_bit;
 
 	return 0;
 }
@@ -49,17 +46,26 @@ DEFINE_DEBUGFS_ATTRIBUTE(cma_used_fops, cma_used_get, NULL, "%llu\n");
 static int cma_maxchunk_get(void *data, u64 *val)
 {
 	struct cma *cma = data;
+	struct cma_memrange *cmr;
 	unsigned long maxchunk = 0;
-	unsigned long start, end = 0;
-	unsigned long bitmap_maxno = cma_bitmap_maxno(cma);
+	unsigned long start, end;
+	unsigned long bitmap_maxno;
+	int r;
 
 	spin_lock_irq(&cma->lock);
-	for (;;) {
-		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
-		if (start >= bitmap_maxno)
-			break;
-		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
-		maxchunk = max(end - start, maxchunk);
+	for (r = 0; r < cma->nranges; r++) {
+		cmr = &cma->ranges[r];
+		bitmap_maxno = cma_bitmap_maxno(cma, cmr);
+		end = 0;
+		for (;;) {
+			start = find_next_zero_bit(cmr->bitmap,
+						   bitmap_maxno, end);
+			if (start >= bitmap_maxno)
+				break;
+			end = find_next_bit(cmr->bitmap, bitmap_maxno,
+					    start);
+			maxchunk = max(end - start, maxchunk);
+		}
 	}
 	spin_unlock_irq(&cma->lock);
 	*val = (u64)maxchunk << cma->order_per_bit;
@@ -162,24 +168,41 @@ DEFINE_DEBUGFS_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
 
 static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
 {
-	struct dentry *tmp;
+	struct dentry *tmp, *dir, *rangedir;
+	int r;
+	char rdirname[12];
+	struct cma_memrange *cmr;
 
 	tmp = debugfs_create_dir(cma->name, root_dentry);
 
 	debugfs_create_file("alloc", 0200, tmp, cma, &cma_alloc_fops);
 	debugfs_create_file("free", 0200, tmp, cma, &cma_free_fops);
-	debugfs_create_file("base_pfn", 0444, tmp,
-			    &cma->base_pfn, &cma_debugfs_fops);
 	debugfs_create_file("count", 0444, tmp, &cma->count, &cma_debugfs_fops);
 	debugfs_create_file("order_per_bit", 0444, tmp,
 			    &cma->order_per_bit, &cma_debugfs_fops);
 	debugfs_create_file("used", 0444, tmp, cma, &cma_used_fops);
 	debugfs_create_file("maxchunk", 0444, tmp, cma, &cma_maxchunk_fops);
 
-	cma->dfs_bitmap.array = (u32 *)cma->bitmap;
-	cma->dfs_bitmap.n_elements = DIV_ROUND_UP(cma_bitmap_maxno(cma),
-						  BITS_PER_BYTE * sizeof(u32));
-	debugfs_create_u32_array("bitmap", 0444, tmp, &cma->dfs_bitmap);
+	rangedir = debugfs_create_dir("ranges", tmp);
+	for (r = 0; r < cma->nranges; r++) {
+		cmr = &cma->ranges[r];
+		snprintf(rdirname, sizeof(rdirname), "%d", r);
+		dir = debugfs_create_dir(rdirname, rangedir);
+		debugfs_create_file("base_pfn", 0444, dir,
+			    &cmr->base_pfn, &cma_debugfs_fops);
+		cmr->dfs_bitmap.array = (u32 *)cmr->bitmap;
+		cmr->dfs_bitmap.n_elements =
+			DIV_ROUND_UP(cma_bitmap_maxno(cma, cmr),
+					BITS_PER_BYTE * sizeof(u32));
+		debugfs_create_u32_array("bitmap", 0444, dir,
+				&cmr->dfs_bitmap);
+	}
+
+	/*
+	 * Backward compatible symlinks to range 0 for base_pfn and bitmap.
+	 */
+	debugfs_create_symlink("base_pfn", tmp, "ranges/0/base_pfn");
+	debugfs_create_symlink("bitmap", tmp, "ranges/0/bitmap");
 }
 
 static int __init cma_debugfs_init(void)

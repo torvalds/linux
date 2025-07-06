@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright (C) 2003 - 2014, 2018 - 2024 Intel Corporation
+ * Copyright (C) 2003 - 2014, 2018 - 2025 Intel Corporation
  *****************************************************************************/
 
 #ifndef __rs_h__
@@ -423,6 +423,9 @@ int iwl_mvm_rate_control_register(void);
 void iwl_mvm_rate_control_unregister(void);
 
 struct iwl_mvm_sta;
+
+u32 iwl_mvm_v3_rate_from_fw(__le32 rate, u8 rate_ver);
+__le32 iwl_mvm_v3_rate_to_fw(u32 rate, u8 rate_ver);
 
 int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			  bool enable);

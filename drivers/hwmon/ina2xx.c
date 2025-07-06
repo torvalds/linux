@@ -959,8 +959,12 @@ static int ina2xx_probe(struct i2c_client *client)
 		return PTR_ERR(data->regmap);
 	}
 
-	ret = devm_regulator_get_enable(dev, "vs");
-	if (ret)
+	/*
+	 * Regulator core returns -ENODEV if the 'vs' is not available.
+	 * Hence the check for -ENODEV return code is necessary.
+	 */
+	ret = devm_regulator_get_enable_optional(dev, "vs");
+	if (ret < 0 && ret != -ENODEV)
 		return dev_err_probe(dev, ret, "failed to enable vs regulator\n");
 
 	ret = ina2xx_init(dev, data);

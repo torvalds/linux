@@ -684,7 +684,7 @@ mpu3050_get_mount_matrix(const struct iio_dev *indio_dev,
 
 static const struct iio_chan_spec_ext_info mpu3050_ext_info[] = {
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_TYPE, mpu3050_get_mount_matrix),
-	{ },
+	{ }
 };
 
 #define MPU3050_AXIS_CHANNEL(axis, index)				\

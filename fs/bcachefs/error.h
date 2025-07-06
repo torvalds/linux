@@ -18,6 +18,13 @@ struct work_struct;
 
 /* Error messages: */
 
+void __bch2_log_msg_start(const char *, struct printbuf *);
+
+static inline void bch2_log_msg_start(struct bch_fs *c, struct printbuf *out)
+{
+	__bch2_log_msg_start(c->name, out);
+}
+
 /*
  * Inconsistency errors: The on disk data is inconsistent. If these occur during
  * initial recovery, they don't indicate a bug in the running code - we walk all
@@ -29,21 +36,10 @@ struct work_struct;
  * BCH_ON_ERROR_CONTINUE mode
  */
 
+bool __bch2_inconsistent_error(struct bch_fs *, struct printbuf *);
 bool bch2_inconsistent_error(struct bch_fs *);
-
-int bch2_topology_error(struct bch_fs *);
-
-#define bch2_fs_topology_error(c, ...)					\
-({									\
-	bch_err(c, "btree topology error: " __VA_ARGS__);		\
-	bch2_topology_error(c);						\
-})
-
-#define bch2_fs_inconsistent(c, ...)					\
-({									\
-	bch_err(c, __VA_ARGS__);					\
-	bch2_inconsistent_error(c);					\
-})
+__printf(2, 3)
+bool bch2_fs_inconsistent(struct bch_fs *, const char *, ...);
 
 #define bch2_fs_inconsistent_on(cond, ...)				\
 ({									\
@@ -53,25 +49,20 @@ int bch2_topology_error(struct bch_fs *);
 	_ret;								\
 })
 
-/*
- * When a transaction update discovers or is causing a fs inconsistency, it's
- * helpful to also dump the pending updates:
- */
-#define bch2_trans_inconsistent(trans, ...)				\
-({									\
-	bch_err(trans->c, __VA_ARGS__);					\
-	bch2_dump_trans_updates(trans);					\
-	bch2_inconsistent_error(trans->c);				\
-})
+__printf(2, 3)
+bool bch2_trans_inconsistent(struct btree_trans *, const char *, ...);
 
-#define bch2_trans_inconsistent_on(cond, trans, ...)			\
+#define bch2_trans_inconsistent_on(cond, ...)				\
 ({									\
 	bool _ret = unlikely(!!(cond));					\
-									\
 	if (_ret)							\
-		bch2_trans_inconsistent(trans, __VA_ARGS__);		\
+		bch2_trans_inconsistent(__VA_ARGS__);			\
 	_ret;								\
 })
+
+int __bch2_topology_error(struct bch_fs *, struct printbuf *);
+__printf(2, 3)
+int bch2_fs_topology_error(struct bch_fs *, const char *, ...);
 
 /*
  * Fsck errors: inconsistency errors we detect at mount time, and should ideally
@@ -80,7 +71,7 @@ int bch2_topology_error(struct bch_fs *);
 
 struct fsck_err_state {
 	struct list_head	list;
-	const char		*fmt;
+	enum bch_sb_error_id	id;
 	u64			nr;
 	bool			ratelimited;
 	int			ret;
@@ -89,6 +80,14 @@ struct fsck_err_state {
 };
 
 #define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
+
+bool __bch2_count_fsck_err(struct bch_fs *, enum bch_sb_error_id, struct printbuf *);
+#define bch2_count_fsck_err(_c, _err, ...)				\
+	__bch2_count_fsck_err(_c, BCH_FSCK_ERR_##_err, __VA_ARGS__)
+
+int bch2_fsck_err_opt(struct bch_fs *,
+		      enum bch_fsck_flags,
+		      enum bch_sb_error_id);
 
 __printf(5, 6) __cold
 int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,
@@ -101,17 +100,18 @@ int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,
 			_flags, BCH_FSCK_ERR_##_err_type, __VA_ARGS__)
 
 void bch2_flush_fsck_errs(struct bch_fs *);
+void bch2_free_fsck_errs(struct bch_fs *);
 
 #define fsck_err_wrap(_do)						\
 ({									\
 	int _ret = _do;							\
-	if (_ret != -BCH_ERR_fsck_fix &&				\
-	    _ret != -BCH_ERR_fsck_ignore) {				\
+	if (!bch2_err_matches(_ret, BCH_ERR_fsck_fix) &&		\
+	    !bch2_err_matches(_ret, BCH_ERR_fsck_ignore)) {		\
 		ret = _ret;						\
 		goto fsck_err;						\
 	}								\
 									\
-	_ret == -BCH_ERR_fsck_fix;					\
+	bch2_err_matches(_ret, BCH_ERR_fsck_fix);			\
 })
 
 #define __fsck_err(...)		fsck_err_wrap(bch2_fsck_err(__VA_ARGS__))
@@ -170,10 +170,10 @@ do {									\
 	int _ret = __bch2_bkey_fsck_err(c, k, from,			\
 				BCH_FSCK_ERR_##_err_type,		\
 				_err_msg, ##__VA_ARGS__);		\
-	if (_ret != -BCH_ERR_fsck_fix &&				\
-	    _ret != -BCH_ERR_fsck_ignore)				\
+	if (!bch2_err_matches(_ret, BCH_ERR_fsck_fix) &&		\
+	    !bch2_err_matches(_ret, BCH_ERR_fsck_ignore))		\
 		ret = _ret;						\
-	ret = -BCH_ERR_fsck_delete_bkey;				\
+	ret = bch_err_throw(c, fsck_delete_bkey);			\
 	goto fsck_err;							\
 } while (0)
 

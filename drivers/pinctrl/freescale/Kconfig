@@ -20,7 +20,9 @@ config PINCTRL_IMX_SCMI
 
 config PINCTRL_IMX_SCU
 	tristate
+	depends on OF
 	depends on IMX_SCU || COMPILE_TEST
+	default IMX_SCU
 	select PINCTRL_IMX
 
 config PINCTRL_IMX1_CORE
@@ -159,6 +161,7 @@ config PINCTRL_IMX8MM
 	tristate "IMX8MM pinctrl driver"
 	depends on OF
 	depends on SOC_IMX8M || COMPILE_TEST
+	default SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mm pinctrl driver
@@ -167,6 +170,7 @@ config PINCTRL_IMX8MN
 	tristate "IMX8MN pinctrl driver"
 	depends on OF
 	depends on SOC_IMX8M || COMPILE_TEST
+	default SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mn pinctrl driver
@@ -175,6 +179,7 @@ config PINCTRL_IMX8MP
 	tristate "IMX8MP pinctrl driver"
 	depends on OF
 	depends on SOC_IMX8M || COMPILE_TEST
+	default SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mp pinctrl driver
@@ -183,6 +188,7 @@ config PINCTRL_IMX8MQ
 	tristate "IMX8MQ pinctrl driver"
 	depends on OF
 	depends on SOC_IMX8M || COMPILE_TEST
+	default SOC_IMX8M
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8mq pinctrl driver
@@ -191,6 +197,7 @@ config PINCTRL_IMX8QM
 	tristate "IMX8QM pinctrl driver"
 	depends on OF
 	depends on (IMX_SCU && ARCH_MXC && ARM64) || COMPILE_TEST
+	default ARCH_MXC
 	select PINCTRL_IMX_SCU
 	help
 	  Say Y here to enable the imx8qm pinctrl driver
@@ -199,6 +206,7 @@ config PINCTRL_IMX8QXP
 	tristate "IMX8QXP pinctrl driver"
 	depends on OF
 	depends on (IMX_SCU && ARCH_MXC && ARM64) || COMPILE_TEST
+	default ARCH_MXC
 	select PINCTRL_IMX_SCU
 	help
 	  Say Y here to enable the imx8qxp pinctrl driver
@@ -207,6 +215,7 @@ config PINCTRL_IMX8DXL
 	tristate "IMX8DXL pinctrl driver"
 	depends on OF
 	depends on (IMX_SCU && ARCH_MXC && ARM64) || COMPILE_TEST
+	default ARCH_MXC
 	select PINCTRL_IMX_SCU
 	help
 	  Say Y here to enable the imx8dxl pinctrl driver
@@ -215,6 +224,7 @@ config PINCTRL_IMX8ULP
 	tristate "IMX8ULP pinctrl driver"
 	depends on OF
 	depends on ARCH_MXC || COMPILE_TEST
+	default ARCH_MXC
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx8ulp pinctrl driver
@@ -239,6 +249,7 @@ config PINCTRL_IMX93
 	tristate "IMX93 pinctrl driver"
 	depends on OF
 	depends on ARCH_MXC || COMPILE_TEST
+	default SOC_IMX9
 	select PINCTRL_IMX
 	help
 	  Say Y here to enable the imx93 pinctrl driver

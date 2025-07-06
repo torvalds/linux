@@ -178,6 +178,7 @@ err_suspend:
 	up_write(&group->mode_sem);
 	return err;
 }
+ALLOW_ERROR_INJECTION(xe_hw_engine_group_add_exec_queue, ERRNO);
 
 /**
  * xe_hw_engine_group_del_exec_queue() - Delete an exec queue from a hw engine group

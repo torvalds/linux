@@ -18,7 +18,8 @@ struct tdp158 {
 	struct device *dev;
 };
 
-static void tdp158_enable(struct drm_bridge *bridge, struct drm_bridge_state *prev)
+static void tdp158_enable(struct drm_bridge *bridge,
+			  struct drm_atomic_state *state)
 {
 	int err;
 	struct tdp158 *tdp158 = bridge->driver_private;
@@ -34,7 +35,8 @@ static void tdp158_enable(struct drm_bridge *bridge, struct drm_bridge_state *pr
 	gpiod_set_value_cansleep(tdp158->enable, 1);
 }
 
-static void tdp158_disable(struct drm_bridge *bridge, struct drm_bridge_state *prev)
+static void tdp158_disable(struct drm_bridge *bridge,
+			   struct drm_atomic_state *state)
 {
 	struct tdp158 *tdp158 = bridge->driver_private;
 
@@ -43,11 +45,13 @@ static void tdp158_disable(struct drm_bridge *bridge, struct drm_bridge_state *p
 	regulator_disable(tdp158->vcc);
 }
 
-static int tdp158_attach(struct drm_bridge *bridge, enum drm_bridge_attach_flags flags)
+static int tdp158_attach(struct drm_bridge *bridge,
+			 struct drm_encoder *encoder,
+			 enum drm_bridge_attach_flags flags)
 {
 	struct tdp158 *tdp158 = bridge->driver_private;
 
-	return drm_bridge_attach(bridge->encoder, tdp158->next, bridge, flags);
+	return drm_bridge_attach(encoder, tdp158->next, bridge, flags);
 }
 
 static const struct drm_bridge_funcs tdp158_bridge_funcs = {

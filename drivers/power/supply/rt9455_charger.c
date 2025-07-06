@@ -1579,7 +1579,7 @@ static const struct regmap_config rt9455_regmap_config = {
 	.writeable_reg	= rt9455_is_writeable_reg,
 	.volatile_reg	= rt9455_is_volatile_reg,
 	.max_register	= RT9455_REG_MASK3,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static int rt9455_probe(struct i2c_client *client)
@@ -1658,7 +1658,7 @@ static int rt9455_probe(struct i2c_client *client)
 	INIT_DEFERRABLE_WORK(&info->batt_presence_work,
 			     rt9455_batt_presence_work_callback);
 
-	rt9455_charger_config.of_node		= dev->of_node;
+	rt9455_charger_config.fwnode		= dev_fwnode(dev);
 	rt9455_charger_config.drv_data		= info;
 	rt9455_charger_config.supplied_to	= rt9455_charger_supplied_to;
 	rt9455_charger_config.num_supplicants	=

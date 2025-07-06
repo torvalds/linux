@@ -27,10 +27,9 @@
 #include <crypto/internal/skcipher.h>
 
 #include <asm/fpumacro.h>
+#include <asm/opcodes.h>
 #include <asm/pstate.h>
 #include <asm/elf.h>
-
-#include "opcodes.h"
 
 struct aes_ops {
 	void (*encrypt)(const u64 *key, const u32 *input, u32 *output);
@@ -321,7 +320,7 @@ static void ctr_crypt_final(const struct crypto_sparc64_aes_ctx *ctx,
 {
 	u8 *ctrblk = walk->iv;
 	u64 keystream[AES_BLOCK_SIZE / sizeof(u64)];
-	u8 *src = walk->src.virt.addr;
+	const u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
 

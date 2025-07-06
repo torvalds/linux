@@ -1120,8 +1120,8 @@ static irqreturn_t bme680_trigger_handler(int irq, void *p)
 	gas_range = FIELD_GET(BME680_GAS_RANGE_MASK, gas_regs_val);
 	data->scan.chan[3] = bme680_compensate_gas(data, adc_gas_res, gas_range);
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
-					   iio_get_time_ns(indio_dev));
+	iio_push_to_buffers_with_ts(indio_dev, &data->scan, sizeof(data->scan),
+				    iio_get_time_ns(indio_dev));
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;

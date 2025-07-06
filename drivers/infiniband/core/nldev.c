@@ -171,6 +171,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_PARENT_NAME]		= { .type = NLA_NUL_STRING },
 	[RDMA_NLDEV_ATTR_NAME_ASSIGN_TYPE]	= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_EVENT_TYPE]		= { .type = NLA_U8 },
+	[RDMA_NLDEV_ATTR_STAT_OPCOUNTER_ENABLED] = { .type = NLA_U8 },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -2028,6 +2029,7 @@ static int nldev_stat_set_mode_doit(struct sk_buff *msg,
 				    struct ib_device *device, u32 port)
 {
 	u32 mode, mask = 0, qpn, cntn = 0;
+	bool opcnt = false;
 	int ret;
 
 	/* Currently only counter for QP is supported */
@@ -2035,12 +2037,17 @@ static int nldev_stat_set_mode_doit(struct sk_buff *msg,
 	    nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_RES]) != RDMA_NLDEV_ATTR_RES_QP)
 		return -EINVAL;
 
+	if (tb[RDMA_NLDEV_ATTR_STAT_OPCOUNTER_ENABLED])
+		opcnt = !!nla_get_u8(
+			tb[RDMA_NLDEV_ATTR_STAT_OPCOUNTER_ENABLED]);
+
 	mode = nla_get_u32(tb[RDMA_NLDEV_ATTR_STAT_MODE]);
 	if (mode == RDMA_COUNTER_MODE_AUTO) {
 		if (tb[RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK])
 			mask = nla_get_u32(
 				tb[RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK]);
-		return rdma_counter_set_auto_mode(device, port, mask, extack);
+		return rdma_counter_set_auto_mode(device, port, mask, opcnt,
+						  extack);
 	}
 
 	if (!tb[RDMA_NLDEV_ATTR_RES_LQPN])
@@ -2358,6 +2365,7 @@ static int stat_get_doit_qp(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct ib_device *device;
 	struct sk_buff *msg;
 	u32 index, port;
+	bool opcnt;
 	int ret;
 
 	if (tb[RDMA_NLDEV_ATTR_STAT_COUNTER_ID])
@@ -2393,7 +2401,7 @@ static int stat_get_doit_qp(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto err_msg;
 	}
 
-	ret = rdma_counter_get_mode(device, port, &mode, &mask);
+	ret = rdma_counter_get_mode(device, port, &mode, &mask, &opcnt);
 	if (ret)
 		goto err_msg;
 
@@ -2406,6 +2414,12 @@ static int stat_get_doit_qp(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if ((mode == RDMA_COUNTER_MODE_AUTO) &&
 	    nla_put_u32(msg, RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK, mask)) {
+		ret = -EMSGSIZE;
+		goto err_msg;
+	}
+
+	if ((mode == RDMA_COUNTER_MODE_AUTO) &&
+	    nla_put_u8(msg, RDMA_NLDEV_ATTR_STAT_OPCOUNTER_ENABLED, opcnt)) {
 		ret = -EMSGSIZE;
 		goto err_msg;
 	}

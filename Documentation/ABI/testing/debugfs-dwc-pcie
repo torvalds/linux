@@ -1,0 +1,157 @@
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_debug/lane_detect
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	(RW) Write the lane number to be checked for detection.	Read
+		will return whether PHY indicates receiver detection on the
+		selected lane. The default selected lane is Lane0.
+
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_debug/rx_valid
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	(RW) Write the lane number to be checked as valid or invalid.
+		Read will return the status of PIPE RXVALID signal of the
+		selected lane. The default selected lane is Lane0.
+
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_err_inj/<error>
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	The "rasdes_err_inj" is a directory which can be used to inject
+		errors into the system. The possible errors that can be injected
+		are:
+
+		  1) tx_lcrc            - TLP LCRC error injection TX Path
+		  2) b16_crc_dllp       - 16b CRC error injection of ACK/NAK DLLP
+		  3) b16_crc_upd_fc     - 16b CRC error injection of Update-FC DLLP
+		  4) tx_ecrc            - TLP ECRC error injection TX Path
+		  5) fcrc_tlp           - TLP's FCRC error injection TX Path
+		  6) parity_tsos        - Parity error of TSOS
+		  7) parity_skpos       - Parity error on SKPOS
+		  8) rx_lcrc            - LCRC error injection RX Path
+		  9) rx_ecrc            - ECRC error injection RX Path
+		  10) tlp_err_seq       - TLPs SEQ# error
+		  11) ack_nak_dllp_seq  - DLLPS ACK/NAK SEQ# error
+		  12) ack_nak_dllp      - ACK/NAK DLLPs transmission block
+		  13) upd_fc_dllp       - UpdateFC DLLPs transmission block
+		  14) nak_dllp          - Always transmission for NAK DLLP
+		  15) inv_sync_hdr_sym  - Invert SYNC header
+		  16) com_pad_ts1       - COM/PAD TS1 order set
+		  17) com_pad_ts2       - COM/PAD TS2 order set
+		  18) com_fts           - COM/FTS FTS order set
+		  19) com_idl           - COM/IDL E-idle order set
+		  20) end_edb           - END/EDB symbol
+		  21) stp_sdp           - STP/SDP symbol
+		  22) com_skp           - COM/SKP SKP order set
+		  23) posted_tlp_hdr    - Posted TLP Header credit value control
+		  24) non_post_tlp_hdr  - Non-Posted TLP Header credit value control
+		  25) cmpl_tlp_hdr      - Completion TLP Header credit value control
+		  26) posted_tlp_data   - Posted TLP Data credit value control
+		  27) non_post_tlp_data - Non-Posted TLP Data credit value control
+		  28) cmpl_tlp_data     - Completion TLP Data credit value control
+		  29) duplicate_tlp     - Generates duplicate TLPs
+		  30) nullified_tlp     - Generates Nullified TLPs
+
+		(WO) Write to the attribute will prepare controller to inject
+		the respective error in the next transmission of data.
+
+		Parameter required to write will change in the following ways:
+
+		- Errors 9 and 10 are sequence errors. The write command:
+
+		    echo <count> <diff> > /sys/kernel/debug/dwc_pcie_<dev>/rasdes_err_inj/<error>
+
+		    <count>
+			    Number of errors to be injected
+		    <diff>
+			    The difference to add or subtract from natural
+			    sequence number to generate sequence error.
+			    Allowed range from -4095 to 4095
+
+		- Errors 23 to 28 are credit value error insertions. The write
+		  command:
+
+		    echo <count> <diff> <vc> > /sys/kernel/debug/dwc_pcie_<dev>/rasdes_err_inj/<error>
+
+		    <count>
+			    Number of errors to be injected
+		    <diff>
+			    The difference to add or subtract from UpdateFC
+			    credit value. Allowed range from -4095 to 4095
+		    <vc>
+			    Target VC number
+
+		- All other errors. The write command:
+
+		    echo <count> > /sys/kernel/debug/dwc_pcie_<dev>/rasdes_err_inj/<error>
+
+		    <count>
+			    Number of errors to be injected
+
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_event_counters/<event>/counter_enable
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	The "rasdes_event_counters" is the directory which can be used
+		to collect statistical data about the number of times a certain
+		event has occurred in the controller. The list of possible
+		events are:
+
+		1) EBUF Overflow
+		2) EBUF Underrun
+		3) Decode Error
+		4) Running Disparity Error
+		5) SKP OS Parity Error
+		6) SYNC Header Error
+		7) Rx Valid De-assertion
+		8) CTL SKP OS Parity Error
+		9) 1st Retimer Parity Error
+		10) 2nd Retimer Parity Error
+		11) Margin CRC and Parity Error
+		12) Detect EI Infer
+		13) Receiver Error
+		14) RX Recovery Req
+		15) N_FTS Timeout
+		16) Framing Error
+		17) Deskew Error
+		18) Framing Error In L0
+		19) Deskew Uncompleted Error
+		20) Bad TLP
+		21) LCRC Error
+		22) Bad DLLP
+		23) Replay Number Rollover
+		24) Replay Timeout
+		25) Rx Nak DLLP
+		26) Tx Nak DLLP
+		27) Retry TLP
+		28) FC Timeout
+		29) Poisoned TLP
+		30) ECRC Error
+		31) Unsupported Request
+		32) Completer Abort
+		33) Completion Timeout
+		34) EBUF SKP Add
+		35) EBUF SKP Del
+
+		(RW) Write 1 to enable the event counter and write 0 to disable
+		the event counter. Read will return whether the counter is
+		currently enabled or disabled. Counter is disabled by default.
+
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_event_counters/<event>/counter_value
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	(RO) Read will return the current value of the event counter.
+		To reset the counter, counter should be disabled first and then
+		enabled back using the "counter_enable" attribute.
+
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_event_counters/<event>/lane_select
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	(RW) Some lanes in the event list are lane specific events.
+		These include events from 1 to 11, as well as, 34 and 35. Write
+		the lane number for which you wish the counter to be enabled,
+		disabled, or value dumped. Read will return the current
+		selected lane number. Lane0 is selected by default.
+
+What:		/sys/kernel/debug/dwc_pcie_<dev>/ltssm_status
+Date:		February 2025
+Contact:	Hans Zhang <18255117159@163.com>
+Description:	(RO) Read will return the current PCIe LTSSM state in both
+		string and raw value.

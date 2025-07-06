@@ -380,6 +380,18 @@ static int zynqmp_r5_rproc_start(struct rproc *rproc)
 	dev_dbg(r5_core->dev, "RPU boot addr 0x%llx from %s.", rproc->bootaddr,
 		bootmem == PM_RPU_BOOTMEM_HIVEC ? "OCM" : "TCM");
 
+	/* Request node before starting RPU core if new version of API is supported */
+	if (zynqmp_pm_feature(PM_REQUEST_NODE) > 1) {
+		ret = zynqmp_pm_request_node(r5_core->pm_domain_id,
+					     ZYNQMP_PM_CAPABILITY_ACCESS, 0,
+					     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+		if (ret < 0) {
+			dev_err(r5_core->dev, "failed to request 0x%x",
+				r5_core->pm_domain_id);
+			return ret;
+		}
+	}
+
 	ret = zynqmp_pm_request_wake(r5_core->pm_domain_id, 1,
 				     bootmem, ZYNQMP_PM_REQUEST_ACK_NO);
 	if (ret)
@@ -401,10 +413,30 @@ static int zynqmp_r5_rproc_stop(struct rproc *rproc)
 	struct zynqmp_r5_core *r5_core = rproc->priv;
 	int ret;
 
+	/* Use release node API to stop core if new version of API is supported */
+	if (zynqmp_pm_feature(PM_RELEASE_NODE) > 1) {
+		ret = zynqmp_pm_release_node(r5_core->pm_domain_id);
+		if (ret)
+			dev_err(r5_core->dev, "failed to stop remoteproc RPU %d\n", ret);
+		return ret;
+	}
+
+	/*
+	 * Check expected version of EEMI call before calling it. This avoids
+	 * any error or warning prints from firmware as it is expected that fw
+	 * doesn't support it.
+	 */
+	if (zynqmp_pm_feature(PM_FORCE_POWERDOWN) != 1) {
+		dev_dbg(r5_core->dev, "EEMI interface %d ver 1 not supported\n",
+			PM_FORCE_POWERDOWN);
+		return -EOPNOTSUPP;
+	}
+
+	/* maintain force pwr down for backward compatibility */
 	ret = zynqmp_pm_force_pwrdwn(r5_core->pm_domain_id,
 				     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
 	if (ret)
-		dev_err(r5_core->dev, "failed to stop remoteproc RPU %d\n", ret);
+		dev_err(r5_core->dev, "core force power down failed\n");
 
 	return ret;
 }

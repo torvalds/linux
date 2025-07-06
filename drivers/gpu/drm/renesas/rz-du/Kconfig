@@ -14,10 +14,15 @@ config DRM_RZG2L_DU
 	  Choose this option if you have an RZ/G2L alike chipset.
 	  If M is selected the module will be called rzg2l-du-drm.
 
-config DRM_RZG2L_MIPI_DSI
-	tristate "RZ/G2L MIPI DSI Encoder Support"
-	depends on DRM && DRM_BRIDGE && OF
-	depends on ARCH_RENESAS || COMPILE_TEST
-	select DRM_MIPI_DSI
+config DRM_RZG2L_USE_MIPI_DSI
+	bool "RZ/G2L MIPI DSI Encoder Support"
+	depends on DRM_BRIDGE && OF
+	depends on DRM_RZG2L_DU || COMPILE_TEST
+	default DRM_RZG2L_DU
 	help
 	  Enable support for the RZ/G2L Display Unit embedded MIPI DSI encoders.
+
+config DRM_RZG2L_MIPI_DSI
+	def_tristate DRM_RZG2L_DU
+	depends on DRM_RZG2L_USE_MIPI_DSI
+	select DRM_MIPI_DSI

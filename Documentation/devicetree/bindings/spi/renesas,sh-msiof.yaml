@@ -4,13 +4,10 @@
 $id: http://devicetree.org/schemas/spi/renesas,sh-msiof.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Renesas MSIOF SPI controller
+title: Renesas MSIOF SPI / I2S controller
 
 maintainers:
   - Geert Uytterhoeven <geert+renesas@glider.be>
-
-allOf:
-  - $ref: spi-controller.yaml#
 
 properties:
   compatible:
@@ -146,24 +143,38 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     default: 64
 
+  # for MSIOF-I2S
+  port:
+    $ref: ../sound/audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg
   - interrupts
   - clocks
   - power-domains
-  - '#address-cells'
-  - '#size-cells'
 
-if:
-  not:
-    properties:
-      compatible:
-        contains:
-          const: renesas,sh-mobile-msiof
-then:
-  required:
-    - resets
+allOf:
+  # additional "required""
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: renesas,sh-mobile-msiof
+    then:
+      required:
+        - resets
+
+  # If it doesn't have "port" node, it is "MSIOF-SPI"
+  - if:
+      not:
+        required:
+          - port
+    then:
+      allOf:
+        - $ref: spi-controller.yaml#
 
 unevaluatedProperties: false
 

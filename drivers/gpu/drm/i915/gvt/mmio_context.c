@@ -53,7 +53,7 @@ struct engine_mmio {
 	u32 value;
 };
 
-/* Raw offset is appened to each line for convenience. */
+/* Raw offset is append to each line for convenience. */
 static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, RING_MODE_GEN7(RENDER_RING_BASE), 0xffff, false}, /* 0x229c */
 	{RCS0, GEN9_CTX_PREEMPT_REG, 0x0, false}, /* 0x2248 */
@@ -576,8 +576,8 @@ void intel_gvt_switch_mmio(struct intel_vgpu *pre,
 
 	/**
 	 * We are using raw mmio access wrapper to improve the
-	 * performace for batch mmio read/write, so we need
-	 * handle forcewake mannually.
+	 * performance for batch mmio read/write, so we need
+	 * handle forcewake manually.
 	 */
 	intel_uncore_forcewake_get(engine->uncore, FORCEWAKE_ALL);
 	switch_mmio(pre, next, engine);

@@ -20,6 +20,12 @@
 #define IVPU_MMU_REG_CR0		      0x00200020u
 #define IVPU_MMU_REG_CR0ACK		      0x00200024u
 #define IVPU_MMU_REG_CR0ACK_VAL_MASK	      GENMASK(31, 0)
+#define IVPU_MMU_REG_CR0_ATSCHK_MASK	      BIT(4)
+#define IVPU_MMU_REG_CR0_CMDQEN_MASK	      BIT(3)
+#define IVPU_MMU_REG_CR0_EVTQEN_MASK	      BIT(2)
+#define IVPU_MMU_REG_CR0_PRIQEN_MASK	      BIT(1)
+#define IVPU_MMU_REG_CR0_SMMUEN_MASK	      BIT(0)
+
 #define IVPU_MMU_REG_CR1		      0x00200028u
 #define IVPU_MMU_REG_CR2		      0x0020002cu
 #define IVPU_MMU_REG_IRQ_CTRL		      0x00200050u
@@ -140,12 +146,6 @@
 
 #define IVPU_MMU_IRQ_EVTQ_EN		BIT(2)
 #define IVPU_MMU_IRQ_GERROR_EN		BIT(0)
-
-#define IVPU_MMU_CR0_ATSCHK		BIT(4)
-#define IVPU_MMU_CR0_CMDQEN		BIT(3)
-#define IVPU_MMU_CR0_EVTQEN		BIT(2)
-#define IVPU_MMU_CR0_PRIQEN		BIT(1)
-#define IVPU_MMU_CR0_SMMUEN		BIT(0)
 
 #define IVPU_MMU_CR1_TABLE_SH		GENMASK(11, 10)
 #define IVPU_MMU_CR1_TABLE_OC		GENMASK(9, 8)
@@ -596,7 +596,7 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	REGV_WR32(IVPU_MMU_REG_CMDQ_PROD, 0);
 	REGV_WR32(IVPU_MMU_REG_CMDQ_CONS, 0);
 
-	val = IVPU_MMU_CR0_CMDQEN;
+	val = REG_SET_FLD(IVPU_MMU_REG_CR0, CMDQEN, 0);
 	ret = ivpu_mmu_reg_write_cr0(vdev, val);
 	if (ret)
 		return ret;
@@ -617,12 +617,12 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	REGV_WR32(IVPU_MMU_REG_EVTQ_PROD_SEC, 0);
 	REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, 0);
 
-	val |= IVPU_MMU_CR0_EVTQEN;
+	val = REG_SET_FLD(IVPU_MMU_REG_CR0, EVTQEN, val);
 	ret = ivpu_mmu_reg_write_cr0(vdev, val);
 	if (ret)
 		return ret;
 
-	val |= IVPU_MMU_CR0_ATSCHK;
+	val = REG_SET_FLD(IVPU_MMU_REG_CR0, ATSCHK, val);
 	ret = ivpu_mmu_reg_write_cr0(vdev, val);
 	if (ret)
 		return ret;
@@ -631,7 +631,7 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	if (ret)
 		return ret;
 
-	val |= IVPU_MMU_CR0_SMMUEN;
+	val = REG_SET_FLD(IVPU_MMU_REG_CR0, SMMUEN, val);
 	return ivpu_mmu_reg_write_cr0(vdev, val);
 }
 
@@ -725,8 +725,8 @@ static int ivpu_mmu_cdtab_entry_set(struct ivpu_device *vdev, u32 ssid, u64 cd_d
 	cd[2] = 0;
 	cd[3] = 0x0000000000007444;
 
-	/* For global context generate memory fault on VPU */
-	if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID)
+	/* For global and reserved contexts generate memory fault on VPU */
+	if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID || ssid == IVPU_RESERVED_CONTEXT_MMU_SSID)
 		cd[0] |= IVPU_MMU_CD_0_A;
 
 	if (valid)
@@ -870,28 +870,107 @@ static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
 	return evt;
 }
 
+static int ivpu_mmu_evtq_set(struct ivpu_device *vdev, bool enable)
+{
+	u32 val = REGV_RD32(IVPU_MMU_REG_CR0);
+
+	if (enable)
+		val = REG_SET_FLD(IVPU_MMU_REG_CR0, EVTQEN, val);
+	else
+		val = REG_CLR_FLD(IVPU_MMU_REG_CR0, EVTQEN, val);
+	REGV_WR32(IVPU_MMU_REG_CR0, val);
+
+	return REGV_POLL_FLD(IVPU_MMU_REG_CR0ACK, VAL, val, IVPU_MMU_REG_TIMEOUT_US);
+}
+
+static int ivpu_mmu_evtq_enable(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_evtq_set(vdev, true);
+}
+
+static int ivpu_mmu_evtq_disable(struct ivpu_device *vdev)
+{
+	return ivpu_mmu_evtq_set(vdev, false);
+}
+
+void ivpu_mmu_discard_events(struct ivpu_device *vdev)
+{
+	struct ivpu_mmu_info *mmu = vdev->mmu;
+
+	mutex_lock(&mmu->lock);
+	/*
+	 * Disable event queue (stop MMU from updating the producer)
+	 * to allow synchronization of consumer and producer indexes
+	 */
+	ivpu_mmu_evtq_disable(vdev);
+
+	vdev->mmu->evtq.cons = REGV_RD32(IVPU_MMU_REG_EVTQ_PROD_SEC);
+	REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, vdev->mmu->evtq.cons);
+	vdev->mmu->evtq.prod = REGV_RD32(IVPU_MMU_REG_EVTQ_PROD_SEC);
+
+	ivpu_mmu_evtq_enable(vdev);
+
+	drm_WARN_ON_ONCE(&vdev->drm, vdev->mmu->evtq.cons != vdev->mmu->evtq.prod);
+
+	mutex_unlock(&mmu->lock);
+}
+
+int ivpu_mmu_disable_ssid_events(struct ivpu_device *vdev, u32 ssid)
+{
+	struct ivpu_mmu_info *mmu = vdev->mmu;
+	struct ivpu_mmu_cdtab *cdtab = &mmu->cdtab;
+	u64 *entry;
+	u64 val;
+
+	if (ssid > IVPU_MMU_CDTAB_ENT_COUNT)
+		return -EINVAL;
+
+	mutex_lock(&mmu->lock);
+
+	entry = cdtab->base + (ssid * IVPU_MMU_CDTAB_ENT_SIZE);
+
+	val = READ_ONCE(entry[0]);
+	val &= ~IVPU_MMU_CD_0_R;
+	WRITE_ONCE(entry[0], val);
+
+	if (!ivpu_is_force_snoop_enabled(vdev))
+		clflush_cache_range(entry, IVPU_MMU_CDTAB_ENT_SIZE);
+
+	ivpu_mmu_cmdq_write_cfgi_all(vdev);
+	ivpu_mmu_cmdq_sync(vdev);
+
+	mutex_unlock(&mmu->lock);
+
+	return 0;
+}
+
 void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 {
+	struct ivpu_file_priv *file_priv;
 	u32 *event;
 	u32 ssid;
 
 	ivpu_dbg(vdev, IRQ, "MMU event queue\n");
 
-	while ((event = ivpu_mmu_get_event(vdev)) != NULL) {
-		ivpu_mmu_dump_event(vdev, event);
-
-		ssid = FIELD_GET(IVPU_MMU_EVT_SSID_MASK, event[0]);
-		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID) {
+	while ((event = ivpu_mmu_get_event(vdev))) {
+		ssid = FIELD_GET(IVPU_MMU_EVT_SSID_MASK, *event);
+		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID ||
+		    ssid == IVPU_RESERVED_CONTEXT_MMU_SSID) {
+			ivpu_mmu_dump_event(vdev, event);
 			ivpu_pm_trigger_recovery(vdev, "MMU event");
 			return;
 		}
 
-		ivpu_mmu_user_context_mark_invalid(vdev, ssid);
-		REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, vdev->mmu->evtq.cons);
+		file_priv = xa_load(&vdev->context_xa, ssid);
+		if (file_priv) {
+			if (!READ_ONCE(file_priv->has_mmu_faults)) {
+				ivpu_mmu_dump_event(vdev, event);
+				WRITE_ONCE(file_priv->has_mmu_faults, true);
+			}
+		}
 	}
 
-	if (!kfifo_put(&vdev->hw->irq.fifo, IVPU_HW_IRQ_SRC_MMU_EVTQ))
-		ivpu_err_ratelimited(vdev, "IRQ FIFO full\n");
+	queue_work(system_wq, &vdev->context_abort_work);
 }
 
 void ivpu_mmu_evtq_dump(struct ivpu_device *vdev)

@@ -69,14 +69,14 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	flush_workqueue(local->workqueue);
 
 	/* Don't try to run timers while suspended. */
-	del_timer_sync(&local->sta_cleanup);
+	timer_delete_sync(&local->sta_cleanup);
 
 	 /*
 	 * Note that this particular timer doesn't need to be
 	 * restarted at resume.
 	 */
 	wiphy_work_cancel(local->hw.wiphy, &local->dynamic_ps_enable_work);
-	del_timer_sync(&local->dynamic_ps_timer);
+	timer_delete_sync(&local->dynamic_ps_timer);
 
 	local->wowlan = wowlan;
 	if (local->wowlan) {

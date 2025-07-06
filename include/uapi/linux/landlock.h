@@ -4,6 +4,7 @@
  *
  * Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
+ * Copyright © 2021-2025 Microsoft Corporation
  */
 
 #ifndef _UAPI_LINUX_LANDLOCK_H
@@ -52,14 +53,75 @@ struct landlock_ruleset_attr {
 	__u64 scoped;
 };
 
-/*
- * sys_landlock_create_ruleset() flags:
+/**
+ * DOC: landlock_create_ruleset_flags
  *
- * - %LANDLOCK_CREATE_RULESET_VERSION: Get the highest supported Landlock ABI
- *   version.
+ * **Flags**
+ *
+ * %LANDLOCK_CREATE_RULESET_VERSION
+ *     Get the highest supported Landlock ABI version (starting at 1).
+ *
+ * %LANDLOCK_CREATE_RULESET_ERRATA
+ *     Get a bitmask of fixed issues for the current Landlock ABI version.
  */
 /* clang-format off */
 #define LANDLOCK_CREATE_RULESET_VERSION			(1U << 0)
+#define LANDLOCK_CREATE_RULESET_ERRATA			(1U << 1)
+/* clang-format on */
+
+/**
+ * DOC: landlock_restrict_self_flags
+ *
+ * **Flags**
+ *
+ * By default, denied accesses originating from programs that sandbox themselves
+ * are logged via the audit subsystem. Such events typically indicate unexpected
+ * behavior, such as bugs or exploitation attempts. However, to avoid excessive
+ * logging, access requests denied by a domain not created by the originating
+ * program are not logged by default. The rationale is that programs should know
+ * their own behavior, but not necessarily the behavior of other programs.  This
+ * default configuration is suitable for most programs that sandbox themselves.
+ * For specific use cases, the following flags allow programs to modify this
+ * default logging behavior.
+ *
+ * The %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF and
+ * %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON flags apply to the newly created
+ * Landlock domain.
+ *
+ * %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF
+ *     Disables logging of denied accesses originating from the thread creating
+ *     the Landlock domain, as well as its children, as long as they continue
+ *     running the same executable code (i.e., without an intervening
+ *     :manpage:`execve(2)` call). This is intended for programs that execute
+ *     unknown code without invoking :manpage:`execve(2)`, such as script
+ *     interpreters. Programs that only sandbox themselves should not set this
+ *     flag, so users can be notified of unauthorized access attempts via system
+ *     logs.
+ *
+ * %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
+ *     Enables logging of denied accesses after an :manpage:`execve(2)` call,
+ *     providing visibility into unauthorized access attempts by newly executed
+ *     programs within the created Landlock domain. This flag is recommended
+ *     only when all potential executables in the domain are expected to comply
+ *     with the access restrictions, as excessive audit log entries could make
+ *     it more difficult to identify critical events.
+ *
+ * %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
+ *     Disables logging of denied accesses originating from nested Landlock
+ *     domains created by the caller or its descendants. This flag should be set
+ *     according to runtime configuration, not hardcoded, to avoid suppressing
+ *     important security events. It is useful for container runtimes or
+ *     sandboxing tools that may launch programs which themselves create
+ *     Landlock domains and could otherwise generate excessive logs. Unlike
+ *     ``LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF``, this flag only affects
+ *     future nested domains, not the one being created. It can also be used
+ *     with a @ruleset_fd value of -1 to mute subdomain logs without creating a
+ *     domain.
+ */
+/* clang-format off */
+#define LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF		(1U << 0)
+#define LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON			(1U << 1)
+#define LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF		(1U << 2)
 /* clang-format on */
 
 /**

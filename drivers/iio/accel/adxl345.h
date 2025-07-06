@@ -43,7 +43,6 @@
 #define ADXL345_REG_INT_ENABLE		0x2E
 #define ADXL345_REG_INT_MAP		0x2F
 #define ADXL345_REG_INT_SOURCE		0x30
-#define ADXL345_REG_INT_SOURCE_MSK	0xFF
 #define ADXL345_REG_DATA_FORMAT		0x31
 #define ADXL345_REG_XYZ_BASE		0x32
 #define ADXL345_REG_DATA_AXIS(index)				\
@@ -111,6 +110,10 @@
  * ~480mm/s**2 per LSB.
  */
 #define ADXL375_USCALE	480000
+
+struct regmap;
+
+bool adxl345_is_volatile_reg(struct device *dev, unsigned int reg);
 
 struct adxl345_chip_info {
 	const char *name;

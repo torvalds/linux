@@ -1,13 +1,14 @@
-~~~~~~~~~~~~~~~~~~~~~~~~~
-Amiga joystick extensions
-~~~~~~~~~~~~~~~~~~~~~~~~~
+===============
+Amiga joysticks
+===============
 
+Pinouts
+=======
 
-Amiga 4-joystick parport extension
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Amiga 4-joystick parallel port extension
+----------------------------------------
 
 Parallel port pins:
-
 
 =====  ======== ====   ==========
 Pin    Meaning  Pin    Meaning
@@ -17,11 +18,11 @@ Pin    Meaning  Pin    Meaning
  4     Left1	 8     Left2
  5     Right1	 9     Right2
 13     Fire1	11     Fire2
-18     Gnd1	18     Gnd2
+19     Gnd1	18     Gnd2
 =====  ======== ====   ==========
 
-Amiga digital joystick pinout
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Amiga digital joystick
+----------------------
 
 === ============
 Pin Meaning
@@ -37,8 +38,8 @@ Pin Meaning
 9   Thumb button
 === ============
 
-Amiga mouse pinout
-~~~~~~~~~~~~~~~~~~
+Amiga mouse
+-----------
 
 === ============
 Pin Meaning
@@ -54,8 +55,8 @@ Pin Meaning
 9   Right button
 === ============
 
-Amiga analog joystick pinout
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Amiga analog joystick
+---------------------
 
 === ==============
 Pin Meaning
@@ -71,8 +72,8 @@ Pin Meaning
 9   Analog Y
 === ==============
 
-Amiga lightpen pinout
-~~~~~~~~~~~~~~~~~~~~~
+Amiga lightpen
+--------------
 
 === =============
 Pin Meaning
@@ -88,19 +89,23 @@ Pin Meaning
 9   Stylus button
 === =============
 
--------------------------------------------------------------------------------
+Register addresses
+==================
 
-======== === ==== ==== ====== ========================================
+JOY0DAT/JOY1DAT
+---------------
+
+======== === ==== ==== ====== ===========================================
 NAME     rev ADDR type chip   Description
-======== === ==== ==== ====== ========================================
-JOY0DAT      00A   R   Denise Joystick-mouse 0 data (left vert, horiz)
-JOY1DAT      00C   R   Denise Joystick-mouse 1 data (right vert,horiz)
-======== === ==== ==== ====== ========================================
+======== === ==== ==== ====== ===========================================
+JOY0DAT      00A   R   Denise Joystick-mouse 0 data (left vert., horiz.)
+JOY1DAT      00C   R   Denise Joystick-mouse 1 data (right vert., horiz.)
+======== === ==== ==== ====== ===========================================
 
         These addresses each read a 16 bit register. These in turn
         are loaded from the MDAT serial stream and are clocked in on
         the rising edge of SCLK. MLD output is used to parallel load
-        the external parallel-to-serial converter.This in turn is
+        the external parallel-to-serial converter. This in turn is
         loaded with the 4 quadrature inputs from each of two game
         controller ports (8 total) plus 8 miscellaneous control bits
         which are new for LISA and can be read in upper 8 bits of
@@ -108,7 +113,7 @@ JOY1DAT      00C   R   Denise Joystick-mouse 1 data (right vert,horiz)
 
         Register bits are as follows:
 
-        - Mouse counter usage (pins  1,3 =Yclock, pins 2,4 =Xclock)
+        - Mouse counter usage (pins 1,3 =Yclock, pins 2,4 =Xclock)
 
 ======== === === === === === === === === ====== === === === === === === ===
     BIT#  15  14  13  12  11  10  09  08     07  06  05  04  03  02  01  00
@@ -123,7 +128,7 @@ JOY1DAT   Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0     X7  X6  X5  X4  X3  X2  X1  X0
         clocked by 2 of the signals input from the mouse serial
         stream. Starting with first bit received:
 
-         +-------------------+-----------------------------------------+
+         +--------+----------+-----------------------------------------+
          | Serial | Bit Name | Description                             |
          +========+==========+=========================================+
          |   0    | M0H      | JOY0DAT Horizontal Clock                |
@@ -160,7 +165,8 @@ JOY1DAT   Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0     X7  X6  X5  X4  X3  X2  X1  X0
          | Right      |  4   | X1                              |
          +------------+------+---------------------------------+
 
--------------------------------------------------------------------------------
+JOYTEST
+-------
 
 ========  === ==== ==== ====== =================================================
 NAME      rev ADDR type chip    Description
@@ -177,14 +183,15 @@ JOYTEST       036   W   Denise  Write to all 4  joystick-mouse counters at once.
   JOYxDAT  Y7  Y6  Y5  Y4  Y3  Y2  xx  xx     X7  X6  X5  X4  X3  X2  xx  xx
 ========= === === === === === === === === ====== === === === === === === ===
 
--------------------------------------------------------------------------------
+POT0DAT/POT1DAT
+---------------
 
-======= === ==== ==== ====== ========================================
+======= === ==== ==== ====== ===========================================
 NAME    rev ADDR type chip   Description
-======= === ==== ==== ====== ========================================
-POT0DAT  h  012   R   Paula  Pot counter data left pair (vert, horiz)
-POT1DAT  h  014   R   Paula  Pot counter data right pair (vert,horiz)
-======= === ==== ==== ====== ========================================
+======= === ==== ==== ====== ===========================================
+POT0DAT  h  012   R   Paula  Pot counter data left pair (vert., horiz.)
+POT1DAT  h  014   R   Paula  Pot counter data right pair (vert., horiz.)
+======= === ==== ==== ====== ===========================================
 
         These addresses each read a pair of 8 bit pot counters.
         (4 counters total). The bit assignment for both
@@ -213,12 +220,13 @@ POT1DAT  h  014   R   Paula  Pot counter data right pair (vert,horiz)
          +-------+------+-----+-----+-------+
 
          With normal (NTSC or PAL) horiz. line rate, the pots will
-         give a full scale (FF) reading with about 500kohms in one
-         frame time. With proportionally faster horiz line times,
+         give a full scale (FF) reading with about 500k ohm in one
+         frame time. With proportionally faster horiz. line times,
          the counters will count proportionally faster.
          This should be noted when doing variable beam displays.
 
--------------------------------------------------------------------------------
+POTGO
+-----
 
 ====== === ==== ==== ====== ================================================
 NAME   rev ADDR type chip   Description
@@ -227,7 +235,8 @@ POTGO      034   W   Paula  Pot port (4 bit) bi-direction and data, and pot
 			    counter start.
 ====== === ==== ==== ====== ================================================
 
--------------------------------------------------------------------------------
+POTINP
+------
 
 ====== === ==== ==== ====== ================================================
 NAME   rev ADDR type chip   Description
@@ -238,26 +247,26 @@ POTINP     016   R   Paula  Pot pin data read
         This register controls a 4 bit bi-direction I/O port
         that shares the same 4 pins as the 4 pot counters above.
 
-         +-------+----------+---------------------------------------------+
-         | BIT#  | FUNCTION | DESCRIPTION                                 |
-         +=======+==========+=============================================+
-         | 15    | OUTRY    | Output enable for Paula pin 33              |
-         +-------+----------+---------------------------------------------+
-         | 14    | DATRY    | I/O data Paula pin 33                       |
-         +-------+----------+---------------------------------------------+
-         | 13    | OUTRX    | Output enable for Paula pin 32              |
-         +-------+----------+---------------------------------------------+
-         | 12    | DATRX    | I/O data Paula pin 32                       |
-         +-------+----------+---------------------------------------------+
-         | 11    | OUTLY    | Out put enable for Paula pin 36             |
-         +-------+----------+---------------------------------------------+
-         | 10    | DATLY    | I/O data Paula pin 36                       |
-         +-------+----------+---------------------------------------------+
-         | 09    | OUTLX    | Output enable for Paula pin 35              |
-         +-------+----------+---------------------------------------------+
-         | 08    | DATLX    | I/O data  Paula pin 35                      |
-         +-------+----------+---------------------------------------------+
-         | 07-01 |   X      | Not used                                    |
-         +-------+----------+---------------------------------------------+
-         | 00    | START    | Start pots (dump capacitors,start counters) |
-         +-------+----------+---------------------------------------------+
+         +-------+----------+----------------------------------------------+
+         | BIT#  | FUNCTION | DESCRIPTION                                  |
+         +=======+==========+==============================================+
+         | 15    | OUTRY    | Output enable for Paula pin 33               |
+         +-------+----------+----------------------------------------------+
+         | 14    | DATRY    | I/O data Paula pin 33                        |
+         +-------+----------+----------------------------------------------+
+         | 13    | OUTRX    | Output enable for Paula pin 32               |
+         +-------+----------+----------------------------------------------+
+         | 12    | DATRX    | I/O data Paula pin 32                        |
+         +-------+----------+----------------------------------------------+
+         | 11    | OUTLY    | Out put enable for Paula pin 36              |
+         +-------+----------+----------------------------------------------+
+         | 10    | DATLY    | I/O data Paula pin 36                        |
+         +-------+----------+----------------------------------------------+
+         | 09    | OUTLX    | Output enable for Paula pin 35               |
+         +-------+----------+----------------------------------------------+
+         | 08    | DATLX    | I/O data  Paula pin 35                       |
+         +-------+----------+----------------------------------------------+
+         | 07-01 |   X      | Not used                                     |
+         +-------+----------+----------------------------------------------+
+         | 00    | START    | Start pots (dump capacitors, start counters) |
+         +-------+----------+----------------------------------------------+

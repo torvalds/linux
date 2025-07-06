@@ -17,6 +17,92 @@ struct serial_icounter_struct;
 struct serial_struct;
 
 /**
+ * enum tty_driver_flag -- TTY Driver Flags
+ *
+ * These are flags passed to tty_alloc_driver().
+ *
+ * @TTY_DRIVER_INSTALLED:
+ *	Whether this driver was succesfully installed. This is a tty internal
+ *	flag. Do not touch.
+ *
+ * @TTY_DRIVER_RESET_TERMIOS:
+ *	Requests the tty layer to reset the termios setting when the last
+ *	process has closed the device. Used for PTYs, in particular.
+ *
+ * @TTY_DRIVER_REAL_RAW:
+ *	Indicates that the driver will guarantee not to set any special
+ *	character handling flags if this is set for the tty:
+ *
+ *	``(IGNBRK || (!BRKINT && !PARMRK)) && (IGNPAR || !INPCK)``
+ *
+ *	That is, if there is no reason for the driver to
+ *	send notifications of parity and break characters up to the line
+ *	driver, it won't do so.  This allows the line driver to optimize for
+ *	this case if this flag is set.  (Note that there is also a promise, if
+ *	the above case is true, not to signal overruns, either.)
+ *
+ * @TTY_DRIVER_DYNAMIC_DEV:
+ *	The individual tty devices need to be registered with a call to
+ *	tty_register_device() when the device is found in the system and
+ *	unregistered with a call to tty_unregister_device() so the devices will
+ *	be show up properly in sysfs.  If not set, all &tty_driver.num entries
+ *	will be created by the tty core in sysfs when tty_register_driver() is
+ *	called.  This is to be used by drivers that have tty devices that can
+ *	appear and disappear while the main tty driver is registered with the
+ *	tty core.
+ *
+ * @TTY_DRIVER_DEVPTS_MEM:
+ *	Don't use the standard arrays (&tty_driver.ttys and
+ *	&tty_driver.termios), instead use dynamic memory keyed through the
+ *	devpts filesystem. This is only applicable to the PTY driver.
+ *
+ * @TTY_DRIVER_HARDWARE_BREAK:
+ *	Hardware handles break signals. Pass the requested timeout to the
+ *	&tty_operations.break_ctl instead of using a simple on/off interface.
+ *
+ * @TTY_DRIVER_DYNAMIC_ALLOC:
+ *	Do not allocate structures which are needed per line for this driver
+ *	(&tty_driver.ports) as it would waste memory. The driver will take
+ *	care. This is only applicable to the PTY driver.
+ *
+ * @TTY_DRIVER_UNNUMBERED_NODE:
+ *	Do not create numbered ``/dev`` nodes. For example, create
+ *	``/dev/ttyprintk`` and not ``/dev/ttyprintk0``. Applicable only when a
+ *	driver for a single tty device is being allocated.
+ */
+enum tty_driver_flag {
+	TTY_DRIVER_INSTALLED		= BIT(0),
+	TTY_DRIVER_RESET_TERMIOS	= BIT(1),
+	TTY_DRIVER_REAL_RAW		= BIT(2),
+	TTY_DRIVER_DYNAMIC_DEV		= BIT(3),
+	TTY_DRIVER_DEVPTS_MEM		= BIT(4),
+	TTY_DRIVER_HARDWARE_BREAK	= BIT(5),
+	TTY_DRIVER_DYNAMIC_ALLOC	= BIT(6),
+	TTY_DRIVER_UNNUMBERED_NODE	= BIT(7),
+};
+
+enum tty_driver_type {
+	TTY_DRIVER_TYPE_SYSTEM,
+	TTY_DRIVER_TYPE_CONSOLE,
+	TTY_DRIVER_TYPE_SERIAL,
+	TTY_DRIVER_TYPE_PTY,
+	TTY_DRIVER_TYPE_SCC,
+	TTY_DRIVER_TYPE_SYSCONS,
+};
+
+enum tty_driver_subtype {
+	SYSTEM_TYPE_TTY = 1,
+	SYSTEM_TYPE_CONSOLE,
+	SYSTEM_TYPE_SYSCONS,
+	SYSTEM_TYPE_SYSPTMX,
+
+	PTY_TYPE_MASTER = 1,
+	PTY_TYPE_SLAVE,
+
+	SERIAL_TYPE_NORMAL = 1,
+};
+
+/**
  * struct tty_operations -- interface between driver and tty
  *
  * @lookup: ``struct tty_struct *()(struct tty_driver *self, struct file *,
@@ -414,8 +500,8 @@ struct tty_operations {
  * @major: major /dev device number (zero for autoassignment)
  * @minor_start: the first minor /dev device number
  * @num: number of devices allocated
- * @type: type of tty driver (%TTY_DRIVER_TYPE_)
- * @subtype: subtype of tty driver (%SYSTEM_TYPE_, %PTY_TYPE_, %SERIAL_TYPE_)
+ * @type: type of tty driver (enum tty_driver_type)
+ * @subtype: subtype of tty driver (enum tty_driver_subtype)
  * @init_termios: termios to set to each tty initially (e.g. %tty_std_termios)
  * @flags: tty driver flags (%TTY_DRIVER_)
  * @proc_entry: proc fs entry, used internally
@@ -447,8 +533,8 @@ struct tty_driver {
 	int	major;
 	int	minor_start;
 	unsigned int	num;
-	short	type;
-	short	subtype;
+	enum tty_driver_type type;
+	enum tty_driver_subtype subtype;
 	struct ktermios init_termios;
 	unsigned long	flags;
 	struct proc_dir_entry *proc_entry;
@@ -478,7 +564,13 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line);
 
 void tty_driver_kref_put(struct tty_driver *driver);
 
-/* Use TTY_DRIVER_* flags below */
+/**
+ * tty_alloc_driver - allocate tty driver
+ * @lines: count of lines this driver can handle at most
+ * @flags: some of enum tty_driver_flag, will be set in driver->flags
+ *
+ * Returns: struct tty_driver or a PTR-encoded error (use IS_ERR() and friends).
+ */
 #define tty_alloc_driver(lines, flags) \
 		__tty_alloc_driver(lines, THIS_MODULE, flags)
 
@@ -493,84 +585,6 @@ static inline void tty_set_operations(struct tty_driver *driver,
 {
 	driver->ops = op;
 }
-
-/**
- * DOC: TTY Driver Flags
- *
- * TTY_DRIVER_RESET_TERMIOS
- *	Requests the tty layer to reset the termios setting when the last
- *	process has closed the device. Used for PTYs, in particular.
- *
- * TTY_DRIVER_REAL_RAW
- *	Indicates that the driver will guarantee not to set any special
- *	character handling flags if this is set for the tty:
- *
- *	``(IGNBRK || (!BRKINT && !PARMRK)) && (IGNPAR || !INPCK)``
- *
- *	That is, if there is no reason for the driver to
- *	send notifications of parity and break characters up to the line
- *	driver, it won't do so.  This allows the line driver to optimize for
- *	this case if this flag is set.  (Note that there is also a promise, if
- *	the above case is true, not to signal overruns, either.)
- *
- * TTY_DRIVER_DYNAMIC_DEV
- *	The individual tty devices need to be registered with a call to
- *	tty_register_device() when the device is found in the system and
- *	unregistered with a call to tty_unregister_device() so the devices will
- *	be show up properly in sysfs.  If not set, all &tty_driver.num entries
- *	will be created by the tty core in sysfs when tty_register_driver() is
- *	called.  This is to be used by drivers that have tty devices that can
- *	appear and disappear while the main tty driver is registered with the
- *	tty core.
- *
- * TTY_DRIVER_DEVPTS_MEM
- *	Don't use the standard arrays (&tty_driver.ttys and
- *	&tty_driver.termios), instead use dynamic memory keyed through the
- *	devpts filesystem. This is only applicable to the PTY driver.
- *
- * TTY_DRIVER_HARDWARE_BREAK
- *	Hardware handles break signals. Pass the requested timeout to the
- *	&tty_operations.break_ctl instead of using a simple on/off interface.
- *
- * TTY_DRIVER_DYNAMIC_ALLOC
- *	Do not allocate structures which are needed per line for this driver
- *	(&tty_driver.ports) as it would waste memory. The driver will take
- *	care. This is only applicable to the PTY driver.
- *
- * TTY_DRIVER_UNNUMBERED_NODE
- *	Do not create numbered ``/dev`` nodes. For example, create
- *	``/dev/ttyprintk`` and not ``/dev/ttyprintk0``. Applicable only when a
- *	driver for a single tty device is being allocated.
- */
-#define TTY_DRIVER_INSTALLED		0x0001
-#define TTY_DRIVER_RESET_TERMIOS	0x0002
-#define TTY_DRIVER_REAL_RAW		0x0004
-#define TTY_DRIVER_DYNAMIC_DEV		0x0008
-#define TTY_DRIVER_DEVPTS_MEM		0x0010
-#define TTY_DRIVER_HARDWARE_BREAK	0x0020
-#define TTY_DRIVER_DYNAMIC_ALLOC	0x0040
-#define TTY_DRIVER_UNNUMBERED_NODE	0x0080
-
-/* tty driver types */
-#define TTY_DRIVER_TYPE_SYSTEM		0x0001
-#define TTY_DRIVER_TYPE_CONSOLE		0x0002
-#define TTY_DRIVER_TYPE_SERIAL		0x0003
-#define TTY_DRIVER_TYPE_PTY		0x0004
-#define TTY_DRIVER_TYPE_SCC		0x0005	/* scc driver */
-#define TTY_DRIVER_TYPE_SYSCONS		0x0006
-
-/* system subtypes (magic, used by tty_io.c) */
-#define SYSTEM_TYPE_TTY			0x0001
-#define SYSTEM_TYPE_CONSOLE		0x0002
-#define SYSTEM_TYPE_SYSCONS		0x0003
-#define SYSTEM_TYPE_SYSPTMX		0x0004
-
-/* pty subtypes (magic, used by tty_io.c) */
-#define PTY_TYPE_MASTER			0x0001
-#define PTY_TYPE_SLAVE			0x0002
-
-/* serial subtype definitions */
-#define SERIAL_TYPE_NORMAL	1
 
 int tty_register_driver(struct tty_driver *driver);
 void tty_unregister_driver(struct tty_driver *driver);

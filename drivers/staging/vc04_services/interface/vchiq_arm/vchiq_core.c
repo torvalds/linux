@@ -470,7 +470,7 @@ make_service_callback(struct vchiq_service *service, enum vchiq_reason reason,
 		cb_userdata = bulk->cb_userdata;
 	}
 
-	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %pK, %pK %pK)\n",
+	dev_dbg(service->state->dev, "core: %d: callback:%d (%s, %p, %p %p)\n",
 		service->state->id, service->localport, reason_names[reason],
 		header, cb_data, cb_userdata);
 	status = service->base.callback(service->instance, reason, header, service->handle,
@@ -778,7 +778,7 @@ process_free_data_message(struct vchiq_state *state, u32 *service_found,
 		complete(&quota->quota_event);
 	} else if (count == 0) {
 		dev_err(state->dev,
-			"core: service %d message_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)\n",
+			"core: service %d message_use_count=%d (header %p, msgid %x, header->msgid %x, header->size %x)\n",
 			port, quota->message_use_count, header, msgid,
 			header->msgid, header->size);
 		WARN(1, "invalid message use count\n");
@@ -799,11 +799,11 @@ process_free_data_message(struct vchiq_state *state, u32 *service_found,
 			 * it has dropped below its quota
 			 */
 			complete(&quota->quota_event);
-			dev_dbg(state->dev, "core: %d: pfq:%d %x@%pK - slot_use->%d\n",
+			dev_dbg(state->dev, "core: %d: pfq:%d %x@%p - slot_use->%d\n",
 				state->id, port, header->size, header, count - 1);
 		} else {
 			dev_err(state->dev,
-				"core: service %d slot_use_count=%d (header %pK, msgid %x, header->msgid %x, header->size %x)\n",
+				"core: service %d slot_use_count=%d (header %p, msgid %x, header->msgid %x, header->size %x)\n",
 				port, count, header, msgid, header->msgid, header->size);
 			WARN(1, "bad slot use count\n");
 		}
@@ -845,7 +845,7 @@ process_free_queue(struct vchiq_state *state, u32 *service_found,
 		 */
 		rmb();
 
-		dev_dbg(state->dev, "core: %d: pfq %d=%pK %x %x\n",
+		dev_dbg(state->dev, "core: %d: pfq %d=%p %x %x\n",
 			state->id, slot_index, data, local->slot_queue_recycle,
 			slot_queue_available);
 
@@ -868,7 +868,7 @@ process_free_queue(struct vchiq_state *state, u32 *service_found,
 			pos += calc_stride(header->size);
 			if (pos > VCHIQ_SLOT_SIZE) {
 				dev_err(state->dev,
-					"core: pfq - pos %x: header %pK, msgid %x, header->msgid %x, header->size %x\n",
+					"core: pfq - pos %x: header %p, msgid %x, header->msgid %x, header->size %x\n",
 					pos, header, msgid, header->msgid, header->size);
 				WARN(1, "invalid slot position\n");
 			}
@@ -1060,7 +1060,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 		int tx_end_index;
 		int slot_use_count;
 
-		dev_dbg(state->dev, "core: %d: qm %s@%pK,%zx (%d->%d)\n",
+		dev_dbg(state->dev, "core: %d: qm %s@%p,%zx (%d->%d)\n",
 			state->id, msg_type_str(VCHIQ_MSG_TYPE(msgid)), header, size,
 			VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid));
 
@@ -1117,7 +1117,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 		VCHIQ_SERVICE_STATS_INC(service, ctrl_tx_count);
 		VCHIQ_SERVICE_STATS_ADD(service, ctrl_tx_bytes, size);
 	} else {
-		dev_dbg(state->dev, "core: %d: qm %s@%pK,%zx (%d->%d)\n",
+		dev_dbg(state->dev, "core: %d: qm %s@%p,%zx (%d->%d)\n",
 			state->id, msg_type_str(VCHIQ_MSG_TYPE(msgid)), header, size,
 			VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid));
 		if (size != 0) {
@@ -1204,7 +1204,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 				state->id, oldmsgid);
 	}
 
-	dev_dbg(state->dev, "sync: %d: qms %s@%pK,%x (%d->%d)\n",
+	dev_dbg(state->dev, "sync: %d: qms %s@%p,%x (%d->%d)\n",
 		state->id, msg_type_str(VCHIQ_MSG_TYPE(msgid)), header, size,
 		VCHIQ_MSG_SRCPORT(msgid), VCHIQ_MSG_DSTPORT(msgid));
 
@@ -1539,7 +1539,7 @@ create_pagelist(struct vchiq_instance *instance, struct vchiq_bulk *bulk)
 	pagelist = dma_alloc_coherent(instance->state->dev, pagelist_size, &dma_addr,
 				      GFP_KERNEL);
 
-	dev_dbg(instance->state->dev, "arm: %pK\n", pagelist);
+	dev_dbg(instance->state->dev, "arm: %p\n", pagelist);
 
 	if (!pagelist)
 		return NULL;
@@ -1692,7 +1692,7 @@ free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagel
 	unsigned int num_pages = pagelistinfo->num_pages;
 	unsigned int cache_line_size;
 
-	dev_dbg(instance->state->dev, "arm: %pK, %d\n", pagelistinfo->pagelist, actual);
+	dev_dbg(instance->state->dev, "arm: %p, %d\n", pagelistinfo->pagelist, actual);
 
 	drv_mgmt = dev_get_drvdata(instance->state->dev);
 
@@ -1849,7 +1849,7 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 
 	payload = (struct vchiq_open_payload *)header->data;
 	fourcc = payload->fourcc;
-	dev_dbg(state->dev, "core: %d: prs OPEN@%pK (%d->'%p4cc')\n",
+	dev_dbg(state->dev, "core: %d: prs OPEN@%p (%d->'%p4cc')\n",
 		state->id, header, localport, &fourcc);
 
 	service = get_listening_service(state, fourcc);
@@ -1976,14 +1976,14 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			service = get_connected_service(state, remoteport);
 			if (service)
 				dev_warn(state->dev,
-					 "core: %d: prs %s@%pK (%d->%d) - found connected service %d\n",
+					 "core: %d: prs %s@%p (%d->%d) - found connected service %d\n",
 					 state->id, msg_type_str(type), header,
 					 remoteport, localport, service->localport);
 		}
 
 		if (!service) {
 			dev_err(state->dev,
-				"core: %d: prs %s@%pK (%d->%d) - invalid/closed service %d\n",
+				"core: %d: prs %s@%p (%d->%d) - invalid/closed service %d\n",
 				state->id, msg_type_str(type), header, remoteport,
 				localport, localport);
 			goto skip_message;
@@ -2003,7 +2003,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 
 	if (((unsigned long)header & VCHIQ_SLOT_MASK) +
 	    calc_stride(size) > VCHIQ_SLOT_SIZE) {
-		dev_err(state->dev, "core: header %pK (msgid %x) - size %x too big for slot\n",
+		dev_err(state->dev, "core: header %p (msgid %x) - size %x too big for slot\n",
 			header, (unsigned int)msgid, (unsigned int)size);
 		WARN(1, "oversized for slot\n");
 	}
@@ -2022,7 +2022,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			service->peer_version = payload->version;
 		}
 		dev_dbg(state->dev,
-			"core: %d: prs OPENACK@%pK,%x (%d->%d) v:%d\n",
+			"core: %d: prs OPENACK@%p,%x (%d->%d) v:%d\n",
 			state->id, header, size, remoteport, localport,
 			service->peer_version);
 		if (service->srvstate == VCHIQ_SRVSTATE_OPENING) {
@@ -2037,7 +2037,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 	case VCHIQ_MSG_CLOSE:
 		WARN_ON(size); /* There should be no data */
 
-		dev_dbg(state->dev, "core: %d: prs CLOSE@%pK (%d->%d)\n",
+		dev_dbg(state->dev, "core: %d: prs CLOSE@%p (%d->%d)\n",
 			state->id, header, remoteport, localport);
 
 		mark_service_closing_internal(service, 1);
@@ -2049,7 +2049,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			&service->base.fourcc, service->localport, service->remoteport);
 		break;
 	case VCHIQ_MSG_DATA:
-		dev_dbg(state->dev, "core: %d: prs DATA@%pK,%x (%d->%d)\n",
+		dev_dbg(state->dev, "core: %d: prs DATA@%p,%x (%d->%d)\n",
 			state->id, header, size, remoteport, localport);
 
 		if ((service->remoteport == remoteport) &&
@@ -2069,7 +2069,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		}
 		break;
 	case VCHIQ_MSG_CONNECT:
-		dev_dbg(state->dev, "core: %d: prs CONNECT@%pK\n",
+		dev_dbg(state->dev, "core: %d: prs CONNECT@%p\n",
 			state->id, header);
 		state->version_common =	((struct vchiq_slot_zero *)
 					 state->slot_data)->version;
@@ -2102,7 +2102,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			if ((int)(queue->remote_insert -
 				queue->local_insert) >= 0) {
 				dev_err(state->dev,
-					"core: %d: prs %s@%pK (%d->%d) unexpected (ri=%d,li=%d)\n",
+					"core: %d: prs %s@%p (%d->%d) unexpected (ri=%d,li=%d)\n",
 					state->id, msg_type_str(type), header, remoteport,
 					localport, queue->remote_insert, queue->local_insert);
 				mutex_unlock(&service->bulk_mutex);
@@ -2120,7 +2120,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 			bulk->actual = *(int *)header->data;
 			queue->remote_insert++;
 
-			dev_dbg(state->dev, "core: %d: prs %s@%pK (%d->%d) %x@%pad\n",
+			dev_dbg(state->dev, "core: %d: prs %s@%p (%d->%d) %x@%pad\n",
 				state->id, msg_type_str(type), header, remoteport,
 				localport, bulk->actual, &bulk->dma_addr);
 
@@ -2140,12 +2140,12 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		}
 		break;
 	case VCHIQ_MSG_PADDING:
-		dev_dbg(state->dev, "core: %d: prs PADDING@%pK,%x\n",
+		dev_dbg(state->dev, "core: %d: prs PADDING@%p,%x\n",
 			state->id, header, size);
 		break;
 	case VCHIQ_MSG_PAUSE:
 		/* If initiated, signal the application thread */
-		dev_dbg(state->dev, "core: %d: prs PAUSE@%pK,%x\n",
+		dev_dbg(state->dev, "core: %d: prs PAUSE@%p,%x\n",
 			state->id, header, size);
 		if (state->conn_state == VCHIQ_CONNSTATE_PAUSED) {
 			dev_err(state->dev, "core: %d: PAUSE received in state PAUSED\n",
@@ -2162,7 +2162,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_PAUSED);
 		break;
 	case VCHIQ_MSG_RESUME:
-		dev_dbg(state->dev, "core: %d: prs RESUME@%pK,%x\n",
+		dev_dbg(state->dev, "core: %d: prs RESUME@%p,%x\n",
 			state->id, header, size);
 		/* Release the slot mutex */
 		mutex_unlock(&state->slot_mutex);
@@ -2179,7 +2179,7 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 		break;
 
 	default:
-		dev_err(state->dev, "core: %d: prs invalid msgid %x@%pK,%x\n",
+		dev_err(state->dev, "core: %d: prs invalid msgid %x@%p,%x\n",
 			state->id, msgid, header, size);
 		WARN(1, "invalid message\n");
 		break;
@@ -2400,7 +2400,7 @@ sync_func(void *v)
 
 		if (!service) {
 			dev_err(state->dev,
-				"sync: %d: sf %s@%pK (%d->%d) - invalid/closed service %d\n",
+				"sync: %d: sf %s@%p (%d->%d) - invalid/closed service %d\n",
 				state->id, msg_type_str(type), header, remoteport,
 				localport, localport);
 			release_message_sync(state, header);
@@ -2422,7 +2422,7 @@ sync_func(void *v)
 					header->data;
 				service->peer_version = payload->version;
 			}
-			dev_err(state->dev, "sync: %d: sf OPENACK@%pK,%x (%d->%d) v:%d\n",
+			dev_err(state->dev, "sync: %d: sf OPENACK@%p,%x (%d->%d) v:%d\n",
 				state->id, header, size, remoteport, localport,
 				service->peer_version);
 			if (service->srvstate == VCHIQ_SRVSTATE_OPENING) {
@@ -2435,7 +2435,7 @@ sync_func(void *v)
 			break;
 
 		case VCHIQ_MSG_DATA:
-			dev_dbg(state->dev, "sync: %d: sf DATA@%pK,%x (%d->%d)\n",
+			dev_dbg(state->dev, "sync: %d: sf DATA@%p,%x (%d->%d)\n",
 				state->id, header, size, remoteport, localport);
 
 			if ((service->remoteport == remoteport) &&
@@ -2449,7 +2449,7 @@ sync_func(void *v)
 			break;
 
 		default:
-			dev_err(state->dev, "sync: error: %d: sf unexpected msgid %x@%pK,%x\n",
+			dev_err(state->dev, "sync: error: %d: sf unexpected msgid %x@%p,%x\n",
 				state->id, msgid, header, size);
 			release_message_sync(state, header);
 			break;
@@ -2926,13 +2926,13 @@ release_service_messages(struct vchiq_service *service)
 			int port = VCHIQ_MSG_DSTPORT(msgid);
 
 			if ((port == service->localport) && (msgid & VCHIQ_MSGID_CLAIMED)) {
-				dev_dbg(state->dev, "core:  fsi - hdr %pK\n", header);
+				dev_dbg(state->dev, "core:  fsi - hdr %p\n", header);
 				release_slot(state, slot_info, header, NULL);
 			}
 			pos += calc_stride(header->size);
 			if (pos > VCHIQ_SLOT_SIZE) {
 				dev_err(state->dev,
-					"core: fsi - pos %x: header %pK, msgid %x, header->msgid %x, header->size %x\n",
+					"core: fsi - pos %x: header %p, msgid %x, header->msgid %x, header->size %x\n",
 					pos, header, msgid, header->msgid, header->size);
 				WARN(1, "invalid slot position\n");
 			}
@@ -3091,7 +3091,7 @@ vchiq_bulk_xfer_queue_msg_killable(struct vchiq_service *service,
 	 */
 	wmb();
 
-	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %pK\n",
+	dev_dbg(state->dev, "core: %d: bt (%d->%d) %cx %x@%pad %p\n",
 		state->id, service->localport, service->remoteport,
 		dir_char, bulk->size, &bulk->dma_addr, bulk->cb_data);
 
@@ -3343,6 +3343,7 @@ vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instanc
 			return -EAGAIN;
 
 		vchiq_set_conn_state(state, VCHIQ_CONNSTATE_CONNECTED);
+		vchiq_platform_connected(state);
 		complete(&state->connect);
 	}
 

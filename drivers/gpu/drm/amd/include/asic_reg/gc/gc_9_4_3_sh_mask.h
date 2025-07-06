@@ -2261,11 +2261,13 @@
 #define SH_MEM_CONFIG__ADDRESS_MODE__SHIFT                                                                    0x0
 #define SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT                                                                  0x3
 #define SH_MEM_CONFIG__F8_MODE__SHIFT                                                                         0x8
+#define SH_MEM_CONFIG__PRECISION_MODE__SHIFT                                                                  0x9
 #define SH_MEM_CONFIG__RETRY_DISABLE__SHIFT                                                                   0xc
 #define SH_MEM_CONFIG__PRIVATE_NV__SHIFT                                                                      0xd
 #define SH_MEM_CONFIG__ADDRESS_MODE_MASK                                                                      0x00000001L
 #define SH_MEM_CONFIG__ALIGNMENT_MODE_MASK                                                                    0x00000018L
 #define SH_MEM_CONFIG__F8_MODE_MASK                                                                           0x00000100L
+#define SH_MEM_CONFIG__PRECISION_MODE_MASK                                                                    0x00000200L
 #define SH_MEM_CONFIG__RETRY_DISABLE_MASK                                                                     0x00001000L
 #define SH_MEM_CONFIG__PRIVATE_NV_MASK                                                                        0x00002000L
 //SP_MFMA_PORTD_RD_CONFIG

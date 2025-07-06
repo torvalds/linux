@@ -9,13 +9,14 @@
 #include <linux/slab.h>
 #include <linux/btf_ids.h>
 #include "percpu_freelist.h"
+#include <asm/rqspinlock.h>
 
 #define QUEUE_STACK_CREATE_FLAG_MASK \
 	(BPF_F_NUMA_NODE | BPF_F_ACCESS_MASK)
 
 struct bpf_queue_stack {
 	struct bpf_map map;
-	raw_spinlock_t lock;
+	rqspinlock_t lock;
 	u32 head, tail;
 	u32 size; /* max_entries + 1 */
 
@@ -78,7 +79,7 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 
 	qs->size = size;
 
-	raw_spin_lock_init(&qs->lock);
+	raw_res_spin_lock_init(&qs->lock);
 
 	return &qs->map;
 }
@@ -98,12 +99,8 @@ static long __queue_map_get(struct bpf_map *map, void *value, bool delete)
 	int err = 0;
 	void *ptr;
 
-	if (in_nmi()) {
-		if (!raw_spin_trylock_irqsave(&qs->lock, flags))
-			return -EBUSY;
-	} else {
-		raw_spin_lock_irqsave(&qs->lock, flags);
-	}
+	if (raw_res_spin_lock_irqsave(&qs->lock, flags))
+		return -EBUSY;
 
 	if (queue_stack_map_is_empty(qs)) {
 		memset(value, 0, qs->map.value_size);
@@ -120,7 +117,7 @@ static long __queue_map_get(struct bpf_map *map, void *value, bool delete)
 	}
 
 out:
-	raw_spin_unlock_irqrestore(&qs->lock, flags);
+	raw_res_spin_unlock_irqrestore(&qs->lock, flags);
 	return err;
 }
 
@@ -133,12 +130,8 @@ static long __stack_map_get(struct bpf_map *map, void *value, bool delete)
 	void *ptr;
 	u32 index;
 
-	if (in_nmi()) {
-		if (!raw_spin_trylock_irqsave(&qs->lock, flags))
-			return -EBUSY;
-	} else {
-		raw_spin_lock_irqsave(&qs->lock, flags);
-	}
+	if (raw_res_spin_lock_irqsave(&qs->lock, flags))
+		return -EBUSY;
 
 	if (queue_stack_map_is_empty(qs)) {
 		memset(value, 0, qs->map.value_size);
@@ -157,7 +150,7 @@ static long __stack_map_get(struct bpf_map *map, void *value, bool delete)
 		qs->head = index;
 
 out:
-	raw_spin_unlock_irqrestore(&qs->lock, flags);
+	raw_res_spin_unlock_irqrestore(&qs->lock, flags);
 	return err;
 }
 
@@ -203,12 +196,8 @@ static long queue_stack_map_push_elem(struct bpf_map *map, void *value,
 	if (flags & BPF_NOEXIST || flags > BPF_EXIST)
 		return -EINVAL;
 
-	if (in_nmi()) {
-		if (!raw_spin_trylock_irqsave(&qs->lock, irq_flags))
-			return -EBUSY;
-	} else {
-		raw_spin_lock_irqsave(&qs->lock, irq_flags);
-	}
+	if (raw_res_spin_lock_irqsave(&qs->lock, irq_flags))
+		return -EBUSY;
 
 	if (queue_stack_map_is_full(qs)) {
 		if (!replace) {
@@ -227,7 +216,7 @@ static long queue_stack_map_push_elem(struct bpf_map *map, void *value,
 		qs->head = 0;
 
 out:
-	raw_spin_unlock_irqrestore(&qs->lock, irq_flags);
+	raw_res_spin_unlock_irqrestore(&qs->lock, irq_flags);
 	return err;
 }
 

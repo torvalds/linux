@@ -8,6 +8,7 @@
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_dsb;
 struct intel_plane;
 struct intel_plane_state;
 
@@ -21,10 +22,12 @@ int intel_atomic_setup_scalers(struct intel_atomic_state *state,
 
 void skl_pfit_enable(const struct intel_crtc_state *crtc_state);
 
-void skl_program_plane_scaler(struct intel_plane *plane,
+void skl_program_plane_scaler(struct intel_dsb *dsb,
+			      struct intel_plane *plane,
 			      const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state);
-void skl_detach_scalers(const struct intel_crtc_state *crtc_state);
+void skl_detach_scalers(struct intel_dsb *dsb,
+			const struct intel_crtc_state *crtc_state);
 void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
 
 void skl_scaler_get_config(struct intel_crtc_state *crtc_state);

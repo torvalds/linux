@@ -236,7 +236,8 @@ static void _sigio_handler(struct uml_pt_regs *regs,
 		free_irqs();
 }
 
-void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
+void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs,
+		   void *mc)
 {
 	preempt_disable();
 	_sigio_handler(regs, irqs_suspended);
@@ -688,4 +689,10 @@ void __init init_IRQ(void)
 		irq_set_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
 	/* Initialize EPOLL Loop */
 	os_setup_epoll();
+}
+
+void sigchld_handler(int sig, struct siginfo *unused_si,
+		     struct uml_pt_regs *regs, void *mc)
+{
+	do_IRQ(SIGCHLD_IRQ, regs);
 }

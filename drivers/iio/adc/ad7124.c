@@ -32,7 +32,7 @@
 #define AD7124_IO_CONTROL_2		0x04
 #define AD7124_ID			0x05
 #define AD7124_ERROR			0x06
-#define AD7124_ERROR_EN		0x07
+#define AD7124_ERROR_EN			0x07
 #define AD7124_MCLK_COUNT		0x08
 #define AD7124_CHANNEL(x)		(0x09 + (x))
 #define AD7124_CONFIG(x)		(0x19 + (x))
@@ -41,63 +41,58 @@
 #define AD7124_GAIN(x)			(0x31 + (x))
 
 /* AD7124_STATUS */
-#define AD7124_STATUS_POR_FLAG_MSK	BIT(4)
+#define AD7124_STATUS_POR_FLAG			BIT(4)
 
 /* AD7124_ADC_CONTROL */
-#define AD7124_ADC_STATUS_EN_MSK	BIT(10)
-#define AD7124_ADC_STATUS_EN(x)		FIELD_PREP(AD7124_ADC_STATUS_EN_MSK, x)
-#define AD7124_ADC_CTRL_REF_EN_MSK	BIT(8)
-#define AD7124_ADC_CTRL_REF_EN(x)	FIELD_PREP(AD7124_ADC_CTRL_REF_EN_MSK, x)
-#define AD7124_ADC_CTRL_PWR_MSK	GENMASK(7, 6)
-#define AD7124_ADC_CTRL_PWR(x)		FIELD_PREP(AD7124_ADC_CTRL_PWR_MSK, x)
-#define AD7124_ADC_CTRL_MODE_MSK	GENMASK(5, 2)
-#define AD7124_ADC_CTRL_MODE(x)	FIELD_PREP(AD7124_ADC_CTRL_MODE_MSK, x)
+#define AD7124_ADC_CONTROL_MODE			GENMASK(5, 2)
+#define AD7124_ADC_CONTROL_MODE_CONTINUOUS		0
+#define AD7124_ADC_CONTROL_MODE_SINGLE			1
+#define AD7124_ADC_CONTROL_MODE_STANDBY			2
+#define AD7124_ADC_CONTROL_MODE_POWERDOWN		3
+#define AD7124_ADC_CONTROL_MODE_IDLE			4
+#define AD7124_ADC_CONTROL_MODE_INT_OFFSET_CALIB	5 /* Internal Zero-Scale Calibration */
+#define AD7124_ADC_CONTROL_MODE_INT_GAIN_CALIB		6 /* Internal Full-Scale Calibration */
+#define AD7124_ADC_CONTROL_MODE_SYS_OFFSET_CALIB	7 /* System Zero-Scale Calibration */
+#define AD7124_ADC_CONTROL_MODE_SYS_GAIN_CALIB		8 /* System Full-Scale Calibration */
+#define AD7124_ADC_CONTROL_POWER_MODE		GENMASK(7, 6)
+#define AD7124_ADC_CONTROL_POWER_MODE_LOW		0
+#define AD7124_ADC_CONTROL_POWER_MODE_MID		1
+#define AD7124_ADC_CONTROL_POWER_MODE_FULL		2
+#define AD7124_ADC_CONTROL_REF_EN		BIT(8)
+#define AD7124_ADC_CONTROL_DATA_STATUS		BIT(10)
 
-/* AD7124 ID */
-#define AD7124_DEVICE_ID_MSK		GENMASK(7, 4)
-#define AD7124_DEVICE_ID_GET(x)		FIELD_GET(AD7124_DEVICE_ID_MSK, x)
-#define AD7124_SILICON_REV_MSK		GENMASK(3, 0)
-#define AD7124_SILICON_REV_GET(x)	FIELD_GET(AD7124_SILICON_REV_MSK, x)
-
-#define CHIPID_AD7124_4			0x0
-#define CHIPID_AD7124_8			0x1
+/* AD7124_ID */
+#define AD7124_ID_SILICON_REVISION		GENMASK(3, 0)
+#define AD7124_ID_DEVICE_ID			GENMASK(7, 4)
+#define AD7124_ID_DEVICE_ID_AD7124_4			0x0
+#define AD7124_ID_DEVICE_ID_AD7124_8			0x1
 
 /* AD7124_CHANNEL_X */
-#define AD7124_CHANNEL_EN_MSK		BIT(15)
-#define AD7124_CHANNEL_EN(x)		FIELD_PREP(AD7124_CHANNEL_EN_MSK, x)
-#define AD7124_CHANNEL_SETUP_MSK	GENMASK(14, 12)
-#define AD7124_CHANNEL_SETUP(x)	FIELD_PREP(AD7124_CHANNEL_SETUP_MSK, x)
-#define AD7124_CHANNEL_AINP_MSK	GENMASK(9, 5)
-#define AD7124_CHANNEL_AINP(x)		FIELD_PREP(AD7124_CHANNEL_AINP_MSK, x)
-#define AD7124_CHANNEL_AINM_MSK	GENMASK(4, 0)
-#define AD7124_CHANNEL_AINM(x)		FIELD_PREP(AD7124_CHANNEL_AINM_MSK, x)
+#define AD7124_CHANNEL_ENABLE		BIT(15)
+#define AD7124_CHANNEL_SETUP		GENMASK(14, 12)
+#define AD7124_CHANNEL_AINP		GENMASK(9, 5)
+#define AD7124_CHANNEL_AINM		GENMASK(4, 0)
+#define AD7124_CHANNEL_AINx_TEMPSENSOR		16
+#define AD7124_CHANNEL_AINx_AVSS		17
 
 /* AD7124_CONFIG_X */
-#define AD7124_CONFIG_BIPOLAR_MSK	BIT(11)
-#define AD7124_CONFIG_BIPOLAR(x)	FIELD_PREP(AD7124_CONFIG_BIPOLAR_MSK, x)
-#define AD7124_CONFIG_REF_SEL_MSK	GENMASK(4, 3)
-#define AD7124_CONFIG_REF_SEL(x)	FIELD_PREP(AD7124_CONFIG_REF_SEL_MSK, x)
-#define AD7124_CONFIG_PGA_MSK		GENMASK(2, 0)
-#define AD7124_CONFIG_PGA(x)		FIELD_PREP(AD7124_CONFIG_PGA_MSK, x)
-#define AD7124_CONFIG_IN_BUFF_MSK	GENMASK(6, 5)
-#define AD7124_CONFIG_IN_BUFF(x)	FIELD_PREP(AD7124_CONFIG_IN_BUFF_MSK, x)
+#define AD7124_CONFIG_BIPOLAR		BIT(11)
+#define AD7124_CONFIG_IN_BUFF		GENMASK(6, 5)
+#define AD7124_CONFIG_AIN_BUFP		BIT(6)
+#define AD7124_CONFIG_AIN_BUFM		BIT(5)
+#define AD7124_CONFIG_REF_SEL		GENMASK(4, 3)
+#define AD7124_CONFIG_PGA		GENMASK(2, 0)
 
 /* AD7124_FILTER_X */
-#define AD7124_FILTER_FS_MSK		GENMASK(10, 0)
-#define AD7124_FILTER_FS(x)		FIELD_PREP(AD7124_FILTER_FS_MSK, x)
-#define AD7124_FILTER_TYPE_MSK		GENMASK(23, 21)
-#define AD7124_FILTER_TYPE_SEL(x)	FIELD_PREP(AD7124_FILTER_TYPE_MSK, x)
+#define AD7124_FILTER_FS		GENMASK(10, 0)
+#define AD7124_FILTER_FILTER		GENMASK(23, 21)
+#define AD7124_FILTER_FILTER_SINC4		0
+#define AD7124_FILTER_FILTER_SINC3		2
 
-#define AD7124_SINC3_FILTER 2
-#define AD7124_SINC4_FILTER 0
-
-#define AD7124_CONF_ADDR_OFFSET	20
 #define AD7124_MAX_CONFIGS	8
 #define AD7124_MAX_CHANNELS	16
 
 /* AD7124 input sources */
-#define AD7124_INPUT_TEMPSENSOR	16
-#define AD7124_INPUT_AVSS	17
 
 enum ad7124_ids {
 	ID_AD7124_4,
@@ -151,7 +146,11 @@ struct ad7124_chip_info {
 struct ad7124_channel_config {
 	bool live;
 	unsigned int cfg_slot;
-	/* Following fields are used to compare equality. */
+	/*
+	 * Following fields are used to compare for equality. If you
+	 * make adaptations in it, you most likely also have to adapt
+	 * ad7124_find_similar_live_cfg(), too.
+	 */
 	struct_group(config_props,
 		enum ad7124_ref_sel refsel;
 		bool bipolar;
@@ -162,6 +161,8 @@ struct ad7124_channel_config {
 		unsigned int odr;
 		unsigned int odr_sel_bits;
 		unsigned int filter_type;
+		unsigned int calibration_offset;
+		unsigned int calibration_gain;
 	);
 };
 
@@ -170,6 +171,7 @@ struct ad7124_channel {
 	struct ad7124_channel_config cfg;
 	unsigned int ain;
 	unsigned int slot;
+	u8 syscalib_mode;
 };
 
 struct ad7124_state {
@@ -182,35 +184,24 @@ struct ad7124_state {
 	unsigned int num_channels;
 	struct mutex cfgs_lock; /* lock for configs access */
 	unsigned long cfg_slots_status; /* bitmap with slot status (1 means it is used) */
-	DECLARE_KFIFO(live_cfgs_fifo, struct ad7124_channel_config *, AD7124_MAX_CONFIGS);
-};
 
-static const struct iio_chan_spec ad7124_channel_template = {
-	.type = IIO_VOLTAGE,
-	.indexed = 1,
-	.differential = 1,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-		BIT(IIO_CHAN_INFO_SCALE) |
-		BIT(IIO_CHAN_INFO_OFFSET) |
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),
-	.scan_type = {
-		.sign = 'u',
-		.realbits = 24,
-		.storagebits = 32,
-		.endianness = IIO_BE,
-	},
+	/*
+	 * Stores the power-on reset value for the GAIN(x) registers which are
+	 * needed for measurements at gain 1 (i.e. CONFIG(x).PGA == 0)
+	 */
+	unsigned int gain_default;
+	DECLARE_KFIFO(live_cfgs_fifo, struct ad7124_channel_config *, AD7124_MAX_CONFIGS);
 };
 
 static struct ad7124_chip_info ad7124_chip_info_tbl[] = {
 	[ID_AD7124_4] = {
 		.name = "ad7124-4",
-		.chip_id = CHIPID_AD7124_4,
+		.chip_id = AD7124_ID_DEVICE_ID_AD7124_4,
 		.num_inputs = 8,
 	},
 	[ID_AD7124_8] = {
 		.name = "ad7124-8",
-		.chip_id = CHIPID_AD7124_8,
+		.chip_id = AD7124_ID_DEVICE_ID_AD7124_8,
 		.num_inputs = 16,
 	},
 };
@@ -259,8 +250,8 @@ static int ad7124_set_mode(struct ad_sigma_delta *sd,
 {
 	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
 
-	st->adc_control &= ~AD7124_ADC_CTRL_MODE_MSK;
-	st->adc_control |= AD7124_ADC_CTRL_MODE(mode);
+	st->adc_control &= ~AD7124_ADC_CONTROL_MODE;
+	st->adc_control |= FIELD_PREP(AD7124_ADC_CONTROL_MODE, mode);
 
 	return ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL, 2, st->adc_control);
 }
@@ -299,54 +290,55 @@ static int ad7124_get_3db_filter_freq(struct ad7124_state *st,
 	fadc = st->channels[channel].cfg.odr;
 
 	switch (st->channels[channel].cfg.filter_type) {
-	case AD7124_SINC3_FILTER:
+	case AD7124_FILTER_FILTER_SINC3:
+		return DIV_ROUND_CLOSEST(fadc * 272, 1000);
+	case AD7124_FILTER_FILTER_SINC4:
 		return DIV_ROUND_CLOSEST(fadc * 230, 1000);
-	case AD7124_SINC4_FILTER:
-		return DIV_ROUND_CLOSEST(fadc * 262, 1000);
 	default:
 		return -EINVAL;
 	}
-}
-
-static void ad7124_set_3db_filter_freq(struct ad7124_state *st, unsigned int channel,
-				       unsigned int freq)
-{
-	unsigned int sinc4_3db_odr;
-	unsigned int sinc3_3db_odr;
-	unsigned int new_filter;
-	unsigned int new_odr;
-
-	sinc4_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 230);
-	sinc3_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 262);
-
-	if (sinc4_3db_odr > sinc3_3db_odr) {
-		new_filter = AD7124_SINC3_FILTER;
-		new_odr = sinc4_3db_odr;
-	} else {
-		new_filter = AD7124_SINC4_FILTER;
-		new_odr = sinc3_3db_odr;
-	}
-
-	if (new_odr != st->channels[channel].cfg.odr)
-		st->channels[channel].cfg.live = false;
-
-	st->channels[channel].cfg.filter_type = new_filter;
-	st->channels[channel].cfg.odr = new_odr;
 }
 
 static struct ad7124_channel_config *ad7124_find_similar_live_cfg(struct ad7124_state *st,
 								  struct ad7124_channel_config *cfg)
 {
 	struct ad7124_channel_config *cfg_aux;
-	ptrdiff_t cmp_size;
 	int i;
 
-	cmp_size = sizeof_field(struct ad7124_channel_config, config_props);
+	/*
+	 * This is just to make sure that the comparison is adapted after
+	 * struct ad7124_channel_config was changed.
+	 */
+	static_assert(sizeof_field(struct ad7124_channel_config, config_props) ==
+		      sizeof(struct {
+				     enum ad7124_ref_sel refsel;
+				     bool bipolar;
+				     bool buf_positive;
+				     bool buf_negative;
+				     unsigned int vref_mv;
+				     unsigned int pga_bits;
+				     unsigned int odr;
+				     unsigned int odr_sel_bits;
+				     unsigned int filter_type;
+				     unsigned int calibration_offset;
+				     unsigned int calibration_gain;
+			     }));
+
 	for (i = 0; i < st->num_channels; i++) {
 		cfg_aux = &st->channels[i].cfg;
 
 		if (cfg_aux->live &&
-		    !memcmp(&cfg->config_props, &cfg_aux->config_props, cmp_size))
+		    cfg->refsel == cfg_aux->refsel &&
+		    cfg->bipolar == cfg_aux->bipolar &&
+		    cfg->buf_positive == cfg_aux->buf_positive &&
+		    cfg->buf_negative == cfg_aux->buf_negative &&
+		    cfg->vref_mv == cfg_aux->vref_mv &&
+		    cfg->pga_bits == cfg_aux->pga_bits &&
+		    cfg->odr == cfg_aux->odr &&
+		    cfg->odr_sel_bits == cfg_aux->odr_sel_bits &&
+		    cfg->filter_type == cfg_aux->filter_type &&
+		    cfg->calibration_offset == cfg_aux->calibration_offset &&
+		    cfg->calibration_gain == cfg_aux->calibration_gain)
 			return cfg_aux;
 	}
 
@@ -385,8 +377,7 @@ static int ad7124_init_config_vref(struct ad7124_state *st, struct ad7124_channe
 		return 0;
 	case AD7124_INT_REF:
 		cfg->vref_mv = 2500;
-		st->adc_control &= ~AD7124_ADC_CTRL_REF_EN_MSK;
-		st->adc_control |= AD7124_ADC_CTRL_REF_EN(1);
+		st->adc_control |= AD7124_ADC_CONTROL_REF_EN;
 		return 0;
 	default:
 		return dev_err_probe(dev, -EINVAL, "Invalid reference %d\n", refsel);
@@ -402,18 +393,28 @@ static int ad7124_write_config(struct ad7124_state *st, struct ad7124_channel_co
 
 	cfg->cfg_slot = cfg_slot;
 
-	tmp = (cfg->buf_positive << 1) + cfg->buf_negative;
-	val = AD7124_CONFIG_BIPOLAR(cfg->bipolar) | AD7124_CONFIG_REF_SEL(cfg->refsel) |
-	      AD7124_CONFIG_IN_BUFF(tmp) | AD7124_CONFIG_PGA(cfg->pga_bits);
+	ret = ad_sd_write_reg(&st->sd, AD7124_OFFSET(cfg->cfg_slot), 3, cfg->calibration_offset);
+	if (ret)
+		return ret;
+
+	ret = ad_sd_write_reg(&st->sd, AD7124_GAIN(cfg->cfg_slot), 3, cfg->calibration_gain);
+	if (ret)
+		return ret;
+
+	val = FIELD_PREP(AD7124_CONFIG_BIPOLAR, cfg->bipolar) |
+		FIELD_PREP(AD7124_CONFIG_REF_SEL, cfg->refsel) |
+		(cfg->buf_positive ? AD7124_CONFIG_AIN_BUFP : 0) |
+		(cfg->buf_negative ? AD7124_CONFIG_AIN_BUFM : 0) |
+		FIELD_PREP(AD7124_CONFIG_PGA, cfg->pga_bits);
 
 	ret = ad_sd_write_reg(&st->sd, AD7124_CONFIG(cfg->cfg_slot), 2, val);
 	if (ret < 0)
 		return ret;
 
-	tmp = AD7124_FILTER_TYPE_SEL(cfg->filter_type) |
-	      AD7124_FILTER_FS(cfg->odr_sel_bits);
+	tmp = FIELD_PREP(AD7124_FILTER_FILTER, cfg->filter_type) |
+		FIELD_PREP(AD7124_FILTER_FS, cfg->odr_sel_bits);
 	return ad7124_spi_write_mask(st, AD7124_FILTER(cfg->cfg_slot),
-				     AD7124_FILTER_TYPE_MSK | AD7124_FILTER_FS_MSK,
+				     AD7124_FILTER_FILTER | AD7124_FILTER_FS,
 				     tmp, 3);
 }
 
@@ -478,7 +479,8 @@ static int ad7124_enable_channel(struct ad7124_state *st, struct ad7124_channel 
 {
 	ch->cfg.live = true;
 	return ad_sd_write_reg(&st->sd, AD7124_CHANNEL(ch->nr), 2, ch->ain |
-			      AD7124_CHANNEL_SETUP(ch->cfg.cfg_slot) | AD7124_CHANNEL_EN(1));
+			       FIELD_PREP(AD7124_CHANNEL_SETUP, ch->cfg.cfg_slot) |
+			       AD7124_CHANNEL_ENABLE);
 }
 
 static int ad7124_prepare_read(struct ad7124_state *st, int address)
@@ -528,8 +530,10 @@ static int ad7124_append_status(struct ad_sigma_delta *sd, bool append)
 	unsigned int adc_control = st->adc_control;
 	int ret;
 
-	adc_control &= ~AD7124_ADC_STATUS_EN_MSK;
-	adc_control |= AD7124_ADC_STATUS_EN(append);
+	if (append)
+		adc_control |= AD7124_ADC_CONTROL_DATA_STATUS;
+	else
+		adc_control &= ~AD7124_ADC_CONTROL_DATA_STATUS;
 
 	ret = ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL, 2, adc_control);
 	if (ret < 0)
@@ -540,26 +544,26 @@ static int ad7124_append_status(struct ad_sigma_delta *sd, bool append)
 	return 0;
 }
 
-static int ad7124_disable_all(struct ad_sigma_delta *sd)
+static int ad7124_disable_one(struct ad_sigma_delta *sd, unsigned int chan)
 {
 	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
+
+	/* The relevant thing here is that AD7124_CHANNEL_ENABLE is cleared. */
+	return ad_sd_write_reg(&st->sd, AD7124_CHANNEL(chan), 2, 0);
+}
+
+static int ad7124_disable_all(struct ad_sigma_delta *sd)
+{
 	int ret;
 	int i;
 
-	for (i = 0; i < st->num_channels; i++) {
-		ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i), AD7124_CHANNEL_EN_MSK, 0, 2);
+	for (i = 0; i < 16; i++) {
+		ret = ad7124_disable_one(sd, i);
 		if (ret < 0)
 			return ret;
 	}
 
 	return 0;
-}
-
-static int ad7124_disable_one(struct ad_sigma_delta *sd, unsigned int chan)
-{
-	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
-
-	return ad7124_spi_write_mask(st, AD7124_CHANNEL(chan), AD7124_CHANNEL_EN_MSK, 0, 2);
 }
 
 static const struct ad_sigma_delta_info ad7124_sigma_delta_info = {
@@ -703,16 +707,8 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 
 		st->channels[chan->address].cfg.pga_bits = res;
 		break;
-	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
-		if (val2 != 0) {
-			ret = -EINVAL;
-			break;
-		}
-
-		ad7124_set_3db_filter_freq(st, chan->address, val);
-		break;
 	default:
-		ret =  -EINVAL;
+		ret = -EINVAL;
 	}
 
 	mutex_unlock(&st->cfgs_lock);
@@ -766,7 +762,7 @@ static int ad7124_update_scan_mode(struct iio_dev *indio_dev,
 		if (bit_set)
 			ret = __ad7124_set_channel(&st->sd, i);
 		else
-			ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i), AD7124_CHANNEL_EN_MSK,
+			ret = ad7124_spi_write_mask(st, AD7124_CHANNEL(i), AD7124_CHANNEL_ENABLE,
 						    0, 2);
 		if (ret < 0) {
 			mutex_unlock(&st->cfgs_lock);
@@ -807,14 +803,23 @@ static int ad7124_soft_reset(struct ad7124_state *st)
 		if (ret < 0)
 			return dev_err_probe(dev, ret, "Error reading status register\n");
 
-		if (!(readval & AD7124_STATUS_POR_FLAG_MSK))
-			return 0;
+		if (!(readval & AD7124_STATUS_POR_FLAG))
+			break;
 
 		/* The AD7124 requires typically 2ms to power up and settle */
 		usleep_range(100, 2000);
 	} while (--timeout);
 
-	return dev_err_probe(dev, -EIO, "Soft reset failed\n");
+	if (readval & AD7124_STATUS_POR_FLAG)
+		return dev_err_probe(dev, -EIO, "Soft reset failed\n");
+
+	ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(0), 3, &st->gain_default);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Error reading gain register\n");
+
+	dev_dbg(dev, "Reset value of GAIN register is 0x%x\n", st->gain_default);
+
+	return 0;
 }
 
 static int ad7124_check_chip_id(struct ad7124_state *st)
@@ -827,8 +832,8 @@ static int ad7124_check_chip_id(struct ad7124_state *st)
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failure to read ID register\n");
 
-	chip_id = AD7124_DEVICE_ID_GET(readval);
-	silicon_rev = AD7124_SILICON_REV_GET(readval);
+	chip_id = FIELD_GET(AD7124_ID_DEVICE_ID, readval);
+	silicon_rev = FIELD_GET(AD7124_ID_SILICON_REVISION, readval);
 
 	if (chip_id != st->chip_info->chip_id)
 		return dev_err_probe(dev, -ENODEV,
@@ -842,6 +847,140 @@ static int ad7124_check_chip_id(struct ad7124_state *st)
 	return 0;
 }
 
+enum {
+	AD7124_SYSCALIB_ZERO_SCALE,
+	AD7124_SYSCALIB_FULL_SCALE,
+};
+
+static int ad7124_syscalib_locked(struct ad7124_state *st, const struct iio_chan_spec *chan)
+{
+	struct device *dev = &st->sd.spi->dev;
+	struct ad7124_channel *ch = &st->channels[chan->channel];
+	int ret;
+
+	if (ch->syscalib_mode == AD7124_SYSCALIB_ZERO_SCALE) {
+		ch->cfg.calibration_offset = 0x800000;
+
+		ret = ad_sd_calibrate(&st->sd, AD7124_ADC_CONTROL_MODE_SYS_OFFSET_CALIB,
+				      chan->address);
+		if (ret < 0)
+			return ret;
+
+		ret = ad_sd_read_reg(&st->sd, AD7124_OFFSET(ch->cfg.cfg_slot), 3,
+				     &ch->cfg.calibration_offset);
+		if (ret < 0)
+			return ret;
+
+		dev_dbg(dev, "offset for channel %d after zero-scale calibration: 0x%x\n",
+			chan->channel, ch->cfg.calibration_offset);
+	} else {
+		ch->cfg.calibration_gain = st->gain_default;
+
+		ret = ad_sd_calibrate(&st->sd, AD7124_ADC_CONTROL_MODE_SYS_GAIN_CALIB,
+				      chan->address);
+		if (ret < 0)
+			return ret;
+
+		ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(ch->cfg.cfg_slot), 3,
+				     &ch->cfg.calibration_gain);
+		if (ret < 0)
+			return ret;
+
+		dev_dbg(dev, "gain for channel %d after full-scale calibration: 0x%x\n",
+			chan->channel, ch->cfg.calibration_gain);
+	}
+
+	return 0;
+}
+
+static ssize_t ad7124_write_syscalib(struct iio_dev *indio_dev,
+				     uintptr_t private,
+				     const struct iio_chan_spec *chan,
+				     const char *buf, size_t len)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+	bool sys_calib;
+	int ret;
+
+	ret = kstrtobool(buf, &sys_calib);
+	if (ret)
+		return ret;
+
+	if (!sys_calib)
+		return len;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = ad7124_syscalib_locked(st, chan);
+
+	iio_device_release_direct(indio_dev);
+
+	return ret ?: len;
+}
+
+static const char * const ad7124_syscalib_modes[] = {
+	[AD7124_SYSCALIB_ZERO_SCALE] = "zero_scale",
+	[AD7124_SYSCALIB_FULL_SCALE] = "full_scale",
+};
+
+static int ad7124_set_syscalib_mode(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan,
+				    unsigned int mode)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+
+	st->channels[chan->channel].syscalib_mode = mode;
+
+	return 0;
+}
+
+static int ad7124_get_syscalib_mode(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+
+	return st->channels[chan->channel].syscalib_mode;
+}
+
+static const struct iio_enum ad7124_syscalib_mode_enum = {
+	.items = ad7124_syscalib_modes,
+	.num_items = ARRAY_SIZE(ad7124_syscalib_modes),
+	.set = ad7124_set_syscalib_mode,
+	.get = ad7124_get_syscalib_mode
+};
+
+static const struct iio_chan_spec_ext_info ad7124_calibsys_ext_info[] = {
+	{
+		.name = "sys_calibration",
+		.write = ad7124_write_syscalib,
+		.shared = IIO_SEPARATE,
+	},
+	IIO_ENUM("sys_calibration_mode", IIO_SEPARATE,
+		 &ad7124_syscalib_mode_enum),
+	IIO_ENUM_AVAILABLE("sys_calibration_mode", IIO_SHARED_BY_TYPE,
+			   &ad7124_syscalib_mode_enum),
+	{ }
+};
+
+static const struct iio_chan_spec ad7124_channel_template = {
+	.type = IIO_VOLTAGE,
+	.indexed = 1,
+	.differential = 1,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),
+	.scan_type = {
+		.sign = 'u',
+		.realbits = 24,
+		.storagebits = 32,
+		.endianness = IIO_BE,
+	},
+	.ext_info = ad7124_calibsys_ext_info,
+};
+
 /*
  * Input specifiers 8 - 15 are explicitly reserved for ad7124-4
  * while they are fine for ad7124-8. Values above 31 don't fit
@@ -852,7 +991,7 @@ static bool ad7124_valid_input_select(unsigned int ain, const struct ad7124_chip
 	if (ain >= info->num_inputs && ain < 16)
 		return false;
 
-	return ain <= FIELD_MAX(AD7124_CHANNEL_AINM_MSK);
+	return ain <= FIELD_MAX(AD7124_CHANNEL_AINM);
 }
 
 static int ad7124_parse_channel_config(struct iio_dev *indio_dev,
@@ -881,12 +1020,12 @@ static int ad7124_parse_channel_config(struct iio_dev *indio_dev,
 	/* Add one for temperature */
 	st->num_channels = min(num_channels + 1, AD7124_MAX_CHANNELS);
 
-	chan = devm_kcalloc(indio_dev->dev.parent, st->num_channels,
+	chan = devm_kcalloc(dev, st->num_channels,
 			    sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return -ENOMEM;
 
-	channels = devm_kcalloc(indio_dev->dev.parent, st->num_channels, sizeof(*channels),
+	channels = devm_kcalloc(dev, st->num_channels, sizeof(*channels),
 				GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
@@ -917,8 +1056,8 @@ static int ad7124_parse_channel_config(struct iio_dev *indio_dev,
 					     "diff-channels property of %pfwP contains invalid data\n", child);
 
 		st->channels[channel].nr = channel;
-		st->channels[channel].ain = AD7124_CHANNEL_AINP(ain[0]) |
-						  AD7124_CHANNEL_AINM(ain[1]);
+		st->channels[channel].ain = FIELD_PREP(AD7124_CHANNEL_AINP, ain[0]) |
+			FIELD_PREP(AD7124_CHANNEL_AINM, ain[1]);
 
 		cfg = &st->channels[channel].cfg;
 		cfg->bipolar = fwnode_property_read_bool(child, "bipolar");
@@ -944,8 +1083,8 @@ static int ad7124_parse_channel_config(struct iio_dev *indio_dev,
 	if (num_channels < AD7124_MAX_CHANNELS) {
 		st->channels[num_channels] = (struct ad7124_channel) {
 			.nr = num_channels,
-			.ain = AD7124_CHANNEL_AINP(AD7124_INPUT_TEMPSENSOR) |
-				AD7124_CHANNEL_AINM(AD7124_INPUT_AVSS),
+			.ain = FIELD_PREP(AD7124_CHANNEL_AINP, AD7124_CHANNEL_AINx_TEMPSENSOR) |
+				FIELD_PREP(AD7124_CHANNEL_AINM, AD7124_CHANNEL_AINx_AVSS),
 			.cfg = {
 				.bipolar = true,
 			},
@@ -996,11 +1135,11 @@ static int ad7124_setup(struct ad7124_state *st)
 	}
 
 	/* Set the power mode */
-	st->adc_control &= ~AD7124_ADC_CTRL_PWR_MSK;
-	st->adc_control |= AD7124_ADC_CTRL_PWR(power_mode);
+	st->adc_control &= ~AD7124_ADC_CONTROL_POWER_MODE;
+	st->adc_control |= FIELD_PREP(AD7124_ADC_CONTROL_POWER_MODE, power_mode);
 
-	st->adc_control &= ~AD7124_ADC_CTRL_MODE_MSK;
-	st->adc_control |= AD7124_ADC_CTRL_MODE(AD_SD_MODE_IDLE);
+	st->adc_control &= ~AD7124_ADC_CONTROL_MODE;
+	st->adc_control |= FIELD_PREP(AD7124_ADC_CONTROL_MODE, AD_SD_MODE_IDLE);
 
 	mutex_init(&st->cfgs_lock);
 	INIT_KFIFO(st->live_cfgs_fifo);
@@ -1016,14 +1155,98 @@ static int ad7124_setup(struct ad7124_state *st)
 		 * set all channels to this default value.
 		 */
 		ad7124_set_channel_odr(st, i, 10);
-
-		/* Disable all channels to prevent unintended conversions. */
-		ad_sd_write_reg(&st->sd, AD7124_CHANNEL(i), 2, 0);
 	}
+
+	ad7124_disable_all(&st->sd);
 
 	ret = ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL, 2, st->adc_control);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to setup CONTROL register\n");
+
+	return ret;
+}
+
+static int __ad7124_calibrate_all(struct ad7124_state *st, struct iio_dev *indio_dev)
+{
+	struct device *dev = &st->sd.spi->dev;
+	int ret, i;
+
+	for (i = 0; i < st->num_channels; i++) {
+
+		if (indio_dev->channels[i].type != IIO_VOLTAGE)
+			continue;
+
+		/*
+		 * For calibration the OFFSET register should hold its reset default
+		 * value. For the GAIN register there is no such requirement but
+		 * for gain 1 it should hold the reset default value, too. So to
+		 * simplify matters use the reset default value for both.
+		 */
+		st->channels[i].cfg.calibration_offset = 0x800000;
+		st->channels[i].cfg.calibration_gain = st->gain_default;
+
+		/*
+		 * Full-scale calibration isn't supported at gain 1, so skip in
+		 * that case. Note that untypically full-scale calibration has
+		 * to happen before zero-scale calibration. This only applies to
+		 * the internal calibration. For system calibration it's as
+		 * usual: first zero-scale then full-scale calibration.
+		 */
+		if (st->channels[i].cfg.pga_bits > 0) {
+			ret = ad_sd_calibrate(&st->sd, AD7124_ADC_CONTROL_MODE_INT_GAIN_CALIB, i);
+			if (ret < 0)
+				return ret;
+
+			/*
+			 * read out the resulting value of GAIN
+			 * after full-scale calibration because the next
+			 * ad_sd_calibrate() call overwrites this via
+			 * ad_sigma_delta_set_channel() -> ad7124_set_channel()
+			 * ... -> ad7124_enable_channel().
+			 */
+			ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(st->channels[i].cfg.cfg_slot), 3,
+					     &st->channels[i].cfg.calibration_gain);
+			if (ret < 0)
+				return ret;
+		}
+
+		ret = ad_sd_calibrate(&st->sd, AD7124_ADC_CONTROL_MODE_INT_OFFSET_CALIB, i);
+		if (ret < 0)
+			return ret;
+
+		ret = ad_sd_read_reg(&st->sd, AD7124_OFFSET(st->channels[i].cfg.cfg_slot), 3,
+				     &st->channels[i].cfg.calibration_offset);
+		if (ret < 0)
+			return ret;
+
+		dev_dbg(dev, "offset and gain for channel %d = 0x%x + 0x%x\n", i,
+			st->channels[i].cfg.calibration_offset,
+			st->channels[i].cfg.calibration_gain);
+	}
+
+	return 0;
+}
+
+static int ad7124_calibrate_all(struct ad7124_state *st, struct iio_dev *indio_dev)
+{
+	int ret;
+	unsigned int adc_control = st->adc_control;
+
+	/*
+	 * Calibration isn't supported at full power, so speed down a bit.
+	 * Setting .adc_control is enough here because the control register is
+	 * written as part of ad_sd_calibrate() -> ad_sigma_delta_set_mode().
+	 * The resulting calibration is then also valid for high-speed, so just
+	 * restore adc_control afterwards.
+	 */
+	if (FIELD_GET(AD7124_ADC_CONTROL_POWER_MODE, adc_control) >= AD7124_FULL_POWER) {
+		st->adc_control &= ~AD7124_ADC_CONTROL_POWER_MODE;
+		st->adc_control |= FIELD_PREP(AD7124_ADC_CONTROL_POWER_MODE, AD7124_MID_POWER);
+	}
+
+	ret = __ad7124_calibrate_all(st, indio_dev);
+
+	st->adc_control = adc_control;
 
 	return ret;
 }
@@ -1105,6 +1328,10 @@ static int ad7124_probe(struct spi_device *spi)
 	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "Failed to setup triggers\n");
+
+	ret = ad7124_calibrate_all(st, indio_dev);
+	if (ret)
+		return ret;
 
 	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret < 0)

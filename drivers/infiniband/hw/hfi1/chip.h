@@ -771,7 +771,6 @@ int is_bx(struct hfi1_devdata *dd);
 bool is_urg_masked(struct hfi1_ctxtdata *rcd);
 u32 read_physical_state(struct hfi1_devdata *dd);
 u32 chip_to_opa_pstate(struct hfi1_devdata *dd, u32 chip_pstate);
-const char *opa_lstate_name(u32 lstate);
 const char *opa_pstate_name(u32 pstate);
 u32 driver_pstate(struct hfi1_pportdata *ppd);
 u32 driver_lstate(struct hfi1_pportdata *ppd);

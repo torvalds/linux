@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
 #include <asm/appldata.h>
 #include <asm/monwriter.h>
@@ -293,7 +294,7 @@ static struct miscdevice mon_dev = {
 
 static int __init mon_init(void)
 {
-	if (!MACHINE_IS_VM)
+	if (!machine_is_vm())
 		return -ENODEV;
 	/*
 	 * misc_register() has to be the last action in module_init(), because

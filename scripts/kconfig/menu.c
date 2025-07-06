@@ -15,7 +15,7 @@
 
 static const char nohelp_text[] = "There is no help available for this option.";
 
-struct menu rootmenu;
+struct menu rootmenu = { .type = M_MENU };
 static struct menu **last_entry_ptr;
 
 /**
@@ -65,12 +65,13 @@ void _menu_init(void)
 	last_entry_ptr = &rootmenu.list;
 }
 
-void menu_add_entry(struct symbol *sym)
+void menu_add_entry(struct symbol *sym, enum menu_type type)
 {
 	struct menu *menu;
 
 	menu = xmalloc(sizeof(*menu));
 	memset(menu, 0, sizeof(*menu));
+	menu->type = type;
 	menu->sym = sym;
 	menu->parent = current_menu;
 	menu->filename = cur_filename;

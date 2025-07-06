@@ -1389,11 +1389,9 @@ nicvf_sq_add_hdr_subdesc(struct nicvf *nic, struct snd_queue *sq, int qentry,
 		this_cpu_inc(nic->pnicvf->drv_stats->tx_tso);
 	}
 
-	/* Check if timestamp is requested */
-	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
-		skb_tx_timestamp(skb);
+	/* Check if hw timestamp is requested */
+	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
 		return;
-	}
 
 	/* Tx timestamping not supported along with TSO, so ignore request */
 	if (skb_shinfo(skb)->gso_size)
@@ -1471,6 +1469,8 @@ static inline void nicvf_sq_doorbell(struct nicvf *nic, struct sk_buff *skb,
 				  skb_get_queue_mapping(skb));
 
 	netdev_tx_sent_queue(txq, skb->len);
+
+	skb_tx_timestamp(skb);
 
 	/* make sure all memory stores are done before ringing doorbell */
 	smp_wmb();

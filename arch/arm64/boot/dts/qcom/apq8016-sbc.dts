@@ -222,11 +222,17 @@
 &blsp_uart1 {
 	status = "okay";
 	label = "LS-UART0";
+	pinctrl-0 = <&blsp_uart1_default>;
+	pinctrl-1 = <&blsp_uart1_sleep>;
+	pinctrl-names = "default", "sleep";
 };
 
 &blsp_uart2 {
 	status = "okay";
 	label = "LS-UART1";
+	pinctrl-0 = <&blsp_uart2_console_default>;
+	pinctrl-1 = <&blsp_uart2_console_sleep>;
+	pinctrl-names = "default", "sleep";
 };
 
 &camss {
@@ -590,6 +596,21 @@
 		"[DSI2HDMI_MI2S_DATA0]",
 		"USR_LED_2_CTRL", /* GPIO 120 */
 		"SB_HS_ID";
+
+	blsp_uart1_default: blsp-uart1-default-state {
+		/* TX, RX, CTS_N, RTS_N */
+		pins = "gpio0", "gpio1", "gpio2", "gpio3";
+		function = "blsp_uart1";
+		drive-strength = <16>;
+		bias-disable;
+	};
+
+	blsp_uart1_sleep: blsp-uart1-sleep-state {
+		pins = "gpio0", "gpio1", "gpio2", "gpio3";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 
 	sdc2_cd_default: sdc2-cd-default-state {
 		pins = "gpio38";

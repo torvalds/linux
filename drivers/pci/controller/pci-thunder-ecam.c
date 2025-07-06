@@ -11,6 +11,8 @@
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
 
+#include "pci-host-common.h"
+
 #if defined(CONFIG_PCI_HOST_THUNDER_ECAM) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 
 static void set_val(u32 v, int where, int size, u32 *val)
@@ -204,7 +206,7 @@ static int thunder_ecam_config_read(struct pci_bus *bus, unsigned int devfn,
 
 			v = readl(addr);
 			if (v & 0xff00)
-				pr_err("Bad MSIX cap header: %08x\n", v);
+				pr_err("Bad MSI-X cap header: %08x\n", v);
 			v |= 0xbc00; /* next capability is EA at 0xbc */
 			set_val(v, where, size, val);
 			return PCIBIOS_SUCCESSFUL;

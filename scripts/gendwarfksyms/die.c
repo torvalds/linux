@@ -6,7 +6,7 @@
 #include <string.h>
 #include "gendwarfksyms.h"
 
-#define DIE_HASH_BITS 15
+#define DIE_HASH_BITS 16
 
 /* {die->addr, state} -> struct die * */
 static HASHTABLE_DEFINE(die_map, 1 << DIE_HASH_BITS);

@@ -125,8 +125,12 @@ struct debuginfo *debuginfo__new(const char *path)
 	dso__put(dso);
 
 out:
+	if (dinfo)
+		return dinfo;
+
 	/* if failed to open all distro debuginfo, open given binary */
-	return dinfo ? : __debuginfo__new(path);
+	symbol__join_symfs(buf, path);
+	return __debuginfo__new(buf);
 }
 
 void debuginfo__delete(struct debuginfo *dbg)

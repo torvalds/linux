@@ -273,7 +273,7 @@ struct posix_acl *bch2_get_acl(struct inode *vinode, int type, bool rcu)
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
 	struct xattr_search_key search = X_SEARCH(acl_to_xattr_type(type), "", 0);
-	struct btree_iter iter = { NULL };
+	struct btree_iter iter = {};
 	struct posix_acl *acl = NULL;
 
 	if (rcu)
@@ -344,7 +344,7 @@ int bch2_set_acl(struct mnt_idmap *idmap,
 {
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct btree_iter inode_iter = { NULL };
+	struct btree_iter inode_iter = {};
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl;
 	umode_t mode;

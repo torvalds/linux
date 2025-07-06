@@ -44,17 +44,6 @@ __releases(&sdp->sd_log_lock)
 	spin_unlock(&sdp->sd_log_lock);
 }
 
-static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
-					  unsigned int value)
-{
-	if (++value == sdp->sd_jdesc->jd_blocks) {
-		value = 0;
-	}
-	sdp->sd_log_tail = value;
-	sdp->sd_log_flush_tail = value;
-	sdp->sd_log_head = value;
-}
-
 static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);

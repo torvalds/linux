@@ -456,7 +456,7 @@ Description:
 			      "Over voltage", "Under voltage", "Unspecified failure", "Cold",
 			      "Watchdog timer expire", "Safety timer expire",
 			      "Over current", "Calibration required", "Warm",
-			      "Cool", "Hot", "No battery"
+			      "Cool", "Hot", "No battery", "Blown fuse", "Cell imbalance"
 
 What:		/sys/class/power_supply/<supply_name>/precharge_current
 Date:		June 2017
@@ -508,11 +508,12 @@ Description:
 		Access: Read, Write
 
 		Valid values:
-			================ ====================================
-			auto:            Charge normally, respect thresholds
-			inhibit-charge:  Do not charge while AC is attached
-			force-discharge: Force discharge while AC is attached
-			================ ====================================
+			===================== ========================================
+			auto:                 Charge normally, respect thresholds
+			inhibit-charge:       Do not charge while AC is attached
+			inhibit-charge-awake: inhibit-charge only when device is awake
+			force-discharge:      Force discharge while AC is attached
+			===================== ========================================
 
 What:		/sys/class/power_supply/<supply_name>/technology
 Date:		May 2007
@@ -822,3 +823,46 @@ Description:
 		Each entry is a link to the device which registered the extension.
 
 		Access: Read
+
+What:		/sys/class/power_supply/max8971-charger/fast_charge_timer
+Date:		May 2025
+KernelVersion:	6.15.0
+Contact:	Svyatoslav Ryhel <clamor95@gmail.com>
+Description:
+		This entry shows and sets the maximum time the max8971
+		charger operates in fast-charge mode. When the timer expires
+		the device will terminate fast-charge mode (charging current
+		will drop to 0 A) and will trigger interrupt.
+
+		Valid values:
+
+		- 4 - 10 (hours), step by 1
+		- 0: disabled.
+
+What:		/sys/class/power_supply/max8971-charger/top_off_threshold_current
+Date:		May 2025
+KernelVersion:	6.15.0
+Contact:	Svyatoslav Ryhel <clamor95@gmail.com>
+Description:
+		This entry shows and sets the charging current threshold for
+		entering top-off charging mode. When charging current in fast
+		charge mode drops below this value, the charger will trigger
+		interrupt and start top-off charging mode.
+
+		Valid values:
+
+		- 50000 - 200000 (microamps), step by 50000 (rounded down)
+
+What:		/sys/class/power_supply/max8971-charger/top_off_timer
+Date:		May 2025
+KernelVersion:	6.15.0
+Contact:	Svyatoslav Ryhel <clamor95@gmail.com>
+Description:
+		This entry shows and sets the maximum time the max8971
+		charger operates in top-off charge mode. When the timer expires
+		the device will terminate top-off charge mode (charging current
+		will drop to 0 A) and will trigger interrupt.
+
+		Valid values:
+
+		- 0 - 70 (minutes), step by 10 (rounded down)

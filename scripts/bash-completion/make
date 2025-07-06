@@ -1,0 +1,451 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# bash completion for GNU make with kbuild extension       -*- shell-script -*-
+
+# Load the default completion script for make. It is typically located at
+# /usr/share/bash-completion/completions/make, but we do not rely on it.
+__kbuild_load_default_make_completion()
+{
+	local -a dirs=("${BASH_COMPLETION_USER_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/bash-completion}/completions")
+	local ifs=$IFS IFS=: dir compfile this_dir
+
+	for dir in ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do
+	        dirs+=("$dir"/bash-completion/completions)
+	done
+	IFS=$ifs
+
+	this_dir="$(realpath "$(dirname "${BASH_SOURCE[0]}")")"
+
+	for dir in "${dirs[@]}"; do
+		if [[ ! -d ${dir} || ${dir} = "${this_dir}" ]]; then
+			continue
+		fi
+
+		for compfile in make make.bash _make; do
+			compfile=$dir/$compfile
+			# Avoid trying to source dirs; https://bugzilla.redhat.com/903540
+			if [[ -f ${compfile} ]] && . "${compfile}" &>/dev/null; then
+
+				__kbuild_default_make_completion=$(
+					# shellcheck disable=SC2046 # word splitting is the point here
+					set -- $(complete -p make)
+
+					while [[ $# -gt 1 && "$1" != -F ]]; do
+						shift
+					done
+
+					if [[ "$1" = -F ]]; then
+						echo "$2"
+					fi
+				)
+
+				return
+			fi
+		done
+	done
+}
+
+__kbuild_load_default_make_completion
+
+__kbuild_handle_variable()
+{
+	local var=${1%%=*}
+	local cur=${cur#"${var}"=}
+	local srctree=$2
+	local keywords=()
+
+	case $var in
+	ARCH)
+		# sub-directories under arch/
+		keywords+=($(find "${srctree}/arch" -mindepth 1 -maxdepth 1 -type d -printf '%P\n'))
+		# architectures hard-coded in the top Makefile
+		keywords+=(i386 x86_64 sparc32 sparc64 parisc64)
+		;;
+	CROSS_COMPILE)
+		# toolchains with a full path
+		local cross_compile=()
+		local c c2
+		_filedir
+
+		for c in "${COMPREPLY[@]}"; do
+			# eval for tilde expansion
+			# suppress error, as this fails when it contains a space
+			eval "c2=${c}" 2>/dev/null || continue
+			if [[ ${c} == *-elfedit && ! -d ${c2} && -x ${c2} ]]; then
+				cross_compile+=("${c%elfedit}")
+			fi
+		done
+
+		# toolchains in the PATH environment
+		while read -r c; do
+			if [[ ${c} == *-elfedit ]]; then
+				keywords+=("${c%elfedit}")
+			fi
+		done < <(compgen -c)
+
+		COMPREPLY=()
+		_filedir -d
+
+		# Add cross_compile directly without passing it to compgen.
+		# Otherwise, toolchain paths with a tilde do not work.
+		# e.g.)
+		#   CROSS_COMPILE=~/0day/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-
+		COMPREPLY+=("${cross_compile[@]}")
+		;;
+	LLVM)
+		# LLVM=1 uses the default 'clang' etc.
+		keywords+=(1)
+
+		# suffix for a particular version. LLVM=-18 uses 'clang-18' etc.
+		while read -r c; do
+			if [[ ${c} == clang-[0-9]* ]]; then
+				keywords+=("${c#clang}")
+			fi
+		done < <(compgen -c)
+
+		# directory path to LLVM toolchains
+		_filedir -d
+		;;
+	KCONFIG_ALLCONFIG)
+		# KCONFIG_ALLCONFIG=1 selects the default fragment
+		keywords+=(1)
+		# or the path to a fragment file
+		_filedir
+		;;
+	C | KBUILD_CHECKSRC)
+		keywords+=(1 2)
+		;;
+	V | KBUILD_VERBOSE)
+		keywords+=({,1}{,2})
+		;;
+	W | KBUILD_EXTRA_WARN)
+		keywords+=({,1}{,2}{,3}{,c}{,e})
+		;;
+	KBUILD_ABS_SRCTREE | KBUILD_MODPOST_NOFINAL | KBUILD_MODPOST_WARN | \
+		CLIPPY | KBUILD_CLIPPY | KCONFIG_NOSILENTUPDATE | \
+		KCONFIG_OVERWRITECONFIG | KCONFIG_WARN_UNKNOWN_SYMBOL | \
+		KCONFIG_WERROR )
+		keywords+=(1)
+		;;
+	INSTALL_MOD_STRIP)
+		keywords+=(1 --strip-debug --strip-unneeded)
+		;;
+	O | KBUILD_OUTPUT | M | KBUILD_EXTMOD | MO | KBUILD_EXTMOD_OUTPUT | *_PATH)
+		# variables that take a directory.
+		_filedir -d
+		return
+		;;
+	KBUILD_EXTRA_SYMBOL | KBUILD_KCONFIG | KCONFIG_CONFIG)
+		# variables that take a file.
+		_filedir
+		return
+	esac
+
+	COMPREPLY+=($(compgen -W "${keywords[*]}" -- "${cur}"))
+}
+
+# Check the -C, -f options and 'source' symlink. Return the source tree we are
+# working in.
+__kbuild_get_srctree()
+{
+	local words=("$@")
+	local cwd makef_dir
+
+	# see if a path was specified with -C/--directory
+	for ((i = 1; i < ${#words[@]}; i++)); do
+		if [[ ${words[i]} == -@(C|-directory) ]]; then
+			# eval for tilde expansion.
+			# suppress error, as this fails when it contains a space
+			eval "cwd=${words[i + 1]}" 2>/dev/null
+			break
+		fi
+	done
+
+	if [[ -z ${cwd} ]]; then
+		cwd=.
+	fi
+
+	# see if a Makefile was specified with -f/--file/--makefile
+	for ((i = 1; i < ${#words[@]}; i++)); do
+		if [[ ${words[i]} == -@(f|-?(make)file) ]]; then
+			# eval for tilde expansion
+			# suppress error, as this fails when it contains a space
+			eval "makef_dir=${words[i + 1]%/*}" 2>/dev/null
+			break
+		fi
+	done
+
+	if [ -z "${makef_dir}" ]; then
+		makef_dir=${cwd}
+	elif [[ ${makef_dir} != /* ]]; then
+		makef_dir=${cwd}/${makef_dir}
+	fi
+
+	# If ${makef_dir} is a build directory created by the O= option, there
+	# is a symbolic link 'source', which points to the kernel source tree.
+	if [[ -L ${makef_dir}/source ]]; then
+		makef_dir=$(readlink "${makef_dir}/source")
+	fi
+
+	echo "${makef_dir}"
+}
+
+# Get SRCARCH to do a little more clever things
+__kbuild_get_srcarch()
+{
+	local words=("$@")
+	local arch srcarch uname_m
+
+	# see if ARCH= is explicitly specified
+	for ((i = 1; i < ${#words[@]}; i++)); do
+		if [[ ${words[i]} == ARCH=* ]]; then
+			arch=${words[i]#ARCH=}
+			break
+		fi
+	done
+
+	# If ARCH= is not specified, check the build marchine's architecture
+	if [[ -z ${arch} ]]; then
+		uname_m=$(uname -m)
+
+		# shellcheck disable=SC2209 # 'sh' is SuperH, not a shell command
+		case ${uname_m} in
+		arm64 | aarch64*) arch=arm64 ;;
+		arm* | sa110)     arch=arm ;;
+		i?86 | x86_64)    arch=x86 ;;
+		loongarch*)       arch=loongarch ;;
+		mips*)            arch=mips ;;
+		ppc*)             arch=powerpc ;;
+		riscv*)           arch=riscv ;;
+		s390x)            arch=s390 ;;
+		sh[234]*)         arch=sh ;;
+		sun4u)            arch=sparc64 ;;
+		*)                arch=${uname_m} ;;
+		esac
+	fi
+
+	case ${arch} in
+		parisc64)          srcarch=parisc ;;
+		sparc32 | sparc64) srcarch=sparc ;;
+		i386 | x86_64)     srcarch=x86 ;;
+		*)                 srcarch=${arch} ;;
+	esac
+
+	echo "$srcarch"
+}
+
+# small Makefile to parse obj-* syntax
+__kbuild_tmp_makefile()
+{
+cat <<'EOF'
+.PHONY: __default
+__default:
+	$(foreach m,$(obj-y) $(obj-m) $(obj-),$(foreach s, -objs -y -m -,$($(m:%.o=%$s))) $(m))
+EOF
+echo "include ${1}"
+}
+
+_make_for_kbuild ()
+{
+	# shellcheck disable=SC2034 # these are set by _init_completion
+	local cur prev words cword split
+	_init_completion -s || return
+
+	local srctree
+	srctree=$(__kbuild_get_srctree "${words[@]}")
+
+	# If 'kernel' and 'Documentation' directories are found, we assume this
+	# is a kernel tree. Otherwise, we fall back to the generic rule provided
+	# by the bash-completion project.
+	if [[ ! -d ${srctree}/kernel || ! -d ${srctree}/Documentation ]]; then
+		if [ -n "${__kbuild_default_make_completion}" ]; then
+			"${__kbuild_default_make_completion}" "$@"
+		fi
+		return
+	fi
+
+	# make options with a parameter (copied from the bash-completion project)
+	case ${prev} in
+	--file | --makefile | --old-file | --assume-old | --what-if | --new-file | \
+		--assume-new | -!(-*)[foW])
+		_filedir
+		return
+		;;
+	--include-dir | --directory | -!(-*)[ICm])
+		_filedir -d
+		return
+		;;
+	-!(-*)E)
+		COMPREPLY=($(compgen -v -- "$cur"))
+		return
+		;;
+	--eval | -!(-*)[DVx])
+		return
+		;;
+	--jobs | -!(-*)j)
+		COMPREPLY=($(compgen -W "{1..$(($(_ncpus) * 2))}" -- "$cur"))
+		return
+		;;
+	esac
+
+	local keywords=()
+
+	case ${cur} in
+	-*)
+		# make options (copied from the bash-completion project)
+		local opts
+		opts="$(_parse_help "$1")"
+		COMPREPLY=($(compgen -W "${opts:-$(_parse_usage "$1")}" -- "$cur"))
+		if [[ ${COMPREPLY-} == *= ]]; then
+			compopt -o nospace
+		fi
+		return
+		;;
+	*=*)
+		__kbuild_handle_variable "${cur}" "${srctree}"
+		return
+		;;
+	KBUILD_*)
+		# There are many variables prefixed with 'KBUILD_'.
+		# Display them only when 'KBUILD_' is entered.
+		# shellcheck disable=SC2191 # '=' is appended for variables
+		keywords+=(
+			KBUILD_{CHECKSRC,EXTMOD,EXTMOD_OUTPUT,OUTPUT,VERBOSE,EXTRA_WARN,CLIPPY}=
+			KBUILD_BUILD_{USER,HOST,TIMESTAMP}=
+			KBUILD_MODPOST_{NOFINAL,WARN}=
+			KBUILD_{ABS_SRCTREE,EXTRA_SYMBOLS,KCONFIG}=
+		)
+		;;
+	KCONFIG_*)
+		# There are many variables prefixed with 'KCONFIG_'.
+		# Display them only when 'KCONFIG_' is entered.
+		# shellcheck disable=SC2191 # '=' is appended for variables
+		keywords+=(
+			KCONFIG_{CONFIG,ALLCONFIG,NOSILENTUPDATE,OVERWRITECONFIG}=
+			KCONFIG_{SEED,PROBABILITY}=
+			KCONFIG_WARN_UNKNOWN_SYMBOL=
+			KCONFIG_WERROR=
+		)
+		;;
+	*)
+		# By default, hide KBUILD_* and KCONFIG_* variables.
+		# Instead, display only the prefix parts.
+		keywords+=(KBUILD_ KCONFIG_)
+		;;
+	esac
+
+	if [[ ${cur} != /* && ${cur} != *//* ]]; then
+		local dir srcarch kbuild_file tmp
+		srcarch=$(__kbuild_get_srcarch "${words[@]}")
+
+		# single build
+		dir=${cur}
+		while true; do
+			if [[ ${dir} == */* ]]; then
+				dir=${dir%/*}
+			else
+				dir=.
+			fi
+
+			# Search for 'Kbuild' or 'Makefile' in the parent
+			# directories (may not be a direct parent)
+			if [[ -f ${srctree}/${dir}/Kbuild ]]; then
+				kbuild_file=${srctree}/${dir}/Kbuild
+				break
+			fi
+			if [[ -f ${srctree}/${dir}/Makefile ]]; then
+				kbuild_file=${srctree}/${dir}/Makefile
+				break
+			fi
+
+			if [[ ${dir} == . ]]; then
+				break
+			fi
+		done
+
+		if [[ -n ${kbuild_file} ]]; then
+			tmp=($(__kbuild_tmp_makefile "${kbuild_file}" |
+			       SRCARCH=${srcarch} obj=${dir} src=${srctree}/${dir} \
+			       "${1}" -n -f - 2>/dev/null))
+
+			# Add $(obj)/ prefix
+			if [[ ${dir} != . ]]; then
+				tmp=("${tmp[@]/#/${dir}\/}")
+			fi
+
+			keywords+=("${tmp[@]}")
+		fi
+
+		# *_defconfig and *.config files. These might be grouped into
+		# subdirectories, e.g., arch/powerpc/configs/*/*_defconfig.
+		if [[ ${cur} == */* ]]; then
+			dir=${cur%/*}
+		else
+			dir=.
+		fi
+
+		tmp=($(find "${srctree}/arch/${srcarch}/configs/${dir}" \
+		       "${srctree}/kernel/configs/${dir}" \
+		       -mindepth 1 -maxdepth 1 -type d -printf '%P/\n' \
+		       -o -printf '%P\n' 2>/dev/null))
+
+		if [[ ${dir} != . ]]; then
+			tmp=("${tmp[@]/#/${dir}\/}")
+		fi
+
+		keywords+=("${tmp[@]}")
+	fi
+
+	# shellcheck disable=SC2191 # '=' is appended for variables
+	keywords+=(
+		#
+		# variables (append =)
+		#
+		ARCH=
+		CROSS_COMPILE=
+		LLVM=
+		C= M= MO= O= V= W=
+		INSTALL{,_MOD,_HDR,_DTBS}_PATH=
+		KERNELRELEASE=
+
+		#
+		# targets
+		#
+		all help
+		clean mrproper distclean
+		clang-{tidy,analyzer} compile_commands.json
+		coccicheck
+		dtbs{,_check,_install} dt_binding_{check,schemas}
+		headers{,_install}
+		vmlinux install
+		modules{,_prepare,_install,_sign}
+		vdso_install
+		tags TAGS cscope gtags
+		rust{available,fmt,fmtcheck}
+		kernel{version,release} image_name
+		kselftest{,-all,-install,-clean,-merge}
+
+		# configuration
+		{,old,olddef,sync,def,savedef,rand,listnew,helpnew,test,tiny}config
+		{,build_}{menu,n,g,x}config
+		local{mod,yes}config
+		all{no,yes,mod,def}config
+		{yes2mod,mod2yes,mod2no}config
+
+		# docs
+		{html,textinfo,info,latex,pdf,epub,xml,linkcheck,refcheck,clean}docs
+
+		# package
+		{,bin,src}{rpm,deb}-pkg
+		{pacman,dir,tar}-pkg
+		tar{,gz,bz2,xz,zst}-pkg
+		perf-tar{,gz,bz2,xz,zst}-src-pkg
+	)
+
+	COMPREPLY=($(compgen -W "${keywords[*]}" -- "${cur}"))
+
+	# Do not append a space for variables, subdirs, "KBUILD_", "KCONFIG_".
+	if [[ ${COMPREPLY-} == *[=/] || ${COMPREPLY-} =~ ^(KBUILD|KCONFIG)_$ ]]; then
+		compopt -o nospace
+	fi
+
+} && complete -F _make_for_kbuild make

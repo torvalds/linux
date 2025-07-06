@@ -57,6 +57,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 	struct reparse_symlink_data_buffer *buf = NULL;
 	struct cifs_open_info_data data = {};
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	const char *symroot = cifs_sb->ctx->symlinkroot;
 	struct inode *new;
 	struct kvec iov;
 	__le16 *path = NULL;
@@ -82,7 +83,8 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		.symlink_target = symlink_target,
 	};
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
+	    symroot && symname[0] == '/') {
 		/*
 		 * This is a request to create an absolute symlink on the server
 		 * which does not support POSIX paths, and expects symlink in
@@ -92,7 +94,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 		 * ensure compatibility of this symlink stored in absolute form
 		 * on the SMB server.
 		 */
-		if (!strstarts(symname, cifs_sb->ctx->symlinkroot)) {
+		if (!strstarts(symname, symroot)) {
 			/*
 			 * If the absolute Linux symlink target path is not
 			 * inside "symlinkroot" location then there is no way
@@ -101,12 +103,12 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 			cifs_dbg(VFS,
 				 "absolute symlink '%s' cannot be converted to NT format "
 				 "because it is outside of symlinkroot='%s'\n",
-				 symname, cifs_sb->ctx->symlinkroot);
+				 symname, symroot);
 			rc = -EINVAL;
 			goto out;
 		}
-		len = strlen(cifs_sb->ctx->symlinkroot);
-		if (cifs_sb->ctx->symlinkroot[len-1] != '/')
+		len = strlen(symroot);
+		if (symroot[len - 1] != '/')
 			len++;
 		if (symname[len] >= 'a' && symname[len] <= 'z' &&
 		    (symname[len+1] == '/' || symname[len+1] == '\0')) {
@@ -542,12 +544,12 @@ static int wsl_set_reparse_buf(struct reparse_data_buffer **buf,
 			kfree(symname_utf16);
 			return -ENOMEM;
 		}
-		/* Flag 0x02000000 is unknown, but all wsl symlinks have this value */
-		symlink_buf->Flags = cpu_to_le32(0x02000000);
-		/* PathBuffer is in UTF-8 but without trailing null-term byte */
+		/* Version field must be set to 2 (MS-FSCC 2.1.2.7) */
+		symlink_buf->Version = cpu_to_le32(2);
+		/* Target for Version 2 is in UTF-8 but without trailing null-term byte */
 		symname_utf8_len = utf16s_to_utf8s((wchar_t *)symname_utf16, symname_utf16_len/2,
 						   UTF16_LITTLE_ENDIAN,
-						   symlink_buf->PathBuffer,
+						   symlink_buf->Target,
 						   symname_utf8_maxlen);
 		*buf = (struct reparse_data_buffer *)symlink_buf;
 		buf_len = sizeof(struct reparse_wsl_symlink_data_buffer) + symname_utf8_len;
@@ -782,6 +784,7 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 			      const char *full_path,
 			      struct cifs_sb_info *cifs_sb)
 {
+	const char *symroot = cifs_sb->ctx->symlinkroot;
 	char sep = CIFS_DIR_SEP(cifs_sb);
 	char *linux_target = NULL;
 	char *smb_target = NULL;
@@ -815,7 +818,8 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 		goto out;
 	}
 
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && !relative) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) &&
+	    symroot && !relative) {
 		/*
 		 * This is an absolute symlink from the server which does not
 		 * support POSIX paths, so the symlink is in NT-style path.
@@ -875,15 +879,8 @@ globalroot:
 			abs_path += sizeof("\\DosDevices\\")-1;
 		else if (strstarts(abs_path, "\\GLOBAL??\\"))
 			abs_path += sizeof("\\GLOBAL??\\")-1;
-		else {
-			/* Unhandled absolute symlink, points outside of DOS/Win32 */
-			cifs_dbg(VFS,
-				 "absolute symlink '%s' cannot be converted from NT format "
-				 "because points to unknown target\n",
-				 smb_target);
-			rc = -EIO;
-			goto out;
-		}
+		else
+			goto out_unhandled_target;
 
 		/* Sometimes path separator after \?? is double backslash */
 		if (abs_path[0] == '\\')
@@ -910,25 +907,19 @@ globalroot:
 			abs_path++;
 			abs_path[0] = drive_letter;
 		} else {
-			/* Unhandled absolute symlink. Report an error. */
-			cifs_dbg(VFS,
-				 "absolute symlink '%s' cannot be converted from NT format "
-				 "because points to unknown target\n",
-				 smb_target);
-			rc = -EIO;
-			goto out;
+			goto out_unhandled_target;
 		}
 
 		abs_path_len = strlen(abs_path)+1;
-		symlinkroot_len = strlen(cifs_sb->ctx->symlinkroot);
-		if (cifs_sb->ctx->symlinkroot[symlinkroot_len-1] == '/')
+		symlinkroot_len = strlen(symroot);
+		if (symroot[symlinkroot_len - 1] == '/')
 			symlinkroot_len--;
 		linux_target = kmalloc(symlinkroot_len + 1 + abs_path_len, GFP_KERNEL);
 		if (!linux_target) {
 			rc = -ENOMEM;
 			goto out;
 		}
-		memcpy(linux_target, cifs_sb->ctx->symlinkroot, symlinkroot_len);
+		memcpy(linux_target, symroot, symlinkroot_len);
 		linux_target[symlinkroot_len] = '/';
 		memcpy(linux_target + symlinkroot_len + 1, abs_path, abs_path_len);
 	} else if (smb_target[0] == sep && relative) {
@@ -966,6 +957,7 @@ globalroot:
 		 * These paths have same format as Linux symlinks, so no
 		 * conversion is needed.
 		 */
+out_unhandled_target:
 		linux_target = smb_target;
 		smb_target = NULL;
 	}
@@ -1016,29 +1008,36 @@ static int parse_reparse_wsl_symlink(struct reparse_wsl_symlink_data_buffer *buf
 				     struct cifs_open_info_data *data)
 {
 	int len = le16_to_cpu(buf->ReparseDataLength);
+	int data_offset = offsetof(typeof(*buf), Target) - offsetof(typeof(*buf), Version);
 	int symname_utf8_len;
 	__le16 *symname_utf16;
 	int symname_utf16_len;
 
-	if (len <= sizeof(buf->Flags)) {
+	if (len <= data_offset) {
 		cifs_dbg(VFS, "srv returned malformed wsl symlink buffer\n");
 		return -EIO;
 	}
 
-	/* PathBuffer is in UTF-8 but without trailing null-term byte */
-	symname_utf8_len = len - sizeof(buf->Flags);
+	/* MS-FSCC 2.1.2.7 defines layout of the Target field only for Version 2. */
+	if (le32_to_cpu(buf->Version) != 2) {
+		cifs_dbg(VFS, "srv returned unsupported wsl symlink version %u\n", le32_to_cpu(buf->Version));
+		return -EIO;
+	}
+
+	/* Target for Version 2 is in UTF-8 but without trailing null-term byte */
+	symname_utf8_len = len - data_offset;
 	/*
 	 * Check that buffer does not contain null byte
 	 * because Linux cannot process symlink with null byte.
 	 */
-	if (strnlen(buf->PathBuffer, symname_utf8_len) != symname_utf8_len) {
+	if (strnlen(buf->Target, symname_utf8_len) != symname_utf8_len) {
 		cifs_dbg(VFS, "srv returned null byte in wsl symlink target location\n");
 		return -EIO;
 	}
 	symname_utf16 = kzalloc(symname_utf8_len * 2, GFP_KERNEL);
 	if (!symname_utf16)
 		return -ENOMEM;
-	symname_utf16_len = utf8s_to_utf16s(buf->PathBuffer, symname_utf8_len,
+	symname_utf16_len = utf8s_to_utf16s(buf->Target, symname_utf8_len,
 					    UTF16_LITTLE_ENDIAN,
 					    (wchar_t *) symname_utf16, symname_utf8_len * 2);
 	if (symname_utf16_len < 0) {
@@ -1062,8 +1061,6 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 			const char *full_path,
 			struct cifs_open_info_data *data)
 {
-	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
-
 	data->reparse.buf = buf;
 
 	/* See MS-FSCC 2.1.2 */
@@ -1090,24 +1087,17 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 		}
 		return 0;
 	default:
-		cifs_tcon_dbg(VFS | ONCE, "unhandled reparse tag: 0x%08x\n",
-			      le32_to_cpu(buf->ReparseTag));
 		return -EOPNOTSUPP;
 	}
 }
 
-int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
-			     const char *full_path,
-			     struct kvec *rsp_iov,
-			     struct cifs_open_info_data *data)
+struct reparse_data_buffer *smb2_get_reparse_point_buffer(const struct kvec *rsp_iov,
+							  u32 *plen)
 {
-	struct reparse_data_buffer *buf;
 	struct smb2_ioctl_rsp *io = rsp_iov->iov_base;
-	u32 plen = le32_to_cpu(io->OutputCount);
-
-	buf = (struct reparse_data_buffer *)((u8 *)io +
-					     le32_to_cpu(io->OutputOffset));
-	return parse_reparse_point(buf, plen, cifs_sb, full_path, data);
+	*plen = le32_to_cpu(io->OutputCount);
+	return (struct reparse_data_buffer *)((u8 *)io +
+					      le32_to_cpu(io->OutputOffset));
 }
 
 static bool wsl_to_fattr(struct cifs_open_info_data *data,
@@ -1174,7 +1164,6 @@ out:
 	if (!have_xattr_dev && (tag == IO_REPARSE_TAG_LX_CHR || tag == IO_REPARSE_TAG_LX_BLK))
 		return false;
 
-	fattr->cf_dtype = S_DT(fattr->cf_mode);
 	return true;
 }
 
@@ -1233,16 +1222,6 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	bool ok;
 
 	switch (tag) {
-	case IO_REPARSE_TAG_INTERNAL:
-		if (!(fattr->cf_cifsattrs & ATTR_DIRECTORY))
-			return false;
-		fallthrough;
-	case IO_REPARSE_TAG_DFS:
-	case IO_REPARSE_TAG_DFSR:
-	case IO_REPARSE_TAG_MOUNT_POINT:
-		/* See cifs_create_junction_fattr() */
-		fattr->cf_mode = S_IFDIR | 0711;
-		break;
 	case IO_REPARSE_TAG_LX_SYMLINK:
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_AF_UNIX:
@@ -1262,7 +1241,14 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 		fattr->cf_mode |= S_IFLNK;
 		break;
 	default:
-		return false;
+		if (!(fattr->cf_cifsattrs & ATTR_DIRECTORY))
+			return false;
+		if (!IS_REPARSE_TAG_NAME_SURROGATE(tag) &&
+		    tag != IO_REPARSE_TAG_INTERNAL)
+			return false;
+		/* See cifs_create_junction_fattr() */
+		fattr->cf_mode = S_IFDIR | 0711;
+		break;
 	}
 
 	fattr->cf_dtype = S_DT(fattr->cf_mode);

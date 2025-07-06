@@ -47,7 +47,7 @@ static int avs_tgl_config_basefw(struct avs_dev *adev)
 #ifdef CONFIG_X86
 	unsigned int ecx;
 
-#include <asm/cpuid.h>
+#include <asm/cpuid/api.h>
 	ecx = cpuid_ecx(CPUID_TSC_LEAF);
 	if (ecx) {
 		ret = avs_ipc_set_fw_config(adev, 1, AVS_FW_CFG_XTAL_FREQ_HZ, sizeof(ecx), &ecx);

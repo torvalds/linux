@@ -287,7 +287,7 @@ void ax25_destroy_socket(ax25_cb *);
  */
 static void ax25_destroy_timer(struct timer_list *t)
 {
-	ax25_cb *ax25 = from_timer(ax25, t, dtimer);
+	ax25_cb *ax25 = timer_container_of(ax25, t, dtimer);
 	struct sock *sk;
 
 	sk=ax25->sk;
@@ -1071,11 +1071,11 @@ static int ax25_release(struct socket *sock)
 	}
 	if (ax25_dev) {
 		if (!ax25_dev->device_up) {
-			del_timer_sync(&ax25->timer);
-			del_timer_sync(&ax25->t1timer);
-			del_timer_sync(&ax25->t2timer);
-			del_timer_sync(&ax25->t3timer);
-			del_timer_sync(&ax25->idletimer);
+			timer_delete_sync(&ax25->timer);
+			timer_delete_sync(&ax25->t1timer);
+			timer_delete_sync(&ax25->t2timer);
+			timer_delete_sync(&ax25->t3timer);
+			timer_delete_sync(&ax25->idletimer);
 		}
 		netdev_put(ax25_dev->dev, &ax25->dev_tracker);
 		ax25_dev_put(ax25_dev);

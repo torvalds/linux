@@ -15,7 +15,7 @@
 #include "../pci.h"
 #include "msi.h"
 
-int pci_msi_enable = 1;
+bool pci_msi_enable = true;
 
 /**
  * pci_msi_supported - check whether MSI may be enabled on a device
@@ -341,7 +341,7 @@ static int __msi_capability_init(struct pci_dev *dev, int nvec, struct irq_affin
 	struct msi_desc *entry, desc;
 
 	if (ret)
-		goto fail;
+		return ret;
 
 	/* All MSIs are unmasked by default; mask them all */
 	entry = msi_first_desc(&dev->dev, MSI_DESC_ALL);
@@ -363,6 +363,7 @@ static int __msi_capability_init(struct pci_dev *dev, int nvec, struct irq_affin
 		goto err;
 
 	/* Set MSI enabled bits	*/
+	dev->msi_enabled = 1;
 	pci_intx_for_msi(dev, 0);
 	pci_msi_set_enable(dev, 1);
 
@@ -372,8 +373,6 @@ static int __msi_capability_init(struct pci_dev *dev, int nvec, struct irq_affin
 err:
 	pci_msi_unmask(&desc, msi_multi_mask(&desc));
 	pci_free_msi_irqs(dev);
-fail:
-	dev->msi_enabled = 0;
 	return ret;
 }
 
@@ -401,7 +400,6 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	 * so that setup code can evaluate it.
 	 */
 	pci_msi_set_enable(dev, 0);
-	dev->msi_enabled = 1;
 
 	struct irq_affinity_desc *masks __free(kfree) =
 		affd ? irq_create_affinity_masks(nvec, affd) : NULL;
@@ -441,15 +439,15 @@ int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	if (nvec < minvec)
 		return -ENOSPC;
 
-	if (nvec > maxvec)
-		nvec = maxvec;
-
 	rc = pci_setup_msi_context(dev);
 	if (rc)
 		return rc;
 
-	if (!pci_setup_msi_device_domain(dev))
+	if (!pci_setup_msi_device_domain(dev, nvec))
 		return -ENODEV;
+
+	if (nvec > maxvec)
+		nvec = maxvec;
 
 	for (;;) {
 		if (affd) {
@@ -614,6 +612,9 @@ void msix_prepare_msi_desc(struct pci_dev *dev, struct msi_desc *desc)
 		void __iomem *addr = pci_msix_desc_addr(desc);
 
 		desc->pci.msi_attrib.can_mask = 1;
+		/* Workaround for SUN NIU insanity, which requires write before read */
+		if (dev->dev_flags & PCI_DEV_FLAGS_MSIX_TOUCH_ENTRY_DATA_FIRST)
+			writel(0, addr + PCI_MSIX_ENTRY_DATA);
 		desc->pci.msix_ctrl = readl(addr + PCI_MSIX_ENTRY_VECTOR_CTRL);
 	}
 }
@@ -662,29 +663,29 @@ static void msix_mask_all(void __iomem *base, int tsize)
 		writel(ctrl, base + PCI_MSIX_ENTRY_VECTOR_CTRL);
 }
 
-static int __msix_setup_interrupts(struct pci_dev *dev, struct msix_entry *entries,
+DEFINE_FREE(free_msi_irqs, struct pci_dev *, if (_T) pci_free_msi_irqs(_T));
+
+static int __msix_setup_interrupts(struct pci_dev *__dev, struct msix_entry *entries,
 				   int nvec, struct irq_affinity_desc *masks)
 {
-	int ret = msix_setup_msi_descs(dev, entries, nvec, masks);
+	struct pci_dev *dev __free(free_msi_irqs) = __dev;
 
+	int ret = msix_setup_msi_descs(dev, entries, nvec, masks);
 	if (ret)
-		goto fail;
+		return ret;
 
 	ret = pci_msi_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSIX);
 	if (ret)
-		goto fail;
+		return ret;
 
 	/* Check if all MSI entries honor device restrictions */
 	ret = msi_verify_entries(dev);
 	if (ret)
-		goto fail;
+		return ret;
 
 	msix_update_entries(dev, entries);
+	retain_and_null_ptr(dev);
 	return 0;
-
-fail:
-	pci_free_msi_irqs(dev);
-	return ret;
 }
 
 static int msix_setup_interrupts(struct pci_dev *dev, struct msix_entry *entries,
@@ -972,5 +973,5 @@ EXPORT_SYMBOL(msi_desc_to_pci_dev);
 
 void pci_no_msi(void)
 {
-	pci_msi_enable = 0;
+	pci_msi_enable = false;
 }

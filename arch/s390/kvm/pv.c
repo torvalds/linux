@@ -17,7 +17,6 @@
 #include <linux/sched/mm.h>
 #include <linux/mmu_notifier.h>
 #include "kvm-s390.h"
-#include "gmap.h"
 
 bool kvm_s390_pv_is_protected(struct kvm *kvm)
 {
@@ -32,6 +31,64 @@ bool kvm_s390_pv_cpu_is_protected(struct kvm_vcpu *vcpu)
 	return !!kvm_s390_pv_cpu_get_handle(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_s390_pv_cpu_is_protected);
+
+/**
+ * kvm_s390_pv_make_secure() - make one guest page secure
+ * @kvm: the guest
+ * @gaddr: the guest address that needs to be made secure
+ * @uvcb: the UVCB specifying which operation needs to be performed
+ *
+ * Context: needs to be called with kvm->srcu held.
+ * Return: 0 on success, < 0 in case of error.
+ */
+int kvm_s390_pv_make_secure(struct kvm *kvm, unsigned long gaddr, void *uvcb)
+{
+	unsigned long vmaddr;
+
+	lockdep_assert_held(&kvm->srcu);
+
+	vmaddr = gfn_to_hva(kvm, gpa_to_gfn(gaddr));
+	if (kvm_is_error_hva(vmaddr))
+		return -EFAULT;
+	return make_hva_secure(kvm->mm, vmaddr, uvcb);
+}
+
+int kvm_s390_pv_convert_to_secure(struct kvm *kvm, unsigned long gaddr)
+{
+	struct uv_cb_cts uvcb = {
+		.header.cmd = UVC_CMD_CONV_TO_SEC_STOR,
+		.header.len = sizeof(uvcb),
+		.guest_handle = kvm_s390_pv_get_handle(kvm),
+		.gaddr = gaddr,
+	};
+
+	return kvm_s390_pv_make_secure(kvm, gaddr, &uvcb);
+}
+
+/**
+ * kvm_s390_pv_destroy_page() - Destroy a guest page.
+ * @kvm: the guest
+ * @gaddr: the guest address to destroy
+ *
+ * An attempt will be made to destroy the given guest page. If the attempt
+ * fails, an attempt is made to export the page. If both attempts fail, an
+ * appropriate error is returned.
+ *
+ * Context: may sleep.
+ */
+int kvm_s390_pv_destroy_page(struct kvm *kvm, unsigned long gaddr)
+{
+	struct page *page;
+	int rc = 0;
+
+	mmap_read_lock(kvm->mm);
+	page = gfn_to_page(kvm, gpa_to_gfn(gaddr));
+	if (page)
+		rc = __kvm_s390_pv_destroy_page(page);
+	kvm_release_page_clean(page);
+	mmap_read_unlock(kvm->mm);
+	return rc;
+}
 
 /**
  * struct pv_vm_to_be_destroyed - Represents a protected VM that needs to
@@ -638,7 +695,7 @@ static int unpack_one(struct kvm *kvm, unsigned long addr, u64 tweak,
 		.tweak[0] = tweak,
 		.tweak[1] = offset,
 	};
-	int ret = gmap_make_secure(kvm->arch.gmap, addr, &uvcb);
+	int ret = kvm_s390_pv_make_secure(kvm, addr, &uvcb);
 	unsigned long vmaddr;
 	bool unlocked;
 

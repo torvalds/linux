@@ -440,6 +440,105 @@ cleanup:
 	btf__free(btf1);
 }
 
+/* Ensure module split BTF dedup worked correctly; when dedup fails badly
+ * core kernel types are in split BTF also, so ensure that references to
+ * such types point at base - not split - BTF.
+ *
+ * bpf_testmod_test_write() has multiple core kernel type parameters;
+ *
+ * ssize_t
+ * bpf_testmod_test_write(struct file *file, struct kobject *kobj,
+ *                        struct bin_attribute *bin_attr,
+ *                        char *buf, loff_t off, size_t len);
+ *
+ * Ensure each of the FUNC_PROTO params is a core kernel type.
+ *
+ * Do the same for
+ *
+ * __bpf_kfunc struct sock *bpf_kfunc_call_test3(struct sock *sk);
+ *
+ * ...and
+ *
+ * __bpf_kfunc void bpf_kfunc_call_test_pass_ctx(struct __sk_buff *skb);
+ *
+ */
+const char *mod_funcs[] = {
+	"bpf_testmod_test_write",
+	"bpf_kfunc_call_test3",
+	"bpf_kfunc_call_test_pass_ctx"
+};
+
+static void test_split_module(void)
+{
+	struct btf *vmlinux_btf, *btf1 = NULL;
+	int i, nr_base_types;
+
+	vmlinux_btf = btf__load_vmlinux_btf();
+	if (!ASSERT_OK_PTR(vmlinux_btf, "vmlinux_btf"))
+		return;
+	nr_base_types = btf__type_cnt(vmlinux_btf);
+	if (!ASSERT_GT(nr_base_types, 0, "nr_base_types"))
+		goto cleanup;
+
+	btf1 = btf__parse_split("/sys/kernel/btf/bpf_testmod", vmlinux_btf);
+	if (!ASSERT_OK_PTR(btf1, "split_btf"))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(mod_funcs); i++) {
+		const struct btf_param *p;
+		const struct btf_type *t;
+		__u16 vlen;
+		__u32 id;
+		int j;
+
+		id = btf__find_by_name_kind(btf1, mod_funcs[i], BTF_KIND_FUNC);
+		if (!ASSERT_GE(id, nr_base_types, "func_id"))
+			goto cleanup;
+		t = btf__type_by_id(btf1, id);
+		if (!ASSERT_OK_PTR(t, "func_id_type"))
+			goto cleanup;
+		t = btf__type_by_id(btf1, t->type);
+		if (!ASSERT_OK_PTR(t, "func_proto_id_type"))
+			goto cleanup;
+		if (!ASSERT_EQ(btf_is_func_proto(t), true, "is_func_proto"))
+			goto cleanup;
+		vlen = btf_vlen(t);
+
+		for (j = 0, p = btf_params(t); j < vlen; j++, p++) {
+			/* bpf_testmod uses resilient split BTF, so any
+			 * reference types will be added to split BTF and their
+			 * associated targets will be base BTF types; for example
+			 * for a "struct sock *" the PTR will be in split BTF
+			 * while the "struct sock" will be in base.
+			 *
+			 * In some cases like loff_t we have to resolve
+			 * multiple typedefs hence the while() loop below.
+			 *
+			 * Note that resilient split BTF generation depends
+			 * on pahole version, so we do not assert that
+			 * reference types are in split BTF, as if pahole
+			 * does not support resilient split BTF they will
+			 * also be base BTF types.
+			 */
+			id = p->type;
+			do {
+				t = btf__type_by_id(btf1, id);
+				if (!ASSERT_OK_PTR(t, "param_ref_type"))
+					goto cleanup;
+				if (!btf_is_mod(t) && !btf_is_ptr(t) && !btf_is_typedef(t))
+					break;
+				id = t->type;
+			} while (true);
+
+			if (!ASSERT_LT(id, nr_base_types, "verify_base_type"))
+				goto cleanup;
+		}
+	}
+cleanup:
+	btf__free(btf1);
+	btf__free(vmlinux_btf);
+}
+
 void test_btf_dedup_split()
 {
 	if (test__start_subtest("split_simple"))
@@ -450,4 +549,6 @@ void test_btf_dedup_split()
 		test_split_fwd_resolve();
 	if (test__start_subtest("split_dup_struct_in_cu"))
 		test_split_dup_struct_in_cu();
+	if (test__start_subtest("split_module"))
+		test_split_module();
 }

@@ -516,6 +516,7 @@ static struct irq_chip bcm_gpio_irq_chip = {
 	.irq_set_type = bcm_kona_gpio_irq_set_type,
 	.irq_request_resources = bcm_kona_gpio_irq_reqres,
 	.irq_release_resources = bcm_kona_gpio_irq_relres,
+	.flags = IRQCHIP_IMMUTABLE,
 };
 
 static struct of_device_id const bcm_kona_gpio_of_match[] = {

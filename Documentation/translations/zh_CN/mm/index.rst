@@ -58,7 +58,6 @@ Linux内存管理文档
    remap_file_pages
    split_page_table_lock
    vmalloced-kernel-stacks
-   z3fold
    zsmalloc
 
 TODOLIST:

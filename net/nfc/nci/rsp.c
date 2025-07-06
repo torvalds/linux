@@ -347,7 +347,7 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	__u16 rsp_opcode = nci_opcode(skb->data);
 
 	/* we got a rsp, stop the cmd timer */
-	del_timer(&ndev->cmd_timer);
+	timer_delete(&ndev->cmd_timer);
 
 	pr_debug("NCI RX: MT=rsp, PBF=%d, GID=0x%x, OID=0x%x, plen=%d\n",
 		 nci_pbf(skb->data),

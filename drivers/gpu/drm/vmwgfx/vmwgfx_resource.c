@@ -273,7 +273,7 @@ int vmw_user_resource_lookup_handle(struct vmw_private *dev_priv,
 		goto out_bad_resource;
 
 	res = converter->base_obj_to_res(base);
-	kref_get(&res->kref);
+	vmw_resource_reference(res);
 
 	*p_res = res;
 	ret = 0;
@@ -347,7 +347,7 @@ static int vmw_resource_buf_alloc(struct vmw_resource *res,
 		return 0;
 	}
 
-	ret = vmw_gem_object_create(res->dev_priv, &bo_params, &gbo);
+	ret = vmw_bo_create(res->dev_priv, &bo_params, &gbo);
 	if (unlikely(ret != 0))
 		goto out_no_bo;
 
@@ -531,9 +531,9 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 	}
 
 	INIT_LIST_HEAD(&val_list);
-	ttm_bo_get(&res->guest_memory_bo->tbo);
 	val_buf->bo = &res->guest_memory_bo->tbo;
 	val_buf->num_shared = 0;
+	drm_gem_object_get(&val_buf->bo->base);
 	list_add_tail(&val_buf->head, &val_list);
 	ret = ttm_eu_reserve_buffers(ticket, &val_list, interruptible, NULL);
 	if (unlikely(ret != 0))
@@ -557,7 +557,7 @@ vmw_resource_check_buffer(struct ww_acquire_ctx *ticket,
 out_no_validate:
 	ttm_eu_backoff_reservation(ticket, &val_list);
 out_no_reserve:
-	ttm_bo_put(val_buf->bo);
+	drm_gem_object_put(&val_buf->bo->base);
 	val_buf->bo = NULL;
 	if (guest_memory_dirty)
 		vmw_user_bo_unref(&res->guest_memory_bo);
@@ -619,7 +619,7 @@ vmw_resource_backoff_reservation(struct ww_acquire_ctx *ticket,
 	INIT_LIST_HEAD(&val_list);
 	list_add_tail(&val_buf->head, &val_list);
 	ttm_eu_backoff_reservation(ticket, &val_list);
-	ttm_bo_put(val_buf->bo);
+	drm_gem_object_put(&val_buf->bo->base);
 	val_buf->bo = NULL;
 }
 

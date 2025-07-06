@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/everest,es8375.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Everest ES8375 audio CODEC
+
+maintainers:
+  - Michael Zhang <zhangyi@everest-semi.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: everest,es8375
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: clock for master clock (MCLK)
+
+  clock-names:
+    items:
+      - const: mclk
+
+  vdda-supply:
+    description:
+      Analogue power supply.
+
+  vddd-supply:
+    description:
+      Interface power supply.
+
+  everest,mclk-src:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    description: |
+      Represents the MCLK/SCLK pair pins used as the internal clock.
+      0 represents selecting MCLK.
+      1 represents selecting SCLK.
+    enum: [0, 1]
+    default: 0
+
+  "#sound-dai-cells":
+    const: 0
+
+required:
+  - compatible
+  - reg
+  - "#sound-dai-cells"
+  - vdda-supply
+  - vddd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      es8375: codec@18 {
+        compatible = "everest,es8375";
+        reg = <0x18>;
+        vdda-supply = <&vdd3v3>;
+        vddd-supply = <&vdd3v3>;
+        #sound-dai-cells = <0>;
+      };
+    };

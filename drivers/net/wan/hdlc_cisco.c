@@ -244,7 +244,7 @@ rx_error:
 
 static void cisco_timer(struct timer_list *t)
 {
-	struct cisco_state *st = from_timer(st, t, timer);
+	struct cisco_state *st = timer_container_of(st, t, timer);
 	struct net_device *dev = st->dev;
 
 	spin_lock(&st->lock);
@@ -285,7 +285,7 @@ static void cisco_stop(struct net_device *dev)
 	struct cisco_state *st = state(hdlc);
 	unsigned long flags;
 
-	del_timer_sync(&st->timer);
+	timer_delete_sync(&st->timer);
 
 	spin_lock_irqsave(&st->lock, flags);
 	netif_dormant_on(dev);

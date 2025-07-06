@@ -13,7 +13,9 @@
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/pci_ids.h>
-#include <asm/amd_nb.h>
+
+#include <asm/amd/nb.h>
+#include <asm/cpuid/api.h>
 
 static u32 *flush_words;
 
@@ -91,10 +93,7 @@ static int amd_cache_northbridges(void)
 	if (amd_gart_present())
 		amd_northbridges.flags |= AMD_NB_GART;
 
-	/*
-	 * Check for L3 cache presence.
-	 */
-	if (!cpuid_edx(0x80000006))
+	if (!cpuid_amd_hygon_has_l3_cache())
 		return 0;
 
 	/*
@@ -151,7 +150,7 @@ struct resource *amd_get_mmconfig_range(struct resource *res)
 
 	/* Assume CPUs from Fam10h have mmconfig, although not all VMs do */
 	if (boot_cpu_data.x86 < 0x10 ||
-	    rdmsrl_safe(MSR_FAM10H_MMIO_CONF_BASE, &msr))
+	    rdmsrq_safe(MSR_FAM10H_MMIO_CONF_BASE, &msr))
 		return NULL;
 
 	/* mmconfig is not enabled */

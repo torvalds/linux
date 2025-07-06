@@ -50,7 +50,7 @@ properties:
     items:
       pattern: '^fic[0-3]$'
 
-  dma-coherent: true
+  dma-noncoherent: true
 
   ranges:
     minItems: 1
@@ -65,33 +65,33 @@ unevaluatedProperties: false
 examples:
   - |
     soc {
-            #address-cells = <2>;
+        #address-cells = <2>;
+        #size-cells = <2>;
+        pcie0: pcie@2030000000 {
+            compatible = "microchip,pcie-host-1.0";
+            reg = <0x0 0x70000000 0x0 0x08000000>,
+                  <0x0 0x43008000 0x0 0x00002000>,
+                  <0x0 0x4300a000 0x0 0x00002000>;
+            reg-names = "cfg", "bridge", "ctrl";
+            device_type = "pci";
+            #address-cells = <3>;
             #size-cells = <2>;
-            pcie0: pcie@2030000000 {
-                    compatible = "microchip,pcie-host-1.0";
-                    reg = <0x0 0x70000000 0x0 0x08000000>,
-                          <0x0 0x43008000 0x0 0x00002000>,
-                          <0x0 0x4300a000 0x0 0x00002000>;
-                    reg-names = "cfg", "bridge", "ctrl";
-                    device_type = "pci";
-                    #address-cells = <3>;
-                    #size-cells = <2>;
-                    #interrupt-cells = <1>;
-                    interrupts = <119>;
-                    interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-                    interrupt-map = <0 0 0 1 &pcie_intc0 0>,
-                                    <0 0 0 2 &pcie_intc0 1>,
-                                    <0 0 0 3 &pcie_intc0 2>,
-                                    <0 0 0 4 &pcie_intc0 3>;
-                    interrupt-parent = <&plic0>;
-                    msi-parent = <&pcie0>;
-                    msi-controller;
-                    bus-range = <0x00 0x7f>;
-                    ranges = <0x03000000 0x0 0x78000000 0x0 0x78000000 0x0 0x04000000>;
-                    pcie_intc0: interrupt-controller {
-                        #address-cells = <0>;
-                        #interrupt-cells = <1>;
-                        interrupt-controller;
-                    };
+            #interrupt-cells = <1>;
+            interrupts = <119>;
+            interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+            interrupt-map = <0 0 0 1 &pcie_intc0 0>,
+                            <0 0 0 2 &pcie_intc0 1>,
+                            <0 0 0 3 &pcie_intc0 2>,
+                            <0 0 0 4 &pcie_intc0 3>;
+            interrupt-parent = <&plic0>;
+            msi-parent = <&pcie0>;
+            msi-controller;
+            bus-range = <0x00 0x7f>;
+            ranges = <0x03000000 0x0 0x78000000 0x0 0x78000000 0x0 0x04000000>;
+            pcie_intc0: interrupt-controller {
+                #address-cells = <0>;
+                #interrupt-cells = <1>;
+                interrupt-controller;
             };
+        };
     };

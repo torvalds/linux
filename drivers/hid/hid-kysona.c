@@ -14,6 +14,7 @@
 
 #define BATTERY_TIMEOUT_MS 5000
 
+#define ONLINE_REPORT_ID 3
 #define BATTERY_REPORT_ID 4
 
 struct kysona_drvdata {
@@ -80,10 +81,45 @@ static int kysona_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static const char kysona_online_request[] = {
+	0x08, ONLINE_REPORT_ID, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4a
+};
+
 static const char kysona_battery_request[] = {
 	0x08, BATTERY_REPORT_ID, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49
 };
+
+static int kysona_m600_fetch_online(struct hid_device *hdev)
+{
+	u8 *write_buf;
+	int ret;
+
+	/* Request online information */
+	write_buf = kmemdup(kysona_online_request, sizeof(kysona_online_request), GFP_KERNEL);
+	if (!write_buf)
+		return -ENOMEM;
+
+	ret = hid_hw_raw_request(hdev, kysona_online_request[0],
+				 write_buf, sizeof(kysona_online_request),
+				 HID_OUTPUT_REPORT, HID_REQ_SET_REPORT);
+	if (ret < (int)sizeof(kysona_online_request)) {
+		hid_err(hdev, "hid_hw_raw_request() failed with %d\n", ret);
+		ret = -ENODATA;
+	}
+	kfree(write_buf);
+	return ret;
+}
+
+static void kysona_fetch_online(struct hid_device *hdev)
+{
+	int ret = kysona_m600_fetch_online(hdev);
+
+	if (ret < 0)
+		hid_dbg(hdev,
+			"Online query failed (err: %d)\n", ret);
+}
 
 static int kysona_m600_fetch_battery(struct hid_device *hdev)
 {
@@ -121,6 +157,7 @@ static void kysona_battery_timer_tick(struct work_struct *work)
 		struct kysona_drvdata, battery_work.work);
 	struct hid_device *hdev = drv_data->hdev;
 
+	kysona_fetch_online(hdev);
 	kysona_fetch_battery(hdev);
 	schedule_delayed_work(&drv_data->battery_work,
 			      msecs_to_jiffies(BATTERY_TIMEOUT_MS));
@@ -160,6 +197,7 @@ static int kysona_battery_probe(struct hid_device *hdev)
 	power_supply_powers(drv_data->battery, &hdev->dev);
 
 	INIT_DELAYED_WORK(&drv_data->battery_work, kysona_battery_timer_tick);
+	kysona_fetch_online(hdev);
 	kysona_fetch_battery(hdev);
 	schedule_delayed_work(&drv_data->battery_work,
 			      msecs_to_jiffies(BATTERY_TIMEOUT_MS));
@@ -206,12 +244,16 @@ static int kysona_raw_event(struct hid_device *hdev,
 {
 	struct kysona_drvdata *drv_data = hid_get_drvdata(hdev);
 
-	if (drv_data->battery && size == sizeof(kysona_battery_request) &&
+	if (size == sizeof(kysona_online_request) &&
+	    data[0] == 8 && data[1] == ONLINE_REPORT_ID) {
+		drv_data->online = data[6];
+	}
+
+	if (size == sizeof(kysona_battery_request) &&
 	    data[0] == 8 && data[1] == BATTERY_REPORT_ID) {
 		drv_data->battery_capacity = data[6];
 		drv_data->battery_charging = data[7];
 		drv_data->battery_voltage = (data[8] << 8) | data[9];
-		drv_data->online = true;
 	}
 
 	return 0;

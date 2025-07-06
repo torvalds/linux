@@ -45,6 +45,8 @@ struct fib_rule {
 	struct fib_rule_port_range	dport_range;
 	u16			sport_mask;
 	u16			dport_mask;
+	u8                      iif_is_l3_master;
+	u8                      oif_is_l3_master;
 	struct rcu_head		rcu;
 };
 

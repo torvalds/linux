@@ -73,9 +73,10 @@ examples:
         #size-cells = <0>;
 
         cpu@0 {
-            compatible = "qcom,kryo";
+            compatible = "arm,cortex-a53";
             device_type = "cpu";
             enable-method = "qcom,kpss-acc-v2";
+            qcom,acc = <&acc0>;
             qcom,saw = <&saw0>;
             reg = <0x0>;
             operating-points-v2 = <&cpu_opp_table>;

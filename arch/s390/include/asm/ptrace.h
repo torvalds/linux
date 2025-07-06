@@ -9,16 +9,15 @@
 
 #include <linux/bits.h>
 #include <uapi/asm/ptrace.h>
+#include <asm/thread_info.h>
 #include <asm/tpi.h>
 
 #define PIF_SYSCALL			0	/* inside a system call */
-#define PIF_EXECVE_PGSTE_RESTART	1	/* restart execve for PGSTE binaries */
 #define PIF_SYSCALL_RET_SET		2	/* return value was set via ptrace */
 #define PIF_GUEST_FAULT			3	/* indicates program check in sie64a */
 #define PIF_FTRACE_FULL_REGS		4	/* all register contents valid (ftrace) */
 
 #define _PIF_SYSCALL			BIT(PIF_SYSCALL)
-#define _PIF_EXECVE_PGSTE_RESTART	BIT(PIF_EXECVE_PGSTE_RESTART)
 #define _PIF_SYSCALL_RET_SET		BIT(PIF_SYSCALL_RET_SET)
 #define _PIF_GUEST_FAULT		BIT(PIF_GUEST_FAULT)
 #define _PIF_FTRACE_FULL_REGS		BIT(PIF_FTRACE_FULL_REGS)
@@ -128,7 +127,6 @@ struct pt_regs {
 		struct tpi_info tpi_info;
 	};
 	unsigned long flags;
-	unsigned long cr1;
 	unsigned long last_break;
 };
 
@@ -231,8 +229,44 @@ static inline void instruction_pointer_set(struct pt_regs *regs,
 
 int regs_query_register_offset(const char *name);
 const char *regs_query_register_name(unsigned int offset);
-unsigned long regs_get_register(struct pt_regs *regs, unsigned int offset);
-unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n);
+
+static __always_inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->gprs[15];
+}
+
+static __always_inline unsigned long regs_get_register(struct pt_regs *regs, unsigned int offset)
+{
+	if (offset >= NUM_GPRS)
+		return 0;
+	return regs->gprs[offset];
+}
+
+static __always_inline int regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr)
+{
+	unsigned long ksp = kernel_stack_pointer(regs);
+
+	return (addr & ~(THREAD_SIZE - 1)) == (ksp & ~(THREAD_SIZE - 1));
+}
+
+/**
+ * regs_get_kernel_stack_nth() - get Nth entry of the stack
+ * @regs:pt_regs which contains kernel stack pointer.
+ * @n:stack entry number.
+ *
+ * regs_get_kernel_stack_nth() returns @n th entry of the kernel stack which
+ * is specifined by @regs. If the @n th entry is NOT in the kernel stack,
+ * this returns 0.
+ */
+static __always_inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs, unsigned int n)
+{
+	unsigned long addr;
+
+	addr = kernel_stack_pointer(regs) + n * sizeof(long);
+	if (!regs_within_kernel_stack(regs, addr))
+		return 0;
+	return READ_ONCE_NOCHECK(*(unsigned long *)addr);
+}
 
 /**
  * regs_get_kernel_argument() - get Nth function argument in kernel
@@ -251,11 +285,6 @@ static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs,
 		return regs_get_register(regs, 2 + n);
 	n -= NR_REG_ARGUMENTS;
 	return regs_get_kernel_stack_nth(regs, argoffset + n);
-}
-
-static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
-{
-	return regs->gprs[15];
 }
 
 static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)

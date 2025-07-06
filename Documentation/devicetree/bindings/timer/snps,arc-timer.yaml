@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/snps,arc-timer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys ARC Local Timer
+
+maintainers:
+  - Vineet Gupta <vgupta@synopsys.com>
+
+description: >
+  Synopsys ARC Local Timer with Interrupt Capabilities
+
+    - Found on all ARC CPUs (ARC700/ARCHS)
+    - Can be optionally programmed to interrupt on Limit
+    - Two identical copies TIMER0 and TIMER1 exist in ARC cores and historically
+      TIMER0 used as clockevent provider (true for all ARC cores)
+      TIMER1 used for clocksource (mandatory for ARC700, optional for ARC HS)
+
+properties:
+  compatible:
+    const: snps,arc-timer
+
+  interrupts:
+    maxItems: 1
+    description: A single timer interrupt going into the parent interrupt controller.
+      Use <16> for ARCHS cores, <3> for ARC700 cores.
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    timer0 {
+        compatible = "snps,arc-timer";
+        interrupts = <3>;
+        clocks = <&core_clk>;
+    };

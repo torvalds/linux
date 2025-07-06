@@ -40,8 +40,8 @@
 #define BS_EXPECTED_LE	0x1aa00000000
 #define FLAG(s)	s->branch_stack->entries[i].flags
 
-static bool samples_same(const struct perf_sample *s1,
-			 const struct perf_sample *s2,
+static bool samples_same(struct perf_sample *s1,
+			 struct perf_sample *s2,
 			 u64 type, u64 read_format, bool needs_swap)
 {
 	size_t i;
@@ -126,13 +126,15 @@ static bool samples_same(const struct perf_sample *s1,
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
-		size_t sz = hweight_long(s1->user_regs.mask) * sizeof(u64);
+		struct regs_dump *s1_regs = perf_sample__user_regs(s1);
+		struct regs_dump *s2_regs = perf_sample__user_regs(s2);
+		size_t sz = hweight_long(s1_regs->mask) * sizeof(u64);
 
-		COMP(user_regs.mask);
-		COMP(user_regs.abi);
-		if (s1->user_regs.abi &&
-		    (!s1->user_regs.regs || !s2->user_regs.regs ||
-		     memcmp(s1->user_regs.regs, s2->user_regs.regs, sz))) {
+		COMP(user_regs->mask);
+		COMP(user_regs->abi);
+		if (s1_regs->abi &&
+		    (!s1_regs->regs || !s2_regs->regs ||
+		     memcmp(s1_regs->regs, s2_regs->regs, sz))) {
 			pr_debug("Samples differ at 'user_regs'\n");
 			return false;
 		}
@@ -157,13 +159,15 @@ static bool samples_same(const struct perf_sample *s1,
 		COMP(transaction);
 
 	if (type & PERF_SAMPLE_REGS_INTR) {
-		size_t sz = hweight_long(s1->intr_regs.mask) * sizeof(u64);
+		struct regs_dump *s1_regs = perf_sample__intr_regs(s1);
+		struct regs_dump *s2_regs = perf_sample__intr_regs(s2);
+		size_t sz = hweight_long(s1_regs->mask) * sizeof(u64);
 
-		COMP(intr_regs.mask);
-		COMP(intr_regs.abi);
-		if (s1->intr_regs.abi &&
-		    (!s1->intr_regs.regs || !s2->intr_regs.regs ||
-		     memcmp(s1->intr_regs.regs, s2->intr_regs.regs, sz))) {
+		COMP(intr_regs->mask);
+		COMP(intr_regs->abi);
+		if (s1_regs->abi &&
+		    (!s1_regs->regs || !s2_regs->regs ||
+		     memcmp(s1_regs->regs, s2_regs->regs, sz))) {
 			pr_debug("Samples differ at 'intr_regs'\n");
 			return false;
 		}
@@ -223,6 +227,16 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	const u32 raw_data[] = {0x12345678, 0x0a0b0c0d, 0x11020304, 0x05060708, 0 };
 	const u64 data[] = {0x2211443366558877ULL, 0, 0xaabbccddeeff4321ULL};
 	const u64 aux_data[] = {0xa55a, 0, 0xeeddee, 0x0282028202820282};
+	struct regs_dump user_regs = {
+		.abi	= PERF_SAMPLE_REGS_ABI_64,
+		.mask	= sample_regs,
+		.regs	= regs,
+	};
+	struct regs_dump intr_regs = {
+		.abi	= PERF_SAMPLE_REGS_ABI_64,
+		.mask	= sample_regs,
+		.regs	= regs,
+	};
 	struct perf_sample sample = {
 		.ip		= 101,
 		.pid		= 102,
@@ -241,11 +255,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		.callchain	= &callchain.callchain,
 		.no_hw_idx      = false,
 		.branch_stack	= &branch_stack.branch_stack,
-		.user_regs	= {
-			.abi	= PERF_SAMPLE_REGS_ABI_64,
-			.mask	= sample_regs,
-			.regs	= regs,
-		},
+		.user_regs	= &user_regs,
 		.user_stack	= {
 			.size	= sizeof(data),
 			.data	= (void *)data,
@@ -254,11 +264,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 			.time_enabled = 0x030a59d664fca7deULL,
 			.time_running = 0x011b6ae553eb98edULL,
 		},
-		.intr_regs	= {
-			.abi	= PERF_SAMPLE_REGS_ABI_64,
-			.mask	= sample_regs,
-			.regs	= regs,
-		},
+		.intr_regs	= &intr_regs,
 		.phys_addr	= 113,
 		.cgroup		= 114,
 		.data_page_size = 115,
@@ -273,6 +279,8 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	size_t i, sz, bufsz;
 	int err, ret = -1;
 
+	perf_sample__init(&sample_out, /*all=*/false);
+	perf_sample__init(&sample_out_endian, /*all=*/false);
 	if (sample_type & PERF_SAMPLE_REGS_USER)
 		evsel.core.attr.sample_regs_user = sample_regs;
 
@@ -361,6 +369,8 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	ret = 0;
 out_free:
 	free(event);
+	perf_sample__exit(&sample_out_endian);
+	perf_sample__exit(&sample_out);
 	if (ret && read_format)
 		pr_debug("read_format %#"PRIx64"\n", read_format);
 	return ret;

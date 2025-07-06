@@ -133,7 +133,7 @@ static const struct pn533_phy_ops uart_phy_ops = {
 
 static void pn532_cmd_timeout(struct timer_list *t)
 {
-	struct pn532_uart_phy *dev = from_timer(dev, t, cmd_timeout);
+	struct pn532_uart_phy *dev = timer_container_of(dev, t, cmd_timeout);
 
 	pn532_uart_send_frame(dev->priv, dev->cur_out_buf);
 }
@@ -209,7 +209,7 @@ static size_t pn532_receive_buf(struct serdev_device *serdev,
 	struct pn532_uart_phy *dev = serdev_device_get_drvdata(serdev);
 	size_t i;
 
-	del_timer(&dev->cmd_timeout);
+	timer_delete(&dev->cmd_timeout);
 	for (i = 0; i < count; i++) {
 		skb_put_u8(dev->recv_skb, *data++);
 		if (!pn532_uart_rx_is_frame(dev->recv_skb))

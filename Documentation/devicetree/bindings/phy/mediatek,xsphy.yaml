@@ -49,6 +49,7 @@ properties:
       - enum:
           - mediatek,mt3611-xsphy
           - mediatek,mt3612-xsphy
+          - mediatek,mt7988-xsphy
       - const: mediatek,xsphy
 
   reg:
@@ -149,6 +150,21 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 1
         maximum: 31
+
+      mediatek,syscon-type:
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        description:
+          A phandle to syscon used to access the register of type switch,
+          the field should always be 3 cells long.
+        items:
+          - items:
+              - description:
+                  Phandle to phy type configuration system controller
+              - description:
+                  Phy type configuration register offset
+              - description:
+                  Index of config segment
+                enum: [0, 1, 2, 3]
 
     required:
       - reg

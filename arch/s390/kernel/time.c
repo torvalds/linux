@@ -54,10 +54,10 @@
 #include <asm/cio.h>
 #include "entry.h"
 
-union tod_clock tod_clock_base __section(".data");
+union tod_clock __bootdata_preserved(tod_clock_base);
 EXPORT_SYMBOL_GPL(tod_clock_base);
 
-u64 clock_comparator_max = -1ULL;
+u64 __bootdata_preserved(clock_comparator_max);
 EXPORT_SYMBOL_GPL(clock_comparator_max);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
@@ -680,7 +680,7 @@ static void stp_work_fn(struct work_struct *work)
 
 	if (!stp_online) {
 		chsc_sstpc(stp_page, STP_OP_CTRL, 0x0000, NULL);
-		del_timer_sync(&stp_timer);
+		timer_delete_sync(&stp_timer);
 		goto out_unlock;
 	}
 

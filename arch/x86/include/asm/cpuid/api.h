@@ -14,9 +14,9 @@
  */
 
 #ifdef CONFIG_X86_32
-bool have_cpuid_p(void);
+bool cpuid_feature(void);
 #else
-static inline bool have_cpuid_p(void)
+static inline bool cpuid_feature(void)
 {
 	return true;
 }
@@ -36,9 +36,9 @@ static inline void native_cpuid(u32 *eax, u32 *ebx,
 }
 
 #define NATIVE_CPUID_REG(reg)					\
-static inline u32 native_cpuid_##reg(u32 op)	\
+static inline u32 native_cpuid_##reg(u32 op)			\
 {								\
-	u32 eax = op, ebx, ecx = 0, edx;		\
+	u32 eax = op, ebx, ecx = 0, edx;			\
 								\
 	native_cpuid(&eax, &ebx, &ecx, &edx);			\
 								\
@@ -160,6 +160,10 @@ static inline void __cpuid_read_reg(u32 leaf, u32 subleaf,
 	__cpuid_read_reg(leaf, 0, regidx, (u32 *)(reg));	\
 }
 
+/*
+ * Hypervisor-related APIs:
+ */
+
 static __always_inline bool cpuid_function_is_indexed(u32 function)
 {
 	switch (function) {
@@ -184,14 +188,14 @@ static __always_inline bool cpuid_function_is_indexed(u32 function)
 	return false;
 }
 
-#define for_each_possible_hypervisor_cpuid_base(function) \
+#define for_each_possible_cpuid_base_hypervisor(function) \
 	for (function = 0x40000000; function < 0x40010000; function += 0x100)
 
-static inline u32 hypervisor_cpuid_base(const char *sig, u32 leaves)
+static inline u32 cpuid_base_hypervisor(const char *sig, u32 leaves)
 {
 	u32 base, eax, signature[3];
 
-	for_each_possible_hypervisor_cpuid_base(base) {
+	for_each_possible_cpuid_base_hypervisor(base) {
 		cpuid(base, &eax, &signature[0], &signature[1], &signature[2]);
 
 		/*
@@ -205,6 +209,84 @@ static inline u32 hypervisor_cpuid_base(const char *sig, u32 leaves)
 	}
 
 	return 0;
+}
+
+/*
+ * CPUID(0x2) parsing:
+ */
+
+/**
+ * cpuid_leaf_0x2() - Return sanitized CPUID(0x2) register output
+ * @regs:	Output parameter
+ *
+ * Query CPUID(0x2) and store its output in @regs.  Force set any
+ * invalid 1-byte descriptor returned by the hardware to zero (the NULL
+ * cache/TLB descriptor) before returning it to the caller.
+ *
+ * Use for_each_cpuid_0x2_desc() to iterate over the register output in
+ * parsed form.
+ */
+static inline void cpuid_leaf_0x2(union leaf_0x2_regs *regs)
+{
+	cpuid_leaf(0x2, regs);
+
+	/*
+	 * All Intel CPUs must report an iteration count of 1.	In case
+	 * of bogus hardware, treat all returned descriptors as NULL.
+	 */
+	if (regs->desc[0] != 0x01) {
+		for (int i = 0; i < 4; i++)
+			regs->regv[i] = 0;
+		return;
+	}
+
+	/*
+	 * The most significant bit (MSB) of each register must be clear.
+	 * If a register is invalid, replace its descriptors with NULL.
+	 */
+	for (int i = 0; i < 4; i++) {
+		if (regs->reg[i].invalid)
+			regs->regv[i] = 0;
+	}
+}
+
+/**
+ * for_each_cpuid_0x2_desc() - Iterator for parsed CPUID(0x2) descriptors
+ * @_regs:	CPUID(0x2) register output, as returned by cpuid_leaf_0x2()
+ * @_ptr:	u8 pointer, for macro internal use only
+ * @_desc:	Pointer to the parsed CPUID(0x2) descriptor at each iteration
+ *
+ * Loop over the 1-byte descriptors in the passed CPUID(0x2) output registers
+ * @_regs.  Provide the parsed information for each descriptor through @_desc.
+ *
+ * To handle cache-specific descriptors, switch on @_desc->c_type.  For TLB
+ * descriptors, switch on @_desc->t_type.
+ *
+ * Example usage for cache descriptors::
+ *
+ *	const struct leaf_0x2_table *desc;
+ *	union leaf_0x2_regs regs;
+ *	u8 *ptr;
+ *
+ *	cpuid_leaf_0x2(&regs);
+ *	for_each_cpuid_0x2_desc(regs, ptr, desc) {
+ *		switch (desc->c_type) {
+ *			...
+ *		}
+ *	}
+ */
+#define for_each_cpuid_0x2_desc(_regs, _ptr, _desc)				\
+	for (_ptr = &(_regs).desc[1];						\
+	     _ptr < &(_regs).desc[16] && (_desc = &cpuid_0x2_table[*_ptr]);	\
+	     _ptr++)
+
+/*
+ * CPUID(0x80000006) parsing:
+ */
+
+static inline bool cpuid_amd_hygon_has_l3_cache(void)
+{
+	return cpuid_edx(0x80000006);
 }
 
 #endif /* _ASM_X86_CPUID_API_H */

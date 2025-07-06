@@ -101,8 +101,7 @@ int bch2_lru_check_set(struct btree_trans *trans,
 			goto err;
 
 		if (fsck_err(trans, alloc_key_to_missing_lru_entry,
-			     "missing %s lru entry\n"
-			     "  %s",
+			     "missing %s lru entry\n%s",
 			     bch2_lru_types[lru_type(lru_k)],
 			     (bch2_bkey_val_to_text(&buf, c, referring_k), buf.buf))) {
 			ret = bch2_lru_set(trans, lru_id, dev_bucket, time);
@@ -146,13 +145,11 @@ static u64 bkey_lru_type_idx(struct bch_fs *c,
 	case BCH_LRU_fragmentation: {
 		a = bch2_alloc_to_v4(k, &a_convert);
 
-		rcu_read_lock();
+		guard(rcu)();
 		struct bch_dev *ca = bch2_dev_rcu_noerror(c, k.k->p.inode);
-		u64 idx = ca
+		return ca
 			? alloc_lru_idx_fragmentation(*a, ca)
 			: 0;
-		rcu_read_unlock();
-		return idx;
 	}
 	case BCH_LRU_stripes:
 		return k.k->type == KEY_TYPE_stripe
@@ -190,8 +187,8 @@ static int bch2_check_lru_key(struct btree_trans *trans,
 
 		if (fsck_err(trans, lru_entry_bad,
 			     "incorrect lru entry: lru %s time %llu\n"
-			     "  %s\n"
-			     "  for %s",
+			     "%s\n"
+			     "for %s",
 			     bch2_lru_types[type],
 			     lru_pos_time(lru_k.k->p),
 			     (bch2_bkey_val_to_text(&buf1, c, lru_k), buf1.buf),

@@ -75,6 +75,12 @@
  * 	the currently visible vertical area of the &drm_crtc.
  * FB_ID:
  * 	Mode object ID of the &drm_framebuffer this plane should scan out.
+ *
+ *	When a KMS client is performing front-buffer rendering, it should set
+ *	FB_ID to the same front-buffer FB on each atomic commit. This implies
+ *	to the driver that it needs to re-read the same FB again. Otherwise
+ *	drivers which do not employ continuously repeated scanout cycles might
+ *	not update the screen.
  * CRTC_ID:
  * 	Mode object ID of the &drm_crtc this plane should be connected to.
  *

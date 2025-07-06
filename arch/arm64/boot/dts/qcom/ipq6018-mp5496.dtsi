@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * ipq6018-mp5496.dtsi describes common properties (e.g. regulators) that
+ * apply to most devices that make use of the IPQ6018 SoC and MP5496 PMIC.
+ */
+
+#include "ipq6018.dtsi"
+
+&cpu0 {
+	cpu-supply = <&mp5496_s2>;
+};
+
+&cpu1 {
+	cpu-supply = <&mp5496_s2>;
+};
+
+&cpu2 {
+	cpu-supply = <&mp5496_s2>;
+};
+
+&cpu3 {
+	cpu-supply = <&mp5496_s2>;
+};
+
+&rpm_requests {
+	regulators {
+		compatible = "qcom,rpm-mp5496-regulators";
+
+		mp5496_s2: s2 {
+			regulator-min-microvolt = <725000>;
+			regulator-max-microvolt = <1062500>;
+			regulator-always-on;
+		};
+
+		mp5496_l2: l2 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
+		};
+	};
+};
+
+&sdhc {
+	vqmmc-supply = <&mp5496_l2>;
+};

@@ -35,8 +35,7 @@ definitions:
         name: dispatch-upcall-per-cpu
         doc: Allow per-cpu dispatch of upcalls
   -
-    name: datapath-stats
-    enum-name: ovs-dp-stats
+    name: ovs-dp-stats
     type: struct
     members:
       -
@@ -52,8 +51,7 @@ definitions:
         name: n-flows
         type: u64
   -
-    name: megaflow-stats
-    enum-name: ovs-dp-megaflow-stats
+    name: ovs-dp-megaflow-stats
     type: struct
     members:
       -
@@ -88,11 +86,11 @@ attribute-sets:
       -
         name: stats
         type: binary
-        struct: datapath-stats
+        struct: ovs-dp-stats
       -
         name: megaflow-stats
         type: binary
-        struct: megaflow-stats
+        struct: ovs-dp-megaflow-stats
       -
         name: user-features
         type: u32

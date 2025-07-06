@@ -29,6 +29,8 @@
 
 #include <drm/gpu_scheduler.h>
 
+#include "sched_internal.h"
+
 static struct kmem_cache *sched_fence_slab;
 
 static int __init drm_sched_fence_slab_init(void)

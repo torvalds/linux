@@ -5,6 +5,8 @@
 #define BCH_ERRCODES()								\
 	x(ERANGE,			ERANGE_option_too_small)		\
 	x(ERANGE,			ERANGE_option_too_big)			\
+	x(EINVAL,			injected)				\
+	x(BCH_ERR_injected,		injected_fs_start)			\
 	x(EINVAL,			mount_option)				\
 	x(BCH_ERR_mount_option,		option_name)				\
 	x(BCH_ERR_mount_option,		option_value)				\
@@ -51,6 +53,7 @@
 	x(ENOMEM,			ENOMEM_dio_write_bioset_init)		\
 	x(ENOMEM,			ENOMEM_nocow_flush_bioset_init)		\
 	x(ENOMEM,			ENOMEM_promote_table_init)		\
+	x(ENOMEM,			ENOMEM_async_obj_init)			\
 	x(ENOMEM,			ENOMEM_compression_bounce_read_init)	\
 	x(ENOMEM,			ENOMEM_compression_bounce_write_init)	\
 	x(ENOMEM,			ENOMEM_compression_workspace_init)	\
@@ -134,7 +137,6 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_relock)		\
 	x(BCH_ERR_transaction_restart,	transaction_restart_relock_path)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_relock_path_intent)	\
-	x(BCH_ERR_transaction_restart,	transaction_restart_relock_after_fill)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_too_many_iters)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_lock_node_reused)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_fill_relock)	\
@@ -145,11 +147,8 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_would_deadlock_write)\
 	x(BCH_ERR_transaction_restart,	transaction_restart_deadlock_recursion_limit)\
 	x(BCH_ERR_transaction_restart,	transaction_restart_upgrade)		\
-	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_upgrade)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_fill)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_raced)	\
-	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_realloced)\
-	x(BCH_ERR_transaction_restart,	transaction_restart_journal_preres_get)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_split_race)		\
 	x(BCH_ERR_transaction_restart,	transaction_restart_write_buffer_flush)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_nested)		\
@@ -172,16 +171,19 @@
 	x(0,				backpointer_to_overwritten_btree_node)	\
 	x(0,				journal_reclaim_would_deadlock)		\
 	x(EINVAL,			fsck)					\
+	x(BCH_ERR_fsck,			fsck_ask)				\
 	x(BCH_ERR_fsck,			fsck_fix)				\
 	x(BCH_ERR_fsck,			fsck_delete_bkey)			\
 	x(BCH_ERR_fsck,			fsck_ignore)				\
 	x(BCH_ERR_fsck,			fsck_errors_not_fixed)			\
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
-	x(EINVAL,			restart_recovery)			\
-	x(EINVAL,			not_in_recovery)			\
-	x(EINVAL,			cannot_rewind_recovery)			\
+	x(EINVAL,			recovery_will_run)			\
+	x(BCH_ERR_recovery_will_run,	restart_recovery)			\
+	x(BCH_ERR_recovery_will_run,	cannot_rewind_recovery)			\
+	x(BCH_ERR_recovery_will_run,	recovery_pass_will_run)			\
 	x(0,				data_update_done)			\
+	x(0,				bkey_was_deleted)			\
 	x(BCH_ERR_data_update_done,	data_update_done_would_block)		\
 	x(BCH_ERR_data_update_done,	data_update_done_unwritten)		\
 	x(BCH_ERR_data_update_done,	data_update_done_no_writes_needed)	\
@@ -199,6 +201,7 @@
 	x(EINVAL,			device_has_been_removed)		\
 	x(EINVAL,			device_splitbrain)			\
 	x(EINVAL,			device_already_online)			\
+	x(EINVAL,			filesystem_uuid_already_open)		\
 	x(EINVAL,			insufficient_devices_to_start)		\
 	x(EINVAL,			invalid)				\
 	x(EINVAL,			internal_fsck_err)			\
@@ -207,8 +210,11 @@
 	x(EINVAL,			remove_would_lose_data)			\
 	x(EINVAL,			no_resize_with_buckets_nouse)		\
 	x(EINVAL,			inode_unpack_error)			\
+	x(EINVAL,			inode_not_unlinked)			\
+	x(EINVAL,			inode_has_child_snapshot)		\
 	x(EINVAL,			varint_decode_error)			\
 	x(EINVAL,			erasure_coding_found_btree_node)	\
+	x(EINVAL,			option_negative)			\
 	x(EOPNOTSUPP,			may_not_use_incompat_feature)		\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
@@ -217,6 +223,8 @@
 	x(EROFS,			erofs_unfixed_errors)			\
 	x(EROFS,			erofs_norecovery)			\
 	x(EROFS,			erofs_nochanges)			\
+	x(EROFS,			erofs_no_alloc_info)			\
+	x(EROFS,			erofs_filesystem_full)			\
 	x(EROFS,			insufficient_devices)			\
 	x(0,				operation_blocked)			\
 	x(BCH_ERR_operation_blocked,	btree_cache_cannibalize_lock_blocked)	\
@@ -229,7 +237,6 @@
 	x(BCH_ERR_journal_res_blocked,	journal_buf_enomem)			\
 	x(BCH_ERR_journal_res_blocked,	journal_stuck)				\
 	x(BCH_ERR_journal_res_blocked,	journal_retry_open)			\
-	x(BCH_ERR_journal_res_blocked,	journal_preres_get_blocked)		\
 	x(BCH_ERR_journal_res_blocked,	bucket_alloc_blocked)			\
 	x(BCH_ERR_journal_res_blocked,	stripe_alloc_blocked)			\
 	x(BCH_ERR_invalid,		invalid_sb)				\
@@ -267,7 +274,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_downgrade)			\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
-	x(EIO,				journal_shutdown)			\
+	x(EROFS,			journal_shutdown)			\
 	x(EIO,				journal_flush_err)			\
 	x(EIO,				journal_write_err)			\
 	x(EIO,				btree_node_read_err)			\
@@ -285,7 +292,7 @@
 	x(EIO,				mark_stripe)				\
 	x(EIO,				stripe_reconstruct)			\
 	x(EIO,				key_type_error)				\
-	x(EIO,				extent_poisened)			\
+	x(EIO,				extent_poisoned)			\
 	x(EIO,				missing_indirect_extent)		\
 	x(EIO,				invalidate_stripe_to_dev)		\
 	x(EIO,				no_encryption_key)			\
@@ -308,6 +315,7 @@
 	x(BCH_ERR_data_write,		data_write_misaligned)			\
 	x(BCH_ERR_decompress,		data_read)				\
 	x(BCH_ERR_data_read,		no_device_to_read_from)			\
+	x(BCH_ERR_data_read,		no_devices_valid)			\
 	x(BCH_ERR_data_read,		data_read_io_err)			\
 	x(BCH_ERR_data_read,		data_read_csum_err)			\
 	x(BCH_ERR_data_read,		data_read_retry)			\
@@ -349,9 +357,11 @@ enum bch_errcode {
 	BCH_ERR_MAX
 };
 
-const char *bch2_err_str(int);
-bool __bch2_err_matches(int, int);
+__attribute__((const)) const char *bch2_err_str(int);
 
+__attribute__((const)) bool __bch2_err_matches(int, int);
+
+__attribute__((const))
 static inline bool _bch2_err_matches(int err, int class)
 {
 	return err < 0 && __bch2_err_matches(err, class);

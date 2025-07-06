@@ -27,7 +27,7 @@ static void cs5530a_warm_reset(struct pci_dev *dev)
 static void cs5536_warm_reset(struct pci_dev *dev)
 {
 	/* writing 1 to the LSB of this MSR causes a hard reset */
-	wrmsrl(MSR_DIVIL_SOFT_RESET, 1ULL);
+	wrmsrq(MSR_DIVIL_SOFT_RESET, 1ULL);
 	udelay(50); /* shouldn't get here but be safe and spin a while */
 }
 

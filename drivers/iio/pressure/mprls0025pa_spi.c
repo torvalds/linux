@@ -66,13 +66,13 @@ static int mpr_spi_probe(struct spi_device *spi)
 
 static const struct of_device_id mpr_spi_match[] = {
 	{ .compatible = "honeywell,mprls0025pa" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, mpr_spi_match);
 
 static const struct spi_device_id mpr_spi_id[] = {
 	{ "mprls0025pa" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, mpr_spi_id);
 

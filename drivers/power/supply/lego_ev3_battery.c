@@ -23,6 +23,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#include <linux/property.h>
 
 struct lego_ev3_battery {
 	struct iio_channel *iio_v;
@@ -198,7 +199,7 @@ static int lego_ev3_battery_probe(struct platform_device *pdev)
 		batt->v_min = 48000000;
 	}
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = dev_fwnode(&pdev->dev);
 	psy_cfg.drv_data = batt;
 
 	batt->psy = devm_power_supply_register(dev, &lego_ev3_battery_desc,

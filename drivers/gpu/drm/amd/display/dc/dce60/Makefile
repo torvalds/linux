@@ -25,8 +25,7 @@
 
 CFLAGS_$(AMDDALPATH)/dc/dce60/dce60_resource.o = -Wno-override-init
 
-DCE60 = dce60_timing_generator.o dce60_hw_sequencer.o \
-	dce60_resource.o
+DCE60 = dce60_timing_generator.o
 
 AMD_DAL_DCE60 = $(addprefix $(AMDDALPATH)/dc/dce60/,$(DCE60))
 

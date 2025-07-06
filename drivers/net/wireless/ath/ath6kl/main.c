@@ -503,7 +503,7 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 
 void disconnect_timer_handler(struct timer_list *t)
 {
-	struct ath6kl_vif *vif = from_timer(vif, t, disconnect_timer);
+	struct ath6kl_vif *vif = timer_container_of(vif, t, disconnect_timer);
 
 	ath6kl_init_profile_info(vif);
 	ath6kl_disconnect(vif);
@@ -1027,7 +1027,7 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 
 	aggr_reset_state(vif->aggr_cntxt->aggr_conn);
 
-	del_timer(&vif->disconnect_timer);
+	timer_delete(&vif->disconnect_timer);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "disconnect reason is %d\n", reason);
 

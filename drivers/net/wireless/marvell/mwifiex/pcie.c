@@ -2437,7 +2437,7 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter,
 		 */
 		adapter->ps_state = PS_STATE_AWAKE;
 		adapter->pm_wakeup_fw_try = false;
-		del_timer(&adapter->wakeup_timer);
+		timer_delete(&adapter->wakeup_timer);
 	}
 
 	spin_lock_irqsave(&adapter->int_lock, flags);
@@ -2527,7 +2527,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 				    adapter->ps_state == PS_STATE_SLEEP) {
 					adapter->ps_state = PS_STATE_AWAKE;
 					adapter->pm_wakeup_fw_try = false;
-					del_timer(&adapter->wakeup_timer);
+					timer_delete(&adapter->wakeup_timer);
 				}
 			}
 		}
@@ -2971,7 +2971,7 @@ static int mwifiex_init_pcie(struct mwifiex_adapter *adapter)
 		goto err_iomap2;
 	}
 
-	pr_notice("PCI memory map Virt0: %pK PCI memory map Virt2: %pK\n",
+	pr_notice("PCI memory map Virt0: %p PCI memory map Virt2: %p\n",
 		  card->pci_mmap, card->pci_mmap1);
 
 	ret = mwifiex_pcie_alloc_buffers(adapter);

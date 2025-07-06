@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/csky,apb-intc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: C-SKY APB Interrupt Controller
+
+maintainers:
+  - Guo Ren <guoren@kernel.org>
+
+description: >
+  C-SKY APB Interrupt Controller is a simple soc interrupt controller on the apb
+  bus and we only use it as root irq controller.
+
+    - csky,apb-intc is used in a lot of csky fpgas and socs, it support 64 irq nums.
+    - csky,dual-apb-intc consists of 2 apb-intc and 128 irq nums supported.
+    - csky,gx6605s-intc is gx6605s soc internal irq interrupt controller, 64 irq nums.
+
+properties:
+  compatible:
+    enum:
+      - csky,apb-intc
+      - csky,dual-apb-intc
+      - csky,gx6605s-intc
+
+  reg:
+    maxItems: 1
+
+  '#interrupt-cells':
+    const: 1
+
+  interrupt-controller: true
+
+  csky,support-pulse-signal:
+    type: boolean
+    description: Support for pulse signal flag.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - '#interrupt-cells'
+  - interrupt-controller
+
+examples:
+  - |
+    intc: interrupt-controller@500000 {
+        compatible = "csky,apb-intc";
+        #interrupt-cells = <1>;
+        reg = <0x00500000 0x400>;
+        interrupt-controller;
+    };

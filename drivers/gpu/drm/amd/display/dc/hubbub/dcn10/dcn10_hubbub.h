@@ -489,9 +489,6 @@ void hubbub1_allow_self_refresh_control(struct hubbub *hubbub, bool allow);
 
 bool hubbub1_is_allow_self_refresh_enabled(struct hubbub *hubub);
 
-void hubbub1_toggle_watermark_change_req(
-		struct hubbub *hubbub);
-
 void hubbub1_wm_read_state(struct hubbub *hubbub,
 		struct dcn_hubbub_wm *wm);
 

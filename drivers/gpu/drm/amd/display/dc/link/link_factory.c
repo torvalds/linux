@@ -156,6 +156,7 @@ static void construct_link_service_dp_capability(struct link_service *link_srv)
 	link_srv->dp_get_encoding_format = link_dp_get_encoding_format;
 	link_srv->dp_should_enable_fec = dp_should_enable_fec;
 	link_srv->dp_decide_link_settings = link_decide_link_settings;
+	link_srv->dp_decide_tunnel_settings = link_decide_dp_tunnel_settings;
 	link_srv->mst_decide_link_encoding_format =
 			mst_decide_link_encoding_format;
 	link_srv->edp_decide_link_settings = edp_decide_link_settings;
@@ -175,7 +176,6 @@ static void construct_link_service_dp_phy_or_dpia(struct link_service *link_srv)
 {
 	link_srv->dpia_handle_usb4_bandwidth_allocation_for_link =
 			dpia_handle_usb4_bandwidth_allocation_for_link;
-	link_srv->dpia_handle_bw_alloc_response = dpia_handle_bw_alloc_response;
 	link_srv->dp_set_drive_settings = dp_set_drive_settings;
 	link_srv->dpcd_write_rx_power_ctrl = dpcd_write_rx_power_ctrl;
 }
@@ -465,6 +465,7 @@ static bool construct_phy(struct dc_link *link,
 
 	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_read_request = DC_IRQ_SOURCE_INVALID;
 	link->link_status.dpcd_caps = &link->dpcd_caps;
 
 	link->dc = init_params->dc;
@@ -515,6 +516,9 @@ static bool construct_phy(struct dc_link *link,
 	case CONNECTOR_ID_HDMI_TYPE_A:
 		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
 
+		if (link->hpd_gpio)
+			link->irq_source_read_request =
+					dal_irq_get_read_request(link->hpd_gpio);
 		break;
 	case CONNECTOR_ID_SINGLE_LINK_DVID:
 	case CONNECTOR_ID_SINGLE_LINK_DVII:
@@ -654,7 +658,7 @@ static bool construct_phy(struct dc_link *link,
 		}
 
 		/* Look for device tag that matches connector signal,
-		 * CRT for rgb, LCD for other supported signal tyes
+		 * CRT for rgb, LCD for other supported signal types
 		 */
 		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios,
 						      link->device_tag.dev_id))

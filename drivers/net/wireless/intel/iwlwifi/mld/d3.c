@@ -774,7 +774,7 @@ iwl_mld_update_ptk_rx_seq(struct iwl_mld *mld,
 		return;
 
 	for (int tid = 0; tid < IWL_MAX_TID_COUNT; tid++) {
-		for (int i = 1; i < mld->trans->num_rx_queues; i++)
+		for (int i = 1; i < mld->trans->info.num_rxqs; i++)
 			memcpy(mld_ptk_pn->q[i].pn[tid],
 			       wowlan_status->ptk.aes_seq[tid].ccmp.pn,
 			       IEEE80211_CCMP_PN_LEN);
@@ -1099,7 +1099,8 @@ iwl_mld_set_netdetect_info(struct iwl_mld *mld,
 		if (!match)
 			return;
 
-		netdetect_info->matches[netdetect_info->n_matches++] = match;
+		netdetect_info->matches[netdetect_info->n_matches] = match;
+		netdetect_info->n_matches++;
 
 		/* We inverted the order of the SSIDs in the scan
 		 * request, so invert the index here.
@@ -1116,9 +1117,11 @@ iwl_mld_set_netdetect_info(struct iwl_mld *mld,
 
 		for_each_set_bit(j,
 				 (unsigned long *)&matches[i].matching_channels[0],
-				 sizeof(matches[i].matching_channels))
-			match->channels[match->n_channels++] =
+				 sizeof(matches[i].matching_channels)) {
+			match->channels[match->n_channels] =
 				netdetect_cfg->channels[j]->center_freq;
+			match->n_channels++;
+		}
 	}
 }
 
@@ -1344,7 +1347,8 @@ int iwl_mld_no_wowlan_suspend(struct iwl_mld *mld)
 	if (ret) {
 		IWL_ERR(mld, "d3 suspend: trans_d3_suspend failed %d\n", ret);
 	} else {
-		mld->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
+		/* Async notification might send hcmds, which is not allowed in suspend */
+		iwl_mld_cancel_async_notifications(mld);
 		mld->fw_status.in_d3 = true;
 	}
 
@@ -1369,7 +1373,6 @@ int iwl_mld_no_wowlan_resume(struct iwl_mld *mld)
 
 	IWL_DEBUG_WOWLAN(mld, "Starting the no wowlan resume flow\n");
 
-	mld->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 	mld->fw_status.in_d3 = false;
 	iwl_fw_dbg_read_d3_debug_data(&mld->fwrt);
 
@@ -1434,7 +1437,7 @@ iwl_mld_suspend_set_ucast_pn(struct iwl_mld *mld, struct ieee80211_sta *sta,
 		ieee80211_get_key_rx_seq(key, tid, &seq);
 
 		/* and use the internal data for all queues */
-		for (int que = 1; que < mld->trans->num_rx_queues; que++) {
+		for (int que = 1; que < mld->trans->info.num_rxqs; que++) {
 			u8 *cur_pn = mld_ptk_pn->q[que].pn[tid];
 
 			if (memcmp(max_pn, cur_pn, IEEE80211_CCMP_PN_LEN) < 0)
@@ -1754,7 +1757,7 @@ iwl_mld_send_proto_offload(struct iwl_mld *mld,
 
 		addrconf_addr_solict_mult(&wowlan_data->target_ipv6_addrs[i],
 					  &solicited_addr);
-		for (j = 0; j < c; j++)
+		for (j = 0; j < n_nsc && j < c; j++)
 			if (ipv6_addr_cmp(&nsc[j].dest_ipv6_addr,
 					  &solicited_addr) == 0)
 				break;
@@ -1895,13 +1898,11 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 	int link_id;
 	int ret;
 	bool fw_err = false;
-	bool keep_connection;
 
 	lockdep_assert_wiphy(mld->wiphy);
 
 	IWL_DEBUG_WOWLAN(mld, "Starting the wowlan resume flow\n");
 
-	mld->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 	if (!mld->fw_status.in_d3) {
 		IWL_DEBUG_WOWLAN(mld,
 				 "Device_powered_off() was called during wowlan\n");
@@ -1965,7 +1966,7 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 		iwl_mld_process_netdetect_res(mld, bss_vif, &resume_data);
 		mld->netdetect = false;
 	} else {
-		keep_connection =
+		bool keep_connection =
 			iwl_mld_process_wowlan_status(mld, bss_vif,
 						      resume_data.wowlan_status);
 
@@ -1973,10 +1974,9 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld)
 		if (keep_connection)
 			iwl_mld_unblock_emlsr(mld, bss_vif,
 					      IWL_MLD_EMLSR_BLOCKED_WOWLAN);
+		else
+			ieee80211_resume_disconnect(bss_vif);
 	}
-
-	if (!mld->netdetect && !keep_connection)
-		ieee80211_resume_disconnect(bss_vif);
 
 	goto out;
 

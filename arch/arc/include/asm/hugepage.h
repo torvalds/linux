@@ -40,8 +40,6 @@ static inline pmd_t pte_pmd(pte_t pte)
 #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
 #define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
 
-#define mk_pmd(page, prot)	pte_pmd(mk_pte(page, prot))
-
 #define pmd_trans_huge(pmd)	(pmd_val(pmd) & _PAGE_HW_SZ)
 
 #define pfn_pmd(pfn, prot)	(__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))

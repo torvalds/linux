@@ -18,7 +18,7 @@ impl SeqFile {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that for the duration of 'a the following is satisfied:
+    /// The caller must ensure that for the duration of `'a` the following is satisfied:
     /// * The pointer points at a valid `struct seq_file`.
     /// * The `struct seq_file` is not accessed from any other thread.
     pub unsafe fn from_raw<'a>(ptr: *mut bindings::seq_file) -> &'a SeqFile {

@@ -69,6 +69,11 @@
 
 /* USB 2 & 3 are on the FPC connector (or the exansion board) */
 
+&gpu {
+	mali-supply = <&reg_dcdc1>;
+	status = "okay";
+};
+
 &mmc0 {
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;	/* PF6 */
 	bus-width = <4>;

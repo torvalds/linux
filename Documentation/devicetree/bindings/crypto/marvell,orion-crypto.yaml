@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/marvell,orion-crypto.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Cryptographic Engines And Security Accelerator
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+  - Boris Brezillon <bbrezillon@kernel.org>
+
+description: |
+  Marvell Cryptographic Engines And Security Accelerator
+
+properties:
+  compatible:
+    enum:
+      - marvell,armada-370-crypto
+      - marvell,armada-xp-crypto
+      - marvell,armada-375-crypto
+      - marvell,armada-38x-crypto
+      - marvell,dove-crypto
+      - marvell,kirkwood-crypto
+      - marvell,orion-crypto
+
+  reg:
+    minItems: 1
+    items:
+      - description: Registers region
+      - description: SRAM region
+        deprecated: true
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: regs
+      - const: sram
+        deprecated: true
+
+  interrupts:
+    description: One interrupt for each CESA engine
+    minItems: 1
+    maxItems: 2
+
+  clocks:
+    description: One or two clocks for each CESA engine
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: cesa0
+      - const: cesa1
+      - const: cesaz0
+      - const: cesaz1
+
+  marvell,crypto-srams:
+    description: Phandle(s) to crypto SRAM.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 1
+    maxItems: 2
+    items:
+      maxItems: 1
+
+  marvell,crypto-sram-size:
+    description: SRAM size reserved for crypto operations.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0x800
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - marvell,crypto-srams
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            enum:
+              - marvell,kirkwood-crypto
+              - marvell,orion-crypto
+    then:
+      required:
+        - clocks
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - marvell,armada-370-crypto
+              - marvell,armada-375-crypto
+              - marvell,armada-38x-crypto
+              - marvell,armada-xp-crypto
+    then:
+      required:
+        - clock-names
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - marvell,armada-375-crypto
+              - marvell,armada-38x-crypto
+    then:
+      properties:
+        clocks:
+          minItems: 4
+        clock-names:
+          minItems: 4
+    else:
+      properties:
+        clocks:
+          maxItems: 2
+        clock-names:
+          maxItems: 2
+
+additionalProperties: false
+
+examples:
+  - |
+    crypto@30000 {
+        compatible = "marvell,orion-crypto";
+        reg = <0x30000 0x10000>;
+        reg-names = "regs";
+        interrupts = <22>;
+        marvell,crypto-srams = <&crypto_sram>;
+        marvell,crypto-sram-size = <0x600>;
+    };

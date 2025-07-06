@@ -68,7 +68,7 @@
 	};
 
 	thermal-zones {
-		cpu-thermal {
+		cpu_thermal: cpu-thermal {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tsensor 0>;
@@ -319,6 +319,46 @@
 			reg = <0x0 0x1fe21800 0x0 0x8>;
 			interrupt-parent = <&liointc0>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		pwm@1fe22000 {
+			compatible = "loongson,ls2k1000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x1fe22000 0x0 0x10>;
+			interrupt-parent = <&liointc0>;
+			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm1: pwm@1fe22010 {
+			compatible = "loongson,ls2k1000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x1fe22010 0x0 0x10>;
+			interrupt-parent = <&liointc0>;
+			interrupts = <25 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm@1fe22020 {
+			compatible = "loongson,ls2k1000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x1fe22020 0x0 0x10>;
+			interrupt-parent = <&liointc0>;
+			interrupts = <26 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		pwm@1fe22030 {
+			compatible = "loongson,ls2k1000-pwm", "loongson,ls7a-pwm";
+			reg = <0x0 0x1fe22030 0x0 0x10>;
+			interrupt-parent = <&liointc0>;
+			interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
+			#pwm-cells = <3>;
 			status = "disabled";
 		};
 

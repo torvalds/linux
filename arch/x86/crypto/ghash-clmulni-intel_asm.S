@@ -103,8 +103,8 @@ SYM_FUNC_START(clmul_ghash_mul)
 SYM_FUNC_END(clmul_ghash_mul)
 
 /*
- * void clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
- *			   const le128 *shash);
+ * int clmul_ghash_update(char *dst, const char *src, unsigned int srclen,
+ *			  const le128 *shash);
  */
 SYM_FUNC_START(clmul_ghash_update)
 	FRAME_BEGIN
@@ -127,6 +127,7 @@ SYM_FUNC_START(clmul_ghash_update)
 	pshufb BSWAP, DATA
 	movups DATA, (%rdi)
 .Lupdate_just_ret:
+	mov %rdx, %rax
 	FRAME_END
 	RET
 SYM_FUNC_END(clmul_ghash_update)

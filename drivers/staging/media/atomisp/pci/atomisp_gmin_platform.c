@@ -85,9 +85,6 @@ struct gmin_subdev {
 	bool v2p8_on;
 	bool v1p2_on;
 
-	int v1p8_gpio;
-	int v2p8_gpio;
-
 	u8 pwm_i2c_addr;
 
 	/* For PMIC AXP */
@@ -225,16 +222,6 @@ static struct gmin_cfg_var ffrd8_vars[] = {
 	{},
 };
 
-/* Cribbed from MCG defaults in the mt9m114 driver, not actually verified
- * vs. T100 hardware
- */
-static struct gmin_cfg_var t100_vars[] = {
-	{ "INT33F0:00_CsiPort",  "0" },
-	{ "INT33F0:00_CsiLanes", "1" },
-	{ "INT33F0:00_CamClk",   "1" },
-	{},
-};
-
 static struct gmin_cfg_var mrd7_vars[] = {
 	{"INT33F8:00_CamType", "1"},
 	{"INT33F8:00_CsiPort", "1"},
@@ -249,22 +236,6 @@ static struct gmin_cfg_var mrd7_vars[] = {
 	{"INT33F9:00_CsiFmt", "13"},
 	{"INT33F9:00_CsiBayer", "0"},
 	{"INT33F9:00_CamClk", "1"},
-	{},
-};
-
-static struct gmin_cfg_var ecs7_vars[] = {
-	{"INT33BE:00_CsiPort", "1"},
-	{"INT33BE:00_CsiLanes", "2"},
-	{"INT33BE:00_CsiFmt", "13"},
-	{"INT33BE:00_CsiBayer", "2"},
-	{"INT33BE:00_CamClk", "0"},
-
-	{"INT33F0:00_CsiPort", "0"},
-	{"INT33F0:00_CsiLanes", "1"},
-	{"INT33F0:00_CsiFmt", "13"},
-	{"INT33F0:00_CsiBayer", "0"},
-	{"INT33F0:00_CamClk", "1"},
-	{"gmin_V2P8GPIO", "402"},
 	{},
 };
 
@@ -310,26 +281,12 @@ static const struct dmi_system_id gmin_vars[] = {
 		.driver_data = ffrd8_vars,
 	},
 	{
-		.ident = "T100TA",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "T100TA"),
-		},
-		.driver_data = t100_vars,
-	},
-	{
 		.ident = "MRD7",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "TABLET"),
 			DMI_MATCH(DMI_BOARD_VERSION, "MRD 7"),
 		},
 		.driver_data = mrd7_vars,
-	},
-	{
-		.ident = "ST70408",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "ST70408"),
-		},
-		.driver_data = ecs7_vars,
 	},
 	{
 		.ident = "VTA0803",
@@ -516,9 +473,9 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 
 	dev_info(dev, "%s: ACPI path is %pfw\n", __func__, dev_fwnode(dev));
 
-	/*WA:CHT requires XTAL clock as PLL is not stable.*/
+	/* WA:CHT requires XTAL clock as PLL is not stable. */
 	gs->clock_src = gmin_get_var_int(dev, false, "ClkSrc",
-				         VLV2_CLK_PLL_19P2MHZ);
+					 VLV2_CLK_PLL_19P2MHZ);
 
 	/*
 	 * Get ACPI _PR0 derived clock here already because it is used
@@ -547,23 +504,6 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 		gs->gpio1 = NULL;
 	else
 		dev_info(dev, "will handle gpio1 via ACPI\n");
-
-	/*
-	 * Those are used only when there is an external regulator apart
-	 * from the PMIC that would be providing power supply, like on the
-	 * two cases below:
-	 *
-	 * The ECS E7 board drives camera 2.8v from an external regulator
-	 * instead of the PMIC.  There's a gmin_CamV2P8 config variable
-	 * that specifies the GPIO to handle this particular case,
-	 * but this needs a broader architecture for handling camera power.
-	 *
-	 * The CHT RVP board drives camera 1.8v from an* external regulator
-	 * instead of the PMIC just like ECS E7 board.
-	 */
-
-	gs->v1p8_gpio = gmin_get_var_int(dev, true, "V1P8GPIO", -1);
-	gs->v2p8_gpio = gmin_get_var_int(dev, true, "V2P8GPIO", -1);
 
 	/*
 	 * FIXME:
@@ -837,16 +777,6 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 	if (!gs || gs->v1p8_on == on)
 		return 0;
 
-	if (gs->v1p8_gpio >= 0) {
-		pr_info("atomisp_gmin_platform: 1.8v power on GPIO %d\n",
-			gs->v1p8_gpio);
-		ret = gpio_request(gs->v1p8_gpio, "camera_v1p8_en");
-		if (!ret)
-			ret = gpio_direction_output(gs->v1p8_gpio, 0);
-		if (ret)
-			pr_err("V1P8 GPIO initialization failed\n");
-	}
-
 	gs->v1p8_on = on;
 
 	ret = 0;
@@ -860,9 +790,6 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 		if (gmin_v1p8_enable_count > 0)
 			goto out; /* Still needed */
 	}
-
-	if (gs->v1p8_gpio >= 0)
-		gpio_set_value(gs->v1p8_gpio, on);
 
 	if (gs->v1p8_reg) {
 		regulator_set_voltage(gs->v1p8_reg, 1800000, 1800000);
@@ -918,16 +845,6 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 	if (WARN_ON(!gs))
 		return -ENODEV;
 
-	if (gs->v2p8_gpio >= 0) {
-		pr_info("atomisp_gmin_platform: 2.8v power on GPIO %d\n",
-			gs->v2p8_gpio);
-		ret = gpio_request(gs->v2p8_gpio, "camera_v2p8");
-		if (!ret)
-			ret = gpio_direction_output(gs->v2p8_gpio, 0);
-		if (ret)
-			pr_err("V2P8 GPIO initialization failed\n");
-	}
-
 	if (gs->v2p8_on == on)
 		return 0;
 	gs->v2p8_on = on;
@@ -943,9 +860,6 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 		if (gmin_v2p8_enable_count > 0)
 			goto out; /* Still needed */
 	}
-
-	if (gs->v2p8_gpio >= 0)
-		gpio_set_value(gs->v2p8_gpio, on);
 
 	if (gs->v2p8_reg) {
 		regulator_set_voltage(gs->v2p8_reg, 2900000, 2900000);
@@ -1292,7 +1206,7 @@ static int gmin_get_config_dsm_var(struct device *dev,
 	 * if it founds something different than string, letting it
 	 * to fall back to the old code.
 	 */
-	if (cur && cur->type != ACPI_TYPE_STRING) {
+	if (cur->type != ACPI_TYPE_STRING) {
 		dev_info(dev, "found non-string _DSM entry for '%s'\n", var);
 		ACPI_FREE(obj);
 		return -EINVAL;

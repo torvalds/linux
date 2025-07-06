@@ -136,7 +136,7 @@ static void ml_schedule_timer(struct ml_device *ml)
 
 	if (!events) {
 		pr_debug("no actions\n");
-		del_timer(&ml->timer);
+		timer_delete(&ml->timer);
 	} else {
 		pr_debug("timer set\n");
 		mod_timer(&ml->timer, earliest);
@@ -399,7 +399,7 @@ static void ml_play_effects(struct ml_device *ml)
 
 static void ml_effect_timer(struct timer_list *t)
 {
-	struct ml_device *ml = from_timer(ml, t, timer);
+	struct ml_device *ml = timer_container_of(ml, t, timer);
 	struct input_dev *dev = ml->dev;
 
 	pr_debug("timer: updating effects\n");
@@ -489,7 +489,7 @@ static void ml_ff_destroy(struct ff_device *ff)
 	 * do not actually stop the timer, and therefore we should
 	 * do it here.
 	 */
-	del_timer_sync(&ml->timer);
+	timer_delete_sync(&ml->timer);
 
 	kfree(ml->private);
 }

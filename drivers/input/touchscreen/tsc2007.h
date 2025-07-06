@@ -19,6 +19,7 @@
 #ifndef _TSC2007_H
 #define _TSC2007_H
 
+#include <linux/input/touchscreen.h>
 struct gpio_desc;
 
 #define TSC2007_MEASURE_TEMP0		(0x0 << 4)
@@ -63,6 +64,7 @@ struct tsc2007 {
 
 	struct i2c_client	*client;
 
+	struct touchscreen_properties prop;
 	u16			model;
 	u16			x_plate_ohms;
 	u16			max_rt;

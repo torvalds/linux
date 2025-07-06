@@ -9,7 +9,7 @@ int test_libdw(void)
 {
 	Dwarf *dbg = dwarf_begin(0, DWARF_C_READ);
 
-	return (long)dbg;
+	return dbg == NULL;
 }
 
 int test_libdw_unwind(void)

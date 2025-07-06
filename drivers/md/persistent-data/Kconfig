@@ -2,7 +2,7 @@
 config DM_PERSISTENT_DATA
        tristate
        depends on BLK_DEV_DM
-       select LIBCRC32C
+       select CRC32
        select DM_BUFIO
 	help
 	 Library providing immutable on-disk data structure support for

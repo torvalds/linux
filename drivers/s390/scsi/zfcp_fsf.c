@@ -36,7 +36,7 @@ MODULE_PARM_DESC(ber_stop,
 
 static void zfcp_fsf_request_timeout_handler(struct timer_list *t)
 {
-	struct zfcp_fsf_req *fsf_req = from_timer(fsf_req, t, timer);
+	struct zfcp_fsf_req *fsf_req = timer_container_of(fsf_req, t, timer);
 	struct zfcp_adapter *adapter = fsf_req->adapter;
 
 	zfcp_qdio_siosl(adapter);
@@ -458,7 +458,7 @@ static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 		return;
 	}
 
-	del_timer_sync(&req->timer);
+	timer_delete_sync(&req->timer);
 	zfcp_fsf_protstatus_eval(req);
 	zfcp_fsf_fsfstatus_eval(req);
 	req->handler(req);
@@ -891,7 +891,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	req->qdio_req.qdio_outb_usage = atomic_read(&qdio->req_q_free);
 	req->issued = get_tod_clock();
 	if (zfcp_qdio_send(qdio, &req->qdio_req)) {
-		del_timer_sync(&req->timer);
+		timer_delete_sync(&req->timer);
 
 		/* lookup request again, list might have changed */
 		if (zfcp_reqlist_find_rm(adapter->req_list, req_id) == NULL)

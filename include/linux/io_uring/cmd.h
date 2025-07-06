@@ -21,7 +21,6 @@ struct io_uring_cmd {
 
 struct io_uring_cmd_data {
 	void			*op_data;
-	struct io_uring_sqe	sqes[2];
 };
 
 static inline const void *io_uring_sqe_cmd(const struct io_uring_sqe *sqe)
@@ -43,6 +42,11 @@ int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			      struct iov_iter *iter,
 			      struct io_uring_cmd *ioucmd,
 			      unsigned int issue_flags);
+int io_uring_cmd_import_fixed_vec(struct io_uring_cmd *ioucmd,
+				  const struct iovec __user *uvec,
+				  size_t uvec_segs,
+				  int ddir, struct iov_iter *iter,
+				  unsigned issue_flags);
 
 /*
  * Completes the request, i.e. posts an io_uring CQE and deallocates @ioucmd
@@ -73,6 +77,14 @@ static inline int
 io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			  struct iov_iter *iter, struct io_uring_cmd *ioucmd,
 			  unsigned int issue_flags)
+{
+	return -EOPNOTSUPP;
+}
+static inline int io_uring_cmd_import_fixed_vec(struct io_uring_cmd *ioucmd,
+						const struct iovec __user *uvec,
+						size_t uvec_segs,
+						int ddir, struct iov_iter *iter,
+						unsigned issue_flags)
 {
 	return -EOPNOTSUPP;
 }
@@ -126,6 +138,15 @@ static inline struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd
 static inline struct io_uring_cmd_data *io_uring_cmd_get_async_data(struct io_uring_cmd *cmd)
 {
 	return cmd_to_io_kiocb(cmd)->async_data;
+}
+
+/*
+ * Return uring_cmd's context reference as its context handle for driver to
+ * track per-context resource, such as registered kernel IO buffer
+ */
+static inline void *io_uring_cmd_ctx_handle(struct io_uring_cmd *cmd)
+{
+	return cmd_to_io_kiocb(cmd)->ctx;
 }
 
 int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,

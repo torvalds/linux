@@ -279,7 +279,7 @@ static int dummy_systimer_stop(struct snd_pcm_substream *substream)
 {
 	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
 	spin_lock(&dpcm->lock);
-	del_timer(&dpcm->timer);
+	timer_delete(&dpcm->timer);
 	spin_unlock(&dpcm->lock);
 	return 0;
 }
@@ -301,7 +301,7 @@ static int dummy_systimer_prepare(struct snd_pcm_substream *substream)
 
 static void dummy_systimer_callback(struct timer_list *t)
 {
-	struct dummy_systimer_pcm *dpcm = from_timer(dpcm, t, timer);
+	struct dummy_systimer_pcm *dpcm = timer_container_of(dpcm, t, timer);
 	unsigned long flags;
 	int elapsed = 0;
 

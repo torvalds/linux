@@ -10,6 +10,8 @@
 #include "nouveau_sched.h"
 #include "nouveau_uvmm.h"
 
+#include <nvif/class.h>
+
 /**
  * DOC: Overview
  *
@@ -131,7 +133,7 @@ nouveau_exec_job_run(struct nouveau_job *job)
 	struct nouveau_fence *fence = exec_job->fence;
 	int i, ret;
 
-	ret = nouveau_dma_wait(chan, exec_job->push.count + 1, 16);
+	ret = nvif_chan_gpfifo_wait(&chan->chan, exec_job->push.count + 1, 16);
 	if (ret) {
 		NV_PRINTK(err, job->cli, "nv50cal_space: %d\n", ret);
 		return ERR_PTR(ret);
@@ -141,8 +143,10 @@ nouveau_exec_job_run(struct nouveau_job *job)
 		struct drm_nouveau_exec_push *p = &exec_job->push.s[i];
 		bool no_prefetch = p->flags & DRM_NOUVEAU_EXEC_PUSH_NO_PREFETCH;
 
-		nv50_dma_push(chan, p->va, p->va_len, no_prefetch);
+		nvif_chan_gpfifo_push(&chan->chan, p->va, p->va_len, no_prefetch);
 	}
+
+	nvif_chan_gpfifo_post(&chan->chan);
 
 	ret = nouveau_fence_emit(fence);
 	if (ret) {
@@ -375,10 +379,10 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	if (unlikely(atomic_read(&chan->killed)))
 		return nouveau_abi16_put(abi16, -ENODEV);
 
-	if (!chan->dma.ib_max)
+	if (chan->user.oclass < NV50_CHANNEL_GPFIFO)
 		return nouveau_abi16_put(abi16, -ENOSYS);
 
-	push_max = nouveau_exec_push_max_from_ib_max(chan->dma.ib_max);
+	push_max = nouveau_exec_push_max_from_ib_max(chan->chan.gpfifo.max);
 	if (unlikely(req->push_count > push_max)) {
 		NV_PRINTK(err, cli, "pushbuf push count exceeds limit: %d max %d\n",
 			  req->push_count, push_max);

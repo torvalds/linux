@@ -90,7 +90,7 @@ static int __init nvic_of_init(struct device_node *node,
 		irqs = NVIC_MAX_IRQ;
 
 	nvic_irq_domain =
-		irq_domain_add_linear(node, irqs, &nvic_irq_domain_ops, NULL);
+		irq_domain_create_linear(of_fwnode_handle(node), irqs, &nvic_irq_domain_ops, NULL);
 
 	if (!nvic_irq_domain) {
 		pr_warn("Failed to allocate irq domain\n");

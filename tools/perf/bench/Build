@@ -3,6 +3,7 @@ perf-bench-y += sched-pipe.o
 perf-bench-y += sched-seccomp-notify.o
 perf-bench-y += syscall.o
 perf-bench-y += mem-functions.o
+perf-bench-y += futex.o
 perf-bench-y += futex-hash.o
 perf-bench-y += futex-wake.o
 perf-bench-y += futex-wake-parallel.o

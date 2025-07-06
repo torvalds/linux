@@ -29,6 +29,7 @@
 #include "vsp1_hgo.h"
 #include "vsp1_hgt.h"
 #include "vsp1_hsit.h"
+#include "vsp1_iif.h"
 #include "vsp1_lif.h"
 #include "vsp1_lut.h"
 #include "vsp1_pipe.h"
@@ -302,22 +303,6 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		list_add_tail(&vsp1->clu->entity.list_dev, &vsp1->entities);
 	}
 
-	vsp1->hsi = vsp1_hsit_create(vsp1, true);
-	if (IS_ERR(vsp1->hsi)) {
-		ret = PTR_ERR(vsp1->hsi);
-		goto done;
-	}
-
-	list_add_tail(&vsp1->hsi->entity.list_dev, &vsp1->entities);
-
-	vsp1->hst = vsp1_hsit_create(vsp1, false);
-	if (IS_ERR(vsp1->hst)) {
-		ret = PTR_ERR(vsp1->hst);
-		goto done;
-	}
-
-	list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
-
 	if (vsp1_feature(vsp1, VSP1_HAS_HGO) && vsp1->info->uapi) {
 		vsp1->hgo = vsp1_hgo_create(vsp1);
 		if (IS_ERR(vsp1->hgo)) {
@@ -338,6 +323,34 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 
 		list_add_tail(&vsp1->hgt->histo.entity.list_dev,
 			      &vsp1->entities);
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_IIF)) {
+		vsp1->iif = vsp1_iif_create(vsp1);
+		if (IS_ERR(vsp1->iif)) {
+			ret = PTR_ERR(vsp1->iif);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->iif->entity.list_dev, &vsp1->entities);
+	}
+
+	if (vsp1_feature(vsp1, VSP1_HAS_HSIT)) {
+		vsp1->hsi = vsp1_hsit_create(vsp1, true);
+		if (IS_ERR(vsp1->hsi)) {
+			ret = PTR_ERR(vsp1->hsi);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->hsi->entity.list_dev, &vsp1->entities);
+
+		vsp1->hst = vsp1_hsit_create(vsp1, false);
+		if (IS_ERR(vsp1->hst)) {
+			ret = PTR_ERR(vsp1->hst);
+			goto done;
+		}
+
+		list_add_tail(&vsp1->hst->entity.list_dev, &vsp1->entities);
 	}
 
 	/*
@@ -683,8 +696,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.model = "VSP1-S",
 		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HGO
-			  | VSP1_HAS_HGT | VSP1_HAS_LUT | VSP1_HAS_SRU
-			  | VSP1_HAS_WPF_VFLIP,
+			  | VSP1_HAS_HGT | VSP1_HAS_HSIT | VSP1_HAS_LUT
+			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 3,
 		.wpf_count = 4,
@@ -694,7 +707,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPR_H2,
 		.model = "VSP1-R",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_BRU | VSP1_HAS_HSIT | VSP1_HAS_SRU
+			   | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 3,
 		.wpf_count = 4,
@@ -704,7 +718,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPD_GEN2,
 		.model = "VSP1-D",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_HGO | VSP1_HAS_LUT,
+		.features = VSP1_HAS_BRU | VSP1_HAS_HGO | VSP1_HAS_HSIT
+			  | VSP1_HAS_LUT,
 		.lif_count = 1,
 		.rpf_count = 4,
 		.uds_count = 1,
@@ -716,8 +731,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.model = "VSP1-S",
 		.gen = 2,
 		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HGO
-			  | VSP1_HAS_HGT | VSP1_HAS_LUT | VSP1_HAS_SRU
-			  | VSP1_HAS_WPF_VFLIP,
+			  | VSP1_HAS_HGT | VSP1_HAS_HSIT | VSP1_HAS_LUT
+			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 5,
 		.uds_count = 1,
 		.wpf_count = 4,
@@ -727,8 +742,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPS_V2H,
 		.model = "VSP1V-S",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT
-			  | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HSIT
+			  | VSP1_HAS_LUT | VSP1_HAS_SRU | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 4,
 		.uds_count = 1,
 		.wpf_count = 4,
@@ -738,7 +753,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.version = VI6_IP_VERSION_MODEL_VSPD_V2H,
 		.model = "VSP1V-D",
 		.gen = 2,
-		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_LUT,
+		.features = VSP1_HAS_BRU | VSP1_HAS_CLU | VSP1_HAS_HSIT
+			  | VSP1_HAS_LUT,
 		.lif_count = 1,
 		.rpf_count = 4,
 		.uds_count = 1,
@@ -750,8 +766,8 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 		.model = "VSP2-I",
 		.gen = 3,
 		.features = VSP1_HAS_CLU | VSP1_HAS_HGO | VSP1_HAS_HGT
-			  | VSP1_HAS_LUT | VSP1_HAS_SRU | VSP1_HAS_WPF_HFLIP
-			  | VSP1_HAS_WPF_VFLIP,
+			  | VSP1_HAS_HSIT | VSP1_HAS_LUT | VSP1_HAS_SRU
+			  | VSP1_HAS_WPF_HFLIP | VSP1_HAS_WPF_VFLIP,
 		.rpf_count = 1,
 		.uds_count = 1,
 		.wpf_count = 1,

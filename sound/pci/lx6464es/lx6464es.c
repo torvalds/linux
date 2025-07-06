@@ -944,7 +944,7 @@ static int snd_lx6464es_create(struct snd_card *card,
 	mutex_init(&chip->setup_mutex);
 
 	/* request resources */
-	err = pci_request_regions(pci, card_name);
+	err = pcim_request_all_regions(pci, card_name);
 	if (err < 0)
 		return err;
 

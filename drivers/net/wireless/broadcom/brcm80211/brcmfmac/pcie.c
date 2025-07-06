@@ -2304,7 +2304,7 @@ brcmf_pcie_fwcon_timer(struct brcmf_pciedev_info *devinfo, bool active)
 {
 	if (!active) {
 		if (devinfo->console_active) {
-			del_timer_sync(&devinfo->timer);
+			timer_delete_sync(&devinfo->timer);
 			devinfo->console_active = false;
 		}
 		return;
@@ -2328,7 +2328,8 @@ brcmf_pcie_fwcon_timer(struct brcmf_pciedev_info *devinfo, bool active)
 static void
 brcmf_pcie_fwcon(struct timer_list *t)
 {
-	struct brcmf_pciedev_info *devinfo = from_timer(devinfo, t, timer);
+	struct brcmf_pciedev_info *devinfo = timer_container_of(devinfo, t,
+								timer);
 
 	if (!devinfo->console_active)
 		return;

@@ -223,7 +223,7 @@ static INLINE void* read_full_cgroup_path(struct kernfs_node* cgroup_node,
 		if (bpf_cmp_likely(filepart_length, <=, MAX_PATH)) {
 			payload += filepart_length;
 		}
-		cgroup_node = BPF_CORE_READ(cgroup_node, parent);
+		cgroup_node = BPF_CORE_READ(cgroup_node, __parent);
 	}
 	return payload;
 }

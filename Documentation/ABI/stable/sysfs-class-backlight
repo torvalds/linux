@@ -26,7 +26,12 @@ Date:		March 2006
 KernelVersion:	2.6.17
 Contact:	Richard Purdie <rpurdie@rpsys.net>
 Description:
-		Show the actual brightness by querying the hardware.
+		Show the actual brightness by querying the hardware. Due
+		to implementation differences in hardware this may not
+		match the value in 'brightness'. For example some hardware
+		may treat blanking differently or have custom power saving
+		features. Userspace should generally use the values in
+		'brightness' to make decisions.
 Users:		HAL
 
 What:		/sys/class/backlight/<backlight>/max_brightness

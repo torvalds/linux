@@ -1040,7 +1040,7 @@ static void ath_scan_channel_start(struct ath_softc *sc)
 
 static void ath_chanctx_timer(struct timer_list *t)
 {
-	struct ath_softc *sc = from_timer(sc, t, sched.timer);
+	struct ath_softc *sc = timer_container_of(sc, t, sched.timer);
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	ath_dbg(common, CHAN_CTX,
@@ -1051,7 +1051,7 @@ static void ath_chanctx_timer(struct timer_list *t)
 
 static void ath_offchannel_timer(struct timer_list *t)
 {
-	struct ath_softc *sc = from_timer(sc, t, offchannel.timer);
+	struct ath_softc *sc = timer_container_of(sc, t, offchannel.timer);
 	struct ath_chanctx *ctx;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
@@ -1556,7 +1556,7 @@ void ath9k_p2p_ps_timer(void *priv)
 	struct ath_node *an;
 	u32 tsf;
 
-	del_timer_sync(&sc->sched.timer);
+	timer_delete_sync(&sc->sched.timer);
 	ath9k_hw_gen_timer_stop(sc->sc_ah, sc->p2p_ps_timer);
 	ath_chanctx_event(sc, NULL, ATH_CHANCTX_EVENT_TSF_TIMER);
 

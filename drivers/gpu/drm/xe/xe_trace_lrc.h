@@ -19,12 +19,12 @@
 #define __dev_name_lrc(lrc)	dev_name(gt_to_xe((lrc)->fence_ctx.gt)->drm.dev)
 
 TRACE_EVENT(xe_lrc_update_timestamp,
-	    TP_PROTO(struct xe_lrc *lrc, uint32_t old),
+	    TP_PROTO(struct xe_lrc *lrc, uint64_t old),
 	    TP_ARGS(lrc, old),
 	    TP_STRUCT__entry(
 		     __field(struct xe_lrc *, lrc)
-		     __field(u32, old)
-		     __field(u32, new)
+		     __field(u64, old)
+		     __field(u64, new)
 		     __string(name, lrc->fence_ctx.name)
 		     __string(device_id, __dev_name_lrc(lrc))
 	    ),
@@ -36,7 +36,7 @@ TRACE_EVENT(xe_lrc_update_timestamp,
 		   __assign_str(name);
 		   __assign_str(device_id);
 		   ),
-	    TP_printk("lrc=:%p lrc->name=%s old=%u new=%u device_id:%s",
+	    TP_printk("lrc=:%p lrc->name=%s old=%llu new=%llu device_id:%s",
 		      __entry->lrc, __get_str(name),
 		      __entry->old, __entry->new,
 		      __get_str(device_id))

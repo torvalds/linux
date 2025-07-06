@@ -338,7 +338,7 @@ static int iss_net_poll(struct iss_net_private *lp)
 
 static void iss_net_timer(struct timer_list *t)
 {
-	struct iss_net_private *lp = from_timer(lp, t, timer);
+	struct iss_net_private *lp = timer_container_of(lp, t, timer);
 
 	iss_net_poll(lp);
 	mod_timer(&lp->timer, jiffies + lp->timer_val);
@@ -375,7 +375,7 @@ static int iss_net_close(struct net_device *dev)
 	struct iss_net_private *lp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
-	del_timer_sync(&lp->timer);
+	timer_delete_sync(&lp->timer);
 	lp->tp.net_ops->close(lp);
 
 	return 0;

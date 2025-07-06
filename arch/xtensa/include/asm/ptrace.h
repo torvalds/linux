@@ -72,13 +72,10 @@ struct pt_regs {
 	/* Additional configurable registers that are used by the compiler. */
 	xtregs_opt_t xtregs_opt;
 
-	/* Make sure the areg field is 16 bytes aligned. */
-	int align[0] __attribute__ ((aligned(16)));
-
 	/* current register frame.
 	 * Note: The ESF for kernel exceptions ends after 16 registers!
 	 */
-	unsigned long areg[XCHAL_NUM_AREGS];
+	unsigned long areg[XCHAL_NUM_AREGS] __aligned(16);
 };
 
 # define arch_has_single_step()	(1)

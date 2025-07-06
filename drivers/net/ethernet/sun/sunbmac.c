@@ -526,7 +526,7 @@ static int try_next_permutation(struct bigmac *bp, void __iomem *tregs)
 
 static void bigmac_timer(struct timer_list *t)
 {
-	struct bigmac *bp = from_timer(bp, t, bigmac_timer);
+	struct bigmac *bp = timer_container_of(bp, t, bigmac_timer);
 	void __iomem *tregs = bp->tregs;
 	int restart_timer = 0;
 
@@ -931,7 +931,7 @@ static int bigmac_close(struct net_device *dev)
 {
 	struct bigmac *bp = netdev_priv(dev);
 
-	del_timer(&bp->bigmac_timer);
+	timer_delete(&bp->bigmac_timer);
 	bp->timer_state = asleep;
 	bp->timer_ticks = 0;
 

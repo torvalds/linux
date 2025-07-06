@@ -4,6 +4,12 @@
 #include <linux/fsnotify_backend.h>
 
 /*
+ * Limit the time that the list_lru_one lock is held during
+ * an LRU scan.
+ */
+#define NFSD_FILE_GC_BATCH     (16UL)
+
+/*
  * This is the fsnotify_mark container that nfsd attaches to the files that it
  * is holding open. Note that we have a separate refcount here aside from the
  * one in the fsnotify_mark. We only want a single fsnotify_mark attached to
@@ -38,6 +44,7 @@ struct nfsd_file {
 #define NFSD_FILE_PENDING	(1)
 #define NFSD_FILE_REFERENCED	(2)
 #define NFSD_FILE_GC		(3)
+#define NFSD_FILE_RECENT	(4)
 	unsigned long		nf_flags;
 	refcount_t		nf_ref;
 	unsigned char		nf_may;
@@ -55,7 +62,8 @@ void nfsd_file_cache_shutdown(void);
 int nfsd_file_cache_start_net(struct net *net);
 void nfsd_file_cache_shutdown_net(struct net *net);
 void nfsd_file_put(struct nfsd_file *nf);
-struct net *nfsd_file_put_local(struct nfsd_file *nf);
+struct net *nfsd_file_put_local(struct nfsd_file __rcu **nf);
+struct nfsd_file *nfsd_file_get_local(struct nfsd_file *nf);
 struct nfsd_file *nfsd_file_get(struct nfsd_file *nf);
 struct file *nfsd_file_file(struct nfsd_file *nf);
 void nfsd_file_close_inode_sync(struct inode *inode);

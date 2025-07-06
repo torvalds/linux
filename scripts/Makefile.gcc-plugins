@@ -8,20 +8,6 @@ ifdef CONFIG_GCC_PLUGIN_LATENT_ENTROPY
 endif
 export DISABLE_LATENT_ENTROPY_PLUGIN
 
-gcc-plugin-$(CONFIG_GCC_PLUGIN_STRUCTLEAK)	+= structleak_plugin.so
-gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STRUCTLEAK_VERBOSE)	\
-		+= -fplugin-arg-structleak_plugin-verbose
-gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF)		\
-		+= -fplugin-arg-structleak_plugin-byref
-gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL)	\
-		+= -fplugin-arg-structleak_plugin-byref-all
-ifdef CONFIG_GCC_PLUGIN_STRUCTLEAK
-    DISABLE_STRUCTLEAK_PLUGIN += -fplugin-arg-structleak_plugin-disable
-endif
-export DISABLE_STRUCTLEAK_PLUGIN
-gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STRUCTLEAK)		\
-		+= -DSTRUCTLEAK_PLUGIN
-
 gcc-plugin-$(CONFIG_GCC_PLUGIN_STACKLEAK)	+= stackleak_plugin.so
 gcc-plugin-cflags-$(CONFIG_GCC_PLUGIN_STACKLEAK)		\
 		+= -DSTACKLEAK_PLUGIN
@@ -36,15 +22,9 @@ ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 endif
 export DISABLE_STACKLEAK_PLUGIN
 
-gcc-plugin-$(CONFIG_GCC_PLUGIN_ARM_SSP_PER_TASK) += arm_ssp_per_task_plugin.so
-ifdef CONFIG_GCC_PLUGIN_ARM_SSP_PER_TASK
-    DISABLE_ARM_SSP_PER_TASK_PLUGIN += -fplugin-arg-arm_ssp_per_task_plugin-disable
-endif
-export DISABLE_ARM_SSP_PER_TASK_PLUGIN
-
 # All the plugin CFLAGS are collected here in case a build target needs to
 # filter them out of the KBUILD_CFLAGS.
-GCC_PLUGINS_CFLAGS := $(strip $(addprefix -fplugin=$(objtree)/scripts/gcc-plugins/, $(gcc-plugin-y)) $(gcc-plugin-cflags-y))
+GCC_PLUGINS_CFLAGS := $(strip $(addprefix -fplugin=$(objtree)/scripts/gcc-plugins/, $(gcc-plugin-y)) $(gcc-plugin-cflags-y)) -DGCC_PLUGINS
 export GCC_PLUGINS_CFLAGS
 
 # Add the flags to the build!
@@ -52,8 +32,6 @@ KBUILD_CFLAGS += $(GCC_PLUGINS_CFLAGS)
 
 # Some plugins are enabled outside of this Makefile, but they still need to
 # be included in GCC_PLUGIN so they can get built.
-gcc-plugin-external-$(CONFIG_GCC_PLUGIN_SANCOV)			\
-	+= sancov_plugin.so
 gcc-plugin-external-$(CONFIG_GCC_PLUGIN_RANDSTRUCT)		\
 	+= randomize_layout_plugin.so
 

@@ -455,8 +455,10 @@ ssize_t bch2_stdio_redirect_vprintf(struct stdio_redirect *stdio, bool nonblocki
 	struct stdio_buf *buf = &stdio->output;
 	unsigned long flags;
 	ssize_t ret;
-
 again:
+	if (stdio->done)
+		return -EPIPE;
+
 	spin_lock_irqsave(&buf->lock, flags);
 	ret = bch2_darray_vprintf(&buf->buf, GFP_NOWAIT, fmt, args);
 	spin_unlock_irqrestore(&buf->lock, flags);

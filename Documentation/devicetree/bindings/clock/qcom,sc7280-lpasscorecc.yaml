@@ -20,6 +20,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,qcm6490-lpassaudiocc
       - qcom,sc7280-lpassaoncc
       - qcom,sc7280-lpassaudiocc
       - qcom,sc7280-lpasscorecc
@@ -68,7 +69,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: qcom,sc7280-lpassaudiocc
+            enum:
+              - qcom,qcm6490-lpassaudiocc
+              - qcom,sc7280-lpassaudiocc
 
     then:
       properties:

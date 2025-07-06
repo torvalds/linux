@@ -44,6 +44,10 @@ properties:
           - const: st,stm32h743
       - items:
           - enum:
+              - st,stm32h747i-disco
+          - const: st,stm32h747
+      - items:
+          - enum:
               - st,stm32h750i-art-pi
           - const: st,stm32h750
       - items:
@@ -182,6 +186,11 @@ properties:
         items:
           - const: phytec,phycore-stm32mp1-3
           - const: phytec,phycore-stm32mp157c-som
+          - const: st,stm32mp157
+
+      - description: Ultratronik STM32MP1 SBC based Boards
+        items:
+          - const: ultratronik,stm32mp157c-ultra-fly-sbc
           - const: st,stm32mp157
 
       - description: ST STM32MP257 based Boards

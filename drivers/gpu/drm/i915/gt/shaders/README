@@ -10,7 +10,7 @@ i915/gt/shaders/clear_kernel directory.
 
 The generated .c files should never be modified directly. Instead, any modification
 needs to be done on the on their respective ASM files and build instructions below
-needes to be followed.
+needs to be followed.
 
 Building
 ========
@@ -24,7 +24,7 @@ on building.
 Please make sure your Mesa tool is compiled with "-Dtools=intel" and
 "-Ddri-drivers=i965", and run this script from IGT source root directory"
 
-The instructions bellow assume:
+The instructions below assume:
     *  IGT gpu tools source code is located on your home directory (~) as ~/igt
     *  Mesa source code is located on your home directory (~) as ~/mesa
        and built under the ~/mesa/build directory

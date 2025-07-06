@@ -862,7 +862,7 @@ void asd_build_initiate_link_adm_task(struct asd_ascb *ascb, int phy_id,
  */
 void asd_ascb_timedout(struct timer_list *t)
 {
-	struct asd_ascb *ascb = from_timer(ascb, t, timer);
+	struct asd_ascb *ascb = timer_container_of(ascb, t, timer);
 	struct asd_seq_data *seq = &ascb->ha->seq;
 	unsigned long flags;
 

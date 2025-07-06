@@ -126,7 +126,7 @@ void bttv_input_irq(struct bttv *btv)
 
 static void bttv_input_timer(struct timer_list *t)
 {
-	struct bttv_ir *ir = from_timer(ir, t, timer);
+	struct bttv_ir *ir = timer_container_of(ir, t, timer);
 	struct bttv *btv = ir->btv;
 
 	if (btv->c.type == BTTV_BOARD_ENLTV_FM_2)
@@ -182,7 +182,7 @@ static u32 bttv_rc5_decode(unsigned int code)
 
 static void bttv_rc5_timer_end(struct timer_list *t)
 {
-	struct bttv_ir *ir = from_timer(ir, t, timer);
+	struct bttv_ir *ir = timer_container_of(ir, t, timer);
 	ktime_t tv;
 	u32 gap, rc5, scancode;
 	u8 toggle, command, system;
@@ -304,12 +304,12 @@ static void bttv_ir_start(struct bttv_ir *ir)
 static void bttv_ir_stop(struct bttv *btv)
 {
 	if (btv->remote->polling)
-		del_timer_sync(&btv->remote->timer);
+		timer_delete_sync(&btv->remote->timer);
 
 	if (btv->remote->rc5_gpio) {
 		u32 gpio;
 
-		del_timer_sync(&btv->remote->timer);
+		timer_delete_sync(&btv->remote->timer);
 
 		gpio = bttv_gpio_read(&btv->c);
 		bttv_gpio_write(&btv->c, gpio & ~(1 << 4));
