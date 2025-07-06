@@ -400,7 +400,6 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 		guard(mutex)(&tas_priv->codec_lock);
 		if (tas_priv->fw_state == TASDEVICE_DSP_FW_ALL_OK)
 			tasdevice_tuning_switch(tas_priv, 1);
-		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
 	}
 }
@@ -698,7 +697,6 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	tas2781_save_calibration(tas_hda);
 out:
 	release_firmware(fmw);
-	pm_runtime_mark_last_busy(tas_hda->priv->dev);
 	pm_runtime_put_autosuspend(tas_hda->priv->dev);
 }
 
@@ -731,7 +729,6 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	if (!ret)
 		comp->playback_hook = tas2781_hda_playback_hook;
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return ret;
@@ -816,7 +813,6 @@ static int tas2781_hda_spi_probe(struct spi_device *spi)
 
 	pm_runtime_set_autosuspend_delay(tas_priv->dev, 3000);
 	pm_runtime_use_autosuspend(tas_priv->dev);
-	pm_runtime_mark_last_busy(tas_priv->dev);
 	pm_runtime_set_active(tas_priv->dev);
 	pm_runtime_get_noresume(tas_priv->dev);
 	pm_runtime_enable(tas_priv->dev);
