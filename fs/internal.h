@@ -53,7 +53,7 @@ extern int finish_clean_context(struct fs_context *fc);
  * namei.c
  */
 extern int filename_lookup(int dfd, struct filename *name, unsigned flags,
-			   struct path *path, struct path *root);
+			   struct path *path, const struct path *root);
 int do_rmdir(int dfd, struct filename *name);
 int do_unlinkat(int dfd, struct filename *name);
 int may_linkat(struct mnt_idmap *idmap, const struct path *link);
