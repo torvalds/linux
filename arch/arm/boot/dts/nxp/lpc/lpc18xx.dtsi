@@ -115,8 +115,8 @@
 			compatible = "snps,dw-mshc";
 			reg = <0x40004000 0x1000>;
 			interrupts = <6>;
-			clocks = <&ccu2 CLK_SDIO>, <&ccu1 CLK_CPU_SDIO>;
-			clock-names = "ciu", "biu";
+			clocks = <&ccu1 CLK_CPU_SDIO>, <&ccu2 CLK_SDIO>;
+			clock-names = "biu", "ciu";
 			resets = <&rgu 20>;
 			status = "disabled";
 		};
