@@ -417,6 +417,12 @@ struct ast_crtc_state {
 
 int ast_mm_init(struct ast_device *ast);
 
+/* ast_2000.c */
+int ast_2000_post(struct ast_device *ast);
+
+/* ast_2100.c */
+int ast_2100_post(struct ast_device *ast);
+
 /* ast_2300.c */
 int ast_2300_post(struct ast_device *ast);
 
