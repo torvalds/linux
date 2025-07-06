@@ -333,6 +333,8 @@ static void ast_post_chip_2100(struct ast_device *ast)
 
 int ast_2100_post(struct ast_device *ast)
 {
+	ast_2000_set_def_ext_reg(ast);
+
 	if (ast->config_mode == ast_use_p2a) {
 		ast_post_chip_2100(ast);
 	} else {

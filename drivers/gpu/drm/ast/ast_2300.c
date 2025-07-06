@@ -35,6 +35,37 @@
  *  POST
  */
 
+void ast_2300_set_def_ext_reg(struct ast_device *ast)
+{
+	static const u8 extreginfo[] = { 0x0f, 0x04, 0x1f, 0xff };
+	u8 i, index, reg;
+	const u8 *ext_reg_info;
+
+	/* reset scratch */
+	for (i = 0x81; i <= 0x9f; i++)
+		ast_set_index_reg(ast, AST_IO_VGACRI, i, 0x00);
+
+	ext_reg_info = extreginfo;
+	index = 0xa0;
+	while (*ext_reg_info != 0xff) {
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, index, 0x00, *ext_reg_info);
+		index++;
+		ext_reg_info++;
+	}
+
+	/* disable standard IO/MEM decode if secondary */
+	/* ast_set_index_reg-mask(ast, AST_IO_VGACRI, 0xa1, 0xff, 0x3); */
+
+	/* Set Ext. Default */
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x8c, 0x00, 0x01);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb7, 0x00, 0x00);
+
+	/* Enable RAMDAC for A1 */
+	reg = 0x04;
+	reg |= 0x20;
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xff, reg);
+}
+
 /* AST 2300 DRAM settings */
 #define AST_DDR3 0
 #define AST_DDR2 1
@@ -1281,6 +1312,8 @@ static void ast_post_chip_2300(struct ast_device *ast)
 
 int ast_2300_post(struct ast_device *ast)
 {
+	ast_2300_set_def_ext_reg(ast);
+
 	if (ast->config_mode == ast_use_p2a) {
 		ast_post_chip_2300(ast);
 		ast_init_3rdtx(ast);

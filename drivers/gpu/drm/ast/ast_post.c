@@ -34,44 +34,6 @@
 #include "ast_drv.h"
 #include "ast_post.h"
 
-static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };
-static const u8 extreginfo_ast2300[] = { 0x0f, 0x04, 0x1f, 0xff };
-
-static void ast_set_def_ext_reg(struct ast_device *ast)
-{
-	u8 i, index, reg;
-	const u8 *ext_reg_info;
-
-	/* reset scratch */
-	for (i = 0x81; i <= 0x9f; i++)
-		ast_set_index_reg(ast, AST_IO_VGACRI, i, 0x00);
-
-	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast))
-		ext_reg_info = extreginfo_ast2300;
-	else
-		ext_reg_info = extreginfo;
-
-	index = 0xa0;
-	while (*ext_reg_info != 0xff) {
-		ast_set_index_reg_mask(ast, AST_IO_VGACRI, index, 0x00, *ext_reg_info);
-		index++;
-		ext_reg_info++;
-	}
-
-	/* disable standard IO/MEM decode if secondary */
-	/* ast_set_index_reg-mask(ast, AST_IO_VGACRI, 0xa1, 0xff, 0x3); */
-
-	/* Set Ext. Default */
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x8c, 0x00, 0x01);
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb7, 0x00, 0x00);
-
-	/* Enable RAMDAC for A1 */
-	reg = 0x04;
-	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast))
-		reg |= 0x20;
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xff, reg);
-}
-
 u32 __ast_mindwm(void __iomem *regs, u32 r)
 {
 	u32 data;
@@ -113,8 +75,6 @@ void ast_moutdwm(struct ast_device *ast, u32 r, u32 v)
 int ast_post_gpu(struct ast_device *ast)
 {
 	int ret;
-
-	ast_set_def_ext_reg(ast);
 
 	if (AST_GEN(ast) >= 7) {
 		ret = ast_2600_post(ast);

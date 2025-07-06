@@ -41,4 +41,13 @@ void __ast_moutdwm(void __iomem *regs, u32 r, u32 v);
 bool mmc_test(struct ast_device *ast, u32 datagen, u8 test_ctl);
 bool mmc_test_burst(struct ast_device *ast, u32 datagen);
 
+/* ast_2000.c */
+void ast_2000_set_def_ext_reg(struct ast_device *ast);
+
+/* ast_2300.c */
+void ast_2300_set_def_ext_reg(struct ast_device *ast);
+
+/* ast_2600.c */
+void ast_2600_set_def_ext_reg(struct ast_device *ast);
+
 #endif
