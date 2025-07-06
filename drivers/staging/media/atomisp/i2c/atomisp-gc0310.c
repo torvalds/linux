@@ -24,6 +24,17 @@
 #define GC0310_NATIVE_WIDTH			656
 #define GC0310_NATIVE_HEIGHT			496
 
+/*
+ * The actual PLL output rate is unknown, the datasheet
+ * says that the formula for the frame-time in pixels is:
+ * rowtime = win-width + hblank + sh-delay + 4
+ * frametime = rowtime * (win-height + vblank)
+ * Filling this in and multiplying by 30 fps gives:
+ * pixelrate = (660 + 178 + 42 + 4) * (498 + 27) * 30 = 13923000
+ */
+#define GC0310_PIXELRATE			13923000
+/* single lane, bus-format is 8 bpp, CSI-2 is double data rate */
+#define GC0310_LINK_FREQ			(GC0310_PIXELRATE * 8 / 2)
 #define GC0310_FPS				30
 #define GC0310_SKIP_FRAMES			3
 
@@ -76,6 +87,8 @@ struct gc0310_device {
 		struct v4l2_ctrl_handler handler;
 		struct v4l2_ctrl *exposure;
 		struct v4l2_ctrl *gain;
+		struct v4l2_ctrl *link_freq;
+		struct v4l2_ctrl *pixel_rate;
 	} ctrls;
 };
 
@@ -249,6 +262,10 @@ static const struct reg_sequence gc0310_VGA_30fps[] = {
 	{ 0x13, 0x02 }, /* 05 //05 //LWC[15:8] */
 
 	{ 0xfe, 0x00 },
+};
+
+static const s64 link_freq_menu_items[] = {
+	GC0310_LINK_FREQ,
 };
 
 static int gc0310_gain_set(struct gc0310_device *sensor, u32 gain)
@@ -546,7 +563,7 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 {
 	struct v4l2_ctrl_handler *hdl = &sensor->ctrls.handler;
 
-	v4l2_ctrl_handler_init(hdl, 2);
+	v4l2_ctrl_handler_init(hdl, 4);
 
 	/* Use the same lock for controls as for everything else */
 	hdl->lock = &sensor->input_lock;
@@ -559,7 +576,19 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 	sensor->ctrls.gain =
 		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_ANALOGUE_GAIN, 0, 95, 1, 31);
 
-	return hdl->error;
+	sensor->ctrls.link_freq =
+		v4l2_ctrl_new_int_menu(hdl, NULL, V4L2_CID_LINK_FREQ,
+				       0, 0, link_freq_menu_items);
+	sensor->ctrls.pixel_rate =
+		v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_PIXEL_RATE, 0,
+				  GC0310_PIXELRATE, 1, GC0310_PIXELRATE);
+
+	if (hdl->error)
+		return hdl->error;
+
+	sensor->ctrls.pixel_rate->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	sensor->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	return 0;
 }
 
 static void gc0310_remove(struct i2c_client *client)
