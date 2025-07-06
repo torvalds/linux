@@ -7,6 +7,12 @@
 
 struct ast_device;
 
+/* DRAM timing tables */
+struct ast_dramstruct {
+	u16 index;
+	u32 data;
+};
+
 u32 __ast_mindwm(void __iomem *regs, u32 r);
 void __ast_moutdwm(void __iomem *regs, u32 r, u32 v);
 

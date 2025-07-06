@@ -28,8 +28,8 @@
 
 #include <linux/delay.h>
 
-#include "ast_dram_tables.h"
 #include "ast_drv.h"
+#include "ast_post.h"
 
 /*
  * POST
