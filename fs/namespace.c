@@ -2334,9 +2334,9 @@ struct path *collect_paths(const struct path *path,
 	return res;
 }
 
-void drop_collected_paths(struct path *paths, struct path *prealloc)
+void drop_collected_paths(const struct path *paths, struct path *prealloc)
 {
-	for (struct path *p = paths; p->mnt; p++)
+	for (const struct path *p = paths; p->mnt; p++)
 		path_put(p);
 	if (paths != prealloc)
 		kfree(paths);
