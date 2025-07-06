@@ -107,6 +107,8 @@
 			interrupts = <30>;
 			clocks = <&ccu1 CLK_SPIFI>, <&ccu1 CLK_CPU_SPIFI>;
 			clock-names = "spifi", "reg";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			resets = <&rgu 53>;
 			status = "disabled";
 		};
