@@ -62,9 +62,22 @@
 #define GC0310_V_CROP_START_REG			CCI_REG16(0x0b)
 #define GC0310_H_OUTSIZE_REG			CCI_REG16(0x0f)
 #define GC0310_V_OUTSIZE_REG			CCI_REG16(0x0d)
+
 #define GC0310_H_BLANKING_REG			CCI_REG16(0x05)
+/* Hblank-register + sh-delay + H-crop + 4 (from hw) */
+#define GC0310_H_BLANK_DEFAULT			(178 + 42 + 4 + 4)
+
 #define GC0310_V_BLANKING_REG			CCI_REG16(0x07)
+/* Vblank needs an offset compensate for the small V-crop done */
+#define GC0310_V_BLANK_OFFSET			2
+/* Vsync start time + 1 row vsync + vsync end time + offset */
+#define GC0310_V_BLANK_MIN			(9 + 1 + 4 + GC0310_V_BLANK_OFFSET)
+#define GC0310_V_BLANK_DEFAULT			(27 + GC0310_V_BLANK_OFFSET)
+#define GC0310_V_BLANK_MAX			(4095 - GC0310_NATIVE_HEIGHT)
+
 #define GC0310_SH_DELAY_REG			CCI_REG8(0x11)
+#define GC0310_VS_START_TIME_REG		CCI_REG8(0x12)
+#define GC0310_VS_END_TIME_REG			CCI_REG8(0x13)
 
 #define to_gc0310_sensor(x) container_of(x, struct gc0310_device, sd)
 
@@ -89,6 +102,8 @@ struct gc0310_device {
 		struct v4l2_ctrl *gain;
 		struct v4l2_ctrl *link_freq;
 		struct v4l2_ctrl *pixel_rate;
+		struct v4l2_ctrl *vblank;
+		struct v4l2_ctrl *hblank;
 	} ctrls;
 };
 
@@ -147,8 +162,7 @@ static const struct reg_sequence gc0310_reset_register[] = {
 	{ 0x04, 0xc0 }, /* 0xe8 //58 */
 	{ 0x05, 0x00 },
 	{ 0x06, 0xb2 }, /* 0x0a //HB */
-	{ 0x07, 0x00 },
-	{ 0x08, 0x1b }, /* 0x89 //VB */
+	/* Vblank (reg 0x07 + 0x08) gets set by the vblank ctrl */
 	{ 0x09, 0x00 }, /* row start */
 	{ 0x0a, 0x00 },
 	{ 0x0b, 0x00 }, /* col start */
@@ -308,6 +322,11 @@ static int gc0310_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		ret = gc0310_gain_set(sensor, ctrl->val);
+		break;
+	case V4L2_CID_VBLANK:
+		ret = cci_write(sensor->regmap, GC0310_V_BLANKING_REG,
+				ctrl->val - GC0310_V_BLANK_OFFSET,
+				NULL);
 		break;
 	default:
 		ret = -EINVAL;
@@ -563,7 +582,7 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 {
 	struct v4l2_ctrl_handler *hdl = &sensor->ctrls.handler;
 
-	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_handler_init(hdl, 6);
 
 	/* Use the same lock for controls as for everything else */
 	hdl->lock = &sensor->input_lock;
@@ -583,11 +602,24 @@ static int gc0310_init_controls(struct gc0310_device *sensor)
 		v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_PIXEL_RATE, 0,
 				  GC0310_PIXELRATE, 1, GC0310_PIXELRATE);
 
+	sensor->ctrls.vblank =
+		v4l2_ctrl_new_std(hdl, &ctrl_ops, V4L2_CID_VBLANK,
+				  GC0310_V_BLANK_MIN,
+				  GC0310_V_BLANK_MAX, 1,
+				  GC0310_V_BLANK_DEFAULT);
+
+	sensor->ctrls.hblank =
+		v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_HBLANK,
+				  GC0310_H_BLANK_DEFAULT,
+				  GC0310_H_BLANK_DEFAULT, 1,
+				  GC0310_H_BLANK_DEFAULT);
+
 	if (hdl->error)
 		return hdl->error;
 
 	sensor->ctrls.pixel_rate->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	sensor->ctrls.link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	sensor->ctrls.hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	return 0;
 }
 
