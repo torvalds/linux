@@ -2,9 +2,6 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ "lmi-mainline-v6.14.0" ]
-  pull_request:
-    branches: [ "lmi-mainline-v6.14.0" ]
 
 jobs:
   build:
