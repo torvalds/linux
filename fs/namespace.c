@@ -4859,7 +4859,7 @@ static void mount_setattr_commit(struct mount_kattr *kattr, struct mount *mnt)
 	touch_mnt_namespace(mnt->mnt_ns);
 }
 
-static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
+static int do_mount_setattr(const struct path *path, struct mount_kattr *kattr)
 {
 	struct mount *mnt = real_mount(path->mnt);
 	int err = 0;
