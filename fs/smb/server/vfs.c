@@ -1856,7 +1856,7 @@ void ksmbd_vfs_posix_lock_unblock(struct file_lock *flock)
 }
 
 int ksmbd_vfs_set_init_posix_acl(struct mnt_idmap *idmap,
-				 struct path *path)
+				 const struct path *path)
 {
 	struct posix_acl_state acl_state;
 	struct posix_acl *acls;
