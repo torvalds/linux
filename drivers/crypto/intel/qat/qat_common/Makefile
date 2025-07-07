@@ -52,6 +52,7 @@ intel_qat-$(CONFIG_DEBUG_FS) += adf_cnv_dbgfs.o \
 				adf_heartbeat_dbgfs.o \
 				adf_heartbeat.o \
 				adf_pm_dbgfs.o \
+				adf_pm_dbgfs_utils.o \
 				adf_telemetry.o \
 				adf_tl_debugfs.o \
 				adf_transport_debug.o
