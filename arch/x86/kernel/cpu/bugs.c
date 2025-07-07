@@ -3123,14 +3123,19 @@ early_param("spec_rstack_overflow", srso_parse_cmdline);
 
 static void __init srso_select_mitigation(void)
 {
-	if (!boot_cpu_has_bug(X86_BUG_SRSO) || cpu_mitigations_off())
+	if (!boot_cpu_has_bug(X86_BUG_SRSO)) {
 		srso_mitigation = SRSO_MITIGATION_NONE;
-
-	if (srso_mitigation == SRSO_MITIGATION_NONE)
 		return;
+	}
 
-	if (srso_mitigation == SRSO_MITIGATION_AUTO)
-		srso_mitigation = SRSO_MITIGATION_SAFE_RET;
+	if (srso_mitigation == SRSO_MITIGATION_AUTO) {
+		if (should_mitigate_vuln(X86_BUG_SRSO)) {
+			srso_mitigation = SRSO_MITIGATION_SAFE_RET;
+		} else {
+			srso_mitigation = SRSO_MITIGATION_NONE;
+			return;
+		}
+	}
 
 	/* Zen1/2 with SMT off aren't vulnerable to SRSO. */
 	if (boot_cpu_data.x86 < 0x19 && !cpu_smt_possible()) {
