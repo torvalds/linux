@@ -656,6 +656,8 @@ struct lm_lockstruct {
 	struct completion ls_sync_wait; /* {control,mounted}_{lock,unlock} */
 	char *ls_lvb_bits;
 
+	struct rw_semaphore ls_sem;
+
 	spinlock_t ls_recover_spin; /* protects following fields */
 	unsigned long ls_recover_flags; /* DFL_ */
 	uint32_t ls_recover_mount; /* gen in first recover_done cb */

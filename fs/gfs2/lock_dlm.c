@@ -312,8 +312,13 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	 */
 
 again:
-	error = dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, strname,
-			GDLM_STRNAME_BYTES - 1, 0, gdlm_ast, gl, gdlm_bast);
+	down_read(&ls->ls_sem);
+	error = -ENODEV;
+	if (likely(ls->ls_dlm != NULL)) {
+		error = dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, strname,
+				GDLM_STRNAME_BYTES - 1, 0, gdlm_ast, gl, gdlm_bast);
+	}
+	up_read(&ls->ls_sem);
 	if (error == -EBUSY) {
 		msleep(20);
 		goto again;
@@ -362,8 +367,13 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 		flags |= DLM_LKF_VALBLK;
 
 again:
-	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, flags,
-			   NULL, gl);
+	down_read(&ls->ls_sem);
+	error = -ENODEV;
+	if (likely(ls->ls_dlm != NULL)) {
+		error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, flags,
+				   NULL, gl);
+	}
+	up_read(&ls->ls_sem);
 	if (error == -EBUSY) {
 		msleep(20);
 		goto again;
@@ -379,7 +389,12 @@ again:
 static void gdlm_cancel(struct gfs2_glock *gl)
 {
 	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
-	dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_CANCEL, NULL, gl);
+
+	down_read(&ls->ls_sem);
+	if (likely(ls->ls_dlm != NULL)) {
+		dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_CANCEL, NULL, gl);
+	}
+	up_read(&ls->ls_sem);
 }
 
 /*
@@ -560,7 +575,11 @@ static int sync_unlock(struct gfs2_sbd *sdp, struct dlm_lksb *lksb, char *name)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int error;
 
-	error = dlm_unlock(ls->ls_dlm, lksb->sb_lkid, 0, lksb, ls);
+	down_read(&ls->ls_sem);
+	error = -ENODEV;
+	if (likely(ls->ls_dlm != NULL))
+		error = dlm_unlock(ls->ls_dlm, lksb->sb_lkid, 0, lksb, ls);
+	up_read(&ls->ls_sem);
 	if (error) {
 		fs_err(sdp, "%s lkid %x error %d\n",
 		       name, lksb->sb_lkid, error);
@@ -587,9 +606,14 @@ static int sync_lock(struct gfs2_sbd *sdp, int mode, uint32_t flags,
 	memset(strname, 0, GDLM_STRNAME_BYTES);
 	snprintf(strname, GDLM_STRNAME_BYTES, "%8x%16x", LM_TYPE_NONDISK, num);
 
-	error = dlm_lock(ls->ls_dlm, mode, lksb, flags,
-			 strname, GDLM_STRNAME_BYTES - 1,
-			 0, sync_wait_cb, ls, NULL);
+	down_read(&ls->ls_sem);
+	error = -ENODEV;
+	if (likely(ls->ls_dlm != NULL)) {
+		error = dlm_lock(ls->ls_dlm, mode, lksb, flags,
+				 strname, GDLM_STRNAME_BYTES - 1,
+				 0, sync_wait_cb, ls, NULL);
+	}
+	up_read(&ls->ls_sem);
 	if (error) {
 		fs_err(sdp, "%s lkid %x flags %x mode %d error %d\n",
 		       name, lksb->sb_lkid, flags, mode, error);
@@ -1316,6 +1340,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 	 */
 
 	INIT_DELAYED_WORK(&sdp->sd_control_work, gfs2_control_func);
+	ls->ls_dlm = NULL;
 	spin_lock_init(&ls->ls_recover_spin);
 	ls->ls_recover_flags = 0;
 	ls->ls_recover_mount = 0;
@@ -1350,6 +1375,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 	 * create/join lockspace
 	 */
 
+	init_rwsem(&ls->ls_sem);
 	error = dlm_new_lockspace(fsname, cluster, flags, GDLM_LVB_SIZE,
 				  &gdlm_lockspace_ops, sdp, &ops_result,
 				  &ls->ls_dlm);
@@ -1429,10 +1455,12 @@ static void gdlm_unmount(struct gfs2_sbd *sdp)
 
 	/* mounted_lock and control_lock will be purged in dlm recovery */
 release:
+	down_write(&ls->ls_sem);
 	if (ls->ls_dlm) {
 		dlm_release_lockspace(ls->ls_dlm, 2);
 		ls->ls_dlm = NULL;
 	}
+	up_write(&ls->ls_sem);
 
 	free_recover_size(ls);
 }
