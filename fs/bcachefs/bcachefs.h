@@ -296,7 +296,6 @@ do {									\
 #define bch2_fmt(_c, fmt)		bch2_log_msg(_c, fmt "\n")
 
 void bch2_print_str(struct bch_fs *, const char *, const char *);
-void bch2_print_str_nonblocking(struct bch_fs *, const char *, const char *);
 
 __printf(2, 3)
 void bch2_print_opts(struct bch_opts *, const char *, ...);
