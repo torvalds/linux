@@ -189,6 +189,10 @@ void uvc_meta_init(struct uvc_device *dev)
 	    !WARN_ON(dev->info->meta_format == V4L2_META_FMT_UVC))
 		dev->meta_formats[i++] = dev->info->meta_format;
 
+	if (dev->quirks & UVC_QUIRK_MSXU_META &&
+	    !WARN_ON(dev->info->meta_format == V4L2_META_FMT_UVC_MSXU_1_5))
+		dev->meta_formats[i++] = V4L2_META_FMT_UVC_MSXU_1_5;
+
 	 /* IMPORTANT: for new meta-formats update UVC_MAX_META_DATA_FORMATS. */
 	dev->meta_formats[i++] = 0;
 }
