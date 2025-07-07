@@ -4,5 +4,5 @@
 *.dts[io] diff=dts
 *.rs diff=perl
 
-*.rs linguist-language=Perl linguist-detectable
-*.py linguist-language=Perl linguist-detectable
+*.rs linguist-language=Perl
+*.py linguist-language=Perl
