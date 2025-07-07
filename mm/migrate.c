@@ -2363,13 +2363,6 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
 		}
 
 		/*
-		 * The move_pages() man page does not have an -EEXIST choice, so
-		 * use -EFAULT instead.
-		 */
-		if (err == -EEXIST)
-			err = -EFAULT;
-
-		/*
 		 * If the page is already on the target node (!err), store the
 		 * node, otherwise, store the err.
 		 */
