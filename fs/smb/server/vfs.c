@@ -1306,7 +1306,7 @@ int ksmbd_vfs_kern_path_locked(struct ksmbd_work *work, char *filepath,
 				     caseless, true);
 }
 
-void ksmbd_vfs_kern_path_unlock(struct path *path)
+void ksmbd_vfs_kern_path_unlock(const struct path *path)
 {
 	/* While lock is still held, ->d_parent is safe */
 	inode_unlock(d_inode(path->dentry->d_parent));
