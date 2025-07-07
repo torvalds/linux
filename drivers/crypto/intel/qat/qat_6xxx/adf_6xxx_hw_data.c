@@ -532,8 +532,8 @@ static void set_vc_csr_for_bank(void __iomem *csr, u32 bank_number)
 	 * driver must program the ringmodectl CSRs.
 	 */
 	value = ADF_CSR_RD(csr, ADF_GEN6_CSR_RINGMODECTL(bank_number));
-	value |= FIELD_PREP(ADF_GEN6_RINGMODECTL_TC_MASK, ADF_GEN6_RINGMODECTL_TC_DEFAULT);
-	value |= FIELD_PREP(ADF_GEN6_RINGMODECTL_TC_EN_MASK, ADF_GEN6_RINGMODECTL_TC_EN_OP1);
+	FIELD_MODIFY(ADF_GEN6_RINGMODECTL_TC_MASK, &value, ADF_GEN6_RINGMODECTL_TC_DEFAULT);
+	FIELD_MODIFY(ADF_GEN6_RINGMODECTL_TC_EN_MASK, &value, ADF_GEN6_RINGMODECTL_TC_EN_OP1);
 	ADF_CSR_WR(csr, ADF_GEN6_CSR_RINGMODECTL(bank_number), value);
 }
 
@@ -549,7 +549,7 @@ static int set_vc_config(struct adf_accel_dev *accel_dev)
 	 * Read PVC0CTL then write the masked values.
 	 */
 	pci_read_config_dword(pdev, ADF_GEN6_PVC0CTL_OFFSET, &value);
-	value |= FIELD_PREP(ADF_GEN6_PVC0CTL_TCVCMAP_MASK, ADF_GEN6_PVC0CTL_TCVCMAP_DEFAULT);
+	FIELD_MODIFY(ADF_GEN6_PVC0CTL_TCVCMAP_MASK, &value, ADF_GEN6_PVC0CTL_TCVCMAP_DEFAULT);
 	err = pci_write_config_dword(pdev, ADF_GEN6_PVC0CTL_OFFSET, value);
 	if (err) {
 		dev_err(&GET_DEV(accel_dev), "pci write to PVC0CTL failed\n");
@@ -558,8 +558,8 @@ static int set_vc_config(struct adf_accel_dev *accel_dev)
 
 	/* Read PVC1CTL then write masked values */
 	pci_read_config_dword(pdev, ADF_GEN6_PVC1CTL_OFFSET, &value);
-	value |= FIELD_PREP(ADF_GEN6_PVC1CTL_TCVCMAP_MASK, ADF_GEN6_PVC1CTL_TCVCMAP_DEFAULT);
-	value |= FIELD_PREP(ADF_GEN6_PVC1CTL_VCEN_MASK, ADF_GEN6_PVC1CTL_VCEN_ON);
+	FIELD_MODIFY(ADF_GEN6_PVC1CTL_TCVCMAP_MASK, &value, ADF_GEN6_PVC1CTL_TCVCMAP_DEFAULT);
+	FIELD_MODIFY(ADF_GEN6_PVC1CTL_VCEN_MASK, &value, ADF_GEN6_PVC1CTL_VCEN_ON);
 	err = pci_write_config_dword(pdev, ADF_GEN6_PVC1CTL_OFFSET, value);
 	if (err)
 		dev_err(&GET_DEV(accel_dev), "pci write to PVC1CTL failed\n");
