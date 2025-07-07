@@ -1204,8 +1204,12 @@ static int vcn_v5_0_0_ring_reset(struct amdgpu_ring *ring,
 		return -EOPNOTSUPP;
 
 	drm_sched_wqueue_stop(&ring->sched);
-	vcn_v5_0_0_stop(vinst);
-	vcn_v5_0_0_start(vinst);
+	r = vcn_v5_0_0_stop(vinst);
+	if (r)
+		return r;
+	r = vcn_v5_0_0_start(vinst);
+	if (r)
+		return r;
 
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
