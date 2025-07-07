@@ -485,7 +485,8 @@ close_transfer:
 
 static void loongson2_mmc_dll_mode_init(struct loongson2_mmc_host *host)
 {
-	u32 val, pad_delay, delay, ret;
+	u32 val, pad_delay, delay;
+	int ret;
 
 	regmap_update_bits(host->regmap, LOONGSON2_MMC_REG_SEL,
 			   LOONGSON2_MMC_SEL_DATA, LOONGSON2_MMC_SEL_DATA);
