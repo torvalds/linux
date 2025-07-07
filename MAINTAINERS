@@ -17951,9 +17951,9 @@ L:	linux-clk@vger.kernel.org
 L:	imx@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/abelvesa/linux.git clk/imx
-F:	Documentation/devicetree/bindings/clock/imx*
+F:	Documentation/devicetree/bindings/clock/*imx*
 F:	drivers/clk/imx/
-F:	include/dt-bindings/clock/imx*
+F:	include/dt-bindings/clock/*imx*
 
 NXP PF8100/PF8121A/PF8200 PMIC REGULATOR DEVICE DRIVER
 M:	Jagan Teki <jagan@amarulasolutions.com>
