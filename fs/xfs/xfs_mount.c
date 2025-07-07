@@ -699,7 +699,7 @@ xfs_calc_group_awu_max(
 
 	if (g->blocks == 0)
 		return 0;
-	if (btp && btp->bt_bdev_awu_min > 0)
+	if (btp && btp->bt_awu_min > 0)
 		return max_pow_of_two_factor(g->blocks);
 	return rounddown_pow_of_two(g->blocks);
 }
