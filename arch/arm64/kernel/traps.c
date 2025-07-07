@@ -1100,30 +1100,3 @@ int ubsan_brk_handler(struct pt_regs *regs, unsigned long esr)
 	return DBG_HOOK_HANDLED;
 }
 #endif
-
-/*
- * Initial handler for AArch64 BRK exceptions
- * This handler only used until debug_traps_init().
- */
-int __init early_brk64(unsigned long addr, unsigned long esr,
-		struct pt_regs *regs)
-{
-#ifdef CONFIG_CFI_CLANG
-	if (esr_is_cfi_brk(esr))
-		return cfi_brk_handler(regs, esr) != DBG_HOOK_HANDLED;
-#endif
-#ifdef CONFIG_KASAN_SW_TAGS
-	if ((esr_brk_comment(esr) & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
-		return kasan_brk_handler(regs, esr) != DBG_HOOK_HANDLED;
-#endif
-#ifdef CONFIG_UBSAN_TRAP
-	if (esr_is_ubsan_brk(esr))
-		return ubsan_brk_handler(regs, esr) != DBG_HOOK_HANDLED;
-#endif
-	return bug_brk_handler(regs, esr) != DBG_HOOK_HANDLED;
-}
-
-void __init trap_init(void)
-{
-	debug_traps_init();
-}

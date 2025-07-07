@@ -316,9 +316,6 @@ bool try_handle_aarch32_break(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(try_handle_aarch32_break);
 
-void __init debug_traps_init(void)
-{}
-
 /* Re-enable single step for syscall restarting. */
 void user_rewind_single_step(struct task_struct *task)
 {
