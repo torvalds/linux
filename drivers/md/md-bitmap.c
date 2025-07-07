@@ -232,20 +232,27 @@ static inline char *bmname(struct bitmap *bitmap)
 	return bitmap->mddev ? mdname(bitmap->mddev) : "mdX";
 }
 
-static bool __bitmap_enabled(struct bitmap *bitmap)
+static bool __bitmap_enabled(struct bitmap *bitmap, bool flush)
 {
-	return bitmap->storage.filemap &&
-	       !test_bit(BITMAP_STALE, &bitmap->flags);
+	if (!flush)
+		return true;
+
+	/*
+	 * If caller want to flush bitmap pages to underlying disks, check if
+	 * there are cached pages in filemap.
+	 */
+	return !test_bit(BITMAP_STALE, &bitmap->flags) &&
+	       bitmap->storage.filemap != NULL;
 }
 
-static bool bitmap_enabled(struct mddev *mddev)
+static bool bitmap_enabled(struct mddev *mddev, bool flush)
 {
 	struct bitmap *bitmap = mddev->bitmap;
 
 	if (!bitmap)
 		return false;
 
-	return __bitmap_enabled(bitmap);
+	return __bitmap_enabled(bitmap, flush);
 }
 
 /*
@@ -1244,7 +1251,7 @@ static void __bitmap_unplug(struct bitmap *bitmap)
 	int dirty, need_write;
 	int writing = 0;
 
-	if (!__bitmap_enabled(bitmap))
+	if (!__bitmap_enabled(bitmap, true))
 		return;
 
 	/* look at each page to see if there are any set bits that need to be
