@@ -75,15 +75,21 @@ struct io_sr_msg {
 	u16				flags;
 	/* initialised and used only by !msg send variants */
 	u16				buf_group;
-	unsigned short			retry_flags;
 	void __user			*msg_control;
 	/* used only for send zerocopy */
 	struct io_kiocb 		*notif;
 };
 
+/*
+ * The UAPI flags are the lower 8 bits, as that's all sqe->ioprio will hold
+ * anyway. Use the upper 8 bits for internal uses.
+ */
 enum sr_retry_flags {
-	IO_SR_MSG_RETRY		= 1,
-	IO_SR_MSG_PARTIAL_MAP	= 2,
+	IORING_RECV_RETRY	= (1U << 15),
+	IORING_RECV_PARTIAL_MAP	= (1U << 14),
+
+	IORING_RECV_RETRY_CLEAR	= IORING_RECV_RETRY | IORING_RECV_PARTIAL_MAP,
+	IORING_RECV_NO_RETRY	= IORING_RECV_RETRY | IORING_RECV_PARTIAL_MAP,
 };
 
 /*
@@ -192,7 +198,7 @@ static inline void io_mshot_prep_retry(struct io_kiocb *req,
 
 	req->flags &= ~REQ_F_BL_EMPTY;
 	sr->done_io = 0;
-	sr->retry_flags = 0;
+	sr->flags &= ~IORING_RECV_RETRY_CLEAR;
 	sr->len = 0; /* get from the provided buffer */
 }
 
@@ -402,7 +408,6 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 
 	sr->done_io = 0;
-	sr->retry_flags = 0;
 	sr->len = READ_ONCE(sqe->len);
 	sr->flags = READ_ONCE(sqe->ioprio);
 	if (sr->flags & ~SENDMSG_FLAGS)
@@ -756,7 +761,6 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 
 	sr->done_io = 0;
-	sr->retry_flags = 0;
 
 	if (unlikely(sqe->file_index || sqe->addr2))
 		return -EINVAL;
@@ -828,7 +832,7 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 
 		cflags |= io_put_kbufs(req, this_ret, io_bundle_nbufs(kmsg, this_ret),
 				      issue_flags);
-		if (sr->retry_flags & IO_SR_MSG_RETRY)
+		if (sr->flags & IORING_RECV_RETRY)
 			cflags = req->cqe.flags | (cflags & CQE_F_MASK);
 		/* bundle with no more immediate buffers, we're done */
 		if (req->flags & REQ_F_BL_EMPTY)
@@ -837,12 +841,13 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		 * If more is available AND it was a full transfer, retry and
 		 * append to this one
 		 */
-		if (!sr->retry_flags && kmsg->msg.msg_inq > 1 && this_ret > 0 &&
+		if (!(sr->flags & IORING_RECV_NO_RETRY) &&
+		    kmsg->msg.msg_inq > 1 && this_ret > 0 &&
 		    !iov_iter_count(&kmsg->msg.msg_iter)) {
 			req->cqe.flags = cflags & ~CQE_F_MASK;
 			sr->len = kmsg->msg.msg_inq;
 			sr->done_io += this_ret;
-			sr->retry_flags |= IO_SR_MSG_RETRY;
+			sr->flags |= IORING_RECV_RETRY;
 			return false;
 		}
 	} else {
@@ -1088,7 +1093,7 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 			req->flags |= REQ_F_NEED_CLEANUP;
 		}
 		if (arg.partial_map)
-			sr->retry_flags |= IO_SR_MSG_PARTIAL_MAP;
+			sr->flags |= IORING_RECV_PARTIAL_MAP;
 
 		/* special case 1 vec, can be a fast path */
 		if (ret == 1) {
@@ -1283,7 +1288,6 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	int ret;
 
 	zc->done_io = 0;
-	zc->retry_flags = 0;
 
 	if (unlikely(READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3)))
 		return -EINVAL;
