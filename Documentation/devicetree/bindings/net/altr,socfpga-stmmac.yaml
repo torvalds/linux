@@ -59,6 +59,7 @@ properties:
       - const: ptp_ref
 
   iommus:
+    minItems: 1
     maxItems: 2
 
   phy-mode:
