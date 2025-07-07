@@ -5,6 +5,37 @@
 #include "bpf_misc.h"
 #include "../test_kmods/bpf_testmod_kfunc.h"
 
+SEC("tp_btf/sys_enter")
+__success
+__log_level(2)
+__msg("r8 = *(u64 *)(r7 +0)          ; R7_w=ptr_nameidata(off={{[0-9]+}}) R8_w=rdonly_untrusted_mem(sz=0)")
+__msg("r9 = *(u8 *)(r8 +0)           ; R8_w=rdonly_untrusted_mem(sz=0) R9_w=scalar")
+int btf_id_to_ptr_mem(void *ctx)
+{
+	struct task_struct *task;
+	struct nameidata *idata;
+	u64 ret, off;
+
+	task = bpf_get_current_task_btf();
+	idata = task->nameidata;
+	off = bpf_core_field_offset(struct nameidata, pathname);
+	/*
+	 * asm block to have reliable match target for __msg, equivalent of:
+	 *   ret = task->nameidata->pathname[0];
+	 */
+	asm volatile (
+	"r7 = %[idata];"
+	"r7 += %[off];"
+	"r8 = *(u64 *)(r7 + 0);"
+	"r9 = *(u8 *)(r8 + 0);"
+	"%[ret] = r9;"
+	: [ret]"=r"(ret)
+	: [idata]"r"(idata),
+	  [off]"r"(off)
+	: "r7", "r8", "r9");
+	return ret;
+}
+
 SEC("socket")
 __success
 __retval(0)

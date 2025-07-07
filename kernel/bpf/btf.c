@@ -891,6 +891,12 @@ bool btf_type_is_i64(const struct btf_type *t)
 	return btf_type_is_int(t) && __btf_type_int_is_regular(t, 8);
 }
 
+bool btf_type_is_primitive(const struct btf_type *t)
+{
+	return (btf_type_is_int(t) && btf_type_int_is_regular(t)) ||
+	       btf_is_any_enum(t);
+}
+
 /*
  * Check that given struct member is a regular int with expected
  * offset and size.
@@ -6915,6 +6921,7 @@ enum bpf_struct_walk_result {
 	/* < 0 error */
 	WALK_SCALAR = 0,
 	WALK_PTR,
+	WALK_PTR_UNTRUSTED,
 	WALK_STRUCT,
 };
 
@@ -7156,6 +7163,8 @@ error:
 					*field_name = mname;
 				return WALK_PTR;
 			}
+
+			return WALK_PTR_UNTRUSTED;
 		}
 
 		/* Allow more flexible access within an int as long as
@@ -7228,6 +7237,9 @@ int btf_struct_access(struct bpf_verifier_log *log,
 			*next_btf_id = id;
 			*flag = tmp_flag;
 			return PTR_TO_BTF_ID;
+		case WALK_PTR_UNTRUSTED:
+			*flag = MEM_RDONLY | PTR_UNTRUSTED;
+			return PTR_TO_MEM;
 		case WALK_SCALAR:
 			return SCALAR_VALUE;
 		case WALK_STRUCT:
@@ -7640,11 +7652,12 @@ cand_cache_unlock:
 }
 
 enum btf_arg_tag {
-	ARG_TAG_CTX	 = BIT_ULL(0),
-	ARG_TAG_NONNULL  = BIT_ULL(1),
-	ARG_TAG_TRUSTED  = BIT_ULL(2),
-	ARG_TAG_NULLABLE = BIT_ULL(3),
-	ARG_TAG_ARENA	 = BIT_ULL(4),
+	ARG_TAG_CTX	  = BIT_ULL(0),
+	ARG_TAG_NONNULL   = BIT_ULL(1),
+	ARG_TAG_TRUSTED   = BIT_ULL(2),
+	ARG_TAG_UNTRUSTED = BIT_ULL(3),
+	ARG_TAG_NULLABLE  = BIT_ULL(4),
+	ARG_TAG_ARENA	  = BIT_ULL(5),
 };
 
 /* Process BTF of a function to produce high-level expectation of function
@@ -7752,6 +7765,8 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 				tags |= ARG_TAG_CTX;
 			} else if (strcmp(tag, "trusted") == 0) {
 				tags |= ARG_TAG_TRUSTED;
+			} else if (strcmp(tag, "untrusted") == 0) {
+				tags |= ARG_TAG_UNTRUSTED;
 			} else if (strcmp(tag, "nonnull") == 0) {
 				tags |= ARG_TAG_NONNULL;
 			} else if (strcmp(tag, "nullable") == 0) {
@@ -7809,6 +7824,38 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 			sub->args[i].arg_type = ARG_PTR_TO_BTF_ID | PTR_TRUSTED;
 			if (tags & ARG_TAG_NULLABLE)
 				sub->args[i].arg_type |= PTR_MAYBE_NULL;
+			sub->args[i].btf_id = kern_type_id;
+			continue;
+		}
+		if (tags & ARG_TAG_UNTRUSTED) {
+			struct btf *vmlinux_btf;
+			int kern_type_id;
+
+			if (tags & ~ARG_TAG_UNTRUSTED) {
+				bpf_log(log, "arg#%d untrusted cannot be combined with any other tags\n", i);
+				return -EINVAL;
+			}
+
+			ref_t = btf_type_skip_modifiers(btf, t->type, NULL);
+			if (btf_type_is_void(ref_t) || btf_type_is_primitive(ref_t)) {
+				sub->args[i].arg_type = ARG_PTR_TO_MEM | MEM_RDONLY | PTR_UNTRUSTED;
+				sub->args[i].mem_size = 0;
+				continue;
+			}
+
+			kern_type_id = btf_get_ptr_to_btf_id(log, i, btf, t);
+			if (kern_type_id < 0)
+				return kern_type_id;
+
+			vmlinux_btf = bpf_get_btf_vmlinux();
+			ref_t = btf_type_by_id(vmlinux_btf, kern_type_id);
+			if (!btf_type_is_struct(ref_t)) {
+				tname = __btf_name_by_offset(vmlinux_btf, t->name_off);
+				bpf_log(log, "arg#%d has type %s '%s', but only struct or primitive types are allowed\n",
+					i, btf_type_str(ref_t), tname);
+				return -EINVAL;
+			}
+			sub->args[i].arg_type = ARG_PTR_TO_BTF_ID | PTR_UNTRUSTED;
 			sub->args[i].btf_id = kern_type_id;
 			continue;
 		}
