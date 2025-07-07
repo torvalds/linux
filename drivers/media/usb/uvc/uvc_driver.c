@@ -2293,6 +2293,8 @@ static int uvc_probe(struct usb_interface *intf,
 		goto error;
 	}
 
+	uvc_meta_init(dev);
+
 	if (dev->quirks & UVC_QUIRK_NO_RESET_RESUME)
 		udev->quirks &= ~USB_QUIRK_RESET_RESUME;
 
