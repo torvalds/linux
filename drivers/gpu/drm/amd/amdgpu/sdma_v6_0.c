@@ -1355,7 +1355,8 @@ static int sdma_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(6, 0, 0):
 	case IP_VERSION(6, 0, 2):
 	case IP_VERSION(6, 0, 3):
-		if (adev->sdma.instance[0].fw_version >= 21)
+		if ((adev->sdma.instance[0].fw_version >= 21) &&
+		    !amdgpu_sriov_vf(adev))
 			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 		break;
 	default:
@@ -1575,18 +1576,13 @@ static int sdma_v6_0_reset_queue(struct amdgpu_ring *ring,
 				 struct amdgpu_fence *timedout_fence)
 {
 	struct amdgpu_device *adev = ring->adev;
-	int i, r;
+	int r;
 
-	if (amdgpu_sriov_vf(adev))
-		return -EINVAL;
+	if (!(adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+		return -EOPNOTSUPP;
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		if (ring == &adev->sdma.instance[i].ring)
-			break;
-	}
-
-	if (i == adev->sdma.num_instances) {
-		DRM_ERROR("sdma instance not found\n");
+	if (ring->me >= adev->sdma.num_instances) {
+		dev_err(adev->dev, "sdma instance not found\n");
 		return -EINVAL;
 	}
 
@@ -1596,7 +1592,7 @@ static int sdma_v6_0_reset_queue(struct amdgpu_ring *ring,
 	if (r)
 		return r;
 
-	r = sdma_v6_0_gfx_resume_instance(adev, i, true);
+	r = sdma_v6_0_gfx_resume_instance(adev, ring->me, true);
 	if (r)
 		return r;
 	amdgpu_fence_driver_force_completion(ring);

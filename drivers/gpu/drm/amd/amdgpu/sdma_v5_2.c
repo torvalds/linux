@@ -1347,11 +1347,13 @@ static int sdma_v5_2_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(5, 2, 2):
 	case IP_VERSION(5, 2, 3):
 	case IP_VERSION(5, 2, 4):
-		if (adev->sdma.instance[0].fw_version >= 76)
+		if ((adev->sdma.instance[0].fw_version >= 76) &&
+		    !amdgpu_sriov_vf(adev))
 			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 		break;
 	case IP_VERSION(5, 2, 5):
-		if (adev->sdma.instance[0].fw_version >= 34)
+		if ((adev->sdma.instance[0].fw_version >= 34) &&
+		    !amdgpu_sriov_vf(adev))
 			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 		break;
 	default:
@@ -1457,11 +1459,18 @@ static int sdma_v5_2_reset_queue(struct amdgpu_ring *ring,
 				 struct amdgpu_fence *timedout_fence)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 inst_id = ring->me;
 	int r;
 
+	if (!(adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+		return -EOPNOTSUPP;
+
+	if (ring->me >= adev->sdma.num_instances) {
+		dev_err(adev->dev, "sdma instance not found\n");
+		return -EINVAL;
+	}
+
 	amdgpu_amdkfd_suspend(adev, true);
-	r = amdgpu_sdma_reset_engine(adev, inst_id, false);
+	r = amdgpu_sdma_reset_engine(adev, ring->me, false);
 	amdgpu_amdkfd_resume(adev, true);
 
 	return r;
