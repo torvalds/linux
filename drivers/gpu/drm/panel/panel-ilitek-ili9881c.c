@@ -1509,6 +1509,12 @@ static int ili9881c_prepare(struct drm_panel *panel)
 	if (ret)
 		goto disable_power;
 
+	msleep(120);
+
+	ret = mipi_dsi_dcs_set_display_on(ctx->dsi);
+	if (ret)
+		goto disable_power;
+
 	return 0;
 
 disable_power:
@@ -1516,28 +1522,11 @@ disable_power:
 	return ret;
 }
 
-static int ili9881c_enable(struct drm_panel *panel)
-{
-	struct ili9881c *ctx = panel_to_ili9881c(panel);
-
-	msleep(120);
-
-	mipi_dsi_dcs_set_display_on(ctx->dsi);
-
-	return 0;
-}
-
-static int ili9881c_disable(struct drm_panel *panel)
-{
-	struct ili9881c *ctx = panel_to_ili9881c(panel);
-
-	return mipi_dsi_dcs_set_display_off(ctx->dsi);
-}
-
 static int ili9881c_unprepare(struct drm_panel *panel)
 {
 	struct ili9881c *ctx = panel_to_ili9881c(panel);
 
+	mipi_dsi_dcs_set_display_off(ctx->dsi);
 	mipi_dsi_dcs_enter_sleep_mode(ctx->dsi);
 	regulator_disable(ctx->power);
 	gpiod_set_value_cansleep(ctx->reset, 1);
@@ -1710,8 +1699,6 @@ static enum drm_panel_orientation ili9881c_get_orientation(struct drm_panel *pan
 static const struct drm_panel_funcs ili9881c_funcs = {
 	.prepare	= ili9881c_prepare,
 	.unprepare	= ili9881c_unprepare,
-	.enable		= ili9881c_enable,
-	.disable	= ili9881c_disable,
 	.get_modes	= ili9881c_get_modes,
 	.get_orientation = ili9881c_get_orientation,
 };
