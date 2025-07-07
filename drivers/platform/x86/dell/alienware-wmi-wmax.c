@@ -233,6 +233,7 @@ static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 		},
 		.driver_data = &g_series_quirks,
 	},
+	{}
 };
 
 enum AWCC_GET_FAN_SENSORS_OPERATIONS {
