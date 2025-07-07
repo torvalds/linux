@@ -2360,6 +2360,47 @@ static int mpage_map_one_extent(handle_t *handle, struct mpage_da_data *mpd)
 }
 
 /*
+ * This is used to submit mapped buffers in a single folio that is not fully
+ * mapped for various reasons, such as insufficient space or journal credits.
+ */
+static int mpage_submit_partial_folio(struct mpage_da_data *mpd)
+{
+	struct inode *inode = mpd->inode;
+	struct folio *folio;
+	loff_t pos;
+	int ret;
+
+	folio = filemap_get_folio(inode->i_mapping,
+				  mpd->start_pos >> PAGE_SHIFT);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	/*
+	 * The mapped position should be within the current processing folio
+	 * but must not be the folio start position.
+	 */
+	pos = ((loff_t)mpd->map.m_lblk) << inode->i_blkbits;
+	if (WARN_ON_ONCE((folio_pos(folio) == pos) ||
+			 !folio_contains(folio, pos >> PAGE_SHIFT)))
+		return -EINVAL;
+
+	ret = mpage_submit_folio(mpd, folio);
+	if (ret)
+		goto out;
+	/*
+	 * Update start_pos to prevent this folio from being released in
+	 * mpage_release_unused_pages(), it will be reset to the aligned folio
+	 * pos when this folio is written again in the next round. Additionally,
+	 * do not update wbc->nr_to_write here, as it will be updated once the
+	 * entire folio has finished processing.
+	 */
+	mpd->start_pos = pos;
+out:
+	folio_unlock(folio);
+	folio_put(folio);
+	return ret;
+}
+
+/*
  * mpage_map_and_submit_extent - map extent starting at mpd->lblk of length
  *				 mpd->len and submit pages underlying it for IO
  *
@@ -2409,8 +2450,16 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 			 */
 			if ((err == -ENOMEM) ||
 			    (err == -ENOSPC && ext4_count_free_clusters(sb))) {
-				if (progress)
+				/*
+				 * We may have already allocated extents for
+				 * some bhs inside the folio, issue the
+				 * corresponding data to prevent stale data.
+				 */
+				if (progress) {
+					if (mpage_submit_partial_folio(mpd))
+						goto invalidate_dirty_pages;
 					goto update_disksize;
+				}
 				return err;
 			}
 			ext4_msg(sb, KERN_CRIT,
