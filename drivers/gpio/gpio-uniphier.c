@@ -138,14 +138,16 @@ static int uniphier_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return uniphier_gpio_offset_read(chip, offset, UNIPHIER_GPIO_PORT_DATA);
 }
 
-static void uniphier_gpio_set(struct gpio_chip *chip,
-			      unsigned int offset, int val)
+static int uniphier_gpio_set(struct gpio_chip *chip,
+			     unsigned int offset, int val)
 {
 	uniphier_gpio_offset_write(chip, offset, UNIPHIER_GPIO_PORT_DATA, val);
+
+	return 0;
 }
 
-static void uniphier_gpio_set_multiple(struct gpio_chip *chip,
-				       unsigned long *mask, unsigned long *bits)
+static int uniphier_gpio_set_multiple(struct gpio_chip *chip,
+				      unsigned long *mask, unsigned long *bits)
 {
 	unsigned long i, bank, bank_mask, bank_bits;
 
@@ -156,6 +158,8 @@ static void uniphier_gpio_set_multiple(struct gpio_chip *chip,
 		uniphier_gpio_bank_write(chip, bank, UNIPHIER_GPIO_PORT_DATA,
 					 bank_mask, bank_bits);
 	}
+
+	return 0;
 }
 
 static int uniphier_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
@@ -382,8 +386,8 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 	chip->direction_input = uniphier_gpio_direction_input;
 	chip->direction_output = uniphier_gpio_direction_output;
 	chip->get = uniphier_gpio_get;
-	chip->set = uniphier_gpio_set;
-	chip->set_multiple = uniphier_gpio_set_multiple;
+	chip->set_rv = uniphier_gpio_set;
+	chip->set_multiple_rv = uniphier_gpio_set_multiple;
 	chip->to_irq = uniphier_gpio_to_irq;
 	chip->base = -1;
 	chip->ngpio = ngpios;
