@@ -48,5 +48,8 @@ int sdca_asoc_set_constraints(struct device *dev, struct regmap *regmap,
 			      struct snd_soc_dai *dai);
 void sdca_asoc_free_constraints(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai);
+int sdca_asoc_get_port(struct device *dev, struct regmap *regmap,
+		       struct sdca_function_data *function,
+		       struct snd_soc_dai *dai);
 
 #endif // __SDCA_ASOC_H__

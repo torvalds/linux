@@ -19,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/string_helpers.h>
+#include <linux/types.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/sdca.h>
@@ -1368,3 +1369,77 @@ void sdca_asoc_free_constraints(struct snd_pcm_substream *substream,
 	kfree(constraint);
 }
 EXPORT_SYMBOL_NS(sdca_asoc_free_constraints, "SND_SOC_SDCA");
+
+/**
+ * sdca_asoc_get_port - return SoundWire port for a DAI
+ * @dev: Pointer to the device, used for error messages.
+ * @regmap: Pointer to the Function register map.
+ * @function: Pointer to the Function information.
+ * @dai: Pointer to the ASoC DAI.
+ *
+ * Typically called from hw_params().
+ *
+ * Return: Returns a positive port number on success, and a negative error
+ * code on failure.
+ */
+int sdca_asoc_get_port(struct device *dev, struct regmap *regmap,
+		       struct sdca_function_data *function,
+		       struct snd_soc_dai *dai)
+{
+	struct sdca_entity *entity = &function->entities[dai->id];
+	struct sdca_control_range *range;
+	unsigned int reg, val;
+	int sel = -EINVAL;
+	int i, ret;
+
+	switch (entity->type) {
+	case SDCA_ENTITY_TYPE_IT:
+		sel = SDCA_CTL_IT_DATAPORT_SELECTOR;
+		break;
+	case SDCA_ENTITY_TYPE_OT:
+		sel = SDCA_CTL_OT_DATAPORT_SELECTOR;
+		break;
+	default:
+		break;
+	}
+
+	if (sel < 0 || !entity->iot.is_dataport) {
+		dev_err(dev, "%s: port number only available for dataports\n",
+			entity->label);
+		return -EINVAL;
+	}
+
+	range = sdca_selector_find_range(dev, entity, sel, SDCA_DATAPORT_SELECTOR_NCOLS,
+					 SDCA_DATAPORT_SELECTOR_NROWS);
+	if (!range)
+		return -EINVAL;
+
+	reg = SDW_SDCA_CTL(function->desc->adr, entity->id, sel, 0);
+
+	ret = regmap_read(regmap, reg, &val);
+	if (ret) {
+		dev_err(dev, "%s: failed to read dataport selector: %d\n",
+			entity->label, ret);
+		return ret;
+	}
+
+	for (i = 0; i < range->rows; i++) {
+		static const u8 port_mask = 0xF;
+
+		sel = sdca_range(range, val & port_mask, i);
+
+		/*
+		 * FIXME: Currently only a single dataport is supported, so
+		 * return the first one found, technically up to 4 dataports
+		 * could be linked, but this is not yet supported.
+		 */
+		if (sel != 0xFF)
+			return sel;
+
+		val >>= hweight8(port_mask);
+	}
+
+	dev_err(dev, "%s: no dataport found\n", entity->label);
+	return -ENODEV;
+}
+EXPORT_SYMBOL_NS(sdca_asoc_get_port, "SND_SOC_SDCA");

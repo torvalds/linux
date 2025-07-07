@@ -186,6 +186,14 @@ enum sdca_usage_range {
 };
 
 /**
+ * enum sdca_dataport_selector_range - Column definitions for DataPort_Selector
+ */
+enum sdca_dataport_selector_range {
+	SDCA_DATAPORT_SELECTOR_NCOLS			= 16,
+	SDCA_DATAPORT_SELECTOR_NROWS			= 4,
+};
+
+/**
  * enum sdca_mu_controls - SDCA Controls for Mixer Unit
  *
  * Control Selectors for Mixer Unit from SDCA specification v1.0
