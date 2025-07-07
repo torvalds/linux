@@ -37,13 +37,6 @@ static int twl6040gpo_get_direction(struct gpio_chip *chip, unsigned offset)
 	return GPIO_LINE_DIRECTION_OUT;
 }
 
-static int twl6040gpo_direction_out(struct gpio_chip *chip, unsigned offset,
-				    int value)
-{
-	/* This only drives GPOs, and can't change direction */
-	return 0;
-}
-
 static int twl6040gpo_set(struct gpio_chip *chip, unsigned int offset,
 			  int value)
 {
@@ -61,6 +54,13 @@ static int twl6040gpo_set(struct gpio_chip *chip, unsigned int offset,
 		gpoctl = ret & ~BIT(offset);
 
 	return twl6040_reg_write(twl6040, TWL6040_REG_GPOCTL, gpoctl);
+}
+
+static int twl6040gpo_direction_out(struct gpio_chip *chip, unsigned int offset,
+				    int value)
+{
+	/* This only drives GPOs, and can't change direction */
+	return twl6040gpo_set(chip, offset, value);
 }
 
 static struct gpio_chip twl6040gpo_chip = {
