@@ -1518,13 +1518,17 @@ early_param("indirect_target_selection", its_parse_cmdline);
 
 static void __init its_select_mitigation(void)
 {
-	if (!boot_cpu_has_bug(X86_BUG_ITS) || cpu_mitigations_off()) {
+	if (!boot_cpu_has_bug(X86_BUG_ITS)) {
 		its_mitigation = ITS_MITIGATION_OFF;
 		return;
 	}
 
-	if (its_mitigation == ITS_MITIGATION_AUTO)
-		its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
+	if (its_mitigation == ITS_MITIGATION_AUTO) {
+		if (should_mitigate_vuln(X86_BUG_ITS))
+			its_mitigation = ITS_MITIGATION_ALIGNED_THUNKS;
+		else
+			its_mitigation = ITS_MITIGATION_OFF;
+	}
 
 	if (its_mitigation == ITS_MITIGATION_OFF)
 		return;
@@ -1555,12 +1559,13 @@ static void __init its_select_mitigation(void)
 
 static void __init its_update_mitigation(void)
 {
-	if (!boot_cpu_has_bug(X86_BUG_ITS) || cpu_mitigations_off())
+	if (!boot_cpu_has_bug(X86_BUG_ITS))
 		return;
 
 	switch (spectre_v2_enabled) {
 	case SPECTRE_V2_NONE:
-		pr_err("WARNING: Spectre-v2 mitigation is off, disabling ITS\n");
+		if (its_mitigation != ITS_MITIGATION_OFF)
+			pr_err("WARNING: Spectre-v2 mitigation is off, disabling ITS\n");
 		its_mitigation = ITS_MITIGATION_OFF;
 		break;
 	case SPECTRE_V2_RETPOLINE:
