@@ -2321,6 +2321,7 @@ Description:
 		* "sinc3+pf3" - Sinc3 + device specific Post Filter 3.
 		* "sinc3+pf4" - Sinc3 + device specific Post Filter 4.
 		* "sinc5+pf1" - Sinc5 + device specific Post Filter 1.
+		* "sinc5+avg" - Sinc5 + averaging by 4.
 		* "wideband" - filter with wideband low ripple passband
 		  and sharp transition band.
 
