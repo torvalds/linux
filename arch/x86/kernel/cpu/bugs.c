@@ -538,12 +538,13 @@ static void __init taa_select_mitigation(void)
 		return;
 	}
 
-	if (cpu_mitigations_off())
-		taa_mitigation = TAA_MITIGATION_OFF;
-
 	/* Microcode will be checked in taa_update_mitigation(). */
-	if (taa_mitigation == TAA_MITIGATION_AUTO)
-		taa_mitigation = TAA_MITIGATION_VERW;
+	if (taa_mitigation == TAA_MITIGATION_AUTO) {
+		if (should_mitigate_vuln(X86_BUG_TAA))
+			taa_mitigation = TAA_MITIGATION_VERW;
+		else
+			taa_mitigation = TAA_MITIGATION_OFF;
+	}
 
 	if (taa_mitigation != TAA_MITIGATION_OFF)
 		verw_clear_cpu_buf_mitigation_selected = true;
@@ -551,7 +552,7 @@ static void __init taa_select_mitigation(void)
 
 static void __init taa_update_mitigation(void)
 {
-	if (!taa_vulnerable() || cpu_mitigations_off())
+	if (!taa_vulnerable())
 		return;
 
 	if (verw_clear_cpu_buf_mitigation_selected)
@@ -592,7 +593,7 @@ static void __init taa_apply_mitigation(void)
 		 */
 		setup_force_cpu_cap(X86_FEATURE_CLEAR_CPU_BUF);
 
-		if (taa_nosmt || cpu_mitigations_auto_nosmt())
+		if (taa_nosmt || smt_mitigations == SMT_MITIGATIONS_ON)
 			cpu_smt_disable(false);
 	}
 }
