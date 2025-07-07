@@ -1817,7 +1817,7 @@ static enum spectre_v2_user_cmd __init spectre_v2_parse_user_cmdline(void)
 	char arg[20];
 	int ret, i;
 
-	if (cpu_mitigations_off() || !IS_ENABLED(CONFIG_MITIGATION_SPECTRE_V2))
+	if (!IS_ENABLED(CONFIG_MITIGATION_SPECTRE_V2))
 		return SPECTRE_V2_USER_CMD_NONE;
 
 	ret = cmdline_find_option(boot_command_line, "spectre_v2_user",
@@ -1855,6 +1855,13 @@ static void __init spectre_v2_user_select_mitigation(void)
 		spectre_v2_user_stibp = SPECTRE_V2_USER_STRICT;
 		break;
 	case SPECTRE_V2_USER_CMD_AUTO:
+		if (!should_mitigate_vuln(X86_BUG_SPECTRE_V2_USER))
+			break;
+		spectre_v2_user_ibpb = SPECTRE_V2_USER_PRCTL;
+		if (smt_mitigations == SMT_MITIGATIONS_OFF)
+			break;
+		spectre_v2_user_stibp = SPECTRE_V2_USER_PRCTL;
+		break;
 	case SPECTRE_V2_USER_CMD_PRCTL:
 		spectre_v2_user_ibpb  = SPECTRE_V2_USER_PRCTL;
 		spectre_v2_user_stibp = SPECTRE_V2_USER_PRCTL;
