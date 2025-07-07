@@ -2217,11 +2217,20 @@ early_param("spectre_bhi", spectre_bhi_parse_cmdline);
 
 static void __init bhi_select_mitigation(void)
 {
-	if (!boot_cpu_has(X86_BUG_BHI) || cpu_mitigations_off())
+	if (!boot_cpu_has(X86_BUG_BHI))
 		bhi_mitigation = BHI_MITIGATION_OFF;
 
-	if (bhi_mitigation == BHI_MITIGATION_AUTO)
-		bhi_mitigation = BHI_MITIGATION_ON;
+	if (bhi_mitigation != BHI_MITIGATION_AUTO)
+		return;
+
+	if (cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST)) {
+		if (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL))
+			bhi_mitigation = BHI_MITIGATION_ON;
+		else
+			bhi_mitigation = BHI_MITIGATION_VMEXIT_ONLY;
+	} else {
+		bhi_mitigation = BHI_MITIGATION_OFF;
+	}
 }
 
 static void __init bhi_update_mitigation(void)
