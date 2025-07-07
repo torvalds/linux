@@ -1389,6 +1389,34 @@
 			status = "disabled";
 		};
 
+		dsi: dsi@27d80000 {
+			compatible = "rockchip,rk3576-mipi-dsi2";
+			reg = <0x0 0x27d80000 0x0 0x10000>;
+			interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cru PCLK_DSIHOST0>, <&cru CLK_DSIHOST0>;
+			clock-names = "pclk", "sys";
+			power-domains = <&power RK3576_PD_VO0>;
+			resets = <&cru SRST_P_DSIHOST0>;
+			reset-names = "apb";
+			phys = <&mipidcphy PHY_TYPE_DPHY>;
+			phy-names = "dcphy";
+			rockchip,grf = <&vo0_grf>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				dsi_in: port@0 {
+					reg = <0>;
+				};
+
+				dsi_out: port@1 {
+					reg = <1>;
+				};
+			};
+		};
+
 		hdmi: hdmi@27da0000 {
 			compatible = "rockchip,rk3576-dw-hdmi-qp";
 			reg = <0x0 0x27da0000 0x0 0x20000>;
