@@ -679,68 +679,46 @@ static inline unsigned int max_pow_of_two_factor(const unsigned int nr)
 }
 
 /*
- * If the data device advertises atomic write support, limit the size of data
- * device atomic writes to the greatest power-of-two factor of the AG size so
- * that every atomic write unit aligns with the start of every AG.  This is
- * required so that the per-AG allocations for an atomic write will always be
+ * If the underlying device advertises atomic write support, limit the size of
+ * atomic writes to the greatest power-of-two factor of the group size so
+ * that every atomic write unit aligns with the start of every group.  This is
+ * required so that the allocations for an atomic write will always be
  * aligned compatibly with the alignment requirements of the storage.
  *
- * If the data device doesn't advertise atomic writes, then there are no
- * alignment restrictions and the largest out-of-place write we can do
- * ourselves is the number of blocks that user files can allocate from any AG.
+ * If the device doesn't advertise atomic writes, then there are no alignment
+ * restrictions and the largest out-of-place write we can do ourselves is the
+ * number of blocks that user files can allocate from any group.
  */
-static inline xfs_extlen_t xfs_calc_perag_awu_max(struct xfs_mount *mp)
+static xfs_extlen_t
+xfs_calc_group_awu_max(
+	struct xfs_mount	*mp,
+	enum xfs_group_type	type)
 {
-	if (mp->m_ddev_targp->bt_bdev_awu_min > 0)
-		return max_pow_of_two_factor(mp->m_sb.sb_agblocks);
-	return rounddown_pow_of_two(mp->m_ag_max_usable);
-}
+	struct xfs_groups	*g = &mp->m_groups[type];
+	struct xfs_buftarg	*btp = xfs_group_type_buftarg(mp, type);
 
-/*
- * Reflink on the realtime device requires rtgroups, and atomic writes require
- * reflink.
- *
- * If the realtime device advertises atomic write support, limit the size of
- * data device atomic writes to the greatest power-of-two factor of the rtgroup
- * size so that every atomic write unit aligns with the start of every rtgroup.
- * This is required so that the per-rtgroup allocations for an atomic write
- * will always be aligned compatibly with the alignment requirements of the
- * storage.
- *
- * If the rt device doesn't advertise atomic writes, then there are no
- * alignment restrictions and the largest out-of-place write we can do
- * ourselves is the number of blocks that user files can allocate from any
- * rtgroup.
- */
-static inline xfs_extlen_t xfs_calc_rtgroup_awu_max(struct xfs_mount *mp)
-{
-	struct xfs_groups	*rgs = &mp->m_groups[XG_TYPE_RTG];
-
-	if (rgs->blocks == 0)
+	if (g->blocks == 0)
 		return 0;
-	if (mp->m_rtdev_targp && mp->m_rtdev_targp->bt_bdev_awu_min > 0)
-		return max_pow_of_two_factor(rgs->blocks);
-	return rounddown_pow_of_two(rgs->blocks);
+	if (btp && btp->bt_bdev_awu_min > 0)
+		return max_pow_of_two_factor(g->blocks);
+	return rounddown_pow_of_two(g->blocks);
 }
 
 /* Compute the maximum atomic write unit size for each section. */
 static inline void
 xfs_calc_atomic_write_unit_max(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	enum xfs_group_type	type)
 {
-	struct xfs_groups	*ags = &mp->m_groups[XG_TYPE_AG];
-	struct xfs_groups	*rgs = &mp->m_groups[XG_TYPE_RTG];
+	struct xfs_groups	*g = &mp->m_groups[type];
 
 	const xfs_extlen_t	max_write = xfs_calc_atomic_write_max(mp);
 	const xfs_extlen_t	max_ioend = xfs_reflink_max_atomic_cow(mp);
-	const xfs_extlen_t	max_agsize = xfs_calc_perag_awu_max(mp);
-	const xfs_extlen_t	max_rgsize = xfs_calc_rtgroup_awu_max(mp);
+	const xfs_extlen_t	max_gsize = xfs_calc_group_awu_max(mp, type);
 
-	ags->awu_max = min3(max_write, max_ioend, max_agsize);
-	rgs->awu_max = min3(max_write, max_ioend, max_rgsize);
-
-	trace_xfs_calc_atomic_write_unit_max(mp, max_write, max_ioend,
-			max_agsize, max_rgsize);
+	g->awu_max = min3(max_write, max_ioend, max_gsize);
+	trace_xfs_calc_atomic_write_unit_max(mp, type, max_write, max_ioend,
+			max_gsize, g->awu_max);
 }
 
 /*
@@ -758,7 +736,8 @@ xfs_set_max_atomic_write_opt(
 		max(mp->m_groups[XG_TYPE_AG].blocks,
 		    mp->m_groups[XG_TYPE_RTG].blocks);
 	const xfs_extlen_t	max_group_write =
-		max(xfs_calc_perag_awu_max(mp), xfs_calc_rtgroup_awu_max(mp));
+		max(xfs_calc_group_awu_max(mp, XG_TYPE_AG),
+		    xfs_calc_group_awu_max(mp, XG_TYPE_RTG));
 	int			error;
 
 	if (new_max_bytes == 0)
@@ -814,7 +793,8 @@ set_limit:
 		return error;
 	}
 
-	xfs_calc_atomic_write_unit_max(mp);
+	xfs_calc_atomic_write_unit_max(mp, XG_TYPE_AG);
+	xfs_calc_atomic_write_unit_max(mp, XG_TYPE_RTG);
 	mp->m_awu_max_bytes = new_max_bytes;
 	return 0;
 }
