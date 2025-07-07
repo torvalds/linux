@@ -1486,7 +1486,7 @@ static int ili9881c_prepare(struct drm_panel *panel)
 						      instr->arg.cmd.data);
 
 		if (ret)
-			return ret;
+			goto disable_power;
 	}
 
 	ret = ili9881c_switch_page(ctx, 0);
@@ -1498,18 +1498,22 @@ static int ili9881c_prepare(struct drm_panel *panel)
 					 &ctx->address_mode,
 					 sizeof(ctx->address_mode));
 		if (ret < 0)
-			return ret;
+			goto disable_power;
 	}
 
 	ret = mipi_dsi_dcs_set_tear_on(ctx->dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
 	if (ret)
-		return ret;
+		goto disable_power;
 
 	ret = mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
 	if (ret)
-		return ret;
+		goto disable_power;
 
 	return 0;
+
+disable_power:
+	regulator_disable(ctx->power);
+	return ret;
 }
 
 static int ili9881c_enable(struct drm_panel *panel)
