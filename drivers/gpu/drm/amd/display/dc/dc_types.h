@@ -628,6 +628,7 @@ struct psr_config {
 	unsigned int line_time_in_us;
 	uint8_t rate_control_caps;
 	uint16_t dsc_slice_height;
+	bool os_request_force_ffu;
 };
 
 union dmcu_psr_level {
@@ -740,6 +741,7 @@ struct psr_context {
 	unsigned int line_time_in_us;
 	uint8_t rate_control_caps;
 	uint16_t dsc_slice_height;
+	bool os_request_force_ffu;
 };
 
 struct colorspace_transform {
@@ -1151,6 +1153,8 @@ struct replay_config {
 	bool replay_video_conferencing_optimization_enabled;
 	/* Replay alpm mode */
 	enum dc_alpm_mode alpm_mode;
+	/* Replay full screen only */
+	bool os_request_force_ffu;
 };
 
 /* Replay feature flags*/

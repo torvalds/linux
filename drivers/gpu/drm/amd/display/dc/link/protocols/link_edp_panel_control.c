@@ -870,6 +870,8 @@ bool edp_setup_psr(struct dc_link *link,
 
 	psr_context->dsc_slice_height = psr_config->dsc_slice_height;
 
+	psr_context->os_request_force_ffu = psr_config->os_request_force_ffu;
+
 	if (psr) {
 		link->psr_settings.psr_feature_enabled = psr->funcs->psr_copy_settings(psr,
 			link, psr_context, panel_inst);
@@ -1028,6 +1030,8 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 			(stream->timing.pix_clk_100hz / 10)) + 1;
 
 	replay_context.line_time_in_ns = lineTimeInNs;
+
+	replay_context.os_request_force_ffu = link->replay_settings.config.os_request_force_ffu;
 
 	link->replay_settings.replay_feature_enabled =
 			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
