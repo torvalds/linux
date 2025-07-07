@@ -138,6 +138,7 @@
 
 #define AD4170_NUM_ANALOG_PINS				9
 #define AD4170_MAX_ADC_CHANNELS				16
+#define AD4170_MAX_IIO_CHANNELS				(AD4170_MAX_ADC_CHANNELS + 1)
 #define AD4170_MAX_ANALOG_PINS				8
 #define AD4170_MAX_SETUPS				8
 #define AD4170_INVALID_SETUP				9
@@ -334,7 +335,7 @@ struct ad4170_state {
 	struct ad4170_setup_info setup_infos[AD4170_MAX_SETUPS];
 	struct ad4170_chan_info chan_infos[AD4170_MAX_ADC_CHANNELS];
 	struct completion completion;
-	struct iio_chan_spec chans[AD4170_MAX_ADC_CHANNELS];
+	struct iio_chan_spec chans[AD4170_MAX_IIO_CHANNELS];
 	struct spi_device *spi;
 	struct regmap *regmap;
 	int sps_tbl[ARRAY_SIZE(ad4170_filt_names)][AD4170_MAX_FS_TBL_SIZE][2];
@@ -1633,6 +1634,12 @@ static int ad4170_parse_channels(struct iio_dev *indio_dev)
 			return ret;
 	}
 
+	/* Add timestamp channel */
+	struct iio_chan_spec ts_chan = IIO_CHAN_SOFT_TIMESTAMP(chan_num);
+
+	st->chans[chan_num] = ts_chan;
+	num_channels = num_channels + 1;
+
 	indio_dev->num_channels = num_channels;
 	indio_dev->channels = st->chans;
 
@@ -1693,6 +1700,9 @@ static int ad4170_initial_config(struct iio_dev *indio_dev)
 		unsigned int val;
 
 		chan = &indio_dev->channels[i];
+		if (chan->type == IIO_TIMESTAMP)
+			continue;
+
 		chan_info = &st->chan_infos[chan->address];
 
 		setup = &chan_info->setup;
@@ -1812,6 +1822,9 @@ static int ad4170_buffer_predisable(struct iio_dev *indio_dev)
 	 * channels will be read.
 	 */
 	for (i = 0; i < indio_dev->num_channels; i++) {
+		if (indio_dev->channels[i].type == IIO_TIMESTAMP)
+			continue;
+
 		ret = ad4170_set_channel_enable(st, i, false);
 		if (ret)
 			return ret;
@@ -1863,7 +1876,9 @@ static irqreturn_t ad4170_trigger_handler(int irq, void *p)
 		memcpy(&st->bounce_buffer[i++], st->rx_buf, ARRAY_SIZE(st->rx_buf));
 	}
 
-	iio_push_to_buffers(indio_dev, st->bounce_buffer);
+	iio_push_to_buffers_with_ts(indio_dev, st->bounce_buffer,
+				    sizeof(st->bounce_buffer),
+				    iio_get_time_ns(indio_dev));
 err_out:
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
