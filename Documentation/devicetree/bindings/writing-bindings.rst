@@ -81,7 +81,7 @@ Typical cases and caveats
 - Phandle entries, like clocks/dmas/interrupts/resets, should always be
   explicitly ordered. Include the {clock,dma,interrupt,reset}-names if there is
   more than one phandle. When used, both of these fields need the same
-  constraints (e.g.  list of items).
+  constraints (e.g. list of items).
 
 - For names used in {clock,dma,interrupt,reset}-names, do not add any suffix,
   e.g.: "tx" instead of "txirq" (for interrupt).
