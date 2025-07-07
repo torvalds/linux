@@ -966,6 +966,12 @@
 			reg = <0x0 0x26032000 0x0 0x100>;
 		};
 
+		mipidcphy_grf: syscon@26034000 {
+			compatible = "rockchip,rk3576-dcphy-grf", "syscon";
+			reg = <0x0 0x26034000 0x0 0x2000>;
+			clocks = <&cru PCLK_PMUPHY_ROOT>;
+		};
+
 		vo1_grf: syscon@26036000 {
 			compatible = "rockchip,rk3576-vo1-grf", "syscon";
 			reg = <0x0 0x26036000 0x0 0x100>;
@@ -2560,6 +2566,22 @@
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart11m0_xfer>;
+			status = "disabled";
+		};
+
+		mipidcphy: phy@2b020000 {
+			compatible = "rockchip,rk3576-mipi-dcphy";
+			reg = <0x0 0x2b020000 0x0 0x10000>;
+			clocks = <&cru PCLK_MIPI_DCPHY>,
+				 <&cru CLK_PHY_REF_SRC>;
+			clock-names = "pclk", "ref";
+			resets = <&cru SRST_M_MIPI_DCPHY>,
+				 <&cru SRST_P_MIPI_DCPHY>,
+				 <&cru SRST_P_DCPHY_GRF>,
+				 <&cru SRST_S_MIPI_DCPHY>;
+			reset-names = "m_phy", "apb", "grf", "s_phy";
+			rockchip,grf = <&mipidcphy_grf>;
+			#phy-cells = <1>;
 			status = "disabled";
 		};
 
