@@ -748,13 +748,17 @@ static inline bool __init verw_clears_cpu_reg_file(void)
 
 static void __init rfds_select_mitigation(void)
 {
-	if (!boot_cpu_has_bug(X86_BUG_RFDS) || cpu_mitigations_off()) {
+	if (!boot_cpu_has_bug(X86_BUG_RFDS)) {
 		rfds_mitigation = RFDS_MITIGATION_OFF;
 		return;
 	}
 
-	if (rfds_mitigation == RFDS_MITIGATION_AUTO)
-		rfds_mitigation = RFDS_MITIGATION_VERW;
+	if (rfds_mitigation == RFDS_MITIGATION_AUTO) {
+		if (should_mitigate_vuln(X86_BUG_RFDS))
+			rfds_mitigation = RFDS_MITIGATION_VERW;
+		else
+			rfds_mitigation = RFDS_MITIGATION_OFF;
+	}
 
 	if (rfds_mitigation == RFDS_MITIGATION_OFF)
 		return;
@@ -765,7 +769,7 @@ static void __init rfds_select_mitigation(void)
 
 static void __init rfds_update_mitigation(void)
 {
-	if (!boot_cpu_has_bug(X86_BUG_RFDS) || cpu_mitigations_off())
+	if (!boot_cpu_has_bug(X86_BUG_RFDS))
 		return;
 
 	if (verw_clear_cpu_buf_mitigation_selected)
