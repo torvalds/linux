@@ -773,7 +773,7 @@ static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 
 	/* need not be added */
-	if (IS_CURSEG(sbi, segno))
+	if (is_curseg(sbi, segno))
 		return;
 
 	if (!test_and_set_bit(segno, dirty_i->dirty_segmap[dirty_type]))
@@ -800,7 +800,7 @@ static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 				!valid_blocks) ||
 				valid_blocks == CAP_BLKS_PER_SEC(sbi));
 
-			if (!IS_CURSEC(sbi, secno))
+			if (!is_cursec(sbi, secno))
 				set_bit(secno, dirty_i->dirty_secmap);
 		}
 	}
@@ -839,7 +839,7 @@ static void __remove_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 				return;
 			}
 
-			if (!IS_CURSEC(sbi, secno))
+			if (!is_cursec(sbi, secno))
 				set_bit(secno, dirty_i->dirty_secmap);
 		}
 	}
@@ -856,7 +856,7 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 	unsigned short valid_blocks, ckpt_valid_blocks;
 	unsigned int usable_blocks;
 
-	if (segno == NULL_SEGNO || IS_CURSEG(sbi, segno))
+	if (segno == NULL_SEGNO || is_curseg(sbi, segno))
 		return;
 
 	usable_blocks = f2fs_usable_blks_in_seg(sbi, segno);
@@ -889,7 +889,7 @@ void f2fs_dirty_to_prefree(struct f2fs_sb_info *sbi)
 	for_each_set_bit(segno, dirty_i->dirty_segmap[DIRTY], MAIN_SEGS(sbi)) {
 		if (get_valid_blocks(sbi, segno, false))
 			continue;
-		if (IS_CURSEG(sbi, segno))
+		if (is_curseg(sbi, segno))
 			continue;
 		__locate_dirty_segment(sbi, segno, PRE);
 		__remove_dirty_segment(sbi, segno, DIRTY);
@@ -2108,7 +2108,7 @@ static bool add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc,
 	if (!force) {
 		if (!f2fs_realtime_discard_enable(sbi) ||
 			(!se->valid_blocks &&
-				!IS_CURSEG(sbi, cpc->trim_start)) ||
+				!is_curseg(sbi, cpc->trim_start)) ||
 			SM_I(sbi)->dcc_info->nr_discards >=
 				SM_I(sbi)->dcc_info->max_discards)
 			return false;
@@ -2236,7 +2236,7 @@ void f2fs_clear_prefree_segments(struct f2fs_sb_info *sbi,
 next:
 		secno = GET_SEC_FROM_SEG(sbi, start);
 		start_segno = GET_SEG_FROM_SEC(sbi, secno);
-		if (!IS_CURSEC(sbi, secno) &&
+		if (!is_cursec(sbi, secno) &&
 			!get_valid_blocks(sbi, start, true))
 			f2fs_issue_discard(sbi, START_BLOCK(sbi, start_segno),
 						BLKS_PER_SEC(sbi));
@@ -4107,14 +4107,14 @@ void f2fs_do_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 	if (!recover_curseg) {
 		/* for recovery flow */
-		if (se->valid_blocks == 0 && !IS_CURSEG(sbi, segno)) {
+		if (se->valid_blocks == 0 && !is_curseg(sbi, segno)) {
 			if (old_blkaddr == NULL_ADDR)
 				type = CURSEG_COLD_DATA;
 			else
 				type = CURSEG_WARM_DATA;
 		}
 	} else {
-		if (IS_CURSEG(sbi, segno)) {
+		if (is_curseg(sbi, segno)) {
 			/* se->type is volatile as SSR allocation */
 			type = __f2fs_get_curseg(sbi, segno);
 			f2fs_bug_on(sbi, type == NO_CHECK_TYPE);
@@ -5150,7 +5150,7 @@ static void init_dirty_segmap(struct f2fs_sb_info *sbi)
 
 		if (!valid_blocks || valid_blocks == CAP_BLKS_PER_SEC(sbi))
 			continue;
-		if (IS_CURSEC(sbi, secno))
+		if (is_cursec(sbi, secno))
 			continue;
 		set_bit(secno, dirty_i->dirty_secmap);
 	}
@@ -5286,7 +5286,7 @@ static int check_zone_write_pointer(struct f2fs_sb_info *sbi,
 	 * Get # of valid block of the zone.
 	 */
 	valid_block_cnt = get_valid_blocks(sbi, zone_segno, true);
-	if (IS_CURSEC(sbi, GET_SEC_FROM_SEG(sbi, zone_segno))) {
+	if (is_cursec(sbi, GET_SEC_FROM_SEG(sbi, zone_segno))) {
 		f2fs_notice(sbi, "Open zones: valid block[0x%x,0x%x] cond[%s]",
 				zone_segno, valid_block_cnt,
 				blk_zone_cond_str(zone->cond));

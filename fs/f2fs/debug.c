@@ -91,7 +91,7 @@ static void update_multidevice_stats(struct f2fs_sb_info *sbi)
 			seg_blks = get_seg_entry(sbi, j)->valid_blocks;
 
 			/* update segment stats */
-			if (IS_CURSEG(sbi, j))
+			if (is_curseg(sbi, j))
 				dev_stats[i].devstats[0][DEVSTAT_INUSE]++;
 			else if (seg_blks == BLKS_PER_SEG(sbi))
 				dev_stats[i].devstats[0][DEVSTAT_FULL]++;
@@ -109,7 +109,7 @@ static void update_multidevice_stats(struct f2fs_sb_info *sbi)
 			sec_blks = get_sec_entry(sbi, j)->valid_blocks;
 
 			/* update section stats */
-			if (IS_CURSEC(sbi, GET_SEC_FROM_SEG(sbi, j)))
+			if (is_cursec(sbi, GET_SEC_FROM_SEG(sbi, j)))
 				dev_stats[i].devstats[1][DEVSTAT_INUSE]++;
 			else if (sec_blks == BLKS_PER_SEC(sbi))
 				dev_stats[i].devstats[1][DEVSTAT_FULL]++;
