@@ -44,6 +44,8 @@ static inline unsigned int pshift(void)
 	return __page_shift;
 }
 
+bool detect_huge_zeropage(void);
+
 /*
  * Plan 9 FS has bugs (at least on QEMU) where certain operations fail with
  * ENOENT on unlinked files. See

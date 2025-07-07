@@ -72,31 +72,6 @@ static int detect_thp_sizes(size_t sizes[], int max)
 	return count;
 }
 
-static void detect_huge_zeropage(void)
-{
-	int fd = open("/sys/kernel/mm/transparent_hugepage/use_zero_page",
-		      O_RDONLY);
-	size_t enabled = 0;
-	char buf[15];
-	int ret;
-
-	if (fd < 0)
-		return;
-
-	ret = pread(fd, buf, sizeof(buf), 0);
-	if (ret > 0 && ret < sizeof(buf)) {
-		buf[ret] = 0;
-
-		enabled = strtoul(buf, NULL, 10);
-		if (enabled == 1) {
-			has_huge_zeropage = true;
-			ksft_print_msg("[INFO] huge zeropage is enabled\n");
-		}
-	}
-
-	close(fd);
-}
-
 static bool range_is_swapped(void *addr, size_t size)
 {
 	for (; size; addr += pagesize, size -= pagesize)
@@ -1903,7 +1878,7 @@ int main(int argc, char **argv)
 	}
 	nr_hugetlbsizes = detect_hugetlb_page_sizes(hugetlbsizes,
 						    ARRAY_SIZE(hugetlbsizes));
-	detect_huge_zeropage();
+	has_huge_zeropage = detect_huge_zeropage();
 
 	ksft_set_plan(ARRAY_SIZE(anon_test_cases) * tests_per_anon_test_case() +
 		      ARRAY_SIZE(anon_thp_test_cases) * tests_per_anon_thp_test_case() +
