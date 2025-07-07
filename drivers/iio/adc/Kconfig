@@ -91,6 +91,7 @@ config AD4170_4
 	select REGMAP_SPI
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	depends on COMMON_CLK
 	help
 	  Say yes here to build support for Analog Devices AD4170-4 SPI analog
 	  to digital converters (ADC).
