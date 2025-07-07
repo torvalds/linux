@@ -882,7 +882,7 @@ enum dmub_shared_state_feature_id {
 /**
  * struct dmub_shared_state_ips_fw - Firmware signals for IPS.
  */
- union dmub_shared_state_ips_fw_signals {
+union dmub_shared_state_ips_fw_signals {
 	struct {
 		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 or IPS0 RCG */
 		uint32_t ips2_commit : 1; /**< 1 if in IPS2 */
@@ -897,7 +897,7 @@ enum dmub_shared_state_feature_id {
 /**
  * struct dmub_shared_state_ips_signals - Firmware signals for IPS.
  */
- union dmub_shared_state_ips_driver_signals {
+union dmub_shared_state_ips_driver_signals {
 	struct {
 		uint32_t allow_pg : 1; /**< 1 if PG is allowed */
 		uint32_t allow_ips1 : 1; /**< 1 is IPS1 is allowed */
@@ -4099,7 +4099,6 @@ struct dmub_cmd_replay_copy_settings_data {
 	 * Use for AUX-less ALPM LFPS wake operation
 	 */
 	struct dmub_alpm_auxless_data auxless_alpm_data;
-
 	/**
 	 * @pad: Align structure to 4 byte boundary.
 	 */
@@ -5914,6 +5913,7 @@ enum ips_residency_mode {
 	IPS_RESIDENCY__IPS2,
 	IPS_RESIDENCY__IPS1_RCG,
 	IPS_RESIDENCY__IPS1_ONO2_ON,
+	IPS_RESIDENCY__IPS1_Z8_RETENTION,
 };
 
 #define NUM_IPS_HISTOGRAM_BUCKETS 16
