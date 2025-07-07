@@ -572,6 +572,7 @@ MODULE_DEVICE_TABLE(of, max_tcpci_of_match);
 static struct i2c_driver max_tcpci_i2c_driver = {
 	.driver = {
 		.name = "maxtcpc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = max_tcpci_of_match,
 		.pm = &max_tcpci_pm_ops,
 	},
