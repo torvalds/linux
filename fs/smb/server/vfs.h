@@ -166,6 +166,6 @@ int ksmbd_vfs_get_dos_attrib_xattr(struct mnt_idmap *idmap,
 int ksmbd_vfs_set_init_posix_acl(struct mnt_idmap *idmap,
 				 struct path *path);
 int ksmbd_vfs_inherit_posix_acl(struct mnt_idmap *idmap,
-				struct path *path,
+				const struct path *path,
 				struct inode *parent_inode);
 #endif /* __KSMBD_VFS_H__ */
