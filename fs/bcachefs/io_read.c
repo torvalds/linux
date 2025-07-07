@@ -1491,7 +1491,12 @@ void bch2_read_bio_to_text(struct printbuf *out, struct bch_read_bio *rbio)
 	prt_printf(out, "have_ioref:\t%u\n",	rbio->have_ioref);
 	prt_printf(out, "narrow_crcs:\t%u\n",	rbio->narrow_crcs);
 	prt_printf(out, "context:\t%u\n",	rbio->context);
-	prt_printf(out, "ret:\t%s\n",		bch2_err_str(rbio->ret));
+
+	int ret = READ_ONCE(rbio->ret);
+	if (ret < 0)
+		prt_printf(out, "ret:\t%s\n",		bch2_err_str(ret));
+	else
+		prt_printf(out, "ret:\t%i\n",		ret);
 
 	prt_printf(out, "flags:\t");
 	bch2_prt_bitflags(out, bch2_read_bio_flags, rbio->flags);

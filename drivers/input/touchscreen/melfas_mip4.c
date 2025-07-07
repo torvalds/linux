@@ -1554,7 +1554,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(mip4_pm_ops, mip4_suspend, mip4_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id mip4_of_match[] = {
-	{ .compatible = "melfas,"MIP4_DEVICE_NAME, },
+	{ .compatible = "melfas,mip4_ts", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, mip4_of_match);

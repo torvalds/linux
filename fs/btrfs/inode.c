@@ -4250,9 +4250,9 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_del_inode_ref(trans, root, name, ino, dir_ino, &index);
 	if (ret) {
-		btrfs_info(fs_info,
-			"failed to delete reference to %.*s, inode %llu parent %llu",
-			name->len, name->name, ino, dir_ino);
+		btrfs_crit(fs_info,
+	   "failed to delete reference to %.*s, root %llu inode %llu parent %llu",
+			   name->len, name->name, btrfs_root_id(root), ino, dir_ino);
 		btrfs_abort_transaction(trans, ret);
 		goto err;
 	}
@@ -4710,7 +4710,6 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	int ret = 0;
 	struct btrfs_trans_handle *trans;
-	u64 last_unlink_trans;
 	struct fscrypt_name fname;
 
 	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE)
@@ -4736,6 +4735,23 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 		goto out_notrans;
 	}
 
+	/*
+	 * Propagate the last_unlink_trans value of the deleted dir to its
+	 * parent directory. This is to prevent an unrecoverable log tree in the
+	 * case we do something like this:
+	 * 1) create dir foo
+	 * 2) create snapshot under dir foo
+	 * 3) delete the snapshot
+	 * 4) rmdir foo
+	 * 5) mkdir foo
+	 * 6) fsync foo or some file inside foo
+	 *
+	 * This is because we can't unlink other roots when replaying the dir
+	 * deletes for directory foo.
+	 */
+	if (BTRFS_I(inode)->last_unlink_trans >= trans->transid)
+		btrfs_record_snapshot_destroy(trans, BTRFS_I(dir));
+
 	if (unlikely(btrfs_ino(BTRFS_I(inode)) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
 		ret = btrfs_unlink_subvol(trans, BTRFS_I(dir), dentry);
 		goto out;
@@ -4745,27 +4761,11 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (ret)
 		goto out;
 
-	last_unlink_trans = BTRFS_I(inode)->last_unlink_trans;
-
 	/* now the directory is empty */
 	ret = btrfs_unlink_inode(trans, BTRFS_I(dir), BTRFS_I(d_inode(dentry)),
 				 &fname.disk_name);
-	if (!ret) {
+	if (!ret)
 		btrfs_i_size_write(BTRFS_I(inode), 0);
-		/*
-		 * Propagate the last_unlink_trans value of the deleted dir to
-		 * its parent directory. This is to prevent an unrecoverable
-		 * log tree in the case we do something like this:
-		 * 1) create dir foo
-		 * 2) create snapshot under dir foo
-		 * 3) delete the snapshot
-		 * 4) rmdir foo
-		 * 5) mkdir foo
-		 * 6) fsync foo or some file inside foo
-		 */
-		if (last_unlink_trans >= trans->transid)
-			BTRFS_I(dir)->last_unlink_trans = last_unlink_trans;
-	}
 out:
 	btrfs_end_transaction(trans);
 out_notrans:
@@ -8059,6 +8059,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	int ret;
 	int ret2;
 	bool need_abort = false;
+	bool logs_pinned = false;
 	struct fscrypt_name old_fname, new_fname;
 	struct fscrypt_str *old_name, *new_name;
 
@@ -8182,6 +8183,31 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	inode_inc_iversion(new_inode);
 	simple_rename_timestamp(old_dir, old_dentry, new_dir, new_dentry);
 
+	if (old_ino != BTRFS_FIRST_FREE_OBJECTID &&
+	    new_ino != BTRFS_FIRST_FREE_OBJECTID) {
+		/*
+		 * If we are renaming in the same directory (and it's not for
+		 * root entries) pin the log early to prevent any concurrent
+		 * task from logging the directory after we removed the old
+		 * entries and before we add the new entries, otherwise that
+		 * task can sync a log without any entry for the inodes we are
+		 * renaming and therefore replaying that log, if a power failure
+		 * happens after syncing the log, would result in deleting the
+		 * inodes.
+		 *
+		 * If the rename affects two different directories, we want to
+		 * make sure the that there's no log commit that contains
+		 * updates for only one of the directories but not for the
+		 * other.
+		 *
+		 * If we are renaming an entry for a root, we don't care about
+		 * log updates since we called btrfs_set_log_full_commit().
+		 */
+		btrfs_pin_log_trans(root);
+		btrfs_pin_log_trans(dest);
+		logs_pinned = true;
+	}
+
 	if (old_dentry->d_parent != new_dentry->d_parent) {
 		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir),
 					BTRFS_I(old_inode), true);
@@ -8253,30 +8279,23 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 		BTRFS_I(new_inode)->dir_index = new_idx;
 
 	/*
-	 * Now pin the logs of the roots. We do it to ensure that no other task
-	 * can sync the logs while we are in progress with the rename, because
-	 * that could result in an inconsistency in case any of the inodes that
-	 * are part of this rename operation were logged before.
+	 * Do the log updates for all inodes.
+	 *
+	 * If either entry is for a root we don't need to update the logs since
+	 * we've called btrfs_set_log_full_commit() before.
 	 */
-	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
-		btrfs_pin_log_trans(root);
-	if (new_ino != BTRFS_FIRST_FREE_OBJECTID)
-		btrfs_pin_log_trans(dest);
-
-	/* Do the log updates for all inodes. */
-	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
+	if (logs_pinned) {
 		btrfs_log_new_name(trans, old_dentry, BTRFS_I(old_dir),
 				   old_rename_ctx.index, new_dentry->d_parent);
-	if (new_ino != BTRFS_FIRST_FREE_OBJECTID)
 		btrfs_log_new_name(trans, new_dentry, BTRFS_I(new_dir),
 				   new_rename_ctx.index, old_dentry->d_parent);
+	}
 
-	/* Now unpin the logs. */
-	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
-		btrfs_end_log_trans(root);
-	if (new_ino != BTRFS_FIRST_FREE_OBJECTID)
-		btrfs_end_log_trans(dest);
 out_fail:
+	if (logs_pinned) {
+		btrfs_end_log_trans(root);
+		btrfs_end_log_trans(dest);
+	}
 	ret2 = btrfs_end_transaction(trans);
 	ret = ret ? ret : ret2;
 out_notrans:
@@ -8326,6 +8345,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 	int ret2;
 	u64 old_ino = btrfs_ino(BTRFS_I(old_inode));
 	struct fscrypt_name old_fname, new_fname;
+	bool logs_pinned = false;
 
 	if (btrfs_ino(BTRFS_I(new_dir)) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)
 		return -EPERM;
@@ -8460,6 +8480,29 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 	inode_inc_iversion(old_inode);
 	simple_rename_timestamp(old_dir, old_dentry, new_dir, new_dentry);
 
+	if (old_ino != BTRFS_FIRST_FREE_OBJECTID) {
+		/*
+		 * If we are renaming in the same directory (and it's not a
+		 * root entry) pin the log to prevent any concurrent task from
+		 * logging the directory after we removed the old entry and
+		 * before we add the new entry, otherwise that task can sync
+		 * a log without any entry for the inode we are renaming and
+		 * therefore replaying that log, if a power failure happens
+		 * after syncing the log, would result in deleting the inode.
+		 *
+		 * If the rename affects two different directories, we want to
+		 * make sure the that there's no log commit that contains
+		 * updates for only one of the directories but not for the
+		 * other.
+		 *
+		 * If we are renaming an entry for a root, we don't care about
+		 * log updates since we called btrfs_set_log_full_commit().
+		 */
+		btrfs_pin_log_trans(root);
+		btrfs_pin_log_trans(dest);
+		logs_pinned = true;
+	}
+
 	if (old_dentry->d_parent != new_dentry->d_parent)
 		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir),
 					BTRFS_I(old_inode), true);
@@ -8524,7 +8567,7 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 	if (old_inode->i_nlink == 1)
 		BTRFS_I(old_inode)->dir_index = index;
 
-	if (old_ino != BTRFS_FIRST_FREE_OBJECTID)
+	if (logs_pinned)
 		btrfs_log_new_name(trans, old_dentry, BTRFS_I(old_dir),
 				   rename_ctx.index, new_dentry->d_parent);
 
@@ -8540,6 +8583,10 @@ static int btrfs_rename(struct mnt_idmap *idmap,
 		}
 	}
 out_fail:
+	if (logs_pinned) {
+		btrfs_end_log_trans(root);
+		btrfs_end_log_trans(dest);
+	}
 	ret2 = btrfs_end_transaction(trans);
 	ret = ret ? ret : ret2;
 out_notrans:

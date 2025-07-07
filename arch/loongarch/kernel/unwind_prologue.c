@@ -3,6 +3,7 @@
  * Copyright (C) 2022 Loongson Technology Corporation Limited
  */
 #include <linux/cpumask.h>
+#include <linux/export.h>
 #include <linux/ftrace.h>
 #include <linux/kallsyms.h>
 

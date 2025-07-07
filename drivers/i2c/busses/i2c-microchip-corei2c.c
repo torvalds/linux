@@ -435,6 +435,7 @@ static int mchp_corei2c_smbus_xfer(struct i2c_adapter *adap, u16 addr, unsigned 
 	u8 tx_buf[I2C_SMBUS_BLOCK_MAX + 2];
 	u8 rx_buf[I2C_SMBUS_BLOCK_MAX + 1];
 	int num_msgs = 1;
+	int ret;
 
 	msgs[CORE_I2C_SMBUS_MSG_WR].addr = addr;
 	msgs[CORE_I2C_SMBUS_MSG_WR].flags = 0;
@@ -505,7 +506,10 @@ static int mchp_corei2c_smbus_xfer(struct i2c_adapter *adap, u16 addr, unsigned 
 		return -EOPNOTSUPP;
 	}
 
-	mchp_corei2c_xfer(&idev->adapter, msgs, num_msgs);
+	ret = mchp_corei2c_xfer(&idev->adapter, msgs, num_msgs);
+	if (ret < 0)
+		return ret;
+
 	if (read_write == I2C_SMBUS_WRITE || size <= I2C_SMBUS_BYTE_DATA)
 		return 0;
 

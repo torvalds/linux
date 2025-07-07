@@ -56,7 +56,7 @@ Date:		January 2009
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/devices/.../async attribute allows the user space to
-		enable or diasble the device's suspend and resume callbacks to
+		enable or disable the device's suspend and resume callbacks to
 		be executed asynchronously (ie. in separate threads, in parallel
 		with the main suspend/resume thread) during system-wide power
 		transitions (eg. suspend to RAM, hibernation).

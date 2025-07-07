@@ -223,6 +223,9 @@ struct mipi_dsi_multi_context {
 
 #define to_mipi_dsi_device(__dev)	container_of_const(__dev, struct mipi_dsi_device, dev)
 
+extern const struct bus_type mipi_dsi_bus_type;
+#define dev_is_mipi_dsi(dev)	((dev)->bus == &mipi_dsi_bus_type)
+
 /**
  * mipi_dsi_pixel_format_to_bpp - obtain the number of bits per pixel for any
  *                                given pixel format defined by the MIPI DSI
