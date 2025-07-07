@@ -51,7 +51,6 @@ static void init_irq_scs(void)
 			scs_alloc(early_cpu_to_node(cpu));
 }
 
-#ifdef CONFIG_VMAP_STACK
 static void __init init_irq_stacks(void)
 {
 	int cpu;
@@ -62,18 +61,6 @@ static void __init init_irq_stacks(void)
 		per_cpu(irq_stack_ptr, cpu) = p;
 	}
 }
-#else
-/* irq stack only needs to be 16 byte aligned - not IRQ_STACK_SIZE aligned. */
-DEFINE_PER_CPU_ALIGNED(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack);
-
-static void init_irq_stacks(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		per_cpu(irq_stack_ptr, cpu) = per_cpu(irq_stack, cpu);
-}
-#endif
 
 #ifndef CONFIG_PREEMPT_RT
 static void ____do_softirq(struct pt_regs *regs)
