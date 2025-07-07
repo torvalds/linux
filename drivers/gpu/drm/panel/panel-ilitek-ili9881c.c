@@ -1433,33 +1433,24 @@ static inline struct ili9881c *panel_to_ili9881c(struct drm_panel *panel)
  * So before any attempt at sending a command or data, we have to be
  * sure if we're in the right page or not.
  */
-static int ili9881c_switch_page(struct ili9881c *ctx, u8 page)
+static void ili9881c_switch_page(struct mipi_dsi_multi_context *mctx, u8 page)
 {
 	u8 buf[4] = { 0xff, 0x98, 0x81, page };
-	int ret;
 
-	ret = mipi_dsi_dcs_write_buffer(ctx->dsi, buf, sizeof(buf));
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	mipi_dsi_dcs_write_buffer_multi(mctx, buf, sizeof(buf));
 }
 
-static int ili9881c_send_cmd_data(struct ili9881c *ctx, u8 cmd, u8 data)
+static void ili9881c_send_cmd_data(struct mipi_dsi_multi_context *mctx, u8 cmd, u8 data)
 {
 	u8 buf[2] = { cmd, data };
-	int ret;
 
-	ret = mipi_dsi_dcs_write_buffer(ctx->dsi, buf, sizeof(buf));
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	mipi_dsi_dcs_write_buffer_multi(mctx, buf, sizeof(buf));
 }
 
 static int ili9881c_prepare(struct drm_panel *panel)
 {
 	struct ili9881c *ctx = panel_to_ili9881c(panel);
+	struct mipi_dsi_multi_context mctx = { .dsi = ctx->dsi };
 	unsigned int i;
 	int ret;
 
@@ -1480,54 +1471,39 @@ static int ili9881c_prepare(struct drm_panel *panel)
 		const struct ili9881c_instr *instr = &ctx->desc->init[i];
 
 		if (instr->op == ILI9881C_SWITCH_PAGE)
-			ret = ili9881c_switch_page(ctx, instr->arg.page);
+			ili9881c_switch_page(&mctx, instr->arg.page);
 		else if (instr->op == ILI9881C_COMMAND)
-			ret = ili9881c_send_cmd_data(ctx, instr->arg.cmd.cmd,
-						      instr->arg.cmd.data);
-
-		if (ret)
-			goto disable_power;
+			ili9881c_send_cmd_data(&mctx, instr->arg.cmd.cmd,
+					       instr->arg.cmd.data);
 	}
 
-	ret = ili9881c_switch_page(ctx, 0);
-	if (ret)
-		return ret;
+	ili9881c_switch_page(&mctx, 0);
 
-	if (ctx->address_mode) {
-		ret = mipi_dsi_dcs_write(ctx->dsi, MIPI_DCS_SET_ADDRESS_MODE,
-					 &ctx->address_mode,
-					 sizeof(ctx->address_mode));
-		if (ret < 0)
-			goto disable_power;
-	}
+	if (ctx->address_mode)
+		ili9881c_send_cmd_data(&mctx, MIPI_DCS_SET_ADDRESS_MODE,
+				       ctx->address_mode);
 
-	ret = mipi_dsi_dcs_set_tear_on(ctx->dsi, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	if (ret)
-		goto disable_power;
-
-	ret = mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
-	if (ret)
-		goto disable_power;
-
-	msleep(120);
-
-	ret = mipi_dsi_dcs_set_display_on(ctx->dsi);
-	if (ret)
+	mipi_dsi_dcs_set_tear_on_multi(&mctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
+	mipi_dsi_dcs_exit_sleep_mode_multi(&mctx);
+	mipi_dsi_msleep(&mctx, 120);
+	mipi_dsi_dcs_set_display_on_multi(&mctx);
+	if (mctx.accum_err)
 		goto disable_power;
 
 	return 0;
 
 disable_power:
 	regulator_disable(ctx->power);
-	return ret;
+	return mctx.accum_err;
 }
 
 static int ili9881c_unprepare(struct drm_panel *panel)
 {
 	struct ili9881c *ctx = panel_to_ili9881c(panel);
+	struct mipi_dsi_multi_context mctx = { .dsi = ctx->dsi };
 
-	mipi_dsi_dcs_set_display_off(ctx->dsi);
-	mipi_dsi_dcs_enter_sleep_mode(ctx->dsi);
+	mipi_dsi_dcs_set_display_off_multi(&mctx);
+	mipi_dsi_dcs_enter_sleep_mode_multi(&mctx);
 	regulator_disable(ctx->power);
 	gpiod_set_value_cansleep(ctx->reset, 1);
 
