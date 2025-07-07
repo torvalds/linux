@@ -771,8 +771,12 @@ static int jpeg_v2_0_ring_reset(struct amdgpu_ring *ring,
 	int r;
 
 	drm_sched_wqueue_stop(&ring->sched);
-	jpeg_v2_0_stop(ring->adev);
-	jpeg_v2_0_start(ring->adev);
+	r = jpeg_v2_0_stop(ring->adev);
+	if (r)
+		return r;
+	r = jpeg_v2_0_start(ring->adev);
+	if (r)
+		return r;
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
 		return r;
