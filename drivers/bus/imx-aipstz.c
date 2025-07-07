@@ -26,6 +26,11 @@ static void imx_aipstz_apply_default(struct imx_aipstz_data *data)
 	writel(data->default_cfg->mpr0, data->base + IMX_AIPSTZ_MPR0);
 }
 
+static const struct of_device_id imx_aipstz_match_table[] = {
+	{ .compatible = "simple-bus", },
+	{ }
+};
+
 static int imx_aipstz_probe(struct platform_device *pdev)
 {
 	struct imx_aipstz_data *data;
@@ -49,7 +54,13 @@ static int imx_aipstz_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	devm_pm_runtime_enable(&pdev->dev);
 
-	return devm_of_platform_populate(&pdev->dev);
+	return of_platform_populate(pdev->dev.of_node, imx_aipstz_match_table,
+				    NULL, &pdev->dev);
+}
+
+static void imx_aipstz_remove(struct platform_device *pdev)
+{
+	of_platform_depopulate(&pdev->dev);
 }
 
 static int imx_aipstz_runtime_resume(struct device *dev)
@@ -83,6 +94,7 @@ MODULE_DEVICE_TABLE(of, imx_aipstz_of_ids);
 
 static struct platform_driver imx_aipstz_of_driver = {
 	.probe = imx_aipstz_probe,
+	.remove = imx_aipstz_remove,
 	.driver = {
 		.name = "imx-aipstz",
 		.of_match_table = imx_aipstz_of_ids,
