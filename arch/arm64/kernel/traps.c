@@ -894,8 +894,6 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned long esr)
 			      "Bad EL0 synchronous exception");
 }
 
-#ifdef CONFIG_VMAP_STACK
-
 DEFINE_PER_CPU(unsigned long [OVERFLOW_STACK_SIZE/sizeof(long)], overflow_stack)
 	__aligned(16);
 
@@ -927,7 +925,6 @@ void __noreturn panic_bad_stack(struct pt_regs *regs, unsigned long esr, unsigne
 	nmi_panic(NULL, "kernel stack overflow");
 	cpu_park_loop();
 }
-#endif
 
 void __noreturn arm64_serror_panic(struct pt_regs *regs, unsigned long esr)
 {
