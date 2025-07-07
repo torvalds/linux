@@ -461,10 +461,19 @@ int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
+static const struct cpumask *gve_get_node_mask(struct gve_priv *priv)
+{
+	if (priv->numa_node == NUMA_NO_NODE)
+		return cpu_all_mask;
+	else
+		return cpumask_of_node(priv->numa_node);
+}
+
 static int gve_alloc_notify_blocks(struct gve_priv *priv)
 {
 	int num_vecs_requested = priv->num_ntfy_blks + 1;
-	unsigned int active_cpus;
+	const struct cpumask *node_mask;
+	unsigned int cur_cpu;
 	int vecs_enabled;
 	int i, j;
 	int err;
@@ -503,8 +512,6 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 		if (priv->rx_cfg.num_queues > priv->rx_cfg.max_queues)
 			priv->rx_cfg.num_queues = priv->rx_cfg.max_queues;
 	}
-	/* Half the notification blocks go to TX and half to RX */
-	active_cpus = min_t(int, priv->num_ntfy_blks / 2, num_online_cpus());
 
 	/* Setup Management Vector  - the last vector */
 	snprintf(priv->mgmt_msix_name, sizeof(priv->mgmt_msix_name), "gve-mgmnt@pci:%s",
@@ -533,6 +540,8 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 	}
 
 	/* Setup the other blocks - the first n-1 vectors */
+	node_mask = gve_get_node_mask(priv);
+	cur_cpu = cpumask_first(node_mask);
 	for (i = 0; i < priv->num_ntfy_blks; i++) {
 		struct gve_notify_block *block = &priv->ntfy_blocks[i];
 		int msix_idx = i;
@@ -549,9 +558,17 @@ static int gve_alloc_notify_blocks(struct gve_priv *priv)
 			goto abort_with_some_ntfy_blocks;
 		}
 		block->irq = priv->msix_vectors[msix_idx].vector;
-		irq_set_affinity_hint(priv->msix_vectors[msix_idx].vector,
-				      get_cpu_mask(i % active_cpus));
+		irq_set_affinity_and_hint(block->irq,
+					  cpumask_of(cur_cpu));
 		block->irq_db_index = &priv->irq_db_indices[i].index;
+
+		cur_cpu = cpumask_next(cur_cpu, node_mask);
+		/* Wrap once CPUs in the node have been exhausted, or when
+		 * starting RX queue affinities. TX and RX queues of the same
+		 * index share affinity.
+		 */
+		if (cur_cpu >= nr_cpu_ids || (i + 1) == priv->tx_cfg.max_queues)
+			cur_cpu = cpumask_first(node_mask);
 	}
 	return 0;
 abort_with_some_ntfy_blocks:
@@ -1040,7 +1057,7 @@ int gve_alloc_page(struct gve_priv *priv, struct device *dev,
 		   struct page **page, dma_addr_t *dma,
 		   enum dma_data_direction dir, gfp_t gfp_flags)
 {
-	*page = alloc_page(gfp_flags);
+	*page = alloc_pages_node(priv->numa_node, gfp_flags, 0);
 	if (!*page) {
 		priv->page_alloc_fail++;
 		return -ENOMEM;
@@ -2322,6 +2339,7 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	 */
 	priv->num_ntfy_blks = (num_ntfy - 1) & ~0x1;
 	priv->mgmt_msix_idx = priv->num_ntfy_blks;
+	priv->numa_node = dev_to_node(&priv->pdev->dev);
 
 	priv->tx_cfg.max_queues =
 		min_t(int, priv->tx_cfg.max_queues, priv->num_ntfy_blks / 2);

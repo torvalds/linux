@@ -237,9 +237,9 @@ int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 
 	rx->dqo.num_buf_states = cfg->raw_addressing ? buffer_queue_slots :
 		gve_get_rx_pages_per_qpl_dqo(cfg->ring_size);
-	rx->dqo.buf_states = kvcalloc(rx->dqo.num_buf_states,
-				      sizeof(rx->dqo.buf_states[0]),
-				      GFP_KERNEL);
+	rx->dqo.buf_states = kvcalloc_node(rx->dqo.num_buf_states,
+					   sizeof(rx->dqo.buf_states[0]),
+					   GFP_KERNEL, priv->numa_node);
 	if (!rx->dqo.buf_states)
 		return -ENOMEM;
 
@@ -488,7 +488,7 @@ static int gve_rx_copy_ondemand(struct gve_rx_ring *rx,
 				struct gve_rx_buf_state_dqo *buf_state,
 				u16 buf_len)
 {
-	struct page *page = alloc_page(GFP_ATOMIC);
+	struct page *page = alloc_pages_node(rx->gve->numa_node, GFP_ATOMIC, 0);
 	int num_frags;
 
 	if (!page)
