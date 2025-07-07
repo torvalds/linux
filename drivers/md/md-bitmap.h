@@ -62,6 +62,8 @@ struct md_bitmap_stats {
 };
 
 struct bitmap_operations {
+	struct md_submodule_head head;
+
 	bool (*enabled)(void *data, bool flush);
 	int (*create)(struct mddev *mddev);
 	int (*resize)(struct mddev *mddev, sector_t blocks, int chunksize);
@@ -105,8 +107,6 @@ struct bitmap_operations {
 };
 
 /* the bitmap API */
-void mddev_set_bitmap_ops(struct mddev *mddev);
-
 static inline bool md_bitmap_registered(struct mddev *mddev)
 {
 	return mddev->bitmap_ops != NULL;
@@ -146,5 +146,18 @@ static inline void md_bitmap_end_sync(struct mddev *mddev, sector_t offset,
 
 	mddev->bitmap_ops->end_sync(mddev, offset, blocks);
 }
+
+#ifdef CONFIG_MD_BITMAP
+int md_bitmap_init(void);
+void md_bitmap_exit(void);
+#else
+static inline int md_bitmap_init(void)
+{
+	return 0;
+}
+static inline void md_bitmap_exit(void)
+{
+}
+#endif
 
 #endif

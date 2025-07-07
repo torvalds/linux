@@ -38,7 +38,7 @@ enum md_submodule_id {
 	ID_RAID6	= 6,
 	ID_RAID10	= 10,
 	ID_CLUSTER,
-	ID_BITMAP,	/* TODO */
+	ID_BITMAP,
 	ID_LLBITMAP,	/* TODO */
 };
 
@@ -1012,7 +1012,6 @@ struct mdu_array_info_s;
 struct mdu_disk_info_s;
 
 extern int mdp_major;
-extern struct workqueue_struct *md_bitmap_wq;
 void md_autostart_arrays(int part);
 int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info);
 int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
