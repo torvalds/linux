@@ -29,5 +29,14 @@ struct arch_uprobe {
 };
 
 int uprobe_brk_handler(struct pt_regs *regs, unsigned long esr);
+#ifdef CONFIG_UPROBES
+int uprobe_single_step_handler(struct pt_regs *regs, unsigned long esr);
+#else
+static inline int uprobe_single_step_handler(struct pt_regs *regs,
+	unsigned long esr)
+{
+	return DBG_HOOK_ERROR;
+}
+#endif
 
 #endif

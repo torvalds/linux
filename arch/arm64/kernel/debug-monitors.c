@@ -200,30 +200,17 @@ void unregister_kernel_step_hook(struct step_hook *hook)
 }
 
 /*
- * Call registered single step handlers
+ * Call single step handlers
  * There is no Syndrome info to check for determining the handler.
- * So we call all the registered handlers, until the right handler is
- * found which returns zero.
+ * However, there is only one possible handler for user and kernel modes, so
+ * check and call the appropriate one.
  */
 static int call_step_hook(struct pt_regs *regs, unsigned long esr)
 {
-	struct step_hook *hook;
-	struct list_head *list;
-	int retval = DBG_HOOK_ERROR;
+	if (user_mode(regs))
+		return uprobe_single_step_handler(regs, esr);
 
-	list = user_mode(regs) ? &user_step_hook : &kernel_step_hook;
-
-	/*
-	 * Since single-step exception disables interrupt, this function is
-	 * entirely not preemptible, and we can use rcu list safely here.
-	 */
-	list_for_each_entry_rcu(hook, list, node)	{
-		retval = hook->fn(regs, esr);
-		if (retval == DBG_HOOK_HANDLED)
-			break;
-	}
-
-	return retval;
+	return kgdb_single_step_handler(regs, esr);
 }
 NOKPROBE_SYMBOL(call_step_hook);
 

@@ -26,6 +26,15 @@ extern int kgdb_fault_expected;
 
 int kgdb_brk_handler(struct pt_regs *regs, unsigned long esr);
 int kgdb_compiled_brk_handler(struct pt_regs *regs, unsigned long esr);
+#ifdef CONFIG_KGDB
+int kgdb_single_step_handler(struct pt_regs *regs, unsigned long esr);
+#else
+static inline int kgdb_single_step_handler(struct pt_regs *regs,
+	unsigned long esr)
+{
+	return DBG_HOOK_ERROR;
+}
+#endif
 
 #endif /* !__ASSEMBLY__ */
 
