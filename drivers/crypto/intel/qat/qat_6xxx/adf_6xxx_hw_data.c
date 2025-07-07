@@ -763,7 +763,16 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 
 static int enable_pm(struct adf_accel_dev *accel_dev)
 {
-	return adf_init_admin_pm(accel_dev, ADF_GEN6_PM_DEFAULT_IDLE_FILTER);
+	int ret;
+
+	ret = adf_init_admin_pm(accel_dev, ADF_GEN6_PM_DEFAULT_IDLE_FILTER);
+	if (ret)
+		return ret;
+
+	/* Initialize PM internal data */
+	adf_gen6_init_dev_pm_data(accel_dev);
+
+	return 0;
 }
 
 static int dev_config(struct adf_accel_dev *accel_dev)

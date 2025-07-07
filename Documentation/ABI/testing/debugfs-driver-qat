@@ -67,7 +67,7 @@ Contact:	qat-linux@intel.com
 Description:	(RO) Read returns power management information specific to the
 		QAT device.
 
-		This attribute is only available for qat_4xxx devices.
+		This attribute is only available for qat_4xxx and qat_6xxx devices.
 
 What:		/sys/kernel/debug/qat_<device>_<BDF>/cnv_errors
 Date:		January 2024
