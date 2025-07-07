@@ -1381,7 +1381,7 @@ err_free:
 }
 
 /* Call with mounter creds as it may open the file */
-int ovl_ensure_verity_loaded(struct path *datapath)
+int ovl_ensure_verity_loaded(const struct path *datapath)
 {
 	struct inode *inode = d_inode(datapath->dentry);
 	struct file *filp;
