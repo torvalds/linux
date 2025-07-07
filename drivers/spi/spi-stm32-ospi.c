@@ -547,7 +547,6 @@ static int stm32_ospi_poll_status(struct spi_mem *mem,
 	ret = stm32_ospi_send(mem->spi, op);
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret;
@@ -571,7 +570,6 @@ static int stm32_ospi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	ret = stm32_ospi_send(mem->spi, op);
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret;
@@ -628,7 +626,6 @@ static ssize_t stm32_ospi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 	ret = stm32_ospi_send(desc->mem->spi, &op);
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret ?: len;
@@ -713,7 +710,6 @@ end_of_transfer:
 	msg->status = ret;
 	spi_finalize_current_message(ctrl);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return ret;
@@ -750,7 +746,6 @@ static int stm32_ospi_setup(struct spi_device *spi)
 
 	mutex_unlock(&ospi->lock);
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return 0;
@@ -953,7 +948,6 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 		goto err_pm_resume;
 	}
 
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return 0;
@@ -1032,7 +1026,6 @@ static int __maybe_unused stm32_ospi_resume(struct device *dev)
 
 	writel_relaxed(ospi->cr_reg, regs_base + OSPI_CR);
 	writel_relaxed(ospi->dcr_reg, regs_base + OSPI_DCR1);
-	pm_runtime_mark_last_busy(ospi->dev);
 	pm_runtime_put_autosuspend(ospi->dev);
 
 	return 0;
