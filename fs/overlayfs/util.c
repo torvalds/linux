@@ -1401,8 +1401,8 @@ int ovl_ensure_verity_loaded(const struct path *datapath)
 }
 
 int ovl_validate_verity(struct ovl_fs *ofs,
-			struct path *metapath,
-			struct path *datapath)
+			const struct path *metapath,
+			const struct path *datapath)
 {
 	struct ovl_metacopy metacopy_data;
 	u8 actual_digest[FS_VERITY_MAX_DIGEST_SIZE];
