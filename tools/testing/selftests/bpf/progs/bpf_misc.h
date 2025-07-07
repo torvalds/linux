@@ -237,4 +237,8 @@
 #define SPEC_V1
 #endif
 
+#if defined(__TARGET_ARCH_x86)
+#define SPEC_V4
+#endif
+
 #endif
