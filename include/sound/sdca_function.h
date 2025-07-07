@@ -1269,6 +1269,15 @@ struct sdca_cluster {
 };
 
 /**
+ * enum sdca_cluster_range - SDCA Range column definitions for ClusterIndex
+ */
+enum sdca_cluster_range {
+	SDCA_CLUSTER_BYTEINDEX				= 0,
+	SDCA_CLUSTER_CLUSTERID				= 1,
+	SDCA_CLUSTER_NCOLS				= 2,
+};
+
+/**
  * struct sdca_function_data - top-level information for one SDCA function
  * @desc: Pointer to short descriptor from initial parsing.
  * @init_table: Pointer to a table of initialization writes.
@@ -1326,5 +1335,8 @@ struct sdca_control_range *sdca_control_find_range(struct device *dev,
 struct sdca_control_range *sdca_selector_find_range(struct device *dev,
 						    struct sdca_entity *entity,
 						    int sel, int cols, int rows);
+struct sdca_cluster *sdca_id_find_cluster(struct device *dev,
+					  struct sdca_function_data *function,
+					  const int id);
 
 #endif

@@ -7,16 +7,20 @@
  * https://www.mipi.org/mipi-sdca-v1-0-download
  */
 
+#include <linux/bits.h>
 #include <linux/bitmap.h>
+#include <linux/build_bug.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
 #include <linux/device.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
+#include <linux/regmap.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/string_helpers.h>
 #include <sound/control.h>
+#include <sound/pcm.h>
 #include <sound/sdca.h>
 #include <sound/sdca_asoc.h>
 #include <sound/sdca_function.h>
@@ -1269,3 +1273,98 @@ int sdca_asoc_populate_component(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_NS(sdca_asoc_populate_component, "SND_SOC_SDCA");
+
+/**
+ * sdca_asoc_set_constraints - constrain channels available on a DAI
+ * @dev: Pointer to the device, used for error messages.
+ * @regmap: Pointer to the Function register map.
+ * @function: Pointer to the Function information.
+ * @substream: Pointer to the PCM substream.
+ * @dai: Pointer to the ASoC DAI.
+ *
+ * Typically called from startup().
+ *
+ * Return: Returns zero on success, and a negative error code on failure.
+ */
+int sdca_asoc_set_constraints(struct device *dev, struct regmap *regmap,
+			      struct sdca_function_data *function,
+			      struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
+{
+	static const unsigned int channel_list[] = {
+		 1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+	};
+	struct sdca_entity *entity = &function->entities[dai->id];
+	struct snd_pcm_hw_constraint_list *constraint;
+	struct sdca_control_range *range;
+	struct sdca_control *control;
+	unsigned int channel_mask = 0;
+	int i, ret;
+
+	static_assert(ARRAY_SIZE(channel_list) == SDCA_MAX_CHANNEL_COUNT);
+	static_assert(sizeof(channel_mask) * BITS_PER_BYTE >= SDCA_MAX_CHANNEL_COUNT);
+
+	if (entity->type != SDCA_ENTITY_TYPE_IT)
+		return 0;
+
+	control = sdca_selector_find_control(dev, entity, SDCA_CTL_IT_CLUSTERINDEX);
+	if (!control)
+		return -EINVAL;
+
+	range = sdca_control_find_range(dev, entity, control, SDCA_CLUSTER_NCOLS, 0);
+	if (!range)
+		return -EINVAL;
+
+	for (i = 0; i < range->rows; i++) {
+		int clusterid = sdca_range(range, SDCA_CLUSTER_CLUSTERID, i);
+		struct sdca_cluster *cluster;
+
+		cluster = sdca_id_find_cluster(dev, function, clusterid);
+		if (!cluster)
+			return -ENODEV;
+
+		channel_mask |= (1 << (cluster->num_channels - 1));
+	}
+
+	dev_dbg(dev, "%s: set channel constraint mask: %#x\n",
+		entity->label, channel_mask);
+
+	constraint = kzalloc(sizeof(*constraint), GFP_KERNEL);
+	if (!constraint)
+		return -ENOMEM;
+
+	constraint->count = ARRAY_SIZE(channel_list);
+	constraint->list = channel_list;
+	constraint->mask = channel_mask;
+
+	ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
+					 SNDRV_PCM_HW_PARAM_CHANNELS,
+					 constraint);
+	if (ret) {
+		dev_err(dev, "%s: failed to add constraint: %d\n", entity->label, ret);
+		kfree(constraint);
+		return ret;
+	}
+
+	dai->priv = constraint;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(sdca_asoc_set_constraints, "SND_SOC_SDCA");
+
+/**
+ * sdca_asoc_free_constraints - free constraint allocations
+ * @substream: Pointer to the PCM substream.
+ * @dai: Pointer to the ASoC DAI.
+ *
+ * Typically called from shutdown().
+ */
+void sdca_asoc_free_constraints(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct snd_pcm_hw_constraint_list *constraint = dai->priv;
+
+	kfree(constraint);
+}
+EXPORT_SYMBOL_NS(sdca_asoc_free_constraints, "SND_SOC_SDCA");

@@ -1991,5 +1991,23 @@ struct sdca_control_range *sdca_selector_find_range(struct device *dev,
 }
 EXPORT_SYMBOL_NS(sdca_selector_find_range, "SND_SOC_SDCA");
 
+struct sdca_cluster *sdca_id_find_cluster(struct device *dev,
+					  struct sdca_function_data *function,
+					  const int id)
+{
+	int i;
+
+	for (i = 0; i < function->num_clusters; i++) {
+		struct sdca_cluster *cluster = &function->clusters[i];
+
+		if (cluster->id == id)
+			return cluster;
+	}
+
+	dev_err(dev, "%s: cluster %#x: missing\n", function->desc->name, id);
+	return NULL;
+}
+EXPORT_SYMBOL_NS(sdca_id_find_cluster, "SND_SOC_SDCA");
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA library");
