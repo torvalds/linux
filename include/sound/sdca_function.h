@@ -1316,4 +1316,15 @@ int sdca_parse_function(struct device *dev,
 			struct sdca_function_desc *desc,
 			struct sdca_function_data *function);
 
+struct sdca_control *sdca_selector_find_control(struct device *dev,
+						struct sdca_entity *entity,
+						const int sel);
+struct sdca_control_range *sdca_control_find_range(struct device *dev,
+						   struct sdca_entity *entity,
+						   struct sdca_control *control,
+						   int cols, int rows);
+struct sdca_control_range *sdca_selector_find_range(struct device *dev,
+						    struct sdca_entity *entity,
+						    int sel, int cols, int rows);
+
 #endif

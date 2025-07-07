@@ -26,53 +26,6 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 
-static struct sdca_control *selector_find_control(struct device *dev,
-						  struct sdca_entity *entity,
-						  const int sel)
-{
-	int i;
-
-	for (i = 0; i < entity->num_controls; i++) {
-		struct sdca_control *control = &entity->controls[i];
-
-		if (control->sel == sel)
-			return control;
-	}
-
-	dev_err(dev, "%s: control %#x: missing\n", entity->label, sel);
-	return NULL;
-}
-
-static struct sdca_control_range *control_find_range(struct device *dev,
-						     struct sdca_entity *entity,
-						     struct sdca_control *control,
-						     int cols, int rows)
-{
-	struct sdca_control_range *range = &control->range;
-
-	if ((cols && range->cols != cols) || (rows && range->rows != rows) ||
-	    !range->data) {
-		dev_err(dev, "%s: control %#x: ranges invalid (%d,%d)\n",
-			entity->label, control->sel, range->cols, range->rows);
-		return NULL;
-	}
-
-	return range;
-}
-
-static struct sdca_control_range *selector_find_range(struct device *dev,
-						      struct sdca_entity *entity,
-						      int sel, int cols, int rows)
-{
-	struct sdca_control *control;
-
-	control = selector_find_control(dev, entity, sel);
-	if (!control)
-		return NULL;
-
-	return control_find_range(dev, entity, control, cols, rows);
-}
-
 static bool exported_control(struct sdca_entity *entity, struct sdca_control *control)
 {
 	switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
@@ -213,7 +166,7 @@ static int entity_early_parse_ge(struct device *dev,
 	const char **texts;
 	int i;
 
-	control = selector_find_control(dev, entity, SDCA_CTL_GE_SELECTED_MODE);
+	control = sdca_selector_find_control(dev, entity, SDCA_CTL_GE_SELECTED_MODE);
 	if (!control)
 		return -EINVAL;
 
@@ -221,7 +174,7 @@ static int entity_early_parse_ge(struct device *dev,
 		dev_warn(dev, "%s: unexpected access layer: %x\n",
 			 entity->label, control->layers);
 
-	range = control_find_range(dev, entity, control, SDCA_SELECTED_MODE_NCOLS, 0);
+	range = sdca_control_find_range(dev, entity, control, SDCA_SELECTED_MODE_NCOLS, 0);
 	if (!range)
 		return -EINVAL;
 
@@ -443,7 +396,7 @@ static int entity_parse_pde(struct device *dev,
 	unsigned int mask = 0;
 	int i;
 
-	control = selector_find_control(dev, entity, SDCA_CTL_PDE_REQUESTED_PS);
+	control = sdca_selector_find_control(dev, entity, SDCA_CTL_PDE_REQUESTED_PS);
 	if (!control)
 		return -EINVAL;
 
@@ -452,7 +405,7 @@ static int entity_parse_pde(struct device *dev,
 		dev_warn(dev, "%s: unexpected access layer: %x\n",
 			 entity->label, control->layers);
 
-	range = control_find_range(dev, entity, control, SDCA_REQUESTED_PS_NCOLS, 0);
+	range = sdca_control_find_range(dev, entity, control, SDCA_REQUESTED_PS_NCOLS, 0);
 	if (!range)
 		return -EINVAL;
 
@@ -499,8 +452,8 @@ static int entity_parse_su_device(struct device *dev,
 		return -EINVAL;
 	}
 
-	range = selector_find_range(dev, entity->group, SDCA_CTL_GE_SELECTED_MODE,
-				    SDCA_SELECTED_MODE_NCOLS, 0);
+	range = sdca_selector_find_range(dev, entity->group, SDCA_CTL_GE_SELECTED_MODE,
+					 SDCA_SELECTED_MODE_NCOLS, 0);
 	if (!range)
 		return -EINVAL;
 
@@ -613,7 +566,7 @@ static int entity_parse_su(struct device *dev,
 		return -EINVAL;
 	}
 
-	control = selector_find_control(dev, entity, SDCA_CTL_SU_SELECTOR);
+	control = sdca_selector_find_control(dev, entity, SDCA_CTL_SU_SELECTOR);
 	if (!control)
 		return -EINVAL;
 
@@ -643,7 +596,7 @@ static int entity_parse_mu(struct device *dev,
 		return -EINVAL;
 	}
 
-	control = selector_find_control(dev, entity, SDCA_CTL_MU_MIXER);
+	control = sdca_selector_find_control(dev, entity, SDCA_CTL_MU_MIXER);
 	if (!control)
 		return -EINVAL;
 
@@ -853,7 +806,7 @@ static int control_limit_kctl(struct device *dev,
 	/*
 	 * FIXME: For now only handle the simple case of a single linear range
 	 */
-	range = control_find_range(dev, entity, control, SDCA_VOLUME_LINEAR_NCOLS, 1);
+	range = sdca_control_find_range(dev, entity, control, SDCA_VOLUME_LINEAR_NCOLS, 1);
 	if (!range)
 		return -EINVAL;
 
@@ -1140,9 +1093,9 @@ static int populate_rate_format(struct device *dev,
 	}
 
 	if (entity->iot.clock) {
-		range = selector_find_range(dev, entity->iot.clock,
-					    SDCA_CTL_CS_SAMPLERATEINDEX,
-					    SDCA_SAMPLERATEINDEX_NCOLS, 0);
+		range = sdca_selector_find_range(dev, entity->iot.clock,
+						 SDCA_CTL_CS_SAMPLERATEINDEX,
+						 SDCA_SAMPLERATEINDEX_NCOLS, 0);
 		if (!range)
 			return -EINVAL;
 
@@ -1154,7 +1107,7 @@ static int populate_rate_format(struct device *dev,
 		clock_rates = UINT_MAX;
 	}
 
-	range = selector_find_range(dev, entity, sel, SDCA_USAGE_NCOLS, 0);
+	range = sdca_selector_find_range(dev, entity, sel, SDCA_USAGE_NCOLS, 0);
 	if (!range)
 		return -EINVAL;
 

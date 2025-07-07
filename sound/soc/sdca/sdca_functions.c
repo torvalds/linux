@@ -1941,5 +1941,55 @@ int sdca_parse_function(struct device *dev,
 }
 EXPORT_SYMBOL_NS(sdca_parse_function, "SND_SOC_SDCA");
 
+struct sdca_control *sdca_selector_find_control(struct device *dev,
+						struct sdca_entity *entity,
+						const int sel)
+{
+	int i;
+
+	for (i = 0; i < entity->num_controls; i++) {
+		struct sdca_control *control = &entity->controls[i];
+
+		if (control->sel == sel)
+			return control;
+	}
+
+	dev_err(dev, "%s: control %#x: missing\n", entity->label, sel);
+	return NULL;
+}
+EXPORT_SYMBOL_NS(sdca_selector_find_control, "SND_SOC_SDCA");
+
+struct sdca_control_range *sdca_control_find_range(struct device *dev,
+						   struct sdca_entity *entity,
+						   struct sdca_control *control,
+						   int cols, int rows)
+{
+	struct sdca_control_range *range = &control->range;
+
+	if ((cols && range->cols != cols) || (rows && range->rows != rows) ||
+	    !range->data) {
+		dev_err(dev, "%s: control %#x: ranges invalid (%d,%d)\n",
+			entity->label, control->sel, range->cols, range->rows);
+		return NULL;
+	}
+
+	return range;
+}
+EXPORT_SYMBOL_NS(sdca_control_find_range, "SND_SOC_SDCA");
+
+struct sdca_control_range *sdca_selector_find_range(struct device *dev,
+						    struct sdca_entity *entity,
+						    int sel, int cols, int rows)
+{
+	struct sdca_control *control;
+
+	control = sdca_selector_find_control(dev, entity, sel);
+	if (!control)
+		return NULL;
+
+	return sdca_control_find_range(dev, entity, control, cols, rows);
+}
+EXPORT_SYMBOL_NS(sdca_selector_find_range, "SND_SOC_SDCA");
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA library");
