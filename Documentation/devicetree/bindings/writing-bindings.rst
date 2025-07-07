@@ -40,9 +40,9 @@ Properties
 ==========
 
 - DO make 'compatible' properties specific. DON'T use wildcards in compatible
-  strings. DO use fallback compatibles when devices are the same as or a subset
-  of prior implementations. DO add new compatibles in case there are new
-  features or bugs.
+  strings. DO use fallback compatibles when devices are the same as or a
+  superset of prior implementations. DO add new compatibles in case there are
+  new features or bugs.
 
 - DO use a vendor prefix on device-specific property names. Consider if
   properties could be common among devices of the same class. Check other
