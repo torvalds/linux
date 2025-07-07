@@ -1665,11 +1665,12 @@ struct mpage_da_data {
 	unsigned int can_map:1;	/* Can writepages call map blocks? */
 
 	/* These are internal state of ext4_do_writepages() */
-	pgoff_t first_page;	/* The first page to write */
-	pgoff_t next_page;	/* Current page to examine */
-	pgoff_t last_page;	/* Last page to examine */
+	loff_t start_pos;	/* The start pos to write */
+	loff_t next_pos;	/* Current pos to examine */
+	loff_t end_pos;		/* Last pos to examine */
+
 	/*
-	 * Extent to map - this can be after first_page because that can be
+	 * Extent to map - this can be after start_pos because that can be
 	 * fully mapped. We somewhat abuse m_flags to store whether the extent
 	 * is delalloc or unwritten.
 	 */
@@ -1689,38 +1690,38 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
 	struct inode *inode = mpd->inode;
 	struct address_space *mapping = inode->i_mapping;
 
-	/* This is necessary when next_page == 0. */
-	if (mpd->first_page >= mpd->next_page)
+	/* This is necessary when next_pos == 0. */
+	if (mpd->start_pos >= mpd->next_pos)
 		return;
 
 	mpd->scanned_until_end = 0;
-	index = mpd->first_page;
-	end   = mpd->next_page - 1;
 	if (invalidate) {
 		ext4_lblk_t start, last;
-		start = index << (PAGE_SHIFT - inode->i_blkbits);
-		last = end << (PAGE_SHIFT - inode->i_blkbits);
+		start = EXT4_B_TO_LBLK(inode, mpd->start_pos);
+		last = mpd->next_pos >> inode->i_blkbits;
 
 		/*
 		 * avoid racing with extent status tree scans made by
 		 * ext4_insert_delayed_block()
 		 */
 		down_write(&EXT4_I(inode)->i_data_sem);
-		ext4_es_remove_extent(inode, start, last - start + 1);
+		ext4_es_remove_extent(inode, start, last - start);
 		up_write(&EXT4_I(inode)->i_data_sem);
 	}
 
 	folio_batch_init(&fbatch);
-	while (index <= end) {
-		nr = filemap_get_folios(mapping, &index, end, &fbatch);
+	index = mpd->start_pos >> PAGE_SHIFT;
+	end = mpd->next_pos >> PAGE_SHIFT;
+	while (index < end) {
+		nr = filemap_get_folios(mapping, &index, end - 1, &fbatch);
 		if (nr == 0)
 			break;
 		for (i = 0; i < nr; i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			if (folio->index < mpd->first_page)
+			if (folio_pos(folio) < mpd->start_pos)
 				continue;
-			if (folio_next_index(folio) - 1 > end)
+			if (folio_next_index(folio) > end)
 				continue;
 			BUG_ON(!folio_test_locked(folio));
 			BUG_ON(folio_test_writeback(folio));
@@ -2022,7 +2023,7 @@ int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 
 static void mpage_folio_done(struct mpage_da_data *mpd, struct folio *folio)
 {
-	mpd->first_page += folio_nr_pages(folio);
+	mpd->start_pos += folio_size(folio);
 	folio_unlock(folio);
 }
 
@@ -2032,7 +2033,7 @@ static int mpage_submit_folio(struct mpage_da_data *mpd, struct folio *folio)
 	loff_t size;
 	int err;
 
-	BUG_ON(folio->index != mpd->first_page);
+	WARN_ON_ONCE(folio_pos(folio) != mpd->start_pos);
 	folio_clear_dirty_for_io(folio);
 	/*
 	 * We have to be very careful here!  Nothing protects writeback path
@@ -2444,7 +2445,7 @@ update_disksize:
 	 * Update on-disk size after IO is submitted.  Races with
 	 * truncate are avoided by checking i_size under i_data_sem.
 	 */
-	disksize = ((loff_t)mpd->first_page) << PAGE_SHIFT;
+	disksize = mpd->start_pos;
 	if (disksize > READ_ONCE(EXT4_I(inode)->i_disksize)) {
 		int err2;
 		loff_t i_size;
@@ -2547,8 +2548,8 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 	struct address_space *mapping = mpd->inode->i_mapping;
 	struct folio_batch fbatch;
 	unsigned int nr_folios;
-	pgoff_t index = mpd->first_page;
-	pgoff_t end = mpd->last_page;
+	pgoff_t index = mpd->start_pos >> PAGE_SHIFT;
+	pgoff_t end = mpd->end_pos >> PAGE_SHIFT;
 	xa_mark_t tag;
 	int i, err = 0;
 	int blkbits = mpd->inode->i_blkbits;
@@ -2563,7 +2564,7 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 		tag = PAGECACHE_TAG_DIRTY;
 
 	mpd->map.m_len = 0;
-	mpd->next_page = index;
+	mpd->next_pos = mpd->start_pos;
 	if (ext4_should_journal_data(mpd->inode)) {
 		handle = ext4_journal_start(mpd->inode, EXT4_HT_WRITE_PAGE,
 					    bpp);
@@ -2594,7 +2595,8 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 				goto out;
 
 			/* If we can't merge this page, we are done. */
-			if (mpd->map.m_len > 0 && mpd->next_page != folio->index)
+			if (mpd->map.m_len > 0 &&
+			    mpd->next_pos != folio_pos(folio))
 				goto out;
 
 			if (handle) {
@@ -2640,8 +2642,8 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			}
 
 			if (mpd->map.m_len == 0)
-				mpd->first_page = folio->index;
-			mpd->next_page = folio_next_index(folio);
+				mpd->start_pos = folio_pos(folio);
+			mpd->next_pos = folio_pos(folio) + folio_size(folio);
 			/*
 			 * Writeout when we cannot modify metadata is simple.
 			 * Just submit the page. For data=journal mode we
@@ -2784,18 +2786,18 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 		writeback_index = mapping->writeback_index;
 		if (writeback_index)
 			cycled = 0;
-		mpd->first_page = writeback_index;
-		mpd->last_page = -1;
+		mpd->start_pos = writeback_index << PAGE_SHIFT;
+		mpd->end_pos = LLONG_MAX;
 	} else {
-		mpd->first_page = wbc->range_start >> PAGE_SHIFT;
-		mpd->last_page = wbc->range_end >> PAGE_SHIFT;
+		mpd->start_pos = wbc->range_start;
+		mpd->end_pos = wbc->range_end;
 	}
 
 	ext4_io_submit_init(&mpd->io_submit, wbc);
 retry:
 	if (wbc->sync_mode == WB_SYNC_ALL || wbc->tagged_writepages)
-		tag_pages_for_writeback(mapping, mpd->first_page,
-					mpd->last_page);
+		tag_pages_for_writeback(mapping, mpd->start_pos >> PAGE_SHIFT,
+					mpd->end_pos >> PAGE_SHIFT);
 	blk_start_plug(&plug);
 
 	/*
@@ -2855,7 +2857,7 @@ retry:
 		}
 		mpd->do_map = 1;
 
-		trace_ext4_da_write_pages(inode, mpd->first_page, wbc);
+		trace_ext4_da_write_pages(inode, mpd->start_pos, wbc);
 		ret = mpage_prepare_extent_to_map(mpd);
 		if (!ret && mpd->map.m_len)
 			ret = mpage_map_and_submit_extent(handle, mpd,
@@ -2912,8 +2914,8 @@ unplug:
 	blk_finish_plug(&plug);
 	if (!ret && !cycled && wbc->nr_to_write > 0) {
 		cycled = 1;
-		mpd->last_page = writeback_index - 1;
-		mpd->first_page = 0;
+		mpd->end_pos = (writeback_index << PAGE_SHIFT) - 1;
+		mpd->start_pos = 0;
 		goto retry;
 	}
 
@@ -2923,7 +2925,7 @@ unplug:
 		 * Set the writeback_index so that range_cyclic
 		 * mode will write it back later
 		 */
-		mapping->writeback_index = mpd->first_page;
+		mapping->writeback_index = mpd->start_pos >> PAGE_SHIFT;
 
 out_writepages:
 	trace_ext4_writepages_result(inode, wbc, ret,

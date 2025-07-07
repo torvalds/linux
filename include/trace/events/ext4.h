@@ -483,15 +483,15 @@ TRACE_EVENT(ext4_writepages,
 );
 
 TRACE_EVENT(ext4_da_write_pages,
-	TP_PROTO(struct inode *inode, pgoff_t first_page,
+	TP_PROTO(struct inode *inode, loff_t start_pos,
 		 struct writeback_control *wbc),
 
-	TP_ARGS(inode, first_page, wbc),
+	TP_ARGS(inode, start_pos, wbc),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
-		__field(      pgoff_t,	first_page		)
+		__field(       loff_t,	start_pos		)
 		__field(	 long,	nr_to_write		)
 		__field(	  int,	sync_mode		)
 	),
@@ -499,15 +499,14 @@ TRACE_EVENT(ext4_da_write_pages,
 	TP_fast_assign(
 		__entry->dev		= inode->i_sb->s_dev;
 		__entry->ino		= inode->i_ino;
-		__entry->first_page	= first_page;
+		__entry->start_pos	= start_pos;
 		__entry->nr_to_write	= wbc->nr_to_write;
 		__entry->sync_mode	= wbc->sync_mode;
 	),
 
-	TP_printk("dev %d,%d ino %lu first_page %lu nr_to_write %ld "
-		  "sync_mode %d",
+	TP_printk("dev %d,%d ino %lu start_pos 0x%llx nr_to_write %ld sync_mode %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  (unsigned long) __entry->ino, __entry->first_page,
+		  (unsigned long) __entry->ino, __entry->start_pos,
 		  __entry->nr_to_write, __entry->sync_mode)
 );
 
