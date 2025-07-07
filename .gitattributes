@@ -3,3 +3,6 @@
 *.dts diff=dts
 *.dts[io] diff=dts
 *.rs diff=perl
+
+*.rs linguist-language=Perl linguist-detectable
+*.py linguist-language=Perl linguist-detectable
