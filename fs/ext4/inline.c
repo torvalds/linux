@@ -562,7 +562,7 @@ static int ext4_convert_inline_data_to_extent(struct address_space *mapping,
 		return 0;
 	}
 
-	needed_blocks = ext4_writepage_trans_blocks(inode);
+	needed_blocks = ext4_chunk_trans_extent(inode, 1);
 
 	ret = ext4_get_inode_loc(inode, &iloc);
 	if (ret)
@@ -1864,7 +1864,7 @@ int ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 	};
 
 
-	needed_blocks = ext4_writepage_trans_blocks(inode);
+	needed_blocks = ext4_chunk_trans_extent(inode, 1);
 	handle = ext4_journal_start(inode, EXT4_HT_INODE, needed_blocks);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -1979,7 +1979,7 @@ int ext4_convert_inline_data(struct inode *inode)
 			return 0;
 	}
 
-	needed_blocks = ext4_writepage_trans_blocks(inode);
+	needed_blocks = ext4_chunk_trans_extent(inode, 1);
 
 	iloc.bh = NULL;
 	error = ext4_get_inode_loc(inode, &iloc);
