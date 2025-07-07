@@ -332,6 +332,62 @@ static void x86_amd_ssb_disable(void)
 #undef pr_fmt
 #define pr_fmt(fmt)	"MDS: " fmt
 
+/*
+ * Returns true if vulnerability should be mitigated based on the
+ * selected attack vector controls.
+ *
+ * See Documentation/admin-guide/hw-vuln/attack_vector_controls.rst
+ */
+static bool __init should_mitigate_vuln(unsigned int bug)
+{
+	switch (bug) {
+	/*
+	 * The only runtime-selected spectre_v1 mitigations in the kernel are
+	 * related to SWAPGS protection on kernel entry.  Therefore, protection
+	 * is only required for the user->kernel attack vector.
+	 */
+	case X86_BUG_SPECTRE_V1:
+		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL);
+
+	case X86_BUG_SPECTRE_V2:
+	case X86_BUG_RETBLEED:
+	case X86_BUG_SRSO:
+	case X86_BUG_L1TF:
+	case X86_BUG_ITS:
+		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST);
+
+	case X86_BUG_SPECTRE_V2_USER:
+		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST);
+
+	/*
+	 * All the vulnerabilities below allow potentially leaking data
+	 * across address spaces.  Therefore, mitigation is required for
+	 * any of these 4 attack vectors.
+	 */
+	case X86_BUG_MDS:
+	case X86_BUG_TAA:
+	case X86_BUG_MMIO_STALE_DATA:
+	case X86_BUG_RFDS:
+	case X86_BUG_SRBDS:
+		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST);
+
+	case X86_BUG_GDS:
+		return cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER) ||
+		       cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST) ||
+		       (smt_mitigations != SMT_MITIGATIONS_OFF);
+	default:
+		WARN(1, "Unknown bug %x\n", bug);
+		return false;
+	}
+}
+
 /* Default mitigation for MDS-affected CPUs */
 static enum mds_mitigations mds_mitigation __ro_after_init =
 	IS_ENABLED(CONFIG_MITIGATION_MDS) ? MDS_MITIGATION_AUTO : MDS_MITIGATION_OFF;
