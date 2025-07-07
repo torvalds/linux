@@ -107,7 +107,7 @@ static ssize_t revision_show(struct device *dev, struct device_attribute *attr,
 {
 	struct mcb_bus *bus = to_mcb_bus(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->revision);
+	return sysfs_emit(buf, "%d\n", bus->revision);
 }
 static DEVICE_ATTR_RO(revision);
 
@@ -116,7 +116,7 @@ static ssize_t model_show(struct device *dev, struct device_attribute *attr,
 {
 	struct mcb_bus *bus = to_mcb_bus(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%c\n", bus->model);
+	return sysfs_emit(buf, "%c\n", bus->model);
 }
 static DEVICE_ATTR_RO(model);
 
@@ -125,7 +125,7 @@ static ssize_t minor_show(struct device *dev, struct device_attribute *attr,
 {
 	struct mcb_bus *bus = to_mcb_bus(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", bus->minor);
+	return sysfs_emit(buf, "%d\n", bus->minor);
 }
 static DEVICE_ATTR_RO(minor);
 
@@ -134,7 +134,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 {
 	struct mcb_bus *bus = to_mcb_bus(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", bus->name);
+	return sysfs_emit(buf, "%s\n", bus->name);
 }
 static DEVICE_ATTR_RO(name);
 
