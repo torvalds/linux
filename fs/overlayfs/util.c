@@ -1455,7 +1455,7 @@ int ovl_validate_verity(struct ovl_fs *ofs,
 	return 0;
 }
 
-int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
+int ovl_get_verity_digest(struct ovl_fs *ofs, const struct path *src,
 			  struct ovl_metacopy *metacopy)
 {
 	int err, digest_size;

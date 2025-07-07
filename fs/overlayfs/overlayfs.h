@@ -567,7 +567,7 @@ int ovl_ensure_verity_loaded(const struct path *path);
 int ovl_validate_verity(struct ovl_fs *ofs,
 			const struct path *metapath,
 			const struct path *datapath);
-int ovl_get_verity_digest(struct ovl_fs *ofs, struct path *src,
+int ovl_get_verity_digest(struct ovl_fs *ofs, const struct path *src,
 			  struct ovl_metacopy *metacopy);
 int ovl_sync_status(struct ovl_fs *ofs);
 
