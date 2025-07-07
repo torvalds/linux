@@ -234,21 +234,21 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 	return err;
 }
 
-static int kgdb_brk_fn(struct pt_regs *regs, unsigned long esr)
+int kgdb_brk_handler(struct pt_regs *regs, unsigned long esr)
 {
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);
 	return DBG_HOOK_HANDLED;
 }
-NOKPROBE_SYMBOL(kgdb_brk_fn)
+NOKPROBE_SYMBOL(kgdb_brk_handler)
 
-static int kgdb_compiled_brk_fn(struct pt_regs *regs, unsigned long esr)
+int kgdb_compiled_brk_handler(struct pt_regs *regs, unsigned long esr)
 {
 	compiled_break = 1;
 	kgdb_handle_exception(1, SIGTRAP, 0, regs);
 
 	return DBG_HOOK_HANDLED;
 }
-NOKPROBE_SYMBOL(kgdb_compiled_brk_fn);
+NOKPROBE_SYMBOL(kgdb_compiled_brk_handler);
 
 static int kgdb_step_brk_fn(struct pt_regs *regs, unsigned long esr)
 {
@@ -259,16 +259,6 @@ static int kgdb_step_brk_fn(struct pt_regs *regs, unsigned long esr)
 	return DBG_HOOK_HANDLED;
 }
 NOKPROBE_SYMBOL(kgdb_step_brk_fn);
-
-static struct break_hook kgdb_brkpt_hook = {
-	.fn		= kgdb_brk_fn,
-	.imm		= KGDB_DYN_DBG_BRK_IMM,
-};
-
-static struct break_hook kgdb_compiled_brkpt_hook = {
-	.fn		= kgdb_compiled_brk_fn,
-	.imm		= KGDB_COMPILED_DBG_BRK_IMM,
-};
 
 static struct step_hook kgdb_step_hook = {
 	.fn		= kgdb_step_brk_fn
@@ -316,8 +306,6 @@ int kgdb_arch_init(void)
 	if (ret != 0)
 		return ret;
 
-	register_kernel_break_hook(&kgdb_brkpt_hook);
-	register_kernel_break_hook(&kgdb_compiled_brkpt_hook);
 	register_kernel_step_hook(&kgdb_step_hook);
 	return 0;
 }
@@ -329,8 +317,6 @@ int kgdb_arch_init(void)
  */
 void kgdb_arch_exit(void)
 {
-	unregister_kernel_break_hook(&kgdb_brkpt_hook);
-	unregister_kernel_break_hook(&kgdb_compiled_brkpt_hook);
 	unregister_kernel_step_hook(&kgdb_step_hook);
 	unregister_die_notifier(&kgdb_notifier);
 }

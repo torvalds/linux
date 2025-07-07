@@ -41,4 +41,12 @@ void __kretprobe_trampoline(void);
 void __kprobes *trampoline_probe_handler(struct pt_regs *regs);
 
 #endif /* CONFIG_KPROBES */
+
+int __kprobes kprobe_brk_handler(struct pt_regs *regs,
+				 unsigned long esr);
+int __kprobes kprobe_ss_brk_handler(struct pt_regs *regs,
+				 unsigned long esr);
+int __kprobes kretprobe_brk_handler(struct pt_regs *regs,
+				 unsigned long esr);
+
 #endif /* _ARM_KPROBES_H */

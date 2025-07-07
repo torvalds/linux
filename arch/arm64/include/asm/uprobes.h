@@ -28,4 +28,6 @@ struct arch_uprobe {
 	bool simulate;
 };
 
+int uprobe_brk_handler(struct pt_regs *regs, unsigned long esr);
+
 #endif
