@@ -189,6 +189,39 @@ DEFINE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 DEFINE_STATIC_KEY_FALSE(cpu_buf_vm_clear);
 EXPORT_SYMBOL_GPL(cpu_buf_vm_clear);
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"mitigations: " fmt
+
+static void __init cpu_print_attack_vectors(void)
+{
+	pr_info("Enabled attack vectors: ");
+
+	if (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL))
+		pr_cont("user_kernel, ");
+
+	if (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER))
+		pr_cont("user_user, ");
+
+	if (cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST))
+		pr_cont("guest_host, ");
+
+	if (cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST))
+		pr_cont("guest_guest, ");
+
+	pr_cont("SMT mitigations: ");
+
+	switch (smt_mitigations) {
+	case SMT_MITIGATIONS_OFF:
+		pr_cont("off\n");
+		break;
+	case SMT_MITIGATIONS_AUTO:
+		pr_cont("auto\n");
+		break;
+	case SMT_MITIGATIONS_ON:
+		pr_cont("on\n");
+	}
+}
+
 void __init cpu_select_mitigations(void)
 {
 	/*
@@ -208,6 +241,8 @@ void __init cpu_select_mitigations(void)
 	}
 
 	x86_arch_cap_msr = x86_read_arch_cap_msr();
+
+	cpu_print_attack_vectors();
 
 	/* Select the proper CPU mitigations before patching alternatives: */
 	spectre_v1_select_mitigation();
