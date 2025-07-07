@@ -124,4 +124,16 @@ static inline bool md_bitmap_enabled(struct mddev *mddev, bool flush)
 	return mddev->bitmap_ops->enabled(mddev->bitmap, flush);
 }
 
+static inline bool md_bitmap_start_sync(struct mddev *mddev, sector_t offset,
+					sector_t *blocks, bool degraded)
+{
+	/* always resync if no bitmap */
+	if (!md_bitmap_enabled(mddev, false)) {
+		*blocks = 1024;
+		return true;
+	}
+
+	return mddev->bitmap_ops->start_sync(mddev, offset, blocks, degraded);
+}
+
 #endif
