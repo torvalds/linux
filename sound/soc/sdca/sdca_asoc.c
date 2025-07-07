@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/sdca.h>
 #include <sound/sdca_asoc.h>
 #include <sound/sdca_function.h>
@@ -1443,3 +1444,182 @@ int sdca_asoc_get_port(struct device *dev, struct regmap *regmap,
 	return -ENODEV;
 }
 EXPORT_SYMBOL_NS(sdca_asoc_get_port, "SND_SOC_SDCA");
+
+static int set_cluster(struct device *dev, struct regmap *regmap,
+		       struct sdca_function_data *function,
+		       struct sdca_entity *entity, unsigned int channels)
+{
+	int sel = SDCA_CTL_IT_CLUSTERINDEX;
+	struct sdca_control_range *range;
+	int i, ret;
+
+	range = sdca_selector_find_range(dev, entity, sel, SDCA_CLUSTER_NCOLS, 0);
+	if (!range)
+		return -EINVAL;
+
+	for (i = 0; i < range->rows; i++) {
+		int cluster_id = sdca_range(range, SDCA_CLUSTER_CLUSTERID, i);
+		struct sdca_cluster *cluster;
+
+		cluster = sdca_id_find_cluster(dev, function, cluster_id);
+		if (!cluster)
+			return -ENODEV;
+
+		if (cluster->num_channels == channels) {
+			int index = sdca_range(range, SDCA_CLUSTER_BYTEINDEX, i);
+			unsigned int reg = SDW_SDCA_CTL(function->desc->adr,
+							entity->id, sel, 0);
+
+			ret = regmap_update_bits(regmap, reg, 0xFF, index);
+			if (ret) {
+				dev_err(dev, "%s: failed to write cluster index: %d\n",
+					entity->label, ret);
+				return ret;
+			}
+
+			dev_dbg(dev, "%s: set cluster to %d (%d channels)\n",
+				entity->label, index, channels);
+
+			return 0;
+		}
+	}
+
+	dev_err(dev, "%s: no cluster for %d channels\n", entity->label, channels);
+	return -EINVAL;
+}
+
+static int set_clock(struct device *dev, struct regmap *regmap,
+		     struct sdca_function_data *function,
+		     struct sdca_entity *entity, int target_rate)
+{
+	int sel = SDCA_CTL_CS_SAMPLERATEINDEX;
+	struct sdca_control_range *range;
+	int i, ret;
+
+	range = sdca_selector_find_range(dev, entity, sel, SDCA_SAMPLERATEINDEX_NCOLS, 0);
+	if (!range)
+		return -EINVAL;
+
+	for (i = 0; i < range->rows; i++) {
+		unsigned int rate = sdca_range(range, SDCA_SAMPLERATEINDEX_RATE, i);
+
+		if (rate == target_rate) {
+			unsigned int index = sdca_range(range,
+							SDCA_SAMPLERATEINDEX_INDEX,
+							i);
+			unsigned int reg = SDW_SDCA_CTL(function->desc->adr,
+							entity->id, sel, 0);
+
+			ret = regmap_update_bits(regmap, reg, 0xFF, index);
+			if (ret) {
+				dev_err(dev, "%s: failed to write clock rate: %d\n",
+					entity->label, ret);
+				return ret;
+			}
+
+			dev_dbg(dev, "%s: set clock rate to %d (%dHz)\n",
+				entity->label, index, rate);
+
+			return 0;
+		}
+	}
+
+	dev_err(dev, "%s: no clock rate for %dHz\n", entity->label, target_rate);
+	return -EINVAL;
+}
+
+static int set_usage(struct device *dev, struct regmap *regmap,
+		     struct sdca_function_data *function,
+		     struct sdca_entity *entity, int sel,
+		     int target_rate, int target_width)
+{
+	struct sdca_control_range *range;
+	int i, ret;
+
+	range = sdca_selector_find_range(dev, entity, sel, SDCA_USAGE_NCOLS, 0);
+	if (!range)
+		return -EINVAL;
+
+	for (i = 0; i < range->rows; i++) {
+		unsigned int rate = sdca_range(range, SDCA_USAGE_SAMPLE_RATE, i);
+		unsigned int width = sdca_range(range, SDCA_USAGE_SAMPLE_WIDTH, i);
+
+		if ((!rate || rate == target_rate) && width == target_width) {
+			unsigned int usage = sdca_range(range, SDCA_USAGE_NUMBER, i);
+			unsigned int reg = SDW_SDCA_CTL(function->desc->adr,
+							entity->id, sel, 0);
+
+			ret = regmap_update_bits(regmap, reg, 0xFF, usage);
+			if (ret) {
+				dev_err(dev, "%s: failed to write usage: %d\n",
+					entity->label, ret);
+				return ret;
+			}
+
+			dev_dbg(dev, "%s: set usage to %#x (%dHz, %d bits)\n",
+				entity->label, usage, target_rate, target_width);
+
+			return 0;
+		}
+	}
+
+	dev_err(dev, "%s: no usage for %dHz, %dbits\n",
+		entity->label, target_rate, target_width);
+	return -EINVAL;
+}
+
+/**
+ * sdca_asoc_hw_params - set SDCA channels, sample rate and bit depth
+ * @dev: Pointer to the device, used for error messages.
+ * @regmap: Pointer to the Function register map.
+ * @function: Pointer to the Function information.
+ * @substream: Pointer to the PCM substream.
+ * @params: Pointer to the hardware parameters.
+ * @dai: Pointer to the ASoC DAI.
+ *
+ * Typically called from hw_params().
+ *
+ * Return: Returns zero on success, and a negative error code on failure.
+ */
+int sdca_asoc_hw_params(struct device *dev, struct regmap *regmap,
+			struct sdca_function_data *function,
+			struct snd_pcm_substream *substream,
+			struct snd_pcm_hw_params *params,
+			struct snd_soc_dai *dai)
+{
+	struct sdca_entity *entity = &function->entities[dai->id];
+	int channels = params_channels(params);
+	int width = params_width(params);
+	int rate = params_rate(params);
+	int usage_sel;
+	int ret;
+
+	switch (entity->type) {
+	case SDCA_ENTITY_TYPE_IT:
+		ret = set_cluster(dev, regmap, function, entity, channels);
+		if (ret)
+			return ret;
+
+		usage_sel = SDCA_CTL_IT_USAGE;
+		break;
+	case SDCA_ENTITY_TYPE_OT:
+		usage_sel = SDCA_CTL_OT_USAGE;
+		break;
+	default:
+		dev_err(dev, "%s: hw_params on non-terminal entity\n", entity->label);
+		return -EINVAL;
+	}
+
+	if (entity->iot.clock) {
+		ret = set_clock(dev, regmap, function, entity->iot.clock, rate);
+		if (ret)
+			return ret;
+	}
+
+	ret = set_usage(dev, regmap, function, entity, usage_sel, rate, width);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(sdca_asoc_hw_params, "SND_SOC_SDCA");
