@@ -639,8 +639,12 @@ static void __init mmio_select_mitigation(void)
 	}
 
 	/* Microcode will be checked in mmio_update_mitigation(). */
-	if (mmio_mitigation == MMIO_MITIGATION_AUTO)
-		mmio_mitigation = MMIO_MITIGATION_VERW;
+	if (mmio_mitigation == MMIO_MITIGATION_AUTO) {
+		if (should_mitigate_vuln(X86_BUG_MMIO_STALE_DATA))
+			mmio_mitigation = MMIO_MITIGATION_VERW;
+		else
+			mmio_mitigation = MMIO_MITIGATION_OFF;
+	}
 
 	if (mmio_mitigation == MMIO_MITIGATION_OFF)
 		return;
@@ -655,7 +659,7 @@ static void __init mmio_select_mitigation(void)
 
 static void __init mmio_update_mitigation(void)
 {
-	if (!boot_cpu_has_bug(X86_BUG_MMIO_STALE_DATA) || cpu_mitigations_off())
+	if (!boot_cpu_has_bug(X86_BUG_MMIO_STALE_DATA))
 		return;
 
 	if (verw_clear_cpu_buf_mitigation_selected)
@@ -703,7 +707,7 @@ static void __init mmio_apply_mitigation(void)
 	if (!(x86_arch_cap_msr & ARCH_CAP_FBSDP_NO))
 		static_branch_enable(&cpu_buf_idle_clear);
 
-	if (mmio_nosmt || cpu_mitigations_auto_nosmt())
+	if (mmio_nosmt || smt_mitigations == SMT_MITIGATIONS_ON)
 		cpu_smt_disable(false);
 }
 
