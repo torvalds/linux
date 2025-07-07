@@ -22,6 +22,7 @@
 #include <asm/current.h>
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
+#include <asm/exception.h>
 #include <asm/hw_breakpoint.h>
 #include <asm/traps.h>
 #include <asm/cputype.h>
@@ -618,8 +619,7 @@ NOKPROBE_SYMBOL(toggle_bp_registers);
 /*
  * Debug exception handlers.
  */
-static int breakpoint_handler(unsigned long unused, unsigned long esr,
-			      struct pt_regs *regs)
+void do_breakpoint(unsigned long esr, struct pt_regs *regs)
 {
 	int i, step = 0, *kernel_step;
 	u32 ctrl_reg;
@@ -662,7 +662,7 @@ unlock:
 	}
 
 	if (!step)
-		return 0;
+		return;
 
 	if (user_mode(regs)) {
 		debug_info->bps_disabled = 1;
@@ -670,7 +670,7 @@ unlock:
 
 		/* If we're already stepping a watchpoint, just return. */
 		if (debug_info->wps_disabled)
-			return 0;
+			return;
 
 		if (test_thread_flag(TIF_SINGLESTEP))
 			debug_info->suspended_step = 1;
@@ -681,7 +681,7 @@ unlock:
 		kernel_step = this_cpu_ptr(&stepping_kernel_bp);
 
 		if (*kernel_step != ARM_KERNEL_STEP_NONE)
-			return 0;
+			return;
 
 		if (kernel_active_single_step()) {
 			*kernel_step = ARM_KERNEL_STEP_SUSPEND;
@@ -690,10 +690,8 @@ unlock:
 			kernel_enable_single_step(regs);
 		}
 	}
-
-	return 0;
 }
-NOKPROBE_SYMBOL(breakpoint_handler);
+NOKPROBE_SYMBOL(do_breakpoint);
 
 /*
  * Arm64 hardware does not always report a watchpoint hit address that matches
@@ -988,8 +986,6 @@ static int __init arch_hw_breakpoint_init(void)
 		core_num_brps, core_num_wrps);
 
 	/* Register debug fault handlers. */
-	hook_debug_fault_code(DBG_ESR_EVT_HWBP, breakpoint_handler, SIGTRAP,
-			      TRAP_HWBKPT, "hw-breakpoint handler");
 	hook_debug_fault_code(DBG_ESR_EVT_HWWP, watchpoint_handler, SIGTRAP,
 			      TRAP_HWBKPT, "hw-watchpoint handler");
 

@@ -61,6 +61,11 @@ void do_el0_gcs(struct pt_regs *regs, unsigned long esr);
 void do_el1_gcs(struct pt_regs *regs, unsigned long esr);
 void do_debug_exception(unsigned long addr_if_watchpoint, unsigned long esr,
 			struct pt_regs *regs);
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+void do_breakpoint(unsigned long esr, struct pt_regs *regs);
+#else
+static inline void do_breakpoint(unsigned long esr, struct pt_regs *regs) {}
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 void do_fpsimd_acc(unsigned long esr, struct pt_regs *regs);
 void do_sve_acc(unsigned long esr, struct pt_regs *regs);
 void do_sme_acc(unsigned long esr, struct pt_regs *regs);
