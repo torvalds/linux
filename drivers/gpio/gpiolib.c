@@ -5234,8 +5234,8 @@ core_initcall(gpiolib_dev_init);
 static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 {
 	bool active_low, is_irq, is_out;
-	unsigned int gpio = gdev->base;
 	struct gpio_desc *desc;
+	unsigned int gpio = 0;
 	struct gpio_chip *gc;
 	unsigned long flags;
 	int value;
@@ -5339,8 +5339,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 		return 0;
 	}
 
-	seq_printf(s, "%s: GPIOs %u-%u", dev_name(&gdev->dev), gdev->base,
-		   gdev->base + gdev->ngpio - 1);
+	seq_printf(s, "%s: %u GPIOs", dev_name(&gdev->dev), gdev->ngpio);
 	parent = gc->parent;
 	if (parent)
 		seq_printf(s, ", parent: %s/%s",
