@@ -329,6 +329,17 @@ static struct platform_driver dt_cpufreq_platdrv = {
 };
 module_platform_driver(dt_cpufreq_platdrv);
 
+struct platform_device *cpufreq_dt_pdev_register(struct device *dev)
+{
+	struct platform_device_info cpufreq_dt_devinfo = {};
+
+	cpufreq_dt_devinfo.name = "cpufreq-dt";
+	cpufreq_dt_devinfo.parent = dev;
+
+	return platform_device_register_full(&cpufreq_dt_devinfo);
+}
+EXPORT_SYMBOL_GPL(cpufreq_dt_pdev_register);
+
 MODULE_ALIAS("platform:cpufreq-dt");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
 MODULE_AUTHOR("Shawn Guo <shawn.guo@linaro.org>");
