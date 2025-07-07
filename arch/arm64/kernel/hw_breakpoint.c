@@ -854,7 +854,7 @@ bool try_step_suspended_breakpoints(struct pt_regs *regs)
 	bool handled_exception = false;
 
 	/*
-	 * Called from single-step exception handler.
+	 * Called from single-step exception entry.
 	 * Return true if we stepped a breakpoint and can resume execution,
 	 * false if we need to handle a single-step.
 	 */
