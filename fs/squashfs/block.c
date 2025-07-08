@@ -83,7 +83,7 @@ static int squashfs_bio_read_cached(struct bio *fullbio,
 	struct folio *head_to_cache = NULL, *tail_to_cache = NULL;
 	struct block_device *bdev = fullbio->bi_bdev;
 	int start_idx = 0, end_idx = 0;
-	struct folio_iter fi;;
+	struct folio_iter fi;
 	struct bio *bio = NULL;
 	int idx = 0;
 	int err = 0;
