@@ -64,17 +64,16 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_device *dev = stream->dev;
 	struct v4l2_meta_format *fmt = &format->fmt.meta;
-	u32 fmeta = fmt->dataformat;
-	u32 i;
+	u32 fmeta = V4L2_META_FMT_UVC;
 
 	if (format->type != vfh->vdev->queue->type)
 		return -EINVAL;
 
-	for (i = 0; (fmeta != dev->meta_formats[i]) && dev->meta_formats[i];
-	     i++)
-		;
-	if (!dev->meta_formats[i])
-		fmeta = V4L2_META_FMT_UVC;
+	for (unsigned int i = 0; i < dev->nmeta_formats; i++)
+		if (dev->meta_formats[i] == fmt->dataformat) {
+			fmeta = fmt->dataformat;
+			break;
+		}
 
 	memset(fmt, 0, sizeof(*fmt));
 
@@ -119,14 +118,12 @@ static int uvc_meta_v4l2_enum_formats(struct file *file, void *fh,
 	struct v4l2_fh *vfh = file->private_data;
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_device *dev = stream->dev;
-	u32 i;
+	u32 i = fdesc->index;
 
 	if (fdesc->type != vfh->vdev->queue->type)
 		return -EINVAL;
 
-	for (i = 0; (i < fdesc->index) && dev->meta_formats[i]; i++)
-		;
-	if (!dev->meta_formats[i])
+	if (i >= dev->nmeta_formats)
 		return -EINVAL;
 
 	memset(fdesc, 0, sizeof(*fdesc));
@@ -265,7 +262,7 @@ int uvc_meta_init(struct uvc_device *dev)
 		dev->meta_formats[i++] = V4L2_META_FMT_UVC_MSXU_1_5;
 
 	 /* IMPORTANT: for new meta-formats update UVC_MAX_META_DATA_FORMATS. */
-	dev->meta_formats[i++] = 0;
+	dev->nmeta_formats = i;
 
 	return 0;
 }
