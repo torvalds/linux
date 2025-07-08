@@ -981,6 +981,7 @@ static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 static bool flow_type_hashable(u32 flow_type)
 {
 	switch (flow_type) {
+	case ETHER_FLOW:
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
