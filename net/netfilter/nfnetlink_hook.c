@@ -156,6 +156,38 @@ static int nfnl_hook_put_nft_chain_info(struct sk_buff *nlskb,
 	return 0;
 }
 
+static int nfnl_hook_put_nft_ft_info(struct sk_buff *nlskb,
+				     const struct nfnl_dump_hook_data *ctx,
+				     unsigned int seq,
+				     struct nf_flowtable *nf_ft)
+{
+	struct nft_flowtable *ft =
+		container_of(nf_ft, struct nft_flowtable, data);
+	struct net *net = sock_net(nlskb->sk);
+	struct nlattr *nest;
+	int ret = 0;
+
+	if (WARN_ON_ONCE(!nf_ft))
+		return 0;
+
+	if (!nft_is_active(net, ft))
+		return 0;
+
+	nest = nfnl_start_info_type(nlskb, NFNL_HOOK_TYPE_NFT_FLOWTABLE);
+	if (!nest)
+		return -EMSGSIZE;
+
+	ret = nfnl_hook_put_nft_info_desc(nlskb, ft->table->name,
+					  ft->name, ft->table->family);
+	if (ret) {
+		nla_nest_cancel(nlskb, nest);
+		return ret;
+	}
+
+	nla_nest_end(nlskb, nest);
+	return 0;
+}
+
 static int nfnl_hook_dump_one(struct sk_buff *nlskb,
 			      const struct nfnl_dump_hook_data *ctx,
 			      const struct nf_hook_ops *ops,
@@ -222,6 +254,9 @@ static int nfnl_hook_dump_one(struct sk_buff *nlskb,
 		break;
 	case NF_HOOK_OP_BPF:
 		ret = nfnl_hook_put_bpf_prog_info(nlskb, ctx, seq, ops->priv);
+		break;
+	case NF_HOOK_OP_NFT_FT:
+		ret = nfnl_hook_put_nft_ft_info(nlskb, ctx, seq, ops->priv);
 		break;
 	case NF_HOOK_OP_UNDEFINED:
 		break;
