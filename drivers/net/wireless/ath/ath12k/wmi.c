@@ -204,7 +204,6 @@ void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 	config->num_vdevs = ab->num_radios * TARGET_NUM_VDEVS;
 	config->num_peers = ab->num_radios *
 		ath12k_core_get_max_peers_per_radio(ab);
-	config->num_tids = ath12k_core_get_max_num_tids(ab);
 	config->num_offload_peers = TARGET_NUM_OFFLD_PEERS;
 	config->num_offload_reorder_buffs = TARGET_NUM_OFFLD_REORDER_BUFFS;
 	config->num_peer_keys = TARGET_NUM_PEER_KEYS;
