@@ -10,7 +10,15 @@
 #define pr_fmt(fmt) "CRB_FFA: " fmt
 
 #include <linux/arm_ffa.h>
+#include <linux/delay.h>
+#include <linux/moduleparam.h>
 #include "tpm_crb_ffa.h"
+
+static unsigned int busy_timeout_ms = 2000;
+
+module_param(busy_timeout_ms, uint, 0644);
+MODULE_PARM_DESC(busy_timeout_ms,
+		 "Maximum time in ms to retry before giving up on busy");
 
 /* TPM service function status codes */
 #define CRB_FFA_OK			0x05000001
@@ -189,16 +197,12 @@ int tpm_crb_ffa_init(void)
 }
 EXPORT_SYMBOL_GPL(tpm_crb_ffa_init);
 
-static int __tpm_crb_ffa_send_receive(unsigned long func_id,
-				      unsigned long a0,
-				      unsigned long a1,
-				      unsigned long a2)
+static int __tpm_crb_ffa_try_send_receive(unsigned long func_id,
+					  unsigned long a0, unsigned long a1,
+					  unsigned long a2)
 {
 	const struct ffa_msg_ops *msg_ops;
 	int ret;
-
-	if (!tpm_crb_ffa)
-		return -ENOENT;
 
 	msg_ops = tpm_crb_ffa->ffa_dev->ops->msg_ops;
 
@@ -225,6 +229,33 @@ static int __tpm_crb_ffa_send_receive(unsigned long func_id,
 			ret = tpm_crb_ffa_to_linux_errno(tpm_crb_ffa->direct_msg_data.data1);
 	}
 
+	return ret;
+}
+
+static int __tpm_crb_ffa_send_receive(unsigned long func_id, unsigned long a0,
+				      unsigned long a1, unsigned long a2)
+{
+	ktime_t start, stop;
+	int ret;
+
+	if (!tpm_crb_ffa)
+		return -ENOENT;
+
+	start = ktime_get();
+	stop = ktime_add(start, ms_to_ktime(busy_timeout_ms));
+
+	for (;;) {
+		ret = __tpm_crb_ffa_try_send_receive(func_id, a0, a1, a2);
+		if (ret != -EBUSY)
+			break;
+
+		usleep_range(50, 100);
+		if (ktime_after(ktime_get(), stop)) {
+			dev_warn(&tpm_crb_ffa->ffa_dev->dev,
+				 "Busy retry timed out\n");
+			break;
+		}
+	}
 
 	return ret;
 }
