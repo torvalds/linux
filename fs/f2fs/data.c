@@ -2776,7 +2776,6 @@ int f2fs_write_single_data_page(struct folio *folio, int *submitted,
 				bool allow_balance)
 {
 	struct inode *inode = folio->mapping->host;
-	struct page *page = folio_page(folio, 0);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	loff_t i_size = i_size_read(inode);
 	const pgoff_t end_index = ((unsigned long long)i_size)
@@ -2793,7 +2792,7 @@ int f2fs_write_single_data_page(struct folio *folio, int *submitted,
 		.op = REQ_OP_WRITE,
 		.op_flags = wbc_to_write_flags(wbc),
 		.old_blkaddr = NULL_ADDR,
-		.page = page,
+		.folio = folio,
 		.encrypted_page = NULL,
 		.submitted = 0,
 		.compr_blocks = compr_blocks,
@@ -2895,7 +2894,7 @@ out:
 	inode_dec_dirty_pages(inode);
 	if (err) {
 		folio_clear_uptodate(folio);
-		clear_page_private_gcing(page);
+		folio_clear_f2fs_gcing(folio);
 	}
 	folio_unlock(folio);
 	if (!S_ISDIR(inode->i_mode) && !IS_NOQUOTA(inode) &&
