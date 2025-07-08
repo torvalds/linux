@@ -819,7 +819,7 @@ int f2fs_do_truncate_blocks(struct inode *inode, u64 from, bool lock)
 	count -= dn.ofs_in_node;
 	f2fs_bug_on(sbi, count < 0);
 
-	if (dn.ofs_in_node || IS_INODE(&dn.node_folio->page)) {
+	if (dn.ofs_in_node || IS_INODE(dn.node_folio)) {
 		f2fs_truncate_data_blocks_range(&dn, count);
 		free_from += count;
 	}

@@ -973,7 +973,7 @@ static int truncate_dnode(struct dnode_of_data *dn)
 	else if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
-	if (IS_INODE(&folio->page) || ino_of_node(folio) != dn->inode->i_ino) {
+	if (IS_INODE(folio) || ino_of_node(folio) != dn->inode->i_ino) {
 		f2fs_err(sbi, "incorrect node reference, ino: %lu, nid: %u, ino_of_node: %u",
 				dn->inode->i_ino, dn->nid, ino_of_node(folio));
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
@@ -1474,10 +1474,8 @@ static int sanity_check_node_footer(struct f2fs_sb_info *sbi,
 					struct folio *folio, pgoff_t nid,
 					enum node_type ntype)
 {
-	struct page *page = &folio->page;
-
 	if (unlikely(nid != nid_of_node(folio) ||
-		(ntype == NODE_TYPE_INODE && !IS_INODE(page)) ||
+		(ntype == NODE_TYPE_INODE && !IS_INODE(folio)) ||
 		(ntype == NODE_TYPE_XATTR &&
 		!f2fs_has_xattr_block(ofs_of_node(folio))) ||
 		time_to_inject(sbi, FAULT_INCONSISTENT_FOOTER))) {
@@ -1867,7 +1865,7 @@ continue_unlock:
 			if (!atomic || folio == last_folio) {
 				set_fsync_mark(folio, 1);
 				percpu_counter_inc(&sbi->rf_node_block_count);
-				if (IS_INODE(&folio->page)) {
+				if (IS_INODE(folio)) {
 					if (is_inode_flag_set(inode,
 								FI_DIRTY_INODE))
 						f2fs_update_inode(inode, folio);
@@ -1976,7 +1974,7 @@ void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 		for (i = 0; i < nr_folios; i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			if (!IS_INODE(&folio->page))
+			if (!IS_INODE(folio))
 				continue;
 
 			folio_lock(folio);
@@ -2077,7 +2075,7 @@ continue_unlock:
 			}
 
 			/* flush dirty inode */
-			if (IS_INODE(&folio->page) && flush_dirty_inode(folio))
+			if (IS_INODE(folio) && flush_dirty_inode(folio))
 				goto lock_node;
 write_node:
 			f2fs_folio_wait_writeback(folio, NODE, true, true);
@@ -2213,7 +2211,7 @@ static bool f2fs_dirty_node_folio(struct address_space *mapping,
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
 #ifdef CONFIG_F2FS_CHECK_FS
-	if (IS_INODE(&folio->page))
+	if (IS_INODE(folio))
 		f2fs_inode_chksum_set(F2FS_M_SB(mapping), folio);
 #endif
 	if (filemap_dirty_folio(mapping, folio)) {

@@ -437,7 +437,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 			bool quota_inode = false;
 
 			if (!check_only &&
-					IS_INODE(&folio->page) &&
+					IS_INODE(folio) &&
 					is_dent_dnode(folio)) {
 				err = f2fs_recover_inode_page(sbi, folio);
 				if (err) {
@@ -463,7 +463,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 		}
 		entry->blkaddr = blkaddr;
 
-		if (IS_INODE(&folio->page) && is_dent_dnode(folio))
+		if (IS_INODE(folio) && is_dent_dnode(folio))
 			entry->last_dentry = blkaddr;
 next:
 		/* check next segment */
@@ -628,7 +628,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	int err = 0, recovered = 0;
 
 	/* step 1: recover xattr */
-	if (IS_INODE(&folio->page)) {
+	if (IS_INODE(folio)) {
 		err = f2fs_recover_inline_xattr(inode, folio);
 		if (err)
 			goto out;
@@ -821,7 +821,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 		 * In this case, we can lose the latest inode(x).
 		 * So, call recover_inode for the inode update.
 		 */
-		if (IS_INODE(&folio->page)) {
+		if (IS_INODE(folio)) {
 			err = recover_inode(entry->inode, folio);
 			if (err) {
 				f2fs_folio_put(folio, true);

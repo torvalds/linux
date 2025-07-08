@@ -3019,9 +3019,9 @@ static inline void f2fs_radix_tree_insert(struct radix_tree_root *root,
 
 #define RAW_IS_INODE(p)	((p)->footer.nid == (p)->footer.ino)
 
-static inline bool IS_INODE(struct page *page)
+static inline bool IS_INODE(const struct folio *folio)
 {
-	struct f2fs_node *p = F2FS_NODE(page);
+	struct f2fs_node *p = F2FS_NODE(&folio->page);
 
 	return RAW_IS_INODE(p);
 }
@@ -3041,7 +3041,7 @@ static inline int f2fs_has_extra_attr(struct inode *inode);
 static inline unsigned int get_dnode_base(struct inode *inode,
 					struct folio *node_folio)
 {
-	if (!IS_INODE(&node_folio->page))
+	if (!IS_INODE(node_folio))
 		return 0;
 
 	return inode ? get_extra_isize(inode) :
