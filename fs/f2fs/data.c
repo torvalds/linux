@@ -949,7 +949,7 @@ void f2fs_submit_page_write(struct f2fs_io_info *fio)
 	struct f2fs_sb_info *sbi = fio->sbi;
 	enum page_type btype = PAGE_TYPE_OF_BIO(fio->type);
 	struct f2fs_bio_info *io = sbi->write_io[btype] + fio->temp;
-	struct page *bio_page;
+	struct folio *bio_folio;
 	enum count_type type;
 
 	f2fs_bug_on(sbi, is_read_io(fio->op));
@@ -980,33 +980,33 @@ next:
 	verify_fio_blkaddr(fio);
 
 	if (fio->encrypted_page)
-		bio_page = fio->encrypted_page;
+		bio_folio = page_folio(fio->encrypted_page);
 	else if (fio->compressed_page)
-		bio_page = fio->compressed_page;
+		bio_folio = page_folio(fio->compressed_page);
 	else
-		bio_page = fio->page;
+		bio_folio = fio->folio;
 
 	/* set submitted = true as a return value */
 	fio->submitted = 1;
 
-	type = WB_DATA_TYPE(bio_page, fio->compressed_page);
+	type = WB_DATA_TYPE(&bio_folio->page, fio->compressed_page);
 	inc_page_count(sbi, type);
 
 	if (io->bio &&
 	    (!io_is_mergeable(sbi, io->bio, io, fio, io->last_block_in_bio,
 			      fio->new_blkaddr) ||
 	     !f2fs_crypt_mergeable_bio(io->bio, fio_inode(fio),
-				page_folio(bio_page)->index, fio)))
+				bio_folio->index, fio)))
 		__submit_merged_bio(io);
 alloc_new:
 	if (io->bio == NULL) {
 		io->bio = __bio_alloc(fio, BIO_MAX_VECS);
 		f2fs_set_bio_crypt_ctx(io->bio, fio_inode(fio),
-				page_folio(bio_page)->index, fio, GFP_NOIO);
+				bio_folio->index, fio, GFP_NOIO);
 		io->fio = *fio;
 	}
 
-	if (bio_add_page(io->bio, bio_page, PAGE_SIZE, 0) < PAGE_SIZE) {
+	if (!bio_add_folio(io->bio, bio_folio, folio_size(bio_folio), 0)) {
 		__submit_merged_bio(io);
 		goto alloc_new;
 	}
