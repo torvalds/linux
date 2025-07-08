@@ -300,10 +300,10 @@ static inline void copy_node_footer(struct page *dst, struct page *src)
 	memcpy(&dst_rn->footer, &src_rn->footer, sizeof(struct node_footer));
 }
 
-static inline void fill_node_footer_blkaddr(struct page *page, block_t blkaddr)
+static inline void fill_node_footer_blkaddr(struct folio *folio, block_t blkaddr)
 {
-	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_P_SB(page));
-	struct f2fs_node *rn = F2FS_NODE(page);
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_F_SB(folio));
+	struct f2fs_node *rn = F2FS_NODE(&folio->page);
 	__u64 cp_ver = cur_cp_version(ckpt);
 
 	if (__is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG))

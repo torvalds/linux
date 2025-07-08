@@ -3852,7 +3852,7 @@ skip_new_segment:
 	up_write(&sit_i->sentry_lock);
 
 	if (folio && IS_NODESEG(curseg->seg_type)) {
-		fill_node_footer_blkaddr(&folio->page, NEXT_FREE_BLKADDR(sbi, curseg));
+		fill_node_footer_blkaddr(folio, NEXT_FREE_BLKADDR(sbi, curseg));
 
 		f2fs_inode_chksum_set(sbi, folio);
 	}
