@@ -89,7 +89,7 @@ static int alioth_init_sequence(struct ams667xx01 *ctx)
 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 	mipi_dsi_dcs_set_tear_on_multi(&dsi_ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0x9d, 0x01);
+	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x9d, 0x01);
 	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0x9e,
 					 0x11, 0x00, 0x00, 0x89, 0x30, 0x80, 0x09,
 					 0x60, 0x04, 0x38, 0x00, 0x08, 0x02, 0x1c,
@@ -340,7 +340,7 @@ static int ams667xx01_disable(struct drm_panel *panel)
 
 	msleep(20);
 
-	mipi_dsi_dcs_write(dsi, MIPI_DCS_WRITE_CONTROL_DISPLAY, 0x20);
+	mipi_dsi_dcs_write_seq(dsi, MIPI_DCS_WRITE_CONTROL_DISPLAY, 0x20);
 
 	ret = mipi_dsi_dcs_enter_sleep_mode(dsi);
 	if (ret < 0)
