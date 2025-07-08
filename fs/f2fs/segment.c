@@ -3620,7 +3620,7 @@ static int __get_segment_type_4(struct f2fs_io_info *fio)
 		else
 			return CURSEG_COLD_DATA;
 	} else {
-		if (IS_DNODE(fio->page) && is_cold_node(fio->page))
+		if (IS_DNODE(fio->page) && is_cold_node(fio->folio))
 			return CURSEG_WARM_NODE;
 		else
 			return CURSEG_COLD_NODE;
@@ -3678,7 +3678,7 @@ static int __get_segment_type_6(struct f2fs_io_info *fio)
 						inode->i_write_hint);
 	} else {
 		if (IS_DNODE(fio->page))
-			return is_cold_node(fio->page) ? CURSEG_WARM_NODE :
+			return is_cold_node(fio->folio) ? CURSEG_WARM_NODE :
 						CURSEG_HOT_NODE;
 		return CURSEG_COLD_NODE;
 	}

@@ -403,7 +403,7 @@ static inline int is_node(const struct page *page, int type)
 	return le32_to_cpu(rn->footer.flag) & BIT(type);
 }
 
-#define is_cold_node(page)	is_node(page, COLD_BIT_SHIFT)
+#define is_cold_node(folio)	is_node(&folio->page, COLD_BIT_SHIFT)
 #define is_fsync_dnode(folio)	is_node(&folio->page, FSYNC_BIT_SHIFT)
 #define is_dent_dnode(folio)	is_node(&folio->page, DENT_BIT_SHIFT)
 
