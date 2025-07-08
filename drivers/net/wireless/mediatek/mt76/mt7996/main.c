@@ -1221,20 +1221,29 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	u8 link_id = u32_get_bits(info->control.flags,
 				  IEEE80211_TX_CTRL_MLO_LINK);
+	struct mt7996_sta *msta;
+	struct mt7996_vif *mvif;
 
 	rcu_read_lock();
 
-	if (vif) {
-		struct mt7996_vif *mvif = (void *)vif->drv_priv;
+	msta = control->sta ? (void *)control->sta->drv_priv : NULL;
+	mvif = vif ? (void *)vif->drv_priv : NULL;
+
+	/* Use primary link_id if the value from mac80211 is set to
+	 * IEEE80211_LINK_UNSPECIFIED.
+	 */
+	if (link_id == IEEE80211_LINK_UNSPECIFIED) {
+		if (msta)
+			link_id = msta->deflink_id;
+		else if (mvif)
+			link_id = mvif->mt76.deflink_id;
+	}
+
+	if (mvif) {
 		struct mt76_vif_link *mlink = &mvif->deflink.mt76;
 
 		if (link_id < IEEE80211_LINK_UNSPECIFIED)
 			mlink = rcu_dereference(mvif->mt76.link[link_id]);
-
-		if (!mlink) {
-			ieee80211_free_txskb(hw, skb);
-			goto unlock;
-		}
 
 		if (mlink->wcid)
 			wcid = mlink->wcid;
@@ -1254,8 +1263,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 		goto unlock;
 	}
 
-	if (control->sta && link_id < IEEE80211_LINK_UNSPECIFIED) {
-		struct mt7996_sta *msta = (void *)control->sta->drv_priv;
+	if (msta && link_id < IEEE80211_LINK_UNSPECIFIED) {
 		struct mt7996_sta_link *msta_link;
 
 		msta_link = rcu_dereference(msta->link[link_id]);
