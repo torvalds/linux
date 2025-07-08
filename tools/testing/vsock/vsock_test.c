@@ -2006,6 +2006,7 @@ static void test_stream_transport_change_client(const struct test_opts *opts)
 			.svm_cid = opts->peer_cid,
 			.svm_port = opts->peer_port,
 		};
+		bool send_control = false;
 		int s;
 
 		s = socket(AF_VSOCK, SOCK_STREAM, 0);
@@ -2026,19 +2027,29 @@ static void test_stream_transport_change_client(const struct test_opts *opts)
 			exit(EXIT_FAILURE);
 		}
 
+		/* Notify the server if the connect() is successful or the
+		 * receiver connection queue is full, so it will do accept()
+		 * to drain it.
+		 */
+		if (!ret || errno == ECONNRESET)
+			send_control = true;
+
 		/* Set CID to 0 cause a transport change. */
 		sa.svm_cid = 0;
 
-		/* Ignore return value since it can fail or not.
-		 * If the previous connect is interrupted while the
-		 * connection request is already sent, the second
+		/* There is a case where this will not fail:
+		 * if the previous connect() is interrupted while the
+		 * connection request is already sent, this second
 		 * connect() will wait for the response.
 		 */
-		connect(s, (struct sockaddr *)&sa, sizeof(sa));
+		ret = connect(s, (struct sockaddr *)&sa, sizeof(sa));
+		if (!ret || errno == ECONNRESET)
+			send_control = true;
 
 		close(s);
 
-		control_writeulong(CONTROL_CONTINUE);
+		if (send_control)
+			control_writeulong(CONTROL_CONTINUE);
 
 	} while (current_nsec() < tout);
 
