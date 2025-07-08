@@ -1419,7 +1419,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 		(*submitted)++;
 unlock_continue:
 		inode_dec_dirty_pages(cc->inode);
-		unlock_page(fio.page);
+		folio_unlock(fio.folio);
 	}
 
 	if (fio.compr_blocks)
