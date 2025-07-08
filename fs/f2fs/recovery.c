@@ -633,7 +633,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 		if (err)
 			goto out;
 	} else if (f2fs_has_xattr_block(ofs_of_node(&folio->page))) {
-		err = f2fs_recover_xattr_data(inode, &folio->page);
+		err = f2fs_recover_xattr_data(inode, folio);
 		if (!err)
 			recovered++;
 		goto out;

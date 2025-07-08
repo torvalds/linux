@@ -2753,7 +2753,7 @@ update_inode:
 	return 0;
 }
 
-int f2fs_recover_xattr_data(struct inode *inode, struct page *page)
+int f2fs_recover_xattr_data(struct inode *inode, struct folio *folio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	nid_t prev_xnid = F2FS_I(inode)->i_xattr_nid;
@@ -2791,8 +2791,8 @@ recover_xnid:
 	f2fs_update_inode_page(inode);
 
 	/* 3: update and set xattr node page dirty */
-	if (page) {
-		memcpy(F2FS_NODE(&xfolio->page), F2FS_NODE(page),
+	if (folio) {
+		memcpy(F2FS_NODE(&xfolio->page), F2FS_NODE(&folio->page),
 				VALID_XATTR_BLOCK_SIZE);
 		folio_mark_dirty(xfolio);
 	}
