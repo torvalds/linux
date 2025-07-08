@@ -1728,6 +1728,20 @@ static void ath12k_core_reset(struct work_struct *work)
 	mutex_unlock(&ag->mutex);
 }
 
+enum ath12k_qmi_mem_mode ath12k_core_get_memory_mode(struct ath12k_base *ab)
+{
+	unsigned long total_ram;
+	struct sysinfo si;
+
+	si_meminfo(&si);
+	total_ram = si.totalram * si.mem_unit;
+
+	if (total_ram < SZ_512M)
+		return ATH12K_QMI_MEMORY_MODE_LOW_512_M;
+
+	return ATH12K_QMI_MEMORY_MODE_DEFAULT;
+}
+
 int ath12k_core_pre_init(struct ath12k_base *ab)
 {
 	const struct ath12k_mem_profile_based_param *param;
@@ -1739,7 +1753,7 @@ int ath12k_core_pre_init(struct ath12k_base *ab)
 		return ret;
 	}
 
-	param = &ath12k_mem_profile_based_param[ATH12K_QMI_MEMORY_MODE_DEFAULT];
+	param = &ath12k_mem_profile_based_param[ab->target_mem_mode];
 	ab->profile_param = param;
 	ath12k_fw_map(ab);
 

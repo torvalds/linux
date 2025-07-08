@@ -1595,6 +1595,7 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 		ab->hal_rx_ops = &hal_rx_qcn9274_ops;
 		ath12k_pci_read_hw_version(ab, &soc_hw_version_major,
 					   &soc_hw_version_minor);
+		ab->target_mem_mode = ath12k_core_get_memory_mode(ab);
 		switch (soc_hw_version_major) {
 		case ATH12K_PCI_SOC_HW_VERSION_2:
 			ab->hw_rev = ATH12K_HW_QCN9274_HW20;
@@ -1618,6 +1619,7 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 		ab->hal_rx_ops = &hal_rx_wcn7850_ops;
 		ath12k_pci_read_hw_version(ab, &soc_hw_version_major,
 					   &soc_hw_version_minor);
+		ab->target_mem_mode = ATH12K_QMI_MEMORY_MODE_DEFAULT;
 		switch (soc_hw_version_major) {
 		case ATH12K_PCI_SOC_HW_VERSION_2:
 			ab->hw_rev = ATH12K_HW_WCN7850_HW20;
