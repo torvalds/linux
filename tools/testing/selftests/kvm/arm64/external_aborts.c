@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * mmio_abort - Tests for userspace MMIO abort injection
+ * external_abort - Tests for userspace external abort injection
  *
  * Copyright (c) 2024 Google LLC
  */
@@ -41,7 +41,7 @@ static struct kvm_vm *vm_create_with_dabt_handler(struct kvm_vcpu **vcpu, void *
 	return vm;
 }
 
-static void vcpu_inject_extabt(struct kvm_vcpu *vcpu)
+static void vcpu_inject_sea(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_events events = {};
 
@@ -49,7 +49,15 @@ static void vcpu_inject_extabt(struct kvm_vcpu *vcpu)
 	vcpu_events_set(vcpu, &events);
 }
 
-static void vcpu_run_expect_done(struct kvm_vcpu *vcpu)
+static void vcpu_inject_serror(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_events events = {};
+
+	events.exception.serror_pending = true;
+	vcpu_events_set(vcpu, &events);
+}
+
+static void __vcpu_run_expect(struct kvm_vcpu *vcpu, unsigned int cmd)
 {
 	struct ucall uc;
 
@@ -58,11 +66,22 @@ static void vcpu_run_expect_done(struct kvm_vcpu *vcpu)
 	case UCALL_ABORT:
 		REPORT_GUEST_ASSERT(uc);
 		break;
-	case UCALL_DONE:
-		break;
 	default:
+		if (uc.cmd == cmd)
+			return;
+
 		TEST_FAIL("Unexpected ucall: %lu", uc.cmd);
 	}
+}
+
+static void vcpu_run_expect_done(struct kvm_vcpu *vcpu)
+{
+	__vcpu_run_expect(vcpu, UCALL_DONE);
+}
+
+static void vcpu_run_expect_sync(struct kvm_vcpu *vcpu)
+{
+	__vcpu_run_expect(vcpu, UCALL_SYNC);
 }
 
 extern char test_mmio_abort_insn;
@@ -95,7 +114,7 @@ static void test_mmio_abort(void)
 	TEST_ASSERT_EQ(run->mmio.len, sizeof(unsigned long));
 	TEST_ASSERT(!run->mmio.is_write, "Expected MMIO read");
 
-	vcpu_inject_extabt(vcpu);
+	vcpu_inject_sea(vcpu);
 	vcpu_run_expect_done(vcpu);
 	kvm_vm_free(vm);
 }
@@ -146,7 +165,88 @@ static void test_mmio_nisv_abort(void)
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_ARM_NISV);
 	TEST_ASSERT_EQ(run->arm_nisv.fault_ipa, MMIO_ADDR);
 
-	vcpu_inject_extabt(vcpu);
+	vcpu_inject_sea(vcpu);
+	vcpu_run_expect_done(vcpu);
+	kvm_vm_free(vm);
+}
+
+static void unexpected_serror_handler(struct ex_regs *regs)
+{
+	GUEST_FAIL("Took unexpected SError exception");
+}
+
+static void test_serror_masked_guest(void)
+{
+	GUEST_ASSERT(read_sysreg(isr_el1) & ISR_EL1_A);
+
+	isb();
+
+	GUEST_DONE();
+}
+
+static void test_serror_masked(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm = vm_create_with_dabt_handler(&vcpu, test_serror_masked_guest,
+							unexpected_dabt_handler);
+
+	vm_install_exception_handler(vm, VECTOR_ERROR_CURRENT, unexpected_serror_handler);
+
+	vcpu_inject_serror(vcpu);
+	vcpu_run_expect_done(vcpu);
+	kvm_vm_free(vm);
+}
+
+static void expect_serror_handler(struct ex_regs *regs)
+{
+	GUEST_DONE();
+}
+
+static void test_serror_guest(void)
+{
+	GUEST_ASSERT(read_sysreg(isr_el1) & ISR_EL1_A);
+
+	local_serror_enable();
+	isb();
+	local_serror_disable();
+
+	GUEST_FAIL("Should've taken pending SError exception");
+}
+
+static void test_serror(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm = vm_create_with_dabt_handler(&vcpu, test_serror_guest,
+							unexpected_dabt_handler);
+
+	vm_install_exception_handler(vm, VECTOR_ERROR_CURRENT, expect_serror_handler);
+
+	vcpu_inject_serror(vcpu);
+	vcpu_run_expect_done(vcpu);
+	kvm_vm_free(vm);
+}
+
+static void test_serror_emulated_guest(void)
+{
+	GUEST_ASSERT(!(read_sysreg(isr_el1) & ISR_EL1_A));
+
+	local_serror_enable();
+	GUEST_SYNC(0);
+	local_serror_disable();
+
+	GUEST_FAIL("Should've taken unmasked SError exception");
+}
+
+static void test_serror_emulated(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm = vm_create_with_dabt_handler(&vcpu, test_serror_emulated_guest,
+							unexpected_dabt_handler);
+
+	vm_install_exception_handler(vm, VECTOR_ERROR_CURRENT, expect_serror_handler);
+
+	vcpu_run_expect_sync(vcpu);
+	vcpu_inject_serror(vcpu);
 	vcpu_run_expect_done(vcpu);
 	kvm_vm_free(vm);
 }
@@ -156,4 +256,7 @@ int main(void)
 	test_mmio_abort();
 	test_mmio_nisv();
 	test_mmio_nisv_abort();
+	test_serror();
+	test_serror_masked();
+	test_serror_emulated();
 }
