@@ -1380,7 +1380,7 @@ struct folio *f2fs_new_node_folio(struct dnode_of_data *dn, unsigned int ofs)
 	set_node_addr(sbi, &new_ni, NEW_ADDR, false);
 
 	f2fs_folio_wait_writeback(folio, NODE, true, true);
-	fill_node_footer(&folio->page, dn->nid, dn->inode->i_ino, ofs, true);
+	fill_node_footer(folio, dn->nid, dn->inode->i_ino, ofs, true);
 	set_cold_node(folio, S_ISDIR(dn->inode->i_mode));
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
@@ -2827,7 +2827,7 @@ retry:
 
 	if (!folio_test_uptodate(ifolio))
 		folio_mark_uptodate(ifolio);
-	fill_node_footer(&ifolio->page, ino, ino, 0, true);
+	fill_node_footer(ifolio, ino, ino, 0, true);
 	set_cold_node(ifolio, false);
 
 	src = F2FS_INODE(folio);

@@ -274,10 +274,10 @@ static inline block_t next_blkaddr_of_node(struct folio *node_folio)
 	return le32_to_cpu(rn->footer.next_blkaddr);
 }
 
-static inline void fill_node_footer(struct page *page, nid_t nid,
+static inline void fill_node_footer(const struct folio *folio, nid_t nid,
 				nid_t ino, unsigned int ofs, bool reset)
 {
-	struct f2fs_node *rn = F2FS_NODE(page);
+	struct f2fs_node *rn = F2FS_NODE(&folio->page);
 	unsigned int old_flag = 0;
 
 	if (reset)
