@@ -97,6 +97,11 @@ static bool effective_sctlr2_ease(struct kvm_vcpu *vcpu)
 	return __effective_sctlr2_bit(vcpu, SCTLR2_EL1_EASE_SHIFT);
 }
 
+static bool effective_sctlr2_nmea(struct kvm_vcpu *vcpu)
+{
+	return __effective_sctlr2_bit(vcpu, SCTLR2_EL1_NMEA_SHIFT);
+}
+
 static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr)
 {
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
@@ -267,7 +272,7 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 
 static bool serror_is_masked(struct kvm_vcpu *vcpu)
 {
-	return *vcpu_cpsr(vcpu) & PSR_A_BIT;
+	return (*vcpu_cpsr(vcpu) & PSR_A_BIT) && !effective_sctlr2_nmea(vcpu);
 }
 
 static bool kvm_serror_target_is_el2(struct kvm_vcpu *vcpu)
@@ -278,6 +283,19 @@ static bool kvm_serror_target_is_el2(struct kvm_vcpu *vcpu)
 	if (!(__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TMEA))
 		return false;
 
+	/*
+	 * In another example where FEAT_DoubleFault2 is entirely backwards,
+	 * "masked" as it relates to the routing effects of HCRX_EL2.TMEA
+	 * doesn't consider SCTLR2_EL1.NMEA. That is to say, even if EL1 asked
+	 * for non-maskable SErrors, the EL2 bit takes priority if A is set.
+	 */
+	if (vcpu_mode_priv(vcpu))
+		return *vcpu_cpsr(vcpu) & PSR_A_BIT;
+
+	/*
+	 * Otherwise SErrors are considered unmasked when taken from EL0 and
+	 * NMEA is set.
+	 */
 	return serror_is_masked(vcpu);
 }
 
