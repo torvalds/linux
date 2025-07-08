@@ -40,7 +40,7 @@ struct xgene_msi {
 };
 
 /* Global data */
-static struct xgene_msi xgene_msi_ctrl;
+static struct xgene_msi *xgene_msi_ctrl;
 
 /*
  * X-Gene v1 has 16 groups of MSI termination registers MSInIRx, where
@@ -253,18 +253,18 @@ static void xgene_free_domains(struct xgene_msi *msi)
 		irq_domain_remove(msi->inner_domain);
 }
 
-static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
+static int xgene_msi_init_allocator(struct device *dev)
 {
-	xgene_msi->bitmap = bitmap_zalloc(NR_MSI_VEC, GFP_KERNEL);
-	if (!xgene_msi->bitmap)
+	xgene_msi_ctrl->bitmap = devm_bitmap_zalloc(dev, NR_MSI_VEC, GFP_KERNEL);
+	if (!xgene_msi_ctrl->bitmap)
 		return -ENOMEM;
 
-	mutex_init(&xgene_msi->bitmap_lock);
+	mutex_init(&xgene_msi_ctrl->bitmap_lock);
 
-	xgene_msi->msi_groups = kcalloc(NR_HW_IRQS,
-					sizeof(struct xgene_msi_group),
-					GFP_KERNEL);
-	if (!xgene_msi->msi_groups)
+	xgene_msi_ctrl->msi_groups = devm_kcalloc(dev, NR_HW_IRQS,
+						  sizeof(struct xgene_msi_group),
+						  GFP_KERNEL);
+	if (!xgene_msi_ctrl->msi_groups)
 		return -ENOMEM;
 
 	return 0;
@@ -273,15 +273,14 @@ static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 static void xgene_msi_isr(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct xgene_msi *xgene_msi = xgene_msi_ctrl;
 	struct xgene_msi_group *msi_groups;
-	struct xgene_msi *xgene_msi;
 	int msir_index, msir_val, hw_irq, ret;
 	u32 intr_index, grp_select, msi_grp;
 
 	chained_irq_enter(chip, desc);
 
 	msi_groups = irq_desc_get_handler_data(desc);
-	xgene_msi = msi_groups->msi;
 	msi_grp = msi_groups->msi_grp;
 
 	/*
@@ -344,15 +343,12 @@ static void xgene_msi_remove(struct platform_device *pdev)
 
 	kfree(msi->msi_groups);
 
-	bitmap_free(msi->bitmap);
-	msi->bitmap = NULL;
-
 	xgene_free_domains(msi);
 }
 
 static int xgene_msi_hwirq_alloc(unsigned int cpu)
 {
-	struct xgene_msi *msi = &xgene_msi_ctrl;
+	struct xgene_msi *msi = xgene_msi_ctrl;
 	struct xgene_msi_group *msi_group;
 	int i;
 	int err;
@@ -381,7 +377,7 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 
 static int xgene_msi_hwirq_free(unsigned int cpu)
 {
-	struct xgene_msi *msi = &xgene_msi_ctrl;
+	struct xgene_msi *msi = xgene_msi_ctrl;
 	struct xgene_msi_group *msi_group;
 	int i;
 
@@ -406,7 +402,12 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	int virt_msir;
 	u32 msi_val, msi_idx;
 
-	xgene_msi = &xgene_msi_ctrl;
+	xgene_msi_ctrl = devm_kzalloc(&pdev->dev, sizeof(*xgene_msi_ctrl),
+				      GFP_KERNEL);
+	if (!xgene_msi_ctrl)
+		return -ENOMEM;
+
+	xgene_msi = xgene_msi_ctrl;
 
 	platform_set_drvdata(pdev, xgene_msi);
 
@@ -417,7 +418,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	}
 	xgene_msi->msi_addr = res->start;
 
-	rc = xgene_msi_init_allocator(xgene_msi);
+	rc = xgene_msi_init_allocator(&pdev->dev);
 	if (rc) {
 		dev_err(&pdev->dev, "Error allocating MSI bitmap\n");
 		goto error;
