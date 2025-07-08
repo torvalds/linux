@@ -1076,7 +1076,7 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 		}
 
 		if (kmsg->msg.msg_inq > 1)
-			arg.max_len = min_not_zero(sr->len, kmsg->msg.msg_inq);
+			arg.max_len = min_not_zero(*len, kmsg->msg.msg_inq);
 
 		ret = io_buffers_peek(req, &arg);
 		if (unlikely(ret < 0))
