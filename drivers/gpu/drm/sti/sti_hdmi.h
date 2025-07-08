@@ -12,6 +12,7 @@
 
 #include <media/cec-notifier.h>
 
+#include <drm/drm_bridge.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_property.h>
 
@@ -86,6 +87,7 @@ struct sti_hdmi {
 	struct hdmi_audio_params audio;
 	struct drm_connector *drm_connector;
 	struct cec_notifier *notifier;
+	struct drm_bridge bridge;
 };
 
 u32 hdmi_read(struct sti_hdmi *hdmi, int offset);
