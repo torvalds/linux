@@ -160,7 +160,7 @@ static int init_recovered_filename(const struct inode *dir,
 static int recover_dentry(struct inode *inode, struct folio *ifolio,
 						struct list_head *dir_list)
 {
-	struct f2fs_inode *raw_inode = F2FS_INODE(&ifolio->page);
+	struct f2fs_inode *raw_inode = F2FS_INODE(ifolio);
 	nid_t pino = le32_to_cpu(raw_inode->i_pino);
 	struct f2fs_dir_entry *de;
 	struct f2fs_filename fname;
@@ -240,7 +240,7 @@ out:
 
 static int recover_quota_data(struct inode *inode, struct folio *folio)
 {
-	struct f2fs_inode *raw = F2FS_INODE(&folio->page);
+	struct f2fs_inode *raw = F2FS_INODE(folio);
 	struct iattr attr;
 	uid_t i_uid = le32_to_cpu(raw->i_uid);
 	gid_t i_gid = le32_to_cpu(raw->i_gid);
@@ -279,7 +279,7 @@ static void recover_inline_flags(struct inode *inode, struct f2fs_inode *ri)
 
 static int recover_inode(struct inode *inode, struct folio *folio)
 {
-	struct f2fs_inode *raw = F2FS_INODE(&folio->page);
+	struct f2fs_inode *raw = F2FS_INODE(folio);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	char *name;
 	int err;
@@ -333,7 +333,7 @@ static int recover_inode(struct inode *inode, struct folio *folio)
 	if (file_enc_name(inode))
 		name = "<encrypted>";
 	else
-		name = F2FS_INODE(&folio->page)->i_name;
+		name = F2FS_INODE(folio)->i_name;
 
 	f2fs_notice(F2FS_I_SB(inode), "recover_inode: ino = %x, name = %s, inline = %x",
 		    ino_of_node(&folio->page), name, raw->i_inline);

@@ -35,7 +35,7 @@ bool f2fs_may_inline_data(struct inode *inode)
 
 static bool inode_has_blocks(struct inode *inode, struct folio *ifolio)
 {
-	struct f2fs_inode *ri = F2FS_INODE(&ifolio->page);
+	struct f2fs_inode *ri = F2FS_INODE(ifolio);
 	int i;
 
 	if (F2FS_HAS_BLOCKS(inode))
@@ -306,7 +306,7 @@ int f2fs_recover_inline_data(struct inode *inode, struct folio *nfolio)
 	 *    x       x  -> recover data blocks
 	 */
 	if (IS_INODE(&nfolio->page))
-		ri = F2FS_INODE(&nfolio->page);
+		ri = F2FS_INODE(nfolio);
 
 	if (f2fs_has_inline_data(inode) &&
 			ri && (ri->i_inline & F2FS_INLINE_DATA)) {
@@ -825,7 +825,7 @@ int f2fs_inline_data_fiemap(struct inode *inode,
 
 	byteaddr = (__u64)ni.blk_addr << inode->i_sb->s_blocksize_bits;
 	byteaddr += (char *)inline_data_addr(inode, ifolio) -
-					(char *)F2FS_INODE(&ifolio->page);
+					(char *)F2FS_INODE(ifolio);
 	err = fiemap_fill_next_extent(fieinfo, start, byteaddr, ilen, flags);
 	trace_f2fs_fiemap(inode, start, byteaddr, ilen, flags, err);
 out:

@@ -1172,7 +1172,7 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	set_new_dnode(&dn, inode, folio, NULL, 0);
 	folio_unlock(folio);
 
-	ri = F2FS_INODE(&folio->page);
+	ri = F2FS_INODE(folio);
 	switch (level) {
 	case 0:
 	case 1:
@@ -2727,7 +2727,7 @@ int f2fs_recover_inline_xattr(struct inode *inode, struct folio *folio)
 	if (IS_ERR(ifolio))
 		return PTR_ERR(ifolio);
 
-	ri = F2FS_INODE(&folio->page);
+	ri = F2FS_INODE(folio);
 	if (ri->i_inline & F2FS_INLINE_XATTR) {
 		if (!f2fs_has_inline_xattr(inode)) {
 			set_inode_flag(inode, FI_INLINE_XATTR);
@@ -2830,8 +2830,8 @@ retry:
 	fill_node_footer(&ifolio->page, ino, ino, 0, true);
 	set_cold_node(&ifolio->page, false);
 
-	src = F2FS_INODE(&folio->page);
-	dst = F2FS_INODE(&ifolio->page);
+	src = F2FS_INODE(folio);
+	dst = F2FS_INODE(ifolio);
 
 	memcpy(dst, src, offsetof(struct f2fs_inode, i_ext));
 	dst->i_size = 0;

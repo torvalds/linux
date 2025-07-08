@@ -454,7 +454,7 @@ static void init_dent_inode(struct inode *dir, struct inode *inode,
 	f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
 	/* copy name info. to this inode folio */
-	ri = F2FS_INODE(&ifolio->page);
+	ri = F2FS_INODE(ifolio);
 	ri->i_namelen = cpu_to_le32(fname->disk_name.len);
 	memcpy(ri->i_name, fname->disk_name.name, fname->disk_name.len);
 	if (IS_ENCRYPTED(dir)) {

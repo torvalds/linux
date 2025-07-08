@@ -2053,9 +2053,9 @@ static inline struct f2fs_node *F2FS_NODE(const struct page *page)
 	return (struct f2fs_node *)page_address(page);
 }
 
-static inline struct f2fs_inode *F2FS_INODE(struct page *page)
+static inline struct f2fs_inode *F2FS_INODE(const struct folio *folio)
 {
-	return &((struct f2fs_node *)page_address(page))->i;
+	return &((struct f2fs_node *)folio_address(folio))->i;
 }
 
 static inline struct f2fs_nm_info *NM_I(struct f2fs_sb_info *sbi)
@@ -3371,9 +3371,10 @@ static inline unsigned int addrs_per_page(struct inode *inode,
 	return addrs;
 }
 
-static inline void *inline_xattr_addr(struct inode *inode, struct folio *folio)
+static inline
+void *inline_xattr_addr(struct inode *inode, const struct folio *folio)
 {
-	struct f2fs_inode *ri = F2FS_INODE(&folio->page);
+	struct f2fs_inode *ri = F2FS_INODE(folio);
 
 	return (void *)&(ri->i_addr[DEF_ADDRS_PER_INODE -
 					get_inline_xattr_addrs(inode)]);

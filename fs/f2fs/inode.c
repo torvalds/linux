@@ -108,7 +108,7 @@ static void __recover_inline_status(struct inode *inode, struct folio *ifolio)
 			f2fs_folio_wait_writeback(ifolio, NODE, true, true);
 
 			set_inode_flag(inode, FI_DATA_EXIST);
-			set_raw_inline(inode, F2FS_INODE(&ifolio->page));
+			set_raw_inline(inode, F2FS_INODE(ifolio));
 			folio_mark_dirty(ifolio);
 			return;
 		}
@@ -270,10 +270,10 @@ static bool sanity_check_inode(struct inode *inode, struct folio *node_folio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct f2fs_inode *ri = F2FS_INODE(&node_folio->page);
+	struct f2fs_inode *ri = F2FS_INODE(node_folio);
 	unsigned long long iblocks;
 
-	iblocks = le64_to_cpu(F2FS_INODE(&node_folio->page)->i_blocks);
+	iblocks = le64_to_cpu(F2FS_INODE(node_folio)->i_blocks);
 	if (!iblocks) {
 		f2fs_warn(sbi, "%s: corrupted inode i_blocks i_ino=%lx iblocks=%llu, run fsck to fix.",
 			  __func__, inode->i_ino, iblocks);
@@ -419,7 +419,7 @@ static int do_read_inode(struct inode *inode)
 	if (IS_ERR(node_folio))
 		return PTR_ERR(node_folio);
 
-	ri = F2FS_INODE(&node_folio->page);
+	ri = F2FS_INODE(node_folio);
 
 	inode->i_mode = le16_to_cpu(ri->i_mode);
 	i_uid_write(inode, le32_to_cpu(ri->i_uid));
@@ -669,7 +669,7 @@ void f2fs_update_inode(struct inode *inode, struct folio *node_folio)
 
 	f2fs_inode_synced(inode);
 
-	ri = F2FS_INODE(&node_folio->page);
+	ri = F2FS_INODE(node_folio);
 
 	ri->i_mode = cpu_to_le16(inode->i_mode);
 	ri->i_advise = fi->i_advise;
