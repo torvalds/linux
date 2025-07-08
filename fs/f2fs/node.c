@@ -649,7 +649,7 @@ static void f2fs_ra_node_pages(struct folio *parent, int start, int n)
 	end = start + n;
 	end = min(end, (int)NIDS_PER_BLOCK);
 	for (i = start; i < end; i++) {
-		nid = get_nid(&parent->page, i, false);
+		nid = get_nid(parent, i, false);
 		f2fs_ra_node_page(sbi, nid);
 	}
 
@@ -808,7 +808,7 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 
 	parent = nfolio[0];
 	if (level != 0)
-		nids[1] = get_nid(&parent->page, offset[0], true);
+		nids[1] = get_nid(parent, offset[0], true);
 	dn->inode_folio = nfolio[0];
 	dn->inode_folio_locked = true;
 
@@ -859,7 +859,7 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 		}
 		if (i < level) {
 			parent = nfolio[i];
-			nids[i + 1] = get_nid(&parent->page, offset[i], false);
+			nids[i + 1] = get_nid(parent, offset[i], false);
 		}
 	}
 	dn->nid = nids[level];
@@ -1083,7 +1083,7 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 	int i;
 	int idx = depth - 2;
 
-	nid[0] = get_nid(&dn->inode_folio->page, offset[0], true);
+	nid[0] = get_nid(dn->inode_folio, offset[0], true);
 	if (!nid[0])
 		return 0;
 
@@ -1096,14 +1096,14 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 			idx = i - 1;
 			goto fail;
 		}
-		nid[i + 1] = get_nid(&folios[i]->page, offset[i + 1], false);
+		nid[i + 1] = get_nid(folios[i], offset[i + 1], false);
 	}
 
 	f2fs_ra_node_pages(folios[idx], offset[idx + 1], NIDS_PER_BLOCK);
 
 	/* free direct nodes linked to a partial indirect node */
 	for (i = offset[idx + 1]; i < NIDS_PER_BLOCK; i++) {
-		child_nid = get_nid(&folios[idx]->page, i, false);
+		child_nid = get_nid(folios[idx], i, false);
 		if (!child_nid)
 			continue;
 		dn->nid = child_nid;
@@ -1201,7 +1201,7 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 
 skip_partial:
 	while (cont) {
-		dn.nid = get_nid(&folio->page, offset[0], true);
+		dn.nid = get_nid(folio, offset[0], true);
 		switch (offset[0]) {
 		case NODE_DIR1_BLOCK:
 		case NODE_DIR2_BLOCK:
@@ -1233,7 +1233,7 @@ skip_partial:
 		}
 		if (err < 0)
 			goto fail;
-		if (offset[1] == 0 && get_nid(&folio->page, offset[0], true)) {
+		if (offset[1] == 0 && get_nid(folio, offset[0], true)) {
 			folio_lock(folio);
 			BUG_ON(!is_node_folio(folio));
 			set_nid(folio, offset[0], 0, true);
@@ -1566,7 +1566,7 @@ struct folio *f2fs_get_xnode_folio(struct f2fs_sb_info *sbi, pgoff_t xnid)
 static struct folio *f2fs_get_node_folio_ra(struct folio *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_F_SB(parent);
-	nid_t nid = get_nid(&parent->page, start, false);
+	nid_t nid = get_nid(parent, start, false);
 
 	return __get_node_folio(sbi, nid, parent, start, NODE_TYPE_REGULAR);
 }

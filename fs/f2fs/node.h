@@ -380,9 +380,9 @@ static inline int set_nid(struct folio *folio, int off, nid_t nid, bool i)
 	return folio_mark_dirty(folio);
 }
 
-static inline nid_t get_nid(struct page *p, int off, bool i)
+static inline nid_t get_nid(const struct folio *folio, int off, bool i)
 {
-	struct f2fs_node *rn = F2FS_NODE(p);
+	struct f2fs_node *rn = F2FS_NODE(&folio->page);
 
 	if (i)
 		return le32_to_cpu(rn->i.i_nid[off - NODE_DIR1_BLOCK]);
