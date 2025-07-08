@@ -543,14 +543,14 @@ static void __submit_merged_bio(struct f2fs_bio_info *io)
 }
 
 static bool __has_merged_page(struct bio *bio, struct inode *inode,
-						struct page *page, nid_t ino)
+						struct folio *folio, nid_t ino)
 {
 	struct folio_iter fi;
 
 	if (!bio)
 		return false;
 
-	if (!inode && !page && !ino)
+	if (!inode && !folio && !ino)
 		return true;
 
 	bio_for_each_folio_all(fi, bio) {
@@ -569,7 +569,7 @@ static bool __has_merged_page(struct bio *bio, struct inode *inode,
 
 		if (inode && inode == target->mapping->host)
 			return true;
-		if (page && page == &target->page)
+		if (folio && folio == target)
 			return true;
 		if (ino && ino == ino_of_node(target))
 			return true;
@@ -650,7 +650,7 @@ static void __submit_merged_write_cond(struct f2fs_sb_info *sbi,
 			struct f2fs_bio_info *io = sbi->write_io[btype] + temp;
 
 			f2fs_down_read(&io->io_rwsem);
-			ret = __has_merged_page(io->bio, inode, &folio->page, ino);
+			ret = __has_merged_page(io->bio, inode, folio, ino);
 			f2fs_up_read(&io->io_rwsem);
 		}
 		if (ret)
@@ -845,7 +845,7 @@ void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 				found = (target == be->bio);
 			else
 				found = __has_merged_page(be->bio, NULL,
-							&folio->page, 0);
+							folio, 0);
 			if (found)
 				break;
 		}
@@ -862,7 +862,7 @@ void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 				found = (target == be->bio);
 			else
 				found = __has_merged_page(be->bio, NULL,
-							&folio->page, 0);
+							folio, 0);
 			if (found) {
 				target = be->bio;
 				del_bio_entry(be);
