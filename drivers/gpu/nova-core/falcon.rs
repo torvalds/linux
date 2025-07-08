@@ -105,14 +105,23 @@ impl TryFrom<u8> for FalconCoreRevSubversion {
 /// register.
 #[repr(u8)]
 #[derive(Debug, Default, Copy, Clone)]
+/// Security mode of the Falcon microprocessor.
+///
+/// See `falcon.rst` for more details.
 pub(crate) enum FalconSecurityModel {
     /// Non-Secure: runs unsigned code without privileges.
     #[default]
     None = 0,
-    /// Low-Secure: runs code with some privileges. Can only be entered from `Heavy` mode, which
-    /// will typically validate the LS code through some signature.
+    /// Light-Secured (LS): Runs signed code with some privileges.
+    /// Entry into this mode is only possible from 'Heavy-secure' mode, which verifies the code's
+    /// signature.
+    ///
+    /// Also known as Low-Secure, Privilege Level 2 or PL2.
     Light = 2,
-    /// High-Secure: runs signed code with full privileges. Signature is validated by boot ROM.
+    /// Heavy-Secured (HS): Runs signed code with full privileges.
+    /// The code's signature is verified by the Falcon Boot ROM (BROM).
+    ///
+    /// Also known as High-Secure, Privilege Level 3 or PL3.
     Heavy = 3,
 }
 impl_from_enum_to_u32!(FalconSecurityModel);
@@ -136,10 +145,13 @@ impl TryFrom<u8> for FalconSecurityModel {
 }
 
 /// Signing algorithm for a given firmware, used in the [`crate::regs::NV_PFALCON2_FALCON_MOD_SEL`]
-/// register.
+/// register. It is passed to the Falcon Boot ROM (BROM) as a parameter.
 #[repr(u8)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum FalconModSelAlgo {
+    /// AES.
+    #[expect(dead_code)]
+    Aes = 0,
     /// RSA3K.
     #[default]
     Rsa3k = 1,
@@ -209,15 +221,18 @@ pub(crate) enum FalconMem {
     Dmem,
 }
 
-/// Target/source of a DMA transfer to/from falcon memory.
+/// Defines the Framebuffer Interface (FBIF) aperture type.
+/// This determines the memory type for external memory access during a DMA transfer, which is
+/// performed by the Falcon's Framebuffer DMA (FBDMA) engine. See falcon.rst for more details.
 #[derive(Debug, Clone, Default)]
 pub(crate) enum FalconFbifTarget {
     /// VRAM.
     #[default]
+    /// Local Framebuffer (GPU's VRAM memory).
     LocalFb = 0,
-    /// Coherent system memory.
+    /// Coherent system memory (System DRAM).
     CoherentSysmem = 1,
-    /// Non-coherent system memory.
+    /// Non-coherent system memory (System DRAM).
     NoncoherentSysmem = 2,
 }
 impl_from_enum_to_u32!(FalconFbifTarget);
