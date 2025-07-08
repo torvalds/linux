@@ -911,7 +911,7 @@ enum scx_enq_flags {
 	/*
 	 * The task being enqueued was previously enqueued on the current CPU's
 	 * %SCX_DSQ_LOCAL, but was removed from it in a call to the
-	 * bpf_scx_reenqueue_local() kfunc. If bpf_scx_reenqueue_local() was
+	 * scx_bpf_reenqueue_local() kfunc. If scx_bpf_reenqueue_local() was
 	 * invoked in a ->cpu_release() callback, and the task is again
 	 * dispatched back to %SCX_LOCAL_DSQ by this current ->enqueue(), the
 	 * task will not be scheduled on the CPU until at least the next invocation
