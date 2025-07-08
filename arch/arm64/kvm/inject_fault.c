@@ -65,13 +65,49 @@ static void pend_sync_exception(struct kvm_vcpu *vcpu)
 		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
 }
 
+static void pend_serror_exception(struct kvm_vcpu *vcpu)
+{
+	if (exception_target_el(vcpu) == PSR_MODE_EL1h)
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SERR);
+	else
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SERR);
+}
+
+static bool __effective_sctlr2_bit(struct kvm_vcpu *vcpu, unsigned int idx)
+{
+	u64 sctlr2;
+
+	if (!kvm_has_sctlr2(vcpu->kvm))
+		return false;
+
+	if (is_nested_ctxt(vcpu) &&
+	    !(__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_SCTLR2En))
+		return false;
+
+	if (exception_target_el(vcpu) == PSR_MODE_EL1h)
+		sctlr2 = vcpu_read_sys_reg(vcpu, SCTLR2_EL1);
+	else
+		sctlr2 = vcpu_read_sys_reg(vcpu, SCTLR2_EL2);
+
+	return sctlr2 & BIT(idx);
+}
+
+static bool effective_sctlr2_ease(struct kvm_vcpu *vcpu)
+{
+	return __effective_sctlr2_bit(vcpu, SCTLR2_EL1_EASE_SHIFT);
+}
+
 static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr)
 {
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	bool is_aarch32 = vcpu_mode_is_32bit(vcpu);
 	u64 esr = 0;
 
-	pend_sync_exception(vcpu);
+	/* This delight is brought to you by FEAT_DoubleFault2. */
+	if (effective_sctlr2_ease(vcpu))
+		pend_serror_exception(vcpu);
+	else
+		pend_sync_exception(vcpu);
 
 	/*
 	 * Build an {i,d}abort, depending on the level and the
