@@ -4810,14 +4810,18 @@ struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile);
 
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs);
+bool rdma_uattrs_has_raw_cap(const struct uverbs_attr_bundle *attrs);
 #else
 static inline int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs)
 {
 	return 0;
 }
+static inline bool
+rdma_uattrs_has_raw_cap(const struct uverbs_attr_bundle *attrs)
+{
+	return false;
+}
 #endif
-
-bool rdma_uattrs_has_raw_cap(const struct uverbs_attr_bundle *attrs);
 
 struct net_device *rdma_alloc_netdev(struct ib_device *device, u32 port_num,
 				     enum rdma_netdev_t type, const char *name,
