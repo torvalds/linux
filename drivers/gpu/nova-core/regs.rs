@@ -104,9 +104,19 @@ impl NV_PFB_PRI_MMU_WPR2_ADDR_HI {
     }
 }
 
-/* PGC6 */
+// PGC6 register space.
+//
+// `GC6` is a GPU low-power state where VRAM is in self-refresh and the GPU is powered down (except
+// for power rails needed to keep self-refresh working and important registers and hardware
+// blocks).
+//
+// These scratch registers remain powered on even in a low-power state and have a designated group
+// number.
 
-register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK @ 0x00118128 {
+// Privilege level mask register. It dictates whether the host CPU has privilege to access the
+// `PGC6_AON_SECURE_SCRATCH_GROUP_05` register (which it needs to read GFW_BOOT).
+register!(NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK @ 0x00118128,
+          "Privilege level mask register" {
     0:0     read_protection_level0 as bool, "Set after FWSEC lowers its protection level";
 });
 
