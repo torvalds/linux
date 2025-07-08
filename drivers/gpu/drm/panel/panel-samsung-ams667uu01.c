@@ -43,28 +43,28 @@ static int ams667uu01_on(struct ams667uu01 *ctx)
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 11000);
 	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
 	mipi_dsi_dcs_set_tear_on_multi(&dsi_ctx, MIPI_DSI_DCS_TEAR_MODE_VBLANK);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb7, 0x01, 0x4b);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xb7, 0x01, 0x4b);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
 	mipi_dsi_dcs_set_page_address_multi(&dsi_ctx, 0x0000, 0x095f);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0x5a, 0x5a);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe9,
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xf0, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xfc, 0x5a, 0x5a);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xe9,
 				     0x11, 0x75, 0xa5, 0x8e, 0x76, 0xa6, 0x37,
 				     0xbe, 0x00, 0x32, 0x32);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe1,
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xe1,
 				     0x00, 0x00, 0x02, 0x02, 0x42, 0x02);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe2,
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xe2,
 				     0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x0c);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xe1, 0x19);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xb0, 0x09);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xee, 0x07);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, 0xfc, 0xa5, 0xa5);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_CONTROL_DISPLAY,
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xb0, 0x0c);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xe1, 0x19);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xb0, 0x09);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xee, 0x07);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xf0, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, 0xfc, 0xa5, 0xa5);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, MIPI_DCS_WRITE_CONTROL_DISPLAY,
 				     0x20);
 	mipi_dsi_dcs_set_display_brightness_multi(&dsi_ctx, 0x0000);
-	mipi_dsi_dcs_write_seq_multi(&dsi_ctx, MIPI_DCS_WRITE_POWER_SAVE, 0x00);
+	mipi_dsi_dcs_write_long_multi(&dsi_ctx, MIPI_DCS_WRITE_POWER_SAVE, 0x00);
 	mipi_dsi_msleep(&dsi_ctx, 67);
 	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 
