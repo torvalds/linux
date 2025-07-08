@@ -134,7 +134,7 @@ int xe_pm_suspend(struct xe_device *xe)
 	/* FIXME: Super racey... */
 	err = xe_bo_evict_all(xe);
 	if (err)
-		goto err_pxp;
+		goto err_display;
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_suspend(gt);
@@ -151,7 +151,6 @@ int xe_pm_suspend(struct xe_device *xe)
 
 err_display:
 	xe_display_pm_resume(xe);
-err_pxp:
 	xe_pxp_pm_resume(xe->pxp);
 err:
 	drm_dbg(&xe->drm, "Device suspend failed %d\n", err);
