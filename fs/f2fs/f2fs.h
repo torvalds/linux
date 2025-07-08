@@ -2528,9 +2528,9 @@ PAGE_PRIVATE_CLEAR_FUNC(inline, INLINE_INODE);
 PAGE_PRIVATE_CLEAR_FUNC(gcing, ONGOING_MIGRATION);
 PAGE_PRIVATE_CLEAR_FUNC(atomic, ATOMIC_WRITE);
 
-static inline unsigned long get_page_private_data(struct page *page)
+static inline unsigned long folio_get_f2fs_data(struct folio *folio)
 {
-	unsigned long data = page_private(page);
+	unsigned long data = (unsigned long)folio->private;
 
 	if (!test_bit(PAGE_PRIVATE_NOT_POINTER, &data))
 		return 0;
