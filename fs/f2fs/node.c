@@ -135,7 +135,7 @@ static struct folio *get_current_nat_folio(struct f2fs_sb_info *sbi, nid_t nid)
 	return f2fs_get_meta_folio_retry(sbi, current_nat_addr(sbi, nid));
 }
 
-static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
+static struct folio *get_next_nat_folio(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct folio *src_folio;
 	struct folio *dst_folio;
@@ -149,7 +149,7 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 	/* get current nat block page with lock */
 	src_folio = get_current_nat_folio(sbi, nid);
 	if (IS_ERR(src_folio))
-		return &src_folio->page;
+		return src_folio;
 	dst_folio = f2fs_grab_meta_folio(sbi, dst_off);
 	f2fs_bug_on(sbi, folio_test_dirty(src_folio));
 
@@ -161,7 +161,7 @@ static struct page *get_next_nat_page(struct f2fs_sb_info *sbi, nid_t nid)
 
 	set_to_next_nat(nm_i, nid);
 
-	return &dst_folio->page;
+	return dst_folio;
 }
 
 static struct nat_entry *__alloc_nat_entry(struct f2fs_sb_info *sbi,
@@ -3010,7 +3010,7 @@ static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 	bool to_journal = true;
 	struct f2fs_nat_block *nat_blk;
 	struct nat_entry *ne, *cur;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 
 	/*
 	 * there are two steps to flush nat entries:
@@ -3024,11 +3024,11 @@ static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 	if (to_journal) {
 		down_write(&curseg->journal_rwsem);
 	} else {
-		page = get_next_nat_page(sbi, start_nid);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
+		folio = get_next_nat_folio(sbi, start_nid);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 
-		nat_blk = page_address(page);
+		nat_blk = folio_address(folio);
 		f2fs_bug_on(sbi, !nat_blk);
 	}
 
@@ -3064,8 +3064,8 @@ static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 	if (to_journal) {
 		up_write(&curseg->journal_rwsem);
 	} else {
-		__update_nat_bits(sbi, start_nid, page);
-		f2fs_put_page(page, 1);
+		__update_nat_bits(sbi, start_nid, &folio->page);
+		f2fs_folio_put(folio, true);
 	}
 
 	/* Allow dirty nats by node block allocation in write_begin */
