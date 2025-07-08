@@ -2714,6 +2714,9 @@ static void kvm_inject_el2_exception(struct kvm_vcpu *vcpu, u64 esr_el2,
 	case except_type_irq:
 		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_IRQ);
 		break;
+	case except_type_serror:
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SERR);
+		break;
 	default:
 		WARN_ONCE(1, "Unsupported EL2 exception injection %d\n", type);
 	}
@@ -2820,4 +2823,15 @@ int kvm_inject_nested_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
 
 	vcpu_write_sys_reg(vcpu, FAR_EL2, addr);
 	return kvm_inject_nested_sync(vcpu, esr);
+}
+
+int kvm_inject_nested_serror(struct kvm_vcpu *vcpu, u64 esr)
+{
+	/*
+	 * Hardware sets up the EC field when propagating ESR as a result of
+	 * vSError injection. Manually populate EC for an emulated SError
+	 * exception.
+	 */
+	esr |= FIELD_PREP(ESR_ELx_EC_MASK, ESR_ELx_EC_SERROR);
+	return kvm_inject_nested(vcpu, esr, except_type_serror);
 }

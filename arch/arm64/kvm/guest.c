@@ -818,8 +818,9 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 			      struct kvm_vcpu_events *events)
 {
-	events->exception.serror_pending = !!(vcpu->arch.hcr_el2 & HCR_VSE);
 	events->exception.serror_has_esr = cpus_have_final_cap(ARM64_HAS_RAS_EXTN);
+	events->exception.serror_pending = (vcpu->arch.hcr_el2 & HCR_VSE) ||
+					   vcpu_get_flag(vcpu, NESTED_SERROR_PENDING);
 
 	if (events->exception.serror_pending && events->exception.serror_has_esr)
 		events->exception.serror_esr = vcpu_get_vsesr(vcpu);
@@ -839,22 +840,28 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 	bool serror_pending = events->exception.serror_pending;
 	bool has_esr = events->exception.serror_has_esr;
 	bool ext_dabt_pending = events->exception.ext_dabt_pending;
+	u64 esr = events->exception.serror_esr;
 	int ret = 0;
-
-	if (serror_pending && has_esr) {
-		if (!cpus_have_final_cap(ARM64_HAS_RAS_EXTN))
-			return -EINVAL;
-
-		if (!((events->exception.serror_esr) & ~ESR_ELx_ISS_MASK))
-			kvm_set_sei_esr(vcpu, events->exception.serror_esr);
-		else
-			return -EINVAL;
-	} else if (serror_pending) {
-		kvm_inject_vabt(vcpu);
-	}
 
 	if (ext_dabt_pending)
 		ret = kvm_inject_sea_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
+
+	if (ret < 0)
+		return ret;
+
+	if (!serror_pending)
+		return 0;
+
+	if (!cpus_have_final_cap(ARM64_HAS_RAS_EXTN) && has_esr)
+		return -EINVAL;
+
+	if (has_esr && (esr & ~ESR_ELx_ISS_MASK))
+		return -EINVAL;
+
+	if (has_esr)
+		ret = kvm_inject_serror_esr(vcpu, esr);
+	else
+		ret = kvm_inject_serror(vcpu);
 
 	return (ret < 0) ? ret : 0;
 }

@@ -1188,6 +1188,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		 */
 		preempt_disable();
 
+		kvm_nested_flush_hwstate(vcpu);
+
 		if (kvm_vcpu_has_pmu(vcpu))
 			kvm_pmu_flush_hwstate(vcpu);
 
@@ -1286,6 +1288,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 		/* Exit types that need handling before we can be preempted */
 		handle_exit_early(vcpu, ret);
+
+		kvm_nested_sync_hwstate(vcpu);
 
 		preempt_enable();
 

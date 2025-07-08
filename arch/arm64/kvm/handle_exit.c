@@ -32,7 +32,7 @@ typedef int (*exit_handle_fn)(struct kvm_vcpu *);
 static void kvm_handle_guest_serror(struct kvm_vcpu *vcpu, u64 esr)
 {
 	if (!arm64_is_ras_serror(esr) || arm64_is_fatal_ras_serror(NULL, esr))
-		kvm_inject_vabt(vcpu);
+		kvm_inject_serror(vcpu);
 }
 
 static int handle_hvc(struct kvm_vcpu *vcpu)
@@ -490,7 +490,7 @@ void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index)
 
 			kvm_handle_guest_serror(vcpu, disr_to_esr(disr));
 		} else {
-			kvm_inject_vabt(vcpu);
+			kvm_inject_serror(vcpu);
 		}
 
 		return;

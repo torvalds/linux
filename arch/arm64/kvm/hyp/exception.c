@@ -347,9 +347,13 @@ static void kvm_inject_exception(struct kvm_vcpu *vcpu)
 			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_irq);
 			break;
 
+		case unpack_vcpu_flag(EXCEPT_AA64_EL2_SERR):
+			enter_exception64(vcpu, PSR_MODE_EL2h, except_type_serror);
+			break;
+
 		default:
 			/*
-			 * Only EL1_SYNC and EL2_{SYNC,IRQ} makes
+			 * Only EL1_SYNC and EL2_{SYNC,IRQ,SERR} makes
 			 * sense so far. Everything else gets silently
 			 * ignored.
 			 */

@@ -817,7 +817,7 @@ struct kvm_vcpu_arch {
 	u8 iflags;
 
 	/* State flags for kernel bookkeeping, unused by the hypervisor code */
-	u8 sflags;
+	u16 sflags;
 
 	/*
 	 * Don't run the guest (internal implementation need).
@@ -953,9 +953,21 @@ struct kvm_vcpu_arch {
 		__vcpu_flags_preempt_enable();			\
 	} while (0)
 
+#define __vcpu_test_and_clear_flag(v, flagset, f, m)		\
+	({							\
+		typeof(v->arch.flagset) set;			\
+								\
+		set = __vcpu_get_flag(v, flagset, f, m);	\
+		__vcpu_clear_flag(v, flagset, f, m);		\
+								\
+		set;						\
+	})
+
 #define vcpu_get_flag(v, ...)	__vcpu_get_flag((v), __VA_ARGS__)
 #define vcpu_set_flag(v, ...)	__vcpu_set_flag((v), __VA_ARGS__)
 #define vcpu_clear_flag(v, ...)	__vcpu_clear_flag((v), __VA_ARGS__)
+#define vcpu_test_and_clear_flag(v, ...)			\
+	__vcpu_test_and_clear_flag((v), __VA_ARGS__)
 
 /* KVM_ARM_VCPU_INIT completed */
 #define VCPU_INITIALIZED	__vcpu_single_flag(cflags, BIT(0))
@@ -1015,6 +1027,8 @@ struct kvm_vcpu_arch {
 #define IN_WFI			__vcpu_single_flag(sflags, BIT(6))
 /* KVM is currently emulating a nested ERET */
 #define IN_NESTED_ERET		__vcpu_single_flag(sflags, BIT(7))
+/* SError pending for nested guest */
+#define NESTED_SERROR_PENDING	__vcpu_single_flag(sflags, BIT(8))
 
 
 /* Pointer to the vcpu's SVE FFR for sve_{save,load}_state() */
@@ -1386,8 +1400,6 @@ static inline bool kvm_arm_is_pvtime_enabled(struct kvm_vcpu_arch *vcpu_arch)
 {
 	return (vcpu_arch->steal.base != INVALID_GPA);
 }
-
-void kvm_set_sei_esr(struct kvm_vcpu *vcpu, u64 syndrome);
 
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
