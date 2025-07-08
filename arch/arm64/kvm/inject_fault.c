@@ -322,9 +322,13 @@ int kvm_inject_serror_esr(struct kvm_vcpu *vcpu, u64 esr)
 	 * the vCPU is in a nested context w/ vSErrors enabled then we've already
 	 * delegated he hardware vSError context (i.e. HCR_EL2.VSE, VSESR_EL2,
 	 * VDISR_EL2) to the guest hypervisor.
+	 *
+	 * As we're emulating the SError injection we need to explicitly populate
+	 * ESR_ELx.EC because hardware will not do it on our behalf.
 	 */
 	if (!serror_is_masked(vcpu)) {
 		pend_serror_exception(vcpu);
+		esr |= FIELD_PREP(ESR_ELx_EC_MASK, ESR_ELx_EC_SERROR);
 		vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
 		return 1;
 	}
