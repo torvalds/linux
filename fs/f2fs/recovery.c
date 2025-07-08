@@ -552,7 +552,7 @@ got_it:
 	if (IS_ERR(node_folio))
 		return PTR_ERR(node_folio);
 
-	offset = ofs_of_node(&node_folio->page);
+	offset = ofs_of_node(node_folio);
 	ino = ino_of_node(node_folio);
 	f2fs_folio_put(node_folio, true);
 
@@ -632,7 +632,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 		err = f2fs_recover_inline_xattr(inode, folio);
 		if (err)
 			goto out;
-	} else if (f2fs_has_xattr_block(ofs_of_node(&folio->page))) {
+	} else if (f2fs_has_xattr_block(ofs_of_node(folio))) {
 		err = f2fs_recover_xattr_data(inode, folio);
 		if (!err)
 			recovered++;
@@ -648,7 +648,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	}
 
 	/* step 3: recover data indices */
-	start = f2fs_start_bidx_of_node(ofs_of_node(&folio->page), inode);
+	start = f2fs_start_bidx_of_node(ofs_of_node(folio), inode);
 	end = start + ADDRS_PER_PAGE(&folio->page, inode);
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
@@ -670,10 +670,10 @@ retry_dn:
 
 	f2fs_bug_on(sbi, ni.ino != ino_of_node(folio));
 
-	if (ofs_of_node(&dn.node_folio->page) != ofs_of_node(&folio->page)) {
+	if (ofs_of_node(dn.node_folio) != ofs_of_node(folio)) {
 		f2fs_warn(sbi, "Inconsistent ofs_of_node, ino:%lu, ofs:%u, %u",
-			  inode->i_ino, ofs_of_node(&dn.node_folio->page),
-			  ofs_of_node(&folio->page));
+			  inode->i_ino, ofs_of_node(dn.node_folio),
+			  ofs_of_node(folio));
 		err = -EFSCORRUPTED;
 		f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
 		goto err;
@@ -760,7 +760,7 @@ retry_prev:
 
 	copy_node_footer(dn.node_folio, folio);
 	fill_node_footer(dn.node_folio, dn.nid, ni.ino,
-					ofs_of_node(&folio->page), false);
+					ofs_of_node(folio), false);
 	folio_mark_dirty(dn.node_folio);
 err:
 	f2fs_put_dnode(&dn);
