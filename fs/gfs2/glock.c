@@ -802,7 +802,8 @@ skip_inval:
 			 * We skip telling dlm to do the locking, so we won't get a
 			 * reply that would otherwise clear GLF_LOCK. So we clear it here.
 			 */
-			clear_bit(GLF_LOCK, &gl->gl_flags);
+			if (!test_bit(GLF_CANCELING, &gl->gl_flags))
+				clear_bit(GLF_LOCK, &gl->gl_flags);
 			clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 			gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
 			return;
