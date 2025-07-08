@@ -355,6 +355,15 @@ static const struct snd_soc_acpi_adr_device rt1320_3_group1_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device rt721_0_single_adr[] = {
+	{
+		.adr = 0x000030025d072101ull,
+		.num_endpoints = ARRAY_SIZE(rt_mf_endpoints),
+		.endpoints = rt_mf_endpoints,
+		.name_prefix = "rt721"
+	}
+};
+
 static const struct snd_soc_acpi_adr_device rt721_3_single_adr[] = {
 	{
 		.adr = 0x000330025d072101ull,
@@ -469,6 +478,15 @@ static const struct snd_soc_acpi_link_adr ptl_cs42l43_l3[] = {
 		.mask = BIT(3),
 		.num_adr = ARRAY_SIZE(cs42l43_3_adr),
 		.adr_d = cs42l43_3_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr ptl_rt721_l0[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt721_0_single_adr),
+		.adr_d = rt721_0_single_adr,
 	},
 	{}
 };
@@ -659,6 +677,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.links = ptl_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt711.tplg",
+	},
+	{
+		.link_mask = BIT(0),
+		.links = ptl_rt721_l0,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-rt721.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(0),
