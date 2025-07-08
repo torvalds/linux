@@ -102,11 +102,6 @@
 		    <&pinctrl_gpio13>;
 };
 
-&gpio3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_lvds_dsi_sel>;
-};
-
 &gpio4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpio4>, <&pinctrl_gpio6>;
