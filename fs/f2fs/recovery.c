@@ -238,9 +238,9 @@ out:
 	return err;
 }
 
-static int recover_quota_data(struct inode *inode, struct page *page)
+static int recover_quota_data(struct inode *inode, struct folio *folio)
 {
-	struct f2fs_inode *raw = F2FS_INODE(page);
+	struct f2fs_inode *raw = F2FS_INODE(&folio->page);
 	struct iattr attr;
 	uid_t i_uid = le32_to_cpu(raw->i_uid);
 	gid_t i_gid = le32_to_cpu(raw->i_gid);
@@ -286,7 +286,7 @@ static int recover_inode(struct inode *inode, struct folio *folio)
 
 	inode->i_mode = le16_to_cpu(raw->i_mode);
 
-	err = recover_quota_data(inode, &folio->page);
+	err = recover_quota_data(inode, folio);
 	if (err)
 		return err;
 
