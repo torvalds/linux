@@ -1391,8 +1391,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !(ops->cap_rss_ctx_supported ||
-				  ops->create_rxfh_context))
+	if (rxfh.rss_context && !ops->create_rxfh_context)
 		return -EOPNOTSUPP;
 
 	rxfh.indir_size = rxfh_dev.indir_size;
@@ -1534,8 +1533,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !(ops->cap_rss_ctx_supported ||
-				  ops->create_rxfh_context))
+	if (rxfh.rss_context && !ops->create_rxfh_context)
 		return -EOPNOTSUPP;
 	/* Check input data transformation capabilities */
 	if (rxfh.input_xfrm && rxfh.input_xfrm != RXH_XFRM_SYM_XOR &&
@@ -1634,6 +1632,8 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	}
 
 	if (create) {
+		u32 limit, ctx_id;
+
 		if (rxfh_dev.rss_delete) {
 			ret = -EINVAL;
 			goto out_unlock;
@@ -1644,21 +1644,15 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			goto out_unlock;
 		}
 
-		if (ops->create_rxfh_context) {
-			u32 limit = ops->rxfh_max_num_contexts ?: U32_MAX;
-			u32 ctx_id;
-
-			/* driver uses new API, core allocates ID */
-			ret = xa_alloc(&dev->ethtool->rss_ctx, &ctx_id, ctx,
-				       XA_LIMIT(1, limit - 1),
-				       GFP_KERNEL_ACCOUNT);
-			if (ret < 0) {
-				kfree(ctx);
-				goto out_unlock;
-			}
-			WARN_ON(!ctx_id); /* can't happen */
-			rxfh.rss_context = ctx_id;
+		limit = ops->rxfh_max_num_contexts ?: U32_MAX;
+		ret = xa_alloc(&dev->ethtool->rss_ctx, &ctx_id, ctx,
+			       XA_LIMIT(1, limit - 1), GFP_KERNEL_ACCOUNT);
+		if (ret < 0) {
+			kfree(ctx);
+			goto out_unlock;
 		}
+		WARN_ON(!ctx_id); /* can't happen */
+		rxfh.rss_context = ctx_id;
 	} else if (rxfh.rss_context) {
 		ctx = xa_load(&dev->ethtool->rss_ctx, rxfh.rss_context);
 		if (!ctx) {
@@ -1670,31 +1664,24 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	rxfh_dev.rss_context = rxfh.rss_context;
 	rxfh_dev.input_xfrm = rxfh.input_xfrm;
 
-	if (rxfh.rss_context && ops->create_rxfh_context) {
-		if (create) {
-			ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev,
-						       extack);
-			/* Make sure driver populates defaults */
-			WARN_ON_ONCE(!ret && !rxfh_dev.key &&
-				     ops->rxfh_per_ctx_key &&
-				     !memchr_inv(ethtool_rxfh_context_key(ctx),
-						 0, ctx->key_size));
-		} else if (rxfh_dev.rss_delete) {
-			ret = ops->remove_rxfh_context(dev, ctx,
-						       rxfh.rss_context,
-						       extack);
-		} else {
-			ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev,
-						       extack);
-		}
-	} else {
+	if (!rxfh.rss_context) {
 		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
+	} else if (create) {
+		ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev, extack);
+		/* Make sure driver populates defaults */
+		WARN_ON_ONCE(!ret && !rxfh_dev.key && ops->rxfh_per_ctx_key &&
+			     !memchr_inv(ethtool_rxfh_context_key(ctx), 0,
+					 ctx->key_size));
+	} else if (rxfh_dev.rss_delete) {
+		ret = ops->remove_rxfh_context(dev, ctx, rxfh.rss_context,
+					       extack);
+	} else {
+		ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev, extack);
 	}
 	if (ret) {
 		if (create) {
 			/* failed to create, free our new tracking entry */
-			if (ops->create_rxfh_context)
-				xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
+			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
 			kfree(ctx);
 		}
 		goto out_unlock;
@@ -1713,36 +1700,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			dev->priv_flags |= IFF_RXFH_CONFIGURED;
 	}
 	/* Update rss_ctx tracking */
-	if (create && !ops->create_rxfh_context) {
-		/* driver uses old API, it chose context ID */
-		if (WARN_ON(xa_load(&dev->ethtool->rss_ctx, rxfh_dev.rss_context))) {
-			/* context ID reused, our tracking is screwed */
-			kfree(ctx);
-			goto out_unlock;
-		}
-		/* Allocate the exact ID the driver gave us */
-		if (xa_is_err(xa_store(&dev->ethtool->rss_ctx, rxfh_dev.rss_context,
-				       ctx, GFP_KERNEL))) {
-			kfree(ctx);
-			goto out_unlock;
-		}
-
-		/* Fetch the defaults for the old API, in the new API drivers
-		 * should write defaults into ctx themselves.
-		 */
-		rxfh_dev.indir = (u32 *)rss_config;
-		rxfh_dev.indir_size = dev_indir_size;
-
-		rxfh_dev.key = rss_config + indir_bytes;
-		rxfh_dev.key_size = dev_key_size;
-
-		ret = ops->get_rxfh(dev, &rxfh_dev);
-		if (WARN_ON(ret)) {
-			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
-			kfree(ctx);
-			goto out_unlock;
-		}
-	}
 	if (rxfh_dev.rss_delete) {
 		WARN_ON(xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context) != ctx);
 		kfree(ctx);

@@ -71,17 +71,12 @@ static int mlx5e_rx_res_rss_init_def(struct mlx5e_rx_res *res,
 	return 0;
 }
 
-int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int init_nch)
+int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 rss_idx, unsigned int init_nch)
 {
 	bool inner_ft_support = res->features & MLX5E_RX_RES_FEATURE_INNER_FT;
 	struct mlx5e_rss *rss;
-	int i;
 
-	for (i = 1; i < MLX5E_MAX_NUM_RSS; i++)
-		if (!res->rss[i])
-			break;
-
-	if (i == MLX5E_MAX_NUM_RSS)
+	if (WARN_ON_ONCE(res->rss[rss_idx]))
 		return -ENOSPC;
 
 	rss = mlx5e_rss_init(res->mdev, inner_ft_support, res->drop_rqn,
@@ -97,8 +92,7 @@ int mlx5e_rx_res_rss_init(struct mlx5e_rx_res *res, u32 *rss_idx, unsigned int i
 		mlx5e_rss_enable(rss, res->rss_rqns, vhca_ids, res->rss_nch);
 	}
 
-	res->rss[i] = rss;
-	*rss_idx = i;
+	res->rss[rss_idx] = rss;
 
 	return 0;
 }
@@ -193,19 +187,17 @@ void mlx5e_rx_res_rss_set_indir_uniform(struct mlx5e_rx_res *res, unsigned int n
 	mlx5e_rss_set_indir_uniform(res->rss[0], nch);
 }
 
-int mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
-			      u32 *indir, u8 *key, u8 *hfunc, bool *symmetric)
+void mlx5e_rx_res_rss_get_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,
+			       u32 *indir, u8 *key, u8 *hfunc, bool *symmetric)
 {
-	struct mlx5e_rss *rss;
+	struct mlx5e_rss *rss = NULL;
 
-	if (rss_idx >= MLX5E_MAX_NUM_RSS)
-		return -EINVAL;
+	if (rss_idx < MLX5E_MAX_NUM_RSS)
+		rss = res->rss[rss_idx];
+	if (WARN_ON_ONCE(!rss))
+		return;
 
-	rss = res->rss[rss_idx];
-	if (!rss)
-		return -ENOENT;
-
-	return mlx5e_rss_get_rxfh(rss, indir, key, hfunc, symmetric);
+	mlx5e_rss_get_rxfh(rss, indir, key, hfunc, symmetric);
 }
 
 int mlx5e_rx_res_rss_set_rxfh(struct mlx5e_rx_res *res, u32 rss_idx,

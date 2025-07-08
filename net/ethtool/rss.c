@@ -163,8 +163,7 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 		return -EOPNOTSUPP;
 
 	/* Some drivers don't handle rss_context */
-	if (request->rss_context &&
-	    !ops->cap_rss_ctx_supported && !ops->create_rxfh_context)
+	if (request->rss_context && !ops->create_rxfh_context)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&dev->ethtool->rss_lock);

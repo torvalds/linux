@@ -318,21 +318,20 @@ fail:
 	return err;
 }
 
-int otx2_set_rss_table(struct otx2_nic *pfvf, int ctx_id)
+int otx2_set_rss_table(struct otx2_nic *pfvf, int ctx_id, const u32 *ind_tbl)
 {
 	struct otx2_rss_info *rss = &pfvf->hw.rss_info;
 	const int index = rss->rss_size * ctx_id;
 	struct mbox *mbox = &pfvf->mbox;
-	struct otx2_rss_ctx *rss_ctx;
 	struct nix_aq_enq_req *aq;
 	int idx, err;
 
 	mutex_lock(&mbox->lock);
-	rss_ctx = rss->rss_ctx[ctx_id];
+	ind_tbl = ind_tbl ?: rss->ind_tbl;
 	/* Get memory to put this msg */
 	for (idx = 0; idx < rss->rss_size; idx++) {
 		/* Ignore the queue if AF_XDP zero copy is enabled */
-		if (test_bit(rss_ctx->ind_tbl[idx], pfvf->af_xdp_zc_qidx))
+		if (test_bit(ind_tbl[idx], pfvf->af_xdp_zc_qidx))
 			continue;
 
 		aq = otx2_mbox_alloc_msg_nix_aq_enq(mbox);
@@ -352,7 +351,7 @@ int otx2_set_rss_table(struct otx2_nic *pfvf, int ctx_id)
 			}
 		}
 
-		aq->rss.rq = rss_ctx->ind_tbl[idx];
+		aq->rss.rq = ind_tbl[idx];
 
 		/* Fill AQ info */
 		aq->qidx = index + idx;
@@ -390,30 +389,22 @@ void otx2_set_rss_key(struct otx2_nic *pfvf)
 int otx2_rss_init(struct otx2_nic *pfvf)
 {
 	struct otx2_rss_info *rss = &pfvf->hw.rss_info;
-	struct otx2_rss_ctx *rss_ctx;
 	int idx, ret = 0;
 
-	rss->rss_size = sizeof(*rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP]);
+	rss->rss_size = sizeof(*rss->ind_tbl);
 
 	/* Init RSS key if it is not setup already */
 	if (!rss->enable)
 		netdev_rss_key_fill(rss->key, sizeof(rss->key));
 	otx2_set_rss_key(pfvf);
 
-	if (!netif_is_rxfh_configured(pfvf->netdev)) {
-		/* Set RSS group 0 as default indirection table */
-		rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP] = kzalloc(rss->rss_size,
-								  GFP_KERNEL);
-		if (!rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP])
-			return -ENOMEM;
-
-		rss_ctx = rss->rss_ctx[DEFAULT_RSS_CONTEXT_GROUP];
+	if (!netif_is_rxfh_configured(pfvf->netdev))
 		for (idx = 0; idx < rss->rss_size; idx++)
-			rss_ctx->ind_tbl[idx] =
+			rss->ind_tbl[idx] =
 				ethtool_rxfh_indir_default(idx,
 							   pfvf->hw.rx_queues);
-	}
-	ret = otx2_set_rss_table(pfvf, DEFAULT_RSS_CONTEXT_GROUP);
+
+	ret = otx2_set_rss_table(pfvf, DEFAULT_RSS_CONTEXT_GROUP, NULL);
 	if (ret)
 		return ret;
 

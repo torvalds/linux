@@ -93,10 +93,6 @@ struct otx2_lmt_info {
 	u64 lmt_addr;
 	u16 lmt_id;
 };
-/* RSS configuration */
-struct otx2_rss_ctx {
-	u8  ind_tbl[MAX_RSS_INDIR_TBL_SIZE];
-};
 
 struct otx2_rss_info {
 	u8 enable;
@@ -104,7 +100,7 @@ struct otx2_rss_info {
 	u16 rss_size;
 #define RSS_HASH_KEY_SIZE	44   /* 352 bit key */
 	u8  key[RSS_HASH_KEY_SIZE];
-	struct otx2_rss_ctx	*rss_ctx[MAX_RSS_GROUPS];
+	u32 ind_tbl[MAX_RSS_INDIR_TBL_SIZE];
 };
 
 /* NIX (or NPC) RX errors */
@@ -1067,7 +1063,7 @@ int otx2_set_hw_capabilities(struct otx2_nic *pfvf);
 int otx2_rss_init(struct otx2_nic *pfvf);
 int otx2_set_flowkey_cfg(struct otx2_nic *pfvf);
 void otx2_set_rss_key(struct otx2_nic *pfvf);
-int otx2_set_rss_table(struct otx2_nic *pfvf, int ctx_id);
+int otx2_set_rss_table(struct otx2_nic *pfvf, int ctx_id, const u32 *ind_tbl);
 
 /* Mbox handlers */
 void mbox_handler_msix_offset(struct otx2_nic *pfvf,
