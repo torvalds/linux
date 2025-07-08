@@ -2215,7 +2215,7 @@ static bool f2fs_dirty_node_folio(struct address_space *mapping,
 		folio_mark_uptodate(folio);
 #ifdef CONFIG_F2FS_CHECK_FS
 	if (IS_INODE(&folio->page))
-		f2fs_inode_chksum_set(F2FS_M_SB(mapping), &folio->page);
+		f2fs_inode_chksum_set(F2FS_M_SB(mapping), folio);
 #endif
 	if (filemap_dirty_folio(mapping, folio)) {
 		inc_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);

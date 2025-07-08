@@ -3854,7 +3854,7 @@ skip_new_segment:
 	if (folio && IS_NODESEG(curseg->seg_type)) {
 		fill_node_footer_blkaddr(&folio->page, NEXT_FREE_BLKADDR(sbi, curseg));
 
-		f2fs_inode_chksum_set(sbi, &folio->page);
+		f2fs_inode_chksum_set(sbi, folio);
 	}
 
 	if (fio) {

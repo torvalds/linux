@@ -184,14 +184,14 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct folio *folio)
 	return provided == calculated;
 }
 
-void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct page *page)
+void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct folio *folio)
 {
-	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
+	struct f2fs_inode *ri = &F2FS_NODE(&folio->page)->i;
 
-	if (!f2fs_enable_inode_chksum(sbi, page))
+	if (!f2fs_enable_inode_chksum(sbi, &folio->page))
 		return;
 
-	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, page));
+	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, &folio->page));
 }
 
 static bool sanity_check_compress_inode(struct inode *inode,
@@ -752,7 +752,7 @@ void f2fs_update_inode(struct inode *inode, struct folio *node_folio)
 
 	init_idisk_time(inode);
 #ifdef CONFIG_F2FS_CHECK_FS
-	f2fs_inode_chksum_set(F2FS_I_SB(inode), &node_folio->page);
+	f2fs_inode_chksum_set(F2FS_I_SB(inode), node_folio);
 #endif
 }
 
