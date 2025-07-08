@@ -48,12 +48,12 @@ static bool inode_has_blocks(struct inode *inode, struct page *ipage)
 	return false;
 }
 
-bool f2fs_sanity_check_inline_data(struct inode *inode, struct page *ipage)
+bool f2fs_sanity_check_inline_data(struct inode *inode, struct folio *ifolio)
 {
 	if (!f2fs_has_inline_data(inode))
 		return false;
 
-	if (inode_has_blocks(inode, ipage))
+	if (inode_has_blocks(inode, &ifolio->page))
 		return false;
 
 	if (!support_inline_data(inode))
