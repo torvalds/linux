@@ -665,6 +665,9 @@ static inline void vcpu_set_hcrx(struct kvm_vcpu *vcpu)
 
 		if (kvm_has_fpmr(kvm))
 			vcpu->arch.hcrx_el2 |= HCRX_EL2_EnFPM;
+
+		if (kvm_has_sctlr2(kvm))
+			vcpu->arch.hcrx_el2 |= HCRX_EL2_SCTLR2En;
 	}
 }
 #endif /* __ARM64_KVM_EMULATE_H__ */
