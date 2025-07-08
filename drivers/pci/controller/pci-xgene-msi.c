@@ -24,19 +24,13 @@
 #define NR_HW_IRQS		16
 #define NR_MSI_VEC		(IDX_PER_GROUP * IRQS_PER_IDX * NR_HW_IRQS)
 
-struct xgene_msi_group {
-	struct xgene_msi	*msi;
-	int			gic_irq;
-	u32			msi_grp;
-};
-
 struct xgene_msi {
 	struct irq_domain	*inner_domain;
 	u64			msi_addr;
 	void __iomem		*msi_regs;
 	unsigned long		*bitmap;
 	struct mutex		bitmap_lock;
-	struct xgene_msi_group	*msi_groups;
+	unsigned int		gic_irq[NR_HW_IRQS];
 };
 
 /* Global data */
@@ -261,27 +255,20 @@ static int xgene_msi_init_allocator(struct device *dev)
 
 	mutex_init(&xgene_msi_ctrl->bitmap_lock);
 
-	xgene_msi_ctrl->msi_groups = devm_kcalloc(dev, NR_HW_IRQS,
-						  sizeof(struct xgene_msi_group),
-						  GFP_KERNEL);
-	if (!xgene_msi_ctrl->msi_groups)
-		return -ENOMEM;
-
 	return 0;
 }
 
 static void xgene_msi_isr(struct irq_desc *desc)
 {
+	unsigned int *irqp = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct xgene_msi *xgene_msi = xgene_msi_ctrl;
-	struct xgene_msi_group *msi_groups;
 	int msir_index, msir_val, hw_irq, ret;
 	u32 intr_index, grp_select, msi_grp;
 
 	chained_irq_enter(chip, desc);
 
-	msi_groups = irq_desc_get_handler_data(desc);
-	msi_grp = msi_groups->msi_grp;
+	msi_grp = irqp - xgene_msi->gic_irq;
 
 	/*
 	 * MSIINTn (n is 0..F) indicates if there is a pending MSI interrupt
@@ -341,35 +328,31 @@ static void xgene_msi_remove(struct platform_device *pdev)
 		cpuhp_remove_state(pci_xgene_online);
 	cpuhp_remove_state(CPUHP_PCI_XGENE_DEAD);
 
-	kfree(msi->msi_groups);
-
 	xgene_free_domains(msi);
 }
 
 static int xgene_msi_hwirq_alloc(unsigned int cpu)
 {
-	struct xgene_msi *msi = xgene_msi_ctrl;
-	struct xgene_msi_group *msi_group;
 	int i;
 	int err;
 
 	for (i = cpu; i < NR_HW_IRQS; i += num_possible_cpus()) {
-		msi_group = &msi->msi_groups[i];
+		unsigned int irq = xgene_msi_ctrl->gic_irq[i];
 
 		/*
 		 * Statically allocate MSI GIC IRQs to each CPU core.
 		 * With 8-core X-Gene v1, 2 MSI GIC IRQs are allocated
 		 * to each core.
 		 */
-		irq_set_status_flags(msi_group->gic_irq, IRQ_NO_BALANCING);
-		err = irq_set_affinity(msi_group->gic_irq, cpumask_of(cpu));
+		irq_set_status_flags(irq, IRQ_NO_BALANCING);
+		err = irq_set_affinity(irq, cpumask_of(cpu));
 		if (err) {
 			pr_err("failed to set affinity for GIC IRQ");
 			return err;
 		}
 
-		irq_set_chained_handler_and_data(msi_group->gic_irq,
-			xgene_msi_isr, msi_group);
+		irq_set_chained_handler_and_data(irq, xgene_msi_isr,
+						 &xgene_msi_ctrl->gic_irq[i]);
 	}
 
 	return 0;
@@ -378,14 +361,11 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 static int xgene_msi_hwirq_free(unsigned int cpu)
 {
 	struct xgene_msi *msi = xgene_msi_ctrl;
-	struct xgene_msi_group *msi_group;
 	int i;
 
-	for (i = cpu; i < NR_HW_IRQS; i += num_possible_cpus()) {
-		msi_group = &msi->msi_groups[i];
-		irq_set_chained_handler_and_data(msi_group->gic_irq, NULL,
-						 NULL);
-	}
+	for (i = cpu; i < NR_HW_IRQS; i += num_possible_cpus())
+		irq_set_chained_handler_and_data(msi->gic_irq[i], NULL, NULL);
+
 	return 0;
 }
 
@@ -397,10 +377,9 @@ static const struct of_device_id xgene_msi_match_table[] = {
 static int xgene_msi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	int rc, irq_index;
 	struct xgene_msi *xgene_msi;
-	int virt_msir;
 	u32 msi_val, msi_idx;
+	int rc;
 
 	xgene_msi_ctrl = devm_kzalloc(&pdev->dev, sizeof(*xgene_msi_ctrl),
 				      GFP_KERNEL);
@@ -430,15 +409,12 @@ static int xgene_msi_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	for (irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
-		virt_msir = platform_get_irq(pdev, irq_index);
-		if (virt_msir < 0) {
-			rc = virt_msir;
+	for (int irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
+		rc = platform_get_irq(pdev, irq_index);
+		if (rc < 0)
 			goto error;
-		}
-		xgene_msi->msi_groups[irq_index].gic_irq = virt_msir;
-		xgene_msi->msi_groups[irq_index].msi_grp = irq_index;
-		xgene_msi->msi_groups[irq_index].msi = xgene_msi;
+
+		xgene_msi->gic_irq[irq_index] = rc;
 	}
 
 	/*
@@ -446,7 +422,7 @@ static int xgene_msi_probe(struct platform_device *pdev)
 	 * interrupt handlers, read all of them to clear spurious
 	 * interrupts that may occur before the driver is probed.
 	 */
-	for (irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
+	for (int irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
 		for (msi_idx = 0; msi_idx < IDX_PER_GROUP; msi_idx++)
 			xgene_msi_ir_read(xgene_msi, irq_index, msi_idx);
 
