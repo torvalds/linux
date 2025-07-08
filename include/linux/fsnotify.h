@@ -129,7 +129,7 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 
-void file_set_fsnotify_mode_from_watchers(struct file *file);
+int fsnotify_open_perm_and_set_mode(struct file *file);
 
 /*
  * fsnotify_file_area_perm - permission hook before access to file range
@@ -215,9 +215,6 @@ static inline int fsnotify_open_perm(struct file *file)
 {
 	int ret;
 
-	if (likely(!FMODE_FSNOTIFY_PERM(file->f_mode)))
-		return 0;
-
 	if (file->f_flags & __FMODE_EXEC) {
 		ret = fsnotify_path(&file->f_path, FS_OPEN_EXEC_PERM);
 		if (ret)
@@ -228,8 +225,9 @@ static inline int fsnotify_open_perm(struct file *file)
 }
 
 #else
-static inline void file_set_fsnotify_mode_from_watchers(struct file *file)
+static inline int fsnotify_open_perm_and_set_mode(struct file *file)
 {
+	return 0;
 }
 
 static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,

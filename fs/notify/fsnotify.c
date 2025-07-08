@@ -656,12 +656,12 @@ EXPORT_SYMBOL_GPL(fsnotify);
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 /*
- * At open time we check fsnotify_sb_has_priority_watchers() and set the
- * FMODE_NONOTIFY_ mode bits accordignly.
+ * At open time we check fsnotify_sb_has_priority_watchers(), call the open perm
+ * hook and set the FMODE_NONOTIFY_ mode bits accordignly.
  * Later, fsnotify permission hooks do not check if there are permission event
  * watches, but that there were permission event watches at open time.
  */
-void file_set_fsnotify_mode_from_watchers(struct file *file)
+int fsnotify_open_perm_and_set_mode(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry, *parent;
 	struct super_block *sb = dentry->d_sb;
@@ -669,7 +669,7 @@ void file_set_fsnotify_mode_from_watchers(struct file *file)
 
 	/* Is it a file opened by fanotify? */
 	if (FMODE_FSNOTIFY_NONE(file->f_mode))
-		return;
+		return 0;
 
 	/*
 	 * Permission events is a super set of pre-content events, so if there
@@ -679,7 +679,7 @@ void file_set_fsnotify_mode_from_watchers(struct file *file)
 	if (likely(!fsnotify_sb_has_priority_watchers(sb,
 						FSNOTIFY_PRIO_CONTENT))) {
 		file_set_fsnotify_mode(file, FMODE_NONOTIFY_PERM);
-		return;
+		return 0;
 	}
 
 	/*
@@ -689,8 +689,9 @@ void file_set_fsnotify_mode_from_watchers(struct file *file)
 	if ((!d_is_dir(dentry) && !d_is_reg(dentry)) ||
 	    likely(!fsnotify_sb_has_priority_watchers(sb,
 						FSNOTIFY_PRIO_PRE_CONTENT))) {
-		file_set_fsnotify_mode(file, FMODE_NONOTIFY | FMODE_NONOTIFY_PERM);
-		return;
+		file_set_fsnotify_mode(file, FMODE_NONOTIFY |
+				       FMODE_NONOTIFY_PERM);
+		goto open_perm;
 	}
 
 	/*
@@ -702,7 +703,7 @@ void file_set_fsnotify_mode_from_watchers(struct file *file)
 				     FSNOTIFY_PRE_CONTENT_EVENTS))) {
 		/* Enable pre-content events */
 		file_set_fsnotify_mode(file, 0);
-		return;
+		goto open_perm;
 	}
 
 	/* Is parent watching for pre-content events on this file? */
@@ -713,11 +714,14 @@ void file_set_fsnotify_mode_from_watchers(struct file *file)
 		if (p_mask & FSNOTIFY_PRE_CONTENT_EVENTS) {
 			/* Enable pre-content events */
 			file_set_fsnotify_mode(file, 0);
-			return;
+			goto open_perm;
 		}
 	}
 	/* Nobody watching for pre-content events from this file */
 	file_set_fsnotify_mode(file, FMODE_NONOTIFY | FMODE_NONOTIFY_PERM);
+
+open_perm:
+	return fsnotify_open_perm(file);
 }
 #endif
 
