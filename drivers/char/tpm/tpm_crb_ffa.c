@@ -203,26 +203,21 @@ static int __tpm_crb_ffa_send_receive(unsigned long func_id,
 	msg_ops = tpm_crb_ffa->ffa_dev->ops->msg_ops;
 
 	if (ffa_partition_supports_direct_req2_recv(tpm_crb_ffa->ffa_dev)) {
-		memset(&tpm_crb_ffa->direct_msg_data2, 0x00,
-		       sizeof(struct ffa_send_direct_data2));
-
-		tpm_crb_ffa->direct_msg_data2.data[0] = func_id;
-		tpm_crb_ffa->direct_msg_data2.data[1] = a0;
-		tpm_crb_ffa->direct_msg_data2.data[2] = a1;
-		tpm_crb_ffa->direct_msg_data2.data[3] = a2;
+		tpm_crb_ffa->direct_msg_data2 = (struct ffa_send_direct_data2){
+			.data = { func_id, a0, a1, a2 },
+		};
 
 		ret = msg_ops->sync_send_receive2(tpm_crb_ffa->ffa_dev,
 				&tpm_crb_ffa->direct_msg_data2);
 		if (!ret)
 			ret = tpm_crb_ffa_to_linux_errno(tpm_crb_ffa->direct_msg_data2.data[0]);
 	} else {
-		memset(&tpm_crb_ffa->direct_msg_data, 0x00,
-		       sizeof(struct ffa_send_direct_data));
-
-		tpm_crb_ffa->direct_msg_data.data1 = func_id;
-		tpm_crb_ffa->direct_msg_data.data2 = a0;
-		tpm_crb_ffa->direct_msg_data.data3 = a1;
-		tpm_crb_ffa->direct_msg_data.data4 = a2;
+		tpm_crb_ffa->direct_msg_data = (struct ffa_send_direct_data){
+			.data1 = func_id,
+			.data2 = a0,
+			.data3 = a1,
+			.data4 = a2,
+		};
 
 		ret = msg_ops->sync_send_receive(tpm_crb_ffa->ffa_dev,
 				&tpm_crb_ffa->direct_msg_data);
