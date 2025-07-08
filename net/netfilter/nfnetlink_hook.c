@@ -109,13 +109,30 @@ cancel_nest:
 	return -EMSGSIZE;
 }
 
+static int nfnl_hook_put_nft_info_desc(struct sk_buff *nlskb, const char *tname,
+				       const char *name, u8 family)
+{
+	struct nlattr *nest;
+
+	nest = nla_nest_start(nlskb, NFNLA_HOOK_INFO_DESC);
+	if (!nest ||
+	    nla_put_string(nlskb, NFNLA_CHAIN_TABLE, tname) ||
+	    nla_put_string(nlskb, NFNLA_CHAIN_NAME, name) ||
+	    nla_put_u8(nlskb, NFNLA_CHAIN_FAMILY, family)) {
+		nla_nest_cancel(nlskb, nest);
+		return -EMSGSIZE;
+	}
+	nla_nest_end(nlskb, nest);
+	return 0;
+}
+
 static int nfnl_hook_put_nft_chain_info(struct sk_buff *nlskb,
 					const struct nfnl_dump_hook_data *ctx,
 					unsigned int seq,
 					struct nft_chain *chain)
 {
 	struct net *net = sock_net(nlskb->sk);
-	struct nlattr *nest, *nest2;
+	struct nlattr *nest;
 	int ret = 0;
 
 	if (WARN_ON_ONCE(!chain))
@@ -128,29 +145,15 @@ static int nfnl_hook_put_nft_chain_info(struct sk_buff *nlskb,
 	if (!nest)
 		return -EMSGSIZE;
 
-	nest2 = nla_nest_start(nlskb, NFNLA_HOOK_INFO_DESC);
-	if (!nest2)
-		goto cancel_nest;
+	ret = nfnl_hook_put_nft_info_desc(nlskb, chain->table->name,
+					  chain->name, chain->table->family);
+	if (ret) {
+		nla_nest_cancel(nlskb, nest);
+		return ret;
+	}
 
-	ret = nla_put_string(nlskb, NFNLA_CHAIN_TABLE, chain->table->name);
-	if (ret)
-		goto cancel_nest;
-
-	ret = nla_put_string(nlskb, NFNLA_CHAIN_NAME, chain->name);
-	if (ret)
-		goto cancel_nest;
-
-	ret = nla_put_u8(nlskb, NFNLA_CHAIN_FAMILY, chain->table->family);
-	if (ret)
-		goto cancel_nest;
-
-	nla_nest_end(nlskb, nest2);
 	nla_nest_end(nlskb, nest);
-	return ret;
-
-cancel_nest:
-	nla_nest_cancel(nlskb, nest);
-	return -EMSGSIZE;
+	return 0;
 }
 
 static int nfnl_hook_dump_one(struct sk_buff *nlskb,
