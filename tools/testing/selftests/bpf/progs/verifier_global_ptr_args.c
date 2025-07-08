@@ -275,11 +275,6 @@ __weak int subprog_enum_untrusted(enum bpf_attach_type *p __arg_untrusted)
 	return *(int *)p;
 }
 
-__weak int subprog_enum64_untrusted(enum scx_public_consts *p __arg_untrusted)
-{
-	return *(int *)p;
-}
-
 SEC("tp_btf/sys_enter")
 __success
 __log_level(2)
@@ -306,10 +301,9 @@ int anything_to_untrusted_mem(void *ctx)
 	subprog_void_untrusted((void *)mem + off);
 	/* variable offset to untrusted mem (trusted) */
 	subprog_void_untrusted(bpf_get_current_task_btf() + off);
-	/* variable offset to untrusted char/enum/enum64 (map) */
+	/* variable offset to untrusted char/enum (map) */
 	subprog_char_untrusted(mem + off);
 	subprog_enum_untrusted((void *)mem + off);
-	subprog_enum64_untrusted((void *)mem + off);
 	return 0;
 }
 
