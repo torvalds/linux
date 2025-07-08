@@ -3039,20 +3039,20 @@ static inline __le32 *blkaddr_in_node(struct f2fs_node *node)
 
 static inline int f2fs_has_extra_attr(struct inode *inode);
 static inline unsigned int get_dnode_base(struct inode *inode,
-					struct page *node_page)
+					struct folio *node_folio)
 {
-	if (!IS_INODE(node_page))
+	if (!IS_INODE(&node_folio->page))
 		return 0;
 
 	return inode ? get_extra_isize(inode) :
-			offset_in_addr(&F2FS_NODE(node_page)->i);
+			offset_in_addr(&F2FS_NODE(&node_folio->page)->i);
 }
 
 static inline __le32 *get_dnode_addr(struct inode *inode,
 					struct folio *node_folio)
 {
 	return blkaddr_in_node(F2FS_NODE(&node_folio->page)) +
-			get_dnode_base(inode, &node_folio->page);
+			get_dnode_base(inode, node_folio);
 }
 
 static inline block_t data_blkaddr(struct inode *inode,
