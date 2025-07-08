@@ -17,7 +17,6 @@
 struct mdp4_crtc {
 	struct drm_crtc base;
 	char name[8];
-	int id;
 	int ovlp;
 	enum mdp4_dma dma;
 	bool enabled;
@@ -120,7 +119,7 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct mdp4_kms *mdp4_kms = get_kms(&mdp4_crtc->base);
 	struct msm_kms *kms = &mdp4_kms->base.base;
 
-	msm_gem_unpin_iova(val, kms->aspace);
+	msm_gem_unpin_iova(val, kms->vm);
 	drm_gem_object_put(val);
 }
 
@@ -369,7 +368,7 @@ static void update_cursor(struct drm_crtc *crtc)
 		if (next_bo) {
 			/* take a obj ref + iova ref when we start scanning out: */
 			drm_gem_object_get(next_bo);
-			msm_gem_get_and_pin_iova(next_bo, kms->aspace, &iova);
+			msm_gem_get_and_pin_iova(next_bo, kms->vm, &iova);
 
 			/* enable cursor: */
 			mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_SIZE(dma),
@@ -427,7 +426,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if (cursor_bo) {
-		ret = msm_gem_get_and_pin_iova(cursor_bo, kms->aspace, &iova);
+		ret = msm_gem_get_and_pin_iova(cursor_bo, kms->vm, &iova);
 		if (ret)
 			goto fail;
 	} else {
@@ -511,7 +510,7 @@ static void mdp4_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)
 
 	if (pending & PENDING_CURSOR) {
 		update_cursor(crtc);
-		drm_flip_work_commit(&mdp4_crtc->unref_cursor_work, priv->wq);
+		drm_flip_work_commit(&mdp4_crtc->unref_cursor_work, priv->kms->wq);
 	}
 }
 
@@ -539,7 +538,7 @@ static void mdp4_crtc_wait_for_flush_done(struct drm_crtc *crtc)
 			mdp4_crtc->flushed_mask),
 		msecs_to_jiffies(50));
 	if (ret <= 0)
-		dev_warn(dev->dev, "vblank time out, crtc=%d\n", mdp4_crtc->id);
+		dev_warn(dev->dev, "vblank time out, crtc=%s\n", mdp4_crtc->base.name);
 
 	mdp4_crtc->flushed_mask = 0;
 
@@ -624,7 +623,7 @@ static void mdp4_crtc_flip_cleanup(struct drm_device *dev, void *ptr)
 
 /* initialize crtc */
 struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, int id, int ovlp_id,
+		struct drm_plane *plane, int ovlp_id,
 		enum mdp4_dma dma_id)
 {
 	struct drm_crtc *crtc = NULL;
@@ -638,8 +637,6 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 		return ERR_CAST(mdp4_crtc);
 
 	crtc = &mdp4_crtc->base;
-
-	mdp4_crtc->id = id;
 
 	mdp4_crtc->ovlp = ovlp_id;
 	mdp4_crtc->dma = dma_id;
