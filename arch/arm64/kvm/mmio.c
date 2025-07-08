@@ -72,7 +72,7 @@ unsigned long kvm_mmio_read_buf(const void *buf, unsigned int len)
 	return data;
 }
 
-static bool kvm_pending_sync_exception(struct kvm_vcpu *vcpu)
+static bool kvm_pending_external_abort(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu_get_flag(vcpu, PENDING_EXCEPTION))
 		return false;
@@ -90,6 +90,8 @@ static bool kvm_pending_sync_exception(struct kvm_vcpu *vcpu)
 		switch (vcpu_get_flag(vcpu, EXCEPT_MASK)) {
 		case unpack_vcpu_flag(EXCEPT_AA64_EL1_SYNC):
 		case unpack_vcpu_flag(EXCEPT_AA64_EL2_SYNC):
+		case unpack_vcpu_flag(EXCEPT_AA64_EL1_SERR):
+		case unpack_vcpu_flag(EXCEPT_AA64_EL2_SERR):
 			return true;
 		default:
 			return false;
@@ -113,7 +115,7 @@ int kvm_handle_mmio_return(struct kvm_vcpu *vcpu)
 	 * Detect if the MMIO return was already handled or if userspace aborted
 	 * the MMIO access.
 	 */
-	if (unlikely(!vcpu->mmio_needed || kvm_pending_sync_exception(vcpu)))
+	if (unlikely(!vcpu->mmio_needed || kvm_pending_external_abort(vcpu)))
 		return 1;
 
 	vcpu->mmio_needed = 0;
