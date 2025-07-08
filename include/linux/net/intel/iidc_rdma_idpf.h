@@ -31,10 +31,18 @@ enum iidc_function_type {
 	IIDC_FUNCTION_TYPE_VF,
 };
 
+struct iidc_rdma_lan_mapped_mem_region {
+	u8 __iomem *region_addr;
+	__le64 size;
+	__le64 start_offset;
+};
+
 struct iidc_rdma_priv_dev_info {
 	struct msix_entry *msix_entries;
 	u16 msix_count; /* How many vectors are reserved for this device */
 	enum iidc_function_type ftype;
+	__le16 num_memory_regions;
+	struct iidc_rdma_lan_mapped_mem_region *mapped_mem_regions;
 };
 
 int idpf_idc_vport_dev_ctrl(struct iidc_rdma_core_dev_info *cdev_info, bool up);

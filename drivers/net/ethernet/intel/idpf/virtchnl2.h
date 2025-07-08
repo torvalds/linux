@@ -79,6 +79,7 @@ enum virtchnl2_op {
 	VIRTCHNL2_OP_PTP_ADJ_DEV_CLK_FINE		= 546,
 	VIRTCHNL2_OP_PTP_ADJ_DEV_CLK_TIME		= 547,
 	VIRTCHNL2_OP_PTP_GET_VPORT_TX_TSTAMP_CAPS	= 548,
+	VIRTCHNL2_OP_GET_LAN_MEMORY_REGIONS		= 549,
 };
 
 /**
@@ -212,7 +213,8 @@ enum virtchnl2_cap_other {
 	VIRTCHNL2_CAP_RX_FLEX_DESC		= BIT_ULL(17),
 	VIRTCHNL2_CAP_PTYPE			= BIT_ULL(18),
 	VIRTCHNL2_CAP_LOOPBACK			= BIT_ULL(19),
-	/* Other capability 20 is reserved */
+	/* Other capability 20-21 is reserved */
+	VIRTCHNL2_CAP_LAN_MEMORY_REGIONS	= BIT_ULL(22),
 
 	/* this must be the last capability */
 	VIRTCHNL2_CAP_OEM			= BIT_ULL(63),
@@ -1586,5 +1588,31 @@ struct virtchnl2_ptp_adj_dev_clk_time {
 	__le64 delta;
 };
 VIRTCHNL2_CHECK_STRUCT_LEN(8, virtchnl2_ptp_adj_dev_clk_time);
+
+/**
+ * struct virtchnl2_mem_region - MMIO memory region
+ * @start_offset: starting offset of the MMIO memory region
+ * @size: size of the MMIO memory region
+ */
+struct virtchnl2_mem_region {
+	__le64 start_offset;
+	__le64 size;
+};
+VIRTCHNL2_CHECK_STRUCT_LEN(16, virtchnl2_mem_region);
+
+/**
+ * struct virtchnl2_get_lan_memory_regions - List of LAN MMIO memory regions
+ * @num_memory_regions: number of memory regions
+ * @pad: Padding
+ * @mem_reg: List with memory region info
+ *
+ * PF/VF sends this message to learn what LAN MMIO memory regions it should map.
+ */
+struct virtchnl2_get_lan_memory_regions {
+	__le16 num_memory_regions;
+	u8 pad[6];
+	struct virtchnl2_mem_region mem_reg[];
+};
+VIRTCHNL2_CHECK_STRUCT_LEN(8, virtchnl2_get_lan_memory_regions);
 
 #endif /* _VIRTCHNL_2_H_ */
