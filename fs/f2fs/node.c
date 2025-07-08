@@ -2801,10 +2801,10 @@ recover_xnid:
 	return 0;
 }
 
-int f2fs_recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
+int f2fs_recover_inode_page(struct f2fs_sb_info *sbi, struct folio *folio)
 {
 	struct f2fs_inode *src, *dst;
-	nid_t ino = ino_of_node(page);
+	nid_t ino = ino_of_node(&folio->page);
 	struct node_info old_ni, new_ni;
 	struct folio *ifolio;
 	int err;
@@ -2830,7 +2830,7 @@ retry:
 	fill_node_footer(&ifolio->page, ino, ino, 0, true);
 	set_cold_node(&ifolio->page, false);
 
-	src = F2FS_INODE(page);
+	src = F2FS_INODE(&folio->page);
 	dst = F2FS_INODE(&ifolio->page);
 
 	memcpy(dst, src, offsetof(struct f2fs_inode, i_ext));
