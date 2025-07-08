@@ -17,6 +17,16 @@ mod hal;
 /// Type holding the sysmem flush memory page, a page of memory to be written into the
 /// `NV_PFB_NISO_FLUSH_SYSMEM_ADDR*` registers and used to maintain memory coherency.
 ///
+/// A system memory page is required for `sysmembar`, which is a GPU-initiated hardware
+/// memory-barrier operation that flushes all pending GPU-side memory writes that were done through
+/// PCIE to system memory. It is required for falcons to be reset as the reset operation involves a
+/// reset handshake. When the falcon acknowledges a reset, it writes into system memory. To ensure
+/// this write is visible to the host and prevent driver timeouts, the falcon must perform a
+/// sysmembar operation to flush its writes.
+///
+/// Because of this, the sysmem flush memory page must be registered as early as possible during
+/// driver initialization, and before any falcon is reset.
+///
 /// Users are responsible for manually calling [`Self::unregister`] before dropping this object,
 /// otherwise the GPU might still use it even after it has been freed.
 pub(crate) struct SysmemFlush {

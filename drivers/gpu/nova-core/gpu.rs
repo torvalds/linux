@@ -170,7 +170,7 @@ pub(crate) struct Gpu {
     bar: Devres<Bar0>,
     fw: Firmware,
     /// System memory page required for flushing all pending GPU-side memory writes done through
-    /// PCIE into system memory.
+    /// PCIE into system memory, via sysmembar (A GPU-initiated HW memory-barrier operation).
     sysmem_flush: SysmemFlush,
 }
 
@@ -283,7 +283,6 @@ impl Gpu {
         gfw::wait_gfw_boot_completion(bar)
             .inspect_err(|_| dev_err!(pdev.as_ref(), "GFW boot did not complete"))?;
 
-        // System memory page required for sysmembar to properly flush into system memory.
         let sysmem_flush = SysmemFlush::register(pdev.as_ref(), bar, spec.chipset)?;
 
         let gsp_falcon = Falcon::<Gsp>::new(
