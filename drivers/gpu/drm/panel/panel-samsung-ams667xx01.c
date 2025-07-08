@@ -18,12 +18,13 @@
 #include <drm/drm_panel.h>
 
 #define mipi_dsi_dcs_write_lmi_multi(dsi, cmd, ...) ({ \
-	u8 __data[] = {__VA_ARGS__}; \
-	int ret = mipi_dsi_dcs_write_seq(dsi, cmd, __data, sizeof(__data)); \
-	if (ret < 0) \
-		dev_err(&(dsi)->dev, "lmi DCS write %02x failed: %d\n", cmd, ret); \
-	ret; \
-}}
+        struct mipi_dsi_device *dsi = (ctx)-> dsi; \
+        u8 __data[] = {__VA_ARGS__}; \
+        int ret = mipi_dsi_dcs_write(dsi, cmd, __data, sizeof(__data)); \
+        if (ret < 0) \
+                pr_err("lmi DCS write %02x failed: %d\n", cmd, ret); \
+        ret; \
+})
 
 struct ams667xx01 {
 	struct drm_panel panel;
