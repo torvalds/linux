@@ -1485,7 +1485,7 @@ static int sanity_check_node_footer(struct f2fs_sb_info *sbi,
 		f2fs_warn(sbi, "inconsistent node block, node_type:%d, nid:%lu, "
 			  "node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
 			  ntype, nid, nid_of_node(folio), ino_of_node(folio),
-			  ofs_of_node(page), cpver_of_node(page),
+			  ofs_of_node(page), cpver_of_node(folio),
 			  next_blkaddr_of_node(folio));
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
