@@ -280,10 +280,10 @@ static bool sanity_check_inode(struct inode *inode, struct folio *node_folio)
 		return false;
 	}
 
-	if (ino_of_node(node_folio) != nid_of_node(&node_folio->page)) {
+	if (ino_of_node(node_folio) != nid_of_node(node_folio)) {
 		f2fs_warn(sbi, "%s: corrupted inode footer i_ino=%lx, ino,nid: [%u, %u] run fsck to fix.",
 			  __func__, inode->i_ino,
-			  ino_of_node(node_folio), nid_of_node(&node_folio->page));
+			  ino_of_node(node_folio), nid_of_node(node_folio));
 		return false;
 	}
 

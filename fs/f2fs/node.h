@@ -249,9 +249,9 @@ static inline nid_t ino_of_node(const struct folio *node_folio)
 	return le32_to_cpu(rn->footer.ino);
 }
 
-static inline nid_t nid_of_node(struct page *node_page)
+static inline nid_t nid_of_node(const struct folio *node_folio)
 {
-	struct f2fs_node *rn = F2FS_NODE(node_page);
+	struct f2fs_node *rn = F2FS_NODE(&node_folio->page);
 	return le32_to_cpu(rn->footer.nid);
 }
 

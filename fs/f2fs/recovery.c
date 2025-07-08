@@ -767,7 +767,7 @@ err:
 out:
 	f2fs_notice(sbi, "recover_data: ino = %lx, nid = %x (i_size: %s), "
 		    "range (%u, %u), recovered = %d, err = %d",
-		    inode->i_ino, nid_of_node(&folio->page),
+		    inode->i_ino, nid_of_node(folio),
 		    file_keep_isize(inode) ? "keep" : "recover",
 		    start, end, recovered, err);
 	return err;
