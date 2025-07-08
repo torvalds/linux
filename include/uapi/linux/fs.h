@@ -60,6 +60,17 @@
 #define RENAME_EXCHANGE		(1 << 1)	/* Exchange source and dest */
 #define RENAME_WHITEOUT		(1 << 2)	/* Whiteout source */
 
+/*
+ * The root inode of procfs is guaranteed to always have the same inode number.
+ * For programs that make heavy use of procfs, verifying that the root is a
+ * real procfs root and using openat2(RESOLVE_{NO_{XDEV,MAGICLINKS},BENEATH})
+ * will allow you to make sure you are never tricked into operating on the
+ * wrong procfs file.
+ */
+enum procfs_ino {
+	PROCFS_ROOT_INO = 1,
+};
+
 struct file_clone_range {
 	__s64 src_fd;
 	__u64 src_offset;

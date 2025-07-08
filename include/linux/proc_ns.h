@@ -40,7 +40,6 @@ extern const struct proc_ns_operations timens_for_children_operations;
  * We always define these enumerators
  */
 enum {
-	PROC_ROOT_INO		= 1,
 	PROC_IPC_INIT_INO	= IPC_NS_INIT_INO,
 	PROC_UTS_INIT_INO	= UTS_NS_INIT_INO,
 	PROC_USER_INIT_INO	= USER_NS_INIT_INO,
