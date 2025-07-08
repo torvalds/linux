@@ -429,7 +429,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 			break;
 		}
 
-		if (!is_fsync_dnode(&folio->page))
+		if (!is_fsync_dnode(folio))
 			goto next;
 
 		entry = get_fsync_inode(head, ino_of_node(folio));
