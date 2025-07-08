@@ -46,6 +46,9 @@
 
 #include "ext4.h"
 
+#include <linux/sector_cache_map.h> // あなたのヘッダーファイル
+
+
 #define NUM_PREALLOC_POST_READ_CTXS	128
 
 static struct kmem_cache *bio_post_read_ctx_cache;
@@ -66,12 +69,76 @@ struct bio_post_read_ctx {
 	unsigned int enabled_steps;
 };
 
+struct entry{
+	// struct inode *inode;
+	long long lblk;
+};
+
+struct entry sector_array[16777216];
+
 static void __read_end_io(struct bio *bio)
 {
 	struct folio_iter fi;
 
+	printk("--debug: bio, bi_sector: %llu, bi_vcnt: %u, bi_idx: %u\n", bio->bi_iter.bi_sector, bio->bi_vcnt, bio->bi_iter.bi_idx);
+
+	struct entry ent;
+	ent.lblk=bio->bi_vcnt;
+	
+	sector_array[bio->bi_iter.bi_sector] = ent;
+
+	for (int j = 0; j < (int)bio->bi_vcnt; j++){
+		struct bio_vec bv;
+		bv = bio->bi_io_vec[j];
+		printk("debug: bio_vec[%d]: bv_len: %u, bv_offset: %u\n", j, bv.bv_len, bv.bv_offset);
+	}
+	printk(KERN_INFO "test: bi_Sector: %llu, lblk_stored: %lld\n",
+       bio->bi_iter.bi_sector, sector_array[bio->bi_iter.bi_sector].lblk);
+
 	bio_for_each_folio_all(fi, bio)
-		folio_end_read(fi.folio, bio->bi_status == 0);
+	{
+		printk("debug: fi, pgoff_t: %lu\n", fi.folio->index);
+        printk("debug: fi, inode: %lu, offset: %zu, length: %zu \n", fi.folio->mapping->host->i_ino, fi.offset, fi.length);
+
+		folio_end_read(fi.folio, bio->bi_status == 0); 
+
+		// ----
+		// unsigned char buffer[64]; // 読み取るデータを格納するバッファ。今回は少し増やしました。
+        // void *folio_data_va;      // folioデータの仮想アドレス
+
+        // // folio_address() を使ってfolioの先頭の仮想アドレスを取得します
+        // // この関数は <linux/page_ext.h> または <linux/mm.h> などで定義されています
+        // folio_data_va = folio_address(fi.folio);
+
+        // if (folio_data_va) {
+        //     printk("debug: folio_data_va: %p\n", folio_data_va);
+
+        //     // fi.lengthはbio_vecの長さになるため、今回はページサイズを考慮して読み込む最大バイト数を決めます
+        //     // ただし、fi.offsetからfi.lengthの範囲でデータを取得するのが正確です
+        //     size_t bytes_to_copy = min_t(size_t, sizeof(buffer), fi.length); // fi.lengthとバッファサイズのうち小さい方
+
+        //     // ページデータの指定されたオフセットから、指定された長さ（またはバッファサイズ）をバッファにコピー
+        //     memcpy(buffer, (unsigned char *)folio_data_va + fi.offset, bytes_to_copy);
+
+        //     printk("debug: Folio Data Dump (inode %lu, offset %zu, length %zu):\n",
+        //            fi.folio->mapping ? fi.folio->mapping->host->i_ino : 0, fi.offset, fi.length);
+        //     int i;
+        //     for (i = 0; i < bytes_to_copy; i++) {
+        //         printk(KERN_CONT "%02x ", buffer[i]);
+        //         if ((i + 1) % 16 == 0) { // 16バイトごとに改行
+        //             printk(KERN_CONT "\n");
+        //         }
+        //     }
+        //     if (bytes_to_copy % 16 != 0) {
+        //         printk(KERN_CONT "\n");
+        //     }
+        //     printk("debug: --- End of Folio Data Dump ---\n");
+
+        // } else {
+        //     printk("debug: Failed to get virtual address for folio at index %lu.\n", fi.folio->index);
+        // }
+		//----------
+	}
 	if (bio->bi_private)
 		mempool_free(bio->bi_private, bio_post_read_ctx_pool);
 	bio_put(bio);
