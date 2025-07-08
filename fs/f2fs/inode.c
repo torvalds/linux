@@ -266,28 +266,28 @@ err_level:
 	return false;
 }
 
-static bool sanity_check_inode(struct inode *inode, struct page *node_page)
+static bool sanity_check_inode(struct inode *inode, struct folio *node_folio)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct f2fs_inode *ri = F2FS_INODE(node_page);
+	struct f2fs_inode *ri = F2FS_INODE(&node_folio->page);
 	unsigned long long iblocks;
 
-	iblocks = le64_to_cpu(F2FS_INODE(node_page)->i_blocks);
+	iblocks = le64_to_cpu(F2FS_INODE(&node_folio->page)->i_blocks);
 	if (!iblocks) {
 		f2fs_warn(sbi, "%s: corrupted inode i_blocks i_ino=%lx iblocks=%llu, run fsck to fix.",
 			  __func__, inode->i_ino, iblocks);
 		return false;
 	}
 
-	if (ino_of_node(node_page) != nid_of_node(node_page)) {
+	if (ino_of_node(&node_folio->page) != nid_of_node(&node_folio->page)) {
 		f2fs_warn(sbi, "%s: corrupted inode footer i_ino=%lx, ino,nid: [%u, %u] run fsck to fix.",
 			  __func__, inode->i_ino,
-			  ino_of_node(node_page), nid_of_node(node_page));
+			  ino_of_node(&node_folio->page), nid_of_node(&node_folio->page));
 		return false;
 	}
 
-	if (ino_of_node(node_page) == fi->i_xattr_nid) {
+	if (ino_of_node(&node_folio->page) == fi->i_xattr_nid) {
 		f2fs_warn(sbi, "%s: corrupted inode i_ino=%lx, xnid=%x, run fsck to fix.",
 			  __func__, inode->i_ino, fi->i_xattr_nid);
 		return false;
@@ -354,7 +354,7 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		}
 	}
 
-	if (f2fs_sanity_check_inline_data(inode, node_page)) {
+	if (f2fs_sanity_check_inline_data(inode, &node_folio->page)) {
 		f2fs_warn(sbi, "%s: inode (ino=%lx, mode=%u) should not have inline_data, run fsck to fix",
 			  __func__, inode->i_ino, inode->i_mode);
 		return false;
@@ -469,7 +469,7 @@ static int do_read_inode(struct inode *inode)
 		fi->i_inline_xattr_size = 0;
 	}
 
-	if (!sanity_check_inode(inode, &node_folio->page)) {
+	if (!sanity_check_inode(inode, node_folio)) {
 		f2fs_folio_put(node_folio, true);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 		f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
