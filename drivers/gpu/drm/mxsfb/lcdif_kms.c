@@ -433,7 +433,6 @@ static int lcdif_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct drm_bridge_state *bridge_state;
-	struct drm_bridge *bridge;
 	u32 bus_format, bus_flags;
 	bool format_set = false, flags_set = false;
 	int ret, i;
@@ -453,7 +452,8 @@ static int lcdif_crtc_atomic_check(struct drm_crtc *crtc,
 
 		encoder = connector_state->best_encoder;
 
-		bridge = drm_bridge_chain_get_first_bridge(encoder);
+		struct drm_bridge *bridge __free(drm_bridge_put) =
+			drm_bridge_chain_get_first_bridge(encoder);
 		if (!bridge)
 			continue;
 
