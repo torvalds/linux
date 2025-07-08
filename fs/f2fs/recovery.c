@@ -758,7 +758,7 @@ retry_prev:
 		}
 	}
 
-	copy_node_footer(&dn.node_folio->page, &folio->page);
+	copy_node_footer(dn.node_folio, folio);
 	fill_node_footer(&dn.node_folio->page, dn.nid, ni.ino,
 					ofs_of_node(&folio->page), false);
 	folio_mark_dirty(dn.node_folio);

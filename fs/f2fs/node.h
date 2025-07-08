@@ -293,10 +293,11 @@ static inline void fill_node_footer(struct page *page, nid_t nid,
 					(old_flag & OFFSET_BIT_MASK));
 }
 
-static inline void copy_node_footer(struct page *dst, struct page *src)
+static inline void copy_node_footer(const struct folio *dst,
+		const struct folio *src)
 {
-	struct f2fs_node *src_rn = F2FS_NODE(src);
-	struct f2fs_node *dst_rn = F2FS_NODE(dst);
+	struct f2fs_node *src_rn = F2FS_NODE(&src->page);
+	struct f2fs_node *dst_rn = F2FS_NODE(&dst->page);
 	memcpy(&dst_rn->footer, &src_rn->footer, sizeof(struct node_footer));
 }
 
