@@ -418,9 +418,9 @@ static inline void set_cold_node(struct page *page, bool is_dir)
 	rn->footer.flag = cpu_to_le32(flag);
 }
 
-static inline void set_mark(struct page *page, int mark, int type)
+static inline void set_mark(struct folio *folio, int mark, int type)
 {
-	struct f2fs_node *rn = F2FS_NODE(page);
+	struct f2fs_node *rn = F2FS_NODE(&folio->page);
 	unsigned int flag = le32_to_cpu(rn->footer.flag);
 	if (mark)
 		flag |= BIT(type);
@@ -429,8 +429,8 @@ static inline void set_mark(struct page *page, int mark, int type)
 	rn->footer.flag = cpu_to_le32(flag);
 
 #ifdef CONFIG_F2FS_CHECK_FS
-	f2fs_inode_chksum_set(F2FS_P_SB(page), page);
+	f2fs_inode_chksum_set(F2FS_F_SB(folio), &folio->page);
 #endif
 }
-#define set_dentry_mark(folio, mark)	set_mark(&folio->page, mark, DENT_BIT_SHIFT)
-#define set_fsync_mark(folio, mark)	set_mark(&folio->page, mark, FSYNC_BIT_SHIFT)
+#define set_dentry_mark(folio, mark)	set_mark(folio, mark, DENT_BIT_SHIFT)
+#define set_fsync_mark(folio, mark)	set_mark(folio, mark, FSYNC_BIT_SHIFT)
