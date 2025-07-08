@@ -574,7 +574,7 @@ static bool __has_merged_page(struct bio *bio, struct inode *inode,
 			return true;
 		if (page && page == &target->page)
 			return true;
-		if (ino && ino == ino_of_node(&target->page))
+		if (ino && ino == ino_of_node(target))
 			return true;
 	}
 

@@ -233,7 +233,7 @@ out:
 	else
 		name = raw_inode->i_name;
 	f2fs_notice(F2FS_I_SB(inode), "%s: ino = %x, name = %s, dir = %lx, err = %d",
-		    __func__, ino_of_node(&ifolio->page), name,
+		    __func__, ino_of_node(ifolio), name,
 		    IS_ERR(dir) ? 0 : dir->i_ino, err);
 	return err;
 }
@@ -336,7 +336,7 @@ static int recover_inode(struct inode *inode, struct folio *folio)
 		name = F2FS_INODE(folio)->i_name;
 
 	f2fs_notice(F2FS_I_SB(inode), "recover_inode: ino = %x, name = %s, inline = %x",
-		    ino_of_node(&folio->page), name, raw->i_inline);
+		    ino_of_node(folio), name, raw->i_inline);
 	return 0;
 }
 
@@ -432,7 +432,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 		if (!is_fsync_dnode(&folio->page))
 			goto next;
 
-		entry = get_fsync_inode(head, ino_of_node(&folio->page));
+		entry = get_fsync_inode(head, ino_of_node(folio));
 		if (!entry) {
 			bool quota_inode = false;
 
@@ -451,7 +451,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 			 * CP | dnode(F) | inode(DF)
 			 * For this case, we should not give up now.
 			 */
-			entry = add_fsync_inode(sbi, head, ino_of_node(&folio->page),
+			entry = add_fsync_inode(sbi, head, ino_of_node(folio),
 								quota_inode);
 			if (IS_ERR(entry)) {
 				err = PTR_ERR(entry);
@@ -553,7 +553,7 @@ got_it:
 		return PTR_ERR(node_folio);
 
 	offset = ofs_of_node(&node_folio->page);
-	ino = ino_of_node(&node_folio->page);
+	ino = ino_of_node(node_folio);
 	f2fs_folio_put(node_folio, true);
 
 	if (ino != dn->inode->i_ino) {
@@ -668,7 +668,7 @@ retry_dn:
 	if (err)
 		goto err;
 
-	f2fs_bug_on(sbi, ni.ino != ino_of_node(&folio->page));
+	f2fs_bug_on(sbi, ni.ino != ino_of_node(folio));
 
 	if (ofs_of_node(&dn.node_folio->page) != ofs_of_node(&folio->page)) {
 		f2fs_warn(sbi, "Inconsistent ofs_of_node, ino:%lu, ofs:%u, %u",
@@ -812,7 +812,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 		}
 		recoverable_dnode++;
 
-		entry = get_fsync_inode(inode_list, ino_of_node(&folio->page));
+		entry = get_fsync_inode(inode_list, ino_of_node(folio));
 		if (!entry)
 			goto next;
 		fsynced_dnode++;

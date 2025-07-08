@@ -178,7 +178,7 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct folio *folio)
 
 	if (provided != calculated)
 		f2fs_warn(sbi, "checksum invalid, nid = %lu, ino_of_node = %x, %x vs. %x",
-			  folio->index, ino_of_node(&folio->page),
+			  folio->index, ino_of_node(folio),
 			  provided, calculated);
 
 	return provided == calculated;
@@ -280,14 +280,14 @@ static bool sanity_check_inode(struct inode *inode, struct folio *node_folio)
 		return false;
 	}
 
-	if (ino_of_node(&node_folio->page) != nid_of_node(&node_folio->page)) {
+	if (ino_of_node(node_folio) != nid_of_node(&node_folio->page)) {
 		f2fs_warn(sbi, "%s: corrupted inode footer i_ino=%lx, ino,nid: [%u, %u] run fsck to fix.",
 			  __func__, inode->i_ino,
-			  ino_of_node(&node_folio->page), nid_of_node(&node_folio->page));
+			  ino_of_node(node_folio), nid_of_node(&node_folio->page));
 		return false;
 	}
 
-	if (ino_of_node(&node_folio->page) == fi->i_xattr_nid) {
+	if (ino_of_node(node_folio) == fi->i_xattr_nid) {
 		f2fs_warn(sbi, "%s: corrupted inode i_ino=%lx, xnid=%x, run fsck to fix.",
 			  __func__, inode->i_ino, fi->i_xattr_nid);
 		return false;
