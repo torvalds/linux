@@ -886,15 +886,15 @@ void f2fs_submit_merged_ipu_write(struct f2fs_sb_info *sbi,
 int f2fs_merge_page_bio(struct f2fs_io_info *fio)
 {
 	struct bio *bio = *fio->bio;
-	struct page *page = fio->encrypted_page ?
-			fio->encrypted_page : fio->page;
+	struct folio *data_folio = fio->encrypted_page ?
+			page_folio(fio->encrypted_page) : fio->folio;
 	struct folio *folio = fio->folio;
 
 	if (!f2fs_is_valid_blkaddr(fio->sbi, fio->new_blkaddr,
 			__is_meta_io(fio) ? META_GENERIC : DATA_GENERIC))
 		return -EFSCORRUPTED;
 
-	trace_f2fs_submit_folio_bio(page_folio(page), fio);
+	trace_f2fs_submit_folio_bio(data_folio, fio);
 
 	if (bio && !page_is_mergeable(fio->sbi, bio, *fio->last_block,
 						fio->new_blkaddr))
@@ -905,16 +905,16 @@ alloc_new:
 		f2fs_set_bio_crypt_ctx(bio, folio->mapping->host,
 				folio->index, fio, GFP_NOIO);
 
-		add_bio_entry(fio->sbi, bio, page, fio->temp);
+		add_bio_entry(fio->sbi, bio, &data_folio->page, fio->temp);
 	} else {
-		if (add_ipu_page(fio, &bio, page))
+		if (add_ipu_page(fio, &bio, &data_folio->page))
 			goto alloc_new;
 	}
 
 	if (fio->io_wbc)
 		wbc_account_cgroup_owner(fio->io_wbc, folio, folio_size(folio));
 
-	inc_page_count(fio->sbi, WB_DATA_TYPE(page, false));
+	inc_page_count(fio->sbi, WB_DATA_TYPE(&data_folio->page, false));
 
 	*fio->last_block = fio->new_blkaddr;
 	*fio->bio = bio;
