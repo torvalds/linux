@@ -144,7 +144,7 @@ static void f2fs_finish_read_bio(struct bio *bio, bool in_task)
 
 		if (f2fs_is_compressed_page(&folio->page)) {
 			if (ctx && !ctx->decompression_attempted)
-				f2fs_end_read_compressed_page(&folio->page, true, 0,
+				f2fs_end_read_compressed_page(folio, true, 0,
 							in_task);
 			f2fs_put_folio_dic(folio, in_task);
 			continue;
@@ -241,7 +241,7 @@ static void f2fs_handle_step_decompress(struct bio_post_read_ctx *ctx,
 		struct folio *folio = fi.folio;
 
 		if (f2fs_is_compressed_page(&folio->page))
-			f2fs_end_read_compressed_page(&folio->page, false, blkaddr,
+			f2fs_end_read_compressed_page(folio, false, blkaddr,
 						      in_task);
 		else
 			all_compressed = false;

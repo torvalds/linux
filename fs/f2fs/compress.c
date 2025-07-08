@@ -801,11 +801,10 @@ out_end_io:
  * page being waited on in the cluster, and if so, it decompresses the cluster
  * (or in the case of a failure, cleans up without actually decompressing).
  */
-void f2fs_end_read_compressed_page(struct page *page, bool failed,
+void f2fs_end_read_compressed_page(struct folio *folio, bool failed,
 		block_t blkaddr, bool in_task)
 {
-	struct decompress_io_ctx *dic =
-			(struct decompress_io_ctx *)page_private(page);
+	struct decompress_io_ctx *dic = folio->private;
 	struct f2fs_sb_info *sbi = dic->sbi;
 
 	dec_page_count(sbi, F2FS_RD_DATA);
@@ -813,7 +812,7 @@ void f2fs_end_read_compressed_page(struct page *page, bool failed,
 	if (failed)
 		WRITE_ONCE(dic->failed, true);
 	else if (blkaddr && in_task)
-		f2fs_cache_compressed_page(sbi, page,
+		f2fs_cache_compressed_page(sbi, &folio->page,
 					dic->inode->i_ino, blkaddr);
 
 	if (atomic_dec_and_test(&dic->remaining_pages))
