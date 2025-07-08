@@ -1588,7 +1588,7 @@ next_dnode:
 	start_pgofs = pgofs;
 	prealloc = 0;
 	last_ofs_in_node = ofs_in_node = dn.ofs_in_node;
-	end_offset = ADDRS_PER_PAGE(&dn.node_folio->page, inode);
+	end_offset = ADDRS_PER_PAGE(dn.node_folio, inode);
 
 next_block:
 	blkaddr = f2fs_data_blkaddr(&dn);

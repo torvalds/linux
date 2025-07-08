@@ -527,7 +527,7 @@ got_it:
 	nid = le32_to_cpu(sum.nid);
 	ofs_in_node = le16_to_cpu(sum.ofs_in_node);
 
-	max_addrs = ADDRS_PER_PAGE(&dn->node_folio->page, dn->inode);
+	max_addrs = ADDRS_PER_PAGE(dn->node_folio, dn->inode);
 	if (ofs_in_node >= max_addrs) {
 		f2fs_err(sbi, "Inconsistent ofs_in_node:%u in summary, ino:%lu, nid:%u, max:%u",
 			ofs_in_node, dn->inode->i_ino, nid, max_addrs);
@@ -649,7 +649,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 
 	/* step 3: recover data indices */
 	start = f2fs_start_bidx_of_node(ofs_of_node(folio), inode);
-	end = start + ADDRS_PER_PAGE(&folio->page, inode);
+	end = start + ADDRS_PER_PAGE(folio, inode);
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 retry_dn:
