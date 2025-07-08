@@ -91,11 +91,9 @@ static void skl_scaler_min_src_size(const struct drm_format_info *format,
 	}
 }
 
-static void skl_scaler_max_src_size(struct intel_crtc *crtc,
+static void skl_scaler_max_src_size(struct intel_display *display,
 				    int *max_w, int *max_h)
 {
-	struct intel_display *display = to_intel_display(crtc);
-
 	if (DISPLAY_VER(display) >= 14) {
 		*max_w = 4096;
 		*max_h = 8192;
@@ -201,7 +199,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	}
 
 	skl_scaler_min_src_size(format, modifier, &min_src_w, &min_src_h);
-	skl_scaler_max_src_size(crtc, &max_src_w, &max_src_h);
+	skl_scaler_max_src_size(display, &max_src_w, &max_src_h);
 
 	skl_scaler_min_dst_size(&min_dst_w, &min_dst_h);
 	skl_scaler_max_dst_size(crtc, &max_dst_w, &max_dst_h);
