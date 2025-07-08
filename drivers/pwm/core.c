@@ -497,6 +497,13 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 		return;
 
 	/*
+	 * If a disabled PWM was requested the result is unspecified, so nothing
+	 * to check.
+	 */
+	if (!state->enabled)
+		return;
+
+	/*
 	 * *state was just applied. Read out the hardware state and do some
 	 * checks.
 	 */
@@ -508,15 +515,22 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 		return;
 
 	/*
+	 * If the PWM was disabled that's maybe strange but there is nothing
+	 * that can be sensibly checked then. So return early.
+	 */
+	if (!s1.enabled)
+		return;
+
+	/*
 	 * The lowlevel driver either ignored .polarity (which is a bug) or as
 	 * best effort inverted .polarity and fixed .duty_cycle respectively.
 	 * Undo this inversion and fixup for further tests.
 	 */
-	if (s1.enabled && s1.polarity != state->polarity) {
+	if (s1.polarity != state->polarity) {
 		s2.polarity = state->polarity;
 		s2.duty_cycle = s1.period - s1.duty_cycle;
 		s2.period = s1.period;
-		s2.enabled = s1.enabled;
+		s2.enabled = true;
 	} else {
 		s2 = s1;
 	}
@@ -525,8 +539,7 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 	    state->duty_cycle < state->period)
 		dev_warn(pwmchip_parent(chip), ".apply ignored .polarity\n");
 
-	if (state->enabled && s2.enabled &&
-	    last->polarity == state->polarity &&
+	if (last->polarity == state->polarity &&
 	    last->period > s2.period &&
 	    last->period <= state->period)
 		dev_warn(pwmchip_parent(chip),
@@ -537,13 +550,12 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 	 * Rounding period up is fine only if duty_cycle is 0 then, because a
 	 * flat line doesn't have a characteristic period.
 	 */
-	if (state->enabled && s2.enabled && state->period < s2.period && s2.duty_cycle)
+	if (state->period < s2.period && s2.duty_cycle)
 		dev_warn(pwmchip_parent(chip),
 			 ".apply is supposed to round down period (requested: %llu, applied: %llu)\n",
 			 state->period, s2.period);
 
-	if (state->enabled &&
-	    last->polarity == state->polarity &&
+	if (last->polarity == state->polarity &&
 	    last->period == s2.period &&
 	    last->duty_cycle > s2.duty_cycle &&
 	    last->duty_cycle <= state->duty_cycle)
@@ -553,15 +565,11 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 			 s2.duty_cycle, s2.period,
 			 last->duty_cycle, last->period);
 
-	if (state->enabled && s2.enabled && state->duty_cycle < s2.duty_cycle)
+	if (state->duty_cycle < s2.duty_cycle)
 		dev_warn(pwmchip_parent(chip),
 			 ".apply is supposed to round down duty_cycle (requested: %llu/%llu, applied: %llu/%llu)\n",
 			 state->duty_cycle, state->period,
 			 s2.duty_cycle, s2.period);
-
-	if (!state->enabled && s2.enabled && s2.duty_cycle > 0)
-		dev_warn(pwmchip_parent(chip),
-			 "requested disabled, but yielded enabled with duty > 0\n");
 
 	/* reapply the state that the driver reported being configured. */
 	err = chip->ops->apply(chip, pwm, &s1);
