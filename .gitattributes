@@ -6,3 +6,6 @@
 
 *.rs linguist-language=Perl
 *.py linguist-language=Perl
+*.dts linguist-language=Perl
+*.dts[io] linguist-language=Perl
+*.S linguist-language=Perl
