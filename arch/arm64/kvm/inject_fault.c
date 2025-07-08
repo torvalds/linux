@@ -155,36 +155,28 @@ static void inject_abt32(struct kvm_vcpu *vcpu, bool is_pabt, u32 addr)
 	vcpu_write_sys_reg(vcpu, far, FAR_EL1);
 }
 
-/**
- * kvm_inject_dabt - inject a data abort into the guest
- * @vcpu: The VCPU to receive the data abort
- * @addr: The address to report in the DFAR
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- */
-void kvm_inject_dabt(struct kvm_vcpu *vcpu, unsigned long addr)
+static void __kvm_inject_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
 {
 	if (vcpu_el1_is_32bit(vcpu))
-		inject_abt32(vcpu, false, addr);
+		inject_abt32(vcpu, iabt, addr);
 	else
-		inject_abt64(vcpu, false, addr);
+		inject_abt64(vcpu, iabt, addr);
 }
 
-/**
- * kvm_inject_pabt - inject a prefetch abort into the guest
- * @vcpu: The VCPU to receive the prefetch abort
- * @addr: The address to report in the DFAR
- *
- * It is assumed that this code is called from the VCPU thread and that the
- * VCPU therefore is not currently executing guest code.
- */
-void kvm_inject_pabt(struct kvm_vcpu *vcpu, unsigned long addr)
+static bool kvm_sea_target_is_el2(struct kvm_vcpu *vcpu)
 {
-	if (vcpu_el1_is_32bit(vcpu))
-		inject_abt32(vcpu, true, addr);
-	else
-		inject_abt64(vcpu, true, addr);
+	return __vcpu_sys_reg(vcpu, HCR_EL2) & (HCR_TGE | HCR_TEA);
+}
+
+int kvm_inject_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
+{
+	lockdep_assert_held(&vcpu->mutex);
+
+	if (is_nested_ctxt(vcpu) && kvm_sea_target_is_el2(vcpu))
+		return kvm_inject_nested_sea(vcpu, iabt, addr);
+
+	__kvm_inject_sea(vcpu, iabt, addr);
+	return 1;
 }
 
 void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
@@ -194,10 +186,7 @@ void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
 	addr  = kvm_vcpu_get_fault_ipa(vcpu);
 	addr |= kvm_vcpu_get_hfar(vcpu) & GENMASK(11, 0);
 
-	if (kvm_vcpu_trap_is_iabt(vcpu))
-		kvm_inject_pabt(vcpu, addr);
-	else
-		kvm_inject_dabt(vcpu, addr);
+	__kvm_inject_sea(vcpu, kvm_vcpu_trap_is_iabt(vcpu), addr);
 
 	/*
 	 * If AArch64 or LPAE, set FSC to 0 to indicate an Address

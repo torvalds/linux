@@ -2811,3 +2811,13 @@ int kvm_inject_nested_irq(struct kvm_vcpu *vcpu)
 	/* esr_el2 value doesn't matter for exits due to irqs. */
 	return kvm_inject_nested(vcpu, 0, except_type_irq);
 }
+
+int kvm_inject_nested_sea(struct kvm_vcpu *vcpu, bool iabt, u64 addr)
+{
+	u64 esr = FIELD_PREP(ESR_ELx_EC_MASK,
+			     iabt ? ESR_ELx_EC_IABT_LOW : ESR_ELx_EC_DABT_LOW);
+	esr |= ESR_ELx_FSC_EXTABT | ESR_ELx_IL;
+
+	vcpu_write_sys_reg(vcpu, FAR_EL2, addr);
+	return kvm_inject_nested_sync(vcpu, esr);
+}
