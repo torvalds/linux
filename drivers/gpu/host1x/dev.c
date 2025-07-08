@@ -821,6 +821,7 @@ u64 host1x_get_dma_mask(struct host1x *host1x)
 }
 EXPORT_SYMBOL(host1x_get_dma_mask);
 
+MODULE_SOFTDEP("post: tegra-drm");
 MODULE_AUTHOR("Thierry Reding <thierry.reding@avionic-design.de>");
 MODULE_AUTHOR("Terje Bergstrom <tbergstrom@nvidia.com>");
 MODULE_DESCRIPTION("Host1x driver for Tegra products");
