@@ -18,6 +18,7 @@
 #include "intel_display_params.h"
 #include "intel_display_power.h"
 #include "intel_display_reg_defs.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_step.h"
@@ -1479,6 +1480,7 @@ static const struct {
 	{ 14,  1, &xe2_hpd_display },
 	{ 20,  0, &xe2_lpd_display },
 	{ 30,  0, &xe2_lpd_display },
+	{ 30,  2, &xe2_lpd_display },
 };
 
 static const struct intel_display_device_info *
@@ -1621,12 +1623,16 @@ static void display_platforms_or(struct intel_display_platforms *dst,
 
 struct intel_display *intel_display_device_probe(struct pci_dev *pdev)
 {
-	struct intel_display *display = to_intel_display(pdev);
+	struct intel_display *display;
 	const struct intel_display_device_info *info;
 	struct intel_display_ip_ver ip_ver = {};
 	const struct platform_desc *desc;
 	const struct subplatform_desc *subdesc;
 	enum intel_step step;
+
+	display = kzalloc(sizeof(*display), GFP_KERNEL);
+	if (!display)
+		return ERR_PTR(-ENOMEM);
 
 	/* Add drm device backpointer as early as possible. */
 	display->drm = pci_get_drvdata(pdev);
@@ -1708,7 +1714,11 @@ no_display:
 
 void intel_display_device_remove(struct intel_display *display)
 {
+	if (!display)
+		return;
+
 	intel_display_params_free(&display->params);
+	kfree(display);
 }
 
 static void __intel_display_device_info_runtime_init(struct intel_display *display)

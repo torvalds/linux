@@ -32,3 +32,8 @@ kms_display_modes@mst-extended-mode-negative
 
 # It causes other tests to fail, so skip it.
 kms_invalid_mode@overflow-vrefresh
+
+# sc7180 does not have APRIV, so memptrs is not protected.
+# (Preemption is not supported on devices that do not have
+# APRIV, so this is ok)
+msm/msm_mapping@memptrs

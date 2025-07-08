@@ -69,7 +69,7 @@ static bool bch2_fs_trans_inconsistent(struct bch_fs *c, struct btree_trans *tra
 	if (trans)
 		bch2_trans_updates_to_text(&buf, trans);
 	bool ret = __bch2_inconsistent_error(c, &buf);
-	bch2_print_str_nonblocking(c, KERN_ERR, buf.buf);
+	bch2_print_str(c, KERN_ERR, buf.buf);
 
 	printbuf_exit(&buf);
 	return ret;
@@ -620,6 +620,9 @@ print:
 
 	if (s)
 		s->ret = ret;
+
+	if (trans)
+		ret = bch2_trans_log_str(trans, bch2_sb_error_strs[err]) ?: ret;
 err_unlock:
 	mutex_unlock(&c->fsck_error_msgs_lock);
 err:

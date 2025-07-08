@@ -11,9 +11,9 @@
 #include <drm/display/drm_hdcp_helper.h>
 #include <drm/drm_print.h>
 
-#include "i915_reg.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_hdcp.h"
@@ -805,10 +805,16 @@ intel_dp_mst_hdcp2_stream_encryption(struct intel_connector *connector,
 	enum pipe pipe = (enum pipe)cpu_transcoder;
 	enum port port = dig_port->base.port;
 	int ret;
+	u32 val;
+	u8 stream_type;
 
-	drm_WARN_ON(display->drm, enable &&
-		    !!(intel_de_read(display, HDCP2_AUTH_STREAM(display, cpu_transcoder, port))
-		    & AUTH_STREAM_TYPE) != data->streams[0].stream_type);
+	if (DISPLAY_VER(display) < 30) {
+		val = intel_de_read(display,
+				    HDCP2_AUTH_STREAM(display, cpu_transcoder, port));
+		stream_type = REG_FIELD_GET(AUTH_STREAM_TYPE_MASK, val);
+		drm_WARN_ON(display->drm, enable &&
+			    stream_type != data->streams[0].stream_type);
+	}
 
 	ret = intel_dp_mst_toggle_hdcp_stream_select(connector, enable);
 	if (ret)
@@ -822,6 +828,14 @@ intel_dp_mst_hdcp2_stream_encryption(struct intel_connector *connector,
 		drm_err(display->drm, "Timed out waiting for transcoder: %s stream encryption %s\n",
 			transcoder_name(cpu_transcoder), str_enabled_disabled(enable));
 		return -ETIMEDOUT;
+	}
+
+	if (DISPLAY_VER(display) >= 30) {
+		val = intel_de_read(display,
+				    HDCP2_STREAM_STATUS(display, cpu_transcoder, port));
+		stream_type = REG_FIELD_GET(STREAM_TYPE_STATUS_MASK, val);
+		drm_WARN_ON(display->drm, enable &&
+			    stream_type != data->streams[0].stream_type);
 	}
 
 	return 0;

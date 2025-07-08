@@ -5,11 +5,13 @@
 
 #include <linux/debugfs.h>
 
+#include <drm/drm_print.h>
+
 #include "hsw_ips.h"
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_color_regs.h"
 #include "intel_de.h"
+#include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_pcode.h"
@@ -17,8 +19,6 @@
 static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	u32 val;
 
 	if (!crtc_state->ips_enabled)
@@ -39,8 +39,8 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 
 	if (display->platform.broadwell) {
 		drm_WARN_ON(display->drm,
-			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL,
-					    val | IPS_PCODE_CONTROL));
+			    intel_pcode_write(display->drm, DISPLAY_IPS_CONTROL,
+					      val | IPS_PCODE_CONTROL));
 		/*
 		 * Quoting Art Runyan: "its not safe to expect any particular
 		 * value in IPS_CTL bit 31 after enabling IPS through the
@@ -65,8 +65,6 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 bool hsw_ips_disable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	bool need_vblank_wait = false;
 
 	if (!crtc_state->ips_enabled)
@@ -74,7 +72,7 @@ bool hsw_ips_disable(const struct intel_crtc_state *crtc_state)
 
 	if (display->platform.broadwell) {
 		drm_WARN_ON(display->drm,
-			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL, 0));
+			    intel_pcode_write(display->drm, DISPLAY_IPS_CONTROL, 0));
 		/*
 		 * Wait for PCODE to finish disabling IPS. The BSpec specified
 		 * 42ms timeout value leads to occasional timeouts so use 100ms
@@ -267,7 +265,7 @@ int hsw_ips_compute_config(struct intel_atomic_state *state,
 			return PTR_ERR(cdclk_state);
 
 		/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-		if (crtc_state->pixel_rate > cdclk_state->logical.cdclk * 95 / 100)
+		if (crtc_state->pixel_rate > intel_cdclk_logical(cdclk_state) * 95 / 100)
 			return 0;
 	}
 

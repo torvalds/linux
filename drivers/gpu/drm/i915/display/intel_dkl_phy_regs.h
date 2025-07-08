@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#include "intel_display_reg_defs.h"
+
 struct intel_dkl_phy_reg {
 	u32 reg:24;
 	u32 bank_idx:4;
@@ -151,6 +153,7 @@ struct intel_dkl_phy_reg {
 #define  DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX1(val)	REG_FIELD_PREP(DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX1_MASK, (val))
 #define  DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX2_MASK	REG_GENMASK(6, 5)
 #define  DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX2(val)	REG_FIELD_PREP(DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX2_MASK, (val))
+#define  LOADGEN_SHARING_PMD_DISABLE			REG_BIT(12)
 
 #define _DKL_TX_FW_CALIB_LN0				0x02F8
 #define _DKL_TX_FW_CALIB_LN1				0x12F8

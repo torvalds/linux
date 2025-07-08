@@ -84,6 +84,8 @@ enum amdgpu_memory_partition {
 
 #define AMDGPU_GMC_INIT_RESET_NPS  BIT(0)
 
+#define AMDGPU_MAX_MEM_RANGES 8
+
 /*
  * GMC page fault information
  */
@@ -394,6 +396,7 @@ static inline uint64_t amdgpu_gmc_sign_extend(uint64_t addr)
 	return addr;
 }
 
+bool amdgpu_gmc_is_pdb0_enabled(struct amdgpu_device *adev);
 int amdgpu_gmc_pdb0_alloc(struct amdgpu_device *adev);
 void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 			       uint64_t *addr, uint64_t *flags);
@@ -455,5 +458,13 @@ int amdgpu_gmc_request_memory_partition(struct amdgpu_device *adev,
 					int nps_mode);
 void amdgpu_gmc_prepare_nps_mode_change(struct amdgpu_device *adev);
 bool amdgpu_gmc_need_reset_on_init(struct amdgpu_device *adev);
-
+enum amdgpu_memory_partition
+amdgpu_gmc_get_vf_memory_partition(struct amdgpu_device *adev);
+enum amdgpu_memory_partition
+amdgpu_gmc_get_memory_partition(struct amdgpu_device *adev, u32 *supp_modes);
+enum amdgpu_memory_partition
+amdgpu_gmc_query_memory_partition(struct amdgpu_device *adev);
+int amdgpu_gmc_init_mem_ranges(struct amdgpu_device *adev);
+void amdgpu_gmc_init_sw_mem_ranges(struct amdgpu_device *adev,
+				   struct amdgpu_mem_partition_info *mem_ranges);
 #endif

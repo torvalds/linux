@@ -464,7 +464,7 @@ bool dml2_core_utils_get_segment_horizontal_contiguous(enum dml2_swizzle_mode sw
 
 bool dml2_core_utils_is_linear(enum dml2_swizzle_mode sw_mode)
 {
-	return (sw_mode == dml2_sw_linear || sw_mode == dml2_sw_linear_256b || sw_mode == dml2_linear_64elements);
+	return sw_mode == dml2_sw_linear;
 };
 
 

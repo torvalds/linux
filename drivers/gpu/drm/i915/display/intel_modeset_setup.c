@@ -23,6 +23,7 @@
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power.h"
+#include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_fifo_underrun.h"
@@ -92,10 +93,10 @@ static void intel_crtc_disable_noatomic_begin(struct intel_crtc *crtc,
 	crtc->active = false;
 	crtc->base.enabled = false;
 
-	if (crtc_state->shared_dpll)
-		intel_unreference_shared_dpll_crtc(crtc,
-						   crtc_state->shared_dpll,
-						   &crtc_state->shared_dpll->state);
+	if (crtc_state->intel_dpll)
+		intel_dpll_crtc_put(crtc,
+				    crtc_state->intel_dpll,
+				    &crtc_state->intel_dpll->state);
 }
 
 static void set_encoder_for_connector(struct intel_connector *connector,
@@ -565,7 +566,7 @@ static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
 	 */
 	return display->platform.sandybridge &&
 		crtc_state->hw.active &&
-		crtc_state->shared_dpll &&
+		crtc_state->intel_dpll &&
 		crtc_state->port_clock == 0;
 }
 
@@ -960,7 +961,7 @@ void intel_modeset_setup_hw_state(struct intel_display *display,
 		drm_crtc_vblank_reset(&crtc->base);
 
 		if (crtc_state->hw.active) {
-			intel_dmc_enable_pipe(display, crtc->pipe);
+			intel_dmc_enable_pipe(crtc_state);
 			intel_crtc_vblank_on(crtc_state);
 		}
 	}

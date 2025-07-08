@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database xmlns="http://nouveau.freedesktop.org/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
+<import file="freedreno_copyright.xml"/>
+<import file="adreno/adreno_common.xml"/>
+<import file="adreno/adreno_pm4.xml"/>
+
+<enum name="a7xx_statetype_id">
+	<value value="0" name="A7XX_TP0_NCTX_REG"/>
+	<value value="1" name="A7XX_TP0_CTX0_3D_CVS_REG"/>
+	<value value="2" name="A7XX_TP0_CTX0_3D_CPS_REG"/>
+	<value value="3" name="A7XX_TP0_CTX1_3D_CVS_REG"/>
+	<value value="4" name="A7XX_TP0_CTX1_3D_CPS_REG"/>
+	<value value="5" name="A7XX_TP0_CTX2_3D_CPS_REG"/>
+	<value value="6" name="A7XX_TP0_CTX3_3D_CPS_REG"/>
+	<value value="9" name="A7XX_TP0_TMO_DATA"/>
+	<value value="10" name="A7XX_TP0_SMO_DATA"/>
+	<value value="11" name="A7XX_TP0_MIPMAP_BASE_DATA"/>
+	<value value="32" name="A7XX_SP_NCTX_REG"/>
+	<value value="33" name="A7XX_SP_CTX0_3D_CVS_REG"/>
+	<value value="34" name="A7XX_SP_CTX0_3D_CPS_REG"/>
+	<value value="35" name="A7XX_SP_CTX1_3D_CVS_REG"/>
+	<value value="36" name="A7XX_SP_CTX1_3D_CPS_REG"/>
+	<value value="37" name="A7XX_SP_CTX2_3D_CPS_REG"/>
+	<value value="38" name="A7XX_SP_CTX3_3D_CPS_REG"/>
+	<value value="39" name="A7XX_SP_INST_DATA"/>
+	<value value="40" name="A7XX_SP_INST_DATA_1"/>
+	<value value="41" name="A7XX_SP_LB_0_DATA"/>
+	<value value="42" name="A7XX_SP_LB_1_DATA"/>
+	<value value="43" name="A7XX_SP_LB_2_DATA"/>
+	<value value="44" name="A7XX_SP_LB_3_DATA"/>
+	<value value="45" name="A7XX_SP_LB_4_DATA"/>
+	<value value="46" name="A7XX_SP_LB_5_DATA"/>
+	<value value="47" name="A7XX_SP_LB_6_DATA"/>
+	<value value="48" name="A7XX_SP_LB_7_DATA"/>
+	<value value="49" name="A7XX_SP_CB_RAM"/>
+	<value value="50" name="A7XX_SP_LB_13_DATA"/>
+	<value value="51" name="A7XX_SP_LB_14_DATA"/>
+	<value value="52" name="A7XX_SP_INST_TAG"/>
+	<value value="53" name="A7XX_SP_INST_DATA_2"/>
+	<value value="54" name="A7XX_SP_TMO_TAG"/>
+	<value value="55" name="A7XX_SP_SMO_TAG"/>
+	<value value="56" name="A7XX_SP_STATE_DATA"/>
+	<value value="57" name="A7XX_SP_HWAVE_RAM"/>
+	<value value="58" name="A7XX_SP_L0_INST_BUF"/>
+	<value value="59" name="A7XX_SP_LB_8_DATA"/>
+	<value value="60" name="A7XX_SP_LB_9_DATA"/>
+	<value value="61" name="A7XX_SP_LB_10_DATA"/>
+	<value value="62" name="A7XX_SP_LB_11_DATA"/>
+	<value value="63" name="A7XX_SP_LB_12_DATA"/>
+	<value value="64" name="A7XX_HLSQ_DATAPATH_DSTR_META"/>
+	<value value="67" name="A7XX_HLSQ_L2STC_TAG_RAM"/>
+	<value value="68" name="A7XX_HLSQ_L2STC_INFO_CMD"/>
+	<value value="69" name="A7XX_HLSQ_CVS_BE_CTXT_BUF_RAM_TAG"/>
+	<value value="70" name="A7XX_HLSQ_CPS_BE_CTXT_BUF_RAM_TAG"/>
+	<value value="71" name="A7XX_HLSQ_GFX_CVS_BE_CTXT_BUF_RAM"/>
+	<value value="72" name="A7XX_HLSQ_GFX_CPS_BE_CTXT_BUF_RAM"/>
+	<value value="73" name="A7XX_HLSQ_CHUNK_CVS_RAM"/>
+	<value value="74" name="A7XX_HLSQ_CHUNK_CPS_RAM"/>
+	<value value="75" name="A7XX_HLSQ_CHUNK_CVS_RAM_TAG"/>
+	<value value="76" name="A7XX_HLSQ_CHUNK_CPS_RAM_TAG"/>
+	<value value="77" name="A7XX_HLSQ_ICB_CVS_CB_BASE_TAG"/>
+	<value value="78" name="A7XX_HLSQ_ICB_CPS_CB_BASE_TAG"/>
+	<value value="79" name="A7XX_HLSQ_CVS_MISC_RAM"/>
+	<value value="80" name="A7XX_HLSQ_CPS_MISC_RAM"/>
+	<value value="81" name="A7XX_HLSQ_CPS_MISC_RAM_1"/>
+	<value value="82" name="A7XX_HLSQ_INST_RAM"/>
+	<value value="83" name="A7XX_HLSQ_GFX_CVS_CONST_RAM"/>
+	<value value="84" name="A7XX_HLSQ_GFX_CPS_CONST_RAM"/>
+	<value value="85" name="A7XX_HLSQ_CVS_MISC_RAM_TAG"/>
+	<value value="86" name="A7XX_HLSQ_CPS_MISC_RAM_TAG"/>
+	<value value="87" name="A7XX_HLSQ_INST_RAM_TAG"/>
+	<value value="88" name="A7XX_HLSQ_GFX_CVS_CONST_RAM_TAG"/>
+	<value value="89" name="A7XX_HLSQ_GFX_CPS_CONST_RAM_TAG"/>
+	<value value="90" name="A7XX_HLSQ_GFX_LOCAL_MISC_RAM"/>
+	<value value="91" name="A7XX_HLSQ_GFX_LOCAL_MISC_RAM_TAG"/>
+	<value value="92" name="A7XX_HLSQ_INST_RAM_1"/>
+	<value value="93" name="A7XX_HLSQ_STPROC_META"/>
+	<value value="94" name="A7XX_HLSQ_BV_BE_META"/>
+	<value value="95" name="A7XX_HLSQ_INST_RAM_2"/>
+	<value value="96" name="A7XX_HLSQ_DATAPATH_META"/>
+	<value value="97" name="A7XX_HLSQ_FRONTEND_META"/>
+	<value value="98" name="A7XX_HLSQ_INDIRECT_META"/>
+	<value value="99" name="A7XX_HLSQ_BACKEND_META"/>
+</enum>
+
+<enum name="a7xx_state_location">
+	<value value="0" name="A7XX_HLSQ_STATE"/>
+	<value value="1" name="A7XX_HLSQ_DP"/>
+	<value value="2" name="A7XX_SP_TOP"/>
+	<value value="3" name="A7XX_USPTP"/>
+	<value value="4" name="A7XX_HLSQ_DP_STR"/>
+</enum>
+
+<enum name="a7xx_pipe">
+	<value value="0" name="A7XX_PIPE_NONE"/>
+	<value value="1" name="A7XX_PIPE_BR"/>
+	<value value="2" name="A7XX_PIPE_BV"/>
+	<value value="3" name="A7XX_PIPE_LPAC"/>
+</enum>
+
+<enum name="a7xx_cluster">
+	<value value="0" name="A7XX_CLUSTER_NONE"/>
+	<value value="1" name="A7XX_CLUSTER_FE"/>
+	<value value="2" name="A7XX_CLUSTER_SP_VS"/>
+	<value value="3" name="A7XX_CLUSTER_PC_VS"/>
+	<value value="4" name="A7XX_CLUSTER_GRAS"/>
+	<value value="5" name="A7XX_CLUSTER_SP_PS"/>
+	<value value="6" name="A7XX_CLUSTER_VPC_PS"/>
+	<value value="7" name="A7XX_CLUSTER_PS"/>
+</enum>
+
+<enum name="a7xx_debugbus_id">
+	<value value="1" name="A7XX_DBGBUS_CP_0_0"/>
+	<value value="2" name="A7XX_DBGBUS_CP_0_1"/>
+	<value value="3" name="A7XX_DBGBUS_RBBM"/>
+	<value value="5" name="A7XX_DBGBUS_GBIF_GX"/>
+	<value value="6" name="A7XX_DBGBUS_GBIF_CX"/>
+	<value value="7" name="A7XX_DBGBUS_HLSQ"/>
+	<value value="9" name="A7XX_DBGBUS_UCHE_0"/>
+	<value value="10" name="A7XX_DBGBUS_UCHE_1"/>
+	<value value="13" name="A7XX_DBGBUS_TESS_BR"/>
+	<value value="14" name="A7XX_DBGBUS_TESS_BV"/>
+	<value value="17" name="A7XX_DBGBUS_PC_BR"/>
+	<value value="18" name="A7XX_DBGBUS_PC_BV"/>
+	<value value="21" name="A7XX_DBGBUS_VFDP_BR"/>
+	<value value="22" name="A7XX_DBGBUS_VFDP_BV"/>
+	<value value="25" name="A7XX_DBGBUS_VPC_BR"/>
+	<value value="26" name="A7XX_DBGBUS_VPC_BV"/>
+	<value value="29" name="A7XX_DBGBUS_TSE_BR"/>
+	<value value="30" name="A7XX_DBGBUS_TSE_BV"/>
+	<value value="33" name="A7XX_DBGBUS_RAS_BR"/>
+	<value value="34" name="A7XX_DBGBUS_RAS_BV"/>
+	<value value="37" name="A7XX_DBGBUS_VSC"/>
+	<value value="39" name="A7XX_DBGBUS_COM_0"/>
+	<value value="43" name="A7XX_DBGBUS_LRZ_BR"/>
+	<value value="44" name="A7XX_DBGBUS_LRZ_BV"/>
+	<value value="47" name="A7XX_DBGBUS_UFC_0"/>
+	<value value="48" name="A7XX_DBGBUS_UFC_1"/>
+	<value value="55" name="A7XX_DBGBUS_GMU_GX"/>
+	<value value="59" name="A7XX_DBGBUS_DBGC"/>
+	<value value="60" name="A7XX_DBGBUS_CX"/>
+	<value value="61" name="A7XX_DBGBUS_GMU_CX"/>
+	<value value="62" name="A7XX_DBGBUS_GPC_BR"/>
+	<value value="63" name="A7XX_DBGBUS_GPC_BV"/>
+	<value value="66" name="A7XX_DBGBUS_LARC"/>
+	<value value="68" name="A7XX_DBGBUS_HLSQ_SPTP"/>
+	<value value="70" name="A7XX_DBGBUS_RB_0"/>
+	<value value="71" name="A7XX_DBGBUS_RB_1"/>
+	<value value="72" name="A7XX_DBGBUS_RB_2"/>
+	<value value="73" name="A7XX_DBGBUS_RB_3"/>
+	<value value="74" name="A7XX_DBGBUS_RB_4"/>
+	<value value="75" name="A7XX_DBGBUS_RB_5"/>
+	<value value="102" name="A7XX_DBGBUS_UCHE_WRAPPER"/>
+	<value value="106" name="A7XX_DBGBUS_CCU_0"/>
+	<value value="107" name="A7XX_DBGBUS_CCU_1"/>
+	<value value="108" name="A7XX_DBGBUS_CCU_2"/>
+	<value value="109" name="A7XX_DBGBUS_CCU_3"/>
+	<value value="110" name="A7XX_DBGBUS_CCU_4"/>
+	<value value="111" name="A7XX_DBGBUS_CCU_5"/>
+	<value value="138" name="A7XX_DBGBUS_VFD_BR_0"/>
+	<value value="139" name="A7XX_DBGBUS_VFD_BR_1"/>
+	<value value="140" name="A7XX_DBGBUS_VFD_BR_2"/>
+	<value value="141" name="A7XX_DBGBUS_VFD_BR_3"/>
+	<value value="142" name="A7XX_DBGBUS_VFD_BR_4"/>
+	<value value="143" name="A7XX_DBGBUS_VFD_BR_5"/>
+	<value value="144" name="A7XX_DBGBUS_VFD_BR_6"/>
+	<value value="145" name="A7XX_DBGBUS_VFD_BR_7"/>
+	<value value="202" name="A7XX_DBGBUS_VFD_BV_0"/>
+	<value value="203" name="A7XX_DBGBUS_VFD_BV_1"/>
+	<value value="204" name="A7XX_DBGBUS_VFD_BV_2"/>
+	<value value="205" name="A7XX_DBGBUS_VFD_BV_3"/>
+	<value value="234" name="A7XX_DBGBUS_USP_0"/>
+	<value value="235" name="A7XX_DBGBUS_USP_1"/>
+	<value value="236" name="A7XX_DBGBUS_USP_2"/>
+	<value value="237" name="A7XX_DBGBUS_USP_3"/>
+	<value value="238" name="A7XX_DBGBUS_USP_4"/>
+	<value value="239" name="A7XX_DBGBUS_USP_5"/>
+	<value value="266" name="A7XX_DBGBUS_TP_0"/>
+	<value value="267" name="A7XX_DBGBUS_TP_1"/>
+	<value value="268" name="A7XX_DBGBUS_TP_2"/>
+	<value value="269" name="A7XX_DBGBUS_TP_3"/>
+	<value value="270" name="A7XX_DBGBUS_TP_4"/>
+	<value value="271" name="A7XX_DBGBUS_TP_5"/>
+	<value value="272" name="A7XX_DBGBUS_TP_6"/>
+	<value value="273" name="A7XX_DBGBUS_TP_7"/>
+	<value value="274" name="A7XX_DBGBUS_TP_8"/>
+	<value value="275" name="A7XX_DBGBUS_TP_9"/>
+	<value value="276" name="A7XX_DBGBUS_TP_10"/>
+	<value value="277" name="A7XX_DBGBUS_TP_11"/>
+	<value value="330" name="A7XX_DBGBUS_USPTP_0"/>
+	<value value="331" name="A7XX_DBGBUS_USPTP_1"/>
+	<value value="332" name="A7XX_DBGBUS_USPTP_2"/>
+	<value value="333" name="A7XX_DBGBUS_USPTP_3"/>
+	<value value="334" name="A7XX_DBGBUS_USPTP_4"/>
+	<value value="335" name="A7XX_DBGBUS_USPTP_5"/>
+	<value value="336" name="A7XX_DBGBUS_USPTP_6"/>
+	<value value="337" name="A7XX_DBGBUS_USPTP_7"/>
+	<value value="338" name="A7XX_DBGBUS_USPTP_8"/>
+	<value value="339" name="A7XX_DBGBUS_USPTP_9"/>
+	<value value="340" name="A7XX_DBGBUS_USPTP_10"/>
+	<value value="341" name="A7XX_DBGBUS_USPTP_11"/>
+	<value value="396" name="A7XX_DBGBUS_CCHE_0"/>
+	<value value="397" name="A7XX_DBGBUS_CCHE_1"/>
+	<value value="398" name="A7XX_DBGBUS_CCHE_2"/>
+	<value value="408" name="A7XX_DBGBUS_VPC_DSTR_0"/>
+	<value value="409" name="A7XX_DBGBUS_VPC_DSTR_1"/>
+	<value value="410" name="A7XX_DBGBUS_VPC_DSTR_2"/>
+	<value value="411" name="A7XX_DBGBUS_HLSQ_DP_STR_0"/>
+	<value value="412" name="A7XX_DBGBUS_HLSQ_DP_STR_1"/>
+	<value value="413" name="A7XX_DBGBUS_HLSQ_DP_STR_2"/>
+	<value value="414" name="A7XX_DBGBUS_HLSQ_DP_STR_3"/>
+	<value value="415" name="A7XX_DBGBUS_HLSQ_DP_STR_4"/>
+	<value value="416" name="A7XX_DBGBUS_HLSQ_DP_STR_5"/>
+	<value value="443" name="A7XX_DBGBUS_UFC_DSTR_0"/>
+	<value value="444" name="A7XX_DBGBUS_UFC_DSTR_1"/>
+	<value value="445" name="A7XX_DBGBUS_UFC_DSTR_2"/>
+	<value value="446" name="A7XX_DBGBUS_CGC_SUBCORE"/>
+	<value value="447" name="A7XX_DBGBUS_CGC_CORE"/>
+</enum>
+
+</database>

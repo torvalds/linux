@@ -55,15 +55,15 @@
 #include "dcn20/dcn20_optc.h"
 #include "dcn30/dcn30_cm_common.h"
 
-#define DC_LOGGER_INIT(logger)
+#define DC_LOGGER_INIT(logger) \
+	struct dal_logger *dc_logger = logger
 
 #define CTX \
 	hws->ctx
 #define REG(reg)\
 	hws->regs->reg
 #define DC_LOGGER \
-	stream->ctx->logger
-
+	dc_logger
 
 #undef FN
 #define FN(reg_name, field_name) \
@@ -75,6 +75,8 @@ static void update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
+
+	DC_LOGGER_INIT(stream->ctx->logger);
 
 	ASSERT(dsc);
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
@@ -527,4 +529,33 @@ void dcn314_disable_link_output(struct dc_link *link,
 	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 
 	apply_symclk_on_tx_off_wa(link);
+}
+
+
+void dcn314_plane_atomic_power_down(struct dc *dc,
+		struct dpp *dpp,
+		struct hubp *hubp)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	if (REG(DC_IP_REQUEST_CNTL)) {
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
+
+		if (hws->funcs.dpp_pg_control) {
+			hws->funcs.dpp_pg_control(hws, dpp->inst, false);
+			dpp->funcs->dpp_reset(dpp);
+		}
+
+		if (hws->funcs.hubp_pg_control) {
+			hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+			hubp->funcs->hubp_reset(hubp);
+		}
+
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
+		DC_LOG_DEBUG("Power gated front end %d\n", hubp->inst);
+	}
+
+	if (hws->funcs.dpp_root_clock_control)
+		hws->funcs.dpp_root_clock_control(hws, dpp->inst, false);
 }

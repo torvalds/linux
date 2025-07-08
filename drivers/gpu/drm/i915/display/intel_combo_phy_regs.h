@@ -6,7 +6,7 @@
 #ifndef __INTEL_COMBO_PHY_REGS__
 #define __INTEL_COMBO_PHY_REGS__
 
-#include "i915_reg_defs.h"
+#include "intel_display_reg_defs.h"
 
 #define _ICL_COMBOPHY_A				0x162000
 #define _ICL_COMBOPHY_B				0x6C000

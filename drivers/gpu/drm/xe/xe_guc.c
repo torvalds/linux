@@ -710,6 +710,10 @@ static int vf_guc_init_post_hwconfig(struct xe_guc *guc)
 	if (err)
 		return err;
 
+	err = xe_guc_buf_cache_init(&guc->buf);
+	if (err)
+		return err;
+
 	/* XXX xe_guc_db_mgr_init not needed for now */
 
 	return 0;
@@ -1098,14 +1102,6 @@ static int vf_guc_min_load_for_hwconfig(struct xe_guc *guc)
 	struct xe_gt *gt = guc_to_gt(guc);
 	int ret;
 
-	ret = xe_gt_sriov_vf_bootstrap(gt);
-	if (ret)
-		return ret;
-
-	ret = xe_gt_sriov_vf_query_config(gt);
-	if (ret)
-		return ret;
-
 	ret = xe_guc_hwconfig_init(guc);
 	if (ret)
 		return ret;
@@ -1285,6 +1281,7 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 	struct xe_reg reply_reg = xe_gt_is_media_type(gt) ?
 		MED_VF_SW_FLAG(0) : VF_SW_FLAG(0);
 	const u32 LAST_INDEX = VF_SW_FLAG_COUNT - 1;
+	bool lost = false;
 	int ret;
 	int i;
 
@@ -1318,6 +1315,12 @@ retry:
 			     FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_GUC),
 			     50000, &reply, false);
 	if (ret) {
+		/* scratch registers might be cleared during FLR, try once more */
+		if (!reply && !lost) {
+			xe_gt_dbg(gt, "GuC mmio request %#x: lost, trying again\n", request[0]);
+			lost = true;
+			goto retry;
+		}
 timeout:
 		xe_gt_err(gt, "GuC mmio request %#x: no reply %#x\n",
 			  request[0], reply);

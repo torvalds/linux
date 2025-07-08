@@ -30,38 +30,21 @@
 #include "i915_reg_defs.h"
 #include "intel_display_limits.h"
 
-enum drm_scaling_filter;
-struct dpll;
 struct drm_atomic_state;
-struct drm_connector;
 struct drm_device;
 struct drm_display_mode;
 struct drm_encoder;
-struct drm_file;
-struct drm_format_info;
-struct drm_framebuffer;
-struct drm_i915_private;
-struct drm_mode_fb_cmd2;
 struct drm_modeset_acquire_ctx;
-struct drm_plane;
-struct drm_plane_state;
-struct i915_address_space;
-struct i915_gtt_view;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_digital_port;
 struct intel_display;
-struct intel_dp;
 struct intel_encoder;
-struct intel_initial_plane_config;
 struct intel_link_m_n;
 struct intel_plane;
 struct intel_plane_state;
 struct intel_power_domain_mask;
-struct pci_dev;
-struct work_struct;
-
 
 #define pipe_name(p) ((p) + 'A')
 
@@ -452,10 +435,10 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
 void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state);
 void i830_enable_pipe(struct intel_display *display, enum pipe pipe);
 void i830_disable_pipe(struct intel_display *display, enum pipe pipe);
-int vlv_get_hpll_vco(struct drm_i915_private *dev_priv);
-int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
+int vlv_get_hpll_vco(struct drm_device *drm);
+int vlv_get_cck_clock(struct drm_device *drm,
 		      const char *name, u32 reg, int ref_freq);
-int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
+int vlv_get_cck_clock_hpll(struct drm_device *drm,
 			   const char *name, u32 reg);
 bool intel_has_pending_fb_unpin(struct intel_display *display);
 void intel_encoder_destroy(struct drm_encoder *encoder);
@@ -523,6 +506,9 @@ void intel_plane_fixup_bitmasks(struct intel_crtc_state *crtc_state);
 
 bool intel_crtc_vrr_disabling(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc);
+
+int intel_display_min_pipe_bpp(void);
+int intel_display_max_pipe_bpp(struct intel_display *display);
 
 /* modesetting */
 int intel_modeset_pipes_in_mask_early(struct intel_atomic_state *state,

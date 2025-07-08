@@ -345,6 +345,11 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 
 	if (fw_ver >= 0x00562500)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(HST_LIMIT_METRICS));
+
+	if (fw_ver >= 0x04560100) {
+		smu_v13_0_6_cap_set(smu, SMU_CAP(BOARD_VOLTAGE));
+		smu_v13_0_6_cap_set(smu, SMU_CAP(PLDM_VERSION));
+	}
 }
 
 static void smu_v13_0_6_init_caps(struct smu_context *smu)
@@ -685,8 +690,8 @@ static int smu_v13_0_6_get_allowed_feature_mask(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v13_0_6_get_metrics_table(struct smu_context *smu,
-					 void *metrics_table, bool bypass_cache)
+int smu_v13_0_6_get_metrics_table(struct smu_context *smu, void *metrics_table,
+				  bool bypass_cache)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
@@ -800,6 +805,8 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 	int version = smu_v13_0_6_get_metrics_version(smu);
 	int ret, i, retry = 100;
 	uint32_t table_version;
+	uint16_t max_speed;
+	uint8_t max_width;
 
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12) &&
 	    smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS)))
@@ -835,6 +842,9 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 			SMUQ10_ROUND(GET_METRIC_FIELD(MaxGfxclkFrequency, version));
 		pptable->MinGfxclkFrequency =
 			SMUQ10_ROUND(GET_METRIC_FIELD(MinGfxclkFrequency, version));
+		max_width = (uint8_t)GET_METRIC_FIELD(XgmiWidth, version);
+		max_speed = (uint16_t)GET_METRIC_FIELD(XgmiBitrate, version);
+		amgpu_xgmi_set_max_speed_width(smu->adev, max_speed, max_width);
 
 		for (i = 0; i < 4; ++i) {
 			pptable->FclkFrequencyTable[i] =
@@ -1377,8 +1387,9 @@ static int smu_v13_0_6_print_clk_levels(struct smu_context *smu,
 			return ret;
 		}
 
-		min_clk = pstate_table->gfxclk_pstate.curr.min;
-		max_clk = pstate_table->gfxclk_pstate.curr.max;
+		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
+		min_clk = single_dpm_table->min;
+		max_clk = single_dpm_table->max;
 
 		if (now < SMU_13_0_6_DSCLK_THRESHOLD) {
 			size += sysfs_emit_at(buf, size, "S: %uMhz *\n",

@@ -748,7 +748,7 @@ static unsigned int get_highest_allowed_voltage_level(bool is_vmin_only_asic)
 bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
-		bool fast_validate)
+		enum dc_validate_mode validate_mode)
 {
 	/*
 	 * we want a breakdown of the various stages of validation, which the
@@ -1119,7 +1119,7 @@ bool dcn_validate_bandwidth(
 
 	BW_VAL_TRACE_END_VOLTAGE_LEVEL();
 
-	if (v->voltage_level != number_of_states_plus_one && !fast_validate) {
+	if (v->voltage_level != number_of_states_plus_one && validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING) {
 		float bw_consumed = v->total_bandwidth_consumed_gbyte_per_second;
 
 		if (bw_consumed < v->fabric_and_dram_bandwidth_vmin0p65)
@@ -1286,7 +1286,7 @@ bool dcn_validate_bandwidth(
 		}
 	} else if (v->voltage_level == number_of_states_plus_one) {
 		BW_VAL_TRACE_SKIP(fail);
-	} else if (fast_validate) {
+	} else if (validate_mode != DC_VALIDATE_MODE_AND_PROGRAMMING) {
 		BW_VAL_TRACE_SKIP(fast);
 	}
 

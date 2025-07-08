@@ -40,12 +40,11 @@ i915-y += \
 	intel_pcode.o \
 	intel_region_ttm.o \
 	intel_runtime_pm.o \
-	intel_sbi.o \
 	intel_step.o \
 	intel_uncore.o \
 	intel_uncore_trace.o \
 	intel_wakeref.o \
-	vlv_sideband.o \
+	vlv_iosf_sb.o \
 	vlv_suspend.o
 
 # core peripheral code
@@ -219,12 +218,11 @@ i915-$(CONFIG_HWMON) += \
 # modesetting core code
 i915-y += \
 	display/hsw_ips.o \
-	display/i9xx_plane.o \
 	display/i9xx_display_sr.o \
+	display/i9xx_plane.o \
 	display/i9xx_wm.o \
 	display/intel_alpm.o \
 	display/intel_atomic.o \
-	display/intel_atomic_plane.o \
 	display/intel_audio.o \
 	display/intel_bios.o \
 	display/intel_bo.o \
@@ -266,6 +264,7 @@ i915-y += \
 	display/intel_fbc.o \
 	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
+	display/intel_flipq.o \
 	display/intel_frontbuffer.o \
 	display/intel_global_state.o \
 	display/intel_hdcp.o \
@@ -284,10 +283,12 @@ i915-y += \
 	display/intel_pch.o \
 	display/intel_pch_display.o \
 	display/intel_pch_refclk.o \
+	display/intel_plane.o \
 	display/intel_plane_initial.o \
 	display/intel_pmdemand.o \
 	display/intel_psr.o \
 	display/intel_quirks.o \
+	display/intel_sbi.o \
 	display/intel_sprite.o \
 	display/intel_sprite_uapi.o \
 	display/intel_tc.o \
@@ -296,7 +297,8 @@ i915-y += \
 	display/intel_wm.o \
 	display/skl_scaler.o \
 	display/skl_universal_plane.o \
-	display/skl_watermark.o
+	display/skl_watermark.o \
+	display/vlv_sideband.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o
