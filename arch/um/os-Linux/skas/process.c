@@ -548,7 +548,7 @@ out_close:
 	return err;
 }
 
-int unscheduled_userspace_iterations;
+static int unscheduled_userspace_iterations;
 extern unsigned long tt_extra_sched_jiffies;
 
 void userspace(struct uml_pt_regs *regs)
