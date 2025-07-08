@@ -257,6 +257,11 @@ static inline bool is_nested_ctxt(struct kvm_vcpu *vcpu)
 	return vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu);
 }
 
+static inline bool vserror_state_is_nested(struct kvm_vcpu *vcpu)
+{
+	return is_nested_ctxt(vcpu) && vcpu_el2_amo_is_set(vcpu);
+}
+
 /*
  * The layout of SPSR for an AArch32 state is different when observed from an
  * AArch64 SPSR_ELx or an AArch32 SPSR_*. This function generates the AArch32
