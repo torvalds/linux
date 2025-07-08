@@ -9,17 +9,18 @@ jobs:
       matrix:
         include:
           - type: all
-            os: ubuntu-latest
-          - type: all
             os: ubuntu-24.04-arm
-          - type: bindeb-pkg
-            os: ubuntu-latest
           - type: bindeb-pkg
             os: ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
-    - run: sudo apt update && sudo apt install -y bc bison flex gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf make libelf-dev libssl-dev debhelper-compat debhelper build-essential device-tree-compiler
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        create-symlink: true
+        max-size: 1536M
+    - run: sudo apt update && sudo apt install -y bc bison flex gcc make libelf-dev libssl-dev debhelper-compat debhelper build-essential ccache device-tree-compiler
     - run: mv scripts/package/mkdeb scripts/package/mkdebian -v
-    - run: make -j16 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnuabeihf- lmi_defconfig ${{ matrix.type }}
+    - run: make -j16 lmi_defconfig ${{ matrix.type }}
