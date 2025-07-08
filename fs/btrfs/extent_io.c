@@ -2060,10 +2060,7 @@ static void end_bbio_meta_write(struct btrfs_bio *bbio)
 	}
 
 	buffer_tree_clear_mark(eb, PAGECACHE_TAG_WRITEBACK);
-	clear_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
-	smp_mb__after_atomic();
-	wake_up_bit(&eb->bflags, EXTENT_BUFFER_WRITEBACK);
-
+	clear_and_wake_up_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
 	bio_put(&bbio->bio);
 }
 
@@ -3681,9 +3678,7 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
 
 static void clear_extent_buffer_reading(struct extent_buffer *eb)
 {
-	clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
-	smp_mb__after_atomic();
-	wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
+	clear_and_wake_up_bit(EXTENT_BUFFER_READING, &eb->bflags);
 }
 
 static void end_bbio_meta_read(struct btrfs_bio *bbio)
