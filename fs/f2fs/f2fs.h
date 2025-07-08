@@ -2018,7 +2018,7 @@ static inline struct f2fs_sb_info *F2FS_M_SB(struct address_space *mapping)
 	return F2FS_I_SB(mapping->host);
 }
 
-static inline struct f2fs_sb_info *F2FS_F_SB(struct folio *folio)
+static inline struct f2fs_sb_info *F2FS_F_SB(const struct folio *folio)
 {
 	return F2FS_M_SB(folio->mapping);
 }

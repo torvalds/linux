@@ -375,7 +375,7 @@ static int sanity_check_node_chain(struct f2fs_sb_info *sbi, block_t blkaddr,
 		if (IS_ERR(folio))
 			return PTR_ERR(folio);
 
-		if (!is_recoverable_dnode(&folio->page)) {
+		if (!is_recoverable_dnode(folio)) {
 			f2fs_folio_put(folio, true);
 			*is_detecting = false;
 			return 0;
@@ -424,7 +424,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 			break;
 		}
 
-		if (!is_recoverable_dnode(&folio->page)) {
+		if (!is_recoverable_dnode(folio)) {
 			f2fs_folio_put(folio, true);
 			break;
 		}
@@ -806,7 +806,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 			break;
 		}
 
-		if (!is_recoverable_dnode(&folio->page)) {
+		if (!is_recoverable_dnode(folio)) {
 			f2fs_folio_put(folio, true);
 			break;
 		}

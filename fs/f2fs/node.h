@@ -262,7 +262,7 @@ static inline unsigned int ofs_of_node(const struct page *node_page)
 	return flag >> OFFSET_BIT_SHIFT;
 }
 
-static inline __u64 cpver_of_node(struct page *node_page)
+static inline __u64 cpver_of_node(const struct page *node_page)
 {
 	struct f2fs_node *rn = F2FS_NODE(node_page);
 	return le64_to_cpu(rn->footer.cp_ver);
@@ -313,19 +313,19 @@ static inline void fill_node_footer_blkaddr(struct page *page, block_t blkaddr)
 	rn->footer.next_blkaddr = cpu_to_le32(blkaddr);
 }
 
-static inline bool is_recoverable_dnode(struct page *page)
+static inline bool is_recoverable_dnode(const struct folio *folio)
 {
-	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_P_SB(page));
+	struct f2fs_checkpoint *ckpt = F2FS_CKPT(F2FS_F_SB(folio));
 	__u64 cp_ver = cur_cp_version(ckpt);
 
 	/* Don't care crc part, if fsck.f2fs sets it. */
 	if (__is_set_ckpt_flags(ckpt, CP_NOCRC_RECOVERY_FLAG))
-		return (cp_ver << 32) == (cpver_of_node(page) << 32);
+		return (cp_ver << 32) == (cpver_of_node(&folio->page) << 32);
 
 	if (__is_set_ckpt_flags(ckpt, CP_CRC_RECOVERY_FLAG))
 		cp_ver |= (cur_cp_crc(ckpt) << 32);
 
-	return cp_ver == cpver_of_node(page);
+	return cp_ver == cpver_of_node(&folio->page);
 }
 
 /*
