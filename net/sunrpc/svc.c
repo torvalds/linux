@@ -1426,8 +1426,6 @@ svc_process_common(struct svc_rqst *rqstp)
 
 	/* Call the function that processes the request. */
 	rc = process.dispatch(rqstp);
-	if (procp->pc_release)
-		procp->pc_release(rqstp);
 	xdr_finish_decode(xdr);
 
 	if (!rc)
@@ -1526,6 +1524,14 @@ static void svc_drop(struct svc_rqst *rqstp)
 	trace_svc_drop(rqstp);
 }
 
+static void svc_release_rqst(struct svc_rqst *rqstp)
+{
+	const struct svc_procedure *procp = rqstp->rq_procinfo;
+
+	if (procp && procp->pc_release)
+		procp->pc_release(rqstp);
+}
+
 /**
  * svc_process - Execute one RPC transaction
  * @rqstp: RPC transaction context
@@ -1565,9 +1571,12 @@ void svc_process(struct svc_rqst *rqstp)
 	if (unlikely(*p != rpc_call))
 		goto out_baddir;
 
-	if (!svc_process_common(rqstp))
+	if (!svc_process_common(rqstp)) {
+		svc_release_rqst(rqstp);
 		goto out_drop;
+	}
 	svc_send(rqstp);
+	svc_release_rqst(rqstp);
 	return;
 
 out_baddir:
@@ -1635,6 +1644,7 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 	if (!proc_error) {
 		/* Processing error: drop the request */
 		xprt_free_bc_request(req);
+		svc_release_rqst(rqstp);
 		return;
 	}
 	/* Finally, send the reply synchronously */
@@ -1648,6 +1658,7 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 	timeout.to_maxval = timeout.to_initval;
 	memcpy(&req->rq_snd_buf, &rqstp->rq_res, sizeof(req->rq_snd_buf));
 	task = rpc_run_bc_task(req, &timeout);
+	svc_release_rqst(rqstp);
 
 	if (IS_ERR(task))
 		return;
