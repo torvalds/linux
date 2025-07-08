@@ -1424,12 +1424,11 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		break;
 
 	case SYS_ID_AA64PFR0_EL1:
-		/* No RME, AMU, MPAM, S-EL2, or RAS */
+		/* No RME, AMU, MPAM, or S-EL2 */
 		val &= ~(ID_AA64PFR0_EL1_RME	|
 			 ID_AA64PFR0_EL1_AMU	|
 			 ID_AA64PFR0_EL1_MPAM	|
 			 ID_AA64PFR0_EL1_SEL2	|
-			 ID_AA64PFR0_EL1_RAS	|
 			 ID_AA64PFR0_EL1_EL3	|
 			 ID_AA64PFR0_EL1_EL2	|
 			 ID_AA64PFR0_EL1_EL1	|
