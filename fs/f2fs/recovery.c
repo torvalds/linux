@@ -438,7 +438,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 
 			if (!check_only &&
 					IS_INODE(&folio->page) &&
-					is_dent_dnode(&folio->page)) {
+					is_dent_dnode(folio)) {
 				err = f2fs_recover_inode_page(sbi, folio);
 				if (err) {
 					f2fs_folio_put(folio, true);
@@ -463,7 +463,7 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head,
 		}
 		entry->blkaddr = blkaddr;
 
-		if (IS_INODE(&folio->page) && is_dent_dnode(&folio->page))
+		if (IS_INODE(&folio->page) && is_dent_dnode(folio))
 			entry->last_dentry = blkaddr;
 next:
 		/* check next segment */
