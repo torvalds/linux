@@ -231,12 +231,6 @@ static int xgene_allocate_domains(struct device_node *node,
 	return msi->inner_domain ? 0 : -ENOMEM;
 }
 
-static void xgene_free_domains(struct xgene_msi *msi)
-{
-	if (msi->inner_domain)
-		irq_domain_remove(msi->inner_domain);
-}
-
 static int xgene_msi_init_allocator(struct device *dev)
 {
 	xgene_msi_ctrl->bitmap = devm_bitmap_zalloc(dev, NR_MSI_VEC, GFP_KERNEL);
@@ -283,26 +277,48 @@ static void xgene_msi_isr(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static enum cpuhp_state pci_xgene_online;
-
 static void xgene_msi_remove(struct platform_device *pdev)
 {
-	struct xgene_msi *msi = platform_get_drvdata(pdev);
+	for (int i = 0; i < NR_HW_IRQS; i++) {
+		unsigned int irq = xgene_msi_ctrl->gic_irq[i];
+		if (!irq)
+			continue;
+		irq_set_chained_handler_and_data(irq, NULL, NULL);
+	}
 
-	if (pci_xgene_online)
-		cpuhp_remove_state(pci_xgene_online);
-	cpuhp_remove_state(CPUHP_PCI_XGENE_DEAD);
-
-	xgene_free_domains(msi);
+	if (xgene_msi_ctrl->inner_domain)
+		irq_domain_remove(xgene_msi_ctrl->inner_domain);
 }
 
-static int xgene_msi_hwirq_alloc(unsigned int cpu)
+static int xgene_msi_handler_setup(struct platform_device *pdev)
 {
+	struct xgene_msi *xgene_msi = xgene_msi_ctrl;
 	int i;
-	int err;
 
-	for (i = cpu; i < NR_HW_IRQS; i += num_possible_cpus()) {
-		unsigned int irq = xgene_msi_ctrl->gic_irq[i];
+	for (i = 0; i < NR_HW_IRQS; i++) {
+		u32 msi_val;
+		int irq, err;
+
+		/*
+		 * MSInIRx registers are read-to-clear; before registering
+		 * interrupt handlers, read all of them to clear spurious
+		 * interrupts that may occur before the driver is probed.
+		 */
+		for (int msi_idx = 0; msi_idx < IDX_PER_GROUP; msi_idx++)
+			xgene_msi_ir_read(xgene_msi, i, msi_idx);
+
+		/* Read MSIINTn to confirm */
+		msi_val = xgene_msi_int_read(xgene_msi, i);
+		if (msi_val) {
+			dev_err(&pdev->dev, "Failed to clear spurious IRQ\n");
+			return EINVAL;
+		}
+
+		irq = platform_get_irq(pdev, i);
+		if (irq < 0)
+			return irq;
+
+		xgene_msi->gic_irq[i] = irq;
 
 		/*
 		 * Statically allocate MSI GIC IRQs to each CPU core.
@@ -310,7 +326,7 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 		 * to each core.
 		 */
 		irq_set_status_flags(irq, IRQ_NO_BALANCING);
-		err = irq_set_affinity(irq, cpumask_of(cpu));
+		err = irq_set_affinity(irq, cpumask_of(i % num_possible_cpus()));
 		if (err) {
 			pr_err("failed to set affinity for GIC IRQ");
 			return err;
@@ -319,17 +335,6 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 		irq_set_chained_handler_and_data(irq, xgene_msi_isr,
 						 &xgene_msi_ctrl->gic_irq[i]);
 	}
-
-	return 0;
-}
-
-static int xgene_msi_hwirq_free(unsigned int cpu)
-{
-	struct xgene_msi *msi = xgene_msi_ctrl;
-	int i;
-
-	for (i = cpu; i < NR_HW_IRQS; i += num_possible_cpus())
-		irq_set_chained_handler_and_data(msi->gic_irq[i], NULL, NULL);
 
 	return 0;
 }
@@ -343,7 +348,6 @@ static int xgene_msi_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct xgene_msi *xgene_msi;
-	u32 msi_val, msi_idx;
 	int rc;
 
 	xgene_msi_ctrl = devm_kzalloc(&pdev->dev, sizeof(*xgene_msi_ctrl),
@@ -352,8 +356,6 @@ static int xgene_msi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	xgene_msi = xgene_msi_ctrl;
-
-	platform_set_drvdata(pdev, xgene_msi);
 
 	xgene_msi->msi_regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(xgene_msi->msi_regs)) {
@@ -374,48 +376,13 @@ static int xgene_msi_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	for (int irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
-		rc = platform_get_irq(pdev, irq_index);
-		if (rc < 0)
-			goto error;
-
-		xgene_msi->gic_irq[irq_index] = rc;
-	}
-
-	/*
-	 * MSInIRx registers are read-to-clear; before registering
-	 * interrupt handlers, read all of them to clear spurious
-	 * interrupts that may occur before the driver is probed.
-	 */
-	for (int irq_index = 0; irq_index < NR_HW_IRQS; irq_index++) {
-		for (msi_idx = 0; msi_idx < IDX_PER_GROUP; msi_idx++)
-			xgene_msi_ir_read(xgene_msi, irq_index, msi_idx);
-
-		/* Read MSIINTn to confirm */
-		msi_val = xgene_msi_int_read(xgene_msi, irq_index);
-		if (msi_val) {
-			dev_err(&pdev->dev, "Failed to clear spurious IRQ\n");
-			rc = -EINVAL;
-			goto error;
-		}
-	}
-
-	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "pci/xgene:online",
-			       xgene_msi_hwirq_alloc, NULL);
-	if (rc < 0)
-		goto err_cpuhp;
-	pci_xgene_online = rc;
-	rc = cpuhp_setup_state(CPUHP_PCI_XGENE_DEAD, "pci/xgene:dead", NULL,
-			       xgene_msi_hwirq_free);
+	rc = xgene_msi_handler_setup(pdev);
 	if (rc)
-		goto err_cpuhp;
+		goto error;
 
 	dev_info(&pdev->dev, "APM X-Gene PCIe MSI driver loaded\n");
 
 	return 0;
-
-err_cpuhp:
-	dev_err(&pdev->dev, "failed to add CPU MSI notifier\n");
 error:
 	xgene_msi_remove(pdev);
 	return rc;
