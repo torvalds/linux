@@ -181,14 +181,13 @@ static void f2fs_verify_bio(struct work_struct *work)
 	 * as those were handled separately by f2fs_end_read_compressed_page().
 	 */
 	if (may_have_compressed_pages) {
-		struct bio_vec *bv;
-		struct bvec_iter_all iter_all;
+		struct folio_iter fi;
 
-		bio_for_each_segment_all(bv, bio, iter_all) {
-			struct page *page = bv->bv_page;
+		bio_for_each_folio_all(fi, bio) {
+			struct folio *folio = fi.folio;
 
-			if (!f2fs_is_compressed_page(page) &&
-			    !fsverity_verify_page(page)) {
+			if (!f2fs_is_compressed_page(&folio->page) &&
+			    !fsverity_verify_page(&folio->page)) {
 				bio->bi_status = BLK_STS_IOERR;
 				break;
 			}
