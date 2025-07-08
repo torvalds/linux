@@ -71,17 +71,15 @@ static pgoff_t start_idx_of_cluster(struct compress_ctx *cc)
 	return cc->cluster_idx << cc->log_cluster_size;
 }
 
-bool f2fs_is_compressed_page(struct page *page)
+bool f2fs_is_compressed_page(struct folio *folio)
 {
-	if (!PagePrivate(page))
+	if (!folio->private)
 		return false;
-	if (!page_private(page))
-		return false;
-	if (page_private_nonpointer(page))
+	if (folio_test_f2fs_nonpointer(folio))
 		return false;
 
-	f2fs_bug_on(F2FS_P_SB(page),
-		*((u32 *)page_private(page)) != F2FS_COMPRESSED_PAGE_MAGIC);
+	f2fs_bug_on(F2FS_F_SB(folio),
+		*((u32 *)folio->private) != F2FS_COMPRESSED_PAGE_MAGIC);
 	return true;
 }
 
@@ -1478,7 +1476,7 @@ void f2fs_compress_write_end_io(struct bio *bio, struct folio *folio)
 	struct f2fs_sb_info *sbi = bio->bi_private;
 	struct compress_io_ctx *cic = folio->private;
 	enum count_type type = WB_DATA_TYPE(folio,
-				f2fs_is_compressed_page(page));
+				f2fs_is_compressed_page(folio));
 	int i;
 
 	if (unlikely(bio->bi_status != BLK_STS_OK))

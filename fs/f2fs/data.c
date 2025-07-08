@@ -142,7 +142,7 @@ static void f2fs_finish_read_bio(struct bio *bio, bool in_task)
 	bio_for_each_folio_all(fi, bio) {
 		struct folio *folio = fi.folio;
 
-		if (f2fs_is_compressed_page(&folio->page)) {
+		if (f2fs_is_compressed_page(folio)) {
 			if (ctx && !ctx->decompression_attempted)
 				f2fs_end_read_compressed_page(folio, true, 0,
 							in_task);
@@ -186,7 +186,7 @@ static void f2fs_verify_bio(struct work_struct *work)
 		bio_for_each_folio_all(fi, bio) {
 			struct folio *folio = fi.folio;
 
-			if (!f2fs_is_compressed_page(&folio->page) &&
+			if (!f2fs_is_compressed_page(folio) &&
 			    !fsverity_verify_page(&folio->page)) {
 				bio->bi_status = BLK_STS_IOERR;
 				break;
@@ -239,7 +239,7 @@ static void f2fs_handle_step_decompress(struct bio_post_read_ctx *ctx,
 	bio_for_each_folio_all(fi, ctx->bio) {
 		struct folio *folio = fi.folio;
 
-		if (f2fs_is_compressed_page(&folio->page))
+		if (f2fs_is_compressed_page(folio))
 			f2fs_end_read_compressed_page(folio, false, blkaddr,
 						      in_task);
 		else
@@ -337,7 +337,7 @@ static void f2fs_write_end_io(struct bio *bio)
 		}
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
-		if (f2fs_is_compressed_page(&folio->page)) {
+		if (f2fs_is_compressed_page(folio)) {
 			f2fs_compress_write_end_io(bio, folio);
 			continue;
 		}
@@ -561,7 +561,7 @@ static bool __has_merged_page(struct bio *bio, struct inode *inode,
 			if (IS_ERR(target))
 				continue;
 		}
-		if (f2fs_is_compressed_page(&target->page)) {
+		if (f2fs_is_compressed_page(target)) {
 			target = f2fs_compress_control_folio(target);
 			if (IS_ERR(target))
 				continue;
