@@ -7,7 +7,8 @@
 #include "processor.h"
 #include "test_util.h"
 
-#define MMIO_ADDR	0x8000000ULL
+#define MMIO_ADDR		0x8000000ULL
+#define EXPECTED_SERROR_ISS	(ESR_ELx_ISV | 0x1d1ed)
 
 static u64 expected_abort_pc;
 
@@ -49,11 +50,28 @@ static void vcpu_inject_sea(struct kvm_vcpu *vcpu)
 	vcpu_events_set(vcpu, &events);
 }
 
+static bool vcpu_has_ras(struct kvm_vcpu *vcpu)
+{
+	u64 pfr0 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
+
+	return SYS_FIELD_GET(ID_AA64PFR0_EL1, RAS, pfr0);
+}
+
+static bool guest_has_ras(void)
+{
+	return SYS_FIELD_GET(ID_AA64PFR0_EL1, RAS, read_sysreg(id_aa64pfr0_el1));
+}
+
 static void vcpu_inject_serror(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_events events = {};
 
 	events.exception.serror_pending = true;
+	if (vcpu_has_ras(vcpu)) {
+		events.exception.serror_has_esr = true;
+		events.exception.serror_esr = EXPECTED_SERROR_ISS;
+	}
+
 	vcpu_events_set(vcpu, &events);
 }
 
@@ -199,6 +217,12 @@ static void test_serror_masked(void)
 
 static void expect_serror_handler(struct ex_regs *regs)
 {
+	u64 esr = read_sysreg(esr_el1);
+
+	GUEST_ASSERT_EQ(ESR_ELx_EC(esr), ESR_ELx_EC_SERROR);
+	if (guest_has_ras())
+		GUEST_ASSERT_EQ(ESR_ELx_ISS(esr), EXPECTED_SERROR_ISS);
+
 	GUEST_DONE();
 }
 
@@ -277,7 +301,11 @@ static void test_mmio_ease(void)
 		return;
 	}
 
-	vm_install_exception_handler(vm, VECTOR_ERROR_CURRENT, expect_serror_handler);
+	/*
+	 * SCTLR2_ELx.EASE changes the exception vector to the SError vector but
+	 * doesn't further modify the exception context (e.g. ESR_ELx, FAR_ELx).
+	 */
+	vm_install_exception_handler(vm, VECTOR_ERROR_CURRENT, expect_sea_handler);
 
 	vcpu_run(vcpu);
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_MMIO);
