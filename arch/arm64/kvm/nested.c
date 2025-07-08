@@ -1690,6 +1690,12 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 		res0 |= SCTLR_EL1_EPAN;
 	set_sysreg_masks(kvm, SCTLR_EL1, res0, res1);
 
+	/* SCTLR2_ELx */
+	get_reg_fixed_bits(kvm, SCTLR2_EL1, &res0, &res1);
+	set_sysreg_masks(kvm, SCTLR2_EL1, res0, res1);
+	get_reg_fixed_bits(kvm, SCTLR2_EL2, &res0, &res1);
+	set_sysreg_masks(kvm, SCTLR2_EL2, res0, res1);
+
 	/* MDCR_EL2 */
 	res0 = MDCR_EL2_RES0;
 	res1 = MDCR_EL2_RES1;
