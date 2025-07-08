@@ -238,8 +238,6 @@ struct igbvf_adapter {
 	int int_mode;
 	u32 eims_enable_mask;
 	u32 eims_other;
-	u32 int_counter0;
-	u32 int_counter1;
 
 	u32 eeprom_wol;
 	u32 wol;

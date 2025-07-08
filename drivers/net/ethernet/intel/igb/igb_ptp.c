@@ -1094,21 +1094,22 @@ void igb_ptp_rx_rgtstamp(struct igb_q_vector *q_vector, struct sk_buff *skb)
 }
 
 /**
- * igb_ptp_get_ts_config - get hardware time stamping config
+ * igb_ptp_hwtstamp_get - get hardware time stamping config
  * @netdev: netdev struct
- * @ifr: interface struct
+ * @config: timestamping configuration structure
  *
  * Get the hwtstamp_config settings to return to the user. Rather than attempt
  * to deconstruct the settings from the registers, just return a shadow copy
  * of the last known settings.
  **/
-int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
+int igb_ptp_hwtstamp_get(struct net_device *netdev,
+			 struct kernel_hwtstamp_config *config)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct hwtstamp_config *config = &adapter->tstamp_config;
 
-	return copy_to_user(ifr->ifr_data, config, sizeof(*config)) ?
-		-EFAULT : 0;
+	*config = adapter->tstamp_config;
+
+	return 0;
 }
 
 /**
@@ -1129,7 +1130,7 @@ int igb_ptp_get_ts_config(struct net_device *netdev, struct ifreq *ifr)
  * level 2 or 4".
  */
 static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
-				      struct hwtstamp_config *config)
+				      struct kernel_hwtstamp_config *config)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 tsync_tx_ctl = E1000_TSYNCTXCTL_ENABLED;
@@ -1275,30 +1276,26 @@ static int igb_ptp_set_timestamp_mode(struct igb_adapter *adapter,
 }
 
 /**
- * igb_ptp_set_ts_config - set hardware time stamping config
+ * igb_ptp_hwtstamp_set - set hardware time stamping config
  * @netdev: netdev struct
- * @ifr: interface struct
- *
+ * @config: timestamping configuration structure
+ * @extack: netlink extended ack structure for error reporting
  **/
-int igb_ptp_set_ts_config(struct net_device *netdev, struct ifreq *ifr)
+int igb_ptp_hwtstamp_set(struct net_device *netdev,
+			 struct kernel_hwtstamp_config *config,
+			 struct netlink_ext_ack *extack)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	struct hwtstamp_config config;
 	int err;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	err = igb_ptp_set_timestamp_mode(adapter, &config);
+	err = igb_ptp_set_timestamp_mode(adapter, config);
 	if (err)
 		return err;
 
 	/* save these settings for future reference */
-	memcpy(&adapter->tstamp_config, &config,
-	       sizeof(adapter->tstamp_config));
+	adapter->tstamp_config = *config;
 
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
-		-EFAULT : 0;
+	return 0;
 }
 
 /**

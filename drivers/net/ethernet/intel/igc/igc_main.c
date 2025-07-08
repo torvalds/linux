@@ -6303,24 +6303,6 @@ int igc_close(struct net_device *netdev)
 	return 0;
 }
 
-/**
- * igc_ioctl - Access the hwtstamp interface
- * @netdev: network interface device structure
- * @ifr: interface request data
- * @cmd: ioctl command
- **/
-static int igc_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-		return igc_ptp_get_ts_config(netdev, ifr);
-	case SIOCSHWTSTAMP:
-		return igc_ptp_set_ts_config(netdev, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static int igc_save_launchtime_params(struct igc_adapter *adapter, int queue,
 				      bool enable)
 {
@@ -6971,12 +6953,13 @@ static const struct net_device_ops igc_netdev_ops = {
 	.ndo_fix_features	= igc_fix_features,
 	.ndo_set_features	= igc_set_features,
 	.ndo_features_check	= igc_features_check,
-	.ndo_eth_ioctl		= igc_ioctl,
 	.ndo_setup_tc		= igc_setup_tc,
 	.ndo_bpf		= igc_bpf,
 	.ndo_xdp_xmit		= igc_xdp_xmit,
 	.ndo_xsk_wakeup		= igc_xsk_wakeup,
 	.ndo_get_tstamp		= igc_get_tstamp,
+	.ndo_hwtstamp_get	= igc_ptp_hwtstamp_get,
+	.ndo_hwtstamp_set	= igc_ptp_hwtstamp_set,
 };
 
 u32 igc_rd32(struct igc_hw *hw, u32 reg)
