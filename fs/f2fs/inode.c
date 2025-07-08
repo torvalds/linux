@@ -134,9 +134,9 @@ bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct folio *folio)
 	return true;
 }
 
-static __u32 f2fs_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
+static __u32 f2fs_inode_chksum(struct f2fs_sb_info *sbi, struct folio *folio)
 {
-	struct f2fs_node *node = F2FS_NODE(page);
+	struct f2fs_node *node = F2FS_NODE(&folio->page);
 	struct f2fs_inode *ri = &node->i;
 	__le32 ino = node->footer.ino;
 	__le32 gen = ri->i_generation;
@@ -175,7 +175,7 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct folio *folio)
 
 	ri = &F2FS_NODE(&folio->page)->i;
 	provided = le32_to_cpu(ri->i_inode_checksum);
-	calculated = f2fs_inode_chksum(sbi, &folio->page);
+	calculated = f2fs_inode_chksum(sbi, folio);
 
 	if (provided != calculated)
 		f2fs_warn(sbi, "checksum invalid, nid = %lu, ino_of_node = %x, %x vs. %x",
@@ -192,7 +192,7 @@ void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct folio *folio)
 	if (!f2fs_enable_inode_chksum(sbi, folio))
 		return;
 
-	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, &folio->page));
+	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, folio));
 }
 
 static bool sanity_check_compress_inode(struct inode *inode,
