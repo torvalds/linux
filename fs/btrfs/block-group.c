@@ -1953,7 +1953,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		spin_unlock(&bg->lock);
 
 		trace_btrfs_reclaim_block_group(bg);
-		ret = btrfs_relocate_chunk(fs_info, bg->start);
+		ret = btrfs_relocate_chunk(fs_info, bg->start, false);
 		if (ret) {
 			btrfs_dec_block_group_ro(bg);
 			btrfs_err(fs_info, "error relocating chunk %llu",

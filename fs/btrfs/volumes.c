@@ -3412,7 +3412,8 @@ out:
 	return ret;
 }
 
-int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
+int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset,
+			 bool verbose)
 {
 	struct btrfs_root *root = fs_info->chunk_root;
 	struct btrfs_trans_handle *trans;
@@ -3442,7 +3443,7 @@ int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 
 	/* step one, relocate all the extents inside this chunk */
 	btrfs_scrub_pause(fs_info);
-	ret = btrfs_relocate_block_group(fs_info, chunk_offset);
+	ret = btrfs_relocate_block_group(fs_info, chunk_offset, true);
 	btrfs_scrub_continue(fs_info);
 	if (ret) {
 		/*
@@ -3552,7 +3553,8 @@ again:
 		btrfs_release_path(path);
 
 		if (chunk_type & BTRFS_BLOCK_GROUP_SYSTEM) {
-			ret = btrfs_relocate_chunk(fs_info, found_key.offset);
+			ret = btrfs_relocate_chunk(fs_info, found_key.offset,
+						   true);
 			if (ret == -ENOSPC)
 				failed++;
 			else
@@ -4217,7 +4219,7 @@ again:
 			}
 		}
 
-		ret = btrfs_relocate_chunk(fs_info, found_key.offset);
+		ret = btrfs_relocate_chunk(fs_info, found_key.offset, true);
 		mutex_unlock(&fs_info->reclaim_bgs_lock);
 		if (ret == -ENOSPC) {
 			enospc_errors++;
@@ -4985,7 +4987,7 @@ again:
 			goto done;
 		}
 
-		ret = btrfs_relocate_chunk(fs_info, chunk_offset);
+		ret = btrfs_relocate_chunk(fs_info, chunk_offset, true);
 		mutex_unlock(&fs_info->reclaim_bgs_lock);
 		if (ret == -ENOSPC) {
 			failed++;
@@ -8198,7 +8200,7 @@ static int relocating_repair_kthread(void *data)
 	btrfs_info(fs_info,
 		   "zoned: relocating block group %llu to repair IO failure",
 		   target);
-	ret = btrfs_relocate_chunk(fs_info, target);
+	ret = btrfs_relocate_chunk(fs_info, target, true);
 
 out:
 	if (cache)
