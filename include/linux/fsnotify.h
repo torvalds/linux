@@ -147,9 +147,6 @@ static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 	if (!(perm_mask & (MAY_READ | MAY_WRITE | MAY_ACCESS)))
 		return 0;
 
-	if (likely(!FMODE_FSNOTIFY_PERM(file->f_mode)))
-		return 0;
-
 	/*
 	 * read()/write() and other types of access generate pre-content events.
 	 */
@@ -160,7 +157,8 @@ static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 			return ret;
 	}
 
-	if (!(perm_mask & MAY_READ))
+	if (!(perm_mask & MAY_READ) ||
+	    likely(!FMODE_FSNOTIFY_ACCESS_PERM(file->f_mode)))
 		return 0;
 
 	/*
@@ -208,22 +206,6 @@ static inline int fsnotify_file_perm(struct file *file, int perm_mask)
 	return fsnotify_file_area_perm(file, perm_mask, NULL, 0);
 }
 
-/*
- * fsnotify_open_perm - permission hook before file open
- */
-static inline int fsnotify_open_perm(struct file *file)
-{
-	int ret;
-
-	if (file->f_flags & __FMODE_EXEC) {
-		ret = fsnotify_path(&file->f_path, FS_OPEN_EXEC_PERM);
-		if (ret)
-			return ret;
-	}
-
-	return fsnotify_path(&file->f_path, FS_OPEN_PERM);
-}
-
 #else
 static inline int fsnotify_open_perm_and_set_mode(struct file *file)
 {
@@ -248,11 +230,6 @@ static inline int fsnotify_truncate_perm(const struct path *path, loff_t length)
 }
 
 static inline int fsnotify_file_perm(struct file *file, int perm_mask)
-{
-	return 0;
-}
-
-static inline int fsnotify_open_perm(struct file *file)
 {
 	return 0;
 }
