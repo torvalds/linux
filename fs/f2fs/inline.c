@@ -33,9 +33,9 @@ bool f2fs_may_inline_data(struct inode *inode)
 	return !f2fs_post_read_required(inode);
 }
 
-static bool inode_has_blocks(struct inode *inode, struct page *ipage)
+static bool inode_has_blocks(struct inode *inode, struct folio *ifolio)
 {
-	struct f2fs_inode *ri = F2FS_INODE(ipage);
+	struct f2fs_inode *ri = F2FS_INODE(&ifolio->page);
 	int i;
 
 	if (F2FS_HAS_BLOCKS(inode))
@@ -53,7 +53,7 @@ bool f2fs_sanity_check_inline_data(struct inode *inode, struct folio *ifolio)
 	if (!f2fs_has_inline_data(inode))
 		return false;
 
-	if (inode_has_blocks(inode, &ifolio->page))
+	if (inode_has_blocks(inode, ifolio))
 		return false;
 
 	if (!support_inline_data(inode))
