@@ -259,7 +259,11 @@ static inline bool is_nested_ctxt(struct kvm_vcpu *vcpu)
 
 static inline bool vserror_state_is_nested(struct kvm_vcpu *vcpu)
 {
-	return is_nested_ctxt(vcpu) && vcpu_el2_amo_is_set(vcpu);
+	if (!is_nested_ctxt(vcpu))
+		return false;
+
+	return vcpu_el2_amo_is_set(vcpu) ||
+	       (__vcpu_sys_reg(vcpu, HCRX_EL2) & HCRX_EL2_TMEA);
 }
 
 /*
