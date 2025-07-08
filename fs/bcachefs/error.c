@@ -633,7 +633,9 @@ err:
 	 * log_fsck_err()s: that would require us to track for every error type
 	 * which recovery pass corrects it, to get the fsck exit status correct:
 	 */
-	if (bch2_err_matches(ret, BCH_ERR_fsck_fix)) {
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+		/* nothing */
+	} else if (bch2_err_matches(ret, BCH_ERR_fsck_fix)) {
 		set_bit(BCH_FS_errors_fixed, &c->flags);
 	} else {
 		set_bit(BCH_FS_errors_not_fixed, &c->flags);
