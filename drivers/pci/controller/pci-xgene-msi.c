@@ -355,40 +355,26 @@ static int xgene_msi_hwirq_alloc(unsigned int cpu)
 {
 	struct xgene_msi *msi = &xgene_msi_ctrl;
 	struct xgene_msi_group *msi_group;
-	cpumask_var_t mask;
 	int i;
 	int err;
 
 	for (i = cpu; i < NR_HW_IRQS; i += msi->num_cpus) {
 		msi_group = &msi->msi_groups[i];
-		if (!msi_group->gic_irq)
-			continue;
-
-		irq_set_chained_handler_and_data(msi_group->gic_irq,
-			xgene_msi_isr, msi_group);
 
 		/*
 		 * Statically allocate MSI GIC IRQs to each CPU core.
 		 * With 8-core X-Gene v1, 2 MSI GIC IRQs are allocated
 		 * to each core.
 		 */
-		if (alloc_cpumask_var(&mask, GFP_KERNEL)) {
-			cpumask_clear(mask);
-			cpumask_set_cpu(cpu, mask);
-			err = irq_set_affinity(msi_group->gic_irq, mask);
-			if (err)
-				pr_err("failed to set affinity for GIC IRQ");
-			free_cpumask_var(mask);
-		} else {
-			pr_err("failed to alloc CPU mask for affinity\n");
-			err = -EINVAL;
-		}
-
+		irq_set_status_flags(msi_group->gic_irq, IRQ_NO_BALANCING);
+		err = irq_set_affinity(msi_group->gic_irq, cpumask_of(cpu));
 		if (err) {
-			irq_set_chained_handler_and_data(msi_group->gic_irq,
-							 NULL, NULL);
+			pr_err("failed to set affinity for GIC IRQ");
 			return err;
 		}
+
+		irq_set_chained_handler_and_data(msi_group->gic_irq,
+			xgene_msi_isr, msi_group);
 	}
 
 	return 0;
@@ -402,9 +388,6 @@ static int xgene_msi_hwirq_free(unsigned int cpu)
 
 	for (i = cpu; i < NR_HW_IRQS; i += msi->num_cpus) {
 		msi_group = &msi->msi_groups[i];
-		if (!msi_group->gic_irq)
-			continue;
-
 		irq_set_chained_handler_and_data(msi_group->gic_irq, NULL,
 						 NULL);
 	}
