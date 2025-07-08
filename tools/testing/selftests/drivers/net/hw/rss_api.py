@@ -20,6 +20,38 @@ def _ethtool_create(cfg, act, opts):
     return int(output.split()[-1])
 
 
+def _ethtool_get_cfg(cfg, fl_type, to_nl=False):
+    descr = ethtool(f"-n {cfg.ifname} rx-flow-hash {fl_type}").stdout
+
+    if to_nl:
+        converter = {
+            "IP SA": "ip-src",
+            "IP DA": "ip-dst",
+            "L4 bytes 0 & 1 [TCP/UDP src port]": "l4-b-0-1",
+            "L4 bytes 2 & 3 [TCP/UDP dst port]": "l4-b-2-3",
+        }
+
+        ret = set()
+    else:
+        converter = {
+            "IP SA": "s",
+            "IP DA": "d",
+            "L3 proto": "t",
+            "L4 bytes 0 & 1 [TCP/UDP src port]": "f",
+            "L4 bytes 2 & 3 [TCP/UDP dst port]": "n",
+        }
+
+        ret = ""
+
+    for line in descr.split("\n")[1:-2]:
+        # if this raises we probably need to add more keys to converter above
+        if to_nl:
+            ret.add(converter[line])
+        else:
+            ret += converter[line]
+    return ret
+
+
 def test_rxfh_indir_ntf(cfg):
     """
     Check that Netlink notifications are generated when RSS indirection
@@ -75,6 +107,21 @@ def test_rxfh_indir_ctx_ntf(cfg):
     ksft_eq(ntf["name"], "rss-ntf")
     ksft_eq(ntf["msg"].get("context"), ctx_id)
     ksft_eq(set(ntf["msg"]["indir"]), {1})
+
+
+def test_rxfh_fields(cfg):
+    """
+    Test reading Rx Flow Hash over Netlink.
+    """
+
+    flow_types = ["tcp4", "tcp6", "udp4", "udp6"]
+    ethnl = EthtoolFamily()
+
+    cfg_nl = ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    for fl_type in flow_types:
+        one = _ethtool_get_cfg(cfg, fl_type, to_nl=True)
+        ksft_eq(one, cfg_nl["flow-hash"][fl_type],
+                comment="Config for " + fl_type)
 
 
 def main() -> None:
