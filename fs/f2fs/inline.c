@@ -150,7 +150,7 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 		.type = DATA,
 		.op = REQ_OP_WRITE,
 		.op_flags = REQ_SYNC | REQ_PRIO,
-		.page = &folio->page,
+		.folio = folio,
 		.encrypted_page = NULL,
 		.io_type = FS_DATA_IO,
 	};

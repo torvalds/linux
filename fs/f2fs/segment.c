@@ -3666,8 +3666,7 @@ static int __get_segment_type_6(struct f2fs_io_info *fio)
 		if (file_is_cold(inode) || f2fs_need_compress_data(inode))
 			return CURSEG_COLD_DATA;
 
-		type = __get_age_segment_type(inode,
-				page_folio(fio->page)->index);
+		type = __get_age_segment_type(inode, fio->folio->index);
 		if (type != NO_CHECK_TYPE)
 			return type;
 
@@ -3932,7 +3931,7 @@ static int log_type_to_seg_type(enum log_type type)
 
 static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 {
-	struct folio *folio = page_folio(fio->page);
+	struct folio *folio = fio->folio;
 	enum log_type type = __get_segment_type(fio);
 	int seg_type = log_type_to_seg_type(type);
 	bool keep_order = (f2fs_lfs_mode(fio->sbi) &&
@@ -3979,7 +3978,7 @@ void f2fs_do_write_meta_page(struct f2fs_sb_info *sbi, struct folio *folio,
 		.op_flags = REQ_SYNC | REQ_META | REQ_PRIO,
 		.old_blkaddr = folio->index,
 		.new_blkaddr = folio->index,
-		.page = folio_page(folio, 0),
+		.folio = folio,
 		.encrypted_page = NULL,
 		.in_list = 0,
 	};

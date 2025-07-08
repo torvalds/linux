@@ -1249,7 +1249,7 @@ static int ra_data_block(struct inode *inode, pgoff_t index)
 	}
 got_it:
 	/* read folio */
-	fio.page = &folio->page;
+	fio.folio = folio;
 	fio.new_blkaddr = fio.old_blkaddr = dn.data_blkaddr;
 
 	/*
@@ -1353,7 +1353,7 @@ static int move_data_block(struct inode *inode, block_t bidx,
 		goto put_out;
 
 	/* read page */
-	fio.page = &folio->page;
+	fio.folio = folio;
 	fio.new_blkaddr = fio.old_blkaddr = dn.data_blkaddr;
 
 	if (lfs_mode)
@@ -1483,7 +1483,7 @@ static int move_data_page(struct inode *inode, block_t bidx, int gc_type,
 			.op = REQ_OP_WRITE,
 			.op_flags = REQ_SYNC,
 			.old_blkaddr = NULL_ADDR,
-			.page = &folio->page,
+			.folio = folio,
 			.encrypted_page = NULL,
 			.need_lock = LOCK_REQ,
 			.io_type = FS_GC_DATA_IO,

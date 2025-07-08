@@ -1240,7 +1240,10 @@ struct f2fs_io_info {
 	blk_opf_t op_flags;	/* req_flag_bits */
 	block_t new_blkaddr;	/* new block address to be written */
 	block_t old_blkaddr;	/* old block address before Cow */
-	struct page *page;	/* page to be written */
+	union {
+		struct page *page;	/* page to be written */
+		struct folio *folio;
+	};
 	struct page *encrypted_page;	/* encrypted page */
 	struct page *compressed_page;	/* compressed page */
 	struct list_head list;		/* serialize IOs */
@@ -3892,7 +3895,7 @@ unsigned long long f2fs_get_section_mtime(struct f2fs_sb_info *sbi,
 
 static inline struct inode *fio_inode(struct f2fs_io_info *fio)
 {
-	return page_folio(fio->page)->mapping->host;
+	return fio->folio->mapping->host;
 }
 
 #define DEF_FRAGMENT_SIZE	4
