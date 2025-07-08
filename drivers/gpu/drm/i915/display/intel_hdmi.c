@@ -2053,6 +2053,10 @@ intel_hdmi_mode_valid(struct drm_connector *_connector,
 	else
 		sink_format = INTEL_OUTPUT_FORMAT_RGB;
 
+	status = intel_pfit_mode_valid(display, mode, sink_format, 0);
+	if (status != MODE_OK)
+		return status;
+
 	status = intel_hdmi_mode_clock_valid(&connector->base, clock, has_hdmi_sink, sink_format);
 	if (status != MODE_OK) {
 		if (ycbcr_420_only ||
