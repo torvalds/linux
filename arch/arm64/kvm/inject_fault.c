@@ -15,13 +15,11 @@
 #include <asm/kvm_nested.h>
 #include <asm/esr.h>
 
-static void pend_sync_exception(struct kvm_vcpu *vcpu)
+static unsigned int exception_target_el(struct kvm_vcpu *vcpu)
 {
 	/* If not nesting, EL1 is the only possible exception target */
-	if (likely(!vcpu_has_nv(vcpu))) {
-		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
-		return;
-	}
+	if (likely(!vcpu_has_nv(vcpu)))
+		return PSR_MODE_EL1h;
 
 	/*
 	 * With NV, we need to pick between EL1 and EL2. Note that we
@@ -32,21 +30,23 @@ static void pend_sync_exception(struct kvm_vcpu *vcpu)
 	switch(*vcpu_cpsr(vcpu) & PSR_MODE_MASK) {
 	case PSR_MODE_EL2h:
 	case PSR_MODE_EL2t:
-		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
-		break;
+		return PSR_MODE_EL2h;
 	case PSR_MODE_EL1h:
 	case PSR_MODE_EL1t:
-		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
-		break;
+		return PSR_MODE_EL1h;
 	case PSR_MODE_EL0t:
-		if (vcpu_el2_tge_is_set(vcpu))
-			kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
-		else
-			kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
-		break;
+		return vcpu_el2_tge_is_set(vcpu) ? PSR_MODE_EL2h : PSR_MODE_EL1h;
 	default:
 		BUG();
 	}
+}
+
+static void pend_sync_exception(struct kvm_vcpu *vcpu)
+{
+	if (exception_target_el(vcpu) == PSR_MODE_EL1h)
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
+	else
+		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
 }
 
 static bool match_target_el(struct kvm_vcpu *vcpu, unsigned long target)
