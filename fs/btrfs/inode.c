@@ -5002,11 +5002,12 @@ again:
 				  block_end + 1 - block_start);
 	btrfs_folio_set_dirty(fs_info, folio, block_start,
 			      block_end + 1 - block_start);
-	btrfs_unlock_extent(io_tree, block_start, block_end, &cached_state);
 
 	if (only_release_metadata)
 		btrfs_set_extent_bit(&inode->io_tree, block_start, block_end,
-				     EXTENT_NORESERVE, NULL);
+				     EXTENT_NORESERVE, &cached_state);
+
+	btrfs_unlock_extent(io_tree, block_start, block_end, &cached_state);
 
 out_unlock:
 	if (ret) {
