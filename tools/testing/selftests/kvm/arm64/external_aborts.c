@@ -86,7 +86,7 @@ static void vcpu_run_expect_sync(struct kvm_vcpu *vcpu)
 
 extern char test_mmio_abort_insn;
 
-static void test_mmio_abort_guest(void)
+static noinline void test_mmio_abort_guest(void)
 {
 	WRITE_ONCE(expected_abort_pc, (u64)&test_mmio_abort_insn);
 
@@ -251,6 +251,45 @@ static void test_serror_emulated(void)
 	kvm_vm_free(vm);
 }
 
+static void test_mmio_ease_guest(void)
+{
+	sysreg_clear_set_s(SYS_SCTLR2_EL1, 0, SCTLR2_EL1_EASE);
+	isb();
+
+	test_mmio_abort_guest();
+}
+
+/*
+ * Test that KVM doesn't complete MMIO emulation when userspace has made an
+ * external abort pending for the instruction.
+ */
+static void test_mmio_ease(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm = vm_create_with_dabt_handler(&vcpu, test_mmio_ease_guest,
+							unexpected_dabt_handler);
+	struct kvm_run *run = vcpu->run;
+	u64 pfr1;
+
+	pfr1 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
+	if (!SYS_FIELD_GET(ID_AA64PFR1_EL1, DF2, pfr1)) {
+		pr_debug("Skipping %s\n", __func__);
+		return;
+	}
+
+	vm_install_exception_handler(vm, VECTOR_ERROR_CURRENT, expect_serror_handler);
+
+	vcpu_run(vcpu);
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_MMIO);
+	TEST_ASSERT_EQ(run->mmio.phys_addr, MMIO_ADDR);
+	TEST_ASSERT_EQ(run->mmio.len, sizeof(unsigned long));
+	TEST_ASSERT(!run->mmio.is_write, "Expected MMIO read");
+
+	vcpu_inject_sea(vcpu);
+	vcpu_run_expect_done(vcpu);
+	kvm_vm_free(vm);
+}
+
 int main(void)
 {
 	test_mmio_abort();
@@ -259,4 +298,5 @@ int main(void)
 	test_serror();
 	test_serror_masked();
 	test_serror_emulated();
+	test_mmio_ease();
 }
