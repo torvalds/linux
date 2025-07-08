@@ -1172,7 +1172,7 @@ void mt76_connac2_txwi_free(struct mt76_dev *dev, struct mt76_txwi_cache *t,
 		wcid_idx = wcid->idx;
 	} else {
 		wcid_idx = le32_get_bits(txwi[1], MT_TXD1_WLAN_IDX);
-		wcid = rcu_dereference(dev->wcid[wcid_idx]);
+		wcid = __mt76_wcid_ptr(dev, wcid_idx);
 
 		if (wcid && wcid->sta) {
 			sta = container_of((void *)wcid, struct ieee80211_sta,
