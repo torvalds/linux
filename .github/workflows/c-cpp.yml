@@ -18,11 +18,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - run: sudo apt update && sudo apt install -y bc bison flex gcc make libelf-dev libssl-dev debhelper-compat debhelper build-essential ccache device-tree-compiler ccache
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         create-symlink: true
         max-size: 1536M
-    - run: sudo apt update && sudo apt install -y bc bison flex gcc make libelf-dev libssl-dev debhelper-compat debhelper build-essential ccache device-tree-compiler
     - run: mv scripts/package/mkdeb scripts/package/mkdebian -v
     - run: make -j16 CC="ccache cc" HOSTCC="ccache cc" lmi_defconfig ${{ matrix.type }}

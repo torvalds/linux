@@ -16,13 +16,13 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
-#define mipi_dsi_dcs_write_lmi_multi(dsi, cmd, ...) ({ \
-	struct mipi_dsi_device *dsi = (ctx)-> dsi; \
+#define mipi_dsi_dcs_write_lmi_multi(ctx, cmd, ...) ({ \
+	struct mipi_dsi_device *dsi__ = (ctx)-> dsi; \
         u8 __data[] = {__VA_ARGS__}; \
-        int ret = mipi_dsi_dcs_write(dsi, cmd, __data, sizeof(__data)); \
-        if (ret < 0) \
-                pr_err("lmi DCS write %02x failed: %d\n", cmd, ret); \
-        ret; \
+        int ret__ = mipi_dsi_dcs_write(dsi__, cmd, __data, sizeof(__data)); \
+        if (ret__ < 0) \
+                pr_err("lmi DCS write %02x failed: %d\n", cmd, ret__); \
+        ret__; \
 })
 
 struct ams667uu01 {
