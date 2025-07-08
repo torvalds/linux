@@ -275,7 +275,6 @@ dtb-$(CONFIG_ARCH_QCOM)	+= sm8250-hdk.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8250-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8250-xiaomi-lmi.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8250-xiaomi-lmi-v2.dtb
-dtb-$(CONFIG_ARCH_QCOM)	+= sm8250-xiaomi-lmi-v3.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8350-hdk.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8350-microsoft-surface-duo2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= sm8350-mtp.dtb
