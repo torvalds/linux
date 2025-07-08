@@ -32,7 +32,7 @@ validate_pmt_regions(struct kunit *test, struct pmt_feature_group *feature_group
 		kunit_info(test, "\t\tbus=%u, device=%u, function=%u, guid=0x%x,",
 			   region->plat_info.bus_number, region->plat_info.device_number,
 			   region->plat_info.function_number, region->guid);
-		kunit_info(test, "\t\taddr=%p, size=%lu, num_rmids=%u", region->addr, region->size,
+		kunit_info(test, "\t\taddr=%p, size=%zu, num_rmids=%u", region->addr, region->size,
 			   region->num_rmids);
 
 

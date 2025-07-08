@@ -424,7 +424,7 @@ pmt_feature_get_feature_table(struct pmt_features_priv *priv,
 	size = sizeof(*header) + FEAT_ATTR_SIZE(header->attr_size) +
 	       PMT_GUID_SIZE(header->num_guids);
 	res_size = resource_size(&res);
-	if (WARN(size > res_size, "Bad table size %ld > %pa", size, &res_size))
+	if (WARN(size > res_size, "Bad table size %zu > %pa", size, &res_size))
 		return -EINVAL;
 
 	/* Get the feature attributes, including capability fields */
