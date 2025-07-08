@@ -432,5 +432,5 @@ static inline void set_mark(struct page *page, int mark, int type)
 	f2fs_inode_chksum_set(F2FS_P_SB(page), page);
 #endif
 }
-#define set_dentry_mark(page, mark)	set_mark(page, mark, DENT_BIT_SHIFT)
+#define set_dentry_mark(folio, mark)	set_mark(&folio->page, mark, DENT_BIT_SHIFT)
 #define set_fsync_mark(page, mark)	set_mark(page, mark, FSYNC_BIT_SHIFT)
