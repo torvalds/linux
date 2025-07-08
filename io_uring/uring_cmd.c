@@ -261,7 +261,11 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);
-	if (ret == -EAGAIN || ret == -EIOCBQUEUED)
+	if (ret == -EAGAIN) {
+		ioucmd->flags |= IORING_URING_CMD_REISSUE;
+		return ret;
+	}
+	if (ret == -EIOCBQUEUED)
 		return ret;
 	if (ret < 0)
 		req_set_fail(req);
