@@ -934,7 +934,8 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 
 	ath12k_hal_srng_access_begin(ab, status_ring);
 
-	while (ATH12K_TX_COMPL_NEXT(tx_ring->tx_status_head) != tx_ring->tx_status_tail) {
+	while (ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_head) !=
+	       tx_ring->tx_status_tail) {
 		desc = ath12k_hal_srng_dst_get_next_entry(ab, status_ring);
 		if (!desc)
 			break;
@@ -942,11 +943,12 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 		memcpy(&tx_ring->tx_status[tx_ring->tx_status_head],
 		       desc, sizeof(*desc));
 		tx_ring->tx_status_head =
-			ATH12K_TX_COMPL_NEXT(tx_ring->tx_status_head);
+			ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_head);
 	}
 
 	if (ath12k_hal_srng_dst_peek(ab, status_ring) &&
-	    (ATH12K_TX_COMPL_NEXT(tx_ring->tx_status_head) == tx_ring->tx_status_tail)) {
+	    (ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_head) ==
+	     tx_ring->tx_status_tail)) {
 		/* TODO: Process pending tx_status messages when kfifo_is_full() */
 		ath12k_warn(ab, "Unable to process some of the tx_status ring desc because status_fifo is full\n");
 	}
@@ -955,12 +957,13 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 
 	spin_unlock_bh(&status_ring->lock);
 
-	while (ATH12K_TX_COMPL_NEXT(tx_ring->tx_status_tail) != tx_ring->tx_status_head) {
+	while (ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_tail) !=
+	       tx_ring->tx_status_head) {
 		struct hal_wbm_completion_ring_tx *tx_status;
 		u32 desc_id;
 
 		tx_ring->tx_status_tail =
-			ATH12K_TX_COMPL_NEXT(tx_ring->tx_status_tail);
+			ATH12K_TX_COMPL_NEXT(ab, tx_ring->tx_status_tail);
 		tx_status = &tx_ring->tx_status[tx_ring->tx_status_tail];
 		ath12k_dp_tx_status_parse(ab, tx_status, &ts);
 

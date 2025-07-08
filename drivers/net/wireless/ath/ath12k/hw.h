@@ -16,34 +16,20 @@
 /* Target configuration defines */
 
 /* Num VDEVS per radio */
-#define TARGET_NUM_VDEVS	(16 + 1)
-
-#define TARGET_NUM_PEERS_PDEV_SINGLE	(TARGET_NUM_STATIONS_SINGLE + \
-					 TARGET_NUM_VDEVS)
-#define TARGET_NUM_PEERS_PDEV_DBS	(TARGET_NUM_STATIONS_DBS + \
-					 TARGET_NUM_VDEVS)
-#define TARGET_NUM_PEERS_PDEV_DBS_SBS	(TARGET_NUM_STATIONS_DBS_SBS + \
-					 TARGET_NUM_VDEVS)
-
-/* Num of peers for Single Radio mode */
-#define TARGET_NUM_PEERS_SINGLE		(TARGET_NUM_PEERS_PDEV_SINGLE)
-
-/* Num of peers for DBS */
-#define TARGET_NUM_PEERS_DBS		(2 * TARGET_NUM_PEERS_PDEV_DBS)
-
-/* Num of peers for DBS_SBS */
-#define TARGET_NUM_PEERS_DBS_SBS	(3 * TARGET_NUM_PEERS_PDEV_DBS_SBS)
+#define TARGET_NUM_VDEVS(ab)    ((ab)->profile_param->num_vdevs)
 
 /* Max num of stations for Single Radio mode */
-#define TARGET_NUM_STATIONS_SINGLE	512
+#define TARGET_NUM_STATIONS_SINGLE(ab) ((ab)->profile_param->max_client_single)
 
 /* Max num of stations for DBS */
-#define TARGET_NUM_STATIONS_DBS		128
+#define TARGET_NUM_STATIONS_DBS(ab)    ((ab)->profile_param->max_client_dbs)
 
 /* Max num of stations for DBS_SBS */
-#define TARGET_NUM_STATIONS_DBS_SBS	128
+#define TARGET_NUM_STATIONS_DBS_SBS(ab) \
+	((ab)->profile_param->max_client_dbs_sbs)
 
-#define TARGET_NUM_PEERS(x)	TARGET_NUM_PEERS_##x
+#define TARGET_NUM_STATIONS(ab, x)     TARGET_NUM_STATIONS_##x(ab)
+
 #define TARGET_NUM_PEER_KEYS	2
 
 #define TARGET_AST_SKID_LIMIT	16

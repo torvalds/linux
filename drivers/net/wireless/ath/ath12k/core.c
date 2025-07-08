@@ -623,19 +623,15 @@ exit:
 u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab)
 {
 	if (ab->num_radios == 2)
-		return TARGET_NUM_STATIONS_DBS;
-	else if (ab->num_radios == 3)
-		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
-	return TARGET_NUM_STATIONS_SINGLE;
+		return TARGET_NUM_STATIONS(ab, DBS);
+	if (ab->num_radios == 3)
+		return TARGET_NUM_STATIONS(ab, DBS_SBS);
+	return TARGET_NUM_STATIONS(ab, SINGLE);
 }
 
 u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab)
 {
-	if (ab->num_radios == 2)
-		return TARGET_NUM_PEERS_PDEV_DBS;
-	else if (ab->num_radios == 3)
-		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
-	return TARGET_NUM_PEERS_PDEV_SINGLE;
+	return ath12k_core_get_max_station_per_radio(ab) + TARGET_NUM_VDEVS(ab);
 }
 
 struct reserved_mem *ath12k_core_get_reserved_mem(struct ath12k_base *ab,
@@ -1353,7 +1349,7 @@ exit:
 
 static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 {
-	int ret;
+	int ret, total_vdev;
 
 	mutex_lock(&ab->core_lock);
 	ath12k_dp_pdev_free(ab);
@@ -1364,8 +1360,8 @@ static int ath12k_core_reconfigure_on_crash(struct ath12k_base *ab)
 
 	ath12k_dp_free(ab);
 	ath12k_hal_srng_deinit(ab);
-
-	ab->free_vdev_map = (1LL << (ab->num_radios * TARGET_NUM_VDEVS)) - 1;
+	total_vdev = ab->num_radios * TARGET_NUM_VDEVS(ab);
+	ab->free_vdev_map = (1LL << total_vdev) - 1;
 
 	ret = ath12k_hal_srng_init(ab);
 	if (ret)

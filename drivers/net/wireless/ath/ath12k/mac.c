@@ -10053,9 +10053,9 @@ static struct ath12k *ath12k_mac_assign_vif_to_vdev(struct ieee80211_hw *hw,
 	if (arvif->is_created)
 		goto flush;
 
-	if (ar->num_created_vdevs > (TARGET_NUM_VDEVS - 1)) {
+	if (ar->num_created_vdevs > (TARGET_NUM_VDEVS(ab) - 1)) {
 		ath12k_warn(ab, "failed to create vdev, reached max vdev limit %d\n",
-			    TARGET_NUM_VDEVS);
+			    TARGET_NUM_VDEVS(ab));
 		goto unlock;
 	}
 
@@ -13712,7 +13712,7 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 		else
 			mac_addr = ab->mac_addr;
 
-		mbssid_max_interfaces += TARGET_NUM_VDEVS;
+		mbssid_max_interfaces += TARGET_NUM_VDEVS(ar->ab);
 	}
 
 	wiphy->available_antennas_rx = antennas_rx;
@@ -14269,9 +14269,12 @@ void ath12k_mac_destroy(struct ath12k_hw_group *ag)
 
 static void ath12k_mac_set_device_defaults(struct ath12k_base *ab)
 {
+	int total_vdev;
+
 	/* Initialize channel counters frequency value in hertz */
 	ab->cc_freq_hz = 320000;
-	ab->free_vdev_map = (1LL << (ab->num_radios * TARGET_NUM_VDEVS)) - 1;
+	total_vdev = ab->num_radios * TARGET_NUM_VDEVS(ab);
+	ab->free_vdev_map = (1LL << total_vdev) - 1;
 }
 
 int ath12k_mac_allocate(struct ath12k_hw_group *ag)
