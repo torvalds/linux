@@ -571,8 +571,6 @@ void mlx5e_rx_res_channels_activate(struct mlx5e_rx_res *res, struct mlx5e_chann
 
 	for (ix = 0; ix < nch; ix++)
 		mlx5e_rx_res_channel_activate_direct(res, chs, ix);
-	for (ix = nch; ix < res->max_nch; ix++)
-		mlx5e_rx_res_channel_deactivate_direct(res, ix);
 
 	if (res->features & MLX5E_RX_RES_FEATURE_PTP) {
 		u32 rqn;
@@ -595,7 +593,7 @@ void mlx5e_rx_res_channels_deactivate(struct mlx5e_rx_res *res)
 
 	mlx5e_rx_res_rss_disable(res);
 
-	for (ix = 0; ix < res->max_nch; ix++)
+	for (ix = 0; ix < res->rss_nch; ix++)
 		mlx5e_rx_res_channel_deactivate_direct(res, ix);
 
 	if (res->features & MLX5E_RX_RES_FEATURE_PTP) {
