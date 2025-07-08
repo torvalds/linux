@@ -484,7 +484,7 @@ static int do_read_inode(struct inode *inode)
 	/* try to recover cold bit for non-dir inode */
 	if (!S_ISDIR(inode->i_mode) && !is_cold_node(&node_folio->page)) {
 		f2fs_folio_wait_writeback(node_folio, NODE, true, true);
-		set_cold_node(&node_folio->page, false);
+		set_cold_node(node_folio, false);
 		folio_mark_dirty(node_folio);
 	}
 

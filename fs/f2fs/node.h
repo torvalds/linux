@@ -406,9 +406,9 @@ static inline int is_node(const struct page *page, int type)
 #define is_fsync_dnode(page)	is_node(page, FSYNC_BIT_SHIFT)
 #define is_dent_dnode(page)	is_node(page, DENT_BIT_SHIFT)
 
-static inline void set_cold_node(struct page *page, bool is_dir)
+static inline void set_cold_node(const struct folio *folio, bool is_dir)
 {
-	struct f2fs_node *rn = F2FS_NODE(page);
+	struct f2fs_node *rn = F2FS_NODE(&folio->page);
 	unsigned int flag = le32_to_cpu(rn->footer.flag);
 
 	if (is_dir)
