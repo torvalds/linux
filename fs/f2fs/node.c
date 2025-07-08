@@ -1862,11 +1862,11 @@ continue_unlock:
 
 			f2fs_folio_wait_writeback(folio, NODE, true, true);
 
-			set_fsync_mark(&folio->page, 0);
+			set_fsync_mark(folio, 0);
 			set_dentry_mark(folio, 0);
 
 			if (!atomic || folio == last_folio) {
-				set_fsync_mark(&folio->page, 1);
+				set_fsync_mark(folio, 1);
 				percpu_counter_inc(&sbi->rf_node_block_count);
 				if (IS_INODE(&folio->page)) {
 					if (is_inode_flag_set(inode,
@@ -2086,7 +2086,7 @@ write_node:
 			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
-			set_fsync_mark(&folio->page, 0);
+			set_fsync_mark(folio, 0);
 			set_dentry_mark(folio, 0);
 
 			if (!__write_node_folio(folio, false, &submitted,

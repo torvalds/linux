@@ -433,4 +433,4 @@ static inline void set_mark(struct page *page, int mark, int type)
 #endif
 }
 #define set_dentry_mark(folio, mark)	set_mark(&folio->page, mark, DENT_BIT_SHIFT)
-#define set_fsync_mark(page, mark)	set_mark(page, mark, FSYNC_BIT_SHIFT)
+#define set_fsync_mark(folio, mark)	set_mark(&folio->page, mark, FSYNC_BIT_SHIFT)
