@@ -13,7 +13,6 @@ static const char * const sq_sw_state_type_name[] = {
 	[MLX5E_SQ_STATE_RECOVERING] = "recovering",
 	[MLX5E_SQ_STATE_IPSEC] = "ipsec",
 	[MLX5E_SQ_STATE_DIM] = "dim",
-	[MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE] = "vlan_need_l2_inline",
 	[MLX5E_SQ_STATE_PENDING_XSK_TX] = "pending_xsk_tx",
 	[MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC] = "pending_tls_rx_resync",
 };
