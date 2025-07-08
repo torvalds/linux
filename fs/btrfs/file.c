@@ -1950,7 +1950,7 @@ again:
 	 * clear any delalloc bits within this page range since we have to
 	 * reserve data&meta space before lock_page() (see above comments).
 	 */
-	btrfs_clear_extent_bit(&BTRFS_I(inode)->io_tree, page_start, end,
+	btrfs_clear_extent_bit(io_tree, page_start, end,
 			       EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
 			       EXTENT_DEFRAG, &cached_state);
 
