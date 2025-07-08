@@ -73,11 +73,13 @@
 #include "intel_lspcon.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_modeset_lock.h"
+#include "intel_panel.h"
 #include "intel_pfit.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"
 #include "intel_snps_phy.h"
+#include "intel_step.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
 #include "intel_vdsc_regs.h"
@@ -1393,6 +1395,21 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 
 	for (ln = 0; ln < 2; ln++) {
 		int level;
+
+		/* Wa_16011342517:adl-p */
+		if (display->platform.alderlake_p &&
+		    IS_DISPLAY_STEP(display, STEP_A0, STEP_D0)) {
+			if ((intel_encoder_is_hdmi(encoder) &&
+			     crtc_state->port_clock == 594000) ||
+			     (intel_encoder_is_dp(encoder) &&
+			      crtc_state->port_clock == 162000)) {
+				intel_dkl_phy_rmw(display, DKL_TX_DPCNTL2(tc_port, ln),
+						  LOADGEN_SHARING_PMD_DISABLE, 1);
+			} else {
+				intel_dkl_phy_rmw(display, DKL_TX_DPCNTL2(tc_port, ln),
+						  LOADGEN_SHARING_PMD_DISABLE, 0);
+			}
+		}
 
 		intel_dkl_phy_write(display, DKL_TX_PMD_LANE_SUS(tc_port, ln), 0);
 
@@ -3355,6 +3372,8 @@ static void intel_ddi_enable_dp(struct intel_atomic_state *state,
 	drm_connector_update_privacy_screen(conn_state);
 	intel_edp_backlight_on(crtc_state, conn_state);
 
+	intel_panel_prepare(crtc_state, conn_state);
+
 	if (!intel_lspcon_active(dig_port) || intel_dp_has_hdmi_sink(&dig_port->dp))
 		intel_dp_set_infoframes(encoder, true, crtc_state, conn_state);
 
@@ -3552,6 +3571,7 @@ static void intel_ddi_disable_dp(struct intel_atomic_state *state,
 
 	intel_dp->link.active = false;
 
+	intel_panel_unprepare(old_conn_state);
 	intel_psr_disable(intel_dp, old_crtc_state);
 	intel_alpm_disable(intel_dp);
 	intel_edp_backlight_off(old_conn_state);

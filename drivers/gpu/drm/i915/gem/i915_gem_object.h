@@ -16,7 +16,9 @@
 #include "i915_gem_ww.h"
 #include "i915_vma_types.h"
 
+struct drm_scanout_buffer;
 enum intel_region_id;
+struct intel_framebuffer;
 
 #define obj_to_i915(obj__) to_i915((obj__)->base.dev)
 
@@ -690,6 +692,10 @@ i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 
 int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj);
 int i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+
+struct intel_framebuffer *i915_gem_object_alloc_framebuffer(void);
+int i915_gem_object_panic_setup(struct drm_scanout_buffer *sb);
+void i915_gem_object_panic_finish(struct intel_framebuffer *fb);
 
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object

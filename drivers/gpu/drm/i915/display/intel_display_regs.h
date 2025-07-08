@@ -2195,20 +2195,17 @@
 #define   HSW_PWR_WELL_FORCE_ON			(1 << 19)
 #define HSW_PWR_WELL_CTL6			_MMIO(0x45414)
 
+/* SKL Fuse Status */
+enum skl_power_gate {
+	SKL_PG0,
+	SKL_PG1,
+	SKL_PG2,
+	ICL_PG3,
+	ICL_PG4,
+};
+
 #define SKL_FUSE_STATUS				_MMIO(0x42000)
 #define  SKL_FUSE_DOWNLOAD_STATUS		(1 << 31)
-/*
- * PG0 is HW controlled, so doesn't have a corresponding power well control knob
- * SKL_DISP_PW1_IDX..SKL_DISP_PW2_IDX -> PG1..PG2
- */
-#define  SKL_PW_CTL_IDX_TO_PG(pw_idx)		\
-	((pw_idx) - SKL_PW_CTL_IDX_PW_1 + SKL_PG1)
-/*
- * PG0 is HW controlled, so doesn't have a corresponding power well control knob
- * ICL_DISP_PW1_IDX..ICL_DISP_PW4_IDX -> PG1..PG4
- */
-#define  ICL_PW_CTL_IDX_TO_PG(pw_idx)		\
-	((pw_idx) - ICL_PW_CTL_IDX_PW_1 + SKL_PG1)
 #define  SKL_FUSE_PG_DIST_STATUS(pg)		(1 << (27 - (pg)))
 
 /* Per-pipe DDI Function Control */

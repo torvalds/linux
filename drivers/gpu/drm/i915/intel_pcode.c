@@ -110,13 +110,12 @@ int snb_pcode_read(struct intel_uncore *uncore, u32 mbox, u32 *val, u32 *val1)
 }
 
 int snb_pcode_write_timeout(struct intel_uncore *uncore, u32 mbox, u32 val,
-			    int fast_timeout_us, int slow_timeout_ms)
+			    int timeout_ms)
 {
 	int err;
 
 	mutex_lock(&uncore->i915->sb_lock);
-	err = __snb_pcode_rw(uncore, mbox, &val, NULL,
-			     fast_timeout_us, slow_timeout_ms, false);
+	err = __snb_pcode_rw(uncore, mbox, &val, NULL, 250, timeout_ms, false);
 	mutex_unlock(&uncore->i915->sb_lock);
 
 	if (err) {
@@ -272,4 +271,28 @@ int snb_pcode_write_p(struct intel_uncore *uncore, u32 mbcmd, u32 p1, u32 p2, u3
 		err = snb_pcode_write(uncore, mbox, val);
 
 	return err;
+}
+
+/* Helpers with drm device */
+int intel_pcode_read(struct drm_device *drm, u32 mbox, u32 *val, u32 *val1)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	return snb_pcode_read(&i915->uncore, mbox, val, val1);
+}
+
+int intel_pcode_write_timeout(struct drm_device *drm, u32 mbox, u32 val, int timeout_ms)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	return snb_pcode_write_timeout(&i915->uncore, mbox, val, timeout_ms);
+}
+
+int intel_pcode_request(struct drm_device *drm, u32 mbox, u32 request,
+			u32 reply_mask, u32 reply, int timeout_base_ms)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	return skl_pcode_request(&i915->uncore, mbox, request, reply_mask, reply,
+				 timeout_base_ms);
 }

@@ -385,7 +385,6 @@
 #define VLV_PCBR	_MMIO(VLV_DISPLAY_BASE + 0x2120)
 #define VLV_PCBR_ADDR_SHIFT	12
 
-#define   DISPLAY_PLANE_FLIP_PENDING(plane) (1 << (11 - (plane))) /* A and B only */
 #define EIR		_MMIO(0x20b0)
 #define EMR		_MMIO(0x20b4)
 #define ESR		_MMIO(0x20b8)
@@ -763,8 +762,7 @@
  */
 #define GEN9_CLKGATE_DIS_0		_MMIO(0x46530)
 #define   DARBF_GATING_DIS		REG_BIT(27)
-#define   MTL_PIPEDMC_GATING_DIS_A	REG_BIT(15)
-#define   MTL_PIPEDMC_GATING_DIS_B	REG_BIT(14)
+#define   MTL_PIPEDMC_GATING_DIS(pipe)	REG_BIT(15 - (pipe))
 #define   PWM2_GATING_DIS		REG_BIT(14)
 #define   PWM1_GATING_DIS		REG_BIT(13)
 
@@ -1204,16 +1202,6 @@
  * 3DSTATE_SO_BUFFERs that the next streamed vertex output goes to.
  */
 #define GEN7_SO_WRITE_OFFSET(n)		_MMIO(0x5280 + (n) * 4)
-
-/* SKL Fuse Status */
-enum skl_power_gate {
-	SKL_PG0,
-	SKL_PG1,
-	SKL_PG2,
-	ICL_PG3,
-	ICL_PG4,
-};
-
 
 #define GEN9_TIMESTAMP_OVERRIDE				_MMIO(0x44074)
 #define  GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_SHIFT	0

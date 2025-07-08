@@ -112,10 +112,10 @@ panel self refresh.
 Atomic Plane Helpers
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_plane.c
    :doc: atomic plane helpers
 
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_plane.c
    :internal:
 
 Asynchronous Page Flip
@@ -203,6 +203,12 @@ DMC Firmware Support
 
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc.c
    :internal:
+
+DMC Flip Queue
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_flipq.c
+   :doc: DMC Flip Queue
 
 DMC wakelock support
 --------------------

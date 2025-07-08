@@ -24,13 +24,6 @@ static inline struct xe_mmio *__compat_uncore_to_mmio(struct intel_uncore *uncor
 	return xe_root_tile_mmio(xe);
 }
 
-static inline struct xe_tile *__compat_uncore_to_tile(struct intel_uncore *uncore)
-{
-	struct xe_device *xe = container_of(uncore, struct xe_device, uncore);
-
-	return xe_device_get_root_tile(xe);
-}
-
 static inline u32 intel_uncore_read(struct intel_uncore *uncore,
 				    i915_reg_t i915_reg)
 {
