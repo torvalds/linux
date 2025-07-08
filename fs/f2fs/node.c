@@ -2969,11 +2969,10 @@ add_out:
 }
 
 static void __update_nat_bits(struct f2fs_sb_info *sbi, nid_t start_nid,
-						struct page *page)
+		const struct f2fs_nat_block *nat_blk)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	unsigned int nat_index = start_nid / NAT_ENTRY_PER_BLOCK;
-	struct f2fs_nat_block *nat_blk = page_address(page);
 	int valid = 0;
 	int i = 0;
 
@@ -3064,7 +3063,7 @@ static int __flush_nat_entry_set(struct f2fs_sb_info *sbi,
 	if (to_journal) {
 		up_write(&curseg->journal_rwsem);
 	} else {
-		__update_nat_bits(sbi, start_nid, &folio->page);
+		__update_nat_bits(sbi, start_nid, nat_blk);
 		f2fs_folio_put(folio, true);
 	}
 
