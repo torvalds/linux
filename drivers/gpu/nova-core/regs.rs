@@ -14,7 +14,7 @@ use crate::falcon::{
 use crate::gpu::{Architecture, Chipset};
 use kernel::prelude::*;
 
-/* PMC */
+// PMC
 
 register!(NV_PMC_BOOT_0 @ 0x00000000, "Basic revision information about the GPU" {
     3:0     minor_revision as u8, "Minor revision of the chip";
@@ -42,14 +42,14 @@ impl NV_PMC_BOOT_0 {
     }
 }
 
-/* PBUS */
+// PBUS
 
 // TODO[REGA]: this is an array of registers.
 register!(NV_PBUS_SW_SCRATCH_0E@0x00001438  {
     31:16   frts_err_code as u16;
 });
 
-/* PFB */
+// PFB
 
 // The following two registers together hold the physical system memory address that is used by the
 // GPU to perform sysmembar operations (see `fb::SysmemFlush`).
@@ -160,7 +160,7 @@ impl NV_USABLE_FB_SIZE_IN_MB {
     }
 }
 
-/* PDISP */
+// PDISP
 
 register!(NV_PDISP_VGA_WORKSPACE_BASE @ 0x00625f04 {
     3:3     status_valid as bool, "Set if the `addr` field is valid";
@@ -178,7 +178,7 @@ impl NV_PDISP_VGA_WORKSPACE_BASE {
     }
 }
 
-/* FUSE */
+// FUSE
 
 register!(NV_FUSE_OPT_FPF_NVDEC_UCODE1_VERSION @ 0x00824100 {
     15:0    data as u16;
@@ -192,7 +192,7 @@ register!(NV_FUSE_OPT_FPF_GSP_UCODE1_VERSION @ 0x008241c0 {
     15:0    data as u16;
 });
 
-/* PFALCON */
+// PFALCON
 
 register!(NV_PFALCON_FALCON_IRQSCLR @ +0x00000004 {
     4:4     halt as bool;
@@ -312,7 +312,7 @@ register!(NV_PFALCON2_FALCON_BROM_PARAADDR @ +0x00001210 {
     31:0    value as u32;
 });
 
-/* PRISCV */
+// PRISCV
 
 register!(NV_PRISCV_RISCV_BCR_CTRL @ +0x00001668 {
     0:0     valid as bool;
@@ -324,7 +324,7 @@ register!(NV_PRISCV_RISCV_BCR_CTRL @ +0x00001668 {
 // only be used in HAL modules.
 
 pub(crate) mod gm107 {
-    /* FUSE */
+    // FUSE
 
     register!(NV_FUSE_STATUS_OPT_DISPLAY @ 0x00021c04 {
         0:0     display_disabled as bool;
@@ -332,7 +332,7 @@ pub(crate) mod gm107 {
 }
 
 pub(crate) mod ga100 {
-    /* FUSE */
+    // FUSE
 
     register!(NV_FUSE_STATUS_OPT_DISPLAY @ 0x00820c04 {
         0:0     display_disabled as bool;
