@@ -29,14 +29,12 @@ SECTIONS
 		. = _etext;
 	}
 
-#ifdef CONFIG_EFI_SBAT
         .sbat : ALIGN(4096) {
 		_sbat = .;
 		*(.sbat)
 		_esbat = ALIGN(4096);
 		. = _esbat;
 	}
-#endif
 
 	.data : ALIGN(4096) {
 		_data = .;
@@ -60,6 +58,6 @@ SECTIONS
 PROVIDE(__efistub__gzdata_size =
 		ABSOLUTE(__efistub__gzdata_end - __efistub__gzdata_start));
 
-PROVIDE(__data_rawsize = ABSOLUTE(_edata - _etext));
-PROVIDE(__data_size = ABSOLUTE(_end - _etext));
+PROVIDE(__data_rawsize = ABSOLUTE(_edata - _data));
+PROVIDE(__data_size = ABSOLUTE(_end - _data));
 PROVIDE(__sbat_size = ABSOLUTE(_esbat - _sbat));
