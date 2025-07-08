@@ -565,6 +565,10 @@ enum vcpu_sysreg {
 
 	VNCR(POR_EL1),	/* Permission Overlay Register 1 (EL1) */
 
+	/* FEAT_RAS registers */
+	VNCR(VDISR_EL2),
+	VNCR(VSESR_EL2),
+
 	VNCR(HFGRTR_EL2),
 	VNCR(HFGWTR_EL2),
 	VNCR(HFGITR_EL2),

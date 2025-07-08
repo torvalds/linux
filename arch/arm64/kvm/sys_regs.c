@@ -3344,6 +3344,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(AFSR0_EL2, access_rw, reset_val, 0),
 	EL2_REG(AFSR1_EL2, access_rw, reset_val, 0),
 	EL2_REG_REDIR(ESR_EL2, reset_val, 0),
+	EL2_REG_VNCR(VSESR_EL2, reset_unknown, 0),
 	{ SYS_DESC(SYS_FPEXC32_EL2), undef_access, reset_val, FPEXC32_EL2, 0x700 },
 
 	EL2_REG_REDIR(FAR_EL2, reset_val, 0),
@@ -3372,6 +3373,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(VBAR_EL2, access_rw, reset_val, 0),
 	EL2_REG(RVBAR_EL2, access_rw, reset_val, 0),
 	{ SYS_DESC(SYS_RMR_EL2), undef_access },
+	EL2_REG_VNCR(VDISR_EL2, reset_unknown, 0),
 
 	EL2_REG_VNCR(ICH_AP0R0_EL2, reset_val, 0),
 	EL2_REG_VNCR(ICH_AP0R1_EL2, reset_val, 0),

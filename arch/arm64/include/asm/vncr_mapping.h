@@ -84,6 +84,7 @@
 #define VNCR_ICH_HCR_EL2        0x4C0
 #define VNCR_ICH_VMCR_EL2       0x4C8
 #define VNCR_VDISR_EL2          0x500
+#define VNCR_VSESR_EL2		0x508
 #define VNCR_PMBLIMITR_EL1      0x800
 #define VNCR_PMBPTR_EL1         0x810
 #define VNCR_PMBSR_EL1          0x820
