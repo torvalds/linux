@@ -350,9 +350,9 @@ static inline bool is_recoverable_dnode(const struct folio *folio)
  *                 `- indirect node ((6 + 2N) + (N - 1)(N + 1))
  *                       `- direct node
  */
-static inline bool IS_DNODE(const struct page *node_page)
+static inline bool IS_DNODE(const struct folio *node_folio)
 {
-	unsigned int ofs = ofs_of_node(node_page);
+	unsigned int ofs = ofs_of_node(&node_folio->page);
 
 	if (f2fs_has_xattr_block(ofs))
 		return true;
