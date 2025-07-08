@@ -882,23 +882,35 @@ struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
 }
 
 /*
- * HACK, stash a copy of deadline at the point of pick in vlag,
- * which isn't used until dequeue.
+ * Set the vruntime up to which an entity can run before looking
+ * for another entity to pick.
+ * In case of run to parity, we protect the entity up to its deadline.
+ * When run to parity is disabled, we give a minimum quantum to the running
+ * entity to ensure progress.
  */
 static inline void set_protect_slice(struct sched_entity *se)
 {
-	se->vlag = se->deadline;
+	u64 slice = se->slice;
+	u64 vprot = se->deadline;
+
+	if (!sched_feat(RUN_TO_PARITY))
+		slice = min(slice, normalized_sysctl_sched_base_slice);
+
+	if (slice != se->slice)
+		vprot = min_vruntime(vprot, se->vruntime + calc_delta_fair(slice, se));
+
+	se->vprot = vprot;
 }
 
 static inline bool protect_slice(struct sched_entity *se)
 {
-	return se->vlag == se->deadline;
+	return ((s64)(se->vprot - se->vruntime) > 0);
 }
 
 static inline void cancel_protect_slice(struct sched_entity *se)
 {
 	if (protect_slice(se))
-		se->vlag = se->deadline + 1;
+		se->vprot = se->vruntime;
 }
 
 /*
@@ -937,7 +949,7 @@ static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq)
 	if (curr && (!curr->on_rq || !entity_eligible(cfs_rq, curr)))
 		curr = NULL;
 
-	if (sched_feat(RUN_TO_PARITY) && curr && protect_slice(curr))
+	if (curr && protect_slice(curr))
 		return curr;
 
 	/* Pick the leftmost entity if it's eligible */
@@ -1156,11 +1168,8 @@ static inline void update_curr_task(struct task_struct *p, s64 delta_exec)
 	cgroup_account_cputime(p, delta_exec);
 }
 
-static inline bool did_preempt_short(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+static inline bool resched_next_slice(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
-	if (!sched_feat(PREEMPT_SHORT))
-		return false;
-
 	if (protect_slice(curr))
 		return false;
 
@@ -1248,7 +1257,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	if (cfs_rq->nr_queued == 1)
 		return;
 
-	if (resched || did_preempt_short(cfs_rq, curr)) {
+	if (resched || resched_next_slice(cfs_rq, curr)) {
 		resched_curr_lazy(rq);
 		clear_buddies(cfs_rq, curr);
 	}
