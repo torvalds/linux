@@ -2026,11 +2026,6 @@ static inline struct f2fs_sb_info *F2FS_F_SB(const struct folio *folio)
 	return F2FS_M_SB(folio->mapping);
 }
 
-static inline struct f2fs_sb_info *F2FS_P_SB(struct page *page)
-{
-	return F2FS_F_SB(page_folio(page));
-}
-
 static inline struct f2fs_super_block *F2FS_RAW_SUPER(struct f2fs_sb_info *sbi)
 {
 	return (struct f2fs_super_block *)(sbi->raw_super);
