@@ -1011,6 +1011,22 @@ struct ath12k_wsi_info {
 	u32 hw_link_id_base;
 };
 
+struct ath12k_dp_profile_params {
+	u32 tx_comp_ring_size;
+	u32 rxdma_monitor_buf_ring_size;
+	u32 rxdma_monitor_dst_ring_size;
+	u32 num_pool_tx_desc;
+	u32 rx_desc_count;
+};
+
+struct ath12k_mem_profile_based_param {
+	u32 num_vdevs;
+	u32 max_client_single;
+	u32 max_client_dbs;
+	u32 max_client_dbs_sbs;
+	struct ath12k_dp_profile_params dp_params;
+};
+
 /* Master structure to hold the hw data which may be used in core module */
 struct ath12k_base {
 	enum ath12k_hw_rev hw_rev;
@@ -1214,6 +1230,7 @@ struct ath12k_base {
 	struct ath12k_reg_freq reg_freq_2ghz;
 	struct ath12k_reg_freq reg_freq_5ghz;
 	struct ath12k_reg_freq reg_freq_6ghz;
+	const struct ath12k_mem_profile_based_param *profile_param;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));

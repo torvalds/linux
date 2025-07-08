@@ -37,6 +37,36 @@ static struct list_head ath12k_hw_group_list = LIST_HEAD_INIT(ath12k_hw_group_li
 
 static DEFINE_MUTEX(ath12k_hw_group_mutex);
 
+static const struct
+ath12k_mem_profile_based_param ath12k_mem_profile_based_param[] = {
+[ATH12K_QMI_MEMORY_MODE_DEFAULT] = {
+		.num_vdevs = 17,
+		.max_client_single = 512,
+		.max_client_dbs = 128,
+		.max_client_dbs_sbs = 128,
+		.dp_params = {
+			.tx_comp_ring_size = 32768,
+			.rxdma_monitor_buf_ring_size = 4096,
+			.rxdma_monitor_dst_ring_size = 8092,
+			.num_pool_tx_desc = 32768,
+			.rx_desc_count = 12288,
+		},
+	},
+[ATH12K_QMI_MEMORY_MODE_LOW_512_M] = {
+		.num_vdevs = 9,
+		.max_client_single = 128,
+		.max_client_dbs = 64,
+		.max_client_dbs_sbs = 64,
+		.dp_params = {
+			.tx_comp_ring_size = 16384,
+			.rxdma_monitor_buf_ring_size = 256,
+			.rxdma_monitor_dst_ring_size = 512,
+			.num_pool_tx_desc = 16384,
+			.rx_desc_count = 6144,
+		},
+	},
+};
+
 static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 {
 	struct ath12k *ar;
@@ -1713,6 +1743,7 @@ static void ath12k_core_reset(struct work_struct *work)
 
 int ath12k_core_pre_init(struct ath12k_base *ab)
 {
+	const struct ath12k_mem_profile_based_param *param;
 	int ret;
 
 	ret = ath12k_hw_init(ab);
@@ -1721,6 +1752,8 @@ int ath12k_core_pre_init(struct ath12k_base *ab)
 		return ret;
 	}
 
+	param = &ath12k_mem_profile_based_param[ATH12K_QMI_MEMORY_MODE_DEFAULT];
+	ab->profile_param = param;
 	ath12k_fw_map(ab);
 
 	return 0;
