@@ -116,14 +116,15 @@ static void __recover_inline_status(struct inode *inode, struct folio *ifolio)
 	return;
 }
 
-static bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
+static
+bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct folio *folio)
 {
-	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
+	struct f2fs_inode *ri = &F2FS_NODE(&folio->page)->i;
 
 	if (!f2fs_sb_has_inode_chksum(sbi))
 		return false;
 
-	if (!IS_INODE(page) || !(ri->i_inline & F2FS_EXTRA_ATTR))
+	if (!IS_INODE(&folio->page) || !(ri->i_inline & F2FS_EXTRA_ATTR))
 		return false;
 
 	if (!F2FS_FITS_IN_INODE(ri, le16_to_cpu(ri->i_extra_isize),
@@ -164,9 +165,9 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct folio *folio)
 		return true;
 
 #ifdef CONFIG_F2FS_CHECK_FS
-	if (!f2fs_enable_inode_chksum(sbi, &folio->page))
+	if (!f2fs_enable_inode_chksum(sbi, folio))
 #else
-	if (!f2fs_enable_inode_chksum(sbi, &folio->page) ||
+	if (!f2fs_enable_inode_chksum(sbi, folio) ||
 			folio_test_dirty(folio) ||
 			folio_test_writeback(folio))
 #endif
@@ -188,7 +189,7 @@ void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct folio *folio)
 {
 	struct f2fs_inode *ri = &F2FS_NODE(&folio->page)->i;
 
-	if (!f2fs_enable_inode_chksum(sbi, &folio->page))
+	if (!f2fs_enable_inode_chksum(sbi, folio))
 		return;
 
 	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, &folio->page));
