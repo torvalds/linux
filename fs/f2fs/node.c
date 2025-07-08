@@ -1019,7 +1019,7 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 
 	f2fs_ra_node_pages(folio, ofs, NIDS_PER_BLOCK);
 
-	rn = F2FS_NODE(&folio->page);
+	rn = F2FS_NODE(folio);
 	if (depth < 3) {
 		for (i = ofs; i < NIDS_PER_BLOCK; i++, freed++) {
 			child_nid = le32_to_cpu(rn->in.nid[i]);
@@ -2789,7 +2789,7 @@ recover_xnid:
 
 	/* 3: update and set xattr node page dirty */
 	if (folio) {
-		memcpy(F2FS_NODE(&xfolio->page), F2FS_NODE(&folio->page),
+		memcpy(F2FS_NODE(xfolio), F2FS_NODE(folio),
 				VALID_XATTR_BLOCK_SIZE);
 		folio_mark_dirty(xfolio);
 	}
@@ -2894,7 +2894,7 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 			if (IS_ERR(folio))
 				return PTR_ERR(folio);
 
-			rn = F2FS_NODE(&folio->page);
+			rn = F2FS_NODE(folio);
 			sum_entry->nid = rn->footer.nid;
 			sum_entry->version = 0;
 			sum_entry->ofs_in_node = 0;

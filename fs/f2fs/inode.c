@@ -119,7 +119,7 @@ static void __recover_inline_status(struct inode *inode, struct folio *ifolio)
 static
 bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct folio *folio)
 {
-	struct f2fs_inode *ri = &F2FS_NODE(&folio->page)->i;
+	struct f2fs_inode *ri = &F2FS_NODE(folio)->i;
 
 	if (!f2fs_sb_has_inode_chksum(sbi))
 		return false;
@@ -136,7 +136,7 @@ bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct folio *folio)
 
 static __u32 f2fs_inode_chksum(struct f2fs_sb_info *sbi, struct folio *folio)
 {
-	struct f2fs_node *node = F2FS_NODE(&folio->page);
+	struct f2fs_node *node = F2FS_NODE(folio);
 	struct f2fs_inode *ri = &node->i;
 	__le32 ino = node->footer.ino;
 	__le32 gen = ri->i_generation;
@@ -173,7 +173,7 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct folio *folio)
 #endif
 		return true;
 
-	ri = &F2FS_NODE(&folio->page)->i;
+	ri = &F2FS_NODE(folio)->i;
 	provided = le32_to_cpu(ri->i_inode_checksum);
 	calculated = f2fs_inode_chksum(sbi, folio);
 
@@ -187,7 +187,7 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct folio *folio)
 
 void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct folio *folio)
 {
-	struct f2fs_inode *ri = &F2FS_NODE(&folio->page)->i;
+	struct f2fs_inode *ri = &F2FS_NODE(folio)->i;
 
 	if (!f2fs_enable_inode_chksum(sbi, folio))
 		return;

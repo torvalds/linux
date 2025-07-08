@@ -2051,9 +2051,9 @@ static inline struct f2fs_checkpoint *F2FS_CKPT(struct f2fs_sb_info *sbi)
 	return (struct f2fs_checkpoint *)(sbi->ckpt);
 }
 
-static inline struct f2fs_node *F2FS_NODE(const struct page *page)
+static inline struct f2fs_node *F2FS_NODE(const struct folio *folio)
 {
-	return (struct f2fs_node *)page_address(page);
+	return (struct f2fs_node *)folio_address(folio);
 }
 
 static inline struct f2fs_inode *F2FS_INODE(const struct folio *folio)
@@ -3051,7 +3051,7 @@ static inline void f2fs_radix_tree_insert(struct radix_tree_root *root,
 
 static inline bool IS_INODE(const struct folio *folio)
 {
-	struct f2fs_node *p = F2FS_NODE(&folio->page);
+	struct f2fs_node *p = F2FS_NODE(folio);
 
 	return RAW_IS_INODE(p);
 }
@@ -3075,13 +3075,13 @@ static inline unsigned int get_dnode_base(struct inode *inode,
 		return 0;
 
 	return inode ? get_extra_isize(inode) :
-			offset_in_addr(&F2FS_NODE(&node_folio->page)->i);
+			offset_in_addr(&F2FS_NODE(node_folio)->i);
 }
 
 static inline __le32 *get_dnode_addr(struct inode *inode,
 					struct folio *node_folio)
 {
-	return blkaddr_in_node(F2FS_NODE(&node_folio->page)) +
+	return blkaddr_in_node(F2FS_NODE(node_folio)) +
 			get_dnode_base(inode, node_folio);
 }
 
