@@ -64,6 +64,7 @@ rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
+	mutex_lock(&dev->ethtool->rss_lock);
 
 	data->indir_size = 0;
 	data->hkey_size = 0;
@@ -77,7 +78,7 @@ rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 	rss_config = kzalloc(total_size, GFP_KERNEL);
 	if (!rss_config) {
 		ret = -ENOMEM;
-		goto out_ops;
+		goto out_unlock;
 	}
 
 	if (data->indir_size)
@@ -92,11 +93,12 @@ rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 
 	ret = ops->get_rxfh(dev, &rxfh);
 	if (ret)
-		goto out_ops;
+		goto out_unlock;
 
 	data->hfunc = rxfh.hfunc;
 	data->input_xfrm = rxfh.input_xfrm;
-out_ops:
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
 	ethnl_ops_complete(dev);
 	return ret;
 }
@@ -108,12 +110,16 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 	struct ethtool_rxfh_context *ctx;
 	u32 total_size, indir_bytes;
 	u8 *rss_config;
+	int ret;
 
 	data->no_key_fields = !dev->ethtool_ops->rxfh_per_ctx_key;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	ctx = xa_load(&dev->ethtool->rss_ctx, request->rss_context);
-	if (!ctx)
-		return -ENOENT;
+	if (!ctx) {
+		ret = -ENOENT;
+		goto out_unlock;
+	}
 
 	data->indir_size = ctx->indir_size;
 	data->hkey_size = ctx->key_size;
@@ -123,8 +129,10 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 	indir_bytes = data->indir_size * sizeof(u32);
 	total_size = indir_bytes + data->hkey_size;
 	rss_config = kzalloc(total_size, GFP_KERNEL);
-	if (!rss_config)
-		return -ENOMEM;
+	if (!rss_config) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
 	data->indir_table = (u32 *)rss_config;
 	memcpy(data->indir_table, ethtool_rxfh_context_indir(ctx), indir_bytes);
@@ -135,7 +143,10 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 		       data->hkey_size);
 	}
 
-	return 0;
+	ret = 0;
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	return ret;
 }
 
 static int
@@ -156,7 +167,6 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	struct rss_req_info *request = RSS_REQINFO(req_base);
 	struct net_device *dev = reply_base->dev;
 	const struct ethtool_ops *ops;
-	int ret;
 
 	ops = dev->ethtool_ops;
 	if (!ops->get_rxfh)
@@ -166,11 +176,7 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	if (request->rss_context && !ops->create_rxfh_context)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&dev->ethtool->rss_lock);
-	ret = rss_prepare(request, dev, data, info);
-	mutex_unlock(&dev->ethtool->rss_lock);
-
-	return ret;
+	return rss_prepare(request, dev, data, info);
 }
 
 static int
@@ -294,11 +300,7 @@ rss_dump_one_ctx(struct sk_buff *skb, struct netlink_callback *cb,
 	if (ret < 0)
 		goto err_cancel;
 
-	/* Context 0 is not currently storred or cached in the XArray */
-	if (!rss_context)
-		ret = rss_prepare_get(&req, dev, &data, info);
-	else
-		ret = rss_prepare_ctx(&req, dev, &data, info);
+	ret = rss_prepare(&req, dev, &data, info);
 	if (ret)
 		goto err_cancel;
 
