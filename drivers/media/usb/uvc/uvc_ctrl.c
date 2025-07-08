@@ -3307,7 +3307,6 @@ int uvc_ctrl_init_device(struct uvc_device *dev)
 void uvc_ctrl_cleanup_fh(struct uvc_fh *handle)
 {
 	struct uvc_entity *entity;
-	int i;
 
 	guard(mutex)(&handle->chain->ctrl_mutex);
 
@@ -3325,7 +3324,7 @@ void uvc_ctrl_cleanup_fh(struct uvc_fh *handle)
 	if (!WARN_ON(handle->pending_async_ctrls))
 		return;
 
-	for (i = 0; i < handle->pending_async_ctrls; i++)
+	for (unsigned int i = 0; i < handle->pending_async_ctrls; i++)
 		uvc_pm_put(handle->stream->dev);
 }
 
