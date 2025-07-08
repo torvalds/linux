@@ -233,16 +233,15 @@ static void f2fs_verify_and_finish_bio(struct bio *bio, bool in_task)
 static void f2fs_handle_step_decompress(struct bio_post_read_ctx *ctx,
 		bool in_task)
 {
-	struct bio_vec *bv;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 	bool all_compressed = true;
 	block_t blkaddr = ctx->fs_blkaddr;
 
-	bio_for_each_segment_all(bv, ctx->bio, iter_all) {
-		struct page *page = bv->bv_page;
+	bio_for_each_folio_all(fi, ctx->bio) {
+		struct folio *folio = fi.folio;
 
-		if (f2fs_is_compressed_page(page))
-			f2fs_end_read_compressed_page(page, false, blkaddr,
+		if (f2fs_is_compressed_page(&folio->page))
+			f2fs_end_read_compressed_page(&folio->page, false, blkaddr,
 						      in_task);
 		else
 			all_compressed = false;
