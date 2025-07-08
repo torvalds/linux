@@ -536,7 +536,7 @@ static void pwm_apply_debug(struct pwm_device *pwm,
 	}
 
 	if (s2.polarity != state->polarity &&
-	    state->duty_cycle < state->period)
+	    s2.duty_cycle < s2.period)
 		dev_warn(pwmchip_parent(chip), ".apply ignored .polarity\n");
 
 	if (last->polarity == state->polarity &&
