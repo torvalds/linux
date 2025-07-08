@@ -58,7 +58,6 @@
 #define XGENE_PCIE_IP_VER_1		1
 #define XGENE_PCIE_IP_VER_2		2
 
-#if defined(CONFIG_PCI_XGENE) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 struct xgene_pcie {
 	struct device_node	*node;
 	struct device		*dev;
@@ -189,7 +188,6 @@ static int xgene_pcie_config_read32(struct pci_bus *bus, unsigned int devfn,
 
 	return PCIBIOS_SUCCESSFUL;
 }
-#endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 static int xgene_get_csr_resource(struct acpi_device *adev,
@@ -280,7 +278,6 @@ const struct pci_ecam_ops xgene_v2_pcie_ecam_ops = {
 };
 #endif
 
-#if defined(CONFIG_PCI_XGENE)
 static u64 xgene_pcie_set_ib_mask(struct xgene_pcie *port, u32 addr,
 				  u32 flags, u64 size)
 {
@@ -670,4 +667,3 @@ static struct platform_driver xgene_pcie_driver = {
 	.probe = xgene_pcie_probe,
 };
 builtin_platform_driver(xgene_pcie_driver);
-#endif
