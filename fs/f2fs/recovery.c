@@ -157,10 +157,10 @@ static int init_recovered_filename(const struct inode *dir,
 	return 0;
 }
 
-static int recover_dentry(struct inode *inode, struct page *ipage,
+static int recover_dentry(struct inode *inode, struct folio *ifolio,
 						struct list_head *dir_list)
 {
-	struct f2fs_inode *raw_inode = F2FS_INODE(ipage);
+	struct f2fs_inode *raw_inode = F2FS_INODE(&ifolio->page);
 	nid_t pino = le32_to_cpu(raw_inode->i_pino);
 	struct f2fs_dir_entry *de;
 	struct f2fs_filename fname;
@@ -233,7 +233,7 @@ out:
 	else
 		name = raw_inode->i_name;
 	f2fs_notice(F2FS_I_SB(inode), "%s: ino = %x, name = %s, dir = %lx, err = %d",
-		    __func__, ino_of_node(ipage), name,
+		    __func__, ino_of_node(&ifolio->page), name,
 		    IS_ERR(dir) ? 0 : dir->i_ino, err);
 	return err;
 }
@@ -830,7 +830,7 @@ static int recover_data(struct f2fs_sb_info *sbi, struct list_head *inode_list,
 			recovered_inode++;
 		}
 		if (entry->last_dentry == blkaddr) {
-			err = recover_dentry(entry->inode, &folio->page, dir_list);
+			err = recover_dentry(entry->inode, folio, dir_list);
 			if (err) {
 				f2fs_folio_put(folio, true);
 				break;
