@@ -41,17 +41,28 @@ static unsigned int exception_target_el(struct kvm_vcpu *vcpu)
 	}
 }
 
+static enum vcpu_sysreg exception_esr_elx(struct kvm_vcpu *vcpu)
+{
+	if (exception_target_el(vcpu) == PSR_MODE_EL2h)
+		return ESR_EL2;
+
+	return ESR_EL1;
+}
+
+static enum vcpu_sysreg exception_far_elx(struct kvm_vcpu *vcpu)
+{
+	if (exception_target_el(vcpu) == PSR_MODE_EL2h)
+		return FAR_EL2;
+
+	return FAR_EL1;
+}
+
 static void pend_sync_exception(struct kvm_vcpu *vcpu)
 {
 	if (exception_target_el(vcpu) == PSR_MODE_EL1h)
 		kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
 	else
 		kvm_pend_exception(vcpu, EXCEPT_AA64_EL2_SYNC);
-}
-
-static bool match_target_el(struct kvm_vcpu *vcpu, unsigned long target)
-{
-	return (vcpu_get_flag(vcpu, EXCEPT_MASK) == target);
 }
 
 static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr)
@@ -83,13 +94,8 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 
 	esr |= ESR_ELx_FSC_EXTABT;
 
-	if (match_target_el(vcpu, unpack_vcpu_flag(EXCEPT_AA64_EL1_SYNC))) {
-		vcpu_write_sys_reg(vcpu, addr, FAR_EL1);
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
-	} else {
-		vcpu_write_sys_reg(vcpu, addr, FAR_EL2);
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL2);
-	}
+	vcpu_write_sys_reg(vcpu, addr, exception_far_elx(vcpu));
+	vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
 }
 
 static void inject_undef64(struct kvm_vcpu *vcpu)
@@ -105,10 +111,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 	if (kvm_vcpu_trap_il_is32bit(vcpu))
 		esr |= ESR_ELx_IL;
 
-	if (match_target_el(vcpu, unpack_vcpu_flag(EXCEPT_AA64_EL1_SYNC)))
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
-	else
-		vcpu_write_sys_reg(vcpu, esr, ESR_EL2);
+	vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
 }
 
 #define DFSR_FSC_EXTABT_LPAE	0x10
@@ -199,9 +202,9 @@ void kvm_inject_size_fault(struct kvm_vcpu *vcpu)
 	    !(vcpu_read_sys_reg(vcpu, TCR_EL1) & TTBCR_EAE))
 		return;
 
-	esr = vcpu_read_sys_reg(vcpu, ESR_EL1);
+	esr = vcpu_read_sys_reg(vcpu, exception_esr_elx(vcpu));
 	esr &= ~GENMASK_ULL(5, 0);
-	vcpu_write_sys_reg(vcpu, esr, ESR_EL1);
+	vcpu_write_sys_reg(vcpu, esr, exception_esr_elx(vcpu));
 }
 
 /**
