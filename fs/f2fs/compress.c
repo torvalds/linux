@@ -1953,7 +1953,7 @@ void f2fs_cache_compressed_page(struct f2fs_sb_info *sbi, struct page *page,
 		return;
 	}
 
-	set_page_private_data(&cfolio->page, ino);
+	folio_set_f2fs_data(cfolio, ino);
 
 	memcpy(folio_address(cfolio), page_address(page), PAGE_SIZE);
 	folio_mark_uptodate(cfolio);

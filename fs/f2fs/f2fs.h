@@ -2537,12 +2537,14 @@ static inline unsigned long get_page_private_data(struct page *page)
 	return data >> PAGE_PRIVATE_MAX;
 }
 
-static inline void set_page_private_data(struct page *page, unsigned long data)
+static inline void folio_set_f2fs_data(struct folio *folio, unsigned long data)
 {
-	if (!PagePrivate(page))
-		attach_page_private(page, (void *)0);
-	set_bit(PAGE_PRIVATE_NOT_POINTER, &page_private(page));
-	page_private(page) |= data << PAGE_PRIVATE_MAX;
+	data = (1UL << PAGE_PRIVATE_NOT_POINTER) | (data << PAGE_PRIVATE_MAX);
+
+	if (!folio_test_private(folio))
+		folio_attach_private(folio, (void *)data);
+	else
+		folio->private = (void *)((unsigned long)folio->private | data);
 }
 
 static inline void clear_page_private_data(struct page *page)
