@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "Imagination Technologies"
+	depends on MIPS || COMPILE_TEST
 
 config SND_SOC_IMG_I2S_IN
 	tristate "Imagination I2S Input Device Driver"
