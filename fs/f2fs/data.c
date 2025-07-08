@@ -47,14 +47,15 @@ void f2fs_destroy_bioset(void)
 	bioset_exit(&f2fs_bioset);
 }
 
-bool f2fs_is_cp_guaranteed(struct page *page)
+bool f2fs_is_cp_guaranteed(const struct page *page)
 {
-	struct address_space *mapping = page_folio(page)->mapping;
+	const struct folio *folio = page_folio(page);
+	struct address_space *mapping = folio->mapping;
 	struct inode *inode;
 	struct f2fs_sb_info *sbi;
 
-	if (fscrypt_is_bounce_page(page))
-		return page_private_gcing(fscrypt_pagecache_page(page));
+	if (fscrypt_is_bounce_folio(folio))
+		return folio_test_f2fs_gcing(fscrypt_pagecache_folio(folio));
 
 	inode = mapping->host;
 	sbi = F2FS_I_SB(inode);
@@ -65,7 +66,7 @@ bool f2fs_is_cp_guaranteed(struct page *page)
 		return true;
 
 	if ((S_ISREG(inode->i_mode) && IS_NOQUOTA(inode)) ||
-			page_private_gcing(page))
+			folio_test_f2fs_gcing(folio))
 		return true;
 	return false;
 }
