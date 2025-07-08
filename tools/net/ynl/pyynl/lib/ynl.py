@@ -762,6 +762,8 @@ class YnlFamily(SpecFamily):
                     decoded = True
                 elif attr_spec.is_auto_scalar:
                     decoded = attr.as_auto_scalar(attr_spec['type'], attr_spec.byte_order)
+                    if 'enum' in attr_spec:
+                        decoded = self._decode_enum(decoded, attr_spec)
                 elif attr_spec["type"] in NlAttr.type_formats:
                     decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
                     if 'enum' in attr_spec:
