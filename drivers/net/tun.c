@@ -186,7 +186,8 @@ struct tun_struct {
 	struct net_device	*dev;
 	netdev_features_t	set_features;
 #define TUN_USER_FEATURES (NETIF_F_HW_CSUM|NETIF_F_TSO_ECN|NETIF_F_TSO| \
-			  NETIF_F_TSO6 | NETIF_F_GSO_UDP_L4)
+			  NETIF_F_TSO6 | NETIF_F_GSO_UDP_L4 | \
+			  NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_UDP_TUNNEL_CSUM)
 
 	int			align;
 	int			vnet_hdr_sz;
@@ -925,6 +926,7 @@ static int tun_net_init(struct net_device *dev)
 	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			   TUN_USER_FEATURES | NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_STAG_TX;
+	dev->hw_enc_features = dev->hw_features;
 	dev->features = dev->hw_features;
 	dev->vlan_features = dev->features &
 			     ~(NETIF_F_HW_VLAN_CTAG_TX |
@@ -1698,7 +1700,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	struct sk_buff *skb;
 	size_t total_len = iov_iter_count(from);
 	size_t len = total_len, align = tun->align, linear;
-	struct virtio_net_hdr gso = { 0 };
+	struct virtio_net_hdr_v1_hash_tunnel hdr;
+	struct virtio_net_hdr *gso;
 	int good_linear;
 	int copylen;
 	int hdr_len = 0;
@@ -1708,6 +1711,15 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	int skb_xdp = 1;
 	bool frags = tun_napi_frags_enabled(tfile);
 	enum skb_drop_reason drop_reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	netdev_features_t features = 0;
+
+	/*
+	 * Keep it easy and always zero the whole buffer, even if the
+	 * tunnel-related field will be touched only when the feature
+	 * is enabled and the hdr size id compatible.
+	 */
+	memset(&hdr, 0, sizeof(hdr));
+	gso = (struct virtio_net_hdr *)&hdr;
 
 	if (!(tun->flags & IFF_NO_PI)) {
 		if (len < sizeof(pi))
@@ -1721,7 +1733,9 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	if (tun->flags & IFF_VNET_HDR) {
 		int vnet_hdr_sz = READ_ONCE(tun->vnet_hdr_sz);
 
-		hdr_len = tun_vnet_hdr_get(vnet_hdr_sz, tun->flags, from, &gso);
+		features = tun_vnet_hdr_guest_features(vnet_hdr_sz);
+		hdr_len = __tun_vnet_hdr_get(vnet_hdr_sz, tun->flags,
+					     features, from, gso);
 		if (hdr_len < 0)
 			return hdr_len;
 
@@ -1755,7 +1769,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		 * (e.g gso or jumbo packet), we will do it at after
 		 * skb was created with generic XDP routine.
 		 */
-		skb = tun_build_skb(tun, tfile, from, &gso, len, &skb_xdp);
+		skb = tun_build_skb(tun, tfile, from, gso, len, &skb_xdp);
 		err = PTR_ERR_OR_ZERO(skb);
 		if (err)
 			goto drop;
@@ -1799,7 +1813,7 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		}
 	}
 
-	if (tun_vnet_hdr_to_skb(tun->flags, skb, &gso)) {
+	if (tun_vnet_hdr_tnl_to_skb(tun->flags, features, skb, &hdr)) {
 		atomic_long_inc(&tun->rx_frame_errors);
 		err = -EINVAL;
 		goto free_skb;
@@ -2050,13 +2064,21 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 	}
 
 	if (vnet_hdr_sz) {
-		struct virtio_net_hdr gso;
+		struct virtio_net_hdr_v1_hash_tunnel hdr;
+		struct virtio_net_hdr *gso;
 
-		ret = tun_vnet_hdr_from_skb(tun->flags, tun->dev, skb, &gso);
+		ret = tun_vnet_hdr_tnl_from_skb(tun->flags, tun->dev, skb,
+						&hdr);
 		if (ret)
 			return ret;
 
-		ret = tun_vnet_hdr_put(vnet_hdr_sz, iter, &gso);
+		/*
+		 * Drop the packet if the configured header size is too small
+		 * WRT the enabled offloads.
+		 */
+		gso = (struct virtio_net_hdr *)&hdr;
+		ret = __tun_vnet_hdr_put(vnet_hdr_sz, tun->dev->features,
+					 iter, gso);
 		if (ret)
 			return ret;
 	}
@@ -2357,10 +2379,12 @@ static int tun_xdp_one(struct tun_struct *tun,
 {
 	unsigned int datasize = xdp->data_end - xdp->data;
 	struct tun_xdp_hdr *hdr = xdp->data_hard_start;
+	struct virtio_net_hdr_v1_hash_tunnel *tnl_hdr;
 	struct virtio_net_hdr *gso = &hdr->gso;
 	struct bpf_prog *xdp_prog;
 	struct sk_buff *skb = NULL;
 	struct sk_buff_head *queue;
+	netdev_features_t features;
 	u32 rxhash = 0, act;
 	int buflen = hdr->buflen;
 	int metasize = 0;
@@ -2426,7 +2450,9 @@ build:
 	if (metasize > 0)
 		skb_metadata_set(skb, metasize);
 
-	if (tun_vnet_hdr_to_skb(tun->flags, skb, gso)) {
+	features = tun_vnet_hdr_guest_features(READ_ONCE(tun->vnet_hdr_sz));
+	tnl_hdr = (struct virtio_net_hdr_v1_hash_tunnel *)gso;
+	if (tun_vnet_hdr_tnl_to_skb(tun->flags, features, skb, tnl_hdr)) {
 		atomic_long_inc(&tun->rx_frame_errors);
 		kfree_skb(skb);
 		ret = -EINVAL;
@@ -2812,6 +2838,8 @@ static void tun_get_iff(struct tun_struct *tun, struct ifreq *ifr)
 
 }
 
+#define PLAIN_GSO (NETIF_F_GSO_UDP_L4 | NETIF_F_TSO | NETIF_F_TSO6)
+
 /* This is like a cut-down ethtool ops, except done via tun fd so no
  * privs required. */
 static int set_offload(struct tun_struct *tun, unsigned long arg)
@@ -2840,6 +2868,18 @@ static int set_offload(struct tun_struct *tun, unsigned long arg)
 		if (arg & TUN_F_USO4 && arg & TUN_F_USO6) {
 			features |= NETIF_F_GSO_UDP_L4;
 			arg &= ~(TUN_F_USO4 | TUN_F_USO6);
+		}
+
+		/*
+		 * Tunnel offload is allowed only if some plain offload is
+		 * available, too.
+		 */
+		if (features & PLAIN_GSO && arg & TUN_F_UDP_TUNNEL_GSO) {
+			features |= NETIF_F_GSO_UDP_TUNNEL;
+			if (arg & TUN_F_UDP_TUNNEL_GSO_CSUM)
+				features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+			arg &= ~(TUN_F_UDP_TUNNEL_GSO |
+				 TUN_F_UDP_TUNNEL_GSO_CSUM);
 		}
 	}
 
