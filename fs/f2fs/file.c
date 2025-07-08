@@ -1463,7 +1463,7 @@ static int __clone_blkaddrs(struct inode *src_inode, struct inode *dst_inode,
 
 			memcpy_folio(fdst, 0, fsrc, 0, PAGE_SIZE);
 			folio_mark_dirty(fdst);
-			set_page_private_gcing(&fdst->page);
+			folio_set_f2fs_gcing(fdst);
 			f2fs_folio_put(fdst, true);
 			f2fs_folio_put(fsrc, true);
 
@@ -2987,7 +2987,7 @@ do_map:
 			f2fs_folio_wait_writeback(folio, DATA, true, true);
 
 			folio_mark_dirty(folio);
-			set_page_private_gcing(&folio->page);
+			folio_set_f2fs_gcing(folio);
 			f2fs_folio_put(folio, true);
 
 			idx++;
@@ -4424,7 +4424,7 @@ static int redirty_blocks(struct inode *inode, pgoff_t page_idx, int len)
 		f2fs_folio_wait_writeback(folio, DATA, true, true);
 
 		folio_mark_dirty(folio);
-		set_page_private_gcing(&folio->page);
+		folio_set_f2fs_gcing(folio);
 		redirty_idx = folio_next_index(folio);
 		folio_unlock(folio);
 		folio_put_refs(folio, 2);

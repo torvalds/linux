@@ -749,7 +749,7 @@ void f2fs_update_inode(struct inode *inode, struct folio *node_folio)
 
 	/* deleted inode */
 	if (inode->i_nlink == 0)
-		clear_page_private_inline(&node_folio->page);
+		folio_clear_f2fs_inline(node_folio);
 
 	init_idisk_time(inode);
 #ifdef CONFIG_F2FS_CHECK_FS

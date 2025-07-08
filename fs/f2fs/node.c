@@ -1985,8 +1985,8 @@ void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 				goto unlock;
 
 			/* flush inline_data, if it's async context. */
-			if (page_private_inline(&folio->page)) {
-				clear_page_private_inline(&folio->page);
+			if (folio_test_f2fs_inline(folio)) {
+				folio_clear_f2fs_inline(folio);
 				folio_unlock(folio);
 				flush_inline_data(sbi, ino_of_node(folio));
 				continue;
@@ -2067,8 +2067,8 @@ continue_unlock:
 				goto write_node;
 
 			/* flush inline_data */
-			if (page_private_inline(&folio->page)) {
-				clear_page_private_inline(&folio->page);
+			if (folio_test_f2fs_inline(folio)) {
+				folio_clear_f2fs_inline(folio);
 				folio_unlock(folio);
 				flush_inline_data(sbi, ino_of_node(folio));
 				goto lock_node;
@@ -2216,7 +2216,7 @@ static bool f2fs_dirty_node_folio(struct address_space *mapping,
 #endif
 	if (filemap_dirty_folio(mapping, folio)) {
 		inc_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);
-		set_page_private_reference(&folio->page);
+		folio_set_f2fs_reference(folio);
 		return true;
 	}
 	return false;

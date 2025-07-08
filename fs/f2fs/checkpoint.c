@@ -485,7 +485,7 @@ static bool f2fs_dirty_meta_folio(struct address_space *mapping,
 		folio_mark_uptodate(folio);
 	if (filemap_dirty_folio(mapping, folio)) {
 		inc_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_META);
-		set_page_private_reference(&folio->page);
+		folio_set_f2fs_reference(folio);
 		return true;
 	}
 	return false;
@@ -1045,7 +1045,7 @@ void f2fs_update_dirty_folio(struct inode *inode, struct folio *folio)
 	inode_inc_dirty_pages(inode);
 	spin_unlock(&sbi->inode_lock[type]);
 
-	set_page_private_reference(&folio->page);
+	folio_set_f2fs_reference(folio);
 }
 
 void f2fs_remove_dirty_inode(struct inode *inode)

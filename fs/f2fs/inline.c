@@ -206,7 +206,7 @@ int f2fs_convert_inline_folio(struct dnode_of_data *dn, struct folio *folio)
 
 	/* clear inline data and flag after data writeback */
 	f2fs_truncate_inline_inode(dn->inode, dn->inode_folio, 0);
-	clear_page_private_inline(&dn->inode_folio->page);
+	folio_clear_f2fs_inline(dn->inode_folio);
 clear_out:
 	stat_dec_inline_inode(dn->inode);
 	clear_inode_flag(dn->inode, FI_INLINE_DATA);
@@ -286,7 +286,7 @@ int f2fs_write_inline_data(struct inode *inode, struct folio *folio)
 	set_inode_flag(inode, FI_APPEND_WRITE);
 	set_inode_flag(inode, FI_DATA_EXIST);
 
-	clear_page_private_inline(&ifolio->page);
+	folio_clear_f2fs_inline(ifolio);
 	f2fs_folio_put(ifolio, 1);
 	return 0;
 }

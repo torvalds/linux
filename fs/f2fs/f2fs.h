@@ -2461,6 +2461,13 @@ release_quota:
 }
 
 #define PAGE_PRIVATE_GET_FUNC(name, flagname) \
+static inline bool folio_test_f2fs_##name(const struct folio *folio)	\
+{									\
+	unsigned long priv = (unsigned long)folio->private;		\
+	unsigned long v = (1UL << PAGE_PRIVATE_NOT_POINTER) |		\
+			     (1UL << PAGE_PRIVATE_##flagname);		\
+	return (priv & v) == v;						\
+}									\
 static inline bool page_private_##name(struct page *page) \
 { \
 	return PagePrivate(page) && \
@@ -2469,6 +2476,17 @@ static inline bool page_private_##name(struct page *page) \
 }
 
 #define PAGE_PRIVATE_SET_FUNC(name, flagname) \
+static inline void folio_set_f2fs_##name(struct folio *folio)		\
+{									\
+	unsigned long v = (1UL << PAGE_PRIVATE_NOT_POINTER) |		\
+			     (1UL << PAGE_PRIVATE_##flagname);		\
+	if (!folio->private)						\
+		folio_attach_private(folio, (void *)v);			\
+	else {								\
+		v |= (unsigned long)folio->private;			\
+		folio->private = (void *)v;				\
+	}								\
+}									\
 static inline void set_page_private_##name(struct page *page) \
 { \
 	if (!PagePrivate(page)) \
@@ -2478,6 +2496,16 @@ static inline void set_page_private_##name(struct page *page) \
 }
 
 #define PAGE_PRIVATE_CLEAR_FUNC(name, flagname) \
+static inline void folio_clear_f2fs_##name(struct folio *folio)		\
+{									\
+	unsigned long v = (unsigned long)folio->private;		\
+									\
+	v &= ~(1UL << PAGE_PRIVATE_##flagname);				\
+	if (v == (1UL << PAGE_PRIVATE_NOT_POINTER))			\
+		folio_detach_private(folio);				\
+	else								\
+		folio->private = (void *)v;				\
+}									\
 static inline void clear_page_private_##name(struct page *page) \
 { \
 	clear_bit(PAGE_PRIVATE_##flagname, &page_private(page)); \

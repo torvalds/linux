@@ -360,7 +360,7 @@ static void f2fs_write_end_io(struct bio *bio)
 		dec_page_count(sbi, type);
 		if (f2fs_in_warm_node_list(sbi, folio))
 			f2fs_del_fsync_node_entry(sbi, folio);
-		clear_page_private_gcing(&folio->page);
+		folio_clear_f2fs_gcing(folio);
 		folio_end_writeback(folio);
 	}
 	if (!get_pages(sbi, F2FS_WB_CP_DATA) &&
@@ -2659,7 +2659,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 
 	/* Use COW inode to make dnode_of_data for atomic write */
 	atomic_commit = f2fs_is_atomic_file(inode) &&
-				page_private_atomic(folio_page(folio, 0));
+				folio_test_f2fs_atomic(folio);
 	if (atomic_commit)
 		set_new_dnode(&dn, F2FS_I(inode)->cow_inode, NULL, NULL, 0);
 	else
@@ -2690,7 +2690,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 	/* This page is already truncated */
 	if (fio->old_blkaddr == NULL_ADDR) {
 		folio_clear_uptodate(folio);
-		clear_page_private_gcing(folio_page(folio, 0));
+		folio_clear_f2fs_gcing(folio);
 		goto out_writepage;
 	}
 got_it:
@@ -2760,7 +2760,7 @@ got_it:
 	trace_f2fs_do_write_data_page(folio, OPU);
 	set_inode_flag(inode, FI_APPEND_WRITE);
 	if (atomic_commit)
-		clear_page_private_atomic(folio_page(folio, 0));
+		folio_clear_f2fs_atomic(folio);
 out_writepage:
 	f2fs_put_dnode(&dn);
 out:
@@ -3383,7 +3383,7 @@ restart:
 			f2fs_do_read_inline_data(folio, ifolio);
 			set_inode_flag(inode, FI_DATA_EXIST);
 			if (inode->i_nlink)
-				set_page_private_inline(&ifolio->page);
+				folio_set_f2fs_inline(ifolio);
 			goto out;
 		}
 		err = f2fs_convert_inline_folio(&dn, folio);
@@ -3703,7 +3703,7 @@ static int f2fs_write_end(struct file *file,
 	folio_mark_dirty(folio);
 
 	if (f2fs_is_atomic_file(inode))
-		set_page_private_atomic(folio_page(folio, 0));
+		folio_set_f2fs_atomic(folio);
 
 	if (pos + copied > i_size_read(inode) &&
 	    !f2fs_verity_in_progress(inode)) {
