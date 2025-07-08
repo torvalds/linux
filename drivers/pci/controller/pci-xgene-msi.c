@@ -429,9 +429,4 @@ static struct platform_driver xgene_msi_driver = {
 	.probe = xgene_msi_probe,
 	.remove = xgene_msi_remove,
 };
-
-static int __init xgene_pcie_msi_init(void)
-{
-	return platform_driver_register(&xgene_msi_driver);
-}
-subsys_initcall(xgene_pcie_msi_init);
+builtin_platform_driver(xgene_msi_driver);
