@@ -698,6 +698,8 @@ struct io_kiocb {
 		struct hlist_node	hash_node;
 		/* For IOPOLL setup queues, with hybrid polling */
 		u64                     iopoll_start;
+		/* for private io_kiocb freeing */
+		struct rcu_head		rcu_head;
 	};
 	/* internal polling, see IORING_FEAT_FAST_POLL */
 	struct async_poll		*apoll;
