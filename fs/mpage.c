@@ -48,8 +48,14 @@ static void mpage_read_end_io(struct bio *bio)
 	struct folio_iter fi;
 	int err = blk_status_to_errno(bio->bi_status);
 
-	bio_for_each_folio_all(fi, bio)
+	// int i = 0;
+	bio_for_each_folio_all(fi, bio){
 		folio_end_read(fi.folio, err == 0);
+
+
+		// printk("debug generic: fi: inode: %lu, index: %lu, offset: %zu, length: %zu \n", fi.folio->mapping->host->i_ino, fi.folio->index, fi.offset, fi.length);
+
+	}
 
 	bio_put(bio);
 }

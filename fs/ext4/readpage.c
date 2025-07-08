@@ -228,6 +228,8 @@ static bool bio_post_read_required(struct bio *bio)
  */
 static void mpage_end_io(struct bio *bio)
 {
+	// printk("debug: bio, bi_sector: %llu, bi_vcnt: %u, bi_size: %u, bi_vec_done: %u\n", bio->bi_iter.bi_sector, bio->bi_vcnt, bio->bi_iter.bi_size, bio->bi_iter.bi_bvec_done);
+
 	if (bio_post_read_required(bio)) {
 		struct bio_post_read_ctx *ctx = bio->bi_private;
 

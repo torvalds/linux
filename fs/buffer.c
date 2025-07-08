@@ -290,9 +290,32 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 		}
 		tmp = tmp->b_this_page;
 	} while (tmp != bh);
-	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
+	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);	
+	
 
 	folio_end_read(folio, folio_uptodate);
+
+	// debug
+	struct buffer_head *current_bh = folio_buffers(folio);
+	int i = 0;
+	if(current_bh){
+		do {
+			struct folio *fi = current_bh->b_folio;
+			printk("bh %d: b_blocknr: %llu, b_size: %zu, folio_nr_pages:%u, inode: %lu, index: %lu \n", i, current_bh->b_blocknr, current_bh->b_size, fi->_nr_pages, fi->mapping->host->i_ino, fi->index);
+			current_bh = current_bh->b_this_page;
+		}while(current_bh != folio_buffers(folio));
+	}
+
+
+
+
+	// unsigned long ino = bh->b_folio->mapping->host->i_ino;
+	
+
+	// printk("buf: b_blocknr: %llu, b_size: %zu \n", (unsigned long long)bh->b_blocknr, bh->b_size);
+	// printk("buf: inode: %lu, pgoff_t: %lu\n", ino, folio->index);
+
+
 	return;
 
 still_busy:
@@ -2812,8 +2835,13 @@ static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
 
 	fscrypt_set_bio_crypt_ctx_bh(bio, bh, GFP_NOIO);
 
+
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_write_hint = write_hint;
+
+	// printk("--buf: b_blocknr: %llu, bi_sector: %llu\n", bh->b_blocknr, bio->bi_iter.bi_sector);
+	// printk("buf: bi_sector: %llu, bi_vcnt: %u, bi_size: %u\n", bio->bi_iter.bi_sector, bio->bi_vcnt, bio->bi_iter.bi_size);
+
 
 	bio_add_folio_nofail(bio, bh->b_folio, bh->b_size, bh_offset(bh));
 
