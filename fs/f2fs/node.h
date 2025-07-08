@@ -397,15 +397,15 @@ static inline nid_t get_nid(const struct folio *folio, int off, bool i)
  *  - Mark cold data pages in page cache
  */
 
-static inline int is_node(const struct page *page, int type)
+static inline int is_node(const struct folio *folio, int type)
 {
-	struct f2fs_node *rn = F2FS_NODE(page);
+	struct f2fs_node *rn = F2FS_NODE(&folio->page);
 	return le32_to_cpu(rn->footer.flag) & BIT(type);
 }
 
-#define is_cold_node(folio)	is_node(&folio->page, COLD_BIT_SHIFT)
-#define is_fsync_dnode(folio)	is_node(&folio->page, FSYNC_BIT_SHIFT)
-#define is_dent_dnode(folio)	is_node(&folio->page, DENT_BIT_SHIFT)
+#define is_cold_node(folio)	is_node(folio, COLD_BIT_SHIFT)
+#define is_fsync_dnode(folio)	is_node(folio, FSYNC_BIT_SHIFT)
+#define is_dent_dnode(folio)	is_node(folio, DENT_BIT_SHIFT)
 
 static inline void set_cold_node(const struct folio *folio, bool is_dir)
 {
