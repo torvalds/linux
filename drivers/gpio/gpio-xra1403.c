@@ -102,16 +102,13 @@ static int xra1403_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(val & BIT(offset % 8));
 }
 
-static void xra1403_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int xra1403_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
-	int ret;
 	struct xra1403 *xra = gpiochip_get_data(chip);
 
-	ret = regmap_update_bits(xra->regmap, to_reg(XRA_OCR, offset),
-			BIT(offset % 8), value ? BIT(offset % 8) : 0);
-	if (ret)
-		dev_err(chip->parent, "Failed to set pin: %d, ret: %d\n",
-				offset, ret);
+	return regmap_update_bits(xra->regmap, to_reg(XRA_OCR, offset),
+				  BIT(offset % 8),
+				  value ? BIT(offset % 8) : 0);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -167,7 +164,7 @@ static int xra1403_probe(struct spi_device *spi)
 	xra->chip.direction_output = xra1403_direction_output;
 	xra->chip.get_direction = xra1403_get_direction;
 	xra->chip.get = xra1403_get;
-	xra->chip.set = xra1403_set;
+	xra->chip.set_rv = xra1403_set;
 
 	xra->chip.dbg_show = xra1403_dbg_show;
 
