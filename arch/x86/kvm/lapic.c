@@ -114,7 +114,7 @@ static __always_inline void kvm_lapic_set_reg64(struct kvm_lapic *apic,
 
 static inline int apic_test_vector(int vec, void *bitmap)
 {
-	return test_bit(VEC_POS(vec), bitmap + REG_POS(vec));
+	return test_bit(APIC_VECTOR_TO_BIT_NUMBER(vec), bitmap + APIC_VECTOR_TO_REG_OFFSET(vec));
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector)
@@ -621,9 +621,8 @@ static int find_highest_vector(void *bitmap)
 	int vec;
 	u32 *reg;
 
-	for (vec = MAX_APIC_VECTOR - APIC_VECTORS_PER_REG;
-	     vec >= 0; vec -= APIC_VECTORS_PER_REG) {
-		reg = bitmap + REG_POS(vec);
+	for (vec = MAX_APIC_VECTOR - APIC_VECTORS_PER_REG; vec >= 0; vec -= APIC_VECTORS_PER_REG) {
+		reg = bitmap + APIC_VECTOR_TO_REG_OFFSET(vec);
 		if (*reg)
 			return __fls(*reg) + vec;
 	}
@@ -638,7 +637,7 @@ static u8 count_vectors(void *bitmap)
 	u8 count = 0;
 
 	for (vec = 0; vec < MAX_APIC_VECTOR; vec += APIC_VECTORS_PER_REG) {
-		reg = bitmap + REG_POS(vec);
+		reg = bitmap + APIC_VECTOR_TO_REG_OFFSET(vec);
 		count += hweight32(*reg);
 	}
 
@@ -736,12 +735,13 @@ EXPORT_SYMBOL_GPL(kvm_apic_clear_irr);
 
 static void *apic_vector_to_isr(int vec, struct kvm_lapic *apic)
 {
-	return apic->regs + APIC_ISR + REG_POS(vec);
+	return apic->regs + APIC_ISR + APIC_VECTOR_TO_REG_OFFSET(vec);
 }
 
 static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
 {
-	if (__test_and_set_bit(VEC_POS(vec), apic_vector_to_isr(vec, apic)))
+	if (__test_and_set_bit(APIC_VECTOR_TO_BIT_NUMBER(vec),
+			       apic_vector_to_isr(vec, apic)))
 		return;
 
 	/*
@@ -784,7 +784,8 @@ static inline int apic_find_highest_isr(struct kvm_lapic *apic)
 
 static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
 {
-	if (!__test_and_clear_bit(VEC_POS(vec), apic_vector_to_isr(vec, apic)))
+	if (!__test_and_clear_bit(APIC_VECTOR_TO_BIT_NUMBER(vec),
+				  apic_vector_to_isr(vec, apic)))
 		return;
 
 	/*
