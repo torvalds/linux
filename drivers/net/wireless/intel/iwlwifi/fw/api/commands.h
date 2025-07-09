@@ -574,8 +574,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6,
-	 *	&struct iwl_wowlan_status_v7, &struct iwl_wowlan_status_v9 or
-	 *	&struct iwl_wowlan_status_v12
+	 *	&struct iwl_wowlan_status_v7, &struct iwl_wowlan_status_v9
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
 
