@@ -384,7 +384,7 @@ static int guc_ct_control_toggle(struct xe_guc_ct *ct, bool enable)
 	return ret > 0 ? -EPROTO : ret;
 }
 
-static void xe_guc_ct_set_state(struct xe_guc_ct *ct,
+static void guc_ct_change_state(struct xe_guc_ct *ct,
 				enum xe_guc_ct_state state)
 {
 	mutex_lock(&ct->lock);		/* Serialise dequeue_one_g2h() */
@@ -469,7 +469,7 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	if (err)
 		goto err_out;
 
-	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_ENABLED);
+	guc_ct_change_state(ct, XE_GUC_CT_STATE_ENABLED);
 
 	smp_mb();
 	wake_up_all(&ct->wq);
@@ -514,7 +514,7 @@ static void stop_g2h_handler(struct xe_guc_ct *ct)
  */
 void xe_guc_ct_disable(struct xe_guc_ct *ct)
 {
-	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_DISABLED);
+	guc_ct_change_state(ct, XE_GUC_CT_STATE_DISABLED);
 	ct_exit_safe_mode(ct);
 	stop_g2h_handler(ct);
 }
@@ -530,7 +530,7 @@ void xe_guc_ct_stop(struct xe_guc_ct *ct)
 	if (!xe_guc_ct_initialized(ct))
 		return;
 
-	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_STOPPED);
+	guc_ct_change_state(ct, XE_GUC_CT_STATE_STOPPED);
 	stop_g2h_handler(ct);
 }
 
