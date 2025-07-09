@@ -104,7 +104,7 @@ static int modepin_gpio_dir_in(struct gpio_chip *chip, unsigned int pin)
 static int modepin_gpio_dir_out(struct gpio_chip *chip, unsigned int pin,
 				int state)
 {
-	return 0;
+	return modepin_gpio_set_value(chip, pin, state);
 }
 
 /**
