@@ -45,4 +45,9 @@ void xe_wa_dump(struct xe_gt *gt, struct drm_printer *p);
 	test_bit(XE_DEVICE_WA_OOB_ ## id__, (xe__)->wa_active.oob);	\
 })
 
+#define XE_DEVICE_WA_DISABLE(xe__, id__) ({				\
+	xe_assert(xe__, (xe__)->wa_active.oob_initialized);		\
+	clear_bit(XE_DEVICE_WA_OOB_ ## id__, (xe__)->wa_active.oob);	\
+})
+
 #endif
