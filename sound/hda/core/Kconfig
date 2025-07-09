@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SND_HDA_CORE
+	tristate
+	select REGMAP
+
+config SND_HDA_DSP_LOADER
+	bool
+
+config SND_HDA_ALIGNED_MMIO
+	bool
+
+config SND_HDA_COMPONENT
+	bool
+
+config SND_HDA_I915
+	bool
+	select SND_HDA_COMPONENT
+
+config SND_HDA_EXT_CORE
+       tristate
+       select SND_HDA_CORE
+
+config SND_HDA_PREALLOC_SIZE
+	int "Pre-allocated buffer size for HD-audio driver"
+	range 0 32768
+	default 0 if SND_DMA_SGBUF
+	default 64 if !SND_DMA_SGBUF
+	help
+	  Specifies the default pre-allocated buffer-size in kB for the
+	  HD-audio driver.  A larger buffer (e.g. 2048) is preferred
+	  for systems using PulseAudio.  The default 64 is chosen just
+	  for compatibility reasons.
+	  On x86 systems, the default is zero as S/G allocation works
+	  and no preallocation is needed in most cases.
+
+	  Note that the pre-allocation size can be changed dynamically
+	  via a proc file (/proc/asound/card*/pcm*/sub*/prealloc), too.
+
+config SND_INTEL_NHLT
+	bool
+	# this config should be selected only for Intel ACPI platforms.
+	# A fallback is provided so that the code compiles in all cases.
+
+config SND_INTEL_DSP_CONFIG
+	tristate
+	select ACPI_NHLT if ACPI
+	select SND_INTEL_NHLT if ACPI
+	select SND_INTEL_SOUNDWIRE_ACPI if ACPI
+	# this config should be selected only for Intel DSP platforms.
+	# A fallback is provided so that the code compiles in all cases.
+
+config SND_INTEL_SOUNDWIRE_ACPI
+	tristate
+
+config SND_INTEL_BYT_PREFER_SOF
+	bool "Prefer SOF driver over SST on BY/CHT platforms"
+	depends on SND_SST_ATOM_HIFI2_PLATFORM_ACPI && SND_SOC_SOF_BAYTRAIL
+	default n
+	help
+	  The kernel has 2 drivers for the Low Power Engine audio-block on
+	  Bay- and Cherry-Trail SoCs. The old SST driver and the new SOF
+	  driver. If both drivers are enabled then the kernel will default
+	  to using the old SST driver, unless told otherwise through the
+	  snd_intel_dspcfg.dsp_driver module-parameter.
+
+	  Set this option to Y to make the kernel default to the new SOF
+	  driver instead.
