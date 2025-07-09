@@ -19,7 +19,8 @@ enum iwl_prot_offload_subcmd_ids {
 
 	/**
 	 * @WOWLAN_INFO_NOTIFICATION: Notification in
-	 * &struct iwl_wowlan_info_notif_v1, or &struct iwl_wowlan_info_notif
+	 * &struct iwl_wowlan_info_notif_v1, iwl_wowlan_info_notif_v3,
+	 * or &struct iwl_wowlan_info_notif
 	 */
 	WOWLAN_INFO_NOTIFICATION = 0xFD,
 
