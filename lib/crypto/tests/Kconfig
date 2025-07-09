@@ -12,6 +12,18 @@ config CRYPTO_LIB_SHA256_KUNIT_TEST
 	  KUnit tests for the SHA-224 and SHA-256 cryptographic hash functions
 	  and their corresponding HMACs.
 
+# Option is named *_SHA512_KUNIT_TEST, though both SHA-384 and SHA-512 tests are
+# included, for consistency with the naming used elsewhere (e.g. CRYPTO_SHA512).
+config CRYPTO_LIB_SHA512_KUNIT_TEST
+	tristate "KUnit tests for SHA-384 and SHA-512" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_SHA512
+	help
+	  KUnit tests for the SHA-384 and SHA-512 cryptographic hash functions
+	  and their corresponding HMACs.
+
 config CRYPTO_LIB_BENCHMARK_VISIBLE
 	bool
 
