@@ -800,9 +800,9 @@
 	{
 		"Unit": "PAI-CRYPTO",
 		"EventCode": "4210",
-		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_256A",
-		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED AES 256A",
-		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES-256A function ending with CC=0"
+		"EventName": "PCC_COMPUTE_LAST_BLOCK_CMAC_USING_ENCRYPTED_AES_256",
+		"BriefDescription": "PCC COMPUTE LAST BLOCK CMAC USING ENCRYPTED AES 256",
+		"PublicDescription": "PCC-Compute-Last-Block-CMAC-Using-Encrypted-AES-256 function ending with CC=0"
 	},
 	{
 		"Unit": "PAI-CRYPTO",
