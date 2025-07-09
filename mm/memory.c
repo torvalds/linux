@@ -6815,6 +6815,7 @@ static int __copy_remote_vm_str(struct mm_struct *mm, unsigned long addr,
 	while (len) {
 		int bytes, offset, retval;
 		void *maddr;
+		struct folio *folio;
 		struct page *page;
 		struct vm_area_struct *vma = NULL;
 
@@ -6830,17 +6831,18 @@ static int __copy_remote_vm_str(struct mm_struct *mm, unsigned long addr,
 			goto out;
 		}
 
+		folio = page_folio(page);
 		bytes = len;
 		offset = addr & (PAGE_SIZE - 1);
 		if (bytes > PAGE_SIZE - offset)
 			bytes = PAGE_SIZE - offset;
 
-		maddr = kmap_local_page(page);
+		maddr = kmap_local_folio(folio, folio_page_idx(folio, page) * PAGE_SIZE);
 		retval = strscpy(buf, maddr + offset, bytes);
 		if (retval >= 0) {
 			/* Found the end of the string */
 			buf += retval;
-			unmap_and_put_page(page, maddr);
+			folio_release_kmap(folio, maddr);
 			break;
 		}
 
@@ -6858,7 +6860,7 @@ static int __copy_remote_vm_str(struct mm_struct *mm, unsigned long addr,
 		}
 		len -= bytes;
 
-		unmap_and_put_page(page, maddr);
+		folio_release_kmap(folio, maddr);
 	}
 
 out:
