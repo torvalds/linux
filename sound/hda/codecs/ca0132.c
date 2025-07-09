@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * HD audio interface patch for Creative CA0132 chip
+ * HD audio codec driver for Creative CA0132 chip
  *
  * Copyright (c) 2011, Creative Technology Ltd.
  *
@@ -9118,7 +9118,7 @@ static void sbz_dsp_startup_check(struct hda_codec *codec)
 		codec_info(codec, "Reloading... Tries left: %d", reload);
 		sbz_exit_chip(codec);
 		spec->dsp_state = DSP_DOWNLOAD_INIT;
-		codec->patch_ops.init(codec);
+		snd_hda_codec_init(codec);
 		failure = 0;
 		for (i = 0; i < 4; i++) {
 			chipio_read(codec, cur_address, &dsp_data_check[i]);
@@ -9694,30 +9694,6 @@ static void dbpro_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
-static int ca0132_suspend(struct hda_codec *codec)
-{
-	struct ca0132_spec *spec = codec->spec;
-
-	cancel_delayed_work_sync(&spec->unsol_hp_work);
-	return 0;
-}
-
-static const struct hda_codec_ops ca0132_patch_ops = {
-	.build_controls = ca0132_build_controls,
-	.build_pcms = ca0132_build_pcms,
-	.init = ca0132_init,
-	.free = ca0132_free,
-	.unsol_event = snd_hda_jack_unsol_event,
-	.suspend = ca0132_suspend,
-};
-
-static const struct hda_codec_ops dbpro_patch_ops = {
-	.build_controls = dbpro_build_controls,
-	.build_pcms = dbpro_build_pcms,
-	.init = dbpro_init,
-	.free = dbpro_free,
-};
-
 static void ca0132_config(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
@@ -9982,12 +9958,23 @@ static void sbz_detect_quirk(struct hda_codec *codec)
 	}
 }
 
-static int patch_ca0132(struct hda_codec *codec)
+static void ca0132_codec_remove(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+		return dbpro_free(codec);
+	else
+		return ca0132_free(codec);
+}
+
+static int ca0132_codec_probe(struct hda_codec *codec,
+			      const struct hda_device_id *id)
 {
 	struct ca0132_spec *spec;
 	int err;
 
-	codec_dbg(codec, "patch_ca0132\n");
+	codec_dbg(codec, "%s\n", __func__);
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
@@ -9999,11 +9986,6 @@ static int patch_ca0132(struct hda_codec *codec)
 	snd_hda_pick_fixup(codec, ca0132_quirk_models, ca0132_quirks, NULL);
 	if (ca0132_quirk(spec) == QUIRK_SBZ)
 		sbz_detect_quirk(codec);
-
-	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
-		codec->patch_ops = dbpro_patch_ops;
-	else
-		codec->patch_ops = ca0132_patch_ops;
 
 	codec->pcm_format_first = 1;
 	codec->no_sticky_stream = 1;
@@ -10100,15 +10082,63 @@ static int patch_ca0132(struct hda_codec *codec)
 	return 0;
 
  error:
-	ca0132_free(codec);
+	ca0132_codec_remove(codec);
 	return err;
 }
 
+static int ca0132_codec_build_controls(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+		return dbpro_build_controls(codec);
+	else
+		return ca0132_build_controls(codec);
+}
+
+static int ca0132_codec_build_pcms(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+		return dbpro_build_pcms(codec);
+	else
+		return ca0132_build_pcms(codec);
+}
+
+static int ca0132_codec_init(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+		return dbpro_init(codec);
+	else
+		return ca0132_init(codec);
+}
+
+static int ca0132_codec_suspend(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	cancel_delayed_work_sync(&spec->unsol_hp_work);
+	return 0;
+}
+
+static const struct hda_codec_ops ca0132_codec_ops = {
+	.probe = ca0132_codec_probe,
+	.remove = ca0132_codec_remove,
+	.build_controls = ca0132_codec_build_controls,
+	.build_pcms = ca0132_codec_build_pcms,
+	.init = ca0132_codec_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.suspend = ca0132_codec_suspend,
+};
+
 /*
- * patch entries
+ * driver entries
  */
 static const struct hda_device_id snd_hda_id_ca0132[] = {
-	HDA_CODEC_ENTRY(0x11020011, "CA0132", patch_ca0132),
+	HDA_CODEC_ID(0x11020011, "CA0132"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_ca0132);
@@ -10118,6 +10148,7 @@ MODULE_DESCRIPTION("Creative Sound Core3D codec");
 
 static struct hda_codec_driver ca0132_driver = {
 	.id = snd_hda_id_ca0132,
+	.ops = &ca0132_codec_ops,
 };
 
 module_hda_codec_driver(ca0132_driver);
