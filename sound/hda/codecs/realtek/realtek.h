@@ -226,14 +226,10 @@ void alc_power_eapd(struct hda_codec *codec);
 int alc_suspend(struct hda_codec *codec);
 int alc_resume(struct hda_codec *codec);
 
-#define alc_free	snd_hda_gen_free
-
 int alc_parse_auto_config(struct hda_codec *codec,
 			  const hda_nid_t *ignore_nids,
 			  const hda_nid_t *ssid_nids);
 int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid);
-
-extern const struct hda_codec_ops alc_patch_ops;
 
 #define alc_codec_rename(codec, name) snd_hda_codec_set_name(codec, name)
 

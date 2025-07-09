@@ -434,9 +434,9 @@ static const struct hda_model_fixup alc880_fixup_models[] = {
 
 
 /*
- * OK, here we have finally the patch for ALC880
+ * OK, here we have finally the probe for ALC880
  */
-static int patch_alc880(struct hda_codec *codec)
+static int alc880_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	struct alc_spec *spec;
 	int err;
@@ -448,8 +448,6 @@ static int patch_alc880(struct hda_codec *codec)
 	spec = codec->spec;
 	spec->gen.need_dac_fix = 1;
 	spec->gen.beep_nid = 0x01;
-
-	codec->patch_ops.unsol_event = alc880_unsol_event;
 
 	alc_pre_init(codec);
 
@@ -473,15 +471,28 @@ static int patch_alc880(struct hda_codec *codec)
 	return 0;
 
  error:
-	alc_free(codec);
+	snd_hda_gen_remove(codec);
 	return err;
 }
+
+static const struct hda_codec_ops alc880_codec_ops = {
+	.probe = alc880_probe,
+	.remove = snd_hda_gen_remove,
+	.build_controls = alc_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = alc_init,
+	.unsol_event = alc880_unsol_event,
+	.resume = alc_resume,
+	.suspend = alc_suspend,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
 
 /*
  * driver entries
  */
 static const struct hda_device_id snd_hda_id_alc880[] = {
-	HDA_CODEC_ENTRY(0x10ec0880, "ALC880", patch_alc880),
+	HDA_CODEC_ID(0x10ec0880, "ALC880"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_alc880);
@@ -492,6 +503,7 @@ MODULE_IMPORT_NS("SND_HDA_CODEC_REALTEK");
 
 static struct hda_codec_driver alc880_driver = {
 	.id = snd_hda_id_alc880,
+	.ops = &alc880_codec_ops,
 };
 
 module_hda_codec_driver(alc880_driver);

@@ -757,7 +757,7 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 
 /*
  */
-static int patch_alc882(struct hda_codec *codec)
+static int alc882_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	struct alc_spec *spec;
 	int err;
@@ -809,29 +809,42 @@ static int patch_alc882(struct hda_codec *codec)
 	return 0;
 
  error:
-	alc_free(codec);
+	snd_hda_gen_remove(codec);
 	return err;
 }
+
+static const struct hda_codec_ops alc882_codec_ops = {
+	.probe = alc882_probe,
+	.remove = snd_hda_gen_remove,
+	.build_controls = alc_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = alc_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.resume = alc_resume,
+	.suspend = alc_suspend,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
 
 /*
  * driver entries
  */
 static const struct hda_device_id snd_hda_id_alc882[] = {
-	HDA_CODEC_REV_ENTRY(0x10ec0662, 0x100002, "ALC662 rev2", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0882, "ALC882", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0883, "ALC883", patch_alc882),
-	HDA_CODEC_REV_ENTRY(0x10ec0885, 0x100101, "ALC889A", patch_alc882),
-	HDA_CODEC_REV_ENTRY(0x10ec0885, 0x100103, "ALC889A", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0885, "ALC885", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0887, "ALC887", patch_alc882),
-	HDA_CODEC_REV_ENTRY(0x10ec0888, 0x100101, "ALC1200", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0888, "ALC888", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0889, "ALC889", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0899, "ALC898", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0900, "ALC1150", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec0b00, "ALCS1200A", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec1168, "ALC1220", patch_alc882),
-	HDA_CODEC_ENTRY(0x10ec1220, "ALC1220", patch_alc882),
+	HDA_CODEC_ID_REV(0x10ec0662, 0x100002, "ALC662 rev2"),
+	HDA_CODEC_ID(0x10ec0882, "ALC882"),
+	HDA_CODEC_ID(0x10ec0883, "ALC883"),
+	HDA_CODEC_ID_REV(0x10ec0885, 0x100101, "ALC889A"),
+	HDA_CODEC_ID_REV(0x10ec0885, 0x100103, "ALC889A"),
+	HDA_CODEC_ID(0x10ec0885, "ALC885"),
+	HDA_CODEC_ID(0x10ec0887, "ALC887"),
+	HDA_CODEC_ID_REV(0x10ec0888, 0x100101, "ALC1200"),
+	HDA_CODEC_ID(0x10ec0888, "ALC888"),
+	HDA_CODEC_ID(0x10ec0889, "ALC889"),
+	HDA_CODEC_ID(0x10ec0899, "ALC898"),
+	HDA_CODEC_ID(0x10ec0900, "ALC1150"),
+	HDA_CODEC_ID(0x10ec0b00, "ALCS1200A"),
+	HDA_CODEC_ID(0x10ec1168, "ALC1220"),
+	HDA_CODEC_ID(0x10ec1220, "ALC1220"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_alc882);
@@ -842,6 +855,7 @@ MODULE_IMPORT_NS("SND_HDA_CODEC_REALTEK");
 
 static struct hda_codec_driver alc882_driver = {
 	.id = snd_hda_id_alc882,
+	.ops = &alc882_codec_ops,
 };
 
 module_hda_codec_driver(alc882_driver);

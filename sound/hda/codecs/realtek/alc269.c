@@ -992,7 +992,7 @@ static int alc269_resume(struct hda_codec *codec)
 		msleep(150);
 	}
 
-	codec->patch_ops.init(codec);
+	snd_hda_codec_init(codec);
 
 	if (spec->codec_variant == ALC269_TYPE_ALC269VB)
 		alc269vb_toggle_power_output(codec, 1);
@@ -7842,19 +7842,19 @@ static void alc269_fill_coef(struct hda_codec *codec)
 	alc_update_coef_idx(codec, 0x4, 0, 1<<11);
 }
 
-static void alc269_free(struct hda_codec *codec)
+static void alc269_remove(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
 	if (spec)
 		hda_component_manager_free(&spec->comps, &comp_master_ops);
 
-	alc_free(codec);
+	snd_hda_gen_remove(codec);
 }
 
 /*
  */
-static int patch_alc269(struct hda_codec *codec)
+static int alc269_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	struct alc_spec *spec;
 	int err;
@@ -7868,9 +7868,6 @@ static int patch_alc269(struct hda_codec *codec)
 	codec->power_save_node = 0;
 	spec->en_3kpull_low = true;
 
-	codec->patch_ops.suspend = alc269_suspend;
-	codec->patch_ops.resume = alc269_resume;
-	codec->patch_ops.free = alc269_free;
 	spec->shutup = alc_default_shutup;
 	spec->init_hook = alc_default_init;
 
@@ -8068,56 +8065,69 @@ static int patch_alc269(struct hda_codec *codec)
 	return 0;
 
  error:
-	alc_free(codec);
+	alc269_remove(codec);
 	return err;
 }
+
+static const struct hda_codec_ops alc269_codec_ops = {
+	.probe = alc269_probe,
+	.remove = alc269_remove,
+	.build_controls = alc_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = alc_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.suspend = alc269_suspend,
+	.resume = alc269_resume,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
 
 /*
  * driver entries
  */
 static const struct hda_device_id snd_hda_id_alc269[] = {
-	HDA_CODEC_ENTRY(0x10ec0215, "ALC215", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0221, "ALC221", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0222, "ALC222", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0225, "ALC225", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0230, "ALC236", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0231, "ALC231", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0233, "ALC233", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0234, "ALC234", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0235, "ALC233", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0236, "ALC236", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0245, "ALC245", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0255, "ALC255", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0256, "ALC256", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0257, "ALC257", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0269, "ALC269", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0270, "ALC270", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0274, "ALC274", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0275, "ALC275", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0276, "ALC276", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0280, "ALC280", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0282, "ALC282", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0283, "ALC283", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0284, "ALC284", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0285, "ALC285", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0286, "ALC286", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0287, "ALC287", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0288, "ALC288", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0289, "ALC289", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0290, "ALC290", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0292, "ALC292", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0293, "ALC293", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0294, "ALC294", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0295, "ALC295", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0298, "ALC298", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0299, "ALC299", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0300, "ALC300", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0623, "ALC623", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0700, "ALC700", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0701, "ALC701", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0703, "ALC703", patch_alc269),
-	HDA_CODEC_ENTRY(0x10ec0711, "ALC711", patch_alc269),
-	HDA_CODEC_ENTRY(0x19e58326, "HW8326", patch_alc269),
+	HDA_CODEC_ID(0x10ec0215, "ALC215"),
+	HDA_CODEC_ID(0x10ec0221, "ALC221"),
+	HDA_CODEC_ID(0x10ec0222, "ALC222"),
+	HDA_CODEC_ID(0x10ec0225, "ALC225"),
+	HDA_CODEC_ID(0x10ec0230, "ALC236"),
+	HDA_CODEC_ID(0x10ec0231, "ALC231"),
+	HDA_CODEC_ID(0x10ec0233, "ALC233"),
+	HDA_CODEC_ID(0x10ec0234, "ALC234"),
+	HDA_CODEC_ID(0x10ec0235, "ALC233"),
+	HDA_CODEC_ID(0x10ec0236, "ALC236"),
+	HDA_CODEC_ID(0x10ec0245, "ALC245"),
+	HDA_CODEC_ID(0x10ec0255, "ALC255"),
+	HDA_CODEC_ID(0x10ec0256, "ALC256"),
+	HDA_CODEC_ID(0x10ec0257, "ALC257"),
+	HDA_CODEC_ID(0x10ec0269, "ALC269"),
+	HDA_CODEC_ID(0x10ec0270, "ALC270"),
+	HDA_CODEC_ID(0x10ec0274, "ALC274"),
+	HDA_CODEC_ID(0x10ec0275, "ALC275"),
+	HDA_CODEC_ID(0x10ec0276, "ALC276"),
+	HDA_CODEC_ID(0x10ec0280, "ALC280"),
+	HDA_CODEC_ID(0x10ec0282, "ALC282"),
+	HDA_CODEC_ID(0x10ec0283, "ALC283"),
+	HDA_CODEC_ID(0x10ec0284, "ALC284"),
+	HDA_CODEC_ID(0x10ec0285, "ALC285"),
+	HDA_CODEC_ID(0x10ec0286, "ALC286"),
+	HDA_CODEC_ID(0x10ec0287, "ALC287"),
+	HDA_CODEC_ID(0x10ec0288, "ALC288"),
+	HDA_CODEC_ID(0x10ec0289, "ALC289"),
+	HDA_CODEC_ID(0x10ec0290, "ALC290"),
+	HDA_CODEC_ID(0x10ec0292, "ALC292"),
+	HDA_CODEC_ID(0x10ec0293, "ALC293"),
+	HDA_CODEC_ID(0x10ec0294, "ALC294"),
+	HDA_CODEC_ID(0x10ec0295, "ALC295"),
+	HDA_CODEC_ID(0x10ec0298, "ALC298"),
+	HDA_CODEC_ID(0x10ec0299, "ALC299"),
+	HDA_CODEC_ID(0x10ec0300, "ALC300"),
+	HDA_CODEC_ID(0x10ec0623, "ALC623"),
+	HDA_CODEC_ID(0x10ec0700, "ALC700"),
+	HDA_CODEC_ID(0x10ec0701, "ALC701"),
+	HDA_CODEC_ID(0x10ec0703, "ALC703"),
+	HDA_CODEC_ID(0x10ec0711, "ALC711"),
+	HDA_CODEC_ID(0x19e58326, "HW8326"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_alc269);
@@ -8129,6 +8139,7 @@ MODULE_IMPORT_NS("SND_HDA_SCODEC_COMPONENT");
 
 static struct hda_codec_driver alc269_driver = {
 	.id = snd_hda_id_alc269,
+	.ops = &alc269_codec_ops,
 };
 
 module_hda_codec_driver(alc269_driver);

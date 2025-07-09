@@ -88,7 +88,7 @@ static const struct hda_quirk alc861_fixup_tbl[] = {
 
 /*
  */
-static int patch_alc861(struct hda_codec *codec)
+static int alc861_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	struct alc_spec *spec;
 	int err;
@@ -124,16 +124,29 @@ static int patch_alc861(struct hda_codec *codec)
 	return 0;
 
  error:
-	alc_free(codec);
+	snd_hda_gen_remove(codec);
 	return err;
 }
+
+static const struct hda_codec_ops alc861_codec_ops = {
+	.probe = alc861_probe,
+	.remove = snd_hda_gen_remove,
+	.build_controls = alc_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = alc_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.resume = alc_resume,
+	.suspend = alc_suspend,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
 
 /*
  * driver entries
  */
 static const struct hda_device_id snd_hda_id_alc861[] = {
-	HDA_CODEC_REV_ENTRY(0x10ec0861, 0x100340, "ALC660", patch_alc861),
-	HDA_CODEC_ENTRY(0x10ec0861, "ALC861", patch_alc861),
+	HDA_CODEC_ID_REV(0x10ec0861, 0x100340, "ALC660"),
+	HDA_CODEC_ID(0x10ec0861, "ALC861"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_alc861);
@@ -144,6 +157,7 @@ MODULE_IMPORT_NS("SND_HDA_CODEC_REALTEK");
 
 static struct hda_codec_driver alc861_driver = {
 	.id = snd_hda_id_alc861,
+	.ops = &alc861_codec_ops,
 };
 
 module_hda_codec_driver(alc861_driver);

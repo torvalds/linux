@@ -862,26 +862,12 @@ int alc_resume(struct hda_codec *codec)
 
 	if (!spec->no_depop_delay)
 		msleep(150); /* to avoid pop noise */
-	codec->patch_ops.init(codec);
+	snd_hda_codec_init(codec);
 	snd_hda_regmap_sync(codec);
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(alc_resume, "SND_HDA_CODEC_REALTEK");
-
-/*
- */
-const struct hda_codec_ops alc_patch_ops = {
-	.build_controls = alc_build_controls,
-	.build_pcms = snd_hda_gen_build_pcms,
-	.init = alc_init,
-	.free = alc_free,
-	.unsol_event = snd_hda_jack_unsol_event,
-	.resume = alc_resume,
-	.suspend = alc_suspend,
-	.check_power_status = snd_hda_gen_check_power_status,
-};
-EXPORT_SYMBOL_NS_GPL(alc_patch_ops, "SND_HDA_CODEC_REALTEK");
 
 /*
  * Rename codecs appropriately from COEF value or subvendor id
@@ -1082,7 +1068,6 @@ int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 	/* FIXME: do we need this for all Realtek codec models? */
 	codec->spdif_status_reset = 1;
 	codec->forced_resume = 1;
-	codec->patch_ops = alc_patch_ops;
 	mutex_init(&spec->coef_mutex);
 
 	err = alc_codec_rename_from_preset(codec);
