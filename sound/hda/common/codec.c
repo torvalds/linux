@@ -3065,14 +3065,16 @@ EXPORT_SYMBOL_GPL(snd_pcm_2_1_chmaps);
 int snd_hda_codec_build_controls(struct hda_codec *codec)
 {
 	struct hda_codec_driver *driver = hda_codec_to_driver(codec);
-	int err = 0;
+	int err;
 
 	hda_exec_init_verbs(codec);
 	/* continue to initialize... */
 	err = snd_hda_codec_init(codec);
-	if (!err) {
-		if (driver->ops->build_controls)
-			err = driver->ops->build_controls(codec);
+	if (err < 0)
+		return err;
+
+	if (driver->ops->build_controls) {
+		err = driver->ops->build_controls(codec);
 		if (err < 0)
 			return err;
 	}
