@@ -2347,16 +2347,12 @@ static void iwl_mvm_parse_wowlan_info_notif(struct iwl_mvm *mvm,
 }
 
 static void
-iwl_mvm_parse_wowlan_info_notif_v4(struct iwl_mvm *mvm,
-				   struct iwl_wowlan_info_notif_v4 *data,
+iwl_mvm_parse_wowlan_info_notif_v3(struct iwl_mvm *mvm,
+				   struct iwl_wowlan_info_notif_v3 *data,
 				   struct iwl_wowlan_status_data *status,
 				   u32 len)
 {
 	u32 i;
-
-	if (IWL_FW_CHECK(mvm, data->num_mlo_link_keys,
-			 "MLO is not supported, shouldn't receive MLO keys\n"))
-		return;
 
 	if (len < sizeof(*data)) {
 		IWL_ERR(mvm, "Invalid WoWLAN info notification!\n");
@@ -3126,18 +3122,23 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 			iwl_mvm_parse_wowlan_info_notif_v2(mvm, notif_v2,
 							   d3_data->status,
 							   len);
-		} else if (wowlan_info_ver < 5) {
-			struct iwl_wowlan_info_notif_v4 *notif =
+		} else if (wowlan_info_ver == 3) {
+			struct iwl_wowlan_info_notif_v3 *notif =
 				(void *)pkt->data;
 
-			iwl_mvm_parse_wowlan_info_notif_v4(mvm, notif,
+			iwl_mvm_parse_wowlan_info_notif_v3(mvm, notif,
 							   d3_data->status, len);
-		} else {
+		} else if (wowlan_info_ver == 5) {
 			struct iwl_wowlan_info_notif *notif =
 				(void *)pkt->data;
 
 			iwl_mvm_parse_wowlan_info_notif(mvm, notif,
 							d3_data->status, len);
+		} else {
+			IWL_FW_CHECK(mvm, 1,
+				     "Firmware advertises unknown WoWLAN info notification %d!\n",
+				     wowlan_info_ver);
+			return false;
 		}
 
 		d3_data->notif_received |= IWL_D3_NOTIF_WOWLAN_INFO;

@@ -912,7 +912,7 @@ struct iwl_wowlan_mlo_gtk {
 } __packed; /* WOWLAN_MLO_GTK_KEY_API_S_VER_1 */
 
 /**
- * struct iwl_wowlan_info_notif_v4 - WoWLAN information notification
+ * struct iwl_wowlan_info_notif_v3 - WoWLAN information notification
  * @gtk: GTK data
  * @igtk: IGTK data
  * @bigtk: BIGTK data
@@ -927,12 +927,9 @@ struct iwl_wowlan_mlo_gtk {
  * @tid_tear_down: bit mask of tids whose BA sessions were closed
  *	in suspend state
  * @station_id: station id
- * @num_mlo_link_keys: number of &struct iwl_wowlan_mlo_gtk structs
- *	following this notif, or reserved in version < 4
  * @reserved2: reserved
- * @mlo_gtks: array of GTKs of size num_mlo_link_keys for version >= 4
  */
-struct iwl_wowlan_info_notif_v4 {
+struct iwl_wowlan_info_notif_v3 {
 	struct iwl_wowlan_gtk_status_v3 gtk[WOWLAN_GTK_KEYS_NUM];
 	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
 	struct iwl_wowlan_igtk_status bigtk[WOWLAN_BIGTK_KEYS_NUM];
@@ -946,10 +943,8 @@ struct iwl_wowlan_info_notif_v4 {
 	__le32 received_beacons;
 	u8 tid_tear_down;
 	u8 station_id;
-	u8 num_mlo_link_keys;
-	u8 reserved2;
-	struct iwl_wowlan_mlo_gtk mlo_gtks[];
-} __packed; /* WOWLAN_INFO_NTFY_API_S_VER_3, _VER_4 */
+	u8 reserved2[2];
+} __packed; /* WOWLAN_INFO_NTFY_API_S_VER_3 */
 
 /**
  * struct iwl_wowlan_info_notif - WoWLAN information notification
