@@ -618,7 +618,7 @@ void vsp1_device_put(struct vsp1_device *vsp1)
  * Power Management
  */
 
-static int __maybe_unused vsp1_pm_suspend(struct device *dev)
+static int vsp1_pm_suspend(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 
@@ -634,7 +634,7 @@ static int __maybe_unused vsp1_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused vsp1_pm_resume(struct device *dev)
+static int vsp1_pm_resume(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 
@@ -650,7 +650,7 @@ static int __maybe_unused vsp1_pm_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused vsp1_pm_runtime_suspend(struct device *dev)
+static int vsp1_pm_runtime_suspend(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 
@@ -660,7 +660,7 @@ static int __maybe_unused vsp1_pm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused vsp1_pm_runtime_resume(struct device *dev)
+static int vsp1_pm_runtime_resume(struct device *dev)
 {
 	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
 	int ret;
@@ -693,8 +693,8 @@ done:
 }
 
 static const struct dev_pm_ops vsp1_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(vsp1_pm_suspend, vsp1_pm_resume)
-	SET_RUNTIME_PM_OPS(vsp1_pm_runtime_suspend, vsp1_pm_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(vsp1_pm_suspend, vsp1_pm_resume)
+	RUNTIME_PM_OPS(vsp1_pm_runtime_suspend, vsp1_pm_runtime_resume, NULL)
 };
 
 /* -----------------------------------------------------------------------------
@@ -1042,7 +1042,7 @@ static struct platform_driver vsp1_platform_driver = {
 	.remove		= vsp1_remove,
 	.driver		= {
 		.name	= "vsp1",
-		.pm	= &vsp1_pm_ops,
+		.pm	= pm_ptr(&vsp1_pm_ops),
 		.of_match_table = vsp1_of_match,
 	},
 };
