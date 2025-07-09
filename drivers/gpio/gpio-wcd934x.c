@@ -68,12 +68,13 @@ static int wcd_gpio_get(struct gpio_chip *chip, unsigned int pin)
 	return !!(value & WCD_PIN_MASK(pin));
 }
 
-static void wcd_gpio_set(struct gpio_chip *chip, unsigned int pin, int val)
+static int wcd_gpio_set(struct gpio_chip *chip, unsigned int pin, int val)
 {
 	struct wcd_gpio_data *data = gpiochip_get_data(chip);
 
-	regmap_update_bits(data->map, WCD_REG_VAL_CTL_OFFSET,
-			   WCD_PIN_MASK(pin), val ? WCD_PIN_MASK(pin) : 0);
+	return regmap_update_bits(data->map, WCD_REG_VAL_CTL_OFFSET,
+				  WCD_PIN_MASK(pin),
+				  val ? WCD_PIN_MASK(pin) : 0);
 }
 
 static int wcd_gpio_probe(struct platform_device *pdev)
@@ -97,7 +98,7 @@ static int wcd_gpio_probe(struct platform_device *pdev)
 	chip->direction_output = wcd_gpio_direction_output;
 	chip->get_direction = wcd_gpio_get_direction;
 	chip->get = wcd_gpio_get;
-	chip->set = wcd_gpio_set;
+	chip->set_rv = wcd_gpio_set;
 	chip->parent = dev;
 	chip->base = -1;
 	chip->ngpio = WCD934X_NPINS;
