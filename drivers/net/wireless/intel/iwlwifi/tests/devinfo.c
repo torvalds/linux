@@ -31,15 +31,6 @@ static void iwl_pci_print_dev_info(const char *pfx, const struct iwl_dev_info *d
 		pos += scnprintf(buf + pos, sizeof(buf) - pos,
 				 " bw_limit=*");
 
-	if (di->match_rf_step)
-		pos += scnprintf(buf + pos, sizeof(buf) - pos,
-				 " rf_step=%c",
-				 di->rf_step == SILICON_Z_STEP ? 'Z' :
-				 	'A' + di->rf_step);
-	else
-		pos += scnprintf(buf + pos, sizeof(buf) - pos,
-				 " rf_step=*");
-
 	if (di->match_rf_id)
 		pos += scnprintf(buf + pos, sizeof(buf) - pos,
 				 " rf_id=0x%x", di->rf_id);
@@ -54,6 +45,13 @@ static void iwl_pci_print_dev_info(const char *pfx, const struct iwl_dev_info *d
 		pos += scnprintf(buf + pos, sizeof(buf) - pos,
 				 " cdb=*");
 
+	if (di->match_discrete)
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " discrete=%d",
+				 di->discrete);
+	else
+		pos += scnprintf(buf + pos, sizeof(buf) - pos,
+				 " discrete=*");
 
 	printk(KERN_DEBUG "%sdev=%04x subdev=%04x/%04x%s\n",
 	       pfx, di->device, di->subdevice, subdevice_mask, buf);
@@ -70,7 +68,7 @@ static void devinfo_table_order(struct kunit *test)
 		ret = iwl_pci_find_dev_info(di->device, di->subdevice,
 					    di->rf_type, di->cdb,
 					    di->rf_id, di->bw_limit,
-					    di->rf_step);
+					    di->discrete);
 		if (!ret) {
 			iwl_pci_print_dev_info("No entry found for: ", di);
 			KUNIT_FAIL(test,
@@ -82,6 +80,32 @@ static void devinfo_table_order(struct kunit *test)
 				   "unusable entry at index %d (found index %d instead)\n",
 				   idx, (int)(ret - iwl_dev_info_table));
 		}
+	}
+}
+
+static void devinfo_discrete_match(struct kunit *test)
+{
+	/*
+	 * Validate that any entries with discrete/integrated match have
+	 * the same config with the value inverted (if they match at all.)
+	 */
+
+	for (int idx = 0; idx < iwl_dev_info_table_size; idx++) {
+		const struct iwl_dev_info *di = &iwl_dev_info_table[idx];
+		const struct iwl_dev_info *ret;
+
+		if (!di->match_discrete)
+			continue;
+
+		ret = iwl_pci_find_dev_info(di->device, di->subdevice,
+					    di->rf_type, di->cdb,
+					    di->rf_id, di->bw_limit,
+					    !di->discrete);
+		if (!ret)
+			continue;
+		KUNIT_EXPECT_PTR_EQ(test, di->cfg, ret->cfg);
+		/* and check the name is different, that'd be the point of it */
+		KUNIT_EXPECT_NE(test, strcmp(di->name, ret->name), 0);
 	}
 }
 
@@ -216,6 +240,7 @@ static void devinfo_no_mac_cfg_dups(struct kunit *test)
 
 static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
+	KUNIT_CASE(devinfo_discrete_match),
 	KUNIT_CASE(devinfo_names),
 	KUNIT_CASE(devinfo_no_cfg_dups),
 	KUNIT_CASE(devinfo_no_name_dups),

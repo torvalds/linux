@@ -676,10 +676,9 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_trans *trans)
 			    CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM,
-				CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM,
-				IWL_EEPROM_SEM_TIMEOUT);
+		ret = iwl_poll_bits(trans, CSR_HW_IF_CONFIG_REG,
+				    CSR_HW_IF_CONFIG_REG_EEPROM_OWN_SEM,
+				    IWL_EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
 			IWL_DEBUG_EEPROM(trans->dev,
 					 "Acquired semaphore after %d tries.\n",
@@ -797,10 +796,9 @@ static int iwl_read_otp_word(struct iwl_trans *trans, u16 addr,
 
 	iwl_write32(trans, CSR_EEPROM_REG,
 		    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-	ret = iwl_poll_bit(trans, CSR_EEPROM_REG,
-				 CSR_EEPROM_REG_READ_VALID_MSK,
-				 CSR_EEPROM_REG_READ_VALID_MSK,
-				 IWL_EEPROM_ACCESS_TIMEOUT);
+	ret = iwl_poll_bits(trans, CSR_EEPROM_REG,
+			    CSR_EEPROM_REG_READ_VALID_MSK,
+			    IWL_EEPROM_ACCESS_TIMEOUT);
 	if (ret < 0) {
 		IWL_ERR(trans, "Time out reading OTP[%d]\n", addr);
 		return ret;
@@ -993,10 +991,9 @@ int iwl_read_eeprom(struct iwl_trans *trans, u8 **eeprom, size_t *eeprom_size)
 			iwl_write32(trans, CSR_EEPROM_REG,
 				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-			ret = iwl_poll_bit(trans, CSR_EEPROM_REG,
-					   CSR_EEPROM_REG_READ_VALID_MSK,
-					   CSR_EEPROM_REG_READ_VALID_MSK,
-					   IWL_EEPROM_ACCESS_TIMEOUT);
+			ret = iwl_poll_bits(trans, CSR_EEPROM_REG,
+					    CSR_EEPROM_REG_READ_VALID_MSK,
+					    IWL_EEPROM_ACCESS_TIMEOUT);
 			if (ret < 0) {
 				IWL_ERR(trans,
 					"Time out reading EEPROM[%d]\n", addr);
