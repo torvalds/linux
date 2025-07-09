@@ -1690,17 +1690,14 @@ static void __pwq_activate_work(struct pool_workqueue *pwq,
 static bool tryinc_node_nr_active(struct wq_node_nr_active *nna)
 {
 	int max = READ_ONCE(nna->max);
+	int old = atomic_read(&nna->nr);
 
-	while (true) {
-		int old, tmp;
-
-		old = atomic_read(&nna->nr);
+	do {
 		if (old >= max)
 			return false;
-		tmp = atomic_cmpxchg_relaxed(&nna->nr, old, old + 1);
-		if (tmp == old)
-			return true;
-	}
+	} while (!atomic_try_cmpxchg_relaxed(&nna->nr, &old, old + 1));
+
+	return true;
 }
 
 /**
