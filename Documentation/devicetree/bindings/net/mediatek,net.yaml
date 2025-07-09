@@ -66,6 +66,10 @@ properties:
       - const: gmac
       - const: ppe
 
+  sram:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to mmio SRAM
+
   mediatek,ethsys:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -162,6 +166,8 @@ allOf:
             - const: gp1
             - const: gp2
 
+        sram: false
+
         mediatek,infracfg: false
 
         mediatek,wed: false
@@ -193,6 +199,8 @@ allOf:
           items:
             - const: ethif
             - const: fe
+
+        sram: false
 
         mediatek,infracfg: false
 
@@ -232,6 +240,8 @@ allOf:
             - const: sgmii_cdr_fb
             - const: sgmii_ck
             - const: eth2pll
+
+        sram: false
 
         mediatek,infracfg: false
 
@@ -282,6 +292,8 @@ allOf:
             - const: sgmii2_cdr_fb
             - const: sgmii_ck
             - const: eth2pll
+
+        sram: false
 
         mediatek,sgmiisys:
           minItems: 2
