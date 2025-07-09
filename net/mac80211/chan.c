@@ -910,7 +910,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->hw.wiphy->mtx));
 
-	if (conf) {
+	if (conf && !local->in_reconfig) {
 		curr_ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
 		drv_unassign_vif_chanctx(local, sdata, link->conf, curr_ctx);
@@ -930,8 +930,9 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 
 			/* succeeded, so commit it to the data structures */
 			conf = &new_ctx->conf;
-			list_add(&link->assigned_chanctx_list,
-				 &new_ctx->assigned_links);
+			if (!local->in_reconfig)
+				list_add(&link->assigned_chanctx_list,
+					 &new_ctx->assigned_links);
 		}
 	} else {
 		ret = 0;
@@ -1932,7 +1933,8 @@ int _ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	if (ret < 0)
 		goto out;
 
-	__ieee80211_link_release_channel(link, false);
+	if (!local->in_reconfig)
+		__ieee80211_link_release_channel(link, false);
 
 	ctx = ieee80211_find_chanctx(local, link, chanreq, mode);
 	/* Note: context is now reserved */
