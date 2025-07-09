@@ -608,6 +608,30 @@ const char *rtw89_regd_get_string(enum rtw89_regulation_type regd)
 	return rtw89_regd_string[regd];
 }
 
+static void rtw89_regd_setup_reg_rules(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_acpi_policy_reg_rules *ptr;
+	struct rtw89_acpi_dsm_result res = {};
+	int ret;
+
+	regulatory->txpwr_uk_follow_etsi = true;
+
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_REG_RULES_EN, &res);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "acpi: cannot eval policy reg-rules: %d\n", ret);
+		return;
+	}
+
+	ptr = res.u.policy_reg_rules;
+
+	regulatory->txpwr_uk_follow_etsi =
+		!u8_get_bits(ptr->conf, RTW89_ACPI_CONF_REG_RULE_REGD_UK);
+
+	kfree(ptr);
+}
+
 int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
@@ -624,7 +648,8 @@ int rtw89_regd_setup(struct rtw89_dev *rtwdev)
 	}
 
 	regulatory->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
-	regulatory->txpwr_uk_follow_etsi = true;
+
+	rtw89_regd_setup_reg_rules(rtwdev);
 
 	if (!wiphy)
 		return -EINVAL;
