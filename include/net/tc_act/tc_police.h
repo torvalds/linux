@@ -5,10 +5,11 @@
 #include <net/act_api.h>
 
 struct tcf_police_params {
+	int			action;
 	int			tcfp_result;
 	u32			tcfp_ewma_rate;
-	s64			tcfp_burst;
 	u32			tcfp_mtu;
+	s64			tcfp_burst;
 	s64			tcfp_mtu_ptoks;
 	s64			tcfp_pkt_burst;
 	struct psched_ratecfg	rate;
