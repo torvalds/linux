@@ -42,6 +42,18 @@ properties:
     minItems: 1
     maxItems: 8
 
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: fe0
+      - const: fe1
+      - const: fe2
+      - const: fe3
+      - const: pdma0
+      - const: pdma1
+      - const: pdma2
+      - const: pdma3
+
   power-domains:
     maxItems: 1
 
@@ -135,6 +147,10 @@ allOf:
           minItems: 3
           maxItems: 3
 
+        interrupt-names:
+          minItems: 3
+          maxItems: 3
+
         clocks:
           minItems: 4
           maxItems: 4
@@ -166,6 +182,9 @@ allOf:
         interrupts:
           maxItems: 1
 
+        interrupt-names:
+          maxItems: 1
+
         clocks:
           minItems: 2
           maxItems: 2
@@ -189,6 +208,10 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
+          maxItems: 3
+
+        interrupt-names:
           minItems: 3
           maxItems: 3
 
@@ -229,6 +252,10 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
+          maxItems: 3
+
+        interrupt-names:
           minItems: 3
           maxItems: 3
 
@@ -274,6 +301,9 @@ allOf:
         interrupts:
           minItems: 8
 
+        interrupt-names:
+          minItems: 8
+
         clocks:
           minItems: 15
           maxItems: 15
@@ -312,6 +342,9 @@ allOf:
         interrupts:
           minItems: 8
 
+        interrupt-names:
+          minItems: 8
+
         clocks:
           minItems: 15
           maxItems: 15
@@ -348,6 +381,9 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 8
+
+        interrupt-names:
           minItems: 8
 
         clocks:
