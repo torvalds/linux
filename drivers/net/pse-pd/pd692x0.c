@@ -860,7 +860,7 @@ out:
 
 static int
 pd692x0_of_get_managers(struct pd692x0_priv *priv,
-			struct pd692x0_manager manager[PD692X0_MAX_MANAGERS])
+			struct pd692x0_manager *manager)
 {
 	struct device_node *managers_node, *node;
 	int ret, nmanagers, i, j;
@@ -1164,7 +1164,7 @@ pd692x0_write_ports_matrix(struct pd692x0_priv *priv,
 
 static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 {
-	struct pd692x0_manager manager[PD692X0_MAX_MANAGERS] = {0};
+	struct pd692x0_manager *manager __free(kfree) = NULL;
 	struct pd692x0_priv *priv = to_pd692x0_priv(pcdev);
 	struct pd692x0_matrix port_matrix[PD692X0_MAX_PIS];
 	int ret, i, j, nmanagers;
@@ -1173,6 +1173,10 @@ static int pd692x0_setup_pi_matrix(struct pse_controller_dev *pcdev)
 	if (priv->fw_state != PD692X0_FW_OK &&
 	    priv->fw_state != PD692X0_FW_COMPLETE)
 		return 0;
+
+	manager = kcalloc(PD692X0_MAX_MANAGERS, sizeof(*manager), GFP_KERNEL);
+	if (!manager)
+		return -ENOMEM;
 
 	ret = pd692x0_of_get_managers(priv, manager);
 	if (ret < 0)
