@@ -12,8 +12,9 @@ config SND_SOC_SDCA_OPTIONAL
 	def_tristate SND_SOC_SDCA || !SND_SOC_SDCA
 
 config SND_SOC_SDCA_HID
-	tristate "SDCA HID support"
-	depends on SND_SOC_SDCA && HID
+	bool "SDCA HID support"
+	depends on SND_SOC_SDCA
+	depends on HID=y || HID=SND_SOC_SDCA
 
 config SND_SOC_SDCA_IRQ
 	tristate

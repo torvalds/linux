@@ -5,5 +5,7 @@ snd-soc-sdca-hid-y := sdca_hid.o
 snd-soc-sdca-irq-y := sdca_interrupts.o
 
 obj-$(CONFIG_SND_SOC_SDCA)	+= snd-soc-sdca.o
-obj-$(CONFIG_SND_SOC_SDCA_HID)	+= snd-soc-sdca-hid.o
+ifdef CONFIG_SND_SOC_SDCA_HID
+obj-$(CONFIG_SND_SOC_SDCA)	+= snd-soc-sdca-hid.o
+endif
 obj-$(CONFIG_SND_SOC_SDCA_IRQ)	+= snd-soc-sdca-irq.o
