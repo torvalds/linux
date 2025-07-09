@@ -13,6 +13,11 @@
 #include "hda_local.h"
 #include "hdmi_local.h"
 
+enum {
+	MODEL_TEGRA,
+	MODEL_TEGRA234,
+};
+
 /*
  * The HDA codec on NVIDIA Tegra contains two scratch registers that are
  * accessed using vendor-defined verbs. These registers can be used for
@@ -241,7 +246,6 @@ static int tegra_hdmi_init(struct hda_codec *codec)
 	snd_hda_hdmi_generic_init_per_pins(codec);
 
 	codec->depop_delay = 10;
-	codec->patch_ops.build_pcms = tegra_hdmi_build_pcms;
 	spec->chmap.ops.chmap_cea_alloc_validate_get_type =
 		nvhdmi_chmap_cea_alloc_validate_get_type;
 	spec->chmap.ops.chmap_validate = nvhdmi_chmap_validate;
@@ -254,18 +258,8 @@ static int tegra_hdmi_init(struct hda_codec *codec)
 	return 0;
 }
 
-static int patch_tegra_hdmi(struct hda_codec *codec)
-{
-	int err;
-
-	err = snd_hda_hdmi_generic_alloc(codec);
-	if (err < 0)
-		return err;
-
-	return tegra_hdmi_init(codec);
-}
-
-static int patch_tegra234_hdmi(struct hda_codec *codec)
+static int tegrahdmi_probe(struct hda_codec *codec,
+			   const struct hda_device_id *id)
 {
 	struct hdmi_spec *spec;
 	int err;
@@ -274,31 +268,39 @@ static int patch_tegra234_hdmi(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	codec->dp_mst = true;
-	spec = codec->spec;
-	spec->dyn_pin_out = true;
-	spec->hdmi_intr_trig_ctrl = true;
+	if (id->driver_data == MODEL_TEGRA234) {
+		codec->dp_mst = true;
+		spec = codec->spec;
+		spec->dyn_pin_out = true;
+		spec->hdmi_intr_trig_ctrl = true;
+	}
 
 	return tegra_hdmi_init(codec);
 }
 
-/*
- * patch entries
- */
+static const struct hda_codec_ops tegrahdmi_codec_ops = {
+	.probe = tegrahdmi_probe,
+	.remove = snd_hda_hdmi_generic_remove,
+	.init = snd_hda_hdmi_generic_init,
+	.build_pcms = tegra_hdmi_build_pcms,
+	.build_controls = snd_hda_hdmi_generic_build_controls,
+	.unsol_event = snd_hda_hdmi_generic_unsol_event,
+	.suspend = snd_hda_hdmi_generic_suspend,
+	.resume = snd_hda_hdmi_generic_resume,
+};
+
 static const struct hda_device_id snd_hda_id_tegrahdmi[] = {
-HDA_CODEC_ENTRY(0x10de0020, "Tegra30 HDMI",	patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de0022, "Tegra114 HDMI",	patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de0028, "Tegra124 HDMI",	patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de0029, "Tegra210 HDMI/DP",	patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de002d, "Tegra186 HDMI/DP0", patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de002e, "Tegra186 HDMI/DP1", patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de002f, "Tegra194 HDMI/DP2", patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de0030, "Tegra194 HDMI/DP3", patch_tegra_hdmi),
-HDA_CODEC_ENTRY(0x10de0031, "Tegra234 HDMI/DP", patch_tegra234_hdmi),
-HDA_CODEC_ENTRY(0x10de0033, "SoC 33 HDMI/DP",	patch_tegra234_hdmi),
-HDA_CODEC_ENTRY(0x10de0034, "Tegra264 HDMI/DP",	patch_tegra234_hdmi),
-HDA_CODEC_ENTRY(0x10de0035, "SoC 35 HDMI/DP",	patch_tegra234_hdmi),
-{} /* terminator */
+	HDA_CODEC_ID_MODEL(0x10de0020, "Tegra30 HDMI",		MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de0022, "Tegra114 HDMI",		MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de0028, "Tegra124 HDMI",		MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de0029, "Tegra210 HDMI/DP",	MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de002d, "Tegra186 HDMI/DP0",	MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de002e, "Tegra186 HDMI/DP1",	MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de002f, "Tegra194 HDMI/DP2",	MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de0030, "Tegra194 HDMI/DP3",	MODEL_TEGRA),
+	HDA_CODEC_ID_MODEL(0x10de0031, "Tegra234 HDMI/DP",	MODEL_TEGRA234),
+	HDA_CODEC_ID_MODEL(0x10de0034, "Tegra264 HDMI/DP",	MODEL_TEGRA234),
+	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_tegrahdmi);
 
@@ -308,6 +310,7 @@ MODULE_IMPORT_NS("SND_HDA_CODEC_HDMI");
 
 static struct hda_codec_driver tegrahdmi_driver = {
 	.id = snd_hda_id_tegrahdmi,
+	.ops = &tegrahdmi_codec_ops,
 };
 
 module_hda_codec_driver(tegrahdmi_driver);

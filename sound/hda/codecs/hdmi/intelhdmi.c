@@ -18,6 +18,16 @@ IS_ENABLED(CONFIG_SND_HDA_INTEL_HDMI_SILENT_STREAM);
 module_param(enable_silent_stream, bool, 0644);
 MODULE_PARM_DESC(enable_silent_stream, "Enable Silent Stream for HDMI devices");
 
+enum {
+	MODEL_HSW,
+	MODEL_GLK,
+	MODEL_ICL,
+	MODEL_TGL,
+	MODEL_ADLP,
+	MODEL_BYT,
+	MODEL_CPT,
+};
+
 #define INTEL_GET_VENDOR_VERB	0xf81
 #define INTEL_SET_VENDOR_VERB	0x781
 #define INTEL_EN_DP12		0x02	/* enable DP 1.2 features */
@@ -67,9 +77,12 @@ static void intel_haswell_fixup_enable_dp12(struct hda_codec *codec)
 static void haswell_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state)
 {
-	if (power_state == AC_PWRST_D0) {
-		intel_haswell_enable_all_pins(codec, false);
-		intel_haswell_fixup_enable_dp12(codec);
+	/* check codec->spec: it can be called before the probe gets called */
+	if (codec->spec) {
+		if (power_state == AC_PWRST_D0) {
+			intel_haswell_enable_all_pins(codec, false);
+			intel_haswell_fixup_enable_dp12(codec);
+		}
 	}
 
 	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE, power_state);
@@ -456,13 +469,15 @@ static void i915_pin_cvt_fixup(struct hda_codec *codec,
 	}
 }
 
-static int i915_adlp_hdmi_suspend(struct hda_codec *codec)
+static int i915_hdmi_suspend(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 	bool silent_streams = false;
 	int pin_idx, res;
 
 	res = snd_hda_hdmi_generic_suspend(codec);
+	if (spec->silent_stream_type != SILENT_STREAM_KAE)
+		return res;
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
 		struct hdmi_spec_per_pin *per_pin = get_pin(spec, pin_idx);
@@ -495,12 +510,14 @@ static int i915_adlp_hdmi_suspend(struct hda_codec *codec)
 	return res;
 }
 
-static int i915_adlp_hdmi_resume(struct hda_codec *codec)
+static int i915_hdmi_resume(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx, res;
 
 	res = snd_hda_hdmi_generic_resume(codec);
+	if (spec->silent_stream_type != SILENT_STREAM_KAE)
+		return res;
 
 	/* KAE not programmed at suspend, nothing to do here */
 	if (!codec->no_stream_clean_at_suspend)
@@ -539,8 +556,6 @@ static int i915_adlp_hdmi_resume(struct hda_codec *codec)
 /* precondition and allocation for Intel codecs */
 static int alloc_intel_hdmi(struct hda_codec *codec)
 {
-	int err;
-
 	/* requires i915 binding */
 	if (!codec->bus->core.audio_component) {
 		codec_info(codec, "No i915 binding for Intel HDMI/DP codec\n");
@@ -549,12 +564,7 @@ static int alloc_intel_hdmi(struct hda_codec *codec)
 		return -ENODEV;
 	}
 
-	err = snd_hda_hdmi_generic_alloc(codec);
-	if (err < 0)
-		return err;
-	/* no need to handle unsol events */
-	codec->patch_ops.unsol_event = NULL;
-	return 0;
+	return snd_hda_hdmi_generic_alloc(codec);
 }
 
 /* parse and post-process for Intel codecs */
@@ -580,11 +590,7 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid,
 				 bool send_silent_stream)
 {
 	struct hdmi_spec *spec;
-	int err;
 
-	err = alloc_intel_hdmi(codec);
-	if (err < 0)
-		return err;
 	spec = codec->spec;
 	codec->dp_mst = true;
 	spec->vendor_nid = vendor_nid;
@@ -598,7 +604,6 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid,
 
 	codec->display_power_control = 1;
 
-	codec->patch_ops.set_power_state = haswell_set_power_state;
 	codec->depop_delay = 0;
 	codec->auto_runtime_pm = 1;
 
@@ -616,13 +621,13 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid,
 	return parse_intel_hdmi(codec);
 }
 
-static int patch_i915_hsw_hdmi(struct hda_codec *codec)
+static int probe_i915_hsw_hdmi(struct hda_codec *codec)
 {
 	return intel_hsw_common_init(codec, 0x08, NULL, 0, 3,
 				     enable_silent_stream);
 }
 
-static int patch_i915_glk_hdmi(struct hda_codec *codec)
+static int probe_i915_glk_hdmi(struct hda_codec *codec)
 {
 	/*
 	 * Silent stream calls audio component .get_power() from
@@ -632,7 +637,7 @@ static int patch_i915_glk_hdmi(struct hda_codec *codec)
 	return intel_hsw_common_init(codec, 0x0b, NULL, 0, 3, false);
 }
 
-static int patch_i915_icl_hdmi(struct hda_codec *codec)
+static int probe_i915_icl_hdmi(struct hda_codec *codec)
 {
 	/*
 	 * pin to port mapping table where the value indicate the pin number and
@@ -644,7 +649,7 @@ static int patch_i915_icl_hdmi(struct hda_codec *codec)
 				     enable_silent_stream);
 }
 
-static int patch_i915_tgl_hdmi(struct hda_codec *codec)
+static int probe_i915_tgl_hdmi(struct hda_codec *codec)
 {
 	/*
 	 * pin to port mapping table where the value indicate the pin number and
@@ -656,35 +661,27 @@ static int patch_i915_tgl_hdmi(struct hda_codec *codec)
 				     enable_silent_stream);
 }
 
-static int patch_i915_adlp_hdmi(struct hda_codec *codec)
+static int probe_i915_adlp_hdmi(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
 	int res;
 
-	res = patch_i915_tgl_hdmi(codec);
+	res = probe_i915_tgl_hdmi(codec);
 	if (!res) {
 		spec = codec->spec;
 
-		if (spec->silent_stream_type) {
+		if (spec->silent_stream_type)
 			spec->silent_stream_type = SILENT_STREAM_KAE;
-
-			codec->patch_ops.resume = i915_adlp_hdmi_resume;
-			codec->patch_ops.suspend = i915_adlp_hdmi_suspend;
-		}
 	}
 
 	return res;
 }
 
 /* Intel Baytrail and Braswell; with eld notifier */
-static int patch_i915_byt_hdmi(struct hda_codec *codec)
+static int probe_i915_byt_hdmi(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
-	int err;
 
-	err = alloc_intel_hdmi(codec);
-	if (err < 0)
-		return err;
 	spec = codec->spec;
 
 	/* For Valleyview/Cherryview, only the display codec is in the display
@@ -701,51 +698,104 @@ static int patch_i915_byt_hdmi(struct hda_codec *codec)
 }
 
 /* Intel IronLake, SandyBridge and IvyBridge; with eld notifier */
-static int patch_i915_cpt_hdmi(struct hda_codec *codec)
+static int probe_i915_cpt_hdmi(struct hda_codec *codec)
+{
+	return parse_intel_hdmi(codec);
+}
+
+/*
+ * common driver probe
+ */
+static int intelhdmi_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	int err;
 
 	err = alloc_intel_hdmi(codec);
 	if (err < 0)
 		return err;
-	return parse_intel_hdmi(codec);
+
+	switch (id->driver_data) {
+	case MODEL_HSW:
+		err = probe_i915_hsw_hdmi(codec);
+		break;
+	case MODEL_GLK:
+		err = probe_i915_glk_hdmi(codec);
+		break;
+	case MODEL_ICL:
+		err = probe_i915_icl_hdmi(codec);
+		break;
+	case MODEL_TGL:
+		err = probe_i915_tgl_hdmi(codec);
+		break;
+	case MODEL_ADLP:
+		err = probe_i915_adlp_hdmi(codec);
+		break;
+	case MODEL_BYT:
+		err = probe_i915_byt_hdmi(codec);
+		break;
+	case MODEL_CPT:
+		err = probe_i915_cpt_hdmi(codec);
+		break;
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	if (err < 0) {
+		snd_hda_hdmi_generic_spec_free(codec);
+		return err;
+	}
+
+	return 0;
 }
+
+static const struct hda_codec_ops intelhdmi_codec_ops = {
+	.probe = intelhdmi_probe,
+	.remove = snd_hda_hdmi_generic_remove,
+	.init = snd_hda_hdmi_generic_init,
+	.build_pcms = snd_hda_hdmi_generic_build_pcms,
+	.build_controls = snd_hda_hdmi_generic_build_controls,
+	.unsol_event = snd_hda_hdmi_generic_unsol_event,
+	.suspend = i915_hdmi_suspend,
+	.resume = i915_hdmi_resume,
+	.set_power_state = haswell_set_power_state,
+};
 
 /*
  * driver entries
  */
 static const struct hda_device_id snd_hda_id_intelhdmi[] = {
-HDA_CODEC_ENTRY(0x80860054, "IbexPeak HDMI",	patch_i915_cpt_hdmi),
-HDA_CODEC_ENTRY(0x80862800, "Geminilake HDMI",	patch_i915_glk_hdmi),
-HDA_CODEC_ENTRY(0x80862804, "IbexPeak HDMI",	patch_i915_cpt_hdmi),
-HDA_CODEC_ENTRY(0x80862805, "CougarPoint HDMI",	patch_i915_cpt_hdmi),
-HDA_CODEC_ENTRY(0x80862806, "PantherPoint HDMI", patch_i915_cpt_hdmi),
-HDA_CODEC_ENTRY(0x80862807, "Haswell HDMI",	patch_i915_hsw_hdmi),
-HDA_CODEC_ENTRY(0x80862808, "Broadwell HDMI",	patch_i915_hsw_hdmi),
-HDA_CODEC_ENTRY(0x80862809, "Skylake HDMI",	patch_i915_hsw_hdmi),
-HDA_CODEC_ENTRY(0x8086280a, "Broxton HDMI",	patch_i915_hsw_hdmi),
-HDA_CODEC_ENTRY(0x8086280b, "Kabylake HDMI",	patch_i915_hsw_hdmi),
-HDA_CODEC_ENTRY(0x8086280c, "Cannonlake HDMI",	patch_i915_glk_hdmi),
-HDA_CODEC_ENTRY(0x8086280d, "Geminilake HDMI",	patch_i915_glk_hdmi),
-HDA_CODEC_ENTRY(0x8086280f, "Icelake HDMI",	patch_i915_icl_hdmi),
-HDA_CODEC_ENTRY(0x80862812, "Tigerlake HDMI",	patch_i915_tgl_hdmi),
-HDA_CODEC_ENTRY(0x80862814, "DG1 HDMI",	patch_i915_tgl_hdmi),
-HDA_CODEC_ENTRY(0x80862815, "Alderlake HDMI",	patch_i915_tgl_hdmi),
-HDA_CODEC_ENTRY(0x80862816, "Rocketlake HDMI",	patch_i915_tgl_hdmi),
-HDA_CODEC_ENTRY(0x80862818, "Raptorlake HDMI",	patch_i915_tgl_hdmi),
-HDA_CODEC_ENTRY(0x80862819, "DG2 HDMI",	patch_i915_tgl_hdmi),
-HDA_CODEC_ENTRY(0x8086281a, "Jasperlake HDMI",	patch_i915_icl_hdmi),
-HDA_CODEC_ENTRY(0x8086281b, "Elkhartlake HDMI",	patch_i915_icl_hdmi),
-HDA_CODEC_ENTRY(0x8086281c, "Alderlake-P HDMI", patch_i915_adlp_hdmi),
-HDA_CODEC_ENTRY(0x8086281d, "Meteor Lake HDMI",	patch_i915_adlp_hdmi),
-HDA_CODEC_ENTRY(0x8086281e, "Battlemage HDMI",	patch_i915_adlp_hdmi),
-HDA_CODEC_ENTRY(0x8086281f, "Raptor Lake P HDMI",	patch_i915_adlp_hdmi),
-HDA_CODEC_ENTRY(0x80862820, "Lunar Lake HDMI",	patch_i915_adlp_hdmi),
-HDA_CODEC_ENTRY(0x80862822, "Panther Lake HDMI",	patch_i915_adlp_hdmi),
-HDA_CODEC_ENTRY(0x80862823, "Wildcat Lake HDMI",	patch_i915_adlp_hdmi),
-HDA_CODEC_ENTRY(0x80862882, "Valleyview2 HDMI",	patch_i915_byt_hdmi),
-HDA_CODEC_ENTRY(0x80862883, "Braswell HDMI",	patch_i915_byt_hdmi),
-{} /* terminator */
+	HDA_CODEC_ID_MODEL(0x80860054, "IbexPeak HDMI",		MODEL_CPT),
+	HDA_CODEC_ID_MODEL(0x80862800, "Geminilake HDMI",	MODEL_GLK),
+	HDA_CODEC_ID_MODEL(0x80862804, "IbexPeak HDMI",		MODEL_CPT),
+	HDA_CODEC_ID_MODEL(0x80862805, "CougarPoint HDMI",	MODEL_CPT),
+	HDA_CODEC_ID_MODEL(0x80862806, "PantherPoint HDMI",	MODEL_CPT),
+	HDA_CODEC_ID_MODEL(0x80862807, "Haswell HDMI",		MODEL_HSW),
+	HDA_CODEC_ID_MODEL(0x80862808, "Broadwell HDMI",	MODEL_HSW),
+	HDA_CODEC_ID_MODEL(0x80862809, "Skylake HDMI",		MODEL_HSW),
+	HDA_CODEC_ID_MODEL(0x8086280a, "Broxton HDMI",		MODEL_HSW),
+	HDA_CODEC_ID_MODEL(0x8086280b, "Kabylake HDMI",		MODEL_HSW),
+	HDA_CODEC_ID_MODEL(0x8086280c, "Cannonlake HDMI",	MODEL_GLK),
+	HDA_CODEC_ID_MODEL(0x8086280d, "Geminilake HDMI",	MODEL_GLK),
+	HDA_CODEC_ID_MODEL(0x8086280f, "Icelake HDMI",		MODEL_ICL),
+	HDA_CODEC_ID_MODEL(0x80862812, "Tigerlake HDMI",	MODEL_TGL),
+	HDA_CODEC_ID_MODEL(0x80862814, "DG1 HDMI",		MODEL_TGL),
+	HDA_CODEC_ID_MODEL(0x80862815, "Alderlake HDMI",	MODEL_TGL),
+	HDA_CODEC_ID_MODEL(0x80862816, "Rocketlake HDMI",	MODEL_TGL),
+	HDA_CODEC_ID_MODEL(0x80862818, "Raptorlake HDMI",	MODEL_TGL),
+	HDA_CODEC_ID_MODEL(0x80862819, "DG2 HDMI",		MODEL_TGL),
+	HDA_CODEC_ID_MODEL(0x8086281a, "Jasperlake HDMI",	MODEL_ICL),
+	HDA_CODEC_ID_MODEL(0x8086281b, "Elkhartlake HDMI",	MODEL_ICL),
+	HDA_CODEC_ID_MODEL(0x8086281c, "Alderlake-P HDMI",	MODEL_ADLP),
+	HDA_CODEC_ID_MODEL(0x8086281d, "Meteor Lake HDMI",	MODEL_ADLP),
+	HDA_CODEC_ID_MODEL(0x8086281e, "Battlemage HDMI",	MODEL_ADLP),
+	HDA_CODEC_ID_MODEL(0x8086281f, "Raptor Lake P HDMI",	MODEL_ADLP),
+	HDA_CODEC_ID_MODEL(0x80862820, "Lunar Lake HDMI",	MODEL_ADLP),
+	HDA_CODEC_ID_MODEL(0x80862822, "Panther Lake HDMI",	MODEL_ADLP),
+	HDA_CODEC_ID_MODEL(0x80862823, "Wildcat Lake HDMI",	MODEL_ADLP),
+	HDA_CODEC_ID_MODEL(0x80862882, "Valleyview2 HDMI",	MODEL_BYT),
+	HDA_CODEC_ID_MODEL(0x80862883, "Braswell HDMI",		MODEL_BYT),
+	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_intelhdmi);
 
@@ -755,6 +805,7 @@ MODULE_IMPORT_NS("SND_HDA_CODEC_HDMI");
 
 static struct hda_codec_driver intelhdmi_driver = {
 	.id = snd_hda_id_intelhdmi,
+	.ops = &intelhdmi_codec_ops,
 };
 
 module_hda_codec_driver(intelhdmi_driver);

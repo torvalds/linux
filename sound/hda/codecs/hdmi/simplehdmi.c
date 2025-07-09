@@ -107,7 +107,7 @@ int snd_hda_hdmi_simple_init(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_simple_init, "SND_HDA_CODEC_HDMI");
 
-void snd_hda_hdmi_simple_free(struct hda_codec *codec)
+void snd_hda_hdmi_simple_remove(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 
@@ -115,7 +115,7 @@ void snd_hda_hdmi_simple_free(struct hda_codec *codec)
 	snd_array_free(&spec->cvts);
 	kfree(spec);
 }
-EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_simple_free, "SND_HDA_CODEC_HDMI");
+EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_simple_remove, "SND_HDA_CODEC_HDMI");
 
 int snd_hda_hdmi_simple_pcm_open(struct hda_pcm_stream *hinfo,
 				 struct hda_codec *codec,
@@ -168,16 +168,8 @@ static const struct hda_pcm_stream simple_pcm_playback = {
 	},
 };
 
-static const struct hda_codec_ops simple_hdmi_patch_ops = {
-	.build_controls = snd_hda_hdmi_simple_build_controls,
-	.build_pcms = snd_hda_hdmi_simple_build_pcms,
-	.init = snd_hda_hdmi_simple_init,
-	.free = snd_hda_hdmi_simple_free,
-	.unsol_event = snd_hda_hdmi_simple_unsol_event,
-};
-
-int patch_simple_hdmi(struct hda_codec *codec,
-		      hda_nid_t cvt_nid, hda_nid_t pin_nid)
+int snd_hda_hdmi_simple_probe(struct hda_codec *codec,
+			      hda_nid_t cvt_nid, hda_nid_t pin_nid)
 {
 	struct hdmi_spec *spec;
 	struct hdmi_spec_per_cvt *per_cvt;
@@ -200,35 +192,52 @@ int patch_simple_hdmi(struct hda_codec *codec,
 	per_pin = snd_array_new(&spec->pins);
 	per_cvt = snd_array_new(&spec->cvts);
 	if (!per_pin || !per_cvt) {
-		snd_hda_hdmi_simple_free(codec);
+		snd_hda_hdmi_simple_remove(codec);
 		return -ENOMEM;
 	}
 	per_cvt->cvt_nid = cvt_nid;
 	per_pin->pin_nid = pin_nid;
 	spec->pcm_playback = simple_pcm_playback;
 
-	codec->patch_ops = simple_hdmi_patch_ops;
-
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(patch_simple_hdmi, "SND_HDA_CODEC_HDMI");
+EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_simple_probe, "SND_HDA_CODEC_HDMI");
+
+/*
+ * driver entries
+ */
+
+enum { MODEL_VIA };
 
 /* VIA HDMI Implementation */
 #define VIAHDMI_CVT_NID	0x02	/* audio converter1 */
 #define VIAHDMI_PIN_NID	0x03	/* HDMI output pin1 */
 
-static int patch_via_hdmi(struct hda_codec *codec)
+static int simplehdmi_probe(struct hda_codec *codec,
+			    const struct hda_device_id *id)
 {
-	return patch_simple_hdmi(codec, VIAHDMI_CVT_NID, VIAHDMI_PIN_NID);
+	switch (id->driver_data) {
+	case MODEL_VIA:
+		return snd_hda_hdmi_simple_probe(codec, VIAHDMI_CVT_NID,
+						 VIAHDMI_PIN_NID);
+	default:
+		return -EINVAL;
+	}
 }
 
-/*
- * patch entries
- */
+static const struct hda_codec_ops simplehdmi_codec_ops = {
+	.probe = simplehdmi_probe,
+	.remove = snd_hda_hdmi_simple_remove,
+	.build_controls = snd_hda_hdmi_simple_build_controls,
+	.build_pcms = snd_hda_hdmi_simple_build_pcms,
+	.init = snd_hda_hdmi_simple_init,
+	.unsol_event = snd_hda_hdmi_simple_unsol_event,
+};
+
 static const struct hda_device_id snd_hda_id_simplehdmi[] = {
-HDA_CODEC_ENTRY(0x11069f80, "VX900 HDMI/DP",	patch_via_hdmi),
-HDA_CODEC_ENTRY(0x11069f81, "VX900 HDMI/DP",	patch_via_hdmi),
-{} /* terminator */
+	HDA_CODEC_ID_MODEL(0x11069f80, "VX900 HDMI/DP",	MODEL_VIA),
+	HDA_CODEC_ID_MODEL(0x11069f81, "VX900 HDMI/DP",	MODEL_VIA),
+	{} /* terminator */
 };
 
 MODULE_LICENSE("GPL");
@@ -236,6 +245,7 @@ MODULE_DESCRIPTION("Simple HDMI HD-audio codec support");
 
 static struct hda_codec_driver simplehdmi_driver = {
 	.id = snd_hda_id_simplehdmi,
+	.ops = &simplehdmi_codec_ops,
 };
 
 module_hda_codec_driver(simplehdmi_driver);

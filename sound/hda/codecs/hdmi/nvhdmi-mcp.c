@@ -12,6 +12,8 @@
 #include "hda_local.h"
 #include "hdmi_local.h"
 
+enum { MODEL_2CH, MODEL_8CH };
+
 #define Nv_VERB_SET_Channel_Allocation          0xF79
 #define Nv_VERB_SET_Info_Frame_Checksum         0xF7A
 #define Nv_VERB_SET_Audio_Protection_On         0xF98
@@ -45,15 +47,14 @@ static const struct hda_verb nvhdmi_basic_init_7x_8ch[] = {
 	{} /* terminator */
 };
 
-static int nvhdmi_7x_init_2ch(struct hda_codec *codec)
+static int nvhdmi_mcp_init(struct hda_codec *codec)
 {
-	snd_hda_sequence_write(codec, nvhdmi_basic_init_7x_2ch);
-	return 0;
-}
+	struct hdmi_spec *spec = codec->spec;
 
-static int nvhdmi_7x_init_8ch(struct hda_codec *codec)
-{
-	snd_hda_sequence_write(codec, nvhdmi_basic_init_7x_8ch);
+	if (spec->multiout.max_channels == 2)
+		snd_hda_sequence_write(codec, nvhdmi_basic_init_7x_2ch);
+	else
+		snd_hda_sequence_write(codec, nvhdmi_basic_init_7x_8ch);
 	return 0;
 }
 
@@ -233,31 +234,13 @@ static const struct hda_pcm_stream nvhdmi_pcm_playback_8ch_7x = {
 	},
 };
 
-static int patch_nvhdmi_2ch(struct hda_codec *codec)
-{
-	struct hdmi_spec *spec;
-	int err = patch_simple_hdmi(codec, nvhdmi_master_con_nid_7x,
-				    nvhdmi_master_pin_nid_7x);
-	if (err < 0)
-		return err;
-
-	codec->patch_ops.init = nvhdmi_7x_init_2ch;
-	/* override the PCM rates, etc, as the codec doesn't give full list */
-	spec = codec->spec;
-	spec->pcm_playback.rates = SUPPORTED_RATES;
-	spec->pcm_playback.maxbps = SUPPORTED_MAXBPS;
-	spec->pcm_playback.formats = SUPPORTED_FORMATS;
-	spec->nv_dp_workaround = true;
-	return 0;
-}
-
-static int nvhdmi_7x_8ch_build_pcms(struct hda_codec *codec)
+static int nvhdmi_mcp_build_pcms(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 	int err;
 
 	err = snd_hda_hdmi_simple_build_pcms(codec);
-	if (!err) {
+	if (!err && spec->multiout.max_channels == 8) {
 		struct hda_pcm *info = get_pcm_rec(spec, 0);
 
 		info->own_chmap = true;
@@ -265,7 +248,7 @@ static int nvhdmi_7x_8ch_build_pcms(struct hda_codec *codec)
 	return err;
 }
 
-static int nvhdmi_7x_8ch_build_controls(struct hda_codec *codec)
+static int nvhdmi_mcp_build_controls(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 	struct hda_pcm *info;
@@ -275,6 +258,9 @@ static int nvhdmi_7x_8ch_build_controls(struct hda_codec *codec)
 	err = snd_hda_hdmi_simple_build_controls(codec);
 	if (err < 0)
 		return err;
+
+	if (spec->multiout.max_channels != 8)
+		return 0;
 
 	/* add channel maps */
 	info = get_pcm_rec(spec, 0);
@@ -316,20 +302,29 @@ static const struct snd_pcm_hw_constraint_list hw_constraints_2_8_channels = {
 	.mask = 0,
 };
 
-static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
+static int nvhdmi_mcp_probe(struct hda_codec *codec,
+			    const struct hda_device_id *id)
 {
 	struct hdmi_spec *spec;
 	int err;
 
-	err = patch_nvhdmi_2ch(codec);
+	err = snd_hda_hdmi_simple_probe(codec, nvhdmi_master_con_nid_7x,
+					nvhdmi_master_pin_nid_7x);
 	if (err < 0)
 		return err;
+
+	/* override the PCM rates, etc, as the codec doesn't give full list */
 	spec = codec->spec;
+	spec->pcm_playback.rates = SUPPORTED_RATES;
+	spec->pcm_playback.maxbps = SUPPORTED_MAXBPS;
+	spec->pcm_playback.formats = SUPPORTED_FORMATS;
+	spec->nv_dp_workaround = true;
+
+	if (id->driver_data == MODEL_2CH)
+		return 0;
+
 	spec->multiout.max_channels = 8;
 	spec->pcm_playback = nvhdmi_pcm_playback_8ch_7x;
-	codec->patch_ops.init = nvhdmi_7x_init_8ch;
-	codec->patch_ops.build_pcms = nvhdmi_7x_8ch_build_pcms;
-	codec->patch_ops.build_controls = nvhdmi_7x_8ch_build_controls;
 
 	switch (codec->preset->vendor_id) {
 	case 0x10de0002:
@@ -353,21 +348,27 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 	return 0;
 }
 
-/*
- * patch entries
- */
+static const struct hda_codec_ops nvhdmi_mcp_codec_ops = {
+	.probe = nvhdmi_mcp_probe,
+	.remove = snd_hda_hdmi_simple_remove,
+	.build_controls = nvhdmi_mcp_build_pcms,
+	.build_pcms = nvhdmi_mcp_build_controls,
+	.init = nvhdmi_mcp_init,
+	.unsol_event = snd_hda_hdmi_simple_unsol_event,
+};
+
 static const struct hda_device_id snd_hda_id_nvhdmi_mcp[] = {
-HDA_CODEC_ENTRY(0x10de0001, "MCP73 HDMI",	patch_nvhdmi_2ch),
-HDA_CODEC_ENTRY(0x10de0002, "MCP77/78 HDMI",	patch_nvhdmi_8ch_7x),
-HDA_CODEC_ENTRY(0x10de0003, "MCP77/78 HDMI",	patch_nvhdmi_8ch_7x),
-HDA_CODEC_ENTRY(0x10de0004, "GPU 04 HDMI",	patch_nvhdmi_8ch_7x),
-HDA_CODEC_ENTRY(0x10de0005, "MCP77/78 HDMI",	patch_nvhdmi_8ch_7x),
-HDA_CODEC_ENTRY(0x10de0006, "MCP77/78 HDMI",	patch_nvhdmi_8ch_7x),
-HDA_CODEC_ENTRY(0x10de0007, "MCP79/7A HDMI",	patch_nvhdmi_8ch_7x),
-HDA_CODEC_ENTRY(0x10de0067, "MCP67 HDMI",	patch_nvhdmi_2ch),
-HDA_CODEC_ENTRY(0x10de8001, "MCP73 HDMI",	patch_nvhdmi_2ch),
-HDA_CODEC_ENTRY(0x10de8067, "MCP67/68 HDMI",	patch_nvhdmi_2ch),
-{} /* terminator */
+	HDA_CODEC_ID_MODEL(0x10de0001, "MCP73 HDMI",	MODEL_2CH),
+	HDA_CODEC_ID_MODEL(0x10de0002, "MCP77/78 HDMI",	MODEL_8CH),
+	HDA_CODEC_ID_MODEL(0x10de0003, "MCP77/78 HDMI",	MODEL_8CH),
+	HDA_CODEC_ID_MODEL(0x10de0004, "GPU 04 HDMI",	MODEL_8CH),
+	HDA_CODEC_ID_MODEL(0x10de0005, "MCP77/78 HDMI",	MODEL_8CH),
+	HDA_CODEC_ID_MODEL(0x10de0006, "MCP77/78 HDMI",	MODEL_8CH),
+	HDA_CODEC_ID_MODEL(0x10de0007, "MCP79/7A HDMI",	MODEL_8CH),
+	HDA_CODEC_ID_MODEL(0x10de0067, "MCP67 HDMI",	MODEL_2CH),
+	HDA_CODEC_ID_MODEL(0x10de8001, "MCP73 HDMI",	MODEL_2CH),
+	HDA_CODEC_ID_MODEL(0x10de8067, "MCP67/68 HDMI",	MODEL_2CH),
+	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_nvhdmi_mcp);
 
@@ -377,6 +378,7 @@ MODULE_IMPORT_NS("SND_HDA_CODEC_HDMI");
 
 static struct hda_codec_driver nvhdmi_mcp_driver = {
 	.id = snd_hda_id_nvhdmi_mcp,
+	.ops = &nvhdmi_mcp_codec_ops,
 };
 
 module_hda_codec_driver(nvhdmi_mcp_driver);

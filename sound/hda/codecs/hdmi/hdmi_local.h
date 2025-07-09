@@ -237,8 +237,8 @@ union audio_infoframe {
 /* Generic HDMI codec support */
 int snd_hda_hdmi_generic_alloc(struct hda_codec *codec);
 int snd_hda_hdmi_parse_codec(struct hda_codec *codec);
-int patch_generic_hdmi(struct hda_codec *codec);
-void snd_hda_hdmi_generic_free(struct hda_codec *codec);
+int snd_hda_hdmi_generic_probe(struct hda_codec *codec);
+void snd_hda_hdmi_generic_remove(struct hda_codec *codec);
 
 int snd_hda_hdmi_generic_build_pcms(struct hda_codec *codec);
 int snd_hda_hdmi_generic_build_controls(struct hda_codec *codec);
@@ -286,9 +286,9 @@ void snd_hda_hdmi_acomp_master_unbind(struct device *dev,
 				      struct drm_audio_component *acomp);
 
 /* Simple / legacy HDMI codec support */
-int patch_simple_hdmi(struct hda_codec *codec,
-		      hda_nid_t cvt_nid, hda_nid_t pin_nid);
-void snd_hda_hdmi_simple_free(struct hda_codec *codec);
+int snd_hda_hdmi_simple_probe(struct hda_codec *codec,
+			      hda_nid_t cvt_nid, hda_nid_t pin_nid);
+void snd_hda_hdmi_simple_remove(struct hda_codec *codec);
 
 int snd_hda_hdmi_simple_build_pcms(struct hda_codec *codec);
 int snd_hda_hdmi_simple_build_controls(struct hda_codec *codec);

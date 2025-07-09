@@ -528,18 +528,15 @@ static const struct drm_audio_component_audio_ops atihdmi_audio_ops = {
 	.master_unbind = snd_hda_hdmi_acomp_master_unbind,
 };
 
-static int patch_atihdmi(struct hda_codec *codec)
+static int atihdmi_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	struct hdmi_spec *spec;
 	struct hdmi_spec_per_cvt *per_cvt;
 	int err, cvt_idx;
 
-	err = patch_generic_hdmi(codec);
-
+	err = snd_hda_hdmi_generic_probe(codec);
 	if (err)
 		return err;
-
-	codec->patch_ops.init = atihdmi_init;
 
 	spec = codec->spec;
 
@@ -583,15 +580,26 @@ static int patch_atihdmi(struct hda_codec *codec)
 	return 0;
 }
 
+static const struct hda_codec_ops atihdmi_codec_ops = {
+	.probe = atihdmi_probe,
+	.remove = snd_hda_hdmi_generic_remove,
+	.init = atihdmi_init,
+	.build_pcms = snd_hda_hdmi_generic_build_pcms,
+	.build_controls = snd_hda_hdmi_generic_build_controls,
+	.unsol_event = snd_hda_hdmi_generic_unsol_event,
+	.suspend = snd_hda_hdmi_generic_suspend,
+	.resume	 = snd_hda_hdmi_generic_resume,
+};
+
 /*
- * patch entries
+ * driver entries
  */
 static const struct hda_device_id snd_hda_id_atihdmi[] = {
-HDA_CODEC_ENTRY(0x1002793c, "RS600 HDMI",	patch_atihdmi),
-HDA_CODEC_ENTRY(0x10027919, "RS600 HDMI",	patch_atihdmi),
-HDA_CODEC_ENTRY(0x1002791a, "RS690/780 HDMI",	patch_atihdmi),
-HDA_CODEC_ENTRY(0x1002aa01, "R6xx HDMI",	patch_atihdmi),
-{} /* terminator */
+	HDA_CODEC_ID(0x1002793c, "RS600 HDMI"),
+	HDA_CODEC_ID(0x10027919, "RS600 HDMI"),
+	HDA_CODEC_ID(0x1002791a, "RS690/780 HDMI"),
+	HDA_CODEC_ID(0x1002aa01, "R6xx HDMI"),
+	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_atihdmi);
 
@@ -601,6 +609,7 @@ MODULE_IMPORT_NS("SND_HDA_CODEC_HDMI");
 
 static struct hda_codec_driver atihdmi_driver = {
 	.id = snd_hda_id_atihdmi,
+	.ops = &atihdmi_codec_ops,
 };
 
 module_hda_codec_driver(atihdmi_driver);

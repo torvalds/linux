@@ -2087,7 +2087,7 @@ void snd_hda_hdmi_generic_spec_free(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_generic_spec_free, "SND_HDA_CODEC_HDMI");
 
-void snd_hda_hdmi_generic_free(struct hda_codec *codec)
+void snd_hda_hdmi_generic_remove(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx, pcm_idx;
@@ -2113,7 +2113,7 @@ void snd_hda_hdmi_generic_free(struct hda_codec *codec)
 
 	snd_hda_hdmi_generic_spec_free(codec);
 }
-EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_generic_free, "SND_HDA_CODEC_HDMI");
+EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_generic_remove, "SND_HDA_CODEC_HDMI");
 
 int snd_hda_hdmi_generic_suspend(struct hda_codec *codec)
 {
@@ -2133,7 +2133,7 @@ int snd_hda_hdmi_generic_resume(struct hda_codec *codec)
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx;
 
-	codec->patch_ops.init(codec);
+	snd_hda_codec_init(codec);
 	snd_hda_regmap_sync(codec);
 
 	for (pin_idx = 0; pin_idx < spec->num_pins; pin_idx++) {
@@ -2143,16 +2143,6 @@ int snd_hda_hdmi_generic_resume(struct hda_codec *codec)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_generic_resume, "SND_HDA_CODEC_HDMI");
-
-static const struct hda_codec_ops generic_hdmi_patch_ops = {
-	.init			= snd_hda_hdmi_generic_init,
-	.free			= snd_hda_hdmi_generic_free,
-	.build_pcms		= snd_hda_hdmi_generic_build_pcms,
-	.build_controls		= snd_hda_hdmi_generic_build_controls,
-	.unsol_event		= snd_hda_hdmi_generic_unsol_event,
-	.suspend		= snd_hda_hdmi_generic_suspend,
-	.resume			= snd_hda_hdmi_generic_resume,
-};
 
 static const struct hdmi_ops generic_standard_hdmi_ops = {
 	.pin_get_eld				= hdmi_pin_get_eld,
@@ -2185,14 +2175,12 @@ int snd_hda_hdmi_generic_alloc(struct hda_codec *codec)
 	codec->spec = spec;
 	hdmi_array_init(spec, 4);
 
-	codec->patch_ops = generic_hdmi_patch_ops;
-
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_generic_alloc, "SND_HDA_CODEC_HDMI");
 
 /* generic HDMI parser */
-int patch_generic_hdmi(struct hda_codec *codec)
+int snd_hda_hdmi_generic_probe(struct hda_codec *codec)
 {
 	int err;
 
@@ -2209,7 +2197,7 @@ int patch_generic_hdmi(struct hda_codec *codec)
 	snd_hda_hdmi_generic_init_per_pins(codec);
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(patch_generic_hdmi, "SND_HDA_CODEC_HDMI");
+EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_generic_probe, "SND_HDA_CODEC_HDMI");
 
 /*
  * generic audio component binding
@@ -2346,65 +2334,83 @@ EXPORT_SYMBOL_NS_GPL(snd_hda_hdmi_acomp_init, "SND_HDA_CODEC_HDMI");
 /*
  */
 
-static int patch_gf_hdmi(struct hda_codec *codec)
+enum {
+	MODEL_GENERIC,
+	MODEL_GF,
+};
+
+static int generichdmi_probe(struct hda_codec *codec,
+			     const struct hda_device_id *id)
 {
 	int err;
 
-	err = patch_generic_hdmi(codec);
-	if (err)
+	err = snd_hda_hdmi_generic_probe(codec);
+	if (err < 0)
 		return err;
-
 	/*
 	 * Glenfly GPUs have two codecs, stream switches from one codec to
 	 * another, need to do actual clean-ups in codec_cleanup_stream
 	 */
-	codec->no_sticky_stream = 1;
+	if (id->driver_data == MODEL_GF)
+		codec->no_sticky_stream = 1;
+
 	return 0;
 }
 
-/*
- * patch entries
- */
-static const struct hda_device_id snd_hda_id_hdmi[] = {
-HDA_CODEC_ENTRY(0x00147a47, "Loongson HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x10951390, "SiI1390 HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x10951392, "SiI1392 HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x17e80047, "Chrontel HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x67663d82, "Arise 82 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x67663d83, "Arise 83 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x67663d84, "Arise 84 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x67663d85, "Arise 85 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x67663d86, "Arise 86 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x67663d87, "Arise 87 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x11069f84, "VX11 HDMI/DP",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x11069f85, "VX11 HDMI/DP",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x1d179f86, "ZX-100S HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f87, "ZX-100S HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f88, "KX-5000 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f89, "KX-5000 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f8a, "KX-6000 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f8b, "KX-6000 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f8c, "KX-6000G HDMI/DP", patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f8d, "KX-6000G HDMI/DP", patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f8e, "KX-7000 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f8f, "KX-7000 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x1d179f90, "KX-7000 HDMI/DP",	patch_gf_hdmi),
-HDA_CODEC_ENTRY(0x80862801, "Bearlake HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862802, "Cantiga HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862803, "Eaglelake HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x80862880, "CedarTrail HDMI",	patch_generic_hdmi),
-HDA_CODEC_ENTRY(0x808629fb, "Crestline HDMI",	patch_generic_hdmi),
-/* special ID for generic HDMI */
-HDA_CODEC_ENTRY(HDA_CODEC_ID_GENERIC_HDMI, "Generic HDMI", patch_generic_hdmi),
-{} /* terminator */
+static const struct hda_codec_ops generichdmi_codec_ops = {
+	.probe = generichdmi_probe,
+	.remove = snd_hda_hdmi_generic_remove,
+	.init = snd_hda_hdmi_generic_init,
+	.build_pcms = snd_hda_hdmi_generic_build_pcms,
+	.build_controls = snd_hda_hdmi_generic_build_controls,
+	.unsol_event = snd_hda_hdmi_generic_unsol_event,
+	.suspend = snd_hda_hdmi_generic_suspend,
+	.resume	 = snd_hda_hdmi_generic_resume,
 };
-MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_hdmi);
+
+/*
+ */
+static const struct hda_device_id snd_hda_id_generichdmi[] = {
+	HDA_CODEC_ID_MODEL(0x00147a47, "Loongson HDMI",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x10951390, "SiI1390 HDMI",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x10951392, "SiI1392 HDMI",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x11069f84, "VX11 HDMI/DP",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x11069f85, "VX11 HDMI/DP",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x17e80047, "Chrontel HDMI",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x1d179f86, "ZX-100S HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f87, "ZX-100S HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f88, "KX-5000 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f89, "KX-5000 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f8a, "KX-6000 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f8b, "KX-6000 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f8c, "KX-6000G HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f8d, "KX-6000G HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f8e, "KX-7000 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f8f, "KX-7000 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x1d179f90, "KX-7000 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x67663d82, "Arise 82 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x67663d83, "Arise 83 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x67663d84, "Arise 84 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x67663d85, "Arise 85 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x67663d86, "Arise 86 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x67663d87, "Arise 87 HDMI/DP",	MODEL_GF),
+	HDA_CODEC_ID_MODEL(0x80862801, "Bearlake HDMI",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x80862802, "Cantiga HDMI",		MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x80862803, "Eaglelake HDMI",	MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x80862880, "CedarTrail HDMI",	MODEL_GENERIC),
+	HDA_CODEC_ID_MODEL(0x808629fb, "Crestline HDMI",	MODEL_GENERIC),
+	/* special ID for generic HDMI */
+	HDA_CODEC_ID_MODEL(HDA_CODEC_ID_GENERIC_HDMI, "Generic HDMI", MODEL_GENERIC),
+	{} /* terminator */
+};
+MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_generichdmi);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("HDMI HD-audio codec");
+MODULE_DESCRIPTION("Generic HDMI HD-audio codec");
 
-static struct hda_codec_driver hdmi_driver = {
-	.id = snd_hda_id_hdmi,
+static struct hda_codec_driver generichdmi_driver = {
+	.id = snd_hda_id_generichdmi,
+	.ops = &generichdmi_codec_ops,
 };
 
-module_hda_codec_driver(hdmi_driver);
+module_hda_codec_driver(generichdmi_driver);
