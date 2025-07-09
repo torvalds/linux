@@ -199,7 +199,7 @@ static void iwl_fwrt_dump_lmac_error_log(struct iwl_fw_runtime *fwrt, u8 lmac_nu
 		IWL_ERR(trans, "HW error, resetting before reading\n");
 
 		/* reset the device */
-		err = iwl_trans_sw_reset(trans, true);
+		err = iwl_trans_sw_reset(trans);
 		if (err)
 			return;
 

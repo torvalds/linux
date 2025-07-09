@@ -498,9 +498,9 @@ void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 }
 IWL_EXPORT_SYMBOL(iwl_trans_set_pmi);
 
-int iwl_trans_sw_reset(struct iwl_trans *trans, bool retake_ownership)
+int iwl_trans_sw_reset(struct iwl_trans *trans)
 {
-	return iwl_trans_pcie_sw_reset(trans, retake_ownership);
+	return iwl_trans_pcie_sw_reset(trans, true);
 }
 IWL_EXPORT_SYMBOL(iwl_trans_sw_reset);
 

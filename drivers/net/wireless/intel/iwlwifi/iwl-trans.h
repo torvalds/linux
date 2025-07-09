@@ -1096,7 +1096,7 @@ static inline u32 iwl_trans_write_mem32(struct iwl_trans *trans, u32 addr,
 
 void iwl_trans_set_pmi(struct iwl_trans *trans, bool state);
 
-int iwl_trans_sw_reset(struct iwl_trans *trans, bool retake_ownership);
+int iwl_trans_sw_reset(struct iwl_trans *trans);
 
 void iwl_trans_set_bits_mask(struct iwl_trans *trans, u32 reg,
 			     u32 mask, u32 value);
