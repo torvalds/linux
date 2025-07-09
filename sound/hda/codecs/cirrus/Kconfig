@@ -1,14 +1,24 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-config SND_HDA_CODEC_CIRRUS
-	tristate "Build Cirrus Logic codec support"
+config SND_HDA_CODEC_CS420X
+	tristate "Build Cirrus Logic CS420x codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y or M here to include Cirrus Logic codec support in
-	  snd-hda-intel driver, such as CS4206.
+	  Say Y or M here to include Cirrus Logic CS420x codec support in
+	  snd-hda-intel driver
 
 comment "Set to Y if you want auto-loading the codec driver"
-	depends on SND_HDA=y && SND_HDA_CODEC_CIRRUS=m
+	depends on SND_HDA=y && SND_HDA_CODEC_CS420X=m
+
+config SND_HDA_CODEC_CS421X
+	tristate "Build Cirrus Logic CS421x codec support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include Cirrus Logic CS421x codec support in
+	  snd-hda-intel driver
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CS421X=m
 
 config SND_HDA_CODEC_CS8409
 	tristate "Build Cirrus Logic HDA bridge support"
