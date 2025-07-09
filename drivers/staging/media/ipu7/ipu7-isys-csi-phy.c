@@ -734,6 +734,7 @@ static void ipu7_isys_cphy_config(struct ipu7_isys *isys, u8 id, u8 lanes,
 	u16 reg;
 	u16 val;
 	u32 i;
+	u64 r64;
 	u32 r;
 
 	if (is_ipu7p5(isys->adev->isp->hw_ver))
@@ -806,8 +807,8 @@ static void ipu7_isys_cphy_config(struct ipu7_isys *isys, u8 id, u8 lanes,
 		dwc_phy_write_mask(isys, id, reg, 2, 0, 2);
 	}
 
-	deass_thresh = (u16)div_u64_rem(7 * 1000 * 6, mbps * 5U, &r) + 1;
-	if (r != 0)
+	deass_thresh = (u16)div64_u64_rem(7 * 1000 * 6, mbps * 5U, &r64) + 1;
+	if (r64 != 0)
 		deass_thresh++;
 
 	reg = CORE_DIG_RW_TRIO0_2;
@@ -815,8 +816,7 @@ static void ipu7_isys_cphy_config(struct ipu7_isys *isys, u8 id, u8 lanes,
 		dwc_phy_write_mask(isys, id, reg + 0x400 * i,
 				   deass_thresh, 0, 7);
 
-	delay_thresh =
-		((224U - (9U * 7U)) * 1000U) / (5U * mbps) - 7U;
+	delay_thresh = div64_u64((224U - (9U * 7U)) * 1000U, 5U * mbps) - 7u;
 
 	if (delay_thresh < 1)
 		delay_thresh = 1;
