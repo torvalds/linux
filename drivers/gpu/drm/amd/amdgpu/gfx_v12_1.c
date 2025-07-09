@@ -59,6 +59,13 @@ MODULE_FIRMWARE("amdgpu/gc_12_1_0_rlc.bin");
 	 (SH_MEM_ALIGNMENT_MODE_UNALIGNED_GFX12_1_0 << SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) | \
 	 (3 << SH_MEM_CONFIG__INITIAL_INST_PREFETCH__SHIFT))
 
+#define XCC_REG_RANGE_0_LOW  0x1260     /* XCC gfxdec0 lower Bound */
+#define XCC_REG_RANGE_0_HIGH 0x3C00     /* XCC gfxdec0 upper Bound */
+#define XCC_REG_RANGE_1_LOW  0xA000     /* XCC gfxdec1 lower Bound */
+#define XCC_REG_RANGE_1_HIGH 0x10000    /* XCC gfxdec1 upper Bound */
+#define NORMALIZE_XCC_REG_OFFSET(offset) \
+	(offset & 0xFFFF)
+
 static void gfx_v12_1_xcc_disable_gpa_mode(struct amdgpu_device *adev, int xcc_id);
 static void gfx_v12_1_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v12_1_set_irq_funcs(struct amdgpu_device *adev);
@@ -220,11 +227,30 @@ static void gfx_v12_1_set_kiq_pm4_funcs(struct amdgpu_device *adev)
 		adev->gfx.kiq[i].pmf = &gfx_v12_1_kiq_pm4_funcs;
 }
 
+static uint32_t gfx_v12_1_normalize_xcc_reg_offset(uint32_t reg)
+{
+	uint32_t normalized_reg = NORMALIZE_XCC_REG_OFFSET(reg);
+
+	/* If it is an XCC reg, normalize the reg to keep
+	   lower 16 bits in local xcc */
+
+	if (((normalized_reg >= XCC_REG_RANGE_0_LOW) && (normalized_reg < XCC_REG_RANGE_0_HIGH)) ||
+		((normalized_reg >= XCC_REG_RANGE_1_LOW) && (normalized_reg < XCC_REG_RANGE_1_HIGH)))
+		return normalized_reg;
+	else
+		return reg;
+}
+
 static void gfx_v12_1_wait_reg_mem(struct amdgpu_ring *ring, int eng_sel,
 				   int mem_space, int opt, uint32_t addr0,
 				   uint32_t addr1, uint32_t ref,
 				   uint32_t mask, uint32_t inv)
 {
+	if (mem_space == 0) {
+		addr0 = gfx_v12_1_normalize_xcc_reg_offset(addr0);
+		addr1 = gfx_v12_1_normalize_xcc_reg_offset(addr1);
+	}
+
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
 	amdgpu_ring_write(ring,
 			  /* memory (1) or register (0) */
@@ -3338,6 +3364,8 @@ static void gfx_v12_1_ring_emit_rreg(struct amdgpu_ring *ring, uint32_t reg,
 {
 	struct amdgpu_device *adev = ring->adev;
 
+	reg = gfx_v12_1_normalize_xcc_reg_offset(reg);
+
 	amdgpu_ring_write(ring, PACKET3(PACKET3_COPY_DATA, 4));
 	amdgpu_ring_write(ring, 0 |	/* src: register*/
 				(5 << 8) |	/* dst: memory */
@@ -3355,6 +3383,8 @@ static void gfx_v12_1_ring_emit_wreg(struct amdgpu_ring *ring,
 				     uint32_t val)
 {
 	uint32_t cmd = 0;
+
+	reg = gfx_v12_1_normalize_xcc_reg_offset(reg);
 
 	switch (ring->funcs->type) {
 	case AMDGPU_RING_TYPE_KIQ:
