@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * HD audio interface patch for AD1882, AD1884, AD1981HD, AD1983, AD1984,
+ * HD audio codec driver for AD1882, AD1884, AD1981HD, AD1983, AD1984,
  *   AD1986A, AD1988
  *
  * Copyright (c) 2005-2007 Takashi Iwai <tiwai@suse.de>
@@ -18,9 +18,18 @@
 #include "hda_jack.h"
 #include "generic.h"
 
+enum {
+	MODEL_AD1882,
+	MODEL_AD1884,
+	MODEL_AD1981,
+	MODEL_AD1983,
+	MODEL_AD1986A,
+	MODEL_AD1988,
+};
 
 struct ad198x_spec {
 	struct hda_gen_spec gen;
+	int model;
 
 	/* for auto parser */
 	int smux_paths[4];
@@ -111,7 +120,7 @@ static void ad198x_power_eapd(struct hda_codec *codec)
 	}
 }
 
-static int ad198x_suspend(struct hda_codec *codec)
+static int ad_codec_suspend(struct hda_codec *codec)
 {
 	snd_hda_shutup_pins(codec);
 	ad198x_power_eapd(codec);
@@ -137,7 +146,7 @@ static void ad_vmaster_eapd_hook(void *private_data, int enabled)
  * Automatic parse of I/O pins from the BIOS configuration
  */
 
-static int ad198x_auto_build_controls(struct hda_codec *codec)
+static int ad_codec_build_controls(struct hda_codec *codec)
 {
 	int err;
 
@@ -149,17 +158,6 @@ static int ad198x_auto_build_controls(struct hda_codec *codec)
 		return err;
 	return 0;
 }
-
-static const struct hda_codec_ops ad198x_auto_patch_ops = {
-	.build_controls = ad198x_auto_build_controls,
-	.build_pcms = snd_hda_gen_build_pcms,
-	.init = snd_hda_gen_init,
-	.free = snd_hda_gen_free,
-	.unsol_event = snd_hda_jack_unsol_event,
-	.check_power_status = snd_hda_gen_check_power_status,
-	.suspend = ad198x_suspend,
-};
-
 
 static int ad198x_parse_auto_config(struct hda_codec *codec, bool indep_hp)
 {
@@ -198,7 +196,6 @@ static int alloc_ad_spec(struct hda_codec *codec)
 		return -ENOMEM;
 	codec->spec = spec;
 	snd_hda_gen_spec_init(&spec->gen);
-	codec->patch_ops = ad198x_auto_patch_ops;
 	return 0;
 }
 
@@ -375,10 +372,10 @@ static const struct hda_model_fixup ad1986a_fixup_models[] = {
 
 /*
  */
-static int patch_ad1986a(struct hda_codec *codec)
+static int ad1986a_probe(struct hda_codec *codec)
 {
 	int err;
-	struct ad198x_spec *spec;
+	struct ad198x_spec *spec = codec->spec;
 	static const hda_nid_t preferred_pairs[] = {
 		0x1a, 0x03,
 		0x1b, 0x03,
@@ -387,11 +384,6 @@ static int patch_ad1986a(struct hda_codec *codec)
 		0x1e, 0x03,
 		0
 	};
-
-	err = alloc_ad_spec(codec);
-	if (err < 0)
-		return err;
-	spec = codec->spec;
 
 	/* AD1986A has the inverted EAPD implementation */
 	codec->inv_eapd = 1;
@@ -418,10 +410,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	err = ad198x_parse_auto_config(codec, false);
-	if (err < 0) {
-		snd_hda_gen_free(codec);
+	if (err < 0)
 		return err;
-	}
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
@@ -507,17 +497,12 @@ static int ad1983_add_spdif_mux_ctl(struct hda_codec *codec)
 	return 0;
 }
 
-static int patch_ad1983(struct hda_codec *codec)
+static int ad1983_probe(struct hda_codec *codec)
 {
 	static const hda_nid_t conn_0c[] = { 0x08 };
 	static const hda_nid_t conn_0d[] = { 0x09 };
-	struct ad198x_spec *spec;
+	struct ad198x_spec *spec = codec->spec;
 	int err;
-
-	err = alloc_ad_spec(codec);
-	if (err < 0)
-		return err;
-	spec = codec->spec;
 
 	spec->gen.mixer_nid = 0x0e;
 	spec->gen.beep_nid = 0x10;
@@ -529,15 +514,11 @@ static int patch_ad1983(struct hda_codec *codec)
 
 	err = ad198x_parse_auto_config(codec, false);
 	if (err < 0)
-		goto error;
+		return err;
 	err = ad1983_add_spdif_mux_ctl(codec);
 	if (err < 0)
-		goto error;
+		return err;
 	return 0;
-
- error:
-	snd_hda_gen_free(codec);
-	return err;
 }
 
 
@@ -597,15 +578,10 @@ static const struct hda_quirk ad1981_fixup_tbl[] = {
 	{}
 };
 
-static int patch_ad1981(struct hda_codec *codec)
+static int ad1981_probe(struct hda_codec *codec)
 {
-	struct ad198x_spec *spec;
+	struct ad198x_spec *spec = codec->spec;
 	int err;
-
-	err = alloc_ad_spec(codec);
-	if (err < 0)
-		return -ENOMEM;
-	spec = codec->spec;
 
 	spec->gen.mixer_nid = 0x0e;
 	spec->gen.beep_nid = 0x10;
@@ -616,18 +592,14 @@ static int patch_ad1981(struct hda_codec *codec)
 
 	err = ad198x_parse_auto_config(codec, false);
 	if (err < 0)
-		goto error;
+		return err;
 	err = ad1983_add_spdif_mux_ctl(codec);
 	if (err < 0)
-		goto error;
+		return err;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
 	return 0;
-
- error:
-	snd_hda_gen_free(codec);
-	return err;
 }
 
 
@@ -776,7 +748,7 @@ static const struct snd_kcontrol_new ad1988_auto_smux_mixer = {
 	.put = ad1988_auto_smux_enum_put,
 };
 
-static int ad1988_auto_init(struct hda_codec *codec)
+static int ad_codec_init(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
 	int i, err;
@@ -784,6 +756,8 @@ static int ad1988_auto_init(struct hda_codec *codec)
 	err = snd_hda_gen_init(codec);
 	if (err < 0)
 		return err;
+	if (spec->model != MODEL_AD1988)
+		return 0;
 	if (!spec->gen.autocfg.dig_outs)
 		return 0;
 
@@ -854,8 +828,6 @@ static int ad1988_add_spdif_mux_ctl(struct hda_codec *codec)
 	if (!snd_hda_gen_add_kctl(&spec->gen, NULL, &ad1988_auto_smux_mixer))
 		return -ENOMEM;
 
-	codec->patch_ops.init = ad1988_auto_init;
-
 	return 0;
 }
 
@@ -889,15 +861,10 @@ static const struct hda_model_fixup ad1988_fixup_models[] = {
 	{}
 };
 
-static int patch_ad1988(struct hda_codec *codec)
+static int ad1988_probe(struct hda_codec *codec)
 {
-	struct ad198x_spec *spec;
+	struct ad198x_spec *spec = codec->spec;
 	int err;
-
-	err = alloc_ad_spec(codec);
-	if (err < 0)
-		return err;
-	spec = codec->spec;
 
 	spec->gen.mixer_nid = 0x20;
 	spec->gen.mixer_merge_nid = 0x21;
@@ -909,18 +876,14 @@ static int patch_ad1988(struct hda_codec *codec)
 
 	err = ad198x_parse_auto_config(codec, true);
 	if (err < 0)
-		goto error;
+		return err;
 	err = ad1988_add_spdif_mux_ctl(codec);
 	if (err < 0)
-		goto error;
+		return err;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
 	return 0;
-
- error:
-	snd_hda_gen_free(codec);
-	return err;
 }
 
 
@@ -1069,15 +1032,10 @@ static const struct hda_quirk ad1884_fixup_tbl[] = {
 };
 
 
-static int patch_ad1884(struct hda_codec *codec)
+static int ad1884_probe(struct hda_codec *codec)
 {
-	struct ad198x_spec *spec;
+	struct ad198x_spec *spec = codec->spec;
 	int err;
-
-	err = alloc_ad_spec(codec);
-	if (err < 0)
-		return err;
-	spec = codec->spec;
 
 	spec->gen.mixer_nid = 0x20;
 	spec->gen.mixer_merge_nid = 0x21;
@@ -1089,18 +1047,14 @@ static int patch_ad1884(struct hda_codec *codec)
 
 	err = ad198x_parse_auto_config(codec, true);
 	if (err < 0)
-		goto error;
+		return err;
 	err = ad1983_add_spdif_mux_ctl(codec);
 	if (err < 0)
-		goto error;
+		return err;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PROBE);
 
 	return 0;
-
- error:
-	snd_hda_gen_free(codec);
-	return err;
 }
 
 /*
@@ -1115,15 +1069,10 @@ static int patch_ad1884(struct hda_codec *codec)
  * port-G - rear clfe-out (6stack)
  */
 
-static int patch_ad1882(struct hda_codec *codec)
+static int ad1882_probe(struct hda_codec *codec)
 {
-	struct ad198x_spec *spec;
+	struct ad198x_spec *spec = codec->spec;
 	int err;
-
-	err = alloc_ad_spec(codec);
-	if (err < 0)
-		return err;
-	spec = codec->spec;
 
 	spec->gen.mixer_nid = 0x20;
 	spec->gen.mixer_merge_nid = 0x21;
@@ -1131,37 +1080,88 @@ static int patch_ad1882(struct hda_codec *codec)
 	set_beep_amp(spec, 0x10, 0, HDA_OUTPUT);
 	err = ad198x_parse_auto_config(codec, true);
 	if (err < 0)
-		goto error;
+		return err;
 	err = ad1988_add_spdif_mux_ctl(codec);
 	if (err < 0)
-		goto error;
+		return err;
 	return 0;
-
- error:
-	snd_hda_gen_free(codec);
-	return err;
 }
 
-
 /*
- * patch entries
+ * driver entries
  */
+static int ad_codec_probe(struct hda_codec *codec,
+			  const struct hda_device_id *id)
+{
+	struct ad198x_spec *spec;
+	int err;
+
+	err = alloc_ad_spec(codec);
+	if (err < 0)
+		return -ENOMEM;
+	spec = codec->spec;
+	spec->model = id->driver_data;
+
+	switch (spec->model) {
+	case MODEL_AD1882:
+		err = ad1882_probe(codec);
+		break;
+	case MODEL_AD1884:
+		err = ad1884_probe(codec);
+		break;
+	case MODEL_AD1981:
+		err = ad1981_probe(codec);
+		break;
+	case MODEL_AD1983:
+		err = ad1983_probe(codec);
+		break;
+	case MODEL_AD1986A:
+		err = ad1986a_probe(codec);
+		break;
+	case MODEL_AD1988:
+		err = ad1988_probe(codec);
+		break;
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+	if (err < 0) {
+		snd_hda_gen_remove(codec);
+		return err;
+	}
+
+	return 0;
+}
+
+static const struct hda_codec_ops ad_codec_ops = {
+	.probe = ad_codec_probe,
+	.remove = snd_hda_gen_remove,
+	.build_controls = ad_codec_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = ad_codec_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.suspend = ad_codec_suspend,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
+
 static const struct hda_device_id snd_hda_id_analog[] = {
-	HDA_CODEC_ENTRY(0x11d4184a, "AD1884A", patch_ad1884),
-	HDA_CODEC_ENTRY(0x11d41882, "AD1882", patch_ad1882),
-	HDA_CODEC_ENTRY(0x11d41883, "AD1883", patch_ad1884),
-	HDA_CODEC_ENTRY(0x11d41884, "AD1884", patch_ad1884),
-	HDA_CODEC_ENTRY(0x11d4194a, "AD1984A", patch_ad1884),
-	HDA_CODEC_ENTRY(0x11d4194b, "AD1984B", patch_ad1884),
-	HDA_CODEC_ENTRY(0x11d41981, "AD1981", patch_ad1981),
-	HDA_CODEC_ENTRY(0x11d41983, "AD1983", patch_ad1983),
-	HDA_CODEC_ENTRY(0x11d41984, "AD1984", patch_ad1884),
-	HDA_CODEC_ENTRY(0x11d41986, "AD1986A", patch_ad1986a),
-	HDA_CODEC_ENTRY(0x11d41988, "AD1988", patch_ad1988),
-	HDA_CODEC_ENTRY(0x11d4198b, "AD1988B", patch_ad1988),
-	HDA_CODEC_ENTRY(0x11d4882a, "AD1882A", patch_ad1882),
-	HDA_CODEC_ENTRY(0x11d4989a, "AD1989A", patch_ad1988),
-	HDA_CODEC_ENTRY(0x11d4989b, "AD1989B", patch_ad1988),
+	HDA_CODEC_ID_MODEL(0x11d4184a, "AD1884A", MODEL_AD1884),
+	HDA_CODEC_ID_MODEL(0x11d41882, "AD1882", MODEL_AD1882),
+	HDA_CODEC_ID_MODEL(0x11d41883, "AD1883", MODEL_AD1884),
+	HDA_CODEC_ID_MODEL(0x11d41884, "AD1884", MODEL_AD1884),
+	HDA_CODEC_ID_MODEL(0x11d4194a, "AD1984A", MODEL_AD1884),
+	HDA_CODEC_ID_MODEL(0x11d4194b, "AD1984B", MODEL_AD1884),
+	HDA_CODEC_ID_MODEL(0x11d41981, "AD1981", MODEL_AD1981),
+	HDA_CODEC_ID_MODEL(0x11d41983, "AD1983", MODEL_AD1983),
+	HDA_CODEC_ID_MODEL(0x11d41984, "AD1984", MODEL_AD1884),
+	HDA_CODEC_ID_MODEL(0x11d41986, "AD1986A", MODEL_AD1986A),
+	HDA_CODEC_ID_MODEL(0x11d41988, "AD1988", MODEL_AD1988),
+	HDA_CODEC_ID_MODEL(0x11d4198b, "AD1988B", MODEL_AD1988),
+	HDA_CODEC_ID_MODEL(0x11d4882a, "AD1882A", MODEL_AD1882),
+	HDA_CODEC_ID_MODEL(0x11d4989a, "AD1989A", MODEL_AD1988),
+	HDA_CODEC_ID_MODEL(0x11d4989b, "AD1989B", MODEL_AD1988),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_analog);
@@ -1171,6 +1171,7 @@ MODULE_DESCRIPTION("Analog Devices HD-audio codec");
 
 static struct hda_codec_driver analog_driver = {
 	.id = snd_hda_id_analog,
+	.ops = &ad_codec_ops,
 };
 
 module_hda_codec_driver(analog_driver);
