@@ -503,6 +503,28 @@ static inline bool is_vector_pending(unsigned int vector)
 	return lapic_vector_set_in_irr(vector) || pi_pending_this_cpu(vector);
 }
 
+#define MAX_APIC_VECTOR			256
+#define APIC_VECTORS_PER_REG		32
+
+/*
+ * Vector states are maintained by APIC in 32-bit registers that are
+ * 16 bytes aligned. The status of each vector is kept in a single
+ * bit.
+ */
+static inline int apic_find_highest_vector(void *bitmap)
+{
+	int vec;
+	u32 *reg;
+
+	for (vec = MAX_APIC_VECTOR - APIC_VECTORS_PER_REG; vec >= 0; vec -= APIC_VECTORS_PER_REG) {
+		reg = bitmap + APIC_VECTOR_TO_REG_OFFSET(vec);
+		if (*reg)
+			return __fls(*reg) + vec;
+	}
+
+	return -1;
+}
+
 /*
  * Warm reset vector position:
  */
