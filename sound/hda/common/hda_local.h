@@ -689,10 +689,6 @@ int snd_hdmi_get_eld(struct hda_codec *codec, hda_nid_t nid,
 void snd_hdmi_eld_update_pcm_info(struct snd_parsed_hdmi_eld *e,
 			      struct hda_pcm_stream *hinfo);
 
-int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
-			 unsigned char *buf, int *eld_size,
-			 bool rev3_or_later);
-
 #ifdef CONFIG_SND_PROC_FS
 void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 			     struct snd_info_buffer *buffer,
