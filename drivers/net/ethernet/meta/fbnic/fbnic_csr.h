@@ -12,13 +12,28 @@
 #define DESC_BIT(nr)		BIT_ULL(nr)
 #define DESC_GENMASK(h, l)	GENMASK_ULL(h, l)
 
+#define FW_VER_CODE(_major, _minor, _patch, _build) (		      \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_MAJOR, _major) | \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_MINOR, _minor) | \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_PATCH, _patch) | \
+		FIELD_PREP(FBNIC_FW_CAP_RESP_VERSION_BUILD, _build))
+
 /* Defines the minimum firmware version required by the driver */
-#define MIN_FW_MAJOR_VERSION    0
-#define MIN_FW_MINOR_VERSION    10
-#define MIN_FW_BUILD_VERSION    6
-#define MIN_FW_VERSION_CODE     (MIN_FW_MAJOR_VERSION * (1u << 24) + \
-				 MIN_FW_MINOR_VERSION * (1u << 16) + \
-				 MIN_FW_BUILD_VERSION)
+#define MIN_FW_VER_CODE				FW_VER_CODE(0, 10, 6, 0)
+
+/* Defines the minimum firmware version required for firmware logs */
+#define MIN_FW_VER_CODE_LOG			FW_VER_CODE(0, 12, 9, 0)
+
+/* Driver can request that firmware sends all cached logs in bulk. This
+ * feature was enabled on older firmware however firmware has a bug
+ * which attempted to send 30 messages per mbx message which caused an
+ * overflow flooding the mailbox. This results in a kernel warning
+ * related to corrupt mailbox messages.
+ *
+ * If firmware is new enough only request sending historical logs when
+ * the log buffer is empty to prevent duplicate logs.
+ */
+#define MIN_FW_VER_CODE_HIST			FW_VER_CODE(25, 5, 7, 0)
 
 #define PCI_DEVICE_ID_META_FBNIC_ASIC		0x0013
 
