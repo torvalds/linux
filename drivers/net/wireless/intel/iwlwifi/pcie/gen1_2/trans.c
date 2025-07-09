@@ -392,7 +392,7 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 				    CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 	}
 
-	if (ret < 0)
+	if (ret)
 		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
 
 	IWL_DEBUG_INFO(trans, "stop master\n");
@@ -495,10 +495,10 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 			    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
 			    HW_READY_TIMEOUT);
 
-	if (ret >= 0)
+	if (!ret)
 		iwl_set_bit(trans, CSR_MBOX_SET_REG, CSR_MBOX_SET_REG_OS_ALIVE);
 
-	IWL_DEBUG_INFO(trans, "hardware%s ready\n", ret < 0 ? " not" : "");
+	IWL_DEBUG_INFO(trans, "hardware%s ready\n", ret ? " not" : "");
 	return ret;
 }
 
@@ -512,7 +512,7 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 	ret = iwl_pcie_set_hw_ready(trans);
 	/* If the card is ready, exit 0 */
-	if (ret >= 0) {
+	if (!ret) {
 		trans->csme_own = false;
 		return 0;
 	}
@@ -530,7 +530,7 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0) {
+			if (!ret) {
 				trans->csme_own = false;
 				return 0;
 			}
@@ -2353,7 +2353,7 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 	 * and do not save/restore SRAM when power cycling.
 	 */
 	ret = iwl_poll_bits_mask(trans, CSR_GP_CNTRL, poll, mask, 15000);
-	if (unlikely(ret < 0)) {
+	if (unlikely(ret)) {
 		u32 cntrl = iwl_read32(trans, CSR_GP_CNTRL);
 
 		if (silent) {

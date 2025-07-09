@@ -591,7 +591,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 
 	/* Wait for DMA channels to be idle */
 	ret = iwl_poll_bits(trans, FH_TSSR_TX_STATUS_REG, mask, 5000);
-	if (ret < 0)
+	if (ret)
 		IWL_ERR(trans,
 			"Failing on timeout while stopping DMA channel %d [0x%08x]\n",
 			ch, iwl_read32(trans, FH_TSSR_TX_STATUS_REG));

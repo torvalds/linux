@@ -54,7 +54,7 @@ int iwl_poll_bits_mask(struct iwl_trans *trans, u32 addr,
 
 	do {
 		if ((iwl_read32(trans, addr) & mask) == (bits & mask))
-			return t;
+			return 0;
 		udelay(IWL_POLL_INTERVAL);
 		t += IWL_POLL_INTERVAL;
 	} while (t < timeout);
