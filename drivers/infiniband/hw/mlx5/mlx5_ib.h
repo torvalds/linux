@@ -104,19 +104,6 @@ unsigned long __mlx5_umem_find_best_quantized_pgoff(
 		__mlx5_bit_sz(typ, page_offset_fld), 0, scale,                 \
 		page_offset_quantized)
 
-static inline unsigned long
-mlx5_umem_dmabuf_find_best_pgsz(struct ib_umem_dmabuf *umem_dmabuf)
-{
-	/*
-	 * mkeys used for dmabuf are fixed at PAGE_SIZE because we must be able
-	 * to hold any sgl after a move operation. Ideally the mkc page size
-	 * could be changed at runtime to be optimal, but right now the driver
-	 * cannot do that.
-	 */
-	return ib_umem_find_best_pgsz(&umem_dmabuf->umem, PAGE_SIZE,
-				      umem_dmabuf->umem.iova);
-}
-
 enum {
 	MLX5_IB_MMAP_OFFSET_START = 9,
 	MLX5_IB_MMAP_OFFSET_END = 255,
@@ -352,6 +339,7 @@ struct mlx5_ib_flow_db {
 #define MLX5_IB_UPD_XLT_ACCESS	      BIT(5)
 #define MLX5_IB_UPD_XLT_INDIRECT      BIT(6)
 #define MLX5_IB_UPD_XLT_DOWNGRADE     BIT(7)
+#define MLX5_IB_UPD_XLT_KEEP_PGSZ     BIT(8)
 
 /* Private QP creation flags to be passed in ib_qp_init_attr.create_flags.
  *
@@ -739,6 +727,8 @@ struct mlx5_ib_mr {
 			struct mlx5_ib_mr *dd_crossed_mr;
 			struct list_head dd_node;
 			u8 revoked :1;
+			/* Indicates previous dmabuf page fault occurred */
+			u8 dmabuf_faulted:1;
 			struct mlx5_ib_mkey null_mmkey;
 		};
 	};
@@ -1805,6 +1795,16 @@ mlx5_umem_mkc_find_best_pgsz(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	bitmap = GENMASK_ULL(max_log_entity_size_cap, min_log_entity_size_cap);
 
 	return ib_umem_find_best_pgsz(umem, bitmap, iova);
+}
+
+static inline unsigned long
+mlx5_umem_dmabuf_find_best_pgsz(struct ib_umem_dmabuf *umem_dmabuf,
+				int access_mode)
+{
+	return mlx5_umem_mkc_find_best_pgsz(to_mdev(umem_dmabuf->umem.ibdev),
+					    &umem_dmabuf->umem,
+					    umem_dmabuf->umem.iova,
+					    access_mode);
 }
 
 #endif /* MLX5_IB_H */
