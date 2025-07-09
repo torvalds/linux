@@ -4,8 +4,6 @@
 
 //! Helpers for implementing list traits safely.
 
-use crate::list::ListLinks;
-
 /// Declares that this type has a `ListLinks<ID>` field at a fixed offset.
 ///
 /// This trait is only used to help implement `ListItem` safely. If `ListItem` is implemented
@@ -27,11 +25,11 @@ pub unsafe trait HasListLinks<const ID: u64 = 0> {
     ///
     /// The provided pointer must point at a valid struct of type `Self`.
     ///
-    /// [`ListLinks<T, ID>`]: ListLinks
+    /// [`ListLinks<T, ID>`]: crate::list::ListLinks
     // We don't really need this method, but it's necessary for the implementation of
     // `impl_has_list_links!` to be correct.
     #[inline]
-    unsafe fn raw_get_list_links(ptr: *mut Self) -> *mut ListLinks<ID> {
+    unsafe fn raw_get_list_links(ptr: *mut Self) -> *mut crate::list::ListLinks<ID> {
         // SAFETY: The caller promises that the pointer is valid. The implementer promises that the
         // `OFFSET` constant is correct.
         unsafe { ptr.cast::<u8>().add(Self::OFFSET).cast() }
@@ -222,7 +220,9 @@ macro_rules! impl_list_item {
             //   this value is not in a list.
             unsafe fn view_links(me: *const Self) -> *mut $crate::list::ListLinks<$num> {
                 // SAFETY: The caller promises that `me` points at a valid value of type `Self`.
-                unsafe { <Self as HasListLinks<$num>>::raw_get_list_links(me.cast_mut()) }
+                unsafe {
+                    <Self as $crate::list::HasListLinks<$num>>::raw_get_list_links(me.cast_mut())
+                }
             }
 
             // This function is also used as the implementation of `post_remove`, so the caller
