@@ -161,13 +161,13 @@ static const struct kobj_type widget_ktype = {
 static ssize_t caps_show(struct hdac_device *codec, hda_nid_t nid,
 			struct widget_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "0x%08x\n", get_wcaps(codec, nid));
+	return sysfs_emit(buf, "0x%08x\n", snd_hdac_get_wcaps(codec, nid));
 }
 
 static ssize_t pin_caps_show(struct hdac_device *codec, hda_nid_t nid,
 			     struct widget_attribute *attr, char *buf)
 {
-	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
+	if (snd_hdac_get_wcaps_type(snd_hdac_get_wcaps(codec, nid)) != AC_WID_PIN)
 		return 0;
 	return sysfs_emit(buf, "0x%08x\n",
 			  snd_hdac_read_parm(codec, nid, AC_PAR_PIN_CAP));
@@ -178,7 +178,7 @@ static ssize_t pin_cfg_show(struct hdac_device *codec, hda_nid_t nid,
 {
 	unsigned int val;
 
-	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
+	if (snd_hdac_get_wcaps_type(snd_hdac_get_wcaps(codec, nid)) != AC_WID_PIN)
 		return 0;
 	if (snd_hdac_read(codec, nid, AC_VERB_GET_CONFIG_DEFAULT, 0, &val))
 		return 0;
@@ -189,7 +189,7 @@ static bool has_pcm_cap(struct hdac_device *codec, hda_nid_t nid)
 {
 	if (nid == codec->afg || nid == codec->mfg)
 		return true;
-	switch (get_wcaps_type(get_wcaps(codec, nid))) {
+	switch (snd_hdac_get_wcaps_type(snd_hdac_get_wcaps(codec, nid))) {
 	case AC_WID_AUD_OUT:
 	case AC_WID_AUD_IN:
 		return true;
@@ -219,7 +219,7 @@ static ssize_t pcm_formats_show(struct hdac_device *codec, hda_nid_t nid,
 static ssize_t amp_in_caps_show(struct hdac_device *codec, hda_nid_t nid,
 				struct widget_attribute *attr, char *buf)
 {
-	if (nid != codec->afg && !(get_wcaps(codec, nid) & AC_WCAP_IN_AMP))
+	if (nid != codec->afg && !(snd_hdac_get_wcaps(codec, nid) & AC_WCAP_IN_AMP))
 		return 0;
 	return sysfs_emit(buf, "0x%08x\n",
 			  snd_hdac_read_parm(codec, nid, AC_PAR_AMP_IN_CAP));
@@ -228,7 +228,7 @@ static ssize_t amp_in_caps_show(struct hdac_device *codec, hda_nid_t nid,
 static ssize_t amp_out_caps_show(struct hdac_device *codec, hda_nid_t nid,
 				 struct widget_attribute *attr, char *buf)
 {
-	if (nid != codec->afg && !(get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
+	if (nid != codec->afg && !(snd_hdac_get_wcaps(codec, nid) & AC_WCAP_OUT_AMP))
 		return 0;
 	return sysfs_emit(buf, "0x%08x\n",
 			  snd_hdac_read_parm(codec, nid, AC_PAR_AMP_OUT_CAP));
@@ -237,7 +237,7 @@ static ssize_t amp_out_caps_show(struct hdac_device *codec, hda_nid_t nid,
 static ssize_t power_caps_show(struct hdac_device *codec, hda_nid_t nid,
 			       struct widget_attribute *attr, char *buf)
 {
-	if (nid != codec->afg && !(get_wcaps(codec, nid) & AC_WCAP_POWER))
+	if (nid != codec->afg && !(snd_hdac_get_wcaps(codec, nid) & AC_WCAP_POWER))
 		return 0;
 	return sysfs_emit(buf, "0x%08x\n",
 			  snd_hdac_read_parm(codec, nid, AC_PAR_POWER_STATE));

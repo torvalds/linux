@@ -436,11 +436,11 @@ EXPORT_SYMBOL_GPL(snd_hdac_refresh_widgets);
 /* return CONNLIST_LEN parameter of the given widget */
 static unsigned int get_num_conns(struct hdac_device *codec, hda_nid_t nid)
 {
-	unsigned int wcaps = get_wcaps(codec, nid);
+	unsigned int wcaps = snd_hdac_get_wcaps(codec, nid);
 	unsigned int parm;
 
 	if (!(wcaps & AC_WCAP_CONN_LIST) &&
-	    get_wcaps_type(wcaps) != AC_WID_VOL_KNB)
+	    snd_hdac_get_wcaps_type(wcaps) != AC_WID_VOL_KNB)
 		return 0;
 
 	parm = snd_hdac_read_parm(codec, nid, AC_PAR_CONNLIST_LEN);
@@ -854,7 +854,7 @@ static unsigned int query_pcm_param(struct hdac_device *codec, hda_nid_t nid)
 	unsigned int val = 0;
 
 	if (nid != codec->afg &&
-	    (get_wcaps(codec, nid) & AC_WCAP_FORMAT_OVRD))
+	    (snd_hdac_get_wcaps(codec, nid) & AC_WCAP_FORMAT_OVRD))
 		val = snd_hdac_read_parm(codec, nid, AC_PAR_PCM);
 	if (!val || val == -1)
 		val = snd_hdac_read_parm(codec, codec->afg, AC_PAR_PCM);
@@ -894,7 +894,7 @@ int snd_hdac_query_supported_pcm(struct hdac_device *codec, hda_nid_t nid,
 {
 	unsigned int i, val, wcaps;
 
-	wcaps = get_wcaps(codec, nid);
+	wcaps = snd_hdac_get_wcaps(codec, nid);
 	val = query_pcm_param(codec, nid);
 
 	if (ratesp) {
