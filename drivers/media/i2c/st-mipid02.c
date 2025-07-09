@@ -465,7 +465,6 @@ static int mipid02_disable_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto error;
 
-	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
 
 error:
@@ -542,7 +541,6 @@ error:
 	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG1, 0, &ret);
 	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
 
-	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
 	return ret;
 }

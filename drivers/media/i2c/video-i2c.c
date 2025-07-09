@@ -288,7 +288,6 @@ static int amg88xx_read(struct device *dev, enum hwmon_sensor_types type,
 		return tmp;
 
 	tmp = regmap_bulk_read(data->regmap, AMG88XX_REG_TTHL, &buf, 2);
-	pm_runtime_mark_last_busy(regmap_get_device(data->regmap));
 	pm_runtime_put_autosuspend(regmap_get_device(data->regmap));
 	if (tmp)
 		return tmp;
@@ -527,7 +526,6 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 		return 0;
 
 error_rpm_put:
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 error_del_list:
 	video_i2c_del_list(vq, VB2_BUF_STATE_QUEUED);
@@ -544,7 +542,6 @@ static void stop_streaming(struct vb2_queue *vq)
 
 	kthread_stop(data->kthread_vid_cap);
 	data->kthread_vid_cap = NULL;
-	pm_runtime_mark_last_busy(regmap_get_device(data->regmap));
 	pm_runtime_put_autosuspend(regmap_get_device(data->regmap));
 
 	video_i2c_del_list(vq, VB2_BUF_STATE_ERROR);
@@ -853,7 +850,6 @@ static int video_i2c_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto error_pm_disable;
 
-	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
 
 	return 0;
