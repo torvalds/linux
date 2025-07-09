@@ -3033,7 +3033,6 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
 	struct sk_buff_head frame_list;
-	ieee80211_rx_result res;
 	struct ethhdr ethhdr;
 	const u8 *check_da = ethhdr.h_dest, *check_sa = ethhdr.h_source;
 
@@ -3095,24 +3094,18 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 	while (!skb_queue_empty(&frame_list)) {
 		rx->skb = __skb_dequeue(&frame_list);
 
-		res = ieee80211_rx_mesh_data(rx->sdata, rx->sta, rx->skb);
-		switch (res) {
+		switch (ieee80211_rx_mesh_data(rx->sdata, rx->sta, rx->skb)) {
 		case RX_QUEUED:
-			continue;
-		case RX_CONTINUE:
 			break;
+		case RX_CONTINUE:
+			if (ieee80211_frame_allowed(rx, fc)) {
+				ieee80211_deliver_skb(rx);
+				break;
+			}
+			fallthrough;
 		default:
-			goto free;
+			dev_kfree_skb(rx->skb);
 		}
-
-		if (!ieee80211_frame_allowed(rx, fc))
-			goto free;
-
-		ieee80211_deliver_skb(rx);
-		continue;
-
-free:
-		dev_kfree_skb(rx->skb);
 	}
 
 	return RX_QUEUED;
