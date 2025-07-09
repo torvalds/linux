@@ -407,8 +407,9 @@ int pipapo_refill(unsigned long *map, unsigned int len, unsigned int rules,
  *
  * Return: true on match, false otherwise.
  */
-bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key, const struct nft_set_ext **ext)
+const struct nft_set_ext *
+nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
+		  const u32 *key)
 {
 	struct nft_pipapo *priv = nft_set_priv(set);
 	struct nft_pipapo_scratch *scratch;
@@ -465,13 +466,15 @@ next_match:
 			scratch->map_index = map_index;
 			local_bh_enable();
 
-			return false;
+			return NULL;
 		}
 
 		if (last) {
-			*ext = &f->mt[b].e->ext;
-			if (unlikely(nft_set_elem_expired(*ext) ||
-				     !nft_set_elem_active(*ext, genmask)))
+			const struct nft_set_ext *ext;
+
+			ext = &f->mt[b].e->ext;
+			if (unlikely(nft_set_elem_expired(ext) ||
+				     !nft_set_elem_active(ext, genmask)))
 				goto next_match;
 
 			/* Last field: we're just returning the key without
@@ -482,7 +485,7 @@ next_match:
 			scratch->map_index = map_index;
 			local_bh_enable();
 
-			return true;
+			return ext;
 		}
 
 		/* Swap bitmap indices: res_map is the initial bitmap for the
@@ -497,7 +500,7 @@ next_match:
 
 out:
 	local_bh_enable();
-	return false;
+	return NULL;
 }
 
 /**
