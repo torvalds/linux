@@ -10,16 +10,27 @@ maintainers:
   - Radu Sabau <radu.sabau@analog.com>
 
 description: |
-   The ADP1050 is used to monitor system voltages, currents and temperatures.
+   The ADP1050 and similar devices are used to monitor system voltages,
+   currents, power, and temperatures.
+
    Through the PMBus interface, the ADP1050 targets isolated power supplies
    and has four individual monitors for input/output voltage, input current
    and temperature.
    Datasheet:
      https://www.analog.com/en/products/adp1050.html
+     https://www.analog.com/en/products/adp1051.html
+     https://www.analog.com/en/products/adp1055.html
+     https://www.analog.com/en/products/ltp8800-1a.html
+     https://www.analog.com/en/products/ltp8800-2.html
+     https://www.analog.com/en/products/ltp8800-4a.html
 
 properties:
   compatible:
-    const: adi,adp1050
+    enum:
+      - adi,adp1050
+      - adi,adp1051
+      - adi,adp1055
+      - adi,ltp8800
 
   reg:
     maxItems: 1
