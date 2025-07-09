@@ -875,13 +875,25 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 				const unsigned int ngroups,
 				void *data)
 {
+	struct pinfunction func = PINCTRL_PINFUNCTION(name, groups, ngroups);
+
+	return pinmux_generic_add_pinfunction(pctldev, &func, data);
+}
+EXPORT_SYMBOL_GPL(pinmux_generic_add_function);
+
+/**
+ * pinmux_generic_add_pinfunction() - adds a function group
+ * @pctldev: pin controller device
+ * @func: pinfunction structure describing the function group
+ * @data: pin controller driver specific data
+ */
+int pinmux_generic_add_pinfunction(struct pinctrl_dev *pctldev,
+				   const struct pinfunction *func, void *data)
+{
 	struct function_desc *function;
 	int selector, error;
 
-	if (!name)
-		return -EINVAL;
-
-	selector = pinmux_func_name_to_selector(pctldev, name);
+	selector = pinmux_func_name_to_selector(pctldev, func->name);
 	if (selector >= 0)
 		return selector;
 
@@ -891,7 +903,7 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 	if (!function)
 		return -ENOMEM;
 
-	function->func = PINCTRL_PINFUNCTION(name, groups, ngroups);
+	function->func = *func;
 	function->data = data;
 
 	error = radix_tree_insert(&pctldev->pin_function_tree, selector, function);
@@ -902,7 +914,7 @@ int pinmux_generic_add_function(struct pinctrl_dev *pctldev,
 
 	return selector;
 }
-EXPORT_SYMBOL_GPL(pinmux_generic_add_function);
+EXPORT_SYMBOL_GPL(pinmux_generic_add_pinfunction);
 
 /**
  * pinmux_generic_remove_function() - removes a numbered function
