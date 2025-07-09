@@ -91,16 +91,16 @@ int fbnic_fw_log_write(struct fbnic_dev *fbd, u64 index, u32 timestamp,
 		entry = log->data_start;
 	} else {
 		head = list_first_entry(&log->entries, typeof(*head), list);
-		entry = (struct fbnic_fw_log_entry *)&head->msg[head->len + 1];
-		entry = PTR_ALIGN(entry, 8);
+		entry_end = head->msg + head->len + 1;
+		entry = PTR_ALIGN(entry_end, 8);
 	}
 
-	entry_end = &entry->msg[msg_len + 1];
+	entry_end = entry->msg + msg_len + 1;
 
 	/* We've reached the end of the buffer, wrap around */
 	if (entry_end > log->data_end) {
 		entry = log->data_start;
-		entry_end = &entry->msg[msg_len + 1];
+		entry_end = entry->msg + msg_len + 1;
 	}
 
 	/* Make room for entry by removing from tail. */
