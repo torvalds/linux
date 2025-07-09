@@ -573,8 +573,8 @@ enum iwl_legacy_cmds {
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
 
 	/**
-	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6,
-	 *	&struct iwl_wowlan_status_v7, &struct iwl_wowlan_status_v9
+	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6 or
+	 *	&struct iwl_wowlan_status_v7
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
 
