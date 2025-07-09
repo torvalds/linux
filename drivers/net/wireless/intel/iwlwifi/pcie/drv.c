@@ -1127,8 +1127,44 @@ EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_pci_find_dev_info);
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_mac_cfg *mac_cfg = (void *)ent->driver_data;
+	u8 __iomem *hw_base;
+	u32 bar0, hw_rev;
+	int ret;
 
-	return iwl_pci_gen1_2_probe(pdev, ent, mac_cfg);
+	/* reassign our BAR 0 if invalid due to possible runtime PM races */
+	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
+	if (bar0 == PCI_BASE_ADDRESS_MEM_TYPE_64) {
+		ret = pci_assign_resource(pdev, 0);
+		if (ret)
+			return ret;
+	}
+
+	ret = pcim_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	pci_set_master(pdev);
+
+	ret = pcim_request_all_regions(pdev, DRV_NAME);
+	if (ret) {
+		dev_err(&pdev->dev, "Requesting all PCI BARs failed.\n");
+		return ret;
+	}
+
+	hw_base = pcim_iomap(pdev, 0, 0);
+	if (!hw_base) {
+		dev_err(&pdev->dev, "Failed to map BAR 0.\n");
+		return -ENOMEM;
+	}
+
+	/* We can't use iwl_read32 because trans wasn't allocated */
+	hw_rev = readl(hw_base + CSR_HW_REV);
+	if (hw_rev == 0xffffffff) {
+		dev_err(&pdev->dev, "HW_REV=0xFFFFFFFF, PCI issues?\n");
+		return -EIO;
+	}
+
+	return iwl_pci_gen1_2_probe(pdev, ent, mac_cfg, hw_base, hw_rev);
 }
 
 static void iwl_pci_remove(struct pci_dev *pdev)

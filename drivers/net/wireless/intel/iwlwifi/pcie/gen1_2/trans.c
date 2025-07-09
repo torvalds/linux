@@ -3687,25 +3687,12 @@ void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 static struct iwl_trans *
 iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		     const struct iwl_mac_cfg *mac_cfg,
-		     struct iwl_trans_info *info)
+		     struct iwl_trans_info *info, u8 __iomem *hw_base)
 {
 	struct iwl_trans_pcie *trans_pcie, **priv;
 	struct iwl_trans *trans;
 	unsigned int bc_tbl_n_entries;
 	int ret, addr_size;
-	u32 bar0;
-
-	/* reassign our BAR 0 if invalid due to possible runtime PM races */
-	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &bar0);
-	if (bar0 == PCI_BASE_ADDRESS_MEM_TYPE_64) {
-		ret = pci_assign_resource(pdev, 0);
-		if (ret)
-			return ERR_PTR(ret);
-	}
-
-	ret = pcim_enable_device(pdev);
-	if (ret)
-		return ERR_PTR(ret);
 
 	trans = iwl_trans_alloc(sizeof(struct iwl_trans_pcie), &pdev->dev,
 				mac_cfg);
@@ -3713,6 +3700,8 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		return ERR_PTR(-ENOMEM);
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	trans_pcie->hw_base = hw_base;
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
@@ -3811,8 +3800,6 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_CLKPM);
 	}
 
-	pci_set_master(pdev);
-
 	addr_size = trans_pcie->txqs.tfd.addr_size;
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(addr_size));
 	if (ret) {
@@ -3824,32 +3811,12 @@ iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		}
 	}
 
-	ret = pcim_request_all_regions(pdev, DRV_NAME);
-	if (ret) {
-		dev_err(&pdev->dev, "Requesting all PCI BARs failed.\n");
-		goto out_no_pci;
-	}
-
-	trans_pcie->hw_base = pcim_iomap(pdev, 0, 0);
-	if (!trans_pcie->hw_base) {
-		dev_err(&pdev->dev, "Could not ioremap PCI BAR 0.\n");
-		ret = -ENODEV;
-		goto out_no_pci;
-	}
-
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
 	trans_pcie->pci_dev = pdev;
 	iwl_disable_interrupts(trans);
-
-	info->hw_rev = iwl_read32(trans, CSR_HW_REV);
-	if (info->hw_rev == 0xffffffff) {
-		dev_err(&pdev->dev, "HW_REV=0xFFFFFFFF, PCI issues?\n");
-		ret = -EIO;
-		goto out_no_pci;
-	}
 
 	/*
 	 * In the 8000 HW family the format of the 4 bytes of CSR_HW_REV have
@@ -4132,18 +4099,20 @@ static void iwl_pcie_check_me_status(struct iwl_trans *trans)
 
 int iwl_pci_gen1_2_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *ent,
-			 const struct iwl_mac_cfg *trans)
+			 const struct iwl_mac_cfg *trans, u8 __iomem *hw_base,
+			 u32 hw_rev)
 {
 	const struct iwl_dev_info *dev_info;
 	struct iwl_trans_info info = {
 		.hw_id = (pdev->device << 16) + pdev->subsystem_device,
+		.hw_rev = hw_rev,
 	};
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
 	unsigned int txcmd_size, txcmd_align;
 	int ret;
 
-	iwl_trans = iwl_trans_pcie_alloc(pdev, trans, &info);
+	iwl_trans = iwl_trans_pcie_alloc(pdev, trans, &info, hw_base);
 	if (IS_ERR(iwl_trans))
 		return PTR_ERR(iwl_trans);
 
