@@ -227,11 +227,13 @@ static int xlp_gpio_get(struct gpio_chip *gc, unsigned gpio)
 	return xlp_gpio_get_reg(priv->gpio_paddrv, gpio);
 }
 
-static void xlp_gpio_set(struct gpio_chip *gc, unsigned gpio, int state)
+static int xlp_gpio_set(struct gpio_chip *gc, unsigned int gpio, int state)
 {
 	struct xlp_gpio_priv *priv = gpiochip_get_data(gc);
 
 	xlp_gpio_set_reg(priv->gpio_paddrv, gpio, state);
+
+	return 0;
 }
 
 static int xlp_gpio_probe(struct platform_device *pdev)
@@ -272,7 +274,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->ngpio = 70;
 	gc->direction_output = xlp_gpio_dir_output;
 	gc->direction_input = xlp_gpio_dir_input;
-	gc->set = xlp_gpio_set;
+	gc->set_rv = xlp_gpio_set;
 	gc->get = xlp_gpio_get;
 
 	spin_lock_init(&priv->lock);
