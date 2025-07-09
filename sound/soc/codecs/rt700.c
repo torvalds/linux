@@ -861,7 +861,7 @@ static int rt700_set_bias_level(struct snd_soc_component *component,
 	default:
 		break;
 	}
-	dapm->bias_level = level;
+
 	return 0;
 }
 
