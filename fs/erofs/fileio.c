@@ -96,8 +96,6 @@ static int erofs_fileio_scan_folio(struct erofs_fileio *io, struct folio *folio)
 	struct erofs_map_blocks *map = &io->map;
 	unsigned int cur = 0, end = folio_size(folio), len, attached = 0;
 	loff_t pos = folio_pos(folio), ofs;
-	struct iov_iter iter;
-	struct bio_vec bv;
 	int err = 0;
 
 	erofs_onlinefolio_init(folio);
@@ -122,13 +120,7 @@ static int erofs_fileio_scan_folio(struct erofs_fileio *io, struct folio *folio)
 				err = PTR_ERR(src);
 				break;
 			}
-			bvec_set_folio(&bv, folio, len, cur);
-			iov_iter_bvec(&iter, ITER_DEST, &bv, 1, len);
-			if (copy_to_iter(src, len, &iter) != len) {
-				erofs_put_metabuf(&buf);
-				err = -EIO;
-				break;
-			}
+			memcpy_to_folio(folio, cur, src, len);
 			erofs_put_metabuf(&buf);
 		} else if (!(map->m_flags & EROFS_MAP_MAPPED)) {
 			folio_zero_segment(folio, cur, cur + len);
