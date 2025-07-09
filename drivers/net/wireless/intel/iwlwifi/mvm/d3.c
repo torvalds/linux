@@ -2380,8 +2380,8 @@ iwl_mvm_parse_wowlan_info_notif_v3(struct iwl_mvm *mvm,
 }
 
 static void
-iwl_mvm_parse_wowlan_info_notif_v2(struct iwl_mvm *mvm,
-				   struct iwl_wowlan_info_notif_v2 *data,
+iwl_mvm_parse_wowlan_info_notif_v1(struct iwl_mvm *mvm,
+				   struct iwl_wowlan_info_notif_v1 *data,
 				   struct iwl_wowlan_status_data *status,
 				   u32 len)
 {
@@ -3097,29 +3097,11 @@ static bool iwl_mvm_wait_d3_notif(struct iwl_notif_wait_data *notif_wait,
 			break;
 		}
 
-		if (wowlan_info_ver < 2) {
+		if (wowlan_info_ver == 1) {
 			struct iwl_wowlan_info_notif_v1 *notif_v1 =
 				(void *)pkt->data;
-			struct iwl_wowlan_info_notif_v2 *notif_v2;
 
-			notif_v2 = kmemdup(notif_v1, sizeof(*notif_v2), GFP_ATOMIC);
-
-			if (!notif_v2)
-				return false;
-
-			notif_v2->tid_tear_down = notif_v1->tid_tear_down;
-			notif_v2->station_id = notif_v1->station_id;
-			memset_after(notif_v2, 0, station_id);
-			iwl_mvm_parse_wowlan_info_notif_v2(mvm, notif_v2,
-							   d3_data->status,
-							   len);
-			kfree(notif_v2);
-
-		} else if (wowlan_info_ver == 2) {
-			struct iwl_wowlan_info_notif_v2 *notif_v2 =
-				(void *)pkt->data;
-
-			iwl_mvm_parse_wowlan_info_notif_v2(mvm, notif_v2,
+			iwl_mvm_parse_wowlan_info_notif_v1(mvm, notif_v1,
 							   d3_data->status,
 							   len);
 		} else if (wowlan_info_ver == 3) {
