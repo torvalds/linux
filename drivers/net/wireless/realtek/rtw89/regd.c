@@ -360,15 +360,13 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 				   struct wiphy *wiphy)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
-	const struct rtw89_regd_ctrl *regd_ctrl = &regulatory->ctrl;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct ieee80211_supported_band *sband;
 	struct rtw89_acpi_dsm_result res = {};
-	bool enable_by_fcc;
-	bool enable_by_ic;
+	bool enable;
+	u8 index;
 	int ret;
 	u8 val;
-	int i;
 
 	sband = wiphy->bands[NL80211_BAND_5GHZ];
 	if (!sband)
@@ -385,35 +383,25 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 	if (ret) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
 			    "acpi: cannot eval unii 4: %d\n", ret);
-		enable_by_fcc = true;
-		enable_by_ic = false;
+		val = u8_encode_bits(1, RTW89_ACPI_CONF_UNII4_US);
 		goto bottom;
 	}
 
 	val = res.u.value;
-	enable_by_fcc = u8_get_bits(val, RTW89_ACPI_CONF_UNII4_FCC);
-	enable_by_ic = u8_get_bits(val, RTW89_ACPI_CONF_UNII4_IC);
 
 	rtw89_debug(rtwdev, RTW89_DBG_REGD,
 		    "acpi: eval if allow unii-4: 0x%x\n", val);
 
 bottom:
-	for (i = 0; i < regd_ctrl->nr; i++) {
-		const struct rtw89_regd *regd = &regd_ctrl->map[i];
+	index = rtw89_regd_get_index_by_name(rtwdev, "US");
+	enable = u8_get_bits(val, RTW89_ACPI_CONF_UNII4_US);
+	if (enable && index != RTW89_REGD_MAX_COUNTRY_NUM)
+		clear_bit(index, regulatory->block_unii4);
 
-		switch (regd->txpwr_regd[RTW89_BAND_5G]) {
-		case RTW89_FCC:
-			if (enable_by_fcc)
-				clear_bit(i, regulatory->block_unii4);
-			break;
-		case RTW89_IC:
-			if (enable_by_ic)
-				clear_bit(i, regulatory->block_unii4);
-			break;
-		default:
-			break;
-		}
-	}
+	index = rtw89_regd_get_index_by_name(rtwdev, "CA");
+	enable = u8_get_bits(val, RTW89_ACPI_CONF_UNII4_CA);
+	if (enable && index != RTW89_REGD_MAX_COUNTRY_NUM)
+		clear_bit(index, regulatory->block_unii4);
 }
 
 static void __rtw89_regd_setup_policy_6ghz(struct rtw89_dev *rtwdev, bool block,

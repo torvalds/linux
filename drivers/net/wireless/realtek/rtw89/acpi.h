@@ -22,8 +22,8 @@ enum rtw89_acpi_dsm_func {
 };
 
 enum rtw89_acpi_conf_unii4 {
-	RTW89_ACPI_CONF_UNII4_FCC = BIT(0),
-	RTW89_ACPI_CONF_UNII4_IC = BIT(1),
+	RTW89_ACPI_CONF_UNII4_US = BIT(0),
+	RTW89_ACPI_CONF_UNII4_CA = BIT(1),
 };
 
 enum rtw89_acpi_policy_mode {
