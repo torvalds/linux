@@ -16,6 +16,7 @@
 #include <init.h>
 #include <os.h>
 
+#include "mconsole_kern.h"
 #include "virt-pci.h"
 #include "vfio_user.h"
 
@@ -60,6 +61,7 @@ static LIST_HEAD(uml_vfio_groups);
 static DEFINE_MUTEX(uml_vfio_groups_mtx);
 
 static LIST_HEAD(uml_vfio_devices);
+static DEFINE_MUTEX(uml_vfio_devices_mtx);
 
 static int uml_vfio_set_container(int group_fd)
 {
@@ -581,32 +583,44 @@ static struct uml_vfio_device *uml_vfio_find_device(const char *device)
 	return NULL;
 }
 
-static int uml_vfio_cmdline_set(const char *device, const struct kernel_param *kp)
+static struct uml_vfio_device *uml_vfio_add_device(const char *device)
 {
 	struct uml_vfio_device *dev;
 	int fd;
 
+	guard(mutex)(&uml_vfio_devices_mtx);
+
 	if (uml_vfio_container.fd < 0) {
 		fd = uml_vfio_user_open_container();
 		if (fd < 0)
-			return fd;
+			return ERR_PTR(fd);
 		uml_vfio_container.fd = fd;
 	}
 
 	if (uml_vfio_find_device(device))
-		return -EEXIST;
+		return ERR_PTR(-EEXIST);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	dev->name = kstrdup(device, GFP_KERNEL);
 	if (!dev->name) {
 		kfree(dev);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	list_add_tail(&dev->list, &uml_vfio_devices);
+	return dev;
+}
+
+static int uml_vfio_cmdline_set(const char *device, const struct kernel_param *kp)
+{
+	struct uml_vfio_device *dev;
+
+	dev = uml_vfio_add_device(device);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 	return 0;
 }
 
@@ -629,6 +643,42 @@ __uml_help(uml_vfio_cmdline_param_ops,
 "    through multiple PCI devices to UML.\n\n"
 );
 
+static int uml_vfio_mc_config(char *str, char **error_out)
+{
+	struct uml_vfio_device *dev;
+
+	if (*str != '=') {
+		*error_out = "Invalid config";
+		return -EINVAL;
+	}
+	str += 1;
+
+	dev = uml_vfio_add_device(str);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+	uml_vfio_open_device(dev);
+	return 0;
+}
+
+static int uml_vfio_mc_id(char **str, int *start_out, int *end_out)
+{
+	return -EOPNOTSUPP;
+}
+
+static int uml_vfio_mc_remove(int n, char **error_out)
+{
+	return -EOPNOTSUPP;
+}
+
+static struct mc_device uml_vfio_mc = {
+	.list           = LIST_HEAD_INIT(uml_vfio_mc.list),
+	.name           = "vfio_uml.device",
+	.config         = uml_vfio_mc_config,
+	.get_config     = NULL,
+	.id             = uml_vfio_mc_id,
+	.remove         = uml_vfio_mc_remove,
+};
+
 static int __init uml_vfio_init(void)
 {
 	struct uml_vfio_device *dev, *n;
@@ -638,6 +688,8 @@ static int __init uml_vfio_init(void)
 	/* If the opening fails, the device will be released. */
 	list_for_each_entry_safe(dev, n, &uml_vfio_devices, list)
 		uml_vfio_open_device(dev);
+
+	mconsole_register_dev(&uml_vfio_mc);
 
 	return 0;
 }
