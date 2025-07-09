@@ -2143,7 +2143,7 @@ static int amdgpu_pt_info_read(struct seq_file *m, void *unused)
 		return -EINVAL;
 
 	fpriv = file->driver_priv;
-	if (!fpriv && !fpriv->vm.root.bo)
+	if (!fpriv || !fpriv->vm.root.bo)
 		return -ENODEV;
 
 	root_bo = amdgpu_bo_ref(fpriv->vm.root.bo);
