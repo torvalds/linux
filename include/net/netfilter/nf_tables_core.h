@@ -188,4 +188,7 @@ void nft_objref_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		     const struct nft_pktinfo *pkt);
 void nft_objref_map_eval(const struct nft_expr *expr, struct nft_regs *regs,
 			 const struct nft_pktinfo *pkt);
+struct nft_elem_priv *nft_dynset_new(struct nft_set *set,
+				     const struct nft_expr *expr,
+				     struct nft_regs *regs);
 #endif /* _NET_NF_TABLES_CORE_H */

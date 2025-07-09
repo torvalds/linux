@@ -1137,7 +1137,6 @@ static inline void pipapo_resmap_init_avx2(const struct nft_pipapo_match *m, uns
  * @net:	Network namespace
  * @set:	nftables API set representation
  * @key:	nftables API element representation containing key data
- * @ext:	nftables API extension pointer, filled with matching reference
  *
  * For more details, see DOC: Theory of Operation in nft_set_pipapo.c.
  *
