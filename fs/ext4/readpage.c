@@ -46,6 +46,9 @@
 
 #include "ext4.h"
 
+#include <linux/sector_cache_map.h> // あなたのヘッダーファイル
+
+
 #define NUM_PREALLOC_POST_READ_CTXS	128
 
 static struct kmem_cache *bio_post_read_ctx_cache;
@@ -66,7 +69,12 @@ struct bio_post_read_ctx {
 	unsigned int enabled_steps;
 };
 
+struct entry{
+	// struct inode *inode;
+	long long lblk;
+};
 
+struct entry sector_array[16777216];
 
 static void __read_end_io(struct bio *bio)
 {
@@ -83,6 +91,9 @@ static void __read_end_io(struct bio *bio)
 	// int i = 0;
 	bio_for_each_folio_all(fi, bio)
 	{
+		printk("debug: fi, pgoff_t: %lu\n", fi.folio->index);
+        printk("debug: fi, inode: %lu, offset: %zu, length: %zu \n", fi.folio->mapping->host->i_ino, fi.offset, fi.length);
+
 		folio_end_read(fi.folio, bio->bi_status == 0); 
 
 		long nr_pages = folio_nr_pages(fi.folio);

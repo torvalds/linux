@@ -39,6 +39,9 @@
 #include "truncate.h"
 #include "zcrx.h"
 
+#include <linux/sector_cache_map.h> // あなたのヘッダーファイル
+
+
 static int io_no_issue(struct io_kiocb *req, unsigned int issue_flags)
 {
 	WARN_ON_ONCE(1);
@@ -573,6 +576,13 @@ const struct io_issue_def io_issue_defs[] = {
 		.prep			= io_pipe_prep,
 		.issue			= io_pipe,
 	},
+	// [IORING_OP_PAGECACHE] = { // 新しいオペレーション
+    // .audit_skip     = 1,
+    // .buffer_select  = 1, // ユーザーが登録バッファを使う
+    // .needs_file     = 0, // ファイルディスクリプタ不要
+    // .prep           = io_pagecache_prep,  // 前処理関数 (後述)
+    // .issue          = io_pagecache_issue, // メイン処理関数 (後述)
+	// },
 };
 
 const struct io_cold_def io_cold_defs[] = {
@@ -822,6 +832,9 @@ const struct io_cold_def io_cold_defs[] = {
 	[IORING_OP_PIPE] = {
 		.name			= "PIPE",
 	},
+	// [IORING_OP_PAGECACHE] = {
+    // 	.name           = "PAGECACHE",
+	// },
 };
 
 const char *io_uring_get_opcode(u8 opcode)

@@ -38,6 +38,9 @@
 
 #include <asm/setup.h>
 
+#include <linux/sector_cache_map.h> // あなたのヘッダーファイル
+
+
 #ifndef CONFIG_NUMA
 unsigned long max_mapnr;
 EXPORT_SYMBOL(max_mapnr);
@@ -2788,4 +2791,7 @@ void __init mm_core_init(void)
 	kmsan_init_runtime();
 	mm_cache_init();
 	execmem_init();
+
+	global_sector_map_init(); // ここで探索木を初期化
+
 }
