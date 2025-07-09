@@ -268,7 +268,9 @@ static void iwl_trans_restart_wk(struct work_struct *wk)
 
 struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  struct device *dev,
-				  const struct iwl_mac_cfg *mac_cfg)
+				  const struct iwl_mac_cfg *mac_cfg,
+				  unsigned int txcmd_size,
+				  unsigned int txcmd_align)
 {
 	struct iwl_trans *trans;
 #ifdef CONFIG_LOCKDEP
@@ -290,23 +292,6 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 
 	INIT_DELAYED_WORK(&trans->restart.wk, iwl_trans_restart_wk);
 
-	return trans;
-}
-
-int iwl_trans_init(struct iwl_trans *trans, unsigned int txcmd_size,
-		   unsigned int txcmd_align)
-{
-	/* check if name/num_rx_queues were set as a proxy for info being set */
-	if (WARN_ON(!trans->info.name || !trans->info.num_rxqs))
-		return -EINVAL;
-
-	txcmd_size += sizeof(struct iwl_cmd_header);
-	txcmd_size += 36; /* biggest possible 802.11 header */
-
-	/* Ensure device TX cmd cannot reach/cross a page boundary in gen2 */
-	if (WARN_ON(trans->mac_cfg->gen2 && txcmd_size >= txcmd_align))
-		return -EINVAL;
-
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),
 		 "iwl_cmd_pool:%s", dev_name(trans->dev));
 	trans->dev_cmd_pool =
@@ -314,9 +299,9 @@ int iwl_trans_init(struct iwl_trans *trans, unsigned int txcmd_size,
 				  txcmd_size, txcmd_align,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!trans->dev_cmd_pool)
-		return -ENOMEM;
+		return NULL;
 
-	return 0;
+	return trans;
 }
 
 void iwl_trans_free(struct iwl_trans *trans)
