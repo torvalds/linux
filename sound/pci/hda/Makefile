@@ -3,16 +3,10 @@ snd-hda-intel-y := hda_intel.o
 snd-hda-tegra-y := hda_tegra.o
 snd-hda-acpi-y := hda_acpi.o
 
-snd-hda-codec-y := hda_bind.o hda_codec.o hda_jack.o hda_auto_parser.o hda_sysfs.o
-snd-hda-codec-y += hda_controller.o
-snd-hda-codec-$(CONFIG_SND_PROC_FS) += hda_proc.o
-
-snd-hda-codec-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o
-snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
-
 # for trace-points
-CFLAGS_hda_controller.o := -I$(src)
 CFLAGS_hda_intel.o := -I$(src)
+
+subdir-ccflags-y += -I$(src)/../../hda/common
 
 snd-hda-codec-generic-y :=	hda_generic.o
 snd-hda-codec-realtek-y :=	patch_realtek.o
@@ -42,9 +36,6 @@ snd-hda-scodec-component-y :=	hda_component.o
 snd-hda-scodec-tas2781-y :=	tas2781_hda.o
 snd-hda-scodec-tas2781-i2c-y :=	tas2781_hda_i2c.o
 snd-hda-scodec-tas2781-spi-y :=	tas2781_hda_spi.o
-
-# common driver
-obj-$(CONFIG_SND_HDA) := snd-hda-codec.o
 
 # codec drivers
 obj-$(CONFIG_SND_HDA_GENERIC) += snd-hda-codec-generic.o

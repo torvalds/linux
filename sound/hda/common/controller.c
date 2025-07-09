@@ -29,7 +29,7 @@
 #include "hda_local.h"
 
 #define CREATE_TRACE_POINTS
-#include "hda_controller_trace.h"
+#include "controller_trace.h"
 
 /* DSP lock helpers */
 #define dsp_lock(dev)		snd_hdac_dsp_lock(azx_stream(dev))
