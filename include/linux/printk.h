@@ -154,6 +154,8 @@ int vprintk_emit(int facility, int level,
 
 asmlinkage __printf(1, 0)
 int vprintk(const char *fmt, va_list args);
+__printf(1, 0)
+int vprintk_deferred(const char *fmt, va_list args);
 
 asmlinkage __printf(1, 2) __cold
 int _printk(const char *fmt, ...);
@@ -211,6 +213,11 @@ bool pr_flush(int timeout_ms, bool reset_on_progress);
 #else
 static inline __printf(1, 0)
 int vprintk(const char *s, va_list args)
+{
+	return 0;
+}
+static inline __printf(1, 0)
+int vprintk_deferred(const char *fmt, va_list args)
 {
 	return 0;
 }
