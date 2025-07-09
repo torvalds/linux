@@ -8,6 +8,7 @@
 #ifndef __MAC80211_DRIVER_OPS
 #define __MAC80211_DRIVER_OPS
 
+#include <linux/fips.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "trace.h"
@@ -900,6 +901,9 @@ static inline void drv_set_rekey_data(struct ieee80211_local *local,
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (fips_enabled)
 		return;
 
 	trace_drv_set_rekey_data(local, sdata, data);
