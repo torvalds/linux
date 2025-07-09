@@ -143,7 +143,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 
-#ifdef CONFIG_DA_MON_EVENTS
+#ifdef CONFIG_RV_MON_EVENTS
 #define CREATE_TRACE_POINTS
 #include <rv_trace.h>
 #endif
