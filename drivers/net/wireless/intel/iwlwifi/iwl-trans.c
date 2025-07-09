@@ -293,24 +293,12 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 	return trans;
 }
 
-int iwl_trans_init(struct iwl_trans *trans)
+int iwl_trans_init(struct iwl_trans *trans, unsigned int txcmd_size,
+		   unsigned int txcmd_align)
 {
-	int txcmd_size, txcmd_align;
-
 	/* check if name/num_rx_queues were set as a proxy for info being set */
 	if (WARN_ON(!trans->info.name || !trans->info.num_rxqs))
 		return -EINVAL;
-
-	if (!trans->mac_cfg->gen2) {
-		txcmd_size = sizeof(struct iwl_tx_cmd_v6);
-		txcmd_align = sizeof(void *);
-	} else if (trans->mac_cfg->device_family < IWL_DEVICE_FAMILY_AX210) {
-		txcmd_size = sizeof(struct iwl_tx_cmd_v9);
-		txcmd_align = 64;
-	} else {
-		txcmd_size = sizeof(struct iwl_tx_cmd);
-		txcmd_align = 128;
-	}
 
 	txcmd_size += sizeof(struct iwl_cmd_header);
 	txcmd_size += 36; /* biggest possible 802.11 header */
