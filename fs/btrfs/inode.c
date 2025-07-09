@@ -781,11 +781,14 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 		return 0;
 	}
 
+	/* Defrag ioctl takes precedence over mount options and properties. */
+	if (inode->defrag_compress == BTRFS_DEFRAG_DONT_COMPRESS)
+		return 0;
+	if (BTRFS_COMPRESS_NONE < inode->defrag_compress &&
+	    inode->defrag_compress < BTRFS_NR_COMPRESS_TYPES)
+		return 1;
 	/* force compress */
 	if (btrfs_test_opt(fs_info, FORCE_COMPRESS))
-		return 1;
-	/* defrag ioctl */
-	if (inode->defrag_compress)
 		return 1;
 	/* bad compression ratios */
 	if (inode->flags & BTRFS_INODE_NOCOMPRESS)
@@ -942,7 +945,7 @@ again:
 		goto cleanup_and_bail_uncompressed;
 	}
 
-	if (inode->defrag_compress) {
+	if (0 < inode->defrag_compress && inode->defrag_compress < BTRFS_NR_COMPRESS_TYPES) {
 		compress_type = inode->defrag_compress;
 		compress_level = inode->defrag_compress_level;
 	} else if (inode->prop_compress) {

@@ -947,7 +947,7 @@ struct defrag_target_range {
  * @extent_thresh: file extent size threshold, any extent size >= this value
  *		   will be ignored
  * @newer_than:    only defrag extents newer than this value
- * @do_compress:   whether the defrag is doing compression
+ * @do_compress:   whether the defrag is doing compression or no-compression
  *		   if true, @extent_thresh will be ignored and all regular
  *		   file extents meeting @newer_than will be targets.
  * @locked:	   if the range has already held extent lock
@@ -1364,6 +1364,7 @@ int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 	u64 cur;
 	u64 last_byte;
 	bool do_compress = (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS);
+	bool no_compress = (range->flags & BTRFS_DEFRAG_RANGE_NOCOMPRESS);
 	int compress_type = BTRFS_COMPRESS_ZLIB;
 	int compress_level = 0;
 	int ret = 0;
@@ -1394,6 +1395,9 @@ int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 			if (range->compress_type)
 				compress_type = range->compress_type;
 		}
+	} else if (range->flags & BTRFS_DEFRAG_RANGE_NOCOMPRESS) {
+		compress_type = BTRFS_DEFRAG_DONT_COMPRESS;
+		compress_level = 1;
 	}
 
 	if (extent_thresh == 0)
@@ -1444,13 +1448,14 @@ int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 			btrfs_inode_unlock(inode, 0);
 			break;
 		}
-		if (do_compress) {
+		if (do_compress || no_compress) {
 			inode->defrag_compress = compress_type;
 			inode->defrag_compress_level = compress_level;
 		}
 		ret = defrag_one_cluster(inode, ra, cur,
 				cluster_end + 1 - cur, extent_thresh,
-				newer_than, do_compress, &sectors_defragged,
+				newer_than, do_compress || no_compress,
+				&sectors_defragged,
 				max_to_defrag, &last_scanned);
 
 		if (sectors_defragged > prev_sectors_defragged)
@@ -1489,7 +1494,7 @@ int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 			btrfs_set_fs_incompat(fs_info, COMPRESS_ZSTD);
 		ret = sectors_defragged;
 	}
-	if (do_compress) {
+	if (do_compress || no_compress) {
 		btrfs_inode_lock(inode, 0);
 		inode->defrag_compress = BTRFS_COMPRESS_NONE;
 		btrfs_inode_unlock(inode, 0);

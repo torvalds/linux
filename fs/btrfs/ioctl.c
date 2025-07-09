@@ -2554,8 +2554,14 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 				ret = -EOPNOTSUPP;
 				goto out;
 			}
-			/* compression requires us to start the IO */
-			if ((range.flags & BTRFS_DEFRAG_RANGE_COMPRESS)) {
+			if ((range.flags & BTRFS_DEFRAG_RANGE_COMPRESS) &&
+			    (range.flags & BTRFS_DEFRAG_RANGE_NOCOMPRESS)) {
+				ret = -EINVAL;
+				goto out;
+			}
+			/* Compression or no-compression require to start the IO. */
+			if ((range.flags & BTRFS_DEFRAG_RANGE_COMPRESS) ||
+			    (range.flags & BTRFS_DEFRAG_RANGE_NOCOMPRESS)) {
 				range.flags |= BTRFS_DEFRAG_RANGE_START_IO;
 				range.extent_thresh = (u32)-1;
 			}
