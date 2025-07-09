@@ -343,6 +343,10 @@ static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 
 	*bounce		= true;
 	*read_full	= promote_full;
+
+	if (have_io_error(failed))
+		orig->self_healing = true;
+
 	return promote;
 nopromote:
 	trace_io_read_nopromote(c, ret);
@@ -635,11 +639,14 @@ static void bch2_rbio_retry(struct work_struct *work)
 			prt_str(&buf, "(internal move) ");
 
 		prt_str(&buf, "data read error, ");
-		if (!ret)
+		if (!ret) {
 			prt_str(&buf, "successful retry");
-		else
+			if (rbio->self_healing)
+				prt_str(&buf, ", self healing");
+		} else
 			prt_str(&buf, bch2_err_str(ret));
 		prt_newline(&buf);
+
 
 		if (!bkey_deleted(&sk.k->k)) {
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(sk.k));

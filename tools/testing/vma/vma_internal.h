@@ -159,6 +159,14 @@ typedef __bitwise unsigned int vm_fault_t;
 
 #define ASSERT_EXCLUSIVE_WRITER(x)
 
+/**
+ * swap - swap values of @a and @b
+ * @a: first value
+ * @b: second value
+ */
+#define swap(a, b) \
+	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
+
 struct kref {
 	refcount_t refcount;
 };
@@ -1466,6 +1474,14 @@ static inline int __call_mmap_prepare(struct file *file,
 static inline void fixup_hugetlb_reservations(struct vm_area_struct *vma)
 {
 	(void)vma;
+}
+
+static inline void vma_set_file(struct vm_area_struct *vma, struct file *file)
+{
+	/* Changing an anonymous vma with this is illegal */
+	get_file(file);
+	swap(vma->vm_file, file);
+	fput(file);
 }
 
 #endif	/* __MM_VMA_INTERNAL_H */

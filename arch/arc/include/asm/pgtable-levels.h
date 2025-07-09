@@ -85,7 +85,7 @@
 
 #define PTRS_PER_PTE		BIT(PMD_SHIFT - PAGE_SHIFT)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #if CONFIG_PGTABLE_LEVELS > 3
 #include <asm-generic/pgtable-nop4d.h>
@@ -181,6 +181,6 @@
 #define pmd_leaf(x)		(pmd_val(x) & _PAGE_HW_SZ)
 #endif
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif

@@ -134,7 +134,7 @@ enum bch_fsck_flags {
 	x(bucket_gens_to_invalid_buckets,			121,	FSCK_AUTOFIX)	\
 	x(bucket_gens_nonzero_for_invalid_buckets,		122,	FSCK_AUTOFIX)	\
 	x(need_discard_freespace_key_to_invalid_dev_bucket,	123,	0)		\
-	x(need_discard_freespace_key_bad,			124,	0)		\
+	x(need_discard_freespace_key_bad,			124,	FSCK_AUTOFIX)	\
 	x(discarding_bucket_not_in_need_discard_btree,		291,	0)		\
 	x(backpointer_bucket_offset_wrong,			125,	0)		\
 	x(backpointer_level_bad,				294,	0)		\
@@ -165,7 +165,7 @@ enum bch_fsck_flags {
 	x(ptr_to_missing_replicas_entry,			149,	FSCK_AUTOFIX)	\
 	x(ptr_to_missing_stripe,				150,	0)		\
 	x(ptr_to_incorrect_stripe,				151,	0)		\
-	x(ptr_gen_newer_than_bucket_gen,			152,	0)		\
+	x(ptr_gen_newer_than_bucket_gen,			152,	FSCK_AUTOFIX)		\
 	x(ptr_too_stale,					153,	0)		\
 	x(stale_dirty_ptr,					154,	FSCK_AUTOFIX)	\
 	x(ptr_bucket_data_type_mismatch,			155,	0)		\
@@ -236,7 +236,7 @@ enum bch_fsck_flags {
 	x(inode_multiple_links_but_nlink_0,			207,	FSCK_AUTOFIX)	\
 	x(inode_wrong_backpointer,				208,	FSCK_AUTOFIX)	\
 	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
-	x(inode_has_child_snapshots_wrong,			287,	0)		\
+	x(inode_has_child_snapshots_wrong,			287,	FSCK_AUTOFIX)	\
 	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
 	x(inode_journal_seq_in_future,				299,	FSCK_AUTOFIX)	\
 	x(inode_i_sectors_underflow,				312,	FSCK_AUTOFIX)	\
@@ -279,8 +279,8 @@ enum bch_fsck_flags {
 	x(root_dir_missing,					239,	0)		\
 	x(root_inode_not_dir,					240,	0)		\
 	x(dir_loop,						241,	0)		\
-	x(hash_table_key_duplicate,				242,	0)		\
-	x(hash_table_key_wrong_offset,				243,	0)		\
+	x(hash_table_key_duplicate,				242,	FSCK_AUTOFIX)	\
+	x(hash_table_key_wrong_offset,				243,	FSCK_AUTOFIX)	\
 	x(unlinked_inode_not_on_deleted_list,			244,	FSCK_AUTOFIX)	\
 	x(reflink_p_front_pad_bad,				245,	0)		\
 	x(journal_entry_dup_same_device,			246,	0)		\

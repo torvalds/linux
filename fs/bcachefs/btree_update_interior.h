@@ -57,6 +57,13 @@ struct btree_update {
 	unsigned			took_gc_lock:1;
 
 	enum btree_id			btree_id;
+	struct bpos			node_start;
+	struct bpos			node_end;
+	enum btree_node_rewrite_reason	node_needed_rewrite;
+	u16				node_written;
+	u16				node_sectors;
+	u16				node_remaining;
+
 	unsigned			update_level_start;
 	unsigned			update_level_end;
 

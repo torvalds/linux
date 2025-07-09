@@ -1227,7 +1227,6 @@ static struct platform_driver qcs8300_pinctrl_driver = {
 		.of_match_table = qcs8300_pinctrl_of_match,
 	},
 	.probe = qcs8300_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
 };
 
 static int __init qcs8300_pinctrl_init(void)
