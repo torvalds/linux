@@ -62,7 +62,7 @@ static void __xgene_gpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 	iowrite32(setval, chip->base + bank_offset);
 }
 
-static void xgene_gpio_set(struct gpio_chip *gc, unsigned int offset, int val)
+static int xgene_gpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 {
 	struct xgene_gpio *chip = gpiochip_get_data(gc);
 	unsigned long flags;
@@ -70,6 +70,8 @@ static void xgene_gpio_set(struct gpio_chip *gc, unsigned int offset, int val)
 	spin_lock_irqsave(&chip->lock, flags);
 	__xgene_gpio_set(gc, offset, val);
 	spin_unlock_irqrestore(&chip->lock, flags);
+
+	return 0;
 }
 
 static int xgene_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
@@ -176,7 +178,7 @@ static int xgene_gpio_probe(struct platform_device *pdev)
 	gpio->chip.direction_input = xgene_gpio_dir_in;
 	gpio->chip.direction_output = xgene_gpio_dir_out;
 	gpio->chip.get = xgene_gpio_get;
-	gpio->chip.set = xgene_gpio_set;
+	gpio->chip.set_rv = xgene_gpio_set;
 	gpio->chip.label = dev_name(&pdev->dev);
 	gpio->chip.base = -1;
 
