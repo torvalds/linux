@@ -4847,7 +4847,6 @@ int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 e
 	pgoff_t index = (offset >> PAGE_SHIFT);
 	struct folio *folio;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
-	size_t write_bytes = blocksize;
 	int ret = 0;
 	const bool in_head_block = is_inside_block(offset, round_down(start, blocksize),
 						   blocksize);
@@ -4899,8 +4898,12 @@ int btrfs_truncate_block(struct btrfs_inode *inode, u64 offset, u64 start, u64 e
 	ret = btrfs_check_data_free_space(inode, &data_reserved, block_start,
 					  blocksize, false);
 	if (ret < 0) {
+		size_t write_bytes = blocksize;
+
 		if (btrfs_check_nocow_lock(inode, block_start, &write_bytes, false) > 0) {
-			/* For nocow case, no need to reserve data space */
+			/* For nocow case, no need to reserve data space. */
+			ASSERT(write_bytes == blocksize, "write_bytes=%zu blocksize=%u",
+			       write_bytes, blocksize);
 			only_release_metadata = true;
 		} else {
 			goto out;
