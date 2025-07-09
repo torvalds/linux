@@ -7,6 +7,7 @@
 struct tcf_ctinfo_params {
 	struct rcu_head rcu;
 	struct net *net;
+	int action;
 	u32 dscpmask;
 	u32 dscpstatemask;
 	u32 cpmarkmask;
