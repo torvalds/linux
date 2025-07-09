@@ -85,6 +85,7 @@ struct g2h_fence {
 	u16 error;
 	u16 hint;
 	u16 reason;
+	bool cancel;
 	bool retry;
 	bool fail;
 	bool done;
@@ -101,6 +102,13 @@ static void g2h_fence_init(struct g2h_fence *g2h_fence, u32 *response_buffer)
 	g2h_fence->retry = false;
 	g2h_fence->done = false;
 	g2h_fence->seqno = ~0x0;
+}
+
+static void g2h_fence_cancel(struct g2h_fence *g2h_fence)
+{
+	g2h_fence->cancel = true;
+	g2h_fence->fail = true;
+	g2h_fence->done = true;
 }
 
 static bool g2h_fence_needs_alloc(struct g2h_fence *g2h_fence)
@@ -388,6 +396,8 @@ static void guc_ct_change_state(struct xe_guc_ct *ct,
 				enum xe_guc_ct_state state)
 {
 	struct xe_gt *gt = ct_to_gt(ct);
+	struct g2h_fence *g2h_fence;
+	unsigned long idx;
 
 	mutex_lock(&ct->lock);		/* Serialise dequeue_one_g2h() */
 	spin_lock_irq(&ct->fast_lock);	/* Serialise CT fast-path */
@@ -405,6 +415,14 @@ static void guc_ct_change_state(struct xe_guc_ct *ct,
 		  str_enabled_disabled(state == XE_GUC_CT_STATE_ENABLED));
 
 	spin_unlock_irq(&ct->fast_lock);
+
+	/* cancel all in-flight send-recv requests */
+	xa_for_each(&ct->fence_lookup, idx, g2h_fence)
+		g2h_fence_cancel(g2h_fence);
+
+	/* make sure guc_ct_send_recv() will see g2h_fence changes */
+	smp_mb();
+	wake_up_all(&ct->g2h_fence_wq);
 
 	/*
 	 * Lockdep doesn't like this under the fast lock and he destroy only
@@ -1098,6 +1116,11 @@ retry_same_fence:
 		goto retry;
 	}
 	if (g2h_fence.fail) {
+		if (g2h_fence.cancel) {
+			xe_gt_dbg(gt, "H2G request %#x canceled!\n", action[0]);
+			ret = -ECANCELED;
+			goto unlock;
+		}
 		xe_gt_err(gt, "H2G request %#x failed: error %#x hint %#x\n",
 			  action[0], g2h_fence.error, g2h_fence.hint);
 		ret = -EIO;
@@ -1106,6 +1129,7 @@ retry_same_fence:
 	if (ret > 0)
 		ret = response_buffer ? g2h_fence.response_len : g2h_fence.response_data;
 
+unlock:
 	mutex_unlock(&ct->lock);
 
 	return ret;
