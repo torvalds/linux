@@ -114,7 +114,7 @@ static __always_inline void kvm_lapic_set_reg64(struct kvm_lapic *apic,
 
 static inline int apic_test_vector(int vec, void *bitmap)
 {
-	return test_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
+	return test_bit(VEC_POS(vec), bitmap + REG_POS(vec));
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector)

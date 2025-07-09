@@ -150,12 +150,12 @@ u64 kvm_lapic_readable_reg_mask(struct kvm_lapic *apic);
 
 static inline void kvm_lapic_clear_vector(int vec, void *bitmap)
 {
-	clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
+	clear_bit(VEC_POS(vec), bitmap + REG_POS(vec));
 }
 
 static inline void kvm_lapic_set_vector(int vec, void *bitmap)
 {
-	set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
+	set_bit(VEC_POS(vec), bitmap + REG_POS(vec));
 }
 
 static inline void kvm_lapic_set_irr(int vec, struct kvm_lapic *apic)
