@@ -56,37 +56,61 @@ static bool rule_matches(const struct xe_device *xe,
 				xe->info.subplatform == r->subplatform;
 			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.graphics_verx100 == r->ver_start &&
 				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION_RANGE:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.graphics_verx100 >= r->ver_start &&
 				xe->info.graphics_verx100 <= r->ver_end &&
 				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_GRAPHICS_VERSION_ANY_GT:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.graphics_verx100 == r->ver_start;
 			break;
 		case XE_RTP_MATCH_GRAPHICS_STEP:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.step.graphics >= r->step_start &&
 				xe->info.step.graphics < r->step_end &&
 				(!has_samedia(xe) || !xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_MEDIA_VERSION:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.media_verx100 == r->ver_start &&
 				(!has_samedia(xe) || xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_MEDIA_VERSION_RANGE:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.media_verx100 >= r->ver_start &&
 				xe->info.media_verx100 <= r->ver_end &&
 				(!has_samedia(xe) || xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_MEDIA_STEP:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.step.media >= r->step_start &&
 				xe->info.step.media < r->step_end &&
 				(!has_samedia(xe) || xe_gt_is_media_type(gt));
 			break;
 		case XE_RTP_MATCH_MEDIA_VERSION_ANY_GT:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = xe->info.media_verx100 == r->ver_start;
 			break;
 		case XE_RTP_MATCH_INTEGRATED:
@@ -108,6 +132,9 @@ static bool rule_matches(const struct xe_device *xe,
 			match = hwe->class != r->engine_class;
 			break;
 		case XE_RTP_MATCH_FUNC:
+			if (drm_WARN_ON(&xe->drm, !gt))
+				return false;
+
 			match = r->match_func(gt, hwe);
 			break;
 		default:
@@ -186,6 +213,11 @@ static void rtp_get_context(struct xe_rtp_process_ctx *ctx,
 			    struct xe_device **xe)
 {
 	switch (ctx->type) {
+	case XE_RTP_PROCESS_TYPE_DEVICE:
+		*hwe = NULL;
+		*gt = NULL;
+		*xe = ctx->xe;
+		break;
 	case XE_RTP_PROCESS_TYPE_GT:
 		*hwe = NULL;
 		*gt = ctx->gt;
