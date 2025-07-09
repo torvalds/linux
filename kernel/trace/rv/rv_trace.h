@@ -127,6 +127,53 @@ DECLARE_EVENT_CLASS(error_da_monitor_id,
 // Add new monitors based on CONFIG_DA_MON_EVENTS_ID here
 
 #endif /* CONFIG_DA_MON_EVENTS_ID */
+#ifdef CONFIG_LTL_MON_EVENTS_ID
+DECLARE_EVENT_CLASS(event_ltl_monitor_id,
+
+	TP_PROTO(struct task_struct *task, char *states, char *atoms, char *next),
+
+	TP_ARGS(task, states, atoms, next),
+
+	TP_STRUCT__entry(
+		__string(comm, task->comm)
+		__field(pid_t, pid)
+		__string(states, states)
+		__string(atoms, atoms)
+		__string(next, next)
+	),
+
+	TP_fast_assign(
+		__assign_str(comm);
+		__entry->pid = task->pid;
+		__assign_str(states);
+		__assign_str(atoms);
+		__assign_str(next);
+	),
+
+	TP_printk("%s[%d]: (%s) x (%s) -> (%s)", __get_str(comm), __entry->pid,
+		  __get_str(states), __get_str(atoms), __get_str(next))
+);
+
+DECLARE_EVENT_CLASS(error_ltl_monitor_id,
+
+	TP_PROTO(struct task_struct *task),
+
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__string(comm, task->comm)
+		__field(pid_t, pid)
+	),
+
+	TP_fast_assign(
+		__assign_str(comm);
+		__entry->pid = task->pid;
+	),
+
+	TP_printk("%s[%d]: violation detected", __get_str(comm), __entry->pid)
+);
+// Add new monitors based on CONFIG_LTL_MON_EVENTS_ID here
+#endif /* CONFIG_LTL_MON_EVENTS_ID */
 #endif /* _TRACE_RV_H */
 
 /* This part must be outside protection */

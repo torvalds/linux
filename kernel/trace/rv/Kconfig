@@ -11,6 +11,13 @@ config DA_MON_EVENTS_ID
 	select RV_MON_EVENTS
 	bool
 
+config LTL_MON_EVENTS_ID
+	select RV_MON_EVENTS
+	bool
+
+config RV_LTL_MONITOR
+	bool
+
 menuconfig RV
 	bool "Runtime Verification"
 	depends on TRACING
