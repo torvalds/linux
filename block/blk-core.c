@@ -908,11 +908,11 @@ void submit_bio(struct bio *bio)
 
 	printk("--debug: bio, bi_sector: %llu, bi_vcnt: %u, bi_idx: %u, bi_size: %u, bi_bvec_done: %u\n", bio->bi_iter.bi_sector, bio->bi_vcnt, bio->bi_iter.bi_idx, bio->bi_iter.bi_size, bio->bi_iter.bi_bvec_done);
 
-	for (int i = 0; i < (int)bio->bi_vcnt; i++){
-		struct bio_vec bv;
-		bv = bio->bi_io_vec[i];
-		printk("debug: bio_vec[%d]: bv_len: %u, bv_offset: %u\n", i, bv.bv_len, bv.bv_offset);
-	}
+	// for (int i = 0; i < (int)bio->bi_vcnt; i++){
+	// 	struct bio_vec bv;
+	// 	bv = bio->bi_io_vec[i];
+	// 	printk("debug: bio_vec[%d]: bv_len: %u, bv_offset: %u\n", i, bv.bv_len, bv.bv_offset);
+	// }
 
 	if (bio_op(bio) == REQ_OP_READ) {
 		task_io_account_read(bio->bi_iter.bi_size);

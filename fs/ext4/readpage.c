@@ -72,14 +72,40 @@ static void __read_end_io(struct bio *bio)
 {
 	struct folio_iter fi;
 
+	printk("--debug: bio, bi_sector: %llu, bi_vcnt: %u, bi_idx: %u, bi_size: %u, bi_bvec_done: %u\n", bio->bi_iter.bi_sector, bio->bi_vcnt, bio->bi_iter.bi_idx, bio->bi_iter.bi_size, bio->bi_iter.bi_bvec_done);
+
+	for (int i = 0; i < (int)bio->bi_vcnt; i++){
+		struct bio_vec bv;
+		bv = bio->bi_io_vec[i];
+		printk("debug: bio_vec[%d]: bv_len: %u, bv_offset: %u\n", i, bv.bv_len, bv.bv_offset);
+	}
+
 	// int i = 0;
 	bio_for_each_folio_all(fi, bio)
 	{
 		folio_end_read(fi.folio, bio->bi_status == 0); 
 
-        // printk("debug ext4: fi: inode: %lu, index: %lu, offset: %zu, length: %zu \n", fi.folio->mapping->host->i_ino, fi.folio->index, fi.offset, fi.length);
+		long nr_pages = folio_nr_pages(fi.folio);
+
+		printk("debug: number pages in folio: %ld", nr_pages);
+
+		// for(int j=0; j<nr_pages; j++){
+			
+		// }
+
+        printk("debug ext4: fi: inode: %lu, index: %lu, offset: %zu, length: %zu seg_count: %zu \n", fi.folio->mapping->host->i_ino, fi.folio->index, fi.offset, fi.length, fi._seg_count);
+
+		int index = fi.folio->index;
+		int offset = fi.offset;
+		int lblk = 8 * index + offset / 512;
+
+		struct page *page = NULL;
+		page = find_get_page(fi.folio->mapping, lblk/8); //folioに含まれるから同じアドレスになる?
+		printk("debug find: %p \n", page);
 		
 	}
+
+
 	if (bio->bi_private)
 		mempool_free(bio->bi_private, bio_post_read_ctx_pool);
 	bio_put(bio);
