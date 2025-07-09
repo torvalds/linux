@@ -2697,7 +2697,7 @@ ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 			       bool radar_required);
 int __must_check
 ieee80211_link_use_reserved_context(struct ieee80211_link_data *link);
-int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link);
+void ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link);
 
 int __must_check
 ieee80211_link_change_chanreq(struct ieee80211_link_data *link,

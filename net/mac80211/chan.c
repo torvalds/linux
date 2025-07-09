@@ -1108,7 +1108,7 @@ void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
 	__ieee80211_link_copy_chanctx_to_vlans(link, clear);
 }
 
-int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
+void ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_chanctx *ctx = link->reserved_chanctx;
@@ -1116,7 +1116,7 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	if (WARN_ON(!ctx))
-		return -EINVAL;
+		return;
 
 	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
@@ -1124,7 +1124,7 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 	if (ieee80211_chanctx_refcount(sdata->local, ctx) == 0) {
 		if (ctx->replace_state == IEEE80211_CHANCTX_REPLACES_OTHER) {
 			if (WARN_ON(!ctx->replace_ctx))
-				return -EINVAL;
+				return;
 
 			WARN_ON(ctx->replace_ctx->replace_state !=
 			        IEEE80211_CHANCTX_WILL_BE_REPLACED);
@@ -1140,8 +1140,6 @@ int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link)
 			ieee80211_free_chanctx(sdata->local, ctx, false);
 		}
 	}
-
-	return 0;
 }
 
 static struct ieee80211_chanctx *
