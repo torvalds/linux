@@ -132,7 +132,7 @@ static void clk_periph_restore_context(struct clk_hw *hw)
 	clk_periph_set_parent(hw, parent_id);
 }
 
-const struct clk_ops tegra_clk_periph_ops = {
+static const struct clk_ops tegra_clk_periph_ops = {
 	.get_parent = clk_periph_get_parent,
 	.set_parent = clk_periph_set_parent,
 	.recalc_rate = clk_periph_recalc_rate,
