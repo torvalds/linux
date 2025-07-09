@@ -1130,7 +1130,8 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	if (umem->is_dmabuf)
 		page_size = mlx5_umem_dmabuf_default_pgsz(umem, iova);
 	else
-		page_size = mlx5_umem_mkc_find_best_pgsz(dev, umem, iova);
+		page_size = mlx5_umem_mkc_find_best_pgsz(dev, umem, iova,
+							 access_mode);
 	if (WARN_ON(!page_size))
 		return ERR_PTR(-EINVAL);
 
@@ -1435,8 +1436,8 @@ static struct ib_mr *create_real_mr(struct ib_pd *pd, struct ib_umem *umem,
 		mr = alloc_cacheable_mr(pd, umem, iova, access_flags,
 					MLX5_MKC_ACCESS_MODE_MTT);
 	} else {
-		unsigned long page_size =
-			mlx5_umem_mkc_find_best_pgsz(dev, umem, iova);
+		unsigned long page_size = mlx5_umem_mkc_find_best_pgsz(
+				dev, umem, iova, MLX5_MKC_ACCESS_MODE_MTT);
 
 		mutex_lock(&dev->slow_path_mutex);
 		mr = reg_create(pd, umem, iova, access_flags, page_size,
@@ -1754,7 +1755,8 @@ static bool can_use_umr_rereg_pas(struct mlx5_ib_mr *mr,
 	if (!mlx5r_umr_can_load_pas(dev, new_umem->length))
 		return false;
 
-	*page_size = mlx5_umem_mkc_find_best_pgsz(dev, new_umem, iova);
+	*page_size = mlx5_umem_mkc_find_best_pgsz(
+		dev, new_umem, iova, mr->mmkey.cache_ent->rb_key.access_mode);
 	if (WARN_ON(!*page_size))
 		return false;
 	return (mr->mmkey.cache_ent->rb_key.ndescs) >=

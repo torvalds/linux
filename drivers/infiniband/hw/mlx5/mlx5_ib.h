@@ -1750,18 +1750,59 @@ static inline u32 smi_to_native_portnum(struct mlx5_ib_dev *dev, u32 port)
 	return (port - 1) / dev->num_ports + 1;
 }
 
+static inline unsigned int get_max_log_entity_size_cap(struct mlx5_ib_dev *dev,
+						       int access_mode)
+{
+	int max_log_size = 0;
+
+	if (access_mode == MLX5_MKC_ACCESS_MODE_MTT)
+		max_log_size =
+			MLX5_CAP_GEN_2(dev->mdev, max_mkey_log_entity_size_mtt);
+	else if (access_mode == MLX5_MKC_ACCESS_MODE_KSM)
+		max_log_size = MLX5_CAP_GEN_2(
+			dev->mdev, max_mkey_log_entity_size_fixed_buffer);
+
+	if (!max_log_size ||
+	    (max_log_size > 31 &&
+	     !MLX5_CAP_GEN_2(dev->mdev, umr_log_entity_size_5)))
+		max_log_size = 31;
+
+	return max_log_size;
+}
+
+static inline unsigned int get_min_log_entity_size_cap(struct mlx5_ib_dev *dev,
+						       int access_mode)
+{
+	int min_log_size = 0;
+
+	if (access_mode == MLX5_MKC_ACCESS_MODE_KSM &&
+	    MLX5_CAP_GEN_2(dev->mdev,
+			   min_mkey_log_entity_size_fixed_buffer_valid))
+		min_log_size = MLX5_CAP_GEN_2(
+			dev->mdev, min_mkey_log_entity_size_fixed_buffer);
+	else
+		min_log_size =
+			MLX5_CAP_GEN_2(dev->mdev, log_min_mkey_entity_size);
+
+	min_log_size = max(min_log_size, MLX5_ADAPTER_PAGE_SHIFT);
+	return min_log_size;
+}
+
 /*
  * For mkc users, instead of a page_offset the command has a start_iova which
  * specifies both the page_offset and the on-the-wire IOVA
  */
 static __always_inline unsigned long
 mlx5_umem_mkc_find_best_pgsz(struct mlx5_ib_dev *dev, struct ib_umem *umem,
-			     u64 iova)
+			     u64 iova, int access_mode)
 {
-	int page_size_bits =
-		MLX5_CAP_GEN_2(dev->mdev, umr_log_entity_size_5) ? 6 : 5;
-	unsigned long bitmap =
-		__mlx5_log_page_size_to_bitmap(page_size_bits, 0);
+	unsigned int max_log_entity_size_cap, min_log_entity_size_cap;
+	unsigned long bitmap;
+
+	max_log_entity_size_cap = get_max_log_entity_size_cap(dev, access_mode);
+	min_log_entity_size_cap = get_min_log_entity_size_cap(dev, access_mode);
+
+	bitmap = GENMASK_ULL(max_log_entity_size_cap, min_log_entity_size_cap);
 
 	return ib_umem_find_best_pgsz(umem, bitmap, iova);
 }
