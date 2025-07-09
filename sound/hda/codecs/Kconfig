@@ -99,6 +99,16 @@ config SND_HDA_CODEC_CMEDIA
 comment "Set to Y if you want auto-loading the codec driver"
 	depends on SND_HDA=y && SND_HDA_CODEC_CMEDIA=m
 
+config SND_HDA_CODEC_CM9825
+	tristate "Build C-Media CM9825 HD-audio codec support"
+	select SND_HDA_GENERIC
+	help
+	  Say Y or M here to include C-Media CM9825 HD-audio codec support in
+	  snd-hda-intel driver
+
+comment "Set to Y if you want auto-loading the codec driver"
+	depends on SND_HDA=y && SND_HDA_CODEC_CM9825=m
+
 config SND_HDA_CODEC_SI3054
 	tristate "Build Silicon Labs 3054 HD-modem codec support"
 	help

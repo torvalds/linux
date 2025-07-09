@@ -3,6 +3,7 @@ subdir-ccflags-y += -I$(src)/../common
 
 snd-hda-codec-generic-y :=	generic.o
 snd-hda-codec-cmedia-y :=	cmedia.o
+snd-hda-codec-cm9825-y :=	cm9825.o
 snd-hda-codec-analog-y :=	analog.o
 snd-hda-codec-ca0110-y :=	ca0110.o
 snd-hda-codec-ca0132-y :=	ca0132.o
@@ -21,6 +22,7 @@ obj-y += side-codecs/
 # codec drivers
 obj-$(CONFIG_SND_HDA_GENERIC) += snd-hda-codec-generic.o
 obj-$(CONFIG_SND_HDA_CODEC_CMEDIA) += snd-hda-codec-cmedia.o
+obj-$(CONFIG_SND_HDA_CODEC_CM9825) += snd-hda-codec-cm9825.o
 obj-$(CONFIG_SND_HDA_CODEC_ANALOG) += snd-hda-codec-analog.o
 obj-$(CONFIG_SND_HDA_CODEC_CA0110) += snd-hda-codec-ca0110.o
 obj-$(CONFIG_SND_HDA_CODEC_CA0132) += snd-hda-codec-ca0132.o
