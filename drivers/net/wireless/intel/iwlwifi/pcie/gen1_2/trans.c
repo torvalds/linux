@@ -380,17 +380,15 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 		iwl_set_bit(trans, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_REQ);
 
-		ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
-				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
-				   100);
+		ret = iwl_poll_bits(trans, CSR_GP_CNTRL,
+				    CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
+				    100);
 		usleep_range(10000, 20000);
 	} else {
 		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
-		ret = iwl_poll_bit(trans, CSR_RESET,
-				   CSR_RESET_REG_FLAG_MASTER_DISABLED,
-				   CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+		ret = iwl_poll_bits(trans, CSR_RESET,
+				    CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 	}
 
 	if (ret < 0)
@@ -492,10 +490,9 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 		    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET);
 
 	/* See if we got it */
-	ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
-			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
-			   HW_READY_TIMEOUT);
+	ret = iwl_poll_bits(trans, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
+			    HW_READY_TIMEOUT);
 
 	if (ret >= 0)
 		iwl_set_bit(trans, CSR_MBOX_SET_REG, CSR_MBOX_SET_REG_OS_ALIVE);
@@ -2354,7 +2351,7 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans, bool silent)
 	 * 5000 series and later (including 1000 series) have non-volatile SRAM,
 	 * and do not save/restore SRAM when power cycling.
 	 */
-	ret = iwl_poll_bit(trans, CSR_GP_CNTRL, poll, mask, 15000);
+	ret = iwl_poll_bits_mask(trans, CSR_GP_CNTRL, poll, mask, 15000);
 	if (unlikely(ret < 0)) {
 		u32 cntrl = iwl_read32(trans, CSR_GP_CNTRL);
 
