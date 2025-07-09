@@ -2,7 +2,7 @@
 /*
  * Universal Interface for Intel High Definition Audio Codec
  *
- * HD audio interface patch for Silicon Labs 3054/5 modem codec
+ * HD audio codec driver for Silicon Labs 3054/5 modem codec
  *
  * Copyright (c) 2005 Sasha Khapyorsky <sashak@alsa-project.org>
  *                    Takashi Iwai <tiwai@suse.de>
@@ -246,50 +246,48 @@ static int si3054_init(struct hda_codec *codec)
 	return 0;
 }
 
-static void si3054_free(struct hda_codec *codec)
+static void si3054_remove(struct hda_codec *codec)
 {
 	kfree(codec->spec);
 }
 
-
 /*
  */
 
-static const struct hda_codec_ops si3054_patch_ops = {
-	.build_controls = si3054_build_controls,
-	.build_pcms = si3054_build_pcms,
-	.init = si3054_init,
-	.free = si3054_free,
-};
-
-static int patch_si3054(struct hda_codec *codec)
+static int si3054_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
-	struct si3054_spec *spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
+	codec->spec = kzalloc(sizeof(struct si3054_spec), GFP_KERNEL);
+	if (!codec->spec)
 		return -ENOMEM;
-	codec->spec = spec;
-	codec->patch_ops = si3054_patch_ops;
 	return 0;
 }
 
+static const struct hda_codec_ops si3054_codec_ops = {
+	.probe = si3054_probe,
+	.remove = si3054_remove,
+	.build_controls = si3054_build_controls,
+	.build_pcms = si3054_build_pcms,
+	.init = si3054_init,
+};
+
 /*
- * patch entries
+ * driver entries
  */
 static const struct hda_device_id snd_hda_id_si3054[] = {
-	HDA_CODEC_ENTRY(0x163c3055, "Si3054", patch_si3054),
-	HDA_CODEC_ENTRY(0x163c3155, "Si3054", patch_si3054),
-	HDA_CODEC_ENTRY(0x11c13026, "Si3054", patch_si3054),
-	HDA_CODEC_ENTRY(0x11c13055, "Si3054", patch_si3054),
-	HDA_CODEC_ENTRY(0x11c13155, "Si3054", patch_si3054),
-	HDA_CODEC_ENTRY(0x10573055, "Si3054", patch_si3054),
-	HDA_CODEC_ENTRY(0x10573057, "Si3054", patch_si3054),
-	HDA_CODEC_ENTRY(0x10573155, "Si3054", patch_si3054),
+	HDA_CODEC_ID(0x163c3055, "Si3054"),
+	HDA_CODEC_ID(0x163c3155, "Si3054"),
+	HDA_CODEC_ID(0x11c13026, "Si3054"),
+	HDA_CODEC_ID(0x11c13055, "Si3054"),
+	HDA_CODEC_ID(0x11c13155, "Si3054"),
+	HDA_CODEC_ID(0x10573055, "Si3054"),
+	HDA_CODEC_ID(0x10573057, "Si3054"),
+	HDA_CODEC_ID(0x10573155, "Si3054"),
 	/* VIA HDA on Clevo m540 */
-	HDA_CODEC_ENTRY(0x11063288, "Si3054", patch_si3054),
+	HDA_CODEC_ID(0x11063288, "Si3054"),
 	/* Asus A8J Modem (SM56) */
-	HDA_CODEC_ENTRY(0x15433155, "Si3054", patch_si3054),
+	HDA_CODEC_ID(0x15433155, "Si3054"),
 	/* LG LW20 modem */
-	HDA_CODEC_ENTRY(0x18540018, "Si3054", patch_si3054),
+	HDA_CODEC_ID(0x18540018, "Si3054"),
 	{}
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_si3054);
@@ -299,6 +297,7 @@ MODULE_DESCRIPTION("Si3054 HD-audio modem codec");
 
 static struct hda_codec_driver si3054_driver = {
 	.id = snd_hda_id_si3054,
+	.ops = &si3054_codec_ops,
 };
 
 module_hda_codec_driver(si3054_driver);
