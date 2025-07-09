@@ -8,6 +8,8 @@ quiet_cmd_perlasm = PERLASM $@
 quiet_cmd_perlasm_with_args = PERLASM $@
       cmd_perlasm_with_args = $(PERL) $(<) void $(@)
 
+obj-$(CONFIG_KUNIT)				+= tests/
+
 obj-$(CONFIG_CRYPTO_HASH_INFO)			+= hash_info.o
 
 obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o

@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Option is named *_SHA256_KUNIT_TEST, though both SHA-224 and SHA-256 tests are
+# included, for consistency with the naming used elsewhere (e.g. CRYPTO_SHA256).
+config CRYPTO_LIB_SHA256_KUNIT_TEST
+	tristate "KUnit tests for SHA-224 and SHA-256" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_SHA256
+	help
+	  KUnit tests for the SHA-224 and SHA-256 cryptographic hash functions
+	  and their corresponding HMACs.
+
+config CRYPTO_LIB_BENCHMARK_VISIBLE
+	bool
+
+config CRYPTO_LIB_BENCHMARK
+	bool "Include benchmarks in KUnit tests for cryptographic functions"
+	depends on CRYPTO_LIB_BENCHMARK_VISIBLE
+	help
+	  Include benchmarks in the KUnit tests for cryptographic functions.
+	  The benchmark results are printed to the kernel log when the
+	  corresponding KUnit test suite runs.
+
+	  This is useful for evaluating the performance of the cryptographic
+	  functions.  However, it will increase the runtime of the KUnit tests.
+
+	  If you're only interested in correctness testing, leave this disabled.
