@@ -91,7 +91,7 @@ static int zevio_gpio_get(struct gpio_chip *chip, unsigned pin)
 	return (val >> ZEVIO_GPIO_BIT(pin)) & 0x1;
 }
 
-static void zevio_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
+static int zevio_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 {
 	struct zevio_gpio *controller = gpiochip_get_data(chip);
 	u32 val;
@@ -105,6 +105,8 @@ static void zevio_gpio_set(struct gpio_chip *chip, unsigned pin, int value)
 
 	zevio_gpio_port_set(controller, pin, ZEVIO_GPIO_OUTPUT, val);
 	spin_unlock(&controller->lock);
+
+	return 0;
 }
 
 static int zevio_gpio_direction_input(struct gpio_chip *chip, unsigned pin)
@@ -159,7 +161,7 @@ static int zevio_gpio_to_irq(struct gpio_chip *chip, unsigned pin)
 static const struct gpio_chip zevio_gpio_chip = {
 	.direction_input	= zevio_gpio_direction_input,
 	.direction_output	= zevio_gpio_direction_output,
-	.set			= zevio_gpio_set,
+	.set_rv			= zevio_gpio_set,
 	.get			= zevio_gpio_get,
 	.to_irq			= zevio_gpio_to_irq,
 	.base			= 0,
