@@ -40,7 +40,7 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 4
+    maxItems: 8
 
   power-domains:
     maxItems: 1
@@ -272,7 +272,7 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 4
+          minItems: 8
 
         clocks:
           minItems: 15
@@ -310,7 +310,7 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 4
+          minItems: 8
 
         clocks:
           minItems: 15
@@ -348,7 +348,7 @@ allOf:
     then:
       properties:
         interrupts:
-          minItems: 4
+          minItems: 8
 
         clocks:
           minItems: 24
@@ -507,7 +507,11 @@ examples:
         interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
-                     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
+                     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&ethsys CLK_ETH_FE_EN>,
                  <&ethsys CLK_ETH_GP2_EN>,
                  <&ethsys CLK_ETH_GP1_EN>,
