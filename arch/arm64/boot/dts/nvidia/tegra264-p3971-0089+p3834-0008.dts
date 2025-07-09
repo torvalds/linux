@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/dts-v1/;
+
+// module files must be included first
+#include "tegra264-p3834-0008.dtsi"
+#include "tegra264-p3971-0089+p3834.dtsi"
+
+/ {
+	model = "NVIDIA P3971-0089+P3834-0008 Engineering Reference Platform";
+	compatible = "nvidia,p3971-0089+p3834-0008", "nvidia,p3834-0008", "nvidia,tegra264";
+};
