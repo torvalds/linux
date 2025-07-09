@@ -2408,7 +2408,7 @@ static void fdp1_remove(struct platform_device *pdev)
 	rcar_fcp_put(fdp1->fcp);
 }
 
-static int __maybe_unused fdp1_pm_runtime_suspend(struct device *dev)
+static int fdp1_pm_runtime_suspend(struct device *dev)
 {
 	struct fdp1_dev *fdp1 = dev_get_drvdata(dev);
 
@@ -2417,7 +2417,7 @@ static int __maybe_unused fdp1_pm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused fdp1_pm_runtime_resume(struct device *dev)
+static int fdp1_pm_runtime_resume(struct device *dev)
 {
 	struct fdp1_dev *fdp1 = dev_get_drvdata(dev);
 
@@ -2428,9 +2428,7 @@ static int __maybe_unused fdp1_pm_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops fdp1_pm_ops = {
-	SET_RUNTIME_PM_OPS(fdp1_pm_runtime_suspend,
-			   fdp1_pm_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(fdp1_pm_runtime_suspend, fdp1_pm_runtime_resume, NULL)
 };
 
 static const struct of_device_id fdp1_dt_ids[] = {
@@ -2445,7 +2443,7 @@ static struct platform_driver fdp1_pdrv = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = fdp1_dt_ids,
-		.pm	= &fdp1_pm_ops,
+		.pm	= pm_ptr(&fdp1_pm_ops),
 	},
 };
 
