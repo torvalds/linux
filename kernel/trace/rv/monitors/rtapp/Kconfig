@@ -1,5 +1,6 @@
 config RV_MON_RTAPP
 	depends on RV
+	depends on RV_PER_TASK_MONITORS >= 2
 	bool "rtapp monitor"
 	help
 	  Collection of monitors to check for common problems with real-time
