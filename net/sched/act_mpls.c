@@ -57,7 +57,7 @@ TC_INDIRECT_SCOPE int tcf_mpls_act(struct sk_buff *skb,
 	struct tcf_mpls *m = to_mpls(a);
 	struct tcf_mpls_params *p;
 	__be32 new_lse;
-	int ret, mac_len;
+	int mac_len;
 
 	tcf_lastuse_update(&m->tcf_tm);
 	bstats_update(this_cpu_ptr(m->common.cpu_bstats), skb);
@@ -71,8 +71,6 @@ TC_INDIRECT_SCOPE int tcf_mpls_act(struct sk_buff *skb,
 	} else {
 		mac_len = skb_network_offset(skb);
 	}
-
-	ret = READ_ONCE(m->tcf_action);
 
 	p = rcu_dereference_bh(m->mpls_p);
 
@@ -122,7 +120,7 @@ TC_INDIRECT_SCOPE int tcf_mpls_act(struct sk_buff *skb,
 	if (skb_at_tc_ingress(skb))
 		skb_pull_rcsum(skb, skb->mac_len);
 
-	return ret;
+	return p->action;
 
 drop:
 	qstats_drop_inc(this_cpu_ptr(m->common.cpu_qstats));
@@ -296,6 +294,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 					 ACT_MPLS_BOS_NOT_SET);
 	p->tcfm_proto = nla_get_be16_default(tb[TCA_MPLS_PROTO],
 					     htons(ETH_P_MPLS_UC));
+	p->action = parm->action;
 
 	spin_lock_bh(&m->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
@@ -330,8 +329,8 @@ static int tcf_mpls_dump(struct sk_buff *skb, struct tc_action *a,
 			 int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_mpls *m = to_mpls(a);
-	struct tcf_mpls_params *p;
+	const struct tcf_mpls *m = to_mpls(a);
+	const struct tcf_mpls_params *p;
 	struct tc_mpls opt = {
 		.index    = m->tcf_index,
 		.refcnt   = refcount_read(&m->tcf_refcnt) - ref,
@@ -339,10 +338,10 @@ static int tcf_mpls_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t t;
 
-	spin_lock_bh(&m->tcf_lock);
-	opt.action = m->tcf_action;
-	p = rcu_dereference_protected(m->mpls_p, lockdep_is_held(&m->tcf_lock));
+	rcu_read_lock();
+	p = rcu_dereference(m->mpls_p);
 	opt.m_action = p->tcfm_action;
+	opt.action = p->action;
 
 	if (nla_put(skb, TCA_MPLS_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
@@ -370,12 +369,12 @@ static int tcf_mpls_dump(struct sk_buff *skb, struct tc_action *a,
 	if (nla_put_64bit(skb, TCA_MPLS_TM, sizeof(t), &t, TCA_MPLS_PAD))
 		goto nla_put_failure;
 
-	spin_unlock_bh(&m->tcf_lock);
+	rcu_read_unlock();
 
 	return skb->len;
 
 nla_put_failure:
-	spin_unlock_bh(&m->tcf_lock);
+	rcu_read_unlock();
 	nlmsg_trim(skb, b);
 	return -EMSGSIZE;
 }
