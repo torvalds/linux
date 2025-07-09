@@ -42,6 +42,7 @@ static int hda_codec_match(struct hdac_device *dev, const struct hdac_driver *dr
 static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 {
 	struct hda_codec *codec = container_of(dev, struct hda_codec, core);
+	struct hda_codec_driver *driver = hda_codec_to_driver(codec);
 
 	/* ignore unsol events during shutdown */
 	if (codec->card->shutdown || codec->bus->shutdown)
@@ -51,7 +52,9 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 	if (codec->core.dev.power.power_state.event != PM_EVENT_ON)
 		return;
 
-	if (codec->patch_ops.unsol_event)
+	if (driver->ops && driver->ops->unsol_event)
+		driver->ops->unsol_event(codec, ev);
+	else if (codec->patch_ops.unsol_event)
 		codec->patch_ops.unsol_event(codec, ev);
 }
 
@@ -87,6 +90,7 @@ static int hda_codec_driver_probe(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
 	struct module *owner = dev->driver->owner;
+	struct hda_codec_driver *driver = hda_codec_to_driver(codec);
 	hda_codec_patch_t patch;
 	int err;
 
@@ -111,11 +115,17 @@ static int hda_codec_driver_probe(struct device *dev)
 		goto error;
 	}
 
-	patch = (hda_codec_patch_t)codec->preset->driver_data;
-	if (patch) {
-		err = patch(codec);
+	if (driver->ops && driver->ops->probe) {
+		err = driver->ops->probe(codec, codec->preset);
 		if (err < 0)
 			goto error_module_put;
+	} else {
+		patch = (hda_codec_patch_t)codec->preset->driver_data;
+		if (patch) {
+			err = patch(codec);
+			if (err < 0)
+				goto error_module_put;
+		}
 	}
 
 	err = snd_hda_codec_build_pcms(codec);
@@ -136,7 +146,9 @@ static int hda_codec_driver_probe(struct device *dev)
 	return 0;
 
  error_module:
-	if (codec->patch_ops.free)
+	if (driver->ops && driver->ops->remove)
+		driver->ops->remove(codec);
+	else if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
  error_module_put:
 	module_put(owner);
@@ -150,6 +162,7 @@ static int hda_codec_driver_probe(struct device *dev)
 static int hda_codec_driver_remove(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
+	struct hda_codec_driver *driver = hda_codec_to_driver(codec);
 
 	if (codec->bus->core.ext_ops) {
 		if (WARN_ON(!codec->bus->core.ext_ops->hdev_detach))
@@ -163,7 +176,9 @@ static int hda_codec_driver_remove(struct device *dev)
 		wait_event(codec->remove_sleep, !refcount_read(&codec->pcm_ref));
 	snd_power_sync_ref(codec->bus->card);
 
-	if (codec->patch_ops.free)
+	if (driver->ops && driver->ops->remove)
+		driver->ops->remove(codec);
+	else if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
 	snd_hda_codec_cleanup_for_unbind(codec);
 	codec->preset = NULL;
