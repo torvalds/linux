@@ -525,6 +525,28 @@ static inline int apic_find_highest_vector(void *bitmap)
 	return -1;
 }
 
+static inline u32 apic_get_reg(void *regs, int reg_off)
+{
+	return *((u32 *) (regs + reg_off));
+}
+
+static inline void apic_set_reg(void *regs, int reg_off, u32 val)
+{
+	*((u32 *) (regs + reg_off)) = val;
+}
+
+static __always_inline u64 apic_get_reg64(void *regs, int reg)
+{
+	BUILD_BUG_ON(reg != APIC_ICR);
+	return *((u64 *) (regs + reg));
+}
+
+static __always_inline void apic_set_reg64(void *regs, int reg, u64 val)
+{
+	BUILD_BUG_ON(reg != APIC_ICR);
+	*((u64 *) (regs + reg)) = val;
+}
+
 /*
  * Warm reset vector position:
  */
