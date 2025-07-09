@@ -363,6 +363,18 @@ struct xe_device {
 		u8 skip_pcode:1;
 	} info;
 
+	struct {
+		/** @wa_active.oob: bitmap with active OOB workarounds */
+		unsigned long *oob;
+
+		/**
+		 * @wa_active.oob_initialized: Mark oob as initialized to help detecting misuse
+		 * of XE_DEVICE_WA() - it can only be called on initialization after
+		 * Device OOB WAs have been processed.
+		 */
+		bool oob_initialized;
+	} wa_active;
+
 	/** @survivability: survivability information for device */
 	struct xe_survivability survivability;
 

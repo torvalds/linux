@@ -700,6 +700,9 @@ int xe_device_probe_early(struct xe_device *xe)
 {
 	int err;
 
+	xe_wa_device_init(xe);
+	xe_wa_process_device_oob(xe);
+
 	err = xe_mmio_probe_early(xe);
 	if (err)
 		return err;
