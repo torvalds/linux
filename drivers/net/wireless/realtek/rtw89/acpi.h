@@ -56,6 +56,7 @@ struct rtw89_acpi_policy_6ghz {
 
 enum rtw89_acpi_conf_6ghz_sp {
 	RTW89_ACPI_CONF_6GHZ_SP_US = BIT(0),
+	RTW89_ACPI_CONF_6GHZ_SP_CA = BIT(1),
 };
 
 struct rtw89_acpi_policy_6ghz_sp {

@@ -490,12 +490,11 @@ out:
 static void rtw89_regd_setup_policy_6ghz_sp(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
-	const struct rtw89_regd_ctrl *regd_ctrl = &regulatory->ctrl;
 	const struct rtw89_acpi_policy_6ghz_sp *ptr;
 	struct rtw89_acpi_dsm_result res = {};
-	bool enable_by_us;
+	bool enable;
+	u8 index;
 	int ret;
-	int i;
 
 	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6GHZ_SP_SUP, &res);
 	if (ret) {
@@ -520,14 +519,15 @@ static void rtw89_regd_setup_policy_6ghz_sp(struct rtw89_dev *rtwdev)
 
 	bitmap_fill(regulatory->block_6ghz_sp, RTW89_REGD_MAX_COUNTRY_NUM);
 
-	enable_by_us = u8_get_bits(ptr->conf, RTW89_ACPI_CONF_6GHZ_SP_US);
+	index = rtw89_regd_get_index_by_name(rtwdev, "US");
+	enable = u8_get_bits(ptr->conf, RTW89_ACPI_CONF_6GHZ_SP_US);
+	if (enable && index != RTW89_REGD_MAX_COUNTRY_NUM)
+		clear_bit(index, regulatory->block_6ghz_sp);
 
-	for (i = 0; i < regd_ctrl->nr; i++) {
-		const struct rtw89_regd *tmp = &regd_ctrl->map[i];
-
-		if (enable_by_us && memcmp(tmp->alpha2, "US", 2) == 0)
-			clear_bit(i, regulatory->block_6ghz_sp);
-	}
+	index = rtw89_regd_get_index_by_name(rtwdev, "CA");
+	enable = u8_get_bits(ptr->conf, RTW89_ACPI_CONF_6GHZ_SP_CA);
+	if (enable && index != RTW89_REGD_MAX_COUNTRY_NUM)
+		clear_bit(index, regulatory->block_6ghz_sp);
 
 out:
 	kfree(ptr);
