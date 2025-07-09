@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- *  patch_hdmi.c - routines for HDMI/DisplayPort codecs
+ *  hdmi.c - routines for HDMI/DisplayPort codecs
  *
  *  Copyright(c) 2008-2010 Intel Corporation
  *  Copyright (c) 2006 ATI Technologies Inc.

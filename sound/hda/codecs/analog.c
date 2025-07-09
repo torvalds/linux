@@ -16,7 +16,7 @@
 #include "hda_auto_parser.h"
 #include "hda_beep.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "generic.h"
 
 
 struct ad198x_spec {

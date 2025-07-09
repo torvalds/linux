@@ -43,7 +43,7 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "generic.h"
 
 /* Pin Widget NID */
 #define VT1708_HP_PIN_NID	0x20

@@ -2,7 +2,7 @@
 /*
  * HD audio interface patch for Senary HDA audio codec
  *
- * Initially based on sound/pci/hda/patch_conexant.c
+ * Initially based on conexant.c
  */
 
 #include <linux/init.h>
@@ -17,7 +17,7 @@
 #include "hda_auto_parser.h"
 #include "hda_beep.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "generic.h"
 
 struct senary_spec {
 	struct hda_gen_spec gen;

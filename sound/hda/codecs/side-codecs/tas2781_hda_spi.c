@@ -35,7 +35,7 @@
 #include "hda_auto_parser.h"
 #include "hda_component.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "../generic.h"
 #include "tas2781_hda.h"
 
 #define TASDEVICE_RANGE_MAX_SIZE	(256 * 128)

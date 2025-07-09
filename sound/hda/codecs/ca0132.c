@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2011, Creative Technology Ltd.
  *
- * Based on patch_ca0110.c
+ * Based on ca0110.c
  * Copyright (c) 2008 Takashi Iwai <tiwai@suse.de>
  */
 

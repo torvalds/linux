@@ -19,7 +19,7 @@
 #include "hda_auto_parser.h"
 #include "hda_beep.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "generic.h"
 
 struct conexant_spec {
 	struct hda_gen_spec gen;
@@ -312,10 +312,10 @@ enum {
 };
 
 /* for hda_fixup_thinkpad_acpi() */
-#include "thinkpad_helper.c"
+#include "helpers/thinkpad.c"
 
 /* for hda_fixup_ideapad_acpi() */
-#include "ideapad_hotkey_led_helper.c"
+#include "helpers/ideapad_hotkey_led.c"
 
 static void cxt_fixup_stereo_dmic(struct hda_codec *codec,
 				  const struct hda_fixup *fix, int action)

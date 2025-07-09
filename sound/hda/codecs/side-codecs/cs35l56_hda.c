@@ -20,7 +20,7 @@
 #include "cirrus_scodec.h"
 #include "cs35l56_hda.h"
 #include "hda_component.h"
-#include "hda_generic.h"
+#include "../generic.h"
 
  /*
   * The cs35l56_hda_dai_config[] reg sequence configures the device as

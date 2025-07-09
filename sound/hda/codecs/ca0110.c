@@ -13,7 +13,7 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "generic.h"
 
 
 static const struct hda_codec_ops ca0110_patch_ops = {

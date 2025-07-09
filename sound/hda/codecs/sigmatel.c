@@ -7,7 +7,7 @@
  * Copyright (c) 2005 Embedded Alley Solutions, Inc.
  * Matt Porter <mporter@embeddedalley.com>
  *
- * Based on patch_cmedia.c and patch_realtek.c
+ * Based on cmedia.c and realtek.c
  * Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
  */
 
@@ -24,7 +24,7 @@
 #include "hda_auto_parser.h"
 #include "hda_beep.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "generic.h"
 
 enum {
 	STAC_REF,

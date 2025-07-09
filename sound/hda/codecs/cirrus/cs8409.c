@@ -13,7 +13,7 @@
 #include <linux/mutex.h>
 #include <linux/iopoll.h>
 
-#include "patch_cs8409.h"
+#include "cs8409.h"
 
 /******************************************************************************
  *                        CS8409 Specific Functions

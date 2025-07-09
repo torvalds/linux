@@ -17,7 +17,7 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
+#include "../generic.h"
 
 /* CS8409 Specific Definitions */
 

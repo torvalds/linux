@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * patch_cs8409-tables.c  --  HD audio interface patch for Cirrus Logic CS8409 HDA bridge chip
+ * cs8409-tables.c  --  HD audio interface patch for Cirrus Logic CS8409 HDA bridge chip
  *
  * Copyright (C) 2021 Cirrus Logic, Inc. and
  *                    Cirrus Logic International Semiconductor Ltd.
@@ -8,7 +8,7 @@
  * Author: Lucas Tanure <tanureal@opensource.cirrus.com>
  */
 
-#include "patch_cs8409.h"
+#include "cs8409.h"
 
 /******************************************************************************
  *                          CS42L42 Specific Data

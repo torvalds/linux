@@ -30,8 +30,8 @@
 #include "hda_auto_parser.h"
 #include "hda_beep.h"
 #include "hda_jack.h"
-#include "hda_generic.h"
-#include "hda_component.h"
+#include "generic.h"
+#include "side-codecs/hda_component.h"
 
 /* keep halting ALC5505 DSP, for power saving */
 #define HALT_REALTEK_ALC5505
@@ -7120,7 +7120,7 @@ static void alc285_fixup_hp_beep(struct hda_codec *codec,
 }
 
 /* for hda_fixup_thinkpad_acpi() */
-#include "thinkpad_helper.c"
+#include "helpers/thinkpad.c"
 
 static void alc_fixup_thinkpad_acpi(struct hda_codec *codec,
 				    const struct hda_fixup *fix, int action)
@@ -7130,7 +7130,7 @@ static void alc_fixup_thinkpad_acpi(struct hda_codec *codec,
 }
 
 /* for hda_fixup_ideapad_acpi() */
-#include "ideapad_hotkey_led_helper.c"
+#include "helpers/ideapad_hotkey_led.c"
 
 static void alc_fixup_ideapad_acpi(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
@@ -7362,10 +7362,10 @@ static void alc256_fixup_acer_sfg16_micmute_led(struct hda_codec *codec,
 
 
 /* for alc295_fixup_hp_top_speakers */
-#include "hp_x360_helper.c"
+#include "helpers/hp_x360.c"
 
 /* for alc285_fixup_ideapad_s740_coef() */
-#include "ideapad_s740_helper.c"
+#include "helpers/ideapad_s740.c"
 
 static const struct coef_fw alc256_fixup_set_coef_defaults_coefs[] = {
 	WRITE_COEF(0x10, 0x0020), WRITE_COEF(0x24, 0x0000),
