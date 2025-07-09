@@ -23,6 +23,7 @@ import fcntl
 import functools
 import libevdev
 import os
+import threading
 
 try:
     import pyudev
@@ -344,10 +345,28 @@ class BaseDevice(UHIDDevice):
         if not self.kernel_is_ready or not self.started:
             return []
 
+        # Starting with kernel v6.16, an event is emitted when
+        # userspace opens a kernel device, and for some devices
+        # this translates into a SET_REPORT.
+        # Because EvdevDevice(path) opens every single evdev node
+        # we need to have a separate thread to process the incoming
+        # SET_REPORT or we end up having to wait for the kernel
+        # timeout of 5 seconds.
+        done = False
+
+        def dispatch():
+            while not done:
+                self.dispatch(1)
+
+        t = threading.Thread(target=dispatch)
+        t.start()
+
         self._input_nodes = [
             EvdevDevice(path)
             for path in self.walk_sysfs("input", "input/input*/event*")
         ]
+        done = True
+        t.join()
         return self._input_nodes
 
     def match_evdev_rule(self, application, evdev):
