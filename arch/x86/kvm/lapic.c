@@ -125,16 +125,6 @@ bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector)
 		apic_test_vector(vector, apic->regs + APIC_IRR);
 }
 
-static inline int __apic_test_and_set_vector(int vec, void *bitmap)
-{
-	return __test_and_set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
-}
-
-static inline int __apic_test_and_clear_vector(int vec, void *bitmap)
-{
-	return __test_and_clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
-}
-
 __read_mostly DEFINE_STATIC_KEY_FALSE(kvm_has_noapic_vcpu);
 EXPORT_SYMBOL_GPL(kvm_has_noapic_vcpu);
 
@@ -744,9 +734,14 @@ void kvm_apic_clear_irr(struct kvm_vcpu *vcpu, int vec)
 }
 EXPORT_SYMBOL_GPL(kvm_apic_clear_irr);
 
+static void *apic_vector_to_isr(int vec, struct kvm_lapic *apic)
+{
+	return apic->regs + APIC_ISR + REG_POS(vec);
+}
+
 static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
 {
-	if (__apic_test_and_set_vector(vec, apic->regs + APIC_ISR))
+	if (__test_and_set_bit(VEC_POS(vec), apic_vector_to_isr(vec, apic)))
 		return;
 
 	/*
@@ -789,7 +784,7 @@ static inline int apic_find_highest_isr(struct kvm_lapic *apic)
 
 static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
 {
-	if (!__apic_test_and_clear_vector(vec, apic->regs + APIC_ISR))
+	if (!__test_and_clear_bit(VEC_POS(vec), apic_vector_to_isr(vec, apic)))
 		return;
 
 	/*
