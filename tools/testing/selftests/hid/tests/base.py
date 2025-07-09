@@ -5,6 +5,7 @@
 # Copyright (c) 2017 Benjamin Tissoires <benjamin.tissoires@gmail.com>
 # Copyright (c) 2017 Red Hat, Inc.
 
+import dataclasses
 import libevdev
 import os
 import pytest
@@ -145,6 +146,18 @@ class UHIDTestDevice(BaseDevice):
         self.name = name
 
 
+@dataclasses.dataclass
+class HidBpf:
+    object_name: str
+    has_rdesc_fixup: bool
+
+
+@dataclasses.dataclass
+class KernelModule:
+    driver_name: str
+    module_name: str
+
+
 class BaseTestCase:
     class TestUhid(object):
         syn_event = libevdev.InputEvent(libevdev.EV_SYN.SYN_REPORT)  # type: ignore
@@ -155,20 +168,20 @@ class BaseTestCase:
 
         # List of kernel modules to load before starting the test
         # if any module is not available (not compiled), the test will skip.
-        # Each element is a tuple '(kernel driver name, kernel module)',
-        # for example ("playstation", "hid-playstation")
-        kernel_modules: List[Tuple[str, str]] = []
+        # Each element is a KernelModule object, for example
+        # KernelModule("playstation", "hid-playstation")
+        kernel_modules: List[KernelModule] = []
 
         # List of in kernel HID-BPF object files to load
         # before starting the test
         # Any existing pre-loaded HID-BPF module will be removed
         # before the ones in this list will be manually loaded.
-        # Each Element is a tuple '(hid_bpf_object, rdesc_fixup_present)',
-        # for example '("xppen-ArtistPro16Gen2.bpf.o", True)'
-        # If 'rdesc_fixup_present' is True, the test needs to wait
+        # Each Element is a HidBpf object, for example
+        # 'HidBpf("xppen-ArtistPro16Gen2.bpf.o", True)'
+        # If 'has_rdesc_fixup' is True, the test needs to wait
         # for one unbind and rebind before it can be sure the kernel is
         # ready
-        hid_bpfs: List[Tuple[str, bool]] = []
+        hid_bpfs: List[HidBpf] = []
 
         def assertInputEventsIn(self, expected_events, effective_events):
             effective_events = effective_events.copy()
@@ -232,25 +245,26 @@ class BaseTestCase:
 
         @pytest.fixture()
         def load_kernel_module(self):
-            for kernel_driver, kernel_module in self.kernel_modules:
-                self._load_kernel_module(kernel_driver, kernel_module)
+            for k in self.kernel_modules:
+                self._load_kernel_module(k.driver_name, k.module_name)
             yield
 
         def load_hid_bpfs(self):
+            # this function will only work when run in the kernel tree
             script_dir = Path(os.path.dirname(os.path.realpath(__file__)))
             root_dir = (script_dir / "../../../../..").resolve()
             bpf_dir = root_dir / "drivers/hid/bpf/progs"
+
+            if not bpf_dir.exists():
+                pytest.skip("looks like we are not in the kernel tree, skipping")
 
             udev_hid_bpf = shutil.which("udev-hid-bpf")
             if not udev_hid_bpf:
                 pytest.skip("udev-hid-bpf not found in $PATH, skipping")
 
-            wait = False
-            for _, rdesc_fixup in self.hid_bpfs:
-                if rdesc_fixup:
-                    wait = True
+            wait = any(b.has_rdesc_fixup for b in self.hid_bpfs)
 
-            for hid_bpf, _ in self.hid_bpfs:
+            for hid_bpf in self.hid_bpfs:
                 # We need to start `udev-hid-bpf` in the background
                 # and dispatch uhid events in case the kernel needs
                 # to fetch features on the device
@@ -260,13 +274,13 @@ class BaseTestCase:
                         "--verbose",
                         "add",
                         str(self.uhdev.sys_path),
-                        str(bpf_dir / hid_bpf),
+                        str(bpf_dir / hid_bpf.object_name),
                     ],
                 )
                 while process.poll() is None:
                     self.uhdev.dispatch(1)
 
-                if process.poll() != 0:
+                if process.returncode != 0:
                     pytest.fail(
                         f"Couldn't insert hid-bpf program '{hid_bpf}', marking the test as failed"
                     )
