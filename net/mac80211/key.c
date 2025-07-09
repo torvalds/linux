@@ -510,7 +510,8 @@ static int ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	} else {
 		if (!new->local->wowlan)
 			ret = ieee80211_key_enable_hw_accel(new);
-		else
+		else if (link_id < 0 || !sdata->vif.active_links ||
+			 BIT(link_id) & sdata->vif.active_links)
 			new->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
 	}
 
