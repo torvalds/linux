@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * HD audio interface patch for Senary HDA audio codec
+ * HD audio codec driver for Senary HDA audio codec
  *
  * Initially based on conexant.c
  */
@@ -129,7 +129,7 @@ static void senary_init_gpio_led(struct hda_codec *codec)
 	}
 }
 
-static int senary_auto_init(struct hda_codec *codec)
+static int senary_init(struct hda_codec *codec)
 {
 	snd_hda_gen_init(codec);
 	senary_init_gpio_led(codec);
@@ -138,7 +138,7 @@ static int senary_auto_init(struct hda_codec *codec)
 	return 0;
 }
 
-static void senary_auto_shutdown(struct hda_codec *codec)
+static void senary_shutdown(struct hda_codec *codec)
 {
 	struct senary_spec *spec = codec->spec;
 
@@ -148,29 +148,19 @@ static void senary_auto_shutdown(struct hda_codec *codec)
 	senary_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, false);
 }
 
-static void senary_auto_free(struct hda_codec *codec)
+static void senary_remove(struct hda_codec *codec)
 {
-	senary_auto_shutdown(codec);
-	snd_hda_gen_free(codec);
+	senary_shutdown(codec);
+	snd_hda_gen_remove(codec);
 }
 
-static int senary_auto_suspend(struct hda_codec *codec)
+static int senary_suspend(struct hda_codec *codec)
 {
-	senary_auto_shutdown(codec);
+	senary_shutdown(codec);
 	return 0;
 }
 
-static const struct hda_codec_ops senary_auto_patch_ops = {
-	.build_controls = snd_hda_gen_build_controls,
-	.build_pcms = snd_hda_gen_build_pcms,
-	.init = senary_auto_init,
-	.free = senary_auto_free,
-	.unsol_event = snd_hda_jack_unsol_event,
-	.suspend = senary_auto_suspend,
-	.check_power_status = snd_hda_gen_check_power_status,
-};
-
-static int patch_senary_auto(struct hda_codec *codec)
+static int senary_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	struct senary_spec *spec;
 	int err;
@@ -182,7 +172,6 @@ static int patch_senary_auto(struct hda_codec *codec)
 		return -ENOMEM;
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->spec = spec;
-	codec->patch_ops = senary_auto_patch_ops;
 
 	senary_auto_parse_eapd(codec);
 	spec->gen.own_eapd_ctl = 1;
@@ -221,15 +210,27 @@ static int patch_senary_auto(struct hda_codec *codec)
 	return 0;
 
  error:
-	senary_auto_free(codec);
+	senary_remove(codec);
 	return err;
 }
+
+static const struct hda_codec_ops senary_codec_ops = {
+	.probe = senary_probe,
+	.remove = senary_remove,
+	.build_controls = snd_hda_gen_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = senary_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.suspend = senary_suspend,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
 
 /*
  */
 
 static const struct hda_device_id snd_hda_id_senary[] = {
-	HDA_CODEC_ENTRY(0x1fa86186, "SN6186", patch_senary_auto),
+	HDA_CODEC_ID(0x1fa86186, "SN6186"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_senary);
@@ -239,6 +240,7 @@ MODULE_DESCRIPTION("Senarytech HD-audio codec");
 
 static struct hda_codec_driver senary_driver = {
 	.id = snd_hda_id_senary,
+	.ops = &senary_codec_ops,
 };
 
 module_hda_codec_driver(senary_driver);
