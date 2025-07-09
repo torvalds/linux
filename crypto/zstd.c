@@ -54,9 +54,14 @@ static void *zstd_alloc_stream(void)
 	return ctx;
 }
 
+static void zstd_free_stream(void *ctx)
+{
+	kvfree(ctx);
+}
+
 static struct crypto_acomp_streams zstd_streams = {
 	.alloc_ctx = zstd_alloc_stream,
-	.cfree_ctx = kvfree,
+	.free_ctx = zstd_free_stream,
 };
 
 static int zstd_init(struct crypto_acomp *acomp_tfm)
