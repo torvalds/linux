@@ -9,3 +9,14 @@
 	model = "Banana Pi BPI-R4 (1x SFP+, 1x 2.5GbE)";
 	chassis-type = "embedded";
 };
+
+&gmac1 {
+	phy = <&int_2p5g_phy>;
+	phy-mode = "internal";
+	status = "okay";
+};
+
+&int_2p5g_phy {
+	pinctrl-0 = <&i2p5gbe_led0_pins>;
+	pinctrl-names = "i2p5gbe-led";
+};
