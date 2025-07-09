@@ -8,6 +8,7 @@
 
 struct tcf_csum_params {
 	u32 update_flags;
+	int action;
 	struct rcu_head rcu;
 };
 
