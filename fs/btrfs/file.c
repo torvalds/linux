@@ -962,6 +962,7 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct folio *folio,
  * @pos:         File offset.
  * @write_bytes: The length to write, will be updated to the nocow writeable
  *               range.
+ * @nowait:      Indicate if we can block or not (non-blocking IO context).
  *
  * This function will flush ordered extents in the range to ensure proper
  * nocow checks.
@@ -970,7 +971,8 @@ lock_and_cleanup_extent_if_need(struct btrfs_inode *inode, struct folio *folio,
  * > 0          If we can nocow, and updates @write_bytes.
  *  0           If we can't do a nocow write.
  * -EAGAIN      If we can't do a nocow write because snapshoting of the inode's
- *              root is in progress.
+ *              root is in progress or because we are in a non-blocking IO
+ *              context and need to block (@nowait is true).
  * < 0          If an error happened.
  *
  * NOTE: Callers need to call btrfs_check_nocow_unlock() if we return > 0.
