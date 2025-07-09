@@ -23,6 +23,6 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         create-symlink: true
-        max-size: 1536M
+        max-size: 4096M
     - run: mv scripts/package/mkdeb scripts/package/mkdebian -v
     - run: make -j16 CC="ccache cc" HOSTCC="ccache cc" lmi_defconfig ${{ matrix.type }}
