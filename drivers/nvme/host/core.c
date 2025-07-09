@@ -3537,15 +3537,6 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
 		if (ret)
 			goto out_free;
 	}
-
-	if (le16_to_cpu(id->awupf) != ctrl->subsys->awupf) {
-		dev_err_ratelimited(ctrl->device,
-			"inconsistent AWUPF, controller not added (%u/%u).\n",
-			le16_to_cpu(id->awupf), ctrl->subsys->awupf);
-		ret = -EINVAL;
-		goto out_free;
-	}
-
 	memcpy(ctrl->subsys->firmware_rev, id->fr,
 	       sizeof(ctrl->subsys->firmware_rev));
 
