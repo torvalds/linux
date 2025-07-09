@@ -13,7 +13,7 @@
 #define IWL_AX210_UCODE_API_MAX	89
 
 /* Lowest firmware API version supported */
-#define IWL_AX210_UCODE_API_MIN	77
+#define IWL_AX210_UCODE_API_MIN	89
 
 /* Memory offsets and lengths */
 #define IWL_AX210_SMEM_OFFSET		0x400000
