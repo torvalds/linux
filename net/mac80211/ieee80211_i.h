@@ -1403,8 +1403,6 @@ struct ieee80211_local {
 	bool rx_mcast_action_reg;
 	unsigned int filter_flags; /* FIF_* */
 
-	bool wiphy_ciphers_allocated;
-
 	struct cfg80211_chan_def dflt_chandef;
 	bool emulate_chanctx;
 
