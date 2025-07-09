@@ -490,7 +490,7 @@ void reactor_cleanup_monitor(struct rv_monitor_def *mdef)
 /*
  * Nop reactor register
  */
-static void rv_nop_reaction(char *msg)
+__printf(1, 2) static void rv_nop_reaction(const char *msg, ...)
 {
 }
 
