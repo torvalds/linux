@@ -76,19 +76,24 @@ static inline void tcf_lastuse_update(struct tcf_t *tm)
 {
 	unsigned long now = jiffies;
 
-	if (tm->lastuse != now)
-		tm->lastuse = now;
-	if (unlikely(!tm->firstuse))
-		tm->firstuse = now;
+	if (READ_ONCE(tm->lastuse) != now)
+		WRITE_ONCE(tm->lastuse, now);
+	if (unlikely(!READ_ONCE(tm->firstuse)))
+		WRITE_ONCE(tm->firstuse, now);
 }
 
 static inline void tcf_tm_dump(struct tcf_t *dtm, const struct tcf_t *stm)
 {
-	dtm->install = jiffies_to_clock_t(jiffies - stm->install);
-	dtm->lastuse = jiffies_to_clock_t(jiffies - stm->lastuse);
-	dtm->firstuse = stm->firstuse ?
-		jiffies_to_clock_t(jiffies - stm->firstuse) : 0;
-	dtm->expires = jiffies_to_clock_t(stm->expires);
+	unsigned long firstuse, now = jiffies;
+
+	dtm->install = jiffies_to_clock_t(now - READ_ONCE(stm->install));
+	dtm->lastuse = jiffies_to_clock_t(now - READ_ONCE(stm->lastuse));
+
+	firstuse = READ_ONCE(stm->firstuse);
+	dtm->firstuse = firstuse ?
+		jiffies_to_clock_t(now - firstuse) : 0;
+
+	dtm->expires = jiffies_to_clock_t(READ_ONCE(stm->expires));
 }
 
 static inline enum flow_action_hw_stats tc_act_hw_stats(u8 hw_stats)
