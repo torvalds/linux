@@ -1083,7 +1083,8 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 		    ethtool_get_flow_spec_ring(info.fs.ring_cookie))
 			return -EINVAL;
 
-		if (!xa_load(&dev->ethtool->rss_ctx, info.rss_context))
+		if (info.rss_context &&
+		    !xa_load(&dev->ethtool->rss_ctx, info.rss_context))
 			return -EINVAL;
 	}
 

@@ -213,7 +213,7 @@ static noinline __noreturn void break_cycle_fail(struct lock_graph *g)
 		prt_newline(&buf);
 	}
 
-	bch2_print_str_nonblocking(g->g->trans->c, KERN_ERR, buf.buf);
+	bch2_print_str(g->g->trans->c, KERN_ERR, buf.buf);
 	printbuf_exit(&buf);
 	BUG();
 }

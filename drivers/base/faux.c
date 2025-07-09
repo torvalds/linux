@@ -86,6 +86,7 @@ static struct device_driver faux_driver = {
 	.name		= "faux_driver",
 	.bus		= &faux_bus_type,
 	.probe_type	= PROBE_FORCE_SYNCHRONOUS,
+	.suppress_bind_attrs = true,
 };
 
 static void faux_device_release(struct device *dev)
@@ -169,7 +170,7 @@ struct faux_device *faux_device_create_with_groups(const char *name,
 	 * successful is almost impossible to determine by the caller.
 	 */
 	if (!dev->driver) {
-		dev_err(dev, "probe did not succeed, tearing down the device\n");
+		dev_dbg(dev, "probe did not succeed, tearing down the device\n");
 		faux_device_destroy(faux_dev);
 		faux_dev = NULL;
 	}

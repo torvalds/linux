@@ -69,7 +69,7 @@
 
 #define PTE_BITS_NON_RWX_IN_PD1	(PAGE_MASK_PHYS | _PAGE_CACHEABLE)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct mm_struct;
 extern int pae40_exist_but_not_enab(void);
@@ -100,6 +100,6 @@ static inline void mmu_setup_pgd(struct mm_struct *mm, void *pgd)
 	sr \reg, [ARC_REG_PID]
 .endm
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif

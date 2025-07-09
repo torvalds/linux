@@ -44,6 +44,7 @@ struct bch_read_bio {
 				have_ioref:1,
 				narrow_crcs:1,
 				saw_error:1,
+				self_healing:1,
 				context:2;
 	};
 	u16			_state;

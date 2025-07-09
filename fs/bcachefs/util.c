@@ -262,8 +262,7 @@ static bool string_is_spaces(const char *str)
 	return true;
 }
 
-void bch2_print_string_as_lines(const char *prefix, const char *lines,
-				bool nonblocking)
+void bch2_print_string_as_lines(const char *prefix, const char *lines)
 {
 	bool locked = false;
 	const char *p;
@@ -273,12 +272,7 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines,
 		return;
 	}
 
-	if (!nonblocking) {
-		console_lock();
-		locked = true;
-	} else {
-		locked = console_trylock();
-	}
+	locked = console_trylock();
 
 	while (*lines) {
 		p = strchrnul(lines, '\n');
