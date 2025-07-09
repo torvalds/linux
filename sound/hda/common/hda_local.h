@@ -658,8 +658,6 @@ static inline int snd_hda_codec_init(struct hda_codec *codec)
 
 	if (driver->ops && driver->ops->init)
 		return driver->ops->init(codec);
-	else if (codec->patch_ops.init)
-		return codec->patch_ops.init(codec);
 	return 0;
 }
 

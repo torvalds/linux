@@ -5190,8 +5190,6 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
 	if (spec->power_down_unused || codec->power_save_node) {
 		if (!codec->power_filter)
 			codec->power_filter = snd_hda_gen_path_power_filter;
-		if (!codec->patch_ops.stream_pm)
-			codec->patch_ops.stream_pm = snd_hda_gen_stream_pm;
 	}
 
 	if (!spec->no_analog && spec->beep_nid) {
@@ -6103,15 +6101,6 @@ EXPORT_SYMBOL_GPL(snd_hda_gen_check_power_status);
  * the generic codec support
  */
 
-static const struct hda_codec_ops generic_patch_ops = {
-	.build_controls = snd_hda_gen_build_controls,
-	.build_pcms = snd_hda_gen_build_pcms,
-	.init = snd_hda_gen_init,
-	.free = snd_hda_gen_free,
-	.unsol_event = snd_hda_jack_unsol_event,
-	.check_power_status = snd_hda_gen_check_power_status,
-};
-
 static int snd_hda_gen_probe(struct hda_codec *codec,
 			     const struct hda_device_id *id)
 {
@@ -6132,7 +6121,6 @@ static int snd_hda_gen_probe(struct hda_codec *codec,
 	if (err < 0)
 		goto error;
 
-	codec->patch_ops = generic_patch_ops;
 	return 0;
 
 error:

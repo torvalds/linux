@@ -54,8 +54,6 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 
 	if (driver->ops && driver->ops->unsol_event)
 		driver->ops->unsol_event(codec, ev);
-	else if (codec->patch_ops.unsol_event)
-		codec->patch_ops.unsol_event(codec, ev);
 }
 
 /**
@@ -91,7 +89,6 @@ static int hda_codec_driver_probe(struct device *dev)
 	struct hda_codec *codec = dev_to_hda_codec(dev);
 	struct module *owner = dev->driver->owner;
 	struct hda_codec_driver *driver = hda_codec_to_driver(codec);
-	hda_codec_patch_t patch;
 	int err;
 
 	if (codec->bus->core.ext_ops) {
@@ -115,19 +112,14 @@ static int hda_codec_driver_probe(struct device *dev)
 		goto error;
 	}
 
-	if (driver->ops && driver->ops->probe) {
-		err = driver->ops->probe(codec, codec->preset);
-		if (err < 0)
-			goto error_module_put;
-	} else {
-		patch = (hda_codec_patch_t)codec->preset->driver_data;
-		if (patch) {
-			err = patch(codec);
-			if (err < 0)
-				goto error_module_put;
-		}
+	if (WARN_ON(!(driver->ops && driver->ops->probe))) {
+		err = -EINVAL;
+		goto error_module_put;
 	}
 
+	err = driver->ops->probe(codec, codec->preset);
+	if (err < 0)
+		goto error_module_put;
 	err = snd_hda_codec_build_pcms(codec);
 	if (err < 0)
 		goto error_module;
@@ -148,8 +140,6 @@ static int hda_codec_driver_probe(struct device *dev)
  error_module:
 	if (driver->ops && driver->ops->remove)
 		driver->ops->remove(codec);
-	else if (codec->patch_ops.free)
-		codec->patch_ops.free(codec);
  error_module_put:
 	module_put(owner);
 
@@ -178,8 +168,6 @@ static int hda_codec_driver_remove(struct device *dev)
 
 	if (driver->ops && driver->ops->remove)
 		driver->ops->remove(codec);
-	else if (codec->patch_ops.free)
-		codec->patch_ops.free(codec);
 	snd_hda_codec_cleanup_for_unbind(codec);
 	codec->preset = NULL;
 	module_put(dev->driver->owner);
@@ -320,7 +308,7 @@ static int codec_bind_generic(struct hda_codec *codec)
  * @codec: the HDA codec
  *
  * Start parsing of the given codec tree and (re-)initialize the whole
- * patch instance.
+ * codec driver binding.
  *
  * Returns 0 if successful or a negative error code.
  */

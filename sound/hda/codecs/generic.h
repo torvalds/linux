@@ -312,7 +312,6 @@ int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
 
 int snd_hda_gen_init(struct hda_codec *codec);
 void snd_hda_gen_remove(struct hda_codec *codec);
-#define snd_hda_gen_free	snd_hda_gen_remove
 
 int snd_hda_get_path_idx(struct hda_codec *codec, struct nid_path *path);
 struct nid_path *snd_hda_get_path_from_idx(struct hda_codec *codec, int idx);

@@ -177,7 +177,6 @@ static int hda_codec_probe(struct snd_soc_component *component)
 	struct hdac_device *hdev = &codec->core;
 	struct hdac_bus *bus = hdev->bus;
 	struct hdac_ext_link *hlink;
-	hda_codec_patch_t patch;
 	int ret;
 
 #ifdef CONFIG_PM
@@ -215,19 +214,12 @@ static int hda_codec_probe(struct snd_soc_component *component)
 		goto err;
 	}
 
-	if (driver->ops && driver->ops->probe) {
-		ret = driver->ops->probe(codec, codec->preset);
-	} else {
-		patch = (hda_codec_patch_t)codec->preset->driver_data;
-		if (!patch) {
-			dev_err(&hdev->dev, "no patch specified\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		ret = patch(codec);
+	if (WARN_ON(!(driver->ops && driver->ops->probe))) {
+		ret = -EINVAL;
+		goto err;
 	}
 
+	ret = driver->ops->probe(codec, codec->preset);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "codec init failed: %d\n", ret);
 		goto err;
@@ -260,8 +252,6 @@ complete_err:
 parse_pcms_err:
 	if (driver->ops && driver->ops->remove)
 		driver->ops->remove(codec);
-	else if (codec->patch_ops.free)
-		codec->patch_ops.free(codec);
 err:
 	snd_hda_codec_cleanup_for_unbind(codec);
 device_new_err:
@@ -292,8 +282,6 @@ static void hda_codec_remove(struct snd_soc_component *component)
 
 	if (driver->ops && driver->ops->remove)
 		driver->ops->remove(codec);
-	else if (codec->patch_ops.free)
-		codec->patch_ops.free(codec);
 
 	snd_hda_codec_cleanup_for_unbind(codec);
 	pm_runtime_put_noidle(&hdev->dev);

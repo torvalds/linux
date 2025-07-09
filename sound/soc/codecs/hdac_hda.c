@@ -411,7 +411,6 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	struct hda_codec *hcodec = hda_pvt->codec;
 	struct hda_codec_driver *driver = hda_codec_to_driver(hcodec);
 	struct hdac_ext_link *hlink;
-	hda_codec_patch_t patch;
 	int ret;
 
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(hdev->bus, dev_name(&hdev->dev));
@@ -485,23 +484,15 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		goto error_pm;
 	}
 
-	if (driver->ops && driver->ops->probe) {
-		ret = driver->ops->probe(hcodec, hcodec->preset);
-		if (ret < 0) {
-			dev_err(&hdev->dev, "%s: probe failed %d\n", __func__, ret);
-			goto error_regmap;
-		}
-	} else {
-		patch = (hda_codec_patch_t)hcodec->preset->driver_data;
-		if (patch) {
-			ret = patch(hcodec);
-			if (ret < 0) {
-				dev_err(&hdev->dev, "%s: patch failed %d\n", __func__, ret);
-				goto error_regmap;
-			}
-		} else {
-			dev_dbg(&hdev->dev, "%s: no patch file found\n", __func__);
-		}
+	if (WARN_ON(!(driver->ops && driver->ops->probe))) {
+		ret = -EINVAL;
+		goto error_regmap;
+	}
+
+	ret = driver->ops->probe(hcodec, hcodec->preset);
+	if (ret < 0) {
+		dev_err(&hdev->dev, "%s: probe failed %d\n", __func__, ret);
+		goto error_regmap;
 	}
 
 	ret = snd_hda_codec_parse_pcms(hcodec);
@@ -542,8 +533,6 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 error_patch:
 	if (driver->ops && driver->ops->remove)
 		driver->ops->remove(hcodec);
-	else if (hcodec->patch_ops.free)
-		hcodec->patch_ops.free(hcodec);
 error_regmap:
 	snd_hdac_regmap_exit(hdev);
 error_pm:
@@ -573,8 +562,6 @@ static void hdac_hda_codec_remove(struct snd_soc_component *component)
 
 	if (driver->ops && driver->ops->remove)
 		driver->ops->remove(codec);
-	else if (codec->patch_ops.free)
-		codec->patch_ops.free(codec);
 
 	snd_hda_codec_cleanup_for_unbind(codec);
 }

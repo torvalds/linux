@@ -57,7 +57,7 @@ struct hdmi_spec_per_pin {
 #endif
 };
 
-/* operations used by generic code that can be overridden by patches */
+/* operations used by generic code that can be overridden by codec drivers */
 struct hdmi_ops {
 	int (*pin_get_eld)(struct hda_codec *codec, hda_nid_t pin_nid,
 			   int dev_id, unsigned char *buf, int *eld_size);

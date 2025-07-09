@@ -766,7 +766,6 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec)
 		snd_hda_ctls_clear(codec);
 	codec_release_pcms(codec);
 	snd_hda_detach_beep_device(codec);
-	memset(&codec->patch_ops, 0, sizeof(codec->patch_ops));
 	snd_hda_jack_tbl_clear(codec);
 	codec->proc_widget_hook = NULL;
 	codec->spec = NULL;
@@ -1132,8 +1131,6 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 
 	if (driver->ops && driver->ops->stream_pm)
 		driver->ops->stream_pm(codec, nid, true);
-	else if (codec->patch_ops.stream_pm)
-		codec->patch_ops.stream_pm(codec, nid, true);
 	if (codec->pcm_format_first)
 		update_pcm_format(codec, p, nid, format);
 	update_pcm_stream_id(codec, p, nid, stream_tag, channel_id);
@@ -1205,8 +1202,6 @@ static void really_cleanup_stream(struct hda_codec *codec,
 	q->nid = nid;
 	if (driver->ops && driver->ops->stream_pm)
 		driver->ops->stream_pm(codec, nid, false);
-	else if (codec->patch_ops.stream_pm)
-		codec->patch_ops.stream_pm(codec, nid, false);
 }
 
 /* clean up the all conflicting obsolete streams */
@@ -2397,7 +2392,7 @@ static const struct snd_kcontrol_new dig_mixes[] = {
  * @cvt_nid: converter NID
  * @type: HDA_PCM_TYPE_*
  * Creates controls related with the digital output.
- * Called from each patch supporting the digital out.
+ * Called from each codec driver supporting the digital out.
  *
  * Returns 0 if successful, or a negative error code.
  */
@@ -2656,7 +2651,7 @@ static const struct snd_kcontrol_new dig_in_ctls[] = {
  * @nid: audio in widget NID
  *
  * Creates controls related with the SPDIF input.
- * Called from each patch supporting the SPDIF in.
+ * Called from each codec driver supporting the SPDIF in.
  *
  * Returns 0 if successful, or a negative error code.
  */
@@ -2773,9 +2768,6 @@ static unsigned int hda_set_power_state(struct hda_codec *codec,
 		/* might be called before binding to driver, too */
 		if (driver && driver->ops && driver->ops->set_power_state)
 			driver->ops->set_power_state(codec, fg, power_state);
-		else if (codec->patch_ops.set_power_state)
-			codec->patch_ops.set_power_state(codec, fg,
-							 power_state);
 		else {
 			state = power_state;
 			if (codec->power_filter)
@@ -2859,8 +2851,6 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
 	snd_hdac_enter_pm(&codec->core);
 	if (driver->ops && driver->ops->suspend)
 		driver->ops->suspend(codec);
-	else if (codec->patch_ops.suspend)
-		codec->patch_ops.suspend(codec);
 	if (!codec->no_stream_clean_at_suspend)
 		hda_cleanup_all_streams(codec);
 	state = hda_set_power_state(codec, AC_PWRST_D3);
@@ -2888,8 +2878,6 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	snd_hda_jack_set_dirty_all(codec);
 	if (driver->ops && driver->ops->resume)
 		driver->ops->resume(codec);
-	else if (codec->patch_ops.resume)
-		codec->patch_ops.resume(codec);
 	else {
 		snd_hda_codec_init(codec);
 		snd_hda_regmap_sync(codec);
@@ -3085,8 +3073,6 @@ int snd_hda_codec_build_controls(struct hda_codec *codec)
 	if (!err) {
 		if (driver->ops && driver->ops->build_controls)
 			err = driver->ops->build_controls(codec);
-		else if (codec->patch_ops.build_controls)
-			err = codec->patch_ops.build_controls(codec);
 		if (err < 0)
 			return err;
 	}
@@ -3284,8 +3270,6 @@ int snd_hda_codec_parse_pcms(struct hda_codec *codec)
 
 	if (driver->ops && driver->ops->build_pcms)
 		err = driver->ops->build_pcms(codec);
-	else if (codec->patch_ops.build_pcms)
-		err = codec->patch_ops.build_pcms(codec);
 	else
 		return 0;
 

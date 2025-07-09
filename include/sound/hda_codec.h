@@ -70,12 +70,8 @@ struct hda_bus {
 
 /*
  * codec preset
- *
- * Known codecs have the patch to build and set up the controls/PCMs
- * better than the generic parser.
  */
-typedef int (*hda_codec_patch_t)(struct hda_codec *);
-	
+
 #define HDA_CODEC_ID_SKIP_PROBE		0x00000001
 #define HDA_CODEC_ID_GENERIC_HDMI	0x00000101
 #define HDA_CODEC_ID_GENERIC		0x00000201
@@ -89,14 +85,6 @@ typedef int (*hda_codec_patch_t)(struct hda_codec *);
 	HDA_CODEC_ID_REV_MODEL(_vid, _rev, _name, 0)
 #define HDA_CODEC_ID(_vid, _name) \
 	HDA_CODEC_ID_REV(_vid, 0, _name)
-
-/* old macros for patch_ops -- to be deprecated */
-#define HDA_CODEC_REV_ENTRY(_vid, _rev, _name, _patch) \
-	{ .vendor_id = (_vid), .rev_id = (_rev), .name = (_name), \
-	  .api_version = HDA_DEV_LEGACY, \
-	  .driver_data = (unsigned long)(_patch) }
-#define HDA_CODEC_ENTRY(_vid, _name, _patch) \
-	HDA_CODEC_REV_ENTRY(_vid, 0, _name, _patch)
 
 struct hda_codec_driver {
 	struct hdac_driver core;
@@ -116,14 +104,13 @@ void hda_codec_driver_unregister(struct hda_codec_driver *drv);
 	module_driver(drv, hda_codec_driver_register, \
 		      hda_codec_driver_unregister)
 
-/* ops set by the preset patch */
+/* ops for hda codec driver */
 struct hda_codec_ops {
 	int (*probe)(struct hda_codec *codec, const struct hda_device_id *id);
 	void (*remove)(struct hda_codec *codec);
 	int (*build_controls)(struct hda_codec *codec);
 	int (*build_pcms)(struct hda_codec *codec);
 	int (*init)(struct hda_codec *codec);
-	void (*free)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
 	void (*set_power_state)(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
@@ -198,9 +185,6 @@ struct hda_codec {
 	/* detected preset */
 	const struct hda_device_id *preset;
 	const char *modelname;	/* model name for preset */
-
-	/* set by patch */
-	struct hda_codec_ops patch_ops;
 
 	/* PCM to create, set by hda_codec_ops.build_pcms callback */
 	struct list_head pcm_list_head;
@@ -500,8 +484,6 @@ int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 
 	if (driver->ops && driver->ops->check_power_status)
 		return driver->ops->check_power_status(codec, nid);
-	else if (codec->patch_ops.check_power_status)
-		return codec->patch_ops.check_power_status(codec, nid);
 	return 0;
 }
 
