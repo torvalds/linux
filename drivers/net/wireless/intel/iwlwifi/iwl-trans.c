@@ -419,7 +419,10 @@ void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 {
 	might_sleep();
 
-	iwl_trans_pcie_op_mode_leave(trans);
+	if (trans->mac_cfg->gen2)
+		iwl_trans_pcie_gen2_op_mode_leave(trans);
+	else
+		iwl_trans_pcie_op_mode_leave(trans);
 
 	cancel_delayed_work_sync(&trans->restart.wk);
 
