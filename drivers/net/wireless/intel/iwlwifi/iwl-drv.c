@@ -136,6 +136,9 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	kfree(drv->fw.phy_integration_ver);
 	kfree(drv->trans->dbg.pc_data);
 	drv->trans->dbg.pc_data = NULL;
+	kvfree(drv->fw.pnvm_data);
+	drv->fw.pnvm_data = NULL;
+	drv->fw.pnvm_size = 0;
 
 	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
 		iwl_free_fw_img(drv, drv->fw.img + i);
@@ -1399,6 +1402,15 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				return -ENOMEM;
 			drv->trans->dbg.num_pc =
 				tlv_len / sizeof(struct iwl_pc_data);
+			break;
+		case IWL_UCODE_TLV_PNVM_DATA:
+			if (drv->fw.pnvm_data)
+				break;
+			drv->fw.pnvm_data =
+				kvmemdup(tlv_data, tlv_len, GFP_KERNEL);
+			if (!drv->fw.pnvm_data)
+				return -ENOMEM;
+			drv->fw.pnvm_size = tlv_len;
 			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
