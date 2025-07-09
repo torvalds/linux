@@ -499,11 +499,12 @@ struct iwl_dev_info {
 #if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
 extern const struct iwl_dev_info iwl_dev_info_table[];
 extern const unsigned int iwl_dev_info_table_size;
+extern const struct pci_device_id iwl_hw_card_ids[];
+#endif
+
 const struct iwl_dev_info *
 iwl_pci_find_dev_info(u16 device, u16 subsystem_device, u16 rf_type, u8 cdb,
 		      u8 rf_id, u8 bw_limit, u8 rf_step);
-extern const struct pci_device_id iwl_hw_card_ids[];
-#endif
 
 /*
  * This list declares the config structures for all devices.
