@@ -4198,7 +4198,7 @@ int iwl_pci_gen1_2_probe(struct pci_dev *pdev,
 					 CSR_HW_RFID_IS_CDB(info.hw_rf_id),
 					 IWL_SUBDEVICE_RF_ID(pdev->subsystem_device),
 					 IWL_SUBDEVICE_BW_LIM(pdev->subsystem_device),
-					 CSR_HW_RFID_STEP(info.hw_rf_id));
+					 !iwl_trans->mac_cfg->integrated);
 	if (dev_info) {
 		iwl_trans->cfg = dev_info->cfg;
 		info.name = dev_info->name;
