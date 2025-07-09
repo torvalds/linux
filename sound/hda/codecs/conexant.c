@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * HD audio interface patch for Conexant HDA audio codec
+ * HD audio codec driver for Conexant HDA audio codec
  *
  * Copyright (c) 2006 Pototskiy Akex <alex.pototskiy@gmail.com>
  * 		      Takashi Iwai <tiwai@suse.de>
@@ -185,7 +185,7 @@ static void cx_fixup_headset_recog(struct hda_codec *codec)
 		snd_hda_codec_write(codec, 0x19, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20);
 }
 
-static int cx_auto_init(struct hda_codec *codec)
+static int cx_init(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	snd_hda_gen_init(codec);
@@ -210,10 +210,10 @@ static void cx_auto_shutdown(struct hda_codec *codec)
 	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, false);
 }
 
-static void cx_auto_free(struct hda_codec *codec)
+static void cx_remove(struct hda_codec *codec)
 {
 	cx_auto_shutdown(codec);
-	snd_hda_gen_free(codec);
+	snd_hda_gen_remove(codec);
 }
 
 static void cx_process_headset_plugin(struct hda_codec *codec)
@@ -258,21 +258,11 @@ static void cx_update_headset_mic_vref(struct hda_codec *codec, struct hda_jack_
 		cx_process_headset_plugin(codec);
 }
 
-static int cx_auto_suspend(struct hda_codec *codec)
+static int cx_suspend(struct hda_codec *codec)
 {
 	cx_auto_shutdown(codec);
 	return 0;
 }
-
-static const struct hda_codec_ops cx_auto_patch_ops = {
-	.build_controls = snd_hda_gen_build_controls,
-	.build_pcms = snd_hda_gen_build_pcms,
-	.init = cx_auto_init,
-	.free = cx_auto_free,
-	.unsol_event = snd_hda_jack_unsol_event,
-	.suspend = cx_auto_suspend,
-	.check_power_status = snd_hda_gen_check_power_status,
-};
 
 /*
  * pin fix-up
@@ -1178,7 +1168,7 @@ static void add_cx5051_fake_mutes(struct hda_codec *codec)
 	spec->gen.dac_min_mute = true;
 }
 
-static int patch_conexant_auto(struct hda_codec *codec)
+static int cx_probe(struct hda_codec *codec, const struct hda_device_id *id)
 {
 	struct conexant_spec *spec;
 	int err;
@@ -1190,7 +1180,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		return -ENOMEM;
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->spec = spec;
-	codec->patch_ops = cx_auto_patch_ops;
 
 	/* init cx11880/sn6140 flag and reset headset_present_flag */
 	switch (codec->core.vendor_id) {
@@ -1276,47 +1265,59 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	return 0;
 
  error:
-	cx_auto_free(codec);
+	cx_remove(codec);
 	return err;
 }
+
+static const struct hda_codec_ops cx_codec_ops = {
+	.probe = cx_probe,
+	.remove = cx_remove,
+	.build_controls = snd_hda_gen_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = cx_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.suspend = cx_suspend,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
 
 /*
  */
 
 static const struct hda_device_id snd_hda_id_conexant[] = {
-	HDA_CODEC_ENTRY(0x14f11f86, "CX11880", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f11f87, "SN6140", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f12008, "CX8200", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f120d0, "CX11970", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f120d1, "SN6180", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15045, "CX20549 (Venice)", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15047, "CX20551 (Waikiki)", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15051, "CX20561 (Hermosa)", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15066, "CX20582 (Pebble)", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15067, "CX20583 (Pebble HSF)", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15068, "CX20584", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15069, "CX20585", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f1506c, "CX20588", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f1506e, "CX20590", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15097, "CX20631", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15098, "CX20632", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150a1, "CX20641", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150a2, "CX20642", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150ab, "CX20651", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150ac, "CX20652", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150b8, "CX20664", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150b9, "CX20665", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150f1, "CX21722", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150f2, "CX20722", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150f3, "CX21724", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f150f4, "CX20724", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f1510f, "CX20751/2", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15110, "CX20751/2", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15111, "CX20753/4", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15113, "CX20755", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15114, "CX20756", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f15115, "CX20757", patch_conexant_auto),
-	HDA_CODEC_ENTRY(0x14f151d7, "CX20952", patch_conexant_auto),
+	HDA_CODEC_ID(0x14f11f86, "CX11880"),
+	HDA_CODEC_ID(0x14f11f87, "SN6140"),
+	HDA_CODEC_ID(0x14f12008, "CX8200"),
+	HDA_CODEC_ID(0x14f120d0, "CX11970"),
+	HDA_CODEC_ID(0x14f120d1, "SN6180"),
+	HDA_CODEC_ID(0x14f15045, "CX20549 (Venice)"),
+	HDA_CODEC_ID(0x14f15047, "CX20551 (Waikiki)"),
+	HDA_CODEC_ID(0x14f15051, "CX20561 (Hermosa)"),
+	HDA_CODEC_ID(0x14f15066, "CX20582 (Pebble)"),
+	HDA_CODEC_ID(0x14f15067, "CX20583 (Pebble HSF)"),
+	HDA_CODEC_ID(0x14f15068, "CX20584"),
+	HDA_CODEC_ID(0x14f15069, "CX20585"),
+	HDA_CODEC_ID(0x14f1506c, "CX20588"),
+	HDA_CODEC_ID(0x14f1506e, "CX20590"),
+	HDA_CODEC_ID(0x14f15097, "CX20631"),
+	HDA_CODEC_ID(0x14f15098, "CX20632"),
+	HDA_CODEC_ID(0x14f150a1, "CX20641"),
+	HDA_CODEC_ID(0x14f150a2, "CX20642"),
+	HDA_CODEC_ID(0x14f150ab, "CX20651"),
+	HDA_CODEC_ID(0x14f150ac, "CX20652"),
+	HDA_CODEC_ID(0x14f150b8, "CX20664"),
+	HDA_CODEC_ID(0x14f150b9, "CX20665"),
+	HDA_CODEC_ID(0x14f150f1, "CX21722"),
+	HDA_CODEC_ID(0x14f150f2, "CX20722"),
+	HDA_CODEC_ID(0x14f150f3, "CX21724"),
+	HDA_CODEC_ID(0x14f150f4, "CX20724"),
+	HDA_CODEC_ID(0x14f1510f, "CX20751/2"),
+	HDA_CODEC_ID(0x14f15110, "CX20751/2"),
+	HDA_CODEC_ID(0x14f15111, "CX20753/4"),
+	HDA_CODEC_ID(0x14f15113, "CX20755"),
+	HDA_CODEC_ID(0x14f15114, "CX20756"),
+	HDA_CODEC_ID(0x14f15115, "CX20757"),
+	HDA_CODEC_ID(0x14f151d7, "CX20952"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_conexant);
@@ -1326,6 +1327,7 @@ MODULE_DESCRIPTION("Conexant HD-audio codec");
 
 static struct hda_codec_driver conexant_driver = {
 	.id = snd_hda_id_conexant,
+	.ops = &cx_codec_ops,
 };
 
 module_hda_codec_driver(conexant_driver);
