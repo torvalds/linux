@@ -1228,9 +1228,9 @@ class Huion_Kamvas_Pro_19_256c_006b(PenDigitizer):
         pen.current_state = state
 
     def call_input_event(self, report):
-        if report[0] == 0x0a:
+        if report[0] == 0x0A:
             # ensures the original second Eraser usage is null
-            report[1] &= 0xdf
+            report[1] &= 0xDF
 
             # ensures the original last bit is equal to bit 6 (In Range)
             if report[1] & 0x40:
