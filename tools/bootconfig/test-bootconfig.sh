@@ -167,8 +167,8 @@ echo > $INITRD
 
 xpass $BOOTCONF -a $TEMPCONF $INITRD
 $BOOTCONF $INITRD > $OUTFILE
-xfail grep -q val[[:space:]] $OUTFILE
-xpass grep -q val2[[:space:]] $OUTFILE
+xfail grep -q 'val[[:space:]]' $OUTFILE
+xpass grep -q 'val2[[:space:]]' $OUTFILE
 
 echo "=== expected failure cases ==="
 for i in samples/bad-* ; do
