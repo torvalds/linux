@@ -1657,28 +1657,43 @@ early_param("tsa", tsa_parse_cmdline);
 
 static void __init tsa_select_mitigation(void)
 {
-	if (cpu_mitigations_off() || !boot_cpu_has_bug(X86_BUG_TSA)) {
+	if (!boot_cpu_has_bug(X86_BUG_TSA)) {
 		tsa_mitigation = TSA_MITIGATION_NONE;
 		return;
+	}
+
+	if (tsa_mitigation == TSA_MITIGATION_AUTO) {
+		bool vm = false, uk = false;
+
+		tsa_mitigation = TSA_MITIGATION_NONE;
+
+		if (cpu_attack_vector_mitigated(CPU_MITIGATE_USER_KERNEL) ||
+		    cpu_attack_vector_mitigated(CPU_MITIGATE_USER_USER)) {
+			tsa_mitigation = TSA_MITIGATION_USER_KERNEL;
+			uk = true;
+		}
+
+		if (cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_HOST) ||
+		    cpu_attack_vector_mitigated(CPU_MITIGATE_GUEST_GUEST)) {
+			tsa_mitigation = TSA_MITIGATION_VM;
+			vm = true;
+		}
+
+		if (uk && vm)
+			tsa_mitigation = TSA_MITIGATION_FULL;
 	}
 
 	if (tsa_mitigation == TSA_MITIGATION_NONE)
 		return;
 
-	if (!boot_cpu_has(X86_FEATURE_VERW_CLEAR)) {
+	if (!boot_cpu_has(X86_FEATURE_VERW_CLEAR))
 		tsa_mitigation = TSA_MITIGATION_UCODE_NEEDED;
-		goto out;
-	}
-
-	if (tsa_mitigation == TSA_MITIGATION_AUTO)
-		tsa_mitigation = TSA_MITIGATION_FULL;
 
 	/*
 	 * No need to set verw_clear_cpu_buf_mitigation_selected - it
 	 * doesn't fit all cases here and it is not needed because this
 	 * is the only VERW-based mitigation on AMD.
 	 */
-out:
 	pr_info("%s\n", tsa_strings[tsa_mitigation]);
 }
 
