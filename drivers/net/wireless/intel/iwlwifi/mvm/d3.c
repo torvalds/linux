@@ -1787,8 +1787,7 @@ static void iwl_mvm_set_key_rx_seq_idx(struct ieee80211_key_conf *key,
 }
 
 static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
-				   struct iwl_wowlan_status_data *status,
-				   bool installed)
+				   struct iwl_wowlan_status_data *status)
 {
 	int i;
 
@@ -1812,7 +1811,7 @@ static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
 
 		/* handle the case where we didn't, last key only */
 		if (status->gtk_seq[i].key_id == -1 &&
-		    (!status->num_of_gtk_rekeys || installed))
+		    (!status->num_of_gtk_rekeys))
 			iwl_mvm_set_key_rx_seq_idx(key, status, i);
 	}
 }
@@ -1963,7 +1962,7 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 		     (status->gtk[1].len && keyidx == status->gtk[1].id))) {
 			ieee80211_remove_key(key);
 		} else {
-			iwl_mvm_set_key_rx_seq(key, data->status, false);
+			iwl_mvm_set_key_rx_seq(key, data->status);
 		}
 		break;
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
