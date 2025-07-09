@@ -4946,7 +4946,7 @@ static void mute_all_mixer_nid(struct hda_codec *codec, hda_nid_t mix)
  * @nid: audio widget
  * @on: power on/off flag
  *
- * Set this in patch_ops.stream_pm.  Only valid with power_save_node flag.
+ * Set this in hda_codec_ops.stream_pm.  Only valid with power_save_node flag.
  */
 void snd_hda_gen_stream_pm(struct hda_codec *codec, hda_nid_t nid, bool on)
 {
@@ -5230,7 +5230,7 @@ static const char * const follower_pfxs[] = {
  * snd_hda_gen_build_controls - Build controls from the parsed results
  * @codec: the HDA codec
  *
- * Pass this to build_controls patch_ops.
+ * Pass this to build_controls hda_codec_ops.
  */
 int snd_hda_gen_build_controls(struct hda_codec *codec)
 {
@@ -5743,7 +5743,7 @@ static void setup_pcm_stream(struct hda_pcm_stream *str,
  * snd_hda_gen_build_pcms - build PCM streams based on the parsed results
  * @codec: the HDA codec
  *
- * Pass this to build_pcms patch_ops.
+ * Pass this to build_pcms hda_codec_ops.
  */
 int snd_hda_gen_build_pcms(struct hda_codec *codec)
 {
@@ -6032,7 +6032,7 @@ static void clear_unsol_on_unused_pins(struct hda_codec *codec)
  * snd_hda_gen_init - initialize the generic spec
  * @codec: the HDA codec
  *
- * This can be put as patch_ops init function.
+ * This can be put as hda_codec_ops init function.
  */
 int snd_hda_gen_init(struct hda_codec *codec)
 {
@@ -6070,26 +6070,26 @@ int snd_hda_gen_init(struct hda_codec *codec)
 EXPORT_SYMBOL_GPL(snd_hda_gen_init);
 
 /**
- * snd_hda_gen_free - free the generic spec
+ * snd_hda_gen_remove - free the generic spec
  * @codec: the HDA codec
  *
- * This can be put as patch_ops free function.
+ * This can be put as hda_codec_ops remove function.
  */
-void snd_hda_gen_free(struct hda_codec *codec)
+void snd_hda_gen_remove(struct hda_codec *codec)
 {
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_FREE);
 	snd_hda_gen_spec_free(codec->spec);
 	kfree(codec->spec);
 	codec->spec = NULL;
 }
-EXPORT_SYMBOL_GPL(snd_hda_gen_free);
+EXPORT_SYMBOL_GPL(snd_hda_gen_remove);
 
 /**
  * snd_hda_gen_check_power_status - check the loopback power save state
  * @codec: the HDA codec
  * @nid: NID to inspect
  *
- * This can be put as patch_ops check_power_status function.
+ * This can be put as hda_codec_ops check_power_status function.
  */
 int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 {
@@ -6112,11 +6112,8 @@ static const struct hda_codec_ops generic_patch_ops = {
 	.check_power_status = snd_hda_gen_check_power_status,
 };
 
-/*
- * snd_hda_parse_generic_codec - Generic codec parser
- * @codec: the HDA codec
- */
-static int snd_hda_parse_generic_codec(struct hda_codec *codec)
+static int snd_hda_gen_probe(struct hda_codec *codec,
+			     const struct hda_device_id *id)
 {
 	struct hda_gen_spec *spec;
 	int err;
@@ -6139,19 +6136,31 @@ static int snd_hda_parse_generic_codec(struct hda_codec *codec)
 	return 0;
 
 error:
-	snd_hda_gen_free(codec);
+	snd_hda_gen_remove(codec);
 	return err;
 }
 
+static const struct hda_codec_ops generic_codec_ops = {
+	.probe = snd_hda_gen_probe,
+	.remove = snd_hda_gen_remove,
+	.build_controls = snd_hda_gen_build_controls,
+	.build_pcms = snd_hda_gen_build_pcms,
+	.init = snd_hda_gen_init,
+	.unsol_event = snd_hda_jack_unsol_event,
+	.check_power_status = snd_hda_gen_check_power_status,
+	.stream_pm = snd_hda_gen_stream_pm,
+};
+
 static const struct hda_device_id snd_hda_id_generic[] = {
-	HDA_CODEC_ENTRY(0x1af40021, "Generic", snd_hda_parse_generic_codec), /* QEMU */
-	HDA_CODEC_ENTRY(HDA_CODEC_ID_GENERIC, "Generic", snd_hda_parse_generic_codec),
+	HDA_CODEC_ID(0x1af40021, "Generic"), /* QEMU */
+	HDA_CODEC_ID(HDA_CODEC_ID_GENERIC, "Generic"),
 	{} /* terminator */
 };
 MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_generic);
 
 static struct hda_codec_driver generic_driver = {
 	.id = snd_hda_id_generic,
+	.ops = &generic_codec_ops,
 };
 
 module_hda_codec_driver(generic_driver);
