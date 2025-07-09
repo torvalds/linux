@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * HD audio interface patch for Cirrus Logic CS8409 HDA bridge chip
+ * HD audio codec driver for Cirrus Logic CS8409 HDA bridge chip
  *
  * Copyright (C) 2021 Cirrus Logic, Inc. and
  *                    Cirrus Logic International Semiconductor Ltd.
@@ -345,6 +345,8 @@ struct cs8409_spec {
 	/* verb exec op override */
 	int (*exec_verb)(struct hdac_device *dev, unsigned int cmd, unsigned int flags,
 			 unsigned int *res);
+	/* unsol_event op override */
+	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
 };
 
 extern const struct snd_kcontrol_new cs42l42_dac_volume_mixer;

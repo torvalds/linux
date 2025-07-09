@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * cs8409-tables.c  --  HD audio interface patch for Cirrus Logic CS8409 HDA bridge chip
+ * cs8409-tables.c  --  HD audio codec driver for Cirrus Logic CS8409 HDA bridge chip
  *
  * Copyright (C) 2021 Cirrus Logic, Inc. and
  *                    Cirrus Logic International Semiconductor Ltd.
