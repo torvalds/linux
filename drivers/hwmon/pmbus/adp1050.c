@@ -11,6 +11,12 @@
 
 #include "pmbus.h"
 
+#if IS_ENABLED(CONFIG_SENSORS_ADP1050_REGULATOR)
+static const struct regulator_desc adp1050_reg_desc[] = {
+	PMBUS_REGULATOR_ONE("vout"),
+};
+#endif /* CONFIG_SENSORS_ADP1050_REGULATOR */
+
 static struct pmbus_driver_info adp1050_info = {
 	.pages = 1,
 	.format[PSC_VOLTAGE_IN] = linear,
@@ -65,6 +71,10 @@ static struct pmbus_driver_info ltp8800_info = {
 		| PMBUS_HAVE_STATUS_VOUT
 		| PMBUS_HAVE_STATUS_INPUT
 		| PMBUS_HAVE_STATUS_TEMP,
+#if IS_ENABLED(CONFIG_SENSORS_ADP1050_REGULATOR)
+	.num_regulators = 1,
+	.reg_desc = adp1050_reg_desc,
+#endif
 };
 
 static int adp1050_probe(struct i2c_client *client)

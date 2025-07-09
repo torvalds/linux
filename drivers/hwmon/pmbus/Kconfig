@@ -67,6 +67,15 @@ config SENSORS_ADP1050
 	  This driver can also be built as a module. If so, the module will
 	  be called adp1050.
 
+config SENSORS_ADP1050_REGULATOR
+	bool "Regulator support for ADP1050 and compatibles"
+	depends on SENSORS_ADP1050 && REGULATOR
+	help
+	  If you say yes here you get regulator support for Analog Devices
+	  LTP8800-1A, LTP8800-4A, and LTP8800-2. LTP8800 is a family of DC/DC
+	  µModule regulators that can provide microprocessor power from 54V
+	  power distribution architecture.
+
 config SENSORS_BEL_PFE
 	tristate "Bel PFE Compatible Power Supplies"
 	help
