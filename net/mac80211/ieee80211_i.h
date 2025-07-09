@@ -2204,6 +2204,12 @@ u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs);
 enum nl80211_smps_mode
 ieee80211_smps_mode_to_smps_mode(enum ieee80211_smps_mode smps);
 
+void ieee80211_ht_handle_chanwidth_notif(struct ieee80211_local *local,
+					 struct ieee80211_sub_if_data *sdata,
+					 struct sta_info *sta,
+					 struct link_sta_info *link_sta,
+					 u8 chanwidth, enum nl80211_band band);
+
 /* VHT */
 void
 ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,

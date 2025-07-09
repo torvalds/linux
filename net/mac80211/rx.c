@@ -3580,41 +3580,18 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			goto handled;
 		}
 		case WLAN_HT_ACTION_NOTIFY_CHANWIDTH: {
-			struct ieee80211_supported_band *sband;
 			u8 chanwidth = mgmt->u.action.u.ht_notify_cw.chanwidth;
-			enum ieee80211_sta_rx_bandwidth max_bw, new_bw;
-			struct sta_opmode_info sta_opmode = {};
+
+			if (chanwidth != IEEE80211_HT_CHANWIDTH_20MHZ &&
+			    chanwidth != IEEE80211_HT_CHANWIDTH_ANY)
+				goto invalid;
 
 			/* If it doesn't support 40 MHz it can't change ... */
 			if (!(rx->link_sta->pub->ht_cap.cap &
-					IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+				IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 				goto handled;
 
-			if (chanwidth == IEEE80211_HT_CHANWIDTH_20MHZ)
-				max_bw = IEEE80211_STA_RX_BW_20;
-			else
-				max_bw = ieee80211_sta_cap_rx_bw(rx->link_sta);
-
-			/* set cur_max_bandwidth and recalc sta bw */
-			rx->link_sta->cur_max_bandwidth = max_bw;
-			new_bw = ieee80211_sta_cur_vht_bw(rx->link_sta);
-
-			if (rx->link_sta->pub->bandwidth == new_bw)
-				goto handled;
-
-			rx->link_sta->pub->bandwidth = new_bw;
-			sband = rx->local->hw.wiphy->bands[status->band];
-			sta_opmode.bw =
-				ieee80211_sta_rx_bw_to_chan_width(rx->link_sta);
-			sta_opmode.changed = STA_OPMODE_MAX_BW_CHANGED;
-
-			rate_control_rate_update(local, sband, rx->link_sta,
-						 IEEE80211_RC_BW_CHANGED);
-			cfg80211_sta_opmode_change_notify(sdata->dev,
-							  rx->sta->addr,
-							  &sta_opmode,
-							  GFP_ATOMIC);
-			goto handled;
+			goto queue;
 		}
 		default:
 			goto invalid;
