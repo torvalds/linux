@@ -6,6 +6,8 @@
 #ifndef __iwl_pcie_utils_h__
 #define __iwl_pcie_utils_h__
 
+#include "iwl-io.h"
+
 void iwl_trans_pcie_dump_regs(struct iwl_trans *trans, struct pci_dev *pdev);
 
 static inline void _iwl_trans_set_bits_mask(struct iwl_trans *trans,
