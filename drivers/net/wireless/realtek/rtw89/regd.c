@@ -521,6 +521,55 @@ out:
 	kfree(ptr);
 }
 
+static void rtw89_regd_setup_policy_6ghz_vlp(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_acpi_policy_6ghz_vlp *ptr = NULL;
+	struct rtw89_acpi_dsm_result res = {};
+	bool enable;
+	u8 index;
+	int ret;
+	u8 val;
+
+	/* By default, allow 6 GHz VLP on all countries except US and CA. */
+	val = ~(RTW89_ACPI_CONF_6GHZ_VLP_US | RTW89_ACPI_CONF_6GHZ_VLP_CA);
+
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6GHZ_VLP_SUP, &res);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "acpi: cannot eval policy 6ghz-vlp: %d\n", ret);
+		goto bottom;
+	}
+
+	ptr = res.u.policy_6ghz_vlp;
+
+	switch (ptr->override) {
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "%s: unknown override case: %d\n", __func__,
+			    ptr->override);
+		fallthrough;
+	case 0:
+		break;
+	case 1:
+		val = ptr->conf;
+		break;
+	}
+
+bottom:
+	index = rtw89_regd_get_index_by_name(rtwdev, "US");
+	enable = u8_get_bits(val, RTW89_ACPI_CONF_6GHZ_VLP_US);
+	if (!enable && index != RTW89_REGD_MAX_COUNTRY_NUM)
+		set_bit(index, regulatory->block_6ghz_vlp);
+
+	index = rtw89_regd_get_index_by_name(rtwdev, "CA");
+	enable = u8_get_bits(val, RTW89_ACPI_CONF_6GHZ_VLP_CA);
+	if (!enable && index != RTW89_REGD_MAX_COUNTRY_NUM)
+		set_bit(index, regulatory->block_6ghz_vlp);
+
+	kfree(ptr);
+}
+
 static void rtw89_regd_setup_6ghz(struct rtw89_dev *rtwdev, struct wiphy *wiphy)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -564,6 +613,7 @@ bottom:
 	if (regd_allow_6ghz) {
 		rtw89_regd_setup_policy_6ghz(rtwdev);
 		rtw89_regd_setup_policy_6ghz_sp(rtwdev);
+		rtw89_regd_setup_policy_6ghz_vlp(rtwdev);
 		return;
 	}
 
@@ -1059,7 +1109,16 @@ static int rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif_link *rtwvif_link, bool active,
 				       unsigned int *changed)
 {
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd *regd = regulatory->regd;
+	bool blocked[NUM_OF_RTW89_REG_6GHZ_POWER] = {};
+	u8 index = rtw89_regd_get_index(rtwdev, regd);
 	struct ieee80211_bss_conf *bss_conf;
+	bool dflt = false;
+
+	if (index == RTW89_REGD_MAX_COUNTRY_NUM ||
+	    test_bit(index, regulatory->block_6ghz_vlp))
+		blocked[RTW89_REG_6GHZ_POWER_VLP] = true;
 
 	rcu_read_lock();
 
@@ -1078,6 +1137,7 @@ static int rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 			break;
 		default:
 			rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
+			dflt = true;
 			break;
 		}
 	} else {
@@ -1085,6 +1145,14 @@ static int rtw89_reg_6ghz_power_recalc(struct rtw89_dev *rtwdev,
 	}
 
 	rcu_read_unlock();
+
+	if (!dflt && blocked[rtwvif_link->reg_6ghz_power]) {
+		rtw89_debug(rtwdev, RTW89_DBG_REGD,
+			    "%c%c 6 GHz power type-%u is blocked by policy\n",
+			    regd->alpha2[0], regd->alpha2[1],
+			    rtwvif_link->reg_6ghz_power);
+		return -EINVAL;
+	}
 
 	*changed += __rtw89_reg_6ghz_power_recalc(rtwdev);
 	return 0;
