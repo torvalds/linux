@@ -1321,6 +1321,13 @@ drm_bridge_get_next_bridge(struct drm_bridge *bridge)
  * drm_bridge_get_prev_bridge() - Get the previous bridge in the chain
  * @bridge: bridge object
  *
+ * The caller is responsible of having a reference to @bridge via
+ * drm_bridge_get() or equivalent. This function leaves the refcount of
+ * @bridge unmodified.
+ *
+ * The refcount of the returned bridge is incremented. Use drm_bridge_put()
+ * when done with it.
+ *
  * RETURNS:
  * the previous bridge in the chain, or NULL if @bridge is the first.
  */
@@ -1330,7 +1337,7 @@ drm_bridge_get_prev_bridge(struct drm_bridge *bridge)
 	if (list_is_first(&bridge->chain_node, &bridge->encoder->bridge_chain))
 		return NULL;
 
-	return list_prev_entry(bridge, chain_node);
+	return drm_bridge_get(list_prev_entry(bridge, chain_node));
 }
 
 /**
