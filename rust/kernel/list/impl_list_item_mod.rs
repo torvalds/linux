@@ -43,7 +43,7 @@ pub unsafe trait HasListLinks<const ID: u64 = 0> {
 macro_rules! impl_has_list_links {
     ($(impl$(<$($implarg:ident),*>)?
        HasListLinks$(<$id:tt>)?
-       for $self:ident $(<$($selfarg:ty),*>)?
+       for $self:ty
        { self$(.$field:ident)* }
     )*) => {$(
         // SAFETY: The implementation of `raw_get_list_links` only compiles if the field has the
@@ -51,9 +51,7 @@ macro_rules! impl_has_list_links {
         //
         // The behavior of `raw_get_list_links` is not changed since the `addr_of_mut!` macro is
         // equivalent to the pointer offset operation in the trait definition.
-        unsafe impl$(<$($implarg),*>)? $crate::list::HasListLinks$(<$id>)? for
-            $self $(<$($selfarg),*>)?
-        {
+        unsafe impl$(<$($implarg),*>)? $crate::list::HasListLinks$(<$id>)? for $self {
             const OFFSET: usize = ::core::mem::offset_of!(Self, $($field).*) as usize;
 
             #[inline]
@@ -85,18 +83,14 @@ where
 macro_rules! impl_has_list_links_self_ptr {
     ($(impl$({$($implarg:tt)*})?
        HasSelfPtr<$item_type:ty $(, $id:tt)?>
-       for $self:ident $(<$($selfarg:ty),*>)?
+       for $self:ty
        { self.$field:ident }
     )*) => {$(
         // SAFETY: The implementation of `raw_get_list_links` only compiles if the field has the
         // right type.
-        unsafe impl$(<$($implarg)*>)? $crate::list::HasSelfPtr<$item_type $(, $id)?> for
-            $self $(<$($selfarg),*>)?
-        {}
+        unsafe impl$(<$($implarg)*>)? $crate::list::HasSelfPtr<$item_type $(, $id)?> for $self {}
 
-        unsafe impl$(<$($implarg)*>)? $crate::list::HasListLinks$(<$id>)? for
-            $self $(<$($selfarg),*>)?
-        {
+        unsafe impl$(<$($implarg)*>)? $crate::list::HasListLinks$(<$id>)? for $self {
             const OFFSET: usize = ::core::mem::offset_of!(Self, $field) as usize;
 
             #[inline]
