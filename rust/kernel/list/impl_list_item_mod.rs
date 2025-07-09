@@ -82,20 +82,20 @@ macro_rules! impl_has_list_links_self_ptr {
     ($(impl$({$($generics:tt)*})?
        HasSelfPtr<$item_type:ty $(, $id:tt)?>
        for $self:ty
-       { self.$field:ident }
+       { self$(.$field:ident)* }
     )*) => {$(
         // SAFETY: The implementation of `raw_get_list_links` only compiles if the field has the
         // right type.
         unsafe impl$(<$($generics)*>)? $crate::list::HasSelfPtr<$item_type $(, $id)?> for $self {}
 
         unsafe impl$(<$($generics)*>)? $crate::list::HasListLinks$(<$id>)? for $self {
-            const OFFSET: usize = ::core::mem::offset_of!(Self, $field) as usize;
+            const OFFSET: usize = ::core::mem::offset_of!(Self, $($field).*) as usize;
 
             #[inline]
             unsafe fn raw_get_list_links(ptr: *mut Self) -> *mut $crate::list::ListLinks$(<$id>)? {
                 // SAFETY: The caller promises that the pointer is not dangling.
                 let ptr: *mut $crate::list::ListLinksSelfPtr<$item_type $(, $id)?> =
-                    unsafe { ::core::ptr::addr_of_mut!((*ptr).$field) };
+                    unsafe { ::core::ptr::addr_of_mut!((*ptr)$(.$field)*) };
                 ptr.cast()
             }
         }
@@ -109,6 +109,96 @@ pub use impl_has_list_links_self_ptr;
 /// implement that trait.
 ///
 /// [`ListItem`]: crate::list::ListItem
+///
+/// # Examples
+///
+/// ```
+/// #[pin_data]
+/// struct SimpleListItem {
+///     value: u32,
+///     #[pin]
+///     links: kernel::list::ListLinks,
+/// }
+///
+/// kernel::list::impl_has_list_links! {
+///     impl HasListLinks<0> for SimpleListItem { self.links }
+/// }
+///
+/// kernel::list::impl_list_arc_safe! {
+///     impl ListArcSafe<0> for SimpleListItem { untracked; }
+/// }
+///
+/// kernel::list::impl_list_item! {
+///     impl ListItem<0> for SimpleListItem { using ListLinks; }
+/// }
+///
+/// struct ListLinksHolder {
+///     inner: kernel::list::ListLinks,
+/// }
+///
+/// #[pin_data]
+/// struct ComplexListItem<T, U> {
+///     value: Result<T, U>,
+///     #[pin]
+///     links: ListLinksHolder,
+/// }
+///
+/// kernel::list::impl_has_list_links! {
+///     impl{T, U} HasListLinks<0> for ComplexListItem<T, U> { self.links.inner }
+/// }
+///
+/// kernel::list::impl_list_arc_safe! {
+///     impl{T, U} ListArcSafe<0> for ComplexListItem<T, U> { untracked; }
+/// }
+///
+/// kernel::list::impl_list_item! {
+///     impl{T, U} ListItem<0> for ComplexListItem<T, U> { using ListLinks; }
+/// }
+/// ```
+///
+/// ```
+/// #[pin_data]
+/// struct SimpleListItem {
+///     value: u32,
+///     #[pin]
+///     links: kernel::list::ListLinksSelfPtr<SimpleListItem>,
+/// }
+///
+/// kernel::list::impl_list_arc_safe! {
+///     impl ListArcSafe<0> for SimpleListItem { untracked; }
+/// }
+///
+/// kernel::list::impl_has_list_links_self_ptr! {
+///     impl HasSelfPtr<SimpleListItem> for SimpleListItem { self.links }
+/// }
+///
+/// kernel::list::impl_list_item! {
+///     impl ListItem<0> for SimpleListItem { using ListLinksSelfPtr; }
+/// }
+///
+/// struct ListLinksSelfPtrHolder<T, U> {
+///     inner: kernel::list::ListLinksSelfPtr<ComplexListItem<T, U>>,
+/// }
+///
+/// #[pin_data]
+/// struct ComplexListItem<T, U> {
+///     value: Result<T, U>,
+///     #[pin]
+///     links: ListLinksSelfPtrHolder<T, U>,
+/// }
+///
+/// kernel::list::impl_list_arc_safe! {
+///     impl{T, U} ListArcSafe<0> for ComplexListItem<T, U> { untracked; }
+/// }
+///
+/// kernel::list::impl_has_list_links_self_ptr! {
+///     impl{T, U} HasSelfPtr<ComplexListItem<T, U>> for ComplexListItem<T, U> { self.links.inner }
+/// }
+///
+/// kernel::list::impl_list_item! {
+///     impl{T, U} ListItem<0> for ComplexListItem<T, U> { using ListLinksSelfPtr; }
+/// }
+/// ```
 #[macro_export]
 macro_rules! impl_list_item {
     (
