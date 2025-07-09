@@ -54,11 +54,10 @@
 #include <linux/apple-gmux.h>
 #include <linux/firmware.h>
 #include <sound/hda_codec.h>
-#include "hda_controller.h"
-#include "hda_intel.h"
+#include "intel.h"
 
 #define CREATE_TRACE_POINTS
-#include "hda_intel_trace.h"
+#include "intel_trace.h"
 
 /* position fix mode */
 enum {

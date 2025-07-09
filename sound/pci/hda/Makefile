@@ -1,11 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-snd-hda-intel-y := hda_intel.o
-snd-hda-tegra-y := hda_tegra.o
-snd-hda-acpi-y := hda_acpi.o
-
-# for trace-points
-CFLAGS_hda_intel.o := -I$(src)
-
 subdir-ccflags-y += -I$(src)/../../hda/common
 
 snd-hda-codec-generic-y :=	hda_generic.o
@@ -66,10 +59,3 @@ obj-$(CONFIG_SND_HDA_SCODEC_COMPONENT) += snd-hda-scodec-component.o
 obj-$(CONFIG_SND_HDA_SCODEC_TAS2781) += snd-hda-scodec-tas2781.o
 obj-$(CONFIG_SND_HDA_SCODEC_TAS2781_I2C) += snd-hda-scodec-tas2781-i2c.o
 obj-$(CONFIG_SND_HDA_SCODEC_TAS2781_SPI) += snd-hda-scodec-tas2781-spi.o
-
-# this must be the last entry after codec drivers;
-# otherwise the codec patches won't be hooked before the PCI probe
-# when built in kernel
-obj-$(CONFIG_SND_HDA_INTEL) += snd-hda-intel.o
-obj-$(CONFIG_SND_HDA_TEGRA) += snd-hda-tegra.o
-obj-$(CONFIG_SND_HDA_ACPI) += snd-hda-acpi.o

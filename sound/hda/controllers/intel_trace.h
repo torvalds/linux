@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hda_intel
-#define TRACE_INCLUDE_FILE hda_intel_trace
+#define TRACE_INCLUDE_FILE intel_trace
 
 #if !defined(_TRACE_HDA_INTEL_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_HDA_INTEL_H

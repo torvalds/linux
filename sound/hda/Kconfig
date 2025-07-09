@@ -2,6 +2,7 @@
 menu "HD-Audio"
 
 source "sound/hda/common/Kconfig"
+source "sound/hda/controllers/Kconfig"
 source "sound/hda/core/Kconfig"
 
 endmenu
