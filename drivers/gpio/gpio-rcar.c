@@ -592,7 +592,6 @@ static void gpio_rcar_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int gpio_rcar_suspend(struct device *dev)
 {
 	struct gpio_rcar_priv *p = dev_get_drvdata(dev);
@@ -651,16 +650,16 @@ static int gpio_rcar_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP*/
 
-static SIMPLE_DEV_PM_OPS(gpio_rcar_pm_ops, gpio_rcar_suspend, gpio_rcar_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(gpio_rcar_pm_ops, gpio_rcar_suspend,
+				gpio_rcar_resume);
 
 static struct platform_driver gpio_rcar_device_driver = {
 	.probe		= gpio_rcar_probe,
 	.remove		= gpio_rcar_remove,
 	.driver		= {
 		.name	= "gpio_rcar",
-		.pm     = &gpio_rcar_pm_ops,
+		.pm     = pm_sleep_ptr(&gpio_rcar_pm_ops),
 		.of_match_table = gpio_rcar_of_table,
 	}
 };
