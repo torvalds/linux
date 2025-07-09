@@ -114,12 +114,12 @@ pub use impl_has_list_links_self_ptr;
 #[macro_export]
 macro_rules! impl_list_item {
     (
-        $(impl$({$($generics:tt)*})? ListItem<$num:tt> for $t:ty {
+        $(impl$({$($generics:tt)*})? ListItem<$num:tt> for $self:ty {
             using ListLinks;
         })*
     ) => {$(
         // SAFETY: See GUARANTEES comment on each method.
-        unsafe impl$(<$($generics)*>)? $crate::list::ListItem<$num> for $t {
+        unsafe impl$(<$($generics)*>)? $crate::list::ListItem<$num> for $self {
             // GUARANTEES:
             // * This returns the same pointer as `prepare_to_insert` because `prepare_to_insert`
             //   is implemented in terms of `view_links`.
@@ -178,12 +178,12 @@ macro_rules! impl_list_item {
     )*};
 
     (
-        $(impl$({$($generics:tt)*})? ListItem<$num:tt> for $t:ty {
+        $(impl$({$($generics:tt)*})? ListItem<$num:tt> for $self:ty {
             using ListLinksSelfPtr;
         })*
     ) => {$(
         // SAFETY: See GUARANTEES comment on each method.
-        unsafe impl$(<$($generics)*>)? $crate::list::ListItem<$num> for $t {
+        unsafe impl$(<$($generics)*>)? $crate::list::ListItem<$num> for $self {
             // GUARANTEES:
             // This implementation of `ListItem` will not give out exclusive access to the same
             // `ListLinks` several times because calls to `prepare_to_insert` and `post_remove`
