@@ -93,11 +93,6 @@ static __always_inline void kvm_lapic_set_reg64(struct kvm_lapic *apic,
 	apic_set_reg64(apic->regs, reg, val);
 }
 
-static inline int apic_test_vector(int vec, void *bitmap)
-{
-	return test_bit(APIC_VECTOR_TO_BIT_NUMBER(vec), bitmap + APIC_VECTOR_TO_REG_OFFSET(vec));
-}
-
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
