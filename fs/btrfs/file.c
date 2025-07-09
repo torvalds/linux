@@ -984,8 +984,8 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 	struct btrfs_root *root = inode->root;
 	struct extent_state *cached_state = NULL;
 	u64 lockstart, lockend;
-	u64 num_bytes;
-	int ret;
+	u64 cur_offset;
+	int ret = 0;
 
 	if (!(inode->flags & (BTRFS_INODE_NODATACOW | BTRFS_INODE_PREALLOC)))
 		return 0;
@@ -996,7 +996,6 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 	lockstart = round_down(pos, fs_info->sectorsize);
 	lockend = round_up(pos + *write_bytes,
 			   fs_info->sectorsize) - 1;
-	num_bytes = lockend - lockstart + 1;
 
 	if (nowait) {
 		if (!btrfs_try_lock_ordered_range(inode, lockstart, lockend,
@@ -1008,13 +1007,35 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 		btrfs_lock_and_flush_ordered_range(inode, lockstart, lockend,
 						   &cached_state);
 	}
-	ret = can_nocow_extent(inode, lockstart, &num_bytes, NULL, nowait);
-	if (ret <= 0)
-		btrfs_drew_write_unlock(&root->snapshot_lock);
-	else
-		*write_bytes = min_t(size_t, *write_bytes ,
-				     num_bytes - pos + lockstart);
+
+	cur_offset = lockstart;
+	while (cur_offset < lockend) {
+		u64 num_bytes = lockend - cur_offset + 1;
+
+		ret = can_nocow_extent(inode, cur_offset, &num_bytes, NULL, nowait);
+		if (ret <= 0) {
+			/*
+			 * If cur_offset == lockstart it means we haven't found
+			 * any extent against which we can NOCOW, so unlock the
+			 * snapshot lock.
+			 */
+			if (cur_offset == lockstart)
+				btrfs_drew_write_unlock(&root->snapshot_lock);
+			break;
+		}
+		cur_offset += num_bytes;
+	}
+
 	btrfs_unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
+
+	/*
+	 * cur_offset > lockstart means there's at least a partial range we can
+	 * NOCOW, and that range can cover one or more extents.
+	 */
+	if (cur_offset > lockstart) {
+		*write_bytes = min_t(size_t, *write_bytes, cur_offset - pos);
+		return 1;
+	}
 
 	return ret;
 }
