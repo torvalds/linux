@@ -387,6 +387,8 @@ static int guc_ct_control_toggle(struct xe_guc_ct *ct, bool enable)
 static void guc_ct_change_state(struct xe_guc_ct *ct,
 				enum xe_guc_ct_state state)
 {
+	struct xe_gt *gt = ct_to_gt(ct);
+
 	mutex_lock(&ct->lock);		/* Serialise dequeue_one_g2h() */
 	spin_lock_irq(&ct->fast_lock);	/* Serialise CT fast-path */
 
@@ -397,6 +399,10 @@ static void guc_ct_change_state(struct xe_guc_ct *ct,
 		xe_pm_runtime_put(ct_to_xe(ct));
 	ct->g2h_outstanding = 0;
 	ct->state = state;
+
+	xe_gt_dbg(gt, "GuC CT communication channel %s\n",
+		  state == XE_GUC_CT_STATE_STOPPED ? "stopped" :
+		  str_enabled_disabled(state == XE_GUC_CT_STATE_ENABLED));
 
 	spin_unlock_irq(&ct->fast_lock);
 
@@ -473,7 +479,6 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 
 	smp_mb();
 	wake_up_all(&ct->wq);
-	xe_gt_dbg(gt, "GuC CT communication channel enabled\n");
 
 	if (ct_needs_safe_mode(ct))
 		ct_enter_safe_mode(ct);
