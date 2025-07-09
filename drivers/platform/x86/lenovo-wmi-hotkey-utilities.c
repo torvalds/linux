@@ -122,26 +122,35 @@ static int lenovo_super_hotkey_wmi_led_init(enum mute_led_type led_type, struct 
 		return -EIO;
 
 	union acpi_object *obj __free(kfree) = output.pointer;
-	if (obj && obj->type == ACPI_TYPE_INTEGER)
-		led_version = obj->integer.value;
-	else
+	if (!obj || obj->type != ACPI_TYPE_INTEGER)
 		return -EIO;
 
-	wpriv->cdev[led_type].max_brightness = LED_ON;
-	wpriv->cdev[led_type].flags = LED_CORE_SUSPENDRESUME;
+	led_version = obj->integer.value;
+
+	/*
+	 * Output parameters define: 0 means mute LED is not supported, Non-zero means
+	 * mute LED can be supported.
+	 */
+	if (led_version == 0)
+		return 0;
+
 
 	switch (led_type) {
 	case MIC_MUTE:
-		if (led_version != WMI_LUD_SUPPORT_MICMUTE_LED_VER)
-			return -EIO;
+		if (led_version != WMI_LUD_SUPPORT_MICMUTE_LED_VER) {
+			pr_warn("The MIC_MUTE LED of this device isn't supported.\n");
+			return 0;
+		}
 
 		wpriv->cdev[led_type].name = "platform::micmute";
 		wpriv->cdev[led_type].brightness_set_blocking = &lsh_wmi_micmute_led_set;
 		wpriv->cdev[led_type].default_trigger = "audio-micmute";
 		break;
 	case AUDIO_MUTE:
-		if (led_version != WMI_LUD_SUPPORT_AUDIOMUTE_LED_VER)
-			return -EIO;
+		if (led_version != WMI_LUD_SUPPORT_AUDIOMUTE_LED_VER) {
+			pr_warn("The AUDIO_MUTE LED of this device isn't supported.\n");
+			return 0;
+		}
 
 		wpriv->cdev[led_type].name = "platform::mute";
 		wpriv->cdev[led_type].brightness_set_blocking = &lsh_wmi_audiomute_led_set;
@@ -151,6 +160,9 @@ static int lenovo_super_hotkey_wmi_led_init(enum mute_led_type led_type, struct 
 		dev_err(dev, "Unknown LED type %d\n", led_type);
 		return -EINVAL;
 	}
+
+	wpriv->cdev[led_type].max_brightness = LED_ON;
+	wpriv->cdev[led_type].flags = LED_CORE_SUSPENDRESUME;
 
 	err = devm_led_classdev_register(dev, &wpriv->cdev[led_type]);
 	if (err < 0) {
