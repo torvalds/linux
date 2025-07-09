@@ -531,7 +531,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	return 0;
 
 error_patch:
-	if (driver->ops && driver->ops->remove)
+	if (driver->ops->remove)
 		driver->ops->remove(hcodec);
 error_regmap:
 	snd_hdac_regmap_exit(hdev);
@@ -560,7 +560,7 @@ static void hdac_hda_codec_remove(struct snd_soc_component *component)
 	pm_runtime_disable(&hdev->dev);
 	snd_hdac_ext_bus_link_put(hdev->bus, hlink);
 
-	if (driver->ops && driver->ops->remove)
+	if (driver->ops->remove)
 		driver->ops->remove(codec);
 
 	snd_hda_codec_cleanup_for_unbind(codec);

@@ -656,7 +656,7 @@ static inline int snd_hda_codec_init(struct hda_codec *codec)
 {
 	struct hda_codec_driver *driver = hda_codec_to_driver(codec);
 
-	if (driver->ops && driver->ops->init)
+	if (driver->ops->init)
 		return driver->ops->init(codec);
 	return 0;
 }

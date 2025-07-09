@@ -1129,7 +1129,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	if (!p)
 		return;
 
-	if (driver->ops && driver->ops->stream_pm)
+	if (driver->ops->stream_pm)
 		driver->ops->stream_pm(codec, nid, true);
 	if (codec->pcm_format_first)
 		update_pcm_format(codec, p, nid, format);
@@ -1200,7 +1200,7 @@ static void really_cleanup_stream(struct hda_codec *codec,
 );
 	memset(q, 0, sizeof(*q));
 	q->nid = nid;
-	if (driver->ops && driver->ops->stream_pm)
+	if (driver->ops->stream_pm)
 		driver->ops->stream_pm(codec, nid, false);
 }
 
@@ -2849,7 +2849,7 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
 	unsigned int state;
 
 	snd_hdac_enter_pm(&codec->core);
-	if (driver->ops && driver->ops->suspend)
+	if (driver->ops->suspend)
 		driver->ops->suspend(codec);
 	if (!codec->no_stream_clean_at_suspend)
 		hda_cleanup_all_streams(codec);
@@ -2876,7 +2876,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
 	snd_hda_jack_set_dirty_all(codec);
-	if (driver->ops && driver->ops->resume)
+	if (driver->ops->resume)
 		driver->ops->resume(codec);
 	else {
 		snd_hda_codec_init(codec);
@@ -3071,7 +3071,7 @@ int snd_hda_codec_build_controls(struct hda_codec *codec)
 	/* continue to initialize... */
 	err = snd_hda_codec_init(codec);
 	if (!err) {
-		if (driver->ops && driver->ops->build_controls)
+		if (driver->ops->build_controls)
 			err = driver->ops->build_controls(codec);
 		if (err < 0)
 			return err;
@@ -3268,11 +3268,10 @@ int snd_hda_codec_parse_pcms(struct hda_codec *codec)
 	if (!list_empty(&codec->pcm_list_head))
 		return 0; /* already parsed */
 
-	if (driver->ops && driver->ops->build_pcms)
-		err = driver->ops->build_pcms(codec);
-	else
+	if (!driver->ops->build_pcms)
 		return 0;
 
+	err = driver->ops->build_pcms(codec);
 	if (err < 0) {
 		codec_err(codec, "cannot build PCMs for #%d (error %d)\n",
 			  codec->core.addr, err);

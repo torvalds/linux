@@ -52,7 +52,7 @@ static void hda_codec_unsol_event(struct hdac_device *dev, unsigned int ev)
 	if (codec->core.dev.power.power_state.event != PM_EVENT_ON)
 		return;
 
-	if (driver->ops && driver->ops->unsol_event)
+	if (driver->ops->unsol_event)
 		driver->ops->unsol_event(codec, ev);
 }
 
@@ -138,7 +138,7 @@ static int hda_codec_driver_probe(struct device *dev)
 	return 0;
 
  error_module:
-	if (driver->ops && driver->ops->remove)
+	if (driver->ops->remove)
 		driver->ops->remove(codec);
  error_module_put:
 	module_put(owner);
@@ -166,7 +166,7 @@ static int hda_codec_driver_remove(struct device *dev)
 		wait_event(codec->remove_sleep, !refcount_read(&codec->pcm_ref));
 	snd_power_sync_ref(codec->bus->card);
 
-	if (driver->ops && driver->ops->remove)
+	if (driver->ops->remove)
 		driver->ops->remove(codec);
 	snd_hda_codec_cleanup_for_unbind(codec);
 	codec->preset = NULL;

@@ -250,7 +250,7 @@ static int hda_codec_probe(struct snd_soc_component *component)
 complete_err:
 	hda_codec_unregister_dais(codec, component);
 parse_pcms_err:
-	if (driver->ops && driver->ops->remove)
+	if (driver->ops->remove)
 		driver->ops->remove(codec);
 err:
 	snd_hda_codec_cleanup_for_unbind(codec);
@@ -280,7 +280,7 @@ static void hda_codec_remove(struct snd_soc_component *component)
 
 	hda_codec_unregister_dais(codec, component);
 
-	if (driver->ops && driver->ops->remove)
+	if (driver->ops->remove)
 		driver->ops->remove(codec);
 
 	snd_hda_codec_cleanup_for_unbind(codec);
