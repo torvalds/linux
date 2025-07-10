@@ -775,7 +775,7 @@ static int netkit_link_init(struct netkit_link *nkl,
 			    struct bpf_prog *prog)
 {
 	bpf_link_init(&nkl->link, BPF_LINK_TYPE_NETKIT,
-		      &netkit_link_lops, prog);
+		      &netkit_link_lops, prog, attr->link_create.attach_type);
 	nkl->location = attr->link_create.attach_type;
 	nkl->dev = dev;
 	return bpf_link_prime(&nkl->link, link_primer);

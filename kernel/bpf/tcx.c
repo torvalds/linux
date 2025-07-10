@@ -301,7 +301,8 @@ static int tcx_link_init(struct tcx_link *tcx,
 			 struct net_device *dev,
 			 struct bpf_prog *prog)
 {
-	bpf_link_init(&tcx->link, BPF_LINK_TYPE_TCX, &tcx_link_lops, prog);
+	bpf_link_init(&tcx->link, BPF_LINK_TYPE_TCX, &tcx_link_lops, prog,
+		      attr->link_create.attach_type);
 	tcx->location = attr->link_create.attach_type;
 	tcx->dev = dev;
 	return bpf_link_prime(&tcx->link, link_primer);

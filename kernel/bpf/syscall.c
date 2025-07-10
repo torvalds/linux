@@ -3069,7 +3069,7 @@ static int bpf_obj_get(const union bpf_attr *attr)
  */
 void bpf_link_init_sleepable(struct bpf_link *link, enum bpf_link_type type,
 			     const struct bpf_link_ops *ops, struct bpf_prog *prog,
-			     bool sleepable)
+			     enum bpf_attach_type attach_type, bool sleepable)
 {
 	WARN_ON(ops->dealloc && ops->dealloc_deferred);
 	atomic64_set(&link->refcnt, 1);
@@ -3078,12 +3078,14 @@ void bpf_link_init_sleepable(struct bpf_link *link, enum bpf_link_type type,
 	link->id = 0;
 	link->ops = ops;
 	link->prog = prog;
+	link->attach_type = attach_type;
 }
 
 void bpf_link_init(struct bpf_link *link, enum bpf_link_type type,
-		   const struct bpf_link_ops *ops, struct bpf_prog *prog)
+		   const struct bpf_link_ops *ops, struct bpf_prog *prog,
+		   enum bpf_attach_type attach_type)
 {
-	bpf_link_init_sleepable(link, type, ops, prog, false);
+	bpf_link_init_sleepable(link, type, ops, prog, attach_type, false);
 }
 
 static void bpf_link_free_id(int id)
@@ -3443,7 +3445,8 @@ static const struct bpf_link_ops bpf_tracing_link_lops = {
 static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 				   int tgt_prog_fd,
 				   u32 btf_id,
-				   u64 bpf_cookie)
+				   u64 bpf_cookie,
+				   enum bpf_attach_type attach_type)
 {
 	struct bpf_link_primer link_primer;
 	struct bpf_prog *tgt_prog = NULL;
@@ -3511,7 +3514,8 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 		goto out_put_prog;
 	}
 	bpf_link_init(&link->link.link, BPF_LINK_TYPE_TRACING,
-		      &bpf_tracing_link_lops, prog);
+		      &bpf_tracing_link_lops, prog, attach_type);
+
 	link->attach_type = prog->expected_attach_type;
 	link->link.cookie = bpf_cookie;
 
@@ -4049,7 +4053,8 @@ static int bpf_perf_link_attach(const union bpf_attr *attr, struct bpf_prog *pro
 		err = -ENOMEM;
 		goto out_put_file;
 	}
-	bpf_link_init(&link->link, BPF_LINK_TYPE_PERF_EVENT, &bpf_perf_link_lops, prog);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_PERF_EVENT, &bpf_perf_link_lops, prog,
+		      attr->link_create.attach_type);
 	link->perf_file = perf_file;
 
 	err = bpf_link_prime(&link->link, &link_primer);
@@ -4081,7 +4086,8 @@ static int bpf_perf_link_attach(const union bpf_attr *attr, struct bpf_prog *pro
 #endif /* CONFIG_PERF_EVENTS */
 
 static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
-				  const char __user *user_tp_name, u64 cookie)
+				  const char __user *user_tp_name, u64 cookie,
+				  enum bpf_attach_type attach_type)
 {
 	struct bpf_link_primer link_primer;
 	struct bpf_raw_tp_link *link;
@@ -4104,7 +4110,7 @@ static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
 			tp_name = prog->aux->attach_func_name;
 			break;
 		}
-		return bpf_tracing_prog_attach(prog, 0, 0, 0);
+		return bpf_tracing_prog_attach(prog, 0, 0, 0, attach_type);
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
 	case BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE:
 		if (strncpy_from_user(buf, user_tp_name, sizeof(buf) - 1) < 0)
@@ -4126,7 +4132,7 @@ static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
 		goto out_put_btp;
 	}
 	bpf_link_init_sleepable(&link->link, BPF_LINK_TYPE_RAW_TRACEPOINT,
-				&bpf_raw_tp_link_lops, prog,
+				&bpf_raw_tp_link_lops, prog, attach_type,
 				tracepoint_is_faultable(btp->tp));
 	link->btp = btp;
 	link->cookie = cookie;
@@ -4168,7 +4174,7 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 
 	tp_name = u64_to_user_ptr(attr->raw_tracepoint.name);
 	cookie = attr->raw_tracepoint.cookie;
-	fd = bpf_raw_tp_link_attach(prog, tp_name, cookie);
+	fd = bpf_raw_tp_link_attach(prog, tp_name, cookie, prog->expected_attach_type);
 	if (fd < 0)
 		bpf_prog_put(prog);
 	return fd;
@@ -5525,7 +5531,8 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 		ret = bpf_tracing_prog_attach(prog,
 					      attr->link_create.target_fd,
 					      attr->link_create.target_btf_id,
-					      attr->link_create.tracing.cookie);
+					      attr->link_create.tracing.cookie,
+					      attr->link_create.attach_type);
 		break;
 	case BPF_PROG_TYPE_LSM:
 	case BPF_PROG_TYPE_TRACING:
@@ -5534,7 +5541,8 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 			goto out;
 		}
 		if (prog->expected_attach_type == BPF_TRACE_RAW_TP)
-			ret = bpf_raw_tp_link_attach(prog, NULL, attr->link_create.tracing.cookie);
+			ret = bpf_raw_tp_link_attach(prog, NULL, attr->link_create.tracing.cookie,
+						     attr->link_create.attach_type);
 		else if (prog->expected_attach_type == BPF_TRACE_ITER)
 			ret = bpf_iter_link_attach(attr, uattr, prog);
 		else if (prog->expected_attach_type == BPF_LSM_CGROUP)
@@ -5543,7 +5551,8 @@ static int link_create(union bpf_attr *attr, bpfptr_t uattr)
 			ret = bpf_tracing_prog_attach(prog,
 						      attr->link_create.target_fd,
 						      attr->link_create.target_btf_id,
-						      attr->link_create.tracing.cookie);
+						      attr->link_create.tracing.cookie,
+						      attr->link_create.attach_type);
 		break;
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 	case BPF_PROG_TYPE_SK_LOOKUP:

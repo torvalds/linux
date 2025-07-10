@@ -2986,7 +2986,7 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	}
 
 	bpf_link_init(&link->link, BPF_LINK_TYPE_KPROBE_MULTI,
-		      &bpf_kprobe_multi_link_lops, prog);
+		      &bpf_kprobe_multi_link_lops, prog, attr->link_create.attach_type);
 
 	err = bpf_link_prime(&link->link, &link_primer);
 	if (err)
@@ -3441,7 +3441,7 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 	link->link.flags = flags;
 
 	bpf_link_init(&link->link, BPF_LINK_TYPE_UPROBE_MULTI,
-		      &bpf_uprobe_multi_link_lops, prog);
+		      &bpf_uprobe_multi_link_lops, prog, attr->link_create.attach_type);
 
 	for (i = 0; i < cnt; i++) {
 		uprobes[i].uprobe = uprobe_register(d_real_inode(link->path.dentry),

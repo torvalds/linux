@@ -501,7 +501,7 @@ int netns_bpf_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
 		goto out_put_net;
 	}
 	bpf_link_init(&net_link->link, BPF_LINK_TYPE_NETNS,
-		      &bpf_netns_link_ops, prog);
+		      &bpf_netns_link_ops, prog, type);
 	net_link->net = net;
 	net_link->type = type;
 	net_link->netns_type = netns_type;

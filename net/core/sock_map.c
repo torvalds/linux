@@ -1866,7 +1866,8 @@ int sock_map_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
 	}
 
 	attach_type = attr->link_create.attach_type;
-	bpf_link_init(&sockmap_link->link, BPF_LINK_TYPE_SOCKMAP, &sock_map_link_ops, prog);
+	bpf_link_init(&sockmap_link->link, BPF_LINK_TYPE_SOCKMAP, &sock_map_link_ops, prog,
+		      attach_type);
 	sockmap_link->map = map;
 	sockmap_link->attach_type = attach_type;
 

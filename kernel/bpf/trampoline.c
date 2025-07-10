@@ -674,7 +674,8 @@ static const struct bpf_link_ops bpf_shim_tramp_link_lops = {
 
 static struct bpf_shim_tramp_link *cgroup_shim_alloc(const struct bpf_prog *prog,
 						     bpf_func_t bpf_func,
-						     int cgroup_atype)
+						     int cgroup_atype,
+						     enum bpf_attach_type attach_type)
 {
 	struct bpf_shim_tramp_link *shim_link = NULL;
 	struct bpf_prog *p;
@@ -701,7 +702,7 @@ static struct bpf_shim_tramp_link *cgroup_shim_alloc(const struct bpf_prog *prog
 	p->expected_attach_type = BPF_LSM_MAC;
 	bpf_prog_inc(p);
 	bpf_link_init(&shim_link->link.link, BPF_LINK_TYPE_UNSPEC,
-		      &bpf_shim_tramp_link_lops, p);
+		      &bpf_shim_tramp_link_lops, p, attach_type);
 	bpf_cgroup_atype_get(p->aux->attach_btf_id, cgroup_atype);
 
 	return shim_link;
@@ -726,7 +727,8 @@ static struct bpf_shim_tramp_link *cgroup_shim_find(struct bpf_trampoline *tr,
 }
 
 int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
-				    int cgroup_atype)
+				    int cgroup_atype,
+				    enum bpf_attach_type attach_type)
 {
 	struct bpf_shim_tramp_link *shim_link = NULL;
 	struct bpf_attach_target_info tgt_info = {};
@@ -763,7 +765,7 @@ int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
 
 	/* Allocate and install new shim. */
 
-	shim_link = cgroup_shim_alloc(prog, bpf_func, cgroup_atype);
+	shim_link = cgroup_shim_alloc(prog, bpf_func, cgroup_atype, attach_type);
 	if (!shim_link) {
 		err = -ENOMEM;
 		goto err;

@@ -867,7 +867,7 @@ static int __cgroup_bpf_attach(struct cgroup *cgrp,
 	cgrp->bpf.flags[atype] = saved_flags;
 
 	if (type == BPF_LSM_CGROUP) {
-		err = bpf_trampoline_link_cgroup_shim(new_prog, atype);
+		err = bpf_trampoline_link_cgroup_shim(new_prog, atype, type);
 		if (err)
 			goto cleanup;
 	}
@@ -1495,7 +1495,7 @@ int cgroup_bpf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		goto out_put_cgroup;
 	}
 	bpf_link_init(&link->link, BPF_LINK_TYPE_CGROUP, &bpf_cgroup_link_lops,
-		      prog);
+		      prog, attr->link_create.attach_type);
 	link->cgroup = cgrp;
 	link->type = attr->link_create.attach_type;
 
