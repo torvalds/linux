@@ -300,7 +300,7 @@ static int snd_serial_generic_rmidi(struct snd_serial_generic *drvdata,
 				&snd_serial_generic_input);
 	snd_rawmidi_set_ops(rrawmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
 				&snd_serial_generic_output);
-	strcpy(rrawmidi->name, drvdata->card->shortname);
+	strscpy(rrawmidi->name, drvdata->card->shortname);
 
 	snd_serial_generic_substreams(&rrawmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT],
 					drvdata->serdev->ctrl->nr);
@@ -329,7 +329,7 @@ static int snd_serial_generic_probe(struct serdev_device *serdev)
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "SerialMIDI");
+	strscpy(card->driver, "SerialMIDI");
 	sprintf(card->shortname, "SerialMIDI-%d", serdev->ctrl->nr);
 	sprintf(card->longname, "Serial MIDI device at serial%d", serdev->ctrl->nr);
 
