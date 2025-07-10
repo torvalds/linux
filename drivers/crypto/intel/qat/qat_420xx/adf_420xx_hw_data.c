@@ -301,6 +301,8 @@ static void adf_init_rl_data(struct adf_rl_hw_data *rl_data)
 	rl_data->max_tp[SVC_DC] = ADF_420XX_RL_MAX_TP_DC;
 	rl_data->scan_interval = ADF_420XX_RL_SCANS_PER_SEC;
 	rl_data->scale_ref = ADF_420XX_RL_SLICE_REF;
+
+	adf_gen4_init_num_svc_aes(rl_data);
 }
 
 static int get_rp_group(struct adf_accel_dev *accel_dev, u32 ae_mask)

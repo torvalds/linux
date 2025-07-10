@@ -552,6 +552,17 @@ u32 adf_rl_calculate_slice_tokens(struct adf_accel_dev *accel_dev, u32 sla_val,
 	return allocated_tokens;
 }
 
+static u32 adf_rl_get_num_svc_aes(struct adf_accel_dev *accel_dev,
+				  enum adf_base_services svc)
+{
+	struct adf_rl_hw_data *device_data = &accel_dev->hw_device->rl_data;
+
+	if (svc >= SVC_BASE_COUNT)
+		return 0;
+
+	return device_data->svc_ae_mask[svc];
+}
+
 u32 adf_rl_calculate_ae_cycles(struct adf_accel_dev *accel_dev, u32 sla_val,
 			       enum adf_base_services svc_type)
 {
@@ -563,7 +574,7 @@ u32 adf_rl_calculate_ae_cycles(struct adf_accel_dev *accel_dev, u32 sla_val,
 		return 0;
 
 	avail_ae_cycles = hw_data->clock_frequency;
-	avail_ae_cycles *= hw_data->get_num_aes(hw_data) - 1;
+	avail_ae_cycles *= adf_rl_get_num_svc_aes(accel_dev, svc_type);
 	do_div(avail_ae_cycles, device_data->scan_interval);
 
 	sla_val *= device_data->max_tp[svc_type];

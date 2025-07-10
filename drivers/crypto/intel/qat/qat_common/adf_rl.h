@@ -89,6 +89,7 @@ struct adf_rl_hw_data {
 	u32 pcie_scale_div;
 	u32 dcpr_correction;
 	u32 max_tp[RL_ROOT_MAX];
+	u32 svc_ae_mask[SVC_BASE_COUNT];
 	struct rl_slice_cnt slices;
 };
 

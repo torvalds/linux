@@ -558,3 +558,25 @@ void adf_gen4_init_dc_ops(struct adf_dc_ops *dc_ops)
 	dc_ops->build_decomp_block = adf_gen4_build_decomp_block;
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_dc_ops);
+
+void adf_gen4_init_num_svc_aes(struct adf_rl_hw_data *device_data)
+{
+	struct adf_hw_device_data *hw_data;
+	unsigned int i;
+	u32 ae_cnt;
+
+	hw_data = container_of(device_data, struct adf_hw_device_data, rl_data);
+	ae_cnt = hweight32(hw_data->get_ae_mask(hw_data));
+	if (!ae_cnt)
+		return;
+
+	for (i = 0; i < SVC_BASE_COUNT; i++)
+		device_data->svc_ae_mask[i] = ae_cnt - 1;
+
+	/*
+	 * The decompression service is not supported on QAT GEN4 devices.
+	 * Therefore, set svc_ae_mask to 0.
+	 */
+	device_data->svc_ae_mask[SVC_DECOMP] = 0;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_init_num_svc_aes);

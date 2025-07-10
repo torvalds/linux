@@ -175,5 +175,6 @@ void adf_gen4_bank_drain_finish(struct adf_accel_dev *accel_dev,
 				u32 bank_number);
 bool adf_gen4_services_supported(unsigned long service_mask);
 void adf_gen4_init_dc_ops(struct adf_dc_ops *dc_ops);
+void adf_gen4_init_num_svc_aes(struct adf_rl_hw_data *device_data);
 
 #endif
