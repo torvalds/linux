@@ -10,9 +10,9 @@
  * individual tasks (PIDs).
  *
  * Key features:
- *   - Collects per-task delay accounting statistics via taskstats.
- *   - Supports sorting, filtering.
- *   - Supports both interactive (screen refresh).
+ *	- Collects per-task delay accounting statistics via taskstats.
+ *	- Supports sorting, filtering.
+ *	- Supports both interactive (screen refresh).
  *
  * Copyright (C) Fan Yu, ZTE Corp. 2025
  * Copyright (C) Wang Yaxin, ZTE Corp. 2025
@@ -43,6 +43,14 @@
 #include <linux/cgroupstats.h>
 #include <ncurses.h>
 
+#define PSI_CPU_SOME "/proc/pressure/cpu"
+#define PSI_CPU_FULL	"/proc/pressure/cpu"
+#define PSI_MEMORY_SOME "/proc/pressure/memory"
+#define PSI_MEMORY_FULL "/proc/pressure/memory"
+#define PSI_IO_SOME "/proc/pressure/io"
+#define PSI_IO_FULL "/proc/pressure/io"
+#define PSI_IRQ_FULL	"/proc/pressure/irq"
+
 #define NLA_NEXT(na)			((struct nlattr *)((char *)(na) + NLA_ALIGN((na)->nla_len)))
 #define NLA_DATA(na)			((void *)((char *)(na) + NLA_HDRLEN))
 #define NLA_PAYLOAD(len)		(len - NLA_HDRLEN)
@@ -64,6 +72,24 @@ struct config {
 	int output_one_time;	/* Output once and exit */
 	int monitor_pid;		/* Monitor specific PID */
 	char *container_path;	/* Path to container cgroup */
+};
+
+/* PSI statistics structure */
+struct psi_stats {
+	double cpu_some_avg10, cpu_some_avg60, cpu_some_avg300;
+	unsigned long long cpu_some_total;
+	double cpu_full_avg10, cpu_full_avg60, cpu_full_avg300;
+	unsigned long long cpu_full_total;
+	double memory_some_avg10, memory_some_avg60, memory_some_avg300;
+	unsigned long long memory_some_total;
+	double memory_full_avg10, memory_full_avg60, memory_full_avg300;
+	unsigned long long memory_full_total;
+	double io_some_avg10, io_some_avg60, io_some_avg300;
+	unsigned long long io_some_total;
+	double io_full_avg10, io_full_avg60, io_full_avg300;
+	unsigned long long io_full_total;
+	double irq_full_avg10, irq_full_avg60, irq_full_avg300;
+	unsigned long long irq_full_total;
 };
 
 /* Task delay information structure */
@@ -100,6 +126,7 @@ struct container_stats {
 
 /* Global variables */
 static struct config cfg;
+static struct psi_stats psi;
 static struct task_info tasks[MAX_TASKS];
 static int task_count;
 static int running = 1;
@@ -130,13 +157,13 @@ static void usage(void)
 {
 	printf("Usage: delaytop [Options]\n"
 	"Options:\n"
-	"  -h, --help               Show this help message and exit\n"
-	"  -d, --delay=SECONDS      Set refresh interval (default: 2 seconds, min: 1)\n"
-	"  -n, --iterations=COUNT   Set number of updates (default: 0 = infinite)\n"
-	"  -P, --processes=NUMBER   Set maximum number of processes to show (default: 20, max: 1000)\n"
-	"  -o, --once               Display once and exit\n"
-	"  -p, --pid=PID            Monitor only the specified PID\n"
-	"  -C, --container=PATH     Monitor the container at specified cgroup path\n");
+	"  -h, --help				Show this help message and exit\n"
+	"  -d, --delay=SECONDS	  Set refresh interval (default: 2 seconds, min: 1)\n"
+	"  -n, --iterations=COUNT	Set number of updates (default: 0 = infinite)\n"
+	"  -P, --processes=NUMBER	Set maximum number of processes to show (default: 20, max: 1000)\n"
+	"  -o, --once				Display once and exit\n"
+	"  -p, --pid=PID			Monitor only the specified PID\n"
+	"  -C, --container=PATH	 Monitor the container at specified cgroup path\n");
 	exit(0);
 }
 
@@ -276,7 +303,7 @@ static int send_cmd(int sd, __u16 nlmsg_type, __u32 nlmsg_pid,
 	memset(&nladdr, 0, sizeof(nladdr));
 	nladdr.nl_family = AF_NETLINK;
 	while ((r = sendto(sd, buf, buflen, 0, (struct sockaddr *) &nladdr,
-				   sizeof(nladdr))) < buflen) {
+					sizeof(nladdr))) < buflen) {
 		if (r > 0) {
 			buf += r;
 			buflen -= r;
@@ -318,6 +345,89 @@ static int get_family_id(int sd)
 	if (na->nla_type == CTRL_ATTR_FAMILY_ID)
 		id = *(__u16 *) NLA_DATA(na);
 	return id;
+}
+
+static void read_psi_stats(void)
+{
+	FILE *fp;
+	char line[256];
+	int ret = 0;
+	/* Zero all fields */
+	memset(&psi, 0, sizeof(psi));
+	/* CPU pressure */
+	fp = fopen(PSI_CPU_SOME, "r");
+	if (fp) {
+		while (fgets(line, sizeof(line), fp)) {
+			if (strncmp(line, "some", 4) == 0) {
+				ret = sscanf(line, "some avg10=%lf avg60=%lf avg300=%lf total=%llu",
+							&psi.cpu_some_avg10, &psi.cpu_some_avg60,
+							&psi.cpu_some_avg300, &psi.cpu_some_total);
+				if (ret != 4)
+					fprintf(stderr, "Failed to parse CPU some PSI data\n");
+			} else if (strncmp(line, "full", 4) == 0) {
+				ret = sscanf(line, "full avg10=%lf avg60=%lf avg300=%lf total=%llu",
+						&psi.cpu_full_avg10, &psi.cpu_full_avg60,
+						&psi.cpu_full_avg300, &psi.cpu_full_total);
+				if (ret != 4)
+					fprintf(stderr, "Failed to parse CPU full PSI data\n");
+			}
+		}
+		fclose(fp);
+	}
+	/* Memory pressure */
+	fp = fopen(PSI_MEMORY_SOME, "r");
+	if (fp) {
+		while (fgets(line, sizeof(line), fp)) {
+			if (strncmp(line, "some", 4) == 0) {
+				ret = sscanf(line, "some avg10=%lf avg60=%lf avg300=%lf total=%llu",
+						&psi.memory_some_avg10, &psi.memory_some_avg60,
+						&psi.memory_some_avg300, &psi.memory_some_total);
+				if (ret != 4)
+					fprintf(stderr, "Failed to parse Memory some PSI data\n");
+			} else if (strncmp(line, "full", 4) == 0) {
+				ret = sscanf(line, "full avg10=%lf avg60=%lf avg300=%lf total=%llu",
+						&psi.memory_full_avg10, &psi.memory_full_avg60,
+						&psi.memory_full_avg300, &psi.memory_full_total);
+			}
+				if (ret != 4)
+					fprintf(stderr, "Failed to parse Memory full PSI data\n");
+		}
+		fclose(fp);
+	}
+	/* IO pressure */
+	fp = fopen(PSI_IO_SOME, "r");
+	if (fp) {
+		while (fgets(line, sizeof(line), fp)) {
+			if (strncmp(line, "some", 4) == 0) {
+				ret = sscanf(line, "some avg10=%lf avg60=%lf avg300=%lf total=%llu",
+						&psi.io_some_avg10, &psi.io_some_avg60,
+						&psi.io_some_avg300, &psi.io_some_total);
+				if (ret != 4)
+					fprintf(stderr, "Failed to parse IO some PSI data\n");
+			} else if (strncmp(line, "full", 4) == 0) {
+				ret = sscanf(line, "full avg10=%lf avg60=%lf avg300=%lf total=%llu",
+						&psi.io_full_avg10, &psi.io_full_avg60,
+						&psi.io_full_avg300, &psi.io_full_total);
+				if (ret != 4)
+					fprintf(stderr, "Failed to parse IO full PSI data\n");
+			}
+		}
+		fclose(fp);
+	}
+	/* IRQ pressure (only full) */
+	fp = fopen(PSI_IRQ_FULL, "r");
+	if (fp) {
+		while (fgets(line, sizeof(line), fp)) {
+			if (strncmp(line, "full", 4) == 0) {
+				ret = sscanf(line, "full avg10=%lf avg60=%lf avg300=%lf total=%llu",
+						&psi.irq_full_avg10, &psi.irq_full_avg60,
+						&psi.irq_full_avg300, &psi.irq_full_total);
+				if (ret != 4)
+					fprintf(stderr, "Failed to parse IRQ full PSI data\n");
+			}
+		}
+		fclose(fp);
+	}
 }
 
 static int read_comm(int pid, char *comm_buf, size_t buf_size)
@@ -549,7 +659,29 @@ static void display_results(void)
 	FILE *out = stdout;
 
 	fprintf(out, "\033[H\033[J");
+	/* PSI output (one-line, no cat style) */
+	fprintf(out, "System Pressure Information: ");
+	fprintf(out, "(avg10/avg60/avg300/total)\n");
+	fprintf(out, "CPU:");
+	fprintf(out, "	full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu", psi.cpu_full_avg10,
+			psi.cpu_full_avg60, psi.cpu_full_avg300, psi.cpu_full_total);
+	fprintf(out, "  some: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n", psi.cpu_some_avg10,
+			psi.cpu_some_avg60, psi.cpu_some_avg300, psi.cpu_some_total);
 
+	fprintf(out, "Memory:");
+	fprintf(out, " full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu", psi.memory_full_avg10,
+			psi.memory_full_avg60, psi.memory_full_avg300, psi.memory_full_total);
+	fprintf(out, "  some: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n", psi.memory_some_avg10,
+			psi.memory_some_avg60, psi.memory_some_avg300, psi.memory_some_total);
+
+	fprintf(out, "IO:");
+	fprintf(out, "	full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu", psi.io_full_avg10,
+			psi.io_full_avg60, psi.io_full_avg300, psi.io_full_total);
+	fprintf(out, "  some: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n", psi.io_some_avg10,
+			psi.io_some_avg60, psi.io_some_avg300, psi.io_some_total);
+	fprintf(out, "IRQ:");
+	fprintf(out, "	full: %6.1f%%/%6.1f%%/%6.1f%%/%-10llu\n\n", psi.irq_full_avg10,
+			psi.irq_full_avg60, psi.irq_full_avg300, psi.irq_full_total);
 	if (cfg.container_path) {
 		fprintf(out, "Container Information (%s):\n", cfg.container_path);
 		fprintf(out, "Processes: running=%d, sleeping=%d, ",
@@ -559,8 +691,8 @@ static void display_results(void)
 			container_stats.nr_io_wait);
 	}
 	fprintf(out, "Top %d processes (sorted by CPU delay):\n\n",
-		   cfg.max_processes);
-	fprintf(out, "  PID	TGID  COMMAND		 CPU(ms)  IO(ms)   ");
+			cfg.max_processes);
+	fprintf(out, "  PID	TGID  COMMAND		 CPU(ms)  IO(ms)	");
 	fprintf(out, "SWAP(ms) RCL(ms) THR(ms)  CMP(ms)  WP(ms)  IRQ(ms)\n");
 	fprintf(out, "-----------------------------------------------");
 	fprintf(out, "----------------------------------------------\n");
@@ -616,6 +748,9 @@ int main(int argc, char **argv)
 
 	/* Main loop */
 	while (running) {
+		/* Read PSI statistics */
+		read_psi_stats();
+
 		/* Get container stats if container path provided */
 		if (cfg.container_path)
 			get_container_stats();
