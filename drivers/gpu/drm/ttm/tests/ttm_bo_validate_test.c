@@ -542,14 +542,15 @@ static void ttm_bo_validate_no_placement_signaled(struct kunit *test)
 		bo->ttm = old_tt;
 	}
 
-	err = ttm_resource_alloc(bo, place, &bo->resource, NULL);
-	KUNIT_EXPECT_EQ(test, err, 0);
-	KUNIT_ASSERT_EQ(test, man->usage, size);
-
 	placement = kunit_kzalloc(test, sizeof(*placement), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, placement);
 
 	ttm_bo_reserve(bo, false, false, NULL);
+
+	err = ttm_resource_alloc(bo, place, &bo->resource, NULL);
+	KUNIT_EXPECT_EQ(test, err, 0);
+	KUNIT_ASSERT_EQ(test, man->usage, size);
+
 	err = ttm_bo_validate(bo, placement, &ctx);
 	ttm_bo_unreserve(bo);
 
