@@ -1763,13 +1763,16 @@ static bool dp_get_link_current_set_bw(struct drm_dp_aux *aux, uint32_t *cur_lin
 	union lane_count_set lane_count;
 	u8 dp_link_encoding;
 	u8 link_bw_set = 0;
+	u8 data[16] = {0};
 
 	*cur_link_bw = 0;
 
-	if (drm_dp_dpcd_read(aux, DP_MAIN_LINK_CHANNEL_CODING_SET, &dp_link_encoding, 1) != 1 ||
-		drm_dp_dpcd_read(aux, DP_LANE_COUNT_SET, &lane_count.raw, 1) != 1 ||
-		drm_dp_dpcd_read(aux, DP_LINK_BW_SET, &link_bw_set, 1) != 1)
+	if (drm_dp_dpcd_read(aux, DP_LINK_BW_SET, data, 16) != 16)
 		return false;
+
+	dp_link_encoding = data[DP_MAIN_LINK_CHANNEL_CODING_SET - DP_LINK_BW_SET];
+	link_bw_set = data[DP_LINK_BW_SET - DP_LINK_BW_SET];
+	lane_count.raw = data[DP_LANE_COUNT_SET - DP_LINK_BW_SET];
 
 	switch (dp_link_encoding) {
 	case DP_8b_10b_ENCODING:
