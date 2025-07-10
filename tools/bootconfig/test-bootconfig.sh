@@ -27,16 +27,16 @@ NO=1
 
 xpass() { # pass test command
   echo "test case $NO ($*)... "
-  if ! ($@ && echo "\t\t[OK]"); then
-     echo "\t\t[NG]"; NG=$((NG + 1))
+  if ! ($@ && printf "\t\t[OK]\n"); then
+     printf "\t\t[NG]\n"; NG=$((NG + 1))
   fi
   NO=$((NO + 1))
 }
 
 xfail() { # fail test command
   echo "test case $NO ($*)... "
-  if ! (! $@ && echo "\t\t[OK]"); then
-     echo "\t\t[NG]"; NG=$((NG + 1))
+  if ! (! $@ && printf "\t\t[OK]\n"); then
+     printf "\t\t[NG]\n"; NG=$((NG + 1))
   fi
   NO=$((NO + 1))
 }
@@ -48,7 +48,7 @@ echo "Delete command should success without bootconfig"
 xpass $BOOTCONF -d $INITRD
 
 dd if=/dev/zero of=$INITRD bs=4096 count=1
-echo "key = value;" > $TEMPCONF
+printf "key = value;" > $TEMPCONF
 bconf_size=$(wc -c < $TEMPCONF)
 initrd_size=$(wc -c < $INITRD)
 
@@ -97,20 +97,20 @@ BEGIN {
 ' > $TEMPCONF
 xpass $BOOTCONF -a $TEMPCONF $INITRD
 
-echo "badnode" >> $TEMPCONF
+printf "badnode\n" >> $TEMPCONF
 xfail $BOOTCONF -a $TEMPCONF $INITRD
 
 echo "Max filesize check"
 
 # Max size is 32767 (including terminal byte)
-echo -n "data = \"" > $TEMPCONF
+printf "data = \"" > $TEMPCONF
 dd if=/dev/urandom bs=768 count=32 | base64 -w0 >> $TEMPCONF
-echo "\"" >> $TEMPCONF
+printf "\"\n" >> $TEMPCONF
 xfail $BOOTCONF -a $TEMPCONF $INITRD
 
 dd if=$TEMPCONF of=$OUTFILE bs=1 count=32764
 cp $OUTFILE $TEMPCONF
-echo "\"" >> $TEMPCONF	# add 2 bytes + terminal ('\"\n\0')
+printf "\"\n" >> $TEMPCONF	# add 2 bytes + terminal ('\"\n\0')
 xpass $BOOTCONF -a $TEMPCONF $INITRD
 
 echo "Adding same-key values"
@@ -140,7 +140,7 @@ xfail grep -q "baz" $OUTFILE
 xpass grep -q "qux" $OUTFILE
 
 echo "Double/single quotes test"
-echo "key = '\"string\"';" > $TEMPCONF
+printf "key = '\"string\"';" > $TEMPCONF
 $BOOTCONF -a $TEMPCONF $INITRD
 $BOOTCONF $INITRD > $TEMPCONF
 cat $TEMPCONF
