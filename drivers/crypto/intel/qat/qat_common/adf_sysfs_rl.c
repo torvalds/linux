@@ -291,14 +291,22 @@ static ssize_t srv_show(struct device *dev, struct device_attribute *attr,
 static ssize_t srv_store(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
+	struct adf_accel_dev *accel_dev;
 	unsigned int val;
 	int ret;
+
+	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
+	if (!accel_dev)
+		return -EINVAL;
 
 	ret = sysfs_match_string(rl_services, buf);
 	if (ret < 0)
 		return ret;
 
 	val = ret;
+	if (!is_service_enabled(accel_dev, val))
+		return -EINVAL;
+
 	ret = set_param_u(dev, SRV, val);
 	if (ret)
 		return ret;

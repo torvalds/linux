@@ -175,5 +175,6 @@ u32 adf_rl_calculate_ae_cycles(struct adf_accel_dev *accel_dev, u32 sla_val,
 			       enum adf_base_services svc_type);
 u32 adf_rl_calculate_slice_tokens(struct adf_accel_dev *accel_dev, u32 sla_val,
 				  enum adf_base_services svc_type);
+bool is_service_enabled(struct adf_accel_dev *accel_dev, enum adf_base_services rl_srv);
 
 #endif /* ADF_RL_H_ */

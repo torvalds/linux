@@ -209,8 +209,7 @@ u32 adf_rl_get_sla_arr_of_type(struct adf_rl *rl_data, enum rl_node_type type,
 	}
 }
 
-static bool is_service_enabled(struct adf_accel_dev *accel_dev,
-			       enum adf_base_services rl_srv)
+bool is_service_enabled(struct adf_accel_dev *accel_dev, enum adf_base_services rl_srv)
 {
 	enum adf_cfg_service_type arb_srv = srv_to_cfg_svc_type(rl_srv);
 	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
