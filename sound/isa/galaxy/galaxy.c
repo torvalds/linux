@@ -542,8 +542,8 @@ static int __snd_galaxy_probe(struct device *dev, unsigned int n)
 		return err;
 	}
 
-	strcpy(card->driver, DRV_NAME);
-	strcpy(card->shortname, DRV_NAME);
+	strscpy(card->driver, DRV_NAME);
+	strscpy(card->shortname, DRV_NAME);
 	sprintf(card->longname, "%s at %#lx/%#lx, irq %d, dma %d/%d",
 		card->shortname, port[n], wss_port[n], irq[n], dma1[n],
 		dma2[n]);
