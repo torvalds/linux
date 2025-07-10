@@ -32,11 +32,6 @@
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			#address-cells = <0>;
-			ppi-partitions {
-				ppi_cluster0: interrupt-partition-0 {
-					affinity = <&cpu0 &cpu1 &cpu2 &cpu3>;
-				};
-			};
 		};
 	};
 
