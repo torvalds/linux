@@ -1888,7 +1888,7 @@ static const struct instr_state xe_hpg_svg_state[] = {
 	{ .instr = CMD_3DSTATE_DRAWING_RECTANGLE, .num_dw = 4 },
 };
 
-void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *bb)
+u32 *xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, u32 *cs)
 {
 	struct xe_gt *gt = q->hwe->gt;
 	struct xe_device *xe = gt_to_xe(gt);
@@ -1923,7 +1923,7 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 	if (!state_table) {
 		xe_gt_dbg(gt, "No non-register state to emit on graphics ver %d.%02d\n",
 			  GRAPHICS_VER(xe), GRAPHICS_VERx100(xe) % 100);
-		return;
+		return cs;
 	}
 
 	for (int i = 0; i < state_table_size; i++) {
@@ -1946,12 +1946,14 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 		    instr == CMD_3DSTATE_DRAWING_RECTANGLE)
 			instr = CMD_3DSTATE_DRAWING_RECTANGLE_FAST;
 
-		bb->cs[bb->len] = instr;
+		*cs = instr;
 		if (!is_single_dw)
-			bb->cs[bb->len] |= (num_dw - 2);
+			*cs |= (num_dw - 2);
 
-		bb->len += num_dw;
+		cs += num_dw;
 	}
+
+	return cs;
 }
 
 struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)

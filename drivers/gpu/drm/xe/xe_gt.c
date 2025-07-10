@@ -194,6 +194,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	unsigned long idx;
 	struct xe_bb *bb;
 	size_t bb_len = 0;
+	u32 *cs;
 
 	/* count RMW registers as those will be handled separately */
 	xa_for_each(&sr->xa, idx, entry) {
@@ -222,13 +223,15 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	if (IS_ERR(bb))
 		return PTR_ERR(bb);
 
+	cs = bb->cs;
+
 	if (count) {
 		/*
 		 * Emit single LRI with all non RMW regs: 1 leading dw + 2dw per
 		 * reg + 1
 		 */
 
-		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
+		*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
 
 		xa_for_each(&sr->xa, idx, entry) {
 			struct xe_reg reg = entry->reg;
@@ -243,8 +246,8 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 
 			val |= entry->set_bits;
 
-			bb->cs[bb->len++] = reg.addr;
-			bb->cs[bb->len++] = val;
+			*cs++ = reg.addr;
+			*cs++ = val;
 			xe_gt_dbg(gt, "REG[0x%x] = 0x%08x", reg.addr, val);
 		}
 	}
@@ -256,46 +259,49 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 			if (entry->reg.masked || entry->clr_bits == ~0)
 				continue;
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_REG | MI_LRR_DST_CS_MMIO;
-			bb->cs[bb->len++] = entry->reg.addr;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
+			*cs++ = MI_LOAD_REGISTER_REG | MI_LRR_DST_CS_MMIO;
+			*cs++ = entry->reg.addr;
+			*cs++ = CS_GPR_REG(0, 0).addr;
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
-					    MI_LRI_LRM_CS_MMIO;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 1).addr;
-			bb->cs[bb->len++] = entry->clr_bits;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 2).addr;
-			bb->cs[bb->len++] = entry->set_bits;
+			*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
+				MI_LRI_LRM_CS_MMIO;
+			*cs++ = CS_GPR_REG(0, 1).addr;
+			*cs++ = entry->clr_bits;
+			*cs++ = CS_GPR_REG(0, 2).addr;
+			*cs++ = entry->set_bits;
 
-			bb->cs[bb->len++] = MI_MATH(8);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCA, REG0);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOADINV(SRCB, REG1);
-			bb->cs[bb->len++] = CS_ALU_INSTR_AND;
-			bb->cs[bb->len++] = CS_ALU_INSTR_STORE(REG0, ACCU);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCA, REG0);
-			bb->cs[bb->len++] = CS_ALU_INSTR_LOAD(SRCB, REG2);
-			bb->cs[bb->len++] = CS_ALU_INSTR_OR;
-			bb->cs[bb->len++] = CS_ALU_INSTR_STORE(REG0, ACCU);
+			*cs++ = MI_MATH(8);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCA, REG0);
+			*cs++ = CS_ALU_INSTR_LOADINV(SRCB, REG1);
+			*cs++ = CS_ALU_INSTR_AND;
+			*cs++ = CS_ALU_INSTR_STORE(REG0, ACCU);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCA, REG0);
+			*cs++ = CS_ALU_INSTR_LOAD(SRCB, REG2);
+			*cs++ = CS_ALU_INSTR_OR;
+			*cs++ = CS_ALU_INSTR_STORE(REG0, ACCU);
 
-			bb->cs[bb->len++] = MI_LOAD_REGISTER_REG | MI_LRR_SRC_CS_MMIO;
-			bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
-			bb->cs[bb->len++] = entry->reg.addr;
+			*cs++ = MI_LOAD_REGISTER_REG | MI_LRR_SRC_CS_MMIO;
+			*cs++ = CS_GPR_REG(0, 0).addr;
+			*cs++ = entry->reg.addr;
 
 			xe_gt_dbg(gt, "REG[%#x] = ~%#x|%#x\n",
 				  entry->reg.addr, entry->clr_bits, entry->set_bits);
 		}
 
 		/* reset used GPR */
-		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(3) | MI_LRI_LRM_CS_MMIO;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 0).addr;
-		bb->cs[bb->len++] = 0;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 1).addr;
-		bb->cs[bb->len++] = 0;
-		bb->cs[bb->len++] = CS_GPR_REG(0, 2).addr;
-		bb->cs[bb->len++] = 0;
+		*cs++ = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(3) |
+			MI_LRI_LRM_CS_MMIO;
+		*cs++ = CS_GPR_REG(0, 0).addr;
+		*cs++ = 0;
+		*cs++ = CS_GPR_REG(0, 1).addr;
+		*cs++ = 0;
+		*cs++ = CS_GPR_REG(0, 2).addr;
+		*cs++ = 0;
 	}
 
-	xe_lrc_emit_hwe_state_instructions(q, bb);
+	cs = xe_lrc_emit_hwe_state_instructions(q, cs);
+
+	bb->len = cs - bb->cs;
 
 	ret = emit_job_sync(q, bb, HZ);
 
