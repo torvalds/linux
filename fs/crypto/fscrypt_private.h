@@ -59,8 +59,9 @@
  * Note that fscrypt also supports inline crypto engines.  Those don't use the
  * Crypto API and work much better than the old-style (non-inline) engines.
  */
-#define FSCRYPT_CRYPTOAPI_MASK \
-	(CRYPTO_ALG_ALLOCATES_MEMORY | CRYPTO_ALG_KERN_DRIVER_ONLY)
+#define FSCRYPT_CRYPTOAPI_MASK                            \
+	(CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY | \
+	 CRYPTO_ALG_KERN_DRIVER_ONLY)
 
 #define FSCRYPT_CONTEXT_V1	1
 #define FSCRYPT_CONTEXT_V2	2
