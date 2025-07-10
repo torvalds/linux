@@ -1164,8 +1164,6 @@ static void mctp_test_route_extaddr_input(struct kunit *test)
 	rc = mctp_dst_input(&dst, skb);
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
-	mctp_test_dst_release(&dst, &tpq);
-
 	skb2 = skb_recv_datagram(sock->sk, MSG_DONTWAIT, &rc);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb2);
 	KUNIT_ASSERT_EQ(test, skb2->len, len);
@@ -1179,8 +1177,8 @@ static void mctp_test_route_extaddr_input(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, cb2->halen, sizeof(haddr));
 	KUNIT_EXPECT_MEMEQ(test, cb2->haddr, haddr, sizeof(haddr));
 
-	skb_free_datagram(sock->sk, skb2);
-	mctp_test_destroy_dev(dev);
+	kfree_skb(skb2);
+	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
 }
 
 static void mctp_test_route_gw_lookup(struct kunit *test)
