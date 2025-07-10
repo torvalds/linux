@@ -430,16 +430,16 @@ void notrace smp_emergency_stop(void)
 	cpumask_copy(&cpumask, cpu_online_mask);
 	cpumask_clear_cpu(smp_processor_id(), &cpumask);
 
-	end = get_tod_clock() + (1000000UL << 12);
+	end = get_tod_clock_monotonic() + (1000000UL << 12);
 	for_each_cpu(cpu, &cpumask) {
 		struct pcpu *pcpu = per_cpu_ptr(&pcpu_devices, cpu);
 		set_bit(ec_stop_cpu, &pcpu->ec_mask);
 		while (__pcpu_sigp(pcpu->address, SIGP_EMERGENCY_SIGNAL,
 				   0, NULL) == SIGP_CC_BUSY &&
-		       get_tod_clock() < end)
+		       get_tod_clock_monotonic() < end)
 			cpu_relax();
 	}
-	while (get_tod_clock() < end) {
+	while (get_tod_clock_monotonic() < end) {
 		for_each_cpu(cpu, &cpumask)
 			if (pcpu_stopped(per_cpu_ptr(&pcpu_devices, cpu)))
 				cpumask_clear_cpu(cpu, &cpumask);
