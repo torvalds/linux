@@ -1346,7 +1346,6 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 		  enum aic32x4_type type)
 {
 	struct aic32x4_priv *aic32x4;
-	struct aic32x4_pdata *pdata = dev->platform_data;
 	struct device_node *np = dev->of_node;
 	int ret;
 
@@ -1363,13 +1362,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 
 	dev_set_drvdata(dev, aic32x4);
 
-	if (pdata) {
-		aic32x4->power_cfg = pdata->power_cfg;
-		aic32x4->swapdacs = pdata->swapdacs;
-		aic32x4->micpga_routing = pdata->micpga_routing;
-		aic32x4->rstn_gpio = pdata->rstn_gpio;
-		aic32x4->mclk_name = "mclk";
-	} else if (np) {
+	if (np) {
 		ret = aic32x4_parse_dt(aic32x4, np);
 		if (ret) {
 			dev_err(dev, "Failed to parse DT node\n");
