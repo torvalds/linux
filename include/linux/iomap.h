@@ -466,6 +466,7 @@ void iomap_start_folio_write(struct inode *inode, struct folio *folio,
 void iomap_finish_folio_write(struct inode *inode, struct folio *folio,
 		size_t len);
 
+int iomap_writeback_folio(struct iomap_writepage_ctx *wpc, struct folio *folio);
 int iomap_writepages(struct iomap_writepage_ctx *wpc);
 
 /*
