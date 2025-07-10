@@ -3299,7 +3299,7 @@ static const char *keys[KEY_MAX + 1] = {
 	[BTN_STYLUS2] = "Stylus2",		[BTN_TOOL_DOUBLETAP] = "ToolDoubleTap",
 	[BTN_TOOL_TRIPLETAP] = "ToolTripleTap",	[BTN_TOOL_QUADTAP] = "ToolQuadrupleTap",
 	[BTN_GEAR_DOWN] = "BtnGearDown",	[BTN_GEAR_UP] = "BtnGearUp",
-	[BTN_WHEEL] = "BtnWheel",		[KEY_OK] = "Ok",
+						[KEY_OK] = "Ok",
 	[KEY_SELECT] = "Select",		[KEY_GOTO] = "Goto",
 	[KEY_CLEAR] = "Clear",			[KEY_POWER2] = "Power2",
 	[KEY_OPTION] = "Option",		[KEY_INFO] = "Info",
