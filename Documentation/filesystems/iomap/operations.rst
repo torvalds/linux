@@ -284,8 +284,8 @@ The ``ops`` structure must be specified and is as follows:
 
  struct iomap_writeback_ops {
     int (*writeback_range)(struct iomap_writepage_ctx *wpc,
-         struct folio *folio, u64 pos, unsigned int len, u64 end_pos);
-    int (*submit_ioend)(struct iomap_writepage_ctx *wpc, int status);
+        struct folio *folio, u64 pos, unsigned int len, u64 end_pos);
+    int (*writeback_submit)(struct iomap_writepage_ctx *wpc, int error);
  };
 
 The fields are as follows:
@@ -316,13 +316,15 @@ The fields are as follows:
     clean pagecache.
     This function must be supplied by the filesystem.
 
-  - ``submit_ioend``: Allows the file systems to hook into writeback bio
-    submission.
+  - ``writeback_submit``: Submit the previous built writeback context.
+    Block based file systems should use the iomap_ioend_writeback_submit
+    helper, other file system can implement their own.
+    File systems can optionall to hook into writeback bio submission.
     This might include pre-write space accounting updates, or installing
     a custom ``->bi_end_io`` function for internal purposes, such as
     deferring the ioend completion to a workqueue to run metadata update
     transactions from process context before submitting the bio.
-    This function is optional.
+    This function must be supplied by the filesystem.
 
 Pagecache Writeback Completion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -336,10 +338,9 @@ If the write failed, it will also set the error bits on the folios and
 the address space.
 This can happen in interrupt or process context, depending on the
 storage device.
-
 Filesystems that need to update internal bookkeeping (e.g. unwritten
-extent conversions) should provide a ``->submit_ioend`` function to
-set ``struct iomap_end::bio::bi_end_io`` to its own function.
+extent conversions) should set their own bi_end_io on the bios
+submitted by ``->submit_writeback``
 This function should call ``iomap_finish_ioends`` after finishing its
 own work (e.g. unwritten extent conversion).
 

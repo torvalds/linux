@@ -560,6 +560,7 @@ static ssize_t blkdev_writeback_range(struct iomap_writepage_ctx *wpc,
 
 static const struct iomap_writeback_ops blkdev_writeback_ops = {
 	.writeback_range	= blkdev_writeback_range,
+	.writeback_submit	= iomap_ioend_writeback_submit,
 };
 
 static int blkdev_writepages(struct address_space *mapping,

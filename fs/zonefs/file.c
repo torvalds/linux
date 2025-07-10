@@ -151,6 +151,7 @@ static ssize_t zonefs_writeback_range(struct iomap_writepage_ctx *wpc,
 
 static const struct iomap_writeback_ops zonefs_writeback_ops = {
 	.writeback_range	= zonefs_writeback_range,
+	.writeback_submit	= iomap_ioend_writeback_submit,
 };
 
 static int zonefs_writepages(struct address_space *mapping,
