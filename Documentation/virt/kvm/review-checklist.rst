@@ -7,7 +7,7 @@ Review checklist for kvm patches
 1.  The patch must follow Documentation/process/coding-style.rst and
     Documentation/process/submitting-patches.rst.
 
-2.  Patches should be against kvm.git master branch.
+2.  Patches should be against kvm.git master or next branches.
 
 3.  If the patch introduces or modifies a new userspace API:
     - the API must be documented in Documentation/virt/kvm/api.rst
@@ -18,7 +18,8 @@ Review checklist for kvm patches
 5.  New features must default to off (userspace should explicitly request them).
     Performance improvements can and should default to on.
 
-6.  New cpu features should be exposed via KVM_GET_SUPPORTED_CPUID2
+6.  New cpu features should be exposed via KVM_GET_SUPPORTED_CPUID2,
+    or its equivalent for non-x86 architectures
 
 7.  Emulator changes should be accompanied by unit tests for qemu-kvm.git
     kvm/test directory.
