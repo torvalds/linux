@@ -5539,7 +5539,9 @@ struct rtw89_early_h2c {
 struct rtw89_hw_scan_extra_op {
 	bool set;
 	u8 macid;
+	u8 port;
 	struct rtw89_chan chan;
+	struct rtw89_vif_link *rtwvif_link;
 };
 
 struct rtw89_hw_scan_info {

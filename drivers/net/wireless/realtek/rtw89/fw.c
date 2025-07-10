@@ -5700,25 +5700,46 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	const struct rtw89_hw_scan_extra_op *ext = &scan_info->extra_op;
 	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct rtw89_h2c_scanofld_be_macc_role *macc_role;
+	struct rtw89_hw_scan_extra_op scan_op[2] = {};
 	struct rtw89_chan *op = &scan_info->op_chan;
 	struct rtw89_h2c_scanofld_be_opch *opch;
 	struct rtw89_pktofld_info *pkt_info;
 	struct rtw89_h2c_scanofld_be *h2c;
+	struct ieee80211_vif *vif;
 	struct sk_buff *skb;
 	u8 macc_role_size = sizeof(*macc_role) * option->num_macc_role;
 	u8 opch_size = sizeof(*opch) * option->num_opch;
+	enum rtw89_scan_be_opmode opmode;
 	u8 probe_id[NUM_NL80211_BANDS];
 	u8 scan_offload_ver = U8_MAX;
 	u8 cfg_len = sizeof(*h2c);
 	unsigned int cond;
+	u8 ap_idx = U8_MAX;
 	u8 ver = U8_MAX;
+	u8 policy_val;
 	void *ptr;
+	u8 txbcn;
 	int ret;
 	u32 len;
 	u8 i;
+
+	scan_op[0].macid = rtwvif_link->mac_id;
+	scan_op[0].port = rtwvif_link->port;
+	scan_op[0].chan = *op;
+	vif = rtwvif_to_vif(rtwvif_link->rtwvif);
+	if (vif->type == NL80211_IFTYPE_AP)
+		ap_idx = 0;
+
+	if (ext->set) {
+		scan_op[1] = *ext;
+		vif = rtwvif_to_vif(ext->rtwvif_link->rtwvif);
+		if (vif->type == NL80211_IFTYPE_AP)
+			ap_idx = 1;
+	}
 
 	rtw89_scan_get_6g_disabled_chan(rtwdev, option);
 
@@ -5822,29 +5843,35 @@ flex_member:
 	}
 
 	for (i = 0; i < option->num_opch; i++) {
+		bool is_ap_idx = i == ap_idx;
+
+		opmode = is_ap_idx ? RTW89_SCAN_OPMODE_TBTT : RTW89_SCAN_OPMODE_INTV;
+		policy_val = is_ap_idx ? 2 : RTW89_OFF_CHAN_TIME / 10;
+		txbcn = is_ap_idx ? 1 : 0;
+
 		opch = ptr;
-		opch->w0 = le32_encode_bits(rtwvif_link->mac_id,
+		opch->w0 = le32_encode_bits(scan_op[i].macid,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_MACID) |
 			   le32_encode_bits(option->band,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_BAND) |
-			   le32_encode_bits(rtwvif_link->port,
+			   le32_encode_bits(scan_op[i].port,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_PORT) |
-			   le32_encode_bits(RTW89_SCAN_OPMODE_INTV,
+			   le32_encode_bits(opmode,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_POLICY) |
 			   le32_encode_bits(true,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_TXNULL) |
-			   le32_encode_bits(RTW89_OFF_CHAN_TIME / 10,
+			   le32_encode_bits(policy_val,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_POLICY_VAL);
 
-		opch->w1 = le32_encode_bits(op->band_type,
+		opch->w1 = le32_encode_bits(scan_op[i].chan.band_type,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_CH_BAND) |
-			   le32_encode_bits(op->band_width,
+			   le32_encode_bits(scan_op[i].chan.band_width,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_BW) |
 			   le32_encode_bits(0x3,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_NOTIFY) |
-			   le32_encode_bits(op->primary_channel,
+			   le32_encode_bits(scan_op[i].chan.primary_channel,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_PRI_CH) |
-			   le32_encode_bits(op->channel,
+			   le32_encode_bits(scan_op[i].chan.channel,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_CENTRAL_CH);
 
 		opch->w2 = le32_encode_bits(0,
@@ -5852,7 +5879,9 @@ flex_member:
 			   le32_encode_bits(0,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_SW_DEF) |
 			   le32_encode_bits(rtw89_is_mlo_1_1(rtwdev) ? 1 : 2,
-					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_SS);
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_SS) |
+			   le32_encode_bits(txbcn,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_TXBCN);
 
 		opch->w3 = le32_encode_bits(RTW89_SCANOFLD_PKT_NONE,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W3_PKT0) |
@@ -7625,7 +7654,7 @@ out:
 
 static void rtw89_hw_scan_update_link_beacon_noa(struct rtw89_dev *rtwdev,
 						 struct rtw89_vif_link *rtwvif_link,
-						 u16 tu)
+						 u16 tu, bool scan)
 {
 	struct ieee80211_p2p_noa_desc noa_desc = {};
 	struct ieee80211_bss_conf *bss_conf;
@@ -7651,17 +7680,24 @@ static void rtw89_hw_scan_update_link_beacon_noa(struct rtw89_dev *rtwdev,
 	}
 
 	noa_desc.start_time = cpu_to_le32(tsf);
-	noa_desc.interval = cpu_to_le32(ieee80211_tu_to_usec(tu));
-	noa_desc.duration = cpu_to_le32(ieee80211_tu_to_usec(tu));
-	noa_desc.count = 1;
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX) {
+		noa_desc.interval = cpu_to_le32(ieee80211_tu_to_usec(tu));
+		noa_desc.duration = cpu_to_le32(ieee80211_tu_to_usec(tu));
+		noa_desc.count = 1;
+	} else {
+		noa_desc.duration = cpu_to_le32(ieee80211_tu_to_usec(20000));
+		noa_desc.interval = cpu_to_le32(ieee80211_tu_to_usec(20000));
+		noa_desc.count = 255;
+	}
 
 	rtw89_p2p_noa_renew(rtwvif_link);
-	rtw89_p2p_noa_append(rtwvif_link, &noa_desc);
+	if (scan)
+		rtw89_p2p_noa_append(rtwvif_link, &noa_desc);
+
 	rtw89_chip_h2c_update_beacon(rtwdev, rtwvif_link);
 }
 
-static void rtw89_hw_scan_update_beacon_noa(struct rtw89_dev *rtwdev,
-					    const struct cfg80211_scan_request *req)
+static void rtw89_hw_scan_update_beacon_noa(struct rtw89_dev *rtwdev, bool scan)
 {
 	const struct rtw89_entity_mgnt *mgnt = &rtwdev->hal.entity_mgnt;
 	const struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
@@ -7675,6 +7711,9 @@ static void rtw89_hw_scan_update_beacon_noa(struct rtw89_dev *rtwdev,
 	u16 tu = 0;
 
 	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	if (!scan)
+		goto update;
 
 	list_for_each_safe(pos, tmp, &scan_info->chan_list) {
 		switch (chip->chip_gen) {
@@ -7699,6 +7738,7 @@ static void rtw89_hw_scan_update_beacon_noa(struct rtw89_dev *rtwdev,
 		return;
 	}
 
+update:
 	list_for_each_entry(rtwvif, &mgnt->active_list, mgnt_entry) {
 		unsigned int link_id;
 
@@ -7707,7 +7747,8 @@ static void rtw89_hw_scan_update_beacon_noa(struct rtw89_dev *rtwdev,
 			continue;
 
 		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
-			rtw89_hw_scan_update_link_beacon_noa(rtwdev, rtwvif_link, tu);
+			rtw89_hw_scan_update_link_beacon_noa(rtwdev, rtwvif_link,
+							     tu, scan);
 	}
 }
 
@@ -7742,7 +7783,9 @@ static void rtw89_hw_scan_set_extra_op_info(struct rtw89_dev *rtwdev,
 		*ext = (struct rtw89_hw_scan_extra_op){
 			.set = true,
 			.macid = tmp_link->mac_id,
+			.port = tmp_link->port,
 			.chan = *tmp_chan,
+			.rtwvif_link = tmp_link,
 		};
 
 		rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
@@ -7815,7 +7858,7 @@ int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
 	rtw89_phy_dig_suspend(rtwdev);
 
 	if (mode == RTW89_ENTITY_MODE_MCC)
-		rtw89_hw_scan_update_beacon_noa(rtwdev, req);
+		rtw89_hw_scan_update_beacon_noa(rtwdev, true);
 
 	return 0;
 }
@@ -7828,6 +7871,7 @@ struct rtw89_hw_scan_complete_cb_data {
 static int rtw89_hw_scan_complete_cb(struct rtw89_dev *rtwdev, void *data)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	enum rtw89_entity_mode mode = rtw89_get_entity_mode(rtwdev);
 	struct rtw89_hw_scan_complete_cb_data *cb_data = data;
 	struct rtw89_vif_link *rtwvif_link = cb_data->rtwvif_link;
 	struct cfg80211_scan_info info = {
@@ -7849,6 +7893,9 @@ static int rtw89_hw_scan_complete_cb(struct rtw89_dev *rtwdev, void *data)
 	rtw89_phy_dig_resume(rtwdev, true);
 
 	rtw89_hw_scan_cleanup(rtwdev, rtwvif_link);
+
+	if (mode == RTW89_ENTITY_MODE_MCC)
+		rtw89_hw_scan_update_beacon_noa(rtwdev, false);
 
 	return 0;
 }
@@ -7916,6 +7963,8 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev,
 			  bool enable)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	const struct rtw89_hw_scan_extra_op *ext = &scan_info->extra_op;
 	struct rtw89_scan_option opt = {0};
 	bool connected;
 	int ret = 0;
@@ -7940,6 +7989,9 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev,
 		opt.num_macc_role = 0;
 		opt.mlo_mode = rtwdev->mlo_dbcc_mode;
 		opt.num_opch = connected ? 1 : 0;
+		if (connected && ext->set)
+			opt.num_opch++;
+
 		opt.opch_end = connected ? 0 : RTW89_CHAN_INVALID;
 	}
 
