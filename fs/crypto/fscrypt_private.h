@@ -239,7 +239,7 @@ struct fscrypt_symlink_data {
  * Normally only one of the fields will be non-NULL.
  */
 struct fscrypt_prepared_key {
-	struct crypto_skcipher *tfm;
+	struct crypto_sync_skcipher *tfm;
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
 	struct blk_crypto_key *blk_key;
 #endif

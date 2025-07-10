@@ -113,11 +113,11 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 			    unsigned int len, unsigned int offs,
 			    gfp_t gfp_flags)
 {
+	struct crypto_sync_skcipher *tfm = ci->ci_enc_key.tfm;
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 	union fscrypt_iv iv;
-	struct skcipher_request *req = NULL;
 	struct scatterlist dst, src;
-	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
-	int res = 0;
+	int err;
 
 	if (WARN_ON_ONCE(len <= 0))
 		return -EINVAL;
@@ -126,31 +126,23 @@ int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 
 	fscrypt_generate_iv(&iv, index, ci);
 
-	req = skcipher_request_alloc(tfm, gfp_flags);
-	if (!req)
-		return -ENOMEM;
-
 	skcipher_request_set_callback(
 		req, CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		NULL, NULL);
-
 	sg_init_table(&dst, 1);
 	sg_set_page(&dst, dest_page, len, offs);
 	sg_init_table(&src, 1);
 	sg_set_page(&src, src_page, len, offs);
 	skcipher_request_set_crypt(req, &src, &dst, len, &iv);
 	if (rw == FS_DECRYPT)
-		res = crypto_skcipher_decrypt(req);
+		err = crypto_skcipher_decrypt(req);
 	else
-		res = crypto_skcipher_encrypt(req);
-	skcipher_request_free(req);
-	if (res) {
+		err = crypto_skcipher_encrypt(req);
+	if (err)
 		fscrypt_err(ci->ci_inode,
 			    "%scryption failed for data unit %llu: %d",
-			    (rw == FS_DECRYPT ? "De" : "En"), index, res);
-		return res;
-	}
-	return 0;
+			    (rw == FS_DECRYPT ? "De" : "En"), index, err);
+	return err;
 }
 
 /**
