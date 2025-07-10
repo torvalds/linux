@@ -255,6 +255,11 @@ int _iommufd_object_depend(struct iommufd_object *obj_dependent,
 			   struct iommufd_object *obj_depended);
 void _iommufd_object_undepend(struct iommufd_object *obj_dependent,
 			      struct iommufd_object *obj_depended);
+int _iommufd_alloc_mmap(struct iommufd_ctx *ictx, struct iommufd_object *owner,
+			phys_addr_t mmio_addr, size_t length,
+			unsigned long *offset);
+void _iommufd_destroy_mmap(struct iommufd_ctx *ictx,
+			   struct iommufd_object *owner, unsigned long offset);
 struct device *iommufd_viommu_find_dev(struct iommufd_viommu *viommu,
 				       unsigned long vdev_id);
 int iommufd_viommu_get_vdev_id(struct iommufd_viommu *viommu,
@@ -272,6 +277,20 @@ static inline int _iommufd_object_depend(struct iommufd_object *obj_dependent,
 static inline void
 _iommufd_object_undepend(struct iommufd_object *obj_dependent,
 			 struct iommufd_object *obj_depended)
+{
+}
+
+static inline int _iommufd_alloc_mmap(struct iommufd_ctx *ictx,
+				      struct iommufd_object *owner,
+				      phys_addr_t mmio_addr, size_t length,
+				      unsigned long *offset)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void _iommufd_destroy_mmap(struct iommufd_ctx *ictx,
+					 struct iommufd_object *owner,
+					 unsigned long offset)
 {
 }
 
@@ -342,4 +361,27 @@ static inline int iommufd_viommu_report_event(struct iommufd_viommu *viommu,
 		_iommufd_object_undepend(&dependent->member.obj,               \
 					 &depended->member.obj);               \
 	})
+
+/*
+ * Helpers for IOMMU driver to alloc/destroy an mmapable area for a structure.
+ *
+ * To support an mmappable MMIO region, kernel driver must first register it to
+ * iommufd core to allocate an @offset, during a driver-structure initialization
+ * (e.g. viommu_init op). Then, it should report to user space this @offset and
+ * the @length of the MMIO region for mmap syscall.
+ */
+static inline int iommufd_viommu_alloc_mmap(struct iommufd_viommu *viommu,
+					    phys_addr_t mmio_addr,
+					    size_t length,
+					    unsigned long *offset)
+{
+	return _iommufd_alloc_mmap(viommu->ictx, &viommu->obj, mmio_addr,
+				   length, offset);
+}
+
+static inline void iommufd_viommu_destroy_mmap(struct iommufd_viommu *viommu,
+					       unsigned long offset)
+{
+	_iommufd_destroy_mmap(viommu->ictx, &viommu->obj, offset);
+}
 #endif
