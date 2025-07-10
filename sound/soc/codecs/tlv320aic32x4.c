@@ -9,27 +9,27 @@
  * Based on sound/soc/codecs/wm8974 and TI driver for kernel 2.6.27.
  */
 
+#include <linux/cdev.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
+#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/pm.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
-#include <linux/cdev.h>
-#include <linux/slab.h>
-#include <linux/clk.h>
 #include <linux/of_clk.h>
+#include <linux/of_gpio.h>
+#include <linux/pm.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 
-#include <sound/tlv320aic32x4.h>
 #include <sound/core.h>
+#include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <sound/initval.h>
 #include <sound/tlv.h>
+#include <sound/tlv320aic32x4.h>
 
 #include "tlv320aic32x4.h"
 
