@@ -484,9 +484,7 @@ static void __init build_sched_topology(void)
 {
 	int i = 0;
 
-#ifdef CONFIG_SCHED_SMT
 	x86_topology[i++] = SDTL_INIT(cpu_smt_mask, cpu_smt_flags, SMT);
-#endif
 #ifdef CONFIG_SCHED_CLUSTER
 	x86_topology[i++] = SDTL_INIT(cpu_clustergroup_mask, x86_cluster_flags, CLS);
 #endif
