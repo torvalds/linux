@@ -111,6 +111,30 @@ static void join_max_threads(void)
 	}
 }
 
+#define SEC_IN_NSEC	1000000000
+#define MSEC_IN_NSEC	1000000
+
+static void futex_dummy_op(void)
+{
+	pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+	struct timespec timeout;
+	int ret;
+
+	pthread_mutex_lock(&lock);
+	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout.tv_nsec += 100 * MSEC_IN_NSEC;
+	if (timeout.tv_nsec >=  SEC_IN_NSEC) {
+		timeout.tv_nsec -= SEC_IN_NSEC;
+		timeout.tv_sec++;
+	}
+	ret = pthread_mutex_timedlock(&lock, &timeout);
+	if (ret == 0)
+		ksft_exit_fail_msg("Succeffuly locked an already locked mutex.\n");
+
+	if (ret != ETIMEDOUT)
+		ksft_exit_fail_msg("pthread_mutex_timedlock() did not timeout: %d.\n", ret);
+}
+
 static void usage(char *prog)
 {
 	printf("Usage: %s\n", prog);
@@ -129,7 +153,7 @@ int main(int argc, char *argv[])
 	int futex_slots1, futex_slotsn, online_cpus;
 	pthread_mutexattr_t mutex_attr_pi;
 	int use_global_hash = 0;
-	int ret;
+	int ret, retry = 20;
 	int c;
 
 	while ((c = getopt(argc, argv, "cghv:")) != -1) {
@@ -208,8 +232,24 @@ int main(int argc, char *argv[])
 	 */
 	ksft_print_msg("Online CPUs: %d\n", online_cpus);
 	if (online_cpus > 16) {
+retry_getslots:
 		futex_slotsn = futex_hash_slots_get();
 		if (futex_slotsn < 0 || futex_slots1 == futex_slotsn) {
+			retry--;
+			/*
+			 * Auto scaling on thread creation can be slightly delayed
+			 * because it waits for a RCU grace period twice. The new
+			 * private hash is assigned upon the first futex operation
+			 * after grace period.
+			 * To cover all this for testing purposes the function
+			 * below will acquire a lock and acquire it again with a
+			 * 100ms timeout which must timeout. This ensures we
+			 * sleep for 100ms and issue a futex operation.
+			 */
+			if (retry > 0) {
+				futex_dummy_op();
+				goto retry_getslots;
+			}
 			ksft_print_msg("Expected increase of hash buckets but got: %d -> %d\n",
 				       futex_slots1, futex_slotsn);
 			ksft_exit_fail_msg(test_msg_auto_inc);
