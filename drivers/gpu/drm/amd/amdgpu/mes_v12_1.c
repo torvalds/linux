@@ -546,6 +546,10 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		mes_v12_1_get_rrmt(input->read_reg.reg_offset,
 				   GET_INST(GC, input->xcc_id),
 				   &misc_pkt.read_reg.rrmt_opt);
+		if (misc_pkt.read_reg.rrmt_opt.mode != MES_RRMT_MODE_REMOTE_MID) {
+			misc_pkt.read_reg.reg_offset =
+				NORMALIZE_XCC_REG_OFFSET(misc_pkt.read_reg.reg_offset);
+		}
 		break;
 	case MES_MISC_OP_WRITE_REG:
 		misc_pkt.opcode = MESAPI_MISC__WRITE_REG;
@@ -554,6 +558,10 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		mes_v12_1_get_rrmt(input->write_reg.reg_offset,
 				   GET_INST(GC, input->xcc_id),
 				   &misc_pkt.write_reg.rrmt_opt);
+		if (misc_pkt.write_reg.rrmt_opt.mode != MES_RRMT_MODE_REMOTE_MID) {
+			misc_pkt.write_reg.reg_offset =
+				NORMALIZE_XCC_REG_OFFSET(misc_pkt.write_reg.reg_offset);
+		}
 		break;
 	case MES_MISC_OP_WRM_REG_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
@@ -565,6 +573,10 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		mes_v12_1_get_rrmt(input->wrm_reg.reg0,
 				   GET_INST(GC, input->xcc_id),
 				   &misc_pkt.wait_reg_mem.rrmt_opt1);
+		if (misc_pkt.wait_reg_mem.rrmt_opt1.mode != MES_RRMT_MODE_REMOTE_MID) {
+			misc_pkt.wait_reg_mem.reg_offset1 =
+				NORMALIZE_XCC_REG_OFFSET(misc_pkt.wait_reg_mem.reg_offset1);
+		}
 		break;
 	case MES_MISC_OP_WRM_REG_WR_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
@@ -579,6 +591,14 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		mes_v12_1_get_rrmt(input->wrm_reg.reg1,
 				   GET_INST(GC, input->xcc_id),
 				   &misc_pkt.wait_reg_mem.rrmt_opt2);
+		if (misc_pkt.wait_reg_mem.rrmt_opt1.mode != MES_RRMT_MODE_REMOTE_MID) {
+			misc_pkt.wait_reg_mem.reg_offset1 =
+				NORMALIZE_XCC_REG_OFFSET(misc_pkt.wait_reg_mem.reg_offset1);
+		}
+		if (misc_pkt.wait_reg_mem.rrmt_opt2.mode != MES_RRMT_MODE_REMOTE_MID) {
+			misc_pkt.wait_reg_mem.reg_offset2 =
+				NORMALIZE_XCC_REG_OFFSET(misc_pkt.wait_reg_mem.reg_offset2);
+		}
 		break;
 	case MES_MISC_OP_SET_SHADER_DEBUGGER:
 		pipe = AMDGPU_MES_SCHED_PIPE;
