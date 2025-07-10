@@ -207,8 +207,8 @@ static int snd_cs5530_probe(struct pci_dev *pci,
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "CS5530");
-	strcpy(card->shortname, "CS5530 Audio");
+	strscpy(card->driver, "CS5530");
+	strscpy(card->shortname, "CS5530 Audio");
 	sprintf(card->longname, "%s at 0x%lx", card->shortname, chip->pci_base);
 
 	err = snd_card_register(card);
