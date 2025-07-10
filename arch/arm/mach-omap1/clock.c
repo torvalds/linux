@@ -705,14 +705,21 @@ static unsigned long omap1_clk_recalc_rate(struct clk_hw *hw, unsigned long p_ra
 	return clk->rate;
 }
 
-static long omap1_clk_round_rate(struct clk_hw *hw, unsigned long rate, unsigned long *p_rate)
+static int omap1_clk_determine_rate(struct clk_hw *hw,
+				    struct clk_rate_request *req)
 {
 	struct omap1_clk *clk = to_omap1_clk(hw);
 
-	if (clk->round_rate != NULL)
-		return clk->round_rate(clk, rate, p_rate);
+	if (clk->round_rate != NULL) {
+		req->rate = clk->round_rate(clk, req->rate,
+					    &req->best_parent_rate);
 
-	return omap1_clk_recalc_rate(hw, *p_rate);
+		return 0;
+	}
+
+	req->rate = omap1_clk_recalc_rate(hw, req->best_parent_rate);
+
+	return 0;
 }
 
 static int omap1_clk_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
@@ -771,7 +778,7 @@ const struct clk_ops omap1_clk_gate_ops = {
 
 const struct clk_ops omap1_clk_rate_ops = {
 	.recalc_rate	= omap1_clk_recalc_rate,
-	.round_rate	= omap1_clk_round_rate,
+	.determine_rate = omap1_clk_determine_rate,
 	.set_rate	= omap1_clk_set_rate,
 	.init		= omap1_clk_init_op,
 };
@@ -784,7 +791,7 @@ const struct clk_ops omap1_clk_full_ops = {
 	.disable_unused	= omap1_clk_disable_unused,
 #endif
 	.recalc_rate	= omap1_clk_recalc_rate,
-	.round_rate	= omap1_clk_round_rate,
+	.determine_rate = omap1_clk_determine_rate,
 	.set_rate	= omap1_clk_set_rate,
 	.init		= omap1_clk_init_op,
 };
