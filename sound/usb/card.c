@@ -756,7 +756,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 
 	card->private_free = snd_usb_audio_free;
 
-	strcpy(card->driver, "USB-Audio");
+	strscpy(card->driver, "USB-Audio");
 	sprintf(component, "USB%04x:%04x",
 		USB_ID_VENDOR(chip->usb_id), USB_ID_PRODUCT(chip->usb_id));
 	snd_component_add(card, component);
