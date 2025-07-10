@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/sockios.h>
 
@@ -101,28 +102,39 @@ void vsock_wait_remote_close(int fd)
 	close(epollfd);
 }
 
+/* Wait until ioctl gives an expected int value.
+ * Return false if the op is not supported.
+ */
+bool vsock_ioctl_int(int fd, unsigned long op, int expected)
+{
+	int actual, ret;
+	char name[32];
+
+	snprintf(name, sizeof(name), "ioctl(%lu)", op);
+
+	timeout_begin(TIMEOUT);
+	do {
+		ret = ioctl(fd, op, &actual);
+		if (ret < 0) {
+			if (errno == EOPNOTSUPP)
+				break;
+
+			perror(name);
+			exit(EXIT_FAILURE);
+		}
+		timeout_check(name);
+	} while (actual != expected);
+	timeout_end();
+
+	return ret >= 0;
+}
+
 /* Wait until transport reports no data left to be sent.
  * Return false if transport does not implement the unsent_bytes() callback.
  */
 bool vsock_wait_sent(int fd)
 {
-	int ret, sock_bytes_unsent;
-
-	timeout_begin(TIMEOUT);
-	do {
-		ret = ioctl(fd, SIOCOUTQ, &sock_bytes_unsent);
-		if (ret < 0) {
-			if (errno == EOPNOTSUPP)
-				break;
-
-			perror("ioctl(SIOCOUTQ)");
-			exit(EXIT_FAILURE);
-		}
-		timeout_check("SIOCOUTQ");
-	} while (sock_bytes_unsent != 0);
-	timeout_end();
-
-	return !ret;
+	return vsock_ioctl_int(fd, SIOCOUTQ, 0);
 }
 
 /* Create socket <type>, bind to <cid, port>.
