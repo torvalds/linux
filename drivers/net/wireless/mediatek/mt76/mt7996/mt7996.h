@@ -248,11 +248,16 @@ struct mt7996_vif_link {
 
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 	struct cfg80211_bitrate_mask bitrate_mask;
+
+	u8 mld_idx;
 };
 
 struct mt7996_vif {
 	struct mt7996_vif_link deflink; /* must be first */
 	struct mt76_vif_data mt76;
+
+	u8 mld_group_idx;
+	u8 mld_remap_idx;
 };
 
 /* crash-dump */
@@ -336,6 +341,9 @@ struct mt7996_dev {
 	u8 q_id[MT7996_MAX_QUEUE];
 	u32 q_int_mask[MT7996_MAX_QUEUE];
 	u32 q_wfdma_mask;
+
+	u64 mld_idx_mask;
+	u64 mld_remap_idx_mask;
 
 	const struct mt76_bus_ops *bus_ops;
 	struct mt7996_phy phy;

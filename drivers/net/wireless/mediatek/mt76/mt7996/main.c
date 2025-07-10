@@ -138,6 +138,28 @@ static int get_omac_idx(enum nl80211_iftype type, u64 mask)
 	return -1;
 }
 
+static int get_own_mld_idx(u64 mask, bool group_mld)
+{
+	u8 start = group_mld ? 0 : 16;
+	u8 end = group_mld ? 15 : 63;
+	int idx;
+
+	idx = get_free_idx(mask, start, end);
+	if (idx)
+		return idx - 1;
+
+	/* If the 16-63 range is not available, perform another lookup in the
+	 * range 0-15
+	 */
+	if (!group_mld) {
+		idx = get_free_idx(mask, 0, 15);
+		if (idx)
+			return idx - 1;
+	}
+
+	return -EINVAL;
+}
+
 static void
 mt7996_init_bitrate_mask(struct ieee80211_vif *vif, struct mt7996_vif_link *mlink)
 {
@@ -279,7 +301,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	struct mt7996_dev *dev = phy->dev;
 	u8 band_idx = phy->mt76->band_idx;
 	struct mt76_txq *mtxq;
-	int idx, ret;
+	int mld_idx, idx, ret;
 
 	mlink->idx = __ffs64(~dev->mt76.vif_mask);
 	if (mlink->idx >= mt7996_max_interface_num(dev))
@@ -289,6 +311,17 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	if (idx < 0)
 		return -ENOSPC;
 
+	if (!dev->mld_idx_mask) { /* first link in the group */
+		mvif->mld_group_idx = get_own_mld_idx(dev->mld_idx_mask, true);
+		mvif->mld_remap_idx = get_free_idx(dev->mld_remap_idx_mask,
+						   0, 15);
+	}
+
+	mld_idx = get_own_mld_idx(dev->mld_idx_mask, false);
+	if (mld_idx < 0)
+		return -ENOSPC;
+
+	link->mld_idx = mld_idx;
 	link->phy = phy;
 	mlink->omac_idx = idx;
 	mlink->band_idx = band_idx;
@@ -301,6 +334,11 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 		return ret;
 
 	dev->mt76.vif_mask |= BIT_ULL(mlink->idx);
+	if (!dev->mld_idx_mask) {
+		dev->mld_idx_mask |= BIT_ULL(mvif->mld_group_idx);
+		dev->mld_remap_idx_mask |= BIT_ULL(mvif->mld_remap_idx);
+	}
+	dev->mld_idx_mask |= BIT_ULL(link->mld_idx);
 	phy->omac_mask |= BIT_ULL(mlink->omac_idx);
 
 	idx = MT7996_WTBL_RESERVED - mlink->idx;
@@ -380,7 +418,13 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	}
 
 	dev->mt76.vif_mask &= ~BIT_ULL(mlink->idx);
+	dev->mld_idx_mask &= ~BIT_ULL(link->mld_idx);
 	phy->omac_mask &= ~BIT_ULL(mlink->omac_idx);
+	if (!(dev->mld_idx_mask & ~BIT_ULL(mvif->mld_group_idx))) {
+		/* last link */
+		dev->mld_idx_mask &= ~BIT_ULL(mvif->mld_group_idx);
+		dev->mld_remap_idx_mask &= ~BIT_ULL(mvif->mld_remap_idx);
+	}
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
 	if (!list_empty(&msta_link->wcid.poll_list))
