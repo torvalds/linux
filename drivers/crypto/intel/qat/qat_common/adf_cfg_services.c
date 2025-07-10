@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include "adf_cfg.h"
+#include "adf_cfg_common.h"
 #include "adf_cfg_services.h"
 #include "adf_cfg_strings.h"
 
@@ -178,3 +179,34 @@ int adf_get_service_enabled(struct adf_accel_dev *accel_dev)
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(adf_get_service_enabled);
+
+enum adf_cfg_service_type adf_srv_to_cfg_svc_type(enum adf_base_services svc)
+{
+	switch (svc) {
+	case SVC_ASYM:
+		return ASYM;
+	case SVC_SYM:
+		return SYM;
+	case SVC_DC:
+		return COMP;
+	case SVC_DECOMP:
+		return DECOMP;
+	default:
+		return UNUSED;
+	}
+}
+
+bool adf_is_service_enabled(struct adf_accel_dev *accel_dev, enum adf_base_services svc)
+{
+	enum adf_cfg_service_type arb_srv = adf_srv_to_cfg_svc_type(svc);
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	u8 rps_per_bundle = hw_data->num_banks_per_vf;
+	int i;
+
+	for (i = 0; i < rps_per_bundle; i++) {
+		if (GET_SRV_TYPE(accel_dev, i) == arb_srv)
+			return true;
+	}
+
+	return false;
+}

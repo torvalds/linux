@@ -305,7 +305,7 @@ static ssize_t srv_store(struct device *dev, struct device_attribute *attr,
 		return ret;
 
 	val = ret;
-	if (!is_service_enabled(accel_dev, val))
+	if (!adf_is_service_enabled(accel_dev, val))
 		return -EINVAL;
 
 	ret = set_param_u(dev, SRV, val);

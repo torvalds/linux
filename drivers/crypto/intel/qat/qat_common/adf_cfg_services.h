@@ -38,5 +38,7 @@ int adf_parse_service_string(struct adf_accel_dev *accel_dev, const char *in,
 			     size_t in_len, char *out, size_t out_len);
 int adf_get_service_enabled(struct adf_accel_dev *accel_dev);
 int adf_get_service_mask(struct adf_accel_dev *accel_dev, unsigned long *mask);
+enum adf_cfg_service_type adf_srv_to_cfg_svc_type(enum adf_base_services svc);
+bool adf_is_service_enabled(struct adf_accel_dev *accel_dev, enum adf_base_services svc);
 
 #endif

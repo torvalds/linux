@@ -169,22 +169,6 @@ static struct rl_sla *find_parent(struct adf_rl *rl_data,
 	return NULL;
 }
 
-static enum adf_cfg_service_type srv_to_cfg_svc_type(enum adf_base_services rl_srv)
-{
-	switch (rl_srv) {
-	case SVC_ASYM:
-		return ASYM;
-	case SVC_SYM:
-		return SYM;
-	case SVC_DC:
-		return COMP;
-	case SVC_DECOMP:
-		return DECOMP;
-	default:
-		return UNUSED;
-	}
-}
-
 /**
  * adf_rl_get_sla_arr_of_type() - Returns a pointer to SLA type specific array
  * @rl_data: pointer to ratelimiting data
@@ -212,21 +196,6 @@ u32 adf_rl_get_sla_arr_of_type(struct adf_rl *rl_data, enum rl_node_type type,
 	}
 }
 
-bool is_service_enabled(struct adf_accel_dev *accel_dev, enum adf_base_services rl_srv)
-{
-	enum adf_cfg_service_type arb_srv = srv_to_cfg_svc_type(rl_srv);
-	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
-	u8 rps_per_bundle = hw_data->num_banks_per_vf;
-	int i;
-
-	for (i = 0; i < rps_per_bundle; i++) {
-		if (GET_SRV_TYPE(accel_dev, i) == arb_srv)
-			return true;
-	}
-
-	return false;
-}
-
 /**
  * prepare_rp_ids() - Creates an array of ring pair IDs from bitmask
  * @accel_dev: pointer to acceleration device structure
@@ -245,7 +214,7 @@ bool is_service_enabled(struct adf_accel_dev *accel_dev, enum adf_base_services 
 static int prepare_rp_ids(struct adf_accel_dev *accel_dev, struct rl_sla *sla,
 			  const unsigned long rp_mask)
 {
-	enum adf_cfg_service_type arb_srv = srv_to_cfg_svc_type(sla->srv);
+	enum adf_cfg_service_type arb_srv = adf_srv_to_cfg_svc_type(sla->srv);
 	u16 rps_per_bundle = GET_HW_DATA(accel_dev)->num_banks_per_vf;
 	bool *rp_in_use = accel_dev->rate_limiting->rp_in_use;
 	size_t rp_cnt_max = ARRAY_SIZE(sla->ring_pairs_ids);
@@ -661,7 +630,7 @@ static int add_new_sla_entry(struct adf_accel_dev *accel_dev,
 	}
 	*sla_out = sla;
 
-	if (!is_service_enabled(accel_dev, sla_in->srv)) {
+	if (!adf_is_service_enabled(accel_dev, sla_in->srv)) {
 		dev_notice(&GET_DEV(accel_dev),
 			   "Provided service is not enabled\n");
 		ret = -EINVAL;
@@ -732,7 +701,7 @@ static int initialize_default_nodes(struct adf_accel_dev *accel_dev)
 	sla_in.parent_id = RL_PARENT_DEFAULT_ID;
 
 	for (i = 0; i < SVC_BASE_COUNT; i++) {
-		if (!is_service_enabled(accel_dev, i))
+		if (!adf_is_service_enabled(accel_dev, i))
 			continue;
 
 		sla_in.cir = device_data->scale_ref;
