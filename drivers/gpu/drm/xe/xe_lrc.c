@@ -43,6 +43,30 @@
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
 #define LRC_WA_BB_SIZE				SZ_4K
 
+/*
+ * Layout of the LRC and associated data allocated as
+ * lrc->bo:
+ *
+ *   Region                       Size
+ *  +============================+=================================+ <- __xe_lrc_ring_offset()
+ *  | Ring                       | ring_size, see                  |
+ *  |                            | xe_lrc_init()                   |
+ *  +============================+=================================+ <- __xe_lrc_pphwsp_offset()
+ *  | PPHWSP (includes SW state) | 4K                              |
+ *  +----------------------------+---------------------------------+ <- __xe_lrc_regs_offset()
+ *  | Engine Context Image       | n * 4K, see                     |
+ *  |                            | xe_gt_lrc_size()                |
+ *  +----------------------------+---------------------------------+ <- __xe_lrc_indirect_ring_offset()
+ *  | Indirect Ring State Page   | 0 or 4k, see                    |
+ *  |                            | XE_LRC_FLAG_INDIRECT_RING_STATE |
+ *  +============================+=================================+ <- __xe_lrc_indirect_ctx_offset()
+ *  | Indirect Context Page      | 0 or 4k, see                    |
+ *  |                            | XE_LRC_FLAG_INDIRECT_CTX        |
+ *  +============================+=================================+ <- __xe_lrc_wa_bb_offset()
+ *  | WA BB Per Ctx              | 4k                              |
+ *  +============================+=================================+ <- xe_bo_size(lrc->bo)
+ */
+
 static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
 {
