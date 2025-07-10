@@ -1881,7 +1881,8 @@ xfs_reflink_unshare(
 				&xfs_dax_write_iomap_ops);
 	else
 		error = iomap_file_unshare(inode, offset, len,
-				&xfs_buffered_write_iomap_ops);
+				&xfs_buffered_write_iomap_ops,
+				&xfs_iomap_write_ops);
 	if (error)
 		goto out;
 

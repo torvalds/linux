@@ -723,7 +723,8 @@ blkdev_direct_write(struct kiocb *iocb, struct iov_iter *from)
 
 static ssize_t blkdev_buffered_write(struct kiocb *iocb, struct iov_iter *from)
 {
-	return iomap_file_buffered_write(iocb, from, &blkdev_iomap_ops, NULL);
+	return iomap_file_buffered_write(iocb, from, &blkdev_iomap_ops, NULL,
+			NULL);
 }
 
 /*

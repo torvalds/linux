@@ -167,7 +167,6 @@ structure below:
      struct dax_device   *dax_dev;
      void                *inline_data;
      void                *private;
-     const struct iomap_folio_ops *folio_ops;
      u64                 validity_cookie;
  };
 
@@ -291,8 +290,6 @@ The fields are as follows:
  * ``private`` is a pointer to `filesystem-private information
    <https://lore.kernel.org/all/20180619164137.13720-7-hch@lst.de/>`_.
    This value will be passed unchanged to ``->iomap_end``.
-
- * ``folio_ops`` will be covered in the section on pagecache operations.
 
  * ``validity_cookie`` is a magic freshness value set by the filesystem
    that should be used to detect stale mappings.

@@ -57,16 +57,12 @@ The following address space operations can be wrapped easily:
  * ``bmap``
  * ``swap_activate``
 
-``struct iomap_folio_ops``
+``struct iomap_write_ops``
 --------------------------
-
-The ``->iomap_begin`` function for pagecache operations may set the
-``struct iomap::folio_ops`` field to an ops structure to override
-default behaviors of iomap:
 
 .. code-block:: c
 
- struct iomap_folio_ops {
+ struct iomap_write_ops {
      struct folio *(*get_folio)(struct iomap_iter *iter, loff_t pos,
                                 unsigned len);
      void (*put_folio)(struct inode *inode, loff_t pos, unsigned copied,

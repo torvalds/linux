@@ -1058,7 +1058,8 @@ retry:
 	}
 
 	pagefault_disable();
-	ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops, NULL);
+	ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops,
+			&gfs2_iomap_write_ops, NULL);
 	pagefault_enable();
 	if (ret > 0)
 		written += ret;
