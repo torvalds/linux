@@ -829,8 +829,7 @@ static struct bpf_iter_reg ksym_iter_reg_info = {
 	.seq_info		= &ksym_iter_seq_info,
 };
 
-BTF_ID_LIST(btf_ksym_iter_id)
-BTF_ID(struct, kallsym_iter)
+BTF_ID_LIST_SINGLE(btf_ksym_iter_id, struct, kallsym_iter)
 
 static int __init bpf_ksym_iter_register(void)
 {

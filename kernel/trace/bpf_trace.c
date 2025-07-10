@@ -781,8 +781,7 @@ BPF_CALL_1(bpf_task_pt_regs, struct task_struct *, task)
 	return (unsigned long) task_pt_regs(task);
 }
 
-BTF_ID_LIST(bpf_task_pt_regs_ids)
-BTF_ID(struct, pt_regs)
+BTF_ID_LIST_SINGLE(bpf_task_pt_regs_ids, struct, pt_regs)
 
 const struct bpf_func_proto bpf_task_pt_regs_proto = {
 	.func		= bpf_task_pt_regs,
