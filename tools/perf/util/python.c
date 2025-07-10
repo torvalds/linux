@@ -529,8 +529,10 @@ static PyObject *pyrf_cpu_map__item(PyObject *obj, Py_ssize_t i)
 {
 	struct pyrf_cpu_map *pcpus = (void *)obj;
 
-	if (i >= perf_cpu_map__nr(pcpus->cpus))
+	if (i >= perf_cpu_map__nr(pcpus->cpus)) {
+		PyErr_SetString(PyExc_IndexError, "Index out of range");
 		return NULL;
+	}
 
 	return Py_BuildValue("i", perf_cpu_map__cpu(pcpus->cpus, i).cpu);
 }
@@ -598,8 +600,10 @@ static PyObject *pyrf_thread_map__item(PyObject *obj, Py_ssize_t i)
 {
 	struct pyrf_thread_map *pthreads = (void *)obj;
 
-	if (i >= perf_thread_map__nr(pthreads->threads))
+	if (i >= perf_thread_map__nr(pthreads->threads)) {
+		PyErr_SetString(PyExc_IndexError, "Index out of range");
 		return NULL;
+	}
 
 	return Py_BuildValue("i", perf_thread_map__pid(pthreads->threads, i));
 }
