@@ -359,7 +359,7 @@ iwl_mld_scan_fits(struct iwl_mld *mld, int n_ssids,
 		  struct ieee80211_scan_ies *ies, int n_channels)
 {
 	return ((n_ssids <= PROBE_OPTION_MAX) &&
-		(n_channels <= mld->fw->ucode_capa.n_scan_channels) &
+		(n_channels <= mld->fw->ucode_capa.n_scan_channels) &&
 		(ies->common_ie_len + ies->len[NL80211_BAND_2GHZ] +
 		 ies->len[NL80211_BAND_5GHZ] + ies->len[NL80211_BAND_6GHZ] <=
 		 iwl_mld_scan_max_template_size()));
