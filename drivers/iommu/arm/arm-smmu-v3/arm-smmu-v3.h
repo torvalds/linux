@@ -721,6 +721,13 @@ struct arm_smmu_impl_ops {
 	int (*init_structures)(struct arm_smmu_device *smmu);
 	struct arm_smmu_cmdq *(*get_secondary_cmdq)(
 		struct arm_smmu_device *smmu, struct arm_smmu_cmdq_ent *ent);
+	/*
+	 * An implementation should define its own type other than the default
+	 * IOMMU_HW_INFO_TYPE_ARM_SMMUV3. And it must validate the input @type
+	 * to return its own structure.
+	 */
+	void *(*hw_info)(struct arm_smmu_device *smmu, u32 *length,
+			 enum iommu_hw_info_type *type);
 	const size_t vsmmu_size;
 	const enum iommu_viommu_type vsmmu_type;
 	int (*vsmmu_init)(struct arm_vsmmu *vsmmu,
