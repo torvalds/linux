@@ -131,3 +131,50 @@ Get IO accounting for pid 1, it works only with -p::
 	linuxrc: read=65536, write=0, cancelled_write=0
 
 The above command can be used with -v to get more debug information.
+
+After the system starts, use `delaytop` to get the Top-N high-latency tasks.
+this tool supports sorting by CPU latency in descending order by default,
+displays the top 20 high-latency tasks by default, and refreshes the latency
+data every 2 seconds by default.
+
+Get Top-N tasks delay, since system boot::
+
+	bash# ./delaytop
+	Top 20 processes (sorted by CPU delay):
+
+	  PID   TGID  COMMAND            CPU(ms)  IO(ms)        SWAP(ms) RCL(ms) THR(ms)  CMP(ms)  WP(ms)  IRQ(ms)
+	---------------------------------------------------------------------------------------------
+	   32     32  kworker/2:0H-sy   23.65     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	  497    497  kworker/R-scsi_    1.20     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	  495    495  kworker/R-scsi_    1.13     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	  494    494  scsi_eh_0          1.12     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	  485    485  kworker/R-ata_s    0.90     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	  574    574  kworker/R-kdmfl    0.36     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	   34     34  idle_inject/3      0.33     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	 1123   1123  nde-netfilter      0.28     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	   60     60  ksoftirqd/7        0.25     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	  114    114  kworker/0:2-cgr    0.25     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	  496    496  scsi_eh_1          0.24     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	   51     51  cpuhp/6            0.24     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	 1667   1667  atd                0.24     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	   45     45  cpuhp/5            0.23     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	 1102   1102  nde-backupservi    0.22     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	 1098   1098  systemsettings     0.21     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	 1100   1100  audit-monitor      0.20     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	   53     53  migration/6        0.20     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	 1482   1482  sshd               0.19     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+	   39     39  cpuhp/4            0.19     0.00     0.00     0.00    0.00     0.00     0.00     0.00
+
+Dynamic interactive interface of delaytop::
+
+	# ./delaytop -p pid
+	Print delayacct stats
+
+	# ./delaytop -P num
+	Display the top N tasks
+
+	# ./delaytop -n num
+	Set delaytop refresh frequency (num times)
+
+	# ./delaytop -d secs
+	Specify refresh interval as secs
