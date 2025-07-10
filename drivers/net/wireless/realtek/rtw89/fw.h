@@ -1833,10 +1833,11 @@ struct rtw89_h2c_lps_ml_cmn_info {
 	u8 dup_bcn_ofst[RTW89_PHY_NUM];
 } __packed;
 
-static inline void RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(void *cmd, u32 val)
-{
-	le32p_replace_bits((__le32 *)cmd, val, GENMASK(31, 0));
-}
+struct rtw89_h2c_trig_cpu_except {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_CPU_EXCEPTION_TYPE GENMASK(31, 0)
 
 static inline void RTW89_SET_FWCMD_PKT_DROP_SEL(void *cmd, u32 val)
 {

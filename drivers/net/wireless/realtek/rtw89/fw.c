@@ -828,12 +828,14 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852B, ge, 0, 29, 29, 7, BEACON_FILTER),
 	__CFG_FW_FEAT(RTL8852B, lt, 0, 29, 30, 0, NO_WOW_CPU_IO_RX),
 	__CFG_FW_FEAT(RTL8852B, ge, 0, 29, 127, 0, LPS_DACK_BY_C2H_REG),
+	__CFG_FW_FEAT(RTL8852B, ge, 0, 29, 128, 0, CRASH_TRIGGER_TYPE_1),
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 74, 0, NO_LPS_PG),
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 74, 0, TX_WAKE),
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 90, 0, CRASH_TRIGGER_TYPE_0),
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 91, 0, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 110, 0, BEACON_FILTER),
 	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 127, 0, LPS_DACK_BY_C2H_REG),
+	__CFG_FW_FEAT(RTL8852BT, ge, 0, 29, 127, 0, CRASH_TRIGGER_TYPE_1),
 	__CFG_FW_FEAT(RTL8852C, le, 0, 27, 33, 0, NO_DEEP_PS),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 0, 0, 0, RFK_NTFY_MCC_V0),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 34, 0, TX_WAKE),
@@ -859,6 +861,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 64, 0, NO_POWER_DIFFERENCE),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 71, 0, BEACON_LOSS_COUNT_V1),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 76, 0, LPS_DACK_BY_C2H_REG),
+	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 79, 0, CRASH_TRIGGER_TYPE_1),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -8009,41 +8012,50 @@ out:
 	return ret;
 }
 
-#define H2C_FW_CPU_EXCEPTION_LEN 4
-#define H2C_FW_CPU_EXCEPTION_TYPE_DEF 0x5566
+#define H2C_FW_CPU_EXCEPTION_TYPE_0 0x5566
+#define H2C_FW_CPU_EXCEPTION_TYPE_1 0x0
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_h2c_trig_cpu_except *h2c;
+	u32 cpu_exception_type_def;
+	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	int ret;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_FW_CPU_EXCEPTION_LEN);
+	if (RTW89_CHK_FW_FEATURE(CRASH_TRIGGER_TYPE_1, &rtwdev->fw))
+		cpu_exception_type_def = H2C_FW_CPU_EXCEPTION_TYPE_1;
+	else if (RTW89_CHK_FW_FEATURE(CRASH_TRIGGER_TYPE_0, &rtwdev->fw))
+		cpu_exception_type_def = H2C_FW_CPU_EXCEPTION_TYPE_0;
+	else
+		return -EOPNOTSUPP;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev,
 			  "failed to alloc skb for fw cpu exception\n");
 		return -ENOMEM;
 	}
 
-	skb_put(skb, H2C_FW_CPU_EXCEPTION_LEN);
-	RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(skb->data,
-					   H2C_FW_CPU_EXCEPTION_TYPE_DEF);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_trig_cpu_except *)skb->data;
+
+	h2c->w0 = le32_encode_bits(cpu_exception_type_def,
+				   RTW89_H2C_CPU_EXCEPTION_TYPE);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_TEST,
 			      H2C_CL_FW_STATUS_TEST,
 			      H2C_FUNC_CPU_EXCEPTION, 0, 0,
-			      H2C_FW_CPU_EXCEPTION_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to send h2c\n");
-		goto fail;
+		dev_kfree_skb_any(skb);
+		return ret;
 	}
 
 	return 0;
-
-fail:
-	dev_kfree_skb_any(skb);
-	return ret;
 }
 
 #define H2C_PKT_DROP_LEN 24
