@@ -175,6 +175,10 @@ def tool(name, args, json=None, ns=None, host=None):
     return cmd_obj
 
 
+def bpftool(args, json=None, ns=None, host=None):
+    return tool('bpftool', args, json=json, ns=ns, host=host)
+
+
 def ip(args, json=None, ns=None, host=None):
     if ns:
         args = f'-netns {ns} ' + args
