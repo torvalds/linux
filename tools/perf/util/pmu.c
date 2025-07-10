@@ -623,8 +623,7 @@ static int perf_pmu__new_alias(struct perf_pmu *pmu, const char *name,
 
 	alias->name = strdup(name);
 	alias->desc = desc ? strdup(desc) : NULL;
-	alias->long_desc = long_desc ? strdup(long_desc) :
-				desc ? strdup(desc) : NULL;
+	alias->long_desc = long_desc ? strdup(long_desc) : NULL;
 	alias->topic = topic ? strdup(topic) : NULL;
 	alias->pmu_name = pmu_name ? strdup(pmu_name) : NULL;
 	if (unit) {

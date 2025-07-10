@@ -397,6 +397,9 @@ class JsonEvent:
       self.desc += extra_desc
     if self.long_desc and extra_desc:
       self.long_desc += extra_desc
+    if self.desc and self.long_desc and self.desc == self.long_desc:
+        # Avoid duplicated descriptions.
+        self.long_desc = None
     if arch_std:
       if arch_std.lower() in _arch_std_events:
         event = _arch_std_events[arch_std.lower()].event
