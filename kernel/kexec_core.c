@@ -1135,7 +1135,6 @@ int kernel_kexec(void)
 		dpm_resume_start(PMSG_RESTORE);
  Resume_devices:
 		dpm_resume_end(PMSG_RESTORE);
-		pm_restore_gfp_mask();
 		console_resume_all();
 		thaw_processes();
  Restore_console:
