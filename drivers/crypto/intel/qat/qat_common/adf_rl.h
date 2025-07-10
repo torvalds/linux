@@ -28,6 +28,7 @@ enum adf_base_services {
 	ADF_SVC_ASYM = 0,
 	ADF_SVC_SYM,
 	ADF_SVC_DC,
+	ADF_SVC_DECOMP,
 	ADF_SVC_NONE,
 };
 

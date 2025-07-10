@@ -177,6 +177,8 @@ static enum adf_cfg_service_type srv_to_cfg_svc_type(enum adf_base_services rl_s
 		return SYM;
 	case ADF_SVC_DC:
 		return COMP;
+	case ADF_SVC_DECOMP:
+		return DECOMP;
 	default:
 		return UNUSED;
 	}

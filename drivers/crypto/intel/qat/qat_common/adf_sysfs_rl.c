@@ -35,6 +35,7 @@ static const char *const rl_services[] = {
 	[ADF_SVC_ASYM] = "asym",
 	[ADF_SVC_SYM] = "sym",
 	[ADF_SVC_DC] = "dc",
+	[ADF_SVC_DECOMP] = "decomp",
 };
 
 static const char *const rl_operations[] = {
