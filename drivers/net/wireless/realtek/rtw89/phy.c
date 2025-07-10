@@ -6390,6 +6390,7 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev,
 	u32 pd_val;
 
 	pd_val = __rtw89_phy_dig_dyn_pd_th(rtwdev, bb, rssi, enable, chan);
+	dig->bak_dig = pd_val;
 
 	rtw89_phy_write32_idx(rtwdev, dig_regs->seg0_pd_reg,
 			      dig_regs->pd_lower_bound_mask, pd_val, bb->phy_idx);
@@ -6532,6 +6533,52 @@ static void rtw89_phy_dig_mcc(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
 	}
 }
 
+static void rtw89_phy_dig_ctrl(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb,
+			       bool pause_dig, bool restore)
+{
+	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
+	struct rtw89_dig_info *dig = &bb->dig;
+	bool en_dig;
+	u32 pd_val;
+
+	if (dig->pause_dig == pause_dig)
+		return;
+
+	if (pause_dig) {
+		en_dig = false;
+		pd_val = 0;
+	} else {
+		en_dig = rtwdev->total_sta_assoc > 0;
+		pd_val = restore ? dig->bak_dig : 0;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_DIG, "%s <%s> PD_low=%d", __func__,
+		    pause_dig ? "suspend" : "resume", pd_val);
+
+	rtw89_phy_write32_idx(rtwdev, dig_regs->seg0_pd_reg,
+			      dig_regs->pd_lower_bound_mask, pd_val, bb->phy_idx);
+	rtw89_phy_write32_idx(rtwdev, dig_regs->seg0_pd_reg,
+			      dig_regs->pd_spatial_reuse_en, en_dig, bb->phy_idx);
+
+	dig->pause_dig = pause_dig;
+}
+
+void rtw89_phy_dig_suspend(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_bb_ctx *bb;
+
+	rtw89_for_each_active_bb(rtwdev, bb)
+		rtw89_phy_dig_ctrl(rtwdev, bb, true, false);
+}
+
+void rtw89_phy_dig_resume(struct rtw89_dev *rtwdev, bool restore)
+{
+	struct rtw89_bb_ctx *bb;
+
+	rtw89_for_each_active_bb(rtwdev, bb)
+		rtw89_phy_dig_ctrl(rtwdev, bb, false, restore);
+}
+
 static void __rtw89_phy_dig(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
 {
 	struct rtw89_dig_info *dig = &bb->dig;
@@ -6552,6 +6599,9 @@ static void __rtw89_phy_dig(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
 		rtw89_phy_dig_mcc(rtwdev, bb);
 		return;
 	}
+
+	if (unlikely(dig->pause_dig))
+		return;
 
 	if (!dig->is_linked_pre && is_linked) {
 		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First connected\n");

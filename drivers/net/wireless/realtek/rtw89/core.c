@@ -4082,6 +4082,7 @@ int rtw89_core_sta_link_add(struct rtw89_dev *rtwdev,
 						     &rtwsta_link->tx_retry);
 			rtw89_mac_set_tx_retry_limit(rtwdev, rtwsta_link, false, 60);
 		}
+		rtw89_phy_dig_suspend(rtwdev);
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		ret = rtw89_mac_set_macid_pause(rtwdev, rtwsta_link->mac_id, false);
 		if (ret) {
@@ -4270,6 +4271,7 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 		if (vif->p2p)
 			rtw89_mac_set_tx_retry_limit(rtwdev, rtwsta_link, false,
 						     rtwsta_link->tx_retry);
+		rtw89_phy_dig_resume(rtwdev, false);
 	}
 
 	rtw89_assoc_link_set(rtwsta_link);

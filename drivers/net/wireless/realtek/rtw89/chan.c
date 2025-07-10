@@ -7,6 +7,7 @@
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
+#include "phy.h"
 #include "ps.h"
 #include "sar.h"
 #include "util.h"
@@ -2281,6 +2282,7 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_START);
 
 	rtw89_mcc_start_beacon_noa(rtwdev);
+	rtw89_phy_dig_suspend(rtwdev);
 
 	rtw89_mcc_prepare(rtwdev, true);
 	return 0;
@@ -2372,6 +2374,7 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev,
 
 	rtw89_mcc_stop_beacon_noa(rtwdev);
 	rtw89_fw_h2c_mcc_dig(rtwdev, RTW89_CHANCTX_0, 0, 0, false);
+	rtw89_phy_dig_resume(rtwdev, true);
 
 	rtw89_mcc_prepare(rtwdev, false);
 }
@@ -2715,6 +2718,7 @@ void rtw89_queue_chanctx_change(struct rtw89_dev *rtwdev,
 		return;
 	case RTW89_ENTITY_MODE_MCC_PREPARE:
 		delay = ieee80211_tu_to_usec(RTW89_CHANCTX_TIME_MCC_PREPARE);
+		rtw89_phy_dig_suspend(rtwdev);
 		break;
 	case RTW89_ENTITY_MODE_MCC:
 		delay = ieee80211_tu_to_usec(RTW89_CHANCTX_TIME_MCC);
