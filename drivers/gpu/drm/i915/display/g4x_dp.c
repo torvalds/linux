@@ -424,17 +424,6 @@ intel_dp_link_down(struct intel_encoder *encoder,
 
 	drm_dbg_kms(display->drm, "\n");
 
-	if ((display->platform.ivybridge && port == PORT_A) ||
-	    (HAS_PCH_CPT(display) && port != PORT_A)) {
-		intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
-		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
-	} else {
-		intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
-		intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE;
-	}
-	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
-	intel_de_posting_read(display, intel_dp->output_reg);
-
 	intel_dp->DP &= ~DP_PORT_EN;
 	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(display, intel_dp->output_reg);
