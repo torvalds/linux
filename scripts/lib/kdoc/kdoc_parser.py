@@ -12,6 +12,7 @@ Read a C language source or header FILE and extract embedded
 documentation comments
 """
 
+import sys
 import re
 from pprint import pformat
 
@@ -237,6 +238,14 @@ class KernelDoc:
 
         # Place all potential outputs into an array
         self.entries = []
+
+        #
+        # We need Python 3.7 for its "dicts remember the insertion
+        # order" guarantee
+        #
+        if sys.version_info.major == 3 and sys.version_info.minor < 7:
+            self.emit_msg(0,
+                          'Python 3.7 or later is required for correct results')
 
     def emit_msg(self, ln, msg, warning=True):
         """Emit a message"""
