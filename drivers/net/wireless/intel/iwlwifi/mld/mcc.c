@@ -177,11 +177,15 @@ iwl_mld_get_regdomain(struct iwl_mld *mld,
 
 	mld->mcc_src = resp->source_id;
 
-	if (!iwl_puncturing_is_allowed_in_bios(mld->bios_enable_puncturing,
-					       le16_to_cpu(resp->mcc)))
-		ieee80211_hw_set(mld->hw, DISALLOW_PUNCTURING);
-	else
-		__clear_bit(IEEE80211_HW_DISALLOW_PUNCTURING, mld->hw->flags);
+	/* FM is the earliest supported and later always do puncturing */
+	if (CSR_HW_RFID_TYPE(mld->trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_FM) {
+		if (!iwl_puncturing_is_allowed_in_bios(mld->bios_enable_puncturing,
+						       le16_to_cpu(resp->mcc)))
+			ieee80211_hw_set(mld->hw, DISALLOW_PUNCTURING);
+		else
+			__clear_bit(IEEE80211_HW_DISALLOW_PUNCTURING,
+				    mld->hw->flags);
+	}
 
 out:
 	kfree(resp);
