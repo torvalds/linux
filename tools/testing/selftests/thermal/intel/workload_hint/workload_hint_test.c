@@ -68,8 +68,6 @@ int main(int argc, char **argv)
 			exit(1);
 
 		sprintf(delay_str, "%s\n", argv[1]);
-
-		sprintf(delay_str, "%s\n", argv[1]);
 		fd = open(WORKLOAD_NOTIFICATION_DELAY_ATTRIBUTE, O_RDWR);
 		if (fd < 0) {
 			perror("Unable to open workload notification delay\n");
