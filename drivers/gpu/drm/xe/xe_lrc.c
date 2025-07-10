@@ -1157,7 +1157,6 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct iosys_map map;
-	void *init_data = NULL;
 	u32 arb_enable;
 	u32 bo_flags;
 	int err;
@@ -1195,25 +1194,26 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	xe_hw_fence_ctx_init(&lrc->fence_ctx, hwe->gt,
 			     hwe->fence_irq, hwe->name);
 
-	if (!gt->default_lrc[hwe->class]) {
-		init_data = empty_lrc_data(hwe);
-		if (!init_data) {
-			err = -ENOMEM;
-			goto err_lrc_finish;
-		}
-	}
-
 	/*
 	 * Init Per-Process of HW status Page, LRC / context state to known
-	 * values
+	 * values. If there's already a primed default_lrc, just copy it, otherwise
+	 * it's the early submission to record the lrc: build a new empty one from
+	 * scratch.
 	 */
 	map = __xe_lrc_pphwsp_map(lrc);
-	if (!init_data) {
+	if (gt->default_lrc[hwe->class]) {
 		xe_map_memset(xe, &map, 0, 0, LRC_PPHWSP_SIZE);	/* PPHWSP */
 		xe_map_memcpy_to(xe, &map, LRC_PPHWSP_SIZE,
 				 gt->default_lrc[hwe->class] + LRC_PPHWSP_SIZE,
 				 lrc_size - LRC_PPHWSP_SIZE);
 	} else {
+		void *init_data = empty_lrc_data(hwe);
+
+		if (!init_data) {
+			err = -ENOMEM;
+			goto err_lrc_finish;
+		}
+
 		xe_map_memcpy_to(xe, &map, 0, init_data, lrc_size);
 		kfree(init_data);
 	}
