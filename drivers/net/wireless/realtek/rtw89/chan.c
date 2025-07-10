@@ -1116,7 +1116,7 @@ static int __rtw89_mcc_calc_pattern_strict(struct rtw89_dev *rtwdev,
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
 	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config *config = &mcc->config;
-	u16 min_tob = RTW89_MCC_EARLY_RX_BCN_TIME;
+	u16 min_tob = RTW89_MCC_EARLY_RX_BCN_TIME + RTW89_MCC_SWITCH_CH_TIME;
 	u16 min_toa = RTW89_MCC_MIN_RX_BCN_TIME;
 	u16 bcn_ofst = config->beacon_offset;
 	s16 upper_toa_ref, lower_toa_ref;
@@ -1272,11 +1272,11 @@ static int __rtw89_mcc_calc_pattern_anchor(struct rtw89_dev *rtwdev,
 	u16 bcn_ofst = config->beacon_offset;
 	bool small_bcn_ofst;
 
-	if (bcn_ofst < RTW89_MCC_MIN_RX_BCN_TIME)
+	if (bcn_ofst < RTW89_MCC_MIN_RX_BCN_WITH_SWITCH_CH_TIME)
 		small_bcn_ofst = true;
 	else if (bcn_ofst < aux->duration - aux->limit.max_toa)
 		small_bcn_ofst = true;
-	else if (mcc_intvl - bcn_ofst < RTW89_MCC_MIN_RX_BCN_TIME)
+	else if (mcc_intvl - bcn_ofst < RTW89_MCC_MIN_RX_BCN_WITH_SWITCH_CH_TIME)
 		small_bcn_ofst = false;
 	else
 		return -EPERM;
@@ -2171,6 +2171,7 @@ static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
 	rtw89_p2p_noa_renew(rtwvif_go);
 
 	if (enable) {
+		duration += RTW89_MCC_SWITCH_CH_TIME;
 		noa_desc.start_time = cpu_to_le32(start_time);
 		noa_desc.interval = cpu_to_le32(ieee80211_tu_to_usec(interval));
 		noa_desc.duration = cpu_to_le32(ieee80211_tu_to_usec(duration));
