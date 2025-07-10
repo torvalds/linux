@@ -71,6 +71,15 @@ struct iommufd_object *_iommufd_object_alloc_ucmd(struct iommufd_ucmd *ucmd,
 	if (WARN_ON(ucmd->new_obj))
 		return ERR_PTR(-EBUSY);
 
+	/*
+	 * An abort op means that its caller needs to invoke it within a lock in
+	 * the caller. So it doesn't work with _iommufd_object_alloc_ucmd() that
+	 * will invoke the abort op in iommufd_object_abort_and_destroy(), which
+	 * must be outside the caller's lock.
+	 */
+	if (WARN_ON(iommufd_object_ops[type].abort))
+		return ERR_PTR(-EOPNOTSUPP);
+
 	new_obj = _iommufd_object_alloc(ucmd->ictx, size, type);
 	if (IS_ERR(new_obj))
 		return new_obj;
