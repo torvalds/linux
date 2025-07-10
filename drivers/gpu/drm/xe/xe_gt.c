@@ -146,30 +146,23 @@ static void xe_gt_disable_host_l2_vram(struct xe_gt *gt)
 
 static void gt_reset_worker(struct work_struct *w);
 
-static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
+static int emit_job_sync(struct xe_exec_queue *q, struct xe_bb *bb,
+			 long timeout_jiffies)
 {
 	struct xe_sched_job *job;
-	struct xe_bb *bb;
 	struct dma_fence *fence;
 	long timeout;
 
-	bb = xe_bb_new(gt, 4, false);
-	if (IS_ERR(bb))
-		return PTR_ERR(bb);
-
 	job = xe_bb_create_job(q, bb);
-	if (IS_ERR(job)) {
-		xe_bb_free(bb, NULL);
+	if (IS_ERR(job))
 		return PTR_ERR(job);
-	}
 
 	xe_sched_job_arm(job);
 	fence = dma_fence_get(&job->drm.s_fence->finished);
 	xe_sched_job_push(job);
 
-	timeout = dma_fence_wait_timeout(fence, false, HZ);
+	timeout = dma_fence_wait_timeout(fence, false, timeout_jiffies);
 	dma_fence_put(fence);
-	xe_bb_free(bb, NULL);
 	if (timeout < 0)
 		return timeout;
 	else if (!timeout)
@@ -178,17 +171,28 @@ static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	return 0;
 }
 
+static int emit_nop_job(struct xe_gt *gt, struct xe_exec_queue *q)
+{
+	struct xe_bb *bb;
+	int ret;
+
+	bb = xe_bb_new(gt, 4, false);
+	if (IS_ERR(bb))
+		return PTR_ERR(bb);
+
+	ret = emit_job_sync(q, bb, HZ);
+	xe_bb_free(bb, NULL);
+
+	return ret;
+}
+
 static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 {
 	struct xe_reg_sr *sr = &q->hwe->reg_lrc;
 	struct xe_reg_sr_entry *entry;
+	int count_rmw = 0, count = 0, ret;
 	unsigned long idx;
-	struct xe_sched_job *job;
 	struct xe_bb *bb;
-	struct dma_fence *fence;
-	long timeout;
-	int count_rmw = 0;
-	int count = 0;
 	size_t bb_len = 0;
 
 	/* count RMW registers as those will be handled separately */
@@ -293,25 +297,11 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 
 	xe_lrc_emit_hwe_state_instructions(q, bb);
 
-	job = xe_bb_create_job(q, bb);
-	if (IS_ERR(job)) {
-		xe_bb_free(bb, NULL);
-		return PTR_ERR(job);
-	}
+	ret = emit_job_sync(q, bb, HZ);
 
-	xe_sched_job_arm(job);
-	fence = dma_fence_get(&job->drm.s_fence->finished);
-	xe_sched_job_push(job);
-
-	timeout = dma_fence_wait_timeout(fence, false, HZ);
-	dma_fence_put(fence);
 	xe_bb_free(bb, NULL);
-	if (timeout < 0)
-		return timeout;
-	else if (!timeout)
-		return -ETIME;
 
-	return 0;
+	return ret;
 }
 
 int xe_gt_record_default_lrcs(struct xe_gt *gt)
