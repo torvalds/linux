@@ -217,7 +217,6 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  * @offs:      Byte offset within @page at which the block to encrypt begins
  * @lblk_num:  Filesystem logical block number of the block, i.e. the 0-based
  *		number of the block within the file
- * @gfp_flags: Memory allocation flags
  *
  * Encrypt a possibly-compressed filesystem block that is located in an
  * arbitrary page, not necessarily in the original pagecache page.  The @inode
@@ -229,7 +228,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  */
 int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
-				  u64 lblk_num, gfp_t gfp_flags)
+				  u64 lblk_num)
 {
 	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
 		return -EOPNOTSUPP;

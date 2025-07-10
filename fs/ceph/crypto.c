@@ -523,8 +523,7 @@ int ceph_fscrypt_encrypt_block_inplace(const struct inode *inode,
 
 	doutc(cl, "%p %llx.%llx len %u offs %u blk %llu\n", inode,
 	      ceph_vinop(inode), len, offs, lblk_num);
-	return fscrypt_encrypt_block_inplace(inode, page, len, offs, lblk_num,
-					     gfp_flags);
+	return fscrypt_encrypt_block_inplace(inode, page, len, offs, lblk_num);
 }
 
 /**
