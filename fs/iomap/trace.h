@@ -169,7 +169,7 @@ DEFINE_EVENT(iomap_class, name,	\
 DEFINE_IOMAP_EVENT(iomap_iter_dstmap);
 DEFINE_IOMAP_EVENT(iomap_iter_srcmap);
 
-TRACE_EVENT(iomap_writepage_map,
+TRACE_EVENT(iomap_add_to_ioend,
 	TP_PROTO(struct inode *inode, u64 pos, unsigned int dirty_len,
 		 struct iomap *iomap),
 	TP_ARGS(inode, pos, dirty_len, iomap),

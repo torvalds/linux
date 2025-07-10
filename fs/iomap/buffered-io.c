@@ -1668,13 +1668,29 @@ static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos,
  * At the end of a writeback pass, there will be a cached ioend remaining on the
  * writepage context that the caller will need to submit.
  */
-static int iomap_add_to_ioend(struct iomap_writepage_ctx *wpc,
-		struct folio *folio, loff_t pos, loff_t end_pos, unsigned len)
+ssize_t iomap_add_to_ioend(struct iomap_writepage_ctx *wpc, struct folio *folio,
+		loff_t pos, loff_t end_pos, unsigned int dirty_len)
 {
 	struct iomap_folio_state *ifs = folio->private;
 	size_t poff = offset_in_folio(folio, pos);
 	unsigned int ioend_flags = 0;
+	unsigned int map_len = min_t(u64, dirty_len,
+		wpc->iomap.offset + wpc->iomap.length - pos);
 	int error;
+
+	trace_iomap_add_to_ioend(wpc->inode, pos, dirty_len, &wpc->iomap);
+
+	WARN_ON_ONCE(!folio->private && map_len < dirty_len);
+
+	switch (wpc->iomap.type) {
+	case IOMAP_INLINE:
+		WARN_ON_ONCE(1);
+		return -EIO;
+	case IOMAP_HOLE:
+		return map_len;
+	default:
+		break;
+	}
 
 	if (wpc->iomap.type == IOMAP_UNWRITTEN)
 		ioend_flags |= IOMAP_IOEND_UNWRITTEN;
@@ -1693,11 +1709,11 @@ new_ioend:
 		wpc->ioend = iomap_alloc_ioend(wpc, pos, ioend_flags);
 	}
 
-	if (!bio_add_folio(&wpc->ioend->io_bio, folio, len, poff))
+	if (!bio_add_folio(&wpc->ioend->io_bio, folio, map_len, poff))
 		goto new_ioend;
 
 	if (ifs)
-		atomic_add(len, &ifs->write_bytes_pending);
+		atomic_add(map_len, &ifs->write_bytes_pending);
 
 	/*
 	 * Clamp io_offset and io_size to the incore EOF so that ondisk
@@ -1740,63 +1756,39 @@ new_ioend:
 	 * Note that this defeats the ability to chain the ioends of
 	 * appending writes.
 	 */
-	wpc->ioend->io_size += len;
+	wpc->ioend->io_size += map_len;
 	if (wpc->ioend->io_offset + wpc->ioend->io_size > end_pos)
 		wpc->ioend->io_size = end_pos - wpc->ioend->io_offset;
 
-	wbc_account_cgroup_owner(wpc->wbc, folio, len);
-	return 0;
+	wbc_account_cgroup_owner(wpc->wbc, folio, map_len);
+	return map_len;
 }
+EXPORT_SYMBOL_GPL(iomap_add_to_ioend);
 
-static int iomap_writepage_map_blocks(struct iomap_writepage_ctx *wpc,
-		struct folio *folio, u64 pos, u64 end_pos, unsigned dirty_len,
+static int iomap_writeback_range(struct iomap_writepage_ctx *wpc,
+		struct folio *folio, u64 pos, u32 rlen, u64 end_pos,
 		bool *wb_pending)
 {
-	int error;
-
 	do {
-		unsigned map_len;
+		ssize_t ret;
 
-		error = wpc->ops->map_blocks(wpc, wpc->inode, pos, dirty_len);
-		if (error)
-			break;
-		trace_iomap_writepage_map(wpc->inode, pos, dirty_len,
-				&wpc->iomap);
+		ret = wpc->ops->writeback_range(wpc, folio, pos, rlen, end_pos);
+		if (WARN_ON_ONCE(ret == 0 || ret > rlen))
+			return -EIO;
+		if (ret < 0)
+			return ret;
+		rlen -= ret;
+		pos += ret;
 
-		map_len = min_t(u64, dirty_len,
-			wpc->iomap.offset + wpc->iomap.length - pos);
-		WARN_ON_ONCE(!folio->private && map_len < dirty_len);
+		/*
+		 * Holes are not be written back by ->writeback_range, so track
+		 * if we did handle anything that is not a hole here.
+		 */
+		if (wpc->iomap.type != IOMAP_HOLE)
+			*wb_pending = true;
+	} while (rlen);
 
-		switch (wpc->iomap.type) {
-		case IOMAP_INLINE:
-			WARN_ON_ONCE(1);
-			error = -EIO;
-			break;
-		case IOMAP_HOLE:
-			break;
-		default:
-			error = iomap_add_to_ioend(wpc, folio, pos, end_pos,
-					map_len);
-			if (!error)
-				*wb_pending = true;
-			break;
-		}
-		dirty_len -= map_len;
-		pos += map_len;
-	} while (dirty_len && !error);
-
-	/*
-	 * We cannot cancel the ioend directly here on error.  We may have
-	 * already set other pages under writeback and hence we have to run I/O
-	 * completion to mark the error state of the pages under writeback
-	 * appropriately.
-	 *
-	 * Just let the file system know what portion of the folio failed to
-	 * map.
-	 */
-	if (error && wpc->ops->discard_folio)
-		wpc->ops->discard_folio(folio, pos);
-	return error;
+	return 0;
 }
 
 /*
@@ -1908,8 +1900,8 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	 */
 	end_aligned = round_up(end_pos, i_blocksize(inode));
 	while ((rlen = iomap_find_dirty_range(folio, &pos, end_aligned))) {
-		error = iomap_writepage_map_blocks(wpc, folio, pos, end_pos,
-				rlen, &wb_pending);
+		error = iomap_writeback_range(wpc, folio, pos, rlen, end_pos,
+				&wb_pending);
 		if (error)
 			break;
 		pos += rlen;

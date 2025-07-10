@@ -271,7 +271,7 @@ writeback.
 It does not lock ``i_rwsem`` or ``invalidate_lock``.
 
 The dirty bit will be cleared for all folios run through the
-``->map_blocks`` machinery described below even if the writeback fails.
+``->writeback_range`` machinery described below even if the writeback fails.
 This is to prevent dirty folio clots when storage devices fail; an
 ``-EIO`` is recorded for userspace to collect via ``fsync``.
 
@@ -283,15 +283,14 @@ The ``ops`` structure must be specified and is as follows:
 .. code-block:: c
 
  struct iomap_writeback_ops {
-     int (*map_blocks)(struct iomap_writepage_ctx *wpc, struct inode *inode,
-                       loff_t offset, unsigned len);
-     int (*submit_ioend)(struct iomap_writepage_ctx *wpc, int status);
-     void (*discard_folio)(struct folio *folio, loff_t pos);
+    int (*writeback_range)(struct iomap_writepage_ctx *wpc,
+         struct folio *folio, u64 pos, unsigned int len, u64 end_pos);
+    int (*submit_ioend)(struct iomap_writepage_ctx *wpc, int status);
  };
 
 The fields are as follows:
 
-  - ``map_blocks``: Sets ``wpc->iomap`` to the space mapping of the file
+  - ``writeback_range``: Sets ``wpc->iomap`` to the space mapping of the file
     range (in bytes) given by ``offset`` and ``len``.
     iomap calls this function for each dirty fs block in each dirty folio,
     though it will `reuse mappings
@@ -306,6 +305,15 @@ The fields are as follows:
     This revalidation must be open-coded by the filesystem; it is
     unclear if ``iomap::validity_cookie`` can be reused for this
     purpose.
+
+    If this methods fails to schedule I/O for any part of a dirty folio, it
+    should throw away any reservations that may have been made for the write.
+    The folio will be marked clean and an ``-EIO`` recorded in the
+    pagecache.
+    Filesystems can use this callback to `remove
+    <https://lore.kernel.org/all/20201029163313.1766967-1-bfoster@redhat.com/>`_
+    delalloc reservations to avoid having delalloc reservations for
+    clean pagecache.
     This function must be supplied by the filesystem.
 
   - ``submit_ioend``: Allows the file systems to hook into writeback bio
@@ -314,18 +322,6 @@ The fields are as follows:
     a custom ``->bi_end_io`` function for internal purposes, such as
     deferring the ioend completion to a workqueue to run metadata update
     transactions from process context before submitting the bio.
-    This function is optional.
-
-  - ``discard_folio``: iomap calls this function after ``->map_blocks``
-    fails to schedule I/O for any part of a dirty folio.
-    The function should throw away any reservations that may have been
-    made for the write.
-    The folio will be marked clean and an ``-EIO`` recorded in the
-    pagecache.
-    Filesystems can use this callback to `remove
-    <https://lore.kernel.org/all/20201029163313.1766967-1-bfoster@redhat.com/>`_
-    delalloc reservations to avoid having delalloc reservations for
-    clean pagecache.
     This function is optional.
 
 Pagecache Writeback Completion
