@@ -2103,6 +2103,7 @@ iopt_pages_get_exact_access(struct iopt_pages *pages, unsigned long index,
  * @last_index: Inclusive last page index
  * @out_pages: Output list of struct page's representing the PFNs
  * @flags: IOMMUFD_ACCESS_RW_* flags
+ * @lock_area: Fail userspace munmap on this area
  *
  * Record that an in-kernel access will be accessing the pages, ensure they are
  * pinned, and return the PFNs as a simple list of 'struct page *'.
@@ -2111,7 +2112,7 @@ iopt_pages_get_exact_access(struct iopt_pages *pages, unsigned long index,
  */
 int iopt_area_add_access(struct iopt_area *area, unsigned long start_index,
 			 unsigned long last_index, struct page **out_pages,
-			 unsigned int flags)
+			 unsigned int flags, bool lock_area)
 {
 	struct iopt_pages *pages = area->pages;
 	struct iopt_pages_access *access;
@@ -2124,6 +2125,8 @@ int iopt_area_add_access(struct iopt_area *area, unsigned long start_index,
 	access = iopt_pages_get_exact_access(pages, start_index, last_index);
 	if (access) {
 		area->num_accesses++;
+		if (lock_area)
+			area->num_locks++;
 		access->users++;
 		iopt_pages_fill_from_xarray(pages, start_index, last_index,
 					    out_pages);
@@ -2145,6 +2148,8 @@ int iopt_area_add_access(struct iopt_area *area, unsigned long start_index,
 	access->node.last = last_index;
 	access->users = 1;
 	area->num_accesses++;
+	if (lock_area)
+		area->num_locks++;
 	interval_tree_insert(&access->node, &pages->access_itree);
 	mutex_unlock(&pages->mutex);
 	return 0;
@@ -2161,12 +2166,13 @@ err_unlock:
  * @area: The source of PFNs
  * @start_index: First page index
  * @last_index: Inclusive last page index
+ * @unlock_area: Must match the matching iopt_area_add_access()'s lock_area
  *
  * Undo iopt_area_add_access() and unpin the pages if necessary. The caller
  * must stop using the PFNs before calling this.
  */
 void iopt_area_remove_access(struct iopt_area *area, unsigned long start_index,
-			     unsigned long last_index)
+			     unsigned long last_index, bool unlock_area)
 {
 	struct iopt_pages *pages = area->pages;
 	struct iopt_pages_access *access;
@@ -2177,6 +2183,10 @@ void iopt_area_remove_access(struct iopt_area *area, unsigned long start_index,
 		goto out_unlock;
 
 	WARN_ON(area->num_accesses == 0 || access->users == 0);
+	if (unlock_area) {
+		WARN_ON(area->num_locks == 0);
+		area->num_locks--;
+	}
 	area->num_accesses--;
 	access->users--;
 	if (access->users)
