@@ -1545,7 +1545,7 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 		if (!IS_ERR(op_mode))
 			return op_mode;
 
-		if (test_bit(STATUS_TRANS_DEAD, &drv->trans->status))
+		if (iwl_trans_is_dead(drv->trans))
 			break;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS

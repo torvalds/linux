@@ -1240,6 +1240,11 @@ static inline bool iwl_trans_device_enabled(struct iwl_trans *trans)
 	return test_bit(STATUS_DEVICE_ENABLED, &trans->status);
 }
 
+static inline bool iwl_trans_is_dead(struct iwl_trans *trans)
+{
+	return test_bit(STATUS_TRANS_DEAD, &trans->status);
+}
+
 /*****************************************************
  * PCIe handling
  *****************************************************/
