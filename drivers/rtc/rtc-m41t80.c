@@ -484,16 +484,17 @@ static unsigned long m41t80_sqw_recalc_rate(struct clk_hw *hw,
 	return sqw_to_m41t80_data(hw)->freq;
 }
 
-static long m41t80_sqw_round_rate(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *prate)
+static int m41t80_sqw_determine_rate(struct clk_hw *hw,
+				     struct clk_rate_request *req)
 {
-	if (rate >= M41T80_SQW_MAX_FREQ)
-		return M41T80_SQW_MAX_FREQ;
-	if (rate >= M41T80_SQW_MAX_FREQ / 4)
-		return M41T80_SQW_MAX_FREQ / 4;
-	if (!rate)
-		return 0;
-	return 1 << ilog2(rate);
+	if (req->rate >= M41T80_SQW_MAX_FREQ)
+		req->rate = M41T80_SQW_MAX_FREQ;
+	else if (req->rate >= M41T80_SQW_MAX_FREQ / 4)
+		req->rate = M41T80_SQW_MAX_FREQ / 4;
+	else if (req->rate)
+		req->rate = 1 << ilog2(req->rate);
+
+	return 0;
 }
 
 static int m41t80_sqw_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -564,7 +565,7 @@ static const struct clk_ops m41t80_sqw_ops = {
 	.unprepare = m41t80_sqw_unprepare,
 	.is_prepared = m41t80_sqw_is_prepared,
 	.recalc_rate = m41t80_sqw_recalc_rate,
-	.round_rate = m41t80_sqw_round_rate,
+	.determine_rate = m41t80_sqw_determine_rate,
 	.set_rate = m41t80_sqw_set_rate,
 };
 
