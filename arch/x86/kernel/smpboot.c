@@ -478,32 +478,30 @@ static int x86_cluster_flags(void)
  */
 static bool x86_has_numa_in_package;
 
-static struct sched_domain_topology_level x86_topology[6];
+static struct sched_domain_topology_level x86_topology[] = {
+	SDTL_INIT(cpu_smt_mask, cpu_smt_flags, SMT),
+#ifdef CONFIG_SCHED_CLUSTER
+	SDTL_INIT(cpu_clustergroup_mask, x86_cluster_flags, CLS),
+#endif
+#ifdef CONFIG_SCHED_MC
+	SDTL_INIT(cpu_coregroup_mask, x86_core_flags, MC),
+#endif
+	SDTL_INIT(cpu_cpu_mask, x86_sched_itmt_flags, PKG),
+	{ NULL },
+};
 
 static void __init build_sched_topology(void)
 {
-	int i = 0;
-
-	x86_topology[i++] = SDTL_INIT(cpu_smt_mask, cpu_smt_flags, SMT);
-#ifdef CONFIG_SCHED_CLUSTER
-	x86_topology[i++] = SDTL_INIT(cpu_clustergroup_mask, x86_cluster_flags, CLS);
-#endif
-#ifdef CONFIG_SCHED_MC
-	x86_topology[i++] = SDTL_INIT(cpu_coregroup_mask, x86_core_flags, MC);
-#endif
 	/*
-	 * When there is NUMA topology inside the package skip the PKG domain
-	 * since the NUMA domains will auto-magically create the right spanning
-	 * domains based on the SLIT.
+	 * When there is NUMA topology inside the package invalidate the
+	 * PKG domain since the NUMA domains will auto-magically create the
+	 * right spanning domains based on the SLIT.
 	 */
-	if (!x86_has_numa_in_package)
-		x86_topology[i++] = SDTL_INIT(cpu_cpu_mask, x86_sched_itmt_flags, PKG);
+	if (x86_has_numa_in_package) {
+		unsigned int pkgdom = ARRAY_SIZE(x86_topology) - 2;
 
-	/*
-	 * There must be one trailing NULL entry left.
-	 */
-	BUG_ON(i >= ARRAY_SIZE(x86_topology) - 1);
-
+		memset(&x86_topology[pkgdom], 0, sizeof(x86_topology[pkgdom]));
+	}
 	set_sched_topology(x86_topology);
 }
 
