@@ -626,17 +626,17 @@ static int mctp_sk_hash(struct sock *sk)
 	struct net *net = sock_net(sk);
 	struct sock *existing;
 	struct mctp_sock *msk;
+	u32 hash;
 	int rc;
 
 	msk = container_of(sk, struct mctp_sock, sk);
 
-	/* Bind lookup runs under RCU, remain live during that. */
-	sock_set_flag(sk, SOCK_RCU_FREE);
+	hash = mctp_bind_hash(msk->bind_type, msk->bind_addr, MCTP_ADDR_ANY);
 
 	mutex_lock(&net->mctp.bind_lock);
 
 	/* Prevent duplicate binds. */
-	sk_for_each(existing, &net->mctp.binds) {
+	sk_for_each(existing, &net->mctp.binds[hash]) {
 		struct mctp_sock *mex =
 			container_of(existing, struct mctp_sock, sk);
 
@@ -648,7 +648,10 @@ static int mctp_sk_hash(struct sock *sk)
 		}
 	}
 
-	sk_add_node_rcu(sk, &net->mctp.binds);
+	/* Bind lookup runs under RCU, remain live during that. */
+	sock_set_flag(sk, SOCK_RCU_FREE);
+
+	sk_add_node_rcu(sk, &net->mctp.binds[hash]);
 	rc = 0;
 
 out:
