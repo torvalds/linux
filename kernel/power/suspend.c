@@ -540,7 +540,6 @@ int suspend_devices_and_enter(suspend_state_t state)
 	return error;
 
  Recover_platform:
-	pm_restore_gfp_mask();
 	platform_recover(state);
 	goto Resume_devices;
 }
