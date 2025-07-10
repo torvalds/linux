@@ -388,63 +388,74 @@ void vp_modern_remove(struct virtio_pci_modern_device *mdev)
 EXPORT_SYMBOL_GPL(vp_modern_remove);
 
 /*
- * vp_modern_get_features - get features from device
+ * vp_modern_get_extended_features - get features from device
  * @mdev: the modern virtio-pci device
+ * @features: the features array to be filled
  *
- * Returns the features read from the device
+ * Fill the specified features array with the features read from the device
  */
-u64 vp_modern_get_features(struct virtio_pci_modern_device *mdev)
+void vp_modern_get_extended_features(struct virtio_pci_modern_device *mdev,
+				     u64 *features)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = mdev->common;
+	int i;
 
-	u64 features;
+	virtio_features_zero(features);
+	for (i = 0; i < VIRTIO_FEATURES_WORDS; i++) {
+		u64 cur;
 
-	vp_iowrite32(0, &cfg->device_feature_select);
-	features = vp_ioread32(&cfg->device_feature);
-	vp_iowrite32(1, &cfg->device_feature_select);
-	features |= ((u64)vp_ioread32(&cfg->device_feature) << 32);
-
-	return features;
+		vp_iowrite32(i, &cfg->device_feature_select);
+		cur = vp_ioread32(&cfg->device_feature);
+		features[i >> 1] |= cur << (32 * (i & 1));
+	}
 }
-EXPORT_SYMBOL_GPL(vp_modern_get_features);
+EXPORT_SYMBOL_GPL(vp_modern_get_extended_features);
 
 /*
  * vp_modern_get_driver_features - get driver features from device
  * @mdev: the modern virtio-pci device
+ * @features: the features array to be filled
  *
- * Returns the driver features read from the device
+ * Fill the specified features array with the driver features read from the
+ * device
  */
-u64 vp_modern_get_driver_features(struct virtio_pci_modern_device *mdev)
+void
+vp_modern_get_driver_extended_features(struct virtio_pci_modern_device *mdev,
+				       u64 *features)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = mdev->common;
+	int i;
 
-	u64 features;
+	virtio_features_zero(features);
+	for (i = 0; i < VIRTIO_FEATURES_WORDS; i++) {
+		u64 cur;
 
-	vp_iowrite32(0, &cfg->guest_feature_select);
-	features = vp_ioread32(&cfg->guest_feature);
-	vp_iowrite32(1, &cfg->guest_feature_select);
-	features |= ((u64)vp_ioread32(&cfg->guest_feature) << 32);
-
-	return features;
+		vp_iowrite32(i, &cfg->guest_feature_select);
+		cur = vp_ioread32(&cfg->guest_feature);
+		features[i >> 1] |= cur << (32 * (i & 1));
+	}
 }
-EXPORT_SYMBOL_GPL(vp_modern_get_driver_features);
+EXPORT_SYMBOL_GPL(vp_modern_get_driver_extended_features);
 
 /*
- * vp_modern_set_features - set features to device
+ * vp_modern_set_extended_features - set features to device
  * @mdev: the modern virtio-pci device
  * @features: the features set to device
  */
-void vp_modern_set_features(struct virtio_pci_modern_device *mdev,
-			    u64 features)
+void vp_modern_set_extended_features(struct virtio_pci_modern_device *mdev,
+				     const u64 *features)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = mdev->common;
+	int i;
 
-	vp_iowrite32(0, &cfg->guest_feature_select);
-	vp_iowrite32((u32)features, &cfg->guest_feature);
-	vp_iowrite32(1, &cfg->guest_feature_select);
-	vp_iowrite32(features >> 32, &cfg->guest_feature);
+	for (i = 0; i < VIRTIO_FEATURES_WORDS; i++) {
+		u32 cur = features[i >> 1] >> (32 * (i & 1));
+
+		vp_iowrite32(i, &cfg->guest_feature_select);
+		vp_iowrite32(cur, &cfg->guest_feature);
+	}
 }
-EXPORT_SYMBOL_GPL(vp_modern_set_features);
+EXPORT_SYMBOL_GPL(vp_modern_set_extended_features);
 
 /*
  * vp_modern_generation - get the device genreation
