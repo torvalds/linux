@@ -2380,7 +2380,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_vma_ops *vops,
 
 			ctx.read_only = xe_vma_read_only(vma);
 			ctx.devmem_possible = IS_DGFX(vm->xe) &&
-					      IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR);
+					      IS_ENABLED(CONFIG_DRM_XE_PAGEMAP);
 
 			for_each_tile(tile, vm->xe, id)
 				tile_mask |= 0x1 << id;
@@ -2887,7 +2887,7 @@ static int check_ufence(struct xe_vma *vma)
 
 static int prefetch_ranges(struct xe_vm *vm, struct xe_vma_op *op)
 {
-	bool devmem_possible = IS_DGFX(vm->xe) && IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR);
+	bool devmem_possible = IS_DGFX(vm->xe) && IS_ENABLED(CONFIG_DRM_XE_PAGEMAP);
 	struct xe_vma *vma = gpuva_to_vma(op->base.prefetch.va);
 	int err = 0;
 
