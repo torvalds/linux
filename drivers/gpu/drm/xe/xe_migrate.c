@@ -82,7 +82,7 @@ struct xe_migrate {
  * of the instruction.  Subtracting the instruction header (1 dword) and
  * address (2 dwords), that leaves 0x3FD dwords (0x1FE qwords) for PTE values.
  */
-#define MAX_PTE_PER_SDI 0x1FE
+#define MAX_PTE_PER_SDI 0x1FEU
 
 /**
  * xe_tile_migrate_exec_queue() - Get this tile's migrate exec queue.
@@ -1553,15 +1553,17 @@ static u32 pte_update_cmd_size(u64 size)
 	u64 entries = DIV_U64_ROUND_UP(size, XE_PAGE_SIZE);
 
 	XE_WARN_ON(size > MAX_PREEMPTDISABLE_TRANSFER);
+
 	/*
 	 * MI_STORE_DATA_IMM command is used to update page table. Each
-	 * instruction can update maximumly 0x1ff pte entries. To update
-	 * n (n <= 0x1ff) pte entries, we need:
-	 * 1 dword for the MI_STORE_DATA_IMM command header (opcode etc)
-	 * 2 dword for the page table's physical location
-	 * 2*n dword for value of pte to fill (each pte entry is 2 dwords)
+	 * instruction can update maximumly MAX_PTE_PER_SDI pte entries. To
+	 * update n (n <= MAX_PTE_PER_SDI) pte entries, we need:
+	 *
+	 * - 1 dword for the MI_STORE_DATA_IMM command header (opcode etc)
+	 * - 2 dword for the page table's physical location
+	 * - 2*n dword for value of pte to fill (each pte entry is 2 dwords)
 	 */
-	num_dword = (1 + 2) * DIV_U64_ROUND_UP(entries, 0x1ff);
+	num_dword = (1 + 2) * DIV_U64_ROUND_UP(entries, MAX_PTE_PER_SDI);
 	num_dword += entries * 2;
 
 	return num_dword;
@@ -1577,7 +1579,7 @@ static void build_pt_update_batch_sram(struct xe_migrate *m,
 
 	ptes = DIV_ROUND_UP(size, XE_PAGE_SIZE);
 	while (ptes) {
-		u32 chunk = min(0x1ffU, ptes);
+		u32 chunk = min(MAX_PTE_PER_SDI, ptes);
 
 		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(chunk);
 		bb->cs[bb->len++] = pt_offset;

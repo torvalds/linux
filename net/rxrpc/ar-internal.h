@@ -361,12 +361,15 @@ struct rxrpc_local {
 	struct list_head	new_client_calls; /* Newly created client calls need connection */
 	spinlock_t		client_call_lock; /* Lock for ->new_client_calls */
 	struct sockaddr_rxrpc	srx;		/* local address */
-	/* Provide a kvec table sufficiently large to manage either a DATA
-	 * packet with a maximum set of jumbo subpackets or a PING ACK padded
-	 * out to 64K with zeropages for PMTUD.
-	 */
-	struct kvec		kvec[1 + RXRPC_MAX_NR_JUMBO > 3 + 16 ?
-				     1 + RXRPC_MAX_NR_JUMBO : 3 + 16];
+	union {
+		/* Provide a kvec table sufficiently large to manage either a
+		 * DATA packet with a maximum set of jumbo subpackets or a PING
+		 * ACK padded out to 64K with zeropages for PMTUD.
+		 */
+		struct kvec		kvec[1 + RXRPC_MAX_NR_JUMBO > 3 + 16 ?
+					     1 + RXRPC_MAX_NR_JUMBO : 3 + 16];
+		struct bio_vec		bvec[3 + 16];
+	};
 };
 
 /*

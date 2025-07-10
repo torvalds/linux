@@ -38,6 +38,7 @@ static int s390_sha1_init(struct shash_desc *desc)
 	sctx->state[4] = SHA1_H4;
 	sctx->count = 0;
 	sctx->func = CPACF_KIMD_SHA_1;
+	sctx->first_message_part = 0;
 
 	return 0;
 }
@@ -60,6 +61,7 @@ static int s390_sha1_import(struct shash_desc *desc, const void *in)
 	sctx->count = ictx->count;
 	memcpy(sctx->state, ictx->state, sizeof(ictx->state));
 	sctx->func = CPACF_KIMD_SHA_1;
+	sctx->first_message_part = 0;
 	return 0;
 }
 

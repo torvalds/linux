@@ -333,6 +333,7 @@ static int mem_repair_create_desc(struct device *dev,
 	for (i = 0; i < MR_MAX_ATTRS; i++) {
 		memcpy(&ctx->mem_repair_dev_attr[i],
 		       &dev_attr[i], sizeof(dev_attr[i]));
+		sysfs_attr_init(&ctx->mem_repair_dev_attr[i].dev_attr.attr);
 		ctx->mem_repair_attrs[i] =
 			&ctx->mem_repair_dev_attr[i].dev_attr.attr;
 	}
