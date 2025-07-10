@@ -1689,7 +1689,7 @@ static void iwl_mvm_set_aes_ptk_rx_seq(struct iwl_mvm *mvm,
 }
 
 static void iwl_mvm_convert_key_counters(struct iwl_wowlan_status_data *status,
-					 union iwl_all_tsc_rsc *sc)
+					 union iwl_all_tsc_rsc *sc, u8 key_idx)
 {
 	int i;
 
@@ -1704,7 +1704,7 @@ static void iwl_mvm_convert_key_counters(struct iwl_wowlan_status_data *status,
 				      &status->gtk_seq[0].aes.seq[i]);
 	}
 	status->gtk_seq[0].valid = true;
-	status->gtk_seq[0].key_id = -1;
+	status->gtk_seq[0].key_id = key_idx;
 
 	/* PTK TX counter */
 	status->ptk.tkip.tx_pn = (u64)le16_to_cpu(sc->tkip.tsc.iv16) |
@@ -1795,7 +1795,6 @@ static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
 		if (!status->gtk_seq[i].valid)
 			continue;
 
-		/* Handle the case where we know the key ID */
 		if (status->gtk_seq[i].key_id == key->keyidx) {
 			s8 new_key_id = -1;
 
@@ -1806,13 +1805,7 @@ static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
 			/* Don't install a new key's value to an old key */
 			if (new_key_id != key->keyidx)
 				iwl_mvm_set_key_rx_seq_idx(key, status, i);
-			continue;
 		}
-
-		/* handle the case where we didn't, last key only */
-		if (status->gtk_seq[i].key_id == -1 &&
-		    (!status->num_of_gtk_rekeys))
-			iwl_mvm_set_key_rx_seq_idx(key, status, i);
 	}
 }
 
@@ -2522,7 +2515,8 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		       v6->gtk.tkip_mic_key,
 		       sizeof(v6->gtk.tkip_mic_key));
 
-		iwl_mvm_convert_key_counters(status, &v6->gtk.rsc.all_tsc_rsc);
+		iwl_mvm_convert_key_counters(status, &v6->gtk.rsc.all_tsc_rsc,
+					     v6->gtk.key_index);
 
 		/* hardcode the key length to 16 since v6 only supports 16 */
 		status->gtk[0].len = 16;
@@ -2541,7 +2535,8 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		if (!status)
 			goto out_free_resp;
 
-		iwl_mvm_convert_key_counters(status, &v7->gtk[0].rsc.all_tsc_rsc);
+		iwl_mvm_convert_key_counters(status, &v7->gtk[0].rsc.all_tsc_rsc,
+					     v7->gtk[0].key_flags & IWL_WOWLAN_GTK_IDX_MASK);
 		iwl_mvm_convert_gtk_v2(status, &v7->gtk[0]);
 		iwl_mvm_convert_igtk(status, &v7->igtk[0]);
 	} else {
