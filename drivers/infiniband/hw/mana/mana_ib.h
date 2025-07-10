@@ -516,6 +516,14 @@ struct mana_rnic_query_vf_cntrs_resp {
 	u64 rate_inc_events;
 	u64 num_qps_recovered;
 	u64 current_rate;
+	u64 dup_rx_req;
+	u64 tx_bytes;
+	u64 rx_bytes;
+	u64 rx_send_req;
+	u64 rx_write_req;
+	u64 rx_read_req;
+	u64 tx_pkt;
+	u64 rx_pkt;
 }; /* HW Data */
 
 struct mana_rnic_query_device_cntrs_req {

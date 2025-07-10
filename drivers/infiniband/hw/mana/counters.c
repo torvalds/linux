@@ -32,6 +32,14 @@ static const struct rdma_stat_desc mana_ib_port_stats_desc[] = {
 	[MANA_IB_RATE_INC_EVENTS].name = "rate_inc_events",
 	[MANA_IB_NUM_QPS_RECOVERED].name = "num_qps_recovered",
 	[MANA_IB_CURRENT_RATE].name = "current_rate",
+	[MANA_IB_DUP_RX_REQ].name = "dup_rx_requests",
+	[MANA_IB_TX_BYTES].name = "tx_bytes",
+	[MANA_IB_RX_BYTES].name = "rx_bytes",
+	[MANA_IB_RX_SEND_REQ].name = "rx_send_requests",
+	[MANA_IB_RX_WRITE_REQ].name = "rx_write_requests",
+	[MANA_IB_RX_READ_REQ].name = "rx_read_requests",
+	[MANA_IB_TX_PKT].name = "tx_packets",
+	[MANA_IB_RX_PKT].name = "rx_packets",
 };
 
 static const struct rdma_stat_desc mana_ib_device_stats_desc[] = {
@@ -100,6 +108,7 @@ static int mana_ib_get_hw_port_stats(struct ib_device *ibdev, struct rdma_hw_sta
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_IB_QUERY_VF_COUNTERS,
 			     sizeof(req), sizeof(resp));
+	req.hdr.resp.msg_version = GDMA_MESSAGE_V2;
 	req.hdr.dev_id = mdev->gdma_dev->dev_id;
 	req.adapter = mdev->adapter_handle;
 
@@ -147,6 +156,15 @@ static int mana_ib_get_hw_port_stats(struct ib_device *ibdev, struct rdma_hw_sta
 	stats->value[MANA_IB_RATE_INC_EVENTS] = resp.rate_inc_events;
 	stats->value[MANA_IB_NUM_QPS_RECOVERED] = resp.num_qps_recovered;
 	stats->value[MANA_IB_CURRENT_RATE] = resp.current_rate;
+
+	stats->value[MANA_IB_DUP_RX_REQ] = resp.dup_rx_req;
+	stats->value[MANA_IB_TX_BYTES] = resp.tx_bytes;
+	stats->value[MANA_IB_RX_BYTES] = resp.rx_bytes;
+	stats->value[MANA_IB_RX_SEND_REQ] = resp.rx_send_req;
+	stats->value[MANA_IB_RX_WRITE_REQ] = resp.rx_write_req;
+	stats->value[MANA_IB_RX_READ_REQ] = resp.rx_read_req;
+	stats->value[MANA_IB_TX_PKT] = resp.tx_pkt;
+	stats->value[MANA_IB_RX_PKT] = resp.rx_pkt;
 
 	return ARRAY_SIZE(mana_ib_port_stats_desc);
 }
