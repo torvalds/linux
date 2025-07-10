@@ -12,12 +12,11 @@
 #include <linux/cdev.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of_clk.h>
-#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -38,7 +37,7 @@ struct aic32x4_priv {
 	u32 power_cfg;
 	u32 micpga_routing;
 	bool swapdacs;
-	int rstn_gpio;
+	struct gpio_desc *rstn_gpio;
 	const char *mclk_name;
 
 	struct regulator *supply_ldo;
@@ -1236,7 +1235,14 @@ static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
 
 	aic32x4->swapdacs = false;
 	aic32x4->micpga_routing = 0;
-	aic32x4->rstn_gpio = of_get_named_gpio(np, "reset-gpios", 0);
+	/* Assert reset using GPIOD_OUT_HIGH, because reset is GPIO_ACTIVE_LOW */
+	aic32x4->rstn_gpio = devm_gpiod_get_optional(aic32x4->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(aic32x4->rstn_gpio)) {
+		return dev_err_probe(aic32x4->dev, PTR_ERR(aic32x4->rstn_gpio),
+				     "Failed to get reset gpio\n");
+	} else {
+		gpiod_set_consumer_name(aic32x4->rstn_gpio, "tlv320aic32x4_rstn");
+	}
 
 	if (of_property_read_u32_array(np, "aic32x4-gpio-func",
 				aic32x4_setup->gpio_func, 5) >= 0)
@@ -1372,15 +1378,8 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 		aic32x4->power_cfg = 0;
 		aic32x4->swapdacs = false;
 		aic32x4->micpga_routing = 0;
-		aic32x4->rstn_gpio = -1;
+		aic32x4->rstn_gpio = NULL;
 		aic32x4->mclk_name = "mclk";
-	}
-
-	if (gpio_is_valid(aic32x4->rstn_gpio)) {
-		ret = devm_gpio_request_one(dev, aic32x4->rstn_gpio,
-				GPIOF_OUT_INIT_LOW, "tlv320aic32x4 rstn");
-		if (ret != 0)
-			return ret;
 	}
 
 	ret = aic32x4_setup_regulators(dev, aic32x4);
@@ -1389,9 +1388,10 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	if (gpio_is_valid(aic32x4->rstn_gpio)) {
+	if (!aic32x4->rstn_gpio) {
 		ndelay(10);
-		gpio_set_value_cansleep(aic32x4->rstn_gpio, 1);
+		/* deassert reset */
+		gpiod_set_value_cansleep(aic32x4->rstn_gpio, 0);
 		mdelay(1);
 	}
 
