@@ -47,7 +47,6 @@ static struct bench_futex_parameters params = {
 
 static const struct option options[] = {
 	OPT_INTEGER( 'b', "buckets", &params.nbuckets, "Specify amount of hash buckets"),
-	OPT_BOOLEAN( 'I', "immutable", &params.buckets_immutable, "Make the hash buckets immutable"),
 	OPT_UINTEGER('t', "threads", &params.nthreads, "Specify amount of threads"),
 	OPT_UINTEGER('r', "runtime", &params.runtime, "Specify runtime (in seconds)"),
 	OPT_BOOLEAN( 'M', "multi",   &params.multi, "Use multiple futexes"),
