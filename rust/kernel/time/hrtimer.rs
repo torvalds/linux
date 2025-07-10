@@ -398,7 +398,7 @@ pub unsafe trait HasHrTimer<T> {
                 Self::c_timer_ptr(this).cast_mut(),
                 expires.as_nanos(),
                 0,
-                <Self::TimerMode as HrTimerMode>::Clock::ID as u32,
+                <Self::TimerMode as HrTimerMode>::C_MODE,
             );
         }
     }
