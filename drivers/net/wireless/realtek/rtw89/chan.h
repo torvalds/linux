@@ -178,6 +178,11 @@ const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
 #define rtw89_mgnt_chan_get(rtwdev, link_index) \
 	__rtw89_mgnt_chan_get(rtwdev, __func__, link_index)
 
+struct rtw89_mcc_links_info {
+	struct rtw89_vif_link *links[NUM_OF_RTW89_MCC_ROLES];
+};
+
+void rtw89_mcc_get_links(struct rtw89_dev *rtwdev, struct rtw89_mcc_links_info *info);
 void rtw89_mcc_prepare_done_work(struct wiphy *wiphy, struct wiphy_work *work);
 
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,

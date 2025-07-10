@@ -4341,6 +4341,7 @@ enum rtw89_mrc_h2c_func {
 #define H2C_FUNC_OUTSRC_RA_MACIDCFG	0x0
 
 #define H2C_CL_OUTSRC_DM		0x2
+#define H2C_FUNC_FW_MCC_DIG		0x6
 #define H2C_FUNC_FW_LPS_CH_INFO		0xb
 #define H2C_FUNC_FW_LPS_ML_CMN_INFO	0xe
 
@@ -4377,6 +4378,27 @@ struct rtw89_fw_h2c_rf_get_mccch_v0 {
 	__le32 current_channel;
 	__le32 current_band_type;
 } __packed;
+
+struct rtw89_h2c_mcc_dig {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+} __packed;
+
+#define RTW89_H2C_MCC_DIG_W0_REG_CNT GENMASK(7, 0)
+#define RTW89_H2C_MCC_DIG_W0_DM_EN BIT(8)
+#define RTW89_H2C_MCC_DIG_W0_IDX GENMASK(10, 9)
+#define RTW89_H2C_MCC_DIG_W0_SET BIT(11)
+#define RTW89_H2C_MCC_DIG_W0_PHY0_EN BIT(12)
+#define RTW89_H2C_MCC_DIG_W0_PHY1_EN BIT(13)
+#define RTW89_H2C_MCC_DIG_W0_CENTER_CH GENMASK(23, 16)
+#define RTW89_H2C_MCC_DIG_W0_BAND_TYPE GENMASK(31, 24)
+#define RTW89_H2C_MCC_DIG_W1_ADDR_LSB GENMASK(7, 0)
+#define RTW89_H2C_MCC_DIG_W1_ADDR_MSB GENMASK(15, 8)
+#define RTW89_H2C_MCC_DIG_W1_BMASK_LSB GENMASK(23, 16)
+#define RTW89_H2C_MCC_DIG_W1_BMASK_MSB GENMASK(31, 24)
+#define RTW89_H2C_MCC_DIG_W2_VAL_LSB GENMASK(7, 0)
+#define RTW89_H2C_MCC_DIG_W2_VAL_MSB GENMASK(15, 8)
 
 #define NUM_OF_RTW89_FW_RFK_PATH 2
 #define NUM_OF_RTW89_FW_RFK_TBL 3
@@ -4774,6 +4796,9 @@ int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_rf_ps_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx);
+int rtw89_fw_h2c_mcc_dig(struct rtw89_dev *rtwdev,
+			 enum rtw89_chanctx_idx chanctx_idx,
+			 u8 mcc_role_idx, u8 pd_val, bool en);
 int rtw89_fw_h2c_rf_tssi(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 			 const struct rtw89_chan *chan, enum rtw89_tssi_mode tssi_mode);
 int rtw89_fw_h2c_rf_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,

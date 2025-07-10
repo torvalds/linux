@@ -6316,18 +6316,13 @@ static void rtw89_phy_dig_config_igi(struct rtw89_dev *rtwdev,
 	}
 }
 
-static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev,
-				    struct rtw89_bb_ctx *bb,
-				    u8 rssi, bool enable)
+static u8 rtw89_phy_dig_cal_under_region(struct rtw89_dev *rtwdev,
+					 struct rtw89_bb_ctx *bb,
+					 const struct rtw89_chan *chan)
 {
-	const struct rtw89_chan *chan = rtw89_mgnt_chan_get(rtwdev, bb->phy_idx);
-	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
 	enum rtw89_bandwidth cbw = chan->band_width;
 	struct rtw89_dig_info *dig = &bb->dig;
-	u8 final_rssi = 0, under_region = dig->pd_low_th_ofst;
-	u8 ofdm_cca_th;
-	s8 cck_cca_th;
-	u32 pd_val = 0;
+	u8 under_region = dig->pd_low_th_ofst;
 
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
 		under_region += PD_TH_SB_FLTR_CMP_VAL;
@@ -6349,6 +6344,20 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev,
 		break;
 	}
 
+	return under_region;
+}
+
+static u32 __rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev,
+				     struct rtw89_bb_ctx *bb,
+				     u8 rssi, bool enable,
+				     const struct rtw89_chan *chan)
+{
+	struct rtw89_dig_info *dig = &bb->dig;
+	u8 ofdm_cca_th, under_region;
+	u8 final_rssi;
+	u32 pd_val;
+
+	under_region = rtw89_phy_dig_cal_under_region(rtwdev, bb, chan);
 	dig->dyn_pd_th_max = dig->igi_rssi;
 
 	final_rssi = min_t(u8, rssi, dig->igi_rssi);
@@ -6361,9 +6370,26 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev,
 			    "igi=%d, ofdm_ccaTH=%d, backoff=%d, PD_low=%d\n",
 			    final_rssi, ofdm_cca_th, under_region, pd_val);
 	} else {
+		pd_val = 0;
 		rtw89_debug(rtwdev, RTW89_DBG_DIG,
 			    "Dynamic PD th disabled, Set PD_low_bd=0\n");
 	}
+
+	return pd_val;
+}
+
+static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev,
+				    struct rtw89_bb_ctx *bb,
+				    u8 rssi, bool enable)
+{
+	const struct rtw89_chan *chan = rtw89_mgnt_chan_get(rtwdev, bb->phy_idx);
+	const struct rtw89_dig_regs *dig_regs = rtwdev->chip->dig_regs;
+	struct rtw89_dig_info *dig = &bb->dig;
+	u8 final_rssi, under_region = dig->pd_low_th_ofst;
+	s8 cck_cca_th;
+	u32 pd_val;
+
+	pd_val = __rtw89_phy_dig_dyn_pd_th(rtwdev, bb, rssi, enable, chan);
 
 	rtw89_phy_write32_idx(rtwdev, dig_regs->seg0_pd_reg,
 			      dig_regs->pd_lower_bound_mask, pd_val, bb->phy_idx);
@@ -6373,6 +6399,8 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev,
 	if (!rtwdev->hal.support_cckpd)
 		return;
 
+	final_rssi = min_t(u8, rssi, dig->igi_rssi);
+	under_region = rtw89_phy_dig_cal_under_region(rtwdev, bb, chan);
 	cck_cca_th = max_t(s8, final_rssi - under_region, CCKPD_TH_MIN_RSSI);
 	pd_val = (u32)(cck_cca_th - IGI_RSSI_MAX);
 
@@ -6400,31 +6428,11 @@ void rtw89_phy_dig_reset(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
 
 #define IGI_RSSI_MIN 10
 #define ABS_IGI_MIN 0xc
-static void __rtw89_phy_dig(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
+static
+void rtw89_phy_cal_igi_fa_rssi(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
 {
 	struct rtw89_dig_info *dig = &bb->dig;
-	bool is_linked = rtwdev->total_sta_assoc > 0;
 	u8 igi_min;
-
-	if (unlikely(dig->bypass_dig)) {
-		dig->bypass_dig = false;
-		return;
-	}
-
-	rtw89_debug(rtwdev, RTW89_DBG_DIG, "BB-%d dig track\n", bb->phy_idx);
-
-	rtw89_phy_dig_update_rssi_info(rtwdev, bb);
-
-	if (!dig->is_linked_pre && is_linked) {
-		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First connected\n");
-		rtw89_phy_dig_update_para(rtwdev, bb);
-		dig->igi_fa_rssi = dig->igi_rssi;
-	} else if (dig->is_linked_pre && !is_linked) {
-		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First disconnected\n");
-		rtw89_phy_dig_update_para(rtwdev, bb);
-		dig->igi_fa_rssi = dig->igi_rssi;
-	}
-	dig->is_linked_pre = is_linked;
 
 	rtw89_phy_dig_igi_offset_by_env(rtwdev, bb);
 
@@ -6439,6 +6447,124 @@ static void __rtw89_phy_dig(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
 	} else {
 		dig->igi_fa_rssi = dig->dyn_igi_max;
 	}
+}
+
+struct rtw89_phy_iter_mcc_dig {
+	struct rtw89_vif_link *rtwvif_link;
+	bool has_sta;
+	u8 rssi_min;
+};
+
+static void rtw89_phy_set_mcc_dig(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_bb_ctx *bb,
+				  u8 rssi_min, u8 mcc_role_idx,
+				  bool is_linked)
+{
+	struct rtw89_dig_info *dig = &bb->dig;
+	const struct rtw89_chan *chan;
+	u8 pd_val;
+
+	if (is_linked) {
+		dig->igi_rssi = rssi_min >> 1;
+		dig->igi_fa_rssi = dig->igi_rssi;
+	} else {
+		rtw89_debug(rtwdev, RTW89_DBG_DIG, "RSSI update : NO Link\n");
+		dig->igi_rssi = rssi_nolink;
+		dig->igi_fa_rssi = dig->igi_rssi;
+	}
+
+	chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+	rtw89_phy_cal_igi_fa_rssi(rtwdev, bb);
+	pd_val = __rtw89_phy_dig_dyn_pd_th(rtwdev, bb, dig->igi_fa_rssi,
+					   is_linked, chan);
+	rtw89_fw_h2c_mcc_dig(rtwdev, rtwvif_link->chanctx_idx,
+			     mcc_role_idx, pd_val, true);
+
+	rtw89_debug(rtwdev, RTW89_DBG_DIG,
+		    "MCC chanctx_idx %d chan %d rssi %d pd_val %d",
+		    rtwvif_link->chanctx_idx, chan->primary_channel,
+		    dig->igi_rssi, pd_val);
+}
+
+static void rtw89_phy_set_mcc_dig_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_phy_iter_mcc_dig *mcc_dig = (struct rtw89_phy_iter_mcc_dig *)data;
+	unsigned int link_id = mcc_dig->rtwvif_link->link_id;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
+	struct rtw89_sta_link *rtwsta_link;
+
+	if (rtwsta->rtwvif != mcc_dig->rtwvif_link->rtwvif)
+		return;
+
+	rtwsta_link = rtwsta->links[link_id];
+	if (!rtwsta_link)
+		return;
+
+	mcc_dig->has_sta = true;
+	if (ewma_rssi_read(&rtwsta_link->avg_rssi) < mcc_dig->rssi_min)
+		mcc_dig->rssi_min = ewma_rssi_read(&rtwsta_link->avg_rssi);
+}
+
+static void rtw89_phy_dig_mcc(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
+{
+	struct rtw89_phy_iter_mcc_dig mcc_dig;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_mcc_links_info info;
+	int i;
+
+	rtw89_mcc_get_links(rtwdev, &info);
+	for (i = 0; i < ARRAY_SIZE(info.links); i++) {
+		rtwvif_link = info.links[i];
+		if (!rtwvif_link)
+			continue;
+
+		memset(&mcc_dig, 0, sizeof(mcc_dig));
+		mcc_dig.rtwvif_link = rtwvif_link;
+		mcc_dig.has_sta = false;
+		mcc_dig.rssi_min = U8_MAX;
+		ieee80211_iterate_stations_atomic(rtwdev->hw,
+						  rtw89_phy_set_mcc_dig_iter,
+						  &mcc_dig);
+
+		rtw89_phy_set_mcc_dig(rtwdev, rtwvif_link, bb,
+				      mcc_dig.rssi_min, i, mcc_dig.has_sta);
+	}
+}
+
+static void __rtw89_phy_dig(struct rtw89_dev *rtwdev, struct rtw89_bb_ctx *bb)
+{
+	struct rtw89_dig_info *dig = &bb->dig;
+	bool is_linked = rtwdev->total_sta_assoc > 0;
+	enum rtw89_entity_mode mode;
+
+	if (unlikely(dig->bypass_dig)) {
+		dig->bypass_dig = false;
+		return;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_DIG, "BB-%d dig track\n", bb->phy_idx);
+
+	rtw89_phy_dig_update_rssi_info(rtwdev, bb);
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	if (mode == RTW89_ENTITY_MODE_MCC) {
+		rtw89_phy_dig_mcc(rtwdev, bb);
+		return;
+	}
+
+	if (!dig->is_linked_pre && is_linked) {
+		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First connected\n");
+		rtw89_phy_dig_update_para(rtwdev, bb);
+		dig->igi_fa_rssi = dig->igi_rssi;
+	} else if (dig->is_linked_pre && !is_linked) {
+		rtw89_debug(rtwdev, RTW89_DBG_DIG, "First disconnected\n");
+		rtw89_phy_dig_update_para(rtwdev, bb);
+		dig->igi_fa_rssi = dig->igi_rssi;
+	}
+	dig->is_linked_pre = is_linked;
+
+	rtw89_phy_cal_igi_fa_rssi(rtwdev, bb);
 
 	rtw89_debug(rtwdev, RTW89_DBG_DIG,
 		    "rssi=%03d, dyn_joint(max,min)=(%d,%d), final_rssi=%d\n",

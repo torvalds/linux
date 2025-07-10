@@ -2371,6 +2371,7 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev,
 	rtw89_chanctx_notify(rtwdev, RTW89_CHANCTX_STATE_MCC_STOP);
 
 	rtw89_mcc_stop_beacon_noa(rtwdev);
+	rtw89_fw_h2c_mcc_dig(rtwdev, RTW89_CHANCTX_0, 0, 0, false);
 
 	rtw89_mcc_prepare(rtwdev, false);
 }
@@ -2620,6 +2621,30 @@ static void rtw89_mcc_update_limit(struct rtw89_dev *rtwdev)
 		return;
 
 	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_upd_lmt_iterator, NULL);
+}
+
+static int rtw89_mcc_get_links_iterator(struct rtw89_dev *rtwdev,
+					struct rtw89_mcc_role *mcc_role,
+					unsigned int ordered_idx,
+					void *data)
+{
+	struct rtw89_mcc_links_info *info = data;
+
+	info->links[ordered_idx] = mcc_role->rtwvif_link;
+	return 0;
+}
+
+void rtw89_mcc_get_links(struct rtw89_dev *rtwdev, struct rtw89_mcc_links_info *info)
+{
+	enum rtw89_entity_mode mode;
+
+	memset(info, 0, sizeof(*info));
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	if (unlikely(mode != RTW89_ENTITY_MODE_MCC))
+		return;
+
+	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_get_links_iterator, info);
 }
 
 void rtw89_chanctx_work(struct wiphy *wiphy, struct wiphy_work *work)
