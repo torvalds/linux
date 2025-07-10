@@ -601,6 +601,19 @@ cpt_set_link_train(struct intel_dp *intel_dp,
 }
 
 static void
+cpt_set_idle_link_train(struct intel_dp *intel_dp,
+			const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK_CPT;
+	intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
+
+	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(display, intel_dp->output_reg);
+}
+
+static void
 g4x_set_link_train(struct intel_dp *intel_dp,
 		   const struct intel_crtc_state *crtc_state,
 		   u8 dp_train_pat)
@@ -623,6 +636,19 @@ g4x_set_link_train(struct intel_dp *intel_dp,
 		MISSING_CASE(intel_dp_training_pattern_symbol(dp_train_pat));
 		return;
 	}
+
+	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
+	intel_de_posting_read(display, intel_dp->output_reg);
+}
+
+static void
+g4x_set_idle_link_train(struct intel_dp *intel_dp,
+			const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	intel_dp->DP &= ~DP_LINK_TRAIN_MASK;
+	intel_dp->DP |= DP_LINK_TRAIN_PAT_IDLE;
 
 	intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(display, intel_dp->output_reg);
@@ -1331,10 +1357,13 @@ bool g4x_dp_init(struct intel_display *display,
 	intel_encoder->audio_disable = g4x_dp_audio_disable;
 
 	if ((display->platform.ivybridge && port == PORT_A) ||
-	    (HAS_PCH_CPT(display) && port != PORT_A))
+	    (HAS_PCH_CPT(display) && port != PORT_A)) {
 		dig_port->dp.set_link_train = cpt_set_link_train;
-	else
+		dig_port->dp.set_idle_link_train = cpt_set_idle_link_train;
+	} else {
 		dig_port->dp.set_link_train = g4x_set_link_train;
+		dig_port->dp.set_idle_link_train = g4x_set_idle_link_train;
+	}
 
 	if (display->platform.cherryview)
 		intel_encoder->set_signal_levels = chv_set_signal_levels;
