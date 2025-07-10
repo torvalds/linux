@@ -419,7 +419,8 @@ size_t arm_smmu_get_viommu_size(struct device *dev,
 }
 
 int arm_vsmmu_init(struct iommufd_viommu *viommu,
-		   struct iommu_domain *parent_domain)
+		   struct iommu_domain *parent_domain,
+		   const struct iommu_user_data *user_data)
 {
 	struct arm_vsmmu *vsmmu = container_of(viommu, struct arm_vsmmu, core);
 	struct arm_smmu_device *smmu =

@@ -779,7 +779,8 @@ static size_t mock_get_viommu_size(struct device *dev,
 }
 
 static int mock_viommu_init(struct iommufd_viommu *viommu,
-			    struct iommu_domain *parent_domain)
+			    struct iommu_domain *parent_domain,
+			    const struct iommu_user_data *user_data)
 {
 	struct mock_iommu_device *mock_iommu = container_of(
 		viommu->iommu_dev, struct mock_iommu_device, iommu_dev);

@@ -84,7 +84,7 @@ int iommufd_viommu_alloc_ioctl(struct iommufd_ucmd *ucmd)
 	 */
 	viommu->iommu_dev = __iommu_get_iommu_dev(idev->dev);
 
-	rc = ops->viommu_init(viommu, hwpt_paging->common.domain);
+	rc = ops->viommu_init(viommu, hwpt_paging->common.domain, NULL);
 	if (rc)
 		goto out_put_hwpt;
 

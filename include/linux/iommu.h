@@ -700,7 +700,8 @@ struct iommu_ops {
 	size_t (*get_viommu_size)(struct device *dev,
 				  enum iommu_viommu_type viommu_type);
 	int (*viommu_init)(struct iommufd_viommu *viommu,
-			   struct iommu_domain *parent_domain);
+			   struct iommu_domain *parent_domain,
+			   const struct iommu_user_data *user_data);
 
 	const struct iommu_domain_ops *default_domain_ops;
 	unsigned long pgsize_bitmap;
