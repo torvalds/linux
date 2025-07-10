@@ -11,7 +11,9 @@ import sys
 
 from pprint import pformat
 
+from docutils import statemachine
 from docutils.parsers.rst import Parser as RSTParser
+from docutils.parsers.rst import states
 from docutils.statemachine import ViewList
 
 from sphinx.util import logging
@@ -56,6 +58,8 @@ class YamlParser(Parser):
 
     re_lineno = re.compile(r"\.\. LINENO ([0-9]+)$")
 
+    tab_width = 8
+
     def rst_parse(self, inputstring, document, msg):
         """
         Receives a ReST content that was previously converted by the
@@ -66,10 +70,18 @@ class YamlParser(Parser):
 
         result = ViewList()
 
+        self.statemachine = states.RSTStateMachine(state_classes=states.state_classes,
+                                                   initial_state='Body',
+                                                   debug=document.reporter.debug_flag)
+
         try:
             # Parse message with RSTParser
             lineoffset = 0;
-            for line in msg.split('\n'):
+
+            lines = statemachine.string2lines(msg, self.tab_width,
+                                              convert_whitespace=True)
+
+            for line in lines:
                 match = self.re_lineno.match(line)
                 if match:
                     lineoffset = int(match.group(1))
@@ -77,12 +89,7 @@ class YamlParser(Parser):
 
                 result.append(line, document.current_source, lineoffset)
 
-            # Fix backward compatibility with docutils < 0.17.1
-            if "tab_width" not in vars(document.settings):
-                document.settings.tab_width = 8
-
-            rst_parser = RSTParser()
-            rst_parser.parse('\n'.join(result), document)
+            self.statemachine.run(result, document)
 
         except Exception as e:
             document.reporter.error("YAML parsing error: %s" % pformat(e))
