@@ -206,7 +206,7 @@ static int lmh_probe(struct platform_device *pdev)
 	ret = qcom_scm_lmh_dcvsh(LMH_SUB_FN_THERMAL, LMH_TH_LOW_THRESHOLD, temp_low,
 				 LMH_NODE_DCVS, node_id, 0);
 	if (ret) {
-		dev_err(dev, "Error setting thermal ARM threshold%d\n", ret);
+		dev_err(dev, "Error setting thermal LOW threshold%d\n", ret);
 		return ret;
 	}
 
