@@ -9,6 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mmu_context.h>
 #include <linux/ptrace.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
@@ -36,6 +37,8 @@
 /* Hardware capabilities */
 unsigned int elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
+
+static bool mmid_disabled_quirk;
 
 static inline unsigned long cpu_get_msa_id(void)
 {
@@ -645,7 +648,7 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 	config5 &= ~(MIPS_CONF5_UFR | MIPS_CONF5_UFE);
 
 	if (cpu_has_mips_r6) {
-		if (!__builtin_constant_p(cpu_has_mmid) || cpu_has_mmid)
+		if (!mmid_disabled_quirk && (!__builtin_constant_p(cpu_has_mmid) || cpu_has_mmid))
 			config5 |= MIPS_CONF5_MI;
 		else
 			config5 &= ~MIPS_CONF5_MI;
@@ -708,7 +711,6 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 					max_mmid_width);
 				asid_mask = GENMASK(max_mmid_width - 1, 0);
 			}
-
 			set_cpu_asid_mask(c, asid_mask);
 		}
 	}
@@ -2045,4 +2047,40 @@ void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe)
 
 	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_VP;
 	cpuinfo->globalnumber |= vpe << MIPS_GLOBALNUMBER_VP_SHF;
+}
+
+void cpu_disable_mmid(void)
+{
+	int i;
+	unsigned long asid_mask;
+	unsigned int cpu = smp_processor_id();
+	struct cpuinfo_mips *c = &current_cpu_data;
+	unsigned int config4 = read_c0_config4();
+	unsigned int config5 =  read_c0_config5();
+
+	/* Setup the initial ASID mask based on config4 */
+	asid_mask = MIPS_ENTRYHI_ASID;
+	if (config4 & MIPS_CONF4_AE)
+		asid_mask |= MIPS_ENTRYHI_ASIDX;
+	set_cpu_asid_mask(c, asid_mask);
+
+	/* Disable MMID in the C0 and update cpuinfo_mips accordingly */
+	config5 &= ~(MIPS_CONF5_UFR | MIPS_CONF5_UFE);
+	config5 &= ~MIPS_CONF5_MI;
+	write_c0_config5(config5);
+	/* Ensure the write to config5 above takes effect */
+	back_to_back_c0_hazard();
+	c->options &= ~MIPS_CPU_MMID;
+
+	/* Setup asid cache value cleared in per_cpu_trap_init() */
+	cpu_data[cpu].asid_cache = asid_first_version(cpu);
+
+	/* Reinit context for each CPU */
+	for_each_possible_cpu(i)
+		set_cpu_context(i, &init_mm, 0);
+
+	/* Ensure that now MMID will be seen as disable */
+	mmid_disabled_quirk = true;
+
+	pr_info("MMID support disabled due to hardware support issue\n");
 }

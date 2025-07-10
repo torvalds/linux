@@ -248,6 +248,11 @@ void mips_cm_update_property(void)
 		return;
 	pr_info("HCI (Hardware Cache Init for the L2 cache) in GCR_L2_RAM_CONFIG from the CM3 is broken");
 	mips_cm_is_l2_hci_broken = true;
+
+	/* Disable MMID only if it was configured */
+	if (cpu_has_mmid)
+		cpu_disable_mmid();
+
 	of_node_put(cm_node);
 }
 
