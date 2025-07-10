@@ -77,8 +77,11 @@ static const long temp_map_gen2_v1[THRESH_COUNT][STAGE_COUNT] = {
 struct qpnp_tm_chip;
 
 struct spmi_temp_alarm_data {
+	const struct thermal_zone_device_ops *ops;
 	const long (*temp_map)[THRESH_COUNT][STAGE_COUNT];
+	int (*sync_thresholds)(struct qpnp_tm_chip *chip);
 	int (*get_temp_stage)(struct qpnp_tm_chip *chip);
+	int (*configure_trip_temps)(struct qpnp_tm_chip *chip);
 };
 
 struct qpnp_tm_chip {
@@ -316,64 +319,95 @@ static irqreturn_t qpnp_tm_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static const struct spmi_temp_alarm_data spmi_temp_alarm_data = {
-	.temp_map = &temp_map_gen1,
-	.get_temp_stage = qpnp_tm_gen1_get_temp_stage,
-};
-
-static const struct spmi_temp_alarm_data spmi_temp_alarm_gen2_data = {
-	.temp_map = &temp_map_gen1,
-	.get_temp_stage = qpnp_tm_gen2_get_temp_stage,
-};
-
-static const struct spmi_temp_alarm_data spmi_temp_alarm_gen2_rev1_data = {
-	.temp_map = &temp_map_gen2_v1,
-	.get_temp_stage = qpnp_tm_gen2_get_temp_stage,
-};
-
-/*
- * This function initializes the internal temp value based on only the
- * current thermal stage and threshold. Setup threshold control and
- * disable shutdown override.
- */
-static int qpnp_tm_init(struct qpnp_tm_chip *chip)
+/* Read the hardware default stage threshold temperatures */
+static int qpnp_tm_sync_thresholds(struct qpnp_tm_chip *chip)
 {
-	int crit_temp;
-	u8 threshold;
+	u8 reg, threshold;
 	int ret;
-	u8 reg;
-
-	mutex_lock(&chip->lock);
 
 	ret = qpnp_tm_read(chip, QPNP_TM_REG_SHUTDOWN_CTRL1, &reg);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	threshold = reg & SHUTDOWN_CTRL1_THRESHOLD_MASK;
 	memcpy(chip->temp_thresh_map, chip->data->temp_map[threshold],
 		sizeof(chip->temp_thresh_map));
 
-	chip->temp = DEFAULT_TEMP;
+	return ret;
+}
 
-	ret = chip->data->get_temp_stage(chip);
-	if (ret < 0)
-		goto out;
-	chip->stage = ret;
-
-	if (chip->stage)
-		chip->temp = qpnp_tm_decode_temp(chip, chip->stage);
-
-	mutex_unlock(&chip->lock);
+static int qpnp_tm_configure_trip_temp(struct qpnp_tm_chip *chip)
+{
+	int crit_temp, ret;
 
 	ret = thermal_zone_get_crit_temp(chip->tz_dev, &crit_temp);
 	if (ret)
 		crit_temp = THERMAL_TEMP_INVALID;
 
 	mutex_lock(&chip->lock);
-
 	ret = qpnp_tm_update_critical_trip_temp(chip, crit_temp);
+	mutex_unlock(&chip->lock);
+
+	return ret;
+}
+
+static const struct spmi_temp_alarm_data spmi_temp_alarm_data = {
+	.ops = &qpnp_tm_sensor_ops,
+	.temp_map = &temp_map_gen1,
+	.sync_thresholds = qpnp_tm_sync_thresholds,
+	.configure_trip_temps = qpnp_tm_configure_trip_temp,
+	.get_temp_stage = qpnp_tm_gen1_get_temp_stage,
+};
+
+static const struct spmi_temp_alarm_data spmi_temp_alarm_gen2_data = {
+	.ops = &qpnp_tm_sensor_ops,
+	.temp_map = &temp_map_gen1,
+	.sync_thresholds = qpnp_tm_sync_thresholds,
+	.configure_trip_temps = qpnp_tm_configure_trip_temp,
+	.get_temp_stage = qpnp_tm_gen2_get_temp_stage,
+};
+
+static const struct spmi_temp_alarm_data spmi_temp_alarm_gen2_rev1_data = {
+	.ops = &qpnp_tm_sensor_ops,
+	.temp_map = &temp_map_gen2_v1,
+	.sync_thresholds = qpnp_tm_sync_thresholds,
+	.configure_trip_temps = qpnp_tm_configure_trip_temp,
+	.get_temp_stage = qpnp_tm_gen2_get_temp_stage,
+};
+
+/*
+ * This function initializes the internal temp value based on only the
+ * current thermal stage and threshold.
+ */
+static int qpnp_tm_threshold_init(struct qpnp_tm_chip *chip)
+{
+	int ret;
+
+	ret = chip->data->sync_thresholds(chip);
 	if (ret < 0)
-		goto out;
+		return ret;
+
+	ret = chip->data->get_temp_stage(chip);
+	if (ret < 0)
+		return ret;
+	chip->stage = ret;
+	chip->temp = DEFAULT_TEMP;
+
+	if (chip->stage)
+		chip->temp = qpnp_tm_decode_temp(chip, chip->stage);
+
+	return ret;
+}
+
+/* This function initializes threshold control and disables shutdown override. */
+static int qpnp_tm_init(struct qpnp_tm_chip *chip)
+{
+	int ret;
+	u8 reg;
+
+	ret = chip->data->configure_trip_temps(chip);
+	if (ret < 0)
+		return ret;
 
 	/* Enable the thermal alarm PMIC module in always-on mode. */
 	reg = ALARM_CTRL_FORCE_ENABLE;
@@ -381,8 +415,6 @@ static int qpnp_tm_init(struct qpnp_tm_chip *chip)
 
 	chip->initialized = true;
 
-out:
-	mutex_unlock(&chip->lock);
 	return ret;
 }
 
@@ -481,13 +513,17 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = qpnp_tm_threshold_init(chip);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "threshold init failed\n");
+
 	/*
 	 * Register the sensor before initializing the hardware to be able to
 	 * read the trip points. get_temp() returns the default temperature
 	 * before the hardware initialization is completed.
 	 */
 	chip->tz_dev = devm_thermal_of_zone_register(
-		&pdev->dev, 0, chip, &qpnp_tm_sensor_ops);
+		&pdev->dev, 0, chip, chip->data->ops);
 	if (IS_ERR(chip->tz_dev))
 		return dev_err_probe(&pdev->dev, PTR_ERR(chip->tz_dev),
 				     "failed to register sensor\n");
