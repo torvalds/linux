@@ -110,8 +110,7 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
 int fscrypt_crypt_data_unit(const struct fscrypt_inode_info *ci,
 			    fscrypt_direction_t rw, u64 index,
 			    struct page *src_page, struct page *dest_page,
-			    unsigned int len, unsigned int offs,
-			    gfp_t gfp_flags)
+			    unsigned int len, unsigned int offs)
 {
 	struct crypto_sync_skcipher *tfm = ci->ci_enc_key.tfm;
 	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
@@ -197,7 +196,7 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct folio *folio,
 	for (i = offs; i < offs + len; i += du_size, index++) {
 		err = fscrypt_crypt_data_unit(ci, FS_ENCRYPT, index,
 					      &folio->page, ciphertext_page,
-					      du_size, i, gfp_flags);
+					      du_size, i);
 		if (err) {
 			fscrypt_free_bounce_page(ciphertext_page);
 			return ERR_PTR(err);
@@ -235,8 +234,7 @@ int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
 		return -EOPNOTSUPP;
 	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_ENCRYPT,
-				       lblk_num, page, page, len, offs,
-				       gfp_flags);
+				       lblk_num, page, page, len, offs);
 }
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
@@ -276,8 +274,7 @@ int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
 		struct page *page = folio_page(folio, i >> PAGE_SHIFT);
 
 		err = fscrypt_crypt_data_unit(ci, FS_DECRYPT, index, page,
-					      page, du_size, i & ~PAGE_MASK,
-					      GFP_NOFS);
+					      page, du_size, i & ~PAGE_MASK);
 		if (err)
 			return err;
 	}
@@ -310,8 +307,7 @@ int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
 	if (WARN_ON_ONCE(inode->i_sb->s_cop->supports_subblock_data_units))
 		return -EOPNOTSUPP;
 	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_DECRYPT,
-				       lblk_num, page, page, len, offs,
-				       GFP_NOFS);
+				       lblk_num, page, page, len, offs);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 
