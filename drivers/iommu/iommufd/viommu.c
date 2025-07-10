@@ -111,7 +111,7 @@ void iommufd_vdevice_destroy(struct iommufd_object *obj)
 	struct iommufd_viommu *viommu = vdev->viommu;
 
 	/* xa_cmpxchg is okay to fail if alloc failed xa_cmpxchg previously */
-	xa_cmpxchg(&viommu->vdevs, vdev->id, vdev, NULL, GFP_KERNEL);
+	xa_cmpxchg(&viommu->vdevs, vdev->virt_id, vdev, NULL, GFP_KERNEL);
 	refcount_dec(&viommu->obj.users);
 	put_device(vdev->dev);
 }
@@ -150,7 +150,7 @@ int iommufd_vdevice_alloc_ioctl(struct iommufd_ucmd *ucmd)
 		goto out_put_idev;
 	}
 
-	vdev->id = virt_id;
+	vdev->virt_id = virt_id;
 	vdev->dev = idev->dev;
 	get_device(idev->dev);
 	vdev->viommu = viommu;

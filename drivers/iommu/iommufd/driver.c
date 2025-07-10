@@ -30,7 +30,7 @@ int iommufd_viommu_get_vdev_id(struct iommufd_viommu *viommu,
 	xa_lock(&viommu->vdevs);
 	xa_for_each(&viommu->vdevs, index, vdev) {
 		if (vdev->dev == dev) {
-			*vdev_id = vdev->id;
+			*vdev_id = vdev->virt_id;
 			rc = 0;
 			break;
 		}
