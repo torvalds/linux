@@ -35,6 +35,7 @@
 #include "util/util.h"
 #include "util/env.h"
 #include "util/intel-tpebs.h"
+#include "util/metricgroup.h"
 #include "util/strbuf.h"
 #include <signal.h>
 #include <unistd.h>
@@ -83,6 +84,7 @@ void evlist__init(struct evlist *evlist, struct perf_cpu_map *cpus,
 	evlist->ctl_fd.ack = -1;
 	evlist->ctl_fd.pos = -1;
 	evlist->nr_br_cntr = -1;
+	metricgroup__rblist_init(&evlist->metric_events);
 }
 
 struct evlist *evlist__new(void)
@@ -173,6 +175,7 @@ static void evlist__purge(struct evlist *evlist)
 
 void evlist__exit(struct evlist *evlist)
 {
+	metricgroup__rblist_exit(&evlist->metric_events);
 	event_enable_timer__exit(&evlist->eet);
 	zfree(&evlist->mmap);
 	zfree(&evlist->overwrite_mmap);

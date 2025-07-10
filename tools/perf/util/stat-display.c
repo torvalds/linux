@@ -899,12 +899,11 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 				print_noise(config, os, counter, noise, /*before_metric=*/true);
 				print_running(config, os, run, ena, /*before_metric=*/true);
 				from = perf_stat__print_shadow_stats_metricgroup(config, counter, aggr_idx,
-										 &num, from, &out,
-										 &config->metric_events);
+										 &num, from, &out);
 			} while (from != NULL);
-		} else
-			perf_stat__print_shadow_stats(config, counter, uval, aggr_idx,
-						      &out, &config->metric_events);
+		} else {
+			perf_stat__print_shadow_stats(config, counter, uval, aggr_idx, &out);
+		}
 	} else {
 		pm(config, os, METRIC_THRESHOLD_UNKNOWN, /*format=*/NULL, /*unit=*/NULL, /*val=*/0);
 	}
@@ -1016,7 +1015,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	ena = aggr->counts.ena;
 	run = aggr->counts.run;
 
-	if (perf_stat__skip_metric_event(counter, &config->metric_events, ena, run))
+	if (perf_stat__skip_metric_event(counter, ena, run))
 		return;
 
 	if (val == 0 && should_skip_zero_counter(config, counter, &id))
@@ -1275,10 +1274,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 
 		os.evsel = counter;
 
-		perf_stat__print_shadow_stats(config, counter, 0,
-					      0,
-					      &out,
-					      &config->metric_events);
+		perf_stat__print_shadow_stats(config, counter, 0, 0, &out);
 	}
 
 	if (!config->json_output)

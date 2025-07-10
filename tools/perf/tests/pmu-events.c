@@ -868,9 +868,6 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 	struct evlist *evlist;
 	struct perf_cpu_map *cpus;
 	struct evsel *evsel;
-	struct rblist metric_events = {
-		.nr_entries = 0,
-	};
 	int err = 0;
 
 	if (!pm->metric_expr)
@@ -895,7 +892,7 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
 
-	err = metricgroup__parse_groups_test(evlist, table, pm->metric_name, &metric_events);
+	err = metricgroup__parse_groups_test(evlist, table, pm->metric_name);
 	if (err) {
 		if (!strcmp(pm->metric_name, "M1") || !strcmp(pm->metric_name, "M2") ||
 		    !strcmp(pm->metric_name, "M3")) {
@@ -922,7 +919,7 @@ static int test__parsing_callback(const struct pmu_metric *pm,
 		k++;
 	}
 	evlist__for_each_entry(evlist, evsel) {
-		struct metric_event *me = metricgroup__lookup(&metric_events, evsel, false);
+		struct metric_event *me = metricgroup__lookup(&evlist->metric_events, evsel, false);
 
 		if (me != NULL) {
 			struct metric_expr *mexp;
@@ -944,7 +941,6 @@ out_err:
 		pr_debug("Broken metric %s\n", pm->metric_name);
 
 	/* ... cleanup. */
-	metricgroup__rblist_exit(&metric_events);
 	evlist__free_stats(evlist);
 	perf_cpu_map__put(cpus);
 	evlist__delete(evlist);

@@ -103,7 +103,7 @@ static void metric_event_delete(struct rblist *rblist __maybe_unused,
 	free(me);
 }
 
-static void metricgroup__rblist_init(struct rblist *metric_events)
+void metricgroup__rblist_init(struct rblist *metric_events)
 {
 	rblist__init(metric_events);
 	metric_events->node_cmp = metric_event_cmp;
@@ -1323,7 +1323,6 @@ static int parse_groups(struct evlist *perf_evlist,
 			const char *user_requested_cpu_list,
 			bool system_wide,
 			bool fake_pmu,
-			struct rblist *metric_events_list,
 			const struct pmu_metrics_table *table)
 {
 	struct evlist *combined_evlist = NULL;
@@ -1333,8 +1332,6 @@ static int parse_groups(struct evlist *perf_evlist,
 	bool is_default = !strcmp(str, "Default");
 	int ret;
 
-	if (metric_events_list->nr_entries == 0)
-		metricgroup__rblist_init(metric_events_list);
 	ret = metricgroup__add_metric_list(pmu, str, metric_no_group, metric_no_threshold,
 					   user_requested_cpu_list,
 					   system_wide, &metric_list, table);
@@ -1425,7 +1422,8 @@ static int parse_groups(struct evlist *perf_evlist,
 			goto out;
 		}
 
-		me = metricgroup__lookup(metric_events_list, metric_events[0], true);
+		me = metricgroup__lookup(&perf_evlist->metric_events, metric_events[0],
+					 /*create=*/true);
 
 		expr = malloc(sizeof(struct metric_expr));
 		if (!expr) {
@@ -1485,8 +1483,7 @@ int metricgroup__parse_groups(struct evlist *perf_evlist,
 			      bool metric_no_threshold,
 			      const char *user_requested_cpu_list,
 			      bool system_wide,
-			      bool hardware_aware_grouping,
-			      struct rblist *metric_events)
+			      bool hardware_aware_grouping)
 {
 	const struct pmu_metrics_table *table = pmu_metrics_table__find();
 
@@ -1497,13 +1494,12 @@ int metricgroup__parse_groups(struct evlist *perf_evlist,
 
 	return parse_groups(perf_evlist, pmu, str, metric_no_group, metric_no_merge,
 			    metric_no_threshold, user_requested_cpu_list, system_wide,
-			    /*fake_pmu=*/false, metric_events, table);
+			    /*fake_pmu=*/false, table);
 }
 
 int metricgroup__parse_groups_test(struct evlist *evlist,
 				   const struct pmu_metrics_table *table,
-				   const char *str,
-				   struct rblist *metric_events)
+				   const char *str)
 {
 	return parse_groups(evlist, "all", str,
 			    /*metric_no_group=*/false,
@@ -1511,7 +1507,7 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 			    /*metric_no_threshold=*/false,
 			    /*user_requested_cpu_list=*/NULL,
 			    /*system_wide=*/false,
-			    /*fake_pmu=*/true, metric_events, table);
+			    /*fake_pmu=*/true, table);
 }
 
 struct metricgroup__has_metric_data {
@@ -1596,7 +1592,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 		evsel = evlist__find_evsel(evlist, old_me->evsel->core.idx);
 		if (!evsel)
 			return -EINVAL;
-		new_me = metricgroup__lookup(new_metric_events, evsel, true);
+		new_me = metricgroup__lookup(new_metric_events, evsel, /*create=*/true);
 		if (!new_me)
 			return -ENOMEM;
 

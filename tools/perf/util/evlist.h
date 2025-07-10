@@ -12,6 +12,7 @@
 #include <perf/evlist.h>
 #include "events_stats.h"
 #include "evsel.h"
+#include "rblist.h"
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
@@ -86,6 +87,11 @@ struct evlist {
 		int	pos;	/* index at evlist core object to check signals */
 	} ctl_fd;
 	struct event_enable_timer *eet;
+	/**
+	 * @metric_events: A list of struct metric_event which each have a list
+	 * of struct metric_expr.
+	 */
+	struct rblist	metric_events;
 };
 
 struct evsel_str_handler {

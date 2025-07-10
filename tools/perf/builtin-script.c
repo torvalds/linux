@@ -2136,8 +2136,7 @@ static void perf_sample__fprint_metric(struct perf_script *script,
 			perf_stat__print_shadow_stats(&stat_config, ev2,
 						      evsel_script(ev2)->val,
 						      sample->cpu,
-						      &ctx,
-						      NULL);
+						      &ctx);
 		}
 		evsel_script(leader)->gnum = 0;
 	}

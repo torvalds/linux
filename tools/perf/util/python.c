@@ -18,6 +18,7 @@
 #include "strbuf.h"
 #include "thread_map.h"
 #include "trace-event.h"
+#include "metricgroup.h"
 #include "mmap.h"
 #include "util/sample.h"
 #include <internal/lib.h>
@@ -1544,6 +1545,9 @@ static PyObject *pyrf_evlist__from_evlist(struct evlist *evlist)
 
 		evlist__add(&pevlist->evlist, &pevsel->evsel);
 	}
+	metricgroup__copy_metric_events(&pevlist->evlist, /*cgrp=*/NULL,
+					&pevlist->evlist.metric_events,
+					&evlist->metric_events);
 	return (PyObject *)pevlist;
 }
 
