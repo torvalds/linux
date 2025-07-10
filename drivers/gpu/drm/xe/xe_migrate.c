@@ -1848,7 +1848,7 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 				err = xe_migrate_access_memory(m, bo,
 							       offset & ~XE_CACHELINE_MASK,
 							       (void *)ptr,
-							       sizeof(bounce), 0);
+							       sizeof(bounce), write);
 				if (err)
 					return err;
 			} else {
