@@ -16,3 +16,6 @@ several of them using the reStructuredText markup notation.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result by upgrading your kernel.
+
+NOTE: We follow the newly revised Code of Conduct, 
+so we refuse to contribute to this repository by citizens of Russia.
