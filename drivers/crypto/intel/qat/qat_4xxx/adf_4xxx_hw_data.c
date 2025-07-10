@@ -462,6 +462,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 	hw_data->clock_frequency = ADF_4XXX_AE_FREQ;
 	hw_data->services_supported = adf_gen4_services_supported;
+	hw_data->get_svc_slice_cnt = adf_gen4_get_svc_slice_cnt;
 
 	adf_gen4_set_err_mask(&hw_data->dev_err_mask);
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);

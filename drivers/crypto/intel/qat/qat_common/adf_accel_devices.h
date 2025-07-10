@@ -319,6 +319,8 @@ struct adf_hw_device_data {
 	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*dev_config)(struct adf_accel_dev *accel_dev);
 	bool (*services_supported)(unsigned long mask);
+	u32 (*get_svc_slice_cnt)(struct adf_accel_dev *accel_dev,
+				 enum adf_base_services svc);
 	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
 	struct adf_dc_ops dc_ops;

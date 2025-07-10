@@ -529,21 +529,9 @@ u32 adf_rl_calculate_slice_tokens(struct adf_accel_dev *accel_dev, u32 sla_val,
 	if (!sla_val)
 		return 0;
 
+	/* Handle generation specific slice count adjustment */
 	avail_slice_cycles = hw_data->clock_frequency;
-
-	switch (svc_type) {
-	case SVC_ASYM:
-		avail_slice_cycles *= device_data->slices.pke_cnt;
-		break;
-	case SVC_SYM:
-		avail_slice_cycles *= device_data->slices.cph_cnt;
-		break;
-	case SVC_DC:
-		avail_slice_cycles *= device_data->slices.dcpr_cnt;
-		break;
-	default:
-		break;
-	}
+	avail_slice_cycles *= hw_data->get_svc_slice_cnt(accel_dev, svc_type);
 
 	do_div(avail_slice_cycles, device_data->scan_interval);
 	allocated_tokens = avail_slice_cycles * sla_val;

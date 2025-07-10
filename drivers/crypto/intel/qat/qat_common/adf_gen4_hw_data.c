@@ -580,3 +580,21 @@ void adf_gen4_init_num_svc_aes(struct adf_rl_hw_data *device_data)
 	device_data->svc_ae_mask[SVC_DECOMP] = 0;
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_num_svc_aes);
+
+u32 adf_gen4_get_svc_slice_cnt(struct adf_accel_dev *accel_dev,
+			       enum adf_base_services svc)
+{
+	struct adf_rl_hw_data *device_data = &accel_dev->hw_device->rl_data;
+
+	switch (svc) {
+	case SVC_SYM:
+		return device_data->slices.cph_cnt;
+	case SVC_ASYM:
+		return device_data->slices.pke_cnt;
+	case SVC_DC:
+		return device_data->slices.dcpr_cnt;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_svc_slice_cnt);
