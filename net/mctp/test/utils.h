@@ -39,6 +39,9 @@ struct mctp_test_bind_setup {
 	bool have_peer;
 	mctp_eid_t peer_addr;
 	int peer_net;
+
+	/* optional name. Used for comparison in "lookup" tests */
+	const char *name;
 };
 
 struct mctp_test_dev *mctp_test_create_dev(void);
