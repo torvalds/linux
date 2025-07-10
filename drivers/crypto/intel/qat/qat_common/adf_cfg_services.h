@@ -7,17 +7,21 @@
 
 struct adf_accel_dev;
 
-enum adf_services {
+enum adf_base_services {
 	SVC_ASYM = 0,
 	SVC_SYM,
 	SVC_DC,
 	SVC_DECOMP,
-	SVC_DCC,
 	SVC_BASE_COUNT
 };
 
+enum adf_extended_services {
+	SVC_DCC = SVC_BASE_COUNT,
+	SVC_COUNT
+};
+
 enum adf_composed_services {
-	SVC_SYM_ASYM = SVC_BASE_COUNT,
+	SVC_SYM_ASYM = SVC_COUNT,
 	SVC_SYM_DC,
 	SVC_ASYM_DC,
 };

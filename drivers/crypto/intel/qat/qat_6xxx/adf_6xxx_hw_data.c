@@ -103,7 +103,7 @@ static bool services_supported(unsigned long mask)
 {
 	int num_svc;
 
-	if (mask >= BIT(SVC_BASE_COUNT))
+	if (mask >= BIT(SVC_COUNT))
 		return false;
 
 	num_svc = hweight_long(mask);
@@ -138,7 +138,7 @@ static int get_service(unsigned long *mask)
 	return -EINVAL;
 }
 
-static enum adf_cfg_service_type get_ring_type(enum adf_services service)
+static enum adf_cfg_service_type get_ring_type(unsigned int service)
 {
 	switch (service) {
 	case SVC_SYM:
@@ -155,7 +155,7 @@ static enum adf_cfg_service_type get_ring_type(enum adf_services service)
 	}
 }
 
-static const unsigned long *get_thrd_mask(enum adf_services service)
+static const unsigned long *get_thrd_mask(unsigned int service)
 {
 	switch (service) {
 	case SVC_SYM:

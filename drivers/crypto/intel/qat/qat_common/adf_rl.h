@@ -7,6 +7,8 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#include "adf_cfg_services.h"
+
 struct adf_accel_dev;
 
 #define RL_ROOT_MAX		4
@@ -22,14 +24,6 @@ enum rl_node_type {
 	RL_ROOT,
 	RL_CLUSTER,
 	RL_LEAF,
-};
-
-enum adf_base_services {
-	ADF_SVC_ASYM = 0,
-	ADF_SVC_SYM,
-	ADF_SVC_DC,
-	ADF_SVC_DECOMP,
-	ADF_SVC_NONE,
 };
 
 /**

@@ -262,7 +262,7 @@ bool adf_gen4_services_supported(unsigned long mask)
 {
 	unsigned long num_svc = hweight_long(mask);
 
-	if (mask >= BIT(SVC_BASE_COUNT))
+	if (mask >= BIT(SVC_COUNT))
 		return false;
 
 	if (test_bit(SVC_DECOMP, &mask))

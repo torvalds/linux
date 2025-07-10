@@ -32,10 +32,10 @@ enum rl_params {
 };
 
 static const char *const rl_services[] = {
-	[ADF_SVC_ASYM] = "asym",
-	[ADF_SVC_SYM] = "sym",
-	[ADF_SVC_DC] = "dc",
-	[ADF_SVC_DECOMP] = "decomp",
+	[SVC_ASYM] = "asym",
+	[SVC_SYM] = "sym",
+	[SVC_DC] = "dc",
+	[SVC_DECOMP] = "decomp",
 };
 
 static const char *const rl_operations[] = {
@@ -283,7 +283,7 @@ static ssize_t srv_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	if (get == ADF_SVC_NONE)
+	if (get == SVC_BASE_COUNT)
 		return -EINVAL;
 
 	return sysfs_emit(buf, "%s\n", rl_services[get]);
@@ -448,8 +448,8 @@ int adf_sysfs_rl_add(struct adf_accel_dev *accel_dev)
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to create qat_rl attribute group\n");
 
-	data->cap_rem_srv = ADF_SVC_NONE;
-	data->input.srv = ADF_SVC_NONE;
+	data->cap_rem_srv = SVC_BASE_COUNT;
+	data->input.srv = SVC_BASE_COUNT;
 	data->sysfs_added = true;
 
 	return ret;

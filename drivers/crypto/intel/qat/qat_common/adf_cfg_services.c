@@ -20,9 +20,9 @@ static const char *const adf_cfg_services[] = {
 
 /*
  * Ensure that the size of the array matches the number of services,
- * SVC_BASE_COUNT, that is used to size the bitmap.
+ * SVC_COUNT, that is used to size the bitmap.
  */
-static_assert(ARRAY_SIZE(adf_cfg_services) == SVC_BASE_COUNT);
+static_assert(ARRAY_SIZE(adf_cfg_services) == SVC_COUNT);
 
 /*
  * Ensure that the maximum number of concurrent services that can be
@@ -35,7 +35,7 @@ static_assert(ARRAY_SIZE(adf_cfg_services) >= MAX_NUM_CONCURR_SVC);
  * Ensure that the number of services fit a single unsigned long, as each
  * service is represented by a bit in the mask.
  */
-static_assert(BITS_PER_LONG >= SVC_BASE_COUNT);
+static_assert(BITS_PER_LONG >= SVC_COUNT);
 
 /*
  * Ensure that size of the concatenation of all service strings is smaller
@@ -90,7 +90,7 @@ static int adf_service_mask_to_string(unsigned long mask, char *buf, size_t len)
 	if (len < ADF_CFG_MAX_VAL_LEN_IN_BYTES)
 		return -ENOSPC;
 
-	for_each_set_bit(bit, &mask, SVC_BASE_COUNT) {
+	for_each_set_bit(bit, &mask, SVC_COUNT) {
 		if (offset)
 			offset += scnprintf(buf + offset, len - offset,
 					    ADF_SERVICES_DELIMITER);

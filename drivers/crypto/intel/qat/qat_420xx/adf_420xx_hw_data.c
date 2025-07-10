@@ -296,9 +296,9 @@ static void adf_init_rl_data(struct adf_rl_hw_data *rl_data)
 	rl_data->pcie_scale_div = ADF_420XX_RL_PCIE_SCALE_FACTOR_DIV;
 	rl_data->pcie_scale_mul = ADF_420XX_RL_PCIE_SCALE_FACTOR_MUL;
 	rl_data->dcpr_correction = ADF_420XX_RL_DCPR_CORRECTION;
-	rl_data->max_tp[ADF_SVC_ASYM] = ADF_420XX_RL_MAX_TP_ASYM;
-	rl_data->max_tp[ADF_SVC_SYM] = ADF_420XX_RL_MAX_TP_SYM;
-	rl_data->max_tp[ADF_SVC_DC] = ADF_420XX_RL_MAX_TP_DC;
+	rl_data->max_tp[SVC_ASYM] = ADF_420XX_RL_MAX_TP_ASYM;
+	rl_data->max_tp[SVC_SYM] = ADF_420XX_RL_MAX_TP_SYM;
+	rl_data->max_tp[SVC_DC] = ADF_420XX_RL_MAX_TP_DC;
 	rl_data->scan_interval = ADF_420XX_RL_SCANS_PER_SEC;
 	rl_data->scale_ref = ADF_420XX_RL_SLICE_REF;
 }
