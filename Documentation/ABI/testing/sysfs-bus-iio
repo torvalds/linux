@@ -2281,21 +2281,21 @@ Description:
 		  conversion time. Poor noise performance.
 		* "sinc3" - The digital sinc3 filter. Moderate 1st
 		  conversion time. Good noise performance.
-		* "sinc4" - Sinc 4. Excellent noise performance. Long
-		  1st conversion time.
-		* "sinc5" - The digital sinc5 filter. Excellent noise
-		  performance
-		* "sinc4+sinc1" - Sinc4 + averaging by 8. Low 1st conversion
-		  time.
-		* "sinc3+rej60" - Sinc3 + 60Hz rejection.
-		* "sinc3+sinc1" - Sinc3 + averaging by 8. Low 1st conversion
-		  time.
 		* "sinc3+pf1" - Sinc3 + device specific Post Filter 1.
 		* "sinc3+pf2" - Sinc3 + device specific Post Filter 2.
 		* "sinc3+pf3" - Sinc3 + device specific Post Filter 3.
 		* "sinc3+pf4" - Sinc3 + device specific Post Filter 4.
-		* "sinc5+pf1" - Sinc5 + device specific Post Filter 1.
+		* "sinc3+rej60" - Sinc3 + 60Hz rejection.
+		* "sinc3+sinc1" - Sinc3 + averaging by 8. Low 1st conversion
+		  time.
+		* "sinc4" - Sinc 4. Excellent noise performance. Long
+		  1st conversion time.
+		* "sinc4+sinc1" - Sinc4 + averaging by 8. Low 1st conversion
+		  time.
+		* "sinc5" - The digital sinc5 filter. Excellent noise
+		  performance
 		* "sinc5+avg" - Sinc5 + averaging by 4.
+		* "sinc5+pf1" - Sinc5 + device specific Post Filter 1.
 		* "wideband" - filter with wideband low ripple passband
 		  and sharp transition band.
 
