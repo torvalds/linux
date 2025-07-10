@@ -23,13 +23,17 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,sc7180-videocc
-      - qcom,sc7280-videocc
-      - qcom,sdm845-videocc
-      - qcom,sm6350-videocc
-      - qcom,sm8150-videocc
-      - qcom,sm8250-videocc
+    oneOf:
+      - enum:
+          - qcom,sc7180-videocc
+          - qcom,sc7280-videocc
+          - qcom,sdm845-videocc
+          - qcom,sm6350-videocc
+          - qcom,sm8150-videocc
+          - qcom,sm8250-videocc
+      - items:
+          - const: qcom,sc8180x-videocc
+          - const: qcom,sm8150-videocc
 
   clocks:
     minItems: 1
@@ -110,8 +114,9 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,sm8150-videocc
+          contains:
+            enum:
+              - qcom,sm8150-videocc
     then:
       properties:
         clocks:
