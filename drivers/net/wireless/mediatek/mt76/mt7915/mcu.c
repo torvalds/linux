@@ -3996,7 +3996,7 @@ int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wlan_idx)
 
 	rcu_read_lock();
 
-	wcid = rcu_dereference(dev->mt76.wcid[wlan_idx]);
+	wcid = mt76_wcid_ptr(dev, wlan_idx);
 	if (wcid)
 		wcid->stats.tx_packets += le32_to_cpu(res->tx_packets);
 	else

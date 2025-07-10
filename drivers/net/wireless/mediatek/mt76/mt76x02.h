@@ -262,10 +262,7 @@ mt76x02_rx_get_sta(struct mt76_dev *dev, u8 idx)
 {
 	struct mt76_wcid *wcid;
 
-	if (idx >= MT76x02_N_WCIDS)
-		return NULL;
-
-	wcid = rcu_dereference(dev->wcid[idx]);
+	wcid = __mt76_wcid_ptr(dev, idx);
 	if (!wcid)
 		return NULL;
 
