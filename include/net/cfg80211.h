@@ -1526,6 +1526,7 @@ struct cfg80211_ap_update {
  * @n_counter_offsets_beacon: number of csa counters the beacon (tail)
  * @n_counter_offsets_presp: number of csa counters in the probe response
  * @beacon_after: beacon data to be used on the new channel
+ * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
  * @radar_required: whether radar detection is required on the new channel
  * @block_tx: whether transmissions should be blocked while changing
  * @count: number of beacons until switch
@@ -1540,6 +1541,7 @@ struct cfg80211_csa_settings {
 	unsigned int n_counter_offsets_beacon;
 	unsigned int n_counter_offsets_presp;
 	struct cfg80211_beacon_data beacon_after;
+	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	bool radar_required;
 	bool block_tx;
 	u8 count;
@@ -1555,6 +1557,7 @@ struct cfg80211_csa_settings {
  * @counter_offset_beacon: offsets of the counters within the beacon (tail)
  * @counter_offset_presp: offsets of the counters within the probe response
  * @beacon_next: beacon data to be used after the color change
+ * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
  * @count: number of beacons until the color change
  * @color: the color used after the change
  * @link_id: defines the link on which color change is expected during MLO.
@@ -1565,6 +1568,7 @@ struct cfg80211_color_change_settings {
 	u16 counter_offset_beacon;
 	u16 counter_offset_presp;
 	struct cfg80211_beacon_data beacon_next;
+	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	u8 count;
 	u8 color;
 	u8 link_id;
