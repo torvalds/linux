@@ -19,6 +19,7 @@
 #include <adf_gen6_pm.h>
 #include <adf_gen6_ras.h>
 #include <adf_gen6_shared.h>
+#include <adf_gen6_tl.h>
 #include <adf_timer.h>
 #include "adf_6xxx_hw_data.h"
 #include "icp_qat_fw_comp.h"
@@ -861,12 +862,14 @@ void adf_init_hw_data_6xxx(struct adf_hw_device_data *hw_data)
 	hw_data->init_device = adf_init_device;
 	hw_data->enable_pm = enable_pm;
 	hw_data->services_supported = services_supported;
+	hw_data->num_rps = ADF_GEN6_ETR_MAX_BANKS;
 
 	adf_gen6_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen6_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen6_init_dc_ops(&hw_data->dc_ops);
 	adf_gen6_init_vf_mig_ops(&hw_data->vfmig_ops);
 	adf_gen6_init_ras_ops(&hw_data->ras_ops);
+	adf_gen6_init_tl_data(&hw_data->tl_data);
 }
 
 void adf_clean_hw_data_6xxx(struct adf_hw_device_data *hw_data)
