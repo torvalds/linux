@@ -1568,10 +1568,37 @@ static PyObject *pyrf_evsel__from_evsel(struct evsel *evsel)
 	return (PyObject *)pevsel;
 }
 
+static int evlist__pos(struct evlist *evlist, struct evsel *evsel)
+{
+	struct evsel *pos;
+	int idx = 0;
+
+	evlist__for_each_entry(evlist, pos) {
+		if (evsel == pos)
+			return idx;
+		idx++;
+	}
+	return -1;
+}
+
+static struct evsel *evlist__at(struct evlist *evlist, int idx)
+{
+	struct evsel *pos;
+	int idx2 = 0;
+
+	evlist__for_each_entry(evlist, pos) {
+		if (idx == idx2)
+			return pos;
+		idx2++;
+	}
+	return NULL;
+}
+
 static PyObject *pyrf_evlist__from_evlist(struct evlist *evlist)
 {
 	struct pyrf_evlist *pevlist = PyObject_New(struct pyrf_evlist, &pyrf_evlist__type);
 	struct evsel *pos;
+	struct rb_node *node;
 
 	if (!pevlist)
 		return NULL;
@@ -1583,9 +1610,39 @@ static PyObject *pyrf_evlist__from_evlist(struct evlist *evlist)
 
 		evlist__add(&pevlist->evlist, &pevsel->evsel);
 	}
+	evlist__for_each_entry(&pevlist->evlist, pos) {
+		struct evsel *leader = evsel__leader(pos);
+
+		if (pos != leader) {
+			int idx = evlist__pos(evlist, leader);
+
+			if (idx >= 0)
+				evsel__set_leader(pos, evlist__at(&pevlist->evlist, idx));
+			else if (leader == NULL)
+				evsel__set_leader(pos, pos);
+		}
+	}
 	metricgroup__copy_metric_events(&pevlist->evlist, /*cgrp=*/NULL,
 					&pevlist->evlist.metric_events,
 					&evlist->metric_events);
+	for (node = rb_first_cached(&pevlist->evlist.metric_events.entries); node;
+	     node = rb_next(node)) {
+		struct metric_event *me = container_of(node, struct metric_event, nd);
+		struct list_head *mpos;
+		int idx = evlist__pos(evlist, me->evsel);
+
+		if (idx >= 0)
+			me->evsel = evlist__at(&pevlist->evlist, idx);
+		list_for_each(mpos, &me->head) {
+			struct metric_expr *e = container_of(mpos, struct metric_expr, nd);
+
+			for (int j = 0; e->metric_events[j]; j++) {
+				idx = evlist__pos(evlist, e->metric_events[j]);
+				if (idx >= 0)
+					e->metric_events[j] = evlist__at(&pevlist->evlist, idx);
+			}
+		}
+	}
 	return (PyObject *)pevlist;
 }
 
