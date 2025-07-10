@@ -3547,7 +3547,7 @@ int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 	if (!(mvm->scan_status & type))
 		return 0;
 
-	if (!test_bit(STATUS_DEVICE_ENABLED, &mvm->trans->status)) {
+	if (!iwl_trans_device_enabled(mvm->trans)) {
 		ret = 0;
 		goto out;
 	}

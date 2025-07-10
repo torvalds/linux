@@ -2978,7 +2978,7 @@ IWL_EXPORT_SYMBOL(iwl_fw_dbg_collect_desc);
 int iwl_fw_dbg_error_collect(struct iwl_fw_runtime *fwrt,
 			     enum iwl_fw_dbg_trigger trig_type)
 {
-	if (!test_bit(STATUS_DEVICE_ENABLED, &fwrt->trans->status))
+	if (!iwl_trans_device_enabled(fwrt->trans))
 		return -EIO;
 
 	if (iwl_trans_dbg_ini_valid(fwrt->trans)) {
@@ -3180,7 +3180,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 		goto out;
 	}
 
-	if (!test_bit(STATUS_DEVICE_ENABLED, &fwrt->trans->status)) {
+	if (!iwl_trans_device_enabled(fwrt->trans)) {
 		IWL_ERR(fwrt, "Device is not enabled - cannot dump error\n");
 		goto out;
 	}

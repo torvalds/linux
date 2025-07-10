@@ -1235,6 +1235,11 @@ static inline void iwl_trans_suppress_cmd_error_once(struct iwl_trans *trans)
 	set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &trans->status);
 }
 
+static inline bool iwl_trans_device_enabled(struct iwl_trans *trans)
+{
+	return test_bit(STATUS_DEVICE_ENABLED, &trans->status);
+}
+
 /*****************************************************
  * PCIe handling
  *****************************************************/
