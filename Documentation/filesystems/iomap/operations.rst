@@ -68,6 +68,8 @@ The following address space operations can be wrapped easily:
      void (*put_folio)(struct inode *inode, loff_t pos, unsigned copied,
                        struct folio *folio);
      bool (*iomap_valid)(struct inode *inode, const struct iomap *iomap);
+     int (*read_folio_range)(const struct iomap_iter *iter,
+     			struct folio *folio, loff_t pos, size_t len);
  };
 
 iomap calls these functions:
@@ -122,6 +124,10 @@ iomap calls these functions:
     the filesystem holds when the mapping is passed back to
     ``->iomap_valid``, then the iomap should considered stale and the
     validation failed.
+
+  - ``read_folio_range``: Called to synchronously read in the range that will
+    be written to. If this function is not provided, iomap will default to
+    submitting a bio read request.
 
 These ``struct kiocb`` flags are significant for buffered I/O with iomap:
 
