@@ -3,18 +3,10 @@
  * Copyright (C) 2010 Red Hat, Inc.
  * Copyright (C) 2016-2023 Christoph Hellwig.
  */
-#include <linux/module.h>
-#include <linux/compiler.h>
-#include <linux/fs.h>
 #include <linux/iomap.h>
-#include <linux/pagemap.h>
-#include <linux/uio.h>
 #include <linux/buffer_head.h>
-#include <linux/dax.h>
 #include <linux/writeback.h>
 #include <linux/swap.h>
-#include <linux/bio.h>
-#include <linux/sched/signal.h>
 #include <linux/migrate.h>
 #include "internal.h"
 #include "trace.h"
