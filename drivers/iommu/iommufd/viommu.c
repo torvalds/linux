@@ -201,3 +201,183 @@ out_put_viommu:
 	iommufd_put_object(ucmd->ictx, &viommu->obj);
 	return rc;
 }
+
+static void iommufd_hw_queue_destroy_access(struct iommufd_ctx *ictx,
+					    struct iommufd_access *access,
+					    u64 base_iova, size_t length)
+{
+	u64 aligned_iova = PAGE_ALIGN_DOWN(base_iova);
+	u64 offset = base_iova - aligned_iova;
+
+	iommufd_access_unpin_pages(access, aligned_iova,
+				   PAGE_ALIGN(length + offset));
+	iommufd_access_detach_internal(access);
+	iommufd_access_destroy_internal(ictx, access);
+}
+
+void iommufd_hw_queue_destroy(struct iommufd_object *obj)
+{
+	struct iommufd_hw_queue *hw_queue =
+		container_of(obj, struct iommufd_hw_queue, obj);
+
+	if (hw_queue->destroy)
+		hw_queue->destroy(hw_queue);
+	if (hw_queue->access)
+		iommufd_hw_queue_destroy_access(hw_queue->viommu->ictx,
+						hw_queue->access,
+						hw_queue->base_addr,
+						hw_queue->length);
+	if (hw_queue->viommu)
+		refcount_dec(&hw_queue->viommu->obj.users);
+}
+
+/*
+ * When the HW accesses the guest queue via physical addresses, the underlying
+ * physical pages of the guest queue must be contiguous. Also, for the security
+ * concern that IOMMUFD_CMD_IOAS_UNMAP could potentially remove the mappings of
+ * the guest queue from the nesting parent iopt while the HW is still accessing
+ * the guest queue memory physically, such a HW queue must require an access to
+ * pin the underlying pages and prevent that from happening.
+ */
+static struct iommufd_access *
+iommufd_hw_queue_alloc_phys(struct iommu_hw_queue_alloc *cmd,
+			    struct iommufd_viommu *viommu, phys_addr_t *base_pa)
+{
+	u64 aligned_iova = PAGE_ALIGN_DOWN(cmd->nesting_parent_iova);
+	u64 offset = cmd->nesting_parent_iova - aligned_iova;
+	struct iommufd_access *access;
+	struct page **pages;
+	size_t max_npages;
+	size_t length;
+	size_t i;
+	int rc;
+
+	/* max_npages = DIV_ROUND_UP(offset + cmd->length, PAGE_SIZE) */
+	if (check_add_overflow(offset, cmd->length, &length))
+		return ERR_PTR(-ERANGE);
+	if (check_add_overflow(length, PAGE_SIZE - 1, &length))
+		return ERR_PTR(-ERANGE);
+	max_npages = length / PAGE_SIZE;
+	/* length needs to be page aligned too */
+	length = max_npages * PAGE_SIZE;
+
+	/*
+	 * Use kvcalloc() to avoid memory fragmentation for a large page array.
+	 * Set __GFP_NOWARN to avoid syzkaller blowups
+	 */
+	pages = kvcalloc(max_npages, sizeof(*pages), GFP_KERNEL | __GFP_NOWARN);
+	if (!pages)
+		return ERR_PTR(-ENOMEM);
+
+	access = iommufd_access_create_internal(viommu->ictx);
+	if (IS_ERR(access)) {
+		rc = PTR_ERR(access);
+		goto out_free;
+	}
+
+	rc = iommufd_access_attach_internal(access, viommu->hwpt->ioas);
+	if (rc)
+		goto out_destroy;
+
+	rc = iommufd_access_pin_pages(access, aligned_iova, length, pages, 0);
+	if (rc)
+		goto out_detach;
+
+	/* Validate if the underlying physical pages are contiguous */
+	for (i = 1; i < max_npages; i++) {
+		if (page_to_pfn(pages[i]) == page_to_pfn(pages[i - 1]) + 1)
+			continue;
+		rc = -EFAULT;
+		goto out_unpin;
+	}
+
+	*base_pa = (page_to_pfn(pages[0]) << PAGE_SHIFT) + offset;
+	kfree(pages);
+	return access;
+
+out_unpin:
+	iommufd_access_unpin_pages(access, aligned_iova, length);
+out_detach:
+	iommufd_access_detach_internal(access);
+out_destroy:
+	iommufd_access_destroy_internal(viommu->ictx, access);
+out_free:
+	kfree(pages);
+	return ERR_PTR(rc);
+}
+
+int iommufd_hw_queue_alloc_ioctl(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_hw_queue_alloc *cmd = ucmd->cmd;
+	struct iommufd_hw_queue *hw_queue;
+	struct iommufd_viommu *viommu;
+	struct iommufd_access *access;
+	size_t hw_queue_size;
+	phys_addr_t base_pa;
+	u64 last;
+	int rc;
+
+	if (cmd->flags || cmd->type == IOMMU_HW_QUEUE_TYPE_DEFAULT)
+		return -EOPNOTSUPP;
+	if (!cmd->length)
+		return -EINVAL;
+	if (check_add_overflow(cmd->nesting_parent_iova, cmd->length - 1,
+			       &last))
+		return -EOVERFLOW;
+
+	viommu = iommufd_get_viommu(ucmd, cmd->viommu_id);
+	if (IS_ERR(viommu))
+		return PTR_ERR(viommu);
+
+	if (!viommu->ops || !viommu->ops->get_hw_queue_size ||
+	    !viommu->ops->hw_queue_init_phys) {
+		rc = -EOPNOTSUPP;
+		goto out_put_viommu;
+	}
+
+	hw_queue_size = viommu->ops->get_hw_queue_size(viommu, cmd->type);
+	if (!hw_queue_size) {
+		rc = -EOPNOTSUPP;
+		goto out_put_viommu;
+	}
+
+	/*
+	 * It is a driver bug for providing a hw_queue_size smaller than the
+	 * core HW queue structure size
+	 */
+	if (WARN_ON_ONCE(hw_queue_size < sizeof(*hw_queue))) {
+		rc = -EOPNOTSUPP;
+		goto out_put_viommu;
+	}
+
+	hw_queue = (struct iommufd_hw_queue *)_iommufd_object_alloc_ucmd(
+		ucmd, hw_queue_size, IOMMUFD_OBJ_HW_QUEUE);
+	if (IS_ERR(hw_queue)) {
+		rc = PTR_ERR(hw_queue);
+		goto out_put_viommu;
+	}
+
+	access = iommufd_hw_queue_alloc_phys(cmd, viommu, &base_pa);
+	if (IS_ERR(access)) {
+		rc = PTR_ERR(access);
+		goto out_put_viommu;
+	}
+
+	hw_queue->viommu = viommu;
+	refcount_inc(&viommu->obj.users);
+	hw_queue->access = access;
+	hw_queue->type = cmd->type;
+	hw_queue->length = cmd->length;
+	hw_queue->base_addr = cmd->nesting_parent_iova;
+
+	rc = viommu->ops->hw_queue_init_phys(hw_queue, cmd->index, base_pa);
+	if (rc)
+		goto out_put_viommu;
+
+	cmd->out_hw_queue_id = hw_queue->obj.id;
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+
+out_put_viommu:
+	iommufd_put_object(ucmd->ictx, &viommu->obj);
+	return rc;
+}
