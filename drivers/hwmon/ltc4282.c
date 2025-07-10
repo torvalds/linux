@@ -177,13 +177,15 @@ static const unsigned int ltc4282_out_rates[] = {
 	LTC4282_CLKOUT_CNV, LTC4282_CLKOUT_SYSTEM
 };
 
-static long ltc4282_round_rate(struct clk_hw *hw, unsigned long rate,
-			       unsigned long *parent_rate)
+static int ltc4282_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
 {
-	int idx = find_closest(rate, ltc4282_out_rates,
+	int idx = find_closest(req->rate, ltc4282_out_rates,
 			       ARRAY_SIZE(ltc4282_out_rates));
 
-	return ltc4282_out_rates[idx];
+	req->rate = ltc4282_out_rates[idx];
+
+	return 0;
 }
 
 static unsigned long ltc4282_recalc_rate(struct clk_hw *hw,
@@ -1124,7 +1126,7 @@ static ssize_t ltc4282_energy_show(struct device *dev,
 
 static const struct clk_ops ltc4282_ops = {
 	.recalc_rate = ltc4282_recalc_rate,
-	.round_rate = ltc4282_round_rate,
+	.determine_rate = ltc4282_determine_rate,
 	.set_rate = ltc4282_set_rate,
 	.disable = ltc4282_disable,
 };
