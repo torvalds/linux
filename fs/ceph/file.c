@@ -1992,8 +1992,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 
 		if (IS_ENCRYPTED(inode)) {
 			ret = ceph_fscrypt_encrypt_pages(inode, pages,
-							 write_pos, write_len,
-							 GFP_KERNEL);
+							 write_pos, write_len);
 			if (ret < 0) {
 				doutc(cl, "encryption failed with %d\n", ret);
 				ceph_release_page_vector(pages, num_pages);
