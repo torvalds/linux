@@ -95,11 +95,11 @@ static int snd_virmidi_probe(struct platform_device *devptr)
 		if (err < 0)
 			return err;
 		vmidi->midi[idx] = rmidi;
-		strcpy(rmidi->name, "Virtual Raw MIDI");
+		strscpy(rmidi->name, "Virtual Raw MIDI");
 	}
 
-	strcpy(card->driver, "VirMIDI");
-	strcpy(card->shortname, "VirMIDI");
+	strscpy(card->driver, "VirMIDI");
+	strscpy(card->shortname, "VirMIDI");
 	sprintf(card->longname, "Virtual MIDI Card %i", dev + 1);
 
 	err = snd_card_register(card);
