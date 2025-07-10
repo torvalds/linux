@@ -1130,7 +1130,9 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp,
 
 	intel_dp->link.active = true;
 
-	intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
+	if (!intel_dp->set_idle_link_train)
+		intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
+
 	intel_dp_program_link_training_pattern(intel_dp, crtc_state, DP_PHY_DPRX,
 					       DP_TRAINING_PATTERN_DISABLE);
 
@@ -1371,8 +1373,10 @@ intel_dp_link_train_all_phys(struct intel_dp *intel_dp,
 	if (ret)
 		ret = intel_dp_link_train_phy(intel_dp, crtc_state, DP_PHY_DPRX);
 
-	if (intel_dp->set_idle_link_train)
+	if (intel_dp->set_idle_link_train) {
+		intel_dp_disable_dpcd_training_pattern(intel_dp, DP_PHY_DPRX);
 		intel_dp->set_idle_link_train(intel_dp, crtc_state);
+	}
 
 	return ret;
 }
