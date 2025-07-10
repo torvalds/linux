@@ -35,6 +35,10 @@ struct mctp_test_bind_setup {
 	mctp_eid_t bind_addr;
 	int bind_net;
 	u8 bind_type;
+
+	bool have_peer;
+	mctp_eid_t peer_addr;
+	int peer_net;
 };
 
 struct mctp_test_dev *mctp_test_create_dev(void);

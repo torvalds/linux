@@ -245,6 +245,11 @@ static const struct mctp_test_bind_setup bind_addrany_net2_type2 = {
 	.bind_addr = MCTP_ADDR_ANY, .bind_net = 2, .bind_type = 2,
 };
 
+static const struct mctp_test_bind_setup bind_addrany_net2_type1_peer9 = {
+	.bind_addr = MCTP_ADDR_ANY, .bind_net = 2, .bind_type = 1,
+	.have_peer = true, .peer_addr = 9, .peer_net = 2,
+};
+
 struct mctp_bind_pair_test {
 	const struct mctp_test_bind_setup *bind1;
 	const struct mctp_test_bind_setup *bind2;
@@ -278,18 +283,49 @@ static const struct mctp_bind_pair_test mctp_bind_pair_tests[] = {
 	 *  vs ADDR_ANY, explicit default net 1, OK
 	 */
 	{ &bind_addrany_netdefault_type1, &bind_addrany_net1_type1, 0 },
+
+	/* specific remote peer doesn't conflict with any-peer bind */
+	{ &bind_addrany_net2_type1_peer9, &bind_addrany_net2_type1, 0 },
+
+	/* bind() NET_ANY is allowed with a connect() net */
+	{ &bind_addrany_net2_type1_peer9, &bind_addrany_netdefault_type1, 0 },
 };
 
 static void mctp_bind_pair_desc(const struct mctp_bind_pair_test *t, char *desc)
 {
+	char peer1[25] = {0}, peer2[25] = {0};
+
+	if (t->bind1->have_peer)
+		snprintf(peer1, sizeof(peer1), ", peer %d net %d",
+			 t->bind1->peer_addr, t->bind1->peer_net);
+	if (t->bind2->have_peer)
+		snprintf(peer2, sizeof(peer2), ", peer %d net %d",
+			 t->bind2->peer_addr, t->bind2->peer_net);
+
 	snprintf(desc, KUNIT_PARAM_DESC_SIZE,
-		 "{bind(addr %d, type %d, net %d)} {bind(addr %d, type %d, net %d)} -> error %d",
-		 t->bind1->bind_addr, t->bind1->bind_type, t->bind1->bind_net,
-		 t->bind2->bind_addr, t->bind2->bind_type, t->bind2->bind_net,
-		 t->error);
+		 "{bind(addr %d, type %d, net %d%s)} {bind(addr %d, type %d, net %d%s)} -> error %d",
+		 t->bind1->bind_addr, t->bind1->bind_type,
+		 t->bind1->bind_net, peer1,
+		 t->bind2->bind_addr, t->bind2->bind_type,
+		 t->bind2->bind_net, peer2, t->error);
 }
 
 KUNIT_ARRAY_PARAM(mctp_bind_pair, mctp_bind_pair_tests, mctp_bind_pair_desc);
+
+static void mctp_test_bind_invalid(struct kunit *test)
+{
+	struct socket *sock;
+	int rc;
+
+	/* bind() fails if the bind() vs connect() networks mismatch. */
+	const struct mctp_test_bind_setup bind_connect_net_mismatch = {
+		.bind_addr = MCTP_ADDR_ANY, .bind_net = 1, .bind_type = 1,
+		.have_peer = true, .peer_addr = 9, .peer_net = 2,
+	};
+	mctp_test_bind_run(test, &bind_connect_net_mismatch, &rc, &sock);
+	KUNIT_EXPECT_EQ(test, -rc, EINVAL);
+	sock_release(sock);
+}
 
 static int
 mctp_test_bind_conflicts_inner(struct kunit *test,
@@ -348,6 +384,7 @@ static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE(mctp_test_sock_sendmsg_extaddr),
 	KUNIT_CASE(mctp_test_sock_recvmsg_extaddr),
 	KUNIT_CASE_PARAM(mctp_test_bind_conflicts, mctp_bind_pair_gen_params),
+	KUNIT_CASE(mctp_test_bind_invalid),
 	{}
 };
 

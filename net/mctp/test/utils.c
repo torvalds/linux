@@ -271,6 +271,20 @@ void mctp_test_bind_run(struct kunit *test,
 	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, sock);
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
+	/* connect() if requested */
+	if (setup->have_peer) {
+		memset(&addr, 0x0, sizeof(addr));
+		addr.smctp_family = AF_MCTP;
+		addr.smctp_network = setup->peer_net;
+		addr.smctp_addr.s_addr = setup->peer_addr;
+		/* connect() type must match bind() type */
+		addr.smctp_type = setup->bind_type;
+		rc = kernel_connect(*sock, (struct sockaddr *)&addr,
+				    sizeof(addr), 0);
+		KUNIT_EXPECT_EQ(test, rc, 0);
+	}
+
+	/* bind() */
 	memset(&addr, 0x0, sizeof(addr));
 	addr.smctp_family = AF_MCTP;
 	addr.smctp_network = setup->bind_net;
