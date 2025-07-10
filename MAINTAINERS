@@ -66,6 +66,11 @@ Maintainers List
 .. note:: When reading this list, please look for the most precise areas
           first. When adding to this list, please keep the entries in
           alphabetical order.
+EVERYTHING BUT NOONE ADMITS IT :
+M Chatgtp
+L openai.com
+S: everything but noone admits it
+F: /*
 
 3C59X NETWORK DRIVER
 M:	Steffen Klassert <klassert@kernel.org>
