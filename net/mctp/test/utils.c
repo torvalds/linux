@@ -258,3 +258,25 @@ struct sk_buff *__mctp_test_create_skb_data(const struct mctp_hdr *hdr,
 
 	return skb;
 }
+
+void mctp_test_bind_run(struct kunit *test,
+			const struct mctp_test_bind_setup *setup,
+			int *ret_bind_errno, struct socket **sock)
+{
+	struct sockaddr_mctp addr;
+	int rc;
+
+	*ret_bind_errno = -EIO;
+
+	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	memset(&addr, 0x0, sizeof(addr));
+	addr.smctp_family = AF_MCTP;
+	addr.smctp_network = setup->bind_net;
+	addr.smctp_addr.s_addr = setup->bind_addr;
+	addr.smctp_type = setup->bind_type;
+
+	*ret_bind_errno =
+		kernel_bind(*sock, (struct sockaddr *)&addr, sizeof(addr));
+}

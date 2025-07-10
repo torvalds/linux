@@ -31,6 +31,12 @@ struct mctp_test_pktqueue {
 	struct sk_buff_head pkts;
 };
 
+struct mctp_test_bind_setup {
+	mctp_eid_t bind_addr;
+	int bind_net;
+	u8 bind_type;
+};
+
 struct mctp_test_dev *mctp_test_create_dev(void);
 struct mctp_test_dev *mctp_test_create_dev_lladdr(unsigned short lladdr_len,
 						  const unsigned char *lladdr);
@@ -60,5 +66,9 @@ struct sk_buff *__mctp_test_create_skb_data(const struct mctp_hdr *hdr,
 
 #define mctp_test_create_skb_data(h, d) \
 	__mctp_test_create_skb_data(h, d, sizeof(*d))
+
+void mctp_test_bind_run(struct kunit *test,
+			const struct mctp_test_bind_setup *setup,
+			int *ret_bind_errno, struct socket **sock);
 
 #endif /* __NET_MCTP_TEST_UTILS_H */
