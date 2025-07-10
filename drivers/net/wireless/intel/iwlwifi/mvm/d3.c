@@ -1795,17 +1795,8 @@ static void iwl_mvm_set_key_rx_seq(struct ieee80211_key_conf *key,
 		if (!status->gtk_seq[i].valid)
 			continue;
 
-		if (status->gtk_seq[i].key_id == key->keyidx) {
-			s8 new_key_id = -1;
-
-			if (status->num_of_gtk_rekeys)
-				new_key_id = status->gtk[0].flags &
-						IWL_WOWLAN_GTK_IDX_MASK;
-
-			/* Don't install a new key's value to an old key */
-			if (new_key_id != key->keyidx)
-				iwl_mvm_set_key_rx_seq_idx(key, status, i);
-		}
+		if (status->gtk_seq[i].key_id == key->keyidx)
+			iwl_mvm_set_key_rx_seq_idx(key, status, i);
 	}
 }
 
@@ -1894,17 +1885,10 @@ iwl_mvm_d3_update_igtk_bigtk(struct iwl_wowlan_status_data *status,
 			     struct ieee80211_key_conf *key,
 			     struct iwl_multicast_key_data *key_data)
 {
-	if (status->num_of_gtk_rekeys && key_data->len) {
-		/* remove rekeyed key */
-		ieee80211_remove_key(key);
-	} else {
-		struct ieee80211_key_seq seq;
+	struct ieee80211_key_seq seq;
 
-		iwl_mvm_d3_set_igtk_bigtk_ipn(key_data,
-					      &seq,
-					      key->cipher);
-		ieee80211_set_key_rx_seq(key, 0, &seq);
-	}
+	iwl_mvm_d3_set_igtk_bigtk_ipn(key_data, &seq, key->cipher);
+	ieee80211_set_key_rx_seq(key, 0, &seq);
 }
 
 static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
@@ -1945,18 +1929,13 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 			return;
 		}
 		keyidx = key->keyidx;
-		/* The current key is always sent by the FW, even if it wasn't
-		 * rekeyed during D3.
-		 * We remove an existing key if it has the same index as
-		 * a new key
+		/*
+		 * Update the seq even if there was a rekey. If there was a
+		 * rekey, we will update again after replacing the key
 		 */
-		if (status->num_of_gtk_rekeys &&
-		    ((status->gtk[0].len && keyidx == status->gtk[0].id) ||
-		     (status->gtk[1].len && keyidx == status->gtk[1].id))) {
-			ieee80211_remove_key(key);
-		} else {
-			iwl_mvm_set_key_rx_seq(key, data->status);
-		}
+		if ((status->gtk[0].len && keyidx == status->gtk[0].id) ||
+		    (status->gtk[1].len && keyidx == status->gtk[1].id))
+			iwl_mvm_set_key_rx_seq(key, status);
 		break;
 	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
@@ -2020,8 +1999,12 @@ static bool iwl_mvm_gtk_rekey(struct iwl_wowlan_status_data *status,
 		       sizeof(status->gtk[i].key));
 
 		key = ieee80211_gtk_rekey_add(vif, conf, link_id);
-		if (IS_ERR(key))
+		if (IS_ERR(key)) {
+			/* FW may send also the old keys */
+			if (PTR_ERR(key) == -EALREADY)
+				continue;
 			return false;
+		}
 
 		for (j = 0; j < ARRAY_SIZE(status->gtk_seq); j++) {
 			if (!status->gtk_seq[j].valid ||
@@ -2041,14 +2024,16 @@ iwl_mvm_d3_igtk_bigtk_rekey_add(struct iwl_wowlan_status_data *status,
 				struct ieee80211_vif *vif, u32 cipher,
 				struct iwl_multicast_key_data *key_data)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	DEFINE_RAW_FLEX(struct ieee80211_key_conf, conf, key,
 			WOWLAN_KEY_MAX_SIZE);
 	struct ieee80211_key_conf *key_config;
 	struct ieee80211_key_seq seq;
 	int link_id = vif->active_links ? __ffs(vif->active_links) : -1;
+	s8 keyidx = key_data->id;
 
 	conf->cipher = cipher;
-	conf->keyidx = key_data->id;
+	conf->keyidx = keyidx;
 
 	if (!key_data->len)
 		return true;
@@ -2075,18 +2060,25 @@ iwl_mvm_d3_igtk_bigtk_rekey_add(struct iwl_wowlan_status_data *status,
 	memcpy(conf->key, key_data->key, conf->keylen);
 
 	key_config = ieee80211_gtk_rekey_add(vif, conf, link_id);
-	if (IS_ERR(key_config))
-		return false;
+	if (IS_ERR(key_config)) {
+		/* FW may send also the old keys */
+		return PTR_ERR(key_config) == -EALREADY;
+	}
 	ieee80211_set_key_rx_seq(key_config, 0, &seq);
 
-	if (key_config->keyidx == 4 || key_config->keyidx == 5) {
-		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	if (keyidx == 4 || keyidx == 5) {
 		struct iwl_mvm_vif_link_info *mvm_link;
 
 		link_id = link_id < 0 ? 0 : link_id;
 		mvm_link = mvmvif->link[link_id];
+		if (mvm_link->igtk)
+			mvm_link->igtk->hw_key_idx = STA_KEY_IDX_INVALID;
 		mvm_link->igtk = key_config;
 	}
+
+	if (vif->type == NL80211_IFTYPE_STATION && (keyidx == 6 || keyidx == 7))
+		rcu_assign_pointer(mvmvif->bcn_prot.keys[keyidx - 6],
+				   key_config);
 
 	return true;
 }
