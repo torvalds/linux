@@ -2799,6 +2799,7 @@ TEST_F(iommufd_viommu, viommu_alloc_with_data)
 	struct iommu_viommu_selftest data = {
 		.in_data = 0xbeef,
 	};
+	uint32_t *test;
 
 	if (!self->device_id)
 		SKIP(return, "Skipping test for variant no_viommu");
@@ -2807,6 +2808,24 @@ TEST_F(iommufd_viommu, viommu_alloc_with_data)
 			      IOMMU_VIOMMU_TYPE_SELFTEST, &data, sizeof(data),
 			      &self->viommu_id);
 	ASSERT_EQ(data.out_data, data.in_data);
+
+	/* Negative mmap tests -- offset and length cannot be changed */
+	test_err_mmap(ENXIO, data.out_mmap_length,
+		      data.out_mmap_offset + PAGE_SIZE);
+	test_err_mmap(ENXIO, data.out_mmap_length,
+		      data.out_mmap_offset + PAGE_SIZE * 2);
+	test_err_mmap(ENXIO, data.out_mmap_length / 2, data.out_mmap_offset);
+	test_err_mmap(ENXIO, data.out_mmap_length * 2, data.out_mmap_offset);
+
+	/* Now do a correct mmap for a loopback test */
+	test = mmap(NULL, data.out_mmap_length, PROT_READ | PROT_WRITE,
+		    MAP_SHARED, self->fd, data.out_mmap_offset);
+	ASSERT_NE(MAP_FAILED, test);
+	ASSERT_EQ(data.in_data, *test);
+
+	/* The owner of the mmap region should be blocked */
+	EXPECT_ERRNO(EBUSY, _test_ioctl_destroy(self->fd, self->viommu_id));
+	munmap(test, data.out_mmap_length);
 }
 
 TEST_F(iommufd_viommu, vdevice_alloc)

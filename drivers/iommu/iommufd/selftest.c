@@ -152,6 +152,9 @@ struct mock_viommu {
 	struct mock_iommu_domain *s2_parent;
 	struct mock_hw_queue *hw_queue[IOMMU_TEST_HW_QUEUE_MAX];
 	struct mutex queue_mutex;
+
+	unsigned long mmap_offset;
+	u32 *page; /* Mmap page to test u32 type of in_data */
 };
 
 static inline struct mock_viommu *to_mock_viommu(struct iommufd_viommu *viommu)
@@ -689,6 +692,10 @@ static void mock_viommu_destroy(struct iommufd_viommu *viommu)
 
 	if (refcount_dec_and_test(&mock_iommu->users))
 		complete(&mock_iommu->complete);
+	if (mock_viommu->mmap_offset)
+		iommufd_viommu_destroy_mmap(&mock_viommu->core,
+					    mock_viommu->mmap_offset);
+	free_page((unsigned long)mock_viommu->page);
 	mutex_destroy(&mock_viommu->queue_mutex);
 
 	/* iommufd core frees mock_viommu and viommu */
@@ -887,11 +894,28 @@ static int mock_viommu_init(struct iommufd_viommu *viommu,
 		if (rc)
 			return rc;
 
+		/* Allocate two pages */
+		mock_viommu->page =
+			(u32 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
+		if (!mock_viommu->page)
+			return -ENOMEM;
+
+		rc = iommufd_viommu_alloc_mmap(&mock_viommu->core,
+					       __pa(mock_viommu->page),
+					       PAGE_SIZE * 2,
+					       &mock_viommu->mmap_offset);
+		if (rc)
+			goto err_free_page;
+
+		/* For loopback tests on both the page and out_data */
+		*mock_viommu->page = data.in_data;
 		data.out_data = data.in_data;
+		data.out_mmap_length = PAGE_SIZE * 2;
+		data.out_mmap_offset = mock_viommu->mmap_offset;
 		rc = iommu_copy_struct_to_user(
 			user_data, &data, IOMMU_VIOMMU_TYPE_SELFTEST, out_data);
 		if (rc)
-			return rc;
+			goto err_destroy_mmap;
 	}
 
 	refcount_inc(&mock_iommu->users);
@@ -900,6 +924,13 @@ static int mock_viommu_init(struct iommufd_viommu *viommu,
 
 	viommu->ops = &mock_viommu_ops;
 	return 0;
+
+err_destroy_mmap:
+	iommufd_viommu_destroy_mmap(&mock_viommu->core,
+				    mock_viommu->mmap_offset);
+err_free_page:
+	free_page((unsigned long)mock_viommu->page);
+	return rc;
 }
 
 static const struct iommu_ops mock_ops = {
