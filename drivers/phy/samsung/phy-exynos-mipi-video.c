@@ -218,7 +218,7 @@ static const struct mipi_phy_device_desc exynos7870_mipi_phy = {
 	.regmap_names = {
 		"samsung,pmu-syscon",
 		"samsung,disp-sysreg",
-		"samsung,cam-sysreg"
+		"samsung,cam0-sysreg"
 	},
 	.num_phys = 4,
 	.phys = {
