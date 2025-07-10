@@ -65,7 +65,11 @@ static struct mctp_sock *mctp_lookup_bind_details(struct net *net,
 		if (msk->bind_type != type)
 			continue;
 
-		if (!mctp_address_matches(msk->bind_addr, dest))
+		if (msk->bind_peer_set &&
+		    !mctp_address_matches(msk->bind_peer_addr, src))
+			continue;
+
+		if (!mctp_address_matches(msk->bind_local_addr, dest))
 			continue;
 
 		return msk;
