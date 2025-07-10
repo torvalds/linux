@@ -948,9 +948,16 @@ ef4_ethtool_get_rxfh_fields(struct net_device *net_dev,
 			    struct ethtool_rxfh_fields *info)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);
-	unsigned int min_revision = 0;
 
 	info->data = 0;
+	/* Falcon A0 and A1 had a 4-tuple hash for TCP and UDP, but it was
+	 * broken so we do not enable it.
+	 * Falcon B0 adds a Toeplitz hash, 4-tuple for TCP and 2-tuple for
+	 * other IPv4, including UDP.
+	 * See falcon_init_rx_cfg().
+	 */
+	if (ef4_nic_rev(efx) < EF4_REV_FALCON_B0)
+		return 0;
 	switch (info->flow_type) {
 	case TCP_V4_FLOW:
 		info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
@@ -960,13 +967,10 @@ ef4_ethtool_get_rxfh_fields(struct net_device *net_dev,
 	case AH_ESP_V4_FLOW:
 	case IPV4_FLOW:
 		info->data |= RXH_IP_SRC | RXH_IP_DST;
-		min_revision = EF4_REV_FALCON_B0;
 		break;
 	default:
 		break;
 	}
-	if (ef4_nic_rev(efx) < min_revision)
-		info->data = 0;
 	return 0;
 }
 
