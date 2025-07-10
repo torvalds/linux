@@ -1000,6 +1000,11 @@ static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
 	*pattern = *new;
 	memset(&pattern->courtesy, 0, sizeof(pattern->courtesy));
 
+	if (RTW89_MCC_REQ_COURTESY(pattern, aux) && aux->is_gc)
+		aux->ignore_bcn = true;
+	else
+		aux->ignore_bcn = false;
+
 	if (RTW89_MCC_REQ_COURTESY(pattern, aux) && rtw89_mcc_can_courtesy(ref, aux)) {
 		crtz = &pattern->courtesy.ref;
 		ref->crtz = crtz;
@@ -1013,6 +1018,11 @@ static void rtw89_mcc_assign_pattern(struct rtw89_dev *rtwdev,
 	} else {
 		ref->crtz = NULL;
 	}
+
+	if (RTW89_MCC_REQ_COURTESY(pattern, ref) && ref->is_gc)
+		ref->ignore_bcn = true;
+	else
+		ref->ignore_bcn = false;
 
 	if (RTW89_MCC_REQ_COURTESY(pattern, ref) && rtw89_mcc_can_courtesy(aux, ref)) {
 		crtz = &pattern->courtesy.aux;
@@ -2255,15 +2265,6 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 	else
 		mcc->mode = RTW89_MCC_MODE_GC_STA;
 
-	if (rtw89_mcc_ignore_bcn(rtwdev, ref)) {
-		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, aux->rtwvif_link, false);
-	} else if (rtw89_mcc_ignore_bcn(rtwdev, aux)) {
-		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, ref->rtwvif_link, false);
-	} else {
-		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, ref->rtwvif_link, true);
-		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, aux->rtwvif_link, true);
-	}
-
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "MCC sel mode: %d\n", mcc->mode);
 
 	mcc->group = RTW89_MCC_DFLT_GROUP;
@@ -2271,6 +2272,15 @@ static int rtw89_mcc_start(struct rtw89_dev *rtwdev)
 	ret = rtw89_mcc_fill_config(rtwdev);
 	if (ret)
 		return ret;
+
+	if (rtw89_mcc_ignore_bcn(rtwdev, ref) || aux->ignore_bcn) {
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, aux->rtwvif_link, false);
+	} else if (rtw89_mcc_ignore_bcn(rtwdev, aux) || ref->ignore_bcn) {
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, ref->rtwvif_link, false);
+	} else {
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, ref->rtwvif_link, true);
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, aux->rtwvif_link, true);
+	}
 
 	if (rtw89_concurrent_via_mrc(rtwdev))
 		ret = __mrc_fw_start(rtwdev, false);
@@ -2391,7 +2401,11 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev,
 static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	bool old_ref_ignore_bcn = mcc->role_ref.ignore_bcn;
+	bool old_aux_ignore_bcn = mcc->role_aux.ignore_bcn;
 	struct rtw89_mcc_config *config = &mcc->config;
+	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_config old_cfg = *config;
 	bool courtesy_changed;
 	bool sync_changed;
@@ -2405,6 +2419,11 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 	ret = rtw89_mcc_fill_config(rtwdev);
 	if (ret)
 		return ret;
+
+	if (old_ref_ignore_bcn != ref->ignore_bcn)
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, ref->rtwvif_link, !ref->ignore_bcn);
+	else if (old_aux_ignore_bcn != aux->ignore_bcn)
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, aux->rtwvif_link, !aux->ignore_bcn);
 
 	if (memcmp(&old_cfg.pattern.courtesy, &config->pattern.courtesy,
 		   sizeof(old_cfg.pattern.courtesy)) == 0)
@@ -2441,10 +2460,105 @@ static int rtw89_mcc_update(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int rtw89_mcc_search_gc_iterator(struct rtw89_dev *rtwdev,
+					struct rtw89_mcc_role *mcc_role,
+					unsigned int ordered_idx,
+					void *data)
+{
+	struct rtw89_mcc_role **role = data;
+
+	if (mcc_role->is_gc)
+		*role = mcc_role;
+
+	return 0;
+}
+
+static struct rtw89_mcc_role *rtw89_mcc_get_gc_role(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
+	struct rtw89_mcc_role *role = NULL;
+
+	if (mcc->mode != RTW89_MCC_MODE_GC_STA)
+		return NULL;
+
+	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_search_gc_iterator, &role);
+
+	return role;
+}
+
+void rtw89_mcc_gc_detect_beacon_work(struct wiphy *wiphy, struct wiphy_work *work)
+{
+	struct rtw89_vif_link *rtwvif_link = container_of(work, struct rtw89_vif_link,
+							  mcc_gc_detect_beacon_work.work);
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
+	enum rtw89_entity_mode mode;
+	struct rtw89_dev *rtwdev;
+
+	lockdep_assert_wiphy(wiphy);
+
+	rtwdev = rtwvif_link->rtwvif->rtwdev;
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	if (mode != RTW89_ENTITY_MODE_MCC)
+		return;
+
+	if (READ_ONCE(rtwvif_link->sync_bcn_tsf) > rtwvif_link->last_sync_bcn_tsf)
+		rtwvif_link->detect_bcn_count = 0;
+	else
+		rtwvif_link->detect_bcn_count++;
+
+	if (rtwvif_link->detect_bcn_count < RTW89_MCC_DETECT_BCN_MAX_TRIES)
+		rtw89_chanctx_proceed(rtwdev, NULL);
+	else
+		ieee80211_connection_loss(vif);
+}
+
+bool rtw89_mcc_detect_go_bcn(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif_link *rtwvif_link)
+{
+	enum rtw89_entity_mode mode = rtw89_get_entity_mode(rtwdev);
+	struct rtw89_chanctx_pause_parm pause_parm = {
+		.rsn = RTW89_CHANCTX_PAUSE_REASON_GC_BCN_LOSS,
+		.trigger = rtwvif_link,
+	};
+	struct ieee80211_bss_conf *bss_conf;
+	struct rtw89_mcc_role *role;
+	u16 bcn_int;
+
+	if (mode != RTW89_ENTITY_MODE_MCC)
+		return false;
+
+	role = rtw89_mcc_get_gc_role(rtwdev);
+	if (!role)
+		return false;
+
+	if (role->rtwvif_link != rtwvif_link)
+		return false;
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MCC GC beacon loss, pause MCC to detect GO beacon\n");
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	bcn_int = bss_conf->beacon_int;
+
+	rcu_read_unlock();
+
+	rtw89_chanctx_pause(rtwdev, &pause_parm);
+	rtwvif_link->last_sync_bcn_tsf = READ_ONCE(rtwvif_link->sync_bcn_tsf);
+	wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+				 &rtwvif_link->mcc_gc_detect_beacon_work,
+				 usecs_to_jiffies(ieee80211_tu_to_usec(bcn_int)));
+
+	return true;
+}
+
 static void rtw89_mcc_detect_connection(struct rtw89_dev *rtwdev,
 					struct rtw89_mcc_role *role)
 {
 	struct ieee80211_vif *vif;
+	bool start_detect;
 	int ret;
 
 	ret = rtw89_core_send_nullfunc(rtwdev, role->rtwvif_link, true, false,
@@ -2458,7 +2572,12 @@ static void rtw89_mcc_detect_connection(struct rtw89_dev *rtwdev,
 		return;
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
-		    "MCC <macid %d> can not detect AP\n", role->rtwvif_link->mac_id);
+		    "MCC <macid %d> can not detect AP/GO\n", role->rtwvif_link->mac_id);
+
+	start_detect = rtw89_mcc_detect_go_bcn(rtwdev, role->rtwvif_link);
+	if (start_detect)
+		return;
+
 	vif = rtwvif_link_to_vif(role->rtwvif_link);
 	ieee80211_connection_loss(vif);
 }
@@ -2474,9 +2593,9 @@ static void rtw89_mcc_track(struct rtw89_dev *rtwdev)
 	u16 bcn_ofst;
 	u16 diff;
 
-	if (rtw89_mcc_ignore_bcn(rtwdev, ref))
+	if (rtw89_mcc_ignore_bcn(rtwdev, ref) || aux->ignore_bcn)
 		rtw89_mcc_detect_connection(rtwdev, aux);
-	else if (rtw89_mcc_ignore_bcn(rtwdev, aux))
+	else if (rtw89_mcc_ignore_bcn(rtwdev, aux) || ref->ignore_bcn)
 		rtw89_mcc_detect_connection(rtwdev, ref);
 
 	if (mcc->mode != RTW89_MCC_MODE_GC_STA)

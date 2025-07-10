@@ -3597,6 +3597,7 @@ struct rtw89_vif_link {
 	u8 hit_rule;
 	u8 last_noa_nr;
 	u64 sync_bcn_tsf;
+	u64 last_sync_bcn_tsf;
 	bool rand_tsf_done;
 	bool trigger;
 	bool lsig_txop;
@@ -3620,6 +3621,8 @@ struct rtw89_vif_link {
 	struct list_head general_pkt_list;
 	struct rtw89_p2p_noa_setter p2p_noa;
 	struct rtw89_ps_noa_once_handler noa_once;
+	struct wiphy_delayed_work mcc_gc_detect_beacon_work;
+	u8 detect_bcn_count;
 };
 
 enum rtw89_lv1_rcvy_step {
@@ -5778,6 +5781,7 @@ struct rtw89_mcc_role {
 	bool is_2ghz;
 	bool is_go;
 	bool is_gc;
+	bool ignore_bcn;
 };
 
 struct rtw89_mcc_bt_role {

@@ -113,6 +113,8 @@ static int __rtw89_ops_add_iface_link(struct rtw89_dev *rtwdev,
 
 	wiphy_work_init(&rtwvif_link->update_beacon_work, rtw89_core_update_beacon_work);
 	wiphy_delayed_work_init(&rtwvif_link->csa_beacon_work, rtw89_core_csa_beacon_work);
+	wiphy_delayed_work_init(&rtwvif_link->mcc_gc_detect_beacon_work,
+				rtw89_mcc_gc_detect_beacon_work);
 
 	INIT_LIST_HEAD(&rtwvif_link->general_pkt_list);
 
@@ -124,6 +126,7 @@ static int __rtw89_ops_add_iface_link(struct rtw89_dev *rtwdev,
 	rtwvif_link->chanctx_idx = RTW89_CHANCTX_0;
 	rtwvif_link->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 	rtwvif_link->rand_tsf_done = false;
+	rtwvif_link->detect_bcn_count = 0;
 
 	rcu_read_lock();
 
@@ -147,6 +150,8 @@ static void __rtw89_ops_remove_iface_link(struct rtw89_dev *rtwdev,
 
 	wiphy_work_cancel(rtwdev->hw->wiphy, &rtwvif_link->update_beacon_work);
 	wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwvif_link->csa_beacon_work);
+	wiphy_delayed_work_cancel(rtwdev->hw->wiphy,
+				  &rtwvif_link->mcc_gc_detect_beacon_work);
 
 	rtw89_p2p_noa_once_deinit(rtwvif_link);
 

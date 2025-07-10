@@ -5088,6 +5088,7 @@ rtw89_mac_bcn_fltr_rpt(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_l
 	const struct rtw89_c2h_mac_bcnfltr_rpt *c2h =
 		(const struct rtw89_c2h_mac_bcnfltr_rpt *)skb->data;
 	u8 type, event, mac_id;
+	bool start_detect;
 	s8 sig;
 
 	type = le32_get_bits(c2h->w2, RTW89_C2H_MAC_BCNFLTR_RPT_W2_TYPE);
@@ -5105,10 +5106,15 @@ rtw89_mac_bcn_fltr_rpt(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_l
 	switch (type) {
 	case RTW89_BCN_FLTR_BEACON_LOSS:
 		if (!rtwdev->scanning && !rtwvif->offchan &&
-		    !rtwvif_link->noa_once.in_duration)
+		    !rtwvif_link->noa_once.in_duration) {
+			start_detect = rtw89_mcc_detect_go_bcn(rtwdev, rtwvif_link);
+			if (start_detect)
+				return;
+
 			ieee80211_connection_loss(vif);
-		else
+		} else {
 			rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, true);
+		}
 		return;
 	case RTW89_BCN_FLTR_NOTIFY:
 		nl_event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
