@@ -128,7 +128,6 @@ struct context {
 	int total_allocation;
 	u32 current_bus;
 	bool running;
-	bool flushing;
 
 	/*
 	 * List of page-sized buffers for storing DMA descriptors.
@@ -157,8 +156,12 @@ struct context {
 	int prev_z;
 
 	descriptor_callback_t callback;
+};
 
+struct at_context {
+	struct context context;
 	struct work_struct work;
+	bool flushing;
 };
 
 struct iso_context {
@@ -204,8 +207,8 @@ struct fw_ohci {
 
 	struct ar_context ar_request_ctx;
 	struct ar_context ar_response_ctx;
-	struct context at_request_ctx;
-	struct context at_response_ctx;
+	struct at_context at_request_ctx;
+	struct at_context at_response_ctx;
 
 	u32 it_context_support;
 	u32 it_context_mask;     /* unoccupied IT contexts */
@@ -1178,9 +1181,9 @@ static void context_retire_descriptors(struct context *ctx)
 
 static void ohci_at_context_work(struct work_struct *work)
 {
-	struct context *ctx = from_work(ctx, work, work);
+	struct at_context *ctx = from_work(ctx, work, work);
 
-	context_retire_descriptors(ctx);
+	context_retire_descriptors(&ctx->context);
 }
 
 static void ohci_isoc_context_work(struct work_struct *work)
@@ -1382,17 +1385,17 @@ struct driver_data {
  * Must always be called with the ochi->lock held to ensure proper
  * generation handling and locking around packet queue manipulation.
  */
-static int at_context_queue_packet(struct context *ctx,
-				   struct fw_packet *packet)
+static int at_context_queue_packet(struct at_context *ctx, struct fw_packet *packet)
 {
-	struct fw_ohci *ohci = ctx->ohci;
+	struct context *context = &ctx->context;
+	struct fw_ohci *ohci = context->ohci;
 	dma_addr_t d_bus, payload_bus;
 	struct driver_data *driver_data;
 	struct descriptor *d, *last;
 	__le32 *header;
 	int z, tcode;
 
-	d = context_get_descriptors(ctx, 4, &d_bus);
+	d = context_get_descriptors(context, 4, &d_bus);
 	if (d == NULL) {
 		packet->ack = RCODE_SEND_ERROR;
 		return -1;
@@ -1422,7 +1425,7 @@ static int at_context_queue_packet(struct context *ctx,
 		ohci1394_at_data_set_destination_id(header,
 						    async_header_get_destination(packet->header));
 
-		if (ctx == &ctx->ohci->at_response_ctx) {
+		if (ctx == &ohci->at_response_ctx) {
 			ohci1394_at_data_set_rcode(header, async_header_get_rcode(packet->header));
 		} else {
 			ohci1394_at_data_set_destination_offset(header,
@@ -1511,17 +1514,17 @@ static int at_context_queue_packet(struct context *ctx,
 		return -1;
 	}
 
-	context_append(ctx, d, z, 4 - z);
+	context_append(context, d, z, 4 - z);
 
-	if (ctx->running)
-		reg_write(ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
+	if (context->running)
+		reg_write(ohci, CONTROL_SET(context->regs), CONTEXT_WAKE);
 	else
-		context_run(ctx, 0);
+		context_run(context, 0);
 
 	return 0;
 }
 
-static void at_context_flush(struct context *ctx)
+static void at_context_flush(struct at_context *ctx)
 {
 	// Avoid dead lock due to programming mistake.
 	if (WARN_ON_ONCE(current_work() == &ctx->work))
@@ -1540,12 +1543,13 @@ static int handle_at_packet(struct context *context,
 			    struct descriptor *d,
 			    struct descriptor *last)
 {
+	struct at_context *ctx = container_of(context, struct at_context, context);
+	struct fw_ohci *ohci = ctx->context.ohci;
 	struct driver_data *driver_data;
 	struct fw_packet *packet;
-	struct fw_ohci *ohci = context->ohci;
 	int evt;
 
-	if (last->transfer_status == 0 && !READ_ONCE(context->flushing))
+	if (last->transfer_status == 0 && !READ_ONCE(ctx->flushing))
 		/* This descriptor isn't done yet, stop iteration. */
 		return 0;
 
@@ -1579,7 +1583,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_missing_ack:
-		if (READ_ONCE(context->flushing))
+		if (READ_ONCE(ctx->flushing))
 			packet->ack = RCODE_GENERATION;
 		else {
 			/*
@@ -1601,7 +1605,7 @@ static int handle_at_packet(struct context *context,
 		break;
 
 	case OHCI1394_evt_no_status:
-		if (READ_ONCE(context->flushing)) {
+		if (READ_ONCE(ctx->flushing)) {
 			packet->ack = RCODE_GENERATION;
 			break;
 		}
@@ -1698,13 +1702,14 @@ static void handle_local_lock(struct fw_ohci *ohci,
 	fw_core_handle_response(&ohci->card, &response);
 }
 
-static void handle_local_request(struct context *ctx, struct fw_packet *packet)
+static void handle_local_request(struct at_context *ctx, struct fw_packet *packet)
 {
+	struct fw_ohci *ohci = ctx->context.ohci;
 	u64 offset, csr;
 
-	if (ctx == &ctx->ohci->at_request_ctx) {
+	if (ctx == &ohci->at_request_ctx) {
 		packet->ack = ACK_PENDING;
-		packet->callback(packet, &ctx->ohci->card, packet->ack);
+		packet->callback(packet, &ohci->card, packet->ack);
 	}
 
 	offset = async_header_get_offset(packet->header);
@@ -1712,54 +1717,55 @@ static void handle_local_request(struct context *ctx, struct fw_packet *packet)
 
 	/* Handle config rom reads. */
 	if (csr >= CSR_CONFIG_ROM && csr < CSR_CONFIG_ROM_END)
-		handle_local_rom(ctx->ohci, packet, csr);
+		handle_local_rom(ohci, packet, csr);
 	else switch (csr) {
 	case CSR_BUS_MANAGER_ID:
 	case CSR_BANDWIDTH_AVAILABLE:
 	case CSR_CHANNELS_AVAILABLE_HI:
 	case CSR_CHANNELS_AVAILABLE_LO:
-		handle_local_lock(ctx->ohci, packet, csr);
+		handle_local_lock(ohci, packet, csr);
 		break;
 	default:
-		if (ctx == &ctx->ohci->at_request_ctx)
-			fw_core_handle_request(&ctx->ohci->card, packet);
+		if (ctx == &ohci->at_request_ctx)
+			fw_core_handle_request(&ohci->card, packet);
 		else
-			fw_core_handle_response(&ctx->ohci->card, packet);
+			fw_core_handle_response(&ohci->card, packet);
 		break;
 	}
 
-	if (ctx == &ctx->ohci->at_response_ctx) {
+	if (ctx == &ohci->at_response_ctx) {
 		packet->ack = ACK_COMPLETE;
-		packet->callback(packet, &ctx->ohci->card, packet->ack);
+		packet->callback(packet, &ohci->card, packet->ack);
 	}
 }
 
-static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
+static void at_context_transmit(struct at_context *ctx, struct fw_packet *packet)
 {
+	struct fw_ohci *ohci = ctx->context.ohci;
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&ctx->ohci->lock, flags);
+	spin_lock_irqsave(&ohci->lock, flags);
 
-	if (async_header_get_destination(packet->header) == ctx->ohci->node_id &&
-	    ctx->ohci->generation == packet->generation) {
-		spin_unlock_irqrestore(&ctx->ohci->lock, flags);
+	if (async_header_get_destination(packet->header) == ohci->node_id &&
+	    ohci->generation == packet->generation) {
+		spin_unlock_irqrestore(&ohci->lock, flags);
 
 		// Timestamping on behalf of the hardware.
-		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ctx->ohci));
+		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
 
 		handle_local_request(ctx, packet);
 		return;
 	}
 
 	ret = at_context_queue_packet(ctx, packet);
-	spin_unlock_irqrestore(&ctx->ohci->lock, flags);
+	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	if (ret < 0) {
 		// Timestamping on behalf of the hardware.
-		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ctx->ohci));
+		packet->timestamp = cycle_time_to_ohci_tstamp(get_cycle_time(ohci));
 
-		packet->callback(packet, &ctx->ohci->card, packet->ack);
+		packet->callback(packet, &ohci->card, packet->ack);
 	}
 }
 
@@ -2138,8 +2144,8 @@ static void bus_reset_work(struct work_struct *work)
 	// FIXME: Document how the locking works.
 	scoped_guard(spinlock_irq, &ohci->lock) {
 		ohci->generation = -1; // prevent AT packet queueing
-		context_stop(&ohci->at_request_ctx);
-		context_stop(&ohci->at_response_ctx);
+		context_stop(&ohci->at_request_ctx.context);
+		context_stop(&ohci->at_response_ctx.context);
 	}
 
 	/*
@@ -2683,7 +2689,7 @@ static void ohci_send_response(struct fw_card *card, struct fw_packet *packet)
 static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	struct context *ctx = &ohci->at_request_ctx;
+	struct at_context *ctx = &ohci->at_request_ctx;
 	struct driver_data *driver_data = packet->driver_data;
 	int ret = -ENOENT;
 
@@ -3767,13 +3773,13 @@ static int pci_probe(struct pci_dev *dev,
 	if (err < 0)
 		return err;
 
-	err = context_init(&ohci->at_request_ctx, ohci,
+	err = context_init(&ohci->at_request_ctx.context, ohci,
 			   OHCI1394_AsReqTrContextControlSet, handle_at_packet);
 	if (err < 0)
 		return err;
 	INIT_WORK(&ohci->at_request_ctx.work, ohci_at_context_work);
 
-	err = context_init(&ohci->at_response_ctx, ohci,
+	err = context_init(&ohci->at_response_ctx.context, ohci,
 			   OHCI1394_AsRspTrContextControlSet, handle_at_packet);
 	if (err < 0)
 		return err;
