@@ -994,13 +994,25 @@ rtw89_core_tx_wake(struct rtw89_dev *rtwdev,
 	if (!RTW89_CHK_FW_FEATURE(TX_WAKE, &rtwdev->fw))
 		return;
 
-	if (!test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
-		return;
+	switch (chip->chip_id) {
+	case RTL8852BT:
+		if (test_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
+			goto notify;
+		break;
+	case RTL8852C:
+		if (test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
+			goto notify;
+		break;
+	default:
+		if (test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags) &&
+		    tx_req->tx_type == RTW89_CORE_TX_TYPE_MGMT)
+			goto notify;
+		break;
+	}
 
-	if (chip->chip_id != RTL8852C &&
-	    tx_req->tx_type != RTW89_CORE_TX_TYPE_MGMT)
-		return;
+	return;
 
+notify:
 	rtw89_mac_notify_wake(rtwdev);
 }
 
