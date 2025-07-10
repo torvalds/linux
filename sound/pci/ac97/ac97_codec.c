@@ -2303,7 +2303,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	if (ac97_is_audio(ac97)) {
 		char comp[16];
 		if (card->mixername[0] == '\0') {
-			strcpy(card->mixername, name);
+			strscpy(card->mixername, name);
 		} else {
 			if (strlen(card->mixername) + 1 + strlen(name) + 1 <= sizeof(card->mixername)) {
 				strcat(card->mixername, ",");
@@ -2324,7 +2324,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	if (ac97_is_modem(ac97)) {
 		char comp[16];
 		if (card->mixername[0] == '\0') {
-			strcpy(card->mixername, name);
+			strscpy(card->mixername, name);
 		} else {
 			if (strlen(card->mixername) + 1 + strlen(name) + 1 <= sizeof(card->mixername)) {
 				strcat(card->mixername, ",");
