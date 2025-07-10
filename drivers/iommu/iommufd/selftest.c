@@ -150,11 +150,26 @@ to_mock_nested(struct iommu_domain *domain)
 struct mock_viommu {
 	struct iommufd_viommu core;
 	struct mock_iommu_domain *s2_parent;
+	struct mock_hw_queue *hw_queue[IOMMU_TEST_HW_QUEUE_MAX];
+	struct mutex queue_mutex;
 };
 
 static inline struct mock_viommu *to_mock_viommu(struct iommufd_viommu *viommu)
 {
 	return container_of(viommu, struct mock_viommu, core);
+}
+
+struct mock_hw_queue {
+	struct iommufd_hw_queue core;
+	struct mock_viommu *mock_viommu;
+	struct mock_hw_queue *prev;
+	u16 index;
+};
+
+static inline struct mock_hw_queue *
+to_mock_hw_queue(struct iommufd_hw_queue *hw_queue)
+{
+	return container_of(hw_queue, struct mock_hw_queue, core);
 }
 
 enum selftest_obj_type {
@@ -670,9 +685,11 @@ static void mock_viommu_destroy(struct iommufd_viommu *viommu)
 {
 	struct mock_iommu_device *mock_iommu = container_of(
 		viommu->iommu_dev, struct mock_iommu_device, iommu_dev);
+	struct mock_viommu *mock_viommu = to_mock_viommu(viommu);
 
 	if (refcount_dec_and_test(&mock_iommu->users))
 		complete(&mock_iommu->complete);
+	mutex_destroy(&mock_viommu->queue_mutex);
 
 	/* iommufd core frees mock_viommu and viommu */
 }
@@ -764,10 +781,86 @@ out:
 	return rc;
 }
 
+static size_t mock_viommu_get_hw_queue_size(struct iommufd_viommu *viommu,
+					    enum iommu_hw_queue_type queue_type)
+{
+	if (queue_type != IOMMU_HW_QUEUE_TYPE_SELFTEST)
+		return 0;
+	return HW_QUEUE_STRUCT_SIZE(struct mock_hw_queue, core);
+}
+
+static void mock_hw_queue_destroy(struct iommufd_hw_queue *hw_queue)
+{
+	struct mock_hw_queue *mock_hw_queue = to_mock_hw_queue(hw_queue);
+	struct mock_viommu *mock_viommu = mock_hw_queue->mock_viommu;
+
+	mutex_lock(&mock_viommu->queue_mutex);
+	mock_viommu->hw_queue[mock_hw_queue->index] = NULL;
+	if (mock_hw_queue->prev)
+		iommufd_hw_queue_undepend(mock_hw_queue, mock_hw_queue->prev,
+					  core);
+	mutex_unlock(&mock_viommu->queue_mutex);
+}
+
+/* Test iommufd_hw_queue_depend/undepend() */
+static int mock_hw_queue_init_phys(struct iommufd_hw_queue *hw_queue, u32 index,
+				   phys_addr_t base_addr_pa)
+{
+	struct mock_viommu *mock_viommu = to_mock_viommu(hw_queue->viommu);
+	struct mock_hw_queue *mock_hw_queue = to_mock_hw_queue(hw_queue);
+	struct mock_hw_queue *prev = NULL;
+	int rc = 0;
+
+	if (index >= IOMMU_TEST_HW_QUEUE_MAX)
+		return -EINVAL;
+
+	mutex_lock(&mock_viommu->queue_mutex);
+
+	if (mock_viommu->hw_queue[index]) {
+		rc = -EEXIST;
+		goto unlock;
+	}
+
+	if (index) {
+		prev = mock_viommu->hw_queue[index - 1];
+		if (!prev) {
+			rc = -EIO;
+			goto unlock;
+		}
+	}
+
+	/*
+	 * Test to catch a kernel bug if the core converted the physical address
+	 * incorrectly. Let mock_domain_iova_to_phys() WARN_ON if it fails.
+	 */
+	if (base_addr_pa != iommu_iova_to_phys(&mock_viommu->s2_parent->domain,
+					       hw_queue->base_addr)) {
+		rc = -EFAULT;
+		goto unlock;
+	}
+
+	if (prev) {
+		rc = iommufd_hw_queue_depend(mock_hw_queue, prev, core);
+		if (rc)
+			goto unlock;
+	}
+
+	mock_hw_queue->prev = prev;
+	mock_hw_queue->mock_viommu = mock_viommu;
+	mock_viommu->hw_queue[index] = mock_hw_queue;
+
+	hw_queue->destroy = &mock_hw_queue_destroy;
+unlock:
+	mutex_unlock(&mock_viommu->queue_mutex);
+	return rc;
+}
+
 static struct iommufd_viommu_ops mock_viommu_ops = {
 	.destroy = mock_viommu_destroy,
 	.alloc_domain_nested = mock_viommu_alloc_domain_nested,
 	.cache_invalidate = mock_viommu_cache_invalidate,
+	.get_hw_queue_size = mock_viommu_get_hw_queue_size,
+	.hw_queue_init_phys = mock_hw_queue_init_phys,
 };
 
 static size_t mock_get_viommu_size(struct device *dev,
@@ -784,6 +877,7 @@ static int mock_viommu_init(struct iommufd_viommu *viommu,
 {
 	struct mock_iommu_device *mock_iommu = container_of(
 		viommu->iommu_dev, struct mock_iommu_device, iommu_dev);
+	struct mock_viommu *mock_viommu = to_mock_viommu(viommu);
 	struct iommu_viommu_selftest data;
 	int rc;
 
@@ -801,6 +895,9 @@ static int mock_viommu_init(struct iommufd_viommu *viommu,
 	}
 
 	refcount_inc(&mock_iommu->users);
+	mutex_init(&mock_viommu->queue_mutex);
+	mock_viommu->s2_parent = to_mock_domain(parent_domain);
+
 	viommu->ops = &mock_viommu_ops;
 	return 0;
 }
