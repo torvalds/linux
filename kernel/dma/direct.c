@@ -120,7 +120,7 @@ static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 		gfp_t gfp, bool allow_highmem)
 {
 	int node = dev_to_node(dev);
-	struct page *page = NULL;
+	struct page *page;
 	u64 phys_limit;
 
 	WARN_ON_ONCE(!PAGE_ALIGNED(size));
@@ -131,30 +131,25 @@ static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 	gfp |= dma_direct_optimal_gfp_mask(dev, &phys_limit);
 	page = dma_alloc_contiguous(dev, size, gfp);
 	if (page) {
-		if (!dma_coherent_ok(dev, page_to_phys(page), size) ||
-		    (!allow_highmem && PageHighMem(page))) {
-			dma_free_contiguous(dev, page, size);
-			page = NULL;
-		}
+		if (dma_coherent_ok(dev, page_to_phys(page), size) &&
+		    (allow_highmem || !PageHighMem(page)))
+			return page;
+
+		dma_free_contiguous(dev, page, size);
 	}
-again:
-	if (!page)
-		page = alloc_pages_node(node, gfp, get_order(size));
-	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
+
+	while ((page = alloc_pages_node(node, gfp, get_order(size)))
+	       && !dma_coherent_ok(dev, page_to_phys(page), size)) {
 		__free_pages(page, get_order(size));
-		page = NULL;
 
 		if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
 		    phys_limit < DMA_BIT_MASK(64) &&
-		    !(gfp & (GFP_DMA32 | GFP_DMA))) {
+		    !(gfp & (GFP_DMA32 | GFP_DMA)))
 			gfp |= GFP_DMA32;
-			goto again;
-		}
-
-		if (IS_ENABLED(CONFIG_ZONE_DMA) && !(gfp & GFP_DMA)) {
+		else if (IS_ENABLED(CONFIG_ZONE_DMA) && !(gfp & GFP_DMA))
 			gfp = (gfp & ~GFP_DMA32) | GFP_DMA;
-			goto again;
-		}
+		else
+			return NULL;
 	}
 
 	return page;
