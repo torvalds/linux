@@ -678,7 +678,7 @@ static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 	if (rec->suffix)
 		sprintf(name, "Intel ICH - %s", rec->suffix);
 	else
-		strcpy(name, "Intel ICH");
+		strscpy(name, "Intel ICH");
 	err = snd_pcm_new(chip->card, name, device,
 			  rec->playback_ops ? 1 : 0,
 			  rec->capture_ops ? 1 : 0, &pcm);
@@ -696,7 +696,7 @@ static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 	if (rec->suffix)
 		sprintf(pcm->name, "%s - %s", chip->card->shortname, rec->suffix);
 	else
-		strcpy(pcm->name, chip->card->shortname);
+		strscpy(pcm->name, chip->card->shortname);
 	chip->pcm[device] = pcm;
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
@@ -1184,11 +1184,11 @@ static int __snd_intel8x0m_probe(struct pci_dev *pci,
 		return err;
 	chip = card->private_data;
 
-	strcpy(card->driver, "ICH-MODEM");
-	strcpy(card->shortname, "Intel ICH");
+	strscpy(card->driver, "ICH-MODEM");
+	strscpy(card->shortname, "Intel ICH");
 	for (name = shortnames; name->id; name++) {
 		if (pci->device == name->id) {
-			strcpy(card->shortname, name->s);
+			strscpy(card->shortname, name->s);
 			break;
 		}
 	}
