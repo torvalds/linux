@@ -766,6 +766,63 @@ void intel_dp_link_training_set_bw(struct intel_dp *intel_dp,
 	}
 }
 
+/*
+ * Pick Training Pattern Sequence (TPS) for channel equalization. 128b/132b TPS2
+ * for UHBR+, TPS4 for HBR3 or for 1.4 devices that support it, TPS3 for HBR2 or
+ * 1.2 devices that support it, TPS2 otherwise.
+ */
+static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
+				     const struct intel_crtc_state *crtc_state,
+				     enum drm_dp_phy dp_phy)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	bool source_tps3, sink_tps3, source_tps4, sink_tps4;
+
+	/* UHBR+ use separate 128b/132b TPS2 */
+	if (intel_dp_is_uhbr(crtc_state))
+		return DP_TRAINING_PATTERN_2;
+
+	/*
+	 * TPS4 support is mandatory for all downstream devices that
+	 * support HBR3. There are no known eDP panels that support
+	 * TPS4 as of Feb 2018 as per VESA eDP_v1.4b_E1 specification.
+	 * LTTPRs must support TPS4.
+	 */
+	source_tps4 = intel_dp_source_supports_tps4(display);
+	sink_tps4 = dp_phy != DP_PHY_DPRX ||
+		    drm_dp_tps4_supported(intel_dp->dpcd);
+	if (source_tps4 && sink_tps4) {
+		return DP_TRAINING_PATTERN_4;
+	} else if (crtc_state->port_clock == 810000) {
+		if (!source_tps4)
+			lt_dbg(intel_dp, dp_phy,
+			       "8.1 Gbps link rate without source TPS4 support\n");
+		if (!sink_tps4)
+			lt_dbg(intel_dp, dp_phy,
+			       "8.1 Gbps link rate without sink TPS4 support\n");
+	}
+
+	/*
+	 * TPS3 support is mandatory for downstream devices that
+	 * support HBR2. However, not all sinks follow the spec.
+	 */
+	source_tps3 = intel_dp_source_supports_tps3(display);
+	sink_tps3 = dp_phy != DP_PHY_DPRX ||
+		    drm_dp_tps3_supported(intel_dp->dpcd);
+	if (source_tps3 && sink_tps3) {
+		return  DP_TRAINING_PATTERN_3;
+	} else if (crtc_state->port_clock >= 540000) {
+		if (!source_tps3)
+			lt_dbg(intel_dp, dp_phy,
+			       ">=5.4/6.48 Gbps link rate without source TPS3 support\n");
+		if (!sink_tps3)
+			lt_dbg(intel_dp, dp_phy,
+			       ">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
+	}
+
+	return DP_TRAINING_PATTERN_2;
+}
+
 static void intel_dp_update_link_bw_set(struct intel_dp *intel_dp,
 					const struct intel_crtc_state *crtc_state,
 					u8 link_bw, u8 rate_select)
@@ -955,63 +1012,6 @@ intel_dp_link_training_clock_recovery(struct intel_dp *intel_dp,
 	       max_cr_tries);
 
 	return false;
-}
-
-/*
- * Pick Training Pattern Sequence (TPS) for channel equalization. 128b/132b TPS2
- * for UHBR+, TPS4 for HBR3 or for 1.4 devices that support it, TPS3 for HBR2 or
- * 1.2 devices that support it, TPS2 otherwise.
- */
-static u32 intel_dp_training_pattern(struct intel_dp *intel_dp,
-				     const struct intel_crtc_state *crtc_state,
-				     enum drm_dp_phy dp_phy)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-	bool source_tps3, sink_tps3, source_tps4, sink_tps4;
-
-	/* UHBR+ use separate 128b/132b TPS2 */
-	if (intel_dp_is_uhbr(crtc_state))
-		return DP_TRAINING_PATTERN_2;
-
-	/*
-	 * TPS4 support is mandatory for all downstream devices that
-	 * support HBR3. There are no known eDP panels that support
-	 * TPS4 as of Feb 2018 as per VESA eDP_v1.4b_E1 specification.
-	 * LTTPRs must support TPS4.
-	 */
-	source_tps4 = intel_dp_source_supports_tps4(display);
-	sink_tps4 = dp_phy != DP_PHY_DPRX ||
-		    drm_dp_tps4_supported(intel_dp->dpcd);
-	if (source_tps4 && sink_tps4) {
-		return DP_TRAINING_PATTERN_4;
-	} else if (crtc_state->port_clock == 810000) {
-		if (!source_tps4)
-			lt_dbg(intel_dp, dp_phy,
-			       "8.1 Gbps link rate without source TPS4 support\n");
-		if (!sink_tps4)
-			lt_dbg(intel_dp, dp_phy,
-			       "8.1 Gbps link rate without sink TPS4 support\n");
-	}
-
-	/*
-	 * TPS3 support is mandatory for downstream devices that
-	 * support HBR2. However, not all sinks follow the spec.
-	 */
-	source_tps3 = intel_dp_source_supports_tps3(display);
-	sink_tps3 = dp_phy != DP_PHY_DPRX ||
-		    drm_dp_tps3_supported(intel_dp->dpcd);
-	if (source_tps3 && sink_tps3) {
-		return  DP_TRAINING_PATTERN_3;
-	} else if (crtc_state->port_clock >= 540000) {
-		if (!source_tps3)
-			lt_dbg(intel_dp, dp_phy,
-			       ">=5.4/6.48 Gbps link rate without source TPS3 support\n");
-		if (!sink_tps3)
-			lt_dbg(intel_dp, dp_phy,
-			       ">=5.4/6.48 Gbps link rate without sink TPS3 support\n");
-	}
-
-	return DP_TRAINING_PATTERN_2;
 }
 
 /*
