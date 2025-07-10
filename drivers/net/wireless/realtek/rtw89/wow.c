@@ -1477,7 +1477,7 @@ static int rtw89_pno_scan_offload(struct rtw89_dev *rtwdev, bool enable)
 	opt.enable = enable;
 	opt.repeat = RTW89_SCAN_NORMAL;
 	opt.norm_pd = max(interval, 1) * 10; /* in unit of 100ms */
-	opt.delay = max(rtw_wow->nd_config->delay, 1);
+	opt.delay = max(rtw_wow->nd_config->delay, 1) * 1000;
 
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
 		opt.operation = enable ? RTW89_SCAN_OP_START : RTW89_SCAN_OP_STOP;

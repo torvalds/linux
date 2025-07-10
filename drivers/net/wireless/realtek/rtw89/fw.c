@@ -5583,7 +5583,6 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 	return 0;
 }
 
-#define RTW89_SCAN_DELAY_TSF_UNIT 1000000
 int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
 				 struct rtw89_scan_option *option,
 				 struct rtw89_vif_link *rtwvif_link,
@@ -5615,7 +5614,7 @@ int rtw89_fw_h2c_scan_offload_ax(struct rtw89_dev *rtwdev,
 			scan_mode = RTW89_SCAN_IMMEDIATE;
 		} else {
 			scan_mode = RTW89_SCAN_DELAY;
-			tsf += (u64)option->delay * RTW89_SCAN_DELAY_TSF_UNIT;
+			tsf += (u64)option->delay * 1000;
 		}
 	}
 
@@ -5781,7 +5780,7 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 				   RTW89_H2C_SCANOFLD_BE_W4_PROBE_5G) |
 		  le32_encode_bits(probe_id[NL80211_BAND_6GHZ],
 				   RTW89_H2C_SCANOFLD_BE_W4_PROBE_6G) |
-		  le32_encode_bits(option->delay, RTW89_H2C_SCANOFLD_BE_W4_DELAY_START);
+		  le32_encode_bits(option->delay / 1000, RTW89_H2C_SCANOFLD_BE_W4_DELAY_START);
 
 	h2c->w5 = le32_encode_bits(option->mlo_mode, RTW89_H2C_SCANOFLD_BE_W5_MLO_MODE);
 
@@ -6826,6 +6825,7 @@ static void rtw89_hw_scan_cleanup(struct rtw89_dev *rtwdev,
 	scan_info->scanning_vif = NULL;
 	scan_info->abort = false;
 	scan_info->connected = false;
+	scan_info->delay = 0;
 }
 
 static bool rtw89_is_6ghz_wildcard_probe_req(struct rtw89_dev *rtwdev,
@@ -7628,8 +7628,21 @@ static void rtw89_hw_scan_update_link_beacon_noa(struct rtw89_dev *rtwdev,
 						 u16 tu)
 {
 	struct ieee80211_p2p_noa_desc noa_desc = {};
+	struct ieee80211_bss_conf *bss_conf;
+	u16 beacon_int;
 	u64 tsf;
 	int ret;
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+	beacon_int = bss_conf->beacon_int;
+
+	rcu_read_unlock();
+
+	tu += beacon_int * 3;
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
+		rtwdev->scan_info.delay = ieee80211_tu_to_usec(beacon_int * 3) / 1000;
 
 	ret = rtw89_mac_port_get_tsf(rtwdev, rtwvif_link, &tsf);
 	if (ret) {
@@ -7770,6 +7783,7 @@ int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
 	rtwdev->scan_info.connected = rtw89_is_any_vif_connected_or_connecting(rtwdev);
 	rtwdev->scan_info.scanning_vif = rtwvif_link;
 	rtwdev->scan_info.abort = false;
+	rtwdev->scan_info.delay = 0;
 	rtwvif->scan_ies = &scan_req->ies;
 	rtwvif->scan_req = req;
 
@@ -7912,6 +7926,7 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev,
 	connected = rtwdev->scan_info.connected;
 	opt.enable = enable;
 	opt.target_ch_mode = connected;
+	opt.delay = rtwdev->scan_info.delay;
 	if (enable) {
 		ret = mac->add_chan_list(rtwdev, rtwvif_link);
 		if (ret)

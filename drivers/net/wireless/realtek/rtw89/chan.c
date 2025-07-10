@@ -2336,15 +2336,23 @@ static void rtw89_mcc_stop(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_mcc_info *mcc = &rtwdev->mcc;
 	struct rtw89_mcc_role *ref = &mcc->role_ref;
+	struct rtw89_mcc_role *aux = &mcc->role_aux;
 	struct rtw89_mcc_stop_sel sel = {
 		.hint.target = pause ? pause->trigger : NULL,
 	};
+	bool rsn_scan;
 	int ret;
 
 	if (!pause) {
 		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->chanctx_work);
 		bitmap_zero(hal->changes, NUM_OF_RTW89_CHANCTX_CHANGES);
 	}
+
+	rsn_scan = pause && pause->rsn == RTW89_CHANCTX_PAUSE_REASON_HW_SCAN;
+	if (rsn_scan && ref->is_go)
+		sel.hint.target = ref->rtwvif_link;
+	else if (rsn_scan && aux->is_go)
+		sel.hint.target = aux->rtwvif_link;
 
 	/* by default, stop at ref */
 	rtw89_iterate_mcc_roles(rtwdev, rtw89_mcc_stop_sel_iterator, &sel);

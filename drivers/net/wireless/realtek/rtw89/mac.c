@@ -5049,6 +5049,7 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 
 		if (rtwvif_link && rtwvif->scan_req &&
 		    !list_empty(&rtwdev->scan_info.chan_list)) {
+			rtwdev->scan_info.delay = 0;
 			ret = rtw89_hw_scan_offload(rtwdev, rtwvif_link, true);
 			if (ret) {
 				rtw89_hw_scan_abort(rtwdev, rtwvif_link);
