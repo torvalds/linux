@@ -146,7 +146,7 @@ int __init snd_seq_system_client_init(void)
 	}
 
 	/* register timer */
-	strcpy(port->name, "Timer");
+	strscpy(port->name, "Timer");
 	port->capability = SNDRV_SEQ_PORT_CAP_WRITE; /* accept queue control */
 	port->capability |= SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_SUBS_READ; /* for broadcast */
 	port->kernel = &pcallbacks;
@@ -160,7 +160,7 @@ int __init snd_seq_system_client_init(void)
 		goto error_port;
 
 	/* register announcement port */
-	strcpy(port->name, "Announce");
+	strscpy(port->name, "Announce");
 	port->capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_SUBS_READ; /* for broadcast only */
 	pcallbacks.event_input = NULL;
 	pcallbacks.subscribe = sys_announce_subscribe;
