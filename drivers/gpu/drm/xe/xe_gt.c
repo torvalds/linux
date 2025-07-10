@@ -189,16 +189,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	long timeout;
 	int count_rmw = 0;
 	int count = 0;
-
-	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
-		/* Big enough to emit all of the context's 3DSTATE */
-		bb = xe_bb_new(gt, xe_gt_lrc_size(gt, q->hwe->class), false);
-	else
-		/* Just pick a large BB size */
-		bb = xe_bb_new(gt, SZ_4K, false);
-
-	if (IS_ERR(bb))
-		return PTR_ERR(bb);
+	size_t bb_len = 0;
 
 	/* count RMW registers as those will be handled separately */
 	xa_for_each(&sr->xa, idx, entry) {
@@ -208,11 +199,30 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 			++count_rmw;
 	}
 
-	if (count || count_rmw)
-		xe_gt_dbg(gt, "LRC WA %s save-restore batch\n", sr->name);
+	if (count)
+		bb_len += count * 2 + 1;
+
+	if (count_rmw)
+		bb_len += count_rmw * 20 + 7;
+
+	if (q->hwe->class == XE_ENGINE_CLASS_RENDER)
+		/*
+		 * Big enough to emit all of the context's 3DSTATE via
+		 * xe_lrc_emit_hwe_state_instructions()
+		 */
+		bb_len += xe_gt_lrc_size(gt, q->hwe->class) / sizeof(u32);
+
+	xe_gt_dbg(gt, "LRC %s WA job: %zu dwords\n", q->hwe->name, bb_len);
+
+	bb = xe_bb_new(gt, bb_len, false);
+	if (IS_ERR(bb))
+		return PTR_ERR(bb);
 
 	if (count) {
-		/* emit single LRI with all non RMW regs */
+		/*
+		 * Emit single LRI with all non RMW regs: 1 leading dw + 2dw per
+		 * reg + 1
+		 */
 
 		bb->cs[bb->len++] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(count);
 
@@ -236,7 +246,7 @@ static int emit_wa_job(struct xe_gt *gt, struct xe_exec_queue *q)
 	}
 
 	if (count_rmw) {
-		/* emit MI_MATH for each RMW reg */
+		/* Emit MI_MATH for each RMW reg: 20dw per reg + 7 trailing dw */
 
 		xa_for_each(&sr->xa, idx, entry) {
 			if (entry->reg.masked || entry->clr_bits == ~0)
