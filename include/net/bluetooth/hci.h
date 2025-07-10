@@ -562,6 +562,7 @@ enum {
 #define LE_LINK		0x80
 #define CIS_LINK	0x82
 #define BIS_LINK	0x83
+#define PA_LINK		0x84
 #define INVALID_LINK	0xff
 
 /* LMP features */

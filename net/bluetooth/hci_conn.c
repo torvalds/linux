@@ -785,7 +785,7 @@ static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, struct hci_conn *c
 	d->sync_handle = conn->sync_handle;
 
 	if (test_and_clear_bit(HCI_CONN_PA_SYNC, &conn->flags)) {
-		hci_conn_hash_list_flag(hdev, find_bis, BIS_LINK,
+		hci_conn_hash_list_flag(hdev, find_bis, PA_LINK,
 					HCI_CONN_PA_SYNC, d);
 
 		if (!d->count)
@@ -914,6 +914,7 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t 
 		break;
 	case CIS_LINK:
 	case BIS_LINK:
+	case PA_LINK:
 		if (hdev->iso_mtu)
 			/* Dedicated ISO Buffer exists */
 			break;
@@ -979,6 +980,7 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t 
 		break;
 	case CIS_LINK:
 	case BIS_LINK:
+	case PA_LINK:
 		/* conn->src should reflect the local identity address */
 		hci_copy_identity_address(hdev, &conn->src, &conn->src_type);
 
@@ -1033,7 +1035,6 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t 
 	}
 
 	hci_conn_init_sysfs(conn);
-
 	return conn;
 }
 
@@ -1077,6 +1078,7 @@ static void hci_conn_cleanup_child(struct hci_conn *conn, u8 reason)
 		break;
 	case CIS_LINK:
 	case BIS_LINK:
+	case PA_LINK:
 		if ((conn->state != BT_CONNECTED &&
 		    !test_bit(HCI_CONN_CREATE_CIS, &conn->flags)) ||
 		    test_bit(HCI_CONN_BIG_CREATED, &conn->flags))
@@ -1152,7 +1154,8 @@ void hci_conn_del(struct hci_conn *conn)
 	} else {
 		/* Unacked ISO frames */
 		if (conn->type == CIS_LINK ||
-		    conn->type == BIS_LINK) {
+		    conn->type == BIS_LINK ||
+		    conn->type == PA_LINK) {
 			if (hdev->iso_pkts)
 				hdev->iso_cnt += conn->sent;
 			else if (hdev->le_pkts)
@@ -2081,7 +2084,7 @@ struct hci_conn *hci_pa_create_sync(struct hci_dev *hdev, bdaddr_t *dst,
 
 	bt_dev_dbg(hdev, "dst %pMR type %d sid %d", dst, dst_type, sid);
 
-	conn = hci_conn_add_unset(hdev, BIS_LINK, dst, HCI_ROLE_SLAVE);
+	conn = hci_conn_add_unset(hdev, PA_LINK, dst, HCI_ROLE_SLAVE);
 	if (IS_ERR(conn))
 		return conn;
 
@@ -2246,7 +2249,7 @@ struct hci_conn *hci_connect_bis(struct hci_dev *hdev, bdaddr_t *dst,
 	 * the start periodic advertising and create BIG commands have
 	 * been queued
 	 */
-	hci_conn_hash_list_state(hdev, bis_mark_per_adv, BIS_LINK,
+	hci_conn_hash_list_state(hdev, bis_mark_per_adv, PA_LINK,
 				 BT_BOUND, &data);
 
 	/* Queue start periodic advertising and create BIG */
@@ -2980,6 +2983,7 @@ void hci_conn_tx_queue(struct hci_conn *conn, struct sk_buff *skb)
 	switch (conn->type) {
 	case CIS_LINK:
 	case BIS_LINK:
+	case PA_LINK:
 	case ACL_LINK:
 	case LE_LINK:
 		break;
