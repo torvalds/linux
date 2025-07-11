@@ -309,6 +309,7 @@ enum skb_drop_reason {
 	/**
 	 * @SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE:
 	 * Not acceptable END_SEQ field.
+	 * Corresponds to LINUX_MIB_BEYOND_WINDOW.
 	 */
 	SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE,
 	/**
