@@ -190,7 +190,7 @@ impl<T: drm::Driver> AsRef<device::Device> for Device<T> {
     fn as_ref(&self) -> &device::Device {
         // SAFETY: `bindings::drm_device::dev` is valid as long as the DRM device itself is valid,
         // which is guaranteed by the type invariant.
-        unsafe { device::Device::as_ref((*self.as_raw()).dev) }
+        unsafe { device::Device::from_raw((*self.as_raw()).dev) }
     }
 }
 

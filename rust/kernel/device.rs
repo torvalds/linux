@@ -58,7 +58,7 @@ impl Device {
     /// While not officially documented, this should be the case for any `struct device`.
     pub unsafe fn get_device(ptr: *mut bindings::device) -> ARef<Self> {
         // SAFETY: By the safety requirements ptr is valid
-        unsafe { Self::as_ref(ptr) }.into()
+        unsafe { Self::from_raw(ptr) }.into()
     }
 
     /// Convert a [`&Device`](Device) into a [`&Device<Bound>`](Device<Bound>).
@@ -149,7 +149,7 @@ impl<Ctx: DeviceContext> Device<Ctx> {
             // - Since `parent` is not NULL, it must be a valid pointer to a `struct device`.
             // - `parent` is valid for the lifetime of `self`, since a `struct device` holds a
             //   reference count of its parent.
-            Some(unsafe { Self::as_ref(parent) })
+            Some(unsafe { Self::from_raw(parent) })
         }
     }
 
@@ -161,7 +161,7 @@ impl<Ctx: DeviceContext> Device<Ctx> {
     /// i.e. it must be ensured that the reference count of the C `struct device` `ptr` points to
     /// can't drop to zero, for the duration of this function call and the entire duration when the
     /// returned reference exists.
-    pub unsafe fn as_ref<'a>(ptr: *mut bindings::device) -> &'a Self {
+    pub unsafe fn from_raw<'a>(ptr: *mut bindings::device) -> &'a Self {
         // SAFETY: Guaranteed by the safety requirements of the function.
         unsafe { &*ptr.cast() }
     }

@@ -98,7 +98,7 @@ impl<T: MiscDevice> MiscDeviceRegistration<T> {
         // function tells the borrow-checker that the `&Device` reference must not outlive the
         // `&MiscDeviceRegistration<T>` used to obtain it, so the last use of the reference must be
         // before the underlying `struct miscdevice` is destroyed.
-        unsafe { Device::as_ref((*self.as_raw()).this_device) }
+        unsafe { Device::from_raw((*self.as_raw()).this_device) }
     }
 }
 
