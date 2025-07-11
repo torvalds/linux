@@ -15,3 +15,6 @@
 *.cocci linguist-language=Perl
 Makefile linguist-language=Perl
 *.s linguist-language=Perl
+*.l linguist-language=Perl
+*.y linguist-language=Perl
+*.rst linguist-language=Perl
