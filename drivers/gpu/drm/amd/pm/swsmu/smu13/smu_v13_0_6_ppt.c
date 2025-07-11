@@ -2693,7 +2693,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	bool per_inst;
 
 	metrics_v0 = kzalloc(METRICS_TABLE_SIZE, GFP_KERNEL);
-	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, true);
+	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, false);
 	if (ret) {
 		kfree(metrics_v0);
 		return ret;
