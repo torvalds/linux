@@ -37,10 +37,8 @@ static int __init sbi_cppc_init(void)
 {
 	if (sbi_spec_version >= sbi_mk_version(2, 0) &&
 	    sbi_probe_extension(SBI_EXT_CPPC) > 0) {
-		pr_info("SBI CPPC extension detected\n");
 		cppc_ext_present = true;
 	} else {
-		pr_info("SBI CPPC extension NOT detected!!\n");
 		cppc_ext_present = false;
 	}
 
