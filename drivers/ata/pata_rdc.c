@@ -359,8 +359,8 @@ static void rdc_remove_one(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id rdc_pci_tbl[] = {
-	{ PCI_DEVICE(0x17F3, 0x1011), },
-	{ PCI_DEVICE(0x17F3, 0x1012), },
+	{ PCI_VDEVICE(RDC, 0x1011) },
+	{ PCI_VDEVICE(RDC, 0x1012) },
 	{ }	/* terminate list */
 };
 
