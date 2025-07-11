@@ -489,6 +489,11 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(SCAN_GROUP, CHANNEL_SURVEY_NOTIF,
 		       iwl_mvm_rx_channel_survey_notif, RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_umac_scan_channel_survey_notif),
+	RX_HANDLER_GRP(DATA_PATH_GROUP, BEACON_FILTER_IN_NOTIF,
+		       iwl_mvm_rx_beacon_filter_notif,
+		       RX_HANDLER_ASYNC_LOCKED,
+		       /* same size as v1 */
+		       struct iwl_beacon_filter_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -659,6 +664,7 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(ESR_MODE_NOTIF),
 	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(THERMAL_DUAL_CHAIN_REQUEST),
+	HCMD_NAME(BEACON_FILTER_IN_NOTIF),
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),

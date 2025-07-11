@@ -1769,6 +1769,8 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		return;
 
+	mvmvif->deflink.average_beacon_energy = 0;
+
 	INIT_DELAYED_WORK(&mvmvif->csa_work,
 			  iwl_mvm_channel_switch_disconnect_wk);
 

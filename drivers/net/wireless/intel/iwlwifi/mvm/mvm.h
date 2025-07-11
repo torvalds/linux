@@ -304,6 +304,8 @@ struct iwl_probe_resp_data {
  * @mcast_sta: multicast station
  * @phy_ctxt: phy context allocated to this link, if any
  * @bf_data: beacon filtering data
+ * @average_beacon_energy: average beacon energy for beacons received during
+ *	client connections
  */
 struct iwl_mvm_vif_link_info {
 	u8 bssid[ETH_ALEN];
@@ -342,6 +344,7 @@ struct iwl_mvm_vif_link_info {
 	u16 mgmt_queue;
 
 	struct iwl_mvm_link_bf_data bf_data;
+	u32 average_beacon_energy;
 };
 
 /**
@@ -2074,6 +2077,9 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_rx_beacon_filter_notif(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb);
+
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);

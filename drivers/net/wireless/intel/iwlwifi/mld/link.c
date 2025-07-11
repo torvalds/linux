@@ -783,6 +783,7 @@ iwl_mld_init_link(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 {
 	mld_link->vif = link->vif;
 	mld_link->link_id = link->link_id;
+	mld_link->average_beacon_energy = 0;
 
 	iwl_mld_init_internal_sta(&mld_link->bcast_sta);
 	iwl_mld_init_internal_sta(&mld_link->mcast_sta);
@@ -1216,3 +1217,22 @@ unsigned int iwl_mld_get_link_grade(struct iwl_mld *mld,
 	return grade;
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_get_link_grade);
+
+void iwl_mld_handle_beacon_filter_notif(struct iwl_mld *mld,
+					struct iwl_rx_packet *pkt)
+{
+	const struct iwl_beacon_filter_notif *notif = (const void *)pkt->data;
+	u32 link_id = le32_to_cpu(notif->link_id);
+	struct ieee80211_bss_conf *link_conf =
+		iwl_mld_fw_id_to_link_conf(mld, link_id);
+	struct iwl_mld_link *mld_link;
+
+	if (IWL_FW_CHECK(mld, !link_conf, "invalid link ID %d\n", link_id))
+		return;
+
+	mld_link = iwl_mld_link_from_mac80211(link_conf);
+	if (WARN_ON_ONCE(!mld_link))
+		return;
+
+	mld_link->average_beacon_energy = le32_to_cpu(notif->average_energy);
+}

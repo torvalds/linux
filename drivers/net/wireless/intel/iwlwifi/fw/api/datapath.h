@@ -125,6 +125,11 @@ enum iwl_data_path_subcmd_ids {
 	TLC_MNG_UPDATE_NOTIF = 0xF7,
 
 	/**
+	 * @BEACON_FILTER_IN_NOTIF: &struct iwl_beacon_filter_notif
+	 */
+	BEACON_FILTER_IN_NOTIF = 0xF8,
+
+	/**
 	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
 	 */
 	STA_PM_NOTIF = 0xFD,

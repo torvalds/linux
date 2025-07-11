@@ -351,6 +351,7 @@ CMD_VERSIONS(time_sync_confirm_notif,
 CMD_VERSIONS(omi_status_notif,
 	     CMD_VER_ENTRY(1, iwl_omi_send_status_notif))
 CMD_VERSIONS(ftm_resp_notif, CMD_VER_ENTRY(10, iwl_tof_range_rsp_ntfy))
+CMD_VERSIONS(beacon_filter_notif, CMD_VER_ENTRY(2, iwl_beacon_filter_notif))
 
 DEFINE_SIMPLE_CANCELLATION(session_prot, iwl_session_prot_notif, mac_link_id)
 DEFINE_SIMPLE_CANCELLATION(tlc, iwl_tlc_update_notif, sta_id)
@@ -368,6 +369,7 @@ DEFINE_SIMPLE_CANCELLATION(uapsd_misbehaving_ap, iwl_uapsd_misbehaving_ap_notif,
 			   mac_id)
 #define iwl_mld_cancel_omi_status_notif iwl_mld_always_cancel
 DEFINE_SIMPLE_CANCELLATION(ftm_resp, iwl_tof_range_rsp_ntfy, request_id)
+DEFINE_SIMPLE_CANCELLATION(beacon_filter, iwl_beacon_filter_notif, link_id)
 
 /**
  * DOC: Handlers for fw notifications
@@ -460,6 +462,8 @@ const struct iwl_rx_handler iwl_mld_rx_handlers[] = {
 			     time_sync_confirm_notif, RX_HANDLER_ASYNC)
 	RX_HANDLER_OF_LINK(DATA_PATH_GROUP, OMI_SEND_STATUS_NOTIF,
 			   omi_status_notif)
+	RX_HANDLER_OF_LINK(DATA_PATH_GROUP, BEACON_FILTER_IN_NOTIF,
+			   beacon_filter_notif)
 	RX_HANDLER_OF_FTM_REQ(LOCATION_GROUP, TOF_RANGE_RESPONSE_NOTIF,
 			      ftm_resp_notif)
 };

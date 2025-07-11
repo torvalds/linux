@@ -246,13 +246,62 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 	ieee80211_rx_napi(mvm->hw, sta, skb, napi);
 }
 
+static bool iwl_mvm_used_average_energy(struct iwl_mvm *mvm,
+					struct iwl_rx_mpdu_desc *desc,
+					struct ieee80211_hdr *hdr,
+					struct ieee80211_rx_status *rx_status)
+{
+	struct iwl_mvm_vif *mvm_vif;
+	struct ieee80211_vif *vif;
+	u32 id;
+
+	if (unlikely(!hdr || !desc))
+		return false;
+
+	if (likely(!ieee80211_is_beacon(hdr->frame_control)))
+		return false;
+
+	/* for the link conf lookup */
+	guard(rcu)();
+
+	/* MAC or link ID depending on FW, but driver has them equal */
+	id = u8_get_bits(desc->mac_phy_band,
+			 IWL_RX_MPDU_MAC_PHY_BAND_MAC_MASK);
+
+	/* >= means AUX MAC/link ID, no energy correction needed then */
+	if (id >= ARRAY_SIZE(mvm->vif_id_to_mac))
+		return false;
+
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
+	if (!vif)
+		return false;
+
+	mvm_vif = iwl_mvm_vif_from_mac80211(vif);
+
+	/*
+	 * If we know the MAC by MAC or link ID then the frame was
+	 * received for the link, so by filtering it means it was
+	 * from the AP the link is connected to.
+	 */
+
+	/* skip also in case we don't have it (yet) */
+	if (!mvm_vif->deflink.average_beacon_energy)
+		return false;
+
+	IWL_DEBUG_STATS(mvm, "energy override by average %d\n",
+			mvm_vif->deflink.average_beacon_energy);
+	rx_status->signal = -mvm_vif->deflink.average_beacon_energy;
+	return true;
+}
+
 static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
+					struct iwl_rx_mpdu_desc *desc,
+					struct ieee80211_hdr *hdr,
 					struct ieee80211_rx_status *rx_status,
 					u32 rate_n_flags, int energy_a,
 					int energy_b)
 {
 	int max_energy;
-	u32 rate_flags = rate_n_flags;
 
 	energy_a = energy_a ? -energy_a : S8_MIN;
 	energy_b = energy_b ? -energy_b : S8_MIN;
@@ -261,9 +310,11 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 	IWL_DEBUG_STATS(mvm, "energy In A %d B %d, and max %d\n",
 			energy_a, energy_b, max_energy);
 
+	if (iwl_mvm_used_average_energy(mvm, desc, hdr, rx_status))
+		return;
+
 	rx_status->signal = max_energy;
-	rx_status->chains =
-		(rate_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS;
+	rx_status->chains = u32_get_bits(rate_n_flags, RATE_MCS_ANT_AB_MSK);
 	rx_status->chain_signal[0] = energy_a;
 	rx_status->chain_signal[1] = energy_b;
 }
@@ -1906,8 +1957,11 @@ static void iwl_mvm_rx_get_sta_block_tx(void *data, struct ieee80211_sta *sta)
 /*
  * Note: requires also rx_status->band to be prefilled, as well
  * as phy_data (apart from phy_data->info_type)
+ * Note: desc/hdr may be NULL
  */
 static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
+				   struct iwl_rx_mpdu_desc *desc,
+				   struct ieee80211_hdr *hdr,
 				   struct sk_buff *skb,
 				   struct iwl_mvm_rx_phy_data *phy_data,
 				   int queue)
@@ -1962,7 +2016,7 @@ static void iwl_mvm_rx_fill_status(struct iwl_mvm *mvm,
 
 	rx_status->freq = ieee80211_channel_to_frequency(phy_data->channel,
 							 rx_status->band);
-	iwl_mvm_get_signal_strength(mvm, rx_status, rate_n_flags,
+	iwl_mvm_get_signal_strength(mvm, desc, hdr, rx_status, rate_n_flags,
 				    phy_data->energy_a, phy_data->energy_b);
 
 	/* using TLV format and must be after all fixed len fields */
@@ -2215,7 +2269,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 		goto out;
 	}
 
-	iwl_mvm_rx_fill_status(mvm, skb, &phy_data, queue);
+	iwl_mvm_rx_fill_status(mvm, desc, hdr, skb, &phy_data, queue);
 
 	if (sta) {
 		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
@@ -2445,7 +2499,7 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_status->band = phy_data.channel > 14 ? NL80211_BAND_5GHZ :
 		NL80211_BAND_2GHZ;
 
-	iwl_mvm_rx_fill_status(mvm, skb, &phy_data, queue);
+	iwl_mvm_rx_fill_status(mvm, NULL, NULL, skb, &phy_data, queue);
 
 	/* no more radio tap info should be put after this point.
 	 *
@@ -2547,4 +2601,29 @@ void iwl_mvm_rx_bar_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 	iwl_mvm_release_frames_from_notif(mvm, napi, baid, nssn, queue);
 out:
 	rcu_read_unlock();
+}
+
+void iwl_mvm_rx_beacon_filter_notif(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	/* MAC or link ID in v1/v2, but driver has the IDs equal */
+	struct iwl_beacon_filter_notif *notif = (void *)pkt->data;
+	u32 id = le32_to_cpu(notif->link_id);
+	struct iwl_mvm_vif *mvm_vif;
+	struct ieee80211_vif *vif;
+
+	/* >= means AUX MAC/link ID, no energy correction needed then */
+	if (IWL_FW_CHECK(mvm, id >= ARRAY_SIZE(mvm->vif_id_to_mac),
+			 "invalid link ID %d\n", id))
+		return;
+
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, false);
+	if (!vif)
+		return;
+
+	mvm_vif = iwl_mvm_vif_from_mac80211(vif);
+
+	mvm_vif->deflink.average_beacon_energy =
+		le32_to_cpu(notif->average_energy);
 }

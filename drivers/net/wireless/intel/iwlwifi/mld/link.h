@@ -41,6 +41,8 @@ struct iwl_probe_resp_data {
  * @mcast_sta: station used for multicast packets. Used in AP, GO and IBSS.
  * @mon_sta: station used for TX injection in monitor interface.
  * @link_id: over the air link ID
+ * @average_beacon_energy: average beacon energy for beacons received during
+ *	client connections
  * @ap_early_keys: The firmware cannot install keys before bcast/mcast STAs,
  *	but higher layers work differently, so we store the keys here for
  *	later installation.
@@ -85,6 +87,7 @@ struct iwl_mld_link {
 
 	/* we can only have 2 GTK + 2 IGTK + 2 BIGTK active at a time */
 	struct ieee80211_key_conf *ap_early_keys[6];
+	u32 average_beacon_energy;
 	bool silent_deactivation;
 	struct iwl_probe_resp_data __rcu *probe_resp_data;
 };
@@ -149,5 +152,8 @@ void iwl_mld_check_omi_bw_reduction(struct iwl_mld *mld);
 void iwl_mld_omi_ap_changed_bw(struct iwl_mld *mld,
 			       struct ieee80211_bss_conf *link_conf,
 			       enum ieee80211_sta_rx_bandwidth bw);
+
+void iwl_mld_handle_beacon_filter_notif(struct iwl_mld *mld,
+					struct iwl_rx_packet *pkt);
 
 #endif /* __iwl_mld_link_h__ */
