@@ -731,6 +731,8 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 	/* get the GPU back into the init state */
 	v3d_reset(v3d);
 
+	v3d->reset_counter++;
+
 	for (q = 0; q < V3D_MAX_QUEUES; q++)
 		drm_sched_resubmit_jobs(&v3d->queue[q].sched);
 
