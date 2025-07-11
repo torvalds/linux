@@ -502,7 +502,7 @@ static int pmt_features_discovery(struct pmt_features_priv *priv,
 	}
 
 	ret = kobject_init_and_add(&feature->kobj, ktype, &priv->dev->kobj,
-				   pmt_feature_names[feature->id]);
+				   "%s", pmt_feature_names[feature->id]);
 	if (ret)
 		return ret;
 
