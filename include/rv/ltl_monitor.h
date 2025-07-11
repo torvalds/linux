@@ -167,8 +167,10 @@ static void ltl_atom_update(struct task_struct *task, enum ltl_atom atom, bool v
 	ltl_atom_set(mon, atom, value);
 	ltl_atoms_fetch(task, mon);
 
-	if (!rv_ltl_valid_state(mon))
+	if (!rv_ltl_valid_state(mon)) {
 		ltl_attempt_start(task, mon);
+		return;
+	}
 
 	ltl_validate(task, mon);
 }
