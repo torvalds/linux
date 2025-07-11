@@ -991,6 +991,7 @@ struct bo_setup_state {
 	/* State: */
 	u32			*buffer;
 	u32			*ptr;
+	unsigned int		written;
 };
 
 static int setup_bo(struct bo_setup_state *state)
@@ -1023,6 +1024,7 @@ static int setup_bo(struct bo_setup_state *state)
 			goto fail;
 
 		state->ptr += len;
+		state->written += len;
 	}
 
 	return 0;
@@ -1039,7 +1041,7 @@ static void finish_bo(struct bo_setup_state *state)
 
 	xe_map_memcpy_to(gt_to_xe(state->lrc->gt), &state->lrc->bo->vmap,
 			 state->offset, state->buffer,
-			 (state->ptr - state->buffer) * sizeof(u32));
+			 state->written * sizeof(u32));
 	kfree(state->buffer);
 }
 
@@ -1063,6 +1065,7 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 		return ret;
 
 	*state.ptr++ = MI_BATCH_BUFFER_END;
+	state.written++;
 
 	finish_bo(&state);
 
