@@ -15,7 +15,7 @@
 
 /* It is the caller's responsibility to free the pointer returned here */
 static struct iwl_mcc_update_resp_v8 *
-iwl_mld_parse_mcc_update_resp_v8(const struct iwl_rx_packet *pkt)
+iwl_mld_copy_mcc_resp(const struct iwl_rx_packet *pkt)
 {
 	const struct iwl_mcc_update_resp_v8 *mcc_resp_v8 = (const void *)pkt->data;
 	int n_channels = __le32_to_cpu(mcc_resp_v8->n_channels);
@@ -34,41 +34,9 @@ iwl_mld_parse_mcc_update_resp_v8(const struct iwl_rx_packet *pkt)
 
 /* It is the caller's responsibility to free the pointer returned here */
 static struct iwl_mcc_update_resp_v8 *
-iwl_mld_parse_mcc_update_resp_v5_v6(const struct iwl_rx_packet *pkt)
-{
-	const struct iwl_mcc_update_resp_v4 *mcc_resp_v4 = (const void *)pkt->data;
-	struct iwl_mcc_update_resp_v8 *resp_cp;
-	int n_channels = __le32_to_cpu(mcc_resp_v4->n_channels);
-	int resp_len;
-
-	if (iwl_rx_packet_payload_len(pkt) !=
-	    struct_size(mcc_resp_v4, channels, n_channels))
-		return ERR_PTR(-EINVAL);
-
-	resp_len = struct_size(resp_cp, channels, n_channels);
-	resp_cp = kzalloc(resp_len, GFP_KERNEL);
-	if (!resp_cp)
-		return ERR_PTR(-ENOMEM);
-
-	resp_cp->status = mcc_resp_v4->status;
-	resp_cp->mcc = mcc_resp_v4->mcc;
-	resp_cp->cap = cpu_to_le32(le16_to_cpu(mcc_resp_v4->cap));
-	resp_cp->source_id = mcc_resp_v4->source_id;
-	resp_cp->geo_info = mcc_resp_v4->geo_info;
-	resp_cp->n_channels = mcc_resp_v4->n_channels;
-	memcpy(resp_cp->channels, mcc_resp_v4->channels,
-	       n_channels * sizeof(__le32));
-
-	return resp_cp;
-}
-
-/* It is the caller's responsibility to free the pointer returned here */
-static struct iwl_mcc_update_resp_v8 *
 iwl_mld_update_mcc(struct iwl_mld *mld, const char *alpha2,
 		   enum iwl_mcc_source src_id)
 {
-	int resp_ver = iwl_fw_lookup_notif_ver(mld->fw, LONG_GROUP,
-					       MCC_UPDATE_CMD, 0);
 	struct iwl_mcc_update_cmd mcc_update_cmd = {
 		.mcc = cpu_to_le16(alpha2[0] << 8 | alpha2[1]),
 		.source_id = (u8)src_id,
@@ -93,23 +61,7 @@ iwl_mld_update_mcc(struct iwl_mld *mld, const char *alpha2,
 
 	pkt = cmd.resp_pkt;
 
-	/* For Wifi-7 radios, we get version 8
-	 * For Wifi-6E radios, we get version 6
-	 * For Wifi-6 radios, we get version 5, but 5, 6, and 4 are compatible.
-	 */
-	switch (resp_ver) {
-	case 5:
-	case 6:
-		resp_cp = iwl_mld_parse_mcc_update_resp_v5_v6(pkt);
-		break;
-	case 8:
-		resp_cp = iwl_mld_parse_mcc_update_resp_v8(pkt);
-		break;
-	default:
-		IWL_FW_CHECK_FAILED(mld, "Unknown MCC_UPDATE_CMD version %d\n", resp_ver);
-		resp_cp = ERR_PTR(-EINVAL);
-	}
-
+	resp_cp = iwl_mld_copy_mcc_resp(pkt);
 	if (IS_ERR(resp_cp))
 		goto exit;
 
