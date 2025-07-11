@@ -41,6 +41,7 @@ Operands (opd):
 Unary Operators (unop):
     always
     eventually
+    next
     not
 
 Binary Operators (binop):

@@ -19,6 +19,7 @@ from ply.yacc import yacc
 # Unary Operators (unop):
 #       always
 #       eventually
+#       next
 #       not
 #
 # Binary Operators (binop):
@@ -35,6 +36,7 @@ tokens = (
    'UNTIL',
    'ALWAYS',
    'EVENTUALLY',
+   'NEXT',
    'VARIABLE',
    'LITERAL',
    'NOT',
@@ -48,6 +50,7 @@ t_OR = r'or'
 t_IMPLY = r'imply'
 t_UNTIL = r'until'
 t_ALWAYS = r'always'
+t_NEXT = r'next'
 t_EVENTUALLY = r'eventually'
 t_VARIABLE = r'[A-Z_0-9]+'
 t_LITERAL = r'true|false'
@@ -327,6 +330,26 @@ class AlwaysOp(UnaryOp):
         # ![]F == <>(!F)
         return EventuallyOp(self.child.negate()).normalize()
 
+class NextOp(UnaryOp):
+    def normalize(self):
+        return self
+
+    def _is_temporal(self):
+        return True
+
+    def negate(self):
+        # not (next A) == next (not A)
+        self.child = self.child.negate()
+        return self
+
+    @staticmethod
+    def expand(n: ASTNode, node: GraphNode, node_set) -> set[GraphNode]:
+        tmp = GraphNode(node.incoming,
+                        node.new,
+                        node.old | {n},
+                        node.next | {n.op.child})
+        return tmp.expand(node_set)
+
 class NotOp(UnaryOp):
     def __str__(self):
         return "!" + str(self.child)
@@ -452,12 +475,15 @@ def p_unop(p):
     '''
     unop : ALWAYS ltl
          | EVENTUALLY ltl
+         | NEXT ltl
          | NOT ltl
     '''
     if p[1] == "always":
         op = AlwaysOp(p[2])
     elif p[1] == "eventually":
         op = EventuallyOp(p[2])
+    elif p[1] == "next":
+        op = NextOp(p[2])
     elif p[1] == "not":
         op = NotOp(p[2])
     else:
