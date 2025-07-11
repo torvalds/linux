@@ -161,43 +161,6 @@ static void iwl_mvm_rx_esr_mode_notif(struct iwl_mvm *mvm,
 				  iwl_mvm_get_primary_link(vif));
 }
 
-static void iwl_mvm_rx_esr_trans_fail_notif(struct iwl_mvm *mvm,
-					    struct iwl_rx_cmd_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_esr_trans_fail_notif *notif = (void *)pkt->data;
-	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
-	u8 fw_link_id = le32_to_cpu(notif->link_id);
-	struct ieee80211_bss_conf *bss_conf;
-
-	if (IS_ERR_OR_NULL(vif))
-		return;
-
-	IWL_DEBUG_INFO(mvm, "Failed to %s eSR on link %d, reason %d\n",
-		       le32_to_cpu(notif->activation) ? "enter" : "exit",
-		       le32_to_cpu(notif->link_id),
-		       le32_to_cpu(notif->err_code));
-
-	/* we couldn't go back to single link, disconnect */
-	if (!le32_to_cpu(notif->activation)) {
-		iwl_mvm_connection_loss(mvm, vif, "emlsr exit failed");
-		return;
-	}
-
-	bss_conf = iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, fw_link_id, false);
-	if (IWL_FW_CHECK(mvm, !bss_conf,
-			 "FW reported failure to activate EMLSR on a non-existing link: %d\n",
-			 fw_link_id))
-		return;
-
-	/*
-	 * We failed to activate the second link and enter EMLSR, we need to go
-	 * back to single link.
-	 */
-	iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_FAIL_ENTRY,
-			 bss_conf->link_id);
-}
-
 static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
 				     struct iwl_rx_cmd_buffer *rxb)
 {
@@ -526,10 +489,6 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER_GRP(SCAN_GROUP, CHANNEL_SURVEY_NOTIF,
 		       iwl_mvm_rx_channel_survey_notif, RX_HANDLER_ASYNC_LOCKED,
 		       struct iwl_umac_scan_channel_survey_notif),
-	RX_HANDLER_GRP(MAC_CONF_GROUP, EMLSR_TRANS_FAIL_NOTIF,
-		       iwl_mvm_rx_esr_trans_fail_notif,
-		       RX_HANDLER_ASYNC_LOCKED_WIPHY,
-		       struct iwl_esr_trans_fail_notif),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -660,7 +619,6 @@ static const struct iwl_hcmd_names iwl_mvm_mac_conf_names[] = {
 	HCMD_NAME(STA_REMOVE_CMD),
 	HCMD_NAME(STA_DISABLE_TX_CMD),
 	HCMD_NAME(ROC_CMD),
-	HCMD_NAME(EMLSR_TRANS_FAIL_NOTIF),
 	HCMD_NAME(ROC_NOTIF),
 	HCMD_NAME(CHANNEL_SWITCH_ERROR_NOTIF),
 	HCMD_NAME(MISSED_VAP_NOTIF),
