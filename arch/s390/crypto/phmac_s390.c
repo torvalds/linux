@@ -1006,7 +1006,7 @@ static int __init s390_phmac_init(void)
 	/* with this pseudo device alloc and start a crypto engine */
 	phmac_crypto_engine =
 		crypto_engine_alloc_init_and_set(phmac_dev.this_device,
-						 true, NULL, false, MAX_QLEN);
+						 true, false, MAX_QLEN);
 	if (!phmac_crypto_engine) {
 		rc = -ENOMEM;
 		goto out_err;

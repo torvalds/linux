@@ -1633,7 +1633,7 @@ static int __init paes_s390_init(void)
 	/* with this pseudo devie alloc and start a crypto engine */
 	paes_crypto_engine =
 		crypto_engine_alloc_init_and_set(paes_dev.this_device,
-						 true, NULL, false, MAX_QLEN);
+						 true, false, MAX_QLEN);
 	if (!paes_crypto_engine) {
 		rc = -ENOMEM;
 		goto out_err;
