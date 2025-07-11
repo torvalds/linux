@@ -258,6 +258,8 @@ static inline bool mips_cps_multicluster_cpus(void)
 
 /**
  * mips_cps_first_online_in_cluster() - Detect if CPU is first online in cluster
+ * @first_cpu: The first other online CPU in cluster, or nr_cpu_ids if
+ * the function returns true.
  *
  * Determine whether the local CPU is the first to be brought online in its
  * cluster - that is, whether there are any other online CPUs in the local
@@ -265,6 +267,6 @@ static inline bool mips_cps_multicluster_cpus(void)
  *
  * Returns true if this CPU is first online, else false.
  */
-extern unsigned int mips_cps_first_online_in_cluster(void);
+extern unsigned int mips_cps_first_online_in_cluster(int *first_cpu);
 
 #endif /* __MIPS_ASM_MIPS_CPS_H__ */
