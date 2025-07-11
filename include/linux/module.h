@@ -303,16 +303,6 @@ static typeof(name) __mod_device_table__##type##__##name		\
 
 struct notifier_block;
 
-#ifdef CONFIG_MODULES
-
-/* Get/put a kernel symbol (calls must be symmetric) */
-void *__symbol_get(const char *symbol);
-void *__symbol_get_gpl(const char *symbol);
-#define symbol_get(x)	({ \
-	static const char __notrim[] \
-		__used __section(".no_trim_symbol") = __stringify(x); \
-	(typeof(&x))(__symbol_get(__stringify(x))); })
-
 enum module_state {
 	MODULE_STATE_LIVE,	/* Normal state. */
 	MODULE_STATE_COMING,	/* Full formed, running module_init. */
@@ -596,6 +586,16 @@ struct module {
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
 #endif
+
+#ifdef CONFIG_MODULES
+
+/* Get/put a kernel symbol (calls must be symmetric) */
+void *__symbol_get(const char *symbol);
+void *__symbol_get_gpl(const char *symbol);
+#define symbol_get(x)	({ \
+	static const char __notrim[] \
+		__used __section(".no_trim_symbol") = __stringify(x); \
+	(typeof(&x))(__symbol_get(__stringify(x))); })
 
 #ifndef HAVE_ARCH_KALLSYMS_SYMBOL_VALUE
 static inline unsigned long kallsyms_symbol_value(const Elf_Sym *sym)
