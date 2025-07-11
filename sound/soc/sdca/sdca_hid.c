@@ -121,7 +121,7 @@ int sdca_add_hid_device(struct device *dev, struct sdca_entity *entity)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sdca_add_hid_device, "SND_SOC_SDCA_HID");
+EXPORT_SYMBOL_NS(sdca_add_hid_device, "SND_SOC_SDCA");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA HID library");

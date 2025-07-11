@@ -279,7 +279,7 @@ int sdca_irq_request(struct device *dev, struct sdca_interrupt_info *info,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(sdca_irq_request, "SND_SOC_SDCA_IRQ");
+EXPORT_SYMBOL_NS_GPL(sdca_irq_request, "SND_SOC_SDCA");
 
 /**
  * sdca_irq_data_populate - Populate common interrupt data
@@ -313,7 +313,7 @@ int sdca_irq_data_populate(struct snd_soc_component *component,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(sdca_irq_data_populate, "SND_SOC_SDCA_IRQ");
+EXPORT_SYMBOL_NS_GPL(sdca_irq_data_populate, "SND_SOC_SDCA");
 
 /**
  * sdca_irq_populate - Request all the individual IRQs for an SDCA Function
@@ -393,7 +393,7 @@ int sdca_irq_populate(struct sdca_function_data *function,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(sdca_irq_populate, "SND_SOC_SDCA_IRQ");
+EXPORT_SYMBOL_NS_GPL(sdca_irq_populate, "SND_SOC_SDCA");
 
 /**
  * sdca_irq_allocate - allocate an SDCA interrupt structure for a device
@@ -433,7 +433,7 @@ struct sdca_interrupt_info *sdca_irq_allocate(struct device *dev,
 
 	return info;
 }
-EXPORT_SYMBOL_NS_GPL(sdca_irq_allocate, "SND_SOC_SDCA_IRQ");
+EXPORT_SYMBOL_NS_GPL(sdca_irq_allocate, "SND_SOC_SDCA");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SDCA IRQ library");
