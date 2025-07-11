@@ -618,6 +618,16 @@ class YnlFamily(SpecFamily):
         pad = b'\x00' * ((4 - len(attr_payload) % 4) % 4)
         return struct.pack('HH', len(attr_payload) + 4, nl_type) + attr_payload + pad
 
+    def _get_enum_or_unknown(self, enum, raw):
+        try:
+            name = enum.entries_by_val[raw].name
+        except KeyError as error:
+            if self.process_unknown:
+                name = f"Unknown({raw})"
+            else:
+                raise error
+        return name
+
     def _decode_enum(self, raw, attr_spec):
         enum = self.consts[attr_spec['enum']]
         if enum.type == 'flags' or attr_spec.get('enum-as-flags', False):
@@ -625,11 +635,11 @@ class YnlFamily(SpecFamily):
             value = set()
             while raw:
                 if raw & 1:
-                    value.add(enum.entries_by_val[i].name)
+                    value.add(self._get_enum_or_unknown(enum, i))
                 raw >>= 1
                 i += 1
         else:
-            value = enum.entries_by_val[raw].name
+            value = self._get_enum_or_unknown(enum, raw)
         return value
 
     def _decode_binary(self, attr, attr_spec):
