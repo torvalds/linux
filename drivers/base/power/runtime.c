@@ -19,10 +19,24 @@
 
 typedef int (*pm_callback_t)(struct device *);
 
+static inline pm_callback_t get_callback_ptr(const void *start, size_t offset)
+{
+	return *(pm_callback_t *)(start + offset);
+}
+
+static pm_callback_t __rpm_get_driver_callback(struct device *dev,
+					       size_t cb_offset)
+{
+	if (dev->driver && dev->driver->pm)
+		return get_callback_ptr(dev->driver->pm, cb_offset);
+
+	return NULL;
+}
+
 static pm_callback_t __rpm_get_callback(struct device *dev, size_t cb_offset)
 {
-	pm_callback_t cb;
 	const struct dev_pm_ops *ops;
+	pm_callback_t cb = NULL;
 
 	if (dev->pm_domain)
 		ops = &dev->pm_domain->ops;
@@ -36,12 +50,10 @@ static pm_callback_t __rpm_get_callback(struct device *dev, size_t cb_offset)
 		ops = NULL;
 
 	if (ops)
-		cb = *(pm_callback_t *)((void *)ops + cb_offset);
-	else
-		cb = NULL;
+		cb = get_callback_ptr(ops, cb_offset);
 
-	if (!cb && dev->driver && dev->driver->pm)
-		cb = *(pm_callback_t *)((void *)dev->driver->pm + cb_offset);
+	if (!cb)
+		cb = __rpm_get_driver_callback(dev, cb_offset);
 
 	return cb;
 }
@@ -1827,7 +1839,7 @@ void pm_runtime_init(struct device *dev)
 	dev->power.request_pending = false;
 	dev->power.request = RPM_REQ_NONE;
 	dev->power.deferred_resume = false;
-	dev->power.needs_force_resume = 0;
+	dev->power.needs_force_resume = false;
 	INIT_WORK(&dev->power.work, pm_runtime_work);
 
 	dev->power.timer_expires = 0;
@@ -1854,6 +1866,11 @@ void pm_runtime_reinit(struct device *dev)
 				pm_runtime_put(dev->parent);
 		}
 	}
+	/*
+	 * Clear power.needs_force_resume in case it has been set by
+	 * pm_runtime_force_suspend() invoked from a driver remove callback.
+	 */
+	dev->power.needs_force_resume = false;
 }
 
 /**
@@ -1941,12 +1958,22 @@ void pm_runtime_drop_link(struct device_link *link)
 	pm_request_idle(link->supplier);
 }
 
-bool pm_runtime_need_not_resume(struct device *dev)
+static pm_callback_t get_callback(struct device *dev, size_t cb_offset)
 {
-	return atomic_read(&dev->power.usage_count) <= 1 &&
-		(atomic_read(&dev->power.child_count) == 0 ||
-		 dev->power.ignore_children);
+	/*
+	 * Setting power.strict_midlayer means that the middle layer
+	 * code does not want its runtime PM callbacks to be invoked via
+	 * pm_runtime_force_suspend() and pm_runtime_force_resume(), so
+	 * return a direct pointer to the driver callback in that case.
+	 */
+	if (dev_pm_strict_midlayer_is_set(dev))
+		return __rpm_get_driver_callback(dev, cb_offset);
+
+	return __rpm_get_callback(dev, cb_offset);
 }
+
+#define GET_CALLBACK(dev, callback) \
+		get_callback(dev, offsetof(struct dev_pm_ops, callback))
 
 /**
  * pm_runtime_force_suspend - Force a device into suspend state if needed.
@@ -1964,10 +1991,6 @@ bool pm_runtime_need_not_resume(struct device *dev)
  * sure the device is put into low power state and it should only be used during
  * system-wide PM transitions to sleep states.  It assumes that the analogous
  * pm_runtime_force_resume() will be used to resume the device.
- *
- * Do not use with DPM_FLAG_SMART_SUSPEND as this can lead to an inconsistent
- * state where this function has called the ->runtime_suspend callback but the
- * PM core marks the driver as runtime active.
  */
 int pm_runtime_force_suspend(struct device *dev)
 {
@@ -1975,10 +1998,10 @@ int pm_runtime_force_suspend(struct device *dev)
 	int ret;
 
 	pm_runtime_disable(dev);
-	if (pm_runtime_status_suspended(dev))
+	if (pm_runtime_status_suspended(dev) || dev->power.needs_force_resume)
 		return 0;
 
-	callback = RPM_GET_CALLBACK(dev, runtime_suspend);
+	callback = GET_CALLBACK(dev, runtime_suspend);
 
 	dev_pm_enable_wake_irq_check(dev, true);
 	ret = callback ? callback(dev) : 0;
@@ -1990,15 +2013,16 @@ int pm_runtime_force_suspend(struct device *dev)
 	/*
 	 * If the device can stay in suspend after the system-wide transition
 	 * to the working state that will follow, drop the children counter of
-	 * its parent, but set its status to RPM_SUSPENDED anyway in case this
-	 * function will be called again for it in the meantime.
+	 * its parent and the usage counters of its suppliers.  Otherwise, set
+	 * power.needs_force_resume to let pm_runtime_force_resume() know that
+	 * the device needs to be taken care of and to prevent this function
+	 * from handling the device again in case the device is passed to it
+	 * once more subsequently.
 	 */
-	if (pm_runtime_need_not_resume(dev)) {
+	if (pm_runtime_need_not_resume(dev))
 		pm_runtime_set_suspended(dev);
-	} else {
-		__update_runtime_status(dev, RPM_SUSPENDED);
-		dev->power.needs_force_resume = 1;
-	}
+	else
+		dev->power.needs_force_resume = true;
 
 	return 0;
 
@@ -2009,33 +2033,37 @@ err:
 }
 EXPORT_SYMBOL_GPL(pm_runtime_force_suspend);
 
+#ifdef CONFIG_PM_SLEEP
+
 /**
  * pm_runtime_force_resume - Force a device into resume state if needed.
  * @dev: Device to resume.
  *
- * Prior invoking this function we expect the user to have brought the device
- * into low power state by a call to pm_runtime_force_suspend(). Here we reverse
- * those actions and bring the device into full power, if it is expected to be
- * used on system resume.  In the other case, we defer the resume to be managed
- * via runtime PM.
+ * This function expects that either pm_runtime_force_suspend() has put the
+ * device into a low-power state prior to calling it, or the device had been
+ * runtime-suspended before the preceding system-wide suspend transition and it
+ * was left in suspend during that transition.
  *
- * Typically this function may be invoked from a system resume callback.
+ * The actions carried out by pm_runtime_force_suspend(), or by a runtime
+ * suspend in general, are reversed and the device is brought back into full
+ * power if it is expected to be used on system resume, which is the case when
+ * its needs_force_resume flag is set or when its smart_suspend flag is set and
+ * its runtime PM status is "active".
+ *
+ * In other cases, the resume is deferred to be managed via runtime PM.
+ *
+ * Typically, this function may be invoked from a system resume callback.
  */
 int pm_runtime_force_resume(struct device *dev)
 {
 	int (*callback)(struct device *);
 	int ret = 0;
 
-	if (!dev->power.needs_force_resume)
+	if (!dev->power.needs_force_resume && (!dev_pm_smart_suspend(dev) ||
+	    pm_runtime_status_suspended(dev)))
 		goto out;
 
-	/*
-	 * The value of the parent's children counter is correct already, so
-	 * just update the status of the device.
-	 */
-	__update_runtime_status(dev, RPM_ACTIVE);
-
-	callback = RPM_GET_CALLBACK(dev, runtime_resume);
+	callback = GET_CALLBACK(dev, runtime_resume);
 
 	dev_pm_disable_wake_irq_check(dev, false);
 	ret = callback ? callback(dev) : 0;
@@ -2046,9 +2074,30 @@ int pm_runtime_force_resume(struct device *dev)
 	}
 
 	pm_runtime_mark_last_busy(dev);
+
 out:
-	dev->power.needs_force_resume = 0;
+	/*
+	 * The smart_suspend flag can be cleared here because it is not going
+	 * to be necessary until the next system-wide suspend transition that
+	 * will update it again.
+	 */
+	dev->power.smart_suspend = false;
+	/*
+	 * Also clear needs_force_resume to make this function skip devices that
+	 * have been seen by it once.
+	 */
+	dev->power.needs_force_resume = false;
+
 	pm_runtime_enable(dev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pm_runtime_force_resume);
+
+bool pm_runtime_need_not_resume(struct device *dev)
+{
+	return atomic_read(&dev->power.usage_count) <= 1 &&
+		(atomic_read(&dev->power.child_count) == 0 ||
+		 dev->power.ignore_children);
+}
+
+#endif /* CONFIG_PM_SLEEP */
