@@ -1120,7 +1120,9 @@ class KernelDoc:
         # Found an export, trim out any special suffixes
         #
         for suffix in suffixes:
-            symbol = symbol.removesuffix(suffix)
+            # Be backward compatible with Python < 3.9
+            if symbol.endswith(suffix):
+                symbol = symbol[:-len(suffix)]
         function_set.add(symbol)
         return True
 
