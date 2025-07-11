@@ -46,7 +46,6 @@ $code.=<<___;
 # define poly1305_init   poly1305_block_init_arch
 # define poly1305_blocks poly1305_blocks_arm
 # define poly1305_emit   poly1305_emit_arch
-.globl	poly1305_blocks_neon
 #endif
 
 #if defined(__thumb2__)
@@ -722,6 +721,7 @@ poly1305_init_neon:
 	ret				@ bx	lr
 .size	poly1305_init_neon,.-poly1305_init_neon
 
+.globl	poly1305_blocks_neon
 .type	poly1305_blocks_neon,%function
 .align	5
 poly1305_blocks_neon:
