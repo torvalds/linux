@@ -833,6 +833,9 @@ static int gt_reset(struct xe_gt *gt)
 		goto err_out;
 	}
 
+	if (IS_SRIOV_PF(gt_to_xe(gt)))
+		xe_gt_sriov_pf_stop_prepare(gt);
+
 	xe_uc_gucrc_disable(&gt->uc);
 	xe_uc_stop_prepare(&gt->uc);
 	xe_gt_pagefault_reset(gt);
