@@ -1806,9 +1806,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	vif->driver_flags = IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC;
 
-	ret = iwl_mvm_set_link_mapping(mvm, vif, &vif->bss_conf);
-	if (ret)
-		goto out;
+	iwl_mvm_set_link_fw_id(mvm, vif, &vif->bss_conf);
 
 	/*
 	 * Not much to do here. The stack will not allow interface
@@ -2009,7 +2007,6 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		mvm->monitor_on = false;
 
 out:
-	iwl_mvm_unset_link_mapping(mvm, vif, &vif->bss_conf);
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		iwl_mvm_dealloc_int_sta(mvm, &mvmvif->deflink.mcast_sta);

@@ -1177,8 +1177,6 @@ struct iwl_mvm {
 
 	struct ieee80211_vif __rcu *vif_id_to_mac[NUM_MAC_INDEX_DRIVER];
 
-	struct ieee80211_bss_conf __rcu *link_id_to_link_conf[IWL_FW_MAX_LINK_ID + 1];
-
 	u8 *error_recovery_buf;
 
 #ifdef CONFIG_IWLWIFI_LEDS
@@ -1482,20 +1480,6 @@ iwl_mvm_rcu_dereference_vif_id(struct iwl_mvm *mvm, u8 vif_id, bool rcu)
 		return rcu_dereference(mvm->vif_id_to_mac[vif_id]);
 
 	return rcu_dereference_protected(mvm->vif_id_to_mac[vif_id],
-					 lockdep_is_held(&mvm->mutex));
-}
-
-static inline struct ieee80211_bss_conf *
-iwl_mvm_rcu_fw_link_id_to_link_conf(struct iwl_mvm *mvm, u8 link_id, bool rcu)
-{
-	if (IWL_FW_CHECK(mvm, link_id >= ARRAY_SIZE(mvm->link_id_to_link_conf),
-			 "erroneous FW link ID: %d\n", link_id))
-		return NULL;
-
-	if (rcu)
-		return rcu_dereference(mvm->link_id_to_link_conf[link_id]);
-
-	return rcu_dereference_protected(mvm->link_id_to_link_conf[link_id],
 					 lockdep_is_held(&mvm->mutex));
 }
 
@@ -2097,15 +2081,13 @@ u32 iwl_mvm_get_lmac_id(struct iwl_mvm *mvm, enum nl80211_band band);
 
 /* Links */
 void iwl_mvm_init_link(struct iwl_mvm_vif_link_info *link);
-int iwl_mvm_set_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *link_conf);
+void iwl_mvm_set_link_fw_id(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 struct ieee80211_bss_conf *link_conf,
 			 u32 changes, bool active);
-int iwl_mvm_unset_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
