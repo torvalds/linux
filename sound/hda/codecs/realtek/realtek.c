@@ -1130,7 +1130,7 @@ void alc1220_fixup_gb_dual_codecs(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		/* override card longname to provide a unique UCM profile */
-		strcpy(codec->card->longname, "HDAudio-Gigabyte-ALC1220DualCodecs");
+		strscpy(codec->card->longname, "HDAudio-Gigabyte-ALC1220DualCodecs");
 		break;
 	case HDA_FIXUP_ACT_BUILD:
 		/* rename Capture controls depending on the codec */
@@ -1155,7 +1155,7 @@ void alc233_alc662_fixup_lenovo_dual_codecs(struct hda_codec *codec,
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
 		/* override card longname to provide a unique UCM profile */
-		strcpy(codec->card->longname, "HDAudio-Lenovo-DualCodecs");
+		strscpy(codec->card->longname, "HDAudio-Lenovo-DualCodecs");
 		break;
 	case HDA_FIXUP_ACT_BUILD:
 		/* rename Capture controls depending on the codec */

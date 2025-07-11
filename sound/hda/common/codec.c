@@ -1638,7 +1638,7 @@ find_mixer_ctl(struct hda_codec *codec, const char *name, int dev, int idx)
 	id.index = idx;
 	if (snd_BUG_ON(strlen(name) >= sizeof(id.name)))
 		return NULL;
-	strcpy(id.name, name);
+	strscpy(id.name, name);
 	return snd_ctl_find_id(codec->card, &id);
 }
 
@@ -3508,7 +3508,7 @@ int snd_hda_input_mux_info(const struct hda_input_mux *imux,
 	index = uinfo->value.enumerated.item;
 	if (index >= imux->num_items)
 		index = imux->num_items - 1;
-	strcpy(uinfo->value.enumerated.name, imux->items[index].label);
+	strscpy(uinfo->value.enumerated.name, imux->items[index].label);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hda_input_mux_info);
