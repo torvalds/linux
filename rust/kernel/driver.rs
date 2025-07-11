@@ -170,7 +170,7 @@ pub trait Adapter {
                 // and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<acpi::DeviceId>() };
 
-                Some(table.info(<acpi::DeviceId as crate::device_id::RawDeviceId>::index(id)))
+                Some(table.info(<acpi::DeviceId as crate::device_id::RawDeviceIdIndex>::index(id)))
             }
         }
     }
@@ -204,7 +204,11 @@ pub trait Adapter {
                 // and does not add additional invariants, so it's safe to transmute.
                 let id = unsafe { &*raw_id.cast::<of::DeviceId>() };
 
-                Some(table.info(<of::DeviceId as crate::device_id::RawDeviceId>::index(id)))
+                Some(
+                    table.info(<of::DeviceId as crate::device_id::RawDeviceIdIndex>::index(
+                        id,
+                    )),
+                )
             }
         }
     }

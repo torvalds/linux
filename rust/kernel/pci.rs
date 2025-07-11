@@ -6,7 +6,7 @@
 
 use crate::{
     bindings, container_of, device,
-    device_id::RawDeviceId,
+    device_id::{RawDeviceId, RawDeviceIdIndex},
     devres::Devres,
     driver,
     error::{from_result, to_result, Result},
@@ -159,13 +159,14 @@ impl DeviceId {
     }
 }
 
-// SAFETY:
-// * `DeviceId` is a `#[repr(transparent)]` wrapper of `pci_device_id` and does not add
-//   additional invariants, so it's safe to transmute to `RawType`.
-// * `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
+// SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `pci_device_id` and does not add
+// additional invariants, so it's safe to transmute to `RawType`.
 unsafe impl RawDeviceId for DeviceId {
     type RawType = bindings::pci_device_id;
+}
 
+// SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
+unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::pci_device_id, driver_data);
 
     fn index(&self) -> usize {

@@ -2,7 +2,11 @@
 
 //! Advanced Configuration and Power Interface abstractions.
 
-use crate::{bindings, device_id::RawDeviceId, prelude::*};
+use crate::{
+    bindings,
+    device_id::{RawDeviceId, RawDeviceIdIndex},
+    prelude::*,
+};
 
 /// IdTable type for ACPI drivers.
 pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
@@ -12,13 +16,14 @@ pub type IdTable<T> = &'static dyn kernel::device_id::IdTable<DeviceId, T>;
 #[derive(Clone, Copy)]
 pub struct DeviceId(bindings::acpi_device_id);
 
-// SAFETY:
-// * `DeviceId` is a `#[repr(transparent)` wrapper of `struct acpi_device_id` and does not add
-//   additional invariants, so it's safe to transmute to `RawType`.
-// * `DRIVER_DATA_OFFSET` is the offset to the `data` field.
+// SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `acpi_device_id` and does not add
+// additional invariants, so it's safe to transmute to `RawType`.
 unsafe impl RawDeviceId for DeviceId {
     type RawType = bindings::acpi_device_id;
+}
 
+// SAFETY: `DRIVER_DATA_OFFSET` is the offset to the `driver_data` field.
+unsafe impl RawDeviceIdIndex for DeviceId {
     const DRIVER_DATA_OFFSET: usize = core::mem::offset_of!(bindings::acpi_device_id, driver_data);
 
     fn index(&self) -> usize {
