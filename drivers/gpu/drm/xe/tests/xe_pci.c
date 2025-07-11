@@ -21,6 +21,18 @@ static void xe_ip_kunit_desc(const struct xe_ip *param, char *desc)
 KUNIT_ARRAY_PARAM(graphics_ip, graphics_ips, xe_ip_kunit_desc);
 KUNIT_ARRAY_PARAM(media_ip, media_ips, xe_ip_kunit_desc);
 
+static void xe_pci_id_kunit_desc(const struct pci_device_id *param, char *desc)
+{
+	const struct xe_device_desc *dev_desc =
+		(const struct xe_device_desc *)param->driver_data;
+
+	if (dev_desc)
+		snprintf(desc, KUNIT_PARAM_DESC_SIZE, "0x%X (%s)",
+			 param->device, dev_desc->platform_name);
+}
+
+KUNIT_ARRAY_PARAM(pci_id, pciidlist, xe_pci_id_kunit_desc);
+
 /**
  * xe_pci_graphics_ip_gen_param - Generate graphics struct xe_ip parameters
  * @prev: the pointer to the previous parameter to iterate from or NULL
@@ -54,6 +66,25 @@ const void *xe_pci_media_ip_gen_param(const void *prev, char *desc)
 	return media_ip_gen_params(prev, desc);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_media_ip_gen_param);
+
+/**
+ * xe_pci_id_gen_param - Generate struct pci_device_id parameters
+ * @prev: the pointer to the previous parameter to iterate from or NULL
+ * @desc: output buffer with minimum size of KUNIT_PARAM_DESC_SIZE
+ *
+ * This function prepares struct pci_device_id parameter.
+ *
+ * To be used only as a parameter generator function in &KUNIT_CASE_PARAM.
+ *
+ * Return: pointer to the next parameter or NULL if no more parameters
+ */
+const void *xe_pci_id_gen_param(const void *prev, char *desc)
+{
+	const struct pci_device_id *pci = pci_id_gen_params(prev, desc);
+
+	return pci->driver_data ? pci : NULL;
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_pci_id_gen_param);
 
 static void fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
 			    u32 *ver, u32 *revid)

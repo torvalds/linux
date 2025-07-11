@@ -403,7 +403,7 @@ static int xe_oa_append_reports(struct xe_oa_stream *stream, char __user *buf,
 static void xe_oa_init_oa_buffer(struct xe_oa_stream *stream)
 {
 	u32 gtt_offset = xe_bo_ggtt_addr(stream->oa_buffer.bo);
-	int size_exponent = __ffs(stream->oa_buffer.bo->size);
+	int size_exponent = __ffs(xe_bo_size(stream->oa_buffer.bo));
 	u32 oa_buf = gtt_offset | OAG_OABUFFER_MEMORY_SELECT;
 	struct xe_mmio *mmio = &stream->gt->mmio;
 	unsigned long flags;
@@ -435,7 +435,7 @@ static void xe_oa_init_oa_buffer(struct xe_oa_stream *stream)
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
 	/* Zero out the OA buffer since we rely on zero report id and timestamp fields */
-	memset(stream->oa_buffer.vaddr, 0, stream->oa_buffer.bo->size);
+	memset(stream->oa_buffer.vaddr, 0, xe_bo_size(stream->oa_buffer.bo));
 }
 
 static u32 __format_to_oactrl(const struct xe_oa_format *format, int counter_sel_mask)
@@ -1065,7 +1065,7 @@ static u32 oag_report_ctx_switches(const struct xe_oa_stream *stream)
 static u32 oag_buf_size_select(const struct xe_oa_stream *stream)
 {
 	return _MASKED_FIELD(OAG_OA_DEBUG_BUF_SIZE_SELECT,
-			     stream->oa_buffer.bo->size > SZ_16M ?
+			     xe_bo_size(stream->oa_buffer.bo) > SZ_16M ?
 			     OAG_OA_DEBUG_BUF_SIZE_SELECT : 0);
 }
 
@@ -1582,7 +1582,7 @@ static long xe_oa_status_locked(struct xe_oa_stream *stream, unsigned long arg)
 
 static long xe_oa_info_locked(struct xe_oa_stream *stream, unsigned long arg)
 {
-	struct drm_xe_oa_stream_info info = { .oa_buf_size = stream->oa_buffer.bo->size, };
+	struct drm_xe_oa_stream_info info = { .oa_buf_size = xe_bo_size(stream->oa_buffer.bo), };
 	void __user *uaddr = (void __user *)arg;
 
 	if (copy_to_user(uaddr, &info, sizeof(info)))
@@ -1668,7 +1668,7 @@ static int xe_oa_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	/* Can mmap the entire OA buffer or nothing (no partial OA buffer mmaps) */
-	if (vma->vm_end - vma->vm_start != stream->oa_buffer.bo->size) {
+	if (vma->vm_end - vma->vm_start != xe_bo_size(stream->oa_buffer.bo)) {
 		drm_dbg(&stream->oa->xe->drm, "Wrong mmap size, must be OA buffer size\n");
 		return -EINVAL;
 	}

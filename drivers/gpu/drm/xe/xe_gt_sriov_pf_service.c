@@ -266,7 +266,7 @@ static void pf_prepare_runtime_info(struct xe_gt *gt)
 	read_many(gt, size, regs, values);
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
-		struct drm_printer p = xe_gt_info_printer(gt);
+		struct drm_printer p = xe_gt_dbg_printer(gt);
 
 		xe_gt_sriov_pf_service_print_runtime(gt, &p);
 	}

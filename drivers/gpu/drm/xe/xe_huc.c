@@ -171,7 +171,7 @@ static int huc_auth_via_gsccs(struct xe_huc *huc)
 				       sizeof(struct pxp43_new_huc_auth_in));
 	wr_offset = huc_emit_pxp_auth_msg(xe, &pkt->vmap, wr_offset,
 					  xe_bo_ggtt_addr(huc->fw.bo),
-					  huc->fw.bo->size);
+					  xe_bo_size(huc->fw.bo));
 	do {
 		err = xe_gsc_pkt_submit_kernel(&gt->uc.gsc, ggtt_offset, wr_offset,
 					       ggtt_offset + PXP43_HUC_AUTH_INOUT_SIZE,

@@ -5,7 +5,7 @@
 #ifndef _XE_PMT_H_
 #define _XE_PMT_H_
 
-#define SOC_BASE			0x280000
+#include "xe_regs.h"
 
 #define BMG_PMT_BASE_OFFSET		0xDB000
 #define BMG_DISCOVERY_OFFSET		(SOC_BASE + BMG_PMT_BASE_OFFSET)

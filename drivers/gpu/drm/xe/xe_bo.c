@@ -19,6 +19,8 @@
 
 #include <kunit/static_stub.h>
 
+#include <trace/events/gpu_mem.h>
+
 #include "xe_device.h"
 #include "xe_dma_buf.h"
 #include "xe_drm_client.h"
@@ -418,6 +420,19 @@ static void xe_ttm_tt_account_subtract(struct xe_device *xe, struct ttm_tt *tt)
 		xe_shrinker_mod_pages(xe->mem.shrinker, -(long)tt->num_pages, 0);
 }
 
+static void update_global_total_pages(struct ttm_device *ttm_dev,
+				      long num_pages)
+{
+#if IS_ENABLED(CONFIG_TRACE_GPU_MEM)
+	struct xe_device *xe = ttm_to_xe_device(ttm_dev);
+	u64 global_total_pages =
+		atomic64_add_return(num_pages, &xe->global_total_pages);
+
+	trace_gpu_mem_total(xe->drm.primary->index, 0,
+			    global_total_pages << PAGE_SHIFT);
+#endif
+}
+
 static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 				       u32 page_flags)
 {
@@ -437,7 +452,7 @@ static struct ttm_tt *xe_ttm_tt_create(struct ttm_buffer_object *ttm_bo,
 
 	extra_pages = 0;
 	if (xe_bo_needs_ccs_pages(bo))
-		extra_pages = DIV_ROUND_UP(xe_device_ccs_bytes(xe, bo->size),
+		extra_pages = DIV_ROUND_UP(xe_device_ccs_bytes(xe, xe_bo_size(bo)),
 					   PAGE_SIZE);
 
 	/*
@@ -525,6 +540,7 @@ static int xe_ttm_tt_populate(struct ttm_device *ttm_dev, struct ttm_tt *tt,
 
 	xe_tt->purgeable = false;
 	xe_ttm_tt_account_add(ttm_to_xe_device(ttm_dev), tt);
+	update_global_total_pages(ttm_dev, tt->num_pages);
 
 	return 0;
 }
@@ -541,6 +557,7 @@ static void xe_ttm_tt_unpopulate(struct ttm_device *ttm_dev, struct ttm_tt *tt)
 
 	ttm_pool_free(&ttm_dev->pool, tt);
 	xe_ttm_tt_account_subtract(xe, tt);
+	update_global_total_pages(ttm_dev, -(long)tt->num_pages);
 }
 
 static void xe_ttm_tt_destroy(struct ttm_device *ttm_dev, struct ttm_tt *tt)
@@ -1122,7 +1139,7 @@ int xe_bo_notifier_prepare_pinned(struct xe_bo *bo)
 	if (bo->flags & XE_BO_FLAG_PINNED_NORESTORE)
 		goto out_unlock_bo;
 
-	backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv, NULL, bo->size,
+	backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv, NULL, xe_bo_size(bo),
 					DRM_XE_GEM_CPU_CACHING_WB, ttm_bo_type_kernel,
 					XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
 					XE_BO_FLAG_PINNED);
@@ -1200,7 +1217,8 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 		goto out_unlock_bo;
 
 	if (!backup) {
-		backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv, NULL, bo->size,
+		backup = ___xe_bo_create_locked(xe, NULL, NULL, bo->ttm.base.resv,
+						NULL, xe_bo_size(bo),
 						DRM_XE_GEM_CPU_CACHING_WB, ttm_bo_type_kernel,
 						XE_BO_FLAG_SYSTEM | XE_BO_FLAG_NEEDS_CPU_ACCESS |
 						XE_BO_FLAG_PINNED);
@@ -1254,7 +1272,7 @@ int xe_bo_evict_pinned(struct xe_bo *bo)
 		}
 
 		xe_map_memcpy_from(xe, backup->vmap.vaddr, &bo->vmap, 0,
-				   bo->size);
+				   xe_bo_size(bo));
 	}
 
 	if (!bo->backup_obj)
@@ -1347,7 +1365,7 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 		}
 
 		xe_map_memcpy_to(xe, &bo->vmap, 0, backup->vmap.vaddr,
-				 bo->size);
+				 xe_bo_size(bo));
 	}
 
 	bo->backup_obj = NULL;
@@ -1558,7 +1576,7 @@ static int xe_ttm_access_memory(struct ttm_buffer_object *ttm_bo,
 
 	vram = res_to_mem_region(ttm_bo->resource);
 	xe_res_first(ttm_bo->resource, offset & PAGE_MASK,
-		     bo->size - (offset & PAGE_MASK), &cursor);
+		     xe_bo_size(bo) - (offset & PAGE_MASK), &cursor);
 
 	do {
 		unsigned long page_offset = (offset & ~PAGE_MASK);
@@ -1858,7 +1876,6 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 
 	bo->ccs_cleared = false;
 	bo->tile = tile;
-	bo->size = size;
 	bo->flags = flags;
 	bo->cpu_caching = cpu_caching;
 	bo->ttm.base.funcs = &xe_gem_object_funcs;
@@ -2036,7 +2053,7 @@ __xe_bo_create_locked(struct xe_device *xe,
 
 			if (flags & XE_BO_FLAG_FIXED_PLACEMENT) {
 				err = xe_ggtt_insert_bo_at(t->mem.ggtt, bo,
-							   start + bo->size, U64_MAX);
+							   start + xe_bo_size(bo), U64_MAX);
 			} else {
 				err = xe_ggtt_insert_bo(t->mem.ggtt, bo);
 			}
@@ -2234,7 +2251,7 @@ int xe_managed_bo_reinit_in_vram(struct xe_device *xe, struct xe_tile *tile, str
 	xe_assert(xe, !(*src)->vmap.is_iomem);
 
 	bo = xe_managed_bo_create_from_data(xe, tile, (*src)->vmap.vaddr,
-					    (*src)->size, dst_flags);
+					    xe_bo_size(*src), dst_flags);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
@@ -2524,7 +2541,7 @@ int xe_bo_vmap(struct xe_bo *bo)
 	 * TODO: Fix up ttm_bo_vmap to do that, or fix up ttm_bo_kmap
 	 * to use struct iosys_map.
 	 */
-	ret = ttm_bo_kmap(&bo->ttm, 0, bo->size >> PAGE_SHIFT, &bo->kmap);
+	ret = ttm_bo_kmap(&bo->ttm, 0, xe_bo_size(bo) >> PAGE_SHIFT, &bo->kmap);
 	if (ret)
 		return ret;
 

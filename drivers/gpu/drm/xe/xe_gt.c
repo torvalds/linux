@@ -390,6 +390,7 @@ put_exec_queue:
 
 int xe_gt_init_early(struct xe_gt *gt)
 {
+	unsigned int fw_ref;
 	int err;
 
 	if (IS_SRIOV_PF(gt_to_xe(gt))) {
@@ -419,6 +420,25 @@ int xe_gt_init_early(struct xe_gt *gt)
 
 	xe_mocs_init_early(gt);
 
+	/*
+	 * Only after this point can GT-specific MMIO operations
+	 * (including things like communication with the GuC)
+	 * be performed.
+	 */
+	xe_gt_mmio_init(gt);
+
+	err = xe_uc_init_noalloc(&gt->uc);
+	if (err)
+		return err;
+
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref)
+		return -ETIMEDOUT;
+
+	xe_gt_mcr_init_early(gt);
+	xe_pat_init(gt);
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+
 	return 0;
 }
 
@@ -433,7 +453,7 @@ static void dump_pat_on_error(struct xe_gt *gt)
 	xe_pat_dump(gt, &p);
 }
 
-static int gt_fw_domain_init(struct xe_gt *gt)
+static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 {
 	unsigned int fw_ref;
 	int err;
@@ -441,6 +461,14 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (!fw_ref)
 		return -ETIMEDOUT;
+
+	err = xe_uc_init(&gt->uc);
+	if (err)
+		goto err_force_wake;
+
+	xe_gt_topology_init(gt);
+	xe_gt_mcr_init(gt);
+	xe_gt_enable_host_l2_vram(gt);
 
 	if (!xe_gt_is_media_type(gt)) {
 		err = xe_ggtt_init(gt_to_tile(gt)->mem.ggtt);
@@ -457,8 +485,10 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	xe_gt_mcr_init(gt);
 
 	err = xe_hw_engines_init_early(gt);
-	if (err)
+	if (err) {
+		dump_pat_on_error(gt);
 		goto err_force_wake;
+	}
 
 	err = xe_hw_engine_class_sysfs_init(gt);
 	if (err)
@@ -479,13 +509,12 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	return 0;
 
 err_force_wake:
-	dump_pat_on_error(gt);
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return err;
 }
 
-static int all_fw_domain_init(struct xe_gt *gt)
+static int gt_init_with_all_forcewake(struct xe_gt *gt)
 {
 	unsigned int fw_ref;
 	int err;
@@ -544,7 +573,7 @@ static int all_fw_domain_init(struct xe_gt *gt)
 		}
 	}
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		goto err_force_wake;
 
@@ -569,39 +598,6 @@ static int all_fw_domain_init(struct xe_gt *gt)
 err_force_wake:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
-	return err;
-}
-
-/*
- * Initialize enough GT to be able to load GuC in order to obtain hwconfig and
- * enable CTB communication.
- */
-int xe_gt_init_hwconfig(struct xe_gt *gt)
-{
-	unsigned int fw_ref;
-	int err;
-
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
-		return -ETIMEDOUT;
-
-	xe_gt_mcr_init_early(gt);
-	xe_pat_init(gt);
-
-	err = xe_uc_init(&gt->uc);
-	if (err)
-		goto out_fw;
-
-	err = xe_uc_init_hwconfig(&gt->uc);
-	if (err)
-		goto out_fw;
-
-	xe_gt_topology_init(gt);
-	xe_gt_mcr_init(gt);
-	xe_gt_enable_host_l2_vram(gt);
-
-out_fw:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return err;
 }
 
@@ -640,7 +636,7 @@ int xe_gt_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = gt_fw_domain_init(gt);
+	err = gt_init_with_gt_forcewake(gt);
 	if (err)
 		return err;
 
@@ -654,7 +650,7 @@ int xe_gt_init(struct xe_gt *gt)
 
 	xe_force_wake_init_engines(gt, gt_to_fw(gt));
 
-	err = all_fw_domain_init(gt);
+	err = gt_init_with_all_forcewake(gt);
 	if (err)
 		return err;
 
@@ -742,7 +738,7 @@ static int vf_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		return err;
 
@@ -780,7 +776,7 @@ static int do_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = xe_uc_init_hw(&gt->uc);
+	err = xe_uc_load_hw(&gt->uc);
 	if (err)
 		return err;
 

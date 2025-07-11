@@ -27,6 +27,7 @@ int xe_pci_fake_device_init(struct xe_device *xe);
 
 const void *xe_pci_graphics_ip_gen_param(const void *prev, char *desc);
 const void *xe_pci_media_ip_gen_param(const void *prev, char *desc);
+const void *xe_pci_id_gen_param(const void *prev, char *desc);
 const void *xe_pci_live_device_gen_param(const void *prev, char *desc);
 
 #endif

@@ -13,15 +13,6 @@
 #include "xe_vm.h"
 
 static void
-hw_engine_group_free(struct drm_device *drm, void *arg)
-{
-	struct xe_hw_engine_group *group = arg;
-
-	destroy_workqueue(group->resume_wq);
-	kfree(group);
-}
-
-static void
 hw_engine_group_resume_lr_jobs_func(struct work_struct *w)
 {
 	struct xe_exec_queue *q;
@@ -53,7 +44,7 @@ hw_engine_group_alloc(struct xe_device *xe)
 	struct xe_hw_engine_group *group;
 	int err;
 
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
+	group = drmm_kzalloc(&xe->drm, sizeof(*group), GFP_KERNEL);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
@@ -61,13 +52,13 @@ hw_engine_group_alloc(struct xe_device *xe)
 	if (!group->resume_wq)
 		return ERR_PTR(-ENOMEM);
 
+	err = drmm_add_action_or_reset(&xe->drm, __drmm_workqueue_release, group->resume_wq);
+	if (err)
+		return ERR_PTR(err);
+
 	init_rwsem(&group->mode_sem);
 	INIT_WORK(&group->resume_work, hw_engine_group_resume_lr_jobs_func);
 	INIT_LIST_HEAD(&group->exec_queue_list);
-
-	err = drmm_add_action_or_reset(&xe->drm, hw_engine_group_free, group);
-	if (err)
-		return ERR_PTR(err);
 
 	return group;
 }

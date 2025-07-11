@@ -104,13 +104,13 @@ static int pf_push_vf_buf_klvs(struct xe_gt *gt, unsigned int vfid, u32 num_klvs
 	}
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
-		struct drm_printer p = xe_gt_info_printer(gt);
+		struct drm_printer p = xe_gt_dbg_printer(gt);
 		void *klvs = xe_guc_buf_cpu_ptr(buf);
 		char name[8];
 
-		xe_gt_sriov_info(gt, "pushed %s config with %u KLV%s:\n",
-				 xe_sriov_function_name(vfid, name, sizeof(name)),
-				 num_klvs, str_plural(num_klvs));
+		xe_gt_sriov_dbg(gt, "pushed %s config with %u KLV%s:\n",
+				xe_sriov_function_name(vfid, name, sizeof(name)),
+				num_klvs, str_plural(num_klvs));
 		xe_guc_klv_print(klvs, num_dwords, &p);
 	}
 
@@ -282,8 +282,8 @@ static u32 encode_config(u32 *cfg, const struct xe_gt_sriov_config *config, bool
 
 	if (config->lmem_obj) {
 		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_LMEM_SIZE);
-		cfg[n++] = lower_32_bits(config->lmem_obj->size);
-		cfg[n++] = upper_32_bits(config->lmem_obj->size);
+		cfg[n++] = lower_32_bits(xe_bo_size(config->lmem_obj));
+		cfg[n++] = upper_32_bits(xe_bo_size(config->lmem_obj));
 	}
 
 	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_EXEC_QUANTUM);
@@ -1299,7 +1299,7 @@ static u64 pf_get_vf_config_lmem(struct xe_gt *gt, unsigned int vfid)
 	struct xe_bo *bo;
 
 	bo = config->lmem_obj;
-	return bo ? bo->size : 0;
+	return bo ? xe_bo_size(bo) : 0;
 }
 
 static int pf_distribute_config_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
@@ -1388,7 +1388,7 @@ static int pf_update_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 			err = xe_lmtt_populate_pages(lmtt, vfid, bo, offset);
 			if (err)
 				goto fail;
-			offset += bo->size;
+			offset += xe_bo_size(bo);
 		}
 	}
 
@@ -1469,12 +1469,12 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 			goto release;
 	}
 
-	err = pf_push_vf_cfg_lmem(gt, vfid, bo->size);
+	err = pf_push_vf_cfg_lmem(gt, vfid, xe_bo_size(bo));
 	if (unlikely(err))
 		goto reset_lmtt;
 
 	xe_gt_sriov_dbg_verbose(gt, "VF%u LMEM %zu (%zuM)\n",
-				vfid, bo->size, bo->size / SZ_1M);
+				vfid, xe_bo_size(bo), xe_bo_size(bo) / SZ_1M);
 	return 0;
 
 reset_lmtt:
@@ -2349,7 +2349,7 @@ int xe_gt_sriov_pf_config_restore(struct xe_gt *gt, unsigned int vfid,
 		return -EINVAL;
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)) {
-		struct drm_printer p = xe_gt_info_printer(gt);
+		struct drm_printer p = xe_gt_dbg_printer(gt);
 
 		drm_printf(&p, "restoring VF%u config:\n", vfid);
 		xe_guc_klv_print(buf, size / sizeof(u32), &p);
@@ -2552,10 +2552,10 @@ int xe_gt_sriov_pf_config_print_lmem(struct xe_gt *gt, struct drm_printer *p)
 		if (!config->lmem_obj)
 			continue;
 
-		string_get_size(config->lmem_obj->size, 1, STRING_UNITS_2,
+		string_get_size(xe_bo_size(config->lmem_obj), 1, STRING_UNITS_2,
 				buf, sizeof(buf));
 		drm_printf(p, "VF%u:\t%zu\t(%s)\n",
-			   n, config->lmem_obj->size, buf);
+			   n, xe_bo_size(config->lmem_obj), buf);
 	}
 
 	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));

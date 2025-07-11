@@ -32,7 +32,7 @@ static struct xe_bo *replacement_xe_managed_bo_create_pin_map(struct xe_device *
 
 	bo->tile = tile;
 	bo->ttm.bdev = &xe->ttm;
-	bo->size = size;
+	bo->ttm.base.size = size;
 	iosys_map_set_vaddr(&bo->vmap, buf);
 
 	if (flags & XE_BO_FLAG_GGTT) {
@@ -43,7 +43,7 @@ static struct xe_bo *replacement_xe_managed_bo_create_pin_map(struct xe_device *
 
 		KUNIT_ASSERT_EQ(test, 0,
 				xe_ggtt_node_insert(bo->ggtt_node[tile->id],
-						    bo->size, SZ_4K));
+						    xe_bo_size(bo), SZ_4K));
 	}
 
 	return bo;

@@ -238,6 +238,13 @@ int xe_ggtt_init_kunit(struct xe_ggtt *ggtt, u32 reserved, u32 size)
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_ggtt_init_kunit);
 
+static void dev_fini_ggtt(void *arg)
+{
+	struct xe_ggtt *ggtt = arg;
+
+	drain_workqueue(ggtt->wq);
+}
+
 /**
  * xe_ggtt_init_early - Early GGTT initialization
  * @ggtt: the &xe_ggtt to be initialized
@@ -287,6 +294,10 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	__xe_ggtt_init_early(ggtt, xe_wopcm_size(xe));
 
 	err = drmm_add_action_or_reset(&xe->drm, ggtt_fini_early, ggtt);
+	if (err)
+		return err;
+
+	err = devm_add_action_or_reset(xe->drm.dev, dev_fini_ggtt, ggtt);
 	if (err)
 		return err;
 
@@ -410,7 +421,7 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 		goto err;
 	}
 
-	xe_map_memset(xe, &ggtt->scratch->vmap, 0, 0, ggtt->scratch->size);
+	xe_map_memset(xe, &ggtt->scratch->vmap, 0, 0, xe_bo_size(ggtt->scratch));
 
 	xe_ggtt_initial_clear(ggtt);
 
@@ -682,13 +693,13 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_ggtt_node *node,
 		return;
 
 	start = node->base.start;
-	end = start + bo->size;
+	end = start + xe_bo_size(bo);
 
 	pte = ggtt->pt_ops->pte_encode_flags(bo, pat_index);
 	if (!xe_bo_is_vram(bo) && !xe_bo_is_stolen(bo)) {
 		xe_assert(xe_bo_device(bo), bo->ttm.ttm);
 
-		for (xe_res_first_sg(xe_bo_sg(bo), 0, bo->size, &cur);
+		for (xe_res_first_sg(xe_bo_sg(bo), 0, xe_bo_size(bo), &cur);
 		     cur.remaining; xe_res_next(&cur, XE_PAGE_SIZE))
 			ggtt->pt_ops->ggtt_set_pte(ggtt, end - cur.remaining,
 						   pte | xe_res_dma(&cur));
@@ -696,7 +707,7 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_ggtt_node *node,
 		/* Prepend GPU offset */
 		pte |= vram_region_gpu_offset(bo->ttm.resource);
 
-		for (xe_res_first(bo->ttm.resource, 0, bo->size, &cur);
+		for (xe_res_first(bo->ttm.resource, 0, xe_bo_size(bo), &cur);
 		     cur.remaining; xe_res_next(&cur, XE_PAGE_SIZE))
 			ggtt->pt_ops->ggtt_set_pte(ggtt, end - cur.remaining,
 						   pte + cur.start);
@@ -732,7 +743,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	if (XE_WARN_ON(bo->ggtt_node[tile_id])) {
 		/* Someone's already inserted this BO in the GGTT */
-		xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
+		xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == xe_bo_size(bo));
 		return 0;
 	}
 
@@ -751,7 +762,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	mutex_lock(&ggtt->lock);
 	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node[tile_id]->base,
-					  bo->size, alignment, 0, start, end, 0);
+					  xe_bo_size(bo), alignment, 0, start, end, 0);
 	if (err) {
 		xe_ggtt_node_fini(bo->ggtt_node[tile_id]);
 		bo->ggtt_node[tile_id] = NULL;
@@ -812,7 +823,7 @@ void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 		return;
 
 	/* This BO is not currently in the GGTT */
-	xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
+	xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == xe_bo_size(bo));
 
 	xe_ggtt_node_remove(bo->ggtt_node[tile_id],
 			    bo->flags & XE_BO_FLAG_GGTT_INVALIDATE);
