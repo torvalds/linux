@@ -3282,15 +3282,10 @@ static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
 {
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
 	struct cxl_region_params *p = &cxlr->params;
-	int nid = phys_to_target_node(res->start);
 	resource_size_t size = resource_size(res);
 	resource_size_t cache_size, start;
-	int rc;
 
-	rc = cxl_acpi_get_extended_linear_cache_size(res, nid, &cache_size);
-	if (rc)
-		return rc;
-
+	cache_size = cxlrd->cache_size;
 	if (!cache_size)
 		return 0;
 

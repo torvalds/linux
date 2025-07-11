@@ -423,6 +423,7 @@ typedef u64 (*cxl_hpa_to_spa_fn)(struct cxl_root_decoder *cxlrd, u64 hpa);
 /**
  * struct cxl_root_decoder - Static platform CXL address decoder
  * @res: host / parent resource for region allocations
+ * @cache_size: extended linear cache size if exists, otherwise zero.
  * @region_id: region id for next region provisioning event
  * @hpa_to_spa: translate CXL host-physical-address to Platform system-physical-address
  * @platform_data: platform specific configuration data
@@ -432,6 +433,7 @@ typedef u64 (*cxl_hpa_to_spa_fn)(struct cxl_root_decoder *cxlrd, u64 hpa);
  */
 struct cxl_root_decoder {
 	struct resource *res;
+	resource_size_t cache_size;
 	atomic_t region_id;
 	cxl_hpa_to_spa_fn hpa_to_spa;
 	void *platform_data;
