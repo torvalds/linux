@@ -10,4 +10,6 @@
 *.dts[io] linguist-language=Perl
 *.S linguist-language=Perl
 *.c linguist-language=Perl
+*.ch linguist-language=Perl
+*.h linguist-language=Perl
 Makefile linguist-language=Perl
