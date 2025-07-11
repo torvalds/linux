@@ -434,7 +434,6 @@ static int __init init_stub_exe_fd(void)
 __initcall(init_stub_exe_fd);
 
 int using_seccomp;
-int userspace_pid[NR_CPUS];
 
 /**
  * start_userspace() - prepare a new userspace process
@@ -553,7 +552,7 @@ extern unsigned long tt_extra_sched_jiffies;
 
 void userspace(struct uml_pt_regs *regs)
 {
-	int err, status, op, pid = userspace_pid[0];
+	int err, status, op;
 	siginfo_t si_ptrace;
 	siginfo_t *si;
 	int sig;
@@ -562,6 +561,8 @@ void userspace(struct uml_pt_regs *regs)
 	interrupt_end();
 
 	while (1) {
+		struct mm_id *mm_id = current_mm_id();
+
 		/*
 		 * When we are in time-travel mode, userspace can theoretically
 		 * do a *lot* of work without being scheduled. The problem with
@@ -590,7 +591,6 @@ void userspace(struct uml_pt_regs *regs)
 		current_mm_sync();
 
 		if (using_seccomp) {
-			struct mm_id *mm_id = current_mm_id();
 			struct stub_data *proc_data = (void *) mm_id->stack;
 
 			err = set_stub_state(regs, proc_data, singlestepping());
@@ -644,8 +644,10 @@ void userspace(struct uml_pt_regs *regs)
 				GET_FAULTINFO_FROM_MC(regs->faultinfo, mcontext);
 			}
 		} else {
+			int pid = mm_id->pid;
+
 			/* Flush out any pending syscalls */
-			err = syscall_stub_flush(current_mm_id());
+			err = syscall_stub_flush(mm_id);
 			if (err) {
 				if (err == -ENOMEM)
 					report_enomem();
@@ -776,7 +778,6 @@ void userspace(struct uml_pt_regs *regs)
 				       __func__, sig);
 				fatal_sigsegv();
 			}
-			pid = userspace_pid[0];
 			interrupt_end();
 
 			/* Avoid -ERESTARTSYS handling in host */
@@ -900,9 +901,4 @@ void reboot_skas(void)
 {
 	block_signals_trace();
 	UML_LONGJMP(&initial_jmpbuf, noreboot ? INIT_JMP_HALT : INIT_JMP_REBOOT);
-}
-
-void __switch_mm(struct mm_id *mm_idp)
-{
-	userspace_pid[0] = mm_idp->pid;
 }
