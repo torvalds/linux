@@ -267,7 +267,7 @@ static void get_skas_faultinfo(int pid, struct faultinfo *fi)
 	memcpy(fi, (void *)current_stub_stack(), sizeof(*fi));
 }
 
-static void handle_trap(int pid, struct uml_pt_regs *regs)
+static void handle_trap(struct uml_pt_regs *regs)
 {
 	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END))
 		fatal_sigsegv();
@@ -755,7 +755,7 @@ void userspace(struct uml_pt_regs *regs)
 				handle_syscall(regs);
 				break;
 			case SIGTRAP + 0x80:
-				handle_trap(pid, regs);
+				handle_trap(regs);
 				break;
 			case SIGTRAP:
 				relay_signal(SIGTRAP, (struct siginfo *)si, regs, NULL);
