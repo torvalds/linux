@@ -12,6 +12,7 @@ struct rss_req_info {
 
 struct rss_reply_data {
 	struct ethnl_reply_data		base;
+	bool				has_flow_hash;
 	bool				no_key_fields;
 	u32				indir_size;
 	u32				hkey_size;
@@ -19,6 +20,37 @@ struct rss_reply_data {
 	u32				input_xfrm;
 	u32				*indir_table;
 	u8				*hkey;
+	int				flow_hash[__ETHTOOL_A_FLOW_CNT];
+};
+
+static const u8 ethtool_rxfh_ft_nl2ioctl[] = {
+	[ETHTOOL_A_FLOW_ETHER]		= ETHER_FLOW,
+	[ETHTOOL_A_FLOW_IP4]		= IPV4_FLOW,
+	[ETHTOOL_A_FLOW_IP6]		= IPV6_FLOW,
+	[ETHTOOL_A_FLOW_TCP4]		= TCP_V4_FLOW,
+	[ETHTOOL_A_FLOW_UDP4]		= UDP_V4_FLOW,
+	[ETHTOOL_A_FLOW_SCTP4]		= SCTP_V4_FLOW,
+	[ETHTOOL_A_FLOW_AH_ESP4]	= AH_ESP_V4_FLOW,
+	[ETHTOOL_A_FLOW_TCP6]		= TCP_V6_FLOW,
+	[ETHTOOL_A_FLOW_UDP6]		= UDP_V6_FLOW,
+	[ETHTOOL_A_FLOW_SCTP6]		= SCTP_V6_FLOW,
+	[ETHTOOL_A_FLOW_AH_ESP6]	= AH_ESP_V6_FLOW,
+	[ETHTOOL_A_FLOW_AH4]		= AH_V4_FLOW,
+	[ETHTOOL_A_FLOW_ESP4]		= ESP_V4_FLOW,
+	[ETHTOOL_A_FLOW_AH6]		= AH_V6_FLOW,
+	[ETHTOOL_A_FLOW_ESP6]		= ESP_V6_FLOW,
+	[ETHTOOL_A_FLOW_GTPU4]		= GTPU_V4_FLOW,
+	[ETHTOOL_A_FLOW_GTPU6]		= GTPU_V6_FLOW,
+	[ETHTOOL_A_FLOW_GTPC4]		= GTPC_V4_FLOW,
+	[ETHTOOL_A_FLOW_GTPC6]		= GTPC_V6_FLOW,
+	[ETHTOOL_A_FLOW_GTPC_TEID4]	= GTPC_TEID_V4_FLOW,
+	[ETHTOOL_A_FLOW_GTPC_TEID6]	= GTPC_TEID_V6_FLOW,
+	[ETHTOOL_A_FLOW_GTPU_EH4]	= GTPU_EH_V4_FLOW,
+	[ETHTOOL_A_FLOW_GTPU_EH6]	= GTPU_EH_V6_FLOW,
+	[ETHTOOL_A_FLOW_GTPU_UL4]	= GTPU_UL_V4_FLOW,
+	[ETHTOOL_A_FLOW_GTPU_UL6]	= GTPU_UL_V6_FLOW,
+	[ETHTOOL_A_FLOW_GTPU_DL4]	= GTPU_DL_V4_FLOW,
+	[ETHTOOL_A_FLOW_GTPU_DL6]	= GTPU_DL_V6_FLOW,
 };
 
 #define RSS_REQINFO(__req_base) \
@@ -49,6 +81,37 @@ rss_parse_request(struct ethnl_req_info *req_info, struct nlattr **tb,
 	return 0;
 }
 
+static void
+rss_prepare_flow_hash(const struct rss_req_info *req, struct net_device *dev,
+		      struct rss_reply_data *data, const struct genl_info *info)
+{
+	int i;
+
+	data->has_flow_hash = false;
+
+	if (!dev->ethtool_ops->get_rxfh_fields)
+		return;
+	if (req->rss_context && !dev->ethtool_ops->rxfh_per_ctx_fields)
+		return;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	for (i = 1; i < __ETHTOOL_A_FLOW_CNT; i++) {
+		struct ethtool_rxfh_fields fields = {
+			.flow_type	= ethtool_rxfh_ft_nl2ioctl[i],
+			.rss_context	= req->rss_context,
+		};
+
+		if (dev->ethtool_ops->get_rxfh_fields(dev, &fields)) {
+			data->flow_hash[i] = -1; /* Unsupported */
+			continue;
+		}
+
+		data->flow_hash[i] = fields.data;
+		data->has_flow_hash = true;
+	}
+	mutex_unlock(&dev->ethtool->rss_lock);
+}
+
 static int
 rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 		struct rss_reply_data *data, const struct genl_info *info)
@@ -64,6 +127,7 @@ rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
+	mutex_lock(&dev->ethtool->rss_lock);
 
 	data->indir_size = 0;
 	data->hkey_size = 0;
@@ -77,7 +141,7 @@ rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 	rss_config = kzalloc(total_size, GFP_KERNEL);
 	if (!rss_config) {
 		ret = -ENOMEM;
-		goto out_ops;
+		goto out_unlock;
 	}
 
 	if (data->indir_size)
@@ -92,11 +156,12 @@ rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 
 	ret = ops->get_rxfh(dev, &rxfh);
 	if (ret)
-		goto out_ops;
+		goto out_unlock;
 
 	data->hfunc = rxfh.hfunc;
 	data->input_xfrm = rxfh.input_xfrm;
-out_ops:
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
 	ethnl_ops_complete(dev);
 	return ret;
 }
@@ -108,12 +173,16 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 	struct ethtool_rxfh_context *ctx;
 	u32 total_size, indir_bytes;
 	u8 *rss_config;
+	int ret;
 
 	data->no_key_fields = !dev->ethtool_ops->rxfh_per_ctx_key;
 
+	mutex_lock(&dev->ethtool->rss_lock);
 	ctx = xa_load(&dev->ethtool->rss_ctx, request->rss_context);
-	if (!ctx)
-		return -ENOENT;
+	if (!ctx) {
+		ret = -ENOENT;
+		goto out_unlock;
+	}
 
 	data->indir_size = ctx->indir_size;
 	data->hkey_size = ctx->key_size;
@@ -123,8 +192,10 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 	indir_bytes = data->indir_size * sizeof(u32);
 	total_size = indir_bytes + data->hkey_size;
 	rss_config = kzalloc(total_size, GFP_KERNEL);
-	if (!rss_config)
-		return -ENOMEM;
+	if (!rss_config) {
+		ret = -ENOMEM;
+		goto out_unlock;
+	}
 
 	data->indir_table = (u32 *)rss_config;
 	memcpy(data->indir_table, ethtool_rxfh_context_indir(ctx), indir_bytes);
@@ -135,13 +206,18 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 		       data->hkey_size);
 	}
 
-	return 0;
+	ret = 0;
+out_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	return ret;
 }
 
 static int
 rss_prepare(const struct rss_req_info *request, struct net_device *dev,
 	    struct rss_reply_data *data, const struct genl_info *info)
 {
+	rss_prepare_flow_hash(request, dev, data, info);
+
 	if (request->rss_context)
 		return rss_prepare_ctx(request, dev, data, info);
 	return rss_prepare_get(request, dev, data, info);
@@ -156,7 +232,6 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	struct rss_req_info *request = RSS_REQINFO(req_base);
 	struct net_device *dev = reply_base->dev;
 	const struct ethtool_ops *ops;
-	int ret;
 
 	ops = dev->ethtool_ops;
 	if (!ops->get_rxfh)
@@ -166,11 +241,7 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	if (request->rss_context && !ops->create_rxfh_context)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&dev->ethtool->rss_lock);
-	ret = rss_prepare(request, dev, data, info);
-	mutex_unlock(&dev->ethtool->rss_lock);
-
-	return ret;
+	return rss_prepare(request, dev, data, info);
 }
 
 static int
@@ -184,7 +255,10 @@ rss_reply_size(const struct ethnl_req_info *req_base,
 	      nla_total_size(sizeof(u32)) +	/* _RSS_HFUNC */
 	      nla_total_size(sizeof(u32)) +	/* _RSS_INPUT_XFRM */
 	      nla_total_size(sizeof(u32) * data->indir_size) + /* _RSS_INDIR */
-	      nla_total_size(data->hkey_size);	/* _RSS_HKEY */
+	      nla_total_size(data->hkey_size) + /* _RSS_HKEY */
+	      nla_total_size(0) +		/* _RSS_FLOW_HASH */
+		nla_total_size(sizeof(u32)) * ETHTOOL_A_FLOW_MAX +
+	      0;
 
 	return len;
 }
@@ -205,16 +279,33 @@ rss_fill_reply(struct sk_buff *skb, const struct ethnl_req_info *req_base,
 		     sizeof(u32) * data->indir_size, data->indir_table)))
 		return -EMSGSIZE;
 
-	if (data->no_key_fields)
-		return 0;
-
-	if ((data->hfunc &&
-	     nla_put_u32(skb, ETHTOOL_A_RSS_HFUNC, data->hfunc)) ||
-	    (data->input_xfrm &&
-	     nla_put_u32(skb, ETHTOOL_A_RSS_INPUT_XFRM, data->input_xfrm)) ||
-	    (data->hkey_size &&
-	     nla_put(skb, ETHTOOL_A_RSS_HKEY, data->hkey_size, data->hkey)))
+	if (!data->no_key_fields &&
+	    ((data->hfunc &&
+	      nla_put_u32(skb, ETHTOOL_A_RSS_HFUNC, data->hfunc)) ||
+	     (data->input_xfrm &&
+	      nla_put_u32(skb, ETHTOOL_A_RSS_INPUT_XFRM, data->input_xfrm)) ||
+	     (data->hkey_size &&
+	      nla_put(skb, ETHTOOL_A_RSS_HKEY, data->hkey_size, data->hkey))))
 		return -EMSGSIZE;
+
+	if (data->has_flow_hash) {
+		struct nlattr *nest;
+		int i;
+
+		nest = nla_nest_start(skb, ETHTOOL_A_RSS_FLOW_HASH);
+		if (!nest)
+			return -EMSGSIZE;
+
+		for (i = 1; i < __ETHTOOL_A_FLOW_CNT; i++) {
+			if (data->flow_hash[i] >= 0 &&
+			    nla_put_uint(skb, i, data->flow_hash[i])) {
+				nla_nest_cancel(skb, nest);
+				return -EMSGSIZE;
+			}
+		}
+
+		nla_nest_end(skb, nest);
+	}
 
 	return 0;
 }
@@ -294,11 +385,7 @@ rss_dump_one_ctx(struct sk_buff *skb, struct netlink_callback *cb,
 	if (ret < 0)
 		goto err_cancel;
 
-	/* Context 0 is not currently storred or cached in the XArray */
-	if (!rss_context)
-		ret = rss_prepare_get(&req, dev, &data, info);
-	else
-		ret = rss_prepare_ctx(&req, dev, &data, info);
+	ret = rss_prepare(&req, dev, &data, info);
 	if (ret)
 		goto err_cancel;
 

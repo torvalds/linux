@@ -981,6 +981,7 @@ static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 static bool flow_type_hashable(u32 flow_type)
 {
 	switch (flow_type) {
+	case ETHER_FLOW:
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 	case SCTP_V4_FLOW:
@@ -1100,7 +1101,11 @@ ethtool_set_rxfh_fields(struct net_device *dev, u32 cmd, void __user *useraddr)
 	rc = ops->set_rxfh_fields(dev, &fields, NULL);
 exit_unlock:
 	mutex_unlock(&dev->ethtool->rss_lock);
-	return rc;
+	if (rc)
+		return rc;
+
+	ethtool_rss_notify(dev, fields.rss_context);
+	return 0;
 }
 
 static noinline_for_stack int
