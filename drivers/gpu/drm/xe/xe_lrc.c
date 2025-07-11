@@ -76,6 +76,11 @@ lrc_to_xe(struct xe_lrc *lrc)
 static bool
 gt_engine_needs_indirect_ctx(struct xe_gt *gt, enum xe_engine_class class)
 {
+	if (XE_WA(gt, 16010904313) &&
+	    (class == XE_ENGINE_CLASS_RENDER ||
+	     class == XE_ENGINE_CLASS_COMPUTE))
+		return true;
+
 	return false;
 }
 
@@ -1014,6 +1019,43 @@ static ssize_t setup_utilization_wa(struct xe_lrc *lrc,
 	return cmd - batch;
 }
 
+static ssize_t setup_timestamp_wa(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
+				  u32 *batch, size_t max_len)
+{
+	const u32 ts_addr = __xe_lrc_ctx_timestamp_ggtt_addr(lrc);
+	u32 *cmd = batch;
+
+	if (!XE_WA(lrc->gt, 16010904313) ||
+	    !(hwe->class == XE_ENGINE_CLASS_RENDER ||
+	      hwe->class == XE_ENGINE_CLASS_COMPUTE ||
+	      hwe->class == XE_ENGINE_CLASS_COPY ||
+	      hwe->class == XE_ENGINE_CLASS_VIDEO_DECODE ||
+	      hwe->class == XE_ENGINE_CLASS_VIDEO_ENHANCE))
+		return 0;
+
+	if (xe_gt_WARN_ON(lrc->gt, max_len < 12))
+		return -ENOSPC;
+
+	*cmd++ = MI_LOAD_REGISTER_MEM | MI_LRM_USE_GGTT | MI_LRI_LRM_CS_MMIO |
+		 MI_LRM_ASYNC;
+	*cmd++ = RING_CTX_TIMESTAMP(0).addr;
+	*cmd++ = ts_addr;
+	*cmd++ = 0;
+
+	*cmd++ = MI_LOAD_REGISTER_MEM | MI_LRM_USE_GGTT | MI_LRI_LRM_CS_MMIO |
+		 MI_LRM_ASYNC;
+	*cmd++ = RING_CTX_TIMESTAMP(0).addr;
+	*cmd++ = ts_addr;
+	*cmd++ = 0;
+
+	*cmd++ = MI_LOAD_REGISTER_MEM | MI_LRM_USE_GGTT | MI_LRI_LRM_CS_MMIO;
+	*cmd++ = RING_CTX_TIMESTAMP(0).addr;
+	*cmd++ = ts_addr;
+	*cmd++ = 0;
+
+	return cmd - batch;
+}
+
 struct bo_setup {
 	ssize_t (*setup)(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 			 u32 *batch, size_t max_size);
@@ -1089,6 +1131,7 @@ static void finish_bo(struct bo_setup_state *state)
 static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 {
 	static const struct bo_setup funcs[] = {
+		{ .setup = setup_timestamp_wa },
 		{ .setup = setup_utilization_wa },
 	};
 	struct bo_setup_state state = {
@@ -1121,6 +1164,7 @@ static int
 setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 {
 	static struct bo_setup rcs_funcs[] = {
+		{ .setup = setup_timestamp_wa },
 	};
 	struct bo_setup_state state = {
 		.lrc = lrc,
