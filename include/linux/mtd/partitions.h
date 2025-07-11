@@ -108,7 +108,7 @@ extern void deregister_mtd_parser(struct mtd_part_parser *parser);
 		      deregister_mtd_parser)
 
 int mtd_add_partition(struct mtd_info *master, const char *name,
-		      long long offset, long long length, struct mtd_info **part);
+		      long long offset, long long length);
 int mtd_del_partition(struct mtd_info *master, int partno);
 uint64_t mtd_get_device_size(const struct mtd_info *mtd);
 

@@ -2917,7 +2917,8 @@ static int lookup_one_common(struct mnt_idmap *idmap,
  * @base:	base directory to lookup from
  *
  * Look up a dentry by name in the dcache, returning NULL if it does not
- * currently exist.  The function does not try to create a dentry.
+ * currently exist.  The function does not try to create a dentry and if one
+ * is found it doesn't try to revalidate it.
  *
  * Note that this routine is purely a helper for filesystem usage and should
  * not be called by generic code.  It does no permission checking.
@@ -2933,7 +2934,7 @@ struct dentry *try_lookup_noperm(struct qstr *name, struct dentry *base)
 	if (err)
 		return ERR_PTR(err);
 
-	return lookup_dcache(name, base, 0);
+	return d_lookup(base, name);
 }
 EXPORT_SYMBOL(try_lookup_noperm);
 
@@ -3057,14 +3058,22 @@ EXPORT_SYMBOL(lookup_one_positive_unlocked);
  * Note that this routine is purely a helper for filesystem usage and should
  * not be called by generic code. It does no permission checking.
  *
- * Unlike lookup_noperm, it should be called without the parent
+ * Unlike lookup_noperm(), it should be called without the parent
  * i_rwsem held, and will take the i_rwsem itself if necessary.
+ *
+ * Unlike try_lookup_noperm() it *does* revalidate the dentry if it already
+ * existed.
  */
 struct dentry *lookup_noperm_unlocked(struct qstr *name, struct dentry *base)
 {
 	struct dentry *ret;
+	int err;
 
-	ret = try_lookup_noperm(name, base);
+	err = lookup_noperm_common(name, base);
+	if (err)
+		return ERR_PTR(err);
+
+	ret = lookup_dcache(name, base, 0);
 	if (!ret)
 		ret = lookup_slow(name, base, 0);
 	return ret;

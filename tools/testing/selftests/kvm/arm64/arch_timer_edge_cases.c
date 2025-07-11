@@ -954,6 +954,8 @@ static void test_init_timer_irq(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	pr_debug("ptimer_irq: %d; vtimer_irq: %d\n", ptimer_irq, vtimer_irq);
 }
 
+static int gic_fd;
+
 static void test_vm_create(struct kvm_vm **vm, struct kvm_vcpu **vcpu,
 			   enum arch_timer timer)
 {
@@ -968,10 +970,18 @@ static void test_vm_create(struct kvm_vm **vm, struct kvm_vcpu **vcpu,
 	vcpu_args_set(*vcpu, 1, timer);
 
 	test_init_timer_irq(*vm, *vcpu);
-	vgic_v3_setup(*vm, 1, 64);
+	gic_fd = vgic_v3_setup(*vm, 1, 64);
+	__TEST_REQUIRE(gic_fd >= 0, "Failed to create vgic-v3");
+
 	sync_global_to_guest(*vm, test_args);
 	sync_global_to_guest(*vm, CVAL_MAX);
 	sync_global_to_guest(*vm, DEF_CNT);
+}
+
+static void test_vm_cleanup(struct kvm_vm *vm)
+{
+	close(gic_fd);
+	kvm_vm_free(vm);
 }
 
 static void test_print_help(char *name)
@@ -1060,13 +1070,13 @@ int main(int argc, char *argv[])
 	if (test_args.test_virtual) {
 		test_vm_create(&vm, &vcpu, VIRTUAL);
 		test_run(vm, vcpu);
-		kvm_vm_free(vm);
+		test_vm_cleanup(vm);
 	}
 
 	if (test_args.test_physical) {
 		test_vm_create(&vm, &vcpu, PHYSICAL);
 		test_run(vm, vcpu);
-		kvm_vm_free(vm);
+		test_vm_cleanup(vm);
 	}
 
 	return 0;

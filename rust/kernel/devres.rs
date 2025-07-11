@@ -12,12 +12,10 @@ use crate::{
     error::{Error, Result},
     ffi::c_void,
     prelude::*,
-    revocable::Revocable,
-    sync::Arc,
+    revocable::{Revocable, RevocableGuard},
+    sync::{rcu, Arc, Completion},
     types::ARef,
 };
-
-use core::ops::Deref;
 
 #[pin_data]
 struct DevresInner<T> {
@@ -25,13 +23,17 @@ struct DevresInner<T> {
     callback: unsafe extern "C" fn(*mut c_void),
     #[pin]
     data: Revocable<T>,
+    #[pin]
+    revoke: Completion,
 }
 
 /// This abstraction is meant to be used by subsystems to containerize [`Device`] bound resources to
 /// manage their lifetime.
 ///
 /// [`Device`] bound resources should be freed when either the resource goes out of scope or the
-/// [`Device`] is unbound respectively, depending on what happens first.
+/// [`Device`] is unbound respectively, depending on what happens first. In any case, it is always
+/// guaranteed that revoking the device resource is completed before the corresponding [`Device`]
+/// is unbound.
 ///
 /// To achieve that [`Devres`] registers a devres callback on creation, which is called once the
 /// [`Device`] is unbound, revoking access to the encapsulated resource (see also [`Revocable`]).
@@ -102,6 +104,7 @@ impl<T> DevresInner<T> {
                 dev: dev.into(),
                 callback: Self::devres_callback,
                 data <- Revocable::new(data),
+                revoke <- Completion::new(),
             }),
             flags,
         )?;
@@ -130,26 +133,28 @@ impl<T> DevresInner<T> {
         self as _
     }
 
-    fn remove_action(this: &Arc<Self>) {
+    fn remove_action(this: &Arc<Self>) -> bool {
         // SAFETY:
         // - `self.inner.dev` is a valid `Device`,
         // - the `action` and `data` pointers are the exact same ones as given to devm_add_action()
         //   previously,
         // - `self` is always valid, even if the action has been released already.
-        let ret = unsafe {
+        let success = unsafe {
             bindings::devm_remove_action_nowarn(
                 this.dev.as_raw(),
                 Some(this.callback),
                 this.as_ptr() as _,
             )
-        };
+        } == 0;
 
-        if ret == 0 {
+        if success {
             // SAFETY: We leaked an `Arc` reference to devm_add_action() in `DevresInner::new`; if
             // devm_remove_action_nowarn() was successful we can (and have to) claim back ownership
             // of this reference.
             let _ = unsafe { Arc::from_raw(this.as_ptr()) };
         }
+
+        success
     }
 
     #[allow(clippy::missing_safety_doc)]
@@ -161,7 +166,12 @@ impl<T> DevresInner<T> {
         //         `DevresInner::new`.
         let inner = unsafe { Arc::from_raw(ptr) };
 
-        inner.data.revoke();
+        if !inner.data.revoke() {
+            // If `revoke()` returns false, it means that `Devres::drop` already started revoking
+            // `inner.data` for us. Hence we have to wait until `Devres::drop()` signals that it
+            // completed revoking `inner.data`.
+            inner.revoke.wait_for_completion();
+        }
     }
 }
 
@@ -218,20 +228,36 @@ impl<T> Devres<T> {
         // SAFETY: `dev` being the same device as the device this `Devres` has been created for
         // proves that `self.0.data` hasn't been revoked and is guaranteed to not be revoked as
         // long as `dev` lives; `dev` lives at least as long as `self`.
-        Ok(unsafe { self.deref().access() })
+        Ok(unsafe { self.0.data.access() })
     }
-}
 
-impl<T> Deref for Devres<T> {
-    type Target = Revocable<T>;
+    /// [`Devres`] accessor for [`Revocable::try_access`].
+    pub fn try_access(&self) -> Option<RevocableGuard<'_, T>> {
+        self.0.data.try_access()
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.0.data
+    /// [`Devres`] accessor for [`Revocable::try_access_with`].
+    pub fn try_access_with<R, F: FnOnce(&T) -> R>(&self, f: F) -> Option<R> {
+        self.0.data.try_access_with(f)
+    }
+
+    /// [`Devres`] accessor for [`Revocable::try_access_with_guard`].
+    pub fn try_access_with_guard<'a>(&'a self, guard: &'a rcu::Guard) -> Option<&'a T> {
+        self.0.data.try_access_with_guard(guard)
     }
 }
 
 impl<T> Drop for Devres<T> {
     fn drop(&mut self) {
-        DevresInner::remove_action(&self.0);
+        // SAFETY: When `drop` runs, it is guaranteed that nobody is accessing the revocable data
+        // anymore, hence it is safe not to wait for the grace period to finish.
+        if unsafe { self.0.data.revoke_nosync() } {
+            // We revoked `self.0.data` before the devres action did, hence try to remove it.
+            if !DevresInner::remove_action(&self.0) {
+                // We could not remove the devres action, which means that it now runs concurrently,
+                // hence signal that `self.0.data` has been revoked successfully.
+                self.0.revoke.complete_all();
+            }
+        }
     }
 }

@@ -708,11 +708,14 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 	if (bridge_connector->bridge_hdmi_audio ||
 	    bridge_connector->bridge_dp_audio) {
 		struct device *dev;
+		struct drm_bridge *bridge;
 
 		if (bridge_connector->bridge_hdmi_audio)
-			dev = bridge_connector->bridge_hdmi_audio->hdmi_audio_dev;
+			bridge = bridge_connector->bridge_hdmi_audio;
 		else
-			dev = bridge_connector->bridge_dp_audio->hdmi_audio_dev;
+			bridge = bridge_connector->bridge_dp_audio;
+
+		dev = bridge->hdmi_audio_dev;
 
 		ret = drm_connector_hdmi_audio_init(connector, dev,
 						    &drm_bridge_connector_hdmi_audio_funcs,

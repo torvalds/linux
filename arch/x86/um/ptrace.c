@@ -161,7 +161,7 @@ static int fpregs_legacy_set(struct task_struct *target,
 		from = kbuf;
 	}
 
-	return um_fxsr_from_i387(fxsave, &buf);
+	return um_fxsr_from_i387(fxsave, from);
 }
 #endif
 

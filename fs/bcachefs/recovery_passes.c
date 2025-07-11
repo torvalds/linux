@@ -217,11 +217,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
-	if (keys->nr ||
-	    !c->opts.read_only ||
-	    !c->sb.clean ||
-	    c->opts.recovery_passes ||
-	    (c->opts.fsck && !(c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)))) {
+	if (go_rw_in_recovery(c)) {
 		if (c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)) {
 			bch_info(c, "mounting a filesystem with no alloc info read-write; will recreate");
 			bch2_reconstruct_alloc(c);
@@ -317,6 +313,9 @@ static bool recovery_pass_needs_set(struct bch_fs *c,
 	 */
 	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
 	bool persistent = !in_recovery || !(*flags & RUN_RECOVERY_PASS_nopersistent);
+	bool rewind = in_recovery &&
+		r->curr_pass > pass &&
+		!(r->passes_complete & BIT_ULL(pass));
 
 	if (persistent
 	    ? !(c->sb.recovery_passes_required & BIT_ULL(pass))
@@ -325,6 +324,9 @@ static bool recovery_pass_needs_set(struct bch_fs *c,
 
 	if (!(*flags & RUN_RECOVERY_PASS_ratelimit) &&
 	    (r->passes_ratelimiting & BIT_ULL(pass)))
+		return true;
+
+	if (rewind)
 		return true;
 
 	return false;
@@ -340,7 +342,6 @@ int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 {
 	struct bch_fs_recovery *r = &c->recovery;
 	int ret = 0;
-
 
 	lockdep_assert_held(&c->sb_lock);
 
@@ -412,10 +413,8 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 {
 	int ret = 0;
 
-	scoped_guard(mutex, &c->sb_lock) {
-		if (!recovery_pass_needs_set(c, pass, &flags))
-			return 0;
-
+	if (recovery_pass_needs_set(c, pass, &flags)) {
+		guard(mutex)(&c->sb_lock);
 		ret = __bch2_run_explicit_recovery_pass(c, out, pass, flags);
 		bch2_write_super(c);
 	}

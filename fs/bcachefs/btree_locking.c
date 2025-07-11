@@ -771,7 +771,7 @@ static inline void __bch2_trans_unlock(struct btree_trans *trans)
 }
 
 static noinline __cold void bch2_trans_relock_fail(struct btree_trans *trans, struct btree_path *path,
-						  struct get_locks_fail *f, bool trace)
+						   struct get_locks_fail *f, bool trace, ulong ip)
 {
 	if (!trace)
 		goto out;
@@ -796,7 +796,7 @@ static noinline __cold void bch2_trans_relock_fail(struct btree_trans *trans, st
 			prt_printf(&buf, " total locked %u.%u.%u", c.n[0], c.n[1], c.n[2]);
 		}
 
-		trace_trans_restart_relock(trans, _RET_IP_, buf.buf);
+		trace_trans_restart_relock(trans, ip, buf.buf);
 		printbuf_exit(&buf);
 	}
 
@@ -806,7 +806,7 @@ out:
 	bch2_trans_verify_locks(trans);
 }
 
-static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
+static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace, ulong ip)
 {
 	bch2_trans_verify_locks(trans);
 
@@ -825,7 +825,7 @@ static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
 		if (path->should_be_locked &&
 		    (ret = btree_path_get_locks(trans, path, false, &f,
 					BCH_ERR_transaction_restart_relock))) {
-			bch2_trans_relock_fail(trans, path, &f, trace);
+			bch2_trans_relock_fail(trans, path, &f, trace, ip);
 			return ret;
 		}
 	}
@@ -838,12 +838,12 @@ out:
 
 int bch2_trans_relock(struct btree_trans *trans)
 {
-	return __bch2_trans_relock(trans, true);
+	return __bch2_trans_relock(trans, true, _RET_IP_);
 }
 
 int bch2_trans_relock_notrace(struct btree_trans *trans)
 {
-	return __bch2_trans_relock(trans, false);
+	return __bch2_trans_relock(trans, false, _RET_IP_);
 }
 
 void bch2_trans_unlock(struct btree_trans *trans)

@@ -137,7 +137,6 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_relock)		\
 	x(BCH_ERR_transaction_restart,	transaction_restart_relock_path)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_relock_path_intent)	\
-	x(BCH_ERR_transaction_restart,	transaction_restart_relock_after_fill)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_too_many_iters)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_lock_node_reused)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_fill_relock)	\
@@ -148,11 +147,8 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_would_deadlock_write)\
 	x(BCH_ERR_transaction_restart,	transaction_restart_deadlock_recursion_limit)\
 	x(BCH_ERR_transaction_restart,	transaction_restart_upgrade)		\
-	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_upgrade)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_fill)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_raced)	\
-	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_realloced)\
-	x(BCH_ERR_transaction_restart,	transaction_restart_journal_preres_get)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_split_race)		\
 	x(BCH_ERR_transaction_restart,	transaction_restart_write_buffer_flush)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_nested)		\
@@ -241,7 +237,6 @@
 	x(BCH_ERR_journal_res_blocked,	journal_buf_enomem)			\
 	x(BCH_ERR_journal_res_blocked,	journal_stuck)				\
 	x(BCH_ERR_journal_res_blocked,	journal_retry_open)			\
-	x(BCH_ERR_journal_res_blocked,	journal_preres_get_blocked)		\
 	x(BCH_ERR_journal_res_blocked,	bucket_alloc_blocked)			\
 	x(BCH_ERR_journal_res_blocked,	stripe_alloc_blocked)			\
 	x(BCH_ERR_invalid,		invalid_sb)				\

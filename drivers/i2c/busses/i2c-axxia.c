@@ -706,7 +706,7 @@ static int axxia_i2c_unreg_slave(struct i2c_client *slave)
 }
 
 static const struct i2c_algorithm axxia_i2c_algo = {
-	.master_xfer = axxia_i2c_xfer,
+	.xfer = axxia_i2c_xfer,
 	.functionality = axxia_i2c_func,
 	.reg_slave = axxia_i2c_reg_slave,
 	.unreg_slave = axxia_i2c_unreg_slave,

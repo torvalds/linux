@@ -6645,7 +6645,8 @@ to the byte array.
 .. note::
 
       For KVM_EXIT_IO, KVM_EXIT_MMIO, KVM_EXIT_OSI, KVM_EXIT_PAPR, KVM_EXIT_XEN,
-      KVM_EXIT_EPR, KVM_EXIT_X86_RDMSR and KVM_EXIT_X86_WRMSR the corresponding
+      KVM_EXIT_EPR, KVM_EXIT_HYPERCALL, KVM_EXIT_TDX,
+      KVM_EXIT_X86_RDMSR and KVM_EXIT_X86_WRMSR the corresponding
       operations are complete (and guest state is consistent) only after userspace
       has re-entered the kernel with KVM_RUN.  The kernel side will first finish
       incomplete operations and then check for pending signals.
@@ -7174,6 +7175,62 @@ The valid value for 'flags' is:
   - KVM_NOTIFY_CONTEXT_INVALID -- the VM context is corrupted and not valid
     in VMCS. It would run into unknown result if resume the target VM.
 
+::
+
+		/* KVM_EXIT_TDX */
+		struct {
+			__u64 flags;
+			__u64 nr;
+			union {
+				struct {
+					u64 ret;
+					u64 data[5];
+				} unknown;
+				struct {
+					u64 ret;
+					u64 gpa;
+					u64 size;
+				} get_quote;
+				struct {
+					u64 ret;
+					u64 leaf;
+					u64 r11, r12, r13, r14;
+				} get_tdvmcall_info;
+			};
+		} tdx;
+
+Process a TDVMCALL from the guest.  KVM forwards select TDVMCALL based
+on the Guest-Hypervisor Communication Interface (GHCI) specification;
+KVM bridges these requests to the userspace VMM with minimal changes,
+placing the inputs in the union and copying them back to the guest
+on re-entry.
+
+Flags are currently always zero, whereas ``nr`` contains the TDVMCALL
+number from register R11.  The remaining field of the union provide the
+inputs and outputs of the TDVMCALL.  Currently the following values of
+``nr`` are defined:
+
+* ``TDVMCALL_GET_QUOTE``: the guest has requested to generate a TD-Quote
+signed by a service hosting TD-Quoting Enclave operating on the host.
+Parameters and return value are in the ``get_quote`` field of the union.
+The ``gpa`` field and ``size`` specify the guest physical address
+(without the shared bit set) and the size of a shared-memory buffer, in
+which the TDX guest passes a TD Report.  The ``ret`` field represents
+the return value of the GetQuote request.  When the request has been
+queued successfully, the TDX guest can poll the status field in the
+shared-memory area to check whether the Quote generation is completed or
+not. When completed, the generated Quote is returned via the same buffer.
+
+* ``TDVMCALL_GET_TD_VM_CALL_INFO``: the guest has requested the support
+status of TDVMCALLs.  The output values for the given leaf should be
+placed in fields from ``r11`` to ``r14`` of the ``get_tdvmcall_info``
+field of the union.
+
+KVM may add support for more values in the future that may cause a userspace
+exit, even without calls to ``KVM_ENABLE_CAP`` or similar.  In this case,
+it will enter with output fields already valid; in the common case, the
+``unknown.ret`` field of the union will be ``TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED``.
+Userspace need not do anything if it does not wish to support a TDVMCALL.
 ::
 
 		/* Fix the size of the union. */

@@ -66,7 +66,8 @@ struct dmub_notification;
 #define MAX_STREAMS 6
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
-#define MAX_HOST_ROUTERS_NUM 2
+#define MAX_HOST_ROUTERS_NUM 3
+#define MAX_DPIA_PER_HOST_ROUTER 2
 
 /* Display Core Interfaces */
 struct dc_versions {
@@ -305,6 +306,8 @@ struct dc_caps {
 	/* Conservative limit for DCC cases which require ODM4:1 to support*/
 	uint32_t dcc_plane_width_limit;
 	struct dc_scl_caps scl_caps;
+	uint8_t num_of_host_routers;
+	uint8_t num_of_dpias_per_host_router;
 };
 
 struct dc_bug_wa {
@@ -1603,6 +1606,7 @@ struct dc {
 
 	uint8_t link_count;
 	struct dc_link *links[MAX_LINKS];
+	uint8_t lowest_dpia_link_index;
 	struct link_service *link_srv;
 
 	struct dc_state *current_state;
@@ -2594,6 +2598,8 @@ struct dc_power_profile {
 struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state *context);
 
 unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
+
+bool dc_get_host_router_index(const struct dc_link *link, unsigned int *host_router_index);
 
 /* DSC Interfaces */
 #include "dc_dsc.h"

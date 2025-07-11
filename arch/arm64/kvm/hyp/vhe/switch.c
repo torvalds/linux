@@ -90,87 +90,6 @@ static u64 __compute_hcr(struct kvm_vcpu *vcpu)
 	return hcr | (guest_hcr & ~NV_HCR_GUEST_EXCLUDE);
 }
 
-static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
-{
-	u64 cptr;
-
-	/*
-	 * With VHE (HCR.E2H == 1), accesses to CPACR_EL1 are routed to
-	 * CPTR_EL2. In general, CPACR_EL1 has the same layout as CPTR_EL2,
-	 * except for some missing controls, such as TAM.
-	 * In this case, CPTR_EL2.TAM has the same position with or without
-	 * VHE (HCR.E2H == 1) which allows us to use here the CPTR_EL2.TAM
-	 * shift value for trapping the AMU accesses.
-	 */
-	u64 val = CPACR_EL1_TTA | CPTR_EL2_TAM;
-
-	if (guest_owns_fp_regs()) {
-		val |= CPACR_EL1_FPEN;
-		if (vcpu_has_sve(vcpu))
-			val |= CPACR_EL1_ZEN;
-	} else {
-		__activate_traps_fpsimd32(vcpu);
-	}
-
-	if (!vcpu_has_nv(vcpu))
-		goto write;
-
-	/*
-	 * The architecture is a bit crap (what a surprise): an EL2 guest
-	 * writing to CPTR_EL2 via CPACR_EL1 can't set any of TCPAC or TTA,
-	 * as they are RES0 in the guest's view. To work around it, trap the
-	 * sucker using the very same bit it can't set...
-	 */
-	if (vcpu_el2_e2h_is_set(vcpu) && is_hyp_ctxt(vcpu))
-		val |= CPTR_EL2_TCPAC;
-
-	/*
-	 * Layer the guest hypervisor's trap configuration on top of our own if
-	 * we're in a nested context.
-	 */
-	if (is_hyp_ctxt(vcpu))
-		goto write;
-
-	cptr = vcpu_sanitised_cptr_el2(vcpu);
-
-	/*
-	 * Pay attention, there's some interesting detail here.
-	 *
-	 * The CPTR_EL2.xEN fields are 2 bits wide, although there are only two
-	 * meaningful trap states when HCR_EL2.TGE = 0 (running a nested guest):
-	 *
-	 *  - CPTR_EL2.xEN = x0, traps are enabled
-	 *  - CPTR_EL2.xEN = x1, traps are disabled
-	 *
-	 * In other words, bit[0] determines if guest accesses trap or not. In
-	 * the interest of simplicity, clear the entire field if the guest
-	 * hypervisor has traps enabled to dispel any illusion of something more
-	 * complicated taking place.
-	 */
-	if (!(SYS_FIELD_GET(CPACR_EL1, FPEN, cptr) & BIT(0)))
-		val &= ~CPACR_EL1_FPEN;
-	if (!(SYS_FIELD_GET(CPACR_EL1, ZEN, cptr) & BIT(0)))
-		val &= ~CPACR_EL1_ZEN;
-
-	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR3_EL1, S2POE, IMP))
-		val |= cptr & CPACR_EL1_E0POE;
-
-	val |= cptr & CPTR_EL2_TCPAC;
-
-write:
-	write_sysreg(val, cpacr_el1);
-}
-
-static void __deactivate_cptr_traps(struct kvm_vcpu *vcpu)
-{
-	u64 val = CPACR_EL1_FPEN | CPACR_EL1_ZEN_EL1EN;
-
-	if (cpus_have_final_cap(ARM64_SME))
-		val |= CPACR_EL1_SMEN_EL1EN;
-
-	write_sysreg(val, cpacr_el1);
-}
-
 static void __activate_traps(struct kvm_vcpu *vcpu)
 {
 	u64 val;
@@ -639,9 +558,9 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	host_ctxt = host_data_ptr(host_ctxt);
 	guest_ctxt = &vcpu->arch.ctxt;
 
-	sysreg_save_host_state_vhe(host_ctxt);
-
 	fpsimd_lazy_switch_to_guest(vcpu);
+
+	sysreg_save_host_state_vhe(host_ctxt);
 
 	/*
 	 * Note that ARM erratum 1165522 requires us to configure both stage 1
@@ -667,14 +586,22 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 
 	__deactivate_traps(vcpu);
 
-	fpsimd_lazy_switch_to_host(vcpu);
-
 	sysreg_restore_host_state_vhe(host_ctxt);
+
+	__debug_switch_to_host(vcpu);
+
+	/*
+	 * Ensure that all system register writes above have taken effect
+	 * before returning to the host. In VHE mode, CPTR traps for
+	 * FPSIMD/SVE/SME also apply to EL2, so FPSIMD/SVE/SME state must be
+	 * manipulated after the ISB.
+	 */
+	isb();
+
+	fpsimd_lazy_switch_to_host(vcpu);
 
 	if (guest_owns_fp_regs())
 		__fpsimd_save_fpexc32(vcpu);
-
-	__debug_switch_to_host(vcpu);
 
 	return exit_code;
 }
@@ -705,12 +632,6 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 	 */
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
 
-	/*
-	 * When we exit from the guest we change a number of CPU configuration
-	 * parameters, such as traps.  We rely on the isb() in kvm_call_hyp*()
-	 * to make sure these changes take effect before running the host or
-	 * additional guests.
-	 */
 	return ret;
 }
 

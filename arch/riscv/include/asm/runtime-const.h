@@ -206,7 +206,7 @@ static inline void __runtime_fixup_32(__le16 *lui_parcel, __le16 *addi_parcel, u
 		addi_insn_mask &= 0x07fff;
 	}
 
-	if (lower_immediate & 0x00000fff) {
+	if (lower_immediate & 0x00000fff || lui_insn == RISCV_INSN_NOP4) {
 		/* replace upper 12 bits of addi with lower 12 bits of val */
 		addi_insn &= addi_insn_mask;
 		addi_insn |= (lower_immediate & 0x00000fff) << 20;

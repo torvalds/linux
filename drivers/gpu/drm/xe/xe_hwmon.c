@@ -159,8 +159,8 @@ static int xe_hwmon_pcode_read_power_limit(const struct xe_hwmon *hwmon, u32 att
 	return ret;
 }
 
-static int xe_hwmon_pcode_write_power_limit(const struct xe_hwmon *hwmon, u32 attr, u8 channel,
-					    u32 uval)
+static int xe_hwmon_pcode_rmw_power_limit(const struct xe_hwmon *hwmon, u32 attr, u8 channel,
+					  u32 clr, u32 set)
 {
 	struct xe_tile *root_tile = xe_device_get_root_tile(hwmon->xe);
 	u32 val0, val1;
@@ -179,7 +179,7 @@ static int xe_hwmon_pcode_write_power_limit(const struct xe_hwmon *hwmon, u32 at
 			channel, val0, val1, ret);
 
 	if (attr == PL1_HWMON_ATTR)
-		val0 = uval;
+		val0 = (val0 & ~clr) | set;
 	else
 		return -EIO;
 
@@ -339,7 +339,7 @@ static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, u32 attr, int channe
 		if (hwmon->xe->info.has_mbx_power_limits) {
 			drm_dbg(&hwmon->xe->drm, "disabling %s on channel %d\n",
 				PWR_ATTR_TO_STR(attr), channel);
-			xe_hwmon_pcode_write_power_limit(hwmon, attr, channel, 0);
+			xe_hwmon_pcode_rmw_power_limit(hwmon, attr, channel, PWR_LIM_EN, 0);
 			xe_hwmon_pcode_read_power_limit(hwmon, attr, channel, &reg_val);
 		} else {
 			reg_val = xe_mmio_rmw32(mmio, rapl_limit, PWR_LIM_EN, 0);
@@ -370,10 +370,9 @@ static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, u32 attr, int channe
 	}
 
 	if (hwmon->xe->info.has_mbx_power_limits)
-		ret = xe_hwmon_pcode_write_power_limit(hwmon, attr, channel, reg_val);
+		ret = xe_hwmon_pcode_rmw_power_limit(hwmon, attr, channel, PWR_LIM, reg_val);
 	else
-		reg_val = xe_mmio_rmw32(mmio, rapl_limit, PWR_LIM_EN | PWR_LIM_VAL,
-					reg_val);
+		reg_val = xe_mmio_rmw32(mmio, rapl_limit, PWR_LIM, reg_val);
 unlock:
 	mutex_unlock(&hwmon->hwmon_lock);
 	return ret;
@@ -563,14 +562,11 @@ xe_hwmon_power_max_interval_store(struct device *dev, struct device_attribute *a
 
 	mutex_lock(&hwmon->hwmon_lock);
 
-	if (hwmon->xe->info.has_mbx_power_limits) {
-		ret = xe_hwmon_pcode_read_power_limit(hwmon, power_attr, channel, (u32 *)&r);
-		r = (r & ~PWR_LIM_TIME) | rxy;
-		xe_hwmon_pcode_write_power_limit(hwmon, power_attr, channel, r);
-	} else {
+	if (hwmon->xe->info.has_mbx_power_limits)
+		xe_hwmon_pcode_rmw_power_limit(hwmon, power_attr, channel, PWR_LIM_TIME, rxy);
+	else
 		r = xe_mmio_rmw32(mmio, xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel),
 				  PWR_LIM_TIME, rxy);
-	}
 
 	mutex_unlock(&hwmon->hwmon_lock);
 
@@ -1138,12 +1134,12 @@ xe_hwmon_get_preregistration_info(struct xe_hwmon *hwmon)
 		} else {
 			drm_info(&hwmon->xe->drm, "Using mailbox commands for power limits\n");
 			/* Write default limits to read from pcode from now on. */
-			xe_hwmon_pcode_write_power_limit(hwmon, PL1_HWMON_ATTR,
-							 CHANNEL_CARD,
-							 hwmon->pl1_on_boot[CHANNEL_CARD]);
-			xe_hwmon_pcode_write_power_limit(hwmon, PL1_HWMON_ATTR,
-							 CHANNEL_PKG,
-							 hwmon->pl1_on_boot[CHANNEL_PKG]);
+			xe_hwmon_pcode_rmw_power_limit(hwmon, PL1_HWMON_ATTR,
+						       CHANNEL_CARD, PWR_LIM | PWR_LIM_TIME,
+						       hwmon->pl1_on_boot[CHANNEL_CARD]);
+			xe_hwmon_pcode_rmw_power_limit(hwmon, PL1_HWMON_ATTR,
+						       CHANNEL_PKG, PWR_LIM | PWR_LIM_TIME,
+						       hwmon->pl1_on_boot[CHANNEL_PKG]);
 			hwmon->scl_shift_power = PWR_UNIT;
 			hwmon->scl_shift_energy = ENERGY_UNIT;
 			hwmon->scl_shift_time = TIME_UNIT;

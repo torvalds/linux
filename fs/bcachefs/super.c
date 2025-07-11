@@ -210,7 +210,6 @@ static int bch2_dev_alloc(struct bch_fs *, unsigned);
 static int bch2_dev_sysfs_online(struct bch_fs *, struct bch_dev *);
 static void bch2_dev_io_ref_stop(struct bch_dev *, int);
 static void __bch2_dev_read_only(struct bch_fs *, struct bch_dev *);
-static int bch2_fs_init_rw(struct bch_fs *);
 
 struct bch_fs *bch2_dev_to_fs(dev_t dev)
 {
@@ -794,7 +793,7 @@ err:
 	return ret;
 }
 
-static int bch2_fs_init_rw(struct bch_fs *c)
+int bch2_fs_init_rw(struct bch_fs *c)
 {
 	if (test_bit(BCH_FS_rw_init_done, &c->flags))
 		return 0;
@@ -1014,6 +1013,16 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts *opts,
 	    bch2_fs_vfs_init(c);
 	if (ret)
 		goto err;
+
+	if (go_rw_in_recovery(c)) {
+		/*
+		 * start workqueues/kworkers early - kthread creation checks for
+		 * pending signals, which is _very_ annoying
+		 */
+		ret = bch2_fs_init_rw(c);
+		if (ret)
+			goto err;
+	}
 
 #ifdef CONFIG_UNICODE
 	/* Default encoding until we can potentially have more as an option. */

@@ -176,16 +176,33 @@ config CRYPTO_USER
 
 config CRYPTO_SELFTESTS
 	bool "Enable cryptographic self-tests"
-	depends on DEBUG_KERNEL
+	depends on EXPERT
 	help
 	  Enable the cryptographic self-tests.
 
 	  The cryptographic self-tests run at boot time, or at algorithm
 	  registration time if algorithms are dynamically loaded later.
 
-	  This is primarily intended for developer use.  It should not be
-	  enabled in production kernels, unless you are trying to use these
-	  tests to fulfill a FIPS testing requirement.
+	  There are two main use cases for these tests:
+
+	  - Development and pre-release testing.  In this case, also enable
+	    CRYPTO_SELFTESTS_FULL to get the full set of tests.  All crypto code
+	    in the kernel is expected to pass the full set of tests.
+
+	  - Production kernels, to help prevent buggy drivers from being used
+	    and/or meet FIPS 140-3 pre-operational testing requirements.  In
+	    this case, enable CRYPTO_SELFTESTS but not CRYPTO_SELFTESTS_FULL.
+
+config CRYPTO_SELFTESTS_FULL
+	bool "Enable the full set of cryptographic self-tests"
+	depends on CRYPTO_SELFTESTS
+	help
+	  Enable the full set of cryptographic self-tests for each algorithm.
+
+	  The full set of tests should be enabled for development and
+	  pre-release testing, but not in production kernels.
+
+	  All crypto code in the kernel is expected to pass the full tests.
 
 config CRYPTO_NULL
 	tristate "Null algorithms"

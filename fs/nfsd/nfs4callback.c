@@ -1409,6 +1409,7 @@ void nfsd41_cb_referring_call(struct nfsd4_callback *cb,
 out:
 	if (!rcl->__nr_referring_calls) {
 		cb->cb_nr_referring_call_list--;
+		list_del(&rcl->__list);
 		kfree(rcl);
 	}
 }

@@ -188,7 +188,7 @@ definitions:
     value: 10000
   -
     type: const
-    name: pin-frequency-77_5-khz
+    name: pin-frequency-77-5-khz
     value: 77500
   -
     type: const

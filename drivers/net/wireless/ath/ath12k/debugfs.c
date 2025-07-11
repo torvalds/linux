@@ -1251,64 +1251,6 @@ void ath12k_debugfs_soc_destroy(struct ath12k_base *ab)
 	 */
 }
 
-void
-ath12k_debugfs_fw_stats_process(struct ath12k *ar,
-				struct ath12k_fw_stats *stats)
-{
-	struct ath12k_base *ab = ar->ab;
-	struct ath12k_pdev *pdev;
-	bool is_end;
-	static unsigned int num_vdev, num_bcn;
-	size_t total_vdevs_started = 0;
-	int i;
-
-	if (stats->stats_id == WMI_REQUEST_VDEV_STAT) {
-		if (list_empty(&stats->vdevs)) {
-			ath12k_warn(ab, "empty vdev stats");
-			return;
-		}
-		/* FW sends all the active VDEV stats irrespective of PDEV,
-		 * hence limit until the count of all VDEVs started
-		 */
-		rcu_read_lock();
-		for (i = 0; i < ab->num_radios; i++) {
-			pdev = rcu_dereference(ab->pdevs_active[i]);
-			if (pdev && pdev->ar)
-				total_vdevs_started += pdev->ar->num_started_vdevs;
-		}
-		rcu_read_unlock();
-
-		is_end = ((++num_vdev) == total_vdevs_started);
-
-		list_splice_tail_init(&stats->vdevs,
-				      &ar->fw_stats.vdevs);
-
-		if (is_end) {
-			ar->fw_stats.fw_stats_done = true;
-			num_vdev = 0;
-		}
-		return;
-	}
-	if (stats->stats_id == WMI_REQUEST_BCN_STAT) {
-		if (list_empty(&stats->bcn)) {
-			ath12k_warn(ab, "empty beacon stats");
-			return;
-		}
-		/* Mark end until we reached the count of all started VDEVs
-		 * within the PDEV
-		 */
-		is_end = ((++num_bcn) == ar->num_started_vdevs);
-
-		list_splice_tail_init(&stats->bcn,
-				      &ar->fw_stats.bcn);
-
-		if (is_end) {
-			ar->fw_stats.fw_stats_done = true;
-			num_bcn = 0;
-		}
-	}
-}
-
 static int ath12k_open_vdev_stats(struct inode *inode, struct file *file)
 {
 	struct ath12k *ar = inode->i_private;

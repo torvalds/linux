@@ -669,6 +669,9 @@ static int vcn_v5_0_1_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 	if (indirect)
 		amdgpu_vcn_psp_update_sram(adev, inst_idx, AMDGPU_UCODE_ID_VCN0_RAM);
 
+	/* resetting ring, fw should not check RB ring */
+	fw_shared->sq.queue_mode |= FW_QUEUE_RING_RESET;
+
 	/* Pause dpg */
 	vcn_v5_0_1_pause_dpg_mode(vinst, &state);
 
@@ -681,7 +684,7 @@ static int vcn_v5_0_1_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 	tmp = RREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE);
 	tmp &= ~(VCN_RB_ENABLE__RB1_EN_MASK);
 	WREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE, tmp);
-	fw_shared->sq.queue_mode |= FW_QUEUE_RING_RESET;
+
 	WREG32_SOC15(VCN, vcn_inst, regUVD_RB_RPTR, 0);
 	WREG32_SOC15(VCN, vcn_inst, regUVD_RB_WPTR, 0);
 
@@ -692,6 +695,7 @@ static int vcn_v5_0_1_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 	tmp = RREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE);
 	tmp |= VCN_RB_ENABLE__RB1_EN_MASK;
 	WREG32_SOC15(VCN, vcn_inst, regVCN_RB_ENABLE, tmp);
+	/* resetting done, fw can check RB ring */
 	fw_shared->sq.queue_mode &= ~(FW_QUEUE_RING_RESET | FW_QUEUE_DPG_HOLD_OFF);
 
 	WREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL,

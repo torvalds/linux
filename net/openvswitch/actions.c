@@ -39,16 +39,14 @@
 #include "flow_netlink.h"
 #include "openvswitch_trace.h"
 
-DEFINE_PER_CPU(struct ovs_pcpu_storage, ovs_pcpu_storage) = {
-	.bh_lock = INIT_LOCAL_LOCK(bh_lock),
-};
+struct ovs_pcpu_storage __percpu *ovs_pcpu_storage;
 
 /* Make a clone of the 'key', using the pre-allocated percpu 'flow_keys'
  * space. Return NULL if out of key spaces.
  */
 static struct sw_flow_key *clone_key(const struct sw_flow_key *key_)
 {
-	struct ovs_pcpu_storage *ovs_pcpu = this_cpu_ptr(&ovs_pcpu_storage);
+	struct ovs_pcpu_storage *ovs_pcpu = this_cpu_ptr(ovs_pcpu_storage);
 	struct action_flow_keys *keys = &ovs_pcpu->flow_keys;
 	int level = ovs_pcpu->exec_level;
 	struct sw_flow_key *key = NULL;
@@ -94,7 +92,7 @@ static struct deferred_action *add_deferred_actions(struct sk_buff *skb,
 				    const struct nlattr *actions,
 				    const int actions_len)
 {
-	struct action_fifo *fifo = this_cpu_ptr(&ovs_pcpu_storage.action_fifos);
+	struct action_fifo *fifo = this_cpu_ptr(&ovs_pcpu_storage->action_fifos);
 	struct deferred_action *da;
 
 	da = action_fifo_put(fifo);
@@ -755,7 +753,7 @@ static int set_sctp(struct sk_buff *skb, struct sw_flow_key *flow_key,
 static int ovs_vport_output(struct net *net, struct sock *sk,
 			    struct sk_buff *skb)
 {
-	struct ovs_frag_data *data = this_cpu_ptr(&ovs_pcpu_storage.frag_data);
+	struct ovs_frag_data *data = this_cpu_ptr(&ovs_pcpu_storage->frag_data);
 	struct vport *vport = data->vport;
 
 	if (skb_cow_head(skb, data->l2_len) < 0) {
@@ -807,7 +805,7 @@ static void prepare_frag(struct vport *vport, struct sk_buff *skb,
 	unsigned int hlen = skb_network_offset(skb);
 	struct ovs_frag_data *data;
 
-	data = this_cpu_ptr(&ovs_pcpu_storage.frag_data);
+	data = this_cpu_ptr(&ovs_pcpu_storage->frag_data);
 	data->dst = skb->_skb_refdst;
 	data->vport = vport;
 	data->cb = *OVS_CB(skb);
@@ -1566,16 +1564,15 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 	clone = clone_flow_key ? clone_key(key) : key;
 	if (clone) {
 		int err = 0;
-
 		if (actions) { /* Sample action */
 			if (clone_flow_key)
-				__this_cpu_inc(ovs_pcpu_storage.exec_level);
+				__this_cpu_inc(ovs_pcpu_storage->exec_level);
 
 			err = do_execute_actions(dp, skb, clone,
 						 actions, len);
 
 			if (clone_flow_key)
-				__this_cpu_dec(ovs_pcpu_storage.exec_level);
+				__this_cpu_dec(ovs_pcpu_storage->exec_level);
 		} else { /* Recirc action */
 			clone->recirc_id = recirc_id;
 			ovs_dp_process_packet(skb, clone);
@@ -1611,7 +1608,7 @@ static int clone_execute(struct datapath *dp, struct sk_buff *skb,
 
 static void process_deferred_actions(struct datapath *dp)
 {
-	struct action_fifo *fifo = this_cpu_ptr(&ovs_pcpu_storage.action_fifos);
+	struct action_fifo *fifo = this_cpu_ptr(&ovs_pcpu_storage->action_fifos);
 
 	/* Do not touch the FIFO in case there is no deferred actions. */
 	if (action_fifo_is_empty(fifo))
@@ -1642,7 +1639,7 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 {
 	int err, level;
 
-	level = __this_cpu_inc_return(ovs_pcpu_storage.exec_level);
+	level = __this_cpu_inc_return(ovs_pcpu_storage->exec_level);
 	if (unlikely(level > OVS_RECURSION_LIMIT)) {
 		net_crit_ratelimited("ovs: recursion limit reached on datapath %s, probable configuration error\n",
 				     ovs_dp_name(dp));
@@ -1659,6 +1656,6 @@ int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb,
 		process_deferred_actions(dp);
 
 out:
-	__this_cpu_dec(ovs_pcpu_storage.exec_level);
+	__this_cpu_dec(ovs_pcpu_storage->exec_level);
 	return err;
 }

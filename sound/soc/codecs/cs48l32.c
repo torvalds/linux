@@ -2162,6 +2162,10 @@ static int cs48l32_hw_params(struct snd_pcm_substream *substream,
 		n_slots_multiple = 1;
 
 	sclk_target = snd_soc_tdm_params_to_bclk(params, slotw, n_slots, n_slots_multiple);
+	if (sclk_target < 0) {
+		cs48l32_asp_err(dai, "Invalid parameters\n");
+		return sclk_target;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(cs48l32_sclk_rates); i++) {
 		if ((cs48l32_sclk_rates[i].freq >= sclk_target) &&

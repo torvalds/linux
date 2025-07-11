@@ -26,7 +26,7 @@ struct cached_dirents {
 			    * open file instance.
 			    */
 	struct mutex de_mutex;
-	int pos;		 /* Expected ctx->pos */
+	loff_t pos;		 /* Expected ctx->pos */
 	struct list_head entries;
 };
 

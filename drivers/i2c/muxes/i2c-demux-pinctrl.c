@@ -95,9 +95,9 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	priv->cur_chan = new_chan;
 
 	/* Now fill out current adapter structure. cur_chan must be up to date */
-	priv->algo.master_xfer = i2c_demux_master_xfer;
+	priv->algo.xfer = i2c_demux_master_xfer;
 	if (adap->algo->master_xfer_atomic)
-		priv->algo.master_xfer_atomic = i2c_demux_master_xfer;
+		priv->algo.xfer_atomic = i2c_demux_master_xfer;
 	priv->algo.functionality = i2c_demux_functionality;
 
 	snprintf(priv->cur_adap.name, sizeof(priv->cur_adap.name),

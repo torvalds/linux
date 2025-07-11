@@ -220,7 +220,8 @@ struct ovs_pcpu_storage {
 	struct task_struct *owner;
 	local_lock_t bh_lock;
 };
-DECLARE_PER_CPU(struct ovs_pcpu_storage, ovs_pcpu_storage);
+
+extern struct ovs_pcpu_storage __percpu *ovs_pcpu_storage;
 
 /**
  * enum ovs_pkt_hash_types - hash info to include with a packet

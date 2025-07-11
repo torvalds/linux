@@ -1311,7 +1311,7 @@ void nvme_mpath_remove_disk(struct nvme_ns_head *head)
 		 */
 		if (!try_module_get(THIS_MODULE))
 			goto out;
-		queue_delayed_work(nvme_wq, &head->remove_work,
+		mod_delayed_work(nvme_wq, &head->remove_work,
 				head->delayed_removal_secs * HZ);
 	} else {
 		list_del_init(&head->entry);

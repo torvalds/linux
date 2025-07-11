@@ -771,7 +771,7 @@ static irqreturn_t pciehp_ist(int irq, void *dev_id)
 		u16 ignored_events = PCI_EXP_SLTSTA_DLLSC;
 
 		if (!ctrl->inband_presence_disabled)
-			ignored_events |= events & PCI_EXP_SLTSTA_PDC;
+			ignored_events |= PCI_EXP_SLTSTA_PDC;
 
 		events &= ~ignored_events;
 		pciehp_ignore_link_change(ctrl, pdev, irq, ignored_events);

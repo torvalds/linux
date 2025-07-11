@@ -40,6 +40,7 @@ SYM_FUNC_END(__memcpy)
 EXPORT_SYMBOL(__memcpy)
 
 SYM_FUNC_ALIAS_MEMFUNC(memcpy, __memcpy)
+SYM_PIC_ALIAS(memcpy)
 EXPORT_SYMBOL(memcpy)
 
 SYM_FUNC_START_LOCAL(memcpy_orig)

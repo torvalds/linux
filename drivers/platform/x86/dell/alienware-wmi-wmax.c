@@ -119,7 +119,7 @@ static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware m16 R1 AMD"),
 		},
-		.driver_data = &g_series_quirks,
+		.driver_data = &generic_quirks,
 	},
 	{
 		.ident = "Alienware m16 R2",

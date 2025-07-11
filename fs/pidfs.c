@@ -366,7 +366,7 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	kinfo.pid = task_pid_vnr(task);
 	kinfo.mask |= PIDFD_INFO_PID;
 
-	if (kinfo.pid == 0 || kinfo.tgid == 0 || (kinfo.ppid == 0 && kinfo.pid != 1))
+	if (kinfo.pid == 0 || kinfo.tgid == 0)
 		return -ESRCH;
 
 copy_out:

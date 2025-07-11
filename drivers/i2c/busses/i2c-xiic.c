@@ -1398,8 +1398,8 @@ static u32 xiic_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm xiic_algorithm = {
-	.master_xfer = xiic_xfer,
-	.master_xfer_atomic = xiic_xfer_atomic,
+	.xfer = xiic_xfer,
+	.xfer_atomic = xiic_xfer_atomic,
 	.functionality = xiic_func,
 };
 
