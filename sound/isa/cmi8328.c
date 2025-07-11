@@ -155,34 +155,34 @@ static int snd_cmi8328_mixer(struct snd_wss *chip)
 	memset(&id2, 0, sizeof(id2));
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	/* rename AUX0 switch to CD */
-	strcpy(id1.name, "Aux Playback Switch");
-	strcpy(id2.name, "CD Playback Switch");
+	strscpy(id1.name, "Aux Playback Switch");
+	strscpy(id2.name, "CD Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "error renaming control\n");
 		return err;
 	}
 	/* rename AUX0 volume to CD */
-	strcpy(id1.name, "Aux Playback Volume");
-	strcpy(id2.name, "CD Playback Volume");
+	strscpy(id1.name, "Aux Playback Volume");
+	strscpy(id2.name, "CD Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "error renaming control\n");
 		return err;
 	}
 	/* rename AUX1 switch to Synth */
-	strcpy(id1.name, "Aux Playback Switch");
+	strscpy(id1.name, "Aux Playback Switch");
 	id1.index = 1;
-	strcpy(id2.name, "Synth Playback Switch");
+	strscpy(id2.name, "Synth Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "error renaming control\n");
 		return err;
 	}
 	/* rename AUX1 volume to Synth */
-	strcpy(id1.name, "Aux Playback Volume");
+	strscpy(id1.name, "Aux Playback Volume");
 	id1.index = 1;
-	strcpy(id2.name, "Synth Playback Volume");
+	strscpy(id2.name, "Synth Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "error renaming control\n");
@@ -362,8 +362,8 @@ static int snd_cmi8328_probe(struct device *pdev, unsigned int ndev)
 		if (snd_opl3_hwdep_new(opl3, 0, 1, NULL) < 0)
 			dev_warn(pdev, "error initializing OPL3 hwdep\n");
 
-	strcpy(card->driver, "CMI8328");
-	strcpy(card->shortname, "C-Media CMI8328");
+	strscpy(card->driver, "CMI8328");
+	strscpy(card->shortname, "C-Media CMI8328");
 	sprintf(card->longname, "%s at 0x%lx, irq %d, dma %d,%d",
 		card->shortname, cmi->wss->port, irq[ndev], dma1[ndev],
 		(dma2[ndev] >= 0) ? dma2[ndev] : dma1[ndev]);

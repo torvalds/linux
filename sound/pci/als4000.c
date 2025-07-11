@@ -877,8 +877,8 @@ static int __snd_card_als4000_probe(struct pci_dev *pci,
 
 	snd_als4000_configure(chip);
 
-	strcpy(card->driver, "ALS4000");
-	strcpy(card->shortname, "Avance Logic ALS4000");
+	strscpy(card->driver, "ALS4000");
+	strscpy(card->shortname, "Avance Logic ALS4000");
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, chip->alt_port, chip->irq);
 

@@ -488,30 +488,30 @@ static int snd_opl3sa2_mixer(struct snd_card *card)
 	memset(&id2, 0, sizeof(id2));
 	id1.iface = id2.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	/* reassign AUX0 to CD */
-        strcpy(id1.name, "Aux Playback Switch");
-        strcpy(id2.name, "CD Playback Switch");
+        strscpy(id1.name, "Aux Playback Switch");
+        strscpy(id2.name, "CD Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
                 return err;
 	}
-        strcpy(id1.name, "Aux Playback Volume");
-        strcpy(id2.name, "CD Playback Volume");
+        strscpy(id1.name, "Aux Playback Volume");
+        strscpy(id2.name, "CD Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
                 return err;
 	}
 	/* reassign AUX1 to FM */
-        strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
-        strcpy(id2.name, "FM Playback Switch");
+        strscpy(id1.name, "Aux Playback Switch"); id1.index = 1;
+        strscpy(id2.name, "FM Playback Switch");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
                 return err;
 	}
-        strcpy(id1.name, "Aux Playback Volume");
-        strcpy(id2.name, "FM Playback Volume");
+        strscpy(id1.name, "Aux Playback Volume");
+        strscpy(id2.name, "FM Playback Volume");
 	err = snd_ctl_rename_id(card, &id1, &id2);
 	if (err < 0) {
 		dev_err(card->dev, "Cannot rename opl3sa2 control\n");
@@ -618,8 +618,8 @@ static int snd_opl3sa2_card_new(struct device *pdev, int dev,
 				sizeof(struct snd_opl3sa2), &card);
 	if (err < 0)
 		return err;
-	strcpy(card->driver, "OPL3SA2");
-	strcpy(card->shortname, "Yamaha OPL3-SA");
+	strscpy(card->driver, "OPL3SA2");
+	strscpy(card->shortname, "Yamaha OPL3-SA");
 	chip = card->private_data;
 	spin_lock_init(&chip->reg_lock);
 	chip->irq = -1;

@@ -1219,7 +1219,7 @@ int ct_alsa_mix_create(struct ct_atc *atc,
 	if (err)
 		return err;
 
-	strcpy(atc->card->mixername, device_name);
+	strscpy(atc->card->mixername, device_name);
 
 	return 0;
 }

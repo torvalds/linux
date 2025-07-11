@@ -152,7 +152,7 @@ static int snd_opl4_create_seq_dev(struct snd_opl4 *opl4, int seq_device)
 	opl4->seq_dev_num = seq_device;
 	if (snd_seq_device_new(opl4->card, seq_device, SNDRV_SEQ_DEV_ID_OPL4,
 			       sizeof(struct snd_opl4 *), &opl4->seq_dev) >= 0) {
-		strcpy(opl4->seq_dev->name, "OPL4 Wavetable");
+		strscpy(opl4->seq_dev->name, "OPL4 Wavetable");
 		*(struct snd_opl4 **)SNDRV_SEQ_DEVICE_ARGPTR(opl4->seq_dev) = opl4;
 		opl4->seq_dev->private_data = opl4;
 		opl4->seq_dev->private_free = snd_opl4_seq_dev_free;

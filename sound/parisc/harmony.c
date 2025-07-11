@@ -601,7 +601,7 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 
 	pcm->private_data = h;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "harmony");
+	strscpy(pcm->name, "harmony");
 	h->pcm = pcm;
 
 	h->psubs = NULL;
@@ -823,7 +823,7 @@ snd_harmony_mixer_init(struct snd_harmony *h)
 	if (snd_BUG_ON(!h))
 		return -EINVAL;
 	card = h->card;
-	strcpy(card->mixername, "Harmony Gain control interface");
+	strscpy(card->mixername, "Harmony Gain control interface");
 
 	for (idx = 0; idx < HARMONY_CONTROLS; idx++) {
 		err = snd_ctl_add(card, 
@@ -937,8 +937,8 @@ snd_harmony_probe(struct parisc_device *padev)
 	if (err < 0)
 		goto free_and_ret;
 
-	strcpy(card->driver, "harmony");
-	strcpy(card->shortname, "Harmony");
+	strscpy(card->driver, "harmony");
+	strscpy(card->shortname, "Harmony");
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, h->hpa, h->irq);
 

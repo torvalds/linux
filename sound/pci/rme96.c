@@ -1607,7 +1607,7 @@ snd_rme96_create(struct rme96 *rme96)
 
 	rme96->spdif_pcm->private_data = rme96;
 	rme96->spdif_pcm->private_free = snd_rme96_free_spdif_pcm;
-	strcpy(rme96->spdif_pcm->name, "Digi96 IEC958");
+	strscpy(rme96->spdif_pcm->name, "Digi96 IEC958");
 	snd_pcm_set_ops(rme96->spdif_pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_rme96_playback_spdif_ops);
 	snd_pcm_set_ops(rme96->spdif_pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_rme96_capture_spdif_ops);
 
@@ -1624,7 +1624,7 @@ snd_rme96_create(struct rme96 *rme96)
 			return err;
 		rme96->adat_pcm->private_data = rme96;
 		rme96->adat_pcm->private_free = snd_rme96_free_adat_pcm;
-		strcpy(rme96->adat_pcm->name, "Digi96 ADAT");
+		strscpy(rme96->adat_pcm->name, "Digi96 ADAT");
 		snd_pcm_set_ops(rme96->adat_pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_rme96_playback_adat_ops);
 		snd_pcm_set_ops(rme96->adat_pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_rme96_capture_adat_ops);
 		
@@ -2434,23 +2434,23 @@ __snd_rme96_probe(struct pci_dev *pci,
 			return -ENOMEM;
 	}
 
-	strcpy(card->driver, "Digi96");
+	strscpy(card->driver, "Digi96");
 	switch (rme96->pci->device) {
 	case PCI_DEVICE_ID_RME_DIGI96:
-		strcpy(card->shortname, "RME Digi96");
+		strscpy(card->shortname, "RME Digi96");
 		break;
 	case PCI_DEVICE_ID_RME_DIGI96_8:
-		strcpy(card->shortname, "RME Digi96/8");
+		strscpy(card->shortname, "RME Digi96/8");
 		break;
 	case PCI_DEVICE_ID_RME_DIGI96_8_PRO:
-		strcpy(card->shortname, "RME Digi96/8 PRO");
+		strscpy(card->shortname, "RME Digi96/8 PRO");
 		break;
 	case PCI_DEVICE_ID_RME_DIGI96_8_PAD_OR_PST:
 		pci_read_config_byte(rme96->pci, 8, &val);
 		if (val < 5) {
-			strcpy(card->shortname, "RME Digi96/8 PAD");
+			strscpy(card->shortname, "RME Digi96/8 PAD");
 		} else {
-			strcpy(card->shortname, "RME Digi96/8 PST");
+			strscpy(card->shortname, "RME Digi96/8 PST");
 		}
 		break;
 	}

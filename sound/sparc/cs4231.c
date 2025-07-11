@@ -1230,7 +1230,7 @@ static int snd_cs4231_pcm(struct snd_card *card)
 	/* global setup */
 	pcm->private_data = chip;
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
-	strcpy(pcm->name, "CS4231");
+	strscpy(pcm->name, "CS4231");
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 				       &chip->op->dev, 64 * 1024, 128 * 1024);
@@ -1256,7 +1256,7 @@ static int snd_cs4231_timer(struct snd_card *card)
 	err = snd_timer_new(card, "CS4231", &tid, &timer);
 	if (err < 0)
 		return err;
-	strcpy(timer->name, "CS4231");
+	strscpy(timer->name, "CS4231");
 	timer->private_data = chip;
 	timer->hw = snd_cs4231_timer_table;
 	chip->timer = timer;
@@ -1530,7 +1530,7 @@ static int snd_cs4231_mixer(struct snd_card *card)
 	if (snd_BUG_ON(!chip || !chip->pcm))
 		return -EINVAL;
 
-	strcpy(card->mixername, chip->pcm->name);
+	strscpy(card->mixername, chip->pcm->name);
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_cs4231_controls); idx++) {
 		err = snd_ctl_add(card,
@@ -1565,8 +1565,8 @@ static int cs4231_attach_begin(struct platform_device *op,
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "CS4231");
-	strcpy(card->shortname, "Sun CS4231");
+	strscpy(card->driver, "CS4231");
+	strscpy(card->shortname, "Sun CS4231");
 
 	chip = card->private_data;
 	chip->card = card;
@@ -1964,12 +1964,12 @@ static int snd_cs4231_ebus_create(struct snd_card *card,
 	chip->op = op;
 	memcpy(&chip->image, &snd_cs4231_original_image,
 	       sizeof(snd_cs4231_original_image));
-	strcpy(chip->c_dma.ebus_info.name, "cs4231(capture)");
+	strscpy(chip->c_dma.ebus_info.name, "cs4231(capture)");
 	chip->c_dma.ebus_info.flags = EBUS_DMA_FLAG_USE_EBDMA_HANDLER;
 	chip->c_dma.ebus_info.callback = snd_cs4231_ebus_capture_callback;
 	chip->c_dma.ebus_info.client_cookie = chip;
 	chip->c_dma.ebus_info.irq = op->archdata.irqs[0];
-	strcpy(chip->p_dma.ebus_info.name, "cs4231(play)");
+	strscpy(chip->p_dma.ebus_info.name, "cs4231(play)");
 	chip->p_dma.ebus_info.flags = EBUS_DMA_FLAG_USE_EBDMA_HANDLER;
 	chip->p_dma.ebus_info.callback = snd_cs4231_ebus_play_callback;
 	chip->p_dma.ebus_info.client_cookie = chip;
