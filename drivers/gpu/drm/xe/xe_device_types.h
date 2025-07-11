@@ -363,6 +363,7 @@ struct xe_device {
 		u8 skip_pcode:1;
 	} info;
 
+	/** @wa_active: keep track of active workarounds */
 	struct {
 		/** @wa_active.oob: bitmap with active OOB workarounds */
 		unsigned long *oob;
