@@ -104,8 +104,6 @@ struct arm_ni_cd {
 	u16 id;
 	int num_units;
 	int irq;
-	int cpu;
-	struct hlist_node cpuhp_node;
 	struct pmu pmu;
 	struct arm_ni_unit *units;
 	struct perf_event *evcnt[NI_NUM_COUNTERS];
@@ -117,12 +115,17 @@ struct arm_ni {
 	void __iomem *base;
 	enum ni_part part;
 	int id;
+	int cpu;
 	int num_cds;
+	struct hlist_node cpuhp_node;
 	struct arm_ni_cd cds[] __counted_by(num_cds);
 };
 
 #define cd_to_ni(cd) container_of((cd), struct arm_ni, cds[(cd)->id])
 #define pmu_to_cd(p) container_of((p), struct arm_ni_cd, pmu)
+
+#define ni_for_each_cd(n, c) \
+	for (struct arm_ni_cd *c = n->cds; c < n->cds + n->num_cds; c++) if (c->pmu_base)
 
 #define cd_for_each_unit(cd, u) \
 	for (struct arm_ni_unit *u = cd->units; u < cd->units + cd->num_units; u++)
@@ -218,9 +221,9 @@ static const struct attribute_group arm_ni_format_attrs_group = {
 static ssize_t arm_ni_cpumask_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct arm_ni_cd *cd = pmu_to_cd(dev_get_drvdata(dev));
+	struct arm_ni *ni = cd_to_ni(pmu_to_cd(dev_get_drvdata(dev)));
 
-	return cpumap_print_to_pagebuf(true, buf, cpumask_of(cd->cpu));
+	return cpumap_print_to_pagebuf(true, buf, cpumask_of(ni->cpu));
 }
 
 static struct device_attribute arm_ni_cpumask_attr =
@@ -314,7 +317,7 @@ static int arm_ni_event_init(struct perf_event *event)
 	if (is_sampling_event(event))
 		return -EINVAL;
 
-	event->cpu = cd->cpu;
+	event->cpu = cd_to_ni(cd)->cpu;
 	if (NI_EVENT_TYPE(event) == NI_PMU)
 		return arm_ni_validate_group(event);
 
@@ -543,8 +546,7 @@ static int arm_ni_init_cd(struct arm_ni *ni, struct arm_ni_node *node, u64 res_s
 	if (err)
 		return err;
 
-	cd->cpu = cpumask_local_spread(0, dev_to_node(ni->dev));
-	irq_set_affinity(cd->irq, cpumask_of(cd->cpu));
+	irq_set_affinity(cd->irq, cpumask_of(ni->cpu));
 
 	cd->pmu = (struct pmu) {
 		.module = THIS_MODULE,
@@ -566,32 +568,19 @@ static int arm_ni_init_cd(struct arm_ni *ni, struct arm_ni_node *node, u64 res_s
 	if (!name)
 		return -ENOMEM;
 
-	err = cpuhp_state_add_instance_nocalls(arm_ni_hp_state, &cd->cpuhp_node);
-	if (err)
-		return err;
-
-	err = perf_pmu_register(&cd->pmu, name, -1);
-	if (err)
-		cpuhp_state_remove_instance_nocalls(arm_ni_hp_state, &cd->cpuhp_node);
-
-	return err;
+	return perf_pmu_register(&cd->pmu, name, -1);
 }
 
 static void arm_ni_remove(struct platform_device *pdev)
 {
 	struct arm_ni *ni = platform_get_drvdata(pdev);
 
-	for (int i = 0; i < ni->num_cds; i++) {
-		struct arm_ni_cd *cd = ni->cds + i;
-
-		if (!cd->pmu_base)
-			continue;
-
+	ni_for_each_cd(ni, cd) {
 		writel_relaxed(0, cd->pmu_base + NI_PMCR);
 		writel_relaxed(U32_MAX, cd->pmu_base + NI_PMINTENCLR);
 		perf_pmu_unregister(&cd->pmu);
-		cpuhp_state_remove_instance_nocalls(arm_ni_hp_state, &cd->cpuhp_node);
 	}
+	cpuhp_state_remove_instance_nocalls(arm_ni_hp_state, &ni->cpuhp_node);
 }
 
 static void arm_ni_probe_domain(void __iomem *base, struct arm_ni_node *node)
@@ -611,7 +600,7 @@ static int arm_ni_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *base;
 	static atomic_t id;
-	int num_cds;
+	int ret, num_cds;
 	u32 reg, part;
 
 	/*
@@ -662,7 +651,12 @@ static int arm_ni_probe(struct platform_device *pdev)
 	ni->num_cds = num_cds;
 	ni->part = part;
 	ni->id = atomic_fetch_inc(&id);
+	ni->cpu = cpumask_local_spread(0, dev_to_node(ni->dev));
 	platform_set_drvdata(pdev, ni);
+
+	ret = cpuhp_state_add_instance_nocalls(arm_ni_hp_state, &ni->cpuhp_node);
+	if (ret)
+		return ret;
 
 	for (int v = 0; v < cfg.num_components; v++) {
 		reg = readl_relaxed(cfg.base + NI_CHILD_PTR(v));
@@ -671,8 +665,6 @@ static int arm_ni_probe(struct platform_device *pdev)
 			reg = readl_relaxed(vd.base + NI_CHILD_PTR(p));
 			arm_ni_probe_domain(base + reg, &pd);
 			for (int c = 0; c < pd.num_components; c++) {
-				int ret;
-
 				reg = readl_relaxed(pd.base + NI_CHILD_PTR(c));
 				arm_ni_probe_domain(base + reg, &cd);
 				ret = arm_ni_init_cd(ni, &cd, res->start);
@@ -715,42 +707,44 @@ static struct platform_driver arm_ni_driver = {
 	.remove = arm_ni_remove,
 };
 
-static void arm_ni_pmu_migrate(struct arm_ni_cd *cd, unsigned int cpu)
+static void arm_ni_pmu_migrate(struct arm_ni *ni, unsigned int cpu)
 {
-	perf_pmu_migrate_context(&cd->pmu, cd->cpu, cpu);
-	irq_set_affinity(cd->irq, cpumask_of(cpu));
-	cd->cpu = cpu;
+	ni_for_each_cd(ni, cd) {
+		perf_pmu_migrate_context(&cd->pmu, ni->cpu, cpu);
+		irq_set_affinity(cd->irq, cpumask_of(cpu));
+	}
+	ni->cpu = cpu;
 }
 
 static int arm_ni_pmu_online_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
 {
-	struct arm_ni_cd *cd;
+	struct arm_ni *ni;
 	int node;
 
-	cd = hlist_entry_safe(cpuhp_node, struct arm_ni_cd, cpuhp_node);
-	node = dev_to_node(cd_to_ni(cd)->dev);
-	if (cpu_to_node(cd->cpu) != node && cpu_to_node(cpu) == node)
-		arm_ni_pmu_migrate(cd, cpu);
+	ni = hlist_entry_safe(cpuhp_node, struct arm_ni, cpuhp_node);
+	node = dev_to_node(ni->dev);
+	if (cpu_to_node(ni->cpu) != node && cpu_to_node(cpu) == node)
+		arm_ni_pmu_migrate(ni, cpu);
 	return 0;
 }
 
 static int arm_ni_pmu_offline_cpu(unsigned int cpu, struct hlist_node *cpuhp_node)
 {
-	struct arm_ni_cd *cd;
+	struct arm_ni *ni;
 	unsigned int target;
 	int node;
 
-	cd = hlist_entry_safe(cpuhp_node, struct arm_ni_cd, cpuhp_node);
-	if (cpu != cd->cpu)
+	ni = hlist_entry_safe(cpuhp_node, struct arm_ni, cpuhp_node);
+	if (cpu != ni->cpu)
 		return 0;
 
-	node = dev_to_node(cd_to_ni(cd)->dev);
+	node = dev_to_node(ni->dev);
 	target = cpumask_any_and_but(cpumask_of_node(node), cpu_online_mask, cpu);
 	if (target >= nr_cpu_ids)
 		target = cpumask_any_but(cpu_online_mask, cpu);
 
 	if (target < nr_cpu_ids)
-		arm_ni_pmu_migrate(cd, target);
+		arm_ni_pmu_migrate(ni, target);
 	return 0;
 }
 
