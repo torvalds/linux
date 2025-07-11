@@ -275,12 +275,12 @@ static void ni16550_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static int ni16550_probe(struct platform_device *pdev)
 {
+	struct uart_8250_port *uart __free(kfree) = NULL;
 	const struct ni16550_device_info *info;
 	struct device *dev = &pdev->dev;
-	struct uart_8250_port *uart __free(kfree) = NULL;
 	unsigned int txfifosz, rxfifosz;
-	unsigned int prescaler;
 	struct ni16550_data *data;
+	unsigned int prescaler;
 	const char *portmode;
 	bool rs232_property;
 	int ret;
