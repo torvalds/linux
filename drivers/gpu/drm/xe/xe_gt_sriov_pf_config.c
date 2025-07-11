@@ -1347,7 +1347,17 @@ static int pf_distribute_config_lmem(struct xe_gt *gt, unsigned int vfid, u64 si
 
 static void pf_force_lmtt_invalidate(struct xe_device *xe)
 {
-	/* TODO */
+	struct xe_lmtt *lmtt;
+	struct xe_tile *tile;
+	unsigned int tid;
+
+	xe_assert(xe, xe_device_has_lmtt(xe));
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	for_each_tile(tile, xe, tid) {
+		lmtt = &tile->sriov.pf.lmtt;
+		xe_lmtt_invalidate_hw(lmtt);
+	}
 }
 
 static void pf_reset_vf_lmtt(struct xe_device *xe, unsigned int vfid)
