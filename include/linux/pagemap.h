@@ -482,6 +482,12 @@ mapping_min_folio_nrpages(const struct address_space *mapping)
 	return 1UL << mapping_min_folio_order(mapping);
 }
 
+static inline unsigned long
+mapping_min_folio_nrbytes(const struct address_space *mapping)
+{
+	return mapping_min_folio_nrpages(mapping) << PAGE_SHIFT;
+}
+
 /**
  * mapping_align_index() - Align index for this mapping.
  * @mapping: The address_space.
