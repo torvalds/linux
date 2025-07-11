@@ -36,7 +36,7 @@ enum {
 struct bfa_adapter_attr {
 	char		manufacturer[BFA_ADAPTER_MFG_NAME_LEN];
 	char		serial_num[BFA_ADAPTER_SERIAL_NUM_LEN];
-	u32	card_type;
+	u32		card_type;
 	char		model[BFA_ADAPTER_MODEL_NAME_LEN];
 	char		model_descr[BFA_ADAPTER_MODEL_DESCR_LEN];
 	u64		pwwn;
@@ -45,7 +45,7 @@ struct bfa_adapter_attr {
 	char		fw_ver[BFA_VERSION_LEN];
 	char		optrom_ver[BFA_VERSION_LEN];
 	char		os_type[BFA_ADAPTER_OS_TYPE_LEN];
-	struct bfa_mfg_vpd vpd;
+	struct 		bfa_mfg_vpd vpd;
 	u8		mac[ETH_ALEN];
 
 	u8		nports;
