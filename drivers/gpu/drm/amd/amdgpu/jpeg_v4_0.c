@@ -143,7 +143,8 @@ static int jpeg_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	adev->jpeg.supported_reset = AMDGPU_RESET_TYPE_PER_QUEUE;
+	if (!amdgpu_sriov_vf(adev))
+		adev->jpeg.supported_reset = AMDGPU_RESET_TYPE_PER_QUEUE;
 	r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
 
 	return r;
@@ -726,8 +727,8 @@ static int jpeg_v4_0_ring_reset(struct amdgpu_ring *ring,
 {
 	int r;
 
-	if (amdgpu_sriov_vf(ring->adev))
-		return -EINVAL;
+	if (!(ring->adev->jpeg.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+		return -EOPNOTSUPP;
 
 	drm_sched_wqueue_stop(&ring->sched);
 	r = jpeg_v4_0_stop(ring->adev);
