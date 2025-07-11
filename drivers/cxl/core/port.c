@@ -2001,12 +2001,9 @@ EXPORT_SYMBOL_NS_GPL(cxl_decoder_add, "CXL");
 
 static void cxld_unregister(void *dev)
 {
-	struct cxl_endpoint_decoder *cxled;
-
-	if (is_endpoint_decoder(dev)) {
-		cxled = to_cxl_endpoint_decoder(dev);
-		cxl_decoder_kill_region(cxled);
-	}
+	if (is_endpoint_decoder(dev))
+		cxl_decoder_detach(NULL, to_cxl_endpoint_decoder(dev), -1,
+				   DETACH_INVALIDATE);
 
 	device_unregister(dev);
 }

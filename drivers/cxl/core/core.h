@@ -12,6 +12,11 @@ extern const struct device_type cxl_pmu_type;
 
 extern struct attribute_group cxl_base_attribute_group;
 
+enum cxl_detach_mode {
+	DETACH_ONLY,
+	DETACH_INVALIDATE,
+};
+
 #ifdef CONFIG_CXL_REGION
 extern struct device_attribute dev_attr_create_pmem_region;
 extern struct device_attribute dev_attr_create_ram_region;
@@ -20,7 +25,11 @@ extern struct device_attribute dev_attr_region;
 extern const struct device_type cxl_pmem_region_type;
 extern const struct device_type cxl_dax_region_type;
 extern const struct device_type cxl_region_type;
-void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled);
+
+int cxl_decoder_detach(struct cxl_region *cxlr,
+		       struct cxl_endpoint_decoder *cxled, int pos,
+		       enum cxl_detach_mode mode);
+
 #define CXL_REGION_ATTR(x) (&dev_attr_##x.attr)
 #define CXL_REGION_TYPE(x) (&cxl_region_type)
 #define SET_CXL_REGION_ATTR(x) (&dev_attr_##x.attr),
@@ -48,7 +57,9 @@ static inline int cxl_get_poison_by_endpoint(struct cxl_port *port)
 {
 	return 0;
 }
-static inline void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled)
+static inline int cxl_decoder_detach(struct cxl_region *cxlr,
+				     struct cxl_endpoint_decoder *cxled,
+				     int pos, enum cxl_detach_mode mode)
 {
 }
 static inline int cxl_region_init(void)
