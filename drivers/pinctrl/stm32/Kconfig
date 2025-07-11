@@ -57,4 +57,18 @@ config PINCTRL_STM32MP257
 	depends on OF && HAS_IOMEM
 	default MACH_STM32MP25 || (ARCH_STM32 && ARM64)
 	select PINCTRL_STM32
+
+config PINCTRL_STM32_HDP
+	tristate "STMicroelectronics STM32 Hardware Debug Port (HDP) pin control"
+	depends on OF && HAS_IOMEM
+	default ARCH_STM32 && !ARM_SINGLE_ARMV7M
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	help
+	  The Hardware Debug Port allows the observation of internal signals.
+	  It uses configurable multiplexer to route signals in a dedicated observation register.
+	  This driver also permits the observation of signals on external SoC pins.
+	  It permits the observation of up to 16 signals per HDP line.
+
 endif
