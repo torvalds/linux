@@ -281,6 +281,17 @@ static void __init cps_smp_setup(void)
 #endif /* CONFIG_MIPS_MT_FPAFF */
 }
 
+unsigned long calibrate_delay_is_known(void)
+{
+	int first_cpu_cluster = 0;
+
+	/* The calibration has to be done on the primary CPU of the cluster */
+	if (mips_cps_first_online_in_cluster(&first_cpu_cluster))
+		return 0;
+
+	return cpu_data[first_cpu_cluster].udelay_val;
+}
+
 static void __init cps_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int nclusters, ncores, core_vpes, nvpe = 0, c, cl, cca;
