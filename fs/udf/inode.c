@@ -181,19 +181,23 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int udf_adinicb_writepage(struct folio *folio,
-				 struct writeback_control *wbc, void *data)
+static int udf_adinicb_writepages(struct address_space *mapping,
+		      struct writeback_control *wbc)
 {
-	struct inode *inode = folio->mapping->host;
+	struct inode *inode = mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
+	struct folio *folio = NULL;
+	int error = 0;
 
-	BUG_ON(!folio_test_locked(folio));
-	BUG_ON(folio->index != 0);
-	memcpy_from_file_folio(iinfo->i_data + iinfo->i_lenEAttr, folio, 0,
-		       i_size_read(inode));
-	folio_unlock(folio);
+	while ((folio = writeback_iter(mapping, wbc, folio, &error))) {
+		BUG_ON(!folio_test_locked(folio));
+		BUG_ON(folio->index != 0);
+		memcpy_from_file_folio(iinfo->i_data + iinfo->i_lenEAttr, folio,
+				0, i_size_read(inode));
+		folio_unlock(folio);
+	}
+
 	mark_inode_dirty(inode);
-
 	return 0;
 }
 
@@ -203,9 +207,9 @@ static int udf_writepages(struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
-		return mpage_writepages(mapping, wbc, udf_get_block_wb);
-	return write_cache_pages(mapping, wbc, udf_adinicb_writepage, NULL);
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		return udf_adinicb_writepages(mapping, wbc);
+	return mpage_writepages(mapping, wbc, udf_get_block_wb);
 }
 
 static void udf_adinicb_read_folio(struct folio *folio)
