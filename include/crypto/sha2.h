@@ -248,6 +248,21 @@ static inline void hmac_sha224_init(struct hmac_sha224_ctx *ctx,
 }
 
 /**
+ * hmac_sha224_init_usingrawkey() - Initialize an HMAC-SHA224 context for a new
+ *				    message, using a raw key
+ * @ctx: (output) the HMAC context to initialize
+ * @raw_key: the raw HMAC-SHA224 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ *
+ * If you don't need incremental computation, consider hmac_sha224_usingrawkey()
+ * instead.
+ *
+ * Context: Any context.
+ */
+void hmac_sha224_init_usingrawkey(struct hmac_sha224_ctx *ctx,
+				  const u8 *raw_key, size_t raw_key_len);
+
+/**
  * hmac_sha224_update() - Update an HMAC-SHA224 context with message data
  * @ctx: the HMAC context to update; must have been initialized
  * @data: the message data
@@ -404,6 +419,21 @@ static inline void hmac_sha256_init(struct hmac_sha256_ctx *ctx,
 {
 	__hmac_sha256_init(&ctx->ctx, &key->key);
 }
+
+/**
+ * hmac_sha256_init_usingrawkey() - Initialize an HMAC-SHA256 context for a new
+ *				    message, using a raw key
+ * @ctx: (output) the HMAC context to initialize
+ * @raw_key: the raw HMAC-SHA256 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ *
+ * If you don't need incremental computation, consider hmac_sha256_usingrawkey()
+ * instead.
+ *
+ * Context: Any context.
+ */
+void hmac_sha256_init_usingrawkey(struct hmac_sha256_ctx *ctx,
+				  const u8 *raw_key, size_t raw_key_len);
 
 /**
  * hmac_sha256_update() - Update an HMAC-SHA256 context with message data
@@ -598,6 +628,21 @@ static inline void hmac_sha384_init(struct hmac_sha384_ctx *ctx,
 }
 
 /**
+ * hmac_sha384_init_usingrawkey() - Initialize an HMAC-SHA384 context for a new
+ *				    message, using a raw key
+ * @ctx: (output) the HMAC context to initialize
+ * @raw_key: the raw HMAC-SHA384 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ *
+ * If you don't need incremental computation, consider hmac_sha384_usingrawkey()
+ * instead.
+ *
+ * Context: Any context.
+ */
+void hmac_sha384_init_usingrawkey(struct hmac_sha384_ctx *ctx,
+				  const u8 *raw_key, size_t raw_key_len);
+
+/**
  * hmac_sha384_update() - Update an HMAC-SHA384 context with message data
  * @ctx: the HMAC context to update; must have been initialized
  * @data: the message data
@@ -754,6 +799,21 @@ static inline void hmac_sha512_init(struct hmac_sha512_ctx *ctx,
 {
 	__hmac_sha512_init(&ctx->ctx, &key->key);
 }
+
+/**
+ * hmac_sha512_init_usingrawkey() - Initialize an HMAC-SHA512 context for a new
+ *				    message, using a raw key
+ * @ctx: (output) the HMAC context to initialize
+ * @raw_key: the raw HMAC-SHA512 key
+ * @raw_key_len: the key length in bytes.  All key lengths are supported.
+ *
+ * If you don't need incremental computation, consider hmac_sha512_usingrawkey()
+ * instead.
+ *
+ * Context: Any context.
+ */
+void hmac_sha512_init_usingrawkey(struct hmac_sha512_ctx *ctx,
+				  const u8 *raw_key, size_t raw_key_len);
 
 /**
  * hmac_sha512_update() - Update an HMAC-SHA512 context with message data
