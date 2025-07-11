@@ -592,12 +592,11 @@ void userspace(struct uml_pt_regs *regs)
 		if (using_seccomp) {
 			struct mm_id *mm_id = current_mm_id();
 			struct stub_data *proc_data = (void *) mm_id->stack;
-			int ret;
 
-			ret = set_stub_state(regs, proc_data, singlestepping());
-			if (ret) {
+			err = set_stub_state(regs, proc_data, singlestepping());
+			if (err) {
 				printk(UM_KERN_ERR "%s - failed to set regs: %d",
-				       __func__, ret);
+				       __func__, err);
 				fatal_sigsegv();
 			}
 
@@ -623,10 +622,10 @@ void userspace(struct uml_pt_regs *regs)
 			mm_id->syscall_data_len = 0;
 			mm_id->syscall_fd_num = 0;
 
-			ret = get_stub_state(regs, proc_data, NULL);
-			if (ret) {
+			err = get_stub_state(regs, proc_data, NULL);
+			if (err) {
 				printk(UM_KERN_ERR "%s - failed to get regs: %d",
-				       __func__, ret);
+				       __func__, err);
 				fatal_sigsegv();
 			}
 
