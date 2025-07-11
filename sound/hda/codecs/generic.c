@@ -2828,7 +2828,7 @@ static int in_jack_mode_info(struct snd_kcontrol *kcontrol,
 	snd_hda_enum_helper_info(kcontrol, uinfo, hweight32(vref_caps),
 				 vref_texts);
 	/* set the right text */
-	strcpy(uinfo->value.enumerated.name,
+	strscpy(uinfo->value.enumerated.name,
 	       vref_texts[get_vref_idx(vref_caps, uinfo->value.enumerated.item)]);
 	return 0;
 }
@@ -2941,7 +2941,7 @@ static int hp_mic_jack_mode_info(struct snd_kcontrol *kcontrol,
 			text = "Mic In";
 	}
 
-	strcpy(uinfo->value.enumerated.name, text);
+	strscpy(uinfo->value.enumerated.name, text);
 	return 0;
 }
 

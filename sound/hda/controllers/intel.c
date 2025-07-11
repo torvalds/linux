@@ -2024,7 +2024,7 @@ static int azx_first_init(struct azx *chip)
 	if (azx_acquire_irq(chip, 0) < 0)
 		return -EBUSY;
 
-	strcpy(card->driver, "HDA-Intel");
+	strscpy(card->driver, "HDA-Intel");
 	strscpy(card->shortname, driver_short_names[chip->driver_type],
 		sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
