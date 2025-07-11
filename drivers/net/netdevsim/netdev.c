@@ -37,7 +37,53 @@ MODULE_IMPORT_NS("NETDEV_INTERNAL");
 
 #define NSIM_RING_SIZE		256
 
-static int nsim_napi_rx(struct nsim_rq *rq, struct sk_buff *skb)
+static void nsim_start_peer_tx_queue(struct net_device *dev, struct nsim_rq *rq)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+	struct net_device *peer_dev;
+	struct netdevsim *peer_ns;
+	struct netdev_queue *txq;
+	u16 idx;
+
+	idx = rq->napi.index;
+	rcu_read_lock();
+	peer_ns = rcu_dereference(ns->peer);
+	if (!peer_ns)
+		goto out;
+
+	/* TX device */
+	peer_dev = peer_ns->netdev;
+	if (dev->real_num_tx_queues != peer_dev->num_rx_queues)
+		goto out;
+
+	txq = netdev_get_tx_queue(peer_dev, idx);
+	if (!netif_tx_queue_stopped(txq))
+		goto out;
+
+	netif_tx_wake_queue(txq);
+out:
+	rcu_read_unlock();
+}
+
+static void nsim_stop_tx_queue(struct net_device *tx_dev,
+			       struct net_device *rx_dev,
+			       struct nsim_rq *rq,
+			       u16 idx)
+{
+	/* If different queues size, do not stop, since it is not
+	 * easy to find which TX queue is mapped here
+	 */
+	if (rx_dev->real_num_tx_queues != tx_dev->num_rx_queues)
+		return;
+
+	/* rq is the queue on the receive side */
+	netif_subqueue_try_stop(tx_dev, idx,
+				NSIM_RING_SIZE - skb_queue_len(&rq->skb_queue),
+				NSIM_RING_SIZE / 2);
+}
+
+static int nsim_napi_rx(struct net_device *tx_dev, struct net_device *rx_dev,
+			struct nsim_rq *rq, struct sk_buff *skb)
 {
 	if (skb_queue_len(&rq->skb_queue) > NSIM_RING_SIZE) {
 		dev_kfree_skb_any(skb);
@@ -45,13 +91,22 @@ static int nsim_napi_rx(struct nsim_rq *rq, struct sk_buff *skb)
 	}
 
 	skb_queue_tail(&rq->skb_queue, skb);
+
+	/* Stop the peer TX queue avoiding dropping packets later */
+	if (skb_queue_len(&rq->skb_queue) >= NSIM_RING_SIZE)
+		nsim_stop_tx_queue(tx_dev, rx_dev, rq,
+				   skb_get_queue_mapping(skb));
+
 	return NET_RX_SUCCESS;
 }
 
-static int nsim_forward_skb(struct net_device *dev, struct sk_buff *skb,
+static int nsim_forward_skb(struct net_device *tx_dev,
+			    struct net_device *rx_dev,
+			    struct sk_buff *skb,
 			    struct nsim_rq *rq)
 {
-	return __dev_forward_skb(dev, skb) ?: nsim_napi_rx(rq, skb);
+	return __dev_forward_skb(rx_dev, skb) ?:
+		nsim_napi_rx(tx_dev, rx_dev, rq, skb);
 }
 
 static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -86,7 +141,7 @@ static netdev_tx_t nsim_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_linearize(skb);
 
 	skb_tx_timestamp(skb);
-	if (unlikely(nsim_forward_skb(peer_dev, skb, rq) == NET_RX_DROP))
+	if (unlikely(nsim_forward_skb(dev, peer_dev, skb, rq) == NET_RX_DROP))
 		goto out_drop_cnt;
 
 	if (!hrtimer_active(&rq->napi_timer))
@@ -351,6 +406,7 @@ static int nsim_rcv(struct nsim_rq *rq, int budget)
 			dev_dstats_rx_dropped(dev);
 	}
 
+	nsim_start_peer_tx_queue(dev, rq);
 	return i;
 }
 
@@ -864,10 +920,8 @@ static void nsim_setup(struct net_device *dev)
 	ether_setup(dev);
 	eth_hw_addr_random(dev);
 
-	dev->tx_queue_len = 0;
 	dev->flags &= ~IFF_MULTICAST;
-	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE |
-			   IFF_NO_QUEUE;
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 	dev->features |= NETIF_F_HIGHDMA |
 			 NETIF_F_SG |
 			 NETIF_F_FRAGLIST |

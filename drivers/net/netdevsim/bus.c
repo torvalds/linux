@@ -384,6 +384,9 @@ static ssize_t unlink_device_store(const struct bus_type *bus, const char *buf, 
 	err = 0;
 	RCU_INIT_POINTER(nsim->peer, NULL);
 	RCU_INIT_POINTER(peer->peer, NULL);
+	synchronize_net();
+	netif_tx_wake_all_queues(dev);
+	netif_tx_wake_all_queues(peer->netdev);
 
 out_put_netns:
 	put_net(ns);
