@@ -474,6 +474,7 @@ enum htt_h2t_msg_type {
 };
 
 #define HTT_VER_REQ_INFO_MSG_ID		GENMASK(7, 0)
+#define HTT_OPTION_TCL_METADATA_VER_V1	1
 #define HTT_OPTION_TCL_METADATA_VER_V2	2
 #define HTT_OPTION_TAG			GENMASK(7, 0)
 #define HTT_OPTION_LEN			GENMASK(15, 8)
