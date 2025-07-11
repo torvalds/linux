@@ -832,8 +832,8 @@ out:
 
 static inline void btrfs_free_excluded_extents(const struct btrfs_block_group *bg)
 {
-	btrfs_clear_extent_bits(&bg->fs_info->excluded_extents, bg->start,
-				bg->start + bg->length - 1, EXTENT_DIRTY);
+	btrfs_clear_extent_bit(&bg->fs_info->excluded_extents, bg->start,
+			       bg->start + bg->length - 1, EXTENT_DIRTY, NULL);
 }
 
 static noinline void caching_thread(struct btrfs_work *work)
@@ -1436,14 +1436,14 @@ static bool clean_pinned_extents(struct btrfs_trans_handle *trans,
 	 */
 	mutex_lock(&fs_info->unused_bg_unpin_mutex);
 	if (prev_trans) {
-		ret = btrfs_clear_extent_bits(&prev_trans->pinned_extents, start, end,
-					      EXTENT_DIRTY);
+		ret = btrfs_clear_extent_bit(&prev_trans->pinned_extents, start, end,
+					     EXTENT_DIRTY, NULL);
 		if (ret)
 			goto out;
 	}
 
-	ret = btrfs_clear_extent_bits(&trans->transaction->pinned_extents, start, end,
-				      EXTENT_DIRTY);
+	ret = btrfs_clear_extent_bit(&trans->transaction->pinned_extents, start, end,
+				     EXTENT_DIRTY, NULL);
 out:
 	mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 	if (prev_trans)

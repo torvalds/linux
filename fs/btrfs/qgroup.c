@@ -4116,8 +4116,8 @@ static int qgroup_unreserve_range(struct btrfs_inode *inode,
 		 * Now the entry is in [start, start + len), revert the
 		 * EXTENT_QGROUP_RESERVED bit.
 		 */
-		clear_ret = btrfs_clear_extent_bits(&inode->io_tree, entry_start,
-						    entry_end, EXTENT_QGROUP_RESERVED);
+		clear_ret = btrfs_clear_extent_bit(&inode->io_tree, entry_start, entry_end,
+						   EXTENT_QGROUP_RESERVED, NULL);
 		if (!ret && clear_ret < 0)
 			ret = clear_ret;
 

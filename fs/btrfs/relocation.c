@@ -3651,7 +3651,7 @@ restart:
 	}
 
 	btrfs_release_path(path);
-	btrfs_clear_extent_bits(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY);
+	btrfs_clear_extent_bit(&rc->processed_blocks, 0, (u64)-1, EXTENT_DIRTY, NULL);
 
 	if (trans) {
 		btrfs_end_transaction_throttle(trans);

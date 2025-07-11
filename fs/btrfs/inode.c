@@ -3374,8 +3374,8 @@ bool btrfs_data_csum_ok(struct btrfs_bio *bbio, struct btrfs_device *dev,
 	    btrfs_test_range_bit(&inode->io_tree, file_offset, end, EXTENT_NODATASUM,
 				 NULL)) {
 		/* Skip the range without csum for data reloc inode */
-		btrfs_clear_extent_bits(&inode->io_tree, file_offset, end,
-					EXTENT_NODATASUM);
+		btrfs_clear_extent_bit(&inode->io_tree, file_offset, end,
+				       EXTENT_NODATASUM, NULL);
 		return true;
 	}
 

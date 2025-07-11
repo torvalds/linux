@@ -192,12 +192,6 @@ static inline int btrfs_unlock_extent(struct extent_io_tree *tree, u64 start, u6
 						cached, NULL);
 }
 
-static inline int btrfs_clear_extent_bits(struct extent_io_tree *tree, u64 start,
-					  u64 end, u32 bits)
-{
-	return btrfs_clear_extent_bit(tree, start, end, bits, NULL);
-}
-
 int btrfs_set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 				 u32 bits, struct extent_changeset *changeset);
 int btrfs_set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,

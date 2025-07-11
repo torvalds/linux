@@ -5019,8 +5019,8 @@ again:
 
 	mutex_lock(&fs_info->chunk_mutex);
 	/* Clear all state bits beyond the shrunk device size */
-	btrfs_clear_extent_bits(&device->alloc_state, new_size, (u64)-1,
-				CHUNK_STATE_MASK);
+	btrfs_clear_extent_bit(&device->alloc_state, new_size, (u64)-1,
+			       CHUNK_STATE_MASK, NULL);
 
 	btrfs_device_set_disk_total_bytes(device, new_size);
 	if (list_empty(&device->post_commit_list))
@@ -5447,9 +5447,9 @@ static void chunk_map_device_clear_bits(struct btrfs_chunk_map *map, unsigned in
 		struct btrfs_io_stripe *stripe = &map->stripes[i];
 		struct btrfs_device *device = stripe->dev;
 
-		btrfs_clear_extent_bits(&device->alloc_state, stripe->physical,
-					stripe->physical + map->stripe_size - 1,
-					bits | EXTENT_NOWAIT);
+		btrfs_clear_extent_bit(&device->alloc_state, stripe->physical,
+				       stripe->physical + map->stripe_size - 1,
+				       bits | EXTENT_NOWAIT, NULL);
 	}
 }
 

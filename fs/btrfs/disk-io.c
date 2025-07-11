@@ -4641,7 +4641,7 @@ static void btrfs_destroy_marked_extents(struct btrfs_fs_info *fs_info,
 
 	while (btrfs_find_first_extent_bit(dirty_pages, start, &start, &end,
 					   mark, NULL)) {
-		btrfs_clear_extent_bits(dirty_pages, start, end, mark);
+		btrfs_clear_extent_bit(dirty_pages, start, end, mark, NULL);
 		while (start <= end) {
 			eb = find_extent_buffer(fs_info, start);
 			start += fs_info->nodesize;
