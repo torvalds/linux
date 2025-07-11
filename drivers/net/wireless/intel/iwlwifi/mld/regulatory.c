@@ -120,37 +120,20 @@ int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
 	u32 cmd_id = REDUCE_TX_POWER_CMD;
 	struct iwl_dev_tx_power_cmd cmd = {
 		.common.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
+		.v10.flags = cpu_to_le32(mld->fwrt.reduced_power_flags),
 	};
-	__le16 *per_chain;
 	int ret;
-	u16 len = sizeof(cmd.common);
-	u32 n_subbands;
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id,
-					   IWL_FW_CMD_VER_UNKNOWN);
-
-	if (cmd_ver == 10) {
-		len += sizeof(cmd.v10);
-		n_subbands = IWL_NUM_SUB_BANDS_V2;
-		per_chain = &cmd.v10.per_chain[0][0][0];
-		cmd.v10.flags =
-			cpu_to_le32(mld->fwrt.reduced_power_flags);
-	} else if (cmd_ver == 9) {
-		len += sizeof(cmd.v9);
-		n_subbands = IWL_NUM_SUB_BANDS_V1;
-		per_chain = &cmd.v9.per_chain[0][0];
-	} else {
-		return -EOPNOTSUPP;
-	}
 
 	/* TODO: CDB - support IWL_NUM_CHAIN_TABLES_V2 */
-	ret = iwl_sar_fill_profile(&mld->fwrt, per_chain,
-				   IWL_NUM_CHAIN_TABLES,
-				   n_subbands, prof_a, prof_b);
+	ret = iwl_sar_fill_profile(&mld->fwrt, &cmd.v10.per_chain[0][0][0],
+				   IWL_NUM_CHAIN_TABLES, IWL_NUM_SUB_BANDS_V2,
+				   prof_a, prof_b);
 	/* return on error or if the profile is disabled (positive number) */
 	if (ret)
 		return ret;
 
-	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, len);
+	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd,
+				    sizeof(cmd.common) + sizeof(cmd.v10));
 }
 
 int iwl_mld_init_sar(struct iwl_mld *mld)
