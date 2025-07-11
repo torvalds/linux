@@ -116,6 +116,7 @@ static inline u64 ath12k_le32hilo_to_u64(__le32 hi, __le32 lo)
 enum ath12k_skb_flags {
 	ATH12K_SKB_HW_80211_ENCAP = BIT(0),
 	ATH12K_SKB_CIPHER_SET = BIT(1),
+	ATH12K_SKB_MLO_STA = BIT(2),
 };
 
 struct ath12k_skb_cb {

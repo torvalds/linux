@@ -8,7 +8,7 @@
 #include "peer.h"
 #include "debug.h"
 
-static struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
+struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
 {
 	struct ath12k_ml_peer *ml_peer;
 

@@ -785,20 +785,46 @@ struct sk_buff *ath12k_wmi_alloc_skb(struct ath12k_wmi_base *wmi_ab, u32 len)
 	return skb;
 }
 
-int ath12k_wmi_mgmt_send(struct ath12k *ar, u32 vdev_id, u32 buf_id,
+int ath12k_wmi_mgmt_send(struct ath12k_link_vif *arvif, u32 buf_id,
 			 struct sk_buff *frame)
 {
+	struct ath12k *ar = arvif->ar;
 	struct ath12k_wmi_pdev *wmi = ar->wmi;
 	struct wmi_mgmt_send_cmd *cmd;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(frame);
-	struct wmi_tlv *frame_tlv;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)frame->data;
+	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
+	int cmd_len = sizeof(struct ath12k_wmi_mgmt_send_tx_params);
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)hdr;
+	struct ath12k_wmi_mlo_mgmt_send_params *ml_params;
+	struct ath12k_base *ab = ar->ab;
+	struct wmi_tlv *frame_tlv, *tlv;
+	struct ath12k_skb_cb *skb_cb;
+	u32 buf_len, buf_len_aligned;
+	u32 vdev_id = arvif->vdev_id;
+	bool link_agnostic = false;
 	struct sk_buff *skb;
-	u32 buf_len;
 	int ret, len;
+	void *ptr;
 
 	buf_len = min_t(int, frame->len, WMI_MGMT_SEND_DOWNLD_LEN);
 
-	len = sizeof(*cmd) + sizeof(*frame_tlv) + roundup(buf_len, 4);
+	buf_len_aligned = roundup(buf_len, sizeof(u32));
+
+	len = sizeof(*cmd) + sizeof(*frame_tlv) + buf_len_aligned;
+
+	if (ieee80211_vif_is_mld(vif)) {
+		skb_cb = ATH12K_SKB_CB(frame);
+		if ((skb_cb->flags & ATH12K_SKB_MLO_STA) &&
+		    ab->hw_params->hw_ops->is_frame_link_agnostic &&
+		    ab->hw_params->hw_ops->is_frame_link_agnostic(arvif, mgmt)) {
+			len += cmd_len + TLV_HDR_SIZE + sizeof(*ml_params);
+			ath12k_generic_dbg(ATH12K_DBG_MGMT,
+					   "Sending Mgmt Frame fc 0x%0x as link agnostic",
+					   mgmt->frame_control);
+			link_agnostic = true;
+		}
+	}
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
@@ -821,6 +847,28 @@ int ath12k_wmi_mgmt_send(struct ath12k *ar, u32 vdev_id, u32 buf_id,
 
 	memcpy(frame_tlv->value, frame->data, buf_len);
 
+	if (!link_agnostic)
+		goto send;
+
+	ptr = skb->data + sizeof(*cmd) + sizeof(*frame_tlv) + buf_len_aligned;
+
+	tlv = ptr;
+
+	/* Tx params not used currently */
+	tlv->header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_TX_SEND_PARAMS, cmd_len);
+	ptr += cmd_len;
+
+	tlv = ptr;
+	tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT, sizeof(*ml_params));
+	ptr += TLV_HDR_SIZE;
+
+	ml_params = ptr;
+	ml_params->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_MLO_TX_SEND_PARAMS,
+						       sizeof(*ml_params));
+
+	ml_params->hw_link_id = cpu_to_le32(WMI_MGMT_LINK_AGNOSTIC_ID);
+
+send:
 	ret = ath12k_wmi_cmd_send(wmi, skb, WMI_MGMT_TX_SEND_CMDID);
 	if (ret) {
 		ath12k_warn(ar->ab,

@@ -8377,7 +8377,7 @@ static int ath12k_mac_mgmt_tx_wmi(struct ath12k *ar, struct ath12k_link_vif *arv
 
 	skb_cb->paddr = paddr;
 
-	ret = ath12k_wmi_mgmt_send(ar, arvif->vdev_id, buf_id, skb);
+	ret = ath12k_wmi_mgmt_send(arvif, buf_id, skb);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to send mgmt frame: %d\n", ret);
 		goto err_unmap_buf;
@@ -8871,6 +8871,9 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 
 		skb_cb->flags |= ATH12K_SKB_HW_80211_ENCAP;
 	} else if (ieee80211_is_mgmt(hdr->frame_control)) {
+		if (sta && sta->mlo)
+			skb_cb->flags |= ATH12K_SKB_MLO_STA;
+
 		ret = ath12k_mac_mgmt_tx(ar, skb, is_prb_rsp);
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to queue management frame %d\n",
