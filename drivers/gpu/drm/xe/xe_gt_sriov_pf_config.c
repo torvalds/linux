@@ -341,6 +341,17 @@ static int pf_push_full_vf_config(struct xe_gt *gt, unsigned int vfid)
 	}
 	xe_gt_assert(gt, num_dwords <= max_cfg_dwords);
 
+	if (vfid == PFID) {
+		u64 ggtt_start = xe_wopcm_size(gt_to_xe(gt));
+		u64 ggtt_size = gt_to_tile(gt)->mem.ggtt->size - ggtt_start;
+
+		/* plain PF config data will never include a real GGTT region */
+		xe_gt_assert(gt, !encode_config_ggtt(cfg + num_dwords, config, true));
+
+		/* fake PF GGTT config covers full GGTT range except reserved WOPCM */
+		num_dwords += encode_ggtt(cfg + num_dwords, ggtt_start, ggtt_size, true);
+	}
+
 	num_klvs = xe_guc_klv_count(cfg, num_dwords);
 	err = pf_push_vf_buf_klvs(gt, vfid, num_klvs, buf, num_dwords);
 
@@ -2375,6 +2386,20 @@ int xe_gt_sriov_pf_config_restore(struct xe_gt *gt, unsigned int vfid,
 	return err;
 }
 
+static void pf_prepare_self_config(struct xe_gt *gt)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, PFID);
+
+	/*
+	 * We want PF to be allowed to use all of context ID, doorbells IDs
+	 * and whole usable GGTT area. While we can store ctxs/dbs numbers
+	 * directly in the config structure, can't do the same with the GGTT
+	 * configuration, so let it be prepared on demand while pushing KLVs.
+	 */
+	config->num_ctxs = GUC_ID_MAX;
+	config->num_dbs = GUC_NUM_DOORBELLS;
+}
+
 static int pf_push_self_config(struct xe_gt *gt)
 {
 	int err;
@@ -2418,6 +2443,7 @@ int xe_gt_sriov_pf_config_init(struct xe_gt *gt)
 	xe_gt_assert(gt, IS_SRIOV_PF(xe));
 
 	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+	pf_prepare_self_config(gt);
 	err = pf_push_self_config(gt);
 	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
