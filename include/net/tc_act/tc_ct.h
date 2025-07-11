@@ -13,7 +13,7 @@ struct tcf_ct_params {
 	struct nf_conntrack_helper *helper;
 	struct nf_conn *tmpl;
 	u16 zone;
-
+	int action;
 	u32 mark;
 	u32 mark_mask;
 

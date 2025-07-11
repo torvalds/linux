@@ -10,6 +10,7 @@
 struct tcf_mpls_params {
 	int tcfm_action;
 	u32 tcfm_label;
+	int action; /* tcf_action */
 	u8 tcfm_tc;
 	u8 tcfm_ttl;
 	u8 tcfm_bos;
