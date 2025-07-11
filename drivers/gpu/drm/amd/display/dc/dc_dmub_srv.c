@@ -2010,11 +2010,12 @@ bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv)
 	return result;
 }
 
-bool dmub_lsdma_send_linear_copy_packet(
+bool dmub_lsdma_send_linear_copy_command(
 	struct dc_dmub_srv *dc_dmub_srv,
 	uint64_t src_addr,
 	uint64_t dst_addr,
-	uint32_t count)
+	uint32_t count
+)
 {
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	union dmub_rb_cmd cmd;
@@ -2042,9 +2043,54 @@ bool dmub_lsdma_send_linear_copy_packet(
 	return result;
 }
 
+bool dmub_lsdma_send_linear_sub_window_copy_command(
+	struct dc_dmub_srv *dc_dmub_srv,
+	struct lsdma_linear_sub_window_copy_params copy_data
+)
+{
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
+	union dmub_rb_cmd cmd;
+	enum dm_dmub_wait_type wait_type;
+	struct dmub_cmd_lsdma_data *lsdma_data = &cmd.lsdma.lsdma_data;
+	bool result;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cmd_common.header.type     = DMUB_CMD__LSDMA;
+	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_LINEAR_SUB_WINDOW_COPY;
+	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
+
+	lsdma_data->u.linear_sub_window_copy_data.tmz              = copy_data.tmz;
+	lsdma_data->u.linear_sub_window_copy_data.element_size     = copy_data.element_size;
+	lsdma_data->u.linear_sub_window_copy_data.src_lo           = copy_data.src_lo;
+	lsdma_data->u.linear_sub_window_copy_data.src_hi           = copy_data.src_hi;
+	lsdma_data->u.linear_sub_window_copy_data.src_x            = copy_data.src_x;
+	lsdma_data->u.linear_sub_window_copy_data.src_y            = copy_data.src_y;
+	lsdma_data->u.linear_sub_window_copy_data.src_pitch        = copy_data.src_pitch - 1;
+	lsdma_data->u.linear_sub_window_copy_data.src_slice_pitch  = copy_data.src_slice_pitch - 1;
+	lsdma_data->u.linear_sub_window_copy_data.dst_lo           = copy_data.dst_lo;
+	lsdma_data->u.linear_sub_window_copy_data.dst_hi           = copy_data.dst_hi;
+	lsdma_data->u.linear_sub_window_copy_data.dst_x            = copy_data.dst_x;
+	lsdma_data->u.linear_sub_window_copy_data.dst_y            = copy_data.dst_y;
+	lsdma_data->u.linear_sub_window_copy_data.dst_pitch        = copy_data.dst_pitch - 1;
+	lsdma_data->u.linear_sub_window_copy_data.dst_slice_pitch  = copy_data.dst_slice_pitch - 1;
+	lsdma_data->u.linear_sub_window_copy_data.rect_x           = copy_data.rect_x - 1;
+	lsdma_data->u.linear_sub_window_copy_data.rect_y           = copy_data.rect_y - 1;
+	lsdma_data->u.linear_sub_window_copy_data.src_cache_policy = copy_data.src_cache_policy;
+	lsdma_data->u.linear_sub_window_copy_data.dst_cache_policy = copy_data.dst_cache_policy;
+
+	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
+
+	if (!result)
+		DC_ERROR("LSDMA Linear Sub Window Copy failed in DMUB");
+
+	return result;
+}
+
 bool dmub_lsdma_send_tiled_to_tiled_copy_command(
 	struct dc_dmub_srv *dc_dmub_srv,
-	struct lsdma_send_tiled_to_tiled_copy_command_params params)
+	struct lsdma_send_tiled_to_tiled_copy_command_params params
+)
 {
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	union dmub_rb_cmd cmd;
@@ -2097,7 +2143,8 @@ bool dmub_lsdma_send_pio_copy_command(
 	uint64_t src_addr,
 	uint64_t dst_addr,
 	uint32_t byte_count,
-	uint32_t overlap_disable)
+	uint32_t overlap_disable
+)
 {
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	union dmub_rb_cmd cmd;
@@ -2130,7 +2177,8 @@ bool dmub_lsdma_send_pio_constfill_command(
 	struct dc_dmub_srv *dc_dmub_srv,
 	uint64_t dst_addr,
 	uint32_t byte_count,
-	uint32_t data)
+	uint32_t data
+)
 {
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	union dmub_rb_cmd cmd;
