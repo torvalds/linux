@@ -254,7 +254,7 @@ enum security_cmd_enabled_bits {
  * @max_errors: Maximum media error records held in device cache
  * @enabled_cmds: All poison commands enabled in the CEL
  * @list_out: The poison list payload returned by device
- * @lock: Protect reads of the poison list
+ * @mutex: Protect reads of the poison list
  *
  * Reads of the poison list are synchronized to ensure that a reader
  * does not get an incomplete list because their request overlapped
@@ -265,7 +265,7 @@ struct cxl_poison_state {
 	u32 max_errors;
 	DECLARE_BITMAP(enabled_cmds, CXL_POISON_ENABLED_MAX);
 	struct cxl_mbox_poison_out *list_out;
-	struct mutex lock;  /* Protect reads of poison list */
+	struct mutex mutex;  /* Protect reads of poison list */
 };
 
 /*
