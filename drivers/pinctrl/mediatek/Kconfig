@@ -259,6 +259,18 @@ config PINCTRL_MT8188
 	  In MTK platform, we support virtual gpio and use it to
 	  map specific eint which doesn't have real gpio pin.
 
+config PINCTRL_MT8189
+        bool "MediaTek MT8189 pin control"
+        depends on OF
+        depends on ARM64 || COMPILE_TEST
+        default ARM64 && ARCH_MEDIATEK
+        select PINCTRL_MTK_PARIS
+        help
+          Say yes here to support pin controller and gpio driver
+          on MediaTek MT8189 SoC.
+          In MTK platform, we support virtual gpio and use it to
+          map specific eint which doesn't have real gpio pin.
+
 config PINCTRL_MT8192
 	bool "MediaTek MT8192 pin control"
 	depends on OF
