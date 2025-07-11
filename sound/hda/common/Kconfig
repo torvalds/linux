@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config SND_HDA
+	tristate
+	select SND_PCM
+	select SND_VMASTER
+	select SND_JACK
+	select SND_HDA_CORE
+
+if SND_HDA
+
+config SND_HDA_HWDEP
+	bool "Build hwdep interface for HD-audio driver"
+	select SND_HWDEP
+	help
+	  Say Y here to build a hwdep interface for HD-audio driver.
+	  This interface can be used for out-of-band communication
+	  with codecs for debugging purposes.
+
+config SND_HDA_RECONFIG
+	bool "Allow dynamic codec reconfiguration"
+	help
+	  Say Y here to enable the HD-audio codec re-configuration feature.
+	  It allows user to clear the whole codec configuration, change the
+	  codec setup, add extra verbs, and re-configure the codec dynamically.
+
+	  Note that this item alone doesn't provide the sysfs interface, but
+	  enables the feature just for the patch loader below.
+	  If you need the traditional sysfs entries for the manual interaction,
+	  turn on CONFIG_SND_HDA_HWDEP as well.
+
+config SND_HDA_INPUT_BEEP
+	bool "Support digital beep via input layer"
+	depends on INPUT=y || INPUT=SND_HDA
+	help
+	  Say Y here to build a digital beep interface for HD-audio
+	  driver. This interface is used to generate digital beeps.
+
+config SND_HDA_INPUT_BEEP_MODE
+	int "Digital beep registration mode (0=off, 1=on)"
+	depends on SND_HDA_INPUT_BEEP=y
+	default "1"
+	range 0 1
+	help
+	  Set 0 to disable the digital beep interface for HD-audio by default.
+	  Set 1 to always enable the digital beep interface for HD-audio by
+	  default.
+
+config SND_HDA_PATCH_LOADER
+	bool "Support initialization patch loading for HD-audio"
+	select FW_LOADER
+	select SND_HDA_RECONFIG
+	help
+	  Say Y here to allow the HD-audio driver to load a pseudo
+	  firmware file ("patch") for overriding the BIOS setup at
+	  start up.  The "patch" file can be specified via patch module
+	  option, such as patch=hda-init.
+
+config SND_HDA_POWER_SAVE_DEFAULT
+	int "Default time-out for HD-audio power-save mode"
+	depends on PM
+	default 0
+	help
+	  The default time-out value in seconds for HD-audio automatic
+	  power-save mode.  0 means to disable the power-save mode.
+
+config SND_HDA_CTL_DEV_ID
+	bool "Use the device identifier field for controls"
+	depends on SND_HDA_INTEL
+	help
+	  Say Y to use the device identifier field for (mixer)
+	  controls (old behaviour until this option is available).
+
+	  When enabled, the multiple HDA codecs may set the device
+	  field in control (mixer) element identifiers. The use
+	  of this field is not recommended and defined for mixer controls.
+
+	  The old behaviour (Y) is obsolete and will be removed. Consider
+	  to not enable this option.
+
+config SND_HDA_PREALLOC_SIZE
+	int "Pre-allocated buffer size for HD-audio driver"
+	range 0 32768
+	default 0 if SND_DMA_SGBUF
+	default 64 if !SND_DMA_SGBUF
+	help
+	  Specifies the default pre-allocated buffer-size in kB for the
+	  HD-audio driver.  A larger buffer (e.g. 2048) is preferred
+	  for systems using PulseAudio.  The default 64 is chosen just
+	  for compatibility reasons.
+	  On x86 systems, the default is zero as S/G allocation works
+	  and no preallocation is needed in most cases.
+
+	  Note that the pre-allocation size can be changed dynamically
+	  via a proc file (/proc/asound/card*/pcm*/sub*/prealloc), too.
+
+endif
