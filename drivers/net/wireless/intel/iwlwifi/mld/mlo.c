@@ -689,40 +689,6 @@ s8 iwl_mld_get_emlsr_rssi_thresh(struct iwl_mld *mld,
 #undef RSSI_THRESHOLD
 }
 
-#define IWL_MLD_BT_COEX_DISABLE_EMLSR_RSSI_THRESH	-69
-#define IWL_MLD_BT_COEX_ENABLE_EMLSR_RSSI_THRESH	-63
-#define IWL_MLD_BT_COEX_WIFI_LOSS_THRESH		7
-
-static bool
-iwl_mld_bt_allows_emlsr(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
-			bool check_entry)
-{
-	int bt_penalty, rssi_thresh;
-	s32 link_rssi;
-
-	if (WARN_ON_ONCE(!link->bss))
-		return false;
-
-	link_rssi = MBM_TO_DBM(link->bss->signal);
-	rssi_thresh = check_entry ?
-		      IWL_MLD_BT_COEX_ENABLE_EMLSR_RSSI_THRESH :
-		      IWL_MLD_BT_COEX_DISABLE_EMLSR_RSSI_THRESH;
-	/* No valid RSSI - force to take low rssi */
-	if (!link_rssi)
-		link_rssi = rssi_thresh - 1;
-
-	if (link_rssi > rssi_thresh)
-		bt_penalty = max(mld->last_bt_notif.wifi_loss_mid_high_rssi[PHY_BAND_24][0],
-				 mld->last_bt_notif.wifi_loss_mid_high_rssi[PHY_BAND_24][1]);
-	else
-		bt_penalty = max(mld->last_bt_notif.wifi_loss_low_rssi[PHY_BAND_24][0],
-				 mld->last_bt_notif.wifi_loss_low_rssi[PHY_BAND_24][1]);
-
-	IWL_DEBUG_EHT(mld, "BT penalty for link-id %0X is %d\n",
-		      link->link_id, bt_penalty);
-	return bt_penalty < IWL_MLD_BT_COEX_WIFI_LOSS_THRESH;
-}
-
 static u32
 iwl_mld_emlsr_disallowed_with_link(struct iwl_mld *mld,
 				   struct ieee80211_vif *vif,
@@ -737,8 +703,7 @@ iwl_mld_emlsr_disallowed_with_link(struct iwl_mld *mld,
 	if (WARN_ON_ONCE(!conf))
 		return IWL_MLD_EMLSR_EXIT_INVALID;
 
-	if (link->chandef->chan->band == NL80211_BAND_2GHZ &&
-	    !iwl_mld_bt_allows_emlsr(mld, conf, true))
+	if (link->chandef->chan->band == NL80211_BAND_2GHZ && mld->bt_is_active)
 		ret |= IWL_MLD_EMLSR_EXIT_BT_COEX;
 
 	if (link->signal <
@@ -1076,41 +1041,30 @@ static void iwl_mld_emlsr_check_bt_iter(void *_data, u8 *mac,
 					struct ieee80211_vif *vif)
 {
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
-	const struct iwl_bt_coex_profile_notif zero_notif = {};
 	struct iwl_mld *mld = mld_vif->mld;
 	struct ieee80211_bss_conf *link;
 	unsigned int link_id;
-	const struct iwl_bt_coex_profile_notif *notif = &mld->last_bt_notif;
 
 	if (!iwl_mld_vif_has_emlsr_cap(vif))
 		return;
 
-	/* zeroed structure means that BT is OFF */
-	if (!memcmp(notif, &zero_notif, sizeof(*notif))) {
+	if (!mld->bt_is_active) {
 		iwl_mld_retry_emlsr(mld, vif);
 		return;
 	}
 
-	for_each_vif_active_link(vif, link, link_id) {
-		bool emlsr_active, emlsr_allowed;
+	/* BT is turned ON but we are not in EMLSR, nothing to do */
+	if (!iwl_mld_emlsr_active(vif))
+		return;
 
+	/* In EMLSR and BT is turned ON */
+
+	for_each_vif_active_link(vif, link, link_id) {
 		if (WARN_ON(!link->chanreq.oper.chan))
 			continue;
 
-		if (link->chanreq.oper.chan->band != NL80211_BAND_2GHZ)
-			continue;
-
-		emlsr_active = iwl_mld_emlsr_active(vif);
-		emlsr_allowed = iwl_mld_bt_allows_emlsr(mld, link,
-							!emlsr_active);
-		if (emlsr_allowed && !emlsr_active) {
-			iwl_mld_retry_emlsr(mld, vif);
-			return;
-		}
-
-		if (!emlsr_allowed && emlsr_active) {
-			iwl_mld_exit_emlsr(mld, vif,
-					   IWL_MLD_EMLSR_EXIT_BT_COEX,
+		if (link->chanreq.oper.chan->band == NL80211_BAND_2GHZ) {
+			iwl_mld_exit_emlsr(mld, vif, IWL_MLD_EMLSR_EXIT_BT_COEX,
 					   iwl_mld_get_primary_link(vif));
 			return;
 		}
