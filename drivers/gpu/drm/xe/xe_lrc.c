@@ -977,32 +977,39 @@ struct bo_setup {
 			 u32 *batch, size_t max_size);
 };
 
-static u32 *setup_bo(struct xe_lrc *lrc,
-		     struct xe_hw_engine *hwe,
-		     const size_t max_size,
-		     unsigned int offset,
-		     const struct bo_setup *funcs,
-		     unsigned int num_funcs,
-		     u32 **free)
+struct bo_setup_state {
+	/* Input: */
+	struct xe_lrc		*lrc;
+	struct xe_hw_engine	*hwe;
+	size_t			max_size;
+	unsigned int		offset;
+	const struct bo_setup	*funcs;
+	unsigned int		num_funcs;
+
+	/* State: */
+	u32			*buffer;
+	u32			*ptr;
+};
+
+static int setup_bo(struct bo_setup_state *state)
 {
-	u32 *cmd, *buf = NULL;
 	ssize_t remain;
 
-	if (lrc->bo->vmap.is_iomem) {
-		buf = kmalloc(max_size, GFP_KERNEL);
-		if (!buf)
-			return ERR_PTR(-ENOMEM);
-		cmd = buf;
-		*free = buf;
+	if (state->lrc->bo->vmap.is_iomem) {
+		state->buffer = kmalloc(state->max_size, GFP_KERNEL);
+		if (!state->buffer)
+			return -ENOMEM;
+		state->ptr = state->buffer;
 	} else {
-		cmd = lrc->bo->vmap.vaddr + offset;
-		*free = NULL;
+		state->ptr = state->lrc->bo->vmap.vaddr + state->offset;
+		state->buffer = NULL;
 	}
 
-	remain = max_size / sizeof(*cmd);
+	remain = state->max_size / sizeof(u32);
 
-	for (size_t i = 0; i < num_funcs; i++) {
-		ssize_t len = funcs[i].setup(lrc, hwe, cmd, remain);
+	for (size_t i = 0; i < state->num_funcs; i++) {
+		ssize_t len = state->funcs[i].setup(state->lrc, state->hwe,
+						    state->ptr, remain);
 
 		remain -= len;
 
@@ -1010,28 +1017,28 @@ static u32 *setup_bo(struct xe_lrc *lrc,
 		 * There should always be at least 1 additional dword for
 		 * the end marker
 		 */
-		if (len < 0 || xe_gt_WARN_ON(lrc->gt, remain < 1))
+		if (len < 0 || xe_gt_WARN_ON(state->lrc->gt, remain < 1))
 			goto fail;
 
-		cmd += len;
+		state->ptr += len;
 	}
 
-	return cmd;
+	return 0;
 
 fail:
-	kfree(buf);
-	return ERR_PTR(-ENOSPC);
+	kfree(state->buffer);
+	return -ENOSPC;
 }
 
-static void finish_bo(struct xe_lrc *lrc, unsigned int offset, u32 *cmd,
-		      u32 *free)
+static void finish_bo(struct bo_setup_state *state)
 {
-	if (!free)
+	if (!state->buffer)
 		return;
 
-	xe_map_memcpy_to(gt_to_xe(lrc->gt), &lrc->bo->vmap, offset, free,
-			 (cmd - free) * sizeof(*cmd));
-	kfree(free);
+	xe_map_memcpy_to(gt_to_xe(state->lrc->gt), &state->lrc->bo->vmap,
+			 state->offset, state->buffer,
+			 (state->ptr - state->buffer) * sizeof(u32));
+	kfree(state->buffer);
 }
 
 static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
@@ -1039,20 +1046,26 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 	static const struct bo_setup funcs[] = {
 		{ .setup = wa_bb_setup_utilization },
 	};
-	unsigned int offset = __xe_lrc_wa_bb_offset(lrc);
-	u32 *cmd, *buf = NULL;
+	struct bo_setup_state state = {
+		.lrc = lrc,
+		.hwe = hwe,
+		.max_size = LRC_WA_BB_SIZE,
+		.offset = __xe_lrc_wa_bb_offset(lrc),
+		.funcs = funcs,
+		.num_funcs = ARRAY_SIZE(funcs),
+	};
+	int ret;
 
-	cmd = setup_bo(lrc, hwe, LRC_WA_BB_SIZE, offset, funcs,
-		       ARRAY_SIZE(funcs), &buf);
-	if (IS_ERR(cmd))
-		return PTR_ERR(cmd);
+	ret = setup_bo(&state);
+	if (ret)
+		return ret;
 
-	*cmd++ = MI_BATCH_BUFFER_END;
+	*state.ptr++ = MI_BATCH_BUFFER_END;
 
-	finish_bo(lrc, offset, cmd, buf);
+	finish_bo(&state);
 
 	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR,
-			     xe_bo_ggtt_addr(lrc->bo) + offset + 1);
+			     xe_bo_ggtt_addr(lrc->bo) + state.offset + 1);
 
 	return 0;
 }
