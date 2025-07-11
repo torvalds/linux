@@ -1754,7 +1754,8 @@ static int fallback_to_cow(struct btrfs_inode *inode,
 		spin_unlock(&sinfo->lock);
 
 		if (count > 0)
-			btrfs_clear_extent_bits(io_tree, start, end, EXTENT_NORESERVE);
+			btrfs_clear_extent_bit(io_tree, start, end, EXTENT_NORESERVE,
+					       &cached_state);
 	}
 	btrfs_unlock_extent(io_tree, start, end, &cached_state);
 
