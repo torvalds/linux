@@ -552,7 +552,8 @@ int bpf_iter_link_attach(const union bpf_attr *attr, bpfptr_t uattr,
 	if (!link)
 		return -ENOMEM;
 
-	bpf_link_init(&link->link, BPF_LINK_TYPE_ITER, &bpf_iter_link_lops, prog);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_ITER, &bpf_iter_link_lops, prog,
+		      attr->link_create.attach_type);
 	link->tinfo = tinfo;
 
 	err = bpf_link_prime(&link->link, &link_primer);

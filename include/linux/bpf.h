@@ -1729,12 +1729,10 @@ struct bpf_link {
 	enum bpf_link_type type;
 	const struct bpf_link_ops *ops;
 	struct bpf_prog *prog;
-	/* whether BPF link itself has "sleepable" semantics, which can differ
-	 * from underlying BPF program having a "sleepable" semantics, as BPF
-	 * link's semantics is determined by target attach hook
-	 */
-	bool sleepable;
+
 	u32 flags;
+	enum bpf_attach_type attach_type;
+
 	/* rcu is used before freeing, work can be used to schedule that
 	 * RCU-based freeing before that, so they never overlap
 	 */
@@ -1742,6 +1740,11 @@ struct bpf_link {
 		struct rcu_head rcu;
 		struct work_struct work;
 	};
+	/* whether BPF link itself has "sleepable" semantics, which can differ
+	 * from underlying BPF program having a "sleepable" semantics, as BPF
+	 * link's semantics is determined by target attach hook
+	 */
+	bool sleepable;
 };
 
 struct bpf_link_ops {
@@ -1781,7 +1784,6 @@ struct bpf_shim_tramp_link {
 
 struct bpf_tracing_link {
 	struct bpf_tramp_link link;
-	enum bpf_attach_type attach_type;
 	struct bpf_trampoline *trampoline;
 	struct bpf_prog *tgt_prog;
 };
@@ -2034,11 +2036,13 @@ int bpf_prog_ctx_arg_info_init(struct bpf_prog *prog,
 
 #if defined(CONFIG_CGROUP_BPF) && defined(CONFIG_BPF_LSM)
 int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
-				    int cgroup_atype);
+				    int cgroup_atype,
+				    enum bpf_attach_type attach_type);
 void bpf_trampoline_unlink_cgroup_shim(struct bpf_prog *prog);
 #else
 static inline int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
-						  int cgroup_atype)
+						  int cgroup_atype,
+						  enum bpf_attach_type attach_type)
 {
 	return -EOPNOTSUPP;
 }
@@ -2528,10 +2532,11 @@ int bpf_map_new_fd(struct bpf_map *map, int flags);
 int bpf_prog_new_fd(struct bpf_prog *prog);
 
 void bpf_link_init(struct bpf_link *link, enum bpf_link_type type,
-		   const struct bpf_link_ops *ops, struct bpf_prog *prog);
+		   const struct bpf_link_ops *ops, struct bpf_prog *prog,
+		   enum bpf_attach_type attach_type);
 void bpf_link_init_sleepable(struct bpf_link *link, enum bpf_link_type type,
 			     const struct bpf_link_ops *ops, struct bpf_prog *prog,
-			     bool sleepable);
+			     enum bpf_attach_type attach_type, bool sleepable);
 int bpf_link_prime(struct bpf_link *link, struct bpf_link_primer *primer);
 int bpf_link_settle(struct bpf_link_primer *primer);
 void bpf_link_cleanup(struct bpf_link_primer *primer);
@@ -2883,13 +2888,13 @@ bpf_prog_inc_not_zero(struct bpf_prog *prog)
 
 static inline void bpf_link_init(struct bpf_link *link, enum bpf_link_type type,
 				 const struct bpf_link_ops *ops,
-				 struct bpf_prog *prog)
+				 struct bpf_prog *prog, enum bpf_attach_type attach_type)
 {
 }
 
 static inline void bpf_link_init_sleepable(struct bpf_link *link, enum bpf_link_type type,
 					   const struct bpf_link_ops *ops, struct bpf_prog *prog,
-					   bool sleepable)
+					   enum bpf_attach_type attach_type, bool sleepable)
 {
 }
 
