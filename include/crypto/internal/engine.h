@@ -21,7 +21,6 @@ struct device;
 /*
  * struct crypto_engine - crypto hardware engine
  * @name: the engine name
- * @idling: the engine is entering idle state
  * @busy: request pump is busy
  * @running: the engine is on working
  * @retry_support: indication that the hardware allows re-execution
@@ -31,12 +30,6 @@ struct device;
  * @list: link with the global crypto engine list
  * @queue_lock: spinlock to synchronise access to request queue
  * @queue: the crypto queue of the engine
- * @prepare_crypt_hardware: a request will soon arrive from the queue
- * so the subsystem requests the driver to prepare the hardware
- * by issuing this call
- * @unprepare_crypt_hardware: there are currently no more requests on the
- * queue so the subsystem notifies the driver that it may relax the
- * hardware by issuing this call
  * @kworker: kthread worker struct for request pump
  * @pump_requests: work struct for scheduling work to the request pump
  * @priv_data: the engine private data
@@ -44,7 +37,6 @@ struct device;
  */
 struct crypto_engine {
 	char			name[ENGINE_NAME_LEN];
-	bool			idling;
 	bool			busy;
 	bool			running;
 
@@ -55,9 +47,6 @@ struct crypto_engine {
 	spinlock_t		queue_lock;
 	struct crypto_queue	queue;
 	struct device		*dev;
-
-	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
-	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
 
 	struct kthread_worker           *kworker;
 	struct kthread_work             pump_requests;

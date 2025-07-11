@@ -74,7 +74,6 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 	struct crypto_engine_alg *alg;
 	struct crypto_engine_op *op;
 	unsigned long flags;
-	bool was_busy = false;
 	int ret;
 
 	spin_lock_irqsave(&engine->queue_lock, flags);
@@ -82,12 +81,6 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 	/* Make sure we are not already running a request */
 	if (!engine->retry_support && engine->cur_req)
 		goto out;
-
-	/* If another context is idling then defer */
-	if (engine->idling) {
-		kthread_queue_work(engine->kworker, &engine->pump_requests);
-		goto out;
-	}
 
 	/* Check if the engine queue is idle */
 	if (!crypto_queue_len(&engine->queue) || !engine->running) {
@@ -102,15 +95,6 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 		}
 
 		engine->busy = false;
-		engine->idling = true;
-		spin_unlock_irqrestore(&engine->queue_lock, flags);
-
-		if (engine->unprepare_crypt_hardware &&
-		    engine->unprepare_crypt_hardware(engine))
-			dev_err(engine->dev, "failed to unprepare crypt hardware\n");
-
-		spin_lock_irqsave(&engine->queue_lock, flags);
-		engine->idling = false;
 		goto out;
 	}
 
@@ -129,21 +113,10 @@ start_request:
 	if (!engine->retry_support)
 		engine->cur_req = async_req;
 
-	if (engine->busy)
-		was_busy = true;
-	else
+	if (!engine->busy)
 		engine->busy = true;
 
 	spin_unlock_irqrestore(&engine->queue_lock, flags);
-
-	/* Until here we get the request need to be encrypted successfully */
-	if (!was_busy && engine->prepare_crypt_hardware) {
-		ret = engine->prepare_crypt_hardware(engine);
-		if (ret) {
-			dev_err(engine->dev, "failed to prepare crypt hardware\n");
-			goto req_err_1;
-		}
-	}
 
 	alg = container_of(async_req->tfm->__crt_alg,
 			   struct crypto_engine_alg, base);
@@ -474,7 +447,6 @@ struct crypto_engine *crypto_engine_alloc_init_and_set(struct device *dev,
 	engine->rt = rt;
 	engine->running = false;
 	engine->busy = false;
-	engine->idling = false;
 	engine->retry_support = retry_support;
 	engine->priv_data = dev;
 
