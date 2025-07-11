@@ -238,23 +238,32 @@ static struct xe_gt_sriov_config *pf_pick_vf_config(struct xe_gt *gt, unsigned i
 }
 
 /* Return: number of configuration dwords written */
-static u32 encode_config_ggtt(u32 *cfg, const struct xe_gt_sriov_config *config, bool details)
+static u32 encode_ggtt(u32 *cfg, u64 start, u64 size, bool details)
 {
 	u32 n = 0;
 
-	if (xe_ggtt_node_allocated(config->ggtt_region)) {
-		if (details) {
-			cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_START);
-			cfg[n++] = lower_32_bits(config->ggtt_region->base.start);
-			cfg[n++] = upper_32_bits(config->ggtt_region->base.start);
-		}
-
-		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_SIZE);
-		cfg[n++] = lower_32_bits(config->ggtt_region->base.size);
-		cfg[n++] = upper_32_bits(config->ggtt_region->base.size);
+	if (details) {
+		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_START);
+		cfg[n++] = lower_32_bits(start);
+		cfg[n++] = upper_32_bits(start);
 	}
 
+	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_GGTT_SIZE);
+	cfg[n++] = lower_32_bits(size);
+	cfg[n++] = upper_32_bits(size);
+
 	return n;
+}
+
+/* Return: number of configuration dwords written */
+static u32 encode_config_ggtt(u32 *cfg, const struct xe_gt_sriov_config *config, bool details)
+{
+	struct xe_ggtt_node *node = config->ggtt_region;
+
+	if (!xe_ggtt_node_allocated(node))
+		return 0;
+
+	return encode_ggtt(cfg, node->base.start, node->base.size, details);
 }
 
 /* Return: number of configuration dwords written */
