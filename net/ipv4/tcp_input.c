@@ -4391,14 +4391,22 @@ static enum skb_drop_reason tcp_disordered_ack_check(const struct sock *sk,
  * (borrowed from freebsd)
  */
 
-static enum skb_drop_reason tcp_sequence(const struct tcp_sock *tp,
+static enum skb_drop_reason tcp_sequence(const struct sock *sk,
 					 u32 seq, u32 end_seq)
 {
+	const struct tcp_sock *tp = tcp_sk(sk);
+
 	if (before(end_seq, tp->rcv_wup))
 		return SKB_DROP_REASON_TCP_OLD_SEQUENCE;
 
-	if (after(seq, tp->rcv_nxt + tcp_receive_window(tp)))
-		return SKB_DROP_REASON_TCP_INVALID_SEQUENCE;
+	if (after(end_seq, tp->rcv_nxt + tcp_receive_window(tp))) {
+		if (after(seq, tp->rcv_nxt + tcp_receive_window(tp)))
+			return SKB_DROP_REASON_TCP_INVALID_SEQUENCE;
+
+		/* Only accept this packet if receive queue is empty. */
+		if (skb_queue_len(&sk->sk_receive_queue))
+			return SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE;
+	}
 
 	return SKB_NOT_DROPPED_YET;
 }
@@ -5881,7 +5889,7 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 
 step1:
 	/* Step 1: check sequence number */
-	reason = tcp_sequence(tp, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
+	reason = tcp_sequence(sk, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
 	if (reason) {
 		/* RFC793, page 37: "In all states except SYN-SENT, all reset
 		 * (RST) segments are validated by checking their SEQ-fields."
@@ -6110,6 +6118,10 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb)
 			if (tcp_checksum_complete(skb))
 				goto csum_error;
 
+			if (after(TCP_SKB_CB(skb)->end_seq,
+				  tp->rcv_nxt + tcp_receive_window(tp)))
+				goto validate;
+
 			if ((int)skb->truesize > sk->sk_forward_alloc)
 				goto step5;
 
@@ -6165,7 +6177,7 @@ slow_path:
 	/*
 	 *	Standard slow path.
 	 */
-
+validate:
 	if (!tcp_validate_incoming(sk, skb, th, 1))
 		return;
 
