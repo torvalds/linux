@@ -211,7 +211,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 }
 
 struct wowlan_key_rsc_tsc_data {
-	struct iwl_wowlan_rsc_tsc_params_cmd_v4 *rsc_tsc;
+	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 *rsc_tsc;
 	bool have_rsc_tsc;
 };
 
@@ -236,16 +236,16 @@ static void iwl_mvm_wowlan_get_rsc_tsc_data(struct ieee80211_hw *hw,
 			u64 pn64;
 
 			tkip_sc =
-			   data->rsc_tsc->params.all_tsc_rsc.tkip.unicast_rsc;
+			   data->rsc_tsc->all_tsc_rsc.tkip.unicast_rsc;
 			tkip_tx_sc =
-				&data->rsc_tsc->params.all_tsc_rsc.tkip.tsc;
+				&data->rsc_tsc->all_tsc_rsc.tkip.tsc;
 
 			pn64 = atomic64_read(&key->tx_pn);
 			tkip_tx_sc->iv16 = cpu_to_le16(TKIP_PN_TO_IV16(pn64));
 			tkip_tx_sc->iv32 = cpu_to_le32(TKIP_PN_TO_IV32(pn64));
 		} else {
 			tkip_sc =
-			  data->rsc_tsc->params.all_tsc_rsc.tkip.multicast_rsc;
+			  data->rsc_tsc->all_tsc_rsc.tkip.multicast_rsc;
 		}
 
 		/*
@@ -269,15 +269,15 @@ static void iwl_mvm_wowlan_get_rsc_tsc_data(struct ieee80211_hw *hw,
 			u64 pn64;
 
 			aes_sc =
-			   data->rsc_tsc->params.all_tsc_rsc.aes.unicast_rsc;
+			   data->rsc_tsc->all_tsc_rsc.aes.unicast_rsc;
 			aes_tx_sc =
-				&data->rsc_tsc->params.all_tsc_rsc.aes.tsc;
+				&data->rsc_tsc->all_tsc_rsc.aes.tsc;
 
 			pn64 = atomic64_read(&key->tx_pn);
 			aes_tx_sc->pn = cpu_to_le64(pn64);
 		} else {
 			aes_sc =
-			   data->rsc_tsc->params.all_tsc_rsc.aes.multicast_rsc;
+			   data->rsc_tsc->all_tsc_rsc.aes.multicast_rsc;
 		}
 
 		/*
@@ -480,22 +480,12 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 		else
 			ret = 0;
 		kfree(data.rsc);
-	} else if (ver == 4 || ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN) {
+	} else if (ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN) {
 		struct wowlan_key_rsc_tsc_data data = {};
-		int size;
 
 		data.rsc_tsc = kzalloc(sizeof(*data.rsc_tsc), GFP_KERNEL);
 		if (!data.rsc_tsc)
 			return -ENOMEM;
-
-		if (ver == 4) {
-			size = sizeof(*data.rsc_tsc);
-			data.rsc_tsc->sta_id =
-				cpu_to_le32(mvm_link->ap_sta_id);
-		} else {
-			/* ver == 2 || ver == IWL_FW_CMD_VER_UNKNOWN */
-			size = sizeof(data.rsc_tsc->params);
-		}
 
 		ieee80211_iter_keys(mvm->hw, vif,
 				    iwl_mvm_wowlan_get_rsc_tsc_data,
@@ -503,7 +493,8 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 
 		if (data.have_rsc_tsc)
 			ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_TSC_RSC_PARAM,
-						   CMD_ASYNC, size,
+						   CMD_ASYNC,
+						   sizeof(data.rsc_tsc),
 						   data.rsc_tsc);
 		else
 			ret = 0;

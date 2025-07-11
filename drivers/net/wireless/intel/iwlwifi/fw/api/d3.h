@@ -456,11 +456,6 @@ struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 {
 	union iwl_all_tsc_rsc all_tsc_rsc;
 } __packed; /* ALL_TSC_RSC_API_S_VER_2 */
 
-struct iwl_wowlan_rsc_tsc_params_cmd_v4 {
-	struct iwl_wowlan_rsc_tsc_params_cmd_ver_2 params;
-	__le32 sta_id;
-} __packed; /* ALL_TSC_RSC_API_S_VER_4 */
-
 struct iwl_wowlan_rsc_tsc_params_cmd {
 	__le64 ucast_rsc[IWL_MAX_TID_COUNT];
 	__le64 mcast_rsc[WOWLAN_GTK_KEYS_NUM][IWL_MAX_TID_COUNT];
