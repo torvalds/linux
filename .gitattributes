@@ -22,3 +22,5 @@ Makefile.* linguist-language=Perl
 *.rst linguist-language=Perl
 *.yml linguist-language=Perl
 *.xml linguist-language=Perl
+*.awk linguist-language=Perl
+*.sed linguist-language=Perl
