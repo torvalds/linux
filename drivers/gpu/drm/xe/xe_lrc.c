@@ -944,8 +944,10 @@ static void xe_lrc_finish(struct xe_lrc *lrc)
  * store it in the PPHSWP.
  */
 #define CONTEXT_ACTIVE 1ULL
-static ssize_t wa_bb_setup_utilization(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
-				       u32 *batch, size_t max_len)
+static ssize_t setup_utilization_wa(struct xe_lrc *lrc,
+				    struct xe_hw_engine *hwe,
+				    u32 *batch,
+				    size_t max_len)
 {
 	u32 *cmd = batch;
 
@@ -1044,7 +1046,7 @@ static void finish_bo(struct bo_setup_state *state)
 static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 {
 	static const struct bo_setup funcs[] = {
-		{ .setup = wa_bb_setup_utilization },
+		{ .setup = setup_utilization_wa },
 	};
 	struct bo_setup_state state = {
 		.lrc = lrc,
