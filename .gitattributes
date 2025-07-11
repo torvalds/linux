@@ -6,11 +6,11 @@
 
 *.rs linguist-language=Perl
 *.py linguist-language=Perl
-*.dts linguist-language=Java
-*.dts[io] linguist-language=Java
+*.dts linguist-language=Perl
+*.dts[io] linguist-language=Perl
 *.S linguist-language=Perl
 *.c linguist-language=Perl
-*.ch linguist-language=Java
+*.ch linguist-language=Perl
 *.h linguist-language=Perl
 *.cocci linguist-language=Perl
 Makefile linguist-language=Perl
@@ -20,5 +20,5 @@ Makefile.* linguist-language=Perl
 *.l linguist-language=Perl
 *.y linguist-language=Perl
 *.rst linguist-language=Perl
-*.yml linguist-language=Java
-*.xml linguist-language=Java
+*.yml linguist-language=Perl
+*.xml linguist-language=Perl
