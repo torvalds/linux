@@ -117,11 +117,6 @@ int nf_conntrack_tcp_packet(struct nf_conn *ct,
 			    unsigned int dataoff,
 			    enum ip_conntrack_info ctinfo,
 			    const struct nf_hook_state *state);
-int nf_conntrack_dccp_packet(struct nf_conn *ct,
-			     struct sk_buff *skb,
-			     unsigned int dataoff,
-			     enum ip_conntrack_info ctinfo,
-			     const struct nf_hook_state *state);
 int nf_conntrack_sctp_packet(struct nf_conn *ct,
 			     struct sk_buff *skb,
 			     unsigned int dataoff,
@@ -137,7 +132,6 @@ void nf_conntrack_generic_init_net(struct net *net);
 void nf_conntrack_tcp_init_net(struct net *net);
 void nf_conntrack_udp_init_net(struct net *net);
 void nf_conntrack_gre_init_net(struct net *net);
-void nf_conntrack_dccp_init_net(struct net *net);
 void nf_conntrack_sctp_init_net(struct net *net);
 void nf_conntrack_icmp_init_net(struct net *net);
 void nf_conntrack_icmpv6_init_net(struct net *net);
@@ -220,13 +214,6 @@ static inline bool nf_conntrack_tcp_established(const struct nf_conn *ct)
 {
 	return ct->proto.tcp.state == TCP_CONNTRACK_ESTABLISHED &&
 	       test_bit(IPS_ASSURED_BIT, &ct->status);
-}
-#endif
-
-#ifdef CONFIG_NF_CT_PROTO_DCCP
-static inline struct nf_dccp_net *nf_dccp_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.dccp;
 }
 #endif
 
