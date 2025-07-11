@@ -1367,7 +1367,7 @@ static int migrate_folio_move(free_folio_t put_new_folio, unsigned long private,
 
 out_unlock_both:
 	folio_unlock(dst);
-	set_page_owner_migrate_reason(&dst->page, reason);
+	folio_set_owner_migrate_reason(dst, reason);
 	/*
 	 * If migration is successful, decrease refcount of dst,
 	 * which will not free the page because new page owner increased

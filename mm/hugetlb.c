@@ -7835,7 +7835,7 @@ void move_hugetlb_state(struct folio *old_folio, struct folio *new_folio, int re
 	struct hstate *h = folio_hstate(old_folio);
 
 	hugetlb_cgroup_migrate(old_folio, new_folio);
-	set_page_owner_migrate_reason(&new_folio->page, reason);
+	folio_set_owner_migrate_reason(new_folio, reason);
 
 	/*
 	 * transfer temporary state of the new hugetlb folio. This is
