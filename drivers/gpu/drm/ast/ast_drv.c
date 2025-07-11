@@ -64,7 +64,7 @@ static const struct drm_driver ast_driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	DRM_GEM_SHMEM_DRIVER_OPS_NO_MAP_SGT,
+	DRM_GEM_SHMEM_DRIVER_OPS,
 	DRM_FBDEV_SHMEM_DRIVER_OPS,
 };
 
@@ -171,7 +171,7 @@ static int ast_detect_chip(struct pci_dev *pdev,
 			/* Patch AST2500/AST2510 */
 			if ((pdev->revision & 0xf0) == 0x40) {
 				if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_STATUS_MASK))
-					ast_patch_ahb_2500(regs);
+					ast_2500_patch_ahb(regs);
 			}
 
 			/* Double check that it's actually working */

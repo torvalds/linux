@@ -2422,6 +2422,7 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc, enum tc_mode mode)
 	struct device_node *node = NULL;
 
 	for_each_endpoint_of_node(dev->of_node, node) {
+		of_graph_parse_endpoint(node, &endpoint);
 		if (endpoint.port == 2) {
 			of_property_read_u8_array(node, "toshiba,pre-emphasis",
 						  tc->pre_emphasis,

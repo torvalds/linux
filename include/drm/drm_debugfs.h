@@ -153,6 +153,9 @@ void drm_debugfs_add_files(struct drm_device *dev,
 
 int drm_debugfs_gpuva_info(struct seq_file *m,
 			   struct drm_gpuvm *gpuvm);
+
+void drm_debugfs_clients_add(struct drm_file *file);
+void drm_debugfs_clients_remove(struct drm_file *file);
 #else
 static inline void drm_debugfs_create_files(const struct drm_info_list *files,
 					    int count, struct dentry *root,
@@ -180,6 +183,14 @@ static inline int drm_debugfs_gpuva_info(struct seq_file *m,
 					 struct drm_gpuvm *gpuvm)
 {
 	return 0;
+}
+
+static inline void drm_debugfs_clients_add(struct drm_file *file)
+{
+}
+
+static inline void drm_debugfs_clients_remove(struct drm_file *file)
+{
 }
 #endif
 

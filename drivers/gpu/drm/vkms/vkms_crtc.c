@@ -302,8 +302,6 @@ struct vkms_output *vkms_crtc_init(struct drm_device *dev, struct drm_plane *pri
 	vkms_out->composer_workq = drmm_alloc_ordered_workqueue(dev, "vkms_composer", 0);
 	if (IS_ERR(vkms_out->composer_workq))
 		return ERR_CAST(vkms_out->composer_workq);
-	if (!vkms_out->composer_workq)
-		return ERR_PTR(-ENOMEM);
 
 	return vkms_out;
 }

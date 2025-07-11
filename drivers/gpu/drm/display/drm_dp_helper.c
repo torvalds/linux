@@ -4245,14 +4245,14 @@ drm_edp_backlight_probe_state(struct drm_dp_aux *aux, struct drm_edp_backlight_i
 					    "%s: Failed to read backlight level: %d\n",
 					    aux->name, ret);
 				return ret;
-		}
+			}
 
-		/*
-		 * Incase luminance is set we want to send the value back in nits but since
-		 * DP_EDP_PANEL_TARGET_LUMINANCE stores values in millinits we need to divide
-		 * by 1000.
-		 */
-		return (buf[0] | buf[1] << 8 | buf[2] << 16) / 1000;
+			/*
+			 * Incase luminance is set we want to send the value back in nits but
+			 * since DP_EDP_PANEL_TARGET_LUMINANCE stores values in millinits we
+			 * need to divide by 1000.
+			 */
+			return (buf[0] | buf[1] << 8 | buf[2] << 16) / 1000;
 		} else {
 			ret = drm_dp_dpcd_read_data(aux, DP_EDP_BACKLIGHT_BRIGHTNESS_MSB,
 						    buf, size);
