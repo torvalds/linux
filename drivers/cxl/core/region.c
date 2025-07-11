@@ -3572,9 +3572,8 @@ static void shutdown_notifiers(void *_cxlr)
 	unregister_mt_adistance_algorithm(&cxlr->adist_notifier);
 }
 
-static int cxl_region_probe(struct device *dev)
+static int cxl_region_can_probe(struct cxl_region *cxlr)
 {
-	struct cxl_region *cxlr = to_cxl_region(dev);
 	struct cxl_region_params *p = &cxlr->params;
 	int rc;
 
@@ -3597,15 +3596,28 @@ static int cxl_region_probe(struct device *dev)
 		goto out;
 	}
 
-	/*
-	 * From this point on any path that changes the region's state away from
-	 * CXL_CONFIG_COMMIT is also responsible for releasing the driver.
-	 */
 out:
 	up_read(&cxl_region_rwsem);
 
 	if (rc)
 		return rc;
+	return 0;
+}
+
+static int cxl_region_probe(struct device *dev)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	int rc;
+
+	rc = cxl_region_can_probe(cxlr);
+	if (rc)
+		return rc;
+
+	/*
+	 * From this point on any path that changes the region's state away from
+	 * CXL_CONFIG_COMMIT is also responsible for releasing the driver.
+	 */
 
 	cxlr->memory_notifier.notifier_call = cxl_region_perf_attrs_callback;
 	cxlr->memory_notifier.priority = CXL_CALLBACK_PRI;
