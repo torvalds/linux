@@ -71,40 +71,17 @@ void iwl_mld_get_bios_tables(struct iwl_mld *mld)
 static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 {
 	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, PER_CHAIN_LIMIT_OFFSET_CMD);
-	union iwl_geo_tx_power_profiles_cmd cmd;
-	u16 len;
-	u32 n_bands;
-	__le32 sk = cpu_to_le32(0);
-	int ret;
-	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id,
-					   IWL_FW_CMD_VER_UNKNOWN);
-
-	BUILD_BUG_ON(offsetof(struct iwl_geo_tx_power_profiles_cmd_v4, ops) !=
-		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v5, ops));
-
-	cmd.v4.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES);
-
 	/* Only set to South Korea if the table revision is 1 */
-	if (mld->fwrt.geo_rev == 1)
-		sk = cpu_to_le32(1);
+	__le32 sk = cpu_to_le32(mld->fwrt.geo_rev == 1 ? 1 : 0);
+	union iwl_geo_tx_power_profiles_cmd cmd = {
+		.v5.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES),
+		.v5.table_revision = sk,
+	};
+	int ret;
 
-	if (cmd_ver == 5) {
-		len = sizeof(cmd.v5);
-		n_bands = ARRAY_SIZE(cmd.v5.table[0]);
-		cmd.v5.table_revision = sk;
-	} else if (cmd_ver == 4) {
-		len = sizeof(cmd.v4);
-		n_bands = ARRAY_SIZE(cmd.v4.table[0]);
-		cmd.v4.table_revision = sk;
-	} else {
-		return -EOPNOTSUPP;
-	}
-
-	BUILD_BUG_ON(offsetof(struct iwl_geo_tx_power_profiles_cmd_v4, table) !=
-		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v5, table));
-	/* the table is at the same position for all versions, so set use v4 */
-	ret = iwl_sar_geo_fill_table(&mld->fwrt, &cmd.v4.table[0][0],
-				     n_bands, BIOS_GEO_MAX_PROFILE_NUM);
+	ret = iwl_sar_geo_fill_table(&mld->fwrt, &cmd.v5.table[0][0],
+				     ARRAY_SIZE(cmd.v5.table[0]),
+				     BIOS_GEO_MAX_PROFILE_NUM);
 
 	/* It is a valid scenario to not support SAR, or miss wgds table,
 	 * but in that case there is no need to send the command.
@@ -112,7 +89,7 @@ static int iwl_mld_geo_sar_init(struct iwl_mld *mld)
 	if (ret)
 		return 0;
 
-	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, len);
+	return iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd, sizeof(cmd.v5));
 }
 
 int iwl_mld_config_sar_profile(struct iwl_mld *mld, int prof_a, int prof_b)
