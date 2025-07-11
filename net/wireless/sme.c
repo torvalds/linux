@@ -5,7 +5,7 @@
  * (for nl80211's connect() and wext)
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2009, 2020, 2022-2024 Intel Corporation. All rights reserved.
+ * Copyright (C) 2009, 2020, 2022-2025 Intel Corporation. All rights reserved.
  * Copyright 2017	Intel Deutschland GmbH
  */
 
@@ -64,7 +64,7 @@ static void cfg80211_sme_free(struct wireless_dev *wdev)
 static int cfg80211_conn_scan(struct wireless_dev *wdev)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
-	struct cfg80211_scan_request *request;
+	struct cfg80211_scan_request_int *request;
 	int n_channels, err;
 
 	lockdep_assert_wiphy(wdev->wiphy);
@@ -77,13 +77,13 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	else
 		n_channels = ieee80211_get_num_supported_channels(wdev->wiphy);
 
-	request = kzalloc(sizeof(*request) + sizeof(request->ssids[0]) +
-			  sizeof(request->channels[0]) * n_channels,
+	request = kzalloc(sizeof(*request) + sizeof(request->req.ssids[0]) +
+			  sizeof(request->req.channels[0]) * n_channels,
 			  GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
 
-	request->n_channels = n_channels;
+	request->req.n_channels = n_channels;
 	if (wdev->conn->params.channel) {
 		enum nl80211_band band = wdev->conn->params.channel->band;
 		struct ieee80211_supported_band *sband =
@@ -93,8 +93,8 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 			kfree(request);
 			return -EINVAL;
 		}
-		request->channels[0] = wdev->conn->params.channel;
-		request->rates[band] = (1 << sband->n_bitrates) - 1;
+		request->req.channels[0] = wdev->conn->params.channel;
+		request->req.rates[band] = (1 << sband->n_bitrates) - 1;
 	} else {
 		int i = 0, j;
 		enum nl80211_band band;
@@ -109,26 +109,26 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 				channel = &bands->channels[j];
 				if (channel->flags & IEEE80211_CHAN_DISABLED)
 					continue;
-				request->channels[i++] = channel;
+				request->req.channels[i++] = channel;
 			}
-			request->rates[band] = (1 << bands->n_bitrates) - 1;
+			request->req.rates[band] = (1 << bands->n_bitrates) - 1;
 		}
 		n_channels = i;
 	}
-	request->n_channels = n_channels;
-	request->ssids = (void *)request +
-		struct_size(request, channels, n_channels);
-	request->n_ssids = 1;
+	request->req.n_channels = n_channels;
+	request->req.ssids = (void *)request +
+			     struct_size(request, req.channels, n_channels);
+	request->req.n_ssids = 1;
 
-	memcpy(request->ssids[0].ssid, wdev->conn->params.ssid,
-		wdev->conn->params.ssid_len);
-	request->ssids[0].ssid_len = wdev->conn->params.ssid_len;
+	memcpy(request->req.ssids[0].ssid, wdev->conn->params.ssid,
+	       wdev->conn->params.ssid_len);
+	request->req.ssids[0].ssid_len = wdev->conn->params.ssid_len;
 
-	eth_broadcast_addr(request->bssid);
+	eth_broadcast_addr(request->req.bssid);
 
-	request->wdev = wdev;
-	request->wiphy = &rdev->wiphy;
-	request->scan_start = jiffies;
+	request->req.wdev = wdev;
+	request->req.wiphy = &rdev->wiphy;
+	request->req.scan_start = jiffies;
 
 	rdev->scan_req = request;
 

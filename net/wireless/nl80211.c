@@ -9811,33 +9811,11 @@ static bool nl80211_check_scan_feat(struct wiphy *wiphy, u32 flags, u32 flag,
 
 static int
 nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 void *request, struct nlattr **attrs,
-			 bool is_sched_scan)
+			 struct nlattr **attrs, u8 *mac_addr, u8 *mac_addr_mask,
+			 u32 *flags, enum nl80211_feature_flags randomness_flag)
 {
-	u8 *mac_addr, *mac_addr_mask;
-	u32 *flags;
-	enum nl80211_feature_flags randomness_flag;
-
 	if (!attrs[NL80211_ATTR_SCAN_FLAGS])
 		return 0;
-
-	if (is_sched_scan) {
-		struct cfg80211_sched_scan_request *req = request;
-
-		randomness_flag = wdev ?
-				  NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR :
-				  NL80211_FEATURE_ND_RANDOM_MAC_ADDR;
-		flags = &req->flags;
-		mac_addr = req->mac_addr;
-		mac_addr_mask = req->mac_addr_mask;
-	} else {
-		struct cfg80211_scan_request *req = request;
-
-		randomness_flag = NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
-		flags = &req->flags;
-		mac_addr = req->mac_addr;
-		mac_addr_mask = req->mac_addr_mask;
-	}
 
 	*flags = nla_get_u32(attrs[NL80211_ATTR_SCAN_FLAGS]);
 
@@ -9887,11 +9865,35 @@ nl80211_check_scan_flags(struct wiphy *wiphy, struct wireless_dev *wdev,
 	return 0;
 }
 
+static int
+nl80211_check_scan_flags_sched(struct wiphy *wiphy, struct wireless_dev *wdev,
+			       struct nlattr **attrs,
+			       struct cfg80211_sched_scan_request *req)
+{
+	return nl80211_check_scan_flags(wiphy, wdev, attrs,
+					req->mac_addr, req->mac_addr_mask,
+					&req->flags,
+					wdev ? NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR :
+					       NL80211_FEATURE_ND_RANDOM_MAC_ADDR);
+}
+
+static int
+nl80211_check_scan_flags_reg(struct wiphy *wiphy, struct wireless_dev *wdev,
+			     struct nlattr **attrs,
+			     struct cfg80211_scan_request_int *req)
+{
+	return nl80211_check_scan_flags(wiphy, wdev, attrs,
+					req->req.mac_addr,
+					req->req.mac_addr_mask,
+					&req->req.flags,
+					NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR);
+}
+
 static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct wireless_dev *wdev = info->user_ptr[1];
-	struct cfg80211_scan_request *request;
+	struct cfg80211_scan_request_int *request;
 	struct nlattr *scan_freqs = NULL;
 	bool scan_freqs_khz = false;
 	struct nlattr *attr;
@@ -9943,21 +9945,21 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	if (ie_len > wiphy->max_scan_ie_len)
 		return -EINVAL;
 
-	size = struct_size(request, channels, n_channels);
+	size = struct_size(request, req.channels, n_channels);
 	ssids_offset = size;
-	size = size_add(size, array_size(sizeof(*request->ssids), n_ssids));
+	size = size_add(size, array_size(sizeof(*request->req.ssids), n_ssids));
 	ie_offset = size;
 	size = size_add(size, ie_len);
 	request = kzalloc(size, GFP_KERNEL);
 	if (!request)
 		return -ENOMEM;
-	request->n_channels = n_channels;
+	request->req.n_channels = n_channels;
 
 	if (n_ssids)
-		request->ssids = (void *)request + ssids_offset;
-	request->n_ssids = n_ssids;
+		request->req.ssids = (void *)request + ssids_offset;
+	request->req.n_ssids = n_ssids;
 	if (ie_len)
-		request->ie = (void *)request + ie_offset;
+		request->req.ie = (void *)request + ie_offset;
 
 	i = 0;
 	if (scan_freqs) {
@@ -9980,7 +9982,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 			    !cfg80211_wdev_channel_allowed(wdev, chan))
 				continue;
 
-			request->channels[i] = chan;
+			request->req.channels[i] = chan;
 			i++;
 		}
 	} else {
@@ -10001,7 +10003,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 				    !cfg80211_wdev_channel_allowed(wdev, chan))
 					continue;
 
-				request->channels[i] = chan;
+				request->req.channels[i] = chan;
 				i++;
 			}
 		}
@@ -10012,10 +10014,10 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out_free;
 	}
 
-	request->n_channels = i;
+	request->req.n_channels = i;
 
-	for (i = 0; i < request->n_channels; i++) {
-		struct ieee80211_channel *chan = request->channels[i];
+	for (i = 0; i < request->req.n_channels; i++) {
+		struct ieee80211_channel *chan = request->req.channels[i];
 
 		/* if we can go off-channel to the target channel we're good */
 		if (cfg80211_off_channel_oper_allowed(wdev, chan))
@@ -10034,22 +10036,23 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 				err = -EINVAL;
 				goto out_free;
 			}
-			request->ssids[i].ssid_len = nla_len(attr);
-			memcpy(request->ssids[i].ssid, nla_data(attr), nla_len(attr));
+			request->req.ssids[i].ssid_len = nla_len(attr);
+			memcpy(request->req.ssids[i].ssid,
+			       nla_data(attr), nla_len(attr));
 			i++;
 		}
 	}
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		request->ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
-		memcpy((void *)request->ie,
+		request->req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		memcpy((void *)request->req.ie,
 		       nla_data(info->attrs[NL80211_ATTR_IE]),
-		       request->ie_len);
+		       request->req.ie_len);
 	}
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++)
 		if (wiphy->bands[i])
-			request->rates[i] =
+			request->req.rates[i] =
 				(1 << wiphy->bands[i]->n_bitrates) - 1;
 
 	if (info->attrs[NL80211_ATTR_SCAN_SUPP_RATES]) {
@@ -10069,25 +10072,24 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 			err = ieee80211_get_ratemask(wiphy->bands[band],
 						     nla_data(attr),
 						     nla_len(attr),
-						     &request->rates[band]);
+						     &request->req.rates[band]);
 			if (err)
 				goto out_free;
 		}
 	}
 
 	if (info->attrs[NL80211_ATTR_MEASUREMENT_DURATION]) {
-		request->duration =
+		request->req.duration =
 			nla_get_u16(info->attrs[NL80211_ATTR_MEASUREMENT_DURATION]);
-		request->duration_mandatory =
+		request->req.duration_mandatory =
 			nla_get_flag(info->attrs[NL80211_ATTR_MEASUREMENT_DURATION_MANDATORY]);
 	}
 
-	err = nl80211_check_scan_flags(wiphy, wdev, request, info->attrs,
-				       false);
+	err = nl80211_check_scan_flags_reg(wiphy, wdev, info->attrs, request);
 	if (err)
 		goto out_free;
 
-	request->no_cck =
+	request->req.no_cck =
 		nla_get_flag(info->attrs[NL80211_ATTR_TX_NO_CCK_RATE]);
 
 	/* Initial implementation used NL80211_ATTR_MAC to set the specific
@@ -10100,19 +10102,21 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	 * (NL80211_ATTR_SCAN_FLAGS is used to enable random MAC address use).
 	 */
 	if (info->attrs[NL80211_ATTR_BSSID])
-		memcpy(request->bssid,
+		memcpy(request->req.bssid,
 		       nla_data(info->attrs[NL80211_ATTR_BSSID]), ETH_ALEN);
-	else if (!(request->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) &&
+	else if (!(request->req.flags & NL80211_SCAN_FLAG_RANDOM_ADDR) &&
 		 info->attrs[NL80211_ATTR_MAC])
-		memcpy(request->bssid, nla_data(info->attrs[NL80211_ATTR_MAC]),
+		memcpy(request->req.bssid,
+		       nla_data(info->attrs[NL80211_ATTR_MAC]),
 		       ETH_ALEN);
 	else
-		eth_broadcast_addr(request->bssid);
+		eth_broadcast_addr(request->req.bssid);
 
-	request->tsf_report_link_id = nl80211_link_id_or_invalid(info->attrs);
-	request->wdev = wdev;
-	request->wiphy = &rdev->wiphy;
-	request->scan_start = jiffies;
+	request->req.tsf_report_link_id =
+		nl80211_link_id_or_invalid(info->attrs);
+	request->req.wdev = wdev;
+	request->req.wiphy = &rdev->wiphy;
+	request->req.scan_start = jiffies;
 
 	rdev->scan_req = request;
 	err = cfg80211_scan(rdev);
@@ -10534,7 +10538,7 @@ nl80211_parse_sched_scan(struct wiphy *wiphy, struct wireless_dev *wdev,
 		       request->ie_len);
 	}
 
-	err = nl80211_check_scan_flags(wiphy, wdev, request, attrs, true);
+	err = nl80211_check_scan_flags_sched(wiphy, wdev, attrs, request);
 	if (err)
 		goto out_free;
 
@@ -18414,7 +18418,7 @@ void nl80211_notify_iface(struct cfg80211_registered_device *rdev,
 static int nl80211_add_scan_req(struct sk_buff *msg,
 				struct cfg80211_registered_device *rdev)
 {
-	struct cfg80211_scan_request *req = rdev->scan_req;
+	struct cfg80211_scan_request_int *req = rdev->scan_req;
 	struct nlattr *nest;
 	int i;
 	struct cfg80211_scan_info *info;
@@ -18425,19 +18429,20 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	nest = nla_nest_start_noflag(msg, NL80211_ATTR_SCAN_SSIDS);
 	if (!nest)
 		goto nla_put_failure;
-	for (i = 0; i < req->n_ssids; i++) {
-		if (nla_put(msg, i, req->ssids[i].ssid_len, req->ssids[i].ssid))
+	for (i = 0; i < req->req.n_ssids; i++) {
+		if (nla_put(msg, i, req->req.ssids[i].ssid_len,
+			    req->req.ssids[i].ssid))
 			goto nla_put_failure;
 	}
 	nla_nest_end(msg, nest);
 
-	if (req->flags & NL80211_SCAN_FLAG_FREQ_KHZ) {
+	if (req->req.flags & NL80211_SCAN_FLAG_FREQ_KHZ) {
 		nest = nla_nest_start(msg, NL80211_ATTR_SCAN_FREQ_KHZ);
 		if (!nest)
 			goto nla_put_failure;
-		for (i = 0; i < req->n_channels; i++) {
+		for (i = 0; i < req->req.n_channels; i++) {
 			if (nla_put_u32(msg, i,
-				   ieee80211_channel_to_khz(req->channels[i])))
+					ieee80211_channel_to_khz(req->req.channels[i])))
 				goto nla_put_failure;
 		}
 		nla_nest_end(msg, nest);
@@ -18446,19 +18451,20 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 					     NL80211_ATTR_SCAN_FREQUENCIES);
 		if (!nest)
 			goto nla_put_failure;
-		for (i = 0; i < req->n_channels; i++) {
-			if (nla_put_u32(msg, i, req->channels[i]->center_freq))
+		for (i = 0; i < req->req.n_channels; i++) {
+			if (nla_put_u32(msg, i,
+					req->req.channels[i]->center_freq))
 				goto nla_put_failure;
 		}
 		nla_nest_end(msg, nest);
 	}
 
-	if (req->ie &&
-	    nla_put(msg, NL80211_ATTR_IE, req->ie_len, req->ie))
+	if (req->req.ie &&
+	    nla_put(msg, NL80211_ATTR_IE, req->req.ie_len, req->req.ie))
 		goto nla_put_failure;
 
-	if (req->flags &&
-	    nla_put_u32(msg, NL80211_ATTR_SCAN_FLAGS, req->flags))
+	if (req->req.flags &&
+	    nla_put_u32(msg, NL80211_ATTR_SCAN_FLAGS, req->req.flags))
 		goto nla_put_failure;
 
 	info = rdev->int_scan_req ? &rdev->int_scan_req->info :

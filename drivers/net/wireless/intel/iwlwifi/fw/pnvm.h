@@ -7,6 +7,7 @@
 
 #include "iwl-drv.h"
 #include "fw/notif-wait.h"
+#include "fw/img.h"
 
 #define MVM_UCODE_PNVM_TIMEOUT	(HZ / 4)
 
@@ -14,8 +15,7 @@
 
 int iwl_pnvm_load(struct iwl_trans *trans,
 		  struct iwl_notif_wait_data *notif_wait,
-		  const struct iwl_ucode_capabilities *capa,
-		  __le32 sku_id[3]);
+		  const struct iwl_fw *fw, __le32 sku_id[3]);
 
 static inline
 void iwl_pnvm_get_fs_name(struct iwl_trans *trans,

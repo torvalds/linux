@@ -456,15 +456,15 @@ rdev_set_monitor_channel(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_scan(struct cfg80211_registered_device *rdev,
-			    struct cfg80211_scan_request *request)
+			    struct cfg80211_scan_request_int *request)
 {
 	int ret;
 
-	if (WARN_ON_ONCE(!request->n_ssids && request->ssids))
+	if (WARN_ON_ONCE(!request->req.n_ssids && request->req.ssids))
 		return -EINVAL;
 
 	trace_rdev_scan(&rdev->wiphy, request);
-	ret = rdev->ops->scan(&rdev->wiphy, request);
+	ret = rdev->ops->scan(&rdev->wiphy, &request->req);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }

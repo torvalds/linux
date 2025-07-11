@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2024 Intel Corporation
+ * Copyright (c) 2018 - 2025 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -2837,11 +2837,12 @@ static inline bool ieee80211_he_capa_size_ok(const u8 *data, u8 len)
 #define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x80000000
 
-#define IEEE80211_6GHZ_CTRL_REG_LPI_AP		0
-#define IEEE80211_6GHZ_CTRL_REG_SP_AP		1
-#define IEEE80211_6GHZ_CTRL_REG_VLP_AP		2
-#define IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP	3
-#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP	4
+#define IEEE80211_6GHZ_CTRL_REG_LPI_AP			0
+#define IEEE80211_6GHZ_CTRL_REG_SP_AP			1
+#define IEEE80211_6GHZ_CTRL_REG_VLP_AP			2
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP		3
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD	4
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP		8
 
 /**
  * struct ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
@@ -2859,12 +2860,30 @@ struct ieee80211_he_6ghz_oper {
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_80MHZ	2
 #define		IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_160MHZ	3
 #define IEEE80211_HE_6GHZ_OPER_CTRL_DUP_BEACON	0x4
-#define IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO	0x38
+#define IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO	0x78
 	u8 control;
 	u8 ccfs0;
 	u8 ccfs1;
 	u8 minrate;
 } __packed;
+
+/**
+ * enum ieee80211_reg_conn_bits - represents Regulatory connectivity field bits.
+ *
+ * This enumeration defines bit flags used to represent regulatory connectivity
+ * field bits.
+ *
+ * @IEEE80211_REG_CONN_LPI_VALID: Indicates whether the LPI bit is valid.
+ * @IEEE80211_REG_CONN_LPI_VALUE: Represents the value of the LPI bit.
+ * @IEEE80211_REG_CONN_SP_VALID: Indicates whether the SP bit is valid.
+ * @IEEE80211_REG_CONN_SP_VALUE: Represents the value of the SP bit.
+ */
+enum ieee80211_reg_conn_bits {
+	IEEE80211_REG_CONN_LPI_VALID = BIT(0),
+	IEEE80211_REG_CONN_LPI_VALUE = BIT(1),
+	IEEE80211_REG_CONN_SP_VALID = BIT(2),
+	IEEE80211_REG_CONN_SP_VALUE = BIT(3),
+};
 
 /* transmit power interpretation type of transmit power envelope element */
 enum ieee80211_tx_power_intrpt_type {
@@ -3847,6 +3866,7 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_FILS_PUBLIC_KEY = 12,
 	WLAN_EID_EXT_FILS_NONCE = 13,
 	WLAN_EID_EXT_FUTURE_CHAN_GUIDANCE = 14,
+	WLAN_EID_EXT_DH_PARAMETER = 32,
 	WLAN_EID_EXT_HE_CAPABILITY = 35,
 	WLAN_EID_EXT_HE_OPERATION = 36,
 	WLAN_EID_EXT_UORA = 37,
@@ -3870,6 +3890,8 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_EHT_CAPABILITY = 108,
 	WLAN_EID_EXT_TID_TO_LINK_MAPPING = 109,
 	WLAN_EID_EXT_BANDWIDTH_INDICATION = 135,
+	WLAN_EID_EXT_KNOWN_STA_IDENTIFCATION = 136,
+	WLAN_EID_EXT_NON_AP_STA_REG_CON = 137,
 };
 
 /* Action category code */
@@ -5332,6 +5354,13 @@ static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
 
 	return get_unaligned_le16(common);
 }
+
+/* Defined in Figure 9-1074t in P802.11be_D7.0 */
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_PARAM_UPDATE           0x0001
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_RECO_MAX_LINKS_MASK    0x001e
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_NSTR_UPDATE               0x0020
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_EMLSR_ENA_ON_ONE_LINK     0x0040
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_BTM_MLD_RECO_MULTI_AP     0x0080
 
 /**
  * ieee80211_mle_get_ext_mld_capa_op - returns the extended MLD capabilities

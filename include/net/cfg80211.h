@@ -2748,15 +2748,16 @@ struct cfg80211_scan_6ghz_params {
  * @wiphy: the wiphy this was for
  * @scan_start: time (in jiffies) when the scan started
  * @wdev: the wireless device to scan for
- * @info: (internal) information about completed scan
- * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
  * @mac_addr: MAC address used with randomisation
  * @mac_addr_mask: MAC address mask used with randomisation, bits that
  *	are 0 in the mask should be randomised, bits that are 1 should
  *	be taken from the @mac_addr
  * @scan_6ghz: relevant for split scan request only,
- *	true if this is the second scan request
+ *	true if this is a 6 GHz scan request
+ * @first_part: %true if this is the first part of a split scan request or a
+ *	scan that was not split. May be %true for a @scan_6ghz scan if no other
+ *	channels were requested
  * @n_6ghz_params: number of 6 GHz params
  * @scan_6ghz_params: 6 GHz params
  * @bssid: BSSID to scan for (most commonly, the wildcard BSSID)
@@ -2780,14 +2781,11 @@ struct cfg80211_scan_request {
 	u8 mac_addr[ETH_ALEN] __aligned(2);
 	u8 mac_addr_mask[ETH_ALEN] __aligned(2);
 	u8 bssid[ETH_ALEN] __aligned(2);
-
-	/* internal */
 	struct wiphy *wiphy;
 	unsigned long scan_start;
-	struct cfg80211_scan_info info;
-	bool notified;
 	bool no_cck;
 	bool scan_6ghz;
+	bool first_part;
 	u32 n_6ghz_params;
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params;
 	s8 tsf_report_link_id;
