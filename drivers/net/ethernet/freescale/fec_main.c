@@ -1123,6 +1123,17 @@ static void fec_ctrl_reset(struct fec_enet_private *fep, bool allow_wol)
 	}
 }
 
+static void fec_set_hw_mac_addr(struct net_device *ndev)
+{
+	struct fec_enet_private *fep = netdev_priv(ndev);
+
+	writel(ndev->dev_addr[3] | (ndev->dev_addr[2] << 8) |
+	       (ndev->dev_addr[1] << 16) | (ndev->dev_addr[0] << 24),
+	       fep->hwp + FEC_ADDR_LOW);
+	writel((ndev->dev_addr[5] << 16) | (ndev->dev_addr[4] << 24),
+	       fep->hwp + FEC_ADDR_HIGH);
+}
+
 /*
  * This function is called to start or restart the FEC during a link
  * change, transmit timeout, or to reconfigure the FEC.  The network
@@ -1132,7 +1143,6 @@ static void
 fec_restart(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	u32 temp_mac[2];
 	u32 rcntl = OPT_FRAME_SIZE | FEC_RCR_MII;
 	u32 ecntl = FEC_ECR_ETHEREN;
 
@@ -1145,11 +1155,7 @@ fec_restart(struct net_device *ndev)
 	 * enet-mac reset will reset mac address registers too,
 	 * so need to reconfigure it.
 	 */
-	memcpy(&temp_mac, ndev->dev_addr, ETH_ALEN);
-	writel((__force u32)cpu_to_be32(temp_mac[0]),
-	       fep->hwp + FEC_ADDR_LOW);
-	writel((__force u32)cpu_to_be32(temp_mac[1]),
-	       fep->hwp + FEC_ADDR_HIGH);
+	fec_set_hw_mac_addr(ndev);
 
 	/* Clear any outstanding interrupt, except MDIO. */
 	writel((0xffffffff & ~FEC_ENET_MII), fep->hwp + FEC_IEVENT);
@@ -3693,7 +3699,6 @@ static void set_multicast_list(struct net_device *ndev)
 static int
 fec_set_mac_address(struct net_device *ndev, void *p)
 {
-	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct sockaddr *addr = p;
 
 	if (addr) {
@@ -3710,11 +3715,8 @@ fec_set_mac_address(struct net_device *ndev, void *p)
 	if (!netif_running(ndev))
 		return 0;
 
-	writel(ndev->dev_addr[3] | (ndev->dev_addr[2] << 8) |
-		(ndev->dev_addr[1] << 16) | (ndev->dev_addr[0] << 24),
-		fep->hwp + FEC_ADDR_LOW);
-	writel((ndev->dev_addr[5] << 16) | (ndev->dev_addr[4] << 24),
-		fep->hwp + FEC_ADDR_HIGH);
+	fec_set_hw_mac_addr(ndev);
+
 	return 0;
 }
 
