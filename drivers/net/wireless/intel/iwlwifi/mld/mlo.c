@@ -693,8 +693,7 @@ s8 iwl_mld_get_emlsr_rssi_thresh(struct iwl_mld *mld,
 #define IWL_MLD_BT_COEX_ENABLE_EMLSR_RSSI_THRESH	-63
 #define IWL_MLD_BT_COEX_WIFI_LOSS_THRESH		7
 
-VISIBLE_IF_IWLWIFI_KUNIT
-bool
+static bool
 iwl_mld_bt_allows_emlsr(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 			bool check_entry)
 {
@@ -723,7 +722,6 @@ iwl_mld_bt_allows_emlsr(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 		      link->link_id, bt_penalty);
 	return bt_penalty < IWL_MLD_BT_COEX_WIFI_LOSS_THRESH;
 }
-EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_bt_allows_emlsr);
 
 static u32
 iwl_mld_emlsr_disallowed_with_link(struct iwl_mld *mld,
