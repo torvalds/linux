@@ -972,32 +972,36 @@ static ssize_t wa_bb_setup_utilization(struct xe_lrc *lrc, struct xe_hw_engine *
 	return cmd - batch;
 }
 
-struct wa_bb_setup {
+struct bo_setup {
 	ssize_t (*setup)(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 			 u32 *batch, size_t max_size);
 };
 
-static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+static u32 *setup_bo(struct xe_lrc *lrc,
+		     struct xe_hw_engine *hwe,
+		     const size_t max_size,
+		     unsigned int offset,
+		     const struct bo_setup *funcs,
+		     unsigned int num_funcs,
+		     u32 **free)
 {
-	const size_t max_size = LRC_WA_BB_SIZE;
-	static const struct wa_bb_setup funcs[] = {
-		{ .setup = wa_bb_setup_utilization },
-	};
-	ssize_t remain;
 	u32 *cmd, *buf = NULL;
+	ssize_t remain;
 
 	if (lrc->bo->vmap.is_iomem) {
 		buf = kmalloc(max_size, GFP_KERNEL);
 		if (!buf)
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		cmd = buf;
+		*free = buf;
 	} else {
-		cmd = lrc->bo->vmap.vaddr + __xe_lrc_wa_bb_offset(lrc);
+		cmd = lrc->bo->vmap.vaddr + offset;
+		*free = NULL;
 	}
 
 	remain = max_size / sizeof(*cmd);
 
-	for (size_t i = 0; i < ARRAY_SIZE(funcs); i++) {
+	for (size_t i = 0; i < num_funcs; i++) {
 		ssize_t len = funcs[i].setup(lrc, hwe, cmd, remain);
 
 		remain -= len;
@@ -1012,23 +1016,45 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 		cmd += len;
 	}
 
-	*cmd++ = MI_BATCH_BUFFER_END;
-
-	if (buf) {
-		xe_map_memcpy_to(gt_to_xe(lrc->gt), &lrc->bo->vmap,
-				 __xe_lrc_wa_bb_offset(lrc), buf,
-				 (cmd - buf) * sizeof(*cmd));
-		kfree(buf);
-	}
-
-	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR, xe_bo_ggtt_addr(lrc->bo) +
-			     __xe_lrc_wa_bb_offset(lrc) + 1);
-
-	return 0;
+	return cmd;
 
 fail:
 	kfree(buf);
-	return -ENOSPC;
+	return ERR_PTR(-ENOSPC);
+}
+
+static void finish_bo(struct xe_lrc *lrc, unsigned int offset, u32 *cmd,
+		      u32 *free)
+{
+	if (!free)
+		return;
+
+	xe_map_memcpy_to(gt_to_xe(lrc->gt), &lrc->bo->vmap, offset, free,
+			 (cmd - free) * sizeof(*cmd));
+	kfree(free);
+}
+
+static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+{
+	static const struct bo_setup funcs[] = {
+		{ .setup = wa_bb_setup_utilization },
+	};
+	unsigned int offset = __xe_lrc_wa_bb_offset(lrc);
+	u32 *cmd, *buf = NULL;
+
+	cmd = setup_bo(lrc, hwe, LRC_WA_BB_SIZE, offset, funcs,
+		       ARRAY_SIZE(funcs), &buf);
+	if (IS_ERR(cmd))
+		return PTR_ERR(cmd);
+
+	*cmd++ = MI_BATCH_BUFFER_END;
+
+	finish_bo(lrc, offset, cmd, buf);
+
+	xe_lrc_write_ctx_reg(lrc, CTX_BB_PER_CTX_PTR,
+			     xe_bo_ggtt_addr(lrc->bo) + offset + 1);
+
+	return 0;
 }
 
 #define PVC_CTX_ASID		(0x2e + 1)
