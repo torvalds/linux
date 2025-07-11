@@ -6,7 +6,7 @@
 //!
 //! C headers: [`include/linux/phy.h`](srctree/include/linux/phy.h).
 
-use crate::{error::*, prelude::*, types::Opaque};
+use crate::{device_id::RawDeviceId, error::*, prelude::*, types::Opaque};
 use core::{marker::PhantomData, ptr::addr_of_mut};
 
 pub mod reg;
@@ -750,6 +750,12 @@ impl DeviceId {
     }
 }
 
+// SAFETY: `DeviceId` is a `#[repr(transparent)]` wrapper of `struct mdio_device_id`
+// and does not add additional invariants, so it's safe to transmute to `RawType`.
+unsafe impl RawDeviceId for DeviceId {
+    type RawType = bindings::mdio_device_id;
+}
+
 enum DeviceMask {
     Exact,
     Model,
@@ -850,19 +856,18 @@ impl DeviceMask {
 ///     }
 /// };
 ///
-/// const _DEVICE_TABLE: [::kernel::bindings::mdio_device_id; 2] = [
-///     ::kernel::bindings::mdio_device_id {
-///         phy_id: 0x00000001,
-///         phy_id_mask: 0xffffffff,
-///     },
-///     ::kernel::bindings::mdio_device_id {
-///         phy_id: 0,
-///         phy_id_mask: 0,
-///     },
-/// ];
-/// #[cfg(MODULE)]
-/// #[no_mangle]
-/// static __mod_device_table__mdio__phydev: [::kernel::bindings::mdio_device_id; 2] = _DEVICE_TABLE;
+/// const N: usize = 1;
+///
+/// const TABLE: ::kernel::device_id::IdArray<::kernel::net::phy::DeviceId, (), N> =
+///     ::kernel::device_id::IdArray::new_without_index([
+///         ::kernel::net::phy::DeviceId(
+///             ::kernel::bindings::mdio_device_id {
+///                 phy_id: 0x00000001,
+///                 phy_id_mask: 0xffffffff,
+///             }),
+///     ]);
+///
+/// ::kernel::module_device_table!("mdio", phydev, TABLE);
 /// ```
 #[macro_export]
 macro_rules! module_phy_driver {
@@ -873,20 +878,12 @@ macro_rules! module_phy_driver {
     };
 
     (@device_table [$($dev:expr),+]) => {
-        // SAFETY: C will not read off the end of this constant since the last element is zero.
-        const _DEVICE_TABLE: [$crate::bindings::mdio_device_id;
-            $crate::module_phy_driver!(@count_devices $($dev),+) + 1] = [
-            $($dev.mdio_device_id()),+,
-            $crate::bindings::mdio_device_id {
-                phy_id: 0,
-                phy_id_mask: 0
-            }
-        ];
+        const N: usize = $crate::module_phy_driver!(@count_devices $($dev),+);
 
-        #[cfg(MODULE)]
-        #[no_mangle]
-        static __mod_device_table__mdio__phydev: [$crate::bindings::mdio_device_id;
-            $crate::module_phy_driver!(@count_devices $($dev),+) + 1] = _DEVICE_TABLE;
+        const TABLE: $crate::device_id::IdArray<$crate::net::phy::DeviceId, (), N> =
+            $crate::device_id::IdArray::new_without_index([ $(($dev,())),+, ]);
+
+        $crate::module_device_table!("mdio", phydev, TABLE);
     };
 
     (drivers: [$($driver:ident),+ $(,)?], device_table: [$($dev:expr),+ $(,)?], $($f:tt)*) => {
