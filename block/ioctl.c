@@ -566,9 +566,11 @@ static int blkdev_common_ioctl(struct block_device *bdev, blk_mode_t mode,
 			       void __user *argp)
 {
 	unsigned int max_sectors;
+	int ret;
 
-	if (_IOC_NR(cmd) == _IOC_NR(FS_IOC_GETLBMD_CAP))
-		return blk_get_meta_cap(bdev, cmd, argp);
+	ret = blk_get_meta_cap(bdev, cmd, argp);
+	if (ret != -ENOIOCTLCMD)
+		return ret;
 
 	switch (cmd) {
 	case BLKFLSBUF:
