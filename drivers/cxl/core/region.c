@@ -349,30 +349,42 @@ err:
 	return rc;
 }
 
-static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t len)
+static int queue_reset(struct cxl_region *cxlr)
 {
-	struct cxl_region *cxlr = to_cxl_region(dev);
 	struct cxl_region_params *p = &cxlr->params;
-	bool commit;
-	ssize_t rc;
-
-	rc = kstrtobool(buf, &commit);
-	if (rc)
-		return rc;
+	int rc;
 
 	rc = down_write_killable(&cxl_region_rwsem);
 	if (rc)
 		return rc;
 
 	/* Already in the requested state? */
-	if (commit && p->state >= CXL_CONFIG_COMMIT)
+	if (p->state < CXL_CONFIG_COMMIT)
 		goto out;
-	if (!commit && p->state < CXL_CONFIG_COMMIT)
+
+	p->state = CXL_CONFIG_RESET_PENDING;
+
+out:
+	up_write(&cxl_region_rwsem);
+
+	return rc;
+}
+
+static int __commit(struct cxl_region *cxlr)
+{
+	struct cxl_region_params *p = &cxlr->params;
+	int rc;
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	/* Already in the requested state? */
+	if (p->state >= CXL_CONFIG_COMMIT)
 		goto out;
 
 	/* Not ready to commit? */
-	if (commit && p->state < CXL_CONFIG_ACTIVE) {
+	if (p->state < CXL_CONFIG_ACTIVE) {
 		rc = -ENXIO;
 		goto out;
 	}
@@ -385,31 +397,60 @@ static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
 	if (rc)
 		goto out;
 
-	if (commit) {
-		rc = cxl_region_decode_commit(cxlr);
-		if (rc == 0)
-			p->state = CXL_CONFIG_COMMIT;
-	} else {
-		p->state = CXL_CONFIG_RESET_PENDING;
-		up_write(&cxl_region_rwsem);
-		device_release_driver(&cxlr->dev);
-		down_write(&cxl_region_rwsem);
-
-		/*
-		 * The lock was dropped, so need to revalidate that the reset is
-		 * still pending.
-		 */
-		if (p->state == CXL_CONFIG_RESET_PENDING) {
-			cxl_region_decode_reset(cxlr, p->interleave_ways);
-			p->state = CXL_CONFIG_ACTIVE;
-		}
-	}
+	rc = cxl_region_decode_commit(cxlr);
+	if (rc == 0)
+		p->state = CXL_CONFIG_COMMIT;
 
 out:
 	up_write(&cxl_region_rwsem);
 
+	return rc;
+}
+
+static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t len)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	bool commit;
+	ssize_t rc;
+
+	rc = kstrtobool(buf, &commit);
 	if (rc)
 		return rc;
+
+	if (commit) {
+		rc = __commit(cxlr);
+		if (rc)
+			return rc;
+		return len;
+	}
+
+	rc = queue_reset(cxlr);
+	if (rc)
+		return rc;
+
+	/*
+	 * Unmap the region and depend the reset-pending state to ensure
+	 * it does not go active again until post reset
+	 */
+	device_release_driver(&cxlr->dev);
+
+	/*
+	 * With the reset pending take cxl_region_rwsem unconditionally
+	 * to ensure the reset gets handled before returning.
+	 */
+	guard(rwsem_write)(&cxl_region_rwsem);
+
+	/*
+	 * Revalidate that the reset is still pending in case another
+	 * thread already handled this reset.
+	 */
+	if (p->state == CXL_CONFIG_RESET_PENDING) {
+		cxl_region_decode_reset(cxlr, p->interleave_ways);
+		p->state = CXL_CONFIG_ACTIVE;
+	}
+
 	return len;
 }
 
