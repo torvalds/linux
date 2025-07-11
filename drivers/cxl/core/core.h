@@ -5,6 +5,7 @@
 #define __CXL_CORE_H__
 
 #include <cxl/mailbox.h>
+#include <linux/rwsem.h>
 
 extern const struct device_type cxl_nvdimm_bridge_type;
 extern const struct device_type cxl_nvdimm_type;
@@ -107,8 +108,20 @@ u16 cxl_rcrb_to_aer(struct device *dev, resource_size_t rcrb);
 #define PCI_RCRB_CAP_HDR_NEXT_MASK	GENMASK(15, 8)
 #define PCI_CAP_EXP_SIZEOF		0x3c
 
-extern struct rw_semaphore cxl_dpa_rwsem;
-extern struct rw_semaphore cxl_region_rwsem;
+struct cxl_rwsem {
+	/*
+	 * All changes to HPA (interleave configuration) occur with this
+	 * lock held for write.
+	 */
+	struct rw_semaphore region;
+	/*
+	 * All changes to a device DPA space occur with this lock held
+	 * for write.
+	 */
+	struct rw_semaphore dpa;
+};
+
+extern struct cxl_rwsem cxl_rwsem;
 
 int cxl_memdev_init(void);
 void cxl_memdev_exit(void);

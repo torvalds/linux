@@ -469,7 +469,7 @@ enum cxl_config_state {
  * @nr_targets: number of targets
  * @cache_size: extended linear cache size if exists, otherwise zero.
  *
- * State transitions are protected by the cxl_region_rwsem
+ * State transitions are protected by cxl_rwsem.region
  */
 struct cxl_region_params {
 	enum cxl_config_state state;
@@ -912,15 +912,4 @@ bool cxl_endpoint_decoder_reset_detected(struct cxl_port *port);
 #endif
 
 u16 cxl_gpf_get_dvsec(struct device *dev);
-
-static inline struct rw_semaphore *rwsem_read_intr_acquire(struct rw_semaphore *rwsem)
-{
-	if (down_read_interruptible(rwsem))
-		return NULL;
-
-	return rwsem;
-}
-
-DEFINE_FREE(rwsem_read_release, struct rw_semaphore *, if (_T) up_read(_T))
-
 #endif /* __CXL_H__ */

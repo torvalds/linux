@@ -16,7 +16,10 @@
  * for enumerating these registers and capabilities.
  */
 
-DECLARE_RWSEM(cxl_dpa_rwsem);
+struct cxl_rwsem cxl_rwsem = {
+	.region = __RWSEM_INITIALIZER(cxl_rwsem.region),
+	.dpa = __RWSEM_INITIALIZER(cxl_rwsem.dpa),
+};
 
 static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			   int *target_map)
@@ -214,7 +217,7 @@ void cxl_dpa_debug(struct seq_file *file, struct cxl_dev_state *cxlds)
 {
 	struct resource *p1, *p2;
 
-	guard(rwsem_read)(&cxl_dpa_rwsem);
+	guard(rwsem_read)(&cxl_rwsem.dpa);
 	for (p1 = cxlds->dpa_res.child; p1; p1 = p1->sibling) {
 		__cxl_dpa_debug(file, p1, 0);
 		for (p2 = p1->child; p2; p2 = p2->sibling)
@@ -266,7 +269,7 @@ static void __cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
 	struct resource *res = cxled->dpa_res;
 	resource_size_t skip_start;
 
-	lockdep_assert_held_write(&cxl_dpa_rwsem);
+	lockdep_assert_held_write(&cxl_rwsem.dpa);
 
 	/* save @skip_start, before @res is released */
 	skip_start = res->start - cxled->skip;
@@ -281,7 +284,7 @@ static void __cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
 
 static void cxl_dpa_release(void *cxled)
 {
-	guard(rwsem_write)(&cxl_dpa_rwsem);
+	guard(rwsem_write)(&cxl_rwsem.dpa);
 	__cxl_dpa_release(cxled);
 }
 
@@ -293,7 +296,7 @@ static void devm_cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_port *port = cxled_to_port(cxled);
 
-	lockdep_assert_held_write(&cxl_dpa_rwsem);
+	lockdep_assert_held_write(&cxl_rwsem.dpa);
 	devm_remove_action(&port->dev, cxl_dpa_release, cxled);
 	__cxl_dpa_release(cxled);
 }
@@ -361,7 +364,7 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	struct resource *res;
 	int rc;
 
-	lockdep_assert_held_write(&cxl_dpa_rwsem);
+	lockdep_assert_held_write(&cxl_rwsem.dpa);
 
 	if (!len) {
 		dev_warn(dev, "decoder%d.%d: empty reservation attempted\n",
@@ -470,7 +473,7 @@ int cxl_dpa_setup(struct cxl_dev_state *cxlds, const struct cxl_dpa_info *info)
 {
 	struct device *dev = cxlds->dev;
 
-	guard(rwsem_write)(&cxl_dpa_rwsem);
+	guard(rwsem_write)(&cxl_rwsem.dpa);
 
 	if (cxlds->nr_partitions)
 		return -EBUSY;
@@ -516,9 +519,8 @@ int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	struct cxl_port *port = cxled_to_port(cxled);
 	int rc;
 
-	down_write(&cxl_dpa_rwsem);
-	rc = __cxl_dpa_reserve(cxled, base, len, skipped);
-	up_write(&cxl_dpa_rwsem);
+	scoped_guard(rwsem_write, &cxl_rwsem.dpa)
+		rc = __cxl_dpa_reserve(cxled, base, len, skipped);
 
 	if (rc)
 		return rc;
@@ -529,7 +531,7 @@ EXPORT_SYMBOL_NS_GPL(devm_cxl_dpa_reserve, "CXL");
 
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled)
 {
-	guard(rwsem_read)(&cxl_dpa_rwsem);
+	guard(rwsem_read)(&cxl_rwsem.dpa);
 	if (cxled->dpa_res)
 		return resource_size(cxled->dpa_res);
 
@@ -540,7 +542,7 @@ resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled)
 {
 	resource_size_t base = -1;
 
-	lockdep_assert_held(&cxl_dpa_rwsem);
+	lockdep_assert_held(&cxl_rwsem.dpa);
 	if (cxled->dpa_res)
 		base = cxled->dpa_res->start;
 
@@ -552,7 +554,7 @@ int cxl_dpa_free(struct cxl_endpoint_decoder *cxled)
 	struct cxl_port *port = cxled_to_port(cxled);
 	struct device *dev = &cxled->cxld.dev;
 
-	guard(rwsem_write)(&cxl_dpa_rwsem);
+	guard(rwsem_write)(&cxl_rwsem.dpa);
 	if (!cxled->dpa_res)
 		return 0;
 	if (cxled->cxld.region) {
@@ -582,7 +584,7 @@ int cxl_dpa_set_part(struct cxl_endpoint_decoder *cxled,
 	struct device *dev = &cxled->cxld.dev;
 	int part;
 
-	guard(rwsem_write)(&cxl_dpa_rwsem);
+	guard(rwsem_write)(&cxl_rwsem.dpa);
 	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE)
 		return -EBUSY;
 
@@ -614,7 +616,7 @@ static int __cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, u64 size)
 	struct resource *p, *last;
 	int part;
 
-	guard(rwsem_write)(&cxl_dpa_rwsem);
+	guard(rwsem_write)(&cxl_rwsem.dpa);
 	if (cxled->cxld.region) {
 		dev_dbg(dev, "decoder attached to %s\n",
 			dev_name(&cxled->cxld.region->dev));
@@ -842,9 +844,8 @@ static int cxl_decoder_commit(struct cxl_decoder *cxld)
 		}
 	}
 
-	down_read(&cxl_dpa_rwsem);
-	setup_hw_decoder(cxld, hdm);
-	up_read(&cxl_dpa_rwsem);
+	scoped_guard(rwsem_read, &cxl_rwsem.dpa)
+		setup_hw_decoder(cxld, hdm);
 
 	port->commit_end++;
 	rc = cxld_await_commit(hdm, cxld->id);
@@ -882,7 +883,7 @@ void cxl_port_commit_reap(struct cxl_decoder *cxld)
 {
 	struct cxl_port *port = to_cxl_port(cxld->dev.parent);
 
-	lockdep_assert_held_write(&cxl_region_rwsem);
+	lockdep_assert_held_write(&cxl_rwsem.region);
 
 	/*
 	 * Once the highest committed decoder is disabled, free any other
@@ -1030,7 +1031,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		else
 			cxld->target_type = CXL_DECODER_DEVMEM;
 
-		guard(rwsem_write)(&cxl_region_rwsem);
+		guard(rwsem_write)(&cxl_rwsem.region);
 		if (cxld->id != cxl_num_decoders_committed(port)) {
 			dev_warn(&port->dev,
 				 "decoder%d.%d: Committed out of order\n",

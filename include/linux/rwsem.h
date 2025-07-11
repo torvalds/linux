@@ -244,6 +244,7 @@ DEFINE_GUARD_COND(rwsem_read, _intr, down_read_interruptible(_T), _RET == 0)
 
 DEFINE_GUARD(rwsem_write, struct rw_semaphore *, down_write(_T), up_write(_T))
 DEFINE_GUARD_COND(rwsem_write, _try, down_write_trylock(_T))
+DEFINE_GUARD_COND(rwsem_write, _kill, down_write_killable(_T), _RET == 0)
 
 /*
  * downgrade write lock to read lock
