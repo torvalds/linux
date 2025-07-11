@@ -1112,7 +1112,7 @@ bool afs_dir_init_iter(struct afs_dir_iter *iter, const struct qstr *name);
 union afs_xdr_dir_block *afs_dir_find_block(struct afs_dir_iter *iter, size_t block);
 int afs_dir_search_bucket(struct afs_dir_iter *iter, const struct qstr *name,
 			  struct afs_fid *_fid);
-int afs_dir_search(struct afs_vnode *dvnode, struct qstr *name,
+int afs_dir_search(struct afs_vnode *dvnode, const struct qstr *name,
 		   struct afs_fid *_fid, afs_dataversion_t *_dir_version);
 
 /*
