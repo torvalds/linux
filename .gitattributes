@@ -12,4 +12,5 @@
 *.c linguist-language=Perl
 *.ch linguist-language=Perl
 *.h linguist-language=Perl
+*.cocci linguist-language=Perl
 Makefile linguist-language=Perl
