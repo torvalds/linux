@@ -307,7 +307,7 @@ static void panic_other_cpus_shutdown(bool crash_kexec)
 }
 
 /**
- * panic - halt the system
+ * vpanic - halt the system
  * @fmt: The text string to print
  * @args: Arguments for the format string
  *
