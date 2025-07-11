@@ -3841,7 +3841,7 @@ void ieee80211_csa_finish(struct ieee80211_vif *vif, unsigned int link_id)
 		 */
 		struct ieee80211_link_data *iter;
 
-		for_each_sdata_link(local, iter) {
+		for_each_sdata_link_rcu(local, iter) {
 			if (iter->sdata == sdata ||
 			    rcu_access_pointer(iter->conf->tx_bss_conf) != tx_bss_conf)
 				continue;
