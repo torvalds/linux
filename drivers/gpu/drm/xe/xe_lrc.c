@@ -984,6 +984,7 @@ struct bo_setup_state {
 	struct xe_lrc		*lrc;
 	struct xe_hw_engine	*hwe;
 	size_t			max_size;
+	size_t                  reserve_dw;
 	unsigned int		offset;
 	const struct bo_setup	*funcs;
 	unsigned int		num_funcs;
@@ -1017,10 +1018,10 @@ static int setup_bo(struct bo_setup_state *state)
 		remain -= len;
 
 		/*
-		 * There should always be at least 1 additional dword for
-		 * the end marker
+		 * Caller has asked for at least reserve_dw to remain unused.
 		 */
-		if (len < 0 || xe_gt_WARN_ON(state->lrc->gt, remain < 1))
+		if (len < 0 ||
+		    xe_gt_WARN_ON(state->lrc->gt, remain < state->reserve_dw))
 			goto fail;
 
 		state->ptr += len;
@@ -1054,6 +1055,7 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 		.lrc = lrc,
 		.hwe = hwe,
 		.max_size = LRC_WA_BB_SIZE,
+		.reserve_dw = 1,
 		.offset = __xe_lrc_wa_bb_offset(lrc),
 		.funcs = funcs,
 		.num_funcs = ARRAY_SIZE(funcs),
