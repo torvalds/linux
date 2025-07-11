@@ -39,6 +39,7 @@
 #define LRC_ENGINE_INSTANCE			GENMASK_ULL(53, 48)
 
 #define LRC_PPHWSP_SIZE				SZ_4K
+#define LRC_INDIRECT_CTX_BO_SIZE		SZ_4K
 #define LRC_INDIRECT_RING_STATE_SIZE		SZ_4K
 #define LRC_WA_BB_SIZE				SZ_4K
 
@@ -46,6 +47,12 @@ static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
 {
 	return gt_to_xe(lrc->fence_ctx.gt);
+}
+
+static bool
+gt_engine_needs_indirect_ctx(struct xe_gt *gt, enum xe_engine_class class)
+{
+	return false;
 }
 
 size_t xe_gt_lrc_size(struct xe_gt *gt, enum xe_engine_class class)
@@ -717,7 +724,18 @@ static u32 __xe_lrc_ctx_timestamp_udw_offset(struct xe_lrc *lrc)
 
 static inline u32 __xe_lrc_indirect_ring_offset(struct xe_lrc *lrc)
 {
-	return xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE - LRC_INDIRECT_RING_STATE_SIZE;
+	u32 offset = xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE -
+		     LRC_INDIRECT_RING_STATE_SIZE;
+
+	if (lrc->flags & XE_LRC_FLAG_INDIRECT_CTX)
+		offset -= LRC_INDIRECT_CTX_BO_SIZE;
+
+	return offset;
+}
+
+static inline u32 __xe_lrc_indirect_ctx_offset(struct xe_lrc *lrc)
+{
+	return xe_bo_size(lrc->bo) - LRC_WA_BB_SIZE - LRC_INDIRECT_CTX_BO_SIZE;
 }
 
 static inline u32 __xe_lrc_wa_bb_offset(struct xe_lrc *lrc)
@@ -1077,6 +1095,58 @@ static int setup_wa_bb(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
 	return 0;
 }
 
+static int
+setup_indirect_ctx(struct xe_lrc *lrc, struct xe_hw_engine *hwe)
+{
+	static struct bo_setup rcs_funcs[] = {
+	};
+	struct bo_setup_state state = {
+		.lrc = lrc,
+		.hwe = hwe,
+		.max_size = (63 * 64) /* max 63 cachelines */,
+		.offset = __xe_lrc_indirect_ctx_offset(lrc),
+	};
+	int ret;
+
+	if (!(lrc->flags & XE_LRC_FLAG_INDIRECT_CTX))
+		return 0;
+
+	if (hwe->class == XE_ENGINE_CLASS_RENDER ||
+	    hwe->class == XE_ENGINE_CLASS_COMPUTE) {
+		state.funcs = rcs_funcs;
+		state.num_funcs = ARRAY_SIZE(rcs_funcs);
+	}
+
+	if (xe_gt_WARN_ON(lrc->gt, !state.funcs))
+		return 0;
+
+	ret = setup_bo(&state);
+	if (ret)
+		return ret;
+
+	/*
+	 * Align to 64B cacheline so there's no garbage at the end for CS to
+	 * execute: size for indirect ctx must be a multiple of 64.
+	 */
+	while (state.written & 0xf) {
+		*state.ptr++ = MI_NOOP;
+		state.written++;
+	}
+
+	finish_bo(&state);
+
+	xe_lrc_write_ctx_reg(lrc,
+			     CTX_CS_INDIRECT_CTX,
+			     (xe_bo_ggtt_addr(lrc->bo) + state.offset) |
+			     /* Size in CLs. */
+			     (state.written * sizeof(u32) / 64));
+	xe_lrc_write_ctx_reg(lrc,
+			     CTX_CS_INDIRECT_CTX_OFFSET,
+			     CTX_INDIRECT_CTX_OFFSET_DEFAULT);
+
+	return 0;
+}
+
 #define PVC_CTX_ASID		(0x2e + 1)
 #define PVC_CTX_ACC_CTR_THOLD	(0x2a + 1)
 
@@ -1086,7 +1156,7 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 {
 	struct xe_gt *gt = hwe->gt;
 	const u32 lrc_size = xe_gt_lrc_size(gt, hwe->class);
-	const u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
+	u32 bo_size = ring_size + lrc_size + LRC_WA_BB_SIZE;
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_device *xe = gt_to_xe(gt);
 	struct iosys_map map;
@@ -1101,6 +1171,12 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	lrc->flags = 0;
 	lrc->ring.size = ring_size;
 	lrc->ring.tail = 0;
+
+	if (gt_engine_needs_indirect_ctx(gt, hwe->class)) {
+		lrc->flags |= XE_LRC_FLAG_INDIRECT_CTX;
+		bo_size += LRC_INDIRECT_CTX_BO_SIZE;
+	}
+
 	if (xe_gt_has_indirect_ring_state(gt))
 		lrc->flags |= XE_LRC_FLAG_INDIRECT_RING_STATE;
 
@@ -1222,6 +1298,10 @@ static int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	xe_map_write32(lrc_to_xe(lrc), &map, lrc->fence_ctx.next_seqno - 1);
 
 	err = setup_wa_bb(lrc, hwe);
+	if (err)
+		goto err_lrc_finish;
+
+	err = setup_indirect_ctx(lrc, hwe);
 	if (err)
 		goto err_lrc_finish;
 
