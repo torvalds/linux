@@ -411,19 +411,16 @@ static const struct attribute_group amdgpu_board_attrs_group = {
 
 static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev);
 
-
 /**
  * amdgpu_device_supports_px - Is the device a dGPU with ATPX power control
  *
- * @dev: drm_device pointer
+ * @adev: amdgpu device pointer
  *
  * Returns true if the device is a dGPU with ATPX power control,
  * otherwise return false.
  */
-bool amdgpu_device_supports_px(struct drm_device *dev)
+bool amdgpu_device_supports_px(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
-
 	if ((adev->flags & AMD_IS_PX) && !amdgpu_is_atpx_hybrid())
 		return true;
 	return false;
@@ -432,15 +429,13 @@ bool amdgpu_device_supports_px(struct drm_device *dev)
 /**
  * amdgpu_device_supports_boco - Is the device a dGPU with ACPI power resources
  *
- * @dev: drm_device pointer
+ * @adev: amdgpu device pointer
  *
  * Returns true if the device is a dGPU with ACPI power control,
  * otherwise return false.
  */
-bool amdgpu_device_supports_boco(struct drm_device *dev)
+bool amdgpu_device_supports_boco(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
-
 	if (!IS_ENABLED(CONFIG_HOTPLUG_PCI_PCIE))
 		return false;
 
@@ -453,29 +448,24 @@ bool amdgpu_device_supports_boco(struct drm_device *dev)
 /**
  * amdgpu_device_supports_baco - Does the device support BACO
  *
- * @dev: drm_device pointer
+ * @adev: amdgpu device pointer
  *
  * Return:
  * 1 if the device supports BACO;
  * 3 if the device supports MACO (only works if BACO is supported)
  * otherwise return 0.
  */
-int amdgpu_device_supports_baco(struct drm_device *dev)
+int amdgpu_device_supports_baco(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
-
 	return amdgpu_asic_supports_baco(adev);
 }
 
 void amdgpu_device_detect_runtime_pm_mode(struct amdgpu_device *adev)
 {
-	struct drm_device *dev;
 	int bamaco_support;
 
-	dev = adev_to_drm(adev);
-
 	adev->pm.rpm_mode = AMDGPU_RUNPM_NONE;
-	bamaco_support = amdgpu_device_supports_baco(dev);
+	bamaco_support = amdgpu_device_supports_baco(adev);
 
 	switch (amdgpu_runtime_pm) {
 	case 2:
@@ -495,10 +485,12 @@ void amdgpu_device_detect_runtime_pm_mode(struct amdgpu_device *adev)
 		break;
 	case -1:
 	case -2:
-		if (amdgpu_device_supports_px(dev)) { /* enable PX as runtime mode */
+		if (amdgpu_device_supports_px(adev)) {
+			/* enable PX as runtime mode */
 			adev->pm.rpm_mode = AMDGPU_RUNPM_PX;
 			dev_info(adev->dev, "Using ATPX for runtime pm\n");
-		} else if (amdgpu_device_supports_boco(dev)) { /* enable boco as runtime mode */
+		} else if (amdgpu_device_supports_boco(adev)) {
+			/* enable boco as runtime mode */
 			adev->pm.rpm_mode = AMDGPU_RUNPM_BOCO;
 			dev_info(adev->dev, "Using BOCO for runtime pm\n");
 		} else {
@@ -547,14 +539,14 @@ no_runtime_pm:
  * amdgpu_device_supports_smart_shift - Is the device dGPU with
  * smart shift support
  *
- * @dev: drm_device pointer
+ * @adev: amdgpu device pointer
  *
  * Returns true if the device is a dGPU with Smart Shift support,
  * otherwise returns false.
  */
-bool amdgpu_device_supports_smart_shift(struct drm_device *dev)
+bool amdgpu_device_supports_smart_shift(struct amdgpu_device *adev)
 {
-	return (amdgpu_device_supports_boco(dev) &&
+	return (amdgpu_device_supports_boco(adev) &&
 		amdgpu_acpi_is_power_shift_control_supported());
 }
 
@@ -2200,7 +2192,8 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev,
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	int r;
 
-	if (amdgpu_device_supports_px(dev) && state == VGA_SWITCHEROO_OFF)
+	if (amdgpu_device_supports_px(drm_to_adev(dev)) &&
+	    state == VGA_SWITCHEROO_OFF)
 		return;
 
 	if (state == VGA_SWITCHEROO_ON) {
@@ -4192,13 +4185,13 @@ static void amdgpu_device_xgmi_reset_func(struct work_struct *__work)
 	if (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
 
 		task_barrier_enter(&hive->tb);
-		adev->asic_reset_res = amdgpu_device_baco_enter(adev_to_drm(adev));
+		adev->asic_reset_res = amdgpu_device_baco_enter(adev);
 
 		if (adev->asic_reset_res)
 			goto fail;
 
 		task_barrier_exit(&hive->tb);
-		adev->asic_reset_res = amdgpu_device_baco_exit(adev_to_drm(adev));
+		adev->asic_reset_res = amdgpu_device_baco_exit(adev);
 
 		if (adev->asic_reset_res)
 			goto fail;
@@ -4353,7 +4346,6 @@ static void amdgpu_device_set_mcbp(struct amdgpu_device *adev)
 int amdgpu_device_init(struct amdgpu_device *adev,
 		       uint32_t flags)
 {
-	struct drm_device *ddev = adev_to_drm(adev);
 	struct pci_dev *pdev = adev->pdev;
 	int r, i;
 	bool px = false;
@@ -4814,7 +4806,7 @@ fence_driver_init:
 	if ((adev->pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
 		vga_client_register(adev->pdev, amdgpu_device_vga_set_decode);
 
-	px = amdgpu_device_supports_px(ddev);
+	px = amdgpu_device_supports_px(adev);
 
 	if (px || (!dev_is_removable(&adev->pdev->dev) &&
 				apple_gmux_detect(NULL, NULL)))
@@ -4980,7 +4972,7 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
 	kfree(adev->xcp_mgr);
 	adev->xcp_mgr = NULL;
 
-	px = amdgpu_device_supports_px(adev_to_drm(adev));
+	px = amdgpu_device_supports_px(adev);
 
 	if (px || (!dev_is_removable(&adev->pdev->dev) &&
 				apple_gmux_detect(NULL, NULL)))
@@ -5152,7 +5144,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool notify_clients)
 			return r;
 	}
 
-	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D3))
+	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DEV_D3))
 		dev_warn(adev->dev, "smart shift update failed\n");
 
 	if (notify_clients)
@@ -5321,7 +5313,7 @@ exit:
 	}
 	adev->in_suspend = false;
 
-	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D0))
+	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DEV_D0))
 		dev_warn(adev->dev, "smart shift update failed\n");
 
 	return 0;
@@ -6365,7 +6357,8 @@ static int amdgpu_device_sched_resume(struct list_head *device_list,
 			amdgpu_vf_error_put(tmp_adev, AMDGIM_ERROR_VF_GPU_RESET_FAIL, 0, r);
 		} else {
 			dev_info(tmp_adev->dev, "GPU reset(%d) succeeded!\n", atomic_read(&tmp_adev->gpu_reset_counter));
-			if (amdgpu_acpi_smart_shift_update(adev_to_drm(tmp_adev), AMDGPU_SS_DEV_D0))
+			if (amdgpu_acpi_smart_shift_update(tmp_adev,
+							   AMDGPU_SS_DEV_D0))
 				dev_warn(tmp_adev->dev,
 					 "smart shift update failed\n");
 		}
@@ -6839,12 +6832,11 @@ bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 #endif
 }
 
-int amdgpu_device_baco_enter(struct drm_device *dev)
+int amdgpu_device_baco_enter(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
-	if (!amdgpu_device_supports_baco(dev))
+	if (!amdgpu_device_supports_baco(adev))
 		return -ENOTSUPP;
 
 	if (ras && adev->ras_enabled &&
@@ -6854,13 +6846,12 @@ int amdgpu_device_baco_enter(struct drm_device *dev)
 	return amdgpu_dpm_baco_enter(adev);
 }
 
-int amdgpu_device_baco_exit(struct drm_device *dev)
+int amdgpu_device_baco_exit(struct amdgpu_device *adev)
 {
-	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 	int ret = 0;
 
-	if (!amdgpu_device_supports_baco(dev))
+	if (!amdgpu_device_supports_baco(adev))
 		return -ENOTSUPP;
 
 	ret = amdgpu_dpm_baco_exit(adev);

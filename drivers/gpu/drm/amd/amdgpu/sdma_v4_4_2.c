@@ -1668,7 +1668,7 @@ static int sdma_v4_4_2_reset_queue(struct amdgpu_ring *ring,
 		return -EOPNOTSUPP;
 
 	amdgpu_amdkfd_suspend(adev, true);
-	r = amdgpu_sdma_reset_engine(adev, id);
+	r = amdgpu_sdma_reset_engine(adev, id, false);
 	amdgpu_amdkfd_resume(adev, true);
 	return r;
 }
@@ -1714,7 +1714,7 @@ static int sdma_v4_4_2_stop_queue(struct amdgpu_ring *ring)
 static int sdma_v4_4_2_restore_queue(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u32 inst_mask, tmp_mask;
+	u32 inst_mask;
 	int i, r;
 
 	inst_mask = 1 << ring->me;
@@ -1733,21 +1733,6 @@ static int sdma_v4_4_2_restore_queue(struct amdgpu_ring *ring)
 	}
 
 	r = sdma_v4_4_2_inst_start(adev, inst_mask, true);
-	if (r)
-		return r;
-
-	tmp_mask = inst_mask;
-	for_each_inst(i, tmp_mask) {
-		ring = &adev->sdma.instance[i].ring;
-
-		amdgpu_fence_driver_force_completion(ring);
-
-		if (adev->sdma.has_page_queue) {
-			struct amdgpu_ring *page = &adev->sdma.instance[i].page;
-
-			amdgpu_fence_driver_force_completion(page);
-		}
-	}
 
 	return r;
 }
