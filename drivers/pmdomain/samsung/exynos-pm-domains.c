@@ -147,6 +147,15 @@ static int exynos_pd_probe(struct platform_device *pdev)
 				parent.np, child.np);
 	}
 
+	/*
+	 * Some Samsung platforms with bootloaders turning on the splash-screen
+	 * and handing it over to the kernel, requires the power-domains to be
+	 * reset during boot. As a temporary hack to manage this, let's enforce
+	 * a sync_state.
+	 */
+	if (!ret)
+		of_genpd_sync_state(np);
+
 	pm_runtime_enable(dev);
 	return ret;
 }
