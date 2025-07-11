@@ -1832,6 +1832,7 @@ static const struct rtw_chip_ops rtw8703b_ops = {
 	.power_on		= rtw_power_on,
 	.power_off		= rtw_power_off,
 	.mac_init		= rtw8723x_mac_init,
+	.mac_postinit		= rtw8723x_mac_postinit,
 	.dump_fw_crash		= NULL,
 	.shutdown		= NULL,
 	.read_efuse		= rtw8703b_read_efuse,

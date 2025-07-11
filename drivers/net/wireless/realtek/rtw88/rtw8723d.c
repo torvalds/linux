@@ -1397,6 +1397,7 @@ static const struct rtw_chip_ops rtw8723d_ops = {
 	.query_phy_status	= query_phy_status,
 	.set_channel		= rtw8723d_set_channel,
 	.mac_init		= rtw8723x_mac_init,
+	.mac_postinit		= rtw8723x_mac_postinit,
 	.shutdown		= rtw8723d_shutdown,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,

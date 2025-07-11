@@ -2055,6 +2055,7 @@ static const struct rtw_chip_ops rtw8814a_ops = {
 	.query_phy_status	= rtw8814a_query_phy_status,
 	.set_channel		= rtw8814a_set_channel,
 	.mac_init		= rtw8814a_mac_init,
+	.mac_postinit		= NULL,
 	.read_rf		= rtw_phy_read_rf,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_tx_power_index	= rtw8814a_set_tx_power_index,

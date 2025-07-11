@@ -1412,6 +1412,12 @@ int rtw_power_on(struct rtw_dev *rtwdev)
 
 	chip->ops->phy_set_param(rtwdev);
 
+	ret = rtw_mac_postinit(rtwdev);
+	if (ret) {
+		rtw_err(rtwdev, "failed to configure mac in postinit\n");
+		goto err_off;
+	}
+
 	ret = rtw_hci_start(rtwdev);
 	if (ret) {
 		rtw_err(rtwdev, "failed to start hci\n");
