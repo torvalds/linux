@@ -700,12 +700,23 @@ struct iwl_sec_key_cmd {
 } __packed; /* SEC_KEY_CMD_API_S_VER_1 */
 
 /**
- * struct iwl_omi_send_status_notif - OMI status notification
+ * struct iwl_omi_send_status_notif_v1 - OMI status notification
  * @success: indicates that the OMI was sent successfully
  *	(currently always set)
  */
-struct iwl_omi_send_status_notif {
+struct iwl_omi_send_status_notif_v1 {
 	__le32 success;
 } __packed; /* OMI_SEND_STATUS_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_omi_send_status_notif - OMI status notification
+ * @success: indicates that the OMI was sent successfully
+ *	(currently always set)
+ * @sta_id: sta_id to which the OMI was sent
+ */
+struct iwl_omi_send_status_notif {
+	__le32 success;
+	__le32 sta_id;
+} __packed; /* OMI_SEND_STATUS_NTFY_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_datapath_h__ */

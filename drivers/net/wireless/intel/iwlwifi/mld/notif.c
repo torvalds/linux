@@ -349,7 +349,8 @@ CMD_VERSIONS(time_msmt_notif,
 CMD_VERSIONS(time_sync_confirm_notif,
 	     CMD_VER_ENTRY(1, iwl_time_msmt_cfm_notify))
 CMD_VERSIONS(omi_status_notif,
-	     CMD_VER_ENTRY(1, iwl_omi_send_status_notif))
+	     CMD_VER_ENTRY(1, iwl_omi_send_status_notif_v1)
+	     CMD_VER_ENTRY(2, iwl_omi_send_status_notif))
 CMD_VERSIONS(ftm_resp_notif, CMD_VER_ENTRY(10, iwl_tof_range_rsp_ntfy))
 CMD_VERSIONS(beacon_filter_notif, CMD_VER_ENTRY(2, iwl_beacon_filter_notif))
 
