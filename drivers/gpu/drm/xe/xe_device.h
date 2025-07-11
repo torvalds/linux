@@ -131,6 +131,10 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 	for ((id__) = 0; (id__) < (xe__)->info.tile_count * (xe__)->info.max_gt_per_tile; (id__)++) \
 		for_each_if((gt__) = xe_device_get_gt((xe__), (id__)))
 
+#define for_each_gt_on_tile(gt__, tile__, id__) \
+	for_each_gt((gt__), (tile__)->xe, (id__)) \
+		for_each_if((gt__)->tile == (tile__))
+
 static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 {
 	return &gt->pm.fw;
