@@ -121,6 +121,22 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			return false;
 
 		palive = (void *)pkt->data;
+
+		umac = &palive->umac_data;
+		lmac1 = &palive->lmac_data[0];
+		lmac2 = &palive->lmac_data[1];
+		status = le16_to_cpu(palive->status);
+
+		BUILD_BUG_ON(sizeof(palive->sku_id.data) !=
+			     sizeof(alive_data->sku_id));
+		memcpy(alive_data->sku_id, palive->sku_id.data,
+		       sizeof(palive->sku_id.data));
+
+		IWL_DEBUG_FW(mvm, "Got sku_id: 0x0%x 0x0%x 0x0%x\n",
+			     le32_to_cpu(alive_data->sku_id[0]),
+			     le32_to_cpu(alive_data->sku_id[1]),
+			     le32_to_cpu(alive_data->sku_id[2]));
+
 		mvm->trans->dbg.imr_data.imr_enable =
 			le32_to_cpu(palive->imr.enabled);
 		mvm->trans->dbg.imr_data.imr_size =
@@ -168,40 +184,6 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			IWL_DEBUG_FW(mvm, "platform id: 0x%llx\n",
 				     palive_v8->platform_id);
 		}
-	}
-
-	if (version >= 5) {
-		struct iwl_alive_ntf_v5 *palive;
-
-		if (pkt_len < sizeof(*palive))
-			return false;
-
-		palive = (void *)pkt->data;
-		umac = &palive->umac_data;
-		lmac1 = &palive->lmac_data[0];
-		lmac2 = &palive->lmac_data[1];
-		status = le16_to_cpu(palive->status);
-
-		BUILD_BUG_ON(sizeof(palive->sku_id.data) !=
-			     sizeof(alive_data->sku_id));
-		memcpy(alive_data->sku_id, palive->sku_id.data,
-		       sizeof(palive->sku_id.data));
-
-		IWL_DEBUG_FW(mvm, "Got sku_id: 0x0%x 0x0%x 0x0%x\n",
-			     le32_to_cpu(alive_data->sku_id[0]),
-			     le32_to_cpu(alive_data->sku_id[1]),
-			     le32_to_cpu(alive_data->sku_id[2]));
-	} else if (iwl_rx_packet_payload_len(pkt) == sizeof(struct iwl_alive_ntf_v4)) {
-		struct iwl_alive_ntf_v4 *palive;
-
-		if (pkt_len < sizeof(*palive))
-			return false;
-
-		palive = (void *)pkt->data;
-		umac = &palive->umac_data;
-		lmac1 = &palive->lmac_data[0];
-		lmac2 = &palive->lmac_data[1];
-		status = le16_to_cpu(palive->status);
 	} else if (iwl_rx_packet_payload_len(pkt) ==
 		   sizeof(struct iwl_alive_ntf_v3)) {
 		struct iwl_alive_ntf_v3 *palive3;
