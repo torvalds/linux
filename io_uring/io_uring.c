@@ -114,11 +114,11 @@
 #define IO_REQ_LINK_FLAGS (REQ_F_LINK | REQ_F_HARDLINK)
 
 #define IO_REQ_CLEAN_FLAGS (REQ_F_BUFFER_SELECTED | REQ_F_NEED_CLEANUP | \
-				REQ_F_POLLED | REQ_F_INFLIGHT | REQ_F_CREDS | \
-				REQ_F_ASYNC_DATA)
+				REQ_F_INFLIGHT | REQ_F_CREDS | REQ_F_ASYNC_DATA)
 
 #define IO_REQ_CLEAN_SLOW_FLAGS (REQ_F_REFCOUNT | IO_REQ_LINK_FLAGS | \
-				 REQ_F_REISSUE | IO_REQ_CLEAN_FLAGS)
+				 REQ_F_REISSUE | REQ_F_POLLED | \
+				 IO_REQ_CLEAN_FLAGS)
 
 #define IO_TCTX_REFS_CACHE_NR	(1U << 10)
 
@@ -391,11 +391,6 @@ static void io_clean_op(struct io_kiocb *req)
 
 		if (def->cleanup)
 			def->cleanup(req);
-	}
-	if ((req->flags & REQ_F_POLLED) && req->apoll) {
-		kfree(req->apoll->double_poll);
-		kfree(req->apoll);
-		req->apoll = NULL;
 	}
 	if (req->flags & REQ_F_INFLIGHT)
 		atomic_dec(&req->tctx->inflight_tracked);
