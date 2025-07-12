@@ -18,7 +18,7 @@ test_mode=system
 werror=1
 llvm=
 all_archs=(
-	i386 x86_64
+	i386 x86_64 x32
 	arm64 arm armthumb
 	mips32le mips32be mipsn32le mipsn32be mips64le mips64be
 	ppc ppc64 ppc64le
@@ -115,6 +115,7 @@ crosstool_arch() {
 	mips*) echo mips;;
 	s390*) echo s390;;
 	sparc*) echo sparc64;;
+	x32*) echo x86_64;;
 	*) echo "$1";;
 	esac
 }
@@ -189,6 +190,10 @@ test_arch() {
 		return
 	fi
 	if [ "$arch" = "m68k" -o "$arch" = "sh4" ] && [ "$llvm" = "1" ]; then
+		echo "Unsupported configuration"
+		return
+	fi
+	if [ "$arch" = "x32" ] && [ "$test_mode" = "user" ]; then
 		echo "Unsupported configuration"
 		return
 	fi
