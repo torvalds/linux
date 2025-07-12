@@ -210,91 +210,236 @@ struct msr_counter bic[] = {
 	{ 0x0, "pct_idle", NULL, 0, 0, 0, NULL, 0 },
 };
 
-#define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
-#define	BIC_USEC	(1ULL << 0)
-#define	BIC_TOD		(1ULL << 1)
-#define	BIC_Package	(1ULL << 2)
-#define	BIC_Node	(1ULL << 3)
-#define	BIC_Avg_MHz	(1ULL << 4)
-#define	BIC_Busy	(1ULL << 5)
-#define	BIC_Bzy_MHz	(1ULL << 6)
-#define	BIC_TSC_MHz	(1ULL << 7)
-#define	BIC_IRQ		(1ULL << 8)
-#define	BIC_SMI		(1ULL << 9)
-#define	BIC_cpuidle	(1ULL << 10)
-#define	BIC_CPU_c1	(1ULL << 11)
-#define	BIC_CPU_c3	(1ULL << 12)
-#define	BIC_CPU_c6	(1ULL << 13)
-#define	BIC_CPU_c7	(1ULL << 14)
-#define	BIC_ThreadC	(1ULL << 15)
-#define	BIC_CoreTmp	(1ULL << 16)
-#define	BIC_CoreCnt	(1ULL << 17)
-#define	BIC_PkgTmp	(1ULL << 18)
-#define	BIC_GFX_rc6	(1ULL << 19)
-#define	BIC_GFXMHz	(1ULL << 20)
-#define	BIC_Pkgpc2	(1ULL << 21)
-#define	BIC_Pkgpc3	(1ULL << 22)
-#define	BIC_Pkgpc6	(1ULL << 23)
-#define	BIC_Pkgpc7	(1ULL << 24)
-#define	BIC_Pkgpc8	(1ULL << 25)
-#define	BIC_Pkgpc9	(1ULL << 26)
-#define	BIC_Pkgpc10	(1ULL << 27)
-#define BIC_CPU_LPI	(1ULL << 28)
-#define BIC_SYS_LPI	(1ULL << 29)
-#define	BIC_PkgWatt	(1ULL << 30)
-#define	BIC_CorWatt	(1ULL << 31)
-#define	BIC_GFXWatt	(1ULL << 32)
-#define	BIC_PkgCnt	(1ULL << 33)
-#define	BIC_RAMWatt	(1ULL << 34)
-#define	BIC_PKG__	(1ULL << 35)
-#define	BIC_RAM__	(1ULL << 36)
-#define	BIC_Pkg_J	(1ULL << 37)
-#define	BIC_Cor_J	(1ULL << 38)
-#define	BIC_GFX_J	(1ULL << 39)
-#define	BIC_RAM_J	(1ULL << 40)
-#define	BIC_Mod_c6	(1ULL << 41)
-#define	BIC_Totl_c0	(1ULL << 42)
-#define	BIC_Any_c0	(1ULL << 43)
-#define	BIC_GFX_c0	(1ULL << 44)
-#define	BIC_CPUGFX	(1ULL << 45)
-#define	BIC_Core	(1ULL << 46)
-#define	BIC_CPU		(1ULL << 47)
-#define	BIC_APIC	(1ULL << 48)
-#define	BIC_X2APIC	(1ULL << 49)
-#define	BIC_Die		(1ULL << 50)
-#define	BIC_GFXACTMHz	(1ULL << 51)
-#define	BIC_IPC		(1ULL << 52)
-#define	BIC_CORE_THROT_CNT	(1ULL << 53)
-#define	BIC_UNCORE_MHZ		(1ULL << 54)
-#define	BIC_SAM_mc6		(1ULL << 55)
-#define	BIC_SAMMHz		(1ULL << 56)
-#define	BIC_SAMACTMHz		(1ULL << 57)
-#define	BIC_Diec6		(1ULL << 58)
-#define	BIC_SysWatt		(1ULL << 59)
-#define	BIC_Sys_J		(1ULL << 60)
-#define	BIC_NMI			(1ULL << 61)
-#define	BIC_CPU_c1e		(1ULL << 62)
-#define	BIC_pct_idle		(1ULL << 63)
+/* n.b. bic_names must match the order in bic[], above */
+enum bic_names {
+	BIC_USEC,
+	BIC_TOD,
+	BIC_Package,
+	BIC_Node,
+	BIC_Avg_MHz,
+	BIC_Busy,
+	BIC_Bzy_MHz,
+	BIC_TSC_MHz,
+	BIC_IRQ,
+	BIC_SMI,
+	BIC_cpuidle,
+	BIC_CPU_c1,
+	BIC_CPU_c3,
+	BIC_CPU_c6,
+	BIC_CPU_c7,
+	BIC_ThreadC,
+	BIC_CoreTmp,
+	BIC_CoreCnt,
+	BIC_PkgTmp,
+	BIC_GFX_rc6,
+	BIC_GFXMHz,
+	BIC_Pkgpc2,
+	BIC_Pkgpc3,
+	BIC_Pkgpc6,
+	BIC_Pkgpc7,
+	BIC_Pkgpc8,
+	BIC_Pkgpc9,
+	BIC_Pkgpc10,
+	BIC_CPU_LPI,
+	BIC_SYS_LPI,
+	BIC_PkgWatt,
+	BIC_CorWatt,
+	BIC_GFXWatt,
+	BIC_PkgCnt,
+	BIC_RAMWatt,
+	BIC_PKG__,
+	BIC_RAM__,
+	BIC_Pkg_J,
+	BIC_Cor_J,
+	BIC_GFX_J,
+	BIC_RAM_J,
+	BIC_Mod_c6,
+	BIC_Totl_c0,
+	BIC_Any_c0,
+	BIC_GFX_c0,
+	BIC_CPUGFX,
+	BIC_Core,
+	BIC_CPU,
+	BIC_APIC,
+	BIC_X2APIC,
+	BIC_Die,
+	BIC_GFXACTMHz,
+	BIC_IPC,
+	BIC_CORE_THROT_CNT,
+	BIC_UNCORE_MHZ,
+	BIC_SAM_mc6,
+	BIC_SAMMHz,
+	BIC_SAMACTMHz,
+	BIC_Diec6,
+	BIC_SysWatt,
+	BIC_Sys_J,
+	BIC_NMI,
+	BIC_CPU_c1e,
+	BIC_pct_idle,
+	MAX_BIC
+};
 
-#define BIC_GROUP_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die)
-#define BIC_GROUP_THERMAL_PWR (BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
-#define BIC_GROUP_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
-#define BIC_GROUP_HW_IDLE (BIC_Busy | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
-#define BIC_GROUP_SW_IDLE (BIC_Busy | BIC_cpuidle | BIC_pct_idle )
-#define BIC_GROUP_IDLE (BIC_GROUP_HW_IDLE | BIC_pct_idle)
-#define BIC_OTHER (BIC_IRQ | BIC_NMI | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
+void print_bic_set(char *s, cpu_set_t *set)
+{
+	int i;
 
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC | BIC_cpuidle)
+	assert(MAX_BIC < CPU_SETSIZE);
 
-unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
-unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_cpuidle | BIC_pct_idle | BIC_APIC | BIC_X2APIC;
+	printf("%s:", s);
 
-#define DO_BIC(COUNTER_NAME) (bic_enabled & bic_present & COUNTER_NAME)
-#define DO_BIC_READ(COUNTER_NAME) (bic_present & COUNTER_NAME)
-#define ENABLE_BIC(COUNTER_NAME) (bic_enabled |= COUNTER_NAME)
-#define BIC_PRESENT(COUNTER_BIT) (bic_present |= COUNTER_BIT)
-#define BIC_NOT_PRESENT(COUNTER_BIT) (bic_present &= ~COUNTER_BIT)
-#define BIC_IS_ENABLED(COUNTER_BIT) (bic_enabled & COUNTER_BIT)
+	for (i = 0; i <= MAX_BIC; ++i) {
+
+		if (CPU_ISSET(i, set)) {
+			assert(i < MAX_BIC);
+			printf(" %s", bic[i].name);
+		} 
+	}
+	putchar('\n');
+}
+
+static cpu_set_t bic_group_topology;
+static cpu_set_t bic_group_thermal_pwr;
+static cpu_set_t bic_group_frequency;
+static cpu_set_t bic_group_hw_idle;
+static cpu_set_t bic_group_sw_idle;
+static cpu_set_t bic_group_idle;
+static cpu_set_t bic_group_other;
+static cpu_set_t bic_group_disabled_by_default;
+static cpu_set_t bic_enabled;
+static cpu_set_t bic_present;
+
+/* modify */
+#define BIC_INIT(set) CPU_ZERO(set)
+
+#define SET_BIC(COUNTER_NUMBER, set) CPU_SET(COUNTER_NUMBER, set)
+#define CLR_BIC(COUNTER_NUMBER, set) CPU_CLR(COUNTER_NUMBER, set)
+
+#define BIC_PRESENT(COUNTER_NUMBER) SET_BIC(COUNTER_NUMBER, &bic_present)
+#define BIC_NOT_PRESENT(COUNTER_NUMBER) CPU_CLR(COUNTER_NUMBER, &bic_present)
+
+/* test */
+#define BIC_IS_ENABLED(COUNTER_NUMBER) CPU_ISSET(COUNTER_NUMBER, &bic_enabled)
+#define DO_BIC_READ(COUNTER_NUMBER) CPU_ISSET(COUNTER_NUMBER, &bic_present)
+#define DO_BIC(COUNTER_NUMBER) (CPU_ISSET(COUNTER_NUMBER, &bic_enabled) && CPU_ISSET(COUNTER_NUMBER, &bic_present))
+
+static void bic_set_all(cpu_set_t *set)
+{
+	int i;
+
+	assert(MAX_BIC < CPU_SETSIZE);
+
+	for (i = 0; i < MAX_BIC; ++i)
+		SET_BIC(i, set);
+}
+
+/*
+ * bic_clear_bits()
+ * clear all the bits from "clr" in "dst"
+ */
+static void bic_clear_bits(cpu_set_t *dst, cpu_set_t *clr)
+{
+	int i;
+
+	assert(MAX_BIC < CPU_SETSIZE);
+
+	for (i = 0; i < MAX_BIC; ++i)
+		if (CPU_ISSET(i, clr))
+			CLR_BIC(i, dst);
+}
+
+static void bic_groups_init(void)
+{
+	BIC_INIT(&bic_group_topology);
+	SET_BIC(BIC_Package, &bic_group_topology);
+	SET_BIC(BIC_Node, &bic_group_topology);
+	SET_BIC(BIC_CoreCnt, &bic_group_topology);
+	SET_BIC(BIC_PkgCnt, &bic_group_topology);
+	SET_BIC(BIC_Core, &bic_group_topology);
+	SET_BIC(BIC_CPU, &bic_group_topology);
+	SET_BIC(BIC_Die, &bic_group_topology);
+
+	BIC_INIT(&bic_group_thermal_pwr);
+	SET_BIC(BIC_CoreTmp, &bic_group_thermal_pwr);
+	SET_BIC(BIC_PkgTmp, &bic_group_thermal_pwr);
+	SET_BIC(BIC_PkgWatt, &bic_group_thermal_pwr);
+	SET_BIC(BIC_CorWatt, &bic_group_thermal_pwr);
+	SET_BIC(BIC_GFXWatt, &bic_group_thermal_pwr);
+	SET_BIC(BIC_RAMWatt, &bic_group_thermal_pwr);
+	SET_BIC(BIC_PKG__, &bic_group_thermal_pwr);
+	SET_BIC(BIC_RAM__, &bic_group_thermal_pwr);
+	SET_BIC(BIC_SysWatt, &bic_group_thermal_pwr);
+
+	BIC_INIT(&bic_group_frequency);
+	SET_BIC(BIC_Avg_MHz, &bic_group_frequency);
+	SET_BIC(BIC_Busy, &bic_group_frequency);
+	SET_BIC(BIC_Bzy_MHz, &bic_group_frequency);
+	SET_BIC(BIC_TSC_MHz, &bic_group_frequency);
+	SET_BIC(BIC_GFXMHz, &bic_group_frequency);
+	SET_BIC(BIC_GFXACTMHz, &bic_group_frequency);
+	SET_BIC(BIC_SAMMHz, &bic_group_frequency);
+	SET_BIC(BIC_SAMACTMHz, &bic_group_frequency);
+	SET_BIC(BIC_UNCORE_MHZ, &bic_group_frequency);
+
+	BIC_INIT(&bic_group_hw_idle);
+	SET_BIC(BIC_Busy, &bic_group_hw_idle);
+	SET_BIC(BIC_CPU_c1, &bic_group_hw_idle);
+	SET_BIC(BIC_CPU_c3, &bic_group_hw_idle);
+	SET_BIC(BIC_CPU_c6, &bic_group_hw_idle);
+	SET_BIC(BIC_CPU_c7, &bic_group_hw_idle);
+	SET_BIC(BIC_GFX_rc6, &bic_group_hw_idle);
+	SET_BIC(BIC_Pkgpc2, &bic_group_hw_idle);
+	SET_BIC(BIC_Pkgpc3, &bic_group_hw_idle);
+	SET_BIC(BIC_Pkgpc6, &bic_group_hw_idle);
+	SET_BIC(BIC_Pkgpc7, &bic_group_hw_idle);
+	SET_BIC(BIC_Pkgpc8, &bic_group_hw_idle);
+	SET_BIC(BIC_Pkgpc9, &bic_group_hw_idle);
+	SET_BIC(BIC_Pkgpc10, &bic_group_hw_idle);
+	SET_BIC(BIC_CPU_LPI, &bic_group_hw_idle);
+	SET_BIC(BIC_SYS_LPI, &bic_group_hw_idle);
+	SET_BIC(BIC_Mod_c6, &bic_group_hw_idle);
+	SET_BIC(BIC_Totl_c0, &bic_group_hw_idle);
+	SET_BIC(BIC_Any_c0, &bic_group_hw_idle);
+	SET_BIC(BIC_GFX_c0, &bic_group_hw_idle);
+	SET_BIC(BIC_CPUGFX, &bic_group_hw_idle);
+	SET_BIC(BIC_SAM_mc6, &bic_group_hw_idle);
+	SET_BIC(BIC_Diec6, &bic_group_hw_idle);
+
+	BIC_INIT(&bic_group_sw_idle);
+	SET_BIC(BIC_Busy, &bic_group_sw_idle);
+	SET_BIC(BIC_cpuidle, &bic_group_sw_idle);
+	SET_BIC(BIC_pct_idle, &bic_group_sw_idle);
+
+	BIC_INIT(&bic_group_idle);
+	CPU_OR(&bic_group_idle, &bic_group_idle, &bic_group_hw_idle);
+	SET_BIC(BIC_pct_idle, &bic_group_idle);
+
+	BIC_INIT(&bic_group_other);
+	SET_BIC(BIC_IRQ, &bic_group_other);
+	SET_BIC(BIC_NMI, &bic_group_other);
+	SET_BIC(BIC_SMI, &bic_group_other);
+	SET_BIC(BIC_ThreadC, &bic_group_other);
+	SET_BIC(BIC_CoreTmp, &bic_group_other);
+	SET_BIC(BIC_IPC, &bic_group_other);
+
+	BIC_INIT(&bic_group_disabled_by_default);
+	SET_BIC(BIC_USEC, &bic_group_disabled_by_default);
+	SET_BIC(BIC_TOD, &bic_group_disabled_by_default);
+	SET_BIC(BIC_cpuidle, &bic_group_disabled_by_default);
+	SET_BIC(BIC_APIC, &bic_group_disabled_by_default);
+	SET_BIC(BIC_X2APIC, &bic_group_disabled_by_default);
+
+	BIC_INIT(&bic_enabled);
+	bic_set_all(&bic_enabled);
+	bic_clear_bits(&bic_enabled, &bic_group_disabled_by_default);
+
+	BIC_INIT(&bic_present);
+	SET_BIC(BIC_USEC, &bic_present);
+	SET_BIC(BIC_TOD, &bic_present);
+	SET_BIC(BIC_cpuidle, &bic_present);
+	SET_BIC(BIC_APIC, &bic_present);
+	SET_BIC(BIC_X2APIC, &bic_present);
+	SET_BIC(BIC_pct_idle, &bic_present);
+}
 
 /*
  * MSR_PKG_CST_CONFIG_CONTROL decoding for pkg_cstate_limit:
@@ -1205,7 +1350,7 @@ struct rapl_counter_arch_info {
 	int msr_shift;		/* Positive mean shift right, negative mean shift left */
 	double *platform_rapl_msr_scale;	/* Scale applied to values read by MSR (platform dependent, filled at runtime) */
 	unsigned int rci_index;	/* Maps data from perf counters to global variables */
-	unsigned long long bic;
+	unsigned int bic_number;
 	double compat_scale;	/* Some counters require constant scaling to be in the same range as other, similar ones */
 	unsigned long long flags;
 };
@@ -1220,7 +1365,20 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_ENERGY_PKG,
-	 .bic = BIC_PkgWatt | BIC_Pkg_J,
+	 .bic_number = BIC_PkgWatt,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_PKG,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-pkg",
+	 .msr = MSR_PKG_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_PKG,
+	 .bic_number = BIC_Pkg_J,
 	 .compat_scale = 1.0,
 	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1233,7 +1391,20 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_ENERGY_PKG,
-	 .bic = BIC_PkgWatt | BIC_Pkg_J,
+	 .bic_number = BIC_PkgWatt,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_AMD_F17H,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-pkg",
+	 .msr = MSR_PKG_ENERGY_STAT,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_PKG,
+	 .bic_number = BIC_Pkg_J,
 	 .compat_scale = 1.0,
 	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1246,7 +1417,20 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_ENERGY_CORES,
-	 .bic = BIC_CorWatt | BIC_Cor_J,
+	 .bic_number = BIC_CorWatt,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_CORE_ENERGY_STATUS,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-cores",
+	 .msr = MSR_PP0_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_CORES,
+	 .bic_number = BIC_Cor_J,
 	 .compat_scale = 1.0,
 	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1259,7 +1443,20 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_dram_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_DRAM,
-	 .bic = BIC_RAMWatt | BIC_RAM_J,
+	 .bic_number = BIC_RAMWatt,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_DRAM,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-ram",
+	 .msr = MSR_DRAM_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_dram_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_DRAM,
+	 .bic_number = BIC_RAM_J,
 	 .compat_scale = 1.0,
 	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1272,7 +1469,20 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_GFX,
-	 .bic = BIC_GFXWatt | BIC_GFX_J,
+	 .bic_number = BIC_GFXWatt,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_GFX,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-gpu",
+	 .msr = MSR_PP1_ENERGY_STATUS,
+	 .msr_mask = 0xFFFFFFFFFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_GFX,
+	 .bic_number = BIC_GFX_J,
 	 .compat_scale = 1.0,
 	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1285,7 +1495,7 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_time_units,
 	 .rci_index = RAPL_RCI_INDEX_PKG_PERF_STATUS,
-	 .bic = BIC_PKG__,
+	 .bic_number = BIC_PKG__,
 	 .compat_scale = 100.0,
 	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1298,7 +1508,7 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_time_units,
 	 .rci_index = RAPL_RCI_INDEX_DRAM_PERF_STATUS,
-	 .bic = BIC_RAM__,
+	 .bic_number = BIC_RAM__,
 	 .compat_scale = 100.0,
 	 .flags = RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1311,7 +1521,20 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_CORE_ENERGY,
-	 .bic = BIC_CorWatt | BIC_Cor_J,
+	 .bic_number = BIC_CorWatt,
+	 .compat_scale = 1.0,
+	 .flags = 0,
+	  },
+	{
+	 .feature_mask = RAPL_AMD_F17H,
+	 .perf_subsys = NULL,
+	 .perf_name = NULL,
+	 .msr = MSR_CORE_ENERGY_STAT,
+	 .msr_mask = 0xFFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_CORE_ENERGY,
+	 .bic_number = BIC_Cor_J,
 	 .compat_scale = 1.0,
 	 .flags = 0,
 	  },
@@ -1324,7 +1547,20 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr_shift = 0,
 	 .platform_rapl_msr_scale = &rapl_psys_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_ENERGY_PLATFORM,
-	 .bic = BIC_SysWatt | BIC_Sys_J,
+	 .bic_number = BIC_SysWatt,
+	 .compat_scale = 1.0,
+	 .flags = RAPL_COUNTER_FLAG_PLATFORM_COUNTER | RAPL_COUNTER_FLAG_USE_MSR_SUM,
+	  },
+	{
+	 .feature_mask = RAPL_PSYS,
+	 .perf_subsys = "power",
+	 .perf_name = "energy-psys",
+	 .msr = MSR_PLATFORM_ENERGY_STATUS,
+	 .msr_mask = 0x00000000FFFFFFFF,
+	 .msr_shift = 0,
+	 .platform_rapl_msr_scale = &rapl_psys_energy_units,
+	 .rci_index = RAPL_RCI_INDEX_ENERGY_PLATFORM,
+	 .bic_number = BIC_Sys_J,
 	 .compat_scale = 1.0,
 	 .flags = RAPL_COUNTER_FLAG_PLATFORM_COUNTER | RAPL_COUNTER_FLAG_USE_MSR_SUM,
 	  },
@@ -1373,7 +1609,7 @@ struct cstate_counter_arch_info {
 	const char *perf_name;
 	unsigned long long msr;
 	unsigned int rci_index;	/* Maps data from perf counters to global variables */
-	unsigned long long bic;
+	unsigned int bic_number;
 	unsigned long long flags;
 	int pkg_cstate_limit;
 };
@@ -1385,7 +1621,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c1-residency",
 	 .msr = MSR_CORE_C1_RES,
 	 .rci_index = CCSTATE_RCI_INDEX_C1_RESIDENCY,
-	 .bic = BIC_CPU_c1,
+	 .bic_number = BIC_CPU_c1,
 	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_THREAD,
 	 .pkg_cstate_limit = 0,
 	  },
@@ -1395,7 +1631,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c3-residency",
 	 .msr = MSR_CORE_C3_RESIDENCY,
 	 .rci_index = CCSTATE_RCI_INDEX_C3_RESIDENCY,
-	 .bic = BIC_CPU_c3,
+	 .bic_number = BIC_CPU_c3,
 	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
 	 .pkg_cstate_limit = 0,
 	  },
@@ -1405,7 +1641,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c6-residency",
 	 .msr = MSR_CORE_C6_RESIDENCY,
 	 .rci_index = CCSTATE_RCI_INDEX_C6_RESIDENCY,
-	 .bic = BIC_CPU_c6,
+	 .bic_number = BIC_CPU_c6,
 	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
 	 .pkg_cstate_limit = 0,
 	  },
@@ -1415,7 +1651,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c7-residency",
 	 .msr = MSR_CORE_C7_RESIDENCY,
 	 .rci_index = CCSTATE_RCI_INDEX_C7_RESIDENCY,
-	 .bic = BIC_CPU_c7,
+	 .bic_number = BIC_CPU_c7,
 	 .flags = CSTATE_COUNTER_FLAG_COLLECT_PER_CORE | CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY,
 	 .pkg_cstate_limit = 0,
 	  },
@@ -1425,7 +1661,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c2-residency",
 	 .msr = MSR_PKG_C2_RESIDENCY,
 	 .rci_index = PCSTATE_RCI_INDEX_C2_RESIDENCY,
-	 .bic = BIC_Pkgpc2,
+	 .bic_number = BIC_Pkgpc2,
 	 .flags = 0,
 	 .pkg_cstate_limit = PCL__2,
 	  },
@@ -1435,7 +1671,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c3-residency",
 	 .msr = MSR_PKG_C3_RESIDENCY,
 	 .rci_index = PCSTATE_RCI_INDEX_C3_RESIDENCY,
-	 .bic = BIC_Pkgpc3,
+	 .bic_number = BIC_Pkgpc3,
 	 .flags = 0,
 	 .pkg_cstate_limit = PCL__3,
 	  },
@@ -1445,7 +1681,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c6-residency",
 	 .msr = MSR_PKG_C6_RESIDENCY,
 	 .rci_index = PCSTATE_RCI_INDEX_C6_RESIDENCY,
-	 .bic = BIC_Pkgpc6,
+	 .bic_number = BIC_Pkgpc6,
 	 .flags = 0,
 	 .pkg_cstate_limit = PCL__6,
 	  },
@@ -1455,7 +1691,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c7-residency",
 	 .msr = MSR_PKG_C7_RESIDENCY,
 	 .rci_index = PCSTATE_RCI_INDEX_C7_RESIDENCY,
-	 .bic = BIC_Pkgpc7,
+	 .bic_number = BIC_Pkgpc7,
 	 .flags = 0,
 	 .pkg_cstate_limit = PCL__7,
 	  },
@@ -1465,7 +1701,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c8-residency",
 	 .msr = MSR_PKG_C8_RESIDENCY,
 	 .rci_index = PCSTATE_RCI_INDEX_C8_RESIDENCY,
-	 .bic = BIC_Pkgpc8,
+	 .bic_number = BIC_Pkgpc8,
 	 .flags = 0,
 	 .pkg_cstate_limit = PCL__8,
 	  },
@@ -1475,7 +1711,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c9-residency",
 	 .msr = MSR_PKG_C9_RESIDENCY,
 	 .rci_index = PCSTATE_RCI_INDEX_C9_RESIDENCY,
-	 .bic = BIC_Pkgpc9,
+	 .bic_number = BIC_Pkgpc9,
 	 .flags = 0,
 	 .pkg_cstate_limit = PCL__9,
 	  },
@@ -1485,7 +1721,7 @@ static struct cstate_counter_arch_info ccstate_counter_arch_infos[] = {
 	 .perf_name = "c10-residency",
 	 .msr = MSR_PKG_C10_RESIDENCY,
 	 .rci_index = PCSTATE_RCI_INDEX_C10_RESIDENCY,
-	 .bic = BIC_Pkgpc10,
+	 .bic_number = BIC_Pkgpc10,
 	 .flags = 0,
 	 .pkg_cstate_limit = PCL_10,
 	  },
@@ -2180,10 +2416,13 @@ int get_msr_fd(int cpu)
 
 static void bic_disable_msr_access(void)
 {
-	const unsigned long bic_msrs = BIC_Mod_c6 | BIC_CoreTmp |
-	    BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_PkgTmp;
-
-	bic_enabled &= ~bic_msrs;
+	CLR_BIC(BIC_Mod_c6, &bic_enabled);
+	CLR_BIC(BIC_CoreTmp, &bic_enabled);
+	CLR_BIC(BIC_Totl_c0, &bic_enabled);
+	CLR_BIC(BIC_Any_c0, &bic_enabled);
+	CLR_BIC(BIC_GFX_c0, &bic_enabled);
+	CLR_BIC(BIC_CPUGFX, &bic_enabled);
+	CLR_BIC(BIC_PkgTmp, &bic_enabled);
 
 	free_sys_msr_counters();
 }
@@ -2383,10 +2622,9 @@ void help(void)
  * for all the strings in comma separate name_list,
  * set the approprate bit in return value.
  */
-unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
+void bic_lookup(cpu_set_t *ret_set, char *name_list, enum show_hide_mode mode)
 {
 	unsigned int i;
-	unsigned long long retval = 0;
 
 	while (name_list) {
 		char *comma;
@@ -2398,38 +2636,37 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 
 		for (i = 0; i < MAX_BIC; ++i) {
 			if (!strcmp(name_list, bic[i].name)) {
-				retval |= (1ULL << i);
+				SET_BIC(i, ret_set);
 				break;
 			}
 			if (!strcmp(name_list, "all")) {
-				retval |= ~0;
+				bic_set_all(ret_set);
 				break;
 			} else if (!strcmp(name_list, "topology")) {
-				retval |= BIC_GROUP_TOPOLOGY;
+				CPU_OR(ret_set, ret_set, &bic_group_topology);
 				break;
 			} else if (!strcmp(name_list, "power")) {
-				retval |= BIC_GROUP_THERMAL_PWR;
+				CPU_OR(ret_set, ret_set, &bic_group_thermal_pwr);
 				break;
 			} else if (!strcmp(name_list, "idle")) {
-				retval |= BIC_GROUP_IDLE;
+				CPU_OR(ret_set, ret_set, &bic_group_idle);
 				break;
 			} else if (!strcmp(name_list, "swidle")) {
-				retval |= BIC_GROUP_SW_IDLE;
+				CPU_OR(ret_set, ret_set, &bic_group_sw_idle);
 				break;
 			} else if (!strcmp(name_list, "sysfs")) {	/* legacy compatibility */
-				retval |= BIC_GROUP_SW_IDLE;
+				CPU_OR(ret_set, ret_set, &bic_group_sw_idle);
 				break;
 			} else if (!strcmp(name_list, "hwidle")) {
-				retval |= BIC_GROUP_HW_IDLE;
+				CPU_OR(ret_set, ret_set, &bic_group_hw_idle);
 				break;
 			} else if (!strcmp(name_list, "frequency")) {
-				retval |= BIC_GROUP_FREQUENCY;
+				CPU_OR(ret_set, ret_set, &bic_group_frequency);
 				break;
 			} else if (!strcmp(name_list, "other")) {
-				retval |= BIC_OTHER;
+				CPU_OR(ret_set, ret_set, &bic_group_other);
 				break;
 			}
-
 		}
 		if (i == MAX_BIC) {
 			if (mode == SHOW_LIST) {
@@ -2458,7 +2695,6 @@ unsigned long long bic_lookup(char *name_list, enum show_hide_mode mode)
 			name_list++;
 
 	}
-	return retval;
 }
 
 void print_header(char *delim)
@@ -7345,21 +7581,28 @@ void rapl_probe_intel(void)
 	unsigned long long msr;
 	unsigned int time_unit;
 	double tdp;
-	const unsigned long long bic_watt_bits = BIC_SysWatt | BIC_PkgWatt | BIC_CorWatt | BIC_RAMWatt | BIC_GFXWatt;
-	const unsigned long long bic_joules_bits = BIC_Sys_J | BIC_Pkg_J | BIC_Cor_J | BIC_RAM_J | BIC_GFX_J;
 
-	if (rapl_joules)
-		bic_enabled &= ~bic_watt_bits;
-	else
-		bic_enabled &= ~bic_joules_bits;
+	if (rapl_joules) {
+		CLR_BIC(BIC_SysWatt, &bic_enabled);
+		CLR_BIC(BIC_PkgWatt, &bic_enabled);
+		CLR_BIC(BIC_CorWatt, &bic_enabled);
+		CLR_BIC(BIC_RAMWatt, &bic_enabled);
+		CLR_BIC(BIC_GFXWatt, &bic_enabled);
+	} else {
+		CLR_BIC(BIC_Sys_J, &bic_enabled);
+		CLR_BIC(BIC_Pkg_J, &bic_enabled);
+		CLR_BIC(BIC_Cor_J, &bic_enabled);
+		CLR_BIC(BIC_RAM_J, &bic_enabled);
+		CLR_BIC(BIC_GFX_J, &bic_enabled);
+	}
 
 	if (!platform->rapl_msrs || no_msr)
 		return;
 
 	if (!(platform->rapl_msrs & RAPL_PKG_PERF_STATUS))
-		bic_enabled &= ~BIC_PKG__;
+		CLR_BIC(BIC_PKG__, &bic_enabled);
 	if (!(platform->rapl_msrs & RAPL_DRAM_PERF_STATUS))
-		bic_enabled &= ~BIC_RAM__;
+		CLR_BIC(BIC_RAM__, &bic_enabled);
 
 	/* units on package 0, verify later other packages match */
 	if (get_msr(base_cpu, MSR_RAPL_POWER_UNIT, &msr))
@@ -7398,13 +7641,14 @@ void rapl_probe_amd(void)
 {
 	unsigned long long msr;
 	double tdp;
-	const unsigned long long bic_watt_bits = BIC_PkgWatt | BIC_CorWatt;
-	const unsigned long long bic_joules_bits = BIC_Pkg_J | BIC_Cor_J;
 
-	if (rapl_joules)
-		bic_enabled &= ~bic_watt_bits;
-	else
-		bic_enabled &= ~bic_joules_bits;
+	if (rapl_joules) {
+		CLR_BIC(BIC_SysWatt, &bic_enabled);
+		CLR_BIC(BIC_CorWatt, &bic_enabled);
+	} else {
+		CLR_BIC(BIC_Pkg_J, &bic_enabled);
+		CLR_BIC(BIC_Cor_J, &bic_enabled);
+	}
 
 	if (!platform->rapl_msrs || no_msr)
 		return;
@@ -8151,7 +8395,7 @@ void rapl_perf_init(void)
 		enum rapl_unit unit;
 		unsigned int next_domain;
 
-		if (!BIC_IS_ENABLED(cai->bic))
+		if (!BIC_IS_ENABLED(cai->bic_number))
 			continue;
 
 		memset(domain_visited, 0, num_domains * sizeof(*domain_visited));
@@ -8215,7 +8459,7 @@ void rapl_perf_init(void)
 
 		/* If any CPU has access to the counter, make it present */
 		if (has_counter)
-			BIC_PRESENT(cai->bic);
+			BIC_PRESENT(cai->bic_number);
 	}
 
 	free(domain_visited);
@@ -8436,7 +8680,7 @@ void cstate_perf_init_(bool soft_c1)
 			if (!per_core && pkg_visited[pkg_id])
 				continue;
 
-			const bool counter_needed = BIC_IS_ENABLED(cai->bic) ||
+			const bool counter_needed = BIC_IS_ENABLED(cai->bic_number) ||
 			    (soft_c1 && (cai->flags & CSTATE_COUNTER_FLAG_SOFT_C1_DEPENDENCY));
 			const bool counter_supported = (platform->supported_cstates & cai->feature_mask);
 
@@ -8463,7 +8707,7 @@ void cstate_perf_init_(bool soft_c1)
 
 		/* If any CPU has access to the counter, make it present */
 		if (has_counter)
-			BIC_PRESENT(cai->bic);
+			BIC_PRESENT(cai->bic_number);
 	}
 
 	free(cores_visited);
@@ -9199,7 +9443,7 @@ void check_msr_access(void)
 void check_perf_access(void)
 {
 	if (no_perf || !BIC_IS_ENABLED(BIC_IPC) || !has_instr_count_access())
-		bic_enabled &= ~BIC_IPC;
+		CLR_BIC(BIC_IPC, &bic_enabled);
 }
 
 bool perf_has_hybrid_devices(void)
@@ -9768,8 +10012,8 @@ void turbostat_init()
 	 * disable more BICs, since it can't be reported accurately.
 	 */
 	if (platform->enable_tsc_tweak && !has_base_hz) {
-		bic_enabled &= ~BIC_Busy;
-		bic_enabled &= ~BIC_Bzy_MHz;
+		CLR_BIC(BIC_Busy, &bic_enabled);
+		CLR_BIC(BIC_Bzy_MHz, &bic_enabled);
 	}
 }
 
@@ -10785,22 +11029,29 @@ void cmdline(int argc, char **argv)
 			no_perf = 1;
 			break;
 		case 'e':
-			/* --enable specified counter */
-			bic_enabled = bic_enabled | bic_lookup(optarg, SHOW_LIST);
+			/* --enable specified counter, without clearning existing list */
+			bic_lookup(&bic_enabled, optarg, SHOW_LIST);
 			break;
 		case 'f':
 			force_load++;
 			break;
 		case 'd':
 			debug++;
-			ENABLE_BIC(BIC_DISABLED_BY_DEFAULT);
+			bic_set_all(&bic_enabled);
 			break;
 		case 'H':
 			/*
 			 * --hide: do not show those specified
 			 *  multiple invocations simply clear more bits in enabled mask
 			 */
-			bic_enabled &= ~bic_lookup(optarg, HIDE_LIST);
+			{
+				cpu_set_t bic_group_hide;
+
+				BIC_INIT(&bic_group_hide);
+
+				bic_lookup(&bic_group_hide, optarg, HIDE_LIST);
+				bic_clear_bits(&bic_enabled, &bic_group_hide);
+			}
 			break;
 		case 'h':
 		default:
@@ -10824,7 +11075,7 @@ void cmdline(int argc, char **argv)
 			rapl_joules++;
 			break;
 		case 'l':
-			ENABLE_BIC(BIC_DISABLED_BY_DEFAULT);
+			bic_set_all(&bic_enabled);
 			list_header_only++;
 			quiet++;
 			break;
@@ -10861,9 +11112,8 @@ void cmdline(int argc, char **argv)
 			 *  subsequent invocations can add to it.
 			 */
 			if (shown == 0)
-				bic_enabled = bic_lookup(optarg, SHOW_LIST);
-			else
-				bic_enabled |= bic_lookup(optarg, SHOW_LIST);
+				BIC_INIT(&bic_enabled);
+			bic_lookup(&bic_enabled, optarg, SHOW_LIST);
 			shown = 1;
 			break;
 		case 'S':
@@ -10899,6 +11149,8 @@ void set_rlimit(void)
 int main(int argc, char **argv)
 {
 	int fd, ret;
+
+	bic_groups_init();
 
 	fd = open("/sys/fs/cgroup/cgroup.procs", O_WRONLY);
 	if (fd < 0)
