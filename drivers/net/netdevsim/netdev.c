@@ -998,8 +998,9 @@ static void nsim_exit_netdevsim(struct netdevsim *ns)
 	mock_phc_destroy(ns->phc);
 }
 
-struct netdevsim *
-nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
+struct netdevsim *nsim_create(struct nsim_dev *nsim_dev,
+			      struct nsim_dev_port *nsim_dev_port,
+			      u8 perm_addr[ETH_ALEN])
 {
 	struct net_device *dev;
 	struct netdevsim *ns;
@@ -1009,6 +1010,9 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 			      nsim_dev->nsim_bus_dev->num_queues);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
+
+	if (perm_addr)
+		memcpy(dev->perm_addr, perm_addr, ETH_ALEN);
 
 	dev_net_set(dev, nsim_dev_net(nsim_dev));
 	ns = netdev_priv(dev);
@@ -1031,7 +1035,6 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 	ns->qr_dfs = debugfs_create_file("queue_reset", 0200,
 					 nsim_dev_port->ddir, ns,
 					 &nsim_qreset_fops);
-
 	return ns;
 
 err_free_netdev:
