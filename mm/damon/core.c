@@ -1379,8 +1379,9 @@ bool damon_is_running(struct damon_ctx *ctx)
  *
  * Ask DAMON worker thread (kdamond) of @ctx to call a function with an
  * argument data that respectively passed via &damon_call_control->fn and
- * &damon_call_control->data of @control, and wait until the kdamond finishes
- * handling of the request.
+ * &damon_call_control->data of @control.  If &damon_call_control->repeat of
+ * @control is set, further wait until the kdamond finishes handling of the
+ * request.  Otherwise, return as soon as the request is made.
  *
  * The kdamond executes the function with the argument in the main loop, just
  * after a sampling of the iteration is finished.  The function can hence
@@ -1392,7 +1393,8 @@ bool damon_is_running(struct damon_ctx *ctx)
  */
 int damon_call(struct damon_ctx *ctx, struct damon_call_control *control)
 {
-	init_completion(&control->completion);
+	if (!control->repeat)
+		init_completion(&control->completion);
 	control->canceled = false;
 	INIT_LIST_HEAD(&control->list);
 
@@ -1401,6 +1403,8 @@ int damon_call(struct damon_ctx *ctx, struct damon_call_control *control)
 	mutex_unlock(&ctx->call_controls_lock);
 	if (!damon_is_running(ctx))
 		return -EINVAL;
+	if (control->repeat)
+		return 0;
 	wait_for_completion(&control->completion);
 	if (control->canceled)
 		return -ECANCELED;
@@ -2429,6 +2433,7 @@ static void kdamond_usleep(unsigned long usecs)
 static void kdamond_call(struct damon_ctx *ctx, bool cancel)
 {
 	struct damon_call_control *control;
+	LIST_HEAD(repeat_controls);
 	int ret = 0;
 
 	while (true) {
@@ -2437,7 +2442,7 @@ static void kdamond_call(struct damon_ctx *ctx, bool cancel)
 				struct damon_call_control, list);
 		mutex_unlock(&ctx->call_controls_lock);
 		if (!control)
-			return;
+			break;
 		if (cancel) {
 			control->canceled = true;
 		} else {
@@ -2447,8 +2452,18 @@ static void kdamond_call(struct damon_ctx *ctx, bool cancel)
 		mutex_lock(&ctx->call_controls_lock);
 		list_del(&control->list);
 		mutex_unlock(&ctx->call_controls_lock);
-		complete(&control->completion);
+		if (!control->repeat)
+			complete(&control->completion);
+		else
+			list_add(&control->list, &repeat_controls);
 	}
+	control = list_first_entry_or_null(&repeat_controls,
+			struct damon_call_control, list);
+	if (!control || cancel)
+		return;
+	mutex_lock(&ctx->call_controls_lock);
+	list_add_tail(&control->list, &ctx->call_controls);
+	mutex_unlock(&ctx->call_controls_lock);
 }
 
 /* Returns negative error code if it's not activated but should return */
