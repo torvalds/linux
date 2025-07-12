@@ -124,10 +124,10 @@ void sha1_transform(__u32 *digest, const char *data, __u32 *array)
 EXPORT_SYMBOL(sha1_transform);
 
 /**
- * sha1_init - initialize the vectors for a SHA1 digest
+ * sha1_init_raw - initialize the vectors for a SHA1 digest
  * @buf: vector to initialize
  */
-void sha1_init(__u32 *buf)
+void sha1_init_raw(__u32 *buf)
 {
 	buf[0] = 0x67452301;
 	buf[1] = 0xefcdab89;
@@ -135,7 +135,7 @@ void sha1_init(__u32 *buf)
 	buf[3] = 0x10325476;
 	buf[4] = 0xc3d2e1f0;
 }
-EXPORT_SYMBOL(sha1_init);
+EXPORT_SYMBOL(sha1_init_raw);
 
 MODULE_DESCRIPTION("SHA-1 Algorithm");
 MODULE_LICENSE("GPL");
