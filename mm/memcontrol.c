@@ -474,8 +474,6 @@ static const unsigned int memcg_vm_event_stat[] = {
 	NUMA_PAGE_MIGRATE,
 	NUMA_PTE_UPDATES,
 	NUMA_HINT_FAULTS,
-	NUMA_TASK_MIGRATE,
-	NUMA_TASK_SWAP,
 #endif
 };
 
