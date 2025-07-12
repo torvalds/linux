@@ -2,6 +2,7 @@
 #ifndef _FS_CEPH_CRYPTO_H
 #define _FS_CEPH_CRYPTO_H
 
+#include <crypto/sha2.h>
 #include <linux/ceph/types.h>
 #include <linux/ceph/buffer.h>
 
@@ -20,6 +21,7 @@ struct ceph_crypto_key {
 	union {
 		struct crypto_sync_skcipher *aes_tfm;
 		struct {
+			struct hmac_sha256_key hmac_key;
 			const struct krb5_enctype *krb5_type;
 			struct crypto_aead *krb5_tfms[3];
 		};
@@ -39,6 +41,8 @@ int ceph_crypt(const struct ceph_crypto_key *key, int usage_slot, bool encrypt,
 	       void *buf, int buf_len, int in_len, int *pout_len);
 int ceph_crypt_data_offset(const struct ceph_crypto_key *key);
 int ceph_crypt_buflen(const struct ceph_crypto_key *key, int data_len);
+void ceph_hmac_sha256(const struct ceph_crypto_key *key, const void *buf,
+		      int buf_len, u8 hmac[SHA256_DIGEST_SIZE]);
 int ceph_crypto_init(void);
 void ceph_crypto_shutdown(void);
 

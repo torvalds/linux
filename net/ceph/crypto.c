@@ -84,6 +84,7 @@ int ceph_crypto_key_prepare(struct ceph_crypto_key *key,
 	case CEPH_CRYPTO_AES:
 		return set_aes_tfm(key);
 	case CEPH_CRYPTO_AES256KRB5:
+		hmac_sha256_preparekey(&key->hmac_key, key->key, key->len);
 		return set_krb5_tfms(key, key_usages, key_usage_cnt);
 	default:
 		return -ENOTSUPP;
@@ -178,6 +179,7 @@ void ceph_crypto_key_destroy(struct ceph_crypto_key *key)
 			key->aes_tfm = NULL;
 		}
 	} else if (key->type == CEPH_CRYPTO_AES256KRB5) {
+		memzero_explicit(&key->hmac_key, sizeof(key->hmac_key));
 		for (i = 0; i < ARRAY_SIZE(key->krb5_tfms); i++) {
 			if (key->krb5_tfms[i]) {
 				crypto_free_aead(key->krb5_tfms[i]);
@@ -431,6 +433,22 @@ int ceph_crypt_buflen(const struct ceph_crypto_key *key, int data_len)
 	case CEPH_CRYPTO_AES256KRB5:
 		/* confounder at the beginning and 192-bit HMAC at the end */
 		return AES_BLOCK_SIZE + data_len + 24;
+	default:
+		BUG();
+	}
+}
+
+void ceph_hmac_sha256(const struct ceph_crypto_key *key, const void *buf,
+		      int buf_len, u8 hmac[SHA256_DIGEST_SIZE])
+{
+	switch (key->type) {
+	case CEPH_CRYPTO_NONE:
+	case CEPH_CRYPTO_AES:
+		memset(hmac, 0, SHA256_DIGEST_SIZE);
+		return;
+	case CEPH_CRYPTO_AES256KRB5:
+		hmac_sha256(&key->hmac_key, buf, buf_len, hmac);
+		return;
 	default:
 		BUG();
 	}

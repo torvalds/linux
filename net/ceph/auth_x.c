@@ -553,8 +553,7 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 	if (need & CEPH_ENTITY_TYPE_AUTH) {
 		struct ceph_x_authenticate *auth = (void *)(head + 1);
 		void *enc_buf = xi->auth_authorizer.enc_buf;
-		struct ceph_x_challenge_blob *blob = enc_buf +
-					     ceph_x_encrypt_offset(&xi->secret);
+		struct ceph_x_challenge_blob *blob;
 		u64 *u;
 
 		p = auth + 1;
@@ -564,15 +563,29 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		dout(" get_auth_session_key\n");
 		head->op = cpu_to_le16(CEPHX_GET_AUTH_SESSION_KEY);
 
-		/* encrypt and hash */
+		if (xi->secret.type == CEPH_CRYPTO_AES) {
+			blob = enc_buf + ceph_x_encrypt_offset(&xi->secret);
+		} else {
+			BUILD_BUG_ON(SHA256_DIGEST_SIZE + sizeof(*blob) >
+				     CEPHX_AU_ENC_BUF_LEN);
+			blob = enc_buf + SHA256_DIGEST_SIZE;
+		}
+
 		get_random_bytes(&auth->client_challenge, sizeof(u64));
 		blob->client_challenge = auth->client_challenge;
 		blob->server_challenge = cpu_to_le64(xi->server_challenge);
-		ret = ceph_x_encrypt(&xi->secret, 0 /* dummy */,
-				     enc_buf, CEPHX_AU_ENC_BUF_LEN,
-				     sizeof(*blob));
-		if (ret < 0)
-			return ret;
+
+		if (xi->secret.type == CEPH_CRYPTO_AES) {
+			ret = ceph_x_encrypt(&xi->secret, 0 /* dummy */,
+					     enc_buf, CEPHX_AU_ENC_BUF_LEN,
+					     sizeof(*blob));
+			if (ret < 0)
+				return ret;
+		} else {
+			ceph_hmac_sha256(&xi->secret, blob, sizeof(*blob),
+					 enc_buf);
+			ret = SHA256_DIGEST_SIZE;
+		}
 
 		auth->struct_v = 3;  /* nautilus+ */
 		auth->key = 0;
@@ -1053,11 +1066,19 @@ static int calc_signature(struct ceph_x_authorizer *au, struct ceph_msg *msg,
 			__le32 data_crc;
 			__le32 data_len;
 			__le32 seq_lower_word;
-		} __packed *sigblock = enc_buf;
+		} __packed *sigblock;
 		struct {
 			__le64 a, b, c, d;
 		} __packed *penc = enc_buf;
-		int ciphertext_len;
+
+		if (au->session_key.type == CEPH_CRYPTO_AES) {
+			/* no leading len, no ceph_x_encrypt_header */
+			sigblock = enc_buf;
+		} else {
+			BUILD_BUG_ON(SHA256_DIGEST_SIZE + sizeof(*sigblock) >
+				     CEPHX_AU_ENC_BUF_LEN);
+			sigblock = enc_buf + SHA256_DIGEST_SIZE;
+		}
 
 		sigblock->header_crc = msg->hdr.crc;
 		sigblock->front_crc = msg->footer.front_crc;
@@ -1068,12 +1089,18 @@ static int calc_signature(struct ceph_x_authorizer *au, struct ceph_msg *msg,
 		sigblock->data_len = msg->hdr.data_len;
 		sigblock->seq_lower_word = *(__le32 *)&msg->hdr.seq;
 
-		/* no leading len, no ceph_x_encrypt_header */
-		ret = ceph_crypt(&au->session_key, 0 /* dummy */,
-				 true, enc_buf, CEPHX_AU_ENC_BUF_LEN,
-				 sizeof(*sigblock), &ciphertext_len);
-		if (ret)
-			return ret;
+		if (au->session_key.type == CEPH_CRYPTO_AES) {
+			int ciphertext_len; /* unused */
+
+			ret = ceph_crypt(&au->session_key, 0 /* dummy */,
+					 true, enc_buf, CEPHX_AU_ENC_BUF_LEN,
+					 sizeof(*sigblock), &ciphertext_len);
+			if (ret)
+				return ret;
+		} else {
+			ceph_hmac_sha256(&au->session_key, sigblock,
+					 sizeof(*sigblock), enc_buf);
+		}
 
 		*psig = penc->a ^ penc->b ^ penc->c ^ penc->d;
 	}
