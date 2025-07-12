@@ -1938,7 +1938,7 @@ static int get_init_otp_deassert_fragment_len(struct intel_display *display,
 	int index, len;
 
 	if (drm_WARN_ON(display->drm,
-			!data || panel->vbt.dsi.seq_version != 1))
+			!data || panel->vbt.dsi.seq_version >= 3))
 		return 0;
 
 	/* index = 1 to skip sequence byte */
@@ -1961,7 +1961,7 @@ static int get_init_otp_deassert_fragment_len(struct intel_display *display,
 }
 
 /*
- * Some v1 VBT MIPI sequences do the deassert in the init OTP sequence.
+ * Some v1/v2 VBT MIPI sequences do the deassert in the init OTP sequence.
  * The deassert must be done before calling intel_dsi_device_ready, so for
  * these devices we split the init OTP sequence into a deassert sequence and
  * the actual init OTP part.
@@ -1972,9 +1972,9 @@ static void vlv_fixup_mipi_sequences(struct intel_display *display,
 	u8 *init_otp;
 	int len;
 
-	/* Limit this to v1 vid-mode sequences */
+	/* Limit this to v1/v2 vid-mode sequences */
 	if (panel->vbt.dsi.config->is_cmd_mode ||
-	    panel->vbt.dsi.seq_version != 1)
+	    panel->vbt.dsi.seq_version >= 3)
 		return;
 
 	/* Only do this if there are otp and assert seqs and no deassert seq */
