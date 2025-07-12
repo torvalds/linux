@@ -3201,7 +3201,6 @@ EXPORT_SYMBOL_GPL(unix_outq_len);
 
 static int unix_open_file(struct sock *sk)
 {
-	struct path path;
 	struct file *f;
 	int fd;
 
@@ -3211,27 +3210,20 @@ static int unix_open_file(struct sock *sk)
 	if (!smp_load_acquire(&unix_sk(sk)->addr))
 		return -ENOENT;
 
-	path = unix_sk(sk)->path;
-	if (!path.dentry)
+	if (!unix_sk(sk)->path.dentry)
 		return -ENOENT;
-
-	path_get(&path);
 
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0)
-		goto out;
+		return fd;
 
-	f = dentry_open(&path, O_PATH, current_cred());
+	f = dentry_open(&unix_sk(sk)->path, O_PATH, current_cred());
 	if (IS_ERR(f)) {
 		put_unused_fd(fd);
-		fd = PTR_ERR(f);
-		goto out;
+		return PTR_ERR(f);
 	}
 
 	fd_install(fd, f);
-out:
-	path_put(&path);
-
 	return fd;
 }
 
