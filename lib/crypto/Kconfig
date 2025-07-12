@@ -149,6 +149,7 @@ config CRYPTO_LIB_SHA1_ARCH
 	default y if ARM
 	default y if ARM64 && KERNEL_MODE_NEON
 	default y if MIPS && CPU_CAVIUM_OCTEON
+	default y if PPC
 
 config CRYPTO_LIB_SHA256
 	tristate
