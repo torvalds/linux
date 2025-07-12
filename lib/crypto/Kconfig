@@ -152,6 +152,7 @@ config CRYPTO_LIB_SHA1_ARCH
 	default y if PPC
 	default y if S390
 	default y if SPARC64
+	default y if X86_64
 
 config CRYPTO_LIB_SHA256
 	tristate

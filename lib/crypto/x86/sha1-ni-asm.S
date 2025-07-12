@@ -54,7 +54,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
 
 #define DIGEST_PTR	%rdi	/* 1st arg */
 #define DATA_PTR	%rsi	/* 2nd arg */
@@ -74,26 +73,22 @@
 
 
 /*
- * Intel SHA Extensions optimized implementation of a SHA-1 update function
+ * Intel SHA Extensions optimized implementation of a SHA-1 block function
  *
- * The function takes a pointer to the current hash values, a pointer to the
- * input data, and a number of 64 byte blocks to process.  Once all blocks have
- * been processed, the digest pointer is  updated with the resulting hash value.
- * The function only processes complete blocks, there is no functionality to
- * store partial blocks. All message padding and hash value initialization must
- * be done outside the update function.
+ * This function takes a pointer to the current SHA-1 state, a pointer to the
+ * input data, and the number of 64-byte blocks to process.  Once all blocks
+ * have been processed, the state is updated with the new state.  This function
+ * only processes complete blocks.  State initialization, buffering of partial
+ * blocks, and digest finalization are expected to be handled elsewhere.
  *
  * The indented lines in the loop are instructions related to rounds processing.
  * The non-indented lines are instructions related to the message schedule.
  *
- * void sha1_ni_transform(uint32_t *digest, const void *data,
-		uint32_t numBlocks)
- * digest : pointer to digest
- * data: pointer to input data
- * numBlocks: Number of blocks to process
+ * void sha1_ni_transform(struct sha1_block_state *state,
+ *			  const u8 *data, size_t nblocks)
  */
 .text
-SYM_TYPED_FUNC_START(sha1_ni_transform)
+SYM_FUNC_START(sha1_ni_transform)
 	push		%rbp
 	mov		%rsp, %rbp
 	sub		$FRAME_SIZE, %rsp

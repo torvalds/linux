@@ -82,6 +82,9 @@ libsha1-y += powerpc/sha1-powerpc-asm.o
 libsha1-$(CONFIG_SPE) += powerpc/sha1-spe-asm.o
 endif
 libsha1-$(CONFIG_SPARC) += sparc/sha1_asm.o
+libsha1-$(CONFIG_X86) += x86/sha1-ssse3-and-avx.o \
+			 x86/sha1-avx2-asm.o \
+			 x86/sha1-ni-asm.o
 endif # CONFIG_CRYPTO_LIB_SHA1_ARCH
 
 ################################################################################

@@ -25,7 +25,6 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/cfi_types.h>
 
 #define CTX	%rdi	// arg1
 #define BUF	%rsi	// arg2
@@ -68,7 +67,7 @@
  * param: function's name
  */
 .macro SHA1_VECTOR_ASM  name
-	SYM_TYPED_FUNC_START(\name)
+	SYM_FUNC_START(\name)
 
 	push	%rbx
 	push	%r12
@@ -461,10 +460,8 @@ W_PRECALC_SSSE3
 /*
  * SSSE3 optimized implementation:
  *
- * extern "C" void sha1_transform_ssse3(struct sha1_state *state,
- *					const u8 *data, int blocks);
- *
- * Note that struct sha1_state is assumed to begin with u32 state[5].
+ * void sha1_transform_ssse3(struct sha1_block_state *state,
+ *			     const u8 *data, size_t nblocks);
  */
 SHA1_VECTOR_ASM     sha1_transform_ssse3
 
@@ -548,7 +545,7 @@ W_PRECALC_AVX
 
 
 /* AVX optimized implementation:
- *  extern "C" void sha1_transform_avx(struct sha1_state *state,
- *				       const u8 *data, int blocks);
+ * void sha1_transform_avx(struct sha1_block_state *state,
+ *			   const u8 *data, size_t nblocks);
  */
 SHA1_VECTOR_ASM     sha1_transform_avx

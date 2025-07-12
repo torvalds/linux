@@ -62,11 +62,8 @@
  *Visit http://software.intel.com/en-us/articles/
  *and refer to improving-the-performance-of-the-secure-hash-algorithm-1/
  *
- *Updates 20-byte SHA-1 record at start of 'state', from 'input', for
- *even number of 'blocks' consecutive 64-byte blocks.
- *
- *extern "C" void sha1_transform_avx2(
- *	struct sha1_state *state, const u8* input, int blocks );
+ * void sha1_transform_avx2(struct sha1_block_state *state,
+ *			    const u8 *data, size_t nblocks);
  */
 
 #include <linux/linkage.h>
