@@ -933,5 +933,3 @@ config SND_YMFPCI
 	  will be called snd-ymfpci.
 
 endif	# SND_PCI
-
-source "sound/pci/hda/Kconfig"

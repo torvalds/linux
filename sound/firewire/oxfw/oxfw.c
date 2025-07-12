@@ -105,9 +105,9 @@ static int name_card(struct snd_oxfw *oxfw, const struct ieee1394_device_id *ent
 		m = model;
 	}
 
-	strcpy(oxfw->card->driver, d);
-	strcpy(oxfw->card->mixername, m);
-	strcpy(oxfw->card->shortname, m);
+	strscpy(oxfw->card->driver, d);
+	strscpy(oxfw->card->mixername, m);
+	strscpy(oxfw->card->shortname, m);
 
 	scnprintf(oxfw->card->longname, sizeof(oxfw->card->longname),
 		  "%s %s (OXFW%x %04x), GUID %08x%08x at %s, S%d",

@@ -298,7 +298,7 @@ static int patch_yamaha_ymf7x3_3d(struct snd_ac97 *ac97)
 	err = snd_ctl_add(ac97->bus->card, kctl);
 	if (err < 0)
 		return err;
-	strcpy(kctl->id.name, "3D Control - Wide");
+	strscpy(kctl->id.name, "3D Control - Wide");
 	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 9, 7, 0);
 	snd_ac97_write_cache(ac97, AC97_3D_CONTROL, 0x0000);
 	err = snd_ctl_add(ac97->bus->card,
@@ -891,7 +891,7 @@ static int patch_sigmatel_stac9700_3d(struct snd_ac97 * ac97)
 	err = snd_ctl_add(ac97->bus->card, kctl = snd_ac97_cnew(&snd_ac97_controls_3d[0], ac97));
 	if (err < 0)
 		return err;
-	strcpy(kctl->id.name, "3D Control Sigmatel - Depth");
+	strscpy(kctl->id.name, "3D Control Sigmatel - Depth");
 	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 2, 3, 0);
 	snd_ac97_write_cache(ac97, AC97_3D_CONTROL, 0x0000);
 	return 0;
@@ -906,13 +906,13 @@ static int patch_sigmatel_stac9708_3d(struct snd_ac97 * ac97)
 	err = snd_ctl_add(ac97->bus->card, kctl);
 	if (err < 0)
 		return err;
-	strcpy(kctl->id.name, "3D Control Sigmatel - Depth");
+	strscpy(kctl->id.name, "3D Control Sigmatel - Depth");
 	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 0, 3, 0);
 	kctl = snd_ac97_cnew(&snd_ac97_controls_3d[0], ac97);
 	err = snd_ctl_add(ac97->bus->card, kctl);
 	if (err < 0)
 		return err;
-	strcpy(kctl->id.name, "3D Control Sigmatel - Rear Depth");
+	strscpy(kctl->id.name, "3D Control Sigmatel - Rear Depth");
 	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 2, 3, 0);
 	snd_ac97_write_cache(ac97, AC97_3D_CONTROL, 0x0000);
 	return 0;

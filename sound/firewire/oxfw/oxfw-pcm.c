@@ -441,7 +441,7 @@ int snd_oxfw_create_pcm(struct snd_oxfw *oxfw)
 
 	pcm->private_data = oxfw;
 	pcm->nonatomic = true;
-	strcpy(pcm->name, oxfw->card->shortname);
+	strscpy(pcm->name, oxfw->card->shortname);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_ops);
 	if (cap > 0)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_ops);

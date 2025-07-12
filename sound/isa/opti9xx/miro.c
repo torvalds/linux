@@ -718,10 +718,10 @@ static int snd_miro_mixer(struct snd_card *card,
 
 	switch (miro->hardware) {
 	case OPTi9XX_HW_82C924:
-		strcpy(card->mixername, "ACI & OPTi924");
+		strscpy(card->mixername, "ACI & OPTi924");
 		break;
 	case OPTi9XX_HW_82C929:
-		strcpy(card->mixername, "ACI & OPTi929");
+		strscpy(card->mixername, "ACI & OPTi929");
 		break;
 	default:
 		snd_BUG();
@@ -779,7 +779,7 @@ static int snd_miro_init(struct snd_miro *chip,
 	static const int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
 
 	chip->hardware = hardware;
-	strcpy(chip->name, snd_opti9xx_names[hardware]);
+	strscpy(chip->name, snd_opti9xx_names[hardware]);
 
 	chip->mc_base_size = opti9xx_mc_size[hardware];  
 
@@ -1351,7 +1351,7 @@ static int snd_miro_probe(struct snd_card *card)
 		sprintf(card->shortname, "unknown Cardinal Technologies");
 	}
 
-	strcpy(card->driver, "miro");
+	strscpy(card->driver, "miro");
 	scnprintf(card->longname, sizeof(card->longname),
 		  "%s: OPTi%s, %s at 0x%lx, irq %d, dma %d&%d",
 		  card->shortname, miro->name, codec->pcm->name,

@@ -220,7 +220,7 @@ __snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	snd_vortex_workaround(pci, pcifix[dev]);
 
 	// Card details needed in snd_vortex_midi
-	strcpy(card->driver, CARD_NAME_SHORT);
+	strscpy(card->driver, CARD_NAME_SHORT);
 	sprintf(card->shortname, "Aureal Vortex %s", CARD_NAME_SHORT);
 	sprintf(card->longname, "%s at 0x%lx irq %i",
 		card->shortname, chip->io, chip->irq);
@@ -270,7 +270,7 @@ __snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		snd_vortex_synth_arg_t *arg;
 
 		arg = SNDRV_SEQ_DEVICE_ARGPTR(wave);
-		strcpy(wave->name, "Aureal Synth");
+		strscpy(wave->name, "Aureal Synth");
 		arg->hwptr = vortex;
 		arg->index = 1;
 		arg->seq_ports = seq_ports[dev];

@@ -1,0 +1,128 @@
+config SND_HDA_CIRRUS_SCODEC
+	tristate
+
+config SND_HDA_CIRRUS_SCODEC_KUNIT_TEST
+	tristate "KUnit test for Cirrus side-codec library" if !KUNIT_ALL_TESTS
+	depends on SND_HDA_CIRRUS_SCODEC && GPIOLIB && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds KUnit tests for the cirrus side-codec library.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
+
+config SND_HDA_SCODEC_CS35L41
+	tristate
+	select SND_HDA_GENERIC
+	select REGMAP_IRQ
+	select FW_CS_DSP
+
+config SND_HDA_SCODEC_COMPONENT
+	tristate
+
+config SND_HDA_SCODEC_CS35L41_I2C
+	tristate "Build CS35L41 HD-audio side codec support for I2C Bus"
+	depends on I2C
+	depends on ACPI
+	depends on EFI
+	depends on SND_SOC
+	select SND_SOC_CS35L41_LIB
+	select SND_HDA_SCODEC_CS35L41
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L41 I2C HD-audio side codec support
+	  in snd-hda-intel driver, such as ALC287.
+
+comment "Set to Y if you want auto-loading the side codec driver"
+	depends on SND_HDA=y && SND_HDA_SCODEC_CS35L41_I2C=m
+
+config SND_HDA_SCODEC_CS35L41_SPI
+	tristate "Build CS35L41 HD-audio codec support for SPI Bus"
+	depends on SPI_MASTER
+	depends on ACPI
+	depends on EFI
+	depends on SND_SOC
+	select SND_SOC_CS35L41_LIB
+	select SND_HDA_SCODEC_CS35L41
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L41 SPI HD-audio side codec support
+	  in snd-hda-intel driver, such as ALC287.
+
+comment "Set to Y if you want auto-loading the side codec driver"
+	depends on SND_HDA=y && SND_HDA_SCODEC_CS35L41_SPI=m
+
+config SND_HDA_SCODEC_CS35L56
+	tristate
+
+config SND_HDA_SCODEC_CS35L56_I2C
+	tristate "Build CS35L56 HD-audio side codec support for I2C Bus"
+	depends on I2C
+	depends on ACPI
+	depends on SND_SOC
+	select FW_CS_DSP
+	imply SERIAL_MULTI_INSTANTIATE
+	select SND_HDA_GENERIC
+	select SND_SOC_CS35L56_SHARED
+	select SND_HDA_SCODEC_CS35L56
+	select SND_HDA_CIRRUS_SCODEC
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L56 amplifier support with
+	  I2C control.
+
+config SND_HDA_SCODEC_CS35L56_SPI
+	tristate "Build CS35L56 HD-audio side codec support for SPI Bus"
+	depends on SPI_MASTER
+	depends on ACPI
+	depends on SND_SOC
+	select FW_CS_DSP
+	imply SERIAL_MULTI_INSTANTIATE
+	select SND_HDA_GENERIC
+	select SND_SOC_CS35L56_SHARED
+	select SND_HDA_SCODEC_CS35L56
+	select SND_HDA_CIRRUS_SCODEC
+	select SND_SOC_CS_AMP_LIB
+	help
+	  Say Y or M here to include CS35L56 amplifier support with
+	  SPI control.
+
+config SND_HDA_SCODEC_TAS2781
+	tristate
+	select SND_HDA_GENERIC
+
+config SND_HDA_SCODEC_TAS2781_I2C
+	tristate "Build TAS2781 HD-audio side codec support for I2C Bus"
+	depends on I2C
+	depends on ACPI
+	depends on EFI
+	depends on SND_SOC
+	select SND_HDA_SCODEC_TAS2781
+	select SND_SOC_TAS2781_COMLIB_I2C
+	select SND_SOC_TAS2781_FMWLIB
+	select CRC32
+	help
+	  Say Y or M here to include TAS2781 I2C HD-audio side codec support
+	  in snd-hda-intel driver, such as ALC287.
+
+comment "Set to Y if you want auto-loading the side codec driver"
+	depends on SND_HDA=y && SND_HDA_SCODEC_TAS2781_I2C=m
+
+config SND_HDA_SCODEC_TAS2781_SPI
+	tristate "Build TAS2781 HD-audio side codec support for SPI Bus"
+	depends on SPI_MASTER
+	depends on ACPI
+	depends on EFI
+	depends on SND_SOC
+	select SND_HDA_SCODEC_TAS2781
+	select SND_SOC_TAS2781_COMLIB
+	select SND_SOC_TAS2781_FMWLIB
+	select CRC8
+	select CRC32
+	help
+	  Say Y or M here to include TAS2781 SPI HD-audio side codec support
+	  in snd-hda-intel driver, such as ALC287.
+
+comment "Set to Y if you want auto-loading the side codec driver"
+	depends on SND_HDA=y && SND_HDA_SCODEC_TAS2781_SPI=m

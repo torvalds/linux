@@ -1570,11 +1570,13 @@ static void avs_component_hda_unregister_dais(struct snd_soc_component *componen
 {
 	struct snd_soc_acpi_mach *mach;
 	struct snd_soc_dai *dai, *save;
+	struct avs_mach_pdata *pdata;
 	struct hda_codec *codec;
 	char name[32];
 
 	mach = dev_get_platdata(component->card->dev);
-	codec = mach->pdata;
+	pdata = mach->pdata;
+	codec = pdata->codec;
 	snprintf(name, sizeof(name), "%s-cpu", dev_name(&codec->core.dev));
 
 	for_each_component_dais_safe(component, dai, save) {
