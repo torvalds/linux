@@ -151,6 +151,7 @@ config CRYPTO_LIB_SHA1_ARCH
 	default y if MIPS && CPU_CAVIUM_OCTEON
 	default y if PPC
 	default y if S390
+	default y if SPARC64
 
 config CRYPTO_LIB_SHA256
 	tristate

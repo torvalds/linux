@@ -81,6 +81,7 @@ ifeq ($(CONFIG_PPC),y)
 libsha1-y += powerpc/sha1-powerpc-asm.o
 libsha1-$(CONFIG_SPE) += powerpc/sha1-spe-asm.o
 endif
+libsha1-$(CONFIG_SPARC) += sparc/sha1_asm.o
 endif # CONFIG_CRYPTO_LIB_SHA1_ARCH
 
 ################################################################################
