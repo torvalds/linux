@@ -12,14 +12,4 @@ config CRYPTO_MD5_OCTEON
 
 	  Architecture: mips OCTEON using crypto instructions, when available
 
-config CRYPTO_SHA1_OCTEON
-	tristate "Hash functions: SHA-1 (OCTEON)"
-	depends on CPU_CAVIUM_OCTEON
-	select CRYPTO_SHA1
-	select CRYPTO_HASH
-	help
-	  SHA-1 secure hash algorithm (FIPS 180)
-
-	  Architecture: mips OCTEON
-
 endmenu

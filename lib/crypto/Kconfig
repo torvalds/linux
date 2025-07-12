@@ -148,6 +148,7 @@ config CRYPTO_LIB_SHA1_ARCH
 	depends on CRYPTO_LIB_SHA1 && !UML
 	default y if ARM
 	default y if ARM64 && KERNEL_MODE_NEON
+	default y if MIPS && CPU_CAVIUM_OCTEON
 
 config CRYPTO_LIB_SHA256
 	tristate
