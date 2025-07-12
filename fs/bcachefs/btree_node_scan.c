@@ -75,39 +75,6 @@ static inline u64 bkey_journal_seq(struct bkey_s_c k)
 	}
 }
 
-static bool found_btree_node_is_readable(struct btree_trans *trans,
-					 struct found_btree_node *f)
-{
-	struct { __BKEY_PADDED(k, BKEY_BTREE_PTR_VAL_U64s_MAX); } tmp;
-
-	found_btree_node_to_key(&tmp.k, f);
-
-	struct btree *b = bch2_btree_node_get_noiter(trans, &tmp.k, f->btree_id, f->level, false);
-	bool ret = !IS_ERR_OR_NULL(b);
-	if (!ret)
-		return ret;
-
-	f->sectors_written = b->written;
-	f->journal_seq = le64_to_cpu(b->data->keys.journal_seq);
-
-	struct bkey_s_c k;
-	struct bkey unpacked;
-	struct btree_node_iter iter;
-	for_each_btree_node_key_unpack(b, k, &iter, &unpacked)
-		f->journal_seq = max(f->journal_seq, bkey_journal_seq(k));
-
-	six_unlock_read(&b->c.lock);
-
-	/*
-	 * We might update this node's range; if that happens, we need the node
-	 * to be re-read so the read path can trim keys that are no longer in
-	 * this node
-	 */
-	if (b != btree_node_root(trans->c, b))
-		bch2_btree_node_evict(trans, &tmp.k);
-	return ret;
-}
-
 static int found_btree_node_cmp_cookie(const void *_l, const void *_r)
 {
 	const struct found_btree_node *l = _l;
@@ -159,17 +126,17 @@ static const struct min_heap_callbacks found_btree_node_heap_cbs = {
 };
 
 static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
-				struct bio *bio, struct btree_node *bn, u64 offset)
+				struct btree *b, struct bio *bio, u64 offset)
 {
 	struct bch_fs *c = container_of(f, struct bch_fs, found_btree_nodes);
+	struct btree_node *bn = b->data;
 
 	bio_reset(bio, ca->disk_sb.bdev, REQ_OP_READ);
 	bio->bi_iter.bi_sector	= offset;
-	bch2_bio_map(bio, bn, PAGE_SIZE);
+	bch2_bio_map(bio, b->data, c->opts.block_size);
 
 	u64 submit_time = local_clock();
 	submit_bio_wait(bio);
-
 	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read, submit_time, !bio->bi_status);
 
 	if (bio->bi_status) {
@@ -201,6 +168,14 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	if (BTREE_NODE_ID(bn) >= BTREE_ID_NR_MAX)
 		return;
 
+	bio_reset(bio, ca->disk_sb.bdev, REQ_OP_READ);
+	bio->bi_iter.bi_sector	= offset;
+	bch2_bio_map(bio, b->data, c->opts.btree_node_size);
+
+	submit_time = local_clock();
+	submit_bio_wait(bio);
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read, submit_time, !bio->bi_status);
+
 	rcu_read_lock();
 	struct found_btree_node n = {
 		.btree_id	= BTREE_NODE_ID(bn),
@@ -217,7 +192,20 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	};
 	rcu_read_unlock();
 
-	if (bch2_trans_run(c, found_btree_node_is_readable(trans, &n))) {
+	found_btree_node_to_key(&b->key, &n);
+
+	CLASS(printbuf, buf)();
+	if (!bch2_btree_node_read_done(c, ca, b, NULL, &buf)) {
+		/* read_done will swap out b->data for another buffer */
+		bn = b->data;
+		/*
+		 * Grab journal_seq here because we want the max journal_seq of
+		 * any bset; read_done sorts down to a single set and picks the
+		 * max journal_seq
+		 */
+		n.journal_seq		= le64_to_cpu(bn->keys.journal_seq),
+		n.sectors_written	= b->written;
+
 		mutex_lock(&f->lock);
 		if (BSET_BIG_ENDIAN(&bn->keys) != CPU_BIG_ENDIAN) {
 			bch_err(c, "try_read_btree_node() can't handle endian conversion");
@@ -237,12 +225,20 @@ static int read_btree_nodes_worker(void *p)
 	struct find_btree_nodes_worker *w = p;
 	struct bch_fs *c = container_of(w->f, struct bch_fs, found_btree_nodes);
 	struct bch_dev *ca = w->ca;
-	void *buf = (void *) __get_free_page(GFP_KERNEL);
-	struct bio *bio = bio_alloc(NULL, 1, 0, GFP_KERNEL);
 	unsigned long last_print = jiffies;
+	struct btree *b = NULL;
+	struct bio *bio = NULL;
 
-	if (!buf || !bio) {
-		bch_err(c, "read_btree_nodes_worker: error allocating bio/buf");
+	b = __bch2_btree_node_mem_alloc(c);
+	if (!b) {
+		bch_err(c, "read_btree_nodes_worker: error allocating buf");
+		w->f->ret = -ENOMEM;
+		goto err;
+	}
+
+	bio = bio_alloc(NULL, buf_pages(b->data, c->opts.btree_node_size), 0, GFP_KERNEL);
+	if (!bio) {
+		bch_err(c, "read_btree_nodes_worker: error allocating bio");
 		w->f->ret = -ENOMEM;
 		goto err;
 	}
@@ -266,11 +262,13 @@ static int read_btree_nodes_worker(void *p)
 			    !bch2_dev_btree_bitmap_marked_sectors(ca, sector, btree_sectors(c)))
 				continue;
 
-			try_read_btree_node(w->f, ca, bio, buf, sector);
+			try_read_btree_node(w->f, ca, b, bio, sector);
 		}
 err:
+	if (b)
+		__btree_node_data_free(b);
+	kfree(b);
 	bio_put(bio);
-	free_page((unsigned long) buf);
 	enumerated_ref_put(&ca->io_ref[READ], BCH_DEV_READ_REF_btree_node_scan);
 	closure_put(w->cl);
 	kfree(w);
