@@ -1303,7 +1303,7 @@ static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
 	damon_for_each_target_safe(t, next, ctx) {
 		if (has_pid)
 			put_pid(t->pid);
-		damon_destroy_target(t);
+		damon_destroy_target(t, ctx);
 	}
 }
 
@@ -1389,7 +1389,7 @@ static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
 
 	damon_for_each_target_safe(t, next, ctx) {
 		put_pid(t->pid);
-		damon_destroy_target(t);
+		damon_destroy_target(t, ctx);
 	}
 }
 
