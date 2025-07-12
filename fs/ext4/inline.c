@@ -1317,7 +1317,7 @@ int ext4_inlinedir_to_tree(struct file *dir_file,
 		if (pos == 0) {
 			fake.inode = cpu_to_le32(inode->i_ino);
 			fake.name_len = 1;
-			strcpy(fake.name, ".");
+			memcpy(fake.name, ".", 2);
 			fake.rec_len = ext4_rec_len_to_disk(
 					  ext4_dir_rec_len(fake.name_len, NULL),
 					  inline_size);
@@ -1327,7 +1327,7 @@ int ext4_inlinedir_to_tree(struct file *dir_file,
 		} else if (pos == EXT4_INLINE_DOTDOT_OFFSET) {
 			fake.inode = cpu_to_le32(parent_ino);
 			fake.name_len = 2;
-			strcpy(fake.name, "..");
+			memcpy(fake.name, "..", 3);
 			fake.rec_len = ext4_rec_len_to_disk(
 					  ext4_dir_rec_len(fake.name_len, NULL),
 					  inline_size);
