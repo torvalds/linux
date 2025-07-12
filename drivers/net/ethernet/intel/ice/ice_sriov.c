@@ -933,7 +933,6 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	bool needs_rebuild = false;
 	struct ice_vsi *vsi;
 	struct ice_vf *vf;
-	int id;
 
 	if (!ice_get_num_vfs(pf))
 		return -ENOENT;
@@ -952,17 +951,7 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	if (msix_vec_count < ICE_MIN_INTR_PER_VF)
 		return -EINVAL;
 
-	/* Transition of PCI VF function number to function_id */
-	for (id = 0; id < pci_num_vf(pdev); id++) {
-		if (vf_dev->devfn == pci_iov_virtfn_devfn(pdev, id))
-			break;
-	}
-
-	if (id == pci_num_vf(pdev))
-		return -ENOENT;
-
-	vf = ice_get_vf_by_id(pf, id);
-
+	vf = ice_get_vf_by_dev(pf, vf_dev);
 	if (!vf)
 		return -ENOENT;
 
@@ -970,6 +959,12 @@ int ice_sriov_set_msix_vec_count(struct pci_dev *vf_dev, int msix_vec_count)
 	if (!vsi) {
 		ice_put_vf(vf);
 		return -ENOENT;
+	}
+
+	/* No need to rebuild if we're setting to the same value */
+	if (msix_vec_count == vf->num_msix) {
+		ice_put_vf(vf);
+		return 0;
 	}
 
 	prev_msix = vf->num_msix;
