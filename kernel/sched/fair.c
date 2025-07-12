@@ -5890,6 +5890,7 @@ static bool throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	struct sched_entity *se;
 	long queued_delta, runnable_delta, idle_delta, dequeue = 1;
 	long rq_h_nr_queued = rq->cfs.h_nr_queued;
+	u64 slice = 0;
 
 	raw_spin_lock(&cfs_b->lock);
 	/* This will start the period timer if necessary */
@@ -5950,6 +5951,7 @@ static bool throttle_cfs_rq(struct cfs_rq *cfs_rq)
 		if (qcfs_rq->load.weight) {
 			/* Avoid re-evaluating load for this entity: */
 			se = parent_entity(se);
+			slice = cfs_rq_min_slice(qcfs_rq);
 			break;
 		}
 	}
@@ -5962,6 +5964,11 @@ static bool throttle_cfs_rq(struct cfs_rq *cfs_rq)
 
 		update_load_avg(qcfs_rq, se, 0);
 		se_update_runnable(se);
+
+		se->slice = slice;
+		if (se != qcfs_rq->curr)
+			min_vruntime_cb_propagate(&se->run_node, NULL);
+		slice = cfs_rq_min_slice(qcfs_rq);
 
 		if (cfs_rq_is_idle(group_cfs_rq(se)))
 			idle_delta = cfs_rq->h_nr_queued;
@@ -5996,6 +6003,7 @@ void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 	struct sched_entity *se;
 	long queued_delta, runnable_delta, idle_delta;
 	long rq_h_nr_queued = rq->cfs.h_nr_queued;
+	u64 slice = 0;
 
 	se = cfs_rq->tg->se[cpu_of(rq)];
 
@@ -6041,6 +6049,11 @@ void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 			dequeue_entity(qcfs_rq, se, flags);
 		} else if (se->on_rq)
 			break;
+
+		if (slice) {
+			se->slice = slice;
+			se->custom_slice = 1;
+		}
 		enqueue_entity(qcfs_rq, se, ENQUEUE_WAKEUP);
 
 		if (cfs_rq_is_idle(group_cfs_rq(se)))
@@ -6063,6 +6076,11 @@ void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 
 		if (cfs_rq_is_idle(group_cfs_rq(se)))
 			idle_delta = cfs_rq->h_nr_queued;
+
+		se->slice = slice;
+		if (se != qcfs_rq->curr)
+			min_vruntime_cb_propagate(&se->run_node, NULL);
+		slice = cfs_rq_min_slice(qcfs_rq);
 
 		qcfs_rq->h_nr_queued += queued_delta;
 		qcfs_rq->h_nr_runnable += runnable_delta;
