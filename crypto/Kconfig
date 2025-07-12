@@ -986,7 +986,8 @@ config CRYPTO_SHA1
 	select CRYPTO_HASH
 	select CRYPTO_LIB_SHA1
 	help
-	  SHA-1 secure hash algorithm (FIPS 180, ISO/IEC 10118-3)
+	  SHA-1 secure hash algorithm (FIPS 180, ISO/IEC 10118-3), including
+	  HMAC support.
 
 config CRYPTO_SHA256
 	tristate "SHA-224 and SHA-256"

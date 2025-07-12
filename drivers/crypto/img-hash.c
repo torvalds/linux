@@ -705,7 +705,7 @@ static int img_hash_cra_md5_init(struct crypto_tfm *tfm)
 
 static int img_hash_cra_sha1_init(struct crypto_tfm *tfm)
 {
-	return img_hash_cra_init(tfm, "sha1-generic");
+	return img_hash_cra_init(tfm, "sha1-lib");
 }
 
 static int img_hash_cra_sha224_init(struct crypto_tfm *tfm)
