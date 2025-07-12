@@ -120,8 +120,6 @@ static void damon_sample_prcl_stop(void)
 		damon_stop(&ctx, 1);
 		damon_destroy_ctx(ctx);
 	}
-	if (target_pidp)
-		put_pid(target_pidp);
 }
 
 static bool init_called;

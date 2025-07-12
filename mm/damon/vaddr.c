@@ -805,6 +805,11 @@ static bool damon_va_target_valid(struct damon_target *t)
 	return false;
 }
 
+static void damon_va_cleanup_target(struct damon_target *t)
+{
+	put_pid(t->pid);
+}
+
 #ifndef CONFIG_ADVISE_SYSCALLS
 static unsigned long damos_madvise(struct damon_target *target,
 		struct damon_region *r, int behavior)
@@ -946,6 +951,7 @@ static int __init damon_va_initcall(void)
 		.prepare_access_checks = damon_va_prepare_access_checks,
 		.check_accesses = damon_va_check_accesses,
 		.target_valid = damon_va_target_valid,
+		.cleanup_target = damon_va_cleanup_target,
 		.cleanup = NULL,
 		.apply_scheme = damon_va_apply_scheme,
 		.get_scheme_score = damon_va_scheme_score,

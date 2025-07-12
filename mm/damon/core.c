@@ -1139,8 +1139,6 @@ static int damon_commit_targets(
 		} else {
 			struct damos *s;
 
-			if (damon_target_has_pid(dst))
-				put_pid(dst_target->pid);
 			damon_destroy_target(dst_target, dst);
 			damon_for_each_scheme(s, dst) {
 				if (s->quota.charge_target_from == dst_target) {
