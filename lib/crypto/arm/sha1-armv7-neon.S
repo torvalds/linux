@@ -282,18 +282,17 @@
 
 
 /*
- * Transform nblks*64 bytes (nblks*16 32-bit words) at DATA.
+ * Transform nblocks*64 bytes (nblocks*16 32-bit words) at DATA.
  *
- * unsigned int
- * sha1_transform_neon (void *ctx, const unsigned char *data,
- *                      unsigned int nblks)
+ * void sha1_transform_neon(struct sha1_block_state *state,
+ *			    const u8 *data, size_t nblocks);
  */
 .align 3
 ENTRY(sha1_transform_neon)
   /* input:
-   *	r0: ctx, CTX
-   *	r1: data (64*nblks bytes)
-   *	r2: nblks
+   *	r0: state
+   *	r1: data (64*nblocks bytes)
+   *	r2: nblocks
    */
 
   cmp RNBLKS, #0;

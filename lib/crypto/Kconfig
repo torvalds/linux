@@ -146,6 +146,7 @@ config CRYPTO_LIB_SHA1
 config CRYPTO_LIB_SHA1_ARCH
 	bool
 	depends on CRYPTO_LIB_SHA1 && !UML
+	default y if ARM
 
 config CRYPTO_LIB_SHA256
 	tristate

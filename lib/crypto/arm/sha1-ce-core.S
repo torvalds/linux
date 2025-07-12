@@ -59,8 +59,8 @@
 	.word		0xca62c1d6, 0xca62c1d6, 0xca62c1d6, 0xca62c1d6
 
 	/*
-	 * void sha1_ce_transform(struct sha1_state *sst, u8 const *src,
-	 *			  int blocks);
+	 * void sha1_ce_transform(struct sha1_block_state *state,
+	 *			  const u8 *data, size_t nblocks);
 	 */
 ENTRY(sha1_ce_transform)
 	/* load round constants */
