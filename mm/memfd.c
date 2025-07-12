@@ -411,7 +411,7 @@ static char *alloc_name(const char __user *uname)
 	if (!name)
 		return ERR_PTR(-ENOMEM);
 
-	strcpy(name, MFD_NAME_PREFIX);
+	memcpy(name, MFD_NAME_PREFIX, MFD_NAME_PREFIX_LEN);
 	/* returned length does not include terminating zero */
 	len = strncpy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, MFD_NAME_MAX_LEN + 1);
 	if (len < 0) {
