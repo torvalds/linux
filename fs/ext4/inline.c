@@ -997,7 +997,7 @@ static void *ext4_get_inline_xattr_pos(struct inode *inode,
 }
 
 /* Set the final de to cover the whole block. */
-static void ext4_update_final_de(void *de_buf, int old_size, int new_size)
+void ext4_update_final_de(void *de_buf, int old_size, int new_size)
 {
 	struct ext4_dir_entry_2 *de, *prev_de;
 	void *limit;
@@ -1059,51 +1059,6 @@ static void ext4_restore_inline_data(handle_t *handle, struct inode *inode,
 	}
 	ext4_write_inline_data(inode, iloc, buf, 0, inline_size);
 	ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
-}
-
-static int ext4_finish_convert_inline_dir(handle_t *handle,
-					  struct inode *inode,
-					  struct buffer_head *dir_block,
-					  void *buf,
-					  int inline_size)
-{
-	int err, csum_size = 0, header_size = 0;
-	struct ext4_dir_entry_2 *de;
-	void *target = dir_block->b_data;
-
-	/*
-	 * First create "." and ".." and then copy the dir information
-	 * back to the block.
-	 */
-	de = target;
-	de = ext4_init_dot_dotdot(inode, de,
-		inode->i_sb->s_blocksize, csum_size,
-		le32_to_cpu(((struct ext4_dir_entry_2 *)buf)->inode), 1);
-	header_size = (void *)de - target;
-
-	memcpy((void *)de, buf + EXT4_INLINE_DOTDOT_SIZE,
-		inline_size - EXT4_INLINE_DOTDOT_SIZE);
-
-	if (ext4_has_feature_metadata_csum(inode->i_sb))
-		csum_size = sizeof(struct ext4_dir_entry_tail);
-
-	inode->i_size = inode->i_sb->s_blocksize;
-	i_size_write(inode, inode->i_sb->s_blocksize);
-	EXT4_I(inode)->i_disksize = inode->i_sb->s_blocksize;
-	ext4_update_final_de(dir_block->b_data,
-			inline_size - EXT4_INLINE_DOTDOT_SIZE + header_size,
-			inode->i_sb->s_blocksize - csum_size);
-
-	if (csum_size)
-		ext4_initialize_dirent_tail(dir_block,
-					    inode->i_sb->s_blocksize);
-	set_buffer_uptodate(dir_block);
-	unlock_buffer(dir_block);
-	err = ext4_handle_dirty_dirblock(handle, inode, dir_block);
-	if (err)
-		return err;
-	set_buffer_verified(dir_block);
-	return ext4_mark_inode_dirty(handle, inode);
 }
 
 static int ext4_convert_inline_data_nolock(handle_t *handle,
@@ -1177,8 +1132,17 @@ static int ext4_convert_inline_data_nolock(handle_t *handle,
 		error = ext4_handle_dirty_metadata(handle,
 						   inode, data_bh);
 	} else {
-		error = ext4_finish_convert_inline_dir(handle, inode, data_bh,
-						       buf, inline_size);
+		unlock_buffer(data_bh);
+		inode->i_size = inode->i_sb->s_blocksize;
+		i_size_write(inode, inode->i_sb->s_blocksize);
+		EXT4_I(inode)->i_disksize = inode->i_sb->s_blocksize;
+
+		error = ext4_init_dirblock(handle, inode, data_bh,
+			  le32_to_cpu(((struct ext4_dir_entry_2 *)buf)->inode),
+			  buf + EXT4_INLINE_DOTDOT_SIZE,
+			  inline_size - EXT4_INLINE_DOTDOT_SIZE);
+		if (!error)
+			error = ext4_mark_inode_dirty(handle, inode);
 	}
 
 out_restore:
