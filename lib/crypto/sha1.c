@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SHA1 routine optimized to do word accesses rather than byte accesses,
- * and to avoid unnecessary copies into the context array.
- *
- * This was based on the git SHA1 implementation.
+ * SHA-1 library functions
  */
 
 #include <crypto/sha1.h>
@@ -13,6 +10,10 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/unaligned.h>
+
+static const struct sha1_block_state sha1_iv = {
+	.h = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
+};
 
 /*
  * If you have 32 registers or more, the compiler can (and should)
@@ -137,5 +138,109 @@ void sha1_init_raw(__u32 *buf)
 }
 EXPORT_SYMBOL(sha1_init_raw);
 
-MODULE_DESCRIPTION("SHA-1 Algorithm");
+static void __maybe_unused sha1_blocks_generic(struct sha1_block_state *state,
+					       const u8 *data, size_t nblocks)
+{
+	u32 workspace[SHA1_WORKSPACE_WORDS];
+
+	do {
+		sha1_transform(state->h, data, workspace);
+		data += SHA1_BLOCK_SIZE;
+	} while (--nblocks);
+
+	memzero_explicit(workspace, sizeof(workspace));
+}
+
+#ifdef CONFIG_CRYPTO_LIB_SHA1_ARCH
+#include "sha1.h" /* $(SRCARCH)/sha1.h */
+#else
+#define sha1_blocks sha1_blocks_generic
+#endif
+
+void sha1_init(struct sha1_ctx *ctx)
+{
+	ctx->state = sha1_iv;
+	ctx->bytecount = 0;
+}
+EXPORT_SYMBOL_GPL(sha1_init);
+
+void sha1_update(struct sha1_ctx *ctx, const u8 *data, size_t len)
+{
+	size_t partial = ctx->bytecount % SHA1_BLOCK_SIZE;
+
+	ctx->bytecount += len;
+
+	if (partial + len >= SHA1_BLOCK_SIZE) {
+		size_t nblocks;
+
+		if (partial) {
+			size_t l = SHA1_BLOCK_SIZE - partial;
+
+			memcpy(&ctx->buf[partial], data, l);
+			data += l;
+			len -= l;
+
+			sha1_blocks(&ctx->state, ctx->buf, 1);
+		}
+
+		nblocks = len / SHA1_BLOCK_SIZE;
+		len %= SHA1_BLOCK_SIZE;
+
+		if (nblocks) {
+			sha1_blocks(&ctx->state, data, nblocks);
+			data += nblocks * SHA1_BLOCK_SIZE;
+		}
+		partial = 0;
+	}
+	if (len)
+		memcpy(&ctx->buf[partial], data, len);
+}
+EXPORT_SYMBOL_GPL(sha1_update);
+
+void sha1_final(struct sha1_ctx *ctx, u8 out[SHA1_DIGEST_SIZE])
+{
+	u64 bitcount = ctx->bytecount << 3;
+	size_t partial = ctx->bytecount % SHA1_BLOCK_SIZE;
+
+	ctx->buf[partial++] = 0x80;
+	if (partial > SHA1_BLOCK_SIZE - 8) {
+		memset(&ctx->buf[partial], 0, SHA1_BLOCK_SIZE - partial);
+		sha1_blocks(&ctx->state, ctx->buf, 1);
+		partial = 0;
+	}
+	memset(&ctx->buf[partial], 0, SHA1_BLOCK_SIZE - 8 - partial);
+	*(__be64 *)&ctx->buf[SHA1_BLOCK_SIZE - 8] = cpu_to_be64(bitcount);
+	sha1_blocks(&ctx->state, ctx->buf, 1);
+
+	for (size_t i = 0; i < SHA1_DIGEST_SIZE; i += 4)
+		put_unaligned_be32(ctx->state.h[i / 4], out + i);
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+EXPORT_SYMBOL_GPL(sha1_final);
+
+void sha1(const u8 *data, size_t len, u8 out[SHA1_DIGEST_SIZE])
+{
+	struct sha1_ctx ctx;
+
+	sha1_init(&ctx);
+	sha1_update(&ctx, data, len);
+	sha1_final(&ctx, out);
+}
+EXPORT_SYMBOL_GPL(sha1);
+
+#ifdef sha1_mod_init_arch
+static int __init sha1_mod_init(void)
+{
+	sha1_mod_init_arch();
+	return 0;
+}
+subsys_initcall(sha1_mod_init);
+
+static void __exit sha1_mod_exit(void)
+{
+}
+module_exit(sha1_mod_exit);
+#endif
+
+MODULE_DESCRIPTION("SHA-1 library functions");
 MODULE_LICENSE("GPL");

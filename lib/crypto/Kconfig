@@ -139,6 +139,13 @@ config CRYPTO_LIB_CHACHA20POLY1305
 
 config CRYPTO_LIB_SHA1
 	tristate
+	help
+	  The SHA-1 library functions.  Select this if your module uses any of
+	  the functions from <crypto/sha1.h>.
+
+config CRYPTO_LIB_SHA1_ARCH
+	bool
+	depends on CRYPTO_LIB_SHA1 && !UML
 
 config CRYPTO_LIB_SHA256
 	tristate
