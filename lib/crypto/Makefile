@@ -76,6 +76,7 @@ libsha1-y += arm/sha1-armv4-large.o
 libsha1-$(CONFIG_KERNEL_MODE_NEON) += arm/sha1-armv7-neon.o \
 				      arm/sha1-ce-core.o
 endif
+libsha1-$(CONFIG_ARM64) += arm64/sha1-ce-core.o
 endif # CONFIG_CRYPTO_LIB_SHA1_ARCH
 
 ################################################################################

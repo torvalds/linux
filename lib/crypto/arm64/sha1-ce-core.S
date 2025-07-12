@@ -62,8 +62,8 @@
 	.endm
 
 	/*
-	 * int __sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
-	 *			   int blocks)
+	 * size_t __sha1_ce_transform(struct sha1_block_state *state,
+	 *			      const u8 *data, size_t nblocks);
 	 */
 SYM_FUNC_START(__sha1_ce_transform)
 	/* load round constants */
@@ -76,20 +76,16 @@ SYM_FUNC_START(__sha1_ce_transform)
 	ld1		{dgav.4s}, [x0]
 	ldr		dgb, [x0, #16]
 
-	/* load sha1_ce_state::finalize */
-	ldr_l		w4, sha1_ce_offsetof_finalize, x4
-	ldr		w4, [x0, x4]
-
 	/* load input */
 0:	ld1		{v8.4s-v11.4s}, [x1], #64
-	sub		w2, w2, #1
+	sub		x2, x2, #1
 
 CPU_LE(	rev32		v8.16b, v8.16b		)
 CPU_LE(	rev32		v9.16b, v9.16b		)
 CPU_LE(	rev32		v10.16b, v10.16b	)
 CPU_LE(	rev32		v11.16b, v11.16b	)
 
-1:	add		t0.4s, v8.4s, k0.4s
+	add		t0.4s, v8.4s, k0.4s
 	mov		dg0v.16b, dgav.16b
 
 	add_update	c, ev, k0,  8,  9, 10, 11, dgb
@@ -120,31 +116,15 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 	add		dgbv.2s, dgbv.2s, dg1v.2s
 	add		dgav.4s, dgav.4s, dg0v.4s
 
-	cbz		w2, 2f
-	cond_yield	3f, x5, x6
-	b		0b
+	/* return early if voluntary preemption is needed */
+	cond_yield	1f, x5, x6
 
-	/*
-	 * Final block: add padding and total bit count.
-	 * Skip if the input size was not a round multiple of the block size,
-	 * the padding is handled by the C code in that case.
-	 */
-2:	cbz		x4, 3f
-	ldr_l		w4, sha1_ce_offsetof_count, x4
-	ldr		x4, [x0, x4]
-	movi		v9.2d, #0
-	mov		x8, #0x80000000
-	movi		v10.2d, #0
-	ror		x7, x4, #29		// ror(lsl(x4, 3), 32)
-	fmov		d8, x8
-	mov		x4, #0
-	mov		v11.d[0], xzr
-	mov		v11.d[1], x7
-	b		1b
+	/* handled all input blocks? */
+	cbnz		x2, 0b
 
 	/* store new state */
-3:	st1		{dgav.4s}, [x0]
+1:	st1		{dgav.4s}, [x0]
 	str		dgb, [x0, #16]
-	mov		w0, w2
+	mov		x0, x2
 	ret
 SYM_FUNC_END(__sha1_ce_transform)

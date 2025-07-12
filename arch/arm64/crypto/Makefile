@@ -5,9 +5,6 @@
 # Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
 #
 
-obj-$(CONFIG_CRYPTO_SHA1_ARM64_CE) += sha1-ce.o
-sha1-ce-y := sha1-ce-glue.o sha1-ce-core.o
-
 obj-$(CONFIG_CRYPTO_SHA3_ARM64) += sha3-ce.o
 sha3-ce-y := sha3-ce-glue.o sha3-ce-core.o
 
