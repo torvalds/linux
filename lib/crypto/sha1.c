@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SHA-1 library functions
+ * SHA-1 and HMAC-SHA1 library functions
  */
 
+#include <crypto/hmac.h>
 #include <crypto/sha1.h>
 #include <linux/bitops.h>
 #include <linux/export.h>
@@ -10,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/unaligned.h>
+#include <linux/wordpart.h>
 
 static const struct sha1_block_state sha1_iv = {
 	.h = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
@@ -197,7 +199,7 @@ void sha1_update(struct sha1_ctx *ctx, const u8 *data, size_t len)
 }
 EXPORT_SYMBOL_GPL(sha1_update);
 
-void sha1_final(struct sha1_ctx *ctx, u8 out[SHA1_DIGEST_SIZE])
+static void __sha1_final(struct sha1_ctx *ctx, u8 out[SHA1_DIGEST_SIZE])
 {
 	u64 bitcount = ctx->bytecount << 3;
 	size_t partial = ctx->bytecount % SHA1_BLOCK_SIZE;
@@ -214,6 +216,11 @@ void sha1_final(struct sha1_ctx *ctx, u8 out[SHA1_DIGEST_SIZE])
 
 	for (size_t i = 0; i < SHA1_DIGEST_SIZE; i += 4)
 		put_unaligned_be32(ctx->state.h[i / 4], out + i);
+}
+
+void sha1_final(struct sha1_ctx *ctx, u8 out[SHA1_DIGEST_SIZE])
+{
+	__sha1_final(ctx, out);
 	memzero_explicit(ctx, sizeof(*ctx));
 }
 EXPORT_SYMBOL_GPL(sha1_final);
@@ -227,6 +234,101 @@ void sha1(const u8 *data, size_t len, u8 out[SHA1_DIGEST_SIZE])
 	sha1_final(&ctx, out);
 }
 EXPORT_SYMBOL_GPL(sha1);
+
+static void __hmac_sha1_preparekey(struct sha1_block_state *istate,
+				   struct sha1_block_state *ostate,
+				   const u8 *raw_key, size_t raw_key_len)
+{
+	union {
+		u8 b[SHA1_BLOCK_SIZE];
+		unsigned long w[SHA1_BLOCK_SIZE / sizeof(unsigned long)];
+	} derived_key = { 0 };
+
+	if (unlikely(raw_key_len > SHA1_BLOCK_SIZE))
+		sha1(raw_key, raw_key_len, derived_key.b);
+	else
+		memcpy(derived_key.b, raw_key, raw_key_len);
+
+	for (size_t i = 0; i < ARRAY_SIZE(derived_key.w); i++)
+		derived_key.w[i] ^= REPEAT_BYTE(HMAC_IPAD_VALUE);
+	*istate = sha1_iv;
+	sha1_blocks(istate, derived_key.b, 1);
+
+	for (size_t i = 0; i < ARRAY_SIZE(derived_key.w); i++)
+		derived_key.w[i] ^= REPEAT_BYTE(HMAC_OPAD_VALUE ^
+						HMAC_IPAD_VALUE);
+	*ostate = sha1_iv;
+	sha1_blocks(ostate, derived_key.b, 1);
+
+	memzero_explicit(&derived_key, sizeof(derived_key));
+}
+
+void hmac_sha1_preparekey(struct hmac_sha1_key *key,
+			  const u8 *raw_key, size_t raw_key_len)
+{
+	__hmac_sha1_preparekey(&key->istate, &key->ostate,
+			       raw_key, raw_key_len);
+}
+EXPORT_SYMBOL_GPL(hmac_sha1_preparekey);
+
+void hmac_sha1_init(struct hmac_sha1_ctx *ctx, const struct hmac_sha1_key *key)
+{
+	ctx->sha_ctx.state = key->istate;
+	ctx->sha_ctx.bytecount = SHA1_BLOCK_SIZE;
+	ctx->ostate = key->ostate;
+}
+EXPORT_SYMBOL_GPL(hmac_sha1_init);
+
+void hmac_sha1_init_usingrawkey(struct hmac_sha1_ctx *ctx,
+				const u8 *raw_key, size_t raw_key_len)
+{
+	__hmac_sha1_preparekey(&ctx->sha_ctx.state, &ctx->ostate,
+			       raw_key, raw_key_len);
+	ctx->sha_ctx.bytecount = SHA1_BLOCK_SIZE;
+}
+EXPORT_SYMBOL_GPL(hmac_sha1_init_usingrawkey);
+
+void hmac_sha1_final(struct hmac_sha1_ctx *ctx, u8 out[SHA1_DIGEST_SIZE])
+{
+	/* Generate the padded input for the outer hash in ctx->sha_ctx.buf. */
+	__sha1_final(&ctx->sha_ctx, ctx->sha_ctx.buf);
+	memset(&ctx->sha_ctx.buf[SHA1_DIGEST_SIZE], 0,
+	       SHA1_BLOCK_SIZE - SHA1_DIGEST_SIZE);
+	ctx->sha_ctx.buf[SHA1_DIGEST_SIZE] = 0x80;
+	*(__be32 *)&ctx->sha_ctx.buf[SHA1_BLOCK_SIZE - 4] =
+		cpu_to_be32(8 * (SHA1_BLOCK_SIZE + SHA1_DIGEST_SIZE));
+
+	/* Compute the outer hash, which gives the HMAC value. */
+	sha1_blocks(&ctx->ostate, ctx->sha_ctx.buf, 1);
+	for (size_t i = 0; i < SHA1_DIGEST_SIZE; i += 4)
+		put_unaligned_be32(ctx->ostate.h[i / 4], out + i);
+
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+EXPORT_SYMBOL_GPL(hmac_sha1_final);
+
+void hmac_sha1(const struct hmac_sha1_key *key,
+	       const u8 *data, size_t data_len, u8 out[SHA1_DIGEST_SIZE])
+{
+	struct hmac_sha1_ctx ctx;
+
+	hmac_sha1_init(&ctx, key);
+	hmac_sha1_update(&ctx, data, data_len);
+	hmac_sha1_final(&ctx, out);
+}
+EXPORT_SYMBOL_GPL(hmac_sha1);
+
+void hmac_sha1_usingrawkey(const u8 *raw_key, size_t raw_key_len,
+			   const u8 *data, size_t data_len,
+			   u8 out[SHA1_DIGEST_SIZE])
+{
+	struct hmac_sha1_ctx ctx;
+
+	hmac_sha1_init_usingrawkey(&ctx, raw_key, raw_key_len);
+	hmac_sha1_update(&ctx, data, data_len);
+	hmac_sha1_final(&ctx, out);
+}
+EXPORT_SYMBOL_GPL(hmac_sha1_usingrawkey);
 
 #ifdef sha1_mod_init_arch
 static int __init sha1_mod_init(void)
@@ -242,5 +344,5 @@ static void __exit sha1_mod_exit(void)
 module_exit(sha1_mod_exit);
 #endif
 
-MODULE_DESCRIPTION("SHA-1 library functions");
+MODULE_DESCRIPTION("SHA-1 and HMAC-SHA1 library functions");
 MODULE_LICENSE("GPL");
