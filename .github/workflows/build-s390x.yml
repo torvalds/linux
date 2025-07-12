@@ -1,0 +1,37 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master","devel-*" ]
+    
+jobs:
+  build-kernel:
+    runs-on: linux-s390x
+    steps:
+    - name: configure
+      run: |
+        pushd /home/ansible/linux
+        make defconfig
+        popd
+    - name: compile
+      run: |
+        pushd /home/ansible/linux
+        make -j$(nproc)
+        popd
+    - name: compile modules
+      run: |
+        pushd /home/ansible/linux
+        make -j$(nproc) modules
+        popd
+    - name: move modules
+      run: |
+        pushd /home/ansible/linux
+        echo ${{ secrets.PASSWD }} | sudo -S make modules_install
+        popd
+  
+  build-initrd:
+    needs: build-kernel
+    runs-on: linux-s390x
+    steps:
+    - name: run dracut to create bonus 
+      run: echo ${{ secrets.PASSWD }} | sudo -S dracut --force "/boot/initrd-myKernel.img"
