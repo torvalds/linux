@@ -11,10 +11,8 @@
 
 #include <linux/netlink.h>
 #include <linux/skbuff.h>
-#include <linux/types.h>
 
 extern char batadv_routing_algo[];
-extern struct list_head batadv_hardif_list;
 
 void batadv_algo_init(void);
 struct batadv_algo_ops *batadv_algo_get(const char *name);
