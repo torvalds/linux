@@ -15,10 +15,11 @@
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_migration.h"
 #include "xe_gt_sriov_pf_monitor.h"
-#include "xe_gt_sriov_pf_service.h"
 #include "xe_gt_sriov_printk.h"
 #include "xe_guc_ct.h"
 #include "xe_sriov.h"
+#include "xe_sriov_pf_service.h"
+#include "xe_tile.h"
 
 static const char *control_cmd_to_string(u32 cmd)
 {
@@ -1064,7 +1065,9 @@ static bool pf_exit_vf_flr_reset_data(struct xe_gt *gt, unsigned int vfid)
 	if (!pf_exit_vf_state(gt, vfid, XE_GT_SRIOV_STATE_FLR_RESET_DATA))
 		return false;
 
-	xe_gt_sriov_pf_service_reset(gt, vfid);
+	if (xe_tile_is_root(gt->tile) && xe_gt_is_main_type(gt))
+		xe_sriov_pf_service_reset_vf(gt_to_xe(gt), vfid);
+
 	xe_gt_sriov_pf_monitor_flr(gt, vfid);
 
 	pf_enter_vf_flr_reset_mmio(gt, vfid);

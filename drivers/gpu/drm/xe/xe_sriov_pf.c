@@ -12,6 +12,8 @@
 #include "xe_module.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_service.h"
 #include "xe_sriov_printk.h"
 
 static unsigned int wanted_max_vfs(struct xe_device *xe)
@@ -82,9 +84,22 @@ bool xe_sriov_pf_readiness(struct xe_device *xe)
  */
 int xe_sriov_pf_init_early(struct xe_device *xe)
 {
+	int err;
+
 	xe_assert(xe, IS_SRIOV_PF(xe));
 
-	return drmm_mutex_init(&xe->drm, &xe->sriov.pf.master_lock);
+	xe->sriov.pf.vfs = drmm_kcalloc(&xe->drm, 1 + xe_sriov_pf_get_totalvfs(xe),
+					sizeof(*xe->sriov.pf.vfs), GFP_KERNEL);
+	if (!xe->sriov.pf.vfs)
+		return -ENOMEM;
+
+	err = drmm_mutex_init(&xe->drm, &xe->sriov.pf.master_lock);
+	if (err)
+		return err;
+
+	xe_sriov_pf_service_init(xe);
+
+	return 0;
 }
 
 /**
@@ -119,6 +134,7 @@ static int simple_show(struct seq_file *m, void *data)
 
 static const struct drm_info_list debugfs_list[] = {
 	{ .name = "vfs", .show = simple_show, .data = xe_sriov_pf_print_vfs_summary },
+	{ .name = "versions", .show = simple_show, .data = xe_sriov_pf_service_print_versions },
 };
 
 /**

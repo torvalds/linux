@@ -9,6 +9,16 @@
 #include <linux/mutex.h>
 #include <linux/types.h>
 
+#include "xe_sriov_pf_service_types.h"
+
+/**
+ * struct xe_sriov_metadata - per-VF device level metadata
+ */
+struct xe_sriov_metadata {
+	/** @version: negotiated VF/PF ABI version */
+	struct xe_sriov_pf_service_version version;
+};
+
 /**
  * struct xe_device_pf - Xe PF related data
  *
@@ -24,6 +34,12 @@ struct xe_device_pf {
 
 	/** @master_lock: protects all VFs configurations across GTs */
 	struct mutex master_lock;
+
+	/** @service: device level service data. */
+	struct xe_sriov_pf_service service;
+
+	/** @vfs: metadata for all VFs. */
+	struct xe_sriov_metadata *vfs;
 };
 
 #endif
