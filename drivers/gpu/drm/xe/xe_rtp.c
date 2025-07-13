@@ -358,21 +358,6 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
 		hwe->engine_id == __ffs(render_compute_mask);
 }
 
-bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
-					 const struct xe_hw_engine *hwe)
-{
-	unsigned int dss_per_gslice = 4;
-	unsigned int dss;
-
-	if (drm_WARN(&gt_to_xe(gt)->drm, xe_dss_mask_empty(gt->fuse_topo.g_dss_mask),
-		     "Checking gslice for platform without geometry pipeline\n"))
-		return false;
-
-	dss = xe_dss_mask_group_ffs(gt->fuse_topo.g_dss_mask, 0, 0);
-
-	return dss >= dss_per_gslice;
-}
-
 bool xe_rtp_match_not_sriov_vf(const struct xe_gt *gt,
 			       const struct xe_hw_engine *hwe)
 {

@@ -2174,21 +2174,6 @@ struct xe_bo *xe_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
 	return xe_bo_create_pin_map_at(xe, tile, vm, size, ~0ull, type, flags);
 }
 
-struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
-				     const void *data, size_t size,
-				     enum ttm_bo_type type, u32 flags)
-{
-	struct xe_bo *bo = xe_bo_create_pin_map(xe, tile, NULL,
-						ALIGN(size, PAGE_SIZE),
-						type, flags);
-	if (IS_ERR(bo))
-		return bo;
-
-	xe_map_memcpy_to(xe, &bo->vmap, 0, data, size);
-
-	return bo;
-}
-
 static void __xe_bo_unpin_map_no_vm(void *arg)
 {
 	xe_bo_unpin_map_no_vm(arg);

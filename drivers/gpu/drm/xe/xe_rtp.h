@@ -467,17 +467,6 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
 					  const struct xe_hw_engine *hwe);
 
 /*
- * xe_rtp_match_first_gslice_fused_off - Match when first gslice is fused off
- *
- * @gt: GT structure
- * @hwe: Engine instance
- *
- * Returns: true if first gslice is fused off, false otherwise.
- */
-bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
-					 const struct xe_hw_engine *hwe);
-
-/*
  * xe_rtp_match_not_sriov_vf - Match when not on SR-IOV VF device
  *
  * @gt: GT structure
