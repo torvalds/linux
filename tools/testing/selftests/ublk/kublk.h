@@ -178,12 +178,10 @@ struct ublk_queue {
 	const struct ublk_tgt_ops *tgt_ops;
 	struct ublksrv_io_desc *io_cmd_buf;
 
+/* borrow one bit of ublk uapi flags, which may never be used */
+#define UBLKSRV_AUTO_BUF_REG_FALLBACK	(1ULL << 63)
+	__u64 flags;
 	struct ublk_io ios[UBLK_QUEUE_DEPTH];
-#define UBLKSRV_NO_BUF		(1U << 2)
-#define UBLKSRV_ZC		(1U << 3)
-#define UBLKSRV_AUTO_BUF_REG		(1U << 4)
-#define UBLKSRV_AUTO_BUF_REG_FALLBACK	(1U << 5)
-	unsigned state;
 };
 
 struct ublk_thread {
@@ -437,12 +435,22 @@ static inline int ublk_completed_tgt_io(struct ublk_thread *t,
 
 static inline int ublk_queue_use_zc(const struct ublk_queue *q)
 {
-	return q->state & UBLKSRV_ZC;
+	return q->flags & UBLK_F_SUPPORT_ZERO_COPY;
 }
 
 static inline int ublk_queue_use_auto_zc(const struct ublk_queue *q)
 {
-	return q->state & UBLKSRV_AUTO_BUF_REG;
+	return q->flags & UBLK_F_AUTO_BUF_REG;
+}
+
+static inline int ublk_queue_auto_zc_fallback(const struct ublk_queue *q)
+{
+	return q->flags & UBLKSRV_AUTO_BUF_REG_FALLBACK;
+}
+
+static inline int ublk_queue_no_buf(const struct ublk_queue *q)
+{
+	return ublk_queue_use_zc(q) || ublk_queue_use_auto_zc(q);
 }
 
 extern const struct ublk_tgt_ops null_tgt_ops;

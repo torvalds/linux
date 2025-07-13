@@ -441,17 +441,10 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned extra_flags)
 	unsigned long off;
 
 	q->tgt_ops = dev->tgt.ops;
-	q->state = 0;
+	q->flags = 0;
 	q->q_depth = depth;
-
-	if (dev->dev_info.flags & (UBLK_F_SUPPORT_ZERO_COPY | UBLK_F_AUTO_BUF_REG)) {
-		q->state |= UBLKSRV_NO_BUF;
-		if (dev->dev_info.flags & UBLK_F_SUPPORT_ZERO_COPY)
-			q->state |= UBLKSRV_ZC;
-		if (dev->dev_info.flags & UBLK_F_AUTO_BUF_REG)
-			q->state |= UBLKSRV_AUTO_BUF_REG;
-	}
-	q->state |= extra_flags;
+	q->flags = dev->dev_info.flags;
+	q->flags |= extra_flags;
 
 	cmd_buf_size = ublk_queue_cmd_buf_sz(q);
 	off = UBLKSRV_CMD_BUF_OFFSET + q->q_id * ublk_queue_max_cmd_buf_sz();
@@ -469,7 +462,7 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned extra_flags)
 		q->ios[i].flags = UBLKSRV_NEED_FETCH_RQ | UBLKSRV_IO_FREE;
 		q->ios[i].tag = i;
 
-		if (q->state & UBLKSRV_NO_BUF)
+		if (ublk_queue_no_buf(q))
 			continue;
 
 		if (posix_memalign((void **)&q->ios[i].buf_addr,
@@ -583,7 +576,7 @@ static void ublk_set_auto_buf_reg(const struct ublk_queue *q,
 	else
 		buf.index = q->ios[tag].buf_index;
 
-	if (q->state & UBLKSRV_AUTO_BUF_REG_FALLBACK)
+	if (ublk_queue_auto_zc_fallback(q))
 		buf.flags = UBLK_AUTO_BUF_REG_FALLBACK;
 
 	sqe->addr = ublk_auto_buf_reg_to_sqe_addr(&buf);
@@ -639,12 +632,12 @@ int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io)
 	sqe[0]->rw_flags	= 0;
 	cmd->tag	= io->tag;
 	cmd->q_id	= q->q_id;
-	if (!(q->state & UBLKSRV_NO_BUF))
+	if (!ublk_queue_no_buf(q))
 		cmd->addr	= (__u64) (uintptr_t) io->buf_addr;
 	else
 		cmd->addr	= 0;
 
-	if (q->state & UBLKSRV_AUTO_BUF_REG)
+	if (ublk_queue_use_auto_zc(q))
 		ublk_set_auto_buf_reg(q, sqe[0], io->tag);
 
 	user_data = build_user_data(io->tag, _IOC_NR(cmd_op), 0, q->q_id, 0);
@@ -739,7 +732,7 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 
 	if (cqe->res < 0 && cqe->res != -ENODEV)
 		ublk_err("%s: res %d userdata %llx queue state %x\n", __func__,
-				cqe->res, cqe->user_data, q->state);
+				cqe->res, cqe->user_data, q->flags);
 
 	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (qid %d tag %u cmd_op %u target %d/%d) stopping %d\n",
 			__func__, cqe->res, q->q_id, tag, cmd_op,
@@ -911,7 +904,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 {
 	const struct ublksrv_ctrl_dev_info *dinfo = &dev->dev_info;
 	struct ublk_thread_info *tinfo;
-	unsigned extra_flags = 0;
+	unsigned long long extra_flags = 0;
 	cpu_set_t *affinity_buf;
 	void *thread_ret;
 	sem_t ready;

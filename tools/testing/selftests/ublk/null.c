@@ -138,7 +138,7 @@ static int ublk_null_queue_io(struct ublk_thread *t, struct ublk_queue *q,
  */
 static unsigned short ublk_null_buf_index(const struct ublk_queue *q, int tag)
 {
-	if (q->state & UBLKSRV_AUTO_BUF_REG_FALLBACK)
+	if (ublk_queue_auto_zc_fallback(q))
 		return (unsigned short)-1;
 	return q->ios[tag].buf_index;
 }
