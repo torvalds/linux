@@ -995,7 +995,7 @@ static inline int pcie_hotplug_depth(struct pci_dev *dev)
 
 	while (bus->parent) {
 		bus = bus->parent;
-		if (bus->self && bus->self->is_hotplug_bridge)
+		if (bus->self && bus->self->is_pciehp)
 			depth++;
 	}
 
