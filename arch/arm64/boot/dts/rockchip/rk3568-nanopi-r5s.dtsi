@@ -18,6 +18,7 @@
 	aliases {
 		mmc0 = &sdmmc0;
 		mmc1 = &sdhci;
+		rtc0 = &hym8563;
 	};
 
 	chosen: chosen {
