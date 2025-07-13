@@ -20,6 +20,7 @@
 #include "xe_pm.h"
 #include "xe_pxp_debugfs.h"
 #include "xe_sriov.h"
+#include "xe_sriov_pf.h"
 #include "xe_step.h"
 #include "xe_wa.h"
 
@@ -293,4 +294,7 @@ void xe_debugfs_register(struct xe_device *xe)
 	xe_pxp_debugfs_register(xe->pxp);
 
 	fault_create_debugfs_attr("fail_gt_reset", root, &gt_reset_failure);
+
+	if (IS_SRIOV_PF(xe))
+		xe_sriov_pf_debugfs_register(xe, root);
 }
