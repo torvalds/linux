@@ -204,6 +204,11 @@ impl<T: Send> Devres<T> {
         } == 0)
     }
 
+    /// Return a reference of the [`Device`] this [`Devres`] instance has been created with.
+    pub fn device(&self) -> &Device {
+        &self.dev
+    }
+
     /// Obtain `&'a T`, bypassing the [`Revocable`].
     ///
     /// This method allows to directly obtain a `&'a T`, bypassing the [`Revocable`], by presenting
