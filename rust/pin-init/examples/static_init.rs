@@ -3,6 +3,7 @@
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg_attr(feature = "alloc", feature(allocator_api))]
 #![cfg_attr(not(RUSTC_LINT_REASONS_IS_STABLE), feature(lint_reasons))]
+#![allow(unused_imports)]
 
 use core::{
     cell::{Cell, UnsafeCell},
@@ -12,12 +13,13 @@ use core::{
     time::Duration,
 };
 use pin_init::*;
+#[cfg(feature = "std")]
 use std::{
     sync::Arc,
     thread::{sleep, Builder},
 };
 
-#[expect(unused_attributes)]
+#[allow(unused_attributes)]
 mod mutex;
 use mutex::*;
 
@@ -82,42 +84,41 @@ unsafe impl PinInit<CMutex<usize>> for CountInit {
 
 pub static COUNT: StaticInit<CMutex<usize>, CountInit> = StaticInit::new(CountInit);
 
-#[cfg(not(any(feature = "std", feature = "alloc")))]
-fn main() {}
-
-#[cfg(any(feature = "std", feature = "alloc"))]
 fn main() {
-    let mtx: Pin<Arc<CMutex<usize>>> = Arc::pin_init(CMutex::new(0)).unwrap();
-    let mut handles = vec![];
-    let thread_count = 20;
-    let workload = 1_000;
-    for i in 0..thread_count {
-        let mtx = mtx.clone();
-        handles.push(
-            Builder::new()
-                .name(format!("worker #{i}"))
-                .spawn(move || {
-                    for _ in 0..workload {
-                        *COUNT.lock() += 1;
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                        *mtx.lock() += 1;
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                        *COUNT.lock() += 1;
-                    }
-                    println!("{i} halfway");
-                    sleep(Duration::from_millis((i as u64) * 10));
-                    for _ in 0..workload {
-                        std::thread::sleep(std::time::Duration::from_millis(10));
-                        *mtx.lock() += 1;
-                    }
-                    println!("{i} finished");
-                })
-                .expect("should not fail"),
-        );
+    #[cfg(feature = "std")]
+    {
+        let mtx: Pin<Arc<CMutex<usize>>> = Arc::pin_init(CMutex::new(0)).unwrap();
+        let mut handles = vec![];
+        let thread_count = 20;
+        let workload = 1_000;
+        for i in 0..thread_count {
+            let mtx = mtx.clone();
+            handles.push(
+                Builder::new()
+                    .name(format!("worker #{i}"))
+                    .spawn(move || {
+                        for _ in 0..workload {
+                            *COUNT.lock() += 1;
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            *mtx.lock() += 1;
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            *COUNT.lock() += 1;
+                        }
+                        println!("{i} halfway");
+                        sleep(Duration::from_millis((i as u64) * 10));
+                        for _ in 0..workload {
+                            std::thread::sleep(std::time::Duration::from_millis(10));
+                            *mtx.lock() += 1;
+                        }
+                        println!("{i} finished");
+                    })
+                    .expect("should not fail"),
+            );
+        }
+        for h in handles {
+            h.join().expect("thread panicked");
+        }
+        println!("{:?}, {:?}", &*mtx.lock(), &*COUNT.lock());
+        assert_eq!(*mtx.lock(), workload * thread_count * 2);
     }
-    for h in handles {
-        h.join().expect("thread panicked");
-    }
-    println!("{:?}, {:?}", &*mtx.lock(), &*COUNT.lock());
-    assert_eq!(*mtx.lock(), workload * thread_count * 2);
 }

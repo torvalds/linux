@@ -151,7 +151,7 @@ impl<Data> Subsystem<Data> {
         data: impl PinInit<Data, Error>,
     ) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            subsystem <- pin_init::zeroed().chain(
+            subsystem <- pin_init::init_zeroed().chain(
                 |place: &mut Opaque<bindings::configfs_subsystem>| {
                     // SAFETY: We initialized the required fields of `place.group` above.
                     unsafe {
@@ -261,7 +261,7 @@ impl<Data> Group<Data> {
         data: impl PinInit<Data, Error>,
     ) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            group <- pin_init::zeroed().chain(|v: &mut Opaque<bindings::config_group>| {
+            group <- pin_init::init_zeroed().chain(|v: &mut Opaque<bindings::config_group>| {
                 let place = v.get();
                 let name = name.as_bytes_with_nul().as_ptr();
                 // SAFETY: It is safe to initialize a group once it has been zeroed.
