@@ -552,7 +552,7 @@ int xe_gt_sriov_vf_query_config(struct xe_gt *gt)
 	if (unlikely(err))
 		return err;
 
-	if (IS_DGFX(xe) && !xe_gt_is_media_type(gt)) {
+	if (IS_DGFX(xe) && xe_gt_is_main_type(gt)) {
 		err = vf_get_lmem_info(gt);
 		if (unlikely(err))
 			return err;
@@ -649,7 +649,7 @@ s64 xe_gt_sriov_vf_ggtt_shift(struct xe_gt *gt)
 	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 
 	return config->ggtt_shift;
 }
@@ -1036,7 +1036,7 @@ void xe_gt_sriov_vf_print_config(struct xe_gt *gt, struct drm_printer *p)
 
 	drm_printf(p, "GGTT shift on last restore:\t%lld\n", config->ggtt_shift);
 
-	if (IS_DGFX(xe) && !xe_gt_is_media_type(gt)) {
+	if (IS_DGFX(xe) && xe_gt_is_main_type(gt)) {
 		string_get_size(config->lmem_size, 1, STRING_UNITS_2, buf, sizeof(buf));
 		drm_printf(p, "LMEM size:\t%llu (%s)\n", config->lmem_size, buf);
 	}

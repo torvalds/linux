@@ -112,7 +112,7 @@ static void xe_gt_enable_host_l2_vram(struct xe_gt *gt)
 	if (!fw_ref)
 		return;
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		reg = xe_gt_mcr_unicast_read_any(gt, XE2_GAMREQSTRM_CTRL);
 		reg |= CG_DIS_CNTLBUS;
 		xe_gt_mcr_multicast_write(gt, XE2_GAMREQSTRM_CTRL, reg);
@@ -470,7 +470,7 @@ static int gt_init_with_gt_forcewake(struct xe_gt *gt)
 	xe_gt_mcr_init(gt);
 	xe_gt_enable_host_l2_vram(gt);
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		err = xe_ggtt_init(gt_to_tile(gt)->mem.ggtt);
 		if (err)
 			goto err_force_wake;
@@ -547,7 +547,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		/*
 		 * USM has its only SA pool to non-block behind user operations
 		 */
@@ -563,7 +563,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 		}
 	}
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		struct xe_tile *tile = gt_to_tile(gt);
 
 		tile->migrate = xe_migrate_init(tile);
@@ -583,7 +583,7 @@ static int gt_init_with_all_forcewake(struct xe_gt *gt)
 		xe_gt_apply_ccs_mode(gt);
 	}
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
 		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
 	if (IS_SRIOV_PF(gt_to_xe(gt))) {
@@ -780,7 +780,7 @@ static int do_gt_restart(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_is_main_type(gt))
 		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
 	if (IS_SRIOV_PF(gt_to_xe(gt)))

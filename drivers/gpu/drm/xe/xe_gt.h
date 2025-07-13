@@ -106,6 +106,11 @@ static inline bool xe_gt_has_indirect_ring_state(struct xe_gt *gt)
 	       xe_device_uc_enabled(gt_to_xe(gt));
 }
 
+static inline bool xe_gt_is_main_type(struct xe_gt *gt)
+{
+	return gt->info.type == XE_GT_TYPE_MAIN;
+}
+
 static inline bool xe_gt_is_media_type(struct xe_gt *gt)
 {
 	return gt->info.type == XE_GT_TYPE_MEDIA;

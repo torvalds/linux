@@ -376,7 +376,7 @@ static u64 pf_get_spare_ggtt(struct xe_gt *gt)
 {
 	u64 spare;
 
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
 
@@ -388,7 +388,7 @@ static u64 pf_get_spare_ggtt(struct xe_gt *gt)
 
 static int pf_set_spare_ggtt(struct xe_gt *gt, u64 size)
 {
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
 
@@ -443,7 +443,7 @@ static int pf_provision_vf_ggtt(struct xe_gt *gt, unsigned int vfid, u64 size)
 	int err;
 
 	xe_gt_assert(gt, vfid);
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 
 	size = round_up(size, alignment);
@@ -492,7 +492,7 @@ static u64 pf_get_vf_config_ggtt(struct xe_gt *gt, unsigned int vfid)
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	struct xe_ggtt_node *node = config->ggtt_region;
 
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 	return xe_ggtt_node_allocated(node) ? node->base.size : 0;
 }
 
@@ -560,7 +560,7 @@ int xe_gt_sriov_pf_config_set_ggtt(struct xe_gt *gt, unsigned int vfid, u64 size
 {
 	int err;
 
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 
 	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
 	if (vfid)
@@ -622,7 +622,7 @@ int xe_gt_sriov_pf_config_bulk_set_ggtt(struct xe_gt *gt, unsigned int vfid,
 	int err = 0;
 
 	xe_gt_assert(gt, vfid);
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 
 	if (!num_vfs)
 		return 0;
@@ -693,7 +693,7 @@ int xe_gt_sriov_pf_config_set_fair_ggtt(struct xe_gt *gt, unsigned int vfid,
 
 	xe_gt_assert(gt, vfid);
 	xe_gt_assert(gt, num_vfs);
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 
 	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
 	fair = pf_estimate_fair_ggtt(gt, num_vfs);
@@ -1406,7 +1406,7 @@ fail:
 static void pf_release_vf_config_lmem(struct xe_gt *gt, struct xe_gt_sriov_config *config)
 {
 	xe_gt_assert(gt, IS_DGFX(gt_to_xe(gt)));
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
 
 	if (config->lmem_obj) {
@@ -1425,7 +1425,7 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 
 	xe_gt_assert(gt, vfid);
 	xe_gt_assert(gt, IS_DGFX(xe));
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 
 	size = round_up(size, pf_get_lmem_alignment(gt));
 
@@ -1552,7 +1552,7 @@ int xe_gt_sriov_pf_config_bulk_set_lmem(struct xe_gt *gt, unsigned int vfid,
 	int err = 0;
 
 	xe_gt_assert(gt, vfid);
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 
 	if (!num_vfs)
 		return 0;
@@ -1629,7 +1629,7 @@ int xe_gt_sriov_pf_config_set_fair_lmem(struct xe_gt *gt, unsigned int vfid,
 
 	xe_gt_assert(gt, vfid);
 	xe_gt_assert(gt, num_vfs);
-	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
+	xe_gt_assert(gt, xe_gt_is_main_type(gt));
 
 	if (!xe_device_has_lmtt(gt_to_xe(gt)))
 		return 0;
@@ -1663,7 +1663,7 @@ int xe_gt_sriov_pf_config_set_fair(struct xe_gt *gt, unsigned int vfid,
 	xe_gt_assert(gt, vfid);
 	xe_gt_assert(gt, num_vfs);
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		err = xe_gt_sriov_pf_config_set_fair_ggtt(gt, vfid, num_vfs);
 		result = result ?: err;
 		err = xe_gt_sriov_pf_config_set_fair_lmem(gt, vfid, num_vfs);
@@ -1991,7 +1991,7 @@ static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	struct xe_device *xe = gt_to_xe(gt);
 
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		pf_release_vf_config_ggtt(gt, config);
 		if (IS_DGFX(xe)) {
 			pf_release_vf_config_lmem(gt, config);
@@ -2082,7 +2082,7 @@ static int pf_sanitize_vf_resources(struct xe_gt *gt, u32 vfid, long timeout)
 	 * Only GGTT and LMEM requires to be cleared by the PF.
 	 * GuC doorbell IDs and context IDs do not need any clearing.
 	 */
-	if (!xe_gt_is_media_type(gt)) {
+	if (xe_gt_is_main_type(gt)) {
 		pf_sanitize_ggtt(config->ggtt_region, vfid);
 		if (IS_DGFX(xe))
 			err = pf_sanitize_lmem(tile, config->lmem_obj, timeout);
@@ -2149,7 +2149,7 @@ static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
 {
 	struct xe_gt *primary_gt = gt_to_tile(gt)->primary_gt;
 	struct xe_device *xe = gt_to_xe(gt);
-	bool is_primary = !xe_gt_is_media_type(gt);
+	bool is_primary = xe_gt_is_main_type(gt);
 	bool valid_ggtt, valid_ctxs, valid_dbs;
 	bool valid_any, valid_all;
 

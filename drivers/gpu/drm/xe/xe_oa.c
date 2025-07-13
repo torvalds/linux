@@ -2493,7 +2493,7 @@ int xe_oa_register(struct xe_device *xe)
 
 static u32 num_oa_units_per_gt(struct xe_gt *gt)
 {
-	if (!xe_gt_is_media_type(gt) || GRAPHICS_VER(gt_to_xe(gt)) < 20)
+	if (xe_gt_is_main_type(gt) || GRAPHICS_VER(gt_to_xe(gt)) < 20)
 		return 1;
 	else if (!IS_DGFX(gt_to_xe(gt)))
 		return XE_OAM_UNIT_SCMI_0 + 1; /* SAG + SCMI_0 */
@@ -2506,7 +2506,7 @@ static u32 __hwe_oam_unit(struct xe_hw_engine *hwe)
 	if (GRAPHICS_VERx100(gt_to_xe(hwe->gt)) < 1270)
 		return XE_OA_UNIT_INVALID;
 
-	xe_gt_WARN_ON(hwe->gt, !xe_gt_is_media_type(hwe->gt));
+	xe_gt_WARN_ON(hwe->gt, xe_gt_is_main_type(hwe->gt));
 
 	if (GRAPHICS_VER(gt_to_xe(hwe->gt)) < 20)
 		return 0;
@@ -2589,7 +2589,7 @@ static void __xe_oa_init_oa_units(struct xe_gt *gt)
 	for (i = 0; i < num_units; i++) {
 		struct xe_oa_unit *u = &gt->oa.oa_unit[i];
 
-		if (!xe_gt_is_media_type(gt)) {
+		if (xe_gt_is_main_type(gt)) {
 			u->regs = __oag_regs();
 			u->type = DRM_XE_OA_UNIT_TYPE_OAG;
 		} else {
