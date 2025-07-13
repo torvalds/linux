@@ -193,6 +193,10 @@ trigger_store(struct device *dev, struct device_attribute *attr,
 
 	guard(mutex)(&entry->control_mutex);
 
+	/* if device is currently disabled, return busy */
+	if (pmt_crashlog_disabled(&entry->entry))
+		return -EBUSY;
+
 	if (!trigger) {
 		pmt_crashlog_set_clear(&entry->entry);
 		return count;
@@ -201,10 +205,6 @@ trigger_store(struct device *dev, struct device_attribute *attr,
 	/* we cannot trigger a new crash if one is still pending */
 	if (pmt_crashlog_complete(&entry->entry))
 		return -EEXIST;
-
-	/* if device is currently disabled, return busy */
-	if (pmt_crashlog_disabled(&entry->entry))
-		return -EBUSY;
 
 	pmt_crashlog_set_execute(&entry->entry);
 
