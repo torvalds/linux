@@ -714,13 +714,12 @@ static inline void ublk_put_req_ref(struct ublk_io *io, struct request *req)
 		__ublk_complete_rq(req);
 }
 
-static inline void ublk_sub_req_ref(struct ublk_io *io, struct request *req)
+static inline bool ublk_sub_req_ref(struct ublk_io *io, struct request *req)
 {
 	unsigned sub_refs = UBLK_REFCOUNT_INIT - io->task_registered_buffers;
 
 	io->task_registered_buffers = 0;
-	if (refcount_sub_and_test(sub_refs, &io->ref))
-		__ublk_complete_rq(req);
+	return refcount_sub_and_test(sub_refs, &io->ref);
 }
 
 static inline bool ublk_need_get_data(const struct ublk_queue *ubq)
@@ -2243,21 +2242,13 @@ static int ublk_check_commit_and_fetch(const struct ublk_queue *ubq,
 	return 0;
 }
 
-static void ublk_commit_and_fetch(const struct ublk_queue *ubq,
-				  struct ublk_io *io, struct io_uring_cmd *cmd,
-				  struct request *req, unsigned int issue_flags,
-				  __u64 zone_append_lba, u16 buf_idx)
+static bool ublk_need_complete_req(const struct ublk_queue *ubq,
+				   struct ublk_io *io,
+				   struct request *req)
 {
-	if (buf_idx != UBLK_INVALID_BUF_IDX)
-		io_buffer_unregister_bvec(cmd, buf_idx, issue_flags);
-
-	if (req_op(req) == REQ_OP_ZONE_APPEND)
-		req->__sector = zone_append_lba;
-
 	if (ublk_need_req_ref(ubq))
-		ublk_sub_req_ref(io, req);
-	else
-		__ublk_complete_rq(req);
+		return ublk_sub_req_ref(io, req);
+	return true;
 }
 
 static bool ublk_get_data(const struct ublk_queue *ubq, struct ublk_io *io,
@@ -2290,6 +2281,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 	unsigned tag = ub_cmd->tag;
 	struct request *req;
 	int ret;
+	bool compl;
 
 	pr_devel("%s: received: cmd op %d queue %d tag %d result %d\n",
 			__func__, cmd->cmd_op, ub_cmd->q_id, tag,
@@ -2367,8 +2359,16 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		io->res = ub_cmd->result;
 		req = ublk_fill_io_cmd(io, cmd);
 		ret = ublk_config_io_buf(ubq, io, cmd, ub_cmd->addr, &buf_idx);
-		ublk_commit_and_fetch(ubq, io, cmd, req, issue_flags,
-				      ub_cmd->zone_append_lba, buf_idx);
+		compl = ublk_need_complete_req(ubq, io, req);
+
+		/* can't touch 'ublk_io' any more */
+		if (buf_idx != UBLK_INVALID_BUF_IDX)
+			io_buffer_unregister_bvec(cmd, buf_idx, issue_flags);
+		if (req_op(req) == REQ_OP_ZONE_APPEND)
+			req->__sector = ub_cmd->zone_append_lba;
+		if (compl)
+			__ublk_complete_rq(req);
+
 		if (ret)
 			goto out;
 		break;
