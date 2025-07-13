@@ -188,7 +188,7 @@ static int vf610_dac_probe(struct platform_device *pdev)
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
-	info->clk = devm_clk_get(&pdev->dev, "dac");
+	info->clk = devm_clk_get_enabled(&pdev->dev, "dac");
 	if (IS_ERR(info->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(info->clk),
 				     "Failed getting clock\n");
@@ -203,13 +203,6 @@ static int vf610_dac_probe(struct platform_device *pdev)
 
 	mutex_init(&info->lock);
 
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock\n");
-		return ret;
-	}
-
 	vf610_dac_init(info);
 
 	ret = iio_device_register(indio_dev);
@@ -222,7 +215,6 @@ static int vf610_dac_probe(struct platform_device *pdev)
 
 error_iio_device_register:
 	vf610_dac_exit(info);
-	clk_disable_unprepare(info->clk);
 
 	return ret;
 }
@@ -234,7 +226,6 @@ static void vf610_dac_remove(struct platform_device *pdev)
 
 	iio_device_unregister(indio_dev);
 	vf610_dac_exit(info);
-	clk_disable_unprepare(info->clk);
 }
 
 static int vf610_dac_suspend(struct device *dev)
