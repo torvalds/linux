@@ -620,7 +620,7 @@ int ublk_queue_io_cmd(struct ublk_io *io)
 	if (io_uring_sq_space_left(&t->ring) < 1)
 		io_uring_submit(&t->ring);
 
-	ublk_io_alloc_sqes(io, sqe, 1);
+	ublk_io_alloc_sqes(t, sqe, 1);
 	if (!sqe[0]) {
 		ublk_err("%s: run out of sqe. thread %u, tag %d\n",
 				__func__, t->idx, io->tag);
@@ -714,8 +714,9 @@ static int ublk_thread_is_done(struct ublk_thread *t)
 	return (t->state & UBLKSRV_THREAD_STOPPING) && ublk_thread_is_idle(t);
 }
 
-static inline void ublksrv_handle_tgt_cqe(struct ublk_queue *q,
-		struct io_uring_cqe *cqe)
+static inline void ublksrv_handle_tgt_cqe(struct ublk_thread *t,
+					  struct ublk_queue *q,
+					  struct io_uring_cqe *cqe)
 {
 	if (cqe->res < 0 && cqe->res != -EAGAIN)
 		ublk_err("%s: failed tgt io: res %d qid %u tag %u, cmd_op %u\n",
@@ -724,7 +725,7 @@ static inline void ublksrv_handle_tgt_cqe(struct ublk_queue *q,
 			user_data_to_op(cqe->user_data));
 
 	if (q->tgt_ops->tgt_io_done)
-		q->tgt_ops->tgt_io_done(q, cqe);
+		q->tgt_ops->tgt_io_done(t, q, cqe);
 }
 
 static void ublk_handle_cqe(struct ublk_thread *t,
@@ -751,7 +752,7 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 
 	/* Don't retrieve io in case of target io */
 	if (is_target_io(cqe->user_data)) {
-		ublksrv_handle_tgt_cqe(q, cqe);
+		ublksrv_handle_tgt_cqe(t, q, cqe);
 		return;
 	}
 
@@ -766,7 +767,7 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 	if (cqe->res == UBLK_IO_RES_OK) {
 		assert(tag < q->q_depth);
 		if (q->tgt_ops->queue_io)
-			q->tgt_ops->queue_io(q, tag);
+			q->tgt_ops->queue_io(t, q, tag);
 	} else if (cqe->res == UBLK_IO_RES_NEED_GET_DATA) {
 		io->flags |= UBLKSRV_NEED_GET_DATA | UBLKSRV_IO_FREE;
 		ublk_queue_io_cmd(io);
