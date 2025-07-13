@@ -237,6 +237,7 @@ struct ublk_device {
 	unsigned int		nr_privileged_daemon;
 	struct mutex cancel_mutex;
 	bool canceling;
+	pid_t 	ublksrv_tgid;
 };
 
 /* header of ublk_params */
@@ -1528,6 +1529,7 @@ static int ublk_ch_open(struct inode *inode, struct file *filp)
 	if (test_and_set_bit(UB_STATE_OPEN, &ub->state))
 		return -EBUSY;
 	filp->private_data = ub;
+	ub->ublksrv_tgid = current->tgid;
 	return 0;
 }
 
@@ -1542,6 +1544,7 @@ static void ublk_reset_ch_dev(struct ublk_device *ub)
 	ub->mm = NULL;
 	ub->nr_queues_ready = 0;
 	ub->nr_privileged_daemon = 0;
+	ub->ublksrv_tgid = -1;
 }
 
 static struct gendisk *ublk_get_disk(struct ublk_device *ub)
@@ -2820,6 +2823,9 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 	if (wait_for_completion_interruptible(&ub->completion) != 0)
 		return -EINTR;
 
+	if (ub->ublksrv_tgid != ublksrv_pid)
+		return -EINVAL;
+
 	mutex_lock(&ub->mutex);
 	if (ub->dev_info.state == UBLK_S_DEV_LIVE ||
 	    test_bit(UB_STATE_USED, &ub->state)) {
@@ -3320,6 +3326,9 @@ static int ublk_ctrl_end_recovery(struct ublk_device *ub,
 
 	pr_devel("%s: All FETCH_REQs received, dev id %d\n", __func__,
 		 header->dev_id);
+
+	if (ub->ublksrv_tgid != ublksrv_pid)
+		return -EINVAL;
 
 	mutex_lock(&ub->mutex);
 	if (ublk_nosrv_should_stop_dev(ub))
