@@ -186,19 +186,6 @@ struct vm_struct *execmem_vmap(size_t size);
 #endif
 
 /**
- * execmem_update_copy - copy an update to executable memory
- * @dst:  destination address to update
- * @src:  source address containing the data
- * @size: how many bytes of memory shold be copied
- *
- * Copy @size bytes from @src to @dst using text poking if the memory at
- * @dst is read-only.
- *
- * Return: a pointer to @dst or NULL on error
- */
-void *execmem_update_copy(void *dst, const void *src, size_t size);
-
-/**
  * execmem_is_rox - check if execmem is read-only
  * @type - the execmem type to check
  *
