@@ -1155,7 +1155,7 @@ static inline void __ublk_complete_rq(struct request *req)
 
 	if (blk_update_request(req, BLK_STS_OK, io->res))
 		blk_mq_requeue_request(req, true);
-	else
+	else if (likely(!blk_should_fake_timeout(req->q)))
 		__blk_mq_end_request(req, BLK_STS_OK);
 
 	return;
@@ -2236,9 +2236,6 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
 		req->__sector = ub_cmd->zone_append_lba;
-
-	if (unlikely(blk_should_fake_timeout(req->q)))
-		return 0;
 
 	if (ublk_need_req_ref(ubq))
 		ublk_sub_req_ref(io, req);
