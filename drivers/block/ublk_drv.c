@@ -2014,6 +2014,8 @@ static inline void ublk_fill_io_cmd(struct ublk_io *io,
 {
 	io->cmd = cmd;
 	io->flags |= UBLK_IO_FLAG_ACTIVE;
+	/* now this cmd slot is owned by ublk driver */
+	io->flags &= ~UBLK_IO_FLAG_OWNED_BY_SRV;
 	io->addr = buf_addr;
 }
 
@@ -2229,9 +2231,6 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 	}
 
 	ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
-
-	/* now this cmd slot is owned by ublk driver */
-	io->flags &= ~UBLK_IO_FLAG_OWNED_BY_SRV;
 	io->res = ub_cmd->result;
 
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
@@ -2353,7 +2352,6 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		 */
 		req = io->req;
 		ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
-		io->flags &= ~UBLK_IO_FLAG_OWNED_BY_SRV;
 		if (likely(ublk_get_data(ubq, io, req))) {
 			__ublk_prep_compl_io_cmd(io, req);
 			return UBLK_IO_RES_OK;
