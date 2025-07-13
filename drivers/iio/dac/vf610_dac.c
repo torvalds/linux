@@ -189,11 +189,9 @@ static int vf610_dac_probe(struct platform_device *pdev)
 		return PTR_ERR(info->regs);
 
 	info->clk = devm_clk_get(&pdev->dev, "dac");
-	if (IS_ERR(info->clk)) {
-		dev_err(&pdev->dev, "Failed getting clock, err = %ld\n",
-			PTR_ERR(info->clk));
-		return PTR_ERR(info->clk);
-	}
+	if (IS_ERR(info->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(info->clk),
+				     "Failed getting clock\n");
 
 	platform_set_drvdata(pdev, indio_dev);
 
