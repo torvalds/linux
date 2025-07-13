@@ -414,7 +414,6 @@ struct cdns_i3c_master {
 	} xferqueue;
 	void __iomem *regs;
 	struct clk *sysclk;
-	struct clk *pclk;
 	struct cdns_i3c_master_caps caps;
 	unsigned long i3c_scl_lim;
 	const struct cdns_i3c_data *devdata;
@@ -1551,6 +1550,7 @@ MODULE_DEVICE_TABLE(of, cdns_i3c_master_of_ids);
 static int cdns_i3c_master_probe(struct platform_device *pdev)
 {
 	struct cdns_i3c_master *master;
+	struct clk *pclk;
 	int ret, irq;
 	u32 val;
 
@@ -1566,11 +1566,11 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 	if (IS_ERR(master->regs))
 		return PTR_ERR(master->regs);
 
-	master->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(master->pclk))
-		return PTR_ERR(master->pclk);
+	pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
+	if (IS_ERR(pclk))
+		return PTR_ERR(pclk);
 
-	master->sysclk = devm_clk_get(&pdev->dev, "sysclk");
+	master->sysclk = devm_clk_get_enabled(&pdev->dev, "sysclk");
 	if (IS_ERR(master->sysclk))
 		return PTR_ERR(master->sysclk);
 
@@ -1578,18 +1578,8 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = clk_prepare_enable(master->pclk);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(master->sysclk);
-	if (ret)
-		goto err_disable_pclk;
-
-	if (readl(master->regs + DEV_ID) != DEV_ID_I3C_MASTER) {
-		ret = -EINVAL;
-		goto err_disable_sysclk;
-	}
+	if (readl(master->regs + DEV_ID) != DEV_ID_I3C_MASTER)
+		return -EINVAL;
 
 	spin_lock_init(&master->xferqueue.lock);
 	INIT_LIST_HEAD(&master->xferqueue.list);
@@ -1600,7 +1590,7 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, cdns_i3c_master_interrupt, 0,
 			       dev_name(&pdev->dev), master);
 	if (ret)
-		goto err_disable_sysclk;
+		return ret;
 
 	platform_set_drvdata(pdev, master);
 
@@ -1622,29 +1612,15 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 	master->ibi.slots = devm_kcalloc(&pdev->dev, master->ibi.num_slots,
 					 sizeof(*master->ibi.slots),
 					 GFP_KERNEL);
-	if (!master->ibi.slots) {
-		ret = -ENOMEM;
-		goto err_disable_sysclk;
-	}
+	if (!master->ibi.slots)
+		return -ENOMEM;
 
 	writel(IBIR_THR(1), master->regs + CMD_IBI_THR_CTRL);
 	writel(MST_INT_IBIR_THR, master->regs + MST_IER);
 	writel(DEVS_CTRL_DEV_CLR_ALL, master->regs + DEVS_CTRL);
 
-	ret = i3c_master_register(&master->base, &pdev->dev,
-				  &cdns_i3c_master_ops, false);
-	if (ret)
-		goto err_disable_sysclk;
-
-	return 0;
-
-err_disable_sysclk:
-	clk_disable_unprepare(master->sysclk);
-
-err_disable_pclk:
-	clk_disable_unprepare(master->pclk);
-
-	return ret;
+	return i3c_master_register(&master->base, &pdev->dev,
+				   &cdns_i3c_master_ops, false);
 }
 
 static void cdns_i3c_master_remove(struct platform_device *pdev)
@@ -1653,9 +1629,6 @@ static void cdns_i3c_master_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&master->hj_work);
 	i3c_master_unregister(&master->base);
-
-	clk_disable_unprepare(master->sysclk);
-	clk_disable_unprepare(master->pclk);
 }
 
 static struct platform_driver cdns_i3c_master = {
