@@ -996,7 +996,7 @@ static inline bool ublk_need_unmap_req(const struct request *req)
 }
 
 static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
-		struct ublk_io *io)
+		       const struct ublk_io *io)
 {
 	const unsigned int rq_bytes = blk_rq_bytes(req);
 
@@ -1020,7 +1020,7 @@ static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
 
 static int ublk_unmap_io(const struct ublk_queue *ubq,
 		const struct request *req,
-		struct ublk_io *io)
+		const struct ublk_io *io)
 {
 	const unsigned int rq_bytes = blk_rq_bytes(req);
 
