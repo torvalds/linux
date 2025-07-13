@@ -145,6 +145,7 @@ struct rand_data {
  */
 #define JENT_ENTROPY_SAFETY_FACTOR	64
 
+#include <linux/array_size.h>
 #include <linux/fips.h>
 #include <linux/minmax.h>
 #include "jitterentropy.h"
@@ -178,7 +179,6 @@ static const unsigned int jent_apt_cutoff_lookup[15] = {
 static const unsigned int jent_apt_cutoff_permanent_lookup[15] = {
 	355, 447, 479, 494, 502, 507, 510, 512,
 	512, 512, 512, 512, 512, 512, 512 };
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 static void jent_apt_init(struct rand_data *ec, unsigned int osr)
 {
