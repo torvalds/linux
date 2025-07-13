@@ -686,21 +686,22 @@ static int relay_action_handshake(struct xe_gt *gt, u32 *major, u32 *minor)
 	return 0;
 }
 
-static void vf_connect_pf(struct xe_gt *gt, u16 major, u16 minor)
+static void vf_connect_pf(struct xe_device *xe, u16 major, u16 minor)
 {
-	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_assert(xe, IS_SRIOV_VF(xe));
 
-	gt->sriov.vf.pf_version.major = major;
-	gt->sriov.vf.pf_version.minor = minor;
+	xe->sriov.vf.pf_version.major = major;
+	xe->sriov.vf.pf_version.minor = minor;
 }
 
-static void vf_disconnect_pf(struct xe_gt *gt)
+static void vf_disconnect_pf(struct xe_device *xe)
 {
-	vf_connect_pf(gt, 0, 0);
+	vf_connect_pf(xe, 0, 0);
 }
 
 static int vf_handshake_with_pf(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 major_wanted = GUC_RELAY_VERSION_LATEST_MAJOR;
 	u32 minor_wanted = GUC_RELAY_VERSION_LATEST_MINOR;
 	u32 major = major_wanted, minor = minor_wanted;
@@ -716,13 +717,13 @@ static int vf_handshake_with_pf(struct xe_gt *gt)
 	}
 
 	xe_gt_sriov_dbg(gt, "using VF/PF ABI %u.%u\n", major, minor);
-	vf_connect_pf(gt, major, minor);
+	vf_connect_pf(xe, major, minor);
 	return 0;
 
 failed:
 	xe_gt_sriov_err(gt, "Unable to confirm VF/PF ABI version %u.%u (%pe)\n",
 			major, minor, ERR_PTR(err));
-	vf_disconnect_pf(gt);
+	vf_disconnect_pf(xe);
 	return err;
 }
 
@@ -775,10 +776,12 @@ void xe_gt_sriov_vf_migrated_event_handler(struct xe_gt *gt)
 
 static bool vf_is_negotiated(struct xe_gt *gt, u16 major, u16 minor)
 {
-	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	struct xe_device *xe = gt_to_xe(gt);
 
-	return major == gt->sriov.vf.pf_version.major &&
-	       minor <= gt->sriov.vf.pf_version.minor;
+	xe_gt_assert(gt, IS_SRIOV_VF(xe));
+
+	return major == xe->sriov.vf.pf_version.major &&
+	       minor <= xe->sriov.vf.pf_version.minor;
 }
 
 static int vf_prepare_runtime_info(struct xe_gt *gt, unsigned int num_regs)
@@ -1072,9 +1075,10 @@ void xe_gt_sriov_vf_print_runtime(struct xe_gt *gt, struct drm_printer *p)
  */
 void xe_gt_sriov_vf_print_version(struct xe_gt *gt, struct drm_printer *p)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_uc_fw_version *guc_version = &gt->sriov.vf.guc_version;
 	struct xe_uc_fw_version *wanted = &gt->sriov.vf.wanted_guc_version;
-	struct xe_gt_sriov_vf_relay_version *pf_version = &gt->sriov.vf.pf_version;
+	struct xe_sriov_vf_relay_version *pf_version = &xe->sriov.vf.pf_version;
 	struct xe_uc_fw_version ver;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
