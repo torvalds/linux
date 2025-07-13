@@ -37,7 +37,10 @@ static inline time64_t mc146818_get_cmos_time(void)
 		year = bcd2bin(year);
 	}
 	spin_unlock_irqrestore(&rtc_lock, flags);
-	year = mc146818_decode_year(year);
+	if (year < 70)
+		year += 2000;
+	else
+		year += 1900;
 
 	return mktime64(year, mon, day, hour, min, sec);
 }
