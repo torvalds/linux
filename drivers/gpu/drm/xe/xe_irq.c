@@ -23,6 +23,7 @@
 #include "xe_mmio.h"
 #include "xe_pxp.h"
 #include "xe_sriov.h"
+#include "xe_tile.h"
 
 /*
  * Interrupt registers for a unit are always consecutive and ordered
@@ -552,7 +553,7 @@ static void xelp_irq_reset(struct xe_tile *tile)
 
 static void dg1_irq_reset(struct xe_tile *tile)
 {
-	if (tile->id == 0)
+	if (xe_tile_is_root(tile))
 		dg1_intr_disable(tile_to_xe(tile));
 
 	gt_irq_reset(tile);

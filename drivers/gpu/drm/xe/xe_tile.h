@@ -27,4 +27,10 @@ static inline struct drm_pagemap *xe_tile_local_pagemap(struct xe_tile *tile)
 	return NULL;
 }
 #endif
+
+static inline bool xe_tile_is_root(struct xe_tile *tile)
+{
+	return tile->id == 0;
+}
+
 #endif
