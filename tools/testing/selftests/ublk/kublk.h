@@ -29,13 +29,9 @@
 #include "ublk_dep.h"
 #include <linux/ublk_cmd.h>
 
-#define __maybe_unused __attribute__((unused))
-#define MAX_BACK_FILES   4
-#ifndef min
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#endif
+#include "utils.h"
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+#define MAX_BACK_FILES   4
 
 /****************** part 1: libublk ********************/
 
@@ -51,13 +47,6 @@
 #define UBLK_MAX_THREADS_SHIFT		5
 #define UBLK_MAX_THREADS		(1 << UBLK_MAX_THREADS_SHIFT)
 #define UBLK_QUEUE_DEPTH                1024
-
-#define UBLK_DBG_DEV            (1U << 0)
-#define UBLK_DBG_THREAD         (1U << 1)
-#define UBLK_DBG_IO_CMD         (1U << 2)
-#define UBLK_DBG_IO             (1U << 3)
-#define UBLK_DBG_CTRL_CMD       (1U << 4)
-#define UBLK_LOG                (1U << 5)
 
 struct ublk_dev;
 struct ublk_queue;
@@ -211,21 +200,6 @@ struct ublk_dev {
 	void *private_data;
 };
 
-#ifndef offsetof
-#define offsetof(TYPE, MEMBER)  ((size_t)&((TYPE *)0)->MEMBER)
-#endif
-
-#ifndef container_of
-#define container_of(ptr, type, member) ({                              \
-	unsigned long __mptr = (unsigned long)(ptr);                    \
-	((type *)(__mptr - offsetof(type, member))); })
-#endif
-
-#define round_up(val, rnd) \
-	(((val) + ((rnd) - 1)) & ~((rnd) - 1))
-
-
-extern unsigned int ublk_dbg_mask;
 extern int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io);
 
 
@@ -273,34 +247,6 @@ static inline unsigned int user_data_to_q_id(__u64 user_data)
 static inline unsigned short ublk_cmd_op_nr(unsigned int op)
 {
 	return _IOC_NR(op);
-}
-
-static inline void ublk_err(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-}
-
-static inline void ublk_log(const char *fmt, ...)
-{
-	if (ublk_dbg_mask & UBLK_LOG) {
-		va_list ap;
-
-		va_start(ap, fmt);
-		vfprintf(stdout, fmt, ap);
-	}
-}
-
-static inline void ublk_dbg(int level, const char *fmt, ...)
-{
-	if (level & ublk_dbg_mask) {
-		va_list ap;
-
-		va_start(ap, fmt);
-		vfprintf(stdout, fmt, ap);
-	}
 }
 
 static inline struct ublk_queue *ublk_io_to_queue(const struct ublk_io *io)
@@ -458,10 +404,4 @@ extern const struct ublk_tgt_ops fault_inject_tgt_ops;
 void backing_file_tgt_deinit(struct ublk_dev *dev);
 int backing_file_tgt_init(struct ublk_dev *dev);
 
-static inline unsigned int ilog2(unsigned int x)
-{
-	if (x == 0)
-		return 0;
-	return (sizeof(x) * 8 - 1) - __builtin_clz(x);
-}
 #endif
