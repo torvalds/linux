@@ -105,6 +105,11 @@ Typical cases and caveats
 - "syscon" is not a generic property. Use vendor and type, e.g.
   "vendor,power-manager-syscon".
 
+- Do not add instance index (IDs) properties or custom OF aliases.  If the
+  devices have different programming model, they might need different
+  compatibles.  If such devices use some other device in a different way, e.g.
+  they program the phy differently, use cell/phandle arguments.
+
 - Bindings files should be named like compatible: vendor,device.yaml. In case
   of multiple compatibles in the binding, use one of the fallbacks or a more
   generic name, yet still matching compatible style.
