@@ -1077,71 +1077,6 @@ u16 Hal_EfuseGetCurrentSize(
 	return ret;
 }
 
-static u8 Hal_EfuseWordEnableDataWrite(
-	struct adapter *padapter,
-	u16 efuse_addr,
-	u8 word_en,
-	u8 *data,
-	bool bPseudoTest
-)
-{
-	u16 tmpaddr = 0;
-	u16 start_addr = efuse_addr;
-	u8 badworden = 0x0F;
-	u8 tmpdata[PGPKT_DATA_SIZE];
-
-	memset(tmpdata, 0xFF, PGPKT_DATA_SIZE);
-
-	if (!(word_en & BIT(0))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[0], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[1], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[0], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[1], bPseudoTest);
-		if ((data[0] != tmpdata[0]) || (data[1] != tmpdata[1])) {
-			badworden &= (~BIT(0));
-		}
-	}
-	if (!(word_en & BIT(1))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[2], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[3], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[2], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[3], bPseudoTest);
-		if ((data[2] != tmpdata[2]) || (data[3] != tmpdata[3])) {
-			badworden &= (~BIT(1));
-		}
-	}
-
-	if (!(word_en & BIT(2))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[4], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[5], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[4], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[5], bPseudoTest);
-		if ((data[4] != tmpdata[4]) || (data[5] != tmpdata[5])) {
-			badworden &= (~BIT(2));
-		}
-	}
-
-	if (!(word_en & BIT(3))) {
-		tmpaddr = start_addr;
-		efuse_OneByteWrite(padapter, start_addr++, data[6], bPseudoTest);
-		efuse_OneByteWrite(padapter, start_addr++, data[7], bPseudoTest);
-
-		efuse_OneByteRead(padapter, tmpaddr, &tmpdata[6], bPseudoTest);
-		efuse_OneByteRead(padapter, tmpaddr+1, &tmpdata[7], bPseudoTest);
-		if ((data[6] != tmpdata[6]) || (data[7] != tmpdata[7])) {
-			badworden &= (~BIT(3));
-		}
-	}
-
-	return badworden;
-}
-
 static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 {
 	u32 value32;
@@ -1390,9 +1325,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	/*  Efuse related function */
-	pHalFunc->Efuse_WordEnableDataWrite = &Hal_EfuseWordEnableDataWrite;
-
 	pHalFunc->SetHalODMVarHandler = &rtl8723b_SetHalODMVar;
 
 	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
