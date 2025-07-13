@@ -136,10 +136,17 @@ static const struct of_device_id mt7530_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mt7530_of_match);
 
+static const struct regmap_config regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = MT7530_CREV,
+	.disable_locking = true,
+};
+
 static int
 mt7530_probe(struct mdio_device *mdiodev)
 {
-	static struct regmap_config *regmap_config;
 	struct mt7530_priv *priv;
 	struct device_node *dn;
 	int ret;
@@ -193,18 +200,8 @@ mt7530_probe(struct mdio_device *mdiodev)
 			return PTR_ERR(priv->io_pwr);
 	}
 
-	regmap_config = devm_kzalloc(&mdiodev->dev, sizeof(*regmap_config),
-				     GFP_KERNEL);
-	if (!regmap_config)
-		return -ENOMEM;
-
-	regmap_config->reg_bits = 16;
-	regmap_config->val_bits = 32;
-	regmap_config->reg_stride = 4;
-	regmap_config->max_register = MT7530_CREV;
-	regmap_config->disable_locking = true;
 	priv->regmap = devm_regmap_init(priv->dev, &mt7530_regmap_bus, priv,
-					regmap_config);
+					&regmap_config);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
