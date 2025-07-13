@@ -52,6 +52,10 @@ Properties
      fallback if appropriate. SoC-specific compatibles are also preferred for
      the fallbacks.
 
+   - DON'T use bus suffixes to encode the type of interface device is using.
+     The parent bus node already implies that interface.  DON'T add the type of
+     device, if the device cannot be anything else.
+
 - DO use a vendor prefix on device-specific property names. Consider if
   properties could be common among devices of the same class. Check other
   existing bindings for similar devices.
@@ -100,6 +104,10 @@ Typical cases and caveats
 
 - "syscon" is not a generic property. Use vendor and type, e.g.
   "vendor,power-manager-syscon".
+
+- Bindings files should be named like compatible: vendor,device.yaml. In case
+  of multiple compatibles in the binding, use one of the fallbacks or a more
+  generic name, yet still matching compatible style.
 
 Board/SoC .dts Files
 ====================
