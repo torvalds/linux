@@ -291,6 +291,11 @@ static int execmem_cache_populate(struct execmem_range *range, size_t size)
 
 	alloc_size = round_up(size, PMD_SIZE);
 	p = execmem_vmalloc(range, alloc_size, PAGE_KERNEL, vm_flags);
+	if (!p) {
+		alloc_size = size;
+		p = execmem_vmalloc(range, alloc_size, PAGE_KERNEL, vm_flags);
+	}
+
 	if (!p)
 		return err;
 
@@ -462,7 +467,7 @@ void *execmem_alloc(enum execmem_type type, size_t size)
 	bool use_cache = range->flags & EXECMEM_ROX_CACHE;
 	vm_flags_t vm_flags = VM_FLUSH_RESET_PERMS;
 	pgprot_t pgprot = range->pgprot;
-	void *p;
+	void *p = NULL;
 
 	size = PAGE_ALIGN(size);
 
