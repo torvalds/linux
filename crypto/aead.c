@@ -21,9 +21,11 @@
 
 #include "internal.h"
 
-static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
-			    unsigned int keylen)
-{
+static int setkey_unaligned(
+	struct crypto_aead *tfm, 
+	const u8 *key,
+	unsigned int keylen
+) {
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
 	int ret;
 	u8 *buffer, *alignbuffer;
@@ -41,9 +43,10 @@ static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 	return ret;
 }
 
-int crypto_aead_setkey(struct crypto_aead *tfm,
-		       const u8 *key, unsigned int keylen)
-{
+int crypto_aead_setkey(
+	struct crypto_aead *tfm,
+	const u8 *key, unsigned int keylen
+)  {
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
 	int err;
 
