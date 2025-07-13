@@ -2009,14 +2009,20 @@ static inline int ublk_check_cmd_op(u32 cmd_op)
 	return 0;
 }
 
-static inline void ublk_fill_io_cmd(struct ublk_io *io,
-		struct io_uring_cmd *cmd, unsigned long buf_addr)
+/* Once we return, `io->req` can't be used any more */
+static inline struct request *
+ublk_fill_io_cmd(struct ublk_io *io, struct io_uring_cmd *cmd,
+		 unsigned long buf_addr)
 {
+	struct request *req = io->req;
+
 	io->cmd = cmd;
 	io->flags |= UBLK_IO_FLAG_ACTIVE;
 	/* now this cmd slot is owned by ublk driver */
 	io->flags &= ~UBLK_IO_FLAG_OWNED_BY_SRV;
 	io->addr = buf_addr;
+
+	return req;
 }
 
 static inline void ublk_prep_cancel(struct io_uring_cmd *cmd,
@@ -2182,10 +2188,8 @@ out:
 	return ret;
 }
 
-static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
-				 struct ublk_io *io, struct io_uring_cmd *cmd,
-				 const struct ublksrv_io_cmd *ub_cmd,
-				 unsigned int issue_flags)
+static int ublk_check_commit_and_fetch(const struct ublk_queue *ubq,
+				       struct ublk_io *io, __u64 buf_addr)
 {
 	struct request *req = io->req;
 
@@ -2194,10 +2198,10 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 		 * COMMIT_AND_FETCH_REQ has to provide IO buffer if
 		 * NEED GET DATA is not enabled or it is Read IO.
 		 */
-		if (!ub_cmd->addr && (!ublk_need_get_data(ubq) ||
+		if (!buf_addr && (!ublk_need_get_data(ubq) ||
 					req_op(req) == REQ_OP_READ))
 			return -EINVAL;
-	} else if (req_op(req) != REQ_OP_ZONE_APPEND && ub_cmd->addr) {
+	} else if (req_op(req) != REQ_OP_ZONE_APPEND && buf_addr) {
 		/*
 		 * User copy requires addr to be unset when command is
 		 * not zone append
@@ -2205,6 +2209,14 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
+				 struct ublk_io *io, struct io_uring_cmd *cmd,
+				 struct request *req, unsigned int issue_flags,
+				 __u64 zone_append_lba)
+{
 	if (ublk_support_auto_buf_reg(ubq)) {
 		int ret;
 
@@ -2230,11 +2242,8 @@ static int ublk_commit_and_fetch(const struct ublk_queue *ubq,
 			return ret;
 	}
 
-	ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
-	io->res = ub_cmd->result;
-
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
-		req->__sector = ub_cmd->zone_append_lba;
+		req->__sector = zone_append_lba;
 
 	if (ublk_need_req_ref(ubq))
 		ublk_sub_req_ref(io, req);
@@ -2340,7 +2349,13 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		return ublk_daemon_register_io_buf(cmd, ubq, io, ub_cmd->addr,
 						   issue_flags);
 	case UBLK_IO_COMMIT_AND_FETCH_REQ:
-		ret = ublk_commit_and_fetch(ubq, io, cmd, ub_cmd, issue_flags);
+		ret = ublk_check_commit_and_fetch(ubq, io, ub_cmd->addr);
+		if (ret)
+			goto out;
+		io->res = ub_cmd->result;
+		req = ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
+		ret = ublk_commit_and_fetch(ubq, io, cmd, req, issue_flags,
+					    ub_cmd->zone_append_lba);
 		if (ret)
 			goto out;
 		break;
@@ -2350,8 +2365,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		 * uring_cmd active first and prepare for handling new requeued
 		 * request
 		 */
-		req = io->req;
-		ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
+		req = ublk_fill_io_cmd(io, cmd, ub_cmd->addr);
 		if (likely(ublk_get_data(ubq, io, req))) {
 			__ublk_prep_compl_io_cmd(io, req);
 			return UBLK_IO_RES_OK;
