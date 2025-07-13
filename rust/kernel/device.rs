@@ -60,6 +60,25 @@ impl Device {
         // SAFETY: By the safety requirements ptr is valid
         unsafe { Self::as_ref(ptr) }.into()
     }
+
+    /// Convert a [`&Device`](Device) into a [`&Device<Bound>`](Device<Bound>).
+    ///
+    /// # Safety
+    ///
+    /// The caller is responsible to ensure that the returned [`&Device<Bound>`](Device<Bound>)
+    /// only lives as long as it can be guaranteed that the [`Device`] is actually bound.
+    pub unsafe fn as_bound(&self) -> &Device<Bound> {
+        let ptr = core::ptr::from_ref(self);
+
+        // CAST: By the safety requirements the caller is responsible to guarantee that the
+        // returned reference only lives as long as the device is actually bound.
+        let ptr = ptr.cast();
+
+        // SAFETY:
+        // - `ptr` comes from `from_ref(self)` above, hence it's guaranteed to be valid.
+        // - Any valid `Device` pointer is also a valid pointer for `Device<Bound>`.
+        unsafe { &*ptr }
+    }
 }
 
 impl Device<CoreInternal> {
