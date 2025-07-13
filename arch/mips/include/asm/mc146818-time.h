@@ -8,41 +8,21 @@
 #ifndef __ASM_MC146818_TIME_H
 #define __ASM_MC146818_TIME_H
 
-#include <linux/bcd.h>
 #include <linux/mc146818rtc.h>
 #include <linux/time.h>
 
+#ifdef CONFIG_RTC_MC146818_LIB
 static inline time64_t mc146818_get_cmos_time(void)
 {
-	unsigned int year, mon, day, hour, min, sec;
-	unsigned long flags;
+	struct rtc_time tm;
 
-	spin_lock_irqsave(&rtc_lock, flags);
-
-	do {
-		sec = CMOS_READ(RTC_SECONDS);
-		min = CMOS_READ(RTC_MINUTES);
-		hour = CMOS_READ(RTC_HOURS);
-		day = CMOS_READ(RTC_DAY_OF_MONTH);
-		mon = CMOS_READ(RTC_MONTH);
-		year = CMOS_READ(RTC_YEAR);
-	} while (sec != CMOS_READ(RTC_SECONDS));
-
-	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		sec = bcd2bin(sec);
-		min = bcd2bin(min);
-		hour = bcd2bin(hour);
-		day = bcd2bin(day);
-		mon = bcd2bin(mon);
-		year = bcd2bin(year);
+	if (mc146818_get_time(&tm, 1000)) {
+		pr_err("Unable to read current time from RTC\n");
+		return 0;
 	}
-	spin_unlock_irqrestore(&rtc_lock, flags);
-	if (year < 70)
-		year += 2000;
-	else
-		year += 1900;
 
-	return mktime64(year, mon, day, hour, min, sec);
+	return rtc_tm_to_time64(&tm);
 }
+#endif /* CONFIG_RTC_MC146818_LIB */
 
 #endif /* __ASM_MC146818_TIME_H */
