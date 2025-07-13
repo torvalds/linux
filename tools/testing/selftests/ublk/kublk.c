@@ -718,36 +718,14 @@ static inline void ublksrv_handle_tgt_cqe(struct ublk_thread *t,
 		q->tgt_ops->tgt_io_done(t, q, cqe);
 }
 
-static void ublk_handle_cqe(struct ublk_thread *t,
-		struct io_uring_cqe *cqe, void *data)
+static void ublk_handle_uring_cmd(struct ublk_thread *t,
+				  struct ublk_queue *q,
+				  const struct io_uring_cqe *cqe)
 {
-	struct ublk_dev *dev = t->dev;
-	unsigned q_id = user_data_to_q_id(cqe->user_data);
-	struct ublk_queue *q = &dev->q[q_id];
-	unsigned tag = user_data_to_tag(cqe->user_data);
-	unsigned cmd_op = user_data_to_op(cqe->user_data);
 	int fetch = (cqe->res != UBLK_IO_RES_ABORT) &&
 		!(t->state & UBLKS_T_STOPPING);
-	struct ublk_io *io;
-
-	if (cqe->res < 0 && cqe->res != -ENODEV)
-		ublk_err("%s: res %d userdata %llx queue state %x\n", __func__,
-				cqe->res, cqe->user_data, q->flags);
-
-	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (qid %d tag %u cmd_op %u target %d/%d) stopping %d\n",
-			__func__, cqe->res, q->q_id, tag, cmd_op,
-			is_target_io(cqe->user_data),
-			user_data_to_tgt_data(cqe->user_data),
-			(t->state & UBLKS_T_STOPPING));
-
-	/* Don't retrieve io in case of target io */
-	if (is_target_io(cqe->user_data)) {
-		ublksrv_handle_tgt_cqe(t, q, cqe);
-		return;
-	}
-
-	io = &q->ios[tag];
-	t->cmd_inflight--;
+	unsigned tag = user_data_to_tag(cqe->user_data);
+	struct ublk_io *io = &q->ios[tag];
 
 	if (!fetch) {
 		t->state |= UBLKS_T_STOPPING;
@@ -772,6 +750,35 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 		 * */
 		io->flags = UBLKS_IO_FREE;
 	}
+}
+
+static void ublk_handle_cqe(struct ublk_thread *t,
+		struct io_uring_cqe *cqe, void *data)
+{
+	struct ublk_dev *dev = t->dev;
+	unsigned q_id = user_data_to_q_id(cqe->user_data);
+	struct ublk_queue *q = &dev->q[q_id];
+	unsigned cmd_op = user_data_to_op(cqe->user_data);
+
+	if (cqe->res < 0 && cqe->res != -ENODEV)
+		ublk_err("%s: res %d userdata %llx queue state %x\n", __func__,
+				cqe->res, cqe->user_data, q->flags);
+
+	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (qid %d tag %u cmd_op %u target %d/%d) stopping %d\n",
+			__func__, cqe->res, q->q_id, user_data_to_tag(cqe->user_data),
+			cmd_op, is_target_io(cqe->user_data),
+			user_data_to_tgt_data(cqe->user_data),
+			(t->state & UBLKS_T_STOPPING));
+
+	/* Don't retrieve io in case of target io */
+	if (is_target_io(cqe->user_data)) {
+		ublksrv_handle_tgt_cqe(t, q, cqe);
+		return;
+	}
+
+	t->cmd_inflight--;
+
+	ublk_handle_uring_cmd(t, q, cqe);
 }
 
 static int ublk_reap_events_uring(struct ublk_thread *t)
