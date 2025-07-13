@@ -2008,6 +2008,13 @@ If the KVM_CAP_VM_TSC_CONTROL capability is advertised, this can also
 be used as a vm ioctl to set the initial tsc frequency of subsequently
 created vCPUs.
 
+For TSC protected Confidential Computing (CoCo) VMs where TSC frequency
+is configured once at VM scope and remains unchanged during VM's
+lifetime, the vm ioctl should be used to configure the TSC frequency
+and the vcpu ioctl is not supported.
+
+Example of such CoCo VMs: TDX guests.
+
 4.56 KVM_GET_TSC_KHZ
 --------------------
 
