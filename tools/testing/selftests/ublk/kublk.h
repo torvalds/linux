@@ -145,8 +145,7 @@ struct ublk_tgt_ops {
 	void (*deinit_tgt)(struct ublk_dev *);
 
 	int (*queue_io)(struct ublk_queue *, int tag);
-	void (*tgt_io_done)(struct ublk_queue *,
-			int tag, const struct io_uring_cqe *);
+	void (*tgt_io_done)(struct ublk_queue *, const struct io_uring_cqe *);
 
 	/*
 	 * Target specific command line handling

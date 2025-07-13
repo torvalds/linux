@@ -226,9 +226,10 @@ static int ublk_stripe_queue_io(struct ublk_queue *q, int tag)
 	return 0;
 }
 
-static void ublk_stripe_io_done(struct ublk_queue *q, int tag,
+static void ublk_stripe_io_done(struct ublk_queue *q,
 		const struct io_uring_cqe *cqe)
 {
+	unsigned tag = user_data_to_tag(cqe->user_data);
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	unsigned op = user_data_to_op(cqe->user_data);
 	struct ublk_io *io = ublk_get_io(q, tag);

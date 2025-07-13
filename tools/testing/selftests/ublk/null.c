@@ -87,9 +87,10 @@ static int null_queue_auto_zc_io(struct ublk_queue *q, int tag)
 	return 1;
 }
 
-static void ublk_null_io_done(struct ublk_queue *q, int tag,
+static void ublk_null_io_done(struct ublk_queue *q,
 		const struct io_uring_cqe *cqe)
 {
+	unsigned tag = user_data_to_tag(cqe->user_data);
 	unsigned op = user_data_to_op(cqe->user_data);
 	struct ublk_io *io = ublk_get_io(q, tag);
 

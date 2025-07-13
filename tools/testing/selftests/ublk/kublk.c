@@ -717,8 +717,6 @@ static int ublk_thread_is_done(struct ublk_thread *t)
 static inline void ublksrv_handle_tgt_cqe(struct ublk_queue *q,
 		struct io_uring_cqe *cqe)
 {
-	unsigned tag = user_data_to_tag(cqe->user_data);
-
 	if (cqe->res < 0 && cqe->res != -EAGAIN)
 		ublk_err("%s: failed tgt io: res %d qid %u tag %u, cmd_op %u\n",
 			__func__, cqe->res, q->q_id,
@@ -726,7 +724,7 @@ static inline void ublksrv_handle_tgt_cqe(struct ublk_queue *q,
 			user_data_to_op(cqe->user_data));
 
 	if (q->tgt_ops->tgt_io_done)
-		q->tgt_ops->tgt_io_done(q, tag, cqe);
+		q->tgt_ops->tgt_io_done(q, cqe);
 }
 
 static void ublk_handle_cqe(struct ublk_thread *t,
