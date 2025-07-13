@@ -105,8 +105,6 @@ struct ublk_uring_cmd_pdu {
 	 */
 	struct ublk_queue *ubq;
 
-	struct ublk_auto_buf_reg buf;
-
 	u16 tag;
 };
 
@@ -159,7 +157,10 @@ struct ublk_uring_cmd_pdu {
 
 struct ublk_io {
 	/* userspace buffer address from io cmd */
-	__u64	addr;
+	union {
+		__u64	addr;
+		struct ublk_auto_buf_reg buf;
+	};
 	unsigned int flags;
 	int res;
 
@@ -187,8 +188,6 @@ struct ublk_io {
 	/* Count of buffers registered on task and not yet unregistered */
 	unsigned task_registered_buffers;
 
-	/* auto-registered buffer, valid if UBLK_IO_FLAG_AUTO_BUF_REG is set */
-	u16 buf_index;
 	void *buf_ctx_handle;
 } ____cacheline_aligned_in_smp;
 
@@ -1217,13 +1216,12 @@ ublk_auto_buf_reg_fallback(const struct ublk_queue *ubq, struct ublk_io *io)
 static bool ublk_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
 			      struct ublk_io *io, unsigned int issue_flags)
 {
-	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(io->cmd);
 	int ret;
 
 	ret = io_buffer_register_bvec(io->cmd, req, ublk_io_release,
-				      pdu->buf.index, issue_flags);
+				      io->buf.index, issue_flags);
 	if (ret) {
-		if (pdu->buf.flags & UBLK_AUTO_BUF_REG_FALLBACK) {
+		if (io->buf.flags & UBLK_AUTO_BUF_REG_FALLBACK) {
 			ublk_auto_buf_reg_fallback(ubq, io);
 			return true;
 		}
@@ -1233,8 +1231,6 @@ static bool ublk_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
 
 	io->task_registered_buffers = 1;
 	io->buf_ctx_handle = io_uring_cmd_ctx_handle(io->cmd);
-	/* store buffer index in request payload */
-	io->buf_index = pdu->buf.index;
 	io->flags |= UBLK_IO_FLAG_AUTO_BUF_REG;
 	return true;
 }
@@ -2011,16 +2007,14 @@ static inline int ublk_check_cmd_op(u32 cmd_op)
 	return 0;
 }
 
-static inline int ublk_set_auto_buf_reg(struct io_uring_cmd *cmd)
+static inline int ublk_set_auto_buf_reg(struct ublk_io *io, struct io_uring_cmd *cmd)
 {
-	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
+	io->buf = ublk_sqe_addr_to_auto_buf_reg(READ_ONCE(cmd->sqe->addr));
 
-	pdu->buf = ublk_sqe_addr_to_auto_buf_reg(READ_ONCE(cmd->sqe->addr));
-
-	if (pdu->buf.reserved0 || pdu->buf.reserved1)
+	if (io->buf.reserved0 || io->buf.reserved1)
 		return -EINVAL;
 
-	if (pdu->buf.flags & ~UBLK_AUTO_BUF_REG_F_MASK)
+	if (io->buf.flags & ~UBLK_AUTO_BUF_REG_F_MASK)
 		return -EINVAL;
 	return 0;
 }
@@ -2043,10 +2037,10 @@ static int ublk_handle_auto_buf_reg(struct ublk_io *io,
 		 * this ublk request gets stuck.
 		 */
 		if (io->buf_ctx_handle == io_uring_cmd_ctx_handle(cmd))
-			*buf_idx = io->buf_index;
+			*buf_idx = io->buf.index;
 	}
 
-	return ublk_set_auto_buf_reg(cmd);
+	return ublk_set_auto_buf_reg(io, cmd);
 }
 
 /* Once we return, `io->req` can't be used any more */
