@@ -136,14 +136,6 @@ void xen_manage_runstate_time(int action)
 	}
 }
 
-/*
- * Runstate accounting
- */
-void xen_get_runstate_snapshot(struct vcpu_runstate_info *res)
-{
-	xen_get_runstate_snapshot_cpu(res, smp_processor_id());
-}
-
 /* return true when a vcpu could run but has no real cpu to run on */
 bool xen_vcpu_stolen(int vcpu)
 {
