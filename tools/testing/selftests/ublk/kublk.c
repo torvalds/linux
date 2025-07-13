@@ -589,9 +589,8 @@ static void ublk_set_auto_buf_reg(const struct ublk_queue *q,
 	sqe->addr = ublk_auto_buf_reg_to_sqe_addr(&buf);
 }
 
-int ublk_queue_io_cmd(struct ublk_io *io)
+int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io)
 {
-	struct ublk_thread *t = io->t;
 	struct ublk_queue *q = ublk_io_to_queue(io);
 	struct ublksrv_io_cmd *cmd;
 	struct io_uring_sqe *sqe[1];
@@ -685,9 +684,8 @@ static void ublk_submit_fetch_commands(struct ublk_thread *t)
 			int tag = i % dinfo->queue_depth;
 			q = &t->dev->q[q_id];
 			io = &q->ios[tag];
-			io->t = t;
 			io->buf_index = j++;
-			ublk_queue_io_cmd(io);
+			ublk_queue_io_cmd(t, io);
 		}
 	} else {
 		/*
@@ -697,9 +695,8 @@ static void ublk_submit_fetch_commands(struct ublk_thread *t)
 		struct ublk_queue *q = &t->dev->q[t->idx];
 		for (i = 0; i < q->q_depth; i++) {
 			io = &q->ios[i];
-			io->t = t;
 			io->buf_index = i;
-			ublk_queue_io_cmd(io);
+			ublk_queue_io_cmd(t, io);
 		}
 	}
 }
@@ -770,7 +767,7 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 			q->tgt_ops->queue_io(t, q, tag);
 	} else if (cqe->res == UBLK_IO_RES_NEED_GET_DATA) {
 		io->flags |= UBLKSRV_NEED_GET_DATA | UBLKSRV_IO_FREE;
-		ublk_queue_io_cmd(io);
+		ublk_queue_io_cmd(t, io);
 	} else {
 		/*
 		 * COMMIT_REQ will be completed immediately since no fetching

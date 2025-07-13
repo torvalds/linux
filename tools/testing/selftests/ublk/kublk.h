@@ -136,7 +136,6 @@ struct ublk_io {
 	unsigned short buf_index;
 	unsigned short tgt_ios;
 	void *private_data;
-	struct ublk_thread *t;
 };
 
 struct ublk_tgt_ops {
@@ -232,7 +231,7 @@ struct ublk_dev {
 
 
 extern unsigned int ublk_dbg_mask;
-extern int ublk_queue_io_cmd(struct ublk_io *io);
+extern int ublk_queue_io_cmd(struct ublk_thread *t, struct ublk_io *io);
 
 
 static inline int ublk_io_auto_zc_fallback(const struct ublksrv_io_desc *iod)
@@ -402,33 +401,36 @@ static inline struct ublk_io *ublk_get_io(struct ublk_queue *q, unsigned tag)
 	return &q->ios[tag];
 }
 
-static inline int ublk_complete_io(struct ublk_queue *q, unsigned tag, int res)
+static inline int ublk_complete_io(struct ublk_thread *t, struct ublk_queue *q,
+				   unsigned tag, int res)
 {
 	struct ublk_io *io = &q->ios[tag];
 
 	ublk_mark_io_done(io, res);
 
-	return ublk_queue_io_cmd(io);
+	return ublk_queue_io_cmd(t, io);
 }
 
-static inline void ublk_queued_tgt_io(struct ublk_queue *q, unsigned tag, int queued)
+static inline void ublk_queued_tgt_io(struct ublk_thread *t, struct ublk_queue *q,
+				      unsigned tag, int queued)
 {
 	if (queued < 0)
-		ublk_complete_io(q, tag, queued);
+		ublk_complete_io(t, q, tag, queued);
 	else {
 		struct ublk_io *io = ublk_get_io(q, tag);
 
-		io->t->io_inflight += queued;
+		t->io_inflight += queued;
 		io->tgt_ios = queued;
 		io->result = 0;
 	}
 }
 
-static inline int ublk_completed_tgt_io(struct ublk_queue *q, unsigned tag)
+static inline int ublk_completed_tgt_io(struct ublk_thread *t,
+					struct ublk_queue *q, unsigned tag)
 {
 	struct ublk_io *io = ublk_get_io(q, tag);
 
-	io->t->io_inflight--;
+	t->io_inflight--;
 
 	return --io->tgt_ios == 0;
 }

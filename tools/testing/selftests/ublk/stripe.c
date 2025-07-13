@@ -226,7 +226,7 @@ static int ublk_stripe_queue_io(struct ublk_thread *t, struct ublk_queue *q,
 {
 	int queued = stripe_queue_tgt_io(t, q, tag);
 
-	ublk_queued_tgt_io(q, tag, queued);
+	ublk_queued_tgt_io(t, q, tag, queued);
 	return 0;
 }
 
@@ -262,13 +262,13 @@ static void ublk_stripe_io_done(struct ublk_thread *t, struct ublk_queue *q,
 		}
 	}
 
-	if (ublk_completed_tgt_io(q, tag)) {
+	if (ublk_completed_tgt_io(t, q, tag)) {
 		int res = io->result;
 
 		if (!res)
 			res = iod->nr_sectors << 9;
 
-		ublk_complete_io(q, tag, res);
+		ublk_complete_io(t, q, tag, res);
 
 		free_stripe_array(io->private_data);
 		io->private_data = NULL;

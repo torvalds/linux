@@ -107,7 +107,7 @@ static int ublk_loop_queue_io(struct ublk_thread *t, struct ublk_queue *q,
 {
 	int queued = loop_queue_tgt_io(t, q, tag);
 
-	ublk_queued_tgt_io(q, tag, queued);
+	ublk_queued_tgt_io(t, q, tag, queued);
 	return 0;
 }
 
@@ -130,8 +130,8 @@ static void ublk_loop_io_done(struct ublk_thread *t, struct ublk_queue *q,
 	if (op == ublk_cmd_op_nr(UBLK_U_IO_REGISTER_IO_BUF))
 		io->tgt_ios += 1;
 
-	if (ublk_completed_tgt_io(q, tag))
-		ublk_complete_io(q, tag, io->result);
+	if (ublk_completed_tgt_io(t, q, tag))
+		ublk_complete_io(t, q, tag, io->result);
 }
 
 static int ublk_loop_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)

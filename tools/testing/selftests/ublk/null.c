@@ -108,8 +108,8 @@ static void ublk_null_io_done(struct ublk_thread *t, struct ublk_queue *q,
 	if (op == ublk_cmd_op_nr(UBLK_U_IO_REGISTER_IO_BUF))
 		io->tgt_ios += 1;
 
-	if (ublk_completed_tgt_io(q, tag))
-		ublk_complete_io(q, tag, io->result);
+	if (ublk_completed_tgt_io(t, q, tag))
+		ublk_complete_io(t, q, tag, io->result);
 }
 
 static int ublk_null_queue_io(struct ublk_thread *t, struct ublk_queue *q,
@@ -125,10 +125,10 @@ static int ublk_null_queue_io(struct ublk_thread *t, struct ublk_queue *q,
 	else if (zc)
 		queued = null_queue_zc_io(t, q, tag);
 	else {
-		ublk_complete_io(q, tag, iod->nr_sectors << 9);
+		ublk_complete_io(t, q, tag, iod->nr_sectors << 9);
 		return 0;
 	}
-	ublk_queued_tgt_io(q, tag, queued);
+	ublk_queued_tgt_io(t, q, tag, queued);
 	return 0;
 }
 
