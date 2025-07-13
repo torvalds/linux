@@ -159,12 +159,13 @@ static void __init r7s9210_update_clk_table(struct clk *extal_clk,
 
 static struct clk * __init rza2_cpg_clk_register(struct device *dev,
 	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
-	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
+	struct cpg_mssr_pub *pub)
 {
-	struct clk *parent;
+	void __iomem *base = pub->base0;
+	struct clk **clks = pub->clks;
 	unsigned int mult = 1;
 	unsigned int div = 1;
+	struct clk *parent;
 
 	parent = clks[core->parent];
 	if (IS_ERR(parent))
