@@ -1216,7 +1216,11 @@ static inline void hid_hw_wait(struct hid_device *hdev)
 /**
  * hid_report_len - calculate the report length
  *
- * @report: the report we want to know the length
+ * @report: the report whose length we want to know
+ *
+ * The length counts the report ID byte, but only if the ID is nonzero
+ * and therefore is included in the report.  Reports whose ID is zero
+ * never include an ID byte.
  */
 static inline u32 hid_report_len(struct hid_report *report)
 {
