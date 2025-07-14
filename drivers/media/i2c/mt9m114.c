@@ -1287,6 +1287,7 @@ static int mt9m114_pa_set_selection(struct v4l2_subdev *sd,
 	struct mt9m114 *sensor = pa_to_mt9m114(sd);
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
+	int ret = 0;
 
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
@@ -1302,25 +1303,41 @@ static int mt9m114_pa_set_selection(struct v4l2_subdev *sd,
 	 * binning, but binning is configured after setting the selection, so
 	 * we can't know tell here if it will be used.
 	 */
-	crop->left = ALIGN(sel->r.left, 4);
-	crop->top = ALIGN(sel->r.top, 2);
-	crop->width = clamp_t(unsigned int, ALIGN(sel->r.width, 4),
-			      MT9M114_PIXEL_ARRAY_MIN_OUTPUT_WIDTH,
-			      MT9M114_PIXEL_ARRAY_WIDTH - crop->left);
-	crop->height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
-			       MT9M114_PIXEL_ARRAY_MIN_OUTPUT_HEIGHT,
-			       MT9M114_PIXEL_ARRAY_HEIGHT - crop->top);
+	sel->r.left = ALIGN(sel->r.left, 4);
+	sel->r.top = ALIGN(sel->r.top, 2);
+	sel->r.width = clamp_t(unsigned int, ALIGN(sel->r.width, 4),
+			       MT9M114_PIXEL_ARRAY_MIN_OUTPUT_WIDTH,
+			       MT9M114_PIXEL_ARRAY_WIDTH - sel->r.left);
+	sel->r.height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
+				MT9M114_PIXEL_ARRAY_MIN_OUTPUT_HEIGHT,
+				MT9M114_PIXEL_ARRAY_HEIGHT - sel->r.top);
 
-	sel->r = *crop;
+	/* Changing the selection size is not allowed in streaming state. */
+	if (sensor->streaming &&
+	    (sel->r.height != crop->height || sel->r.width != crop->width))
+		return -EBUSY;
+
+	*crop = sel->r;
 
 	/* Reset the format. */
 	format->width = crop->width;
 	format->height = crop->height;
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		mt9m114_pa_ctrl_update_blanking(sensor, format);
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return ret;
 
-	return 0;
+	mt9m114_pa_ctrl_update_blanking(sensor, format);
+
+	/* Apply values immediately if streaming. */
+	if (sensor->streaming) {
+		ret = mt9m114_configure_pa(sensor, state);
+		if (ret)
+			return ret;
+		/* Changing the cropping config requires a CONFIG_CHANGE. */
+		ret = mt9m114_set_state(sensor,
+					MT9M114_SYS_STATE_ENTER_CONFIG_CHANGE);
+	}
+	return ret;
 }
 
 static const struct v4l2_subdev_pad_ops mt9m114_pa_pad_ops = {
