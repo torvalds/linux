@@ -218,6 +218,11 @@ mock_sched_timedout_job(struct drm_sched_job *sched_job)
 	struct drm_mock_sched_job *job = drm_sched_job_to_mock_job(sched_job);
 	unsigned long flags;
 
+	if (job->flags & DRM_MOCK_SCHED_JOB_DONT_RESET) {
+		job->flags &= ~DRM_MOCK_SCHED_JOB_DONT_RESET;
+		return DRM_GPU_SCHED_STAT_NO_HANG;
+	}
+
 	spin_lock_irqsave(&sched->lock, flags);
 	if (!dma_fence_is_signaled_locked(&job->hw_fence)) {
 		list_del(&job->link);
