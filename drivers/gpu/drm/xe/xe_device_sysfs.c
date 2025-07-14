@@ -160,8 +160,13 @@ static int late_bind_create_files(struct device *dev)
 
 	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
 			    &cap, NULL);
-	if (ret)
+	if (ret) {
+		if (ret == -ENXIO) {
+			drm_dbg(&xe->drm, "Late binding not supported by firmware\n");
+			ret = 0;
+		}
 		goto out;
+	}
 
 	if (REG_FIELD_GET(V1_FAN_SUPPORTED, cap)) {
 		ret = sysfs_create_file(&dev->kobj, &dev_attr_lb_fan_control_version.attr);
