@@ -266,9 +266,6 @@ static const char *type_name(enum v4l2_buf_type type)
 	}
 }
 
-#define CLIP(__color) \
-	(u8)(((__color) > 0xff) ? 0xff : (((__color) < 0) ? 0 : (__color)))
-
 static void copy_line(struct vim2m_q_data *q_data_out,
 		      u8 *src, u8 *dst, bool reverse)
 {
