@@ -896,7 +896,8 @@ static void ext4_mb_choose_next_group_p2_aligned(struct ext4_allocation_context 
 				    bb_largest_free_order_node) {
 			if (sbi->s_mb_stats)
 				atomic64_inc(&sbi->s_bal_cX_groups_considered[CR_POWER2_ALIGNED]);
-			if (likely(ext4_mb_good_group(ac, iter->bb_group, CR_POWER2_ALIGNED))) {
+			if (!spin_is_locked(ext4_group_lock_ptr(ac->ac_sb, iter->bb_group)) &&
+			    likely(ext4_mb_good_group(ac, iter->bb_group, CR_POWER2_ALIGNED))) {
 				*group = iter->bb_group;
 				ac->ac_flags |= EXT4_MB_CR_POWER2_ALIGNED_OPTIMIZED;
 				read_unlock(&sbi->s_mb_largest_free_orders_locks[i]);
@@ -932,7 +933,8 @@ ext4_mb_find_good_group_avg_frag_lists(struct ext4_allocation_context *ac, int o
 	list_for_each_entry(iter, frag_list, bb_avg_fragment_size_node) {
 		if (sbi->s_mb_stats)
 			atomic64_inc(&sbi->s_bal_cX_groups_considered[cr]);
-		if (likely(ext4_mb_good_group(ac, iter->bb_group, cr))) {
+		if (!spin_is_locked(ext4_group_lock_ptr(ac->ac_sb, iter->bb_group)) &&
+		    likely(ext4_mb_good_group(ac, iter->bb_group, cr))) {
 			grp = iter;
 			break;
 		}
@@ -2899,6 +2901,11 @@ repeat:
 							nr, &prefetch_ios);
 			}
 
+			/* prevent unnecessary buddy loading. */
+			if (cr < CR_ANY_FREE &&
+			    spin_is_locked(ext4_group_lock_ptr(sb, group)))
+				continue;
+
 			/* This now checks without needing the buddy page */
 			ret = ext4_mb_good_group_nolock(ac, group, cr);
 			if (ret <= 0) {
@@ -2911,7 +2918,13 @@ repeat:
 			if (err)
 				goto out;
 
-			ext4_lock_group(sb, group);
+			/* skip busy group */
+			if (cr >= CR_ANY_FREE) {
+				ext4_lock_group(sb, group);
+			} else if (!ext4_try_lock_group(sb, group)) {
+				ext4_mb_unload_buddy(&e4b);
+				continue;
+			}
 
 			/*
 			 * We need to check again after locking the
