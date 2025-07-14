@@ -2,9 +2,6 @@
 /*
  * Copyright (c) 2016-2021 Christoph Hellwig.
  */
-#include <linux/module.h>
-#include <linux/compiler.h>
-#include <linux/fs.h>
 #include <linux/iomap.h>
 #include <linux/fiemap.h>
 #include <linux/pagemap.h>

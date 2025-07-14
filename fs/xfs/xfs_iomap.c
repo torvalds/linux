@@ -79,6 +79,9 @@ xfs_iomap_valid(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 
+	if (iomap->type == IOMAP_HOLE)
+		return true;
+
 	if (iomap->validity_cookie !=
 			xfs_iomap_inode_sequence(ip, iomap->flags)) {
 		trace_xfs_iomap_invalid(ip, iomap);
@@ -89,7 +92,7 @@ xfs_iomap_valid(
 	return true;
 }
 
-static const struct iomap_folio_ops xfs_iomap_folio_ops = {
+const struct iomap_write_ops xfs_iomap_write_ops = {
 	.iomap_valid		= xfs_iomap_valid,
 };
 
@@ -151,7 +154,6 @@ xfs_bmbt_to_iomap(
 		iomap->flags |= IOMAP_F_DIRTY;
 
 	iomap->validity_cookie = sequence_cookie;
-	iomap->folio_ops = &xfs_iomap_folio_ops;
 	return 0;
 }
 
@@ -2198,7 +2200,8 @@ xfs_zero_range(
 		return dax_zero_range(inode, pos, len, did_zero,
 				      &xfs_dax_write_iomap_ops);
 	return iomap_zero_range(inode, pos, len, did_zero,
-				&xfs_buffered_write_iomap_ops, ac);
+			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			ac);
 }
 
 int
@@ -2214,5 +2217,6 @@ xfs_truncate_page(
 		return dax_truncate_page(inode, pos, did_zero,
 					&xfs_dax_write_iomap_ops);
 	return iomap_truncate_page(inode, pos, did_zero,
-				   &xfs_buffered_write_iomap_ops, ac);
+			&xfs_buffered_write_iomap_ops, &xfs_iomap_write_ops,
+			ac);
 }
