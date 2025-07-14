@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/altr-pio-1.0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera GPIO controller
+
+maintainers:
+  - Dinh Nguyen <dinguyen@kernel.org>
+  - Marek Vasut <marex@denx.de>
+  - Mathieu Malaterre <malat@debian.org>
+  - Tien Hock Loh <thloh@altera.com>
+
+properties:
+  compatible:
+    const: altr,pio-1.0
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+    description:
+      First cell is the GPIO offset number. Second cell is reserved and
+      currently unused.
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  altr,ngpio:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Width of the GPIO bank.
+    default: 32
+
+  altr,interrupt-type:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: >
+      Specifies the interrupt trigger type synthesized by hardware.
+      Values defined in <dt-bindings/interrupt-controller/irq.h>.
+    enum: [1, 2, 3, 4]
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - "#gpio-cells"
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    gpio@ff200000 {
+        compatible = "altr,pio-1.0";
+        reg = <0xff200000 0x10>;
+        interrupts = <45 4>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        altr,ngpio = <32>;
+        altr,interrupt-type = <IRQ_TYPE_EDGE_RISING>;
+    };
