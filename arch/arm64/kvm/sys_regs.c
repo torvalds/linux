@@ -2592,6 +2592,16 @@ static unsigned int tcr2_el2_visibility(const struct kvm_vcpu *vcpu,
 	return __el2_visibility(vcpu, rd, tcr2_visibility);
 }
 
+static unsigned int fgt_visibility(const struct kvm_vcpu *vcpu,
+				   const struct sys_reg_desc *rd)
+{
+	if (el2_visibility(vcpu, rd) == 0 &&
+	    kvm_has_feat(vcpu->kvm, ID_AA64MMFR0_EL1, FGT, IMP))
+		return 0;
+
+	return REG_HIDDEN;
+}
+
 static unsigned int s1pie_visibility(const struct kvm_vcpu *vcpu,
 				     const struct sys_reg_desc *rd)
 {
@@ -3310,8 +3320,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(MDCR_EL2, access_mdcr, reset_mdcr, 0),
 	EL2_REG(CPTR_EL2, access_rw, reset_val, CPTR_NVHE_EL2_RES1),
 	EL2_REG_VNCR(HSTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HFGRTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HFGWTR_EL2, reset_val, 0),
+	EL2_REG_VNCR_FILT(HFGRTR_EL2, fgt_visibility),
+	EL2_REG_VNCR_FILT(HFGWTR_EL2, fgt_visibility),
 	EL2_REG_VNCR(HFGITR_EL2, reset_val, 0),
 	EL2_REG_VNCR(HACR_EL2, reset_val, 0),
 
@@ -3331,9 +3341,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 			 vncr_el2_visibility),
 
 	{ SYS_DESC(SYS_DACR32_EL2), undef_access, reset_unknown, DACR32_EL2 },
-	EL2_REG_VNCR(HDFGRTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HDFGWTR_EL2, reset_val, 0),
-	EL2_REG_VNCR(HAFGRTR_EL2, reset_val, 0),
+	EL2_REG_VNCR_FILT(HDFGRTR_EL2, fgt_visibility),
+	EL2_REG_VNCR_FILT(HDFGWTR_EL2, fgt_visibility),
+	EL2_REG_VNCR_FILT(HAFGRTR_EL2, fgt_visibility),
 	EL2_REG_REDIR(SPSR_EL2, reset_val, 0),
 	EL2_REG_REDIR(ELR_EL2, reset_val, 0),
 	{ SYS_DESC(SYS_SP_EL1), access_sp_el1},
