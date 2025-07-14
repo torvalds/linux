@@ -1940,11 +1940,11 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define ll_privacy_capable(dev) ((dev)->le_features[0] & HCI_LE_LL_PRIVACY)
 
 #define privacy_mode_capable(dev) (ll_privacy_capable(dev) && \
-				   (hdev->commands[39] & 0x04))
+				   ((dev)->commands[39] & 0x04))
 
 #define read_key_size_capable(dev) \
 	((dev)->commands[20] & 0x10 && \
-	 !test_bit(HCI_QUIRK_BROKEN_READ_ENC_KEY_SIZE, &hdev->quirks))
+	 !test_bit(HCI_QUIRK_BROKEN_READ_ENC_KEY_SIZE, &(dev)->quirks))
 
 #define read_voice_setting_capable(dev) \
 	((dev)->commands[9] & 0x04 && \
