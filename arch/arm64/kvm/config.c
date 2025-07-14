@@ -89,6 +89,7 @@ struct reg_bits_to_feat_map {
 #define FEAT_RASv2		ID_AA64PFR0_EL1, RAS, V2
 #define FEAT_GICv3		ID_AA64PFR0_EL1, GIC, IMP
 #define FEAT_LOR		ID_AA64MMFR1_EL1, LO, IMP
+#define FEAT_SPEv1p2		ID_AA64DFR0_EL1, PMSVer, V1P2
 #define FEAT_SPEv1p4		ID_AA64DFR0_EL1, PMSVer, V1P4
 #define FEAT_SPEv1p5		ID_AA64DFR0_EL1, PMSVer, V1P5
 #define FEAT_ATS1A		ID_AA64ISAR2_EL1, ATS1A, IMP
@@ -148,6 +149,8 @@ struct reg_bits_to_feat_map {
 #define FEAT_PAN3		ID_AA64MMFR1_EL1, PAN, PAN3
 #define FEAT_SSBS		ID_AA64PFR1_EL1, SSBS, IMP
 #define FEAT_TIDCP1		ID_AA64MMFR1_EL1, TIDCP1, IMP
+#define FEAT_FGT		ID_AA64MMFR0_EL1, FGT, IMP
+#define FEAT_MTPMU		ID_AA64DFR0_EL1, MTPMU, IMP
 
 static bool not_feat_aa64el3(struct kvm *kvm)
 {
@@ -263,6 +266,27 @@ static bool feat_mixedendel0(struct kvm *kvm)
 static bool feat_mte_async(struct kvm *kvm)
 {
 	return kvm_has_feat(kvm, FEAT_MTE2) && kvm_has_feat_enum(kvm, FEAT_MTE_ASYNC);
+}
+
+#define check_pmu_revision(k, r)					\
+	({								\
+		(kvm_has_feat((k), ID_AA64DFR0_EL1, PMUVer, r) &&	\
+		 !kvm_has_feat((k), ID_AA64DFR0_EL1, PMUVer, IMP_DEF));	\
+	})
+
+static bool feat_pmuv3p1(struct kvm *kvm)
+{
+	return check_pmu_revision(kvm, V3P1);
+}
+
+static bool feat_pmuv3p5(struct kvm *kvm)
+{
+	return check_pmu_revision(kvm, V3P5);
+}
+
+static bool feat_pmuv3p7(struct kvm *kvm)
+{
+	return check_pmu_revision(kvm, V3P7);
 }
 
 static bool compute_hcr_rw(struct kvm *kvm, u64 *bits)
@@ -970,6 +994,37 @@ static const struct reg_bits_to_feat_map sctlr_el1_feat_map[] = {
 		   FEAT_AA64EL1),
 };
 
+static const struct reg_bits_to_feat_map mdcr_el2_feat_map[] = {
+	NEEDS_FEAT(MDCR_EL2_EBWE, FEAT_Debugv8p9),
+	NEEDS_FEAT(MDCR_EL2_TDOSA, FEAT_DoubleLock),
+	NEEDS_FEAT(MDCR_EL2_PMEE, FEAT_EBEP),
+	NEEDS_FEAT(MDCR_EL2_TDCC, FEAT_FGT),
+	NEEDS_FEAT(MDCR_EL2_MTPME, FEAT_MTPMU),
+	NEEDS_FEAT(MDCR_EL2_HPME	|
+		   MDCR_EL2_HPMN	|
+		   MDCR_EL2_TPMCR	|
+		   MDCR_EL2_TPM,
+		   FEAT_PMUv3),
+	NEEDS_FEAT(MDCR_EL2_HPMD, feat_pmuv3p1),
+	NEEDS_FEAT(MDCR_EL2_HCCD	|
+		   MDCR_EL2_HLP,
+		   feat_pmuv3p5),
+	NEEDS_FEAT(MDCR_EL2_HPMFZO, feat_pmuv3p7),
+	NEEDS_FEAT(MDCR_EL2_PMSSE, FEAT_PMUv3_SS),
+	NEEDS_FEAT(MDCR_EL2_E2PB	|
+		   MDCR_EL2_TPMS,
+		   FEAT_SPE),
+	NEEDS_FEAT(MDCR_EL2_HPMFZS, FEAT_SPEv1p2),
+	NEEDS_FEAT(MDCR_EL2_EnSPM, FEAT_SPMU),
+	NEEDS_FEAT(MDCR_EL2_EnSTEPOP, FEAT_STEP2),
+	NEEDS_FEAT(MDCR_EL2_E2TB, FEAT_TRBE),
+	NEEDS_FEAT(MDCR_EL2_TTRF, FEAT_TRF),
+	NEEDS_FEAT(MDCR_EL2_TDA		|
+		   MDCR_EL2_TDE		|
+		   MDCR_EL2_TDRA,
+		   FEAT_AA64EL1),
+};
+
 static void __init check_feat_map(const struct reg_bits_to_feat_map *map,
 				  int map_size, u64 res0, const char *str)
 {
@@ -1005,6 +1060,8 @@ void __init check_feature_map(void)
 		       TCR2_EL2_RES0, "TCR2_EL2");
 	check_feat_map(sctlr_el1_feat_map, ARRAY_SIZE(sctlr_el1_feat_map),
 		       SCTLR_EL1_RES0, "SCTLR_EL1");
+	check_feat_map(mdcr_el2_feat_map, ARRAY_SIZE(mdcr_el2_feat_map),
+		       MDCR_EL2_RES0, "MDCR_EL2");
 }
 
 static bool idreg_feat_match(struct kvm *kvm, const struct reg_bits_to_feat_map *map)
@@ -1230,6 +1287,12 @@ void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *r
 					  ARRAY_SIZE(sctlr_el1_feat_map), 0, 0);
 		*res0 |= SCTLR_EL1_RES0;
 		*res1 = SCTLR_EL1_RES1;
+		break;
+	case MDCR_EL2:
+		*res0 = compute_res0_bits(kvm, mdcr_el2_feat_map,
+					  ARRAY_SIZE(mdcr_el2_feat_map), 0, 0);
+		*res0 |= MDCR_EL2_RES0;
+		*res1 = MDCR_EL2_RES1;
 		break;
 	default:
 		WARN_ON_ONCE(1);

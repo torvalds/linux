@@ -1671,40 +1671,7 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 	set_sysreg_masks(kvm, SCTLR_EL1, res0, res1);
 
 	/* MDCR_EL2 */
-	res0 = MDCR_EL2_RES0;
-	res1 = MDCR_EL2_RES1;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, IMP))
-		res0 |= (MDCR_EL2_HPMN | MDCR_EL2_TPMCR |
-			 MDCR_EL2_TPM | MDCR_EL2_HPME);
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSVer, IMP))
-		res0 |= MDCR_EL2_E2PB | MDCR_EL2_TPMS;
-	if (!kvm_has_feat(kvm, ID_AA64DFR1_EL1, SPMU, IMP))
-		res0 |= MDCR_EL2_EnSPM;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, V3P1))
-		res0 |= MDCR_EL2_HPMD;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceFilt, IMP))
-		res0 |= MDCR_EL2_TTRF;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, V3P5))
-		res0 |= MDCR_EL2_HCCD | MDCR_EL2_HLP;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, TraceBuffer, IMP))
-		res0 |= MDCR_EL2_E2TB;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, FGT, IMP))
-		res0 |= MDCR_EL2_TDCC;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, MTPMU, IMP) ||
-	    kvm_has_feat(kvm, ID_AA64PFR0_EL1, EL3, IMP))
-		res0 |= MDCR_EL2_MTPME;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMUVer, V3P7))
-		res0 |= MDCR_EL2_HPMFZO;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSS, IMP))
-		res0 |= MDCR_EL2_PMSSE;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, PMSVer, V1P2))
-		res0 |= MDCR_EL2_HPMFZS;
-	if (!kvm_has_feat(kvm, ID_AA64DFR1_EL1, EBEP, IMP))
-		res0 |= MDCR_EL2_PMEE;
-	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, DebugVer, V8P9))
-		res0 |= MDCR_EL2_EBWE;
-	if (!kvm_has_feat(kvm, ID_AA64DFR2_EL1, STEP, IMP))
-		res0 |= MDCR_EL2_EnSTEPOP;
+	get_reg_fixed_bits(kvm, MDCR_EL2, &res0, &res1);
 	set_sysreg_masks(kvm, MDCR_EL2, res0, res1);
 
 	/* CNTHCTL_EL2 */
