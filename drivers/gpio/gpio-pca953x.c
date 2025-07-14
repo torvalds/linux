@@ -611,9 +611,9 @@ static int pca953x_gpio_direction_input(struct gpio_chip *gc, unsigned off)
 	guard(mutex)(&chip->i2c_lock);
 
 	if (PCA_CHIP_TYPE(chip->driver_data) == TCA6418_TYPE)
-		return regmap_write_bits(chip->regmap, dirreg, bit, 0);
+		return regmap_update_bits(chip->regmap, dirreg, bit, 0);
 
-	return regmap_write_bits(chip->regmap, dirreg, bit, bit);
+	return regmap_update_bits(chip->regmap, dirreg, bit, bit);
 }
 
 static int pca953x_gpio_direction_output(struct gpio_chip *gc,
@@ -628,7 +628,7 @@ static int pca953x_gpio_direction_output(struct gpio_chip *gc,
 	guard(mutex)(&chip->i2c_lock);
 
 	/* set output level */
-	ret = regmap_write_bits(chip->regmap, outreg, bit, val ? bit : 0);
+	ret = regmap_update_bits(chip->regmap, outreg, bit, val ? bit : 0);
 	if (ret)
 		return ret;
 
@@ -637,9 +637,9 @@ static int pca953x_gpio_direction_output(struct gpio_chip *gc,
 	 * (in/out logic is inverted on TCA6418)
 	 */
 	if (PCA_CHIP_TYPE(chip->driver_data) == TCA6418_TYPE)
-		return regmap_write_bits(chip->regmap, dirreg, bit, bit);
+		return regmap_update_bits(chip->regmap, dirreg, bit, bit);
 
-	return regmap_write_bits(chip->regmap, dirreg, bit, 0);
+	return regmap_update_bits(chip->regmap, dirreg, bit, 0);
 }
 
 static int pca953x_gpio_get_value(struct gpio_chip *gc, unsigned off)
@@ -667,7 +667,7 @@ static int pca953x_gpio_set_value(struct gpio_chip *gc, unsigned int off,
 
 	guard(mutex)(&chip->i2c_lock);
 
-	return regmap_write_bits(chip->regmap, outreg, bit, val ? bit : 0);
+	return regmap_update_bits(chip->regmap, outreg, bit, val ? bit : 0);
 }
 
 static int pca953x_gpio_get_direction(struct gpio_chip *gc, unsigned off)
@@ -751,9 +751,9 @@ static int pca953x_gpio_set_pull_up_down(struct pca953x_chip *chip,
 
 	/* Configure pull-up/pull-down */
 	if (param == PIN_CONFIG_BIAS_PULL_UP)
-		ret = regmap_write_bits(chip->regmap, pull_sel_reg, bit, bit);
+		ret = regmap_update_bits(chip->regmap, pull_sel_reg, bit, bit);
 	else if (param == PIN_CONFIG_BIAS_PULL_DOWN)
-		ret = regmap_write_bits(chip->regmap, pull_sel_reg, bit, 0);
+		ret = regmap_update_bits(chip->regmap, pull_sel_reg, bit, 0);
 	else
 		ret = 0;
 	if (ret)
@@ -761,9 +761,9 @@ static int pca953x_gpio_set_pull_up_down(struct pca953x_chip *chip,
 
 	/* Disable/Enable pull-up/pull-down */
 	if (param == PIN_CONFIG_BIAS_DISABLE)
-		return regmap_write_bits(chip->regmap, pull_en_reg, bit, 0);
+		return regmap_update_bits(chip->regmap, pull_en_reg, bit, 0);
 	else
-		return regmap_write_bits(chip->regmap, pull_en_reg, bit, bit);
+		return regmap_update_bits(chip->regmap, pull_en_reg, bit, bit);
 }
 
 static int pca953x_gpio_set_config(struct gpio_chip *gc, unsigned int offset,
