@@ -875,21 +875,20 @@ mb_update_avg_fragment_size(struct super_block *sb, struct ext4_group_info *grp)
 	}
 }
 
-static int ext4_mb_scan_groups_xarray(struct ext4_allocation_context *ac,
-				      struct xarray *xa, ext4_group_t start)
+static int ext4_mb_scan_groups_xa_range(struct ext4_allocation_context *ac,
+					struct xarray *xa,
+					ext4_group_t start, ext4_group_t end)
 {
 	struct super_block *sb = ac->ac_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	enum criteria cr = ac->ac_criteria;
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	unsigned long group = start;
-	ext4_group_t end = ngroups;
 	struct ext4_group_info *grp;
 
-	if (WARN_ON_ONCE(start >= end))
+	if (WARN_ON_ONCE(end > ngroups || start >= end))
 		return 0;
 
-wrap_around:
 	xa_for_each_range(xa, group, grp, start, end - 1) {
 		int err;
 
@@ -903,28 +902,23 @@ wrap_around:
 		cond_resched();
 	}
 
-	if (start) {
-		end = start;
-		start = 0;
-		goto wrap_around;
-	}
-
 	return 0;
 }
 
 /*
  * Find a suitable group of given order from the largest free orders xarray.
  */
-static int
-ext4_mb_scan_groups_largest_free_order(struct ext4_allocation_context *ac,
-				       int order, ext4_group_t start)
+static inline int
+ext4_mb_scan_groups_largest_free_order_range(struct ext4_allocation_context *ac,
+					     int order, ext4_group_t start,
+					     ext4_group_t end)
 {
 	struct xarray *xa = &EXT4_SB(ac->ac_sb)->s_mb_largest_free_orders[order];
 
 	if (xa_empty(xa))
 		return 0;
 
-	return ext4_mb_scan_groups_xarray(ac, xa, start);
+	return ext4_mb_scan_groups_xa_range(ac, xa, start, end);
 }
 
 /*
@@ -937,11 +931,21 @@ static int ext4_mb_scan_groups_p2_aligned(struct ext4_allocation_context *ac,
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	int i;
 	int ret = 0;
+	ext4_group_t start, end;
 
+	start = group;
+	end = ext4_get_groups_count(ac->ac_sb);
+wrap_around:
 	for (i = ac->ac_2order; i < MB_NUM_ORDERS(ac->ac_sb); i++) {
-		ret = ext4_mb_scan_groups_largest_free_order(ac, i, group);
+		ret = ext4_mb_scan_groups_largest_free_order_range(ac, i,
+								   start, end);
 		if (ret || ac->ac_status != AC_STATUS_CONTINUE)
 			return ret;
+	}
+	if (start) {
+		end = start;
+		start = 0;
+		goto wrap_around;
 	}
 
 	if (sbi->s_mb_stats)
@@ -955,15 +959,17 @@ static int ext4_mb_scan_groups_p2_aligned(struct ext4_allocation_context *ac,
 /*
  * Find a suitable group of given order from the average fragments xarray.
  */
-static int ext4_mb_scan_groups_avg_frag_order(struct ext4_allocation_context *ac,
-					      int order, ext4_group_t start)
+static int
+ext4_mb_scan_groups_avg_frag_order_range(struct ext4_allocation_context *ac,
+					 int order, ext4_group_t start,
+					 ext4_group_t end)
 {
 	struct xarray *xa = &EXT4_SB(ac->ac_sb)->s_mb_avg_fragment_size[order];
 
 	if (xa_empty(xa))
 		return 0;
 
-	return ext4_mb_scan_groups_xarray(ac, xa, start);
+	return ext4_mb_scan_groups_xa_range(ac, xa, start, end);
 }
 
 /*
@@ -975,12 +981,22 @@ static int ext4_mb_scan_groups_goal_fast(struct ext4_allocation_context *ac,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	int i, ret = 0;
+	ext4_group_t start, end;
 
+	start = group;
+	end = ext4_get_groups_count(ac->ac_sb);
+wrap_around:
 	i = mb_avg_fragment_size_order(ac->ac_sb, ac->ac_g_ex.fe_len);
 	for (; i < MB_NUM_ORDERS(ac->ac_sb); i++) {
-		ret = ext4_mb_scan_groups_avg_frag_order(ac, i, group);
+		ret = ext4_mb_scan_groups_avg_frag_order_range(ac, i,
+							       start, end);
 		if (ret || ac->ac_status != AC_STATUS_CONTINUE)
 			return ret;
+	}
+	if (start) {
+		end = start;
+		start = 0;
+		goto wrap_around;
 	}
 
 	if (sbi->s_mb_stats)
@@ -1017,6 +1033,7 @@ static int ext4_mb_scan_groups_best_avail(struct ext4_allocation_context *ac,
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	int i, order, min_order;
 	unsigned long num_stripe_clusters = 0;
+	ext4_group_t start, end;
 
 	/*
 	 * mb_avg_fragment_size_order() returns order in a way that makes
@@ -1048,6 +1065,9 @@ static int ext4_mb_scan_groups_best_avail(struct ext4_allocation_context *ac,
 	if (1 << min_order < ac->ac_o_ex.fe_len)
 		min_order = fls(ac->ac_o_ex.fe_len);
 
+	start = group;
+	end = ext4_get_groups_count(ac->ac_sb);
+wrap_around:
 	for (i = order; i >= min_order; i--) {
 		int frag_order;
 		/*
@@ -1070,9 +1090,15 @@ static int ext4_mb_scan_groups_best_avail(struct ext4_allocation_context *ac,
 		frag_order = mb_avg_fragment_size_order(ac->ac_sb,
 							ac->ac_g_ex.fe_len);
 
-		ret = ext4_mb_scan_groups_avg_frag_order(ac, frag_order, group);
+		ret = ext4_mb_scan_groups_avg_frag_order_range(ac, frag_order,
+							       start, end);
 		if (ret || ac->ac_status != AC_STATUS_CONTINUE)
 			return ret;
+	}
+	if (start) {
+		end = start;
+		start = 0;
+		goto wrap_around;
 	}
 
 	/* Reset goal length to original goal length before falling into CR_GOAL_LEN_SLOW */
