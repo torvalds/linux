@@ -1203,9 +1203,9 @@ int rtw_resume_common(struct adapter *padapter)
 
 	hal_btcoex_SuspendNotify(padapter, 0);
 
-	if (pwrpriv) {
+	if (pwrpriv)
 		pwrpriv->bInSuspend = false;
-	}
+
 	netdev_dbg(padapter->pnetdev, "%s:%d in %d ms\n", __func__, ret,
 		   jiffies_to_msecs(jiffies - start_time));
 
