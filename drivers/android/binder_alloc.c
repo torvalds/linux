@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
 #include <linux/sizes.h>
+#include <kunit/visibility.h>
 #include "binder_alloc.h"
 #include "binder_trace.h"
 
@@ -57,13 +58,14 @@ static struct binder_buffer *binder_buffer_prev(struct binder_buffer *buffer)
 	return list_entry(buffer->entry.prev, struct binder_buffer, entry);
 }
 
-static size_t binder_alloc_buffer_size(struct binder_alloc *alloc,
-				       struct binder_buffer *buffer)
+VISIBLE_IF_KUNIT size_t binder_alloc_buffer_size(struct binder_alloc *alloc,
+						 struct binder_buffer *buffer)
 {
 	if (list_is_last(&buffer->entry, &alloc->buffers))
 		return alloc->vm_start + alloc->buffer_size - buffer->user_data;
 	return binder_buffer_next(buffer)->user_data - buffer->user_data;
 }
+EXPORT_SYMBOL_IF_KUNIT(binder_alloc_buffer_size);
 
 static void binder_insert_free_buffer(struct binder_alloc *alloc,
 				      struct binder_buffer *new_buffer)
@@ -955,7 +957,7 @@ err_invalid_mm:
 			   failure_string, ret);
 	return ret;
 }
-
+EXPORT_SYMBOL_IF_KUNIT(binder_alloc_mmap_handler);
 
 void binder_alloc_deferred_release(struct binder_alloc *alloc)
 {
@@ -1024,6 +1026,7 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 		     "%s: %d buffers %d, pages %d\n",
 		     __func__, alloc->pid, buffers, page_count);
 }
+EXPORT_SYMBOL_IF_KUNIT(binder_alloc_deferred_release);
 
 /**
  * binder_alloc_print_allocated() - print buffer info
@@ -1116,6 +1119,7 @@ void binder_alloc_vma_close(struct binder_alloc *alloc)
 {
 	binder_alloc_set_mapped(alloc, false);
 }
+EXPORT_SYMBOL_IF_KUNIT(binder_alloc_vma_close);
 
 /**
  * binder_alloc_free_page() - shrinker callback to free pages
@@ -1223,8 +1227,8 @@ binder_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 
 static struct shrinker *binder_shrinker;
 
-static void __binder_alloc_init(struct binder_alloc *alloc,
-				struct list_lru *freelist)
+VISIBLE_IF_KUNIT void __binder_alloc_init(struct binder_alloc *alloc,
+					  struct list_lru *freelist)
 {
 	alloc->pid = current->group_leader->pid;
 	alloc->mm = current->mm;
@@ -1233,6 +1237,7 @@ static void __binder_alloc_init(struct binder_alloc *alloc,
 	INIT_LIST_HEAD(&alloc->buffers);
 	alloc->freelist = freelist;
 }
+EXPORT_SYMBOL_IF_KUNIT(__binder_alloc_init);
 
 /**
  * binder_alloc_init() - called by binder_open() for per-proc initialization

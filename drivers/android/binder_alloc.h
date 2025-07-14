@@ -184,5 +184,11 @@ int binder_alloc_copy_from_buffer(struct binder_alloc *alloc,
 				  binder_size_t buffer_offset,
 				  size_t bytes);
 
+#if IS_ENABLED(CONFIG_KUNIT)
+void __binder_alloc_init(struct binder_alloc *alloc, struct list_lru *freelist);
+size_t binder_alloc_buffer_size(struct binder_alloc *alloc,
+				struct binder_buffer *buffer);
+#endif
+
 #endif /* _LINUX_BINDER_ALLOC_H */
 
