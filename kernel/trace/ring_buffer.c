@@ -4216,7 +4216,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_unlock_commit);
 
 static const char *show_irq_str(int bits)
 {
-	const char *type[] = {
+	static const char * type[] = {
 		".",	// 0
 		"s",	// 1
 		"h",	// 2
