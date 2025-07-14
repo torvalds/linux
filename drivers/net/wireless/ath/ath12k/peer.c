@@ -100,6 +100,9 @@ struct ath12k_peer *ath12k_peer_find_by_id(struct ath12k_base *ab,
 
 	lockdep_assert_held(&ab->base_lock);
 
+	if (peer_id == HAL_INVALID_PEERID)
+		return NULL;
+
 	if (peer_id & ATH12K_PEER_ML_ID_VALID)
 		return ath12k_peer_find_by_ml_id(ab, peer_id);
 
