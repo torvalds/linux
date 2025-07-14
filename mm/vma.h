@@ -290,15 +290,14 @@ __must_check struct vm_area_struct
 		unsigned long start, unsigned long end,
 		vm_flags_t vm_flags);
 
-/* We are about to modify the VMA's flags and/or anon_name. */
+/* We are about to modify the VMA's anon_name. */
 __must_check struct vm_area_struct
-*vma_modify_flags_name(struct vma_iterator *vmi,
-		       struct vm_area_struct *prev,
-		       struct vm_area_struct *vma,
-		       unsigned long start,
-		       unsigned long end,
-		       vm_flags_t vm_flags,
-		       struct anon_vma_name *new_name);
+*vma_modify_name(struct vma_iterator *vmi,
+		 struct vm_area_struct *prev,
+		 struct vm_area_struct *vma,
+		 unsigned long start,
+		 unsigned long end,
+		 struct anon_vma_name *new_name);
 
 /* We are about to modify the VMA's memory policy. */
 __must_check struct vm_area_struct
