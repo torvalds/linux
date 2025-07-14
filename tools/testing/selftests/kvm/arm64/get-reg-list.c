@@ -15,6 +15,12 @@
 #include "test_util.h"
 #include "processor.h"
 
+#define SYS_REG(r)	ARM64_SYS_REG(sys_reg_Op0(SYS_ ## r),	\
+				      sys_reg_Op1(SYS_ ## r),	\
+				      sys_reg_CRn(SYS_ ## r),	\
+				      sys_reg_CRm(SYS_ ## r),	\
+				      sys_reg_Op2(SYS_ ## r))
+
 struct feature_id_reg {
 	__u64 reg;
 	__u64 id_reg;
@@ -22,37 +28,23 @@ struct feature_id_reg {
 	__u64 feat_min;
 };
 
-static struct feature_id_reg feat_id_regs[] = {
-	{
-		ARM64_SYS_REG(3, 0, 2, 0, 3),	/* TCR2_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		0,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 0, 10, 2, 2),	/* PIRE0_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		8,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 0, 10, 2, 3),	/* PIR_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		8,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 0, 10, 2, 4),	/* POR_EL1 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		16,
-		1
-	},
-	{
-		ARM64_SYS_REG(3, 3, 10, 2, 4),	/* POR_EL0 */
-		ARM64_SYS_REG(3, 0, 0, 7, 3),	/* ID_AA64MMFR3_EL1 */
-		16,
-		1
+#define FEAT(id, f, v)					\
+	.id_reg		= SYS_REG(id),			\
+	.feat_shift	= id ## _ ## f ## _SHIFT,	\
+	.feat_min	= id ## _ ## f ## _ ## v
+
+#define REG_FEAT(r, id, f, v)			\
+	{					\
+		.reg = SYS_REG(r),		\
+		FEAT(id, f, v)			\
 	}
+
+static struct feature_id_reg feat_id_regs[] = {
+	REG_FEAT(TCR2_EL1,	ID_AA64MMFR3_EL1, TCRX, IMP),
+	REG_FEAT(PIRE0_EL1,	ID_AA64MMFR3_EL1, S1PIE, IMP),
+	REG_FEAT(PIR_EL1,	ID_AA64MMFR3_EL1, S1PIE, IMP),
+	REG_FEAT(POR_EL1,	ID_AA64MMFR3_EL1, S1POE, IMP),
+	REG_FEAT(POR_EL0,	ID_AA64MMFR3_EL1, S1POE, IMP),
 };
 
 bool filter_reg(__u64 reg)
