@@ -2521,11 +2521,7 @@ static bool access_gic_vtr(struct kvm_vcpu *vcpu,
 	if (p->is_write)
 		return write_to_read_only(vcpu, p, r);
 
-	p->regval = kvm_vgic_global_state.ich_vtr_el2;
-	p->regval &= ~(ICH_VTR_EL2_DVIM 	|
-		       ICH_VTR_EL2_A3V		|
-		       ICH_VTR_EL2_IDbits);
-	p->regval |= ICH_VTR_EL2_nV4;
+	p->regval = kvm_get_guest_vtr_el2();
 
 	return true;
 }

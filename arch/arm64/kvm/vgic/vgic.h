@@ -66,6 +66,21 @@
 
 #define KVM_ICC_SRE_EL2		(ICC_SRE_EL2_ENABLE | ICC_SRE_EL2_SRE |	\
 				 ICC_SRE_EL1_DIB | ICC_SRE_EL1_DFB)
+#define KVM_ICH_VTR_EL2_RES0	(ICH_VTR_EL2_DVIM 	|	\
+				 ICH_VTR_EL2_A3V	|	\
+				 ICH_VTR_EL2_IDbits)
+#define KVM_ICH_VTR_EL2_RES1	ICH_VTR_EL2_nV4
+
+static inline u64 kvm_get_guest_vtr_el2(void)
+{
+	u64 vtr;
+
+	vtr  = kvm_vgic_global_state.ich_vtr_el2;
+	vtr &= ~KVM_ICH_VTR_EL2_RES0;
+	vtr |= KVM_ICH_VTR_EL2_RES1;
+
+	return vtr;
+}
 
 /*
  * As per Documentation/virt/kvm/devices/arm-vgic-its.rst,
