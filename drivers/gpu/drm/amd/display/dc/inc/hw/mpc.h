@@ -115,6 +115,16 @@ enum MCM_LUT_ID {
 	MCM_LUT_SHAPER
 };
 
+struct mpc_fl_3dlut_config {
+	bool enabled;
+	uint16_t width;
+	bool select_lut_bank_a;
+	uint16_t bit_depth;
+	int hubp_index;
+	uint16_t bias;
+	uint16_t scale;
+};
+
 union mcm_lut_params {
 	const struct pwl_params *pwl;
 	const struct tetrahedral_params *lut3d;
@@ -1098,6 +1108,7 @@ struct mpc_funcs {
 	 * MPC RMCM new HW sequential programming functions
 	 */
 	struct {
+		void (*fl_3dlut_configure)(struct mpc *mpc, struct mpc_fl_3dlut_config *cfg, int mpcc_id);
 		void (*enable_3dlut_fl)(struct mpc *mpc, bool enable, int mpcc_id);
 		void (*update_3dlut_fast_load_select)(struct mpc *mpc, int mpcc_id, int hubp_idx);
 		void (*program_lut_read_write_control)(struct mpc *mpc, const enum MCM_LUT_ID id,

@@ -1311,6 +1311,32 @@ union dc_3dlut_state {
 };
 
 
+#define MATRIX_9C__DIM_128_ALIGNED_LEN   16 // 9+8 :  9 * 8 +  7 * 8 = 72  + 56  = 128 % 128 = 0
+#define MATRIX_17C__DIM_128_ALIGNED_LEN  32 //17+15:  17 * 8 + 15 * 8 = 136 + 120 = 256 % 128 = 0
+#define MATRIX_33C__DIM_128_ALIGNED_LEN  64 //17+47:  17 * 8 + 47 * 8 = 136 + 376 = 512 % 128 = 0
+
+struct lut_rgb {
+	uint16_t b;
+	uint16_t g;
+	uint16_t r;
+	uint16_t padding;
+};
+
+//this structure maps directly to how the lut will read it from memory
+struct lut_mem_mapping {
+	union {
+		//NATIVE MODE 1, 2
+		//RGB layout          [b][g][r]      //red  is 128 byte aligned
+		//BGR layout          [r][g][b]      //blue is 128 byte aligned
+		struct lut_rgb rgb_17c[17][17][MATRIX_17C__DIM_128_ALIGNED_LEN];
+		struct lut_rgb rgb_33c[33][33][MATRIX_33C__DIM_128_ALIGNED_LEN];
+
+		//TRANSFORMED
+		uint16_t linear_rgb[(33*33*33*4/128+1)*128];
+	};
+	uint16_t size;
+};
+
 struct dc_rmcm_3dlut {
 	bool isInUse;
 	const struct dc_stream_state *stream;

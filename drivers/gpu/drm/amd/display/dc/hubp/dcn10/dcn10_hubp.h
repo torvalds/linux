@@ -671,6 +671,7 @@ struct dcn_fl_regs_st {
 	uint32_t lut_done;
 	uint32_t lut_addr_mode;
 	uint32_t lut_width;
+	uint32_t lut_mpc_width;
 	uint32_t lut_tmz;
 	uint32_t lut_crossbar_sel_r;
 	uint32_t lut_crossbar_sel_g;

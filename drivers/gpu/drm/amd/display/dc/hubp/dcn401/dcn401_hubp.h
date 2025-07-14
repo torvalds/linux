@@ -349,6 +349,10 @@ void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_forma
 
 void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode);
 
+void hubp401_program_3dlut_fl_config(
+	struct hubp *hubp,
+	struct hubp_fl_3dlut_config *cfg);
+
 void hubp401_clear_tiling(struct hubp *hubp);
 
 void hubp401_vready_at_or_After_vsync(struct hubp *hubp,

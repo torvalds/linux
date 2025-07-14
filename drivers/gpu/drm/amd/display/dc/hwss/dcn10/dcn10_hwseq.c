@@ -328,19 +328,25 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 	}
 
 	DTN_INFO("\n=======HUBP FL======\n");
-	DTN_INFO(
-		"HUBP FL:  Enabled  Done  adr_mode  width  tmz  xbar_sel_R  xbar_sel_G  xbar_sel_B  adr_hi  adr_low  REFCYC  Bias   Scale       Mode      Format\n");
+	char pLabels[18][50] = {
+		"inst", "Enabled ", "Done ", "adr_mode ", "width ", "mpc_width ",
+		"tmz", "xbar_sel_R", "xbar_sel_G", "xbar_sel_B", "adr_hi ",
+		"adr_low", "REFCYC", "Bias", "Scale", "Mode",
+		"Format", "prefetch"};
+
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(pool->hubps[i])->state);
 		struct dcn_fl_regs_st *fl_regs = &s->fl_regs;
+		struct _vcs_dpi_display_dlg_regs_st *dlg_regs = &s->dlg_attr;
 
 		if (!s->blank_en) {
-			DTN_INFO("[%2d]:  %5xh  %6xh  %5d  %6d  %8xh  %2xh  %6xh  %6d  %8d  %8d  %7d  %8xh %5x %5x %5x",
+			uint32_t values[] = {
 					pool->hubps[i]->inst,
 					fl_regs->lut_enable,
 					fl_regs->lut_done,
 					fl_regs->lut_addr_mode,
 					fl_regs->lut_width,
+					fl_regs->lut_mpc_width,
 					fl_regs->lut_tmz,
 					fl_regs->lut_crossbar_sel_r,
 					fl_regs->lut_crossbar_sel_g,
@@ -351,8 +357,13 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 					fl_regs->lut_fl_bias,
 					fl_regs->lut_fl_scale,
 					fl_regs->lut_fl_mode,
-					fl_regs->lut_fl_format);
-			DTN_INFO("\n");
+					fl_regs->lut_fl_format,
+					dlg_regs->dst_y_prefetch};
+
+			int num_elements = 18;
+
+			for (int j = 0; j < num_elements; j++)
+				DTN_INFO("%s \t %8xh\n", pLabels[j], values[j]);
 		}
 	}
 
@@ -541,19 +552,43 @@ static void dcn10_log_color_state(struct dc *dc,
 		 dc->caps.color.mpc.ogam_ram,
 		 dc->caps.color.mpc.ocsc);
 	DTN_INFO("===== MPC RMCM 3DLUT =====\n");
-	DTN_INFO("MPCC:  SIZE  MODE  MODE_CUR  RD_SEL  30BIT_EN  WR_EN_MASK  RAM_SEL  OUT_NORM_FACTOR	FL_SEL	OUT_OFFSET	OUT_SCALE	FL_DONE	SOFT_UNDERFLOW	HARD_UNDERFLOW MEM_PWR_ST	FORCE	DIS	MODE\n");
+	char pLabels[19][50] = {
+		"MPCC", "SIZE", "MODE", "MODE_CUR", "RD_SEL",
+		"30BIT_EN", "WR_EN_MASK", "RAM_SEL", "OUT_NORM_FACTOR", "FL_SEL",
+		"OUT_OFFSET", "OUT_SCALE", "FL_DONE", "SOFT_UNDERFLOW", "HARD_UNDERFLOW",
+		"MEM_PWR_ST", "FORCE", "DIS", "MODE"};
+
 	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
-		if (s.opp_id != 0xf)
-			DTN_INFO("[%2d]:  %4xh  %4xh  %6xh  %4x  %4x  %4x  %4x  %4x %4xh  %4xh  %6xh  %4x  %4x  %4x  %4x  %4x  %4x  %4x\n",
-				i, s.rmcm_regs.rmcm_3dlut_size, s.rmcm_regs.rmcm_3dlut_mode, s.rmcm_regs.rmcm_3dlut_mode_cur,
-				s.rmcm_regs.rmcm_3dlut_read_sel, s.rmcm_regs.rmcm_3dlut_30bit_en, s.rmcm_regs.rmcm_3dlut_wr_en_mask,
-				s.rmcm_regs.rmcm_3dlut_ram_sel, s.rmcm_regs.rmcm_3dlut_out_norm_factor, s.rmcm_regs.rmcm_3dlut_fl_sel,
-				s.rmcm_regs.rmcm_3dlut_out_offset_r, s.rmcm_regs.rmcm_3dlut_out_scale_r, s.rmcm_regs.rmcm_3dlut_fl_done,
-				s.rmcm_regs.rmcm_3dlut_fl_soft_underflow, s.rmcm_regs.rmcm_3dlut_fl_hard_underflow, s.rmcm_regs.rmcm_3dlut_mem_pwr_state,
-				s.rmcm_regs.rmcm_3dlut_mem_pwr_force, s.rmcm_regs.rmcm_3dlut_mem_pwr_dis, s.rmcm_regs.rmcm_3dlut_mem_pwr_mode);
+		if (s.opp_id != 0xf) {
+			uint32_t values[] = {
+				i,
+				s.rmcm_regs.rmcm_3dlut_size,
+				s.rmcm_regs.rmcm_3dlut_mode,
+				s.rmcm_regs.rmcm_3dlut_mode_cur,
+				s.rmcm_regs.rmcm_3dlut_read_sel,
+				s.rmcm_regs.rmcm_3dlut_30bit_en,
+				s.rmcm_regs.rmcm_3dlut_wr_en_mask,
+				s.rmcm_regs.rmcm_3dlut_ram_sel,
+				s.rmcm_regs.rmcm_3dlut_out_norm_factor,
+				s.rmcm_regs.rmcm_3dlut_fl_sel,
+				s.rmcm_regs.rmcm_3dlut_out_offset_r,
+				s.rmcm_regs.rmcm_3dlut_out_scale_r,
+				s.rmcm_regs.rmcm_3dlut_fl_done,
+				s.rmcm_regs.rmcm_3dlut_fl_soft_underflow,
+				s.rmcm_regs.rmcm_3dlut_fl_hard_underflow,
+				s.rmcm_regs.rmcm_3dlut_mem_pwr_state,
+				s.rmcm_regs.rmcm_3dlut_mem_pwr_force,
+				s.rmcm_regs.rmcm_3dlut_mem_pwr_dis,
+				s.rmcm_regs.rmcm_3dlut_mem_pwr_mode};
+
+			int num_elements = 19;
+
+			for (int j = 0; j < num_elements; j++)
+				DTN_INFO("%s \t %8xh\n", pLabels[j], values[j]);
+		}
 	}
 	DTN_INFO("\n");
 	DTN_INFO("===== MPC RMCM Shaper =====\n");
