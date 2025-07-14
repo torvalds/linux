@@ -6307,28 +6307,63 @@ out:
  * are contiguous, AND the extents were freed by the same transaction,
  * AND the blocks are associated with the same group.
  */
-static void ext4_try_merge_freed_extent(struct ext4_sb_info *sbi,
-					struct ext4_free_data *entry,
-					struct ext4_free_data *new_entry,
-					struct rb_root *entry_rb_root)
+static inline bool
+ext4_freed_extents_can_be_merged(struct ext4_free_data *entry1,
+				 struct ext4_free_data *entry2)
 {
-	if ((entry->efd_tid != new_entry->efd_tid) ||
-	    (entry->efd_group != new_entry->efd_group))
-		return;
-	if (entry->efd_start_cluster + entry->efd_count ==
-	    new_entry->efd_start_cluster) {
-		new_entry->efd_start_cluster = entry->efd_start_cluster;
-		new_entry->efd_count += entry->efd_count;
-	} else if (new_entry->efd_start_cluster + new_entry->efd_count ==
-		   entry->efd_start_cluster) {
-		new_entry->efd_count += entry->efd_count;
-	} else
-		return;
+	if (entry1->efd_tid != entry2->efd_tid)
+		return false;
+	if (entry1->efd_start_cluster + entry1->efd_count !=
+	    entry2->efd_start_cluster)
+		return false;
+	if (WARN_ON_ONCE(entry1->efd_group != entry2->efd_group))
+		return false;
+	return true;
+}
+
+static inline void
+ext4_merge_freed_extents(struct ext4_sb_info *sbi, struct rb_root *root,
+			 struct ext4_free_data *entry1,
+			 struct ext4_free_data *entry2)
+{
+	entry1->efd_count += entry2->efd_count;
 	spin_lock(&sbi->s_md_lock);
-	list_del(&entry->efd_list);
+	list_del(&entry2->efd_list);
 	spin_unlock(&sbi->s_md_lock);
-	rb_erase(&entry->efd_node, entry_rb_root);
-	kmem_cache_free(ext4_free_data_cachep, entry);
+	rb_erase(&entry2->efd_node, root);
+	kmem_cache_free(ext4_free_data_cachep, entry2);
+}
+
+static inline void
+ext4_try_merge_freed_extent_prev(struct ext4_sb_info *sbi, struct rb_root *root,
+				 struct ext4_free_data *entry)
+{
+	struct ext4_free_data *prev;
+	struct rb_node *node;
+
+	node = rb_prev(&entry->efd_node);
+	if (!node)
+		return;
+
+	prev = rb_entry(node, struct ext4_free_data, efd_node);
+	if (ext4_freed_extents_can_be_merged(prev, entry))
+		ext4_merge_freed_extents(sbi, root, prev, entry);
+}
+
+static inline void
+ext4_try_merge_freed_extent_next(struct ext4_sb_info *sbi, struct rb_root *root,
+				 struct ext4_free_data *entry)
+{
+	struct ext4_free_data *next;
+	struct rb_node *node;
+
+	node = rb_next(&entry->efd_node);
+	if (!node)
+		return;
+
+	next = rb_entry(node, struct ext4_free_data, efd_node);
+	if (ext4_freed_extents_can_be_merged(entry, next))
+		ext4_merge_freed_extents(sbi, root, entry, next);
 }
 
 static noinline_for_stack void
@@ -6338,11 +6373,12 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 	ext4_group_t group = e4b->bd_group;
 	ext4_grpblk_t cluster;
 	ext4_grpblk_t clusters = new_entry->efd_count;
-	struct ext4_free_data *entry;
+	struct ext4_free_data *entry = NULL;
 	struct ext4_group_info *db = e4b->bd_info;
 	struct super_block *sb = e4b->bd_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct rb_node **n = &db->bb_free_root.rb_node, *node;
+	struct rb_root *root = &db->bb_free_root;
+	struct rb_node **n = &root->rb_node;
 	struct rb_node *parent = NULL, *new_node;
 
 	BUG_ON(!ext4_handle_valid(handle));
@@ -6378,27 +6414,30 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 		}
 	}
 
+	atomic_add(clusters, &sbi->s_mb_free_pending);
+	if (!entry)
+		goto insert;
+
+	/* Now try to see the extent can be merged to prev and next */
+	if (ext4_freed_extents_can_be_merged(new_entry, entry)) {
+		entry->efd_start_cluster = cluster;
+		entry->efd_count += new_entry->efd_count;
+		kmem_cache_free(ext4_free_data_cachep, new_entry);
+		ext4_try_merge_freed_extent_prev(sbi, root, entry);
+		return;
+	}
+	if (ext4_freed_extents_can_be_merged(entry, new_entry)) {
+		entry->efd_count += new_entry->efd_count;
+		kmem_cache_free(ext4_free_data_cachep, new_entry);
+		ext4_try_merge_freed_extent_next(sbi, root, entry);
+		return;
+	}
+insert:
 	rb_link_node(new_node, parent, n);
-	rb_insert_color(new_node, &db->bb_free_root);
-
-	/* Now try to see the extent can be merged to left and right */
-	node = rb_prev(new_node);
-	if (node) {
-		entry = rb_entry(node, struct ext4_free_data, efd_node);
-		ext4_try_merge_freed_extent(sbi, entry, new_entry,
-					    &(db->bb_free_root));
-	}
-
-	node = rb_next(new_node);
-	if (node) {
-		entry = rb_entry(node, struct ext4_free_data, efd_node);
-		ext4_try_merge_freed_extent(sbi, entry, new_entry,
-					    &(db->bb_free_root));
-	}
+	rb_insert_color(new_node, root);
 
 	spin_lock(&sbi->s_md_lock);
 	list_add_tail(&new_entry->efd_list, &sbi->s_freed_data_list[new_entry->efd_tid & 1]);
-	atomic_add(clusters, &sbi->s_mb_free_pending);
 	spin_unlock(&sbi->s_md_lock);
 }
 
