@@ -92,6 +92,7 @@ struct hclge_dbg_func {
 	int (*dbg_dump)(struct hclge_dev *hdev, char *buf, int len);
 	int (*dbg_dump_reg)(struct hclge_dev *hdev, enum hnae3_dbg_cmd cmd,
 			    char *buf, int len);
+	read_func dbg_read_func;
 };
 
 struct hclge_dbg_status_dfx_info {
