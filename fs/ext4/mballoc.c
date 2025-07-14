@@ -2168,8 +2168,12 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 	ac->ac_buddy_folio = e4b->bd_buddy_folio;
 	folio_get(ac->ac_buddy_folio);
 	/* store last allocated for subsequent stream allocation */
-	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC)
-		WRITE_ONCE(sbi->s_mb_last_group, ac->ac_f_ex.fe_group);
+	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
+		int hash = ac->ac_inode->i_ino % sbi->s_mb_nr_global_goals;
+
+		WRITE_ONCE(sbi->s_mb_last_groups[hash], ac->ac_f_ex.fe_group);
+	}
+
 	/*
 	 * As we've just preallocated more space than
 	 * user requested originally, we store allocated
@@ -2842,7 +2846,9 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 
 	/* if stream allocation is enabled, use global goal */
 	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
-		ac->ac_g_ex.fe_group = READ_ONCE(sbi->s_mb_last_group);
+		int hash = ac->ac_inode->i_ino % sbi->s_mb_nr_global_goals;
+
+		ac->ac_g_ex.fe_group = READ_ONCE(sbi->s_mb_last_groups[hash]);
 		ac->ac_g_ex.fe_start = -1;
 		ac->ac_flags &= ~EXT4_MB_HINT_TRY_GOAL;
 	}
@@ -3722,10 +3728,19 @@ int ext4_mb_init(struct super_block *sb)
 			sbi->s_mb_group_prealloc, EXT4_NUM_B2C(sbi, sbi->s_stripe));
 	}
 
+	sbi->s_mb_nr_global_goals = umin(num_possible_cpus(),
+					 DIV_ROUND_UP(sbi->s_groups_count, 4));
+	sbi->s_mb_last_groups = kcalloc(sbi->s_mb_nr_global_goals,
+					sizeof(ext4_group_t), GFP_KERNEL);
+	if (sbi->s_mb_last_groups == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	sbi->s_locality_groups = alloc_percpu(struct ext4_locality_group);
 	if (sbi->s_locality_groups == NULL) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_free_last_groups;
 	}
 	for_each_possible_cpu(i) {
 		struct ext4_locality_group *lg;
@@ -3750,6 +3765,9 @@ int ext4_mb_init(struct super_block *sb)
 out_free_locality_groups:
 	free_percpu(sbi->s_locality_groups);
 	sbi->s_locality_groups = NULL;
+out_free_last_groups:
+	kfree(sbi->s_mb_last_groups);
+	sbi->s_mb_last_groups = NULL;
 out:
 	kfree(sbi->s_mb_avg_fragment_size);
 	kfree(sbi->s_mb_avg_fragment_size_locks);
@@ -3854,6 +3872,7 @@ void ext4_mb_release(struct super_block *sb)
 	}
 
 	free_percpu(sbi->s_locality_groups);
+	kfree(sbi->s_mb_last_groups);
 }
 
 static inline int ext4_issue_discard(struct super_block *sb,

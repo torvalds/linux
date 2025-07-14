@@ -1629,13 +1629,15 @@ struct ext4_sb_info {
 	unsigned int s_mb_order2_reqs;
 	unsigned int s_mb_group_prealloc;
 	unsigned int s_max_dir_size_kb;
-	/* where last allocation was done - for stream allocation */
-	ext4_group_t s_mb_last_group;
 	unsigned int s_mb_prefetch;
 	unsigned int s_mb_prefetch_limit;
 	unsigned int s_mb_best_avail_max_trim_order;
 	unsigned int s_sb_update_sec;
 	unsigned int s_sb_update_kb;
+
+	/* where last allocation was done - for stream allocation */
+	ext4_group_t *s_mb_last_groups;
+	unsigned int s_mb_nr_global_goals;
 
 	/* stats for buddy allocator */
 	atomic_t s_bal_reqs;	/* number of reqs with len > 1 */
