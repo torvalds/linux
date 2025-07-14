@@ -1630,10 +1630,12 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		goto failure;
 
-	r = mes_v11_0_set_hw_resources_1(&adev->mes);
-	if (r) {
-		DRM_ERROR("failed mes_v11_0_set_hw_resources_1, r=%d\n", r);
-		goto failure;
+	if ((adev->mes.sched_version & AMDGPU_MES_VERSION_MASK) >= 0x50) {
+		r = mes_v11_0_set_hw_resources_1(&adev->mes);
+		if (r) {
+			DRM_ERROR("failed mes_v11_0_set_hw_resources_1, r=%d\n", r);
+			goto failure;
+		}
 	}
 
 	r = mes_v11_0_query_sched_status(&adev->mes);

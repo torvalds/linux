@@ -727,7 +727,7 @@ xfs_select_zone(
 	for (;;) {
 		prepare_to_wait(&zi->zi_zone_wait, &wait, TASK_UNINTERRUPTIBLE);
 		oz = xfs_select_zone_nowait(mp, write_hint, pack_tight);
-		if (oz)
+		if (oz || xfs_is_shutdown(mp))
 			break;
 		schedule();
 	}
@@ -775,26 +775,6 @@ xfs_mark_rtg_boundary(
 
 	if (xfs_rtb_to_rgbno(mp, xfs_daddr_to_rtb(mp, sector)) == 0)
 		ioend->io_flags |= IOMAP_IOEND_BOUNDARY;
-}
-
-static void
-xfs_submit_zoned_bio(
-	struct iomap_ioend	*ioend,
-	struct xfs_open_zone	*oz,
-	bool			is_seq)
-{
-	ioend->io_bio.bi_iter.bi_sector = ioend->io_sector;
-	ioend->io_private = oz;
-	atomic_inc(&oz->oz_ref); /* for xfs_zoned_end_io */
-
-	if (is_seq) {
-		ioend->io_bio.bi_opf &= ~REQ_OP_WRITE;
-		ioend->io_bio.bi_opf |= REQ_OP_ZONE_APPEND;
-	} else {
-		xfs_mark_rtg_boundary(ioend);
-	}
-
-	submit_bio(&ioend->io_bio);
 }
 
 /*
@@ -889,6 +869,26 @@ xfs_zone_cache_create_association(
 	}
 	item->oz = oz;
 	xfs_mru_cache_insert(mp->m_zone_cache, ip->i_ino, &item->mru);
+}
+
+static void
+xfs_submit_zoned_bio(
+	struct iomap_ioend	*ioend,
+	struct xfs_open_zone	*oz,
+	bool			is_seq)
+{
+	ioend->io_bio.bi_iter.bi_sector = ioend->io_sector;
+	ioend->io_private = oz;
+	atomic_inc(&oz->oz_ref); /* for xfs_zoned_end_io */
+
+	if (is_seq) {
+		ioend->io_bio.bi_opf &= ~REQ_OP_WRITE;
+		ioend->io_bio.bi_opf |= REQ_OP_ZONE_APPEND;
+	} else {
+		xfs_mark_rtg_boundary(ioend);
+	}
+
+	submit_bio(&ioend->io_bio);
 }
 
 void

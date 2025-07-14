@@ -236,6 +236,7 @@ static int pwec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ec_wdt_dev.parent = &pdev->dev;
 	ret = devm_watchdog_register_device(&pdev->dev, &ec_wdt_dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register Portwell EC Watchdog\n");

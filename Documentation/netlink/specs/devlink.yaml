@@ -38,15 +38,15 @@ definitions:
       -
         name: dsa
       -
-        name: pci_pf
+        name: pci-pf
       -
-        name: pci_vf
+        name: pci-vf
       -
         name: virtual
       -
         name: unused
       -
-        name: pci_sf
+        name: pci-sf
   -
     type: enum
     name: port-fn-state
@@ -220,7 +220,7 @@ definitions:
       -
         name: flag
       -
-        name: nul_string
+        name: nul-string
         value: 10
       -
         name: binary

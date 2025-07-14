@@ -48,7 +48,7 @@ definitions:
         name: started
         doc: The firmware flashing process has started.
       -
-        name: in_progress
+        name: in-progress
         doc: The firmware flashing process is in progress.
       -
         name: completed
@@ -1422,7 +1422,7 @@ attribute-sets:
         name: hkey
         type: binary
       -
-        name: input_xfrm
+        name: input-xfrm
         type: u32
       -
         name: start-context
@@ -2238,7 +2238,7 @@ operations:
             - hfunc
             - indir
             - hkey
-            - input_xfrm
+            - input-xfrm
       dump:
         request:
           attributes:

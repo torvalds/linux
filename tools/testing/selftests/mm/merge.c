@@ -470,7 +470,9 @@ TEST_F(merge, handle_uprobe_upon_merged_vma)
 	ASSERT_GE(fd, 0);
 
 	ASSERT_EQ(ftruncate(fd, page_size), 0);
-	ASSERT_EQ(read_sysfs("/sys/bus/event_source/devices/uprobe/type", &type), 0);
+	if (read_sysfs("/sys/bus/event_source/devices/uprobe/type", &type) != 0) {
+		SKIP(goto out, "Failed to read uprobe sysfs file, skipping");
+	}
 
 	memset(&attr, 0, attr_sz);
 	attr.size = attr_sz;
@@ -491,6 +493,7 @@ TEST_F(merge, handle_uprobe_upon_merged_vma)
 	ASSERT_NE(mremap(ptr2, page_size, page_size,
 			 MREMAP_MAYMOVE | MREMAP_FIXED, ptr1), MAP_FAILED);
 
+out:
 	close(fd);
 	remove(probe_file);
 }

@@ -759,7 +759,7 @@ static void qmi_stop_session(void)
 			subs = find_substream(pcm_card_num, info->pcm_dev_num,
 					      info->direction);
 			if (!subs || !chip || atomic_read(&chip->shutdown)) {
-				dev_err(&subs->dev->dev,
+				dev_err(&uadev[idx].udev->dev,
 					"no sub for c#%u dev#%u dir%u\n",
 					info->pcm_card_num,
 					info->pcm_dev_num,
@@ -1360,20 +1360,21 @@ static int prepare_qmi_response(struct snd_usb_substream *subs,
 
 	if (!uadev[card_num].ctrl_intf) {
 		dev_err(&subs->dev->dev, "audio ctrl intf info not cached\n");
-		ret = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
 
 	ret = uaudio_populate_uac_desc(subs, resp);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	resp->slot_id = subs->dev->slot_id;
 	resp->slot_id_valid = 1;
 
 	data = snd_soc_usb_find_priv_data(uaudio_qdev->auxdev->dev.parent);
-	if (!data)
-		goto err;
+	if (!data) {
+		dev_err(&subs->dev->dev, "No private data found\n");
+		return -ENODEV;
+	}
 
 	uaudio_qdev->data = data;
 
@@ -1382,7 +1383,7 @@ static int prepare_qmi_response(struct snd_usb_substream *subs,
 				    &resp->xhci_mem_info.tr_data,
 				    &resp->std_as_data_ep_desc);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	resp->std_as_data_ep_desc_valid = 1;
 
@@ -1500,7 +1501,6 @@ drop_data_ep:
 	xhci_sideband_remove_endpoint(uadev[card_num].sb,
 			usb_pipe_endpoint(subs->dev, subs->data_endpoint->pipe));
 
-err:
 	return ret;
 }
 

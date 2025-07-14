@@ -7196,6 +7196,10 @@ The valid value for 'flags' is:
 					u64 leaf;
 					u64 r11, r12, r13, r14;
 				} get_tdvmcall_info;
+				struct {
+					u64 ret;
+					u64 vector;
+				} setup_event_notify;
 			};
 		} tdx;
 
@@ -7210,21 +7214,24 @@ number from register R11.  The remaining field of the union provide the
 inputs and outputs of the TDVMCALL.  Currently the following values of
 ``nr`` are defined:
 
-* ``TDVMCALL_GET_QUOTE``: the guest has requested to generate a TD-Quote
-signed by a service hosting TD-Quoting Enclave operating on the host.
-Parameters and return value are in the ``get_quote`` field of the union.
-The ``gpa`` field and ``size`` specify the guest physical address
-(without the shared bit set) and the size of a shared-memory buffer, in
-which the TDX guest passes a TD Report.  The ``ret`` field represents
-the return value of the GetQuote request.  When the request has been
-queued successfully, the TDX guest can poll the status field in the
-shared-memory area to check whether the Quote generation is completed or
-not. When completed, the generated Quote is returned via the same buffer.
+ * ``TDVMCALL_GET_QUOTE``: the guest has requested to generate a TD-Quote
+   signed by a service hosting TD-Quoting Enclave operating on the host.
+   Parameters and return value are in the ``get_quote`` field of the union.
+   The ``gpa`` field and ``size`` specify the guest physical address
+   (without the shared bit set) and the size of a shared-memory buffer, in
+   which the TDX guest passes a TD Report.  The ``ret`` field represents
+   the return value of the GetQuote request.  When the request has been
+   queued successfully, the TDX guest can poll the status field in the
+   shared-memory area to check whether the Quote generation is completed or
+   not. When completed, the generated Quote is returned via the same buffer.
 
-* ``TDVMCALL_GET_TD_VM_CALL_INFO``: the guest has requested the support
-status of TDVMCALLs.  The output values for the given leaf should be
-placed in fields from ``r11`` to ``r14`` of the ``get_tdvmcall_info``
-field of the union.
+ * ``TDVMCALL_GET_TD_VM_CALL_INFO``: the guest has requested the support
+   status of TDVMCALLs.  The output values for the given leaf should be
+   placed in fields from ``r11`` to ``r14`` of the ``get_tdvmcall_info``
+   field of the union.
+
+* ``TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT``: the guest has requested to
+set up a notification interrupt for vector ``vector``.
 
 KVM may add support for more values in the future that may cause a userspace
 exit, even without calls to ``KVM_ENABLE_CAP`` or similar.  In this case,
