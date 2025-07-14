@@ -115,7 +115,7 @@ static int erofs_fileio_scan_folio(struct erofs_fileio *io, struct folio *folio)
 			void *src;
 
 			src = erofs_read_metabuf(&buf, inode->i_sb,
-						 map->m_pa + ofs, true);
+						 map->m_pa + ofs);
 			if (IS_ERR(src)) {
 				err = PTR_ERR(src);
 				break;

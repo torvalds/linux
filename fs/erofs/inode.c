@@ -39,10 +39,10 @@ static int erofs_read_inode(struct inode *inode)
 	void *ptr;
 	int err = 0;
 
-	ptr = erofs_read_metabuf(&buf, sb, erofs_pos(sb, blkaddr), true);
+	ptr = erofs_read_metabuf(&buf, sb, erofs_pos(sb, blkaddr));
 	if (IS_ERR(ptr)) {
 		err = PTR_ERR(ptr);
-		erofs_err(sb, "failed to get inode (nid: %llu) page, err %d",
+		erofs_err(sb, "failed to read inode meta block (nid: %llu): %d",
 			  vi->nid, err);
 		goto err_out;
 	}
@@ -78,10 +78,10 @@ static int erofs_read_inode(struct inode *inode)
 
 			memcpy(&copied, dic, gotten);
 			ptr = erofs_read_metabuf(&buf, sb,
-					erofs_pos(sb, blkaddr + 1), true);
+					erofs_pos(sb, blkaddr + 1));
 			if (IS_ERR(ptr)) {
 				err = PTR_ERR(ptr);
-				erofs_err(sb, "failed to get inode payload block (nid: %llu), err %d",
+				erofs_err(sb, "failed to read inode payload block (nid: %llu): %d",
 					  vi->nid, err);
 				goto err_out;
 			}
