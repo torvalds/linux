@@ -3687,7 +3687,7 @@ int ext4_mb_init(struct super_block *sb)
 	}
 
 	spin_lock_init(&sbi->s_md_lock);
-	sbi->s_mb_free_pending = 0;
+	atomic_set(&sbi->s_mb_free_pending, 0);
 	INIT_LIST_HEAD(&sbi->s_freed_data_list[0]);
 	INIT_LIST_HEAD(&sbi->s_freed_data_list[1]);
 	INIT_LIST_HEAD(&sbi->s_discard_list);
@@ -3903,10 +3903,7 @@ static void ext4_free_data_in_buddy(struct super_block *sb,
 	/* we expect to find existing buddy because it's pinned */
 	BUG_ON(err != 0);
 
-	spin_lock(&EXT4_SB(sb)->s_md_lock);
-	EXT4_SB(sb)->s_mb_free_pending -= entry->efd_count;
-	spin_unlock(&EXT4_SB(sb)->s_md_lock);
-
+	atomic_sub(entry->efd_count, &EXT4_SB(sb)->s_mb_free_pending);
 	db = e4b.bd_info;
 	/* there are blocks to put in buddy to make them really free */
 	count += entry->efd_count;
@@ -6401,7 +6398,7 @@ ext4_mb_free_metadata(handle_t *handle, struct ext4_buddy *e4b,
 
 	spin_lock(&sbi->s_md_lock);
 	list_add_tail(&new_entry->efd_list, &sbi->s_freed_data_list[new_entry->efd_tid & 1]);
-	sbi->s_mb_free_pending += clusters;
+	atomic_add(clusters, &sbi->s_mb_free_pending);
 	spin_unlock(&sbi->s_md_lock);
 }
 
