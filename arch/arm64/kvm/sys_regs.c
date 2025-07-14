@@ -772,6 +772,12 @@ static u64 reset_mpidr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	return mpidr;
 }
 
+static unsigned int hidden_visibility(const struct kvm_vcpu *vcpu,
+				      const struct sys_reg_desc *r)
+{
+	return REG_HIDDEN;
+}
+
 static unsigned int pmu_visibility(const struct kvm_vcpu *vcpu,
 				   const struct sys_reg_desc *r)
 {
@@ -2324,6 +2330,10 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 	EL2_REG_FILTERED(name, acc, rst, v, el2_visibility)
 
 #define EL2_REG_VNCR(name, rst, v)	EL2_REG(name, bad_vncr_trap, rst, v)
+#define EL2_REG_VNCR_FILT(name, vis)			\
+	EL2_REG_FILTERED(name, bad_vncr_trap, reset_val, 0, vis)
+#define EL2_REG_VNCR_GICv3(name)			\
+	EL2_REG_VNCR_FILT(name, hidden_visibility)
 #define EL2_REG_REDIR(name, rst, v)	EL2_REG(name, bad_redir_trap, rst, v)
 
 /*
@@ -3372,40 +3382,40 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_RVBAR_EL2), undef_access },
 	{ SYS_DESC(SYS_RMR_EL2), undef_access },
 
-	EL2_REG_VNCR(ICH_AP0R0_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP0R1_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP0R2_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP0R3_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R0_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R1_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R2_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_AP1R3_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_AP0R0_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP0R1_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP0R2_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP0R3_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R0_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R1_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R2_EL2),
+	EL2_REG_VNCR_GICv3(ICH_AP1R3_EL2),
 
 	{ SYS_DESC(SYS_ICC_SRE_EL2), access_gic_sre },
 
-	EL2_REG_VNCR(ICH_HCR_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_HCR_EL2),
 	{ SYS_DESC(SYS_ICH_VTR_EL2), access_gic_vtr },
 	{ SYS_DESC(SYS_ICH_MISR_EL2), access_gic_misr },
 	{ SYS_DESC(SYS_ICH_EISR_EL2), access_gic_eisr },
 	{ SYS_DESC(SYS_ICH_ELRSR_EL2), access_gic_elrsr },
-	EL2_REG_VNCR(ICH_VMCR_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_VMCR_EL2),
 
-	EL2_REG_VNCR(ICH_LR0_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR1_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR2_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR3_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR4_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR5_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR6_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR7_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR8_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR9_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR10_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR11_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR12_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR13_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR14_EL2, reset_val, 0),
-	EL2_REG_VNCR(ICH_LR15_EL2, reset_val, 0),
+	EL2_REG_VNCR_GICv3(ICH_LR0_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR1_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR2_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR3_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR4_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR5_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR6_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR7_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR8_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR9_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR10_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR11_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR12_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR13_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR14_EL2),
+	EL2_REG_VNCR_GICv3(ICH_LR15_EL2),
 
 	EL2_REG(CONTEXTIDR_EL2, access_rw, reset_val, 0),
 	EL2_REG(TPIDR_EL2, access_rw, reset_val, 0),
