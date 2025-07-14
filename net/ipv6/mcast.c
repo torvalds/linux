@@ -329,9 +329,6 @@ static struct inet6_dev *ip6_mc_find_dev(struct net *net,
 	idev = in6_dev_get(dev);
 	dev_put(dev);
 
-	if (!idev)
-		return NULL;
-
 	return idev;
 }
 
