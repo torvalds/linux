@@ -57,6 +57,13 @@ struct btree_update {
 	unsigned			took_gc_lock:1;
 
 	enum btree_id			btree_id;
+	struct bpos			node_start;
+	struct bpos			node_end;
+	enum btree_node_rewrite_reason	node_needed_rewrite;
+	u16				node_written;
+	u16				node_sectors;
+	u16				node_remaining;
+
 	unsigned			update_level_start;
 	unsigned			update_level_end;
 
@@ -169,6 +176,9 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 
 int bch2_btree_node_rewrite(struct btree_trans *, struct btree_iter *,
 			    struct btree *, unsigned, unsigned);
+int bch2_btree_node_rewrite_key(struct btree_trans *,
+				enum btree_id, unsigned,
+				struct bkey_i *, unsigned);
 int bch2_btree_node_rewrite_pos(struct btree_trans *,
 				enum btree_id, unsigned,
 				struct bpos, unsigned, unsigned);

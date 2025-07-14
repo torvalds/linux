@@ -152,8 +152,8 @@ static __always_inline int __intel_idle(struct cpuidle_device *dev,
 					int index, bool irqoff)
 {
 	struct cpuidle_state *state = &drv->states[index];
-	unsigned long eax = flg2MWAIT(state->flags);
-	unsigned long ecx = 1*irqoff; /* break on interrupt flag */
+	unsigned int eax = flg2MWAIT(state->flags);
+	unsigned int ecx = 1*irqoff; /* break on interrupt flag */
 
 	mwait_idle_with_hints(eax, ecx);
 
@@ -226,9 +226,9 @@ static __cpuidle int intel_idle_xstate(struct cpuidle_device *dev,
 static __cpuidle int intel_idle_s2idle(struct cpuidle_device *dev,
 				       struct cpuidle_driver *drv, int index)
 {
-	unsigned long ecx = 1; /* break on interrupt flag */
 	struct cpuidle_state *state = &drv->states[index];
-	unsigned long eax = flg2MWAIT(state->flags);
+	unsigned int eax = flg2MWAIT(state->flags);
+	unsigned int ecx = 1; /* break on interrupt flag */
 
 	if (state->flags & CPUIDLE_FLAG_INIT_XSTATE)
 		fpu_idle_fpregs();
@@ -2507,6 +2507,8 @@ static int __init intel_idle_init(void)
 	pr_debug("Local APIC timer is reliable in %s\n",
 		 boot_cpu_has(X86_FEATURE_ARAT) ? "all C-states" : "C1");
 
+	arch_cpu_rescan_dead_smt_siblings();
+
 	return 0;
 
 hp_setup_fail:
@@ -2518,7 +2520,7 @@ init_driver_fail:
 	return retval;
 
 }
-device_initcall(intel_idle_init);
+subsys_initcall_sync(intel_idle_init);
 
 /*
  * We are not really modular, but we used to support that.  Meaning we also

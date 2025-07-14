@@ -38,6 +38,7 @@ struct cs35l56_private {
 	struct snd_soc_component *component;
 	struct regulator_bulk_data supplies[CS35L56_NUM_BULK_SUPPLIES];
 	struct sdw_slave *sdw_peripheral;
+	const char *fallback_fw_suffix;
 	struct work_struct sdw_irq_work;
 	bool sdw_irq_no_unmask;
 	bool soft_resetting;
@@ -52,6 +53,8 @@ struct cs35l56_private {
 	bool tdm_mode;
 	bool sysclk_set;
 	u8 old_sdw_clock_scale;
+	u8 sdw_link_num;
+	u8 sdw_unique_id;
 };
 
 extern const struct dev_pm_ops cs35l56_pm_ops_i2c_spi;

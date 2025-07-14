@@ -32,6 +32,16 @@ int my_int_last SEC(".data.array_not_last");
 
 int percpu_arr[1] SEC(".data.percpu_arr");
 
+/* at least one extern is included, to ensure that a specific
+ * regression is tested whereby resizing resulted in a free-after-use
+ * bug after type information is invalidated by the resize operation.
+ *
+ * There isn't a particularly good API to test for this specific condition,
+ * but by having externs for the resizing tests it will cover this path.
+ */
+extern int LINUX_KERNEL_VERSION __kconfig;
+long version_sink;
+
 SEC("tp/syscalls/sys_enter_getpid")
 int bss_array_sum(void *ctx)
 {
@@ -43,6 +53,9 @@ int bss_array_sum(void *ctx)
 
 	for (size_t i = 0; i < bss_array_len; ++i)
 		sum += array[i];
+
+	/* see above; ensure this is not optimized out */
+	version_sink = LINUX_KERNEL_VERSION;
 
 	return 0;
 }
@@ -58,6 +71,9 @@ int data_array_sum(void *ctx)
 
 	for (size_t i = 0; i < data_array_len; ++i)
 		sum += my_array[i];
+
+	/* see above; ensure this is not optimized out */
+	version_sink = LINUX_KERNEL_VERSION;
 
 	return 0;
 }

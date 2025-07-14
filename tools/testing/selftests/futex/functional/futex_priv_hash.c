@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 	pthread_mutexattr_t mutex_attr_pi;
 	int use_global_hash = 0;
 	int ret;
-	char c;
+	int c;
 
 	while ((c = getopt(argc, argv, "cghv:")) != -1) {
 		switch (c) {

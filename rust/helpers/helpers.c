@@ -13,6 +13,8 @@
 #include "build_assert.c"
 #include "build_bug.c"
 #include "clk.c"
+#include "completion.c"
+#include "cpu.c"
 #include "cpufreq.c"
 #include "cpumask.c"
 #include "cred.c"

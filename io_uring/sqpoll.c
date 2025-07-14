@@ -16,6 +16,7 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io_uring.h"
+#include "tctx.h"
 #include "napi.h"
 #include "sqpoll.h"
 
@@ -30,7 +31,7 @@ enum {
 void io_sq_thread_unpark(struct io_sq_data *sqd)
 	__releases(&sqd->lock)
 {
-	WARN_ON_ONCE(sqd->thread == current);
+	WARN_ON_ONCE(sqpoll_task_locked(sqd) == current);
 
 	/*
 	 * Do the dance but not conditional clear_bit() because it'd race with
@@ -46,24 +47,32 @@ void io_sq_thread_unpark(struct io_sq_data *sqd)
 void io_sq_thread_park(struct io_sq_data *sqd)
 	__acquires(&sqd->lock)
 {
-	WARN_ON_ONCE(data_race(sqd->thread) == current);
+	struct task_struct *tsk;
 
 	atomic_inc(&sqd->park_pending);
 	set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
 	mutex_lock(&sqd->lock);
-	if (sqd->thread)
-		wake_up_process(sqd->thread);
+
+	tsk = sqpoll_task_locked(sqd);
+	if (tsk) {
+		WARN_ON_ONCE(tsk == current);
+		wake_up_process(tsk);
+	}
 }
 
 void io_sq_thread_stop(struct io_sq_data *sqd)
 {
-	WARN_ON_ONCE(sqd->thread == current);
+	struct task_struct *tsk;
+
 	WARN_ON_ONCE(test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state));
 
 	set_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
 	mutex_lock(&sqd->lock);
-	if (sqd->thread)
-		wake_up_process(sqd->thread);
+	tsk = sqpoll_task_locked(sqd);
+	if (tsk) {
+		WARN_ON_ONCE(tsk == current);
+		wake_up_process(tsk);
+	}
 	mutex_unlock(&sqd->lock);
 	wait_for_completion(&sqd->exited);
 }
@@ -270,7 +279,8 @@ static int io_sq_thread(void *data)
 	/* offload context creation failed, just exit */
 	if (!current->io_uring) {
 		mutex_lock(&sqd->lock);
-		sqd->thread = NULL;
+		rcu_assign_pointer(sqd->thread, NULL);
+		put_task_struct(current);
 		mutex_unlock(&sqd->lock);
 		goto err_out;
 	}
@@ -379,7 +389,8 @@ static int io_sq_thread(void *data)
 		io_sq_tw(&retry_list, UINT_MAX);
 
 	io_uring_cancel_generic(true, sqd);
-	sqd->thread = NULL;
+	rcu_assign_pointer(sqd->thread, NULL);
+	put_task_struct(current);
 	list_for_each_entry(ctx, &sqd->ctx_list, sqd_list)
 		atomic_or(IORING_SQ_NEED_WAKEUP, &ctx->rings->sq_flags);
 	io_run_task_work();
@@ -409,7 +420,6 @@ void io_sqpoll_wait_sq(struct io_ring_ctx *ctx)
 __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 				struct io_uring_params *p)
 {
-	struct task_struct *task_to_put = NULL;
 	int ret;
 
 	/* Retain compatibility with failing for an invalid attach attempt */
@@ -484,8 +494,11 @@ __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 			goto err_sqpoll;
 		}
 
-		sqd->thread = tsk;
-		task_to_put = get_task_struct(tsk);
+		mutex_lock(&sqd->lock);
+		rcu_assign_pointer(sqd->thread, tsk);
+		mutex_unlock(&sqd->lock);
+
+		get_task_struct(tsk);
 		ret = io_uring_alloc_task_context(tsk, ctx);
 		wake_up_new_task(tsk);
 		if (ret)
@@ -495,16 +508,11 @@ __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 		ret = -EINVAL;
 		goto err;
 	}
-
-	if (task_to_put)
-		put_task_struct(task_to_put);
 	return 0;
 err_sqpoll:
 	complete(&ctx->sq_data->exited);
 err:
 	io_sq_thread_finish(ctx);
-	if (task_to_put)
-		put_task_struct(task_to_put);
 	return ret;
 }
 
@@ -515,10 +523,13 @@ __cold int io_sqpoll_wq_cpu_affinity(struct io_ring_ctx *ctx,
 	int ret = -EINVAL;
 
 	if (sqd) {
+		struct task_struct *tsk;
+
 		io_sq_thread_park(sqd);
 		/* Don't set affinity for a dying thread */
-		if (sqd->thread)
-			ret = io_wq_cpu_affinity(sqd->thread->io_uring, mask);
+		tsk = sqpoll_task_locked(sqd);
+		if (tsk)
+			ret = io_wq_cpu_affinity(tsk->io_uring, mask);
 		io_sq_thread_unpark(sqd);
 	}
 

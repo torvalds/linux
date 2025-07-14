@@ -379,8 +379,8 @@ static u32 sh7760_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm sh7760_i2c_algo = {
-	.master_xfer	= sh7760_i2c_master_xfer,
-	.functionality	= sh7760_i2c_func,
+	.xfer = sh7760_i2c_master_xfer,
+	.functionality = sh7760_i2c_func,
 };
 
 /* calculate CCR register setting for a desired scl clock.  SCL clock is

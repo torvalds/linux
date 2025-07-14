@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0-only
 
-=====================================================================
-Audio drivers for Cirrus Logic CS35L54/56/57 Boosted Smart Amplifiers
-=====================================================================
+========================================================================
+Audio drivers for Cirrus Logic CS35L54/56/57/63 Boosted Smart Amplifiers
+========================================================================
 :Copyright: 2025 Cirrus Logic, Inc. and
                  Cirrus Logic International Semiconductor Ltd.
 
@@ -13,11 +13,11 @@ Summary
 
 The high-level summary of this document is:
 
-**If you have a laptop that uses CS35L54/56/57 amplifiers but audio is not
+**If you have a laptop that uses CS35L54/56/57/63 amplifiers but audio is not
 working, DO NOT ATTEMPT TO USE FIRMWARE AND SETTINGS FROM ANOTHER LAPTOP,
 EVEN IF THAT LAPTOP SEEMS SIMILAR.**
 
-The CS35L54/56/57 amplifiers must be correctly configured for the power
+The CS35L54/56/57/63 amplifiers must be correctly configured for the power
 supply voltage, speaker impedance, maximum speaker voltage/current, and
 other external hardware connections.
 
@@ -34,6 +34,7 @@ The cs35l56 drivers support:
 * CS35L54
 * CS35L56
 * CS35L57
+* CS35L63
 
 There are two drivers in the kernel
 
@@ -104,6 +105,13 @@ In this example the SSID is 10280c63.
 
 The format of the firmware file names is:
 
+SoundWire (except CS35L56 Rev B0):
+    cs35lxx-b0-dsp1-misc-SSID[-spkidX]-l?u?
+
+SoundWire CS35L56 Rev B0:
+    cs35lxx-b0-dsp1-misc-SSID[-spkidX]-ampN
+
+Non-SoundWire (HDA and I2S):
     cs35lxx-b0-dsp1-misc-SSID[-spkidX]-ampN
 
 Where:
@@ -111,11 +119,17 @@ Where:
   * cs35lxx-b0 is the amplifier model and silicon revision. This information
     is logged by the driver during initialization.
   * SSID is the 8-digit hexadecimal SSID value.
+  * l?u? is the physical address on the SoundWire bus of the amp this
+    file applies to.
   * ampN is the amplifier number (for example amp1). This is the same as
     the prefix on the ALSA control names except that it is always lower-case
     in the file name.
   * spkidX is an optional part, used for laptops that have firmware
     configurations for different makes and models of internal speakers.
+
+The CS35L56 Rev B0 continues to use the old filename scheme because a
+large number of firmware files have already been published with these
+names.
 
 Sound Open Firmware and ALSA topology files
 -------------------------------------------

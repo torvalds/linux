@@ -18,12 +18,12 @@
 /*
  * This gives the physical RAM offset.
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #ifndef PHYS_OFFSET
 #define PHYS_OFFSET	_UL(0)
 #endif
 extern unsigned long vm_map_base;
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #ifndef IO_BASE
 #define IO_BASE			CSR_DMW0_BASE
@@ -66,7 +66,7 @@ extern unsigned long vm_map_base;
 #define FIXADDR_TOP		((unsigned long)(long)(int)0xfffe0000)
 #endif
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define _ATYPE_
 #define _ATYPE32_
 #define _ATYPE64_
@@ -85,7 +85,7 @@ extern unsigned long vm_map_base;
 /*
  *  32/64-bit LoongArch address spaces
  */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define _ACAST32_
 #define _ACAST64_
 #else

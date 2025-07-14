@@ -265,7 +265,7 @@ static __always_inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *r
 	addr = kernel_stack_pointer(regs) + n * sizeof(long);
 	if (!regs_within_kernel_stack(regs, addr))
 		return 0;
-	return READ_ONCE_NOCHECK(addr);
+	return READ_ONCE_NOCHECK(*(unsigned long *)addr);
 }
 
 /**

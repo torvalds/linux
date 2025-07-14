@@ -217,11 +217,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
-	if (keys->nr ||
-	    !c->opts.read_only ||
-	    !c->sb.clean ||
-	    c->opts.recovery_passes ||
-	    (c->opts.fsck && !(c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)))) {
+	if (go_rw_in_recovery(c)) {
 		if (c->sb.features & BIT_ULL(BCH_FEATURE_no_alloc_info)) {
 			bch_info(c, "mounting a filesystem with no alloc info read-write; will recreate");
 			bch2_reconstruct_alloc(c);
@@ -294,8 +290,13 @@ static bool recovery_pass_needs_set(struct bch_fs *c,
 				    enum bch_run_recovery_pass_flags *flags)
 {
 	struct bch_fs_recovery *r = &c->recovery;
-	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
-	bool persistent = !in_recovery || !(*flags & RUN_RECOVERY_PASS_nopersistent);
+
+	/*
+	 * Never run scan_for_btree_nodes persistently: check_topology will run
+	 * it if required
+	 */
+	if (pass == BCH_RECOVERY_PASS_scan_for_btree_nodes)
+		*flags |= RUN_RECOVERY_PASS_nopersistent;
 
 	if ((*flags & RUN_RECOVERY_PASS_ratelimit) &&
 	    !bch2_recovery_pass_want_ratelimit(c, pass))
@@ -310,6 +311,11 @@ static bool recovery_pass_needs_set(struct bch_fs *c,
 	 * Otherwise, we run run_explicit_recovery_pass when we find damage, so
 	 * it should run again even if it's already run:
 	 */
+	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
+	bool persistent = !in_recovery || !(*flags & RUN_RECOVERY_PASS_nopersistent);
+	bool rewind = in_recovery &&
+		r->curr_pass > pass &&
+		!(r->passes_complete & BIT_ULL(pass));
 
 	if (persistent
 	    ? !(c->sb.recovery_passes_required & BIT_ULL(pass))
@@ -318,6 +324,9 @@ static bool recovery_pass_needs_set(struct bch_fs *c,
 
 	if (!(*flags & RUN_RECOVERY_PASS_ratelimit) &&
 	    (r->passes_ratelimiting & BIT_ULL(pass)))
+		return true;
+
+	if (rewind)
 		return true;
 
 	return false;
@@ -351,7 +360,7 @@ int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 		!(r->passes_complete & BIT_ULL(pass));
 	bool ratelimit = flags & RUN_RECOVERY_PASS_ratelimit;
 
-	if (!(in_recovery && (flags & RUN_RECOVERY_PASS_nopersistent))) {
+	if (!(flags & RUN_RECOVERY_PASS_nopersistent)) {
 		struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 		__set_bit_le64(bch2_recovery_pass_to_stable(pass), ext->recovery_passes_required);
 	}
@@ -404,10 +413,8 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 {
 	int ret = 0;
 
-	scoped_guard(mutex, &c->sb_lock) {
-		if (!recovery_pass_needs_set(c, pass, &flags))
-			return 0;
-
+	if (recovery_pass_needs_set(c, pass, &flags)) {
+		guard(mutex)(&c->sb_lock);
 		ret = __bch2_run_explicit_recovery_pass(c, out, pass, flags);
 		bch2_write_super(c);
 	}
@@ -446,7 +453,7 @@ int bch2_require_recovery_pass(struct bch_fs *c,
 
 int bch2_run_print_explicit_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 {
-	enum bch_run_recovery_pass_flags flags = RUN_RECOVERY_PASS_nopersistent;
+	enum bch_run_recovery_pass_flags flags = 0;
 
 	if (!recovery_pass_needs_set(c, pass, &flags))
 		return 0;

@@ -244,7 +244,7 @@ void ovs_dp_detach_port(struct vport *p)
 /* Must be called with rcu_read_lock. */
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 {
-	struct ovs_pcpu_storage *ovs_pcpu = this_cpu_ptr(&ovs_pcpu_storage);
+	struct ovs_pcpu_storage *ovs_pcpu = this_cpu_ptr(ovs_pcpu_storage);
 	const struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
 	struct sw_flow *flow;
@@ -299,7 +299,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	 * avoided.
 	 */
 	if (IS_ENABLED(CONFIG_PREEMPT_RT) && ovs_pcpu->owner != current) {
-		local_lock_nested_bh(&ovs_pcpu_storage.bh_lock);
+		local_lock_nested_bh(&ovs_pcpu_storage->bh_lock);
 		ovs_pcpu->owner = current;
 		ovs_pcpu_locked = true;
 	}
@@ -310,7 +310,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 				    ovs_dp_name(dp), error);
 	if (ovs_pcpu_locked) {
 		ovs_pcpu->owner = NULL;
-		local_unlock_nested_bh(&ovs_pcpu_storage.bh_lock);
+		local_unlock_nested_bh(&ovs_pcpu_storage->bh_lock);
 	}
 
 	stats_counter = &stats->n_hit;
@@ -689,13 +689,13 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	sf_acts = rcu_dereference(flow->sf_acts);
 
 	local_bh_disable();
-	local_lock_nested_bh(&ovs_pcpu_storage.bh_lock);
+	local_lock_nested_bh(&ovs_pcpu_storage->bh_lock);
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
-		this_cpu_write(ovs_pcpu_storage.owner, current);
+		this_cpu_write(ovs_pcpu_storage->owner, current);
 	err = ovs_execute_actions(dp, packet, sf_acts, &flow->key);
 	if (IS_ENABLED(CONFIG_PREEMPT_RT))
-		this_cpu_write(ovs_pcpu_storage.owner, NULL);
-	local_unlock_nested_bh(&ovs_pcpu_storage.bh_lock);
+		this_cpu_write(ovs_pcpu_storage->owner, NULL);
+	local_unlock_nested_bh(&ovs_pcpu_storage->bh_lock);
 	local_bh_enable();
 	rcu_read_unlock();
 
@@ -2744,6 +2744,28 @@ static struct drop_reason_list drop_reason_list_ovs = {
 	.n_reasons = ARRAY_SIZE(ovs_drop_reasons),
 };
 
+static int __init ovs_alloc_percpu_storage(void)
+{
+	unsigned int cpu;
+
+	ovs_pcpu_storage = alloc_percpu(*ovs_pcpu_storage);
+	if (!ovs_pcpu_storage)
+		return -ENOMEM;
+
+	for_each_possible_cpu(cpu) {
+		struct ovs_pcpu_storage *ovs_pcpu;
+
+		ovs_pcpu = per_cpu_ptr(ovs_pcpu_storage, cpu);
+		local_lock_init(&ovs_pcpu->bh_lock);
+	}
+	return 0;
+}
+
+static void ovs_free_percpu_storage(void)
+{
+	free_percpu(ovs_pcpu_storage);
+}
+
 static int __init dp_init(void)
 {
 	int err;
@@ -2752,6 +2774,10 @@ static int __init dp_init(void)
 		     sizeof_field(struct sk_buff, cb));
 
 	pr_info("Open vSwitch switching datapath\n");
+
+	err = ovs_alloc_percpu_storage();
+	if (err)
+		goto error;
 
 	err = ovs_internal_dev_rtnl_link_register();
 	if (err)
@@ -2799,6 +2825,7 @@ error_flow_exit:
 error_unreg_rtnl_link:
 	ovs_internal_dev_rtnl_link_unregister();
 error:
+	ovs_free_percpu_storage();
 	return err;
 }
 
@@ -2813,6 +2840,7 @@ static void dp_cleanup(void)
 	ovs_vport_exit();
 	ovs_flow_exit();
 	ovs_internal_dev_rtnl_link_unregister();
+	ovs_free_percpu_storage();
 }
 
 module_init(dp_init);

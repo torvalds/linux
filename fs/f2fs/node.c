@@ -2078,7 +2078,6 @@ write_node:
 
 			if (!__write_node_folio(folio, false, &submitted,
 					wbc, do_balance, io_type, NULL)) {
-				folio_unlock(folio);
 				folio_batch_release(&fbatch);
 				ret = -EIO;
 				goto out;

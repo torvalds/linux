@@ -517,7 +517,10 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 {
 	struct iv_lmk_private *lmk = &cc->iv_gen_private.lmk;
 	SHASH_DESC_ON_STACK(desc, lmk->hash_tfm);
-	struct md5_state md5state;
+	union {
+		struct md5_state md5state;
+		u8 state[CRYPTO_MD5_STATESIZE];
+	} u;
 	__le32 buf[4];
 	int i, r;
 
@@ -548,13 +551,13 @@ static int crypt_iv_lmk_one(struct crypt_config *cc, u8 *iv,
 		return r;
 
 	/* No MD5 padding here */
-	r = crypto_shash_export(desc, &md5state);
+	r = crypto_shash_export(desc, &u.md5state);
 	if (r)
 		return r;
 
 	for (i = 0; i < MD5_HASH_WORDS; i++)
-		__cpu_to_le32s(&md5state.hash[i]);
-	memcpy(iv, &md5state.hash, cc->iv_size);
+		__cpu_to_le32s(&u.md5state.hash[i]);
+	memcpy(iv, &u.md5state.hash, cc->iv_size);
 
 	return 0;
 }

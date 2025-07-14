@@ -164,11 +164,21 @@ static int __kho_preserve_order(struct kho_mem_track *track, unsigned long pfn,
 }
 
 /* almost as free_reserved_page(), just don't free the page */
-static void kho_restore_page(struct page *page)
+static void kho_restore_page(struct page *page, unsigned int order)
 {
-	ClearPageReserved(page);
-	init_page_count(page);
-	adjust_managed_page_count(page, 1);
+	unsigned int nr_pages = (1 << order);
+
+	/* Head page gets refcount of 1. */
+	set_page_count(page, 1);
+
+	/* For higher order folios, tail pages get a page count of zero. */
+	for (unsigned int i = 1; i < nr_pages; i++)
+		set_page_count(page + i, 0);
+
+	if (order > 0)
+		prep_compound_page(page, order);
+
+	adjust_managed_page_count(page, nr_pages);
 }
 
 /**
@@ -186,15 +196,10 @@ struct folio *kho_restore_folio(phys_addr_t phys)
 		return NULL;
 
 	order = page->private;
-	if (order) {
-		if (order > MAX_PAGE_ORDER)
-			return NULL;
+	if (order > MAX_PAGE_ORDER)
+		return NULL;
 
-		prep_compound_page(page, order);
-	} else {
-		kho_restore_page(page);
-	}
-
+	kho_restore_page(page, order);
 	return page_folio(page);
 }
 EXPORT_SYMBOL_GPL(kho_restore_folio);

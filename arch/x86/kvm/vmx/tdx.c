@@ -173,6 +173,9 @@ static void td_init_cpuid_entry2(struct kvm_cpuid_entry2 *entry, unsigned char i
 	tdx_clear_unsupported_cpuid(entry);
 }
 
+#define TDVMCALLINFO_GET_QUOTE				BIT(0)
+#define TDVMCALLINFO_SETUP_EVENT_NOTIFY_INTERRUPT	BIT(1)
+
 static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
 			     struct kvm_tdx_capabilities *caps)
 {
@@ -187,6 +190,10 @@ static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
 		return -EIO;
 
 	caps->cpuid.nent = td_conf->num_cpuid_config;
+
+	caps->user_tdvmcallinfo_1_r11 =
+		TDVMCALLINFO_GET_QUOTE |
+		TDVMCALLINFO_SETUP_EVENT_NOTIFY_INTERRUPT;
 
 	for (i = 0; i < td_conf->num_cpuid_config; i++)
 		td_init_cpuid_entry2(&caps->cpuid.entries[i], i);
@@ -1212,11 +1219,13 @@ static int tdx_map_gpa(struct kvm_vcpu *vcpu)
 	/*
 	 * Converting TDVMCALL_MAP_GPA to KVM_HC_MAP_GPA_RANGE requires
 	 * userspace to enable KVM_CAP_EXIT_HYPERCALL with KVM_HC_MAP_GPA_RANGE
-	 * bit set.  If not, the error code is not defined in GHCI for TDX, use
-	 * TDVMCALL_STATUS_INVALID_OPERAND for this case.
+	 * bit set.  This is a base call so it should always be supported, but
+	 * KVM has no way to ensure that userspace implements the GHCI correctly.
+	 * So if KVM_HC_MAP_GPA_RANGE does not cause a VMEXIT, return an error
+	 * to the guest.
 	 */
 	if (!user_exit_on_hypercall(vcpu->kvm, KVM_HC_MAP_GPA_RANGE)) {
-		ret = TDVMCALL_STATUS_INVALID_OPERAND;
+		ret = TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED;
 		goto error;
 	}
 
@@ -1449,18 +1458,104 @@ error:
 	return 1;
 }
 
+static int tdx_complete_get_td_vm_call_info(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	tdvmcall_set_return_code(vcpu, vcpu->run->tdx.get_tdvmcall_info.ret);
+
+	/*
+	 * For now, there is no TDVMCALL beyond GHCI base API supported by KVM
+	 * directly without the support from userspace, just set the value
+	 * returned from userspace.
+	 */
+	tdx->vp_enter_args.r11 = vcpu->run->tdx.get_tdvmcall_info.r11;
+	tdx->vp_enter_args.r12 = vcpu->run->tdx.get_tdvmcall_info.r12;
+	tdx->vp_enter_args.r13 = vcpu->run->tdx.get_tdvmcall_info.r13;
+	tdx->vp_enter_args.r14 = vcpu->run->tdx.get_tdvmcall_info.r14;
+
+	return 1;
+}
+
 static int tdx_get_td_vm_call_info(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
 
-	if (tdx->vp_enter_args.r12)
-		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
-	else {
+	switch (tdx->vp_enter_args.r12) {
+	case 0:
 		tdx->vp_enter_args.r11 = 0;
+		tdx->vp_enter_args.r12 = 0;
 		tdx->vp_enter_args.r13 = 0;
 		tdx->vp_enter_args.r14 = 0;
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_SUCCESS);
+		return 1;
+	case 1:
+		vcpu->run->tdx.get_tdvmcall_info.leaf = tdx->vp_enter_args.r12;
+		vcpu->run->exit_reason = KVM_EXIT_TDX;
+		vcpu->run->tdx.flags = 0;
+		vcpu->run->tdx.nr = TDVMCALL_GET_TD_VM_CALL_INFO;
+		vcpu->run->tdx.get_tdvmcall_info.ret = TDVMCALL_STATUS_SUCCESS;
+		vcpu->run->tdx.get_tdvmcall_info.r11 = 0;
+		vcpu->run->tdx.get_tdvmcall_info.r12 = 0;
+		vcpu->run->tdx.get_tdvmcall_info.r13 = 0;
+		vcpu->run->tdx.get_tdvmcall_info.r14 = 0;
+		vcpu->arch.complete_userspace_io = tdx_complete_get_td_vm_call_info;
+		return 0;
+	default:
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
 	}
+}
+
+static int tdx_complete_simple(struct kvm_vcpu *vcpu)
+{
+	tdvmcall_set_return_code(vcpu, vcpu->run->tdx.unknown.ret);
 	return 1;
+}
+
+static int tdx_get_quote(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	u64 gpa = tdx->vp_enter_args.r12;
+	u64 size = tdx->vp_enter_args.r13;
+
+	/* The gpa of buffer must have shared bit set. */
+	if (vt_is_tdx_private_gpa(vcpu->kvm, gpa)) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_TDX;
+	vcpu->run->tdx.flags = 0;
+	vcpu->run->tdx.nr = TDVMCALL_GET_QUOTE;
+	vcpu->run->tdx.get_quote.ret = TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED;
+	vcpu->run->tdx.get_quote.gpa = gpa & ~gfn_to_gpa(kvm_gfn_direct_bits(tdx->vcpu.kvm));
+	vcpu->run->tdx.get_quote.size = size;
+
+	vcpu->arch.complete_userspace_io = tdx_complete_simple;
+
+	return 0;
+}
+
+static int tdx_setup_event_notify_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	u64 vector = tdx->vp_enter_args.r12;
+
+	if (vector < 32 || vector > 255) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_TDX;
+	vcpu->run->tdx.flags = 0;
+	vcpu->run->tdx.nr = TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT;
+	vcpu->run->tdx.setup_event_notify.ret = TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED;
+	vcpu->run->tdx.setup_event_notify.vector = vector;
+
+	vcpu->arch.complete_userspace_io = tdx_complete_simple;
+
+	return 0;
 }
 
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
@@ -1472,11 +1567,15 @@ static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 		return tdx_report_fatal_error(vcpu);
 	case TDVMCALL_GET_TD_VM_CALL_INFO:
 		return tdx_get_td_vm_call_info(vcpu);
+	case TDVMCALL_GET_QUOTE:
+		return tdx_get_quote(vcpu);
+	case TDVMCALL_SETUP_EVENT_NOTIFY_INTERRUPT:
+		return tdx_setup_event_notify_interrupt(vcpu);
 	default:
 		break;
 	}
 
-	tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+	tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_SUBFUNC_UNSUPPORTED);
 	return 1;
 }
 
