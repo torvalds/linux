@@ -2009,17 +2009,14 @@ static int hclge_dbg_dump_mng_table(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-#define HCLGE_DBG_TCAM_BUF_SIZE 256
-
 static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, bool sel_x,
-				  char *tcam_buf,
+				  struct seq_file *s,
 				  struct hclge_dbg_tcam_msg tcam_msg)
 {
 	struct hclge_fd_tcam_config_1_cmd *req1;
 	struct hclge_fd_tcam_config_2_cmd *req2;
 	struct hclge_fd_tcam_config_3_cmd *req3;
 	struct hclge_desc desc[3];
-	int pos = 0;
 	int ret, i;
 	__le32 *req;
 
@@ -2041,27 +2038,23 @@ static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, bool sel_x,
 	if (ret)
 		return ret;
 
-	pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
-			 "read result tcam key %s(%u):\n", sel_x ? "x" : "y",
-			 tcam_msg.loc);
+	seq_printf(s, "read result tcam key %s(%u):\n",
+		   sel_x ? "x" : "y", tcam_msg.loc);
 
 	/* tcam_data0 ~ tcam_data1 */
 	req = (__le32 *)req1->tcam_data;
 	for (i = 0; i < 2; i++)
-		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
-				 "%08x\n", le32_to_cpu(*req++));
+		seq_printf(s, "%08x\n", le32_to_cpu(*req++));
 
 	/* tcam_data2 ~ tcam_data7 */
 	req = (__le32 *)req2->tcam_data;
 	for (i = 0; i < 6; i++)
-		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
-				 "%08x\n", le32_to_cpu(*req++));
+		seq_printf(s, "%08x\n", le32_to_cpu(*req++));
 
 	/* tcam_data8 ~ tcam_data12 */
 	req = (__le32 *)req3->tcam_data;
 	for (i = 0; i < 5; i++)
-		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
-				 "%08x\n", le32_to_cpu(*req++));
+		seq_printf(s, "%08x\n", le32_to_cpu(*req++));
 
 	return ret;
 }
@@ -2085,14 +2078,13 @@ static int hclge_dbg_get_rules_location(struct hclge_dev *hdev, u16 *rule_locs)
 	return cnt;
 }
 
-static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
+static int hclge_dbg_dump_fd_tcam(struct seq_file *s, void *data)
 {
-	u32 rule_num = hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1];
+	struct hclge_dev *hdev = hclge_seq_file_to_hdev(s);
 	struct hclge_dbg_tcam_msg tcam_msg;
 	int i, ret, rule_cnt;
 	u16 *rule_locs;
-	char *tcam_buf;
-	int pos = 0;
+	u32 rule_num;
 
 	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev)) {
 		dev_err(&hdev->pdev->dev,
@@ -2100,18 +2092,13 @@ static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 		return -EOPNOTSUPP;
 	}
 
+	rule_num = hdev->fd_cfg.rule_num[HCLGE_FD_STAGE_1];
 	if (!hdev->hclge_fd_rule_num || !rule_num)
 		return 0;
 
 	rule_locs = kcalloc(rule_num, sizeof(u16), GFP_KERNEL);
 	if (!rule_locs)
 		return -ENOMEM;
-
-	tcam_buf = kzalloc(HCLGE_DBG_TCAM_BUF_SIZE, GFP_KERNEL);
-	if (!tcam_buf) {
-		kfree(rule_locs);
-		return -ENOMEM;
-	}
 
 	rule_cnt = hclge_dbg_get_rules_location(hdev, rule_locs);
 	if (rule_cnt < 0) {
@@ -2126,38 +2113,34 @@ static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 		tcam_msg.stage = HCLGE_FD_STAGE_1;
 		tcam_msg.loc = rule_locs[i];
 
-		ret = hclge_dbg_fd_tcam_read(hdev, true, tcam_buf, tcam_msg);
+		ret = hclge_dbg_fd_tcam_read(hdev, true, s, tcam_msg);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
 				"failed to get fd tcam key x, ret = %d\n", ret);
 			goto out;
 		}
 
-		pos += scnprintf(buf + pos, len - pos, "%s", tcam_buf);
-
-		ret = hclge_dbg_fd_tcam_read(hdev, false, tcam_buf, tcam_msg);
+		ret = hclge_dbg_fd_tcam_read(hdev, false, s, tcam_msg);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
 				"failed to get fd tcam key y, ret = %d\n", ret);
 			goto out;
 		}
 
-		pos += scnprintf(buf + pos, len - pos, "%s", tcam_buf);
 	}
 
 out:
-	kfree(tcam_buf);
 	kfree(rule_locs);
 	return ret;
 }
 
-static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
+static int hclge_dbg_dump_fd_counter(struct seq_file *s, void *data)
 {
+	struct hclge_dev *hdev = hclge_seq_file_to_hdev(s);
 	u8 func_num = pci_num_vf(hdev->pdev) + 1; /* pf and enabled vf num */
 	struct hclge_fd_ad_cnt_read_cmd *req;
 	char str_id[HCLGE_DBG_ID_LEN];
 	struct hclge_desc desc;
-	int pos = 0;
 	int ret;
 	u64 cnt;
 	u8 i;
@@ -2165,8 +2148,7 @@ static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
 	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
 		return -EOPNOTSUPP;
 
-	pos += scnprintf(buf + pos, len - pos,
-			 "func_id\thit_times\n");
+	seq_puts(s, "func_id\thit_times\n");
 
 	for (i = 0; i < func_num; i++) {
 		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_FD_CNT_OP, true);
@@ -2180,8 +2162,7 @@ static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
 		}
 		cnt = le64_to_cpu(req->cnt);
 		hclge_dbg_get_func_id_str(str_id, i);
-		pos += scnprintf(buf + pos, len - pos,
-				 "%s\t%llu\n", str_id, cnt);
+		seq_printf(s, "%s\t%llu\n", str_id, cnt);
 	}
 
 	return 0;
@@ -3020,7 +3001,7 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_FD_TCAM,
-		.dbg_dump = hclge_dbg_dump_fd_tcam,
+		.dbg_read_func = hclge_dbg_dump_fd_tcam,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_TNL_STATUS,
@@ -3036,7 +3017,7 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_FD_COUNTER,
-		.dbg_dump = hclge_dbg_dump_fd_counter,
+		.dbg_read_func = hclge_dbg_dump_fd_counter,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_UMV_INFO,
