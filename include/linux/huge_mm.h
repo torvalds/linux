@@ -482,9 +482,14 @@ static inline bool is_huge_zero_folio(const struct folio *folio)
 	return READ_ONCE(huge_zero_folio) == folio;
 }
 
+static inline bool is_huge_zero_pfn(unsigned long pfn)
+{
+	return READ_ONCE(huge_zero_pfn) == (pfn & ~(HPAGE_PMD_NR - 1));
+}
+
 static inline bool is_huge_zero_pmd(pmd_t pmd)
 {
-	return pmd_present(pmd) && READ_ONCE(huge_zero_pfn) == pmd_pfn(pmd);
+	return pmd_present(pmd) && is_huge_zero_pfn(pmd_pfn(pmd));
 }
 
 struct folio *mm_get_huge_zero_folio(struct mm_struct *mm);
@@ -628,6 +633,11 @@ static inline vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf)
 }
 
 static inline bool is_huge_zero_folio(const struct folio *folio)
+{
+	return false;
+}
+
+static inline bool is_huge_zero_pfn(unsigned long pfn)
 {
 	return false;
 }
