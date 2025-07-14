@@ -139,6 +139,12 @@ OPTIONS for 'perf ftrace latency'
 	Set the function name to get the histogram.  Unlike perf ftrace trace,
 	it only allows single function to calculate the histogram.
 
+-e::
+--events=::
+	Set the pair of events to get the histogram.  The histogram is calculated
+	by the time difference between the two events from the same thread.  This
+	requires -b/--use-bpf option.
+
 -b::
 --use-bpf::
 	Use BPF to measure function latency instead of using the ftrace (it

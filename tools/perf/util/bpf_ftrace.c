@@ -21,15 +21,26 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 {
 	int fd, err;
 	int i, ncpus = 1, ntasks = 1;
-	struct filter_entry *func;
+	struct filter_entry *func = NULL;
 
-	if (!list_is_singular(&ftrace->filters)) {
-		pr_err("ERROR: %s target function(s).\n",
-		       list_empty(&ftrace->filters) ? "No" : "Too many");
-		return -1;
+	if (!list_empty(&ftrace->filters)) {
+		if (!list_is_singular(&ftrace->filters)) {
+			pr_err("ERROR: Too many target functions.\n");
+			return -1;
+		}
+		func = list_first_entry(&ftrace->filters, struct filter_entry, list);
+	} else {
+		int count = 0;
+		struct list_head *pos;
+
+		list_for_each(pos, &ftrace->event_pair)
+			count++;
+
+		if (count != 2) {
+			pr_err("ERROR: Needs two target events.\n");
+			return -1;
+		}
 	}
-
-	func = list_first_entry(&ftrace->filters, struct filter_entry, list);
 
 	skel = func_latency_bpf__open();
 	if (!skel) {
@@ -93,20 +104,44 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 
 	skel->bss->min = INT64_MAX;
 
-	skel->links.func_begin = bpf_program__attach_kprobe(skel->progs.func_begin,
-							    false, func->name);
-	if (IS_ERR(skel->links.func_begin)) {
-		pr_err("Failed to attach fentry program\n");
-		err = PTR_ERR(skel->links.func_begin);
-		goto out;
-	}
+	if (func) {
+		skel->links.func_begin = bpf_program__attach_kprobe(skel->progs.func_begin,
+								    false, func->name);
+		if (IS_ERR(skel->links.func_begin)) {
+			pr_err("Failed to attach fentry program\n");
+			err = PTR_ERR(skel->links.func_begin);
+			goto out;
+		}
 
-	skel->links.func_end = bpf_program__attach_kprobe(skel->progs.func_end,
-							  true, func->name);
-	if (IS_ERR(skel->links.func_end)) {
-		pr_err("Failed to attach fexit program\n");
-		err = PTR_ERR(skel->links.func_end);
-		goto out;
+		skel->links.func_end = bpf_program__attach_kprobe(skel->progs.func_end,
+								  true, func->name);
+		if (IS_ERR(skel->links.func_end)) {
+			pr_err("Failed to attach fexit program\n");
+			err = PTR_ERR(skel->links.func_end);
+			goto out;
+		}
+	} else {
+		struct filter_entry *event;
+
+		event = list_first_entry(&ftrace->event_pair, struct filter_entry, list);
+
+		skel->links.event_begin = bpf_program__attach_raw_tracepoint(skel->progs.event_begin,
+									     event->name);
+		if (IS_ERR(skel->links.event_begin)) {
+			pr_err("Failed to attach first tracepoint program\n");
+			err = PTR_ERR(skel->links.event_begin);
+			goto out;
+		}
+
+		event = list_next_entry(event, list);
+
+		skel->links.event_end = bpf_program__attach_raw_tracepoint(skel->progs.event_end,
+									     event->name);
+		if (IS_ERR(skel->links.event_end)) {
+			pr_err("Failed to attach second tracepoint program\n");
+			err = PTR_ERR(skel->links.event_end);
+			goto out;
+		}
 	}
 
 	/* XXX: we don't actually use this fd - just for poll() */

@@ -17,6 +17,7 @@ struct perf_ftrace {
 	struct list_head	notrace;
 	struct list_head	graph_funcs;
 	struct list_head	nograph_funcs;
+	struct list_head	event_pair;
 	struct hashmap		*profile_hash;
 	unsigned long		percpu_buffer_size;
 	bool			inherit;

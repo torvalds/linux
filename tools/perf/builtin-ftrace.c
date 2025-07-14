@@ -1549,6 +1549,33 @@ static void delete_filter_func(struct list_head *head)
 	}
 }
 
+static int parse_filter_event(const struct option *opt, const char *str,
+			     int unset __maybe_unused)
+{
+	struct list_head *head = opt->value;
+	struct filter_entry *entry;
+	char *s, *p;
+	int ret = -ENOMEM;
+
+	s = strdup(str);
+	if (s == NULL)
+		return -ENOMEM;
+
+	while ((p = strsep(&s, ",")) != NULL) {
+		entry = malloc(sizeof(*entry) + strlen(p) + 1);
+		if (entry == NULL)
+			goto out;
+
+		strcpy(entry->name, p);
+		list_add_tail(&entry->list, head);
+	}
+	ret = 0;
+
+out:
+	free(s);
+	return ret;
+}
+
 static int parse_buffer_size(const struct option *opt,
 			     const char *str, int unset)
 {
@@ -1711,6 +1738,8 @@ int cmd_ftrace(int argc, const char **argv)
 	const struct option latency_options[] = {
 	OPT_CALLBACK('T', "trace-funcs", &ftrace.filters, "func",
 		     "Show latency of given function", parse_filter_func),
+	OPT_CALLBACK('e', "events", &ftrace.event_pair, "event1,event2",
+		     "Show latency between the two events", parse_filter_event),
 #ifdef HAVE_BPF_SKEL
 	OPT_BOOLEAN('b', "use-bpf", &ftrace.target.use_bpf,
 		    "Use BPF to measure function latency"),
@@ -1763,6 +1792,7 @@ int cmd_ftrace(int argc, const char **argv)
 	INIT_LIST_HEAD(&ftrace.notrace);
 	INIT_LIST_HEAD(&ftrace.graph_funcs);
 	INIT_LIST_HEAD(&ftrace.nograph_funcs);
+	INIT_LIST_HEAD(&ftrace.event_pair);
 
 	signal(SIGINT, sig_handler);
 	signal(SIGUSR1, sig_handler);
@@ -1817,9 +1847,24 @@ int cmd_ftrace(int argc, const char **argv)
 		cmd_func = __cmd_ftrace;
 		break;
 	case PERF_FTRACE_LATENCY:
-		if (list_empty(&ftrace.filters)) {
-			pr_err("Should provide a function to measure\n");
+		if (list_empty(&ftrace.filters) && list_empty(&ftrace.event_pair)) {
+			pr_err("Should provide a function or events to measure\n");
 			parse_options_usage(ftrace_usage, options, "T", 1);
+			parse_options_usage(NULL, options, "e", 1);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		if (!list_empty(&ftrace.filters) && !list_empty(&ftrace.event_pair)) {
+			pr_err("Please specify either of function or events\n");
+			parse_options_usage(ftrace_usage, options, "T", 1);
+			parse_options_usage(NULL, options, "e", 1);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		if (!list_empty(&ftrace.event_pair) && !ftrace.target.use_bpf) {
+			pr_err("Event processing needs BPF\n");
+			parse_options_usage(ftrace_usage, options, "b", 1);
+			parse_options_usage(NULL, options, "e", 1);
 			ret = -EINVAL;
 			goto out_delete_filters;
 		}
@@ -1910,6 +1955,7 @@ out_delete_filters:
 	delete_filter_func(&ftrace.notrace);
 	delete_filter_func(&ftrace.graph_funcs);
 	delete_filter_func(&ftrace.nograph_funcs);
+	delete_filter_func(&ftrace.event_pair);
 
 	return ret;
 }
