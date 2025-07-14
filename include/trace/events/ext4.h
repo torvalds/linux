@@ -23,10 +23,7 @@ struct partial_cluster;
 
 #define show_mballoc_flags(flags) __print_flags(flags, "|",	\
 	{ EXT4_MB_HINT_MERGE,		"HINT_MERGE" },		\
-	{ EXT4_MB_HINT_RESERVED,	"HINT_RESV" },		\
-	{ EXT4_MB_HINT_METADATA,	"HINT_MDATA" },		\
 	{ EXT4_MB_HINT_FIRST,		"HINT_FIRST" },		\
-	{ EXT4_MB_HINT_BEST,		"HINT_BEST" },		\
 	{ EXT4_MB_HINT_DATA,		"HINT_DATA" },		\
 	{ EXT4_MB_HINT_NOPREALLOC,	"HINT_NOPREALLOC" },	\
 	{ EXT4_MB_HINT_GROUP_ALLOC,	"HINT_GRP_ALLOC" },	\

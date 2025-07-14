@@ -185,14 +185,8 @@ enum criteria {
 
 /* prefer goal again. length */
 #define EXT4_MB_HINT_MERGE		0x0001
-/* blocks already reserved */
-#define EXT4_MB_HINT_RESERVED		0x0002
-/* metadata is being allocated */
-#define EXT4_MB_HINT_METADATA		0x0004
 /* first blocks in the file */
 #define EXT4_MB_HINT_FIRST		0x0008
-/* search for the best chunk */
-#define EXT4_MB_HINT_BEST		0x0010
 /* data is being allocated */
 #define EXT4_MB_HINT_DATA		0x0020
 /* don't preallocate (for tails) */
