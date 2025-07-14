@@ -8,7 +8,7 @@
 #define DRV_SUMMARY	"Broadcom 800G Ethernet Linux Driver"
 
 #include <linux/etherdevice.h>
-#include "../bnxt/bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 #include "bnge_rmem.h"
 #include "bnge_resc.h"
 

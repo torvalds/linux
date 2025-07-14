@@ -4,7 +4,7 @@
 #ifndef _BNGE_HWRM_H_
 #define _BNGE_HWRM_H_
 
-#include "../bnxt/bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 
 enum bnge_hwrm_ctx_flags {
 	BNGE_HWRM_INTERNAL_CTX_OWNED	= BIT(0),

@@ -8,7 +8,7 @@
  */
 
 #include <linux/dim.h>
-#include "bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 #include "bnxt.h"
 
 void bnxt_dim_work(struct work_struct *work)

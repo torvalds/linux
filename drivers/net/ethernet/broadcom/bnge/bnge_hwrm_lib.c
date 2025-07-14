@@ -5,9 +5,9 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
+#include <linux/bnxt/hsi.h>
 
 #include "bnge.h"
-#include "../bnxt/bnxt_hsi.h"
 #include "bnge_hwrm.h"
 #include "bnge_hwrm_lib.h"
 #include "bnge_rmem.h"

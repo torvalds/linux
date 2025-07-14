@@ -4,7 +4,7 @@
 #ifndef _BNGE_NETDEV_H_
 #define _BNGE_NETDEV_H_
 
-#include "../bnxt/bnxt_hsi.h"
+#include <linux/bnxt/hsi.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
