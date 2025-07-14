@@ -131,6 +131,9 @@ struct reg_bits_to_feat_map {
 #define FEAT_SPMU		ID_AA64DFR1_EL1, SPMU, IMP
 #define FEAT_SPE_nVM		ID_AA64DFR2_EL1, SPE_nVM, IMP
 #define FEAT_STEP2		ID_AA64DFR2_EL1, STEP, IMP
+#define FEAT_ASID2		ID_AA64MMFR4_EL1, ASID2, IMP
+#define FEAT_MEC		ID_AA64MMFR3_EL1, MEC, IMP
+#define FEAT_HAFT		ID_AA64MMFR1_EL1, HAFDBS, HAFT
 
 static bool not_feat_aa64el3(struct kvm *kvm)
 {
@@ -216,6 +219,21 @@ static bool feat_trbe_mpam(struct kvm *kvm)
 	return (kvm_has_feat(kvm, FEAT_TRBE) &&
 		kvm_has_feat(kvm, FEAT_MPAM) &&
 		(read_sysreg_s(SYS_TRBIDR_EL1) & TRBIDR_EL1_MPAM));
+}
+
+static bool feat_asid2_e2h1(struct kvm *kvm)
+{
+	return kvm_has_feat(kvm, FEAT_ASID2) && !kvm_has_feat(kvm, FEAT_E2H0);
+}
+
+static bool feat_d128_e2h1(struct kvm *kvm)
+{
+	return kvm_has_feat(kvm, FEAT_D128) && !kvm_has_feat(kvm, FEAT_E2H0);
+}
+
+static bool feat_mec_e2h1(struct kvm *kvm)
+{
+	return kvm_has_feat(kvm, FEAT_MEC) && !kvm_has_feat(kvm, FEAT_E2H0);
 }
 
 static bool feat_ebep_pmuv3_ss(struct kvm *kvm)
@@ -832,6 +850,28 @@ static const struct reg_bits_to_feat_map hcr_feat_map[] = {
 	NEEDS_FEAT_FIXED(HCR_EL2_E2H, compute_hcr_e2h),
 };
 
+static const struct reg_bits_to_feat_map tcr2_el2_feat_map[] = {
+	NEEDS_FEAT(TCR2_EL2_FNG1	|
+		   TCR2_EL2_FNG0	|
+		   TCR2_EL2_A2,
+		   feat_asid2_e2h1),
+	NEEDS_FEAT(TCR2_EL2_DisCH1	|
+		   TCR2_EL2_DisCH0	|
+		   TCR2_EL2_D128,
+		   feat_d128_e2h1),
+	NEEDS_FEAT(TCR2_EL2_AMEC1, feat_mec_e2h1),
+	NEEDS_FEAT(TCR2_EL2_AMEC0, FEAT_MEC),
+	NEEDS_FEAT(TCR2_EL2_HAFT, FEAT_HAFT),
+	NEEDS_FEAT(TCR2_EL2_PTTWI	|
+		   TCR2_EL2_PnCH,
+		   FEAT_THE),
+	NEEDS_FEAT(TCR2_EL2_AIE, FEAT_AIE),
+	NEEDS_FEAT(TCR2_EL2_POE		|
+		   TCR2_EL2_E0POE,
+		   FEAT_S1POE),
+	NEEDS_FEAT(TCR2_EL2_PIE, FEAT_S1PIE),
+};
+
 static void __init check_feat_map(const struct reg_bits_to_feat_map *map,
 				  int map_size, u64 res0, const char *str)
 {
@@ -863,6 +903,8 @@ void __init check_feature_map(void)
 		       __HCRX_EL2_RES0, "HCRX_EL2");
 	check_feat_map(hcr_feat_map, ARRAY_SIZE(hcr_feat_map),
 		       HCR_EL2_RES0, "HCR_EL2");
+	check_feat_map(tcr2_el2_feat_map, ARRAY_SIZE(tcr2_el2_feat_map),
+		       TCR2_EL2_RES0, "TCR2_EL2");
 }
 
 static bool idreg_feat_match(struct kvm *kvm, const struct reg_bits_to_feat_map *map)
@@ -1076,6 +1118,12 @@ void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *r
 					  ARRAY_SIZE(hcr_feat_map), 0, 0);
 		*res0 |= HCR_EL2_RES0 | (mask & ~fixed);
 		*res1 = HCR_EL2_RES1 | (mask & fixed);
+		break;
+	case TCR2_EL2:
+		*res0 = compute_res0_bits(kvm, tcr2_el2_feat_map,
+					  ARRAY_SIZE(tcr2_el2_feat_map), 0, 0);
+		*res0 |= TCR2_EL2_RES0;
+		*res1 = TCR2_EL2_RES1;
 		break;
 	default:
 		WARN_ON_ONCE(1);
