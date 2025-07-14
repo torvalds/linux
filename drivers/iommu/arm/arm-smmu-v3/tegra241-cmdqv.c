@@ -1329,3 +1329,5 @@ deinit_vintf:
 	tegra241_cmdqv_deinit_vintf(cmdqv, vintf->idx);
 	return ret;
 }
+
+MODULE_IMPORT_NS("IOMMUFD");
