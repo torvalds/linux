@@ -203,8 +203,9 @@ static int __init tegra_cpufreq_init(void)
 {
 	int ret;
 
-	if (!(of_machine_is_compatible("nvidia,tegra124") ||
-		of_machine_is_compatible("nvidia,tegra210")))
+	if (!(of_machine_is_compatible("nvidia,tegra114") ||
+	      of_machine_is_compatible("nvidia,tegra124") ||
+	      of_machine_is_compatible("nvidia,tegra210")))
 		return -ENODEV;
 
 	/*
