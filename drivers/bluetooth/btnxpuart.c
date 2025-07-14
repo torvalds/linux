@@ -1440,6 +1440,10 @@ static int nxp_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 static int nxp_setup(struct hci_dev *hdev)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	struct serdev_device *serdev = nxpdev->serdev;
+	char device_string[30];
+	char event_string[50];
+	char *envp[] = {device_string, event_string, NULL};
 	int err = 0;
 
 	if (nxp_check_boot_sign(nxpdev)) {
@@ -1451,6 +1455,12 @@ static int nxp_setup(struct hci_dev *hdev)
 		bt_dev_info(hdev, "FW already running.");
 		clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 	}
+
+	snprintf(device_string, 30, "BTNXPUART_DEV=%s", dev_name(&serdev->dev));
+	snprintf(event_string, 50, "BTNXPUART_STATE=FW_READY");
+	bt_dev_dbg(hdev, "==== Send uevent: %s:%s ===", device_string,
+		   event_string);
+	kobject_uevent_env(&serdev->dev.kobj, KOBJ_CHANGE, envp);
 
 	serdev_device_set_baudrate(nxpdev->serdev, nxpdev->fw_init_baudrate);
 	nxpdev->current_baudrate = nxpdev->fw_init_baudrate;
@@ -1772,6 +1782,35 @@ static const struct serdev_device_ops btnxpuart_client_ops = {
 	.write_wakeup = btnxpuart_write_wakeup,
 };
 
+static void nxp_coredump_notify(struct hci_dev *hdev, int state)
+{
+	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	struct serdev_device *serdev = nxpdev->serdev;
+	char device_string[30];
+	char event_string[50];
+	char *envp[] = {device_string, event_string, NULL};
+
+	snprintf(device_string, 30, "BTNXPUART_DEV=%s", dev_name(&serdev->dev));
+	switch (state) {
+	case HCI_DEVCOREDUMP_ACTIVE:
+		snprintf(event_string, 50, "BTNXPUART_STATE=FW_DUMP_ACTIVE");
+		break;
+	case HCI_DEVCOREDUMP_DONE:
+		snprintf(event_string, 50, "BTNXPUART_STATE=FW_DUMP_DONE");
+		break;
+	case HCI_DEVCOREDUMP_TIMEOUT:
+		snprintf(event_string, 50, "BTNXPUART_STATE=FW_DUMP_TIMEOUT");
+		break;
+	default:
+		snprintf(event_string, 50, "BTNXPUART_STATE=FW_DUMP_STATE_%d",
+			 state);
+		break;
+	}
+	bt_dev_dbg(hdev, "==== Send uevent: %s:%s ===", device_string,
+		   event_string);
+	kobject_uevent_env(&serdev->dev.kobj, KOBJ_CHANGE, envp);
+}
+
 static int nxp_serdev_probe(struct serdev_device *serdev)
 {
 	struct hci_dev *hdev;
@@ -1868,7 +1907,8 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	if (ps_setup(hdev))
 		goto probe_fail;
 
-	hci_devcd_register(hdev, nxp_coredump, nxp_coredump_hdr, NULL);
+	hci_devcd_register(hdev, nxp_coredump, nxp_coredump_hdr,
+			   nxp_coredump_notify);
 
 	return 0;
 
