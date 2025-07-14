@@ -2849,8 +2849,9 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 		/* TBD: may be hot point */
 		spin_lock(&sbi->s_md_lock);
 		ac->ac_g_ex.fe_group = sbi->s_mb_last_group;
-		ac->ac_g_ex.fe_start = sbi->s_mb_last_start;
 		spin_unlock(&sbi->s_md_lock);
+		ac->ac_g_ex.fe_start = -1;
+		ac->ac_flags &= ~EXT4_MB_HINT_TRY_GOAL;
 	}
 
 	/*
@@ -3000,8 +3001,12 @@ repeat:
 		}
 	}
 
-	if (sbi->s_mb_stats && ac->ac_status == AC_STATUS_FOUND)
+	if (sbi->s_mb_stats && ac->ac_status == AC_STATUS_FOUND) {
 		atomic64_inc(&sbi->s_bal_cX_hits[ac->ac_criteria]);
+		if (ac->ac_flags & EXT4_MB_STREAM_ALLOC &&
+		    ac->ac_b_ex.fe_group == ac->ac_g_ex.fe_group)
+			atomic_inc(&sbi->s_bal_stream_goals);
+	}
 out:
 	if (!err && ac->ac_status != AC_STATUS_FOUND && first_err)
 		err = first_err;
@@ -3194,6 +3199,8 @@ int ext4_seq_mb_stats_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "\textents_scanned: %u\n",
 		   atomic_read(&sbi->s_bal_ex_scanned));
 	seq_printf(seq, "\t\tgoal_hits: %u\n", atomic_read(&sbi->s_bal_goals));
+	seq_printf(seq, "\t\tstream_goal_hits: %u\n",
+		   atomic_read(&sbi->s_bal_stream_goals));
 	seq_printf(seq, "\t\tlen_goal_hits: %u\n",
 		   atomic_read(&sbi->s_bal_len_goals));
 	seq_printf(seq, "\t\t2^n_hits: %u\n", atomic_read(&sbi->s_bal_2orders));
