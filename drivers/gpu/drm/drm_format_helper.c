@@ -1243,6 +1243,9 @@ int drm_fb_blit(struct iosys_map *dst, const unsigned int *dst_pitch, uint32_t d
 		} else if (dst_format == DRM_FORMAT_BGRX8888) {
 			drm_fb_swab(dst, dst_pitch, src, fb, clip, false, state);
 			return 0;
+		} else if (dst_format == DRM_FORMAT_RGB332) {
+			drm_fb_xrgb8888_to_rgb332(dst, dst_pitch, src, fb, clip, state);
+			return 0;
 		}
 	}
 
