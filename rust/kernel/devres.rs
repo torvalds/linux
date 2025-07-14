@@ -137,14 +137,10 @@ impl<T: Send> Devres<T> {
         let callback = Self::devres_callback;
 
         try_pin_init!(&this in Self {
-            // INVARIANT: `inner` is properly initialized.
-            inner <- Opaque::pin_init(try_pin_init!(Inner {
-                data <- Revocable::new(data),
-                devm <- Completion::new(),
-                revoke <- Completion::new(),
-            })),
+            dev: dev.into(),
             callback,
-            dev: {
+            // INVARIANT: `inner` is properly initialized.
+            inner <- {
                 // SAFETY: `this` is a valid pointer to uninitialized memory.
                 let inner = unsafe { &raw mut (*this.as_ptr()).inner };
 
@@ -158,7 +154,11 @@ impl<T: Send> Devres<T> {
                     bindings::devm_add_action(dev.as_raw(), Some(callback), inner.cast())
                 })?;
 
-                dev.into()
+                Opaque::pin_init(try_pin_init!(Inner {
+                    devm <- Completion::new(),
+                    revoke <- Completion::new(),
+                    data <- Revocable::new(data),
+                }))
             },
         })
     }
