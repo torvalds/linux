@@ -357,6 +357,8 @@ void wx_alloc_rx_buffers(struct wx_ring *rx_ring, u16 cleaned_count)
 
 		/* clear the status bits for the next_to_use descriptor */
 		rx_desc->wb.upper.status_error = 0;
+		/* clear the length for the next_to_use descriptor */
+		rx_desc->wb.upper.length = 0;
 
 		cleaned_count--;
 	} while (cleaned_count);
@@ -2437,6 +2439,9 @@ static void wx_clean_rx_ring(struct wx_ring *rx_ring)
 			rx_buffer = rx_ring->rx_buffer_info;
 		}
 	}
+
+	/* Zero out the descriptor ring */
+	memset(rx_ring->desc, 0, rx_ring->size);
 
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
