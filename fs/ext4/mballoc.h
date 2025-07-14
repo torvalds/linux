@@ -196,6 +196,8 @@ struct ext4_allocation_context {
 	unsigned int ac_prefetch_ios;
 	unsigned int ac_prefetch_nr;
 
+	int ac_first_err;
+
 	__u32 ac_flags;		/* allocation hints */
 	__u32 ac_groups_linear_remaining;
 	__u16 ac_groups_scanned;
