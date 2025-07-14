@@ -4150,7 +4150,13 @@ Mapping	TCR_EL1
 EndSysreg
 
 Sysreg	TCR2_EL1	3	0	2	0	3
-Res0	63:16
+Res0	63:22
+Field	21	FNGNA1
+Field	20	FNGNA0
+Res0	19
+Field	18	FNG1
+Field	17	FNG0
+Field	16	A2
 Field	15	DisCH1
 Field	14	DisCH0
 Res0	13:12
@@ -4174,7 +4180,10 @@ Mapping	TCR2_EL1
 EndSysreg
 
 Sysreg	TCR2_EL2	3	4	2	0	3
-Res0	63:16
+Res0	63:19
+Field	18	FNG1
+Field	17	FNG0
+Field	16	A2
 Field	15	DisCH1
 Field	14	DisCH0
 Field	13	AMEC1
