@@ -115,6 +115,8 @@ struct vhost_virtqueue {
 	 * Values are limited to 0x7fff, and the high bit is used as
 	 * a wrap counter when using VIRTIO_F_RING_PACKED. */
 	u16 last_avail_idx;
+	/* Next avail ring head when VIRTIO_F_IN_ORDER is negoitated */
+	u16 next_avail_head;
 
 	/* Caches available index value from user. */
 	u16 avail_idx;
@@ -141,6 +143,7 @@ struct vhost_virtqueue {
 	struct iovec iotlb_iov[64];
 	struct iovec *indirect;
 	struct vring_used_elem *heads;
+	u16 *nheads;
 	/* Protected by virtqueue mutex. */
 	struct vhost_iotlb *umem;
 	struct vhost_iotlb *iotlb;
@@ -235,11 +238,12 @@ bool vhost_vq_is_setup(struct vhost_virtqueue *vq);
 int vhost_vq_init_access(struct vhost_virtqueue *);
 int vhost_add_used(struct vhost_virtqueue *, unsigned int head, int len);
 int vhost_add_used_n(struct vhost_virtqueue *, struct vring_used_elem *heads,
-		     unsigned count);
+		     u16 *nheads, unsigned count);
 void vhost_add_used_and_signal(struct vhost_dev *, struct vhost_virtqueue *,
 			       unsigned int id, int len);
 void vhost_add_used_and_signal_n(struct vhost_dev *, struct vhost_virtqueue *,
-			       struct vring_used_elem *heads, unsigned count);
+				 struct vring_used_elem *heads, u16 *nheads,
+				 unsigned count);
 void vhost_signal(struct vhost_dev *, struct vhost_virtqueue *);
 void vhost_disable_notify(struct vhost_dev *, struct vhost_virtqueue *);
 bool vhost_vq_avail_empty(struct vhost_dev *, struct vhost_virtqueue *);

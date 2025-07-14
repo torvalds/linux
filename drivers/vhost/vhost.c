@@ -372,6 +372,7 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->avail = NULL;
 	vq->used = NULL;
 	vq->last_avail_idx = 0;
+	vq->next_avail_head = 0;
 	vq->avail_idx = 0;
 	vq->last_used_idx = 0;
 	vq->signalled_used = 0;
@@ -501,6 +502,8 @@ static void vhost_vq_free_iovecs(struct vhost_virtqueue *vq)
 	vq->log = NULL;
 	kfree(vq->heads);
 	vq->heads = NULL;
+	kfree(vq->nheads);
+	vq->nheads = NULL;
 }
 
 /* Helper to allocate iovec buffers for all vqs. */
@@ -518,7 +521,9 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 					GFP_KERNEL);
 		vq->heads = kmalloc_array(dev->iov_limit, sizeof(*vq->heads),
 					  GFP_KERNEL);
-		if (!vq->indirect || !vq->log || !vq->heads)
+		vq->nheads = kmalloc_array(dev->iov_limit, sizeof(*vq->nheads),
+					   GFP_KERNEL);
+		if (!vq->indirect || !vq->log || !vq->heads || !vq->nheads)
 			goto err_nomem;
 	}
 	return 0;
@@ -2159,14 +2164,15 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 			break;
 		}
 		if (vhost_has_feature(vq, VIRTIO_F_RING_PACKED)) {
-			vq->last_avail_idx = s.num & 0xffff;
+			vq->next_avail_head = vq->last_avail_idx =
+					      s.num & 0xffff;
 			vq->last_used_idx = (s.num >> 16) & 0xffff;
 		} else {
 			if (s.num > 0xffff) {
 				r = -EINVAL;
 				break;
 			}
-			vq->last_avail_idx = s.num;
+			vq->next_avail_head = vq->last_avail_idx = s.num;
 		}
 		/* Forget the cached index value. */
 		vq->avail_idx = vq->last_avail_idx;
@@ -2798,11 +2804,12 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 		      unsigned int *out_num, unsigned int *in_num,
 		      struct vhost_log *log, unsigned int *log_num)
 {
+	bool in_order = vhost_has_feature(vq, VIRTIO_F_IN_ORDER);
 	struct vring_desc desc;
 	unsigned int i, head, found = 0;
 	u16 last_avail_idx = vq->last_avail_idx;
 	__virtio16 ring_head;
-	int ret, access;
+	int ret, access, c = 0;
 
 	if (vq->avail_idx == vq->last_avail_idx) {
 		ret = vhost_get_avail_idx(vq);
@@ -2813,16 +2820,20 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 			return vq->num;
 	}
 
-	/* Grab the next descriptor number they're advertising, and increment
-	 * the index we've seen. */
-	if (unlikely(vhost_get_avail_head(vq, &ring_head, last_avail_idx))) {
-		vq_err(vq, "Failed to read head: idx %d address %p\n",
-		       last_avail_idx,
-		       &vq->avail->ring[last_avail_idx % vq->num]);
-		return -EFAULT;
+	if (in_order)
+		head = vq->next_avail_head & (vq->num - 1);
+	else {
+		/* Grab the next descriptor number they're
+		 * advertising, and increment the index we've seen. */
+		if (unlikely(vhost_get_avail_head(vq, &ring_head,
+						  last_avail_idx))) {
+			vq_err(vq, "Failed to read head: idx %d address %p\n",
+				last_avail_idx,
+				&vq->avail->ring[last_avail_idx % vq->num]);
+			return -EFAULT;
+		}
+		head = vhost16_to_cpu(vq, ring_head);
 	}
-
-	head = vhost16_to_cpu(vq, ring_head);
 
 	/* If their number is silly, that's an error. */
 	if (unlikely(head >= vq->num)) {
@@ -2866,6 +2877,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 						"in indirect descriptor at idx %d\n", i);
 				return ret;
 			}
+			++c;
 			continue;
 		}
 
@@ -2901,10 +2913,12 @@ int vhost_get_vq_desc(struct vhost_virtqueue *vq,
 			}
 			*out_num += ret;
 		}
+		++c;
 	} while ((i = next_desc(vq, &desc)) != -1);
 
 	/* On success, increment avail index. */
 	vq->last_avail_idx++;
+	vq->next_avail_head += c;
 
 	/* Assume notifications from guest are disabled at this point,
 	 * if they aren't we would need to update avail_event index. */
@@ -2928,8 +2942,9 @@ int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 		cpu_to_vhost32(vq, head),
 		cpu_to_vhost32(vq, len)
 	};
+	u16 nheads = 1;
 
-	return vhost_add_used_n(vq, &heads, 1);
+	return vhost_add_used_n(vq, &heads, &nheads, 1);
 }
 EXPORT_SYMBOL_GPL(vhost_add_used);
 
@@ -2965,10 +2980,9 @@ static int __vhost_add_used_n(struct vhost_virtqueue *vq,
 	return 0;
 }
 
-/* After we've used one of their buffers, we tell them about it.  We'll then
- * want to notify the guest, using eventfd. */
-int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
-		     unsigned count)
+static int vhost_add_used_n_ooo(struct vhost_virtqueue *vq,
+				struct vring_used_elem *heads,
+				unsigned count)
 {
 	int start, n, r;
 
@@ -2981,7 +2995,69 @@ int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
 		heads += n;
 		count -= n;
 	}
-	r = __vhost_add_used_n(vq, heads, count);
+	return __vhost_add_used_n(vq, heads, count);
+}
+
+static int vhost_add_used_n_in_order(struct vhost_virtqueue *vq,
+				     struct vring_used_elem *heads,
+				     const u16 *nheads,
+				     unsigned count)
+{
+	vring_used_elem_t __user *used;
+	u16 old, new = vq->last_used_idx;
+	int start, i;
+
+	if (!nheads)
+		return -EINVAL;
+
+	start = vq->last_used_idx & (vq->num - 1);
+	used = vq->used->ring + start;
+
+	for (i = 0; i < count; i++) {
+		if (vhost_put_used(vq, &heads[i], start, 1)) {
+			vq_err(vq, "Failed to write used");
+			return -EFAULT;
+		}
+		start += nheads[i];
+		new += nheads[i];
+		if (start >= vq->num)
+			start -= vq->num;
+	}
+
+	if (unlikely(vq->log_used)) {
+		/* Make sure data is seen before log. */
+		smp_wmb();
+		/* Log used ring entry write. */
+		log_used(vq, ((void __user *)used - (void __user *)vq->used),
+			 (vq->num - start) * sizeof *used);
+		if (start + count > vq->num)
+			log_used(vq, 0,
+				 (start + count - vq->num) * sizeof *used);
+	}
+
+	old = vq->last_used_idx;
+	vq->last_used_idx = new;
+	/* If the driver never bothers to signal in a very long while,
+	 * used index might wrap around. If that happens, invalidate
+	 * signalled_used index we stored. TODO: make sure driver
+	 * signals at least once in 2^16 and remove this. */
+	if (unlikely((u16)(new - vq->signalled_used) < (u16)(new - old)))
+		vq->signalled_used_valid = false;
+	return 0;
+}
+
+/* After we've used one of their buffers, we tell them about it.  We'll then
+ * want to notify the guest, using eventfd. */
+int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
+		     u16 *nheads, unsigned count)
+{
+	bool in_order = vhost_has_feature(vq, VIRTIO_F_IN_ORDER);
+	int r;
+
+	if (!in_order || !nheads)
+		r = vhost_add_used_n_ooo(vq, heads, count);
+	else
+		r = vhost_add_used_n_in_order(vq, heads, nheads, count);
 
 	if (r < 0)
 		return r;
@@ -3064,9 +3140,11 @@ EXPORT_SYMBOL_GPL(vhost_add_used_and_signal);
 /* multi-buffer version of vhost_add_used_and_signal */
 void vhost_add_used_and_signal_n(struct vhost_dev *dev,
 				 struct vhost_virtqueue *vq,
-				 struct vring_used_elem *heads, unsigned count)
+				 struct vring_used_elem *heads,
+				 u16 *nheads,
+				 unsigned count)
 {
-	vhost_add_used_n(vq, heads, count);
+	vhost_add_used_n(vq, heads, nheads, count);
 	vhost_signal(dev, vq);
 }
 EXPORT_SYMBOL_GPL(vhost_add_used_and_signal_n);

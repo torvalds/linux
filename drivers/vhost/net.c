@@ -374,7 +374,8 @@ static void vhost_zerocopy_signal_used(struct vhost_net *net,
 	while (j) {
 		add = min(UIO_MAXIOV - nvq->done_idx, j);
 		vhost_add_used_and_signal_n(vq->dev, vq,
-					    &vq->heads[nvq->done_idx], add);
+					    &vq->heads[nvq->done_idx],
+					    NULL, add);
 		nvq->done_idx = (nvq->done_idx + add) % UIO_MAXIOV;
 		j -= add;
 	}
@@ -457,7 +458,8 @@ static void vhost_net_signal_used(struct vhost_net_virtqueue *nvq)
 	if (!nvq->done_idx)
 		return;
 
-	vhost_add_used_and_signal_n(dev, vq, vq->heads, nvq->done_idx);
+	vhost_add_used_and_signal_n(dev, vq, vq->heads, NULL,
+				    nvq->done_idx);
 	nvq->done_idx = 0;
 }
 
