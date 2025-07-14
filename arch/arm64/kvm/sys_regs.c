@@ -532,8 +532,7 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
 		return ignore_write(vcpu, p);
 
 	if (p->Op1 == 4) {	/* ICC_SRE_EL2 */
-		p->regval = (ICC_SRE_EL2_ENABLE | ICC_SRE_EL2_SRE |
-			     ICC_SRE_EL1_DIB | ICC_SRE_EL1_DFB);
+		p->regval = KVM_ICC_SRE_EL2;
 	} else {		/* ICC_SRE_EL1 */
 		p->regval = vcpu->arch.vgic_cpu.vgic_v3.vgic_sre;
 	}
