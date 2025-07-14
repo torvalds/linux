@@ -82,7 +82,7 @@ static struct vesadrm_device *to_vesadrm_device(struct drm_device *dev)
 }
 
 /*
- * Palette
+ * Color LUT
  */
 
 static void vesadrm_vga_cmap_write(struct vesadrm_device *vesa, unsigned int index,
@@ -128,7 +128,7 @@ static void vesadrm_pmi_cmap_write(struct vesadrm_device *vesa, unsigned int ind
 }
 #endif
 
-static void vesadrm_set_gamma_lut(struct drm_crtc *crtc, unsigned int index,
+static void vesadrm_set_color_lut(struct drm_crtc *crtc, unsigned int index,
 				  u16 red, u16 green, u16 blue)
 {
 	struct drm_device *dev = crtc->dev;
@@ -149,15 +149,15 @@ static void vesadrm_fill_gamma_lut(struct vesadrm_device *vesa,
 
 	switch (format->format) {
 	case DRM_FORMAT_XRGB1555:
-		drm_crtc_fill_gamma_555(crtc, vesadrm_set_gamma_lut);
+		drm_crtc_fill_gamma_555(crtc, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB565:
-		drm_crtc_fill_gamma_565(crtc, vesadrm_set_gamma_lut);
+		drm_crtc_fill_gamma_565(crtc, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGRX8888:
-		drm_crtc_fill_gamma_888(crtc, vesadrm_set_gamma_lut);
+		drm_crtc_fill_gamma_888(crtc, vesadrm_set_color_lut);
 		break;
 	default:
 		drm_warn_once(dev, "Unsupported format %p4cc for gamma correction\n",
@@ -175,15 +175,15 @@ static void vesadrm_load_gamma_lut(struct vesadrm_device *vesa,
 
 	switch (format->format) {
 	case DRM_FORMAT_XRGB1555:
-		drm_crtc_load_gamma_555_from_888(crtc, lut, vesadrm_set_gamma_lut);
+		drm_crtc_load_gamma_555_from_888(crtc, lut, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB565:
-		drm_crtc_load_gamma_565_from_888(crtc, lut, vesadrm_set_gamma_lut);
+		drm_crtc_load_gamma_565_from_888(crtc, lut, vesadrm_set_color_lut);
 		break;
 	case DRM_FORMAT_RGB888:
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_BGRX8888:
-		drm_crtc_load_gamma_888(crtc, lut, vesadrm_set_gamma_lut);
+		drm_crtc_load_gamma_888(crtc, lut, vesadrm_set_color_lut);
 		break;
 	default:
 		drm_warn_once(dev, "Unsupported format %p4cc for gamma correction\n",
