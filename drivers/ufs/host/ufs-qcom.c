@@ -2109,8 +2109,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 
 	retain_and_null_ptr(qi);
 
-	if (host->hw_ver.major == 6 && host->hw_ver.minor == 0 &&
-	    host->hw_ver.step == 0) {
+	if (host->hw_ver.major >= 6) {
 		ufshcd_rmwl(hba, ESI_VEC_MASK, FIELD_PREP(ESI_VEC_MASK, MAX_ESI_VEC - 1),
 			    REG_UFS_CFG3);
 	}
