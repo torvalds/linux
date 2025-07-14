@@ -339,6 +339,10 @@ enum hnae3_dbg_cmd {
 	HNAE3_DBG_CMD_UNKNOWN,
 };
 
+#define hnae3_seq_file_to_ae_dev(s)	(dev_get_drvdata((s)->private))
+#define hnae3_seq_file_to_handle(s)	\
+		(((struct hnae3_ae_dev *)hnae3_seq_file_to_ae_dev(s))->handle)
+
 enum hnae3_tc_map_mode {
 	HNAE3_TC_MAP_MODE_PRIO,
 	HNAE3_TC_MAP_MODE_DSCP,
@@ -434,7 +438,10 @@ struct hnae3_ae_dev {
 	u32 dev_version;
 	DECLARE_BITMAP(caps, HNAE3_DEV_CAPS_MAX_NUM);
 	void *priv;
+	struct hnae3_handle *handle;
 };
+
+typedef int (*read_func)(struct seq_file *s, void *data);
 
 /* This struct defines the operation on the handle.
  *

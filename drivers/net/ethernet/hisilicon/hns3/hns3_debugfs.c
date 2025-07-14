@@ -3,6 +3,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/seq_file.h>
 #include <linux/string_choices.h>
 
 #include "hnae3.h"
@@ -41,6 +42,7 @@ static struct hns3_dbg_dentry_info hns3_dbg_dentry[] = {
 
 static int hns3_dbg_bd_file_init(struct hnae3_handle *handle, u32 cmd);
 static int hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd);
+static int hns3_dbg_common_init_t1(struct hnae3_handle *handle, u32 cmd);
 
 static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 	{
@@ -300,7 +302,7 @@ static struct hns3_dbg_cmd_info hns3_dbg_cmd[] = {
 		.cmd = HNAE3_DBG_CMD_TX_QUEUE_INFO,
 		.dentry = HNS3_DBG_DENTRY_QUEUE,
 		.buf_len = HNS3_DBG_READ_LEN_1MB,
-		.init = hns3_dbg_common_file_init,
+		.init = hns3_dbg_common_init_t1,
 	},
 	{
 		.name = "fd_tcam",
@@ -674,77 +676,45 @@ static int hns3_dbg_rx_queue_info(struct hnae3_handle *h,
 	return 0;
 }
 
-static const struct hns3_dbg_item tx_queue_info_items[] = {
-	{ "QUEUE_ID", 2 },
-	{ "BD_NUM", 2 },
-	{ "TC", 2 },
-	{ "TAIL", 2 },
-	{ "HEAD", 2 },
-	{ "FBDNUM", 2 },
-	{ "OFFSET", 2 },
-	{ "PKTNUM", 5 },
-	{ "RING_EN", 2 },
-	{ "TX_RING_EN", 2 },
-	{ "BASE_ADDR", 10 },
-};
-
 static void hns3_dump_tx_queue_info(struct hns3_enet_ring *ring,
-				    struct hnae3_ae_dev *ae_dev, char **result,
-				    u32 index)
+				    struct seq_file *s, u32 index)
 {
+	struct hnae3_ae_dev *ae_dev = hnae3_seq_file_to_ae_dev(s);
+	void __iomem *base = ring->tqp->io_base;
 	u32 base_add_l, base_add_h;
-	u32 j = 0;
 
-	sprintf(result[j++], "%u", index);
-	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_TX_RING_BD_NUM_REG));
-
-	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_TX_RING_TC_REG));
-
-	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_TX_RING_TAIL_REG));
-
-	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_TX_RING_HEAD_REG));
-
-	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_TX_RING_FBDNUM_REG));
-
-	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_TX_RING_OFFSET_REG));
-
-	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_TX_RING_PKTNUM_RECORD_REG));
-
-	sprintf(result[j++], "%s",
-		str_on_off(readl_relaxed(ring->tqp->io_base +
-					 HNS3_RING_EN_REG)));
+	seq_printf(s, "%-10u", index);
+	seq_printf(s, "%-8u",
+		   readl_relaxed(base + HNS3_RING_TX_RING_BD_NUM_REG));
+	seq_printf(s, "%-4u", readl_relaxed(base + HNS3_RING_TX_RING_TC_REG));
+	seq_printf(s, "%-6u", readl_relaxed(base + HNS3_RING_TX_RING_TAIL_REG));
+	seq_printf(s, "%-6u", readl_relaxed(base + HNS3_RING_TX_RING_HEAD_REG));
+	seq_printf(s, "%-8u",
+		   readl_relaxed(base + HNS3_RING_TX_RING_FBDNUM_REG));
+	seq_printf(s, "%-8u",
+		   readl_relaxed(base + HNS3_RING_TX_RING_OFFSET_REG));
+	seq_printf(s, "%-11u",
+		   readl_relaxed(base + HNS3_RING_TX_RING_PKTNUM_RECORD_REG));
+	seq_printf(s, "%-9s",
+		   str_on_off(readl_relaxed(base + HNS3_RING_EN_REG)));
 
 	if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev))
-		sprintf(result[j++], "%s",
-			str_on_off(readl_relaxed(ring->tqp->io_base +
-						 HNS3_RING_TX_EN_REG)));
+		seq_printf(s, "%-12s",
+			   str_on_off(readl_relaxed(base +
+						    HNS3_RING_TX_EN_REG)));
 	else
-		sprintf(result[j++], "%s", "NA");
+		seq_printf(s, "%-12s", "NA");
 
-	base_add_h = readl_relaxed(ring->tqp->io_base +
-					HNS3_RING_TX_RING_BASEADDR_H_REG);
-	base_add_l = readl_relaxed(ring->tqp->io_base +
-					HNS3_RING_TX_RING_BASEADDR_L_REG);
-	sprintf(result[j++], "0x%08x%08x", base_add_h, base_add_l);
+	base_add_h = readl_relaxed(base + HNS3_RING_TX_RING_BASEADDR_H_REG);
+	base_add_l = readl_relaxed(base + HNS3_RING_TX_RING_BASEADDR_L_REG);
+	seq_printf(s, "0x%08x%08x\n", base_add_h, base_add_l);
 }
 
-static int hns3_dbg_tx_queue_info(struct hnae3_handle *h,
-				  char *buf, int len)
+static int hns3_dbg_tx_queue_info(struct seq_file *s, void *data)
 {
-	char data_str[ARRAY_SIZE(tx_queue_info_items)][HNS3_DBG_DATA_STR_LEN];
-	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(h);
-	char *result[ARRAY_SIZE(tx_queue_info_items)];
+	struct hnae3_handle *h = hnae3_seq_file_to_handle(s);
 	struct hns3_nic_priv *priv = h->priv;
-	char content[HNS3_DBG_INFO_LEN];
 	struct hns3_enet_ring *ring;
-	int pos = 0;
 	u32 i;
 
 	if (!priv->ring) {
@@ -752,12 +722,8 @@ static int hns3_dbg_tx_queue_info(struct hnae3_handle *h,
 		return -EFAULT;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(tx_queue_info_items); i++)
-		result[i] = &data_str[i][0];
-
-	hns3_dbg_fill_content(content, sizeof(content), tx_queue_info_items,
-			      NULL, ARRAY_SIZE(tx_queue_info_items));
-	pos += scnprintf(buf + pos, len - pos, "%s", content);
+	seq_puts(s, "QUEUE_ID  BD_NUM  TC  TAIL  HEAD  FBDNUM  OFFSET  ");
+	seq_puts(s, "PKTNUM     RING_EN  TX_RING_EN  BASE_ADDR\n");
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
 		/* Each cycle needs to determine whether the instance is reset,
@@ -769,12 +735,7 @@ static int hns3_dbg_tx_queue_info(struct hnae3_handle *h,
 			return -EPERM;
 
 		ring = &priv->ring[i];
-		hns3_dump_tx_queue_info(ring, ae_dev, result, i);
-		hns3_dbg_fill_content(content, sizeof(content),
-				      tx_queue_info_items,
-				      (const char **)result,
-				      ARRAY_SIZE(tx_queue_info_items));
-		pos += scnprintf(buf + pos, len - pos, "%s", content);
+		hns3_dump_tx_queue_info(ring, s, i);
 	}
 
 	return 0;
@@ -1171,10 +1132,6 @@ static const struct hns3_dbg_func hns3_dbg_cmd_func[] = {
 		.dbg_dump = hns3_dbg_rx_queue_info,
 	},
 	{
-		.cmd = HNAE3_DBG_CMD_TX_QUEUE_INFO,
-		.dbg_dump = hns3_dbg_tx_queue_info,
-	},
-	{
 		.cmd = HNAE3_DBG_CMD_PAGE_POOL_INFO,
 		.dbg_dump = hns3_dbg_page_pool_info,
 	},
@@ -1306,6 +1263,27 @@ hns3_dbg_common_file_init(struct hnae3_handle *handle, u32 cmd)
 	entry_dir = hns3_dbg_dentry[hns3_dbg_cmd[cmd].dentry].dentry;
 	debugfs_create_file(hns3_dbg_cmd[cmd].name, 0400, entry_dir,
 			    data, &hns3_dbg_fops);
+
+	return 0;
+}
+
+static int hns3_dbg_common_init_t1(struct hnae3_handle *handle, u32 cmd)
+{
+	struct device *dev = &handle->pdev->dev;
+	struct dentry *entry_dir;
+	read_func func = NULL;
+
+	switch (hns3_dbg_cmd[cmd].cmd) {
+	case HNAE3_DBG_CMD_TX_QUEUE_INFO:
+		func = hns3_dbg_tx_queue_info;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	entry_dir = hns3_dbg_dentry[hns3_dbg_cmd[cmd].dentry].dentry;
+	debugfs_create_devm_seqfile(dev, hns3_dbg_cmd[cmd].name, entry_dir,
+				    func);
 
 	return 0;
 }
