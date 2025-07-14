@@ -66,7 +66,6 @@ struct reg_bits_to_feat_map {
 #define FEAT_BRBE		ID_AA64DFR0_EL1, BRBE, IMP
 #define FEAT_TRC_SR		ID_AA64DFR0_EL1, TraceVer, IMP
 #define FEAT_PMUv3		ID_AA64DFR0_EL1, PMUVer, IMP
-#define FEAT_PMUv3p9		ID_AA64DFR0_EL1, PMUVer, V3P9
 #define FEAT_TRBE		ID_AA64DFR0_EL1, TraceBuffer, IMP
 #define FEAT_TRBEv1p1		ID_AA64DFR0_EL1, TraceBuffer, TRBE_V1P1
 #define FEAT_DoubleLock		ID_AA64DFR0_EL1, DoubleLock, IMP
@@ -287,6 +286,11 @@ static bool feat_pmuv3p5(struct kvm *kvm)
 static bool feat_pmuv3p7(struct kvm *kvm)
 {
 	return check_pmu_revision(kvm, V3P7);
+}
+
+static bool feat_pmuv3p9(struct kvm *kvm)
+{
+	return check_pmu_revision(kvm, V3P9);
 }
 
 static bool compute_hcr_rw(struct kvm *kvm, u64 *bits)
@@ -747,7 +751,7 @@ static const struct reg_bits_to_feat_map hdfgrtr2_feat_map[] = {
 	NEEDS_FEAT(HDFGRTR2_EL2_nPMICFILTR_EL0	|
 		   HDFGRTR2_EL2_nPMICNTR_EL0,
 		   FEAT_PMUv3_ICNTR),
-	NEEDS_FEAT(HDFGRTR2_EL2_nPMUACR_EL1, FEAT_PMUv3p9),
+	NEEDS_FEAT(HDFGRTR2_EL2_nPMUACR_EL1, feat_pmuv3p9),
 	NEEDS_FEAT(HDFGRTR2_EL2_nPMSSCR_EL1	|
 		   HDFGRTR2_EL2_nPMSSDATA,
 		   FEAT_PMUv3_SS),
@@ -779,7 +783,7 @@ static const struct reg_bits_to_feat_map hdfgwtr2_feat_map[] = {
 		   FEAT_PMUv3_ICNTR),
 	NEEDS_FEAT(HDFGWTR2_EL2_nPMUACR_EL1	|
 		   HDFGWTR2_EL2_nPMZR_EL0,
-		   FEAT_PMUv3p9),
+		   feat_pmuv3p9),
 	NEEDS_FEAT(HDFGWTR2_EL2_nPMSSCR_EL1, FEAT_PMUv3_SS),
 	NEEDS_FEAT(HDFGWTR2_EL2_nPMIAR_EL1, FEAT_SEBEP),
 	NEEDS_FEAT(HDFGWTR2_EL2_nPMSDSFR_EL1, feat_spe_fds),
