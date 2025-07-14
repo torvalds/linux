@@ -2482,50 +2482,29 @@ hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-
-static const struct hclge_dbg_item mac_list_items[] = {
-	{ "FUNC_ID", 2 },
-	{ "MAC_ADDR", 12 },
-	{ "STATE", 2 },
-};
-
-static void hclge_dbg_dump_mac_list(struct hclge_dev *hdev, char *buf, int len,
-				    bool is_unicast)
+static void hclge_dbg_dump_mac_list(struct seq_file *s, bool is_unicast)
 {
-	char data_str[ARRAY_SIZE(mac_list_items)][HCLGE_DBG_DATA_STR_LEN];
-	char content[HCLGE_DBG_INFO_LEN], str_id[HCLGE_DBG_ID_LEN];
-	char *result[ARRAY_SIZE(mac_list_items)];
+	struct hclge_dev *hdev = hclge_seq_file_to_hdev(s);
 	struct hclge_mac_node *mac_node, *tmp;
 	struct hclge_vport *vport;
 	struct list_head *list;
-	u32 func_id, i;
-	int pos = 0;
+	u32 func_id;
 
-	for (i = 0; i < ARRAY_SIZE(mac_list_items); i++)
-		result[i] = &data_str[i][0];
-
-	pos += scnprintf(buf + pos, len - pos, "%s MAC_LIST:\n",
-			 is_unicast ? "UC" : "MC");
-	hclge_dbg_fill_content(content, sizeof(content), mac_list_items,
-			       NULL, ARRAY_SIZE(mac_list_items));
-	pos += scnprintf(buf + pos, len - pos, "%s", content);
+	seq_printf(s, "%s MAC_LIST:\n", is_unicast ? "UC" : "MC");
+	seq_puts(s, "FUNC_ID  MAC_ADDR            STATE\n");
 
 	for (func_id = 0; func_id < hdev->num_alloc_vport; func_id++) {
 		vport = &hdev->vport[func_id];
 		list = is_unicast ? &vport->uc_mac_list : &vport->mc_mac_list;
 		spin_lock_bh(&vport->mac_list_lock);
 		list_for_each_entry_safe(mac_node, tmp, list, node) {
-			i = 0;
-			result[i++] = hclge_dbg_get_func_id_str(str_id,
-								func_id);
-			sprintf(result[i++], "%pM", mac_node->mac_addr);
-			sprintf(result[i++], "%5s",
-				hclge_mac_state_str[mac_node->state]);
-			hclge_dbg_fill_content(content, sizeof(content),
-					       mac_list_items,
-					       (const char **)result,
-					       ARRAY_SIZE(mac_list_items));
-			pos += scnprintf(buf + pos, len - pos, "%s", content);
+			if (func_id)
+				seq_printf(s, "vf%-7u", func_id - 1U);
+			else
+				seq_puts(s, "pf       ");
+			seq_printf(s, "%pM   ", mac_node->mac_addr);
+			seq_printf(s, "%5s\n",
+				   hclge_mac_state_str[mac_node->state]);
 		}
 		spin_unlock_bh(&vport->mac_list_lock);
 	}
@@ -2893,16 +2872,16 @@ static int hclge_dbg_dump_ptp_info(struct hclge_dev *hdev, char *buf, int len)
 	return 0;
 }
 
-static int hclge_dbg_dump_mac_uc(struct hclge_dev *hdev, char *buf, int len)
+static int hclge_dbg_dump_mac_uc(struct seq_file *s, void *data)
 {
-	hclge_dbg_dump_mac_list(hdev, buf, len, true);
+	hclge_dbg_dump_mac_list(s, true);
 
 	return 0;
 }
 
-static int hclge_dbg_dump_mac_mc(struct hclge_dev *hdev, char *buf, int len)
+static int hclge_dbg_dump_mac_mc(struct seq_file *s, void *data)
 {
-	hclge_dbg_dump_mac_list(hdev, buf, len, false);
+	hclge_dbg_dump_mac_list(s, false);
 
 	return 0;
 }
@@ -2954,11 +2933,11 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_UC,
-		.dbg_dump = hclge_dbg_dump_mac_uc,
+		.dbg_read_func = hclge_dbg_dump_mac_uc,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_MC,
-		.dbg_dump = hclge_dbg_dump_mac_mc,
+		.dbg_read_func = hclge_dbg_dump_mac_mc,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MNG_TBL,
