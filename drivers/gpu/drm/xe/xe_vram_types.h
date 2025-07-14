@@ -12,7 +12,8 @@
 
 #include "xe_ttm_vram_mgr_types.h"
 
-struct xe_tile;
+struct xe_device;
+struct xe_migrate;
 
 /**
  * struct xe_vram_region - memory region structure
@@ -20,8 +21,14 @@ struct xe_tile;
  * device, such as HBM memory or CXL extension memory.
  */
 struct xe_vram_region {
-	/** @tile: Back pointer to tile */
-	struct xe_tile *tile;
+	/** @xe: Back pointer to xe device */
+	struct xe_device *xe;
+	/**
+	 * @id: VRAM region instance id
+	 *
+	 * The value should be unique for VRAM region.
+	 */
+	u8 id;
 	/** @io_start: IO start address of this VRAM instance */
 	resource_size_t io_start;
 	/**
@@ -54,7 +61,11 @@ struct xe_vram_region {
 	void __iomem *mapping;
 	/** @ttm: VRAM TTM manager */
 	struct xe_ttm_vram_mgr ttm;
+	/** @placement: TTM placement dedicated for this region */
+	u32 placement;
 #if IS_ENABLED(CONFIG_DRM_XE_PAGEMAP)
+	/** @migrate: Back pointer to migrate */
+	struct xe_migrate *migrate;
 	/** @pagemap: Used to remap device memory as ZONE_DEVICE */
 	struct dev_pagemap pagemap;
 	/**
