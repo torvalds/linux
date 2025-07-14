@@ -20,6 +20,9 @@ struct pixel_format {
 	};
 };
 
+#define PIXEL_FORMAT_C8 \
+	{ 8, true, { .index = {0, 8}, } }
+
 #define PIXEL_FORMAT_XRGB1555 \
 	{ 16, false, { .alpha = {0, 0}, .red = {10, 5}, .green = {5, 5}, .blue = {0, 5} } }
 
