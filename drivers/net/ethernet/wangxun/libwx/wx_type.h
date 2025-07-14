@@ -909,7 +909,6 @@ enum wx_reset_type {
 struct wx_cb {
 	dma_addr_t dma;
 	u16     append_cnt;      /* number of skb's appended */
-	bool    page_released;
 	bool    dma_released;
 };
 
