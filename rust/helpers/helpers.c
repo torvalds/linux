@@ -33,6 +33,7 @@
 #include "pci.c"
 #include "pid_namespace.c"
 #include "rbtree.c"
+#include "regulator.c"
 #include "rcu.c"
 #include "refcount.c"
 #include "security.c"
