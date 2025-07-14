@@ -27,6 +27,14 @@
 		stdout-path = &lpuart1;
 	};
 
+	current-sense {
+		compatible = "current-sense-amplifier";
+		io-channels = <&adc1 1>;
+		sense-gain-div = <2>;
+		sense-gain-mult = <50>;
+		sense-resistor-micro-ohms = <35000>;
+	};
+
 	flexcan1_tc: can-phy0 {
 		compatible = "ti,tcan1042";
 		#phy-cells = <0>;
