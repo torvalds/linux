@@ -2968,15 +2968,15 @@ out:
 }
 
 static const struct dev_pm_ops amdgpu_pm_ops = {
-	.prepare = amdgpu_pmops_prepare,
-	.complete = amdgpu_pmops_complete,
-	.suspend = amdgpu_pmops_suspend,
-	.suspend_noirq = amdgpu_pmops_suspend_noirq,
-	.resume = amdgpu_pmops_resume,
-	.freeze = amdgpu_pmops_freeze,
-	.thaw = amdgpu_pmops_thaw,
-	.poweroff = amdgpu_pmops_poweroff,
-	.restore = amdgpu_pmops_restore,
+	.prepare = pm_sleep_ptr(amdgpu_pmops_prepare),
+	.complete = pm_sleep_ptr(amdgpu_pmops_complete),
+	.suspend = pm_sleep_ptr(amdgpu_pmops_suspend),
+	.suspend_noirq = pm_sleep_ptr(amdgpu_pmops_suspend_noirq),
+	.resume = pm_sleep_ptr(amdgpu_pmops_resume),
+	.freeze = pm_sleep_ptr(amdgpu_pmops_freeze),
+	.thaw = pm_sleep_ptr(amdgpu_pmops_thaw),
+	.poweroff = pm_sleep_ptr(amdgpu_pmops_poweroff),
+	.restore = pm_sleep_ptr(amdgpu_pmops_restore),
 	.runtime_suspend = amdgpu_pmops_runtime_suspend,
 	.runtime_resume = amdgpu_pmops_runtime_resume,
 	.runtime_idle = amdgpu_pmops_runtime_idle,
@@ -3121,7 +3121,7 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 	.probe = amdgpu_pci_probe,
 	.remove = amdgpu_pci_remove,
 	.shutdown = amdgpu_pci_shutdown,
-	.driver.pm = &amdgpu_pm_ops,
+	.driver.pm = pm_ptr(&amdgpu_pm_ops),
 	.err_handler = &amdgpu_pci_err_handler,
 	.dev_groups = amdgpu_sysfs_groups,
 };
