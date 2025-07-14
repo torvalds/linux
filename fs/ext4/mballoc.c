@@ -2168,11 +2168,8 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 	ac->ac_buddy_folio = e4b->bd_buddy_folio;
 	folio_get(ac->ac_buddy_folio);
 	/* store last allocated for subsequent stream allocation */
-	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
-		spin_lock(&sbi->s_md_lock);
-		sbi->s_mb_last_group = ac->ac_f_ex.fe_group;
-		spin_unlock(&sbi->s_md_lock);
-	}
+	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC)
+		WRITE_ONCE(sbi->s_mb_last_group, ac->ac_f_ex.fe_group);
 	/*
 	 * As we've just preallocated more space than
 	 * user requested originally, we store allocated
@@ -2845,10 +2842,7 @@ ext4_mb_regular_allocator(struct ext4_allocation_context *ac)
 
 	/* if stream allocation is enabled, use global goal */
 	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
-		/* TBD: may be hot point */
-		spin_lock(&sbi->s_md_lock);
-		ac->ac_g_ex.fe_group = sbi->s_mb_last_group;
-		spin_unlock(&sbi->s_md_lock);
+		ac->ac_g_ex.fe_group = READ_ONCE(sbi->s_mb_last_group);
 		ac->ac_g_ex.fe_start = -1;
 		ac->ac_flags &= ~EXT4_MB_HINT_TRY_GOAL;
 	}
