@@ -94,6 +94,10 @@ static int xe_tile_alloc(struct xe_tile *tile)
 	if (!tile->mem.ggtt)
 		return -ENOMEM;
 
+	tile->migrate = xe_migrate_alloc(tile);
+	if (!tile->migrate)
+		return -ENOMEM;
+
 	return 0;
 }
 

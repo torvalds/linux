@@ -93,6 +93,7 @@ struct xe_migrate_pt_update {
 	u8 tile_id;
 };
 
+struct xe_migrate *xe_migrate_alloc(struct xe_tile *tile);
 struct xe_migrate *xe_migrate_init(struct xe_tile *tile);
 
 struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
