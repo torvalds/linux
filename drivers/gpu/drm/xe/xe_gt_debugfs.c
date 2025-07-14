@@ -388,13 +388,18 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct drm_minor *minor = gt_to_xe(gt)->drm.primary;
+	struct dentry *parent = gt->tile->debugfs;
 	struct dentry *root;
+	char symlink[16];
 	char name[8];
 
 	xe_gt_assert(gt, minor->debugfs_root);
 
+	if (IS_ERR(parent))
+		return;
+
 	snprintf(name, sizeof(name), "gt%d", gt->info.id);
-	root = debugfs_create_dir(name, minor->debugfs_root);
+	root = debugfs_create_dir(name, parent);
 	if (IS_ERR(root)) {
 		drm_warn(&xe->drm, "Create GT directory failed");
 		return;
@@ -426,4 +431,11 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 		xe_gt_sriov_pf_debugfs_register(gt, root);
 	else if (IS_SRIOV_VF(xe))
 		xe_gt_sriov_vf_debugfs_register(gt, root);
+
+	/*
+	 * Backwards compatibility only: create a link for the legacy clients
+	 * who may expect gt/ directory at the root level, not the tile level.
+	 */
+	snprintf(symlink, sizeof(symlink), "tile%u/%s", gt->tile->id, name);
+	debugfs_create_symlink(name, minor->debugfs_root, symlink);
 }
