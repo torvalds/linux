@@ -435,7 +435,13 @@ void cache_tag_flush_range(struct dmar_domain *domain, unsigned long start,
 	struct cache_tag *tag;
 	unsigned long flags;
 
-	addr = calculate_psi_aligned_address(start, end, &pages, &mask);
+	if (start == 0 && end == ULONG_MAX) {
+		addr = 0;
+		pages = -1;
+		mask = MAX_AGAW_PFN_WIDTH;
+	} else {
+		addr = calculate_psi_aligned_address(start, end, &pages, &mask);
+	}
 
 	spin_lock_irqsave(&domain->cache_lock, flags);
 	list_for_each_entry(tag, &domain->cache_tags, node) {
@@ -476,31 +482,7 @@ void cache_tag_flush_range(struct dmar_domain *domain, unsigned long start,
  */
 void cache_tag_flush_all(struct dmar_domain *domain)
 {
-	struct intel_iommu *iommu = NULL;
-	struct cache_tag *tag;
-	unsigned long flags;
-
-	spin_lock_irqsave(&domain->cache_lock, flags);
-	list_for_each_entry(tag, &domain->cache_tags, node) {
-		if (iommu && iommu != tag->iommu)
-			qi_batch_flush_descs(iommu, domain->qi_batch);
-		iommu = tag->iommu;
-
-		switch (tag->type) {
-		case CACHE_TAG_IOTLB:
-		case CACHE_TAG_NESTING_IOTLB:
-			cache_tag_flush_iotlb(domain, tag, 0, -1, 0, 0);
-			break;
-		case CACHE_TAG_DEVTLB:
-		case CACHE_TAG_NESTING_DEVTLB:
-			cache_tag_flush_devtlb_psi(domain, tag, 0, MAX_AGAW_PFN_WIDTH);
-			break;
-		}
-
-		trace_cache_tag_flush_all(tag);
-	}
-	qi_batch_flush_descs(iommu, domain->qi_batch);
-	spin_unlock_irqrestore(&domain->cache_lock, flags);
+	cache_tag_flush_range(domain, 0, ULONG_MAX, 0);
 }
 
 /*
