@@ -156,7 +156,8 @@ static int determine_lmem_bar_size(struct xe_device *xe)
 	xe->mem.vram.dpa_base = 0;
 
 	/* set up a map to the total memory area. */
-	xe->mem.vram.mapping = ioremap_wc(xe->mem.vram.io_start, xe->mem.vram.io_size);
+	xe->mem.vram.mapping = devm_ioremap_wc(&pdev->dev, xe->mem.vram.io_start,
+					       xe->mem.vram.io_size);
 
 	return 0;
 }
@@ -277,9 +278,6 @@ static void vram_fini(void *arg)
 	struct xe_device *xe = arg;
 	struct xe_tile *tile;
 	int id;
-
-	if (xe->mem.vram.mapping)
-		iounmap(xe->mem.vram.mapping);
 
 	xe->mem.vram.mapping = NULL;
 
