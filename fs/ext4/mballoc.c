@@ -132,25 +132,30 @@
  * If "mb_optimize_scan" mount option is set, we maintain in memory group info
  * structures in two data structures:
  *
- * 1) Array of largest free order lists (sbi->s_mb_largest_free_orders)
+ * 1) Array of largest free order xarrays (sbi->s_mb_largest_free_orders)
  *
- *    Locking: sbi->s_mb_largest_free_orders_locks(array of rw locks)
+ *    Locking: Writers use xa_lock, readers use rcu_read_lock.
  *
- *    This is an array of lists where the index in the array represents the
+ *    This is an array of xarrays where the index in the array represents the
  *    largest free order in the buddy bitmap of the participating group infos of
- *    that list. So, there are exactly MB_NUM_ORDERS(sb) (which means total
- *    number of buddy bitmap orders possible) number of lists. Group-infos are
- *    placed in appropriate lists.
+ *    that xarray. So, there are exactly MB_NUM_ORDERS(sb) (which means total
+ *    number of buddy bitmap orders possible) number of xarrays. Group-infos are
+ *    placed in appropriate xarrays.
  *
- * 2) Average fragment size lists (sbi->s_mb_avg_fragment_size)
+ * 2) Average fragment size xarrays (sbi->s_mb_avg_fragment_size)
  *
- *    Locking: sbi->s_mb_avg_fragment_size_locks(array of rw locks)
+ *    Locking: Writers use xa_lock, readers use rcu_read_lock.
  *
- *    This is an array of lists where in the i-th list there are groups with
+ *    This is an array of xarrays where in the i-th xarray there are groups with
  *    average fragment size >= 2^i and < 2^(i+1). The average fragment size
  *    is computed as ext4_group_info->bb_free / ext4_group_info->bb_fragments.
- *    Note that we don't bother with a special list for completely empty groups
- *    so we only have MB_NUM_ORDERS(sb) lists.
+ *    Note that we don't bother with a special xarray for completely empty
+ *    groups so we only have MB_NUM_ORDERS(sb) xarrays. Group-infos are placed
+ *    in appropriate xarrays.
+ *
+ * In xarray, the index is the block group number, the value is the block group
+ * information, and a non-empty value indicates the block group is present in
+ * the current xarray.
  *
  * When "mb_optimize_scan" mount option is set, mballoc consults the above data
  * structures to decide the order in which groups are to be traversed for
@@ -852,19 +857,73 @@ mb_update_avg_fragment_size(struct super_block *sb, struct ext4_group_info *grp)
 	if (new == old)
 		return;
 
-	if (old >= 0) {
-		write_lock(&sbi->s_mb_avg_fragment_size_locks[old]);
-		list_del(&grp->bb_avg_fragment_size_node);
-		write_unlock(&sbi->s_mb_avg_fragment_size_locks[old]);
-	}
+	if (old >= 0)
+		xa_erase(&sbi->s_mb_avg_fragment_size[old], grp->bb_group);
 
 	grp->bb_avg_fragment_size_order = new;
 	if (new >= 0) {
-		write_lock(&sbi->s_mb_avg_fragment_size_locks[new]);
-		list_add_tail(&grp->bb_avg_fragment_size_node,
-				&sbi->s_mb_avg_fragment_size[new]);
-		write_unlock(&sbi->s_mb_avg_fragment_size_locks[new]);
+		/*
+		 * Cannot use __GFP_NOFAIL because we hold the group lock.
+		 * Although allocation for insertion may fails, it's not fatal
+		 * as we have linear traversal to fall back on.
+		 */
+		int err = xa_insert(&sbi->s_mb_avg_fragment_size[new],
+				    grp->bb_group, grp, GFP_ATOMIC);
+		if (err)
+			mb_debug(sb, "insert group: %u to s_mb_avg_fragment_size[%d] failed, err %d",
+				 grp->bb_group, new, err);
 	}
+}
+
+static struct ext4_group_info *
+ext4_mb_find_good_group_xarray(struct ext4_allocation_context *ac,
+			       struct xarray *xa, ext4_group_t start)
+{
+	struct super_block *sb = ac->ac_sb;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	enum criteria cr = ac->ac_criteria;
+	ext4_group_t ngroups = ext4_get_groups_count(sb);
+	unsigned long group = start;
+	ext4_group_t end = ngroups;
+	struct ext4_group_info *grp;
+
+	if (WARN_ON_ONCE(start >= end))
+		return NULL;
+
+wrap_around:
+	xa_for_each_range(xa, group, grp, start, end - 1) {
+		if (sbi->s_mb_stats)
+			atomic64_inc(&sbi->s_bal_cX_groups_considered[cr]);
+
+		if (!spin_is_locked(ext4_group_lock_ptr(sb, group)) &&
+		    likely(ext4_mb_good_group(ac, group, cr)))
+			return grp;
+
+		cond_resched();
+	}
+
+	if (start) {
+		end = start;
+		start = 0;
+		goto wrap_around;
+	}
+
+	return NULL;
+}
+
+/*
+ * Find a suitable group of given order from the largest free orders xarray.
+ */
+static struct ext4_group_info *
+ext4_mb_find_good_group_largest_free_order(struct ext4_allocation_context *ac,
+					   int order, ext4_group_t start)
+{
+	struct xarray *xa = &EXT4_SB(ac->ac_sb)->s_mb_largest_free_orders[order];
+
+	if (xa_empty(xa))
+		return NULL;
+
+	return ext4_mb_find_good_group_xarray(ac, xa, start);
 }
 
 /*
@@ -875,7 +934,7 @@ static void ext4_mb_choose_next_group_p2_aligned(struct ext4_allocation_context 
 			enum criteria *new_cr, ext4_group_t *group)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
-	struct ext4_group_info *iter;
+	struct ext4_group_info *grp;
 	int i;
 
 	if (ac->ac_status == AC_STATUS_FOUND)
@@ -885,26 +944,12 @@ static void ext4_mb_choose_next_group_p2_aligned(struct ext4_allocation_context 
 		atomic_inc(&sbi->s_bal_p2_aligned_bad_suggestions);
 
 	for (i = ac->ac_2order; i < MB_NUM_ORDERS(ac->ac_sb); i++) {
-		if (list_empty(&sbi->s_mb_largest_free_orders[i]))
-			continue;
-		read_lock(&sbi->s_mb_largest_free_orders_locks[i]);
-		if (list_empty(&sbi->s_mb_largest_free_orders[i])) {
-			read_unlock(&sbi->s_mb_largest_free_orders_locks[i]);
-			continue;
+		grp = ext4_mb_find_good_group_largest_free_order(ac, i, *group);
+		if (grp) {
+			*group = grp->bb_group;
+			ac->ac_flags |= EXT4_MB_CR_POWER2_ALIGNED_OPTIMIZED;
+			return;
 		}
-		list_for_each_entry(iter, &sbi->s_mb_largest_free_orders[i],
-				    bb_largest_free_order_node) {
-			if (sbi->s_mb_stats)
-				atomic64_inc(&sbi->s_bal_cX_groups_considered[CR_POWER2_ALIGNED]);
-			if (!spin_is_locked(ext4_group_lock_ptr(ac->ac_sb, iter->bb_group)) &&
-			    likely(ext4_mb_good_group(ac, iter->bb_group, CR_POWER2_ALIGNED))) {
-				*group = iter->bb_group;
-				ac->ac_flags |= EXT4_MB_CR_POWER2_ALIGNED_OPTIMIZED;
-				read_unlock(&sbi->s_mb_largest_free_orders_locks[i]);
-				return;
-			}
-		}
-		read_unlock(&sbi->s_mb_largest_free_orders_locks[i]);
 	}
 
 	/* Increment cr and search again if no group is found */
@@ -912,35 +957,18 @@ static void ext4_mb_choose_next_group_p2_aligned(struct ext4_allocation_context 
 }
 
 /*
- * Find a suitable group of given order from the average fragments list.
+ * Find a suitable group of given order from the average fragments xarray.
  */
 static struct ext4_group_info *
-ext4_mb_find_good_group_avg_frag_lists(struct ext4_allocation_context *ac, int order)
+ext4_mb_find_good_group_avg_frag_xarray(struct ext4_allocation_context *ac,
+					int order, ext4_group_t start)
 {
-	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
-	struct list_head *frag_list = &sbi->s_mb_avg_fragment_size[order];
-	rwlock_t *frag_list_lock = &sbi->s_mb_avg_fragment_size_locks[order];
-	struct ext4_group_info *grp = NULL, *iter;
-	enum criteria cr = ac->ac_criteria;
+	struct xarray *xa = &EXT4_SB(ac->ac_sb)->s_mb_avg_fragment_size[order];
 
-	if (list_empty(frag_list))
+	if (xa_empty(xa))
 		return NULL;
-	read_lock(frag_list_lock);
-	if (list_empty(frag_list)) {
-		read_unlock(frag_list_lock);
-		return NULL;
-	}
-	list_for_each_entry(iter, frag_list, bb_avg_fragment_size_node) {
-		if (sbi->s_mb_stats)
-			atomic64_inc(&sbi->s_bal_cX_groups_considered[cr]);
-		if (!spin_is_locked(ext4_group_lock_ptr(ac->ac_sb, iter->bb_group)) &&
-		    likely(ext4_mb_good_group(ac, iter->bb_group, cr))) {
-			grp = iter;
-			break;
-		}
-	}
-	read_unlock(frag_list_lock);
-	return grp;
+
+	return ext4_mb_find_good_group_xarray(ac, xa, start);
 }
 
 /*
@@ -961,7 +989,7 @@ static void ext4_mb_choose_next_group_goal_fast(struct ext4_allocation_context *
 
 	for (i = mb_avg_fragment_size_order(ac->ac_sb, ac->ac_g_ex.fe_len);
 	     i < MB_NUM_ORDERS(ac->ac_sb); i++) {
-		grp = ext4_mb_find_good_group_avg_frag_lists(ac, i);
+		grp = ext4_mb_find_good_group_avg_frag_xarray(ac, i, *group);
 		if (grp) {
 			*group = grp->bb_group;
 			ac->ac_flags |= EXT4_MB_CR_GOAL_LEN_FAST_OPTIMIZED;
@@ -1057,7 +1085,8 @@ static void ext4_mb_choose_next_group_best_avail(struct ext4_allocation_context 
 		frag_order = mb_avg_fragment_size_order(ac->ac_sb,
 							ac->ac_g_ex.fe_len);
 
-		grp = ext4_mb_find_good_group_avg_frag_lists(ac, frag_order);
+		grp = ext4_mb_find_good_group_avg_frag_xarray(ac, frag_order,
+							      *group);
 		if (grp) {
 			*group = grp->bb_group;
 			ac->ac_flags |= EXT4_MB_CR_BEST_AVAIL_LEN_OPTIMIZED;
@@ -1162,18 +1191,25 @@ mb_set_largest_free_order(struct super_block *sb, struct ext4_group_info *grp)
 	if (new == old)
 		return;
 
-	if (old >= 0 && !list_empty(&grp->bb_largest_free_order_node)) {
-		write_lock(&sbi->s_mb_largest_free_orders_locks[old]);
-		list_del_init(&grp->bb_largest_free_order_node);
-		write_unlock(&sbi->s_mb_largest_free_orders_locks[old]);
+	if (old >= 0) {
+		struct xarray *xa = &sbi->s_mb_largest_free_orders[old];
+
+		if (!xa_empty(xa) && xa_load(xa, grp->bb_group))
+			xa_erase(xa, grp->bb_group);
 	}
 
 	grp->bb_largest_free_order = new;
 	if (test_opt2(sb, MB_OPTIMIZE_SCAN) && new >= 0 && grp->bb_free) {
-		write_lock(&sbi->s_mb_largest_free_orders_locks[new]);
-		list_add_tail(&grp->bb_largest_free_order_node,
-			      &sbi->s_mb_largest_free_orders[new]);
-		write_unlock(&sbi->s_mb_largest_free_orders_locks[new]);
+		/*
+		 * Cannot use __GFP_NOFAIL because we hold the group lock.
+		 * Although allocation for insertion may fails, it's not fatal
+		 * as we have linear traversal to fall back on.
+		 */
+		int err = xa_insert(&sbi->s_mb_largest_free_orders[new],
+				    grp->bb_group, grp, GFP_ATOMIC);
+		if (err)
+			mb_debug(sb, "insert group: %u to s_mb_largest_free_orders[%d] failed, err %d",
+				 grp->bb_group, new, err);
 	}
 }
 
@@ -3269,6 +3305,7 @@ static int ext4_mb_seq_structs_summary_show(struct seq_file *seq, void *v)
 	unsigned long position = ((unsigned long) v);
 	struct ext4_group_info *grp;
 	unsigned int count;
+	unsigned long idx;
 
 	position--;
 	if (position >= MB_NUM_ORDERS(sb)) {
@@ -3277,11 +3314,8 @@ static int ext4_mb_seq_structs_summary_show(struct seq_file *seq, void *v)
 			seq_puts(seq, "avg_fragment_size_lists:\n");
 
 		count = 0;
-		read_lock(&sbi->s_mb_avg_fragment_size_locks[position]);
-		list_for_each_entry(grp, &sbi->s_mb_avg_fragment_size[position],
-				    bb_avg_fragment_size_node)
+		xa_for_each(&sbi->s_mb_avg_fragment_size[position], idx, grp)
 			count++;
-		read_unlock(&sbi->s_mb_avg_fragment_size_locks[position]);
 		seq_printf(seq, "\tlist_order_%u_groups: %u\n",
 					(unsigned int)position, count);
 		return 0;
@@ -3293,11 +3327,8 @@ static int ext4_mb_seq_structs_summary_show(struct seq_file *seq, void *v)
 		seq_puts(seq, "max_free_order_lists:\n");
 	}
 	count = 0;
-	read_lock(&sbi->s_mb_largest_free_orders_locks[position]);
-	list_for_each_entry(grp, &sbi->s_mb_largest_free_orders[position],
-			    bb_largest_free_order_node)
+	xa_for_each(&sbi->s_mb_largest_free_orders[position], idx, grp)
 		count++;
-	read_unlock(&sbi->s_mb_largest_free_orders_locks[position]);
 	seq_printf(seq, "\tlist_order_%u_groups: %u\n",
 		   (unsigned int)position, count);
 
@@ -3417,8 +3448,6 @@ int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 	INIT_LIST_HEAD(&meta_group_info[i]->bb_prealloc_list);
 	init_rwsem(&meta_group_info[i]->alloc_sem);
 	meta_group_info[i]->bb_free_root = RB_ROOT;
-	INIT_LIST_HEAD(&meta_group_info[i]->bb_largest_free_order_node);
-	INIT_LIST_HEAD(&meta_group_info[i]->bb_avg_fragment_size_node);
 	meta_group_info[i]->bb_largest_free_order = -1;  /* uninit */
 	meta_group_info[i]->bb_avg_fragment_size_order = -1;  /* uninit */
 	meta_group_info[i]->bb_group = group;
@@ -3628,6 +3657,20 @@ static void ext4_discard_work(struct work_struct *work)
 		ext4_mb_unload_buddy(&e4b);
 }
 
+static inline void ext4_mb_avg_fragment_size_destroy(struct ext4_sb_info *sbi)
+{
+	for (int i = 0; i < MB_NUM_ORDERS(sbi->s_sb); i++)
+		xa_destroy(&sbi->s_mb_avg_fragment_size[i]);
+	kfree(sbi->s_mb_avg_fragment_size);
+}
+
+static inline void ext4_mb_largest_free_orders_destroy(struct ext4_sb_info *sbi)
+{
+	for (int i = 0; i < MB_NUM_ORDERS(sbi->s_sb); i++)
+		xa_destroy(&sbi->s_mb_largest_free_orders[i]);
+	kfree(sbi->s_mb_largest_free_orders);
+}
+
 int ext4_mb_init(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -3673,41 +3716,24 @@ int ext4_mb_init(struct super_block *sb)
 	} while (i < MB_NUM_ORDERS(sb));
 
 	sbi->s_mb_avg_fragment_size =
-		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(struct list_head),
+		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(struct xarray),
 			GFP_KERNEL);
 	if (!sbi->s_mb_avg_fragment_size) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	sbi->s_mb_avg_fragment_size_locks =
-		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(rwlock_t),
-			GFP_KERNEL);
-	if (!sbi->s_mb_avg_fragment_size_locks) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	for (i = 0; i < MB_NUM_ORDERS(sb); i++) {
-		INIT_LIST_HEAD(&sbi->s_mb_avg_fragment_size[i]);
-		rwlock_init(&sbi->s_mb_avg_fragment_size_locks[i]);
-	}
+	for (i = 0; i < MB_NUM_ORDERS(sb); i++)
+		xa_init(&sbi->s_mb_avg_fragment_size[i]);
+
 	sbi->s_mb_largest_free_orders =
-		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(struct list_head),
+		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(struct xarray),
 			GFP_KERNEL);
 	if (!sbi->s_mb_largest_free_orders) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	sbi->s_mb_largest_free_orders_locks =
-		kmalloc_array(MB_NUM_ORDERS(sb), sizeof(rwlock_t),
-			GFP_KERNEL);
-	if (!sbi->s_mb_largest_free_orders_locks) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	for (i = 0; i < MB_NUM_ORDERS(sb); i++) {
-		INIT_LIST_HEAD(&sbi->s_mb_largest_free_orders[i]);
-		rwlock_init(&sbi->s_mb_largest_free_orders_locks[i]);
-	}
+	for (i = 0; i < MB_NUM_ORDERS(sb); i++)
+		xa_init(&sbi->s_mb_largest_free_orders[i]);
 
 	spin_lock_init(&sbi->s_md_lock);
 	atomic_set(&sbi->s_mb_free_pending, 0);
@@ -3792,10 +3818,8 @@ out_free_last_groups:
 	kfree(sbi->s_mb_last_groups);
 	sbi->s_mb_last_groups = NULL;
 out:
-	kfree(sbi->s_mb_avg_fragment_size);
-	kfree(sbi->s_mb_avg_fragment_size_locks);
-	kfree(sbi->s_mb_largest_free_orders);
-	kfree(sbi->s_mb_largest_free_orders_locks);
+	ext4_mb_avg_fragment_size_destroy(sbi);
+	ext4_mb_largest_free_orders_destroy(sbi);
 	kfree(sbi->s_mb_offsets);
 	sbi->s_mb_offsets = NULL;
 	kfree(sbi->s_mb_maxs);
@@ -3862,10 +3886,8 @@ void ext4_mb_release(struct super_block *sb)
 		kvfree(group_info);
 		rcu_read_unlock();
 	}
-	kfree(sbi->s_mb_avg_fragment_size);
-	kfree(sbi->s_mb_avg_fragment_size_locks);
-	kfree(sbi->s_mb_largest_free_orders);
-	kfree(sbi->s_mb_largest_free_orders_locks);
+	ext4_mb_avg_fragment_size_destroy(sbi);
+	ext4_mb_largest_free_orders_destroy(sbi);
 	kfree(sbi->s_mb_offsets);
 	kfree(sbi->s_mb_maxs);
 	iput(sbi->s_buddy_cache);

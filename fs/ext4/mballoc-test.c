@@ -805,8 +805,6 @@ static void test_mb_mark_used(struct kunit *test)
 	grp->bb_free = EXT4_CLUSTERS_PER_GROUP(sb);
 	grp->bb_largest_free_order = -1;
 	grp->bb_avg_fragment_size_order = -1;
-	INIT_LIST_HEAD(&grp->bb_largest_free_order_node);
-	INIT_LIST_HEAD(&grp->bb_avg_fragment_size_node);
 	mbt_generate_test_ranges(sb, ranges, TEST_RANGE_COUNT);
 	for (i = 0; i < TEST_RANGE_COUNT; i++)
 		test_mb_mark_used_range(test, &e4b, ranges[i].start,
@@ -882,8 +880,6 @@ static void test_mb_free_blocks(struct kunit *test)
 	grp->bb_free = 0;
 	grp->bb_largest_free_order = -1;
 	grp->bb_avg_fragment_size_order = -1;
-	INIT_LIST_HEAD(&grp->bb_largest_free_order_node);
-	INIT_LIST_HEAD(&grp->bb_avg_fragment_size_node);
 	memset(bitmap, 0xff, sb->s_blocksize);
 
 	mbt_generate_test_ranges(sb, ranges, TEST_RANGE_COUNT);
