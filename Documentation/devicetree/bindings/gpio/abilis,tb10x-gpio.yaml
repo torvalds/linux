@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/abilis,tb10x-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Abilis TB10x GPIO controller
+
+maintainers:
+  - Christian Ruppert <christian.ruppert@abilis.com>
+
+properties:
+  compatible:
+    const: abilis,tb10x-gpio
+
+  reg:
+    maxItems: 1
+
+  gpio-controller: true
+
+  '#gpio-cells':
+    const: 2
+
+  gpio-ranges: true
+
+  gpio-ranges-group-names: true
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+    description: Interrupts are triggered on both edges
+
+  interrupts:
+    maxItems: 1
+
+  abilis,ngpio:
+    description: Number of GPIO pins this driver controls
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - gpio-controller
+  - '#gpio-cells'
+  - abilis,ngpio
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio@ff140000 {
+        compatible = "abilis,tb10x-gpio";
+        interrupt-controller;
+        #interrupt-cells = <1>;
+        interrupts = <27 2>;
+        reg = <0xff140000 0x1000>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        abilis,ngpio = <3>;
+        gpio-ranges = <&iomux 0 0 0>;
+        gpio-ranges-group-names = "gpioa_pins";
+    };
