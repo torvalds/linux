@@ -55,6 +55,7 @@ config INTEL_PMT_DISCOVERY
 config INTEL_PMT_KUNIT_TEST
 	tristate "KUnit tests for Intel PMT driver"
 	depends on INTEL_PMT_DISCOVERY
+	depends on INTEL_PMT_TELEMETRY || !INTEL_PMT_TELEMETRY
 	depends on KUNIT
 	help
 	  Enable this option to compile and run a suite of KUnit tests for the Intel
