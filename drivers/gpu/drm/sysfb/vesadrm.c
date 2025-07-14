@@ -223,15 +223,22 @@ static void vesadrm_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	 * plane's color format.
 	 */
 	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
-		if (sysfb_crtc_state->format == sysfb->fb_format) {
-			if (crtc_state->gamma_lut)
-				vesadrm_load_gamma_lut(vesa,
-						       sysfb_crtc_state->format,
-						       crtc_state->gamma_lut->data);
-			else
+		switch (sysfb->fb_format->format) {
+		/*
+		 * Component formats
+		 */
+		default:
+			if (sysfb_crtc_state->format == sysfb->fb_format) {
+				if (crtc_state->gamma_lut)
+					vesadrm_load_gamma_lut(vesa,
+							       sysfb_crtc_state->format,
+							       crtc_state->gamma_lut->data);
+				else
+					vesadrm_fill_gamma_lut(vesa, sysfb_crtc_state->format);
+			} else {
 				vesadrm_fill_gamma_lut(vesa, sysfb_crtc_state->format);
-		} else {
-			vesadrm_fill_gamma_lut(vesa, sysfb_crtc_state->format);
+			}
+			break;
 		}
 	}
 }
