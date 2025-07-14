@@ -9761,6 +9761,7 @@ static bool cfg80211_off_channel_oper_allowed(struct wireless_dev *wdev,
 {
 	unsigned int link_id;
 	bool all_ok = true;
+	int radio_idx;
 
 	lockdep_assert_wiphy(wdev->wiphy);
 
@@ -9770,8 +9771,10 @@ static bool cfg80211_off_channel_oper_allowed(struct wireless_dev *wdev,
 	if (!cfg80211_beaconing_iface_active(wdev))
 		return true;
 
+	radio_idx = cfg80211_get_radio_idx_by_chan(wdev->wiphy, chan);
+
 	/*
-	 * FIXME: check if we have a free HW resource/link for chan
+	 * FIXME: check if we have a free radio/link for chan
 	 *
 	 * This, as well as the FIXME below, requires knowing the link
 	 * capabilities of the hardware.
@@ -9780,20 +9783,28 @@ static bool cfg80211_off_channel_oper_allowed(struct wireless_dev *wdev,
 	/* we cannot leave radar channels */
 	for_each_valid_link(wdev, link_id) {
 		struct cfg80211_chan_def *chandef;
+		int link_radio_idx;
 
 		chandef = wdev_chandef(wdev, link_id);
 		if (!chandef || !chandef->chan)
 			continue;
 
+		if (!(chandef->chan->flags & IEEE80211_CHAN_RADAR))
+			continue;
+
 		/*
-		 * FIXME: don't require all_ok, but rather check only the
-		 *	  correct HW resource/link onto which 'chan' falls,
-		 *	  as only that link leaves the channel for doing
-		 *	  the off-channel operation.
+		 * chandef->chan is a radar channel. If the radio/link onto
+		 * which this radar channel falls is the same radio/link onto
+		 * which the input 'chan' falls, off-channel operation should
+		 * not be allowed. Hence, set 'all_ok' to false.
 		 */
 
-		if (chandef->chan->flags & IEEE80211_CHAN_RADAR)
+		link_radio_idx = cfg80211_get_radio_idx_by_chan(wdev->wiphy,
+								chandef->chan);
+		if (link_radio_idx == radio_idx) {
 			all_ok = false;
+			break;
+		}
 	}
 
 	if (all_ok)
