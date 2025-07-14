@@ -649,11 +649,11 @@ static int ll_setup(struct hci_uart *hu)
 		/* This means that there was an error getting the BD address
 		 * during probe, so mark the device as having a bad address.
 		 */
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+		hci_set_quirk(hu->hdev, HCI_QUIRK_INVALID_BDADDR);
 	} else if (bacmp(&lldev->bdaddr, BDADDR_ANY)) {
 		err = ll_set_bdaddr(hu->hdev, &lldev->bdaddr);
 		if (err)
-			set_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks);
+			hci_set_quirk(hu->hdev, HCI_QUIRK_INVALID_BDADDR);
 	}
 
 	/* Operational speed if any */

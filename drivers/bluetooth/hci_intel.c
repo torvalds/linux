@@ -660,7 +660,7 @@ static int intel_setup(struct hci_uart *hu)
 	 */
 	if (!bacmp(&params.otp_bdaddr, BDADDR_ANY)) {
 		bt_dev_info(hdev, "No device address configured");
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_INVALID_BDADDR);
 	}
 
 	/* With this Intel bootloader only the hardware variant and device
