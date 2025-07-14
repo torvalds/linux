@@ -202,16 +202,69 @@ Groups:
     KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS accesses the CPU interface registers for the
     CPU specified by the mpidr field.
 
-    CPU interface registers access is not implemented for AArch32 mode.
-    Error -ENXIO is returned when accessed in AArch32 mode.
+    The available registers are:
+
+    ===============  ====================================================
+    ICC_PMR_EL1
+    ICC_BPR0_EL1
+    ICC_AP0R0_EL1
+    ICC_AP0R1_EL1    when the host implements at least 6 bits of priority
+    ICC_AP0R2_EL1    when the host implements 7 bits of priority
+    ICC_AP0R3_EL1    when the host implements 7 bits of priority
+    ICC_AP1R0_EL1
+    ICC_AP1R1_EL1    when the host implements at least 6 bits of priority
+    ICC_AP1R2_EL1    when the host implements 7 bits of priority
+    ICC_AP1R3_EL1    when the host implements 7 bits of priority
+    ICC_BPR1_EL1
+    ICC_CTLR_EL1
+    ICC_SRE_EL1
+    ICC_IGRPEN0_EL1
+    ICC_IGRPEN1_EL1
+    ===============  ====================================================
+
+    When EL2 is available for the guest, these registers are also available:
+
+    =============  ====================================================
+    ICH_AP0R0_EL2
+    ICH_AP0R1_EL2  when the host implements at least 6 bits of priority
+    ICH_AP0R2_EL2  when the host implements 7 bits of priority
+    ICH_AP0R3_EL2  when the host implements 7 bits of priority
+    ICH_AP1R0_EL2
+    ICH_AP1R1_EL2  when the host implements at least 6 bits of priority
+    ICH_AP1R2_EL2  when the host implements 7 bits of priority
+    ICH_AP1R3_EL2  when the host implements 7 bits of priority
+    ICH_HCR_EL2
+    ICC_SRE_EL2
+    ICH_VTR_EL2
+    ICH_VMCR_EL2
+    ICH_LR0_EL2
+    ICH_LR1_EL2
+    ICH_LR2_EL2
+    ICH_LR3_EL2
+    ICH_LR4_EL2
+    ICH_LR5_EL2
+    ICH_LR6_EL2
+    ICH_LR7_EL2
+    ICH_LR8_EL2
+    ICH_LR9_EL2
+    ICH_LR10_EL2
+    ICH_LR11_EL2
+    ICH_LR12_EL2
+    ICH_LR13_EL2
+    ICH_LR14_EL2
+    ICH_LR15_EL2
+    =============  ====================================================
+
+    CPU interface registers are only described using the AArch64
+    encoding.
 
   Errors:
 
-    =======  =====================================================
-    -ENXIO   Getting or setting this register is not yet supported
+    =======  =================================================
+    -ENXIO   Getting or setting this register is not supported
     -EBUSY   VCPU is running
     -EINVAL  Invalid mpidr or register value supplied
-    =======  =====================================================
+    =======  =================================================
 
 
   KVM_DEV_ARM_VGIC_GRP_NR_IRQS
