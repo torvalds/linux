@@ -21,6 +21,265 @@ MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 #define BINDER_MMAP_SIZE SZ_128K
 
+#define BUFFER_NUM 5
+#define BUFFER_MIN_SIZE (PAGE_SIZE / 8)
+
+static int binder_alloc_test_failures;
+
+/**
+ * enum buf_end_align_type - Page alignment of a buffer
+ * end with regard to the end of the previous buffer.
+ *
+ * In the pictures below, buf2 refers to the buffer we
+ * are aligning. buf1 refers to previous buffer by addr.
+ * Symbol [ means the start of a buffer, ] means the end
+ * of a buffer, and | means page boundaries.
+ */
+enum buf_end_align_type {
+	/**
+	 * @SAME_PAGE_UNALIGNED: The end of this buffer is on
+	 * the same page as the end of the previous buffer and
+	 * is not page aligned. Examples:
+	 * buf1 ][ buf2 ][ ...
+	 * buf1 ]|[ buf2 ][ ...
+	 */
+	SAME_PAGE_UNALIGNED = 0,
+	/**
+	 * @SAME_PAGE_ALIGNED: When the end of the previous buffer
+	 * is not page aligned, the end of this buffer is on the
+	 * same page as the end of the previous buffer and is page
+	 * aligned. When the previous buffer is page aligned, the
+	 * end of this buffer is aligned to the next page boundary.
+	 * Examples:
+	 * buf1 ][ buf2 ]| ...
+	 * buf1 ]|[ buf2 ]| ...
+	 */
+	SAME_PAGE_ALIGNED,
+	/**
+	 * @NEXT_PAGE_UNALIGNED: The end of this buffer is on
+	 * the page next to the end of the previous buffer and
+	 * is not page aligned. Examples:
+	 * buf1 ][ buf2 | buf2 ][ ...
+	 * buf1 ]|[ buf2 | buf2 ][ ...
+	 */
+	NEXT_PAGE_UNALIGNED,
+	/**
+	 * @NEXT_PAGE_ALIGNED: The end of this buffer is on
+	 * the page next to the end of the previous buffer and
+	 * is page aligned. Examples:
+	 * buf1 ][ buf2 | buf2 ]| ...
+	 * buf1 ]|[ buf2 | buf2 ]| ...
+	 */
+	NEXT_PAGE_ALIGNED,
+	/**
+	 * @NEXT_NEXT_UNALIGNED: The end of this buffer is on
+	 * the page that follows the page after the end of the
+	 * previous buffer and is not page aligned. Examples:
+	 * buf1 ][ buf2 | buf2 | buf2 ][ ...
+	 * buf1 ]|[ buf2 | buf2 | buf2 ][ ...
+	 */
+	NEXT_NEXT_UNALIGNED,
+	/**
+	 * @LOOP_END: The number of enum values in &buf_end_align_type.
+	 * It is used for controlling loop termination.
+	 */
+	LOOP_END,
+};
+
+static void pr_err_size_seq(struct kunit *test, size_t *sizes, int *seq)
+{
+	int i;
+
+	kunit_err(test, "alloc sizes: ");
+	for (i = 0; i < BUFFER_NUM; i++)
+		pr_cont("[%zu]", sizes[i]);
+	pr_cont("\n");
+	kunit_err(test, "free seq: ");
+	for (i = 0; i < BUFFER_NUM; i++)
+		pr_cont("[%d]", seq[i]);
+	pr_cont("\n");
+}
+
+static bool check_buffer_pages_allocated(struct kunit *test,
+					 struct binder_alloc *alloc,
+					 struct binder_buffer *buffer,
+					 size_t size)
+{
+	unsigned long page_addr;
+	unsigned long end;
+	int page_index;
+
+	end = PAGE_ALIGN(buffer->user_data + size);
+	page_addr = buffer->user_data;
+	for (; page_addr < end; page_addr += PAGE_SIZE) {
+		page_index = (page_addr - alloc->vm_start) / PAGE_SIZE;
+		if (!alloc->pages[page_index] ||
+		    !list_empty(page_to_lru(alloc->pages[page_index]))) {
+			kunit_err(test, "expect alloc but is %s at page index %d\n",
+				  alloc->pages[page_index] ?
+				  "lru" : "free", page_index);
+			return false;
+		}
+	}
+	return true;
+}
+
+static void binder_alloc_test_alloc_buf(struct kunit *test,
+					struct binder_alloc *alloc,
+					struct binder_buffer *buffers[],
+					size_t *sizes, int *seq)
+{
+	int i;
+
+	for (i = 0; i < BUFFER_NUM; i++) {
+		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0);
+		if (IS_ERR(buffers[i]) ||
+		    !check_buffer_pages_allocated(test, alloc, buffers[i], sizes[i])) {
+			pr_err_size_seq(test, sizes, seq);
+			binder_alloc_test_failures++;
+		}
+	}
+}
+
+static void binder_alloc_test_free_buf(struct kunit *test,
+				       struct binder_alloc *alloc,
+				       struct binder_buffer *buffers[],
+				       size_t *sizes, int *seq, size_t end)
+{
+	int i;
+
+	for (i = 0; i < BUFFER_NUM; i++)
+		binder_alloc_free_buf(alloc, buffers[seq[i]]);
+
+	for (i = 0; i <= (end - 1) / PAGE_SIZE; i++) {
+		if (list_empty(page_to_lru(alloc->pages[i]))) {
+			pr_err_size_seq(test, sizes, seq);
+			kunit_err(test, "expect lru but is %s at page index %d\n",
+				  alloc->pages[i] ? "alloc" : "free", i);
+			binder_alloc_test_failures++;
+		}
+	}
+}
+
+static void binder_alloc_test_free_page(struct kunit *test,
+					struct binder_alloc *alloc)
+{
+	unsigned long count;
+	int i;
+
+	while ((count = list_lru_count(alloc->freelist))) {
+		list_lru_walk(alloc->freelist, binder_alloc_free_page,
+			      NULL, count);
+	}
+
+	for (i = 0; i < (alloc->buffer_size / PAGE_SIZE); i++) {
+		if (alloc->pages[i]) {
+			kunit_err(test, "expect free but is %s at page index %d\n",
+				  list_empty(page_to_lru(alloc->pages[i])) ?
+				  "alloc" : "lru", i);
+			binder_alloc_test_failures++;
+		}
+	}
+}
+
+static void binder_alloc_test_alloc_free(struct kunit *test,
+					 struct binder_alloc *alloc,
+					 size_t *sizes, int *seq, size_t end)
+{
+	struct binder_buffer *buffers[BUFFER_NUM];
+
+	binder_alloc_test_alloc_buf(test, alloc, buffers, sizes, seq);
+	binder_alloc_test_free_buf(test, alloc, buffers, sizes, seq, end);
+
+	/* Allocate from lru. */
+	binder_alloc_test_alloc_buf(test, alloc, buffers, sizes, seq);
+	if (list_lru_count(alloc->freelist))
+		kunit_err(test, "lru list should be empty but is not\n");
+
+	binder_alloc_test_free_buf(test, alloc, buffers, sizes, seq, end);
+	binder_alloc_test_free_page(test, alloc);
+}
+
+static bool is_dup(int *seq, int index, int val)
+{
+	int i;
+
+	for (i = 0; i < index; i++) {
+		if (seq[i] == val)
+			return true;
+	}
+	return false;
+}
+
+/* Generate BUFFER_NUM factorial free orders. */
+static void permute_frees(struct kunit *test, struct binder_alloc *alloc,
+			  size_t *sizes, int *seq, int index, size_t end)
+{
+	int i;
+
+	if (index == BUFFER_NUM) {
+		binder_alloc_test_alloc_free(test, alloc, sizes, seq, end);
+		return;
+	}
+	for (i = 0; i < BUFFER_NUM; i++) {
+		if (is_dup(seq, index, i))
+			continue;
+		seq[index] = i;
+		permute_frees(test, alloc, sizes, seq, index + 1, end);
+	}
+}
+
+static void gen_buf_sizes(struct kunit *test, struct binder_alloc *alloc,
+			  size_t *end_offset)
+{
+	size_t last_offset, offset = 0;
+	size_t front_sizes[BUFFER_NUM];
+	size_t back_sizes[BUFFER_NUM];
+	int seq[BUFFER_NUM] = {0};
+	int i;
+
+	for (i = 0; i < BUFFER_NUM; i++) {
+		last_offset = offset;
+		offset = end_offset[i];
+		front_sizes[i] = offset - last_offset;
+		back_sizes[BUFFER_NUM - i - 1] = front_sizes[i];
+	}
+	/*
+	 * Buffers share the first or last few pages.
+	 * Only BUFFER_NUM - 1 buffer sizes are adjustable since
+	 * we need one giant buffer before getting to the last page.
+	 */
+	back_sizes[0] += alloc->buffer_size - end_offset[BUFFER_NUM - 1];
+	permute_frees(test, alloc, front_sizes, seq, 0,
+		      end_offset[BUFFER_NUM - 1]);
+	permute_frees(test, alloc, back_sizes, seq, 0, alloc->buffer_size);
+}
+
+static void gen_buf_offsets(struct kunit *test, struct binder_alloc *alloc,
+			    size_t *end_offset, int index)
+{
+	size_t end, prev;
+	int align;
+
+	if (index == BUFFER_NUM) {
+		gen_buf_sizes(test, alloc, end_offset);
+		return;
+	}
+	prev = index == 0 ? 0 : end_offset[index - 1];
+	end = prev;
+
+	BUILD_BUG_ON(BUFFER_MIN_SIZE * BUFFER_NUM >= PAGE_SIZE);
+
+	for (align = SAME_PAGE_UNALIGNED; align < LOOP_END; align++) {
+		if (align % 2)
+			end = ALIGN(end, PAGE_SIZE);
+		else
+			end += BUFFER_MIN_SIZE;
+		end_offset[index] = end;
+		gen_buf_offsets(test, alloc, end_offset, index + 1);
+	}
+}
+
 struct binder_alloc_test {
 	struct binder_alloc alloc;
 	struct list_lru binder_test_freelist;
@@ -54,6 +313,25 @@ static void binder_alloc_test_mmap(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, binder_alloc_buffer_size(alloc, buf),
 			BINDER_MMAP_SIZE);
 	KUNIT_EXPECT_TRUE(test, list_is_last(&buf->entry, &alloc->buffers));
+}
+
+/**
+ * binder_alloc_exhaustive_test() - Exhaustively test alloc and free of buffer pages.
+ * @test: The test context object.
+ *
+ * Allocate BUFFER_NUM buffers to cover all page alignment cases,
+ * then free them in all orders possible. Check that pages are
+ * correctly allocated, put onto lru when buffers are freed, and
+ * are freed when binder_alloc_free_page() is called.
+ */
+static void binder_alloc_exhaustive_test(struct kunit *test)
+{
+	struct binder_alloc_test *priv = test->priv;
+	size_t end_offset[BUFFER_NUM];
+
+	gen_buf_offsets(test, &priv->alloc, end_offset, 0);
+
+	KUNIT_EXPECT_EQ(test, binder_alloc_test_failures, 0);
 }
 
 /* ===== End test cases ===== */
@@ -149,6 +427,7 @@ static void binder_alloc_test_exit(struct kunit *test)
 static struct kunit_case binder_alloc_test_cases[] = {
 	KUNIT_CASE(binder_alloc_test_init_freelist),
 	KUNIT_CASE(binder_alloc_test_mmap),
+	KUNIT_CASE(binder_alloc_exhaustive_test),
 	{}
 };
 

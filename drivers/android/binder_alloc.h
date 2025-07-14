@@ -121,11 +121,6 @@ struct binder_alloc {
 	bool oneway_spam_detected;
 };
 
-#ifdef CONFIG_ANDROID_BINDER_IPC_SELFTEST
-void binder_selftest_alloc(struct binder_alloc *alloc);
-#else
-static inline void binder_selftest_alloc(struct binder_alloc *alloc) {}
-#endif
 enum lru_status binder_alloc_free_page(struct list_head *item,
 				       struct list_lru_one *lru,
 				       void *cb_arg);
