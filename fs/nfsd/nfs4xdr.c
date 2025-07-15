@@ -1802,7 +1802,7 @@ nfsd4_decode_layoutcommit(struct nfsd4_compoundargs *argp,
 	status = nfsd4_decode_stateid4(argp, &lcp->lc_sid);
 	if (status)
 		return status;
-	if (xdr_stream_decode_u32(argp->xdr, &lcp->lc_newoffset) < 0)
+	if (xdr_stream_decode_bool(argp->xdr, &lcp->lc_newoffset) < 0)
 		return nfserr_bad_xdr;
 	if (lcp->lc_newoffset) {
 		if (xdr_stream_decode_u64(argp->xdr, &lcp->lc_last_wr) < 0)
