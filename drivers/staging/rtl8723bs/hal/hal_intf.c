@@ -73,8 +73,6 @@ uint rtw_hal_init(struct adapter *padapter)
 		if (padapter->registrypriv.notch_filter == 1)
 			rtw_hal_notch_filter(padapter, 1);
 
-		rtw_hal_reset_security_engine(padapter);
-
 		rtw_sec_restore_wep_key(dvobj->padapters);
 
 		init_hw_mlme_ext(padapter);
@@ -291,12 +289,6 @@ s32 rtw_hal_xmit_thread_handler(struct adapter *padapter)
 void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
 {
 	hal_notch_filter_8723b(adapter, enable);
-}
-
-void rtw_hal_reset_security_engine(struct adapter *adapter)
-{
-	if (adapter->HalFunc.hal_reset_security_engine)
-		adapter->HalFunc.hal_reset_security_engine(adapter);
 }
 
 bool rtw_hal_c2h_valid(struct adapter *adapter, u8 *buf)
