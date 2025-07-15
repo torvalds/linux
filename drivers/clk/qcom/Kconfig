@@ -1089,6 +1089,16 @@ config SM_DISPCC_6375
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SM_DISPCC_MILOS
+	tristate "Milos Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	depends on SM_GCC_MILOS
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Milos devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config SM_DISPCC_8450
 	tristate "SM8450 Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
