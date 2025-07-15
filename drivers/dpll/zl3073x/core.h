@@ -30,10 +30,12 @@ struct zl3073x_dpll;
  * struct zl3073x_ref - input reference invariant info
  * @enabled: input reference is enabled or disabled
  * @diff: true if input reference is differential
+ * @ffo: current fractional frequency offset
  */
 struct zl3073x_ref {
 	bool	enabled;
 	bool	diff;
+	s64	ffo;
 };
 
 /**
@@ -168,6 +170,19 @@ zl3073x_output_pin_out_get(u8 id)
 {
 	/* Output pin pair shares the single output */
 	return id / 2;
+}
+
+/**
+ * zl3073x_ref_ffo_get - get current fractional frequency offset
+ * @zldev: pointer to zl3073x device
+ * @index: input reference index
+ *
+ * Return: the latest measured fractional frequency offset
+ */
+static inline s64
+zl3073x_ref_ffo_get(struct zl3073x_dev *zldev, u8 index)
+{
+	return zldev->ref[index].ffo;
 }
 
 /**

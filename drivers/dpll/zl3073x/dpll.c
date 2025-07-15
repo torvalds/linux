@@ -37,6 +37,7 @@
  * @esync_control: embedded sync is controllable
  * @pin_state: last saved pin state
  * @phase_offset: last saved pin phase offset
+ * @freq_offset: last saved fractional frequency offset
  */
 struct zl3073x_dpll_pin {
 	struct list_head	list;
@@ -50,6 +51,7 @@ struct zl3073x_dpll_pin {
 	bool			esync_control;
 	enum dpll_pin_state	pin_state;
 	s64			phase_offset;
+	s64			freq_offset;
 };
 
 /*
@@ -268,6 +270,18 @@ zl3073x_dpll_input_pin_esync_set(const struct dpll_pin *dpll_pin,
 	/* Commit reference configuration */
 	return zl3073x_mb_op(zldev, ZL_REG_REF_MB_SEM, ZL_REF_MB_SEM_WR,
 			     ZL_REG_REF_MB_MASK, BIT(ref));
+}
+
+static int
+zl3073x_dpll_input_pin_ffo_get(const struct dpll_pin *dpll_pin, void *pin_priv,
+			       const struct dpll_device *dpll, void *dpll_priv,
+			       s64 *ffo, struct netlink_ext_ack *extack)
+{
+	struct zl3073x_dpll_pin *pin = pin_priv;
+
+	*ffo = pin->freq_offset;
+
+	return 0;
 }
 
 static int
@@ -1595,6 +1609,7 @@ static const struct dpll_pin_ops zl3073x_dpll_input_pin_ops = {
 	.direction_get = zl3073x_dpll_pin_direction_get,
 	.esync_get = zl3073x_dpll_input_pin_esync_get,
 	.esync_set = zl3073x_dpll_input_pin_esync_set,
+	.ffo_get = zl3073x_dpll_input_pin_ffo_get,
 	.frequency_get = zl3073x_dpll_input_pin_frequency_get,
 	.frequency_set = zl3073x_dpll_input_pin_frequency_set,
 	.phase_offset_get = zl3073x_dpll_input_pin_phase_offset_get,
@@ -2051,6 +2066,52 @@ zl3073x_dpll_pin_phase_offset_check(struct zl3073x_dpll_pin *pin)
 }
 
 /**
+ * zl3073x_dpll_pin_ffo_check - check for pin fractional frequency offset change
+ * @pin: pin to check
+ *
+ * Check for the given pin's fractional frequency change.
+ *
+ * Return: true on fractional frequency offset change, false otherwise
+ */
+static bool
+zl3073x_dpll_pin_ffo_check(struct zl3073x_dpll_pin *pin)
+{
+	struct zl3073x_dpll *zldpll = pin->dpll;
+	struct zl3073x_dev *zldev = zldpll->dev;
+	u8 ref, status;
+	s64 ffo;
+	int rc;
+
+	/* Get reference monitor status */
+	ref = zl3073x_input_pin_ref_get(pin->id);
+	rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(ref), &status);
+	if (rc) {
+		dev_err(zldev->dev, "Failed to read %s refmon status: %pe\n",
+			pin->label, ERR_PTR(rc));
+
+		return false;
+	}
+
+	/* Do not report ffo changes if the reference monitor report errors */
+	if (status != ZL_REF_MON_STATUS_OK)
+		return false;
+
+	/* Get the latest measured ref's ffo */
+	ffo = zl3073x_ref_ffo_get(zldev, ref);
+
+	/* Compare with previous value */
+	if (pin->freq_offset != ffo) {
+		dev_dbg(zldev->dev, "%s freq offset changed: %lld -> %lld\n",
+			pin->label, pin->freq_offset, ffo);
+		pin->freq_offset = ffo;
+
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * zl3073x_dpll_changes_check - check for changes and send notifications
  * @zldpll: pointer to zl3073x_dpll structure
  *
@@ -2130,10 +2191,14 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 			pin_changed = true;
 		}
 
-		/* Check for phase offset change once per second */
-		if (zldpll->check_count % 2 == 0)
+		/* Check for phase offset and ffo change once per second */
+		if (zldpll->check_count % 2 == 0) {
 			if (zl3073x_dpll_pin_phase_offset_check(pin))
 				pin_changed = true;
+
+			if (zl3073x_dpll_pin_ffo_check(pin))
+				pin_changed = true;
+		}
 
 		if (pin_changed)
 			dpll_pin_change_ntf(pin->dpll_pin);

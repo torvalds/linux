@@ -720,6 +720,66 @@ int zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev, int channel)
 				    ZL_REF_PHASE_ERR_READ_RQST_RD);
 }
 
+/**
+ * zl3073x_ref_ffo_update - update reference fractional frequency offsets
+ * @zldev: pointer to zl3073x_dev structure
+ *
+ * The function asks device to update fractional frequency offsets latch
+ * registers the latest measured values, reads and stores them into
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
+{
+	int i, rc;
+
+	/* Per datasheet we have to wait for 'ref_freq_meas_ctrl' to be zero
+	 * to ensure that the measured data are coherent.
+	 */
+	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
+				  ZL_REF_FREQ_MEAS_CTRL);
+	if (rc)
+		return rc;
+
+	/* Select all references for measurement */
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_MASK_3_0,
+			      GENMASK(7, 0)); /* REF0P..REF3N */
+	if (rc)
+		return rc;
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_MASK_4,
+			      GENMASK(1, 0)); /* REF4P..REF4N */
+	if (rc)
+		return rc;
+
+	/* Request frequency offset measurement */
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
+			      ZL_REF_FREQ_MEAS_CTRL_REF_FREQ_OFF);
+	if (rc)
+		return rc;
+
+	/* Wait for finish */
+	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
+				  ZL_REF_FREQ_MEAS_CTRL);
+	if (rc)
+		return rc;
+
+	/* Read DPLL-to-REFx frequency offset measurements */
+	for (i = 0; i < ZL3073X_NUM_REFS; i++) {
+		s32 value;
+
+		/* Read value stored in units of 2^-32 signed */
+		rc = zl3073x_read_u32(zldev, ZL_REG_REF_FREQ(i), &value);
+		if (rc)
+			return rc;
+
+		/* Convert to ppm -> ffo = (10^6 * value) / 2^32 */
+		zldev->ref[i].ffo = mul_s64_u64_shr(value, 1000000, 32);
+	}
+
+	return 0;
+}
+
 static void
 zl3073x_dev_periodic_work(struct kthread_work *work)
 {
@@ -732,6 +792,13 @@ zl3073x_dev_periodic_work(struct kthread_work *work)
 	rc = zl3073x_ref_phase_offsets_update(zldev, -1);
 	if (rc)
 		dev_warn(zldev->dev, "Failed to update phase offsets: %pe\n",
+			 ERR_PTR(rc));
+
+	/* Update references' fractional frequency offsets */
+	rc = zl3073x_ref_ffo_update(zldev);
+	if (rc)
+		dev_warn(zldev->dev,
+			 "Failed to update fractional frequency offsets: %pe\n",
 			 ERR_PTR(rc));
 
 	list_for_each_entry(zldpll, &zldev->dplls, list)
