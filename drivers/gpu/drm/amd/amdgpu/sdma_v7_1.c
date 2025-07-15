@@ -32,7 +32,7 @@
 
 #include "gc/gc_12_1_0_offset.h"
 #include "gc/gc_12_1_0_sh_mask.h"
-#include "ivsrcid/gfx/irqsrcs_gfx_11_0_0.h"
+#include "ivsrcid/gfx/irqsrcs_gfx_12_1_0.h"
 
 #include "soc15_common.h"
 #include "soc15.h"
@@ -1278,7 +1278,7 @@ static int sdma_v7_1_sw_init(struct amdgpu_ip_block *ip_block)
 
 	/* SDMA trap event */
 	r = amdgpu_irq_add_id(adev, SOC_V1_0_IH_CLIENTID_GFX,
-			      GFX_11_0_0__SRCID__SDMA_TRAP,
+			      GFX_12_1_0__SRCID__SDMA_TRAP,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
