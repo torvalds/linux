@@ -2725,21 +2725,32 @@ static enum surface_update_type get_plane_info_update_type(const struct dc *dc, 
 		elevate_update_type(&update_type, UPDATE_TYPE_MED);
 	}
 
+	const struct dc_tiling_info *tiling = &u->plane_info->tiling_info;
 
-	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
-			sizeof(struct dc_tiling_info)) != 0) {
+	if (memcmp(tiling, &u->surface->tiling_info, sizeof(*tiling)) != 0) {
 		update_flags->bits.swizzle_change = 1;
 		elevate_update_type(&update_type, UPDATE_TYPE_MED);
 
-		/* todo: below are HW dependent, we should add a hook to
-		 * DCE/N resource and validated there.
-		 */
-		if (!dc->debug.skip_full_updated_if_possible) {
-			/* swizzled mode requires RQ to be setup properly,
-			 * thus need to run DML to calculate RQ settings
-			 */
-			update_flags->bits.bandwidth_change = 1;
-			elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+		switch (tiling->gfxversion) {
+		case DcGfxVersion9:
+		case DcGfxVersion10:
+		case DcGfxVersion11:
+			if (tiling->gfx9.swizzle != DC_SW_LINEAR) {
+				elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+				update_flags->bits.bandwidth_change = 1;
+			}
+			break;
+		case DcGfxAddr3:
+			if (tiling->gfx_addr3.swizzle != DC_ADDR3_SW_LINEAR) {
+				elevate_update_type(&update_type, UPDATE_TYPE_FULL);
+				update_flags->bits.bandwidth_change = 1;
+			}
+			break;
+		case DcGfxVersion7:
+		case DcGfxVersion8:
+		case DcGfxVersionUnknown:
+		default:
+			break;
 		}
 	}
 
@@ -2808,12 +2819,11 @@ static enum surface_update_type get_scaling_info_update_type(
 static enum surface_update_type det_surface_update(const struct dc *dc,
 		const struct dc_surface_update *u)
 {
-	const struct dc_state *context = dc->current_state;
 	enum surface_update_type type;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 	union surface_update_flags *update_flags = &u->surface->update_flags;
 
-	if (!is_surface_in_context(context, u->surface) || u->surface->force_full_update) {
+	if (u->surface->force_full_update) {
 		update_flags->raw = 0xFFFFFFFF;
 		return UPDATE_TYPE_FULL;
 	}
@@ -2944,12 +2954,6 @@ static enum surface_update_type check_update_surfaces_for_stream(
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
-	if (dc->idle_optimizations_allowed || dc_can_clear_cursor_limit(dc))
-		overall_type = UPDATE_TYPE_FULL;
-
-	if (stream_status == NULL || stream_status->plane_count != surface_count)
-		overall_type = UPDATE_TYPE_FULL;
-
 	if (stream_update && stream_update->pending_test_pattern) {
 		overall_type = UPDATE_TYPE_FULL;
 	}
@@ -3046,27 +3050,6 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		updates[i].surface->update_flags.raw = 0;
 
 	type = check_update_surfaces_for_stream(dc, updates, surface_count, stream_update, stream_status);
-	if (type == UPDATE_TYPE_FULL) {
-		if (stream_update) {
-			uint32_t dsc_changed = stream_update->stream->update_flags.bits.dsc_changed;
-			stream_update->stream->update_flags.raw = 0xFFFFFFFF;
-			stream_update->stream->update_flags.bits.dsc_changed = dsc_changed;
-		}
-		for (i = 0; i < surface_count; i++)
-			updates[i].surface->update_flags.raw = 0xFFFFFFFF;
-	}
-
-	if (type == UPDATE_TYPE_FAST) {
-		// If there's an available clock comparator, we use that.
-		if (dc->clk_mgr->funcs->are_clock_states_equal) {
-			if (!dc->clk_mgr->funcs->are_clock_states_equal(&dc->clk_mgr->clks, &dc->current_state->bw_ctx.bw.dcn.clk))
-				dc->optimized_required = true;
-		// Else we fallback to mem compare.
-		} else if (memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0) {
-			dc->optimized_required = true;
-		}
-	}
-
 	return type;
 }
 
@@ -3436,6 +3419,12 @@ static void update_seamless_boot_flags(struct dc *dc,
 	}
 }
 
+static bool full_update_required(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update,
+		struct dc_stream_state *stream);
+
 /**
  * update_planes_and_stream_state() - The function takes planes and stream
  * updates as inputs and determines the appropriate update type. If update type
@@ -3483,6 +3472,8 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	context = dc->current_state;
 	update_type = dc_check_update_surfaces_for_stream(
 			dc, srf_updates, surface_count, stream_update, stream_status);
+	if (full_update_required(dc, srf_updates, surface_count, stream_update, stream))
+		update_type = UPDATE_TYPE_FULL;
 	/* It is possible to receive a flip for one plane while there are multiple flip_immediate planes in the same stream.
 	 * E.g. Desktop and MPO plane are flip_immediate but only the MPO plane received a flip
 	 * Force the other flip_immediate planes to flip so GSL doesn't wait for a flip that won't come.
@@ -3512,6 +3503,16 @@ static bool update_planes_and_stream_state(struct dc *dc,
 				return false;
 			}
 		}
+	}
+
+	if (update_type == UPDATE_TYPE_FULL) {
+		if (stream_update) {
+			uint32_t dsc_changed = stream_update->stream->update_flags.bits.dsc_changed;
+			stream_update->stream->update_flags.raw = 0xFFFFFFFF;
+			stream_update->stream->update_flags.bits.dsc_changed = dsc_changed;
+		}
+		for (i = 0; i < surface_count; i++)
+			srf_updates[i].surface->update_flags.raw = 0xFFFFFFFF;
 	}
 
 	if (update_type >= update_surface_trace_level)
