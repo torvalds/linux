@@ -1405,9 +1405,10 @@ esw_qos_move_node(struct mlx5_esw_sched_node *curr_node)
 
 	new_node = __esw_qos_alloc_node(curr_node->esw, curr_node->ix,
 					curr_node->type, NULL);
-	if (!IS_ERR(new_node))
-		esw_qos_nodes_set_parent(&curr_node->children, new_node);
+	if (!new_node)
+		return ERR_PTR(-ENOMEM);
 
+	esw_qos_nodes_set_parent(&curr_node->children, new_node);
 	return new_node;
 }
 
