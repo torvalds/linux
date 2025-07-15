@@ -36,6 +36,7 @@
  * @selectable: pin is selectable in automatic mode
  * @esync_control: embedded sync is controllable
  * @pin_state: last saved pin state
+ * @phase_offset: last saved pin phase offset
  */
 struct zl3073x_dpll_pin {
 	struct list_head	list;
@@ -48,6 +49,7 @@ struct zl3073x_dpll_pin {
 	bool			selectable;
 	bool			esync_control;
 	enum dpll_pin_state	pin_state;
+	s64			phase_offset;
 };
 
 /*
@@ -494,6 +496,50 @@ zl3073x_dpll_connected_ref_get(struct zl3073x_dpll *zldpll, u8 *ref)
 	}
 
 	return 0;
+}
+
+static int
+zl3073x_dpll_input_pin_phase_offset_get(const struct dpll_pin *dpll_pin,
+					void *pin_priv,
+					const struct dpll_device *dpll,
+					void *dpll_priv, s64 *phase_offset,
+					struct netlink_ext_ack *extack)
+{
+	struct zl3073x_dpll *zldpll = dpll_priv;
+	struct zl3073x_dev *zldev = zldpll->dev;
+	struct zl3073x_dpll_pin *pin = pin_priv;
+	u8 conn_ref, ref, ref_status;
+	int rc;
+
+	/* Get currently connected reference */
+	rc = zl3073x_dpll_connected_ref_get(zldpll, &conn_ref);
+	if (rc)
+		return rc;
+
+	/* Report phase offset only for currently connected pin */
+	ref = zl3073x_input_pin_ref_get(pin->id);
+	if (ref != conn_ref) {
+		*phase_offset = 0;
+
+		return 0;
+	}
+
+	/* Get this pin monitor status */
+	rc = zl3073x_read_u8(zldev, ZL_REG_REF_MON_STATUS(ref), &ref_status);
+	if (rc)
+		return rc;
+
+	/* Report phase offset only if the input pin signal is present */
+	if (ref_status != ZL_REF_MON_STATUS_OK) {
+		*phase_offset = 0;
+
+		return 0;
+	}
+
+	/* Report the latest measured phase offset for the connected ref */
+	*phase_offset = pin->phase_offset * DPLL_PHASE_OFFSET_DIVIDER;
+
+	return rc;
 }
 
 /**
@@ -1303,6 +1349,7 @@ static const struct dpll_pin_ops zl3073x_dpll_input_pin_ops = {
 	.esync_set = zl3073x_dpll_input_pin_esync_set,
 	.frequency_get = zl3073x_dpll_input_pin_frequency_get,
 	.frequency_set = zl3073x_dpll_input_pin_frequency_set,
+	.phase_offset_get = zl3073x_dpll_input_pin_phase_offset_get,
 	.prio_get = zl3073x_dpll_input_pin_prio_get,
 	.prio_set = zl3073x_dpll_input_pin_prio_set,
 	.state_on_dpll_get = zl3073x_dpll_input_pin_state_on_dpll_get,
@@ -1674,6 +1721,51 @@ zl3073x_dpll_device_unregister(struct zl3073x_dpll *zldpll)
 }
 
 /**
+ * zl3073x_dpll_pin_phase_offset_check - check for pin phase offset change
+ * @pin: pin to check
+ *
+ * Check for the change of DPLL to connected pin phase offset change.
+ *
+ * Return: true on phase offset change, false otherwise
+ */
+static bool
+zl3073x_dpll_pin_phase_offset_check(struct zl3073x_dpll_pin *pin)
+{
+	struct zl3073x_dpll *zldpll = pin->dpll;
+	struct zl3073x_dev *zldev = zldpll->dev;
+	s64 phase_offset;
+	int rc;
+
+	/* Do not check phase offset if the pin is not connected one */
+	if (pin->pin_state != DPLL_PIN_STATE_CONNECTED)
+		return false;
+
+	/* Read DPLL-to-connected-ref phase offset measurement value */
+	rc = zl3073x_read_u48(zldev, ZL_REG_DPLL_PHASE_ERR_DATA(zldpll->id),
+			      &phase_offset);
+	if (rc) {
+		dev_err(zldev->dev, "Failed to read ref phase offset: %pe\n",
+			ERR_PTR(rc));
+
+		return false;
+	}
+
+	/* Convert to ps */
+	phase_offset = div_s64(sign_extend64(phase_offset, 47), 100);
+
+	/* Compare with previous value */
+	if (phase_offset != pin->phase_offset) {
+		dev_dbg(zldev->dev, "%s phase offset changed: %lld -> %lld\n",
+			pin->label, pin->phase_offset, phase_offset);
+		pin->phase_offset = phase_offset;
+
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * zl3073x_dpll_changes_check - check for changes and send notifications
  * @zldpll: pointer to zl3073x_dpll structure
  *
@@ -1690,6 +1782,8 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 	struct device *dev = zldev->dev;
 	struct zl3073x_dpll_pin *pin;
 	int rc;
+
+	zldpll->check_count++;
 
 	/* Get current lock status for the DPLL */
 	rc = zl3073x_dpll_lock_status_get(zldpll->dpll_dev, zldpll,
@@ -1715,6 +1809,7 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 
 	list_for_each_entry(pin, &zldpll->pins, list) {
 		enum dpll_pin_state state;
+		bool pin_changed = false;
 
 		/* Output pins change checks are not necessary because output
 		 * states are constant.
@@ -1734,8 +1829,16 @@ zl3073x_dpll_changes_check(struct zl3073x_dpll *zldpll)
 			dev_dbg(dev, "%s state changed: %u->%u\n", pin->label,
 				pin->pin_state, state);
 			pin->pin_state = state;
-			dpll_pin_change_ntf(pin->dpll_pin);
+			pin_changed = true;
 		}
+
+		/* Check for phase offset change once per second */
+		if (zldpll->check_count % 2 == 0)
+			if (zl3073x_dpll_pin_phase_offset_check(pin))
+				pin_changed = true;
+
+		if (pin_changed)
+			dpll_pin_change_ntf(pin->dpll_pin);
 	}
 }
 

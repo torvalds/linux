@@ -94,6 +94,13 @@
 #define ZL_DPLL_REFSEL_STATUS_STATE		GENMASK(6, 4)
 #define ZL_DPLL_REFSEL_STATUS_STATE_LOCK	4
 
+/**********************
+ * Register Page 4, Ref
+ **********************/
+
+#define ZL_REG_REF_PHASE_ERR_READ_RQST		ZL_REG(4, 0x0f, 1)
+#define ZL_REF_PHASE_ERR_READ_RQST_RD		BIT(0)
+
 /***********************
  * Register Page 5, DPLL
  ***********************/
@@ -107,6 +114,15 @@
 #define ZL_DPLL_MODE_REFSEL_MODE_AUTO		3
 #define ZL_DPLL_MODE_REFSEL_MODE_NCO		4
 #define ZL_DPLL_MODE_REFSEL_REF			GENMASK(7, 4)
+
+#define ZL_REG_DPLL_MEAS_CTRL			ZL_REG(5, 0x50, 1)
+#define ZL_DPLL_MEAS_CTRL_EN			BIT(0)
+#define ZL_DPLL_MEAS_CTRL_AVG_FACTOR		GENMASK(7, 4)
+
+#define ZL_REG_DPLL_PHASE_ERR_READ_MASK		ZL_REG(5, 0x54, 1)
+
+#define ZL_REG_DPLL_PHASE_ERR_DATA(_idx)				\
+	ZL_REG_IDX(_idx, 5, 0x55, 6, ZL3073X_MAX_CHANNELS, 6)
 
 /***********************************
  * Register Page 9, Synth and Output

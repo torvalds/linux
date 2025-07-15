@@ -15,6 +15,7 @@
  * @id: DPLL index
  * @refsel_mode: reference selection mode
  * @forced_ref: selected reference in forced reference lock mode
+ * @check_count: periodic check counter
  * @dpll_dev: pointer to registered DPLL device
  * @lock_status: last saved DPLL lock status
  * @pins: list of pins
@@ -25,6 +26,7 @@ struct zl3073x_dpll {
 	u8				id;
 	u8				refsel_mode;
 	u8				forced_ref;
+	u8				check_count;
 	struct dpll_device		*dpll_dev;
 	enum dpll_lock_status		lock_status;
 	struct list_head		pins;
