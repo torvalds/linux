@@ -1732,20 +1732,24 @@ static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 		ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
 					       TTM_BO_VM_NUM_PREFAULT);
 		drm_dev_exit(idx);
+
+		if (ret == VM_FAULT_RETRY &&
+		    !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
+			goto out;
+
+		/*
+		 * ttm_bo_vm_reserve() already has dma_resv_lock.
+		 */
+		if (ret == VM_FAULT_NOPAGE &&
+		    mem_type_is_vram(tbo->resource->mem_type)) {
+			mutex_lock(&xe->mem_access.vram_userfault.lock);
+			if (list_empty(&bo->vram_userfault_link))
+				list_add(&bo->vram_userfault_link,
+					 &xe->mem_access.vram_userfault.list);
+			mutex_unlock(&xe->mem_access.vram_userfault.lock);
+		}
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
-	}
-
-	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		goto out;
-	/*
-	 * ttm_bo_vm_reserve() already has dma_resv_lock.
-	 */
-	if (ret == VM_FAULT_NOPAGE && mem_type_is_vram(tbo->resource->mem_type)) {
-		mutex_lock(&xe->mem_access.vram_userfault.lock);
-		if (list_empty(&bo->vram_userfault_link))
-			list_add(&bo->vram_userfault_link, &xe->mem_access.vram_userfault.list);
-		mutex_unlock(&xe->mem_access.vram_userfault.lock);
 	}
 
 	dma_resv_unlock(tbo->base.resv);
