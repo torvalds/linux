@@ -105,7 +105,7 @@ has to do extra work between the various steps. In such cases it has to
 ensure that enter_from_user_mode() is called first on entry and
 exit_to_user_mode() is called last on exit.
 
-Do not nest syscalls. Nested systcalls will cause RCU and/or context tracking
+Do not nest syscalls. Nested syscalls will cause RCU and/or context tracking
 to print a warning.
 
 KVM
