@@ -1091,6 +1091,7 @@ int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 void iwl_trans_pcie_stop_device(struct iwl_trans *trans);
 
 /* common functions that are used by gen2 transport */
+void iwl_trans_pcie_gen2_op_mode_leave(struct iwl_trans *trans);
 int iwl_pcie_gen2_apm_init(struct iwl_trans *trans);
 void iwl_pcie_apm_config(struct iwl_trans *trans);
 int iwl_pcie_prepare_card_hw(struct iwl_trans *trans);
