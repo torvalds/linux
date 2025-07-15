@@ -1250,6 +1250,10 @@ static int gfx_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	r = amdgpu_gfx_sysfs_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
