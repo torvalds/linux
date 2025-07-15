@@ -344,7 +344,7 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 
 	status_mask = rrl->over_mask | rrl->uc_mask | rrl->v_mask;
 
-	n = snprintf(msg, len, " retry_rd_err_log[");
+	n = scnprintf(msg, len, " retry_rd_err_log[");
 	for (i = 0; i < rrl->set_num; i++) {
 		scrub = (rrl->modes[i] == FRE_SCRUB || rrl->modes[i] == LRE_SCRUB);
 		if (scrub_err != scrub)
@@ -356,9 +356,9 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 			log = read_imc_reg(imc, ch, offset, width);
 
 			if (width == 4)
-				n += snprintf(msg + n, len - n, "%.8llx ", log);
+				n += scnprintf(msg + n, len - n, "%.8llx ", log);
 			else
-				n += snprintf(msg + n, len - n, "%.16llx ", log);
+				n += scnprintf(msg + n, len - n, "%.16llx ", log);
 
 			/* Clear RRL status if RRL in Linux control mode. */
 			if (retry_rd_err_log == 2 && !j && (log & status_mask))
@@ -368,10 +368,10 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 
 	/* Move back one space. */
 	n--;
-	n += snprintf(msg + n, len - n, "]");
+	n += scnprintf(msg + n, len - n, "]");
 
 	if (len - n > 0) {
-		n += snprintf(msg + n, len - n, " correrrcnt[");
+		n += scnprintf(msg + n, len - n, " correrrcnt[");
 		for (i = 0; i < rrl->cecnt_num && len - n > 0; i++) {
 			offset = rrl->cecnt_offsets[i];
 			width = rrl->cecnt_widths[i];
@@ -379,20 +379,20 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 
 			/* CPUs {ICX,SPR} encode two counters per 4-byte CORRERRCNT register. */
 			if (res_cfg->type <= SPR) {
-				n += snprintf(msg + n, len - n, "%.4llx %.4llx ",
+				n += scnprintf(msg + n, len - n, "%.4llx %.4llx ",
 					      corr & 0xffff, corr >> 16);
 			} else {
 			/* CPUs {GNR} encode one counter per CORRERRCNT register. */
 				if (width == 4)
-					n += snprintf(msg + n, len - n, "%.8llx ", corr);
+					n += scnprintf(msg + n, len - n, "%.8llx ", corr);
 				else
-					n += snprintf(msg + n, len - n, "%.16llx ", corr);
+					n += scnprintf(msg + n, len - n, "%.16llx ", corr);
 			}
 		}
 
 		/* Move back one space. */
 		n--;
-		n += snprintf(msg + n, len - n, "]");
+		n += scnprintf(msg + n, len - n, "]");
 	}
 }
 
