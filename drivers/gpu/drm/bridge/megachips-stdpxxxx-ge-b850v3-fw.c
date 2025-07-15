@@ -142,7 +142,7 @@ ge_b850v3_lvds_bridge_detect(struct drm_bridge *bridge, struct drm_connector *co
 static enum drm_connector_status ge_b850v3_lvds_detect(struct drm_connector *connector,
 						       bool force)
 {
-	return ge_b850v3_lvds_bridge_detect(&ge_b850v3_lvds_ptr->bridge);
+	return ge_b850v3_lvds_bridge_detect(&ge_b850v3_lvds_ptr->bridge, connector);
 }
 
 static const struct drm_connector_funcs ge_b850v3_lvds_connector_funcs = {
