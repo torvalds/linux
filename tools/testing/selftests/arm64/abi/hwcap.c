@@ -21,6 +21,10 @@
 
 #define TESTS_PER_HWCAP 3
 
+#ifndef AT_HWCAP3
+#define AT_HWCAP3 29
+#endif
+
 /*
  * Function expected to generate exception when the feature is not
  * supported and return when it is supported. If the specific exception
