@@ -292,8 +292,7 @@ s32 rtw_hal_xmit_thread_handler(struct adapter *padapter)
 
 void rtw_hal_notch_filter(struct adapter *adapter, bool enable)
 {
-	if (adapter->HalFunc.hal_notch_filter)
-		adapter->HalFunc.hal_notch_filter(adapter, enable);
+	hal_notch_filter_8723b(adapter, enable);
 }
 
 void rtw_hal_reset_security_engine(struct adapter *adapter)

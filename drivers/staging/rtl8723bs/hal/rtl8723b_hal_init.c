@@ -1267,7 +1267,7 @@ void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 	rtw_write8(padapter, bcn_ctrl_reg, val8);
 }
 
-static void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
+void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
 {
 	if (enable)
 		rtw_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) | BIT1);
@@ -1316,7 +1316,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
-	pHalFunc->hal_notch_filter = &hal_notch_filter_8723b;
 
 	pHalFunc->c2h_handler = c2h_handler_8723b;
 	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723b;
