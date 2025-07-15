@@ -12,11 +12,12 @@ Read a C language source or header FILE and extract embedded
 documentation comments
 """
 
+import sys
 import re
 from pprint import pformat
 
 from kdoc_re import NestedMatch, KernRe
-
+from kdoc_item import KdocItem
 
 #
 # Regular expressions used to parse kernel-doc markups at KernelDoc class.
@@ -42,9 +43,11 @@ doc_decl = doc_com + KernRe(r'(\w+)', cache=False)
 #         @{section-name}:
 # while trying to not match literal block starts like "example::"
 #
+known_section_names = 'description|context|returns?|notes?|examples?'
+known_sections = KernRe(known_section_names, flags = re.I)
 doc_sect = doc_com + \
-            KernRe(r'\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:([^:].*)?$',
-                flags=re.I, cache=False)
+    KernRe(r'\s*(\@[.\w]+|\@\.\.\.|' + known_section_names + r')\s*:([^:].*)?$',
+           flags=re.I, cache=False)
 
 doc_content = doc_com_body + KernRe(r'(.*)', cache=False)
 doc_inline_start = KernRe(r'^\s*/\*\*\s*$', cache=False)
@@ -115,8 +118,6 @@ class KernelEntry:
         self.config = config
 
         self._contents = []
-        self.sectcheck = ""
-        self.struct_actual = ""
         self.prototype = ""
 
         self.warnings = []
@@ -127,7 +128,6 @@ class KernelEntry:
         self.parameterdesc_start_lines = {}
 
         self.section_start_lines = {}
-        self.sectionlist = []
         self.sections = {}
 
         self.anon_struct_union = False
@@ -189,7 +189,6 @@ class KernelEntry:
             self.parameterdescs[name] = contents
             self.parameterdesc_start_lines[name] = self.new_start_line
 
-            self.sectcheck += name + " "
             self.new_start_line = 0
 
         else:
@@ -202,7 +201,6 @@ class KernelEntry:
                 self.sections[name] += '\n' + contents
             else:
                 self.sections[name] = contents
-                self.sectionlist.append(name)
                 self.section_start_lines[name] = self.new_start_line
                 self.new_start_line = 0
 
@@ -241,6 +239,14 @@ class KernelDoc:
         # Place all potential outputs into an array
         self.entries = []
 
+        #
+        # We need Python 3.7 for its "dicts remember the insertion
+        # order" guarantee
+        #
+        if sys.version_info.major == 3 and sys.version_info.minor < 7:
+            self.emit_msg(0,
+                          'Python 3.7 or later is required for correct results')
+
     def emit_msg(self, ln, msg, warning=True):
         """Emit a message"""
 
@@ -271,32 +277,20 @@ class KernelDoc:
         The actual output and output filters will be handled elsewhere
         """
 
-        # The implementation here is different than the original kernel-doc:
-        # instead of checking for output filters or actually output anything,
-        # it just stores the declaration content at self.entries, as the
-        # output will happen on a separate class.
-        #
-        # For now, we're keeping the same name of the function just to make
-        # easier to compare the source code of both scripts
-
-        args["declaration_start_line"] = self.entry.declaration_start_line
-        args["type"] = dtype
-        args["warnings"] = self.entry.warnings
-
-        # TODO: use colletions.OrderedDict to remove sectionlist
-
-        sections = args.get('sections', {})
-        sectionlist = args.get('sectionlist', [])
+        item = KdocItem(name, dtype, self.entry.declaration_start_line, **args)
+        item.warnings = self.entry.warnings
 
         # Drop empty sections
         # TODO: improve empty sections logic to emit warnings
+        sections = self.entry.sections
         for section in ["Description", "Return"]:
-            if section in sectionlist:
-                if not sections[section].rstrip():
-                    del sections[section]
-                    sectionlist.remove(section)
-
-        self.entries.append((name, args))
+            if section in sections and not sections[section].rstrip():
+                del sections[section]
+        item.set_sections(sections, self.entry.section_start_lines)
+        item.set_params(self.entry.parameterlist, self.entry.parameterdescs,
+                        self.entry.parametertypes,
+                        self.entry.parameterdesc_start_lines)
+        self.entries.append(item)
 
         self.config.log.debug("Output: %s:%s = %s", dtype, name, pformat(args))
 
@@ -382,15 +376,6 @@ class KernelDoc:
         org_arg = KernRe(r'\s\s+').sub(' ', org_arg)
         self.entry.parametertypes[param] = org_arg
 
-    def save_struct_actual(self, actual):
-        """
-        Strip all spaces from the actual param so that it looks like
-        one string item.
-        """
-
-        actual = KernRe(r'\s*').sub("", actual, count=1)
-
-        self.entry.struct_actual += actual + " "
 
     def create_parameter_list(self, ln, decl_type, args,
                               splitter, declaration_name):
@@ -436,7 +421,6 @@ class KernelDoc:
                     param = arg
 
                 dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
-                self.save_struct_actual(param)
                 self.push_parameter(ln, decl_type, param, dtype,
                                     arg, declaration_name)
 
@@ -453,7 +437,6 @@ class KernelDoc:
 
                 dtype = KernRe(r'([^\(]+\(\*?)\s*' + re.escape(param)).sub(r'\1', arg)
 
-                self.save_struct_actual(param)
                 self.push_parameter(ln, decl_type, param, dtype,
                                     arg, declaration_name)
 
@@ -486,7 +469,6 @@ class KernelDoc:
 
                         param = r.group(1)
 
-                        self.save_struct_actual(r.group(2))
                         self.push_parameter(ln, decl_type, r.group(2),
                                             f"{dtype} {r.group(1)}",
                                             arg, declaration_name)
@@ -498,52 +480,27 @@ class KernelDoc:
                             continue
 
                         if dtype != "":  # Skip unnamed bit-fields
-                            self.save_struct_actual(r.group(1))
                             self.push_parameter(ln, decl_type, r.group(1),
                                                 f"{dtype}:{r.group(2)}",
                                                 arg, declaration_name)
                     else:
-                        self.save_struct_actual(param)
                         self.push_parameter(ln, decl_type, param, dtype,
                                             arg, declaration_name)
 
-    def check_sections(self, ln, decl_name, decl_type, sectcheck, prmscheck):
+    def check_sections(self, ln, decl_name, decl_type):
         """
         Check for errors inside sections, emitting warnings if not found
         parameters are described.
         """
-
-        sects = sectcheck.split()
-        prms = prmscheck.split()
-        err = False
-
-        for sx in range(len(sects)):                  # pylint: disable=C0200
-            err = True
-            for px in range(len(prms)):               # pylint: disable=C0200
-                prm_clean = prms[px]
-                prm_clean = KernRe(r'\[.*\]').sub('', prm_clean)
-                prm_clean = attribute.sub('', prm_clean)
-
-                # ignore array size in a parameter string;
-                # however, the original param string may contain
-                # spaces, e.g.:  addr[6 + 2]
-                # and this appears in @prms as "addr[6" since the
-                # parameter list is split at spaces;
-                # hence just ignore "[..." for the sections check;
-                prm_clean = KernRe(r'\[.*').sub('', prm_clean)
-
-                if prm_clean == sects[sx]:
-                    err = False
-                    break
-
-            if err:
+        for section in self.entry.sections:
+            if section not in self.entry.parameterlist and \
+               not known_sections.search(section):
                 if decl_type == 'function':
                     dname = f"{decl_type} parameter"
                 else:
                     dname = f"{decl_type} member"
-
                 self.emit_msg(ln,
-                              f"Excess {dname} '{sects[sx]}' description in '{decl_name}'")
+                              f"Excess {dname} '{section}' description in '{decl_name}'")
 
     def check_return_section(self, ln, declaration_name, return_type):
         """
@@ -797,8 +754,7 @@ class KernelDoc:
 
         self.create_parameter_list(ln, decl_type, members, ';',
                                    declaration_name)
-        self.check_sections(ln, declaration_name, decl_type,
-                            self.entry.sectcheck, self.entry.struct_actual)
+        self.check_sections(ln, declaration_name, decl_type)
 
         # Adjust declaration for better display
         declaration = KernRe(r'([\{;])').sub(r'\1\n', declaration)
@@ -834,15 +790,7 @@ class KernelDoc:
                 level += 1
 
         self.output_declaration(decl_type, declaration_name,
-                                struct=declaration_name,
                                 definition=declaration,
-                                parameterlist=self.entry.parameterlist,
-                                parameterdescs=self.entry.parameterdescs,
-                                parametertypes=self.entry.parametertypes,
-                                parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                sectionlist=self.entry.sectionlist,
-                                sections=self.entry.sections,
-                                section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_enum(self, ln, proto):
@@ -921,13 +869,6 @@ class KernelDoc:
                               f"Excess enum value '%{k}' description in '{declaration_name}'")
 
         self.output_declaration('enum', declaration_name,
-                                enum=declaration_name,
-                                parameterlist=self.entry.parameterlist,
-                                parameterdescs=self.entry.parameterdescs,
-                                parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                sectionlist=self.entry.sectionlist,
-                                sections=self.entry.sections,
-                                section_start_lines=self.entry.section_start_lines,
                                 purpose=self.entry.declaration_purpose)
 
     def dump_declaration(self, ln, prototype):
@@ -937,18 +878,13 @@ class KernelDoc:
 
         if self.entry.decl_type == "enum":
             self.dump_enum(ln, prototype)
-            return
-
-        if self.entry.decl_type == "typedef":
+        elif self.entry.decl_type == "typedef":
             self.dump_typedef(ln, prototype)
-            return
-
-        if self.entry.decl_type in ["union", "struct"]:
+        elif self.entry.decl_type in ["union", "struct"]:
             self.dump_struct(ln, prototype)
-            return
-
-        self.output_declaration(self.entry.decl_type, prototype,
-                                entry=self.entry)
+        else:
+            # This would be a bug
+            self.emit_message(ln, f'Unknown declaration type: {self.entry.decl_type}')
 
     def dump_function(self, ln, prototype):
         """
@@ -1082,38 +1018,20 @@ class KernelDoc:
                           f"expecting prototype for {self.entry.identifier}(). Prototype was for {declaration_name}() instead")
             return
 
-        prms = " ".join(self.entry.parameterlist)
-        self.check_sections(ln, declaration_name, "function",
-                            self.entry.sectcheck, prms)
+        self.check_sections(ln, declaration_name, "function")
 
         self.check_return_section(ln, declaration_name, return_type)
 
         if 'typedef' in return_type:
             self.output_declaration(decl_type, declaration_name,
-                                    function=declaration_name,
                                     typedef=True,
                                     functiontype=return_type,
-                                    parameterlist=self.entry.parameterlist,
-                                    parameterdescs=self.entry.parameterdescs,
-                                    parametertypes=self.entry.parametertypes,
-                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sectionlist=self.entry.sectionlist,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
         else:
             self.output_declaration(decl_type, declaration_name,
-                                    function=declaration_name,
                                     typedef=False,
                                     functiontype=return_type,
-                                    parameterlist=self.entry.parameterlist,
-                                    parameterdescs=self.entry.parameterdescs,
-                                    parametertypes=self.entry.parametertypes,
-                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sectionlist=self.entry.sectionlist,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose,
                                     func_macro=func_macro)
 
@@ -1150,16 +1068,8 @@ class KernelDoc:
             self.create_parameter_list(ln, decl_type, args, ',', declaration_name)
 
             self.output_declaration(decl_type, declaration_name,
-                                    function=declaration_name,
                                     typedef=True,
                                     functiontype=return_type,
-                                    parameterlist=self.entry.parameterlist,
-                                    parameterdescs=self.entry.parameterdescs,
-                                    parametertypes=self.entry.parametertypes,
-                                    parameterdesc_start_lines=self.entry.parameterdesc_start_lines,
-                                    sectionlist=self.entry.sectionlist,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
             return
 
@@ -1179,10 +1089,6 @@ class KernelDoc:
                 return
 
             self.output_declaration('typedef', declaration_name,
-                                    typedef=declaration_name,
-                                    sectionlist=self.entry.sectionlist,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines,
                                     purpose=self.entry.declaration_purpose)
             return
 
@@ -1664,10 +1570,7 @@ class KernelDoc:
 
         if doc_end.search(line):
             self.dump_section()
-            self.output_declaration("doc", self.entry.identifier,
-                                    sectionlist=self.entry.sectionlist,
-                                    sections=self.entry.sections,
-                                    section_start_lines=self.entry.section_start_lines)
+            self.output_declaration("doc", self.entry.identifier)
             self.reset_state(ln)
 
         elif doc_content.search(line):
