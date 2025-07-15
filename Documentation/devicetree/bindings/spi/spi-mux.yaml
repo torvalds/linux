@@ -46,7 +46,6 @@ properties:
 required:
   - compatible
   - reg
-  - spi-max-frequency
   - mux-controls
 
 unevaluatedProperties: false
