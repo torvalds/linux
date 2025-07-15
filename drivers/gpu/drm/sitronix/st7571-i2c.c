@@ -804,7 +804,9 @@ static int st7571_parse_dt(struct st7571_device *st7571)
 
 	st7571->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(st7571->reset))
-		return PTR_ERR(st7571->reset);
+		return dev_err_probe(dev, PTR_ERR(st7571->reset),
+				     "Failed to get reset gpio\n");
+
 
 	return 0;
 }
