@@ -291,6 +291,17 @@ kci_test_route_get()
 	end_test "PASS: route get"
 }
 
+check_addr_not_exist()
+{
+	dev=$1
+	addr=$2
+	if ip addr show dev $dev | grep -q $addr; then
+		return 1
+	else
+		return 0
+	fi
+}
+
 kci_test_addrlft()
 {
 	for i in $(seq 10 100) ;do
@@ -298,9 +309,8 @@ kci_test_addrlft()
 		run_cmd ip addr add 10.23.11.$i/32 dev "$devdummy" preferred_lft $lft valid_lft $((lft+1))
 	done
 
-	sleep 5
-	run_cmd_grep_fail "10.23.11." ip addr show dev "$devdummy"
-	if [ $? -eq 0 ]; then
+	slowwait 5 check_addr_not_exist "$devdummy" "10.23.11."
+	if [ $? -eq 1 ]; then
 		check_err 1
 		end_test "FAIL: preferred_lft addresses remaining"
 		return
