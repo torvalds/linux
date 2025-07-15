@@ -834,6 +834,19 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static void commit_pending_events(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu_get_flag(vcpu, PENDING_EXCEPTION))
+		return;
+
+	/*
+	 * Reset the MMIO emulation state to avoid stepping PC after emulating
+	 * the exception entry.
+	 */
+	vcpu->mmio_needed = false;
+	kvm_call_hyp(__kvm_adjust_pc, vcpu);
+}
+
 int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 			      struct kvm_vcpu_events *events)
 {
@@ -843,8 +856,15 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 	u64 esr = events->exception.serror_esr;
 	int ret = 0;
 
-	if (ext_dabt_pending)
+	/*
+	 * Immediately commit the pending SEA to the vCPU's architectural
+	 * state which is necessary since we do not return a pending SEA
+	 * to userspace via KVM_GET_VCPU_EVENTS.
+	 */
+	if (ext_dabt_pending) {
 		ret = kvm_inject_sea_dabt(vcpu, kvm_vcpu_get_hfar(vcpu));
+		commit_pending_events(vcpu);
+	}
 
 	if (ret < 0)
 		return ret;
@@ -863,6 +883,12 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 	else
 		ret = kvm_inject_serror(vcpu);
 
+	/*
+	 * We could've decided that the SError is due for immediate software
+	 * injection; commit the exception in case userspace decides it wants
+	 * to inject more exceptions for some strange reason.
+	 */
+	commit_pending_events(vcpu);
 	return (ret < 0) ? ret : 0;
 }
 
