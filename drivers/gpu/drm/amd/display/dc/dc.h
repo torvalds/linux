@@ -839,7 +839,8 @@ union dpia_debug_options {
 		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t disable_usb4_pm_support:1; /* bit 5 */
 		uint32_t enable_usb4_bw_zero_alloc_patch:1; /* bit 6 */
-		uint32_t reserved:25;
+		uint32_t enable_bw_allocation_mode:1; /* bit 7 */
+		uint32_t reserved:24;
 	} bits;
 	uint32_t raw;
 };

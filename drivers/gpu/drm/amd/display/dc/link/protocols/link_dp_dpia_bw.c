@@ -225,6 +225,11 @@ bool link_dpia_enable_usb4_dp_bw_alloc_mode(struct dc_link *link)
 	bool ret = false;
 	uint8_t val;
 
+	if (link->dc->debug.dpia_debug.bits.enable_bw_allocation_mode == false) {
+		DC_LOG_DEBUG("%s:  link[%d] DPTX BW allocation mode disabled", __func__, link->link_index);
+		return false;
+	}
+
 	val = DPTX_BW_ALLOC_MODE_ENABLE | DPTX_BW_ALLOC_UNMASK_IRQ;
 
 	if (core_link_write_dpcd(link, DPTX_BW_ALLOCATION_MODE_CONTROL, &val, sizeof(uint8_t)) == DC_OK) {
