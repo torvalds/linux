@@ -5102,129 +5102,6 @@ static bool fast_update_only(struct dc *dc,
 			&& !full_update_required(dc, srf_updates, surface_count, stream_update, stream);
 }
 
-static bool update_planes_and_stream_v1(struct dc *dc,
-		struct dc_surface_update *srf_updates, int surface_count,
-		struct dc_stream_state *stream,
-		struct dc_stream_update *stream_update,
-		struct dc_state *state)
-{
-	const struct dc_stream_status *stream_status;
-	enum surface_update_type update_type;
-	struct dc_state *context;
-	struct dc_context *dc_ctx = dc->ctx;
-	int i, j;
-	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
-
-	dc_exit_ips_for_hw_access(dc);
-
-	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
-	stream_status = dc_stream_get_status(stream);
-	context = dc->current_state;
-
-	update_type = dc_check_update_surfaces_for_stream(
-				dc, srf_updates, surface_count, stream_update, stream_status);
-	/* It is possible to receive a flip for one plane while there are multiple flip_immediate planes in the same stream.
-	 * E.g. Desktop and MPO plane are flip_immediate but only the MPO plane received a flip
-	 * Force the other flip_immediate planes to flip so GSL doesn't wait for a flip that won't come.
-	 */
-	force_immediate_gsl_plane_flip(dc, srf_updates, surface_count);
-
-	if (update_type >= UPDATE_TYPE_FULL) {
-
-		/* initialize scratch memory for building context */
-		context = dc_state_create_copy(state);
-		if (context == NULL) {
-			DC_ERROR("Failed to allocate new validate context!\n");
-			return false;
-		}
-
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
-			struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-
-			if (new_pipe->plane_state && new_pipe->plane_state != old_pipe->plane_state)
-				new_pipe->plane_state->force_full_update = true;
-		}
-	} else if (update_type == UPDATE_TYPE_FAST) {
-		/*
-		 * Previous frame finished and HW is ready for optimization.
-		 */
-		dc_post_update_surfaces_to_stream(dc);
-	}
-
-	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *surface = srf_updates[i].surface;
-
-		copy_surface_update_to_plane(surface, &srf_updates[i]);
-
-		if (update_type >= UPDATE_TYPE_MED) {
-			for (j = 0; j < dc->res_pool->pipe_count; j++) {
-				struct pipe_ctx *pipe_ctx =
-					&context->res_ctx.pipe_ctx[j];
-
-				if (pipe_ctx->plane_state != surface)
-					continue;
-
-				resource_build_scaling_params(pipe_ctx);
-			}
-		}
-	}
-
-	copy_stream_update_to_stream(dc, context, stream, stream_update);
-
-	if (update_type >= UPDATE_TYPE_FULL) {
-		if (dc->res_pool->funcs->validate_bandwidth(dc, context, DC_VALIDATE_MODE_AND_PROGRAMMING) != DC_OK) {
-			DC_ERROR("Mode validation failed for stream update!\n");
-			dc_state_release(context);
-			return false;
-		}
-	}
-
-	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
-
-	if (fast_update_only(dc, fast_update, srf_updates, surface_count, stream_update, stream) &&
-			!dc->debug.enable_legacy_fast_update) {
-		commit_planes_for_stream_fast(dc,
-				srf_updates,
-				surface_count,
-				stream,
-				stream_update,
-				update_type,
-				context);
-	} else {
-		commit_planes_for_stream(
-				dc,
-				srf_updates,
-				surface_count,
-				stream,
-				stream_update,
-				update_type,
-				context);
-	}
-	/*update current_State*/
-	if (dc->current_state != context) {
-
-		struct dc_state *old = dc->current_state;
-
-		dc->current_state = context;
-		dc_state_release(old);
-
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-			if (pipe_ctx->plane_state && pipe_ctx->stream == stream)
-				pipe_ctx->plane_state->force_full_update = false;
-		}
-	}
-
-	/* Legacy optimization path for DCE. */
-	if (update_type >= UPDATE_TYPE_FULL && dc_ctx->dce_version < DCE_VERSION_MAX) {
-		dc_post_update_surfaces_to_stream(dc);
-		TRACE_DCE_CLOCK_STATE(&context->bw_ctx.bw.dce);
-	}
-	return true;
-}
-
 static bool update_planes_and_stream_v2(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -5482,12 +5359,10 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	if (dc->ctx->dce_version >= DCN_VERSION_4_01) {
 		ret = update_planes_and_stream_v3(dc, srf_updates, surface_count,
 				stream, stream_update);
-	} else if (dc->ctx->dce_version >= DCN_VERSION_3_2) {
+	} else {
 		ret = update_planes_and_stream_v2(dc, srf_updates, surface_count,
 				stream, stream_update);
-	} else
-		ret = update_planes_and_stream_v1(dc, srf_updates, surface_count, stream,
-				stream_update, state);
+	}
 
 	if (ret && dc->ctx->dce_version >= DCN_VERSION_3_2)
 		clear_update_flags(srf_updates, surface_count, stream);
