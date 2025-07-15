@@ -38,7 +38,7 @@
 
 // If queue is empty, accept a packet even if its end_seq is above wup + rcv_wnd
   +0 < P. 4001:54001(50000) ack 1 win 257
-  +.040 > .  1:1(0) ack 54001 win 0
+  +0 > .  1:1(0) ack 54001 win 0
 
 // Check LINUX_MIB_BEYOND_WINDOW has been incremented 3 times.
 +0 `nstat | grep TcpExtBeyondWindow | grep -q " 3 "`
