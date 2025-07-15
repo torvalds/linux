@@ -97,17 +97,8 @@ static int optee_rtc_settime(struct device *dev, struct rtc_time *tm)
 	struct optee_rtc *priv = dev_get_drvdata(dev);
 	struct tee_ioctl_invoke_arg inv_arg = {0};
 	struct tee_param param[4] = {0};
-	struct optee_rtc_time optee_tm;
-	void *rtc_data;
+	struct optee_rtc_time *optee_tm;
 	int ret;
-
-	optee_tm.tm_sec = tm->tm_sec;
-	optee_tm.tm_min = tm->tm_min;
-	optee_tm.tm_hour = tm->tm_hour;
-	optee_tm.tm_mday = tm->tm_mday;
-	optee_tm.tm_mon = tm->tm_mon;
-	optee_tm.tm_year = tm->tm_year + 1900;
-	optee_tm.tm_wday = tm->tm_wday;
 
 	inv_arg.func = TA_CMD_RTC_SET_TIME;
 	inv_arg.session = priv->session_id;
@@ -117,11 +108,17 @@ static int optee_rtc_settime(struct device *dev, struct rtc_time *tm)
 	param[0].u.memref.shm = priv->shm;
 	param[0].u.memref.size = sizeof(struct optee_rtc_time);
 
-	rtc_data = tee_shm_get_va(priv->shm, 0);
-	if (IS_ERR(rtc_data))
-		return PTR_ERR(rtc_data);
+	optee_tm = tee_shm_get_va(priv->shm, 0);
+	if (IS_ERR(optee_tm))
+		return PTR_ERR(optee_tm);
 
-	memcpy(rtc_data, &optee_tm, sizeof(struct optee_rtc_time));
+	optee_tm->tm_min = tm->tm_min;
+	optee_tm->tm_sec = tm->tm_sec;
+	optee_tm->tm_hour = tm->tm_hour;
+	optee_tm->tm_mday = tm->tm_mday;
+	optee_tm->tm_mon = tm->tm_mon;
+	optee_tm->tm_year = tm->tm_year + 1900;
+	optee_tm->tm_wday = tm->tm_wday;
 
 	ret = tee_client_invoke_func(priv->ctx, &inv_arg, param);
 	if (ret < 0 || inv_arg.ret != 0)
@@ -241,13 +238,11 @@ static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
 static int optee_rtc_probe(struct device *dev)
 {
 	struct tee_client_device *rtc_device = to_tee_client_device(dev);
-	struct tee_ioctl_open_session_arg sess_arg;
+	struct tee_ioctl_open_session_arg sess_arg = {0};
 	struct optee_rtc *priv;
 	struct rtc_device *rtc;
 	struct tee_shm *shm;
 	int ret, err;
-
-	memset(&sess_arg, 0, sizeof(sess_arg));
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
