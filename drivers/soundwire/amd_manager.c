@@ -499,6 +499,7 @@ static int amd_sdw_port_params(struct sdw_bus *bus, struct sdw_port_params *p_pa
 		break;
 	case ACP70_PCI_REV_ID:
 	case ACP71_PCI_REV_ID:
+	case ACP72_PCI_REV_ID:
 		frame_fmt_reg = acp70_sdw_dp_reg[p_params->num].frame_fmt_reg;
 		break;
 	default:
@@ -551,6 +552,7 @@ static int amd_sdw_transport_params(struct sdw_bus *bus,
 		break;
 	case ACP70_PCI_REV_ID:
 	case ACP71_PCI_REV_ID:
+	case ACP72_PCI_REV_ID:
 		frame_fmt_reg = acp70_sdw_dp_reg[params->port_num].frame_fmt_reg;
 		sample_int_reg = acp70_sdw_dp_reg[params->port_num].sample_int_reg;
 		hctrl_dp0_reg = acp70_sdw_dp_reg[params->port_num].hctrl_dp0_reg;
@@ -614,6 +616,7 @@ static int amd_sdw_port_enable(struct sdw_bus *bus,
 		break;
 	case ACP70_PCI_REV_ID:
 	case ACP71_PCI_REV_ID:
+	case ACP72_PCI_REV_ID:
 		lane_ctrl_ch_en_reg = acp70_sdw_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
 		break;
 	default:
@@ -1038,6 +1041,7 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 		break;
 	case ACP70_PCI_REV_ID:
 	case ACP71_PCI_REV_ID:
+	case ACP72_PCI_REV_ID:
 		amd_manager->num_dout_ports = AMD_ACP70_SDW_MAX_TX_PORTS;
 		amd_manager->num_din_ports = AMD_ACP70_SDW_MAX_RX_PORTS;
 		break;
