@@ -8,6 +8,7 @@ use super::{
     AllocError, Allocator, Box, Flags,
 };
 use core::{
+    borrow::{Borrow, BorrowMut},
     fmt,
     marker::PhantomData,
     mem::{ManuallyDrop, MaybeUninit},
@@ -851,7 +852,7 @@ where
     }
 }
 
-impl<T> Default for KVec<T> {
+impl<T, A: Allocator> Default for Vec<T, A> {
     #[inline]
     fn default() -> Self {
         Self::new()
@@ -887,6 +888,58 @@ where
         // SAFETY: The memory behind `self.as_ptr()` is guaranteed to contain `self.len`
         // initialized elements of type `T`.
         unsafe { slice::from_raw_parts_mut(self.as_mut_ptr(), self.len) }
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::Borrow;
+/// struct Foo<B: Borrow<[u32]>>(B);
+///
+/// // Owned array.
+/// let owned_array = Foo([1, 2, 3]);
+///
+/// // Owned vector.
+/// let owned_vec = Foo(KVec::from_elem(0, 3, GFP_KERNEL)?);
+///
+/// let arr = [1, 2, 3];
+/// // Borrowed slice from `arr`.
+/// let borrowed_slice = Foo(&arr[..]);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> Borrow<[T]> for Vec<T, A>
+where
+    A: Allocator,
+{
+    fn borrow(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
+/// # Examples
+///
+/// ```
+/// # use core::borrow::BorrowMut;
+/// struct Foo<B: BorrowMut<[u32]>>(B);
+///
+/// // Owned array.
+/// let owned_array = Foo([1, 2, 3]);
+///
+/// // Owned vector.
+/// let owned_vec = Foo(KVec::from_elem(0, 3, GFP_KERNEL)?);
+///
+/// let mut arr = [1, 2, 3];
+/// // Borrowed slice from `arr`.
+/// let borrowed_slice = Foo(&mut arr[..]);
+/// # Ok::<(), Error>(())
+/// ```
+impl<T, A> BorrowMut<[T]> for Vec<T, A>
+where
+    A: Allocator,
+{
+    fn borrow_mut(&mut self) -> &mut [T] {
+        self.as_mut_slice()
     }
 }
 
