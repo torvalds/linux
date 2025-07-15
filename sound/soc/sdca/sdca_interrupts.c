@@ -262,7 +262,7 @@ int sdca_irq_request(struct device *dev, struct sdca_interrupt_info *info,
 {
 	int ret;
 
-	if (sdca_irq < 0 || sdca_irq > SDCA_MAX_INTERRUPTS) {
+	if (sdca_irq < 0 || sdca_irq >= SDCA_MAX_INTERRUPTS) {
 		dev_err(dev, "bad irq request: %d\n", sdca_irq);
 		return -EINVAL;
 	}
@@ -342,7 +342,6 @@ int sdca_irq_populate(struct sdca_function_data *function,
 			int irq = control->interrupt_position;
 			struct sdca_interrupt *interrupt;
 			irq_handler_t handler;
-			const char *name;
 			int ret;
 
 			if (irq == SDCA_NO_INTERRUPT) {
@@ -385,7 +384,7 @@ int sdca_irq_populate(struct sdca_function_data *function,
 						      handler, interrupt);
 			if (ret) {
 				dev_err(dev, "failed to request irq %s: %d\n",
-					name, ret);
+					interrupt->name, ret);
 				return ret;
 			}
 		}
