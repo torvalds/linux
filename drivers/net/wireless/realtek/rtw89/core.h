@@ -3779,6 +3779,9 @@ struct rtw89_chip_ops {
 				  struct rtw89_sta_link *rtwsta_link);
 	int (*h2c_txtime_cmac_tbl)(struct rtw89_dev *rtwdev,
 				   struct rtw89_sta_link *rtwsta_link);
+	int (*h2c_punctured_cmac_tbl)(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif_link *rtwvif_link,
+				      u16 punctured);
 	int (*h2c_default_dmac_tbl)(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link,
 				    struct rtw89_sta_link *rtwsta_link);

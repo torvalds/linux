@@ -2826,6 +2826,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.h2c_assoc_cmac_tbl	= rtw89_fw_h2c_assoc_cmac_tbl_g7,
 	.h2c_ampdu_cmac_tbl	= rtw89_fw_h2c_ampdu_cmac_tbl_g7,
 	.h2c_txtime_cmac_tbl	= rtw89_fw_h2c_txtime_cmac_tbl_g7,
+	.h2c_punctured_cmac_tbl	= rtw89_fw_h2c_punctured_cmac_tbl_g7,
 	.h2c_default_dmac_tbl	= rtw89_fw_h2c_default_dmac_tbl_v2,
 	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon_be,
 	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam_v1,
