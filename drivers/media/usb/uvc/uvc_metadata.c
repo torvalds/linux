@@ -67,11 +67,12 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *priv,
 	if (format->type != vfh->vdev->queue->type)
 		return -EINVAL;
 
-	for (unsigned int i = 0; i < dev->nmeta_formats; i++)
+	for (unsigned int i = 0; i < dev->nmeta_formats; i++) {
 		if (dev->meta_formats[i] == fmt->dataformat) {
 			fmeta = fmt->dataformat;
 			break;
 		}
+	}
 
 	memset(fmt, 0, sizeof(*fmt));
 
