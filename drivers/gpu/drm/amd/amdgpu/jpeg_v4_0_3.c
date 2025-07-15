@@ -216,12 +216,11 @@ static int jpeg_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		adev->jpeg.supported_reset = AMDGPU_RESET_TYPE_PER_QUEUE;
-		r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
-		if (r)
-			return r;
-	}
+	adev->jpeg.supported_reset =
+		amdgpu_get_soft_full_reset_mask(adev->jpeg.inst[0].ring_dec);
+	if (!amdgpu_sriov_vf(adev))
+		adev->jpeg.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
+	r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
 
 	return 0;
 }
@@ -242,8 +241,7 @@ static int jpeg_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if (!amdgpu_sriov_vf(adev))
-		amdgpu_jpeg_sysfs_reset_mask_fini(adev);
+	amdgpu_jpeg_sysfs_reset_mask_fini(adev);
 
 	r = amdgpu_jpeg_sw_fini(adev);
 
