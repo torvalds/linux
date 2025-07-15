@@ -4391,14 +4391,22 @@ static enum skb_drop_reason tcp_disordered_ack_check(const struct sock *sk,
  * (borrowed from freebsd)
  */
 
-static enum skb_drop_reason tcp_sequence(const struct tcp_sock *tp,
+static enum skb_drop_reason tcp_sequence(const struct sock *sk,
 					 u32 seq, u32 end_seq)
 {
+	const struct tcp_sock *tp = tcp_sk(sk);
+
 	if (before(end_seq, tp->rcv_wup))
 		return SKB_DROP_REASON_TCP_OLD_SEQUENCE;
 
-	if (after(seq, tp->rcv_nxt + tcp_receive_window(tp)))
-		return SKB_DROP_REASON_TCP_INVALID_SEQUENCE;
+	if (after(end_seq, tp->rcv_nxt + tcp_receive_window(tp))) {
+		if (after(seq, tp->rcv_nxt + tcp_receive_window(tp)))
+			return SKB_DROP_REASON_TCP_INVALID_SEQUENCE;
+
+		/* Only accept this packet if receive queue is empty. */
+		if (skb_queue_len(&sk->sk_receive_queue))
+			return SKB_DROP_REASON_TCP_INVALID_END_SEQUENCE;
+	}
 
 	return SKB_NOT_DROPPED_YET;
 }
@@ -4880,10 +4888,20 @@ static void tcp_ofo_queue(struct sock *sk)
 static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb);
 static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb);
 
-static int tcp_try_rmem_schedule(struct sock *sk, struct sk_buff *skb,
+/* Check if this incoming skb can be added to socket receive queues
+ * while satisfying sk->sk_rcvbuf limit.
+ */
+static bool tcp_can_ingest(const struct sock *sk, const struct sk_buff *skb)
+{
+	unsigned int new_mem = atomic_read(&sk->sk_rmem_alloc) + skb->truesize;
+
+	return new_mem <= sk->sk_rcvbuf;
+}
+
+static int tcp_try_rmem_schedule(struct sock *sk, const struct sk_buff *skb,
 				 unsigned int size)
 {
-	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
+	if (!tcp_can_ingest(sk, skb) ||
 	    !sk_rmem_schedule(sk, skb, size)) {
 
 		if (tcp_prune_queue(sk, skb) < 0)
@@ -4915,6 +4933,7 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
+	tcp_measure_rcv_mss(sk, skb);
 	/* Disable header prediction. */
 	tp->pred_flags = 0;
 	inet_csk_schedule_ack(sk);
@@ -5498,7 +5517,7 @@ static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb)
 		tcp_drop_reason(sk, skb, SKB_DROP_REASON_TCP_OFO_QUEUE_PRUNE);
 		tp->ooo_last_skb = rb_to_skb(prev);
 		if (!prev || goal <= 0) {
-			if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf &&
+			if (tcp_can_ingest(sk, skb) &&
 			    !tcp_under_memory_pressure(sk))
 				break;
 			goal = sk->sk_rcvbuf >> 3;
@@ -5532,12 +5551,12 @@ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb)
 
 	NET_INC_STATS(sock_net(sk), LINUX_MIB_PRUNECALLED);
 
-	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
+	if (!tcp_can_ingest(sk, in_skb))
 		tcp_clamp_window(sk);
 	else if (tcp_under_memory_pressure(sk))
 		tcp_adjust_rcv_ssthresh(sk);
 
-	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
+	if (tcp_can_ingest(sk, in_skb))
 		return 0;
 
 	tcp_collapse_ofo_queue(sk);
@@ -5547,7 +5566,7 @@ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb)
 			     NULL,
 			     tp->copied_seq, tp->rcv_nxt);
 
-	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
+	if (tcp_can_ingest(sk, in_skb))
 		return 0;
 
 	/* Collapsing did not help, destructive actions follow.
@@ -5555,7 +5574,7 @@ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb)
 
 	tcp_prune_ofo_queue(sk, in_skb);
 
-	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
+	if (tcp_can_ingest(sk, in_skb))
 		return 0;
 
 	/* If we are really being abused, tell the caller to silently
@@ -5881,7 +5900,7 @@ static bool tcp_validate_incoming(struct sock *sk, struct sk_buff *skb,
 
 step1:
 	/* Step 1: check sequence number */
-	reason = tcp_sequence(tp, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
+	reason = tcp_sequence(sk, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
 	if (reason) {
 		/* RFC793, page 37: "In all states except SYN-SENT, all reset
 		 * (RST) segments are validated by checking their SEQ-fields."
@@ -5892,6 +5911,7 @@ step1:
 		if (!th->rst) {
 			if (th->syn)
 				goto syn_challenge;
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_BEYOND_WINDOW);
 			if (!tcp_oow_rate_limited(sock_net(sk), skb,
 						  LINUX_MIB_TCPACKSKIPPEDSEQ,
 						  &tp->last_oow_ack_time))
@@ -6110,6 +6130,10 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb)
 			if (tcp_checksum_complete(skb))
 				goto csum_error;
 
+			if (after(TCP_SKB_CB(skb)->end_seq,
+				  tp->rcv_nxt + tcp_receive_window(tp)))
+				goto validate;
+
 			if ((int)skb->truesize > sk->sk_forward_alloc)
 				goto step5;
 
@@ -6165,7 +6189,7 @@ slow_path:
 	/*
 	 *	Standard slow path.
 	 */
-
+validate:
 	if (!tcp_validate_incoming(sk, skb, th, 1))
 		return;
 

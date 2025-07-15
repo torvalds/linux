@@ -1553,7 +1553,7 @@ __sk_rmem_schedule(struct sock *sk, int size, bool pfmemalloc)
 }
 
 static inline bool
-sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
+sk_rmem_schedule(struct sock *sk, const struct sk_buff *skb, int size)
 {
 	return __sk_rmem_schedule(sk, size, skb_pfmemalloc(skb));
 }
