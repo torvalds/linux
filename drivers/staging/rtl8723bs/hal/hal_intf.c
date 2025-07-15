@@ -129,8 +129,7 @@ u8 rtw_hal_get_def_var(struct adapter *padapter, enum hal_def_variable eVariable
 
 void rtw_hal_set_odm_var(struct adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
 {
-	if (padapter->HalFunc.SetHalODMVarHandler)
-		padapter->HalFunc.SetHalODMVarHandler(padapter, eVariable, pValue1, bSet);
+	rtl8723b_SetHalODMVar(padapter, eVariable, pValue1, bSet);
 }
 
 void rtw_hal_enable_interrupt(struct adapter *padapter)

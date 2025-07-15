@@ -1267,12 +1267,7 @@ void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 	rtw_write8(padapter, bcn_ctrl_reg, val8);
 }
 
-static void rtl8723b_SetHalODMVar(
-	struct adapter *Adapter,
-	enum hal_odm_variable eVariable,
-	void *pValue1,
-	bool bSet
-)
+void rtl8723b_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
 {
 	SetHalODMVar(Adapter, eVariable, pValue1, bSet);
 }
@@ -1325,8 +1320,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->SetHalODMVarHandler = &rtl8723b_SetHalODMVar;
-
 	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
 	pHalFunc->hal_notch_filter = &hal_notch_filter_8723b;
 
