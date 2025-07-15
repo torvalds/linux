@@ -633,6 +633,50 @@ TRACE_EVENT(blkdev_zone_mgmt,
 		  (unsigned long long)__entry->sector,
 		  __entry->nr_sectors)
 );
+
+DECLARE_EVENT_CLASS(block_zwplug,
+
+	TP_PROTO(struct request_queue *q, unsigned int zno, sector_t sector,
+		 unsigned int nr_sectors),
+
+	TP_ARGS(q, zno, sector, nr_sectors),
+
+	TP_STRUCT__entry(
+		__field( dev_t,		dev		)
+		__field( unsigned int,	zno		)
+		__field( sector_t,	sector		)
+		__field( unsigned int,	nr_sectors	)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= disk_devt(q->disk);
+		__entry->zno		= zno;
+		__entry->sector		= sector;
+		__entry->nr_sectors	= nr_sectors;
+	),
+
+	TP_printk("%d,%d zone %u, BIO %llu + %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->zno,
+		  (unsigned long long)__entry->sector,
+		  __entry->nr_sectors)
+);
+
+DEFINE_EVENT(block_zwplug, disk_zone_wplug_add_bio,
+
+	TP_PROTO(struct request_queue *q, unsigned int zno, sector_t sector,
+		 unsigned int nr_sectors),
+
+	TP_ARGS(q, zno, sector, nr_sectors)
+);
+
+DEFINE_EVENT(block_zwplug, blk_zone_wplug_bio,
+
+	TP_PROTO(struct request_queue *q, unsigned int zno, sector_t sector,
+		 unsigned int nr_sectors),
+
+	TP_ARGS(q, zno, sector, nr_sectors)
+);
+
 #endif /* _TRACE_BLOCK_H */
 
 /* This part must be outside protection */

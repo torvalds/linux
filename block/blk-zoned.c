@@ -822,6 +822,8 @@ static inline void disk_zone_wplug_add_bio(struct gendisk *disk,
 	 * at the tail of the list to preserve the sequential write order.
 	 */
 	bio_list_add(&zwplug->bio_list, bio);
+	trace_disk_zone_wplug_add_bio(zwplug->disk->queue, zwplug->zone_no,
+				      bio->bi_iter.bi_sector, bio_sectors(bio));
 
 	zwplug->flags |= BLK_ZONE_WPLUG_PLUGGED;
 
@@ -1298,6 +1300,9 @@ again:
 		spin_unlock_irqrestore(&zwplug->lock, flags);
 		goto put_zwplug;
 	}
+
+	trace_blk_zone_wplug_bio(zwplug->disk->queue, zwplug->zone_no,
+				 bio->bi_iter.bi_sector, bio_sectors(bio));
 
 	if (!blk_zone_wplug_prepare_bio(zwplug, bio)) {
 		blk_zone_wplug_bio_io_error(zwplug, bio);
