@@ -714,7 +714,7 @@ static inline void ublk_put_req_ref(struct ublk_io *io, struct request *req)
 		__ublk_complete_rq(req);
 }
 
-static inline bool ublk_sub_req_ref(struct ublk_io *io, struct request *req)
+static inline bool ublk_sub_req_ref(struct ublk_io *io)
 {
 	unsigned sub_refs = UBLK_REFCOUNT_INIT - io->task_registered_buffers;
 
@@ -2243,11 +2243,10 @@ static int ublk_check_commit_and_fetch(const struct ublk_queue *ubq,
 }
 
 static bool ublk_need_complete_req(const struct ublk_queue *ubq,
-				   struct ublk_io *io,
-				   struct request *req)
+				   struct ublk_io *io)
 {
 	if (ublk_need_req_ref(ubq))
-		return ublk_sub_req_ref(io, req);
+		return ublk_sub_req_ref(io);
 	return true;
 }
 
@@ -2359,7 +2358,7 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 		io->res = ub_cmd->result;
 		req = ublk_fill_io_cmd(io, cmd);
 		ret = ublk_config_io_buf(ubq, io, cmd, ub_cmd->addr, &buf_idx);
-		compl = ublk_need_complete_req(ubq, io, req);
+		compl = ublk_need_complete_req(ubq, io);
 
 		/* can't touch 'ublk_io' any more */
 		if (buf_idx != UBLK_INVALID_BUF_IDX)
