@@ -1489,7 +1489,7 @@ static int rtw89_pno_scan_offload(struct rtw89_dev *rtwdev, bool enable)
 		opt.opch_end = RTW89_CHAN_INVALID;
 	}
 
-	mac->scan_offload(rtwdev, &opt, rtwvif_link, true);
+	rtw89_mac_scan_offload(rtwdev, &opt, rtwvif_link, true);
 
 	return 0;
 }

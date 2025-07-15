@@ -6,6 +6,7 @@
 #define __RTW89_MAC_H__
 
 #include "core.h"
+#include "fw.h"
 #include "reg.h"
 
 #define MAC_MEM_DUMP_PAGE_SIZE_AX 0x40000
@@ -1582,5 +1583,29 @@ void rtw89_fwdl_secure_idmem_share_mode(struct rtw89_dev *rtwdev, u8 mode)
 		return;
 
 	return mac->fwdl_secure_idmem_share_mode(rtwdev, mode);
+}
+
+static inline
+int rtw89_mac_scan_offload(struct rtw89_dev *rtwdev,
+			   struct rtw89_scan_option *option,
+			   struct rtw89_vif_link *rtwvif_link,
+			   bool wowlan)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	int ret;
+
+	ret = mac->scan_offload(rtwdev, option, rtwvif_link, wowlan);
+
+	if (option->enable) {
+		/*
+		 * At this point, new scan request is acknowledged by firmware,
+		 * so scan events of previous scan request become obsoleted.
+		 * Purge the queued scan events to prevent interference to
+		 * current new request.
+		 */
+		rtw89_fw_c2h_purge_obsoleted_scan_events(rtwdev);
+	}
+
+	return ret;
 }
 #endif

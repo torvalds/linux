@@ -6759,6 +6759,34 @@ void rtw89_fw_c2h_work(struct wiphy *wiphy, struct wiphy_work *work)
 	}
 }
 
+void rtw89_fw_c2h_purge_obsoleted_scan_events(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct sk_buff *skb, *tmp;
+	int limit;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	limit = skb_queue_len(&rtwdev->c2h_queue);
+
+	skb_queue_walk_safe(&rtwdev->c2h_queue, skb, tmp) {
+		struct rtw89_fw_c2h_attr *attr = RTW89_SKB_C2H_CB(skb);
+
+		if (--limit < 0)
+			return;
+
+		if (!attr->is_scan_event || attr->scan_seq == scan_info->seq)
+			continue;
+
+		rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
+			    "purge obsoleted scan event with seq=%d (cur=%d)\n",
+			    attr->scan_seq, scan_info->seq);
+
+		skb_unlink(skb, &rtwdev->c2h_queue);
+		dev_kfree_skb_any(skb);
+	}
+}
+
 static int rtw89_fw_write_h2c_reg(struct rtw89_dev *rtwdev,
 				  struct rtw89_mac_h2c_info *info)
 {
@@ -8052,7 +8080,8 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev,
 		opt.opch_end = connected ? 0 : RTW89_CHAN_INVALID;
 	}
 
-	ret = mac->scan_offload(rtwdev, &opt, rtwvif_link, false);
+	ret = rtw89_mac_scan_offload(rtwdev, &opt, rtwvif_link, false);
+
 out:
 	return ret;
 }
