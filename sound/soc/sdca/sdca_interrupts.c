@@ -342,7 +342,6 @@ int sdca_irq_populate(struct sdca_function_data *function,
 			int irq = control->interrupt_position;
 			struct sdca_interrupt *interrupt;
 			irq_handler_t handler;
-			const char *name;
 			int ret;
 
 			if (irq == SDCA_NO_INTERRUPT) {
@@ -385,7 +384,7 @@ int sdca_irq_populate(struct sdca_function_data *function,
 						      handler, interrupt);
 			if (ret) {
 				dev_err(dev, "failed to request irq %s: %d\n",
-					name, ret);
+					interrupt->name, ret);
 				return ret;
 			}
 		}
