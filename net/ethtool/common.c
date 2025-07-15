@@ -812,6 +812,8 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 		return -EINVAL;
 	if (WARN_ON(ops->rxfh_max_num_contexts == 1))
 		return -EINVAL;
+	if (WARN_ON(ops->supported_input_xfrm && !ops->get_rxfh_fields))
+		return -EINVAL;
 	/* NOTE: sufficiently insane drivers may swap ethtool_ops at runtime,
 	 * the fact that ops are checked at registration time does not
 	 * mean the ops attached to a netdev later on are sane.

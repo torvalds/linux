@@ -1041,6 +1041,9 @@ static int ethtool_check_flow_types(struct net_device *dev, u32 input_xfrm)
 	int err;
 	u32 i;
 
+	if (!input_xfrm || input_xfrm == RXH_XFRM_NO_CHANGE)
+		return 0;
+
 	for (i = 0; i < __FLOW_TYPE_COUNT; i++) {
 		struct ethtool_rxfh_fields fields = {
 			.flow_type	= i,
@@ -1523,7 +1526,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	u8 *rss_config;
 	int ret;
 
-	if (!ops->get_rxnfc || !ops->get_rxfh_fields || !ops->set_rxfh)
+	if (!ops->get_rxnfc || !ops->set_rxfh)
 		return -EOPNOTSUPP;
 
 	if (ops->get_rxfh_indir_size)
