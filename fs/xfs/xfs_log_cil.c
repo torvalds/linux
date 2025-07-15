@@ -452,9 +452,8 @@ xlog_cil_insert_format_items(
 	}
 
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
-		struct xfs_log_vec *lv;
-		struct xfs_log_vec *shadow;
-		bool	ordered = false;
+		struct xfs_log_vec *lv = lip->li_lv;
+		struct xfs_log_vec *shadow = lip->li_lv_shadow;
 
 		/* Skip items which aren't dirty in this transaction. */
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
@@ -464,21 +463,23 @@ xlog_cil_insert_format_items(
 		 * The formatting size information is already attached to
 		 * the shadow lv on the log item.
 		 */
-		shadow = lip->li_lv_shadow;
-		if (shadow->lv_buf_len == XFS_LOG_VEC_ORDERED)
-			ordered = true;
+		if (shadow->lv_buf_len == XFS_LOG_VEC_ORDERED) {
+			if (!lv) {
+				lv = shadow;
+				lv->lv_item = lip;
+			}
+			ASSERT(shadow->lv_size == lv->lv_size);
+			xfs_cil_prepare_item(log, lip, lv, diff_len);
+			continue;
+		}
 
 		/* Skip items that do not have any vectors for writing */
-		if (!shadow->lv_niovecs && !ordered)
+		if (!shadow->lv_niovecs)
 			continue;
 
 		/* compare to existing item size */
-		if (lip->li_lv && shadow->lv_size <= lip->li_lv->lv_size) {
+		if (lv && shadow->lv_size <= lv->lv_size) {
 			/* same or smaller, optimise common overwrite case */
-			lv = lip->li_lv;
-
-			if (ordered)
-				goto insert;
 
 			/*
 			 * set the item up as though it is a new insertion so
@@ -498,16 +499,10 @@ xlog_cil_insert_format_items(
 			/* switch to shadow buffer! */
 			lv = shadow;
 			lv->lv_item = lip;
-			if (ordered) {
-				/* track as an ordered logvec */
-				ASSERT(lip->li_lv == NULL);
-				goto insert;
-			}
 		}
 
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
 		lip->li_ops->iop_format(lip, lv);
-insert:
 		xfs_cil_prepare_item(log, lip, lv, diff_len);
 	}
 }
