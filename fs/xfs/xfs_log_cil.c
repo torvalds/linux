@@ -275,7 +275,7 @@ xlog_cil_alloc_shadow_bufs(
 		struct xfs_log_vec *lv;
 		int	niovecs = 0;
 		int	nbytes = 0;
-		int	buf_size;
+		int	alloc_size;
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
@@ -316,14 +316,14 @@ xlog_cil_alloc_shadow_bufs(
 		 * that space to ensure we can align it appropriately and not
 		 * overrun the buffer.
 		 */
-		buf_size = nbytes + xlog_cil_iovec_space(niovecs);
+		alloc_size = nbytes + xlog_cil_iovec_space(niovecs);
 
 		/*
 		 * if we have no shadow buffer, or it is too small, we need to
 		 * reallocate it.
 		 */
 		if (!lip->li_lv_shadow ||
-		    buf_size > lip->li_lv_shadow->lv_size) {
+		    alloc_size > lip->li_lv_shadow->lv_alloc_size) {
 			/*
 			 * We free and allocate here as a realloc would copy
 			 * unnecessary data. We don't use kvzalloc() for the
@@ -332,15 +332,15 @@ xlog_cil_alloc_shadow_bufs(
 			 * storage.
 			 */
 			kvfree(lip->li_lv_shadow);
-			lv = xlog_kvmalloc(buf_size);
+			lv = xlog_kvmalloc(alloc_size);
 
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			INIT_LIST_HEAD(&lv->lv_list);
 			lv->lv_item = lip;
-			lv->lv_size = buf_size;
+			lv->lv_alloc_size = alloc_size;
 			if (ordered)
-				lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+				lv->lv_buf_used = XFS_LOG_VEC_ORDERED;
 			else
 				lv->lv_iovecp = (struct xfs_log_iovec *)&lv[1];
 			lip->li_lv_shadow = lv;
@@ -348,9 +348,9 @@ xlog_cil_alloc_shadow_bufs(
 			/* same or smaller, optimise common overwrite case */
 			lv = lip->li_lv_shadow;
 			if (ordered)
-				lv->lv_buf_len = XFS_LOG_VEC_ORDERED;
+				lv->lv_buf_used = XFS_LOG_VEC_ORDERED;
 			else
-				lv->lv_buf_len = 0;
+				lv->lv_buf_used = 0;
 			lv->lv_bytes = 0;
 		}
 
@@ -375,7 +375,7 @@ xfs_cil_prepare_item(
 	int			*diff_len)
 {
 	/* Account for the new LV being passed in */
-	if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED)
+	if (lv->lv_buf_used != XFS_LOG_VEC_ORDERED)
 		*diff_len += lv->lv_bytes;
 
 	/*
@@ -390,7 +390,7 @@ xfs_cil_prepare_item(
 			lv->lv_item->li_ops->iop_pin(lv->lv_item);
 		lv->lv_item->li_lv_shadow = NULL;
 	} else if (lip->li_lv != lv) {
-		ASSERT(lv->lv_buf_len != XFS_LOG_VEC_ORDERED);
+		ASSERT(lv->lv_buf_used != XFS_LOG_VEC_ORDERED);
 
 		*diff_len -= lip->li_lv->lv_bytes;
 		lv->lv_item->li_lv_shadow = lip->li_lv;
@@ -463,12 +463,12 @@ xlog_cil_insert_format_items(
 		 * The formatting size information is already attached to
 		 * the shadow lv on the log item.
 		 */
-		if (shadow->lv_buf_len == XFS_LOG_VEC_ORDERED) {
+		if (shadow->lv_buf_used == XFS_LOG_VEC_ORDERED) {
 			if (!lv) {
 				lv = shadow;
 				lv->lv_item = lip;
 			}
-			ASSERT(shadow->lv_size == lv->lv_size);
+			ASSERT(shadow->lv_alloc_size == lv->lv_alloc_size);
 			xfs_cil_prepare_item(log, lip, lv, diff_len);
 			continue;
 		}
@@ -478,7 +478,7 @@ xlog_cil_insert_format_items(
 			continue;
 
 		/* compare to existing item size */
-		if (lv && shadow->lv_size <= lv->lv_size) {
+		if (lv && shadow->lv_alloc_size <= lv->lv_alloc_size) {
 			/* same or smaller, optimise common overwrite case */
 
 			/*
@@ -491,7 +491,7 @@ xlog_cil_insert_format_items(
 			lv->lv_niovecs = shadow->lv_niovecs;
 
 			/* reset the lv buffer information for new formatting */
-			lv->lv_buf_len = 0;
+			lv->lv_buf_used = 0;
 			lv->lv_bytes = 0;
 			lv->lv_buf = (char *)lv +
 					xlog_cil_iovec_space(lv->lv_niovecs);
@@ -1238,7 +1238,7 @@ xlog_cil_build_lv_chain(
 		lv->lv_order_id = item->li_order_id;
 
 		/* we don't write ordered log vectors */
-		if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED)
+		if (lv->lv_buf_used != XFS_LOG_VEC_ORDERED)
 			*num_bytes += lv->lv_bytes;
 		*num_iovecs += lv->lv_niovecs;
 		list_add_tail(&lv->lv_list, &ctx->lv_chain);
