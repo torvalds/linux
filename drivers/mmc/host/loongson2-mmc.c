@@ -887,7 +887,7 @@ static int loongson2_mmc_resource_request(struct platform_device *pdev,
 	if (host->clk) {
 		ret = devm_clk_rate_exclusive_get(dev, host->clk);
 		if (ret)
-			return PTR_ERR(host->clk);
+			return ret;
 
 		host->current_clk = clk_get_rate(host->clk);
 	} else {
