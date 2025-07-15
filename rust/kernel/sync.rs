@@ -10,6 +10,7 @@ use crate::types::Opaque;
 use pin_init;
 
 mod arc;
+pub mod aref;
 pub mod completion;
 mod condvar;
 pub mod lock;
