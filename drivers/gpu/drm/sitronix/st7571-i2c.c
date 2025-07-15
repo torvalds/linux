@@ -92,6 +92,7 @@ struct st7571_panel_constraints {
 
 struct st7571_panel_data {
 	int (*init)(struct st7571_device *st7571);
+	int (*parse_dt)(struct st7571_device *st7571);
 	struct st7571_panel_constraints constraints;
 };
 
@@ -881,7 +882,7 @@ static int st7571_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, st7571);
 	st7571->pdata = device_get_match_data(&client->dev);
 
-	ret = st7571_parse_dt(st7571);
+	ret = st7571->pdata->parse_dt(st7571);
 	if (ret)
 		return ret;
 
@@ -964,6 +965,7 @@ static void st7571_remove(struct i2c_client *client)
 
 struct st7571_panel_data st7571_config = {
 	.init = st7571_lcd_init,
+	.parse_dt = st7571_parse_dt,
 	.constraints = {
 		.min_nlines = 1,
 		.max_nlines = 128,
