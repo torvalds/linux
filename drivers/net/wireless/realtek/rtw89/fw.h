@@ -4699,6 +4699,7 @@ struct rtw89_c2h_rf_tas_info {
 #define RTW89_FW_BACKTRACE_KEY 0xBACEBACE
 
 #define FWDL_WAIT_CNT 400000
+#define FWDL_WAIT_CNT_USB 3200
 
 int rtw89_fw_check_rdy(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type);
 int rtw89_fw_recognize(struct rtw89_dev *rtwdev);

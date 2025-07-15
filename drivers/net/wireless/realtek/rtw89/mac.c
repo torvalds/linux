@@ -6940,10 +6940,16 @@ int rtw89_fwdl_check_path_ready_ax(struct rtw89_dev *rtwdev,
 				   bool h2c_or_fwdl)
 {
 	u8 check = h2c_or_fwdl ? B_AX_H2C_PATH_RDY : B_AX_FWDL_PATH_RDY;
+	u32 timeout;
 	u8 val;
 
+	if (rtwdev->hci.type == RTW89_HCI_TYPE_USB)
+		timeout = FWDL_WAIT_CNT_USB;
+	else
+		timeout = FWDL_WAIT_CNT;
+
 	return read_poll_timeout_atomic(rtw89_read8, val, val & check,
-					1, FWDL_WAIT_CNT, false,
+					1, timeout, false,
 					rtwdev, R_AX_WCPU_FW_CTRL);
 }
 
