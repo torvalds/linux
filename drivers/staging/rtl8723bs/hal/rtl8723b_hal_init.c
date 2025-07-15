@@ -1267,11 +1267,6 @@ void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 	rtw_write8(padapter, bcn_ctrl_reg, val8);
 }
 
-void rtl8723b_SetHalODMVar(struct adapter *Adapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
-{
-	SetHalODMVar(Adapter, eVariable, pValue1, bSet);
-}
-
 static void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
 {
 	if (enable)
