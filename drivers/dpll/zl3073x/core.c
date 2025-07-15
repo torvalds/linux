@@ -672,14 +672,25 @@ zl3073x_dev_state_fetch(struct zl3073x_dev *zldev)
 /**
  * zl3073x_ref_phase_offsets_update - update reference phase offsets
  * @zldev: pointer to zl3073x_dev structure
+ * @channel: DPLL channel number or -1
  *
- * Ask device to update phase offsets latch registers with the latest
- * measured values.
+ * The function asks device to update phase offsets latch registers with
+ * the latest measured values. There are 2 sets of latch registers:
+ *
+ * 1) Up to 5 DPLL-to-connected-ref registers that contain phase offset
+ *    values between particular DPLL channel and its *connected* input
+ *    reference.
+ *
+ * 2) 10 selected-DPLL-to-all-ref registers that contain phase offset values
+ *    between selected DPLL channel and all input references.
+ *
+ * If the caller is interested in 2) then it has to pass DPLL channel number
+ * in @channel parameter. If it is interested only in 1) then it should pass
+ * @channel parameter with value of -1.
  *
  * Return: 0 on success, <0 on error
  */
-static int
-zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev)
+int zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev, int channel)
 {
 	int rc;
 
@@ -690,6 +701,13 @@ zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev)
 				  ZL_REF_PHASE_ERR_READ_RQST_RD);
 	if (rc)
 		return rc;
+
+	/* Select DPLL channel if it is specified */
+	if (channel != -1) {
+		rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MEAS_IDX, channel);
+		if (rc)
+			return rc;
+	}
 
 	/* Request to update phase offsets measurement values */
 	rc = zl3073x_write_u8(zldev, ZL_REG_REF_PHASE_ERR_READ_RQST,
@@ -711,7 +729,7 @@ zl3073x_dev_periodic_work(struct kthread_work *work)
 	int rc;
 
 	/* Update DPLL-to-connected-ref phase offsets registers */
-	rc = zl3073x_ref_phase_offsets_update(zldev);
+	rc = zl3073x_ref_phase_offsets_update(zldev, -1);
 	if (rc)
 		dev_warn(zldev->dev, "Failed to update phase offsets: %pe\n",
 			 ERR_PTR(rc));

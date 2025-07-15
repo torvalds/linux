@@ -101,6 +101,9 @@
 #define ZL_REG_REF_PHASE_ERR_READ_RQST		ZL_REG(4, 0x0f, 1)
 #define ZL_REF_PHASE_ERR_READ_RQST_RD		BIT(0)
 
+#define ZL_REG_REF_PHASE(_idx)						\
+	ZL_REG_IDX(_idx, 4, 0x20, 6, ZL3073X_NUM_REFS, 6)
+
 /***********************
  * Register Page 5, DPLL
  ***********************/
@@ -118,6 +121,9 @@
 #define ZL_REG_DPLL_MEAS_CTRL			ZL_REG(5, 0x50, 1)
 #define ZL_DPLL_MEAS_CTRL_EN			BIT(0)
 #define ZL_DPLL_MEAS_CTRL_AVG_FACTOR		GENMASK(7, 4)
+
+#define ZL_REG_DPLL_MEAS_IDX			ZL_REG(5, 0x51, 1)
+#define ZL_DPLL_MEAS_IDX			GENMASK(2, 0)
 
 #define ZL_REG_DPLL_PHASE_ERR_READ_MASK		ZL_REG(5, 0x54, 1)
 
