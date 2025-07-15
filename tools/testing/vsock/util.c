@@ -116,7 +116,7 @@ bool vsock_ioctl_int(int fd, unsigned long op, int expected)
 	do {
 		ret = ioctl(fd, op, &actual);
 		if (ret < 0) {
-			if (errno == EOPNOTSUPP)
+			if (errno == EOPNOTSUPP || errno == ENOTTY)
 				break;
 
 			perror(name);
