@@ -1845,6 +1845,10 @@ static noinline_for_stack bool rcu_gp_init(void)
 	 * use-after-free errors. For a detailed explanation of this race, see
 	 * Documentation/RCU/Design/Requirements/Requirements.rst in the
 	 * "Hotplug CPU" section.
+	 *
+	 * Also note that the root rnp's gp_seq is kept separate from, and lags,
+	 * the rcu_state's gp_seq, for a reason. See the Quick-Quiz on
+	 * Single-node systems for more details (in Data-Structures.rst).
 	 */
 	rcu_seq_start(&rcu_state.gp_seq);
 	/* Ensure that rcu_seq_done_exact() guardband doesn't give false positives. */
