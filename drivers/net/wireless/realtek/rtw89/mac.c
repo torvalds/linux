@@ -5865,7 +5865,7 @@ int rtw89_mac_cfg_ppdu_status_ax(struct rtw89_dev *rtwdev, u8 mac_idx, bool enab
 
 	rtw89_write32(rtwdev, reg, B_AX_PPDU_STAT_RPT_EN |
 				   B_AX_APP_MAC_INFO_RPT |
-				   B_AX_APP_RX_CNT_RPT | B_AX_APP_PLCP_HDR_RPT |
+				   B_AX_APP_PLCP_HDR_RPT |
 				   B_AX_PPDU_STAT_RPT_CRC32);
 	rtw89_write32_mask(rtwdev, R_AX_HW_RPT_FWD, B_AX_FWD_PPDU_STAT_MASK,
 			   RTW89_PRPT_DEST_HOST);
