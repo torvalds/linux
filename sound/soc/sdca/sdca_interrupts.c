@@ -262,7 +262,7 @@ int sdca_irq_request(struct device *dev, struct sdca_interrupt_info *info,
 {
 	int ret;
 
-	if (sdca_irq < 0 || sdca_irq > SDCA_MAX_INTERRUPTS) {
+	if (sdca_irq < 0 || sdca_irq >= SDCA_MAX_INTERRUPTS) {
 		dev_err(dev, "bad irq request: %d\n", sdca_irq);
 		return -EINVAL;
 	}
