@@ -86,13 +86,15 @@ int smpcfd_dead_cpu(unsigned int cpu)
 int smpcfd_dying_cpu(unsigned int cpu)
 {
 	/*
-	 * The IPIs for the smp-call-function callbacks queued by other
-	 * CPUs might arrive late, either due to hardware latencies or
-	 * because this CPU disabled interrupts (inside stop-machine)
-	 * before the IPIs were sent. So flush out any pending callbacks
-	 * explicitly (without waiting for the IPIs to arrive), to
-	 * ensure that the outgoing CPU doesn't go offline with work
-	 * still pending.
+	 * The IPIs for the smp-call-function callbacks queued by other CPUs
+	 * might arrive late, either due to hardware latencies or because this
+	 * CPU disabled interrupts (inside stop-machine) before the IPIs were
+	 * sent. So flush out any pending callbacks explicitly (without waiting
+	 * for the IPIs to arrive), to ensure that the outgoing CPU doesn't go
+	 * offline with work still pending.
+	 *
+	 * This runs with interrupts disabled inside the stopper task invoked by
+	 * stop_machine(), ensuring mutually exclusive CPU offlining and IPI flush.
 	 */
 	__flush_smp_call_function_queue(false);
 	irq_work_run();
@@ -418,6 +420,10 @@ void __smp_call_single_queue(int cpu, struct llist_node *node)
  */
 static int generic_exec_single(int cpu, call_single_data_t *csd)
 {
+	/*
+	 * Preemption already disabled here so stopper cannot run on this CPU,
+	 * ensuring mutually exclusive CPU offlining and last IPI flush.
+	 */
 	if (cpu == smp_processor_id()) {
 		smp_call_func_t func = csd->func;
 		void *info = csd->info;
@@ -638,8 +644,10 @@ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
 	int err;
 
 	/*
-	 * prevent preemption and reschedule on another processor,
-	 * as well as CPU removal
+	 * Prevent preemption and reschedule on another CPU, as well as CPU
+	 * removal. This prevents stopper from running on this CPU, thus
+	 * providing mutual exclusion of the below cpu_online() check and
+	 * IPI sending ensuring IPI are not missed by CPU going offline.
 	 */
 	this_cpu = get_cpu();
 
