@@ -75,7 +75,10 @@ struct io_sr_msg {
 	u16				flags;
 	/* initialised and used only by !msg send variants */
 	u16				buf_group;
+	/* per-invocation mshot limit */
 	unsigned			mshot_len;
+	/* overall mshot byte limit */
+	unsigned			mshot_total_len;
 	void __user			*msg_control;
 	/* used only for send zerocopy */
 	struct io_kiocb 		*notif;
@@ -89,10 +92,12 @@ enum sr_retry_flags {
 	IORING_RECV_RETRY	= (1U << 15),
 	IORING_RECV_PARTIAL_MAP	= (1U << 14),
 	IORING_RECV_MSHOT_CAP	= (1U << 13),
+	IORING_RECV_MSHOT_LIM	= (1U << 12),
+	IORING_RECV_MSHOT_DONE	= (1U << 11),
 
 	IORING_RECV_RETRY_CLEAR	= IORING_RECV_RETRY | IORING_RECV_PARTIAL_MAP,
 	IORING_RECV_NO_RETRY	= IORING_RECV_RETRY | IORING_RECV_PARTIAL_MAP |
-				  IORING_RECV_MSHOT_CAP,
+				  IORING_RECV_MSHOT_CAP | IORING_RECV_MSHOT_DONE,
 };
 
 /*
@@ -765,7 +770,7 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	sr->done_io = 0;
 
-	if (unlikely(sqe->file_index || sqe->addr2))
+	if (unlikely(sqe->addr2))
 		return -EINVAL;
 
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -790,16 +795,25 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		sr->buf_group = req->buf_index;
 		req->buf_list = NULL;
 	}
-	sr->mshot_len = 0;
+	sr->mshot_total_len = sr->mshot_len = 0;
 	if (sr->flags & IORING_RECV_MULTISHOT) {
 		if (!(req->flags & REQ_F_BUFFER_SELECT))
 			return -EINVAL;
 		if (sr->msg_flags & MSG_WAITALL)
 			return -EINVAL;
-		if (req->opcode == IORING_OP_RECV)
+		if (req->opcode == IORING_OP_RECV) {
 			sr->mshot_len = sr->len;
+			sr->mshot_total_len = READ_ONCE(sqe->optlen);
+			if (sr->mshot_total_len)
+				sr->flags |= IORING_RECV_MSHOT_LIM;
+		} else if (sqe->optlen) {
+			return -EINVAL;
+		}
 		req->flags |= REQ_F_APOLL_MULTISHOT;
+	} else if (sqe->optlen) {
+		return -EINVAL;
 	}
+
 	if (sr->flags & IORING_RECVSEND_BUNDLE) {
 		if (req->opcode == IORING_OP_RECVMSG)
 			return -EINVAL;
@@ -830,6 +844,19 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 
 	if (kmsg->msg.msg_inq > 0)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+
+	if (*ret > 0 && sr->flags & IORING_RECV_MSHOT_LIM) {
+		/*
+		 * If sr->len hits zero, the limit has been reached. Mark
+		 * mshot as finished, and flag MSHOT_DONE as well to prevent
+		 * a potential bundle from being retried.
+		 */
+		sr->mshot_total_len -= min_t(int, *ret, sr->mshot_total_len);
+		if (!sr->mshot_total_len) {
+			sr->flags |= IORING_RECV_MSHOT_DONE;
+			mshot_finished = true;
+		}
+	}
 
 	if (sr->flags & IORING_RECVSEND_BUNDLE) {
 		size_t this_ret = *ret - sr->done_io;
@@ -1094,6 +1121,9 @@ static int io_recv_buf_select(struct io_kiocb *req, struct io_async_msghdr *kmsg
 		else if (kmsg->msg.msg_inq > 1)
 			arg.max_len = min_not_zero(*len, (size_t) kmsg->msg.msg_inq);
 
+		/* if mshot limited, ensure we don't go over */
+		if (sr->flags & IORING_RECV_MSHOT_LIM)
+			arg.max_len = min_not_zero(arg.max_len, sr->mshot_total_len);
 		ret = io_buffers_peek(req, &arg);
 		if (unlikely(ret < 0))
 			return ret;
