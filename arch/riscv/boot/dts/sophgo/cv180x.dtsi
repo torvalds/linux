@@ -31,7 +31,7 @@
 			#reset-cells = <1>;
 		};
 
-		mdio: mdio@3009800 {
+		mdio: mdio-mux@3009800 {
 			compatible = "mdio-mux-mmioreg", "mdio-mux";
 			reg = <0x3009800 0x4>;
 			#address-cells = <1>;
