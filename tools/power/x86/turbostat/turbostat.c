@@ -195,6 +195,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "APIC", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "X2APIC", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "Die", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "L3", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "GFXAMHz", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "IPC", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "CoreThr", NULL, 0, 0, 0, NULL, 0 },
@@ -263,6 +264,7 @@ enum bic_names {
 	BIC_APIC,
 	BIC_X2APIC,
 	BIC_Die,
+	BIC_L3,
 	BIC_GFXACTMHz,
 	BIC_IPC,
 	BIC_CORE_THROT_CNT,
@@ -292,7 +294,7 @@ void print_bic_set(char *s, cpu_set_t *set)
 		if (CPU_ISSET(i, set)) {
 			assert(i < MAX_BIC);
 			printf(" %s", bic[i].name);
-		} 
+		}
 	}
 	putchar('\n');
 }
@@ -357,6 +359,7 @@ static void bic_groups_init(void)
 	SET_BIC(BIC_Core, &bic_group_topology);
 	SET_BIC(BIC_CPU, &bic_group_topology);
 	SET_BIC(BIC_Die, &bic_group_topology);
+	SET_BIC(BIC_L3, &bic_group_topology);
 
 	BIC_INIT(&bic_group_thermal_pwr);
 	SET_BIC(BIC_CoreTmp, &bic_group_thermal_pwr);
@@ -2273,6 +2276,7 @@ struct platform_counters {
 struct cpu_topology {
 	int physical_package_id;
 	int die_id;
+	int l3_id;
 	int logical_cpu_id;
 	int physical_node_id;
 	int logical_node_id;	/* 0-based count within the package */
@@ -2294,6 +2298,7 @@ struct topo_params {
 	int max_core_id;
 	int max_package_id;
 	int max_die_id;
+	int max_l3_id;
 	int max_node_num;
 	int nodes_per_pkg;
 	int cores_per_node;
@@ -2712,6 +2717,8 @@ void print_header(char *delim)
 		outp += sprintf(outp, "%sPackage", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Die))
 		outp += sprintf(outp, "%sDie", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_L3))
+		outp += sprintf(outp, "%sL3", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Node))
 		outp += sprintf(outp, "%sNode", (printed++ ? delim : ""));
 	if (DO_BIC(BIC_Core))
@@ -3183,6 +3190,8 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Die))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		if (DO_BIC(BIC_L3))
+			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Node))
 			outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		if (DO_BIC(BIC_Core))
@@ -3203,6 +3212,12 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		if (DO_BIC(BIC_Die)) {
 			if (c)
 				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), cpus[t->cpu_id].die_id);
+			else
+				outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
+		}
+		if (DO_BIC(BIC_L3)) {
+			if (c)
+				outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), cpus[t->cpu_id].l3_id);
 			else
 				outp += sprintf(outp, "%s-", (printed++ ? delim : ""));
 		}
@@ -5909,6 +5924,11 @@ int get_physical_package_id(int cpu)
 int get_die_id(int cpu)
 {
 	return parse_int_file("/sys/devices/system/cpu/cpu%d/topology/die_id", cpu);
+}
+
+int get_l3_id(int cpu)
+{
+	return parse_int_file("/sys/devices/system/cpu/cpu%d/cache/index3/id", cpu);
 }
 
 int get_core_id(int cpu)
@@ -9203,6 +9223,11 @@ void topology_probe(bool startup)
 		if (cpus[i].die_id > topo.max_die_id)
 			topo.max_die_id = cpus[i].die_id;
 
+		/* get l3 information */
+		cpus[i].l3_id = get_l3_id(i);
+		if (cpus[i].l3_id > topo.max_l3_id)
+			topo.max_l3_id = cpus[i].l3_id;
+
 		/* get numa node information */
 		cpus[i].physical_node_id = get_physical_node_id(&cpus[i]);
 		if (cpus[i].physical_node_id > topo.max_node_num)
@@ -9235,6 +9260,9 @@ void topology_probe(bool startup)
 	if (!summary_only && topo.num_die > 1)
 		BIC_PRESENT(BIC_Die);
 
+	if (!summary_only && topo.max_l3_id > 0)
+		BIC_PRESENT(BIC_L3);
+
 	topo.num_packages = max_package_id + 1;
 	if (debug > 1)
 		fprintf(outf, "max_package_id %d, sizing for %d packages\n", max_package_id, topo.num_packages);
@@ -9258,8 +9286,8 @@ void topology_probe(bool startup)
 		if (cpu_is_not_present(i))
 			continue;
 		fprintf(outf,
-			"cpu %d pkg %d die %d node %d lnode %d core %d thread %d\n",
-			i, cpus[i].physical_package_id, cpus[i].die_id,
+			"cpu %d pkg %d die %d l3 %d node %d lnode %d core %d thread %d\n",
+			i, cpus[i].physical_package_id, cpus[i].die_id, cpus[i].l3_id,
 			cpus[i].physical_node_id, cpus[i].logical_node_id, cpus[i].physical_core_id, cpus[i].thread_id);
 	}
 
