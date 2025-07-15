@@ -378,14 +378,12 @@ static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
 	gpio->gpiob_out |= (1 << offset);
 
 	mutex_lock(&vb->lock);
-
 	ret = vprbrd_gpiob_setdir(vb, offset, 1);
+	mutex_unlock(&vb->lock);
 	if (ret) {
 		dev_err(chip->parent, "usb error setting pin to output\n");
 		return ret;
 	}
-
-	mutex_unlock(&vb->lock);
 
 	return vprbrd_gpiob_set(chip, offset, value);
 }
