@@ -370,8 +370,8 @@ xlog_cil_alloc_shadow_bufs(
 STATIC void
 xfs_cil_prepare_item(
 	struct xlog		*log,
+	struct xfs_log_item	*lip,
 	struct xfs_log_vec	*lv,
-	struct xfs_log_vec	*old_lv,
 	int			*diff_len)
 {
 	/* Account for the new LV being passed in */
@@ -381,19 +381,19 @@ xfs_cil_prepare_item(
 	/*
 	 * If there is no old LV, this is the first time we've seen the item in
 	 * this CIL context and so we need to pin it. If we are replacing the
-	 * old_lv, then remove the space it accounts for and make it the shadow
+	 * old lv, then remove the space it accounts for and make it the shadow
 	 * buffer for later freeing. In both cases we are now switching to the
 	 * shadow buffer, so update the pointer to it appropriately.
 	 */
-	if (!old_lv) {
+	if (!lip->li_lv) {
 		if (lv->lv_item->li_ops->iop_pin)
 			lv->lv_item->li_ops->iop_pin(lv->lv_item);
 		lv->lv_item->li_lv_shadow = NULL;
-	} else if (old_lv != lv) {
+	} else if (lip->li_lv != lv) {
 		ASSERT(lv->lv_buf_len != XFS_LOG_VEC_ORDERED);
 
-		*diff_len -= old_lv->lv_bytes;
-		lv->lv_item->li_lv_shadow = old_lv;
+		*diff_len -= lip->li_lv->lv_bytes;
+		lv->lv_item->li_lv_shadow = lip->li_lv;
 	}
 
 	/* attach new log vector to log item */
@@ -453,7 +453,6 @@ xlog_cil_insert_format_items(
 
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec *lv;
-		struct xfs_log_vec *old_lv = NULL;
 		struct xfs_log_vec *shadow;
 		bool	ordered = false;
 
@@ -474,7 +473,6 @@ xlog_cil_insert_format_items(
 			continue;
 
 		/* compare to existing item size */
-		old_lv = lip->li_lv;
 		if (lip->li_lv && shadow->lv_size <= lip->li_lv->lv_size) {
 			/* same or smaller, optimise common overwrite case */
 			lv = lip->li_lv;
@@ -510,7 +508,7 @@ xlog_cil_insert_format_items(
 		ASSERT(IS_ALIGNED((unsigned long)lv->lv_buf, sizeof(uint64_t)));
 		lip->li_ops->iop_format(lip, lv);
 insert:
-		xfs_cil_prepare_item(log, lv, old_lv, diff_len);
+		xfs_cil_prepare_item(log, lip, lv, diff_len);
 	}
 }
 
