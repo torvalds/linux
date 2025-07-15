@@ -10,12 +10,14 @@ Michael Elizabeth Chastain
 If you are adding new ioctl's to the kernel, you should use the _IO
 macros defined in <linux/ioctl.h>:
 
-    ====== == ============================================
-    _IO    an ioctl with no parameters
-    _IOW   an ioctl with write parameters (copy_from_user)
-    _IOR   an ioctl with read parameters  (copy_to_user)
-    _IOWR  an ioctl with both write and read parameters.
-    ====== == ============================================
+    ====== ===========================
+    macro  parameters
+    ====== ===========================
+    _IO    none
+    _IOW   write (read from userspace)
+    _IOR   read (write to userpace)
+    _IOWR  write and read
+    ====== ===========================
 
 'Write' and 'read' are from the user's point of view, just like the
 system calls 'write' and 'read'.  For example, a SET_FOO ioctl would
