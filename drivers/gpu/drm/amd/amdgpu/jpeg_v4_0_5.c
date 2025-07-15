@@ -774,9 +774,6 @@ static int jpeg_v4_0_5_ring_reset(struct amdgpu_ring *ring,
 {
 	int r;
 
-	if (!(ring->adev->jpeg.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
 	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
 	r = jpeg_v4_0_5_stop(ring->adev);
 	if (r)

@@ -1664,9 +1664,6 @@ static int sdma_v4_4_2_reset_queue(struct amdgpu_ring *ring,
 	u32 id = ring->me;
 	int r;
 
-	if (!(adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
 	amdgpu_amdkfd_suspend(adev, true);
 	r = amdgpu_sdma_reset_engine(adev, id, false);
 	amdgpu_amdkfd_resume(adev, true);

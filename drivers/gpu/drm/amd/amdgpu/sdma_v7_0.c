@@ -809,9 +809,6 @@ static int sdma_v7_0_reset_queue(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	int r;
 
-	if (!(adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
 	if (ring->me >= adev->sdma.num_instances) {
 		dev_err(adev->dev, "sdma instance not found\n");
 		return -EINVAL;

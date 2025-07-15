@@ -1976,9 +1976,6 @@ static int vcn_v4_0_ring_reset(struct amdgpu_ring *ring,
 	struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[ring->me];
 	int r;
 
-	if (!(adev->vcn.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
 	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
 	r = vcn_v4_0_stop(vinst);
 	if (r)

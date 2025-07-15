@@ -6808,9 +6808,6 @@ static int gfx_v11_0_reset_kgq(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	int r;
 
-	if (!(adev->gfx.gfx_supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
 	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
 
 	r = amdgpu_mes_reset_legacy_queue(ring->adev, ring, vmid, false);
@@ -6973,9 +6970,6 @@ static int gfx_v11_0_reset_kcq(struct amdgpu_ring *ring,
 {
 	struct amdgpu_device *adev = ring->adev;
 	int r = 0;
-
-	if (!(adev->gfx.compute_supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
 
 	amdgpu_ring_reset_helper_begin(ring, timedout_fence);
 

@@ -1522,9 +1522,6 @@ int amdgpu_vcn_ring_reset(struct amdgpu_ring *ring,
 {
 	struct amdgpu_device *adev = ring->adev;
 
-	if (!(adev->vcn.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
 	if (adev->vcn.inst[ring->me].using_unified_queue)
 		return -EINVAL;
 

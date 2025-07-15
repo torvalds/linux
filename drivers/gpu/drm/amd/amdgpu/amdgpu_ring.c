@@ -825,3 +825,34 @@ int amdgpu_ring_reset_helper_end(struct amdgpu_ring *ring,
 	drm_sched_wqueue_start(&ring->sched);
 	return 0;
 }
+
+bool amdgpu_ring_is_reset_type_supported(struct amdgpu_ring *ring,
+					 u32 reset_type)
+{
+	switch (ring->funcs->type) {
+	case AMDGPU_RING_TYPE_GFX:
+		if (ring->adev->gfx.gfx_supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		if (ring->adev->gfx.compute_supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		if (ring->adev->sdma.supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_VCN_DEC:
+	case AMDGPU_RING_TYPE_VCN_ENC:
+		if (ring->adev->vcn.supported_reset & reset_type)
+			return true;
+		break;
+	case AMDGPU_RING_TYPE_VCN_JPEG:
+		if (ring->adev->jpeg.supported_reset & reset_type)
+			return true;
+		break;
+	default:
+		break;
+	}
+	return false;
+}

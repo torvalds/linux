@@ -9523,9 +9523,6 @@ static int gfx_v10_0_reset_kgq(struct amdgpu_ring *ring,
 	u64 addr;
 	int r;
 
-	if (!(adev->gfx.gfx_supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
-
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
@@ -9590,9 +9587,6 @@ static int gfx_v10_0_reset_kcq(struct amdgpu_ring *ring,
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	unsigned long flags;
 	int i, r;
-
-	if (!(adev->gfx.compute_supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
-		return -EOPNOTSUPP;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
