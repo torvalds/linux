@@ -25825,10 +25825,8 @@ wlc_phy_cal_txiqlo_nphy(struct brcms_phy *pi, struct nphy_txgains target_gain,
 
 		if (mphase) {
 			cal_cnt = pi->mphase_txcal_cmdidx;
-			if ((cal_cnt + pi->mphase_txcal_numcmds) < max_cal_cmds)
-				num_cals = cal_cnt + pi->mphase_txcal_numcmds;
-			else
-				num_cals = max_cal_cmds;
+			num_cals = min(cal_cnt + pi->mphase_txcal_numcmds,
+				       max_cal_cmds);
 		} else {
 			cal_cnt = 0;
 			num_cals = max_cal_cmds;
