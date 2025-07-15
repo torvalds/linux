@@ -883,7 +883,8 @@ static void blk_complete_request(struct request *req)
 		/* Completion has already been traced */
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 
-		blk_zone_update_request_bio(req, bio);
+		if (blk_req_bio_is_zone_append(req, bio))
+			blk_zone_append_update_request_bio(req, bio);
 
 		if (!is_flush)
 			bio_endio(bio);
@@ -982,7 +983,8 @@ bool blk_update_request(struct request *req, blk_status_t error,
 
 		/* Don't actually finish bio if it's part of flush sequence */
 		if (!bio->bi_iter.bi_size) {
-			blk_zone_update_request_bio(req, bio);
+			if (blk_req_bio_is_zone_append(req, bio))
+				blk_zone_append_update_request_bio(req, bio);
 			if (!is_flush)
 				bio_endio(bio);
 		}

@@ -1187,6 +1187,19 @@ static void disk_zone_wplug_unplug_bio(struct gendisk *disk,
 	spin_unlock_irqrestore(&zwplug->lock, flags);
 }
 
+void blk_zone_append_update_request_bio(struct request *rq, struct bio *bio)
+{
+	/*
+	 * For zone append requests, the request sector indicates the location
+	 * at which the BIO data was written. Return this value to the BIO
+	 * issuer through the BIO iter sector.
+	 * For plugged zone writes, which include emulated zone append, we need
+	 * the original BIO sector so that blk_zone_write_plug_bio_endio() can
+	 * lookup the zone write plug.
+	 */
+	bio->bi_iter.bi_sector = rq->__sector;
+}
+
 void blk_zone_write_plug_bio_endio(struct bio *bio)
 {
 	struct gendisk *disk = bio->bi_bdev->bd_disk;
