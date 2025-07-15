@@ -408,8 +408,13 @@ static int stk1160_fill_urb(struct stk1160 *dev, struct stk1160_urb *stk_urb,
 	stk_urb->transfer_buffer = usb_alloc_noncoherent(dev->udev, sb_size,
 							 GFP_KERNEL, &stk_urb->dma,
 							 DMA_FROM_DEVICE, &stk_urb->sgt);
-	if (!stk_urb->transfer_buffer)
+	if (!stk_urb->transfer_buffer) {
+		/*
+		 * If the buffer allocation failed, we exit but return 0 since
+		 * we allow the driver working with less buffers.
+		 */
 		goto free_urb;
+	}
 
 	stk_urb->dev = dev;
 	return 0;
