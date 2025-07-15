@@ -2061,7 +2061,6 @@ static struct fuse_writepage_args *fuse_writepage_args_setup(struct folio *folio
 struct fuse_fill_wb_data {
 	struct fuse_writepage_args *wpa;
 	struct fuse_file *ff;
-	struct inode *inode;
 	unsigned int max_folios;
 	/*
 	 * nr_bytes won't overflow since fuse_writepage_need_send() caps
@@ -2071,16 +2070,16 @@ struct fuse_fill_wb_data {
 	unsigned int nr_bytes;
 };
 
-static bool fuse_pages_realloc(struct fuse_fill_wb_data *data)
+static bool fuse_pages_realloc(struct fuse_fill_wb_data *data,
+			       unsigned int max_pages)
 {
 	struct fuse_args_pages *ap = &data->wpa->ia.ap;
-	struct fuse_conn *fc = get_fuse_conn(data->inode);
 	struct folio **folios;
 	struct fuse_folio_desc *descs;
 	unsigned int nfolios = min_t(unsigned int,
 				     max_t(unsigned int, data->max_folios * 2,
 					   FUSE_DEFAULT_MAX_PAGES_PER_REQ),
-				    fc->max_pages);
+				    max_pages);
 	WARN_ON(nfolios <= data->max_folios);
 
 	folios = fuse_folios_alloc(nfolios, GFP_NOFS, &descs);
@@ -2097,10 +2096,10 @@ static bool fuse_pages_realloc(struct fuse_fill_wb_data *data)
 	return true;
 }
 
-static void fuse_writepages_send(struct fuse_fill_wb_data *data)
+static void fuse_writepages_send(struct inode *inode,
+				 struct fuse_fill_wb_data *data)
 {
 	struct fuse_writepage_args *wpa = data->wpa;
-	struct inode *inode = data->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	spin_lock(&fi->lock);
@@ -2136,7 +2135,8 @@ static bool fuse_writepage_need_send(struct fuse_conn *fc, loff_t pos,
 		return true;
 
 	/* Need to grow the pages array?  If so, did the expansion fail? */
-	if (ap->num_folios == data->max_folios && !fuse_pages_realloc(data))
+	if (ap->num_folios == data->max_folios &&
+	    !fuse_pages_realloc(data, fc->max_pages))
 		return true;
 
 	return false;
@@ -2149,7 +2149,7 @@ static ssize_t fuse_iomap_writeback_range(struct iomap_writepage_ctx *wpc,
 	struct fuse_fill_wb_data *data = wpc->wb_ctx;
 	struct fuse_writepage_args *wpa = data->wpa;
 	struct fuse_args_pages *ap = &wpa->ia.ap;
-	struct inode *inode = data->inode;
+	struct inode *inode = wpc->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	loff_t offset = offset_in_folio(folio, pos);
@@ -2165,7 +2165,7 @@ static ssize_t fuse_iomap_writeback_range(struct iomap_writepage_ctx *wpc,
 	}
 
 	if (wpa && fuse_writepage_need_send(fc, pos, len, ap, data)) {
-		fuse_writepages_send(data);
+		fuse_writepages_send(inode, data);
 		data->wpa = NULL;
 		data->nr_bytes = 0;
 	}
@@ -2200,7 +2200,7 @@ static int fuse_iomap_writeback_submit(struct iomap_writepage_ctx *wpc,
 
 	if (data->wpa) {
 		WARN_ON(!data->wpa->ia.ap.num_folios);
-		fuse_writepages_send(data);
+		fuse_writepages_send(wpc->inode, data);
 	}
 
 	if (data->ff)
@@ -2219,9 +2219,7 @@ static int fuse_writepages(struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_fill_wb_data data = {
-		.inode = inode,
-	};
+	struct fuse_fill_wb_data data = {};
 	struct iomap_writepage_ctx wpc = {
 		.inode = inode,
 		.iomap.type = IOMAP_MAPPED,
@@ -2243,9 +2241,7 @@ static int fuse_writepages(struct address_space *mapping,
 static int fuse_launder_folio(struct folio *folio)
 {
 	int err = 0;
-	struct fuse_fill_wb_data data = {
-		.inode = folio->mapping->host,
-	};
+	struct fuse_fill_wb_data data = {};
 	struct iomap_writepage_ctx wpc = {
 		.inode = folio->mapping->host,
 		.iomap.type = IOMAP_MAPPED,
