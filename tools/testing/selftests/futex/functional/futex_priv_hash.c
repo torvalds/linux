@@ -122,7 +122,7 @@ static void futex_dummy_op(void)
 	}
 	ret = pthread_mutex_timedlock(&lock, &timeout);
 	if (ret == 0)
-		ksft_exit_fail_msg("Succeffuly locked an already locked mutex.\n");
+		ksft_exit_fail_msg("Successfully locked an already locked mutex.\n");
 
 	if (ret != ETIMEDOUT)
 		ksft_exit_fail_msg("pthread_mutex_timedlock() did not timeout: %d.\n", ret);
