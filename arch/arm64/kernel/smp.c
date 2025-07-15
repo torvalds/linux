@@ -1093,7 +1093,7 @@ static void ipi_setup_sgi(int ipi)
 
 	irq = ipi_irq_base + ipi;
 
-	if (ipi_should_be_nmi(irq)) {
+	if (ipi_should_be_nmi(ipi)) {
 		err = request_percpu_nmi(irq, ipi_handler, "IPI", &irq_stat);
 		WARN(err, "Could not request IRQ %d as NMI, err=%d\n", irq, err);
 	} else {
