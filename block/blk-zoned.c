@@ -179,6 +179,7 @@ static int blkdev_zone_reset_all(struct block_device *bdev)
 	struct bio bio;
 
 	bio_init(&bio, bdev, NULL, 0, REQ_OP_ZONE_RESET_ALL | REQ_SYNC);
+	trace_blkdev_zone_mgmt(&bio, 0);
 	return submit_bio_wait(&bio);
 }
 
@@ -242,6 +243,7 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		cond_resched();
 	}
 
+	trace_blkdev_zone_mgmt(bio, nr_sectors);
 	ret = submit_bio_wait(bio);
 	bio_put(bio);
 
