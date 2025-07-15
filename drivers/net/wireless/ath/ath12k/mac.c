@@ -11427,7 +11427,7 @@ static void ath12k_mac_parse_tx_pwr_env(struct ath12k *ar,
 			    "no transmit power envelope match client power type %d\n",
 			    client_type);
 		return;
-	};
+	}
 
 	if (psd_valid) {
 		tpc_info->is_psd_power = true;
