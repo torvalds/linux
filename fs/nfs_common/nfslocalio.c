@@ -198,8 +198,7 @@ static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 		/* Now we can allow racing nfs_close_local_fh() to
 		 * skip the locking.
 		 */
-		RCU_INIT_POINTER(nfl->nfs_uuid, NULL);
-		wake_up_var_locked(&nfl->nfs_uuid, &nfs_uuid->lock);
+		store_release_wake_up(&nfl->nfs_uuid, RCU_INITIALIZER(NULL));
 	}
 
 	/* Remove client from nn->local_clients */
