@@ -1970,6 +1970,47 @@ corresponding CPU's leaf node lock is held. This avoids race conditions
 between RCU's hotplug notifier hooks, the grace period initialization
 code, and the FQS loop, all of which refer to or modify this bookkeeping.
 
+Note that grace period initialization (rcu_gp_init()) must carefully sequence
+CPU hotplug scanning with grace period state changes. For example, the
+following race could occur in rcu_gp_init() if rcu_seq_start() were to happen
+after the CPU hotplug scanning.
+
+.. code-block:: none
+
+   CPU0 (rcu_gp_init)                   CPU1                          CPU2
+   ---------------------                ----                          ----
+   // Hotplug scan first (WRONG ORDER)
+   rcu_for_each_leaf_node(rnp) {
+       rnp->qsmaskinit = rnp->qsmaskinitnext;
+   }
+                                        rcutree_report_cpu_starting()
+                                            rnp->qsmaskinitnext |= mask;
+                                        rcu_read_lock()
+                                        r0 = *X;
+                                                                      r1 = *X;
+                                                                      X = NULL;
+                                                                      cookie = get_state_synchronize_rcu();
+                                                                      // cookie = 8 (future GP)
+   rcu_seq_start(&rcu_state.gp_seq);
+   // gp_seq = 5
+
+   // CPU1 now invisible to this GP!
+   rcu_for_each_node_breadth_first() {
+       rnp->qsmask = rnp->qsmaskinit;
+       // CPU1 not included!
+   }
+
+   // GP completes without CPU1
+   rcu_seq_end(&rcu_state.gp_seq);
+   // gp_seq = 8
+                                                                      poll_state_synchronize_rcu(cookie);
+                                                                      // Returns true!
+                                                                      kfree(r1);
+                                        r2 = *r0; // USE-AFTER-FREE!
+
+By incrementing gp_seq first, CPU1's RCU read-side critical section
+is guaranteed to not be missed by CPU2.
+
 Scheduler and RCU
 ~~~~~~~~~~~~~~~~~
 
