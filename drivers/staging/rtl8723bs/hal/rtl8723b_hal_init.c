@@ -1312,11 +1312,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 	pdmpriv->INIDATA_RATE[mac_id] = psta->init_rate;
 }
 
-
-void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
-{
-}
-
 void rtl8723b_InitAntenna_Selection(struct adapter *padapter)
 {
 	u8 val;

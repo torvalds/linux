@@ -1251,11 +1251,3 @@ u8 SetHalDefVar8723BSDIO(struct adapter *Adapter, enum hal_def_variable eVariabl
 {
 	return SetHalDefVar8723B(Adapter, eVariable, pValue);
 }
-
-void rtl8723bs_set_hal_ops(struct adapter *padapter)
-{
-	struct hal_ops *pHalFunc = &padapter->HalFunc;
-
-	rtl8723b_set_hal_ops(pHalFunc);
-
-}

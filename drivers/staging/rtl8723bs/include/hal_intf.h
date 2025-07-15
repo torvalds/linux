@@ -160,9 +160,6 @@ enum hal_intf_ps_func {
 
 typedef s32 (*c2h_id_filter)(u8 *c2h_evt);
 
-struct hal_ops {
-};
-
 #define RF_CHANGE_BY_INIT	0
 #define RF_CHANGE_BY_IPS	BIT28
 #define RF_CHANGE_BY_PS		BIT29

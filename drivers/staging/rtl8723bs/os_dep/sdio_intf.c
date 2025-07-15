@@ -216,8 +216,6 @@ void rtw_set_hal_ops(struct adapter *padapter)
 {
 	/* alloc memory for HAL DATA */
 	rtw_hal_data_init(padapter);
-
-	rtl8723bs_set_hal_ops(padapter);
 }
 
 static void sd_intf_start(struct adapter *padapter)
