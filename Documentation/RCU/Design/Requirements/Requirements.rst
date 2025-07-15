@@ -2011,6 +2011,93 @@ after the CPU hotplug scanning.
 By incrementing gp_seq first, CPU1's RCU read-side critical section
 is guaranteed to not be missed by CPU2.
 
+**Concurrent Quiescent State Reporting for Offline CPUs**
+
+RCU must ensure that CPUs going offline report quiescent states to avoid
+blocking grace periods. This requires careful synchronization to handle
+race conditions
+
+**Race condition causing Offline CPU to hang GP**
+
+A race between CPU offlining and new GP initialization (gp_init) may occur
+because `rcu_report_qs_rnp()` in `rcutree_report_cpu_dead()` must temporarily
+release the `rcu_node` lock to wake the RCU grace-period kthread:
+
+.. code-block:: none
+
+   CPU1 (going offline)                 CPU0 (GP kthread)
+   --------------------                 -----------------
+   rcutree_report_cpu_dead()
+     rcu_report_qs_rnp()
+       // Must release rnp->lock to wake GP kthread
+       raw_spin_unlock_irqrestore_rcu_node()
+                                        // Wakes up and starts new GP
+                                        rcu_gp_init()
+                                          // First loop:
+                                          copies qsmaskinitnext->qsmaskinit
+                                          // CPU1 still in qsmaskinitnext!
+
+                                          // Second loop:
+                                          rnp->qsmask = rnp->qsmaskinit
+                                          mask = rnp->qsmask & ~rnp->qsmaskinitnext
+                                          // mask is 0! CPU1 still in both masks
+       // Reacquire lock (but too late)
+     rnp->qsmaskinitnext &= ~mask       // Finally clears bit
+
+Without `ofl_lock`, the new grace period includes the offline CPU and waits
+forever for its quiescent state causing a GP hang.
+
+**A solution with ofl_lock**
+
+The `ofl_lock` (offline lock) prevents `rcu_gp_init()` from running during
+the vulnerable window when `rcu_report_qs_rnp()` has released `rnp->lock`:
+
+.. code-block:: none
+
+   CPU0 (rcu_gp_init)                   CPU1 (rcutree_report_cpu_dead)
+   ------------------                   ------------------------------
+   rcu_for_each_leaf_node(rnp) {
+       arch_spin_lock(&ofl_lock) -----> arch_spin_lock(&ofl_lock) [BLOCKED]
+
+       // Safe: CPU1 can't interfere
+       rnp->qsmaskinit = rnp->qsmaskinitnext
+
+       arch_spin_unlock(&ofl_lock) ---> // Now CPU1 can proceed
+   }                                    // But snapshot already taken
+
+**Another race causing GP hangs in rcu_gpu_init(): Reporting QS for Now-offline CPUs**
+
+After the first loop takes an atomic snapshot of online CPUs, as shown above,
+the second loop in `rcu_gp_init()` detects CPUs that went offline between
+releasing `ofl_lock` and acquiring the per-node `rnp->lock`. This detection is
+crucial because:
+
+1. The CPU might have gone offline after the snapshot but before the second loop
+2. The offline CPU cannot report its own QS if it's already dead
+3. Without this detection, the grace period would wait forever for CPUs that
+   are now offline.
+
+The second loop performs this detection safely:
+
+.. code-block:: none
+
+   rcu_for_each_node_breadth_first(rnp) {
+       raw_spin_lock_irqsave_rcu_node(rnp, flags);
+       rnp->qsmask = rnp->qsmaskinit;  // Apply the snapshot
+
+       // Detect CPUs offline after snapshot
+       mask = rnp->qsmask & ~rnp->qsmaskinitnext;
+
+       if (mask && rcu_is_leaf_node(rnp))
+           rcu_report_qs_rnp(mask, ...)  // Report QS for offline CPUs
+   }
+
+This approach ensures atomicity: quiescent state reporting for offline CPUs
+happens either in `rcu_gp_init()` (second loop) or in `rcutree_report_cpu_dead()`,
+never both and never neither. The `rnp->lock` held throughout the sequence
+prevents races - `rcutree_report_cpu_dead()` also acquires this lock when
+clearing `qsmaskinitnext`, ensuring mutual exclusion.
+
 Scheduler and RCU
 ~~~~~~~~~~~~~~~~~
 
