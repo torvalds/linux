@@ -259,7 +259,10 @@ static bool sel_update_global_enabled(struct intel_dp *intel_dp)
 
 static bool panel_replay_global_enabled(struct intel_dp *intel_dp)
 {
-	return !(intel_dp->psr.debug & I915_PSR_DEBUG_PANEL_REPLAY_DISABLE);
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	return !(intel_dp->psr.debug & I915_PSR_DEBUG_PANEL_REPLAY_DISABLE) &&
+		display->params.enable_panel_replay;
 }
 
 static u32 psr_irq_psr_error_bit_get(struct intel_dp *intel_dp)
