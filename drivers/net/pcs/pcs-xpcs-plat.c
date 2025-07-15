@@ -280,7 +280,7 @@ static int xpcs_plat_init_clk(struct dw_xpcs_plat *pxpcs)
 	struct device *dev = &pxpcs->pdev->dev;
 	int ret;
 
-	pxpcs->cclk = devm_clk_get(dev, "csr");
+	pxpcs->cclk = devm_clk_get_optional(dev, "csr");
 	if (IS_ERR(pxpcs->cclk))
 		return dev_err_probe(dev, PTR_ERR(pxpcs->cclk),
 				     "Failed to get CSR clock\n");
