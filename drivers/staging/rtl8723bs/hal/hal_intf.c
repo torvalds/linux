@@ -285,9 +285,7 @@ void beacon_timing_control(struct adapter *padapter)
 
 s32 rtw_hal_xmit_thread_handler(struct adapter *padapter)
 {
-	if (padapter->HalFunc.xmit_thread_handler)
-		return padapter->HalFunc.xmit_thread_handler(padapter);
-	return _FAIL;
+	return rtl8723bs_xmit_buf_handler(padapter);
 }
 
 void rtw_hal_notch_filter(struct adapter *adapter, bool enable)

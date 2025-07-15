@@ -1315,8 +1315,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->xmit_thread_handler = &rtl8723bs_xmit_buf_handler;
-
 	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723b;
 }
 
