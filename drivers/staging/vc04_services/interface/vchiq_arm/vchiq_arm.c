@@ -97,6 +97,13 @@ struct vchiq_arm_state {
 	 * tracked separately with the state.
 	 */
 	int peer_use_count;
+
+	/*
+	 * Flag to indicate that the first vchiq connect has made it through.
+	 * This means that both sides should be fully ready, and we should
+	 * be able to suspend after this point.
+	 */
+	int first_connect;
 };
 
 static int
@@ -1329,19 +1336,26 @@ out:
 	return ret;
 }
 
-void vchiq_platform_connected(struct vchiq_state *state)
-{
-	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
-
-	wake_up_process(arm_state->ka_thread);
-}
-
 void vchiq_platform_conn_state_changed(struct vchiq_state *state,
 				       enum vchiq_connstate oldstate,
 				       enum vchiq_connstate newstate)
 {
+	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
+
 	dev_dbg(state->dev, "suspend: %d: %s->%s\n",
 		state->id, get_conn_state_name(oldstate), get_conn_state_name(newstate));
+	if (state->conn_state != VCHIQ_CONNSTATE_CONNECTED)
+		return;
+
+	write_lock_bh(&arm_state->susp_res_lock);
+	if (arm_state->first_connect) {
+		write_unlock_bh(&arm_state->susp_res_lock);
+		return;
+	}
+
+	arm_state->first_connect = 1;
+	write_unlock_bh(&arm_state->susp_res_lock);
+	wake_up_process(arm_state->ka_thread);
 }
 
 static const struct of_device_id vchiq_of_match[] = {
