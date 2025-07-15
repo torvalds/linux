@@ -42,11 +42,23 @@ void intel_display_wa_apply(struct intel_display *display)
 		gen11_display_wa_apply(display);
 }
 
+/*
+ * Wa_16025573575:
+ * Fixes: Issue with bitbashing on Xe3 based platforms.
+ * Workaround: Set masks bits in GPIO CTL and preserve it during bitbashing sequence.
+ */
+static bool intel_display_needs_wa_16025573575(struct intel_display *display)
+{
+	return DISPLAY_VERx100(display) == 3000 || DISPLAY_VERx100(display) == 3002;
+}
+
 bool __intel_display_wa(struct intel_display *display, enum intel_display_wa wa, const char *name)
 {
 	switch (wa) {
 	case INTEL_DISPLAY_WA_16023588340:
 		return intel_display_needs_wa_16023588340(display);
+	case INTEL_DISPLAY_WA_16025573575:
+		return intel_display_needs_wa_16025573575(display);
 	default:
 		drm_WARN(display->drm, 1, "Missing Wa number: %s\n", name);
 		break;
