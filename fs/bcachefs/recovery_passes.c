@@ -294,8 +294,13 @@ static bool recovery_pass_needs_set(struct bch_fs *c,
 				    enum bch_run_recovery_pass_flags *flags)
 {
 	struct bch_fs_recovery *r = &c->recovery;
-	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
-	bool persistent = !in_recovery || !(*flags & RUN_RECOVERY_PASS_nopersistent);
+
+	/*
+	 * Never run scan_for_btree_nodes persistently: check_topology will run
+	 * it if required
+	 */
+	if (pass == BCH_RECOVERY_PASS_scan_for_btree_nodes)
+		*flags |= RUN_RECOVERY_PASS_nopersistent;
 
 	if ((*flags & RUN_RECOVERY_PASS_ratelimit) &&
 	    !bch2_recovery_pass_want_ratelimit(c, pass))
@@ -310,6 +315,8 @@ static bool recovery_pass_needs_set(struct bch_fs *c,
 	 * Otherwise, we run run_explicit_recovery_pass when we find damage, so
 	 * it should run again even if it's already run:
 	 */
+	bool in_recovery = test_bit(BCH_FS_in_recovery, &c->flags);
+	bool persistent = !in_recovery || !(*flags & RUN_RECOVERY_PASS_nopersistent);
 
 	if (persistent
 	    ? !(c->sb.recovery_passes_required & BIT_ULL(pass))
@@ -333,6 +340,7 @@ int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 {
 	struct bch_fs_recovery *r = &c->recovery;
 	int ret = 0;
+
 
 	lockdep_assert_held(&c->sb_lock);
 
@@ -446,7 +454,7 @@ int bch2_require_recovery_pass(struct bch_fs *c,
 
 int bch2_run_print_explicit_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 {
-	enum bch_run_recovery_pass_flags flags = RUN_RECOVERY_PASS_nopersistent;
+	enum bch_run_recovery_pass_flags flags = 0;
 
 	if (!recovery_pass_needs_set(c, pass, &flags))
 		return 0;

@@ -23,7 +23,7 @@
  */
 #define ARC_UNCACHED_ADDR_SPACE	0xc0000000
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/build_bug.h>
 
@@ -65,7 +65,7 @@
 extern int ioc_enable;
 extern unsigned long perip_base, perip_end;
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 /* Instruction cache related Auxiliary registers */
 #define ARC_REG_IC_BCR		0x77	/* Build Config reg */

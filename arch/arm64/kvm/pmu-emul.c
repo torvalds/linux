@@ -178,7 +178,7 @@ static void kvm_pmu_set_pmc_value(struct kvm_pmc *pmc, u64 val, bool force)
 		val |= lower_32_bits(val);
 	}
 
-	__vcpu_sys_reg(vcpu, reg) = val;
+	__vcpu_assign_sys_reg(vcpu, reg, val);
 
 	/* Recreate the perf event to reflect the updated sample_period */
 	kvm_pmu_create_perf_event(pmc);
@@ -204,7 +204,7 @@ void kvm_pmu_set_counter_value(struct kvm_vcpu *vcpu, u64 select_idx, u64 val)
 void kvm_pmu_set_counter_value_user(struct kvm_vcpu *vcpu, u64 select_idx, u64 val)
 {
 	kvm_pmu_release_perf_event(kvm_vcpu_idx_to_pmc(vcpu, select_idx));
-	__vcpu_sys_reg(vcpu, counter_index_to_reg(select_idx)) = val;
+	__vcpu_assign_sys_reg(vcpu, counter_index_to_reg(select_idx), val);
 	kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
 }
 
@@ -239,7 +239,7 @@ static void kvm_pmu_stop_counter(struct kvm_pmc *pmc)
 
 	reg = counter_index_to_reg(pmc->idx);
 
-	__vcpu_sys_reg(vcpu, reg) = val;
+	__vcpu_assign_sys_reg(vcpu, reg, val);
 
 	kvm_pmu_release_perf_event(pmc);
 }
@@ -503,14 +503,14 @@ static void kvm_pmu_counter_increment(struct kvm_vcpu *vcpu,
 		reg = __vcpu_sys_reg(vcpu, counter_index_to_reg(i)) + 1;
 		if (!kvm_pmc_is_64bit(pmc))
 			reg = lower_32_bits(reg);
-		__vcpu_sys_reg(vcpu, counter_index_to_reg(i)) = reg;
+		__vcpu_assign_sys_reg(vcpu, counter_index_to_reg(i), reg);
 
 		/* No overflow? move on */
 		if (kvm_pmc_has_64bit_overflow(pmc) ? reg : lower_32_bits(reg))
 			continue;
 
 		/* Mark overflow */
-		__vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= BIT(i);
+		__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, |=, BIT(i));
 
 		if (kvm_pmu_counter_can_chain(pmc))
 			kvm_pmu_counter_increment(vcpu, BIT(i + 1),
@@ -556,7 +556,7 @@ static void kvm_pmu_perf_overflow(struct perf_event *perf_event,
 	perf_event->attr.sample_period = period;
 	perf_event->hw.sample_period = period;
 
-	__vcpu_sys_reg(vcpu, PMOVSSET_EL0) |= BIT(idx);
+	__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, |=, BIT(idx));
 
 	if (kvm_pmu_counter_can_chain(pmc))
 		kvm_pmu_counter_increment(vcpu, BIT(idx + 1),
@@ -602,7 +602,7 @@ void kvm_pmu_handle_pmcr(struct kvm_vcpu *vcpu, u64 val)
 		kvm_make_request(KVM_REQ_RELOAD_PMU, vcpu);
 
 	/* The reset bits don't indicate any state, and shouldn't be saved. */
-	__vcpu_sys_reg(vcpu, PMCR_EL0) = val & ~(ARMV8_PMU_PMCR_C | ARMV8_PMU_PMCR_P);
+	__vcpu_assign_sys_reg(vcpu, PMCR_EL0, (val & ~(ARMV8_PMU_PMCR_C | ARMV8_PMU_PMCR_P)));
 
 	if (val & ARMV8_PMU_PMCR_C)
 		kvm_pmu_set_counter_value(vcpu, ARMV8_PMU_CYCLE_IDX, 0);
@@ -779,7 +779,7 @@ void kvm_pmu_set_counter_event_type(struct kvm_vcpu *vcpu, u64 data,
 	u64 reg;
 
 	reg = counter_index_to_evtreg(pmc->idx);
-	__vcpu_sys_reg(vcpu, reg) = data & kvm_pmu_evtyper_mask(vcpu->kvm);
+	__vcpu_assign_sys_reg(vcpu, reg, (data & kvm_pmu_evtyper_mask(vcpu->kvm)));
 
 	kvm_pmu_create_perf_event(pmc);
 }
@@ -914,9 +914,9 @@ void kvm_vcpu_reload_pmu(struct kvm_vcpu *vcpu)
 {
 	u64 mask = kvm_pmu_implemented_counter_mask(vcpu);
 
-	__vcpu_sys_reg(vcpu, PMOVSSET_EL0) &= mask;
-	__vcpu_sys_reg(vcpu, PMINTENSET_EL1) &= mask;
-	__vcpu_sys_reg(vcpu, PMCNTENSET_EL0) &= mask;
+	__vcpu_rmw_sys_reg(vcpu, PMOVSSET_EL0, &=, mask);
+	__vcpu_rmw_sys_reg(vcpu, PMINTENSET_EL1, &=, mask);
+	__vcpu_rmw_sys_reg(vcpu, PMCNTENSET_EL0, &=, mask);
 
 	kvm_pmu_reprogram_counter_mask(vcpu, mask);
 }
@@ -1038,7 +1038,7 @@ static void kvm_arm_set_nr_counters(struct kvm *kvm, unsigned int nr)
 			u64 val = __vcpu_sys_reg(vcpu, MDCR_EL2);
 			val &= ~MDCR_EL2_HPMN;
 			val |= FIELD_PREP(MDCR_EL2_HPMN, kvm->arch.nr_pmu_counters);
-			__vcpu_sys_reg(vcpu, MDCR_EL2) = val;
+			__vcpu_assign_sys_reg(vcpu, MDCR_EL2, val);
 		}
 	}
 }

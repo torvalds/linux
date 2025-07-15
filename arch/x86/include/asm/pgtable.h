@@ -1561,7 +1561,7 @@ static inline pte_t pte_swp_mkexclusive(pte_t pte)
 	return pte_set_flags(pte, _PAGE_SWP_EXCLUSIVE);
 }
 
-static inline int pte_swp_exclusive(pte_t pte)
+static inline bool pte_swp_exclusive(pte_t pte)
 {
 	return pte_flags(pte) & _PAGE_SWP_EXCLUSIVE;
 }

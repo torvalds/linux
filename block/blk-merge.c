@@ -998,20 +998,20 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	if (!plug || rq_list_empty(&plug->mq_list))
 		return false;
 
-	rq_list_for_each(&plug->mq_list, rq) {
-		if (rq->q == q) {
-			if (blk_attempt_bio_merge(q, rq, bio, nr_segs, false) ==
-			    BIO_MERGE_OK)
-				return true;
-			break;
-		}
+	rq = plug->mq_list.tail;
+	if (rq->q == q)
+		return blk_attempt_bio_merge(q, rq, bio, nr_segs, false) ==
+			BIO_MERGE_OK;
+	else if (!plug->multiple_queues)
+		return false;
 
-		/*
-		 * Only keep iterating plug list for merges if we have multiple
-		 * queues
-		 */
-		if (!plug->multiple_queues)
-			break;
+	rq_list_for_each(&plug->mq_list, rq) {
+		if (rq->q != q)
+			continue;
+		if (blk_attempt_bio_merge(q, rq, bio, nr_segs, false) ==
+		    BIO_MERGE_OK)
+			return true;
+		break;
 	}
 	return false;
 }

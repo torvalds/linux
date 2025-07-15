@@ -99,9 +99,11 @@ int bch2_btree_lost_data(struct bch_fs *c,
 		goto out;
 	case BTREE_ID_snapshots:
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_reconstruct_snapshots, 0) ?: ret;
+		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_check_topology, 0) ?: ret;
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes, 0) ?: ret;
 		goto out;
 	default:
+		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_check_topology, 0) ?: ret;
 		ret = __bch2_run_explicit_recovery_pass(c, msg, BCH_RECOVERY_PASS_scan_for_btree_nodes, 0) ?: ret;
 		goto out;
 	}
@@ -271,13 +273,24 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 		goto out;
 
 	struct btree_path *path = btree_iter_path(trans, &iter);
-	if (unlikely(!btree_path_node(path, k->level))) {
+	if (unlikely(!btree_path_node(path, k->level) &&
+		     !k->allocated)) {
+		struct bch_fs *c = trans->c;
+
+		if (!(c->recovery.passes_complete & (BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes)|
+						     BIT_ULL(BCH_RECOVERY_PASS_check_topology)))) {
+			bch_err(c, "have key in journal replay for btree depth that does not exist, confused");
+			ret = -EINVAL;
+		}
+#if 0
 		bch2_trans_iter_exit(trans, &iter);
 		bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 					  BTREE_MAX_DEPTH, 0, iter_flags);
 		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
 			bch2_btree_increase_depth(trans, iter.path, 0) ?:
 			-BCH_ERR_transaction_restart_nested;
+#endif
+		k->overwritten = true;
 		goto out;
 	}
 
@@ -739,8 +752,10 @@ int bch2_fs_recovery(struct bch_fs *c)
 			? min(c->opts.recovery_pass_last, BCH_RECOVERY_PASS_snapshots_read)
 			: BCH_RECOVERY_PASS_snapshots_read;
 		c->opts.nochanges = true;
-		c->opts.read_only = true;
 	}
+
+	if (c->opts.nochanges)
+		c->opts.read_only = true;
 
 	mutex_lock(&c->sb_lock);
 	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
@@ -1093,9 +1108,6 @@ use_clean:
 out:
 	bch2_flush_fsck_errs(c);
 
-	if (!IS_ERR(clean))
-		kfree(clean);
-
 	if (!ret &&
 	    test_bit(BCH_FS_need_delete_dead_snapshots, &c->flags) &&
 	    !c->opts.nochanges) {
@@ -1104,6 +1116,9 @@ out:
 	}
 
 	bch_err_fn(c, ret);
+final_out:
+	if (!IS_ERR(clean))
+		kfree(clean);
 	return ret;
 err:
 fsck_err:
@@ -1117,7 +1132,7 @@ fsck_err:
 		bch2_print_str(c, KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
 	}
-	return ret;
+	goto final_out;
 }
 
 int bch2_fs_initialize(struct bch_fs *c)
