@@ -96,8 +96,8 @@ static int xe_i2c_register_adapter(struct xe_i2c *i2c)
 	int ret;
 
 	fwnode = fwnode_create_software_node(xe_i2c_adapter_properties, NULL);
-	if (!fwnode)
-		return -ENOMEM;
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
 
 	/*
 	 * Not using platform_device_register_full() here because we don't have
