@@ -53,6 +53,7 @@ static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 {
 	struct sock *sk = sock->sk;
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+	struct net *net = sock_net(&msk->sk);
 	struct sockaddr_mctp *smctp;
 	int rc;
 
@@ -73,20 +74,115 @@ static int mctp_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 
 	lock_sock(sk);
 
-	/* TODO: allow rebind */
 	if (sk_hashed(sk)) {
 		rc = -EADDRINUSE;
 		goto out_release;
 	}
-	msk->bind_net = smctp->smctp_network;
-	msk->bind_addr = smctp->smctp_addr.s_addr;
-	msk->bind_type = smctp->smctp_type & 0x7f; /* ignore the IC bit */
+
+	msk->bind_local_addr = smctp->smctp_addr.s_addr;
+
+	/* MCTP_NET_ANY with a specific EID is resolved to the default net
+	 * at bind() time.
+	 * For bind_addr=MCTP_ADDR_ANY it is handled specially at route
+	 * lookup time.
+	 */
+	if (smctp->smctp_network == MCTP_NET_ANY &&
+	    msk->bind_local_addr != MCTP_ADDR_ANY) {
+		msk->bind_net = mctp_default_net(net);
+	} else {
+		msk->bind_net = smctp->smctp_network;
+	}
+
+	/* ignore the IC bit */
+	smctp->smctp_type &= 0x7f;
+
+	if (msk->bind_peer_set) {
+		if (msk->bind_type != smctp->smctp_type) {
+			/* Prior connect() had a different type */
+			rc = -EINVAL;
+			goto out_release;
+		}
+
+		if (msk->bind_net == MCTP_NET_ANY) {
+			/* Restrict to the network passed to connect() */
+			msk->bind_net = msk->bind_peer_net;
+		}
+
+		if (msk->bind_net != msk->bind_peer_net) {
+			/* connect() had a different net to bind() */
+			rc = -EINVAL;
+			goto out_release;
+		}
+	} else {
+		msk->bind_type = smctp->smctp_type;
+	}
 
 	rc = sk->sk_prot->hash(sk);
 
 out_release:
 	release_sock(sk);
 
+	return rc;
+}
+
+/* Used to set a specific peer prior to bind. Not used for outbound
+ * connections (Tag Owner set) since MCTP is a datagram protocol.
+ */
+static int mctp_connect(struct socket *sock, struct sockaddr *addr,
+			int addrlen, int flags)
+{
+	struct sock *sk = sock->sk;
+	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+	struct net *net = sock_net(&msk->sk);
+	struct sockaddr_mctp *smctp;
+	int rc;
+
+	if (addrlen != sizeof(*smctp))
+		return -EINVAL;
+
+	if (addr->sa_family != AF_MCTP)
+		return -EAFNOSUPPORT;
+
+	/* It's a valid sockaddr for MCTP, cast and do protocol checks */
+	smctp = (struct sockaddr_mctp *)addr;
+
+	if (!mctp_sockaddr_is_ok(smctp))
+		return -EINVAL;
+
+	/* Can't bind by tag */
+	if (smctp->smctp_tag)
+		return -EINVAL;
+
+	/* IC bit must be unset */
+	if (smctp->smctp_type & 0x80)
+		return -EINVAL;
+
+	lock_sock(sk);
+
+	if (sk_hashed(sk)) {
+		/* bind() already */
+		rc = -EADDRINUSE;
+		goto out_release;
+	}
+
+	if (msk->bind_peer_set) {
+		/* connect() already */
+		rc = -EADDRINUSE;
+		goto out_release;
+	}
+
+	msk->bind_peer_set = true;
+	msk->bind_peer_addr = smctp->smctp_addr.s_addr;
+	msk->bind_type = smctp->smctp_type;
+	if (smctp->smctp_network == MCTP_NET_ANY)
+		msk->bind_peer_net = mctp_default_net(net);
+	else
+		msk->bind_peer_net = smctp->smctp_network;
+
+	rc = 0;
+
+out_release:
+	release_sock(sk);
 	return rc;
 }
 
@@ -533,7 +629,7 @@ static const struct proto_ops mctp_dgram_ops = {
 	.family		= PF_MCTP,
 	.release	= mctp_release,
 	.bind		= mctp_bind,
-	.connect	= sock_no_connect,
+	.connect	= mctp_connect,
 	.socketpair	= sock_no_socketpair,
 	.accept		= sock_no_accept,
 	.getname	= sock_no_getname,
@@ -600,6 +696,7 @@ static int mctp_sk_init(struct sock *sk)
 
 	INIT_HLIST_HEAD(&msk->keys);
 	timer_setup(&msk->key_expiry, mctp_sk_expire_keys, 0);
+	msk->bind_peer_set = false;
 	return 0;
 }
 
@@ -611,15 +708,48 @@ static void mctp_sk_close(struct sock *sk, long timeout)
 static int mctp_sk_hash(struct sock *sk)
 {
 	struct net *net = sock_net(sk);
+	struct sock *existing;
+	struct mctp_sock *msk;
+	mctp_eid_t remote;
+	u32 hash;
+	int rc;
+
+	msk = container_of(sk, struct mctp_sock, sk);
+
+	if (msk->bind_peer_set)
+		remote = msk->bind_peer_addr;
+	else
+		remote = MCTP_ADDR_ANY;
+	hash = mctp_bind_hash(msk->bind_type, msk->bind_local_addr, remote);
+
+	mutex_lock(&net->mctp.bind_lock);
+
+	/* Prevent duplicate binds. */
+	sk_for_each(existing, &net->mctp.binds[hash]) {
+		struct mctp_sock *mex =
+			container_of(existing, struct mctp_sock, sk);
+
+		bool same_peer = (mex->bind_peer_set && msk->bind_peer_set &&
+				  mex->bind_peer_addr == msk->bind_peer_addr) ||
+				 (!mex->bind_peer_set && !msk->bind_peer_set);
+
+		if (mex->bind_type == msk->bind_type &&
+		    mex->bind_local_addr == msk->bind_local_addr && same_peer &&
+		    mex->bind_net == msk->bind_net) {
+			rc = -EADDRINUSE;
+			goto out;
+		}
+	}
 
 	/* Bind lookup runs under RCU, remain live during that. */
 	sock_set_flag(sk, SOCK_RCU_FREE);
 
-	mutex_lock(&net->mctp.bind_lock);
-	sk_add_node_rcu(sk, &net->mctp.binds);
-	mutex_unlock(&net->mctp.bind_lock);
+	sk_add_node_rcu(sk, &net->mctp.binds[hash]);
+	rc = 0;
 
-	return 0;
+out:
+	mutex_unlock(&net->mctp.bind_lock);
+	return rc;
 }
 
 static void mctp_sk_unhash(struct sock *sk)

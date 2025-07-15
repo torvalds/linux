@@ -40,14 +40,49 @@ static int mctp_dst_discard(struct mctp_dst *dst, struct sk_buff *skb)
 	return 0;
 }
 
-static struct mctp_sock *mctp_lookup_bind(struct net *net, struct sk_buff *skb)
+static struct mctp_sock *mctp_lookup_bind_details(struct net *net,
+						  struct sk_buff *skb,
+						  u8 type, u8 dest,
+						  u8 src, bool allow_net_any)
 {
 	struct mctp_skb_cb *cb = mctp_cb(skb);
-	struct mctp_hdr *mh;
 	struct sock *sk;
-	u8 type;
+	u8 hash;
 
-	WARN_ON(!rcu_read_lock_held());
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	hash = mctp_bind_hash(type, dest, src);
+
+	sk_for_each_rcu(sk, &net->mctp.binds[hash]) {
+		struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+
+		if (!allow_net_any && msk->bind_net == MCTP_NET_ANY)
+			continue;
+
+		if (msk->bind_net != MCTP_NET_ANY && msk->bind_net != cb->net)
+			continue;
+
+		if (msk->bind_type != type)
+			continue;
+
+		if (msk->bind_peer_set &&
+		    !mctp_address_matches(msk->bind_peer_addr, src))
+			continue;
+
+		if (!mctp_address_matches(msk->bind_local_addr, dest))
+			continue;
+
+		return msk;
+	}
+
+	return NULL;
+}
+
+static struct mctp_sock *mctp_lookup_bind(struct net *net, struct sk_buff *skb)
+{
+	struct mctp_sock *msk;
+	struct mctp_hdr *mh;
+	u8 type;
 
 	/* TODO: look up in skb->cb? */
 	mh = mctp_hdr(skb);
@@ -57,20 +92,36 @@ static struct mctp_sock *mctp_lookup_bind(struct net *net, struct sk_buff *skb)
 
 	type = (*(u8 *)skb->data) & 0x7f;
 
-	sk_for_each_rcu(sk, &net->mctp.binds) {
-		struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
+	/* Look for binds in order of widening scope. A given destination or
+	 * source address also implies matching on a particular network.
+	 *
+	 * - Matching destination and source
+	 * - Matching destination
+	 * - Matching source
+	 * - Matching network, any address
+	 * - Any network or address
+	 */
 
-		if (msk->bind_net != MCTP_NET_ANY && msk->bind_net != cb->net)
-			continue;
-
-		if (msk->bind_type != type)
-			continue;
-
-		if (!mctp_address_matches(msk->bind_addr, mh->dest))
-			continue;
-
+	msk = mctp_lookup_bind_details(net, skb, type, mh->dest, mh->src,
+				       false);
+	if (msk)
 		return msk;
-	}
+	msk = mctp_lookup_bind_details(net, skb, type, MCTP_ADDR_ANY, mh->src,
+				       false);
+	if (msk)
+		return msk;
+	msk = mctp_lookup_bind_details(net, skb, type, mh->dest, MCTP_ADDR_ANY,
+				       false);
+	if (msk)
+		return msk;
+	msk = mctp_lookup_bind_details(net, skb, type, MCTP_ADDR_ANY,
+				       MCTP_ADDR_ANY, false);
+	if (msk)
+		return msk;
+	msk = mctp_lookup_bind_details(net, skb, type, MCTP_ADDR_ANY,
+				       MCTP_ADDR_ANY, true);
+	if (msk)
+		return msk;
 
 	return NULL;
 }
@@ -1671,7 +1722,7 @@ static int __net_init mctp_routes_net_init(struct net *net)
 	struct netns_mctp *ns = &net->mctp;
 
 	INIT_LIST_HEAD(&ns->routes);
-	INIT_HLIST_HEAD(&ns->binds);
+	hash_init(ns->binds);
 	mutex_init(&ns->bind_lock);
 	INIT_HLIST_HEAD(&ns->keys);
 	spin_lock_init(&ns->keys_lock);

@@ -69,7 +69,10 @@ struct mctp_sock {
 
 	/* bind() params */
 	unsigned int	bind_net;
-	mctp_eid_t	bind_addr;
+	mctp_eid_t	bind_local_addr;
+	mctp_eid_t	bind_peer_addr;
+	unsigned int	bind_peer_net;
+	bool		bind_peer_set;
 	__u8		bind_type;
 
 	/* sendmsg()/recvmsg() uses struct sockaddr_mctp_ext */
