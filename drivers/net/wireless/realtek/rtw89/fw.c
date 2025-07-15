@@ -6153,7 +6153,7 @@ int rtw89_fw_h2c_rf_ps_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 		path = rtw89_phy_get_syn_sel(rtwdev, rtwvif_link->phy_idx);
 		val = rtw89_chip_chan_to_rf18_val(rtwdev, chan);
 
-		if (path >= chip->rf_path_num) {
+		if (path >= chip->rf_path_num || path >= NUM_OF_RTW89_FW_RFK_PATH) {
 			rtw89_err(rtwdev, "unsupported rf path (%d)\n", path);
 			ret = -ENOENT;
 			goto fail;
