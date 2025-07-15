@@ -25,9 +25,9 @@ be _IOW, although the kernel would actually read data from user space;
 a GET_FOO ioctl would be _IOR, although the kernel would actually write
 data to user space.
 
-The first argument to _IO, _IOW, _IOR, or _IOWR is an identifying letter
-or number from the table below.  Because of the large number of drivers,
-many drivers share a partial letter with other drivers.
+The first argument to the macros is an identifying letter or number from
+the table below. Because of the large number of drivers, many drivers
+share a partial letter with other drivers.
 
 If you are writing a driver for a new device and need a letter, pick an
 unused block with enough room for expansion: 32 to 256 ioctl commands
@@ -35,12 +35,14 @@ should suffice. You can register the block by patching this file and
 submitting the patch through :doc:`usual patch submission process
 </process/submitting-patches>`.
 
-The second argument to _IO, _IOW, _IOR, or _IOWR is a sequence number
-to distinguish ioctls from each other.  The third argument to _IOW,
-_IOR, or _IOWR is the type of the data going into the kernel or coming
-out of the kernel (e.g.  'int' or 'struct foo').  NOTE!  Do NOT use
-sizeof(arg) as the third argument as this results in your ioctl thinking
-it passes an argument of type size_t.
+The second argument is a sequence number to distinguish ioctls from each
+other. The third argument (not applicable to _IO) is the type of the data
+going into the kernel or coming out of the kernel (e.g.  'int' or
+'struct foo').
+
+.. note::
+   Do NOT use sizeof(arg) as the third argument as this results in your
+   ioctl thinking it passes an argument of type size_t.
 
 Some devices use their major number as the identifier; this is OK, as
 long as it is unique.  Some devices are irregular and don't follow any
@@ -53,7 +55,7 @@ Following this convention is good because:
     error rather than some unexpected behaviour.
 
 (2) The 'strace' build procedure automatically finds ioctl numbers
-    defined with _IO, _IOW, _IOR, or _IOWR.
+    defined with the macros.
 
 (3) 'strace' can decode numbers back into useful names when the
     numbers are unique.
