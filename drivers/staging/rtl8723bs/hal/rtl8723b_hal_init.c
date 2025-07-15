@@ -1318,8 +1318,6 @@ void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->xmit_thread_handler = &hal_xmit_handler;
 
 	pHalFunc->c2h_id_filter_ccx = c2h_id_filter_ccx_8723b;
-
-	pHalFunc->fill_h2c_cmd = &FillH2CCmd8723B;
 }
 
 void rtl8723b_InitAntenna_Selection(struct adapter *padapter)

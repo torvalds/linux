@@ -346,10 +346,5 @@ s32 rtw_hal_macid_wakeup(struct adapter *padapter, u32 macid)
 
 s32 rtw_hal_fill_h2c_cmd(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer)
 {
-	s32 ret = _FAIL;
-
-	if (padapter->HalFunc.fill_h2c_cmd)
-		ret = padapter->HalFunc.fill_h2c_cmd(padapter, ElementID, CmdLen, pCmdBuffer);
-
-	return ret;
+	return FillH2CCmd8723B(padapter, ElementID, CmdLen, pCmdBuffer);
 }
