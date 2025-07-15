@@ -1635,11 +1635,9 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 
-	if (notify_clients) {
-		console_lock();
-		drm_client_dev_suspend(dev, true);
-		console_unlock();
-	}
+	if (notify_clients)
+		drm_client_dev_suspend(dev, false);
+
 	return 0;
 }
 
