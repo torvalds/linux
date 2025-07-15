@@ -17,6 +17,8 @@
 #include <linux/refcount.h>
 #include <linux/mempool.h>
 
+#include <trace/events/block.h>
+
 #include "blk.h"
 #include "blk-mq-sched.h"
 #include "blk-mq-debugfs.h"
@@ -1198,6 +1200,7 @@ void blk_zone_append_update_request_bio(struct request *rq, struct bio *bio)
 	 * lookup the zone write plug.
 	 */
 	bio->bi_iter.bi_sector = rq->__sector;
+	trace_blk_zone_append_update_request_bio(rq);
 }
 
 void blk_zone_write_plug_bio_endio(struct bio *bio)

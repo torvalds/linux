@@ -405,6 +405,17 @@ DEFINE_EVENT(block_bio, block_getrq,
 );
 
 /**
+ * block_zone_update_request_bio - update the bio sector after a zone append
+ * @bio: the completed block IO operation
+ *
+ * Update the bio's bi_sector after a zone append command has been completed.
+ */
+DEFINE_EVENT(block_rq, blk_zone_append_update_request_bio,
+	     TP_PROTO(struct request *rq),
+	     TP_ARGS(rq)
+);
+
+/**
  * block_plug - keep operations requests in request queue
  * @q: request queue to plug
  *
