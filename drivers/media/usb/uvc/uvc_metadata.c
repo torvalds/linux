@@ -49,8 +49,6 @@ static int uvc_meta_v4l2_get_format(struct file *file, void *priv,
 	if (format->type != vfh->vdev->queue->type)
 		return -EINVAL;
 
-	memset(fmt, 0, sizeof(*fmt));
-
 	fmt->dataformat = stream->meta.format;
 	fmt->buffersize = UVC_METADATA_BUF_SIZE;
 
@@ -118,19 +116,14 @@ static int uvc_meta_v4l2_enum_formats(struct file *file, void *priv,
 	struct v4l2_fh *vfh = file_to_v4l2_fh(file);
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_device *dev = stream->dev;
-	u32 i = fdesc->index;
 
 	if (fdesc->type != vfh->vdev->queue->type)
 		return -EINVAL;
 
-	if (i >= dev->nmeta_formats)
+	if (fdesc->index >= dev->nmeta_formats)
 		return -EINVAL;
 
-	memset(fdesc, 0, sizeof(*fdesc));
-
-	fdesc->type = vfh->vdev->queue->type;
-	fdesc->index = i;
-	fdesc->pixelformat = dev->meta_formats[i];
+	fdesc->pixelformat = dev->meta_formats[fdesc->index];
 
 	return 0;
 }
