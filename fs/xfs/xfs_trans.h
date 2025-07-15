@@ -15,7 +15,6 @@ struct xfs_efd_log_item;
 struct xfs_efi_log_item;
 struct xfs_inode;
 struct xfs_item_ops;
-struct xfs_log_iovec;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_trans_res;

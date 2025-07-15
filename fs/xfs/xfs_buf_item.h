@@ -61,7 +61,7 @@ static inline void xfs_buf_dquot_iodone(struct xfs_buf *bp)
 }
 #endif /* CONFIG_XFS_QUOTA */
 void	xfs_buf_iodone(struct xfs_buf *);
-bool	xfs_buf_log_check_iovec(struct xfs_log_iovec *iovec);
+bool	xfs_buf_log_check_iovec(struct kvec *iovec);
 
 unsigned int xfs_buf_inval_log_space(unsigned int map_count,
 		unsigned int blocksize);
