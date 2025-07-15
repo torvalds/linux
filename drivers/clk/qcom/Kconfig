@@ -969,6 +969,14 @@ config SM_CAMCC_7150
 	  Support for the camera clock controller on SM7150 devices.
 	  Say Y if you want to support camera devices and camera functionality.
 
+config SM_CAMCC_MILOS
+	tristate "Milos Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_MILOS
+	help
+	  Support for the camera clock controller on Milos devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_CAMCC_8150
 	tristate "SM8150 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
