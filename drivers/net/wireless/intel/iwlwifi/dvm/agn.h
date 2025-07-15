@@ -388,7 +388,7 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 /**
  * iwl_parse_eeprom_data - parse EEPROM data and return values
  *
- * @trans: ransport we're parsing for, for debug only
+ * @trans: transport we're parsing for, for debug only
  * @cfg: device configuration for parsing and overrides
  * @eeprom: the EEPROM data
  * @eeprom_size: length of the EEPROM data
