@@ -68,7 +68,7 @@ struct zynqmp_sram_bank {
 };
 
 /**
- * struct mbox_info
+ * struct mbox_info - mailbox channel data
  *
  * @rx_mc_buf: to copy data from mailbox rx channel
  * @tx_mc_buf: to copy data to mailbox tx channel
@@ -89,7 +89,7 @@ struct mbox_info {
 };
 
 /**
- * struct rsc_tbl_data
+ * struct rsc_tbl_data - resource table metadata
  *
  * Platform specific data structure used to sync resource table address.
  * It's important to maintain order and size of each field on remote side.
@@ -128,7 +128,7 @@ static const struct mem_bank_data zynqmp_tcm_banks_lockstep[] = {
 };
 
 /**
- * struct zynqmp_r5_core
+ * struct zynqmp_r5_core - remoteproc core's internal data
  *
  * @rsc_tbl_va: resource table virtual address
  * @sram: Array of sram memories assigned to this core
@@ -157,7 +157,7 @@ struct zynqmp_r5_core {
 };
 
 /**
- * struct zynqmp_r5_cluster
+ * struct zynqmp_r5_cluster - remoteproc cluster's internal data
  *
  * @dev: r5f subsystem cluster device node
  * @mode: cluster mode of type zynqmp_r5_cluster_mode
@@ -732,7 +732,7 @@ static int zynqmp_r5_parse_fw(struct rproc *rproc, const struct firmware *fw)
 }
 
 /**
- * zynqmp_r5_rproc_prepare()
+ * zynqmp_r5_rproc_prepare() - prepare core to boot/attach
  * adds carveouts for TCM bank and reserved memory regions
  *
  * @rproc: Device node of each rproc
@@ -765,7 +765,7 @@ static int zynqmp_r5_rproc_prepare(struct rproc *rproc)
 }
 
 /**
- * zynqmp_r5_rproc_unprepare()
+ * zynqmp_r5_rproc_unprepare() - programming sequence after stop/detach.
  * Turns off TCM banks using power-domain id
  *
  * @rproc: Device node of each rproc
@@ -908,7 +908,7 @@ static const struct rproc_ops zynqmp_r5_rproc_ops = {
 };
 
 /**
- * zynqmp_r5_add_rproc_core()
+ * zynqmp_r5_add_rproc_core() - Add core data to framework.
  * Allocate and add struct rproc object for each r5f core
  * This is called for each individual r5f core
  *
@@ -1144,7 +1144,7 @@ static int zynqmp_r5_get_tcm_node_from_dt(struct zynqmp_r5_cluster *cluster)
 }
 
 /**
- * zynqmp_r5_get_tcm_node()
+ * zynqmp_r5_get_tcm_node() - Get TCM info
  * Ideally this function should parse tcm node and store information
  * in r5_core instance. For now, Hardcoded TCM information is used.
  * This approach is used as TCM bindings for system-dt is being developed
