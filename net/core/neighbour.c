@@ -2044,10 +2044,10 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = -ENOBUFS;
 		pn = pneigh_create(tbl, net, dst, dev);
 		if (pn) {
-			pn->flags = ndm_flags;
+			WRITE_ONCE(pn->flags, ndm_flags);
 			pn->permanent = !!(ndm->ndm_state & NUD_PERMANENT);
 			if (protocol)
-				pn->protocol = protocol;
+				WRITE_ONCE(pn->protocol, protocol);
 			err = 0;
 		}
 		goto out;
@@ -2678,13 +2678,15 @@ static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
 	u32 neigh_flags, neigh_flags_ext;
 	struct nlmsghdr *nlh;
 	struct ndmsg *ndm;
+	u8 protocol;
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ndm), flags);
 	if (nlh == NULL)
 		return -EMSGSIZE;
 
-	neigh_flags_ext = pn->flags >> NTF_EXT_SHIFT;
-	neigh_flags     = pn->flags & NTF_OLD_MASK;
+	neigh_flags = READ_ONCE(pn->flags);
+	neigh_flags_ext = neigh_flags >> NTF_EXT_SHIFT;
+	neigh_flags &= NTF_OLD_MASK;
 
 	ndm = nlmsg_data(nlh);
 	ndm->ndm_family	 = tbl->family;
@@ -2698,7 +2700,8 @@ static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
 	if (nla_put(skb, NDA_DST, tbl->key_len, pn->key))
 		goto nla_put_failure;
 
-	if (pn->protocol && nla_put_u8(skb, NDA_PROTOCOL, pn->protocol))
+	protocol = READ_ONCE(pn->protocol);
+	if (protocol && nla_put_u8(skb, NDA_PROTOCOL, protocol))
 		goto nla_put_failure;
 	if (neigh_flags_ext && nla_put_u32(skb, NDA_FLAGS_EXT, neigh_flags_ext))
 		goto nla_put_failure;
