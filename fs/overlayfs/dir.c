@@ -353,7 +353,6 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 {
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *workdir = ovl_workdir(dentry);
-	struct inode *wdir = workdir->d_inode;
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
 	struct path upperpath;
 	struct dentry *upper;
@@ -399,12 +398,12 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 		goto out_cleanup;
 
 	err = ovl_do_rename(ofs, workdir, opaquedir, upperdir, upper, RENAME_EXCHANGE);
+	unlock_rename(workdir, upperdir);
 	if (err)
-		goto out_cleanup;
+		goto out_cleanup_unlocked;
 
 	ovl_cleanup_whiteouts(ofs, upper, list);
-	ovl_cleanup(ofs, wdir, upper);
-	unlock_rename(workdir, upperdir);
+	ovl_cleanup_unlocked(ofs, workdir, upper);
 
 	/* dentry's upper doesn't match now, get rid of it */
 	d_drop(dentry);
