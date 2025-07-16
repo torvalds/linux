@@ -109,7 +109,6 @@ struct iommufd_vdevice {
 	struct iommufd_object obj;
 	struct iommufd_viommu *viommu;
 	struct iommufd_device *idev;
-	struct device *dev;
 
 	/*
 	 * Virtual device ID per vIOMMU, e.g. vSID of ARM SMMUv3, vDeviceID of
@@ -261,6 +260,7 @@ int _iommufd_alloc_mmap(struct iommufd_ctx *ictx, struct iommufd_object *owner,
 			unsigned long *offset);
 void _iommufd_destroy_mmap(struct iommufd_ctx *ictx,
 			   struct iommufd_object *owner, unsigned long offset);
+struct device *iommufd_vdevice_to_device(struct iommufd_vdevice *vdev);
 struct device *iommufd_viommu_find_dev(struct iommufd_viommu *viommu,
 				       unsigned long vdev_id);
 int iommufd_viommu_get_vdev_id(struct iommufd_viommu *viommu,
@@ -293,6 +293,12 @@ static inline void _iommufd_destroy_mmap(struct iommufd_ctx *ictx,
 					 struct iommufd_object *owner,
 					 unsigned long offset)
 {
+}
+
+static inline struct device *
+iommufd_vdevice_to_device(struct iommufd_vdevice *vdev)
+{
+	return NULL;
 }
 
 static inline struct device *
