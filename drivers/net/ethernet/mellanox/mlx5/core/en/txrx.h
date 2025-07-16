@@ -322,14 +322,24 @@ mlx5e_dma_get(struct mlx5e_txqsq *sq, u32 i)
 }
 
 static inline void
-mlx5e_dma_push(struct mlx5e_txqsq *sq, dma_addr_t addr, u32 size,
-	       enum mlx5e_dma_map_type map_type)
+mlx5e_dma_push_single(struct mlx5e_txqsq *sq, dma_addr_t addr, u32 size)
 {
 	struct mlx5e_sq_dma *dma = mlx5e_dma_get(sq, sq->dma_fifo_pc++);
 
 	dma->addr = addr;
 	dma->size = size;
-	dma->type = map_type;
+	dma->type = MLX5E_DMA_MAP_SINGLE;
+}
+
+static inline void
+mlx5e_dma_push_netmem(struct mlx5e_txqsq *sq, netmem_ref netmem,
+		      dma_addr_t addr, u32 size)
+{
+	struct mlx5e_sq_dma *dma = mlx5e_dma_get(sq, sq->dma_fifo_pc++);
+
+	netmem_dma_unmap_addr_set(netmem, dma, addr, addr);
+	dma->size = size;
+	dma->type = MLX5E_DMA_MAP_PAGE;
 }
 
 static inline
