@@ -970,7 +970,7 @@ xfs_setattr_size(
 	 * change.
 	 */
 	if (xfs_is_zoned_inode(ip)) {
-		error = xfs_zoned_space_reserve(ip, 1,
+		error = xfs_zoned_space_reserve(mp, 1,
 				XFS_ZR_NOWAIT | XFS_ZR_RESERVED, &ac);
 		if (error) {
 			if (error == -EAGAIN)
@@ -998,7 +998,7 @@ xfs_setattr_size(
 	}
 
 	if (xfs_is_zoned_inode(ip))
-		xfs_zoned_space_unreserve(ip, &ac);
+		xfs_zoned_space_unreserve(mp, &ac);
 
 	if (error)
 		return error;

@@ -497,7 +497,7 @@ restart:
 
 static ssize_t
 xfs_zoned_write_space_reserve(
-	struct xfs_inode		*ip,
+	struct xfs_mount		*mp,
 	struct kiocb			*iocb,
 	struct iov_iter			*from,
 	unsigned int			flags,
@@ -533,8 +533,8 @@ xfs_zoned_write_space_reserve(
 	 *
 	 * Any remaining block will be returned after the write.
 	 */
-	return xfs_zoned_space_reserve(ip,
-			XFS_B_TO_FSB(ip->i_mount, count) + 1 + 2, flags, ac);
+	return xfs_zoned_space_reserve(mp, XFS_B_TO_FSB(mp, count) + 1 + 2,
+			flags, ac);
 }
 
 static int
@@ -718,13 +718,13 @@ xfs_file_dio_write_zoned(
 	struct xfs_zone_alloc_ctx ac = { };
 	ssize_t			ret;
 
-	ret = xfs_zoned_write_space_reserve(ip, iocb, from, 0, &ac);
+	ret = xfs_zoned_write_space_reserve(ip->i_mount, iocb, from, 0, &ac);
 	if (ret < 0)
 		return ret;
 	ret = xfs_file_dio_write_aligned(ip, iocb, from,
 			&xfs_zoned_direct_write_iomap_ops,
 			&xfs_dio_zoned_write_ops, &ac);
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	return ret;
 }
 
@@ -1032,7 +1032,7 @@ xfs_file_buffered_write_zoned(
 	struct xfs_zone_alloc_ctx ac = { };
 	ssize_t			ret;
 
-	ret = xfs_zoned_write_space_reserve(ip, iocb, from, XFS_ZR_GREEDY, &ac);
+	ret = xfs_zoned_write_space_reserve(mp, iocb, from, XFS_ZR_GREEDY, &ac);
 	if (ret < 0)
 		return ret;
 
@@ -1073,7 +1073,7 @@ retry:
 out_unlock:
 	xfs_iunlock(ip, iolock);
 out_unreserve:
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	if (ret > 0) {
 		XFS_STATS_ADD(mp, xs_write_bytes, ret);
 		ret = generic_write_sync(iocb, ret);
@@ -1414,11 +1414,11 @@ xfs_file_zoned_fallocate(
 	struct xfs_inode	*ip = XFS_I(file_inode(file));
 	int			error;
 
-	error = xfs_zoned_space_reserve(ip, 2, XFS_ZR_RESERVED, &ac);
+	error = xfs_zoned_space_reserve(ip->i_mount, 2, XFS_ZR_RESERVED, &ac);
 	if (error)
 		return error;
 	error = __xfs_file_fallocate(file, mode, offset, len, &ac);
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	return error;
 }
 
@@ -1828,12 +1828,12 @@ xfs_write_fault_zoned(
 	 * But as the overallocation is limited to less than a folio and will be
 	 * release instantly that's just fine.
 	 */
-	error = xfs_zoned_space_reserve(ip, XFS_B_TO_FSB(ip->i_mount, len), 0,
-			&ac);
+	error = xfs_zoned_space_reserve(ip->i_mount,
+			XFS_B_TO_FSB(ip->i_mount, len), 0, &ac);
 	if (error < 0)
 		return vmf_fs_error(error);
 	ret = __xfs_write_fault(vmf, order, &ac);
-	xfs_zoned_space_unreserve(ip, &ac);
+	xfs_zoned_space_unreserve(ip->i_mount, &ac);
 	return ret;
 }
 

@@ -117,11 +117,10 @@ xfs_zoned_space_wait_error(
 
 static int
 xfs_zoned_reserve_available(
-	struct xfs_inode		*ip,
+	struct xfs_mount		*mp,
 	xfs_filblks_t			count_fsb,
 	unsigned int			flags)
 {
-	struct xfs_mount		*mp = ip->i_mount;
 	struct xfs_zone_info		*zi = mp->m_zone_info;
 	struct xfs_zone_reservation	reservation = {
 		.task		= current,
@@ -198,11 +197,10 @@ xfs_zoned_reserve_available(
  */
 static int
 xfs_zoned_reserve_extents_greedy(
-	struct xfs_inode		*ip,
+	struct xfs_mount		*mp,
 	xfs_filblks_t			*count_fsb,
 	unsigned int			flags)
 {
-	struct xfs_mount		*mp = ip->i_mount;
 	struct xfs_zone_info		*zi = mp->m_zone_info;
 	s64				len = *count_fsb;
 	int				error = -ENOSPC;
@@ -220,12 +218,11 @@ xfs_zoned_reserve_extents_greedy(
 
 int
 xfs_zoned_space_reserve(
-	struct xfs_inode		*ip,
+	struct xfs_mount		*mp,
 	xfs_filblks_t			count_fsb,
 	unsigned int			flags,
 	struct xfs_zone_alloc_ctx	*ac)
 {
-	struct xfs_mount		*mp = ip->i_mount;
 	int				error;
 
 	ASSERT(ac->reserved_blocks == 0);
@@ -234,11 +231,11 @@ xfs_zoned_space_reserve(
 	error = xfs_dec_freecounter(mp, XC_FREE_RTEXTENTS, count_fsb,
 			flags & XFS_ZR_RESERVED);
 	if (error == -ENOSPC && (flags & XFS_ZR_GREEDY) && count_fsb > 1)
-		error = xfs_zoned_reserve_extents_greedy(ip, &count_fsb, flags);
+		error = xfs_zoned_reserve_extents_greedy(mp, &count_fsb, flags);
 	if (error)
 		return error;
 
-	error = xfs_zoned_reserve_available(ip, count_fsb, flags);
+	error = xfs_zoned_reserve_available(mp, count_fsb, flags);
 	if (error) {
 		xfs_add_freecounter(mp, XC_FREE_RTEXTENTS, count_fsb);
 		return error;
@@ -249,12 +246,10 @@ xfs_zoned_space_reserve(
 
 void
 xfs_zoned_space_unreserve(
-	struct xfs_inode		*ip,
+	struct xfs_mount		*mp,
 	struct xfs_zone_alloc_ctx	*ac)
 {
 	if (ac->reserved_blocks > 0) {
-		struct xfs_mount	*mp = ip->i_mount;
-
 		xfs_zoned_add_available(mp, ac->reserved_blocks);
 		xfs_add_freecounter(mp, XC_FREE_RTEXTENTS, ac->reserved_blocks);
 	}

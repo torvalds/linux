@@ -23,9 +23,9 @@ struct xfs_zone_alloc_ctx {
  */
 #define XFS_ZR_RESERVED		(1U << 2)
 
-int xfs_zoned_space_reserve(struct xfs_inode *ip, xfs_filblks_t count_fsb,
+int xfs_zoned_space_reserve(struct xfs_mount *mp, xfs_filblks_t count_fsb,
 		unsigned int flags, struct xfs_zone_alloc_ctx *ac);
-void xfs_zoned_space_unreserve(struct xfs_inode *ip,
+void xfs_zoned_space_unreserve(struct xfs_mount *mp,
 		struct xfs_zone_alloc_ctx *ac);
 void xfs_zoned_add_available(struct xfs_mount *mp, xfs_filblks_t count_fsb);
 
