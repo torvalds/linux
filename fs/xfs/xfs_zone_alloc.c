@@ -434,7 +434,7 @@ xfs_init_open_zone(
 	spin_lock_init(&oz->oz_alloc_lock);
 	atomic_set(&oz->oz_ref, 1);
 	oz->oz_rtg = rtg;
-	oz->oz_write_pointer = write_pointer;
+	oz->oz_allocated = write_pointer;
 	oz->oz_written = write_pointer;
 	oz->oz_write_hint = write_hint;
 	oz->oz_is_gc = is_gc;
@@ -569,7 +569,7 @@ xfs_try_use_zone(
 	struct xfs_open_zone	*oz,
 	bool			lowspace)
 {
-	if (oz->oz_write_pointer == rtg_blocks(oz->oz_rtg))
+	if (oz->oz_allocated == rtg_blocks(oz->oz_rtg))
 		return false;
 	if (!lowspace && !xfs_good_hint_match(oz, file_hint))
 		return false;
@@ -744,25 +744,25 @@ xfs_zone_alloc_blocks(
 {
 	struct xfs_rtgroup	*rtg = oz->oz_rtg;
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	xfs_rgblock_t		rgbno;
+	xfs_rgblock_t		allocated;
 
 	spin_lock(&oz->oz_alloc_lock);
 	count_fsb = min3(count_fsb, XFS_MAX_BMBT_EXTLEN,
-		(xfs_filblks_t)rtg_blocks(rtg) - oz->oz_write_pointer);
+		(xfs_filblks_t)rtg_blocks(rtg) - oz->oz_allocated);
 	if (!count_fsb) {
 		spin_unlock(&oz->oz_alloc_lock);
 		return 0;
 	}
-	rgbno = oz->oz_write_pointer;
-	oz->oz_write_pointer += count_fsb;
+	allocated = oz->oz_allocated;
+	oz->oz_allocated += count_fsb;
 	spin_unlock(&oz->oz_alloc_lock);
 
-	trace_xfs_zone_alloc_blocks(oz, rgbno, count_fsb);
+	trace_xfs_zone_alloc_blocks(oz, allocated, count_fsb);
 
 	*sector = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
 	*is_seq = bdev_zone_is_seq(mp->m_rtdev_targp->bt_bdev, *sector);
 	if (!*is_seq)
-		*sector += XFS_FSB_TO_BB(mp, rgbno);
+		*sector += XFS_FSB_TO_BB(mp, allocated);
 	return XFS_FSB_TO_B(mp, count_fsb);
 }
 
@@ -983,7 +983,7 @@ xfs_zone_rgbno_is_valid(
 	lockdep_assert_held(&rtg_rmap(rtg)->i_lock);
 
 	if (rtg->rtg_open_zone)
-		return rgbno < rtg->rtg_open_zone->oz_write_pointer;
+		return rgbno < rtg->rtg_open_zone->oz_allocated;
 	return !xa_get_mark(&rtg_mount(rtg)->m_groups[XG_TYPE_RTG].xa,
 			rtg_rgno(rtg), XFS_RTG_FREE);
 }

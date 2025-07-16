@@ -425,8 +425,8 @@ DECLARE_EVENT_CLASS(xfs_zone_alloc_class,
 		__field(dev_t, dev)
 		__field(xfs_rgnumber_t, rgno)
 		__field(xfs_rgblock_t, used)
+		__field(xfs_rgblock_t, allocated)
 		__field(xfs_rgblock_t, written)
-		__field(xfs_rgblock_t, write_pointer)
 		__field(xfs_rgblock_t, rgbno)
 		__field(xfs_extlen_t, len)
 	),
@@ -434,17 +434,17 @@ DECLARE_EVENT_CLASS(xfs_zone_alloc_class,
 		__entry->dev = rtg_mount(oz->oz_rtg)->m_super->s_dev;
 		__entry->rgno = rtg_rgno(oz->oz_rtg);
 		__entry->used = rtg_rmap(oz->oz_rtg)->i_used_blocks;
+		__entry->allocated = oz->oz_allocated;
 		__entry->written = oz->oz_written;
-		__entry->write_pointer = oz->oz_write_pointer;
 		__entry->rgbno = rgbno;
 		__entry->len = len;
 	),
-	TP_printk("dev %d:%d rgno 0x%x used 0x%x written 0x%x wp 0x%x rgbno 0x%x len 0x%x",
+	TP_printk("dev %d:%d rgno 0x%x used 0x%x alloced 0x%x written 0x%x rgbno 0x%x len 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->rgno,
 		  __entry->used,
+		  __entry->allocated,
 		  __entry->written,
-		  __entry->write_pointer,
 		  __entry->rgbno,
 		  __entry->len)
 );
