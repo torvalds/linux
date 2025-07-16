@@ -433,9 +433,7 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 {
 	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct dentry *workdir = ovl_workdir(dentry);
-	struct inode *wdir = workdir->d_inode;
 	struct dentry *upperdir = ovl_dentry_upper(dentry->d_parent);
-	struct inode *udir = upperdir->d_inode;
 	struct dentry *upper;
 	struct dentry *newdentry;
 	int err;
@@ -506,22 +504,23 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 
 		err = ovl_do_rename(ofs, workdir, newdentry, upperdir, upper,
 				    RENAME_EXCHANGE);
+		unlock_rename(workdir, upperdir);
 		if (err)
-			goto out_cleanup;
+			goto out_cleanup_unlocked;
 
-		ovl_cleanup(ofs, wdir, upper);
+		ovl_cleanup_unlocked(ofs, workdir, upper);
 	} else {
 		err = ovl_do_rename(ofs, workdir, newdentry, upperdir, upper, 0);
+		unlock_rename(workdir, upperdir);
 		if (err)
-			goto out_cleanup;
+			goto out_cleanup_unlocked;
 	}
 	ovl_dir_modified(dentry->d_parent, false);
 	err = ovl_instantiate(dentry, inode, newdentry, hardlink, NULL);
 	if (err) {
-		ovl_cleanup(ofs, udir, newdentry);
+		ovl_cleanup_unlocked(ofs, upperdir, newdentry);
 		dput(newdentry);
 	}
-	unlock_rename(workdir, upperdir);
 out_dput:
 	dput(upper);
 out:
