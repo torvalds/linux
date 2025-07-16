@@ -169,7 +169,7 @@ static inline bool iommufd_lock_obj(struct iommufd_object *obj)
 {
 	if (!refcount_inc_not_zero(&obj->users))
 		return false;
-	if (!refcount_inc_not_zero(&obj->shortterm_users)) {
+	if (!refcount_inc_not_zero(&obj->wait_cnt)) {
 		/*
 		 * If the caller doesn't already have a ref on obj this must be
 		 * called under the xa_lock. Otherwise the caller is holding a
@@ -187,11 +187,11 @@ static inline void iommufd_put_object(struct iommufd_ctx *ictx,
 				      struct iommufd_object *obj)
 {
 	/*
-	 * Users first, then shortterm so that REMOVE_WAIT_SHORTTERM never sees
-	 * a spurious !0 users with a 0 shortterm_users.
+	 * Users first, then wait_cnt so that REMOVE_WAIT never sees a spurious
+	 * !0 users with a 0 wait_cnt.
 	 */
 	refcount_dec(&obj->users);
-	if (refcount_dec_and_test(&obj->shortterm_users))
+	if (refcount_dec_and_test(&obj->wait_cnt))
 		wake_up_interruptible_all(&ictx->destroy_wait);
 }
 
@@ -202,7 +202,7 @@ void iommufd_object_finalize(struct iommufd_ctx *ictx,
 			     struct iommufd_object *obj);
 
 enum {
-	REMOVE_WAIT_SHORTTERM	= BIT(0),
+	REMOVE_WAIT		= BIT(0),
 	REMOVE_OBJ_TOMBSTONE	= BIT(1),
 };
 int iommufd_object_remove(struct iommufd_ctx *ictx,
@@ -211,15 +211,15 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 
 /*
  * The caller holds a users refcount and wants to destroy the object. At this
- * point the caller has no shortterm_users reference and at least the xarray
- * will be holding one.
+ * point the caller has no wait_cnt reference and at least the xarray will be
+ * holding one.
  */
 static inline void iommufd_object_destroy_user(struct iommufd_ctx *ictx,
 					       struct iommufd_object *obj)
 {
 	int ret;
 
-	ret = iommufd_object_remove(ictx, obj, obj->id, REMOVE_WAIT_SHORTTERM);
+	ret = iommufd_object_remove(ictx, obj, obj->id, REMOVE_WAIT);
 
 	/*
 	 * If there is a bug and we couldn't destroy the object then we did put
@@ -239,7 +239,7 @@ static inline void iommufd_object_tombstone_user(struct iommufd_ctx *ictx,
 	int ret;
 
 	ret = iommufd_object_remove(ictx, obj, obj->id,
-				    REMOVE_WAIT_SHORTTERM | REMOVE_OBJ_TOMBSTONE);
+				    REMOVE_WAIT | REMOVE_OBJ_TOMBSTONE);
 
 	/*
 	 * If there is a bug and we couldn't destroy the object then we did put

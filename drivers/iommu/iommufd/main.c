@@ -42,7 +42,7 @@ struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 		return ERR_PTR(-ENOMEM);
 	obj->type = type;
 	/* Starts out bias'd by 1 until it is removed from the xarray */
-	refcount_set(&obj->shortterm_users, 1);
+	refcount_set(&obj->wait_cnt, 1);
 	refcount_set(&obj->users, 1);
 
 	/*
@@ -155,22 +155,22 @@ struct iommufd_object *iommufd_get_object(struct iommufd_ctx *ictx, u32 id,
 	return obj;
 }
 
-static int iommufd_object_dec_wait_shortterm(struct iommufd_ctx *ictx,
-					     struct iommufd_object *to_destroy)
+static int iommufd_object_dec_wait(struct iommufd_ctx *ictx,
+				   struct iommufd_object *to_destroy)
 {
-	if (refcount_dec_and_test(&to_destroy->shortterm_users))
+	if (refcount_dec_and_test(&to_destroy->wait_cnt))
 		return 0;
 
 	if (iommufd_object_ops[to_destroy->type].pre_destroy)
 		iommufd_object_ops[to_destroy->type].pre_destroy(to_destroy);
 
 	if (wait_event_timeout(ictx->destroy_wait,
-			       refcount_read(&to_destroy->shortterm_users) == 0,
+			       refcount_read(&to_destroy->wait_cnt) == 0,
 			       msecs_to_jiffies(60000)))
 		return 0;
 
 	pr_crit("Time out waiting for iommufd object to become free\n");
-	refcount_inc(&to_destroy->shortterm_users);
+	refcount_inc(&to_destroy->wait_cnt);
 	return -EBUSY;
 }
 
@@ -184,17 +184,18 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 {
 	struct iommufd_object *obj;
 	XA_STATE(xas, &ictx->objects, id);
-	bool zerod_shortterm = false;
+	bool zerod_wait_cnt = false;
 	int ret;
 
 	/*
-	 * The purpose of the shortterm_users is to ensure deterministic
-	 * destruction of objects used by external drivers and destroyed by this
-	 * function. Any temporary increment of the refcount must increment
-	 * shortterm_users, such as during ioctl execution.
+	 * The purpose of the wait_cnt is to ensure deterministic destruction
+	 * of objects used by external drivers and destroyed by this function.
+	 * Incrementing this wait_cnt should either be short lived, such as
+	 * during ioctl execution, or be revoked and blocked during
+	 * pre_destroy(), such as vdev holding the idev's refcount.
 	 */
-	if (flags & REMOVE_WAIT_SHORTTERM) {
-		ret = iommufd_object_dec_wait_shortterm(ictx, to_destroy);
+	if (flags & REMOVE_WAIT) {
+		ret = iommufd_object_dec_wait(ictx, to_destroy);
 		if (ret) {
 			/*
 			 * We have a bug. Put back the callers reference and
@@ -203,7 +204,7 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 			refcount_dec(&to_destroy->users);
 			return ret;
 		}
-		zerod_shortterm = true;
+		zerod_wait_cnt = true;
 	}
 
 	xa_lock(&ictx->objects);
@@ -235,11 +236,11 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 	xa_unlock(&ictx->objects);
 
 	/*
-	 * Since users is zero any positive users_shortterm must be racing
+	 * Since users is zero any positive wait_cnt must be racing
 	 * iommufd_put_object(), or we have a bug.
 	 */
-	if (!zerod_shortterm) {
-		ret = iommufd_object_dec_wait_shortterm(ictx, obj);
+	if (!zerod_wait_cnt) {
+		ret = iommufd_object_dec_wait(ictx, obj);
 		if (WARN_ON(ret))
 			return ret;
 	}
@@ -249,9 +250,9 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 	return 0;
 
 err_xa:
-	if (zerod_shortterm) {
+	if (zerod_wait_cnt) {
 		/* Restore the xarray owned reference */
-		refcount_set(&obj->shortterm_users, 1);
+		refcount_set(&obj->wait_cnt, 1);
 	}
 	xa_unlock(&ictx->objects);
 

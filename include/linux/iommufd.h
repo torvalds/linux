@@ -46,7 +46,13 @@ enum iommufd_object_type {
 
 /* Base struct for all objects with a userspace ID handle. */
 struct iommufd_object {
-	refcount_t shortterm_users;
+	/*
+	 * Destroy will sleep and wait for wait_cnt to go to zero. This allows
+	 * concurrent users of the ID to reliably avoid causing a spurious
+	 * destroy failure. Incrementing this count should either be short
+	 * lived or be revoked and blocked during pre_destroy().
+	 */
+	refcount_t wait_cnt;
 	refcount_t users;
 	enum iommufd_object_type type;
 	unsigned int id;

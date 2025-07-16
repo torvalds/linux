@@ -205,8 +205,8 @@ int iommufd_vdevice_alloc_ioctl(struct iommufd_ucmd *ucmd)
 	vdev->viommu = viommu;
 	refcount_inc(&viommu->obj.users);
 	/*
-	 * A short term users reference is held on the idev so long as we have
-	 * the pointer. iommufd_device_pre_destroy() will revoke it before the
+	 * A wait_cnt reference is held on the idev so long as we have the
+	 * pointer. iommufd_device_pre_destroy() will revoke it before the
 	 * idev real destruction.
 	 */
 	vdev->idev = idev;

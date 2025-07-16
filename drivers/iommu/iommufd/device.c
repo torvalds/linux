@@ -152,8 +152,8 @@ static void iommufd_device_remove_vdev(struct iommufd_device *idev)
 	/*
 	 * An ongoing vdev destroy ioctl has removed the vdev from the object
 	 * xarray, but has not finished iommufd_vdevice_destroy() yet as it
-	 * needs the same mutex. We exit the locking then wait on short term
-	 * users for the vdev destruction.
+	 * needs the same mutex. We exit the locking then wait on wait_cnt
+	 * reference for the vdev destruction.
 	 */
 	if (IS_ERR(vdev))
 		goto out_unlock;
@@ -184,7 +184,7 @@ void iommufd_device_pre_destroy(struct iommufd_object *obj)
 	struct iommufd_device *idev =
 		container_of(obj, struct iommufd_device, obj);
 
-	/* Release the short term users on this */
+	/* Release the wait_cnt reference on this */
 	iommufd_device_remove_vdev(idev);
 }
 
