@@ -405,8 +405,8 @@ DEFINE_EVENT(block_bio, block_getrq,
 );
 
 /**
- * block_zone_update_request_bio - update the bio sector after a zone append
- * @bio: the completed block IO operation
+ * blk_zone_append_update_request_bio - update bio sector after zone append
+ * @rq: the completed request that sets the bio sector
  *
  * Update the bio's bi_sector after a zone append command has been completed.
  */
