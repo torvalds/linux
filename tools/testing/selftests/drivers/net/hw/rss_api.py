@@ -6,10 +6,10 @@ API level tests for RSS (mostly Netlink vs IOCTL).
 """
 
 import glob
-from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_is, ksft_ne
+from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_is, ksft_ne, ksft_raises
 from lib.py import KsftSkipEx, KsftFailEx
-from lib.py import defer, ethtool
-from lib.py import EthtoolFamily
+from lib.py import defer, ethtool, CmdExitFailure
+from lib.py import EthtoolFamily, NlError
 from lib.py import NetDrvEnv
 
 
@@ -57,6 +57,95 @@ def _ethtool_get_cfg(cfg, fl_type, to_nl=False):
         else:
             ret += converter[line]
     return ret
+
+
+def test_rxfh_nl_set_fail(cfg):
+    """
+    Test error path of Netlink SET.
+    """
+    _require_2qs(cfg)
+
+    ethnl = EthtoolFamily()
+    ethnl.ntf_subscribe("monitor")
+
+    with ksft_raises(NlError):
+        ethnl.rss_set({"header": {"dev-name": "lo"},
+                       "indir": None})
+
+    with ksft_raises(NlError):
+        ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                       "indir": [100000]})
+    ntf = next(ethnl.poll_ntf(duration=0.2), None)
+    ksft_is(ntf, None)
+
+
+def test_rxfh_nl_set_indir(cfg):
+    """
+    Test setting indirection table via Netlink.
+    """
+    qcnt = _require_2qs(cfg)
+
+    # Test some SETs with a value
+    reset = defer(cfg.ethnl.rss_set,
+                  {"header": {"dev-index": cfg.ifindex}, "indir": None})
+    cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                       "indir": [1]})
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    ksft_eq(set(rss.get("indir", [-1])), {1})
+
+    cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                       "indir": [0, 1]})
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    ksft_eq(set(rss.get("indir", [-1])), {0, 1})
+
+    # Make sure we can't set the queue count below max queue used
+    with ksft_raises(CmdExitFailure):
+        ethtool(f"-L {cfg.ifname} combined 0 rx 1")
+    with ksft_raises(CmdExitFailure):
+        ethtool(f"-L {cfg.ifname} combined 1 rx 0")
+
+    # Test reset back to default
+    reset.exec()
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    ksft_eq(set(rss.get("indir", [-1])), set(range(qcnt)))
+
+
+def test_rxfh_nl_set_indir_ctx(cfg):
+    """
+    Test setting indirection table for a custom context via Netlink.
+    """
+    _require_2qs(cfg)
+
+    # Get setting for ctx 0, we'll make sure they don't get clobbered
+    dflt = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+
+    # Create context
+    ctx_id = _ethtool_create(cfg, "-X", "context new")
+    defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                       "context": ctx_id, "indir": [1]})
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex},
+                             "context": ctx_id})
+    ksft_eq(set(rss.get("indir", [-1])), {1})
+
+    ctx0 = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    ksft_eq(ctx0, dflt)
+
+    cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                       "context": ctx_id, "indir": [0, 1]})
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex},
+                             "context": ctx_id})
+    ksft_eq(set(rss.get("indir", [-1])), {0, 1})
+
+    ctx0 = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    ksft_eq(ctx0, dflt)
+
+    # Make sure we can't set the queue count below max queue used
+    with ksft_raises(CmdExitFailure):
+        ethtool(f"-L {cfg.ifname} combined 0 rx 1")
+    with ksft_raises(CmdExitFailure):
+        ethtool(f"-L {cfg.ifname} combined 1 rx 0")
 
 
 def test_rxfh_indir_ntf(cfg):
@@ -129,6 +218,7 @@ def main() -> None:
     """ Ksft boiler plate main """
 
     with NetDrvEnv(__file__, nsim_test=False) as cfg:
+        cfg.ethnl = EthtoolFamily()
         ksft_run(globs=globals(), case_pfx={"test_"}, args=(cfg, ))
     ksft_exit()
 
