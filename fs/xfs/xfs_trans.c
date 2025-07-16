@@ -1146,9 +1146,18 @@ xfs_trans_reserve_more(
 	unsigned int		blocks,
 	unsigned int		rtextents)
 {
-	struct xfs_trans_res	resv = { };
+	bool			rsvd = tp->t_flags & XFS_TRANS_RESERVE;
 
-	return xfs_trans_reserve(tp, &resv, blocks, rtextents);
+	if (blocks && xfs_dec_fdblocks(tp->t_mountp, blocks, rsvd))
+		return -ENOSPC;
+	if (rtextents && xfs_dec_frextents(tp->t_mountp, rtextents)) {
+		if (blocks)
+			xfs_add_fdblocks(tp->t_mountp, blocks);
+		return -ENOSPC;
+	}
+	tp->t_blk_res += blocks;
+	tp->t_rtx_res += rtextents;
+	return 0;
 }
 
 /*
