@@ -943,7 +943,7 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 	btrfs_dir_item_key_to_cpu(leaf, di, &location);
 	ret = read_alloc_one_name(leaf, di + 1, btrfs_dir_name_len(leaf, di), &name);
 	if (ret)
-		return -ENOMEM;
+		return ret;
 
 	btrfs_release_path(path);
 
