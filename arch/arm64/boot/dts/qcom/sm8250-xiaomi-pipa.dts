@@ -437,17 +437,6 @@
 	};
 };
 
-&i2c0 {
-	clock-frequency = <400000>;
-	status = "okay";
-
-	fuel-gauge@55 {
-		compatible = "ti,bq27z561";
-		reg = <0x55>;
-		monitored-battery = <&battery_r>;
-	};
-};
-
 &i2c11 {
 	clock-frequency = <400000>;
 	status = "okay";
@@ -462,17 +451,6 @@
 		kinetic,current-ramp-delay-ms = <128>;
 		kinetic,led-enable-ramp-delay-ms = <1>;
 		kinetic,enable-lcd-bias;
-	};
-};
-
-&i2c13 {
-	clock-frequency = <400000>;
-	status = "okay";
-
-	fuel-gauge@55 {
-		compatible = "ti,bq27z561";
-		reg = <0x55>;
-		monitored-battery = <&battery_l>;
 	};
 };
 
