@@ -3092,16 +3092,16 @@ xfs_log_force_seq(
  */
 void
 xfs_log_ticket_put(
-	xlog_ticket_t	*ticket)
+	struct xlog_ticket	*ticket)
 {
 	ASSERT(atomic_read(&ticket->t_ref) > 0);
 	if (atomic_dec_and_test(&ticket->t_ref))
 		kmem_cache_free(xfs_log_ticket_cache, ticket);
 }
 
-xlog_ticket_t *
+struct xlog_ticket *
 xfs_log_ticket_get(
-	xlog_ticket_t	*ticket)
+	struct xlog_ticket	*ticket)
 {
 	ASSERT(atomic_read(&ticket->t_ref) > 0);
 	atomic_inc(&ticket->t_ref);
