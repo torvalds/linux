@@ -39,11 +39,6 @@
 #define DISPLAY_MINOR_BASE	144
 #define DEVICE_NAME	"lcd%d"
 
-#define BUF_CHUNK_SIZE	8
-#define BUF_SIZE	128
-
-#define BIT_DURATION	250	/* each bit received is 250us */
-
 #define IMON_CLOCK_ENABLE_PACKETS	2
 
 /*** P R O T O T Y P E S ***/
