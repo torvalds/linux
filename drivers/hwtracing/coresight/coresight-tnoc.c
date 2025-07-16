@@ -183,8 +183,8 @@ static int trace_noc_probe(struct amba_device *adev, const struct amba_id *id)
 	dev_set_drvdata(dev, drvdata);
 
 	drvdata->base = devm_ioremap_resource(dev, &adev->res);
-	if (!drvdata->base)
-		return -ENOMEM;
+	if (IS_ERR(drvdata->base))
+		return PTR_ERR(drvdata->base);
 
 	spin_lock_init(&drvdata->spinlock);
 
