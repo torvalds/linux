@@ -26,6 +26,13 @@ struct bch_inode_info;
 #ifdef CONFIG_UNICODE
 int bch2_casefold(struct btree_trans *, const struct bch_hash_info *,
 		  const struct qstr *, struct qstr *);
+#else
+static inline int bch2_casefold(struct btree_trans *trans, const struct bch_hash_info *info,
+				const struct qstr *str, struct qstr *out_cf)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 static inline int bch2_maybe_casefold(struct btree_trans *trans,
 				      const struct bch_hash_info *info,
@@ -38,14 +45,6 @@ static inline int bch2_maybe_casefold(struct btree_trans *trans,
 		return bch2_casefold(trans, info, str, out_cf);
 	}
 }
-#else
-static inline int bch2_maybe_casefold(struct btree_trans *trans,
-				      const struct bch_hash_info *info,
-				      const struct qstr *str, struct qstr *out_cf)
-{
-	return -EOPNOTSUPP;
-}
-#endif
 
 struct qstr bch2_dirent_get_name(struct bkey_s_c_dirent);
 
