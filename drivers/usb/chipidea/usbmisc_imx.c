@@ -1118,6 +1118,7 @@ static int usbmisc_imx6sx_power_lost_check(struct imx_usbmisc_data *data)
 	else
 		return 0;
 }
+
 static int usbmisc_s32g_power_lost_check(struct imx_usbmisc_data *data)
 {
 	return 1;
