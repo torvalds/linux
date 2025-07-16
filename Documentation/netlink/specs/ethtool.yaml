@@ -2678,6 +2678,7 @@ operations:
             - hfunc
             - indir
             - hkey
+            - input-xfrm
     -
       name: rss-ntf
       doc: |

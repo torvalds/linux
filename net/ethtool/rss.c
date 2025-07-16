@@ -478,6 +478,8 @@ const struct nla_policy ethnl_rss_set_policy[ETHTOOL_A_RSS_START_CONTEXT + 1] = 
 	[ETHTOOL_A_RSS_HFUNC] = NLA_POLICY_MIN(NLA_U32, 1),
 	[ETHTOOL_A_RSS_INDIR] = { .type = NLA_BINARY, },
 	[ETHTOOL_A_RSS_HKEY] = NLA_POLICY_MIN(NLA_BINARY, 1),
+	[ETHTOOL_A_RSS_INPUT_XFRM] =
+		NLA_POLICY_MAX(NLA_U32, RXH_XFRM_SYM_OR_XOR),
 };
 
 static int
@@ -487,6 +489,7 @@ ethnl_rss_set_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 	struct rss_req_info *request = RSS_REQINFO(req_info);
 	struct nlattr **tb = info->attrs;
 	struct nlattr *bad_attr = NULL;
+	u32 input_xfrm;
 
 	if (request->rss_context && !ops->create_rxfh_context)
 		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_CONTEXT];
@@ -494,7 +497,12 @@ ethnl_rss_set_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 	if (request->rss_context && !ops->rxfh_per_ctx_key) {
 		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_HFUNC];
 		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_HKEY];
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_INPUT_XFRM];
 	}
+
+	input_xfrm = nla_get_u32_default(tb[ETHTOOL_A_RSS_INPUT_XFRM], 0);
+	if (input_xfrm & ~ops->supported_input_xfrm)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_INPUT_XFRM];
 
 	if (bad_attr) {
 		NL_SET_BAD_ATTR(info->extack, bad_attr);
@@ -609,6 +617,33 @@ rss_set_prep_hkey(struct net_device *dev, struct genl_info *info,
 	return 0;
 }
 
+static int
+rss_check_rxfh_fields_sym(struct net_device *dev, struct genl_info *info,
+			  struct rss_reply_data *data, bool xfrm_sym)
+{
+	struct nlattr **tb = info->attrs;
+	int i;
+
+	if (!xfrm_sym)
+		return 0;
+	if (!data->has_flow_hash) {
+		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_RSS_INPUT_XFRM],
+				    "hash field config not reported");
+		return -EINVAL;
+	}
+
+	for (i = 1; i < __ETHTOOL_A_FLOW_CNT; i++)
+		if (data->flow_hash[i] >= 0 &&
+		    !ethtool_rxfh_config_is_sym(data->flow_hash[i])) {
+			NL_SET_ERR_MSG_ATTR(info->extack,
+					    tb[ETHTOOL_A_RSS_INPUT_XFRM],
+					    "hash field config is not symmetric");
+			return -EINVAL;
+		}
+
+	return 0;
+}
+
 static void
 rss_set_ctx_update(struct ethtool_rxfh_context *ctx, struct nlattr **tb,
 		   struct rss_reply_data *data, struct ethtool_rxfh_param *rxfh)
@@ -627,16 +662,18 @@ rss_set_ctx_update(struct ethtool_rxfh_context *ctx, struct nlattr **tb,
 	}
 	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE)
 		ctx->hfunc = rxfh->hfunc;
+	if (rxfh->input_xfrm != RXH_XFRM_NO_CHANGE)
+		ctx->input_xfrm = rxfh->input_xfrm;
 }
 
 static int
 ethnl_rss_set(struct ethnl_req_info *req_info, struct genl_info *info)
 {
+	bool indir_reset = false, indir_mod, xfrm_sym = false;
 	struct rss_req_info *request = RSS_REQINFO(req_info);
 	struct ethtool_rxfh_context *ctx = NULL;
 	struct net_device *dev = req_info->dev;
 	struct ethtool_rxfh_param rxfh = {};
-	bool indir_reset = false, indir_mod;
 	struct nlattr **tb = info->attrs;
 	struct rss_reply_data data = {};
 	const struct ethtool_ops *ops;
@@ -666,7 +703,20 @@ ethnl_rss_set(struct ethnl_req_info *req_info, struct genl_info *info)
 	if (ret)
 		goto exit_free_indir;
 
-	rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
+	rxfh.input_xfrm = data.input_xfrm;
+	ethnl_update_u8(&rxfh.input_xfrm, tb[ETHTOOL_A_RSS_INPUT_XFRM], &mod);
+	/* For drivers which don't support input_xfrm it will be set to 0xff
+	 * in the RSS context info. In all other case input_xfrm != 0 means
+	 * symmetric hashing is requested.
+	 */
+	if (!request->rss_context || ops->rxfh_per_ctx_key)
+		xfrm_sym = !!rxfh.input_xfrm;
+	if (rxfh.input_xfrm == data.input_xfrm)
+		rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
+
+	ret = rss_check_rxfh_fields_sym(dev, info, &data, xfrm_sym);
+	if (ret)
+		goto exit_clean_data;
 
 	mutex_lock(&dev->ethtool->rss_lock);
 	if (request->rss_context) {

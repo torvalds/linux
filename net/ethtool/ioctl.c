@@ -1027,9 +1027,7 @@ static int ethtool_check_xfrm_rxfh(u32 input_xfrm, u64 rxfh)
 	 */
 	if ((input_xfrm != RXH_XFRM_NO_CHANGE &&
 	     input_xfrm & (RXH_XFRM_SYM_XOR | RXH_XFRM_SYM_OR_XOR)) &&
-	    ((rxfh & ~(RXH_IP_SRC | RXH_IP_DST | RXH_L4_B_0_1 | RXH_L4_B_2_3)) ||
-	     (!!(rxfh & RXH_IP_SRC) ^ !!(rxfh & RXH_IP_DST)) ||
-	     (!!(rxfh & RXH_L4_B_0_1) ^ !!(rxfh & RXH_L4_B_2_3))))
+	    !ethtool_rxfh_config_is_sym(rxfh))
 		return -EINVAL;
 
 	return 0;
