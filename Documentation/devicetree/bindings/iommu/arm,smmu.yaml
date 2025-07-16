@@ -134,10 +134,6 @@ properties:
               - qcom,sm7150-smmu-v2
           - const: qcom,adreno-smmu
           - const: qcom,smmu-v2
-      - description: Qcom Adreno GPUs on Google Cheza platform
-        items:
-          - const: qcom,sdm845-smmu-v2
-          - const: qcom,smmu-v2
       - description: Marvell SoCs implementing "arm,mmu-500"
         items:
           - const: marvell,ap806-smmu-500
