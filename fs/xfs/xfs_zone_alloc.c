@@ -1017,7 +1017,7 @@ xfs_init_zone(
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_zone_info	*zi = mp->m_zone_info;
-	uint64_t		used = rtg_rmap(rtg)->i_used_blocks;
+	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
 	xfs_rgblock_t		write_pointer, highest_rgbno;
 	int			error;
 
