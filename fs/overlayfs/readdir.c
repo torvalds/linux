@@ -1096,7 +1096,6 @@ static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *pa
 				       int level)
 {
 	int err;
-	struct inode *dir = path->dentry->d_inode;
 	LIST_HEAD(list);
 	struct ovl_cache_entry *p;
 	struct ovl_readdir_data rdd = {
@@ -1139,14 +1138,9 @@ static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *pa
 		dentry = ovl_lookup_upper_unlocked(ofs, p->name, path->dentry, p->len);
 		if (IS_ERR(dentry))
 			continue;
-		if (dentry->d_inode) {
-			err = ovl_parent_lock(path->dentry, dentry);
-			if (!err) {
-				err = ovl_workdir_cleanup(ofs, dir, path->mnt,
-							  dentry, level);
-				ovl_parent_unlock(path->dentry);
-			}
-		}
+		if (dentry->d_inode)
+			err = ovl_workdir_cleanup(ofs, path->dentry, path->mnt,
+						  dentry, level);
 		dput(dentry);
 		if (err)
 			break;
@@ -1156,24 +1150,25 @@ out:
 	return err;
 }
 
-int ovl_workdir_cleanup(struct ovl_fs *ofs, struct inode *dir,
+int ovl_workdir_cleanup(struct ovl_fs *ofs, struct dentry *parent,
 			struct vfsmount *mnt, struct dentry *dentry, int level)
 {
 	int err;
 
-	if (!d_is_dir(dentry) || level > 1) {
-		return ovl_cleanup(ofs, dir, dentry);
-	}
+	if (!d_is_dir(dentry) || level > 1)
+		return ovl_cleanup_unlocked(ofs, parent, dentry);
 
-	err = ovl_do_rmdir(ofs, dir, dentry);
+	err = ovl_parent_lock(parent, dentry);
+	if (err)
+		return err;
+	err = ovl_do_rmdir(ofs, parent->d_inode, dentry);
+	ovl_parent_unlock(parent);
 	if (err) {
 		struct path path = { .mnt = mnt, .dentry = dentry };
 
-		inode_unlock(dir);
 		err = ovl_workdir_cleanup_recurse(ofs, &path, level + 1);
-		inode_lock_nested(dir, I_MUTEX_PARENT);
 		if (!err)
-			err = ovl_cleanup(ofs, dir, dentry);
+			err = ovl_cleanup_unlocked(ofs, parent, dentry);
 	}
 
 	return err;
@@ -1184,7 +1179,6 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 	int err;
 	struct dentry *indexdir = ofs->workdir;
 	struct dentry *index = NULL;
-	struct inode *dir = indexdir->d_inode;
 	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = indexdir };
 	LIST_HEAD(list);
 	struct ovl_cache_entry *p;
@@ -1213,11 +1207,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 		}
 		/* Cleanup leftover from index create/cleanup attempt */
 		if (index->d_name.name[0] == '#') {
-			err = ovl_parent_lock(indexdir, index);
-			if (!err) {
-				err = ovl_workdir_cleanup(ofs, dir, path.mnt, index, 1);
-				ovl_parent_unlock(indexdir);
-			}
+			err = ovl_workdir_cleanup(ofs, indexdir, path.mnt, index, 1);
 			if (err)
 				break;
 			goto next;

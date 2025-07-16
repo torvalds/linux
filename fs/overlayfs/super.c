@@ -319,11 +319,7 @@ retry:
 				return work;
 
 			retried = true;
-			err = ovl_parent_lock(ofs->workbasedir, work);
-			if (!err) {
-				err = ovl_workdir_cleanup(ofs, dir, mnt, work, 0);
-				ovl_parent_unlock(ofs->workbasedir);
-			}
+			err = ovl_workdir_cleanup(ofs, ofs->workbasedir, mnt, work, 0);
 			dput(work);
 			if (err == -EINVAL)
 				return ERR_PTR(err);
