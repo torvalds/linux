@@ -317,8 +317,8 @@ static void drm_sched_skip_reset(struct kunit *test)
 	KUNIT_ASSERT_FALSE(test, done);
 
 	KUNIT_ASSERT_EQ(test,
-			job->flags & DRM_MOCK_SCHED_JOB_DONT_RESET,
-			0);
+			job->flags & DRM_MOCK_SCHED_JOB_RESET_SKIPPED,
+			DRM_MOCK_SCHED_JOB_RESET_SKIPPED);
 
 	i = drm_mock_sched_advance(sched, 1);
 	KUNIT_ASSERT_EQ(test, i, 1);
