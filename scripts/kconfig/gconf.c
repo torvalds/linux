@@ -553,12 +553,8 @@ static void on_license1_activate(GtkMenuItem *menuitem, gpointer user_data)
 /* toolbar handlers */
 static void on_back_clicked(GtkButton *button, gpointer user_data)
 {
-	enum prop_type ptype;
+	browsed = menu_get_parent_menu(browsed) ?: &rootmenu;
 
-	browsed = browsed->parent;
-	ptype = browsed->prompt ? browsed->prompt->type : P_UNKNOWN;
-	if (ptype != P_MENU)
-		browsed = browsed->parent;
 	recreate_tree();
 
 	if (browsed == &rootmenu)
