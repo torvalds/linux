@@ -6,6 +6,7 @@ API level tests for RSS (mostly Netlink vs IOCTL).
 """
 
 import glob
+import random
 from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_is, ksft_ne, ksft_raises
 from lib.py import KsftSkipEx, KsftFailEx
 from lib.py import defer, ethtool, CmdExitFailure
@@ -197,6 +198,38 @@ def test_rxfh_indir_ctx_ntf(cfg):
     ksft_eq(ntf["name"], "rss-ntf")
     ksft_eq(ntf["msg"].get("context"), ctx_id)
     ksft_eq(set(ntf["msg"]["indir"]), {1})
+
+
+def test_rxfh_nl_set_key(cfg):
+    """
+    Test setting hashing key via Netlink.
+    """
+
+    dflt = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    defer(cfg.ethnl.rss_set,
+          {"header": {"dev-index": cfg.ifindex},
+           "hkey": dflt["hkey"], "indir": None})
+
+    # Empty key should error out
+    with ksft_raises(NlError) as cm:
+        cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                           "hkey": None})
+    ksft_eq(cm.exception.nl_msg.extack['bad-attr'], '.hkey')
+
+    # Set key to random
+    mod = random.randbytes(len(dflt["hkey"]))
+    cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                       "hkey": mod})
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    ksft_eq(rss.get("hkey", [-1]), mod)
+
+    # Set key to random and indir tbl to something at once
+    mod = random.randbytes(len(dflt["hkey"]))
+    cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                       "indir": [0, 1], "hkey": mod})
+    rss = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    ksft_eq(rss.get("hkey", [-1]), mod)
+    ksft_eq(set(rss.get("indir", [-1])), {0, 1})
 
 
 def test_rxfh_fields(cfg):
