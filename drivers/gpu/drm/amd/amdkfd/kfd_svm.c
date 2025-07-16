@@ -1309,9 +1309,11 @@ svm_range_get_pte_flags(struct kfd_node *node, struct amdgpu_vm *vm,
 	case IP_VERSION(12, 1, 0):
 		snoop = true;
 		if (domain == SVM_RANGE_VRAM_DOMAIN) {
+			mtype_local = amdgpu_mtype_local == 1 ? AMDGPU_VM_MTYPE_NC :
+								AMDGPU_VM_MTYPE_RW;
 			/* local HBM  */
 			if (bo_node->adev == node->adev)
-				mapping_flags |= AMDGPU_VM_MTYPE_RW;
+				mapping_flags |= mtype_local;
 			/* Remote GPU memory */
 			else
 				mapping_flags |= ext_coherent ? AMDGPU_VM_MTYPE_UC :
