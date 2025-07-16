@@ -154,6 +154,31 @@ enum amdxdna_bo_type {
 };
 
 /**
+ * struct amdxdna_drm_va_entry
+ * @vaddr: Virtual address.
+ * @len: Size of entry.
+ */
+struct amdxdna_drm_va_entry {
+	__u64 vaddr;
+	__u64 len;
+};
+
+/**
+ * struct amdxdna_drm_va_tbl
+ * @dmabuf_fd: The fd of dmabuf.
+ * @num_entries: Number of va entries.
+ * @va_entries: Array of va entries.
+ *
+ * The input can be either a dmabuf fd or a virtual address entry table.
+ * When dmabuf_fd is used, num_entries must be zero.
+ */
+struct amdxdna_drm_va_tbl {
+	__s32 dmabuf_fd;
+	__u32 num_entries;
+	struct amdxdna_drm_va_entry va_entries[];
+};
+
+/**
  * struct amdxdna_drm_create_bo - Create a buffer object.
  * @flags: Buffer flags. MBZ.
  * @vaddr: User VA of buffer if applied. MBZ.
