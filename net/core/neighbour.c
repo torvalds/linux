@@ -54,9 +54,9 @@ static void neigh_timer_handler(struct timer_list *t);
 static void __neigh_notify(struct neighbour *n, int type, int flags,
 			   u32 pid);
 static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
-static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
-				    struct net_device *dev,
-				    bool skip_perm);
+static void pneigh_ifdown_and_unlock(struct neigh_table *tbl,
+				     struct net_device *dev,
+				     bool skip_perm);
 
 #ifdef CONFIG_PROC_FS
 static const struct seq_operations neigh_stat_seq_ops;
@@ -810,6 +810,14 @@ out:
 	return n;
 }
 
+static void pneigh_destroy(struct rcu_head *rcu)
+{
+	struct pneigh_entry *n = container_of(rcu, struct pneigh_entry, rcu);
+
+	netdev_put(n->dev, &n->dev_tracker);
+	kfree(n);
+}
+
 int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 		  struct net_device *dev)
 {
@@ -828,10 +836,11 @@ int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 		    net_eq(pneigh_net(n), net)) {
 			rcu_assign_pointer(*np, n->next);
 			write_unlock_bh(&tbl->lock);
+
 			if (tbl->pdestructor)
 				tbl->pdestructor(n);
-			netdev_put(n->dev, &n->dev_tracker);
-			kfree(n);
+
+			call_rcu(&n->rcu, pneigh_destroy);
 			return 0;
 		}
 	}
@@ -839,11 +848,12 @@ int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 	return -ENOENT;
 }
 
-static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
-				    struct net_device *dev,
-				    bool skip_perm)
+static void pneigh_ifdown_and_unlock(struct neigh_table *tbl,
+				     struct net_device *dev,
+				     bool skip_perm)
 {
-	struct pneigh_entry *n, __rcu **np, *freelist = NULL;
+	struct pneigh_entry *n, __rcu **np;
+	LIST_HEAD(head);
 	u32 h;
 
 	for (h = 0; h <= PNEIGH_HASHMASK; h++) {
@@ -853,24 +863,25 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
 				goto skip;
 			if (!dev || n->dev == dev) {
 				rcu_assign_pointer(*np, n->next);
-				rcu_assign_pointer(n->next, freelist);
-				freelist = n;
+				list_add(&n->free_node, &head);
 				continue;
 			}
 skip:
 			np = &n->next;
 		}
 	}
+
 	write_unlock_bh(&tbl->lock);
-	while ((n = freelist)) {
-		freelist = rcu_dereference_protected(n->next, 1);
-		n->next = NULL;
+
+	while (!list_empty(&head)) {
+		n = list_first_entry(&head, typeof(*n), free_node);
+		list_del(&n->free_node);
+
 		if (tbl->pdestructor)
 			tbl->pdestructor(n);
-		netdev_put(n->dev, &n->dev_tracker);
-		kfree(n);
+
+		call_rcu(&n->rcu, pneigh_destroy);
 	}
-	return -ENOENT;
 }
 
 static inline void neigh_parms_put(struct neigh_parms *parms)
