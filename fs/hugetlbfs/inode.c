@@ -311,7 +311,7 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	return retval;
 }
 
-static int hugetlbfs_write_begin(struct file *file,
+static int hugetlbfs_write_begin(const struct kiocb *iocb,
 			struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct folio **foliop, void **fsdata)
@@ -319,9 +319,10 @@ static int hugetlbfs_write_begin(struct file *file,
 	return -EINVAL;
 }
 
-static int hugetlbfs_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct folio *folio, void *fsdata)
+static int hugetlbfs_write_end(const struct kiocb *iocb,
+			       struct address_space *mapping,
+			       loff_t pos, unsigned len, unsigned copied,
+			       struct folio *folio, void *fsdata)
 {
 	BUG();
 	return -EINVAL;

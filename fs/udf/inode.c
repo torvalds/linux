@@ -244,10 +244,12 @@ static void udf_readahead(struct readahead_control *rac)
 	mpage_readahead(rac, udf_get_block);
 }
 
-static int udf_write_begin(struct file *file, struct address_space *mapping,
+static int udf_write_begin(const struct kiocb *iocb,
+			   struct address_space *mapping,
 			   loff_t pos, unsigned len,
 			   struct folio **foliop, void **fsdata)
 {
+	struct file *file = iocb->ki_filp;
 	struct udf_inode_info *iinfo = UDF_I(file_inode(file));
 	struct folio *folio;
 	int ret;
@@ -271,15 +273,16 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 	return 0;
 }
 
-static int udf_write_end(struct file *file, struct address_space *mapping,
+static int udf_write_end(const struct kiocb *iocb,
+			 struct address_space *mapping,
 			 loff_t pos, unsigned len, unsigned copied,
 			 struct folio *folio, void *fsdata)
 {
-	struct inode *inode = file_inode(file);
+	struct inode *inode = file_inode(iocb->ki_filp);
 	loff_t last_pos;
 
 	if (UDF_I(inode)->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
-		return generic_write_end(file, mapping, pos, len, copied, folio,
+		return generic_write_end(iocb, mapping, pos, len, copied, folio,
 					 fsdata);
 	last_pos = pos + copied;
 	if (last_pos > inode->i_size)

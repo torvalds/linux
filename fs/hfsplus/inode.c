@@ -38,12 +38,14 @@ static void hfsplus_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-int hfsplus_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
+int hfsplus_write_begin(const struct kiocb *iocb,
+			struct address_space *mapping, loff_t pos,
+			unsigned len, struct folio **foliop,
+			void **fsdata)
 {
 	int ret;
 
-	ret = cont_write_begin(file, mapping, pos, len, foliop, fsdata,
+	ret = cont_write_begin(iocb, mapping, pos, len, foliop, fsdata,
 				hfsplus_get_block,
 				&HFSPLUS_I(mapping->host)->phys_size);
 	if (unlikely(ret))

@@ -404,7 +404,8 @@ static int allocate_budget(struct ubifs_info *c, struct folio *folio,
  * there is a plenty of flash space and the budget will be acquired quickly,
  * without forcing write-back. The slow path does not make this assumption.
  */
-static int ubifs_write_begin(struct file *file, struct address_space *mapping,
+static int ubifs_write_begin(const struct kiocb *iocb,
+			     struct address_space *mapping,
 			     loff_t pos, unsigned len,
 			     struct folio **foliop, void **fsdata)
 {
@@ -514,8 +515,9 @@ static void cancel_budget(struct ubifs_info *c, struct folio *folio,
 	}
 }
 
-static int ubifs_write_end(struct file *file, struct address_space *mapping,
-			   loff_t pos, unsigned len, unsigned copied,
+static int ubifs_write_end(const struct kiocb *iocb,
+			   struct address_space *mapping, loff_t pos,
+			   unsigned len, unsigned copied,
 			   struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;

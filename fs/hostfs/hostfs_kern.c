@@ -445,7 +445,8 @@ static int hostfs_read_folio(struct file *file, struct folio *folio)
 	return ret;
 }
 
-static int hostfs_write_begin(struct file *file, struct address_space *mapping,
+static int hostfs_write_begin(const struct kiocb *iocb,
+			      struct address_space *mapping,
 			      loff_t pos, unsigned len,
 			      struct folio **foliop, void **fsdata)
 {
@@ -458,7 +459,8 @@ static int hostfs_write_begin(struct file *file, struct address_space *mapping,
 	return 0;
 }
 
-static int hostfs_write_end(struct file *file, struct address_space *mapping,
+static int hostfs_write_end(const struct kiocb *iocb,
+			    struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned copied,
 			    struct folio *folio, void *fsdata)
 {
@@ -468,7 +470,7 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 	int err;
 
 	buffer = kmap_local_folio(folio, from);
-	err = write_file(FILE_HOSTFS_I(file)->fd, &pos, buffer, copied);
+	err = write_file(FILE_HOSTFS_I(iocb->ki_filp)->fd, &pos, buffer, copied);
 	kunmap_local(buffer);
 
 	if (!folio_test_uptodate(folio) && err == folio_size(folio))

@@ -3519,8 +3519,10 @@ reserve_block:
 	return 0;
 }
 
-static int f2fs_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
+static int f2fs_write_begin(const struct kiocb *iocb,
+			    struct address_space *mapping,
+			    loff_t pos, unsigned len, struct folio **foliop,
+			    void **fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -3656,7 +3658,7 @@ fail:
 	return err;
 }
 
-static int f2fs_write_end(struct file *file,
+static int f2fs_write_end(const struct kiocb *iocb,
 			struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
 			struct folio *folio, void *fsdata)
