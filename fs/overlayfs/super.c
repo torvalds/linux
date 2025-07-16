@@ -564,13 +564,16 @@ static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 	struct name_snapshot name;
 	int err;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-
 	temp = ovl_create_temp(ofs, workdir, OVL_CATTR(S_IFREG | 0));
 	err = PTR_ERR(temp);
 	if (IS_ERR(temp))
-		goto out_unlock;
+		return err;
 
+	err = ovl_parent_lock(workdir, temp);
+	if (err) {
+		dput(temp);
+		return err;
+	}
 	dest = ovl_lookup_temp(ofs, workdir);
 	err = PTR_ERR(dest);
 	if (IS_ERR(dest)) {
@@ -606,7 +609,7 @@ cleanup_temp:
 	dput(dest);
 
 out_unlock:
-	inode_unlock(dir);
+	ovl_parent_unlock(workdir);
 
 	return err;
 }

@@ -1227,7 +1227,8 @@ void ovl_nlink_end(struct dentry *dentry)
 	ovl_inode_unlock(inode);
 }
 
-int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir)
+int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *work,
+			    struct dentry *upperdir, struct dentry *upper)
 {
 	struct dentry *trap;
 
@@ -1240,6 +1241,10 @@ int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir)
 	if (IS_ERR(trap))
 		goto err;
 	if (trap)
+		goto err_unlock;
+	if (work && work->d_parent != workdir)
+		goto err_unlock;
+	if (upper && upper->d_parent != upperdir)
 		goto err_unlock;
 
 	return 0;
