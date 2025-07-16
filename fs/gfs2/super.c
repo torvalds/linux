@@ -351,7 +351,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	gfs2_freeze_unlock(sdp);
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
-				   LM_FLAG_NOEXP | GL_NOPID,
+				   LM_FLAG_RECOVER | GL_NOPID,
 				   &sdp->sd_freeze_gh);
 	if (error)
 		goto relock_shared;

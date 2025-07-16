@@ -692,7 +692,7 @@ __acquires(&gl->gl_lockref.lock)
 	int ret;
 
 	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl) &&
-	    gh && !(gh->gh_flags & LM_FLAG_NOEXP))
+	    gh && !(gh->gh_flags & LM_FLAG_RECOVER))
 		goto skip_inval;
 
 	GLOCK_BUG_ON(gl, gl->gl_state == target);
@@ -1550,7 +1550,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	struct gfs2_glock *gl = gh->gh_gl;
 	int error;
 
-	if (glock_blocked_by_withdraw(gl) && !(gh->gh_flags & LM_FLAG_NOEXP))
+	if (glock_blocked_by_withdraw(gl) && !(gh->gh_flags & LM_FLAG_RECOVER))
 		return -EIO;
 
 	if (gh->gh_flags & GL_NOBLOCK) {
@@ -1575,7 +1575,7 @@ unlock:
 	gh->gh_error = 0;
 	spin_lock(&gl->gl_lockref.lock);
 	add_to_queue(gh);
-	if (unlikely((LM_FLAG_NOEXP & gh->gh_flags) &&
+	if (unlikely((LM_FLAG_RECOVER & gh->gh_flags) &&
 		     test_and_clear_bit(GLF_HAVE_FROZEN_REPLY, &gl->gl_flags))) {
 		set_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 		gl->gl_lockref.count++;
@@ -1880,7 +1880,7 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
  *
  * Glocks are not frozen if (a) the result of the dlm operation is
  * an error, (b) the locking operation was an unlock operation or
- * (c) if there is a "noexp" flagged request anywhere in the queue
+ * (c) if there is a "recover" flagged request anywhere in the queue
  *
  * Returns: 1 if freezing should occur, 0 otherwise
  */
@@ -1897,7 +1897,7 @@ static int gfs2_should_freeze(const struct gfs2_glock *gl)
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			continue;
-		if (LM_FLAG_NOEXP & gh->gh_flags)
+		if (LM_FLAG_RECOVER & gh->gh_flags)
 			return 0;
 	}
 
@@ -2246,7 +2246,7 @@ static const char *hflags2str(char *buf, u16 flags, unsigned long iflags)
 		*p++ = 't';
 	if (flags & LM_FLAG_TRY_1CB)
 		*p++ = 'T';
-	if (flags & LM_FLAG_NOEXP)
+	if (flags & LM_FLAG_RECOVER)
 		*p++ = 'e';
 	if (flags & LM_FLAG_ANY)
 		*p++ = 'A';

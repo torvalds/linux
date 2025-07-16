@@ -58,10 +58,10 @@ enum {
  * LM_FLAG_TRY_1CB
  * Send one blocking callback if TRY is set and the lock is not granted.
  *
- * LM_FLAG_NOEXP
+ * LM_FLAG_RECOVER
  * GFS sets this flag on lock requests it makes while doing journal recovery.
- * These special requests should not be blocked due to the recovery like
- * ordinary locks would be.
+ * While ordinary requests are blocked until the end of recovery, requests
+ * with this flag set do proceed.
  *
  * LM_FLAG_ANY
  * A SHARED request may also be granted in DEFERRED, or a DEFERRED request may
@@ -80,7 +80,7 @@ enum {
 
 #define LM_FLAG_TRY		0x0001
 #define LM_FLAG_TRY_1CB		0x0002
-#define LM_FLAG_NOEXP		0x0004
+#define LM_FLAG_RECOVER		0x0004
 #define LM_FLAG_ANY		0x0008
 #define LM_FLAG_NODE_SCOPE	0x0020
 #define GL_ASYNC		0x0040
