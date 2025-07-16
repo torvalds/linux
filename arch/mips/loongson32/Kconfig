@@ -36,3 +36,11 @@ config LOONGSON1_LS1C
 endchoice
 
 endif # MACH_LOONGSON32
+
+config BUILTIN_DTB_NAME
+	string "Source file for built-in DTB"
+	depends on BUILTIN_DTB
+	help
+	  Base name (without suffix, relative to arch/mips/boot/dts/loongson)
+	  for the DTS file that will be used to produce the DTB linked into
+	  the kernel.
