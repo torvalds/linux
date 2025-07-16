@@ -526,11 +526,10 @@ int sock_queue_rcv_skb_reason(struct sock *sk, struct sk_buff *skb,
 	enum skb_drop_reason drop_reason;
 	int err;
 
-	err = sk_filter(sk, skb);
-	if (err) {
-		drop_reason = SKB_DROP_REASON_SOCKET_FILTER;
+	err = sk_filter_reason(sk, skb, &drop_reason);
+	if (err)
 		goto out;
-	}
+
 	err = __sock_queue_rcv_skb(sk, skb);
 	switch (err) {
 	case -ENOMEM:
@@ -553,15 +552,18 @@ EXPORT_SYMBOL(sock_queue_rcv_skb_reason);
 int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 		     const int nested, unsigned int trim_cap, bool refcounted)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_NOT_SPECIFIED;
 	int rc = NET_RX_SUCCESS;
+	int err;
 
-	if (sk_filter_trim_cap(sk, skb, trim_cap))
+	if (sk_filter_trim_cap(sk, skb, trim_cap, &reason))
 		goto discard_and_relse;
 
 	skb->dev = NULL;
 
 	if (sk_rcvqueues_full(sk, READ_ONCE(sk->sk_rcvbuf))) {
 		atomic_inc(&sk->sk_drops);
+		reason = SKB_DROP_REASON_SOCKET_RCVBUFF;
 		goto discard_and_relse;
 	}
 	if (nested)
@@ -577,8 +579,12 @@ int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 		rc = sk_backlog_rcv(sk, skb);
 
 		mutex_release(&sk->sk_lock.dep_map, _RET_IP_);
-	} else if (sk_add_backlog(sk, skb, READ_ONCE(sk->sk_rcvbuf))) {
+	} else if ((err = sk_add_backlog(sk, skb, READ_ONCE(sk->sk_rcvbuf)))) {
 		bh_unlock_sock(sk);
+		if (err == -ENOMEM)
+			reason = SKB_DROP_REASON_PFMEMALLOC;
+		if (err == -ENOBUFS)
+			reason = SKB_DROP_REASON_SOCKET_BACKLOG;
 		atomic_inc(&sk->sk_drops);
 		goto discard_and_relse;
 	}
@@ -589,7 +595,7 @@ out:
 		sock_put(sk);
 	return rc;
 discard_and_relse:
-	kfree_skb(skb);
+	sk_skb_reason_drop(sk, skb, reason);
 	goto out;
 }
 EXPORT_SYMBOL(__sk_receive_skb);
