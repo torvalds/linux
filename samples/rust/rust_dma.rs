@@ -4,7 +4,14 @@
 //!
 //! To make this driver probe, QEMU must be run with `-device pci-testdev`.
 
-use kernel::{bindings, device::Core, dma::CoherentAllocation, pci, prelude::*, types::ARef};
+use kernel::{
+    bindings,
+    device::Core,
+    dma::{CoherentAllocation, Device, DmaMask},
+    pci,
+    prelude::*,
+    types::ARef,
+};
 
 struct DmaSampleDriver {
     pdev: ARef<pci::Device>,
@@ -50,6 +57,11 @@ impl pci::Driver for DmaSampleDriver {
 
     fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
         dev_info!(pdev.as_ref(), "Probe DMA test driver.\n");
+
+        let mask = DmaMask::new::<64>();
+
+        // SAFETY: There are no concurrent calls to DMA allocation and mapping primitives.
+        unsafe { pdev.dma_set_mask_and_coherent(mask)? };
 
         let ca: CoherentAllocation<MyStruct> =
             CoherentAllocation::alloc_coherent(pdev.as_ref(), TEST_VALUES.len(), GFP_KERNEL)?;
