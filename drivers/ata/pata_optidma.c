@@ -346,7 +346,7 @@ static struct ata_port_operations optidma_port_ops = {
 	.set_piomode	= optidma_set_pio_mode,
 	.set_dmamode	= optidma_set_dma_mode,
 	.set_mode	= optidma_set_mode,
-	.prereset	= optidma_pre_reset,
+	.reset.prereset	= optidma_pre_reset,
 };
 
 static struct ata_port_operations optiplus_port_ops = {

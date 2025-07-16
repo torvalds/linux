@@ -216,7 +216,7 @@ static struct ata_port_operations pacpi_ops = {
 	.mode_filter		= pacpi_mode_filter,
 	.set_piomode		= pacpi_set_piomode,
 	.set_dmamode		= pacpi_set_dmamode,
-	.prereset		= pacpi_pre_reset,
+	.reset.prereset		= pacpi_pre_reset,
 	.port_start		= pacpi_port_start,
 };
 

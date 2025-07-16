@@ -276,7 +276,7 @@ static struct ata_port_operations rdc_pata_ops = {
 	.cable_detect		= rdc_pata_cable_detect,
 	.set_piomode		= rdc_set_piomode,
 	.set_dmamode		= rdc_set_dmamode,
-	.prereset		= rdc_pata_prereset,
+	.reset.prereset		= rdc_pata_prereset,
 };
 
 static const struct ata_port_info rdc_port_info = {

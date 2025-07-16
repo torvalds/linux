@@ -559,8 +559,8 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 }
 
 static struct ata_port_operations sas_sata_ops = {
-	.prereset		= sas_ata_prereset,
-	.hardreset		= sas_ata_hard_reset,
+	.reset.prereset		= sas_ata_prereset,
+	.reset.hardreset	= sas_ata_hard_reset,
 	.error_handler		= ata_std_error_handler,
 	.post_internal_cmd	= sas_ata_post_internal,
 	.qc_defer               = ata_std_qc_defer,

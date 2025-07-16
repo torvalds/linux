@@ -130,7 +130,7 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 	.check_atapi_dma	= pdc2027x_check_atapi_dma,
 	.cable_detect		= pdc2027x_cable_detect,
-	.prereset		= pdc2027x_prereset,
+	.reset.prereset		= pdc2027x_prereset,
 };
 
 static struct ata_port_operations pdc2027x_pata133_ops = {

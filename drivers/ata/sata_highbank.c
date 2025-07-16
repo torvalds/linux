@@ -428,7 +428,7 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 
 static struct ata_port_operations ahci_highbank_ops = {
 	.inherits		= &ahci_ops,
-	.hardreset		= ahci_highbank_hardreset,
+	.reset.hardreset	= ahci_highbank_hardreset,
 	.transmit_led_message   = ecx_transmit_led_message,
 };
 

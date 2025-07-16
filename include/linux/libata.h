@@ -944,6 +944,13 @@ struct ata_port {
  */
 #define ATA_OP_NULL		(void *)(unsigned long)(-ENOENT)
 
+struct ata_reset_operations {
+	ata_prereset_fn_t	prereset;
+	ata_reset_fn_t		softreset;
+	ata_reset_fn_t		hardreset;
+	ata_postreset_fn_t	postreset;
+};
+
 struct ata_port_operations {
 	/*
 	 * Command execution
@@ -970,14 +977,8 @@ struct ata_port_operations {
 
 	void (*freeze)(struct ata_port *ap);
 	void (*thaw)(struct ata_port *ap);
-	ata_prereset_fn_t	prereset;
-	ata_reset_fn_t		softreset;
-	ata_reset_fn_t		hardreset;
-	ata_postreset_fn_t	postreset;
-	ata_prereset_fn_t	pmp_prereset;
-	ata_reset_fn_t		pmp_softreset;
-	ata_reset_fn_t		pmp_hardreset;
-	ata_postreset_fn_t	pmp_postreset;
+	struct ata_reset_operations reset;
+	struct ata_reset_operations pmp_reset;
 	void (*error_handler)(struct ata_port *ap);
 	void (*lost_interrupt)(struct ata_port *ap);
 	void (*post_internal_cmd)(struct ata_queued_cmd *qc);

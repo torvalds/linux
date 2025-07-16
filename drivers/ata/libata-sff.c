@@ -31,10 +31,10 @@ const struct ata_port_operations ata_sff_port_ops = {
 
 	.freeze			= ata_sff_freeze,
 	.thaw			= ata_sff_thaw,
-	.prereset		= ata_sff_prereset,
-	.softreset		= ata_sff_softreset,
-	.hardreset		= sata_sff_hardreset,
-	.postreset		= ata_sff_postreset,
+	.reset.prereset		= ata_sff_prereset,
+	.reset.softreset	= ata_sff_softreset,
+	.reset.hardreset	= sata_sff_hardreset,
+	.reset.postreset	= ata_sff_postreset,
 	.error_handler		= ata_sff_error_handler,
 
 	.sff_dev_select		= ata_sff_dev_select,

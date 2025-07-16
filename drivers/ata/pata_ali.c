@@ -392,11 +392,11 @@ static struct ata_port_operations ali_20_port_ops = {
  *	Port operations for DMA capable ALi with cable detect
  */
 static struct ata_port_operations ali_c2_port_ops = {
-	.inherits	= &ali_dma_base_ops,
-	.check_atapi_dma = ali_check_atapi_dma,
-	.cable_detect	= ali_c2_cable_detect,
-	.dev_config	= ali_lock_sectors,
-	.postreset	= ali_c2_c3_postreset,
+	.inherits		= &ali_dma_base_ops,
+	.check_atapi_dma	= ali_check_atapi_dma,
+	.cable_detect		= ali_c2_cable_detect,
+	.dev_config		= ali_lock_sectors,
+	.reset.postreset	= ali_c2_c3_postreset,
 };
 
 /*

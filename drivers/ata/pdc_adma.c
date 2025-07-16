@@ -140,7 +140,7 @@ static struct ata_port_operations adma_ata_ops = {
 
 	.freeze			= adma_freeze,
 	.thaw			= adma_thaw,
-	.prereset		= adma_prereset,
+	.reset.prereset		= adma_prereset,
 
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,

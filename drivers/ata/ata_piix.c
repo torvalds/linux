@@ -1074,7 +1074,7 @@ static struct ata_port_operations piix_pata_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= piix_set_piomode,
 	.set_dmamode		= piix_set_dmamode,
-	.prereset		= piix_pata_prereset,
+	.reset.prereset		= piix_pata_prereset,
 };
 
 static struct ata_port_operations piix_vmw_ops = {
@@ -1102,7 +1102,7 @@ static const struct scsi_host_template piix_sidpr_sht = {
 
 static struct ata_port_operations piix_sidpr_sata_ops = {
 	.inherits		= &piix_sata_ops,
-	.hardreset		= sata_std_hardreset,
+	.reset.hardreset	= sata_std_hardreset,
 	.scr_read		= piix_sidpr_scr_read,
 	.scr_write		= piix_sidpr_scr_write,
 	.set_lpm		= piix_sidpr_set_lpm,

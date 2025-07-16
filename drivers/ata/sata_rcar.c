@@ -624,7 +624,7 @@ static struct ata_port_operations sata_rcar_port_ops = {
 
 	.freeze			= sata_rcar_freeze,
 	.thaw			= sata_rcar_thaw,
-	.softreset		= sata_rcar_softreset,
+	.reset.softreset	= sata_rcar_softreset,
 
 	.scr_read		= sata_rcar_scr_read,
 	.scr_write		= sata_rcar_scr_write,
