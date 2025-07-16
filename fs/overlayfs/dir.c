@@ -77,7 +77,6 @@ struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir)
 	return temp;
 }
 
-/* caller holds i_mutex on workdir */
 static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 {
 	int err;
@@ -85,6 +84,7 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 	struct dentry *workdir = ofs->workdir;
 	struct inode *wdir = workdir->d_inode;
 
+	inode_lock_nested(wdir, I_MUTEX_PARENT);
 	if (!ofs->whiteout) {
 		whiteout = ovl_lookup_temp(ofs, workdir);
 		if (IS_ERR(whiteout))
@@ -118,14 +118,13 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 	whiteout = ofs->whiteout;
 	ofs->whiteout = NULL;
 out:
+	inode_unlock(wdir);
 	return whiteout;
 }
 
-/* Caller must hold i_mutex on both workdir and dir */
 int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
 			     struct dentry *dentry)
 {
-	struct inode *wdir = ofs->workdir->d_inode;
 	struct dentry *whiteout;
 	int err;
 	int flags = 0;
@@ -138,18 +137,22 @@ int ovl_cleanup_and_whiteout(struct ovl_fs *ofs, struct dentry *dir,
 	if (d_is_dir(dentry))
 		flags = RENAME_EXCHANGE;
 
-	err = ovl_do_rename(ofs, ofs->workdir, whiteout, dir, dentry, flags);
+	err = ovl_lock_rename_workdir(ofs->workdir, whiteout, dir, dentry);
+	if (!err) {
+		err = ovl_do_rename(ofs, ofs->workdir, whiteout, dir, dentry, flags);
+		unlock_rename(ofs->workdir, dir);
+	}
 	if (err)
 		goto kill_whiteout;
 	if (flags)
-		ovl_cleanup(ofs, wdir, dentry);
+		ovl_cleanup_unlocked(ofs, ofs->workdir, dentry);
 
 out:
 	dput(whiteout);
 	return err;
 
 kill_whiteout:
-	ovl_cleanup(ofs, wdir, whiteout);
+	ovl_cleanup_unlocked(ofs, ofs->workdir, whiteout);
 	goto out;
 }
 
@@ -783,16 +786,11 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 		goto out_dput_upper;
 	}
 
-	err = ovl_lock_rename_workdir(workdir, NULL, upperdir, upper);
-	if (err)
-		goto out_dput_upper;
-
 	err = ovl_cleanup_and_whiteout(ofs, upperdir, upper);
 	if (!err)
 		ovl_dir_modified(dentry->d_parent, true);
 
 	d_drop(dentry);
-	unlock_rename(workdir, upperdir);
 out_dput_upper:
 	dput(upper);
 out_dput:

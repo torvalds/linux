@@ -1119,12 +1119,8 @@ static void ovl_cleanup_index(struct dentry *dentry)
 		index = NULL;
 	} else if (ovl_index_all(dentry->d_sb)) {
 		/* Whiteout orphan index to block future open by handle */
-		err = ovl_parent_lock(indexdir, index);
-		if (!err) {
-			err = ovl_cleanup_and_whiteout(OVL_FS(dentry->d_sb),
-						       indexdir, index);
-			ovl_parent_unlock(indexdir);
-		}
+		err = ovl_cleanup_and_whiteout(OVL_FS(dentry->d_sb),
+					       indexdir, index);
 	} else {
 		/* Cleanup orphan index entries */
 		err = ovl_cleanup_unlocked(ofs, indexdir, index);
@@ -1231,10 +1227,6 @@ int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *work,
 			    struct dentry *upperdir, struct dentry *upper)
 {
 	struct dentry *trap;
-
-	/* Workdir should not be the same as upperdir */
-	if (workdir == upperdir)
-		goto err;
 
 	/* Workdir should not be subdir of upperdir and vice versa */
 	trap = lock_rename(workdir, upperdir);
