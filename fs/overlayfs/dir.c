@@ -770,15 +770,11 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 			goto out;
 	}
 
-	err = ovl_lock_rename_workdir(workdir, NULL, upperdir, NULL);
-	if (err)
-		goto out_dput;
-
-	upper = ovl_lookup_upper(ofs, dentry->d_name.name, upperdir,
-				 dentry->d_name.len);
+	upper = ovl_lookup_upper_unlocked(ofs, dentry->d_name.name, upperdir,
+					  dentry->d_name.len);
 	err = PTR_ERR(upper);
 	if (IS_ERR(upper))
-		goto out_unlock;
+		goto out_dput;
 
 	err = -ESTALE;
 	if ((opaquedir && upper != opaquedir) ||
@@ -787,17 +783,18 @@ static int ovl_remove_and_whiteout(struct dentry *dentry,
 		goto out_dput_upper;
 	}
 
-	err = ovl_cleanup_and_whiteout(ofs, upperdir, upper);
+	err = ovl_lock_rename_workdir(workdir, NULL, upperdir, upper);
 	if (err)
-		goto out_d_drop;
+		goto out_dput_upper;
 
-	ovl_dir_modified(dentry->d_parent, true);
-out_d_drop:
+	err = ovl_cleanup_and_whiteout(ofs, upperdir, upper);
+	if (!err)
+		ovl_dir_modified(dentry->d_parent, true);
+
 	d_drop(dentry);
+	unlock_rename(workdir, upperdir);
 out_dput_upper:
 	dput(upper);
-out_unlock:
-	unlock_rename(workdir, upperdir);
 out_dput:
 	dput(opaquedir);
 out:
