@@ -34,6 +34,13 @@ static const struct snd_soc_acpi_codecs ptl_lt6911_hdmi = {
 struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_machines[] = {
 	{
 		.comp_ids = &ptl_rt5682_rt5682s_hp,
+		.drv_name = "ptl_rt5682_c1_h02",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &ptl_lt6911_hdmi,
+		.sof_tplg_filename = "sof-ptl-rt5682-ssp1-hdmi-ssp02.tplg",
+	},
+	{
+		.comp_ids = &ptl_rt5682_rt5682s_hp,
 		.drv_name = "ptl_rt5682_def",
 		.sof_tplg_filename = "sof-ptl", /* the tplg suffix is added at run time */
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
