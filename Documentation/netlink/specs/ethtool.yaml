@@ -2679,6 +2679,7 @@ operations:
             - indir
             - hkey
             - input-xfrm
+            - flow-hash
     -
       name: rss-ntf
       doc: |
