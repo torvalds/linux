@@ -731,7 +731,8 @@ static struct pneigh_entry *__pneigh_lookup_1(struct pneigh_entry *n,
 		    net_eq(pneigh_net(n), net) &&
 		    (n->dev == dev || !n->dev))
 			return n;
-		n = n->next;
+
+		n = rcu_dereference_protected(n->next, 1);
 	}
 	return NULL;
 }
@@ -742,7 +743,7 @@ struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
 	unsigned int key_len = tbl->key_len;
 	u32 hash_val = pneigh_hash(pkey, key_len);
 
-	return __pneigh_lookup_1(tbl->phash_buckets[hash_val],
+	return __pneigh_lookup_1(rcu_dereference_protected(tbl->phash_buckets[hash_val], 1),
 				 net, pkey, key_len, dev);
 }
 EXPORT_SYMBOL_GPL(__pneigh_lookup);
@@ -759,7 +760,7 @@ struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
 	hash_val = pneigh_hash(pkey, key_len);
 
 	read_lock_bh(&tbl->lock);
-	n = __pneigh_lookup_1(tbl->phash_buckets[hash_val],
+	n = __pneigh_lookup_1(rcu_dereference_protected(tbl->phash_buckets[hash_val], 1),
 			      net, pkey, key_len, dev);
 	read_unlock_bh(&tbl->lock);
 
@@ -778,7 +779,7 @@ struct pneigh_entry *pneigh_create(struct neigh_table *tbl,
 	ASSERT_RTNL();
 
 	read_lock_bh(&tbl->lock);
-	n = __pneigh_lookup_1(tbl->phash_buckets[hash_val],
+	n = __pneigh_lookup_1(rcu_dereference_protected(tbl->phash_buckets[hash_val], 1),
 			      net, pkey, key_len, dev);
 	read_unlock_bh(&tbl->lock);
 
@@ -803,7 +804,7 @@ struct pneigh_entry *pneigh_create(struct neigh_table *tbl,
 
 	write_lock_bh(&tbl->lock);
 	n->next = tbl->phash_buckets[hash_val];
-	tbl->phash_buckets[hash_val] = n;
+	rcu_assign_pointer(tbl->phash_buckets[hash_val], n);
 	write_unlock_bh(&tbl->lock);
 out:
 	return n;
@@ -812,16 +813,20 @@ out:
 int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 		  struct net_device *dev)
 {
-	struct pneigh_entry *n, **np;
-	unsigned int key_len = tbl->key_len;
-	u32 hash_val = pneigh_hash(pkey, key_len);
+	struct pneigh_entry *n, __rcu **np;
+	unsigned int key_len;
+	u32 hash_val;
+
+	key_len = tbl->key_len;
+	hash_val = pneigh_hash(pkey, key_len);
 
 	write_lock_bh(&tbl->lock);
-	for (np = &tbl->phash_buckets[hash_val]; (n = *np) != NULL;
+	for (np = &tbl->phash_buckets[hash_val];
+	     (n = rcu_dereference_protected(*np, 1)) != NULL;
 	     np = &n->next) {
 		if (!memcmp(n->key, pkey, key_len) && n->dev == dev &&
 		    net_eq(pneigh_net(n), net)) {
-			*np = n->next;
+			rcu_assign_pointer(*np, n->next);
 			write_unlock_bh(&tbl->lock);
 			if (tbl->pdestructor)
 				tbl->pdestructor(n);
@@ -838,17 +843,17 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
 				    struct net_device *dev,
 				    bool skip_perm)
 {
-	struct pneigh_entry *n, **np, *freelist = NULL;
+	struct pneigh_entry *n, __rcu **np, *freelist = NULL;
 	u32 h;
 
 	for (h = 0; h <= PNEIGH_HASHMASK; h++) {
 		np = &tbl->phash_buckets[h];
-		while ((n = *np) != NULL) {
+		while ((n = rcu_dereference_protected(*np, 1)) != NULL) {
 			if (skip_perm && n->permanent)
 				goto skip;
 			if (!dev || n->dev == dev) {
-				*np = n->next;
-				n->next = freelist;
+				rcu_assign_pointer(*np, n->next);
+				rcu_assign_pointer(n->next, freelist);
 				freelist = n;
 				continue;
 			}
@@ -858,7 +863,7 @@ skip:
 	}
 	write_unlock_bh(&tbl->lock);
 	while ((n = freelist)) {
-		freelist = n->next;
+		freelist = rcu_dereference_protected(n->next, 1);
 		n->next = NULL;
 		if (tbl->pdestructor)
 			tbl->pdestructor(n);
@@ -2794,7 +2799,9 @@ static int pneigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 	for (h = s_h; h <= PNEIGH_HASHMASK; h++) {
 		if (h > s_h)
 			s_idx = 0;
-		for (n = tbl->phash_buckets[h], idx = 0; n; n = n->next) {
+		for (n = rcu_dereference_protected(tbl->phash_buckets[h], 1), idx = 0;
+		     n;
+		     n = rcu_dereference_protected(n->next, 1)) {
 			if (idx < s_idx || pneigh_net(n) != net)
 				goto next;
 			if (neigh_ifindex_filtered(n->dev, filter->dev_idx) ||
@@ -3288,9 +3295,10 @@ static struct pneigh_entry *pneigh_get_first(struct seq_file *seq)
 
 	state->flags |= NEIGH_SEQ_IS_PNEIGH;
 	for (bucket = 0; bucket <= PNEIGH_HASHMASK; bucket++) {
-		pn = tbl->phash_buckets[bucket];
+		pn = rcu_dereference_protected(tbl->phash_buckets[bucket], 1);
+
 		while (pn && !net_eq(pneigh_net(pn), net))
-			pn = pn->next;
+			pn = rcu_dereference_protected(pn->next, 1);
 		if (pn)
 			break;
 	}
@@ -3308,15 +3316,17 @@ static struct pneigh_entry *pneigh_get_next(struct seq_file *seq,
 	struct neigh_table *tbl = state->tbl;
 
 	do {
-		pn = pn->next;
+		pn = rcu_dereference_protected(pn->next, 1);
 	} while (pn && !net_eq(pneigh_net(pn), net));
 
 	while (!pn) {
 		if (++state->bucket > PNEIGH_HASHMASK)
 			break;
-		pn = tbl->phash_buckets[state->bucket];
+
+		pn = rcu_dereference_protected(tbl->phash_buckets[state->bucket], 1);
+
 		while (pn && !net_eq(pneigh_net(pn), net))
-			pn = pn->next;
+			pn = rcu_dereference_protected(pn->next, 1);
 		if (pn)
 			break;
 	}
