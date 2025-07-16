@@ -64,32 +64,6 @@ static void conf_changed(bool dirty)
 
 /* Utility Functions */
 
-
-static void text_insert_help(struct menu *menu)
-{
-	GtkTextBuffer *buffer;
-	GtkTextIter start, end;
-	const char *prompt = menu_get_prompt(menu);
-	struct gstr help = str_new();
-
-	menu_get_ext_help(menu, &help);
-
-	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_w));
-	gtk_text_buffer_get_bounds(buffer, &start, &end);
-	gtk_text_buffer_delete(buffer, &start, &end);
-	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text_w), 15);
-
-	gtk_text_buffer_get_end_iter(buffer, &end);
-	gtk_text_buffer_insert_with_tags(buffer, &end, prompt, -1, tag1,
-					 NULL);
-	gtk_text_buffer_insert_at_cursor(buffer, "\n\n", 2);
-	gtk_text_buffer_get_end_iter(buffer, &end);
-	gtk_text_buffer_insert_with_tags(buffer, &end, str_get(&help), -1, tag2,
-					 NULL);
-	str_free(&help);
-}
-
-
 static void text_insert_msg(const char *title, const char *msg)
 {
 	GtkTextBuffer *buffer;
@@ -107,6 +81,15 @@ static void text_insert_msg(const char *title, const char *msg)
 	gtk_text_buffer_get_end_iter(buffer, &end);
 	gtk_text_buffer_insert_with_tags(buffer, &end, msg, -1, tag2,
 					 NULL);
+}
+
+static void text_insert_help(struct menu *menu)
+{
+	struct gstr help = str_new();
+
+	menu_get_ext_help(menu, &help);
+	text_insert_msg(menu_get_prompt(menu), str_get(&help));
+	str_free(&help);
 }
 
 static void _select_menu(GtkTreeView *view, GtkTreeModel *model,
