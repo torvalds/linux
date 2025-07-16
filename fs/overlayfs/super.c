@@ -299,8 +299,8 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 	int err;
 	bool retried = false;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
 retry:
+	inode_lock_nested(dir, I_MUTEX_PARENT);
 	work = ovl_lookup_upper(ofs, name, ofs->workbasedir, strlen(name));
 
 	if (!IS_ERR(work)) {
@@ -311,23 +311,28 @@ retry:
 
 		if (work->d_inode) {
 			err = -EEXIST;
+			inode_unlock(dir);
 			if (retried)
 				goto out_dput;
 
 			if (persist)
-				goto out_unlock;
+				return work;
 
 			retried = true;
-			err = ovl_workdir_cleanup(ofs, dir, mnt, work, 0);
-			dput(work);
-			if (err == -EINVAL) {
-				work = ERR_PTR(err);
-				goto out_unlock;
+			err = ovl_parent_lock(ofs->workbasedir, work);
+			if (!err) {
+				err = ovl_workdir_cleanup(ofs, dir, mnt, work, 0);
+				ovl_parent_unlock(ofs->workbasedir);
 			}
+			dput(work);
+			if (err == -EINVAL)
+				return ERR_PTR(err);
+
 			goto retry;
 		}
 
 		work = ovl_do_mkdir(ofs, dir, work, attr.ia_mode);
+		inode_unlock(dir);
 		err = PTR_ERR(work);
 		if (IS_ERR(work))
 			goto out_err;
@@ -365,11 +370,10 @@ retry:
 		if (err)
 			goto out_dput;
 	} else {
+		inode_unlock(dir);
 		err = PTR_ERR(work);
 		goto out_err;
 	}
-out_unlock:
-	inode_unlock(dir);
 	return work;
 
 out_dput:
@@ -377,8 +381,7 @@ out_dput:
 out_err:
 	pr_warn("failed to create directory %s/%s (errno: %i); mounting read-only\n",
 		ofs->config.workdir, name, -err);
-	work = NULL;
-	goto out_unlock;
+	return NULL;
 }
 
 static int ovl_check_namelen(const struct path *path, struct ovl_fs *ofs,
