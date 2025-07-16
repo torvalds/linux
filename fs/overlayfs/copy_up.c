@@ -829,9 +829,10 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 		goto cleanup;
 
 	err = ovl_do_rename(ofs, c->workdir, temp, c->destdir, upper, 0);
+	unlock_rename(c->workdir, c->destdir);
 	dput(upper);
 	if (err)
-		goto cleanup;
+		goto cleanup_unlocked;
 
 	inode = d_inode(c->dentry);
 	if (c->metacopy_digest)
@@ -845,7 +846,6 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	ovl_inode_update(inode, temp);
 	if (S_ISDIR(inode->i_mode))
 		ovl_set_flag(OVL_WHITEOUTS, inode);
-	unlock_rename(c->workdir, c->destdir);
 out:
 	ovl_end_write(c->dentry);
 
