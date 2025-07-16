@@ -494,7 +494,7 @@ static int iwl_mvm_wowlan_config_rsc_tsc(struct iwl_mvm *mvm,
 		if (data.have_rsc_tsc)
 			ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_TSC_RSC_PARAM,
 						   CMD_ASYNC,
-						   sizeof(data.rsc_tsc),
+						   sizeof(*data.rsc_tsc),
 						   data.rsc_tsc);
 		else
 			ret = 0;
