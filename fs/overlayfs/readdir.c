@@ -1194,7 +1194,6 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 	if (err)
 		goto out;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
 	list_for_each_entry(p, &list, l_node) {
 		if (p->name[0] == '.') {
 			if (p->len == 1)
@@ -1202,7 +1201,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			if (p->len == 2 && p->name[1] == '.')
 				continue;
 		}
-		index = ovl_lookup_upper(ofs, p->name, indexdir, p->len);
+		index = ovl_lookup_upper_unlocked(ofs, p->name, indexdir, p->len);
 		if (IS_ERR(index)) {
 			err = PTR_ERR(index);
 			index = NULL;
@@ -1210,7 +1209,11 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 		}
 		/* Cleanup leftover from index create/cleanup attempt */
 		if (index->d_name.name[0] == '#') {
-			err = ovl_workdir_cleanup(ofs, dir, path.mnt, index, 1);
+			err = ovl_parent_lock(indexdir, index);
+			if (!err) {
+				err = ovl_workdir_cleanup(ofs, dir, path.mnt, index, 1);
+				ovl_parent_unlock(indexdir);
+			}
 			if (err)
 				break;
 			goto next;
@@ -1220,7 +1223,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			goto next;
 		} else if (err == -ESTALE) {
 			/* Cleanup stale index entries */
-			err = ovl_cleanup(ofs, dir, index);
+			err = ovl_cleanup_unlocked(ofs, indexdir, index);
 		} else if (err != -ENOENT) {
 			/*
 			 * Abort mount to avoid corrupting the index if
@@ -1233,10 +1236,14 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 			 * Whiteout orphan index to block future open by
 			 * handle after overlay nlink dropped to zero.
 			 */
-			err = ovl_cleanup_and_whiteout(ofs, indexdir, index);
+			err = ovl_parent_lock(indexdir, index);
+			if (!err) {
+				err = ovl_cleanup_and_whiteout(ofs, indexdir, index);
+				ovl_parent_unlock(indexdir);
+			}
 		} else {
 			/* Cleanup orphan index entries */
-			err = ovl_cleanup(ofs, dir, index);
+			err = ovl_cleanup_unlocked(ofs, indexdir, index);
 		}
 
 		if (err)
@@ -1247,7 +1254,6 @@ next:
 		index = NULL;
 	}
 	dput(index);
-	inode_unlock(dir);
 out:
 	ovl_cache_free(&list);
 	if (err)
