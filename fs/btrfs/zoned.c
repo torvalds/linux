@@ -43,6 +43,9 @@
 /* Number of superblock log zones */
 #define BTRFS_NR_SB_LOG_ZONES 2
 
+/* Default number of max active zones when the device has no limits. */
+#define BTRFS_DEFAULT_MAX_ACTIVE_ZONES	128
+
 /*
  * Minimum of active zones we need:
  *
@@ -417,7 +420,10 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 	if (!IS_ALIGNED(nr_sectors, zone_sectors))
 		zone_info->nr_zones++;
 
-	max_active_zones = bdev_max_active_zones(bdev);
+	max_active_zones = min_not_zero(bdev_max_active_zones(bdev),
+					bdev_max_open_zones(bdev));
+	if (!max_active_zones && zone_info->nr_zones > BTRFS_DEFAULT_MAX_ACTIVE_ZONES)
+		max_active_zones = BTRFS_DEFAULT_MAX_ACTIVE_ZONES;
 	if (max_active_zones && max_active_zones < BTRFS_MIN_ACTIVE_ZONES) {
 		btrfs_err(fs_info,
 "zoned: %s: max active zones %u is too small, need at least %u active zones",
