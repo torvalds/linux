@@ -569,7 +569,7 @@ static int ovl_create_index(struct dentry *dentry, const struct ovl_fh *fh,
 	ovl_parent_unlock(indexdir);
 out:
 	if (err)
-		ovl_cleanup_unlocked(ofs, indexdir, temp);
+		ovl_cleanup(ofs, indexdir, temp);
 	dput(temp);
 free_name:
 	kfree(name.name);
@@ -854,7 +854,7 @@ out:
 cleanup:
 	unlock_rename(c->workdir, c->destdir);
 cleanup_unlocked:
-	ovl_cleanup_unlocked(ofs, c->workdir, temp);
+	ovl_cleanup(ofs, c->workdir, temp);
 	dput(temp);
 	goto out;
 }

@@ -1123,7 +1123,7 @@ static void ovl_cleanup_index(struct dentry *dentry)
 					       indexdir, index);
 	} else {
 		/* Cleanup orphan index entries */
-		err = ovl_cleanup_unlocked(ofs, indexdir, index);
+		err = ovl_cleanup(ofs, indexdir, index);
 	}
 	if (err)
 		goto fail;
