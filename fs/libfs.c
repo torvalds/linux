@@ -910,7 +910,7 @@ static int simple_read_folio(struct file *file, struct folio *folio)
 	return 0;
 }
 
-int simple_write_begin(struct file *file, struct address_space *mapping,
+int simple_write_begin(const struct kiocb *iocb, struct address_space *mapping,
 			loff_t pos, unsigned len,
 			struct folio **foliop, void **fsdata)
 {
@@ -935,7 +935,7 @@ EXPORT_SYMBOL(simple_write_begin);
 
 /**
  * simple_write_end - .write_end helper for non-block-device FSes
- * @file: See .write_end of address_space_operations
+ * @iocb: kernel I/O control block
  * @mapping: 		"
  * @pos: 		"
  * @len: 		"
@@ -956,9 +956,10 @@ EXPORT_SYMBOL(simple_write_begin);
  *
  * Use *ONLY* with simple_read_folio()
  */
-static int simple_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct folio *folio, void *fsdata)
+static int simple_write_end(const struct kiocb *iocb,
+			    struct address_space *mapping,
+			    loff_t pos, unsigned len, unsigned copied,
+			    struct folio *folio, void *fsdata)
 {
 	struct inode *inode = folio->mapping->host;
 	loff_t last_pos = pos + copied;

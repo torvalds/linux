@@ -6,6 +6,7 @@
 #include <linux/pagevec.h>
 #include <linux/shmem_fs.h>
 #include <linux/swap.h>
+#include <linux/uio.h>
 
 #include <drm/drm_cache.h>
 
@@ -400,12 +401,12 @@ static int
 shmem_pwrite(struct drm_i915_gem_object *obj,
 	     const struct drm_i915_gem_pwrite *arg)
 {
-	struct address_space *mapping = obj->base.filp->f_mapping;
-	const struct address_space_operations *aops = mapping->a_ops;
 	char __user *user_data = u64_to_user_ptr(arg->data_ptr);
-	u64 remain;
-	loff_t pos;
-	unsigned int pg;
+	struct file *file = obj->base.filp;
+	struct kiocb kiocb;
+	struct iov_iter iter;
+	ssize_t written;
+	u64 size = arg->size;
 
 	/* Caller already validated user args */
 	GEM_BUG_ON(!access_ok(user_data, arg->size));
@@ -428,63 +429,24 @@ shmem_pwrite(struct drm_i915_gem_object *obj,
 	if (obj->mm.madv != I915_MADV_WILLNEED)
 		return -EFAULT;
 
-	/*
-	 * Before the pages are instantiated the object is treated as being
-	 * in the CPU domain. The pages will be clflushed as required before
-	 * use, and we can freely write into the pages directly. If userspace
-	 * races pwrite with any other operation; corruption will ensue -
-	 * that is userspace's prerogative!
-	 */
+	if (size > MAX_RW_COUNT)
+		return -EFBIG;
 
-	remain = arg->size;
-	pos = arg->offset;
-	pg = offset_in_page(pos);
+	if (!file->f_op->write_iter)
+		return -EINVAL;
 
-	do {
-		unsigned int len, unwritten;
-		struct folio *folio;
-		void *data, *vaddr;
-		int err;
-		char __maybe_unused c;
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = arg->offset;
+	iov_iter_ubuf(&iter, ITER_SOURCE, (void __user *)user_data, size);
 
-		len = PAGE_SIZE - pg;
-		if (len > remain)
-			len = remain;
+	written = file->f_op->write_iter(&kiocb, &iter);
+	BUG_ON(written == -EIOCBQUEUED);
 
-		/* Prefault the user page to reduce potential recursion */
-		err = __get_user(c, user_data);
-		if (err)
-			return err;
+	if (written != size)
+		return -EIO;
 
-		err = __get_user(c, user_data + len - 1);
-		if (err)
-			return err;
-
-		err = aops->write_begin(obj->base.filp, mapping, pos, len,
-					&folio, &data);
-		if (err < 0)
-			return err;
-
-		vaddr = kmap_local_folio(folio, offset_in_folio(folio, pos));
-		pagefault_disable();
-		unwritten = __copy_from_user_inatomic(vaddr, user_data, len);
-		pagefault_enable();
-		kunmap_local(vaddr);
-
-		err = aops->write_end(obj->base.filp, mapping, pos, len,
-				      len - unwritten, folio, data);
-		if (err < 0)
-			return err;
-
-		/* We don't handle -EFAULT, leave it to the caller to check */
-		if (unwritten)
-			return -ENODEV;
-
-		remain -= len;
-		user_data += len;
-		pos += len;
-		pg = 0;
-	} while (remain);
+	if (written < 0)
+		return written;
 
 	return 0;
 }
@@ -637,9 +599,8 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
 {
 	struct drm_i915_gem_object *obj;
 	struct file *file;
-	const struct address_space_operations *aops;
-	loff_t pos;
-	int err;
+	loff_t pos = 0;
+	ssize_t err;
 
 	GEM_WARN_ON(IS_DGFX(i915));
 	obj = i915_gem_object_create_shmem(i915, round_up(size, PAGE_SIZE));
@@ -649,29 +610,15 @@ i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
 	GEM_BUG_ON(obj->write_domain != I915_GEM_DOMAIN_CPU);
 
 	file = obj->base.filp;
-	aops = file->f_mapping->a_ops;
-	pos = 0;
-	do {
-		unsigned int len = min_t(typeof(size), size, PAGE_SIZE);
-		struct folio *folio;
-		void *fsdata;
+	err = kernel_write(file, data, size, &pos);
 
-		err = aops->write_begin(file, file->f_mapping, pos, len,
-					&folio, &fsdata);
-		if (err < 0)
-			goto fail;
+	if (err < 0)
+		goto fail;
 
-		memcpy_to_folio(folio, offset_in_folio(folio, pos), data, len);
-
-		err = aops->write_end(file, file->f_mapping, pos, len, len,
-				      folio, fsdata);
-		if (err < 0)
-			goto fail;
-
-		size -= len;
-		data += len;
-		pos += len;
-	} while (size);
+	if (err != size) {
+		err = -EIO;
+		goto fail;
+	}
 
 	return obj;
 

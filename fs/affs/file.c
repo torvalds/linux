@@ -415,13 +415,14 @@ affs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	return ret;
 }
 
-static int affs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct folio **foliop, void **fsdata)
+static int affs_write_begin(const struct kiocb *iocb,
+			    struct address_space *mapping,
+			    loff_t pos, unsigned len,
+			    struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	ret = cont_write_begin(file, mapping, pos, len, foliop, fsdata,
+	ret = cont_write_begin(iocb, mapping, pos, len, foliop, fsdata,
 				affs_get_block,
 				&AFFS_I(mapping->host)->mmu_private);
 	if (unlikely(ret))
@@ -430,14 +431,15 @@ static int affs_write_begin(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
-static int affs_write_end(struct file *file, struct address_space *mapping,
-			  loff_t pos, unsigned int len, unsigned int copied,
+static int affs_write_end(const struct kiocb *iocb,
+			  struct address_space *mapping, loff_t pos,
+			  unsigned int len, unsigned int copied,
 			  struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	int ret;
 
-	ret = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
+	ret = generic_write_end(iocb, mapping, pos, len, copied, folio, fsdata);
 
 	/* Clear Archived bit on file writes, as AmigaOS would do */
 	if (AFFS_I(inode)->i_protect & FIBF_ARCHIVED) {
@@ -645,7 +647,8 @@ static int affs_read_folio_ofs(struct file *file, struct folio *folio)
 	return err;
 }
 
-static int affs_write_begin_ofs(struct file *file, struct address_space *mapping,
+static int affs_write_begin_ofs(const struct kiocb *iocb,
+				struct address_space *mapping,
 				loff_t pos, unsigned len,
 				struct folio **foliop, void **fsdata)
 {
@@ -684,9 +687,10 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 	return err;
 }
 
-static int affs_write_end_ofs(struct file *file, struct address_space *mapping,
-				loff_t pos, unsigned len, unsigned copied,
-				struct folio *folio, void *fsdata)
+static int affs_write_end_ofs(const struct kiocb *iocb,
+			      struct address_space *mapping,
+			      loff_t pos, unsigned len, unsigned copied,
+			      struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct super_block *sb = inode->i_sb;

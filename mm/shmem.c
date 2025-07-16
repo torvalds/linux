@@ -3266,9 +3266,9 @@ static const struct inode_operations shmem_symlink_inode_operations;
 static const struct inode_operations shmem_short_symlink_operations;
 
 static int
-shmem_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct folio **foliop, void **fsdata)
+shmem_write_begin(const struct kiocb *iocb, struct address_space *mapping,
+		  loff_t pos, unsigned len,
+		  struct folio **foliop, void **fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct shmem_inode_info *info = SHMEM_I(inode);
@@ -3300,9 +3300,9 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
 }
 
 static int
-shmem_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct folio *folio, void *fsdata)
+shmem_write_end(const struct kiocb *iocb, struct address_space *mapping,
+		loff_t pos, unsigned len, unsigned copied,
+		struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 
