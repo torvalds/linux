@@ -186,8 +186,9 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 	 * unmapped page like dummy extent buffer pages.
 	 */
 	if (folio->mapping)
-		ASSERT(folio_pos(folio) <= start &&
-		       start + len <= folio_end(folio));
+		ASSERT(folio_pos(folio) <= start && start + len <= folio_end(folio),
+		       "start=%llu len=%u folio_pos=%llu folio_size=%zu",
+		       start, len, folio_pos(folio), folio_size(folio));
 }
 
 #define subpage_calc_start_bit(fs_info, folio, name, start, len)	\
