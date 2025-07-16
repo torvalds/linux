@@ -1114,24 +1114,27 @@ xfs_get_zone_info_cb(
 }
 
 /*
- * Calculate the max open zone limit based on the of number of
- * backing zones available
+ * Calculate the max open zone limit based on the of number of backing zones
+ * available.
  */
 static inline uint32_t
 xfs_max_open_zones(
 	struct xfs_mount	*mp)
 {
 	unsigned int		max_open, max_open_data_zones;
+
 	/*
-	 * We need two zones for every open data zone,
-	 * one in reserve as we don't reclaim open zones. One data zone
-	 * and its spare is included in XFS_MIN_ZONES.
+	 * We need two zones for every open data zone, one in reserve as we
+	 * don't reclaim open zones.  One data zone and its spare is included
+	 * in XFS_MIN_ZONES to support at least one user data writer.
 	 */
 	max_open_data_zones = (mp->m_sb.sb_rgcount - XFS_MIN_ZONES) / 2 + 1;
 	max_open = max_open_data_zones + XFS_OPEN_GC_ZONES;
 
 	/*
-	 * Cap the max open limit to 1/4 of available space
+	 * Cap the max open limit to 1/4 of available space.  Without this we'd
+	 * run out of easy reclaim targets too quickly and storage devices don't
+	 * handle huge numbers of concurrent write streams overly well.
 	 */
 	max_open = min(max_open, mp->m_sb.sb_rgcount / 4);
 
