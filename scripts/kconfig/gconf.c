@@ -914,9 +914,7 @@ static gboolean on_treeview1_button_press_event(GtkWidget *widget,
 static void _display_tree(GtkTreeStore *tree, struct menu *menu,
 			  GtkTreeIter *parent)
 {
-	struct property *prop;
 	struct menu *child;
-	enum prop_type ptype;
 	GtkTreeIter iter;
 
 	for (child = menu->list; child; child = child->next) {
@@ -929,9 +927,6 @@ static void _display_tree(GtkTreeStore *tree, struct menu *menu,
 		if (child->type == M_IF)
 			continue;
 
-		prop = child->prompt;
-		ptype = prop ? prop->type : P_UNKNOWN;
-
 		if ((view_mode == SPLIT_VIEW)
 		    && !(child->flags & MENU_ROOT) && (tree == tree1))
 			continue;
@@ -943,16 +938,7 @@ static void _display_tree(GtkTreeStore *tree, struct menu *menu,
 		gtk_tree_store_append(tree, &iter, parent);
 		set_node(tree, &iter, child);
 
-		if ((view_mode == SINGLE_VIEW) && (ptype == P_MENU))
-			continue;
-/*
-		if (((menu != &rootmenu) && !(menu->flags & MENU_ROOT))
-		    || (view_mode == FULL_VIEW)
-		    || (view_mode == SPLIT_VIEW))*/
-
-		if (((view_mode == SINGLE_VIEW) && (menu->flags & MENU_ROOT))
-		    || (view_mode == FULL_VIEW)
-		    || (view_mode == SPLIT_VIEW))
+		if (view_mode != SINGLE_VIEW || child->type != M_MENU)
 			_display_tree(tree, child, &iter);
 	}
 }
