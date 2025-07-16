@@ -1163,14 +1163,13 @@ xfs_trans_reserve_more_inode(
 	unsigned int		rblocks,
 	bool			force_quota)
 {
-	struct xfs_trans_res	resv = { };
 	struct xfs_mount	*mp = ip->i_mount;
 	unsigned int		rtx = xfs_extlen_to_rtxlen(mp, rblocks);
 	int			error;
 
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
-	error = xfs_trans_reserve(tp, &resv, dblocks, rtx);
+	error = xfs_trans_reserve_more(tp, dblocks, rtx);
 	if (error)
 		return error;
 
