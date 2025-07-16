@@ -997,25 +997,25 @@ static void init_main_window(const gchar *glade_file)
 			 G_CALLBACK(on_window1_destroy), NULL);
 	g_signal_connect(main_wnd, "configure-event",
 			 G_CALLBACK(on_window1_configure), NULL);
-	g_signal_connect(main_wnd, "delete_event",
+	g_signal_connect(main_wnd, "delete-event",
 			 G_CALLBACK(on_window1_delete_event), NULL);
 
 	hpaned = GTK_WIDGET(gtk_builder_get_object(builder, "hpaned1"));
 	vpaned = GTK_WIDGET(gtk_builder_get_object(builder, "vpaned1"));
 	tree1_w = GTK_WIDGET(gtk_builder_get_object(builder, "treeview1"));
-	g_signal_connect(tree1_w, "cursor_changed",
+	g_signal_connect(tree1_w, "cursor-changed",
 			 G_CALLBACK(on_treeview2_cursor_changed), NULL);
-	g_signal_connect(tree1_w, "button_press_event",
+	g_signal_connect(tree1_w, "button-press-event",
 			 G_CALLBACK(on_treeview1_button_press_event), NULL);
-	g_signal_connect(tree1_w, "key_press_event",
+	g_signal_connect(tree1_w, "key-press-event",
 			 G_CALLBACK(on_treeview2_key_press_event), NULL);
 
 	tree2_w = GTK_WIDGET(gtk_builder_get_object(builder, "treeview2"));
-	g_signal_connect(tree2_w, "cursor_changed",
+	g_signal_connect(tree2_w, "cursor-changed",
 			 G_CALLBACK(on_treeview2_cursor_changed), NULL);
-	g_signal_connect(tree2_w, "button_press_event",
+	g_signal_connect(tree2_w, "button-press-event",
 			 G_CALLBACK(on_treeview2_button_press_event), NULL);
-	g_signal_connect(tree2_w, "key_press_event",
+	g_signal_connect(tree2_w, "key-press-event",
 			 G_CALLBACK(on_treeview2_key_press_event), NULL);
 
 	text_w = GTK_WIDGET(gtk_builder_get_object(builder, "textview3"));
