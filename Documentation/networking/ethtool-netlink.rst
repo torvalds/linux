@@ -239,6 +239,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_PHY_GET``               get Ethernet PHY information
   ``ETHTOOL_MSG_TSCONFIG_GET``          get hw timestamping configuration
   ``ETHTOOL_MSG_TSCONFIG_SET``          set hw timestamping configuration
+  ``ETHTOOL_MSG_RSS_SET``               set RSS settings
   ===================================== =================================
 
 Kernel to userspace:
@@ -292,6 +293,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_TSCONFIG_GET_REPLY``       hw timestamping configuration
   ``ETHTOOL_MSG_TSCONFIG_SET_REPLY``       new hw timestamping configuration
   ``ETHTOOL_MSG_PSE_NTF``                  PSE events notification
+  ``ETHTOOL_MSG_RSS_NTF``                  RSS settings notification
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -1989,6 +1991,28 @@ hfunc. Current supported options are symmetric-xor and symmetric-or-xor.
 ETHTOOL_A_RSS_FLOW_HASH carries per-flow type bitmask of which header
 fields are included in the hash calculation.
 
+RSS_SET
+=======
+
+Request contents:
+
+=====================================  ======  ==============================
+  ``ETHTOOL_A_RSS_HEADER``             nested  request header
+  ``ETHTOOL_A_RSS_CONTEXT``            u32     context number
+  ``ETHTOOL_A_RSS_INDIR``              binary  Indir table bytes
+=====================================  ======  ==============================
+
+``ETHTOOL_A_RSS_INDIR`` is the minimal RSS table the user expects. Kernel and
+the device driver may replicate the table if its smaller than smallest table
+size supported by the device. For example if user requests ``[0, 1]`` but the
+device needs at least 8 entries - the real table in use will end up being
+``[0, 1, 0, 1, 0, 1, 0, 1]``. Most devices require the table size to be power
+of 2, so tables which size is not a power of 2 will likely be rejected.
+Using table of size 0 will reset the indirection table to the default.
+
+Note that, at present, only a subset of RSS configuration can be accomplished
+over Netlink.
+
 PLCA_GET_CFG
 ============
 
@@ -2455,7 +2479,7 @@ are netlink only.
   ``ETHTOOL_GRXNTUPLE``               n/a
   ``ETHTOOL_GSSET_INFO``              ``ETHTOOL_MSG_STRSET_GET``
   ``ETHTOOL_GRXFHINDIR``              ``ETHTOOL_MSG_RSS_GET``
-  ``ETHTOOL_SRXFHINDIR``              n/a
+  ``ETHTOOL_SRXFHINDIR``              ``ETHTOOL_MSG_RSS_SET``
   ``ETHTOOL_GFEATURES``               ``ETHTOOL_MSG_FEATURES_GET``
   ``ETHTOOL_SFEATURES``               ``ETHTOOL_MSG_FEATURES_SET``
   ``ETHTOOL_GCHANNELS``               ``ETHTOOL_MSG_CHANNELS_GET``

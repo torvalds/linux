@@ -218,6 +218,10 @@ rss_prepare(const struct rss_req_info *request, struct net_device *dev,
 {
 	rss_prepare_flow_hash(request, dev, data, info);
 
+	/* Coming from RSS_SET, driver may only have flow_hash_fields ops */
+	if (!dev->ethtool_ops->get_rxfh)
+		return 0;
+
 	if (request->rss_context)
 		return rss_prepare_ctx(request, dev, data, info);
 	return rss_prepare_get(request, dev, data, info);
@@ -466,6 +470,193 @@ void ethtool_rss_notify(struct net_device *dev, u32 rss_context)
 	ethnl_notify(dev, ETHTOOL_MSG_RSS_NTF, &req_info.base);
 }
 
+/* RSS_SET */
+
+const struct nla_policy ethnl_rss_set_policy[ETHTOOL_A_RSS_START_CONTEXT + 1] = {
+	[ETHTOOL_A_RSS_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_RSS_CONTEXT] = { .type = NLA_U32, },
+	[ETHTOOL_A_RSS_INDIR] = { .type = NLA_BINARY, },
+};
+
+static int
+ethnl_rss_set_validate(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+	struct rss_req_info *request = RSS_REQINFO(req_info);
+	struct nlattr **tb = info->attrs;
+	struct nlattr *bad_attr = NULL;
+
+	if (request->rss_context && !ops->create_rxfh_context)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_CONTEXT];
+
+	if (bad_attr) {
+		NL_SET_BAD_ATTR(info->extack, bad_attr);
+		return -EOPNOTSUPP;
+	}
+
+	return 1;
+}
+
+static int
+rss_set_prep_indir(struct net_device *dev, struct genl_info *info,
+		   struct rss_reply_data *data, struct ethtool_rxfh_param *rxfh,
+		   bool *reset, bool *mod)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct netlink_ext_ack *extack = info->extack;
+	struct nlattr **tb = info->attrs;
+	struct ethtool_rxnfc rx_rings;
+	size_t alloc_size;
+	u32 user_size;
+	int i, err;
+
+	if (!tb[ETHTOOL_A_RSS_INDIR])
+		return 0;
+	if (!data->indir_size || !ops->get_rxnfc)
+		return -EOPNOTSUPP;
+
+	rx_rings.cmd = ETHTOOL_GRXRINGS;
+	err = ops->get_rxnfc(dev, &rx_rings, NULL);
+	if (err)
+		return err;
+
+	if (nla_len(tb[ETHTOOL_A_RSS_INDIR]) % 4) {
+		NL_SET_BAD_ATTR(info->extack, tb[ETHTOOL_A_RSS_INDIR]);
+		return -EINVAL;
+	}
+	user_size = nla_len(tb[ETHTOOL_A_RSS_INDIR]) / 4;
+	if (!user_size) {
+		if (rxfh->rss_context) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_RSS_INDIR],
+					    "can't reset table for a context");
+			return -EINVAL;
+		}
+		*reset = true;
+	} else if (data->indir_size % user_size) {
+		NL_SET_ERR_MSG_ATTR_FMT(extack, tb[ETHTOOL_A_RSS_INDIR],
+					"size (%d) mismatch with device indir table (%d)",
+					user_size, data->indir_size);
+		return -EINVAL;
+	}
+
+	rxfh->indir_size = data->indir_size;
+	alloc_size = array_size(data->indir_size, sizeof(rxfh->indir[0]));
+	rxfh->indir = kzalloc(alloc_size, GFP_KERNEL);
+	if (!rxfh->indir)
+		return -ENOMEM;
+
+	nla_memcpy(rxfh->indir, tb[ETHTOOL_A_RSS_INDIR], alloc_size);
+	for (i = 0; i < user_size; i++) {
+		if (rxfh->indir[i] < rx_rings.data)
+			continue;
+
+		NL_SET_ERR_MSG_ATTR_FMT(extack, tb[ETHTOOL_A_RSS_INDIR],
+					"entry %d: queue out of range (%d)",
+					i, rxfh->indir[i]);
+		err = -EINVAL;
+		goto err_free;
+	}
+
+	if (user_size) {
+		/* Replicate the user-provided table to fill the device table */
+		for (i = user_size; i < data->indir_size; i++)
+			rxfh->indir[i] = rxfh->indir[i % user_size];
+	} else {
+		for (i = 0; i < data->indir_size; i++)
+			rxfh->indir[i] =
+				ethtool_rxfh_indir_default(i, rx_rings.data);
+	}
+
+	*mod |= memcmp(rxfh->indir, data->indir_table, data->indir_size);
+
+	return 0;
+
+err_free:
+	kfree(rxfh->indir);
+	rxfh->indir = NULL;
+	return err;
+}
+
+static void
+rss_set_ctx_update(struct ethtool_rxfh_context *ctx, struct nlattr **tb,
+		   struct rss_reply_data *data, struct ethtool_rxfh_param *rxfh)
+{
+	int i;
+
+	if (rxfh->indir) {
+		for (i = 0; i < data->indir_size; i++)
+			ethtool_rxfh_context_indir(ctx)[i] = rxfh->indir[i];
+		ctx->indir_configured = !!nla_len(tb[ETHTOOL_A_RSS_INDIR]);
+	}
+}
+
+static int
+ethnl_rss_set(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	struct rss_req_info *request = RSS_REQINFO(req_info);
+	struct ethtool_rxfh_context *ctx = NULL;
+	struct net_device *dev = req_info->dev;
+	struct ethtool_rxfh_param rxfh = {};
+	bool indir_reset = false, indir_mod;
+	struct nlattr **tb = info->attrs;
+	struct rss_reply_data data = {};
+	const struct ethtool_ops *ops;
+	bool mod = false;
+	int ret;
+
+	ops = dev->ethtool_ops;
+	data.base.dev = dev;
+
+	ret = rss_prepare(request, dev, &data, info);
+	if (ret)
+		return ret;
+
+	rxfh.rss_context = request->rss_context;
+
+	ret = rss_set_prep_indir(dev, info, &data, &rxfh, &indir_reset, &mod);
+	if (ret)
+		goto exit_clean_data;
+	indir_mod = !!tb[ETHTOOL_A_RSS_INDIR];
+
+	rxfh.hfunc = ETH_RSS_HASH_NO_CHANGE;
+	rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	if (request->rss_context) {
+		ctx = xa_load(&dev->ethtool->rss_ctx, request->rss_context);
+		if (!ctx) {
+			ret = -ENOENT;
+			goto exit_unlock;
+		}
+	}
+
+	if (!mod)
+		ret = 0; /* nothing to tell the driver */
+	else if (!ops->set_rxfh)
+		ret = -EOPNOTSUPP;
+	else if (!rxfh.rss_context)
+		ret = ops->set_rxfh(dev, &rxfh, info->extack);
+	else
+		ret = ops->modify_rxfh_context(dev, ctx, &rxfh, info->extack);
+	if (ret)
+		goto exit_unlock;
+
+	if (ctx)
+		rss_set_ctx_update(ctx, tb, &data, &rxfh);
+	else if (indir_reset)
+		dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
+	else if (indir_mod)
+		dev->priv_flags |= IFF_RXFH_CONFIGURED;
+
+exit_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	kfree(rxfh.indir);
+exit_clean_data:
+	rss_cleanup_data(&data.base);
+
+	return ret ?: mod;
+}
+
 const struct ethnl_request_ops ethnl_rss_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_RSS_GET,
 	.reply_cmd		= ETHTOOL_MSG_RSS_GET_REPLY,
@@ -478,4 +669,8 @@ const struct ethnl_request_ops ethnl_rss_request_ops = {
 	.reply_size		= rss_reply_size,
 	.fill_reply		= rss_fill_reply,
 	.cleanup_data		= rss_cleanup_data,
+
+	.set_validate		= ethnl_rss_set_validate,
+	.set			= ethnl_rss_set,
+	.set_ntf_cmd		= ETHTOOL_MSG_RSS_NTF,
 };
