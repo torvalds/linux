@@ -225,7 +225,7 @@ int iommufd_object_remove(struct iommufd_ctx *ictx,
 		goto err_xa;
 	}
 
-	xas_store(&xas, NULL);
+	xas_store(&xas, (flags & REMOVE_OBJ_TOMBSTONE) ? XA_ZERO_ENTRY : NULL);
 	if (ictx->vfio_ioas == container_of(obj, struct iommufd_ioas, obj))
 		ictx->vfio_ioas = NULL;
 	xa_unlock(&ictx->objects);
@@ -311,19 +311,41 @@ static int iommufd_fops_release(struct inode *inode, struct file *filp)
 	while (!xa_empty(&ictx->objects)) {
 		unsigned int destroyed = 0;
 		unsigned long index;
+		bool empty = true;
 
+		/*
+		 * We can't use xa_empty() to end the loop as the tombstones
+		 * are stored as XA_ZERO_ENTRY in the xarray. However
+		 * xa_for_each() automatically converts them to NULL and skips
+		 * them causing xa_empty() to be kept false. Thus once
+		 * xa_for_each() finds no further !NULL entries the loop is
+		 * done.
+		 */
 		xa_for_each(&ictx->objects, index, obj) {
+			empty = false;
 			if (!refcount_dec_if_one(&obj->users))
 				continue;
+
 			destroyed++;
 			xa_erase(&ictx->objects, index);
 			iommufd_object_ops[obj->type].destroy(obj);
 			kfree(obj);
 		}
+
+		if (empty)
+			break;
+
 		/* Bug related to users refcount */
 		if (WARN_ON(!destroyed))
 			break;
 	}
+
+	/*
+	 * There may be some tombstones left over from
+	 * iommufd_object_tombstone_user()
+	 */
+	xa_destroy(&ictx->objects);
+
 	WARN_ON(!xa_empty(&ictx->groups));
 
 	mutex_destroy(&ictx->sw_msi_lock);
