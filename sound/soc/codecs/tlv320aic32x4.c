@@ -1388,7 +1388,7 @@ int aic32x4_probe(struct device *dev, struct regmap *regmap,
 		return ret;
 	}
 
-	if (!aic32x4->rstn_gpio) {
+	if (aic32x4->rstn_gpio) {
 		ndelay(10);
 		/* deassert reset */
 		gpiod_set_value_cansleep(aic32x4->rstn_gpio, 0);
