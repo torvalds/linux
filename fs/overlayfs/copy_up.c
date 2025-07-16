@@ -517,8 +517,6 @@ static int ovl_set_upper_fh(struct ovl_fs *ofs, struct dentry *upper,
 
 /*
  * Create and install index entry.
- *
- * Caller must hold i_mutex on indexdir.
  */
 static int ovl_create_index(struct dentry *dentry, const struct ovl_fh *fh,
 			    struct dentry *upper)
@@ -550,7 +548,9 @@ static int ovl_create_index(struct dentry *dentry, const struct ovl_fh *fh,
 	if (err)
 		return err;
 
+	inode_lock(dir);
 	temp = ovl_create_temp(ofs, indexdir, OVL_CATTR(S_IFDIR | 0));
+	inode_unlock(dir);
 	err = PTR_ERR(temp);
 	if (IS_ERR(temp))
 		goto free_name;
@@ -559,6 +559,9 @@ static int ovl_create_index(struct dentry *dentry, const struct ovl_fh *fh,
 	if (err)
 		goto out;
 
+	err = ovl_parent_lock(indexdir, temp);
+	if (err)
+		goto out;
 	index = ovl_lookup_upper(ofs, name.name, indexdir, name.len);
 	if (IS_ERR(index)) {
 		err = PTR_ERR(index);
@@ -566,9 +569,10 @@ static int ovl_create_index(struct dentry *dentry, const struct ovl_fh *fh,
 		err = ovl_do_rename(ofs, indexdir, temp, indexdir, index, 0);
 		dput(index);
 	}
+	ovl_parent_unlock(indexdir);
 out:
 	if (err)
-		ovl_cleanup(ofs, dir, temp);
+		ovl_cleanup_unlocked(ofs, indexdir, temp);
 	dput(temp);
 free_name:
 	kfree(name.name);
@@ -798,6 +802,12 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	if (err)
 		goto cleanup_unlocked;
 
+	if (S_ISDIR(c->stat.mode) && c->indexed) {
+		err = ovl_create_index(c->dentry, c->origin_fh, temp);
+		if (err)
+			goto cleanup_unlocked;
+	}
+
 	/*
 	 * We cannot hold lock_rename() throughout this helper, because of
 	 * lock ordering with sb_writers, which shouldn't be held when calling
@@ -817,12 +827,6 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	err = ovl_copy_up_metadata(c, temp);
 	if (err)
 		goto cleanup;
-
-	if (S_ISDIR(c->stat.mode) && c->indexed) {
-		err = ovl_create_index(c->dentry, c->origin_fh, temp);
-		if (err)
-			goto cleanup;
-	}
 
 	upper = ovl_lookup_upper(ofs, c->destname.name, c->destdir,
 				 c->destname.len);
