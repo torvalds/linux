@@ -3049,27 +3049,29 @@ static int neigh_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (!skb)
 		return -ENOBUFS;
 
+	rcu_read_lock();
+
 	tbl = neigh_find_table(ndm->ndm_family);
 	if (!tbl) {
 		NL_SET_ERR_MSG(extack, "Unsupported family in header for neighbor get request");
 		err = -EAFNOSUPPORT;
-		goto err_free_skb;
+		goto err_unlock;
 	}
 
 	if (nla_len(tb[NDA_DST]) != (int)tbl->key_len) {
 		NL_SET_ERR_MSG(extack, "Invalid network address in neighbor get request");
 		err = -EINVAL;
-		goto err_free_skb;
+		goto err_unlock;
 	}
 
 	dst = nla_data(tb[NDA_DST]);
 
 	if (ndm->ndm_ifindex) {
-		dev = __dev_get_by_index(net, ndm->ndm_ifindex);
+		dev = dev_get_by_index_rcu(net, ndm->ndm_ifindex);
 		if (!dev) {
 			NL_SET_ERR_MSG(extack, "Unknown device ifindex");
 			err = -ENODEV;
-			goto err_free_skb;
+			goto err_unlock;
 		}
 	}
 
@@ -3080,28 +3082,31 @@ static int neigh_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		if (!pn) {
 			NL_SET_ERR_MSG(extack, "Proxy neighbour entry not found");
 			err = -ENOENT;
-			goto err_free_skb;
+			goto err_unlock;
 		}
 
 		err = pneigh_fill_info(skb, pn, pid, seq, RTM_NEWNEIGH, 0, tbl);
 		if (err)
-			goto err_free_skb;
+			goto err_unlock;
 	} else {
 		neigh = neigh_lookup(tbl, dst, dev);
 		if (!neigh) {
 			NL_SET_ERR_MSG(extack, "Neighbour entry not found");
 			err = -ENOENT;
-			goto err_free_skb;
+			goto err_unlock;
 		}
 
 		err = neigh_fill_info(skb, neigh, pid, seq, RTM_NEWNEIGH, 0);
 		neigh_release(neigh);
 		if (err)
-			goto err_free_skb;
+			goto err_unlock;
 	}
 
+	rcu_read_unlock();
+
 	return rtnl_unicast(skb, net, pid);
-err_free_skb:
+err_unlock:
+	rcu_read_unlock();
 	kfree_skb(skb);
 	return err;
 }
@@ -3904,7 +3909,7 @@ static const struct rtnl_msg_handler neigh_rtnl_msg_handlers[] __initconst = {
 	{.msgtype = RTM_NEWNEIGH, .doit = neigh_add},
 	{.msgtype = RTM_DELNEIGH, .doit = neigh_delete},
 	{.msgtype = RTM_GETNEIGH, .doit = neigh_get, .dumpit = neigh_dump_info,
-	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	 .flags = RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED},
 	{.msgtype = RTM_GETNEIGHTBL, .dumpit = neightbl_dump_info},
 	{.msgtype = RTM_SETNEIGHTBL, .doit = neightbl_set},
 };
