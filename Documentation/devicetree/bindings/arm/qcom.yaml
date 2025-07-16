@@ -1054,6 +1054,7 @@ properties:
           - enum:
               - asus,vivobook-s15
               - asus,zenbook-a14-ux3407ra
+              - dell,inspiron-14-plus-7441
               - dell,latitude-7455
               - dell,xps13-9345
               - hp,elitebook-ultra-g1q
