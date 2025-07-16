@@ -284,6 +284,35 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 	return total_size;
 }
 
+static void guc_waklv_enable_two_word(struct xe_guc_ads *ads,
+				      enum xe_guc_klv_ids klv_id,
+				      u32 value1,
+				      u32 value2,
+				      u32 *offset, u32 *remain)
+{
+	u32 size;
+	u32 klv_entry[] = {
+			/* 16:16 key/length */
+			FIELD_PREP(GUC_KLV_0_KEY, klv_id) |
+			FIELD_PREP(GUC_KLV_0_LEN, 2),
+			value1,
+			value2,
+			/* 2 dword data */
+	};
+
+	size = sizeof(klv_entry);
+
+	if (*remain < size) {
+		drm_warn(&ads_to_xe(ads)->drm,
+			 "w/a klv buffer too small to add klv id %d\n", klv_id);
+	} else {
+		xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads), *offset,
+				 klv_entry, size);
+		*offset += size;
+		*remain -= size;
+	}
+}
+
 static void guc_waklv_enable_one_word(struct xe_guc_ads *ads,
 				      enum xe_guc_klv_ids klv_id,
 				      u32 value,
@@ -381,6 +410,12 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 		guc_waklv_enable_simple(ads,
 					GUC_WA_KLV_RESET_BB_STACK_PTR_ON_VF_SWITCH,
 					&offset, &remain);
+	if (GUC_FIRMWARE_VER(&gt->uc.guc) >= MAKE_GUC_VER(70, 47, 0) && XE_WA(gt, 16026007364))
+		guc_waklv_enable_two_word(ads,
+					  GUC_WA_KLV_RESTORE_UNSAVED_MEDIA_CONTROL_REG,
+					  0x0,
+					  0xF,
+					  &offset, &remain);
 
 	size = guc_ads_waklv_size(ads) - remain;
 	if (!size)
