@@ -231,6 +231,8 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
 kernel::impl_device_context_deref!(unsafe { Device });
 kernel::impl_device_context_into_aref!(Device);
 
+impl crate::dma::Device for Device<device::Core> {}
+
 // SAFETY: Instances of `Device` are always reference-counted.
 unsafe impl crate::types::AlwaysRefCounted for Device {
     fn inc_ref(&self) {
