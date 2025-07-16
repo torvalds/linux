@@ -5,13 +5,20 @@
 //! C header: [`include/linux/dma-mapping.h`](srctree/include/linux/dma-mapping.h)
 
 use crate::{
-    bindings, build_assert,
-    device::{Bound, Device},
+    bindings, build_assert, device,
+    device::Bound,
     error::code::*,
     error::Result,
     transmute::{AsBytes, FromBytes},
     types::ARef,
 };
+
+/// Trait to be implemented by DMA capable bus devices.
+///
+/// The [`dma::Device`](Device) trait should be implemented by bus specific device representations,
+/// where the underlying bus is DMA capable, such as [`pci::Device`](::kernel::pci::Device) or
+/// [`platform::Device`](::kernel::platform::Device).
+pub trait Device: AsRef<device::Device<Core>> {}
 
 /// Possible attributes associated with a DMA mapping.
 ///
@@ -130,7 +137,7 @@ pub mod attrs {
 // Hence, find a way to revoke the device resources of a `CoherentAllocation`, but not the
 // entire `CoherentAllocation` including the allocated memory itself.
 pub struct CoherentAllocation<T: AsBytes + FromBytes> {
-    dev: ARef<Device>,
+    dev: ARef<device::Device>,
     dma_handle: bindings::dma_addr_t,
     count: usize,
     cpu_addr: *mut T,
@@ -152,7 +159,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     /// # Ok::<(), Error>(()) }
     /// ```
     pub fn alloc_attrs(
-        dev: &Device<Bound>,
+        dev: &device::Device<Bound>,
         count: usize,
         gfp_flags: kernel::alloc::Flags,
         dma_attrs: Attrs,
@@ -194,7 +201,7 @@ impl<T: AsBytes + FromBytes> CoherentAllocation<T> {
     /// Performs the same functionality as [`CoherentAllocation::alloc_attrs`], except the
     /// `dma_attrs` is 0 by default.
     pub fn alloc_coherent(
-        dev: &Device<Bound>,
+        dev: &device::Device<Bound>,
         count: usize,
         gfp_flags: kernel::alloc::Flags,
     ) -> Result<CoherentAllocation<T>> {
