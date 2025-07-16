@@ -884,9 +884,6 @@ properties:
 
       - items:
           - enum:
-              - google,cheza
-              - google,cheza-rev1
-              - google,cheza-rev2
               - lenovo,yoga-c630
               - lg,judyln
               - lg,judyp
