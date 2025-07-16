@@ -622,8 +622,7 @@ static struct dentry *ovl_lookup_or_create(struct ovl_fs *ofs,
 	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
 	child = ovl_lookup_upper(ofs, name, parent, len);
 	if (!IS_ERR(child) && !child->d_inode)
-		child = ovl_create_real(ofs, parent->d_inode, child,
-					OVL_CATTR(mode));
+		child = ovl_create_real(ofs, parent, child, OVL_CATTR(mode));
 	inode_unlock(parent->d_inode);
 	dput(parent);
 

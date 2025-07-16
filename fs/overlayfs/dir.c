@@ -160,9 +160,10 @@ kill_whiteout:
 	goto out;
 }
 
-struct dentry *ovl_create_real(struct ovl_fs *ofs, struct inode *dir,
+struct dentry *ovl_create_real(struct ovl_fs *ofs, struct dentry *parent,
 			       struct dentry *newdentry, struct ovl_cattr *attr)
 {
+	struct inode *dir = parent->d_inode;
 	int err;
 
 	if (IS_ERR(newdentry))
@@ -223,7 +224,7 @@ struct dentry *ovl_create_temp(struct ovl_fs *ofs, struct dentry *workdir,
 {
 	struct dentry *ret;
 	inode_lock(workdir->d_inode);
-	ret = ovl_create_real(ofs, d_inode(workdir),
+	ret = ovl_create_real(ofs, workdir,
 			      ovl_lookup_temp(ofs, workdir), attr);
 	inode_unlock(workdir->d_inode);
 	return ret;
@@ -329,7 +330,7 @@ static int ovl_create_upper(struct dentry *dentry, struct inode *inode,
 	int err;
 
 	inode_lock_nested(udir, I_MUTEX_PARENT);
-	newdentry = ovl_create_real(ofs, udir,
+	newdentry = ovl_create_real(ofs, upperdir,
 				    ovl_lookup_upper(ofs, dentry->d_name.name,
 						     upperdir, dentry->d_name.len),
 				    attr);

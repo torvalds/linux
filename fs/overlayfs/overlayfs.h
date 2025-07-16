@@ -859,7 +859,7 @@ struct ovl_cattr {
 #define OVL_CATTR(m) (&(struct ovl_cattr) { .mode = (m) })
 
 struct dentry *ovl_create_real(struct ovl_fs *ofs,
-			       struct inode *dir, struct dentry *newdentry,
+			       struct dentry *parent, struct dentry *newdentry,
 			       struct ovl_cattr *attr);
 int ovl_cleanup(struct ovl_fs *ofs, struct inode *dir, struct dentry *dentry);
 int ovl_cleanup_unlocked(struct ovl_fs *ofs, struct dentry *workdir, struct dentry *dentry);
