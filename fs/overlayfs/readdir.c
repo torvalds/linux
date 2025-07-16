@@ -1122,7 +1122,6 @@ static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *pa
 	if (err)
 		goto out;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
 	list_for_each_entry(p, &list, l_node) {
 		struct dentry *dentry;
 
@@ -1137,16 +1136,21 @@ static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *pa
 			err = -EINVAL;
 			break;
 		}
-		dentry = ovl_lookup_upper(ofs, p->name, path->dentry, p->len);
+		dentry = ovl_lookup_upper_unlocked(ofs, p->name, path->dentry, p->len);
 		if (IS_ERR(dentry))
 			continue;
-		if (dentry->d_inode)
-			err = ovl_workdir_cleanup(ofs, dir, path->mnt, dentry, level);
+		if (dentry->d_inode) {
+			err = ovl_parent_lock(path->dentry, dentry);
+			if (!err) {
+				err = ovl_workdir_cleanup(ofs, dir, path->mnt,
+							  dentry, level);
+				ovl_parent_unlock(path->dentry);
+			}
+		}
 		dput(dentry);
 		if (err)
 			break;
 	}
-	inode_unlock(dir);
 out:
 	ovl_cache_free(&list);
 	return err;
