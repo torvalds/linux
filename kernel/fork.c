@@ -2743,7 +2743,7 @@ SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,
 }
 #endif
 
-noinline static int copy_clone_args_from_user(struct kernel_clone_args *kargs,
+static noinline int copy_clone_args_from_user(struct kernel_clone_args *kargs,
 					      struct clone_args __user *uargs,
 					      size_t usize)
 {
