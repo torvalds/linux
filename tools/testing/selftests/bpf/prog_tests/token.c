@@ -1047,6 +1047,41 @@ err_out:
 
 #define bit(n) (1ULL << (n))
 
+static int userns_bpf_token_info(int mnt_fd, struct token_lsm *lsm_skel)
+{
+	int err, token_fd = -1;
+	struct bpf_token_info info;
+	u32 len = sizeof(struct bpf_token_info);
+
+	/* create BPF token from BPF FS mount */
+	token_fd = bpf_token_create(mnt_fd, NULL);
+	if (!ASSERT_GT(token_fd, 0, "token_create")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+
+	memset(&info, 0, len);
+	err = bpf_obj_get_info_by_fd(token_fd, &info, &len);
+	if (!ASSERT_ERR(err, "bpf_obj_get_token_info"))
+		goto cleanup;
+	if (!ASSERT_EQ(info.allowed_cmds, bit(BPF_MAP_CREATE), "token_info_cmds_map_create")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+	if (!ASSERT_EQ(info.allowed_progs, bit(BPF_PROG_TYPE_XDP), "token_info_progs_xdp")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+
+	/* The BPF_PROG_TYPE_EXT is not set in token */
+	if (ASSERT_EQ(info.allowed_progs, bit(BPF_PROG_TYPE_EXT), "token_info_progs_ext"))
+		err = -EINVAL;
+
+cleanup:
+	zclose(token_fd);
+	return err;
+}
+
 void test_token(void)
 {
 	if (test__start_subtest("map_token")) {
@@ -1149,5 +1184,14 @@ void test_token(void)
 		};
 
 		subtest_userns(&opts, userns_obj_priv_implicit_token_envvar);
+	}
+	if (test__start_subtest("bpf_token_info")) {
+		struct bpffs_opts opts = {
+			.cmds = bit(BPF_MAP_CREATE),
+			.progs = bit(BPF_PROG_TYPE_XDP),
+			.attachs = ~0ULL,
+		};
+
+		subtest_userns(&opts, userns_bpf_token_info);
 	}
 }
