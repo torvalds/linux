@@ -226,7 +226,6 @@ static int ls_scfg_msi_domains_init(struct ls_scfg_msi *msi_data)
 	msi_data->parent = msi_create_parent_irq_domain(&info, &ls_scfg_msi_parent_ops);
 	if (!msi_data->parent) {
 		dev_err(&msi_data->pdev->dev, "failed to create MSI domain\n");
-		irq_domain_remove(msi_data->parent);
 		return -ENOMEM;
 	}
 
