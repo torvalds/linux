@@ -49,18 +49,12 @@
 		};
 	};
 
-	battery_l: battery-l {
+	battery: battery {
 		compatible = "simple-battery";
-		voltage-min-design-microvolt = <3870000>;
-		energy-full-design-microwatt-hours = <16700000>;
-		charge-full-design-microamp-hours = <4420000>;
-	};
-
-	battery_r: battery-r {
-		compatible = "simple-battery";
-		voltage-min-design-microvolt = <3870000>;
-		energy-full-design-microwatt-hours = <16700000>;
-		charge-full-design-microamp-hours = <4420000>;
+		charge-full-design-microamp-hours = <8840000>;
+		energy-full-design-microwatt-hours = <34300000>;
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4370000>;
 	};
 
 	bl_vddpos_5p5: bl-vddpos-regulator {
