@@ -1263,11 +1263,12 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 
 	err = ovl_do_rename(ofs, old_upperdir, olddentry,
 			    new_upperdir, newdentry, flags);
+	unlock_rename(new_upperdir, old_upperdir);
 	if (err)
-		goto out_unlock;
+		goto out_revert_creds;
 
 	if (cleanup_whiteout)
-		ovl_cleanup(ofs, old_upperdir->d_inode, newdentry);
+		ovl_cleanup_unlocked(ofs, old_upperdir, newdentry);
 
 	if (overwrite && d_inode(new)) {
 		if (new_is_dir)
@@ -1286,8 +1287,6 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	if (d_inode(new) && ovl_dentry_upper(new))
 		ovl_copyattr(d_inode(new));
 
-out_unlock:
-	unlock_rename(new_upperdir, old_upperdir);
 out_revert_creds:
 	ovl_revert_creds(old_cred);
 	if (update_nlink)
@@ -1300,6 +1299,10 @@ out:
 	dput(opaquedir);
 	ovl_cache_free(&list);
 	return err;
+
+out_unlock:
+	unlock_rename(new_upperdir, old_upperdir);
+	goto out_revert_creds;
 }
 
 static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
