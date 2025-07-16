@@ -446,3 +446,6 @@ LIBBPF_1.6.0 {
 		btf__add_decl_attr;
 		btf__add_type_attr;
 } LIBBPF_1.5.0;
+
+LIBBPF_1.7.0 {
+} LIBBPF_1.6.0;
