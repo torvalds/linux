@@ -580,9 +580,7 @@ xrep_rtrmap_find_rmaps(
 	 */
 	xchk_trans_cancel(sc);
 	xchk_rtgroup_unlock(&sc->sr);
-	error = xchk_trans_alloc_empty(sc);
-	if (error)
-		return error;
+	xchk_trans_alloc_empty(sc);
 
 	while ((error = xchk_iscan_iter(&rr->iscan, &ip)) == 1) {
 		error = xrep_rtrmap_scan_inode(rr, ip);

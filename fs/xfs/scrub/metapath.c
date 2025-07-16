@@ -318,9 +318,7 @@ xchk_metapath(
 		return 0;
 	}
 
-	error = xchk_trans_alloc_empty(sc);
-	if (error)
-		return error;
+	xchk_trans_alloc_empty(sc);
 
 	error = xchk_metapath_ilock_both(mpath);
 	if (error)

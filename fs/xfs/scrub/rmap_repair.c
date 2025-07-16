@@ -951,9 +951,7 @@ end_agscan:
 	sa->agf_bp = NULL;
 	sa->agi_bp = NULL;
 	xchk_trans_cancel(sc);
-	error = xchk_trans_alloc_empty(sc);
-	if (error)
-		return error;
+	xchk_trans_alloc_empty(sc);
 
 	/* Iterate all AGs for inodes rmaps. */
 	while ((error = xchk_iscan_iter(&rr->iscan, &ip)) == 1) {
