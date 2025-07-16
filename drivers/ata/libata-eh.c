@@ -4067,44 +4067,10 @@ void ata_eh_finish(struct ata_port *ap)
 }
 
 /**
- *	ata_do_eh - do standard error handling
- *	@ap: host port to handle error for
- *
- *	@prereset: prereset method (can be NULL)
- *	@softreset: softreset method (can be NULL)
- *	@hardreset: hardreset method (can be NULL)
- *	@postreset: postreset method (can be NULL)
- *
- *	Perform standard error handling sequence.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- */
-void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
-	       ata_reset_fn_t softreset, ata_reset_fn_t hardreset,
-	       ata_postreset_fn_t postreset)
-{
-	struct ata_device *dev;
-	int rc;
-
-	ata_eh_autopsy(ap);
-	ata_eh_report(ap);
-
-	rc = ata_eh_recover(ap, prereset, softreset, hardreset, postreset,
-			    NULL);
-	if (rc) {
-		ata_for_each_dev(dev, &ap->link, ALL)
-			ata_dev_disable(dev);
-	}
-
-	ata_eh_finish(ap);
-}
-
-/**
  *	ata_std_error_handler - standard error handler
  *	@ap: host port to handle error for
  *
- *	Standard error handler
+ *	Perform standard error handling sequence.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
@@ -4112,13 +4078,27 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 void ata_std_error_handler(struct ata_port *ap)
 {
 	struct ata_port_operations *ops = ap->ops;
-	ata_reset_fn_t hardreset = ops->hardreset;
+	struct ata_link *link = &ap->link;
+	int rc;
 
-	/* ignore built-in hardreset if SCR access is not available */
-	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
-		hardreset = NULL;
+	/* Ignore built-in hardresets if SCR access is not available */
+	if ((ops->hardreset == sata_std_hardreset ||
+	     ops->hardreset == sata_sff_hardreset) && !sata_scr_valid(link))
+		link->flags |= ATA_LFLAG_NO_HRST;
 
-	ata_do_eh(ap, ops->prereset, ops->softreset, hardreset, ops->postreset);
+	ata_eh_autopsy(ap);
+	ata_eh_report(ap);
+
+	rc = ata_eh_recover(ap, ops->prereset, ops->softreset,
+			    ops->hardreset, ops->postreset, NULL);
+	if (rc) {
+		struct ata_device *dev;
+
+		ata_for_each_dev(dev, link, ALL)
+			ata_dev_disable(dev);
+	}
+
+	ata_eh_finish(ap);
 }
 EXPORT_SYMBOL_GPL(ata_std_error_handler);
 
