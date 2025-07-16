@@ -21,14 +21,23 @@
 /* Call with exclusively locked inode->i_rwsem */
 static void ceph_block_o_direct(struct ceph_inode_info *ci, struct inode *inode)
 {
+	bool is_odirect;
+
 	lockdep_assert_held_write(&inode->i_rwsem);
 
-	if (READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT) {
-		spin_lock(&ci->i_ceph_lock);
-		ci->i_ceph_flags &= ~CEPH_I_ODIRECT;
-		spin_unlock(&ci->i_ceph_lock);
-		inode_dio_wait(inode);
+	spin_lock(&ci->i_ceph_lock);
+	/* ensure that bit state is consistent */
+	smp_mb__before_atomic();
+	is_odirect = READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT;
+	if (is_odirect) {
+		clear_bit(CEPH_I_ODIRECT_BIT, &ci->i_ceph_flags);
+		/* ensure modified bit is visible */
+		smp_mb__after_atomic();
 	}
+	spin_unlock(&ci->i_ceph_lock);
+
+	if (is_odirect)
+		inode_dio_wait(inode);
 }
 
 /**
@@ -50,6 +59,7 @@ static void ceph_block_o_direct(struct ceph_inode_info *ci, struct inode *inode)
 int ceph_start_io_read(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	bool is_odirect;
 	int err;
 
 	/* Be an optimist! */
@@ -57,7 +67,12 @@ int ceph_start_io_read(struct inode *inode)
 	if (err)
 		return err;
 
-	if (!(READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT))
+	spin_lock(&ci->i_ceph_lock);
+	/* ensure that bit state is consistent */
+	smp_mb__before_atomic();
+	is_odirect = READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT;
+	spin_unlock(&ci->i_ceph_lock);
+	if (!is_odirect)
 		return 0;
 	up_read(&inode->i_rwsem);
 
@@ -116,12 +131,22 @@ ceph_end_io_write(struct inode *inode)
 /* Call with exclusively locked inode->i_rwsem */
 static void ceph_block_buffered(struct ceph_inode_info *ci, struct inode *inode)
 {
+	bool is_odirect;
+
 	lockdep_assert_held_write(&inode->i_rwsem);
 
-	if (!(READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT)) {
-		spin_lock(&ci->i_ceph_lock);
-		ci->i_ceph_flags |= CEPH_I_ODIRECT;
-		spin_unlock(&ci->i_ceph_lock);
+	spin_lock(&ci->i_ceph_lock);
+	/* ensure that bit state is consistent */
+	smp_mb__before_atomic();
+	is_odirect = READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT;
+	if (!is_odirect) {
+		set_bit(CEPH_I_ODIRECT_BIT, &ci->i_ceph_flags);
+		/* ensure modified bit is visible */
+		smp_mb__after_atomic();
+	}
+	spin_unlock(&ci->i_ceph_lock);
+
+	if (!is_odirect) {
 		/* FIXME: unmap_mapping_range? */
 		filemap_write_and_wait(inode->i_mapping);
 	}
@@ -146,6 +171,7 @@ static void ceph_block_buffered(struct ceph_inode_info *ci, struct inode *inode)
 int ceph_start_io_direct(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	bool is_odirect;
 	int err;
 
 	/* Be an optimist! */
@@ -153,7 +179,12 @@ int ceph_start_io_direct(struct inode *inode)
 	if (err)
 		return err;
 
-	if (READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT)
+	spin_lock(&ci->i_ceph_lock);
+	/* ensure that bit state is consistent */
+	smp_mb__before_atomic();
+	is_odirect = READ_ONCE(ci->i_ceph_flags) & CEPH_I_ODIRECT;
+	spin_unlock(&ci->i_ceph_lock);
+	if (is_odirect)
 		return 0;
 	up_read(&inode->i_rwsem);
 
