@@ -570,6 +570,9 @@ struct amdgpu_ras {
 	struct ras_event_manager *event_mgr;
 
 	uint64_t reserved_pages_in_bytes;
+
+	pid_t init_task_pid;
+	char init_task_comm[TASK_COMM_LEN];
 };
 
 struct ras_fs_data {

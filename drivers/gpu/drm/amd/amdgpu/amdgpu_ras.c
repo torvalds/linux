@@ -128,6 +128,9 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 
 #define MAX_FLUSH_RETIRE_DWORK_TIMES  100
 
+#define BYPASS_ALLOCATED_ADDRESS        0x0
+#define BYPASS_INITIALIZATION_ADDRESS   0x1
+
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 	AMDGPU_RAS_RETIRE_PAGE_PENDING,
@@ -203,6 +206,49 @@ static int amdgpu_reserve_page_direct(struct amdgpu_device *adev, uint64_t addre
 	dev_warn(adev->dev, "WARNING: THIS IS ONLY FOR TEST PURPOSES AND WILL CORRUPT RAS EEPROM\n");
 	dev_warn(adev->dev, "Clear EEPROM:\n");
 	dev_warn(adev->dev, "    echo 1 > /sys/kernel/debug/dri/0/ras/ras_eeprom_reset\n");
+
+	return 0;
+}
+
+static int amdgpu_check_address_validity(struct amdgpu_device *adev,
+			uint64_t address, uint64_t flags)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct amdgpu_vram_block_info blk_info;
+	uint64_t page_pfns[32] = {0};
+	int i, ret, count;
+
+	if (amdgpu_ip_version(adev, UMC_HWIP, 0) < IP_VERSION(12, 0, 0))
+		return 0;
+
+	if ((address >= adev->gmc.mc_vram_size) ||
+	    (address >= RAS_UMC_INJECT_ADDR_LIMIT))
+		return -EFAULT;
+
+	count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
+				address, page_pfns, ARRAY_SIZE(page_pfns));
+	if (count <= 0)
+		return -EPERM;
+
+	for (i = 0; i < count; i++) {
+		memset(&blk_info, 0, sizeof(blk_info));
+		ret = amdgpu_vram_mgr_query_address_block_info(&adev->mman.vram_mgr,
+					page_pfns[i] << AMDGPU_GPU_PAGE_SHIFT, &blk_info);
+		if (!ret) {
+			/* The input address that needs to be checked is allocated by
+			 * current calling process, so it is necessary to exclude
+			 * the calling process.
+			 */
+			if ((flags == BYPASS_ALLOCATED_ADDRESS) &&
+			    ((blk_info.task.pid != task_pid_nr(current)) ||
+				strncmp(blk_info.task.comm, current->comm, TASK_COMM_LEN)))
+				return -EACCES;
+			else if ((flags == BYPASS_INITIALIZATION_ADDRESS) &&
+				(blk_info.task.pid == con->init_task_pid) &&
+				!strncmp(blk_info.task.comm, con->init_task_comm, TASK_COMM_LEN))
+				return -EACCES;
+		}
+	}
 
 	return 0;
 }
@@ -297,6 +343,8 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		op = 2;
 	else if (strstr(str, "retire_page") != NULL)
 		op = 3;
+	else if (strstr(str, "check_address") != NULL)
+		op = 4;
 	else if (str[0] && str[1] && str[2] && str[3])
 		/* ascii string, but commands are not matched. */
 		return -EINVAL;
@@ -310,6 +358,15 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 			data->op = op;
 			data->inject.address = address;
 
+			return 0;
+		} else if (op == 4) {
+			if (sscanf(str, "%*s 0x%llx 0x%llx", &address, &value) != 2 &&
+			    sscanf(str, "%*s %llu %llu", &address, &value) != 2)
+				return -EINVAL;
+
+			data->op = op;
+			data->inject.address = address;
+			data->inject.value = value;
 			return 0;
 		}
 
@@ -500,6 +557,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f,
 			return size;
 		else
 			return ret;
+	} else if (data.op == 4) {
+		ret = amdgpu_check_address_validity(adev, data.inject.address, data.inject.value);
+		return ret ? ret : size;
 	}
 
 	if (!amdgpu_ras_is_supported(adev, data.head.block))
@@ -4086,6 +4146,9 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		if (r)
 			goto release_con;
 	}
+
+	con->init_task_pid = task_pid_nr(current);
+	get_task_comm(con->init_task_comm, current);
 
 	dev_info(adev->dev, "RAS INFO: ras initialized successfully, "
 		 "hardware ability[%x] ras_mask[%x]\n",
