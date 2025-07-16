@@ -654,13 +654,6 @@ static inline bool xfs_zoned_pack_tight(struct xfs_inode *ip)
 		!(ip->i_diflags & XFS_DIFLAG_APPEND);
 }
 
-/*
- * Pick a new zone for writes.
- *
- * If we aren't using up our budget of open zones just open a new one from the
- * freelist.  Else try to find one that matches the expected data lifetime.  If
- * we don't find one that is good pick any zone that is available.
- */
 static struct xfs_open_zone *
 xfs_select_zone_nowait(
 	struct xfs_mount	*mp,
@@ -688,7 +681,8 @@ xfs_select_zone_nowait(
 		goto out_unlock;
 
 	/*
-	 * See if we can open a new zone and use that.
+	 * See if we can open a new zone and use that so that data for different
+	 * files is mixed as little as possible.
 	 */
 	oz = xfs_try_open_zone(mp, write_hint);
 	if (oz)
