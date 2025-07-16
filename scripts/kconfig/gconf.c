@@ -90,11 +90,10 @@ static void text_insert_help(struct menu *menu)
 }
 
 
-static void text_insert_msg(const char *title, const char *message)
+static void text_insert_msg(const char *title, const char *msg)
 {
 	GtkTextBuffer *buffer;
 	GtkTextIter start, end;
-	const char *msg = message;
 
 	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text_w));
 	gtk_text_buffer_get_bounds(buffer, &start, &end);
