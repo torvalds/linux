@@ -28,6 +28,7 @@
 #include <net/neighbour.h>
 #include <net/arp.h>
 #include <net/dst.h>
+#include <net/ip.h>
 #include <net/sock.h>
 #include <net/netevent.h>
 #include <net/netlink.h>
@@ -746,23 +747,43 @@ struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl,
 }
 EXPORT_SYMBOL_GPL(__pneigh_lookup);
 
-struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
-				    struct net *net, const void *pkey,
-				    struct net_device *dev, int creat)
+struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
+				   struct net *net, const void *pkey,
+				   struct net_device *dev)
 {
 	struct pneigh_entry *n;
-	unsigned int key_len = tbl->key_len;
-	u32 hash_val = pneigh_hash(pkey, key_len);
+	unsigned int key_len;
+	u32 hash_val;
+
+	key_len = tbl->key_len;
+	hash_val = pneigh_hash(pkey, key_len);
 
 	read_lock_bh(&tbl->lock);
 	n = __pneigh_lookup_1(tbl->phash_buckets[hash_val],
 			      net, pkey, key_len, dev);
 	read_unlock_bh(&tbl->lock);
 
-	if (n || !creat)
-		goto out;
+	return n;
+}
+EXPORT_IPV6_MOD(pneigh_lookup);
+
+struct pneigh_entry *pneigh_create(struct neigh_table *tbl,
+				   struct net *net, const void *pkey,
+				   struct net_device *dev)
+{
+	struct pneigh_entry *n;
+	unsigned int key_len = tbl->key_len;
+	u32 hash_val = pneigh_hash(pkey, key_len);
 
 	ASSERT_RTNL();
+
+	read_lock_bh(&tbl->lock);
+	n = __pneigh_lookup_1(tbl->phash_buckets[hash_val],
+			      net, pkey, key_len, dev);
+	read_unlock_bh(&tbl->lock);
+
+	if (n)
+		goto out;
 
 	n = kzalloc(sizeof(*n) + key_len, GFP_KERNEL);
 	if (!n)
@@ -787,8 +808,6 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 out:
 	return n;
 }
-EXPORT_SYMBOL(pneigh_lookup);
-
 
 int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 		  struct net_device *dev)
@@ -2007,7 +2026,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 
 		err = -ENOBUFS;
-		pn = pneigh_lookup(tbl, net, dst, dev, 1);
+		pn = pneigh_create(tbl, net, dst, dev);
 		if (pn) {
 			pn->flags = ndm_flags;
 			pn->permanent = !!(ndm->ndm_state & NUD_PERMANENT);
@@ -3036,7 +3055,7 @@ static int neigh_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (ndm->ndm_flags & NTF_PROXY) {
 		struct pneigh_entry *pn;
 
-		pn = pneigh_lookup(tbl, net, dst, dev, 0);
+		pn = pneigh_lookup(tbl, net, dst, dev);
 		if (!pn) {
 			NL_SET_ERR_MSG(extack, "Proxy neighbour entry not found");
 			err = -ENOENT;
