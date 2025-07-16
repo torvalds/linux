@@ -39,7 +39,7 @@
 		<object class="GtkMenu" id="file1_menu">
 
 		  <child>
-		    <object class="GtkImageMenuItem" id="load1">
+		    <object class="GtkMenuItem" id="load1">
 		      <property name="visible">True</property>
 		      <property name="tooltip-text" translatable="yes">Load a config file</property>
 		      <property name="label" translatable="yes">_Load</property>
@@ -49,7 +49,7 @@
 		  </child>
 
 		  <child>
-		    <object class="GtkImageMenuItem" id="save1">
+		    <object class="GtkMenuItem" id="save1">
 		      <property name="visible">True</property>
 		      <property name="tooltip-text" translatable="yes">Save the config in .config</property>
 		      <property name="label" translatable="yes">_Save</property>
@@ -59,7 +59,7 @@
 		  </child>
 
 		  <child>
-		    <object class="GtkImageMenuItem" id="save_as1">
+		    <object class="GtkMenuItem" id="save_as1">
 		      <property name="visible">True</property>
 		      <property name="tooltip-text" translatable="yes">Save the config in a file</property>
 		      <property name="label" translatable="yes">Save _as</property>
@@ -74,7 +74,7 @@
 		  </child>
 
 		  <child>
-		    <object class="GtkImageMenuItem" id="quit1">
+		    <object class="GtkMenuItem" id="quit1">
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">_Quit</property>
 		      <property name="use_underline">True</property>
@@ -178,7 +178,7 @@
 		<object class="GtkMenu" id="help1_menu">
 
 		  <child>
-		    <object class="GtkImageMenuItem" id="introduction1">
+		    <object class="GtkMenuItem" id="introduction1">
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">_Introduction</property>
 		      <property name="use_underline">True</property>
@@ -187,7 +187,7 @@
 		  </child>
 
 		  <child>
-		    <object class="GtkImageMenuItem" id="about1">
+		    <object class="GtkMenuItem" id="about1">
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">_About</property>
 		      <property name="use_underline">True</property>
@@ -196,7 +196,7 @@
 		  </child>
 
 		  <child>
-		    <object class="GtkImageMenuItem" id="license1">
+		    <object class="GtkMenuItem" id="license1">
 		      <property name="visible">True</property>
 		      <property name="label" translatable="yes">_License</property>
 		      <property name="use_underline">True</property>
