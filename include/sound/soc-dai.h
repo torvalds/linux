@@ -463,6 +463,9 @@ struct snd_soc_dai {
 
 	/* bit field */
 	unsigned int probed:1;
+
+	/* DAI private data */
+	void *priv;
 };
 
 static inline const struct snd_soc_pcm_stream *

@@ -881,7 +881,8 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 			control->value = tmp;
 			control->has_fixed = true;
 		}
-
+		fallthrough;
+	case SDCA_ACCESS_MODE_RO:
 		control->deferrable = fwnode_property_read_bool(control_node,
 								"mipi-sdca-control-deferrable");
 		break;
@@ -1634,7 +1635,6 @@ static int find_sdca_entity_connection(struct device *dev,
 	ret = fwnode_property_read_u64(entity_node, "mipi-sdca-input-pin-list", &pin_list);
 	if (ret == -EINVAL) {
 		/* Allow missing pin lists, assume no pins. */
-		dev_warn(dev, "%s: missing pin list\n", entity->label);
 		return 0;
 	} else if (ret) {
 		dev_err(dev, "%s: failed to read pin list: %d\n", entity->label, ret);
@@ -1940,6 +1940,74 @@ int sdca_parse_function(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_NS(sdca_parse_function, "SND_SOC_SDCA");
+
+struct sdca_control *sdca_selector_find_control(struct device *dev,
+						struct sdca_entity *entity,
+						const int sel)
+{
+	int i;
+
+	for (i = 0; i < entity->num_controls; i++) {
+		struct sdca_control *control = &entity->controls[i];
+
+		if (control->sel == sel)
+			return control;
+	}
+
+	dev_err(dev, "%s: control %#x: missing\n", entity->label, sel);
+	return NULL;
+}
+EXPORT_SYMBOL_NS(sdca_selector_find_control, "SND_SOC_SDCA");
+
+struct sdca_control_range *sdca_control_find_range(struct device *dev,
+						   struct sdca_entity *entity,
+						   struct sdca_control *control,
+						   int cols, int rows)
+{
+	struct sdca_control_range *range = &control->range;
+
+	if ((cols && range->cols != cols) || (rows && range->rows != rows) ||
+	    !range->data) {
+		dev_err(dev, "%s: control %#x: ranges invalid (%d,%d)\n",
+			entity->label, control->sel, range->cols, range->rows);
+		return NULL;
+	}
+
+	return range;
+}
+EXPORT_SYMBOL_NS(sdca_control_find_range, "SND_SOC_SDCA");
+
+struct sdca_control_range *sdca_selector_find_range(struct device *dev,
+						    struct sdca_entity *entity,
+						    int sel, int cols, int rows)
+{
+	struct sdca_control *control;
+
+	control = sdca_selector_find_control(dev, entity, sel);
+	if (!control)
+		return NULL;
+
+	return sdca_control_find_range(dev, entity, control, cols, rows);
+}
+EXPORT_SYMBOL_NS(sdca_selector_find_range, "SND_SOC_SDCA");
+
+struct sdca_cluster *sdca_id_find_cluster(struct device *dev,
+					  struct sdca_function_data *function,
+					  const int id)
+{
+	int i;
+
+	for (i = 0; i < function->num_clusters; i++) {
+		struct sdca_cluster *cluster = &function->clusters[i];
+
+		if (cluster->id == id)
+			return cluster;
+	}
+
+	dev_err(dev, "%s: cluster %#x: missing\n", function->desc->name, id);
+	return NULL;
+}
+EXPORT_SYMBOL_NS(sdca_id_find_cluster, "SND_SOC_SDCA");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA library");
