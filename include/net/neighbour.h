@@ -240,6 +240,7 @@ struct neigh_table {
 	unsigned long		last_rand;
 	struct neigh_statistics	__percpu *stats;
 	struct neigh_hash_table __rcu *nht;
+	struct mutex		phash_lock;
 	struct pneigh_entry	__rcu **phash_buckets;
 };
 
