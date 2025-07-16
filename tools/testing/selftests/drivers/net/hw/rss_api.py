@@ -13,6 +13,13 @@ from lib.py import EthtoolFamily
 from lib.py import NetDrvEnv
 
 
+def _require_2qs(cfg):
+    qcnt = len(glob.glob(f"/sys/class/net/{cfg.ifname}/queues/rx-*"))
+    if qcnt < 2:
+        raise KsftSkipEx(f"Local has only {qcnt} queues")
+    return qcnt
+
+
 def _ethtool_create(cfg, act, opts):
     output = ethtool(f"{act} {cfg.ifname} {opts}").stdout
     # Output will be something like: "New RSS context is 1" or
@@ -57,10 +64,7 @@ def test_rxfh_indir_ntf(cfg):
     Check that Netlink notifications are generated when RSS indirection
     table was modified.
     """
-
-    qcnt = len(glob.glob(f"/sys/class/net/{cfg.ifname}/queues/rx-*"))
-    if qcnt < 2:
-        raise KsftSkipEx(f"Local has only {qcnt} queues")
+    _require_2qs(cfg)
 
     ethnl = EthtoolFamily()
     ethnl.ntf_subscribe("monitor")
@@ -88,10 +92,7 @@ def test_rxfh_indir_ctx_ntf(cfg):
     Check that Netlink notifications are generated when RSS indirection
     table was modified on an additional RSS context.
     """
-
-    qcnt = len(glob.glob(f"/sys/class/net/{cfg.ifname}/queues/rx-*"))
-    if qcnt < 2:
-        raise KsftSkipEx(f"Local has only {qcnt} queues")
+    _require_2qs(cfg)
 
     ctx_id = _ethtool_create(cfg, "-X", "context new")
     defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
