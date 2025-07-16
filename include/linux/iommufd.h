@@ -108,6 +108,7 @@ struct iommufd_viommu {
 struct iommufd_vdevice {
 	struct iommufd_object obj;
 	struct iommufd_viommu *viommu;
+	struct iommufd_device *idev;
 	struct device *dev;
 
 	/*

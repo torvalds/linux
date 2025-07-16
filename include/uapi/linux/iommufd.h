@@ -1070,6 +1070,11 @@ struct iommu_viommu_alloc {
  *
  * Allocate a virtual device instance (for a physical device) against a vIOMMU.
  * This instance holds the device's information (related to its vIOMMU) in a VM.
+ * User should use IOMMU_DESTROY to destroy the virtual device before
+ * destroying the physical device (by closing vfio_cdev fd). Otherwise the
+ * virtual device would be forcibly destroyed on physical device destruction,
+ * its vdevice_id would be permanently leaked (unremovable & unreusable) until
+ * iommu fd closed.
  */
 struct iommu_vdevice_alloc {
 	__u32 size;

@@ -137,6 +137,57 @@ static struct iommufd_group *iommufd_get_group(struct iommufd_ctx *ictx,
 	}
 }
 
+static void iommufd_device_remove_vdev(struct iommufd_device *idev)
+{
+	struct iommufd_vdevice *vdev;
+
+	mutex_lock(&idev->igroup->lock);
+	/* prevent new references from vdev */
+	idev->destroying = true;
+	/* vdev has been completely destroyed by userspace */
+	if (!idev->vdev)
+		goto out_unlock;
+
+	vdev = iommufd_get_vdevice(idev->ictx, idev->vdev->obj.id);
+	/*
+	 * An ongoing vdev destroy ioctl has removed the vdev from the object
+	 * xarray, but has not finished iommufd_vdevice_destroy() yet as it
+	 * needs the same mutex. We exit the locking then wait on short term
+	 * users for the vdev destruction.
+	 */
+	if (IS_ERR(vdev))
+		goto out_unlock;
+
+	/* Should never happen */
+	if (WARN_ON(vdev != idev->vdev)) {
+		iommufd_put_object(idev->ictx, &vdev->obj);
+		goto out_unlock;
+	}
+
+	/*
+	 * vdev is still alive. Hold a users refcount to prevent racing with
+	 * userspace destruction, then use iommufd_object_tombstone_user() to
+	 * destroy it and leave a tombstone.
+	 */
+	refcount_inc(&vdev->obj.users);
+	iommufd_put_object(idev->ictx, &vdev->obj);
+	mutex_unlock(&idev->igroup->lock);
+	iommufd_object_tombstone_user(idev->ictx, &vdev->obj);
+	return;
+
+out_unlock:
+	mutex_unlock(&idev->igroup->lock);
+}
+
+void iommufd_device_pre_destroy(struct iommufd_object *obj)
+{
+	struct iommufd_device *idev =
+		container_of(obj, struct iommufd_device, obj);
+
+	/* Release the short term users on this */
+	iommufd_device_remove_vdev(idev);
+}
+
 void iommufd_device_destroy(struct iommufd_object *obj)
 {
 	struct iommufd_device *idev =

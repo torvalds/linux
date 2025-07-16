@@ -655,6 +655,7 @@ static const struct iommufd_object_ops iommufd_object_ops[] = {
 		.destroy = iommufd_access_destroy_object,
 	},
 	[IOMMUFD_OBJ_DEVICE] = {
+		.pre_destroy = iommufd_device_pre_destroy,
 		.destroy = iommufd_device_destroy,
 	},
 	[IOMMUFD_OBJ_FAULT] = {
@@ -676,6 +677,7 @@ static const struct iommufd_object_ops iommufd_object_ops[] = {
 	},
 	[IOMMUFD_OBJ_VDEVICE] = {
 		.destroy = iommufd_vdevice_destroy,
+		.abort = iommufd_vdevice_abort,
 	},
 	[IOMMUFD_OBJ_VEVENTQ] = {
 		.destroy = iommufd_veventq_destroy,
