@@ -2201,6 +2201,11 @@ static void timehist_print_sample(struct perf_sched *sched,
 		printf(" ");
 	}
 
+	if (!thread__comm_set(thread)) {
+                const char *prev_comm = evsel__strval(evsel, sample, "prev_comm");
+                thread__set_comm(thread, prev_comm, sample->time);
+        }
+
 	printf(" %-*s ", comm_width, timehist_get_commstr(thread));
 
 	if (sched->show_prio)
