@@ -84,41 +84,45 @@ static struct dentry *ovl_whiteout(struct ovl_fs *ofs)
 	struct dentry *workdir = ofs->workdir;
 	struct inode *wdir = workdir->d_inode;
 
-	inode_lock_nested(wdir, I_MUTEX_PARENT);
-	if (!ofs->whiteout) {
-		whiteout = ovl_lookup_temp(ofs, workdir);
-		if (IS_ERR(whiteout))
-			goto out;
+	guard(mutex)(&ofs->whiteout_lock);
 
-		err = ovl_do_whiteout(ofs, wdir, whiteout);
-		if (err) {
-			dput(whiteout);
-			whiteout = ERR_PTR(err);
-			goto out;
+	if (!ofs->whiteout) {
+		inode_lock_nested(wdir, I_MUTEX_PARENT);
+		whiteout = ovl_lookup_temp(ofs, workdir);
+		if (!IS_ERR(whiteout)) {
+			err = ovl_do_whiteout(ofs, wdir, whiteout);
+			if (err) {
+				dput(whiteout);
+				whiteout = ERR_PTR(err);
+			}
 		}
+		inode_unlock(wdir);
+		if (IS_ERR(whiteout))
+			return whiteout;
 		ofs->whiteout = whiteout;
 	}
 
 	if (!ofs->no_shared_whiteout) {
+		inode_lock_nested(wdir, I_MUTEX_PARENT);
 		whiteout = ovl_lookup_temp(ofs, workdir);
-		if (IS_ERR(whiteout))
-			goto out;
-
-		err = ovl_do_link(ofs, ofs->whiteout, wdir, whiteout);
-		if (!err)
-			goto out;
-
-		if (err != -EMLINK) {
+		if (!IS_ERR(whiteout)) {
+			err = ovl_do_link(ofs, ofs->whiteout, wdir, whiteout);
+			if (err) {
+				dput(whiteout);
+				whiteout = ERR_PTR(err);
+			}
+		}
+		inode_unlock(wdir);
+		if (!IS_ERR(whiteout))
+			return whiteout;
+		if (PTR_ERR(whiteout) != -EMLINK) {
 			pr_warn("Failed to link whiteout - disabling whiteout inode sharing(nlink=%u, err=%i)\n",
 				ofs->whiteout->d_inode->i_nlink, err);
 			ofs->no_shared_whiteout = true;
 		}
-		dput(whiteout);
 	}
 	whiteout = ofs->whiteout;
 	ofs->whiteout = NULL;
-out:
-	inode_unlock(wdir);
 	return whiteout;
 }
 
