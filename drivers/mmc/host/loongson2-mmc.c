@@ -594,7 +594,7 @@ static struct mmc_host_ops loongson2_mmc_ops = {
 	.ack_sdio_irq	= loongson2_mmc_ack_sdio_irq,
 };
 
-static const struct regmap_config ls2k1000_mmc_regmap_config = {
+static const struct regmap_config ls2k0500_mmc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -610,8 +610,8 @@ static int loongson2_reorder_cmd_list[] = { SD_APP_SEND_SCR, SD_APP_SEND_NUM_WR_
  * However sdio controller will send these datas in usual data format,
  * so we need to adjust these datas to a protocol consistent byte order.
  */
-static void loongson2_mmc_reorder_cmd_data(struct loongson2_mmc_host *host,
-					   struct mmc_command *cmd)
+static void ls2k0500_mmc_reorder_cmd_data(struct loongson2_mmc_host *host,
+					  struct mmc_command *cmd)
 {
 	struct scatterlist *sg;
 	u32 *data;
@@ -704,8 +704,8 @@ static int ls2k0500_mmc_set_external_dma(struct loongson2_mmc_host *host,
 }
 
 static struct loongson2_mmc_pdata ls2k0500_mmc_pdata = {
-	.regmap_config		= &ls2k1000_mmc_regmap_config,
-	.reorder_cmd_data	= loongson2_mmc_reorder_cmd_data,
+	.regmap_config		= &ls2k0500_mmc_regmap_config,
+	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
 	.setting_dma		= ls2k0500_mmc_set_external_dma,
 	.prepare_dma		= loongson2_mmc_prepare_external_dma,
 	.release_dma		= loongson2_mmc_release_external_dma,
@@ -736,8 +736,8 @@ static int ls2k1000_mmc_set_external_dma(struct loongson2_mmc_host *host,
 }
 
 static struct loongson2_mmc_pdata ls2k1000_mmc_pdata = {
-	.regmap_config		= &ls2k1000_mmc_regmap_config,
-	.reorder_cmd_data	= loongson2_mmc_reorder_cmd_data,
+	.regmap_config		= &ls2k0500_mmc_regmap_config,
+	.reorder_cmd_data	= ls2k0500_mmc_reorder_cmd_data,
 	.setting_dma		= ls2k1000_mmc_set_external_dma,
 	.prepare_dma		= loongson2_mmc_prepare_external_dma,
 	.release_dma		= loongson2_mmc_release_external_dma,
@@ -838,8 +838,8 @@ static int loongson2_mmc_prepare_internal_dma(struct loongson2_mmc_host *host,
 	return 0;
 }
 
-static int loongson2_mmc_set_internal_dma(struct loongson2_mmc_host *host,
-					  struct platform_device *pdev)
+static int ls2k2000_mmc_set_internal_dma(struct loongson2_mmc_host *host,
+					 struct platform_device *pdev)
 {
 	host->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
 					  &host->sg_dma, GFP_KERNEL);
@@ -860,7 +860,7 @@ static struct loongson2_mmc_pdata ls2k2000_mmc_pdata = {
 	.regmap_config		= &ls2k2000_mmc_regmap_config,
 	.reorder_cmd_data	= ls2k2000_mmc_reorder_cmd_data,
 	.fix_data_timeout	= ls2k2000_mmc_fix_data_timeout,
-	.setting_dma		= loongson2_mmc_set_internal_dma,
+	.setting_dma		= ls2k2000_mmc_set_internal_dma,
 	.prepare_dma		= loongson2_mmc_prepare_internal_dma,
 	.release_dma		= loongson2_mmc_release_internal_dma,
 };
