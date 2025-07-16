@@ -2457,6 +2457,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 	};
 	struct btrfs_path *path;
 	struct btrfs_root *root = wc->replay_dest;
+	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_key key;
 	int i;
 	int ret;
@@ -2514,18 +2515,17 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 		    wc->stage == LOG_WALK_REPLAY_INODES) {
 			u32 mode;
 
-			ret = replay_xattr_deletes(wc->trans, root, log, path, key.objectid);
+			ret = replay_xattr_deletes(trans, root, log, path, key.objectid);
 			if (ret)
 				break;
 			mode = btrfs_inode_mode(eb, inode_item);
 			if (S_ISDIR(mode)) {
-				ret = replay_dir_deletes(wc->trans, root, log, path,
+				ret = replay_dir_deletes(trans, root, log, path,
 							 key.objectid, false);
 				if (ret)
 					break;
 			}
-			ret = overwrite_item(wc->trans, root, path,
-					     eb, i, &key);
+			ret = overwrite_item(trans, root, path, eb, i, &key);
 			if (ret)
 				break;
 
@@ -2552,21 +2552,19 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 				drop_args.start = from;
 				drop_args.end = (u64)-1;
 				drop_args.drop_cache = true;
-				ret = btrfs_drop_extents(wc->trans, root, inode,
-							 &drop_args);
+				ret = btrfs_drop_extents(trans, root, inode,  &drop_args);
 				if (!ret) {
 					inode_sub_bytes(&inode->vfs_inode,
 							drop_args.bytes_found);
 					/* Update the inode's nbytes. */
-					ret = btrfs_update_inode(wc->trans, inode);
+					ret = btrfs_update_inode(trans, inode);
 				}
 				iput(&inode->vfs_inode);
 				if (ret)
 					break;
 			}
 
-			ret = link_to_fixup_dir(wc->trans, root,
-						path, key.objectid);
+			ret = link_to_fixup_dir(trans, root, path, key.objectid);
 			if (ret)
 				break;
 		}
@@ -2576,8 +2574,7 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 
 		if (key.type == BTRFS_DIR_INDEX_KEY &&
 		    wc->stage == LOG_WALK_REPLAY_DIR_INDEX) {
-			ret = replay_one_dir_item(wc->trans, root, path,
-						  eb, i, &key);
+			ret = replay_one_dir_item(trans, root, path, eb, i, &key);
 			if (ret)
 				break;
 		}
@@ -2587,19 +2584,16 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 
 		/* these keys are simply copied */
 		if (key.type == BTRFS_XATTR_ITEM_KEY) {
-			ret = overwrite_item(wc->trans, root, path,
-					     eb, i, &key);
+			ret = overwrite_item(trans, root, path, eb, i, &key);
 			if (ret)
 				break;
 		} else if (key.type == BTRFS_INODE_REF_KEY ||
 			   key.type == BTRFS_INODE_EXTREF_KEY) {
-			ret = add_inode_ref(wc->trans, root, log, path,
-					    eb, i, &key);
+			ret = add_inode_ref(trans, root, log, path, eb, i, &key);
 			if (ret)
 				break;
 		} else if (key.type == BTRFS_EXTENT_DATA_KEY) {
-			ret = replay_one_extent(wc->trans, root, path,
-						eb, i, &key);
+			ret = replay_one_extent(trans, root, path, eb, i, &key);
 			if (ret)
 				break;
 		}
