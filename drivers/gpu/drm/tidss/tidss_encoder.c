@@ -90,14 +90,18 @@ int tidss_encoder_create(struct tidss_device *tidss,
 	struct drm_connector *connector;
 	int ret;
 
-	t_enc = drmm_simple_encoder_alloc(&tidss->ddev, struct tidss_encoder,
-					  encoder, encoder_type);
+	t_enc = devm_drm_bridge_alloc(tidss->dev, struct tidss_encoder,
+				      bridge, &tidss_bridge_funcs);
 	if (IS_ERR(t_enc))
 		return PTR_ERR(t_enc);
 
+	ret = drm_simple_encoder_init(&tidss->ddev, &t_enc->encoder,
+				      encoder_type);
+	if (ret)
+		return ret;
+
 	t_enc->tidss = tidss;
 	t_enc->next_bridge = next_bridge;
-	t_enc->bridge.funcs = &tidss_bridge_funcs;
 
 	enc = &t_enc->encoder;
 	enc->possible_crtcs = possible_crtcs;
