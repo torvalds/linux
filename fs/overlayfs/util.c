@@ -1551,3 +1551,13 @@ void ovl_copyattr(struct inode *inode)
 	i_size_write(inode, i_size_read(realinode));
 	spin_unlock(&inode->i_lock);
 }
+
+int ovl_parent_lock(struct dentry *parent, struct dentry *child)
+{
+	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
+	if (!child || child->d_parent == parent)
+		return 0;
+
+	inode_unlock(parent->d_inode);
+	return -EINVAL;
+}

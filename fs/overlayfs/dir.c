@@ -43,6 +43,21 @@ int ovl_cleanup(struct ovl_fs *ofs, struct inode *wdir, struct dentry *wdentry)
 	return err;
 }
 
+int ovl_cleanup_unlocked(struct ovl_fs *ofs, struct dentry *workdir,
+			 struct dentry *wdentry)
+{
+	int err;
+
+	err = ovl_parent_lock(workdir, wdentry);
+	if (err)
+		return err;
+
+	ovl_cleanup(ofs, workdir->d_inode, wdentry);
+	ovl_parent_unlock(workdir);
+
+	return 0;
+}
+
 struct dentry *ovl_lookup_temp(struct ovl_fs *ofs, struct dentry *workdir)
 {
 	struct dentry *temp;

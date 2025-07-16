@@ -794,23 +794,24 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	 */
 	path.dentry = temp;
 	err = ovl_copy_up_data(c, &path);
+	ovl_start_write(c->dentry);
+	if (err)
+		goto cleanup_unlocked;
+
 	/*
 	 * We cannot hold lock_rename() throughout this helper, because of
 	 * lock ordering with sb_writers, which shouldn't be held when calling
 	 * ovl_copy_up_data(), so lock workdir and destdir and make sure that
 	 * temp wasn't moved before copy up completion or cleanup.
 	 */
-	ovl_start_write(c->dentry);
 	trap = lock_rename(c->workdir, c->destdir);
 	if (trap || temp->d_parent != c->workdir) {
 		/* temp or workdir moved underneath us? abort without cleanup */
 		dput(temp);
 		err = -EIO;
-		if (IS_ERR(trap))
-			goto out;
-		goto unlock;
-	} else if (err) {
-		goto cleanup;
+		if (!IS_ERR(trap))
+			unlock_rename(c->workdir, c->destdir);
+		goto out;
 	}
 
 	err = ovl_copy_up_metadata(c, temp);
@@ -846,7 +847,6 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	ovl_inode_update(inode, temp);
 	if (S_ISDIR(inode->i_mode))
 		ovl_set_flag(OVL_WHITEOUTS, inode);
-unlock:
 	unlock_rename(c->workdir, c->destdir);
 out:
 	ovl_end_write(c->dentry);
@@ -854,9 +854,11 @@ out:
 	return err;
 
 cleanup:
-	ovl_cleanup(ofs, wdir, temp);
+	unlock_rename(c->workdir, c->destdir);
+cleanup_unlocked:
+	ovl_cleanup_unlocked(ofs, c->workdir, temp);
 	dput(temp);
-	goto unlock;
+	goto out;
 }
 
 /* Copyup using O_TMPFILE which does not require cross dir locking */
