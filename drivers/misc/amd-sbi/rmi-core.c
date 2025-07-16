@@ -320,6 +320,10 @@ int rmi_mailbox_xfer(struct sbrmi_data *data,
 	ret = regmap_read(data->regmap, SBRMI_OUTBNDMSG7, &ec);
 	if (ret || ec)
 		goto exit_clear_alert;
+
+	/* Clear the input value before updating the output data */
+	msg->mb_in_out = 0;
+
 	/*
 	 * For a read operation, the initiator (BMC) reads the firmware
 	 * response Command Data Out[31:0] from SBRMI::OutBndMsg_inst[4:1]
