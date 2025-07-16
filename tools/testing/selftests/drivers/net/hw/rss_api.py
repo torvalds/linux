@@ -247,6 +247,149 @@ def test_rxfh_fields(cfg):
                 comment="Config for " + fl_type)
 
 
+def test_rxfh_fields_set(cfg):
+    """ Test configuring Rx Flow Hash over Netlink. """
+
+    flow_types = ["tcp4", "tcp6", "udp4", "udp6"]
+
+    # Collect current settings
+    cfg_old = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    # symmetric hashing is config-order-sensitive make sure we leave
+    # symmetric mode, or make the flow-hash sym-compatible first
+    changes = [{"flow-hash": cfg_old["flow-hash"],},
+               {"input-xfrm": cfg_old.get("input-xfrm", {}),}]
+    if cfg_old.get("input-xfrm"):
+        changes = list(reversed(changes))
+    for old in changes:
+        defer(cfg.ethnl.rss_set, {"header": {"dev-index": cfg.ifindex},} | old)
+
+    # symmetric hashing prevents some of the configs below
+    if cfg_old.get("input-xfrm"):
+        cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                           "input-xfrm": {}})
+
+    for fl_type in flow_types:
+        cur = _ethtool_get_cfg(cfg, fl_type)
+        if cur == "sdfn":
+            change_nl = {"ip-src", "ip-dst"}
+            change_ic = "sd"
+        else:
+            change_nl = {"l4-b-0-1", "l4-b-2-3", "ip-src", "ip-dst"}
+            change_ic = "sdfn"
+
+        cfg.ethnl.rss_set({
+            "header": {"dev-index": cfg.ifindex},
+            "flow-hash": {fl_type: change_nl}
+        })
+        reset = defer(ethtool, f"--disable-netlink -N {cfg.ifname} "
+                      f"rx-flow-hash {fl_type} {cur}")
+
+        cfg_nl = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+        ksft_eq(change_nl, cfg_nl["flow-hash"][fl_type],
+                comment=f"Config for {fl_type} over Netlink")
+        cfg_ic = _ethtool_get_cfg(cfg, fl_type)
+        ksft_eq(change_ic, cfg_ic,
+                comment=f"Config for {fl_type} over IOCTL")
+
+        reset.exec()
+        cfg_nl = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+        ksft_eq(cfg_old["flow-hash"][fl_type], cfg_nl["flow-hash"][fl_type],
+                comment=f"Un-config for {fl_type} over Netlink")
+        cfg_ic = _ethtool_get_cfg(cfg, fl_type)
+        ksft_eq(cur, cfg_ic, comment=f"Un-config for {fl_type} over IOCTL")
+
+    # Try to set multiple at once, the defer was already installed at the start
+    change = {"ip-src"}
+    if change == cfg_old["flow-hash"]["tcp4"]:
+        change = {"ip-dst"}
+    cfg.ethnl.rss_set({
+        "header": {"dev-index": cfg.ifindex},
+        "flow-hash": {x: change for x in flow_types}
+    })
+
+    cfg_nl = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    for fl_type in flow_types:
+        ksft_eq(change, cfg_nl["flow-hash"][fl_type],
+                comment=f"multi-config for {fl_type} over Netlink")
+
+
+def test_rxfh_fields_set_xfrm(cfg):
+    """ Test changing Rx Flow Hash vs xfrm_input at once.  """
+
+    def set_rss(cfg, xfrm, fh):
+        cfg.ethnl.rss_set({"header": {"dev-index": cfg.ifindex},
+                           "input-xfrm": xfrm, "flow-hash": fh})
+
+    # Install the reset handler
+    cfg_old = cfg.ethnl.rss_get({"header": {"dev-index": cfg.ifindex}})
+    # symmetric hashing is config-order-sensitive make sure we leave
+    # symmetric mode, or make the flow-hash sym-compatible first
+    changes = [{"flow-hash": cfg_old["flow-hash"],},
+               {"input-xfrm": cfg_old.get("input-xfrm", {}),}]
+    if cfg_old.get("input-xfrm"):
+        changes = list(reversed(changes))
+    for old in changes:
+        defer(cfg.ethnl.rss_set, {"header": {"dev-index": cfg.ifindex},} | old)
+
+    # Make sure we start with input-xfrm off, and tcp4 config non-sym
+    set_rss(cfg, {}, {})
+    set_rss(cfg, {}, {"tcp4": {"ip-src"}})
+
+    # Setting sym and fixing tcp4 config not expected to pass right now
+    with ksft_raises(NlError):
+        set_rss(cfg, {"sym-xor"}, {"tcp4": {"ip-src", "ip-dst"}})
+    # One at a time should work, hopefully
+    set_rss(cfg, 0, {"tcp4": {"ip-src", "ip-dst"}})
+    no_support = False
+    try:
+        set_rss(cfg, {"sym-xor"}, {})
+    except NlError:
+        try:
+            set_rss(cfg, {"sym-or-xor"}, {})
+        except NlError:
+            no_support = True
+    if no_support:
+        raise KsftSkipEx("no input-xfrm supported")
+    # Disabling two at once should not work either without kernel changes
+    with ksft_raises(NlError):
+        set_rss(cfg, {}, {"tcp4": {"ip-src"}})
+
+
+def test_rxfh_fields_ntf(cfg):
+    """ Test Rx Flow Hash notifications. """
+
+    cur = _ethtool_get_cfg(cfg, "tcp4")
+    if cur == "sdfn":
+        change = {"ip-src", "ip-dst"}
+    else:
+        change = {"l4-b-0-1", "l4-b-2-3", "ip-src", "ip-dst"}
+
+    ethnl = EthtoolFamily()
+    ethnl.ntf_subscribe("monitor")
+
+    ethnl.rss_set({
+        "header": {"dev-index": cfg.ifindex},
+        "flow-hash": {"tcp4": change}
+    })
+    reset = defer(ethtool,
+                  f"--disable-netlink -N {cfg.ifname} rx-flow-hash tcp4 {cur}")
+
+    ntf = next(ethnl.poll_ntf(duration=0.2), None)
+    if ntf is None:
+        raise KsftFailEx("No notification received after IOCTL change")
+    ksft_eq(ntf["name"], "rss-ntf")
+    ksft_eq(ntf["msg"]["flow-hash"]["tcp4"], change)
+    ksft_eq(next(ethnl.poll_ntf(duration=0.01), None), None)
+
+    reset.exec()
+    ntf = next(ethnl.poll_ntf(duration=0.2), None)
+    if ntf is None:
+        raise KsftFailEx("No notification received after Netlink change")
+    ksft_eq(ntf["name"], "rss-ntf")
+    ksft_ne(ntf["msg"]["flow-hash"]["tcp4"], change)
+    ksft_eq(next(ethnl.poll_ntf(duration=0.01), None), None)
+
+
 def main() -> None:
     """ Ksft boiler plate main """
 
