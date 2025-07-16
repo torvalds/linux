@@ -1279,18 +1279,10 @@ xrep_trans_alloc_hook_dummy(
 	void			**cookiep,
 	struct xfs_trans	**tpp)
 {
-	int			error;
-
 	*cookiep = current->journal_info;
 	current->journal_info = NULL;
-
-	error = xfs_trans_alloc_empty(mp, tpp);
-	if (!error)
-		return 0;
-
-	current->journal_info = *cookiep;
-	*cookiep = NULL;
-	return error;
+	*tpp = xfs_trans_alloc_empty(mp);
+	return 0;
 }
 
 /* Cancel a dummy transaction used by a live update hook function. */

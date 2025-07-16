@@ -298,13 +298,11 @@ retry:
  * where we can be grabbing buffers at the same time that freeze is trying to
  * drain the buffer LRU list.
  */
-int
+struct xfs_trans *
 xfs_trans_alloc_empty(
-	struct xfs_mount		*mp,
-	struct xfs_trans		**tpp)
+	struct xfs_mount		*mp)
 {
-	*tpp = __xfs_trans_alloc(mp, XFS_TRANS_NO_WRITECOUNT);
-	return 0;
+	return __xfs_trans_alloc(mp, XFS_TRANS_NO_WRITECOUNT);
 }
 
 /*

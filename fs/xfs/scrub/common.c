@@ -870,7 +870,8 @@ int
 xchk_trans_alloc_empty(
 	struct xfs_scrub	*sc)
 {
-	return xfs_trans_alloc_empty(sc->mp, &sc->tp);
+	sc->tp = xfs_trans_alloc_empty(sc->mp);
+	return 0;
 }
 
 /*

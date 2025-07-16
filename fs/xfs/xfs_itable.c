@@ -239,14 +239,10 @@ xfs_bulkstat_one(
 	 * Grab an empty transaction so that we can use its recursive buffer
 	 * locking abilities to detect cycles in the inobt without deadlocking.
 	 */
-	error = xfs_trans_alloc_empty(breq->mp, &tp);
-	if (error)
-		goto out;
-
+	tp = xfs_trans_alloc_empty(breq->mp);
 	error = xfs_bulkstat_one_int(breq->mp, breq->idmap, tp,
 			breq->startino, &bc);
 	xfs_trans_cancel(tp);
-out:
 	kfree(bc.buf);
 
 	/*
@@ -331,17 +327,13 @@ xfs_bulkstat(
 	 * Grab an empty transaction so that we can use its recursive buffer
 	 * locking abilities to detect cycles in the inobt without deadlocking.
 	 */
-	error = xfs_trans_alloc_empty(breq->mp, &tp);
-	if (error)
-		goto out;
-
+	tp = xfs_trans_alloc_empty(breq->mp);
 	if (breq->flags & XFS_IBULK_SAME_AG)
 		iwalk_flags |= XFS_IWALK_SAME_AG;
 
 	error = xfs_iwalk(breq->mp, tp, breq->startino, iwalk_flags,
 			xfs_bulkstat_iwalk, breq->icount, &bc);
 	xfs_trans_cancel(tp);
-out:
 	kfree(bc.buf);
 
 	/*
@@ -464,14 +456,10 @@ xfs_inumbers(
 	 * Grab an empty transaction so that we can use its recursive buffer
 	 * locking abilities to detect cycles in the inobt without deadlocking.
 	 */
-	error = xfs_trans_alloc_empty(breq->mp, &tp);
-	if (error)
-		goto out;
-
+	tp = xfs_trans_alloc_empty(breq->mp);
 	error = xfs_inobt_walk(breq->mp, tp, breq->startino, breq->flags,
 			xfs_inumbers_walk, breq->icount, &ic);
 	xfs_trans_cancel(tp);
-out:
 
 	/*
 	 * We found some inode groups, so clear the error status and return

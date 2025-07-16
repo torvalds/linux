@@ -616,10 +616,7 @@ xfs_attri_iread_extents(
 	struct xfs_trans		*tp;
 	int				error;
 
-	error = xfs_trans_alloc_empty(ip->i_mount, &tp);
-	if (error)
-		return error;
-
+	tp = xfs_trans_alloc_empty(ip->i_mount);
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	error = xfs_iread_extents(tp, ip, XFS_ATTR_FORK);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
