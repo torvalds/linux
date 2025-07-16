@@ -475,6 +475,7 @@ void ethtool_rss_notify(struct net_device *dev, u32 rss_context)
 const struct nla_policy ethnl_rss_set_policy[ETHTOOL_A_RSS_START_CONTEXT + 1] = {
 	[ETHTOOL_A_RSS_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_RSS_CONTEXT] = { .type = NLA_U32, },
+	[ETHTOOL_A_RSS_HFUNC] = NLA_POLICY_MIN(NLA_U32, 1),
 	[ETHTOOL_A_RSS_INDIR] = { .type = NLA_BINARY, },
 };
 
@@ -488,6 +489,9 @@ ethnl_rss_set_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 
 	if (request->rss_context && !ops->create_rxfh_context)
 		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_CONTEXT];
+
+	if (request->rss_context && !ops->rxfh_per_ctx_key)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_HFUNC];
 
 	if (bad_attr) {
 		NL_SET_BAD_ATTR(info->extack, bad_attr);
@@ -588,6 +592,8 @@ rss_set_ctx_update(struct ethtool_rxfh_context *ctx, struct nlattr **tb,
 			ethtool_rxfh_context_indir(ctx)[i] = rxfh->indir[i];
 		ctx->indir_configured = !!nla_len(tb[ETHTOOL_A_RSS_INDIR]);
 	}
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE)
+		ctx->hfunc = rxfh->hfunc;
 }
 
 static int
@@ -618,7 +624,11 @@ ethnl_rss_set(struct ethnl_req_info *req_info, struct genl_info *info)
 		goto exit_clean_data;
 	indir_mod = !!tb[ETHTOOL_A_RSS_INDIR];
 
-	rxfh.hfunc = ETH_RSS_HASH_NO_CHANGE;
+	rxfh.hfunc = data.hfunc;
+	ethnl_update_u8(&rxfh.hfunc, tb[ETHTOOL_A_RSS_HFUNC], &mod);
+	if (rxfh.hfunc == data.hfunc)
+		rxfh.hfunc = ETH_RSS_HASH_NO_CHANGE;
+
 	rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
 
 	mutex_lock(&dev->ethtool->rss_lock);
