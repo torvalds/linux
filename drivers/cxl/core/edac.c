@@ -115,10 +115,9 @@ static int cxl_scrub_get_attrbs(struct cxl_patrol_scrub_context *cxl_ps_ctx,
 						flags, min_cycle);
 	}
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
+		return ret;
 
 	cxlr = cxl_ps_ctx->cxlr;
 	p = &cxlr->params;
@@ -158,10 +157,9 @@ static int cxl_scrub_set_attrbs_region(struct device *dev,
 	struct cxl_region *cxlr;
 	int ret, i;
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &rwsem)))
+		return ret;
 
 	cxlr = cxl_ps_ctx->cxlr;
 	p = &cxlr->params;
@@ -1340,16 +1338,15 @@ cxl_mem_perform_sparing(struct device *dev,
 	struct cxl_memdev_sparing_in_payload sparing_pi;
 	struct cxl_event_dram *rec = NULL;
 	u16 validity_flags = 0;
+	int ret;
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, region_rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &region_rwsem)))
+		return ret;
 
-	struct rw_semaphore *dpa_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_dpa_rwsem);
-	if (!dpa_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, dpa_rwsem)(&cxl_rwsem.dpa);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &dpa_rwsem)))
+		return ret;
 
 	if (!cxl_sparing_ctx->cap_safe_when_in_use) {
 		/* Memory to repair must be offline */
@@ -1787,16 +1784,15 @@ static int cxl_mem_perform_ppr(struct cxl_ppr_context *cxl_ppr_ctx)
 	struct cxl_memdev_ppr_maintenance_attrbs maintenance_attrbs;
 	struct cxl_memdev *cxlmd = cxl_ppr_ctx->cxlmd;
 	struct cxl_mem_repair_attrbs attrbs = { 0 };
+	int ret;
 
-	struct rw_semaphore *region_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_region_rwsem);
-	if (!region_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, region_rwsem)(&cxl_rwsem.region);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &region_rwsem)))
+		return ret;
 
-	struct rw_semaphore *dpa_lock __free(rwsem_read_release) =
-		rwsem_read_intr_acquire(&cxl_dpa_rwsem);
-	if (!dpa_lock)
-		return -EINTR;
+	ACQUIRE(rwsem_read_intr, dpa_rwsem)(&cxl_rwsem.dpa);
+	if ((ret = ACQUIRE_ERR(rwsem_read_intr, &dpa_rwsem)))
+		return ret;
 
 	if (!cxl_ppr_ctx->media_accessible || !cxl_ppr_ctx->data_retained) {
 		/* Memory to repair must be offline */
