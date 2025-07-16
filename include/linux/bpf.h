@@ -2354,6 +2354,7 @@ extern const struct super_operations bpf_super_ops;
 extern const struct file_operations bpf_map_fops;
 extern const struct file_operations bpf_prog_fops;
 extern const struct file_operations bpf_iter_fops;
+extern const struct file_operations bpf_token_fops;
 
 #define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type) \
 	extern const struct bpf_prog_ops _name ## _prog_ops; \
@@ -2551,6 +2552,9 @@ void bpf_token_inc(struct bpf_token *token);
 void bpf_token_put(struct bpf_token *token);
 int bpf_token_create(union bpf_attr *attr);
 struct bpf_token *bpf_token_get_from_fd(u32 ufd);
+int bpf_token_get_info_by_fd(struct bpf_token *token,
+			     const union bpf_attr *attr,
+			     union bpf_attr __user *uattr);
 
 bool bpf_token_allow_cmd(const struct bpf_token *token, enum bpf_cmd cmd);
 bool bpf_token_allow_map_type(const struct bpf_token *token, enum bpf_map_type type);
@@ -2947,6 +2951,13 @@ static inline void bpf_token_put(struct bpf_token *token)
 static inline struct bpf_token *bpf_token_get_from_fd(u32 ufd)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int bpf_token_get_info_by_fd(struct bpf_token *token,
+					   const union bpf_attr *attr,
+					   union bpf_attr __user *uattr)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline void __dev_flush(struct list_head *flush_list)

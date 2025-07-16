@@ -5239,6 +5239,21 @@ static int bpf_link_get_info_by_fd(struct file *file,
 }
 
 
+static int token_get_info_by_fd(struct file *file,
+				struct bpf_token *token,
+				const union bpf_attr *attr,
+				union bpf_attr __user *uattr)
+{
+	struct bpf_token_info __user *uinfo = u64_to_user_ptr(attr->info.info);
+	u32 info_len = attr->info.info_len;
+	int err;
+
+	err = bpf_check_uarg_tail_zero(USER_BPFPTR(uinfo), sizeof(*uinfo), info_len);
+	if (err)
+		return err;
+	return bpf_token_get_info_by_fd(token, attr, uattr);
+}
+
 #define BPF_OBJ_GET_INFO_BY_FD_LAST_FIELD info.info
 
 static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
@@ -5262,6 +5277,9 @@ static int bpf_obj_get_info_by_fd(const union bpf_attr *attr,
 	else if (fd_file(f)->f_op == &bpf_link_fops || fd_file(f)->f_op == &bpf_link_fops_poll)
 		return bpf_link_get_info_by_fd(fd_file(f), fd_file(f)->private_data,
 					      attr, uattr);
+	else if (fd_file(f)->f_op == &bpf_token_fops)
+		return token_get_info_by_fd(fd_file(f), fd_file(f)->private_data,
+					    attr, uattr);
 	return -EINVAL;
 }
 

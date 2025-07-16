@@ -450,6 +450,7 @@ union bpf_iter_link_info {
  *		* **struct bpf_map_info**
  *		* **struct bpf_btf_info**
  *		* **struct bpf_link_info**
+ *		* **struct bpf_token_info**
  *
  *	Return
  *		Returns zero on success. On error, -1 is returned and *errno*
@@ -6801,6 +6802,13 @@ struct bpf_link_info {
 			__u32 attach_type;
 		} sockmap;
 	};
+} __attribute__((aligned(8)));
+
+struct bpf_token_info {
+	__u64 allowed_cmds;
+	__u64 allowed_maps;
+	__u64 allowed_progs;
+	__u64 allowed_attachs;
 } __attribute__((aligned(8)));
 
 /* User bpf_sock_addr struct to access socket fields and sockaddr struct passed
