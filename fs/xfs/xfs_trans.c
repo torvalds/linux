@@ -134,18 +134,14 @@ xfs_trans_dup(
 }
 
 /*
- * This is called to reserve free disk blocks and log space for the
- * given transaction.  This must be done before allocating any resources
- * within the transaction.
+ * This is called to reserve free disk blocks and log space for the given
+ * transaction before allocating any resources within the transaction.
  *
  * This will return ENOSPC if there are not enough blocks available.
  * It will sleep waiting for available log space.
- * The only valid value for the flags parameter is XFS_RES_LOG_PERM, which
- * is used by long running transactions.  If any one of the reservations
- * fails then they will all be backed out.
  *
- * This does not do quota reservations. That typically is done by the
- * caller afterwards.
+ * This does not do quota reservations. That typically is done by the caller
+ * afterwards.
  */
 static int
 xfs_trans_reserve(
@@ -158,10 +154,12 @@ xfs_trans_reserve(
 	int			error = 0;
 	bool			rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
 
+	ASSERT(resp->tr_logres > 0);
+
 	/*
-	 * Attempt to reserve the needed disk blocks by decrementing
-	 * the number needed from the number available.  This will
-	 * fail if the count would go below zero.
+	 * Attempt to reserve the needed disk blocks by decrementing the number
+	 * needed from the number available.  This will fail if the count would
+	 * go below zero.
 	 */
 	if (blocks > 0) {
 		error = xfs_dec_fdblocks(mp, blocks, rsvd);
@@ -173,42 +171,20 @@ xfs_trans_reserve(
 	/*
 	 * Reserve the log space needed for this transaction.
 	 */
-	if (resp->tr_logres > 0) {
-		bool	permanent = false;
+	if (resp->tr_logflags & XFS_TRANS_PERM_LOG_RES)
+		tp->t_flags |= XFS_TRANS_PERM_LOG_RES;
+	error = xfs_log_reserve(mp, resp->tr_logres, resp->tr_logcount,
+			&tp->t_ticket, (tp->t_flags & XFS_TRANS_PERM_LOG_RES));
+	if (error)
+		goto undo_blocks;
 
-		ASSERT(tp->t_log_res == 0 ||
-		       tp->t_log_res == resp->tr_logres);
-		ASSERT(tp->t_log_count == 0 ||
-		       tp->t_log_count == resp->tr_logcount);
-
-		if (resp->tr_logflags & XFS_TRANS_PERM_LOG_RES) {
-			tp->t_flags |= XFS_TRANS_PERM_LOG_RES;
-			permanent = true;
-		} else {
-			ASSERT(tp->t_ticket == NULL);
-			ASSERT(!(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
-		}
-
-		if (tp->t_ticket != NULL) {
-			ASSERT(resp->tr_logflags & XFS_TRANS_PERM_LOG_RES);
-			error = xfs_log_regrant(mp, tp->t_ticket);
-		} else {
-			error = xfs_log_reserve(mp, resp->tr_logres,
-						resp->tr_logcount,
-						&tp->t_ticket, permanent);
-		}
-
-		if (error)
-			goto undo_blocks;
-
-		tp->t_log_res = resp->tr_logres;
-		tp->t_log_count = resp->tr_logcount;
-	}
+	tp->t_log_res = resp->tr_logres;
+	tp->t_log_count = resp->tr_logcount;
 
 	/*
-	 * Attempt to reserve the needed realtime extents by decrementing
-	 * the number needed from the number available.  This will
-	 * fail if the count would go below zero.
+	 * Attempt to reserve the needed realtime extents by decrementing the
+	 * number needed from the number available.  This will fail if the
+	 * count would go below zero.
 	 */
 	if (rtextents > 0) {
 		error = xfs_dec_frextents(mp, rtextents);
@@ -221,18 +197,11 @@ xfs_trans_reserve(
 
 	return 0;
 
-	/*
-	 * Error cases jump to one of these labels to undo any
-	 * reservations which have already been performed.
-	 */
 undo_log:
-	if (resp->tr_logres > 0) {
-		xfs_log_ticket_ungrant(mp->m_log, tp->t_ticket);
-		tp->t_ticket = NULL;
-		tp->t_log_res = 0;
-		tp->t_flags &= ~XFS_TRANS_PERM_LOG_RES;
-	}
-
+	xfs_log_ticket_ungrant(mp->m_log, tp->t_ticket);
+	tp->t_ticket = NULL;
+	tp->t_log_res = 0;
+	tp->t_flags &= ~XFS_TRANS_PERM_LOG_RES;
 undo_blocks:
 	if (blocks > 0) {
 		xfs_add_fdblocks(mp, blocks);
@@ -1030,51 +999,57 @@ xfs_trans_cancel(
 }
 
 /*
- * Roll from one trans in the sequence of PERMANENT transactions to
- * the next: permanent transactions are only flushed out when
- * committed with xfs_trans_commit(), but we still want as soon
- * as possible to let chunks of it go to the log. So we commit the
- * chunk we've been working on and get a new transaction to continue.
+ * Roll from one trans in the sequence of PERMANENT transactions to the next:
+ * permanent transactions are only flushed out when committed with
+ * xfs_trans_commit(), but we still want as soon as possible to let chunks of it
+ * go to the log.  So we commit the chunk we've been working on and get a new
+ * transaction to continue.
  */
 int
 xfs_trans_roll(
 	struct xfs_trans	**tpp)
 {
-	struct xfs_trans	*trans = *tpp;
-	struct xfs_trans_res	tres;
+	struct xfs_trans	*tp = *tpp;
+	unsigned int		log_res = tp->t_log_res;
+	unsigned int		log_count = tp->t_log_count;
 	int			error;
 
-	trace_xfs_trans_roll(trans, _RET_IP_);
+	trace_xfs_trans_roll(tp, _RET_IP_);
+
+	ASSERT(log_res > 0);
 
 	/*
 	 * Copy the critical parameters from one trans to the next.
 	 */
-	tres.tr_logres = trans->t_log_res;
-	tres.tr_logcount = trans->t_log_count;
-
-	*tpp = xfs_trans_dup(trans);
+	*tpp = xfs_trans_dup(tp);
 
 	/*
 	 * Commit the current transaction.
-	 * If this commit failed, then it'd just unlock those items that
-	 * are not marked ihold. That also means that a filesystem shutdown
-	 * is in progress. The caller takes the responsibility to cancel
-	 * the duplicate transaction that gets returned.
+	 *
+	 * If this commit failed, then it'd just unlock those items that are not
+	 * marked ihold. That also means that a filesystem shutdown is in
+	 * progress.  The caller takes the responsibility to cancel the
+	 * duplicate transaction that gets returned.
 	 */
-	error = __xfs_trans_commit(trans, true);
+	error = __xfs_trans_commit(tp, true);
 	if (error)
 		return error;
 
 	/*
 	 * Reserve space in the log for the next transaction.
-	 * This also pushes items in the "AIL", the list of logged items,
-	 * out to disk if they are taking up space at the tail of the log
-	 * that we want to use.  This requires that either nothing be locked
-	 * across this call, or that anything that is locked be logged in
-	 * the prior and the next transactions.
+	 *
+	 * This also pushes items in the AIL out to disk if they are taking up
+	 * space at the tail of the log that we want to use.  This requires that
+	 * either nothing be locked across this call, or that anything that is
+	 * locked be logged in the prior and the next transactions.
 	 */
-	tres.tr_logflags = XFS_TRANS_PERM_LOG_RES;
-	return xfs_trans_reserve(*tpp, &tres, 0, 0);
+	tp = *tpp;
+	error = xfs_log_regrant(tp->t_mountp, tp->t_ticket);
+	if (error)
+		return error;
+	tp->t_log_res = log_res;
+	tp->t_log_count = log_count;
+	return 0;
 }
 
 /*
