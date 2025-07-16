@@ -1082,9 +1082,9 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	int err;
 	struct dentry *old_upperdir;
 	struct dentry *new_upperdir;
-	struct dentry *olddentry;
-	struct dentry *newdentry;
-	struct dentry *trap;
+	struct dentry *olddentry = NULL;
+	struct dentry *newdentry = NULL;
+	struct dentry *trap, *de;
 	bool old_opaque;
 	bool new_opaque;
 	bool cleanup_whiteout = false;
@@ -1197,21 +1197,23 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 		goto out_revert_creds;
 	}
 
-	olddentry = ovl_lookup_upper(ofs, old->d_name.name, old_upperdir,
-				     old->d_name.len);
-	err = PTR_ERR(olddentry);
-	if (IS_ERR(olddentry))
+	de = ovl_lookup_upper(ofs, old->d_name.name, old_upperdir,
+			      old->d_name.len);
+	err = PTR_ERR(de);
+	if (IS_ERR(de))
 		goto out_unlock;
+	olddentry = de;
 
 	err = -ESTALE;
 	if (!ovl_matches_upper(old, olddentry))
-		goto out_dput_old;
+		goto out_unlock;
 
-	newdentry = ovl_lookup_upper(ofs, new->d_name.name, new_upperdir,
-				     new->d_name.len);
-	err = PTR_ERR(newdentry);
-	if (IS_ERR(newdentry))
-		goto out_dput_old;
+	de = ovl_lookup_upper(ofs, new->d_name.name, new_upperdir,
+			      new->d_name.len);
+	err = PTR_ERR(de);
+	if (IS_ERR(de))
+		goto out_unlock;
+	newdentry = de;
 
 	old_opaque = ovl_dentry_is_opaque(old);
 	new_opaque = ovl_dentry_is_opaque(new);
@@ -1220,28 +1222,28 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	if (d_inode(new) && ovl_dentry_upper(new)) {
 		if (opaquedir) {
 			if (newdentry != opaquedir)
-				goto out_dput;
+				goto out_unlock;
 		} else {
 			if (!ovl_matches_upper(new, newdentry))
-				goto out_dput;
+				goto out_unlock;
 		}
 	} else {
 		if (!d_is_negative(newdentry)) {
 			if (!new_opaque || !ovl_upper_is_whiteout(ofs, newdentry))
-				goto out_dput;
+				goto out_unlock;
 		} else {
 			if (flags & RENAME_EXCHANGE)
-				goto out_dput;
+				goto out_unlock;
 		}
 	}
 
 	if (olddentry == trap)
-		goto out_dput;
+		goto out_unlock;
 	if (newdentry == trap)
-		goto out_dput;
+		goto out_unlock;
 
 	if (olddentry->d_inode == newdentry->d_inode)
-		goto out_dput;
+		goto out_unlock;
 
 	err = 0;
 	if (ovl_type_merge_or_lower(old))
@@ -1249,7 +1251,7 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	else if (is_dir && !old_opaque && ovl_type_merge(new->d_parent))
 		err = ovl_set_opaque_xerr(old, olddentry, -EXDEV);
 	if (err)
-		goto out_dput;
+		goto out_unlock;
 
 	if (!overwrite && ovl_type_merge_or_lower(new))
 		err = ovl_set_redirect(new, samedir);
@@ -1257,12 +1259,12 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 		 ovl_type_merge(old->d_parent))
 		err = ovl_set_opaque_xerr(new, newdentry, -EXDEV);
 	if (err)
-		goto out_dput;
+		goto out_unlock;
 
 	err = ovl_do_rename(ofs, old_upperdir, olddentry,
 			    new_upperdir, newdentry, flags);
 	if (err)
-		goto out_dput;
+		goto out_unlock;
 
 	if (cleanup_whiteout)
 		ovl_cleanup(ofs, old_upperdir->d_inode, newdentry);
@@ -1284,10 +1286,6 @@ static int ovl_rename(struct mnt_idmap *idmap, struct inode *olddir,
 	if (d_inode(new) && ovl_dentry_upper(new))
 		ovl_copyattr(d_inode(new));
 
-out_dput:
-	dput(newdentry);
-out_dput_old:
-	dput(olddentry);
 out_unlock:
 	unlock_rename(new_upperdir, old_upperdir);
 out_revert_creds:
@@ -1297,6 +1295,8 @@ out_revert_creds:
 	else
 		ovl_drop_write(old);
 out:
+	dput(newdentry);
+	dput(olddentry);
 	dput(opaquedir);
 	ovl_cache_free(&list);
 	return err;
