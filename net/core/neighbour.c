@@ -720,23 +720,6 @@ static u32 pneigh_hash(const void *pkey, unsigned int key_len)
 	return hash_val;
 }
 
-static struct pneigh_entry *__pneigh_lookup_1(struct pneigh_entry *n,
-					      struct net *net,
-					      const void *pkey,
-					      unsigned int key_len,
-					      struct net_device *dev)
-{
-	while (n) {
-		if (!memcmp(n->key, pkey, key_len) &&
-		    net_eq(pneigh_net(n), net) &&
-		    (n->dev == dev || !n->dev))
-			return n;
-
-		n = rcu_dereference_protected(n->next, 1);
-	}
-	return NULL;
-}
-
 struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
 				   struct net *net, const void *pkey,
 				   struct net_device *dev)
@@ -747,13 +730,19 @@ struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl,
 
 	key_len = tbl->key_len;
 	hash_val = pneigh_hash(pkey, key_len);
+	n = rcu_dereference_check(tbl->phash_buckets[hash_val],
+				  lockdep_is_held(&tbl->lock));
 
-	read_lock_bh(&tbl->lock);
-	n = __pneigh_lookup_1(rcu_dereference_protected(tbl->phash_buckets[hash_val], 1),
-			      net, pkey, key_len, dev);
-	read_unlock_bh(&tbl->lock);
+	while (n) {
+		if (!memcmp(n->key, pkey, key_len) &&
+		    net_eq(pneigh_net(n), net) &&
+		    (n->dev == dev || !n->dev))
+			return n;
 
-	return n;
+		n = rcu_dereference_check(n->next, lockdep_is_held(&tbl->lock));
+	}
+
+	return NULL;
 }
 EXPORT_IPV6_MOD(pneigh_lookup);
 
@@ -762,19 +751,18 @@ struct pneigh_entry *pneigh_create(struct neigh_table *tbl,
 				   struct net_device *dev)
 {
 	struct pneigh_entry *n;
-	unsigned int key_len = tbl->key_len;
-	u32 hash_val = pneigh_hash(pkey, key_len);
+	unsigned int key_len;
+	u32 hash_val;
 
 	ASSERT_RTNL();
 
 	read_lock_bh(&tbl->lock);
-	n = __pneigh_lookup_1(rcu_dereference_protected(tbl->phash_buckets[hash_val], 1),
-			      net, pkey, key_len, dev);
+	n = pneigh_lookup(tbl, net, pkey, dev);
 	read_unlock_bh(&tbl->lock);
-
 	if (n)
 		goto out;
 
+	key_len = tbl->key_len;
 	n = kzalloc(sizeof(*n) + key_len, GFP_KERNEL);
 	if (!n)
 		goto out;
@@ -791,6 +779,7 @@ struct pneigh_entry *pneigh_create(struct neigh_table *tbl,
 		goto out;
 	}
 
+	hash_val = pneigh_hash(pkey, key_len);
 	write_lock_bh(&tbl->lock);
 	n->next = tbl->phash_buckets[hash_val];
 	rcu_assign_pointer(tbl->phash_buckets[hash_val], n);
