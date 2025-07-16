@@ -1,0 +1,198 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2023-2025 Keguang Zhang <keguang.zhang@gmail.com>
+ */
+
+/dts-v1/;
+#include "loongson1.dtsi"
+
+/ {
+	cpu_opp_table: opp-table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-44000000 {
+			opp-hz = /bits/ 64 <44000000>;
+		};
+		opp-47142000 {
+			opp-hz = /bits/ 64 <47142000>;
+		};
+		opp-50769000 {
+			opp-hz = /bits/ 64 <50769000>;
+		};
+		opp-55000000 {
+			opp-hz = /bits/ 64 <55000000>;
+		};
+		opp-60000000 {
+			opp-hz = /bits/ 64 <60000000>;
+		};
+		opp-66000000 {
+			opp-hz = /bits/ 64 <66000000>;
+		};
+		opp-73333000 {
+			opp-hz = /bits/ 64 <73333000>;
+		};
+		opp-82500000 {
+			opp-hz = /bits/ 64 <82500000>;
+		};
+		opp-94285000 {
+			opp-hz = /bits/ 64 <94285000>;
+		};
+		opp-110000000 {
+			opp-hz = /bits/ 64 <110000000>;
+		};
+		opp-132000000 {
+			opp-hz = /bits/ 64 <132000000>;
+		};
+		opp-165000000 {
+			opp-hz = /bits/ 64 <165000000>;
+		};
+		opp-220000000 {
+			opp-hz = /bits/ 64 <220000000>;
+		};
+	};
+
+	clkc: clock-controller@1fe78030 {
+		compatible = "loongson,ls1b-clk";
+		reg = <0x1fe78030 0x8>;
+		clocks = <&xtal>;
+		#clock-cells = <1>;
+	};
+};
+
+&soc {
+	syscon: syscon@420 {
+		compatible = "loongson,ls1b-syscon", "syscon";
+		reg = <0x420 0x8>;
+	};
+
+	dma: dma-controller@1160 {
+		compatible = "loongson,ls1b-apbdma";
+		reg = <0x1160 0x4>;
+		interrupt-parent = <&intc0>;
+		interrupts = <13 IRQ_TYPE_EDGE_RISING>,
+			     <14 IRQ_TYPE_EDGE_RISING>,
+			     <15 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ch0", "ch1", "ch2";
+		#dma-cells = <1>;
+	};
+
+	ehci: usb@100000 {
+		compatible = "generic-ehci";
+		reg = <0x100000 0x100>;
+		interrupt-parent = <&intc1>;
+		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	ohci: usb@108000 {
+		compatible = "generic-ohci";
+		reg = <0x108000 0x100>;
+		interrupt-parent = <&intc1>;
+		interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	gmac0: ethernet@110000 {
+		compatible = "loongson,ls1b-gmac", "snps,dwmac-3.50a";
+		reg = <0x110000 0x10000>;
+		clocks = <&clkc LS1X_CLKID_AHB>;
+		clock-names = "stmmaceth";
+		interrupt-parent = <&intc1>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		loongson,ls1-syscon = <&syscon>;
+		snps,pbl = <1>;
+		status = "disabled";
+	};
+
+	gmac1: ethernet@120000 {
+		compatible = "loongson,ls1b-gmac", "snps,dwmac-3.50a";
+		reg = <0x120000 0x10000>;
+		clocks = <&clkc LS1X_CLKID_AHB>;
+		clock-names = "stmmaceth";
+		interrupt-parent = <&intc1>;
+		interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		loongson,ls1-syscon = <&syscon>;
+		snps,pbl = <1>;
+		status = "disabled";
+	};
+};
+
+&apb {
+	clocksource: timer@1c030 {
+		compatible = "loongson,ls1b-pwmtimer";
+		reg = <0x1c030 0x10>;
+		clocks = <&clkc LS1X_CLKID_APB>;
+		interrupt-parent = <&intc0>;
+		interrupts = <20 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	watchdog: watchdog@1c060 {
+		compatible = "loongson,ls1b-wdt";
+		reg = <0x1c060 0xc>;
+		clocks = <&clkc LS1X_CLKID_APB>;
+		status = "disabled";
+	};
+
+	rtc: rtc@24000 {
+		compatible = "loongson,ls1b-rtc";
+		reg = <0x24000 0x78>;
+		interrupt-parent = <&intc0>;
+		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	ac97: audio-controller@34000 {
+		compatible = "loongson,ls1b-ac97";
+		reg = <0x34000 0x60>, <0x32420 0x4>, <0x34c4c 0x4>;
+		reg-names = "ac97", "audio-tx", "audio-rx";
+		dmas = <&dma 1>, <&dma 2>;
+		dma-names = "tx", "rx";
+		#sound-dai-cells = <0>;
+		status = "disabled";
+	};
+
+	nand: nand-controller@38000 {
+		compatible = "loongson,ls1b-nand-controller";
+		reg = <0x38000 0x24>, <0x38040 0x4>;
+		reg-names = "nand", "nand-dma";
+		dmas = <&dma 0>;
+		dma-names = "rxtx";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+
+		nand@0 {
+			reg = <0>;
+			label = "ls1x-nand";
+			nand-use-soft-ecc-engine;
+			nand-ecc-algo = "hamming";
+		};
+	};
+};
+
+&cpu0 {
+	operating-points-v2 = <&cpu_opp_table>;
+};
+
+&gpio0 {
+	ngpios = <31>;
+};
+
+&gpio1 {
+	ngpios = <30>;
+};
+
+&uart1 {
+	interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&uart2 {
+	interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&uart3 {
+	interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+};
