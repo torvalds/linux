@@ -347,6 +347,7 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct extent_buffer *eb,
 			      struct walk_control *wc, u64 gen, int level)
 {
+	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_fs_info *fs_info = log->fs_info;
 	int ret = 0;
 
@@ -361,18 +362,29 @@ static int process_one_buffer(struct btrfs_root *log,
 		};
 
 		ret = btrfs_read_extent_buffer(eb, &check);
-		if (ret)
+		if (ret) {
+			if (trans)
+				btrfs_abort_transaction(trans, ret);
+			else
+				btrfs_handle_fs_error(fs_info, ret, NULL);
 			return ret;
+		}
 	}
 
 	if (wc->pin) {
-		ret = btrfs_pin_extent_for_log_replay(wc->trans, eb);
-		if (ret)
+		ASSERT(trans != NULL);
+		ret = btrfs_pin_extent_for_log_replay(trans, eb);
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
 			return ret;
+		}
 
 		if (btrfs_buffer_uptodate(eb, gen, 0) &&
-		    btrfs_header_level(eb) == 0)
+		    btrfs_header_level(eb) == 0) {
 			ret = btrfs_exclude_logged_extents(eb);
+			if (ret)
+				btrfs_abort_transaction(trans, ret);
+		}
 	}
 	return ret;
 }
