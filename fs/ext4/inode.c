@@ -1264,7 +1264,6 @@ static int ext4_write_begin(const struct kiocb *iocb,
 	struct folio *folio;
 	pgoff_t index;
 	unsigned from, to;
-	fgf_t fgp = FGP_WRITEBEGIN;
 
 	ret = ext4_emergency_state(inode->i_sb);
 	if (unlikely(ret))
@@ -1288,16 +1287,14 @@ static int ext4_write_begin(const struct kiocb *iocb,
 	}
 
 	/*
-	 * __filemap_get_folio() can take a long time if the
+	 * write_begin_get_folio() can take a long time if the
 	 * system is thrashing due to memory pressure, or if the folio
 	 * is being written back.  So grab it first before we start
 	 * the transaction handle.  This also allows us to allocate
 	 * the folio (if needed) without using GFP_NOFS.
 	 */
 retry_grab:
-	fgp |= fgf_set_order(len);
-	folio = __filemap_get_folio(mapping, index, fgp,
-				    mapping_gfp_mask(mapping));
+	folio = write_begin_get_folio(iocb, mapping, index, len);
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
@@ -3046,7 +3043,6 @@ static int ext4_da_write_begin(const struct kiocb *iocb,
 	struct folio *folio;
 	pgoff_t index;
 	struct inode *inode = mapping->host;
-	fgf_t fgp = FGP_WRITEBEGIN;
 
 	ret = ext4_emergency_state(inode->i_sb);
 	if (unlikely(ret))
@@ -3072,9 +3068,7 @@ static int ext4_da_write_begin(const struct kiocb *iocb,
 	}
 
 retry:
-	fgp |= fgf_set_order(len);
-	folio = __filemap_get_folio(mapping, index, fgp,
-				    mapping_gfp_mask(mapping));
+	folio = write_begin_get_folio(iocb, mapping, index, len);
 	if (IS_ERR(folio))
 		return PTR_ERR(folio);
 
