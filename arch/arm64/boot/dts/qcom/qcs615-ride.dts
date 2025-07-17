@@ -246,10 +246,7 @@
 			regulator-name = "vreg_l12a";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1890000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
-			regulator-allow-set-load;
-			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
-						   RPMH_REGULATOR_MODE_HPM>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l13a: ldo13 {
