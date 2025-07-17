@@ -669,12 +669,137 @@ zl3073x_dev_state_fetch(struct zl3073x_dev *zldev)
 	return rc;
 }
 
+/**
+ * zl3073x_ref_phase_offsets_update - update reference phase offsets
+ * @zldev: pointer to zl3073x_dev structure
+ * @channel: DPLL channel number or -1
+ *
+ * The function asks device to update phase offsets latch registers with
+ * the latest measured values. There are 2 sets of latch registers:
+ *
+ * 1) Up to 5 DPLL-to-connected-ref registers that contain phase offset
+ *    values between particular DPLL channel and its *connected* input
+ *    reference.
+ *
+ * 2) 10 selected-DPLL-to-all-ref registers that contain phase offset values
+ *    between selected DPLL channel and all input references.
+ *
+ * If the caller is interested in 2) then it has to pass DPLL channel number
+ * in @channel parameter. If it is interested only in 1) then it should pass
+ * @channel parameter with value of -1.
+ *
+ * Return: 0 on success, <0 on error
+ */
+int zl3073x_ref_phase_offsets_update(struct zl3073x_dev *zldev, int channel)
+{
+	int rc;
+
+	/* Per datasheet we have to wait for 'dpll_ref_phase_err_rqst_rd'
+	 * to be zero to ensure that the measured data are coherent.
+	 */
+	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_REF_PHASE_ERR_READ_RQST,
+				  ZL_REF_PHASE_ERR_READ_RQST_RD);
+	if (rc)
+		return rc;
+
+	/* Select DPLL channel if it is specified */
+	if (channel != -1) {
+		rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MEAS_IDX, channel);
+		if (rc)
+			return rc;
+	}
+
+	/* Request to update phase offsets measurement values */
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_PHASE_ERR_READ_RQST,
+			      ZL_REF_PHASE_ERR_READ_RQST_RD);
+	if (rc)
+		return rc;
+
+	/* Wait for finish */
+	return zl3073x_poll_zero_u8(zldev, ZL_REG_REF_PHASE_ERR_READ_RQST,
+				    ZL_REF_PHASE_ERR_READ_RQST_RD);
+}
+
+/**
+ * zl3073x_ref_ffo_update - update reference fractional frequency offsets
+ * @zldev: pointer to zl3073x_dev structure
+ *
+ * The function asks device to update fractional frequency offsets latch
+ * registers the latest measured values, reads and stores them into
+ *
+ * Return: 0 on success, <0 on error
+ */
+static int
+zl3073x_ref_ffo_update(struct zl3073x_dev *zldev)
+{
+	int i, rc;
+
+	/* Per datasheet we have to wait for 'ref_freq_meas_ctrl' to be zero
+	 * to ensure that the measured data are coherent.
+	 */
+	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
+				  ZL_REF_FREQ_MEAS_CTRL);
+	if (rc)
+		return rc;
+
+	/* Select all references for measurement */
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_MASK_3_0,
+			      GENMASK(7, 0)); /* REF0P..REF3N */
+	if (rc)
+		return rc;
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_MASK_4,
+			      GENMASK(1, 0)); /* REF4P..REF4N */
+	if (rc)
+		return rc;
+
+	/* Request frequency offset measurement */
+	rc = zl3073x_write_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
+			      ZL_REF_FREQ_MEAS_CTRL_REF_FREQ_OFF);
+	if (rc)
+		return rc;
+
+	/* Wait for finish */
+	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_REF_FREQ_MEAS_CTRL,
+				  ZL_REF_FREQ_MEAS_CTRL);
+	if (rc)
+		return rc;
+
+	/* Read DPLL-to-REFx frequency offset measurements */
+	for (i = 0; i < ZL3073X_NUM_REFS; i++) {
+		s32 value;
+
+		/* Read value stored in units of 2^-32 signed */
+		rc = zl3073x_read_u32(zldev, ZL_REG_REF_FREQ(i), &value);
+		if (rc)
+			return rc;
+
+		/* Convert to ppm -> ffo = (10^6 * value) / 2^32 */
+		zldev->ref[i].ffo = mul_s64_u64_shr(value, 1000000, 32);
+	}
+
+	return 0;
+}
+
 static void
 zl3073x_dev_periodic_work(struct kthread_work *work)
 {
 	struct zl3073x_dev *zldev = container_of(work, struct zl3073x_dev,
 						 work.work);
 	struct zl3073x_dpll *zldpll;
+	int rc;
+
+	/* Update DPLL-to-connected-ref phase offsets registers */
+	rc = zl3073x_ref_phase_offsets_update(zldev, -1);
+	if (rc)
+		dev_warn(zldev->dev, "Failed to update phase offsets: %pe\n",
+			 ERR_PTR(rc));
+
+	/* Update references' fractional frequency offsets */
+	rc = zl3073x_ref_ffo_update(zldev);
+	if (rc)
+		dev_warn(zldev->dev,
+			 "Failed to update fractional frequency offsets: %pe\n",
+			 ERR_PTR(rc));
 
 	list_for_each_entry(zldpll, &zldev->dplls, list)
 		zl3073x_dpll_changes_check(zldpll);
@@ -768,6 +893,46 @@ error:
 }
 
 /**
+ * zl3073x_dev_phase_meas_setup - setup phase offset measurement
+ * @zldev: pointer to zl3073x_dev structure
+ * @num_channels: number of DPLL channels
+ *
+ * Enable phase offset measurement block, set measurement averaging factor
+ * and enable DPLL-to-its-ref phase measurement for all DPLLs.
+ *
+ * Returns: 0 on success, <0 on error
+ */
+static int
+zl3073x_dev_phase_meas_setup(struct zl3073x_dev *zldev, int num_channels)
+{
+	u8 dpll_meas_ctrl, mask;
+	int i, rc;
+
+	/* Read DPLL phase measurement control register */
+	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, &dpll_meas_ctrl);
+	if (rc)
+		return rc;
+
+	/* Setup phase measurement averaging factor */
+	dpll_meas_ctrl &= ~ZL_DPLL_MEAS_CTRL_AVG_FACTOR;
+	dpll_meas_ctrl |= FIELD_PREP(ZL_DPLL_MEAS_CTRL_AVG_FACTOR, 3);
+
+	/* Enable DPLL measurement block */
+	dpll_meas_ctrl |= ZL_DPLL_MEAS_CTRL_EN;
+
+	/* Update phase measurement control register */
+	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_MEAS_CTRL, dpll_meas_ctrl);
+	if (rc)
+		return rc;
+
+	/* Enable DPLL-to-connected-ref measurement for each channel */
+	for (i = 0, mask = 0; i < num_channels; i++)
+		mask |= BIT(i);
+
+	return zl3073x_write_u8(zldev, ZL_REG_DPLL_PHASE_ERR_READ_MASK, mask);
+}
+
+/**
  * zl3073x_dev_probe - initialize zl3073x device
  * @zldev: pointer to zl3073x device
  * @chip_info: chip info based on compatible
@@ -838,6 +1003,12 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev,
 	rc = zl3073x_dev_state_fetch(zldev);
 	if (rc)
 		return rc;
+
+	/* Setup phase offset measurement block */
+	rc = zl3073x_dev_phase_meas_setup(zldev, chip_info->num_channels);
+	if (rc)
+		return dev_err_probe(zldev->dev, rc,
+				     "Failed to setup phase measurement\n");
 
 	/* Register DPLL channels */
 	rc = zl3073x_devm_dpll_init(zldev, chip_info->num_channels);
