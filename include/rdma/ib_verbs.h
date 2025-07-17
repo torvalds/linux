@@ -42,6 +42,7 @@
 #include <rdma/signature.h>
 #include <uapi/rdma/rdma_user_ioctl.h>
 #include <uapi/rdma/ib_user_ioctl_verbs.h>
+#include <linux/pci-tph.h>
 
 #define IB_FW_VERSION_NAME_MAX	ETHTOOL_FWVERS_LEN
 
@@ -1846,6 +1847,27 @@ struct ib_dm {
 	atomic_t	   usecnt;
 };
 
+/* bit values to mark existence of ib_dmah fields */
+enum {
+	IB_DMAH_CPU_ID_EXISTS,
+	IB_DMAH_MEM_TYPE_EXISTS,
+	IB_DMAH_PH_EXISTS,
+};
+
+struct ib_dmah {
+	struct ib_device *device;
+	struct ib_uobject *uobject;
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers:
+	 */
+	struct rdma_restrack_entry res;
+	u32 cpu_id;
+	enum tph_mem_type mem_type;
+	atomic_t usecnt;
+	u8 ph;
+	u8 valid_fields; /* use IB_DMAH_XXX_EXISTS */
+};
+
 struct ib_mr {
 	struct ib_device  *device;
 	struct ib_pd	  *pd;
@@ -2573,6 +2595,9 @@ struct ib_device_ops {
 				  struct ib_dm_alloc_attr *attr,
 				  struct uverbs_attr_bundle *attrs);
 	int (*dealloc_dm)(struct ib_dm *dm, struct uverbs_attr_bundle *attrs);
+	int (*alloc_dmah)(struct ib_dmah *ibdmah,
+			  struct uverbs_attr_bundle *attrs);
+	int (*dealloc_dmah)(struct ib_dmah *dmah, struct uverbs_attr_bundle *attrs);
 	struct ib_mr *(*reg_dm_mr)(struct ib_pd *pd, struct ib_dm *dm,
 				   struct ib_dm_mr_attr *attr,
 				   struct uverbs_attr_bundle *attrs);
@@ -2730,6 +2755,7 @@ struct ib_device_ops {
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_counters);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
+	DECLARE_RDMA_OBJ_SIZE(ib_dmah);
 	DECLARE_RDMA_OBJ_SIZE(ib_mw);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 	DECLARE_RDMA_OBJ_SIZE(ib_qp);
