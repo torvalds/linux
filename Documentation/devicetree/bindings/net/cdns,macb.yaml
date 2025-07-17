@@ -115,6 +115,13 @@ properties:
   power-domains:
     maxItems: 1
 
+  cdns,refclk-ext:
+    type: boolean
+    description:
+      This selects if the REFCLK for RMII is provided by an external source.
+      For RGMII mode this selects if the 125MHz REF clock is provided by an external
+      source.
+
   cdns,rx-watermark:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
