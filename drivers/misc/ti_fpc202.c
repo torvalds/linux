@@ -125,9 +125,6 @@ static void fpc202_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	int ret;
 	u8 val;
 
-	if (fpc202_gpio_get_dir(offset) == GPIO_LINE_DIRECTION_IN)
-		return;
-
 	ret = fpc202_read(priv, FPC202_REG_OUT_A_OUT_B_VAL);
 	if (ret < 0) {
 		dev_err(&priv->client->dev, "Failed to set GPIO %d value! err %d\n", offset, ret);
