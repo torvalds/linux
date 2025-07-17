@@ -464,7 +464,7 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 		/* Devices marked as raw-only are neither configured
 		 * nor unconfigured controllers.
 		 */
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
+		if (hci_test_quirk(d, HCI_QUIRK_RAW_DEVICE))
 			continue;
 
 		if (!hci_dev_test_flag(d, HCI_UNCONFIGURED)) {
@@ -522,7 +522,7 @@ static int read_unconf_index_list(struct sock *sk, struct hci_dev *hdev,
 		/* Devices marked as raw-only are neither configured
 		 * nor unconfigured controllers.
 		 */
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
+		if (hci_test_quirk(d, HCI_QUIRK_RAW_DEVICE))
 			continue;
 
 		if (hci_dev_test_flag(d, HCI_UNCONFIGURED)) {
@@ -576,7 +576,7 @@ static int read_ext_index_list(struct sock *sk, struct hci_dev *hdev,
 		/* Devices marked as raw-only are neither configured
 		 * nor unconfigured controllers.
 		 */
-		if (test_bit(HCI_QUIRK_RAW_DEVICE, &d->quirks))
+		if (hci_test_quirk(d, HCI_QUIRK_RAW_DEVICE))
 			continue;
 
 		if (hci_dev_test_flag(d, HCI_UNCONFIGURED))
@@ -612,12 +612,12 @@ static int read_ext_index_list(struct sock *sk, struct hci_dev *hdev,
 
 static bool is_configured(struct hci_dev *hdev)
 {
-	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) &&
+	if (hci_test_quirk(hdev, HCI_QUIRK_EXTERNAL_CONFIG) &&
 	    !hci_dev_test_flag(hdev, HCI_EXT_CONFIGURED))
 		return false;
 
-	if ((test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks) ||
-	     test_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks)) &&
+	if ((hci_test_quirk(hdev, HCI_QUIRK_INVALID_BDADDR) ||
+	     hci_test_quirk(hdev, HCI_QUIRK_USE_BDADDR_PROPERTY)) &&
 	    !bacmp(&hdev->public_addr, BDADDR_ANY))
 		return false;
 
@@ -628,12 +628,12 @@ static __le32 get_missing_options(struct hci_dev *hdev)
 {
 	u32 options = 0;
 
-	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) &&
+	if (hci_test_quirk(hdev, HCI_QUIRK_EXTERNAL_CONFIG) &&
 	    !hci_dev_test_flag(hdev, HCI_EXT_CONFIGURED))
 		options |= MGMT_OPTION_EXTERNAL_CONFIG;
 
-	if ((test_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks) ||
-	     test_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks)) &&
+	if ((hci_test_quirk(hdev, HCI_QUIRK_INVALID_BDADDR) ||
+	     hci_test_quirk(hdev, HCI_QUIRK_USE_BDADDR_PROPERTY)) &&
 	    !bacmp(&hdev->public_addr, BDADDR_ANY))
 		options |= MGMT_OPTION_PUBLIC_ADDRESS;
 
@@ -669,7 +669,7 @@ static int read_config_info(struct sock *sk, struct hci_dev *hdev,
 	memset(&rp, 0, sizeof(rp));
 	rp.manufacturer = cpu_to_le16(hdev->manufacturer);
 
-	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_EXTERNAL_CONFIG))
 		options |= MGMT_OPTION_EXTERNAL_CONFIG;
 
 	if (hdev->set_bdaddr)
@@ -828,8 +828,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 		if (lmp_sc_capable(hdev))
 			settings |= MGMT_SETTING_SECURE_CONN;
 
-		if (test_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
-			     &hdev->quirks))
+		if (hci_test_quirk(hdev, HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED))
 			settings |= MGMT_SETTING_WIDEBAND_SPEECH;
 	}
 
@@ -841,8 +840,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 		settings |= MGMT_SETTING_ADVERTISING;
 	}
 
-	if (test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks) ||
-	    hdev->set_bdaddr)
+	if (hci_test_quirk(hdev, HCI_QUIRK_EXTERNAL_CONFIG) || hdev->set_bdaddr)
 		settings |= MGMT_SETTING_CONFIGURATION;
 
 	if (cis_central_capable(hdev))
@@ -4307,7 +4305,7 @@ static int set_wideband_speech(struct sock *sk, struct hci_dev *hdev,
 
 	bt_dev_dbg(hdev, "sock %p", sk);
 
-	if (!test_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks))
+	if (!hci_test_quirk(hdev, HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED))
 		return mgmt_cmd_status(sk, hdev->id,
 				       MGMT_OP_SET_WIDEBAND_SPEECH,
 				       MGMT_STATUS_NOT_SUPPORTED);
@@ -7935,7 +7933,7 @@ static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_EXTERNAL_CONFIG,
 				         MGMT_STATUS_INVALID_PARAMS);
 
-	if (!test_bit(HCI_QUIRK_EXTERNAL_CONFIG, &hdev->quirks))
+	if (!hci_test_quirk(hdev, HCI_QUIRK_EXTERNAL_CONFIG))
 		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_EXTERNAL_CONFIG,
 				       MGMT_STATUS_NOT_SUPPORTED);
 
@@ -9338,7 +9336,7 @@ void mgmt_index_added(struct hci_dev *hdev)
 {
 	struct mgmt_ev_ext_index ev;
 
-	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_RAW_DEVICE))
 		return;
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED)) {
@@ -9362,7 +9360,7 @@ void mgmt_index_removed(struct hci_dev *hdev)
 	struct mgmt_ev_ext_index ev;
 	struct cmd_lookup match = { NULL, hdev, MGMT_STATUS_INVALID_INDEX };
 
-	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+	if (hci_test_quirk(hdev, HCI_QUIRK_RAW_DEVICE))
 		return;
 
 	mgmt_pending_foreach(0, hdev, true, cmd_complete_rsp, &match);
@@ -10089,7 +10087,7 @@ static bool is_filter_match(struct hci_dev *hdev, s8 rssi, u8 *eir,
 	if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
 	    (rssi == HCI_RSSI_INVALID ||
 	    (rssi < hdev->discovery.rssi &&
-	     !test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks))))
+	     !hci_test_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER))))
 		return  false;
 
 	if (hdev->discovery.uuid_count != 0) {
@@ -10107,7 +10105,7 @@ static bool is_filter_match(struct hci_dev *hdev, s8 rssi, u8 *eir,
 	/* If duplicate filtering does not report RSSI changes, then restart
 	 * scanning to ensure updated result with updated RSSI values.
 	 */
-	if (test_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks)) {
+	if (hci_test_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER)) {
 		/* Validate RSSI value against the RSSI threshold once more. */
 		if (hdev->discovery.rssi != HCI_RSSI_INVALID &&
 		    rssi < hdev->discovery.rssi)

@@ -88,7 +88,7 @@ int btintel_check_bdaddr(struct hci_dev *hdev)
 	if (!bacmp(&bda->bdaddr, BDADDR_INTEL)) {
 		bt_dev_err(hdev, "Found Intel default device address (%pMR)",
 			   &bda->bdaddr);
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_INVALID_BDADDR);
 	}
 
 	kfree_skb(skb);
@@ -2027,7 +2027,7 @@ static int btintel_download_fw(struct hci_dev *hdev,
 	 */
 	if (!bacmp(&params->otp_bdaddr, BDADDR_ANY)) {
 		bt_dev_info(hdev, "No device address configured");
-		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_INVALID_BDADDR);
 	}
 
 download:
@@ -2295,7 +2295,7 @@ static int btintel_prepare_fw_download_tlv(struct hci_dev *hdev,
 		 */
 		if (!bacmp(&ver->otp_bd_addr, BDADDR_ANY)) {
 			bt_dev_info(hdev, "No device address configured");
-			set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
+			hci_set_quirk(hdev, HCI_QUIRK_INVALID_BDADDR);
 		}
 	}
 
@@ -2670,7 +2670,7 @@ static u8 btintel_classify_pkt_type(struct hci_dev *hdev, struct sk_buff *skb)
 	 * Distinguish ISO data packets form ACL data packets
 	 * based on their connection handle value range.
 	 */
-	if (hci_skb_pkt_type(skb) == HCI_ACLDATA_PKT) {
+	if (iso_capable(hdev) && hci_skb_pkt_type(skb) == HCI_ACLDATA_PKT) {
 		__u16 handle = __le16_to_cpu(hci_acl_hdr(skb)->handle);
 
 		if (hci_handle(handle) >= BTINTEL_ISODATA_HANDLE_BASE)
@@ -3435,9 +3435,9 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 	}
 
 	/* Apply the common HCI quirks for Intel device */
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
-	set_bit(HCI_QUIRK_NON_PERSISTENT_DIAG, &hdev->quirks);
+	hci_set_quirk(hdev, HCI_QUIRK_STRICT_DUPLICATE_FILTER);
+	hci_set_quirk(hdev, HCI_QUIRK_SIMULTANEOUS_DISCOVERY);
+	hci_set_quirk(hdev, HCI_QUIRK_NON_PERSISTENT_DIAG);
 
 	/* Set up the quality report callback for Intel devices */
 	hdev->set_quality_report = btintel_set_quality_report;
@@ -3475,8 +3475,8 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 			 */
 			if (!btintel_test_flag(hdev,
 					       INTEL_ROM_LEGACY_NO_WBS_SUPPORT))
-				set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
-					&hdev->quirks);
+				hci_set_quirk(hdev,
+					      HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED);
 
 			err = btintel_legacy_rom_setup(hdev, &ver);
 			break;
@@ -3491,11 +3491,11 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 			 *
 			 * All Legacy bootloader devices support WBS
 			 */
-			set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
-				&hdev->quirks);
+			hci_set_quirk(hdev,
+				      HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED);
 
 			/* These variants don't seem to support LE Coded PHY */
-			set_bit(HCI_QUIRK_BROKEN_LE_CODED, &hdev->quirks);
+			hci_set_quirk(hdev, HCI_QUIRK_BROKEN_LE_CODED);
 
 			/* Setup MSFT Extension support */
 			btintel_set_msft_opcode(hdev, ver.hw_variant);
@@ -3571,10 +3571,10 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		 *
 		 * All Legacy bootloader devices support WBS
 		 */
-		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED);
 
 		/* These variants don't seem to support LE Coded PHY */
-		set_bit(HCI_QUIRK_BROKEN_LE_CODED, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_BROKEN_LE_CODED);
 
 		/* Setup MSFT Extension support */
 		btintel_set_msft_opcode(hdev, ver.hw_variant);
@@ -3600,7 +3600,7 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		 *
 		 * All TLV based devices support WBS
 		 */
-		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
+		hci_set_quirk(hdev, HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED);
 
 		/* Setup MSFT Extension support */
 		btintel_set_msft_opcode(hdev,

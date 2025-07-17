@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -754,7 +754,7 @@ struct iwl_lari_config_change_cmd_v10 {
  *	according to the BIOS definitions.
  *	For LARI cmd version 11 - bits 0:4 are supported.
  *	For LARI cmd version 12 - bits 0:6 are supported and bits 7:31 are
- *	reserved. No need to mask out the reserved bits.
+ *	reserved.
  * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
  *	Each bit represents a set of channels in a specific band that should be
  *	disabled
