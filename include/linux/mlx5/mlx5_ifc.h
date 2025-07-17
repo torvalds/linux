@@ -420,7 +420,8 @@ struct mlx5_ifc_flow_table_fields_supported_bits {
 
 /* Table 2170 - Flow Table Fields Supported 2 Format */
 struct mlx5_ifc_flow_table_fields_supported_2_bits {
-	u8         reserved_at_0[0x2];
+	u8         inner_l4_type_ext[0x1];
+	u8         outer_l4_type_ext[0x1];
 	u8         inner_l4_type[0x1];
 	u8         outer_l4_type[0x1];
 	u8         reserved_at_4[0xa];
@@ -429,7 +430,11 @@ struct mlx5_ifc_flow_table_fields_supported_2_bits {
 	u8         tunnel_header_0_1[0x1];
 	u8         reserved_at_11[0xf];
 
-	u8         reserved_at_20[0x60];
+	u8         reserved_at_20[0xf];
+	u8         ipsec_next_header[0x1];
+	u8         reserved_at_30[0x10];
+
+	u8         reserved_at_40[0x40];
 };
 
 struct mlx5_ifc_flow_table_prop_layout_bits {
@@ -552,6 +557,13 @@ enum {
 	MLX5_PACKET_L4_TYPE_UDP,
 };
 
+enum {
+	MLX5_PACKET_L4_TYPE_EXT_NONE,
+	MLX5_PACKET_L4_TYPE_EXT_TCP,
+	MLX5_PACKET_L4_TYPE_EXT_UDP,
+	MLX5_PACKET_L4_TYPE_EXT_ICMP,
+};
+
 struct mlx5_ifc_fte_match_set_lyr_2_4_bits {
 	u8         smac_47_16[0x20];
 
@@ -578,10 +590,10 @@ struct mlx5_ifc_fte_match_set_lyr_2_4_bits {
 	u8         tcp_dport[0x10];
 
 	u8         l4_type[0x2];
-	u8         reserved_at_c2[0xe];
+	u8         l4_type_ext[0x4];
+	u8         reserved_at_c6[0xa];
 	u8         ipv4_ihl[0x4];
-	u8         reserved_at_c4[0x4];
-
+	u8         reserved_at_d4[0x4];
 	u8         ttl_hoplimit[0x8];
 
 	u8         udp_sport[0x10];
@@ -689,10 +701,9 @@ struct mlx5_ifc_fte_match_set_misc2_bits {
 	u8         metadata_reg_a[0x20];
 
 	u8         reserved_at_1a0[0x8];
-
 	u8         macsec_syndrome[0x8];
 	u8         ipsec_syndrome[0x8];
-	u8         reserved_at_1b8[0x8];
+	u8         ipsec_next_header[0x8];
 
 	u8         reserved_at_1c0[0x40];
 };
