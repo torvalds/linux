@@ -377,6 +377,8 @@ enum {
 	 * This quirk must be set before hci_register_dev is called.
 	 */
 	HCI_QUIRK_BROKEN_READ_PAGE_SCAN_TYPE,
+
+	__HCI_NUM_QUIRKS,
 };
 
 /* HCI device flags */

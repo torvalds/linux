@@ -1060,7 +1060,6 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 	}
 
 	rx_tid = &peer->rx_tid[tid];
-	paddr_aligned = rx_tid->qbuf.paddr_aligned;
 	/* Update the tid queue if it is already setup */
 	if (rx_tid->active) {
 		ret = ath12k_peer_rx_tid_reo_update(ar, peer, rx_tid,
@@ -1072,6 +1071,7 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 		}
 
 		if (!ab->hw_params->reoq_lut_support) {
+			paddr_aligned = rx_tid->qbuf.paddr_aligned;
 			ret = ath12k_wmi_peer_rx_reorder_queue_setup(ar, vdev_id,
 								     peer_mac,
 								     paddr_aligned, tid,
@@ -1098,6 +1098,7 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 		return ret;
 	}
 
+	paddr_aligned = rx_tid->qbuf.paddr_aligned;
 	if (ab->hw_params->reoq_lut_support) {
 		/* Update the REO queue LUT at the corresponding peer id
 		 * and tid with qaddr.

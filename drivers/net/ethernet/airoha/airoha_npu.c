@@ -401,12 +401,13 @@ struct airoha_npu *airoha_npu_get(struct device *dev, dma_addr_t *stats_addr)
 		return ERR_PTR(-ENODEV);
 
 	pdev = of_find_device_by_node(np);
-	of_node_put(np);
 
 	if (!pdev) {
 		dev_err(dev, "cannot find device node %s\n", np->name);
+		of_node_put(np);
 		return ERR_PTR(-ENODEV);
 	}
+	of_node_put(np);
 
 	if (!try_module_get(THIS_MODULE)) {
 		dev_err(dev, "failed to get the device driver module\n");
