@@ -173,7 +173,6 @@ static void td_init_cpuid_entry2(struct kvm_cpuid_entry2 *entry, unsigned char i
 	tdx_clear_unsupported_cpuid(entry);
 }
 
-#define TDVMCALLINFO_GET_QUOTE				BIT(0)
 #define TDVMCALLINFO_SETUP_EVENT_NOTIFY_INTERRUPT	BIT(1)
 
 static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
@@ -192,7 +191,6 @@ static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
 	caps->cpuid.nent = td_conf->num_cpuid_config;
 
 	caps->user_tdvmcallinfo_1_r11 =
-		TDVMCALLINFO_GET_QUOTE |
 		TDVMCALLINFO_SETUP_EVENT_NOTIFY_INTERRUPT;
 
 	for (i = 0; i < td_conf->num_cpuid_config; i++)
