@@ -13,7 +13,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on X1E80100
 
-  See also:: include/dt-bindings/clock/qcom,x1e80100-gcc.h
+  See also: include/dt-bindings/clock/qcom,x1e80100-gcc.h
 
 properties:
   compatible:
