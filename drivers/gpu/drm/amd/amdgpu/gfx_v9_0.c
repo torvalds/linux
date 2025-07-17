@@ -2650,6 +2650,9 @@ static void gfx_v9_0_init_sq_config(struct amdgpu_device *adev)
 				!READ_ONCE(adev->barrier_has_auto_waitcnt));
 		WREG32_SOC15(GC, 0, mmSQ_CONFIG, tmp);
 		break;
+	case IP_VERSION(9, 4, 2):
+		gfx_v9_4_2_init_sq(adev);
+		break;
 	default:
 		break;
 	}
