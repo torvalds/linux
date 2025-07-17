@@ -9994,6 +9994,10 @@ struct mlx5_ifc_pude_reg_bits {
 	u8         reserved_at_20[0x60];
 };
 
+enum {
+	MLX5_PTYS_CONNECTOR_TYPE_PORT_DA = 0x7,
+};
+
 struct mlx5_ifc_ptys_reg_bits {
 	u8         reserved_at_0[0x1];
 	u8         an_disable_admin[0x1];
@@ -10030,7 +10034,8 @@ struct mlx5_ifc_ptys_reg_bits {
 	u8         ib_link_width_oper[0x10];
 	u8         ib_proto_oper[0x10];
 
-	u8         reserved_at_160[0x1c];
+	u8         reserved_at_160[0x8];
+	u8         lane_rate_oper[0x14];
 	u8         connector_type[0x4];
 
 	u8         eth_proto_lp_advertise[0x20];
@@ -10485,7 +10490,8 @@ struct mlx5_ifc_pfcc_reg_bits {
 	u8	   buf_ownership[0x2];
 	u8	   reserved_at_6[0x2];
 	u8         local_port[0x8];
-	u8         reserved_at_10[0xb];
+	u8         reserved_at_10[0xa];
+	u8	   cable_length_mask[0x1];
 	u8         ppan_mask_n[0x1];
 	u8         minor_stall_mask[0x1];
 	u8         critical_stall_mask[0x1];
@@ -10514,7 +10520,10 @@ struct mlx5_ifc_pfcc_reg_bits {
 	u8         device_stall_minor_watermark[0x10];
 	u8         device_stall_critical_watermark[0x10];
 
-	u8         reserved_at_a0[0x60];
+	u8	   reserved_at_a0[0x18];
+	u8	   cable_length[0x8];
+
+	u8         reserved_at_c0[0x40];
 };
 
 struct mlx5_ifc_pelc_reg_bits {
@@ -10615,7 +10624,9 @@ struct mlx5_ifc_mtutc_reg_bits {
 struct mlx5_ifc_pcam_enhanced_features_bits {
 	u8         reserved_at_0[0x10];
 	u8         ppcnt_recovery_counters[0x1];
-	u8         reserved_at_11[0xc];
+	u8         reserved_at_11[0x7];
+	u8	   cable_length[0x1];
+	u8	   reserved_at_19[0x4];
 	u8         fec_200G_per_lane_in_pplm[0x1];
 	u8         reserved_at_1e[0x2a];
 	u8         fec_100G_per_lane_in_pplm[0x1];
