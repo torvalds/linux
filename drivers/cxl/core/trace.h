@@ -887,6 +887,111 @@ TRACE_EVENT(cxl_memory_module,
 	)
 );
 
+/*
+ * Memory Sparing Event Record - MSER
+ *
+ * CXL rev 3.2 section 8.2.10.2.1.4; Table 8-60
+ */
+#define CXL_MSER_QUERY_RESOURCE_FLAG			BIT(0)
+#define CXL_MSER_HARD_SPARING_FLAG			BIT(1)
+#define CXL_MSER_DEV_INITED_FLAG			BIT(2)
+#define show_mem_sparing_flags(flags)	__print_flags(flags, "|",	\
+	{ CXL_MSER_QUERY_RESOURCE_FLAG,		"Query Resources" },	\
+	{ CXL_MSER_HARD_SPARING_FLAG,		"Hard Sparing" },	\
+	{ CXL_MSER_DEV_INITED_FLAG,	"Device Initiated Sparing" }	\
+)
+
+#define CXL_MSER_VALID_CHANNEL				BIT(0)
+#define CXL_MSER_VALID_RANK				BIT(1)
+#define CXL_MSER_VALID_NIBBLE				BIT(2)
+#define CXL_MSER_VALID_BANK_GROUP			BIT(3)
+#define CXL_MSER_VALID_BANK				BIT(4)
+#define CXL_MSER_VALID_ROW				BIT(5)
+#define CXL_MSER_VALID_COLUMN				BIT(6)
+#define CXL_MSER_VALID_COMPONENT_ID			BIT(7)
+#define CXL_MSER_VALID_COMPONENT_ID_FORMAT		BIT(8)
+#define CXL_MSER_VALID_SUB_CHANNEL			BIT(9)
+#define show_mem_sparing_valid_flags(flags)	__print_flags(flags, "|",		\
+	{ CXL_MSER_VALID_CHANNEL,			"CHANNEL" },			\
+	{ CXL_MSER_VALID_RANK,				"RANK" },			\
+	{ CXL_MSER_VALID_NIBBLE,			"NIBBLE" },			\
+	{ CXL_MSER_VALID_BANK_GROUP,			"BANK GROUP" },			\
+	{ CXL_MSER_VALID_BANK,				"BANK" },			\
+	{ CXL_MSER_VALID_ROW,				"ROW" },			\
+	{ CXL_MSER_VALID_COLUMN,			"COLUMN" },			\
+	{ CXL_MSER_VALID_COMPONENT_ID,			"COMPONENT ID" },		\
+	{ CXL_MSER_VALID_COMPONENT_ID_FORMAT,		"COMPONENT ID PLDM FORMAT" },	\
+	{ CXL_MSER_VALID_SUB_CHANNEL,			"SUB CHANNEL" }			\
+)
+
+TRACE_EVENT(cxl_memory_sparing,
+
+	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
+		 struct cxl_event_mem_sparing *rec),
+
+	TP_ARGS(cxlmd, log, rec),
+
+	TP_STRUCT__entry(
+		CXL_EVT_TP_entry
+
+		/* Memory Sparing Event */
+		__field(u8, flags)
+		__field(u8, result)
+		__field(u16, validity_flags)
+		__field(u16, res_avail)
+		__field(u8, channel)
+		__field(u8, rank)
+		__field(u32, nibble_mask)
+		__field(u8, bank_group)
+		__field(u8, bank)
+		__field(u32, row)
+		__field(u16, column)
+		__field(u8, sub_channel)
+		__array(u8, comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE)
+	),
+
+	TP_fast_assign(
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
+		__entry->hdr_uuid = CXL_EVENT_MEM_SPARING_UUID;
+
+		/* Memory Sparing Event */
+		__entry->flags = rec->flags;
+		__entry->result = rec->result;
+		__entry->validity_flags = le16_to_cpu(rec->validity_flags);
+		__entry->res_avail = le16_to_cpu(rec->res_avail);
+		__entry->channel = rec->channel;
+		__entry->rank = rec->rank;
+		__entry->nibble_mask = get_unaligned_le24(rec->nibble_mask);
+		__entry->bank_group = rec->bank_group;
+		__entry->bank = rec->bank;
+		__entry->row = get_unaligned_le24(rec->row);
+		__entry->column = le16_to_cpu(rec->column);
+		__entry->sub_channel = rec->sub_channel;
+		memcpy(__entry->comp_id, &rec->component_id,
+		       CXL_EVENT_GEN_MED_COMP_ID_SIZE);
+	),
+
+	CXL_EVT_TP_printk("flags='%s' result=%u validity_flags='%s' " \
+		"spare resource avail=%u channel=%u rank=%u " \
+		"nibble_mask=%x bank_group=%u bank=%u " \
+		"row=%u column=%u sub_channel=%u " \
+		"comp_id=%s comp_id_pldm_valid_flags='%s' " \
+		"pldm_entity_id=%s pldm_resource_id=%s",
+		show_mem_sparing_flags(__entry->flags),
+		__entry->result,
+		show_mem_sparing_valid_flags(__entry->validity_flags),
+		__entry->res_avail, __entry->channel, __entry->rank,
+		__entry->nibble_mask, __entry->bank_group, __entry->bank,
+		__entry->row, __entry->column, __entry->sub_channel,
+		__print_hex(__entry->comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE),
+		show_comp_id_pldm_flags(__entry->comp_id[0]),
+		show_pldm_entity_id(__entry->validity_flags, CXL_MSER_VALID_COMPONENT_ID,
+				    CXL_MSER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
+		show_pldm_resource_id(__entry->validity_flags, CXL_MSER_VALID_COMPONENT_ID,
+				      CXL_MSER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id)
+	)
+);
+
 #define show_poison_trace_type(type)			\
 	__print_symbolic(type,				\
 	{ CXL_POISON_TRACE_LIST,	"List"   },	\

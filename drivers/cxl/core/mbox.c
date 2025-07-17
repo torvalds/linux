@@ -899,6 +899,10 @@ void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 		trace_cxl_generic_event(cxlmd, type, uuid, &evt->generic);
 		return;
 	}
+	if (event_type == CXL_CPER_EVENT_MEM_SPARING) {
+		trace_cxl_memory_sparing(cxlmd, type, &evt->mem_sparing);
+		return;
+	}
 
 	if (trace_cxl_general_media_enabled() || trace_cxl_dram_enabled()) {
 		u64 dpa, hpa = ULLONG_MAX, hpa_alias = ULLONG_MAX;
@@ -970,6 +974,8 @@ static void __cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 		ev_type = CXL_CPER_EVENT_DRAM;
 	else if (uuid_equal(uuid, &CXL_EVENT_MEM_MODULE_UUID))
 		ev_type = CXL_CPER_EVENT_MEM_MODULE;
+	else if (uuid_equal(uuid, &CXL_EVENT_MEM_SPARING_UUID))
+		ev_type = CXL_CPER_EVENT_MEM_SPARING;
 
 	cxl_event_trace_record(cxlmd, type, ev_type, uuid, &record->event);
 }
