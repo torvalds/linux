@@ -1166,8 +1166,7 @@ static u32 skl_plane_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return plane_ctl;
 }
 
-static u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
-			 const struct intel_plane_state *plane_state)
+static u32 skl_plane_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1225,8 +1224,7 @@ static u32 glk_plane_color_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return plane_color_ctl;
 }
 
-static u32 glk_plane_color_ctl(const struct intel_crtc_state *crtc_state,
-			       const struct intel_plane_state *plane_state)
+static u32 glk_plane_color_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -2355,11 +2353,10 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 		plane_state->damage = DRM_RECT_INIT(0, 0, 0, 0);
 	}
 
-	plane_state->ctl = skl_plane_ctl(crtc_state, plane_state);
+	plane_state->ctl = skl_plane_ctl(plane_state);
 
 	if (DISPLAY_VER(display) >= 10)
-		plane_state->color_ctl = glk_plane_color_ctl(crtc_state,
-							     plane_state);
+		plane_state->color_ctl = glk_plane_color_ctl(plane_state);
 
 	if (intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
 	    icl_is_hdr_plane(display, plane->id))

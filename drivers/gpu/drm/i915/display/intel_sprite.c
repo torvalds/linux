@@ -264,8 +264,7 @@ static u32 vlv_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return sprctl;
 }
 
-static u32 vlv_sprite_ctl(const struct intel_crtc_state *crtc_state,
-			  const struct intel_plane_state *plane_state)
+static u32 vlv_sprite_ctl(const struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
@@ -660,8 +659,7 @@ static bool ivb_need_sprite_gamma(const struct intel_plane_state *plane_state)
 		(display->platform.ivybridge || display->platform.haswell);
 }
 
-static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
-			  const struct intel_plane_state *plane_state)
+static u32 ivb_sprite_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1010,8 +1008,7 @@ static u32 g4x_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return dvscntr;
 }
 
-static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
-			  const struct intel_plane_state *plane_state)
+static u32 g4x_sprite_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
@@ -1378,9 +1375,9 @@ g4x_sprite_check(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	if (DISPLAY_VER(display) >= 7)
-		plane_state->ctl = ivb_sprite_ctl(crtc_state, plane_state);
+		plane_state->ctl = ivb_sprite_ctl(plane_state);
 	else
-		plane_state->ctl = g4x_sprite_ctl(crtc_state, plane_state);
+		plane_state->ctl = g4x_sprite_ctl(plane_state);
 
 	return 0;
 }
@@ -1430,7 +1427,7 @@ vlv_sprite_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	plane_state->ctl = vlv_sprite_ctl(crtc_state, plane_state);
+	plane_state->ctl = vlv_sprite_ctl(plane_state);
 
 	return 0;
 }

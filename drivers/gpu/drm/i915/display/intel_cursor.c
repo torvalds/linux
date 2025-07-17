@@ -205,8 +205,7 @@ static u32 i845_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return cntl;
 }
 
-static u32 i845_cursor_ctl(const struct intel_crtc_state *crtc_state,
-			   const struct intel_plane_state *plane_state)
+static u32 i845_cursor_ctl(const struct intel_plane_state *plane_state)
 {
 	return CURSOR_ENABLE |
 		CURSOR_FORMAT_ARGB |
@@ -266,7 +265,7 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
-	plane_state->ctl = i845_cursor_ctl(crtc_state, plane_state);
+	plane_state->ctl = i845_cursor_ctl(plane_state);
 
 	return 0;
 }
@@ -398,8 +397,7 @@ static u32 i9xx_cursor_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return cntl;
 }
 
-static u32 i9xx_cursor_ctl(const struct intel_crtc_state *crtc_state,
-			   const struct intel_plane_state *plane_state)
+static u32 i9xx_cursor_ctl(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
 	u32 cntl = 0;
@@ -526,7 +524,7 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
-	plane_state->ctl = i9xx_cursor_ctl(crtc_state, plane_state);
+	plane_state->ctl = i9xx_cursor_ctl(plane_state);
 
 	return 0;
 }
