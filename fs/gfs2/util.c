@@ -339,7 +339,7 @@ void gfs2_withdraw(struct gfs2_sbd *sdp)
 
 		if (lm->lm_unmount) {
 			fs_err(sdp, "telling LM to unmount\n");
-			lm->lm_unmount(sdp);
+			lm->lm_unmount(sdp, false);
 		}
 		fs_err(sdp, "File system withdrawn\n");
 		dump_stack();

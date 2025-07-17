@@ -136,7 +136,7 @@ struct lm_lockops {
 	void (*lm_first_done) (struct gfs2_sbd *sdp);
 	void (*lm_recovery_result) (struct gfs2_sbd *sdp, unsigned int jid,
 				    unsigned int result);
-	void (*lm_unmount) (struct gfs2_sbd *sdp);
+	void (*lm_unmount) (struct gfs2_sbd *sdp, bool clean);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
 	void (*lm_put_lock) (struct gfs2_glock *gl);
 	int (*lm_lock) (struct gfs2_glock *gl, unsigned int req_state,

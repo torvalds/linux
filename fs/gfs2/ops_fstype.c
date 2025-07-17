@@ -1041,7 +1041,7 @@ void gfs2_lm_unmount(struct gfs2_sbd *sdp)
 {
 	const struct lm_lockops *lm = sdp->sd_lockstruct.ls_ops;
 	if (!gfs2_withdrawing_or_withdrawn(sdp) && lm->lm_unmount)
-		lm->lm_unmount(sdp);
+		lm->lm_unmount(sdp, true);
 }
 
 static int wait_on_journal(struct gfs2_sbd *sdp)

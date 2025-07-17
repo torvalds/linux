@@ -1438,7 +1438,15 @@ static void gdlm_first_done(struct gfs2_sbd *sdp)
 		fs_err(sdp, "mount first_done error %d\n", error);
 }
 
-static void gdlm_unmount(struct gfs2_sbd *sdp)
+/*
+ * gdlm_unmount - release our lockspace
+ * @sdp: the superblock
+ * @clean: Indicates whether or not the remaining nodes in the cluster should
+ *	   perform recovery.  Recovery is necessary when a node withdraws and
+ *	   its journal remains dirty.  Recovery isn't necessary when a node
+ *	   cleanly unmounts a filesystem.
+ */
+static void gdlm_unmount(struct gfs2_sbd *sdp, bool clean)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
@@ -1456,7 +1464,9 @@ static void gdlm_unmount(struct gfs2_sbd *sdp)
 release:
 	down_write(&ls->ls_sem);
 	if (ls->ls_dlm) {
-		dlm_release_lockspace(ls->ls_dlm, DLM_RELEASE_NORMAL);
+		dlm_release_lockspace(ls->ls_dlm,
+				      clean ? DLM_RELEASE_NORMAL :
+					      DLM_RELEASE_RECOVER);
 		ls->ls_dlm = NULL;
 	}
 	up_write(&ls->ls_sem);
