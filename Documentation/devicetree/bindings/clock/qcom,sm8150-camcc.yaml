@@ -13,7 +13,7 @@ description: |
   Qualcomm camera clock control module provides the clocks, resets and
   power domains on SM8150.
 
-  See also:: include/dt-bindings/clock/qcom,sm8150-camcc.h
+  See also: include/dt-bindings/clock/qcom,sm8150-camcc.h
 
 properties:
   compatible:

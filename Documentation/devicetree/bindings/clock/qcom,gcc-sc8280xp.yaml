@@ -13,7 +13,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and
   power domains on SC8280xp.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-sc8280xp.h
+  See also: include/dt-bindings/clock/qcom,gcc-sc8280xp.h
 
 properties:
   compatible:

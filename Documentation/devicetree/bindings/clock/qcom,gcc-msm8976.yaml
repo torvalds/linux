@@ -14,7 +14,7 @@ description: |
   Qualcomm global clock control module provides the clocks, resets and power
   domains on MSM8976.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-msm8976.h
+  See also: include/dt-bindings/clock/qcom,gcc-msm8976.h
 
 properties:
   compatible:
