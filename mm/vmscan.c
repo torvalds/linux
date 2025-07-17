@@ -5561,6 +5561,7 @@ static int run_cmd(char cmd, int memcg_id, int nid, unsigned long seq,
 	if (memcg_id != mem_cgroup_id(memcg))
 		goto done;
 
+	sc->target_mem_cgroup = memcg;
 	lruvec = get_lruvec(memcg, nid);
 
 	if (swappiness < MIN_SWAPPINESS)
@@ -5597,6 +5598,7 @@ static ssize_t lru_gen_seq_write(struct file *file, const char __user *src,
 		.may_swap = true,
 		.reclaim_idx = MAX_NR_ZONES - 1,
 		.gfp_mask = GFP_KERNEL,
+		.proactive = true,
 	};
 
 	buf = kvmalloc(len + 1, GFP_KERNEL);
