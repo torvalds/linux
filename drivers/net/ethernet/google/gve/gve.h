@@ -399,11 +399,17 @@ enum gve_packet_state {
 	GVE_PACKET_STATE_PENDING_REINJECT_COMPL,
 	/* No valid completion received within the specified timeout. */
 	GVE_PACKET_STATE_TIMED_OUT_COMPL,
+	/* XSK pending packet has received a packet/reinjection completion, or
+	 * has timed out. At this point, the pending packet can be counted by
+	 * xsk_tx_complete and freed.
+	 */
+	GVE_PACKET_STATE_XSK_COMPLETE,
 };
 
 enum gve_tx_pending_packet_dqo_type {
 	GVE_TX_PENDING_PACKET_DQO_SKB,
-	GVE_TX_PENDING_PACKET_DQO_XDP_FRAME
+	GVE_TX_PENDING_PACKET_DQO_XDP_FRAME,
+	GVE_TX_PENDING_PACKET_DQO_XSK,
 };
 
 struct gve_tx_pending_packet_dqo {
@@ -440,10 +446,10 @@ struct gve_tx_pending_packet_dqo {
 	/* Identifies the current state of the packet as defined in
 	 * `enum gve_packet_state`.
 	 */
-	u8 state : 2;
+	u8 state : 3;
 
 	/* gve_tx_pending_packet_dqo_type */
-	u8 type : 1;
+	u8 type : 2;
 
 	/* If packet is an outstanding miss completion, then the packet is
 	 * freed if the corresponding re-injection completion is not received
@@ -512,6 +518,8 @@ struct gve_tx_ring {
 				/* Cached value of `dqo_compl.free_tx_qpl_buf_cnt` */
 				u32 free_tx_qpl_buf_cnt;
 			};
+
+			atomic_t xsk_reorder_queue_tail;
 		} dqo_tx;
 	};
 
@@ -544,6 +552,9 @@ struct gve_tx_ring {
 
 			/* Last TX ring index fetched by HW */
 			atomic_t hw_tx_head;
+
+			u16 xsk_reorder_queue_head;
+			u16 xsk_reorder_queue_tail;
 
 			/* List to track pending packets which received a miss
 			 * completion but not a corresponding reinjection.
@@ -597,6 +608,8 @@ struct gve_tx_ring {
 
 			struct gve_tx_pending_packet_dqo *pending_packets;
 			s16 num_pending_packets;
+
+			u16 *xsk_reorder_queue;
 
 			u32 complq_mask; /* complq size is complq_mask + 1 */
 

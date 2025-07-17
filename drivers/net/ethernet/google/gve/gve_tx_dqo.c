@@ -13,6 +13,7 @@
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
+#include <net/xdp_sock_drv.h>
 
 /* Returns true if tx_bufs are available. */
 static bool gve_has_free_tx_qpl_bufs(struct gve_tx_ring *tx, int count)
@@ -241,6 +242,9 @@ static void gve_tx_free_ring_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 		tx->dqo.tx_ring = NULL;
 	}
 
+	kvfree(tx->dqo.xsk_reorder_queue);
+	tx->dqo.xsk_reorder_queue = NULL;
+
 	kvfree(tx->dqo.pending_packets);
 	tx->dqo.pending_packets = NULL;
 
@@ -345,6 +349,17 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 
 	tx->dqo.pending_packets[tx->dqo.num_pending_packets - 1].next = -1;
 	atomic_set_release(&tx->dqo_compl.free_pending_packets, -1);
+
+	/* Only alloc xsk pool for XDP queues */
+	if (idx >= cfg->qcfg->num_queues && cfg->num_xdp_rings) {
+		tx->dqo.xsk_reorder_queue =
+			kvcalloc(tx->dqo.complq_mask + 1,
+				 sizeof(tx->dqo.xsk_reorder_queue[0]),
+				 GFP_KERNEL);
+		if (!tx->dqo.xsk_reorder_queue)
+			goto err;
+	}
+
 	tx->dqo_compl.miss_completions.head = -1;
 	tx->dqo_compl.miss_completions.tail = -1;
 	tx->dqo_compl.timed_out_completions.head = -1;
@@ -992,6 +1007,38 @@ drop:
 	return 0;
 }
 
+static void gve_xsk_reorder_queue_push_dqo(struct gve_tx_ring *tx,
+					   u16 completion_tag)
+{
+	u32 tail = atomic_read(&tx->dqo_tx.xsk_reorder_queue_tail);
+
+	tx->dqo.xsk_reorder_queue[tail] = completion_tag;
+	tail = (tail + 1) & tx->dqo.complq_mask;
+	atomic_set_release(&tx->dqo_tx.xsk_reorder_queue_tail, tail);
+}
+
+static struct gve_tx_pending_packet_dqo *
+gve_xsk_reorder_queue_head(struct gve_tx_ring *tx)
+{
+	u32 head = tx->dqo_compl.xsk_reorder_queue_head;
+
+	if (head == tx->dqo_compl.xsk_reorder_queue_tail) {
+		tx->dqo_compl.xsk_reorder_queue_tail =
+			atomic_read_acquire(&tx->dqo_tx.xsk_reorder_queue_tail);
+
+		if (head == tx->dqo_compl.xsk_reorder_queue_tail)
+			return NULL;
+	}
+
+	return &tx->dqo.pending_packets[tx->dqo.xsk_reorder_queue[head]];
+}
+
+static void gve_xsk_reorder_queue_pop_dqo(struct gve_tx_ring *tx)
+{
+	tx->dqo_compl.xsk_reorder_queue_head++;
+	tx->dqo_compl.xsk_reorder_queue_head &= tx->dqo.complq_mask;
+}
+
 /* Transmit a given skb and ring the doorbell. */
 netdev_tx_t gve_tx_dqo(struct sk_buff *skb, struct net_device *dev)
 {
@@ -1013,6 +1060,62 @@ netdev_tx_t gve_tx_dqo(struct sk_buff *skb, struct net_device *dev)
 
 	gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
 	return NETDEV_TX_OK;
+}
+
+static bool gve_xsk_tx_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
+			   int budget)
+{
+	struct xsk_buff_pool *pool = tx->xsk_pool;
+	struct xdp_desc desc;
+	bool repoll = false;
+	int sent = 0;
+
+	spin_lock(&tx->dqo_tx.xdp_lock);
+	for (; sent < budget; sent++) {
+		struct gve_tx_pending_packet_dqo *pkt;
+		s16 completion_tag;
+		dma_addr_t addr;
+		u32 desc_idx;
+
+		if (unlikely(!gve_has_avail_slots_tx_dqo(tx, 1, 1))) {
+			repoll = true;
+			break;
+		}
+
+		if (!xsk_tx_peek_desc(pool, &desc))
+			break;
+
+		pkt = gve_alloc_pending_packet(tx);
+		pkt->type = GVE_TX_PENDING_PACKET_DQO_XSK;
+		pkt->num_bufs = 0;
+		completion_tag = pkt - tx->dqo.pending_packets;
+
+		addr = xsk_buff_raw_get_dma(pool, desc.addr);
+		xsk_buff_raw_dma_sync_for_device(pool, addr, desc.len);
+
+		desc_idx = tx->dqo_tx.tail;
+		gve_tx_fill_pkt_desc_dqo(tx, &desc_idx,
+					 true, desc.len,
+					 addr, completion_tag, true,
+					 false);
+		++pkt->num_bufs;
+		gve_tx_update_tail(tx, desc_idx);
+		tx->dqo_tx.posted_packet_desc_cnt += pkt->num_bufs;
+		gve_xsk_reorder_queue_push_dqo(tx, completion_tag);
+	}
+
+	if (sent) {
+		gve_tx_put_doorbell_dqo(priv, tx->q_resources, tx->dqo_tx.tail);
+		xsk_tx_release(pool);
+	}
+
+	spin_unlock(&tx->dqo_tx.xdp_lock);
+
+	u64_stats_update_begin(&tx->statss);
+	tx->xdp_xsk_sent += sent;
+	u64_stats_update_end(&tx->statss);
+
+	return (sent == budget) || repoll;
 }
 
 static void add_to_list(struct gve_tx_ring *tx, struct gve_index_list *list,
@@ -1152,6 +1255,9 @@ static void gve_handle_packet_completion(struct gve_priv *priv,
 		pending_packet->xdpf = NULL;
 		gve_free_pending_packet(tx, pending_packet);
 		break;
+	case GVE_TX_PENDING_PACKET_DQO_XSK:
+		pending_packet->state = GVE_PACKET_STATE_XSK_COMPLETE;
+		break;
 	default:
 		WARN_ON_ONCE(1);
 	}
@@ -1251,8 +1357,34 @@ static void remove_timed_out_completions(struct gve_priv *priv,
 
 		remove_from_list(tx, &tx->dqo_compl.timed_out_completions,
 				 pending_packet);
+
+		/* Need to count XSK packets in xsk_tx_completed. */
+		if (pending_packet->type == GVE_TX_PENDING_PACKET_DQO_XSK)
+			pending_packet->state = GVE_PACKET_STATE_XSK_COMPLETE;
+		else
+			gve_free_pending_packet(tx, pending_packet);
+	}
+}
+
+static void gve_tx_process_xsk_completions(struct gve_tx_ring *tx)
+{
+	u32 num_xsks = 0;
+
+	while (true) {
+		struct gve_tx_pending_packet_dqo *pending_packet =
+			gve_xsk_reorder_queue_head(tx);
+
+		if (!pending_packet ||
+		    pending_packet->state != GVE_PACKET_STATE_XSK_COMPLETE)
+			break;
+
+		num_xsks++;
+		gve_xsk_reorder_queue_pop_dqo(tx);
 		gve_free_pending_packet(tx, pending_packet);
 	}
+
+	if (num_xsks)
+		xsk_tx_completed(tx->xsk_pool, num_xsks);
 }
 
 int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
@@ -1333,6 +1465,9 @@ int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 	remove_miss_completions(priv, tx);
 	remove_timed_out_completions(priv, tx);
 
+	if (tx->xsk_pool)
+		gve_tx_process_xsk_completions(tx);
+
 	u64_stats_update_begin(&tx->statss);
 	tx->bytes_done += pkt_compl_bytes + reinject_compl_bytes;
 	tx->pkt_done += pkt_compl_pkts + reinject_compl_pkts;
@@ -1363,6 +1498,19 @@ bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean)
 	/* Return true if we still have work. */
 	compl_desc = &tx->dqo.compl_ring[tx->dqo_compl.head];
 	return compl_desc->generation != tx->dqo_compl.cur_gen_bit;
+}
+
+bool gve_xsk_tx_poll_dqo(struct gve_notify_block *rx_block, int budget)
+{
+	struct gve_rx_ring *rx = rx_block->rx;
+	struct gve_priv *priv = rx->gve;
+	struct gve_tx_ring *tx;
+
+	tx = &priv->tx[gve_xdp_tx_queue_id(priv, rx->q_num)];
+	if (tx->xsk_pool)
+		return gve_xsk_tx_dqo(priv, tx, budget);
+
+	return 0;
 }
 
 bool gve_xdp_poll_dqo(struct gve_notify_block *block)
