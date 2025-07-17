@@ -1161,7 +1161,7 @@ static int lochnagar_pin_probe(struct platform_device *pdev)
 	priv->gpio_chip.request = gpiochip_generic_request;
 	priv->gpio_chip.free = gpiochip_generic_free;
 	priv->gpio_chip.direction_output = lochnagar_gpio_direction_out;
-	priv->gpio_chip.set_rv = lochnagar_gpio_set;
+	priv->gpio_chip.set = lochnagar_gpio_set;
 	priv->gpio_chip.can_sleep = true;
 	priv->gpio_chip.parent = dev;
 	priv->gpio_chip.base = -1;

@@ -3442,7 +3442,7 @@ static const struct gpio_chip wm8962_template_chip = {
 	.owner			= THIS_MODULE,
 	.request		= wm8962_gpio_request,
 	.direction_output	= wm8962_gpio_direction_out,
-	.set_rv			= wm8962_gpio_set,
+	.set			= wm8962_gpio_set,
 	.can_sleep		= 1,
 };
 

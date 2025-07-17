@@ -1302,7 +1302,7 @@ static int starfive_probe(struct platform_device *pdev)
 	sfp->gc.direction_input = starfive_gpio_direction_input;
 	sfp->gc.direction_output = starfive_gpio_direction_output;
 	sfp->gc.get = starfive_gpio_get;
-	sfp->gc.set_rv = starfive_gpio_set;
+	sfp->gc.set = starfive_gpio_set;
 	sfp->gc.set_config = starfive_gpio_set_config;
 	sfp->gc.add_pin_ranges = starfive_gpio_add_pin_ranges;
 	sfp->gc.base = -1;

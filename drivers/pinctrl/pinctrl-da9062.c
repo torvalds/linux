@@ -233,7 +233,7 @@ static int da9062_gpio_to_irq(struct gpio_chip *gc, unsigned int offset)
 static const struct gpio_chip reference_gc = {
 	.owner = THIS_MODULE,
 	.get = da9062_gpio_get,
-	.set_rv = da9062_gpio_set,
+	.set = da9062_gpio_set,
 	.get_direction = da9062_gpio_get_direction,
 	.direction_input = da9062_gpio_direction_input,
 	.direction_output = da9062_gpio_direction_output,
