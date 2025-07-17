@@ -253,8 +253,7 @@ xfs_dax_notify_dev_failure(
 		return -EOPNOTSUPP;
 	}
 
-	error = xfs_dax_translate_range(type == XG_TYPE_RTG ?
-			mp->m_rtdev_targp : mp->m_ddev_targp,
+	error = xfs_dax_translate_range(xfs_group_type_buftarg(mp, type),
 			offset, len, &daddr, &bblen);
 	if (error)
 		return error;

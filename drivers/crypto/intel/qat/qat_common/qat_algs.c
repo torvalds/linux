@@ -5,11 +5,11 @@
 #include <linux/crypto.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/cipher.h>
+#include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
-#include <crypto/hash.h>
 #include <crypto/hmac.h>
 #include <crypto/algapi.h>
 #include <crypto/authenc.h>
@@ -154,19 +154,19 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 
 	switch (ctx->qat_hash_alg) {
 	case ICP_QAT_HW_AUTH_ALGO_SHA1:
-		if (crypto_shash_export(shash, &ctx->sha1))
+		if (crypto_shash_export_core(shash, &ctx->sha1))
 			return -EFAULT;
 		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
 			*hash_state_out = cpu_to_be32(ctx->sha1.state[i]);
 		break;
 	case ICP_QAT_HW_AUTH_ALGO_SHA256:
-		if (crypto_shash_export(shash, &ctx->sha256))
+		if (crypto_shash_export_core(shash, &ctx->sha256))
 			return -EFAULT;
 		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
 			*hash_state_out = cpu_to_be32(ctx->sha256.state[i]);
 		break;
 	case ICP_QAT_HW_AUTH_ALGO_SHA512:
-		if (crypto_shash_export(shash, &ctx->sha512))
+		if (crypto_shash_export_core(shash, &ctx->sha512))
 			return -EFAULT;
 		for (i = 0; i < digest_size >> 3; i++, hash512_state_out++)
 			*hash512_state_out = cpu_to_be64(ctx->sha512.state[i]);
@@ -190,19 +190,19 @@ static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 
 	switch (ctx->qat_hash_alg) {
 	case ICP_QAT_HW_AUTH_ALGO_SHA1:
-		if (crypto_shash_export(shash, &ctx->sha1))
+		if (crypto_shash_export_core(shash, &ctx->sha1))
 			return -EFAULT;
 		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
 			*hash_state_out = cpu_to_be32(ctx->sha1.state[i]);
 		break;
 	case ICP_QAT_HW_AUTH_ALGO_SHA256:
-		if (crypto_shash_export(shash, &ctx->sha256))
+		if (crypto_shash_export_core(shash, &ctx->sha256))
 			return -EFAULT;
 		for (i = 0; i < digest_size >> 2; i++, hash_state_out++)
 			*hash_state_out = cpu_to_be32(ctx->sha256.state[i]);
 		break;
 	case ICP_QAT_HW_AUTH_ALGO_SHA512:
-		if (crypto_shash_export(shash, &ctx->sha512))
+		if (crypto_shash_export_core(shash, &ctx->sha512))
 			return -EFAULT;
 		for (i = 0; i < digest_size >> 3; i++, hash512_state_out++)
 			*hash512_state_out = cpu_to_be64(ctx->sha512.state[i]);

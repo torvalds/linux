@@ -8,6 +8,7 @@
 #include <linux/version.h>
 #include <linux/msi.h>
 #include <linux/irqdomain.h>
+#include <linux/export.h>
 
 #include <net/mana/mana.h>
 #include <net/mana/hw_channel.h>
