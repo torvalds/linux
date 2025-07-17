@@ -1105,7 +1105,7 @@ exit_unlock:
 	if (rc)
 		return rc;
 
-	ethtool_rss_notify(dev, fields.rss_context);
+	ethtool_rss_notify(dev, ETHTOOL_MSG_RSS_NTF, fields.rss_context);
 	return 0;
 }
 
@@ -1520,8 +1520,8 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	struct ethtool_rxnfc rx_rings;
 	struct ethtool_rxfh rxfh;
 	bool create = false;
-	bool mod = false;
 	u8 *rss_config;
+	int ntf = 0;
 	int ret;
 
 	if (!ops->get_rxnfc || !ops->set_rxfh)
@@ -1671,6 +1671,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	rxfh_dev.input_xfrm = rxfh.input_xfrm;
 
 	if (!rxfh.rss_context) {
+		ntf = ETHTOOL_MSG_RSS_NTF;
 		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	} else if (create) {
 		ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev, extack);
@@ -1682,9 +1683,11 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		ret = ops->remove_rxfh_context(dev, ctx, rxfh.rss_context,
 					       extack);
 	} else {
+		ntf = ETHTOOL_MSG_RSS_NTF;
 		ret = ops->modify_rxfh_context(dev, ctx, &rxfh_dev, extack);
 	}
 	if (ret) {
+		ntf = 0;
 		if (create) {
 			/* failed to create, free our new tracking entry */
 			xa_erase(&dev->ethtool->rss_ctx, rxfh.rss_context);
@@ -1692,7 +1695,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		}
 		goto out_unlock;
 	}
-	mod = !create && !rxfh_dev.rss_delete;
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, rss_context),
 			 &rxfh_dev.rss_context, sizeof(rxfh_dev.rss_context)))
@@ -1732,8 +1734,8 @@ out_unlock:
 	mutex_unlock(&dev->ethtool->rss_lock);
 out_free:
 	kfree(rss_config);
-	if (mod)
-		ethtool_rss_notify(dev, rxfh.rss_context);
+	if (ntf)
+		ethtool_rss_notify(dev, ntf, rxfh.rss_context);
 	return ret;
 }
 
