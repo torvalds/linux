@@ -597,31 +597,47 @@ struct drm_set_version {
 	int drm_dd_minor;
 };
 
-/* DRM_IOCTL_GEM_CLOSE ioctl argument type */
+/**
+ * struct drm_gem_close - Argument for &DRM_IOCTL_GEM_CLOSE ioctl.
+ * @handle: Handle of the object to be closed.
+ * @pad: Padding.
+ *
+ * Releases the handle to an mm object.
+ */
 struct drm_gem_close {
-	/** Handle of the object to be closed. */
 	__u32 handle;
 	__u32 pad;
 };
 
-/* DRM_IOCTL_GEM_FLINK ioctl argument type */
+/**
+ * struct drm_gem_flink - Argument for &DRM_IOCTL_GEM_FLINK ioctl.
+ * @handle: Handle for the object being named.
+ * @name: Returned global name.
+ *
+ * Create a global name for an object, returning the name.
+ *
+ * Note that the name does not hold a reference; when the object
+ * is freed, the name goes away.
+ */
 struct drm_gem_flink {
-	/** Handle for the object being named */
 	__u32 handle;
-
-	/** Returned global name */
 	__u32 name;
 };
 
-/* DRM_IOCTL_GEM_OPEN ioctl argument type */
+/**
+ * struct drm_gem_open - Argument for &DRM_IOCTL_GEM_OPEN ioctl.
+ * @name: Name of object being opened.
+ * @handle: Returned handle for the object.
+ * @size: Returned size of the object
+ *
+ * Open an object using the global name, returning a handle and the size.
+ *
+ * This handle (of course) holds a reference to the object, so the object
+ * will not go away until the handle is deleted.
+ */
 struct drm_gem_open {
-	/** Name of object being opened */
 	__u32 name;
-
-	/** Returned handle for the object */
 	__u32 handle;
-
-	/** Returned size of the object */
 	__u64 size;
 };
 
