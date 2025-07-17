@@ -165,12 +165,6 @@ struct ieee80211_regdomain *iwl_mvm_get_regdomain(struct wiphy *wiphy,
 	mvm->lar_regdom_set = true;
 	mvm->mcc_src = src_id;
 
-	if (!iwl_puncturing_is_allowed_in_bios(mvm->bios_enable_puncturing,
-					       le16_to_cpu(resp->mcc)))
-		ieee80211_hw_set(mvm->hw, DISALLOW_PUNCTURING);
-	else
-		__clear_bit(IEEE80211_HW_DISALLOW_PUNCTURING, mvm->hw->flags);
-
 	iwl_mei_set_country_code(__le16_to_cpu(resp->mcc));
 
 out:
@@ -1521,10 +1515,6 @@ int iwl_mvm_set_tx_power(struct iwl_mvm *mvm,
 		len = sizeof(cmd_v9_v10.v9);
 	else if (cmd_ver == 8)
 		len = sizeof(cmd.v8);
-	else if (cmd_ver == 7)
-		len = sizeof(cmd.v7);
-	else if (cmd_ver == 6)
-		len = sizeof(cmd.v6);
 	else if (fw_has_api(&mvm->fw->ucode_capa,
 			    IWL_UCODE_TLV_API_REDUCE_TX_POWER))
 		len = sizeof(cmd.v5);
@@ -1775,6 +1765,8 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 		return;
 
+	mvmvif->deflink.average_beacon_energy = 0;
+
 	INIT_DELAYED_WORK(&mvmvif->csa_work,
 			  iwl_mvm_channel_switch_disconnect_wk);
 
@@ -1812,9 +1804,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
 	vif->driver_flags = IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC;
 
-	ret = iwl_mvm_set_link_mapping(mvm, vif, &vif->bss_conf);
-	if (ret)
-		goto out;
+	iwl_mvm_set_link_fw_id(mvm, vif, &vif->bss_conf);
 
 	/*
 	 * Not much to do here. The stack will not allow interface
@@ -2015,7 +2005,6 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		mvm->monitor_on = false;
 
 out:
-	iwl_mvm_unset_link_mapping(mvm, vif, &vif->bss_conf);
 	if (vif->type == NL80211_IFTYPE_AP ||
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		iwl_mvm_dealloc_int_sta(mvm, &mvmvif->deflink.mcast_sta);
@@ -4617,6 +4606,10 @@ int iwl_mvm_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			struct ieee80211_key_conf *key)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	/* When resuming from wowlan, FW already knows about the newest keys */
+	if (test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))
+		return 0;
 
 	guard(mvm)(mvm);
 	return __iwl_mvm_mac_set_key(hw, cmd, vif, sta, key);

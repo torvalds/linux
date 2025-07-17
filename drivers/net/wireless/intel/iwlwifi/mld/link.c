@@ -649,11 +649,39 @@ void iwl_mld_omi_ap_changed_bw(struct iwl_mld *mld,
 void iwl_mld_handle_omi_status_notif(struct iwl_mld *mld,
 				     struct iwl_rx_packet *pkt)
 {
+	int ver = iwl_fw_lookup_notif_ver(mld->fw, DATA_PATH_GROUP,
+					  OMI_SEND_STATUS_NOTIF, 1);
 	struct ieee80211_link_sta *link_sta;
 	struct iwl_mld_link *mld_link;
 	struct ieee80211_vif *vif;
 
-	vif = iwl_mld_get_omi_bw_reduction_pointers(mld, &link_sta, &mld_link);
+	if (ver == 2) {
+		const struct iwl_omi_send_status_notif *notif =
+			(const void *)pkt->data;
+		u32 sta_id = le32_to_cpu(notif->sta_id);
+		struct iwl_mld_vif *mld_vif;
+
+		if (IWL_FW_CHECK(mld, sta_id >= mld->fw->ucode_capa.num_stations,
+				 "Invalid station %d\n", sta_id))
+			return;
+
+		link_sta = wiphy_dereference(mld->wiphy,
+					     mld->fw_id_to_link_sta[sta_id]);
+		if (IWL_FW_CHECK(mld, !link_sta, "Station does not exist\n"))
+			return;
+
+		vif = iwl_mld_sta_from_mac80211(link_sta->sta)->vif;
+		mld_vif = iwl_mld_vif_from_mac80211(vif);
+
+		mld_link = iwl_mld_link_dereference_check(mld_vif,
+							  link_sta->link_id);
+		if (WARN(!mld_link, "Link %d does not exist\n",
+			 link_sta->link_id))
+			return;
+	} else {
+		vif = iwl_mld_get_omi_bw_reduction_pointers(mld, &link_sta,
+							    &mld_link);
+	}
 	if (IWL_FW_CHECK(mld, !vif, "unexpected OMI notification\n"))
 		return;
 
@@ -783,6 +811,7 @@ iwl_mld_init_link(struct iwl_mld *mld, struct ieee80211_bss_conf *link,
 {
 	mld_link->vif = link->vif;
 	mld_link->link_id = link->link_id;
+	mld_link->average_beacon_energy = 0;
 
 	iwl_mld_init_internal_sta(&mld_link->bcast_sta);
 	iwl_mld_init_internal_sta(&mld_link->mcast_sta);
@@ -1216,3 +1245,22 @@ unsigned int iwl_mld_get_link_grade(struct iwl_mld *mld,
 	return grade;
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_get_link_grade);
+
+void iwl_mld_handle_beacon_filter_notif(struct iwl_mld *mld,
+					struct iwl_rx_packet *pkt)
+{
+	const struct iwl_beacon_filter_notif *notif = (const void *)pkt->data;
+	u32 link_id = le32_to_cpu(notif->link_id);
+	struct ieee80211_bss_conf *link_conf =
+		iwl_mld_fw_id_to_link_conf(mld, link_id);
+	struct iwl_mld_link *mld_link;
+
+	if (IWL_FW_CHECK(mld, !link_conf, "invalid link ID %d\n", link_id))
+		return;
+
+	mld_link = iwl_mld_link_from_mac80211(link_conf);
+	if (WARN_ON_ONCE(!mld_link))
+		return;
+
+	mld_link->average_beacon_energy = le32_to_cpu(notif->average_energy);
+}

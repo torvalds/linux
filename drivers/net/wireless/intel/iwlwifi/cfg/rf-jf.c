@@ -5,6 +5,26 @@
  */
 #include "iwl-config.h"
 
+/* Highest firmware API version supported */
+#define IWL_JF_UCODE_API_MAX	77
+
+/* Lowest firmware API version supported */
+#define IWL_JF_UCODE_API_MIN	77
+
+#define IWL_QU_B_JF_B_FW_PRE		"iwlwifi-Qu-b0-jf-b0"
+#define IWL_QU_C_JF_B_FW_PRE		"iwlwifi-Qu-c0-jf-b0"
+#define IWL_QUZ_A_JF_B_FW_PRE		"iwlwifi-QuZ-a0-jf-b0"
+#define IWL_SO_A_JF_B_FW_PRE		"iwlwifi-so-a0-jf-b0"
+
+#define IWL_QUZ_A_JF_B_MODULE_FIRMWARE(api) \
+	IWL_QUZ_A_JF_B_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_QU_B_JF_B_MODULE_FIRMWARE(api) \
+	IWL_QU_B_JF_B_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_QU_C_JF_B_MODULE_FIRMWARE(api) \
+	IWL_QU_C_JF_B_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_SO_A_JF_B_MODULE_FIRMWARE(api) \
+	IWL_SO_A_JF_B_FW_PRE "-" __stringify(api) ".ucode"
+
 /* NVM versions */
 #define IWL_JF_NVM_VERSION		0x0a1d
 
@@ -56,7 +76,9 @@ static const struct iwl_tt_params iwl_jf_tt_params = {
 			      BIT(NL80211_BAND_5GHZ),			\
 	},								\
 	.nvm_ver = IWL_JF_NVM_VERSION,					\
-	.nvm_type = IWL_NVM_EXT
+	.nvm_type = IWL_NVM_EXT,					\
+	.ucode_api_min = IWL_JF_UCODE_API_MIN,				\
+	.ucode_api_max = IWL_JF_UCODE_API_MAX
 
 const struct iwl_rf_cfg iwl_rf_jf = {
 	IWL_DEVICE_JF,
@@ -82,3 +104,8 @@ const char iwl9560_killer_1550i_name[] =
 	"Killer(R) Wireless-AC 1550i Wireless Network Adapter (9560NGW) 160MHz";
 const char iwl9560_killer_1550s_name[] =
 	"Killer(R) Wireless-AC 1550s Wireless Network Adapter (9560D2W) 160MHz";
+
+MODULE_FIRMWARE(IWL_QU_B_JF_B_MODULE_FIRMWARE(IWL_JF_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_QU_C_JF_B_MODULE_FIRMWARE(IWL_JF_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_QUZ_A_JF_B_MODULE_FIRMWARE(IWL_JF_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SO_A_JF_B_MODULE_FIRMWARE(IWL_JF_UCODE_API_MAX));

@@ -3841,7 +3841,7 @@ void ieee80211_csa_finish(struct ieee80211_vif *vif, unsigned int link_id)
 		 */
 		struct ieee80211_link_data *iter;
 
-		for_each_sdata_link(local, iter) {
+		for_each_sdata_link_rcu(local, iter) {
 			if (iter->sdata == sdata ||
 			    rcu_access_pointer(iter->conf->tx_bss_conf) != tx_bss_conf)
 				continue;
@@ -4186,6 +4186,12 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		err = -EOPNOTSUPP;
 		goto out;
 	}
+
+	err = ieee80211_set_unsol_bcast_probe_resp(sdata,
+						   &params->unsol_bcast_probe_resp,
+						   link_data, link_conf, &changed);
+	if (err)
+		goto out;
 
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
 
@@ -5127,6 +5133,12 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 		err = -EBUSY;
 		goto out;
 	}
+
+	err = ieee80211_set_unsol_bcast_probe_resp(sdata,
+						   &params->unsol_bcast_probe_resp,
+						   link, link_conf, &changed);
+	if (err)
+		goto out;
 
 	err = ieee80211_set_color_change_beacon(link, params, &changed);
 	if (err)

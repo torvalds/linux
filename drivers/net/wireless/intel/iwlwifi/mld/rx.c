@@ -143,7 +143,55 @@ void iwl_mld_pass_packet_to_mac80211(struct iwl_mld *mld,
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_pass_packet_to_mac80211);
 
-static void iwl_mld_fill_signal(struct iwl_mld *mld,
+static bool iwl_mld_used_average_energy(struct iwl_mld *mld, int link_id,
+					struct ieee80211_hdr *hdr,
+					struct ieee80211_rx_status *rx_status)
+{
+	struct ieee80211_bss_conf *link_conf;
+	struct iwl_mld_link *mld_link;
+
+	if (unlikely(!hdr || link_id < 0))
+		return false;
+
+	if (likely(!ieee80211_is_beacon(hdr->frame_control)))
+		return false;
+
+	/*
+	 * if link ID is >= valid ones then that means the RX
+	 * was on the AUX link and no correction is needed
+	 */
+	if (link_id >= mld->fw->ucode_capa.num_links)
+		return false;
+
+	/* for the link conf lookup */
+	guard(rcu)();
+
+	link_conf = rcu_dereference(mld->fw_id_to_bss_conf[link_id]);
+	if (!link_conf)
+		return false;
+
+	mld_link = iwl_mld_link_from_mac80211(link_conf);
+	if (!mld_link)
+		return false;
+
+	/*
+	 * If we know the link by link ID then the frame was
+	 * received for the link, so by filtering it means it
+	 * was from the AP the link is connected to.
+	 */
+
+	/* skip also in case we don't have it (yet) */
+	if (!mld_link->average_beacon_energy)
+		return false;
+
+	IWL_DEBUG_STATS(mld, "energy override by average %d\n",
+			mld_link->average_beacon_energy);
+	rx_status->signal = -mld_link->average_beacon_energy;
+	return true;
+}
+
+static void iwl_mld_fill_signal(struct iwl_mld *mld, int link_id,
+				struct ieee80211_hdr *hdr,
 				struct ieee80211_rx_status *rx_status,
 				struct iwl_mld_rx_phy_data *phy_data)
 {
@@ -159,9 +207,11 @@ static void iwl_mld_fill_signal(struct iwl_mld *mld,
 	IWL_DEBUG_STATS(mld, "energy in A %d B %d, and max %d\n",
 			energy_a, energy_b, max_energy);
 
+	if (iwl_mld_used_average_energy(mld, link_id, hdr, rx_status))
+		return;
+
 	rx_status->signal = max_energy;
-	rx_status->chains =
-	    (rate_n_flags & RATE_MCS_ANT_AB_MSK) >> RATE_MCS_ANT_POS;
+	rx_status->chains = u32_get_bits(rate_n_flags, RATE_MCS_ANT_AB_MSK);
 	rx_status->chain_signal[0] = energy_a;
 	rx_status->chain_signal[1] = energy_b;
 }
@@ -1160,7 +1210,10 @@ static void iwl_mld_add_rtap_sniffer_config(struct iwl_mld *mld,
 }
 #endif
 
-static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
+/* Note: hdr can be NULL */
+static void iwl_mld_rx_fill_status(struct iwl_mld *mld, int link_id,
+				   struct ieee80211_hdr *hdr,
+				   struct sk_buff *skb,
 				   struct iwl_mld_rx_phy_data *phy_data,
 				   int queue)
 {
@@ -1182,7 +1235,7 @@ static void iwl_mld_rx_fill_status(struct iwl_mld *mld, struct sk_buff *skb,
 	    phy_data->phy_info & IWL_RX_MPDU_PHY_SHORT_PREAMBLE)
 		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
-	iwl_mld_fill_signal(mld, rx_status, phy_data);
+	iwl_mld_fill_signal(mld, link_id, hdr, rx_status, phy_data);
 
 	/* This may be overridden by iwl_mld_rx_he() to HE_RU */
 	switch (rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK) {
@@ -1733,7 +1786,7 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 	struct sk_buff *skb;
 	size_t mpdu_desc_size = sizeof(*mpdu_desc);
 	bool drop = false;
-	u8 crypto_len = 0, band;
+	u8 crypto_len = 0, band, link_id;
 	u32 pkt_len = iwl_rx_packet_payload_len(pkt);
 	u32 mpdu_len;
 	enum iwl_mld_reorder_result reorder_res;
@@ -1822,7 +1875,10 @@ void iwl_mld_rx_mpdu(struct iwl_mld *mld, struct napi_struct *napi,
 				SCHED_SCAN_PASS_ALL_STATE_FOUND;
 	}
 
-	iwl_mld_rx_fill_status(mld, skb, &phy_data, queue);
+	link_id = u8_get_bits(mpdu_desc->mac_phy_band,
+			      IWL_RX_MPDU_MAC_PHY_BAND_LINK_MASK);
+
+	iwl_mld_rx_fill_status(mld, link_id, hdr, skb, &phy_data, queue);
 
 	if (iwl_mld_rx_crypto(mld, sta, hdr, rx_status, mpdu_desc, queue,
 			      le32_to_cpu(pkt->len_n_flags), &crypto_len))
@@ -2035,7 +2091,8 @@ void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
 	rx_status->freq = ieee80211_channel_to_frequency(channel,
 							 rx_status->band);
 
-	iwl_mld_rx_fill_status(mld, skb, &phy_data, queue);
+	/* link ID is ignored for NULL header */
+	iwl_mld_rx_fill_status(mld, -1, NULL, skb, &phy_data, queue);
 
 	/* No more radiotap info should be added after this point.
 	 * Mark it as mac header for upper layers to know where

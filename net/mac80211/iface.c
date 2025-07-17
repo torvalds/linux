@@ -1557,6 +1557,35 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 			}
 		}
 	} else if (ieee80211_is_action(mgmt->frame_control) &&
+		   mgmt->u.action.category == WLAN_CATEGORY_HT) {
+		switch (mgmt->u.action.u.ht_smps.action) {
+		case WLAN_HT_ACTION_NOTIFY_CHANWIDTH: {
+			u8 chanwidth = mgmt->u.action.u.ht_notify_cw.chanwidth;
+			struct ieee80211_rx_status *status;
+			struct link_sta_info *link_sta;
+			struct sta_info *sta;
+
+			sta = sta_info_get_bss(sdata, mgmt->sa);
+			if (!sta)
+				break;
+
+			status = IEEE80211_SKB_RXCB(skb);
+			if (!status->link_valid)
+				link_sta = &sta->deflink;
+			else
+				link_sta = rcu_dereference_protected(sta->link[status->link_id],
+							lockdep_is_held(&local->hw.wiphy->mtx));
+			if (link_sta)
+				ieee80211_ht_handle_chanwidth_notif(local, sdata, sta,
+								    link_sta, chanwidth,
+								    status->band);
+			break;
+		}
+		default:
+			WARN_ON(1);
+			break;
+		}
+	} else if (ieee80211_is_action(mgmt->frame_control) &&
 		   mgmt->u.action.category == WLAN_CATEGORY_VHT) {
 		switch (mgmt->u.action.u.vht_group_notif.action_code) {
 		case WLAN_VHT_ACTION_OPMODE_NOTIF: {

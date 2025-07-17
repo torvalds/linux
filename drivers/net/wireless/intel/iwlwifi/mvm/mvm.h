@@ -304,6 +304,8 @@ struct iwl_probe_resp_data {
  * @mcast_sta: multicast station
  * @phy_ctxt: phy context allocated to this link, if any
  * @bf_data: beacon filtering data
+ * @average_beacon_energy: average beacon energy for beacons received during
+ *	client connections
  */
 struct iwl_mvm_vif_link_info {
 	u8 bssid[ETH_ALEN];
@@ -342,6 +344,7 @@ struct iwl_mvm_vif_link_info {
 	u16 mgmt_queue;
 
 	struct iwl_mvm_link_bf_data bf_data;
+	u32 average_beacon_energy;
 };
 
 /**
@@ -374,7 +377,6 @@ struct iwl_mvm_vif_link_info {
  *	preventing the enablement of EMLSR
  * @IWL_MVM_ESR_EXIT_CSA: CSA happened, so exit EMLSR
  * @IWL_MVM_ESR_EXIT_LINK_USAGE: Exit EMLSR due to low tpt on secondary link
- * @IWL_MVM_ESR_EXIT_FAIL_ENTRY: Exit EMLSR due to entry failure
  */
 enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x1,
@@ -390,7 +392,6 @@ enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_EXIT_BANDWIDTH	= 0x80000,
 	IWL_MVM_ESR_EXIT_CSA		= 0x100000,
 	IWL_MVM_ESR_EXIT_LINK_USAGE	= 0x200000,
-	IWL_MVM_ESR_EXIT_FAIL_ENTRY	= 0x400000,
 };
 
 #define IWL_MVM_BLOCK_ESR_REASONS 0xffff
@@ -1179,8 +1180,6 @@ struct iwl_mvm {
 
 	struct ieee80211_vif __rcu *vif_id_to_mac[NUM_MAC_INDEX_DRIVER];
 
-	struct ieee80211_bss_conf __rcu *link_id_to_link_conf[IWL_FW_MAX_LINK_ID + 1];
-
 	u8 *error_recovery_buf;
 
 #ifdef CONFIG_IWLWIFI_LEDS
@@ -1372,7 +1371,6 @@ struct iwl_mvm {
 	struct iwl_mvm_acs_survey *acs_survey;
 
 	bool statistics_clear;
-	u32 bios_enable_puncturing;
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -1485,20 +1483,6 @@ iwl_mvm_rcu_dereference_vif_id(struct iwl_mvm *mvm, u8 vif_id, bool rcu)
 		return rcu_dereference(mvm->vif_id_to_mac[vif_id]);
 
 	return rcu_dereference_protected(mvm->vif_id_to_mac[vif_id],
-					 lockdep_is_held(&mvm->mutex));
-}
-
-static inline struct ieee80211_bss_conf *
-iwl_mvm_rcu_fw_link_id_to_link_conf(struct iwl_mvm *mvm, u8 link_id, bool rcu)
-{
-	if (IWL_FW_CHECK(mvm, link_id >= ARRAY_SIZE(mvm->link_id_to_link_conf),
-			 "erroneous FW link ID: %d\n", link_id))
-		return NULL;
-
-	if (rcu)
-		return rcu_dereference(mvm->link_id_to_link_conf[link_id]);
-
-	return rcu_dereference_protected(mvm->link_id_to_link_conf[link_id],
 					 lockdep_is_held(&mvm->mutex));
 }
 
@@ -2093,6 +2077,9 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb);
 void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_rx_beacon_filter_notif(struct iwl_mvm *mvm,
+				    struct iwl_rx_cmd_buffer *rxb);
+
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
@@ -2100,15 +2087,13 @@ u32 iwl_mvm_get_lmac_id(struct iwl_mvm *mvm, enum nl80211_band band);
 
 /* Links */
 void iwl_mvm_init_link(struct iwl_mvm_vif_link_info *link);
-int iwl_mvm_set_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *link_conf);
+void iwl_mvm_set_link_fw_id(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			    struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 struct ieee80211_bss_conf *link_conf,
 			 u32 changes, bool active);
-int iwl_mvm_unset_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *link_conf);
 int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

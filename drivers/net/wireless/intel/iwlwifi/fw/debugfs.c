@@ -389,6 +389,12 @@ static int iwl_dbgfs_fw_info_seq_show(struct seq_file *seq, void *v)
 			   "    %d: %d\n",
 			   IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT,
 			   has_capa);
+		has_capa = fw_has_capa(&fw->ucode_capa,
+				       IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE) ? 1 : 0;
+		seq_printf(seq,
+			   "    %d: %d\n",
+			   IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE,
+			   has_capa);
 		seq_puts(seq, "fw_api_ver:\n");
 	}
 

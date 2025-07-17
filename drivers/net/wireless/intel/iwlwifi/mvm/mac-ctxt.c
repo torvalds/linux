@@ -1586,7 +1586,7 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 	u32 id = le32_to_cpu(mb->link_id);
 	union iwl_dbg_tlv_tp_data tp_data = { .fw_pkt = pkt };
 	u32 mac_type;
-	int link_id = -1;
+	int link_id;
 	u8 notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 					       MISSED_BEACONS_NOTIFICATION,
 					       0);
@@ -1602,20 +1602,6 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 	if (new_notif_ver)
 		notif_ver = new_notif_ver;
 
-	/* before version four the ID in the notification refers to mac ID */
-	if (notif_ver < 4) {
-		vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, false);
-		bss_conf = &vif->bss_conf;
-	} else {
-		bss_conf = iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, id, false);
-
-		if (!bss_conf)
-			return;
-
-		vif = bss_conf->vif;
-		link_id = bss_conf->link_id;
-	}
-
 	IWL_DEBUG_INFO(mvm,
 		       "missed bcn %s_id=%u, consecutive=%u (%u)\n",
 		       notif_ver < 4 ? "mac" : "link",
@@ -1623,9 +1609,16 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 		       le32_to_cpu(mb->consec_missed_beacons),
 		       le32_to_cpu(mb->consec_missed_beacons_since_last_rx));
 
+	/*
+	 * starting from version 4 the ID is link ID, but driver
+	 * uses link ID == MAC ID, so always treat as MAC ID
+	 */
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, false);
 	if (!vif)
 		return;
 
+	bss_conf = &vif->bss_conf;
+	link_id = bss_conf->link_id;
 	mac_type = iwl_mvm_get_mac_type(vif);
 
 	IWL_DEBUG_INFO(mvm, "missed beacon mac_type=%u,\n", mac_type);
@@ -1875,16 +1868,15 @@ void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
 	} else {
 		struct iwl_channel_switch_start_notif *notif = (void *)pkt->data;
 		u32 link_id = le32_to_cpu(notif->link_id);
-		struct ieee80211_bss_conf *bss_conf =
-			iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, link_id, true);
 
-		if (!bss_conf)
+		/* we use link ID == MAC ID */
+		vif = iwl_mvm_rcu_dereference_vif_id(mvm, link_id, true);
+		if (!vif)
 			goto out_unlock;
 
 		id = link_id;
-		mac_link_id = bss_conf->link_id;
-		vif = bss_conf->vif;
-		csa_active = bss_conf->csa_active;
+		mac_link_id = vif->bss_conf.link_id;
+		csa_active = vif->bss_conf.csa_active;
 	}
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);

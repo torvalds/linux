@@ -1226,6 +1226,21 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	if ((_link = wiphy_dereference((_local)->hw.wiphy,		\
 				       ___sdata->link[___link_id])))
 
+/*
+ * for_each_sdata_link_rcu() must be used under RCU read lock.
+ */
+#define for_each_sdata_link_rcu(_local, _link)						\
+	/* outer loop just to define the variables ... */				\
+	for (struct ieee80211_sub_if_data *___sdata = NULL;				\
+	     !___sdata;									\
+	     ___sdata = (void *)~0 /* always stop */)					\
+	list_for_each_entry_rcu(___sdata, &(_local)->interfaces, list)			\
+	if (ieee80211_sdata_running(___sdata))						\
+	for (int ___link_id = 0;							\
+	     ___link_id < ARRAY_SIZE((___sdata)->link);					\
+	     ___link_id++)								\
+	if ((_link = rcu_dereference((___sdata)->link[___link_id])))
+
 #define for_each_link_data(sdata, __link)					\
 	struct ieee80211_sub_if_data *__sdata = sdata;				\
 	for (int __link_id = 0;							\
@@ -1402,8 +1417,6 @@ struct ieee80211_local {
 	bool probe_req_reg;
 	bool rx_mcast_action_reg;
 	unsigned int filter_flags; /* FIF_* */
-
-	bool wiphy_ciphers_allocated;
 
 	struct cfg80211_chan_def dflt_chandef;
 	bool emulate_chanctx;
@@ -2206,6 +2219,12 @@ u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs);
 enum nl80211_smps_mode
 ieee80211_smps_mode_to_smps_mode(enum ieee80211_smps_mode smps);
 
+void ieee80211_ht_handle_chanwidth_notif(struct ieee80211_local *local,
+					 struct ieee80211_sub_if_data *sdata,
+					 struct sta_info *sta,
+					 struct link_sta_info *link_sta,
+					 u8 chanwidth, enum nl80211_band band);
+
 /* VHT */
 void
 ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
@@ -2697,7 +2716,7 @@ ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 			       bool radar_required);
 int __must_check
 ieee80211_link_use_reserved_context(struct ieee80211_link_data *link);
-int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link);
+void ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link);
 
 int __must_check
 ieee80211_link_change_chanreq(struct ieee80211_link_data *link,

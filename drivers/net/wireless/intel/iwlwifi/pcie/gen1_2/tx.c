@@ -25,6 +25,7 @@
 #include "iwl-op-mode.h"
 #include "internal.h"
 #include "fw/api/tx.h"
+#include "fw/dbg.h"
 #include "pcie/utils.h"
 
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
@@ -591,7 +592,7 @@ static void iwl_pcie_tx_stop_fh(struct iwl_trans *trans)
 
 	/* Wait for DMA channels to be idle */
 	ret = iwl_poll_bits(trans, FH_TSSR_TX_STATUS_REG, mask, 5000);
-	if (ret < 0)
+	if (ret)
 		IWL_ERR(trans,
 			"Failing on timeout while stopping DMA channel %d [0x%08x]\n",
 			ch, iwl_read32(trans, FH_TSSR_TX_STATUS_REG));
@@ -1638,13 +1639,11 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
-	if (WARN(txq_id != trans->conf.cmd_queue,
-		 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d\n",
-		 txq_id, trans->conf.cmd_queue, sequence, txq->read_ptr,
-		 txq->write_ptr)) {
-		iwl_print_hex_error(trans, pkt, 32);
+	if (IWL_FW_CHECK(trans, txq_id != trans->conf.cmd_queue,
+			 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d pkt=%*phN\n",
+			 txq_id, trans->conf.cmd_queue, sequence, txq->read_ptr,
+			 txq->write_ptr, 32, pkt))
 		return;
-	}
 
 	spin_lock_bh(&txq->lock);
 

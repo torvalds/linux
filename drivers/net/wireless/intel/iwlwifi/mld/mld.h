@@ -127,6 +127,7 @@
  *	cleanup using iwl_mld_free_internal_sta
  * @netdetect: indicates the FW is in suspend mode with netdetect configured
  * @p2p_device_vif: points to the p2p device vif if exists
+ * @bt_is_active: indicates that BT is active
  * @dev: pointer to device struct. For printing purposes
  * @trans: pointer to the transport layer
  * @cfg: pointer to the device configuration
@@ -149,6 +150,7 @@
  * @running: true if the firmware is running
  * @do_not_dump_once: true if firmware dump must be prevented once
  * @in_d3: indicates FW is in suspend mode and should be resumed
+ * @resuming: indicates the driver is resuming from wowlan
  * @in_hw_restart: indicates that we are currently in restart flow.
  *	rather than restarted. Should be unset upon restart.
  * @radio_kill: bitmap of radio kill status
@@ -188,7 +190,6 @@
  * @ptp_data: data of the PTP clock
  * @time_sync: time sync data.
  * @ftm_initiator: FTM initiator data
- * @last_bt_notif: last received BT Coex notif
  */
 struct iwl_mld {
 	/* Add here fields that need clean up on restart */
@@ -213,7 +214,7 @@ struct iwl_mld {
 		bool netdetect;
 #endif /* CONFIG_PM_SLEEP */
 		struct ieee80211_vif *p2p_device_vif;
-		struct iwl_bt_coex_profile_notif last_bt_notif;
+		bool bt_is_active;
 	);
 	struct ieee80211_link_sta __rcu *fw_id_to_link_sta[IWL_STATION_COUNT_MAX];
 	/* And here fields that survive a fw restart */
@@ -237,6 +238,7 @@ struct iwl_mld {
 		    do_not_dump_once:1,
 #ifdef CONFIG_PM_SLEEP
 		    in_d3:1,
+		    resuming:1,
 #endif
 		    in_hw_restart:1;
 

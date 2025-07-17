@@ -255,6 +255,7 @@ static const struct iwl_hcmd_names iwl_mld_data_path_names[] = {
 	HCMD_NAME(ESR_MODE_NOTIF),
 	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(TLC_MNG_UPDATE_NOTIF),
+	HCMD_NAME(BEACON_FILTER_IN_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 };
 
@@ -630,7 +631,7 @@ iwl_mld_nic_error(struct iwl_op_mode *op_mode,
 		  enum iwl_fw_error_type type)
 {
 	struct iwl_mld *mld = IWL_OP_MODE_GET_MLD(op_mode);
-	bool trans_dead = test_bit(STATUS_TRANS_DEAD, &mld->trans->status);
+	bool trans_dead = iwl_trans_is_dead(mld->trans);
 
 	if (type == IWL_ERR_TYPE_CMD_QUEUE_FULL)
 		IWL_ERR(mld, "Command queue full!\n");
