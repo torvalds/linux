@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3528-rock-2.dtsi"
+
+/ {
+	model = "Radxa ROCK 2F";
+	compatible = "radxa,rock-2f", "rockchip,rk3528";
+};
