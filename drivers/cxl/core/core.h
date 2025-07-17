@@ -62,6 +62,7 @@ static inline int cxl_decoder_detach(struct cxl_region *cxlr,
 				     struct cxl_endpoint_decoder *cxled,
 				     int pos, enum cxl_detach_mode mode)
 {
+	return 0;
 }
 static inline int cxl_region_init(void)
 {
