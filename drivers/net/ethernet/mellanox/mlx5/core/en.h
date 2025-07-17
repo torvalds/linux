@@ -920,6 +920,8 @@ struct mlx5e_priv {
 	struct notifier_block      events_nb;
 	struct notifier_block      blocking_events_nb;
 
+	struct mlx5e_pcie_cong_event *cong_event;
+
 	struct udp_tunnel_nic_info nic_info;
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx          dcbx;
