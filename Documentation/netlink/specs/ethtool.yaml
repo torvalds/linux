@@ -159,6 +159,26 @@ definitions:
         name: pse-event-sw-pw-control-error
         doc: PSE faced an error managing the power control from software
   -
+    name: input-xfrm
+    doc: RSS hash function transformations.
+    type: flags
+    enum-name:
+    name-prefix: rxh-xfrm-
+    header: linux/ethtool.h
+    entries:
+      -
+        name: sym-xor
+        doc: >-
+          XOR the corresponding source and destination fields of each specified
+          protocol. Both copies of the XOR'ed fields are fed into the RSS and
+          RXHASH calculation. Note that this XORing reduces the input set
+          entropy and could be exploited to reduce the RSS queue spread.
+      -
+        name: sym-or-xor
+        doc: >-
+          Similar to SYM_XOR, except that one copy of the XOR'ed fields is
+          replaced by an OR of the same fields.
+  -
     name: rxfh-fields
     name-prefix: rxh-
     enum-name:
@@ -1621,6 +1641,7 @@ attribute-sets:
       -
         name: input-xfrm
         type: u32
+        enum: input-xfrm
       -
         name: start-context
         type: u32
@@ -2643,6 +2664,22 @@ operations:
         attributes:
           - header
           - events
+    -
+      name: rss-set
+      doc: Set RSS params.
+
+      attribute-set: rss
+
+      do:
+        request:
+          attributes:
+            - header
+            - context
+            - hfunc
+            - indir
+            - hkey
+            - input-xfrm
+            - flow-hash
     -
       name: rss-ntf
       doc: |

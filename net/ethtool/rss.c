@@ -218,6 +218,10 @@ rss_prepare(const struct rss_req_info *request, struct net_device *dev,
 {
 	rss_prepare_flow_hash(request, dev, data, info);
 
+	/* Coming from RSS_SET, driver may only have flow_hash_fields ops */
+	if (!dev->ethtool_ops->get_rxfh)
+		return 0;
+
 	if (request->rss_context)
 		return rss_prepare_ctx(request, dev, data, info);
 	return rss_prepare_get(request, dev, data, info);
@@ -466,6 +470,387 @@ void ethtool_rss_notify(struct net_device *dev, u32 rss_context)
 	ethnl_notify(dev, ETHTOOL_MSG_RSS_NTF, &req_info.base);
 }
 
+/* RSS_SET */
+
+#define RFH_MASK (RXH_L2DA | RXH_VLAN | RXH_IP_SRC | RXH_IP_DST | \
+		  RXH_L3_PROTO | RXH_L4_B_0_1 | RXH_L4_B_2_3 |	  \
+		  RXH_GTP_TEID | RXH_DISCARD)
+
+static const struct nla_policy ethnl_rss_flows_policy[] = {
+	[ETHTOOL_A_FLOW_ETHER]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_IP4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_IP6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_TCP4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_UDP4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_SCTP4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_AH_ESP4]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_TCP6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_UDP6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_SCTP6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_AH_ESP6]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_AH4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_ESP4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_AH6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_ESP6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPC4]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPC6]		= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPC_TEID4]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPC_TEID6]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU_EH4]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU_EH6]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU_UL4]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU_UL6]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU_DL4]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+	[ETHTOOL_A_FLOW_GTPU_DL6]	= NLA_POLICY_MASK(NLA_UINT, RFH_MASK),
+};
+
+const struct nla_policy ethnl_rss_set_policy[ETHTOOL_A_RSS_FLOW_HASH + 1] = {
+	[ETHTOOL_A_RSS_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_RSS_CONTEXT] = { .type = NLA_U32, },
+	[ETHTOOL_A_RSS_HFUNC] = NLA_POLICY_MIN(NLA_U32, 1),
+	[ETHTOOL_A_RSS_INDIR] = { .type = NLA_BINARY, },
+	[ETHTOOL_A_RSS_HKEY] = NLA_POLICY_MIN(NLA_BINARY, 1),
+	[ETHTOOL_A_RSS_INPUT_XFRM] =
+		NLA_POLICY_MAX(NLA_U32, RXH_XFRM_SYM_OR_XOR),
+	[ETHTOOL_A_RSS_FLOW_HASH] = NLA_POLICY_NESTED(ethnl_rss_flows_policy),
+};
+
+static int
+ethnl_rss_set_validate(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+	struct rss_req_info *request = RSS_REQINFO(req_info);
+	struct nlattr **tb = info->attrs;
+	struct nlattr *bad_attr = NULL;
+	u32 input_xfrm;
+
+	if (request->rss_context && !ops->create_rxfh_context)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_CONTEXT];
+
+	if (request->rss_context && !ops->rxfh_per_ctx_key) {
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_HFUNC];
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_HKEY];
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_INPUT_XFRM];
+	}
+
+	input_xfrm = nla_get_u32_default(tb[ETHTOOL_A_RSS_INPUT_XFRM], 0);
+	if (input_xfrm & ~ops->supported_input_xfrm)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_INPUT_XFRM];
+
+	if (tb[ETHTOOL_A_RSS_FLOW_HASH] && !ops->set_rxfh_fields)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_FLOW_HASH];
+	if (request->rss_context &&
+	    tb[ETHTOOL_A_RSS_FLOW_HASH] && !ops->rxfh_per_ctx_fields)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_FLOW_HASH];
+
+	if (bad_attr) {
+		NL_SET_BAD_ATTR(info->extack, bad_attr);
+		return -EOPNOTSUPP;
+	}
+
+	return 1;
+}
+
+static int
+rss_set_prep_indir(struct net_device *dev, struct genl_info *info,
+		   struct rss_reply_data *data, struct ethtool_rxfh_param *rxfh,
+		   bool *reset, bool *mod)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct netlink_ext_ack *extack = info->extack;
+	struct nlattr **tb = info->attrs;
+	struct ethtool_rxnfc rx_rings;
+	size_t alloc_size;
+	u32 user_size;
+	int i, err;
+
+	if (!tb[ETHTOOL_A_RSS_INDIR])
+		return 0;
+	if (!data->indir_size || !ops->get_rxnfc)
+		return -EOPNOTSUPP;
+
+	rx_rings.cmd = ETHTOOL_GRXRINGS;
+	err = ops->get_rxnfc(dev, &rx_rings, NULL);
+	if (err)
+		return err;
+
+	if (nla_len(tb[ETHTOOL_A_RSS_INDIR]) % 4) {
+		NL_SET_BAD_ATTR(info->extack, tb[ETHTOOL_A_RSS_INDIR]);
+		return -EINVAL;
+	}
+	user_size = nla_len(tb[ETHTOOL_A_RSS_INDIR]) / 4;
+	if (!user_size) {
+		if (rxfh->rss_context) {
+			NL_SET_ERR_MSG_ATTR(extack, tb[ETHTOOL_A_RSS_INDIR],
+					    "can't reset table for a context");
+			return -EINVAL;
+		}
+		*reset = true;
+	} else if (data->indir_size % user_size) {
+		NL_SET_ERR_MSG_ATTR_FMT(extack, tb[ETHTOOL_A_RSS_INDIR],
+					"size (%d) mismatch with device indir table (%d)",
+					user_size, data->indir_size);
+		return -EINVAL;
+	}
+
+	rxfh->indir_size = data->indir_size;
+	alloc_size = array_size(data->indir_size, sizeof(rxfh->indir[0]));
+	rxfh->indir = kzalloc(alloc_size, GFP_KERNEL);
+	if (!rxfh->indir)
+		return -ENOMEM;
+
+	nla_memcpy(rxfh->indir, tb[ETHTOOL_A_RSS_INDIR], alloc_size);
+	for (i = 0; i < user_size; i++) {
+		if (rxfh->indir[i] < rx_rings.data)
+			continue;
+
+		NL_SET_ERR_MSG_ATTR_FMT(extack, tb[ETHTOOL_A_RSS_INDIR],
+					"entry %d: queue out of range (%d)",
+					i, rxfh->indir[i]);
+		err = -EINVAL;
+		goto err_free;
+	}
+
+	if (user_size) {
+		/* Replicate the user-provided table to fill the device table */
+		for (i = user_size; i < data->indir_size; i++)
+			rxfh->indir[i] = rxfh->indir[i % user_size];
+	} else {
+		for (i = 0; i < data->indir_size; i++)
+			rxfh->indir[i] =
+				ethtool_rxfh_indir_default(i, rx_rings.data);
+	}
+
+	*mod |= memcmp(rxfh->indir, data->indir_table, data->indir_size);
+
+	return 0;
+
+err_free:
+	kfree(rxfh->indir);
+	rxfh->indir = NULL;
+	return err;
+}
+
+static int
+rss_set_prep_hkey(struct net_device *dev, struct genl_info *info,
+		  struct rss_reply_data *data, struct ethtool_rxfh_param *rxfh,
+		  bool *mod)
+{
+	struct nlattr **tb = info->attrs;
+
+	if (!tb[ETHTOOL_A_RSS_HKEY])
+		return 0;
+
+	if (nla_len(tb[ETHTOOL_A_RSS_HKEY]) != data->hkey_size) {
+		NL_SET_BAD_ATTR(info->extack, tb[ETHTOOL_A_RSS_HKEY]);
+		return -EINVAL;
+	}
+
+	rxfh->key_size = data->hkey_size;
+	rxfh->key = kmemdup(data->hkey, data->hkey_size, GFP_KERNEL);
+	if (!rxfh->key)
+		return -ENOMEM;
+
+	ethnl_update_binary(rxfh->key, rxfh->key_size, tb[ETHTOOL_A_RSS_HKEY],
+			    mod);
+	return 0;
+}
+
+static int
+rss_check_rxfh_fields_sym(struct net_device *dev, struct genl_info *info,
+			  struct rss_reply_data *data, bool xfrm_sym)
+{
+	struct nlattr **tb = info->attrs;
+	int i;
+
+	if (!xfrm_sym)
+		return 0;
+	if (!data->has_flow_hash) {
+		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_RSS_INPUT_XFRM],
+				    "hash field config not reported");
+		return -EINVAL;
+	}
+
+	for (i = 1; i < __ETHTOOL_A_FLOW_CNT; i++)
+		if (data->flow_hash[i] >= 0 &&
+		    !ethtool_rxfh_config_is_sym(data->flow_hash[i])) {
+			NL_SET_ERR_MSG_ATTR(info->extack,
+					    tb[ETHTOOL_A_RSS_INPUT_XFRM],
+					    "hash field config is not symmetric");
+			return -EINVAL;
+		}
+
+	return 0;
+}
+
+static int
+ethnl_set_rss_fields(struct net_device *dev, struct genl_info *info,
+		     u32 rss_context, struct rss_reply_data *data,
+		     bool xfrm_sym, bool *mod)
+{
+	struct nlattr *flow_nest = info->attrs[ETHTOOL_A_RSS_FLOW_HASH];
+	struct nlattr *flows[ETHTOOL_A_FLOW_MAX + 1];
+	const struct ethtool_ops *ops;
+	int i, ret;
+
+	ops = dev->ethtool_ops;
+
+	ret = rss_check_rxfh_fields_sym(dev, info, data, xfrm_sym);
+	if (ret)
+		return ret;
+
+	if (!flow_nest)
+		return 0;
+
+	ret = nla_parse_nested(flows, ARRAY_SIZE(ethnl_rss_flows_policy) - 1,
+			       flow_nest, ethnl_rss_flows_policy, info->extack);
+	if (ret < 0)
+		return ret;
+
+	for (i = 1; i < __ETHTOOL_A_FLOW_CNT; i++) {
+		struct ethtool_rxfh_fields fields = {
+			.flow_type	= ethtool_rxfh_ft_nl2ioctl[i],
+			.rss_context	= rss_context,
+		};
+
+		if (!flows[i])
+			continue;
+
+		fields.data = nla_get_u32(flows[i]);
+		if (data->has_flow_hash && data->flow_hash[i] == fields.data)
+			continue;
+
+		if (xfrm_sym && !ethtool_rxfh_config_is_sym(fields.data)) {
+			NL_SET_ERR_MSG_ATTR(info->extack, flows[i],
+					    "conflict with xfrm-input");
+			return -EINVAL;
+		}
+
+		ret = ops->set_rxfh_fields(dev, &fields, info->extack);
+		if (ret)
+			return ret;
+
+		*mod = true;
+	}
+
+	return 0;
+}
+
+static void
+rss_set_ctx_update(struct ethtool_rxfh_context *ctx, struct nlattr **tb,
+		   struct rss_reply_data *data, struct ethtool_rxfh_param *rxfh)
+{
+	int i;
+
+	if (rxfh->indir) {
+		for (i = 0; i < data->indir_size; i++)
+			ethtool_rxfh_context_indir(ctx)[i] = rxfh->indir[i];
+		ctx->indir_configured = !!nla_len(tb[ETHTOOL_A_RSS_INDIR]);
+	}
+	if (rxfh->key) {
+		memcpy(ethtool_rxfh_context_key(ctx), rxfh->key,
+		       data->hkey_size);
+		ctx->key_configured = !!rxfh->key_size;
+	}
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE)
+		ctx->hfunc = rxfh->hfunc;
+	if (rxfh->input_xfrm != RXH_XFRM_NO_CHANGE)
+		ctx->input_xfrm = rxfh->input_xfrm;
+}
+
+static int
+ethnl_rss_set(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	bool indir_reset = false, indir_mod, xfrm_sym = false;
+	struct rss_req_info *request = RSS_REQINFO(req_info);
+	struct ethtool_rxfh_context *ctx = NULL;
+	struct net_device *dev = req_info->dev;
+	bool mod = false, fields_mod = false;
+	struct ethtool_rxfh_param rxfh = {};
+	struct nlattr **tb = info->attrs;
+	struct rss_reply_data data = {};
+	const struct ethtool_ops *ops;
+	int ret;
+
+	ops = dev->ethtool_ops;
+	data.base.dev = dev;
+
+	ret = rss_prepare(request, dev, &data, info);
+	if (ret)
+		return ret;
+
+	rxfh.rss_context = request->rss_context;
+
+	ret = rss_set_prep_indir(dev, info, &data, &rxfh, &indir_reset, &mod);
+	if (ret)
+		goto exit_clean_data;
+	indir_mod = !!tb[ETHTOOL_A_RSS_INDIR];
+
+	rxfh.hfunc = data.hfunc;
+	ethnl_update_u8(&rxfh.hfunc, tb[ETHTOOL_A_RSS_HFUNC], &mod);
+	if (rxfh.hfunc == data.hfunc)
+		rxfh.hfunc = ETH_RSS_HASH_NO_CHANGE;
+
+	ret = rss_set_prep_hkey(dev, info, &data, &rxfh, &mod);
+	if (ret)
+		goto exit_free_indir;
+
+	rxfh.input_xfrm = data.input_xfrm;
+	ethnl_update_u8(&rxfh.input_xfrm, tb[ETHTOOL_A_RSS_INPUT_XFRM], &mod);
+	/* For drivers which don't support input_xfrm it will be set to 0xff
+	 * in the RSS context info. In all other case input_xfrm != 0 means
+	 * symmetric hashing is requested.
+	 */
+	if (!request->rss_context || ops->rxfh_per_ctx_key)
+		xfrm_sym = rxfh.input_xfrm || data.input_xfrm;
+	if (rxfh.input_xfrm == data.input_xfrm)
+		rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	if (request->rss_context) {
+		ctx = xa_load(&dev->ethtool->rss_ctx, request->rss_context);
+		if (!ctx) {
+			ret = -ENOENT;
+			goto exit_unlock;
+		}
+	}
+
+	ret = ethnl_set_rss_fields(dev, info, request->rss_context,
+				   &data, xfrm_sym, &fields_mod);
+	if (ret)
+		goto exit_unlock;
+
+	if (!mod)
+		ret = 0; /* nothing to tell the driver */
+	else if (!ops->set_rxfh)
+		ret = -EOPNOTSUPP;
+	else if (!rxfh.rss_context)
+		ret = ops->set_rxfh(dev, &rxfh, info->extack);
+	else
+		ret = ops->modify_rxfh_context(dev, ctx, &rxfh, info->extack);
+	if (ret)
+		goto exit_unlock;
+
+	if (ctx)
+		rss_set_ctx_update(ctx, tb, &data, &rxfh);
+	else if (indir_reset)
+		dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
+	else if (indir_mod)
+		dev->priv_flags |= IFF_RXFH_CONFIGURED;
+
+exit_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	kfree(rxfh.key);
+exit_free_indir:
+	kfree(rxfh.indir);
+exit_clean_data:
+	rss_cleanup_data(&data.base);
+
+	return ret ?: mod || fields_mod;
+}
+
 const struct ethnl_request_ops ethnl_rss_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_RSS_GET,
 	.reply_cmd		= ETHTOOL_MSG_RSS_GET_REPLY,
@@ -478,4 +863,8 @@ const struct ethnl_request_ops ethnl_rss_request_ops = {
 	.reply_size		= rss_reply_size,
 	.fill_reply		= rss_fill_reply,
 	.cleanup_data		= rss_cleanup_data,
+
+	.set_validate		= ethnl_rss_set_validate,
+	.set			= ethnl_rss_set,
+	.set_ntf_cmd		= ETHTOOL_MSG_RSS_NTF,
 };

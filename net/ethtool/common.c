@@ -806,6 +806,21 @@ out_free:
 	return rc;
 }
 
+/* Check if fields configured for flow hash are symmetric - if src is included
+ * so is dst and vice versa.
+ */
+int ethtool_rxfh_config_is_sym(u64 rxfh)
+{
+	bool sym;
+
+	sym = rxfh == (rxfh & (RXH_IP_SRC | RXH_IP_DST |
+			       RXH_L4_B_0_1 | RXH_L4_B_2_3));
+	sym &= !!(rxfh & RXH_IP_SRC)   == !!(rxfh & RXH_IP_DST);
+	sym &= !!(rxfh & RXH_L4_B_0_1) == !!(rxfh & RXH_L4_B_2_3);
+
+	return sym;
+}
+
 int ethtool_check_ops(const struct ethtool_ops *ops)
 {
 	if (WARN_ON(ops->set_coalesce && !ops->supported_coalesce_params))
