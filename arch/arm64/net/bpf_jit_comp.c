@@ -2240,11 +2240,6 @@ static int calc_arg_aux(const struct btf_func_model *m,
 
 	/* the rest arguments are passed through stack */
 	for (; i < m->nr_args; i++) {
-		/* We can not know for sure about exact alignment needs for
-		 * struct passed on stack, so deny those
-		 */
-		if (m->arg_flags[i] & BTF_FMODEL_STRUCT_ARG)
-			return -ENOTSUPP;
 		stack_slots = (m->arg_size[i] + 7) / 8;
 		a->bstack_for_args += stack_slots * 8;
 		a->ostack_for_args = a->ostack_for_args + stack_slots * 8;
