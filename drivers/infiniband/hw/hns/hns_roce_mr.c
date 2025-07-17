@@ -231,11 +231,17 @@ err_free:
 
 struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				   u64 virt_addr, int access_flags,
+				   struct ib_dmah *dmah,
 				   struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct hns_roce_mr *mr;
 	int ret;
+
+	if (dmah) {
+		ret = -EOPNOTSUPP;
+		goto err_out;
+	}
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr) {

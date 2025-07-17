@@ -632,6 +632,7 @@ struct ib_mr *mana_ib_get_dma_mr(struct ib_pd *ibpd, int access_flags);
 
 struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 iova, int access_flags,
+				  struct ib_dmah *dmah,
 				  struct ib_udata *udata);
 
 int mana_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
@@ -721,5 +722,6 @@ int mana_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 
 struct ib_mr *mana_ib_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start, u64 length,
 					 u64 iova, int fd, int mr_access_flags,
+					 struct ib_dmah *dmah,
 					 struct uverbs_attr_bundle *attrs);
 #endif

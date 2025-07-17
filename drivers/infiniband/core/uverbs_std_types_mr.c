@@ -238,7 +238,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_DMABUF_MR)(
 		return ret;
 
 	mr = pd->device->ops.reg_user_mr_dmabuf(pd, offset, length, iova, fd,
-						access_flags,
+						access_flags, NULL,
 						attrs);
 	if (IS_ERR(mr))
 		return PTR_ERR(mr);
@@ -276,6 +276,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_MR)(
 	u32 valid_access_flags = IB_ACCESS_SUPPORTED;
 	u64 length, iova, fd_offset = 0, addr = 0;
 	struct ib_device *ib_dev = pd->device;
+	struct ib_dmah *dmah = NULL;
 	bool has_fd_offset = false;
 	bool has_addr = false;
 	bool has_fd = false;
@@ -340,6 +341,13 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_MR)(
 			return -EINVAL;
 	}
 
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_REG_MR_DMA_HANDLE)) {
+		dmah = uverbs_attr_get_obj(attrs,
+					   UVERBS_ATTR_REG_MR_DMA_HANDLE);
+		if (IS_ERR(dmah))
+			return PTR_ERR(dmah);
+	}
+
 	ret = uverbs_get_flags32(&access_flags, attrs,
 				 UVERBS_ATTR_REG_MR_ACCESS_FLAGS,
 				 valid_access_flags);
@@ -351,11 +359,12 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_MR)(
 		return ret;
 
 	if (has_fd)
-		mr = pd->device->ops.reg_user_mr_dmabuf(pd, fd_offset, length, iova,
-							fd, access_flags, attrs);
+		mr = pd->device->ops.reg_user_mr_dmabuf(pd, fd_offset, length,
+							iova, fd, access_flags,
+							dmah, attrs);
 	else
-		mr = pd->device->ops.reg_user_mr(pd, addr, length,
-						 iova, access_flags, NULL);
+		mr = pd->device->ops.reg_user_mr(pd, addr, length, iova,
+						 access_flags, dmah, NULL);
 
 	if (IS_ERR(mr))
 		return PTR_ERR(mr);
@@ -365,6 +374,10 @@ static int UVERBS_HANDLER(UVERBS_METHOD_REG_MR)(
 	mr->type = IB_MR_TYPE_USER;
 	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
+	if (dmah) {
+		mr->dmah = dmah;
+		atomic_inc(&dmah->usecnt);
+	}
 	rdma_restrack_new(&mr->res, RDMA_RESTRACK_MR);
 	rdma_restrack_set_name(&mr->res, NULL);
 	rdma_restrack_add(&mr->res);
@@ -488,6 +501,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 			UVERBS_OBJECT_PD,
 			UVERBS_ACCESS_READ,
 			UA_MANDATORY),
+	UVERBS_ATTR_IDR(UVERBS_ATTR_REG_MR_DMA_HANDLE,
+			UVERBS_OBJECT_DMAH,
+			UVERBS_ACCESS_READ,
+			UA_OPTIONAL),
 	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_REG_MR_IOVA,
 			   UVERBS_ATTR_TYPE(u64),
 			   UA_MANDATORY),

@@ -1219,6 +1219,7 @@ int hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 struct ib_mr *hns_roce_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				   u64 virt_addr, int access_flags,
+				   struct ib_dmah *dmah,
 				   struct ib_udata *udata);
 struct ib_mr *hns_roce_rereg_user_mr(struct ib_mr *mr, int flags, u64 start,
 				     u64 length, u64 virt_addr,

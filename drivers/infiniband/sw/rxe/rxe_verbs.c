@@ -1271,12 +1271,16 @@ err_free:
 
 static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd, u64 start,
 				     u64 length, u64 iova, int access,
+				     struct ib_dmah *dmah,
 				     struct ib_udata *udata)
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_mr *mr;
 	int err, cleanup_err;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (access & ~RXE_ACCESS_SUPPORTED_MR) {
 		rxe_err_pd(pd, "access = %#x not supported (%#x)\n", access,

@@ -1200,12 +1200,16 @@ int erdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 }
 
 struct ib_mr *erdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
-				u64 virt, int access, struct ib_udata *udata)
+				u64 virt, int access, struct ib_dmah *dmah,
+				struct ib_udata *udata)
 {
 	struct erdma_mr *mr = NULL;
 	struct erdma_dev *dev = to_edev(ibpd->device);
 	u32 stag;
 	int ret;
+
+	if (dmah)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (!len || len > dev->attrs.max_mr_size)
 		return ERR_PTR(-EINVAL);

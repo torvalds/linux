@@ -1765,12 +1765,18 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 				     u64 length, u64 virt_addr,
 				     int fd, int access_flags,
+				     struct ib_dmah *dmah,
 				     struct uverbs_attr_bundle *attrs)
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct ib_umem_dmabuf *umem_dmabuf;
 	struct efa_mr *mr;
 	int err;
+
+	if (dmah) {
+		err = -EOPNOTSUPP;
+		goto err_out;
+	}
 
 	mr = efa_alloc_mr(ibpd, access_flags, &attrs->driver_udata);
 	if (IS_ERR(mr)) {
@@ -1804,11 +1810,17 @@ err_out:
 
 struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 			 u64 virt_addr, int access_flags,
+			 struct ib_dmah *dmah,
 			 struct ib_udata *udata)
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct efa_mr *mr;
 	int err;
+
+	if (dmah) {
+		err = -EOPNOTSUPP;
+		goto err_out;
+	}
 
 	mr = efa_alloc_mr(ibpd, access_flags, udata);
 	if (IS_ERR(mr)) {

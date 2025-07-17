@@ -311,6 +311,7 @@ enum uverbs_attrs_reg_dmabuf_mr_cmd_attr_ids {
 enum uverbs_attrs_reg_mr_cmd_attr_ids {
 	UVERBS_ATTR_REG_MR_HANDLE,
 	UVERBS_ATTR_REG_MR_PD_HANDLE,
+	UVERBS_ATTR_REG_MR_DMA_HANDLE,
 	UVERBS_ATTR_REG_MR_IOVA,
 	UVERBS_ATTR_REG_MR_ADDR,
 	UVERBS_ATTR_REG_MR_LENGTH,
