@@ -2706,6 +2706,24 @@ operations:
       doc: |
         Notification for creation of an additional RSS context.
       notify: rss-create-act
+    -
+      name: rss-delete-act
+      doc: Delete an RSS context.
+      attribute-set: rss
+      do:
+        request:
+          attributes:
+            - header
+            - context
+    -
+      name: rss-delete-ntf
+      doc: |
+        Notification for deletion of an additional RSS context.
+      attribute-set: rss
+      event:
+        attributes:
+          - header
+          - context
 
 mcast-groups:
   list:

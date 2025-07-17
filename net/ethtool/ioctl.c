@@ -1647,6 +1647,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			     !memchr_inv(ethtool_rxfh_context_key(ctx), 0,
 					 ctx->key_size));
 	} else if (rxfh_dev.rss_delete) {
+		ntf = ETHTOOL_MSG_RSS_DELETE_NTF;
 		ret = ops->remove_rxfh_context(dev, ctx, rxfh.rss_context,
 					       extack);
 	} else {

@@ -1136,5 +1136,6 @@ void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id)
 	netdev_err(dev, "device error, RSS context %d lost\n", context_id);
 	ctx = xa_erase(&dev->ethtool->rss_ctx, context_id);
 	kfree(ctx);
+	ethtool_rss_notify(dev, ETHTOOL_MSG_RSS_DELETE_NTF, context_id);
 }
 EXPORT_SYMBOL(ethtool_rxfh_context_lost);

@@ -486,13 +486,49 @@ int ethnl_rss_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 
 /* RSS_NTF */
 
+static void ethnl_rss_delete_notify(struct net_device *dev, u32 rss_context)
+{
+	struct sk_buff *ntf;
+	size_t ntf_size;
+	void *hdr;
+
+	ntf_size = ethnl_reply_header_size() +
+		nla_total_size(sizeof(u32));	/* _RSS_CONTEXT */
+
+	ntf = genlmsg_new(ntf_size, GFP_KERNEL);
+	if (!ntf)
+		goto out_warn;
+
+	hdr = ethnl_bcastmsg_put(ntf, ETHTOOL_MSG_RSS_DELETE_NTF);
+	if (!hdr)
+		goto out_free_ntf;
+
+	if (ethnl_fill_reply_header(ntf, dev, ETHTOOL_A_RSS_HEADER) ||
+	    nla_put_u32(ntf, ETHTOOL_A_RSS_CONTEXT, rss_context))
+		goto out_free_ntf;
+
+	genlmsg_end(ntf, hdr);
+	if (ethnl_multicast(ntf, dev))
+		goto out_warn;
+
+	return;
+
+out_free_ntf:
+	nlmsg_free(ntf);
+out_warn:
+	pr_warn_once("Failed to send a RSS delete notification");
+}
+
 void ethtool_rss_notify(struct net_device *dev, u32 type, u32 rss_context)
 {
 	struct rss_req_info req_info = {
 		.rss_context = rss_context,
 	};
 
-	ethnl_notify(dev, type, &req_info.base);
+	if (type == ETHTOOL_MSG_RSS_DELETE_NTF)
+		ethnl_rss_delete_notify(dev, rss_context);
+	else
+		ethnl_notify(dev, type, &req_info.base);
 }
 
 /* RSS_SET */
@@ -1095,4 +1131,75 @@ err_ctx_id_free:
 err_unlock_free_ctx:
 	kfree(ctx);
 	goto exit_unlock;
+}
+
+/* RSS_DELETE */
+
+const struct nla_policy ethnl_rss_delete_policy[ETHTOOL_A_RSS_CONTEXT + 1] = {
+	[ETHTOOL_A_RSS_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_RSS_CONTEXT]	= NLA_POLICY_MIN(NLA_U32, 1),
+};
+
+int ethnl_rss_delete_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct ethtool_rxfh_context *ctx;
+	struct nlattr **tb = info->attrs;
+	struct ethnl_req_info req = {};
+	const struct ethtool_ops *ops;
+	struct net_device *dev;
+	u32 rss_context;
+	int ret;
+
+	if (GENL_REQ_ATTR_CHECK(info, ETHTOOL_A_RSS_CONTEXT))
+		return -EINVAL;
+	rss_context = nla_get_u32(tb[ETHTOOL_A_RSS_CONTEXT]);
+
+	ret = ethnl_parse_header_dev_get(&req, tb[ETHTOOL_A_RSS_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+
+	dev = req.dev;
+	ops = dev->ethtool_ops;
+
+	if (!ops->create_rxfh_context)
+		goto exit_free_dev;
+
+	rtnl_lock();
+	netdev_lock_ops(dev);
+
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto exit_dev_unlock;
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	ret = ethtool_check_rss_ctx_busy(dev, rss_context);
+	if (ret)
+		goto exit_unlock;
+
+	ctx = xa_load(&dev->ethtool->rss_ctx, rss_context);
+	if (!ctx) {
+		ret = -ENOENT;
+		goto exit_unlock;
+	}
+
+	ret = ops->remove_rxfh_context(dev, ctx, rss_context, info->extack);
+	if (ret)
+		goto exit_unlock;
+
+	WARN_ON(xa_erase(&dev->ethtool->rss_ctx, rss_context) != ctx);
+	kfree(ctx);
+
+	ethnl_rss_delete_notify(dev, rss_context);
+
+exit_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+	ethnl_ops_complete(dev);
+exit_dev_unlock:
+	netdev_unlock_ops(dev);
+	rtnl_unlock();
+exit_free_dev:
+	ethnl_parse_header_dev_put(&req);
+	return ret;
 }

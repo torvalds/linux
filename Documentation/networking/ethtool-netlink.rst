@@ -241,6 +241,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_TSCONFIG_SET``          set hw timestamping configuration
   ``ETHTOOL_MSG_RSS_SET``               set RSS settings
   ``ETHTOOL_MSG_RSS_CREATE_ACT``        create an additional RSS context
+  ``ETHTOOL_MSG_RSS_DELETE_ACT``        delete an additional RSS context
   ===================================== =================================
 
 Kernel to userspace:
@@ -297,6 +298,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_RSS_NTF``                  RSS settings notification
   ``ETHTOOL_MSG_RSS_CREATE_ACT_REPLY``     create an additional RSS context
   ``ETHTOOL_MSG_RSS_CREATE_NTF``           additional RSS context created
+  ``ETHTOOL_MSG_RSS_DELETE_NTF``           additional RSS context deleted
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -2040,6 +2042,18 @@ Kernel response contents:
 
 Create an additional RSS context, if ``ETHTOOL_A_RSS_CONTEXT`` is not
 specified kernel will allocate one automatically.
+
+RSS_DELETE_ACT
+==============
+
+Request contents:
+
+=====================================  ======  ==============================
+  ``ETHTOOL_A_RSS_HEADER``             nested  request header
+  ``ETHTOOL_A_RSS_CONTEXT``            u32     context number
+=====================================  ======  ==============================
+
+Delete an additional RSS context.
 
 PLCA_GET_CFG
 ============
