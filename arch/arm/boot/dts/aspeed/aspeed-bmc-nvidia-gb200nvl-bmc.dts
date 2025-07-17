@@ -422,7 +422,7 @@
 
 // I2C4
 &i2c3 {
-	status = "disabled";
+	status = "okay";
 };
 
 // I2C5
