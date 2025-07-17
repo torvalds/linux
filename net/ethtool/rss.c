@@ -179,6 +179,25 @@ out_unlock:
 	return ret;
 }
 
+static void
+__rss_prepare_ctx(struct net_device *dev, struct rss_reply_data *data,
+		  struct ethtool_rxfh_context *ctx)
+{
+	if (WARN_ON_ONCE(data->indir_size != ctx->indir_size ||
+			 data->hkey_size != ctx->key_size))
+		return;
+
+	data->no_key_fields = !dev->ethtool_ops->rxfh_per_ctx_key;
+
+	data->hfunc = ctx->hfunc;
+	data->input_xfrm = ctx->input_xfrm;
+	memcpy(data->indir_table, ethtool_rxfh_context_indir(ctx),
+	       data->indir_size * sizeof(u32));
+	if (data->hkey_size)
+		memcpy(data->hkey, ethtool_rxfh_context_key(ctx),
+		       data->hkey_size);
+}
+
 static int
 rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 		struct rss_reply_data *data, const struct genl_info *info)
@@ -187,8 +206,6 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 	u32 total_size, indir_bytes;
 	u8 *rss_config;
 	int ret;
-
-	data->no_key_fields = !dev->ethtool_ops->rxfh_per_ctx_key;
 
 	mutex_lock(&dev->ethtool->rss_lock);
 	ctx = xa_load(&dev->ethtool->rss_ctx, request->rss_context);
@@ -199,8 +216,6 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 
 	data->indir_size = ctx->indir_size;
 	data->hkey_size = ctx->key_size;
-	data->hfunc = ctx->hfunc;
-	data->input_xfrm = ctx->input_xfrm;
 
 	indir_bytes = data->indir_size * sizeof(u32);
 	total_size = indir_bytes + data->hkey_size;
@@ -211,13 +226,10 @@ rss_prepare_ctx(const struct rss_req_info *request, struct net_device *dev,
 	}
 
 	data->indir_table = (u32 *)rss_config;
-	memcpy(data->indir_table, ethtool_rxfh_context_indir(ctx), indir_bytes);
-
-	if (data->hkey_size) {
+	if (data->hkey_size)
 		data->hkey = rss_config + indir_bytes;
-		memcpy(data->hkey, ethtool_rxfh_context_key(ctx),
-		       data->hkey_size);
-	}
+
+	__rss_prepare_ctx(dev, data, ctx);
 
 	ret = 0;
 out_unlock:
