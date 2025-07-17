@@ -64,8 +64,7 @@
  * the remainder of "func()".
  *
  * The ACQUIRE() macro can be used in all places that guard() can be
- * used and additionally support conditional locks
- *
+ * used and additionally support conditional locks::
  *
  *	DEFINE_GUARD_COND(pci_dev, _try, pci_dev_trylock(_T))
  *	...
