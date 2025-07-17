@@ -191,8 +191,6 @@
 			reg-names = "tvout-reg";
 			reset-names = "tvout";
 			resets = <&softreset STIH407_HDTVOUT_SOFTRESET>;
-			#address-cells = <1>;
-			#size-cells = <1>;
 			assigned-clocks = <&clk_s_d2_flexgen CLK_PIX_HDMI>,
 					  <&clk_s_d2_flexgen CLK_TMDS_HDMI>,
 					  <&clk_s_d2_flexgen CLK_REF_HDMIPHY>,
