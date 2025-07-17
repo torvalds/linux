@@ -118,8 +118,8 @@ static void fpc202_set_enable(struct fpc202_priv *priv, int enable)
 	gpiod_set_value(priv->en_gpio, enable);
 }
 
-static void fpc202_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			    int value)
+static int fpc202_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			   int value)
 {
 	struct fpc202_priv *priv = gpiochip_get_data(chip);
 	int ret;
@@ -128,7 +128,7 @@ static void fpc202_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	ret = fpc202_read(priv, FPC202_REG_OUT_A_OUT_B_VAL);
 	if (ret < 0) {
 		dev_err(&priv->client->dev, "Failed to set GPIO %d value! err %d\n", offset, ret);
-		return;
+		return ret;
 	}
 
 	val = (u8)ret;
@@ -138,7 +138,7 @@ static void fpc202_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	else
 		val &= ~BIT(offset - FPC202_GPIO_P0_S0_OUT_A);
 
-	fpc202_write(priv, FPC202_REG_OUT_A_OUT_B_VAL, val);
+	return fpc202_write(priv, FPC202_REG_OUT_A_OUT_B_VAL, val);
 }
 
 static int fpc202_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -333,7 +333,7 @@ static int fpc202_probe(struct i2c_client *client)
 	priv->gpio.base = -1;
 	priv->gpio.direction_input = fpc202_gpio_direction_input;
 	priv->gpio.direction_output = fpc202_gpio_direction_output;
-	priv->gpio.set = fpc202_gpio_set;
+	priv->gpio.set_rv = fpc202_gpio_set;
 	priv->gpio.get = fpc202_gpio_get;
 	priv->gpio.ngpio = FPC202_GPIO_COUNT;
 	priv->gpio.parent = dev;
