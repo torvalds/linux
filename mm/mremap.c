@@ -1413,14 +1413,6 @@ static unsigned long mremap_to(struct vma_remap_struct *vrm)
 	struct mm_struct *mm = current->mm;
 	unsigned long err;
 
-	/* Is the new length or address silly? */
-	if (vrm->new_len > TASK_SIZE ||
-	    vrm->new_addr > TASK_SIZE - vrm->new_len)
-		return -EINVAL;
-
-	if (vrm_overlaps(vrm))
-		return -EINVAL;
-
 	if (vrm->flags & MREMAP_FIXED) {
 		/*
 		 * In mremap_to().
@@ -1525,7 +1517,12 @@ static unsigned long check_mremap_params(struct vma_remap_struct *vrm)
 	 * for DOS-emu "duplicate shm area" thing. But
 	 * a zero new-len is nonsensical.
 	 */
-	if (!PAGE_ALIGN(vrm->new_len))
+	if (!vrm->new_len)
+		return -EINVAL;
+
+	/* Is the new length or address silly? */
+	if (vrm->new_len > TASK_SIZE ||
+	    vrm->new_addr > TASK_SIZE - vrm->new_len)
 		return -EINVAL;
 
 	/* Remainder of checks are for cases with specific new_addr. */
@@ -1542,6 +1539,10 @@ static unsigned long check_mremap_params(struct vma_remap_struct *vrm)
 
 	/* MREMAP_DONTUNMAP does not allow resizing in the process. */
 	if (flags & MREMAP_DONTUNMAP && vrm->old_len != vrm->new_len)
+		return -EINVAL;
+
+	/* Target VMA must not overlap source VMA. */
+	if (vrm_overlaps(vrm))
 		return -EINVAL;
 
 	/*
@@ -1619,8 +1620,6 @@ static bool align_hugetlb(struct vma_remap_struct *vrm)
 	 */
 	if (vrm->new_len > vrm->old_len)
 		return false;
-
-	vrm_set_delta(vrm);
 
 	return true;
 }
@@ -1721,13 +1720,12 @@ static unsigned long do_mremap(struct vma_remap_struct *vrm)
 	struct vm_area_struct *vma;
 	unsigned long res;
 
+	vrm->old_len = PAGE_ALIGN(vrm->old_len);
+	vrm->new_len = PAGE_ALIGN(vrm->new_len);
+
 	res = check_mremap_params(vrm);
 	if (res)
 		return res;
-
-	vrm->old_len = PAGE_ALIGN(vrm->old_len);
-	vrm->new_len = PAGE_ALIGN(vrm->new_len);
-	vrm_set_delta(vrm);
 
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
@@ -1751,6 +1749,7 @@ static unsigned long do_mremap(struct vma_remap_struct *vrm)
 		goto out;
 	}
 
+	vrm_set_delta(vrm);
 	vrm->remap_type = vrm_remap_type(vrm);
 
 	/* Actually execute mremap. */
