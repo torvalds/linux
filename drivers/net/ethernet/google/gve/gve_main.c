@@ -1158,13 +1158,75 @@ static int gve_reset_recovery(struct gve_priv *priv, bool was_up);
 static void gve_turndown(struct gve_priv *priv);
 static void gve_turnup(struct gve_priv *priv);
 
+static void gve_unreg_xsk_pool(struct gve_priv *priv, u16 qid)
+{
+	struct gve_rx_ring *rx;
+
+	if (!priv->rx)
+		return;
+
+	rx = &priv->rx[qid];
+	rx->xsk_pool = NULL;
+	if (xdp_rxq_info_is_reg(&rx->xsk_rxq))
+		xdp_rxq_info_unreg(&rx->xsk_rxq);
+
+	if (!priv->tx)
+		return;
+	priv->tx[gve_xdp_tx_queue_id(priv, qid)].xsk_pool = NULL;
+}
+
+static int gve_reg_xsk_pool(struct gve_priv *priv, struct net_device *dev,
+			    struct xsk_buff_pool *pool, u16 qid)
+{
+	struct napi_struct *napi;
+	struct gve_rx_ring *rx;
+	u16 tx_qid;
+	int err;
+
+	rx = &priv->rx[qid];
+	napi = &priv->ntfy_blocks[rx->ntfy_id].napi;
+	err = xdp_rxq_info_reg(&rx->xsk_rxq, dev, qid, napi->napi_id);
+	if (err)
+		return err;
+
+	err = xdp_rxq_info_reg_mem_model(&rx->xsk_rxq,
+					 MEM_TYPE_XSK_BUFF_POOL, pool);
+	if (err) {
+		gve_unreg_xsk_pool(priv, qid);
+		return err;
+	}
+
+	rx->xsk_pool = pool;
+
+	tx_qid = gve_xdp_tx_queue_id(priv, qid);
+	priv->tx[tx_qid].xsk_pool = pool;
+
+	return 0;
+}
+
+static void gve_unreg_xdp_info(struct gve_priv *priv)
+{
+	int i;
+
+	if (!priv->tx_cfg.num_xdp_queues || !priv->rx)
+		return;
+
+	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
+		struct gve_rx_ring *rx = &priv->rx[i];
+
+		if (xdp_rxq_info_is_reg(&rx->xdp_rxq))
+			xdp_rxq_info_unreg(&rx->xdp_rxq);
+
+		gve_unreg_xsk_pool(priv, i);
+	}
+}
+
 static int gve_reg_xdp_info(struct gve_priv *priv, struct net_device *dev)
 {
 	struct napi_struct *napi;
 	struct gve_rx_ring *rx;
 	int err = 0;
-	int i, j;
-	u32 tx_qid;
+	int i;
 
 	if (!priv->tx_cfg.num_xdp_queues)
 		return 0;
@@ -1188,59 +1250,20 @@ static int gve_reg_xdp_info(struct gve_priv *priv, struct net_device *dev)
 		if (err)
 			goto err;
 		rx->xsk_pool = xsk_get_pool_from_qid(dev, i);
-		if (rx->xsk_pool) {
-			err = xdp_rxq_info_reg(&rx->xsk_rxq, dev, i,
-					       napi->napi_id);
-			if (err)
-				goto err;
-			err = xdp_rxq_info_reg_mem_model(&rx->xsk_rxq,
-							 MEM_TYPE_XSK_BUFF_POOL, NULL);
-			if (err)
-				goto err;
-			xsk_pool_set_rxq_info(rx->xsk_pool,
-					      &rx->xsk_rxq);
-		}
-	}
+		if (!rx->xsk_pool)
+			continue;
 
-	for (i = 0; i < priv->tx_cfg.num_xdp_queues; i++) {
-		tx_qid = gve_xdp_tx_queue_id(priv, i);
-		priv->tx[tx_qid].xsk_pool = xsk_get_pool_from_qid(dev, i);
+		err = gve_reg_xsk_pool(priv, dev, rx->xsk_pool, i);
+		if (err)
+			goto err;
 	}
 	return 0;
 
 err:
-	for (j = i; j >= 0; j--) {
-		rx = &priv->rx[j];
-		if (xdp_rxq_info_is_reg(&rx->xdp_rxq))
-			xdp_rxq_info_unreg(&rx->xdp_rxq);
-		if (xdp_rxq_info_is_reg(&rx->xsk_rxq))
-			xdp_rxq_info_unreg(&rx->xsk_rxq);
-	}
+	gve_unreg_xdp_info(priv);
 	return err;
 }
 
-static void gve_unreg_xdp_info(struct gve_priv *priv)
-{
-	int i, tx_qid;
-
-	if (!priv->tx_cfg.num_xdp_queues || !priv->rx || !priv->tx)
-		return;
-
-	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
-		struct gve_rx_ring *rx = &priv->rx[i];
-
-		xdp_rxq_info_unreg(&rx->xdp_rxq);
-		if (rx->xsk_pool) {
-			xdp_rxq_info_unreg(&rx->xsk_rxq);
-			rx->xsk_pool = NULL;
-		}
-	}
-
-	for (i = 0; i < priv->tx_cfg.num_xdp_queues; i++) {
-		tx_qid = gve_xdp_tx_queue_id(priv, i);
-		priv->tx[tx_qid].xsk_pool = NULL;
-	}
-}
 
 static void gve_drain_page_cache(struct gve_priv *priv)
 {
@@ -1555,9 +1578,6 @@ static int gve_xsk_pool_enable(struct net_device *dev,
 			       u16 qid)
 {
 	struct gve_priv *priv = netdev_priv(dev);
-	struct napi_struct *napi;
-	struct gve_rx_ring *rx;
-	int tx_qid;
 	int err;
 
 	if (qid >= priv->rx_cfg.num_queues) {
@@ -1579,30 +1599,12 @@ static int gve_xsk_pool_enable(struct net_device *dev,
 	if (!priv->xdp_prog || !netif_running(dev))
 		return 0;
 
-	rx = &priv->rx[qid];
-	napi = &priv->ntfy_blocks[rx->ntfy_id].napi;
-	err = xdp_rxq_info_reg(&rx->xsk_rxq, dev, qid, napi->napi_id);
+	err = gve_reg_xsk_pool(priv, dev, pool, qid);
 	if (err)
-		goto err;
+		xsk_pool_dma_unmap(pool,
+				   DMA_ATTR_SKIP_CPU_SYNC |
+				   DMA_ATTR_WEAK_ORDERING);
 
-	err = xdp_rxq_info_reg_mem_model(&rx->xsk_rxq,
-					 MEM_TYPE_XSK_BUFF_POOL, NULL);
-	if (err)
-		goto err;
-
-	xsk_pool_set_rxq_info(pool, &rx->xsk_rxq);
-	rx->xsk_pool = pool;
-
-	tx_qid = gve_xdp_tx_queue_id(priv, qid);
-	priv->tx[tx_qid].xsk_pool = pool;
-
-	return 0;
-err:
-	if (xdp_rxq_info_is_reg(&rx->xsk_rxq))
-		xdp_rxq_info_unreg(&rx->xsk_rxq);
-
-	xsk_pool_dma_unmap(pool,
-			   DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
 	return err;
 }
 
@@ -1615,17 +1617,17 @@ static int gve_xsk_pool_disable(struct net_device *dev,
 	struct xsk_buff_pool *pool;
 	int tx_qid;
 
-	pool = xsk_get_pool_from_qid(dev, qid);
-	if (!pool)
-		return -EINVAL;
 	if (qid >= priv->rx_cfg.num_queues)
 		return -EINVAL;
 
-	/* If XDP prog is not installed or interface is down, unmap DMA and
-	 * return.
-	 */
-	if (!priv->xdp_prog || !netif_running(dev))
-		goto done;
+	pool = xsk_get_pool_from_qid(dev, qid);
+	if (pool)
+		xsk_pool_dma_unmap(pool,
+				   DMA_ATTR_SKIP_CPU_SYNC |
+				   DMA_ATTR_WEAK_ORDERING);
+
+	if (!netif_running(dev) || !priv->tx_cfg.num_xdp_queues)
+		return 0;
 
 	napi_rx = &priv->ntfy_blocks[priv->rx[qid].ntfy_id].napi;
 	napi_disable(napi_rx); /* make sure current rx poll is done */
@@ -1634,9 +1636,7 @@ static int gve_xsk_pool_disable(struct net_device *dev,
 	napi_tx = &priv->ntfy_blocks[priv->tx[tx_qid].ntfy_id].napi;
 	napi_disable(napi_tx); /* make sure current tx poll is done */
 
-	priv->rx[qid].xsk_pool = NULL;
-	xdp_rxq_info_unreg(&priv->rx[qid].xsk_rxq);
-	priv->tx[tx_qid].xsk_pool = NULL;
+	gve_unreg_xsk_pool(priv, qid);
 	smp_mb(); /* Make sure it is visible to the workers on datapath */
 
 	napi_enable(napi_rx);
@@ -1647,9 +1647,6 @@ static int gve_xsk_pool_disable(struct net_device *dev,
 	if (gve_tx_clean_pending(priv, &priv->tx[tx_qid]))
 		napi_schedule(napi_tx);
 
-done:
-	xsk_pool_dma_unmap(pool,
-			   DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING);
 	return 0;
 }
 
