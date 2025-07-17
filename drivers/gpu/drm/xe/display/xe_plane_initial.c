@@ -234,6 +234,9 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 		goto nofb;
 
 	plane_state->ggtt_vma = vma;
+
+	plane_state->surf = intel_plane_ggtt_offset(plane_state);
+
 	plane_state->uapi.src_x = 0;
 	plane_state->uapi.src_y = 0;
 	plane_state->uapi.src_w = fb->width << 16;

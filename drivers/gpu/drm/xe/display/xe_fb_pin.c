@@ -12,6 +12,7 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_fbdev.h"
+#include "intel_plane.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_ggtt.h"
@@ -381,6 +382,7 @@ static bool reuse_vma(struct intel_plane_state *new_plane_state,
 		      const struct intel_plane_state *old_plane_state)
 {
 	struct intel_framebuffer *fb = to_intel_framebuffer(new_plane_state->hw.fb);
+	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
 	struct xe_device *xe = to_xe_device(fb->base.dev);
 	struct intel_display *display = xe->display;
 	struct i915_vma *vma;
@@ -404,6 +406,10 @@ static bool reuse_vma(struct intel_plane_state *new_plane_state,
 found:
 	refcount_inc(&vma->ref);
 	new_plane_state->ggtt_vma = vma;
+
+	new_plane_state->surf = intel_plane_ggtt_offset(new_plane_state) +
+		plane->surf_offset(new_plane_state);
+
 	return true;
 }
 
@@ -430,6 +436,10 @@ int intel_plane_pin_fb(struct intel_plane_state *new_plane_state,
 		return PTR_ERR(vma);
 
 	new_plane_state->ggtt_vma = vma;
+
+	new_plane_state->surf = intel_plane_ggtt_offset(new_plane_state) +
+		plane->surf_offset(new_plane_state);
+
 	return 0;
 }
 

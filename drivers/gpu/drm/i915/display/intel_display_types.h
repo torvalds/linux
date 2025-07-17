@@ -642,7 +642,6 @@ struct intel_plane_state {
 #define PLANE_HAS_FENCE BIT(0)
 
 	struct intel_fb_view view;
-	u32 phys_dma_addr; /* for cursor_needs_physical */
 
 	/* for legacy cursor fb unpin */
 	struct drm_vblank_work unpin_work;
@@ -664,6 +663,9 @@ struct intel_plane_state {
 
 	/* chroma upsampler control register */
 	u32 cus_ctl;
+
+	/* surface address register */
+	u32 surf;
 
 	/*
 	 * scaler_id
@@ -1534,6 +1536,7 @@ struct intel_plane {
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
+	u32 (*surf_offset)(const struct intel_plane_state *plane_state);
 	int (*min_cdclk)(const struct intel_crtc_state *crtc_state,
 			 const struct intel_plane_state *plane_state);
 	void (*async_flip)(struct intel_dsb *dsb,
