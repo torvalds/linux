@@ -758,6 +758,8 @@ struct ieee80211_parsed_tpe {
  *	be updated to 1, even if bss_param_ch_cnt didn't change. This allows
  *	the link to know that it heard the latest value from its own beacon
  *	(as opposed to hearing its value from another link's beacon).
+ * @s1g_long_beacon_period: number of beacon intervals between each long
+ *	beacon transmission.
  */
 struct ieee80211_bss_conf {
 	struct ieee80211_vif *vif;
@@ -857,6 +859,8 @@ struct ieee80211_bss_conf {
 
 	u8 bss_param_ch_cnt;
 	u8 bss_param_ch_cnt_link_id;
+
+	u8 s1g_long_beacon_period;
 };
 
 /**

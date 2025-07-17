@@ -296,6 +296,14 @@ struct unsol_bcast_probe_resp_data {
 	u8 data[];
 };
 
+struct s1g_short_beacon_data {
+	struct rcu_head rcu_head;
+	u8 *short_head;
+	u8 *short_tail;
+	int short_head_len;
+	int short_tail_len;
+};
+
 struct ps_data {
 	/* yes, this looks ugly, but guarantees that we can later use
 	 * bitmap_empty :)
@@ -1042,6 +1050,7 @@ struct ieee80211_link_data_ap {
 	struct probe_resp __rcu *probe_resp;
 	struct fils_discovery_data __rcu *fils_discovery;
 	struct unsol_bcast_probe_resp_data __rcu *unsol_bcast_probe_resp;
+	struct s1g_short_beacon_data __rcu *s1g_short_beacon;
 
 	/* to be used after channel switch. */
 	struct cfg80211_beacon_data *next_beacon;
