@@ -33,8 +33,6 @@ i915_vm_to_dpt(struct i915_address_space *vm)
 	return container_of(vm, struct i915_dpt, vm);
 }
 
-#define dpt_total_entries(dpt) ((dpt)->vm.total >> PAGE_SHIFT)
-
 static void gen8_set_pte(void __iomem *addr, gen8_pte_t pte)
 {
 	writeq(pte, addr);
