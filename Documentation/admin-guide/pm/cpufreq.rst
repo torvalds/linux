@@ -398,7 +398,9 @@ policy limits change after that.
 
 This governor does not do anything by itself.  Instead, it allows user space
 to set the CPU frequency for the policy it is attached to by writing to the
-``scaling_setspeed`` attribute of that policy.
+``scaling_setspeed`` attribute of that policy. Though the intention may be to
+set an exact frequency for the policy, the actual frequency may vary depending
+on hardware coordination, thermal and power limits, and other factors.
 
 ``schedutil``
 -------------
