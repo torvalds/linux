@@ -8736,6 +8736,13 @@ F:	Documentation/driver-api/edac.rst
 F:	drivers/edac/
 F:	include/linux/edac.h
 
+EDAC-A72
+M:	Vijay Balakrishna <vijayb@linux.microsoft.com>
+M:	Tyler Hicks <code@tyhicks.com>
+L:	linux-edac@vger.kernel.org
+S:	Supported
+F:	drivers/edac/a72_edac.c
+
 EDAC-DMC520
 M:	Lei Wang <lewan@microsoft.com>
 L:	linux-edac@vger.kernel.org
