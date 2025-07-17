@@ -2460,6 +2460,15 @@ config SCANF_KUNIT_TEST
 
 	  If unsure, say N.
 
+config SEQ_BUF_KUNIT_TEST
+	tristate "KUnit test for seq_buf" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for the seq_buf library.
+
+	  If unsure, say N.
+
 config STRING_KUNIT_TEST
 	tristate "KUnit test string functions at runtime" if !KUNIT_ALL_TESTS
 	depends on KUNIT
