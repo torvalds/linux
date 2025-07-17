@@ -10,9 +10,6 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
 
-/* Attribute not found */
-#define ENOATTR         ENODATA
-
 #ifdef CONFIG_EROFS_FS_XATTR
 extern const struct xattr_handler erofs_xattr_user_handler;
 extern const struct xattr_handler erofs_xattr_trusted_handler;
