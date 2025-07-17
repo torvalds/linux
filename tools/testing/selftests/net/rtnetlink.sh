@@ -30,6 +30,7 @@ ALL_TESTS="
 	kci_test_address_proto
 	kci_test_enslave_bonding
 	kci_test_mngtmpaddr
+	kci_test_operstate
 "
 
 devdummy="test-dummy0"
@@ -1342,6 +1343,39 @@ kci_test_mngtmpaddr()
 
 	ip netns del "$testns"
 	return $ret
+}
+
+kci_test_operstate()
+{
+	local ret=0
+
+	# Check that it is possible to set operational state during device
+	# creation and that it is preserved when the administrative state of
+	# the device is toggled.
+	run_cmd ip link add name vx0 up state up type vxlan id 10010 dstport 4789
+	run_cmd_grep "state UP" ip link show dev vx0
+	run_cmd ip link set dev vx0 down
+	run_cmd_grep "state DOWN" ip link show dev vx0
+	run_cmd ip link set dev vx0 up
+	run_cmd_grep "state UP" ip link show dev vx0
+
+	run_cmd ip link del dev vx0
+
+	# Check that it is possible to set the operational state of the device
+	# after creation.
+	run_cmd ip link add name vx0 up type vxlan id 10010 dstport 4789
+	run_cmd_grep "state UNKNOWN" ip link show dev vx0
+	run_cmd ip link set dev vx0 state up
+	run_cmd_grep "state UP" ip link show dev vx0
+
+	run_cmd ip link del dev vx0
+
+	if [ "$ret" -ne 0 ]; then
+		end_test "FAIL: operstate"
+		return 1
+	fi
+
+	end_test "PASS: operstate"
 }
 
 kci_test_rtnl()
