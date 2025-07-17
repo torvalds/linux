@@ -768,11 +768,9 @@ static int pndisc_is_router(const void *pkey,
 	struct pneigh_entry *n;
 	int ret = -1;
 
-	read_lock_bh(&nd_tbl.lock);
-	n = __pneigh_lookup(&nd_tbl, dev_net(dev), pkey, dev);
+	n = pneigh_lookup(&nd_tbl, dev_net(dev), pkey, dev);
 	if (n)
-		ret = !!(n->flags & NTF_ROUTER);
-	read_unlock_bh(&nd_tbl.lock);
+		ret = !!(READ_ONCE(n->flags) & NTF_ROUTER);
 
 	return ret;
 }
@@ -1100,7 +1098,7 @@ static enum skb_drop_reason ndisc_recv_na(struct sk_buff *skb)
 		if (lladdr && !memcmp(lladdr, dev->dev_addr, dev->addr_len) &&
 		    READ_ONCE(net->ipv6.devconf_all->forwarding) &&
 		    READ_ONCE(net->ipv6.devconf_all->proxy_ndp) &&
-		    pneigh_lookup(&nd_tbl, net, &msg->target, dev, 0)) {
+		    pneigh_lookup(&nd_tbl, net, &msg->target, dev)) {
 			/* XXX: idev->cnf.proxy_ndp */
 			goto out;
 		}

@@ -176,10 +176,14 @@ struct neigh_ops {
 };
 
 struct pneigh_entry {
-	struct pneigh_entry	*next;
+	struct pneigh_entry	__rcu *next;
 	possible_net_t		net;
 	struct net_device	*dev;
 	netdevice_tracker	dev_tracker;
+	union {
+		struct list_head	free_node;
+		struct rcu_head		rcu;
+	};
 	u32			flags;
 	u8			protocol;
 	bool			permanent;
@@ -236,7 +240,8 @@ struct neigh_table {
 	unsigned long		last_rand;
 	struct neigh_statistics	__percpu *stats;
 	struct neigh_hash_table __rcu *nht;
-	struct pneigh_entry	**phash_buckets;
+	struct mutex		phash_lock;
+	struct pneigh_entry	__rcu **phash_buckets;
 };
 
 static inline int neigh_parms_family(struct neigh_parms *p)
@@ -376,10 +381,10 @@ unsigned long neigh_rand_reach_time(unsigned long base);
 void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 		    struct sk_buff *skb);
 struct pneigh_entry *pneigh_lookup(struct neigh_table *tbl, struct net *net,
-				   const void *key, struct net_device *dev,
-				   int creat);
-struct pneigh_entry *__pneigh_lookup(struct neigh_table *tbl, struct net *net,
-				     const void *key, struct net_device *dev);
+				   const void *key, struct net_device *dev);
+int pneigh_create(struct neigh_table *tbl, struct net *net, const void *key,
+		  struct net_device *dev, u32 flags, u8 protocol,
+		  bool permanent);
 int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *key,
 		  struct net_device *dev);
 
