@@ -28,7 +28,6 @@ impl<'a> IoRequest<'a> {
     ///
     /// Callers must ensure that `resource` is valid for `device` during the
     /// lifetime `'a`.
-    #[expect(dead_code)]
     pub(crate) unsafe fn new(device: &'a Device<Bound>, resource: &'a Resource) -> Self {
         IoRequest { device, resource }
     }
