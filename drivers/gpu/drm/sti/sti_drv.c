@@ -234,8 +234,11 @@ static int sti_platform_probe(struct platform_device *pdev)
 	struct device_node *node = dev->of_node;
 	struct device_node *child_np;
 	struct component_match *match = NULL;
+	int ret;
 
-	dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	devm_of_platform_populate(dev);
 
