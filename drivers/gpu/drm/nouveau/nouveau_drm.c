@@ -1284,6 +1284,9 @@ nouveau_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(NOUVEAU_EXEC, nouveau_exec_ioctl_exec, DRM_RENDER_ALLOW),
 };
 
+#define DRM_IOCTL_NOUVEAU_NVIF _IOC(_IOC_READ | _IOC_WRITE, DRM_IOCTL_BASE, \
+				    DRM_COMMAND_BASE + DRM_NOUVEAU_NVIF, 0)
+
 long
 nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -1297,14 +1300,10 @@ nouveau_drm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return ret;
 	}
 
-	switch (_IOC_NR(cmd) - DRM_COMMAND_BASE) {
-	case DRM_NOUVEAU_NVIF:
+	if ((cmd & ~IOCSIZE_MASK) == DRM_IOCTL_NOUVEAU_NVIF)
 		ret = nouveau_abi16_ioctl(filp, (void __user *)arg, _IOC_SIZE(cmd));
-		break;
-	default:
+	else
 		ret = drm_ioctl(file, cmd, arg);
-		break;
-	}
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
