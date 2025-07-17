@@ -4,6 +4,7 @@
  * Copyright (C) 2015-2024 Google LLC
  */
 
+#include <linux/bitmap.h>
 #include <linux/bpf.h>
 #include <linux/cpumask.h>
 #include <linux/etherdevice.h>
@@ -1215,6 +1216,14 @@ static void gve_unreg_xdp_info(struct gve_priv *priv)
 	}
 }
 
+static struct xsk_buff_pool *gve_get_xsk_pool(struct gve_priv *priv, int qid)
+{
+	if (!test_bit(qid, priv->xsk_pools))
+		return NULL;
+
+	return xsk_get_pool_from_qid(priv->dev, qid);
+}
+
 static int gve_reg_xdp_info(struct gve_priv *priv, struct net_device *dev)
 {
 	struct napi_struct *napi;
@@ -1236,7 +1245,7 @@ static int gve_reg_xdp_info(struct gve_priv *priv, struct net_device *dev)
 		if (err)
 			goto err;
 
-		xsk_pool = xsk_get_pool_from_qid(dev, i);
+		xsk_pool = gve_get_xsk_pool(priv, i);
 		if (xsk_pool)
 			err = gve_reg_xsk_pool(priv, dev, xsk_pool, i);
 		else if (gve_is_qpl(priv))
@@ -1588,15 +1597,19 @@ static int gve_xsk_pool_enable(struct net_device *dev,
 	if (err)
 		return err;
 
+	set_bit(qid, priv->xsk_pools);
+
 	/* If XDP prog is not installed or interface is down, return. */
 	if (!priv->xdp_prog || !netif_running(dev))
 		return 0;
 
 	err = gve_reg_xsk_pool(priv, dev, pool, qid);
-	if (err)
+	if (err) {
+		clear_bit(qid, priv->xsk_pools);
 		xsk_pool_dma_unmap(pool,
 				   DMA_ATTR_SKIP_CPU_SYNC |
 				   DMA_ATTR_WEAK_ORDERING);
+	}
 
 	return err;
 }
@@ -1612,6 +1625,8 @@ static int gve_xsk_pool_disable(struct net_device *dev,
 
 	if (qid >= priv->rx_cfg.num_queues)
 		return -EINVAL;
+
+	clear_bit(qid, priv->xsk_pools);
 
 	pool = xsk_get_pool_from_qid(dev, qid);
 	if (pool)
@@ -2360,10 +2375,22 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 	priv->ts_config.rx_filter = HWTSTAMP_FILTER_NONE;
 
 setup_device:
+	priv->xsk_pools = bitmap_zalloc(priv->rx_cfg.max_queues, GFP_KERNEL);
+	if (!priv->xsk_pools) {
+		err = -ENOMEM;
+		goto err;
+	}
+
 	gve_set_netdev_xdp_features(priv);
 	err = gve_setup_device_resources(priv);
-	if (!err)
-		return 0;
+	if (err)
+		goto err_free_xsk_bitmap;
+
+	return 0;
+
+err_free_xsk_bitmap:
+	bitmap_free(priv->xsk_pools);
+	priv->xsk_pools = NULL;
 err:
 	gve_adminq_free(&priv->pdev->dev, priv);
 	return err;
@@ -2373,6 +2400,8 @@ static void gve_teardown_priv_resources(struct gve_priv *priv)
 {
 	gve_teardown_device_resources(priv);
 	gve_adminq_free(&priv->pdev->dev, priv);
+	bitmap_free(priv->xsk_pools);
+	priv->xsk_pools = NULL;
 }
 
 static void gve_trigger_reset(struct gve_priv *priv)

@@ -802,6 +802,7 @@ struct gve_priv {
 
 	struct gve_tx_queue_config tx_cfg;
 	struct gve_rx_queue_config rx_cfg;
+	unsigned long *xsk_pools; /* bitmap of RX queues with XSK pools */
 	u32 num_ntfy_blks; /* split between TX and RX so must be even */
 	int numa_node;
 
