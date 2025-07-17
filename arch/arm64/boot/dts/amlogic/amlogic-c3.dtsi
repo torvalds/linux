@@ -53,6 +53,13 @@
 		#clock-cells = <0>;
 	};
 
+	xtal_32k: xtal-clk-32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xtal_32k";
+		#clock-cells = <0>;
+	};
+
 	sm: secure-monitor {
 		compatible = "amlogic,meson-gxbb-sm";
 
@@ -966,6 +973,15 @@
 					<&clkc_pll CLKID_FCLK_DIV2>;
 				clock-names = "core", "device";
 				status = "disabled";
+			};
+
+			rtc@9a000 {
+				compatible = "amlogic,c3-rtc",
+					     "amlogic,a5-rtc";
+				reg = <0x0 0x9a000 0x0 0x38>;
+				interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&xtal_32k>, <&clkc_periphs CLKID_SYS_RTC>;
+				clock-names = "osc", "sys";
 			};
 		};
 
