@@ -5,6 +5,7 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -321,6 +322,7 @@ struct pwm_ops {
  * @npwm: number of PWMs controlled by this chip
  * @of_xlate: request a PWM device given a device tree PWM specifier
  * @atomic: can the driver's ->apply() be called in atomic context
+ * @gpio: &struct gpio_chip to operate this PWM chip's lines as GPO
  * @uses_pwmchip_alloc: signals if pwmchip_allow was used to allocate this chip
  * @operational: signals if the chip can be used (or is already deregistered)
  * @nonatomic_lock: mutex for nonatomic chips
@@ -340,6 +342,7 @@ struct pwm_chip {
 	bool atomic;
 
 	/* only used internally by the PWM framework */
+	struct gpio_chip gpio;
 	bool uses_pwmchip_alloc;
 	bool operational;
 	union {
