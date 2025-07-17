@@ -113,21 +113,11 @@ rss_prepare_flow_hash(const struct rss_req_info *req, struct net_device *dev,
 }
 
 static int
-rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
-		struct rss_reply_data *data, const struct genl_info *info)
+rss_get_data_alloc(struct net_device *dev, struct rss_reply_data *data)
 {
-	struct ethtool_rxfh_param rxfh = {};
-	const struct ethtool_ops *ops;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u32 total_size, indir_bytes;
 	u8 *rss_config;
-	int ret;
-
-	ops = dev->ethtool_ops;
-
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		return ret;
-	mutex_lock(&dev->ethtool->rss_lock);
 
 	data->indir_size = 0;
 	data->hkey_size = 0;
@@ -139,15 +129,38 @@ rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
 	indir_bytes = data->indir_size * sizeof(u32);
 	total_size = indir_bytes + data->hkey_size;
 	rss_config = kzalloc(total_size, GFP_KERNEL);
-	if (!rss_config) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
+	if (!rss_config)
+		return -ENOMEM;
 
 	if (data->indir_size)
 		data->indir_table = (u32 *)rss_config;
 	if (data->hkey_size)
 		data->hkey = rss_config + indir_bytes;
+
+	return 0;
+}
+
+static void rss_get_data_free(const struct rss_reply_data *data)
+{
+	kfree(data->indir_table);
+}
+
+static int
+rss_prepare_get(const struct rss_req_info *request, struct net_device *dev,
+		struct rss_reply_data *data, const struct genl_info *info)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxfh_param rxfh = {};
+	int ret;
+
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		return ret;
+	mutex_lock(&dev->ethtool->rss_lock);
+
+	ret = rss_get_data_alloc(dev, data);
+	if (ret)
+		goto out_unlock;
 
 	rxfh.indir_size = data->indir_size;
 	rxfh.indir = data->indir_table;
@@ -318,7 +331,7 @@ static void rss_cleanup_data(struct ethnl_reply_data *reply_base)
 {
 	const struct rss_reply_data *data = RSS_REPDATA(reply_base);
 
-	kfree(data->indir_table);
+	rss_get_data_free(data);
 }
 
 struct rss_nl_dump_ctx {
