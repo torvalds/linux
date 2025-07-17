@@ -128,7 +128,7 @@
 			status = "disabled";
 		};
 
-		gmac1: eth@5c400000 {
+		gmac1: ethernet@5c400000 {
 			compatible = "st,spear600-gmac";
 			reg = <0x5c400000 0x8000>;
 			interrupts = <0 95 0x4>;
@@ -137,7 +137,7 @@
 			status = "disabled";
 		};
 
-		gmac2: eth@5c500000 {
+		gmac2: ethernet@5c500000 {
 			compatible = "st,spear600-gmac";
 			reg = <0x5c500000 0x8000>;
 			interrupts = <0 96 0x4>;
@@ -146,7 +146,7 @@
 			status = "disabled";
 		};
 
-		gmac3: eth@5c600000 {
+		gmac3: ethernet@5c600000 {
 			compatible = "st,spear600-gmac";
 			reg = <0x5c600000 0x8000>;
 			interrupts = <0 97 0x4>;
@@ -155,7 +155,7 @@
 			status = "disabled";
 		};
 
-		gmac4: eth@5c700000 {
+		gmac4: ethernet@5c700000 {
 			compatible = "st,spear600-gmac";
 			reg = <0x5c700000 0x8000>;
 			interrupts = <0 98 0x4>;

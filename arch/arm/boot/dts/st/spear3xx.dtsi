@@ -46,7 +46,7 @@
 			status = "disabled";
 		};
 
-		gmac: eth@e0800000 {
+		gmac: ethernet@e0800000 {
 			compatible = "snps,dwmac-3.40a";
 			reg = <0xe0800000 0x8000>;
 			interrupts = <23 22>;
