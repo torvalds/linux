@@ -302,8 +302,8 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state,
 		WARN_ON(plane_state->ggtt_vma == plane_state->dpt_vma);
 
 		/*
-		 * The DPT object contains only one vma, so
-		 * the VMA's offset within the DPT is always 0.
+		 * The DPT object contains only one vma, and there is no VT-d
+		 * guard, so the VMA's offset within the DPT is always 0.
 		 */
 		drm_WARN_ON(display->drm, intel_dpt_offset(plane_state->dpt_vma));
 	}

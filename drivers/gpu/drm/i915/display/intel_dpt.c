@@ -322,5 +322,5 @@ void intel_dpt_destroy(struct i915_address_space *vm)
 
 u64 intel_dpt_offset(struct i915_vma *dpt_vma)
 {
-	return dpt_vma->node.start;
+	return i915_vma_offset(dpt_vma);
 }
