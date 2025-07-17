@@ -506,7 +506,10 @@ TRACE_EVENT(cxl_general_media,
 			uuid_copy(&__entry->region_uuid, &uuid_null);
 		}
 		__entry->cme_threshold_ev_flags = rec->cme_threshold_ev_flags;
-		__entry->cme_count = get_unaligned_le24(rec->cme_count);
+		if (rec->media_hdr.descriptor & CXL_GMER_EVT_DESC_THRESHOLD_EVENT)
+			__entry->cme_count = get_unaligned_le24(rec->cme_count);
+		else
+			__entry->cme_count = 0;
 	),
 
 	CXL_EVT_TP_printk("dpa=%llx dpa_flags='%s' " \
