@@ -36,13 +36,6 @@ static volatile sig_atomic_t signal_jump_set;
 static sigjmp_buf signal_jmp_buf;
 
 /*
- * Ignore the checkpatch warning, we must read from x but don't want to do
- * anything with it in order to trigger a read page fault. We therefore must use
- * volatile to stop the compiler from optimising this away.
- */
-#define FORCE_READ(x) (*(volatile typeof(x) *)x)
-
-/*
  * How is the test backing the mapping being tested?
  */
 enum backing_type {

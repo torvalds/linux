@@ -16,6 +16,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <time.h>
+#include "vm_util.h"
 
 #define TWOMEG		(2<<20)
 #define RUNTIME		(20)
@@ -103,15 +104,13 @@ int migrate(uint64_t *ptr, int n1, int n2)
 
 void *access_mem(void *ptr)
 {
-	volatile uint64_t y = 0;
-	volatile uint64_t *x = ptr;
-
 	while (1) {
 		pthread_testcancel();
-		y += *x;
-
-		/* Prevent the compiler from optimizing out the writes to y: */
-		asm volatile("" : "+r" (y));
+		/* Force a read from the memory pointed to by ptr. This ensures
+		 * the memory access actually happens and prevents the compiler
+		 * from optimizing away this entire loop.
+		 */
+		FORCE_READ((uint64_t *)ptr);
 	}
 
 	return NULL;

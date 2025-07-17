@@ -1534,7 +1534,7 @@ static void test_ro_fast_pin(char *mem, const char *smem, size_t size)
 
 static void run_with_zeropage(non_anon_test_fn fn, const char *desc)
 {
-	char *mem, *smem, tmp;
+	char *mem, *smem;
 
 	log_test_start("%s ... with shared zeropage", desc);
 
@@ -1554,8 +1554,8 @@ static void run_with_zeropage(non_anon_test_fn fn, const char *desc)
 	}
 
 	/* Read from the page to populate the shared zeropage. */
-	tmp = *mem + *smem;
-	asm volatile("" : "+r" (tmp));
+	FORCE_READ(mem);
+	FORCE_READ(smem);
 
 	fn(mem, smem, pagesize);
 munmap:
@@ -1566,7 +1566,7 @@ munmap:
 
 static void run_with_huge_zeropage(non_anon_test_fn fn, const char *desc)
 {
-	char *mem, *smem, *mmap_mem, *mmap_smem, tmp;
+	char *mem, *smem, *mmap_mem, *mmap_smem;
 	size_t mmap_size;
 	int ret;
 
@@ -1617,8 +1617,8 @@ static void run_with_huge_zeropage(non_anon_test_fn fn, const char *desc)
 	 * the first sub-page and test if we get another sub-page populated
 	 * automatically.
 	 */
-	tmp = *mem + *smem;
-	asm volatile("" : "+r" (tmp));
+	FORCE_READ(mem);
+	FORCE_READ(smem);
 	if (!pagemap_is_populated(pagemap_fd, mem + pagesize) ||
 	    !pagemap_is_populated(pagemap_fd, smem + pagesize)) {
 		ksft_test_result_skip("Did not get THPs populated\n");
@@ -1634,7 +1634,7 @@ munmap:
 
 static void run_with_memfd(non_anon_test_fn fn, const char *desc)
 {
-	char *mem, *smem, tmp;
+	char *mem, *smem;
 	int fd;
 
 	log_test_start("%s ... with memfd", desc);
@@ -1668,8 +1668,8 @@ static void run_with_memfd(non_anon_test_fn fn, const char *desc)
 	}
 
 	/* Fault the page in. */
-	tmp = *mem + *smem;
-	asm volatile("" : "+r" (tmp));
+	FORCE_READ(mem);
+	FORCE_READ(smem);
 
 	fn(mem, smem, pagesize);
 munmap:
@@ -1682,7 +1682,7 @@ close:
 
 static void run_with_tmpfile(non_anon_test_fn fn, const char *desc)
 {
-	char *mem, *smem, tmp;
+	char *mem, *smem;
 	FILE *file;
 	int fd;
 
@@ -1724,8 +1724,8 @@ static void run_with_tmpfile(non_anon_test_fn fn, const char *desc)
 	}
 
 	/* Fault the page in. */
-	tmp = *mem + *smem;
-	asm volatile("" : "+r" (tmp));
+	FORCE_READ(mem);
+	FORCE_READ(smem);
 
 	fn(mem, smem, pagesize);
 munmap:
@@ -1740,7 +1740,7 @@ static void run_with_memfd_hugetlb(non_anon_test_fn fn, const char *desc,
 				   size_t hugetlbsize)
 {
 	int flags = MFD_HUGETLB;
-	char *mem, *smem, tmp;
+	char *mem, *smem;
 	int fd;
 
 	log_test_start("%s ... with memfd hugetlb (%zu kB)", desc,
@@ -1778,8 +1778,8 @@ static void run_with_memfd_hugetlb(non_anon_test_fn fn, const char *desc,
 	}
 
 	/* Fault the page in. */
-	tmp = *mem + *smem;
-	asm volatile("" : "+r" (tmp));
+	FORCE_READ(mem);
+	FORCE_READ(smem);
 
 	fn(mem, smem, hugetlbsize);
 munmap:
