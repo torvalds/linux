@@ -2684,9 +2684,28 @@ operations:
       name: rss-ntf
       doc: |
         Notification for change in RSS configuration.
-        For additional contexts only modifications are modified, not creation
-        or removal of the contexts.
+        For additional contexts only modifications use this notification,
+        creation and deletion have dedicated messages.
       notify: rss-get
+    -
+      name: rss-create-act
+      doc: Create an RSS context.
+      attribute-set: rss
+      do:
+        request: &rss-create-attrs
+          attributes:
+            - header
+            - context
+            - hfunc
+            - indir
+            - hkey
+            - input-xfrm
+        reply: *rss-create-attrs
+    -
+      name: rss-create-ntf
+      doc: |
+        Notification for creation of an additional RSS context.
+      notify: rss-create-act
 
 mcast-groups:
   list:

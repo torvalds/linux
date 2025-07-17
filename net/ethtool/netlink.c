@@ -81,6 +81,12 @@ static void ethnl_sock_priv_destroy(void *priv)
 	}
 }
 
+u32 ethnl_bcast_seq_next(void)
+{
+	ASSERT_RTNL();
+	return ++ethnl_bcast_seq;
+}
+
 int ethnl_ops_begin(struct net_device *dev)
 {
 	int ret;
@@ -954,6 +960,7 @@ ethnl_default_notify_ops[ETHTOOL_MSG_KERNEL_MAX + 1] = {
 	[ETHTOOL_MSG_PLCA_NTF]		= &ethnl_plca_cfg_request_ops,
 	[ETHTOOL_MSG_MM_NTF]		= &ethnl_mm_request_ops,
 	[ETHTOOL_MSG_RSS_NTF]		= &ethnl_rss_request_ops,
+	[ETHTOOL_MSG_RSS_CREATE_NTF]	= &ethnl_rss_request_ops,
 };
 
 /* default notification handler */
@@ -1061,6 +1068,7 @@ static const ethnl_notify_handler_t ethnl_notify_handlers[] = {
 	[ETHTOOL_MSG_PLCA_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_MM_NTF]		= ethnl_default_notify,
 	[ETHTOOL_MSG_RSS_NTF]		= ethnl_default_notify,
+	[ETHTOOL_MSG_RSS_CREATE_NTF]	= ethnl_default_notify,
 };
 
 void ethnl_notify(struct net_device *dev, unsigned int cmd,
@@ -1511,6 +1519,13 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.doit	= ethnl_default_set_doit,
 		.policy = ethnl_rss_set_policy,
 		.maxattr = ARRAY_SIZE(ethnl_rss_set_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_RSS_CREATE_ACT,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_rss_create_doit,
+		.policy	= ethnl_rss_create_policy,
+		.maxattr = ARRAY_SIZE(ethnl_rss_create_policy) - 1,
 	},
 };
 

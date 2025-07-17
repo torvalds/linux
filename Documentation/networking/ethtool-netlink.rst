@@ -240,6 +240,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_TSCONFIG_GET``          get hw timestamping configuration
   ``ETHTOOL_MSG_TSCONFIG_SET``          set hw timestamping configuration
   ``ETHTOOL_MSG_RSS_SET``               set RSS settings
+  ``ETHTOOL_MSG_RSS_CREATE_ACT``        create an additional RSS context
   ===================================== =================================
 
 Kernel to userspace:
@@ -294,6 +295,8 @@ Kernel to userspace:
   ``ETHTOOL_MSG_TSCONFIG_SET_REPLY``       new hw timestamping configuration
   ``ETHTOOL_MSG_PSE_NTF``                  PSE events notification
   ``ETHTOOL_MSG_RSS_NTF``                  RSS settings notification
+  ``ETHTOOL_MSG_RSS_CREATE_ACT_REPLY``     create an additional RSS context
+  ``ETHTOOL_MSG_RSS_CREATE_NTF``           additional RSS context created
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -2013,6 +2016,30 @@ device needs at least 8 entries - the real table in use will end up being
 ``[0, 1, 0, 1, 0, 1, 0, 1]``. Most devices require the table size to be power
 of 2, so tables which size is not a power of 2 will likely be rejected.
 Using table of size 0 will reset the indirection table to the default.
+
+RSS_CREATE_ACT
+==============
+
+Request contents:
+
+=====================================  ======  ==============================
+  ``ETHTOOL_A_RSS_HEADER``             nested  request header
+  ``ETHTOOL_A_RSS_CONTEXT``            u32     context number
+  ``ETHTOOL_A_RSS_HFUNC``              u32     RSS hash func
+  ``ETHTOOL_A_RSS_INDIR``              binary  Indir table bytes
+  ``ETHTOOL_A_RSS_HKEY``               binary  Hash key bytes
+  ``ETHTOOL_A_RSS_INPUT_XFRM``         u32     RSS input data transformation
+=====================================  ======  ==============================
+
+Kernel response contents:
+
+=====================================  ======  ==============================
+  ``ETHTOOL_A_RSS_HEADER``             nested  request header
+  ``ETHTOOL_A_RSS_CONTEXT``            u32     context number
+=====================================  ======  ==============================
+
+Create an additional RSS context, if ``ETHTOOL_A_RSS_CONTEXT`` is not
+specified kernel will allocate one automatically.
 
 PLCA_GET_CFG
 ============

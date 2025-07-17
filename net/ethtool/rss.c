@@ -893,3 +893,206 @@ const struct ethnl_request_ops ethnl_rss_request_ops = {
 	.set			= ethnl_rss_set,
 	.set_ntf_cmd		= ETHTOOL_MSG_RSS_NTF,
 };
+
+/* RSS_CREATE */
+
+const struct nla_policy ethnl_rss_create_policy[ETHTOOL_A_RSS_INPUT_XFRM + 1] = {
+	[ETHTOOL_A_RSS_HEADER]	= NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_RSS_CONTEXT]	= NLA_POLICY_MIN(NLA_U32, 1),
+	[ETHTOOL_A_RSS_HFUNC]	= NLA_POLICY_MIN(NLA_U32, 1),
+	[ETHTOOL_A_RSS_INDIR]	= NLA_POLICY_MIN(NLA_BINARY, 1),
+	[ETHTOOL_A_RSS_HKEY]	= NLA_POLICY_MIN(NLA_BINARY, 1),
+	[ETHTOOL_A_RSS_INPUT_XFRM] =
+		NLA_POLICY_MAX(NLA_U32, RXH_XFRM_SYM_OR_XOR),
+};
+
+static int
+ethnl_rss_create_validate(struct net_device *dev, struct genl_info *info)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct nlattr **tb = info->attrs;
+	struct nlattr *bad_attr = NULL;
+	u32 rss_context, input_xfrm;
+
+	if (!ops->create_rxfh_context)
+		return -EOPNOTSUPP;
+
+	rss_context = nla_get_u32_default(tb[ETHTOOL_A_RSS_CONTEXT], 0);
+	if (ops->rxfh_max_num_contexts &&
+	    ops->rxfh_max_num_contexts <= rss_context) {
+		NL_SET_BAD_ATTR(info->extack, tb[ETHTOOL_A_RSS_CONTEXT]);
+		return -ERANGE;
+	}
+
+	if (!ops->rxfh_per_ctx_key) {
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_HFUNC];
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_HKEY];
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_INPUT_XFRM];
+	}
+
+	input_xfrm = nla_get_u32_default(tb[ETHTOOL_A_RSS_INPUT_XFRM], 0);
+	if (input_xfrm & ~ops->supported_input_xfrm)
+		bad_attr = bad_attr ?: tb[ETHTOOL_A_RSS_INPUT_XFRM];
+
+	if (bad_attr) {
+		NL_SET_BAD_ATTR(info->extack, bad_attr);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static void
+ethnl_rss_create_send_ntf(struct sk_buff *rsp, struct net_device *dev)
+{
+	struct nlmsghdr *nlh = (void *)rsp->data;
+	struct genlmsghdr *genl_hdr;
+
+	/* Convert the reply into a notification */
+	nlh->nlmsg_pid = 0;
+	nlh->nlmsg_seq = ethnl_bcast_seq_next();
+
+	genl_hdr = nlmsg_data(nlh);
+	genl_hdr->cmd =	ETHTOOL_MSG_RSS_CREATE_NTF;
+
+	ethnl_multicast(rsp, dev);
+}
+
+int ethnl_rss_create_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	bool indir_dflt = false, mod = false, ntf_fail = false;
+	struct ethtool_rxfh_param rxfh = {};
+	struct ethtool_rxfh_context *ctx;
+	struct nlattr **tb = info->attrs;
+	struct rss_reply_data data = {};
+	const struct ethtool_ops *ops;
+	struct rss_req_info req = {};
+	struct net_device *dev;
+	struct sk_buff *rsp;
+	void *hdr;
+	u32 limit;
+	int ret;
+
+	rsp = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!rsp)
+		return -ENOMEM;
+
+	ret = ethnl_parse_header_dev_get(&req.base, tb[ETHTOOL_A_RSS_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		goto exit_free_rsp;
+
+	dev = req.base.dev;
+	ops = dev->ethtool_ops;
+
+	req.rss_context = nla_get_u32_default(tb[ETHTOOL_A_RSS_CONTEXT], 0);
+
+	ret = ethnl_rss_create_validate(dev, info);
+	if (ret)
+		goto exit_free_dev;
+
+	rtnl_lock();
+	netdev_lock_ops(dev);
+
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto exit_dev_unlock;
+
+	ret = rss_get_data_alloc(dev, &data);
+	if (ret)
+		goto exit_ops;
+
+	ret = rss_set_prep_indir(dev, info, &data, &rxfh, &indir_dflt, &mod);
+	if (ret)
+		goto exit_clean_data;
+
+	ethnl_update_u8(&rxfh.hfunc, tb[ETHTOOL_A_RSS_HFUNC], &mod);
+
+	ret = rss_set_prep_hkey(dev, info, &data, &rxfh, &mod);
+	if (ret)
+		goto exit_free_indir;
+
+	rxfh.input_xfrm = RXH_XFRM_NO_CHANGE;
+	ethnl_update_u8(&rxfh.input_xfrm, tb[ETHTOOL_A_RSS_INPUT_XFRM], &mod);
+
+	ctx = ethtool_rxfh_ctx_alloc(ops, data.indir_size, data.hkey_size);
+	if (!ctx) {
+		ret = -ENOMEM;
+		goto exit_free_hkey;
+	}
+
+	mutex_lock(&dev->ethtool->rss_lock);
+	if (!req.rss_context) {
+		limit = ops->rxfh_max_num_contexts ?: U32_MAX;
+		ret = xa_alloc(&dev->ethtool->rss_ctx, &req.rss_context, ctx,
+			       XA_LIMIT(1, limit - 1), GFP_KERNEL_ACCOUNT);
+	} else {
+		ret = xa_insert(&dev->ethtool->rss_ctx,
+				req.rss_context, ctx, GFP_KERNEL_ACCOUNT);
+	}
+	if (ret < 0) {
+		NL_SET_ERR_MSG_ATTR(info->extack, tb[ETHTOOL_A_RSS_CONTEXT],
+				    "error allocating context ID");
+		goto err_unlock_free_ctx;
+	}
+	rxfh.rss_context = req.rss_context;
+
+	ret = ops->create_rxfh_context(dev, ctx, &rxfh, info->extack);
+	if (ret)
+		goto err_ctx_id_free;
+
+	/* Make sure driver populates defaults */
+	WARN_ON_ONCE(!rxfh.key && ops->rxfh_per_ctx_key &&
+		     !memchr_inv(ethtool_rxfh_context_key(ctx), 0,
+				 ctx->key_size));
+
+	/* Store the config from rxfh to Xarray.. */
+	rss_set_ctx_update(ctx, tb, &data, &rxfh);
+	/* .. copy from Xarray to data. */
+	__rss_prepare_ctx(dev, &data, ctx);
+
+	hdr = ethnl_unicast_put(rsp, info->snd_portid, info->snd_seq,
+				ETHTOOL_MSG_RSS_CREATE_ACT_REPLY);
+	ntf_fail = ethnl_fill_reply_header(rsp, dev, ETHTOOL_A_RSS_HEADER);
+	ntf_fail |= rss_fill_reply(rsp, &req.base, &data.base);
+	if (WARN_ON(!hdr || ntf_fail)) {
+		ret = -EMSGSIZE;
+		goto exit_unlock;
+	}
+
+	genlmsg_end(rsp, hdr);
+
+	/* Use the same skb for the response and the notification,
+	 * genlmsg_reply() will copy the skb if it has elevated user count.
+	 */
+	skb_get(rsp);
+	ret = genlmsg_reply(rsp, info);
+	ethnl_rss_create_send_ntf(rsp, dev);
+	rsp = NULL;
+
+exit_unlock:
+	mutex_unlock(&dev->ethtool->rss_lock);
+exit_free_hkey:
+	kfree(rxfh.key);
+exit_free_indir:
+	kfree(rxfh.indir);
+exit_clean_data:
+	rss_get_data_free(&data);
+exit_ops:
+	ethnl_ops_complete(dev);
+exit_dev_unlock:
+	netdev_unlock_ops(dev);
+	rtnl_unlock();
+exit_free_dev:
+	ethnl_parse_header_dev_put(&req.base);
+exit_free_rsp:
+	nlmsg_free(rsp);
+	return ret;
+
+err_ctx_id_free:
+	xa_erase(&dev->ethtool->rss_ctx, req.rss_context);
+err_unlock_free_ctx:
+	kfree(ctx);
+	goto exit_unlock;
+}

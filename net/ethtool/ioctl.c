@@ -1640,6 +1640,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		ntf = ETHTOOL_MSG_RSS_NTF;
 		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	} else if (create) {
+		ntf = ETHTOOL_MSG_RSS_CREATE_NTF;
 		ret = ops->create_rxfh_context(dev, ctx, &rxfh_dev, extack);
 		/* Make sure driver populates defaults */
 		WARN_ON_ONCE(!ret && !rxfh_dev.key && ops->rxfh_per_ctx_key &&
