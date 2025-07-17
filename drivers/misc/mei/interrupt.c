@@ -35,7 +35,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct list_head *cmpl_list)
 		cl = cb->cl;
 		list_del_init(&cb->list);
 
-		dev_dbg(dev->dev, "completing call back.\n");
+		cl_dbg(dev, cl, "completing call back.\n");
 		mei_cl_complete(cl, cb);
 	}
 }
